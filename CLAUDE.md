@@ -70,3 +70,17 @@ Document unique (~5 700 lignes) qui doit rester synchronisé avec le code : noms
 - L'existence d'une loi asymptotique, ou l'implémentation par défaut d'une fonction R, ne justifie pas son usage à T = 8.
 - Ne fabriquer aucune référence, théorème, numéro de page ni vitesse de convergence ; si la littérature ne permet pas de conclure à T = 8, l'écrire.
 - Faire évoluer les livrables existants plutôt que les réécrire ; ne jamais remplacer silencieusement une méthode ni réintroduire une formule déjà corrigée.
+
+## Agent skills
+
+### Issue tracker
+
+Issues et specs dans les GitHub Issues de `Gerard-Garey/outil_usp`, via la CLI `gh`. Voir `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Les cinq libellés canoniques, inchangés (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). Voir `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Mono-contexte : un `CONTEXT.md` et `docs/adr/` à la racine. Voir `docs/agents/domain.md`.
