@@ -1,0 +1,35 @@
+name: Anomalie
+description: Un résultat faux, une erreur, ou une incohérence entre code et documentation.
+labels: ["bug", "needs-triage"]
+body:
+  - type: textarea
+    id: constat
+    attributes:
+      label: Constat
+      description: Ce qui se passe, et ce qui devrait se passer.
+    validations:
+      required: true
+  - type: dropdown
+    id: methode
+    attributes:
+      label: Méthode concernée
+      options:
+        - Risque de prime (section B)
+        - Risque de réserve n° 1 (section C)
+        - Risque de réserve n° 2 — Merz-Wüthrich (section D)
+        - Application Shiny (interface)
+        - Documentation LaTeX
+        - Autre / plusieurs
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Appel de `run_engine()` ou manipulation dans l'application (segment, annexe, T, B, graine, données).
+      render: r
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Résultats affectés (σ_USP, p-values, verdicts…) et enjeu pour le dossier ACPR.

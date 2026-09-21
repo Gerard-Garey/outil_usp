@@ -42,6 +42,10 @@ sources/
 *.snm
 *.vrb
 
+# --- Claude Code : reglages et instructions personnels (propres au poste) ----
+.claude/settings.local.json
+CLAUDE.local.md
+
 # --- Systeme / editeurs -------------------------------------------------------
 Thumbs.db
 desktop.ini
