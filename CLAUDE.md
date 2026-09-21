@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Outil de calibrage des paramètres propres à l'entreprise (USP), Solvabilité II, règlement délégué (UE) 2015/35, art. 218-220 et annexe XVII (texte source : `sources/Règlement_délégué.pdf`, présent sur le poste local uniquement : `sources/` n'est pas versionné, pas plus que les fichiers de données `usp_*.csv/.xlsx`).
 
-Le dépôt de référence est `https://github.com/Gerard-Garey/outil_usp` (privé), utilisé à la fois depuis le poste local et depuis des sessions cloud. Le PDF compilé `doc_tests_usp.pdf` est versionné : le recompiler et le commiter avec toute modification du `.tex`. Les livrables sont destinés à un dossier soumis à l'ACPR : la traçabilité entre documentation LaTeX, code R et résultats prime sur tout le reste. `ROLE.md` contient le cahier des charges complet (posture attendue, exigences statistiques, architecture, attendus Shiny) ; le lire avant toute évolution méthodologique.
+Le dépôt de référence est `https://github.com/Gerard-Garey/outil_usp` (privé), utilisé à la fois depuis le poste local et depuis des sessions cloud. Le PDF compilé `docs/latex/doc_tests_usp.pdf` est versionné : le recompiler et le commiter avec toute modification du `.tex`. Les livrables sont destinés à un dossier soumis à l'ACPR : la traçabilité entre documentation LaTeX, code R et résultats prime sur tout le reste. `docs/exigences.md` contient le cahier des charges (exigences statistiques, documentaires, d'architecture et de l'application Shiny) ; le lire avant toute évolution méthodologique ou de l'interface.
 
 Taille d'échantillon d'intérêt : **T = 8**. Toute conclusion statistique doit en tenir compte (voir « Rigueur statistique » plus bas).
 
@@ -21,17 +21,23 @@ R n'est pas dans le PATH : il est installé dans `C:\Program Files\R\R-4.3.1`.
 # Exécuter le moteur seul (aucune dépendance hors R base + stats)
 "/c/Program Files/R/R-4.3.1/bin/Rscript.exe" -e 'source("R/engine.R"); res <- run_engine(xt = c(104.20,102.25,109.34,114.64,118.41,121.28,132.40,131.22), yt = c(68.97,76.76,83.49,95.38,88.96,70.22,78.89,117.37), methode = "premium", segment = 1, annexe = "II", B = 999, seed = 20260831); print(res$parametre_final$sigma_usp); print(engine_table_tests(res)[, c("test","p_retenue","nature_p","verdict")])'
 
-# Compiler la documentation (MiKTeX ; deux passes pour la table des matières et les renvois)
-pdflatex -interaction=nonstopmode doc_tests_usp.tex && pdflatex -interaction=nonstopmode doc_tests_usp.tex
+# Tests de reproductibilité et de non-régression (~2 min ; code de sortie 1 en cas d'échec)
+"/c/Program Files/R/R-4.3.1/bin/Rscript.exe" tests/test_reproductibilite.R
+
+# Régénérer les références, uniquement après un changement VOLONTAIRE de résultats (tous les cas, ou un seul : premium, reserve1, reserve2)
+"/c/Program Files/R/R-4.3.1/bin/Rscript.exe" tests/generer_references.R [cas]
+
+# Compiler la documentation (MiKTeX) : relancer tant que le log contient « Rerun to get cross-references right » (trois passes en pratique)
+cd docs/latex && pdflatex -interaction=nonstopmode -halt-on-error doc_tests_usp.tex
 ```
 
-Il n'y a ni suite de tests automatisée, ni linter. La vérification se fait en appelant directement les fonctions du moteur (`run_engine()`, ou une fonction de test isolée comme `test_mann_kendall(v)`, `dw_p_exacte(z)`, etc.) après `source("R/engine.R")`. Pour la méthode Merz-Wüthrich : `run_engine(methode = "reserve2", triangle = tri, segment = 1, annexe = "II")`, où `tri` est une matrice carrée de cumulés avec `NA` sous la diagonale.
+Les tests (`tests/`) exécutent `run_engine()` pour les trois méthodes sur les jeux de données de `tests/donnees/` : deux appels à graine égale doivent être `identical()`, et le résultat doit coïncider avec `tests/reference/*.rds` à une tolérance relative de 1e-8, qui absorbe les écarts d'arrondi entre plateformes. Un changement de résultat voulu se traite en régénérant les références dans le même commit et en expliquant les écarts. La CI GitHub Actions (`.github/workflows/ci.yml`) lance ces tests sous Linux avec R 4.3.1 et compile la documentation à chaque push sur `main` et à chaque PR. Pour vérifier un point isolé, appeler directement une fonction du moteur (`test_mann_kendall(v)`, `dw_p_exacte(z)`…) après `source("R/engine.R")`.
 
 ## Architecture (contrainte impérative)
 
-Séparation stricte moteur / affichage, exigée par `ROLE.md` pour permettre la revue indépendante d'un fichier quantitatif unique :
+Séparation stricte moteur / affichage, exigée par `docs/exigences.md` pour permettre la revue indépendante d'un fichier quantitatif unique :
 
-- **`R/engine.R`** contient **toute** la logique quantitative : contrôles de validité métier, estimation, statistiques de test, p-values, bootstrap/Monte-Carlo, jackknife, profils, calibration, paramètre final, et les quantités numériques des graphiques (`engine_plots_data()`, `mw_plots_data()`). Il doit rester utilisable sans Shiny (aucun `input$`, `reactive()`, `render*()`…) et sans dépendance hors R base + stats (y compris la lecture/écriture xlsx, réimplémentée à la main). **Ne jamais éclater le moteur en plusieurs fichiers.**
+- **`R/engine.R`** contient **toute** la logique quantitative : contrôles de validité métier, estimation, statistiques de test, p-values, bootstrap/Monte-Carlo, jackknife, profils, calibration, paramètre final, et les quantités numériques des graphiques (`engine_plots_data()`, `mw_plots_data()`). Il doit rester utilisable sans Shiny (aucun `input$`, `reactive()`, `render*()`…) et sans dépendance obligatoire hors R base + stats. Seule exception : la lecture/écriture xlsx utilise `openxlsx` s'il est installé, avec repli sur une implémentation interne ; les calculs n'en dépendent pas. **Ne jamais éclater le moteur en plusieurs fichiers.**
 - **`R/display_helpers.R`** : formatage, badges, tables HTML, tracés (plotly ou base R) à partir de `res$plots_data` uniquement. Aucun calcul.
 - **`app.R`** : UI (zone principale à gauche, panneau de paramètres à droite), saisie/édition des données, appel de `run_engine()` **uniquement** sur clic du bouton « Relancer les calculs », stockage du résultat, affichage. Aucun calcul. Tout contrôle de saisie ayant un sens métier doit aussi exister dans le moteur (`engine_valider_donnees()`, `mw_valider_triangle()`).
 
@@ -53,13 +59,13 @@ Chaque test est enregistré dans `usp_tests()` / `mw_tests()` via une fonction i
 
 ### Reproductibilité
 
-À données, paramètres et `seed` identiques, `run_engine()` doit produire des objets identiques au bit près, et la branche lognormale doit reproduire exactement le script d'origine `usp_solva2.R`. Toute modification qui change un résultat doit être identifiée, quantifiée et expliquée. Tirages aléatoires : `usp_bootstrap()` et `mw_bootstrap()` (graine `seed`, défaut 20260831), `engine_plots_data()` (graine fixe pour l'enveloppe du QQ-plot), `sw_loi_nulle()` (graine propre 20260901, met en cache et restaure `.Random.seed`). Ne pas ajouter d'autre source d'aléa sans graine explicite.
+À données, paramètres et `seed` identiques, `run_engine()` doit produire des objets identiques au bit près (vérifié par `tests/test_reproductibilite.R`). Toute modification qui change un résultat doit être identifiée, quantifiée et expliquée. Tirages aléatoires : `usp_bootstrap()` et `mw_bootstrap()` (graine `seed`, défaut 20260831), `engine_plots_data()` (graine fixe pour l'enveloppe du QQ-plot), `sw_loi_nulle()` (graine propre 20260901, met en cache et restaure `.Random.seed`). Ne pas ajouter d'autre source d'aléa sans graine explicite.
 
-## Documentation LaTeX (`doc_tests_usp.tex`)
+## Documentation LaTeX (`docs/latex/doc_tests_usp.tex`)
 
 Document unique (~5 700 lignes) qui doit rester synchronisé avec le code : noms de fonctions (`\code{}`), liste exacte des tests, méthode de calcul de chaque p-value. Sections clés : architecture et index des fonctions, « Nature des p-values et validité à T = 8 » (tableaux 1 et 2 : disponibilité des p-values, nature et vitesse des convergences), puis une section par hypothèse (H1-H4, M1-M6). Bibliographie manuelle en fin de document (« Compléments bibliographiques », `\label{sec:biblio}`), sans BibTeX. Macros maison : `\code`, `\refl`, `\reglement`, environnement `encadre`. Commentaires et texte en français ; les commentaires du code R sont en français sans accents.
 
-## Rigueur statistique (exigences de `ROLE.md`)
+## Rigueur statistique (détail dans `docs/exigences.md`)
 
 - Ne jamais confondre : résultat exact / asymptotique / approximation numérique / comportement observé par simulation.
 - Distinguer l'erreur Monte-Carlo (fonction de B) de l'erreur d'approximation statistique (fonction de T).

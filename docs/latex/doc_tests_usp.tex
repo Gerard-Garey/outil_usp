@@ -518,11 +518,13 @@ fonction du moteur ne tire de nombres aléatoires, à l'exception de
 simulation du QQ-plot afin que le graphique soit stable d'un appel à l'autre.
 
 Deux appels de \code{run\_engine()} avec les mêmes données, les mêmes paramètres
-et la même graine produisent des objets identiques au bit près. La chaîne
-reproduit par ailleurs exactement les résultats du script d'origine
-\code{usp\_solva2.R}~: écart nul sur $\hat\delta$, $\hat\gamma$, $\hat\beta$,
-$\hat\sigma$, la crédibilité, $\sigma_{\mathrm{USP}}$, la sensibilité jackknife
-et l'ensemble des tirages bootstrap.
+et la même graine produisent des objets identiques au bit près. Cette
+propriété est vérifiée par les tests de non-régression du dépôt
+(\code{tests/test\_reproductibilite.R}), qui contrôlent, pour chacune des trois
+méthodes, que deux appels successifs donnent des objets identiques et que les
+résultats coïncident avec des valeurs de référence enregistrées
+(\code{tests/reference/}), à une tolérance relative de $10^{-8}$ près pour
+absorber les écarts d'arrondi entre plateformes.
 
 \begin{encadre}
 \textbf{Point de revue.} L'objet retourné contient un champ \code{\$metadata}

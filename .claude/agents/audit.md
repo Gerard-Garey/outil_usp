@@ -19,8 +19,8 @@ Applique chacun à la modification examinée (par défaut `git diff` du réperto
 
 - **Correction** : la formule codée est celle de la documentation ; cas limites (T minimal = 5, valeurs nulles ou négatives, `NA`, ex-æquo, variance nulle, échec d'optimisation) ; indices et bornes ; sens unilatéral ou bilatéral des p-values ; p-values bornées dans [0, 1].
 - **Architecture** : aucun calcul quantitatif hors de `R/engine.R` ; le moteur reste utilisable sans Shiny et sans paquet hors R base + stats.
-- **Reproductibilité** : exécute `run_engine()` deux fois avec la même graine et vérifie `identical()` ; toute nouvelle source d'aléa a une graine explicite ; tout résultat qui change par rapport à la version précédente (`git stash` ou comparaison avec le commit parent) est expliqué dans le compte rendu de `coder`.
-- **Traçabilité** : chaque test, fonction et méthode de p-value cité dans `doc_tests_usp.tex` correspond au code, et inversement ; le champ `nature_p` dit vrai sur la p-value retenue.
+- **Reproductibilité** : `tests/test_reproductibilite.R` passe ; toute nouvelle source d'aléa a une graine explicite ; si les références de `tests/reference/` ont été régénérées, chaque résultat modifié est expliqué dans le compte rendu de `coder` (compare avec le commit parent au besoin).
+- **Traçabilité** : chaque test, fonction et méthode de p-value cité dans `docs/latex/doc_tests_usp.tex` correspond au code, et inversement ; le champ `nature_p` dit vrai sur la p-value retenue.
 - **Robustesse numérique** : `optim` et racines convergées, pas de `NaN` silencieux, pas de comparaison flottante à égalité stricte là où une tolérance s'impose.
 
 ## Rapport

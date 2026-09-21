@@ -1,6 +1,11 @@
 # Paramètres propres à l'entreprise (USP) — Solvabilité II, annexe XVII
 
-Application R Shiny et moteur de calcul autonome pour le calibrage des USP.
+[![CI](https://github.com/Gerard-Garey/outil_usp/actions/workflows/ci.yml/badge.svg)](https://github.com/Gerard-Garey/outil_usp/actions/workflows/ci.yml)
+
+Application R Shiny et moteur de calcul autonome pour le calibrage des USP
+(règlement délégué (UE) 2015/35, articles 218 à 220 et annexe XVII).
+
+> **Confidentiel — usage interne.** Voir [LICENSE](LICENSE).
 
 ## Méthodes couvertes
 
@@ -12,19 +17,46 @@ Application R Shiny et moteur de calcul autonome pour le calibrage des USP.
 
 Périmètres : annexe II (non-vie, 12 segments) et annexe XIV (santé non-SLT, 4 segments).
 
+## Prérequis
+
+- **R ≥ 4.3** (développé et testé avec R 4.3.1).
+- Moteur (`R/engine.R`) : R base + `stats` uniquement. `openxlsx` est utilisé
+  s'il est installé pour lire et écrire les fichiers Excel, avec repli sur une
+  implémentation interne ; les calculs n'en dépendent pas.
+- Application : `shiny` ; `plotly` en option (repli automatique sur les
+  graphiques de base R).
+- Documentation : une distribution LaTeX (MiKTeX, TeX Live).
+
 ## Structure
 
-    app.R                     interface Shiny (aucun calcul quantitatif)
-    R/engine.R                MOTEUR : toute la logique statistique et actuarielle
-    R/display_helpers.R       formatage et tracés (aucun calcul)
-    doc_tests_usp.tex/.pdf    documentation de l'outil
+    app.R                       interface Shiny (aucun calcul quantitatif)
+    R/engine.R                  MOTEUR : toute la logique statistique et actuarielle
+    R/display_helpers.R         formatage et tracés (aucun calcul)
+    tests/                      tests de reproductibilité et de non-régression
+    docs/exigences.md           cahier des charges
+    docs/latex/                 documentation de l'outil (.tex et PDF compilé)
+    docs/agents/                configuration des agents (issues, libellés, domaine)
+    .claude/agents/             sous-agents Claude Code (actuary, coder, audit)
+    .github/                    intégration continue, modèles d'issues et de PR
 
-## Fichiers d'échange
+Non versionnés : `sources/` (textes réglementaires) et les fichiers de données
+`usp_*.csv` / `usp_*.xlsx`, potentiellement confidentiels.
+
+## Usage de l'application
+
+    shiny::runApp(".")
+
+Sous Windows, si R n'est pas dans le PATH :
+
+    "C:\Program Files\R\R-4.3.1\bin\Rscript.exe" -e "shiny::runApp('.')"
+
+Au démarrage, l'application charge les fichiers d'échange s'ils existent
+(`.xlsx` prioritaire sur `.csv`) ; sinon, des données par défaut :
 
     usp_donnees_LN.csv        colonnes t, xt, yt          (méthodes lognormales)
     usp_donnees_MW.csv        colonnes i, j0, j1, ...     (triangle Merz-Wüthrich)
 
-Chargés automatiquement au démarrage s'ils existent ; la profondeur T en est déduite.
+La profondeur T est déduite du fichier.
 
 ## Usage sans Shiny (revue indépendante)
 
@@ -41,14 +73,26 @@ Chargés automatiquement au démarrage s'ils existent ; la profondeur T en est d
     res$parametre_final$sigma_usp
     engine_table_tests(res)
 
-## Usage Shiny
-
-    shiny::runApp(".")
-
-Requiert `shiny` ; `plotly` est utilisé s'il est présent, avec repli automatique
-sur les graphiques de base R. Le moteur n'a aucune dépendance hors R base + stats.
-
-## Reproductibilité
+## Reproductibilité et tests
 
 À données, paramètres et `seed` identiques, `run_engine()` produit des objets
-identiques. La branche lognormale reproduit exactement le script d'origine.
+identiques au bit près. Les tests le vérifient pour les trois méthodes et
+comparent les résultats à des valeurs de référence (`tests/reference/`) :
+
+    Rscript tests/test_reproductibilite.R
+
+Lorsqu'une modification change volontairement les résultats, régénérer les
+références (`Rscript tests/generer_references.R`) dans le même commit, en
+expliquant les écarts. La CI GitHub Actions lance les tests et compile la
+documentation à chaque push sur `main` et à chaque pull request.
+
+## Contribuer
+
+- Les demandes passent par les **issues GitHub** (modèles « Anomalie » et
+  « Évolution »), triées avec les libellés `needs-triage`, `needs-info`,
+  `ready-for-agent`, `ready-for-human` et `wontfix`.
+- Toute évolution méthodologique suit le cycle des sous-agents Claude Code :
+  `actuary` (planification) → `coder` (implémentation) → `audit` (vérification)
+  → `actuary` (validation). Voir [CLAUDE.md](CLAUDE.md).
+- Toute modification du code s'accompagne de la mise à jour de la documentation
+  LaTeX et de la recompilation du PDF.
