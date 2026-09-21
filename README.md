@@ -98,6 +98,7 @@ documentation à chaque push sur `main` et à chaque pull request.
   par domaine (`moteur:`, `app:`, `tests:`, `docs:`, `claude:`, `repo:`).
 - Toute évolution méthodologique suit le cycle des sous-agents Claude Code :
   `actuary` (planification) → `coder` (implémentation) → `audit` (vérification)
-  → `actuary` (validation). Voir [CLAUDE.md](CLAUDE.md).
+  → `actuary` (validation). `architect` supervise l'ensemble : priorités,
+  architecture, décisions consignées dans `docs/adr/`. Voir [CLAUDE.md](CLAUDE.md).
 - Toute modification du code s'accompagne de la mise à jour de la documentation
   LaTeX et de la recompilation du PDF.

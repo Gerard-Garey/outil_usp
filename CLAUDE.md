@@ -74,7 +74,7 @@ Document unique (~5 700 lignes) qui doit rester synchronisé avec le code : noms
 
 ## Sous-agents
 
-Trois sous-agents de projet (`.claude/agents/`), enchaînés par la session principale pour toute évolution méthodologique ou du code :
+Quatre sous-agents de projet (`.claude/agents/`). **`architect`** supervise : il priorise les issues, arbitre entre les pistes, pense l'architecture et consigne les décisions (`docs/adr/`, `CONTEXT.md`) ; le consulter avant d'engager un chantier qui touche plusieurs issues ou la forme du moteur. Les trois autres sont enchaînés par la session principale pour toute évolution méthodologique ou du code :
 
 1. **`actuary`** juge et planifie : critères d'acceptation, impact attendu sur les résultats.
 2. **`coder`** implémente le code et la doc LaTeX, puis vérifie la reproductibilité.
