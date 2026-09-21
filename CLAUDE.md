@@ -65,7 +65,7 @@ Chaque test est enregistré dans `usp_tests()` / `mw_tests()` via une fonction i
 
 ## Documentation LaTeX (`docs/latex/doc_tests_usp.tex`)
 
-Document unique (~5 700 lignes) qui doit rester synchronisé avec le code : noms de fonctions (`\code{}`), liste exacte des tests, méthode de calcul de chaque p-value. Sections clés : architecture et index des fonctions, « Nature des p-values et validité à T = 8 » (tableaux 1 et 2 : disponibilité des p-values, nature et vitesse des convergences), puis une section par hypothèse (H1-H4, M1-M6). Bibliographie manuelle en fin de document (« Compléments bibliographiques », `\label{sec:biblio}`), sans BibTeX. Macros maison : `\code`, `\refl`, `\reglement`, environnement `encadre`. Commentaires et texte en français ; les commentaires du code R sont en français sans accents.
+Document unique (~5 700 lignes) qui doit rester synchronisé avec le code : noms de fonctions (`\code{}`), liste exacte des tests, méthode de calcul de chaque p-value. Sections clés : architecture et index des fonctions, « Nature des p-values et validité à T = 8 » (tableaux 1 et 2 : disponibilité des p-values, nature et vitesse des convergences), puis une section par hypothèse (H1-H4, M1-M6). Bibliographie manuelle en fin de document (« Compléments bibliographiques », `\label{sec:biblio}`), sans BibTeX. **Toute modification du `.tex` respecte `docs/latex/CONVENTIONS.md`** (plan fixe, gabarit des fiches à six rubriques, renvois par `\ref`, conservation du contenu, typographie). Commentaires et texte en français ; les commentaires du code R sont en français sans accents.
 
 ## Rigueur statistique (détail dans `docs/exigences.md`)
 
@@ -77,14 +77,30 @@ Document unique (~5 700 lignes) qui doit rester synchronisé avec le code : noms
 
 ## Sous-agents
 
-Quatre sous-agents de projet (`.claude/agents/`). **`architect`** supervise : il priorise les issues, arbitre entre les pistes, pense l'architecture et consigne les décisions (`docs/adr/`, `CONTEXT.md`) ; le consulter avant d'engager un chantier qui touche plusieurs issues ou la forme du moteur. Les trois autres sont enchaînés par la session principale pour toute évolution méthodologique ou du code :
+Sept sous-agents de projet (`.claude/agents/`), orchestrés par la session principale. Règle de séparation : **ceux qui écrivent ne vérifient pas, ceux qui vérifient n'écrivent pas**.
 
-1. **`actuary`** juge et planifie : critères d'acceptation, impact attendu sur les résultats.
-2. **`coder`** implémente le code et la doc LaTeX, puis vérifie la reproductibilité.
-3. **`audit`** vérifie le code sans rien modifier ; un constat bloquant ou majeur renvoie à l'étape 2.
-4. **`actuary`** valide le fond. La session principale commite sur une branche et ouvre la pull request.
+| Famille | Agent | Écrit | Question |
+|---|---|---|---|
+| Pilotage | `architect` | `docs/adr/`, `CONTEXT.md` | Dans quel ordre, avec quels agents, sous quelle forme ? |
+| Fond | `actuary` | rien (avis, issues) | Statistiquement pertinent à T = 8 ? |
+| Fond | `regulatory` | rien (matrice, issues) | Exactement ce que prescrit le règlement ? |
+| Réalisation | `coder` | code R, tests, doc accompagnant le code | Comment l'implémenter ? |
+| Réalisation | `docwriter` | `docs/latex/` | Doc juste, rigoureuse, conforme à `docs/latex/CONVENTIONS.md` ? |
+| Vérification | `audit` | rien (rapport) | Code correct et reproductible ? |
+| Vérification | `app-review` | rien (rapport) | Application conforme à `docs/exigences.md` § 5 ? |
 
-Pour une correction purement technique sans enjeu méthodologique, les étapes 1 et 4 peuvent être omises.
+**Déclencheurs** — un agent n'entre dans le circuit que si la modification touche son domaine : plusieurs issues ou forme du moteur → `architect` en amont ; méthode ou test statistique → `actuary` (spécification en amont, validation en aval) ; formule, paramètre ou barème du règlement → `regulatory` (lecture du texte en amont, contrôle de conformité en aval) ; `R/engine.R` → `audit` ; `app.R` ou `R/display_helpers.R` → `app-review` ; fond de `docs/latex/` → `docwriter`, en dernier.
+
+**Circuits types** (chacun se termine par un commit sur une branche et une pull request) :
+
+1. **Évolution méthodologique** : `actuary` spécifie → `coder` → `audit` (+ `app-review` si l'interface change) → `docwriter` → `actuary` valide.
+2. **Correction de conformité réglementaire** : `regulatory` établit la lecture du texte → `actuary` éclaire l'interprétation → le mainteneur tranche si σ_USP change → `coder` → `audit` → `regulatory` contrôle la conformité → `docwriter`.
+3. **Correction technique** : `coder` → `audit`.
+4. **Documentation seule** : `docwriter` (+ `actuary` si le fond change, `regulatory` si une formule réglementaire est touchée).
+
+Un constat bloquant ou majeur d'un vérificateur renvoie à l'étape de réalisation. Sur une même branche, `docwriter` passe **après** `coder`, jamais en parallèle. Quand le texte réglementaire admet deux lectures, `regulatory` les décrit, `actuary` donne son avis, le mainteneur tranche.
+
+**Revues périodiques**, hors de tout changement : `architect` (point d'étape et feuille de route, après chaque série de PR fusionnées) ; `regulatory` (matrice de conformité complète avant remise du dossier et après toute correction de formule) ; `actuary` (revue des tests si leur liste change notablement) ; `app-review` et `docwriter` (relecture intégrale avant démonstration ou remise).
 
 **Approbation des changements de résultats** (tableau avant / après de la skill `verifier-reproductibilite`, joint à la PR) : tout changement de **σ_USP** ou d'un **verdict** est soumis au mainteneur ; les autres changements de p-values sont validés par `actuary`.
 

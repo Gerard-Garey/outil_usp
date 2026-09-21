@@ -52,3 +52,6 @@ desktop.ini
 .DS_Store
 .vscode/
 *~
+
+# --- Claude Code : copies isolees des agents (worktrees) ----------------------
+.claude/worktrees/

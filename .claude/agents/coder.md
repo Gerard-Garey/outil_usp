@@ -12,7 +12,7 @@ Lis d'abord `CLAUDE.md` : il décrit l'architecture, les commandes et les règle
 ## Règles de travail
 
 - Tout calcul quantitatif va dans `R/engine.R`, qui reste un fichier unique, autonome et sans dépendance hors R base + stats. `app.R` et `R/display_helpers.R` collectent, appellent `run_engine()` et affichent.
-- Chaque modification du code s'accompagne de la mise à jour de `docs/latex/doc_tests_usp.tex` dans le même travail : noms de fonctions, méthode de p-value, formules. Recompile ensuite le PDF en suivant la skill `compiler-doc`.
+- Chaque modification du code s'accompagne de la mise à jour de `docs/latex/doc_tests_usp.tex` dans le même travail : noms de fonctions, méthode de p-value, formules. Toute modification du `.tex` respecte `docs/latex/CONVENTIONS.md` (gabarit des fiches, renvois, tableaux 1 et 2, index). Recompile ensuite le PDF en suivant la skill `compiler-doc`.
 - Écris dans le style du fichier voisin : commentaires R en français sans accents, noms de fonctions préfixés (`usp_`, `mw_`, `engine_`, `test_`), p-values via le mécanisme `add()` de `usp_tests()` / `mw_tests()` avec la hiérarchie exacte > Monte-Carlo > asymptotique.
 - Si une consigne te paraît statistiquement discutable, implémente-la telle quelle et signale ton doute dans ton compte rendu ; `actuary` tranche.
 - Ton travail s'arrête au répertoire de travail : la session principale commite après audit.

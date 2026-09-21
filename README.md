@@ -102,9 +102,12 @@ documentation à chaque push sur `main` et à chaque pull request.
 - Pas de push direct sur `main` : une branche et une pull request par
   modification, fusionnée une fois la CI verte. Messages de commit préfixés
   par domaine (`moteur:`, `app:`, `tests:`, `docs:`, `claude:`, `repo:`).
-- Toute évolution méthodologique suit le cycle des sous-agents Claude Code :
-  `actuary` (planification) → `coder` (implémentation) → `audit` (vérification)
-  → `actuary` (validation). `architect` supervise l'ensemble : priorités,
-  architecture, décisions consignées dans `docs/adr/`. Voir [CLAUDE.md](CLAUDE.md).
+- Les évolutions passent par sept sous-agents Claude Code : pilotage
+  (`architect`), fond (`actuary`, `regulatory`), réalisation (`coder`,
+  `docwriter`) et vérification (`audit`, `app-review`). Le circuit dépend de ce
+  que touche la modification ; les circuits types et les revues périodiques sont
+  décrits dans [CLAUDE.md](CLAUDE.md).
+- Toute modification de la documentation LaTeX respecte
+  [`docs/latex/CONVENTIONS.md`](docs/latex/CONVENTIONS.md).
 - Toute modification du code s'accompagne de la mise à jour de la documentation
   LaTeX et de la recompilation du PDF.
