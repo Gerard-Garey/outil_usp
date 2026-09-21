@@ -46,3 +46,20 @@ Une p-value issue de la loi limite de la statistique quand T tend vers l'infini 
 
 **P-value retenue** :
 La p-value qui fonde le verdict, choisie dans l'ordre : exacte, puis Monte-Carlo, puis asymptotique.
+
+**Statistique Monte-Carlo** :
+Une entrée du catalogue des statistiques simulées d'une méthode : sa fonction de calcul, son sens de rejet (haut, bas, deux) et sa condition de dégénérescence ; la statistique affichée pour un test à p-value Monte-Carlo est celle-là, et elle est calculée, simulée et associée au test depuis ce seul catalogue (ADR 0003).
+_Avoid_ : statistique bootstrapable, mc_nom (nom de variable, pas terme du domaine)
+
+**Statistique dégénérée** :
+Une statistique dont la loi simulée sous le modèle ajusté est constante par construction sur le jeu de données considéré (par exemple la moyenne des résidus standardisés quand δ̂ = 1) ; sa p-value Monte-Carlo n'a pas de sens et la vérification est restituée comme diagnostic (ADR 0001, 0003).
+_Avoid_ : grandeur instable (désigne l'exclusion provisoire dans les tests, pas la propriété statistique)
+
+## Reproductibilité
+
+**Graine locale** :
+La convention selon laquelle toute simulation du moteur pose sa propre graine, explicite et consignée dans les métadonnées, et restaure l'état du générateur de l'appelant à sa sortie ; aucune p-value ne dépend de l'ordre des simulations ni de l'état du générateur avant l'appel (ADR 0004).
+
+**Référence de non-régression** :
+L'objet complet retourné par `run_engine()` pour un cas de test, enregistré dans `tests/reference/*.rds` et comparé au bit près (tolérance relative 1e-8) sur toute sa structure ; tout champ ajouté, retiré ou modifié impose une régénération accompagnée d'un tableau avant / après expliqué ligne à ligne.
+_Avoid_ : golden file, snapshot
