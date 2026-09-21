@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Contexte
 
-Outil de calibrage des paramètres propres à l'entreprise (USP), Solvabilité II, règlement délégué (UE) 2015/35, art. 218-220 et annexe XVII (texte source : `sources/Règlement_délégué.pdf`). Les livrables sont destinés à un dossier soumis à l'ACPR : la traçabilité entre documentation LaTeX, code R et résultats prime sur tout le reste. `ROLE.md` contient le cahier des charges complet (posture attendue, exigences statistiques, architecture, attendus Shiny) ; le lire avant toute évolution méthodologique.
+Outil de calibrage des paramètres propres à l'entreprise (USP), Solvabilité II, règlement délégué (UE) 2015/35, art. 218-220 et annexe XVII (texte source : `sources/Règlement_délégué.pdf`, présent sur le poste local uniquement : `sources/` n'est pas versionné, pas plus que les fichiers de données `usp_*.csv/.xlsx`).
+
+Le dépôt de référence est `https://github.com/Gerard-Garey/outil_usp` (privé), utilisé à la fois depuis le poste local et depuis des sessions cloud. Le PDF compilé `doc_tests_usp.pdf` est versionné : le recompiler et le commiter avec toute modification du `.tex`. Les livrables sont destinés à un dossier soumis à l'ACPR : la traçabilité entre documentation LaTeX, code R et résultats prime sur tout le reste. `ROLE.md` contient le cahier des charges complet (posture attendue, exigences statistiques, architecture, attendus Shiny) ; le lire avant toute évolution méthodologique.
 
 Taille d'échantillon d'intérêt : **T = 8**. Toute conclusion statistique doit en tenir compte (voir « Rigueur statistique » plus bas).
 
