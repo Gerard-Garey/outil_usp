@@ -1,0 +1,49 @@
+###############################################################################
+#  tests/outils_tests.R  --  OUTILS COMMUNS AUX TESTS DE NON-REGRESSION
+#
+#  Definit les cas de test (une methode, un jeu de donnees, des parametres) et
+#  la maniere d'executer le moteur pour chacun. Source par
+#  test_reproductibilite.R et generer_references.R ; R base uniquement.
+###############################################################################
+
+# Repertoire racine du depot : les scripts peuvent etre lances depuis la
+# racine ou depuis tests/.
+RACINE <- if (file.exists("R/engine.R")) "." else ".."
+source(file.path(RACINE, "R", "engine.R"))
+
+DOSSIER_REF <- file.path(RACINE, "tests", "reference")
+
+# Tolerance relative de comparaison aux references : absorbe les ecarts
+# d'arrondi entre plateformes (optimiseur, bibliotheques mathematiques), mais
+# detecte tout changement de methode.
+TOLERANCE <- 1e-8
+
+.ln  <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln.csv"))
+.tri <- local({
+  df <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
+  m <- as.matrix(df[, setdiff(names(df), "i")])
+  storage.mode(m) <- "double"
+  unname(m)
+})
+
+# Chaque cas est un appel complet de run_engine() avec ses parametres par
+# defaut (B = 999, graine 20260831, alpha = 0,10).
+CAS <- list(
+  premium  = function() run_engine(xt = .ln$xt, yt = .ln$yt, methode = "premium",
+                                   segment = 1, annexe = "II"),
+  reserve1 = function() run_engine(xt = .ln$xt, yt = .ln$yt, methode = "reserve1",
+                                   segment = 1, annexe = "II"),
+  reserve2 = function() run_engine(methode = "reserve2", triangle = .tri,
+                                   segment = 1, annexe = "II")
+)
+
+# Retire les champs qui varient d'un appel a l'autre ou d'une machine a
+# l'autre sans rapport avec les calculs.
+nettoyer <- function(res) {
+  res$metadata[c("horodatage", "duree_sec", "version_R")] <- NULL
+  res
+}
+
+executer_cas <- function(nom) nettoyer(CAS[[nom]]())
+
+chemin_reference <- function(nom) file.path(DOSSIER_REF, paste0(nom, ".rds"))
