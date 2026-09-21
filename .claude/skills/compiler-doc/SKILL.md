@@ -1,0 +1,29 @@
+---
+name: compiler-doc
+description: Compiler la documentation LaTeX (docs/latex/doc_tests_usp.tex) et vérifier le PDF avant commit. À utiliser après toute modification du .tex, ou quand on demande de recompiler ou de régénérer le PDF.
+---
+
+# Compiler la documentation
+
+Le PDF compilé `docs/latex/doc_tests_usp.pdf` est versionné : il est recompilé et commité avec toute modification du `.tex`.
+
+## Étapes
+
+1. Depuis `docs/latex/`, compiler :
+
+   ```bash
+   pdflatex -interaction=nonstopmode -halt-on-error doc_tests_usp.tex
+   ```
+
+   Code de sortie non nul → lire l'erreur dans `doc_tests_usp.log` (lignes commençant par `!`, avec le numéro de ligne `l.NNN`), corriger le `.tex` et recommencer.
+
+2. **Relancer tant que le log le demande** : répéter l'étape 1 tant que `doc_tests_usp.log` contient « Rerun to get cross-references right ». Trois passes en pratique après une modification de structure. Limite : cinq passes ; au-delà, un renvoi oscille et doit être corrigé.
+
+3. **Contrôler le log final** :
+   - aucune ligne commençant par `!` ;
+   - aucun « undefined » (référence ou citation indéfinie) ;
+   - les avertissements `Overfull \hbox` sur les lignes modifiées sont à corriger s'ils débordent visiblement (plus de 10pt).
+
+4. **Vérifier ce qui sera commité** : `git status docs/latex` doit montrer le `.tex` et le `.pdf` modifiés ensemble. Les fichiers auxiliaires (`.aux`, `.log`, `.toc`, `.out`) sont ignorés par Git.
+
+Sans LaTeX dans l'environnement (session cloud), le PDF ne peut pas être régénéré : le signaler dans le compte rendu. La CI compile le `.tex` à chaque push et publie le PDF en artefact ; le PDF versionné sera à régénérer sur le poste local.

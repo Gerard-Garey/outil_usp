@@ -12,26 +12,25 @@ Taille d'échantillon d'intérêt : **T = 8**. Toute conclusion statistique doit
 
 ## Commandes
 
-R n'est pas dans le PATH : il est installé dans `C:\Program Files\R\R-4.3.1`.
+Le hook `SessionStart` (`.claude/hooks/preparer_r.sh`) rend `Rscript` disponible dans chaque session : ajout au PATH sur le poste Windows (R 4.3.1 dans `C:\Program Files\R`, hors PATH système), installation par apt dans le cloud. S'il signale un échec, les commandes R ci-dessous ne peuvent pas tourner dans la session.
 
 ```bash
-# Lancer l'application Shiny (requiert shiny ; plotly facultatif, repli automatique sur base R)
-"/c/Program Files/R/R-4.3.1/bin/Rscript.exe" -e 'shiny::runApp(".")'
+# Lancer l'application Shiny (dépendances déclarées dans DESCRIPTION)
+Rscript -e 'shiny::runApp(".")'
 
-# Exécuter le moteur seul (aucune dépendance hors R base + stats)
-"/c/Program Files/R/R-4.3.1/bin/Rscript.exe" -e 'source("R/engine.R"); res <- run_engine(xt = c(104.20,102.25,109.34,114.64,118.41,121.28,132.40,131.22), yt = c(68.97,76.76,83.49,95.38,88.96,70.22,78.89,117.37), methode = "premium", segment = 1, annexe = "II", B = 999, seed = 20260831); print(res$parametre_final$sigma_usp); print(engine_table_tests(res)[, c("test","p_retenue","nature_p","verdict")])'
+# Exécuter le moteur seul
+Rscript -e 'source("R/engine.R"); res <- run_engine(xt = c(104.20,102.25,109.34,114.64,118.41,121.28,132.40,131.22), yt = c(68.97,76.76,83.49,95.38,88.96,70.22,78.89,117.37), methode = "premium", segment = 1, annexe = "II", B = 999, seed = 20260831); print(res$parametre_final$sigma_usp); print(engine_table_tests(res)[, c("test","p_retenue","nature_p","verdict")])'
 
 # Tests de reproductibilité et de non-régression (~2 min ; code de sortie 1 en cas d'échec)
-"/c/Program Files/R/R-4.3.1/bin/Rscript.exe" tests/test_reproductibilite.R
-
-# Régénérer les références, uniquement après un changement VOLONTAIRE de résultats (tous les cas, ou un seul : premium, reserve1, reserve2)
-"/c/Program Files/R/R-4.3.1/bin/Rscript.exe" tests/generer_references.R [cas]
-
-# Compiler la documentation (MiKTeX) : relancer tant que le log contient « Rerun to get cross-references right » (trois passes en pratique)
-cd docs/latex && pdflatex -interaction=nonstopmode -halt-on-error doc_tests_usp.tex
+Rscript tests/test_reproductibilite.R
 ```
 
-Les tests (`tests/`) exécutent `run_engine()` pour les trois méthodes sur les jeux de données de `tests/donnees/` : deux appels à graine égale doivent être `identical()`, et le résultat doit coïncider avec `tests/reference/*.rds` à une tolérance relative de 1e-8, qui absorbe les écarts d'arrondi entre plateformes. Un changement de résultat voulu se traite en régénérant les références dans le même commit et en expliquant les écarts. La CI GitHub Actions (`.github/workflows/ci.yml`) lance ces tests sous Linux avec R 4.3.1 et compile la documentation à chaque push sur `main` et à chaque PR. Pour vérifier un point isolé, appeler directement une fonction du moteur (`test_mann_kendall(v)`, `dw_p_exacte(z)`…) après `source("R/engine.R")`.
+Les tests (`tests/`) exécutent `run_engine()` pour les trois méthodes sur `tests/donnees/` : deux appels à graine égale doivent être `identical()`, et le résultat doit coïncider avec `tests/reference/*.rds` à 1e-8 près en relatif. Après une modification du moteur, ou quand les tests échouent, suivre la skill **`verifier-reproductibilite`** (tableau avant / après, régénération des références). Après une modification du `.tex`, suivre la skill **`compiler-doc`**. La CI GitHub Actions (`.github/workflows/ci.yml`) lance les tests sous Linux avec R 4.3.1 et compile la documentation à chaque push sur `main` et à chaque PR. Pour vérifier un point isolé, appeler directement une fonction du moteur (`test_mann_kendall(v)`, `dw_p_exacte(z)`…) après `source("R/engine.R")`.
+
+## Git et GitHub
+
+- **Aucun push direct sur `main`** : chaque modification passe par une branche et une pull request, fusionnée une fois la CI verte. Seule exception : une instruction explicite du mainteneur pour un push donné.
+- Messages de commit en français, avec accents, préfixés par le domaine : `moteur:` (`R/engine.R`), `app:` (`app.R`, `R/display_helpers.R`), `tests:`, `docs:` (doc LaTeX, `docs/`, README), `claude:` (`CLAUDE.md`, `.claude/`), `repo:` (`.github/`, `.gitignore`, `DESCRIPTION`, licence). Renvoyer à l'issue concernée (`#3`) quand elle existe.
 
 ## Architecture (contrainte impérative)
 
@@ -80,7 +79,7 @@ Trois sous-agents de projet (`.claude/agents/`), enchaînés par la session prin
 1. **`actuary`** juge et planifie : critères d'acceptation, impact attendu sur les résultats.
 2. **`coder`** implémente le code et la doc LaTeX, puis vérifie la reproductibilité.
 3. **`audit`** vérifie le code sans rien modifier ; un constat bloquant ou majeur renvoie à l'étape 2.
-4. **`actuary`** valide le fond. La session principale commite après validation.
+4. **`actuary`** valide le fond. La session principale commite sur une branche et ouvre la pull request.
 
 Pour une correction purement technique sans enjeu méthodologique, les étapes 1 et 4 peuvent être omises.
 
