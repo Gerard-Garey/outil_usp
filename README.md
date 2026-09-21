@@ -24,7 +24,8 @@ Périmètres : annexe II (non-vie, 12 segments) et annexe XIV (santé non-SLT, 4
   s'il est installé pour lire et écrire les fichiers Excel, avec repli sur une
   implémentation interne ; les calculs n'en dépendent pas.
 - Application : `shiny` ; `plotly` en option (repli automatique sur les
-  graphiques de base R).
+  graphiques de base R). Dépendances déclarées dans `DESCRIPTION` :
+  `remotes::install_deps(dependencies = TRUE)` les installe.
 - Documentation : une distribution LaTeX (MiKTeX, TeX Live).
 
 ## Structure
@@ -36,8 +37,9 @@ Périmètres : annexe II (non-vie, 12 segments) et annexe XIV (santé non-SLT, 4
     docs/exigences.md           cahier des charges
     docs/latex/                 documentation de l'outil (.tex et PDF compilé)
     docs/agents/                configuration des agents (issues, libellés, domaine)
-    .claude/agents/             sous-agents Claude Code (actuary, coder, audit)
+    .claude/                    Claude Code : sous-agents, skills, hook de session
     .github/                    intégration continue, modèles d'issues et de PR
+    DESCRIPTION                 version de R et dépendances
 
 Non versionnés : `sources/` (textes réglementaires) et les fichiers de données
 `usp_*.csv` / `usp_*.xlsx`, potentiellement confidentiels.
@@ -81,9 +83,9 @@ comparent les résultats à des valeurs de référence (`tests/reference/`) :
 
     Rscript tests/test_reproductibilite.R
 
-Lorsqu'une modification change volontairement les résultats, régénérer les
-références (`Rscript tests/generer_references.R`) dans le même commit, en
-expliquant les écarts. La CI GitHub Actions lance les tests et compile la
+Lorsqu'une modification change volontairement les résultats, lister les écarts
+(`Rscript tests/comparer_references.R`), les expliquer, puis régénérer les
+références (`Rscript tests/generer_references.R`) dans le même commit. La CI GitHub Actions lance les tests et compile la
 documentation à chaque push sur `main` et à chaque pull request.
 
 ## Contribuer
@@ -91,6 +93,9 @@ documentation à chaque push sur `main` et à chaque pull request.
 - Les demandes passent par les **issues GitHub** (modèles « Anomalie » et
   « Évolution »), triées avec les libellés `needs-triage`, `needs-info`,
   `ready-for-agent`, `ready-for-human` et `wontfix`.
+- Pas de push direct sur `main` : une branche et une pull request par
+  modification, fusionnée une fois la CI verte. Messages de commit préfixés
+  par domaine (`moteur:`, `app:`, `tests:`, `docs:`, `claude:`, `repo:`).
 - Toute évolution méthodologique suit le cycle des sous-agents Claude Code :
   `actuary` (planification) → `coder` (implémentation) → `audit` (vérification)
   → `actuary` (validation). Voir [CLAUDE.md](CLAUDE.md).
