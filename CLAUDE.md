@@ -39,7 +39,7 @@ Si un résultat peut être calculé indépendamment de l'interface, il va dans `
 
 ### Flux du moteur
 
-`run_engine()` est le point d'entrée unique et retourne un objet de classe `usp_engine` (liste : `donnees`, `validation`, `controles`, `statistiques_descriptives`, `ajustement`, `tests`, `bootstrap`, `ic_bootstrap`, `jackknife`, `profil`, `calibration`, `candidats`, `parametre_final`, `plots_data`, `metadata`). En cas de données invalides il retourne `ok = FALSE` avec `validation` plutôt que de lever une erreur.
+`run_engine()` est le point d'entrée unique et retourne un objet de classe `usp_engine`. En cas de données invalides il retourne `ok = FALSE` avec `validation` plutôt que de lever une erreur.
 
 Deux branches entièrement distinctes :
 - **Lognormale** (`methode = "premium"` section B, `"reserve1"` section C) : vecteurs `xt`, `yt` → `usp_ajuster()` (MV sur δ, γ) → `usp_bootstrap()` → `usp_parametre()` (correction √((T+1)/(T−1)), crédibilité, mélange avec σ standard) → `usp_tests()`.
@@ -54,10 +54,6 @@ Chaque test est enregistré dans `usp_tests()` / `mw_tests()` via une fonction i
 ### Reproductibilité
 
 À données, paramètres et `seed` identiques, `run_engine()` doit produire des objets identiques au bit près, et la branche lognormale doit reproduire exactement le script d'origine `usp_solva2.R`. Toute modification qui change un résultat doit être identifiée, quantifiée et expliquée. Tirages aléatoires : `usp_bootstrap()` et `mw_bootstrap()` (graine `seed`, défaut 20260831), `engine_plots_data()` (graine fixe pour l'enveloppe du QQ-plot), `sw_loi_nulle()` (graine propre 20260901, met en cache et restaure `.Random.seed`). Ne pas ajouter d'autre source d'aléa sans graine explicite.
-
-### Fichiers d'échange
-
-`usp_donnees_LN.csv` (colonnes `t, xt, yt`) et `usp_donnees_MW.csv` (colonnes `i, j0, j1, …`), ou leurs équivalents `.xlsx` (prioritaires), sont chargés au démarrage de l'app s'ils existent ; T en est déduit. Sinon, données par défaut définies dans `app.R`.
 
 ## Documentation LaTeX (`doc_tests_usp.tex`)
 

@@ -1,4 +1,5 @@
 {
+  "subagentPromptCacheTtl": "1h",
   "enabledPlugins": {
     "mattpocock-skills@claude-plugins-official": true,
     "document-skills@anthropic-agent-skills": true
