@@ -23,9 +23,12 @@ Rscript -e 'source("R/engine.R"); res <- run_engine(xt = c(104.20,102.25,109.34,
 
 # Tests de reproductibilité et de non-régression (~2 min ; code de sortie 1 en cas d'échec)
 Rscript tests/test_reproductibilite.R
+
+# Tests unitaires du moteur (quelques secondes ; les échecs attendus sont des défauts connus documentés par issue)
+Rscript tests/test_unitaires.R
 ```
 
-Les tests (`tests/`) exécutent `run_engine()` pour les trois méthodes sur `tests/donnees/` : deux appels à graine égale doivent être `identical()`, et le résultat doit coïncider avec `tests/reference/*.rds` à 1e-8 près en relatif. Après une modification du moteur, ou quand les tests échouent, suivre la skill **`verifier-reproductibilite`** (tableau avant / après, régénération des références). Après une modification du `.tex`, suivre la skill **`compiler-doc`**. La CI GitHub Actions (`.github/workflows/ci.yml`) lance les tests sous Linux avec R 4.3.1 et compile la documentation à chaque push sur `main` et à chaque PR. Pour vérifier un point isolé, appeler directement une fonction du moteur (`test_mann_kendall(v)`, `dw_p_exacte(z)`…) après `source("R/engine.R")`.
+Les tests de reproductibilité exécutent `run_engine()` pour les trois méthodes sur `tests/donnees/` : deux appels à graine égale doivent être `identical()`, et le résultat doit coïncider avec `tests/reference/*.rds` à 1e-8 près en relatif. Les tests unitaires (`tests/unitaires/test_*.R`, R base + stats) confrontent chaque fonction du moteur à une référence justifiée (texte réglementaire, valeur publiée, énumération exhaustive, implémentation indépendante) ou à une propriété théorique. Un défaut connu est codé en échec attendu (`echec_attendu()`, renvoi à l'issue) ; la règle est stricte : un succès inattendu fait échouer la batterie, et il faut alors retirer la marque pour en faire un test ordinaire une fois le défaut corrigé. `tests/unitaires/generer_valeurs_externes.R`, hors CI, recalcule les références externes écrites en dur avec lmtest, tseries, car et ChainLadder. Après une modification du moteur, ou quand les tests échouent, suivre la skill **`verifier-reproductibilite`** (tableau avant / après, régénération des références). Après une modification du `.tex`, suivre la skill **`compiler-doc`**. La CI GitHub Actions (`.github/workflows/ci.yml`) lance les tests sous Linux avec R 4.3.1 et compile la documentation à chaque push sur `main` et à chaque PR. Pour vérifier un point isolé, appeler directement une fonction du moteur (`test_mann_kendall(v)`, `dw_p_exacte(z)`…) après `source("R/engine.R")`.
 
 ## Git et GitHub
 
