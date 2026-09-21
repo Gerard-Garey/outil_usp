@@ -1,0 +1,957 @@
+###############################################################################
+#  app.R  --  APPLICATION SHINY (couche interface uniquement)
+#
+#  Paramètres propres à l'entreprise (USP) - Solvabilité II, annexe XVII.
+#
+#  ARCHITECTURE IMPERATIVE
+#  Ce fichier ne contient AUCUN calcul statistique, actuariel, de test, de
+#  bootstrap ou de calibration. Il se limite a :
+#     1. collecter les entrees (xt, yt, parametres) ;
+#     2. appeler run_engine() de R/engine.R sur clic ;
+#     3. conserver l'objet retourne ;
+#     4. afficher les elements de cet objet.
+#  Toute la logique quantitative est dans R/engine.R, qui reste utilisable
+#  hors Shiny (source("R/engine.R") puis run_engine(...)).
+#
+#  Lancement :  shiny::runApp(".")
+###############################################################################
+
+library(shiny)
+if (requireNamespace("plotly", quietly = TRUE)) library(plotly)
+
+source("R/engine.R", local = FALSE)
+source("R/display_helpers.R", local = FALSE)
+
+# Sortie graphique polymorphe : plotly si le paquet est disponible, graphique
+# de base sinon. Choix de rendu uniquement, sans effet sur les donnees.
+sortie_graphique <- function(id, hauteur = "330px") {
+  if (requireNamespace("plotly", quietly = TRUE))
+    plotly::plotlyOutput(id, height = hauteur)
+  else plotOutput(id, height = hauteur)
+}
+
+# Les fonctions render*() de Shiny CAPTURENT leur argument sans l'evaluer.
+# Il faut donc leur transmettre l'expression deja citee ET l'environnement
+# d'evaluation, via les arguments `env` et `quoted` -- c'est l'idiome prevu
+# par Shiny pour envelopper un render dans une fonction. Une version anterieure
+# passait eval(expr, parent.frame()) directement : l'expression litterale
+# etait alors stockee puis reevaluee dans la frame du render, ou les objets
+# reactifs de la fonction server ne sont plus visibles.
+rendu_graphique <- function(expr, env = parent.frame(), quoted = FALSE) {
+  if (!quoted) { expr <- substitute(expr); quoted <- TRUE }
+  # force(env) est indispensable : `env` est une promesse valant
+  # parent.frame(), qui serait sinon evaluee paresseusement DANS la frame de
+  # renderPlotly() et designerait alors le mauvais environnement. On la fige
+  # ici, tant que la frame appelante est encore celle de la fonction server.
+  force(env)
+  if (requireNamespace("plotly", quietly = TRUE))
+    plotly::renderPlotly(expr, env = env, quoted = quoted)
+  else shiny::renderPlot(expr, env = env, quoted = quoted)
+}
+
+
+# Fichiers d'echange, produits par les boutons d'export de l'onglet Donnees.
+# Un fichier par methode : les deux formats sont incompatibles (deux vecteurs
+# d'un cote, un triangle de l'autre), ce qui evite qu'un passage d'une methode
+# a l'autre ecrase ou reinterprete a tort les donnees de la premiere.
+FICHIER_LN <- "usp_donnees_LN.csv"     # methodes lognormales (prime, reserve 1)
+FICHIER_MW <- "usp_donnees_MW.csv"     # methode Merz-Wuthrich (reserve 2)
+
+DONNEES_DEFAUT <- data.frame(
+  t  = 1:8,
+  xt = c(104.20, 102.25, 109.34, 114.64, 118.41, 121.28, 132.40, 131.22),
+  yt = c( 68.97,  76.76,  83.49,  95.38,  88.96,  70.22,  78.89, 117.37)
+)
+
+# Triangle par defaut : 8 annees d'accident, cumules croissants, servant de
+# point de depart lorsqu'aucun fichier n'est disponible.
+triangle_defaut <- function(T = 8) {
+  f <- c(3.20, 1.65, 1.32, 1.14, 1.08, 1.05, 1.02, 1.01, 1.005, 1.003)
+  base <- seq(300, 380, length.out = T)
+  tri <- matrix(NA_real_, T, T)
+  tri[, 1] <- base
+  for (j in 2:T) tri[, j] <- round(tri[, j - 1] * f[j - 1] *
+                                     (1 + 0.02 * sin(seq_len(T) + j)), 2)
+  for (i in 1:T) if (T - i + 1 < T) tri[i, (T - i + 2):T] <- NA_real_
+  tri
+}
+
+# Chargement du fichier lognormal. Le nombre d'annees T est deduit du fichier
+# lui-meme : il n'est pas impose par une valeur par defaut.
+# Au demarrage, le classeur Excel est cherche en premier, puis le CSV.
+charger_ln <- function() {
+  x <- sub("\\.csv$", ".xlsx", FICHIER_LN)
+  src <- if (file.exists(x)) x else FICHIER_LN
+  if (!file.exists(src)) return(DONNEES_DEFAUT)
+  df <- try(if (grepl("xlsx$", src)) engine_lire_xlsx(src)
+            else utils::read.csv(src, stringsAsFactors = FALSE), silent = TRUE)
+  if (inherits(df, "try-error")) return(DONNEES_DEFAUT)
+  r <- engine_lire_donnees_csv(df)
+  if (!r$ok) return(DONNEES_DEFAUT)
+  data.frame(t = seq_along(r$xt), xt = r$xt, yt = r$yt)
+}
+
+# Chargement du triangle. Format attendu : une colonne par annee de
+# developpement, une ligne par annee d'accident, cellules non observees vides.
+charger_mw <- function() {
+  x <- sub("\\.csv$", ".xlsx", FICHIER_MW)
+  src <- if (file.exists(x)) x else FICHIER_MW
+  if (!file.exists(src)) return(triangle_defaut(8))
+  df <- try(if (grepl("xlsx$", src)) engine_lire_xlsx(src)
+            else utils::read.csv(src, stringsAsFactors = FALSE, row.names = NULL),
+            silent = TRUE)
+  if (inherits(df, "try-error")) return(triangle_defaut(8))
+  m <- as.matrix(df[, setdiff(names(df), "i"), drop = FALSE])
+  storage.mode(m) <- "double"
+  if (nrow(m) < 5 || ncol(m) != nrow(m)) return(triangle_defaut(8))
+  unname(m)
+}
+
+DONNEES_INIT  <- charger_ln()
+TRIANGLE_INIT <- charger_mw()
+T_INIT        <- nrow(DONNEES_INIT)
+
+# ---------------------------------------------------------------------------
+# UI : zone principale a gauche, panneau de parametres a DROITE
+# ---------------------------------------------------------------------------
+ui <- fluidPage(
+  title = "USP Solvabilite II - annexe XVII",
+  tags$head(tags$style(HTML("
+    body { background:#FDFEFE; }
+    h4 { margin-top: 4px; }
+    .bloc { background:#fff; border:1px solid #E5E8E8; border-radius:6px;
+            padding:12px 14px; margin-bottom:12px; }
+    .cle { font-size:26px; font-weight:700; color:#B03A2E; }
+    .avert { background:#FEF9E7; border-left:4px solid #B9770E;
+             padding:9px 12px; margin-bottom:10px; font-size:13px; }
+    .err { background:#FDEDEC; border-left:4px solid #922B21;
+           padding:9px 12px; margin-bottom:10px; font-size:13px; }
+    table.data { font-size:12.5px; }
+    /* Grille de saisie du triangle : cellules larges, en-tetes figes. */
+    table.triangle { border-collapse:separate; border-spacing:3px 2px; }
+    table.triangle th { font-weight:600; color:#00468C; font-size:12px;
+                        text-align:center; padding:2px 4px; white-space:nowrap; }
+    table.triangle tbody th { text-align:right; padding-right:8px; }
+    table.triangle td { padding:0; vertical-align:middle; }
+    table.triangle td.vide { color:#CCC; text-align:center; font-size:13px; }
+    table.triangle .form-group { margin-bottom:0; }
+    table.triangle input.form-control { padding:3px 6px; height:30px;
+                                        font-size:12.5px; text-align:right; }
+  "))),
+
+  fluidRow(
+    column(
+      width = 9,
+      h3("Parametres propres a l'entreprise — risque de prime et de reserve"),
+      div(class = "avert", uiOutput("bandeau_T")),
+      tabsetPanel(
+        id = "onglets", type = "tabs",
+
+        # ----------------------------- DONNEES ----------------------------
+        tabPanel(
+          "Donnees",
+          br(),
+          div(class = "bloc",
+              h4(textOutput("titre_donnees", inline = TRUE)),
+              uiOutput("aide_donnees"),
+              fluidRow(
+                column(4, br(), actionButton("reinit", "Reinitialiser les donnees")),
+                column(2, br(), downloadButton("dl_donnees", "Export CSV")),
+                column(2, br(), downloadButton("dl_donnees_xlsx", "Export Excel")),
+                column(4, fileInput("fichier_import", "Importer",
+                                    accept = c(".csv", ".xlsx"), buttonLabel = "Parcourir",
+                                    placeholder = "CSV ou Excel"))
+              ),
+              uiOutput("import_statut"),
+              helpText(paste("Le nombre d'annees T se regle dans le panneau de",
+                             "parametres, a droite. La grille de saisie s'y adapte",
+                             "automatiquement.")),
+              uiOutput("grille_donnees")),
+          div(class = "bloc",
+              h4("Controles de validite"),
+              helpText(paste("Ces controles ont une signification statistique et",
+                             "actuarielle : ils sont implementes dans engine.R",
+                             "et non dans l'interface.")),
+              uiOutput("validation_live"),
+              tableOutput("tab_controles"))
+        ),
+
+        # ------------------------------ TESTS -----------------------------
+        tabPanel(
+          "Tests statistiques",
+          br(),
+          tabsetPanel(
+            tabPanel(
+              "Resultats", br(),
+              div(class = "bloc",
+                  helpText(HTML(paste(
+                    "Nature de la p-value retenue :",
+                    "<b style='color:#1E8449'>exacte</b> &gt;",
+                    "<b style='color:#00468C'>Monte-Carlo</b> &gt;",
+                    "<b style='color:#B9770E'>asymptotique</b>.",
+                    "La s&eacute;lection des tests affich&eacute;s se r&egrave;gle",
+                    "dans le sous-onglet <i>Personnalisation</i>."))),
+                  radioButtons("vue_tests", "Niveau de detail", inline = TRUE,
+                               choices = c("Synthese" = "synth", "Detail" = "detail"),
+                               selected = "synth")),
+              uiOutput("tests_par_hypothese")
+            ),
+            tabPanel(
+              "Personnalisation", br(),
+              div(class = "bloc",
+                  h4("Selection des tests"),
+                  helpText(HTML(paste(
+                    "Chaque test peut &ecirc;tre conserv&eacute; ou retir&eacute; de la",
+                    "restitution. Pour les tests d'ind&eacute;pendance et de",
+                    "stabilit&eacute; de la m&eacute;thode lognormale, la base de",
+                    "r&eacute;sidus est &eacute;galement r&eacute;glable : sur les",
+                    "<i>r&eacute;sidus normalis&eacute;s</i> les p-values exactes et",
+                    "asymptotiques sont valides ; sur les <i>ratios bruts</i> le test",
+                    "ne d&eacute;pend d'aucun ajustement mais seule la p-value de",
+                    "Monte-Carlo y est valide.",
+                    "<br><b>Par d&eacute;faut</b> : variantes secondaires retir&eacute;es,",
+                    "r&eacute;sidus normalis&eacute;s."))),
+                  fluidRow(
+                    column(4, actionButton("sel_defaut", "Retablir la selection par defaut")),
+                    column(4, actionButton("sel_tout", "Tout conserver")),
+                    column(4, actionButton("sel_rien", "Tout retirer"))),
+                  br(),
+                  uiOutput("panneau_personnalisation"))
+            )
+          )
+        ),
+
+        # ---------------------------- GRAPHIQUES --------------------------
+        tabPanel("Graphiques", br(), uiOutput("onglets_graphiques")),
+
+        # --------------------------- CALIBRATION --------------------------
+        tabPanel(
+          "Calibration",
+          br(),
+          div(class = "bloc",
+              h4("Parametre retenu"),
+              uiOutput("bloc_final")),
+          div(class = "bloc",
+              h4("Chaine de calibration (annexe XVII, sections B/C et G)"),
+              tableOutput("tab_calibration")),
+          div(class = "bloc",
+              h4("Valeurs candidates"),
+              fluidRow(column(6, tableOutput("tab_candidats")),
+                       column(6, sortie_graphique("g_calib", "280px")))),
+          div(class = "bloc",
+              h4("Robustesse du calibrage"),
+              tableOutput("tab_robustesse"))
+        ),
+
+        # -------------------------- DESCRIPTIF ----------------------------
+        tabPanel(
+          "Descriptif et journal",
+          br(),
+          div(class = "bloc", h4("Statistiques descriptives"),
+              tableOutput("tab_desc")),
+          div(class = "bloc", h4("Journal d'execution (tracabilite)"),
+              verbatimTextOutput("tab_meta")),
+          div(class = "bloc", h4("Export"),
+              downloadButton("dl_tests", "Table complete des tests (CSV)"), " ",
+              downloadButton("dl_calib", "Calibration (CSV)"))
+        )
+      )
+    ),
+
+    # ------------------------ PANNEAU DE PARAMETRES (DROITE) --------------
+    column(
+      width = 3,
+      div(class = "bloc",
+          h4("Parametres de calcul"),
+          selectInput("methode", "Methode (annexe XVII)",
+                      c("Risque de prime (section B)" = "premium",
+                        "Risque de reserve 1 (section C)" = "reserve1",
+                        "Risque de reserve 2 - Merz-Wuthrich (section D)" = "reserve2")),
+          helpText(textOutput("aide_methode", inline = TRUE)),
+          radioButtons("annexe", "Perimetre", inline = TRUE,
+                       choices = c("Non-vie (annexe II)" = "II",
+                                   "Sante non-SLT (annexe XIV)" = "XIV"),
+                       selected = "II"),
+          uiOutput("choix_segment"),
+          checkboxInput("sigma_manuel", "Saisir sigma standard manuellement", FALSE),
+          conditionalPanel("input.sigma_manuel",
+                           numericInput("sigma_std", "sigma standard",
+                                        value = 0.10, min = 0.01, max = 1, step = 0.005)),
+          numericInput("profondeur", "Profondeur T retenue", value = T_INIT,
+                       min = 5, max = 40, step = 1),
+          helpText("T pilote la taille de la grille de saisie de l'onglet Donnees."),
+          numericInput("B", "Replications bootstrap B", value = 999, min = 99,
+                       max = 9999, step = 100),
+          helpText("L'erreur de Monte-Carlo decroit en 1/sqrt(B) ; elle est",
+                   "independante de la qualite de l'approximation liee a T."),
+          numericInput("alpha", "Seuil alpha des verdicts", value = 0.10,
+                       min = 0.01, max = 0.20, step = 0.01),
+          hr(),
+          h5("Test d'equivalence de la constante"),
+          checkboxInput("delta_apriori", "Marge Delta fixee a priori", FALSE),
+          conditionalPanel("!input.delta_apriori",
+                           numericInput("theta_equiv", "Marge en % de la perte moyenne",
+                                        value = 0.10, min = 0.01, max = 0.50, step = 0.01)),
+          conditionalPanel("input.delta_apriori",
+                           numericInput("delta_equiv", "Marge Delta (unite monetaire)",
+                                        value = 8, min = 0, step = 0.5)),
+          helpText("Marge fixee a priori : test exact. Marge en % de la moyenne :",
+                   "exactitude seulement approchee (la marge depend des donnees)."),
+          numericInput("seed", "Graine (reproductibilite)", value = 20260831, step = 1),
+          hr(),
+          actionButton("go", "Relancer les calculs", class = "btn-primary",
+                       width = "100%", icon = icon("play")),
+          br(), br(),
+          helpText("Les modifications des donnees ou des parametres ne declenchent",
+                   "aucun calcul : seul ce bouton appelle run_engine().")),
+      div(class = "bloc",
+          h4("Etat"),
+          uiOutput("etat"))
+    )
+  )
+)
+
+# ---------------------------------------------------------------------------
+# SERVEUR : collecte des entrees, appel du moteur, affichage
+# ---------------------------------------------------------------------------
+server <- function(input, output, session) {
+
+  donnees   <- reactiveVal(DONNEES_INIT)     # methodes lognormales
+  triangle  <- reactiveVal(TRIANGLE_INIT)    # methode Merz-Wuthrich
+  resultat  <- reactiveVal(NULL)
+  selection <- reactiveVal(NULL)             # personnalisation des tests
+  est_mw <- reactive(identical(input$methode, "reserve2"))
+
+  output$aide_methode <- renderText({
+    if (est_mw())
+      "Entree : triangle de paiements cumules (T annees d'accident x T annees de developpement)."
+    else "Entree : deux vecteurs x_t et y_t sur T annees."
+  })
+  output$titre_donnees <- renderText({
+    if (est_mw()) "Triangle de paiements cumules C(i,j)" else "Series x_t et y_t"
+  })
+  output$aide_donnees <- renderUI({
+    if (est_mw())
+      helpText(HTML(paste("Lignes : annees d'accident i = 0..I. Colonnes : annees de",
+        "developpement j = 0..J. Seule la partie superieure gauche (i + j &le; I) est",
+        "observee ; les cellules restantes sont laiss&eacute;es vides. Le fichier",
+        "d'echange est <code>", FICHIER_MW, "</code>.")))
+    else
+      helpText(HTML(paste("Methode risque de prime : x_t = primes acquises, y_t = pertes",
+        "agregees. Methode risque de reserve 1 : x_t = provision d'ouverture,",
+        "y_t = paiements de l'exercice + meilleure estimation de cloture.",
+        "Le fichier d'echange est <code>", FICHIER_LN, "</code>.")))
+  })
+
+  # Liste des segments de l'annexe choisie. Les libelles et les numeros
+  # proviennent du catalogue SEGMENTS de engine.R : aucune valeur reglementaire
+  # n'est saisie en dur dans l'interface.
+  output$choix_segment <- renderUI({
+    tab <- SEGMENTS[SEGMENTS$annexe == input$annexe, ]
+    selectInput("segment",
+                sprintf("Segment (annexe %s)", input$annexe),
+                setNames(as.character(tab$segment),
+                         paste0(tab$segment, " - ", substr(tab$libelle, 1, 40))))
+  })
+
+  # --- Grille de saisie (interface pure) -----------------------------------
+  # Dimension de la grille : pilotee uniquement par le parametre T du panneau
+  # de droite. Les valeurs deja saisies sont conservees, les cases ajoutees
+  # sont vides.
+  observeEvent(input$profondeur, {
+    T <- input$profondeur
+    if (is.null(T) || !is.finite(T) || T < 1) return()
+    d <- donnees()
+    if (nrow(d) != T) {
+      if (T < nrow(d)) d <- d[seq_len(T), ]
+      else d <- rbind(d, data.frame(t = (nrow(d) + 1):T, xt = NA_real_, yt = NA_real_))
+      d$t <- seq_len(nrow(d)); donnees(d)
+    }
+    tri <- triangle()
+    if (nrow(tri) != T) {
+      nt <- matrix(NA_real_, T, T)
+      k <- min(nrow(tri), T)
+      nt[seq_len(k), seq_len(k)] <- tri[seq_len(k), seq_len(k)]
+      for (ii in seq_len(T)) if (T - ii + 1 < T) nt[ii, (T - ii + 2):T] <- NA_real_
+      triangle(nt)
+    }
+  }, ignoreInit = FALSE)
+
+  output$grille_donnees <- renderUI({
+    if (est_mw()) {
+      tri <- triangle(); T <- nrow(tri)
+      # Tableau HTML plutot que la grille Bootstrap : column(1, ...) alloue un
+      # douzieme de la largeur, insuffisant pour afficher des cumules a sept
+      # chiffres, et inutilisable au-dela de onze annees de developpement. Le
+      # tableau fixe la largeur des cellules et defile horizontalement si
+      # necessaire, quelle que soit la valeur de T.
+      # Largeur adaptee au nombre de chiffres reellement presents. On evite
+      # formatC(format = "d"), qui coerce en entier et deborde au-dela de
+      # 2,1 milliards ; format(scientific = FALSE) n'a pas cette limite.
+      vals <- tri[!is.na(tri)]
+      nchif <- if (length(vals))
+        max(nchar(format(round(vals), scientific = FALSE, trim = TRUE))) else 6
+      largeur <- paste0(max(95, min(150, 55 + 7 * nchif)), "px")
+      tags$div(
+        style = "overflow-x:auto; padding-bottom:6px",
+        tags$table(
+          class = "triangle",
+          tags$thead(tags$tr(
+            tags$th("i \\ j"),
+            lapply(0:(T - 1), function(j) tags$th(j)))),
+          tags$tbody(lapply(seq_len(T), function(i)
+            tags$tr(
+              tags$th(i - 1),
+              lapply(0:(T - 1), function(j) {
+                id <- paste0("c_", i - 1, "_", j)
+                if (i - 1 + j <= T - 1)
+                  tags$td(numericInput(id, NULL, value = tri[i, j + 1],
+                                       step = 1, width = largeur))
+                else tags$td(class = "vide", "\u2014")
+              })))))) 
+    } else {
+      d <- donnees()
+      do.call(tagList, lapply(seq_len(nrow(d)), function(i) {
+        fluidRow(
+          column(2, div(style = "padding-top:26px;font-weight:600", paste0("t = ", d$t[i]))),
+          column(5, numericInput(paste0("x_", i), if (i == 1) "x_t" else NULL,
+                                 value = d$xt[i], step = 0.01)),
+          column(5, numericInput(paste0("y_", i), if (i == 1) "y_t" else NULL,
+                                 value = d$yt[i], step = 0.01)))
+      }))
+    }
+  })
+
+
+  # Lecture des champs de saisie : aucune transformation quantitative ici.
+  lire_saisie <- function() {
+    d <- donnees(); n <- nrow(d)
+    xt <- vapply(seq_len(n), function(i) {
+      v <- input[[paste0("x_", i)]]; if (is.null(v)) NA_real_ else as.numeric(v) }, numeric(1))
+    yt <- vapply(seq_len(n), function(i) {
+      v <- input[[paste0("y_", i)]]; if (is.null(v)) NA_real_ else as.numeric(v) }, numeric(1))
+    list(xt = xt, yt = yt)
+  }
+
+  # Lecture du triangle saisi. Aucune transformation quantitative : seules les
+  # cellules observees (i + j <= I) sont relues, les autres restent NA.
+  lire_triangle <- function() {
+    T <- nrow(triangle())
+    m <- matrix(NA_real_, T, T)
+    for (i in 0:(T - 1)) for (j in 0:(T - 1)) if (i + j <= T - 1) {
+      v <- input[[paste0("c_", i, "_", j)]]
+      m[i + 1, j + 1] <- if (is.null(v)) NA_real_ else as.numeric(v)
+    }
+    m
+  }
+
+  # Validation en direct : l'appel est fait au moteur, pas reimplemente ici.
+  output$validation_live <- renderUI({
+    v <- if (est_mw()) mw_valider_triangle(lire_triangle())
+         else { sa <- lire_saisie(); engine_valider_donnees(sa$xt, sa$yt) }
+    tagList(
+      if (length(v$erreurs))
+        div(class = "err", tags$b("Donnees non exploitables :"),
+            tags$ul(lapply(utils::head(v$erreurs, 6), tags$li))),
+      if (length(v$avertissements))
+        div(class = "avert", tags$b("Avertissements :"),
+            tags$ul(lapply(v$avertissements, tags$li))),
+      if (isTRUE(v$ok) && !length(v$avertissements))
+        div(style = "color:#1E8449", "Donnees valides.")
+    )
+  })
+
+  observeEvent(input$reinit, {
+    if (est_mw()) triangle(triangle_defaut(input$profondeur))
+    else {
+      d <- DONNEES_DEFAUT
+      T <- input$profondeur
+      if (nrow(d) != T) {
+        if (T < nrow(d)) d <- d[seq_len(T), ]
+        else d <- rbind(d, data.frame(t = (nrow(d)+1):T, xt = NA_real_, yt = NA_real_))
+        d$t <- seq_len(nrow(d))
+      }
+      donnees(d)
+    }
+    statut_import(NULL)
+    showNotification("Donnees reinitialisees.", type = "message")
+  })
+
+  # Import. La lecture disque est faite ici (couche interface) ; la validation
+  # structurelle revient au moteur.
+  statut_import <- reactiveVal(NULL)
+  observeEvent(input$fichier_import, {
+    fi <- input$fichier_import
+    # Le format est deduit de l'extension du fichier depose. La lecture est du
+    # ressort de l'interface ; l'interpretation structurelle revient au moteur.
+    ext <- tolower(tools::file_ext(fi$name))
+    df <- try(
+      if (ext %in% c("xlsx", "xlsm")) engine_lire_xlsx(fi$datapath)
+      else utils::read.csv(fi$datapath, stringsAsFactors = FALSE),
+      silent = TRUE)
+    if (inherits(df, "try-error")) {
+      statut_import(list(ok = FALSE,
+        msg = sprintf("Fichier illisible (%s) : %s", toupper(ext),
+                      conditionMessage(attr(df, "condition"))))); return()
+    }
+    if (est_mw()) {
+      m <- as.matrix(df[, setdiff(names(df), "i"), drop = FALSE])
+      storage.mode(m) <- "double"; m <- unname(m)
+      v <- mw_valider_triangle(m)
+      if (!v$ok) {
+        statut_import(list(ok = FALSE, msg = paste(utils::head(v$erreurs, 3), collapse = " ")))
+        showNotification("Import refuse.", type = "error", duration = 8); return()
+      }
+      triangle(m); updateNumericInput(session, "profondeur", value = nrow(m))
+      statut_import(list(ok = TRUE, msg = sprintf("Triangle %d x %d importe depuis %s (%s).",
+                                                  nrow(m), ncol(m), fi$name, toupper(ext))))
+    } else {
+      r <- engine_lire_donnees_csv(df)
+      if (!r$ok) {
+        statut_import(list(ok = FALSE, msg = paste(r$erreurs, collapse = " ")))
+        showNotification("Import refuse.", type = "error", duration = 8); return()
+      }
+      donnees(data.frame(t = seq_along(r$xt), xt = r$xt, yt = r$yt))
+      updateNumericInput(session, "profondeur", value = r$n)
+      statut_import(list(ok = TRUE, msg = sprintf("%d annees importees depuis %s (%s).",
+                                                  r$n, fi$name, toupper(ext))))
+    }
+    showNotification("Donnees importees.", type = "message")
+  })
+
+  output$import_statut <- renderUI({
+    st <- statut_import(); if (is.null(st)) return(NULL)
+    div(class = if (st$ok) "avert" else "err",
+        style = if (st$ok) "border-left-color:#1E8449;background:#EAFAF1" else NULL, st$msg)
+  })
+
+  # --- Declenchement explicite des calculs ---------------------------------
+  observeEvent(input$go, {
+    if (est_mw()) {
+      m <- lire_triangle(); v <- mw_valider_triangle(m)
+      if (!v$ok) {
+        showNotification(paste("Calcul non lance :", paste(utils::head(v$erreurs, 2), collapse = " ")),
+                         type = "error", duration = 10); return()
+      }
+      withProgress(message = "Merz-Wuthrich : chain-ladder, MSEP et bootstrap", value = 0.4, {
+        res <- try(run_engine(methode = "reserve2", triangle = m,
+                              segment = as.integer(input$segment), annexe = input$annexe,
+                              sigma_standard = if (isTRUE(input$sigma_manuel)) input$sigma_std else NULL,
+                              B = input$B, alpha = input$alpha, seed = input$seed), silent = TRUE)
+        if (inherits(res, "try-error")) {
+          showNotification(paste("Erreur du moteur :", conditionMessage(attr(res, "condition"))),
+                           type = "error", duration = 12); return()
+        }
+        resultat(res); selection(NULL)
+      })
+    } else {
+      sa <- lire_saisie(); v <- engine_valider_donnees(sa$xt, sa$yt)
+      if (!v$ok) {
+        showNotification(paste("Calcul non lance :", paste(v$erreurs, collapse = " ")),
+                         type = "error", duration = 10); return()
+      }
+      withProgress(message = "Calculs en cours (bootstrap parametrique)", value = 0.4, {
+        res <- try(run_engine(xt = sa$xt, yt = sa$yt, methode = input$methode,
+                              segment = as.integer(input$segment), annexe = input$annexe,
+                              sigma_standard = if (isTRUE(input$sigma_manuel)) input$sigma_std else NULL,
+                              T = input$profondeur, B = input$B, alpha = input$alpha,
+                              seed = input$seed,
+                              theta_equiv = if (isTRUE(input$delta_apriori)) 0.10 else input$theta_equiv,
+                              delta_equiv = if (isTRUE(input$delta_apriori)) input$delta_equiv else NULL),
+                   silent = TRUE)
+        if (inherits(res, "try-error")) {
+          showNotification(paste("Erreur du moteur :", conditionMessage(attr(res, "condition"))),
+                           type = "error", duration = 12); return()
+        }
+        resultat(res); selection(NULL)
+      })
+    }
+    showNotification("Calculs termines.", type = "message")
+  })
+
+  R <- reactive({ req(resultat()); resultat() })
+  TB <- reactive({ engine_table_tests(R()) })
+
+  # --- Bandeaux et etat -----------------------------------------------------
+  output$bandeau_T <- renderUI({
+    r <- resultat()
+    if (is.null(r)) return(HTML("Renseignez les donnees puis cliquez sur <b>Relancer les calculs</b>."))
+    msg <- avertissement_T(r$metadata$T)
+    if (is.null(msg)) HTML("Profondeur suffisante pour une lecture standard des tests.") else HTML(msg)
+  })
+
+  output$etat <- renderUI({
+    r <- resultat()
+    if (is.null(r)) return(div(style = "color:#7F8C8D", "Aucun calcul lance."))
+    m <- r$metadata
+    tagList(
+      div(HTML(sprintf("<b>T</b> = %d &nbsp; <b>B</b> = %d", m$T, m$B))),
+      div(HTML(sprintf("<b>seed</b> = %s", format(m$seed, scientific = FALSE)))),
+      div(HTML(sprintf("<b>sigma_USP</b> = <span class='cle' style='font-size:18px'>%.4f</span>",
+                       r$parametre_final$sigma_usp))),
+      div(style = "color:#7F8C8D;font-size:12px",
+          sprintf("calcule en %.1f s", m$duree_sec))
+    )
+  })
+
+  # --- Donnees --------------------------------------------------------------
+  output$tab_controles <- renderTable({
+    do.call(rbind, lapply(R()$controles, function(t)
+      data.frame(Controle = t$test, Verdict = t$verdict, Detail = t$detail,
+                 stringsAsFactors = FALSE)))
+  }, striped = TRUE, width = "100%")
+
+  # --- Tests ----------------------------------------------------------------
+  # Rendu des tests groupes par hypothese. Aucun calcul : on filtre et on
+  # met en forme la table produite par engine_table_tests().
+  # Selection par defaut : variantes principales uniquement, base "z" pour les
+  # tests disponibles dans les deux bases. C'est le parametrage retenu tant que
+  # l'utilisateur n'a rien modifie.
+  selection_defaut <- function(tb) {
+    data.frame(
+      cle = tb$test,
+      garde = tb$variante == "principale" & tb$base %in% c("commun", "z"),
+      base = ifelse(tb$base == "commun", "commun", "z"),
+      stringsAsFactors = FALSE)
+  }
+  sel_courante <- reactive({
+    tb <- TB(); s <- selection()
+    if (is.null(s)) selection_defaut(tb) else s
+  })
+
+  observeEvent(input$sel_defaut, selection(NULL))
+  observeEvent(input$sel_tout, { s <- sel_courante(); s$garde <- TRUE; selection(s) })
+  observeEvent(input$sel_rien, { s <- sel_courante(); s$garde <- FALSE; selection(s) })
+
+  # Le panneau lit les cases a cocher et les boutons radio, et met a jour
+  # l'objet de selection. Aucun recalcul n'est declenche : le moteur a deja
+  # produit toutes les lignes.
+  observe({
+    tb <- TB(); s <- sel_courante(); modif <- FALSE
+    for (k in seq_len(nrow(tb))) {
+      idg <- paste0("g_test_", k); idb <- paste0("b_test_", k)
+      vg <- input[[idg]]
+      if (!is.null(vg) && !identical(vg, s$garde[k])) { s$garde[k] <- vg; modif <- TRUE }
+      vb <- input[[idb]]
+      if (!is.null(vb) && tb$base[k] != "commun" && !identical(vb, s$base[k])) {
+        s$base[k] <- vb; modif <- TRUE
+      }
+    }
+    if (modif) selection(s)
+  })
+
+  output$panneau_personnalisation <- renderUI({
+    tb <- TB(); s <- sel_courante()
+    # Les tests declines en deux bases sont apparies par leur libelle de base.
+    blocs <- lapply(cles_groupes(), function(k) {
+      idx <- which(vapply(tb$famille, function(f) groupe_de(f)$cle, character(1)) == k)
+      if (!length(idx)) return(NULL)
+      g <- groupe_de(tb$famille[idx[1]])
+      lignes <- lapply(idx, function(r) {
+        etiq <- tb$test[r]
+        sec <- if (tb$variante[r] == "secondaire")
+          span(style = "color:#B9770E;font-size:11px", " [variante secondaire]") else NULL
+        bas <- if (tb$base[r] != "commun")
+          radioButtons(paste0("b_test_", r), NULL, inline = TRUE,
+                       choices = c("z_t" = "z", "ratios" = "r"),
+                       selected = s$base[r])
+        else div(style = "color:#AAA;font-size:11px;padding-top:6px", "base unique")
+        fluidRow(
+          column(1, checkboxInput(paste0("g_test_", r), NULL, value = s$garde[r])),
+          column(8, div(style = "padding-top:6px", etiq, sec)),
+          column(3, bas))
+      })
+      div(class = "bloc",
+          div(style = "border-left:4px solid #00468C;padding-left:10px;margin-bottom:6px",
+              h4(style = "color:#00468C;margin:0", g$titre)),
+          do.call(tagList, lignes))
+    })
+    do.call(tagList, Filter(Negate(is.null), blocs))
+  })
+
+  output$tests_par_hypothese <- renderUI({
+    tb <- TB(); s <- sel_courante()
+    # Filtrage d'AFFICHAGE seulement : le moteur a calcule toutes les lignes et
+    # l'export CSV les conserve toutes.
+    keep <- s$garde & (tb$base == "commun" | tb$base == s$base)
+    tb <- tb[keep, , drop = FALSE]
+    if (!nrow(tb)) return(div(class = "avert", "Aucun test selectionne."))
+    tb$cle <- vapply(tb$famille, function(f) groupe_de(f)$cle, character(1))
+    # cles_groupes() couvre les deux methodes ; seules les familles presentes
+    # dans le resultat courant sont affichees, dans l'ordre du catalogue.
+    blocs <- lapply(cles_groupes(), function(k) {
+      sub <- tb[tb$cle == k, , drop = FALSE]
+      if (!nrow(sub)) return(NULL)
+      g <- groupe_de(sub$famille[1])
+      nb <- table(factor(sub$verdict, levels = c("OK", "ALERTE", "ECHEC", "INFO")))
+      d <- if (identical(input$vue_tests, "detail")) table_detail_groupe(sub)
+           else table_synthese_groupe(sub)
+      div(class = "bloc",
+          div(style = "border-left:4px solid #00468C;padding-left:10px;margin-bottom:8px",
+              h4(style = "color:#00468C;margin:0", g$titre),
+              div(style = "color:#555;font-size:12.5px", g$sous),
+              div(style = "color:#7F8C8D;font-size:11.5px;font-style:italic", g$ref),
+              div(style = "margin-top:5px", HTML(paste(
+                badge_verdict("OK"), nb[["OK"]], "&nbsp;&nbsp;",
+                badge_verdict("ALERTE"), nb[["ALERTE"]], "&nbsp;&nbsp;",
+                badge_verdict("ECHEC"), nb[["ECHEC"]], "&nbsp;&nbsp;",
+                "<span style='color:#5D6D7E;font-size:11px'>INFO</span>", nb[["INFO"]])))),
+          HTML(html_table(d)))
+    })
+    do.call(tagList, Filter(Negate(is.null), blocs))
+  })
+
+  # Les onglets graphiques different selon la methode : la geometrie des
+  # donnees n'est pas la meme (deux vecteurs contre un triangle).
+  output$onglets_graphiques <- renderUI({
+    req(resultat())
+    if (identical(R()$metadata$methode, "reserve2")) {
+      tabsetPanel(
+        tabPanel("Ajustement", br(),
+                 fluidRow(column(6, sortie_graphique("mw_fact")),
+                          column(6, sortie_graphique("mw_res")))),
+        tabPanel("M1 - regressions", br(),
+                 div(class = "bloc", uiOutput("note_m1")),
+                 sortie_graphique("mw_reg", "560px"),
+                 fluidRow(column(6, sortie_graphique("mw_orig", "330px")),
+                          column(6, sortie_graphique("mw_alpha", "330px")))),
+        tabPanel("M2 - variance", br(),
+                 fluidRow(column(6, sortie_graphique("mw_rC")),
+                          column(6, sortie_graphique("mw_rdev")))),
+        tabPanel("M3 - independance", br(),
+                 fluidRow(column(6, sortie_graphique("mw_racc")),
+                          column(6, sortie_graphique("mw_rcal")))),
+        tabPanel("M5 - normalite (diagnostic)", br(),
+                 fluidRow(column(6, sortie_graphique("mw_qq")),
+                          column(6, sortie_graphique("mw_boot")))),
+        tabPanel("Influence et leviers", br(),
+                 div(class = "bloc", uiOutput("note_influence_mw")),
+                 fluidRow(column(6, sortie_graphique("mw_lev", "380px")),
+                          column(6, sortie_graphique("mw_contrib", "380px"))),
+                 fluidRow(column(12, sortie_graphique("mw_dfb", "330px")))))
+    } else {
+      tabsetPanel(
+        tabPanel("Donnees", br(),
+                 fluidRow(column(6, sortie_graphique("g_ajust")),
+                          column(6, sortie_graphique("g_ratio")))),
+        tabPanel("H2 - variance", br(),
+                 fluidRow(column(6, sortie_graphique("g_qq2")),
+                          column(6, sortie_graphique("g_spread"))),
+                 fluidRow(column(12, sortie_graphique("g_resid")))),
+        tabPanel("H3 - normalite", br(),
+                 fluidRow(column(12, sortie_graphique("g_qq", "420px")))),
+        tabPanel("Surface objectif", br(),
+                 div(class = "bloc", uiOutput("note_surface")),
+                 fluidRow(column(7, sortie_graphique("g_surface", "520px")),
+                          column(5, sortie_graphique("g_coupe", "250px"),
+                                    sortie_graphique("g_profil", "250px")))),
+        tabPanel("Influence et leviers", br(),
+                 div(class = "bloc", uiOutput("note_influence")),
+                 fluidRow(column(6, sortie_graphique("g_inf_lev", "380px")),
+                          column(6, sortie_graphique("g_inf_cook", "380px"))),
+                 fluidRow(column(12, sortie_graphique("g_inf_sigma", "330px")))),
+        tabPanel("Incertitude d'estimation", br(),
+                 sortie_graphique("g_boot", "420px")))
+    }
+  })
+
+  output$mw_fact <- rendu_graphique(plot_mw_facteurs(R()$plots_data))
+  output$mw_res  <- rendu_graphique(plot_mw_reserve(R()$plots_data))
+  output$mw_rC   <- rendu_graphique(plot_mw_residus_C(R()$plots_data))
+  output$mw_rdev <- rendu_graphique(plot_mw_residus_dev(R()$plots_data))
+  output$mw_racc <- rendu_graphique(plot_mw_residus_acc(R()$plots_data))
+  output$mw_rcal <- rendu_graphique(plot_mw_residus_cal(R()$plots_data))
+  output$mw_qq   <- rendu_graphique(plot_mw_qq(R()$plots_data))
+  output$mw_reg   <- rendu_graphique(plot_mw_regressions(R()$plots_data))
+  output$mw_orig  <- rendu_graphique(plot_mw_origine(R()$plots_data))
+  output$mw_alpha <- rendu_graphique(plot_mw_alpha(R()$plots_data))
+
+  # Note contextuelle du volet M1 : les valeurs proviennent du moteur.
+  output$note_m1 <- renderUI({
+    d <- R()$plots_data$origine
+    if (is.null(d) || !nrow(d)) return(NULL)
+    k <- sum(d$p < 0.10, na.rm = TRUE)
+    w <- d[which.min(d$p), ]
+    helpText(HTML(sprintf(paste(
+      "Le r&egrave;glement impose E[C(i,j+1) | C(i,j)] = f_j C(i,j),",
+      "soit une droite <b>passant par l'origine</b> (trait plein). Le pointill&eacute;",
+      "est la droite ajust&eacute;e avec constante : un &eacute;cart marqu&eacute;",
+      "entre les deux signale une composante fixe non pr&eacute;vue par le mod&egrave;le.",
+      "<br><b>%d colonne(s) sur %d</b> pr&eacute;sentent une ordonn&eacute;e &agrave;",
+      "l'origine significative au seuil de 10 %%, la plus marqu&eacute;e &eacute;tant",
+      "<b>j = %d</b> (p = %.4f)."), k, nrow(d), w$j, w$p)))
+  })
+  output$mw_boot <- rendu_graphique(plot_boot_sigma(R()$plots_data))
+  output$g_inf_lev   <- rendu_graphique(plot_influence_levier(R()$plots_data))
+  output$g_inf_cook  <- rendu_graphique(plot_influence_cook(R()$plots_data))
+  output$g_inf_sigma <- rendu_graphique(plot_influence_sigma(R()$plots_data))
+  output$mw_lev      <- rendu_graphique(plot_mw_levier(R()$plots_data))
+  output$mw_dfb      <- rendu_graphique(plot_mw_dfbeta(R()$plots_data))
+  output$mw_contrib  <- rendu_graphique(plot_mw_contributions(R()$plots_data))
+
+  # Notes contextuelles : les seuils et les comptages viennent du moteur.
+  output$note_influence_mw <- renderUI({
+    d <- R()$plots_data$influence
+    if (is.null(d$dfbeta_relatif)) return(NULL)
+    nf <- sum(d$fort_levier, na.rm = TRUE)
+    mx <- d[which.max(abs(d$dfbeta_relatif)), ]
+    helpText(HTML(sprintf(paste(
+      "Le levier d'une cellule dans son facteur f_j vaut C(i,j) / S_j ; il somme &agrave; 1",
+      "par colonne. <b>%d cellule(s)</b> d&eacute;passent le seuil 2/n_j. La cellule la plus",
+      "influente est <b>(i = %d, j = %d)</b>, dont le retrait d&eacute;placerait f_%d de",
+      "<b>%+.2f %%</b>."), nf, mx$i, mx$j, mx$j, 100 * mx$dfbeta_relatif)))
+  })
+
+  output$note_influence <- renderUI({
+    d <- R()$plots_data$influence
+    # Meme garde que pour les graphiques : la table d'influence du triangle n'a
+    # pas les colonnes de la regression lognormale.
+    if (is.null(d$cook) || is.null(d$ecart_sigma)) return(NULL)
+    {
+      ni <- sum(d$influent); nl <- sum(d$fort_levier)
+      helpText(HTML(sprintf(paste(
+        "<b>%d</b> observation(s) au-del&agrave; du seuil de Cook (4/T = %.3f) et <b>%d</b>",
+        "au-del&agrave; du seuil de levier (2k/T = %.3f). Le retrait de l'ann&eacute;e la plus",
+        "influente d&eacute;place sigma_USP de <b>%+.1f %%</b>. Un levier &eacute;lev&eacute;",
+        "seul n'est pas probl&eacute;matique : c'est sa combinaison avec un r&eacute;sidu",
+        "important, mesur&eacute;e par la distance de Cook, qui l'est."),
+        ni, d$seuil_cook[1], nl, d$seuil_levier[1],
+        100 * d$ecart_sigma[which.max(abs(d$ecart_sigma))])))
+    }
+  })
+
+  # --- Graphiques : uniquement du trace de res$plots_data -------------------
+  output$g_ajust   <- rendu_graphique(plot_ajustement(R()$plots_data))
+  output$g_ratio   <- rendu_graphique(plot_ratio(R()$plots_data))
+  output$g_qq      <- rendu_graphique(plot_qqnorm(R()$plots_data))
+  output$g_qq2     <- rendu_graphique(plot_qq2ech(R()$plots_data))
+  output$g_spread  <- rendu_graphique(plot_spread(R()$plots_data))
+  output$g_resid   <- rendu_graphique(plot_residus(R()$plots_data))
+  output$g_profil  <- rendu_graphique(plot_profil_delta(R()$plots_data))
+  output$g_surface <- rendu_graphique(plot_surface_objectif(R()$plots_data))
+  output$g_coupe   <- rendu_graphique(plot_coupe_delta(R()$plots_data))
+  output$g_boot    <- rendu_graphique(plot_boot_sigma(R()$plots_data))
+  output$g_calib   <- rendu_graphique(plot_calibration(R()$candidats))
+
+  # Note contextuelle sur la surface : les quantites affichees viennent du moteur.
+  output$note_surface <- renderUI({
+    if (identical(R()$metadata$methode, "reserve2")) return(NULL)
+    S <- R()$plots_data$surface
+    if (isTRUE(S$au_bord))
+      div(class = "avert",
+          HTML(sprintf(paste("delta est estim&eacute; <b>au bord</b> (%.4f). Amplitude de",
+                             "l'objectif le long de delta &agrave; gamma optimal : <b>%.4f</b>.",
+                             "Une amplitude faible confirme un plateau, donc une structure de",
+                             "variance non identifi&eacute;e."), S$delta_opt, S$amplitude_delta)))
+    else
+      div(style = "color:#1E8449",
+          HTML(sprintf("delta = %.4f est int&eacute;rieur au domaine ; amplitude le long de delta : %.4f.",
+                       S$delta_opt, S$amplitude_delta)))
+  })
+
+  # --- Calibration ----------------------------------------------------------
+  output$bloc_final <- renderUI({
+    r <- R(); p <- r$parametre_final; ic <- r$ic_bootstrap
+    tagList(
+      div(HTML(sprintf("<span class='cle'>sigma_USP = %.4f</span>", p$sigma_usp))),
+      div(HTML(sprintf("soit %+.1f %% par rapport au parametre standard de %.4f",
+                       100 * p$variation_relative, p$sigma_standard))),
+      if (!is.null(ic))
+        div(style = "margin-top:6px", HTML(sprintf(
+          "Intervalle bootstrap 90 %% : [%.4f ; %.4f] &nbsp;|&nbsp; 95 %% : [%.4f ; %.4f]",
+          ic[2], ic[4], ic[1], ic[5]))),
+      div(style = "margin-top:6px;color:#7F8C8D;font-size:12.5px",
+          sprintf("Formule appliquee : sigma_USP = c x sigma_estime x sqrt((T+1)/(T-1)) + (1-c) x sigma_standard, avec c = %.0f %% (bareme %s).",
+                  100 * p$credibilite, r$metadata$bareme))
+    )
+  })
+
+  output$tab_calibration <- renderTable({
+    d <- R()$calibration; d$valeur <- fmt_nb(d$valeur, 5)
+    names(d) <- c("Etape", "Valeur"); d
+  }, striped = TRUE, width = "100%")
+
+  output$tab_candidats <- renderTable({
+    d <- R()$candidats
+    data.frame(Variante = d$variante, Valeur = fmt_nb(d$valeur, 5),
+               Retenu = ifelse(d$retenu, "OUI", ""), stringsAsFactors = FALSE)
+  }, striped = TRUE, width = "100%")
+
+  output$tab_robustesse <- renderTable({
+    # Le filtre passe par la CLE de groupe et non par le libelle de famille :
+    # celui-ci differe selon la methode ("G. Robustesse..." en lognormal,
+    # "M6. robustesse..." en Merz-Wuthrich). Un filtre litteral renvoyait zero
+    # ligne en Merz-Wuthrich, et paste0() sur un vecteur vide recycle a la
+    # longueur 1, d'ou une erreur de construction du data.frame.
+    tb <- TB()
+    cle <- vapply(tb$famille, function(f) groupe_de(f)$cle, character(1))
+    tb <- tb[cle %in% c("ROB", "M6"), , drop = FALSE]
+    if (!nrow(tb))
+      return(data.frame(Diagnostic = "Aucun diagnostic de robustesse disponible.",
+                        stringsAsFactors = FALSE))
+    data.frame(Diagnostic = tb$test,
+               Estimation = paste0(tb$nom_estimation, " = ", fmt_nb(tb$estimation, 6)),
+               Verdict = tb$verdict, Commentaire = tb$commentaire,
+               stringsAsFactors = FALSE, row.names = NULL)
+  }, striped = TRUE, width = "100%")
+
+  # --- Descriptif et journal ------------------------------------------------
+  output$tab_desc <- renderTable({
+    d <- R()$statistiques_descriptives
+    data.frame(Grandeur = d$grandeur, Valeur = fmt_nb(d$valeur, 4), stringsAsFactors = FALSE)
+  }, striped = TRUE, width = "100%")
+
+  output$tab_meta <- renderPrint({
+    m <- R()$metadata
+    cat("Methode              :", m$methode, "\n")
+    cat("Perimetre            : annexe", m$annexe, "\n")
+    cat("Segment              :", m$segment, "-", m$libelle_segment, "\n")
+    cat("sigma standard       :", m$sigma_standard, "\n")
+    cat("Bareme credibilite   :", m$bareme, "\n")
+    cat("Profondeur T         :", m$T, "\n")
+    cat("Replications B       :", m$B, "\n")
+    cat("Granularite p_mc     :", format(R()$bootstrap$granularite), "( = 1/(B+1) )\n")
+    cat("Seuil alpha          :", m$alpha, "\n")
+    cat("Graine (seed)        :", format(m$seed, scientific = FALSE), "\n")
+    cat("Horodatage           :", format(m$horodatage, "%Y-%m-%d %H:%M:%S"), "\n")
+    cat("Duree (s)            :", round(m$duree_sec, 2), "\n")
+    cat("Version R            :", m$version_R, "\n")
+  })
+
+  output$dl_tests <- downloadHandler(
+    filename = function() sprintf("usp_tests_T%d_B%d.csv", R()$metadata$T, R()$metadata$B),
+    content = function(f) utils::write.csv(TB(), f, row.names = FALSE, fileEncoding = "UTF-8"))
+
+  output$dl_calib <- downloadHandler(
+    filename = function() sprintf("usp_calibration_T%d.csv", R()$metadata$T),
+    content = function(f) utils::write.csv(R()$calibration, f, row.names = FALSE,
+                                           fileEncoding = "UTF-8"))
+
+  # Construction du tableau exporte, commune aux deux formats : le contenu ne
+  # depend pas de l'extension choisie.
+  tableau_export <- function() {
+    if (est_mw()) {
+      m <- lire_triangle()
+      df <- data.frame(i = 0:(nrow(m) - 1), m)
+      names(df) <- c("i", paste0("j", 0:(ncol(m) - 1)))
+      df
+    } else {
+      sa <- lire_saisie()
+      data.frame(t = seq_along(sa$xt), xt = sa$xt, yt = sa$yt)
+    }
+  }
+
+  output$dl_donnees_xlsx <- downloadHandler(
+    filename = function()
+      sub("\\.csv$", ".xlsx", if (est_mw()) FICHIER_MW else FICHIER_LN),
+    content = function(f)
+      engine_ecrire_xlsx(tableau_export(), f,
+                         feuille = if (est_mw()) "Triangle" else "Donnees"))
+
+  output$dl_donnees <- downloadHandler(
+    filename = function() if (est_mw()) FICHIER_MW else FICHIER_LN,
+    content = function(f)
+      utils::write.csv(tableau_export(), f, row.names = FALSE, na = ""))
+}
+
+shinyApp(ui, server)

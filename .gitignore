@@ -1,49 +1,50 @@
-# History files
+# --- R / RStudio -------------------------------------------------------------
 .Rhistory
-.Rapp.history
-
-# Session Data files
 .RData
-.RDataTmp
-
-# User-specific files
+.Rapp.history
 .Ruserdata
-
-# Example code in package build process
-*-Ex.R
-
-# Output files from R CMD build
-/*.tar.gz
-
-# Output files from R CMD check
-/*.Rcheck/
-
-# RStudio files
 .Rproj.user/
-
-# produced vignettes
-vignettes/*.html
-vignettes/*.pdf
-
-# OAuth2 token, see https://github.com/hadley/httr/releases/tag/v0.3
+*.Rproj
+.RDataTmp
+.Renviron
 .httr-oauth
-
-# knitr and R markdown default cache directories
 *_cache/
 /cache/
-
-# Temporary files created by R markdown
-*.utf8.md
-*.knit.md
-
-# R Environment Variables
-.Renviron
-
-# pkgdown site
-docs/
-
-# translation temp files
-po/*~
-
-# RStudio Connect folder
 rsconnect/
+
+# --- Fichiers d'echange de donnees (potentiellement confidentielles) ---------
+# Produits par l'onglet Donnees de l'application ; ne pas versionner.
+usp_donnees_*.csv
+usp_donnees_*.xlsx
+usp_*.csv
+usp_*.xlsx
+
+# --- Sources reglementaires (texte public, volumineux) ----------------------
+sources/
+
+# --- LaTeX : fichiers auxiliaires de compilation ----------------------------
+# Le PDF compile doc_tests_usp.pdf, lui, EST versionne.
+*.aux
+*.log
+*.toc
+*.out
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.synctex(busy)
+*.bbl
+*.blg
+*.bcf
+*.run.xml
+*.nav
+*.snm
+*.vrb
+
+# --- Systeme / editeurs -------------------------------------------------------
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+*~
