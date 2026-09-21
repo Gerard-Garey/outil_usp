@@ -83,6 +83,10 @@ Trois sous-agents de projet (`.claude/agents/`), enchaînés par la session prin
 
 Pour une correction purement technique sans enjeu méthodologique, les étapes 1 et 4 peuvent être omises.
 
+**Approbation des changements de résultats** (tableau avant / après de la skill `verifier-reproductibilite`, joint à la PR) : tout changement de **σ_USP** ou d'un **verdict** est soumis au mainteneur ; les autres changements de p-values sont validés par `actuary`.
+
+Le vocabulaire du domaine (test, diagnostic, verdict, test inopérant, p-value exacte…) est défini dans `CONTEXT.md` : l'employer tel quel dans le code, la documentation et les issues.
+
 ## Agent skills
 
 ### Issue tracker
