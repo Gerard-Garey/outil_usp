@@ -71,6 +71,17 @@ Document unique (~5 700 lignes) qui doit rester synchronisé avec le code : noms
 - Ne fabriquer aucune référence, théorème, numéro de page ni vitesse de convergence ; si la littérature ne permet pas de conclure à T = 8, l'écrire.
 - Faire évoluer les livrables existants plutôt que les réécrire ; ne jamais remplacer silencieusement une méthode ni réintroduire une formule déjà corrigée.
 
+## Sous-agents
+
+Trois sous-agents de projet (`.claude/agents/`), enchaînés par la session principale pour toute évolution méthodologique ou du code :
+
+1. **`actuary`** juge et planifie : critères d'acceptation, impact attendu sur les résultats.
+2. **`coder`** implémente le code et la doc LaTeX, puis vérifie la reproductibilité.
+3. **`audit`** vérifie le code sans rien modifier ; un constat bloquant ou majeur renvoie à l'étape 2.
+4. **`actuary`** valide le fond. La session principale commite après validation.
+
+Pour une correction purement technique sans enjeu méthodologique, les étapes 1 et 4 peuvent être omises.
+
 ## Agent skills
 
 ### Issue tracker
