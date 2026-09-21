@@ -1,0 +1,14 @@
+Type: Shiny
+Title: Calibrage des parametres propres a l'entreprise (USP) - Solvabilite II, annexe XVII
+Version: 2.0.0
+Authors@R: person("Gerard", "Garey", role = c("aut", "cre"))
+Description: Moteur de calcul autonome et application Shiny pour le calibrage
+    des USP (reglement delegue (UE) 2015/35, articles 218 a 220 et annexe XVII) :
+    methodes risque de prime, risque de reserve n. 1 et n. 2 (Merz-Wuthrich),
+    tests statistiques des hypotheses du modele, calibration et parametre final.
+License: file LICENSE
+Encoding: UTF-8
+Depends: R (>= 4.3)
+Imports: shiny
+Suggests: plotly, openxlsx
+DisplayMode: Normal
