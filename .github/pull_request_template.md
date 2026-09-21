@@ -9,6 +9,7 @@
 ## Contrôles
 
 - [ ] Les tests passent : `Rscript tests/test_reproductibilite.R`
+- [ ] Les tests unitaires passent : `Rscript tests/test_unitaires.R`
 - [ ] Si des résultats changent volontairement : références régénérées (`Rscript tests/generer_references.R`) et écarts expliqués ci-dessus
 - [ ] Aucun calcul quantitatif hors de `R/engine.R`
 - [ ] Documentation LaTeX mise à jour et PDF recompilé (`docs/latex/`)

@@ -33,7 +33,7 @@ Périmètres : annexe II (non-vie, 12 segments) et annexe XIV (santé non-SLT, 4
     app.R                       interface Shiny (aucun calcul quantitatif)
     R/engine.R                  MOTEUR : toute la logique statistique et actuarielle
     R/display_helpers.R         formatage et tracés (aucun calcul)
-    tests/                      tests de reproductibilité et de non-régression
+    tests/                      tests unitaires, de reproductibilité et de non-régression
     docs/exigences.md           cahier des charges
     docs/latex/                 documentation de l'outil (.tex et PDF compilé)
     docs/agents/                configuration des agents (issues, libellés, domaine)
@@ -82,6 +82,12 @@ identiques au bit près. Les tests le vérifient pour les trois méthodes et
 comparent les résultats à des valeurs de référence (`tests/reference/`) :
 
     Rscript tests/test_reproductibilite.R
+
+Les tests unitaires (`tests/unitaires/`) confrontent chaque fonction du moteur à
+des références indépendantes ; les défauts connus y figurent en échecs attendus,
+avec renvoi à l'issue :
+
+    Rscript tests/test_unitaires.R
 
 Lorsqu'une modification change volontairement les résultats, lister les écarts
 (`Rscript tests/comparer_references.R`), les expliquer, puis régénérer les

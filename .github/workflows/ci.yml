@@ -8,7 +8,7 @@ on:
 
 jobs:
   tests-moteur:
-    name: Tests de reproductibilité du moteur
+    name: Tests du moteur (unitaires, reproductibilité)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,6 +16,8 @@ jobs:
         with:
           # Même version que le poste de développement.
           r-version: "4.3.1"
+      - name: Tests unitaires
+        run: Rscript tests/test_unitaires.R
       - name: Reproductibilité et non-régression
         run: Rscript tests/test_reproductibilite.R
 
