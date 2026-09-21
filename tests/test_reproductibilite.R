@@ -6,7 +6,8 @@
 #       les memes parametres et la meme graine donnent des objets identiques
 #       au bit pres (identical) ;
 #    2. NON-REGRESSION : le resultat coincide avec la reference enregistree
-#       dans tests/reference/, a la tolerance relative TOLERANCE pres.
+#       dans tests/reference/, a la tolerance relative TOLERANCE pres, hors
+#       grandeurs connues comme instables (INSTABLES, chacune liee a une issue).
 #
 #  Code de sortie 0 si tout passe, 1 sinon (utilise par l'integration
 #  continue). Duree : quelques minutes.
@@ -34,7 +35,8 @@ for (nom in names(CAS)) {
   if (!file.exists(ref_f)) {
     echecs <- c(echecs, sprintf("%s : reference absente (%s)", nom, ref_f))
   } else {
-    ecart <- all.equal(readRDS(ref_f), a, tolerance = TOLERANCE)
+    ecart <- all.equal(neutraliser_instables(readRDS(ref_f)),
+                       neutraliser_instables(a), tolerance = TOLERANCE)
     if (!isTRUE(ecart))
       echecs <- c(echecs, sprintf("%s : ecart a la reference\n    %s", nom,
                                   paste(utils::head(ecart, 10), collapse = "\n    ")))

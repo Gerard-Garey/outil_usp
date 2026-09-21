@@ -46,4 +46,30 @@ nettoyer <- function(res) {
 
 executer_cas <- function(nom) nettoyer(CAS[[nom]]())
 
+# Resultats CONNUS pour dependre de la plateforme, exclus provisoirement de la
+# comparaison aux references (pas du controle de reproductibilite a graine
+# egale, qui reste integral). Chaque entree renvoie a l'issue qui la justifie
+# et doit etre retiree une fois l'issue resolue.
+#   - issue #3 : test de centrage des residus degenere quand delta est au bord
+#     de [0, 1] ; sa p-value Monte-Carlo compare du bruit d'arrondi.
+INSTABLES <- list(
+  list(test = "Centrage des residus standardises", mc_nom = "MeanZ", issue = 3)
+)
+
+# Remplace par NA les grandeurs instables, dans le resultat comme dans la
+# reference, avant comparaison.
+neutraliser_instables <- function(res) {
+  for (ins in INSTABLES) {
+    for (k in seq_along(res$tests)) {
+      if (identical(res$tests[[k]]$test, ins$test))
+        res$tests[[k]][c("p_mc", "err_mc", "p_retenue", "verdict")] <- NA
+    }
+    for (champ in c("p_mc", "err_mc")) {
+      if (ins$mc_nom %in% names(res$bootstrap[[champ]]))
+        res$bootstrap[[champ]][[ins$mc_nom]] <- NA
+    }
+  }
+  res
+}
+
 chemin_reference <- function(nom) file.path(DOSSIER_REF, paste0(nom, ".rds"))

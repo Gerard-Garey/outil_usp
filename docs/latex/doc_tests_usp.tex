@@ -524,7 +524,12 @@ propriété est vérifiée par les tests de non-régression du dépôt
 méthodes, que deux appels successifs donnent des objets identiques et que les
 résultats coïncident avec des valeurs de référence enregistrées
 (\code{tests/reference/}), à une tolérance relative de $10^{-8}$ près pour
-absorber les écarts d'arrondi entre plateformes.
+absorber les écarts d'arrondi entre plateformes. Les rares grandeurs dont la
+valeur dépend de la plateforme sont exclues de cette seconde comparaison, chacune
+avec un renvoi au ticket qui en documente la cause~; c'est le cas de la p-value
+Monte-Carlo du test de centrage des résidus standardisés lorsque $\hat\delta$ est
+au bord de $[0,1]$ (la statistique y est nulle par construction et la p-value
+compare des erreurs d'arrondi).
 
 \begin{encadre}
 \textbf{Point de revue.} L'objet retourné contient un champ \code{\$metadata}
