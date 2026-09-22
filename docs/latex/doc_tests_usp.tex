@@ -763,7 +763,9 @@ Lilliefors sur résidus de Mack & \ref{mw:m5li} & \code{stat\_lilliefors()} &
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- M6 : robustesse de l'estimation}}} \\
 \midrule
 Extrapolation de $\hat\sigma^2_{J-1}$ & \ref{mw:m6sig} &
-\code{mw\_ajuster()} (champ \code{\$sigma2}) & diagnostic, aucune p-value & --- \\
+\code{mw\_ajuster()} (champ \code{\$sigma2})~; restitution des trois arguments du
+minimum par \code{mw\_extrapolation\_sigma2()} et \code{.mw\_detail\_extrapolation()} &
+diagnostic, aucune p-value & --- \\
 Concentration de la réserve & \ref{mw:m6conc} &
 \code{mw\_ajuster()} (champ \code{\$reserve\_par\_annee}) &
 diagnostic, aucune p-value & --- \\
@@ -1012,7 +1014,9 @@ s'exécute \emph{après} \code{mw\_ajuster()} et \code{mw\_msep()}, parce que le
 deux grandeurs dont elle contrôle le domaine --- la réserve chain-ladder totale
 $\hat R = \sum_{i=0}^{I}\big(\hat C(i,J) - C(i,I-i)\big)$ et la MSEP --- ne sont
 pas connues avant lui~; elle précède en revanche le calcul du paramètre propre et
-le bootstrap.
+le bootstrap. Elle émet en outre, sans refuser le calcul, l'avertissement relatif
+à une colonne $J-3$ à facteurs individuels tous égaux, décrit dans le tableau
+ci-dessous et justifié au §\ref{sec:mw}.
 
 \textbf{Son fondement n'est pas le même que celui des autres contrôles}, et c'est
 l'exception annoncée ci-dessus. Tous les autres relèvent des exigences de données
@@ -1089,6 +1093,14 @@ $\sigma_{(\text{res},s,\mathrm{USP})}$ à partir de $\sqrt{\mathrm{MSEP}}/\hat R
 réserve --- le paragraphe ne le nomme pas ainsi. Non défini pour $\hat R = 0$~;
 négatif, donc pas un écart type, pour $\hat R < 0$ (article~220,
 §\ref{sec:mw}). Bloquant. \\
+Colonne $J-3$ dégénérée \emph{(post-ajustement)} &
+$\max_i \big|F(i,J-3)/\hat f_{J-3} - 1\big| \le 10^{-12}$ &
+\textbf{Avertissement}, non bloquant~: les facteurs individuels de la colonne
+sont tous égaux, donc $\hat\sigma^2_{J-3} = 0$ et, par application littérale de
+D(5)(d)(ii), $\hat\sigma^2_{J-1} = 0$ --- la MSEP ne porte alors aucune variance
+sur la dernière année de développement (§\ref{sec:mw}). Le critère porte sur les
+facteurs, non sur une égalité à zéro en virgule flottante, que l'arrondi rend
+inopérante. \\
 Crédibilité pleine & $I + 1 \ge 10$ (barème court) & Informatif~; à défaut,
 $\hat\sigma_j^2$ repose sur deux ou trois observations en fin de triangle. \\
 \end{tabular}
@@ -1598,7 +1610,8 @@ du résultat sur la ligne la moins informative \\
 
 Extrapolation de $\hat\sigma^2_{J-1}$ & \textbf{MW} & --- & --- & --- & --- &
 Diagnostic & Sans objet & Valeur imposée par le règlement, non estimée :
-à signaler dans le dossier \\
+à signaler dans le dossier, avec le cas $\hat\sigma^2_{J-3} = 0$ où la lettre du
+texte l'annule \\
 \end{longtable}
 \end{center}
 \end{landscape}
@@ -1750,7 +1763,8 @@ Variances $\hat\sigma_j^2$ & Estimateur pondéré de la variance &
 $\sigma_j^2$ & Convergence en probabilité &
 $\mathcal{O}_P(n_j^{-1/2})$, avec $n_j - 1$ degrés de liberté &
 M2, moments d'ordre 4 finis & $\hat\sigma^2_{J-1}$ n'est pas estimée mais
-\textbf{extrapolée} par la règle du règlement \\
+\textbf{extrapolée} par la règle du règlement, et nulle lorsque
+$\hat\sigma^2_{J-3} = 0$ \\
 
 $\sqrt{\mathrm{MSEP}}$ & Erreur de prédiction à un an & Erreur vraie &
 Convergence en probabilité & Non établie à $I$ fini &
@@ -2024,8 +2038,10 @@ Rosner (ESD) sur résidus de Mack & Fiabilité annoncée pour $n \ge 25$~; un
 triangle $8\times8$ fournit 28 résidus, soit la limite du domaine &
 Conservé comme signal d'attention~; aucune exclusion de cellule sur ce fondement \\
 Extrapolation de $\hat\sigma^2_{J-1}$ & La quantité n'est pas estimée mais
-imposée par une règle du règlement, appuyée sur deux colonnes &
-Diagnostic dédié~; à mentionner explicitement dans le dossier \\
+imposée par une règle du règlement, appuyée sur deux colonnes, qui l'annule
+lorsque $\hat\sigma^2_{J-3} = 0$ &
+Diagnostic dédié~; à mentionner explicitement dans le dossier, avertissement de
+validation dans le cas dégénéré \\
 Tests de normalité (M5) & Non exigés par le modèle, et exclus du bootstrap de
 résidus dont la nulle est la loi empirique observée &
 Loi nulle propre pour Shapiro--Wilk~; lecture comme diagnostic seulement \\
@@ -3942,6 +3958,76 @@ et, pour la dernière année de développement, le règlement impose l'extrapola
   \frac{\hat\sigma_{J-2}^4}{\hat\sigma_{J-3}^2}\right).
 \]
 
+\paragraph{Le cas $\hat\sigma_{J-3}^2 = 0$.}
+Le troisième argument divise alors par zéro. Le texte ne prévoit aucune clause
+de dégénérescence~: ni la section~D, ni aucune autre section de l'annexe~XVII,
+ni les articles~218 à~220 ne traitent ce cas. Ce silence contraste avec la
+rédaction retenue ailleurs dans le même règlement pour une difficulté de même
+nature, où la valeur de repli est écrite explicitement --- les notations $d_1$,
+$SS$ et $SC$ ci-dessous sont celles de l'annexe~XVIII et n'ont pas d'équivalent
+dans la section~D.
+
+\reglement{Annexe XVIII du règlement délégué (UE) 2015/35}{[\dots] $d_1$ est
+égal à 1 lorsque $SS$ ou $SC$ est égal à zéro.}
+
+\noindent
+Le minimum reste pourtant \textbf{déterminé}, et c'est un \emph{fait
+arithmétique exact}, non une convention de l'outil. Par la première ligne
+ci-dessus, $\hat\sigma_j^2$ est une somme de carrés pondérée par des cumulés
+$C(i,j) > 0$~: les trois arguments du minimum sont donc positifs ou nuls, et le
+quotient appartient à $[0,+\infty]$. Le deuxième argument valant $0$, on a
+$\min\big(\hat\sigma_{J-2}^2,\,0,\,q\big) = 0$ pour tout $q \ge 0$~:
+l'indétermination arithmétique du quotient est \emph{sans effet}, le minimum
+étant déjà atteint par $\hat\sigma_{J-3}^2$. La règle littérale est de surcroît
+\emph{continue} en zéro --- à $\hat\sigma_{J-2}^2 > 0$ fixé, le minimum tend
+vers~$0$ lorsque $\hat\sigma_{J-3}^2 \to 0^+$.
+
+\code{mw\_ajuster()} applique donc la lettre du texte, \textbf{sans branche
+spéciale}~: le quotient est remplacé par sa limite $+\infty$ lorsqu'il n'est pas
+défini, et le minimum rend $0$ de lui-même. Pour $\hat\sigma_{J-3}^2 > 0$,
+l'expression est arithmétiquement identique à celle qui la précédait --- mêmes
+opérations, dans le même ordre ---, y compris à l'intérieur de chaque
+réplication du bootstrap.
+
+\textbf{La lettre est ici moins prudente que le repli pratiqué auparavant}, et
+ce constat doit être porté au dossier tel quel. Jusqu'à cette correction, le
+moteur posait silencieusement $\hat\sigma_{J-1}^2 = \hat\sigma_{J-2}^2$~: valeur
+non prescrite, et \emph{supérieure} à la borne $\hat\sigma_{J-3}^2 = 0$ que le
+texte impose. Sur un triangle dégénéré construit pour ce contrôle ($B = 999$),
+le passage à la règle littérale fait passer
+$\sigma_{(\text{res},s,\mathrm{USP})}$ de $0{,}0837988$ à $0{,}0779835$, soit
+$-6{,}94~\%$~; aucun verdict et aucune p-value de Monte-Carlo n'en sont
+modifiés, ce qui a été mesuré et s'explique~: $\hat\sigma_{J-1}^2$ n'intervient
+que dans la MSEP, et non dans les résidus de Mack qui portent les statistiques
+simulées --- la dernière colonne de développement, qui ne compte qu'un facteur
+individuel, ne fournit aucun résidu. Ces deux
+nombres sont une \emph{mesure sur un jeu de données}, non un ordre de grandeur
+général. Le triangle de contrôle du dépôt n'est pas dégénéré, et aucune valeur
+de référence n'est modifiée. Le repli introduisait par ailleurs une
+\emph{discontinuité}~: sur un contrôle mené à 400 réplications bootstrap, 307
+d'entre elles empruntaient le repli dans un cas et 93 dans l'autre selon le
+dernier bit des cumulés, deux triangles numériquement indiscernables produisant
+alors deux lois simulées différentes.
+
+Parce que la variance ainsi annulée n'est, en général, pas nulle en réalité,
+\code{mw\_valider\_ajustement()} émet un \emph{avertissement} --- et non un
+refus, le cas étant licite au regard du texte --- nommant la colonne, le nombre
+de facteurs individuels concernés, leur valeur commune, l'écart relatif maximal
+mesuré et la valeur retenue. Lorsque $\hat f_{J-2}$ ou $\hat f_{J-1}$ diffère
+de~1, il ajoute que le développement n'est pas achevé, que la variance omise
+n'est donc pas nulle en réalité et que $\sigma_{(\text{res},s,\mathrm{USP})}$
+s'en trouve sous-estimé. La détection porte sur l'égalité des facteurs
+individuels de la colonne $J-3$, et non sur une égalité à zéro en virgule
+flottante (section~\ref{sec:controles})~; elle ne sert \textbf{qu'au
+diagnostic}, la valeur calculée étant, elle, indépendante de ce critère.
+
+\emph{Cas symétrique.} $\hat\sigma_{J-2}^2 = 0$ avec $\hat\sigma_{J-3}^2 > 0$
+conduit également à $\hat\sigma_{J-1}^2 = 0$ --- sans indétermination cette
+fois, les premier et troisième arguments étant nuls --- donc à la même
+conséquence actuarielle~; il ne déclenche en revanche \textbf{aucun
+avertissement}, la détection portant sur la seule colonne $J-3$. Cette asymétrie
+de restitution est connue, assumée en l'état, et non corrigée à ce jour.
+
 \paragraph{Erreur quadratique moyenne de prédiction.} En posant
 $\hat Q_j = \hat\sigma_j^2/\hat f_j^2$,
 $S_j = \sum_{i=0}^{I-j-1} C(i,j)$ et $S'_j = \sum_{i=0}^{I-j} C(i,j)$~:
@@ -4193,10 +4279,17 @@ M6 & Concentration de la réserve & diagnostic & --- \\
 \end{center}
 
 \noindent
-Dix-neuf entrées, dont quatorze tests d'hypothèse, une procédure de décision et
-quatre diagnostics. Treize des quatorze tests reposent sur le bootstrap de
-résidus~; seul Shapiro--Wilk dispose d'une loi nulle propre, pour la raison
-exposée dans sa fiche. Les six entrées en gras ci-dessus sont celles qui
+Dix-neuf entrées, dont \textbf{quinze} tests d'hypothèse, une procédure de
+décision et \textbf{trois} diagnostics, conformément au champ \code{type} que
+\code{mw\_tests()} attribue à chaque ligne et qu'\code{engine\_table\_tests()}
+restitue. Les deux tests de normalité sont comptés parmi les tests~: la famille
+M5 est intitulée « diagnostic » parce que la normalité n'est pas exigée par le
+modèle réglementaire (D(2)(h)), mais chacun d'eux comporte bien une hypothèse
+nulle, une statistique, une p-value et un verdict. Inversement, la variance
+unitaire des résidus (M2) est un diagnostic~: elle n'a ni hypothèse nulle ni loi
+de référence. Treize de ces quinze tests reposent sur le bootstrap de
+résidus~; Shapiro--Wilk dispose d'une loi nulle propre, pour la raison exposée
+dans sa fiche, et Lilliefors d'une p-value asymptotique. Les six entrées en gras ci-dessus sont celles qui
 vérifient les hypothèses de chaîne d'échelle \emph{colonne par colonne}, comme
 l'exige la formulation « pour toutes les années d'accident » du texte~; la
 régression agrégée initiale, conservée en tête, ne le permettait pas.
@@ -4857,7 +4950,14 @@ Sans objet.
 \Stat
 La valeur retenue,
 $\hat\sigma^2_{J-1} = \min\big(\hat\sigma^2_{J-2},\ \hat\sigma^2_{J-3},\
-\hat\sigma^4_{J-2}/\hat\sigma^2_{J-3}\big)$.
+\hat\sigma^4_{J-2}/\hat\sigma^2_{J-3}\big)$, calculée par \code{mw\_ajuster()}
+(champ \code{\$sigma2}). \code{mw\_extrapolation\_sigma2()} en recompose les
+trois arguments et celui qui atteint le minimum, et
+\code{.mw\_detail\_extrapolation()} les restitue dans le champ \code{detail} de
+la ligne, de sorte que le calcul soit refaisable à la lecture. Lorsque
+$\hat\sigma^2_{J-3} = 0$, le troisième argument n'est pas défini~; le minimum
+vaut alors~$0$ par application littérale du texte, sans que l'indétermination
+ait d'effet (§\ref{sec:mw}), et le champ \code{detail} le signale.
 \Loi
 Sans objet~: la quantité n'est pas estimée mais \emph{imposée} par une règle
 d'extrapolation.
@@ -4871,6 +4971,24 @@ dernière année de développement contribue à la MSEP de toutes les années de
 survenance récentes --- celles qui portent l'essentiel de la réserve --- cette
 convention a un effet non négligeable sur le paramètre final. Elle doit être
 mentionnée explicitement.
+
+À $T = 8$, c'est-à-dire sur un triangle $8\times8$, les deux quantités qui
+bornent l'extrapolation sont les plus mal estimées de toutes~: $\hat\sigma^2_{J-2}$
+repose sur deux facteurs individuels et un degré de liberté,
+$\hat\sigma^2_{J-3}$ sur trois facteurs et deux degrés de liberté. La valeur
+extrapolée hérite de cette imprécision, qu'aucune p-value ne mesure ici.
+
+\medskip
+\textbf{Diagnostic, sans verdict.} La ligne est restituée \code{INFO}~: elle
+n'oppose aucune hypothèse nulle à une alternative et ne dispose d'aucune loi de
+référence, de sorte qu'aucun seuil ne pourrait fonder un verdict. Le cas
+dégénéré $\hat\sigma^2_{J-3} = 0$ ne modifie pas ce statut~: il est porté par
+l'avertissement de \code{mw\_valider\_ajustement()}
+(section~\ref{sec:controles}), non par un verdict. Sur un tel triangle, et si le
+développement n'est pas achevé, la MSEP ne porte aucune variance sur la dernière
+année de développement et $\sigma_{(\text{res},s,\mathrm{USP})}$ est sous-estimé~;
+le cas symétrique $\hat\sigma^2_{J-2} = 0$ conduit au même résultat sans
+déclencher d'avertissement (§\ref{sec:mw}).
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -4887,7 +5005,10 @@ revanche encadrée par rien (rubrique~6). \textbf{Diagnostic, non test.}
 \Hzero
 Sans objet.
 \Stat
-La part elle-même. Le moteur signale un dépassement de 40~\%.
+La part elle-même. Le moteur la restitue accompagnée d'un \emph{repère
+indicatif} de 40~\%, dont le champ \code{detail} de la ligne nomme le statut~:
+ce repère est sans fondement réglementaire ni statistique et n'emporte aucun
+verdict. Sur le triangle de contrôle du dépôt, la part vaut $36{,}0~\%$.
 \Loi
 Sans objet.
 \Pval
@@ -4905,14 +5026,27 @@ observation unique.
 Le refus d'une réserve totale non positive (section~\ref{sec:controles}) garantit
 le signe du dénominateur, pas celui du numérateur~: dès qu'une année de
 survenance porte une réserve négative --- situation licite tant que $\hat R$
-reste strictement positive ---, la part peut dépasser~1 ou devenir négative. Or
-le moteur la compare au seul seuil de 40~\%~: une part négative ne déclenche
-aucun signalement, alors qu'elle traduit une répartition au moins aussi atypique
-que celle que le seuil vise. Le signalement n'a donc de portée que si toutes les
-réserves par année de survenance sont positives ou nulles, condition que le
-moteur ne vérifie pas. Cette limite est antérieure à la règle de refus et n'est
-pas corrigée par elle~; elle doit être lue avec le diagnostic, et la répartition
-de la réserve par année de survenance examinée directement.
+reste strictement positive ---, la part peut dépasser~1 ou devenir négative. Le
+repère de 40~\% n'a donc de sens que si toutes les réserves par année de
+survenance sont positives ou nulles, condition que le moteur ne vérifie pas~:
+une part négative reste en deçà du repère alors qu'elle traduit une répartition
+au moins aussi atypique que celle qu'il vise. Cette limite est antérieure à la
+règle de refus et n'est pas corrigée par elle~; elle doit être lue avec le
+diagnostic, et la répartition de la réserve par année de survenance examinée
+directement.
+
+\medskip
+\textbf{Diagnostic, sans verdict.} La ligne est restituée \code{INFO}. Le repère
+de 40~\% n'est ni un niveau de test ni une règle de l'annexe~XVII~: le rendre en
+\code{ALERTE} ou en \code{OK} donnerait à une convention d'affichage l'apparence
+d'une conclusion au seuil $\alpha$, alors que la part n'a ni hypothèse nulle ni
+loi de référence. Le moteur ne signale donc aucun dépassement~; il restitue la
+part et le repère en nommant le statut de ce dernier, et c'est au rédacteur du
+dossier de commenter la concentration observée. À $T = 8$ --- triangle
+$8\times8$ --- la dernière année de survenance n'est observée que sur une
+cellule et son ultime est le produit des sept facteurs de développement
+estimés~: la lecture de la part n'en est que plus nécessaire, faute de
+jackknife disponible pour cette méthode.
 \end{fiche}
 
 \newpage
@@ -5022,7 +5156,11 @@ exacts \\
 \noindent
 La conformité de l'erreur type ultime de Mack à sa valeur publiée valide
 simultanément $\hat f_j$, $\hat\sigma_j^2$ et la règle d'extrapolation de
-$\hat\sigma_{J-1}^2$, qui sont les entrées de la MSEP à un an.
+$\hat\sigma_{J-1}^2$, qui sont les entrées de la MSEP à un an. Ce triangle
+n'étant pas dégénéré, le contrôle ne porte que sur le cas
+$\hat\sigma^2_{J-3} > 0$~; le cas $\hat\sigma^2_{J-3} = 0$ (§\ref{sec:mw}) est
+vérifié séparément, sur des triangles construits à cet effet, par la batterie de
+tests unitaires du dépôt.
 
 \medskip
 \begin{encadre}
