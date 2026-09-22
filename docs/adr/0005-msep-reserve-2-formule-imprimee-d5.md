@@ -85,7 +85,7 @@ Le 22 septembre 2026, `regulatory` a vérifié **à l'image** la pagination sur 
 
 1. La question laissée ouverte par le paragraphe « Sur la source » est close : la pagination est vérifiée, pour la version d'origine. La phrase « Toute citation de ce paragraphe doit donc indiquer la version, et non une seule pagination » y reste en vigueur, et la vérification la renforce, puisque la pagination désigne le libellé non applicable.
 2. La dernière puce de la « Dette documentaire » (« à qualifier de non vérifiée ou à retirer jusqu'à confirmation sur le PDF ») est **remplacée** par : toute mention de la pagination du paragraphe D(5) **cite L 12/277-278 comme pagination de la version d'origine**, en précisant que la formule appliquée est celle de la version consolidée, qui n'a pas de pagination au JOUE. Une mention de la section D dans son ensemble (L 12/276-278) suit la même règle dès qu'elle englobe le paragraphe 5.
-3. Corollaire : aucun passage du dépôt ne doit présenter la section D comme une « transcription littérale du texte publié au JOUE L 12 p. 276-278 ». C'est exact des paragraphes 1 à 4 et 6, faux du paragraphe 5, dont le moteur transcrit la version consolidée. La formulation à retenir distingue les deux.
+3. Corollaire : aucun passage du dépôt ne doit présenter la section D comme une « transcription littérale du texte publié au JOUE L 12 p. 276-278 ». C'est exact des paragraphes 1 à 4, faux du paragraphe 5 (la section D n'en compte que cinq), dont le moteur transcrit la version consolidée. La formulation à retenir distingue les deux.
 
 ### Conséquences
 
