@@ -1867,6 +1867,80 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
 }
 
 ## =============================================================================
+## 7quater. EMPREINTES D'UN RESULTAT (RAPPORT FIGE)
+##
+## engine_empreinte(res) calcule deux empreintes md5 (tools::md5sum, R base)
+## qui identifient ce qu'un rapport fige restitue. Elle n'est PAS appelee par
+## run_engine() : le resultat du moteur n'en depend pas et les references de
+## non-regression restent inchangees. Aucun tirage aleatoire (tempfile() et
+## md5sum() ne touchent pas a .Random.seed).
+##
+## Statut des deux empreintes :
+##  - donnees : md5 d'un texte canonique des donnees effectivement utilisees
+##    par le calcul (res$donnees pour les methodes lognormales, res$triangle
+##    pour Merz-Wuthrich), et non de la saisie courante. Chaque valeur est
+##    ecrite par sprintf("%.17g"), qui suffit a identifier un double IEEE 754,
+##    les valeurs manquantes par "NA", les lignes separees par LF ; le texte
+##    est ecrit octet par octet (writeBin), sans conversion de fin de ligne.
+##    L'empreinte ne depend donc que des valeurs ; le texte est renvoye
+##    (texte_donnees) pour qu'un tiers la recalcule avec n'importe quel outil
+##    md5. Constance entre plateformes : attendue, non verifiee.
+##  - resultat : md5 de saveRDS(res, version = 3, compress = FALSE), apres
+##    retrait de metadata$horodatage et metadata$duree_sec, seuls champs qui
+##    changent d'un appel a l'autre a graine egale. Elle est stable sur une
+##    meme machine, mais DEPEND DE LA PLATEFORME : les valeurs numeriques de
+##    la branche lognormale different entre plateformes (ADR 0006), l'objet
+##    contient metadata$version_R, et l'en-tete de serialisation version 3
+##    consigne l'encodage natif de la session. Elle identifie donc l'objet sur
+##    la machine qui l'a produit ; elle ne se compare pas d'une plateforme a
+##    l'autre.
+## =============================================================================
+
+engine_empreinte <- function(res) {
+  md5_octets <- function(ecrire) {
+    f <- tempfile("empreinte_")
+    on.exit(unlink(f), add = TRUE)
+    ecrire(f)
+    unname(as.character(tools::md5sum(f)))
+  }
+  num <- function(v) ifelse(is.na(v), "NA", sprintf("%.17g", as.numeric(v)))
+
+  # --- Texte canonique des donnees utilisees par le calcul ------------------
+  texte <- NA_character_
+  if (isTRUE(res$ok)) {
+    if (identical(res$methode, "reserve2") && !is.null(res$triangle)) {
+      tri <- as.matrix(res$triangle)
+      lignes <- c(sprintf("triangle;%d;%d", nrow(tri), ncol(tri)),
+                  apply(tri, 1, function(l) paste(num(l), collapse = ";")))
+    } else if (!is.null(res$donnees$xt)) {
+      d <- res$donnees
+      lignes <- c("t;xt;yt", paste(d$t, num(d$xt), num(d$yt), sep = ";"))
+    } else lignes <- NULL
+    if (!is.null(lignes)) texte <- paste0(paste(lignes, collapse = "\n"), "\n")
+  }
+  md5_donnees <- if (is.na(texte)) NA_character_ else
+    md5_octets(function(f) writeBin(charToRaw(enc2utf8(texte)), f))
+
+  # --- Resultat serialise, hors champs d'execution --------------------------
+  r <- res
+  if (!is.null(r$metadata)) {
+    r$metadata$horodatage <- NULL
+    r$metadata$duree_sec  <- NULL
+  }
+  md5_resultat <- md5_octets(function(f) saveRDS(r, f, version = 3, compress = FALSE))
+
+  list(algorithme = "md5",
+       donnees = md5_donnees,
+       resultat = md5_resultat,
+       texte_donnees = texte,
+       statut = c(
+         donnees = paste("texte canonique des donnees du calcul (%.17g, NA, LF) ;",
+                         "ne depend que des valeurs"),
+         resultat = paste("saveRDS version 3 sans horodatage ni duree ; stable sur",
+                          "une meme machine, depend de la plateforme (ADR 0006)")))
+}
+
+## =============================================================================
 ## 8. CONTROLES DE VALIDITE (cote MOTEUR, independants de toute interface)
 ## =============================================================================
 

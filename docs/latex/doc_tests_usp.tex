@@ -6247,6 +6247,10 @@ Tirages aléatoires et graines (§\ref{sec:graines}) & \code{usp\_bootstrap()},
 Orchestration complète & \code{run\_engine()}~; méthode de réserve
 n\textsuperscript{o}~2 déléguée à\newline \code{.run\_engine\_mw()} \\
 Table auditable des tests & \code{engine\_table\_tests()} \\
+Empreintes md5 d'un résultat pour le rapport figé~: données du calcul
+(texte canonique, fonction des seules valeurs) et objet sérialisé (stable sur
+une même machine, dépendant de la plateforme) & \code{engine\_empreinte()}~;
+non appelée par \code{run\_engine()}, sans tirage aléatoire \\
 \bottomrule
 \end{tabular}
 \end{center}
