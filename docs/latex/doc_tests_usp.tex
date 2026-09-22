@@ -370,7 +370,9 @@ fonction.
   \scriptsize $\hat f_j$, $\hat\sigma^2_j$, $\hat C(i,j)$};
 \node[fonc, below=4mm of amw] (mmw) {\code{mw\_msep()}\\[1pt]
   \scriptsize erreur de prédiction à un an};
-\node[fonc, below=4mm of mmw] (bmw) {\code{mw\_bootstrap()}\\[1pt]
+\node[fonc, below=4mm of mmw] (kmw) {\code{mw\_valider\_ajustement()}\\[1pt]
+  \scriptsize $\hat R > 0$, MSEP finie et $\ge 0$};
+\node[fonc, below=4mm of kmw] (bmw) {\code{mw\_bootstrap()}\\[1pt]
   \scriptsize \code{mw\_simuler\_triangle()}, \code{.mw\_stats()}};
 \node[fonc, below=4mm of bmw] (tmw) {\code{mw\_tests()}\\[1pt]
   \scriptsize M1 à M6};
@@ -379,7 +381,11 @@ fonction.
 \node[fonc, below=4mm of cmw] (pmw) {\code{mw\_plots\_data()}};
 
 % ---------------- sorties ---------------------------------------------------
-\coordinate (jonc) at ($(pln)!0.5!(pmw) + (0,-9mm)$);
+% La branche Merz--Wüthrich compte un noeud de plus que la branche
+% lognormale : la jonction est calee sur le plus bas des deux, sans quoi la
+% liaison issue de (pmw) remonterait.
+\coordinate (jmid) at ($(pln)!0.5!(pmw)$);
+\coordinate (jonc) at ($(jmid |- pmw.south) + (0,-9mm)$);
 \node[sortie, below=13mm of aig |- pmw, yshift=-9mm] (out)
   {objet \code{usp\_engine}\\[1pt]
    \scriptsize \code{\$donnees \ \$tests \ \$bootstrap \ \$calibration}\\
@@ -394,7 +400,8 @@ fonction.
 \draw[fl] (aig) -| node[flx, above left] {non} (vln);
 \draw[fl] (aig) -| node[flx, above right] {oui} (vmw);
 \foreach \a/\b in {vln/fit, fit/bln, bln/tln, tln/rln, rln/cln, cln/pln,
-                   vmw/amw, amw/mmw, mmw/bmw, bmw/tmw, tmw/cmw, cmw/pmw}
+                   vmw/amw, amw/mmw, mmw/kmw, kmw/bmw, bmw/tmw, tmw/cmw,
+                   cmw/pmw}
   \draw[fl] (\a) -- (\b);
 \draw[li] (pln) |- (jonc);
 \draw[li] (pmw) |- (jonc);
@@ -425,6 +432,10 @@ de calcul partagée par les deux branches.}
 \code{\$ok}, \code{\$erreurs}, \code{\$avertissements} \\
 \code{usp\_controle\_donnees()} & \code{xt}, \code{yt}, \code{alpha} &
 liste de contrôles de recevabilité \\
+\code{mw\_valider\_triangle()} & \code{tri}, \code{T\_min} &
+\code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, $I$, $J$ \\
+\code{mw\_valider\_ajustement()} & sortie de \code{mw\_ajuster()}, MSEP &
+\code{\$ok}, \code{\$erreurs}, \code{\$reserve}, \code{\$msep} \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Noyau du modèle}}} \\
 \code{usp\_pi()} & $\delta$, $\gamma$, $x$ & vecteur $\pi_t$ \\
 \code{usp\_noyau()} & $\delta$, $\gamma$, $x$, $y$ &
@@ -503,9 +514,11 @@ caractéristiques réglementaires d'un segment.
 \textbf{Portée.} L'outil ne couvre pas les deux autres paramètres remplaçables
 de l'article~218~: le facteur d'ajustement pour la réassurance non
 proportionnelle (segments 1, 4 et 5 de l'annexe~II) et l'écart-type du risque de
-révision. Il ne met pas davantage en \oe uvre la méthode « risque de réserve
-n\textsuperscript{o}~2 » (chaîne d'échelle et erreur de prédiction à un an), qui
-relève d'un dispositif distinct.
+révision. Il met en revanche en \oe uvre trois des méthodes de calibrage de
+l'annexe~XVII~: risque de primes (section~B), risque de réserve
+n\textsuperscript{o}~1 (section~C) et risque de réserve
+n\textsuperscript{o}~2 (section~D~: chaîne d'échelle et erreur de prédiction à un
+an, §\ref{sec:mw}).
 \end{encadre}
 
 \subsection{Reproductibilité et gestion des graines}
@@ -757,6 +770,10 @@ diagnostic, aucune p-value & --- \\
 
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- chaîne de calcul (hors tests)}}} \\
 \midrule
+Recevabilité du triangle (avant ajustement) & \S\ref{sec:controles} &
+\code{mw\_valider\_triangle()} & sans objet & --- \\
+Applicabilité de D(4) --- réserve $\hat R$ et MSEP (après ajustement) &
+\S\ref{sec:controles} & \code{mw\_valider\_ajustement()} & sans objet & --- \\
 Facteurs et variances de développement & \S\ref{sec:mw} &
 \code{mw\_ajuster()} & sans objet & --- \\
 Erreur de prédiction à un an & \S\ref{sec:mw} & \code{mw\_msep()} &
@@ -974,16 +991,50 @@ verdict du script est inversé en conséquence.
 \clearpage
 % =============================================================================
 \section{Contrôles de qualité des données}
+\label{sec:controles}
 % =============================================================================
 
 Les contrôles de recevabilité ne sont \textbf{pas} des tests statistiques~: ils ne
 comportent ni hypothèse nulle, ni statistique, ni loi de référence. Ce sont des
 vérifications déterministes au titre des articles~19 et~219 du règlement délégué
-et des exigences de données propres à chaque méthode. Chaque méthode a sa
-fonction de contrôle dans le moteur, exécutable indépendamment de l'interface~:
+et des exigences de données propres à chaque méthode --- à une exception près,
+signalée plus bas. Chaque méthode a ses
+fonctions de contrôle dans le moteur, exécutables indépendamment de l'interface~:
 \code{engine\_valider\_donnees()} et \code{usp\_controle\_donnees()} pour les
-méthodes lognormales, \code{mw\_valider\_triangle()} pour la méthode
-Merz--Wüthrich.
+méthodes lognormales~; \code{mw\_valider\_triangle()} \emph{et}
+\code{mw\_valider\_ajustement()} pour la méthode Merz--Wüthrich.
+
+La méthode Merz--Wüthrich en compte donc \textbf{deux}, appelées à deux moments
+distincts de la chaîne. \code{mw\_valider\_triangle()} s'exécute \emph{avant}
+l'ajustement et ne porte que sur les données fournies~: dimensions, complétude de
+la partie observée, positivité des cumulés. \code{mw\_valider\_ajustement()}
+s'exécute \emph{après} \code{mw\_ajuster()} et \code{mw\_msep()}, parce que les
+deux grandeurs dont elle contrôle le domaine --- la réserve chain-ladder totale
+$\hat R = \sum_{i=0}^{I}\big(\hat C(i,J) - C(i,I-i)\big)$ et la MSEP --- ne sont
+pas connues avant lui~; elle précède en revanche le calcul du paramètre propre et
+le bootstrap.
+
+\textbf{Son fondement n'est pas le même que celui des autres contrôles}, et c'est
+l'exception annoncée ci-dessus. Tous les autres relèvent des exigences de données
+des articles~19 et~219 --- exhaustivité, exactitude, caractère approprié. Une
+réserve chain-ladder totale $\hat R \le 0$ n'est pas un défaut de données~: le
+triangle peut satisfaire intégralement le paragraphe~2 de la section~D, et c'est
+l'\emph{estimation} qui place le paramètre hors de ce que la méthode peut
+produire. Le refus se fonde donc sur l'article~220, dont la justification
+détaillée figure au §\ref{sec:mw}.
+
+Dans les deux cas, un refus conduit \code{run\_engine()} à
+retourner un objet portant \code{ok = FALSE} et le champ \code{validation}
+détaillant les motifs~: aucune erreur R n'est levée.
+\code{mw\_parametre()} porte en outre une garde défensive sur le même
+diagnostic, destinée à un appel direct de la fonction hors de la chaîne~; elle
+est inatteignable depuis \code{run\_engine()}.
+
+Un refus n'est pas un avertissement que l'on peut laisser passer~: l'interface le
+restitue par un bandeau persistant portant les motifs renvoyés par le moteur,
+vide les onglets de résultat et rend indisponible l'export du calcul précédent,
+de sorte qu'un paramètre calculé sur d'autres données ne puisse être ni lu ni
+exporté à côté d'un triangle refusé.
 
 \subsection*{Méthodes lognormales (annexe XVII, section B/C, paragraphe 2)}
 
@@ -1006,7 +1057,7 @@ Crédibilité pleine & $T \ge 10$ (barème court) & Informatif, section~G annexe
 \end{tabular}
 \end{center}
 
-\subsection*{Méthode Merz--Wüthrich (annexe XVII, section D, paragraphe 2)}
+\subsection*{Méthode Merz--Wüthrich (annexe XVII, section D, paragraphes 2, 4 et 5)}
 
 \begin{center}
 \small
@@ -1025,8 +1076,19 @@ Cellules observées & aucune valeur manquante pour $i + j \le I$ & Le
 chain-ladder exige la partie supérieure gauche complète. \\
 Positivité des cumulés & $C(i,j) > 0$ & Les facteurs $F(i,j)$ et la pondération
 en $C(i,j)$ doivent être définis. \\
-Monotonie des cumulés & $C(i,j+1) \ge C(i,j)$ & Avertissement~: un recul traduit
-un recouvrement ou un boni de liquidation, licite mais à signaler. \\
+Monotonie des cumulés & $C(i,j+1) \ge C(i,j)$ & Avertissement \emph{actuariel,
+sans fondement réglementaire}~: le paragraphe~2(h)(iii) ne pose qu'une
+proportionnalité en espérance et ne contraint pas $f_j \ge 1$. Un recul traduit
+un recouvrement ou un boni de liquidation, licite mais à signaler. \textbf{Ce
+n'est pas un motif de refus}, pas plus qu'une réserve négative sur certaines
+années de survenance ou qu'un $\hat f_j < 1$ isolé. \\
+Applicabilité de D(4) \emph{(post-ajustement)} & $\hat R > 0$ et
+$0 \le \mathrm{MSEP} < \infty$ & Le paragraphe~4 définit \emph{l'écart type}
+$\sigma_{(\text{res},s,\mathrm{USP})}$ à partir de $\sqrt{\mathrm{MSEP}}/\hat R$
+(MSEP~: paragraphe~5), coefficient de variation \emph{à horizon un an} de la
+réserve --- le paragraphe ne le nomme pas ainsi. Non défini pour $\hat R = 0$~;
+négatif, donc pas un écart type, pour $\hat R < 0$ (article~220,
+§\ref{sec:mw}). Bloquant. \\
 Crédibilité pleine & $I + 1 \ge 10$ (barème court) & Informatif~; à défaut,
 $\hat\sigma_j^2$ repose sur deux ou trois observations en fin de triangle. \\
 \end{tabular}
@@ -1041,6 +1103,22 @@ amplitude des volumes). Ceux de la méthode Merz--Wüthrich portent d'abord sur 
 un triangle non carré ou incomplet ne permet pas d'appliquer la formule du
 paragraphe~4. C'est pourquoi la plupart sont bloquants et non de simples
 avertissements.
+
+\smallskip
+Le contrôle d'applicabilité de D(4) fait cependant exception à cette
+description~: exécuté après l'ajustement, il ne porte pas sur les données
+mais sur des \emph{grandeurs estimées} --- la réserve chain-ladder totale
+$\hat R$ et la MSEP, issues du même ajustement. Il n'énonce donc pas un défaut
+du triangle --- un triangle
+parfaitement recevable au titre du paragraphe~2 peut conduire à $\hat R \le 0$
+--- mais une condition d'\emph{applicabilité de la méthode}~: hors de ce domaine, ce que
+la formule du paragraphe~4 produit --- quand elle produit quelque chose ---
+n'est pas l'écart type qu'elle prétend définir (§\ref{sec:mw}). C'est aussi pourquoi il est le seul
+à ne pas pouvoir être anticipé à la saisie.
+Cohérence interne~: \code{mw\_bootstrap()} écarte depuis l'origine toute
+réplication dont la réserve simulée est $\le 0$~; la règle appliquée à l'estimation ponctuelle ne
+pouvait pas rester plus permissive que celle appliquée à chacune de ses
+réplications.
 \end{encadre}
 
 \newpage
@@ -3665,11 +3743,11 @@ de la cellule $(i,j)$ vaut $h(i,j) = C(i,j)/S_j$, de somme~1 par colonne
 \[
   \hat f_j^{(-i)} = \frac{\sum_{i'} C(i',j+1) - C(i,j+1)}{\sum_{i'} C(i',j) - C(i,j)},
 \]
-obtenu sans réajustement itératif. S'y ajoute la décomposition de la réserve et du
-terme de variance de la MSEP par année de survenance. Cette dernière est une
-\emph{décomposition} et non un leave-one-out~: le terme de covariance de la MSEP
-est par nature partagé entre paires d'années et n'est pas attribuable à une année
-isolée, ce que le graphique ne prétend pas faire.
+obtenu sans réajustement itératif. S'y ajoute la décomposition de la réserve et de
+la variance de processus de la MSEP par année de survenance. Cette dernière est une
+\emph{décomposition} et non un leave-one-out~: le terme d'erreur d'estimation de la
+MSEP comporte des termes croisés, partagés entre paires d'années, qui ne sont pas
+attribuables à une année isolée, ce que le graphique ne prétend pas faire.
 \end{fiche}
 
 \begin{fiche}{Graphique dispersion-niveau (\emph{spread-location})}
@@ -3757,7 +3835,8 @@ Sans objet.
 \Stat
 Sans objet (représentations graphiques). Les quantités tracées sont $h(i,j)$, la
 variation relative $\big(\hat f_j^{(-i)} - \hat f_j\big)/\hat f_j$, et la
-décomposition de la réserve et du terme de variance par année de survenance.
+décomposition de la réserve et de la variance de processus par année de
+survenance (champ \code{\$terme\_variance} de \code{mw\_msep()}).
 \Loi
 Sans objet.
 \Pval
@@ -3768,13 +3847,15 @@ atypiques par leur \emph{poids} de celles qui sont réellement influentes. Le
 deuxième donne le DFBETA cellule par cellule, directement interprétable~: de
 combien le facteur de développement bougerait si cette cellule était retirée. Le
 troisième compare, année de survenance par année de survenance, la part de la
-réserve et la part du terme de variance de la MSEP.
+réserve et la part de la variance de processus de la MSEP.
 
 \medskip
 \textbf{Réserve de lecture importante.} Ce troisième graphique est une
-\emph{décomposition} et non un leave-one-out. Le terme de covariance de la MSEP
-est par nature partagé entre paires d'années de survenance et n'est pas
-attribuable à une année isolée~: seul le terme de variance diagonal y figure.
+\emph{décomposition} et non un leave-one-out. Le terme d'erreur d'estimation de
+la MSEP (champ \code{\$terme\_covariance} de \code{mw\_msep()}) comporte des
+termes croisés, partagés entre paires d'années de survenance, qui ne sont pas
+attribuables à une année isolée~: seule la variance de processus, attribuable
+année par année, y figure.
 Il n'existe donc pas, pour la méthode Merz--Wüthrich, d'équivalent exact du
 jackknife sur $\sigma_{\mathrm{USP}}$ disponible pour la méthode lognormale~;
 c'est le diagnostic de concentration (fiche~\ref{mw:m6conc}) qui en tient lieu.
@@ -3824,9 +3905,24 @@ semi-paramétrique, par rééchantillonnage des résidus \\
 \subsection{Spécification réglementaire}
 
 Les formules ci-dessous sont la transcription littérale de l'annexe~XVII,
-section~D, paragraphes~3 à~5. Les années de survenance sont indexées
+section~D, paragraphes~3 à~5, sous leur \emph{forme imprimée} et non sous une
+forme algébriquement équivalente plus compacte~: un relecteur doit pouvoir les
+comparer au texte terme à terme. Les années de survenance sont indexées
 $i = 0,\dots,I$, les années de développement $j = 0,\dots,J$, et $C(i,j)$ désigne
 les sinistres cumulés.
+
+\medskip
+\noindent
+\emph{Version du texte et pagination.} Les formules ont été relevées sur la
+version consolidée en vigueur de l'annexe~XVII. Pour le paragraphe~5, le
+libellé publié en 2015 diffère de celui en vigueur~: c'est ce dernier qui est
+reproduit ci-dessous et qu'implémente \code{mw\_msep()}. L'acte qui a opéré
+cette correction n'est pas identifié à ce jour~; l'hypothèse d'un rectificatif
+refondu sans marqueur de modification, la seule que suggèrent les pièces
+consultées, est signalée comme une hypothèse et non comme un fait établi. La
+pagination « L~12/277-278 », qui circule dans les documents de travail du
+projet, n'a pas été vérifiée sur le \emph{Journal officiel}~; elle n'est donc
+pas reprise ici.
 
 \paragraph{Facteurs de développement.}
 \[
@@ -3850,11 +3946,46 @@ et, pour la dernière année de développement, le règlement impose l'extrapola
 $\hat Q_j = \hat\sigma_j^2/\hat f_j^2$,
 $S_j = \sum_{i=0}^{I-j-1} C(i,j)$ et $S'_j = \sum_{i=0}^{I-j} C(i,j)$~:
 \[
-  \mathrm{MSEP} = \sum_{i=1}^{I}\hat C(i,J)^2\,\frac{\hat Q_{I-i}}{C(i,I-i)}
-  + \sum_{i=1}^{I}\sum_{k=i+1}^{I}\hat C(i,J)\,\hat C(k,J)
+\begin{aligned}
+  \mathrm{MSEP} = {} & \sum_{i=1}^{I}\hat C(i,J)^2
+  \left(\frac{\hat Q_{I-i}}{C(i,I-i)} + \frac{\hat Q_{I-i}}{S_{I-i}}
+  + \sum_{j=I-i+1}^{J-1}\frac{C(I-j,j)}{S'_j}\cdot\frac{\hat Q_j}{S_j}\right) \\[2pt]
+  & + 2\sum_{i=1}^{I}\sum_{k=i+1}^{I}\hat C(i,J)\,\hat C(k,J)
   \left(\frac{\hat Q_{I-i}}{S_{I-i}}
   + \sum_{j=I-i+1}^{J-1}\frac{C(I-j,j)}{S'_j}\cdot\frac{\hat Q_j}{S_j}\right).
+\end{aligned}
 \]
+
+\noindent
+Le crochet, noté $\Delta_i$ comme dans \code{mw\_msep()}, figure
+\textbf{deux fois}~: une première fois à l'intérieur de la première somme, à
+côté du terme de variance de processus $\hat Q_{I-i}/C(i,I-i)$, et une seconde
+fois dans la double somme, affectée du \textbf{facteur~2}. La première somme
+contient donc les termes diagonaux $\hat C(i,J)^2\,\Delta_i$. Les bornes
+$k = i+1,\dots,I$, l'indice $I-i$ porté par le crochet, le facteur~2 et
+l'exposant~1 sur $C(I-j,j)/S'_j$ sont ceux du texte. Cette notation
+$\Delta_i$, propre à la méthode Merz--Wüthrich, est sans rapport avec la marge
+d'équivalence $\Delta$ du test TOST de la méthode lognormale.
+
+\begin{encadre}
+\textbf{Forme imprimée et forme de Merz--Wüthrich.} Pour $k > i$, le crochet
+indexé par $i$ est celui indexé par $\min(i,k)$, et $2\sum_{i<k}$ reproduit
+exactement la double somme complète hors diagonale~; les termes diagonaux étant
+portés par la première somme, la formule imprimée ci-dessus est identiquement
+l'erreur de prédiction à un an de Merz--Wüthrich (2008). Le moteur transcrit la
+\emph{forme imprimée}~; cette identité est \emph{vérifiée} numériquement
+(section~\ref{sec:verif}) et non présumée.
+
+\medskip
+\textbf{Restitution du résultat.} \code{mw\_msep()} renvoie la MSEP et deux
+composantes~: \code{\$terme\_variance} $=\sum_{i=1}^{I}\hat C(i,J)^2\,
+\hat Q_{I-i}/C(i,I-i)$, la variance de processus seule, et
+\code{\$terme\_covariance} $=\sum_{i=1}^{I}\hat C(i,J)^2\,\Delta_i
++ 2\sum_{i<k}\hat C(i,J)\,\hat C(k,J)\,\Delta_i$, l'erreur d'estimation, ses
+termes diagonaux compris. Leur somme est exactement la MSEP du texte. Ce
+découpage est un choix de présentation~: le règlement ne prescrit aucune
+décomposition.
+\end{encadre}
 
 \paragraph{Paramètre propre.}
 \[
@@ -3862,6 +3993,94 @@ $S_j = \sum_{i=0}^{I-j-1} C(i,j)$ et $S'_j = \sum_{i=0}^{I-j} C(i,j)$~:
   = c\cdot\frac{\sqrt{\mathrm{MSEP}}}{\sum_{i=0}^{I}\big(\hat C(i,J) - C(i,I-i)\big)}
   + (1-c)\,\sigma_{(\text{res},s)} .
 \]
+
+\noindent
+\textbf{Domaine de définition.} Le dénominateur
+$\hat R = \sum_{i=0}^{I}\big(\hat C(i,J) - C(i,I-i)\big)$ est l'estimation
+chain-ladder de la réserve totale. Le rapport $\sqrt{\mathrm{MSEP}}/\hat R$ que
+le paragraphe~4 met en facteur de $c$ est un \emph{coefficient de variation à
+horizon un an} de cette réserve~: la MSEP du paragraphe~5 mesure l'erreur de
+prédiction à un an de l'engagement réévalué, dont $\hat R$ est l'espérance
+conditionnelle estimée. \textbf{Le paragraphe ne le nomme pas ainsi}~: c'est une
+caractérisation de la grandeur, pas une citation du texte.
+
+Le moteur refuse le calcul lorsque $\hat R \le 0$, et lorsque la MSEP n'est pas
+finie ou est négative~; il retourne alors \code{ok = FALSE} et le champ
+\code{validation} (\code{mw\_valider\_ajustement()},
+section~\ref{sec:controles}). \textbf{Ces refus n'ont pas tous le même statut},
+et le document les distingue.
+
+\emph{(i) $\hat R = 0$~: fait mathématique.} La division n'est pas définie et
+l'expression du paragraphe~4 ne produit aucune valeur. Il n'y a rien à
+interpréter.
+
+\emph{(ii) $\hat R < 0$~: interprétation, déclarée comme telle.} L'expression
+arithmétique du paragraphe~4 est ici \textbf{parfaitement définie et rend un
+nombre}~: sur un triangle à cumulés décroissants de réserve totale
+$\hat R = -372{,}397$, elle rend $0{,}034877$. Le refus n'est donc
+\textbf{pas} imposé par l'arithmétique~: c'est une interprétation du texte,
+retenue par l'outil, et fondée sur trois appuis.
+
+\begin{itemize}[itemsep=2pt]
+\item \textbf{La grandeur que le paragraphe~4 annonce est « l'écart type »}
+  propre à l'entreprise. Un écart type est non négatif par définition de ce que
+  le paragraphe prétend produire~: un nombre négatif n'est pas un écart type mal
+  calibré, ce n'est pas un écart type. Or, pour $\hat R < 0$, le rapport
+  $\sqrt{\mathrm{MSEP}}/\hat R$ est négatif, et le mélange de crédibilité rend un
+  $\sigma_{(\text{res},s,\mathrm{USP})}$ \emph{inférieur} à l'écart-type standard
+  $\sigma_{(\text{res},s)}$~--- un allégement d'exigence obtenu par une division
+  par un nombre négatif. C'est l'appui principal.
+\item \textbf{Le refus ne prive l'entreprise d'aucun droit.} L'article~220,
+  paragraphe~1, point~b) présente les méthodes du risque de réserve
+  n\textsuperscript{o}~1 (section~C) et n\textsuperscript{o}~2 (section~D) comme
+  \emph{alternatives}~: l'entreprise à qui l'outil refuse la seconde conserve la
+  première. Le refus ne crée donc aucune impasse réglementaire, ce qui est la
+  condition de son admissibilité.
+\item \textbf{Le règlement envisage lui-même le cas.} L'article~220,
+  paragraphe~2, prévoit qu'une entreprise puisse ne pas être « en mesure
+  d'utiliser » une méthode standardisée, et impose alors de retenir « le résultat
+  le plus prudent ». Un paramètre propre \emph{inférieur} au paramètre standard,
+  obtenu par une division par un nombre négatif, en est l'exact contraire.
+\end{itemize}
+
+Un quatrième appui, hors annexe~XVII, va dans le même sens~: le règlement refuse
+explicitement qu'un risque de réserve soit porté par un volume négatif.
+
+\reglement{Article 116, paragraphe 6, du règlement délégué (UE) 2015/35}{Pour
+tous les segments visés à l'annexe~II, la mesure de volume pour le risque de
+réserve pour un segment donné est égale à la meilleure estimation des provisions
+pour sinistres à payer [\dots]. La mesure de volume n'est pas un montant
+négatif.}
+
+\noindent
+Les deux grandeurs ne se confondent pas~: la mesure de volume de l'article~116
+est la meilleure estimation des provisions pour sinistres à payer, tandis que
+$\hat R$ est l'estimation que la chaîne d'échelle produit sur le triangle fourni.
+Mais l'écart-type que la section~D calibre est précisément celui que la formule
+standard applique à cette mesure de volume, dont le règlement exige qu'elle ne
+soit pas négative. Refuser de calibrer $\sigma_{(\text{res},s,\mathrm{USP})}$ sur
+une réserve négative prolonge donc une exigence du texte plutôt que d'y ajouter
+une règle propre à l'outil.
+
+\emph{(iii) MSEP non finie ou négative~: convention d'implémentation.} Tous les
+termes du paragraphe~5 sont positifs ou nuls sur un triangle recevable~; ce cas
+est inatteignable depuis \code{run\_engine()}. Le contrôle est une garde
+défensive, qui préserve le domaine de $\sqrt{\mathrm{MSEP}}$ si
+\code{mw\_valider\_ajustement()} est appelée hors de la chaîne. Ce n'est pas une
+lecture du texte.
+
+Le refus porte sur le \textbf{total} $\hat R$, et sur lui seul. \textbf{Le texte
+ne se prononce ni sur l'un ni sur l'autre}~: aucun paragraphe de la section~D ne
+traite le cas d'une réserve négative, au total comme par année de survenance. La
+distinction est donc une \textbf{décision de l'outil}, et non une lecture du
+règlement~: seule la somme $\sum_{i=0}^{I}\big(\hat C(i,J) - C(i,I-i)\big)$
+figure au dénominateur du paragraphe~4, et l'outil ne refuse que ce que cette
+formule rend inexploitable, à savoir le total. Des réserves négatives sur
+certaines années de survenance --- bonis de liquidation, recours sur années
+anciennes ---, ou un facteur $\hat f_j < 1$ isolé, restent donc licites~: dès
+lors que $\hat R > 0$, le calcul est mené normalement et ces situations ne
+donnent lieu qu'à l'avertissement sur les cumulés décroissants
+(section~\ref{sec:controles}).
 
 \begin{encadre}
 \textbf{Restriction d'implémentation.} Le paragraphe~2(e) autorise $I \ge J$, mais
@@ -4660,8 +4879,11 @@ mentionnée explicitement.
 \refl{Diagnostic de concentration~; décomposition du paragraphe~4.}
 \Cadre
 Part de la réserve totale portée par la dernière année de survenance,
-$\big(\hat C(I,J) - C(I,0)\big) / \sum_i \big(\hat C(i,J) - C(i,I-i)\big)$.
-\textbf{Diagnostic, non test.}
+$\big(\hat C(I,J) - C(I,0)\big) / \sum_i \big(\hat C(i,J) - C(i,I-i)\big)$. Le
+dénominateur est la réserve chain-ladder totale $\hat R$, strictement positive
+partout où ce diagnostic est restitué, le calcul étant refusé sinon
+(section~\ref{sec:controles})~: la part est donc toujours définie. Elle n'est en
+revanche encadrée par rien (rubrique~6). \textbf{Diagnostic, non test.}
 \Hzero
 Sans objet.
 \Stat
@@ -4678,6 +4900,19 @@ propre repose principalement sur la ligne la moins informative du triangle. Ce
 diagnostic joue, pour la méthode Merz--Wüthrich, le rôle que joue le jackknife
 pour la méthode lognormale~: il mesure la concentration du résultat sur une
 observation unique.
+
+\textbf{Limite connue.} La part n'est \emph{ni majorée par~1 ni minorée par~0}.
+Le refus d'une réserve totale non positive (section~\ref{sec:controles}) garantit
+le signe du dénominateur, pas celui du numérateur~: dès qu'une année de
+survenance porte une réserve négative --- situation licite tant que $\hat R$
+reste strictement positive ---, la part peut dépasser~1 ou devenir négative. Or
+le moteur la compare au seul seuil de 40~\%~: une part négative ne déclenche
+aucun signalement, alors qu'elle traduit une répartition au moins aussi atypique
+que celle que le seuil vise. Le signalement n'a donc de portée que si toutes les
+réserves par année de survenance sont positives ou nulles, condition que le
+moteur ne vérifie pas. Cette limite est antérieure à la règle de refus et n'est
+pas corrigée par elle~; elle doit être lue avec le diagnostic, et la répartition
+de la réserve par année de survenance examinée directement.
 \end{fiche}
 
 \newpage
@@ -4768,9 +5003,12 @@ Facteurs de développement $\hat f_j$ & 3,4906 ; 1,7473 ; 1,4574 ; \dots &
 conformes aux valeurs publiées \\
 Réserve chain-ladder totale & 18\,680\,856 & conforme \\
 Erreur type \emph{ultime} de Mack & 2\,447\,095 & conforme à la valeur publiée \\
-MSEP à un an, deux implémentations indépendantes & écart nul à la précision
-machine & cohérence interne \\
-Erreur à un an $<$ erreur ultime & 1\,519\,876 $<$ 2\,447\,095 &
+MSEP à un an $=$ transcription littérale du paragraphe~D(5) & écart relatif nul
+(précision machine) & conforme au texte \\
+$\sqrt{\mathrm{MSEP}}$ à un an $=$ \code{ChainLadder::CDR} (Merz--Wüthrich
+2008) & 1\,778\,967,66336\newline contre 1\,778\,967,66335758 & écart relatif
+$-2{,}6\times10^{-15}$ \\
+Erreur à un an $<$ erreur ultime & 1\,778\,968 $<$ 2\,447\,095 &
 conforme à la théorie \\
 Homogénéité~: $\lambda\!\cdot\!C \Rightarrow$ CV invariant & vérifié à
 $10^{-10}$ & \\
@@ -4788,12 +5026,27 @@ $\hat\sigma_{J-1}^2$, qui sont les entrées de la MSEP à un an.
 
 \medskip
 \begin{encadre}
-\textbf{Réserve sur la validation.} Nous n'avons pas identifié de valeur publiée
-de référence pour la MSEP \emph{à un an} sur ce triangle. La validation de cette
-grandeur repose donc sur la double implémentation indépendante, les propriétés
-structurelles ci-dessus et la conformité des quantités qui l'alimentent, non sur
-une comparaison externe. Ce point est signalé plutôt que présenté comme une
-validation complète.
+\textbf{Sur quoi repose la validation de la MSEP à un an.} Elle repose sur deux
+voies distinctes~: d'une part la confrontation du moteur à une transcription
+littérale du paragraphe~D(5), réécrite depuis le texte et implémentée
+séparément dans la batterie de tests unitaires~; d'autre part une comparaison
+\emph{externe} avec \code{ChainLadder::CDR} (paquet R \code{ChainLadder}
+0.2.18), implémentation publique de Merz--Wüthrich (2008), reproduite à
+$-2{,}6\times10^{-15}$ en écart relatif. Nous n'avons pas identifié de valeur
+\emph{publiée} de la MSEP à un an sur ce triangle~: la comparaison externe porte
+sur une implémentation de référence, non sur un nombre publié.
+
+\medskip
+\textbf{Ce que les versions antérieures de ce document affirmaient à tort.}
+Jusqu'à la correction de la transcription du paragraphe~D(5)
+(section~\ref{sec:mw}), la validation de cette grandeur était présentée comme
+reposant sur une « double implémentation indépendante ». Elle ne l'était
+pas~: les deux implémentations reprenaient la même transcription fautive du
+paragraphe~D(5) --- termes diagonaux $\hat C(i,J)^2\,\Delta_i$ et facteur~2
+omis --- et ne pouvaient donc rien détecter. La MSEP en était sous-estimée
+(1\,519\,876 au lieu de 1\,778\,968 sur ce triangle), dans le sens favorable à
+l'entreprise. C'est ce défaut que la transcription de la
+section~\ref{sec:mw} et les deux voies ci-dessus corrigent.
 \end{encadre}
 
 \subsection{Calibration des p-values asymptotiques (Merz--Wüthrich)}
@@ -5059,7 +5312,8 @@ Hiérarchie exacte $\succ$ MC $\succ$ asymptotique & fonction \code{add()} inter
 Erreur de Monte-Carlo & champ \code{err\_mc} de \code{usp\_bootstrap()} \\
 Jackknife, profils, rapport de vraisemblance & \code{usp\_jackknife()}, \code{usp\_profil()} \\
 Calibration et paramètre final & \code{usp\_parametre()}, \code{usp\_credibilite()} \\
-Contrôles de validité & \code{engine\_valider\_donnees()}, \code{usp\_controle\_donnees()} \\
+Contrôles de validité & \code{engine\_valider\_donnees()}, \code{usp\_controle\_donnees()},
+\code{mw\_valider\_triangle()}, \code{mw\_valider\_ajustement()} \\
 Quantités des graphiques & \code{engine\_plots\_data()} \\
 Orchestration complète & \code{run\_engine()} \\
 Table auditable des tests & \code{engine\_table\_tests()} \\
@@ -5106,7 +5360,9 @@ modèle et un mode d'inférence différents.
   an} du paragraphe~D(5). La distinction entre erreur à un an et erreur ultime
   est le fondement même de la méthode~n\textsuperscript{o}~2, et l'ordre
   $\sqrt{\mathrm{MSEP}}_{\text{1 an}} < \sqrt{\mathrm{MSEP}}_{\text{ultime}}$ que
-  nous avons vérifié numériquement en découle.
+  nous avons vérifié numériquement en découle. C'est également l'implémentation
+  publique de cet article (\code{ChainLadder::CDR}) qui fournit la valeur de
+  comparaison externe de notre MSEP à un an (section~\ref{sec:verif}).
 
   \item M.\,V. Wüthrich, M.~Merz, \emph{Stochastic Claims Reserving Methods in
   Insurance}, Wiley, 2008.
@@ -5163,8 +5419,9 @@ littérature consultée.
   bootstrap.
   \item \textbf{Aucune valeur publiée de la MSEP à un an} n'a pu être identifiée
   pour le triangle de Taylor \& Ashe. La validation de cette grandeur repose donc
-  sur une double implémentation indépendante et sur des propriétés structurelles,
-  non sur une comparaison externe.
+  sur la transcription littérale du paragraphe~D(5), sur des propriétés
+  structurelles et sur la comparaison avec une implémentation externe
+  (\code{ChainLadder::CDR}), non sur un nombre publié dans la littérature.
   \item \textbf{Le domaine de validité exact de la transformation de Royston}
   pour $4 \le T \le 11$ est documenté par son auteur, mais nous n'avons pas
   identifié d'étude indépendante en évaluant la précision spécifiquement à
@@ -5613,7 +5870,8 @@ fournissent des lois de référence~: \code{sw\_loi\_nulle()},
   \scriptsize $\hat f_j$, $\hat\sigma^2_j$, $\hat C(i,j)$, $\hat Q_j$, $S_j$, $S'_j$};
 
 \node[ded, left=14mm of aj, yshift=-16mm] (msep) {\code{mw\_msep()}};
-\node[ded, below=5mm of msep] (par) {\code{mw\_parametre()}};
+\node[ded, below=5mm of msep] (vaj) {\code{mw\_valider\_ajustement()}};
+\node[ded, below=5mm of vaj] (par) {\code{mw\_parametre()}};
 \node[sor, below=5mm of par] (sig) {$\sigma_{\mathrm{USP}}$};
 
 \node[mut, below=16mm of aj] (res) {\code{mw\_residus()}\\ \scriptsize résidus $r(i,j)$};
@@ -5659,7 +5917,7 @@ fournissent des lois de référence~: \code{sw\_loi\_nulle()},
 % --- Liaisons ----------------------------------------------------------------
 \draw[fl] (tri) -- (val); \draw[fl] (val) -- (aj);
 \draw[fl] (aj) -| node[flx,above left] {$\hat f_j$, $\hat Q_j$} (msep);
-\draw[fl] (msep) -- (par); \draw[fl] (par) -- (sig);
+\draw[fl] (msep) -- (vaj); \draw[fl] (vaj) -- (par); \draw[fl] (par) -- (sig);
 \draw[fl] (aj) -- node[flx,right] {$\hat f_j$, $\hat\sigma_j$} (res);
 \foreach \b in {m1,m2,cal,cor,dw,gr,sw}
   \draw[fl] (res) -| ([xshift=-5mm]\b.west) -- (\b);
