@@ -97,13 +97,60 @@ verifier("MSEP et ses deux termes positifs ou nuls",
              isTRUE(proche(m$msep, m$terme_variance + m$terme_covariance))
          })
 # Scenario du constat sur les reserves negatives (voir test_calibration.R).
+tri_decroissant <- matrix(NA_real_, 5, 5)
+tri_decroissant[1, ] <- c(100, 95, 92, 90, 89); tri_decroissant[2, 1:4] <- c(110, 104, 100, 99)
+tri_decroissant[3, 1:3] <- c(120, 115, 110); tri_decroissant[4, 1:2] <- c(130, 122)
+tri_decroissant[5, 1] <- 140
 verifier("Triangle a cumuls decroissants : reserve chain-ladder negative (-27,566619)",
          {
-           td <- matrix(NA_real_, 5, 5)
-           td[1, ] <- c(100, 95, 92, 90, 89); td[2, 1:4] <- c(110, 104, 100, 99)
-           td[3, 1:3] <- c(120, 115, 110); td[4, 1:2] <- c(130, 122); td[5, 1] <- 140
-           a <- mw_ajuster(td)
-           isTRUE(mw_valider_triangle(td)$ok) && isTRUE(proche(a$reserve, -27.56661936, rel = 1e-8))
+           a <- mw_ajuster(tri_decroissant)
+           isTRUE(mw_valider_triangle(tri_decroissant)$ok) &&
+             isTRUE(proche(a$reserve, -27.56661936, rel = 1e-8))
+         })
+
+## --- Applicabilite de la methode : reserve totale et MSEP (decision M4) ------
+# sigma(res,s,USP) = c * racine(MSEP)/R + (1-c) * sigma(res,s) est un
+# coefficient de variation : il n'est defini que pour R > 0. run_engine() doit
+# refuser (ok = FALSE, validation) sans lever d'erreur, et non produire
+# silencieusement un sigma_USP. Voir l'issue #7.
+verifier("run_engine : reserve totale negative refusee (ok = FALSE, motif chiffre)",
+         {
+           r <- run_engine(methode = "reserve2", triangle = tri_decroissant,
+                           segment = 1, annexe = "II", B = 99)
+           identical(r$ok, FALSE) && !r$validation$ok &&
+             any(grepl("-27.5666", r$validation$erreurs, fixed = TRUE)) &&
+             any(grepl("n'est pas applicable", r$validation$erreurs, fixed = TRUE)) &&
+             is.null(r$parametre_final)
+         })
+verifier("run_engine : reserve totale exactement nulle refusee (tous les f_j = 1)",
+         {
+           tz <- matrix(NA_real_, 5, 5)
+           for (i in 1:5) for (j in 1:(6 - i)) tz[i, j] <- 100 + 10 * i
+           a <- mw_ajuster(tz)
+           r <- run_engine(methode = "reserve2", triangle = tz,
+                           segment = 1, annexe = "II", B = 99)
+           a$reserve == 0 && all(abs(a$f - 1) < 1e-14) &&
+             identical(r$ok, FALSE) &&
+             any(grepl("R = 0", r$validation$erreurs, fixed = TRUE)) &&
+             is.null(r$parametre_final)
+         })
+# Des reserves negatives sur certaines annees de survenance (bonis de
+# liquidation, recours) avec un total positif sont licites : le calcul se
+# poursuit, un f_j < 1 isole ne vaut qu'avertissement.
+verifier("run_engine : reserves negatives par annee mais total positif -> calcul mene a terme",
+         {
+           tp <- matrix(NA_real_, 5, 5)
+           tp[1, ] <- c(100, 150, 180, 190, 189); tp[2, 1:4] <- c(110, 160, 190, 199)
+           tp[3, 1:3] <- c(120, 185, 219); tp[4, 1:2] <- c(130, 200); tp[5, 1] <- 140
+           a <- mw_ajuster(tp)
+           r <- run_engine(methode = "reserve2", triangle = tp,
+                           segment = 1, annexe = "II", B = 99)
+           any(a$reserve_par_annee < 0) && any(a$f < 1) && a$reserve > 0 &&
+             isTRUE(r$ok) && is.finite(r$parametre_final$sigma_usp) &&
+             r$parametre_final$sigma_usp > 0 &&
+             isTRUE(proche(r$parametre_final$sigma_estime,
+                           sqrt(mw_msep(a)$msep) / a$reserve, rel = 1e-12)) &&
+             any(grepl("cumul decroissant", r$validation$avertissements, fixed = TRUE))
          })
 
 ## --- Triangle de Taylor & Ashe (1983) ----------------------------------------
