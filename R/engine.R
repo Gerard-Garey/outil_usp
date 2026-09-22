@@ -893,10 +893,14 @@ usp_simuler <- function(fit) {
 #     ou volumes x_t constants -- et non des que delta est au bord : a
 #     delta = 0 avec des volumes variables, pi_t varie et aucune des deux
 #     egalites ne tient (voir usp_tests(), qui distingue les trois cas).
-#     Quand pi_t est constant, les deux egalites ne valent d'ailleurs qu'a la
-#     tolerance d'arret de l'optimiseur pres : sur les donnees de test
-#     (T = 8, delta = 1), mean(z) = -2,0e-16 mais somme(z^2) - T = -5,4e-06,
-#     soit 6,8e-07 en relatif.
+#     Quand pi_t est constant, les deux egalites n'ont PAS le meme statut :
+#     somme(z_t) = 0 decoule de la forme fermee de ln(beta) dans usp_noyau(),
+#     c'est une identite algebrique vraie pour tout (delta, gamma) et donc a
+#     la precision machine, tandis que somme(z_t^2) = T suppose la derivee en
+#     gamma annulee et ne vaut qu'a la tolerance d'arret pres. Sur les donnees
+#     de test (T = 8, delta = 1), mean(z) = -2,0e-16 -- un zero machine qui ne
+#     depend pas de la convergence -- mais somme(z^2) - T = -5,4e-06, soit
+#     6,8e-07 en relatif, qui en depend.
 #     La p-value de Monte-Carlo n'a alors pas de sens, non parce que tout
 #     serait du bruit d'arrondi, mais parce que la loi simulee est un
 #     MELANGE : sur les 999 repliques des donnees de test (graine 20260831),
@@ -1451,10 +1455,32 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # Trois cas sont distingues dans le libelle (voir aussi le commentaire de
   # .stats_bootstrapables() pour la loi simulee, qui est un melange).
   pi_constant <- diff(range(fit$pi)) <= 1e-9 * mean(fit$pi)
-  contrainte <- if (isTRUE(pi_constant))
-    paste("Ici pi_t est constant (delta = 1, ou volumes x_t constants) :",
-          "les deux egalites tiennent a la tolerance d'arret de l'optimiseur",
-          "pres et la valeur affichee n'est que du bruit numerique.")
+  # Le libelle du cas pi_t constant DIFFERE selon la grandeur, et c'est le
+  # coeur du diagnostic. somme(z_t) = 0 decoule de la forme FERMEE de ln(beta)
+  # dans usp_noyau() : c'est une IDENTITE algebrique, vraie pour tout couple
+  # (delta, gamma), convergee ou non, donc vraie a la PRECISION MACHINE et
+  # sans rapport avec l'arret de l'optimiseur (mesure : a (delta, gamma) =
+  # (1 ; 3), tres loin de l'optimum, moyenne(z) = 1,6e-16 tandis que
+  # somme(z^2) - T = -7,97). somme(z_t^2) = T suppose au contraire la derivee
+  # en gamma effectivement annulee : elle ne tient qu'a la TOLERANCE D'ARRET
+  # pres, et son ecart residuel est a ce jour le seul indicateur de
+  # convergence en gamma de toute la restitution.
+  # Servir le meme message aux deux lignes faisait affirmer a la colonne
+  # "commentaire" de la table auditable, destinee au dossier, une chose
+  # fausse sur le centrage.
+  contrainte <- function(quoi) if (isTRUE(pi_constant))
+    switch(quoi,
+      centrage = paste("Ici pi_t est constant (delta = 1, ou volumes x_t constants) :",
+                       "moyenne(z) = 0 est alors une IDENTITE algebrique, ln(beta)",
+                       "etant obtenu en forme fermee. Elle tient a la precision",
+                       "machine, que l'optimisation ait converge ou non, et la valeur",
+                       "affichee n'est que du bruit d'arrondi : elle ne renseigne donc",
+                       "PAS sur la qualite de l'arret de l'optimiseur."),
+      variance = paste("Ici pi_t est constant (delta = 1, ou volumes x_t constants) :",
+                       "var(z) = T/(T-1) suppose la derivee en gamma effectivement",
+                       "annulee, et ne tient donc qu'a la tolerance d'arret de",
+                       "l'optimiseur pres. L'ecart residuel est a ce jour le seul",
+                       "indicateur de convergence en gamma de la restitution."))
   else if (isTRUE(fit$delta_au_bord))
     paste("Ici delta est au bord de [0,1] mais pi_t n'est PAS constant :",
           "seule la contrainte ponderee subsiste, la valeur affichee n'est",
@@ -1471,13 +1497,13 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       detail = paste("Grandeur contrainte par l'estimation :",
                      "somme(sqrt(pi_t) z_t) = 0 par condition du premier ordre,",
                      "d'ou moyenne(z) = 0 lorsque pi_t est constant.",
-                     contrainte, sans_p))
+                     contrainte("centrage"), sans_p))
   add(fam, "Variance unitaire des residus standardises", "Diagnostic d'echelle (ADR 0001)",
       type = "diagnostic", estim_nom = "var(z)", estim = stats::var(z),
       detail = paste("Grandeur contrainte par l'estimation : les conditions du",
                      "premier ordre donnent somme(z_t^2) = T lorsque pi_t est",
                      "constant, soit var(z) = T/(T-1).",
-                     contrainte, sans_p))
+                     contrainte("variance"), sans_p))
 
   ## --- F. Stabilite, ruptures et points aberrants ----------------------------
   fam <- "F. Stabilite, ruptures et points aberrants"
