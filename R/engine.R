@@ -2937,11 +2937,22 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       estim_nom = "sigma2_(J-1)", estim = aj$sigma2[aj$J],
       detail = .mw_detail_extrapolation(ex),
       verdict = "INFO")
+  # ADR 0001 : un diagnostic n'a pas de verdict (il est affiche INFO). Le seuil
+  # de 40 % qui figurait ici n'est ni un niveau de test ni une regle de
+  # l'annexe XVII : le rendre en ALERTE / OK donnait a une convention
+  # d'affichage l'apparence d'une conclusion au seuil alpha, alors que la
+  # ligne voisine de la meme famille sort bien en INFO. Le verdict n'est plus
+  # force ; add() applique INFO de lui-meme. La part et le repere de 40 %
+  # restent restitues dans le detail, ou leur statut est nomme.
+  part_derniere <- aj$reserve_par_annee[aj$I + 1] / aj$reserve
   add(fam, "Part de la reserve portee par la derniere annee d'accident",
       "Diagnostic de concentration", type = "diagnostic",
-      estim_nom = "part", estim = aj$reserve_par_annee[aj$I + 1] / aj$reserve,
-      detail = "Une part elevee concentre la MSEP sur la ligne la moins developpee du triangle",
-      verdict = if (aj$reserve_par_annee[aj$I + 1] / aj$reserve > 0.40) "ALERTE" else "OK")
+      estim_nom = "part", estim = part_derniere,
+      detail = sprintf(paste("part = %.1f %% de la reserve totale. Une part elevee concentre la",
+                             "MSEP sur la ligne la moins developpee du triangle, dont les",
+                             "facteurs sont les plus extrapoles. Repere indicatif de 40 %%,",
+                             "sans fondement reglementaire ni statistique : il n'emporte aucun",
+                             "verdict."), 100 * part_derniere))
   L
 }
 

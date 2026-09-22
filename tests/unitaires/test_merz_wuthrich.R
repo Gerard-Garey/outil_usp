@@ -333,4 +333,33 @@ verifier("Decoupage restitue : terme_variance = variance de processus seule, som
                            msep_reglement(at), rel = 1e-10))
          })
 
+## --- Restitution : ADR 0001, un diagnostic n'a pas de verdict ---------------
+# CONTEXT.md : "Un diagnostic n'a pas de verdict (affiche INFO)." add() applique
+# deja cette regle de lui-meme des que type != "test" ; le defaut ne peut donc
+# naitre que d'un appelant qui FORCE un verdict par l'argument verdict = .
+# mw_tests() ne lit du bootstrap que p_mc et err_mc : un objet fictif suffit,
+# aucune simulation n'est necessaire ici.
+boot_mw_fictif <- local({
+  s <- .mw_stats(at)
+  p <- stats::setNames(rep(0.5, length(s)), names(s))
+  list(stats_obs = as.list(s), p_mc = p, err_mc = p * 0 + 0.01)
+})
+lignes_mw <- mw_tests(at, boot_mw_fictif)
+verifier("M6 concentration de la reserve : diagnostic sans verdict (ADR 0001)",
+         {
+           l <- Filter(function(x) grepl("^Part de la reserve", x$test), lignes_mw)
+           length(l) == 1L && identical(l[[1]]$type, "diagnostic") &&
+             identical(l[[1]]$verdict, "INFO")
+         })
+echec_attendu("mw_tests : TOUT diagnostic sort en INFO (ADR 0001)",
+              "ligne M2 'Variance unitaire des residus de Mack' : verdict ALERTE/OK force par l'appelant",
+              {
+                faux <- Filter(function(l) identical(l$type, "diagnostic") &&
+                                           !identical(l$verdict, "INFO"), lignes_mw)
+                if (!length(faux)) TRUE
+                else paste("verdict non INFO :",
+                           paste(vapply(faux, function(l) sprintf("%s -> %s", l$test, l$verdict),
+                                        character(1)), collapse = " ; "))
+              })
+
 fin_fichier()
