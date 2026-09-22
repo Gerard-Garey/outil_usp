@@ -2159,10 +2159,14 @@ mw_valider_ajustement <- function(aj, msep) {
                                  "n'a pas de sens pour R <= 0 ; la methode du risque de reserve no 2 ",
                                  "n'est pas applicable a ce triangle."),
                           format(R, digits = 6)))
-  if (!is.finite(msep))
-    err <- c(err, sprintf(paste0("MSEP a un an non finie (MSEP = %s) : sigma(res,s,USP) n'est pas ",
-                                 "calculable ; la methode du risque de reserve no 2 n'est pas ",
-                                 "applicable a ce triangle."),
+  # Une MSEP negative est impossible sur un triangle valide (tous les termes de
+  # mw_msep() sont positifs ou nuls), mais la fonction est publique : elle garde
+  # le domaine de racine(MSEP) / R, donc elle refuse aussi ce cas plutot que de
+  # laisser sqrt() produire un NaN assorti d'un simple avertissement.
+  if (!is.finite(msep) || msep < 0)
+    err <- c(err, sprintf(paste0("MSEP a un an non finie ou negative (MSEP = %s) : ",
+                                 "sigma(res,s,USP) n'est pas calculable ; la methode du risque ",
+                                 "de reserve no 2 n'est pas applicable a ce triangle."),
                           format(msep)))
   list(ok = length(err) == 0, erreurs = err, avertissements = character(0),
        reserve = R, msep = msep)

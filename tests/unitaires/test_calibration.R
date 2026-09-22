@@ -132,9 +132,16 @@ verifier("mw_parametre : I + 1 = 4 annees refuse",
 verifier("mw_parametre : reserve negative ou nulle refusee (erreur explicite)",
          leve_erreur(mw_parametre(list(I = 4L, reserve = -27.56661936), 6.11375969, 0.09, "long")) &&
          leve_erreur(mw_parametre(list(I = 4L, reserve = 0), 0, 0.09, "long")))
-verifier("mw_parametre : MSEP non finie refusee (erreur explicite)",
+# La MSEP negative est impossible sur un triangle valide, mais mw_parametre() et
+# mw_valider_ajustement() sont publiques : sans garde, sqrt() y produirait un NaN
+# assorti d'un simple avertissement, soit exactement la sortie silencieuse que la
+# decision M4 vise a supprimer.
+verifier("mw_parametre : MSEP non finie ou negative refusee (erreur explicite)",
          leve_erreur(mw_parametre(list(I = 4L, reserve = 100), NA_real_, 0.09, "long")) &&
-         leve_erreur(mw_parametre(list(I = 4L, reserve = 100), Inf, 0.09, "long")))
+         leve_erreur(mw_parametre(list(I = 4L, reserve = 100), Inf, 0.09, "long")) &&
+         leve_erreur(mw_parametre(list(I = 4L, reserve = 100), -5, 0.09, "long")))
+verifier("mw_valider_ajustement : MSEP negative refusee malgre une reserve positive",
+         !isTRUE(mw_valider_ajustement(list(I = 4L, reserve = 100), -5)$ok))
 verifier("mw_valider_ajustement : R > 0 et MSEP finie -> ok, aucune erreur",
          {
            v <- mw_valider_ajustement(list(I = 4L, reserve = 100), 25)
