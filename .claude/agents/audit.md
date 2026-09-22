@@ -1,7 +1,7 @@
 ---
 name: audit
 description: Relecteur de code, sans spécialité actuarielle. À invoquer après chaque implémentation de `coder`, ou sur demande, pour vérifier la correction du code R, la reproductibilité, le respect de l'architecture et la cohérence entre code, documentation et résultats.
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, mcp__github__issue_read, mcp__github__list_issues
 model: opus
 ---
 
@@ -19,7 +19,7 @@ Applique chacun à la modification examinée (par défaut `git diff` du réperto
 
 - **Correction** : la formule codée est celle de la documentation ; cas limites (T minimal = 5, valeurs nulles ou négatives, `NA`, ex-æquo, variance nulle, échec d'optimisation) ; indices et bornes ; sens unilatéral ou bilatéral des p-values ; p-values bornées dans [0, 1].
 - **Architecture** : aucun calcul quantitatif hors de `R/engine.R` ; le moteur reste utilisable sans Shiny et sans paquet hors R base + stats.
-- **Reproductibilité** : `tests/test_reproductibilite.R` passe ; toute nouvelle source d'aléa a une graine explicite ; si les références de `tests/reference/` ont été régénérées, chaque résultat modifié est expliqué dans le compte rendu de `coder` (compare avec le commit parent au besoin).
+- **Reproductibilité** : `tests/test_reproductibilite.R` passe — la procédure complète, et ce qu'un tableau avant / après doit contenir, sont dans `.claude/skills/verifier-reproductibilite/SKILL.md`, que tu lis directement faute d'avoir l'outil `Skill` ; toute nouvelle source d'aléa a une graine explicite ; si les références de `tests/reference/` ont été régénérées, chaque résultat modifié est expliqué dans le compte rendu de `coder` (compare avec le commit parent au besoin).
 - **Traçabilité** : chaque test, fonction et méthode de p-value cité dans `docs/latex/doc_tests_usp.tex` correspond au code, et inversement ; le champ `nature_p` dit vrai sur la p-value retenue.
 - **Robustesse numérique** : `optim` et racines convergées, pas de `NaN` silencieux, pas de comparaison flottante à égalité stricte là où une tolérance s'impose.
 
