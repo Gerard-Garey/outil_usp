@@ -70,3 +70,23 @@ Le moteur (`mw_msep()`, avant le commit `cb7f497`) calculait `t1 + Σ_{i<k} ĈĈ
 - **Géométrie I > J** : le moteur impose un triangle carré, convention non prescrite, déjà documentée ; rien à arbitrer tant qu'aucun dossier ne présente un trapèze.
 
 Issues : #7 (partie bloquante). Feuille de route : jalon J3 ; décision M1 close sans objet ; M3 (visa du tableau) ; J6 et J7 débloqués après fusion. Voir `CONTEXT.md` (référence de non-régression).
+
+## Amendement du 22 septembre 2026 — la pagination L 12/277-278 est vérifiée, mais elle est celle de la version d'origine
+
+### Ce que disait l'ADR
+
+Le paragraphe « Sur la source » du Contexte ci-dessus affirme que la pagination « JOUE L 12/277-278 » **n'a jamais été vérifiée** et descend d'une source interne à l'autre, et demande de la confirmer sur le PDF avant remise ; la dernière puce de la « Dette documentaire » des Conséquences prescrit de qualifier toute mention de cette pagination de non vérifiée, ou de la retirer, jusqu'à confirmation. Ces deux passages sont conservés tels quels ci-dessus ; le présent amendement en change la portée.
+
+### Ce qui a été vérifié
+
+Le 22 septembre 2026, `regulatory` a vérifié **à l'image** la pagination sur `Règlement délégué.pdf` (racine du dépôt) (JOUE L 12 du 17 janvier 2015 ; dans ce fichier, la page du fichier coïncide avec la page du Journal, en-tête « L 12/n » constaté sur chaque page lue). Constat, consigné dans le dernier commentaire de l'issue #26 : la section D de l'annexe XVII couvre L 12/276-278 ; le paragraphe D(4) est en page 277 ; **le paragraphe D(5) couvre L 12/277-278**, la formule de la MSEP en page 277 et les points (c) et (d) en page 278. La pagination qui circulait dans le dépôt était donc exacte, mais elle ne pouvait l'être que pour ce que le Journal officiel a imprimé : la **version d'origine de 2015**, dont la formule de D(5) est précisément le libellé écarté au point 4 de la Décision ci-dessus (double somme `k = 1..I` avec crochet en `i`, σ_USP = 0,0507). La formule qu'applique `mw_msep()` est celle de la **version consolidée en vigueur**, transcrite dans le Contexte, qui n'a **pas de pagination au JOUE** : l'acte qui a corrigé le paragraphe n'est pas identifié (voir ci-dessus), et le texte consolidé n'est pas une publication paginée du Journal. Citer « L 12/277-278 » sans autre précision renverrait donc un relecteur à une formule qui n'est pas celle du moteur.
+
+### Décision
+
+1. La question laissée ouverte par le paragraphe « Sur la source » est close : la pagination est vérifiée, pour la version d'origine. La phrase « Toute citation de ce paragraphe doit donc indiquer la version, et non une seule pagination » y reste en vigueur, et la vérification la renforce, puisque la pagination désigne le libellé non applicable.
+2. La dernière puce de la « Dette documentaire » (« à qualifier de non vérifiée ou à retirer jusqu'à confirmation sur le PDF ») est **remplacée** par : toute mention de la pagination du paragraphe D(5) **cite L 12/277-278 comme pagination de la version d'origine**, en précisant que la formule appliquée est celle de la version consolidée, qui n'a pas de pagination au JOUE. Une mention de la section D dans son ensemble (L 12/276-278) suit la même règle dès qu'elle englobe le paragraphe 5.
+3. Corollaire : aucun passage du dépôt ne doit présenter la section D comme une « transcription littérale du texte publié au JOUE L 12 p. 276-278 ». C'est exact des paragraphes 1 à 4 et 6, faux du paragraphe 5, dont le moteur transcrit la version consolidée. La formulation à retenir distingue les deux.
+
+### Conséquences
+
+Aucun changement de code numérique, de σ_USP, de verdict, ni de référence de non-régression : l'amendement ne porte que sur des commentaires, des textes de test et la documentation. Emplacements à mettre en conformité avec le point 2, relevés par `regulatory` dans #26 et à traiter par `coder` (code, tests, feuille de route) puis `docwriter` (LaTeX) : `R/engine.R` l. 2063 (en-tête de la section D, point 3 ci-dessus) et l. 2309 (le § 5 couvre p. 277-278, non la seule p. 277) ; `tests/unitaires/test_merz_wuthrich.R` l. 5 ; réserve 2 de `tests/unitaires/test_calibration.R` l. 19-22 ; `docs/feuille-de-route.md` l. 108 (citait la pagination sans la qualifier, à l'encontre de la version initiale du présent ADR) ; `docs/latex/doc_tests_usp.tex` l. 4280-4282. Les autres paginations confirmées par le même passage (annexe XIV p. 269 ; B(4) p. 273 ; B § 5-6 p. 273-274 ; section G p. 282) et la correction de l'annexe II (p. 230 seule, la p. 231 étant l'annexe III) relèvent de #26 et de #19, hors du présent ADR. Issues : #26 (vérification et emplacements), #7 (origine de la pagination non vérifiée).
