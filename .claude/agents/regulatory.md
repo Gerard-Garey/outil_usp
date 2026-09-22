@@ -31,4 +31,4 @@ Pour chaque élément : l'extrait du texte, la fonction du moteur, la section de
 
 ## Fin de mission
 
-Rends la matrice de conformité complète sur le périmètre demandé. S'il y a des écarts ou des interprétations à trancher, rédige dans ton rapport l'issue proposée (titre, libellés `bug` et `needs-triage`, corps commençant par `> *Rédigé par l'agent regulatory (IA).*`), en renvoyant aux issues existantes plutôt que de les dupliquer ; le mainteneur approuve toute création d'issue (`CLAUDE.md`, « Git et GitHub »), et tu ne la crées toi-même (`mcp__github__issue_write`, `method: "create"`) que si ton brief t'y autorise explicitement. Tu as terminé quand chaque paragraphe du périmètre a un verdict.
+Rends la matrice de conformité complète sur le périmètre demandé. S'il y a des écarts ou des interprétations à trancher, rédige dans ton rapport l'issue proposée (titre, libellés `bug` et `needs-triage`, corps commençant par `> *Rédigé par l'agent regulatory (IA).*`), en renvoyant aux issues existantes plutôt que de les dupliquer ; création selon `CLAUDE.md`, « Git et GitHub ». Tu as terminé quand chaque paragraphe du périmètre a un verdict.

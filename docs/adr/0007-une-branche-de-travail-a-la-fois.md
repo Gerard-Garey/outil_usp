@@ -19,7 +19,7 @@ Les branches naissaient aussi de trois sources incontrôlées : une branche par 
 
 ## Décision
 
-Arrêtée par le mainteneur le 22 septembre 2026 ; les quatre points ouverts ont été tranchés par lui sur proposition de la session principale.
+Arrêtée par le mainteneur le 22 septembre 2026.
 
 1. **Une seule branche de travail à la fois.** Son périmètre est une **liste fermée d'issues**, fixée par le plan d'`architect`. La PR est ouverte **en brouillon dès la création de la branche**, avec une case et un `Closes #N` par issue : c'est la fiche de la branche, la seule. Ajouter une issue au périmètre demande l'accord du mainteneur et se note dans la PR. Plafond indicatif : trois à cinq issues.
 2. **Un commit par issue qui change un résultat** (σ_USP, p-value, verdict), avec son tableau avant / après et son visa. Cette règle remplace, pour une branche de travail, la règle « une PR ne porte qu'un seul motif de changement de résultats » de la feuille de route (§ 2) : le motif unique passe de la PR au commit.
@@ -27,9 +27,8 @@ Arrêtée par le mainteneur le 22 septembre 2026 ; les quatre points ouverts ont
 4. **Création d'issue sur accord du mainteneur.** L'agent ou la session rédige l'issue proposée dans son compte rendu ; elle est créée une fois approuvée, sauf autorisation explicite du brief. La règle, jusqu'ici propre à la fiche `docwriter`, vaut pour tous les agents qui ont l'outil `issue_write`.
 5. **Les sessions cloud travaillent sur la branche de travail courante** : elles s'y placent avant toute écriture et y poussent ; la branche que la session crée d'office reste inutilisée et est supprimée.
 6. **Fusion par commit de fusion**, par le mainteneur, CI verte ; jamais de squash ni de rebase, les SHA étant cités dans les ADR, les issues et les corps de PR.
-7. **Le PDF se compile et se commite aussi depuis une session cloud** (`.claude/scripts/preparer_latex.sh`, skill `compiler-doc`). Jusqu'ici, seul le poste local le recompilait, ce qui obligeait le mainteneur à reprendre chaque branche touchant au `.tex` avant fusion. Le motif de cette restriction — le PDF du poste est composé par MiKTeX (pdfTeX 1.40.29), celui des conteneurs par TeX Live (pdfTeX 1.40.25), même source et même nombre de pages mais 17 % d'écart de taille — ne tient plus face au coût : tout commit du PDF est de toute façon un nouveau binaire complet, et la chaîne de composition ne change pas le contenu. Le compte rendu de compilation nomme la chaîne utilisée.
 
-La règle normative est dans `CLAUDE.md`, § « Git et GitHub » ; le présent ADR en porte les raisons.
+`CLAUDE.md`, § « Git et GitHub », en donne le résumé à appliquer ; le présent ADR fait foi pour le détail et porte les raisons. La compilation du PDF en session cloud, qui supprime l'autre raison de reprendre une branche sur le poste local, fait l'objet de l'ADR 0008.
 
 ## Options écartées
 
@@ -38,13 +37,11 @@ La règle normative est dans `CLAUDE.md`, § « Git et GitHub » ; le présent A
 - **Correctif rapide versé dans la branche de travail** (par PR ou par commit direct) : une seule PR vers `main`, mais le périmètre de la branche cesse d'être exclusivement ses issues, et le correctif attend la fusion de toute la branche.
 - **Création d'issue d'office en `needs-triage`** : plus fluide, mais le mainteneur veut décider lui-même de l'ouverture de toute issue (voir déjà a1d4f24 et la fiche `docwriter`).
 - **Sessions cloud en lecture seule** : supprime la source des branches `claude/…`, mais prive le projet des sessions cloud pour tout travail d'écriture.
-- **PDF recompilé seulement sur le poste local** (règle antérieure, fiche `docwriter`) : une seule chaîne de composition pour le livrable, mais une session cloud ne peut pas terminer une modification du `.tex`, et le mainteneur doit reprendre chaque branche.
-- **PDF produit par la CI et commité par elle** : une chaîne unique et neutre, mais des commits poussés par un robot sur la branche de travail, à rapatrier dans chaque copie, et un droit d'écriture à donner au workflow.
 
 ## Conséquences
 
 - Plus de pile de PR, donc plus de retargeting ni de propagation manuelle entre branches ; le conflit sur le PDF ne survient plus qu'au retour d'un correctif rapide touchant au PDF — ce que la définition du correctif rapide exclut (pas de `.tex`).
 - Une branche de travail vit plus longtemps qu'une branche par issue : fusionner `main` dans la branche après chaque correctif rapide la garde à jour.
 - Le visa se donne commit par commit : la PR liste les commits à changement de résultats, chacun avec son tableau.
-- Les fiches `architect`, `actuary`, `regulatory` et `app-review` sont alignées sur les points 1 et 4 ; `app-review` perd de nouveau l'ouverture directe d'issue que lui avait rendue 76175a7.
+- Les fiches `architect`, `actuary`, `regulatory` et `app-review` sont alignées sur les points 1 et 4.
 - Le plan d'`architect` programme, à chaque revue périodique, le périmètre de la **prochaine** branche de travail.

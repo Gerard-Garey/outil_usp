@@ -5,11 +5,11 @@ description: Compiler la documentation LaTeX (docs/latex/doc_tests_usp.tex) et v
 
 # Compiler la documentation
 
-Le PDF compilé `docs/latex/doc_tests_usp.pdf` est versionné : il est recompilé et commité avec toute modification du `.tex`, sur le poste local comme en session cloud (ADR 0007).
+Le PDF compilé `docs/latex/doc_tests_usp.pdf` est versionné : il est recompilé et commité avec toute modification du `.tex`, sur le poste local comme en session cloud (ADR 0008).
 
 ## Étapes
 
-0. **Rendre `pdflatex` disponible** si `command -v pdflatex` échoue : `source .claude/scripts/preparer_latex.sh` depuis la racine du dépôt (ajout de MiKTeX au PATH sur le poste Windows, installation de TeX Live par apt en session cloud, plusieurs minutes). S'il signale un échec, le PDF ne peut pas être compilé : le dire dans le compte rendu.
+0. **Si `command -v pdflatex` échoue** (session cloud : le hook `SessionStart` n'installe pas TeX Live) : `bash .claude/hooks/preparer_latex.sh --installer` depuis la racine du dépôt, en arrière-plan dès que la tâche touche au `.tex` (plusieurs minutes). En cas d'échec, le PDF ne peut pas être compilé : le dire dans le compte rendu.
 
 1. Depuis `docs/latex/`, compiler :
 

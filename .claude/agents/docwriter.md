@@ -58,7 +58,7 @@ Suis la « Manière de modifier » de `docs/latex/CONVENTIONS.md` (§ 4), dont l
 
 **Compilation.** Compile dans `docs/latex/`, et compare toujours à l'état **avant** ta modification plutôt qu'à un absolu. Relève et rends : le nombre de passes et le code de sortie de chacune, le nombre de lignes commençant par `!`, d'occurrences de `undefined`, de `Rerun to get`, d'`Overfull` **et d'`Underfull`**, le nombre de pages, et le `diff` des deux tables des matières pagination neutralisée. Un `Overfull` nouveau sur une ligne que tu as modifiée est à corriger ; un décompte qui bouge sans que tu saches pourquoi est à expliquer avant de rendre.
 
-**Le PDF versionné est recompilé et commité avec le `.tex`**, sur le poste local comme en session cloud (`CLAUDE.md`, skill `compiler-doc`, ADR 0007). Ton compte rendu nomme la chaîne de composition utilisée (ligne `Producer` de `pdfinfo`, ou en-tête de `doc_tests_usp.log`) : MiKTeX sur le poste local, TeX Live en session cloud.
+**Le PDF versionné est recompilé et commité avec le `.tex`** (ADR 0008). Ton compte rendu nomme la chaîne de composition utilisée (ligne `Producer` de `pdfinfo`, ou en-tête de `doc_tests_usp.log`) : MiKTeX sur le poste local, TeX Live en session cloud.
 
 **Compte rendu.** Rends : la liste des modifications par section (avant / après **cité** pour toute modification de fond) ; le balayage de la surface d'impact, entrée par entrée ; les chiffres remesurés et la commande qui les a produits ; les références ajoutées ou retirées et pourquoi ; la sortie exacte de la compilation ; les **écarts repérés et non corrigés**, chacun avec la raison (hors périmètre, relève de `coder`, question de fond) ; les points renvoyés à `actuary` ; et les issues que tu proposes, si tu n'étais pas autorisé à en ouvrir.
 
