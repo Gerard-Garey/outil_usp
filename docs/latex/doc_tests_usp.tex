@@ -522,20 +522,96 @@ an, §\ref{sec:mw}).
 \end{encadre}
 
 \subsection{Reproductibilité et gestion des graines}
+\label{sec:graines}
 
-Une seule graine pilote l'ensemble des tirages~: elle est passée à
-\code{run\_engine(seed = )} puis à \code{usp\_bootstrap()}, qui appelle
-\code{set.seed()} une fois avant la boucle de réplications. Aucune autre
-fonction du moteur ne tire de nombres aléatoires, à l'exception de
-\code{engine\_plots\_data()}, qui fixe sa propre graine pour l'enveloppe de
-simulation du QQ-plot afin que le graphique soit stable d'un appel à l'autre.
+Le moteur comporte cinq sources de tirages aléatoires, et cinq seulement~: une
+recherche dans \code{R/engine.R} de \code{set.seed()}, \code{RNGkind()},
+\code{.Random.seed}, \code{sample()} et des générateurs \code{r*()} de
+\code{stats} ne renvoie aucun appel qui n'appartienne à l'une d'elles. Pour chacune, on indique
+la fonction qui tire, la graine, la portée du tirage et le sort de l'état du
+générateur (l'objet \code{.Random.seed} de l'environnement global) après l'appel.
+\begin{itemize}
+\item \code{usp\_bootstrap()} (méthodes de primes et de réserve
+  n\textsuperscript{o}~1). \emph{Graine}~: le paramètre \code{seed} de
+  \code{run\_engine()} (défaut 20260831), posé par \code{set.seed(seed)} une
+  seule fois, avant la boucle des $B$ réplications~; à chaque réplication,
+  \code{usp\_simuler()} tire par \code{stats::rnorm()} les logarithmes des $T$
+  pertes simulées sous le modèle ajusté. \emph{Portée}~: tous les résultats de Monte-Carlo de la
+  branche lognormale (p-values Monte-Carlo, erreurs \code{err\_mc},
+  \code{sigma\_boot} et les grandeurs qui en sont tirées). \emph{État}~: non
+  restauré.
+\item \code{mw\_bootstrap()} (méthode de réserve n\textsuperscript{o}~2).
+  \emph{Graine}~: le même paramètre \code{seed}, posé par \code{set.seed(seed)}
+  une seule fois avant la boucle~; à chaque réplication,
+  \code{mw\_simuler\_triangle()} tire avec remise, par \code{sample()}, les
+  résidus du vivier recentré. \emph{Portée}~: tous les résultats de Monte-Carlo
+  de la branche Merz--Wüthrich (p-values Monte-Carlo, \code{sigma\_boot} et
+  l'intervalle qui en est tiré). \emph{État}~: non restauré.
+\item \code{sw\_loi\_nulle()}, appelée par \code{sw\_p\_loi\_nulle()} dans les
+  deux branches. \emph{Graine}~: fixe, 20260901, indépendante de \code{seed}~;
+  \code{set.seed()} est suivi de 20\,000 échantillons $\mathcal{N}(0,1)$ de
+  taille $n$ tirés par \code{stats::rnorm()}, où $n$ vaut $T$ dans la branche
+  lognormale et le nombre de résidus dans la branche Merz--Wüthrich. La loi
+  simulée est mise en cache, pour la durée de la session R, sous une clé formée
+  de $n$, du nombre de tirages et de la graine~: un second appel à la même
+  taille ne tire plus rien et renvoie la même loi. \emph{Portée}~: la p-value
+  exacte simulée du test de Shapiro--Wilk sans la normalisation de Royston
+  (fiche~\ref{fiche:24}) et du test de Shapiro--Wilk sur les résidus de Mack
+  (fiche~\ref{mw:m5sw}).
+  \emph{État}~: sauvegardé avant le tirage et restauré après. Exception~: si
+  aucun état n'existait avant l'appel, la fonction laisse celui qu'elle a
+  produit~; le cas ne se présente pas dans \code{run\_engine()}, où le bootstrap
+  a déjà initialisé le générateur.
+\item \code{engine\_plots\_data()} (branche lognormale). \emph{Graine}~: fixe,
+  20260831, indépendante de \code{seed} bien qu'elle en égale la valeur par
+  défaut~; \code{set.seed()} est suivi de 499 échantillons $\mathcal{N}(0,1)$ de
+  taille $T$ tirés par \code{stats::rnorm()}, dont les statistiques d'ordre
+  fournissent, point par point, les quantiles à 5~\% et 95~\% de l'enveloppe du
+  QQ-plot. \emph{Portée}~: ce seul graphique (champs \code{env\_bas} et
+  \code{env\_haut} de \code{plots\_data\$qqnorm})~; aucun test ni aucun
+  paramètre n'en dépend. \emph{État}~: non restauré.
+\item \code{engine\_ecrire\_xlsx()} et \code{engine\_lire\_xlsx()}, dans leur
+  seule voie de repli, empruntée quand le paquet \code{openxlsx} n'est pas
+  installé. \emph{Graine}~: aucune~; chacune tire une valeur par
+  \code{runif()} sur l'état courant du générateur. \emph{Portée}~: le nom d'un
+  dossier temporaire créé sous \code{tempdir()}, rien d'autre. \emph{État}~:
+  avancé d'un tirage, non restauré.
+\end{itemize}
+
+Sur les cas de contrôle de \code{tests/test\_reproductibilite.R}, on a vérifié
+par exécution les trois propriétés qui en découlent.
+\emph{Indépendance à l'égard de l'état antérieur}~: tout tirage qui alimente un
+résultat numérique est précédé d'un \code{set.seed()} dans la fonction même qui
+l'effectue~; les résultats de \code{run\_engine()} ne dépendent donc pas de
+l'état du générateur avant l'appel (trois états de départ différents, dont un
+générateur non initialisé, donnent pour chacune des trois méthodes des objets
+identiques, aux champs d'exécution de \code{\$metadata} près). Les tirages des
+fonctions de lecture et d'écriture xlsx, appelées par l'application hors de
+\code{run\_engine()}, n'atteignent pour cette raison aucun résultat.
+\emph{Dépendance au type de générateur}~: le moteur ne fixe pas
+\code{RNGkind()} et suppose le générateur par défaut de R (Mersenne-Twister,
+inversion pour la loi normale, rejet pour \code{sample()}). Sous un autre
+générateur, les tirages et donc les résultats changent~: sur le cas de contrôle
+de la méthode de primes, $\sigma_{\mathrm{USP}}$ passe de $0{,}10735$ à
+$0{,}11145$ sous \code{RNGkind("L'Ecuyer-CMRG")}, et le cas de la méthode de
+réserve n\textsuperscript{o}~2 change lui aussi sous
+\code{RNGkind(sample.kind = "Rounding")}.
+\emph{État laissé à l'appelant}~: seule \code{sw\_loi\_nulle()} restaure
+l'état du générateur. Après \code{run\_engine()}, cet état est donc modifié~:
+dans la branche lognormale, c'est celui que laisse \code{engine\_plots\_data()},
+le même quels que soient \code{seed} et l'état de départ~; dans la branche
+Merz--Wüthrich, celui que laisse \code{mw\_bootstrap()}. Un code appelant qui
+tire ses propres nombres après \code{run\_engine()} sans reposer sa graine
+hérite de cet état.
 
 Le script \code{tests/test\_reproductibilite.R} vérifie, pour chacune des trois
 méthodes, deux propriétés qu'il ne faut pas confondre.
 
 \emph{La reproductibilité.} Deux appels de \code{run\_engine()} avec les mêmes
 données, les mêmes paramètres et la même graine, \textbf{sur une même machine},
-produisent des objets identiques au bit près. C'est ce que contrôle la
+produisent des objets identiques au bit près, hors les trois champs de
+\code{\$metadata} qui décrivent l'exécution et non le calcul (horodatage, durée,
+version de R), que le script retire avant de comparer. C'est ce que contrôle la
 comparaison de deux appels successifs par \code{identical()}, et cette propriété
 tient (vérification exécutée).
 
@@ -563,9 +639,10 @@ portée de la garantie qui doit être énoncée exactement.
 \begin{encadre}
 \textbf{Point de revue.} L'objet retourné contient un champ \code{\$metadata}
 consignant la méthode, le segment, $\sigma_{\text{standard}}$, le barème de
-crédibilité, $T$, $B$, la granularité $1/(B+1)$, le seuil $\alpha$, la graine,
-l'horodatage, la durée et la version de R. Ce champ suffit à rejouer un calcul
-à l'identique.
+crédibilité, $T$, $B$ (dont se déduit la granularité $1/(B+1)$), le seuil
+$\alpha$, la graine, l'horodatage, la durée et la version de R. Ce champ suffit,
+avec les données, à rejouer un calcul à l'identique sur une même machine, sous
+le générateur par défaut de R, que \code{\$metadata} ne consigne pas.
 \end{encadre}
 
 \subsection{Index des fonctions de statistique et de p-value}
@@ -4025,8 +4102,12 @@ Sans objet.
 Lecture~: un alignement sur la droite conforte la normalité~; une courbure en S traduit des queues
 plus lourdes (points extrêmes au-dessus à droite et en dessous à gauche) ou plus légères~; une
 courbure convexe ou concave traduit une asymétrie. Limite~: sur 8 à 12 points, l'œil surestime
-facilement les écarts -- il est utile de superposer une enveloppe de simulation obtenue par
-bootstrap paramétrique pour calibrer la lecture.
+facilement les écarts -- il est utile de superposer une enveloppe de simulation pour calibrer la
+lecture. Celle que calcule \code{engine\_plots\_data()} est formée, point par point, des quantiles
+à 5~\% et 95~\% des statistiques d'ordre de 499 échantillons $\mathcal{N}(0,1)$ indépendants de
+taille $T$, tirés sous une graine fixe (§\ref{sec:graines})~: ce n'est pas un bootstrap
+paramétrique sous le modèle ajusté, car les échantillons simulés ne sont pas des résidus d'un
+modèle réestimé, et la bande est ponctuelle, non simultanée.
 \end{fiche}
 
 \begin{fiche}{QQ-plot à deux échantillons (faible volume contre fort volume)}
@@ -5905,6 +5986,11 @@ Calibration et paramètre final & \code{usp\_parametre()}, \code{usp\_credibilit
 Contrôles de validité & \code{engine\_valider\_donnees()}, \code{usp\_controle\_donnees()},
 \code{mw\_valider\_triangle()}, \code{mw\_valider\_ajustement()} \\
 Quantités des graphiques & \code{engine\_plots\_data()} \\
+Tirages aléatoires et graines (§\ref{sec:graines}) & \code{usp\_bootstrap()},
+\code{usp\_simuler()}, \code{mw\_bootstrap()},\newline
+\code{mw\_simuler\_triangle()}, \code{sw\_loi\_nulle()},\newline
+\code{engine\_plots\_data()}, \code{engine\_ecrire\_xlsx()},\newline
+\code{engine\_lire\_xlsx()} \\
 Orchestration complète & \code{run\_engine()} \\
 Table auditable des tests & \code{engine\_table\_tests()} \\
 \bottomrule
