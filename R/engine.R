@@ -1678,35 +1678,6 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 
 
 ## =============================================================================
-## 8. RESTITUTION
-## =============================================================================
-
-
-usp_exporter <- function(res, prefixe = "usp") {
-  tt <- do.call(rbind, lapply(res$tests, function(t)
-    data.frame(famille = t$famille, test = t$test, type = t$type,
-               reference = t$reference,
-               nom_statistique = t$stat_nom, statistique = t$stat,
-               loi_sous_H0 = t$loi,
-               nom_estimation = t$estim_nom, estimation = t$estim,
-               p_value = t$p, p_bootstrap = t$p_mc,
-               sens_du_test = t$sens,
-               verdict = t$verdict, commentaire = t$detail,
-               stringsAsFactors = FALSE)))
-  cc <- do.call(rbind, lapply(res$controles, function(t)
-    data.frame(test = t$test, verdict = t$verdict, detail = t$detail,
-               stringsAsFactors = FALSE)))
-  pp <- data.frame(res$parametre)
-  utils::write.csv(tt, paste0(prefixe, "_tests.csv"), row.names = FALSE)
-  utils::write.csv(cc, paste0(prefixe, "_controles_donnees.csv"), row.names = FALSE)
-  utils::write.csv(pp, paste0(prefixe, "_parametre.csv"), row.names = FALSE)
-  utils::write.csv(res$jackknife, paste0(prefixe, "_jackknife.csv"), row.names = FALSE)
-  invisible(list(tests = tt, controles = cc, parametre = pp))
-}
-
-
-
-## =============================================================================
 ## 7bis. LECTURE D'UN JEU DE DONNEES AU FORMAT D'EXPORT (t, xt, yt)
 ## =============================================================================
 
