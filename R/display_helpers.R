@@ -74,6 +74,34 @@ groupe_de <- function(famille) {
 }
 cles_groupes <- function() unname(vapply(GROUPES, function(g) g$cle, character(1)))
 
+# --- Selection des tests restitues (personnalisation de l'affichage) ---------
+# La selection est un data.frame aligne ligne a ligne sur engine_table_tests() :
+#   cle   = libelle du test (controle d'alignement),
+#   garde = TRUE si l'utilisateur conserve le test dans la restitution,
+#   base  = base de residus choisie ("z" ou "r"), "commun" pour les tests a
+#           base unique.
+# Elle ne modifie aucun calcul : le moteur a produit toutes les lignes, la
+# selection ne fait que choisir celles qui sont affichees.
+
+# Selection par defaut : variantes principales uniquement, base "z" pour les
+# tests disponibles dans les deux bases. C'est le parametrage retenu tant que
+# l'utilisateur n'a rien modifie.
+selection_defaut <- function(tb) {
+  data.frame(
+    cle = tb$test,
+    garde = tb$variante == "principale" & tb$base %in% c("commun", "z"),
+    base = ifelse(tb$base == "commun", "commun", "z"),
+    stringsAsFactors = FALSE)
+}
+
+# Regle unique definissant un "test retenu" : conserve par l'utilisateur ET
+# calcule sur la base de residus choisie pour ce test (ou a base unique).
+# Renvoie le vecteur logique des lignes de tb retenues ; sa negation designe
+# les tests exclus. Utilisee par l'onglet Tests et par le rapport fige.
+filtrer_selection <- function(tb, s) {
+  s$garde & (tb$base == "commun" | tb$base == s$base)
+}
+
 badge_verdict <- function(v) {
   coul <- switch(v, "OK" = "#1E8449", "ALERTE" = "#B9770E", "ECHEC" = "#922B21", "#5D6D7E")
   sprintf(paste0("<span style='background:%s;color:#fff;padding:2px 9px;",

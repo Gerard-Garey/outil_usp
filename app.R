@@ -668,16 +668,9 @@ server <- function(input, output, session) {
   # --- Tests ----------------------------------------------------------------
   # Rendu des tests groupes par hypothese. Aucun calcul : on filtre et on
   # met en forme la table produite par engine_table_tests().
-  # Selection par defaut : variantes principales uniquement, base "z" pour les
-  # tests disponibles dans les deux bases. C'est le parametrage retenu tant que
-  # l'utilisateur n'a rien modifie.
-  selection_defaut <- function(tb) {
-    data.frame(
-      cle = tb$test,
-      garde = tb$variante == "principale" & tb$base %in% c("commun", "z"),
-      base = ifelse(tb$base == "commun", "commun", "z"),
-      stringsAsFactors = FALSE)
-  }
+  # La selection par defaut (selection_defaut) et la regle de "test retenu"
+  # (filtrer_selection) sont dans R/display_helpers.R, partagees avec le
+  # rapport fige.
   sel_courante <- reactive({
     tb <- TB(); s <- selection()
     if (is.null(s)) selection_defaut(tb) else s
@@ -737,8 +730,7 @@ server <- function(input, output, session) {
     tb <- TB(); s <- sel_courante()
     # Filtrage d'AFFICHAGE seulement : le moteur a calcule toutes les lignes et
     # l'export CSV les conserve toutes.
-    keep <- s$garde & (tb$base == "commun" | tb$base == s$base)
-    tb <- tb[keep, , drop = FALSE]
+    tb <- tb[filtrer_selection(tb, s), , drop = FALSE]
     if (!nrow(tb)) return(div(class = "avert", "Aucun test selectionne."))
     tb$cle <- vapply(tb$famille, function(f) groupe_de(f)$cle, character(1))
     # cles_groupes() couvre les deux methodes ; seules les familles presentes
