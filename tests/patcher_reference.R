@@ -42,13 +42,22 @@
 #  blanc). Les motifs sont des expressions regulieres appliquees aux chemins
 #  aplatis, ceux qu'affiche tests/comparer_references.R.
 #
+#  Source (plutot que lance par Rscript), le fichier ne fait que definir ses
+#  fonctions, dont patcher_objets(avant, apres, motifs) qui porte tout le
+#  patch sans lire ni ecrire de fichier : c'est ce que teste
+#  tests/unitaires/test_patcher_reference.R.
+#
 #  Voir : docs/adr/0006-plateforme-de-production-des-references.md
 #  (l'amendement du 22 septembre 2026 decrit la procedure ; il est introduit
 #  par la branche de la PR #17, qui doit donc etre fusionnee AVANT toute
 #  branche qui emploie ce script.)
 ###############################################################################
 
-source(if (file.exists("tests/outils_tests.R")) "tests/outils_tests.R" else "outils_tests.R")
+# local = TRUE : lance par Rscript, le fichier est evalue dans l'environnement
+# global et rien ne change ; source par un test unitaire dans un environnement
+# dedie, outils_tests.R (et le moteur qu'il charge) y restent confines.
+source(if (file.exists("tests/outils_tests.R")) "tests/outils_tests.R" else "outils_tests.R",
+       local = TRUE)
 
 # Au-dela de ce seuil relatif, un ecart non designe par un motif n'est plus
 # imputable a la derive de plateforme mesuree dans l'ADR 0006 : le script le
@@ -173,193 +182,246 @@ valeur_sans_nombre <- function(v) {
 }
 
 # ---------------------------------------------------------------------------
-#  Arguments
+#  Vecteurs de textes qui franchissent la longueur 1 (issue #32)
+#
+#  aplatir() range un vecteur de longueur <= 1 sous son propre chemin
+#  (validation$avertissements) et un vecteur plus long sous des chemins
+#  indexes (validation$avertissements[1], [2]...). Quand un vecteur passe
+#  d'une forme a l'autre (1 -> 2 ou 2 -> 1), le meme objet apparait donc sous
+#  deux familles de chemins disjointes : le chemin nu d'un cote, les chemins
+#  indexes de l'autre. Traites feuille par feuille, les uns etaient poses et
+#  les autres supprimes, et la suppression du chemin nu (ou des indices)
+#  effacait ce qui venait d'etre ecrit. Un tel groupe est desormais traite
+#  comme ce qu'il est : le remplacement d'UN vecteur, repris en entier du
+#  resultat recalcule.
 # ---------------------------------------------------------------------------
 
-args <- commandArgs(trailingOnly = TRUE)
-ecrire <- "--ecrire" %in% args
-args <- args[args != "--ecrire"]
-motifs <- character(0)
-noms <- character(0)
-k <- 1L
-while (k <= length(args)) {
-  if (identical(args[k], "--motif")) {
-    if (k == length(args)) stop("--motif sans valeur")
-    motifs <- c(motifs, args[k + 1L]); k <- k + 2L
-  } else { noms <- c(noms, args[k]); k <- k + 1L }
-}
-if (length(noms) != 1L) stop("Indiquer exactement un cas : ", paste(names(CAS), collapse = ", "))
-if (!noms %in% names(CAS)) stop("Cas inconnu : ", noms)
-if (!length(motifs)) stop("Aucun motif : le patch doit designer explicitement ce qu'il change.")
-nom <- noms
+# Chemin du vecteur porteur d'une feuille indexee : retire le dernier pas
+# [k] ou ["nom"] (crochets simples). Un chemin sans ce suffixe est rendu tel
+# quel ; [[k]] (element de liste) n'est pas un suffixe de vecteur.
+racine_vecteur <- function(cles) sub("(\\[[0-9]+\\]|\\[\"[^\"]*\"\\])$", "", cles)
 
-# ---------------------------------------------------------------------------
-#  Comparaison
-# ---------------------------------------------------------------------------
-
-ref_f <- chemin_reference(nom)
-if (!file.exists(ref_f)) stop("Reference absente : ", ref_f)
-avant <- readRDS(ref_f)
-apres <- executer_cas(nom)
-
-fa <- aplatir(avant); fb <- aplatir(apres)
-
-# Un chemin en double signale une ambiguite d'aplatissement (un nom contenant
-# $, [ ou ") : motifs et decoupage deviendraient indeterministes.
-for (etiq in list(list("reference", fa), list("resultat recalcule", fb)))
-  if (anyDuplicated(names(etiq[[2L]])))
-    stop("Chemins ambigus dans le ", etiq[[1L]], " : ",
-         paste(unique(names(etiq[[2L]])[duplicated(names(etiq[[2L]]))]), collapse = ", "))
-
-cles <- union(names(fa), names(fb))
-differents <- Filter(function(cle) !isTRUE(all.equal(fa[[cle]], fb[[cle]], tolerance = TOLERANCE)), cles)
-
-designes <- Filter(function(cle) any(vapply(motifs, grepl, logical(1), x = cle)), cles)
-inutiles <- setdiff(designes, differents)
-a_patcher <- intersect(designes, differents)
-laisses   <- setdiff(differents, designes)
-
-fmt <- function(v) if (is.null(v)) "(absent)" else paste(format(v, digits = 12), collapse = " ")
-
-cat(sprintf("\n=== %s : %d grandeur(s) differente(s) de la reference\n", nom, length(differents)))
-
-if (length(inutiles)) {
-  cat("\nMOTIF SANS EFFET -- ces chemins sont designes mais ne different pas :\n")
-  for (cle in inutiles) cat("  ", cle, "\n")
-}
-motifs_morts <- Filter(function(m) !any(grepl(m, cles)), motifs)
-if (length(motifs_morts)) {
-  cat("\nMOTIF QUI NE FILTRE RIEN (faute de frappe ?) :\n")
-  for (m in motifs_morts) cat("  ", m, "\n")
-  stop("Motif sans correspondance : le patch est refuse.")
-}
-
-# Le decoupage de chaque chemin designe est confronte a la valeur aplatie : un
-# chemin mal lu est attrape ici, au lieu de faire ecrire au mauvais endroit.
-for (cle in a_patcher) {
-  dans_apres <- cle %in% names(fb)
-  attendu <- if (dans_apres) fb[[cle]] else fa[[cle]]
-  src <- if (dans_apres) apres else avant
-  if (!identical(lire(src, decouper(cle)), attendu))
-    stop("Chemin mal interprete : ", cle, " -- le patch est refuse.")
-}
-
-cat(sprintf("\n--- PATCHEES (%d) : reprises du resultat recalcule\n", length(a_patcher)))
-for (cle in a_patcher)
-  cat(sprintf("  %-34s %-28s -> %s\n", cle, substr(fmt(fa[[cle]]), 1, 28), substr(fmt(fb[[cle]]), 1, 40)))
-
-cat(sprintf("\n--- LAISSEES (%d) : conservees a leur valeur de reference\n", length(laisses)))
-ecarts <- stats::setNames(vapply(laisses, function(cle) {
-  a <- fa[[cle]]; b <- fb[[cle]]
-  if (is.numeric(a) && is.numeric(b) && length(a) == 1L && length(b) == 1L &&
-      is.finite(a) && is.finite(b) && a != 0) abs(b - a) / abs(a) else NA_real_
-}, numeric(1)), laisses)
-for (cle in laisses)
-  cat(sprintf("  %-34s %-24s vs %-24s  rel=%s\n", cle,
-              substr(fmt(fa[[cle]]), 1, 24), substr(fmt(fb[[cle]]), 1, 24),
-              formatC(ecarts[[cle]], format = "e", digits = 2)))
-if (length(laisses))
-  cat(sprintf("  ecart relatif maximal : %s\n", formatC(max(ecarts, na.rm = TRUE), format = "e", digits = 3)))
-
-suspects <- laisses[is.na(ecarts) | ecarts > SEUIL_DERIVE]
-if (length(suspects)) {
-  cat("\nSUSPECT -- ecart non numerique ou superieur au seuil de derive ",
-      formatC(SEUIL_DERIVE, format = "e", digits = 0), " :\n", sep = "")
-  for (cle in suspects) cat("  ", cle, "\n")
-  stop("Des ecarts non designes ne sont pas imputables a la derive de plateforme : le patch est refuse.")
+# Chemins nus P tels que P ET au moins une feuille indexee P[...] figurent
+# parmi les chemins a patcher : ce sont les vecteurs qui ont change de forme.
+vecteurs_franchissant <- function(cles) {
+  racines <- racine_vecteur(cles)
+  indexees <- racines != cles
+  unique(racines[indexees & racines %in% cles[!indexees]])
 }
 
 # ---------------------------------------------------------------------------
-#  Invariant de surete : aucune valeur numerique posee
+#  Patch d'un objet par un autre : comparaison, controles, application,
+#  verification. Renvoie l'objet patche, ou s'arrete (stop) si le patch est
+#  refuse. Aucune lecture ni ecriture de fichier : c'est ce qui rend la
+#  fonction testable (tests/unitaires/test_patcher_reference.R).
 # ---------------------------------------------------------------------------
 
-introduits <- Filter(function(cle) !valeur_sans_nombre(fb[[cle]]), a_patcher)
-if (length(introduits)) {
-  cat("\nREFUS -- ces grandeurs poseraient une valeur produite sur cette plateforme :\n")
-  for (cle in introduits) cat(sprintf("  %-34s -> %s (%s)\n", cle, fmt(fb[[cle]]), class(fb[[cle]])[1L]))
-  stop("Un changement de resultat numerique n'est pas patchable : regenerer sur la plateforme de l'ADR 0006.")
-}
-cat("\nInvariant verifie : le patch ne pose aucune valeur numerique (chaines, booleens, NA, suppressions).\n")
+patcher_objets <- function(avant, apres, motifs, nom = "objet") {
+  fa <- aplatir(avant); fb <- aplatir(apres)
 
-# ---------------------------------------------------------------------------
-#  Application
-# ---------------------------------------------------------------------------
+  # Un chemin en double signale une ambiguite d'aplatissement (un nom contenant
+  # $, [ ou ") : motifs et decoupage deviendraient indeterministes.
+  for (etiq in list(list("reference", fa), list("resultat recalcule", fb)))
+    if (anyDuplicated(names(etiq[[2L]])))
+      stop("Chemins ambigus dans le ", etiq[[1L]], " : ",
+           paste(unique(names(etiq[[2L]])[duplicated(names(etiq[[2L]]))]), collapse = ", "))
 
-patche <- avant
-supprimes <- Filter(function(cle) !cle %in% names(fb), a_patcher)
-poses     <- setdiff(a_patcher, supprimes)
-for (cle in poses) patche <- assigner(patche, decouper(cle), fb[[cle]])
+  cles <- union(names(fa), names(fb))
+  differents <- Filter(function(cle) !isTRUE(all.equal(fa[[cle]], fb[[cle]], tolerance = TOLERANCE)), cles)
 
-# Suppressions en dernier, regroupees par conteneur parent, les conteneurs les
-# plus profonds d'abord : un parent n'est jamais modifie avant les suppressions
-# qui le traversent.
-if (length(supprimes)) {
-  pas_tous <- lapply(supprimes, decouper)
-  parents <- vapply(pas_tous, function(p) paste(utils::head(p, -1L), collapse = "\r"), character(1))
-  prof <- vapply(pas_tous, function(p) length(p) - 1L, numeric(1))
-  uniq <- unique(parents)
-  uniq <- uniq[order(vapply(uniq, function(u) prof[match(u, parents)], numeric(1)), decreasing = TRUE)]
-  for (par in uniq) {
-    idx <- which(parents == par)
-    pas_parent <- utils::head(pas_tous[[idx[1L]]], -1L)
-    cles_feuille <- lapply(idx, function(i) pas_tous[[i]][[length(pas_tous[[i]])]])
-    patche <- retirer_groupe(patche, pas_parent, cles_feuille)
+  designes <- Filter(function(cle) any(vapply(motifs, grepl, logical(1), x = cle)), cles)
+  inutiles <- setdiff(designes, differents)
+  a_patcher <- intersect(designes, differents)
+  laisses   <- setdiff(differents, designes)
+
+  fmt <- function(v) if (is.null(v)) "(absent)" else paste(format(v, digits = 12), collapse = " ")
+
+  cat(sprintf("\n=== %s : %d grandeur(s) differente(s) de la reference\n", nom, length(differents)))
+
+  if (length(inutiles)) {
+    cat("\nMOTIF SANS EFFET -- ces chemins sont designes mais ne different pas :\n")
+    for (cle in inutiles) cat("  ", cle, "\n")
   }
+  motifs_morts <- Filter(function(m) !any(grepl(m, cles)), motifs)
+  if (length(motifs_morts)) {
+    cat("\nMOTIF QUI NE FILTRE RIEN (faute de frappe ?) :\n")
+    for (m in motifs_morts) cat("  ", m, "\n")
+    stop("Motif sans correspondance : le patch est refuse.")
+  }
+
+  # Le decoupage de chaque chemin designe est confronte a la valeur aplatie : un
+  # chemin mal lu est attrape ici, au lieu de faire ecrire au mauvais endroit.
+  for (cle in a_patcher) {
+    dans_apres <- cle %in% names(fb)
+    attendu <- if (dans_apres) fb[[cle]] else fa[[cle]]
+    src <- if (dans_apres) apres else avant
+    if (!identical(lire(src, decouper(cle)), attendu))
+      stop("Chemin mal interprete : ", cle, " -- le patch est refuse.")
+  }
+
+  cat(sprintf("\n--- PATCHEES (%d) : reprises du resultat recalcule\n", length(a_patcher)))
+  for (cle in a_patcher)
+    cat(sprintf("  %-34s %-28s -> %s\n", cle, substr(fmt(fa[[cle]]), 1, 28), substr(fmt(fb[[cle]]), 1, 40)))
+
+  cat(sprintf("\n--- LAISSEES (%d) : conservees a leur valeur de reference\n", length(laisses)))
+  ecarts <- stats::setNames(vapply(laisses, function(cle) {
+    a <- fa[[cle]]; b <- fb[[cle]]
+    if (is.numeric(a) && is.numeric(b) && length(a) == 1L && length(b) == 1L &&
+        is.finite(a) && is.finite(b) && a != 0) abs(b - a) / abs(a) else NA_real_
+  }, numeric(1)), laisses)
+  for (cle in laisses)
+    cat(sprintf("  %-34s %-24s vs %-24s  rel=%s\n", cle,
+                substr(fmt(fa[[cle]]), 1, 24), substr(fmt(fb[[cle]]), 1, 24),
+                formatC(ecarts[[cle]], format = "e", digits = 2)))
+  if (length(laisses))
+    cat(sprintf("  ecart relatif maximal : %s\n", formatC(max(ecarts, na.rm = TRUE), format = "e", digits = 3)))
+
+  suspects <- laisses[is.na(ecarts) | ecarts > SEUIL_DERIVE]
+  if (length(suspects)) {
+    cat("\nSUSPECT -- ecart non numerique ou superieur au seuil de derive ",
+        formatC(SEUIL_DERIVE, format = "e", digits = 0), " :\n", sep = "")
+    for (cle in suspects) cat("  ", cle, "\n")
+    stop("Des ecarts non designes ne sont pas imputables a la derive de plateforme : le patch est refuse.")
+  }
+
+  # ---------------------------------------------------------------------------
+  #  Invariant de surete : aucune valeur numerique posee
+  # ---------------------------------------------------------------------------
+
+  introduits <- Filter(function(cle) !valeur_sans_nombre(fb[[cle]]), a_patcher)
+  if (length(introduits)) {
+    cat("\nREFUS -- ces grandeurs poseraient une valeur produite sur cette plateforme :\n")
+    for (cle in introduits) cat(sprintf("  %-34s -> %s (%s)\n", cle, fmt(fb[[cle]]), class(fb[[cle]])[1L]))
+    stop("Un changement de resultat numerique n'est pas patchable : regenerer sur la plateforme de l'ADR 0006.")
+  }
+  # Un vecteur remplace en entier (issue #32) est pose tel quel, noms compris :
+  # l'invariant est verifie sur l'objet pose, pas seulement sur ses feuilles.
+  vecteurs <- vecteurs_franchissant(a_patcher)
+  for (v in vecteurs) {
+    val <- lire(apres, decouper(v))
+    if (is.list(val) || !valeur_sans_nombre(val)) {
+      cat(sprintf("\nREFUS -- le vecteur %s poserait : %s (%s)\n", v, fmt(val), class(val)[1L]))
+      stop("Un changement de resultat numerique n'est pas patchable : regenerer sur la plateforme de l'ADR 0006.")
+    }
+  }
+  cat("\nInvariant verifie : le patch ne pose aucune valeur numerique (chaines, booleens, NA, suppressions).\n")
+
+  # ---------------------------------------------------------------------------
+  #  Application
+  # ---------------------------------------------------------------------------
+
+  patche <- avant
+  # Vecteurs qui ont change de forme (issue #32) : chemin nu et chemins
+  # indexes forment un seul remplacement, retire des poses et suppressions
+  # feuille a feuille. Le vecteur existe dans les deux objets (seule sa forme
+  # aplatie change) : le remplacer ne deplace aucune entree de son conteneur.
+  couverts <- a_patcher[racine_vecteur(a_patcher) %in% vecteurs]
+  for (v in vecteurs) patche <- assigner(patche, decouper(v), lire(apres, decouper(v)))
+  reste     <- setdiff(a_patcher, couverts)
+  supprimes <- Filter(function(cle) !cle %in% names(fb), reste)
+  poses     <- setdiff(reste, supprimes)
+  for (cle in poses) patche <- assigner(patche, decouper(cle), fb[[cle]])
+
+  # Suppressions en dernier, regroupees par conteneur parent, les conteneurs les
+  # plus profonds d'abord : un parent n'est jamais modifie avant les suppressions
+  # qui le traversent.
+  if (length(supprimes)) {
+    pas_tous <- lapply(supprimes, decouper)
+    parents <- vapply(pas_tous, function(p) paste(utils::head(p, -1L), collapse = "\r"), character(1))
+    prof <- vapply(pas_tous, function(p) length(p) - 1L, numeric(1))
+    uniq <- unique(parents)
+    uniq <- uniq[order(vapply(uniq, function(u) prof[match(u, parents)], numeric(1)), decreasing = TRUE)]
+    for (par in uniq) {
+      idx <- which(parents == par)
+      pas_parent <- utils::head(pas_tous[[idx[1L]]], -1L)
+      cles_feuille <- lapply(idx, function(i) pas_tous[[i]][[length(pas_tous[[i]])]])
+      patche <- retirer_groupe(patche, pas_parent, cles_feuille)
+    }
+  }
+
+  # ---------------------------------------------------------------------------
+  #  Verification du resultat du patch
+  # ---------------------------------------------------------------------------
+
+  fp <- aplatir(patche)
+  # 1. Toute feuille non designee est au bit pres celle de la reference.
+  intacts <- setdiff(names(fa), a_patcher)
+  trahis <- Filter(function(cle) !identical(fa[[cle]], fp[[cle]]), intacts)
+  if (length(trahis)) {
+    for (cle in utils::head(trahis, 20)) cat("  ", cle, ":", fmt(fa[[cle]]), "->", fmt(fp[[cle]]), "\n")
+    stop(length(trahis), " grandeur(s) non designee(s) ont bouge : le patch est refuse.")
+  }
+  cat(sprintf("Verifie : les %d FEUILLES non designees sont identiques au bit pres a la reference.\n",
+              length(intacts)))
+
+  # 1 bis. Les attributs (dim, class, row.names...) echappent a l'aplatissement :
+  # ils sont compares a part, names exclu puisqu'une suppression le change.
+  att_a <- attributs_arbre(avant); att_p <- attributs_arbre(patche)
+  if (!identical(att_a, att_p)) {
+    cat("  attributs divergents : ",
+        paste(union(setdiff(names(att_a), names(att_p)), setdiff(names(att_p), names(att_a))),
+              collapse = ", "), "\n")
+    stop("Les attributs de l'objet patche different de ceux de la reference : le patch est refuse.")
+  }
+  cat(sprintf("Verifie : les attributs de l'arbre (%d porteurs, names exclu) sont identiques a la reference.\n",
+              length(att_a)))
+
+  # 2. Les grandeurs patchees valent bien celles du resultat recalcule.
+  faux <- Filter(function(cle) !identical(fb[[cle]], fp[[cle]]), a_patcher)
+  if (length(faux)) {
+    for (cle in faux) cat("  ", cle, ":", fmt(fb[[cle]]), "vs", fmt(fp[[cle]]), "\n")
+    stop(length(faux), " grandeur(s) designee(s) n'ont pas ete posees : le patch est refuse.")
+  }
+  cat(sprintf("Verifie : les %d grandeurs designees valent celles du resultat recalcule.\n", length(a_patcher)))
+
+  # 3. La structure du fichier patche est celle du resultat recalcule.
+  if (!identical(names(fp), names(fb)))
+    stop("La structure du fichier patche differe de celle du resultat recalcule : patch refuse.")
+  cat("Verifie : structure identique a celle du resultat recalcule.\n")
+
+  # 4. Ce que verra la CI. all.equal() compare aussi les attributs : c'est le
+  #    dernier filet, et le seul qui porte sur l'objet entier.
+  verdict_ci <- all.equal(patche, apres, tolerance = TOLERANCE)
+  if (!isTRUE(verdict_ci)) {
+    cat("\ntest_reproductibilite.R resterait ROUGE :\n"); print(verdict_ci)
+    stop("Le patch ne rend pas la non-regression verte.")
+  }
+  cat(sprintf("Verifie : all.equal(patche, recalcule, tolerance = %g) vaut TRUE -- la CI passe au vert.\n", TOLERANCE))
+  invisible(list(patche = patche, a_patcher = a_patcher))
 }
 
 # ---------------------------------------------------------------------------
-#  Verification du resultat du patch
+#  Programme principal : execute seulement par Rscript. Source par un autre
+#  script (test unitaire), le fichier ne definit que ses fonctions.
 # ---------------------------------------------------------------------------
 
-fp <- aplatir(patche)
-# 1. Toute feuille non designee est au bit pres celle de la reference.
-intacts <- setdiff(names(fa), a_patcher)
-trahis <- Filter(function(cle) !identical(fa[[cle]], fp[[cle]]), intacts)
-if (length(trahis)) {
-  for (cle in utils::head(trahis, 20)) cat("  ", cle, ":", fmt(fa[[cle]]), "->", fmt(fp[[cle]]), "\n")
-  stop(length(trahis), " grandeur(s) non designee(s) ont bouge : le patch est refuse.")
-}
-cat(sprintf("Verifie : les %d FEUILLES non designees sont identiques au bit pres a la reference.\n",
-            length(intacts)))
+if (sys.nframe() == 0L) {
+  args <- commandArgs(trailingOnly = TRUE)
+  ecrire <- "--ecrire" %in% args
+  args <- args[args != "--ecrire"]
+  motifs <- character(0)
+  noms <- character(0)
+  k <- 1L
+  while (k <= length(args)) {
+    if (identical(args[k], "--motif")) {
+      if (k == length(args)) stop("--motif sans valeur")
+      motifs <- c(motifs, args[k + 1L]); k <- k + 2L
+    } else { noms <- c(noms, args[k]); k <- k + 1L }
+  }
+  if (length(noms) != 1L) stop("Indiquer exactement un cas : ", paste(names(CAS), collapse = ", "))
+  if (!noms %in% names(CAS)) stop("Cas inconnu : ", noms)
+  if (!length(motifs)) stop("Aucun motif : le patch doit designer explicitement ce qu'il change.")
+  nom <- noms
 
-# 1 bis. Les attributs (dim, class, row.names...) echappent a l'aplatissement :
-# ils sont compares a part, names exclu puisqu'une suppression le change.
-att_a <- attributs_arbre(avant); att_p <- attributs_arbre(patche)
-if (!identical(att_a, att_p)) {
-  cat("  attributs divergents : ",
-      paste(union(setdiff(names(att_a), names(att_p)), setdiff(names(att_p), names(att_a))),
-            collapse = ", "), "\n")
-  stop("Les attributs de l'objet patche different de ceux de la reference : le patch est refuse.")
-}
-cat(sprintf("Verifie : les attributs de l'arbre (%d porteurs, names exclu) sont identiques a la reference.\n",
-            length(att_a)))
+  ref_f <- chemin_reference(nom)
+  if (!file.exists(ref_f)) stop("Reference absente : ", ref_f)
+  r <- patcher_objets(readRDS(ref_f), executer_cas(nom), motifs, nom)
 
-# 2. Les grandeurs patchees valent bien celles du resultat recalcule.
-faux <- Filter(function(cle) !identical(fb[[cle]], fp[[cle]]), a_patcher)
-if (length(faux)) {
-  for (cle in faux) cat("  ", cle, ":", fmt(fb[[cle]]), "vs", fmt(fp[[cle]]), "\n")
-  stop(length(faux), " grandeur(s) designee(s) n'ont pas ete posees : le patch est refuse.")
-}
-cat(sprintf("Verifie : les %d grandeurs designees valent celles du resultat recalcule.\n", length(a_patcher)))
-
-# 3. La structure du fichier patche est celle du resultat recalcule.
-if (!identical(names(fp), names(fb)))
-  stop("La structure du fichier patche differe de celle du resultat recalcule : patch refuse.")
-cat("Verifie : structure identique a celle du resultat recalcule.\n")
-
-# 4. Ce que verra la CI. all.equal() compare aussi les attributs : c'est le
-#    dernier filet, et le seul qui porte sur l'objet entier.
-verdict_ci <- all.equal(patche, apres, tolerance = TOLERANCE)
-if (!isTRUE(verdict_ci)) {
-  cat("\ntest_reproductibilite.R resterait ROUGE :\n"); print(verdict_ci)
-  stop("Le patch ne rend pas la non-regression verte.")
-}
-cat(sprintf("Verifie : all.equal(patche, recalcule, tolerance = %g) vaut TRUE -- la CI passe au vert.\n", TOLERANCE))
-
-if (!ecrire) {
-  cat("\nEssai a blanc : rien n'a ete ecrit. Relancer avec --ecrire pour appliquer.\n")
-} else {
-  saveRDS(patche, ref_f, version = 3)
-  cat(sprintf("\n%s : reference patchee (%d grandeur(s)).\n", nom, length(a_patcher)))
-  cat("Motifs employes :\n"); for (m in motifs) cat("  ", m, "\n")
+  if (!ecrire) {
+    cat("\nEssai a blanc : rien n'a ete ecrit. Relancer avec --ecrire pour appliquer.\n")
+  } else {
+    saveRDS(r$patche, ref_f, version = 3)
+    cat(sprintf("\n%s : reference patchee (%d grandeur(s)).\n", nom, length(r$a_patcher)))
+    cat("Motifs employes :\n"); for (m in motifs) cat("  ", m, "\n")
+  }
 }
