@@ -68,3 +68,41 @@ Endroits concernés : `CLAUDE.md` § « Reproductibilité » (« objets identiqu
 **Feuille de route** : J1a reste rouge jusqu'à la régénération locale ; un jalon « outillage de la CI pour la production des références » est à ajouter à la prochaine revue, après J1a et J3, avec pour critère d'acceptation qu'une régénération sur la CI reproduise `identical()` les références du poste sur `reserve2.rds` et documente, feuille par feuille, l'écart initial sur `premium.rds` et `reserve1.rds` — ce sera la première mesure directe de la dérive entre les deux plateformes désignées.
 
 Issues : #14 (points 2 et 3 ; le point 1, critère de comparaison, reste ouvert), #5 (§ 2, origine du défaut d'identifiabilité de δ), #3 (écart sur `MeanZ`, distinct de la dérive décrite ici). Voir `CLAUDE.md` (« Reproductibilité », « Commandes »), `CONTEXT.md` (référence de non-régression, graine locale), `docs/feuille-de-route.md` (jalon J1a, règles de découpage 1 à 4), ADR 0004 (graine locale : la reproductibilité à graine égale sur une même machine, que le présent ADR ne remet pas en cause).
+
+---
+
+## Amendement du 22 septembre 2026 — le patch chirurgical d'une référence n'est pas une régénération
+
+### Ce que le point 3 laissait sans issue
+
+Tel qu'il était rédigé, le point 3 ci-dessus faisait de la CI rouge l'état normal de toute PR faite en session cloud qui change un résultat, jusqu'à une intervention manuelle du mainteneur. Deux branches s'y trouvaient simultanément (J1a sur `claude/admiring-brahmagupta-bunwdf`, σ̂²_{J−1} sur `claude/sigma-j1-lettre-du-texte`), et aucune ne pouvait être fusionnée. Une PR durablement rouge ne se relit plus : elle rend indiscernables l'échec voulu et l'échec subi.
+
+### Ce que la mesure a montré
+
+L'écart entre les références versionnées et le résultat des branches en question **se sépare en deux groupes disjoints**, et cette séparation est mécanique, pas une appréciation :
+
+| Groupe | `premium` / `reserve1` (J1a) | `reserve2` (σ̂²_{J−1}) |
+|---|---|---|
+| Changement voulu par la PR | 44 grandeurs | 1 grandeur |
+| Dérive de plateforme | 23 grandeurs, écart relatif max **3,508e-07** | aucune |
+
+Les 44 grandeurs du premier groupe sont : les champs de `tests[[33]]` et `tests[[34]]` (`type` passant de `test` à `diagnostic`, `verdict` de `OK` à `INFO`, statistiques et p-values mises à `NA`), et la disparition de `MeanZ`, `VarZ`, `LB2r`, `BP2r` de `bootstrap$stats_obs`, `bootstrap$p_mc`, `bootstrap$err_mc` et `bootstrap$B_effectif`. **Aucune n'est un nombre** : ce sont des chaînes de caractères, des `NA` et des suppressions d'entrée. La grandeur du second cas est un libellé (`tests[[18]]$detail`).
+
+L'écart relatif maximal du second groupe, 3,508e-07, est **exactement** celui que mesure la section « Contexte » ci-dessus sur `main` : la dérive constatée est celle déjà documentée, et la PR ne l'aggrave pas.
+
+### Décision
+
+**Une troisième voie est ouverte, à côté de la régénération : le patch chirurgical**, outillé par `tests/patcher_reference.R`. Il recalcule le cas, puis reprend du résultat recalculé les **seules** grandeurs désignées par des motifs explicites, et laisse toutes les autres à leur valeur enregistrée, au bit près.
+
+1. **Le patch chirurgical est autorisé depuis une session cloud.** Il est même préférable à la régénération pour ce qu'il sait faire : là où une régénération réécrit les ~12 400 valeurs du fichier avec celles de la machine qui la lance, le patch n'en touche que celles que la PR change. La provenance des valeurs numériques reste unique — le poste du mainteneur — ce que le point 1 cherchait précisément à garantir.
+2. **Invariant de sûreté, vérifié par le script avant toute écriture : le patch n'introduit aucune valeur numérique finie.** Il ne peut poser que des chaînes, des `NA`, des booléens, ou supprimer une entrée — c'est-à-dire uniquement des grandeurs insensibles à la plateforme. Une valeur numérique dans le périmètre du patch le fait échouer avec un refus explicite.
+3. **Un changement de résultat numérique reste non patchable.** σ_USP, une p-value ou une statistique qui change relèvent du point 1 : régénération sur la plateforme désignée, et visa du mainteneur sur le tableau avant / après. Le patch ne contourne pas cette règle, il en sort le cas où il n'y a, par construction, aucun nombre à produire.
+4. **Le script refuse tout ce qu'il ne comprend pas.** Un motif qui ne filtre rien (faute de frappe) fait échouer le patch ; un écart non désigné qui n'est pas imputable à la dérive de plateforme — non numérique, ou supérieur au seuil relatif de 1e-6 — le fait échouer aussi, plutôt que d'être laissé en silence.
+5. **Quatre vérifications sont exécutées après le patch et avant l'écriture**, et leur sortie est reportée dans le message de commit : toutes les grandeurs non désignées sont `identical()` à la référence ; les grandeurs désignées valent celles du résultat recalculé ; la structure du fichier est celle du résultat recalculé ; et `all.equal(patché, recalculé, tolerance = 1e-8)` vaut `TRUE`, c'est-à-dire que la CI passera au vert.
+6. **Les points 1, 2, 4 et 5 de la décision initiale sont inchangés.** Le point 3 est amendé : il ne vaut plus que pour la régénération proprement dite. Le point 5 (plateforme indiquée dans le message de commit) s'applique au patch sous une forme adaptée : le commit indique qu'il s'agit d'un patch chirurgical, les motifs employés, et le compte des grandeurs patchées et laissées.
+
+### Ce que cela ne règle pas
+
+Le patch **ne retire pas** la dérive de plateforme déjà présente dans `premium.rds` et `reserve1.rds` : il la conserve délibérément, faute de pouvoir la distinguer d'une valeur légitime. La bascule vers la CI comme plateforme de référence (point 2 de la décision initiale) reste le seul geste qui l'élimine, et reste à faire. Le patch chirurgical est ce qui permet d'y arriver sans laisser des PR rouges s'accumuler entre-temps.
+
+Il ne dispense pas non plus du tableau avant / après : `tests/comparer_references.R` reste la pièce soumise au mainteneur, et le patch n'en est que l'application mécanique une fois le tableau visé.
