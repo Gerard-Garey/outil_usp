@@ -514,7 +514,7 @@ caractéristiques réglementaires d'un segment.
 \textbf{Portée.} L'outil ne couvre pas les deux autres paramètres remplaçables
 de l'article~218~: le facteur d'ajustement pour la réassurance non
 proportionnelle (segments 1, 4 et 5 de l'annexe~II) et l'écart-type du risque de
-révision. Il met en revanche en \oe uvre les trois méthodes de calibrage de
+révision. Il met en revanche en \oe uvre trois des méthodes de calibrage de
 l'annexe~XVII~: risque de primes (section~B), risque de réserve
 n\textsuperscript{o}~1 (section~C) et risque de réserve
 n\textsuperscript{o}~2 (section~D~: chaîne d'échelle et erreur de prédiction à un
@@ -997,7 +997,8 @@ verdict du script est inversé en conséquence.
 Les contrôles de recevabilité ne sont \textbf{pas} des tests statistiques~: ils ne
 comportent ni hypothèse nulle, ni statistique, ni loi de référence. Ce sont des
 vérifications déterministes au titre des articles~19 et~219 du règlement délégué
-et des exigences de données propres à chaque méthode. Chaque méthode a ses
+et des exigences de données propres à chaque méthode --- à une exception près,
+signalée plus bas. Chaque méthode a ses
 fonctions de contrôle dans le moteur, exécutables indépendamment de l'interface~:
 \code{engine\_valider\_donnees()} et \code{usp\_controle\_donnees()} pour les
 méthodes lognormales~; \code{mw\_valider\_triangle()} \emph{et}
@@ -1011,7 +1012,18 @@ s'exécute \emph{après} \code{mw\_ajuster()} et \code{mw\_msep()}, parce que le
 deux grandeurs dont elle contrôle le domaine --- la réserve chain-ladder totale
 $\hat R = \sum_{i=0}^{I}\big(\hat C(i,J) - C(i,I-i)\big)$ et la MSEP --- ne sont
 pas connues avant lui~; elle précède en revanche le calcul du paramètre propre et
-le bootstrap. Dans les deux cas, un refus conduit \code{run\_engine()} à
+le bootstrap.
+
+\textbf{Son fondement n'est pas le même que celui des autres contrôles}, et c'est
+l'exception annoncée ci-dessus. Tous les autres relèvent des exigences de données
+des articles~19 et~219 --- exhaustivité, exactitude, caractère approprié. Une
+réserve chain-ladder totale $\hat R \le 0$ n'est pas un défaut de données~: le
+triangle peut satisfaire intégralement le paragraphe~2 de la section~D, et c'est
+l'\emph{estimation} qui place le paramètre hors de ce que la méthode peut
+produire. Le refus se fonde donc sur l'article~220, dont la justification
+détaillée figure au §\ref{sec:mw}.
+
+Dans les deux cas, un refus conduit \code{run\_engine()} à
 retourner un objet portant \code{ok = FALSE} et le champ \code{validation}
 détaillant les motifs~: aucune erreur R n'est levée.
 \code{mw\_parametre()} porte en outre une garde défensive sur le même
@@ -1045,7 +1057,7 @@ Crédibilité pleine & $T \ge 10$ (barème court) & Informatif, section~G annexe
 \end{tabular}
 \end{center}
 
-\subsection*{Méthode Merz--Wüthrich (annexe XVII, section D, paragraphes 2 et 4)}
+\subsection*{Méthode Merz--Wüthrich (annexe XVII, section D, paragraphes 2, 4 et 5)}
 
 \begin{center}
 \small
@@ -1064,15 +1076,19 @@ Cellules observées & aucune valeur manquante pour $i + j \le I$ & Le
 chain-ladder exige la partie supérieure gauche complète. \\
 Positivité des cumulés & $C(i,j) > 0$ & Les facteurs $F(i,j)$ et la pondération
 en $C(i,j)$ doivent être définis. \\
-Monotonie des cumulés & $C(i,j+1) \ge C(i,j)$ & Avertissement~: un recul traduit
+Monotonie des cumulés & $C(i,j+1) \ge C(i,j)$ & Avertissement \emph{actuariel,
+sans fondement réglementaire}~: le paragraphe~2(h)(iii) ne pose qu'une
+proportionnalité en espérance et ne contraint pas $f_j \ge 1$. Un recul traduit
 un recouvrement ou un boni de liquidation, licite mais à signaler. \textbf{Ce
 n'est pas un motif de refus}, pas plus qu'une réserve négative sur certaines
 années de survenance ou qu'un $\hat f_j < 1$ isolé. \\
 Applicabilité de D(4) \emph{(post-ajustement)} & $\hat R > 0$ et
-$0 \le \mathrm{MSEP} < \infty$ & Le paragraphe~4 définit
-$\sigma_{(\text{res},s,\mathrm{USP})}$ à partir de $\sqrt{\mathrm{MSEP}}/\hat R$,
-coefficient de variation de la réserve chain-ladder totale $\hat R$, dépourvu de
-sens pour $\hat R \le 0$ (§\ref{sec:mw}). Bloquant. \\
+$0 \le \mathrm{MSEP} < \infty$ & Le paragraphe~4 définit \emph{l'écart type}
+$\sigma_{(\text{res},s,\mathrm{USP})}$ à partir de $\sqrt{\mathrm{MSEP}}/\hat R$
+(MSEP~: paragraphe~5), coefficient de variation \emph{à horizon un an} de la
+réserve --- le paragraphe ne le nomme pas ainsi. Non défini pour $\hat R = 0$~;
+négatif, donc pas un écart type, pour $\hat R < 0$ (article~220,
+§\ref{sec:mw}). Bloquant. \\
 Crédibilité pleine & $I + 1 \ge 10$ (barème court) & Informatif~; à défaut,
 $\hat\sigma_j^2$ repose sur deux ou trois observations en fin de triangle. \\
 \end{tabular}
@@ -1091,11 +1107,13 @@ avertissements.
 \smallskip
 Le contrôle d'applicabilité de D(4) fait cependant exception à cette
 description~: exécuté après l'ajustement, il ne porte pas sur les données
-mais sur une \emph{grandeur estimée}, la réserve chain-ladder totale $\hat R$ et
-la MSEP qui en dépend. Il n'énonce donc pas un défaut du triangle --- un triangle
+mais sur des \emph{grandeurs estimées} --- la réserve chain-ladder totale
+$\hat R$ et la MSEP, issues du même ajustement. Il n'énonce donc pas un défaut
+du triangle --- un triangle
 parfaitement recevable au titre du paragraphe~2 peut conduire à $\hat R \le 0$
---- mais une condition d'\emph{applicabilité de la méthode}~: hors de ce domaine,
-le paragraphe~4 ne définit aucun paramètre. C'est aussi pourquoi il est le seul
+--- mais une condition d'\emph{applicabilité de la méthode}~: hors de ce domaine, ce que
+la formule du paragraphe~4 produit --- quand elle produit quelque chose ---
+n'est pas l'écart type qu'elle prétend définir (§\ref{sec:mw}). C'est aussi pourquoi il est le seul
 à ne pas pouvoir être anticipé à la saisie.
 Cohérence interne~: \code{mw\_bootstrap()} écarte depuis l'origine toute
 réplication dont la réserve simulée est $\le 0$~; la règle appliquée à l'estimation ponctuelle ne
@@ -3925,21 +3943,88 @@ $S_j = \sum_{i=0}^{I-j-1} C(i,j)$ et $S'_j = \sum_{i=0}^{I-j} C(i,j)$~:
 
 \noindent
 \textbf{Domaine de définition.} Le dénominateur
-$\hat R = \sum_{i=0}^{I}\big(\hat C(i,J) - C(i,I-i)\big)$ est la réserve
-chain-ladder totale~: le rapport $\sqrt{\mathrm{MSEP}}/\hat R$ que le
-paragraphe~4 met en facteur de $c$ est donc un \emph{coefficient de variation} de
-cette réserve, et le paragraphe ne définit de paramètre propre que sur le domaine
-$\hat R > 0$. Le moteur refuse le calcul hors de ce domaine
-(\code{mw\_valider\_ajustement()}, section~\ref{sec:controles}) et retourne
-\code{ok = FALSE}~: pour $\hat R < 0$ le rapport est négatif et le mélange de
-crédibilité produirait un $\sigma_{(\text{res},s,\mathrm{USP})}$ \emph{inférieur}
-à l'écart-type standard $\sigma_{(\text{res},s)}$, c'est-à-dire un allégement
-d'exigence obtenu par une division par un nombre négatif~; pour $\hat R = 0$ il
-n'est pas défini. Une MSEP non finie ou négative est refusée pour la même raison.
+$\hat R = \sum_{i=0}^{I}\big(\hat C(i,J) - C(i,I-i)\big)$ est l'estimation
+chain-ladder de la réserve totale. Le rapport $\sqrt{\mathrm{MSEP}}/\hat R$ que
+le paragraphe~4 met en facteur de $c$ est un \emph{coefficient de variation à
+horizon un an} de cette réserve~: la MSEP du paragraphe~5 mesure l'erreur de
+prédiction à un an de l'engagement réévalué, dont $\hat R$ est l'espérance
+conditionnelle estimée. \textbf{Le paragraphe ne le nomme pas ainsi}~: c'est une
+caractérisation de la grandeur, pas une citation du texte.
 
-Le refus porte sur le \textbf{total} $\hat R$, et sur lui seul. Des réserves
-négatives sur certaines années de survenance --- bonis de liquidation, recours
-sur années anciennes ---, ou un facteur $\hat f_j < 1$ isolé, sont licites~: dès
+Le moteur refuse le calcul lorsque $\hat R \le 0$, et lorsque la MSEP n'est pas
+finie ou est négative~; il retourne alors \code{ok = FALSE} et le champ
+\code{validation} (\code{mw\_valider\_ajustement()},
+section~\ref{sec:controles}). \textbf{Ces refus n'ont pas tous le même statut},
+et le document les distingue.
+
+\emph{(i) $\hat R = 0$~: fait mathématique.} La division n'est pas définie et
+l'expression du paragraphe~4 ne produit aucune valeur. Il n'y a rien à
+interpréter.
+
+\emph{(ii) $\hat R < 0$~: interprétation, déclarée comme telle.} L'expression
+arithmétique du paragraphe~4 est ici \textbf{parfaitement définie et rend un
+nombre}~: sur un triangle à cumulés décroissants de réserve totale
+$\hat R = -372{,}397$, elle rend $0{,}034877$. Le refus n'est donc
+\textbf{pas} imposé par l'arithmétique~: c'est une interprétation du texte,
+retenue par l'outil, et fondée sur trois appuis.
+
+\begin{itemize}[itemsep=2pt]
+\item \textbf{La grandeur que le paragraphe~4 annonce est « l'écart type »}
+  propre à l'entreprise. Un écart type est non négatif par définition de ce que
+  le paragraphe prétend produire~: un nombre négatif n'est pas un écart type mal
+  calibré, ce n'est pas un écart type. Or, pour $\hat R < 0$, le rapport
+  $\sqrt{\mathrm{MSEP}}/\hat R$ est négatif, et le mélange de crédibilité rend un
+  $\sigma_{(\text{res},s,\mathrm{USP})}$ \emph{inférieur} à l'écart-type standard
+  $\sigma_{(\text{res},s)}$~--- un allégement d'exigence obtenu par une division
+  par un nombre négatif. C'est l'appui principal.
+\item \textbf{Le refus ne prive l'entreprise d'aucun droit.} L'article~220,
+  paragraphe~1, point~b) présente les méthodes du risque de réserve
+  n\textsuperscript{o}~1 (section~C) et n\textsuperscript{o}~2 (section~D) comme
+  \emph{alternatives}~: l'entreprise à qui l'outil refuse la seconde conserve la
+  première. Le refus ne crée donc aucune impasse réglementaire, ce qui est la
+  condition de son admissibilité.
+\item \textbf{Le règlement envisage lui-même le cas.} L'article~220,
+  paragraphe~2, prévoit qu'une entreprise puisse ne pas être « en mesure
+  d'utiliser » une méthode standardisée, et impose alors de retenir « le résultat
+  le plus prudent ». Un paramètre propre \emph{inférieur} au paramètre standard,
+  obtenu par une division par un nombre négatif, en est l'exact contraire.
+\end{itemize}
+
+Un quatrième appui, hors annexe~XVII, va dans le même sens~: le règlement refuse
+explicitement qu'un risque de réserve soit porté par un volume négatif.
+
+\reglement{Article 116, paragraphe 6, du règlement délégué (UE) 2015/35}{Pour
+tous les segments visés à l'annexe~II, la mesure de volume pour le risque de
+réserve pour un segment donné est égale à la meilleure estimation des provisions
+pour sinistres à payer [\dots]. La mesure de volume n'est pas un montant
+négatif.}
+
+\noindent
+Les deux grandeurs ne se confondent pas~: la mesure de volume de l'article~116
+est la meilleure estimation des provisions pour sinistres à payer, tandis que
+$\hat R$ est l'estimation que la chaîne d'échelle produit sur le triangle fourni.
+Mais l'écart-type que la section~D calibre est précisément celui que la formule
+standard applique à cette mesure de volume, dont le règlement exige qu'elle ne
+soit pas négative. Refuser de calibrer $\sigma_{(\text{res},s,\mathrm{USP})}$ sur
+une réserve négative prolonge donc une exigence du texte plutôt que d'y ajouter
+une règle propre à l'outil.
+
+\emph{(iii) MSEP non finie ou négative~: convention d'implémentation.} Tous les
+termes du paragraphe~5 sont positifs ou nuls sur un triangle recevable~; ce cas
+est inatteignable depuis \code{run\_engine()}. Le contrôle est une garde
+défensive, qui préserve le domaine de $\sqrt{\mathrm{MSEP}}$ si
+\code{mw\_valider\_ajustement()} est appelée hors de la chaîne. Ce n'est pas une
+lecture du texte.
+
+Le refus porte sur le \textbf{total} $\hat R$, et sur lui seul. \textbf{Le texte
+ne se prononce ni sur l'un ni sur l'autre}~: aucun paragraphe de la section~D ne
+traite le cas d'une réserve négative, au total comme par année de survenance. La
+distinction est donc une \textbf{décision de l'outil}, et non une lecture du
+règlement~: seule la somme $\sum_{i=0}^{I}\big(\hat C(i,J) - C(i,I-i)\big)$
+figure au dénominateur du paragraphe~4, et l'outil ne refuse que ce que cette
+formule rend inexploitable, à savoir le total. Des réserves négatives sur
+certaines années de survenance --- bonis de liquidation, recours sur années
+anciennes ---, ou un facteur $\hat f_j < 1$ isolé, restent donc licites~: dès
 lors que $\hat R > 0$, le calcul est mené normalement et ces situations ne
 donnent lieu qu'à l'avertissement sur les cumulés décroissants
 (section~\ref{sec:controles}).
@@ -4744,9 +4829,8 @@ Part de la réserve totale portée par la dernière année de survenance,
 $\big(\hat C(I,J) - C(I,0)\big) / \sum_i \big(\hat C(i,J) - C(i,I-i)\big)$. Le
 dénominateur est la réserve chain-ladder totale $\hat R$, strictement positive
 partout où ce diagnostic est restitué, le calcul étant refusé sinon
-(section~\ref{sec:controles})~; la part est donc toujours définie, sans être pour
-autant bornée par~1 lorsque certaines années portent une réserve négative.
-\textbf{Diagnostic, non test.}
+(section~\ref{sec:controles})~: la part est donc toujours définie. Elle n'est en
+revanche encadrée par rien (rubrique~6). \textbf{Diagnostic, non test.}
 \Hzero
 Sans objet.
 \Stat
@@ -4763,6 +4847,19 @@ propre repose principalement sur la ligne la moins informative du triangle. Ce
 diagnostic joue, pour la méthode Merz--Wüthrich, le rôle que joue le jackknife
 pour la méthode lognormale~: il mesure la concentration du résultat sur une
 observation unique.
+
+\textbf{Limite connue.} La part n'est \emph{ni majorée par~1 ni minorée par~0}.
+Le refus d'une réserve totale non positive (section~\ref{sec:controles}) garantit
+le signe du dénominateur, pas celui du numérateur~: dès qu'une année de
+survenance porte une réserve négative --- situation licite tant que $\hat R$
+reste strictement positive ---, la part peut dépasser~1 ou devenir négative. Or
+le moteur la compare au seul seuil de 40~\%~: une part négative ne déclenche
+aucun signalement, alors qu'elle traduit une répartition au moins aussi atypique
+que celle que le seuil vise. Le signalement n'a donc de portée que si toutes les
+réserves par année de survenance sont positives ou nulles, condition que le
+moteur ne vérifie pas. Cette limite est antérieure à la règle de refus et n'est
+pas corrigée par elle~; elle doit être lue avec le diagnostic, et la répartition
+de la réserve par année de survenance examinée directement.
 \end{fiche}
 
 \newpage

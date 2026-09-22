@@ -1996,8 +1996,12 @@ mw_valider_triangle <- function(tri, T_min = 5) {
     }
   }
   if (!length(err)) {
-    # Le paragraphe 2(h)(iii) suppose des cumules croissants ; un recul traduit
-    # un boni de liquidation ou un recouvrement, licite mais a signaler.
+    # Avertissement de nature ACTUARIELLE, sans fondement reglementaire : le
+    # paragraphe 2(h)(iii) pose seulement que l'esperance du cumule d'une annee
+    # de developpement est PROPORTIONNELLE a celle de la precedente, et ne
+    # contraint pas le facteur f_j a etre >= 1. Le texte ne dit donc rien des
+    # cumules decroissants. Un recul traduit un boni de liquidation ou un
+    # recouvrement, licite : on le signale sans refuser.
     for (i in 0:I) {
       d <- I - i
       if (d >= 1) {
