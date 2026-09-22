@@ -2172,13 +2172,22 @@ mw_extrapolation_sigma2 <- function(aj, tol = 1e-12) {
   q <- if (is.na(ex$quotient))
     "non defini (sigma2_(J-3) = 0), sans effet : le minimum est atteint ailleurs"
   else format(ex$quotient, digits = 6)
-  detail <- sprintf(paste0(base, ". min(sigma2_(J-2) = %s ; sigma2_(J-3) = %s ; ",
+  # base est du TEXTE LIBRE : il passe en argument %s, jamais dans la chaine de
+  # format. L'interpoler dans le format ferait d'un simple "%" du libelle une
+  # specification de conversion -- c'est exactement ce qui a produit un
+  # "too few arguments" ailleurs sur cette branche (constat d'audit).
+  detail <- sprintf(paste0("%s. min(sigma2_(J-2) = %s ; sigma2_(J-3) = %s ; ",
                            "sigma2_(J-2)^2/sigma2_(J-3) = %s) = %s, minimum atteint par %s"),
+                    base,
                     format(ex$sigma2_Jm2, digits = 6), format(ex$sigma2_Jm3, digits = 6),
                     q, format(ex$valeur, digits = 6), ex$retenu)
+  # "numeriquement nul" et non "= 0" : la detection porte sur l'ecart relatif
+  # des facteurs individuels a 1e-12 pres, si bien qu'une colonne constante a
+  # 1e-14 pres donne un sigma2_(J-3) de l'ordre de 1e-21, non nul. La valeur
+  # exacte est imprimee quelques mots plus haut dans la meme chaine.
   if (isTRUE(ex$degeneree))
     detail <- paste0(detail, ". Colonne J-3 a facteurs individuels tous egaux ",
-                     "(sigma2_(J-3) = 0) : voir l'avertissement sur les donnees")
+                     "(sigma2_(J-3) numeriquement nul) : voir l'avertissement sur les donnees")
   detail
 }
 
