@@ -5,9 +5,11 @@ description: Compiler la documentation LaTeX (docs/latex/doc_tests_usp.tex) et v
 
 # Compiler la documentation
 
-Le PDF compilé `docs/latex/doc_tests_usp.pdf` est versionné : il est recompilé et commité avec toute modification du `.tex`.
+Le PDF compilé `docs/latex/doc_tests_usp.pdf` est versionné : il est recompilé et commité avec toute modification du `.tex`, sur le poste local comme en session cloud (ADR 0007).
 
 ## Étapes
+
+0. **Rendre `pdflatex` disponible** si `command -v pdflatex` échoue : `source .claude/scripts/preparer_latex.sh` depuis la racine du dépôt (ajout de MiKTeX au PATH sur le poste Windows, installation de TeX Live par apt en session cloud, plusieurs minutes). S'il signale un échec, le PDF ne peut pas être compilé : le dire dans le compte rendu.
 
 1. Depuis `docs/latex/`, compiler :
 
@@ -26,4 +28,4 @@ Le PDF compilé `docs/latex/doc_tests_usp.pdf` est versionné : il est recompil�
 
 4. **Vérifier ce qui sera commité** : `git status docs/latex` doit montrer le `.tex` et le `.pdf` modifiés ensemble. Les fichiers auxiliaires (`.aux`, `.log`, `.toc`, `.out`) sont ignorés par Git.
 
-Sans LaTeX dans l'environnement (session cloud), le PDF ne peut pas être régénéré : le signaler dans le compte rendu. La CI compile le `.tex` à chaque push et publie le PDF en artefact ; le PDF versionné sera à régénérer sur le poste local.
+La CI compile aussi le `.tex` à chaque push et publie le PDF en artefact : c'est un contrôle, pas une source du PDF versionné.

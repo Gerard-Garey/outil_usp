@@ -27,6 +27,7 @@ Arrêtée par le mainteneur le 22 septembre 2026 ; les quatre points ouverts ont
 4. **Création d'issue sur accord du mainteneur.** L'agent ou la session rédige l'issue proposée dans son compte rendu ; elle est créée une fois approuvée, sauf autorisation explicite du brief. La règle, jusqu'ici propre à la fiche `docwriter`, vaut pour tous les agents qui ont l'outil `issue_write`.
 5. **Les sessions cloud travaillent sur la branche de travail courante** : elles s'y placent avant toute écriture et y poussent ; la branche que la session crée d'office reste inutilisée et est supprimée.
 6. **Fusion par commit de fusion**, par le mainteneur, CI verte ; jamais de squash ni de rebase, les SHA étant cités dans les ADR, les issues et les corps de PR.
+7. **Le PDF se compile et se commite aussi depuis une session cloud** (`.claude/scripts/preparer_latex.sh`, skill `compiler-doc`). Jusqu'ici, seul le poste local le recompilait, ce qui obligeait le mainteneur à reprendre chaque branche touchant au `.tex` avant fusion. Le motif de cette restriction — le PDF du poste est composé par MiKTeX (pdfTeX 1.40.29), celui des conteneurs par TeX Live (pdfTeX 1.40.25), même source et même nombre de pages mais 17 % d'écart de taille — ne tient plus face au coût : tout commit du PDF est de toute façon un nouveau binaire complet, et la chaîne de composition ne change pas le contenu. Le compte rendu de compilation nomme la chaîne utilisée.
 
 La règle normative est dans `CLAUDE.md`, § « Git et GitHub » ; le présent ADR en porte les raisons.
 
@@ -37,6 +38,8 @@ La règle normative est dans `CLAUDE.md`, § « Git et GitHub » ; le présent A
 - **Correctif rapide versé dans la branche de travail** (par PR ou par commit direct) : une seule PR vers `main`, mais le périmètre de la branche cesse d'être exclusivement ses issues, et le correctif attend la fusion de toute la branche.
 - **Création d'issue d'office en `needs-triage`** : plus fluide, mais le mainteneur veut décider lui-même de l'ouverture de toute issue (voir déjà a1d4f24 et la fiche `docwriter`).
 - **Sessions cloud en lecture seule** : supprime la source des branches `claude/…`, mais prive le projet des sessions cloud pour tout travail d'écriture.
+- **PDF recompilé seulement sur le poste local** (règle antérieure, fiche `docwriter`) : une seule chaîne de composition pour le livrable, mais une session cloud ne peut pas terminer une modification du `.tex`, et le mainteneur doit reprendre chaque branche.
+- **PDF produit par la CI et commité par elle** : une chaîne unique et neutre, mais des commits poussés par un robot sur la branche de travail, à rapatrier dans chaque copie, et un droit d'écriture à donner au workflow.
 
 ## Conséquences
 
