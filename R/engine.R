@@ -885,6 +885,35 @@ usp_simuler <- function(fit) {
 # n'est pas "le modele est correct" mais "beta = 0" (Student sur la pente,
 # Fisher global) : pour celles-la, le modele ajuste appartient a H1 et une
 # p-value de Monte-Carlo n'aurait aucun sens.
+# Sont exclues egalement :
+#   - MeanZ = moyenne(z) et VarZ = var(z), grandeurs rivees par l'estimation.
+#     Les conditions du premier ordre de usp_ajuster() imposent toujours
+#     somme(sqrt(pi_t) z_t) = 0 ; elles n'imposent somme(z_t) = 0 et
+#     somme(z_t^2) = T que LORSQUE pi_t est CONSTANT, c'est-a-dire delta = 1
+#     ou volumes x_t constants -- et non des que delta est au bord : a
+#     delta = 0 avec des volumes variables, pi_t varie et aucune des deux
+#     egalites ne tient (voir usp_tests(), qui distingue les trois cas).
+#     Quand pi_t est constant, les deux egalites n'ont PAS le meme statut :
+#     somme(z_t) = 0 decoule de la forme fermee de ln(beta) dans usp_noyau(),
+#     c'est une identite algebrique vraie pour tout (delta, gamma) et donc a
+#     la precision machine, tandis que somme(z_t^2) = T suppose la derivee en
+#     gamma annulee et ne vaut qu'a la tolerance d'arret pres. Sur les donnees
+#     de test (T = 8, delta = 1), mean(z) = -2,0e-16 -- un zero machine qui ne
+#     depend pas de la convergence -- mais somme(z^2) - T = -5,4e-06, soit
+#     6,8e-07 en relatif, qui en depend.
+#     La p-value de Monte-Carlo n'a alors pas de sens, non parce que tout
+#     serait du bruit d'arrondi, mais parce que la loi simulee est un
+#     MELANGE : sur les 999 repliques des donnees de test (graine 20260831),
+#     493 ont delta* = 1 et une moyenne des z* d'ecart-type 2,2e-16 (zero
+#     machine), 460 ont delta* = 0 et un ecart-type de 1,7e-02 (composante
+#     diffuse), 46 un delta* interieur. La statistique observee etant elle
+#     aussi un zero machine, la p-value bilaterale se decide au signe du bruit
+#     d'arrondi sur pres de la moitie des repliques : d'ou sa dependance a la
+#     plateforme (issues #3 et #5, ADR 0001). Le centrage et la variance
+#     unitaire sont restitues comme diagnostics par usp_tests().
+#   - LB2r et BP2r, statistiques au retard 2 sur les ratios bruts : jamais
+#     associees a un test affiche (issue #5) ; au retard 2, rho_2 ne repose
+#     que sur T-2 produits et Box-Pierce est domine par Ljung-Box.
 .stats_bootstrapables <- function(x, y, z) {
   r <- y / x
   lbp <- test_breusch_pagan(z^2, x); lwh <- test_white(z^2, x)
@@ -916,14 +945,12 @@ usp_simuler <- function(fit) {
   # valide, le bootstrap simulant sous le modele ajuste.
   u <- r - mean(r)
   lb1u <- unname(stats::Box.test(u, lag = 1, type = "Ljung-Box")$statistic)
-  lb2u <- if (T >= 8) unname(stats::Box.test(u, lag = 2, type = "Ljung-Box")$statistic) else NA_real_
-  bp2u <- if (T >= 8) unname(stats::Box.test(u, lag = 2, type = "Box-Pierce")$statistic) else NA_real_
   c(AD = stat_ad(z), CvM = stat_cvm(z), KS = stat_ks(z),
     SW = .shapiro_sur(z)$stat, SF = test_shapiro_francia(z)$stat,
     JB = test_jarque_bera(z)$stat, DW = stat_dw(z),
     LB1 = unname(stats::Box.test(z, lag = 1, type = "Ljung-Box")$statistic),
     supF = stat_supF(z), CUSUM = stat_cusum(z), Grubbs = test_grubbs(z)$stat,
-    MeanZ = mean(z), VarZ = stats::var(z), Lillie = stat_lilliefors(z),
+    Lillie = stat_lilliefors(z),
     # statistiques ajoutees : loi de reference seulement asymptotique
     Intercept = ti$stat, RESET = rs$stat, BP = lbp$stat, BP79 = lbp79$stat,
     White = lwh$stat,
@@ -932,7 +959,7 @@ usp_simuler <- function(fit) {
     DAgo = ds$stat,
     CoxStuart = if (is.finite(cx$stat)) abs(cx$stat - (T - m) / 2) else NA_real_,
     # --- memes statistiques sur les ratios bruts centres (base "r") ---------
-    DWr = stat_dw(u), LB1r = lb1u, LB2r = lb2u, BP2r = bp2u,
+    DWr = stat_dw(u), LB1r = lb1u,
     Runsr = test_runs(u)$stat, supFr = stat_supF(u), CUSUMr = stat_cusum(u),
     Grubbsr = test_grubbs(u)$stat)
 }
@@ -962,14 +989,13 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
   # Sens du rejet, statistique par statistique.
   queue <- c(AD = "haut", CvM = "haut", KS = "haut", SW = "bas", SF = "bas",
              JB = "haut", DW = "deux", LB1 = "haut", supF = "haut",
-             CUSUM = "haut", Grubbs = "haut", MeanZ = "deux", VarZ = "deux",
-             Lillie = "haut",
+             CUSUM = "haut", Grubbs = "haut", Lillie = "haut",
              Intercept = "deux", RESET = "haut", BP = "haut", BP79 = "haut",
              White = "haut",
              GQ = "deux", BF = "haut", Smirnov = "haut", LB2 = "haut",
              BP2 = "haut", Runs = "deux", MK = "deux", SpearVol = "deux",
              SpearTps = "deux", DAgo = "deux", CoxStuart = "haut",
-             DWr = "deux", LB1r = "haut", LB2r = "haut", BP2r = "haut",
+             DWr = "deux", LB1r = "haut",
              Runsr = "deux", supFr = "haut", CUSUMr = "haut", Grubbsr = "haut")
   pv <- vapply(noms, function(nm) {
     sv <- sim[, nm]; sv <- sv[is.finite(sv)]; o <- stats_obs[[nm]]
@@ -1418,22 +1444,76 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       stat_nom = "Z", stat = ru$stat, loi = "loi combinatoire EXACTE de R",
       estim_nom = "nb de suites R", estim = ru$runs,
       p_ex = runs_p_exacte(z), p_as = ru$p, mc_nom = "Runs")
-  tt <- stats::t.test(z)
-  add(fam, "Centrage des residus standardises", "Student (1908) ; loi par Monte-Carlo",
-      H0 = "E[z_t] = 0", H1 = "E[z_t] != 0",
-      stat_nom = "t", stat = unname(tt$statistic),
-      loi = "t(T-1) nominal ; parametres estimes -> Monte-Carlo",
-      estim_nom = "moyenne(z)", estim = mean(z),
-      p_as = tt$p.value, mc_nom = "MeanZ",
-      detail = "VRAI test : la moyenne simple de z n'est pas contrainte par l'estimation")
-  vc <- (T - 1) * stats::var(z)
-  add(fam, "Variance unitaire des residus standardises", "Pearson (1900) ; loi par Monte-Carlo",
-      H0 = "Var(z_t) = 1", H1 = "Var(z_t) != 1",
-      stat_nom = "C", stat = vc,
-      loi = "chi2(T-1) nominal ; parametres estimes -> Monte-Carlo",
-      estim_nom = "var(z)", estim = stats::var(z),
-      p_as = 2 * min(stats::pchisq(vc, T - 1), 1 - stats::pchisq(vc, T - 1)),
-      mc_nom = "VarZ", detail = "VRAI test de l'echelle de la ponderation pi_t")
+  # Centrage et variance unitaire : DIAGNOSTICS, sans verdict ni p-value
+  # retenue (ADR 0001 ; issues #3 et #5). La condition du premier ordre en
+  # ln(beta) impose TOUJOURS somme(sqrt(pi_t) z_t) = 0 : les deux grandeurs
+  # sont rivees par l'estimation dans tous les cas. Elles ne se reduisent a
+  # somme(z_t) = 0 et somme(z_t^2) = T que lorsque pi_t est CONSTANT, ce qui
+  # suppose delta = 1 ou des volumes x_t constants. A delta = 0 avec des
+  # volumes variables, pi_t varie : delta_au_bord ne suffit donc PAS a
+  # conclure, et c'est la constance effective de pi_t qui est testee ici.
+  # Trois cas sont distingues dans le libelle (voir aussi le commentaire de
+  # .stats_bootstrapables() pour la loi simulee, qui est un melange).
+  pi_constant <- diff(range(fit$pi)) <= 1e-9 * mean(fit$pi)
+  # Le libelle du cas pi_t constant DIFFERE selon la grandeur, et c'est le
+  # coeur du diagnostic. somme(z_t) = 0 decoule de la forme FERMEE de ln(beta)
+  # dans usp_noyau() : c'est une IDENTITE algebrique, vraie pour tout couple
+  # (delta, gamma), convergee ou non, donc vraie a la PRECISION MACHINE et
+  # sans rapport avec l'arret de l'optimiseur (mesure : a (delta, gamma) =
+  # (1 ; 3), tres loin de l'optimum, moyenne(z) = 1,6e-16 tandis que
+  # somme(z^2) - T = -7,97). somme(z_t^2) = T suppose au contraire la derivee
+  # en gamma effectivement annulee : elle ne tient qu'a la TOLERANCE D'ARRET
+  # pres, et son ecart residuel est a ce jour le seul indicateur de
+  # convergence en gamma de toute la restitution.
+  # Servir le meme message aux deux lignes faisait affirmer a la colonne
+  # "commentaire" de la table auditable, destinee au dossier, une chose
+  # fausse sur le centrage.
+  # switch() SANS defaut absorberait un nom errone en NULL, que paste() avale
+  # sans bruit : le detail sortirait ampute de la phrase qui fait tout l'objet
+  # de cette distinction, sans erreur ni avertissement (constat d'audit). Le
+  # defaut leve donc une erreur. Le corps est entre accolades pour que le bloc
+  # reste analysable s'il est un jour extrait de cette fonction.
+  contrainte <- function(quoi) {
+    if (isTRUE(pi_constant))
+      switch(quoi,
+        centrage = paste("Ici pi_t est constant (delta = 1, ou volumes x_t constants) :",
+                         "moyenne(z) = 0 est alors une IDENTITE algebrique, ln(beta)",
+                         "etant obtenu en forme fermee. Elle tient a la precision",
+                         "machine, que l'optimisation ait converge ou non, et la valeur",
+                         "affichee n'est que du bruit d'arrondi : elle ne renseigne donc",
+                         "PAS sur la qualite de l'arret de l'optimiseur."),
+        variance = paste("Ici pi_t est constant (delta = 1, ou volumes x_t constants) :",
+                         "var(z) = T/(T-1) suppose la derivee en gamma effectivement",
+                         "annulee, donc un optimum INTERIEUR en gamma : l'egalite ne",
+                         "tient qu'a la tolerance d'arret de l'optimiseur pres, et elle",
+                         "tombe si gamma bute sur une borne de son domaine [-12, 3].",
+                         "L'ecart residuel renseigne donc sur la convergence en gamma,",
+                         "sous cette reserve."),
+        stop("contrainte() : grandeur inconnue : ", quoi))
+    else if (isTRUE(fit$delta_au_bord))
+      paste("Ici delta est au bord de [0,1] mais pi_t n'est PAS constant :",
+            "seule la contrainte ponderee subsiste, la valeur affichee n'est",
+            "donc ni nulle ni egale a T/(T-1) ; elle mesure l'ecart entre",
+            "version ponderee et version non ponderee.")
+    else
+      paste("Ici delta est interieur a [0,1] et pi_t n'est pas constant :",
+            "seule la contrainte ponderee subsiste ; la valeur affichee mesure",
+            "l'ecart entre version ponderee et version non ponderee.")
+  }
+  sans_p <- paste("Aucune p-value retenue : la grandeur est rivee par",
+                  "l'estimation, elle est restituee comme diagnostic (ADR 0001).")
+  add(fam, "Centrage des residus standardises", "Diagnostic de centrage (ADR 0001)",
+      type = "diagnostic", estim_nom = "moyenne(z)", estim = mean(z),
+      detail = paste("Grandeur contrainte par l'estimation :",
+                     "somme(sqrt(pi_t) z_t) = 0 par condition du premier ordre,",
+                     "d'ou moyenne(z) = 0 lorsque pi_t est constant.",
+                     contrainte("centrage"), sans_p))
+  add(fam, "Variance unitaire des residus standardises", "Diagnostic d'echelle (ADR 0001)",
+      type = "diagnostic", estim_nom = "var(z)", estim = stats::var(z),
+      detail = paste("Grandeur contrainte par l'estimation : les conditions du",
+                     "premier ordre donnent somme(z_t^2) = T lorsque pi_t est",
+                     "constant, soit var(z) = T/(T-1).",
+                     contrainte("variance"), sans_p))
 
   ## --- F. Stabilite, ruptures et points aberrants ----------------------------
   fam <- "F. Stabilite, ruptures et points aberrants"
@@ -1493,32 +1573,56 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # simulant sous le modele ajuste. Verification par simulation a T = 8 :
   # niveau tenu a 10,7 % et 5,0 % pour des seuils de 10 % et 5 %.
   loi_ind <- "loi classique INDICATIVE (ratios heteroscedastiques) -> Monte-Carlo"
+  # QUAND pi_t EST CONSTANT, CETTE BASE PERD SON OBJET. ln(beta) se reduit
+  # alors a 1/(2 pi) + moyenne(ln r), donc z_t = sqrt(pi) (ln r_t -
+  # moyenne(ln r)) : z et u_t = r_t - moyenne(r) ne different plus que par la
+  # transformation log, qui est monotone. La statistique des suites est par
+  # consequent IDENTIQUE sur les deux bases -- les signes de r_t - med(r) et
+  # de z_t - med(z) coincident exactement (mesure : -0,7637626 des deux
+  # cotes) -- et les autres ne different qu'au second ordre en CV(r) (mesure
+  # sur les donnees du depot : cor(z, u) = 0,998, cor(z, ln r) = 1).
+  # Il n'y a pas d'artefact de ponderation a detecter la ou il n'y a pas de
+  # ponderation : ces six lignes sont alors des quasi-doublons de leurs
+  # homologues sur residus, et le detail le dit au relecteur plutot que de
+  # lui laisser croire a six verifications independantes.
+  note_r <- if (isTRUE(pi_constant))
+    paste("CONTROLE SANS OBJET ICI : pi_t est constant (delta = 1, ou volumes",
+          "x_t constants), il n'y a donc aucun artefact de ponderation a",
+          "detecter. Cette ligne est un quasi-doublon de son homologue sur",
+          "residus standardises, dont elle ne differe que par la transformation",
+          "logarithmique ; pour le test des suites, la statistique est meme",
+          "identique.") else ""
+  detail_r <- function(txt = "") trimws(paste(txt, note_r))
   add("E. H4 - independance et validite du MV (annexe XVII B(2)(f)(iv))",
       "Autocorrelation d'ordre 1 (Durbin-Watson) sur ratios bruts",
       "Durbin & Watson (1950, 1951)", base = "r",
       H0 = "absence d'autocorrelation d'ordre 1 du ratio S/P",
       H1 = "autocorrelation du ratio S/P",
-      stat_nom = "DW", stat = boot$stats_obs$DWr, loi = loi_ind, mc_nom = "DWr")
+      stat_nom = "DW", stat = boot$stats_obs$DWr, loi = loi_ind, mc_nom = "DWr",
+      detail = detail_r())
   add("E. H4 - independance et validite du MV (annexe XVII B(2)(f)(iv))",
       "Ljung-Box (retard 1) sur ratios bruts", "Ljung & Box (1978), Biometrika 65",
       base = "r", H0 = "rho_1 = 0 pour le ratio S/P", H1 = "autocorrelation au retard 1",
-      stat_nom = "Q", stat = boot$stats_obs$LB1r, loi = loi_ind, mc_nom = "LB1r")
+      stat_nom = "Q", stat = boot$stats_obs$LB1r, loi = loi_ind, mc_nom = "LB1r",
+      detail = detail_r())
   add("E. H4 - independance et validite du MV (annexe XVII B(2)(f)(iv))",
       "Test des suites sur ratios bruts", "Wald & Wolfowitz (1940)",
       base = "r", H0 = "arrangement aleatoire des signes du ratio centre",
       H1 = "arrangement non aleatoire",
-      stat_nom = "Z", stat = boot$stats_obs$Runsr, loi = loi_ind, mc_nom = "Runsr")
+      stat_nom = "Z", stat = boot$stats_obs$Runsr, loi = loi_ind, mc_nom = "Runsr",
+      detail = detail_r())
   add(fam, "Rupture de niveau (sup-F) sur ratios bruts",
       "Quandt (1960) / Chow (1960) ; Andrews (1993)", base = "r",
       H0 = "niveau du ratio S/P constant", H1 = "rupture de niveau du ratio S/P",
       stat_nom = "supF", stat = boot$stats_obs$supFr,
       loi = "supremum de processus -> Monte-Carlo", mc_nom = "supFr",
-      detail = "Detecte un changement de regime du ratio, independamment du modele")
+      detail = detail_r("Detecte un changement de regime du ratio, independamment du modele."))
   add(fam, "Stabilite cumulee (OLS-CUSUM) sur ratios bruts",
       "Brown, Durbin & Evans (1975), JRSS B 37", base = "r",
       H0 = "constance du niveau du ratio S/P", H1 = "derive graduelle",
       stat_nom = "CUSUM", stat = boot$stats_obs$CUSUMr,
-      loi = "sup |pont brownien| -> Monte-Carlo", mc_nom = "CUSUMr")
+      loi = "sup |pont brownien| -> Monte-Carlo", mc_nom = "CUSUMr",
+      detail = detail_r())
   add(fam, "Valeur aberrante isolee (Grubbs) sur ratios bruts",
       "Grubbs (1950, 1969), Technometrics 11", base = "r",
       H0 = "aucun ratio S/P aberrant", H1 = "exactement un ratio aberrant",
@@ -1526,7 +1630,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       estim_nom = "rang du ratio extreme",
       estim = { g <- test_grubbs(u); if (is.finite(g$stat)) g$idx else NA_real_ },
       mc_nom = "Grubbsr",
-      detail = "Identifie l'annee au boni/mali le plus atypique, sans passer par le modele")
+      detail = detail_r("Identifie l'annee au boni/mali le plus atypique, sans passer par le modele."))
 
   add(fam, "Leviers (hat values)", "Hoaglin & Welsch (1978), Amer. Statist. 32",
       type = "diagnostic", estim_nom = "max h_t", estim = max(hv),
@@ -1539,7 +1643,12 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   add(fam, "Condition du premier ordre |sum(pi_t*v_t)|/sum(pi_t)",
       "Diagnostic numerique (annexe XVII, par. 4-6)", type = "diagnostic",
       estim_nom = "FOC relative", estim = fit$foc,
-      detail = "Doit etre nulle a la precision machine si l'optimisation a converge",
+      detail = paste("IDENTITE algebrique, non un controle de convergence :",
+                     "ln(beta) etant obtenu en forme fermee par usp_noyau(),",
+                     "somme(pi_t v_t) = 0 pour TOUT couple (delta, gamma), converge",
+                     "ou non. Cette grandeur est donc nulle a la precision machine",
+                     "quel que soit l'etat de l'optimisation, et son ECHEC ne peut",
+                     "signaler qu'une anomalie arithmetique."),
       verdict = if (!is.finite(fit$foc) || fit$foc > 1e-6) "ECHEC" else "OK")
   add(fam, "Convergence multi-demarrages", "Diagnostic numerique (L-BFGS-B)",
       type = "diagnostic",

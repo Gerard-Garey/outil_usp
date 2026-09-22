@@ -22,23 +22,9 @@ if (!length(noms)) noms <- names(CAS)
 inconnus <- setdiff(noms, names(CAS))
 if (length(inconnus)) stop("Cas inconnu(s) : ", paste(inconnus, collapse = ", "))
 
-# Aplatit un objet en feuilles atomiques nommees par leur chemin
-# (ex. "parametre_final$sigma_usp", "tests[[12]]$p_mc", "donnees$xt[3]").
-aplatir <- function(o, chemin = "") {
-  if (is.data.frame(o)) o <- as.list(o)
-  if (is.list(o)) {
-    nm <- names(o)
-    res <- list()
-    for (k in seq_along(o)) {
-      etiq <- if (!is.null(nm) && nzchar(nm[k])) paste0("$", nm[k]) else sprintf("[[%d]]", k)
-      res <- c(res, aplatir(o[[k]], paste0(chemin, etiq)))
-    }
-    return(res)
-  }
-  if (length(o) <= 1) return(stats::setNames(list(o), sub("^\\$", "", chemin)))
-  noms_el <- if (!is.null(names(o))) paste0("[\"", names(o), "\"]") else sprintf("[%d]", seq_along(o))
-  stats::setNames(as.list(o), paste0(sub("^\\$", "", chemin), noms_el))
-}
+# aplatir() est definie dans outils_tests.R, partagee avec
+# patcher_reference.R : les chemins affiches ici sont exactement les motifs
+# que le patcher accepte.
 
 fmt <- function(v) if (is.numeric(v)) formatC(v, digits = 10, format = "g") else as.character(v)
 
