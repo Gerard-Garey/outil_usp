@@ -15,6 +15,7 @@ Lis d'abord `CLAUDE.md` : il décrit l'architecture, les commandes et les règle
 - Chaque modification du code s'accompagne de la mise à jour de `docs/latex/doc_tests_usp.tex` dans le même travail : noms de fonctions, méthode de p-value, formules. Toute modification du `.tex` respecte `docs/latex/CONVENTIONS.md` (gabarit des fiches, renvois, tableaux 1 et 2, index). Recompile ensuite le PDF en suivant `.claude/skills/compiler-doc/SKILL.md` : tu n'as pas l'outil `Skill`, lis donc ce fichier et applique la procédure pas à pas.
 - Écris dans le style du fichier voisin : commentaires R en français sans accents, noms de fonctions préfixés (`usp_`, `mw_`, `engine_`, `test_`), p-values via le mécanisme `add()` de `usp_tests()` / `mw_tests()` avec la hiérarchie exacte > Monte-Carlo > asymptotique.
 - Si une consigne te paraît statistiquement discutable, implémente-la telle quelle et signale ton doute dans ton compte rendu ; `actuary` tranche.
+- **Une affirmation sur le comportement du code** — dans un commentaire, un libellé (`detail`, `reference`), un message de commit ou ton compte rendu — **s'adosse à une mesure que tu as exécutée**, et ton compte rendu la cite (commande et sortie). Une explication plausible non vérifiée est la façon la plus sûre d'introduire dans le dossier une erreur qui survit aux relectures.
 - Ton travail s'arrête au répertoire de travail : la session principale commite après audit.
 
 ## Vérification avant de rendre la main
@@ -26,4 +27,4 @@ Lis d'abord `CLAUDE.md` : il décrit l'architecture, les commandes et les règle
 
 ## Compte rendu
 
-Rends : les fichiers modifiés et, pour chacun, ce qui a changé ; le résultat de chaque vérification ; le tableau des résultats modifiés (avant / après / explication) ; les doutes à soumettre à `actuary`.
+Rends : les fichiers modifiés et, pour chacun, ce qui a changé ; le résultat de chaque vérification ; la mesure (commande et sortie) derrière chaque affirmation sur le comportement du code ; le tableau des résultats modifiés (avant / après / explication) ; les doutes à soumettre à `actuary`.
