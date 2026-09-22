@@ -62,7 +62,7 @@ verifier("Validation : T_min parametrable",
 # run_engine() s'arrete ensuite sur une erreur de lm.fit au lieu de renvoyer
 # ok = FALSE, et usp_ajuster() renvoie sigma = Inf avec l'objectif de penalite
 # 1e12 comme optimum.
-# Issue #7 (defaut releve par audit)
+# Issue #33 (defaut releve par audit, repris de l'issue #7)
 echec_attendu("Validation : valeur infinie dans y ou x refusee",
               "constat audit : ok = TRUE pour yt[3] = Inf ou xt[2] = Inf",
               !engine_valider_donnees(x, replace(y, 3, Inf))$ok &&
@@ -145,7 +145,7 @@ verifier("Lecture : valeur non numerique refusee",
 verifier("Lecture : tableau vide ou objet non tabulaire refuse",
          !engine_lire_donnees_csv(df[0, ])$ok && !engine_lire_donnees_csv(list(xt = 1))$ok)
 # Constats d'audit (lecture d'un fichier d'echange) :
-# Issue #7 (defaut releve par audit)
+# Issue #33 (defaut releve par audit, repris de l'issue #7)
 echec_attendu("Lecture : colonne facteur convertie par ses valeurs, non par ses codes",
               "constat audit : as.numeric(facteur) renvoie les codes 2 1 3 4 5",
               {
@@ -153,12 +153,12 @@ echec_attendu("Lecture : colonne facteur convertie par ses valeurs, non par ses 
                 r <- engine_lire_donnees_csv(data.frame(t = 1:5, xt = f, yt = 1:5))
                 !r$ok || isTRUE(all.equal(r$xt, c(104.2, 102.25, 109.34, 114.64, 118.41)))
               })
-# Issue #7 (defaut releve par audit)
+# Issue #33 (defaut releve par audit, repris de l'issue #7)
 echec_attendu("Lecture : annees t dupliquees ou non consecutives refusees",
               "constat audit : t = 2001, 2001, 2002... et t = 2001, 2003, 2005... acceptes",
               !engine_lire_donnees_csv(data.frame(t = c(2001, 2001, 2002, 2003, 2004), xt = 1:5, yt = 1:5))$ok &&
               !engine_lire_donnees_csv(data.frame(t = c(2001, 2003, 2005, 2007, 2009), xt = 1:5, yt = 1:5))$ok)
-# Issue #7 (defaut releve par audit)
+# Issue #33 (defaut releve par audit, repris de l'issue #7)
 echec_attendu("Lecture : colonne t incomplete signalee (tri non effectue en silence)",
               "constat audit : t avec un NA -> ok = TRUE, lignes laissees dans l'ordre du fichier",
               !engine_lire_donnees_csv(data.frame(t = c(3, 1, NA, 2, 5), xt = 1:5, yt = 1:5))$ok)
@@ -171,11 +171,11 @@ verifier("Controles qualite : 8 lignes ; jeu de test OK sauf credibilite pleine 
            length(r) == 8 && all(verd %in% c("OK", "ECHEC")) &&
              identical(unname(verd[8]), "ECHEC") && all(verd[1:7] == "OK")
          })
-# Issue #7 (defaut releve par audit)
+# Issue #33 (defaut releve par audit, repris de l'issue #7)
 echec_attendu("Controles qualite : T = 4 donne une ligne ECHEC (et non une erreur R)",
               "constat audit : erreur levee par usp_credibilite() dans le libelle de la derniere ligne",
               !leve_erreur(usp_controle_donnees(x[1:4], y[1:4])))
-# Issue #7 (defaut releve par audit)
+# Issue #33 (defaut releve par audit, repris de l'issue #7)
 echec_attendu("Controles qualite : un NA donne une ligne ECHEC (et non une erreur R)",
               "constat audit : if (NA) dans add() -> erreur",
               !leve_erreur(usp_controle_donnees(replace(x, 2, NA), y)))
@@ -198,7 +198,7 @@ verifier("Lecture vecteur : longueurs differentes et T trop grand refuses",
          })
 # Constat d'audit : une cellule vide est retiree en silence ; deux vides a des
 # annees differentes donnent deux series de meme longueur mais DECALEES.
-# Issue #7 (defaut releve par audit)
+# Issue #33 (defaut releve par audit, repris de l'issue #7)
 echec_attendu("Lecture vecteur : cellule vide refusee (pas de decalage silencieux des annees)",
               "constat audit : x sans annee 2 et y sans annee 3 -> 5 couples desalignes, sans erreur",
               {

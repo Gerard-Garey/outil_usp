@@ -189,7 +189,7 @@ verifier("DW : p dans [0, 1] et NA pour T < 4",
 # renvoie P(Q < 0) (0,5 - integrale / pi, alors qu'Imhof 1961 donne
 # P(Q > x) = 0,5 + integrale / pi). Sans effet sur la p bilaterale de
 # dw_p_exacte, symetrique ; toute utilisation unilaterale serait inversee.
-# Issue #7 (defaut releve par audit)
+# Issue #33 (defaut releve par audit, repris de l'issue #7)
 echec_attendu(".imhof_p_sup0 renvoie P(Q > 0) comme annonce",
               "constat audit : renvoie P(Q < 0)",
               isTRUE(proche(.imhof_p_sup0(c(1, -0.5)),

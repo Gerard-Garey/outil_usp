@@ -58,7 +58,7 @@ verifier("usp_segment_infos : segment 1 de l'annexe XIV = frais medicaux, bareme
 verifier("usp_segment_infos : erreur pour un segment inexistant (II-13, II-0, XIV-5)",
          leve_erreur(usp_segment_infos(13, "II")) && leve_erreur(usp_segment_infos(0, "II")) &&
          leve_erreur(usp_segment_infos(5, "XIV")))
-# Issue #7 (defaut releve par audit)
+# Issue #33 (defaut releve par audit, repris de l'issue #7)
 echec_attendu("usp_segment_infos : une annexe inconnue (xiv en minuscules, III) est refusee",
               "constat audit : traitee silencieusement comme l'annexe II",
               leve_erreur(usp_segment_infos(1, "xiv")) && leve_erreur(usp_segment_infos(1, "III")))
@@ -82,7 +82,7 @@ verifier("Credibilite : bareme inconnu refuse", leve_erreur(usp_credibilite(8, "
 verifier("Credibilite : croissante en T",
          all(diff(vapply(5:20, usp_credibilite, 0, bareme = "long")) >= 0) &&
          all(diff(vapply(5:20, usp_credibilite, 0, bareme = "court")) >= 0))
-# Issue #7 (defaut releve par audit)
+# Issue #33 (defaut releve par audit, repris de l'issue #7)
 echec_attendu("Credibilite : une duree non entiere est refusee explicitement",
               "constat audit : T = 7.5 renvoie NA sans erreur",
               leve_erreur(usp_credibilite(7.5)))
