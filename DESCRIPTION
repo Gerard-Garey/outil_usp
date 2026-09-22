@@ -9,6 +9,6 @@ Description: Moteur de calcul autonome et application Shiny pour le calibrage
 License: file LICENSE
 Encoding: UTF-8
 Depends: R (>= 4.3)
-Imports: shiny
+Imports: shiny, htmltools
 Suggests: plotly, openxlsx
 DisplayMode: Normal
