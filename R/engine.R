@@ -1674,11 +1674,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 
 
 ## =============================================================================
-## 7. ORCHESTRATEUR
-
-
-## =============================================================================
-## 7bis. LECTURE D'UN JEU DE DONNEES AU FORMAT D'EXPORT (t, xt, yt)
+## 7. LECTURE D'UN JEU DE DONNEES AU FORMAT D'EXPORT (t, xt, yt)
 ## =============================================================================
 
 # Interprete un data.frame deja charge (colonnes attendues : t, xt, yt -- le
@@ -2028,7 +2024,7 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
 
 
 ## =============================================================================
-## 11. METHODE DU RISQUE DE RESERVE No 2 (MERZ-WUTHRICH)
+## 10. METHODE DU RISQUE DE RESERVE No 2 (MERZ-WUTHRICH)
 ##     Reglement delegue (UE) 2015/35, annexe XVII, section D.
 ##     Toutes les formules ci-dessous sont la transcription litterale du texte
 ##     publie au JOUE L 12 du 17.1.2015, p. 276-278.
@@ -3080,7 +3076,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
 
 
 ## =============================================================================
-## 10. ORCHESTRATEUR PRINCIPAL
+## 11. ORCHESTRATEUR PRINCIPAL
 ## =============================================================================
 
 # run_engine() : lance toute la chaine de calcul a partir des donnees brutes et
