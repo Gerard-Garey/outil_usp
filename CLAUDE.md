@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Outil de calibrage des paramètres propres à l'entreprise (USP), Solvabilité II, règlement délégué (UE) 2015/35, art. 218-220 et annexe XVII (textes sources versionnés à la racine du dépôt : `Règlement délégué.pdf`, version d'origine du JOUE L 12 du 17.1.2015, et `TEXTE consolidé_ 32015R0035 — FR — 14.11.2024.xhtml`, version consolidée. **C'est la version consolidée qui fait foi** : la formule de la MSEP de l'annexe XVII D(5) y diffère de celle de 2015, corrigée par un acte modificatif — voir `docs/adr/0005-…`. Les formules sont des images dans les deux fichiers : les lire en rendu graphique, jamais par extraction de texte, faute de quoi on reproduit les erreurs de transcription qui ont bloqué l'issue #7. Les fichiers de données `usp_*.csv/.xlsx` ne sont pas versionnés.)
 
-Le dépôt de référence est `https://github.com/Gerard-Garey/outil_usp` (privé), utilisé à la fois depuis le poste local et depuis des sessions cloud. Le PDF compilé `docs/latex/doc_tests_usp.pdf` est versionné : le recompiler et le commiter avec toute modification du `.tex`. Les livrables sont destinés à un dossier soumis à l'ACPR : la traçabilité entre documentation LaTeX, code R et résultats prime sur tout le reste. `docs/exigences.md` contient le cahier des charges (exigences statistiques, documentaires, d'architecture et de l'application Shiny) ; le lire avant toute évolution méthodologique ou de l'interface.
+Le dépôt de référence est `https://github.com/Gerard-Garey/outil_usp` (privé), utilisé à la fois depuis le poste local et depuis des sessions cloud. Le PDF compilé `docs/latex/doc_tests_usp.pdf` est versionné : le recompiler et le commiter avec toute modification du `.tex`, sur le poste local comme en session cloud (skill `compiler-doc`). Les livrables sont destinés à un dossier soumis à l'ACPR : la traçabilité entre documentation LaTeX, code R et résultats prime sur tout le reste. `docs/exigences.md` contient le cahier des charges (exigences statistiques, documentaires, d'architecture et de l'application Shiny) ; le lire avant toute évolution méthodologique ou de l'interface.
 
 Taille d'échantillon d'intérêt : **T = 8**. Toute conclusion statistique doit en tenir compte (voir « Rigueur statistique » plus bas).
 
@@ -32,7 +32,11 @@ Les tests de reproductibilité exécutent `run_engine()` pour les trois méthode
 
 ## Git et GitHub
 
-- **Aucun push direct sur `main`** : chaque modification passe par une branche et une pull request, fusionnée une fois la CI verte. Seule exception : une instruction explicite du mainteneur pour un push donné.
+- **Aucun push direct sur `main`** : chaque modification passe par une branche et une pull request, fusionnée par le mainteneur (commit de fusion, jamais squash ni rebase) une fois la CI verte. Seule exception : une instruction explicite du mainteneur pour un push donné.
+- **Une seule branche de travail à la fois** (détail et raisons : `docs/adr/0007-…`), au périmètre fermé d'issues fixé par le plan d'`architect` et porté par sa PR, ouverte en brouillon dès la création de la branche. Toute session, locale ou cloud, se place sur la branche de travail courante et y pousse (la branche créée d'office par une session cloud est supprimée).
+- **Un commit par issue qui change un résultat**, avec son tableau avant / après (skill `verifier-reproductibilite`) et son visa.
+- **Un problème hors périmètre devient une issue**, pas une branche, sauf **correctif rapide** (références identiques, un seul domaine, pas de `.tex`) : branche temporaire partie de `main`, PR directe vers `main`.
+- **Création d'issue sur accord du mainteneur** : agents et sessions rédigent l'issue proposée (titre, libellés, corps) dans leur compte rendu ; elle n'est créée qu'une fois approuvée, sauf autorisation explicite du brief.
 - Messages de commit en français, avec accents, préfixés par le domaine : `moteur:` (`R/engine.R`), `app:` (`app.R`, `R/display_helpers.R`), `tests:`, `docs:` (doc LaTeX, `docs/`, README), `claude:` (`CLAUDE.md`, `.claude/`), `repo:` (`.github/`, `.gitignore`, `DESCRIPTION`, licence). Renvoyer à l'issue concernée (`#3`) quand elle existe.
 
 ## Architecture (contrainte impérative)
@@ -91,7 +95,7 @@ Sept sous-agents de projet (`.claude/agents/`), orchestrés par la session princ
 
 **Déclencheurs** — un agent n'entre dans le circuit que si la modification touche son domaine : plusieurs issues ou forme du moteur → `architect` en amont ; méthode ou test statistique → `actuary` (spécification en amont, validation en aval) ; formule, paramètre ou barème du règlement → `regulatory` (lecture du texte en amont, contrôle de conformité en aval) ; `R/engine.R` → `audit` ; `app.R` ou `R/display_helpers.R` → `app-review` ; fond de `docs/latex/` → `docwriter`, en dernier.
 
-**Circuits types** (chacun se termine par un commit sur une branche et une pull request) :
+**Circuits types** (chacun se termine par un ou plusieurs commits sur la branche de travail, voir « Git et GitHub ») :
 
 1. **Évolution méthodologique** : `actuary` spécifie → `coder` → `audit` (+ `app-review` si l'interface change) → `docwriter` → `actuary` valide.
 2. **Correction de conformité réglementaire** : `regulatory` établit la lecture du texte → `actuary` éclaire l'interprétation → le mainteneur tranche si σ_USP change → `coder` → `audit` → `regulatory` contrôle la conformité → `docwriter`.
@@ -102,7 +106,7 @@ Un constat bloquant ou majeur d'un vérificateur renvoie à l'étape de réalisa
 
 **Revues périodiques**, hors de tout changement : `architect` (point d'étape et feuille de route, après chaque série de PR fusionnées) ; `regulatory` (matrice de conformité complète avant remise du dossier et après toute correction de formule) ; `actuary` (revue des tests si leur liste change notablement) ; `app-review` et `docwriter` (relecture intégrale avant démonstration ou remise).
 
-**Approbation des changements de résultats** (tableau avant / après de la skill `verifier-reproductibilite`, joint à la PR) : tout changement de **σ_USP** ou d'un **verdict** est soumis au mainteneur ; les autres changements de p-values sont validés par `actuary`.
+**Approbation des changements de résultats** (tableau avant / après de la skill `verifier-reproductibilite`, un par commit qui change un résultat, joint à la PR) : tout changement de **σ_USP** ou d'un **verdict** est soumis au mainteneur ; les autres changements de p-values sont validés par `actuary`.
 
 Le vocabulaire du domaine (test, diagnostic, verdict, test inopérant, p-value exacte…) est défini dans `CONTEXT.md` : l'employer tel quel dans le code, la documentation et les issues.
 
