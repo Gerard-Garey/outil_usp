@@ -1085,7 +1085,7 @@ On en déduit la précision logarithmique et l'estimateur du niveau~:
 
 \subsection*{Résidus}
 
-Les tests des sections~5 à~8 portent sur les \emph{résidus normalisés}
+Les tests des sections~\ref{sec:h2} à~\ref{sec:stabilite} portent sur les \emph{résidus standardisés}
 \[
   z_t \;=\; \sqrt{\hat\pi_t}\;\Big(\ln r_t + \tfrac{1}{2\hat\pi_t} - \ln\hat\beta\Big),
   \qquad t = 1,\dots,T ,
@@ -1105,7 +1105,7 @@ l'aplatissement $b_2 = m_4/m_2^{2}$.
 
 \subsection*{Régression auxiliaire}
 
-Plusieurs tests de la section~4 s'appuient sur la régression auxiliaire non contrainte
+Plusieurs tests de la section~\ref{sec:h1} s'appuient sur la régression auxiliaire non contrainte
 $y_t = a + b\,x_t + \varepsilon_t$, dont on note
 $S_{xx} = \sum_t (x_t-\bar x)^2$, $S_{xy} = \sum_t (x_t-\bar x)(y_t-\bar y)$,
 $\hat b = S_{xy}/S_{xx}$, $\hat a = \bar y - \hat b \bar x$, les résidus
@@ -1116,8 +1116,8 @@ $\hat s^2 = \mathrm{SCR}/(T-2)$.
 \medskip
 \begin{encadre}
 \textbf{Attention.} Cette régression auxiliaire n'est \emph{pas} le modèle réglementaire, qui
-impose $\mathbb{E}[Y_t] = \beta x_t$ sans constante. Elle sert uniquement de support de test aux
-diagnostics de la section~4.
+impose $\mathbb{E}[Y_t] = \beta x_t$ sans constante. Elle sert uniquement de support aux tests
+de la section~\ref{sec:h1} et à son coefficient $R^2$.
 \end{encadre}
 
 \subsection*{Méthode Merz--Wüthrich : données et modèle}
@@ -1558,7 +1558,7 @@ Dépend du test~; typiquement $\mathcal{O}(T^{-1/2})$ ou $\mathcal{O}(T^{-1})$ \
 Réduction & Augmenter $B$ (gratuit, purement numérique) &
 \textbf{Impossible}~: $T = 8$ est une donnée du problème \\
 Mesure dans le moteur & champ \code{erreur\_MC} & non mesurable directement~;
-approchée par l'étude de simulation de la section~11 \\
+approchée par l'étude de simulation de la section~\ref{sec:verif} \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -1610,7 +1610,7 @@ de $\hat p_{\text{MC}}$ est en outre bornée inférieurement par $1/(B+1)$
   \item \textbf{Ce qu'aucune méthode ne restitue.} Ni le bootstrap ni les lois
   exactes n'augmentent la \emph{puissance}. À $T = 8$, l'ensemble du dispositif
   reste très peu puissant~: une p-value élevée n'est pas une validation
-  d'hypothèse. Les diagnostics de robustesse de la section~10 conservent la
+  d'hypothèse. Les diagnostics de robustesse de la section~\ref{sec:robustesse} conservent la
   priorité sur les tests d'hypothèse.
 \end{itemize}
 
@@ -1631,7 +1631,8 @@ n\textsuperscript{o}~1, section~C), \textbf{MW} pour la méthode du risque de
 réserve n\textsuperscript{o}~2 (Merz--Wüthrich, section~D), et
 \textbf{Les deux} lorsque le test est employé dans les deux dispositifs. Dans ce
 dernier cas la statistique est identique, mais son support diffère~: résidus
-normalisés $z_t$ d'un côté, résidus standardisés de Mack $r(i,j)$ de l'autre
+standardisés $z_t$ du modèle lognormal d'un côté, résidus standardisés de Mack
+$r(i,j)$ de l'autre
 (voir la section~\ref{sec:mw}).
 
 \begin{landscape}
@@ -2144,7 +2145,7 @@ p-values classiques.
 \textcolor{financeblue}{\textbf{Série}} &
 \textcolor{financeblue}{\textbf{Définition}} &
 \textcolor{financeblue}{\textbf{Loi sous le modèle}} \\
-Résidus normalisés & $z_t = \sqrt{\hat\pi_t}\,v_t$ &
+Résidus standardisés & $z_t = \sqrt{\hat\pi_t}\,v_t$ &
 i.i.d. $\mathcal{N}(0,1)$ : la seule série exactement échangeable \\
 Résidus logarithmiques & $v_t = \ln r_t + \tfrac{1}{2\hat\pi_t} - \ln\hat\beta$ &
 indépendants et normaux, mais de variance $1/\pi_t$ variable avec $x_t$ \\
@@ -2412,7 +2413,7 @@ conjointement avec la distance de Cook \\
 Student / Fisher (pente) & Loi exacte, mais \emph{conditionnelle} à la
 normalité des erreurs, non testable indépendamment à $T = 8$ &
 Aucune p-value de Monte-Carlo possible (voir texte)~; la normalité est
-examinée séparément en section~6 \\
+examinée séparément en section~\ref{sec:h3} \\
 \rowcolor{tableheader}
 \multicolumn{3}{@{}l@{}}{\textcolor{financeblue}{\textbf{Méthode Merz--Wüthrich}}} \\
 Corrélation entre années de développement & Cinq à six paires de colonnes
@@ -2735,7 +2736,7 @@ des sinistres, évolution de la politique de provisionnement), ce qui contredira
 constance de $\beta$. Limites~: l'approximation normale n'est acceptable qu'à partir de
 $T \approx 10$, en-deçà la loi exacte est nécessaire. Surtout, le test suppose
 \emph{l'indépendance} des observations~: en présence d'autocorrélation positive il rejette
-beaucoup trop souvent, ce qui impose de le lire conjointement avec les tests de la section~7.
+beaucoup trop souvent, ce qui impose de le lire conjointement avec les tests de la section~\ref{sec:h4}.
 \end{fiche}
 
 \begin{fiche}{Test de tendance par signes de Cox--Stuart}
@@ -2771,6 +2772,7 @@ Mann--Kendall doit lui être préféré.
 \clearpage
 % =============================================================================
 \section{Hypothèse H2 --- structure de variance quadratique}
+\label{sec:h2}
 % =============================================================================
 
 \begin{encadre}
@@ -2780,7 +2782,7 @@ convexe d'une composante linéaire en volume (risque mutualisable) et d'une comp
 (risque systématique). Le paramètre $\delta \in [0,1]$ est estimé conjointement à $\gamma$.
 \end{encadre}
 
-Les tests de cette section portent sur les résidus \emph{déjà normalisés} $z_t$~: si la
+Les tests de cette section portent sur les résidus \emph{déjà standardisés} $z_t$~: si la
 pondération $\hat\pi_t$ capture correctement l'hétéroscédasticité, il ne doit subsister
 \emph{aucune} relation entre $z_t^2$ et $x_t$. Un rejet signale donc une structure de variance
 mal spécifiée, et non une hétéroscédasticité en soi (qui est attendue sur les données brutes).
@@ -2795,7 +2797,7 @@ Régression auxiliaire $z_t^2 = c_0 + c_1 x_t + \eta_t$, de coefficient de déte
 $R^2_{\text{aux}}$. Hypothèses non testées~: indépendance des observations et validité de
 l'approximation asymptotique.
 \Hzero
-$H_0 : c_1 = 0$ : la variance des résidus normalisés ne dépend pas du volume, donc la pondération
+$H_0 : c_1 = 0$ : la variance des résidus standardisés ne dépend pas du volume, donc la pondération
 réglementaire $\pi_t$ est correctement spécifiée.
 \Stat
 \[
@@ -2824,7 +2826,7 @@ supplémentaire, et déterminante~: la normalité des erreurs.} C'est elle qui j
 $\operatorname{Var}(u_t^2) = 2\sigma^4$, d'où le facteur $\tfrac12$ de la statistique. Cette
 hypothèse n'est pas testée ici~: elle relève de H3, examinée séparément en partie~III.
 \Hzero
-$H_0 : c_1 = 0$, la variance des résidus normalisés ne dépend pas du volume.
+$H_0 : c_1 = 0$, la variance des résidus standardisés ne dépend pas du volume.
 \Stat
 En posant $g_t = z_t^2 / \hat\sigma^2$ avec $\hat\sigma^2 = T^{-1}\sum_t z_t^2$, on régresse $g$
 sur $x$ et l'on retient la moitié de la somme des carrés expliqués~:
@@ -2960,7 +2962,7 @@ qu'approximative. À $T \le 10$, à considérer comme un simple indicateur.
 \refl{N.\,V. Smirnov, \emph{Sur les écarts de la courbe de distribution empirique},
 \emph{Recueil Mathématique (Matematicheskii Sbornik)}, 6(48), 1939, p.~3--26.}
 \Cadre
-Deux sous-échantillons de résidus normalisés~: $z^{(1)}$ (années à faible volume, effectif $n_1$)
+Deux sous-échantillons de résidus standardisés~: $z^{(1)}$ (années à faible volume, effectif $n_1$)
 et $z^{(2)}$ (années à fort volume, effectif $n_2$), de fonctions de répartition empiriques
 $\hat F_1$, $\hat F_2$. Hypothèses non testées~: indépendance intra et inter échantillons,
 continuité des lois. Le script n'active ce test que si $T \ge 8$ et $n_1, n_2 \ge 3$.
@@ -2991,7 +2993,7 @@ avec $n_1 = n_2 = 5$, la plus petite p-value atteignable est $2/\binom{10}{5} \a
 le rejet reste donc possible mais exige un écart maximal~; (ii) les deux échantillons ne sont pas
 strictement indépendants puisque les $z_t$ partagent les mêmes paramètres estimés
 $(\hat\beta, \hat\delta, \hat\gamma)$, ce qui invalide légèrement la loi de référence. Le
-\emph{QQ-plot à deux échantillons} associé (section~9) reste le diagnostic le plus lisible.
+\emph{QQ-plot à deux échantillons} associé (section~\ref{sec:graphiques}) reste le diagnostic le plus lisible.
 \end{fiche}
 
 \begin{fiche}{Position de $\hat\delta$ dans son domaine (diagnostic)}
@@ -3001,7 +3003,7 @@ $\hat\delta$ est obtenu par minimisation sous contrainte de bornes de la log-vra
 négative. \textbf{Il ne s'agit pas d'un test} mais d'un diagnostic d'identifiabilité.
 \Hzero
 Sans objet en tant que diagnostic. Le test formel correspondant est le test du rapport de
-vraisemblance $H_0 : \delta = 0$ ou $\delta = 1$, documenté en section~10.
+vraisemblance $H_0 : \delta = 0$ ou $\delta = 1$, documenté en section~\ref{sec:robustesse}.
 \Stat
 La valeur $\hat\delta$ elle-même, avec le drapeau
 $\mathbb{1}\{\hat\delta < 10^{-6}\ \text{ou}\ \hat\delta > 1 - 10^{-6}\}$.
@@ -3016,7 +3018,7 @@ et l'optimum est poussé sur une borne. Ce n'est pas une erreur mais un signal f
 car (i) l'écart-type asymptotique de $\hat\delta$ n'est alors pas défini de manière usuelle,
 (ii) le paramètre final peut varier fortement selon la borne retenue, et (iii) la théorie
 asymptotique standard des tests sur $\delta$ ne s'applique plus (voir la correction de Chernoff
-en section~10). Sur des historiques de 5 à 12 points, la solution au bord est le cas de figure le
+en section~\ref{sec:robustesse}). Sur des historiques de 5 à 12 points, la solution au bord est le cas de figure le
 plus fréquent en pratique.
 \end{fiche}
 
@@ -3024,12 +3026,13 @@ plus fréquent en pratique.
 \clearpage
 % =============================================================================
 \section{Hypothèse H3 --- lognormalité des pertes agrégées}
+\label{sec:h3}
 % =============================================================================
 
 \begin{encadre}
 \textbf{Énoncé réglementaire} (annexe~XVII, B/C(2)(f)(iii)). Les pertes agrégées (ou le montant
 de liquidation) suivent une loi lognormale. Cette hypothèse se teste de façon équivalente comme
-la normalité des résidus normalisés $z_t$.
+la normalité des résidus standardisés $z_t$.
 \end{encadre}
 
 \begin{encadre}
@@ -3144,7 +3147,7 @@ Test le plus pertinent pour un usage actuariel~: la pondération en queue le ren
 précisément là où se joue le capital réglementaire. Limite propre à ce contexte~: cette
 sensibilité est aussi sa fragilité, car sur 8 à 12 points les deux ou trois observations extrêmes
 déterminent presque entièrement $A^2$. À croiser impérativement avec les tests de valeurs
-aberrantes de la section~8.
+aberrantes de la section~\ref{sec:stabilite}.
 \end{fiche}
 
 \begin{fiche}{Test de Cramér--von Mises}
@@ -3416,7 +3419,7 @@ d'ordre~1.
 $\mathrm{DW} \in [0,4]$~: proche de 2 sous $H_0$, proche de 0 en autocorrélation positive forte,
 proche de 4 en autocorrélation négative forte.
 \Loi
-Sous $H_0$, les résidus normalisés sont $\mathcal{N}(0, I_T)$~: $\mathrm{DW}$ est alors le
+Sous $H_0$, les résidus standardisés sont $\mathcal{N}(0, I_T)$~: $\mathrm{DW}$ est alors le
 \emph{rapport de deux formes quadratiques} en variables normales,
 $\mathrm{DW} = z'Az / z'z$ où $A$ est la matrice des différences secondes. Ses valeurs propres
 sont connues analytiquement, $\lambda_j = 2\big(1 - \cos(\pi j / T)\big)$, $j = 0,\dots,T-1$
@@ -3537,7 +3540,7 @@ Sans objet.
 Aucune. Le moteur pose \code{ECHEC} si $\mathrm{FOC} > 10^{-6}$.
 \Usage
 \textbf{Point de vigilance essentiel.} C'est la moyenne \emph{pondérée} $\sum_t\hat\pi_t v_t$ qui
-est contrainte à zéro, et non la moyenne simple $\bar z$ des résidus normalisés. Les deux ne
+est contrainte à zéro, et non la moyenne simple $\bar z$ des résidus standardisés. Les deux ne
 coïncident que si $\hat\pi_t$ est constant, c'est-à-dire si $\hat\delta = 1$ ou si les volumes
 $x_t$ sont constants. Sur un jeu de données où $\hat\delta$ est intérieur au domaine, on observe
 typiquement $\mathrm{FOC} \approx 10^{-17}$ (précision machine) alors que
@@ -3948,7 +3951,8 @@ Mesure combinée du levier et de l'ampleur du résidu~: elle répond à la quest
 modèle changerait-il si je retirais cette année ? ». C'est le diagnostic le plus directement utile
 en régime USP, où une seule année peut déterminer le paramètre. Limites~: le seuil $4/T$ est
 purement conventionnel (d'autres auteurs retiennent $1$), et la distance porte sur la régression
-auxiliaire, non sur le modèle de vraisemblance complet -- le jackknife de la section~10 fournit la
+contrainte des moindres carrés, non sur le modèle de vraisemblance complet -- le jackknife de la
+section~\ref{sec:robustesse} fournit la
 mesure exacte pour ce dernier.
 \end{fiche}
 
@@ -3974,7 +3978,7 @@ indépendamment de la sinistralité observée. Une année à fort levier n'est p
 soi, mais elle le devient si son résidu est également grand -- c'est exactement ce que combine la
 distance de Cook. En contexte USP, un levier élevé signale généralement une année de forte
 croissance ou une intégration de portefeuille, à rapprocher du contrôle d'amplitude du volume de
-la section~3.
+la section~\ref{sec:controles}.
 \end{fiche}
 
 \newpage
@@ -4128,6 +4132,7 @@ moyenne pondérée des résidus, elle, est une identité et ne signale rien (fic
 \clearpage
 % =============================================================================
 \section{Diagnostics graphiques complémentaires}
+\label{sec:graphiques}
 % =============================================================================
 
 Les graphiques ne comportent ni hypothèse nulle ni p-value. Toutes les quantités
@@ -4281,7 +4286,7 @@ et en ordonnée ceux du groupe « fort volume », évalués aux mêmes probabili
 $n = \min(n_1,n_2)$. Droite de référence~: la première bissectrice. Rattaché à l'hypothèse H2.
 \Hzero
 Sans objet. Le test numérique correspondant est le test de Smirnov à deux échantillons
-(section~5).
+(section~\ref{sec:h2}).
 \Stat
 Sans objet.
 \Loi
@@ -4290,7 +4295,7 @@ Sans objet.
 Sans objet.
 \Usage
 Diagnostic visuel direct de l'hypothèse de structure de variance~: si la pondération $\pi_t$ est
-correcte, les résidus normalisés des petits et des gros volumes suivent la même loi et les points
+correcte, les résidus standardisés des petits et des gros volumes suivent la même loi et les points
 s'alignent sur la bissectrice. Une \emph{pente} supérieure à 1 signale une dispersion résiduelle
 plus forte sur les gros volumes (donc un $\delta$ sous-estimé), une pente inférieure à 1
 l'inverse~; un décalage vertical d'ensemble signale une différence de niveau relevant plutôt de
@@ -4303,14 +4308,15 @@ H1. Limite~: avec 5 points par groupe, la pente apparente est très instable.
 W.\,S. Cleveland, B.~Kleiner, P.\,A. Tukey, \emph{Graphical Methods for Data
 Analysis}, Wadsworth, 1983.}
 \Cadre
-Trois représentations, rattachées aux diagnostics d'influence de la
-section~\ref{sec:robustesse}. Pour la méthode lognormale, la régression de
+Trois représentations, rattachées aux diagnostics d'influence des
+sections~\ref{sec:stabilite} (distance de Cook, leviers) et~\ref{sec:robustesse}
+(jackknife). Pour la méthode lognormale, la régression de
 référence est le modèle réglementaire contraint $y_t = \beta x_t$, à $k = 1$
 paramètre, de leviers $h_t = x_t^2 / \sum_i x_i^2$ (de somme $k$) et de résidus
 standardisés $e_t / (s\sqrt{1-h_t})$.
 \Hzero
-Sans objet. Les tests numériques correspondants sont la distance de Cook et les
-leviers, documentés en section~\ref{sec:robustesse}.
+Sans objet. Les diagnostics numériques correspondants sont la distance de Cook et
+les leviers, documentés en section~\ref{sec:stabilite}.
 \Stat
 Sans objet (représentations graphiques). Les iso-distances de Cook tracées dans
 le plan $(h, r)$ sont les courbes
@@ -4826,7 +4832,8 @@ méthode elle-même.
 \textcolor{financeblue}{\textbf{Statut}} &
 \textcolor{financeblue}{\textbf{Commentaire}} \\
 Durbin--Watson, test des suites, Grubbs, Rosner, Shapiro--Wilk, Lilliefors &
-réemployés & Appliqués aux résidus de Mack au lieu des résidus normalisés~; la
+réemployés & Appliqués aux résidus de Mack au lieu des résidus standardisés
+$z_t$~; la
 statistique est inchangée, seule la loi de référence est réévaluée. \\
 Breusch--Pagan studentisé & adapté & Régression des carrés des résidus sur
 $C(i,j)$ et non sur le volume $x_t$~: teste la puissance~1 de M2. \\
@@ -5111,6 +5118,25 @@ fiche~\ref{mw:m2b}. Son intérêt propre est de chiffrer l'enjeu~: si $A$ est
 faible, le choix de pondération imposé par le règlement est sans conséquence
 matérielle sur le paramètre final.
 \end{fiche}
+
+% -----------------------------------------------------------------------------
+\clearpage
+% =============================================================================
+\section{Hypothèse M2 --- variance proportionnelle au cumulé}
+\label{sec:mwm2}
+% =============================================================================
+
+\begin{encadre}
+\textbf{Énoncé.} annexe~XVII, D(2)(h)(iv)~: « pour toutes les années
+d'accident, la variance du montant de sinistres cumulé d'une année de
+développement est proportionnelle au montant de sinistres cumulé de l'année de
+développement précédente », soit
+$\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$.
+\end{encadre}
+
+Les fiches ci-dessous suivent la structure en six rubriques employée pour les
+hypothèses H1 à H4 de la méthode lognormale. Les notations sont celles de la
+section~\ref{sec:notations-mw}.
 
 \begin{fiche}{M2 --- Hétéroscédasticité résiduelle contre le cumulé}
 \label{mw:m2bp}
@@ -5763,7 +5789,7 @@ $W'$ (Shapiro--Francia) et du carré du coefficient de corrélation du QQ-plot~;
 boucle explicite de $A^2$, $W^2$, $D$ et du $S$ de Mann--Kendall~; cohérence de $D$ avec
 \code{ks.test}~; vérification de la borne $G \le (T-1)/\sqrt{T}$ pour Grubbs~; et vérification
 numérique que la p-value bilatérale minimale de Cox--Stuart vaut exactement $0{,}0625$ pour
-$T = 10$, ce qui confirme l'affirmation de la section~4.
+$T = 10$, ce qui confirme l'affirmation de la fiche~\ref{fiche:10} (section~\ref{sec:h1}).
 
 \subsection*{Taille effective et puissance}
 
@@ -6278,7 +6304,7 @@ modèle et un mode d'inférence différents.
   \item G.~Barnett, B.~Zehnwirth, \emph{Best estimates for reserves},
   \emph{Proceedings of the Casualty Actuarial Society}, 87, 2000, p.~245--321.
   \emph{Portée.} Discussion des exposants alternatifs de la structure de
-  variance ($\alpha = 0$, $1$ ou $2$). Citée dans la fiche M2 pour situer
+  variance ($\alpha = 0$, $1$ ou $2$). Citée dans la fiche~\ref{mw:m2bp} pour situer
   l'exposant~1 imposé par le règlement parmi les choix possibles, et non pour
   recommander une alternative --- l'annexe~XVII ne laissant pas ce choix ouvert.
 \end{itemize}
