@@ -1420,12 +1420,12 @@ Suites (W.--W.) & LN & $Z$ / $R$ & Oui (combinatoire) & Oui & Oui & \textbf{Exac
 Distribution exacte à privilégier \\
 
 Centrage des résidus & LN & --- & --- & --- & --- &
-\textbf{Diagnostic} & Sans objet & Aucune p-value~: $\bar z$ est rivé par les
-conditions du premier ordre. Restitué sans verdict \\
+\textbf{Diagnostic} & Sans objet & Aucune p-value~: $\bar z$ est rivé par une
+identité de l'estimation. Restitué sans verdict \\
 
 Variance unitaire & LN & --- & --- & --- & --- &
 \textbf{Diagnostic} & Sans objet & Idem pour $\operatorname{Var}(z)$~; la loi
-simulée de cette grandeur est un mélange, non exploitable \\
+simulée porte un atome en la valeur observée \\
 
 sup-F (rupture) & LN & $\sup F$ & Non & Théorique seulement (Andrews) & Oui & Monte-Carlo &
 \textbf{Absence de justification} : loi de sup. de processus, convergence fonctionnelle &
@@ -1655,7 +1655,7 @@ $\operatorname{Var}(z)$ sont rivés par les conditions du premier ordre & --- &
 --- & Sans objet & Optimum intérieur en $\gamma$ ; $\hat\pi_t$ constant pour la
 forme simple $\sum_t z_t = 0$, $\sum_t z_t^2 = T$ &
 Aucune p-value : la loi nominale ignore l'estimation et la loi simulée sous le
-modèle ajusté est un mélange non exploitable. Restitués sans verdict \\
+modèle ajusté porte un atome en la valeur observée. Restitués sans verdict \\
 
 \midrule
 \multicolumn{7}{@{}l@{}}{\textbf{(B) Convergence en $B$ de l'estimateur
@@ -3063,8 +3063,8 @@ entre 2 et $n$) limite fortement le nombre de p-values atteignables.
 \begin{fiche}{Condition du premier ordre (diagnostic numérique)}
 \refl{Diagnostic numérique ; conditions d'optimalité du maximum de vraisemblance.}
 \Cadre
-En annulant la dérivée de l'objectif par rapport à $\ln\beta$, on obtient l'unique contrainte
-que l'estimation impose mécaniquement aux résidus~:
+En annulant la dérivée de l'objectif par rapport à $\ln\beta$, on obtient la contrainte que
+l'estimation impose mécaniquement aux résidus \emph{quel que soit} le couple $(\delta,\gamma)$~:
 \[
   \sum_{t=1}^{T} \hat\pi_t\, v_t = 0
   \qquad\Longleftrightarrow\qquad
@@ -3079,7 +3079,7 @@ $\displaystyle \mathrm{FOC} = \Big|\sum_t \hat\pi_t v_t\Big| \Big/ \sum_t \hat\p
 \Loi
 Sans objet.
 \Pval
-Aucune. \code{ECHEC} si $\mathrm{FOC} > 10^{-6}$ (l'optimisation n'a pas convergé).
+Aucune. Le moteur pose \code{ECHEC} si $\mathrm{FOC} > 10^{-6}$.
 \Usage
 \textbf{Point de vigilance essentiel.} C'est la moyenne \emph{pondérée} $\sum_t\hat\pi_t v_t$ qui
 est contrainte à zéro, et non la moyenne simple $\bar z$ des résidus normalisés. Les deux ne
@@ -3088,8 +3088,20 @@ $x_t$ sont constants. Sur un jeu de données où $\hat\delta$ est intérieur au 
 typiquement $\mathrm{FOC} \approx 10^{-17}$ (précision machine) alors que
 $\bar z \approx 10^{-2}$~: la moyenne simple des résidus n'est donc \emph{pas} un contrôle de
 convergence. Elle n'est pas pour autant une quantité libre~: l'écart entre les deux moyennes est
-déterminé par la dispersion des poids $\hat\pi_t$, ce qui interdit d'en faire un test et conduit à
+de l'ordre de la dispersion des poids $\hat\pi_t$, ce qui interdit d'en faire un test et conduit à
 la restituer comme diagnostic (fiche~\ref{fiche:32}).
+
+\textbf{Portée exacte de ce diagnostic.} $\mathrm{FOC}$ ne mesure pas non plus la convergence.
+\code{usp\_noyau()} calcule $\ln\hat\beta$ en forme fermée,
+$\ln\hat\beta = \big(T/2 + \sum_t\hat\pi_t\ln r_t\big)\big/\sum_t\hat\pi_t$~; en reportant dans
+$v_t = \ln r_t + 1/(2\hat\pi_t) - \ln\hat\beta$, on obtient $\sum_t\hat\pi_t v_t = 0$
+\emph{identiquement}, pour tout couple $(\delta,\gamma)$ et non seulement à l'optimum. Vérifié
+numériquement sur des couples arbitraires --- $(0{,}5\,;-1)$, $(0\,;-3)$, $(1\,;0)$,
+$(0{,}3\,;-2{,}5)$, $(1\,;3)$ --- où $\mathrm{FOC}$ reste inférieur à $10^{-15}$. Le
+\code{ECHEC} de la rubrique~5 ne peut donc se déclencher qu'en cas d'anomalie arithmétique
+(débordement, valeur non finie), jamais parce que l'optimisation se serait arrêtée trop tôt. La
+convergence en $\gamma$, elle, est signalée par l'écart de $\sum_t z_t^2$ à $T$
+(fiche~\ref{fiche:33}), seul indicateur de cette nature dans la restitution.
 \end{fiche}
 
 \begin{fiche}{Centrage des résidus standardisés (diagnostic)}
@@ -3097,9 +3109,12 @@ la restituer comme diagnostic (fiche~\ref{fiche:32}).
 (fiche~\ref{fiche:31}).}
 \Cadre
 Résidus standardisés $z_t = \sqrt{\hat\pi_t}\,v_t$ et leur moyenne simple $\bar z$.
-\textbf{Diagnostic, non test.} La condition du premier ordre en $\ln\beta$ impose
-\emph{toujours} $\sum_t\sqrt{\hat\pi_t}\,z_t = 0$ (fiche~\ref{fiche:31})~: $\bar z$ est donc
-rivé par l'estimation. Cette contrainte pondérée ne se réduit à $\sum_t z_t = 0$ que lorsque
+\textbf{Diagnostic, non test.} La relation $\sum_t\sqrt{\hat\pi_t}\,z_t = 0$ vaut
+\emph{toujours}, et pas seulement à l'optimum~: $\ln\hat\beta$ étant obtenu en forme fermée,
+$\ln\hat\beta = \big(T/2 + \sum_t\hat\pi_t\ln r_t\big)\big/\sum_t\hat\pi_t$, elle est une
+\textbf{identité algébrique} vérifiée pour tout couple $(\delta,\gamma)$, convergé ou non
+(fiche~\ref{fiche:31}). $\bar z$ est donc rivé par l'estimation en toute circonstance. Cette
+contrainte pondérée ne se réduit à $\sum_t z_t = 0$ que lorsque
 $\hat\pi_t$ est \emph{constant}, c'est-à-dire lorsque $\hat\delta = 1$ ou lorsque les volumes
 $x_t$ le sont. Le seul fait que $\hat\delta$ soit au bord de $[0,1]$ ne suffit pas~: à
 $\hat\delta = 0$ avec des volumes variables, $\hat\pi_t$ varie et l'égalité $\sum_t z_t = 0$
@@ -3121,11 +3136,22 @@ parce qu'elle serait constante, mais parce qu'elle est un \emph{mélange}. Const
 sur le jeu de contrôle ($T = 8$, $\hat\delta = 1$, $B = 999$ réplications, graine 20260831)~:
 493 réplications donnent $\delta^{*} = 1$ et une moyenne $\bar z^{*}$ d'écart-type
 $2{,}2\cdot 10^{-16}$, soit un zéro machine~; 460 donnent $\delta^{*} = 0$ et un écart-type de
-$1{,}7\cdot 10^{-2}$, composante diffuse~; 46 un $\delta^{*}$ intérieur. La valeur observée étant
-elle-même un zéro machine ($\bar z = -2{,}0\cdot 10^{-16}$), une p-value bilatérale se déciderait
-au signe du bruit d'arrondi sur près de la moitié des réplications, et dépendrait donc de la
-plateforme de calcul. C'est un constat de simulation sur ce jeu de données, non une propriété
-démontrée du modèle.
+$1{,}7\cdot 10^{-2}$, composante diffuse~; 46 un $\delta^{*}$ intérieur.
+
+Ce n'est pas le mélange en lui-même qui prive la p-value de sens, mais le fait que la loi simulée
+porte un \textbf{atome en la valeur observée}. La valeur observée est elle-même un zéro machine
+($\bar z = -2{,}0\cdot 10^{-16}$) et les 493 réplications de la première composante le sont aussi
+($|\bar z^{*}| \le 7{,}8\cdot 10^{-16}$)~: une p-value bilatérale
+$2\min\big(\mathbb{P}(\bar z^{*}\ge\bar z),\,\mathbb{P}(\bar z^{*}\le\bar z)\big)$ se décide alors
+par le classement d'ex \ae quo numériques. Mesuré~: sur ces 493 réplications, 420 sont comptées
+au-dessus de la valeur observée et 74 au-dessous, uniquement d'après le signe d'un bruit de
+l'ordre de $10^{-16}$ --- d'où la dépendance du résultat à la plateforme de calcul.
+
+Se restreindre à la composante diffuse ne sauverait pas la vérification~: la p-value recalculée
+sur les seules 506 réplications à $\hat\pi_t^{*}$ non constant vaut $0{,}966$. La valeur observée
+est par construction au centre de cette composante, de sorte qu'un test conditionnel serait
+\emph{inopérant} et non simplement mal calibré. Ces deux chiffres sont des constats de simulation
+sur ce jeu de données, non des propriétés démontrées du modèle.
 \Pval
 Aucune. La grandeur a été retirée des statistiques simulées par
 \code{.stats\_bootstrapables()}~: ni p-value exacte, ni p-value de Monte-Carlo, ni p-value
@@ -3134,11 +3160,25 @@ asymptotique n'est calculée ni affichée pour cette ligne, et aucune p-value n'
 \textbf{Pourquoi aucun verdict.} Une grandeur que l'estimation rive ne peut pas contredire le
 modèle~; lui attacher un verdict \code{OK} donnerait au lecteur du dossier l'assurance d'un
 contrôle qui n'en est pas un. La ligne est donc restituée comme diagnostic, avec le verdict
-\code{INFO}, et accompagnée du motif. Ce qu'elle apporte à $T = 8$ est limité mais réel~: lorsque
-$\hat\pi_t$ est constant, $\bar z$ n'est qu'un résidu numérique et renseigne sur la qualité de
-l'arrêt de l'optimiseur, à lire avec la fiche~\ref{fiche:31}~; lorsque $\hat\pi_t$ varie, $\bar z$
-mesure l'écart entre centrage pondéré et centrage non pondéré, donc la dispersion des poids
-$\hat\pi_t$, et non une propriété libre des résidus. Un biais systématique de niveau non capté par
+\code{INFO}, et accompagnée du motif. Ce qu'elle apporte à $T = 8$ est très limité, et il faut le
+dire sans détour. Lorsque $\hat\pi_t$ est constant, $\bar z$ n'est que du bruit d'arrondi et ne
+renseigne sur rien --- en particulier \textbf{pas} sur la qualité de l'arrêt de l'optimiseur,
+puisque l'identité rappelée en rubrique~1 ne dépend pas de la convergence~: mesuré, $\bar z$ vaut
+$-1{,}7\cdot 10^{-17}$ à $(\hat\delta,\gamma) = (1,\,0)$ et $1{,}6\cdot 10^{-16}$ à $(1,\,3)$,
+deux points très éloignés de l'optimum. Lorsque $\hat\pi_t$ varie, $\bar z$ est l'écart entre
+centrage pondéré et centrage non pondéré~: l'identité
+$\sum_t\sqrt{\hat\pi_t}\,z_t = 0$ donne la borne exacte
+\[
+  |\bar z| \;\le\; \frac{\max_t\big|\sqrt{\hat\pi_t} - \bar c\big|}{\bar c}
+  \cdot \frac{1}{T}\sum_t |z_t| ,
+  \qquad \bar c = \frac{1}{T}\sum_t \sqrt{\hat\pi_t} .
+\]
+$\bar z$ est donc \emph{de l'ordre de} la dispersion des poids, sans en être une fonction~: le
+coefficient qui les relie est aléatoire. Mesuré sur les 506 réplications à $\hat\pi_t^{*}$ non
+constant, la corrélation entre $|\bar z^{*}|$ et l'amplitude relative de $\hat\pi_t^{*}$ n'est que
+de $0{,}26$, et le rapport des deux s'étend de $0{,}006$ à $0{,}12$ entre les quantiles 5~\% et
+95~\%. Dans les deux cas, $\bar z$ n'est pas une propriété libre des résidus. Un biais
+systématique de niveau non capté par
 $\hat\beta$ reste recherché ailleurs, par des vérifications qui portent, elles, un verdict~: les
 tests de tendance de l'hypothèse~H1 (section~\ref{sec:h1}) pour une dérive du ratio S/P, les
 fiches~\ref{fiche:34} et~\ref{fiche:35} pour une rupture de régime.
@@ -3153,10 +3193,17 @@ $\operatorname{Var}(z)$. \textbf{Diagnostic, non test.} La condition du premier 
 rive l'échelle des $z_t$ comme celle en $\ln\beta$ en rive le niveau~: lorsque $\hat\pi_t$ est
 constant ($\hat\delta = 1$, ou volumes $x_t$ constants), les deux conditions donnent ensemble
 $\sum_t z_t^2 = T$, soit $\operatorname{Var}(z) = T/(T-1)$ --- c'est-à-dire $1{,}143$ à $T = 8$,
-et non~1. Hors de ce cas, seule la contrainte pondérée subsiste et $\operatorname{Var}(z)$ mesure
-l'écart entre échelle pondérée et échelle non pondérée. L'argument suppose l'optimum intérieur en
-$\gamma$~: si $\hat\gamma$ butte sur une borne de son domaine $[-12, 3]$, la dérivée n'est pas
-annulée et l'égalité tombe.
+et non~1. À la différence de celle en $\ln\beta$ (fiche~\ref{fiche:31}), cette seconde relation
+n'est \emph{pas} une identité algébrique~: elle suppose la dérivée en $\gamma$ effectivement
+annulée, donc l'optimisation aboutie. Hors du cas $\hat\pi_t$ constant, seule la contrainte
+pondérée subsiste et $\operatorname{Var}(z)$ est de l'ordre de l'écart entre échelle pondérée et
+échelle non pondérée. L'argument suppose en outre l'optimum \emph{intérieur} en $\gamma$~: si
+$\hat\gamma$ butait sur une borne de son domaine $[-12,\,3]$, la dérivée ne serait pas annulée et
+l'égalité tomberait. Cette réserve est théorique~: $\sigma = \hat\beta\,e^{\gamma}$, de sorte que
+$\gamma = 3$ signifierait $\sigma \approx 20\,\hat\beta$ et $\gamma = -12$,
+$\sigma \approx 6\cdot 10^{-6}\,\hat\beta$, deux situations sans réalité pour un ratio S/P~; sur
+le jeu de contrôle, aucune des 999 réplications n'atteint une borne ($\hat\gamma^{*}$ reste entre
+$-3{,}34$ et $-1{,}37$).
 \Hzero
 Sans objet. L'hypothèse $\operatorname{Var}(z_t) = 1$, sous laquelle cette grandeur était
 auparavant restituée comme un test, n'est pas celle que l'estimation laisse libre~: la valeur de
@@ -3168,10 +3215,21 @@ table des tests.
 \Loi
 Sans objet. La loi $\chi^2(T-1)$ de $C$ est nominale~: elle ignore l'estimation préalable de
 $(\hat\beta,\hat\delta,\hat\gamma)$ et la contrainte d'échelle qui en résulte. La loi simulée sous
-le modèle ajusté souffre du même défaut de mélange que celle du centrage (fiche~\ref{fiche:32}).
-Constat de simulation sur les mêmes $B = 999$ réplications (graine 20260831)~: les 493 à
-$\hat\pi_t^{*}$ constant donnent une valeur rivée à $T/(T-1)$, d'écart-type
-$3{,}5\cdot 10^{-6}$, les 506 autres une valeur diffuse, d'écart-type $4{,}9\cdot 10^{-3}$.
+le modèle ajusté porte, comme celle du centrage (fiche~\ref{fiche:32}), un atome en la valeur
+observée. Constat de simulation sur les mêmes $B = 999$ réplications (graine 20260831)~: les 493
+à $\hat\pi_t^{*}$ constant donnent une valeur rivée à $T/(T-1)$, d'écart-type
+$3{,}5\cdot 10^{-6}$~; les 506 autres une valeur diffuse, d'écart-type $4{,}9\cdot 10^{-3}$.
+
+Une différence avec le centrage mérite d'être relevée, car elle change la nature du bruit
+comparé~: ici, ce n'est pas l'arrondi machine mais la \textbf{tolérance d'arrêt de l'optimiseur}.
+Sur les 493 réplications concernées, $\operatorname{Var}(z^{*}) - T/(T-1)$ s'étend de
+$-3{,}0\cdot 10^{-5}$ à $+7{,}1\cdot 10^{-5}$, de médiane $-7{,}7\cdot 10^{-7}$, quand la valeur
+observée vaut $-7{,}8\cdot 10^{-7}$. Or les deux ne sont pas produites au même réglage~:
+l'ajustement observé emploie \code{factr = 1e5} et le réajustement des réplications
+\code{factr = 1e7}. La p-value de Monte-Carlo autrefois retenue ($0{,}864$) comparait donc deux
+tolérances d'optimiseur différentes. Se restreindre à la composante diffuse ne sauverait pas
+davantage la vérification qu'au centrage~: la p-value recalculée sur les seules 506 réplications à
+$\hat\pi_t^{*}$ non constant vaut $0{,}998$.
 \Pval
 Aucune. La grandeur a été retirée des statistiques simulées par
 \code{.stats\_bootstrapables()}~; aucune p-value n'est calculée ni retenue pour cette ligne.
@@ -3179,12 +3237,22 @@ Aucune. La grandeur a été retirée des statistiques simulées par
 \textbf{Pourquoi aucun verdict.} Comme pour le centrage, la grandeur est rivée par l'estimation~:
 elle est restituée comme diagnostic, avec le verdict \code{INFO} et le motif. Sur le jeu de
 contrôle ($T = 8$, $\hat\delta = 1$), $\operatorname{Var}(z) = 1{,}142856$ contre
-$T/(T-1) = 1{,}142857$~: l'écart, de l'ordre de $10^{-6}$ en relatif, provient de la tolérance
-d'arrêt de l'optimiseur et non des données. Lecture à $T = 8$~: un écart notable à $T/(T-1)$
-lorsque $\hat\pi_t$ est constant signale un défaut de convergence, à rapprocher de la
-fiche~\ref{fiche:31}~; lorsque $\hat\pi_t$ varie, l'écart mesure la dispersion des poids. Le
-contrôle de l'échelle de $\sigma$ proprement dit relève de l'intervalle bootstrap et du jackknife
-(section~\ref{sec:robustesse}), qui portent, eux, sur $\sigma_{\mathrm{USP}}$.
+$T/(T-1) = 1{,}142857$~: l'écart, $-6{,}8\cdot 10^{-7}$ en relatif, provient de la tolérance
+d'arrêt de l'optimiseur et non des données.
+
+\textbf{Ce que ce diagnostic apporte, et qu'aucun autre n'apporte.} L'écart de $\sum_t z_t^2$ à
+$T$ est, à ce jour, le \emph{seul} indicateur de la convergence en $\gamma$ de toute la
+restitution~: la condition en $\ln\beta$ étant une identité (fiche~\ref{fiche:31}), elle ne peut
+rien signaler, tandis que celle en $\gamma$ n'est satisfaite qu'à l'optimum. Les ordres de
+grandeur mesurés situent ce que « notable » veut dire~: à l'optimum, $10^{-6}$ en relatif avec
+\code{factr = 1e5}, et jusqu'à $6\cdot 10^{-5}$ sur les réplications réajustées avec
+\code{factr = 1e7}~; à $\hat\delta = 1$ mais $\gamma$ forcé hors de l'optimum,
+$\sum_t z_t^2 - T$ vaut $-7{,}8$ pour $\gamma = 0$ et $-7{,}97$ pour $\gamma = 3$. Un écart de cet
+ordre est donc un défaut de convergence, non une propriété des données. Lorsque $\hat\pi_t$ varie,
+l'écart est en revanche de l'ordre de la dispersion des poids, sans en être une fonction, et ne
+se lit plus comme un contrôle numérique. Le contrôle de l'échelle de $\sigma$ proprement dit
+relève de l'intervalle bootstrap et du jackknife (section~\ref{sec:robustesse}), qui portent, eux,
+sur $\sigma_{\mathrm{USP}}$.
 \end{fiche}
 
 \newpage
@@ -3537,8 +3605,8 @@ fonction objectif de l'annexe~XVII peut présenter un plateau très plat en $\de
 l'amplitude des volumes $x_t$ est faible (car $\pi_t$ dépend alors peu de $\delta$), situation
 dans laquelle l'optimiseur s'arrête en des points différents selon son initialisation. Un
 $\hat\kappa$ faible est un signal d'alerte à traiter \emph{avant} toute interprétation des tests,
-au même titre que le contrôle de nullité de la moyenne \emph{pondérée} des résidus
-(fiche~\ref{fiche:31}).
+au même titre que l'écart de $\sum_t z_t^2$ à $T$ (fiche~\ref{fiche:33})~; la nullité de la
+moyenne pondérée des résidus, elle, est une identité et ne signale rien (fiche~\ref{fiche:31}).
 \end{fiche}
 
 \newpage
@@ -5285,9 +5353,11 @@ envisagé, sensibilité du paramètre final. \\
 \begin{enumerate}[itemsep=2pt]
   \item \textbf{Contrôles de données} (section~\ref{sec:controles}) -- bloquants. Aucun résultat
         n'a de sens si un contrôle est en échec.
-  \item \textbf{Convergence numérique} (fiches~\ref{fiche:31} et~\ref{fiche:43}) et nullité de la
-        moyenne \emph{pondérée} des résidus -- préalables techniques. La moyenne simple $\bar z$
-        est un diagnostic (fiche~\ref{fiche:32}), non un contrôle de convergence.
+  \item \textbf{Convergence numérique} -- préalable technique~: part des démarrages convergents
+        (fiche~\ref{fiche:43}) et écart de $\sum_t z_t^2$ à $T$ (fiche~\ref{fiche:33}). La
+        nullité de la moyenne \emph{pondérée} des résidus n'en fait pas partie~: c'est une
+        identité algébrique, vraie même sans convergence (fiche~\ref{fiche:31}). La moyenne
+        simple $\bar z$ est, elle, un diagnostic (fiche~\ref{fiche:32}).
   \item \textbf{Jackknife et intervalle bootstrap} (section~\ref{sec:robustesse}) -- la mesure la
         plus directe de la solidité du calibrage à $T$ faible.
   \item \textbf{Position de $\hat\delta$ et test du rapport de vraisemblance}
