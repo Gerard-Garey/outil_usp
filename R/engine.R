@@ -2874,9 +2874,17 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                              "l'estimateur de Mack, somme_i r(i,j)^2 = n_j - 1",
                              "exactement dans chaque colonne, la somme des carres",
                              "vaut N - k = %d - %d = %d et var(r) est contrainte par",
-                             "construction. Un ecart marque a cette valeur signale",
-                             "une mauvaise specification de sigma_j."),
-                       format(var_attendue, digits = 6), n, k_col, n - k_col))
+                             "construction. Cette ligne ne teste donc PAS la structure",
+                             "de variance -- mesure : une variance en C^2 au lieu de",
+                             "C^1 laisse var(r) a 2,5e-03 de la reference, quand",
+                             "l'identite tient a 1e-15. L'ecart a la reference vaut",
+                             "exactement N moyenne(r)^2/(N-1) : ce que cette ligne",
+                             "donne a lire est le CENTRAGE des residus, ici %s, et la",
+                             "coherence interne de la standardisation. La structure de",
+                             "variance est testee par Breusch-Pagan et par l'exposant",
+                             "de variance par colonne."),
+                       format(var_attendue, digits = 6), n, k_col, n - k_col,
+                       format(mean(r), digits = 3)))
 
   ## --- M3 : independance des annees d'accident et de developpement ----------
   fam <- "M3. independance (annexe XVII D(2)(h)(i) et (ii))"
