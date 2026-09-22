@@ -110,7 +110,7 @@ Le vocabulaire du domaine (test, diagnostic, verdict, test inopérant, p-value e
 
 ### Issue tracker
 
-Issues et specs dans les GitHub Issues de `Gerard-Garey/outil_usp`, via la CLI `gh`. Voir `docs/agents/issue-tracker.md`.
+Issues et specs dans les GitHub Issues de `Gerard-Garey/outil_usp` : outils `mcp__github__*` en session cloud, CLI `gh` sur le poste local. Voir `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
