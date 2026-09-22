@@ -57,6 +57,27 @@ rendu_graphique <- function(expr, env = parent.frame(), quoted = FALSE) {
 FICHIER_LN <- "usp_donnees_LN.csv"     # methodes lognormales (prime, reserve 1)
 FICHIER_MW <- "usp_donnees_MW.csv"     # methode Merz-Wuthrich (reserve 2)
 
+# Libelles du bandeau de refus. Trois natures, distinguees par l'endroit ou le
+# calcul s'est arrete : avant tout appel au moteur (controles de validite),
+# apres calcul du moteur (run_engine() retourne ok = FALSE), ou sur une erreur
+# R interceptee. Le motif detaille vient toujours du moteur ; ces libelles ne
+# font que le presenter.
+TITRE_NON_LANCE <- paste("Calcul non lance : les donnees saisies n'ont pas passe",
+                         "les controles de validite du moteur.")
+TITRE_REFUSE    <- paste("Calcul refuse : le moteur a calcule, puis refuse",
+                         "ce jeu de donnees.")
+TITRE_ERREUR    <- "Erreur du moteur : le calcul a ete interrompu."
+
+# Explication commune : elle dit pourquoi l'ecran est vide. Le resultat du
+# calcul precedent est retire de l'affichage ET des exports, pour qu'aucun
+# livrable ne puisse porter un sigma_USP ou des verdicts obtenus sur d'autres
+# donnees que celles actuellement saisies.
+EXPLICATION_REFUS <- paste(
+  "Aucun resultat n'est affiche. Le resultat du calcul precedent a ete retire",
+  "de l'ecran et des exports, pour qu'aucun livrable ne porte un sigma_USP ou",
+  "des verdicts obtenus sur d'autres donnees que celles actuellement saisies.",
+  "Corrigez les donnees ou les parametres, puis relancez les calculs.")
+
 DONNEES_DEFAUT <- data.frame(
   t  = 1:8,
   xt = c(104.20, 102.25, 109.34, 114.64, 118.41, 121.28, 132.40, 131.22),
@@ -143,6 +164,7 @@ ui <- fluidPage(
     column(
       width = 9,
       h3("Parametres propres a l'entreprise — risque de prime et de reserve"),
+      uiOutput("bandeau_refus"),
       div(class = "avert", uiOutput("bandeau_T")),
       tabsetPanel(
         id = "onglets", type = "tabs",
@@ -252,8 +274,7 @@ ui <- fluidPage(
           div(class = "bloc", h4("Journal d'execution (tracabilite)"),
               verbatimTextOutput("tab_meta")),
           div(class = "bloc", h4("Export"),
-              downloadButton("dl_tests", "Table complete des tests (CSV)"), " ",
-              downloadButton("dl_calib", "Calibration (CSV)"))
+              uiOutput("bloc_export"))
         )
       )
     ),
@@ -320,7 +341,18 @@ server <- function(input, output, session) {
   triangle  <- reactiveVal(TRIANGLE_INIT)    # methode Merz-Wuthrich
   resultat  <- reactiveVal(NULL)
   selection <- reactiveVal(NULL)             # personnalisation des tests
+  # Motif du dernier calcul non abouti, remis a NULL des qu'un calcul aboutit.
+  dernier_refus <- reactiveVal(NULL)
   est_mw <- reactive(identical(input$methode, "reserve2"))
+
+  # Retour anticipe de observeEvent(input$go) : on retire le resultat du
+  # calcul precedent (il ne correspond plus aux donnees affichees, et il ne
+  # doit plus pouvoir etre exporte) et on enregistre le motif, qui provient du
+  # moteur. Aucune regle metier ici : l'interface ne fait que restituer.
+  refuser <- function(titre, motifs) {
+    resultat(NULL); selection(NULL)
+    dernier_refus(list(titre = titre, motifs = as.character(motifs)))
+  }
 
   output$aide_methode <- renderText({
     if (est_mw())
@@ -530,6 +562,7 @@ server <- function(input, output, session) {
     if (est_mw()) {
       m <- lire_triangle(); v <- mw_valider_triangle(m)
       if (!v$ok) {
+        refuser(TITRE_NON_LANCE, utils::head(v$erreurs, 6))
         showNotification(paste("Calcul non lance :", paste(utils::head(v$erreurs, 2), collapse = " ")),
                          type = "error", duration = 10); return()
       }
@@ -539,14 +572,25 @@ server <- function(input, output, session) {
                               sigma_standard = if (isTRUE(input$sigma_manuel)) input$sigma_std else NULL,
                               B = input$B, alpha = input$alpha, seed = input$seed), silent = TRUE)
         if (inherits(res, "try-error")) {
+          refuser(TITRE_ERREUR, conditionMessage(attr(res, "condition")))
           showNotification(paste("Erreur du moteur :", conditionMessage(attr(res, "condition"))),
                            type = "error", duration = 12); return()
         }
-        resultat(res); selection(NULL)
+        # Le moteur peut refuser le calcul APRES l'ajustement (reserve
+        # chain-ladder totale <= 0, MSEP non finie) : le motif vient de lui,
+        # l'interface ne fait que le restituer.
+        if (!isTRUE(res$ok)) {
+          refuser(TITRE_REFUSE, utils::head(res$validation$erreurs, 6))
+          showNotification(paste("Calcul refuse :",
+                                 paste(utils::head(res$validation$erreurs, 2), collapse = " ")),
+                           type = "error", duration = 15); return()
+        }
+        resultat(res); selection(NULL); dernier_refus(NULL)
       })
     } else {
       sa <- lire_saisie(); v <- engine_valider_donnees(sa$xt, sa$yt)
       if (!v$ok) {
+        refuser(TITRE_NON_LANCE, utils::head(v$erreurs, 6))
         showNotification(paste("Calcul non lance :", paste(v$erreurs, collapse = " ")),
                          type = "error", duration = 10); return()
       }
@@ -560,10 +604,17 @@ server <- function(input, output, session) {
                               delta_equiv = if (isTRUE(input$delta_apriori)) input$delta_equiv else NULL),
                    silent = TRUE)
         if (inherits(res, "try-error")) {
+          refuser(TITRE_ERREUR, conditionMessage(attr(res, "condition")))
           showNotification(paste("Erreur du moteur :", conditionMessage(attr(res, "condition"))),
                            type = "error", duration = 12); return()
         }
-        resultat(res); selection(NULL)
+        if (!isTRUE(res$ok)) {
+          refuser(TITRE_REFUSE, utils::head(res$validation$erreurs, 6))
+          showNotification(paste("Calcul refuse :",
+                                 paste(utils::head(res$validation$erreurs, 2), collapse = " ")),
+                           type = "error", duration = 15); return()
+        }
+        resultat(res); selection(NULL); dernier_refus(NULL)
       })
     }
     showNotification("Calculs termines.", type = "message")
@@ -573,6 +624,19 @@ server <- function(input, output, session) {
   TB <- reactive({ engine_table_tests(R()) })
 
   # --- Bandeaux et etat -----------------------------------------------------
+  # Bandeau de refus : il reste affiche tant qu'aucun calcul n'a abouti depuis
+  # le dernier retour anticipe, la ou la notification disparait au bout de
+  # quelques secondes. Il explique pourquoi les onglets de resultat sont vides.
+  output$bandeau_refus <- renderUI({
+    ref <- dernier_refus()
+    if (is.null(ref)) return(NULL)
+    div(class = "err",
+        tags$b(ref$titre),
+        if (length(ref$motifs))
+          tags$ul(style = "margin:4px 0", lapply(ref$motifs, tags$li)),
+        tags$div(EXPLICATION_REFUS))
+  })
+
   output$bandeau_T <- renderUI({
     r <- resultat()
     if (is.null(r)) return(HTML("Renseignez les donnees puis cliquez sur <b>Relancer les calculs</b>."))
@@ -916,6 +980,18 @@ server <- function(input, output, session) {
     cat("Horodatage           :", format(m$horodatage, "%Y-%m-%d %H:%M:%S"), "\n")
     cat("Duree (s)            :", round(m$duree_sec, 2), "\n")
     cat("Version R            :", m$version_R, "\n")
+  })
+
+  # Les boutons d'export des resultats ne sont proposes que si un calcul a
+  # abouti : apres un refus, il n'y a plus de resultat a exporter, et le
+  # resultat precedent ne doit pas pouvoir etre depose a cote de donnees qui
+  # ne l'ont pas produit.
+  output$bloc_export <- renderUI({
+    if (is.null(resultat()))
+      return(div(style = "color:#7F8C8D",
+                 "Aucun resultat a exporter : lancez d'abord un calcul."))
+    tagList(downloadButton("dl_tests", "Table complete des tests (CSV)"), " ",
+            downloadButton("dl_calib", "Calibration (CSV)"))
   })
 
   output$dl_tests <- downloadHandler(

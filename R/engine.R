@@ -2105,8 +2105,12 @@ mw_valider_triangle <- function(tri, T_min = 5) {
     }
   }
   if (!length(err)) {
-    # Le paragraphe 2(h)(iii) suppose des cumules croissants ; un recul traduit
-    # un boni de liquidation ou un recouvrement, licite mais a signaler.
+    # Avertissement de nature ACTUARIELLE, sans fondement reglementaire : le
+    # paragraphe 2(h)(iii) pose seulement que l'esperance du cumule d'une annee
+    # de developpement est PROPORTIONNELLE a celle de la precedente, et ne
+    # contraint pas le facteur f_j a etre >= 1. Le texte ne dit donc rien des
+    # cumules decroissants. Un recul traduit un boni de liquidation ou un
+    # recouvrement, licite : on le signale sans refuser.
     for (i in 0:I) {
       d <- I - i
       if (d >= 1) {
@@ -2238,13 +2242,65 @@ mw_msep <- function(aj) {
   list(msep = t1 + t2, terme_variance = t1, terme_covariance = t2)
 }
 
+# --- Applicabilite de la methode no 2 : reserve et MSEP ----------------------
+# Controle de validite metier qui ne peut pas figurer dans mw_valider_triangle()
+# : la reserve chain-ladder totale R et la MSEP ne sont connues qu'APRES
+# l'ajustement. Le paragraphe D(4) definit sigma(res,s,USP) a partir de
+# racine(MSEP) / R, c'est-a-dire d'un COEFFICIENT DE VARIATION de la reserve :
+# la grandeur n'est definie que pour R > 0. Avec R < 0 le rapport est negatif
+# et le melange de credibilite produit un sigma_USP inferieur au sigma standard
+# -- un allegement de capital fabrique par une division par un nombre negatif ;
+# avec R = 0 il vaut NaN. Le refus est donc la seule conclusion actuarielle
+# tenable : la methode n'est pas applicable au triangle fourni.
+# Coherence interne : mw_bootstrap() ecarte deja toute replication dont la
+# reserve simulee est <= 0 ; la regle de l'estimation ponctuelle ne peut pas
+# etre plus permissive que celle de ses replications.
+# Ne sont PAS des motifs de refus (decision M4, issue #7) : des reserves
+# negatives sur certaines annees de survenance avec un total > 0 (bonis de
+# liquidation, recours sur annees anciennes) et un f_j < 1 isole, qui restent
+# couverts par l'avertissement de mw_valider_triangle() sur les cumules
+# decroissants.
+mw_valider_ajustement <- function(aj, msep) {
+  err <- character(0)
+  R <- aj$reserve
+  if (!is.finite(R))
+    err <- c(err, sprintf(paste0("Reserve chain-ladder totale non finie (R = %s) : ",
+                                 "sigma(res,s,USP) est defini par D(4) comme racine(MSEP) / R ; ",
+                                 "la methode du risque de reserve no 2 n'est pas applicable a ce triangle."),
+                          format(R)))
+  else if (R <= 0)
+    err <- c(err, sprintf(paste0("Reserve chain-ladder totale negative ou nulle (R = %s) : ",
+                                 "sigma(res,s,USP) est defini par D(4) comme racine(MSEP) / R et ",
+                                 "n'a pas de sens pour R <= 0 ; la methode du risque de reserve no 2 ",
+                                 "n'est pas applicable a ce triangle."),
+                          format(R, digits = 6)))
+  # Une MSEP negative est impossible sur un triangle valide (tous les termes de
+  # mw_msep() sont positifs ou nuls), mais la fonction est publique : elle garde
+  # le domaine de racine(MSEP) / R, donc elle refuse aussi ce cas plutot que de
+  # laisser sqrt() produire un NaN assorti d'un simple avertissement.
+  if (!is.finite(msep) || msep < 0)
+    err <- c(err, sprintf(paste0("MSEP a un an non finie ou negative (MSEP = %s) : ",
+                                 "sigma(res,s,USP) n'est pas calculable ; la methode du risque ",
+                                 "de reserve no 2 n'est pas applicable a ce triangle."),
+                          format(msep)))
+  list(ok = length(err) == 0, erreurs = err, avertissements = character(0),
+       reserve = R, msep = msep)
+}
+
 # --- Parametre propre : paragraphe 4 -----------------------------------------
 # sigma(res,s,USP) = c * sqrt(MSEP) / somme_{i=0}^{I}(C^(i,J) - C(i,I-i))
 #                    + (1 - c) * sigma(res,s)
+# Les cas ou le rapport racine(MSEP) / R n'a pas de sens sont refuses ici par
+# une erreur explicite, comme l'est deja une duree inferieure a 5 ans (via
+# usp_credibilite). Le point d'entree run_engine() n'atteint jamais cette
+# erreur : .run_engine_mw() appelle mw_valider_ajustement() en amont et
+# renvoie ok = FALSE avec sa validation.
 mw_parametre <- function(aj, msep, sigma_standard, bareme = "court") {
   T_cred <- aj$I + 1L                       # duree = nombre d'annees d'accident
   cred <- usp_credibilite(T_cred, bareme)   # section G(3)(c)
   reserve <- aj$reserve
+  vc <- mw_valider_ajustement(aj, msep)
+  if (!vc$ok) stop(paste(vc$erreurs, collapse = " "))
   sigma_est <- sqrt(msep) / reserve
   list(reserve = reserve, msep = msep, racine_msep = sqrt(msep),
        sigma_estime = sigma_est, credibilite = cred,
@@ -2904,6 +2960,21 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
 
   aj   <- mw_ajuster(triangle)
   msep <- mw_msep(aj)
+  # Second controle de validite metier, impossible avant l'ajustement : la
+  # reserve totale et la MSEP conditionnent l'existence meme de sigma(res,s,USP)
+  # (voir mw_valider_ajustement). Il est place ici, avant tout calcul de
+  # parametre ou de bootstrap, pour renvoyer ok = FALSE avec la validation
+  # plutot que de lever une erreur, comme la branche lognormale le fait pour
+  # des donnees invalides.
+  vc <- mw_valider_ajustement(aj, msep$msep)
+  if (!vc$ok) {
+    validation$ok <- FALSE
+    validation$erreurs <- c(validation$erreurs, vc$erreurs)
+    return(structure(list(ok = FALSE, validation = validation, methode = "reserve2",
+                          metadata = list(horodatage = t0, methode = "reserve2")),
+                     class = "usp_engine"))
+  }
+
   par  <- mw_parametre(aj, msep$msep, sigma_standard, bareme)
   boot <- mw_bootstrap(aj, B = B, seed = seed)
   tests <- mw_tests(aj, boot, alpha)
