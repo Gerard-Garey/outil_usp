@@ -413,36 +413,60 @@ aiguille vers l'une des deux chaînes~: à gauche les méthodes lognormales
 (sections~B et~C de l'annexe~XVII), à droite la méthode Merz--Wüthrich
 (section~D). Les deux convergent vers un objet de sortie unique, que la couche
 d'affichage se contente de lire. \code{usp\_credibilite()} est la seule fonction
-de calcul partagée par les deux branches.}
+de calibration commune aux deux branches.}
 \label{fig:archi}
 \end{figure}
 
 \subsection{Inventaire des fonctions}
 \label{sec:inventaire}
 
-\begin{center}
-\small
+{\small
 \rowcolors{2}{tablerow}{white}
-\begin{tabular}{@{}p{4.6cm}p{4.0cm}p{6.2cm}@{}}
+\begin{longtable}{@{}p{4.6cm}p{4.0cm}p{6.2cm}@{}}
 \rowcolor{tableheader}
 \textcolor{financeblue}{\textbf{Fonction}} &
 \textcolor{financeblue}{\textbf{Entrées}} &
 \textcolor{financeblue}{\textbf{Sorties}} \\
+\endfirsthead
+\rowcolor{tableheader}
+\textcolor{financeblue}{\textbf{Fonction}} &
+\textcolor{financeblue}{\textbf{Entrées}} &
+\textcolor{financeblue}{\textbf{Sorties}} \\
+\endhead
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Contrôles et données}}} \\
 \code{engine\_valider\_donnees()} & \code{xt}, \code{yt}, \code{T\_min} &
 \code{\$ok}, \code{\$erreurs}, \code{\$avertissements} \\
-\code{usp\_controle\_donnees()} & \code{xt}, \code{yt}, \code{alpha} &
+\code{usp\_controle\_donnees()} & $x$, $y$, \code{alpha} (0,10) &
 liste de contrôles de recevabilité \\
 \code{mw\_valider\_triangle()} & \code{tri}, \code{T\_min} &
 \code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, $I$, $J$ \\
-\code{mw\_valider\_ajustement()} & sortie de \code{mw\_ajuster()}, MSEP &
-\code{\$ok}, \code{\$erreurs}, \code{\$reserve}, \code{\$msep} \\
+\code{mw\_valider\_ajustement()} & \code{aj} (sortie de \code{mw\_ajuster()}),
+\code{msep} (champ \code{\$msep} de \code{mw\_msep()}) &
+\code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, \code{\$reserve},
+\code{\$msep} \\
+\code{usp\_lire\_vecteur()},\newline \code{usp\_charger()} & chemins de fichiers CSV,
+\code{sep}, \code{dec}~; pour la seconde, $T$ et le sens chronologique des
+données &
+vecteur lu~; liste \code{\$x}, \code{\$y}, \code{\$T} (les $T$ années les plus
+récentes) \\
+\code{engine\_lire\_donnees\_csv()} & \code{data.frame} (colonnes $t$,
+\code{xt}, \code{yt}) & \code{\$ok}, \code{\$erreurs}, \code{\$xt}, \code{\$yt},
+\code{\$n} \\
+\code{engine\_lire\_xlsx()}, \code{engine\_ecrire\_xlsx()} & \code{chemin},
+\code{entete}~; \code{df}, \code{chemin}, \code{feuille} & \code{data.frame}
+lu~; chemin du fichier écrit (§\ref{sec:graines} pour la voie de repli) \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Noyau du modèle}}} \\
-\code{usp\_pi()} & $\delta$, $\gamma$, $x$ & vecteur $\pi_t$ \\
-\code{usp\_noyau()} & $\delta$, $\gamma$, $x$, $y$ &
-$\ln\hat\beta$, $v_t$, $z_t$, $\sigma$, objectif \\
-\code{usp\_objectif()} & \code{par}, $x$, $y$ & $-2\ln L$ (à une constante près) \\
-\code{usp\_ajuster()} & $x$, $y$ & \code{fit} complet, FOC, convergence \\
+\code{usp\_pi()} & $\delta$, $\gamma$, $x$, \code{xbar} (moyenne de $x$) &
+vecteur $\pi_t$ \\
+\code{usp\_noyau()} & $\delta$, $\gamma$, $x$, $y$, \code{xbar} &
+$\pi_t$, $\ln\hat\beta$, $\hat\beta$, $v_t$, $z_t$, $\sigma$, objectif \\
+\code{usp\_objectif()} & \code{par} $=(\delta,\gamma)$, $x$, $y$, \code{xbar} &
+$-2\ln L$ (à une constante près) \\
+\code{usp\_ajuster()} & $x$, $y$, \code{n\_starts\_delta} (9),
+\code{verbose} & \code{fit} complet, FOC, convergence \\
+\code{usp\_ajuster\_rapide()} & $x$, $y$, point de départ $(\delta_0,\gamma_0)$ &
+réajustement à un seul démarrage (\code{factr = 1e7}), employé par
+\code{usp\_bootstrap()} \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Lois exactes}}} \\
 \code{mk\_p\_exacte()} & série $r_t$ & p-value exacte (loi mahonienne) \\
 \code{runs\_p\_exacte()} & résidus $z_t$ & p-value exacte (Swed \& Eisenhart) \\
@@ -455,28 +479,67 @@ p-value d'équivalence (TOST) \\
 \code{.stats\_bootstrapables()} & $x$, $y$, $z$ & vecteur de 34 statistiques \\
 \code{usp\_simuler()} & \code{fit} & $T$ pertes $y_t$ simulées sous le modèle
 ajusté \\
-\code{usp\_bootstrap()} & \code{fit}, $B$, \code{seed} &
-\code{p\_mc}, \code{err\_mc}, \code{sigma\_boot} \\
-\code{mw\_bootstrap()} & \code{aj}, $B$, \code{seed} & \code{stats\_obs}, \code{p\_mc}, \code{err\_mc},
-\code{B\_effectif}, \code{sigma\_boot} \\
-\code{usp\_tests()} & \code{fit}, \code{boot}, \code{alpha} &
+\code{usp\_bootstrap()} & \code{fit}, $B$ (999), \code{seed} (20260831),
+\code{refit} (vrai), \code{progres} &
+\code{stats\_obs}, \code{p\_mc}, \code{err\_mc}, \code{B\_effectif},
+\code{granularite}, \code{sigma\_boot}, \code{delta\_boot}, \code{gamma\_boot} \\
+\code{mw\_bootstrap()} & \code{aj}, $B$ (999), \code{seed} (20260831) &
+\code{stats\_obs}, \code{p\_mc}, \code{err\_mc},
+\code{B\_effectif}, \code{granularite}, \code{sigma\_boot} \\
+\code{usp\_tests()} & \code{fit}, \code{boot}, \code{alpha} (0,10),
+\code{theta\_equiv} (0,10), \code{delta\_equiv} &
 liste des tests (H0, H1, statistique, 3 p-values, nature) \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Robustesse et calibration}}} \\
-\code{usp\_jackknife()} & \code{fit}, $\sigma_{\text{std}}$ &
+\code{usp\_jackknife()} & \code{fit}, $\sigma_{\text{std}}$, barème &
 table des $\sigma_{\mathrm{USP}}^{(-t)}$ \\
-\code{usp\_profil()} & \code{fit} & profils en $\delta$ et $\gamma$, tests LR \\
-\code{usp\_segment\_infos()} & segment, annexe & libellé, $\sigma$ standard, barème \\
+\code{usp\_profil()} & \code{fit}, \code{n} (41 points) & profils en $\delta$ et $\gamma$, tests LR \\
+\code{usp\_segment\_infos()}, \code{usp\_bareme\_segment()} & segment, annexe &
+libellé, $\sigma$ standard, barème~; barème seul \\
 \code{usp\_credibilite()} & $T$, barème & facteur $c$ \\
 \code{usp\_parametre()} & \code{fit}, $\sigma_{\text{std}}$, barème &
 $\sigma_{\mathrm{USP}}$ et ses composantes \\
+\multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Chaîne Merz--Wüthrich (section~D, §\ref{sec:mw})}}} \\
+\code{mw\_ajuster()} & \code{tri} &
+$I$, $J$, $\hat f_j$, $\hat\sigma^2_j$, $Q_j$, $S_j$, $S'_j$, $\hat C(i,j)$,
+réserve par année et totale \\
+\code{mw\_extrapolation\_sigma2()} & \code{aj}, \code{tol} ($10^{-12}$) &
+valeur de $\hat\sigma^2_{J-1}$ et diagnostic de la règle d'extrapolation \\
+\code{mw\_msep()} & \code{aj} & \code{\$msep}, \code{\$terme\_variance},
+\code{\$terme\_covariance} \\
+\code{mw\_residus()} & \code{aj} & \code{data.frame} des résidus de Mack
+$r(i,j)$ \\
+\code{mw\_simuler\_triangle()}, \code{.mw\_stats()} & \code{aj}, vivier de
+résidus~; \code{aj} & triangle simulé~; vecteur de 13 statistiques \\
+\code{mw\_test\_*()}, \code{mw\_famille\_alpha()},
+\code{mw\_stat\_correlation\_dev()} & \code{aj} & statistiques des tests M1 à
+M6 (détail~: §\ref{sec:index-fonctions}) \\
+\code{mw\_tests()} & \code{aj}, \code{boot}, \code{alpha} (0,10) &
+liste des tests M1 à M6 (même structure que \code{usp\_tests()}) \\
+\code{mw\_parametre()} & \code{aj}, \code{msep} (champ \code{\$msep}),
+$\sigma_{\text{std}}$, barème & $\sigma_{\mathrm{USP}}$ et ses composantes \\
+\code{mw\_influence()} & \code{aj} & levier, facteur sans la cellule,
+écart relatif de $\hat f_j$, par cellule \\
+\code{mw\_contributions()} & \code{aj}, \code{msep} (sortie de
+\code{mw\_msep()}) & parts de chaque année de survenance dans la réserve et
+dans le terme de variance de processus \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Sorties}}} \\
 \code{engine\_plots\_data()} & \code{fit}, \code{boot}, \code{profil},\newline
 \code{jackknife}, \code{sigma\_usp} & toutes les quantités tracées (branche
 lognormale) \\
+\code{engine\_surface\_objectif()}\newline \code{engine\_influence()}\newline
+\code{engine\_contours\_cook()} & \code{fit}~; \code{fit}, \code{jackknife},
+\code{sigma\_usp}~; $T$ & surface de l'objectif en $(\delta,\gamma)$~; leviers,
+distances de Cook~; courbes d'iso-Cook (appelées par
+\code{engine\_plots\_data()}) \\
+\code{mw\_plots\_data()} & \code{aj}, résidus, \code{boot}, \code{msep} &
+toutes les quantités tracées (branche Merz--Wüthrich) \\
 \code{engine\_table\_tests()} & \code{res} & \code{data.frame} auditable \\
 \code{run\_engine()} & entrées utilisateur & objet \code{usp\_engine} complet \\
-\end{tabular}
-\end{center}
+\code{.run\_engine\_mw()} & entrées de \code{run\_engine()} pour
+\code{methode = "reserve2"} & objet \code{usp\_engine} de la branche
+Merz--Wüthrich \\
+\end{longtable}
+}
 
 \subsection{Périmètres couverts et paramètres standard}
 \label{sec:segments}
@@ -602,12 +665,44 @@ fonctions de lecture et d'écriture xlsx, appelées par l'application hors de
 \code{run\_engine()}, n'atteignent pour cette raison aucun résultat.
 \emph{Dépendance au type de générateur}~: le moteur ne fixe pas
 \code{RNGkind()} et suppose le générateur par défaut de R (Mersenne-Twister,
-inversion pour la loi normale, rejet pour \code{sample()}). Sous un autre
-générateur, les tirages et donc les résultats changent~: sur le cas de contrôle
-de la méthode de primes, $\sigma_{\mathrm{USP}}$ passe de $0{,}10735$ à
-$0{,}11145$ sous \code{RNGkind("L'Ecuyer-CMRG")}, et le cas de la méthode de
-réserve n\textsuperscript{o}~2 change lui aussi sous
-\code{RNGkind(sample.kind = "Rounding")}.
+inversion pour la loi normale, rejet pour \code{sample()}), et
+\code{\$metadata} ne consigne pas le générateur employé (issue~\#37). Sous un
+autre générateur, les tirages et donc les résultats de Monte-Carlo changent,
+mais ni le paramètre final ni aucune grandeur issue de l'estimation~:
+$\sigma_{\mathrm{USP}}$ est identique sous les trois réglages testés (branche
+lognormale~: $0{,}1114524359$~; Merz--Wüthrich~: $0{,}0497764613$), parce qu'il
+ne dépend d'aucun tirage. Mesuré sur les cas de contrôle~: sous
+\code{RNGkind("L'Ecuyer-CMRG")}, 33 des 34 p-values de Monte-Carlo de la
+méthode de primes changent, d'au plus $0{,}043$ (sup-F~: $0{,}840 \to 0{,}883$),
+sans qu'aucun verdict change, et la médiane de \code{sigma\_boot} passe de
+$0{,}092079$ à $0{,}092274$~; sous \code{RNGkind(sample.kind = "Rounding")},
+12 des 13 p-values de Monte-Carlo de la méthode de réserve n\textsuperscript{o}~2
+changent, d'au plus $0{,}046$ (test des suites~: $0{,}374 \to 0{,}328$), sans
+changement de verdict, la médiane de \code{sigma\_boot} passant de $0{,}016359$
+à $0{,}016752$. Les deux croisements complètent le tableau~: sous
+\code{RNGkind("L'Ecuyer-CMRG")}, la méthode de réserve n\textsuperscript{o}~2
+voit elle aussi 12 de ses 13 p-values de Monte-Carlo changer, d'au plus
+$0{,}062$, sans changement de verdict~; sous
+\code{RNGkind(sample.kind = "Rounding")}, la méthode de primes est inchangée,
+la branche lognormale ne tirant rien par \code{sample()}. Parmi les champs du
+résultat, seuls changent ceux qui dérivent des tirages~: p-values et erreurs de
+Monte-Carlo, et avec elles les p-values retenues qui en sont issues, les
+réplications \code{sigma\_boot} (ainsi que \code{delta\_boot} et
+\code{gamma\_boot} dans la branche lognormale) et l'intervalle bootstrap (y compris le champ
+\code{largeur\_ic} rangé dans \code{\$ajustement}), et, pour le seul
+générateur L'Ecuyer, l'enveloppe du QQ-plot ainsi que les deux p-values
+exactes simulées de Shapiro--Wilk, qui reposent sur la loi nulle de
+\code{sw\_loi\_nulle()}~: mesuré dans une session R neuve, $0{,}596370 \to
+0{,}595220$ (fiche~\ref{fiche:24}) et $0{,}0713964 \to 0{,}0712964$ (résidus de
+Mack, fiche~\ref{mw:m5sw}), sans changement de verdict. Ces deux dernières ne
+changent toutefois que si la loi nulle n'a pas déjà été simulée dans la
+session~: la clé du cache (taille, nombre de tirages, graine) ne comporte pas
+le générateur, de sorte qu'une loi simulée sous un générateur reste servie
+après un changement de \code{RNGkind()}. L'ordre de grandeur des écarts
+sur les p-values de Monte-Carlo est celui de leur erreur de Monte-Carlo à $B = 999$
+(§\ref{sec:deuxerreurs})~: l'écart-type de la différence entre deux estimations
+indépendantes d'une même p-value $p$ vaut $\sqrt{2p(1-p)/B}$, soit $0{,}016$
+pour $p = 0{,}84$ et $0{,}022$ pour $p = 0{,}37$.
 \emph{État laissé à l'appelant}~: seule \code{sw\_loi\_nulle()} restaure
 l'état du générateur. Après \code{run\_engine()}, cet état est donc modifié~:
 dans la branche lognormale, c'est celui que laisse \code{engine\_plots\_data()},
@@ -938,10 +1033,12 @@ de Monte-Carlo n'est calculée pour ce test~: soit parce que l'hypothèse nulle
 n'appartient pas au modèle simulé (Student sur la pente, Fisher)~; soit parce
 que le test n'est pas de nature à produire de p-value (indicateurs, procédures
 de décision, diagnostics numériques)~; soit, troisième motif, parce que la
-grandeur est \emph{rivée par l'estimation} et qu'il n'y a donc rien à simuler
---- la loi simulée porterait un atome en la valeur observée (centrage et
-variance unitaire des résidus standardisés, fiches~\ref{fiche:32}
-et~\ref{fiche:33}). Dans tous les autres cas, la clé
+grandeur est \emph{rivée par l'estimation}~: contrainte par une condition du
+premier ordre, sa dispersion sous le modèle est gouvernée par celle des poids
+$\hat\pi_t$, non par les données, de sorte qu'elle ne peut pas contredire le
+modèle~; à $\hat\pi_t$ constant, sa loi simulée porte en outre un atome en la
+valeur observée (centrage et variance unitaire des résidus
+standardisés, fiches~\ref{fiche:32} et~\ref{fiche:33}). Dans tous les autres cas, la clé
 correspond au nom de colonne retourné par \code{.stats\_bootstrapables()} et
 consommé par \code{usp\_bootstrap()}.
 \end{encadre}
@@ -1412,12 +1509,18 @@ l'absence de p-value exacte et de p-value de Monte-Carlo n'autorise pas un
 repli sur l'asymptotique, ni, plus généralement, sur la loi \emph{nominale}
 --- celle que la statistique suivrait si les paramètres n'avaient pas été
 estimés. Lorsqu'une grandeur est \textbf{rivée par l'estimation}, c'est-à-dire
-fixée par les conditions du premier ordre du maximum de vraisemblance plutôt
-que librement observée, aucune des trois voies n'est ouverte, et il faut le
+contrainte par une condition du premier ordre du maximum de vraisemblance plutôt
+que librement observée --- le centrage des résidus standardisés par la
+condition en $\ln\beta$, identité algébrique $\sum_t\sqrt{\hat\pi_t}\,z_t = 0$
+vraie dans tous les cas, leur variance par la condition en $\gamma$, relation
+pondérée distincte qui ne tient qu'à un optimum intérieur en $\gamma$ ---,
+aucune des trois voies n'est ouverte, et il faut le
 dire des trois et non de la seule qui a échoué en premier~: \emph{(i)} il
 n'existe pas de loi exacte sous $H_0$ pour une quantité que $H_0$ ne laisse pas
-varier~; \emph{(ii)} la loi simulée sous le modèle ajusté porte un atome en la
-valeur observée, de sorte que la p-value de Monte-Carlo se décide au signe d'un
+varier~; \emph{(ii)} la dispersion simulée de la grandeur sous le modèle ajusté
+est gouvernée par celle des poids $\hat\pi_t^{*}$, non par les données, et, à
+$\hat\pi_t$ constant, la loi simulée porte un atome en la valeur observée, de
+sorte que la p-value de Monte-Carlo se décide au signe d'un
 bruit numérique~; \emph{(iii)} la loi nominale ne décrit pas la grandeur
 restituée, puisque la valeur observée n'est pas une observation. Le point
 \emph{(iii)} est le plus important pour le relecteur, car c'est le repli le
@@ -1493,10 +1596,12 @@ de $\hat p_{\text{MC}}$ est en outre bornée inférieurement par $1/(B+1)$
   sur la taille d'échantillon.
   \item \textbf{Un troisième cas, de nature différente~: la grandeur rivée par
   l'estimation.} Le centrage et la variance unitaire des résidus standardisés
-  (fiches~\ref{fiche:32} et~\ref{fiche:33}) sont fixés par les conditions du
-  premier ordre du maximum de vraisemblance. La loi simulée sous le modèle
-  ajusté existe bien, mais elle porte un \emph{atome} en la valeur observée~:
-  la p-value de Monte-Carlo s'y décide au signe d'un bruit numérique. À la
+  (fiches~\ref{fiche:32} et~\ref{fiche:33}) sont contraints par les conditions
+  du premier ordre du maximum de vraisemblance, le premier par la condition en
+  $\ln\beta$, la seconde par la condition en $\gamma$. La loi simulée sous le
+  modèle ajusté existe bien, mais, à $\hat\pi_t$ constant, elle porte un
+  \emph{atome} en la valeur observée~: la p-value de Monte-Carlo s'y décide au
+  signe d'un bruit numérique. À la
   différence des deux cas précédents, il n'y a ici aucun repli possible~: ni
   loi exacte, ni loi nominale utilisable, cette dernière produisant à
   $\hat\pi_t$ constant une p-value qui ne dépend plus des données. Ces deux
@@ -1665,9 +1770,11 @@ identité de l'estimation. La p-value nominale du $t$ ne dépendrait pas des
 données ($=1$ à $\hat\pi_t$ constant). Restitué sans verdict \\
 
 Variance unitaire & LN & --- & --- & --- & --- &
-\textbf{Diagnostic} & Sans objet & Idem pour $\operatorname{Var}(z)$~; la loi
-simulée porte un atome en la valeur observée et la p-value nominale du $\chi^2$
-ne dépendrait pas des données ($0{,}6651878$ à $T = 8$) \\
+\textbf{Diagnostic} & Sans objet & Aucune p-value~: $\operatorname{Var}(z)$ est
+rivée par la condition en $\gamma$ (optimum intérieur)~; à $\hat\pi_t$
+constant, la loi simulée porte un atome en la valeur observée et la p-value
+nominale du $\chi^2$ ne dépendrait pas des données ($0{,}6651878$ à $T = 8$).
+Restituée sans verdict \\
 
 sup-F (rupture) & LN & $\sup F$ & Non & Théorique seulement (Andrews) & Oui & Monte-Carlo &
 \textbf{Absence de justification} : loi de sup. de processus, convergence fonctionnelle &
@@ -1897,11 +2004,12 @@ Domaine de validité annoncé par l'auteur & Domaine couvert mais
 transformation distincte à $T\le 11$ ; bootstrap en complément \\
 
 Centrage, variance unitaire (diagnostics) & \emph{Aucun} : $\bar z$ et
-$\operatorname{Var}(z)$ sont rivés par les conditions du premier ordre & --- &
+$\operatorname{Var}(z)$ sont rivés par les conditions du premier ordre (en
+$\ln\beta$ pour $\bar z$, en $\gamma$ pour $\operatorname{Var}(z)$) & --- &
 --- & Sans objet & Optimum intérieur en $\gamma$ ; $\hat\pi_t$ constant pour la
 forme simple $\sum_t z_t = 0$, $\sum_t z_t^2 = T$ &
-Aucune p-value : la loi simulée sous le modèle ajusté porte un atome en la
-valeur observée, et la loi nominale, qui ignore l'estimation, produit à
+Aucune p-value : à $\hat\pi_t$ constant, la loi simulée sous le modèle ajusté
+porte un atome en la valeur observée, et la loi nominale, qui ignore l'estimation, produit à
 $\hat\pi_t$ constant une p-value qui ne dépend plus des données du tout : $1$
 pour le $t$ de Student et $0{,}6651878$ pour le $\chi^2$, à $T = 8$. Restitués
 sans verdict \\
@@ -3579,12 +3687,16 @@ fiches~\ref{fiche:34} et~\ref{fiche:35} pour une rupture de régime.
 Résidus standardisés $z_t = \sqrt{\hat\pi_t}\,v_t$ et leur variance empirique
 $\operatorname{Var}(z)$. \textbf{Diagnostic, non test.} La condition du premier ordre en $\gamma$
 rive l'échelle des $z_t$ comme celle en $\ln\beta$ en rive le niveau~: lorsque $\hat\pi_t$ est
-constant ($\hat\delta = 1$, ou volumes $x_t$ constants), les deux conditions donnent ensemble
-$\sum_t z_t^2 = T$, soit $\operatorname{Var}(z) = T/(T-1)$ --- c'est-à-dire $1{,}143$ à $T = 8$,
-et non~1. À la différence de celle en $\ln\beta$ (fiche~\ref{fiche:31}), cette seconde relation
+constant ($\hat\delta = 1$, ou volumes $x_t$ constants), la condition en $\gamma$ donne
+$\sum_t z_t^2 = T$ et, jointe à $\sum_t z_t = 0$ que donne celle en $\ln\beta$,
+$\operatorname{Var}(z) = T/(T-1)$ --- c'est-à-dire $1{,}143$ à $T = 8$,
+et non~1. C'est donc la condition en $\gamma$, et non celle en $\ln\beta$, qui rive la variance~:
+$\sum_t\sqrt{\hat\pi_t}\,z_t = 0$ ne dit rien de $\sum_t z_t^2$. À la différence de celle en
+$\ln\beta$ (fiche~\ref{fiche:31}), cette seconde relation
 n'est \emph{pas} une identité algébrique~: elle suppose la dérivée en $\gamma$ effectivement
-annulée, donc l'optimisation aboutie. Hors du cas $\hat\pi_t$ constant, seule la contrainte
-pondérée subsiste et $\operatorname{Var}(z)$ est de l'ordre de l'écart entre échelle pondérée et
+annulée, donc l'optimisation aboutie. Hors du cas $\hat\pi_t$ constant, la condition en $\gamma$
+reste une relation pondérée, distincte de la contrainte pondérée de la fiche~\ref{fiche:31}, et
+$\operatorname{Var}(z)$ est de l'ordre de l'écart entre échelle pondérée et
 échelle non pondérée. L'argument suppose en outre l'optimum \emph{intérieur} en $\gamma$~: si
 $\hat\gamma$ butait sur une borne de son domaine $[-12,\,3]$, la dérivée ne serait pas annulée et
 l'égalité tomberait. Cette réserve est théorique~: $\sigma = \hat\beta\,e^{\gamma}$, de sorte que
@@ -4138,6 +4250,26 @@ lecture. Celle que calcule \code{engine\_plots\_data()} est formée, point par p
 taille $T$, tirés sous une graine fixe (§\ref{sec:graines})~: ce n'est pas un bootstrap
 paramétrique sous le modèle ajusté, car les échantillons simulés ne sont pas des résidus d'un
 modèle réestimé, et la bande est ponctuelle, non simultanée.
+
+Ces deux écarts jouent en sens contraires, et le premier l'emporte. Une bande ponctuelle à 90~\%
+est franchie en au moins un point bien plus souvent que dans 10~\% des cas~; mais les résidus
+d'un modèle à trois paramètres estimés sur $T = 8$ observations sont nettement moins dispersés
+que 8 variables $\mathcal{N}(0,1)$ indépendantes~: lorsque $\hat\pi_t$ est constant
+($\hat\delta = 1$, ou volumes $x_t$ constants), $\sum_t z_t^2 = T$ à la tolérance d'arrêt de
+l'optimiseur près (fiche~\ref{fiche:33}), alors que la somme des carrés de 8 variables
+$\mathcal{N}(0,1)$ indépendantes suit une loi $\chi^2(8)$, dont les quantiles à 5~\% et 95~\%
+valent $2{,}73$ et $15{,}51$. La bande est donc trop large pour eux. Constats de simulation sur
+le jeu de contrôle, avec l'enveloppe que calcule le moteur~: un échantillon simulé sous le
+modèle ajusté puis réajusté comme dans \code{usp\_bootstrap()} ne sort de la bande en au moins
+un point que dans 94 cas sur 4\,000 ($2{,}4$~\%, graine 123), contre 4\,269 sur 10\,000
+($42{,}7$~\%, graine 1) pour un échantillon de 8 variables $\mathcal{N}(0,1)$ indépendantes~;
+l'erreur de Monte-Carlo sur ces proportions est de l'ordre de $0{,}2$ et $0{,}5$ point. La bande
+est donc à lire comme une aide conservatrice, non comme un contrôle~: un point hors bande est un
+signal fort, une allure contenue dans la bande n'est pas une validation. L'enveloppe construite
+à partir des résidus des réplications réestimées du bootstrap, conformément à la construction
+d'Atkinson (1981), est prévue (issue~\#5, §~4.3~; ADR~0004, décision~2)~; une bande
+simultanée, au sens d'Aldor-Noiman et al. (2013), serait plus large que la bande ponctuelle
+actuelle (§\ref{sec:biblio}).
 \end{fiche}
 
 \begin{fiche}{QQ-plot à deux échantillons (faible volume contre fort volume)}
@@ -4383,8 +4515,13 @@ les sinistres cumulés.
 \medskip
 \noindent
 \emph{Version du texte et pagination.} Les formules ont été relevées sur la
-version consolidée en vigueur de l'annexe~XVII. Pour le paragraphe~5, le
-libellé publié en 2015 diffère de celui en vigueur~: c'est ce dernier qui est
+version consolidée en vigueur de l'annexe~XVII (version consolidée au
+14~novembre 2024). Les paragraphes~1 à~4 de la section~D sont identiques dans
+la version d'origine et dans la version consolidée~: le texte consolidé
+(format xhtml) ne marque aucune modification dans la section~D, et la comparaison de
+leurs formules, faite en rendu graphique le 22~septembre 2026, ne relève aucune
+différence. Seul le paragraphe~5, le dernier de la section, diffère~: le
+libellé publié en 2015 n'est pas celui en vigueur, et c'est ce dernier qui est
 reproduit ci-dessous et qu'implémente \code{mw\_msep()}. L'acte qui a opéré
 cette correction n'est pas identifié à ce jour~; l'hypothèse d'un rectificatif
 refondu sans marqueur de modification, la seule que suggèrent les pièces
@@ -5937,6 +6074,25 @@ soutient dans le présent document.
   explique pourquoi le bootstrap améliore l'approximation sans la rendre exacte.
   Davison \& Hinkley (1997) traite spécifiquement du bootstrap paramétrique et
   des tests de Monte-Carlo tels qu'employés ici.
+
+  \item A.\,C. Atkinson, \emph{Two graphical displays for outlying and
+  influential observations in regression}, \emph{Biometrika}, 68(1), 1981,
+  p.~13--20 ; S.~Aldor-Noiman, L.\,D. Brown, A.~Buja, W.~Rolke, R.\,A. Stine,
+  \emph{The power to see: a new graphical test of normality}, \emph{The
+  American Statistician}, 67(4), 2013, p.~249--260 (errata publiés par les
+  auteurs en 2014).
+  \emph{Portée.} Atkinson (1981) construit l'enveloppe d'un graphique de
+  probabilité des résidus par simulation sous le modèle ajusté, chaque
+  échantillon simulé étant réajusté~: l'enveloppe reproduit ainsi la loi des
+  résidus estimés et non celle d'un échantillon indépendant. C'est la
+  construction qui manque à l'enveloppe actuelle du QQ-plot et qui est prévue
+  (fiche « QQ-plot normal »). Aldor-Noiman et al. (2013) construit des bandes
+  \emph{simultanées} pour le QQ-plot normal et soutient la distinction, faite
+  dans la même fiche, entre bande ponctuelle et bande simultanée. Aucune des
+  deux références ne chiffre le comportement de ces bandes pour des résidus
+  d'un modèle à trois paramètres estimés sur $T = 8$ observations~: les
+  proportions de sortie de bande citées dans la fiche sont des constats de
+  simulation propres au jeu de contrôle.
 \end{itemize}
 
 \subsection*{Comportement en petit échantillon des tests employés}
