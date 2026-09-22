@@ -32,7 +32,11 @@ Les tests de reproductibilité exécutent `run_engine()` pour les trois méthode
 
 ## Git et GitHub
 
-- **Aucun push direct sur `main`** : chaque modification passe par une branche et une pull request, fusionnée une fois la CI verte. Seule exception : une instruction explicite du mainteneur pour un push donné.
+- **Aucun push direct sur `main`** : chaque modification passe par une branche et une pull request, fusionnée par le mainteneur (commit de fusion, jamais squash ni rebase) une fois la CI verte. Seule exception : une instruction explicite du mainteneur pour un push donné.
+- **Une seule branche de travail à la fois** (raisons et options écartées : `docs/adr/0007-…`). Son périmètre est une liste fermée d'issues, fixée par le plan d'`architect` et portée par une PR ouverte en brouillon dès la création de la branche (une case et un `Closes #N` par issue) : cette PR est la fiche de la branche. Ajouter une issue au périmètre demande l'accord du mainteneur et se note dans la PR. Avant de travailler, toute session — locale ou cloud — se place sur la branche de travail courante et y pousse ; la branche que crée d'office une session cloud reste inutilisée et est supprimée.
+- **Un commit par issue qui change un résultat** : chacun a son tableau avant / après (skill `verifier-reproductibilite`) et son visa ; aucun commit ne mêle deux causes de changement de résultats.
+- **Un problème hors périmètre** trouvé en cours de route devient une issue, pas une branche. Seule exception, le **correctif rapide** — références strictement identiques, un seul domaine de commit, pas de `.tex` : branche temporaire partie de `main`, PR directe vers `main`, puis fusion de `main` dans la branche de travail.
+- **Création d'issue** : sur accord du mainteneur. Un agent ou une session rédige l'issue proposée (titre, libellés, corps) dans son compte rendu ; elle est créée une fois approuvée, sauf autorisation explicite donnée dans le brief.
 - Messages de commit en français, avec accents, préfixés par le domaine : `moteur:` (`R/engine.R`), `app:` (`app.R`, `R/display_helpers.R`), `tests:`, `docs:` (doc LaTeX, `docs/`, README), `claude:` (`CLAUDE.md`, `.claude/`), `repo:` (`.github/`, `.gitignore`, `DESCRIPTION`, licence). Renvoyer à l'issue concernée (`#3`) quand elle existe.
 
 ## Architecture (contrainte impérative)
@@ -91,7 +95,7 @@ Sept sous-agents de projet (`.claude/agents/`), orchestrés par la session princ
 
 **Déclencheurs** — un agent n'entre dans le circuit que si la modification touche son domaine : plusieurs issues ou forme du moteur → `architect` en amont ; méthode ou test statistique → `actuary` (spécification en amont, validation en aval) ; formule, paramètre ou barème du règlement → `regulatory` (lecture du texte en amont, contrôle de conformité en aval) ; `R/engine.R` → `audit` ; `app.R` ou `R/display_helpers.R` → `app-review` ; fond de `docs/latex/` → `docwriter`, en dernier.
 
-**Circuits types** (chacun se termine par un commit sur une branche et une pull request) :
+**Circuits types** (chacun se termine par un ou plusieurs commits sur la branche de travail, voir « Git et GitHub ») :
 
 1. **Évolution méthodologique** : `actuary` spécifie → `coder` → `audit` (+ `app-review` si l'interface change) → `docwriter` → `actuary` valide.
 2. **Correction de conformité réglementaire** : `regulatory` établit la lecture du texte → `actuary` éclaire l'interprétation → le mainteneur tranche si σ_USP change → `coder` → `audit` → `regulatory` contrôle la conformité → `docwriter`.
@@ -102,7 +106,7 @@ Un constat bloquant ou majeur d'un vérificateur renvoie à l'étape de réalisa
 
 **Revues périodiques**, hors de tout changement : `architect` (point d'étape et feuille de route, après chaque série de PR fusionnées) ; `regulatory` (matrice de conformité complète avant remise du dossier et après toute correction de formule) ; `actuary` (revue des tests si leur liste change notablement) ; `app-review` et `docwriter` (relecture intégrale avant démonstration ou remise).
 
-**Approbation des changements de résultats** (tableau avant / après de la skill `verifier-reproductibilite`, joint à la PR) : tout changement de **σ_USP** ou d'un **verdict** est soumis au mainteneur ; les autres changements de p-values sont validés par `actuary`.
+**Approbation des changements de résultats** (tableau avant / après de la skill `verifier-reproductibilite`, un par commit qui change un résultat, joint à la PR) : tout changement de **σ_USP** ou d'un **verdict** est soumis au mainteneur ; les autres changements de p-values sont validés par `actuary`.
 
 Le vocabulaire du domaine (test, diagnostic, verdict, test inopérant, p-value exacte…) est défini dans `CONTEXT.md` : l'employer tel quel dans le code, la documentation et les issues.
 

@@ -11,7 +11,7 @@ Lis d'abord `CLAUDE.md` et `docs/exigences.md` : ils fixent le cadre (T = 8, arc
 
 ## Ton rôle
 
-Tu juges et tu planifies ; `coder` implémente, `audit` vérifie le code. Ton livrable est un avis ou un plan, jamais un fichier modifié. Pour lire, créer et commenter les issues, tu disposes des outils `mcp__github__issue_read`, `mcp__github__list_issues`, `mcp__github__issue_write` et `mcp__github__add_issue_comment` : voir `docs/agents/issue-tracker.md`. `Bash` te sert à `git log` / `git diff` / `git show`.
+Tu juges et tu planifies ; `coder` implémente, `audit` vérifie le code. Ton livrable est un avis ou un plan, jamais un fichier modifié. Pour lire, créer et commenter les issues, tu disposes des outils `mcp__github__issue_read`, `mcp__github__list_issues`, `mcp__github__issue_write` et `mcp__github__add_issue_comment` : voir `docs/agents/issue-tracker.md`. Le mainteneur approuve toute création d'issue (`CLAUDE.md`, « Git et GitHub ») : rédige l'issue proposée dans ton avis, et ne la crées toi-même que si ton brief t'y autorise explicitement. `Bash` te sert à `git log` / `git diff` / `git show`.
 
 ## Quand on te demande une revue ou une proposition
 

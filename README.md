@@ -99,8 +99,10 @@ documentation à chaque push sur `main` et à chaque pull request.
 - Les demandes passent par les **issues GitHub** (modèles « Anomalie » et
   « Évolution »), triées avec les libellés `needs-triage`, `needs-info`,
   `ready-for-agent`, `ready-for-human` et `wontfix`.
-- Pas de push direct sur `main` : une branche et une pull request par
-  modification, fusionnée une fois la CI verte. Messages de commit préfixés
+- Pas de push direct sur `main` : une seule branche de travail à la fois, au
+  périmètre fermé d'issues, fusionnée par pull request une fois la CI verte ;
+  les correctifs rapides passent par une branche temporaire
+  ([ADR 0007](docs/adr/0007-une-branche-de-travail-a-la-fois.md)). Messages de commit préfixés
   par domaine (`moteur:`, `app:`, `tests:`, `docs:`, `claude:`, `repo:`).
 - Les évolutions passent par sept sous-agents Claude Code : pilotage
   (`architect`), fond (`actuary`, `regulatory`), réalisation (`coder`,

@@ -36,6 +36,8 @@ Six issues ouvertes, aucune PR ouverte, batterie de 242 assertions unitaires don
 
 ## 2. Règles de découpage adoptées
 
+> *Depuis le 22 septembre 2026 (ADR 0007) : une seule branche de travail à la fois, au périmètre fermé d'issues ; la règle 1 ci-dessous s'applique désormais au **commit** et non plus à la PR — un commit par issue qui change un résultat, avec son tableau avant / après.*
+
 1. **Une PR ne porte qu'un seul motif de changement de résultats.** Une PR qui change des valeurs (σ_USP, p-value, verdict) ne contient aucun refactor ; le refactor suit dans une PR dont le critère d'acceptation est « références strictement identiques ». Corollaire : la PR de refactor n'a pas de tableau avant / après, et c'est ce qui la protège.
 2. **Un changement de structure sans changement de valeur** (champ ajouté, ligne de test ajoutée) régénère les références, mais son tableau avant / après ne doit contenir que des lignes « absent / ajouté » ; toute ligne de valeur modifiée est une régression.
 3. **Régénérations à valeurs modifiées** — le seul coût réel, car chaque ligne du tableau doit être expliquée et approuvée. Elles sont limitées à : J1a (deux verdicts OK → INFO, méthodes lognormales), J3 (σ_USP réserve n° 2), J4 (verdicts et `nature_p`, méthodes lognormales), J6 (p_mc et IC bootstrap Merz-Wüthrich), et J0 seulement si le préalable révèle une divergence. Aucun autre jalon ne doit modifier une valeur existante.
