@@ -1468,28 +1468,38 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # Servir le meme message aux deux lignes faisait affirmer a la colonne
   # "commentaire" de la table auditable, destinee au dossier, une chose
   # fausse sur le centrage.
-  contrainte <- function(quoi) if (isTRUE(pi_constant))
-    switch(quoi,
-      centrage = paste("Ici pi_t est constant (delta = 1, ou volumes x_t constants) :",
-                       "moyenne(z) = 0 est alors une IDENTITE algebrique, ln(beta)",
-                       "etant obtenu en forme fermee. Elle tient a la precision",
-                       "machine, que l'optimisation ait converge ou non, et la valeur",
-                       "affichee n'est que du bruit d'arrondi : elle ne renseigne donc",
-                       "PAS sur la qualite de l'arret de l'optimiseur."),
-      variance = paste("Ici pi_t est constant (delta = 1, ou volumes x_t constants) :",
-                       "var(z) = T/(T-1) suppose la derivee en gamma effectivement",
-                       "annulee, et ne tient donc qu'a la tolerance d'arret de",
-                       "l'optimiseur pres. L'ecart residuel est a ce jour le seul",
-                       "indicateur de convergence en gamma de la restitution."))
-  else if (isTRUE(fit$delta_au_bord))
-    paste("Ici delta est au bord de [0,1] mais pi_t n'est PAS constant :",
-          "seule la contrainte ponderee subsiste, la valeur affichee n'est",
-          "donc ni nulle ni egale a T/(T-1) ; elle mesure l'ecart entre",
-          "version ponderee et version non ponderee.")
-  else
-    paste("Ici delta est interieur a [0,1] et pi_t n'est pas constant :",
-          "seule la contrainte ponderee subsiste ; la valeur affichee mesure",
-          "l'ecart entre version ponderee et version non ponderee.")
+  # switch() SANS defaut absorberait un nom errone en NULL, que paste() avale
+  # sans bruit : le detail sortirait ampute de la phrase qui fait tout l'objet
+  # de cette distinction, sans erreur ni avertissement (constat d'audit). Le
+  # defaut leve donc une erreur. Le corps est entre accolades pour que le bloc
+  # reste analysable s'il est un jour extrait de cette fonction.
+  contrainte <- function(quoi) {
+    if (isTRUE(pi_constant))
+      switch(quoi,
+        centrage = paste("Ici pi_t est constant (delta = 1, ou volumes x_t constants) :",
+                         "moyenne(z) = 0 est alors une IDENTITE algebrique, ln(beta)",
+                         "etant obtenu en forme fermee. Elle tient a la precision",
+                         "machine, que l'optimisation ait converge ou non, et la valeur",
+                         "affichee n'est que du bruit d'arrondi : elle ne renseigne donc",
+                         "PAS sur la qualite de l'arret de l'optimiseur."),
+        variance = paste("Ici pi_t est constant (delta = 1, ou volumes x_t constants) :",
+                         "var(z) = T/(T-1) suppose la derivee en gamma effectivement",
+                         "annulee, donc un optimum INTERIEUR en gamma : l'egalite ne",
+                         "tient qu'a la tolerance d'arret de l'optimiseur pres, et elle",
+                         "tombe si gamma bute sur une borne de son domaine [-12, 3].",
+                         "L'ecart residuel renseigne donc sur la convergence en gamma,",
+                         "sous cette reserve."),
+        stop("contrainte() : grandeur inconnue : ", quoi))
+    else if (isTRUE(fit$delta_au_bord))
+      paste("Ici delta est au bord de [0,1] mais pi_t n'est PAS constant :",
+            "seule la contrainte ponderee subsiste, la valeur affichee n'est",
+            "donc ni nulle ni egale a T/(T-1) ; elle mesure l'ecart entre",
+            "version ponderee et version non ponderee.")
+    else
+      paste("Ici delta est interieur a [0,1] et pi_t n'est pas constant :",
+            "seule la contrainte ponderee subsiste ; la valeur affichee mesure",
+            "l'ecart entre version ponderee et version non ponderee.")
+  }
   sans_p <- paste("Aucune p-value retenue : la grandeur est rivee par",
                   "l'estimation, elle est restituee comme diagnostic (ADR 0001).")
   add(fam, "Centrage des residus standardises", "Diagnostic de centrage (ADR 0001)",
@@ -1609,7 +1619,12 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   add(fam, "Condition du premier ordre |sum(pi_t*v_t)|/sum(pi_t)",
       "Diagnostic numerique (annexe XVII, par. 4-6)", type = "diagnostic",
       estim_nom = "FOC relative", estim = fit$foc,
-      detail = "Doit etre nulle a la precision machine si l'optimisation a converge",
+      detail = paste("IDENTITE algebrique, non un controle de convergence :",
+                     "ln(beta) etant obtenu en forme fermee par usp_noyau(),",
+                     "somme(pi_t v_t) = 0 pour TOUT couple (delta, gamma), converge",
+                     "ou non. Cette grandeur est donc nulle a la precision machine",
+                     "quel que soit l'etat de l'optimisation, et son ECHEC ne peut",
+                     "signaler qu'une anomalie arithmetique."),
       verdict = if (!is.finite(fit$foc) || fit$foc > 1e-6) "ECHEC" else "OK")
   add(fam, "Convergence multi-demarrages", "Diagnostic numerique (L-BFGS-B)",
       type = "diagnostic",
