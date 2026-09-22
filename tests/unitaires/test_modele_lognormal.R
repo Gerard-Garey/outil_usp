@@ -172,7 +172,7 @@ verifier("usp_simuler : E[Y_t/x_t] = beta et Var(ln Y_t) = 1/pi_t",
 # test_controles_entree.R), l'objectif vaut la penalite 1e12 en tout point ;
 # le premier demarrage est retenu comme optimum et sigma = Inf est renvoye
 # sans erreur.
-# Issue #7 (defaut releve par audit)
+# Issue #33 (defaut releve par audit, repris de l'issue #7)
 echec_attendu("usp_ajuster : erreur explicite si l'objectif n'est fini en aucun point",
               "constat audit : y[3] = Inf -> sigma = Inf, obj_min = 1e12, sans erreur",
               leve_erreur(usp_ajuster(x, replace(y, 3, Inf))))

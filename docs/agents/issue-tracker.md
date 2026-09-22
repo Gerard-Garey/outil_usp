@@ -48,7 +48,7 @@ Trois points vérifiés en session cloud, consignés pour qu'ils ne soient pas r
 2. **Seule la forme nommée restreint réellement.** `mcp__github` et `mcp__github__*` donnent la même liste de 56 outils, écriture comprise (`push_files`, `create_or_update_file`, `delete_file`, `merge_pull_request`). D'où le choix des noms explicites dans les frontmatters.
 3. **Les fiches de `.claude/agents/` ne sont pas rechargées en cours de session** : la définition utilisée est celle lue au démarrage. Une modification de frontmatter ne se teste donc que dans une session neuve, démarrée sur une branche qui la porte déjà. La documentation officielle annonce un rechargement à chaud : c'est faux dans cet environnement.
 
-Protocole et prompt de test conservés sur la branche `claude/test-mcp-frontmatter` (`docs/agents/test-mcp-frontmatter.md`), non fusionnée.
+Le protocole et le prompt de ces tests n'ont pas été conservés : leur branche n'a jamais été fusionnée et n'existe plus.
 
 ## Pull requests comme surface de tri
 

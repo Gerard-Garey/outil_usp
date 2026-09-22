@@ -9,7 +9,8 @@
 #  Les valeurs sont ressaisies ici independamment des tables du moteur
 #  (double saisie).
 #
-#  DEUX RESERVES SUR CE BANDEAU, a lever avant remise du dossier.
+#  DEUX RESERVES SUR CE BANDEAU. La premiere reste a lever avant remise du
+#  dossier ; la seconde est levee.
 #
 #  1. La SOURCE est la version d'ORIGINE de 2015. Les annexes II et XIV ont
 #     ete remplacees depuis par le reglement delegue (UE) 2019/981 (marqueur
@@ -17,9 +18,11 @@
 #     La double saisie de ce fichier ne protege donc de rien sur ces neuf
 #     valeurs, puisqu'elle reproduit la meme source perimee que le moteur.
 #     Voir issue #19.
-#  2. La PAGINATION n'a jamais ete verifiee sur piece : elle descend d'une
-#     source interne a l'autre (ADR 0005). Elle est conservee ici a titre
-#     indicatif, non comme une citation du Journal officiel.
+#  2. PAGINATION (levee) : les pages ci-dessus ont ete verifiees le
+#     22/09/2026 sur la version d'origine (JOUE L 12 du 17.1.2015 ; agent
+#     regulatory, commentaire de l'issue #26). Elles ne valent que pour cette
+#     version : le par. D(5) applique par le moteur est celui de la version
+#     consolidee, dont la formule differe de celle d'origine (ADR 0005).
 ###############################################################################
 
 if (!exists("verifier", mode = "function")) {
@@ -58,7 +61,7 @@ verifier("usp_segment_infos : segment 1 de l'annexe XIV = frais medicaux, bareme
 verifier("usp_segment_infos : erreur pour un segment inexistant (II-13, II-0, XIV-5)",
          leve_erreur(usp_segment_infos(13, "II")) && leve_erreur(usp_segment_infos(0, "II")) &&
          leve_erreur(usp_segment_infos(5, "XIV")))
-# Issue #7 (defaut releve par audit)
+# Issue #33 (defaut releve par audit, repris de l'issue #7)
 echec_attendu("usp_segment_infos : une annexe inconnue (xiv en minuscules, III) est refusee",
               "constat audit : traitee silencieusement comme l'annexe II",
               leve_erreur(usp_segment_infos(1, "xiv")) && leve_erreur(usp_segment_infos(1, "III")))
@@ -82,7 +85,7 @@ verifier("Credibilite : bareme inconnu refuse", leve_erreur(usp_credibilite(8, "
 verifier("Credibilite : croissante en T",
          all(diff(vapply(5:20, usp_credibilite, 0, bareme = "long")) >= 0) &&
          all(diff(vapply(5:20, usp_credibilite, 0, bareme = "court")) >= 0))
-# Issue #7 (defaut releve par audit)
+# Issue #33 (defaut releve par audit, repris de l'issue #7)
 echec_attendu("Credibilite : une duree non entiere est refusee explicitement",
               "constat audit : T = 7.5 renvoie NA sans erreur",
               leve_erreur(usp_credibilite(7.5)))

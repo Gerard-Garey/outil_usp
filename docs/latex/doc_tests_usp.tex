@@ -413,62 +413,133 @@ aiguille vers l'une des deux chaînes~: à gauche les méthodes lognormales
 (sections~B et~C de l'annexe~XVII), à droite la méthode Merz--Wüthrich
 (section~D). Les deux convergent vers un objet de sortie unique, que la couche
 d'affichage se contente de lire. \code{usp\_credibilite()} est la seule fonction
-de calcul partagée par les deux branches.}
+de calibration commune aux deux branches.}
 \label{fig:archi}
 \end{figure}
 
 \subsection{Inventaire des fonctions}
+\label{sec:inventaire}
 
-\begin{center}
-\small
+{\small
 \rowcolors{2}{tablerow}{white}
-\begin{tabular}{@{}p{4.6cm}p{4.0cm}p{6.2cm}@{}}
+\begin{longtable}{@{}p{4.6cm}p{4.0cm}p{6.2cm}@{}}
 \rowcolor{tableheader}
 \textcolor{financeblue}{\textbf{Fonction}} &
 \textcolor{financeblue}{\textbf{Entrées}} &
 \textcolor{financeblue}{\textbf{Sorties}} \\
+\endfirsthead
+\rowcolor{tableheader}
+\textcolor{financeblue}{\textbf{Fonction}} &
+\textcolor{financeblue}{\textbf{Entrées}} &
+\textcolor{financeblue}{\textbf{Sorties}} \\
+\endhead
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Contrôles et données}}} \\
 \code{engine\_valider\_donnees()} & \code{xt}, \code{yt}, \code{T\_min} &
 \code{\$ok}, \code{\$erreurs}, \code{\$avertissements} \\
-\code{usp\_controle\_donnees()} & \code{xt}, \code{yt}, \code{alpha} &
+\code{usp\_controle\_donnees()} & $x$, $y$, \code{alpha} (0,10) &
 liste de contrôles de recevabilité \\
 \code{mw\_valider\_triangle()} & \code{tri}, \code{T\_min} &
 \code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, $I$, $J$ \\
-\code{mw\_valider\_ajustement()} & sortie de \code{mw\_ajuster()}, MSEP &
-\code{\$ok}, \code{\$erreurs}, \code{\$reserve}, \code{\$msep} \\
+\code{mw\_valider\_ajustement()} & \code{aj} (sortie de \code{mw\_ajuster()}),
+\code{msep} (champ \code{\$msep} de \code{mw\_msep()}) &
+\code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, \code{\$reserve},
+\code{\$msep} \\
+\code{usp\_lire\_vecteur()},\newline \code{usp\_charger()} & chemins de fichiers CSV,
+\code{sep}, \code{dec}~; pour la seconde, $T$ et le sens chronologique des
+données &
+vecteur lu~; liste \code{\$x}, \code{\$y}, \code{\$T} (les $T$ années les plus
+récentes) \\
+\code{engine\_lire\_donnees\_csv()} & \code{data.frame} (colonnes $t$,
+\code{xt}, \code{yt}) & \code{\$ok}, \code{\$erreurs}, \code{\$xt}, \code{\$yt},
+\code{\$n} \\
+\code{engine\_lire\_xlsx()}, \code{engine\_ecrire\_xlsx()} & \code{chemin},
+\code{entete}~; \code{df}, \code{chemin}, \code{feuille} & \code{data.frame}
+lu~; chemin du fichier écrit (§\ref{sec:graines} pour la voie de repli) \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Noyau du modèle}}} \\
-\code{usp\_pi()} & $\delta$, $\gamma$, $x$ & vecteur $\pi_t$ \\
-\code{usp\_noyau()} & $\delta$, $\gamma$, $x$, $y$ &
-$\ln\hat\beta$, $v_t$, $z_t$, $\sigma$, objectif \\
-\code{usp\_objectif()} & \code{par}, $x$, $y$ & $-2\ln L$ (à une constante près) \\
-\code{usp\_ajuster()} & $x$, $y$ & \code{fit} complet, FOC, convergence \\
+\code{usp\_pi()} & $\delta$, $\gamma$, $x$, \code{xbar} (moyenne de $x$) &
+vecteur $\pi_t$ \\
+\code{usp\_noyau()} & $\delta$, $\gamma$, $x$, $y$, \code{xbar} &
+$\pi_t$, $\ln\hat\beta$, $\hat\beta$, $v_t$, $z_t$, $\sigma$, objectif \\
+\code{usp\_objectif()} & \code{par} $=(\delta,\gamma)$, $x$, $y$, \code{xbar} &
+$-2\ln L$ (à une constante près) \\
+\code{usp\_ajuster()} & $x$, $y$, \code{n\_starts\_delta} (9),
+\code{verbose} & \code{fit} complet, FOC, convergence \\
+\code{usp\_ajuster\_rapide()} & $x$, $y$, point de départ $(\delta_0,\gamma_0)$ &
+réajustement à un seul démarrage (\code{factr = 1e7}), employé par
+\code{usp\_bootstrap()} \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Lois exactes}}} \\
 \code{mk\_p\_exacte()} & série $r_t$ & p-value exacte (loi mahonienne) \\
 \code{runs\_p\_exacte()} & résidus $z_t$ & p-value exacte (Swed \& Eisenhart) \\
+\code{sw\_loi\_nulle()} & \code{n}, \code{B\_null} (20\,000), \code{seed}
+(20260901) & loi nulle simulée de $W$ (Shapiro--Wilk), triée et mise en cache \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Statistiques et tests}}} \\
 \code{stat\_*()}, \code{test\_*()} & $x$, $y$ ou $z$ & statistique et p-value \\
 \code{test\_tost\_intercept()} & $x$, $y$, $\theta$ ou $\Delta$ &
 p-value d'équivalence (TOST) \\
 \code{.stats\_bootstrapables()} & $x$, $y$, $z$ & vecteur de 34 statistiques \\
-\code{usp\_bootstrap()} & \code{fit}, $B$, \code{seed} &
-\code{p\_mc}, \code{err\_mc}, \code{sigma\_boot} \\
-\code{usp\_tests()} & \code{fit}, \code{boot}, \code{alpha} &
+\code{usp\_simuler()} & \code{fit} & $T$ pertes $y_t$ simulées sous le modèle
+ajusté \\
+\code{usp\_bootstrap()} & \code{fit}, $B$ (999), \code{seed} (20260831),
+\code{refit} (vrai), \code{progres} &
+\code{stats\_obs}, \code{p\_mc}, \code{err\_mc}, \code{B\_effectif},
+\code{granularite}, \code{sigma\_boot}, \code{delta\_boot}, \code{gamma\_boot} \\
+\code{mw\_bootstrap()} & \code{aj}, $B$ (999), \code{seed} (20260831) &
+\code{stats\_obs}, \code{p\_mc}, \code{err\_mc},
+\code{B\_effectif}, \code{granularite}, \code{sigma\_boot} \\
+\code{usp\_tests()} & \code{fit}, \code{boot}, \code{alpha} (0,10),
+\code{theta\_equiv} (0,10), \code{delta\_equiv} &
 liste des tests (H0, H1, statistique, 3 p-values, nature) \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Robustesse et calibration}}} \\
-\code{usp\_jackknife()} & \code{fit}, $\sigma_{\text{std}}$ &
+\code{usp\_jackknife()} & \code{fit}, $\sigma_{\text{std}}$, barème &
 table des $\sigma_{\mathrm{USP}}^{(-t)}$ \\
-\code{usp\_profil()} & \code{fit} & profils en $\delta$ et $\gamma$, tests LR \\
-\code{usp\_segment\_infos()} & segment, annexe & libellé, $\sigma$ standard, barème \\
+\code{usp\_profil()} & \code{fit}, \code{n} (41 points) & profils en $\delta$ et $\gamma$, tests LR \\
+\code{usp\_segment\_infos()}, \code{usp\_bareme\_segment()} & segment, annexe &
+libellé, $\sigma$ standard, barème~; barème seul \\
 \code{usp\_credibilite()} & $T$, barème & facteur $c$ \\
 \code{usp\_parametre()} & \code{fit}, $\sigma_{\text{std}}$, barème &
 $\sigma_{\mathrm{USP}}$ et ses composantes \\
+\multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Chaîne Merz--Wüthrich (section~D, §\ref{sec:mw})}}} \\
+\code{mw\_ajuster()} & \code{tri} &
+$I$, $J$, $\hat f_j$, $\hat\sigma^2_j$, $Q_j$, $S_j$, $S'_j$, $\hat C(i,j)$,
+réserve par année et totale \\
+\code{mw\_extrapolation\_sigma2()} & \code{aj}, \code{tol} ($10^{-12}$) &
+valeur de $\hat\sigma^2_{J-1}$ et diagnostic de la règle d'extrapolation \\
+\code{mw\_msep()} & \code{aj} & \code{\$msep}, \code{\$terme\_variance},
+\code{\$terme\_covariance} \\
+\code{mw\_residus()} & \code{aj} & \code{data.frame} des résidus de Mack
+$r(i,j)$ \\
+\code{mw\_simuler\_triangle()}, \code{.mw\_stats()} & \code{aj}, vivier de
+résidus~; \code{aj} & triangle simulé~; vecteur de 13 statistiques \\
+\code{mw\_test\_*()}, \code{mw\_famille\_alpha()},
+\code{mw\_stat\_correlation\_dev()} & \code{aj} & statistiques des tests M1 à
+M6 (détail~: §\ref{sec:index-fonctions}) \\
+\code{mw\_tests()} & \code{aj}, \code{boot}, \code{alpha} (0,10) &
+liste des tests M1 à M6 (même structure que \code{usp\_tests()}) \\
+\code{mw\_parametre()} & \code{aj}, \code{msep} (champ \code{\$msep}),
+$\sigma_{\text{std}}$, barème & $\sigma_{\mathrm{USP}}$ et ses composantes \\
+\code{mw\_influence()} & \code{aj} & levier, facteur sans la cellule,
+écart relatif de $\hat f_j$, par cellule \\
+\code{mw\_contributions()} & \code{aj}, \code{msep} (sortie de
+\code{mw\_msep()}) & parts de chaque année de survenance dans la réserve et
+dans le terme de variance de processus \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Sorties}}} \\
-\code{engine\_plots\_data()} & \code{fit}, \code{boot}, \code{profil} &
-toutes les quantités tracées \\
+\code{engine\_plots\_data()} & \code{fit}, \code{boot}, \code{profil},\newline
+\code{jackknife}, \code{sigma\_usp} & toutes les quantités tracées (branche
+lognormale) \\
+\code{engine\_surface\_objectif()}\newline \code{engine\_influence()}\newline
+\code{engine\_contours\_cook()} & \code{fit}~; \code{fit}, \code{jackknife},
+\code{sigma\_usp}~; $T$ & surface de l'objectif en $(\delta,\gamma)$~; leviers,
+distances de Cook~; courbes d'iso-Cook (appelées par
+\code{engine\_plots\_data()}) \\
+\code{mw\_plots\_data()} & \code{aj}, résidus, \code{boot}, \code{msep} &
+toutes les quantités tracées (branche Merz--Wüthrich) \\
 \code{engine\_table\_tests()} & \code{res} & \code{data.frame} auditable \\
 \code{run\_engine()} & entrées utilisateur & objet \code{usp\_engine} complet \\
-\end{tabular}
-\end{center}
+\code{.run\_engine\_mw()} & entrées de \code{run\_engine()} pour
+\code{methode = "reserve2"} & objet \code{usp\_engine} de la branche
+Merz--Wüthrich \\
+\end{longtable}
+}
 
 \subsection{Périmètres couverts et paramètres standard}
 \label{sec:segments}
@@ -478,8 +549,12 @@ paramètres propres au titre du risque de primes et de réserve~: l'annexe~II
 (engagements non-vie) et l'annexe~XIV (engagements de santé non similaires à la
 vie, dits « non-SLT »). Les écarts-types standard ci-dessous sont ceux du
 règlement délégué (UE)~2015/35, \emph{Journal officiel de l'Union européenne},
-L~12 du 17 janvier 2015, p.~230--231 et p.~269. Ils sont codés dans les tables
-\code{ANNEXE\_II} et \code{ANNEXE\_XIV} de \code{R/engine.R}.
+L~12 du 17 janvier 2015, p.~230 (annexe~II) et p.~269 (annexe~XIV), dans sa
+\emph{version d'origine}. Ils sont codés dans les tables
+\code{ANNEXE\_II} et \code{ANNEXE\_XIV} de \code{R/engine.R}. Ces deux annexes
+ont depuis été remplacées par le règlement délégué (UE)~2019/981~; les valeurs
+ci-dessous et celles du moteur n'en tiennent pas encore compte, et leur mise à
+jour est suivie par l'issue~\#19 du dépôt.
 
 \begin{center}
 \small
@@ -522,37 +597,166 @@ an, §\ref{sec:mw}).
 \end{encadre}
 
 \subsection{Reproductibilité et gestion des graines}
+\label{sec:graines}
 
-Une seule graine pilote l'ensemble des tirages~: elle est passée à
-\code{run\_engine(seed = )} puis à \code{usp\_bootstrap()}, qui appelle
-\code{set.seed()} une fois avant la boucle de réplications. Aucune autre
-fonction du moteur ne tire de nombres aléatoires, à l'exception de
-\code{engine\_plots\_data()}, qui fixe sa propre graine pour l'enveloppe de
-simulation du QQ-plot afin que le graphique soit stable d'un appel à l'autre.
+Le moteur comporte cinq sources de tirages aléatoires, et cinq seulement~: une
+recherche dans \code{R/engine.R} de \code{set.seed()}, \code{RNGkind()},
+\code{.Random.seed}, \code{sample()} et des générateurs \code{r*()} de
+\code{stats} ne renvoie aucun appel qui n'appartienne à l'une d'elles. Pour chacune, on indique
+la fonction qui tire, la graine, la portée du tirage et le sort de l'état du
+générateur (l'objet \code{.Random.seed} de l'environnement global) après l'appel.
+\begin{itemize}
+\item \code{usp\_bootstrap()} (méthodes de primes et de réserve
+  n\textsuperscript{o}~1). \emph{Graine}~: le paramètre \code{seed} de
+  \code{run\_engine()} (défaut 20260831), posé par \code{set.seed(seed)} une
+  seule fois, avant la boucle des $B$ réplications~; à chaque réplication,
+  \code{usp\_simuler()} tire par \code{stats::rnorm()} les logarithmes des $T$
+  pertes simulées sous le modèle ajusté. \emph{Portée}~: tous les résultats de Monte-Carlo de la
+  branche lognormale (p-values Monte-Carlo, erreurs \code{err\_mc},
+  \code{sigma\_boot} et les grandeurs qui en sont tirées). \emph{État}~: non
+  restauré.
+\item \code{mw\_bootstrap()} (méthode de réserve n\textsuperscript{o}~2).
+  \emph{Graine}~: le même paramètre \code{seed}, posé par \code{set.seed(seed)}
+  une seule fois avant la boucle~; à chaque réplication,
+  \code{mw\_simuler\_triangle()} tire avec remise, par \code{sample()}, les
+  résidus du vivier recentré. \emph{Portée}~: tous les résultats de Monte-Carlo
+  de la branche Merz--Wüthrich (p-values Monte-Carlo, \code{sigma\_boot} et
+  l'intervalle qui en est tiré). \emph{État}~: non restauré.
+\item \code{sw\_loi\_nulle()}, appelée par \code{sw\_p\_loi\_nulle()} dans les
+  deux branches. \emph{Graine}~: fixe, 20260901, indépendante de \code{seed}~;
+  \code{set.seed()} est suivi de 20\,000 échantillons $\mathcal{N}(0,1)$ de
+  taille $n$ tirés par \code{stats::rnorm()}, où $n$ vaut $T$ dans la branche
+  lognormale et le nombre de résidus dans la branche Merz--Wüthrich. La loi
+  simulée est mise en cache, pour la durée de la session R, sous une clé formée
+  de $n$, du nombre de tirages et de la graine~: un second appel à la même
+  taille ne tire plus rien et renvoie la même loi. \emph{Portée}~: la p-value
+  exacte simulée du test de Shapiro--Wilk sans la normalisation de Royston
+  (fiche~\ref{fiche:24}) et du test de Shapiro--Wilk sur les résidus de Mack
+  (fiche~\ref{mw:m5sw}).
+  \emph{État}~: sauvegardé avant le tirage et restauré après. Exception~: si
+  aucun état n'existait avant l'appel, la fonction laisse celui qu'elle a
+  produit~; le cas ne se présente pas dans \code{run\_engine()}, où le bootstrap
+  a déjà initialisé le générateur.
+\item \code{engine\_plots\_data()} (branche lognormale). \emph{Graine}~: fixe,
+  20260831, indépendante de \code{seed} bien qu'elle en égale la valeur par
+  défaut~; \code{set.seed()} est suivi de 499 échantillons $\mathcal{N}(0,1)$ de
+  taille $T$ tirés par \code{stats::rnorm()}, dont les statistiques d'ordre
+  fournissent, point par point, les quantiles à 5~\% et 95~\% de l'enveloppe du
+  QQ-plot. \emph{Portée}~: ce seul graphique (champs \code{env\_bas} et
+  \code{env\_haut} de \code{plots\_data\$qqnorm})~; aucun test ni aucun
+  paramètre n'en dépend. \emph{État}~: non restauré.
+\item \code{engine\_ecrire\_xlsx()} et \code{engine\_lire\_xlsx()}, dans leur
+  seule voie de repli, empruntée quand le paquet \code{openxlsx} n'est pas
+  installé. \emph{Graine}~: aucune~; chacune tire une valeur par
+  \code{runif()} sur l'état courant du générateur. \emph{Portée}~: le nom d'un
+  dossier temporaire créé sous \code{tempdir()}, rien d'autre. \emph{État}~:
+  avancé d'un tirage, non restauré.
+\end{itemize}
+
+Sur les cas de contrôle de \code{tests/test\_reproductibilite.R}, on a vérifié
+par exécution les trois propriétés qui en découlent.
+\emph{Indépendance à l'égard de l'état antérieur}~: tout tirage qui alimente un
+résultat numérique est précédé d'un \code{set.seed()} dans la fonction même qui
+l'effectue~; les résultats de \code{run\_engine()} ne dépendent donc pas de
+l'état du générateur avant l'appel (trois états de départ différents, dont un
+générateur non initialisé, donnent pour chacune des trois méthodes des objets
+identiques, aux champs d'exécution de \code{\$metadata} près). Les tirages des
+fonctions de lecture et d'écriture xlsx, appelées par l'application hors de
+\code{run\_engine()}, n'atteignent pour cette raison aucun résultat.
+\emph{Dépendance au type de générateur}~: le moteur ne fixe pas
+\code{RNGkind()} et suppose le générateur par défaut de R (Mersenne-Twister,
+inversion pour la loi normale, rejet pour \code{sample()}), et
+\code{\$metadata} ne consigne pas le générateur employé (issue~\#37). Sous un
+autre générateur, les tirages et donc les résultats de Monte-Carlo changent,
+mais ni le paramètre final ni aucune grandeur issue de l'estimation~:
+$\sigma_{\mathrm{USP}}$ est identique sous les trois réglages testés (branche
+lognormale~: $0{,}1114524359$~; Merz--Wüthrich~: $0{,}0497764613$), parce qu'il
+ne dépend d'aucun tirage. Mesuré sur les cas de contrôle~: sous
+\code{RNGkind("L'Ecuyer-CMRG")}, 33 des 34 p-values de Monte-Carlo de la
+méthode de primes changent, d'au plus $0{,}043$ (sup-F~: $0{,}840 \to 0{,}883$),
+sans qu'aucun verdict change, et la médiane de \code{sigma\_boot} passe de
+$0{,}092079$ à $0{,}092274$~; sous \code{RNGkind(sample.kind = "Rounding")},
+12 des 13 p-values de Monte-Carlo de la méthode de réserve n\textsuperscript{o}~2
+changent, d'au plus $0{,}046$ (test des suites~: $0{,}374 \to 0{,}328$), sans
+changement de verdict, la médiane de \code{sigma\_boot} passant de $0{,}016359$
+à $0{,}016752$. Les deux croisements complètent le tableau~: sous
+\code{RNGkind("L'Ecuyer-CMRG")}, la méthode de réserve n\textsuperscript{o}~2
+voit elle aussi 12 de ses 13 p-values de Monte-Carlo changer, d'au plus
+$0{,}062$, sans changement de verdict~; sous
+\code{RNGkind(sample.kind = "Rounding")}, la méthode de primes est inchangée,
+la branche lognormale ne tirant rien par \code{sample()}. Parmi les champs du
+résultat, seuls changent ceux qui dérivent des tirages~: p-values et erreurs de
+Monte-Carlo, et avec elles les p-values retenues qui en sont issues, les
+réplications \code{sigma\_boot} (ainsi que \code{delta\_boot} et
+\code{gamma\_boot} dans la branche lognormale) et l'intervalle bootstrap (y compris le champ
+\code{largeur\_ic} rangé dans \code{\$ajustement}), et, pour le seul
+générateur L'Ecuyer, l'enveloppe du QQ-plot ainsi que les deux p-values
+exactes simulées de Shapiro--Wilk, qui reposent sur la loi nulle de
+\code{sw\_loi\_nulle()}~: mesuré dans une session R neuve, $0{,}596370 \to
+0{,}595220$ (fiche~\ref{fiche:24}) et $0{,}0713964 \to 0{,}0712964$ (résidus de
+Mack, fiche~\ref{mw:m5sw}), sans changement de verdict. Ces deux dernières ne
+changent toutefois que si la loi nulle n'a pas déjà été simulée dans la
+session~: la clé du cache (taille, nombre de tirages, graine) ne comporte pas
+le générateur, de sorte qu'une loi simulée sous un générateur reste servie
+après un changement de \code{RNGkind()}. L'ordre de grandeur des écarts
+sur les p-values de Monte-Carlo est celui de leur erreur de Monte-Carlo à $B = 999$
+(§\ref{sec:deuxerreurs})~: pour une p-value unilatérale estimée par une
+proportion, l'écart-type de la différence entre deux estimations indépendantes
+d'une même p-value $p$ vaut $\sqrt{2p(1-p)/B}$ à la correction $1/(B+1)$ près,
+soit $0{,}016$ pour $p = 0{,}84$ (sup-F)~; pour une p-value bilatérale
+$2\min(\hat p^{+},\hat p^{-})$, la queue retenue $q = p/2$ est doublée et
+l'écart-type devient $\sqrt{2p(2-p)/B}$, soit $0{,}035$ pour $p = 0{,}37$ (test
+des suites). Les écarts maximaux observés, $0{,}043$, $0{,}046$ et $0{,}062$,
+valent entre $1{,}3$ et $2{,}6$ fois ces écarts-types, ce qui est attendu pour
+le maximum sur 34 et 13 statistiques.
+\emph{État laissé à l'appelant}~: seule \code{sw\_loi\_nulle()} restaure
+l'état du générateur. Après \code{run\_engine()}, cet état est donc modifié~:
+dans la branche lognormale, c'est celui que laisse \code{engine\_plots\_data()},
+le même quels que soient \code{seed} et l'état de départ~; dans la branche
+Merz--Wüthrich, celui que laisse \code{mw\_bootstrap()}. Un code appelant qui
+tire ses propres nombres après \code{run\_engine()} sans reposer sa graine
+hérite de cet état.
 
 Le script \code{tests/test\_reproductibilite.R} vérifie, pour chacune des trois
 méthodes, deux propriétés qu'il ne faut pas confondre.
 
 \emph{La reproductibilité.} Deux appels de \code{run\_engine()} avec les mêmes
 données, les mêmes paramètres et la même graine, \textbf{sur une même machine},
-produisent des objets identiques au bit près. C'est ce que contrôle la
+produisent des objets identiques au bit près, hors les trois champs de
+\code{\$metadata} qui décrivent l'exécution et non le calcul (horodatage, durée,
+version de R), que le script retire avant de comparer. C'est ce que contrôle la
 comparaison de deux appels successifs par \code{identical()}, et cette propriété
 tient (vérification exécutée).
 
 \emph{La non-régression.} Le résultat est en outre confronté à des valeurs de
-référence enregistrées (\code{tests/reference/}), produites sur une plateforme
-unique désignée et versionnées avec le code. Cette seconde comparaison n'est
+référence enregistrées (\code{tests/reference/}) et versionnées avec le code.
+Leurs valeurs \emph{numériques} sont produites sur une plateforme unique
+désignée, le poste du mainteneur (ADR~0006)~; leurs grandeurs \emph{non
+numériques} (libellés, verdicts, valeurs manquantes, entrées retirées) peuvent
+en outre être mises à jour par un \emph{patch chirurgical}, qui recalcule le cas
+mais ne reprend que ces grandeurs et refuse d'écrire la moindre valeur
+numérique finie (ADR~0006, amendement du 22~septembre 2026). Une référence
+peut donc contenir des grandeurs non numériques calculées sur une autre
+machine, mais aucune valeur numérique. Cette seconde comparaison n'est
 \textbf{pas} au bit près~: elle emploie \code{all.equal()} à une tolérance
 relative de $10^{-8}$, qui porte sur une différence relative \emph{moyenne} et
 absorbe donc une dérive diffuse, si nombreuses qu'en soient les valeurs
-touchées. Une telle dérive existe entre plateformes et a été mesurée~: sur le cas
-de contrôle de la méthode prime, 5\,515 des 12\,409 valeurs élémentaires de
-l'objet diffèrent au sens strict, pour une différence relative moyenne de
+touchées. Une telle dérive existe entre plateformes et a été mesurée lors de
+l'audit consigné dans l'ADR~0006 (22~septembre 2026), en confrontant le code
+alors en vigueur, exécuté sous Linux avec R~4.3.3, aux références produites sur
+le poste du mainteneur~: sur le cas de contrôle de la méthode prime, 5\,515
+valeurs élémentaires de l'objet, soit 44~\% d'entre elles, différaient au sens
+strict, pour une différence relative moyenne de
 $6{,}2\cdot 10^{-10}$ et un écart relatif maximal de $3{,}5\cdot 10^{-7}$ sur les
 tirages bootstrap~; l'écart sur $\sigma_{\mathrm{USP}}$ lui-même est de l'ordre
 de $10^{-14}$ en relatif, très en deçà de la précision à laquelle le paramètre
 est lu. La branche Merz--Wüthrich est, elle, indemne (aucun écart sur le triangle
-de contrôle). L'origine vraisemblable de cette dérive est l'optimiseur employé
+de contrôle). Ces décomptes sont datés~: l'objet a changé depuis l'audit (il
+compte aujourd'hui 12\,391 valeurs élémentaires sur le cas de la méthode prime),
+et la mesure ne peut se refaire qu'en confrontant deux plateformes. Sur le poste
+du mainteneur (Windows, R~4.3.1), le résultat courant des trois cas de contrôle
+est identique au bit près à sa référence, hors les trois champs d'exécution de
+\code{\$metadata} (\code{identical()}, mesuré le 22~septembre 2026). L'origine vraisemblable de cette dérive est l'optimiseur employé
 par la branche lognormale sur une vraisemblance quasi plate en $\delta$, dont le
 chemin dépend de l'ordre des opérations en virgule flottante~; cette explication
 est cohérente avec la répartition observée des écarts, mais elle n'a pas été
@@ -563,15 +767,16 @@ portée de la garantie qui doit être énoncée exactement.
 \begin{encadre}
 \textbf{Point de revue.} L'objet retourné contient un champ \code{\$metadata}
 consignant la méthode, le segment, $\sigma_{\text{standard}}$, le barème de
-crédibilité, $T$, $B$, la granularité $1/(B+1)$, le seuil $\alpha$, la graine,
-l'horodatage, la durée et la version de R. Ce champ suffit à rejouer un calcul
-à l'identique.
+crédibilité, $T$, $B$ (dont se déduit la granularité $1/(B+1)$), le seuil
+$\alpha$, la graine, l'horodatage, la durée et la version de R. Ce champ suffit,
+avec les données, à rejouer un calcul à l'identique sur une même machine, sous
+le générateur par défaut de R, que \code{\$metadata} ne consigne pas.
 \end{encadre}
 
 \subsection{Index des fonctions de statistique et de p-value}
 \label{sec:index-fonctions}
 
-L'inventaire de la section~1.3 regroupe les fonctions par catégorie
+L'inventaire de la section~\ref{sec:inventaire} regroupe les fonctions par catégorie
 (\code{stat\_*()}, \code{test\_*()}). Le tableau ci-dessous descend d'un niveau~:
 il relie \textbf{chaque test documenté} --- méthode lognormale en partie~III,
 méthode Merz--Wüthrich en sections~\ref{sec:mwm1} à~\ref{sec:mwm6} --- à la ou aux fonctions R
@@ -802,9 +1007,9 @@ sans objet & --- \\
 Bootstrap semi-paramétrique & \S\ref{sec:mw} & \code{mw\_bootstrap()}
 (via \code{mw\_simuler\_triangle()} et \code{.mw\_stats()}) &
 sans objet & toutes les clés ci-dessus \\
-Leviers et DFBETA du triangle & \ref{fiche:39} & \code{mw\_influence()} &
+Leviers et DFBETA du triangle & \ref{mw:influence} & \code{mw\_influence()} &
 diagnostic, aucune p-value & --- \\
-Contributions par année de survenance & \ref{fiche:39} &
+Contributions par année de survenance & \ref{mw:influence} &
 \code{mw\_contributions()} & diagnostic, aucune p-value & --- \\
 
 \end{longtable}
@@ -812,9 +1017,10 @@ Contributions par année de survenance & \ref{fiche:39} &
 \end{landscape}
 
 \begin{encadre}
-\textbf{Fonctions internes de support.} Trois fonctions préfixées d'un point ne
+\textbf{Fonctions internes de support.} Quatre fonctions préfixées d'un point ne
 sont jamais appelées directement par \code{usp\_tests()} mais seulement par les
-fonctions de p-value ci-dessus~: \code{.imhof\_p\_sup0()} (intégrale d'Imhof,
+fonctions de p-value ci-dessus, directement ou l'une par l'intermédiaire de
+l'autre~: \code{.imhof\_p\_sup0()} (intégrale d'Imhof,
 utilisée par \code{dw\_p\_exacte()}), \code{.mk\_loi\_exacte()} et
 \code{.poly\_mult()} (distribution exacte du $S$ de Kendall par produit de
 polynômes, utilisées par \code{mk\_p\_exacte()}), et \code{.runs\_dens()}
@@ -822,7 +1028,9 @@ polynômes, utilisées par \code{mk\_p\_exacte()}), et \code{.runs\_dens()}
 \code{.shapiro\_sur()} et \code{sw\_loi\_nulle()} sont deux autres fonctions
 internes~: la première encapsule \code{stats::shapiro.test()} pour éviter
 qu'un échantillon dégénéré n'interrompe la boucle de bootstrap, la seconde
-met en cache la loi nulle simulée de $W$ par valeur de $T$.
+met en cache la loi nulle simulée de $W$ par taille d'échantillon ($T$ dans la
+branche lognormale, nombre de résidus de Mack dans la branche Merz--Wüthrich~;
+§\ref{sec:graines}).
 \end{encadre}
 
 \begin{encadre}
@@ -831,10 +1039,12 @@ de Monte-Carlo n'est calculée pour ce test~: soit parce que l'hypothèse nulle
 n'appartient pas au modèle simulé (Student sur la pente, Fisher)~; soit parce
 que le test n'est pas de nature à produire de p-value (indicateurs, procédures
 de décision, diagnostics numériques)~; soit, troisième motif, parce que la
-grandeur est \emph{rivée par l'estimation} et qu'il n'y a donc rien à simuler
---- la loi simulée porterait un atome en la valeur observée (centrage et
-variance unitaire des résidus standardisés, fiches~\ref{fiche:32}
-et~\ref{fiche:33}). Dans tous les autres cas, la clé
+grandeur est \emph{rivée par l'estimation}~: contrainte par une condition du
+premier ordre, sa dispersion sous le modèle est gouvernée par celle des poids
+$\hat\pi_t$, non par les données, de sorte qu'elle ne peut pas contredire le
+modèle~; à $\hat\pi_t$ constant, sa loi simulée porte en outre un atome en la
+valeur observée (centrage et variance unitaire des résidus
+standardisés, fiches~\ref{fiche:32} et~\ref{fiche:33}). Dans tous les autres cas, la clé
 correspond au nom de colonne retourné par \code{.stats\_bootstrapables()} et
 consommé par \code{usp\_bootstrap()}.
 \end{encadre}
@@ -881,7 +1091,7 @@ On en déduit la précision logarithmique et l'estimateur du niveau~:
 
 \subsection*{Résidus}
 
-Les tests des sections~5 à~8 portent sur les \emph{résidus normalisés}
+Les tests des sections~\ref{sec:h2} à~\ref{sec:stabilite} portent sur les \emph{résidus standardisés}
 \[
   z_t \;=\; \sqrt{\hat\pi_t}\;\Big(\ln r_t + \tfrac{1}{2\hat\pi_t} - \ln\hat\beta\Big),
   \qquad t = 1,\dots,T ,
@@ -901,7 +1111,7 @@ l'aplatissement $b_2 = m_4/m_2^{2}$.
 
 \subsection*{Régression auxiliaire}
 
-Plusieurs tests de la section~4 s'appuient sur la régression auxiliaire non contrainte
+Plusieurs tests de la section~\ref{sec:h1} s'appuient sur la régression auxiliaire non contrainte
 $y_t = a + b\,x_t + \varepsilon_t$, dont on note
 $S_{xx} = \sum_t (x_t-\bar x)^2$, $S_{xy} = \sum_t (x_t-\bar x)(y_t-\bar y)$,
 $\hat b = S_{xy}/S_{xx}$, $\hat a = \bar y - \hat b \bar x$, les résidus
@@ -912,8 +1122,8 @@ $\hat s^2 = \mathrm{SCR}/(T-2)$.
 \medskip
 \begin{encadre}
 \textbf{Attention.} Cette régression auxiliaire n'est \emph{pas} le modèle réglementaire, qui
-impose $\mathbb{E}[Y_t] = \beta x_t$ sans constante. Elle sert uniquement de support de test aux
-diagnostics de la section~4.
+impose $\mathbb{E}[Y_t] = \beta x_t$ sans constante. Elle sert uniquement de support aux tests
+de la section~\ref{sec:h1} et à son coefficient $R^2$.
 \end{encadre}
 
 \subsection*{Méthode Merz--Wüthrich : données et modèle}
@@ -1305,12 +1515,18 @@ l'absence de p-value exacte et de p-value de Monte-Carlo n'autorise pas un
 repli sur l'asymptotique, ni, plus généralement, sur la loi \emph{nominale}
 --- celle que la statistique suivrait si les paramètres n'avaient pas été
 estimés. Lorsqu'une grandeur est \textbf{rivée par l'estimation}, c'est-à-dire
-fixée par les conditions du premier ordre du maximum de vraisemblance plutôt
-que librement observée, aucune des trois voies n'est ouverte, et il faut le
+contrainte par une condition du premier ordre du maximum de vraisemblance plutôt
+que librement observée --- le centrage des résidus standardisés par la
+condition en $\ln\beta$, identité algébrique $\sum_t\sqrt{\hat\pi_t}\,z_t = 0$
+vraie dans tous les cas, leur variance par la condition en $\gamma$, relation
+pondérée distincte qui ne tient qu'à un optimum intérieur en $\gamma$ ---,
+aucune des trois voies n'est ouverte, et il faut le
 dire des trois et non de la seule qui a échoué en premier~: \emph{(i)} il
 n'existe pas de loi exacte sous $H_0$ pour une quantité que $H_0$ ne laisse pas
-varier~; \emph{(ii)} la loi simulée sous le modèle ajusté porte un atome en la
-valeur observée, de sorte que la p-value de Monte-Carlo se décide au signe d'un
+varier~; \emph{(ii)} la dispersion simulée de la grandeur sous le modèle ajusté
+est gouvernée par celle des poids $\hat\pi_t^{*}$, non par les données, et, à
+$\hat\pi_t$ constant, la loi simulée porte un atome en la valeur observée, de
+sorte que la p-value de Monte-Carlo se décide au signe d'un
 bruit numérique~; \emph{(iii)} la loi nominale ne décrit pas la grandeur
 restituée, puisque la valeur observée n'est pas une observation. Le point
 \emph{(iii)} est le plus important pour le relecteur, car c'est le repli le
@@ -1348,7 +1564,7 @@ Dépend du test~; typiquement $\mathcal{O}(T^{-1/2})$ ou $\mathcal{O}(T^{-1})$ \
 Réduction & Augmenter $B$ (gratuit, purement numérique) &
 \textbf{Impossible}~: $T = 8$ est une donnée du problème \\
 Mesure dans le moteur & champ \code{erreur\_MC} & non mesurable directement~;
-approchée par l'étude de simulation de la section~11 \\
+approchée par l'étude de simulation de la section~\ref{sec:verif} \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -1386,10 +1602,12 @@ de $\hat p_{\text{MC}}$ est en outre bornée inférieurement par $1/(B+1)$
   sur la taille d'échantillon.
   \item \textbf{Un troisième cas, de nature différente~: la grandeur rivée par
   l'estimation.} Le centrage et la variance unitaire des résidus standardisés
-  (fiches~\ref{fiche:32} et~\ref{fiche:33}) sont fixés par les conditions du
-  premier ordre du maximum de vraisemblance. La loi simulée sous le modèle
-  ajusté existe bien, mais elle porte un \emph{atome} en la valeur observée~:
-  la p-value de Monte-Carlo s'y décide au signe d'un bruit numérique. À la
+  (fiches~\ref{fiche:32} et~\ref{fiche:33}) sont contraints par les conditions
+  du premier ordre du maximum de vraisemblance, le premier par la condition en
+  $\ln\beta$, la seconde par la condition en $\gamma$. La loi simulée sous le
+  modèle ajusté existe bien, mais, à $\hat\pi_t$ constant, elle porte un
+  \emph{atome} en la valeur observée~: la p-value de Monte-Carlo s'y décide au
+  signe d'un bruit numérique. À la
   différence des deux cas précédents, il n'y a ici aucun repli possible~: ni
   loi exacte, ni loi nominale utilisable, cette dernière produisant à
   $\hat\pi_t$ constant une p-value qui ne dépend plus des données. Ces deux
@@ -1398,7 +1616,7 @@ de $\hat p_{\text{MC}}$ est en outre bornée inférieurement par $1/(B+1)$
   \item \textbf{Ce qu'aucune méthode ne restitue.} Ni le bootstrap ni les lois
   exactes n'augmentent la \emph{puissance}. À $T = 8$, l'ensemble du dispositif
   reste très peu puissant~: une p-value élevée n'est pas une validation
-  d'hypothèse. Les diagnostics de robustesse de la section~10 conservent la
+  d'hypothèse. Les diagnostics de robustesse de la section~\ref{sec:robustesse} conservent la
   priorité sur les tests d'hypothèse.
 \end{itemize}
 
@@ -1419,7 +1637,8 @@ n\textsuperscript{o}~1, section~C), \textbf{MW} pour la méthode du risque de
 réserve n\textsuperscript{o}~2 (Merz--Wüthrich, section~D), et
 \textbf{Les deux} lorsque le test est employé dans les deux dispositifs. Dans ce
 dernier cas la statistique est identique, mais son support diffère~: résidus
-normalisés $z_t$ d'un côté, résidus standardisés de Mack $r(i,j)$ de l'autre
+standardisés $z_t$ du modèle lognormal d'un côté, résidus standardisés de Mack
+$r(i,j)$ de l'autre
 (voir la section~\ref{sec:mw}).
 
 \begin{landscape}
@@ -1558,9 +1777,11 @@ identité de l'estimation. La p-value nominale du $t$ ne dépendrait pas des
 données ($=1$ à $\hat\pi_t$ constant). Restitué sans verdict \\
 
 Variance unitaire & LN & --- & --- & --- & --- &
-\textbf{Diagnostic} & Sans objet & Idem pour $\operatorname{Var}(z)$~; la loi
-simulée porte un atome en la valeur observée et la p-value nominale du $\chi^2$
-ne dépendrait pas des données ($0{,}6651878$ à $T = 8$) \\
+\textbf{Diagnostic} & Sans objet & Aucune p-value~: $\operatorname{Var}(z)$ est
+rivée par la condition en $\gamma$ (optimum intérieur)~; à $\hat\pi_t$
+constant, la loi simulée porte un atome en la valeur observée et la p-value
+nominale du $\chi^2$ ne dépendrait pas des données ($0{,}6651878$ à $T = 8$).
+Restituée sans verdict \\
 
 sup-F (rupture) & LN & $\sup F$ & Non & Théorique seulement (Andrews) & Oui & Monte-Carlo &
 \textbf{Absence de justification} : loi de sup. de processus, convergence fonctionnelle &
@@ -1790,11 +2011,12 @@ Domaine de validité annoncé par l'auteur & Domaine couvert mais
 transformation distincte à $T\le 11$ ; bootstrap en complément \\
 
 Centrage, variance unitaire (diagnostics) & \emph{Aucun} : $\bar z$ et
-$\operatorname{Var}(z)$ sont rivés par les conditions du premier ordre & --- &
+$\operatorname{Var}(z)$ sont rivés par les conditions du premier ordre (en
+$\ln\beta$ pour $\bar z$, en $\gamma$ pour $\operatorname{Var}(z)$) & --- &
 --- & Sans objet & Optimum intérieur en $\gamma$ ; $\hat\pi_t$ constant pour la
 forme simple $\sum_t z_t = 0$, $\sum_t z_t^2 = T$ &
-Aucune p-value : la loi simulée sous le modèle ajusté porte un atome en la
-valeur observée, et la loi nominale, qui ignore l'estimation, produit à
+Aucune p-value : à $\hat\pi_t$ constant, la loi simulée sous le modèle ajusté
+porte un atome en la valeur observée, et la loi nominale, qui ignore l'estimation, produit à
 $\hat\pi_t$ constant une p-value qui ne dépend plus des données du tout : $1$
 pour le $t$ de Student et $0{,}6651878$ pour le $\chi^2$, à $T = 8$. Restitués
 sans verdict \\
@@ -1929,7 +2151,7 @@ p-values classiques.
 \textcolor{financeblue}{\textbf{Série}} &
 \textcolor{financeblue}{\textbf{Définition}} &
 \textcolor{financeblue}{\textbf{Loi sous le modèle}} \\
-Résidus normalisés & $z_t = \sqrt{\hat\pi_t}\,v_t$ &
+Résidus standardisés & $z_t = \sqrt{\hat\pi_t}\,v_t$ &
 i.i.d. $\mathcal{N}(0,1)$ : la seule série exactement échangeable \\
 Résidus logarithmiques & $v_t = \ln r_t + \tfrac{1}{2\hat\pi_t} - \ln\hat\beta$ &
 indépendants et normaux, mais de variance $1/\pi_t$ variable avec $x_t$ \\
@@ -2187,7 +2409,10 @@ p-value de Monte-Carlo ajoutée~; test à lire comme purement indicatif \\
 White & 3 coefficients auxiliaires estimés sur 8 points & p-value de
 Monte-Carlo ajoutée~; Breusch--Pagan à privilégier \\
 Anscombe--Glynn & Non défini pour $T < 20$ & Marqué \emph{non applicable}~;
-l'analyse de queue repose sur $A^2$ et le QQ-plot à enveloppe \\
+l'analyse de queue repose sur $A^2$, dont la p-value de Monte-Carlo est simulée
+sous le modèle réajusté~; le QQ-plot à enveloppe n'est qu'une aide de lecture,
+sa bande $\mathcal{N}(0,1)$ iid étant conservatrice pour des résidus réestimés
+(fiche~\ref{fiche:qqnorm}) \\
 Rosner (ESD) & Fiabilité des valeurs critiques annoncée pour $T \ge 25$ &
 Conservé comme signal d'attention~; aucune exclusion de donnée ne doit en
 découler sans justification métier \\
@@ -2197,7 +2422,7 @@ conjointement avec la distance de Cook \\
 Student / Fisher (pente) & Loi exacte, mais \emph{conditionnelle} à la
 normalité des erreurs, non testable indépendamment à $T = 8$ &
 Aucune p-value de Monte-Carlo possible (voir texte)~; la normalité est
-examinée séparément en section~6 \\
+examinée séparément en section~\ref{sec:h3} \\
 \rowcolor{tableheader}
 \multicolumn{3}{@{}l@{}}{\textcolor{financeblue}{\textbf{Méthode Merz--Wüthrich}}} \\
 Corrélation entre années de développement & Cinq à six paires de colonnes
@@ -2520,7 +2745,7 @@ des sinistres, évolution de la politique de provisionnement), ce qui contredira
 constance de $\beta$. Limites~: l'approximation normale n'est acceptable qu'à partir de
 $T \approx 10$, en-deçà la loi exacte est nécessaire. Surtout, le test suppose
 \emph{l'indépendance} des observations~: en présence d'autocorrélation positive il rejette
-beaucoup trop souvent, ce qui impose de le lire conjointement avec les tests de la section~7.
+beaucoup trop souvent, ce qui impose de le lire conjointement avec les tests de la section~\ref{sec:h4}.
 \end{fiche}
 
 \begin{fiche}{Test de tendance par signes de Cox--Stuart}
@@ -2556,6 +2781,7 @@ Mann--Kendall doit lui être préféré.
 \clearpage
 % =============================================================================
 \section{Hypothèse H2 --- structure de variance quadratique}
+\label{sec:h2}
 % =============================================================================
 
 \begin{encadre}
@@ -2565,7 +2791,7 @@ convexe d'une composante linéaire en volume (risque mutualisable) et d'une comp
 (risque systématique). Le paramètre $\delta \in [0,1]$ est estimé conjointement à $\gamma$.
 \end{encadre}
 
-Les tests de cette section portent sur les résidus \emph{déjà normalisés} $z_t$~: si la
+Les tests de cette section portent sur les résidus \emph{déjà standardisés} $z_t$~: si la
 pondération $\hat\pi_t$ capture correctement l'hétéroscédasticité, il ne doit subsister
 \emph{aucune} relation entre $z_t^2$ et $x_t$. Un rejet signale donc une structure de variance
 mal spécifiée, et non une hétéroscédasticité en soi (qui est attendue sur les données brutes).
@@ -2580,7 +2806,7 @@ Régression auxiliaire $z_t^2 = c_0 + c_1 x_t + \eta_t$, de coefficient de déte
 $R^2_{\text{aux}}$. Hypothèses non testées~: indépendance des observations et validité de
 l'approximation asymptotique.
 \Hzero
-$H_0 : c_1 = 0$ : la variance des résidus normalisés ne dépend pas du volume, donc la pondération
+$H_0 : c_1 = 0$ : la variance des résidus standardisés ne dépend pas du volume, donc la pondération
 réglementaire $\pi_t$ est correctement spécifiée.
 \Stat
 \[
@@ -2609,7 +2835,7 @@ supplémentaire, et déterminante~: la normalité des erreurs.} C'est elle qui j
 $\operatorname{Var}(u_t^2) = 2\sigma^4$, d'où le facteur $\tfrac12$ de la statistique. Cette
 hypothèse n'est pas testée ici~: elle relève de H3, examinée séparément en partie~III.
 \Hzero
-$H_0 : c_1 = 0$, la variance des résidus normalisés ne dépend pas du volume.
+$H_0 : c_1 = 0$, la variance des résidus standardisés ne dépend pas du volume.
 \Stat
 En posant $g_t = z_t^2 / \hat\sigma^2$ avec $\hat\sigma^2 = T^{-1}\sum_t z_t^2$, on régresse $g$
 sur $x$ et l'on retient la moitié de la somme des carrés expliqués~:
@@ -2745,7 +2971,7 @@ qu'approximative. À $T \le 10$, à considérer comme un simple indicateur.
 \refl{N.\,V. Smirnov, \emph{Sur les écarts de la courbe de distribution empirique},
 \emph{Recueil Mathématique (Matematicheskii Sbornik)}, 6(48), 1939, p.~3--26.}
 \Cadre
-Deux sous-échantillons de résidus normalisés~: $z^{(1)}$ (années à faible volume, effectif $n_1$)
+Deux sous-échantillons de résidus standardisés~: $z^{(1)}$ (années à faible volume, effectif $n_1$)
 et $z^{(2)}$ (années à fort volume, effectif $n_2$), de fonctions de répartition empiriques
 $\hat F_1$, $\hat F_2$. Hypothèses non testées~: indépendance intra et inter échantillons,
 continuité des lois. Le script n'active ce test que si $T \ge 8$ et $n_1, n_2 \ge 3$.
@@ -2776,7 +3002,7 @@ avec $n_1 = n_2 = 5$, la plus petite p-value atteignable est $2/\binom{10}{5} \a
 le rejet reste donc possible mais exige un écart maximal~; (ii) les deux échantillons ne sont pas
 strictement indépendants puisque les $z_t$ partagent les mêmes paramètres estimés
 $(\hat\beta, \hat\delta, \hat\gamma)$, ce qui invalide légèrement la loi de référence. Le
-\emph{QQ-plot à deux échantillons} associé (section~9) reste le diagnostic le plus lisible.
+\emph{QQ-plot à deux échantillons} associé (section~\ref{sec:graphiques}) reste le diagnostic le plus lisible.
 \end{fiche}
 
 \begin{fiche}{Position de $\hat\delta$ dans son domaine (diagnostic)}
@@ -2786,7 +3012,7 @@ $\hat\delta$ est obtenu par minimisation sous contrainte de bornes de la log-vra
 négative. \textbf{Il ne s'agit pas d'un test} mais d'un diagnostic d'identifiabilité.
 \Hzero
 Sans objet en tant que diagnostic. Le test formel correspondant est le test du rapport de
-vraisemblance $H_0 : \delta = 0$ ou $\delta = 1$, documenté en section~10.
+vraisemblance $H_0 : \delta = 0$ ou $\delta = 1$, documenté en section~\ref{sec:robustesse}.
 \Stat
 La valeur $\hat\delta$ elle-même, avec le drapeau
 $\mathbb{1}\{\hat\delta < 10^{-6}\ \text{ou}\ \hat\delta > 1 - 10^{-6}\}$.
@@ -2801,7 +3027,7 @@ et l'optimum est poussé sur une borne. Ce n'est pas une erreur mais un signal f
 car (i) l'écart-type asymptotique de $\hat\delta$ n'est alors pas défini de manière usuelle,
 (ii) le paramètre final peut varier fortement selon la borne retenue, et (iii) la théorie
 asymptotique standard des tests sur $\delta$ ne s'applique plus (voir la correction de Chernoff
-en section~10). Sur des historiques de 5 à 12 points, la solution au bord est le cas de figure le
+en section~\ref{sec:robustesse}). Sur des historiques de 5 à 12 points, la solution au bord est le cas de figure le
 plus fréquent en pratique.
 \end{fiche}
 
@@ -2809,12 +3035,13 @@ plus fréquent en pratique.
 \clearpage
 % =============================================================================
 \section{Hypothèse H3 --- lognormalité des pertes agrégées}
+\label{sec:h3}
 % =============================================================================
 
 \begin{encadre}
 \textbf{Énoncé réglementaire} (annexe~XVII, B/C(2)(f)(iii)). Les pertes agrégées (ou le montant
 de liquidation) suivent une loi lognormale. Cette hypothèse se teste de façon équivalente comme
-la normalité des résidus normalisés $z_t$.
+la normalité des résidus standardisés $z_t$.
 \end{encadre}
 
 \begin{encadre}
@@ -2929,7 +3156,7 @@ Test le plus pertinent pour un usage actuariel~: la pondération en queue le ren
 précisément là où se joue le capital réglementaire. Limite propre à ce contexte~: cette
 sensibilité est aussi sa fragilité, car sur 8 à 12 points les deux ou trois observations extrêmes
 déterminent presque entièrement $A^2$. À croiser impérativement avec les tests de valeurs
-aberrantes de la section~8.
+aberrantes de la section~\ref{sec:stabilite}.
 \end{fiche}
 
 \begin{fiche}{Test de Cramér--von Mises}
@@ -3201,7 +3428,7 @@ d'ordre~1.
 $\mathrm{DW} \in [0,4]$~: proche de 2 sous $H_0$, proche de 0 en autocorrélation positive forte,
 proche de 4 en autocorrélation négative forte.
 \Loi
-Sous $H_0$, les résidus normalisés sont $\mathcal{N}(0, I_T)$~: $\mathrm{DW}$ est alors le
+Sous $H_0$, les résidus standardisés sont $\mathcal{N}(0, I_T)$~: $\mathrm{DW}$ est alors le
 \emph{rapport de deux formes quadratiques} en variables normales,
 $\mathrm{DW} = z'Az / z'z$ où $A$ est la matrice des différences secondes. Ses valeurs propres
 sont connues analytiquement, $\lambda_j = 2\big(1 - \cos(\pi j / T)\big)$, $j = 0,\dots,T-1$
@@ -3322,7 +3549,7 @@ Sans objet.
 Aucune. Le moteur pose \code{ECHEC} si $\mathrm{FOC} > 10^{-6}$.
 \Usage
 \textbf{Point de vigilance essentiel.} C'est la moyenne \emph{pondérée} $\sum_t\hat\pi_t v_t$ qui
-est contrainte à zéro, et non la moyenne simple $\bar z$ des résidus normalisés. Les deux ne
+est contrainte à zéro, et non la moyenne simple $\bar z$ des résidus standardisés. Les deux ne
 coïncident que si $\hat\pi_t$ est constant, c'est-à-dire si $\hat\delta = 1$ ou si les volumes
 $x_t$ sont constants. Sur un jeu de données où $\hat\delta$ est intérieur au domaine, on observe
 typiquement $\mathrm{FOC} \approx 10^{-17}$ (précision machine) alors que
@@ -3472,12 +3699,20 @@ fiches~\ref{fiche:34} et~\ref{fiche:35} pour une rupture de régime.
 Résidus standardisés $z_t = \sqrt{\hat\pi_t}\,v_t$ et leur variance empirique
 $\operatorname{Var}(z)$. \textbf{Diagnostic, non test.} La condition du premier ordre en $\gamma$
 rive l'échelle des $z_t$ comme celle en $\ln\beta$ en rive le niveau~: lorsque $\hat\pi_t$ est
-constant ($\hat\delta = 1$, ou volumes $x_t$ constants), les deux conditions donnent ensemble
-$\sum_t z_t^2 = T$, soit $\operatorname{Var}(z) = T/(T-1)$ --- c'est-à-dire $1{,}143$ à $T = 8$,
-et non~1. À la différence de celle en $\ln\beta$ (fiche~\ref{fiche:31}), cette seconde relation
+constant ($\hat\delta = 1$, ou volumes $x_t$ constants), la condition en $\gamma$ donne
+$\sum_t z_t^2 = T$ (condition du premier ordre de l'objectif \emph{profilé} que minimise
+\code{usp\_objectif()}, $\ln\hat\beta$ y étant substitué en forme fermée~; dans la
+vraisemblance complète en $(\ln\beta,\delta,\gamma)$, la condition en $\gamma$ s'écrit
+$\sum_t z_t^2 = T + \sum_t v_t$ et n'aboutit à $\sum_t z_t^2 = T$ que jointe à celle en
+$\ln\beta$) et, jointe à $\sum_t z_t = 0$ que donne celle en $\ln\beta$,
+$\operatorname{Var}(z) = T/(T-1)$ --- c'est-à-dire $1{,}143$ à $T = 8$,
+et non~1. C'est donc la condition en $\gamma$, et non celle en $\ln\beta$, qui rive la variance~:
+$\sum_t\sqrt{\hat\pi_t}\,z_t = 0$ ne dit rien de $\sum_t z_t^2$. À la différence de celle en
+$\ln\beta$ (fiche~\ref{fiche:31}), cette seconde relation
 n'est \emph{pas} une identité algébrique~: elle suppose la dérivée en $\gamma$ effectivement
-annulée, donc l'optimisation aboutie. Hors du cas $\hat\pi_t$ constant, seule la contrainte
-pondérée subsiste et $\operatorname{Var}(z)$ est de l'ordre de l'écart entre échelle pondérée et
+annulée, donc l'optimisation aboutie. Hors du cas $\hat\pi_t$ constant, la condition en $\gamma$
+reste une relation pondérée, distincte de la contrainte pondérée de la fiche~\ref{fiche:31}, et
+$\operatorname{Var}(z)$ est de l'ordre de l'écart entre échelle pondérée et
 échelle non pondérée. L'argument suppose en outre l'optimum \emph{intérieur} en $\gamma$~: si
 $\hat\gamma$ butait sur une borne de son domaine $[-12,\,3]$, la dérivée ne serait pas annulée et
 l'égalité tomberait. Cette réserve est théorique~: $\sigma = \hat\beta\,e^{\gamma}$, de sorte que
@@ -3674,7 +3909,7 @@ signale des aberrations qui n'en sont pas.
 \Cadre
 Généralisation itérative de Grubbs. On fixe a priori un nombre maximal $k$ de valeurs aberrantes
 recherchées (le script prend $k = \max(1, \lfloor T/4 \rfloor)$) et un niveau $\alpha$, qui est
-celui passé à \code{usp\_run()} (0,10 par défaut) et non une valeur figée. Hypothèse non
+celui passé à \code{run\_engine()} (0,10 par défaut) et non une valeur figée. Hypothèse non
 testée~: normalité de la population sous-jacente.
 \Hzero
 $H_0$ : aucune valeur aberrante. On teste séquentiellement les alternatives « il y a exactement
@@ -3729,7 +3964,8 @@ Mesure combinée du levier et de l'ampleur du résidu~: elle répond à la quest
 modèle changerait-il si je retirais cette année ? ». C'est le diagnostic le plus directement utile
 en régime USP, où une seule année peut déterminer le paramètre. Limites~: le seuil $4/T$ est
 purement conventionnel (d'autres auteurs retiennent $1$), et la distance porte sur la régression
-auxiliaire, non sur le modèle de vraisemblance complet -- le jackknife de la section~10 fournit la
+contrainte des moindres carrés, non sur le modèle de vraisemblance complet -- le jackknife de la
+section~\ref{sec:robustesse} fournit la
 mesure exacte pour ce dernier.
 \end{fiche}
 
@@ -3755,7 +3991,7 @@ indépendamment de la sinistralité observée. Une année à fort levier n'est p
 soi, mais elle le devient si son résidu est également grand -- c'est exactement ce que combine la
 distance de Cook. En contexte USP, un levier élevé signale généralement une année de forte
 croissance ou une intégration de portefeuille, à rapprocher du contrôle d'amplitude du volume de
-la section~3.
+la section~\ref{sec:controles}.
 \end{fiche}
 
 \newpage
@@ -3909,6 +4145,7 @@ moyenne pondérée des résidus, elle, est une identité et ne signale rien (fic
 \clearpage
 % =============================================================================
 \section{Diagnostics graphiques complémentaires}
+\label{sec:graphiques}
 % =============================================================================
 
 Les graphiques ne comportent ni hypothèse nulle ni p-value. Toutes les quantités
@@ -4005,7 +4242,7 @@ retenu~: situe $\sigma_{\mathrm{USP}}$ entre le standard et l'estimé seul. \\
 
 \subsection{Fiches détaillées}
 
-\begin{fiche}{QQ-plot normal}
+\begin{fiche}{QQ-plot normal}\label{fiche:qqnorm}
 \refl{M.\,B. Wilk, R.~Gnanadesikan, \emph{Probability plotting methods for the analysis of data},
 \emph{Biometrika}, 55(1), 1968, p.~1--17.}
 \Cadre
@@ -4025,8 +4262,32 @@ Sans objet.
 Lecture~: un alignement sur la droite conforte la normalité~; une courbure en S traduit des queues
 plus lourdes (points extrêmes au-dessus à droite et en dessous à gauche) ou plus légères~; une
 courbure convexe ou concave traduit une asymétrie. Limite~: sur 8 à 12 points, l'œil surestime
-facilement les écarts -- il est utile de superposer une enveloppe de simulation obtenue par
-bootstrap paramétrique pour calibrer la lecture.
+facilement les écarts -- il est utile de superposer une enveloppe de simulation pour calibrer la
+lecture. Celle que calcule \code{engine\_plots\_data()} est formée, point par point, des quantiles
+à 5~\% et 95~\% des statistiques d'ordre de 499 échantillons $\mathcal{N}(0,1)$ indépendants de
+taille $T$, tirés sous une graine fixe (§\ref{sec:graines})~: ce n'est pas un bootstrap
+paramétrique sous le modèle ajusté, car les échantillons simulés ne sont pas des résidus d'un
+modèle réestimé, et la bande est ponctuelle, non simultanée.
+
+Ces deux écarts jouent en sens contraires, et le premier l'emporte. Une bande ponctuelle à 90~\%
+est franchie en au moins un point bien plus souvent que dans 10~\% des cas~; mais les résidus
+d'un modèle à trois paramètres estimés sur $T = 8$ observations sont nettement moins dispersés
+que 8 variables $\mathcal{N}(0,1)$ indépendantes~: lorsque $\hat\pi_t$ est constant
+($\hat\delta = 1$, ou volumes $x_t$ constants), $\sum_t z_t^2 = T$ à la tolérance d'arrêt de
+l'optimiseur près (fiche~\ref{fiche:33}), alors que la somme des carrés de 8 variables
+$\mathcal{N}(0,1)$ indépendantes suit une loi $\chi^2(8)$, dont les quantiles à 5~\% et 95~\%
+valent $2{,}73$ et $15{,}51$. La bande est donc trop large pour eux. Constats de simulation sur
+le jeu de contrôle, avec l'enveloppe que calcule le moteur~: un échantillon simulé sous le
+modèle ajusté puis réajusté comme dans \code{usp\_bootstrap()} ne sort de la bande en au moins
+un point que dans 94 cas sur 4\,000 ($2{,}4$~\%, graine 123), contre 4\,269 sur 10\,000
+($42{,}7$~\%, graine 1) pour un échantillon de 8 variables $\mathcal{N}(0,1)$ indépendantes~;
+l'erreur de Monte-Carlo sur ces proportions est de l'ordre de $0{,}2$ et $0{,}5$ point. La bande
+est donc à lire comme une aide conservatrice, non comme un contrôle~: un point hors bande est un
+signal fort, une allure contenue dans la bande n'est pas une validation. L'enveloppe construite
+à partir des résidus des réplications réestimées du bootstrap, conformément à la construction
+d'Atkinson (1981), est prévue (issue~\#5, §~4.3~; ADR~0004, décision~2)~; une bande
+simultanée, au sens d'Aldor-Noiman et al. (2013), serait plus large que la bande ponctuelle
+actuelle (§\ref{sec:biblio}).
 \end{fiche}
 
 \begin{fiche}{QQ-plot à deux échantillons (faible volume contre fort volume)}
@@ -4038,7 +4299,7 @@ et en ordonnée ceux du groupe « fort volume », évalués aux mêmes probabili
 $n = \min(n_1,n_2)$. Droite de référence~: la première bissectrice. Rattaché à l'hypothèse H2.
 \Hzero
 Sans objet. Le test numérique correspondant est le test de Smirnov à deux échantillons
-(section~5).
+(section~\ref{sec:h2}).
 \Stat
 Sans objet.
 \Loi
@@ -4047,7 +4308,7 @@ Sans objet.
 Sans objet.
 \Usage
 Diagnostic visuel direct de l'hypothèse de structure de variance~: si la pondération $\pi_t$ est
-correcte, les résidus normalisés des petits et des gros volumes suivent la même loi et les points
+correcte, les résidus standardisés des petits et des gros volumes suivent la même loi et les points
 s'alignent sur la bissectrice. Une \emph{pente} supérieure à 1 signale une dispersion résiduelle
 plus forte sur les gros volumes (donc un $\delta$ sous-estimé), une pente inférieure à 1
 l'inverse~; un décalage vertical d'ensemble signale une différence de niveau relevant plutôt de
@@ -4060,14 +4321,15 @@ H1. Limite~: avec 5 points par groupe, la pente apparente est très instable.
 W.\,S. Cleveland, B.~Kleiner, P.\,A. Tukey, \emph{Graphical Methods for Data
 Analysis}, Wadsworth, 1983.}
 \Cadre
-Trois représentations, rattachées aux diagnostics d'influence de la
-section~\ref{sec:robustesse}. Pour la méthode lognormale, la régression de
+Trois représentations, rattachées aux diagnostics d'influence des
+sections~\ref{sec:stabilite} (distance de Cook, leviers) et~\ref{sec:robustesse}
+(jackknife). Pour la méthode lognormale, la régression de
 référence est le modèle réglementaire contraint $y_t = \beta x_t$, à $k = 1$
 paramètre, de leviers $h_t = x_t^2 / \sum_i x_i^2$ (de somme $k$) et de résidus
 standardisés $e_t / (s\sqrt{1-h_t})$.
 \Hzero
-Sans objet. Les tests numériques correspondants sont la distance de Cook et les
-leviers, documentés en section~\ref{sec:robustesse}.
+Sans objet. Les diagnostics numériques correspondants sont la distance de Cook et
+les leviers, documentés en section~\ref{sec:stabilite}.
 \Stat
 Sans objet (représentations graphiques). Les iso-distances de Cook tracées dans
 le plan $(h, r)$ sont les courbes
@@ -4175,6 +4437,7 @@ comptent de toute façon moins de trois observations et ne sont pas testées.
 \end{fiche}
 
 \begin{fiche}{Influence et leviers du triangle (Merz--Wüthrich)}
+\label{mw:influence}
 \refl{T.~Mack (1993), \emph{op.\ cit.}, pour la structure de pondération~;
 R.\,D. Cook (1977) et D.\,C. Hoaglin, R.\,E. Welsch (1978), \emph{op.\ cit.},
 pour les notions de levier et d'influence transposées ici.}
@@ -4271,15 +4534,25 @@ les sinistres cumulés.
 \medskip
 \noindent
 \emph{Version du texte et pagination.} Les formules ont été relevées sur la
-version consolidée en vigueur de l'annexe~XVII. Pour le paragraphe~5, le
-libellé publié en 2015 diffère de celui en vigueur~: c'est ce dernier qui est
+version consolidée en vigueur de l'annexe~XVII (version consolidée au
+14~novembre 2024). Les paragraphes~1 à~4 de la section~D sont identiques dans
+la version d'origine et dans la version consolidée~: le texte consolidé
+(format xhtml) ne marque aucune modification dans la section~D, et la comparaison de
+leurs formules, faite en rendu graphique le 22~septembre 2026, ne relève aucune
+différence. Seul le paragraphe~5, le dernier de la section, diffère~: le
+libellé publié en 2015 n'est pas celui en vigueur, et c'est ce dernier qui est
 reproduit ci-dessous et qu'implémente \code{mw\_msep()}. L'acte qui a opéré
 cette correction n'est pas identifié à ce jour~; l'hypothèse d'un rectificatif
 refondu sans marqueur de modification, la seule que suggèrent les pièces
 consultées, est signalée comme une hypothèse et non comme un fait établi. La
-pagination « L~12/277-278 », qui circule dans les documents de travail du
-projet, n'a pas été vérifiée sur le \emph{Journal officiel}~; elle n'est donc
-pas reprise ici.
+pagination au \emph{Journal officiel} (L~12 du 17 janvier 2015) a été vérifiée
+à l'image le 22~septembre 2026~: la section~D occupe les p.~276--278 et le
+paragraphe~5 les p.~277--278. Cette pagination est celle de la \emph{version
+d'origine}, dont le paragraphe~5 imprime le libellé de 2015 et non la formule
+reproduite ci-dessous~; la version consolidée, qu'applique \code{mw\_msep()},
+n'est pas une publication paginée du \emph{Journal officiel}. Les formules du
+paragraphe~5 ne sont donc pas une transcription des p.~277--278~: un relecteur
+qui s'y reporterait y lirait une autre formule.
 
 \paragraph{Facteurs de développement.}
 \[
@@ -4572,7 +4845,8 @@ méthode elle-même.
 \textcolor{financeblue}{\textbf{Statut}} &
 \textcolor{financeblue}{\textbf{Commentaire}} \\
 Durbin--Watson, test des suites, Grubbs, Rosner, Shapiro--Wilk, Lilliefors &
-réemployés & Appliqués aux résidus de Mack au lieu des résidus normalisés~; la
+réemployés & Appliqués aux résidus de Mack au lieu des résidus standardisés
+$z_t$~; la
 statistique est inchangée, seule la loi de référence est réévaluée. \\
 Breusch--Pagan studentisé & adapté & Régression des carrés des résidus sur
 $C(i,j)$ et non sur le volume $x_t$~: teste la puissance~1 de M2. \\
@@ -4857,6 +5131,25 @@ fiche~\ref{mw:m2b}. Son intérêt propre est de chiffrer l'enjeu~: si $A$ est
 faible, le choix de pondération imposé par le règlement est sans conséquence
 matérielle sur le paramètre final.
 \end{fiche}
+
+% -----------------------------------------------------------------------------
+\clearpage
+% =============================================================================
+\section{Hypothèse M2 --- variance proportionnelle au cumulé}
+\label{sec:mwm2}
+% =============================================================================
+
+\begin{encadre}
+\textbf{Énoncé.} annexe~XVII, D(2)(h)(iv)~: « pour toutes les années
+d'accident, la variance du montant de sinistres cumulé d'une année de
+développement est proportionnelle au montant de sinistres cumulé de l'année de
+développement précédente », soit
+$\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$.
+\end{encadre}
+
+Les fiches ci-dessous suivent la structure en six rubriques employée pour les
+hypothèses H1 à H4 de la méthode lognormale. Les notations sont celles de la
+section~\ref{sec:notations-mw}.
 
 \begin{fiche}{M2 --- Hétéroscédasticité résiduelle contre le cumulé}
 \label{mw:m2bp}
@@ -5509,7 +5802,7 @@ $W'$ (Shapiro--Francia) et du carré du coefficient de corrélation du QQ-plot~;
 boucle explicite de $A^2$, $W^2$, $D$ et du $S$ de Mann--Kendall~; cohérence de $D$ avec
 \code{ks.test}~; vérification de la borne $G \le (T-1)/\sqrt{T}$ pour Grubbs~; et vérification
 numérique que la p-value bilatérale minimale de Cox--Stuart vaut exactement $0{,}0625$ pour
-$T = 10$, ce qui confirme l'affirmation de la section~4.
+$T = 10$, ce qui confirme l'affirmation de la fiche~\ref{fiche:10} (section~\ref{sec:h1}).
 
 \subsection*{Taille effective et puissance}
 
@@ -5582,7 +5875,7 @@ Facteurs de développement $\hat f_j$ & 3,4906 ; 1,7473 ; 1,4574 ; \dots &
 conformes aux valeurs publiées \\
 Réserve chain-ladder totale & 18\,680\,856 & conforme \\
 Erreur type \emph{ultime} de Mack & 2\,447\,095 & conforme à la valeur publiée \\
-MSEP à un an $=$ transcription littérale du paragraphe~D(5) & écart relatif nul
+MSEP à un an $=$ transcription littérale du paragraphe~D(5), version consolidée & écart relatif nul
 (précision machine) & conforme au texte \\
 $\sqrt{\mathrm{MSEP}}$ à un an $=$ \code{ChainLadder::CDR} (Merz--Wüthrich
 2008) & 1\,778\,967,66336\newline contre 1\,778\,967,66335758 & écart relatif
@@ -5614,7 +5907,7 @@ tests unitaires du dépôt.
 \begin{encadre}
 \textbf{Sur quoi repose la validation de la MSEP à un an.} Elle repose sur deux
 voies distinctes~: d'une part la confrontation du moteur à une transcription
-littérale du paragraphe~D(5), réécrite depuis le texte et implémentée
+littérale du paragraphe~D(5) dans sa version consolidée en vigueur (§\ref{sec:mw}), réécrite depuis le texte et implémentée
 séparément dans la batterie de tests unitaires~; d'autre part une comparaison
 \emph{externe} avec \code{ChainLadder::CDR} (paquet R \code{ChainLadder}
 0.2.18), implémentation publique de Merz--Wüthrich (2008), reproduite à
@@ -5820,6 +6113,25 @@ soutient dans le présent document.
   explique pourquoi le bootstrap améliore l'approximation sans la rendre exacte.
   Davison \& Hinkley (1997) traite spécifiquement du bootstrap paramétrique et
   des tests de Monte-Carlo tels qu'employés ici.
+
+  \item A.\,C. Atkinson, \emph{Two graphical displays for outlying and
+  influential observations in regression}, \emph{Biometrika}, 68(1), 1981,
+  p.~13--20 ; S.~Aldor-Noiman, L.\,D. Brown, A.~Buja, W.~Rolke, R.\,A. Stine,
+  \emph{The power to see: a new graphical test of normality}, \emph{The
+  American Statistician}, 67(4), 2013, p.~249--260 (errata publiés par les
+  auteurs en 2014).
+  \emph{Portée.} Atkinson (1981) construit l'enveloppe d'un graphique de
+  probabilité des résidus par simulation sous le modèle ajusté, chaque
+  échantillon simulé étant réajusté~: l'enveloppe reproduit ainsi la loi des
+  résidus estimés et non celle d'un échantillon indépendant. C'est la
+  construction qui manque à l'enveloppe actuelle du QQ-plot et qui est prévue
+  (fiche~\ref{fiche:qqnorm}). Aldor-Noiman et al. (2013) construit des bandes
+  \emph{simultanées} pour le QQ-plot normal et soutient la distinction, faite
+  dans la même fiche, entre bande ponctuelle et bande simultanée. Aucune des
+  deux références ne chiffre le comportement de ces bandes pour des résidus
+  d'un modèle à trois paramètres estimés sur $T = 8$ observations~: les
+  proportions de sortie de bande citées dans la fiche sont des constats de
+  simulation propres au jeu de contrôle.
 \end{itemize}
 
 \subsection*{Comportement en petit échantillon des tests employés}
@@ -5894,18 +6206,46 @@ Optimisation sous contrainte $\delta\in[0,1]$ & \code{usp\_objectif()}, \code{us
 Lois exactes (Kendall, suites) & \code{mk\_p\_exacte()}, \code{runs\_p\_exacte()} \\
 Statistiques de test & \code{stat\_*()}, \code{test\_*()} \\
 Bootstrap paramétrique et p-values MC & \code{.stats\_bootstrapables()}, \code{usp\_bootstrap()} \\
-Hiérarchie exacte $\succ$ MC $\succ$ asymptotique & fonction \code{add()} interne à \code{usp\_tests()} \\
+Hiérarchie exacte $\succ$ MC $\succ$ asymptotique & fonction \code{add()} interne à \code{usp\_tests()}~;\newline
+fonction \code{add()} homonyme interne à \code{mw\_tests()} \\
 Sortie de la hiérarchie (grandeur rivée par l'estimation) & branche finale de \code{add()}~:
 \code{p\_retenue} et \code{nature\_p} à \code{NA}, verdict \code{INFO} \\
 Réserve sur la base « ratios bruts » à $\hat\pi_t$ constant & champ \code{detail} des six lignes
 de base \code{r} dans \code{usp\_tests()} \\
-Erreur de Monte-Carlo & champ \code{err\_mc} de \code{usp\_bootstrap()} \\
+Erreur de Monte-Carlo & champ \code{err\_mc} de \code{usp\_bootstrap()} et de
+\code{mw\_bootstrap()} \\
 Jackknife, profils, rapport de vraisemblance & \code{usp\_jackknife()}, \code{usp\_profil()} \\
 Calibration et paramètre final & \code{usp\_parametre()}, \code{usp\_credibilite()} \\
+Merz--Wüthrich~: facteurs $\hat f_j$, variances $\hat\sigma_j^2$, cumulés
+projetés $\hat C(i,J)$, réserve (§\ref{sec:mw}) & \code{mw\_ajuster()} \\
+Merz--Wüthrich~: extrapolation de $\hat\sigma^2_{J-1}$ (§\ref{sec:mw},
+fiche~\ref{mw:m6sig}) & \code{mw\_ajuster()}~: valeur retenue (\code{\$sigma2})~;\newline
+\code{mw\_extrapolation\_sigma2()}~: trois arguments du minimum~;\newline
+\code{.mw\_detail\_extrapolation()}~: champ \code{detail} de la ligne M6 \\
+Merz--Wüthrich~: erreur de prédiction à un an, paragraphe~D(5) (§\ref{sec:mw}) &
+\code{mw\_msep()} \\
+Merz--Wüthrich~: paramètre propre $\sigma_{(\text{res},s,\mathrm{USP})}$ et
+crédibilité (§\ref{sec:mw}) & \code{mw\_parametre()}, \code{usp\_credibilite()} \\
+Merz--Wüthrich~: résidus standardisés de Mack (§\ref{sec:mw}) &
+\code{mw\_residus()} \\
+Merz--Wüthrich~: bootstrap semi-paramétrique et p-values de Monte-Carlo
+(§\ref{sec:boot-mw}) & \code{mw\_bootstrap()}, \code{mw\_simuler\_triangle()},
+\code{.mw\_stats()} \\
+Merz--Wüthrich~: tests et diagnostics M1 à M6 (sections~\ref{sec:mwm1}
+à~\ref{sec:mwm6}) & \code{mw\_tests()} \\
+Merz--Wüthrich~: leviers, DFBETA et contributions par année de survenance
+(fiche~\ref{mw:influence}) & \code{mw\_influence()}, \code{mw\_contributions()} \\
 Contrôles de validité & \code{engine\_valider\_donnees()}, \code{usp\_controle\_donnees()},
 \code{mw\_valider\_triangle()}, \code{mw\_valider\_ajustement()} \\
-Quantités des graphiques & \code{engine\_plots\_data()} \\
-Orchestration complète & \code{run\_engine()} \\
+Quantités des graphiques & \code{engine\_plots\_data()} (branche lognormale),\newline
+\code{mw\_plots\_data()} (branche Merz--Wüthrich) \\
+Tirages aléatoires et graines (§\ref{sec:graines}) & \code{usp\_bootstrap()},
+\code{usp\_simuler()}, \code{mw\_bootstrap()},\newline
+\code{mw\_simuler\_triangle()}, \code{sw\_loi\_nulle()},\newline
+\code{engine\_plots\_data()}, \code{engine\_ecrire\_xlsx()},\newline
+\code{engine\_lire\_xlsx()} \\
+Orchestration complète & \code{run\_engine()}~; méthode de réserve
+n\textsuperscript{o}~2 déléguée à\newline \code{.run\_engine\_mw()} \\
 Table auditable des tests & \code{engine\_table\_tests()} \\
 \bottomrule
 \end{tabular}
@@ -5977,7 +6317,7 @@ modèle et un mode d'inférence différents.
   \item G.~Barnett, B.~Zehnwirth, \emph{Best estimates for reserves},
   \emph{Proceedings of the Casualty Actuarial Society}, 87, 2000, p.~245--321.
   \emph{Portée.} Discussion des exposants alternatifs de la structure de
-  variance ($\alpha = 0$, $1$ ou $2$). Citée dans la fiche M2 pour situer
+  variance ($\alpha = 0$, $1$ ou $2$). Citée dans la fiche~\ref{mw:m2bp} pour situer
   l'exposant~1 imposé par le règlement parmi les choix possibles, et non pour
   recommander une alternative --- l'annexe~XVII ne laissant pas ce choix ouvert.
 \end{itemize}
@@ -6009,7 +6349,7 @@ littérature consultée.
   bootstrap.
   \item \textbf{Aucune valeur publiée de la MSEP à un an} n'a pu être identifiée
   pour le triangle de Taylor \& Ashe. La validation de cette grandeur repose donc
-  sur la transcription littérale du paragraphe~D(5), sur des propriétés
+  sur la transcription littérale du paragraphe~D(5) (version consolidée), sur des propriétés
   structurelles et sur la comparaison avec une implémentation externe
   (\code{ChainLadder::CDR}), non sur un nombre publié dans la littérature.
   \item \textbf{Le domaine de validité exact de la transformation de Royston}
@@ -6056,7 +6396,11 @@ envisagé, sensibilité du paramètre final. \\
 Relève aussi de ce verdict la grandeur dont la valeur est \emph{contrainte par
 construction}, aucun seuil ne pouvant alors rien détecter~: ainsi la variance des résidus de
 Mack, fixée à $(N-k)/(N-1)$ --- $N$ résidus, $k$ colonnes retenues --- et non à~1
-(fiche~\ref{mw:m2var}). \\
+(fiche~\ref{mw:m2var}). Sont enfin restitués \code{INFO} les deux diagnostics
+M6 de la méthode Merz--Wüthrich, extrapolation de $\hat\sigma^2_{J-1}$ et
+concentration de la réserve (fiches~\ref{mw:m6sig} et~\ref{mw:m6conc})~: ils
+n'opposent aucune hypothèse nulle et n'ont pas de loi de référence, et le
+repère indicatif de 40~\% du second n'emporte aucun verdict (ADR~0001). \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -6152,8 +6496,16 @@ Bloc bleu clair & Entrée ou donnée intermédiaire \\
 Bloc blanc, contour bleu & Fonction \textbf{dédiée} à un seul test \\
 Bloc orangé, contour épais & Fonction \textbf{mutualisée} entre plusieurs tests
 ou entre les deux méthodes \\
-Bloc gris & Fonction \textbf{interne} de support, préfixée d'un point, jamais
-appelée directement par \code{usp\_tests()} ou \code{mw\_tests()} \\
+Bloc gris & Fonction \textbf{interne} de support, appelée par une autre
+fonction du moteur et jamais directement par \code{usp\_tests()} ou
+\code{mw\_tests()}~:\newline
+\code{sw\_loi\_nulle()}, \code{.imhof\_p\_sup0()}, \code{.runs\_dens()},\newline
+\code{.fisher\_combine()}, \code{.mack\_moments\_Z()},\newline
+\code{mw\_simuler\_triangle()}, \code{.mw\_stats()}.\newline
+Le préfixe d'un point ne définit pas cette catégorie~: \code{.shapiro\_sur()},
+\code{.mw\_lm\_intra()} et \code{.mw\_detail\_extrapolation()}, préfixées d'un
+point, sont appelées directement par \code{usp\_tests()} ou \code{mw\_tests()}
+et ne sont pas représentées en gris \\
 Bloc vert & Sortie : p-value ou grandeur restituée \\
 Flèche pleine & Transmission d'un objet, dont le nom figure sur la flèche \\
 Flèche pointillée & Dépendance de second rang (mise en cache, loi de référence) \\
@@ -6193,7 +6545,8 @@ méthode lognormale, en un seul appel \\
 \code{mw\_ajuster()} & MW & $\hat f_j$, $\hat\sigma_j^2$, $\hat C(i,j)$~: entrée
 de la MSEP, des résidus, de tous les tests M1 à M6 \\
 \code{mw\_residus()} & MW & Support de M1, M2, M3, M4 et M5 \\
-\code{.mw\_stats()} & MW & Les 7 statistiques bootstrapées de la méthode \\
+\code{.mw\_stats()} & MW & Les 13 statistiques bootstrapées de la méthode, en un
+seul appel \\
 \end{tabular}
 \end{center}
 

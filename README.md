@@ -77,9 +77,17 @@ La profondeur T est déduite du fichier.
 
 ## Reproductibilité et tests
 
-À données, paramètres et `seed` identiques, `run_engine()` produit des objets
-identiques au bit près. Les tests le vérifient pour les trois méthodes et
-comparent les résultats à des valeurs de référence (`tests/reference/`) :
+`tests/test_reproductibilite.R` vérifie, pour les trois méthodes, deux
+propriétés distinctes :
+
+| Propriété | Ce qui est vérifié | Statut |
+|---|---|---|
+| Reproductibilité à graine égale | `identical()` entre deux appels de `run_engine()` à données, paramètres et `seed` identiques, sur une même machine | au bit près, mesuré |
+| Non-régression | `all.equal(tolerance = 1e-8)` contre les références versionnées (`tests/reference/*.rds`), produites sur la plateforme désignée par l'ADR 0006 | à tolérance explicite ; ce n'est pas du bit près |
+
+La seconde comparaison absorbe volontairement la dérive d'arrondi d'une
+plateforme à l'autre (écart relatif maximal mesuré 3,5e-07 sur la branche
+lognormale, ADR 0006) :
 
     Rscript tests/test_reproductibilite.R
 
@@ -91,7 +99,9 @@ avec renvoi à l'issue :
 
 Lorsqu'une modification change volontairement les résultats, lister les écarts
 (`Rscript tests/comparer_references.R`), les expliquer, puis régénérer les
-références (`Rscript tests/generer_references.R`) dans le même commit. La CI GitHub Actions lance les tests et compile la
+références (`Rscript tests/generer_references.R`) dans le même commit, sur la
+plateforme désignée par l'ADR 0006, ou les patcher (`tests/patcher_reference.R`)
+si aucune valeur numérique ne change. La CI GitHub Actions lance les tests et compile la
 documentation à chaque push sur `main` et à chaque pull request.
 
 ## Contribuer
