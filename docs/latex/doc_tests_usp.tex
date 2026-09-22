@@ -418,6 +418,7 @@ de calcul partagée par les deux branches.}
 \end{figure}
 
 \subsection{Inventaire des fonctions}
+\label{sec:inventaire}
 
 \begin{center}
 \small
@@ -445,13 +446,19 @@ $\ln\hat\beta$, $v_t$, $z_t$, $\sigma$, objectif \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Lois exactes}}} \\
 \code{mk\_p\_exacte()} & série $r_t$ & p-value exacte (loi mahonienne) \\
 \code{runs\_p\_exacte()} & résidus $z_t$ & p-value exacte (Swed \& Eisenhart) \\
+\code{sw\_loi\_nulle()} & \code{n}, \code{B\_null} (20\,000), \code{seed}
+(20260901) & loi nulle simulée de $W$ (Shapiro--Wilk), triée et mise en cache \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Statistiques et tests}}} \\
 \code{stat\_*()}, \code{test\_*()} & $x$, $y$ ou $z$ & statistique et p-value \\
 \code{test\_tost\_intercept()} & $x$, $y$, $\theta$ ou $\Delta$ &
 p-value d'équivalence (TOST) \\
 \code{.stats\_bootstrapables()} & $x$, $y$, $z$ & vecteur de 34 statistiques \\
+\code{usp\_simuler()} & \code{fit} & $T$ pertes $y_t$ simulées sous le modèle
+ajusté \\
 \code{usp\_bootstrap()} & \code{fit}, $B$, \code{seed} &
 \code{p\_mc}, \code{err\_mc}, \code{sigma\_boot} \\
+\code{mw\_bootstrap()} & \code{aj}, $B$, \code{seed} & \code{stats\_obs}, \code{p\_mc}, \code{err\_mc},
+\code{B\_effectif}, \code{sigma\_boot} \\
 \code{usp\_tests()} & \code{fit}, \code{boot}, \code{alpha} &
 liste des tests (H0, H1, statistique, 3 p-values, nature) \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Robustesse et calibration}}} \\
@@ -463,8 +470,9 @@ table des $\sigma_{\mathrm{USP}}^{(-t)}$ \\
 \code{usp\_parametre()} & \code{fit}, $\sigma_{\text{std}}$, barème &
 $\sigma_{\mathrm{USP}}$ et ses composantes \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Sorties}}} \\
-\code{engine\_plots\_data()} & \code{fit}, \code{boot}, \code{profil} &
-toutes les quantités tracées \\
+\code{engine\_plots\_data()} & \code{fit}, \code{boot}, \code{profil},\newline
+\code{jackknife}, \code{sigma\_usp} & toutes les quantités tracées (branche
+lognormale) \\
 \code{engine\_table\_tests()} & \code{res} & \code{data.frame} auditable \\
 \code{run\_engine()} & entrées utilisateur & objet \code{usp\_engine} complet \\
 \end{tabular}
@@ -478,8 +486,12 @@ paramètres propres au titre du risque de primes et de réserve~: l'annexe~II
 (engagements non-vie) et l'annexe~XIV (engagements de santé non similaires à la
 vie, dits « non-SLT »). Les écarts-types standard ci-dessous sont ceux du
 règlement délégué (UE)~2015/35, \emph{Journal officiel de l'Union européenne},
-L~12 du 17 janvier 2015, p.~230--231 et p.~269. Ils sont codés dans les tables
-\code{ANNEXE\_II} et \code{ANNEXE\_XIV} de \code{R/engine.R}.
+L~12 du 17 janvier 2015, p.~230 (annexe~II) et p.~269 (annexe~XIV), dans sa
+\emph{version d'origine}. Ils sont codés dans les tables
+\code{ANNEXE\_II} et \code{ANNEXE\_XIV} de \code{R/engine.R}. Ces deux annexes
+ont depuis été remplacées par le règlement délégué (UE)~2019/981~; les valeurs
+ci-dessous et celles du moteur n'en tiennent pas encore compte, et leur mise à
+jour est suivie par l'issue~\#19 du dépôt.
 
 \begin{center}
 \small
@@ -616,19 +628,34 @@ comparaison de deux appels successifs par \code{identical()}, et cette propriét
 tient (vérification exécutée).
 
 \emph{La non-régression.} Le résultat est en outre confronté à des valeurs de
-référence enregistrées (\code{tests/reference/}), produites sur une plateforme
-unique désignée et versionnées avec le code. Cette seconde comparaison n'est
+référence enregistrées (\code{tests/reference/}) et versionnées avec le code.
+Leurs valeurs \emph{numériques} sont produites sur une plateforme unique
+désignée, le poste du mainteneur (ADR~0006)~; leurs grandeurs \emph{non
+numériques} (libellés, verdicts, valeurs manquantes, entrées retirées) peuvent
+en outre être mises à jour par un \emph{patch chirurgical}, qui recalcule le cas
+mais ne reprend que ces grandeurs et refuse d'écrire la moindre valeur
+numérique finie (ADR~0006, amendement du 22~septembre 2026). Une référence
+peut donc contenir des grandeurs non numériques calculées sur une autre
+machine, mais aucune valeur numérique. Cette seconde comparaison n'est
 \textbf{pas} au bit près~: elle emploie \code{all.equal()} à une tolérance
 relative de $10^{-8}$, qui porte sur une différence relative \emph{moyenne} et
 absorbe donc une dérive diffuse, si nombreuses qu'en soient les valeurs
-touchées. Une telle dérive existe entre plateformes et a été mesurée~: sur le cas
-de contrôle de la méthode prime, 5\,515 des 12\,409 valeurs élémentaires de
-l'objet diffèrent au sens strict, pour une différence relative moyenne de
+touchées. Une telle dérive existe entre plateformes et a été mesurée lors de
+l'audit consigné dans l'ADR~0006 (22~septembre 2026), en confrontant le code
+alors en vigueur, exécuté sous Linux avec R~4.3.3, aux références produites sur
+le poste du mainteneur~: sur le cas de contrôle de la méthode prime, 5\,515
+valeurs élémentaires de l'objet, soit 44~\% d'entre elles, différaient au sens
+strict, pour une différence relative moyenne de
 $6{,}2\cdot 10^{-10}$ et un écart relatif maximal de $3{,}5\cdot 10^{-7}$ sur les
 tirages bootstrap~; l'écart sur $\sigma_{\mathrm{USP}}$ lui-même est de l'ordre
 de $10^{-14}$ en relatif, très en deçà de la précision à laquelle le paramètre
 est lu. La branche Merz--Wüthrich est, elle, indemne (aucun écart sur le triangle
-de contrôle). L'origine vraisemblable de cette dérive est l'optimiseur employé
+de contrôle). Ces décomptes sont datés~: l'objet a changé depuis l'audit (il
+compte aujourd'hui 12\,391 valeurs élémentaires sur le cas de la méthode prime),
+et la mesure ne peut se refaire qu'en confrontant deux plateformes. Sur le poste
+du mainteneur (Windows, R~4.3.1), le résultat courant des trois cas de contrôle
+est identique au bit près à sa référence, hors les trois champs d'exécution de
+\code{\$metadata} (\code{identical()}, mesuré le 22~septembre 2026). L'origine vraisemblable de cette dérive est l'optimiseur employé
 par la branche lognormale sur une vraisemblance quasi plate en $\delta$, dont le
 chemin dépend de l'ordre des opérations en virgule flottante~; cette explication
 est cohérente avec la répartition observée des écarts, mais elle n'a pas été
@@ -648,7 +675,7 @@ le générateur par défaut de R, que \code{\$metadata} ne consigne pas.
 \subsection{Index des fonctions de statistique et de p-value}
 \label{sec:index-fonctions}
 
-L'inventaire de la section~1.3 regroupe les fonctions par catégorie
+L'inventaire de la section~\ref{sec:inventaire} regroupe les fonctions par catégorie
 (\code{stat\_*()}, \code{test\_*()}). Le tableau ci-dessous descend d'un niveau~:
 il relie \textbf{chaque test documenté} --- méthode lognormale en partie~III,
 méthode Merz--Wüthrich en sections~\ref{sec:mwm1} à~\ref{sec:mwm6} --- à la ou aux fonctions R
@@ -879,9 +906,9 @@ sans objet & --- \\
 Bootstrap semi-paramétrique & \S\ref{sec:mw} & \code{mw\_bootstrap()}
 (via \code{mw\_simuler\_triangle()} et \code{.mw\_stats()}) &
 sans objet & toutes les clés ci-dessus \\
-Leviers et DFBETA du triangle & \ref{fiche:39} & \code{mw\_influence()} &
+Leviers et DFBETA du triangle & \ref{mw:influence} & \code{mw\_influence()} &
 diagnostic, aucune p-value & --- \\
-Contributions par année de survenance & \ref{fiche:39} &
+Contributions par année de survenance & \ref{mw:influence} &
 \code{mw\_contributions()} & diagnostic, aucune p-value & --- \\
 
 \end{longtable}
@@ -889,9 +916,10 @@ Contributions par année de survenance & \ref{fiche:39} &
 \end{landscape}
 
 \begin{encadre}
-\textbf{Fonctions internes de support.} Trois fonctions préfixées d'un point ne
+\textbf{Fonctions internes de support.} Quatre fonctions préfixées d'un point ne
 sont jamais appelées directement par \code{usp\_tests()} mais seulement par les
-fonctions de p-value ci-dessus~: \code{.imhof\_p\_sup0()} (intégrale d'Imhof,
+fonctions de p-value ci-dessus, directement ou l'une par l'intermédiaire de
+l'autre~: \code{.imhof\_p\_sup0()} (intégrale d'Imhof,
 utilisée par \code{dw\_p\_exacte()}), \code{.mk\_loi\_exacte()} et
 \code{.poly\_mult()} (distribution exacte du $S$ de Kendall par produit de
 polynômes, utilisées par \code{mk\_p\_exacte()}), et \code{.runs\_dens()}
@@ -899,7 +927,9 @@ polynômes, utilisées par \code{mk\_p\_exacte()}), et \code{.runs\_dens()}
 \code{.shapiro\_sur()} et \code{sw\_loi\_nulle()} sont deux autres fonctions
 internes~: la première encapsule \code{stats::shapiro.test()} pour éviter
 qu'un échantillon dégénéré n'interrompe la boucle de bootstrap, la seconde
-met en cache la loi nulle simulée de $W$ par valeur de $T$.
+met en cache la loi nulle simulée de $W$ par taille d'échantillon ($T$ dans la
+branche lognormale, nombre de résidus de Mack dans la branche Merz--Wüthrich~;
+§\ref{sec:graines}).
 \end{encadre}
 
 \begin{encadre}
@@ -3751,7 +3781,7 @@ signale des aberrations qui n'en sont pas.
 \Cadre
 Généralisation itérative de Grubbs. On fixe a priori un nombre maximal $k$ de valeurs aberrantes
 recherchées (le script prend $k = \max(1, \lfloor T/4 \rfloor)$) et un niveau $\alpha$, qui est
-celui passé à \code{usp\_run()} (0,10 par défaut) et non une valeur figée. Hypothèse non
+celui passé à \code{run\_engine()} (0,10 par défaut) et non une valeur figée. Hypothèse non
 testée~: normalité de la population sous-jacente.
 \Hzero
 $H_0$ : aucune valeur aberrante. On teste séquentiellement les alternatives « il y a exactement
@@ -4256,6 +4286,7 @@ comptent de toute façon moins de trois observations et ne sont pas testées.
 \end{fiche}
 
 \begin{fiche}{Influence et leviers du triangle (Merz--Wüthrich)}
+\label{mw:influence}
 \refl{T.~Mack (1993), \emph{op.\ cit.}, pour la structure de pondération~;
 R.\,D. Cook (1977) et D.\,C. Hoaglin, R.\,E. Welsch (1978), \emph{op.\ cit.},
 pour les notions de levier et d'influence transposées ici.}
@@ -4358,9 +4389,14 @@ reproduit ci-dessous et qu'implémente \code{mw\_msep()}. L'acte qui a opéré
 cette correction n'est pas identifié à ce jour~; l'hypothèse d'un rectificatif
 refondu sans marqueur de modification, la seule que suggèrent les pièces
 consultées, est signalée comme une hypothèse et non comme un fait établi. La
-pagination « L~12/277-278 », qui circule dans les documents de travail du
-projet, n'a pas été vérifiée sur le \emph{Journal officiel}~; elle n'est donc
-pas reprise ici.
+pagination au \emph{Journal officiel} (L~12 du 17 janvier 2015) a été vérifiée
+à l'image le 22~septembre 2026~: la section~D occupe les p.~276--278 et le
+paragraphe~5 les p.~277--278. Cette pagination est celle de la \emph{version
+d'origine}, dont le paragraphe~5 imprime le libellé de 2015 et non la formule
+reproduite ci-dessous~; la version consolidée, qu'applique \code{mw\_msep()},
+n'est pas une publication paginée du \emph{Journal officiel}. Les formules du
+paragraphe~5 ne sont donc pas une transcription des p.~277--278~: un relecteur
+qui s'y reporterait y lirait une autre formule.
 
 \paragraph{Facteurs de développement.}
 \[
@@ -5663,7 +5699,7 @@ Facteurs de développement $\hat f_j$ & 3,4906 ; 1,7473 ; 1,4574 ; \dots &
 conformes aux valeurs publiées \\
 Réserve chain-ladder totale & 18\,680\,856 & conforme \\
 Erreur type \emph{ultime} de Mack & 2\,447\,095 & conforme à la valeur publiée \\
-MSEP à un an $=$ transcription littérale du paragraphe~D(5) & écart relatif nul
+MSEP à un an $=$ transcription littérale du paragraphe~D(5), version consolidée & écart relatif nul
 (précision machine) & conforme au texte \\
 $\sqrt{\mathrm{MSEP}}$ à un an $=$ \code{ChainLadder::CDR} (Merz--Wüthrich
 2008) & 1\,778\,967,66336\newline contre 1\,778\,967,66335758 & écart relatif
@@ -5695,7 +5731,7 @@ tests unitaires du dépôt.
 \begin{encadre}
 \textbf{Sur quoi repose la validation de la MSEP à un an.} Elle repose sur deux
 voies distinctes~: d'une part la confrontation du moteur à une transcription
-littérale du paragraphe~D(5), réécrite depuis le texte et implémentée
+littérale du paragraphe~D(5) dans sa version consolidée en vigueur (§\ref{sec:mw}), réécrite depuis le texte et implémentée
 séparément dans la batterie de tests unitaires~; d'autre part une comparaison
 \emph{externe} avec \code{ChainLadder::CDR} (paquet R \code{ChainLadder}
 0.2.18), implémentation publique de Merz--Wüthrich (2008), reproduite à
@@ -5975,23 +6011,46 @@ Optimisation sous contrainte $\delta\in[0,1]$ & \code{usp\_objectif()}, \code{us
 Lois exactes (Kendall, suites) & \code{mk\_p\_exacte()}, \code{runs\_p\_exacte()} \\
 Statistiques de test & \code{stat\_*()}, \code{test\_*()} \\
 Bootstrap paramétrique et p-values MC & \code{.stats\_bootstrapables()}, \code{usp\_bootstrap()} \\
-Hiérarchie exacte $\succ$ MC $\succ$ asymptotique & fonction \code{add()} interne à \code{usp\_tests()} \\
+Hiérarchie exacte $\succ$ MC $\succ$ asymptotique & fonction \code{add()} interne à \code{usp\_tests()}~;\newline
+fonction \code{add()} homonyme interne à \code{mw\_tests()} \\
 Sortie de la hiérarchie (grandeur rivée par l'estimation) & branche finale de \code{add()}~:
 \code{p\_retenue} et \code{nature\_p} à \code{NA}, verdict \code{INFO} \\
 Réserve sur la base « ratios bruts » à $\hat\pi_t$ constant & champ \code{detail} des six lignes
 de base \code{r} dans \code{usp\_tests()} \\
-Erreur de Monte-Carlo & champ \code{err\_mc} de \code{usp\_bootstrap()} \\
+Erreur de Monte-Carlo & champ \code{err\_mc} de \code{usp\_bootstrap()} et de
+\code{mw\_bootstrap()} \\
 Jackknife, profils, rapport de vraisemblance & \code{usp\_jackknife()}, \code{usp\_profil()} \\
 Calibration et paramètre final & \code{usp\_parametre()}, \code{usp\_credibilite()} \\
+Merz--Wüthrich~: facteurs $\hat f_j$, variances $\hat\sigma_j^2$, cumulés
+projetés $\hat C(i,J)$, réserve (§\ref{sec:mw}) & \code{mw\_ajuster()} \\
+Merz--Wüthrich~: extrapolation de $\hat\sigma^2_{J-1}$ (§\ref{sec:mw},
+fiche~\ref{mw:m6sig}) & \code{mw\_ajuster()}~: valeur retenue (\code{\$sigma2})~;\newline
+\code{mw\_extrapolation\_sigma2()}~: trois arguments du minimum~;\newline
+\code{.mw\_detail\_extrapolation()}~: champ \code{detail} de la ligne M6 \\
+Merz--Wüthrich~: erreur de prédiction à un an, paragraphe~D(5) (§\ref{sec:mw}) &
+\code{mw\_msep()} \\
+Merz--Wüthrich~: paramètre propre $\sigma_{(\text{res},s,\mathrm{USP})}$ et
+crédibilité (§\ref{sec:mw}) & \code{mw\_parametre()}, \code{usp\_credibilite()} \\
+Merz--Wüthrich~: résidus standardisés de Mack (§\ref{sec:mw}) &
+\code{mw\_residus()} \\
+Merz--Wüthrich~: bootstrap semi-paramétrique et p-values de Monte-Carlo
+(§\ref{sec:boot-mw}) & \code{mw\_bootstrap()}, \code{mw\_simuler\_triangle()},
+\code{.mw\_stats()} \\
+Merz--Wüthrich~: tests et diagnostics M1 à M6 (sections~\ref{sec:mwm1}
+à~\ref{sec:mwm6}) & \code{mw\_tests()} \\
+Merz--Wüthrich~: leviers, DFBETA et contributions par année de survenance
+(fiche~\ref{mw:influence}) & \code{mw\_influence()}, \code{mw\_contributions()} \\
 Contrôles de validité & \code{engine\_valider\_donnees()}, \code{usp\_controle\_donnees()},
 \code{mw\_valider\_triangle()}, \code{mw\_valider\_ajustement()} \\
-Quantités des graphiques & \code{engine\_plots\_data()} \\
+Quantités des graphiques & \code{engine\_plots\_data()} (branche lognormale),\newline
+\code{mw\_plots\_data()} (branche Merz--Wüthrich) \\
 Tirages aléatoires et graines (§\ref{sec:graines}) & \code{usp\_bootstrap()},
 \code{usp\_simuler()}, \code{mw\_bootstrap()},\newline
 \code{mw\_simuler\_triangle()}, \code{sw\_loi\_nulle()},\newline
 \code{engine\_plots\_data()}, \code{engine\_ecrire\_xlsx()},\newline
 \code{engine\_lire\_xlsx()} \\
-Orchestration complète & \code{run\_engine()} \\
+Orchestration complète & \code{run\_engine()}~; méthode de réserve
+n\textsuperscript{o}~2 déléguée à\newline \code{.run\_engine\_mw()} \\
 Table auditable des tests & \code{engine\_table\_tests()} \\
 \bottomrule
 \end{tabular}
@@ -6095,7 +6154,7 @@ littérature consultée.
   bootstrap.
   \item \textbf{Aucune valeur publiée de la MSEP à un an} n'a pu être identifiée
   pour le triangle de Taylor \& Ashe. La validation de cette grandeur repose donc
-  sur la transcription littérale du paragraphe~D(5), sur des propriétés
+  sur la transcription littérale du paragraphe~D(5) (version consolidée), sur des propriétés
   structurelles et sur la comparaison avec une implémentation externe
   (\code{ChainLadder::CDR}), non sur un nombre publié dans la littérature.
   \item \textbf{Le domaine de validité exact de la transformation de Royston}
@@ -6142,7 +6201,11 @@ envisagé, sensibilité du paramètre final. \\
 Relève aussi de ce verdict la grandeur dont la valeur est \emph{contrainte par
 construction}, aucun seuil ne pouvant alors rien détecter~: ainsi la variance des résidus de
 Mack, fixée à $(N-k)/(N-1)$ --- $N$ résidus, $k$ colonnes retenues --- et non à~1
-(fiche~\ref{mw:m2var}). \\
+(fiche~\ref{mw:m2var}). Sont enfin restitués \code{INFO} les deux diagnostics
+M6 de la méthode Merz--Wüthrich, extrapolation de $\hat\sigma^2_{J-1}$ et
+concentration de la réserve (fiches~\ref{mw:m6sig} et~\ref{mw:m6conc})~: ils
+n'opposent aucune hypothèse nulle et n'ont pas de loi de référence, et le
+repère indicatif de 40~\% du second n'emporte aucun verdict (ADR~0001). \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -6238,8 +6301,16 @@ Bloc bleu clair & Entrée ou donnée intermédiaire \\
 Bloc blanc, contour bleu & Fonction \textbf{dédiée} à un seul test \\
 Bloc orangé, contour épais & Fonction \textbf{mutualisée} entre plusieurs tests
 ou entre les deux méthodes \\
-Bloc gris & Fonction \textbf{interne} de support, préfixée d'un point, jamais
-appelée directement par \code{usp\_tests()} ou \code{mw\_tests()} \\
+Bloc gris & Fonction \textbf{interne} de support, appelée par une autre
+fonction du moteur et jamais directement par \code{usp\_tests()} ou
+\code{mw\_tests()}~:\newline
+\code{sw\_loi\_nulle()}, \code{.imhof\_p\_sup0()}, \code{.runs\_dens()},\newline
+\code{.fisher\_combine()}, \code{.mack\_moments\_Z()},\newline
+\code{mw\_simuler\_triangle()}, \code{.mw\_stats()}.\newline
+Le préfixe d'un point ne définit pas cette catégorie~: \code{.shapiro\_sur()},
+\code{.mw\_lm\_intra()} et \code{.mw\_detail\_extrapolation()}, préfixées d'un
+point, sont appelées directement par \code{usp\_tests()} ou \code{mw\_tests()}
+et ne sont pas représentées en gris \\
 Bloc vert & Sortie : p-value ou grandeur restituée \\
 Flèche pleine & Transmission d'un objet, dont le nom figure sur la flèche \\
 Flèche pointillée & Dépendance de second rang (mise en cache, loi de référence) \\
@@ -6279,7 +6350,8 @@ méthode lognormale, en un seul appel \\
 \code{mw\_ajuster()} & MW & $\hat f_j$, $\hat\sigma_j^2$, $\hat C(i,j)$~: entrée
 de la MSEP, des résidus, de tous les tests M1 à M6 \\
 \code{mw\_residus()} & MW & Support de M1, M2, M3, M4 et M5 \\
-\code{.mw\_stats()} & MW & Les 7 statistiques bootstrapées de la méthode \\
+\code{.mw\_stats()} & MW & Les 13 statistiques bootstrapées de la méthode, en un
+seul appel \\
 \end{tabular}
 \end{center}
 
