@@ -1449,8 +1449,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       p_ex = runs_p_exacte(z), p_as = ru$p, mc_nom = "Runs")
   # Centrage et variance unitaire : DIAGNOSTICS, sans verdict ni p-value
   # retenue (ADR 0001 ; issues #3 et #5). La condition du premier ordre en
-  # ln(beta) impose TOUJOURS somme(sqrt(pi_t) z_t) = 0 : les deux grandeurs
-  # sont rivees par l'estimation dans tous les cas. Elles ne se reduisent a
+  # ln(beta) impose TOUJOURS somme(sqrt(pi_t) z_t) = 0 (identite) et rive la
+  # moyenne ; la condition en gamma, qui ne tient qu'a un optimum interieur,
+  # rive la variance : les deux grandeurs sont rivees par l'estimation
+  # (CONTEXT.md, "Grandeur rivee par l'estimation"). Elles ne se reduisent a
   # somme(z_t) = 0 et somme(z_t^2) = T que lorsque pi_t est CONSTANT, ce qui
   # suppose delta = 1 ou des volumes x_t constants. A delta = 0 avec des
   # volumes variables, pi_t varie : delta_au_bord ne suffit donc PAS a
