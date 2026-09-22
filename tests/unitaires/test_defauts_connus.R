@@ -1,5 +1,5 @@
 ###############################################################################
-#  tests/unitaires/test_defauts_connus.R  --  DEFAUTS OUVERTS (ISSUES #3, #4)
+#  tests/unitaires/test_defauts_connus.R  --  DEFAUTS OUVERTS (ISSUE #4)
 #
 #  Chaque defaut connu est documente par un test "echec attendu" : le test
 #  decrit le comportement CORRECT et echoue tant que le defaut subsiste. Quand
@@ -59,30 +59,61 @@ verifier("usp_tests() sur un bootstrap complet : hierarchie exacte > Monte-Carlo
 echec_attendu("add() refuse un mc_nom absent du bootstrap (erreur explicite)",
               "issue #4 : gp() renvoie NA, repli silencieux sur la p asymptotique",
               leve_erreur(usp_tests(fit, boot_fictif(sans = "RESET"))))
-echec_attendu("Toute statistique simulee est exploitee par un test (pas d'orpheline)",
-              "issue #4 : LB2r et BP2r simulees mais jamais affichees",
-              {
-                orph <- setdiff(names(s_obs), noms_ln)
-                if (length(orph)) paste("orphelines :", paste(orph, collapse = ", ")) else TRUE
-              })
-echec_attendu("Centrage des residus : statistique affichee = statistique simulee",
-              "issue #4 : t de Student affiche, p Monte-Carlo calculee sur MeanZ = mean(z)",
-              {
-                l <- Filter(function(l) l$test == "Centrage des residus standardises",
-                            usp_tests(fit, boot_fictif()))[[1]]
-                isTRUE(proche(l$stat, s_obs[["MeanZ"]], rel = 1e-12))
-              })
+verifier("Toute statistique simulee est exploitee par un test (pas d'orpheline)",
+         {
+           orph <- setdiff(names(s_obs), noms_ln)
+           if (length(orph)) paste("orphelines :", paste(orph, collapse = ", ")) else TRUE
+         })
 
-## --- Issue #3 : test de centrage degenere quand delta est au bord -------------
-verifier("Issue #3 (constat) : delta au bord et moyenne des z nulle par construction",
-         isTRUE(fit$delta_au_bord) && abs(s_obs[["MeanZ"]]) < 1e-12)
-echec_attendu("Centrage des residus : non applicable (verdict INFO) quand delta est au bord",
-              "issue #3 : test presente comme un vrai test, p Monte-Carlo sur du bruit d'arrondi",
-              {
-                l <- Filter(function(l) l$test == "Centrage des residus standardises",
-                            usp_tests(fit, boot_fictif()))[[1]]
-                l$type != "test" || identical(l$verdict, "INFO")
-              })
+## --- Issues #3 et #5 : centrage et variance unitaire restitues en diagnostics -
+# La moyenne et la variance des z sont rivees par l'estimation, mais les
+# egalites somme(z) = 0 et somme(z^2) = T ne valent que si pi_t est CONSTANT
+# (delta = 1 ou volumes constants), non des que delta est au bord : le jeu
+# tronque a T = 5 ci-dessous donne delta = 0 avec des pi_t variables.
+# ADR 0001 : les deux verifications restent affichees, comme diagnostics.
+fit0 <- usp_ajuster(x[1:5], y[1:5])            # delta = 0, pi_t non constant
+verifier("pi_t constant (delta = 1) : moyenne des z nulle et somme des z^2 egale a T",
+         isTRUE(fit$delta_au_bord) && fit$delta > 1 - 1e-6 &&
+           diff(range(fit$pi)) == 0 && abs(mean(fit$z)) < 1e-12 &&
+           isTRUE(proche(sum(fit$z^2), fit$T, rel = 1e-5)))
+verifier("delta = 0 avec volumes variables : pi_t NON constant, aucune des deux egalites",
+         isTRUE(fit0$delta_au_bord) && fit0$delta < 1e-6 &&
+           diff(range(fit0$pi)) / mean(fit0$pi) > 0.01 &&
+           abs(mean(fit0$z)) > 1e-3 && abs(sum(fit0$z^2) - fit0$T) > 1e-3 &&
+           abs(sum(sqrt(fit0$pi) * fit0$z)) < 1e-8)
+verifier("Centrage et variance unitaire : diagnostics INFO, sans p-value retenue",
+         {
+           ok <- TRUE
+           for (f in list(fit, fit0)) {
+             ll <- Filter(function(l) l$test %in% c("Centrage des residus standardises",
+                                                    "Variance unitaire des residus standardises"),
+                          usp_tests(f, boot_fictif()))
+             ok <- ok && length(ll) == 2 &&
+               all(vapply(ll, function(l)
+                 identical(l$type, "diagnostic") && identical(l$verdict, "INFO") &&
+                   is.na(l$p_retenue) && is.na(l$nature_p) && is.na(l$p_mc) &&
+                   is.na(l$p_exacte) && is.na(l$p_asymptotique) &&
+                   is.finite(l$estim) && nzchar(l$detail), logical(1)))
+           }
+           ok
+         })
+verifier("Libelle du diagnostic : constance de pi_t, non position de delta au bord",
+         {
+           txt <- function(f) Filter(function(l) l$test == "Centrage des residus standardises",
+                                     usp_tests(f, boot_fictif()))[[1]]$detail
+           d1 <- txt(fit); d0 <- txt(fit0)
+           if (!grepl("pi_t est constant", d1, fixed = TRUE))
+             "delta = 1 : le libelle ne dit pas que pi_t est constant"
+           else if (!grepl("n'est PAS constant", d0, fixed = TRUE))
+             paste("delta = 0 : libelle errone ->", d0)
+           else TRUE
+         })
+verifier("MeanZ, VarZ, LB2r et BP2r ne sont plus simulees",
+         {
+           restantes <- intersect(c("MeanZ", "VarZ", "LB2r", "BP2r"), names(s_obs))
+           if (length(restantes))
+             paste("encore simulees :", paste(restantes, collapse = ", ")) else TRUE
+         })
 
 ## --- Issue #4, piste 2 : etat du generateur aleatoire -------------------------
 echec_attendu("sw_loi_nulle() ne cree pas de .Random.seed s'il n'en existait pas",

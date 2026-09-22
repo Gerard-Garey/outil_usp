@@ -885,6 +885,31 @@ usp_simuler <- function(fit) {
 # n'est pas "le modele est correct" mais "beta = 0" (Student sur la pente,
 # Fisher global) : pour celles-la, le modele ajuste appartient a H1 et une
 # p-value de Monte-Carlo n'aurait aucun sens.
+# Sont exclues egalement :
+#   - MeanZ = moyenne(z) et VarZ = var(z), grandeurs rivees par l'estimation.
+#     Les conditions du premier ordre de usp_ajuster() imposent toujours
+#     somme(sqrt(pi_t) z_t) = 0 ; elles n'imposent somme(z_t) = 0 et
+#     somme(z_t^2) = T que LORSQUE pi_t est CONSTANT, c'est-a-dire delta = 1
+#     ou volumes x_t constants -- et non des que delta est au bord : a
+#     delta = 0 avec des volumes variables, pi_t varie et aucune des deux
+#     egalites ne tient (voir usp_tests(), qui distingue les trois cas).
+#     Quand pi_t est constant, les deux egalites ne valent d'ailleurs qu'a la
+#     tolerance d'arret de l'optimiseur pres : sur les donnees de test
+#     (T = 8, delta = 1), mean(z) = -2,0e-16 mais somme(z^2) - T = -5,4e-06,
+#     soit 6,8e-07 en relatif.
+#     La p-value de Monte-Carlo n'a alors pas de sens, non parce que tout
+#     serait du bruit d'arrondi, mais parce que la loi simulee est un
+#     MELANGE : sur les 999 repliques des donnees de test (graine 20260831),
+#     493 ont delta* = 1 et une moyenne des z* d'ecart-type 2,2e-16 (zero
+#     machine), 460 ont delta* = 0 et un ecart-type de 1,7e-02 (composante
+#     diffuse), 46 un delta* interieur. La statistique observee etant elle
+#     aussi un zero machine, la p-value bilaterale se decide au signe du bruit
+#     d'arrondi sur pres de la moitie des repliques : d'ou sa dependance a la
+#     plateforme (issues #3 et #5, ADR 0001). Le centrage et la variance
+#     unitaire sont restitues comme diagnostics par usp_tests().
+#   - LB2r et BP2r, statistiques au retard 2 sur les ratios bruts : jamais
+#     associees a un test affiche (issue #5) ; au retard 2, rho_2 ne repose
+#     que sur T-2 produits et Box-Pierce est domine par Ljung-Box.
 .stats_bootstrapables <- function(x, y, z) {
   r <- y / x
   lbp <- test_breusch_pagan(z^2, x); lwh <- test_white(z^2, x)
@@ -916,14 +941,12 @@ usp_simuler <- function(fit) {
   # valide, le bootstrap simulant sous le modele ajuste.
   u <- r - mean(r)
   lb1u <- unname(stats::Box.test(u, lag = 1, type = "Ljung-Box")$statistic)
-  lb2u <- if (T >= 8) unname(stats::Box.test(u, lag = 2, type = "Ljung-Box")$statistic) else NA_real_
-  bp2u <- if (T >= 8) unname(stats::Box.test(u, lag = 2, type = "Box-Pierce")$statistic) else NA_real_
   c(AD = stat_ad(z), CvM = stat_cvm(z), KS = stat_ks(z),
     SW = .shapiro_sur(z)$stat, SF = test_shapiro_francia(z)$stat,
     JB = test_jarque_bera(z)$stat, DW = stat_dw(z),
     LB1 = unname(stats::Box.test(z, lag = 1, type = "Ljung-Box")$statistic),
     supF = stat_supF(z), CUSUM = stat_cusum(z), Grubbs = test_grubbs(z)$stat,
-    MeanZ = mean(z), VarZ = stats::var(z), Lillie = stat_lilliefors(z),
+    Lillie = stat_lilliefors(z),
     # statistiques ajoutees : loi de reference seulement asymptotique
     Intercept = ti$stat, RESET = rs$stat, BP = lbp$stat, BP79 = lbp79$stat,
     White = lwh$stat,
@@ -932,7 +955,7 @@ usp_simuler <- function(fit) {
     DAgo = ds$stat,
     CoxStuart = if (is.finite(cx$stat)) abs(cx$stat - (T - m) / 2) else NA_real_,
     # --- memes statistiques sur les ratios bruts centres (base "r") ---------
-    DWr = stat_dw(u), LB1r = lb1u, LB2r = lb2u, BP2r = bp2u,
+    DWr = stat_dw(u), LB1r = lb1u,
     Runsr = test_runs(u)$stat, supFr = stat_supF(u), CUSUMr = stat_cusum(u),
     Grubbsr = test_grubbs(u)$stat)
 }
@@ -962,14 +985,13 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
   # Sens du rejet, statistique par statistique.
   queue <- c(AD = "haut", CvM = "haut", KS = "haut", SW = "bas", SF = "bas",
              JB = "haut", DW = "deux", LB1 = "haut", supF = "haut",
-             CUSUM = "haut", Grubbs = "haut", MeanZ = "deux", VarZ = "deux",
-             Lillie = "haut",
+             CUSUM = "haut", Grubbs = "haut", Lillie = "haut",
              Intercept = "deux", RESET = "haut", BP = "haut", BP79 = "haut",
              White = "haut",
              GQ = "deux", BF = "haut", Smirnov = "haut", LB2 = "haut",
              BP2 = "haut", Runs = "deux", MK = "deux", SpearVol = "deux",
              SpearTps = "deux", DAgo = "deux", CoxStuart = "haut",
-             DWr = "deux", LB1r = "haut", LB2r = "haut", BP2r = "haut",
+             DWr = "deux", LB1r = "haut",
              Runsr = "deux", supFr = "haut", CUSUMr = "haut", Grubbsr = "haut")
   pv <- vapply(noms, function(nm) {
     sv <- sim[, nm]; sv <- sv[is.finite(sv)]; o <- stats_obs[[nm]]
@@ -1418,22 +1440,44 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       stat_nom = "Z", stat = ru$stat, loi = "loi combinatoire EXACTE de R",
       estim_nom = "nb de suites R", estim = ru$runs,
       p_ex = runs_p_exacte(z), p_as = ru$p, mc_nom = "Runs")
-  tt <- stats::t.test(z)
-  add(fam, "Centrage des residus standardises", "Student (1908) ; loi par Monte-Carlo",
-      H0 = "E[z_t] = 0", H1 = "E[z_t] != 0",
-      stat_nom = "t", stat = unname(tt$statistic),
-      loi = "t(T-1) nominal ; parametres estimes -> Monte-Carlo",
-      estim_nom = "moyenne(z)", estim = mean(z),
-      p_as = tt$p.value, mc_nom = "MeanZ",
-      detail = "VRAI test : la moyenne simple de z n'est pas contrainte par l'estimation")
-  vc <- (T - 1) * stats::var(z)
-  add(fam, "Variance unitaire des residus standardises", "Pearson (1900) ; loi par Monte-Carlo",
-      H0 = "Var(z_t) = 1", H1 = "Var(z_t) != 1",
-      stat_nom = "C", stat = vc,
-      loi = "chi2(T-1) nominal ; parametres estimes -> Monte-Carlo",
-      estim_nom = "var(z)", estim = stats::var(z),
-      p_as = 2 * min(stats::pchisq(vc, T - 1), 1 - stats::pchisq(vc, T - 1)),
-      mc_nom = "VarZ", detail = "VRAI test de l'echelle de la ponderation pi_t")
+  # Centrage et variance unitaire : DIAGNOSTICS, sans verdict ni p-value
+  # retenue (ADR 0001 ; issues #3 et #5). La condition du premier ordre en
+  # ln(beta) impose TOUJOURS somme(sqrt(pi_t) z_t) = 0 : les deux grandeurs
+  # sont rivees par l'estimation dans tous les cas. Elles ne se reduisent a
+  # somme(z_t) = 0 et somme(z_t^2) = T que lorsque pi_t est CONSTANT, ce qui
+  # suppose delta = 1 ou des volumes x_t constants. A delta = 0 avec des
+  # volumes variables, pi_t varie : delta_au_bord ne suffit donc PAS a
+  # conclure, et c'est la constance effective de pi_t qui est testee ici.
+  # Trois cas sont distingues dans le libelle (voir aussi le commentaire de
+  # .stats_bootstrapables() pour la loi simulee, qui est un melange).
+  pi_constant <- diff(range(fit$pi)) <= 1e-9 * mean(fit$pi)
+  contrainte <- if (isTRUE(pi_constant))
+    paste("Ici pi_t est constant (delta = 1, ou volumes x_t constants) :",
+          "les deux egalites tiennent a la tolerance d'arret de l'optimiseur",
+          "pres et la valeur affichee n'est que du bruit numerique.")
+  else if (isTRUE(fit$delta_au_bord))
+    paste("Ici delta est au bord de [0,1] mais pi_t n'est PAS constant :",
+          "seule la contrainte ponderee subsiste, la valeur affichee n'est",
+          "donc ni nulle ni egale a T/(T-1) ; elle mesure l'ecart entre",
+          "version ponderee et version non ponderee.")
+  else
+    paste("Ici delta est interieur a [0,1] et pi_t n'est pas constant :",
+          "seule la contrainte ponderee subsiste ; la valeur affichee mesure",
+          "l'ecart entre version ponderee et version non ponderee.")
+  sans_p <- paste("Aucune p-value retenue : la grandeur est rivee par",
+                  "l'estimation, elle est restituee comme diagnostic (ADR 0001).")
+  add(fam, "Centrage des residus standardises", "Diagnostic de centrage (ADR 0001)",
+      type = "diagnostic", estim_nom = "moyenne(z)", estim = mean(z),
+      detail = paste("Grandeur contrainte par l'estimation :",
+                     "somme(sqrt(pi_t) z_t) = 0 par condition du premier ordre,",
+                     "d'ou moyenne(z) = 0 lorsque pi_t est constant.",
+                     contrainte, sans_p))
+  add(fam, "Variance unitaire des residus standardises", "Diagnostic d'echelle (ADR 0001)",
+      type = "diagnostic", estim_nom = "var(z)", estim = stats::var(z),
+      detail = paste("Grandeur contrainte par l'estimation : les conditions du",
+                     "premier ordre donnent somme(z_t^2) = T lorsque pi_t est",
+                     "constant, soit var(z) = T/(T-1).",
+                     contrainte, sans_p))
 
   ## --- F. Stabilite, ruptures et points aberrants ----------------------------
   fam <- "F. Stabilite, ruptures et points aberrants"
