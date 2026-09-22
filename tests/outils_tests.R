@@ -79,3 +79,28 @@ neutraliser_instables <- function(res) {
 }
 
 chemin_reference <- function(nom) file.path(DOSSIER_REF, paste0(nom, ".rds"))
+
+# Aplatit un objet en feuilles atomiques nommees par leur chemin
+# (ex. "parametre_final$sigma_usp", "tests[[12]]$p_mc", "donnees$xt[3]").
+# Partage par comparer_references.R et patcher_reference.R : le second prend
+# pour motifs les chemins que le premier affiche, et deux copies d'une meme
+# fonction seraient le moyen le plus sur de perdre cette correspondance.
+# Attention : l'aplatissement ne restitue que les FEUILLES. Les attributs
+# (dim, class, row.names) et les listes vides n'y apparaissent pas ; toute
+# verification qui doit porter sur l'objet ENTIER passe par all.equal() ou
+# par une comparaison d'attributs dediee.
+aplatir <- function(o, chemin = "") {
+  if (is.data.frame(o)) o <- as.list(o)
+  if (is.list(o)) {
+    nm <- names(o)
+    res <- list()
+    for (k in seq_along(o)) {
+      etiq <- if (!is.null(nm) && nzchar(nm[k])) paste0("$", nm[k]) else sprintf("[[%d]]", k)
+      res <- c(res, aplatir(o[[k]], paste0(chemin, etiq)))
+    }
+    return(res)
+  }
+  if (length(o) <= 1) return(stats::setNames(list(o), sub("^\\$", "", chemin)))
+  noms_el <- if (!is.null(names(o))) paste0("[\"", names(o), "\"]") else sprintf("[%d]", seq_along(o))
+  stats::setNames(as.list(o), paste0(sub("^\\$", "", chemin), noms_el))
+}
