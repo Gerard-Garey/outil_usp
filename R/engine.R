@@ -2064,8 +2064,11 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
 ## =============================================================================
 ## 11. METHODE DU RISQUE DE RESERVE No 2 (MERZ-WUTHRICH)
 ##     Reglement delegue (UE) 2015/35, annexe XVII, section D.
-##     Paragraphes 1 a 4 : transcription litterale du texte d'origine publie
-##     au JOUE L 12 du 17.1.2015, p. 276-277.
+##     Paragraphes 1 a 4 : transcription litterale ; leur texte et leurs
+##     formules sont identiques dans la version d'origine (JOUE L 12 du
+##     17.1.2015, p. 276-277) et dans la version consolidee au 14.11.2024
+##     (aucune marque de modification dans la section D ; comparaison des
+##     formules en rendu graphique le 22/09/2026).
 ##     Paragraphe 5 (MSEP, mw_msep()) : transcription de la VERSION CONSOLIDEE
 ##     en vigueur (EUR-Lex, CELEX 32015R0035, consolidee au 14.11.2024), qui
 ##     n'a pas de pagination au JOUE ; la formule d'origine (JOUE
