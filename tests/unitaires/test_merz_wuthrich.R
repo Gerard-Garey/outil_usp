@@ -153,6 +153,116 @@ verifier("run_engine : reserves negatives par annee mais total positif -> calcul
              any(grepl("cumul decroissant", r$validation$avertissements, fixed = TRUE))
          })
 
+## --- Extrapolation de sigma2_(J-1) quand un argument du minimum est nul -----
+# Par. 5(d)(ii), seconde ligne : sigma2_(J-1) = min(sigma2_(J-2), sigma2_(J-3),
+# sigma2_(J-2)^2/sigma2_(J-3)). Les trois arguments sont positifs ou nuls
+# (sommes de carres ponderees par des C(i,j) > 0, quotient de telles
+# quantites) : des qu'un argument est nul, le minimum vaut 0, et
+# l'indetermination arithmetique du quotient est sans effet. Aucune clause de
+# cas degenere ne figure a l'annexe XVII (a contrario, l'annexe XVIII prevoit
+# explicitement "d1 = 1 lorsque SS ou SC est egal a zero"). Voir l'issue #7.
+#
+# Triangle degenere : colonne J-3 = 2 a facteurs individuels tous egaux a 1,
+# puis reprise du mouvement (f_3 et f_4 differents de 1). Il passe
+# mw_valider_triangle() sans reserve autre que celle liee a I + 1 = 6.
+tri_deg <- matrix(NA_real_, 6, 6)
+tri_deg[1, ] <- c(1000, 1600, 1800, 1800, 1830, 1835)
+tri_deg[2, 1:5] <- c(1100, 1815, 2000, 2000, 2050)
+tri_deg[3, 1:4] <- c(900, 1395, 1580, 1580)
+tri_deg[4, 1:3] <- c(1200, 1980, 2210)
+tri_deg[5, 1:2] <- c(1050, 1638)
+tri_deg[6, 1]   <- 980
+verifier("sigma2_(J-3) = 0 : sigma2_(J-1) = 0 par la lettre du par. 5(d)(ii)",
+         {
+           a <- mw_ajuster(tri_deg)
+           isTRUE(mw_valider_triangle(tri_deg)$ok) &&
+             a$sigma2[a$J - 2] == 0 && a$sigma2[a$J - 1] > 0 &&
+             a$sigma2[a$J] == 0
+         })
+verifier("Colonne J-3 degeneree : detection par les facteurs, arguments du minimum restitues",
+         {
+           ex <- mw_extrapolation_sigma2(mw_ajuster(tri_deg))
+           isTRUE(ex$degeneree) && ex$colonne == 2 && ex$nb_facteurs == 3 &&
+             ex$ecart_relatif <= 1e-15 && is.na(ex$quotient) &&
+             identical(ex$retenu, "sigma2_(J-3)") && ex$valeur == 0 &&
+             isTRUE(proche(ex$sigma2_Jm2, 0.0657894736842, rel = 1e-10)) &&
+             identical(ex$developpement_acheve, FALSE)
+         })
+verifier("run_engine : colonne J-3 degeneree signalee dans validation$avertissements",
+         {
+           r <- run_engine(methode = "reserve2", triangle = tri_deg,
+                           segment = 1, annexe = "II", B = 99)
+           av <- r$validation$avertissements
+           isTRUE(r$ok) &&
+             any(grepl("sigma2_(J-3) = 0", av, fixed = TRUE)) &&
+             any(grepl("application litterale", av, fixed = TRUE)) &&
+             any(grepl("AUCUNE variance sur la derniere annee de developpement",
+                       av, fixed = TRUE)) &&
+             any(grepl("Verifier l'origine des donnees", av, fixed = TRUE)) &&
+             any(grepl("n'est pourtant PAS acheve", av, fixed = TRUE))
+         })
+verifier("Diagnostic M6 : les trois arguments du minimum et celui qui est retenu sont affiches",
+         {
+           r <- run_engine(methode = "reserve2", triangle = tri_deg,
+                           segment = 1, annexe = "II", B = 99)
+           d <- engine_table_tests(r)
+           l <- d$commentaire[grepl("Extrapolation de sigma", d$test)]
+           length(l) == 1 &&
+             grepl("sigma2_(J-2) = 0.0657895", l, fixed = TRUE) &&
+             grepl("sigma2_(J-3) = 0 ;", l, fixed = TRUE) &&
+             grepl("minimum atteint par sigma2_(J-3)", l, fixed = TRUE)
+         })
+# Cas symetrique : sigma2_(J-2) = 0 avec sigma2_(J-3) > 0. Le quotient vaut
+# alors 0 et le minimum litteral donne 0 sans aucune garde ; la colonne J-3
+# n'etant pas degeneree, aucun avertissement n'est emis.
+tri_sym <- matrix(NA_real_, 6, 6)
+tri_sym[1, ] <- c(1000, 1600, 1800, 1900, 1938, 1945)
+tri_sym[2, 1:5] <- c(1100, 1815, 2000, 2150, 2193)
+tri_sym[3, 1:4] <- c(900, 1395, 1580, 1650)
+tri_sym[4, 1:3] <- c(1200, 1980, 2210)
+tri_sym[5, 1:2] <- c(1050, 1638)
+tri_sym[6, 1]   <- 980
+verifier("sigma2_(J-2) = 0 avec sigma2_(J-3) > 0 : sigma2_(J-1) = 0, sans avertissement",
+         {
+           a <- mw_ajuster(tri_sym)
+           ex <- mw_extrapolation_sigma2(a)
+           r <- run_engine(methode = "reserve2", triangle = tri_sym,
+                           segment = 1, annexe = "II", B = 99)
+           a$sigma2[a$J - 1] < 1e-12 && a$sigma2[a$J - 2] > 1e-3 &&
+             a$sigma2[a$J] < 1e-12 && ex$quotient < 1e-12 &&
+             identical(ex$degeneree, FALSE) &&
+             identical(ex$retenu, "sigma2_(J-2)") &&
+             isTRUE(r$ok) &&
+             !any(grepl("sigma2_(J-3) = 0", r$validation$avertissements, fixed = TRUE))
+         })
+# Triangle non degenere : la valeur ne change pas (le minimum litteral est
+# applique comme auparavant) et aucun avertissement n'est emis.
+verifier("Triangle non degenere : sigma2_(J-1) inchange = min(...) et aucun avertissement",
+         {
+           ex <- mw_extrapolation_sigma2(aj)
+           r <- run_engine(methode = "reserve2", triangle = tri,
+                           segment = 1, annexe = "II", B = 99)
+           identical(ex$degeneree, FALSE) && is.finite(ex$quotient) &&
+             isTRUE(proche(aj$sigma2[4],
+                           min(s2_main[3], s2_main[2], s2_main[3]^2 / s2_main[2]),
+                           rel = 1e-8)) &&
+             isTRUE(proche(ex$valeur, aj$sigma2[4], rel = 1e-14)) &&
+             !any(grepl("sigma2_(J-3) = 0", r$validation$avertissements, fixed = TRUE))
+         })
+# Le critere de degenerescence porte sur les facteurs, non sur sigma2 teste
+# en virgule flottante : une colonne constante a 1e-14 pres est detectee, une
+# colonne reellement dispersee ne l'est pas.
+verifier("Detection : colonne constante a 1e-14 pres detectee, colonne dispersee non",
+         {
+           t2 <- tri_deg
+           t2[2, 4] <- t2[2, 3] * (1 + 1e-14)        # F(1,2) = 1 + 1e-14
+           d1 <- mw_extrapolation_sigma2(mw_ajuster(t2))$degeneree
+           t3 <- tri_deg
+           t3[2, 4] <- t3[2, 3] * (1 + 1e-4)         # dispersion reelle
+           d2 <- mw_extrapolation_sigma2(mw_ajuster(t3))$degeneree
+           isTRUE(d1) && identical(d2, FALSE)
+         })
+
 ## --- Triangle de Taylor & Ashe (1983) ----------------------------------------
 # Donnees publiees (cumules), jeu GenIns de ChainLadder.
 ta <- matrix(c(357848, 352118, 290507, 310608, 443160, 396132, 440832, 359480, 376686, 344014,

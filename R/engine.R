@@ -2037,10 +2037,38 @@ mw_ajuster <- function(tri) {
   # sigma2_{J-1} = min(sigma2_{J-2}, sigma2_{J-3}, sigma2_{J-2}^2 / sigma2_{J-3})
   # [par. 5(d)(ii), seconde ligne]. Le sigma^4 du texte designe le carre de
   # sigma2_{J-2}, la formule etant l'extrapolation geometrique usuelle.
-  if (J >= 3 && is.finite(s2[J - 1]) && is.finite(s2[J - 2]) && s2[J - 2] > 0)
-    s2[J] <- min(s2[J - 1], s2[J - 2], s2[J - 1]^2 / s2[J - 2])
-  else if (J >= 2 && is.finite(s2[J - 1]))
+  #
+  # CAS sigma2_{J-3} = 0 (colonne J-3 a facteurs individuels tous egaux). Le
+  # troisieme argument divise alors par zero, mais la regle du texte reste
+  # DETERMINEE et vaut 0 : par la premiere ligne de (d)(ii), sigma2_j est une
+  # somme de carres ponderee par des C(i,j) > 0, donc les trois arguments sont
+  # positifs ou nuls et le quotient est dans [0, +Inf] ; comme le DEUXIEME
+  # argument vaut deja 0, le minimum est atteint en sigma2_{J-3} quelle que
+  # soit la valeur donnee au quotient. L'indetermination arithmetique est sans
+  # effet sur le minimum. Aucune clause de cas degenere ne figure ni a
+  # l'annexe XVII ni aux articles 218-220 (a contrario : l'annexe XVIII ecrit
+  # explicitement "d1 est egal a 1 lorsque SS ou SC est egal a zero"), et la
+  # regle litterale est CONTINUE en zero -- pour b -> 0+, min(a, b, a^2/b)
+  # tend vers 0. Le repli sur sigma2_{J-2} pratique auparavant n'etait pas
+  # prescrit, retenait une valeur SUPERIEURE a la borne sigma2_{J-3} = 0
+  # imposee par le texte, et introduisait une discontinuite (deux triangles
+  # indiscernables a 1e-8 pres donnaient des sigma_USP ecartes de plusieurs
+  # dizaines de pour cent). Voir l'issue #7 et mw_extrapolation_sigma2().
+  #
+  # Ecriture : on evalue le quotient seulement quand il est defini, en lui
+  # substituant sinon +Inf (sa limite quand sigma2_{J-3} -> 0+ a sigma2_{J-2}
+  # fixe non nul) ; le minimum litteral s'applique alors sans branche speciale
+  # et donne 0 de lui-meme. Le cas symetrique sigma2_{J-2} = 0 avec
+  # sigma2_{J-3} > 0 passe par la meme expression (quotient nul) et donne 0.
+  if (J >= 3 && is.finite(s2[J - 1]) && is.finite(s2[J - 2])) {
+    quotient <- if (s2[J - 2] > 0) s2[J - 1]^2 / s2[J - 2] else Inf
+    s2[J] <- min(s2[J - 1], s2[J - 2], quotient)
+  } else if (J >= 2 && is.finite(s2[J - 1])) {
+    # Seul cas restant : J < 3 (sigma2_{J-3} n'existe pas) ou sigma2 non fini.
+    # Le texte ne couvre pas J < 3 ; run_engine() ne peut pas l'atteindre
+    # (mw_valider_triangle impose T >= 5 et I = J, donc J >= 4).
     s2[J] <- s2[J - 1]
+  }
 
   # C_chapeau(i,j) : observe si j <= I-i, projete au-dela   [par. 4(c)]
   Ch <- tri
@@ -2065,6 +2093,93 @@ mw_ajuster <- function(tri) {
        C_chapeau = Ch, dernier_observe = derniers, ultime = ultimes,
        reserve_par_annee = ultimes - derniers,
        reserve = sum(ultimes - derniers))
+}
+
+# --- Lecture de l'extrapolation de sigma2_{J-1} : par. 5(d)(ii), 2e ligne ----
+# Fonction de RESTITUTION, sans effet sur les calculs : elle recompose, a
+# partir d'un ajustement deja produit par mw_ajuster(), les TROIS arguments du
+# minimum du texte et celui qui est retenu, de sorte qu'un relecteur puisse
+# refaire le calcul. Elle detecte aussi le cas degenere sigma2_{J-3} = 0.
+#
+# DETECTION. Le critere ne porte PAS sur sigma2_{J-3} == 0 teste en virgule
+# flottante : sigma2_{J-3} est une somme de carres d'ecarts F(i,j) - f_j, deux
+# quantites proches l'une de l'autre, et l'arrondi accumule par les divisions
+# et par la moyenne ponderee laisse en general un residu strictement positif
+# (de l'ordre du carre de l'epsilon machine relatif a f_j^2) la ou la colonne
+# est exactement constante. Le critere porte donc sur la PROPRIETE qui annule
+# sigma2_{J-3}, a savoir l'egalite de tous les facteurs individuels de la
+# colonne a leur moyenne ponderee :
+#     max_i |F(i,j) - f_j| <= tol * f_j,   j = J-3.
+# Il est sans dimension (invariant par changement d'unite des cumules) et
+# tol = 1e-12, soit environ 1e4 fois l'epsilon machine, laisse passer
+# l'arrondi des divisions tout en restant plusieurs ordres de grandeur sous la
+# dispersion d'une colonne reelle (coefficient de variation des facteurs de
+# l'ordre de 1e-2 a 1e-1).
+# Ce critere ne sert qu'au DIAGNOSTIC : la valeur, elle, est robuste sans lui,
+# la regle litterale etant continue en zero (une colonne constante a 1e-12
+# pres donne un minimum de l'ordre de 1e-21, numeriquement nul).
+mw_extrapolation_sigma2 <- function(aj, tol = 1e-12) {
+  out <- list(J = NA_integer_, colonne = NA_integer_, nb_facteurs = NA_integer_,
+              applicable = FALSE, valeur = NA_real_,
+              sigma2_Jm2 = NA_real_, sigma2_Jm3 = NA_real_, quotient = NA_real_,
+              retenu = NA_character_, degeneree = FALSE, ecart_relatif = NA_real_,
+              f_colonne = NA_real_, f_Jm2 = NA_real_, f_Jm1 = NA_real_,
+              developpement_acheve = NA)
+  # La fonction est publique et mw_valider_ajustement() peut recevoir un objet
+  # d'ajustement reduit (I et reserve seuls) : il n'y a alors rien a restituer.
+  if (!is.list(aj) || !all(c("I", "J", "sigma2", "f", "tri") %in% names(aj)))
+    return(out)
+  I <- aj$I; J <- aj$J; s2 <- aj$sigma2
+  if (length(J) != 1 || is.na(J)) return(out)
+  out$J <- J
+  out$colonne <- J - 3L
+  if (J >= 1 && length(s2) >= J) out$valeur <- s2[J]
+  if (J < 3 || length(s2) < J || !is.finite(s2[J - 1]) || !is.finite(s2[J - 2]))
+    return(out)
+  out$applicable <- TRUE
+  out$sigma2_Jm2 <- s2[J - 1]                  # sigma2_{J-2}
+  out$sigma2_Jm3 <- s2[J - 2]                  # sigma2_{J-3}
+  # Quotient sigma2_{J-2}^2 / sigma2_{J-3} : NA lorsqu'il n'est pas defini.
+  out$quotient <- if (s2[J - 2] > 0) s2[J - 1]^2 / s2[J - 2] else NA_real_
+  # Argument atteignant le minimum ; a egalite, le premier dans l'ordre du
+  # texte. which.min ignore le quotient non defini, sans effet sur le minimum.
+  out$retenu <- c("sigma2_(J-2)", "sigma2_(J-3)", "sigma2_(J-2)^2/sigma2_(J-3)")[
+    which.min(c(out$sigma2_Jm2, out$sigma2_Jm3, out$quotient))]
+  j <- J - 3L                                  # colonne bornant l'extrapolation
+  idx <- 0:(I - j - 1)
+  Fij <- aj$tri[idx + 1, j + 2] / aj$tri[idx + 1, j + 1]
+  out$nb_facteurs <- length(idx)
+  out$f_colonne <- aj$f[j + 1]
+  out$ecart_relatif <- max(abs(Fij - aj$f[j + 1])) / abs(aj$f[j + 1])
+  out$degeneree <- is.finite(out$ecart_relatif) && out$ecart_relatif <= tol
+  out$f_Jm2 <- aj$f[J - 1]                     # f_{J-2}
+  out$f_Jm1 <- aj$f[J]                         # f_{J-1}
+  # "Developpement acheve" : les deux derniers facteurs valent 1, auquel cas
+  # une variance nulle sur la derniere annee de developpement est coherente
+  # avec les donnees. Sinon le triangle bouge encore et la variance omise
+  # n'est pas nulle en realite.
+  out$developpement_acheve <- isTRUE(abs(out$f_Jm2 - 1) <= tol) &&
+                              isTRUE(abs(out$f_Jm1 - 1) <= tol)
+  out
+}
+
+# Libelle du diagnostic M6 correspondant : les trois arguments du minimum et
+# celui qui est retenu, pour que le calcul soit refaisable a la lecture.
+.mw_detail_extrapolation <- function(ex) {
+  base <- paste("Valeur non estimee mais extrapolee par la regle min(...) du reglement :",
+                "elle ne repose que sur les dernieres colonnes estimees")
+  if (!isTRUE(ex$applicable)) return(base)
+  q <- if (is.na(ex$quotient))
+    "non defini (sigma2_(J-3) = 0), sans effet : le minimum est atteint ailleurs"
+  else format(ex$quotient, digits = 6)
+  detail <- sprintf(paste0(base, ". min(sigma2_(J-2) = %s ; sigma2_(J-3) = %s ; ",
+                           "sigma2_(J-2)^2/sigma2_(J-3) = %s) = %s, minimum atteint par %s"),
+                    format(ex$sigma2_Jm2, digits = 6), format(ex$sigma2_Jm3, digits = 6),
+                    q, format(ex$valeur, digits = 6), ex$retenu)
+  if (isTRUE(ex$degeneree))
+    detail <- paste0(detail, ". Colonne J-3 a facteurs individuels tous egaux ",
+                     "(sigma2_(J-3) = 0) : voir l'avertissement sur les donnees")
+  detail
 }
 
 # --- Erreur quadratique moyenne de prediction : paragraphe 5 -----------------
@@ -2168,7 +2283,35 @@ mw_valider_ajustement <- function(aj, msep) {
                                  "sigma(res,s,USP) n'est pas calculable ; la methode du risque ",
                                  "de reserve no 2 n'est pas applicable a ce triangle."),
                           format(msep)))
-  list(ok = length(err) == 0, erreurs = err, avertissements = character(0),
+  # Avertissement (et non refus) : colonne J-3 a facteurs individuels tous
+  # egaux, donc sigma2_{J-3} = 0 et, par application litterale du par.
+  # 5(d)(ii), sigma2_{J-1} = 0. Le cas est licite au regard du texte, qui ne
+  # prevoit aucune clause de degenerescence, mais il doit etre VISIBLE : la
+  # MSEP ne porte alors aucune variance sur la derniere annee de
+  # developpement (voir mw_extrapolation_sigma2 et l'issue #7).
+  avt <- character(0)
+  ex <- mw_extrapolation_sigma2(aj)
+  if (isTRUE(ex$degeneree)) {
+    msg <- sprintf(paste0(
+      "Colonne de developpement j = J-3 = %d : les %d facteurs individuels F(i,%d) sont ",
+      "tous egaux a f_%d = %s (ecart relatif maximal %.1e), donc sigma2_(J-3) = %s. ",
+      "Par application litterale de l'annexe XVII, D(5)(d)(ii), seconde ligne, ",
+      "sigma2_(J-1) = min(sigma2_(J-2), sigma2_(J-3), sigma2_(J-2)^2/sigma2_(J-3)) = %s : ",
+      "la MSEP ne porte donc AUCUNE variance sur la derniere annee de developpement. ",
+      "Verifier l'origine des donnees (colonne recopiee d'une autre, paiements arretes, ",
+      "cellules completees a la main)."),
+      ex$colonne, ex$nb_facteurs, ex$colonne, ex$colonne,
+      format(ex$f_colonne, digits = 8), ex$ecart_relatif,
+      format(ex$sigma2_Jm3, digits = 3), format(ex$valeur, digits = 3))
+    if (!isTRUE(ex$developpement_acheve))
+      msg <- paste(msg, sprintf(paste0(
+        "Le developpement n'est pourtant PAS acheve (f_(J-2) = %s, f_(J-1) = %s : ",
+        "au moins l'un des deux differe de 1) : la variance omise sur la derniere annee de developpement ",
+        "n'est pas nulle en realite, et sigma(res,s,USP) s'en trouve sous-estime."),
+        format(ex$f_Jm2, digits = 8), format(ex$f_Jm1, digits = 8)))
+    avt <- c(avt, msg)
+  }
+  list(ok = length(err) == 0, erreurs = err, avertissements = avt,
        reserve = R, msep = msep)
 }
 
@@ -2786,10 +2929,13 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
 
   ## --- M6 : robustesse de l'estimation --------------------------------------
   fam <- "M6. robustesse de l'estimation"
+  # Restitution des trois arguments du minimum du texte et de celui qui est
+  # retenu : c'est ce qui permet au relecteur de refaire le calcul a la main.
+  ex <- mw_extrapolation_sigma2(aj)
   add(fam, "Extrapolation de sigma pour la derniere annee de developpement",
       "Annexe XVII, D(5)(d)(ii), seconde ligne", type = "diagnostic",
       estim_nom = "sigma2_(J-1)", estim = aj$sigma2[aj$J],
-      detail = "Valeur non estimee mais extrapolee par la regle min(...) du reglement : elle repose sur deux annees seulement",
+      detail = .mw_detail_extrapolation(ex),
       verdict = "INFO")
   add(fam, "Part de la reserve portee par la derniere annee d'accident",
       "Diagnostic de concentration", type = "diagnostic",
@@ -2852,6 +2998,10 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   # plutot que de lever une erreur, comme la branche lognormale le fait pour
   # des donnees invalides.
   vc <- mw_valider_ajustement(aj, msep$msep)
+  # Les avertissements du second controle (extrapolation de sigma2_(J-1) sur
+  # une colonne degeneree) rejoignent ceux du premier, que le triangle soit
+  # accepte ou refuse.
+  validation$avertissements <- c(validation$avertissements, vc$avertissements)
   if (!vc$ok) {
     validation$ok <- FALSE
     validation$erreurs <- c(validation$erreurs, vc$erreurs)
