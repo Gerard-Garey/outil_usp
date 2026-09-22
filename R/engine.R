@@ -2072,7 +2072,9 @@ mw_ajuster <- function(tri) {
 }
 
 # --- Erreur quadratique moyenne de prediction : paragraphe 5 -----------------
-# Formule telle qu'imprimee au paragraphe 5 (JOUE L 12/277) :
+# Formule telle qu'imprimee au paragraphe 5 de la VERSION CONSOLIDEE en
+# vigueur. La pagination "JOUE L 12/277" qui circulait ici n'a jamais ete
+# verifiee (ADR 0005) : elle est retiree plutot que reprise.
 #
 # MSEP = somme_{i=1}^{I} C^(i,J)^2
 #          * ( Q_{I-i}/C(i,I-i)
