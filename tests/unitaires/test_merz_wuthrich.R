@@ -2,8 +2,9 @@
 #  tests/unitaires/test_merz_wuthrich.R  --  METHODE DU RISQUE DE RESERVE No 2
 #
 #  mw_ajuster(), mw_msep(), mw_residus() : annexe XVII, section D, par. 4 et 5
-#  de la VERSION CONSOLIDEE en vigueur. La pagination "JOUE L 12/277-278" qui
-#  circulait ici n'a jamais ete verifiee (ADR 0005) : elle est retiree.
+#  de la VERSION CONSOLIDEE en vigueur (ADR 0005). Dans la version d'origine,
+#  le par. 5 couvre le JOUE L 12/277-278 (pagination verifiee le 22/09/2026,
+#  issue #26) ; la formule d'origine du par. 5 differe de celle appliquee.
 #  References :
 #    - triangle 5 x 5 calculable a la main (facteurs en fractions exactes,
 #      sigma_j^2 par une identite algebrique distincte de la formule codee) ;

@@ -36,8 +36,9 @@
 ## =============================================================================
 
 # Écarts-types standard de l'annexe II (non-vie), règlement délégué (UE)
-# 2015/35, JOUE L 12 du 17.1.2015, p. 230-231. Valeurs vérifiées ligne à ligne
-# contre le texte publié.
+# 2015/35, JOUE L 12 du 17.1.2015, p. 230. Valeurs vérifiées ligne à ligne
+# contre le texte publié. Valeurs de la version d'origine de 2015 : l'annexe
+# II a ete remplacee depuis par le reglement delegue (UE) 2019/981 (issue #19).
 ANNEXE_II <- data.frame(
   segment = 1:12,
   libelle = c(
@@ -61,7 +62,9 @@ ANNEXE_II <- data.frame(
 
 # Écarts-types standard de l'annexe XIV (santé non-SLT), règlement délégué
 # (UE) 2015/35, JOUE L 12 du 17.1.2015, p. 269. Valeurs vérifiées ligne à ligne
-# contre le texte publié. La colonne `lob` rappelle les lignes d'activité de
+# contre le texte publié. Valeurs de la version d'origine de 2015 : l'annexe
+# XIV a ete remplacee depuis par le reglement delegue (UE) 2019/981 (issue
+# #19). La colonne `lob` rappelle les lignes d'activité de
 # l'annexe I dont se compose chaque segment.
 ANNEXE_XIV <- data.frame(
   segment = 1:4,
@@ -2016,8 +2019,10 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
   qy <- stats::quantile(z, c(0.25, 0.75)); qx <- stats::qnorm(c(0.25, 0.75))
   pente_qq <- diff(qy) / diff(qx); ord_qq <- qy[1] - pente_qq * qx[1]
 
-  # Enveloppe de simulation du QQ-plot : quantiles des statistiques d'ordre
-  # simulees sous le modele ajuste (calibre la lecture visuelle a T faible).
+  # Enveloppe de simulation du QQ-plot : quantiles 5 % et 95 % des
+  # statistiques d'ordre de 499 echantillons N(0,1) independants de taille T,
+  # sous graine fixe, sans reestimation du modele (l'enveloppe ne depend des
+  # donnees que par T). Calibre la lecture visuelle a T faible.
   set.seed(20260831)
   ordres <- replicate(499, sort(stats::rnorm(T)))
   env <- t(apply(ordres, 1, stats::quantile, probs = c(0.05, 0.95)))
@@ -2059,8 +2064,12 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
 ## =============================================================================
 ## 11. METHODE DU RISQUE DE RESERVE No 2 (MERZ-WUTHRICH)
 ##     Reglement delegue (UE) 2015/35, annexe XVII, section D.
-##     Toutes les formules ci-dessous sont la transcription litterale du texte
-##     publie au JOUE L 12 du 17.1.2015, p. 276-278.
+##     Paragraphes 1 a 4 : transcription litterale du texte d'origine publie
+##     au JOUE L 12 du 17.1.2015, p. 276-277.
+##     Paragraphe 5 (MSEP, mw_msep()) : transcription de la VERSION CONSOLIDEE
+##     en vigueur (EUR-Lex, CELEX 32015R0035, consolidee au 14.11.2024), qui
+##     n'a pas de pagination au JOUE ; la formule d'origine (JOUE
+##     L 12/277-278) en differe (ADR 0005).
 ##
 ##     NOTATION DU REGLEMENT (section D, paragraphe 3)
 ##       i = 0, ..., I : annees d'accident (0 = la plus ancienne)
@@ -2306,8 +2315,9 @@ mw_extrapolation_sigma2 <- function(aj, tol = 1e-12) {
 
 # --- Erreur quadratique moyenne de prediction : paragraphe 5 -----------------
 # Formule telle qu'imprimee au paragraphe 5 de la VERSION CONSOLIDEE en
-# vigueur. La pagination "JOUE L 12/277" qui circulait ici n'a jamais ete
-# verifiee (ADR 0005) : elle est retiree plutot que reprise.
+# vigueur (ADR 0005). Dans la version d'origine, le paragraphe 5 couvre les
+# p. 277-278 du JOUE L 12 du 17.1.2015 (pagination verifiee le 22/09/2026,
+# issue #26) ; la formule qui y est imprimee differe de celle appliquee ici.
 #
 # MSEP = somme_{i=1}^{I} C^(i,J)^2
 #          * ( Q_{I-i}/C(i,I-i)
