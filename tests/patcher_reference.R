@@ -39,7 +39,8 @@
 #      Rscript tests/patcher_reference.R <cas> --motif "<regex>" --ecrire
 #
 #  Sans --ecrire, le script ne fait qu'afficher ce qu'il ferait (essai a
-#  blanc). Les motifs sont des expressions regulieres appliquees aux chemins
+#  blanc). Avec --ecrire et aucune grandeur a patcher, le fichier n'est pas
+#  reecrit. Les motifs sont des expressions regulieres appliquees aux chemins
 #  aplatis, ceux qu'affiche tests/comparer_references.R.
 #
 #  Source (plutot que lance par Rscript), le fichier ne fait que definir ses
@@ -53,11 +54,21 @@
 #  branche qui emploie ce script.)
 ###############################################################################
 
+# Dossier tests/ : fourni par l'appelant (DOSSIER_TESTS, pose dans
+# l'environnement d'evaluation par le test unitaire, qui connait son propre
+# chemin), sinon deduit du chemin de ce script lance par Rscript, sinon du
+# repertoire courant (racine ou tests/).
+DOSSIER_TESTS <- if (exists("DOSSIER_TESTS", envir = environment(), inherits = FALSE)) DOSSIER_TESTS else
+  local({
+    f <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE))
+    if (length(f) == 1L && basename(f) == "patcher_reference.R") dirname(f)
+    else if (file.exists("tests/outils_tests.R")) "tests" else "."
+  })
 # local = TRUE : lance par Rscript, le fichier est evalue dans l'environnement
 # global et rien ne change ; source par un test unitaire dans un environnement
-# dedie, outils_tests.R (et le moteur qu'il charge) y restent confines.
-source(if (file.exists("tests/outils_tests.R")) "tests/outils_tests.R" else "outils_tests.R",
-       local = TRUE)
+# dedie, outils_tests.R y est evalue, et le moteur qu'il charge (lui aussi
+# avec local = TRUE) y reste confine.
+source(file.path(DOSSIER_TESTS, "outils_tests.R"), local = TRUE)
 
 # Au-dela de ce seuil relatif, un ecart non designe par un motif n'est plus
 # imputable a la derive de plateforme mesuree dans l'ADR 0006 : le script le
@@ -273,8 +284,12 @@ patcher_objets <- function(avant, apres, motifs, nom = "objet") {
     cat(sprintf("  %-34s %-24s vs %-24s  rel=%s\n", cle,
                 substr(fmt(fa[[cle]]), 1, 24), substr(fmt(fb[[cle]]), 1, 24),
                 formatC(ecarts[[cle]], format = "e", digits = 2)))
+  # Tous les ecarts peuvent etre NA (ecarts non numeriques) : max() rendrait
+  # alors -Inf avec un avertissement ; on l'ecrit en clair.
   if (length(laisses))
-    cat(sprintf("  ecart relatif maximal : %s\n", formatC(max(ecarts, na.rm = TRUE), format = "e", digits = 3)))
+    cat(sprintf("  ecart relatif maximal : %s\n",
+                if (all(is.na(ecarts))) "sans objet (aucun ecart numerique)"
+                else formatC(max(ecarts, na.rm = TRUE), format = "e", digits = 3)))
 
   suspects <- laisses[is.na(ecarts) | ecarts > SEUIL_DERIVE]
   if (length(suspects)) {
@@ -419,6 +434,10 @@ if (sys.nframe() == 0L) {
 
   if (!ecrire) {
     cat("\nEssai a blanc : rien n'a ete ecrit. Relancer avec --ecrire pour appliquer.\n")
+  } else if (!length(r$a_patcher)) {
+    # Patch vide : reecrire le fichier changerait ses octets (md5) sans rien
+    # changer a son contenu. On ne touche pas au fichier.
+    cat(sprintf("\n%s : aucune grandeur a patcher, reference laissee intacte (fichier non reecrit).\n", nom))
   } else {
     saveRDS(r$patche, ref_f, version = 3)
     cat(sprintf("\n%s : reference patchee (%d grandeur(s)).\n", nom, length(r$a_patcher)))

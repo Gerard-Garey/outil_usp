@@ -19,14 +19,17 @@ if (!exists("verifier", mode = "function")) {
 }
 debut_fichier("test_patcher_reference.R")
 
-# Le patcher est source dans un environnement dedie : ses fonctions et
-# outils_tests.R (qu'il charge) n'atteignent pas l'environnement global.
+# Le patcher est source dans un environnement dedie : ses fonctions,
+# outils_tests.R et le moteur que celui-ci charge n'atteignent pas
+# l'environnement global. DOSSIER_TESTS, construit comme le chemin de
+# outils_unitaires.R, rend le chargement independant du repertoire courant.
 .dossier <- if (exists("DOSSIER_UNITAIRES", inherits = TRUE)) DOSSIER_UNITAIRES else {
   .f <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE))
   if (length(.f)) dirname(.f) else "tests/unitaires"
 }
 patcher_env <- new.env(parent = globalenv())
-sys.source(file.path(.dossier, "..", "patcher_reference.R"), envir = patcher_env)
+patcher_env$DOSSIER_TESTS <- file.path(.dossier, "..")
+sys.source(file.path(patcher_env$DOSSIER_TESTS, "patcher_reference.R"), envir = patcher_env)
 
 # Patch silencieux : renvoie l'objet patche, ou la condition d'erreur si le
 # patch est refuse.
@@ -75,5 +78,17 @@ verifier("Vecteur numerique 2 -> 1 : refuse (invariant, aucune valeur numerique 
          { a <- list(x = c(1, 2)); b <- list(x = 3); refuse(patcher(a, b, "x")) })
 verifier("Motif ne designant que le chemin nu : chemins indexes laisses, patch refuse",
          refuse(patcher(obj("a"), obj(c("a", "b")), "avertissements$")))
+verifier("Vecteur de textes porteur d'un attribut 1 -> 2 : refuse (l'attribut cache un nombre)",
+         { a <- list(x = "a"); b <- list(x = structure(c("a", "b"), note = 3.14))
+           refuse(patcher(a, b, "x")) })
+
+## --- Formes de chemins : vecteur nomme, vecteur imbrique ------------------
+verifier("Vecteur nomme 1 -> 2 : c(x='a') -> c(x='a', y='b') patche a l'identique du recalcule",
+         { a <- list(v = c(x = "a")); b <- list(v = c(x = "a", y = "b"))
+           r <- patcher(a, b, "v"); !refuse(r) && identical(r, b) })
+verifier("Vecteur imbrique tests[[2]]$av 1 -> 2 : patche a l'identique du recalcule",
+         { mk <- function(av) list(tests = list(list(av = "z", p = 0.5), list(av = av, p = 0.25)))
+           r <- patcher(mk("a"), mk(c("a", "b")), "av")
+           !refuse(r) && identical(r, mk(c("a", "b"))) })
 
 fin_fichier()
