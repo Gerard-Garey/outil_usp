@@ -700,9 +700,15 @@ session~: la clé du cache (taille, nombre de tirages, graine) ne comporte pas
 le générateur, de sorte qu'une loi simulée sous un générateur reste servie
 après un changement de \code{RNGkind()}. L'ordre de grandeur des écarts
 sur les p-values de Monte-Carlo est celui de leur erreur de Monte-Carlo à $B = 999$
-(§\ref{sec:deuxerreurs})~: l'écart-type de la différence entre deux estimations
-indépendantes d'une même p-value $p$ vaut $\sqrt{2p(1-p)/B}$, soit $0{,}016$
-pour $p = 0{,}84$ et $0{,}022$ pour $p = 0{,}37$.
+(§\ref{sec:deuxerreurs})~: pour une p-value unilatérale estimée par une
+proportion, l'écart-type de la différence entre deux estimations indépendantes
+d'une même p-value $p$ vaut $\sqrt{2p(1-p)/B}$ à la correction $1/(B+1)$ près,
+soit $0{,}016$ pour $p = 0{,}84$ (sup-F)~; pour une p-value bilatérale
+$2\min(\hat p^{+},\hat p^{-})$, la queue retenue $q = p/2$ est doublée et
+l'écart-type devient $\sqrt{2p(2-p)/B}$, soit $0{,}035$ pour $p = 0{,}37$ (test
+des suites). Les écarts maximaux observés, $0{,}043$, $0{,}046$ et $0{,}062$,
+valent entre $1{,}3$ et $2{,}6$ fois ces écarts-types, ce qui est attendu pour
+le maximum sur 34 et 13 statistiques.
 \emph{État laissé à l'appelant}~: seule \code{sw\_loi\_nulle()} restaure
 l'état du générateur. Après \code{run\_engine()}, cet état est donc modifié~:
 dans la branche lognormale, c'est celui que laisse \code{engine\_plots\_data()},
@@ -2403,7 +2409,10 @@ p-value de Monte-Carlo ajoutée~; test à lire comme purement indicatif \\
 White & 3 coefficients auxiliaires estimés sur 8 points & p-value de
 Monte-Carlo ajoutée~; Breusch--Pagan à privilégier \\
 Anscombe--Glynn & Non défini pour $T < 20$ & Marqué \emph{non applicable}~;
-l'analyse de queue repose sur $A^2$ et le QQ-plot à enveloppe \\
+l'analyse de queue repose sur $A^2$, dont la p-value de Monte-Carlo est simulée
+sous le modèle réajusté~; le QQ-plot à enveloppe n'est qu'une aide de lecture,
+sa bande $\mathcal{N}(0,1)$ iid étant conservatrice pour des résidus réestimés
+(fiche~\ref{fiche:qqnorm}) \\
 Rosner (ESD) & Fiabilité des valeurs critiques annoncée pour $T \ge 25$ &
 Conservé comme signal d'attention~; aucune exclusion de donnée ne doit en
 découler sans justification métier \\
@@ -3691,7 +3700,11 @@ Résidus standardisés $z_t = \sqrt{\hat\pi_t}\,v_t$ et leur variance empirique
 $\operatorname{Var}(z)$. \textbf{Diagnostic, non test.} La condition du premier ordre en $\gamma$
 rive l'échelle des $z_t$ comme celle en $\ln\beta$ en rive le niveau~: lorsque $\hat\pi_t$ est
 constant ($\hat\delta = 1$, ou volumes $x_t$ constants), la condition en $\gamma$ donne
-$\sum_t z_t^2 = T$ et, jointe à $\sum_t z_t = 0$ que donne celle en $\ln\beta$,
+$\sum_t z_t^2 = T$ (condition du premier ordre de l'objectif \emph{profilé} que minimise
+\code{usp\_objectif()}, $\ln\hat\beta$ y étant substitué en forme fermée~; dans la
+vraisemblance complète en $(\ln\beta,\delta,\gamma)$, la condition en $\gamma$ s'écrit
+$\sum_t z_t^2 = T + \sum_t v_t$ et n'aboutit à $\sum_t z_t^2 = T$ que jointe à celle en
+$\ln\beta$) et, jointe à $\sum_t z_t = 0$ que donne celle en $\ln\beta$,
 $\operatorname{Var}(z) = T/(T-1)$ --- c'est-à-dire $1{,}143$ à $T = 8$,
 et non~1. C'est donc la condition en $\gamma$, et non celle en $\ln\beta$, qui rive la variance~:
 $\sum_t\sqrt{\hat\pi_t}\,z_t = 0$ ne dit rien de $\sum_t z_t^2$. À la différence de celle en
@@ -4229,7 +4242,7 @@ retenu~: situe $\sigma_{\mathrm{USP}}$ entre le standard et l'estimé seul. \\
 
 \subsection{Fiches détaillées}
 
-\begin{fiche}{QQ-plot normal}
+\begin{fiche}{QQ-plot normal}\label{fiche:qqnorm}
 \refl{M.\,B. Wilk, R.~Gnanadesikan, \emph{Probability plotting methods for the analysis of data},
 \emph{Biometrika}, 55(1), 1968, p.~1--17.}
 \Cadre
@@ -6112,7 +6125,7 @@ soutient dans le présent document.
   échantillon simulé étant réajusté~: l'enveloppe reproduit ainsi la loi des
   résidus estimés et non celle d'un échantillon indépendant. C'est la
   construction qui manque à l'enveloppe actuelle du QQ-plot et qui est prévue
-  (fiche « QQ-plot normal »). Aldor-Noiman et al. (2013) construit des bandes
+  (fiche~\ref{fiche:qqnorm}). Aldor-Noiman et al. (2013) construit des bandes
   \emph{simultanées} pour le QQ-plot normal et soutient la distinction, faite
   dans la même fiche, entre bande ponctuelle et bande simultanée. Aucune des
   deux références ne chiffre le comportement de ces bandes pour des résidus
