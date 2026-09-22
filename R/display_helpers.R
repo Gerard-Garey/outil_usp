@@ -1254,7 +1254,9 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
           "<h3>Empreintes</h3>", html_table(empreintes, classe = "data"))
 
     # --- 2. Donnees -----------------------------------------------------------
-    num <- function(v) ifelse(is.na(v), "–", format(v, digits = 15, trim = TRUE))
+    # as.character() ecrit chaque valeur isolement (15 chiffres significatifs),
+    # sans l'alignement des decimales que format() applique a tout le vecteur.
+    num <- function(v) ifelse(is.na(v), "–", as.character(v))
     if (mw) {
       tri <- res$triangle
       d <- data.frame(i = seq_len(nrow(tri)) - 1L, matrix(num(tri), nrow(tri)),
