@@ -3996,11 +3996,11 @@ de la cellule $(i,j)$ vaut $h(i,j) = C(i,j)/S_j$, de somme~1 par colonne
 \[
   \hat f_j^{(-i)} = \frac{\sum_{i'} C(i',j+1) - C(i,j+1)}{\sum_{i'} C(i',j) - C(i,j)},
 \]
-obtenu sans réajustement itératif. S'y ajoute la décomposition de la réserve et du
-terme de variance de la MSEP par année de survenance. Cette dernière est une
-\emph{décomposition} et non un leave-one-out~: le terme de covariance de la MSEP
-est par nature partagé entre paires d'années et n'est pas attribuable à une année
-isolée, ce que le graphique ne prétend pas faire.
+obtenu sans réajustement itératif. S'y ajoute la décomposition de la réserve et de
+la variance de processus de la MSEP par année de survenance. Cette dernière est une
+\emph{décomposition} et non un leave-one-out~: le terme d'erreur d'estimation de la
+MSEP comporte des termes croisés, partagés entre paires d'années, qui ne sont pas
+attribuables à une année isolée, ce que le graphique ne prétend pas faire.
 \end{fiche}
 
 \begin{fiche}{Graphique dispersion-niveau (\emph{spread-location})}
@@ -4088,7 +4088,8 @@ Sans objet.
 \Stat
 Sans objet (représentations graphiques). Les quantités tracées sont $h(i,j)$, la
 variation relative $\big(\hat f_j^{(-i)} - \hat f_j\big)/\hat f_j$, et la
-décomposition de la réserve et du terme de variance par année de survenance.
+décomposition de la réserve et de la variance de processus par année de
+survenance (champ \code{\$terme\_variance} de \code{mw\_msep()}).
 \Loi
 Sans objet.
 \Pval
@@ -4099,13 +4100,15 @@ atypiques par leur \emph{poids} de celles qui sont réellement influentes. Le
 deuxième donne le DFBETA cellule par cellule, directement interprétable~: de
 combien le facteur de développement bougerait si cette cellule était retirée. Le
 troisième compare, année de survenance par année de survenance, la part de la
-réserve et la part du terme de variance de la MSEP.
+réserve et la part de la variance de processus de la MSEP.
 
 \medskip
 \textbf{Réserve de lecture importante.} Ce troisième graphique est une
-\emph{décomposition} et non un leave-one-out. Le terme de covariance de la MSEP
-est par nature partagé entre paires d'années de survenance et n'est pas
-attribuable à une année isolée~: seul le terme de variance diagonal y figure.
+\emph{décomposition} et non un leave-one-out. Le terme d'erreur d'estimation de
+la MSEP (champ \code{\$terme\_covariance} de \code{mw\_msep()}) comporte des
+termes croisés, partagés entre paires d'années de survenance, qui ne sont pas
+attribuables à une année isolée~: seule la variance de processus, attribuable
+année par année, y figure.
 Il n'existe donc pas, pour la méthode Merz--Wüthrich, d'équivalent exact du
 jackknife sur $\sigma_{\mathrm{USP}}$ disponible pour la méthode lognormale~;
 c'est le diagnostic de concentration (fiche~\ref{mw:m6conc}) qui en tient lieu.
@@ -4155,9 +4158,24 @@ semi-paramétrique, par rééchantillonnage des résidus \\
 \subsection{Spécification réglementaire}
 
 Les formules ci-dessous sont la transcription littérale de l'annexe~XVII,
-section~D, paragraphes~3 à~5. Les années de survenance sont indexées
+section~D, paragraphes~3 à~5, sous leur \emph{forme imprimée} et non sous une
+forme algébriquement équivalente plus compacte~: un relecteur doit pouvoir les
+comparer au texte terme à terme. Les années de survenance sont indexées
 $i = 0,\dots,I$, les années de développement $j = 0,\dots,J$, et $C(i,j)$ désigne
 les sinistres cumulés.
+
+\medskip
+\noindent
+\emph{Version du texte et pagination.} Les formules ont été relevées sur la
+version consolidée en vigueur de l'annexe~XVII. Pour le paragraphe~5, le
+libellé publié en 2015 diffère de celui en vigueur~: c'est ce dernier qui est
+reproduit ci-dessous et qu'implémente \code{mw\_msep()}. L'acte qui a opéré
+cette correction n'est pas identifié à ce jour~; l'hypothèse d'un rectificatif
+refondu sans marqueur de modification, la seule que suggèrent les pièces
+consultées, est signalée comme une hypothèse et non comme un fait établi. La
+pagination « L~12/277-278 », qui circule dans les documents de travail du
+projet, n'a pas été vérifiée sur le \emph{Journal officiel}~; elle n'est donc
+pas reprise ici.
 
 \paragraph{Facteurs de développement.}
 \[
@@ -4181,11 +4199,46 @@ et, pour la dernière année de développement, le règlement impose l'extrapola
 $\hat Q_j = \hat\sigma_j^2/\hat f_j^2$,
 $S_j = \sum_{i=0}^{I-j-1} C(i,j)$ et $S'_j = \sum_{i=0}^{I-j} C(i,j)$~:
 \[
-  \mathrm{MSEP} = \sum_{i=1}^{I}\hat C(i,J)^2\,\frac{\hat Q_{I-i}}{C(i,I-i)}
-  + \sum_{i=1}^{I}\sum_{k=i+1}^{I}\hat C(i,J)\,\hat C(k,J)
+\begin{aligned}
+  \mathrm{MSEP} = {} & \sum_{i=1}^{I}\hat C(i,J)^2
+  \left(\frac{\hat Q_{I-i}}{C(i,I-i)} + \frac{\hat Q_{I-i}}{S_{I-i}}
+  + \sum_{j=I-i+1}^{J-1}\frac{C(I-j,j)}{S'_j}\cdot\frac{\hat Q_j}{S_j}\right) \\[2pt]
+  & + 2\sum_{i=1}^{I}\sum_{k=i+1}^{I}\hat C(i,J)\,\hat C(k,J)
   \left(\frac{\hat Q_{I-i}}{S_{I-i}}
   + \sum_{j=I-i+1}^{J-1}\frac{C(I-j,j)}{S'_j}\cdot\frac{\hat Q_j}{S_j}\right).
+\end{aligned}
 \]
+
+\noindent
+Le crochet, noté $\Delta_i$ comme dans \code{mw\_msep()}, figure
+\textbf{deux fois}~: une première fois à l'intérieur de la première somme, à
+côté du terme de variance de processus $\hat Q_{I-i}/C(i,I-i)$, et une seconde
+fois dans la double somme, affectée du \textbf{facteur~2}. La première somme
+contient donc les termes diagonaux $\hat C(i,J)^2\,\Delta_i$. Les bornes
+$k = i+1,\dots,I$, l'indice $I-i$ porté par le crochet, le facteur~2 et
+l'exposant~1 sur $C(I-j,j)/S'_j$ sont ceux du texte. Cette notation
+$\Delta_i$, propre à la méthode Merz--Wüthrich, est sans rapport avec la marge
+d'équivalence $\Delta$ du test TOST de la méthode lognormale.
+
+\begin{encadre}
+\textbf{Forme imprimée et forme de Merz--Wüthrich.} Pour $k > i$, le crochet
+indexé par $i$ est celui indexé par $\min(i,k)$, et $2\sum_{i<k}$ reproduit
+exactement la double somme complète hors diagonale~; les termes diagonaux étant
+portés par la première somme, la formule imprimée ci-dessus est identiquement
+l'erreur de prédiction à un an de Merz--Wüthrich (2008). Le moteur transcrit la
+\emph{forme imprimée}~; cette identité est \emph{vérifiée} numériquement
+(section~\ref{sec:verif}) et non présumée.
+
+\medskip
+\textbf{Restitution du résultat.} \code{mw\_msep()} renvoie la MSEP et deux
+composantes~: \code{\$terme\_variance} $=\sum_{i=1}^{I}\hat C(i,J)^2\,
+\hat Q_{I-i}/C(i,I-i)$, la variance de processus seule, et
+\code{\$terme\_covariance} $=\sum_{i=1}^{I}\hat C(i,J)^2\,\Delta_i
++ 2\sum_{i<k}\hat C(i,J)\,\hat C(k,J)\,\Delta_i$, l'erreur d'estimation, ses
+termes diagonaux compris. Leur somme est exactement la MSEP du texte. Ce
+découpage est un choix de présentation~: le règlement ne prescrit aucune
+décomposition.
+\end{encadre}
 
 \paragraph{Paramètre propre.}
 \[
@@ -5103,9 +5156,12 @@ Facteurs de développement $\hat f_j$ & 3,4906 ; 1,7473 ; 1,4574 ; \dots &
 conformes aux valeurs publiées \\
 Réserve chain-ladder totale & 18\,680\,856 & conforme \\
 Erreur type \emph{ultime} de Mack & 2\,447\,095 & conforme à la valeur publiée \\
-MSEP à un an, deux implémentations indépendantes & écart nul à la précision
-machine & cohérence interne \\
-Erreur à un an $<$ erreur ultime & 1\,519\,876 $<$ 2\,447\,095 &
+MSEP à un an $=$ transcription littérale du paragraphe~D(5) & écart relatif nul
+(précision machine) & conforme au texte \\
+$\sqrt{\mathrm{MSEP}}$ à un an $=$ \code{ChainLadder::CDR} (Merz--Wüthrich
+2008) & 1\,778\,967,66336\newline contre 1\,778\,967,66335758 & écart relatif
+$-2{,}6\times10^{-15}$ \\
+Erreur à un an $<$ erreur ultime & 1\,778\,968 $<$ 2\,447\,095 &
 conforme à la théorie \\
 Homogénéité~: $\lambda\!\cdot\!C \Rightarrow$ CV invariant & vérifié à
 $10^{-10}$ & \\
@@ -5123,12 +5179,27 @@ $\hat\sigma_{J-1}^2$, qui sont les entrées de la MSEP à un an.
 
 \medskip
 \begin{encadre}
-\textbf{Réserve sur la validation.} Nous n'avons pas identifié de valeur publiée
-de référence pour la MSEP \emph{à un an} sur ce triangle. La validation de cette
-grandeur repose donc sur la double implémentation indépendante, les propriétés
-structurelles ci-dessus et la conformité des quantités qui l'alimentent, non sur
-une comparaison externe. Ce point est signalé plutôt que présenté comme une
-validation complète.
+\textbf{Sur quoi repose la validation de la MSEP à un an.} Elle repose sur deux
+voies distinctes~: d'une part la confrontation du moteur à une transcription
+littérale du paragraphe~D(5), réécrite depuis le texte et implémentée
+séparément dans la batterie de tests unitaires~; d'autre part une comparaison
+\emph{externe} avec \code{ChainLadder::CDR} (paquet R \code{ChainLadder}
+0.2.18), implémentation publique de Merz--Wüthrich (2008), reproduite à
+$-2{,}6\times10^{-15}$ en écart relatif. Nous n'avons pas identifié de valeur
+\emph{publiée} de la MSEP à un an sur ce triangle~: la comparaison externe porte
+sur une implémentation de référence, non sur un nombre publié.
+
+\medskip
+\textbf{Ce que les versions antérieures de ce document affirmaient à tort.}
+Jusqu'à la correction de la transcription du paragraphe~D(5)
+(section~\ref{sec:mw}), la validation de cette grandeur était présentée comme
+reposant sur une « double implémentation indépendante ». Elle ne l'était
+pas~: les deux implémentations reprenaient la même transcription fautive du
+paragraphe~D(5) --- termes diagonaux $\hat C(i,J)^2\,\Delta_i$ et facteur~2
+omis --- et ne pouvaient donc rien détecter. La MSEP en était sous-estimée
+(1\,519\,876 au lieu de 1\,778\,968 sur ce triangle), dans le sens favorable à
+l'entreprise. C'est ce défaut que la transcription de la
+section~\ref{sec:mw} et les deux voies ci-dessus corrigent.
 \end{encadre}
 
 \subsection{Calibration des p-values asymptotiques (Merz--Wüthrich)}
@@ -5445,7 +5516,9 @@ modèle et un mode d'inférence différents.
   an} du paragraphe~D(5). La distinction entre erreur à un an et erreur ultime
   est le fondement même de la méthode~n\textsuperscript{o}~2, et l'ordre
   $\sqrt{\mathrm{MSEP}}_{\text{1 an}} < \sqrt{\mathrm{MSEP}}_{\text{ultime}}$ que
-  nous avons vérifié numériquement en découle.
+  nous avons vérifié numériquement en découle. C'est également l'implémentation
+  publique de cet article (\code{ChainLadder::CDR}) qui fournit la valeur de
+  comparaison externe de notre MSEP à un an (section~\ref{sec:verif}).
 
   \item M.\,V. Wüthrich, M.~Merz, \emph{Stochastic Claims Reserving Methods in
   Insurance}, Wiley, 2008.
@@ -5502,8 +5575,9 @@ littérature consultée.
   bootstrap.
   \item \textbf{Aucune valeur publiée de la MSEP à un an} n'a pu être identifiée
   pour le triangle de Taylor \& Ashe. La validation de cette grandeur repose donc
-  sur une double implémentation indépendante et sur des propriétés structurelles,
-  non sur une comparaison externe.
+  sur la transcription littérale du paragraphe~D(5), sur des propriétés
+  structurelles et sur la comparaison avec une implémentation externe
+  (\code{ChainLadder::CDR}), non sur un nombre publié dans la littérature.
   \item \textbf{Le domaine de validité exact de la transformation de Royston}
   pour $4 \le T \le 11$ est documenté par son auteur, mais nous n'avons pas
   identifié d'étude indépendante en évaluant la précision spécifiquement à
