@@ -83,10 +83,10 @@ L'écart entre les références versionnées et le résultat des branches en que
 
 | Groupe | `premium` / `reserve1` (J1a) | `reserve2` (σ̂²_{J−1}) |
 |---|---|---|
-| Changement voulu par la PR | 44 grandeurs | 1 grandeur |
+| Changement voulu par la PR | 44 grandeurs | 3 grandeurs |
 | Dérive de plateforme | 23 grandeurs, écart relatif max **3,508e-07** | aucune |
 
-Les 44 grandeurs du premier groupe sont : les champs de `tests[[33]]` et `tests[[34]]` (`type` passant de `test` à `diagnostic`, `verdict` de `OK` à `INFO`, statistiques et p-values mises à `NA`), et la disparition de `MeanZ`, `VarZ`, `LB2r`, `BP2r` de `bootstrap$stats_obs`, `bootstrap$p_mc`, `bootstrap$err_mc` et `bootstrap$B_effectif`. **Aucune n'est un nombre** : ce sont des chaînes de caractères, des `NA` et des suppressions d'entrée. La grandeur du second cas est un libellé (`tests[[18]]$detail`).
+Les 44 grandeurs du premier groupe sont : les champs de `tests[[33]]` et `tests[[34]]` (`type` passant de `test` à `diagnostic`, `verdict` de `OK` à `INFO`, statistiques et p-values mises à `NA`), et la disparition de `MeanZ`, `VarZ`, `LB2r`, `BP2r` de `bootstrap$stats_obs`, `bootstrap$p_mc`, `bootstrap$err_mc` et `bootstrap$B_effectif`. **Aucune n'est un nombre** : ce sont des chaînes de caractères, des `NA` et des suppressions d'entrée. Les trois grandeurs du second cas sont deux libellés (`tests[[18]]$detail`, `tests[[19]]$detail`) et un verdict passant de `OK` à `INFO` (`tests[[19]]$verdict`, application de l'ADR 0001 à la ligne M6 de concentration de la réserve). Aucune n'est un nombre non plus.
 
 L'écart relatif maximal du second groupe, 3,508e-07, est **exactement** celui que mesure la section « Contexte » ci-dessus sur `main` : la dérive constatée est celle déjà documentée, et la PR ne l'aggrave pas.
 
