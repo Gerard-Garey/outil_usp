@@ -449,7 +449,7 @@ $\ln\hat\beta$, $v_t$, $z_t$, $\sigma$, objectif \\
 \code{stat\_*()}, \code{test\_*()} & $x$, $y$ ou $z$ & statistique et p-value \\
 \code{test\_tost\_intercept()} & $x$, $y$, $\theta$ ou $\Delta$ &
 p-value d'équivalence (TOST) \\
-\code{.stats\_bootstrapables()} & $x$, $y$, $z$ & vecteur de 38 statistiques \\
+\code{.stats\_bootstrapables()} & $x$, $y$, $z$ & vecteur de 34 statistiques \\
 \code{usp\_bootstrap()} & \code{fit}, $B$, \code{seed} &
 \code{p\_mc}, \code{err\_mc}, \code{sigma\_boot} \\
 \code{usp\_tests()} & \code{fit}, \code{boot}, \code{alpha} &
@@ -530,19 +530,35 @@ fonction du moteur ne tire de nombres aléatoires, à l'exception de
 \code{engine\_plots\_data()}, qui fixe sa propre graine pour l'enveloppe de
 simulation du QQ-plot afin que le graphique soit stable d'un appel à l'autre.
 
-Deux appels de \code{run\_engine()} avec les mêmes données, les mêmes paramètres
-et la même graine produisent des objets identiques au bit près. Cette
-propriété est vérifiée par les tests de non-régression du dépôt
-(\code{tests/test\_reproductibilite.R}), qui contrôlent, pour chacune des trois
-méthodes, que deux appels successifs donnent des objets identiques et que les
-résultats coïncident avec des valeurs de référence enregistrées
-(\code{tests/reference/}), à une tolérance relative de $10^{-8}$ près pour
-absorber les écarts d'arrondi entre plateformes. Les rares grandeurs dont la
-valeur dépend de la plateforme sont exclues de cette seconde comparaison, chacune
-avec un renvoi au ticket qui en documente la cause~; c'est le cas de la p-value
-Monte-Carlo du test de centrage des résidus standardisés lorsque $\hat\delta$ est
-au bord de $[0,1]$ (la statistique y est nulle par construction et la p-value
-compare des erreurs d'arrondi).
+Le script \code{tests/test\_reproductibilite.R} vérifie, pour chacune des trois
+méthodes, deux propriétés qu'il ne faut pas confondre.
+
+\emph{La reproductibilité.} Deux appels de \code{run\_engine()} avec les mêmes
+données, les mêmes paramètres et la même graine, \textbf{sur une même machine},
+produisent des objets identiques au bit près. C'est ce que contrôle la
+comparaison de deux appels successifs par \code{identical()}, et cette propriété
+tient (vérification exécutée).
+
+\emph{La non-régression.} Le résultat est en outre confronté à des valeurs de
+référence enregistrées (\code{tests/reference/}), produites sur une plateforme
+unique désignée et versionnées avec le code. Cette seconde comparaison n'est
+\textbf{pas} au bit près~: elle emploie \code{all.equal()} à une tolérance
+relative de $10^{-8}$, qui porte sur une différence relative \emph{moyenne} et
+absorbe donc une dérive diffuse, si nombreuses qu'en soient les valeurs
+touchées. Une telle dérive existe entre plateformes et a été mesurée~: sur le cas
+de contrôle de la méthode prime, 5\,515 des 12\,409 valeurs élémentaires de
+l'objet diffèrent au sens strict, pour une différence relative moyenne de
+$6{,}2\cdot 10^{-10}$ et un écart relatif maximal de $3{,}5\cdot 10^{-7}$ sur les
+tirages bootstrap~; l'écart sur $\sigma_{\mathrm{USP}}$ lui-même est de l'ordre
+de $10^{-14}$ en relatif, très en deçà de la précision à laquelle le paramètre
+est lu. La branche Merz--Wüthrich est, elle, indemne (aucun écart sur le triangle
+de contrôle). L'origine vraisemblable de cette dérive est l'optimiseur employé
+par la branche lognormale sur une vraisemblance quasi plate en $\delta$, dont le
+chemin dépend de l'ordre des opérations en virgule flottante~; cette explication
+est cohérente avec la répartition observée des écarts, mais elle n'a pas été
+démontrée par une expérience isolant la bibliothèque d'algèbre linéaire ou la
+version de R. Ce qui précède ne remet en cause aucun résultat publié~: c'est la
+portée de la garantie qui doit être énoncée exactement.
 
 \begin{encadre}
 \textbf{Point de revue.} L'objet retourné contient un champ \code{\$metadata}
@@ -672,11 +688,10 @@ Suites (Wald--Wolfowitz) & \ref{fiche:30} & \code{test\_runs()} &
 \code{Runs} \\
 FOC (diagnostic) & \ref{fiche:31} & \code{usp\_ajuster()} (champ \code{\$foc}) &
 diagnostic, aucune p-value & --- \\
-Centrage des résidus & \ref{fiche:32} & \code{stats::t.test()} (appel direct) &
-\code{stats::t.test()} (p asymptotique nominale, loi $t(T-1)$) & \code{MeanZ} \\
-Variance unitaire & \ref{fiche:33} & calcul direct
-$(T-1)\,\mathrm{var}(z)$ dans \code{usp\_tests()} &
-\code{stats::pchisq()} (p asymptotique nominale, loi $\chi^2_{T-1}$) & \code{VarZ} \\
+Centrage des résidus (diagnostic) & \ref{fiche:32} & \code{mean()} sur $z$
+(appel direct dans \code{usp\_tests()}) & diagnostic, aucune p-value & --- \\
+Variance unitaire (diagnostic) & \ref{fiche:33} & \code{stats::var()} sur $z$
+(appel direct dans \code{usp\_tests()}) & diagnostic, aucune p-value & --- \\
 
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Stabilité, ruptures et points aberrants}}} \\
 \midrule
@@ -811,9 +826,13 @@ met en cache la loi nulle simulée de $W$ par valeur de $T$.
 \begin{encadre}
 \textbf{Lecture de la colonne « Clé MC ».} Un tiret signifie qu'aucune p-value
 de Monte-Carlo n'est calculée pour ce test~: soit parce que l'hypothèse nulle
-n'appartient pas au modèle simulé (Student sur la pente, Fisher), soit parce
+n'appartient pas au modèle simulé (Student sur la pente, Fisher)~; soit parce
 que le test n'est pas de nature à produire de p-value (indicateurs, procédures
-de décision, diagnostics numériques). Dans tous les autres cas, la clé
+de décision, diagnostics numériques)~; soit, troisième motif, parce que la
+grandeur est \emph{rivée par l'estimation} et qu'il n'y a donc rien à simuler
+--- la loi simulée porterait un atome en la valeur observée (centrage et
+variance unitaire des résidus standardisés, fiches~\ref{fiche:32}
+et~\ref{fiche:33}). Dans tous les autres cas, la clé
 correspond au nom de colonne retourné par \code{.stats\_bootstrapables()} et
 consommé par \code{usp\_bootstrap()}.
 \end{encadre}
@@ -1266,6 +1285,34 @@ de la sortie indique laquelle a été retenue, et les trois valeurs
 (\code{p\_exacte}, \code{p\_asymptotique}, \code{p\_monte\_carlo}) restent
 affichées séparément pour permettre la revue. Aucune p-value asymptotique n'est
 retenue lorsqu'une p-value exacte ou de Monte-Carlo est disponible.
+
+\medskip
+\textbf{Ce que cette hiérarchie ne dit pas~: la règle de sortie.} La hiérarchie
+\emph{ordonne des p-values qui existent}. Elle ne se lit pas à l'envers~:
+l'absence de p-value exacte et de p-value de Monte-Carlo n'autorise pas un
+repli sur l'asymptotique, ni, plus généralement, sur la loi \emph{nominale}
+--- celle que la statistique suivrait si les paramètres n'avaient pas été
+estimés. Lorsqu'une grandeur est \textbf{rivée par l'estimation}, c'est-à-dire
+fixée par les conditions du premier ordre du maximum de vraisemblance plutôt
+que librement observée, aucune des trois voies n'est ouverte, et il faut le
+dire des trois et non de la seule qui a échoué en premier~: \emph{(i)} il
+n'existe pas de loi exacte sous $H_0$ pour une quantité que $H_0$ ne laisse pas
+varier~; \emph{(ii)} la loi simulée sous le modèle ajusté porte un atome en la
+valeur observée, de sorte que la p-value de Monte-Carlo se décide au signe d'un
+bruit numérique~; \emph{(iii)} la loi nominale ne décrit pas la grandeur
+restituée, puisque la valeur observée n'est pas une observation. Le point
+\emph{(iii)} est le plus important pour le relecteur, car c'est le repli le
+plus tentant~: à $\hat\pi_t$ constant, la p-value nominale de ces grandeurs est
+une \emph{constante de $T$} qui ne dépend plus des données, identique pour deux
+jeux étrangers l'un à l'autre. Le « OK » qu'elle produirait ne pourrait être
+perdu par aucune donnée~; c'est exactement la fausse assurance que la
+restitution en diagnostic vise à éviter. Le calcul et les mesures figurent aux
+fiches~\ref{fiche:32} et~\ref{fiche:33}. Ces lignes sont donc restituées comme
+\emph{diagnostics}, sans p-value retenue et avec le motif. Cette règle de
+sortie ne concerne ni le test de Student sur la pente ni le test de Fisher
+global~: leur statistique est librement observée et leur loi est exacte sous
+normalité des erreurs~; ils conservent leur p-value, pour la raison exposée à
+la sous-section~\ref{sec:t8}.
 \end{encadre}
 
 \subsection{Deux sources d'erreur distinctes}
@@ -1302,6 +1349,7 @@ de $\hat p_{\text{MC}}$ est en outre bornée inférieurement par $1/(B+1)$
 (Dwass, 1957 ; Hope, 1968 ; voir la bibliographie complémentaire, section~\ref{sec:biblio}).
 
 \subsection{Ce que l'on peut et ne peut pas affirmer à $T = 8$}
+\label{sec:t8}
 
 \begin{itemize}[itemsep=3pt]
   \item \textbf{Résultats exacts disponibles à $T = 8$.} Loi binomiale
@@ -1324,6 +1372,17 @@ de $\hat p_{\text{MC}}$ est en outre bornée inférieurement par $1/(B+1)$
   tests conservent donc leur loi de Fisher/Student, qui est \emph{exacte} sous
   normalité des erreurs~: la limitation porte sur l'hypothèse de normalité, non
   sur la taille d'échantillon.
+  \item \textbf{Un troisième cas, de nature différente~: la grandeur rivée par
+  l'estimation.} Le centrage et la variance unitaire des résidus standardisés
+  (fiches~\ref{fiche:32} et~\ref{fiche:33}) sont fixés par les conditions du
+  premier ordre du maximum de vraisemblance. La loi simulée sous le modèle
+  ajusté existe bien, mais elle porte un \emph{atome} en la valeur observée~:
+  la p-value de Monte-Carlo s'y décide au signe d'un bruit numérique. À la
+  différence des deux cas précédents, il n'y a ici aucun repli possible~: ni
+  loi exacte, ni loi nominale utilisable, cette dernière produisant à
+  $\hat\pi_t$ constant une p-value qui ne dépend plus des données. Ces deux
+  lignes sont restituées comme \emph{diagnostics}, sans p-value retenue et avec
+  le motif.
   \item \textbf{Ce qu'aucune méthode ne restitue.} Ni le bootstrap ni les lois
   exactes n'augmentent la \emph{puissance}. À $T = 8$, l'ensemble du dispositif
   reste très peu puissant~: une p-value élevée n'est pas une validation
@@ -1481,12 +1540,15 @@ Suites (W.--W.) & LN & $Z$ / $R$ & Oui (combinatoire) & Oui & Oui & \textbf{Exac
 \textbf{Déconseillée} : approx. normale requiert $n_1,n_2\ge 10$ &
 Distribution exacte à privilégier \\
 
-Centrage des résidus & LN & $t$ & Non (param. estimés) & Nominale $t(T-1)$ & Oui &
-Monte-Carlo & \textbf{Déconseillée} : $t(T-1)$ ignore l'estimation et la
-contrainte linéaire & Bootstrap recommandé \\
+Centrage des résidus & LN & --- & --- & --- & --- &
+\textbf{Diagnostic} & Sans objet & Aucune p-value~: $\bar z$ est rivé par une
+identité de l'estimation. La p-value nominale du $t$ ne dépendrait pas des
+données ($=1$ à $\hat\pi_t$ constant). Restitué sans verdict \\
 
-Variance unitaire & LN & $C$ & Non & Nominale $\chi^2_{T-1}$ & Oui & Monte-Carlo &
-Idem & Bootstrap recommandé \\
+Variance unitaire & LN & --- & --- & --- & --- &
+\textbf{Diagnostic} & Sans objet & Idem pour $\operatorname{Var}(z)$~; la loi
+simulée porte un atome en la valeur observée et la p-value nominale du $\chi^2$
+ne dépendrait pas des données ($0{,}6651878$ à $T = 8$) \\
 
 sup-F (rupture) & LN & $\sup F$ & Non & Théorique seulement (Andrews) & Oui & Monte-Carlo &
 \textbf{Absence de justification} : loi de sup. de processus, convergence fonctionnelle &
@@ -1711,6 +1773,16 @@ Approximation numérique, non asymptotique & Sans objet (ajustement empirique) &
 Domaine de validité annoncé par l'auteur & Domaine couvert mais
 transformation distincte à $T\le 11$ ; bootstrap en complément \\
 
+Centrage, variance unitaire (diagnostics) & \emph{Aucun} : $\bar z$ et
+$\operatorname{Var}(z)$ sont rivés par les conditions du premier ordre & --- &
+--- & Sans objet & Optimum intérieur en $\gamma$ ; $\hat\pi_t$ constant pour la
+forme simple $\sum_t z_t = 0$, $\sum_t z_t^2 = T$ &
+Aucune p-value : la loi simulée sous le modèle ajusté porte un atome en la
+valeur observée, et la loi nominale, qui ignore l'estimation, produit à
+$\hat\pi_t$ constant une p-value qui ne dépend plus des données du tout : $1$
+pour le $t$ de Student et $0{,}6651878$ pour le $\chi^2$, à $T = 8$. Restitués
+sans verdict \\
+
 \midrule
 \multicolumn{7}{@{}l@{}}{\textbf{(B) Convergence en $B$ de l'estimateur
 Monte-Carlo --- entièrement contrôlable}} \\
@@ -1858,8 +1930,16 @@ $\delta = 0{,}35$, l'écart-type théorique des $r_t$ varie de $0{,}120$ à
 $0{,}076$, soit un facteur $1{,}6$ entre la première et la dernière année. Les
 $u_t$ ne sont donc pas identiquement distribués~: toute loi de référence
 supposant l'échangeabilité (permutation, combinatoire, ou normale i.i.d.) est
-invalide sur cette base. Cette invalidité disparaît lorsque $\hat\delta = 1$,
-cas où $\pi_t$ est constant et où les trois séries sont proportionnelles.
+invalide sur cette base. Cette invalidité disparaît lorsque $\hat\pi_t$ est
+constant --- c'est-à-dire lorsque $\hat\delta = 1$, \emph{ou} lorsque les
+volumes $x_t$ le sont --- puisque les $r_t$ sont alors identiquement
+distribués. Les trois séries ne deviennent pas pour autant proportionnelles~:
+$z_t = \sqrt{\hat\pi}\,v_t$ l'est bien de $v_t$, à facteur constant, mais $u_t$
+vit sur l'échelle linéaire quand $v_t$ vit sur l'échelle logarithmique, et
+l'on ne passe de l'une à l'autre que par une transformation monotone non
+linéaire. Ce point est repris plus bas~: à $\hat\pi_t$ constant, cette
+transformation est tout ce qui sépare encore les deux bases, ce qui prive la
+base $u_t$ de son objet.
 
 \subsubsection*{Où la bascule est légitime, et où elle ne l'est pas}
 
@@ -1885,8 +1965,9 @@ H3 --- lognormalité & \textbf{non} &
 Le modèle prédit que $z_t$ est normal, non que $r_t$ l'est ($r_t$ est
 approximativement lognormal). Tester la normalité de $u_t$ reviendrait à tester
 une hypothèse que le modèle ne formule pas. Sur $v_t$, la normalité est bien
-prédite mais la variance n'est pas constante, ce qui invalide les tests de
-normalité usuels dès que $\hat\delta < 1$. \\
+prédite mais la variance $1/\hat\pi_t$ n'est pas constante, ce qui invalide les
+tests de normalité usuels dès que $\hat\pi_t$ varie, c'est-à-dire dès que
+$\hat\delta < 1$ \emph{et} que les volumes $x_t$ ne sont pas constants. \\
 H4 --- indépendance & \textbf{oui} &
 L'indépendance est une propriété que le modèle attribue aux $Y_t$
 \emph{conditionnellement} aux $x_t$~: elle se transmet aux trois séries. Les
@@ -1928,16 +2009,94 @@ Grubbs         & 0,115 & 0,055 \\
 Les deux valeurs sont compatibles avec les niveaux nominaux à l'intérieur de
 l'intervalle de confiance à 95~\% ($\pm 0{,}029$ et $\pm 0{,}021$).
 
+\subsubsection*{Ce contrôle est sans objet lorsque $\hat\pi_t$ est constant}
+
+Six lignes de la table auditable sont calculées sur la base $u_t$~:
+Durbin--Watson, Ljung--Box au retard~1, test des suites, rupture de niveau
+(sup-F), stabilité cumulée (OLS-CUSUM) et Grubbs, chacune ayant son homologue
+sur $z_t$. Le contrôle qu'elles portent consiste à vérifier que les conclusions
+d'indépendance et de stabilité ne sont pas un artefact de la pondération
+$\hat\pi_t$. \textbf{Là où il n'y a pas de pondération, il n'y a pas d'artefact
+de pondération à détecter}, et ce contrôle perd son objet. C'est le cas dès que
+$\hat\pi_t$ est constant, donc à $\hat\delta = 1$ ou à volumes $x_t$ constants
+--- soit le cas courant à $T = 8$.
+
+\emph{Conséquence algébrique exacte.} Lorsque $\hat\pi_t \equiv \hat\pi$, la
+forme fermée de $\ln\hat\beta$ se réduit à
+$\ln\hat\beta = \tfrac{1}{2\hat\pi} + \overline{\ln r}$, d'où
+$v_t = \ln r_t - \overline{\ln r}$ et
+\[
+  z_t \;=\; \sqrt{\hat\pi}\,\big(\ln r_t - \overline{\ln r}\big).
+\]
+Les deux bases ne diffèrent alors plus que par la transformation logarithmique
+$r \mapsto \ln r$, à un facteur d'échelle et un recentrage près. Cette
+transformation est \emph{monotone}.
+
+\emph{Conséquence exacte pour le test des suites.} La statistique des suites ne
+dépend que des signes des écarts à la médiane, qu'une transformation monotone
+préserve~: elle prend donc la \textbf{même valeur} sur les deux bases. Mesuré
+sur le jeu de contrôle ($T = 8$, $\hat\delta = 1$)~: $Z = -0{,}7637626$ sur
+$z_t$ comme sur $u_t$, et les huit signes de $r_t - \operatorname{med}(r)$ et de
+$z_t - \operatorname{med}(z)$ coïncident un à un. Les deux lignes affichent
+néanmoins des p-values différentes ($1{,}000$ contre $0{,}768$), non parce que
+la statistique diffère, mais parce que la ligne sur $z_t$ retient la p-value
+exacte combinatoire alors que celle sur $u_t$ retient une p-value de
+Monte-Carlo.
+
+\emph{Pour les cinq autres, un écart du second ordre.} En écrivant
+$r_t = \bar r\,(1 + \varepsilon_t)$, le développement de $\ln$ donne
+$\ln r_t - \overline{\ln r} = \varepsilon_t + \mathcal{O}(\varepsilon^2)$~: les
+deux séries centrées coïncident au premier ordre, et leur différence est
+d'ordre $\varepsilon^2$, soit du \emph{second} ordre en coefficient de
+variation des $r_t$ (approximation numérique, développement limité). L'écart
+tient donc à l'opposition \emph{logarithmique contre linéaire}, et non à
+$\hat\pi_t$. Mesuré sur le jeu de contrôle, où le coefficient de variation vaut
+$\mathrm{CV}(r) = 0{,}151$~: l'écart maximal entre $\ln r_t - \overline{\ln r}$
+et $(r_t - \bar r)/\bar r$ vaut $0{,}0143$, à comparer à
+$\mathrm{CV}(r)^2 = 0{,}0228$~;
+$\operatorname{cor}(z, u) = 0{,}998$ et $\operatorname{cor}(z, \ln r) = 1$ à la
+précision machine. Les six lignes sur base $u_t$ et leurs six homologues sur
+$z_t$ y portent le même verdict \code{OK}~; pour les cinq paires autres que le
+test des suites, les p-values retenues diffèrent d'au plus $0{,}091$ (sup-F,
+$0{,}840$ contre $0{,}931$), l'écart le plus faible étant celui de
+Durbin--Watson ($0{,}0011$). Une statistique qui
+repose sur une quasi-annulation garde en revanche un écart relatif important
+sur la valeur elle-même --- Ljung--Box au retard~1 vaut $9{,}2\cdot 10^{-3}$
+sur $z_t$ et $1{,}3\cdot 10^{-4}$ sur $u_t$ --- sans que le verdict en dépende
+à ce niveau de p-value.
+
+\emph{Ce que cela change pour le dossier, et ce que cela ne change pas.} Les
+six lignes restent exactes~: leur statistique, leur p-value de Monte-Carlo et
+leur verdict sont justes, et elles gardent tout leur sens \emph{lorsque
+$\hat\pi_t$ varie}, cas pour lequel elles ont été prévues. Ce qui était faux
+est la promesse formulée sans condition~: présentées comme six vérifications
+indépendantes, elles sont, à $\hat\pi_t$ constant, des \textbf{quasi-doublons}
+de leurs homologues sur $z_t$ --- et un doublon exact pour le test des suites.
+Six verdicts \code{OK} de la table auditable n'y apportent donc pas six
+informations. Le moteur porte lui-même cette réserve~: dans ce cas, le champ
+\code{detail} de chacune des six lignes commence par « \code{CONTROLE SANS
+OBJET ICI} » et indique que la ligne est un quasi-doublon de son homologue sur
+résidus standardisés. La situation n'a rien d'exceptionnel~: sur les $999$
+réplications du bootstrap paramétrique du jeu de contrôle, $493$ --- soit
+$49{,}3~\%$ --- ont un $\hat\pi_t^{*}$ constant (constat de simulation, graine
+20260831).
+
 \medskip
 \begin{encadre}
 \textbf{Usage recommandé.} La base $z_t$ reste celle du dossier~: c'est la seule
 sur laquelle les p-values exactes et asymptotiques sont valides, et c'est elle
 qui teste les hypothèses telles que l'annexe~XVII les formule. La base $u_t$ est
-un \emph{contrôle de cohérence}~: elle vérifie que les conclusions
-d'indépendance et de stabilité ne sont pas un artefact de la pondération
-$\hat\pi_t$. Une divergence marquée entre les deux bases sur un même test
+un \emph{contrôle de cohérence de la pondération}, \textbf{sous la condition
+que cette pondération existe}~: elle vérifie que les conclusions
+d'indépendance et de stabilité ne sont pas un artefact des poids $\hat\pi_t$.
+Une divergence marquée entre les deux bases sur un même test
 signale que le résultat dépend du modèle plutôt que des données, et doit être
-documentée. Les deux bases sont calculées systématiquement par le moteur et
+documentée. \textbf{Lorsque $\hat\pi_t$ est constant, ce contrôle est sans
+objet} et les six lignes correspondantes sont des quasi-doublons de leurs
+homologues sur $z_t$~: elles ne doivent pas être lues comme six vérifications
+supplémentaires (voir « Ce contrôle est sans objet lorsque $\hat\pi_t$ est
+constant », plus haut dans cette sous-section, et le champ \code{detail} de ces
+lignes, qui porte la réserve). Les deux bases sont calculées systématiquement par le moteur et
 figurent toutes deux dans l'export~; la bascule de l'application ne fait que
 filtrer l'affichage.
 \end{encadre}
@@ -2039,6 +2198,7 @@ Loi nulle propre pour Shapiro--Wilk~; lecture comme diagnostic seulement \\
 
 % =============================================================================
 \section{Hypothèse H1 --- linéarité et proportionnalité}
+\label{sec:h1}
 % =============================================================================
 
 \begin{encadre}
@@ -2986,6 +3146,7 @@ queue doit reposer sur le QQ-plot, sur Anderson--Darling et sur les tests de val
 \clearpage
 % =============================================================================
 \section{Hypothèse H4 --- indépendance et validité du maximum de vraisemblance}
+\label{sec:h4}
 % =============================================================================
 
 \begin{encadre}
@@ -3115,8 +3276,8 @@ entre 2 et $n$) limite fortement le nombre de p-values atteignables.
 \begin{fiche}{Condition du premier ordre (diagnostic numérique)}
 \refl{Diagnostic numérique ; conditions d'optimalité du maximum de vraisemblance.}
 \Cadre
-En annulant la dérivée de l'objectif par rapport à $\ln\beta$, on obtient l'unique contrainte
-que l'estimation impose mécaniquement aux résidus~:
+En annulant la dérivée de l'objectif par rapport à $\ln\beta$, on obtient la contrainte que
+l'estimation impose mécaniquement aux résidus \emph{quel que soit} le couple $(\delta,\gamma)$~:
 \[
   \sum_{t=1}^{T} \hat\pi_t\, v_t = 0
   \qquad\Longleftrightarrow\qquad
@@ -3131,7 +3292,7 @@ $\displaystyle \mathrm{FOC} = \Big|\sum_t \hat\pi_t v_t\Big| \Big/ \sum_t \hat\p
 \Loi
 Sans objet.
 \Pval
-Aucune. \code{ECHEC} si $\mathrm{FOC} > 10^{-6}$ (l'optimisation n'a pas convergé).
+Aucune. Le moteur pose \code{ECHEC} si $\mathrm{FOC} > 10^{-6}$.
 \Usage
 \textbf{Point de vigilance essentiel.} C'est la moyenne \emph{pondérée} $\sum_t\hat\pi_t v_t$ qui
 est contrainte à zéro, et non la moyenne simple $\bar z$ des résidus normalisés. Les deux ne
@@ -3139,67 +3300,235 @@ coïncident que si $\hat\pi_t$ est constant, c'est-à-dire si $\hat\delta = 1$ o
 $x_t$ sont constants. Sur un jeu de données où $\hat\delta$ est intérieur au domaine, on observe
 typiquement $\mathrm{FOC} \approx 10^{-17}$ (précision machine) alors que
 $\bar z \approx 10^{-2}$~: la moyenne simple des résidus n'est donc \emph{pas} un contrôle de
-convergence, mais bien une quantité libre, dont le test fait l'objet de la fiche suivante.
+convergence. Elle n'est pas pour autant une quantité libre~: l'écart entre les deux moyennes est
+de l'ordre de la dispersion des poids $\hat\pi_t$, ce qui interdit d'en faire un test et conduit à
+la restituer comme diagnostic (fiche~\ref{fiche:32}).
+
+\textbf{Portée exacte de ce diagnostic.} $\mathrm{FOC}$ ne mesure pas non plus la convergence.
+\code{usp\_noyau()} calcule $\ln\hat\beta$ en forme fermée,
+$\ln\hat\beta = \big(T/2 + \sum_t\hat\pi_t\ln r_t\big)\big/\sum_t\hat\pi_t$~; en reportant dans
+$v_t = \ln r_t + 1/(2\hat\pi_t) - \ln\hat\beta$, on obtient $\sum_t\hat\pi_t v_t = 0$
+\emph{identiquement}, pour tout couple $(\delta,\gamma)$ et non seulement à l'optimum. Vérifié
+numériquement sur des couples arbitraires --- $(0{,}5\,;-1)$, $(0\,;-3)$, $(1\,;0)$,
+$(0{,}3\,;-2{,}5)$, $(1\,;3)$ --- où $\mathrm{FOC}$ reste inférieur à $10^{-15}$. Le
+\code{ECHEC} de la rubrique~5 ne peut donc se déclencher qu'en cas d'anomalie arithmétique
+(débordement, valeur non finie), jamais parce que l'optimisation se serait arrêtée trop tôt. La
+convergence en $\gamma$, elle, est signalée par l'écart de $\sum_t z_t^2$ à $T$
+(fiche~\ref{fiche:33}), seul indicateur de cette nature dans la restitution.
 \end{fiche}
 
-\begin{fiche}{Test de centrage des résidus normalisés}
-\refl{Student (1908), \emph{op.\ cit.} ; loi de référence obtenue par bootstrap paramétrique
-(section~\ref{sec:mc}).}
+\begin{fiche}{Centrage des résidus standardisés (diagnostic)}
+\refl{Diagnostic ; conditions du premier ordre du maximum de vraisemblance
+(fiche~\ref{fiche:31}).}
 \Cadre
-Résidus normalisés $z_t$. Hypothèses non testées~: indépendance et normalité des $z_t$.
-Contrairement à ce que suggère l'intuition, $\bar z$ n'est \textbf{pas} contraint par
-l'estimation (voir la fiche précédente)~: il s'agit donc d'un véritable test.
+Résidus standardisés $z_t = \sqrt{\hat\pi_t}\,v_t$ et leur moyenne simple $\bar z$.
+\textbf{Diagnostic, non test.} La relation $\sum_t\sqrt{\hat\pi_t}\,z_t = 0$ vaut
+\emph{toujours}, et pas seulement à l'optimum~: $\ln\hat\beta$ étant obtenu en forme fermée,
+$\ln\hat\beta = \big(T/2 + \sum_t\hat\pi_t\ln r_t\big)\big/\sum_t\hat\pi_t$, elle est une
+\textbf{identité algébrique} vérifiée pour tout couple $(\delta,\gamma)$, convergé ou non
+(fiche~\ref{fiche:31}). $\bar z$ est donc rivé par l'estimation en toute circonstance. Cette
+contrainte pondérée ne se réduit à $\sum_t z_t = 0$ que lorsque
+$\hat\pi_t$ est \emph{constant}, c'est-à-dire lorsque $\hat\delta = 1$ ou lorsque les volumes
+$x_t$ le sont. Le seul fait que $\hat\delta$ soit au bord de $[0,1]$ ne suffit pas~: à
+$\hat\delta = 0$ avec des volumes variables, $\hat\pi_t$ varie et l'égalité $\sum_t z_t = 0$
+ne tient pas. Le moteur distingue ces trois situations dans le commentaire attaché à la ligne.
 \Hzero
-$H_0 : \mathbb{E}[z_t] = 0$.
+Sans objet. L'hypothèse $\mathbb{E}[z_t] = 0$, sous laquelle cette grandeur était auparavant
+restituée comme un test, ne peut pas être mise en défaut par les données~: $\bar z$ est déterminé
+par l'estimation, non librement observé.
 \Stat
-$\displaystyle t = \frac{\bar z\,\sqrt{T}}{s_z}$.
+Aucune statistique de test. La grandeur restituée est l'\emph{estimation} $\bar z$, portée par le
+champ \code{estim} de la table des tests~; les champs \code{stat} et \code{loi} sont vides.
 \Loi
-$t \sim t(T-1)$ \emph{nominalement}. Cette loi est cependant optimiste~: les $z_t$ dépendent de
-trois paramètres estimés $(\hat\beta,\hat\delta,\hat\gamma)$ et satisfont la contrainte linéaire
-$\sum_t\sqrt{\hat\pi_t}z_t = 0$, de sorte que le nombre effectif de degrés de liberté est
-inférieur à $T-1$. La loi de référence retenue est donc celle obtenue par bootstrap paramétrique.
+Sans objet, pour deux raisons distinctes.
+\emph{Loi nominale.} La loi $t(T-1)$ de $\bar z\sqrt{T}/s_z$ est optimiste~: les $z_t$ dépendent
+de trois paramètres estimés $(\hat\beta,\hat\delta,\hat\gamma)$ et satisfont la contrainte
+linéaire ci-dessus, de sorte que le nombre effectif de degrés de liberté est inférieur à $T-1$.
+Cet argument, exact, reste faible~: il suggère une p-value seulement trop optimiste, donc
+utilisable avec prudence. \textbf{Le fait qui tranche est plus radical.} Lorsque $\hat\pi_t$ est
+constant, $\bar z = 0$ est une identité algébrique~; la valeur affichée est un zéro machine, le
+rapport $\bar z\sqrt{T}/s_z$ l'est aussi, et la p-value bilatérale vaut $1$ \emph{quelles que
+soient les données}. Ce n'est pas une p-value élevée~: c'est une \textbf{constante de $T$}, qui
+ne contient aucune information sur l'échantillon. Conséquence algébrique exacte, vérifiée
+numériquement sur deux jeux sans rapport l'un avec l'autre, à $T = 8$~:
+
+\begin{center}
+\small
+\rowcolors{2}{tablerow}{white}
+\begin{tabular}{@{}p{5.6cm}ccc@{}}
+\rowcolor{tableheader}
+\textcolor{financeblue}{\textbf{Jeu de données}} &
+\textcolor{financeblue}{\textbf{$\hat\delta$}} &
+\textcolor{financeblue}{\textbf{$t$ observé}} &
+\textcolor{financeblue}{\textbf{p nominale bilatérale}} \\
+Jeu de contrôle du dossier & 1 & $-5{,}3\cdot 10^{-16}$ & $1{,}0000000000$ \\
+Jeu étranger, volumes $x_t$ constants\textsuperscript{(a)} & 0 &
+$-8{,}7\cdot 10^{-17}$ & $1{,}0000000000$ \\
+\end{tabular}
+\end{center}
+
+\noindent
+\textsuperscript{(a)} $x_t \equiv 100$ et $y_t = 55,\,70,\,61,\,84,\,48,\,92,\,66,\,73$, jeu
+construit pour cette vérification et sans rapport avec le dossier.
+
+\noindent
+Le second jeu n'a aucun point commun avec le premier et conduit même à
+$\hat\delta = 0$~; il donne pourtant la même p-value, parce que la constance de $\hat\pi_t$ y
+résulte non de $\hat\delta$ mais de celle des volumes. Sur les 493 réplications à
+$\delta^{*} = 1$ de la simulation décrite ci-dessous, la p-value nominale vaut $1$ sur toutes,
+sans exception. Un verdict fondé sur
+cette p-value serait un \code{OK} qu'\textbf{aucune donnée ne peut faire perdre} --- l'assurance
+d'un contrôle qui n'en est pas un, que la rubrique~6 écarte. La même vérification, conduite sur la
+variance unitaire dont la loi nominale est un $\chi^2$ et non un $t$, donne le même constat
+(fiche~\ref{fiche:33})~: ce n'est donc pas une particularité de la loi de Student.
+
+\emph{Loi simulée.} La loi de $\bar z$ sous le modèle ajusté n'est pas davantage exploitable, non
+parce qu'elle serait constante, mais parce qu'elle est un \emph{mélange}. Constat de simulation
+sur le jeu de contrôle ($T = 8$, $\hat\delta = 1$, $B = 999$ réplications, graine 20260831)~:
+493 réplications donnent $\delta^{*} = 1$ et une moyenne $\bar z^{*}$ d'écart-type
+$2{,}2\cdot 10^{-16}$, soit un zéro machine~; 460 donnent $\delta^{*} = 0$ et un écart-type de
+$1{,}7\cdot 10^{-2}$, composante diffuse~; 46 un $\delta^{*}$ intérieur.
+
+Ce n'est pas le mélange en lui-même qui prive la p-value de sens, mais le fait que la loi simulée
+porte un \textbf{atome en la valeur observée}. La valeur observée est elle-même un zéro machine
+($\bar z = -2{,}0\cdot 10^{-16}$) et les 493 réplications de la première composante le sont aussi
+($|\bar z^{*}| \le 7{,}8\cdot 10^{-16}$)~: une p-value bilatérale
+$2\min\big(\mathbb{P}(\bar z^{*}\ge\bar z),\,\mathbb{P}(\bar z^{*}\le\bar z)\big)$ se décide alors
+par le classement d'ex \ae quo numériques. Mesuré~: sur ces 493 réplications, 420 vérifient
+$\bar z^{*} \ge \bar z$ et 74 vérifient $\bar z^{*} \le \bar z$, uniquement d'après le signe d'un
+bruit de l'ordre de $10^{-16}$ --- d'où la dépendance du résultat à la plateforme de calcul. La
+somme $420 + 74 = 494$ excède $493$ d'une unité~: une réplication tombe exactement sur la valeur
+observée et est comptée dans les deux queues, les deux inégalités de la p-value bilatérale étant
+larges.
+
+Se restreindre à la composante diffuse ne sauverait pas la vérification~: la p-value recalculée
+sur les seules 506 réplications à $\hat\pi_t^{*}$ non constant vaut $0{,}966$. La valeur observée
+est par construction au centre de cette composante, de sorte qu'un test conditionnel serait
+\emph{inopérant} et non simplement mal calibré. Ces deux chiffres sont des constats de simulation
+sur ce jeu de données, non des propriétés démontrées du modèle.
 \Pval
-$p = 2\big(1 - F_{t,T-1}(|t|)\big)$ pour la version nominale~; le script rapporte en outre
-$\hat p_{\text{MC}}$, qui est la p-value à retenir.
+Aucune. La grandeur a été retirée des statistiques simulées par
+\code{.stats\_bootstrapables()}~: ni p-value exacte, ni p-value de Monte-Carlo, ni p-value
+asymptotique n'est calculée ni affichée pour cette ligne, et aucune p-value n'est retenue.
 \Usage
-Un rejet indique un biais systématique de niveau non capté par $\hat\beta$, typiquement une
-rupture de régime ou une dérive du ratio S/P~: à rapprocher des tests de la section~8. Limite~:
-la puissance est faible et la contrainte linéaire subsistante rend la loi nominale
-non fiable, d'où la préférence donnée à la p-value de Monte-Carlo.
+\textbf{Pourquoi aucun verdict.} Une grandeur que l'estimation rive ne peut pas contredire le
+modèle~; lui attacher un verdict \code{OK} donnerait au lecteur du dossier l'assurance d'un
+contrôle qui n'en est pas un. La ligne est donc restituée comme diagnostic, avec le verdict
+\code{INFO}, et accompagnée du motif. Ce qu'elle apporte à $T = 8$ est très limité, et il faut le
+dire sans détour. Lorsque $\hat\pi_t$ est constant, $\bar z$ n'est que du bruit d'arrondi et ne
+renseigne sur rien --- en particulier \textbf{pas} sur la qualité de l'arrêt de l'optimiseur,
+puisque l'identité rappelée en rubrique~1 ne dépend pas de la convergence~: mesuré, $\bar z$ vaut
+$-1{,}7\cdot 10^{-17}$ à $(\hat\delta,\gamma) = (1,\,0)$ et $1{,}6\cdot 10^{-16}$ à $(1,\,3)$,
+deux points très éloignés de l'optimum. Lorsque $\hat\pi_t$ varie, $\bar z$ est l'écart entre
+centrage pondéré et centrage non pondéré~: l'identité
+$\sum_t\sqrt{\hat\pi_t}\,z_t = 0$ donne la borne exacte
+\[
+  |\bar z| \;\le\; \frac{\max_t\big|\sqrt{\hat\pi_t} - \bar c\big|}{\bar c}
+  \cdot \frac{1}{T}\sum_t |z_t| ,
+  \qquad \bar c = \frac{1}{T}\sum_t \sqrt{\hat\pi_t} .
+\]
+$\bar z$ est donc \emph{de l'ordre de} la dispersion des poids, sans en être une fonction~: le
+coefficient qui les relie est aléatoire. Mesuré sur les 506 réplications à $\hat\pi_t^{*}$ non
+constant, la corrélation entre $|\bar z^{*}|$ et l'amplitude relative de $\hat\pi_t^{*}$ n'est que
+de $0{,}26$, et le rapport des deux s'étend de $0{,}006$ à $0{,}12$ entre les quantiles 5~\% et
+95~\%. Dans les deux cas, $\bar z$ n'est pas une propriété libre des résidus. Un biais
+systématique de niveau non capté par
+$\hat\beta$ reste recherché ailleurs, par des vérifications qui portent, elles, un verdict~: les
+tests de tendance de l'hypothèse~H1 (section~\ref{sec:h1}) pour une dérive du ratio S/P, les
+fiches~\ref{fiche:34} et~\ref{fiche:35} pour une rupture de régime.
 \end{fiche}
 
-\begin{fiche}{Test de variance unitaire des résidus normalisés}
-\refl{K.~Pearson, \emph{On the criterion that a given system of deviations\dots},
-\emph{Philosophical Magazine}, Series 5, 50(302), 1900, p.~157--175 ; loi de référence par
-bootstrap paramétrique (section~\ref{sec:mc}).}
+\begin{fiche}{Variance unitaire des résidus standardisés (diagnostic)}
+\refl{Diagnostic ; conditions du premier ordre du maximum de vraisemblance
+(fiche~\ref{fiche:31}).}
 \Cadre
-Résidus normalisés $z_t = \sqrt{\hat\pi_t}\,v_t$. Hypothèse non testée~: normalité des $z_t$, ce
-qui rend le test partiellement circulaire puisque c'est précisément l'objet de la section~6.
-Comme pour le centrage, $\operatorname{Var}(z)$ n'est \textbf{pas} contraint à 1 par
-l'estimation~: c'est un véritable test de l'échelle de la pondération.
+Résidus standardisés $z_t = \sqrt{\hat\pi_t}\,v_t$ et leur variance empirique
+$\operatorname{Var}(z)$. \textbf{Diagnostic, non test.} La condition du premier ordre en $\gamma$
+rive l'échelle des $z_t$ comme celle en $\ln\beta$ en rive le niveau~: lorsque $\hat\pi_t$ est
+constant ($\hat\delta = 1$, ou volumes $x_t$ constants), les deux conditions donnent ensemble
+$\sum_t z_t^2 = T$, soit $\operatorname{Var}(z) = T/(T-1)$ --- c'est-à-dire $1{,}143$ à $T = 8$,
+et non~1. À la différence de celle en $\ln\beta$ (fiche~\ref{fiche:31}), cette seconde relation
+n'est \emph{pas} une identité algébrique~: elle suppose la dérivée en $\gamma$ effectivement
+annulée, donc l'optimisation aboutie. Hors du cas $\hat\pi_t$ constant, seule la contrainte
+pondérée subsiste et $\operatorname{Var}(z)$ est de l'ordre de l'écart entre échelle pondérée et
+échelle non pondérée. L'argument suppose en outre l'optimum \emph{intérieur} en $\gamma$~: si
+$\hat\gamma$ butait sur une borne de son domaine $[-12,\,3]$, la dérivée ne serait pas annulée et
+l'égalité tomberait. Cette réserve est théorique~: $\sigma = \hat\beta\,e^{\gamma}$, de sorte que
+$\gamma = 3$ signifierait $\sigma \approx 20\,\hat\beta$ et $\gamma = -12$,
+$\sigma \approx 6\cdot 10^{-6}\,\hat\beta$, deux situations sans réalité pour un ratio S/P~; sur
+le jeu de contrôle, aucune des 999 réplications n'atteint une borne ($\hat\gamma^{*}$ reste entre
+$-3{,}34$ et $-1{,}37$).
 \Hzero
-$H_0 : \operatorname{Var}(z_t) = 1$.
+Sans objet. L'hypothèse $\operatorname{Var}(z_t) = 1$, sous laquelle cette grandeur était
+auparavant restituée comme un test, n'est pas celle que l'estimation laisse libre~: la valeur de
+référence imposée par les conditions du premier ordre est $T/(T-1)$, et non~1.
 \Stat
-$\displaystyle C = (T-1)\,s_z^2$.
+Aucune statistique de test~; la quantité $C = (T-1)\,s_z^2$ n'est plus calculée. La grandeur
+restituée est l'\emph{estimation} $\operatorname{Var}(z)$, portée par le champ \code{estim} de la
+table des tests.
 \Loi
-$C \sim \chi^2(T-1)$ \emph{nominalement}, sous $H_0$ et normalité. Comme à la fiche précédente,
-cette loi ignore l'estimation préalable de $(\hat\beta,\hat\delta,\hat\gamma)$~; la loi de
-référence retenue est celle du bootstrap paramétrique.
+Sans objet. La loi $\chi^2(T-1)$ de $C$ est nominale~: elle ignore l'estimation préalable de
+$(\hat\beta,\hat\delta,\hat\gamma)$ et la contrainte d'échelle qui en résulte. Comme au centrage
+(fiche~\ref{fiche:32}), l'argument décisif n'est pas que cette loi serait optimiste, mais qu'à
+$\hat\pi_t$ constant elle produit une p-value \textbf{indépendante des données}. Les conditions du
+premier ordre donnent alors $\sum_t z_t^2 = T$ et $\bar z = 0$, d'où $C = (T-1)s_z^2
+= \sum_t z_t^2 - T\bar z^2 = T$ à la tolérance d'arrêt près, et la p-value bilatérale
+$2\min\big(F_{\chi^2(T-1)}(T),\,1 - F_{\chi^2(T-1)}(T)\big)$ ne dépend plus que de $T$~: elle vaut
+$0{,}6651878$ à $T = 8$. Cette conséquence est algébrique, mais --- à la différence de celle du
+centrage --- elle n'est exacte qu'à la tolérance d'arrêt de l'optimiseur près, puisqu'elle repose
+sur la condition en $\gamma$ et non sur la forme fermée de $\ln\hat\beta$ (rubrique~1). Vérifiée
+numériquement~: sur le jeu de contrôle comme sur un jeu étranger à volumes constants
+(fiche~\ref{fiche:32}), la p-value nominale vaut $0{,}6651888$, les deux valeurs coïncidant
+jusqu'à la huitième décimale~; sur les 493 réplications à $\delta^{*} = 1$, elle reste comprise
+entre $0{,}665100$ et $0{,}665224$, l'amplitude résiduelle n'étant due qu'à cette même tolérance
+d'arrêt, discutée plus bas. Le verdict qui en découlerait serait donc, lui aussi, un \code{OK}
+qu'aucune donnée ne peut faire perdre.
+
+La loi simulée sous le modèle ajusté porte, comme celle du centrage (fiche~\ref{fiche:32}), un atome en la valeur
+observée. Constat de simulation sur les mêmes $B = 999$ réplications (graine 20260831)~: les 493
+à $\hat\pi_t^{*}$ constant donnent une valeur rivée à $T/(T-1)$, d'écart-type
+$3{,}5\cdot 10^{-6}$~; les 506 autres une valeur diffuse, d'écart-type $4{,}9\cdot 10^{-3}$.
+
+Une différence avec le centrage mérite d'être relevée, car elle change la nature du bruit
+comparé~: ici, ce n'est pas l'arrondi machine mais la \textbf{tolérance d'arrêt de l'optimiseur}.
+Sur les 493 réplications concernées, $\operatorname{Var}(z^{*}) - T/(T-1)$ s'étend de
+$-3{,}0\cdot 10^{-5}$ à $+7{,}1\cdot 10^{-5}$, de médiane $-7{,}7\cdot 10^{-7}$, quand la valeur
+observée vaut $-7{,}8\cdot 10^{-7}$. Or les deux ne sont pas produites au même réglage~:
+l'ajustement observé emploie \code{factr = 1e5} et le réajustement des réplications
+\code{factr = 1e7}. La p-value de Monte-Carlo autrefois retenue ($0{,}864$) comparait donc deux
+tolérances d'optimiseur différentes. Se restreindre à la composante diffuse ne sauverait pas
+davantage la vérification qu'au centrage~: la p-value recalculée sur les seules 506 réplications à
+$\hat\pi_t^{*}$ non constant vaut $0{,}998$.
 \Pval
-Bilatérale nominale~:
-$p = 2\min\big(F_{\chi^2_{T-1}}(C),\, 1 - F_{\chi^2_{T-1}}(C)\big)$~; le script rapporte en outre
-$\hat p_{\text{MC}}$, à privilégier.
+Aucune. La grandeur a été retirée des statistiques simulées par
+\code{.stats\_bootstrapables()}~; aucune p-value n'est calculée ni retenue pour cette ligne.
 \Usage
-Une variance empirique nettement supérieure à~1 suggère une sous-estimation de $\sigma$~;
-une variance inférieure à~1 suggère au contraire une sur-paramétrisation. Limite~: à $T = 8$,
-l'intervalle de confiance à 90~\% de $s_z^2$ sous $H_0$ s'étend approximativement de $0{,}4$
-à $1{,}9$, de sorte que seuls des écarts très marqués sont détectables.
+\textbf{Pourquoi aucun verdict.} Comme pour le centrage, la grandeur est rivée par l'estimation~:
+elle est restituée comme diagnostic, avec le verdict \code{INFO} et le motif. Sur le jeu de
+contrôle ($T = 8$, $\hat\delta = 1$), $\operatorname{Var}(z) = 1{,}142856$ contre
+$T/(T-1) = 1{,}142857$~: l'écart, $-6{,}8\cdot 10^{-7}$ en relatif, provient de la tolérance
+d'arrêt de l'optimiseur et non des données.
+
+\textbf{Ce que ce diagnostic apporte, et qu'aucun autre n'apporte.} L'écart de $\sum_t z_t^2$ à
+$T$ est, à ce jour, le \emph{seul} indicateur de la convergence en $\gamma$ de toute la
+restitution~: la condition en $\ln\beta$ étant une identité (fiche~\ref{fiche:31}), elle ne peut
+rien signaler, tandis que celle en $\gamma$ n'est satisfaite qu'à l'optimum. Les ordres de
+grandeur mesurés situent ce que « notable » veut dire~: à l'optimum, $10^{-6}$ en relatif avec
+\code{factr = 1e5}, et jusqu'à $6\cdot 10^{-5}$ sur les réplications réajustées avec
+\code{factr = 1e7}~; à $\hat\delta = 1$ mais $\gamma$ forcé hors de l'optimum,
+$\sum_t z_t^2 - T$ vaut $-7{,}8$ pour $\gamma = 0$ et $-7{,}97$ pour $\gamma = 3$. Un écart de cet
+ordre est donc un défaut de convergence, non une propriété des données. Lorsque $\hat\pi_t$ varie,
+l'écart est en revanche de l'ordre de la dispersion des poids, sans en être une fonction, et ne
+se lit plus comme un contrôle numérique. Le contrôle de l'échelle de $\sigma$ proprement dit
+relève de l'intervalle bootstrap et du jackknife (section~\ref{sec:robustesse}), qui portent, eux,
+sur $\sigma_{\mathrm{USP}}$.
 \end{fiche}
 
 \newpage
 \clearpage
 % =============================================================================
 \section{Diagnostics de stabilité, ruptures et points aberrants}
+\label{sec:stabilite}
 % =============================================================================
 
 Ces diagnostics ne correspondent pas directement à l'une des quatre hypothèses réglementaires,
@@ -3545,7 +3874,8 @@ fonction objectif de l'annexe~XVII peut présenter un plateau très plat en $\de
 l'amplitude des volumes $x_t$ est faible (car $\pi_t$ dépend alors peu de $\delta$), situation
 dans laquelle l'optimiseur s'arrête en des points différents selon son initialisation. Un
 $\hat\kappa$ faible est un signal d'alerte à traiter \emph{avant} toute interprétation des tests,
-au même titre que le contrôle de nullité de la moyenne des résidus (section~7).
+au même titre que l'écart de $\sum_t z_t^2$ à $T$ (fiche~\ref{fiche:33})~; la nullité de la
+moyenne pondérée des résidus, elle, est une identité et ne signale rien (fiche~\ref{fiche:31}).
 \end{fiche}
 
 \newpage
@@ -4947,8 +5277,12 @@ dans 92,5~\% des cas.
 
 \subsection*{Calibration des p-values de Monte-Carlo}
 
-C'est le point le plus important, puisque ces p-values sont celles retenues pour l'essentiel des
-tests. Sur 400 jeux de données simulés \emph{depuis le modèle} de l'annexe~XVII, la fréquence de
+C'est le point le plus important, puisque ces p-values sont celles retenues pour la majorité des
+tests --- mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$), 26 des 50 lignes de
+la table auditable retiennent une p-value de Monte-Carlo, contre 9 une p-value exacte, 1 une
+p-value quasi-exacte et 2 une p-value asymptotique, les 12 dernières étant des diagnostics ou
+indicateurs sans p-value retenue. Sur 400 jeux de données simulés \emph{depuis le modèle} de
+l'annexe~XVII, la fréquence de
 rejet au seuil nominal de 10~\% a été mesurée pour chacune des statistiques bootstrapées.
 
 \begin{center}
@@ -5309,6 +5643,10 @@ Lois exactes (Kendall, suites) & \code{mk\_p\_exacte()}, \code{runs\_p\_exacte()
 Statistiques de test & \code{stat\_*()}, \code{test\_*()} \\
 Bootstrap paramétrique et p-values MC & \code{.stats\_bootstrapables()}, \code{usp\_bootstrap()} \\
 Hiérarchie exacte $\succ$ MC $\succ$ asymptotique & fonction \code{add()} interne à \code{usp\_tests()} \\
+Sortie de la hiérarchie (grandeur rivée par l'estimation) & branche finale de \code{add()}~:
+\code{p\_retenue} et \code{nature\_p} à \code{NA}, verdict \code{INFO} \\
+Réserve sur la base « ratios bruts » à $\hat\pi_t$ constant & champ \code{detail} des six lignes
+de base \code{r} dans \code{usp\_tests()} \\
 Erreur de Monte-Carlo & champ \code{err\_mc} de \code{usp\_bootstrap()} \\
 Jackknife, profils, rapport de vraisemblance & \code{usp\_jackknife()}, \code{usp\_profil()} \\
 Calibration et paramètre final & \code{usp\_parametre()}, \code{usp\_credibilite()} \\
@@ -5450,18 +5788,19 @@ les fondements théoriques du bootstrap et des tests de Monte-Carlo.
 \toprule
 \textbf{Verdict} & \textbf{Signification} \\
 \midrule
-\code{OK} & p-value (ou \code{p\_mc} si disponible) au-dessus du seuil d'alerte, ou diagnostic
+\code{OK} & p-value \emph{retenue} --- celle que désigne \code{nature\_p}, choisie dans l'ordre
+exacte $\succ$ Monte-Carlo $\succ$ asymptotique --- au-dessus du seuil d'alerte, ou diagnostic
 sans anomalie. Pour les tests de Student sur la pente et de Fisher, la logique est inversée~:
 \code{OK} correspond à un $p$ \emph{faible}. \\
-\code{ALERTE} & p-value dans la zone intermédiaire $[\alpha/2\,;\,\alpha]$ (par défaut
+\code{ALERTE} & p-value retenue dans la zone intermédiaire $[\alpha/2\,;\,\alpha]$ (par défaut
 $[5\,\%\,;\,10\,\%]$), ou diagnostic structurel à documenter~: solution au bord sur $\delta$,
 point influent isolé, jackknife entre 10~\% et 20~\%, intervalle bootstrap large. \\
-\code{ECHEC} & p-value sous le seuil strict, ou anomalie structurelle marquée. N'invalide pas
+\code{ECHEC} & p-value retenue sous le seuil strict, ou anomalie structurelle marquée. N'invalide pas
 mécaniquement l'USP, mais impose une justification explicite~: nature de l'écart, retraitement
 envisagé, sensibilité du paramètre final. \\
 \code{INFO} & Diagnostic sans seuil statistique associé~: test non applicable faute d'effectif
-($T < 8$ pour D'Agostino, $T < 20$ pour Anscombe--Glynn), indicateur descriptif, ou lecture
-graphique. \\
+($T < 8$ pour D'Agostino, $T < 20$ pour Anscombe--Glynn), grandeur rivée par l'estimation
+(fiches~\ref{fiche:32} et~\ref{fiche:33}), indicateur descriptif, ou lecture graphique. \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -5469,18 +5808,31 @@ graphique. \\
 \subsection*{Hiérarchie de lecture recommandée}
 
 \begin{enumerate}[itemsep=2pt]
-  \item \textbf{Contrôles de données} (section~3) -- bloquants. Aucun résultat n'a de sens si un
-        contrôle est en échec.
-  \item \textbf{Convergence numérique} (section~10) et nullité de la moyenne des résidus
-        (section~7) -- préalables techniques.
-  \item \textbf{Jackknife et intervalle bootstrap} (section~10) -- la mesure la plus directe de la
-        solidité du calibrage à $T$ faible.
-  \item \textbf{Position de $\hat\delta$ et test du rapport de vraisemblance} (sections~5 et~10)
-        -- identifiabilité de la structure de variance.
-  \item \textbf{Ruptures et points influents} (section~8) -- susceptibles d'expliquer tout rejet
-        observé par ailleurs.
-  \item \textbf{Tests des hypothèses H1 à H4} (sections~4 à~7), en privilégiant systématiquement
-        les p-values \code{p\_mc} lorsqu'elles sont disponibles.
+  \item \textbf{Contrôles de données} (section~\ref{sec:controles}) -- bloquants. Aucun résultat
+        n'a de sens si un contrôle est en échec.
+  \item \textbf{Convergence numérique} -- préalable technique~: part des démarrages convergents
+        (fiche~\ref{fiche:43}) et écart de $\sum_t z_t^2$ à $T$ (fiche~\ref{fiche:33}). La
+        nullité de la moyenne \emph{pondérée} des résidus n'en fait pas partie~: c'est une
+        identité algébrique, vraie même sans convergence (fiche~\ref{fiche:31}). La moyenne
+        simple $\bar z$ est, elle, un diagnostic (fiche~\ref{fiche:32}).
+  \item \textbf{Jackknife et intervalle bootstrap} (section~\ref{sec:robustesse}) -- la mesure la
+        plus directe de la solidité du calibrage à $T$ faible.
+  \item \textbf{Position de $\hat\delta$ et test du rapport de vraisemblance}
+        (fiches~\ref{fiche:17} et~\ref{fiche:40}) -- identifiabilité de la structure de variance.
+  \item \textbf{Ruptures et points influents} (section~\ref{sec:stabilite}) -- susceptibles
+        d'expliquer tout rejet observé par ailleurs.
+  \item \textbf{Tests des hypothèses H1 à H4} (sections~\ref{sec:h1} à~\ref{sec:h4}), en lisant
+        pour chacun la p-value \emph{retenue} par le moteur, celle que désigne le champ
+        \code{nature\_p}. La hiérarchie appliquée est \emph{exacte $\succ$ Monte-Carlo
+        $\succ$ asymptotique} (section~\ref{sec:nature})~: la p-value de Monte-Carlo n'est
+        pas la première servie, elle vient \emph{après} la p-value exacte lorsque celle-ci
+        existe. Mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$)~: des 50
+        lignes de la table auditable, 9 retiennent une p-value exacte, et 8 d'entre
+        elles disposent pourtant d'une \code{p\_mc} qui n'est pas retenue~: lire
+        systématiquement \code{p\_mc} reviendrait à écarter huit p-values exactes au profit
+        d'estimations entachées d'une erreur de Monte-Carlo (section~\ref{sec:deuxerreurs}).
+        Les trois colonnes restent affichées~: leur comparaison est un contrôle utile, mais
+        elle ne modifie pas le verdict.
 \end{enumerate}
 
 \subsection*{Tests structurellement inopérants à faible $T$}
@@ -5580,7 +5932,7 @@ deux méthodes \\
 pente, Fisher global, $R^2$~: \textbf{quatre entrées issues d'un seul appel} \\
 \code{usp\_noyau()}, \code{usp\_pi()} & LN & Tout le noyau lognormal~:
 résidus $z_t$, donc l'intégralité de H2, H3, H4 \\
-\code{.stats\_bootstrapables()} & LN & Les 38 statistiques bootstrapées de la
+\code{.stats\_bootstrapables()} & LN & Les 34 statistiques bootstrapées de la
 méthode lognormale, en un seul appel \\
 \code{mw\_ajuster()} & MW & $\hat f_j$, $\hat\sigma_j^2$, $\hat C(i,j)$~: entrée
 de la MSEP, des résidus, de tous les tests M1 à M6 \\

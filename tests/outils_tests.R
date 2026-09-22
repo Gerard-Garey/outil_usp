@@ -50,11 +50,17 @@ executer_cas <- function(nom) nettoyer(CAS[[nom]]())
 # comparaison aux references (pas du controle de reproductibilite a graine
 # egale, qui reste integral). Chaque entree renvoie a l'issue qui la justifie
 # et doit etre retiree une fois l'issue resolue.
-#   - issue #3 : test de centrage des residus degenere quand delta est au bord
-#     de [0, 1] ; sa p-value Monte-Carlo compare du bruit d'arrondi.
-INSTABLES <- list(
-  list(test = "Centrage des residus standardises", mc_nom = "MeanZ", issue = 3)
-)
+#
+# La liste est VIDE : la seule entree qu'elle ait comportee (issue #3, p-value
+# Monte-Carlo du centrage des residus, qui se decidait au signe du bruit
+# d'arrondi) est sans objet depuis que le centrage et la variance unitaire
+# sont restitues comme diagnostics et que MeanZ et VarZ ont quitte les
+# statistiques simulees (ADR 0001). Le mecanisme est conserve pour un futur
+# cas. N'y ajouter une grandeur que si, a code identique, son ecart d'une
+# plateforme a l'autre DEPASSE la tolerance de comparaison TOLERANCE : les
+# ecarts d'arrondi inferieurs a cette tolerance sont la regle et sont
+# precisement ce qu'elle absorbe.
+INSTABLES <- list()
 
 # Remplace par NA les grandeurs instables, dans le resultat comme dans la
 # reference, avant comparaison.
@@ -73,3 +79,28 @@ neutraliser_instables <- function(res) {
 }
 
 chemin_reference <- function(nom) file.path(DOSSIER_REF, paste0(nom, ".rds"))
+
+# Aplatit un objet en feuilles atomiques nommees par leur chemin
+# (ex. "parametre_final$sigma_usp", "tests[[12]]$p_mc", "donnees$xt[3]").
+# Partage par comparer_references.R et patcher_reference.R : le second prend
+# pour motifs les chemins que le premier affiche, et deux copies d'une meme
+# fonction seraient le moyen le plus sur de perdre cette correspondance.
+# Attention : l'aplatissement ne restitue que les FEUILLES. Les attributs
+# (dim, class, row.names) et les listes vides n'y apparaissent pas ; toute
+# verification qui doit porter sur l'objet ENTIER passe par all.equal() ou
+# par une comparaison d'attributs dediee.
+aplatir <- function(o, chemin = "") {
+  if (is.data.frame(o)) o <- as.list(o)
+  if (is.list(o)) {
+    nm <- names(o)
+    res <- list()
+    for (k in seq_along(o)) {
+      etiq <- if (!is.null(nm) && nzchar(nm[k])) paste0("$", nm[k]) else sprintf("[[%d]]", k)
+      res <- c(res, aplatir(o[[k]], paste0(chemin, etiq)))
+    }
+    return(res)
+  }
+  if (length(o) <= 1) return(stats::setNames(list(o), sub("^\\$", "", chemin)))
+  noms_el <- if (!is.null(names(o))) paste0("[\"", names(o), "\"]") else sprintf("[%d]", seq_along(o))
+  stats::setNames(as.list(o), paste0(sub("^\\$", "", chemin), noms_el))
+}
