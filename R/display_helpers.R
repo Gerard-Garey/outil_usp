@@ -16,7 +16,11 @@
 COUL <- list(trait = "#B03A2E", pt = "#00468C", env = "#C8DCFA",
              ref = "#7F8C8D", vert = "#00B450", fond = "#FFFFFF")
 
-.plotly_dispo <- function() requireNamespace("plotly", quietly = TRUE)
+# L'option usp.graphiques_base force les branches base R des plot_*() meme si
+# plotly est installe. Elle n'est posee que par rapport_html() (graphiques
+# figes en PNG), qui la restaure en sortie ; l'application ne la pose jamais.
+.plotly_dispo <- function()
+  !isTRUE(getOption("usp.graphiques_base")) && requireNamespace("plotly", quietly = TRUE)
 
 fmt_nb <- function(v, d = 4) ifelse(is.finite(v), formatC(v, format = "f", digits = d), "\u2013")
 fmt_p  <- function(v) ifelse(is.finite(v), formatC(v, format = "f", digits = 4), "\u2013")
@@ -850,4 +854,591 @@ plot_mw_alpha <- function(pd) {
     yaxis = list(title = "facteur estime", gridcolor = "#EEEEEE"),
     paper_bgcolor = COUL$fond, plot_bgcolor = COUL$fond,
     margin = list(t = 45), showlegend = TRUE)
+}
+
+# =============================================================================
+#  TEXTES PARTAGES ENTRE L'APPLICATION ET LE RAPPORT FIGE
+#  Mise en forme de valeurs deja presentes dans l'objet res ; aucun calcul
+#  methodologique. Les comptages et les maxima des notes sont ceux que
+#  l'application affichait deja.
+# =============================================================================
+
+# Formule du parametre final, propre a chaque methode :
+#  - lognormale (sections B et C) : usp_parametre() multiplie sigma(delta,
+#    gamma) par la correction de taille finie sqrt((T+1)/(T-1)) ;
+#  - Merz-Wuthrich (section D, paragraphe 4) : mw_parametre() rapporte
+#    racine(MSEP) a la reserve chain-ladder totale, sans correction de taille
+#    finie (res$parametre_final$correction_taille vaut 1) ; la duree de
+#    credibilite est I + 1 (section G(3)(c)), soit res$metadata$T.
+texte_formule <- function(res) {
+  p <- res$parametre_final; m <- res$metadata
+  if (identical(m$methode, "reserve2"))
+    return(sprintf(paste(
+      "Formule appliquee (annexe XVII, section D, paragraphe 4) :",
+      "sigma_USP = c x racine(MSEP) / R + (1-c) x sigma_standard,",
+      "où R = somme_i (C^(i,J) - C(i,I-i)) est la reserve chain-ladder totale,",
+      "sans correction de taille finie, avec c = %.0f %% (bareme %s, duree %d ans)."),
+      100 * p$credibilite, m$bareme, as.integer(m$T)))
+  sprintf(paste("Formule appliquee : sigma_USP = c x sigma_estime x sqrt((T+1)/(T-1))",
+                "+ (1-c) x sigma_standard, avec c = %.0f %% (bareme %s)."),
+          100 * p$credibilite, m$bareme)
+}
+
+# Notes contextuelles des onglets graphiques (HTML). NULL si la quantite
+# n'existe pas pour la methode du resultat.
+note_surface <- function(pd) {
+  S <- pd$surface
+  if (is.null(S)) return(NULL)
+  if (isTRUE(S$au_bord))
+    list(alerte = TRUE, html = sprintf(paste(
+      "delta est estim&eacute; <b>au bord</b> (%.4f). Amplitude de",
+      "l'objectif le long de delta &agrave; gamma optimal : <b>%.4f</b>.",
+      "Une amplitude faible confirme un plateau, donc une structure de",
+      "variance non identifi&eacute;e."), S$delta_opt, S$amplitude_delta))
+  else
+    list(alerte = FALSE, html = sprintf(
+      "delta = %.4f est int&eacute;rieur au domaine ; amplitude le long de delta : %.4f.",
+      S$delta_opt, S$amplitude_delta))
+}
+
+note_m1 <- function(pd) {
+  d <- pd$origine
+  if (is.null(d) || !nrow(d)) return(NULL)
+  k <- sum(d$p < 0.10, na.rm = TRUE)
+  w <- d[which.min(d$p), ]
+  sprintf(paste(
+    "Le r&egrave;glement impose E[C(i,j+1) | C(i,j)] = f_j C(i,j),",
+    "soit une droite <b>passant par l'origine</b> (trait plein). Le pointill&eacute;",
+    "est la droite ajust&eacute;e avec constante : un &eacute;cart marqu&eacute;",
+    "entre les deux signale une composante fixe non pr&eacute;vue par le mod&egrave;le.",
+    "<br><b>%d colonne(s) sur %d</b> pr&eacute;sentent une ordonn&eacute;e &agrave;",
+    "l'origine significative au seuil de 10 %%, la plus marqu&eacute;e &eacute;tant",
+    "<b>j = %d</b> (p = %.4f)."), k, nrow(d), w$j, w$p)
+}
+
+note_influence_mw <- function(pd) {
+  d <- pd$influence
+  if (is.null(d$dfbeta_relatif)) return(NULL)
+  nf <- sum(d$fort_levier, na.rm = TRUE)
+  mx <- d[which.max(abs(d$dfbeta_relatif)), ]
+  sprintf(paste(
+    "Le levier d'une cellule dans son facteur f_j vaut C(i,j) / S_j ; il somme &agrave; 1",
+    "par colonne. <b>%d cellule(s)</b> d&eacute;passent le seuil 2/n_j. La cellule la plus",
+    "influente est <b>(i = %d, j = %d)</b>, dont le retrait d&eacute;placerait f_%d de",
+    "<b>%+.2f %%</b>."), nf, mx$i, mx$j, mx$j, 100 * mx$dfbeta_relatif)
+}
+
+note_influence <- function(pd) {
+  d <- pd$influence
+  # La table d'influence du triangle n'a pas les colonnes de la regression
+  # lognormale.
+  if (is.null(d$cook) || is.null(d$ecart_sigma)) return(NULL)
+  ni <- sum(d$influent); nl <- sum(d$fort_levier)
+  sprintf(paste(
+    "<b>%d</b> observation(s) au-del&agrave; du seuil de Cook (4/T = %.3f) et <b>%d</b>",
+    "au-del&agrave; du seuil de levier (2k/T = %.3f). Le retrait de l'ann&eacute;e la plus",
+    "influente d&eacute;place sigma_USP de <b>%+.1f %%</b>. Un levier &eacute;lev&eacute;",
+    "seul n'est pas probl&eacute;matique : c'est sa combinaison avec un r&eacute;sidu",
+    "important, mesur&eacute;e par la distance de Cook, qui l'est."),
+    ni, d$seuil_cook[1], nl, d$seuil_levier[1],
+    100 * d$ecart_sigma[which.max(abs(d$ecart_sigma))])
+}
+
+# =============================================================================
+#  RAPPORT FIGE (HTML AUTONOME)
+#
+#  rapport_html() ecrit un document HTML unique, sans aucune ressource
+#  externe, qui fige l'objet res renvoye par run_engine() : donnees, controles,
+#  parametre, tests retenus par la selection, tests exclus en annexe,
+#  graphiques. Il ne relance aucun calcul et ne lit jamais la saisie courante.
+#  Aucune primitive Shiny ; htmltools n'est appele que dans la branche des
+#  graphiques interactifs.
+#
+#  Graphiques :
+#    - interactif = TRUE et plotly installe : widgets plotly, dont les
+#      dependances JavaScript et CSS sont integrees dans le document (balises
+#      <script> et <style>), sans pandoc ;
+#    - sinon : PNG produits par les branches base R des plot_*(), integres en
+#      base64 (encodeur en R base ci-dessous) ;
+#    - sans peripherique PNG (capabilities("png") FALSE) : un bandeau explicite
+#      remplace les graphiques, sans erreur.
+# =============================================================================
+
+# Identite du code : version declaree dans DESCRIPTION et md5 des octets de
+# R/engine.R. Relevee par l'application au demarrage, au moment ou elle
+# charge le moteur. .gitattributes impose des fins de ligne LF dans l'arbre
+# de travail : le md5 porte sur le contenu du fichier versionne.
+identite_code <- function(racine = ".") {
+  desc <- file.path(racine, "DESCRIPTION")
+  eng  <- file.path(racine, "R", "engine.R")
+  list(version = if (file.exists(desc)) unname(read.dcf(desc, fields = "Version")[1, 1])
+                 else NA_character_,
+       md5_engine = if (file.exists(eng)) unname(as.character(tools::md5sum(eng)))
+                    else NA_character_,
+       releve = format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z"))
+}
+
+# Encodage base64 (RFC 4648, alphabet standard, remplissage "=") en R base.
+# Trois octets (24 bits) donnent quatre caracteres de 6 bits.
+.B64 <- c(LETTERS, letters, as.character(0:9), "+", "/")
+encoder_base64 <- function(octets) {
+  v <- as.integer(octets); n <- length(v)
+  if (!n) return("")
+  reste <- n %% 3L
+  if (reste) v <- c(v, rep(0L, 3L - reste))
+  m <- matrix(v, nrow = 3L)
+  i <- rbind(bitwShiftR(m[1, ], 2L),
+             bitwOr(bitwShiftL(bitwAnd(m[1, ], 3L), 4L), bitwShiftR(m[2, ], 4L)),
+             bitwOr(bitwShiftL(bitwAnd(m[2, ], 15L), 2L), bitwShiftR(m[3, ], 6L)),
+             bitwAnd(m[3, ], 63L))
+  s <- .B64[as.vector(i) + 1L]
+  if (reste) s[length(s) - seq_len(3L - reste) + 1L] <- "="
+  paste(s, collapse = "")
+}
+
+.echap_html <- function(x) {
+  x <- gsub("&", "&amp;", x, fixed = TRUE)
+  x <- gsub("<", "&lt;", x, fixed = TRUE)
+  gsub(">", "&gt;", x, fixed = TRUE)
+}
+.txt <- function(x) ifelse(is.na(x), "–", .echap_html(as.character(x)))
+
+.bandeau_html <- function(texte, classe = "avert")
+  sprintf("<div class='%s'>%s</div>", classe, texte)
+
+.table_kv <- function(cles, valeurs) {
+  d <- data.frame(a = cles, b = valeurs, stringsAsFactors = FALSE)
+  names(d) <- c("Élément", "Valeur")
+  html_table(d, classe = "data kv")
+}
+
+# Graphiques, dans l'ordre des onglets de l'application, avec leurs notes.
+# h = hauteur en pixels ; plein = pleine largeur (sinon demi-largeur).
+.graphiques_rapport <- function(res) {
+  pd <- res$plots_data
+  g <- function(f, h = 330, plein = FALSE) list(f = f, h = h, plein = plein)
+  if (identical(res$metadata$methode, "reserve2")) return(list(
+    list(titre = "Ajustement", note = NULL,
+         g = list(g(function() plot_mw_facteurs(pd)), g(function() plot_mw_reserve(pd)))),
+    list(titre = "M1 - régressions", note = note_m1(pd),
+         g = list(g(function() plot_mw_regressions(pd), 560, TRUE),
+                  g(function() plot_mw_origine(pd)), g(function() plot_mw_alpha(pd)))),
+    list(titre = "M2 - variance", note = NULL,
+         g = list(g(function() plot_mw_residus_C(pd)), g(function() plot_mw_residus_dev(pd)))),
+    list(titre = "M3 - indépendance", note = NULL,
+         g = list(g(function() plot_mw_residus_acc(pd)), g(function() plot_mw_residus_cal(pd)))),
+    list(titre = "M5 - normalité (diagnostic)", note = NULL,
+         g = list(g(function() plot_mw_qq(pd)), g(function() plot_boot_sigma(pd)))),
+    list(titre = "Influence et leviers", note = note_influence_mw(pd),
+         g = list(g(function() plot_mw_levier(pd), 380), g(function() plot_mw_contributions(pd), 380),
+                  g(function() plot_mw_dfbeta(pd), 330, TRUE)))))
+  ns <- note_surface(pd)
+  list(
+    list(titre = "Données", note = NULL,
+         g = list(g(function() plot_ajustement(pd)), g(function() plot_ratio(pd)))),
+    list(titre = "H2 - variance", note = NULL,
+         g = list(g(function() plot_qq2ech(pd)), g(function() plot_spread(pd)),
+                  g(function() plot_residus(pd), 330, TRUE))),
+    list(titre = "H3 - normalité", note = NULL,
+         g = list(g(function() plot_qqnorm(pd), 420, TRUE))),
+    list(titre = "Surface objectif",
+         note = if (!is.null(ns)) list(html = ns$html, classe = if (ns$alerte) "avert" else "ok"),
+         g = list(g(function() plot_surface_objectif(pd), 520, TRUE),
+                  g(function() plot_coupe_delta(pd), 250), g(function() plot_profil_delta(pd), 250))),
+    list(titre = "Influence et leviers", note = note_influence(pd),
+         g = list(g(function() plot_influence_levier(pd), 380), g(function() plot_influence_cook(pd), 380),
+                  g(function() plot_influence_sigma(pd), 330, TRUE))),
+    list(titre = "Incertitude d'estimation", note = NULL,
+         g = list(g(function() plot_boot_sigma(pd), 420, TRUE))))
+}
+
+# Un graphique fige en PNG (branche base R), integre en base64. Toute erreur
+# de trace est convertie en bandeau : le rapport n'echoue jamais sur un
+# graphique.
+.graphique_png <- function(gr) {
+  largeur <- if (isTRUE(gr$plein)) 1000 else 560
+  fichier <- tempfile(fileext = ".png")
+  on.exit(unlink(fichier), add = TRUE)
+  r <- tryCatch({
+    grDevices::png(fichier, width = largeur, height = gr$h)
+    dev <- grDevices::dev.cur()
+    tryCatch({ gr$f(); TRUE }, finally = grDevices::dev.off(dev))
+  }, error = function(e) conditionMessage(e))
+  if (!isTRUE(r) || !file.exists(fichier) || !isTRUE(file.info(fichier)$size > 0))
+    return(.bandeau_html(paste("Graphique indisponible :", .echap_html(as.character(r)))))
+  sprintf("<img class='graphe' alt='graphique' src='data:image/png;base64,%s'>",
+          encoder_base64(readBin(fichier, "raw", file.info(fichier)$size)))
+}
+
+# Un graphique interactif : l'objet plotly lui-meme, dont la hauteur est fixee.
+.graphique_widget <- function(gr) {
+  p <- tryCatch(gr$f(), error = function(e) e)
+  if (inherits(p, "error"))
+    return(.bandeau_html(paste("Graphique indisponible :", .echap_html(conditionMessage(p)))))
+  if (!inherits(p, "htmlwidget"))
+    return(.bandeau_html("Graphique indisponible : objet plotly attendu."))
+  p$height <- gr$h
+  p
+}
+
+.graphique <- function(gr, mode) {
+  cellule <- function(x) list(sprintf("<div class='%s'>", if (isTRUE(gr$plein)) "cel plein" else "cel"),
+                              x, "</div>")
+  switch(mode,
+         plotly = cellule(.graphique_widget(gr)),
+         png    = cellule(.graphique_png(gr)),
+         list())
+}
+
+# Integration inline des dependances resolues d'un rendu htmltools : chaque
+# script dans une balise <script>, chaque feuille de style dans <style>. Une
+# dependance sans fichier local, avec des pieces jointes (polices, images) ou
+# dont le contenu fermerait prematurement sa balise fait echouer l'integration
+# (le rapport retombe alors sur les PNG).
+.dependances_inline <- function(deps) {
+  deps <- htmltools::resolveDependencies(deps)
+  out <- character(0)
+  lire <- function(base, s) {
+    if (is.list(s)) s <- s$src
+    f <- file.path(base, s)
+    if (!file.exists(f)) stop(sprintf("fichier de dependance absent : %s", f))
+    txt <- rawToChar(readBin(f, "raw", file.info(f)$size))
+    Encoding(txt) <- "UTF-8"
+    txt
+  }
+  for (d in deps) {
+    base <- if (!is.null(d$package)) system.file(d$src$file, package = d$package)
+            else d$src$file
+    if (is.null(base) || !nzchar(base) || !dir.exists(base))
+      stop(sprintf("dependance %s sans copie locale", d$name))
+    if (length(d$attachment) || length(d$head))
+      stop(sprintf("dependance %s avec pieces jointes ou en-tete brut", d$name))
+    etiq <- .echap_html(paste(d$name, d$version))
+    for (s in d$stylesheet) {
+      txt <- lire(base, s)
+      if (grepl("</style", txt, ignore.case = TRUE))
+        stop(sprintf("%s contient </style", d$name))
+      out <- c(out, sprintf("<style data-dependance=\"%s\">\n%s\n</style>", etiq, txt))
+    }
+    for (s in d$script) {
+      txt <- lire(base, s)
+      if (grepl("</script", txt, ignore.case = TRUE))
+        stop(sprintf("%s contient </script", d$name))
+      out <- c(out, sprintf("<script data-dependance=\"%s\">\n%s\n</script>", etiq, txt))
+    }
+  }
+  out
+}
+
+CSS_RAPPORT <- "
+body { font-family: 'Segoe UI', Helvetica, Arial, sans-serif; color:#1B2631;
+       max-width:1180px; margin:18px auto; padding:0 16px; background:#FDFEFE; }
+h1 { color:#00468C; font-size:24px; margin-bottom:4px; }
+h2 { color:#00468C; font-size:19px; border-bottom:2px solid #00468C;
+     padding-bottom:3px; margin-top:30px; }
+h3 { color:#00468C; font-size:15.5px; margin:14px 0 4px; }
+.bloc { background:#fff; border:1px solid #E5E8E8; border-radius:6px;
+        padding:10px 14px; margin-bottom:12px; }
+.cle { font-size:26px; font-weight:700; color:#B03A2E; }
+.avert { background:#FEF9E7; border-left:4px solid #B9770E; padding:9px 12px;
+         margin:8px 0; font-size:13px; }
+.err { background:#FDEDEC; border-left:4px solid #922B21; padding:9px 12px;
+       margin:8px 0; font-size:13px; }
+.ok { color:#1E8449; margin:8px 0; font-size:13px; }
+.gel { background:#EBF5FB; border-left:4px solid #00468C; padding:9px 12px;
+       margin:8px 0; font-size:13px; }
+.gris { color:#7F8C8D; font-size:12px; }
+table.data { border-collapse:collapse; font-size:12.5px; margin:6px 0 10px; width:100%; }
+table.data th { background:#EBF5FB; color:#00468C; text-align:left; padding:4px 6px;
+                border-bottom:1px solid #AEB6BF; }
+table.data td { padding:3px 6px; border-bottom:1px solid #EAECEE; vertical-align:top; }
+table.kv td:first-child { width:34%; font-weight:600; }
+.entete-groupe { border-left:4px solid #00468C; padding-left:10px; margin:14px 0 6px; }
+.grille { display:flex; flex-wrap:wrap; gap:12px; }
+.cel { flex:1 1 calc(50% - 12px); min-width:320px; }
+.cel.plein { flex-basis:100%; }
+img.graphe { max-width:100%; height:auto; border:1px solid #EAECEE; }
+code { font-size:12px; }
+"
+
+# rapport_html(res, selection, chemin, interactif, identite)
+#   res        objet renvoye par run_engine(), ok = TRUE (sinon erreur)
+#   selection  data.frame de selection (cle, garde, base), aligne sur
+#              engine_table_tests(res) ; NULL = selection_defaut()
+#   chemin     fichier HTML a ecrire
+#   interactif TRUE = graphiques plotly si le paquet est installe
+#   identite   liste (version, md5_engine, releve) de identite_code()
+# Valeur (invisible) : chemin, taille en octets, mode graphique effectif
+# ("plotly", "png" ou "aucun"), nombre de lignes et de tests retenus,
+# empreintes.
+rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = NULL) {
+  if (!inherits(res, "usp_engine") || !isTRUE(res$ok))
+    stop("rapport_html() : resultat absent ou refuse par le moteur ; aucun rapport a figer.")
+  tb <- engine_table_tests(res)
+  if (is.null(selection)) selection <- selection_defaut(tb)
+  if (nrow(selection) != nrow(tb) || !identical(as.character(selection$cle), tb$test))
+    stop("rapport_html() : la selection ne correspond pas aux tests de ce resultat.")
+  m <- res$metadata; p <- res$parametre_final
+  mw <- identical(m$methode, "reserve2")
+  empr <- engine_empreinte(res)
+  genere <- format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z")
+  retenu <- filtrer_selection(tb, selection)
+
+  # --- Mode graphique ---------------------------------------------------------
+  png_ok <- isTRUE(capabilities("png"))
+  mode <- if (isTRUE(interactif) && .plotly_dispo()) "plotly" else if (png_ok) "png" else "aucun"
+  note_mode <- NULL
+  if (isTRUE(interactif) && mode != "plotly")
+    note_mode <- "Graphiques interactifs demandés, mais le paquet plotly est absent."
+
+  construire <- function(mode) {
+    if (mode == "png") {
+      ancien <- options(usp.graphiques_base = TRUE)
+      on.exit(options(ancien), add = TRUE)
+    }
+    B <- list()
+    ajout <- function(...) B[[length(B) + 1L]] <<- list(...)
+
+    # --- 1. En-tete de gel ----------------------------------------------------
+    libelle_methode <- switch(m$methode,
+      premium  = "risque de prime (annexe XVII, section B)",
+      reserve1 = "risque de réserve n° 1 (annexe XVII, section C)",
+      reserve2 = "risque de réserve n° 2, Merz-Wüthrich (annexe XVII, section D)",
+      m$methode)
+    cles <- c("Horodatage du calcul (run_engine)", "Durée du calcul",
+              "Génération du présent rapport",
+              "Méthode", "Périmètre", "Segment",
+              if (mw) "Profondeur (I + 1 années de survenance)" else "Profondeur T",
+              "Réplications B", "Granularité des p-values Monte-Carlo, 1/(B+1)",
+              "Seuil alpha des verdicts", "Graine (seed)", "Barème de crédibilité",
+              "sigma standard")
+    vals <- c(format(m$horodatage, "%Y-%m-%d %H:%M:%S %Z"),
+              sprintf("%.2f s", m$duree_sec), genere,
+              paste0("<code>", m$methode, "</code> — ", libelle_methode),
+              paste("annexe", m$annexe),
+              if (is.null(m$segment)) "–" else paste0(m$segment, " — ", .txt(m$libelle_segment)),
+              as.character(m$T), as.character(m$B),
+              format(res$bootstrap$granularite, digits = 6),
+              format(m$alpha), format(m$seed, scientific = FALSE), .txt(m$bareme),
+              format(m$sigma_standard, digits = 10))
+    if (!mw) {
+      cles <- c(cles, "Test d'équivalence de la constante")
+      vals <- c(vals, if (is.null(m$delta_equiv))
+        sprintf("marge = %s de la perte moyenne (theta_equiv)", format(m$theta_equiv))
+        else sprintf("marge Delta fixée a priori = %s", format(m$delta_equiv)))
+    }
+    idt <- if (is.null(identite)) list(version = NA, md5_engine = NA, releve = NA) else identite
+    cles <- c(cles, "Version de R", "Version de l'outil (DESCRIPTION)")
+    vals <- c(vals, .txt(m$version_R), .txt(idt$version))
+    empreintes <- data.frame(
+      a = c("Données du calcul", "Résultat du moteur", "Code du moteur (R/engine.R)"),
+      b = paste0("<code>", c(.txt(empr$donnees), .txt(empr$resultat), .txt(idt$md5_engine)),
+                 "</code>"),
+      c = c(paste("Texte canonique des données du calcul (valeurs en %.17g, NA, fins de",
+                  "ligne LF) ; ne dépend que des valeurs. <code>engine_empreinte()</code>."),
+            paste("Objet sérialisé (saveRDS version 3, sans horodatage ni durée) ;",
+                  "stable sur une même machine, <b>dépend de la plateforme</b> (ADR 0006) :",
+                  "ne se compare pas d'une machine à l'autre. <code>engine_empreinte()</code>."),
+            paste("Octets du fichier (fins de ligne LF imposées par .gitattributes),",
+                  "relevés le", .txt(idt$releve), "au chargement du moteur par l'application.")),
+      stringsAsFactors = FALSE)
+    names(empreintes) <- c("Objet", "Empreinte md5", "Statut")
+    ajout("<h1>Rapport figé — paramètres propres à l'entreprise (USP)</h1>",
+          paste("<div class='gris'>Solvabilité II, règlement délégué (UE) 2015/35,",
+                "art. 218-220 et annexe XVII</div>"),
+          paste("<div class='gel'>Ce document fige l'objet renvoyé par <code>run_engine()</code>",
+                "tel qu'il était en mémoire lors de sa génération. Il ne relance aucun",
+                "calcul ; les données restituées sont celles du calcul, non la saisie en",
+                "cours dans l'application.</div>"),
+          "<h2 id='gel'>1. Identification du calcul</h2>", .table_kv(cles, vals),
+          "<h3>Empreintes</h3>", html_table(empreintes, classe = "data"))
+
+    # --- 2. Donnees -----------------------------------------------------------
+    num <- function(v) ifelse(is.na(v), "–", format(v, digits = 15, trim = TRUE))
+    if (mw) {
+      tri <- res$triangle
+      d <- data.frame(i = seq_len(nrow(tri)) - 1L, matrix(num(tri), nrow(tri)),
+                      stringsAsFactors = FALSE)
+      names(d) <- c("i \\ j", as.character(seq_len(ncol(tri)) - 1L))
+      titre_d <- "Triangle de paiements cumulés C(i,j) utilisé par le calcul"
+    } else {
+      dd <- res$donnees
+      d <- data.frame(t = dd$t, x_t = num(dd$xt), y_t = num(dd$yt), r = fmt_nb(dd$ratio, 6),
+                      stringsAsFactors = FALSE)
+      names(d)[4] <- "y_t / x_t"
+      titre_d <- "Séries x_t et y_t utilisées par le calcul"
+    }
+    sd <- res$statistiques_descriptives
+    ajout("<h2 id='donnees'>2. Données</h2>", paste0("<h3>", titre_d, "</h3>"),
+          html_table(d, classe = "data"),
+          "<h3>Statistiques descriptives</h3>",
+          html_table(data.frame(Grandeur = .txt(sd$grandeur), Valeur = fmt_nb(sd$valeur, 4),
+                                stringsAsFactors = FALSE), classe = "data"))
+
+    # --- 3. Controles et validation -------------------------------------------
+    v <- res$validation
+    ctr <- do.call(rbind, lapply(res$controles, function(t)
+      data.frame(a = .txt(t$test), b = badge_verdict(t$verdict), c = .txt(t$detail),
+                 stringsAsFactors = FALSE)))
+    if (!is.null(ctr)) names(ctr) <- c("Contrôle", "Verdict", "Détail")
+    liste <- function(x) paste0("<ul>", paste0("<li>", .txt(x), "</li>", collapse = ""), "</ul>")
+    ajout("<h2 id='controles'>3. Contrôles et validation</h2>",
+          if (length(v$erreurs)) .bandeau_html(paste0("<b>Erreurs :</b>", liste(v$erreurs)), "err"),
+          if (length(v$avertissements))
+            .bandeau_html(paste0("<b>Avertissements :</b>", liste(v$avertissements)))
+          else "<div class='ok'>Données valides, sans avertissement.</div>",
+          if (!is.null(ctr)) html_table(ctr, classe = "data"))
+
+    # --- 4. Parametre retenu et calibration -----------------------------------
+    ic <- res$ic_bootstrap
+    cal <- res$calibration; cand <- res$candidats
+    ajout("<h2 id='parametre'>4. Paramètre retenu et calibration</h2>",
+          "<div class='bloc'>",
+          sprintf("<div><span class='cle'>sigma_USP = %.4f</span></div>", p$sigma_usp),
+          sprintf("<div>soit %+.1f %% par rapport au paramètre standard de %.4f</div>",
+                  100 * p$variation_relative, p$sigma_standard),
+          if (!is.null(ic)) sprintf(paste(
+            "<div style='margin-top:6px'>Intervalle bootstrap 90 %% : [%.4f ; %.4f]",
+            "&nbsp;|&nbsp; 95 %% : [%.4f ; %.4f]</div>"), ic[2], ic[4], ic[1], ic[5]),
+          sprintf("<div class='gris' style='margin-top:6px'>%s</div>", .echap_html(texte_formule(res))),
+          "</div>",
+          "<h3>Chaîne de calibration</h3>",
+          html_table(data.frame(Etape = .txt(cal$etape), Valeur = fmt_nb(cal$valeur, 5),
+                                stringsAsFactors = FALSE), classe = "data"),
+          "<h3>Valeurs candidates</h3>",
+          html_table(data.frame(Variante = .txt(cand$variante), Valeur = fmt_nb(cand$valeur, 5),
+                                Retenu = ifelse(cand$retenu, "<b>OUI</b>", ""),
+                                stringsAsFactors = FALSE), classe = "data"),
+          "<div class='grille'>")
+    B[[length(B) + 1L]] <- .graphique(list(f = function() plot_calibration(res$candidats),
+                                           h = 300, plein = FALSE), mode)
+    ajout("</div>")
+
+    # --- 5. Tests retenus -----------------------------------------------------
+    te <- tb
+    for (col in c("test", "H0", "H1", "loi_sous_H0", "nom_statistique", "nom_estimation",
+                  "sens_du_test", "reference", "commentaire"))
+      te[[col]] <- .txt(te[[col]])
+    te$cle <- vapply(te$famille, function(f) groupe_de(f)$cle, character(1))
+    ajout("<h2 id='tests-retenus'>5. Tests retenus</h2>",
+          "<section id='section-tests-retenus'>",
+          sprintf(paste(
+            "<div class='gel'><b>Personnalisation de la restitution, sans effet sur le calcul.</b>",
+            "Le moteur a calculé %d lignes (tests et diagnostics) ; la sélection de",
+            "l'application en restitue %d ci-dessous, les %d autres figurent en annexe avec leur",
+            "verdict et le motif de leur exclusion.</div>"), nrow(tb), sum(retenu), sum(!retenu)),
+          paste("<div class='gris'>Nature de la p-value retenue :",
+                "<b style='color:#1E8449'>exacte</b> &gt; <b style='color:#00468C'>Monte-Carlo</b>",
+                "&gt; <b style='color:#B9770E'>asymptotique</b>.</div>"))
+    sel <- te[retenu, , drop = FALSE]
+    if (!nrow(sel)) ajout(.bandeau_html("Aucun test sélectionné."))
+    for (k in cles_groupes()) {
+      sub <- sel[sel$cle == k, , drop = FALSE]
+      if (!nrow(sub)) next
+      g <- groupe_de(sub$famille[1])
+      nb <- table(factor(sub$verdict, levels = c("OK", "ALERTE", "ECHEC", "INFO")))
+      ajout("<div class='entete-groupe'>",
+            sprintf("<h3>%s</h3>", g$titre),
+            sprintf("<div style='color:#555;font-size:12.5px'>%s</div>", .echap_html(g$sous)),
+            sprintf("<div class='gris'><i>%s</i></div>", .echap_html(g$ref)),
+            sprintf(paste("<div style='margin-top:5px'>%s %d &nbsp; %s %d &nbsp; %s %d &nbsp;",
+                          "<span class='gris'>INFO</span> %d</div>"),
+                    badge_verdict("OK"), nb[["OK"]], badge_verdict("ALERTE"), nb[["ALERTE"]],
+                    badge_verdict("ECHEC"), nb[["ECHEC"]], nb[["INFO"]]),
+            "</div>",
+            "<div class='gris'>Synthèse</div>",
+            html_table(table_synthese_groupe(sub), classe = "data"),
+            "<div class='gris'>Détail</div>",
+            html_table(table_detail_groupe(sub), classe = "data"))
+    }
+    ajout("</section>")
+
+    # --- 6. Annexe : tests exclus ---------------------------------------------
+    ex <- te[!retenu, , drop = FALSE]; sx <- selection[!retenu, , drop = FALSE]
+    nom_base <- c(z = "résidus normalisés z_t", r = "ratios bruts", commun = "base unique")
+    motif <- ifelse(!sx$garde,
+      ifelse(ex$variante == "secondaire",
+             "variante secondaire non conservée dans la sélection",
+             "test non conservé dans la sélection"),
+      paste0("calculé sur les ", nom_base[ex$base], " ; base retenue pour ce test : ",
+             nom_base[sx$base]))
+    tab_ex <- if (nrow(ex)) {
+      d <- data.frame(ex$cle, paste0("<span style='font-weight:600'>", ex$test, "</span>"),
+                      unname(nom_base[ex$base]), ex$variante,
+                      unname(vapply(ex$verdict, badge_verdict, character(1))),
+                      fmt_p(ex$p_retenue),
+                      unname(vapply(ex$nature_p, badge_nature, character(1))),
+                      unname(motif), stringsAsFactors = FALSE, row.names = NULL)
+      names(d) <- c("Groupe", "Test", "Base", "Variante", "Verdict", "p retenue", "Nature", "Motif")
+      html_table(d, classe = "data")
+    }
+    ajout("<h2 id='annexe-exclus'>6. Annexe — tests exclus de la restitution</h2>",
+          "<section id='section-annexe-exclus'>",
+          if (!nrow(ex))
+            "<div class='ok'>Aucun test exclu : toutes les lignes calculées sont restituées.</div>"
+          else tab_ex,
+          "</section>")
+
+    # --- 7. Graphiques --------------------------------------------------------
+    ajout("<h2 id='graphiques'>7. Graphiques</h2>",
+          if (!is.null(note_mode)) .bandeau_html(note_mode),
+          if (mode == "aucun") .bandeau_html(paste(
+            "<b>Graphiques non produits.</b> Les graphiques interactifs n'ont pas été",
+            "demandés ou plotly est absent, et ce système R ne dispose pas du",
+            "périphérique PNG (capabilities(\"png\") vaut FALSE)."), "err"),
+          if (mode == "png")
+            "<div class='gris'>Graphiques figés en PNG (branches base R des fonctions de tracé).</div>")
+    for (o in .graphiques_rapport(res)) {
+      ajout(sprintf("<h3>%s</h3>", o$titre))
+      if (!is.null(o$note)) {
+        if (is.list(o$note)) ajout(sprintf("<div class='%s'>%s</div>", o$note$classe, o$note$html))
+        else ajout(sprintf("<div class='gris'>%s</div>", o$note))
+      }
+      ajout("<div class='grille'>")
+      for (gr in o$g) B[[length(B) + 1L]] <- .graphique(gr, mode)
+      ajout("</div>")
+    }
+    at <- avertissement_T(m$T)
+    if (!is.null(at)) ajout(.bandeau_html(at))
+    ajout(sprintf(paste("<hr><div class='gris'>Rapport généré le %s par",
+                        "<code>rapport_html()</code> (R/display_helpers.R) ; graphiques : %s.</div>"),
+                  genere, switch(mode,
+                    plotly = "interactifs (plotly, bibliothèques intégrées au document)",
+                    png = "PNG intégrés en base64", aucun = "non produits")))
+    # Aplatissement : une liste d'elements, chacun chaine HTML ou widget.
+    out <- list()
+    for (b in B) for (x in b) if (!is.null(x)) out[[length(out) + 1L]] <- x
+    out
+  }
+
+  # --- Assemblage -------------------------------------------------------------
+  assembler <- function(items, mode) {
+    tete <- character(0)
+    if (mode == "plotly") {
+      rt <- htmltools::renderTags(do.call(htmltools::tagList, lapply(items, function(x)
+        if (is.character(x)) htmltools::HTML(paste(x, collapse = "\n")) else x)))
+      tete <- c(.dependances_inline(rt$dependencies), as.character(rt$head))
+      corps <- as.character(rt$html)
+    } else {
+      corps <- paste(unlist(items), collapse = "\n")
+    }
+    c("<!DOCTYPE html>", "<html lang=\"fr\">", "<head>", "<meta charset=\"utf-8\">",
+      sprintf("<title>Rapport USP figé — %s, calcul du %s</title>", m$methode,
+              format(m$horodatage, "%Y-%m-%d %H:%M:%S")),
+      "<style>", CSS_RAPPORT, "</style>", tete, "</head>", "<body>", corps, "</body>", "</html>")
+  }
+
+  doc <- tryCatch(assembler(construire(mode), mode), error = function(e) e)
+  if (inherits(doc, "error")) {
+    if (mode != "plotly") stop(doc)
+    # Repli : dependances non integrables -> graphiques figes en PNG.
+    note_mode <- paste0("Graphiques interactifs impossibles à intégrer (",
+                        .echap_html(conditionMessage(doc)), ").")
+    mode <- if (png_ok) "png" else "aucun"
+    doc <- assembler(construire(mode), mode)
+  }
+  writeBin(charToRaw(enc2utf8(paste(doc, collapse = "\n"))), chemin)
+  invisible(list(chemin = chemin, octets = file.info(chemin)$size, mode = mode,
+                 n_lignes = nrow(tb), n_retenus = sum(retenu),
+                 empreintes = empr[c("donnees", "resultat")]))
 }
