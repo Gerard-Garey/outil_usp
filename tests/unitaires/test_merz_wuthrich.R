@@ -352,15 +352,29 @@ verifier("M6 concentration de la reserve : diagnostic sans verdict (ADR 0001)",
            length(l) == 1L && identical(l[[1]]$type, "diagnostic") &&
              identical(l[[1]]$verdict, "INFO")
          })
-echec_attendu("mw_tests : TOUT diagnostic sort en INFO (ADR 0001)",
-              "ligne M2 'Variance unitaire des residus de Mack' : verdict ALERTE/OK force par l'appelant",
-              {
-                faux <- Filter(function(l) identical(l$type, "diagnostic") &&
-                                           !identical(l$verdict, "INFO"), lignes_mw)
-                if (!length(faux)) TRUE
-                else paste("verdict non INFO :",
-                           paste(vapply(faux, function(l) sprintf("%s -> %s", l$test, l$verdict),
-                                        character(1)), collapse = " ; "))
-              })
+# Etait en echec attendu tant que la ligne M2 "Variance unitaire des residus
+# de Mack" forcait un verdict ALERTE/OK ; elle sort INFO depuis que sa valeur
+# de reference a ete corrigee. Marque retiree, test ordinaire.
+verifier("mw_tests : TOUT diagnostic sort en INFO (ADR 0001)",
+         {
+           faux <- Filter(function(l) identical(l$type, "diagnostic") &&
+                                      !identical(l$verdict, "INFO"), lignes_mw)
+           if (!length(faux)) TRUE
+           else paste("verdict non INFO :",
+                      paste(vapply(faux, function(l) sprintf("%s -> %s", l$test, l$verdict),
+                                   character(1)), collapse = " ; "))
+         })
+
+# La contrainte qui fonde la valeur de reference du diagnostic M2 : sigma2_j
+# etant l'estimateur de Mack, la somme des carres des residus vaut n_j - 1
+# EXACTEMENT dans chaque colonne. Verifie colonne par colonne plutot que sur
+# le total, qui pourrait coincider par compensation.
+verifier("residus de Mack : somme_i r(i,j)^2 = n_j - 1 dans chaque colonne",
+         {
+           rs <- mw_residus(at)
+           ecarts <- vapply(split(rs, rs$j), function(d) sum(d$residu^2) - (nrow(d) - 1),
+                            numeric(1))
+           isTRUE(proche(unname(ecarts), rep(0, length(ecarts)), abs = 1e-10, rel = 0))
+         })
 
 fin_fichier()

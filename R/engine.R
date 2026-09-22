@@ -2853,11 +2853,30 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       p_as = ev$p, mc_nom = "ExpVar",
       detail = paste("Si la variance est bien proportionnelle a C(i,j), les residus",
                      "standardises sont d'echelle constante a l'interieur de chaque colonne."))
+  # La variance des residus de Mack est CONTRAINTE par construction, et sa
+  # valeur de reference n'est pas 1. sigma2_j etant l'estimateur de Mack,
+  #   somme_i r(i,j)^2 = somme_i C(i,j) (F(i,j) - f_j)^2 / sigma2_j = n_j - 1
+  # EXACTEMENT dans chaque colonne (mesure sur le triangle de test : 6, 5, 4,
+  # 3, 2, 1 pour n_j = 7, 6, 5, 4, 3, 2). La somme des carres vaut donc N - k,
+  # ou k est le nombre de colonnes retenues, et la valeur attendue de var(r)
+  # est (N - k)/(N - 1) -- 21/26 = 0,8077 sur un triangle 8x8, contre 0,8075
+  # mesure. Comparer cette grandeur a 1 revenait a armer un seuil sur une
+  # valeur que la construction fixe ailleurs.
+  # ADR 0001 : un diagnostic n'a pas de verdict (affiche INFO). Le seuil de
+  # 0,5 qui figurait ici n'est ni un niveau de test ni une regle de l'annexe
+  # XVII ; il disparait, et la valeur de reference est restituee dans le
+  # detail pour que le relecteur puisse la recalculer.
+  k_col <- length(unique(res$j))
+  var_attendue <- if (n > 1) (n - k_col) / (n - 1) else NA_real_
   add(fam, "Variance unitaire des residus de Mack", "Diagnostic d'echelle",
       type = "diagnostic", estim_nom = "var(residus)", estim = stats::var(r),
-      detail = "Valeur attendue proche de 1 ; un ecart marque signale une mauvaise specification de sigma_j",
-      verdict = if (!is.finite(stats::var(r))) "INFO"
-                else if (abs(stats::var(r) - 1) > 0.5) "ALERTE" else "OK")
+      detail = sprintf(paste("Valeur de reference %s, et NON 1 : sigma2_j etant",
+                             "l'estimateur de Mack, somme_i r(i,j)^2 = n_j - 1",
+                             "exactement dans chaque colonne, la somme des carres",
+                             "vaut N - k = %d - %d = %d et var(r) est contrainte par",
+                             "construction. Un ecart marque a cette valeur signale",
+                             "une mauvaise specification de sigma_j."),
+                       format(var_attendue, digits = 6), n, k_col, n - k_col))
 
   ## --- M3 : independance des annees d'accident et de developpement ----------
   fam <- "M3. independance (annexe XVII D(2)(h)(i) et (ii))"
