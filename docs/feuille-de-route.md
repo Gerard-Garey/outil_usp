@@ -93,13 +93,13 @@ Parallélisme possible dès maintenant : J0, J1a, D, et les analyses de J3 (sans
 - Circuit : `coder` → `audit` → `docwriter` (index des fonctions seulement).
 - Effet : **aucun** ; critère d'acceptation : `tests/test_reproductibilite.R` vert sans régénération. Échecs attendus « add() refuse un mc_nom absent » → test ordinaire.
 - Hors périmètre : toute modification de la liste des tests ou d'une p-value.
-- [ ] ADR 0003 accepté — [ ] PR J1b fusionnée sans régénération — [ ] #4 piste 1 cochée
+- [x] ADR 0003 accepté — [ ] PR J1b fusionnée sans régénération — [ ] #4 piste 1 cochée
 
 ### J2 — Aléa à graine locale (J2a), documentation des graines, enveloppe du QQ-plot (J2b)
 
 - **J2a — #4 piste 2 + #1, ADR 0004** : une fonction unique « exécuter sous graine locale » qui sauvegarde l'état du générateur (ou son absence), pose la graine, exécute, restaure ; `usp_bootstrap()`, `mw_bootstrap()`, `sw_loi_nulle()`, `engine_plots_data()` passent par elle avec leurs graines actuelles (résultats inchangés) ; `engine_lire_xlsx()`/`engine_ecrire_xlsx()` utilisent `tempfile()` et `on.exit(unlink(…, recursive = TRUE))` ; propriété nouvelle testée : `run_engine()` laisse `.Random.seed` de l'appelant intact. Puis `docwriter` réécrit la sous-section « Reproductibilité et gestion des graines » à partir de l'état final : liste exhaustive des fonctions qui tirent, leur graine, leur portée, la restauration. Circuit : `coder` → `audit` → `docwriter`. Effet : **aucun** (mêmes graines, mêmes flux) ; critère : références identiques sans régénération ; les deux échecs attendus « état du générateur » deviennent ordinaires.
 - **J2b — #5 chantier 6** : l'enveloppe du QQ-plot est aujourd'hui simulée sous N(0,1) i.i.d. alors que la doc annonce « sous le modèle ajusté ». `actuary` précise la construction (réutiliser les z* triés de chaque réplication de `usp_bootstrap()`, donc conserver une matrice B × T dans l'objet bootstrap, ou simuler à part sous graine locale) ; `coder` → `audit` → `docwriter` (fiche du QQ-plot). Effet : `plots_data$qqnorm` (colonnes `env_bas`, `env_haut`) et un champ ajouté au bootstrap ; **aucune p-value, aucun verdict**. Régénération à lignes graphiques seulement. Si J2b prend du retard, J2a part seule : le tableau de #1 doit décrire l'état effectif du code au moment où il est fusionné.
-- [ ] ADR 0004 accepté — [ ] PR J2a fusionnée sans régénération — [ ] #1 fermée — [ ] spécification J2b `actuary` — [ ] PR J2b fusionnée (tableau : lignes graphiques seulement)
+- [x] ADR 0004 accepté — [ ] PR J2a fusionnée sans régénération — [ ] #1 fermée — [ ] spécification J2b `actuary` — [ ] PR J2b fusionnée (tableau : lignes graphiques seulement)
 
 ### J3 — MSEP de la méthode réserve n° 2 (#7, bloquant)
 
