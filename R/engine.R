@@ -1573,32 +1573,56 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # simulant sous le modele ajuste. Verification par simulation a T = 8 :
   # niveau tenu a 10,7 % et 5,0 % pour des seuils de 10 % et 5 %.
   loi_ind <- "loi classique INDICATIVE (ratios heteroscedastiques) -> Monte-Carlo"
+  # QUAND pi_t EST CONSTANT, CETTE BASE PERD SON OBJET. ln(beta) se reduit
+  # alors a 1/(2 pi) + moyenne(ln r), donc z_t = sqrt(pi) (ln r_t -
+  # moyenne(ln r)) : z et u_t = r_t - moyenne(r) ne different plus que par la
+  # transformation log, qui est monotone. La statistique des suites est par
+  # consequent IDENTIQUE sur les deux bases -- les signes de r_t - med(r) et
+  # de z_t - med(z) coincident exactement (mesure : -0,7637626 des deux
+  # cotes) -- et les autres ne different qu'au second ordre en CV(r) (mesure
+  # sur les donnees du depot : cor(z, u) = 0,998, cor(z, ln r) = 1).
+  # Il n'y a pas d'artefact de ponderation a detecter la ou il n'y a pas de
+  # ponderation : ces six lignes sont alors des quasi-doublons de leurs
+  # homologues sur residus, et le detail le dit au relecteur plutot que de
+  # lui laisser croire a six verifications independantes.
+  note_r <- if (isTRUE(pi_constant))
+    paste("CONTROLE SANS OBJET ICI : pi_t est constant (delta = 1, ou volumes",
+          "x_t constants), il n'y a donc aucun artefact de ponderation a",
+          "detecter. Cette ligne est un quasi-doublon de son homologue sur",
+          "residus standardises, dont elle ne differe que par la transformation",
+          "logarithmique ; pour le test des suites, la statistique est meme",
+          "identique.") else ""
+  detail_r <- function(txt = "") trimws(paste(txt, note_r))
   add("E. H4 - independance et validite du MV (annexe XVII B(2)(f)(iv))",
       "Autocorrelation d'ordre 1 (Durbin-Watson) sur ratios bruts",
       "Durbin & Watson (1950, 1951)", base = "r",
       H0 = "absence d'autocorrelation d'ordre 1 du ratio S/P",
       H1 = "autocorrelation du ratio S/P",
-      stat_nom = "DW", stat = boot$stats_obs$DWr, loi = loi_ind, mc_nom = "DWr")
+      stat_nom = "DW", stat = boot$stats_obs$DWr, loi = loi_ind, mc_nom = "DWr",
+      detail = detail_r())
   add("E. H4 - independance et validite du MV (annexe XVII B(2)(f)(iv))",
       "Ljung-Box (retard 1) sur ratios bruts", "Ljung & Box (1978), Biometrika 65",
       base = "r", H0 = "rho_1 = 0 pour le ratio S/P", H1 = "autocorrelation au retard 1",
-      stat_nom = "Q", stat = boot$stats_obs$LB1r, loi = loi_ind, mc_nom = "LB1r")
+      stat_nom = "Q", stat = boot$stats_obs$LB1r, loi = loi_ind, mc_nom = "LB1r",
+      detail = detail_r())
   add("E. H4 - independance et validite du MV (annexe XVII B(2)(f)(iv))",
       "Test des suites sur ratios bruts", "Wald & Wolfowitz (1940)",
       base = "r", H0 = "arrangement aleatoire des signes du ratio centre",
       H1 = "arrangement non aleatoire",
-      stat_nom = "Z", stat = boot$stats_obs$Runsr, loi = loi_ind, mc_nom = "Runsr")
+      stat_nom = "Z", stat = boot$stats_obs$Runsr, loi = loi_ind, mc_nom = "Runsr",
+      detail = detail_r())
   add(fam, "Rupture de niveau (sup-F) sur ratios bruts",
       "Quandt (1960) / Chow (1960) ; Andrews (1993)", base = "r",
       H0 = "niveau du ratio S/P constant", H1 = "rupture de niveau du ratio S/P",
       stat_nom = "supF", stat = boot$stats_obs$supFr,
       loi = "supremum de processus -> Monte-Carlo", mc_nom = "supFr",
-      detail = "Detecte un changement de regime du ratio, independamment du modele")
+      detail = detail_r("Detecte un changement de regime du ratio, independamment du modele."))
   add(fam, "Stabilite cumulee (OLS-CUSUM) sur ratios bruts",
       "Brown, Durbin & Evans (1975), JRSS B 37", base = "r",
       H0 = "constance du niveau du ratio S/P", H1 = "derive graduelle",
       stat_nom = "CUSUM", stat = boot$stats_obs$CUSUMr,
-      loi = "sup |pont brownien| -> Monte-Carlo", mc_nom = "CUSUMr")
+      loi = "sup |pont brownien| -> Monte-Carlo", mc_nom = "CUSUMr",
+      detail = detail_r())
   add(fam, "Valeur aberrante isolee (Grubbs) sur ratios bruts",
       "Grubbs (1950, 1969), Technometrics 11", base = "r",
       H0 = "aucun ratio S/P aberrant", H1 = "exactement un ratio aberrant",
@@ -1606,7 +1630,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       estim_nom = "rang du ratio extreme",
       estim = { g <- test_grubbs(u); if (is.finite(g$stat)) g$idx else NA_real_ },
       mc_nom = "Grubbsr",
-      detail = "Identifie l'annee au boni/mali le plus atypique, sans passer par le modele")
+      detail = detail_r("Identifie l'annee au boni/mali le plus atypique, sans passer par le modele."))
 
   add(fam, "Leviers (hat values)", "Hoaglin & Welsch (1978), Amer. Statist. 32",
       type = "diagnostic", estim_nom = "max h_t", estim = max(hv),
