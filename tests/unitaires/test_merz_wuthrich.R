@@ -2,7 +2,8 @@
 #  tests/unitaires/test_merz_wuthrich.R  --  METHODE DU RISQUE DE RESERVE No 2
 #
 #  mw_ajuster(), mw_msep(), mw_residus() : annexe XVII, section D, par. 4 et 5
-#  (JOUE L 12/277-278).
+#  de la VERSION CONSOLIDEE en vigueur. La pagination "JOUE L 12/277-278" qui
+#  circulait ici n'a jamais ete verifiee (ADR 0005) : elle est retiree.
 #  References :
 #    - triangle 5 x 5 calculable a la main (facteurs en fractions exactes,
 #      sigma_j^2 par une identite algebrique distincte de la formule codee) ;
@@ -132,7 +133,7 @@ verifier("Taylor & Ashe : reserve totale = IBNR ChainLadder (18 680 855,61)",
          proche(at$reserve, 18680855.6119243, rel = 1e-12))
 
 ## --- MSEP a un an : conformite au texte (par. D(5)) -------------------------
-# Transcription litterale du par. D(5) tel qu'imprime (JOUE L 12/277) :
+# Transcription litterale du par. D(5) tel qu'imprime dans la version consolidee :
 #   MSEP = somme_(i=1..I) C^(i,J)^2 * ( Q_(I-i)/C(i,I-i) + Delta_i )
 #        + 2 * somme_(i=1..I) somme_(k=i+1..I) C^(i,J) C^(k,J) Delta_i,
 #   Delta_i = Q_(I-i)/S_(I-i) + somme_(j=I-i+1..J-1) C(I-j,j)/S'_j * Q_j/S_j.

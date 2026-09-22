@@ -8,6 +8,18 @@
 #  section B(4) p. L 12/273, section D(4) p. L 12/277, section G p. L 12/282.
 #  Les valeurs sont ressaisies ici independamment des tables du moteur
 #  (double saisie).
+#
+#  DEUX RESERVES SUR CE BANDEAU, a lever avant remise du dossier.
+#
+#  1. La SOURCE est la version d'ORIGINE de 2015. Les annexes II et XIV ont
+#     ete remplacees depuis par le reglement delegue (UE) 2019/981 (marqueur
+#     M6 de la version consolidee) : neuf ecarts-types standard y different.
+#     La double saisie de ce fichier ne protege donc de rien sur ces neuf
+#     valeurs, puisqu'elle reproduit la meme source perimee que le moteur.
+#     Voir issue #19.
+#  2. La PAGINATION n'a jamais ete verifiee sur piece : elle descend d'une
+#     source interne a l'autre (ADR 0005). Elle est conservee ici a titre
+#     indicatif, non comme une citation du Journal officiel.
 ###############################################################################
 
 if (!exists("verifier", mode = "function")) {
