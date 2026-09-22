@@ -542,6 +542,14 @@ server <- function(input, output, session) {
           showNotification(paste("Erreur du moteur :", conditionMessage(attr(res, "condition"))),
                            type = "error", duration = 12); return()
         }
+        # Le moteur peut refuser le calcul APRES l'ajustement (reserve
+        # chain-ladder totale <= 0, MSEP non finie) : le motif vient de lui,
+        # l'interface ne fait que le restituer.
+        if (!isTRUE(res$ok)) {
+          showNotification(paste("Calcul refuse :",
+                                 paste(utils::head(res$validation$erreurs, 2), collapse = " ")),
+                           type = "error", duration = 15); return()
+        }
         resultat(res); selection(NULL)
       })
     } else {
@@ -562,6 +570,11 @@ server <- function(input, output, session) {
         if (inherits(res, "try-error")) {
           showNotification(paste("Erreur du moteur :", conditionMessage(attr(res, "condition"))),
                            type = "error", duration = 12); return()
+        }
+        if (!isTRUE(res$ok)) {
+          showNotification(paste("Calcul refuse :",
+                                 paste(utils::head(res$validation$erreurs, 2), collapse = " ")),
+                           type = "error", duration = 15); return()
         }
         resultat(res); selection(NULL)
       })

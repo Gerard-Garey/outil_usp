@@ -124,14 +124,28 @@ verifier("mw_parametre : I + 1 = 8 annees, bareme long, calcul a la main",
          })
 verifier("mw_parametre : I + 1 = 4 annees refuse",
          leve_erreur(mw_parametre(list(I = 3L, reserve = 1), 1, 0.1)))
-# Constat d'audit : une reserve chain-ladder negative (cumuls decroissants,
-# seulement signales par un avertissement de mw_valider_triangle) ou nulle
-# produit un sigma estime negatif ou NaN, melange sans alerte dans sigma_USP.
-# Valeurs du scenario : triangle decroissant de test_merz_wuthrich.R.
-# Issue #7 (defaut releve par audit)
-echec_attendu("mw_parametre : reserve <= 0 refusee (erreur explicite)",
-              "constat audit : reserve -27,6 -> sigma_estime -0,090, sigma_USP 0,029 < sigma_std",
-              leve_erreur(mw_parametre(list(I = 4L, reserve = -27.56661936), 6.11375969, 0.09, "long")) &&
-              leve_erreur(mw_parametre(list(I = 4L, reserve = 0), 0, 0.09, "long")))
+# Decision M4 (issue #7) : sigma(res,s,USP) est un coefficient de variation
+# (racine(MSEP) / R) ; il n'est defini que pour une reserve totale R > 0. Une
+# reserve negative donnait un sigma estime negatif et un sigma_USP inferieur au
+# sigma standard, une reserve nulle un NaN, tous deux sans alerte. Les valeurs
+# du scenario viennent du triangle decroissant de test_merz_wuthrich.R.
+verifier("mw_parametre : reserve negative ou nulle refusee (erreur explicite)",
+         leve_erreur(mw_parametre(list(I = 4L, reserve = -27.56661936), 6.11375969, 0.09, "long")) &&
+         leve_erreur(mw_parametre(list(I = 4L, reserve = 0), 0, 0.09, "long")))
+verifier("mw_parametre : MSEP non finie refusee (erreur explicite)",
+         leve_erreur(mw_parametre(list(I = 4L, reserve = 100), NA_real_, 0.09, "long")) &&
+         leve_erreur(mw_parametre(list(I = 4L, reserve = 100), Inf, 0.09, "long")))
+verifier("mw_valider_ajustement : R > 0 et MSEP finie -> ok, aucune erreur",
+         {
+           v <- mw_valider_ajustement(list(I = 4L, reserve = 100), 25)
+           isTRUE(v$ok) && !length(v$erreurs)
+         })
+verifier("mw_valider_ajustement : le motif de refus donne la valeur de R",
+         {
+           v <- mw_valider_ajustement(list(I = 4L, reserve = -27.56661936), 6.11375969)
+           !v$ok && length(v$erreurs) == 1 &&
+             grepl("-27.5666", v$erreurs, fixed = TRUE) &&
+             grepl("n'est pas applicable", v$erreurs, fixed = TRUE)
+         })
 
 fin_fichier()
