@@ -1556,7 +1556,10 @@ Localise ce que Breusch--Pagan agrège ; un rejet est une limite du modèle, pas
 un motif de changement de méthode \\
 
 Variance unitaire des résidus de Mack & \textbf{MW} & --- & --- & --- & --- &
-Diagnostic & Sans objet & Indicateur d'échelle de $\hat\sigma_j$ \\
+Diagnostic & Sans objet & Valeur \textbf{contrainte par construction} à
+$(N-k)/(N-1)$ --- $N$ résidus, $k$ colonnes retenues ---, et non à~1~: identité
+exacte, fiche~\ref{mw:m2var}. Contrôle de cohérence de la standardisation, sans
+pouvoir de détection sur $\sigma_j$ \\
 
 \multicolumn{9}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- M3 : indépendance}}} \\
 
@@ -1765,6 +1768,13 @@ $\mathcal{O}_P(n_j^{-1/2})$, avec $n_j - 1$ degrés de liberté &
 M2, moments d'ordre 4 finis & $\hat\sigma^2_{J-1}$ n'est pas estimée mais
 \textbf{extrapolée} par la règle du règlement, et nulle lorsque
 $\hat\sigma^2_{J-3} = 0$ \\
+
+Variance des résidus de Mack (diagnostic) & \emph{Aucune} : identité exacte à
+$I$ fini, $\sum_{i,j} r(i,j)^2 = N-k$ pour $N$ résidus répartis sur $k$ colonnes
+& --- & --- & --- &
+Aucune~: l'identité découle de la seule définition de $\hat\sigma_j^2$ &
+La valeur est fixée à $(N-k)/(N-1) = 0{,}8077$ sur un triangle $8\times8$, et
+non à~1~: rien ne converge et rien ne se teste (fiche~\ref{mw:m2var}) \\
 
 $\sqrt{\mathrm{MSEP}}$ & Erreur de prédiction à un an & Erreur vraie &
 Convergence en probabilité & Non établie à $I$ fini &
@@ -2035,7 +2045,8 @@ Corrélation entre années de développement & Cinq à six paires de colonnes
 seulement comptent au moins trois observations à $T = 8$ &
 Aucune loi analytique n'existe~; bootstrap seul recours, puissance très faible \\
 Rosner (ESD) sur résidus de Mack & Fiabilité annoncée pour $n \ge 25$~; un
-triangle $8\times8$ fournit 28 résidus, soit la limite du domaine &
+triangle $8\times8$ fournit 27 résidus --- la colonne $j = J-1$ n'ayant qu'un
+seul facteur individuel n'en produit aucun ---, soit la limite du domaine &
 Conservé comme signal d'attention~; aucune exclusion de cellule sur ce fondement \\
 Extrapolation de $\hat\sigma^2_{J-1}$ & La quantité n'est pas estimée mais
 imposée par une règle du règlement, appuyée sur deux colonnes, qui l'annule
@@ -4206,7 +4217,10 @@ Le support des tests est le résidu standardisé de Mack
   r(i,j) = \frac{\sqrt{C(i,j)}}{\hat\sigma_j}
   \left(\frac{C(i,j+1)}{C(i,j)} - \hat f_j\right),
 \]
-centré, d'échelle approximativement unitaire et non corrélé sous M1 à M3.
+centré, d'échelle approximativement unitaire et non corrélé sous M1 à M3. Ces
+trois propriétés portent sur le \emph{modèle}~: l'échelle \emph{observée} est,
+elle, contrainte par construction, la somme des carrés des résidus d'une colonne
+valant exactement $n_j - 1$ (fiche~\ref{mw:m2var}).
 
 \begin{encadre}
 \textbf{La normalité n'est pas une hypothèse de la méthode.} Le paragraphe~2(h)
@@ -4287,8 +4301,10 @@ M5 est intitulée « diagnostic » parce que la normalité n'est pas exigée par
 modèle réglementaire (D(2)(h)), mais chacun d'eux comporte bien une hypothèse
 nulle, une statistique, une p-value et un verdict. Inversement, la variance
 unitaire des résidus (M2) est un diagnostic~: elle n'a ni hypothèse nulle ni loi
-de référence. Treize de ces quinze tests reposent sur le bootstrap de
-résidus~; Shapiro--Wilk dispose d'une loi nulle propre, pour la raison exposée
+de référence, et sa valeur est de surcroît \emph{contrainte par construction}
+(fiche~\ref{mw:m2var}). Aucun des trois diagnostics ne porte de verdict~: tous
+sont restitués \code{INFO}, conformément à l'ADR~0001. Treize de ces quinze
+tests reposent sur le bootstrap de résidus~; Shapiro--Wilk dispose d'une loi nulle propre, pour la raison exposée
 dans sa fiche, et Lilliefors d'une p-value asymptotique. Les six entrées en gras ci-dessus sont celles qui
 vérifient les hypothèses de chaîne d'échelle \emph{colonne par colonne}, comme
 l'exige la formulation « pour toutes les années d'accident » du texte~; la
@@ -4536,7 +4552,8 @@ p-value de Monte-Carlo retenue~; la p-value du khi-deux est fournie comme
 complément non simulé. \textbf{Celle-ci sous-rejette massivement}~: $0{,}5~\%$ de
 rejets mesurés au seuil nominal de $10~\%$ (section~\ref{sec:calib-asympt-mw}),
 car $\hat\sigma_j^2$ est estimé sur la colonne même, ce qui réduit la dispersion
-des résidus standardisés et donc le $R^2$ de la régression auxiliaire.
+des résidus standardisés et donc le $R^2$ de la régression auxiliaire~; c'est la
+contrainte exacte $\sum_i r(i,j)^2 = n_j - 1$ établie à la fiche~\ref{mw:m2var}.
 \Usage
 Ce test porte spécifiquement sur \emph{l'exposant~1} de la structure de variance
 $\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$. Un rejet suggère
@@ -4579,23 +4596,115 @@ et non comme un motif de changement de méthode.
 \refl{Diagnostic d'échelle~; Mack (1993), \emph{op.\ cit.}, définition de
 $\hat\sigma_j^2$.}
 \Cadre
-Résidus standardisés $r(i,j)$. \textbf{Diagnostic, non test}~: la rubrique est
-renseignée par cohérence de présentation.
+Résidus standardisés $r(i,j)$ (section~\ref{sec:notations-mw}), tels que
+\code{mw\_residus()} les restitue~: seules entrent les colonnes dont
+$\hat\sigma_j^2$ est estimé, strictement positif, sur au moins deux facteurs
+individuels. On note $k$ le nombre de ces colonnes et $N = \sum_j n_j$ le nombre
+total de résidus. \textbf{Diagnostic, non test}~: la rubrique est renseignée par
+cohérence de présentation.
+
+\textbf{La grandeur est contrainte par construction.} $\hat\sigma_j^2$ étant
+l'estimateur de Mack rappelé à la section~\ref{sec:notations-mw}, chaque colonne
+retenue vérifie
+\[
+  \sum_{i=0}^{n_j-1} r(i,j)^2
+  = \frac{1}{\hat\sigma_j^2}\sum_{i=0}^{n_j-1}
+    C(i,j)\big(F(i,j) - \hat f_j\big)^2
+  = n_j - 1 ,
+\]
+puisque $\hat\sigma_j^2$ est précisément cette somme pondérée divisée par
+$n_j - 1$. C'est un \textbf{résultat exact}~: une identité algébrique, vraie à
+$I$ fini, sur tout triangle et quelle que soit la structure de variance des
+données --- ni une propriété asymptotique, ni une approximation numérique. En
+sommant sur les colonnes, $\sum_{i,j} r(i,j)^2 = N - k$. Sur le triangle de
+contrôle du dépôt ($I = J = 7$, soit un triangle $8\times8$), les six colonnes
+retenues donnent $\sum_i r(i,j)^2 = 6,\ 5,\ 4,\ 3,\ 2,\ 1$ pour
+$n_j = 7,\ 6,\ 5,\ 4,\ 3,\ 2$,
+soit $N = 27$, $k = 6$ et $N - k = 21$. La dernière colonne ($j = J-1$) ne
+fournit qu'un seul facteur individuel --- c'est d'ailleurs pourquoi
+$\hat\sigma^2_{J-1}$ y est extrapolée et non estimée (fiche~\ref{mw:m6sig}) ---
+et n'entre donc pas dans les résidus~: sur un triangle carré $n\times n$ sans
+colonne dégénérée, $N = n(n-1)/2 - 1$ et $k = n-2$. L'identité est vérifiée
+colonne par colonne par la batterie de tests unitaires du dépôt
+(section~\ref{sec:verif}).
 \Hzero
-Sans objet. Par construction, $\hat\sigma_j^2$ est calibré colonne par colonne,
-de sorte que la variance des résidus vaut approximativement~1 \emph{à
-l'intérieur} de chaque colonne, sans que la variance globale soit contrainte.
+Sans objet~: le diagnostic n'oppose aucune hypothèse nulle à une alternative.
 \Stat
-$\operatorname{Var}\big(r(i,j)\big)$ sur l'ensemble du triangle.
+$\operatorname{Var}\big(r(i,j)\big)$ sur l'ensemble du triangle, calculée par
+\code{stats::var()} sur la sortie de \code{mw\_residus()}. Sa valeur de référence
+\textbf{n'est pas~1} mais
+\[
+  \frac{N-k}{N-1},
+\]
+conséquence immédiate de l'identité ci-dessus. Plus précisément, en notant
+$\bar r$ la moyenne des résidus,
+\[
+  \operatorname{Var}(r) = \frac{N-k}{N-1}
+  - \frac{N\,\bar r^{\,2}}{N-1}
+  \ \le\ \frac{N-k}{N-1} ,
+\]
+avec égalité si et seulement si $\bar r = 0$. Sur le triangle de contrôle,
+$(N-k)/(N-1) = 21/26 = 0{,}8077$ et la valeur observée vaut $0{,}8075$~: l'écart,
+$2{,}4\times10^{-4}$, est exactement $N\bar r^{\,2}/(N-1)$. Le moteur recalcule
+cette valeur de référence et la restitue dans le champ \code{detail} de la
+ligne, avec $N$, $k$ et la somme des carrés attendue $N - k$, de sorte que le
+relecteur puisse la refaire.
 \Loi
 Sans objet.
 \Pval
-Aucune. Le moteur signale un écart supérieur à $0{,}5$ en valeur absolue.
+Aucune, et le moteur ne compare la valeur à aucun seuil. \textbf{Aucune des trois
+voies de la hiérarchie n'est ouverte ici}, et il faut le dire pour les trois~:
+faute d'hypothèse nulle et de loi de référence, il n'existe ni p-value exacte ni
+p-value asymptotique~; et la voie de Monte-Carlo serait vide de sens, puisque
+tout triangle rééchantillonné de même géométrie vérifie la même identité, avec
+les mêmes $N$ et $k$. Constat de simulation à l'appui~: en rejouant hors moteur
+le bootstrap de résidus du triangle de contrôle (999 triangles produits par
+\code{mw\_simuler\_triangle()} sur le vivier de résidus recentré, graine
+20260831) et en recalculant $\operatorname{Var}(r)$ sur chacun, la valeur reste
+comprise entre $0{,}80741$ et $0{,}80769$, soit une étendue de
+$2{,}8\times10^{-4}$ autour de la référence $0{,}80769$.
 \Usage
-Une variance globale nettement différente de~1 signale une mauvaise
-spécification de $\hat\sigma_j$, le plus souvent concentrée sur les dernières
-colonnes, où $n_j$ tombe à deux ou trois observations. À lire conjointement avec
-la fiche sur l'extrapolation de $\hat\sigma^2_{J-1}$.
+La contrainte change ce que ce diagnostic peut apporter, et il faut l'énoncer
+nettement~: \textbf{il ne détecte pas une mauvaise spécification de
+$\sigma_j$}. L'identité valant quelle que soit la structure de variance des
+données, $\operatorname{Var}(r)$ reste collée à $(N-k)/(N-1)$ même lorsque
+l'exposant~1 imposé par le règlement est faux. Constat de simulation~: sur des
+triangles $8\times8$ engendrés avec une variance en $C(i,j)^0$ puis en
+$C(i,j)^2$ --- les deux alternatives que nomme la fiche~\ref{mw:m2b} ---, l'écart
+à $(N-k)/(N-1)$ reste inférieur à $10^{-3}$ en valeur absolue, alors que
+l'hypothèse M2 est fausse par construction. Ce sont les tests des
+fiches~\ref{mw:m2bp} et~\ref{mw:m2b} qui portent cette détection, non celui-ci.
+
+Ce que la grandeur apporte encore est d'un autre ordre, et utile au dossier.
+D'une part elle contrôle la cohérence interne de la standardisation~: un écart
+appréciable à $(N-k)/(N-1)$ signalerait que les résidus ne sont pas divisés par
+l'écart type de Mack de leur propre colonne --- donc une anomalie de calcul, non
+une propriété des données. D'autre part l'écart vaut exactement
+$N\bar r^{\,2}/(N-1)$ et donne à lire le \emph{centrage} des résidus, qui n'est
+lui pas imposé par la construction~: seule la somme pondérée par $C(i,j)$ est
+nulle dans chaque colonne, et non la somme simple des $r(i,j)$.
+
+À $T = 8$ --- triangle $8\times8$ ---, $N = 27$ et $k = 6$, donc une référence de
+$0{,}8077$. La valeur ne tend vers~1 qu'avec la taille du triangle, et lentement~:
+$0{,}7692$ sur un $6\times6$, $0{,}8372$ sur un $10\times10$, $0{,}8594$ sur un
+$12\times12$. Lire la valeur observée comme un écart à~1 conduirait donc, à la
+profondeur qui nous occupe, à conclure à une anomalie là où la construction seule
+est en cause.
+
+\medskip
+\textbf{Diagnostic, sans verdict.} La ligne est restituée \code{INFO}. Elle
+portait auparavant un verdict \code{ALERTE} dès que
+$|\operatorname{Var}(r) - 1|$ dépassait $0{,}5$~; ce seuil n'était ni un niveau
+de test ni une règle de l'annexe~XVII, et il était de surcroît armé sur une
+valeur de référence fausse, que la construction fixe ailleurs~: il ne pouvait
+pas détecter ce qu'il annonçait détecter. Conformément à l'ADR~0001, un
+diagnostic n'a pas de verdict --- le rendre en \code{OK} ou en \code{ALERTE}
+donnerait à une convention d'affichage l'apparence d'une conclusion au seuil
+$\alpha$. Le moteur restitue la valeur observée et la valeur de référence
+recalculée~; c'est au rédacteur du dossier de les commenter. À lire
+conjointement avec la fiche~\ref{mw:m6sig} sur l'extrapolation de
+$\hat\sigma^2_{J-1}$, qui porte, elle, l'incertitude réelle des dernières
+colonnes.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -4850,8 +4959,10 @@ non d'un test produisant une p-value.
 \Usage
 Résout le problème de masquage de Grubbs lorsque plusieurs cellules sont
 atypiques. La littérature recommande $n \ge 25$ pour la fiabilité des valeurs
-critiques~; un triangle $8\times8$ fournit $28$ résidus, ce qui place la
-procédure à la limite de son domaine. À traiter comme un signal d'attention.
+critiques~; un triangle $8\times8$ fournit $27$ résidus de Mack --- et non 28~:
+la colonne $j = J-1$ ne comporte qu'un seul facteur individuel et n'entre pas
+dans les résidus (fiche~\ref{mw:m2var}) ---, ce qui place la procédure à la
+limite de son domaine. À traiter comme un signal d'attention.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -5150,6 +5261,9 @@ Triangle déterministe $\Rightarrow \mathrm{MSEP} = 0$ &
 $2{,}7\times10^{-18}$ & \\
 Moments de $Z$ (test calendaire) par énumération exhaustive & $n = 2,\dots,12$ &
 exacts \\
+Identité $\sum_i r(i,j)^2 = n_j - 1$ sur les résidus de Mack, colonne par
+colonne & écart maximal $8{,}9\times10^{-16}$ &
+exacte (fiche~\ref{mw:m2var}) \\
 \end{tabular}
 \end{center}
 
@@ -5599,7 +5713,10 @@ mécaniquement l'USP, mais impose une justification explicite~: nature de l'éca
 envisagé, sensibilité du paramètre final. \\
 \code{INFO} & Diagnostic sans seuil statistique associé~: test non applicable faute d'effectif
 ($T < 8$ pour D'Agostino, $T < 20$ pour Anscombe--Glynn), indicateur descriptif, ou lecture
-graphique. \\
+graphique. Relève aussi de ce verdict la grandeur dont la valeur est \emph{contrainte par
+construction}, aucun seuil ne pouvant alors rien détecter~: ainsi la variance des résidus de
+Mack, fixée à $(N-k)/(N-1)$ --- $N$ résidus, $k$ colonnes retenues --- et non à~1
+(fiche~\ref{mw:m2var}). \\
 \bottomrule
 \end{tabular}
 \end{center}
