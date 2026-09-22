@@ -2068,31 +2068,62 @@ mw_ajuster <- function(tri) {
 }
 
 # --- Erreur quadratique moyenne de prediction : paragraphe 5 -----------------
-# MSEP = somme_{i=1}^{I} C^(i,J)^2 * Q_{I-i} / C(i,I-i)
-#      + somme_{i=1}^{I} somme_{k=i+1}^{I} C^(i,J) * C^(k,J)
-#          * ( Q_{I-i}/S_{I-i} + somme_{j=I-i+1}^{J-1} (C(I-j,j)/S'_j) * (Q_j/S_j) )
+# Formule telle qu'imprimee au paragraphe 5 (JOUE L 12/277) :
+#
+# MSEP = somme_{i=1}^{I} C^(i,J)^2
+#          * ( Q_{I-i}/C(i,I-i)
+#              + Q_{I-i}/S_{I-i} + somme_{j=I-i+1}^{J-1} (C(I-j,j)/S'_j)*(Q_j/S_j) )
+#      + 2 * somme_{i=1}^{I} somme_{k=i+1}^{I} C^(i,J) * C^(k,J)
+#          * ( Q_{I-i}/S_{I-i} + somme_{j=I-i+1}^{J-1} (C(I-j,j)/S'_j)*(Q_j/S_j) )
+#
+# Le crochet, note Delta_i ci-dessous, apparait DEUX fois : dans la premiere
+# somme, a cote du terme de variance de processus Q_{I-i}/C(i,I-i), et dans la
+# double somme, affectee du facteur 2. Les deux transcriptions internes
+# anterieures (moteur et documentation) omettaient les termes diagonaux
+# C^(i,J)^2 * Delta_i et le facteur 2 : voir l'issue #7, commentaire
+# "M1 tranche sur piece", qui etablit la lettre du texte et verifie que la
+# formule ci-dessus coincide avec l'erreur a un an de Merz-Wuthrich (2008)
+# a 3e-15 pres sur le triangle de Taylor & Ashe (ChainLadder::CDR).
+#
+# DECOUPAGE RESTITUE (choix de presentation, pas une prescription du texte) :
+#   terme_variance    = somme_i C^(i,J)^2 * Q_{I-i}/C(i,I-i)  -- variance de
+#                       processus seule, attribuable annee par annee ;
+#   terme_covariance  = somme_i C^(i,J)^2 * Delta_i
+#                       + 2 * somme_{i<k} C^(i,J) C^(k,J) * Delta_i  -- erreur
+#                       d'estimation, y compris ses termes diagonaux.
+# La somme des deux est exactement la MSEP du texte. Ce decoupage
+# processus / estimation a un sens statistique et laisse a terme_variance le
+# sens qu'il avait deja, dont depend mw_contributions() (parts par annee du
+# graphique des contributions).
 mw_msep <- function(aj) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
   Ch <- aj$C_chapeau; Q <- aj$Q; S <- aj$S; Sp <- aj$Sp
   Cu <- Ch[, J + 1]                                  # C^(i,J)
   Cd <- aj$dernier_observe                           # C(i, I-i)
 
-  # Terme de variance de processus + estimation, propre a chaque annee
+  # Delta_i : crochet d'erreur d'estimation de l'annee d'accident i.
+  # Attention : en R, a:b produit une sequence DESCENDANTE lorsque a > b. La
+  # borne superieure de la somme en j doit donc etre testee avant la boucle.
+  Delta <- function(i) {
+    v <- Q[I - i + 1] / S[I - i + 1]
+    if ((I - i + 1) <= (J - 1)) for (j in (I - i + 1):(J - 1))
+      v <- v + (tri[I - j + 1, j + 1] / Sp[j + 1]) * (Q[j + 1] / S[j + 1])
+    v
+  }
+  Dl <- vapply(1:I, Delta, numeric(1))               # Dl[i] = Delta_i
+
+  # Variance de processus : somme_i C^(i,J)^2 * Q_{I-i} / C(i,I-i)
   t1 <- 0
   for (i in 1:I) t1 <- t1 + Cu[i + 1]^2 * Q[I - i + 1] / Cd[i + 1]
 
-  # Terme de covariance entre annees d'accident
-  # Attention : en R, (i+1):I produit une sequence DESCENDANTE lorsque i = I.
-  # La borne superieure doit donc etre testee avant d'entrer dans la boucle,
-  # faute de quoi le couple (i = I, k = I) serait compte a tort.
+  # Erreur d'estimation : termes diagonaux C^(i,J)^2 * Delta_i ...
   t2 <- 0
-  for (i in 1:I) if (i < I) for (k in (i + 1):I) {
-    inner <- Q[I - i + 1] / S[I - i + 1]
-    if ((I - i + 1) <= (J - 1)) for (j in (I - i + 1):(J - 1))
-      inner <- inner + (tri[I - j + 1, j + 1] / Sp[j + 1]) * (Q[j + 1] / S[j + 1])
-    # (la garde ci-dessus protege du meme piege sur la somme en j)
-    t2 <- t2 + Cu[i + 1] * Cu[k + 1] * inner
-  }
+  for (i in 1:I) t2 <- t2 + Cu[i + 1]^2 * Dl[i]
+  # ... puis les termes croises, comptes une fois et doubles (meme piege sur
+  # (i+1):I lorsque i = I : la borne est testee avant d'entrer dans la boucle).
+  for (i in 1:I) if (i < I) for (k in (i + 1):I)
+    t2 <- t2 + 2 * Cu[i + 1] * Cu[k + 1] * Dl[i]
+
   list(msep = t1 + t2, terme_variance = t1, terme_covariance = t2)
 }
 
@@ -2860,9 +2891,12 @@ mw_influence <- function(aj) {
 }
 
 # Contribution de chaque annee de survenance a la reserve et au terme de
-# variance de la MSEP. Il s'agit d'une DECOMPOSITION exacte, non d'un
-# leave-one-out : le terme de covariance de la MSEP est par nature partage
-# entre paires d'annees et n'est donc pas attribuable a une annee isolee.
+# variance de processus de la MSEP. Il s'agit d'une DECOMPOSITION exacte, non
+# d'un leave-one-out : le terme d'erreur d'estimation de la MSEP comporte des
+# termes croises, par nature partages entre paires d'annees, et n'est donc pas
+# attribuable a une annee isolee. Le denominateur des parts est
+# msep$terme_variance, c'est-a-dire la seule variance de processus (voir le
+# decoupage documente en tete de mw_msep()), et non la MSEP totale.
 mw_contributions <- function(aj, msep) {
   I <- aj$I; J <- aj$J
   Cu <- aj$C_chapeau[, J + 1]; Cd <- aj$dernier_observe

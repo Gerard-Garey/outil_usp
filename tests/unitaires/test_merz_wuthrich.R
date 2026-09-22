@@ -132,11 +132,16 @@ verifier("Taylor & Ashe : reserve totale = IBNR ChainLadder (18 680 855,61)",
          proche(at$reserve, 18680855.6119243, rel = 1e-12))
 
 ## --- MSEP a un an : conformite au texte (par. D(5)) -------------------------
-# Transcription litterale du par. D(5) (JOUE L 12/277), double somme sur
-# i = 1..I ET k = 1..I :
-#   MSEP = somme_i C^(i,J)^2 Q_(I-i) / C(i,I-i)
-#        + somme_(i=1..I) somme_(k=1..I) C^(i,J) C^(k,J) Delta_i,
+# Transcription litterale du par. D(5) tel qu'imprime (JOUE L 12/277) :
+#   MSEP = somme_(i=1..I) C^(i,J)^2 * ( Q_(I-i)/C(i,I-i) + Delta_i )
+#        + 2 * somme_(i=1..I) somme_(k=i+1..I) C^(i,J) C^(k,J) Delta_i,
 #   Delta_i = Q_(I-i)/S_(I-i) + somme_(j=I-i+1..J-1) C(I-j,j)/S'_j * Q_j/S_j.
+# Points de lecture verifies sur le texte officiel (issue #7, commentaire
+# "M1 tranche sur piece") : bornes k = i+1..I, crochet indexe par I-i, facteur
+# 2 present, exposant 1 sur C(I-j,j)/S'_j. Le crochet Delta_i figure DEUX fois,
+# y compris a l'interieur de la premiere somme : ce sont ces termes diagonaux,
+# et le facteur 2, que les transcriptions anterieures (moteur, documentation
+# LaTeX, et la premiere version de cette fonction) omettaient.
 msep_reglement <- function(a) {
   I <- a$I; J <- a$J; Cu <- a$C_chapeau[, J + 1]; Cd <- a$dernier_observe
   Delta <- function(i) {
@@ -145,24 +150,30 @@ msep_reglement <- function(a) {
       v <- v + a$tri[I - j + 1, j + 1] / a$Sp[j + 1] * a$Q[j + 1] / a$S[j + 1]
     v
   }
-  t1 <- sum(vapply(1:I, function(i) Cu[i + 1]^2 * a$Q[I - i + 1] / Cd[i + 1], numeric(1)))
-  t2 <- sum(vapply(1:I, function(i) Cu[i + 1] * sum(Cu[2:(I + 1)]) * Delta(i), numeric(1)))
+  t1 <- sum(vapply(1:I, function(i)
+    Cu[i + 1]^2 * (a$Q[I - i + 1] / Cd[i + 1] + Delta(i)), numeric(1)))
+  t2 <- 0
+  for (i in 1:I) if (i < I) for (k in (i + 1):I)
+    t2 <- t2 + 2 * Cu[i + 1] * Cu[k + 1] * Delta(i)
   t1 + t2
 }
-# CONSTAT BLOQUANT : mw_msep() somme k = i+1..I (moitie des termes croises,
-# termes diagonaux Delta_i omis). Sur Taylor & Ashe : racine(MSEP) = 1 519 876
-# contre 2 171 772 (lettre du texte) et 1 778 968 (Merz & Wuthrich 2008,
-# ChainLadder::CDR). Les deux tests ci-dessous sont incompatibles entre eux :
-# la lecture a retenir releve d'actuary ; une fois le moteur corrige, garder
-# celui qui passe et supprimer l'autre.
-# Issue #7 (defaut releve par audit, bloquant : MSEP de la reserve no 2)
-echec_attendu("mw_msep = transcription litterale du par. D(5) (k = 1..I)",
-              "constat audit : k = i+1..I dans le moteur et la doc LaTeX",
-              isTRUE(proche(mw_msep(at)$msep, msep_reglement(at), rel = 1e-10)) &&
-              isTRUE(proche(mw_msep(aj)$msep, msep_reglement(aj), rel = 1e-10)))
-# Issue #7 (defaut releve par audit, bloquant : MSEP de la reserve no 2)
-echec_attendu("racine(MSEP) = erreur a un an de Merz-Wuthrich (2008), ChainLadder::CDR",
-              "constat audit : 1 519 876 obtenu, 1 778 967,66 attendu",
-              isTRUE(proche(sqrt(mw_msep(at)$msep), 1778967.66335758, rel = 1e-8)))
+# La transcription ci-dessus et la valeur externe Merz & Wuthrich (2008)
+# coincident : les deux tests ci-dessous etaient en echec attendu (issue #7)
+# tant que mw_msep() omettait les termes diagonaux et le facteur 2.
+verifier("mw_msep = transcription litterale du par. D(5) tel qu'imprime",
+         isTRUE(proche(mw_msep(at)$msep, msep_reglement(at), rel = 1e-10)) &&
+         isTRUE(proche(mw_msep(aj)$msep, msep_reglement(aj), rel = 1e-10)))
+verifier("racine(MSEP) = erreur a un an de Merz-Wuthrich (2008), ChainLadder::CDR",
+         isTRUE(proche(sqrt(mw_msep(at)$msep), 1778967.66335758, rel = 1e-8)))
+verifier("Decoupage restitue : terme_variance = variance de processus seule, somme des deux termes = MSEP",
+         {
+           m <- mw_msep(at)
+           t1p <- sum(vapply(1:at$I, function(i)
+             at$C_chapeau[i + 1, at$J + 1]^2 * at$Q[at$I - i + 1] /
+               at$dernier_observe[i + 1], numeric(1)))
+           isTRUE(proche(m$terme_variance, t1p, rel = 1e-12)) &&
+             isTRUE(proche(m$terme_variance + m$terme_covariance,
+                           msep_reglement(at), rel = 1e-10))
+         })
 
 fin_fichier()
