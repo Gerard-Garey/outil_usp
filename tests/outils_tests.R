@@ -50,11 +50,17 @@ executer_cas <- function(nom) nettoyer(CAS[[nom]]())
 # comparaison aux references (pas du controle de reproductibilite a graine
 # egale, qui reste integral). Chaque entree renvoie a l'issue qui la justifie
 # et doit etre retiree une fois l'issue resolue.
-#   - issue #3 : test de centrage des residus degenere quand delta est au bord
-#     de [0, 1] ; sa p-value Monte-Carlo compare du bruit d'arrondi.
-INSTABLES <- list(
-  list(test = "Centrage des residus standardises", mc_nom = "MeanZ", issue = 3)
-)
+#
+# La liste est VIDE : la seule entree qu'elle ait comportee (issue #3, p-value
+# Monte-Carlo du centrage des residus, qui se decidait au signe du bruit
+# d'arrondi) est sans objet depuis que le centrage et la variance unitaire
+# sont restitues comme diagnostics et que MeanZ et VarZ ont quitte les
+# statistiques simulees (ADR 0001). Le mecanisme est conserve pour un futur
+# cas. N'y ajouter une grandeur que si, a code identique, son ecart d'une
+# plateforme a l'autre DEPASSE la tolerance de comparaison TOLERANCE : les
+# ecarts d'arrondi inferieurs a cette tolerance sont la regle et sont
+# precisement ce qu'elle absorbe.
+INSTABLES <- list()
 
 # Remplace par NA les grandeurs instables, dans le resultat comme dans la
 # reference, avant comparaison.
