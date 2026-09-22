@@ -22,6 +22,10 @@ if (requireNamespace("plotly", quietly = TRUE)) library(plotly)
 source("R/engine.R", local = FALSE)
 source("R/display_helpers.R", local = FALSE)
 
+# Identite du code (version DESCRIPTION, md5 de R/engine.R), relevee au
+# moment ou le moteur est charge ; reportee dans le rapport fige.
+IDENTITE_CODE <- identite_code(".")
+
 # Sortie graphique polymorphe : plotly si le paquet est disponible, graphique
 # de base sinon. Choix de rendu uniquement, sans effet sur les donnees.
 sortie_graphique <- function(id, hauteur = "330px") {
@@ -823,19 +827,11 @@ server <- function(input, output, session) {
   output$mw_alpha <- rendu_graphique(plot_mw_alpha(R()$plots_data))
 
   # Note contextuelle du volet M1 : les valeurs proviennent du moteur.
+  # Texte partage avec le rapport fige (note_m1, R/display_helpers.R).
   output$note_m1 <- renderUI({
-    d <- R()$plots_data$origine
-    if (is.null(d) || !nrow(d)) return(NULL)
-    k <- sum(d$p < 0.10, na.rm = TRUE)
-    w <- d[which.min(d$p), ]
-    helpText(HTML(sprintf(paste(
-      "Le r&egrave;glement impose E[C(i,j+1) | C(i,j)] = f_j C(i,j),",
-      "soit une droite <b>passant par l'origine</b> (trait plein). Le pointill&eacute;",
-      "est la droite ajust&eacute;e avec constante : un &eacute;cart marqu&eacute;",
-      "entre les deux signale une composante fixe non pr&eacute;vue par le mod&egrave;le.",
-      "<br><b>%d colonne(s) sur %d</b> pr&eacute;sentent une ordonn&eacute;e &agrave;",
-      "l'origine significative au seuil de 10 %%, la plus marqu&eacute;e &eacute;tant",
-      "<b>j = %d</b> (p = %.4f)."), k, nrow(d), w$j, w$p)))
+    n <- note_m1(R()$plots_data)
+    if (is.null(n)) return(NULL)
+    helpText(HTML(n))
   })
   output$mw_boot <- rendu_graphique(plot_boot_sigma(R()$plots_data))
   output$g_inf_lev   <- rendu_graphique(plot_influence_levier(R()$plots_data))
@@ -845,35 +841,18 @@ server <- function(input, output, session) {
   output$mw_dfb      <- rendu_graphique(plot_mw_dfbeta(R()$plots_data))
   output$mw_contrib  <- rendu_graphique(plot_mw_contributions(R()$plots_data))
 
-  # Notes contextuelles : les seuils et les comptages viennent du moteur.
+  # Notes contextuelles : les seuils et les comptages viennent du moteur ;
+  # textes partages avec le rapport fige (R/display_helpers.R).
   output$note_influence_mw <- renderUI({
-    d <- R()$plots_data$influence
-    if (is.null(d$dfbeta_relatif)) return(NULL)
-    nf <- sum(d$fort_levier, na.rm = TRUE)
-    mx <- d[which.max(abs(d$dfbeta_relatif)), ]
-    helpText(HTML(sprintf(paste(
-      "Le levier d'une cellule dans son facteur f_j vaut C(i,j) / S_j ; il somme &agrave; 1",
-      "par colonne. <b>%d cellule(s)</b> d&eacute;passent le seuil 2/n_j. La cellule la plus",
-      "influente est <b>(i = %d, j = %d)</b>, dont le retrait d&eacute;placerait f_%d de",
-      "<b>%+.2f %%</b>."), nf, mx$i, mx$j, mx$j, 100 * mx$dfbeta_relatif)))
+    n <- note_influence_mw(R()$plots_data)
+    if (is.null(n)) return(NULL)
+    helpText(HTML(n))
   })
 
   output$note_influence <- renderUI({
-    d <- R()$plots_data$influence
-    # Meme garde que pour les graphiques : la table d'influence du triangle n'a
-    # pas les colonnes de la regression lognormale.
-    if (is.null(d$cook) || is.null(d$ecart_sigma)) return(NULL)
-    {
-      ni <- sum(d$influent); nl <- sum(d$fort_levier)
-      helpText(HTML(sprintf(paste(
-        "<b>%d</b> observation(s) au-del&agrave; du seuil de Cook (4/T = %.3f) et <b>%d</b>",
-        "au-del&agrave; du seuil de levier (2k/T = %.3f). Le retrait de l'ann&eacute;e la plus",
-        "influente d&eacute;place sigma_USP de <b>%+.1f %%</b>. Un levier &eacute;lev&eacute;",
-        "seul n'est pas probl&eacute;matique : c'est sa combinaison avec un r&eacute;sidu",
-        "important, mesur&eacute;e par la distance de Cook, qui l'est."),
-        ni, d$seuil_cook[1], nl, d$seuil_levier[1],
-        100 * d$ecart_sigma[which.max(abs(d$ecart_sigma))])))
-    }
+    n <- note_influence(R()$plots_data)
+    if (is.null(n)) return(NULL)
+    helpText(HTML(n))
   })
 
   # --- Graphiques : uniquement du trace de res$plots_data -------------------
@@ -892,17 +871,10 @@ server <- function(input, output, session) {
   # Note contextuelle sur la surface : les quantites affichees viennent du moteur.
   output$note_surface <- renderUI({
     if (identical(R()$metadata$methode, "reserve2")) return(NULL)
-    S <- R()$plots_data$surface
-    if (isTRUE(S$au_bord))
-      div(class = "avert",
-          HTML(sprintf(paste("delta est estim&eacute; <b>au bord</b> (%.4f). Amplitude de",
-                             "l'objectif le long de delta &agrave; gamma optimal : <b>%.4f</b>.",
-                             "Une amplitude faible confirme un plateau, donc une structure de",
-                             "variance non identifi&eacute;e."), S$delta_opt, S$amplitude_delta)))
-    else
-      div(style = "color:#1E8449",
-          HTML(sprintf("delta = %.4f est int&eacute;rieur au domaine ; amplitude le long de delta : %.4f.",
-                       S$delta_opt, S$amplitude_delta)))
+    n <- note_surface(R()$plots_data)
+    if (is.null(n)) return(NULL)
+    if (n$alerte) div(class = "avert", HTML(n$html))
+    else div(style = "color:#1E8449", HTML(n$html))
   })
 
   # --- Calibration ----------------------------------------------------------
@@ -916,9 +888,10 @@ server <- function(input, output, session) {
         div(style = "margin-top:6px", HTML(sprintf(
           "Intervalle bootstrap 90 %% : [%.4f ; %.4f] &nbsp;|&nbsp; 95 %% : [%.4f ; %.4f]",
           ic[2], ic[4], ic[1], ic[5]))),
-      div(style = "margin-top:6px;color:#7F8C8D;font-size:12.5px",
-          sprintf("Formule appliquee : sigma_USP = c x sigma_estime x sqrt((T+1)/(T-1)) + (1-c) x sigma_standard, avec c = %.0f %% (bareme %s).",
-                  100 * p$credibilite, r$metadata$bareme))
+      # Texte propre a chaque methode (texte_formule, R/display_helpers.R),
+      # partage avec le rapport fige : le facteur sqrt((T+1)/(T-1)) ne
+      # concerne que les methodes lognormales (#4, piste 4).
+      div(style = "margin-top:6px;color:#7F8C8D;font-size:12.5px", texte_formule(r))
     )
   })
 
@@ -983,8 +956,29 @@ server <- function(input, output, session) {
       return(div(style = "color:#7F8C8D",
                  "Aucun resultat a exporter : lancez d'abord un calcul."))
     tagList(downloadButton("dl_tests", "Table complete des tests (CSV)"), " ",
-            downloadButton("dl_calib", "Calibration (CSV)"))
+            downloadButton("dl_calib", "Calibration (CSV)"),
+            hr(),
+            h5("Rapport fige (HTML autonome)"),
+            helpText(paste("Un fichier unique, sans ressource externe, qui fige le resultat",
+                           "affiche : donnees du calcul, controles, parametre, tests retenus",
+                           "par la personnalisation, tests exclus en annexe, graphiques et",
+                           "empreintes. Aucun calcul n'est relance.")),
+            checkboxInput("rapport_interactif",
+                          paste("Graphiques interactifs (fichier d'environ 4 Mo ;",
+                                "sinon graphiques figes en PNG, environ 0,1 Mo)"),
+                          value = TRUE),
+            downloadButton("dl_rapport", "Rapport fige (HTML)"))
   })
+
+  # Rapport fige : l'objet resultat() et la selection courante sont transmis
+  # tels quels ; rapport_html() ne fait que les mettre en forme.
+  output$dl_rapport <- downloadHandler(
+    filename = function() sprintf("usp_rapport_%s_%s.html", R()$metadata$methode,
+                                  format(R()$metadata$horodatage, "%Y%m%d_%H%M%S")),
+    content = function(f)
+      rapport_html(resultat(), sel_courante(), f,
+                   interactif = isTRUE(input$rapport_interactif),
+                   identite = IDENTITE_CODE))
 
   output$dl_tests <- downloadHandler(
     filename = function() sprintf("usp_tests_T%d_B%d.csv", R()$metadata$T, R()$metadata$B),
