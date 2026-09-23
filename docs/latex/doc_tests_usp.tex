@@ -1075,6 +1075,13 @@ direct, 2 retards) & \code{stats::Box.test()} (p asymptotique, $\chi^2$) &
 Suites (Wald--Wolfowitz) & \ref{fiche:suites-wald-wolfowitz} & \code{test\_runs()} &
 \code{runs\_p\_exacte()} (p exacte combinatoire, via \code{.runs\_dens()}) &
 \code{Runs} \\
+Durbin--Watson sur ratios bruts & \ref{fiche:durbin-watson-ratios-bruts} & \code{stat\_dw()} sur
+$u_t$ & aucune hors Monte-Carlo & \code{DWr} \\
+Ljung--Box (retard 1) sur ratios bruts & \ref{fiche:ljung-box-ratios-bruts} &
+\code{stats::Box.test()} sur $u_t$ & aucune hors Monte-Carlo & \code{LB1r} \\
+Suites sur ratios bruts & \ref{fiche:suites-ratios-bruts} & \code{test\_runs()} sur $u_t$ &
+\code{usp\_runsr\_p\_exacte()} (p exacte de \code{runs\_p\_exacte()} sous double condition) &
+\code{Runsr} \\
 Condition du premier ordre (contrôle numérique, hors table des tests) & \ref{fiche:foc} &
 \code{usp\_condition\_premier\_ordre()}, \code{usp\_controles\_numeriques()} &
 contrôle \code{OK} / \code{ECHEC}, aucune p-value & --- \\
@@ -1097,6 +1104,12 @@ Distance de Cook & \ref{fiche:cook} & \code{stats::cooks.distance()} (appel
 direct) & diagnostic, aucune p-value & --- \\
 Leviers & \ref{fiche:leviers} & \code{stats::hatvalues()} (appel direct) &
 diagnostic, aucune p-value & --- \\
+Rupture sup-F sur ratios bruts & \ref{fiche:sup-f-ratios-bruts} & \code{stat\_supF()} sur $u_t$ &
+aucune hors Monte-Carlo & \code{supFr} \\
+OLS-CUSUM sur ratios bruts & \ref{fiche:ols-cusum-ratios-bruts} & \code{stat\_cusum()} sur $u_t$ &
+aucune hors Monte-Carlo & \code{CUSUMr} \\
+Grubbs sur ratios bruts & \ref{fiche:grubbs-ratios-bruts} & \code{test\_grubbs()} sur $u_t$ &
+aucune hors Monte-Carlo & \code{Grubbsr} \\
 
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Robustesse de l'estimation (méthode lognormale)}}} \\
 \midrule
@@ -2026,10 +2039,22 @@ Box--Pierce & LN & $Q$ & Non & Oui & Oui & Monte-Carlo &
 Bootstrap ; préférer Ljung--Box \\
 
 Suites (W.--W.) & LN & $Z$ / $R$ & Oui (combinatoire) & Oui & Oui & \textbf{Exacte}
-(doublement) si $\hat\pi_t$ constant, approximation sinon~; sur ratios bruts $u_t$~: \textbf{exacte} si $\hat\pi_t$ constant
-\emph{et} signes de $u_t$ et $z_t$ identiques, Monte-Carlo sinon &
+(doublement) si $\hat\pi_t$ constant, approximation sinon &
 \textbf{Déconseillée} : approx. normale requiert $n_1,n_2\ge 10$ &
 Distribution exacte à privilégier~; $p_{\min} = 0{,}057$ à $T = 8$ \\
+
+Durbin--Watson sur ratios bruts & LN & DW & Non : $u_t$ non gaussiens, Imhof inapplicable &
+--- & Oui & Monte-Carlo & Sans objet (aucune loi limite employée) &
+Quasi-doublon de la ligne sur $z_t$ à $\hat\pi_t$ constant \\
+
+Ljung--Box (1) sur ratios bruts & LN & $Q$ & Non & --- & Oui & Monte-Carlo &
+Sans objet ($\chi^2$ non calculée) &
+Quasi-doublon de la ligne sur $z_t$ à $\hat\pi_t$ constant \\
+
+Suites sur ratios bruts & LN & $Z$ / $R$ & Oui si $\hat\pi_t$ constant (combinatoire) & --- &
+Oui & \textbf{Exacte} (doublement) si $\hat\pi_t$ constant \emph{et} signes de $u_t$ et $z_t$
+identiques, Monte-Carlo sinon & Sans objet (approx. normale non calculée) &
+Doublon exact de la ligne sur $z_t$ à $\hat\pi_t$ constant \\
 
 Centrage des résidus & LN & --- & --- & --- & --- &
 \textbf{Diagnostic} & Sans objet & Aucune p-value~: $\bar z$ est rivé par une
@@ -2045,7 +2070,7 @@ Restituée sans verdict \\
 
 sup-F (rupture) & LN & $\sup F$ & Non & Théorique seulement (Andrews) & Oui & Monte-Carlo &
 \textbf{Absence de justification} : loi de sup. de processus, convergence fonctionnelle &
-\textbf{Seul test sans p-value non simulée} : bootstrap indispensable \\
+\textbf{Seul test sur $z_t$ sans p-value non simulée} : bootstrap indispensable \\
 
 OLS-CUSUM & LN & $\sup|S|$ & Non & Oui (Kolmogorov asympt.) & Oui & Monte-Carlo &
 \textbf{Absence de justification} : 8 points ne forment pas une trajectoire
@@ -2054,6 +2079,18 @@ brownienne & Bootstrap indispensable ; p asympt. fournie pour mémoire \\
 Grubbs & LN & $G$ & Borne de Bonferroni & --- & Oui & Monte-Carlo &
 \textbf{Sous conditions} : borne conservatrice, non exacte &
 Bootstrap ; borne utilisable comme majorant \\
+
+sup-F sur ratios bruts & LN & $\sup F$ & Non & --- & Oui & Monte-Carlo &
+Sans objet (aucune loi limite employée) &
+Quasi-doublon de la ligne sur $z_t$ à $\hat\pi_t$ constant \\
+
+OLS-CUSUM sur ratios bruts & LN & $\sup|S|$ & Non & --- & Oui & Monte-Carlo &
+Sans objet (Kolmogorov non calculée) &
+Quasi-doublon de la ligne sur $z_t$ à $\hat\pi_t$ constant \\
+
+Grubbs sur ratios bruts & LN & $G$ & Non & --- & Oui & Monte-Carlo &
+Sans objet (Bonferroni non calculée) &
+Quasi-doublon de la ligne sur $z_t$ à $\hat\pi_t$ constant \\
 
 Rosner (ESD) & LN & $R_i$ & Valeurs critiques tabulées & --- & --- &
 Procédure de décision & Sans objet (pas de p-value) &
@@ -2265,6 +2302,14 @@ Erreurs i.i.d., écrêtement $\tau$ fixé & Non exploitable ; bootstrap requis \
 OLS-CUSUM & $S(\lfloor uT\rfloor)$ & Pont brownien $B^\circ$ &
 Convergence faible (principe d'invariance) & $\mathcal{O}(T^{-1/2})$ &
 Erreurs i.i.d., variance finie & 8 points : non exploitable \\
+
+Six tests sur ratios bruts~: Durbin--Watson, Ljung--Box (1), suites, sup-F, OLS-CUSUM, Grubbs &
+\emph{Aucun} dans le moteur~: aucune loi limite n'est calculée sur $u_t$ & --- & --- & --- &
+$u_t$ non gaussiens, et hétéroscédastiques dès que $\hat\pi_t$ varie &
+Monte-Carlo seule, convergence en $B$ au bloc (B)~; exception~: suites à $\hat\pi_t$ constant,
+loi exacte (fiches~\ref{fiche:durbin-watson-ratios-bruts}, \ref{fiche:ljung-box-ratios-bruts},
+\ref{fiche:suites-ratios-bruts}, \ref{fiche:sup-f-ratios-bruts},
+\ref{fiche:ols-cusum-ratios-bruts} et~\ref{fiche:grubbs-ratios-bruts}) \\
 
 Shapiro--Wilk / Francia & $W$, $W'$ & Approx. normalisée de Royston &
 Approximation numérique, non asymptotique & Sans objet (ajustement empirique) &
@@ -2617,7 +2662,10 @@ l'intervalle de confiance à 95~\% ($\pm 0{,}029$ et $\pm 0{,}021$).
 Six lignes de la table auditable sont calculées sur la base $u_t$~:
 Durbin--Watson, Ljung--Box au retard~1, test des suites, rupture de niveau
 (sup-F), stabilité cumulée (OLS-CUSUM) et Grubbs, chacune ayant son homologue
-sur $z_t$. Le contrôle qu'elles portent consiste à vérifier que les conclusions
+sur $z_t$ et sa fiche (fiches~\ref{fiche:durbin-watson-ratios-bruts},
+\ref{fiche:ljung-box-ratios-bruts}, \ref{fiche:suites-ratios-bruts},
+\ref{fiche:sup-f-ratios-bruts}, \ref{fiche:ols-cusum-ratios-bruts}
+et~\ref{fiche:grubbs-ratios-bruts}). Le contrôle qu'elles portent consiste à vérifier que les conclusions
 d'indépendance et de stabilité ne sont pas un artefact de la pondération
 $\hat\pi_t$. \textbf{Là où il n'y a pas de pondération, il n'y a pas d'artefact
 de pondération à détecter}, et ce contrôle perd son objet. C'est le cas dès que
@@ -4563,6 +4611,124 @@ relève de l'intervalle bootstrap et du jackknife (section~\ref{sec:robustesse})
 sur $\sigma_{\mathrm{USP}}$.
 \end{fiche}
 
+\begin{fiche}{Durbin--Watson sur ratios bruts}
+\label{fiche:durbin-watson-ratios-bruts}%
+\refl{J.~Durbin, G.\,S. Watson (1950, 1951), \emph{op.\ cit.} (fiche~\ref{fiche:durbin-watson}).}
+\Cadre
+Même statistique que la fiche~\ref{fiche:durbin-watson}, appliquée aux ratios centrés
+$u_t = r_t - \bar r$, $r_t = y_t/x_t$, ordonnés chronologiquement (base « ratios bruts »,
+section~\ref{sec:base-residus}). La base ne dépend d'aucun ajustement~: elle sert à vérifier
+que la conclusion d'indépendance tirée des $z_t$ n'est pas un artefact de la pondération
+$\hat\pi_t$. Hypothèse non testée~: le modèle ajusté, sous lequel la loi de référence est simulée.
+Sous ce modèle, les $r_t$ sont indépendants et lognormaux, de variance dépendant de $x_t$ dès
+que $\hat\pi_t$ varie~: les $u_t$ ne sont ni gaussiens ni de même variance.
+\Hzero
+$H_0$~: absence d'autocorrélation d'ordre~1 du ratio S/P, contre $H_1$~: autocorrélation du
+ratio S/P.
+\Stat
+$\mathrm{DW} = \sum_{t=2}^{T}(u_t - u_{t-1})^2 \big/ \sum_{t=1}^{T} u_t^2$, calculée par
+\code{stat\_dw()}, qui recentre la série. La statistique est invariante par translation et par
+changement d'échelle~: elle vaut $\mathrm{DW}$ calculée sur les $r_t$ eux-mêmes (écart nul,
+mesure sur le jeu de contrôle).
+\Loi
+Aucune loi exacte ni asymptotique n'est employée~: la loi d'Imhof de la
+fiche~\ref{fiche:durbin-watson} suppose des variables gaussiennes, ce que les $u_t$ ne sont
+pas. La loi de référence est simulée par le bootstrap paramétrique sous le modèle ajusté, qui
+reproduit l'hétéroscédasticité des $r_t$ (section~\ref{sec:base-residus}, « Statut des p-values
+selon la base »).
+\Pval
+p-value de Monte-Carlo, bilatérale (clé \code{DWr}, procédure de la
+fiche~\ref{fiche:procedure-mc}), seule calculée et seule retenue, avec son erreur de
+Monte-Carlo \code{err\_mc} en $\mathcal{O}(B^{-1/2})$. Mesuré sur le jeu de contrôle
+($\hat\delta = 1$, $B = 999$, graine 20260831)~: $\mathrm{DW} = 1{,}630$, \code{p\_mc}
+$= 0{,}566$ (erreur de Monte-Carlo $0{,}016$), contre $\mathrm{DW} = 1{,}618$ et une p-value
+exacte de $0{,}565$ sur $z_t$.
+\Usage
+Même portée que le test sur $z_t$ (ordre~1 seulement), sans passer par le modèle. À
+$\hat\pi_t$ constant --- cas du jeu de contrôle ---, la ligne est un quasi-doublon de son
+homologue sur $z_t$, dont elle ne diffère qu'au second ordre en coefficient de variation des
+$r_t$~; son commentaire commence alors par « \code{CONTROLE SANS OBJET ICI} »
+(section~\ref{sec:base-residus}). Elle n'apporte une information propre que lorsque
+$\hat\pi_t$ varie. À $T = 8$, la p-value de Monte-Carlo n'est exacte qu'à l'erreur de
+Monte-Carlo près \emph{et} sous le modèle ajusté pris pour vrai~: sa validité est celle du
+bootstrap paramétrique, asymptotique en $T$ et non quantifiable à $T = 8$
+(section~\ref{sec:mc})~; la calibration mesurée sur cette base est un constat de simulation
+(section~\ref{sec:base-residus}).
+\end{fiche}
+
+\begin{fiche}{Ljung--Box au retard 1 sur ratios bruts}
+\label{fiche:ljung-box-ratios-bruts}%
+\refl{G.\,M. Ljung, G.\,E.\,P. Box (1978), \emph{op.\ cit.} (fiche~\ref{fiche:ljung-box}).}
+\Cadre
+Statistique de Ljung--Box au seul retard~1, appliquée aux ratios centrés $u_t$ (base
+« ratios bruts », section~\ref{sec:base-residus}). Mêmes hypothèses non testées et même objet que
+la fiche~\ref{fiche:durbin-watson-ratios-bruts}. Le retard~2 n'est pas restitué sur cette base~:
+$\hat\rho_2$ n'y reposerait que sur $T-2$ produits (commentaire de
+\code{.stats\_bootstrapables()}).
+\Hzero
+$H_0 : \rho_1 = 0$ pour le ratio S/P, contre $H_1$~: autocorrélation au retard~1.
+\Stat
+$Q_{\mathrm{LB}} = T(T+2)\,\hat\rho_1^2/(T-1)$, $\hat\rho_1$ étant l'autocorrélation empirique de
+la fiche~\ref{fiche:ljung-box} calculée sur les $u_t$ (\code{stats::Box.test()}, appel direct
+dans \code{.stats\_bootstrapables()}). Invariante par translation et changement d'échelle.
+\Loi
+La loi $\chi^2(1)$ de la fiche~\ref{fiche:ljung-box} n'est ni calculée ni employée sur cette base.
+La loi de référence est simulée par le bootstrap paramétrique sous le modèle ajusté.
+\Pval
+p-value de Monte-Carlo en queue haute (clé \code{LB1r}), seule calculée et seule retenue, avec
+son erreur de Monte-Carlo. Mesuré sur le jeu de contrôle~: $Q = 1{,}3\cdot 10^{-4}$,
+\code{p\_mc} $= 0{,}996$ (erreur $0{,}002$), contre $Q = 9{,}2\cdot 10^{-3}$ et une p-value de
+Monte-Carlo de $0{,}937$ sur $z_t$.
+\Usage
+Redondant avec la fiche~\ref{fiche:durbin-watson-ratios-bruts} au premier ordre (les deux
+statistiques sont fonctions de l'autocorrélation d'ordre~1). $Q$ repose sur une quasi-annulation
+de $\hat\rho_1$~: sa valeur relative varie fortement d'une base à l'autre sans que la p-value en
+dépende à ce niveau (section~\ref{sec:base-residus}). Même réserve à $\hat\pi_t$ constant
+(quasi-doublon, « \code{CONTROLE SANS OBJET ICI} ») et même portée de la p-value de Monte-Carlo à
+$T = 8$ que pour la fiche~\ref{fiche:durbin-watson-ratios-bruts}.
+\end{fiche}
+
+\begin{fiche}{Test des suites sur ratios bruts}
+\label{fiche:suites-ratios-bruts}%
+\refl{A.~Wald, J.~Wolfowitz (1940), \emph{op.\ cit.}~; loi exacte~: F.~Swed, C.~Eisenhart (1943)
+(fiche~\ref{fiche:suites-wald-wolfowitz}, section~\ref{sec:biblio}).}
+\Cadre
+Suite des signes de $u_t - \operatorname{med}(u)$, ratios centrés de la base « ratios bruts »
+(section~\ref{sec:base-residus})~; $n_1$, $n_2$ et $R$ comme à la
+fiche~\ref{fiche:suites-wald-wolfowitz}. Hypothèse non testée~: continuité de la variable.
+\Hzero
+$H_0$~: arrangement aléatoire des signes du ratio centré, contre $H_1$~: arrangement non
+aléatoire (regroupement ou alternance).
+\Stat
+$R$ et sa forme centrée réduite $Z$ (\code{test\_runs()} appliquée à $u_t$), définis à la
+fiche~\ref{fiche:suites-wald-wolfowitz}. Seuls les signes par rapport à la médiane
+interviennent~: la statistique est invariante par toute transformation croissante des $r_t$.
+\Loi
+Loi combinatoire exacte de $R$ à $(n_1, n_2)$ fixés si les $\binom{n}{n_1}$ arrangements sont
+équiprobables, ce qui suppose les $r_t$ i.i.d.~: c'est le cas sous le modèle ajusté à
+$\hat\pi_t$ constant seulement. À $\hat\pi_t$ variable, les $r_t$ sont indépendants mais de
+médianes et d'échelles propres à chaque année, et la loi combinatoire n'est qu'une
+approximation, sans borne d'erreur connue à $T = 8$~; la loi de référence est alors simulée par
+le bootstrap paramétrique.
+\Pval
+Sous la double condition de \code{usp\_runsr\_p\_exacte()} --- $\hat\pi_t$ constant au sens de
+\code{usp\_regime()}, \emph{et} signes de $u_t - \operatorname{med}(u)$ et de
+$z_t - \operatorname{med}(z)$ identiques terme à terme ---, p-value exacte de
+\code{runs\_p\_exacte()}, convention bilatérale du doublement (issue~\#29)~; sinon, p-value de
+Monte-Carlo (clé \code{Runsr}), bilatérale. La condition, ses deux motifs et les deux limites
+(bande de tolérance, régime estimé) sont détaillés à la fiche~\ref{fiche:suites-wald-wolfowitz},
+rubrique~5. Mesuré sur le jeu de contrôle ($\hat\delta = 1$)~: $Z = -0{,}764$ sur $u_t$ comme sur
+$z_t$, p-value exacte $52/70 = 0{,}743$ retenue sur les deux lignes, \code{p\_mc} $= 0{,}768$
+(erreur $0{,}013$).
+\Usage
+À $\hat\pi_t$ constant, la ligne est un \textbf{doublon exact} de la ligne des suites sur $z_t$~:
+même statistique, même p-value exacte, même verdict (section~\ref{sec:base-residus}). Elle
+n'apporte une information propre que lorsque $\hat\pi_t$ varie, où elle retient alors la
+p-value de Monte-Carlo, dont la portée à $T = 8$ est celle du bootstrap paramétrique
+(section~\ref{sec:mc}). Granularité et test inopérant~: mêmes valeurs atteignables qu'à la
+fiche~\ref{fiche:suites-wald-wolfowitz} lorsque la p-value exacte est retenue.
+\end{fiche}
+
 \newpage
 \clearpage
 % =============================================================================
@@ -4794,6 +4960,98 @@ covariables fixes et sur lesquels aucune de ses hypothèses ne porte~; il n'exis
 hypothèse nulle ni loi de référence, et le repère $2k/T$ --- deux fois le levier moyen $k/T$ ---
 est une règle de lecture. Mesuré sur le jeu de contrôle~: $\max_t h_t = 0{,}160$, aucune
 observation au-dessus du repère.
+\end{fiche}
+
+\begin{fiche}{Rupture sup-F sur ratios bruts}
+\label{fiche:sup-f-ratios-bruts}%
+\refl{R.\,E. Quandt (1960), G.\,C. Chow (1960), D.\,W.\,K. Andrews (1993), \emph{op.\ cit.}
+(fiche~\ref{fiche:sup-f}).}
+\Cadre
+Statistique de la fiche~\ref{fiche:sup-f} (même écrêtement $\tau = 0{,}15$, mêmes points de
+rupture candidats), appliquée aux ratios centrés $u_t$ de la base « ratios bruts »
+(section~\ref{sec:base-residus}). Hypothèse non testée~: le modèle ajusté, sous lequel la loi de
+référence est simulée~; les $u_t$ n'y sont ni gaussiens ni, dès que $\hat\pi_t$ varie, de même
+variance.
+\Hzero
+$H_0$~: niveau du ratio S/P constant, contre $H_1$~: rupture de niveau du ratio S/P.
+\Stat
+$\sup F$ de la fiche~\ref{fiche:sup-f}, $z_t$ remplacé par $u_t$ (\code{stat\_supF()}).
+Invariante par translation et changement d'échelle~: elle vaut la statistique calculée sur les
+$r_t$ (écart nul, mesure sur le jeu de contrôle).
+\Loi
+Ni la loi de Fisher, qui ne vaut pas pour un point de rupture estimé, ni la loi limite
+d'Andrews ne sont employées~: la loi de référence est simulée par le bootstrap paramétrique sous
+le modèle ajusté.
+\Pval
+p-value de Monte-Carlo en queue haute (clé \code{supFr}), seule calculée et seule retenue, avec
+son erreur de Monte-Carlo. Mesuré sur le jeu de contrôle~: $\sup F = 0{,}559$, \code{p\_mc}
+$= 0{,}931$ (erreur $0{,}008$), contre $\sup F = 0{,}841$ et \code{p\_mc} $= 0{,}840$ sur
+$z_t$ --- l'écart le plus grand des cinq paires en Monte-Carlo (section~\ref{sec:base-residus}).
+\Usage
+Détecte un changement de régime du ratio S/P sans passer par le modèle~; un rejet s'interprète
+directement comme une rupture du ratio (changement de politique de souscription, de
+provisionnement ou de périmètre). À $\hat\pi_t$ constant, quasi-doublon de son homologue sur
+$z_t$ (« \code{CONTROLE SANS OBJET ICI} »). À $T = 8$, l'ensemble des points de rupture ne compte
+que quelques candidats et la p-value de Monte-Carlo a la portée du bootstrap paramétrique
+(section~\ref{sec:mc}).
+\end{fiche}
+
+\begin{fiche}{Stabilité OLS-CUSUM sur ratios bruts}
+\label{fiche:ols-cusum-ratios-bruts}%
+\refl{R.\,L. Brown, J.~Durbin, J.\,M. Evans (1975)~; W.~Ploberger, W.~Krämer (1992), \emph{op.\
+cit.} (fiche~\ref{fiche:ols-cusum}).}
+\Cadre
+Statistique de la fiche~\ref{fiche:ols-cusum} appliquée aux ratios centrés $u_t$ de la base
+« ratios bruts » (section~\ref{sec:base-residus})~; mêmes hypothèses non testées que la
+fiche~\ref{fiche:sup-f-ratios-bruts}.
+\Hzero
+$H_0$~: constance du niveau du ratio S/P, contre $H_1$~: dérive graduelle.
+\Stat
+$\mathrm{CUSUM} = \max_{j}\big|\sum_{t \le j}(u_t - \bar u)\big| \big/ (s_u\sqrt{T})$
+(\code{stat\_cusum()}), invariante par translation et changement d'échelle.
+\Loi
+La loi de Kolmogorov, limite de la fiche~\ref{fiche:ols-cusum}, n'est ni calculée ni employée~:
+la loi de référence est simulée par le bootstrap paramétrique sous le modèle ajusté.
+\Pval
+p-value de Monte-Carlo en queue haute (clé \code{CUSUMr}), seule calculée et seule retenue,
+avec son erreur de Monte-Carlo. Mesuré sur le jeu de contrôle~: $\mathrm{CUSUM} = 0{,}533$,
+\code{p\_mc} $= 0{,}756$ (erreur $0{,}014$), contre $0{,}495$ et $0{,}817$ sur $z_t$.
+\Usage
+Complément graduel du sup-F sur la même base. À $\hat\pi_t$ constant, quasi-doublon de son
+homologue sur $z_t$ (« \code{CONTROLE SANS OBJET ICI} »). À $T = 8$, le processus cumulé ne
+compte que huit points~: seule la simulation fournit une loi de référence, avec la portée du
+bootstrap paramétrique (section~\ref{sec:mc}).
+\end{fiche}
+
+\begin{fiche}{Grubbs sur ratios bruts}
+\label{fiche:grubbs-ratios-bruts}%
+\refl{F.\,E. Grubbs (1950, 1969), \emph{op.\ cit.} (fiche~\ref{fiche:grubbs}).}
+\Cadre
+Statistique de la fiche~\ref{fiche:grubbs} appliquée aux ratios centrés $u_t$ de la base
+« ratios bruts » (section~\ref{sec:base-residus}). L'hypothèse de normalité i.i.d. qui fonde la
+loi de Grubbs n'est pas celle du modèle~: sous le modèle ajusté, les $r_t$ sont lognormaux,
+donc asymétriques, et de variances inégales dès que $\hat\pi_t$ varie.
+\Hzero
+$H_0$~: aucun ratio S/P aberrant, contre $H_1$~: exactement un ratio aberrant.
+\Stat
+$G = \max_t |u_t - \bar u|/s_u$ (\code{test\_grubbs()} appliquée à $u_t$), invariante par
+translation et changement d'échelle~; le champ \code{estim} porte le rang chronologique du ratio
+le plus éloigné de la moyenne.
+\Loi
+La borne de Bonferroni de la fiche~\ref{fiche:grubbs} n'est pas calculée sur cette base~: la loi
+de référence est simulée par le bootstrap paramétrique sous le modèle ajusté, asymétrie et
+hétéroscédasticité des $r_t$ comprises.
+\Pval
+p-value de Monte-Carlo en queue haute (clé \code{Grubbsr}), seule calculée et seule retenue,
+avec son erreur de Monte-Carlo. Mesuré sur le jeu de contrôle~: $G = 1{,}506$, \code{p\_mc}
+$= 0{,}777$ (erreur $0{,}013$), contre $G = 1{,}429$ et une p-value retenue de $0{,}861$ sur $z_t$.
+\Usage
+Identifie l'année au boni ou au mali le plus atypique sans passer par le modèle. Mêmes limites
+structurelles qu'à la fiche~\ref{fiche:grubbs}~: masquage par plusieurs valeurs aberrantes, et
+borne $G \le (T-1)/\sqrt{T} = 2{,}47$ à $T = 8$. À $\hat\pi_t$ constant, quasi-doublon de son
+homologue sur $z_t$ (« \code{CONTROLE SANS OBJET ICI} »). À $T = 8$, la p-value de Monte-Carlo a
+la portée du bootstrap paramétrique (section~\ref{sec:mc})~; la calibration mesurée sur cette base
+est un constat de simulation (section~\ref{sec:base-residus}).
 \end{fiche}
 
 \newpage
@@ -7772,6 +8030,10 @@ portée d'une anomalie y est circonscrite à un test, contrairement à H1.}
 % --- Colonne des fonctions internes (lois de reference) ----------------------
 \node[int, right=14mm of dw] (imh) {\code{.imhof\_p\_sup0()}};
 \node[int, right=14mm of ru] (rd)  {\code{.runs\_dens()}};
+\node[int, below=2mm of rd] (rr) {\code{usp\_runsr\_p\_exacte()}\\ \scriptsize ratios bruts, $\hat\pi_t$ constant};
+
+% --- Seconde entree : ratios centres u_t (base « ratios bruts », six tests) --
+\node[ent, below=52mm of z] (u) {ratios centrés $u_t$};
 
 % --- Colonne des sorties : abscisse COMMUNE ---------------------------------
 % Auparavant chaque sortie etait positionnee relativement a son bloc de gauche,
@@ -7788,11 +8050,11 @@ portée d'une anomalie y est circonscrite à un test, contrairement à H1.}
 \node[sor, anchor=west] at (cx |- jb)  (s8)  {Jarque--Bera};
 \node[sor, anchor=west] at (cx |- da)  (s9)  {D'Agostino};
 \node[sor, anchor=west] at (cx |- ag)  (s10) {Anscombe--Glynn};
-\node[sor, anchor=west] at (cx |- dw)  (s11) {Durbin--Watson};
-\node[sor, anchor=west] at (cx |- lb)  (s12) {Ljung--Box, Box--Pierce};
-\node[sor, anchor=west] at (cx |- ru)  (s13) {Test des suites};
-\node[sor, anchor=west] at (cx |- sf2) (s14) {sup-F, CUSUM};
-\node[sor, anchor=west] at (cx |- gr)  (s15) {Grubbs, Rosner};
+\node[sor, anchor=west] at (cx |- dw)  (s11) {Durbin--Watson ($z_t$ et $u_t$)};
+\node[sor, anchor=west] at (cx |- lb)  (s12) {LB, BP ; LB(1) sur $u_t$};
+\node[sor, anchor=west] at (cx |- ru)  (s13) {Test des suites ($z_t$ et $u_t$)};
+\node[sor, anchor=west] at (cx |- sf2) (s14) {sup-F, CUSUM ($z_t$ et $u_t$)};
+\node[sor, anchor=west] at (cx |- gr)  (s15) {Grubbs ($z_t$ et $u_t$), Rosner};
 
 % --- Liaisons ----------------------------------------------------------------
 \draw[fl] (sw) -- (s1);
@@ -7801,15 +8063,19 @@ portée d'une anomalie y est circonscrite à un test, contrairement à H1.}
                    lb/s12, sf2/s14, gr/s15} \draw[fl] (\a) -- (\b);
 \draw[fp] (dw) -- (imh); \draw[fl] (imh) -- (s11);
 \draw[fp] (ru) -- (rd);  \draw[fl] (rd) -- (s13);
+\draw[fp] (ru.east) -- (rr.west); \draw[fl] (rr.east) -- (s13.west);
 \foreach \b in {sw,sf,ad,cv,li,ks,jb,da,ag,dw,lb,ru,sf2,gr}
   \draw[fl] (z) -| ([xshift=-4mm]\b.west) -- (\b);
+% Les liaisons issues de u_t sont orangees et arrivent par le bas-gauche des
+% blocs, pour rester distinctes de celles issues de z_t.
+\foreach \b in {dw,lb,ru,sf2,gr}
+  \draw[-{Latex[length=1.6mm]}, draw=orange!80!black, line width=0.5pt]
+    (u) -| ([xshift=-8mm, yshift=-1.5mm]\b.west) -- ([yshift=-1.5mm]\b.west);
 \end{tikzpicture}
 \caption{Hypothèses H3 et H4 et diagnostics de stabilité. Tous les tests
-partent du même objet, les résidus $z_t$~: une erreur dans \code{usp\_noyau()}
-affecterait l'intégralité de ce graphe. Trois fonctions internes (en gris)
-fournissent des lois de référence~: \code{sw\_loi\_nulle()},
-\code{.imhof\_p\_sup0()} et \code{.runs\_dens()}. \code{.shapiro\_sur()} alimente
-\emph{deux} entrées distinctes de la table des tests.}
+partent des résidus $z_t$ (une erreur dans \code{usp\_noyau()} affecterait tout ce graphe)~;
+six sont aussi calculés sur les ratios centrés $u_t$ (liaisons orangées). Les blocs gris
+fournissent des lois de référence~; \code{.shapiro\_sur()} alimente \emph{deux} entrées.}
 \label{fig:annexe-h3h4}
 \end{figure}
 \end{landscape}
@@ -7937,8 +8203,17 @@ Un test, plusieurs fonctions & Mann--Kendall (\code{test\_mann\_kendall()} +
 référence sont séparées~: il faut vérifier les deux, et leur cohérence
 d'appariement. \\
 Une fonction, plusieurs tests & \code{test\_lm\_complet()} (4 entrées),
-\code{.shapiro\_sur()} (2 entrées) & Une anomalie se propage à toutes les
+\code{.shapiro\_sur()} (2 entrées)~; \code{stat\_dw()}, \code{test\_runs()},
+\code{stat\_supF()}, \code{stat\_cusum()} et \code{test\_grubbs()} (2 entrées
+chacune, sur $z_t$ et sur les ratios bruts $u_t$) & Une anomalie se propage à toutes les
 entrées issues de l'appel. \\
+Base « ratios bruts » & six lignes sur $u_t$, calculées dans
+\code{.stats\_}\newline\code{bootstrapables()}\newline suites~: \code{usp\_runsr\_}\newline
+\code{p\_exacte()} + \code{usp\_regime()} & La série $u_t$ est construite hors de \code{usp\_noyau()}~:
+une anomalie du noyau n'atteint pas la statistique observée de ces six lignes, mais
+atteint leur loi de référence, simulée sous le modèle ajusté. La p-value exacte des
+suites dépend en outre du régime de $\hat\pi_t$ et du test de concordance des
+signes. \\
 Fonction commune aux deux méthodes & \code{test\_grubbs()},
 \code{test\_rosner()}, \code{test\_runs()}, \code{stat\_dw()},
 \code{.shapiro\_sur()}, \code{stat\_lilliefors()}, \code{usp\_credibilite()} &
