@@ -192,4 +192,30 @@ verifier("Reference premium comparee a elle-meme : conforme, 0 feuille different
            r <- comparer(readRDS(f), readRDS(f))
            r$conforme && r$n_differentes == 0L && r$n_feuilles > 10000L })
 
+## --- Exclusion par conception (issue #22, decision du mainteneur) -----------
+# ajustement$gradient et ajustement$gradient_projete : residus ~0 dependant du
+# demarrage retenu, exclus de la comparaison ; hessien_gamma reste compare.
+aj_ref <- list(ajustement = list(gradient = c(delta = -0.53, gamma = 1.0763e-05),
+                                 gradient_projete = c(delta = 0, gamma = 1.0763e-05),
+                                 hessien_gamma = 31.3464, pas_newton_gamma = -3.4e-07),
+               tests = list(list(test = "t", p_mc = 0.5)))
+neutr <- outils_env$neutraliser_instables
+verifier("neutraliser_instables : une perturbation de gradient et gradient_projete n'est pas signalee",
+         {
+           b <- aj_ref
+           b$ajustement$gradient[["gamma"]] <- -3.8e-07
+           b$ajustement$gradient[["delta"]] <- -0.4
+           b$ajustement$gradient_projete[["gamma"]] <- -3.8e-07
+           brut <- comparer(aj_ref, b); r <- comparer(neutr(aj_ref), neutr(b))
+           !brut$conforme && r$conforme && r$n_ecarts == 0L
+         })
+verifier("neutraliser_instables : une perturbation de hessien_gamma reste signalee",
+         {
+           b <- aj_ref; b$ajustement$hessien_gamma <- 31.3464 * (1 + 1e-4)
+           r <- comparer(neutr(aj_ref), neutr(b))
+           !r$conforme && r$n_ecarts == 1L
+         })
+verifier("neutraliser_instables : objet sans ajustement (Merz-Wuthrich) inchange",
+         { o <- list(tests = list(list(test = "t", p_mc = 0.5))); identical(neutr(o), o) })
+
 fin_fichier()

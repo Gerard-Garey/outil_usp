@@ -137,6 +137,13 @@ CRED_COURT <- c(`5` = .34, `6` = .51, `7` = .67, `8` = .81, `9` = .92,
 # (delta_au_bord) et usp_regime() (pi_constant).
 TOL_DELTA_BORD <- 1e-6
 
+# Bornes de recherche de gamma dans usp_ajuster() (L-BFGS-B). Bornes
+# NUMERIQUES, non reglementaires (le reglement ne borne que delta) : un gamma
+# estime sur l'une d'elles signale que le maximum de vraisemblance n'est pas
+# atteint (controle de la condition du premier ordre, issue #22). Les memes
+# valeurs sont ecrites en dur dans usp_ajuster_rapide() et usp_profil().
+BORNES_GAMMA <- c(-12, 3)
+
 usp_credibilite <- function(T, bareme = c("court", "long")) {
   bareme <- match.arg(bareme)
   tab <- if (bareme == "long") CRED_LONG else CRED_COURT
@@ -275,44 +282,221 @@ usp_objectif <- function(par, x, y, xbar) {
   if (!is.finite(o)) 1e12 else o
 }
 
+# Gradient analytique de l'objectif profile O(delta, gamma) = usp_noyau()$obj
+# (issue #22). ln(beta) etant le minimiseur de O a (delta, gamma) fixes (forme
+# fermee de usp_noyau(), dO/d ln(beta) = -2 somme(pi_t v_t) = 0), la derivee
+# totale se reduit a la derivee partielle a ln(beta) fixe (theoreme de
+# l'enveloppe) :
+#   dO/dpi_t = s_t / pi_t,  s_t = z_t^2 - 1 - z_t / sqrt(pi_t),
+#   pi_t = 1 / ln(1 + e a_t),  a_t = delta + (1 - delta) xbar / x_t,
+#   e = exp(2 gamma), d'ou
+#   g_delta = somme(-pi_t e (1 - xbar / x_t) / (1 + e a_t) s_t),
+#   g_gamma = somme(-pi_t 2 e a_t / (1 + e a_t) s_t).
+# A pi_t constant (delta = 1 ou volumes constants), somme(z_t) = 0 et
+# g_gamma = w (somme(z_t^2) - T), w = -pi 2 e a / (1 + e a) ; a volumes
+# constants, g_delta = 0 (delta non identifie). Verifie contre la
+# difference centree de usp_noyau()$obj (tests/unitaires/
+# test_controles_numeriques.R).
+usp_gradient <- function(delta, gamma, x, y, xbar = mean(x)) {
+  k <- usp_noyau(delta, gamma, x, y, xbar)
+  e <- exp(2 * gamma)
+  a <- delta + (1 - delta) * xbar / x
+  s <- k$z^2 - 1 - k$z / sqrt(k$pi)
+  c(delta = sum(-k$pi * e * (1 - xbar / x) / (1 + e * a) * s),
+    gamma = sum(-k$pi * 2 * e * a / (1 + e * a) * s))
+}
+
+# Condition du premier ordre (Kuhn-Tucker) au point (delta, gamma), issue #22 :
+#   - gradient : usp_gradient() ;
+#   - gradient_projete : composante annulee si elle pousse hors du domaine au
+#     bord (borne inferieure : min(g, 0) ; borne superieure : max(g, 0)),
+#     inchangee a l'interieur. Bord jugee a TOL_DELTA_BORD pres, pour delta
+#     dans [0, 1] comme pour gamma dans BORNES_GAMMA ;
+#   - hessien_gamma : difference centree (pas h) du gradient analytique en
+#     gamma ;
+#   - pas_newton_gamma : -pg_gamma / H_gamma_gamma, NA si la courbure n'est
+#     pas strictement positive, si le gradient n'est pas fini, ou si gamma
+#     est sur une borne numerique (le pas n'y a pas de sens : le maximum de
+#     vraisemblance n'est pas atteint ; mineur d'audit, issue #22).
+# Les valeurs sont du bruit d'optimiseur (dependant de la plateforme) : elles
+# ne sont restituees que dans des champs numeriques, jamais dans un libelle.
+usp_condition_premier_ordre <- function(delta, gamma, x, y, xbar = mean(x),
+                                        tol = TOL_DELTA_BORD, h = 1e-4) {
+  g <- usp_gradient(delta, gamma, x, y, xbar)
+  projeter <- function(gi, v, bas, haut) {
+    if (!is.finite(gi)) gi
+    else if (v <= bas + tol) min(gi, 0)
+    else if (v >= haut - tol) max(gi, 0)
+    else gi
+  }
+  pg <- c(delta = projeter(g[["delta"]], delta, 0, 1),
+          gamma = projeter(g[["gamma"]], gamma, BORNES_GAMMA[1], BORNES_GAMMA[2]))
+  H <- (usp_gradient(delta, gamma + h, x, y, xbar)[["gamma"]] -
+        usp_gradient(delta, gamma - h, x, y, xbar)[["gamma"]]) / (2 * h)
+  gamma_bord <- !is.finite(gamma) || gamma <= BORNES_GAMMA[1] + tol ||
+    gamma >= BORNES_GAMMA[2] - tol
+  pas <- if (!gamma_bord && is.finite(H) && H > 0 && is.finite(pg[["gamma"]]))
+    -pg[["gamma"]] / H else NA_real_
+  list(gradient = g, gradient_projete = pg, hessien_gamma = H, pas_newton_gamma = pas)
+}
+
 # Minimisation sous contrainte 0 <= delta <= 1 (annexe XVII, par. 6),
 # avec démarrages multiples pour éviter les optima locaux.
-usp_ajuster <- function(x, y, n_starts_delta = 9, verbose = FALSE) {
+# controle : parametres de stats::optim() ; la valeur par defaut est celle
+# du calcul. Un autre reglage ne sert qu'aux tests (ajustement deliberement
+# non converge, issue #22).
+usp_ajuster <- function(x, y, n_starts_delta = 9, verbose = FALSE,
+                        controle = list(factr = 1e5, maxit = 500)) {
   xbar <- mean(x)
   grille_d <- seq(0, 1, length.out = n_starts_delta)
   grille_g <- log(c(0.01, 0.03, 0.06, 0.10, 0.20, 0.40))
   starts <- expand.grid(delta = grille_d, gamma = grille_g)
   best <- NULL
   vals <- rep(NA_real_, nrow(starts))
+  codes <- rep(NA_integer_, nrow(starts))
   for (i in seq_len(nrow(starts))) {
     fit <- try(stats::optim(
       par = c(starts$delta[i], starts$gamma[i]),
       fn = usp_objectif, x = x, y = y, xbar = xbar,
       method = "L-BFGS-B",
-      lower = c(0, -12), upper = c(1, 3),
-      control = list(factr = 1e5, maxit = 500)), silent = TRUE)
+      lower = c(0, BORNES_GAMMA[1]), upper = c(1, BORNES_GAMMA[2]),
+      control = controle), silent = TRUE)
     if (inherits(fit, "try-error")) next
     vals[i] <- fit$value
+    codes[i] <- fit$convergence
+    # La marge 1e-10 retient le PREMIER demarrage a l'optimum en cas
+    # d'egalite : elle stabilise gamma estime entre plateformes (ne pas la
+    # modifier, decision du mainteneur, issue #22).
     if (is.null(best) || fit$value < best$value - 1e-10) best <- fit
   }
   if (is.null(best)) stop("Echec de l'optimisation (annexe XVII, par. 6).")
 
-  # Contrôle de convergence : proportion de démarrages atteignant l'optimum
-  # global, mesuree sur la meme grille (aucune reoptimisation redondante).
-  part_convergents <- mean(abs(vals - best$value) < 1e-6, na.rm = TRUE)
+  # Controle de convergence multi-demarrages (issue #22), mesure sur la meme
+  # grille (aucune reoptimisation redondante) : nombre de demarrages
+  # atteignant l'objectif minimal a 1e-6 pres, parmi eux ceux qui rendent le
+  # code 0 (precision de M11 : le code du seul demarrage retenu ne decide
+  # pas ; mesure d'audit, le premier demarrage a l'optimum peut rendre 52
+  # quand 53 autres, a 1,9e-12 pres, rendent 0), demarrages sans resultat
+  # (erreur d'optim()), et part kappa parmi les demarrages aboutis.
+  a_optimum <- abs(vals - best$value) < 1e-6
+  part_convergents <- mean(a_optimum, na.rm = TRUE)
+  n_optimum <- sum(a_optimum, na.rm = TRUE)
+  n_optimum_code0 <- sum(a_optimum & codes == 0L, na.rm = TRUE)
+  n_echec <- sum(is.na(vals))
 
   d <- best$par[1]; g <- best$par[2]
   k <- usp_noyau(d, g, x, y, xbar)
-  # Condition du premier ordre du maximum de vraisemblance : sum(pi_t * v_t) = 0.
-  # C'est CETTE somme ponderee qui est contrainte a zero, et non la moyenne
-  # simple des residus standardises (elles ne coincident que si pi_t est
-  # constant, c'est-a-dire delta = 1 ou volumes x_t constants).
-  foc <- abs(sum(k$pi * k$v)) / sum(k$pi)
+  # Condition du premier ordre (issue #22) : gradient analytique de l'objectif
+  # profile, projete sur les bornes. L'ancienne grandeur
+  # |somme(pi_t v_t)| / somme(pi_t) etait une identite de la forme fermee de
+  # ln(beta), nulle pour tout couple (delta, gamma) : elle ne controlait pas
+  # la convergence et a ete retiree.
+  cpo <- usp_condition_premier_ordre(d, g, x, y, xbar)
   c(k, list(delta = d, gamma = g, T = length(x), x = x, y = y, xbar = xbar,
-            foc = foc,
+            gradient = cpo$gradient, gradient_projete = cpo$gradient_projete,
+            hessien_gamma = cpo$hessien_gamma, pas_newton_gamma = cpo$pas_newton_gamma,
             obj_min = best$value, convergence = best$convergence,
             part_starts_convergents = part_convergents,
+            n_starts_optimum = n_optimum, n_starts_optimum_code0 = n_optimum_code0,
+            n_starts_echec = n_echec,
             delta_au_bord = usp_regime(d, x)$delta_au_bord))
+}
+
+# Controles numeriques de l'estimation lognormale (issue #22, decision M11 du
+# mainteneur) : condition du premier ordre et convergence multi-demarrages.
+# Ce ne sont pas des tests statistiques : ils figurent dans res$controles
+# (famille "H."), au format de usp_controle_donnees(), avec une semantique
+# OK / ECHEC, et ne sont PAS bloquants (un ECHEC est restitue, le calcul est
+# produit, comme "Credibilite pleine atteinte").
+# Regle de stabilite inter-plateformes : le detail ne contient aucune valeur
+# d'optimiseur (g, pg, H, pas de Newton, objectifs) ; ces valeurs sont dans
+# les champs numeriques de fit (res$ajustement) et dans stat. Seuls y
+# figurent les reperes, le regime de delta, la decision et des entiers.
+usp_controles_numeriques <- function(fit) {
+  fam <- "H. Controles numeriques de l'estimation"
+  res <- list()
+  add <- function(nom, ok, stat, detail) res[[length(res) + 1]] <<-
+    list(famille = fam, test = nom, stat = as.double(stat), p = NA_real_,
+         verdict = if (ok) "OK" else "ECHEC", detail = detail)
+
+  # --- Condition du premier ordre (KKT) -------------------------------------
+  # Reperes : |pas de Newton en gamma| <= 1e-6, ancre sur M9 (erreur relative
+  # sur sigma ~ Delta gamma, tolerance de non-regression 1e-6) ; plancher
+  # Delta gamma ~ -h^2/3 ~ -3,3e-7 (biais de la difference centree d'optim(),
+  # ndeps = h = 1e-3 ; derivation d'actuary verifiee par simulation). Taux de
+  # faux ECHEC mesure de 0,5 a 1 % a delta interieur (dispersion des points
+  # d'arret equivalents, jusqu'a ~2,5e-6), nul au bord : cause traitee par #63.
+  # |pg_delta| <= 1e-4, REGLE UNIQUE au bord comme a l'interieur (decision du
+  # mainteneur apres audit : exiger pg_delta = 0 au bord creait une
+  # discontinuite, residu 3,6e-6 -> ECHEC au bord, OK a delta interieur apres
+  # une perturbation des donnees de 1e-12) ; repere fixe sur mesure.
+  REP_PAS <- 1e-6; REP_GD <- 1e-4
+  g <- fit$gradient; pg <- fit$gradient_projete
+  H <- fit$hessien_gamma; pas <- fit$pas_newton_gamma
+  grad_fini <- all(is.finite(c(g, pg)))
+  courbure_finie <- is.finite(H)
+  gamma_bord <- !is.finite(fit$gamma) ||
+    fit$gamma <= BORNES_GAMMA[1] + TOL_DELTA_BORD || fit$gamma >= BORNES_GAMMA[2] - TOL_DELTA_BORD
+  courbure_ok <- courbure_finie && H > 0
+  pas_ok <- !gamma_bord && is.finite(pas) && abs(pas) <= REP_PAS
+  au_bord <- isTRUE(fit$delta_au_bord)
+  delta_ok <- isTRUE(abs(pg[["delta"]]) <= REP_GD)
+  ok <- grad_fini && !gamma_bord && courbure_ok && pas_ok && delta_ok
+  # Volumes constants (#58) : pi_t ne depend pas de delta, g_delta = 0 et
+  # delta n'est pas identifie ; la valeur rendue par l'optimiseur (souvent 0)
+  # est un artefact, et le libelle ne la presente pas comme un bord.
+  vol_cst <- isTRUE(usp_regime(fit$delta, fit$x)$volumes_constants)
+
+  txt_delta <- if (vol_cst)
+    sprintf(paste("volumes constants : delta non identifie (#58), composante en delta",
+                  "du gradient %s le repere 1e-4"),
+            if (delta_ok) "sous" else "au-dessus de")
+  else if (au_bord)
+    sprintf(paste("delta AU BORD %d : composante projetee du gradient en delta %s le",
+                  "repere 1e-4 (condition de Kuhn-Tucker %s)"),
+            if (fit$delta >= 0.5) 1L else 0L,
+            if (delta_ok) "sous" else "au-dessus de",
+            if (delta_ok) "satisfaite" else "violee")
+  else sprintf("delta interieur a [0, 1] : |g_delta| %s le repere 1e-4",
+               if (delta_ok) "sous" else "au-dessus de")
+  txt_gamma <- if (gamma_bord)
+    "gamma sur une borne numerique de [-12, 3] : maximum de vraisemblance non atteint, pas de Newton non defini"
+  else "gamma interieur a [-12, 3]"
+  txt_pas <- if (gamma_bord) NULL
+  else if (!courbure_ok)
+    "courbure H_gamma_gamma non strictement positive : pas de Newton non defini"
+  else sprintf(paste("courbure H_gamma_gamma positive ; pas de Newton |Delta gamma| =",
+                     "|pg_gamma / H_gamma_gamma| %s le repere 1e-6"),
+               if (pas_ok) "sous" else "au-dessus de")
+  add("Condition du premier ordre (gradient projete, KKT)", ok, pas,
+      paste0(if (!grad_fini) "Gradient non fini. " else "",
+             if (!courbure_finie) "Courbure non finie. " else "",
+             "Gradient analytique de l'objectif profile O(delta, gamma), projete sur ",
+             "les bornes. ", paste(c(txt_delta, txt_gamma, txt_pas), collapse = " ; "), ". ",
+             "Repere 1e-6 ancre sur M9 : l'erreur relative sur sigma estime est de ",
+             "l'ordre de Delta gamma ; plancher Delta gamma ~ -h^2/3 ~ -3,3e-7, biais ",
+             "de la difference centree d'optim() (ndeps = h = 1e-3). Valeurs numeriques : ",
+             "res$ajustement (gradient, gradient_projete, hessien_gamma, ",
+             "pas_newton_gamma) ; stat = Delta gamma."))
+
+  # --- Convergence multi-demarrages ------------------------------------------
+  # Precision de M11 (decision du mainteneur apres audit) : reussi si au
+  # moins UN demarrage a l'optimum rend le code 0 et si au moins deux
+  # demarrages atteignent l'optimum. Le code du demarrage retenu reste inscrit
+  # dans le detail (entier), sans decider seul.
+  code <- fit$convergence; n_opt <- fit$n_starts_optimum
+  n_opt0 <- fit$n_starts_optimum_code0
+  ok_m <- isTRUE(n_opt0 >= 1) && isTRUE(n_opt >= 2)
+  add("Convergence multi-demarrages", ok_m, fit$part_starts_convergents,
+      sprintf(paste("%d demarrage(s) a moins de 1e-6 de l'objectif minimal, dont %d au code",
+                    "de retour 0 d'optim() (convergence) ; code du demarrage retenu = %d ;",
+                    "%d demarrage(s) sans resultat. Regle : au moins un demarrage a l'optimum",
+                    "au code 0 et au moins deux demarrages a l'optimum (convention minimale,",
+                    "sans reference). Part kappa des demarrages aboutis a l'optimum = %.2f :",
+                    "grandeur descriptive, sans repere (stat = kappa)."),
+              as.integer(n_opt), as.integer(n_opt0), as.integer(code),
+              as.integer(fit$n_starts_echec), fit$part_starts_convergents))
+  res
 }
 
 # Regime de l'ajustement lognormal (issue #31), fonction pure de (delta, x).
@@ -1967,22 +2151,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 
   ## --- G. Robustesse de l'estimation -----------------------------------------
   fam <- "G. Robustesse de l'estimation"
-  add(fam, "Condition du premier ordre |sum(pi_t*v_t)|/sum(pi_t)",
-      "Diagnostic numerique (annexe XVII, par. 4-6)", type = "diagnostic",
-      estim_nom = "FOC relative", estim = fit$foc,
-      detail = paste0(sprintf("valeur %.1e ; repere numerique 1e-6. ", fit$foc),
-                      "IDENTITE algebrique, non un controle de convergence : ",
-                      "ln(beta) etant obtenu en forme fermee par usp_noyau(), ",
-                      "somme(pi_t v_t) = 0 pour TOUT couple (delta, gamma), converge ",
-                      "ou non. Cette grandeur est donc nulle a la precision machine ",
-                      "quel que soit l'etat de l'optimisation ; une valeur au-dessus ",
-                      "du repere ne peut signaler qu'une anomalie arithmetique."))
-  add(fam, "Convergence multi-demarrages", "Diagnostic numerique (L-BFGS-B)",
-      type = "diagnostic",
-      estim_nom = "part des demarrages a l'optimum", estim = fit$part_starts_convergents,
-      detail = sprintf(paste("part des demarrages a l'optimum = %.2f ; repere conventionnel 0.5 ;",
-                             "code de retour optim = %d (0 = convergence)"),
-                       fit$part_starts_convergents, fit$convergence))
+  # La condition du premier ordre et la convergence multi-demarrages ne sont
+  # pas des tests : elles figurent dans res$controles, famille "H."
+  # (usp_controles_numeriques(), issue #22, decision M11).
   # Jackknife et IC : le detail restitue l'ecart sur sigma_USP (qui depend de
   # la table de l'annexe par (1-c) sigma_std) ET l'ecart sur la seule part
   # estimee sigma(delta, gamma) (independante de la table et du bareme). La
@@ -3945,6 +4116,8 @@ run_engine <- function(xt, yt,
   # --- 3. Estimation, bootstrap, robustesse ---------------------------------
   controles <- usp_controle_donnees(xt, yt, alpha)
   fit   <- usp_ajuster(xt, yt)
+  # Controles numeriques de l'estimation (famille H, non bloquants, #22)
+  controles <- c(controles, usp_controles_numeriques(fit))
   boot  <- usp_bootstrap(fit, B = B, seed = seed, progres = FALSE)
   param <- usp_parametre(fit, sigma_standard, bareme)
   jack  <- usp_jackknife(fit, sigma_standard, bareme)

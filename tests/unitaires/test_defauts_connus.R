@@ -146,7 +146,7 @@ verifier("Issue #39 (2) : pi_t non constant, la variance renvoie a la condition 
            d_int <- 1 - 2 * tau
            fit_int <- c(usp_noyau(d_int, fit$gamma, x, y),
              list(delta = d_int, gamma = fit$gamma, T = length(x), x = x, y = y,
-                  xbar = mean(x), foc = 0, convergence = 0L, part_starts_convergents = 1,
+                  xbar = mean(x), convergence = 0L, part_starts_convergents = 1,
                   delta_au_bord = usp_regime(d_int, x)$delta_au_bord))
            ff <- list(fit0, fit_int)
            dv <- vapply(ff, function(f)
@@ -217,7 +217,7 @@ verifier("Issue #39 (4) : R2 de type diagnostic (type et detail), INFO et sens N
 fit_regime <- function(d) {
   c(usp_noyau(d, fit$gamma, x, y),
     list(delta = d, gamma = fit$gamma, T = length(x), x = x, y = y, xbar = mean(x),
-         foc = 0, convergence = 0L, part_starts_convergents = 1,
+         convergence = 0L, part_starts_convergents = 1,
          delta_au_bord = usp_regime(d, x)$delta_au_bord))
 }
 details_regime <- function(f) {
@@ -288,7 +288,7 @@ verifier("Revue PR #57 (issue #31) : volumes d'etendue relative tau/2 (delta = 0
            rg <- usp_regime(0.37, xv)
            f <- c(usp_noyau(0.37, fit$gamma, xv, y),
                   list(delta = 0.37, gamma = fit$gamma, T = length(xv), x = xv, y = y,
-                       xbar = mean(xv), foc = 0, convergence = 0L,
+                       xbar = mean(xv), convergence = 0L,
                        part_starts_convergents = 1, delta_au_bord = rg$delta_au_bord))
            dc <- details_regime(f)[["Centrage des residus standardises"]]
            if (!isTRUE(rg$pi_constant) || isTRUE(rg$pi_constant_exact))
@@ -379,8 +379,9 @@ verifier("Diagnostics lognormaux : repere nomme dans le detail, jamais 'seuil' (
            reperes <- c("Coefficient de determination R2" = "R2 < 0.5",
                         "Points influents (distance de Cook)" = "4/T",
                         "Leviers (hat values)" = "2k/T",
-                        "Condition du premier ordre |sum(pi_t*v_t)|/sum(pi_t)" = "1e-6",
-                        "Convergence multi-demarrages" = "0.5",
+                        # Condition du premier ordre et multi-demarrages : sortis
+                        # de la table vers res$controles (#22, M11), reperes
+                        # verifies dans test_controles_numeriques.R.
                         "Sensibilite au retrait d'une annee (jackknife)" = "10 % / 20 %",
                         "Largeur relative de l'IC bootstrap 90%" = "50 % / 80 %")
            dd <- stats::setNames(tab_ln$commentaire, tab_ln$test)

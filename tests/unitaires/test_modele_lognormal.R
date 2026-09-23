@@ -101,8 +101,13 @@ for (cas in list(list(nom = "jeu de test (delta au bord)", f = f_t, x = x, y = y
            isTRUE(proche(cas$f$sigma, m$sigma, rel = 1e-5)))
   verifier(sprintf("usp_ajuster : objectif minimal <= optimum independant, %s", cas$nom),
            cas$f$obj_min + length(cas$x) * log(2 * pi) + 2 * sum(log(cas$y)) <= m$m2ll + 1e-7)
+  # Issue #22 : la condition du premier ordre est jugee sur le gradient
+  # analytique projete (pas de Newton en gamma sous le repere 1e-6) et la
+  # convergence multi-demarrages sur le code de retour et au moins deux
+  # demarrages a l'optimum (detail dans test_controles_numeriques.R).
   verifier(sprintf("usp_ajuster : condition du premier ordre et convergence, %s", cas$nom),
-           cas$f$foc < 1e-8 && cas$f$convergence == 0 && cas$f$part_starts_convergents >= 0.5)
+           abs(cas$f$pas_newton_gamma) <= 1e-6 && cas$f$hessien_gamma > 0 &&
+             cas$f$convergence == 0 && cas$f$n_starts_optimum >= 2)
 }
 verifier("usp_ajuster : delta au bord signale (jeu de test, delta = 1), non signale (delta = 0,66)",
          isTRUE(f_t$delta_au_bord) && f_t$delta > 1 - 1e-6 &&
@@ -233,10 +238,14 @@ verifier("usp_regime : a delta = 1 - tau, etendue relative des pi_t <= 2 tau ete
            p <- usp_pi(1 - tau, f_t$gamma, x)
            diff(range(p)) / mean(p) <= 2 * tau * diff(range(mean(x) / x))
          })
-verifier("usp_ajuster : aucun champ ajoute a l'ajustement (structure des references)",
+verifier("usp_ajuster : liste exacte des champs de l'ajustement (structure des references, #22)",
          identical(names(f_t), c("pi", "ln_beta", "beta", "v", "z", "sigma", "obj",
-                                 "delta", "gamma", "T", "x", "y", "xbar", "foc",
+                                 "delta", "gamma", "T", "x", "y", "xbar",
+                                 "gradient", "gradient_projete", "hessien_gamma",
+                                 "pas_newton_gamma",
                                  "obj_min", "convergence", "part_starts_convergents",
+                                 "n_starts_optimum", "n_starts_optimum_code0",
+                                 "n_starts_echec",
                                  "delta_au_bord")))
 echec_attendu("usp_ajuster : erreur explicite si l'objectif n'est fini en aucun point",
               "constat audit : y[3] = Inf -> sigma = Inf, obj_min = 1e12, sans erreur",

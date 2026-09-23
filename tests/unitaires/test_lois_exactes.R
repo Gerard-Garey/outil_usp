@@ -263,7 +263,7 @@ f29_bande <- local({
   r[o[5]] <- r[o[4]] * (1 - 1e-10); yy <- r * x29
   c(usp_noyau(d, f29$gamma, x29, yy),
     list(delta = d, gamma = f29$gamma, T = length(x29), x = x29, y = yy,
-         xbar = mean(x29), foc = 0, convergence = 0L, part_starts_convergents = 1,
+         xbar = mean(x29), convergence = 0L, part_starts_convergents = 1,
          delta_au_bord = usp_regime(d, x29)$delta_au_bord))
 })
 u_de <- function(f) { r <- f$y / f$x; r - mean(r) }
@@ -397,7 +397,7 @@ verifier("Runsr (#29) : variante 1b, pi_t constant a la tolerance pres avec sign
              d <- 1 - TOL_DELTA_BORD / 2
              c(usp_noyau(d, f29$gamma, x29, y29),
                list(delta = d, gamma = f29$gamma, T = length(x29), x = x29, y = y29,
-                    xbar = mean(x29), foc = 0, convergence = 0L, part_starts_convergents = 1,
+                    xbar = mean(x29), convergence = 0L, part_starts_convergents = 1,
                     delta_au_bord = usp_regime(d, x29)$delta_au_bord))
            })
            b <- ligne29(f, "Test des suites sur ratios bruts")

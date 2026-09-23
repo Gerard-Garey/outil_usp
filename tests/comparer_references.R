@@ -17,7 +17,8 @@
 #      Rscript tests/comparer_references.R            # tous les cas
 #      Rscript tests/comparer_references.R premium    # un seul cas
 #  Options :
-#      --tout          inclure les grandeurs de INSTABLES (exclues sinon) ;
+#      --tout          inclure les grandeurs de INSTABLES et les champs
+#                      EXCLUS_AJUSTEMENT (issue #22), exclus sinon ;
 #      --seuil <tol>   afficher les ecarts au-dela de tol au lieu de
 #                      TOLERANCE (par ex. --seuil 0 pour lister toutes les
 #                      feuilles non strictement identiques) ; n'influe que
