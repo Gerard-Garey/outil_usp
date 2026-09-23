@@ -2682,6 +2682,13 @@ Cette p-value est exacte \textbf{si $\Delta$ est fixée a priori}. Avec la marge
 $\Delta = \theta\bar y$, la marge dépend des données et l'exactitude n'est plus qu'approchée~; le
 moteur signale alors la nature de la p-value comme \emph{quasi-exacte} et non comme exacte. Pour
 un dossier ACPR, il est recommandé d'arrêter $\Delta$ à l'avance et de le documenter.
+Deux cas sont restitués «~non applicable~», sans p-value retenue et en \code{INFO}
+(issue~\#58)~: les volumes constants ($x_t$ tous égaux, garde \code{sd(x) == 0} de
+\code{test\_tost\_intercept()}), où la régression auxiliaire n'est pas définie, et une marge
+invalide (sans \code{delta\_equiv}~: \code{theta\_equiv} non fini ou $\theta \le 0$~; avec
+\code{delta\_equiv}~: $\Delta$ non finie ou non strictement positive, $\theta$ étant alors
+ignoré)~; les volumes constants priment sur la marge, et le commentaire de la ligne nomme le
+motif.
 \Usage
 C'est le seul test du dispositif qui puisse fournir une \emph{preuve positive} de la
 proportionnalité exigée par l'annexe~XVII. Sa limite est celle de tous les tests à $T = 8$~: la
@@ -3191,6 +3198,21 @@ car (i) l'écart-type asymptotique de $\hat\delta$ n'est alors pas défini de ma
 asymptotique standard des tests sur $\delta$ ne s'applique plus (voir la correction de Chernoff
 en section~\ref{sec:robustesse}). Sur des historiques de 5 à 12 points, la solution au bord est le cas de figure le
 plus fréquent en pratique.
+
+\textbf{Volumes constants} (issue~\#58). Si les $x_t$ sont constants (drapeau
+\code{\$volumes\_constants} de \code{usp\_regime()}, tolérance relative
+\code{TOL\_DELTA\_BORD}), $a_t = 1$ pour tout $t$~: $\pi_t$ ne dépend plus de $\delta$ et la
+vraisemblance est plate en $\delta$, qui n'est pas identifié. La valeur affichée est celle du
+démarrage retenu par \code{usp\_ajuster()}~: le premier de la grille ($\delta = 0$), les
+autres démarrages finissant à moins de $10^{-12}$ de la même valeur de l'objectif, en deçà de
+l'écart de $10^{-10}$ exigé pour remplacer le meilleur (constat numérique~: $\hat\delta = 0$
+pour $x_t$ constant égal à 80, 110, 200 ou 5\,000 sur les pertes du jeu de contrôle, un
+démarrage se déplaçant d'au plus $4 \cdot 10^{-13}$ en $\delta$, et l'objectif est identique
+pour $\delta \in \{0 ; 0{,}125 ; \dots ; 1\}$ à $\gamma$ fixé). Le commentaire de la ligne l'écrit
+(\code{VOLUMES CONSTANTS : la vraisemblance ne depend pas de delta, qui n'est pas identifie}),
+à la place de \code{SOLUTION AU BORD}, qui serait vrai pour une mauvaise raison~; dans la bande de
+tolérance (étendue relative des volumes non nulle mais au plus \code{TOL\_DELTA\_BORD}), il
+précise que la vraisemblance ne dépend \emph{presque} pas de $\delta$.
 \end{fiche}
 
 \newpage
