@@ -485,6 +485,10 @@ $-2\ln L$ (à une constante près) \\
 \code{usp\_ajuster\_rapide()} & $x$, $y$, point de départ $(\delta_0,\gamma_0)$ &
 réajustement à un seul démarrage (\code{factr = 1e7}), employé par
 \code{usp\_bootstrap()} \\
+\code{usp\_regime()} & $\delta$, $x$, \code{tol} (constante
+\code{TOL\_DELTA\_BORD}, $10^{-6}$) & drapeaux \code{\$delta\_au\_bord},
+\code{\$volumes\_constants}, \code{\$pi\_constant} (fiche~\ref{fiche:17},
+fiche~\ref{fiche:32}) \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Lois exactes}}} \\
 \code{mk\_p\_exacte()} & série $r_t$ & p-value exacte (loi mahonienne) \\
 \code{runs\_p\_exacte()} & résidus $z_t$ & p-value exacte (Swed \& Eisenhart) \\
@@ -521,7 +525,13 @@ $\sigma_{\mathrm{USP}}$ et ses composantes \\
 $I$, $J$, $\hat f_j$, $\hat\sigma^2_j$, $Q_j$, $S_j$, $S'_j$, $\hat C(i,j)$,
 réserve par année et totale \\
 \code{mw\_extrapolation\_sigma2()} & \code{aj}, \code{tol} ($10^{-12}$) &
-valeur de $\hat\sigma^2_{J-1}$ et diagnostic de la règle d'extrapolation \\
+valeur de $\hat\sigma^2_{J-1}$, trois arguments du minimum et \code{\$retenu}
+(argument qui l'atteint, au sens littéral)~; critère de dégénérescence par
+colonne, \code{\$degeneree\_Jm3} (champs historiques \code{\$colonne},
+\code{\$nb\_facteurs}, \code{\$ecart\_relatif}, \code{\$f\_colonne}) et
+\code{\$degeneree\_Jm2} (\code{\$nb\_facteurs\_Jm2},
+\code{\$ecart\_relatif\_Jm2}, \code{\$f\_colonne\_Jm2}), et leur union
+\code{\$degeneree} \\
 \code{mw\_msep()} & \code{aj} & \code{\$msep}, \code{\$terme\_variance},
 \code{\$terme\_covariance} \\
 \code{mw\_residus()} & \code{aj} & \code{data.frame} des résidus de Mack
@@ -566,13 +576,45 @@ L'outil couvre les deux segmentations pour lesquelles l'annexe~XVII autorise des
 paramètres propres au titre du risque de primes et de réserve~: l'annexe~II
 (engagements non-vie) et l'annexe~XIV (engagements de santé non similaires à la
 vie, dits « non-SLT »). Les écarts-types standard ci-dessous sont ceux du
-règlement délégué (UE)~2015/35, \emph{Journal officiel de l'Union européenne},
-L~12 du 17 janvier 2015, p.~230 (annexe~II) et p.~269 (annexe~XIV), dans sa
-\emph{version d'origine}. Ils sont codés dans les tables
-\code{ANNEXE\_II} et \code{ANNEXE\_XIV} de \code{R/engine.R}. Ces deux annexes
-ont depuis été remplacées par le règlement délégué (UE)~2019/981~; les valeurs
-ci-dessous et celles du moteur n'en tiennent pas encore compte, et leur mise à
-jour est suivie par l'issue~\#19 du dépôt.
+règlement délégué (UE)~2015/35 dans sa \emph{version consolidée du
+14~novembre 2024}, qui fait foi pour l'outil. Les annexes~II et~XIV y portent le
+marqueur $\blacktriangledown$\,M6~: elles ont été remplacées par le règlement délégué (UE)~2019/981
+de la Commission du 8~mars 2019, \emph{Journal officiel de l'Union européenne},
+L~161 du 18~juin 2019, p.~1. Ils sont codés dans les tables
+\code{ANNEXE\_II} et \code{ANNEXE\_XIV} de \code{R/engine.R}, qui ne conservent
+pas les valeurs antérieures. \textbf{Limite de périmètre}~: l'outil ne vaut que
+pour un calcul dont la date de référence est postérieure ou égale à la date
+d'application du règlement délégué (UE)~2019/981, l'écart-type standard qui
+entre dans le mélange de l'annexe~XVII étant celui en vigueur à la date de
+référence du calcul~; il ne permet pas de reproduire un calcul selon les valeurs
+de la version d'origine (\emph{Journal officiel de l'Union européenne}, L~12 du
+17~janvier 2015, p.~230 pour l'annexe~II et p.~269 pour l'annexe~XIV), citée ici
+pour l'historique seulement.
+
+\begin{center}
+\small
+\rowcolors{2}{tablerow}{white}
+\begin{tabular}{@{}cp{8.0cm}ccc@{}}
+\rowcolor{tableheader}
+\textcolor{financeblue}{\textbf{Seg.}} &
+\textcolor{financeblue}{\textbf{Annexe II --- non-vie}} &
+\textcolor{financeblue}{\textbf{LoB}} &
+\textcolor{financeblue}{\textbf{$\sigma$ prime brut}} &
+\textcolor{financeblue}{\textbf{$\sigma$ réserve}} \\
+1 & Assurance de responsabilité civile automobile et réassurance proportionnelle y afférente & 4 et 16 & 10~\% & 9~\% \\
+2 & Autre assurance des véhicules à moteur et réassurance proportionnelle y afférente & 5 et 17 & 8~\% & 8~\% \\
+3 & Assurance maritime, aérienne et transport et réassurance proportionnelle y afférente & 6 et 18 & 15~\% & 11~\% \\
+4 & Assurance incendie et autres dommages aux biens et réassurance proportionnelle y afférente & 7 et 19 & 8~\% & 10~\% \\
+5 & Assurance de responsabilité civile générale et réassurance proportionnelle y afférente & 8 et 20 & 14~\% & 11~\% \\
+6 & Assurance crédit et cautionnement et réassurance proportionnelle y afférente & 9 et 21 & 19~\% & 17,2~\% \\
+7 & Assurance de protection juridique et réassurance proportionnelle y afférente & 10 et 22 & 8,3~\% & 5,5~\% \\
+8 & Assurance assistance et réassurance proportionnelle y afférente & 11 et 23 & 6,4~\% & 22~\% \\
+9 & Assurance pertes pécuniaires diverses et réassurance proportionnelle y afférente & 12 et 24 & 13~\% & 20~\% \\
+10 & Réassurance accidents non proportionnelle & 26 & 17~\% & 20~\% \\
+11 & Réassurance maritime, aérienne et transport non proportionnelle & 27 & 17~\% & 20~\% \\
+12 & Réassurance dommages non proportionnelle & 28 & 17~\% & 20~\% \\
+\end{tabular}
+\end{center}
 
 \begin{center}
 \small
@@ -582,14 +624,24 @@ jour est suivie par l'issue~\#19 du dépôt.
 \textcolor{financeblue}{\textbf{Seg.}} &
 \textcolor{financeblue}{\textbf{Annexe XIV --- santé non-SLT}} &
 \textcolor{financeblue}{\textbf{LoB}} &
-\textcolor{financeblue}{\textbf{$\sigma$ prime}} &
+\textcolor{financeblue}{\textbf{$\sigma$ prime brut}} &
 \textcolor{financeblue}{\textbf{$\sigma$ réserve}} \\
-1 & Assurance frais médicaux et réassurance proportionnelle y afférente & 1 et 13 & 5 \% & 5 \% \\
-2 & Assurance protection du revenu et réassurance proportionnelle y afférente & 2 et 14 & 8,5 \% & 14 \% \\
-3 & Assurance indemnisation des travailleurs et réassurance proportionnelle y afférente & 3 et 15 & 8 \% & 11 \% \\
-4 & Réassurance santé non proportionnelle & 25 & 17 \% & 20 \% \\
+1 & Assurance frais médicaux et réassurance proportionnelle y afférente & 1 et 13 & 5~\% & 5,7~\% \\
+2 & Assurance de protection du revenu, y compris réassurance proportionnelle y afférente & 2 et 14 & 8,5~\% & 14~\% \\
+3 & Assurance indemnisation des travailleurs et réassurance proportionnelle y afférente & 3 et 15 & 9,6~\% & 11~\% \\
+4 & Réassurance santé non proportionnelle & 25 & 17~\% & 17~\% \\
 \end{tabular}
 \end{center}
+
+\noindent
+Libellés, lignes d'activité de l'annexe~I et valeurs sont ceux de la version
+consolidée. Neuf des trente-deux valeurs diffèrent de la version d'origine de
+2015 (entre parenthèses)~: segment~6 de l'annexe~II, $19~\%$ ($12~\%$) et
+$17{,}2~\%$ ($19~\%$)~; segment~7, $8{,}3~\%$ ($7~\%$) et $5{,}5~\%$
+($12~\%$)~; segment~8, $6{,}4~\%$ ($9~\%$) et $22~\%$ ($20~\%$)~; segment~1 de
+l'annexe~XIV, réserve $5{,}7~\%$ ($5~\%$)~; segment~3, primes $9{,}6~\%$
+($8~\%$)~; segment~4, réserve $17~\%$ ($20~\%$). Les vingt-trois autres sont
+inchangées.
 
 \noindent
 Le facteur de crédibilité applicable est déterminé par la section~G de
@@ -604,10 +656,30 @@ cette distinction, et \code{usp\_segment\_infos()} renvoie l'ensemble des
 caractéristiques réglementaires d'un segment.
 
 \begin{encadre}
-\textbf{Portée.} L'outil ne couvre pas les deux autres paramètres remplaçables
-de l'article~218~: le facteur d'ajustement pour la réassurance non
-proportionnelle (segments 1, 4 et 5 de l'annexe~II) et l'écart-type du risque de
-révision. Il met en revanche en \oe uvre trois des méthodes de calibrage de
+\textbf{Portée.} L'outil ne couvre pas les autres paramètres remplaçables
+de l'article~218, paragraphe~1 (version consolidée)~:
+\begin{itemize}
+\item le \emph{facteur d'ajustement pour la réassurance non proportionnelle},
+  remplaçable pour chaque segment de l'annexe~II (point~a)~iii), sous
+  $\blacktriangledown$\,M6) et pour chaque segment de l'annexe~XIV
+  (point~c)~iii), sous $\blacktriangledown$\,M6), à condition qu'il existe
+  pour ce segment un contrat de réassurance en excédent de sinistres ou en
+  excédent de pertes reconnaissable au sens du paragraphe~2. Il ne faut pas le
+  confondre avec sa valeur standard~: $80~\%$ pour les segments 1, 4 et 5 de
+  l'annexe~II et $100~\%$ pour les autres (article~117, paragraphe~3), $100~\%$
+  par défaut pour tous les segments de l'annexe~XIV (article~148,
+  paragraphe~3)~;
+\item l'\emph{écart-type du risque de primes} (net) visé aux points~a)~i) et
+  c)~i), égal au produit de l'écart-type brut et de ce facteur (articles~117
+  et~148, paragraphe~3)~; l'outil prend pour paramètre standard du mélange
+  l'écart-type brut des annexes~II et~XIV quelle que soit la nature des
+  données, et le choix entre les deux lectures, nette ou brute, est ouvert
+  (issue~\#55 du dépôt)~;
+\item l'augmentation du montant des prestations de rente des sous-modules
+  « risque de révision en vie » (point~b) et « risque de révision en santé »
+  (point~d).
+\end{itemize}
+Il met en revanche en \oe uvre trois des méthodes de calibrage de
 l'annexe~XVII~: risque de primes (section~B), risque de réserve
 n\textsuperscript{o}~1 (section~C) et risque de réserve
 n\textsuperscript{o}~2 (section~D~: chaîne d'échelle et erreur de prédiction à un
@@ -756,10 +828,30 @@ mais ne reprend que ces grandeurs et refuse d'écrire la moindre valeur
 numérique finie (ADR~0006, amendement du 22~septembre 2026). Une référence
 peut donc contenir des grandeurs non numériques calculées sur une autre
 machine, mais aucune valeur numérique. Cette seconde comparaison n'est
-\textbf{pas} au bit près~: elle emploie \code{all.equal()} à une tolérance
-relative de $10^{-8}$, qui porte sur une différence relative \emph{moyenne} et
-absorbe donc une dérive diffuse, si nombreuses qu'en soient les valeurs
-touchées. Une telle dérive existe entre plateformes et a été mesurée lors de
+\textbf{pas} au bit près. Elle passe par un comparateur unique,
+\code{comparer\_objets()} de \code{tests/outils\_tests.R}, que partagent
+\code{tests/test\_reproductibilite.R}, le tableau avant / après
+(\code{tests/comparer\_references.R}) et le patch chirurgical
+(\code{tests/patcher\_reference.R})~: l'objet est aplati en valeurs
+élémentaires nommées par leur chemin, les deux objets doivent porter les mêmes
+chemins, et \textbf{chaque valeur est jugée isolément}, sans moyenne ni
+agrégat. Une valeur non numérique, ou non finie (\code{NA}, \code{NaN},
+$\pm\infty$) d'un côté, doit être identique à sa référence~; une valeur
+numérique finie doit s'en écarter d'au plus $10^{-6}$ en relatif si la
+référence dépasse $10^{-6}$ en valeur absolue, d'au plus $10^{-6}$ en absolu
+sinon (une grandeur nulle par construction, de l'ordre de $10^{-16}$ par
+arrondi, aurait sans cela un écart relatif d'ordre~1). Le type d'une valeur
+fait partie de la valeur, et la structure de l'objet (type et attributs de
+chaque n\oe ud) est comparée à part, à l'identique. Ce critère a remplacé, le
+23~septembre 2026, une comparaison par \code{all.equal()} à la tolérance
+relative de $10^{-8}$, qui portait sur une différence relative \emph{moyenne}
+et pouvait diluer un écart localisé dans un vecteur dont les autres valeurs
+dérivent --- les tirages bootstrap en sont le cas réel (décision M9 du
+mainteneur, ADR~0006, second amendement). Le seuil $10^{-6}$ est
+\emph{empirique}, non théorique~: il vaut environ trois fois la dérive maximale
+mesurée entre plateformes, décrite ci-après ($3{,}508\cdot 10^{-7}$), qu'il
+absorbe avec une marge, et il est à réexaminer lorsque les références seront
+produites par la CI (ADR~0006). Une telle dérive existe entre plateformes et a été mesurée lors de
 l'audit consigné dans l'ADR~0006 (22~septembre 2026), en confrontant le code
 alors en vigueur, exécuté sous Linux avec R~4.3.3, aux références produites sur
 le poste du mainteneur~: sur le cas de contrôle de la méthode prime, 5\,515
@@ -770,11 +862,17 @@ tirages bootstrap~; l'écart sur $\sigma_{\mathrm{USP}}$ lui-même est de l'ordr
 de $10^{-14}$ en relatif, très en deçà de la précision à laquelle le paramètre
 est lu. La branche Merz--Wüthrich est, elle, indemne (aucun écart sur le triangle
 de contrôle). Ces décomptes sont datés~: l'objet a changé depuis l'audit (il
-compte aujourd'hui 12\,391 valeurs élémentaires sur le cas de la méthode prime),
+compte aujourd'hui 12\,393 valeurs élémentaires sur le cas de la méthode prime),
 et la mesure ne peut se refaire qu'en confrontant deux plateformes. Sur le poste
 du mainteneur (Windows, R~4.3.1), le résultat courant des trois cas de contrôle
 est identique au bit près à sa référence, hors les trois champs d'exécution de
-\code{\$metadata} (\code{identical()}, mesuré le 22~septembre 2026). L'origine vraisemblable de cette dérive est l'optimiseur employé
+\code{\$metadata} (\code{identical()}, mesuré le 22~septembre 2026). Refaite
+le 23~septembre 2026 sous Linux avec R~4.3.3, au critère ci-dessus, la
+comparaison donne, sur les cas prime et réserve n\textsuperscript{o}~1,
+5\,504 valeurs sur 12\,393 non strictement identiques à leur référence, d'écart
+relatif maximal $3{,}508\cdot 10^{-7}$ (sur \code{bootstrap\$sigma\_boot}),
+aucune au-delà du seuil~; sur le cas Merz--Wüthrich, 4\,211 valeurs toutes
+identiques. L'origine vraisemblable de cette dérive est l'optimiseur employé
 par la branche lognormale sur une vraisemblance quasi plate en $\delta$, dont le
 chemin dépend de l'ordre des opérations en virgule flottante~; cette explication
 est cohérente avec la répartition observée des écarts, mais elle n'a pas été
@@ -843,7 +941,7 @@ Student, pente & \ref{fiche:4} & \code{test\_lm\_complet()} &
 Fisher global & \ref{fiche:5} & \code{test\_lm\_complet()} &
 \code{test\_lm\_complet()} (p exacte, loi $F$) & --- \\
 Coefficient $R^2$ & \ref{fiche:6} & \code{test\_lm\_complet()} &
-indicateur, aucune p-value & --- \\
+diagnostic, aucune p-value & --- \\
 RESET & \ref{fiche:7} & \code{test\_reset()} &
 \code{test\_reset()} (p asymptotique, loi $F$ approchée) & \code{RESET} \\
 Spearman ($\times 2$) & \ref{fiche:8} & \code{stats::cor.test()} (appel direct) &
@@ -871,7 +969,8 @@ Brown--Forsythe & \ref{fiche:15} & \code{test\_brown\_forsythe()} &
 Smirnov (2 éch.) & \ref{fiche:16} & \code{stats::ks.test()} (appel direct) &
 \code{stats::ks.test()} (p exacte combinatoire, sans ex \ae quo) & \code{Smirnov} \\
 Position de $\hat\delta$ & \ref{fiche:17} & \code{usp\_ajuster()} (champ
-\code{\$delta}) & diagnostic, aucune p-value & --- \\
+\code{\$delta})~; drapeau \code{\$delta\_au\_bord} par \code{usp\_regime()},
+tolérance \code{TOL\_DELTA\_BORD} & diagnostic, aucune p-value & --- \\
 
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Hypothèse H3 --- lognormalité des pertes agrégées}}} \\
 \midrule
@@ -1055,8 +1154,8 @@ branche lognormale, nombre de résidus de Mack dans la branche Merz--Wüthrich~;
 \textbf{Lecture de la colonne « Clé MC ».} Un tiret signifie qu'aucune p-value
 de Monte-Carlo n'est calculée pour ce test~: soit parce que l'hypothèse nulle
 n'appartient pas au modèle simulé (Student sur la pente, Fisher)~; soit parce
-que le test n'est pas de nature à produire de p-value (indicateurs, procédures
-de décision, diagnostics numériques)~; soit, troisième motif, parce que la
+que le test n'est pas de nature à produire de p-value (diagnostics, procédures
+de décision)~; soit, troisième motif, parce que la
 grandeur est \emph{rivée par l'estimation}~: contrainte par une condition du
 premier ordre, sa dispersion sous le modèle est gouvernée par celle des poids
 $\hat\pi_t$, non par les données, de sorte qu'elle ne peut pas contredire le
@@ -1231,7 +1330,7 @@ test) et par bootstrap paramétrique. \\
 \end{center}
 
 Le champ \code{type} classe chaque ligne en \emph{test} (hypothèse nulle et loi de référence),
-\emph{indicateur} (descriptif, comme $R^2$), \emph{diagnostic} (numérique ou d'influence),
+\emph{diagnostic} (grandeur descriptive comme $R^2$, diagnostic numérique ou d'influence),
 \emph{procédure de décision} (Rosner, qui ne produit pas de p-value) ou \emph{non applicable}.
 Le champ \code{sens} indique enfin si l'on souhaite rejeter ou ne pas rejeter $H_0$~: pour les
 tests de Student sur la pente et de Fisher, un $p$ faible est un \emph{bon} résultat, et le
@@ -1262,7 +1361,7 @@ deux grandeurs dont elle contrôle le domaine --- la réserve chain-ladder total
 $\hat R = \sum_{i=0}^{I}\big(\hat C(i,J) - C(i,I-i)\big)$ et la MSEP --- ne sont
 pas connues avant lui~; elle précède en revanche le calcul du paramètre propre et
 le bootstrap. Elle émet en outre, sans refuser le calcul, l'avertissement relatif
-à une colonne $J-3$ à facteurs individuels tous égaux, décrit dans le tableau
+à une colonne $J-3$ ou $J-2$ à facteurs individuels tous égaux, décrit dans le tableau
 ci-dessous et justifié au §\ref{sec:mw}.
 
 \textbf{Son fondement n'est pas le même que celui des autres contrôles}, et c'est
@@ -1340,12 +1439,16 @@ $\sigma_{(\text{res},s,\mathrm{USP})}$ à partir de $\sqrt{\mathrm{MSEP}}/\hat R
 réserve --- le paragraphe ne le nomme pas ainsi. Non défini pour $\hat R = 0$~;
 négatif, donc pas un écart type, pour $\hat R < 0$ (article~220,
 §\ref{sec:mw}). Bloquant. \\
-Colonne $J-3$ dégénérée \emph{(post-ajustement)} &
-$\max_i \big|F(i,J-3)/\hat f_{J-3} - 1\big| \le 10^{-12}$ &
-\textbf{Avertissement}, non bloquant~: les facteurs individuels de la colonne
-sont tous égaux, donc $\hat\sigma^2_{J-3} = 0$ et, par application littérale de
-D(5)(d)(ii), $\hat\sigma^2_{J-1} = 0$ --- la MSEP ne porte alors aucune variance
-sur la dernière année de développement (§\ref{sec:mw}). Le critère porte sur les
+Colonne $J-3$ ou $J-2$ dégénérée \emph{(post-ajustement)} &
+$\max_i \big|F(i,j)/\hat f_{j} - 1\big| \le 10^{-12}$ pour $j = J-3$ ou
+$j = J-2$ &
+\textbf{Avertissement}, non bloquant, jamais un refus~: les facteurs
+individuels de la colonne sont tous égaux, donc $\hat\sigma^2_{J-3} = 0$ ou
+$\hat\sigma^2_{J-2} = 0$ et, par application littérale de D(5)(d)(ii),
+$\hat\sigma^2_{J-1} = 0$ --- la MSEP ne porte alors aucune variance sur la
+dernière année de développement (§\ref{sec:mw}). Un seul avertissement par
+triangle, de même structure pour les trois chemins (colonne $J-3$, colonne
+$J-2$, les deux), seule la cause nommée variant. Le critère porte sur les
 facteurs, non sur une égalité à zéro en virgule flottante, que l'arrondi rend
 inopérante. \\
 Crédibilité pleine & $I + 1 \ge 10$ (barème court) & Informatif~; à défaut,
@@ -1914,8 +2017,8 @@ du résultat sur la ligne la moins informative \\
 
 Extrapolation de $\hat\sigma^2_{J-1}$ & \textbf{MW} & --- & --- & --- & --- &
 Diagnostic & Sans objet & Valeur imposée par le règlement, non estimée :
-à signaler dans le dossier, avec le cas $\hat\sigma^2_{J-3} = 0$ où la lettre du
-texte l'annule \\
+à signaler dans le dossier, avec les cas $\hat\sigma^2_{J-3} = 0$ ou
+$\hat\sigma^2_{J-2} = 0$ où la lettre du texte l'annule \\
 \end{longtable}
 \end{center}
 \end{landscape}
@@ -1997,7 +2100,8 @@ $\mathcal{O}(T^{-1/2})$ & Variance de la projection non nulle, moment d'ordre 3 
 Borne $\mathcal{O}(8^{-1/2})\approx 0{,}35$ : inexploitable. Loi exacte employée \\
 
 Wald--Wolfowitz & $R$ & $\mathcal{N}(0,1)$ & Convergence en loi &
-$\mathcal{O}(n^{-1/2})$ (TCL) ; recommandation d'usage $n_1,n_2\ge 10$ &
+Vitesse non documentée dans la littérature consultée~; loi exacte employée, la
+question est sans objet~; recommandation d'usage $n_1,n_2\ge 10$ &
 Continuité, indépendance & Loi exacte employée \\
 
 Spearman & $\hat\rho_s$ & $\mathcal{N}$ / $t(T-2)$ & Convergence en loi &
@@ -2079,7 +2183,7 @@ $\sigma_j^2$ & Convergence en probabilité &
 $\mathcal{O}_P(n_j^{-1/2})$, avec $n_j - 1$ degrés de liberté &
 M2, moments d'ordre 4 finis & $\hat\sigma^2_{J-1}$ n'est pas estimée mais
 \textbf{extrapolée} par la règle du règlement, et nulle lorsque
-$\hat\sigma^2_{J-3} = 0$ \\
+$\hat\sigma^2_{J-3} = 0$ ou $\hat\sigma^2_{J-2} = 0$ \\
 
 Variance des résidus de Mack (diagnostic) & \emph{Aucune} : identité exacte à
 $I$ fini, $\sum_{i,j} r(i,j)^2 = N-k$ pour $N$ résidus répartis sur $k$ colonnes
@@ -2283,7 +2387,11 @@ d'indépendance et de stabilité ne sont pas un artefact de la pondération
 $\hat\pi_t$. \textbf{Là où il n'y a pas de pondération, il n'y a pas d'artefact
 de pondération à détecter}, et ce contrôle perd son objet. C'est le cas dès que
 $\hat\pi_t$ est constant, donc à $\hat\delta = 1$ ou à volumes $x_t$ constants
---- soit le cas courant à $T = 8$.
+--- soit le cas courant à $T = 8$. Le moteur en décide sur cette cause, et non
+sur l'étendue observée des $\hat\pi_t$~: \code{usp\_regime()} déclare
+$\hat\pi_t$ constant lorsque $\hat\delta \ge 1 - 10^{-6}$ ou que les volumes
+sont égaux à $10^{-6}$ près en relatif, avec la tolérance
+\code{TOL\_DELTA\_BORD} justifiée à la fiche~\ref{fiche:32}.
 
 \emph{Conséquence algébrique exacte.} Lorsque $\hat\pi_t \equiv \hat\pi$, la
 forme fermée de $\ln\hat\beta$ se réduit à
@@ -2452,7 +2560,7 @@ seul facteur individuel n'en produit aucun ---, soit la limite du domaine &
 Conservé comme signal d'attention~; aucune exclusion de cellule sur ce fondement \\
 Extrapolation de $\hat\sigma^2_{J-1}$ & La quantité n'est pas estimée mais
 imposée par une règle du règlement, appuyée sur deux colonnes, qui l'annule
-lorsque $\hat\sigma^2_{J-3} = 0$ &
+lorsque $\hat\sigma^2_{J-3} = 0$ ou $\hat\sigma^2_{J-2} = 0$ &
 Diagnostic dédié~; à mentionner explicitement dans le dossier, avertissement de
 validation dans le cas dégénéré \\
 Tests de normalité (M5) & Non exigés par le modèle, et exclus du bootstrap de
@@ -2635,10 +2743,10 @@ régresseurs (indicatrices d'année, variable d'inflation). Même limite de puis
 sampling distribution of the multiple correlation coefficient}, \emph{Proceedings of the Royal
 Society A}, 121, 1928, p.~654--673.}
 \Cadre
-Même régression auxiliaire. \textbf{Il ne s'agit pas d'un test} mais d'un indicateur descriptif ;
+Même régression auxiliaire. \textbf{Il ne s'agit pas d'un test} mais d'un diagnostic descriptif ;
 les rubriques sont renseignées par cohérence de présentation.
 \Hzero
-Aucune en tant qu'indicateur. Si l'on souhaite néanmoins tester $R^2$, l'hypothèse pertinente est
+Aucune en tant que diagnostic. Si l'on souhaite néanmoins tester $R^2$, l'hypothèse pertinente est
 celle du test de Fisher ci-dessus, $H_0 : b = 0$.
 \Stat
 \[
@@ -2653,7 +2761,7 @@ $k/(T-1)$.
 \Pval
 Celle du test de Fisher,
 $p = 1 - F_{\mathcal{F},k,T-k-1}\!\big(\tfrac{R^2/k}{(1-R^2)/(T-k-1)}\big)$.
-Le script n'affiche pas de p-value sur cette ligne et la marque comme indicateur.
+Le script n'affiche pas de p-value sur cette ligne et lui donne le type \code{diagnostic}.
 \Usage
 La loi bêta donne la clé de lecture essentielle~: sous $H_0$, l'espérance de $R^2$ vaut
 $k/(T-1)$, soit $11\,\%$ pour $T=10$. Autrement dit, un $R^2$ apparemment « correct » est
@@ -3033,7 +3141,12 @@ Sans objet en tant que diagnostic. Le test formel correspondant est le test du r
 vraisemblance $H_0 : \delta = 0$ ou $\delta = 1$, documenté en section~\ref{sec:robustesse}.
 \Stat
 La valeur $\hat\delta$ elle-même, avec le drapeau
-$\mathbb{1}\{\hat\delta < 10^{-6}\ \text{ou}\ \hat\delta > 1 - 10^{-6}\}$.
+$\mathds{1}\{\hat\delta \le 10^{-6}\ \text{ou}\ \hat\delta \ge 1 - 10^{-6}\}$
+(champ \code{\$delta\_au\_bord}, calculé par \code{usp\_regime()} avec la
+tolérance \code{TOL\_DELTA\_BORD} $= 10^{-6}$, inégalités larges). Cette
+tolérance n'est pas une valeur réglementaire mais une résolution numérique,
+commune au drapeau de constance de $\hat\pi_t$~; sa justification est donnée à
+la fiche~\ref{fiche:32}.
 \Loi
 Sans objet.
 \Pval
@@ -3536,12 +3649,16 @@ $H_0$ : la suite des signes est un arrangement aléatoire, les $\binom{n}{n_1}$ 
 Loi exacte combinatoire pour $R$ (dénombrement des compositions) ; asymptotiquement
 $Z \xrightarrow{\ \mathcal{L}\ } \mathcal{N}(0,1)$.
 \Pval
-Approximation normale utilisée par le script~: $p = 2\big(1 - \Phi(|Z|)\big)$.
+p-value exacte, retenue par le moteur~: elle est calculée par \code{runs\_p\_exacte()} sur la loi
+exacte de $R$ conditionnelle à $(n_1, n_2)$, celle de F.~Swed et C.~Eisenhart (1943, section~\ref{sec:biblio}),
+tabulée par \code{.runs\_dens()}. L'approximation normale $p = 2\big(1 - \Phi(|Z|)\big)$ est
+également calculée et restituée comme p-value asymptotique, sans être retenue.
 \Usage
 Test non paramétrique très général~: il détecte aussi bien une autocorrélation (trop peu de
 suites) qu'une alternance systématique (trop de suites), sans hypothèse de forme. Limite
 importante~: l'approximation normale n'est recommandée que pour $n_1, n_2 \ge 10$, soit
-$T \ge 20$. En-deçà, la loi exacte devrait être utilisée, et la granularité de $R$ (entier compris
+$T \ge 20$. En-deçà, la loi exacte s'impose --- c'est elle que le moteur emploie (rubrique~5) ---,
+et la granularité de $R$ (entier compris
 entre 2 et $n$) limite fortement le nombre de p-values atteignables.
 \end{fiche}
 
@@ -3604,6 +3721,30 @@ $\hat\pi_t$ est \emph{constant}, c'est-à-dire lorsque $\hat\delta = 1$ ou lorsq
 $x_t$ le sont. Le seul fait que $\hat\delta$ soit au bord de $[0,1]$ ne suffit pas~: à
 $\hat\delta = 0$ avec des volumes variables, $\hat\pi_t$ varie et l'égalité $\sum_t z_t = 0$
 ne tient pas. Le moteur distingue ces trois situations dans le commentaire attaché à la ligne.
+
+\emph{Décision de la constance de $\hat\pi_t$.} $\pi_t = 1/\ln\!\big(1 + e^{2\gamma}(\delta +
+(1-\delta)\bar x/x_t)\big)$ est constant en $t$ si et seulement si $\delta = 1$ ou les volumes $x_t$
+sont constants. Le moteur décide donc sur cette \emph{cause}, par \code{usp\_regime()}, et non
+sur l'étendue observée des $\hat\pi_t$~: $\hat\pi_t$ est tenu pour constant lorsque
+$\hat\delta \ge 1 - 10^{-6}$ ou que $\max_t x_t - \min_t x_t \le 10^{-6}\,\bar x$. La tolérance
+\code{TOL\_DELTA\_BORD} $= 10^{-6}$ est la même que celle du drapeau « $\hat\delta$ au bord »
+(fiche~\ref{fiche:17}), de sorte que les deux drapeaux ne peuvent plus se contredire~; un seuil
+distinct sur l'étendue des $\hat\pi_t$ laissait auparavant une zone où $\hat\delta$ était déclaré
+au bord sans que $\hat\pi_t$ soit déclaré constant. Ce n'est pas une valeur réglementaire mais
+une résolution numérique, choisie au-dessus de celle du critère d'arrêt de l'optimiseur
+\code{L-BFGS-B} sur $\delta$. Ce critère porte sur la réduction relative de l'objectif,
+$\texttt{factr}\times\varepsilon_{\text{machine}}$, soit $2{,}2\cdot 10^{-11}$ pour l'ajustement
+complet \code{usp\_ajuster()} (\code{factr = 1e5}) et $2{,}2\cdot 10^{-9}$ pour le réajustement
+rapide \code{usp\_ajuster\_rapide()} (\code{factr = 1e7}) des réplications bootstrap~; or, sur le
+jeu de contrôle, l'objectif profilé en $\gamma$ ne varie près de $\delta = 1$ que de
+$2{,}3\cdot 10^{-2}\,(1-\delta)$ en relatif (mesuré pour $1 - \delta$ de $10^{-4}$ à
+$10^{-2}$). La résolution sur $\delta$ est donc de l'ordre de $10^{-9}$ pour l'ajustement
+complet et de $10^{-7}$ pour le réajustement rapide (approximation numérique, issue~\#31 du
+dépôt). Constat de simulation sur le
+jeu de contrôle ($B = 999$, graine 20260831)~: 953 des 999 valeurs $\hat\delta^{*}$ sont
+exactement sur une borne, et les 46 autres en sont distantes d'au moins
+$1{,}74\cdot 10^{-4}$~; aucune ne tombe entre $0$ et ce minimum, de sorte que le seuil
+$10^{-6}$ ne sépare aucun optimum intérieur observé.
 \Hzero
 Sans objet. L'hypothèse $\mathbb{E}[z_t] = 0$, sous laquelle cette grandeur était auparavant
 restituée comme un test, ne peut pas être mise en défaut par les données~: $\bar z$ est déterminé
@@ -3725,13 +3866,36 @@ $\sum_t z_t^2 = T + \sum_t v_t$ et n'aboutit à $\sum_t z_t^2 = T$ que jointe à
 $\ln\beta$) et, jointe à $\sum_t z_t = 0$ que donne celle en $\ln\beta$,
 $\operatorname{Var}(z) = T/(T-1)$ --- c'est-à-dire $1{,}143$ à $T = 8$,
 et non~1. C'est donc la condition en $\gamma$, et non celle en $\ln\beta$, qui rive la variance~:
-$\sum_t\sqrt{\hat\pi_t}\,z_t = 0$ ne dit rien de $\sum_t z_t^2$. À la différence de celle en
+$\sum_t\sqrt{\hat\pi_t}\,z_t = 0$ ne dit rien de $\sum_t z_t^2$.
+
+\emph{Forme explicite de la condition en $\gamma$.} Avec
+$\pi_t = 1/\ln\!\big(1 + e^{2\gamma}a_t\big)$, $a_t = \delta + (1-\delta)\,\bar x/x_t$
+(\code{usp\_pi()}), la condition du premier ordre en $\gamma$ s'écrit
+\[
+  \sum_{t=1}^{T} k_t\Big(z_t^2 - \frac{z_t}{\sqrt{\hat\pi_t}} - 1\Big) = 0,
+  \qquad k_t = \hat\pi_t\big(1 - e^{-1/\hat\pi_t}\big) > 0 .
+\]
+Dérivation~: à $\ln\beta$ fixé, $v_t = \ln r_t + 1/(2\pi_t) - \ln\beta$ donne
+$\partial(\pi_t v_t^2 - \ln\pi_t)/\partial\pi_t = (z_t^2 - z_t/\sqrt{\pi_t} - 1)/\pi_t$, et
+$\mathrm{d}\pi_t/\mathrm{d}\gamma = -2\pi_t^2\big(1 - e^{-1/\pi_t}\big)$ puisque
+$1 + e^{2\gamma}a_t = e^{1/\pi_t}$~; la dérivée de l'objectif en $\gamma$ vaut donc
+$-2\sum_t k_t\big(z_t^2 - z_t/\sqrt{\pi_t} - 1\big)$, et, la dérivée partielle en $\ln\beta$ étant
+nulle à la forme fermée, c'est aussi celle de l'objectif profilé. Vérifiée numériquement~: au
+point $(\delta,\gamma) = (0{,}4\,;-2)$, la différence finie centrée de l'objectif de
+\code{usp\_noyau()} et la formule concordent sur neuf chiffres significatifs. Lorsque
+$\hat\pi_t$ est constant, $k_t$ l'est aussi et la relation se réduit à
+$\sum_t z_t^2 - \sum_t z_t/\sqrt{\hat\pi} = T$, soit, jointe à $\sum_t z_t = 0$,
+$\sum_t z_t^2 = T$. Sinon, elle mêle $z_t^2$ et $z_t$ sous des poids $k_t$ et
+$k_t/\sqrt{\hat\pi_t}$ variables~: $\operatorname{Var}(z)$ reste \textbf{rivée} par cette
+condition mais n'est pas \textbf{déterminée} par elle, et son écart à $T/(T-1)$ n'a pas de
+valeur de référence. Mesuré sur le jeu de contrôle à $\delta$ fixé à $0$ (volumes variables) et
+$\gamma$ à son optimum~: la somme ci-dessus vaut $7\cdot 10^{-10}$, tandis que
+$\sum_t z_t^2 - T = 3{,}2\cdot 10^{-3}$.
+
+À la différence de celle en
 $\ln\beta$ (fiche~\ref{fiche:31}), cette seconde relation
 n'est \emph{pas} une identité algébrique~: elle suppose la dérivée en $\gamma$ effectivement
-annulée, donc l'optimisation aboutie. Hors du cas $\hat\pi_t$ constant, la condition en $\gamma$
-reste une relation pondérée, distincte de la contrainte pondérée de la fiche~\ref{fiche:31}, et
-$\operatorname{Var}(z)$ est de l'ordre de l'écart entre échelle pondérée et
-échelle non pondérée. L'argument suppose en outre l'optimum \emph{intérieur} en $\gamma$~: si
+annulée, donc l'optimisation aboutie. L'argument suppose en outre l'optimum \emph{intérieur} en $\gamma$~: si
 $\hat\gamma$ butait sur une borne de son domaine $[-12,\,3]$, la dérivée ne serait pas annulée et
 l'égalité tomberait. Cette réserve est théorique~: $\sigma = \hat\beta\,e^{\gamma}$, de sorte que
 $\gamma = 3$ signifierait $\sigma \approx 20\,\hat\beta$ et $\gamma = -12$,
@@ -3798,8 +3962,8 @@ grandeur mesurés situent ce que « notable » veut dire~: à l'optimum, $10^{-6
 \code{factr = 1e7}~; à $\hat\delta = 1$ mais $\gamma$ forcé hors de l'optimum,
 $\sum_t z_t^2 - T$ vaut $-7{,}8$ pour $\gamma = 0$ et $-7{,}97$ pour $\gamma = 3$. Un écart de cet
 ordre est donc un défaut de convergence, non une propriété des données. Lorsque $\hat\pi_t$ varie,
-l'écart est en revanche de l'ordre de la dispersion des poids, sans en être une fonction, et ne
-se lit plus comme un contrôle numérique. Le contrôle de l'échelle de $\sigma$ proprement dit
+l'écart n'a en revanche pas de valeur de référence (rubrique~1)~: la condition en $\gamma$ ne fixe
+plus $\sum_t z_t^2$, et l'écart ne se lit plus comme un contrôle numérique. Le contrôle de l'échelle de $\sigma$ proprement dit
 relève de l'intervalle bootstrap et du jackknife (section~\ref{sec:robustesse}), qui portent, eux,
 sur $\sigma_{\mathrm{USP}}$.
 \end{fiche}
@@ -4141,7 +4305,7 @@ Sans objet.
 \Stat
 Proportion de démarrages atteignant le minimum global à $10^{-6}$ près~:
 \[
-  \hat\kappa = \frac{1}{S}\sum_{s=1}^{S} \mathbb{1}\Big\{\big|\mathcal{O}_s^{\star} -
+  \hat\kappa = \frac{1}{S}\sum_{s=1}^{S} \mathds{1}\Big\{\big|\mathcal{O}_s^{\star} -
   \min_{s'}\mathcal{O}_{s'}^{\star}\big| < 10^{-6}\Big\},
 \]
 complétée par le code de retour de l'optimiseur.
@@ -4643,22 +4807,36 @@ alors deux lois simulées différentes.
 
 Parce que la variance ainsi annulée n'est, en général, pas nulle en réalité,
 \code{mw\_valider\_ajustement()} émet un \emph{avertissement} --- et non un
-refus, le cas étant licite au regard du texte --- nommant la colonne, le nombre
-de facteurs individuels concernés, leur valeur commune, l'écart relatif maximal
-mesuré et la valeur retenue. Lorsque $\hat f_{J-2}$ ou $\hat f_{J-1}$ diffère
-de~1, il ajoute que le développement n'est pas achevé, que la variance omise
-n'est donc pas nulle en réalité et que $\sigma_{(\text{res},s,\mathrm{USP})}$
-s'en trouve sous-estimé. La détection porte sur l'égalité des facteurs
-individuels de la colonne $J-3$, et non sur une égalité à zéro en virgule
-flottante (section~\ref{sec:controles})~; elle ne sert \textbf{qu'au
-diagnostic}, la valeur calculée étant, elle, indépendante de ce critère.
+refus, le cas étant licite au regard du texte --- nommant la ou les colonnes
+dégénérées, le nombre de facteurs individuels concernés, leur valeur commune,
+l'écart relatif maximal mesuré, les trois arguments du minimum et la valeur
+retenue. Lorsque des facteurs individuels des colonnes dégénérées n'ont pas de
+résidu de Mack ($\hat\sigma_j^2$ exactement nul), leur nombre, lu dans la
+sortie de \code{mw\_residus()}, est donné avec les onze lignes de M1 à M5 qui
+consomment ces résidus (constante \code{.MW\_LIGNES\_RESIDUS})~: M1, absence de
+tendance des facteurs~; M2, hétéroscédasticité résiduelle, adéquation de
+l'exposant de variance et variance unitaire des résidus~; M3, homogénéité entre
+années de survenance, Durbin--Watson et test des suites~; M4, Grubbs et ESD
+généralisé~; M5, Shapiro--Wilk et Lilliefors. Lorsque $\hat f_{J-2}$ ou
+$\hat f_{J-1}$ diffère de~1, il ajoute que le développement n'est pas achevé,
+que la variance omise n'est donc pas nulle en réalité et que
+$\sigma_{(\text{res},s,\mathrm{USP})}$ s'en trouve sous-estimé. La détection
+porte sur l'égalité des facteurs individuels des colonnes $J-3$ et $J-2$, et
+non sur une égalité à zéro en virgule flottante (section~\ref{sec:controles})~;
+elle ne sert \textbf{qu'au diagnostic}, la valeur calculée étant, elle,
+indépendante de ce critère.
 
 \emph{Cas symétrique.} $\hat\sigma_{J-2}^2 = 0$ avec $\hat\sigma_{J-3}^2 > 0$
 conduit également à $\hat\sigma_{J-1}^2 = 0$ --- sans indétermination cette
 fois, les premier et troisième arguments étant nuls --- donc à la même
-conséquence actuarielle~; il ne déclenche en revanche \textbf{aucun
-avertissement}, la détection portant sur la seule colonne $J-3$. Cette asymétrie
-de restitution est connue, assumée en l'état, et non corrigée à ce jour.
+conséquence actuarielle. Les trois arguments étant positifs ou nuls, et le
+quotient n'étant nul que si $\hat\sigma_{J-2}^2$ l'est, $\hat\sigma_{J-1}^2 = 0$
+si et seulement si $\hat\sigma_{J-2}^2 = 0$ ou $\hat\sigma_{J-3}^2 = 0$~: il
+n'existe que ces deux chemins, qui peuvent se cumuler. Le moteur les traite
+à l'identique~: \code{mw\_extrapolation\_sigma2()} applique le critère de
+dégénérescence aux deux colonnes, et \code{mw\_valider\_ajustement()} émet
+\textbf{un seul} avertissement par triangle, de même structure pour la
+colonne $J-3$, la colonne $J-2$ ou les deux, seule la cause nommée variant.
 
 \paragraph{Erreur quadratique moyenne de prédiction.} En posant
 $\hat Q_j = \hat\sigma_j^2/\hat f_j^2$,
@@ -5507,8 +5685,12 @@ développement et calendaire, qui localisent la structure.
 \refl{A.~Wald, J.~Wolfowitz (1940), \emph{op.\ cit.}}
 \Cadre
 Suite des signes des résidus de Mack par rapport à leur médiane, dans le même
-ordre de parcours que ci-dessus. On note $n_1$ le nombre de signes positifs,
-$n_2$ le nombre de négatifs et $R$ le nombre de suites.
+ordre de parcours que ci-dessus~; comme pour la méthode lognormale
+(\code{test\_runs()}), un résidu égal à la médiane, de signe nul, est écarté. On
+note $n_1$ le nombre de signes positifs, $n_2$ le nombre de négatifs,
+$n = n_1 + n_2$ et $R$ le nombre de suites. Le nombre de résidus étant impair
+sur le triangle de contrôle ($27$), la médiane y est l'un d'eux~: un résidu est
+écarté, et $n_1 = n_2 = 13$ (mesuré).
 \Hzero
 $H_0$ : la suite des signes est un arrangement aléatoire.
 \Stat
@@ -5709,7 +5891,15 @@ trois arguments et celui qui atteint le minimum, et
 la ligne, de sorte que le calcul soit refaisable à la lecture. Lorsque
 $\hat\sigma^2_{J-3} = 0$, le troisième argument n'est pas défini~; le minimum
 vaut alors~$0$ par application littérale du texte, sans que l'indétermination
-ait d'effet (§\ref{sec:mw}), et le champ \code{detail} le signale.
+ait d'effet (§\ref{sec:mw}), et le champ \code{detail} le signale. Le champ
+\code{detail} nomme la \emph{cause} du minimum, et non le seul argument qui
+l'atteint au sens littéral (champ \code{\$retenu} de
+\code{mw\_extrapolation\_sigma2()})~: colonne $J-2$ dégénérée, il nomme
+$\hat\sigma^2_{J-2}$ et précise que le quotient, nul par voie de conséquence,
+n'est pas compté comme argument distinct~; colonnes $J-3$ et $J-2$ toutes deux
+dégénérées, il nomme les deux variances ex aequo~; dans les autres cas, il
+nomme tous les arguments égaux au minimum à $10^{-12}$ près en relatif, ex
+aequo s'ils sont plusieurs.
 \Loi
 Sans objet~: la quantité n'est pas estimée mais \emph{imposée} par une règle
 d'extrapolation.
@@ -5733,14 +5923,14 @@ extrapolée hérite de cette imprécision, qu'aucune p-value ne mesure ici.
 \medskip
 \textbf{Diagnostic, sans verdict.} La ligne est restituée \code{INFO}~: elle
 n'oppose aucune hypothèse nulle à une alternative et ne dispose d'aucune loi de
-référence, de sorte qu'aucun seuil ne pourrait fonder un verdict. Le cas
-dégénéré $\hat\sigma^2_{J-3} = 0$ ne modifie pas ce statut~: il est porté par
-l'avertissement de \code{mw\_valider\_ajustement()}
-(section~\ref{sec:controles}), non par un verdict. Sur un tel triangle, et si le
+référence, de sorte qu'aucun seuil ne pourrait fonder un verdict. Les cas
+dégénérés $\hat\sigma^2_{J-3} = 0$ et $\hat\sigma^2_{J-2} = 0$ ne modifient pas
+ce statut~: ils sont portés par l'avertissement unique de
+\code{mw\_valider\_ajustement()} (section~\ref{sec:controles}), non par un
+verdict, et le calcul n'est jamais refusé. Sur un tel triangle, et si le
 développement n'est pas achevé, la MSEP ne porte aucune variance sur la dernière
-année de développement et $\sigma_{(\text{res},s,\mathrm{USP})}$ est sous-estimé~;
-le cas symétrique $\hat\sigma^2_{J-2} = 0$ conduit au même résultat sans
-déclencher d'avertissement (§\ref{sec:mw}).
+année de développement et $\sigma_{(\text{res},s,\mathrm{USP})}$ est sous-estimé,
+que la colonne dégénérée soit $J-3$, $J-2$ ou les deux (§\ref{sec:mw}).
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -5836,8 +6026,8 @@ dans 92,5~\% des cas.
 C'est le point le plus important, puisque ces p-values sont celles retenues pour la majorité des
 tests --- mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$), 26 des 50 lignes de
 la table auditable retiennent une p-value de Monte-Carlo, contre 9 une p-value exacte, 1 une
-p-value quasi-exacte et 2 une p-value asymptotique, les 12 dernières étant des diagnostics ou
-indicateurs sans p-value retenue. Sur 400 jeux de données simulés \emph{depuis le modèle} de
+p-value quasi-exacte et 2 une p-value asymptotique, les 12 dernières n'ayant aucune p-value
+retenue (10 diagnostics, 1 procédure de décision et 1 ligne non applicable). Sur 400 jeux de données simulés \emph{depuis le modèle} de
 l'annexe~XVII, la fréquence de
 rejet au seuil nominal de 10~\% a été mesurée pour chacune des statistiques bootstrapées.
 
@@ -5917,8 +6107,8 @@ La conformité de l'erreur type ultime de Mack à sa valeur publiée valide
 simultanément $\hat f_j$, $\hat\sigma_j^2$ et la règle d'extrapolation de
 $\hat\sigma_{J-1}^2$, qui sont les entrées de la MSEP à un an. Ce triangle
 n'étant pas dégénéré, le contrôle ne porte que sur le cas
-$\hat\sigma^2_{J-3} > 0$~; le cas $\hat\sigma^2_{J-3} = 0$ (§\ref{sec:mw}) est
-vérifié séparément, sur des triangles construits à cet effet, par la batterie de
+$\hat\sigma^2_{J-3} > 0$ et $\hat\sigma^2_{J-2} > 0$~; les cas $\hat\sigma^2_{J-3} = 0$ et
+$\hat\sigma^2_{J-2} = 0$ (§\ref{sec:mw}) sont vérifiés séparément, sur des triangles construits à cet effet, par la batterie de
 tests unitaires du dépôt.
 
 \medskip
@@ -6221,6 +6411,7 @@ statistique ou actuarielle.
 \midrule
 Noyau du modèle ($\pi_t$, $\hat\beta$, $z_t$) & \code{usp\_pi()}, \code{usp\_noyau()} \\
 Optimisation sous contrainte $\delta\in[0,1]$ & \code{usp\_objectif()}, \code{usp\_ajuster()} \\
+$\hat\delta$ au bord, $\hat\pi_t$ constant (fiches~\ref{fiche:17}, \ref{fiche:32}) & \code{usp\_regime()}, tolérance \code{TOL\_DELTA\_BORD} \\
 Lois exactes (Kendall, suites) & \code{mk\_p\_exacte()}, \code{runs\_p\_exacte()} \\
 Statistiques de test & \code{stat\_*()}, \code{test\_*()} \\
 Bootstrap paramétrique et p-values MC & \code{.stats\_bootstrapables()}, \code{usp\_bootstrap()} \\
@@ -6414,7 +6605,7 @@ mécaniquement l'USP, mais impose une justification explicite~: nature de l'éca
 envisagé, sensibilité du paramètre final. \\
 \code{INFO} & Diagnostic sans seuil statistique associé~: test non applicable faute d'effectif
 ($T < 8$ pour D'Agostino, $T < 20$ pour Anscombe--Glynn), grandeur rivée par l'estimation
-(fiches~\ref{fiche:32} et~\ref{fiche:33}), indicateur descriptif, ou lecture graphique.
+(fiches~\ref{fiche:32} et~\ref{fiche:33}), grandeur descriptive, ou lecture graphique.
 Relève aussi de ce verdict la grandeur dont la valeur est \emph{contrainte par
 construction}, aucun seuil ne pouvant alors rien détecter~: ainsi la variance des résidus de
 Mack, fixée à $(N-k)/(N-1)$ --- $N$ résidus, $k$ colonnes retenues --- et non à~1
@@ -6562,6 +6753,9 @@ deux méthodes \\
 pente, Fisher global, $R^2$~: \textbf{quatre entrées issues d'un seul appel} \\
 \code{usp\_noyau()}, \code{usp\_pi()} & LN & Tout le noyau lognormal~:
 résidus $z_t$, donc l'intégralité de H2, H3, H4 \\
+\code{usp\_regime()} & LN & Drapeau de la position de $\hat\delta$, libellés du
+centrage et de la variance unitaire, réserve du champ \code{detail} des six
+lignes sur ratios bruts~: une seule tolérance, \code{TOL\_DELTA\_BORD} \\
 \code{.stats\_bootstrapables()} & LN & Les 34 statistiques bootstrapées de la
 méthode lognormale, en un seul appel \\
 \code{mw\_ajuster()} & MW & $\hat f_j$, $\hat\sigma_j^2$, $\hat C(i,j)$~: entrée
@@ -6668,7 +6862,7 @@ statistique, dont sept sont mutualisées (en orangé), puis se rejoignent sur
 \node[sor, right=20mm of lm, yshift=13.5mm]  (o1) {Student constante};
 \node[sor, right=20mm of lm, yshift=4.5mm]   (o2) {Student pente};
 \node[sor, right=20mm of lm, yshift=-4.5mm]  (o3) {Fisher global};
-\node[sor, right=20mm of lm, yshift=-13.5mm] (o4) {$R^2$ (indicateur)};
+\node[sor, right=20mm of lm, yshift=-13.5mm] (o4) {$R^2$ (diagnostic)};
 
 \node[ded, below=17mm of lm] (tost) {\code{test\_tost\_intercept()}};
 \node[sor, right=20mm of tost] (o5) {Équivalence (TOST)};

@@ -47,6 +47,7 @@ Règles **obligatoires** pour toute modification de `doc_tests_usp.tex`, par un 
 - Français, avec accents ; espace insécable avant les signes doubles (`~:`, `~;`, `~?`, `~!`) ; guillemets « » ; `p.~` devant un numéro de page ; `\,` entre les initiales.
 - Nombres : virgule décimale, écrite `{,}` en mode mathématique (`0{,}10`) ; `\%` précédé d'une espace insécable (`10~\%`).
 - Notations fixes : $T$ (profondeur), $x_t$, $y_t$, $z_t$ (résidus standardisés), $\delta$, $\gamma$, $\beta$, $\pi_t$, $\sigma$, $\alpha$ (seuil), $B$ (réplications) ; estimateurs chapeautés ($\hat\delta$) ; $H_0$ et $H_1$ ; méthode Merz-Wüthrich : $C(i,j)$, $f_j$, $\sigma_j^2$. Une nouvelle notation est définie à sa première occurrence et ne redéfinit aucune des précédentes.
+- Indicatrice : `\mathds{1}` (paquet `dsfont`, chargé par le préambule), jamais `\mathbb{1}` (`amssymb` ne définit pas le 1 en gras tableau noir).
 - Mise en valeur sobre : `\textbf` pour ce qui change une lecture (rôles inversés de H0/H1, mise en garde), `\emph` pour un terme défini ou un titre.
 
 ## 4. Manière de modifier
