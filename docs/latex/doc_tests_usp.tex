@@ -860,8 +860,8 @@ strict, pour une différence relative moyenne de
 $6{,}2\cdot 10^{-10}$ et un écart relatif maximal de $3{,}5\cdot 10^{-7}$ sur les
 tirages bootstrap~; l'écart sur $\sigma_{\mathrm{USP}}$ lui-même est de l'ordre
 de $10^{-14}$ en relatif, très en deçà de la précision à laquelle le paramètre
-est lu. La branche Merz--Wüthrich est, elle, indemne (aucun écart sur le triangle
-de contrôle). Ces décomptes sont datés~: l'objet a changé depuis l'audit (il
+est lu. La branche Merz--Wüthrich était, elle, indemne sous R~4.3.3 (aucun écart sur le
+triangle de contrôle)~; ce n'est plus vrai sous R~4.3.1 (voir ci-dessous). Ces décomptes sont datés~: l'objet a changé depuis l'audit (il
 compte aujourd'hui 12\,393 valeurs élémentaires sur le cas de la méthode prime),
 et la mesure ne peut se refaire qu'en confrontant deux plateformes. Sur le poste
 du mainteneur (Windows, R~4.3.1), le résultat courant des trois cas de contrôle
@@ -872,7 +872,20 @@ comparaison donne, sur les cas prime et réserve n\textsuperscript{o}~1,
 5\,504 valeurs sur 12\,393 non strictement identiques à leur référence, d'écart
 relatif maximal $3{,}508\cdot 10^{-7}$ (sur \code{bootstrap\$sigma\_boot}),
 aucune au-delà du seuil~; sur le cas Merz--Wüthrich, 4\,211 valeurs toutes
-identiques. L'origine vraisemblable de cette dérive est l'optimiseur employé
+identiques. La même comparaison, exécutée le même jour par la CI du dépôt (Linux,
+R~4.3.1, job « Tests du moteur » de GitHub Actions~; ADR~0006, second
+amendement), donne pour les cas prime et réserve n\textsuperscript{o}~1 exactement
+le même résultat --- 5\,504 valeurs non strictement identiques sur 12\,393, écart
+maximal $3{,}508\cdot 10^{-7}$ sur la même valeur de \code{bootstrap\$sigma\_boot}
+---, et pour le cas Merz--Wüthrich 8 valeurs non strictement identiques sur
+4\,211, d'écart relatif maximal $1{,}339\cdot 10^{-13}$ (statistique de la
+première ligne de la table des tests). Deux enseignements, constatés et non
+démontrés~: sur la branche lognormale, la dérive entre le poste et Linux ne
+dépend pas de la version mineure de R, et le seuil $10^{-6}$ garde sa marge
+d'environ trois~; la branche Merz--Wüthrich, qui n'emploie pas d'optimiseur,
+n'est pas strictement indemne de toute dérive de plateforme, mais son écart,
+d'ordre $10^{-13}$, relève de l'arrondi du dernier bit et se situe six ordres de
+grandeur sous la dérive lognormale et sept sous le seuil. L'origine vraisemblable de cette dérive est l'optimiseur employé
 par la branche lognormale sur une vraisemblance quasi plate en $\delta$, dont le
 chemin dépend de l'ordre des opérations en virgule flottante~; cette explication
 est cohérente avec la répartition observée des écarts, mais elle n'a pas été
