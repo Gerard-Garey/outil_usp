@@ -39,9 +39,12 @@ if [ "$1" != "--installer" ]; then
   exit 0
 fi
 echo "Installation de TeX Live par apt, plusieurs minutes..." >&2
-# Paquets exiges par le preambule du .tex (newtx et dsfont : fonts-extra).
+# Paquets exiges par le preambule du .tex (newtx et dsfont : fonts-extra ;
+# binhex.tex, charge par les polices : plain-generic) ; pdfinfo pour la
+# verification du PDF par la skill compiler-doc (poppler-utils).
 if installer_apt pdflatex texlive-latex-extra texlive-fonts-recommended \
-     texlive-fonts-extra texlive-lang-french texlive-pictures; then
+     texlive-fonts-extra texlive-lang-french texlive-pictures \
+     texlive-plain-generic poppler-utils; then
   rapport "installe par apt"
   exit 0
 fi
