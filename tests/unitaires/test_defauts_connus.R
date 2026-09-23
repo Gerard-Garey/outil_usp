@@ -160,9 +160,9 @@ verifier("Issue #39 (2) : pi_t non constant, la variance renvoie a la condition 
              paste("variance :", paste(dv, collapse = " | "))
            else if (!all(grepl("seule la contrainte ponderee subsiste", dc, fixed = TRUE)))
              "centrage : la contrainte ponderee n'est plus nommee"
-           # Audit m5 : la condition en gamma ne fixe pas somme(z_t^2), var(z)
-           # ne "mesure" donc aucun ecart de reference.
-           else if (!all(grepl("var(z) n'est donc pas fixee par l'estimation ; son ecart a T/(T-1) n'a pas de valeur de reference",
+           # Audit m5 : la condition en gamma rive var(z) sans determiner
+           # somme(z_t^2) ; var(z) ne "mesure" donc aucun ecart de reference.
+           else if (!all(grepl("var(z) reste rivee par cette condition mais n'est pas determinee par elle ; son ecart a T/(T-1) n'a pas de valeur de reference",
                                dv, fixed = TRUE)) ||
                     any(grepl("mesure l'ecart", dv, fixed = TRUE)))
              paste("variance (m5) :", paste(dv, collapse = " | "))

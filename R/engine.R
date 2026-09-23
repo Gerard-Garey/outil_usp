@@ -1580,9 +1580,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                          "donc pas nulle ; elle mesure l'ecart entre",
                          "version ponderee et version non ponderee."),
         variance = paste("Ici delta est au bord de [0,1] mais pi_t n'est PAS constant :",
-                         cond_gamma_ponderee, "var(z) n'est donc pas fixee par",
-                         "l'estimation ; son ecart a T/(T-1) n'a pas de valeur de",
-                         "reference."),
+                         cond_gamma_ponderee, "var(z) reste rivee par cette condition mais",
+                         "n'est pas determinee par elle ; son ecart a T/(T-1) n'a pas de",
+                         "valeur de reference."),
         stop("contrainte() : grandeur inconnue : ", quoi))
     else
       switch(quoi,
@@ -1590,9 +1590,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                          "seule la contrainte ponderee subsiste ; la valeur affichee mesure",
                          "l'ecart entre version ponderee et version non ponderee."),
         variance = paste("Ici delta est interieur a [0,1] et pi_t n'est pas constant :",
-                         cond_gamma_ponderee, "var(z) n'est donc pas fixee par",
-                         "l'estimation ; son ecart a T/(T-1) n'a pas de valeur de",
-                         "reference."),
+                         cond_gamma_ponderee, "var(z) reste rivee par cette condition mais",
+                         "n'est pas determinee par elle ; son ecart a T/(T-1) n'a pas de",
+                         "valeur de reference."),
         stop("contrainte() : grandeur inconnue : ", quoi))
   }
   sans_p <- paste("Aucune p-value retenue : la grandeur est rivee par",
@@ -2365,7 +2365,12 @@ mw_ajuster <- function(tri) {
 # Fonction de RESTITUTION, sans effet sur les calculs : elle recompose, a
 # partir d'un ajustement deja produit par mw_ajuster(), les TROIS arguments du
 # minimum du texte et celui qui est retenu, de sorte qu'un relecteur puisse
-# refaire le calcul. Elle detecte aussi le cas degenere sigma2_{J-3} = 0.
+# refaire le calcul. Elle detecte aussi les cas degeneres sigma2_{J-3} = 0 et
+# sigma2_{J-2} = 0, les deux seuls chemins vers sigma2_{J-1} = 0 : les trois
+# arguments du minimum etant positifs ou nuls, le minimum est nul si et
+# seulement si sigma2_{J-2} = 0 ou sigma2_{J-3} = 0 (le quotient est nul si et
+# seulement si sigma2_{J-2} l'est, hors sous-depassement flottant, inatteignable
+# pour une colonne non constante). Issue #21.
 #
 # DETECTION. Le critere ne porte PAS sur sigma2_{J-3} == 0 teste en virgule
 # flottante : sigma2_{J-3} est une somme de carres d'ecarts F(i,j) - f_j, deux
@@ -2375,7 +2380,7 @@ mw_ajuster <- function(tri) {
 # est exactement constante. Le critere porte donc sur la PROPRIETE qui annule
 # sigma2_{J-3}, a savoir l'egalite de tous les facteurs individuels de la
 # colonne a leur moyenne ponderee :
-#     max_i |F(i,j) - f_j| <= tol * f_j,   j = J-3.
+#     max_i |F(i,j) - f_j| <= tol * f_j,   j = J-3 et j = J-2.
 # Il est sans dimension (invariant par changement d'unite des cumules) et
 # tol = 1e-12, soit environ 1e4 fois l'epsilon machine, laisse passer
 # l'arrondi des divisions tout en restant plusieurs ordres de grandeur sous la
@@ -2384,13 +2389,25 @@ mw_ajuster <- function(tri) {
 # Ce critere ne sert qu'au DIAGNOSTIC : la valeur, elle, est robuste sans lui,
 # la regle litterale etant continue en zero (une colonne constante a 1e-12
 # pres donne un minimum de l'ordre de 1e-21, numeriquement nul).
+#
+# CHAMPS. Les champs historiques colonne, nb_facteurs, ecart_relatif et
+# f_colonne gardent leur sens "colonne J-3" ; les champs suffixes _Jm2 portent
+# la meme information pour la colonne J-2, et degeneree_Jm3 / degeneree_Jm2
+# le verdict du critere colonne par colonne. degeneree est leur UNION : il
+# vaut TRUE des qu'une des deux colonnes est degeneree, c'est-a-dire des que
+# sigma2_{J-1} est nul par degenerescence d'un argument du minimum. retenu
+# est l'argmin litteral ; le detail du diagnostic M6
+# (.mw_detail_extrapolation) nomme la cause.
 mw_extrapolation_sigma2 <- function(aj, tol = 1e-12) {
   out <- list(J = NA_integer_, colonne = NA_integer_, nb_facteurs = NA_integer_,
               applicable = FALSE, valeur = NA_real_,
               sigma2_Jm2 = NA_real_, sigma2_Jm3 = NA_real_, quotient = NA_real_,
               retenu = NA_character_, degeneree = FALSE, ecart_relatif = NA_real_,
               f_colonne = NA_real_, f_Jm2 = NA_real_, f_Jm1 = NA_real_,
-              developpement_acheve = NA)
+              developpement_acheve = NA,
+              degeneree_Jm3 = FALSE, degeneree_Jm2 = FALSE,
+              ecart_relatif_Jm2 = NA_real_, nb_facteurs_Jm2 = NA_integer_,
+              f_colonne_Jm2 = NA_real_)
   # La fonction est publique et mw_valider_ajustement() peut recevoir un objet
   # d'ajustement reduit (I et reserve seuls) : il n'y a alors rien a restituer.
   if (!is.list(aj) || !all(c("I", "J", "sigma2", "f", "tri") %in% names(aj)))
@@ -2411,13 +2428,27 @@ mw_extrapolation_sigma2 <- function(aj, tol = 1e-12) {
   # texte. which.min ignore le quotient non defini, sans effet sur le minimum.
   out$retenu <- c("sigma2_(J-2)", "sigma2_(J-3)", "sigma2_(J-2)^2/sigma2_(J-3)")[
     which.min(c(out$sigma2_Jm2, out$sigma2_Jm3, out$quotient))]
-  j <- J - 3L                                  # colonne bornant l'extrapolation
-  idx <- 0:(I - j - 1)
-  Fij <- aj$tri[idx + 1, j + 2] / aj$tri[idx + 1, j + 1]
-  out$nb_facteurs <- length(idx)
-  out$f_colonne <- aj$f[j + 1]
-  out$ecart_relatif <- max(abs(Fij - aj$f[j + 1])) / abs(aj$f[j + 1])
-  out$degeneree <- is.finite(out$ecart_relatif) && out$ecart_relatif <= tol
+  # Critere de degenerescence d'une colonne j : ecart relatif maximal des
+  # facteurs individuels F(i,j) a leur moyenne ponderee f_j.
+  colonne_facteurs <- function(j) {
+    if (I - j - 1 < 0) return(list(n = 0L, f = aj$f[j + 1], ecart = NA_real_))
+    idx <- 0:(I - j - 1)
+    Fij <- aj$tri[idx + 1, j + 2] / aj$tri[idx + 1, j + 1]
+    list(n = length(idx), f = aj$f[j + 1],
+         ecart = max(abs(Fij - aj$f[j + 1])) / abs(aj$f[j + 1]))
+  }
+  c3 <- colonne_facteurs(J - 3L)               # colonne J-3 : sigma2_{J-3}
+  out$nb_facteurs <- c3$n
+  out$f_colonne <- c3$f
+  out$ecart_relatif <- c3$ecart
+  out$degeneree_Jm3 <- is.finite(c3$ecart) && c3$ecart <= tol
+  c2 <- colonne_facteurs(J - 2L)               # colonne J-2 : sigma2_{J-2}
+  out$nb_facteurs_Jm2 <- c2$n
+  out$f_colonne_Jm2 <- c2$f
+  out$ecart_relatif_Jm2 <- c2$ecart
+  out$degeneree_Jm2 <- is.finite(c2$ecart) && c2$ecart <= tol
+  # Union : un seul des deux chemins suffit a annuler sigma2_{J-1}.
+  out$degeneree <- out$degeneree_Jm3 || out$degeneree_Jm2
   out$f_Jm2 <- aj$f[J - 1]                     # f_{J-2}
   out$f_Jm1 <- aj$f[J]                         # f_{J-1}
   # "Developpement acheve" : les deux derniers facteurs valent 1, auquel cas
@@ -2442,18 +2473,58 @@ mw_extrapolation_sigma2 <- function(aj, tol = 1e-12) {
   # format. L'interpoler dans le format ferait d'un simple "%" du libelle une
   # specification de conversion -- c'est exactement ce qui a produit un
   # "too few arguments" ailleurs sur cette branche (constat d'audit).
+  # Arguments nommes comme atteignant le minimum (issue #21). ex$retenu reste
+  # l'argmin litteral ; le libelle, lui, nomme la CAUSE :
+  # - colonne J-2 degeneree : le quotient sigma2_(J-2)^2/sigma2_(J-3) n'est nul
+  #   que parce que sigma2_(J-2) l'est ; il n'est pas compte comme argument
+  #   distinct, meme lorsque l'arrondi le rend plus petit que sigma2_(J-2)
+  #   (colonne constante a 1e-14 pres : sigma2_(J-2) ~ 1e-28, quotient ~ 1e-58,
+  #   argmin litteral = quotient). Si la colonne J-3 est aussi degeneree, les
+  #   deux variances nulles sont nommees ex aequo ;
+  # - sinon : tous les arguments egaux au minimum a 1e-12 pres en relatif
+  #   (|a - m| <= 1e-12 * m, donc egalite exacte si m = 0), dans l'ordre du
+  #   texte, qualifies "ex aequo" s'ils sont plusieurs. Un minimum unique
+  #   donne le libelle historique.
+  noms <- c("sigma2_(J-2)", "sigma2_(J-3)", "sigma2_(J-2)^2/sigma2_(J-3)")
+  if (isTRUE(ex$degeneree_Jm2) && isTRUE(ex$degeneree_Jm3)) {
+    retenus <- "sigma2_(J-2) et sigma2_(J-3) (ex aequo)"
+  } else if (isTRUE(ex$degeneree_Jm2)) {
+    retenus <- paste0("sigma2_(J-2) (colonne J-2 degeneree ; le quotient ",
+                      "sigma2_(J-2)^2/sigma2_(J-3), nul par voie de consequence, ",
+                      "n'est pas compte comme argument distinct)")
+  } else {
+    args <- c(ex$sigma2_Jm2, ex$sigma2_Jm3, ex$quotient)
+    m <- suppressWarnings(min(args, na.rm = TRUE))
+    atteints <- noms[!is.na(args) & abs(args - m) <= 1e-12 * m]
+    retenus <- if (length(atteints) <= 1) ex$retenu
+      else paste0(paste(atteints[-length(atteints)], collapse = ", "), " et ",
+                  atteints[length(atteints)], " (ex aequo)")
+  }
   detail <- sprintf(paste0("%s. min(sigma2_(J-2) = %s ; sigma2_(J-3) = %s ; ",
                            "sigma2_(J-2)^2/sigma2_(J-3) = %s) = %s, minimum atteint par %s"),
                     base,
                     format(ex$sigma2_Jm2, digits = 6), format(ex$sigma2_Jm3, digits = 6),
-                    q, format(ex$valeur, digits = 6), ex$retenu)
+                    q, format(ex$valeur, digits = 6), retenus)
   # "numeriquement nul" et non "= 0" : la detection porte sur l'ecart relatif
   # des facteurs individuels a 1e-12 pres, si bien qu'une colonne constante a
-  # 1e-14 pres donne un sigma2_(J-3) de l'ordre de 1e-21, non nul. La valeur
-  # exacte est imprimee quelques mots plus haut dans la meme chaine.
-  if (isTRUE(ex$degeneree))
+  # 1e-14 pres donne un sigma2 de l'ordre de 1e-21, non nul. La valeur exacte
+  # est imprimee quelques mots plus haut dans la meme chaine. Cette phrase
+  # finale ne figure que dans les branches degenerees. Hors degenerescence, le
+  # libelle ne peut changer que par la regle ex aequo ci-dessus, qui s'y
+  # applique aussi ; pour un minimum unique (triangle de non-regression) il
+  # est identique au libelle anterieur (reference reserve2.rds).
+  d3 <- isTRUE(ex$degeneree_Jm3)
+  d2 <- isTRUE(ex$degeneree_Jm2)
+  if (d3 && d2)
+    detail <- paste0(detail, ". Colonnes J-3 et J-2 a facteurs individuels tous egaux ",
+                     "(sigma2_(J-3) et sigma2_(J-2) numeriquement nuls) : ",
+                     "voir l'avertissement sur les donnees")
+  else if (d3)
     detail <- paste0(detail, ". Colonne J-3 a facteurs individuels tous egaux ",
                      "(sigma2_(J-3) numeriquement nul) : voir l'avertissement sur les donnees")
+  else if (d2)
+    detail <- paste0(detail, ". Colonne J-2 a facteurs individuels tous egaux ",
+                     "(sigma2_(J-2) numeriquement nul) : voir l'avertissement sur les donnees")
   detail
 }
 
@@ -2538,6 +2609,30 @@ mw_msep <- function(aj) {
 # liquidation, recours sur annees anciennes) et un f_j < 1 isole, qui restent
 # couverts par l'avertissement de mw_valider_triangle() sur les cumules
 # decroissants.
+# Lignes de mw_tests() qui consomment mw_residus() (issue #21), par famille,
+# avec leur nom exact. Liste etablie par MESURE et non par lecture : on
+# remplace mw_residus() par des versions perturbees (colonne retiree, residus
+# bruites, signes aleatoires, residu porte a 50, C et F bruites), le
+# bootstrap etant fixe, et l'on releve les lignes dont la statistique,
+# l'estimation ou une p-value change (23/09/2026). Les lignes calculees sur
+# les facteurs F(i,j) n'y figurent pas. A tenir a jour si mw_tests() change :
+# test_merz_wuthrich.R refait la mesure et exige l'egalite des deux listes.
+.MW_LIGNES_RESIDUS <- list(
+  M1 = "Absence de tendance des facteurs avec le cumul, a colonne donnee",
+  M2 = c("Heteroscedasticite residuelle vs cumul",
+         "Adequation de l'exposant de variance, colonne par colonne",
+         "Variance unitaire des residus de Mack"),
+  M3 = c("Homogeneite des residus entre annees de survenance",
+         "Autocorrelation des residus (Durbin-Watson)",
+         "Test des suites sur les residus de Mack"),
+  M4 = c("Cellule aberrante du triangle (Grubbs)",
+         "Cellules aberrantes multiples (ESD generalise)"),
+  M5 = c("Shapiro-Wilk sur les residus de Mack",
+         "Lilliefors sur les residus de Mack"))
+.MW_LIGNES_RESIDUS_TEXTE <- paste(vapply(names(.MW_LIGNES_RESIDUS), function(fm)
+  sprintf("%s (%s)", fm, paste0("\"", .MW_LIGNES_RESIDUS[[fm]], "\"", collapse = " ; ")),
+  character(1)), collapse = ", ")
+
 mw_valider_ajustement <- function(aj, msep) {
   err <- character(0)
   R <- aj$reserve
@@ -2561,26 +2656,69 @@ mw_valider_ajustement <- function(aj, msep) {
                                  "sigma(res,s,USP) n'est pas calculable ; la methode du risque ",
                                  "de reserve no 2 n'est pas applicable a ce triangle."),
                           format(msep)))
-  # Avertissement (et non refus) : colonne J-3 a facteurs individuels tous
-  # egaux, donc sigma2_{J-3} = 0 et, par application litterale du par.
-  # 5(d)(ii), sigma2_{J-1} = 0. Le cas est licite au regard du texte, qui ne
-  # prevoit aucune clause de degenerescence, mais il doit etre VISIBLE : la
-  # MSEP ne porte alors aucune variance sur la derniere annee de
-  # developpement (voir mw_extrapolation_sigma2 et l'issue #7).
+  # Avertissement (et non refus) : sigma2_{J-1} = 0 par application litterale
+  # du par. 5(d)(ii), ce qui arrive si et seulement si la colonne J-3 ou la
+  # colonne J-2 a des facteurs individuels tous egaux (sigma2_{J-3} = 0 ou
+  # sigma2_{J-2} = 0 ; voir mw_extrapolation_sigma2). Le cas est licite au
+  # regard du texte, qui ne prevoit aucune clause de degenerescence, mais il
+  # doit etre VISIBLE : la MSEP ne porte alors aucune variance sur la derniere
+  # annee de developpement. UN SEUL avertissement par triangle, de meme
+  # squelette quel que soit le chemin (J-3, J-2 ou les deux) : seule la cause
+  # varie (issues #7 et #21).
   avt <- character(0)
   ex <- mw_extrapolation_sigma2(aj)
   if (isTRUE(ex$degeneree)) {
+    # Cause : une proposition par colonne degeneree, dans l'ordre J-3, J-2.
+    cols <- list()
+    if (isTRUE(ex$degeneree_Jm3))
+      cols[[length(cols) + 1]] <- list(nom = "J-3", j = ex$colonne, n = ex$nb_facteurs,
+                                       f = ex$f_colonne, ecart = ex$ecart_relatif,
+                                       s2 = ex$sigma2_Jm3)
+    if (isTRUE(ex$degeneree_Jm2))
+      cols[[length(cols) + 1]] <- list(nom = "J-2", j = ex$colonne + 1L,
+                                       n = ex$nb_facteurs_Jm2, f = ex$f_colonne_Jm2,
+                                       ecart = ex$ecart_relatif_Jm2, s2 = ex$sigma2_Jm2)
+    et <- function(x) paste(x, collapse = " et ")
+    entete <- et(vapply(cols, function(k) sprintf("j = %s = %d", k$nom, k$j), ""))
+    facteurs <- et(vapply(cols, function(k) sprintf(paste0(
+      "les %d facteurs individuels F(i,%d) sont tous egaux a f_%d = %s ",
+      "(ecart relatif maximal %.1e)"),
+      k$n, k$j, k$j, format(k$f, digits = 8), k$ecart), ""))
+    nuls <- et(vapply(cols, function(k) sprintf("sigma2_(%s) = %s", k$nom,
+                                                 format(k$s2, digits = 3)), ""))
+    n_deg <- sum(vapply(cols, function(k) k$n, 0L))
+    # Facteurs des colonnes degenerees REELLEMENT absents de mw_residus() :
+    # celle-ci n'ecarte une colonne que si sigma2_j <= 0 exactement, alors que
+    # la detection tolere 1e-12 en relatif sur les facteurs. Une colonne
+    # detectee avec sigma2_j > 0 (arrondi, par ex. 2e-28) garde ses residus :
+    # le nombre est donc mesure sur mw_residus(aj), et la phrase n'est emise
+    # que s'il est positif.
+    j_res <- mw_residus(aj)$j
+    n_abs <- sum(vapply(cols, function(k) k$n - sum(j_res == k$j), 0L))
+    phrase_res <- if (n_abs > 0) sprintf(paste0(
+      "%s n'ont pas de residu de Mack (sigma2_j exactement nul) : ils sont absents des ",
+      "lignes fondees sur ces residus, soit %s. "),
+      if (n_abs == n_deg)
+        sprintf("Les %d facteurs individuels %s", n_deg,
+                if (length(cols) > 1) "des colonnes degenerees" else "de la colonne degeneree")
+      else sprintf("%d des %d facteurs individuels des colonnes degenerees", n_abs, n_deg),
+      .MW_LIGNES_RESIDUS_TEXTE)
+    else ""
+    q <- if (is.na(ex$quotient)) "non defini" else format(ex$quotient, digits = 3)
     msg <- sprintf(paste0(
-      "Colonne de developpement j = J-3 = %d : les %d facteurs individuels F(i,%d) sont ",
-      "tous egaux a f_%d = %s (ecart relatif maximal %.1e), donc sigma2_(J-3) = %s. ",
+      "%s %s : %s, donc %s. ",
       "Par application litterale de l'annexe XVII, D(5)(d)(ii), seconde ligne, ",
-      "sigma2_(J-1) = min(sigma2_(J-2), sigma2_(J-3), sigma2_(J-2)^2/sigma2_(J-3)) = %s : ",
+      "sigma2_(J-1) = min(sigma2_(J-2), sigma2_(J-3), sigma2_(J-2)^2/sigma2_(J-3)) ",
+      "= min(%s ; %s ; %s) = %s : ",
       "la MSEP ne porte donc AUCUNE variance sur la derniere annee de developpement. ",
+      "%s",
       "Verifier l'origine des donnees (colonne recopiee d'une autre, paiements arretes, ",
       "cellules completees a la main)."),
-      ex$colonne, ex$nb_facteurs, ex$colonne, ex$colonne,
-      format(ex$f_colonne, digits = 8), ex$ecart_relatif,
-      format(ex$sigma2_Jm3, digits = 3), format(ex$valeur, digits = 3))
+      if (length(cols) > 1) "Colonnes de developpement" else "Colonne de developpement",
+      entete, facteurs, nuls,
+      format(ex$sigma2_Jm2, digits = 3), format(ex$sigma2_Jm3, digits = 3), q,
+      format(ex$valeur, digits = 3),
+      phrase_res)
     if (!isTRUE(ex$developpement_acheve))
       msg <- paste(msg, sprintf(paste0(
         "Le developpement n'est pourtant PAS acheve (f_(J-2) = %s, f_(J-1) = %s : ",

@@ -217,8 +217,10 @@ verifier("Diagnostic M6 : les trois arguments du minimum et celui qui est retenu
              grepl("minimum atteint par sigma2_(J-3)", l, fixed = TRUE)
          })
 # Cas symetrique : sigma2_(J-2) = 0 avec sigma2_(J-3) > 0. Le quotient vaut
-# alors 0 et le minimum litteral donne 0 sans aucune garde ; la colonne J-3
-# n'etant pas degeneree, aucun avertissement n'est emis.
+# alors 0 et le minimum litteral donne 0 sans aucune garde. La colonne J-2
+# (j = 3) a ses deux facteurs individuels egaux a 1,02 : depuis l'issue #21,
+# elle est detectee comme la colonne J-3 et le meme avertissement est emis,
+# seule la cause changeant (il ne l'etait pas auparavant).
 tri_sym <- matrix(NA_real_, 6, 6)
 tri_sym[1, ] <- c(1000, 1600, 1800, 1900, 1938, 1945)
 tri_sym[2, 1:5] <- c(1100, 1815, 2000, 2150, 2193)
@@ -226,18 +228,223 @@ tri_sym[3, 1:4] <- c(900, 1395, 1580, 1650)
 tri_sym[4, 1:3] <- c(1200, 1980, 2210)
 tri_sym[5, 1:2] <- c(1050, 1638)
 tri_sym[6, 1]   <- 980
-verifier("sigma2_(J-2) = 0 avec sigma2_(J-3) > 0 : sigma2_(J-1) = 0, sans avertissement",
+# Les deux autres chemins vers sigma2_(J-1) = 0 (issue #21) :
+# - tri_2 : colonnes J-3 ET J-2 degenerees (sigma2_(J-3) = sigma2_(J-2) = 0) ;
+# - tri_ach : colonne J-2 degeneree avec developpement acheve (f_(J-2) =
+#   f_(J-1) = 1) : l'avertissement subsiste, sans la phrase "PAS acheve".
+tri_2 <- tri_deg
+tri_2[1, 5:6] <- c(1836, 1841)
+tri_2[2, 5] <- 2040
+tri_ach <- tri_sym
+tri_ach[1, 5:6] <- c(1900, 1900)
+tri_ach[2, 5] <- 2150
+# sigma_USP de reference (segment 1 de l'annexe II) : mesures sur le moteur
+# le 23/09/2026 ; l'issue #21 ne change aucun calcul (valeurs identiques avant
+# et apres), elles fixent le fait que l'avertissement ne touche pas au calcul.
+run_mw <- function(t) run_engine(methode = "reserve2", triangle = t,
+                                 segment = 1, annexe = "II", B = 99)
+av_extrap <- function(r) grep("sigma2_(J-1) = min", r$validation$avertissements,
+                              fixed = TRUE, value = TRUE)
+detail_m6 <- function(r) {
+  d <- engine_table_tests(r)
+  d$commentaire[grepl("Extrapolation de sigma", d$test)]
+}
+verifier("sigma2_(J-2) = 0 avec sigma2_(J-3) > 0 : sigma2_(J-1) = 0, avertissement emis (#21)",
          {
            a <- mw_ajuster(tri_sym)
            ex <- mw_extrapolation_sigma2(a)
-           r <- run_engine(methode = "reserve2", triangle = tri_sym,
-                           segment = 1, annexe = "II", B = 99)
-           a$sigma2[a$J - 1] < 1e-12 && a$sigma2[a$J - 2] > 1e-3 &&
+           r <- run_mw(tri_sym)
+           av <- av_extrap(r)
+           isTRUE(mw_valider_triangle(tri_sym)$ok) &&
+             a$sigma2[a$J - 1] < 1e-12 && a$sigma2[a$J - 2] > 1e-3 &&
              a$sigma2[a$J] < 1e-12 && ex$quotient < 1e-12 &&
-             identical(ex$degeneree, FALSE) &&
+             isTRUE(ex$degeneree_Jm2) && identical(ex$degeneree_Jm3, FALSE) &&
+             isTRUE(ex$degeneree) && ex$nb_facteurs_Jm2 == 2 &&
              identical(ex$retenu, "sigma2_(J-2)") &&
-             isTRUE(r$ok) &&
-             !any(grepl("sigma2_(J-3) = 0", r$validation$avertissements, fixed = TRUE))
+             isTRUE(r$ok) && length(av) == 1 &&
+             grepl("sigma2_(J-2) = 0", av, fixed = TRUE) &&
+             grepl("j = J-2 = 3", av, fixed = TRUE) &&
+             grepl("AUCUNE variance", av, fixed = TRUE) &&
+             grepl("n'est pourtant PAS acheve", av, fixed = TRUE) &&
+             !grepl("sigma2_(J-3) = 0", av, fixed = TRUE) &&
+             grepl("facteurs individuels tous egaux", detail_m6(r), fixed = TRUE) &&
+             grepl("nul par voie de consequence", detail_m6(r), fixed = TRUE) &&
+             grepl("Les 2 facteurs individuels de la colonne degeneree n'ont pas de residu de Mack",
+                   av, fixed = TRUE) &&
+             isTRUE(proche(r$parametre_final$sigma_usp, 0.0769833895, rel = 1e-8))
+         })
+verifier("Colonne J-3 degeneree (tri_deg) : colonne J-2 non degeneree, sigma_USP inchange",
+         {
+           ex <- mw_extrapolation_sigma2(mw_ajuster(tri_deg))
+           r <- run_mw(tri_deg)
+           identical(ex$degeneree_Jm2, FALSE) && isTRUE(ex$degeneree_Jm3) &&
+             isTRUE(proche(r$parametre_final$sigma_usp, 0.0779834956, rel = 1e-8))
+         })
+verifier("Colonnes J-3 et J-2 degenerees (tri_2) : un seul avertissement, ex aequo au M6 (#21)",
+         {
+           a <- mw_ajuster(tri_2)
+           ex <- mw_extrapolation_sigma2(a)
+           r <- run_mw(tri_2)
+           av <- av_extrap(r)
+           l <- detail_m6(r)
+           isTRUE(mw_valider_triangle(tri_2)$ok) && isTRUE(r$ok) &&
+             isTRUE(ex$degeneree_Jm3) && isTRUE(ex$degeneree_Jm2) &&
+             isTRUE(ex$degeneree) && is.na(ex$quotient) && a$sigma2[a$J] == 0 &&
+             length(av) == 1 &&
+             grepl("j = J-3 = 2", av, fixed = TRUE) &&
+             grepl("j = J-2 = 3", av, fixed = TRUE) &&
+             grepl("sigma2_(J-3) = 0", av, fixed = TRUE) &&
+             grepl("sigma2_(J-2) = 0", av, fixed = TRUE) &&
+             grepl("n'est pourtant PAS acheve", av, fixed = TRUE) &&
+             length(l) == 1 &&
+             grepl("minimum atteint par sigma2_(J-2) et sigma2_(J-3) (ex aequo)", l,
+                   fixed = TRUE) &&
+             grepl("Colonnes J-3 et J-2 a facteurs individuels tous egaux", l,
+                   fixed = TRUE) &&
+             isTRUE(proche(r$parametre_final$sigma_usp, 0.0764092721, rel = 1e-8))
+         })
+verifier("Colonne J-2 degeneree, developpement acheve (tri_ach) : avertissement sans 'PAS acheve'",
+         {
+           ex <- mw_extrapolation_sigma2(mw_ajuster(tri_ach))
+           r <- run_mw(tri_ach)
+           av <- av_extrap(r)
+           isTRUE(mw_valider_triangle(tri_ach)$ok) && isTRUE(r$ok) &&
+             isTRUE(ex$degeneree_Jm2) && identical(ex$developpement_acheve, TRUE) &&
+             length(av) == 1 &&
+             !grepl("PAS acheve", av, fixed = TRUE) &&
+             isTRUE(proche(r$parametre_final$sigma_usp, 0.0800581924, rel = 1e-8))
+         })
+verifier("Homogeneite : un avertissement de meme squelette par triangle degenere, aucun sinon",
+         {
+           msg_deg <- vapply(list(tri_deg, tri_sym, tri_2, tri_ach), function(t) {
+             av <- run_mw(t)$validation$avertissements
+             sum(grepl("sigma2_(J-1) = min", av, fixed = TRUE)) == 1 &&
+               sum(grepl("AUCUNE variance sur la derniere annee de developpement",
+                         av, fixed = TRUE)) == 1 &&
+               sum(grepl("n'ont pas de residu de Mack", av, fixed = TRUE)) == 1 &&
+               sum(grepl("Verifier l'origine des donnees", av, fixed = TRUE)) == 1
+           }, logical(1))
+           tp <- matrix(NA_real_, 5, 5)
+           tp[1, ] <- c(100, 150, 180, 190, 189); tp[2, 1:4] <- c(110, 160, 190, 199)
+           tp[3, 1:3] <- c(120, 185, 219); tp[4, 1:2] <- c(130, 200); tp[5, 1] <- 140
+           msg_nd <- vapply(list(tri, tp), function(t)
+             !any(grepl("sigma2_(J-", run_mw(t)$validation$avertissements, fixed = TRUE)),
+             logical(1))
+           all(msg_deg) && all(msg_nd)
+         })
+# Colonne J-2 constante a 1e-14 pres (scenario d'actuary, #21) : sigma2_(J-2)
+# ~ 1e-25 et le quotient ~ 1e-50 est l'argmin litteral (ex$retenu), mais le
+# detail M6 nomme la cause, sigma2_(J-2), sans compter le quotient comme
+# argument distinct.
+verifier("Colonne J-2 constante a 1e-14 pres : argmin litteral = quotient, cause nommee au M6",
+         {
+           t4 <- tri_sym
+           t4[2, 5] <- 2193 * (1 + 1e-14)
+           ex <- mw_extrapolation_sigma2(mw_ajuster(t4))
+           r <- run_mw(t4)
+           av <- av_extrap(r)
+           isTRUE(ex$degeneree_Jm2) &&
+             identical(ex$retenu, "sigma2_(J-2)^2/sigma2_(J-3)") &&
+             grepl("nul par voie de consequence", detail_m6(r), fixed = TRUE) &&
+             length(av) == 1 && grepl("j = J-2 = 3", av, fixed = TRUE)
+         })
+# Colonne J-2 detectee (facteurs egaux a l'arrondi pres) mais sigma2_(J-2) > 0
+# (2,1e-28) : mw_residus() n'ecarte que sigma2_j <= 0 exactement, les residus
+# de la colonne sont donc presents et l'avertissement ne doit PAS les dire
+# absents. Triangle trouve par le balayage d'audit (graine 1, 7e tirage :
+# cumuls 1760,07 et 2554,89 multiplies par 1,187), ecrit ici en dur.
+verifier("Colonne detectee avec sigma2 > 0 : pas d'affirmation 'absents' dans l'avertissement",
+         {
+           t5 <- tri_sym
+           t5[1, 4] <- 1760.07; t5[2, 4] <- 2554.89
+           t5[1, 5] <- 1760.07 * 1.187; t5[2, 5] <- 2554.89 * 1.187
+           t5[1, 6] <- t5[1, 5] * 1.003
+           a <- mw_ajuster(t5)
+           ex <- mw_extrapolation_sigma2(a)
+           r <- run_mw(t5)
+           av <- av_extrap(r)
+           isTRUE(mw_valider_triangle(t5)$ok) && isTRUE(r$ok) &&
+             isTRUE(ex$degeneree_Jm2) && a$sigma2[a$J - 1] > 0 &&
+             sum(mw_residus(a)$j == 3) == 2 &&
+             length(av) == 1 &&
+             !grepl("absents", av, fixed = TRUE) &&
+             !grepl("n'ont pas de residu de Mack", av, fixed = TRUE)
+         })
+# Les residus de Mack d'une colonne a sigma2_j = 0 sont absents de
+# mw_residus() : c'est ce qu'affirme l'avertissement.
+verifier("Colonne degeneree : aucun residu de Mack (mw_residus) pour ses facteurs",
+         {
+           j_res <- function(t) mw_residus(mw_ajuster(t))$j
+           !any(j_res(tri_deg) == 2) && !any(j_res(tri_sym) == 3) &&
+             !any(j_res(tri_2) %in% 2:3) && !any(j_res(tri_ach) == 3) &&
+             any(j_res(tri_sym) == 2) && any(j_res(tri_deg) == 3)
+         })
+# Les lignes citees par l'avertissement comme fondees sur les residus de Mack
+# (.MW_LIGNES_RESIDUS) sont exactement celles de mw_tests() qui consomment
+# mw_residus() : mesure par perturbation de mw_residus() (bootstrap fixe),
+# union sur sept perturbations ; une ligne consomme les residus si sa
+# statistique, son estimation ou une de ses p-values change.
+verifier("Lignes citees comme fondees sur les residus = lignes qui consomment mw_residus() (mesure)",
+         {
+           d <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
+           m <- as.matrix(d[, setdiff(names(d), "i")]); storage.mode(m) <- "double"
+           t_ref <- unname(m)
+           orig <- mw_residus
+           # Etat du generateur capture a l'entree du bloc (mw_bootstrap()
+           # regraine plus bas) et restaure meme si une mesure echoue.
+           graine <- if (exists(".Random.seed", envir = globalenv()))
+             get(".Random.seed", envir = globalenv()) else NULL
+           restaurer_graine <- function() {
+             if (is.null(graine)) {
+               if (exists(".Random.seed", envir = globalenv())) rm(".Random.seed", envir = globalenv())
+             } else assign(".Random.seed", graine, envir = globalenv())
+           }
+           M <- tryCatch({
+           sig <- function(L) vapply(L, function(x) paste(format(c(x$stat, x$estim,
+             x$p_exacte, x$p_asymptotique, x$p_mc), digits = 15), collapse = "|"), "")
+           prep <- lapply(list(deg = tri_deg, ref = t_ref), function(t) {
+             aj <- mw_ajuster(t); boot <- mw_bootstrap(aj, B = 19)
+             list(aj = aj, boot = boot, L0 = mw_tests(aj, boot))
+           })
+           mesurer <- function(nom, perturb) {
+             aj <- prep[[nom]]$aj; boot <- prep[[nom]]$boot; L0 <- prep[[nom]]$L0
+             assign("mw_residus", function(aj) perturb(orig(aj)), envir = globalenv())
+             L1 <- tryCatch(mw_tests(aj, boot),
+                            finally = assign("mw_residus", orig, envir = globalenv()))
+             stats::setNames(sig(L0) != sig(L1), vapply(L0, `[[`, "", "test"))
+           }
+           set.seed(20260923)
+           P <- list(
+             list("deg", function(r) r[r$j != 3, ]),
+             list("ref", function(r) { r$residu <- r$residu * runif(nrow(r), 0.5, 1.5); r }),
+             list("ref", function(r) r[r$j != 0, ]),
+             list("ref", function(r) { r$residu[3] <- 50; r }),
+             list("ref", function(r) { r$residu <- r$residu * sample(c(-1, 1), nrow(r), TRUE); r }),
+             list("ref", function(r) { r$C <- r$C * runif(nrow(r), 0.5, 1.5); r }),
+             list("ref", function(r) { r$F <- r$F * runif(nrow(r), 0.9, 1.1); r }))
+           sapply(P, function(p) mesurer(p[[1]], p[[2]]))
+           }, finally = restaurer_graine())
+           mesure <- rownames(M)[rowSums(M) > 0]
+           cite <- unlist(.MW_LIGNES_RESIDUS, use.names = FALSE)
+           if (identical(mw_residus, orig) && setequal(mesure, cite) && length(cite) == 11) TRUE
+           else paste("mesure :", paste(mesure, collapse = " ; "))
+         })
+# Triangle de non-regression (tests/donnees/triangle_mw.csv) : aucune des
+# deux colonnes n'est degeneree, et le detail M6 est celui de la reference
+# versionnee au caractere pres (l'issue #21 ne le modifie pas).
+verifier("Triangle de non-regression : colonnes J-3 et J-2 non degenerees, detail M6 = reserve2.rds",
+         {
+           d <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
+           m <- as.matrix(d[, setdiff(names(d), "i")]); storage.mode(m) <- "double"
+           ex <- mw_extrapolation_sigma2(mw_ajuster(unname(m)))
+           ref <- readRDS(file.path(RACINE, "tests", "reference", "reserve2.rds"))
+           k <- which(vapply(ref$tests, function(x) identical(
+             x$test, "Extrapolation de sigma pour la derniere annee de developpement"),
+             logical(1)))
+           ex$ecart_relatif > 1e-3 && ex$ecart_relatif_Jm2 > 1e-3 &&
+             identical(ex$degeneree_Jm3, FALSE) && identical(ex$degeneree_Jm2, FALSE) &&
+             identical(ex$degeneree, FALSE) && length(k) == 1 &&
+             identical(.mw_detail_extrapolation(ex), ref$tests[[k]]$detail)
          })
 # Triangle non degenere : la valeur ne change pas (le minimum litteral est
 # applique comme auparavant) et aucun avertissement n'est emis.
