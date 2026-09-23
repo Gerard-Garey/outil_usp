@@ -404,10 +404,10 @@ fonction.
 % liaison issue de (pmw) remonterait.
 \coordinate (jmid) at ($(pln)!0.5!(pmw)$);
 \coordinate (jonc) at ($(jmid |- pmw.south) + (0,-9mm)$);
-\node[sortie, below=13mm of aig |- pmw, yshift=-9mm] (out)
+\node[sortie, text width=74mm, below=13mm of aig |- pmw, yshift=-9mm] (out)
   {objet \code{usp\_engine}\\[1pt]
-   \scriptsize \code{\$donnees \ \$tests \ \$bootstrap \ \$calibration}\\
-   \scriptsize \code{\$parametre\_final \ \$plots\_data \ \$metadata}};
+   \scriptsize \code{\$donnees \ \$controles \ \$ajustement \ \$tests \ \$bootstrap}\\
+   \scriptsize \code{\$calibration \ \$parametre\_final \ \$plots\_data \ \$metadata}};
 \node[sortie, below=5mm of out] (app)
   {Couche d'affichage\\[1pt]
    \scriptsize \code{app.R}, \code{display\_helpers.R} : aucun calcul};
@@ -1884,6 +1884,15 @@ standardisés $z_t$ du modèle lognormal d'un côté, résidus standardisés de 
 $r(i,j)$ de l'autre
 (voir la section~\ref{sec:mw}).
 
+La mention « exacte si $\hat\pi_t$ constant » de la colonne « Voie retenue » (issue~\#25) porte
+sur les tests dont la loi de référence suppose un vecteur échangeable ou un échantillon i.i.d.~:
+sous le modèle ajusté, les résidus standardisés suivent $\mathcal{N}(0, P)$ et les ratios $r_t$
+ne sont identiquement distribués qu'à $\hat\pi_t$ constant ($\hat\delta = 1$ ou volumes
+constants, au sens de \code{usp\_regime()}~; section~\ref{sec:base-residus}). Dans ce régime la
+p-value est exacte au sens de l'ADR~0002~; hors de lui, c'est une approximation sans borne
+d'erreur connue à $T = 8$. Le moteur étiquette ces p-values \code{exacte} et les retient dans les
+deux régimes.
+
 \begin{landscape}
 \begin{center}
 \scriptsize
@@ -1928,14 +1937,17 @@ RESET & LN & $F$ & \textbf{Non} & Oui & Oui & Monte-Carlo &
 \textbf{Déconseillée} : $\hat y^2,\hat y^3$ dépendent de $y$, la loi $F$ n'est
 pas exacte & Bootstrap recommandé \\
 
-Spearman ($\times 2$) & LN & $S$ & Oui ($T\le 9$) & Oui & Oui & \textbf{Exacte} &
+Spearman ($\times 2$) & LN & $S$ & Oui ($T\le 9$) & Oui & Oui & \textbf{Exacte} si
+$\hat\pi_t$ constant, approximation sinon &
 Inutile : l'exacte est calculable & Distribution exacte à privilégier \\
 
-Mann--Kendall & LN & $Z$ / $S$ & Oui (loi mahonienne) & Oui & Oui & \textbf{Exacte} &
+Mann--Kendall & LN & $Z$ / $S$ & Oui (loi mahonienne) & Oui & Oui & \textbf{Exacte} si
+$\hat\pi_t$ constant, approximation sinon &
 \textbf{Déconseillée} : approx. normale usuellement requise à $T\ge 10$ &
 Distribution exacte à privilégier \\
 
-Cox--Stuart & LN & $K$ & Oui (binomiale) & --- & Oui & \textbf{Exacte} &
+Cox--Stuart & LN & $K$ & Oui (binomiale) & --- & Oui & \textbf{Exacte} si
+$\hat\pi_t$ constant, approximation sinon &
 Sans objet & Exacte ; mais $p_{\min}=0{,}125$ à $T=8$ : test inopérant \\
 
 Breusch--Pagan studentisé (Koenker) & LN & LM & Non & Oui & Oui & Monte-Carlo &
@@ -1958,10 +1970,12 @@ Brown--Forsythe & LN & $W$ & Non & Oui & Oui & Monte-Carlo &
 \textbf{Déconseillée} : loi $F$ approchée, 4 points par groupe &
 Bootstrap recommandé \\
 
-Smirnov 2 éch. & LN & $D$ & Oui (combinatoire) & Oui & Oui & \textbf{Exacte} &
+Smirnov 2 éch. & LN & $D$ & Oui (combinatoire) & Oui & Oui & \textbf{Exacte} si
+$\hat\pi_t$ constant ($\hat\delta = 1$), approximation sinon &
 Inutile & Exacte ; $n_1=n_2=4$ : $p_{\min}=0{,}029$ \\
 
-Shapiro--Wilk & LN & $W$ & \textbf{Oui}, loi de $W$ évaluée par simulation directe (sans Royston)
+Shapiro--Wilk & LN & $W$ & \textbf{Oui} si $\hat\pi_t$ constant, loi de $W$ évaluée par
+simulation directe (sans Royston)~; approximation sinon
 & Approx. Royston & Oui & Monte-Carlo, avec p Royston \emph{et} p de loi nulle simulée &
 \textbf{Sous conditions} pour Royston ; la loi nulle simulée s'en affranchit &
 Loi nulle simulée à privilégier ; les deux concordent à $T=8$ \\
@@ -1999,7 +2013,8 @@ Anscombe--Glynn & LN & $Z$ & Non & Oui & --- & \textbf{Non applicable} ($T<20$) 
 Sans objet & Non utilisable à $T=8$ \\
 
 Durbin--Watson & LN & DW & \textbf{Oui} : forme quadratique, méthode d'Imhof & --- & Oui &
-\textbf{Exacte} (Imhof) & Sans objet : loi exacte &
+\textbf{Exacte} (Imhof) si $\hat\pi_t$ constant, approximation sinon & Sans objet : loi
+exacte à $\hat\pi_t$ constant &
 Distribution exacte à privilégier ; statistique calculée sur résidus centrés \\
 
 Ljung--Box (1, 2) & LN & $Q$ & Non & Oui & Oui & Monte-Carlo &
@@ -2011,7 +2026,7 @@ Box--Pierce & LN & $Q$ & Non & Oui & Oui & Monte-Carlo &
 Bootstrap ; préférer Ljung--Box \\
 
 Suites (W.--W.) & LN & $Z$ / $R$ & Oui (combinatoire) & Oui & Oui & \textbf{Exacte}
-(doublement)~; sur ratios bruts $u_t$~: \textbf{exacte} si $\hat\pi_t$ constant
+(doublement) si $\hat\pi_t$ constant, approximation sinon~; sur ratios bruts $u_t$~: \textbf{exacte} si $\hat\pi_t$ constant
 \emph{et} signes de $u_t$ et $z_t$ identiques, Monte-Carlo sinon &
 \textbf{Déconseillée} : approx. normale requiert $n_1,n_2\ge 10$ &
 Distribution exacte à privilégier~; $p_{\min} = 0{,}057$ à $T = 8$ \\
@@ -2221,16 +2236,16 @@ par $\sim T$ \\
 Mann--Kendall & $S$ ($U$-statistique) & $\mathcal{N}(0,1)$ après
 normalisation & Convergence en loi & Berry--Esseen pour $U$-statistiques :
 $\mathcal{O}(T^{-1/2})$ & Variance de la projection non nulle, moment d'ordre 3 &
-Borne $\mathcal{O}(8^{-1/2})\approx 0{,}35$ : inexploitable. Loi exacte employée \\
+Borne $\mathcal{O}(8^{-1/2})\approx 0{,}35$ : inexploitable. Loi exacte employée (exacte à $\hat\pi_t$ constant) \\
 
 Wald--Wolfowitz & $R$ & $\mathcal{N}(0,1)$ & Convergence en loi &
 Vitesse non documentée dans la littérature consultée~; loi exacte employée, la
 question est sans objet~; recommandation d'usage $n_1,n_2\ge 10$ &
-Continuité, indépendance & Loi exacte employée \\
+Continuité, indépendance & Loi exacte employée (exacte à $\hat\pi_t$ constant) \\
 
 Spearman & $\hat\rho_s$ & $\mathcal{N}$ / $t(T-2)$ & Convergence en loi &
 $\mathcal{O}(T^{-1/2})$ & Indépendance, absence d'ex \ae quo &
-Loi de permutation exacte employée \\
+Loi de permutation exacte employée (exacte à $\hat\pi_t$ constant) \\
 
 D'Agostino & $\sqrt{b_1}$ transformé & $\mathcal{N}(0,1)$ &
 Convergence en loi & Transformation $S_U$ conçue pour corriger l'ordre
@@ -2398,11 +2413,15 @@ p-values classiques.
 \textcolor{financeblue}{\textbf{Définition}} &
 \textcolor{financeblue}{\textbf{Loi sous le modèle}} \\
 Résidus standardisés & $z_t = \sqrt{\hat\pi_t}\,v_t$ &
-i.i.d. $\mathcal{N}(0,1)$ : la seule série exactement échangeable \\
+$z \sim \mathcal{N}(0, P)$, $P$ projecteur de rang $T-1$ (ci-dessous) et non
+$\mathcal{N}(0, I_T)$~; échangeables si et seulement si $\hat\pi_t$ est constant,
+$P$ étant alors la matrice de centrage \\
 Résidus logarithmiques & $v_t = \ln r_t + \tfrac{1}{2\hat\pi_t} - \ln\hat\beta$ &
-indépendants et normaux, mais de variance $1/\pi_t$ variable avec $x_t$ \\
+normaux, liés par le terme commun $\ln\hat\beta$, de variances inégales dès que
+$\hat\pi_t$ varie avec $x_t$ \\
 Ratios centrés & $u_t = r_t - \bar r$, avec $r_t = y_t/x_t$ &
-indépendants, mais ni normaux ni de même variance \\
+issus de $r_t$ indépendants, mais liés par le centrage, ni normaux ni de même
+variance \\
 \end{tabular}
 \end{center}
 
@@ -2413,6 +2432,93 @@ résidu correspondant sur l'échelle monétaire est $e_t = y_t - \hat\beta x_t$,
 égal à $x_t\,(r_t - \hat\beta)$~: à un facteur de volume près, il coïncide avec
 $u_t$. C'est donc $u_t$ qui est retenu comme base « brute », le passage au ratio
 neutralisant l'effet de taille au premier ordre.
+
+\subsubsection*{Loi des résidus standardisés et portée des p-values exactes}
+
+Sous le modèle ajusté pris pour vrai, les $\hat\pi_t$ étant tenus pour connus et notés $\pi_t$,
+$\ln r_t = \ln\beta - 1/(2\pi_t) + \varepsilon_t/\sqrt{\pi_t}$, avec $\varepsilon_t$ i.i.d.
+$\mathcal{N}(0,1)$. En reportant cette écriture dans la forme fermée de $\ln\hat\beta$ calculée par
+\code{usp\_noyau()}, $\ln\hat\beta = \big(T/2 + \sum_t \pi_t \ln r_t\big)\big/\sum_t \pi_t =
+\ln\beta + \sum_s \sqrt{\pi_s}\,\varepsilon_s \big/ \sum_s \pi_s$, on obtient (issue~\#25)
+\[
+  z \;=\; P\varepsilon,
+  \qquad
+  P \;=\; I_T - \frac{\sqrt{\pi}\,\sqrt{\pi}'}{\sum_t \pi_t},
+  \qquad
+  \sqrt{\pi} = \big(\sqrt{\pi_1}, \dots, \sqrt{\pi_T}\big)'.
+\]
+$P$ est la projection orthogonale, de rang $T-1$, sur l'orthogonal de $\sqrt{\pi}$~: $z$ suit
+$\mathcal{N}(0, P)$ et \textbf{non} $\mathcal{N}(0, I_T)$ (résultat exact, algébrique~; vérifié
+numériquement, $z$ calculé par \code{usp\_noyau()} et $P\varepsilon$ coïncidant à
+$9\cdot 10^{-16}$ près). Les $z_t$ sont corrélés, de variances $1 - \pi_t/\sum_s \pi_s$~; ils
+sont échangeables si et seulement si les $\pi_t$ sont égaux, et $P$ est alors la matrice de
+centrage $M = I_T - \mathbf{1}\mathbf{1}'/T$. Ce calcul tient $\hat\pi_t$ pour connu~: il ne
+rend pas compte de ce que $\hat\delta$ et $\hat\gamma$ sont estimés sur les mêmes données.
+
+\emph{Conséquence sur les p-values dites exactes.} Huit lignes de la table auditable retiennent
+une p-value exacte dont la loi de référence est construite pour un vecteur échangeable ou un
+échantillon i.i.d.~: quatre sur $z_t$ --- Durbin--Watson (loi d'Imhof de $MAM$), suites (loi
+combinatoire), Shapiro--Wilk à loi nulle simulée (échantillons $\mathcal{N}(0,1)$ i.i.d.) et
+Smirnov (loi combinatoire) ---, et quatre sur les ratios $r_t$ --- Spearman ratio contre volume
+et ratio contre temps, Mann--Kendall et Cox--Stuart, qui supposent les $r_t$ identiquement
+distribués. \textbf{À $\hat\pi_t$ constant}, ces lois sont exactes au sens de l'ADR~0002~:
+$z$ est proportionnel à $M\varepsilon$ et les $r_t$ sont i.i.d. \textbf{À $\hat\pi_t$
+variable}, ce ne sont que des approximations~; aucune borne d'erreur n'a été trouvée dans la
+littérature consultée pour un projecteur $P$ non uniforme, et le document n'affirme rien sur
+l'ampleur de l'écart. Le moteur, lui, étiquette ces huit p-values \code{exacte} et les retient
+dans tous les régimes~; seule la ligne des suites sur ratios bruts conditionne son étiquette au
+régime (issue~\#29, fiche~\ref{fiche:suites-wald-wolfowitz}). Dans la bande de tolérance de
+\code{usp\_regime()}, $\hat\pi_t$ n'est constant qu'à un écart d'ordre $1 - \hat\delta$ près, et
+l'exactitude ne vaut qu'à cet ordre près.
+
+\emph{Calibration mesurée par régime} (constat de simulation, non une borne). Deux scénarios à
+$T = 8$, $\beta = 0{,}7$, $\sigma = 0{,}15$, 10\,000 jeux chacun~: (A)~$\delta = 1$, volumes du jeu
+de contrôle (graine 2501)~; (B)~$\delta = 0$, volumes équidistants et croissants de 50 à 200, soit
+des $\pi_t$ du modèle d'étendue relative $2{,}9$ (graine 2502). Chaque jeu est réajusté par
+\code{usp\_ajuster()}, le régime est celui que déclare \code{usp\_regime()} sur $\hat\delta$, et les
+p-values sont celles des fonctions du moteur (\code{dw\_p\_exacte()}, \code{sw\_p\_loi\_nulle()},
+\code{runs\_p\_exacte()}, \code{ks.test()} sur la partition en volumes). Le tableau donne la
+fréquence de $p \le$ seuil, à comparer à la probabilité exacte sous échangeabilité, qui vaut le
+seuil pour les lois continues et $4/70$, $16/70$, $2/70$ ou $16/70$ pour les lois discrètes des
+suites et de Smirnov ($n_1 = n_2 = 4$)~; en gras, un écart supérieur à la demi-largeur de
+l'intervalle de fluctuation à 95~\% (de $0{,}003$ à $0{,}015$ selon la case).
+
+\begin{center}
+\small
+\rowcolors{2}{tablerow}{white}
+\begin{tabular}{@{}p{5.0cm}cccccc@{}}
+\rowcolor{tableheader}
+\textcolor{financeblue}{\textbf{Fréquence}} &
+\textcolor{financeblue}{\textbf{Exacte}} &
+\textcolor{financeblue}{\textbf{A, tous}} &
+\textcolor{financeblue}{\textbf{A, $\hat\pi$ cst}} &
+\textcolor{financeblue}{\textbf{A, $\hat\pi$ var.}} &
+\textcolor{financeblue}{\textbf{B, $\hat\pi$ cst}} &
+\textcolor{financeblue}{\textbf{B, $\hat\pi$ var.}} \\
+Effectif & --- & 10\,000 & 4\,971 & 5\,029 & 2\,929 & 7\,071 \\
+Durbin--Watson, $p \le 0{,}10$ & 0{,}100 & 0{,}099 & 0{,}097 & 0{,}101 & 0{,}101 & \textbf{0{,}090} \\
+Durbin--Watson, $p \le 0{,}05$ & 0{,}050 & 0{,}047 & 0{,}048 & 0{,}046 & 0{,}052 & \textbf{0{,}043} \\
+Shapiro--Wilk (loi nulle simulée), $p \le 0{,}10$ & 0{,}100 & 0{,}105 & \textbf{0{,}111} & 0{,}100 & 0{,}096 & \textbf{0{,}089} \\
+Shapiro--Wilk (loi nulle simulée), $p \le 0{,}05$ & 0{,}050 & 0{,}053 & \textbf{0{,}057} & 0{,}050 & 0{,}049 & \textbf{0{,}039} \\
+Suites, $p \le 0{,}057$ & 0{,}057 & 0{,}055 & \textbf{0{,}050} & 0{,}060 & 0{,}064 & 0{,}056 \\
+Suites, $p \le 0{,}229$ & 0{,}229 & 0{,}229 & 0{,}222 & 0{,}235 & 0{,}226 & 0{,}229 \\
+Smirnov, $p \le 0{,}029$ & 0{,}029 & 0{,}027 & \textbf{0{,}024} & 0{,}031 & \textbf{0{,}037} & 0{,}028 \\
+Smirnov, $p \le 0{,}229$ & 0{,}229 & 0{,}230 & 0{,}233 & 0{,}226 & 0{,}227 & \textbf{0{,}216} \\
+\end{tabular}
+\end{center}
+
+\noindent
+Trois constats, propres à ces deux configurations. Sur l'ensemble des jeux du scénario~A, où
+$\pi_t$ est constant dans le modèle générateur, les huit fréquences sont compatibles avec la
+probabilité exacte. Dans le scénario~B à $\hat\pi_t$ variable, Durbin--Watson et Shapiro--Wilk
+rejettent \emph{moins} que le niveau nominal (0,090 et 0,089 au seuil de 10~\%)~: l'approximation
+y est conservatrice, sans que rien permette d'étendre ce sens à d'autres volumes ou à d'autres
+$\delta$. Enfin, des écarts apparaissent aussi \emph{à $\hat\pi_t$ constant} (scénario~A,
+Shapiro--Wilk à 0,111)~: l'exactitude énoncée plus haut vaut sous le modèle ajusté pris pour
+vrai, et non conditionnellement au régime, qui est lui-même estimé sur les mêmes données~; cet
+effet de sélection n'est pas quantifié au-delà de ce constat. Les mesures antérieures
+consignées dans les fiches, qui ne précisent pas le régime de $\hat\delta$, sont conservées
+comme telles (fiches~\ref{fiche:durbin-watson} et~\ref{fiche:shapiro-wilk-sans-royston}).
 
 \subsubsection*{Amplitude effective de l'hétéroscédasticité résiduelle}
 
@@ -2997,13 +3103,24 @@ Sous $H_0$, la loi exacte de $S$ est la loi de permutation~: les $T!$ appariemen
   t = \hat\rho_s\sqrt{\frac{T-2}{1-\hat\rho_s^2}} \;\sim\; t(T-2).
 \]
 \Pval
-Approximation employée par le script (appel avec \code{exact = FALSE})~:
-$p = 2\big(1 - F_{t,T-2}(|t|)\big)$. La p-value exacte s'obtient par énumération des permutations.
+p-value exacte de la loi de permutation, retenue par le moteur~: \code{stats::cor.test()} avec
+\code{exact = TRUE}, qui met en \oe uvre l'algorithme de D.\,J. Best, D.\,E. Roberts,
+\emph{Algorithm AS~89~: the upper tail probabilities of Spearman's rho}, \emph{Applied
+Statistics}, 24(3), 1975, p.~377--379. À $T = 8$, sans ex \ae quo, la p-value rendue coïncide
+avec celle de l'énumération des $8!$ permutations, doublement bilatéral compris (écart nul sur
+50 séries tirées au hasard, mesure).
+L'approximation de Student, $p = 2\big(1 - F_{t,T-2}(|t|)\big)$ (appel avec
+\code{exact = FALSE}), est restituée comme p-value asymptotique, sans être retenue.
+L'équiprobabilité des $T!$ appariements suppose les $r_t$ échangeables, donc identiquement
+distribués~: sous le modèle ajusté, ils ne le sont qu'à $\hat\pi_t$ constant, et la variante
+« ratio contre volume » exigeant des volumes non constants, cela signifie $\hat\delta = 1$. La
+p-value n'est exacte au sens de l'ADR~0002 que dans ce régime~; le moteur l'étiquette
+\code{exacte} et la retient dans tous les régimes (section~\ref{sec:base-residus}, issue~\#25).
 \Usage
 Test non paramétrique robuste aux valeurs extrêmes et à la non-normalité, bon complément des
 tests paramétriques précédents. Deux limites~: (i) il ne détecte que les associations
 \emph{monotones} -- une relation en U passera inaperçue~; (ii) l'approximation de Student est
-médiocre pour $T < 10$, où la loi exacte de permutation devrait être préférée. Sur la variante
+médiocre pour $T < 10$, raison pour laquelle le moteur retient la loi exacte de permutation. Sur la variante
 « ratio contre volume », un rejet signale un effet d'échelle non capté par la proportionnalité
 stricte.
 \end{fiche}
@@ -3038,7 +3155,16 @@ puis la statistique standardisée avec correction de continuité
 Sous $H_0$, $S$ suit une loi exacte tabulée, symétrique autour de~0 ; asymptotiquement
 $Z \xrightarrow{\ \mathcal{L}\ } \mathcal{N}(0,1)$.
 \Pval
-$p = 2\big(1 - \Phi(|Z|)\big)$.
+p-value exacte, retenue par le moteur~: \code{mk\_p\_exacte()} somme, sur la loi exacte de $S$
+obtenue par la distribution mahonienne du nombre d'inversions (M.\,G. Kendall, J.\,D. Gibbons,
+\emph{Rank Correlation Methods}, 5\textsuperscript{e} éd., Edward Arnold, 1990, ch.~4--5), les
+probabilités des issues telles que $|S| \ge |S_{\text{obs}}|$~; elle est
+calculée pour $T \le 12$ sans ex \ae quo. L'approximation normale
+$p = 2\big(1 - \Phi(|Z|)\big)$ est restituée comme p-value asymptotique, sans être retenue.
+L'équiprobabilité des ordres chronologiques suppose les $r_t$ identiquement distribués~: sous le
+modèle ajusté, ils ne le sont qu'à $\hat\pi_t$ constant. La p-value n'est exacte au sens de
+l'ADR~0002 que dans ce régime~; le moteur l'étiquette \code{exacte} et la retient dans tous les
+régimes (section~\ref{sec:base-residus}, issue~\#25).
 \Usage
 Test de référence pour détecter une dérive progressive du ratio S/P (dérive tarifaire, inflation
 des sinistres, évolution de la politique de provisionnement), ce qui contredirait directement la
@@ -3061,7 +3187,13 @@ $H_0$ : absence de tendance, formalisée par $\mathbb{P}(D_t > 0) = 1/2$ pour to
 \Stat
 $K = \#\{t : D_t > 0\}$, nombre de différences positives parmi les $m$ paires non nulles.
 \Loi
-$K \sim \mathcal{B}(m,\,1/2)$, loi binomiale \emph{exacte} (aucune approximation asymptotique).
+$K \sim \mathcal{B}(m,\,1/2)$, loi binomiale \emph{exacte} (aucune approximation asymptotique),
+pourvu que chaque différence $D_t$ soit de loi symétrique autour de~0. C'est le cas si les $r_t$
+sont i.i.d., donc sous le modèle ajusté à $\hat\pi_t$ constant~; à $\hat\pi_t$ variable, deux
+ratios lognormaux de même espérance et de variances différentes n'ont pas la même médiane, et
+$\mathbb{P}(D_t > 0) \ne 1/2$. La p-value n'est exacte au sens de l'ADR~0002 qu'à $\hat\pi_t$
+constant~; le moteur l'étiquette \code{exacte} et la retient dans tous les régimes
+(section~\ref{sec:base-residus}, issue~\#25).
 \Pval
 Test binomial bilatéral exact~:
 \[
@@ -3290,8 +3422,10 @@ variances.
   D_{n_1,n_2} \;=\; \sup_{u \in \mathbb{R}} \big| \hat F_1(u) - \hat F_2(u) \big| .
 \]
 \Loi
-Sous $H_0$, la loi exacte de $D_{n_1,n_2}$ est combinatoire (dénombrement de chemins), calculée
-exactement par \code{ks.test} en l'absence d'ex \ae quo. Asymptotiquement, avec
+Sous $H_0$, pour un vecteur $z$ échangeable, la loi exacte de $D_{n_1,n_2}$ est combinatoire
+(dénombrement de chemins), calculée exactement par \code{ks.test} en l'absence d'ex \ae quo~;
+les $z_t$ ne sont échangeables sous le modèle ajusté qu'à $\hat\pi_t$ constant (rubrique~6).
+Asymptotiquement, avec
 $\lambda = \sqrt{n_1 n_2/(n_1+n_2)}$~:
 \[
   \mathbb{P}\big(\lambda D_{n_1,n_2} \le u\big) \;\longrightarrow\;
@@ -3307,8 +3441,13 @@ Complément utile aux tests de variance~: il détecte aussi un décalage de nive
 de forme entre petits et gros volumes. Deux limites~: (i) puissance faible à effectifs réduits --
 avec $n_1 = n_2 = 5$, la plus petite p-value atteignable est $2/\binom{10}{5} \approx 0{,}008$,
 le rejet reste donc possible mais exige un écart maximal~; (ii) les deux échantillons ne sont pas
-strictement indépendants puisque les $z_t$ partagent les mêmes paramètres estimés
-$(\hat\beta, \hat\delta, \hat\gamma)$, ce qui invalide légèrement la loi de référence. Le
+indépendants puisque les $z_t$ partagent les mêmes paramètres estimés
+$(\hat\beta, \hat\delta, \hat\gamma)$~: $z \sim \mathcal{N}(0, P)$ sous le modèle ajusté
+(section~\ref{sec:base-residus}, issue~\#25). La loi combinatoire suppose seulement les $z_t$
+échangeables, la partition en petits et gros volumes ne dépendant que des $x_t$~; elle est donc
+exacte à $\hat\pi_t$ constant, soit ici à $\hat\delta = 1$ (le test exige des volumes non
+constants). À $\hat\pi_t$ variable, c'est une approximation dont l'écart n'est pas borné~; le
+moteur étiquette néanmoins la p-value \code{exacte} et la retient dans tous les régimes. Le
 \emph{QQ-plot à deux échantillons} associé (section~\ref{sec:graphiques}) reste le diagnostic le plus lisible.
 \end{fiche}
 
@@ -3615,9 +3754,14 @@ $H_0$ : les $z_t$ sont issus d'une loi normale.
 \Stat
 $W$, identique à la fiche précédente.
 \Loi
-$W$ étant invariante par translation et par changement d'échelle, sa loi sous $H_0$ ne dépend
-d'\emph{aucun paramètre}~: elle ne dépend que de $T$. Elle peut donc être évaluée numériquement
-en simulant des échantillons $\mathcal{N}(0,1)$ de taille $T$. L'outil emploie
+$W$ étant invariante par translation et par changement d'échelle, sa loi sur un échantillon
+i.i.d. normal ne dépend d'\emph{aucun paramètre}~: elle ne dépend que de $T$. Elle peut donc être
+évaluée numériquement en simulant des échantillons $\mathcal{N}(0,1)$ de taille $T$. Cette loi
+est celle de $W(z)$ sous le modèle ajusté \textbf{à $\hat\pi_t$ constant seulement}~: $z$ est
+alors $M\varepsilon$ à un facteur près, avec $\varepsilon$ i.i.d. normal, et $W(z) = W(\varepsilon)$.
+À $\hat\pi_t$ variable, $z \sim \mathcal{N}(0, P)$ n'est pas un échantillon i.i.d. translaté
+(section~\ref{sec:base-residus}, issue~\#25)~: la loi de $W(z)$ dépend alors de $\hat\pi_t$, et la
+loi simulée n'en est qu'une approximation, sans borne d'erreur connue à $T = 8$. L'outil emploie
 20\,000 tirages, mis en cache par valeur de $T$ et pilotés par une graine dédiée.
 \Pval
 $\hat p = \big(1 + \#\{W^{(b)} \le W_{\text{obs}}\}\big) / (B_{\text{null}} + 1)$, rejet en queue
@@ -3632,10 +3776,14 @@ Monte-Carlo près, en $\mathcal{O}(B_{\text{null}}^{-1/2})$.
 \textbf{Point important à ne pas confondre.} Cette simulation n'est \emph{pas} un bootstrap
 paramétrique~: elle ne dépend pas du modèle USP ajusté, mais seulement de $T$. Elle relève donc
 de la catégorie « exacte, évaluée numériquement » et non de la catégorie « Monte-Carlo » du
-tableau~\ref{tab:nature}. En pratique, les deux versions concordent étroitement~: sur 2\,000
+tableau~\ref{tab:nature} --- au sens strict de l'ADR~0002, à $\hat\pi_t$ constant seulement
+(rubrique~4)~; le moteur l'étiquette \code{exacte} dans tous les régimes, et le commentaire de la
+ligne, qui la dit indépendante du modèle ajusté, ne mentionne pas cette condition. En pratique,
+les deux versions concordent étroitement~: sur 2\,000
 réplications à $T = 8$, la fréquence de rejet au seuil de 5~\% vaut 4,95~\% pour la loi simulée
 contre 5,05~\% pour la normalisation de Royston, ce qui valide a posteriori l'approximation de
-Royston à cette taille d'échantillon.
+Royston à cette taille d'échantillon (constat de simulation dont le régime de $\hat\pi_t$ n'est
+pas consigné~; la calibration par régime figure à la section~\ref{sec:base-residus}).
 \end{fiche}
 
 \begin{fiche}{Test de Jarque--Bera}
@@ -3778,12 +3926,20 @@ d'ordre~1.
 $\mathrm{DW} \in [0,4]$~: proche de 2 sous $H_0$, proche de 0 en autocorrélation positive forte,
 proche de 4 en autocorrélation négative forte.
 \Loi
-Sous $H_0$, les résidus standardisés sont $\mathcal{N}(0, I_T)$~: $\mathrm{DW}$ est alors le
-\emph{rapport de deux formes quadratiques} en variables normales,
-$\mathrm{DW} = z'Az / z'z$ où $A$ est la matrice des différences secondes. Ses valeurs propres
-sont connues analytiquement, $\lambda_j = 2\big(1 - \cos(\pi j / T)\big)$, $j = 0,\dots,T-1$
-(vérification numérique faite). La loi de $\mathrm{DW}$ est donc \textbf{exactement calculable},
-sans tabulation ni approximation.
+Sous $H_0$ et sous le modèle ajusté pris pour vrai, les résidus standardisés suivent
+$\mathcal{N}(0, P)$ et \textbf{non} $\mathcal{N}(0, I_T)$, $P$ étant le projecteur de rang $T-1$
+défini à la section~\ref{sec:base-residus} (issue~\#25). La statistique étant calculée sur les
+résidus centrés, $Mz$ avec $M = I_T - \mathbf{1}\mathbf{1}'/T$, et invariante par changement
+d'échelle, $\mathrm{DW} = \varepsilon' P M A M P \varepsilon \big/ \varepsilon' P M P
+\varepsilon$, $\varepsilon \sim \mathcal{N}(0, I_T)$, où $A$ est la matrice des différences
+secondes. \textbf{À $\hat\pi_t$ constant}, $P = M$ et, $M$ étant idempotente,
+$\mathrm{DW} = \varepsilon' M A M \varepsilon / \varepsilon' M \varepsilon$~: \emph{rapport de
+deux formes quadratiques} en variables normales i.i.d., dont la loi est \textbf{exactement
+calculable}, sans tabulation ni approximation. Les valeurs propres de $A$ sont connues
+analytiquement, $\lambda_j = 2\big(1 - \cos(\pi j / T)\big)$, $j = 0,\dots,T-1$ (vérification
+numérique faite). \textbf{À $\hat\pi_t$ variable}, la loi calculée par le moteur, celle du cas
+$P = M$, n'est plus qu'une approximation de la loi de $\mathrm{DW}$, sans borne d'erreur connue
+à $T = 8$.
 \Pval
 On écrit $\mathbb{P}(\mathrm{DW} \le c) = \mathbb{P}\big(z'(A - cI)z \le 0\big)$, queue d'une
 forme quadratique évaluée par la méthode d'Imhof (1961)~:
@@ -3798,7 +3954,11 @@ forme quadratique évaluée par la méthode d'Imhof (1961)~:
 avec $h_j = \lambda_j - c$. La p-value bilatérale est
 $2\min\big(\mathbb{P}(\mathrm{DW} \le d),\, \mathbb{P}(\mathrm{DW} \ge d)\big)$.
 Le centrage retirant une dimension, l'intégration porte sur les $T-1$ valeurs propres non nulles
-de $A$ projetée sur l'orthogonal du vecteur constant.
+de $A$ projetée sur l'orthogonal du vecteur constant, soit $MAM$ (\code{dw\_p\_exacte()}).
+Cette p-value est \emph{exacte} au sens de l'ADR~0002 \textbf{à $\hat\pi_t$ constant seulement}
+($\hat\delta = 1$ ou volumes constants, au sens de \code{usp\_regime()}). Le moteur l'étiquette
+\code{exacte} et la retient dans tous les régimes~: à $\hat\pi_t$ variable, la p-value retenue
+est donc une approximation (section~\ref{sec:base-residus}).
 \Usage
 Deux points d'implémentation méritent d'être signalés. \emph{Le centrage}~: la statistique est
 calculée sur des résidus centrés, car la définition classique porte sur des résidus de moindres
@@ -3806,9 +3966,13 @@ carrés, de moyenne nulle par construction. Les $z_t$ satisfont la contrainte
 $\sum_t\sqrt{\hat\pi_t}z_t = 0$ mais pas $\bar z = 0$~; sans centrage, le dénominateur serait
 majoré de $T\bar z^2$ et $\mathrm{DW}$ biaisée vers le bas. Le centrage rend en outre la
 statistique cohérente avec l'autocorrélation employée par les tests portmanteau.
-\emph{La p-value}~: elle est exacte, et non asymptotique~; la validation par simulation donne
-10,1~\% de rejets au seuil nominal de 10~\% et 5,2~\% au seuil de 5~\% (1\,500 réplications à
-$T = 8$). Les bornes $d_L/d_U$, établies pour des résidus de moindres carrés, ne sont pas
+\emph{La p-value}~: elle est exacte, et non asymptotique, à $\hat\pi_t$ constant (rubrique~4)~;
+une première validation par simulation a donné 10,1~\% de rejets au seuil nominal de 10~\% et
+5,2~\% au seuil de 5~\% (1\,500 réplications à $T = 8$), sans que le régime de $\hat\delta$ sous
+lequel elle a été faite soit consigné. La calibration mesurée séparément dans chaque régime
+figure à la section~\ref{sec:base-residus}~: compatible avec le niveau nominal dans le
+scénario où $\pi_t$ est constant, inférieure au nominal (9,0~\% au seuil de 10~\%) dans le
+scénario à $\hat\pi_t$ variable, constat propre à ce scénario. Les bornes $d_L/d_U$, établies pour des résidus de moindres carrés, ne sont pas
 utilisées. Le test ne détecte par ailleurs qu'une dépendance d'ordre~1.
 \end{fiche}
 
@@ -3873,7 +4037,12 @@ $Z \xrightarrow{\ \mathcal{L}\ } \mathcal{N}(0,1)$.
 p-value exacte, retenue par le moteur~: elle est calculée par \code{runs\_p\_exacte()} sur la loi
 exacte de $R$ conditionnelle à $(n_1, n_2)$, celle de F.~Swed et C.~Eisenhart (1943, section~\ref{sec:biblio}),
 tabulée par \code{.runs\_dens()}. L'approximation normale $p = 2\big(1 - \Phi(|Z|)\big)$ est
-également calculée et restituée comme p-value asymptotique, sans être retenue.
+également calculée et restituée comme p-value asymptotique, sans être retenue. L'équiprobabilité
+des $\binom{n}{n_1}$ arrangements suppose les $z_t$ échangeables, ce qu'ils ne sont qu'à
+$\hat\pi_t$ constant ($z \sim \mathcal{N}(0, P)$, section~\ref{sec:base-residus}, issue~\#25)~:
+la p-value n'est exacte au sens de l'ADR~0002 que dans ce régime. Sur la ligne calculée sur
+$z_t$, le moteur l'étiquette \code{exacte} et la retient dans tous les régimes~; à $\hat\pi_t$
+variable, c'est une approximation, sans borne d'erreur connue à $T = 8$.
 
 \emph{Convention bilatérale.} Le moteur applique le doublement (issue~\#29)~:
 \[
