@@ -8,7 +8,9 @@
 #  implementations independantes du moteur :
 #    - lmtest     : dwtest (loi exacte de Durbin-Watson, algorithme de Pan),
 #                   resettest, bptest ;
-#    - tseries    : jarque.bera.test, runs.test ;
+#    - tseries    : jarque.bera.test (runs.test n'est pas utilise : la loi
+#                   du test des suites est verifiee par enumeration
+#                   exhaustive dans test_lois_exactes.R) ;
 #    - car        : leveneTest (centre = mediane, i.e. Brown-Forsythe) ;
 #    - ChainLadder: MackChainLadder, CDR (Merz & Wuthrich 2008), GenIns.
 #  Valeurs inscrites dans les tests : R 4.3.1, lmtest 0.9-40, tseries 0.10-55,

@@ -146,6 +146,62 @@ verifier("Suites : Z asymptotique = (R - E) / sqrt(V), moments par enumeration",
            isTRUE(proche(test_runs(z1)$stat, (Robs - mean(R)) / sqrt(mean(R^2) - mean(R)^2),
                          rel = 1e-10))
          })
+# Signe de Z : une serie regroupee (4 valeurs sous la mediane puis 4 au-dessus,
+# R = 2 < E = 5) a trop peu de suites, donc Z < 0 ; une serie alternee (R = 8)
+# en a trop, donc Z > 0. Assertion independante de la convention bilaterale
+# de runs_p_exacte() (seule la statistique Z est lue).
+verifier("Suites : Z < 0 pour une serie regroupee (R = 2), Z > 0 pour une serie alternee (R = 8)",
+         {
+           rg <- test_runs(c(-1, -1, -1, -1, 1, 1, 1, 1))
+           al <- test_runs(c(-1, 1, -1, 1, -1, 1, -1, 1))
+           identical(rg$runs, 2) && rg$stat < 0 && identical(al$runs, 8) && al$stat > 0
+         })
+# T = 5 : test_runs() et runs_p_exacte() ecartent la valeur egale a la mediane
+# (s[s != 0]), d'ou n1 = n2 = 2. Les 6 arrangements de ++-- donnent
+# R = 2 (++--, --++), R = 3 (+--+, -++-), R = 4 (+-+-, -+-+) : loi uniforme
+# sur {2, 3, 4}, verifiee par l'enumeration et par la valeur 1/3 ecrite en dur.
+verifier("Suites T = 5 (n1 = n2 = 2) : .runs_dens(2, 2) uniforme sur {2, 3, 4}",
+         {
+           d22 <- .runs_dens(2, 2); R22 <- runs_enum(2, 2)
+           isTRUE(all.equal(d22$R, 2:4)) &&
+           isTRUE(proche(d22$prob, rep(1 / 3, 3), abs = 1e-14)) &&
+           isTRUE(proche(d22$prob, as.numeric(table(factor(R22, levels = 2:4))) / 6,
+                         abs = 1e-14))
+         })
+# Dichotomie a T = 5 : 1:5 -> mediane 3 ecartee, signes --++, R = 2 ; Z calcule
+# avec n1 = n2 = 2 (E = 3, V = 2/3), et non avec n = 5.
+verifier("Suites T = 5 : mediane ecartee, Z = (2 - 3) / sqrt(2/3)",
+         identical(test_runs(1:5)$runs, 2) &&
+         isTRUE(proche(test_runs(1:5)$stat, -1 / sqrt(2 / 3), rel = 1e-12)))
+# Coherence loi simulee / loi exacte. Sous H0 (8 tirages i.i.d. continus), les
+# 70 arrangements des signes par rapport a la mediane sont equiprobables, donc
+# le R compte par test_runs() suit .runs_dens(4, 4). On simule N = 10 000
+# series i.i.d. N(0, 1) et on compare les frequences de R aux probabilites
+# exactes, classe par classe, a 4 ecarts-types binomiaux sqrt(p (1 - p) / N)
+# (risque de fausse alerte < 7e-5 par classe sous l'approximation normale,
+# < 5e-4 pour les 7 classes ; la graine est fixe, le resultat est donc
+# deterministe). Ce que l'assertion prouve : la chaine de test_runs()
+# (dichotomie par la mediane, comptage de R) appliquee a des tirages i.i.d.
+# reproduit la loi exacte, a l'erreur Monte-Carlo pres ; un ecart de
+# probabilite superieur a ~0,018 sur une classe centrale serait detecte. Ce
+# qu'elle ne prouve pas : que le bootstrap parametrique de usp_bootstrap()
+# reproduise cette loi. Celui-ci simule sous le modele ajuste et recalcule
+# les residus apres re-estimation ; ces residus ne sont pas i.i.d., et la loi
+# de R qui en resulte n'a pas a coincider avec .runs_dens(4, 4). Elle ne dit
+# rien non plus de la convention bilaterale de runs_p_exacte() (#29).
+verifier("Suites : loi de R simulee (i.i.d., N = 10 000) = .runs_dens(4, 4) a 4 ecarts-types",
+         {
+           avant <- if (exists(".Random.seed", envir = globalenv()))
+                      get(".Random.seed", envir = globalenv()) else NULL
+           set.seed(107); N <- 10000
+           Rsim <- vapply(seq_len(N), function(i) test_runs(stats::rnorm(8))$runs,
+                          numeric(1))
+           if (!is.null(avant)) assign(".Random.seed", avant, envir = globalenv())
+           d44 <- .runs_dens(4, 4)
+           fsim <- vapply(d44$R, function(r) mean(Rsim == r), numeric(1))
+           all(Rsim %in% d44$R) &&
+           all(abs(fsim - d44$prob) <= 4 * sqrt(d44$prob * (1 - d44$prob) / N))
+         })
 
 ## --- Durbin-Watson : loi exacte ---------------------------------------------
 # Controle de l'integrale d'Imhof sur une forme dont la loi est connue :

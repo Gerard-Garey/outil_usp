@@ -2,7 +2,7 @@
 #  tests/unitaires/test_modele_lognormal.R  --  MODELE LOGNORMAL (SECTIONS B, C)
 #
 #  usp_pi(), usp_noyau(), usp_objectif(), usp_ajuster(), usp_ajuster_rapide(),
-#  usp_simuler().
+#  usp_simuler(), usp_regime().
 #  References :
 #    - transcription litterale, ecrite ici independamment du moteur, des
 #      formules de l'annexe XVII, section B, par. 5 et 6 (JOUE L 12/273-274) ;
@@ -115,12 +115,16 @@ verifier("delta = 1 : sigma = forme fermee lognormale i.i.d. (jeu de test)",
          proche(f_t$sigma, forme_fermee(x, y), rel = 1e-6))
 verifier("delta = 1 : moyenne simple des z nulle par construction (cf. issue #3)",
          abs(mean(f_t$z)) < 1e-12)
-verifier("x constant : sigma = forme fermee ; delta non identifie et signale au bord",
+# delta n'est pas identifie (objectif plat en delta) : la valeur rendue par
+# l'optimiseur est un artefact, seule la constance de pi_t (par les volumes)
+# est garantie et verifiee (avis actuary, issue #31).
+verifier("x constant : sigma = forme fermee ; delta non identifie (objectif plat), pi_t constant par les volumes",
          {
            f <- usp_ajuster(rep(100, 8), y)
            k0 <- usp_noyau(0, f$gamma, rep(100, 8), y); k1 <- usp_noyau(1, f$gamma, rep(100, 8), y)
            isTRUE(proche(f$sigma, forme_fermee(rep(100, 8), y), rel = 1e-6)) &&
-             isTRUE(proche(k0$obj, k1$obj, rel = 1e-12)) && isTRUE(f$delta_au_bord)
+             isTRUE(proche(k0$obj, k1$obj, rel = 1e-12)) &&
+             isTRUE(usp_regime(f$delta, f$x)$pi_constant)
          })
 verifier("Donnees exactement proportionnelles (y = 0,7 x) : beta = 0,7 et sigma ~ 0",
          {
@@ -173,6 +177,67 @@ verifier("usp_simuler : E[Y_t/x_t] = beta et Var(ln Y_t) = 1/pi_t",
 # le premier demarrage est retenu comme optimum et sigma = Inf est renvoye
 # sans erreur.
 # Issue #33 (defaut releve par audit, repris de l'issue #7)
+## --- usp_regime : tolerance unique delta au bord / pi_t constant (issue #31) --
+# pi_t est constant en t si et seulement si delta = 1 ou x_t constant ; les
+# deux drapeaux partagent TOL_DELTA_BORD (seuils a tau/2 et 2 tau de part et
+# d'autre de chaque frontiere).
+tau <- TOL_DELTA_BORD
+regime <- function(d, xx = x) unlist(usp_regime(d, xx))
+verifier("TOL_DELTA_BORD : tolerance unique, egale a 1e-6",
+         identical(TOL_DELTA_BORD, 1e-6))
+verifier("usp_regime : delta = 1 au bord et pi_t constant ; delta = 0 au bord, pi_t variable",
+         identical(regime(1)[c("delta_au_bord", "pi_constant")], c(delta_au_bord = TRUE, pi_constant = TRUE)) &&
+         identical(regime(0)[c("delta_au_bord", "pi_constant")], c(delta_au_bord = TRUE, pi_constant = FALSE)))
+verifier("usp_regime : frontiere delta = 1 - tau (1 - tau/2 : bord et constant ; 1 - 2 tau : ni l'un ni l'autre)",
+         identical(regime(1 - tau / 2)[c("delta_au_bord", "pi_constant")], c(delta_au_bord = TRUE, pi_constant = TRUE)) &&
+         identical(regime(1 - 2 * tau)[c("delta_au_bord", "pi_constant")], c(delta_au_bord = FALSE, pi_constant = FALSE)))
+verifier("usp_regime : frontiere delta = tau (tau/2 : bord, pi_t variable ; 2 tau : ni l'un ni l'autre)",
+         identical(regime(tau / 2)[c("delta_au_bord", "pi_constant")], c(delta_au_bord = TRUE, pi_constant = FALSE)) &&
+         identical(regime(2 * tau)[c("delta_au_bord", "pi_constant")], c(delta_au_bord = FALSE, pi_constant = FALSE)))
+# Volumes perturbes : etendue relative tau/2 (constants) et 2 tau (variables).
+# Une etendue relative exactement egale a tau tombe sur la frontiere et se
+# decide a l'arrondi pres (mesure : 1,0000000000332 tau -> FALSE).
+verifier("usp_regime : volumes constants (delta = 0,37) -> pi_t constant ; tolerance relative tau sur x",
+         {
+           alt <- rep(c(-1, 1), 4)
+           identical(regime(0.37, rep(100, 8)),
+                     c(delta_au_bord = FALSE, volumes_constants = TRUE, pi_constant = TRUE,
+                       pi_constant_exact = TRUE, delta_dans_bande = FALSE,
+                       volumes_dans_bande = FALSE)) &&
+             isTRUE(usp_regime(0.37, 100 * (1 + alt * tau / 4))$volumes_constants) &&
+             !isTRUE(usp_regime(0.37, 100 * (1 + alt * tau))$volumes_constants)
+         })
+# Revue de la PR #57 : constance exacte (delta == 1 ou volumes egaux) vs
+# constance a la tolerance pres, qui commande le libelle des diagnostics.
+verifier("usp_regime : pi_constant_exact vrai a delta = 1 ou volumes egaux, faux dans la bande de tolerance",
+         {
+           alt <- rep(c(-1, 1), 4)
+           isTRUE(usp_regime(1, x)$pi_constant_exact) &&
+             isTRUE(usp_regime(0.37, rep(100, 8))$pi_constant_exact) &&
+             !isTRUE(usp_regime(1 - tau / 2, x)$pi_constant_exact) &&
+             !isTRUE(usp_regime(0.37, 100 * (1 + alt * tau / 4))$pi_constant_exact) &&
+             !isTRUE(usp_regime(0, x)$pi_constant_exact)
+         })
+verifier("usp_regime : delta_dans_bande vrai a 1 - tau/2, faux a 1 et a 1 - 2 tau ; volumes_dans_bande",
+         {
+           alt <- rep(c(-1, 1), 4)
+           isTRUE(usp_regime(1 - tau / 2, x)$delta_dans_bande) &&
+             !isTRUE(usp_regime(1, x)$delta_dans_bande) &&
+             !isTRUE(usp_regime(1 - 2 * tau, x)$delta_dans_bande) &&
+             isTRUE(usp_regime(0.37, 100 * (1 + alt * tau / 4))$volumes_dans_bande) &&
+             !isTRUE(usp_regime(0.37, rep(100, 8))$volumes_dans_bande) &&
+             !isTRUE(usp_regime(0.37, 100 * (1 + alt * tau))$volumes_dans_bande)
+         })
+verifier("usp_regime : a delta = 1 - tau, etendue relative des pi_t <= 2 tau etendue(xbar / x_t)",
+         {
+           p <- usp_pi(1 - tau, f_t$gamma, x)
+           diff(range(p)) / mean(p) <= 2 * tau * diff(range(mean(x) / x))
+         })
+verifier("usp_ajuster : aucun champ ajoute a l'ajustement (structure des references)",
+         identical(names(f_t), c("pi", "ln_beta", "beta", "v", "z", "sigma", "obj",
+                                 "delta", "gamma", "T", "x", "y", "xbar", "foc",
+                                 "obj_min", "convergence", "part_starts_convergents",
+                                 "delta_au_bord")))
 echec_attendu("usp_ajuster : erreur explicite si l'objectif n'est fini en aucun point",
               "constat audit : y[3] = Inf -> sigma = Inf, obj_min = 1e12, sans erreur",
               leve_erreur(usp_ajuster(x, replace(y, 3, Inf))))

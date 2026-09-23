@@ -5,8 +5,8 @@
 #  construits a la main, sans reference ni moteur : un vecteur de textes qui
 #  franchit la longueur 1 (1 -> 2, 2 -> 1) doit etre patche comme le
 #  remplacement d'un seul vecteur, et les controles existants (invariant
-#  "aucune valeur numerique posee", ecarts non designes) ne doivent pas etre
-#  affaiblis.
+#  "aucune valeur numerique posee", ecarts non designes, juges au seuil de la
+#  non-regression) ne doivent pas etre affaiblis.
 #
 #  Reference : l'objet recalcule lui-meme. Un patch accepte dont tous les
 #  chemins differents sont designes doit rendre un objet identical() au
@@ -81,6 +81,17 @@ verifier("Motif ne designant que le chemin nu : chemins indexes laisses, patch r
 verifier("Vecteur de textes porteur d'un attribut 1 -> 2 : refuse (l'attribut cache un nombre)",
          { a <- list(x = "a"); b <- list(x = structure(c("a", "b"), note = 3.14))
            refuse(patcher(a, b, "x")) })
+
+## --- Derive de plateforme non designee (issue #14, seuil TOLERANCE) --------
+# Le tri des grandeurs differentes suit le comparateur unique de
+# outils_tests.R : une derive sous le seuil 1e-6 n'est pas un ecart et reste
+# a sa valeur de reference ; au-dela, non designee, elle fait refuser le patch.
+verifier("Derive de 5e-7 non designee : patch accepte, valeur de reference conservee",
+         { a <- list(t = "a", x = 0.3); b <- list(t = "b", x = 0.3 * (1 + 5e-7))
+           r <- patcher(a, b, "^t$"); !refuse(r) && identical(r, list(t = "b", x = 0.3)) })
+verifier("Ecart de 2e-6 non designe : patch refuse",
+         { a <- list(t = "a", x = 0.3); b <- list(t = "b", x = 0.3 * (1 + 2e-6))
+           refuse(patcher(a, b, "^t$")) })
 
 ## --- Formes de chemins : vecteur nomme, vecteur imbrique ------------------
 verifier("Vecteur nomme 1 -> 2 : c(x='a') -> c(x='a', y='b') patche a l'identique du recalcule",

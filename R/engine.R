@@ -35,10 +35,28 @@
 ## 0. PARAMÈTRES STANDARD ET FACTEURS DE CRÉDIBILITÉ
 ## =============================================================================
 
-# Écarts-types standard de l'annexe II (non-vie), règlement délégué (UE)
-# 2015/35, JOUE L 12 du 17.1.2015, p. 230. Valeurs vérifiées ligne à ligne
-# contre le texte publié. Valeurs de la version d'origine de 2015 : l'annexe
-# II a ete remplacee depuis par le reglement delegue (UE) 2019/981 (issue #19).
+# SOURCE DES ECARTS-TYPES STANDARD (annexes II et XIV, issue #19)
+# Version en vigueur : reglement delegue (UE) 2015/35 dans sa version
+# consolidee du 14.11.2024 (fichier "TEXTE consolide_ 32015R0035 - FR -
+# 14.11.2024.xhtml" a la racine du depot, qui fait foi). Les annexes II et XIV
+# y portent le marqueur M6 : elles ont ete remplacees par le reglement delegue
+# (UE) 2019/981 de la Commission du 8 mars 2019, JO L 161 du 18.6.2019, p. 1.
+# Les valeurs de la version d'origine (JOUE L 12 du 17.1.2015, annexe II
+# p. 230, annexe XIV p. 269) ont ete remplacees ici et ne sont pas conservees :
+# neuf valeurs different (II-6, II-7, II-8 primes et reserve ; XIV-1 reserve,
+# XIV-3 primes, XIV-4 reserve).
+# LIMITE DE PERIMETRE : l'outil ne vaut que pour un calcul dont la date de
+# reference est posterieure ou egale a la date d'application du reglement
+# delegue (UE) 2019/981 (M6) : le sigma standard qui entre dans le melange de
+# l'annexe XVII est celui en vigueur a la date de reference du calcul. Il ne
+# permet pas de reproduire un calcul selon les valeurs de 2015.
+
+# Ecarts-types standard de l'annexe II (non-vie), version consolidee, tableau
+# sous le marqueur M6 de la ligne 36887 du xhtml (valeurs des segments 1 a 12
+# aux lignes 36945 a 37135 ; segment 6 : l. 37030 / 37033, segment 7 :
+# l. 37047 / 37050, segment 8 : l. 37064 / 37067). Dix-huit valeurs sur 24
+# identiques a la version d'origine ; confrontation une a une par l'agent
+# regulatory (issue #19).
 ANNEXE_II <- data.frame(
   segment = 1:12,
   libelle = c(
@@ -55,17 +73,18 @@ ANNEXE_II <- data.frame(
     "Reass. non proportionnelle - maritime, aerien, transport",
     "Reass. non proportionnelle - dommages aux biens"
   ),
-  sigma_prime_brut = c(.10, .08, .15, .08, .14, .12, .07, .09, .13, .17, .17, .17),
-  sigma_reserve    = c(.09, .08, .11, .10, .11, .19, .12, .20, .20, .20, .20, .20),
+  sigma_prime_brut = c(.10, .08, .15, .08, .14, .19, .083, .064, .13, .17, .17, .17),
+  sigma_reserve    = c(.09, .08, .11, .10, .11, .172, .055, .22, .20, .20, .20, .20),
   stringsAsFactors = FALSE
 )
 
-# Écarts-types standard de l'annexe XIV (santé non-SLT), règlement délégué
-# (UE) 2015/35, JOUE L 12 du 17.1.2015, p. 269. Valeurs vérifiées ligne à ligne
-# contre le texte publié. Valeurs de la version d'origine de 2015 : l'annexe
-# XIV a ete remplacee depuis par le reglement delegue (UE) 2019/981 (issue
-# #19). La colonne `lob` rappelle les lignes d'activité de
-# l'annexe I dont se compose chaque segment.
+# Ecarts-types standard de l'annexe XIV (sante non-SLT), version consolidee,
+# tableau sous le marqueur M6 de la ligne 81342 du xhtml (valeurs aux lignes
+# 81400 a 81454 ; segment 1 reserve : l. 81403, segment 3 primes : l. 81434,
+# segment 4 reserve : l. 81454) ; cinq valeurs sur 8 identiques a la version
+# d'origine. Voir la source commune ci-dessus. La colonne
+# `lob` rappelle les lignes d'activite de l'annexe I dont se compose chaque
+# segment.
 ANNEXE_XIV <- data.frame(
   segment = 1:4,
   libelle = c(
@@ -75,8 +94,8 @@ ANNEXE_XIV <- data.frame(
     "Reassurance sante non proportionnelle"
   ),
   lob = c("1 et 13", "2 et 14", "3 et 15", "25"),
-  sigma_prime_brut = c(.050, .085, .080, .17),
-  sigma_reserve    = c(.050, .140, .110, .20),
+  sigma_prime_brut = c(.050, .085, .096, .17),
+  sigma_reserve    = c(.057, .140, .110, .17),
   stringsAsFactors = FALSE
 )
 
@@ -102,6 +121,21 @@ CRED_LONG  <- c(`5` = .34, `6` = .43, `7` = .51, `8` = .59, `9` = .67,
 # et méthode risque de révision.
 CRED_COURT <- c(`5` = .34, `6` = .51, `7` = .67, `8` = .81, `9` = .92,
                 `10` = 1.00)
+
+# Tolerance unique de regime des sections B et C (issue #31) : delta au bord
+# de [0,1] et pi_t constant. Ce n'est PAS une valeur reglementaire mais une
+# resolution numerique. Elle doit depasser la resolution du critere d'arret de
+# L-BFGS-B sur delta : environ 1e-9 pour l'ajustement complet usp_ajuster()
+# (factr = 1e5, reduction relative factr * eps = 2,2e-11) et environ 1e-7
+# pour le reajustement rapide usp_ajuster_rapide() (factr = 1e7, 2,2e-9),
+# l'objectif ne variant que de 2,3e-2 * (1 - delta) en relatif pres du bord
+# sur les donnees de test. Mesure (avis actuary, 23/09/2026) : sur
+# 1 399 ajustements (400 jeux simules ajustes par usp_ajuster(), 999
+# repliques bootstrap par usp_ajuster_rapide()), aucune distance de delta au
+# bord dans la fenetre (0 ; 1,7e-4) : le seuil 1e-6 ne separe donc aucun
+# optimum interieur observe. Unique source de cette tolerance : usp_ajuster()
+# (delta_au_bord) et usp_regime() (pi_constant).
+TOL_DELTA_BORD <- 1e-6
 
 usp_credibilite <- function(T, bareme = c("court", "long")) {
   bareme <- match.arg(bareme)
@@ -278,7 +312,45 @@ usp_ajuster <- function(x, y, n_starts_delta = 9, verbose = FALSE) {
             foc = foc,
             obj_min = best$value, convergence = best$convergence,
             part_starts_convergents = part_convergents,
-            delta_au_bord = (d < 1e-6 || d > 1 - 1e-6)))
+            delta_au_bord = usp_regime(d, x)$delta_au_bord))
+}
+
+# Regime de l'ajustement lognormal (issue #31), fonction pure de (delta, x).
+# pi_t = 1 / ln(1 + e^{2 gamma} (delta + (1 - delta) xbar / x_t)) est constant
+# en t si et seulement si delta = 1 ou les volumes x_t sont constants : le
+# drapeau pi_constant porte donc sur cette CAUSE, avec la tolerance unique
+# TOL_DELTA_BORD, et non sur l'etendue observee des pi_t (seuil distinct qui
+# laissait une zone "delta au bord mais pi_t non constant" pour delta dans
+# (1 - 1e-6 ; 1 - 3,9e-9) sur les volumes du cas de test). delta au bord 0
+# avec des volumes variables ne rend PAS pi_t constant.
+# Signature (delta, x) plutot que (fit) : la fonction sert aussi dans
+# usp_ajuster(), avant que l'objet fit n'existe, et se teste sans ajustement.
+# Rien n'est ajoute a fit (stocke dans res$ajustement, structure des
+# references de non-regression).
+# pi_constant_exact distingue, parmi les cas pi_constant, la constance EXACTE
+# (delta == 1, ou volumes rigoureusement egaux) de la constance a la
+# tolerance pres. Dans le premier cas pi_t est le meme nombre flottant pour
+# tout t (delta + 0 * xbar / x_t = 1, ou xbar / x_t identique en t) et
+# moyenne(z) = 0 tient a la precision machine ; dans la bande de tolerance,
+# non (mesure, donnees de test, gamma annulant exactement la derivee en
+# gamma : moyenne(z) = 3,6e-3 * (1 - delta) et somme(z_t^2) - T =
+# 2,7e-3 * (1 - delta) pour 1 - delta de 1e-8 a 1e-6 ; a delta = 0,37 et
+# volumes d'etendue relative e de 2e-8 a 2e-7 : moyenne(z) = -3,0e-3 * e,
+# somme(z_t^2) - T = 1,4e-3 * e ; -2,0e-16 et 1,8e-15 a la constance exacte).
+# Les coefficients dependent des donnees ; seul l'ordre (1 - delta), ou e,
+# est general. pi_constant_exact n'est lu que pour le libelle des diagnostics
+# de usp_tests().
+usp_regime <- function(delta, x, tol = TOL_DELTA_BORD) {
+  delta_au_bord <- delta <= tol || delta >= 1 - tol
+  volumes_constants <- diff(range(x)) <= tol * mean(x)
+  list(delta_au_bord = delta_au_bord,
+       volumes_constants = volumes_constants,
+       pi_constant = delta >= 1 - tol || volumes_constants,
+       pi_constant_exact = delta == 1 || diff(range(x)) == 0,
+       # Causes de la constance a la tolerance pres seulement (libelle des
+       # diagnostics de usp_tests(), seule definition de la bande).
+       delta_dans_bande = delta >= 1 - tol && delta != 1,
+       volumes_dans_bande = volumes_constants && diff(range(x)) != 0)
 }
 
 # Paramètre propre final :
@@ -1208,10 +1280,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       motif_non_mc = "H0 non simulable : le modele ajuste appartient a H1",
       detail = "Loi EXACTE sous normalite. Equivaut a t^2 en regression simple")
   add(fam, "Coefficient de determination R2", "lm(y ~ x)",
-      type = if (is.finite(lmc$R2)) "indicateur" else "non applicable",
+      type = if (is.finite(lmc$R2)) "diagnostic" else "non applicable",
       estim_nom = "R2", estim = lmc$R2,
       detail = if (is.finite(lmc$R2))
-        sprintf("R2 ajuste = %.4f ; sous H0 (b=0) E[R2] = 1/(T-1) = %.3f. Indicateur, pas un test",
+        sprintf("R2 ajuste = %.4f ; sous H0 (b=0) E[R2] = 1/(T-1) = %.3f. Diagnostic, pas un test",
                 lmc$R2_ajuste, 1 / (T - 1)) else "x_t constant : R2 non defini",
       verdict = if (!is.finite(lmc$R2)) "INFO" else if (lmc$R2 < 0.5) "ALERTE" else "OK")
   tr <- test_reset(x, y)
@@ -1270,7 +1342,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   bp <- test_breusch_pagan(z^2, x)
   add(fam, "Heteroscedasticite vs volume - Breusch-Pagan studentise (Koenker)",
       "Breusch & Pagan (1979) ; studentisation de Koenker (1981)",
-      H0 = "c1 = 0 : la variance des residus normalises ne depend pas du volume",
+      H0 = "c1 = 0 : la variance des residus standardises ne depend pas du volume",
       H1 = "variance residuelle dependante du volume",
       stat_nom = "LM", stat = bp$stat, loi = "chi2(1) asymptotique",
       p_as = bp$p, mc_nom = "BP",
@@ -1327,7 +1399,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 
   ## --- D. H3 : lognormalite --------------------------------------------------
   fam <- "D. H3 - lognormalite (annexe XVII B(2)(f)(iii))"
-  H0n <- "les residus normalises suivent une loi normale"
+  H0n <- "les residus standardises suivent une loi normale"
   H1n <- "loi non normale"
   sw <- .shapiro_sur(z)
   add(fam, "Shapiro-Wilk sur residus standardises", "Shapiro & Wilk (1965), Biometrika 52",
@@ -1456,10 +1528,16 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # somme(z_t) = 0 et somme(z_t^2) = T que lorsque pi_t est CONSTANT, ce qui
   # suppose delta = 1 ou des volumes x_t constants. A delta = 0 avec des
   # volumes variables, pi_t varie : delta_au_bord ne suffit donc PAS a
-  # conclure, et c'est la constance effective de pi_t qui est testee ici.
-  # Trois cas sont distingues dans le libelle (voir aussi le commentaire de
-  # .stats_bootstrapables() pour la loi simulee, qui est un melange).
-  pi_constant <- diff(range(fit$pi)) <= 1e-9 * mean(fit$pi)
+  # conclure. La constance de pi_t est decidee sur sa cause (delta >= 1 - tol
+  # ou volumes constants) par usp_regime(), avec la meme tolerance que
+  # delta_au_bord (TOL_DELTA_BORD, issue #31).
+  # Quatre cas sont distingues dans le libelle : pi_t exactement constant,
+  # pi_t constant a la tolerance pres seulement (issue #31, revue de la
+  # PR #57), delta au bord avec pi_t variable, delta interieur (voir aussi le
+  # commentaire de .stats_bootstrapables() pour la loi simulee, qui est un
+  # melange).
+  regime <- usp_regime(fit$delta, fit$x)
+  pi_constant <- regime$pi_constant
   # Le libelle du cas pi_t constant DIFFERE selon la grandeur, et c'est le
   # coeur du diagnostic. somme(z_t) = 0 decoule de la forme FERMEE de ln(beta)
   # dans usp_noyau() : c'est une IDENTITE algebrique, vraie pour tout couple
@@ -1478,8 +1556,76 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # de cette distinction, sans erreur ni avertissement (constat d'audit). Le
   # defaut leve donc une erreur. Le corps est entre accolades pour que le bloc
   # reste analysable s'il est un jour extrait de cette fonction.
+  # Issue #39 : quand pi_t n'est pas constant, ce qui subsiste pour la
+  # VARIANCE n'est pas la contrainte ponderee somme(sqrt(pi_t) z_t) = 0
+  # (condition en ln(beta), qui porte sur la moyenne et ne dit rien de
+  # somme(z_t^2)) mais la condition du premier ordre en gamma, relation
+  # ponderee distincte. Avec pi_t = 1 / log1p(exp(2 gamma) a_t) (usp_pi(),
+  # a_t = delta + (1 - delta) xbar / x_t),
+  # elle s'ecrit somme(k_t (z_t^2 - z_t / sqrt(pi_t) - 1)) = 0, avec
+  # k_t = pi_t (1 - exp(-1 / pi_t)) ; a pi_t constant, jointe a la condition
+  # en ln(beta), elle donne somme(z_t^2) = T. Mesure (usp_ajuster(), donnees
+  # de test) : cette somme vaut -3,3e-06 a delta = 0, T = 5 (volumes
+  # variables, somme(z_t^2) - T = -1,07e-02), -5,4e-06 a delta = 1 ; elle
+  # est de l'ordre de 1e-07 a delta = 0, T = 5 apres raffinement de gamma
+  # par optimize(tol = 1e-12) : -2,1e-07 sur l'intervalle [-5 ; 0],
+  # +1,2e-07 sur [gamma chapeau - 0,1 ; gamma chapeau + 0,1] (mesures
+  # distinctes selon l'intervalle). La formule n'est donnee qu'ici : le
+  # libelle nomme la condition sans l'ecrire.
+  cond_gamma_ponderee <- paste(
+    "pour la variance, la relation qui subsiste est la condition du premier",
+    "ordre en gamma (a un optimum interieur en gamma, domaine [-12, 3]),",
+    "relation ponderee distincte de la contrainte somme(sqrt(pi_t) z_t) = 0",
+    "(condition en ln(beta), qui porte sur la moyenne) ; elle ne fixe pas",
+    "somme(z_t^2).")
+  # Constance de pi_t a la tolerance pres seulement (delta dans la bande
+  # [1 - TOL_DELTA_BORD ; 1), ou volumes d'etendue relative non nulle mais
+  # <= TOL_DELTA_BORD) : l'identite sur moyenne(z) ne tient plus a la
+  # precision machine. Mesure (donnees premium, gamma de l'ajustement) :
+  # moyenne(z) = -2,0e-16 a delta = 1, mais 3,6e-10, 1,8e-9 et 3,2e-9 a
+  # 1 - delta = 1e-7, 5e-7 et 9e-7, soit 3,6e-3 * (1 - delta) (meme valeur,
+  # 3,575e-9 a 1 - delta = 1e-6, a gamma reoptimise : l'ecart ne renseigne
+  # donc pas sur la convergence en gamma ; il suit la position de delta,
+  # deja affichee). La variance n'est pas davantage exacte : a gamma
+  # annulant la derivee en gamma a 1e-14 pres (uniroot), somme(z_t^2) - T =
+  # 2,7e-3 * (1 - delta) au lieu de 0 ; cet ecart s'ajoute a celui de la
+  # tolerance d'arret (-5,4e-6 sur l'ajustement des donnees de test). Voir le
+  # commentaire de usp_regime() pour le cas des volumes quasi constants.
+  # 1 - delta est affiche plutot que delta : "%g" rendrait 1 - 5e-7 par "1".
+  ecart_tol <- local({
+    e <- character(0)
+    if (regime$delta_dans_bande)
+      e <- c(e, sprintf("1 - delta = %.2g", 1 - fit$delta))
+    if (regime$volumes_dans_bande)
+      e <- c(e, sprintf("etendue relative des volumes = %.2g",
+                        diff(range(fit$x)) / mean(fit$x)))
+    paste(e, collapse = ", ")
+  })
+  ordre_tol <- paste("d'ordre (1 - delta), ou de l'etendue relative des",
+                     "volumes x_t,")
+  tol_pres <- sprintf("Ici pi_t n'est constant qu'a la tolerance TOL_DELTA_BORD = %g pres (%s) :",
+                      TOL_DELTA_BORD, ecart_tol)
   contrainte <- function(quoi) {
-    if (isTRUE(pi_constant))
+    if (isTRUE(pi_constant) && !isTRUE(regime$pi_constant_exact))
+      switch(quoi,
+        centrage = paste(tol_pres,
+                         "seule somme(sqrt(pi_t) z_t) = 0 est une identite algebrique",
+                         "(ln(beta) etant obtenu en forme fermee) ; moyenne(z) n'est",
+                         "nulle qu'a un ecart", ordre_tol, "pres, du a la variation",
+                         "residuelle de pi_t. Cet ecart ne resulte pas de l'annulation",
+                         "d'une derivee : il est proportionnel a (1 - delta), ou a",
+                         "l'etendue relative des volumes x_t, deja affiche, et ne",
+                         "renseigne PAS sur la convergence en gamma."),
+        variance = paste(tol_pres,
+                         "var(z) = T/(T-1) suppose la derivee en gamma effectivement",
+                         "annulee, donc un optimum INTERIEUR en gamma, et elle tombe si",
+                         "gamma bute sur une borne de son domaine [-12, 3]. A un optimum",
+                         "interieur, l'egalite ne tient qu'a deux ecarts pres : la tolerance",
+                         "d'arret de l'optimiseur, et un ecart", ordre_tol, "du a la",
+                         "variation residuelle de pi_t. L'ecart residuel renseigne donc",
+                         "sur la convergence en gamma, sous ces reserves."),
+        stop("contrainte() : grandeur inconnue : ", quoi))
+    else if (isTRUE(pi_constant))
       switch(quoi,
         centrage = paste("Ici pi_t est constant (delta = 1, ou volumes x_t constants) :",
                          "moyenne(z) = 0 est alors une IDENTITE algebrique, ln(beta)",
@@ -1496,28 +1642,42 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                          "sous cette reserve."),
         stop("contrainte() : grandeur inconnue : ", quoi))
     else if (isTRUE(fit$delta_au_bord))
-      paste("Ici delta est au bord de [0,1] mais pi_t n'est PAS constant :",
-            "seule la contrainte ponderee subsiste, la valeur affichee n'est",
-            "donc ni nulle ni egale a T/(T-1) ; elle mesure l'ecart entre",
-            "version ponderee et version non ponderee.")
+      switch(quoi,
+        centrage = paste("Ici delta est au bord de [0,1] mais pi_t n'est PAS constant :",
+                         "seule la contrainte ponderee subsiste, la valeur affichee n'est",
+                         "donc pas nulle ; elle mesure l'ecart entre",
+                         "version ponderee et version non ponderee."),
+        variance = paste("Ici delta est au bord de [0,1] mais pi_t n'est PAS constant :",
+                         cond_gamma_ponderee, "var(z) reste rivee par cette condition mais",
+                         "n'est pas determinee par elle ; son ecart a T/(T-1) n'a pas de",
+                         "valeur de reference."),
+        stop("contrainte() : grandeur inconnue : ", quoi))
     else
-      paste("Ici delta est interieur a [0,1] et pi_t n'est pas constant :",
-            "seule la contrainte ponderee subsiste ; la valeur affichee mesure",
-            "l'ecart entre version ponderee et version non ponderee.")
+      switch(quoi,
+        centrage = paste("Ici delta est interieur a [0,1] et pi_t n'est pas constant :",
+                         "seule la contrainte ponderee subsiste ; la valeur affichee mesure",
+                         "l'ecart entre version ponderee et version non ponderee."),
+        variance = paste("Ici delta est interieur a [0,1] et pi_t n'est pas constant :",
+                         cond_gamma_ponderee, "var(z) reste rivee par cette condition mais",
+                         "n'est pas determinee par elle ; son ecart a T/(T-1) n'a pas de",
+                         "valeur de reference."),
+        stop("contrainte() : grandeur inconnue : ", quoi))
   }
   sans_p <- paste("Aucune p-value retenue : la grandeur est rivee par",
                   "l'estimation, elle est restituee comme diagnostic (ADR 0001).")
   add(fam, "Centrage des residus standardises", "Diagnostic de centrage (ADR 0001)",
       type = "diagnostic", estim_nom = "moyenne(z)", estim = mean(z),
-      detail = paste("Grandeur contrainte par l'estimation :",
+      detail = paste("Grandeur rivee par l'estimation :",
                      "somme(sqrt(pi_t) z_t) = 0 par condition du premier ordre,",
                      "d'ou moyenne(z) = 0 lorsque pi_t est constant.",
                      contrainte("centrage"), sans_p))
   add(fam, "Variance unitaire des residus standardises", "Diagnostic d'echelle (ADR 0001)",
       type = "diagnostic", estim_nom = "var(z)", estim = stats::var(z),
-      detail = paste("Grandeur contrainte par l'estimation : les conditions du",
-                     "premier ordre donnent somme(z_t^2) = T lorsque pi_t est",
-                     "constant, soit var(z) = T/(T-1).",
+      detail = paste("Grandeur rivee par l'estimation : la condition du",
+                     "premier ordre en gamma, qui ne tient qu'a un optimum",
+                     "interieur en gamma, donne, jointe a celle en ln(beta),",
+                     "somme(z_t^2) = T lorsque pi_t est constant, soit",
+                     "var(z) = T/(T-1).",
                      contrainte("variance"), sans_p))
 
   ## --- F. Stabilite, ruptures et points aberrants ----------------------------
@@ -2273,7 +2433,12 @@ mw_ajuster <- function(tri) {
 # Fonction de RESTITUTION, sans effet sur les calculs : elle recompose, a
 # partir d'un ajustement deja produit par mw_ajuster(), les TROIS arguments du
 # minimum du texte et celui qui est retenu, de sorte qu'un relecteur puisse
-# refaire le calcul. Elle detecte aussi le cas degenere sigma2_{J-3} = 0.
+# refaire le calcul. Elle detecte aussi les cas degeneres sigma2_{J-3} = 0 et
+# sigma2_{J-2} = 0, les deux seuls chemins vers sigma2_{J-1} = 0 : les trois
+# arguments du minimum etant positifs ou nuls, le minimum est nul si et
+# seulement si sigma2_{J-2} = 0 ou sigma2_{J-3} = 0 (le quotient est nul si et
+# seulement si sigma2_{J-2} l'est, hors sous-depassement flottant, inatteignable
+# pour une colonne non constante). Issue #21.
 #
 # DETECTION. Le critere ne porte PAS sur sigma2_{J-3} == 0 teste en virgule
 # flottante : sigma2_{J-3} est une somme de carres d'ecarts F(i,j) - f_j, deux
@@ -2283,7 +2448,7 @@ mw_ajuster <- function(tri) {
 # est exactement constante. Le critere porte donc sur la PROPRIETE qui annule
 # sigma2_{J-3}, a savoir l'egalite de tous les facteurs individuels de la
 # colonne a leur moyenne ponderee :
-#     max_i |F(i,j) - f_j| <= tol * f_j,   j = J-3.
+#     max_i |F(i,j) - f_j| <= tol * f_j,   j = J-3 et j = J-2.
 # Il est sans dimension (invariant par changement d'unite des cumules) et
 # tol = 1e-12, soit environ 1e4 fois l'epsilon machine, laisse passer
 # l'arrondi des divisions tout en restant plusieurs ordres de grandeur sous la
@@ -2292,13 +2457,25 @@ mw_ajuster <- function(tri) {
 # Ce critere ne sert qu'au DIAGNOSTIC : la valeur, elle, est robuste sans lui,
 # la regle litterale etant continue en zero (une colonne constante a 1e-12
 # pres donne un minimum de l'ordre de 1e-21, numeriquement nul).
+#
+# CHAMPS. Les champs historiques colonne, nb_facteurs, ecart_relatif et
+# f_colonne gardent leur sens "colonne J-3" ; les champs suffixes _Jm2 portent
+# la meme information pour la colonne J-2, et degeneree_Jm3 / degeneree_Jm2
+# le verdict du critere colonne par colonne. degeneree est leur UNION : il
+# vaut TRUE des qu'une des deux colonnes est degeneree, c'est-a-dire des que
+# sigma2_{J-1} est nul par degenerescence d'un argument du minimum. retenu
+# est l'argmin litteral ; le detail du diagnostic M6
+# (.mw_detail_extrapolation) nomme la cause.
 mw_extrapolation_sigma2 <- function(aj, tol = 1e-12) {
   out <- list(J = NA_integer_, colonne = NA_integer_, nb_facteurs = NA_integer_,
               applicable = FALSE, valeur = NA_real_,
               sigma2_Jm2 = NA_real_, sigma2_Jm3 = NA_real_, quotient = NA_real_,
               retenu = NA_character_, degeneree = FALSE, ecart_relatif = NA_real_,
               f_colonne = NA_real_, f_Jm2 = NA_real_, f_Jm1 = NA_real_,
-              developpement_acheve = NA)
+              developpement_acheve = NA,
+              degeneree_Jm3 = FALSE, degeneree_Jm2 = FALSE,
+              ecart_relatif_Jm2 = NA_real_, nb_facteurs_Jm2 = NA_integer_,
+              f_colonne_Jm2 = NA_real_)
   # La fonction est publique et mw_valider_ajustement() peut recevoir un objet
   # d'ajustement reduit (I et reserve seuls) : il n'y a alors rien a restituer.
   if (!is.list(aj) || !all(c("I", "J", "sigma2", "f", "tri") %in% names(aj)))
@@ -2319,13 +2496,27 @@ mw_extrapolation_sigma2 <- function(aj, tol = 1e-12) {
   # texte. which.min ignore le quotient non defini, sans effet sur le minimum.
   out$retenu <- c("sigma2_(J-2)", "sigma2_(J-3)", "sigma2_(J-2)^2/sigma2_(J-3)")[
     which.min(c(out$sigma2_Jm2, out$sigma2_Jm3, out$quotient))]
-  j <- J - 3L                                  # colonne bornant l'extrapolation
-  idx <- 0:(I - j - 1)
-  Fij <- aj$tri[idx + 1, j + 2] / aj$tri[idx + 1, j + 1]
-  out$nb_facteurs <- length(idx)
-  out$f_colonne <- aj$f[j + 1]
-  out$ecart_relatif <- max(abs(Fij - aj$f[j + 1])) / abs(aj$f[j + 1])
-  out$degeneree <- is.finite(out$ecart_relatif) && out$ecart_relatif <= tol
+  # Critere de degenerescence d'une colonne j : ecart relatif maximal des
+  # facteurs individuels F(i,j) a leur moyenne ponderee f_j.
+  colonne_facteurs <- function(j) {
+    if (I - j - 1 < 0) return(list(n = 0L, f = aj$f[j + 1], ecart = NA_real_))
+    idx <- 0:(I - j - 1)
+    Fij <- aj$tri[idx + 1, j + 2] / aj$tri[idx + 1, j + 1]
+    list(n = length(idx), f = aj$f[j + 1],
+         ecart = max(abs(Fij - aj$f[j + 1])) / abs(aj$f[j + 1]))
+  }
+  c3 <- colonne_facteurs(J - 3L)               # colonne J-3 : sigma2_{J-3}
+  out$nb_facteurs <- c3$n
+  out$f_colonne <- c3$f
+  out$ecart_relatif <- c3$ecart
+  out$degeneree_Jm3 <- is.finite(c3$ecart) && c3$ecart <= tol
+  c2 <- colonne_facteurs(J - 2L)               # colonne J-2 : sigma2_{J-2}
+  out$nb_facteurs_Jm2 <- c2$n
+  out$f_colonne_Jm2 <- c2$f
+  out$ecart_relatif_Jm2 <- c2$ecart
+  out$degeneree_Jm2 <- is.finite(c2$ecart) && c2$ecart <= tol
+  # Union : un seul des deux chemins suffit a annuler sigma2_{J-1}.
+  out$degeneree <- out$degeneree_Jm3 || out$degeneree_Jm2
   out$f_Jm2 <- aj$f[J - 1]                     # f_{J-2}
   out$f_Jm1 <- aj$f[J]                         # f_{J-1}
   # "Developpement acheve" : les deux derniers facteurs valent 1, auquel cas
@@ -2350,18 +2541,58 @@ mw_extrapolation_sigma2 <- function(aj, tol = 1e-12) {
   # format. L'interpoler dans le format ferait d'un simple "%" du libelle une
   # specification de conversion -- c'est exactement ce qui a produit un
   # "too few arguments" ailleurs sur cette branche (constat d'audit).
+  # Arguments nommes comme atteignant le minimum (issue #21). ex$retenu reste
+  # l'argmin litteral ; le libelle, lui, nomme la CAUSE :
+  # - colonne J-2 degeneree : le quotient sigma2_(J-2)^2/sigma2_(J-3) n'est nul
+  #   que parce que sigma2_(J-2) l'est ; il n'est pas compte comme argument
+  #   distinct, meme lorsque l'arrondi le rend plus petit que sigma2_(J-2)
+  #   (colonne constante a 1e-14 pres : sigma2_(J-2) ~ 1e-28, quotient ~ 1e-58,
+  #   argmin litteral = quotient). Si la colonne J-3 est aussi degeneree, les
+  #   deux variances nulles sont nommees ex aequo ;
+  # - sinon : tous les arguments egaux au minimum a 1e-12 pres en relatif
+  #   (|a - m| <= 1e-12 * m, donc egalite exacte si m = 0), dans l'ordre du
+  #   texte, qualifies "ex aequo" s'ils sont plusieurs. Un minimum unique
+  #   donne le libelle historique.
+  noms <- c("sigma2_(J-2)", "sigma2_(J-3)", "sigma2_(J-2)^2/sigma2_(J-3)")
+  if (isTRUE(ex$degeneree_Jm2) && isTRUE(ex$degeneree_Jm3)) {
+    retenus <- "sigma2_(J-2) et sigma2_(J-3) (ex aequo)"
+  } else if (isTRUE(ex$degeneree_Jm2)) {
+    retenus <- paste0("sigma2_(J-2) (colonne J-2 degeneree ; le quotient ",
+                      "sigma2_(J-2)^2/sigma2_(J-3), nul par voie de consequence, ",
+                      "n'est pas compte comme argument distinct)")
+  } else {
+    args <- c(ex$sigma2_Jm2, ex$sigma2_Jm3, ex$quotient)
+    m <- suppressWarnings(min(args, na.rm = TRUE))
+    atteints <- noms[!is.na(args) & abs(args - m) <= 1e-12 * m]
+    retenus <- if (length(atteints) <= 1) ex$retenu
+      else paste0(paste(atteints[-length(atteints)], collapse = ", "), " et ",
+                  atteints[length(atteints)], " (ex aequo)")
+  }
   detail <- sprintf(paste0("%s. min(sigma2_(J-2) = %s ; sigma2_(J-3) = %s ; ",
                            "sigma2_(J-2)^2/sigma2_(J-3) = %s) = %s, minimum atteint par %s"),
                     base,
                     format(ex$sigma2_Jm2, digits = 6), format(ex$sigma2_Jm3, digits = 6),
-                    q, format(ex$valeur, digits = 6), ex$retenu)
+                    q, format(ex$valeur, digits = 6), retenus)
   # "numeriquement nul" et non "= 0" : la detection porte sur l'ecart relatif
   # des facteurs individuels a 1e-12 pres, si bien qu'une colonne constante a
-  # 1e-14 pres donne un sigma2_(J-3) de l'ordre de 1e-21, non nul. La valeur
-  # exacte est imprimee quelques mots plus haut dans la meme chaine.
-  if (isTRUE(ex$degeneree))
+  # 1e-14 pres donne un sigma2 de l'ordre de 1e-21, non nul. La valeur exacte
+  # est imprimee quelques mots plus haut dans la meme chaine. Cette phrase
+  # finale ne figure que dans les branches degenerees. Hors degenerescence, le
+  # libelle ne peut changer que par la regle ex aequo ci-dessus, qui s'y
+  # applique aussi ; pour un minimum unique (triangle de non-regression) il
+  # est identique au libelle anterieur (reference reserve2.rds).
+  d3 <- isTRUE(ex$degeneree_Jm3)
+  d2 <- isTRUE(ex$degeneree_Jm2)
+  if (d3 && d2)
+    detail <- paste0(detail, ". Colonnes J-3 et J-2 a facteurs individuels tous egaux ",
+                     "(sigma2_(J-3) et sigma2_(J-2) numeriquement nuls) : ",
+                     "voir l'avertissement sur les donnees")
+  else if (d3)
     detail <- paste0(detail, ". Colonne J-3 a facteurs individuels tous egaux ",
                      "(sigma2_(J-3) numeriquement nul) : voir l'avertissement sur les donnees")
+  else if (d2)
+    detail <- paste0(detail, ". Colonne J-2 a facteurs individuels tous egaux ",
+                     "(sigma2_(J-2) numeriquement nul) : voir l'avertissement sur les donnees")
   detail
 }
 
@@ -2446,6 +2677,30 @@ mw_msep <- function(aj) {
 # liquidation, recours sur annees anciennes) et un f_j < 1 isole, qui restent
 # couverts par l'avertissement de mw_valider_triangle() sur les cumules
 # decroissants.
+# Lignes de mw_tests() qui consomment mw_residus() (issue #21), par famille,
+# avec leur nom exact. Liste etablie par MESURE et non par lecture : on
+# remplace mw_residus() par des versions perturbees (colonne retiree, residus
+# bruites, signes aleatoires, residu porte a 50, C et F bruites), le
+# bootstrap etant fixe, et l'on releve les lignes dont la statistique,
+# l'estimation ou une p-value change (23/09/2026). Les lignes calculees sur
+# les facteurs F(i,j) n'y figurent pas. A tenir a jour si mw_tests() change :
+# test_merz_wuthrich.R refait la mesure et exige l'egalite des deux listes.
+.MW_LIGNES_RESIDUS <- list(
+  M1 = "Absence de tendance des facteurs avec le cumul, a colonne donnee",
+  M2 = c("Heteroscedasticite residuelle vs cumul",
+         "Adequation de l'exposant de variance, colonne par colonne",
+         "Variance unitaire des residus de Mack"),
+  M3 = c("Homogeneite des residus entre annees de survenance",
+         "Autocorrelation des residus (Durbin-Watson)",
+         "Test des suites sur les residus de Mack"),
+  M4 = c("Cellule aberrante du triangle (Grubbs)",
+         "Cellules aberrantes multiples (ESD generalise)"),
+  M5 = c("Shapiro-Wilk sur les residus de Mack",
+         "Lilliefors sur les residus de Mack"))
+.MW_LIGNES_RESIDUS_TEXTE <- paste(vapply(names(.MW_LIGNES_RESIDUS), function(fm)
+  sprintf("%s (%s)", fm, paste0("\"", .MW_LIGNES_RESIDUS[[fm]], "\"", collapse = " ; ")),
+  character(1)), collapse = ", ")
+
 mw_valider_ajustement <- function(aj, msep) {
   err <- character(0)
   R <- aj$reserve
@@ -2469,26 +2724,69 @@ mw_valider_ajustement <- function(aj, msep) {
                                  "sigma(res,s,USP) n'est pas calculable ; la methode du risque ",
                                  "de reserve no 2 n'est pas applicable a ce triangle."),
                           format(msep)))
-  # Avertissement (et non refus) : colonne J-3 a facteurs individuels tous
-  # egaux, donc sigma2_{J-3} = 0 et, par application litterale du par.
-  # 5(d)(ii), sigma2_{J-1} = 0. Le cas est licite au regard du texte, qui ne
-  # prevoit aucune clause de degenerescence, mais il doit etre VISIBLE : la
-  # MSEP ne porte alors aucune variance sur la derniere annee de
-  # developpement (voir mw_extrapolation_sigma2 et l'issue #7).
+  # Avertissement (et non refus) : sigma2_{J-1} = 0 par application litterale
+  # du par. 5(d)(ii), ce qui arrive si et seulement si la colonne J-3 ou la
+  # colonne J-2 a des facteurs individuels tous egaux (sigma2_{J-3} = 0 ou
+  # sigma2_{J-2} = 0 ; voir mw_extrapolation_sigma2). Le cas est licite au
+  # regard du texte, qui ne prevoit aucune clause de degenerescence, mais il
+  # doit etre VISIBLE : la MSEP ne porte alors aucune variance sur la derniere
+  # annee de developpement. UN SEUL avertissement par triangle, de meme
+  # squelette quel que soit le chemin (J-3, J-2 ou les deux) : seule la cause
+  # varie (issues #7 et #21).
   avt <- character(0)
   ex <- mw_extrapolation_sigma2(aj)
   if (isTRUE(ex$degeneree)) {
+    # Cause : une proposition par colonne degeneree, dans l'ordre J-3, J-2.
+    cols <- list()
+    if (isTRUE(ex$degeneree_Jm3))
+      cols[[length(cols) + 1]] <- list(nom = "J-3", j = ex$colonne, n = ex$nb_facteurs,
+                                       f = ex$f_colonne, ecart = ex$ecart_relatif,
+                                       s2 = ex$sigma2_Jm3)
+    if (isTRUE(ex$degeneree_Jm2))
+      cols[[length(cols) + 1]] <- list(nom = "J-2", j = ex$colonne + 1L,
+                                       n = ex$nb_facteurs_Jm2, f = ex$f_colonne_Jm2,
+                                       ecart = ex$ecart_relatif_Jm2, s2 = ex$sigma2_Jm2)
+    et <- function(x) paste(x, collapse = " et ")
+    entete <- et(vapply(cols, function(k) sprintf("j = %s = %d", k$nom, k$j), ""))
+    facteurs <- et(vapply(cols, function(k) sprintf(paste0(
+      "les %d facteurs individuels F(i,%d) sont tous egaux a f_%d = %s ",
+      "(ecart relatif maximal %.1e)"),
+      k$n, k$j, k$j, format(k$f, digits = 8), k$ecart), ""))
+    nuls <- et(vapply(cols, function(k) sprintf("sigma2_(%s) = %s", k$nom,
+                                                 format(k$s2, digits = 3)), ""))
+    n_deg <- sum(vapply(cols, function(k) k$n, 0L))
+    # Facteurs des colonnes degenerees REELLEMENT absents de mw_residus() :
+    # celle-ci n'ecarte une colonne que si sigma2_j <= 0 exactement, alors que
+    # la detection tolere 1e-12 en relatif sur les facteurs. Une colonne
+    # detectee avec sigma2_j > 0 (arrondi, par ex. 2e-28) garde ses residus :
+    # le nombre est donc mesure sur mw_residus(aj), et la phrase n'est emise
+    # que s'il est positif.
+    j_res <- mw_residus(aj)$j
+    n_abs <- sum(vapply(cols, function(k) k$n - sum(j_res == k$j), 0L))
+    phrase_res <- if (n_abs > 0) sprintf(paste0(
+      "%s n'ont pas de residu de Mack (sigma2_j exactement nul) : ils sont absents des ",
+      "lignes fondees sur ces residus, soit %s. "),
+      if (n_abs == n_deg)
+        sprintf("Les %d facteurs individuels %s", n_deg,
+                if (length(cols) > 1) "des colonnes degenerees" else "de la colonne degeneree")
+      else sprintf("%d des %d facteurs individuels des colonnes degenerees", n_abs, n_deg),
+      .MW_LIGNES_RESIDUS_TEXTE)
+    else ""
+    q <- if (is.na(ex$quotient)) "non defini" else format(ex$quotient, digits = 3)
     msg <- sprintf(paste0(
-      "Colonne de developpement j = J-3 = %d : les %d facteurs individuels F(i,%d) sont ",
-      "tous egaux a f_%d = %s (ecart relatif maximal %.1e), donc sigma2_(J-3) = %s. ",
+      "%s %s : %s, donc %s. ",
       "Par application litterale de l'annexe XVII, D(5)(d)(ii), seconde ligne, ",
-      "sigma2_(J-1) = min(sigma2_(J-2), sigma2_(J-3), sigma2_(J-2)^2/sigma2_(J-3)) = %s : ",
+      "sigma2_(J-1) = min(sigma2_(J-2), sigma2_(J-3), sigma2_(J-2)^2/sigma2_(J-3)) ",
+      "= min(%s ; %s ; %s) = %s : ",
       "la MSEP ne porte donc AUCUNE variance sur la derniere annee de developpement. ",
+      "%s",
       "Verifier l'origine des donnees (colonne recopiee d'une autre, paiements arretes, ",
       "cellules completees a la main)."),
-      ex$colonne, ex$nb_facteurs, ex$colonne, ex$colonne,
-      format(ex$f_colonne, digits = 8), ex$ecart_relatif,
-      format(ex$sigma2_Jm3, digits = 3), format(ex$valeur, digits = 3))
+      if (length(cols) > 1) "Colonnes de developpement" else "Colonne de developpement",
+      entete, facteurs, nuls,
+      format(ex$sigma2_Jm2, digits = 3), format(ex$sigma2_Jm3, digits = 3), q,
+      format(ex$valeur, digits = 3),
+      phrase_res)
     if (!isTRUE(ex$developpement_acheve))
       msg <- paste(msg, sprintf(paste0(
         "Le developpement n'est pourtant PAS acheve (f_(J-2) = %s, f_(J-1) = %s : ",
