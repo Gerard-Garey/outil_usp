@@ -863,7 +863,19 @@ référence dépasse $10^{-6}$ en valeur absolue, d'au plus $10^{-6}$ en absolu
 sinon (une grandeur nulle par construction, de l'ordre de $10^{-16}$ par
 arrondi, aurait sans cela un écart relatif d'ordre~1). Le type d'une valeur
 fait partie de la valeur, et la structure de l'objet (type et attributs de
-chaque n\oe ud) est comparée à part, à l'identique. Ce critère a remplacé, le
+chaque n\oe ud) est comparée à part, à l'identique. Avant comparaison,
+\code{neutraliser\_instables()} remplace par \code{NA}, dans le résultat comme dans la
+référence, deux catégories de grandeurs dont la structure reste comparée~: les résultats connus
+pour s'écarter d'une plateforme à l'autre au-delà du seuil ci-dessous (liste
+\code{INSTABLES}, où chaque entrée renvoie à l'issue qui la justifie~; vide à ce jour), et les
+champs \emph{exclus par conception}, \code{\$gradient} et \code{\$gradient\_projete} de
+\code{res\$ajustement} (liste \code{EXCLUS\_AJUSTEMENT}, décision du mainteneur,
+issue~\#22). Cette seconde exclusion ne repose pas sur un écart constaté entre plateformes
+mais sur la nature de la grandeur, établie sur une même machine~: un résidu d'optimiseur voisin
+de zéro, dont la valeur dépend du démarrage retenu et non des données
+(fiche~\ref{fiche:foc}). Le pas de Newton, la courbure, les verdicts des contrôles, les
+décomptes de démarrages et $(\hat\delta, \hat\gamma)$ restent comparés, et la reproductibilité
+à graine égale (\code{identical()}) porte sur l'objet entier. Ce critère a remplacé, le
 23~septembre 2026, une comparaison par \code{all.equal()} à la tolérance
 relative de $10^{-8}$, qui portait sur une différence relative \emph{moyenne}
 et pouvait diluer un écart localisé dans un vecteur dont les autres valeurs
@@ -883,11 +895,13 @@ tirages bootstrap~; l'écart sur $\sigma_{\mathrm{USP}}$ lui-même est de l'ordr
 de $10^{-14}$ en relatif, très en deçà de la précision à laquelle le paramètre
 est lu. La branche Merz--Wüthrich était, elle, indemne sous R~4.3.3 (aucun écart sur le
 triangle de contrôle)~; ce n'est plus vrai sous R~4.3.1 (voir ci-dessous). Ces décomptes sont datés~: l'objet a changé depuis l'audit (il
-compte aujourd'hui 12\,393 valeurs élémentaires sur le cas de la méthode prime),
+comptait 12\,393 valeurs élémentaires sur le cas de la méthode prime lors de la mesure du
+23~septembre 2026 rapportée ci-dessous, et en compte 12\,369 depuis l'issue~\#22),
 et la mesure ne peut se refaire qu'en confrontant deux plateformes. Sur le poste
 du mainteneur (Windows, R~4.3.1), le résultat courant des trois cas de contrôle
 est identique au bit près à sa référence, hors les trois champs d'exécution de
-\code{\$metadata} (\code{identical()}, mesuré le 22~septembre 2026). Refaite
+\code{\$metadata} (\code{identical()}, mesuré le 22~septembre 2026, puis de nouveau le
+23~septembre 2026 sur les références régénérées pour l'issue~\#22). Refaite
 le 23~septembre 2026 sous Linux avec R~4.3.3, au critère ci-dessus, la
 comparaison donne, sur les cas prime et réserve n\textsuperscript{o}~1,
 5\,504 valeurs sur 12\,393 non strictement identiques à leur référence, d'écart
@@ -913,6 +927,25 @@ est cohérente avec la répartition observée des écarts, mais elle n'a pas ét
 démontrée par une expérience isolant la bibliothèque d'algèbre linéaire ou la
 version de R. Ce qui précède ne remet en cause aucun résultat publié~: c'est la
 portée de la garantie qui doit être énoncée exactement.
+
+\emph{Les libellés.} Les chaînes de caractères de l'objet (commentaires des tests et des
+contrôles, notamment) sont comparées à l'identique, sans tolérance. D'où une règle
+d'écriture du moteur~: \textbf{aucune chaîne ne porte un nombre dont la valeur imprimée dépend
+de la plateforme}~; un résidu d'optimiseur ou une valeur voisine d'un point de bascule
+d'arrondi va dans un champ numérique, jugé au seuil ci-dessus, et le libellé y renvoie. La règle
+est née d'un constat de la CI (issue~\#22)~: le commentaire de l'ancienne ligne « condition du
+premier ordre » imprimait un résidu au bruit machine, $1{,}1\cdot 10^{-17}$ sous Windows contre
+$2{,}5\cdot 10^{-17}$ sous Linux, et cette seule chaîne faisait échouer la comparaison. Le
+\emph{test anti-bruit} (\code{tests/unitaires/test\_anti\_bruit.R}) la protège sur une même
+machine, sans attendre la CI~: pour les trois méthodes, les données sont multipliées par
+$1 \pm 10^{-12}$ (signes alternés, sans tirage), et toutes les chaînes de l'objet, hors les
+trois champs d'exécution de \code{\$metadata}, doivent rester
+identiques (\code{identical()}), toutes les valeurs numériques sous le seuil du comparateur
+après la même neutralisation. Il a révélé un second cas, corrigé~: le commentaire du TOST
+imprimait la marge $\Delta = 0{,}1\,\bar y = 8{,}5005$ à quatre chiffres significatifs, soit
+« 8.501 », devenu « 8.5 » sous la perturbation~; la valeur de $\Delta$ est désormais restituée
+dans le champ \code{estim} de la ligne (fiche~\ref{fiche:tost-constante}), et le commentaire n'en
+donne que la définition.
 
 \begin{encadre}
 \textbf{Point de revue.} L'objet retourné contient un champ \code{\$metadata}
@@ -1076,7 +1109,8 @@ IC bootstrap & \ref{fiche:ic-bootstrap} & \code{usp\_bootstrap()} (champ
 \code{\$sigma\_boot}) & diagnostic, aucune p-value & --- \\
 Convergence multi-démarrages (contrôle numérique, hors table des tests) &
 \ref{fiche:multi-demarrages} & \code{usp\_ajuster()} (champs
-\code{\$convergence}, \code{\$n\_starts\_optimum}), \code{usp\_controles\_numeriques()} &
+\code{\$convergence}, \code{\$n\_starts\_optimum}, \code{\$n\_starts\_optimum\_code0}),
+\code{usp\_controles\_numeriques()} &
 contrôle \code{OK} / \code{ECHEC}, aucune p-value & --- \\
 
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- M1 : proportionnalité des cumulés (annexe XVII, D(2)(h)(iii))}}} \\
@@ -1367,7 +1401,9 @@ test) et par bootstrap paramétrique. \\
 \end{center}
 
 Le champ \code{type} classe chaque ligne en \emph{test} (hypothèse nulle et loi de référence),
-\emph{diagnostic} (grandeur descriptive comme $R^2$, diagnostic numérique ou d'influence),
+\emph{diagnostic} (grandeur descriptive comme $R^2$, grandeur rivée par l'estimation,
+diagnostic d'influence ou de robustesse~; les contrôles numériques de l'estimation n'y
+figurent pas, voir la section~\ref{sec:controles}),
 \emph{procédure de décision} (Rosner, qui ne produit pas de p-value) ou \emph{non applicable}.
 Le champ \code{sens} indique enfin si l'on souhaite rejeter ou ne pas rejeter $H_0$~: pour les
 tests de Student sur la pente et de Fisher, un $p$ faible est un \emph{bon} résultat, et le
@@ -1388,6 +1424,15 @@ fonctions de contrôle dans le moteur, exécutables indépendamment de l'interfa
 \code{engine\_valider\_donnees()} et \code{usp\_controle\_donnees()} pour les
 méthodes lognormales~; \code{mw\_valider\_triangle()} \emph{et}
 \code{mw\_valider\_ajustement()} pour la méthode Merz--Wüthrich.
+
+La section décrit en outre, dans une sous-section propre placée à sa fin, les deux
+\emph{contrôles numériques de l'estimation} des méthodes lognormales (famille
+« H. Controles numeriques de l'estimation » de \code{res\$controles}, produite par
+\code{usp\_controles\_numeriques()}, issue~\#22). Ils ne sont pas des contrôles de
+données~: exécutés après \code{usp\_ajuster()}, ils jugent l'exécution de
+l'optimisation et ne relèvent ni des articles~19 et~219 ni de l'article~220. Ils ne
+sont pas davantage des tests~: leur verdict \code{OK} / \code{ECHEC} n'a ni p-value ni
+loi de référence, et il est \textbf{non bloquant}.
 
 La méthode Merz--Wüthrich en compte donc \textbf{deux}, appelées à deux moments
 distincts de la chaîne. \code{mw\_valider\_triangle()} s'exécute \emph{avant}
@@ -1434,22 +1479,22 @@ exporté à côté d'un triangle refusé.
 \textcolor{financeblue}{\textbf{Critère}} &
 \textcolor{financeblue}{\textbf{Justification}} \\
 Profondeur minimale & $T \ge 5$ & Annexe XVII, B/C(2)(b). Bloquant. \\
-Valeurs manquantes & aucun \code{NA} & Art.~19 : exhaustivité. \\
-Positivité de $x_t$ & $\min_t x_t > 0$ & $r_t = y_t/x_t$ doit être défini. \\
-Positivité de $y_t$ & $\min_t y_t > 0$ & Support de la loi lognormale. \\
+Valeurs manquantes & aucun \code{NA} & Art.~19 : exhaustivité. Bloquant. \\
+Positivité de $x_t$ & $\min_t x_t > 0$ & $r_t = y_t/x_t$ doit être défini. Bloquant. \\
+Positivité de $y_t$ & $\min_t y_t > 0$ & Support de la loi lognormale. Bloquant. \\
 Doublons & aucun couple $(x_t,y_t)$ répété & Signale une duplication de ligne. \\
 Plausibilité du ratio & $r_t \in\, ]0\,;5[$ & Erreurs d'unité ou de saisie. \\
 Amplitude du volume & $\max_t x_t/\min_t x_t < 10$ & Rupture de périmètre probable. \\
 Crédibilité pleine & $T \ge 10$ (barème court) & Informatif, section~G annexe~XVII. \\
-Condition du premier ordre \emph{(post-ajustement, famille H)} & gradient projeté fini,
-$\hat\gamma$ hors des bornes numériques, $H_{\gamma\gamma} > 0$, $|\Delta\gamma| \le 10^{-6}$,
-$|\mathrm{pg}_\delta| \le 10^{-4}$ (fiche~\ref{fiche:foc}) & Contrôle numérique de l'estimation
-(\code{usp\_controles\_numeriques()}, issue~\#22). Non bloquant. \\
-Convergence multi-démarrages \emph{(post-ajustement, famille H)} & au moins un démarrage à
-l'optimum au code de retour~0, et au moins deux démarrages à l'optimum (fiche~\ref{fiche:multi-demarrages}) & Contrôle numérique de
-l'estimation~; convention minimale, sans référence. Non bloquant. \\
 \end{tabular}
 \end{center}
+
+Les contrôles non bloquants ci-dessus sont restitués dans \code{res\$controles}
+(famille « A. Qualite des donnees ») et signalés par \code{engine\_valider\_donnees()}
+comme avertissements~: \code{run\_engine()} produit le calcul (vérifié par exécution~:
+un ratio hors de $]0\,;5[$, une amplitude de volume de~10 ou plus, un couple dupliqué ou
+$T = 5$ laissent \code{ok = TRUE}~; une valeur manquante, un $y_t$ négatif ou $T = 4$
+donnent \code{ok = FALSE}).
 
 \subsection*{Méthode Merz--Wüthrich (annexe XVII, section D, paragraphes 2, 4 et 5)}
 
@@ -1526,6 +1571,38 @@ réplication dont la réserve simulée est $\le 0$~; la règle appliquée à l'e
 pouvait pas rester plus permissive que celle appliquée à chacune de ses
 réplications.
 \end{encadre}
+
+\subsection*{Contrôles numériques de l'estimation (méthodes lognormales, famille H)}
+
+Décision M11 du mainteneur (issue~\#22)~: la condition du premier ordre et la convergence
+multi-démarrages ont quitté la table des tests, où elles figuraient comme diagnostics, pour
+\code{res\$controles}. Elles y suivent les huit contrôles de la famille~A, au même format
+(\code{usp\_controle\_donnees()}), ce qui porte \code{res\$controles} à dix entrées pour les
+méthodes lognormales (la méthode Merz--Wüthrich n'a pas de famille~H). Un \code{ECHEC} est
+restitué sans que \code{run\_engine()} refuse le calcul, comme pour la crédibilité pleine~;
+il doit néanmoins être traité avant toute lecture des tests (section~\ref{sec:synthese}). Les
+critères sont justifiés dans les fiches, que le document conserve en partie~III, à la place
+qu'occupaient les diagnostics correspondants.
+
+\begin{center}
+\small
+\rowcolors{2}{tablerow}{white}
+\begin{tabular}{@{}p{4.4cm}p{5.0cm}p{5.4cm}@{}}
+\rowcolor{tableheader}
+\textcolor{financeblue}{\textbf{Contrôle}} &
+\textcolor{financeblue}{\textbf{Critère}} &
+\textcolor{financeblue}{\textbf{Justification}} \\
+Condition du premier ordre \emph{(post-ajustement)} & gradient et courbure finis,
+$\hat\gamma$ hors des bornes numériques, $H_{\gamma\gamma} > 0$, $|\Delta\gamma| \le 10^{-6}$,
+$|\mathrm{pg}_\delta| \le 10^{-4}$ (fiche~\ref{fiche:foc}) & Contrôle numérique de l'estimation
+(\code{usp\_controles\_numeriques()}). Repère $10^{-6}$ ancré sur la décision M9, repère
+$10^{-4}$ fixé d'après des mesures. Non bloquant. \\
+Convergence multi-démarrages \emph{(post-ajustement)} & au moins un démarrage à
+l'optimum au code de retour~0, et au moins deux démarrages à l'optimum
+(fiche~\ref{fiche:multi-demarrages}) & Contrôle numérique de
+l'estimation~; convention minimale, sans référence. Non bloquant. \\
+\end{tabular}
+\end{center}
 
 \newpage
 
@@ -3874,7 +3951,9 @@ probabilité $66/70 = 0{,}943$ sous $H_0$~: il ne vaut pas validation de l'indé
 \begin{fiche}{Condition du premier ordre (gradient projeté, KKT)}
 \label{fiche:foc}%
 \refl{Contrôle numérique ; conditions d'optimalité de Kuhn et Tucker d'un minimum sous contraintes
-de bornes.}
+de bornes~: H.\,W. Kuhn, A.\,W. Tucker, \emph{Nonlinear programming}, \emph{Proceedings of the
+Second Berkeley Symposium on Mathematical Statistics and Probability}, University of California
+Press, 1951, p.~481--492.}
 \Cadre
 \textbf{Contrôle numérique de l'estimation, ni test ni diagnostic} (issue~\#22, décision M11 du
 mainteneur)~: il ne figure pas dans la table des tests mais dans \code{res\$controles}, famille
@@ -3929,7 +4008,11 @@ $\mathrm{pg}_\delta = 0$ au bord (décision du mainteneur, issue~\#22)~: celle-c
 discontinuité, un résidu $\mathrm{pg}_\delta = 3{,}6\cdot 10^{-6}$ à $\hat\delta = 1$ sortant
 \code{ECHEC}, alors qu'une perturbation relative des données inférieure à $10^{-12}$ plaçait
 $\hat\delta$ à l'intérieur ($0{,}99999809$, $g_\delta = 2{,}3\cdot 10^{-6}$) et le contrôle en
-\code{OK} (mesure). Le repère $10^{-4}$ est fixé sur mesure. À volumes constants,
+\code{OK} (mesure sur un jeu construit à cet effet~: volumes $x_t^3/10^4$ tirés du jeu de
+contrôle, pertes déformées d'une tendance dont le coefficient, réglé par bissection, place
+$\hat\delta$ à la bascule du bord~; les deux calculs diffèrent de $1{,}6\cdot 10^{-13}$ au plus
+en relatif sur les données). Le repère $10^{-4}$ est fixé d'après ces mesures, sans
+référence. À volumes constants,
 $g_\delta = 0$ et $\delta$ n'est pas identifié (fiche~\ref{fiche:position-delta}, issue~\#58)~: le
 commentaire le dit, au lieu de présenter la valeur rendue par l'optimiseur comme un bord.
 
@@ -3998,6 +4081,17 @@ information sur l'estimation. La
 convergence en $\gamma$ est désormais jugée par le pas de Newton $\Delta\gamma$ du présent
 contrôle~; l'écart de $\sum_t z_t^2$ à $T$ (fiche~\ref{fiche:variance-unitaire}) en est la
 lecture sur les résidus, exacte à $\hat\pi_t$ constant ($g_\gamma = w(\sum_t z_t^2 - T)$).
+
+\emph{Pourquoi un verdict de contrôle et non de test} (ADR~0001)~: le gradient projeté et le pas
+de Newton sont des grandeurs de calcul, non des statistiques~; ils n'ont ni hypothèse nulle ni
+loi de référence, les repères $10^{-6}$ et $10^{-4}$ sont des tolérances numériques et non des
+niveaux, et le verdict \code{OK} / \code{ECHEC} juge l'exécution de l'optimisation, non le
+modèle réglementaire. \emph{Lecture à $T = 8$}~: le contrôle ne se lit pas comme une
+statistique dont la loi dépendrait de $T$. Il vérifie seulement que le point rapporté satisfait
+la condition d'optimalité \emph{locale} à la précision numérique annoncée (le caractère global
+du minimum relève de la fiche~\ref{fiche:multi-demarrages})~; l'erreur relative qu'il tolère sur $\hat\sigma$,
+de l'ordre de $10^{-6}$, est sans commune mesure avec l'incertitude d'échantillonnage de
+$\hat\sigma$ sur huit points (fiche~\ref{fiche:ic-bootstrap}), qu'il ne mesure pas.
 \end{fiche}
 
 \begin{fiche}{Centrage des résidus standardisés (diagnostic)}
@@ -4777,7 +4871,8 @@ dans le commentaire, qui donne aussi le code du démarrage retenu. Précision ap
 audit (décision du mainteneur, issue~\#22)~: la règle initiale exigeait le code~0 du seul
 démarrage retenu. Or, à égalité d'objectif, le démarrage retenu est le premier de la grille (la
 marge de $10^{-10}$ de la sélection, conservée car elle stabilise $\hat\gamma$ d'une plateforme
-à l'autre)~; sur deux jeux simulés sous le modèle, les 54 démarrages s'arrêtent à
+à l'autre)~; sur deux jeux simulés sous le modèle (repris par les tests unitaires du moteur),
+les 54 démarrages s'arrêtent à
 $1{,}9\cdot 10^{-12}$ près, le premier rend le code~52 et 53 (resp.~52) autres rendent le
 code~0 (mesure)~: la règle initiale sortait \code{ECHEC} à tort, environ une fois sur cent sur
 données du modèle. Aucune estimation ne change.
@@ -4788,7 +4883,11 @@ si le code de retour était non nul~; de l'issue~\#24 à l'issue~\#22, la ligne 
 \code{INFO} de la table des tests. Sur le jeu de contrôle, les 54 démarrages aboutissent à moins
 de $1{,}9 \cdot 10^{-12}$ de l'objectif minimal (mesure), loin du repère $10^{-6}$.
 \Usage
-Garantit que le minimum rapporté est global et non local, ce qui n'a rien d'automatique~: la
+Vise à écarter un minimum local, ce qui n'a rien d'automatique, sans pouvoir le garantir~:
+deux démarrages ou plus arrêtés au même objectif rendent un minimum local isolé peu
+vraisemblable, mais ne prouvent pas que la grille de 54 démarrages, dont les points de départ
+couvrent $\delta \in [0,1]$ et $e^{\gamma} \in [0{,}01\,;0{,}40]$, a exploré toute la région
+utile. La
 fonction objectif de l'annexe~XVII peut présenter un plateau très plat en $\delta$ lorsque
 l'amplitude des volumes $x_t$ est faible (car $\pi_t$ dépend alors peu de $\delta$), situation
 dans laquelle l'optimiseur s'arrête en des points différents selon son initialisation. Un
@@ -4798,7 +4897,9 @@ nullité de la moyenne pondérée des résidus, elle, est une identité et ne si
 (fiche~\ref{fiche:foc}). \emph{Pourquoi un verdict de contrôle et non de test}~: $\hat\kappa$ et
 $n^{\star}$ sont des grandeurs de calcul, non des statistiques~; elles n'ont ni hypothèse nulle
 ni loi de référence, et le verdict \code{OK} / \code{ECHEC} juge l'exécution de l'optimisation,
-non le modèle (ADR~0001).
+non le modèle (ADR~0001). \emph{Lecture à $T = 8$}~: la règle ne dépend pas de $T$ et ne
+porte aucun niveau~; c'est le plateau en $\delta$ décrit ci-dessus, et non une propriété
+statistique de $\hat\kappa$ (qui n'a pas de loi), qui rend le contrôle utile.
 \end{fiche}
 
 \newpage
@@ -6492,6 +6593,11 @@ boucle explicite de $A^2$, $W^2$, $D$ et du $S$ de Mann--Kendall~; cohérence de
 \code{ks.test}~; vérification de la borne $G \le (T-1)/\sqrt{T}$ pour Grubbs~; et vérification
 numérique que la p-value bilatérale minimale de Cox--Stuart vaut exactement $0{,}0625$ pour
 $T = 10$, ce qui confirme l'affirmation de la fiche~\ref{fiche:cox-stuart} (section~\ref{sec:h1}).
+Le gradient analytique de l'objectif profilé (\code{usp\_gradient()}, fiche~\ref{fiche:foc}) a
+été confronté à la différence centrée de l'objectif, de pas $10^{-5}$, en 16 couples
+$(\delta,\gamma)$ sur chacun de deux jeux (le jeu de contrôle et un jeu à $\hat\delta$
+intérieur)~: l'écart maximal, rapporté à $\max(1, |\text{dérivée numérique}|)$, vaut
+$2{,}8\cdot 10^{-9}$ (mesure).
 
 \subsection*{Taille effective et puissance}
 
@@ -7078,6 +7184,7 @@ les fondements théoriques du bootstrap et des tests de Monte-Carlo.
 \clearpage
 % =============================================================================
 \section{Synthèse et lecture des verdicts}
+\label{sec:synthese}
 % =============================================================================
 
 \begin{center}
@@ -7131,10 +7238,14 @@ repère indicatif de 40~\% du second n'emporte aucun verdict (ADR~0001). \\
 \subsection*{Hiérarchie de lecture recommandée}
 
 \begin{enumerate}[itemsep=2pt]
-  \item \textbf{Contrôles de données} (section~\ref{sec:controles}) -- bloquants. Aucun résultat
-        n'a de sens si un contrôle est en échec.
+  \item \textbf{Contrôles de données} (section~\ref{sec:controles}) -- bloquants pour ceux que
+        les tableaux de cette section désignent comme tels~: \code{run\_engine()} rend alors
+        \code{ok = FALSE} et aucun résultat. Les autres sont des avertissements ou des
+        informations, à examiner avant toute lecture.
   \item \textbf{Convergence numérique} -- préalable technique~: contrôles numériques de
-        l'estimation de \code{res\$controles}, famille H, non bloquants --- condition du premier
+        l'estimation de \code{res\$controles}, famille H, non bloquants mais dont un
+        \code{ECHEC} est à traiter avant toute lecture des tests (section~\ref{sec:controles})
+        --- condition du premier
         ordre (fiche~\ref{fiche:foc}) et convergence multi-démarrages
         (fiche~\ref{fiche:multi-demarrages}) ---, et écart de $\sum_t z_t^2$ à $T$ (fiche~\ref{fiche:variance-unitaire}). La
         nullité de la moyenne \emph{pondérée} des résidus n'en fait pas partie~: c'est une
