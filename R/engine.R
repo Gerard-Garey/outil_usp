@@ -1517,10 +1517,15 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         "marge" = paste("marge Delta invalide (sans delta_equiv : theta_equiv non",
                         "fini ou <= 0 ; ou delta_equiv non fini ou <= 0) : test",
                         "non applicable"),
+        # La valeur de Delta n'est pas imprimee (elle est dans estim) : sur
+        # les donnees de test, 0,1 * moyenne(y) = 8,5005 tombe sur un point
+        # de bascule de %.4g, et une perturbation relative de 1e-12 des
+        # donnees faisait passer le texte de "8.501" a "8.5" (issue #22,
+        # test anti-bruit).
         "calcule" = sprintf(paste("Rejeter H0 fournit une preuve POSITIVE de proportionnalite.",
-                                  "Delta = %.4g (%s) ; p_bas = %.4f, p_haut = %.4f."),
-                            tost$delta,
-                            if (isTRUE(tost$marge_a_priori)) "fixee a priori"
+                                  "Delta = %s (valeur : estimation \"marge Delta\") ;",
+                                  "p_bas = %.4f, p_haut = %.4f."),
+                            if (isTRUE(tost$marge_a_priori)) "marge fixee a priori"
                             else sprintf("%.0f %% de la moyenne de y", 100 * theta_equiv),
                             tost$p_bas, tost$p_haut),
         stop("usp_tests : motif TOST inconnu : ", tost$non_applicable)))
