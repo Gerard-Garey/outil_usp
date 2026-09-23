@@ -1869,7 +1869,8 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
 ## =============================================================================
 ## 7quater. EMPREINTES D'UN RESULTAT (RAPPORT FIGE)
 ##
-## engine_empreinte(res) calcule deux empreintes md5 (tools::md5sum, R base)
+## engine_empreinte(res) calcule deux empreintes md5 (tools::md5sum, paquet
+## tools, distribue avec R)
 ## qui identifient ce qu'un rapport fige restitue. Elle n'est PAS appelee par
 ## run_engine() : le resultat du moteur n'en depend pas et les references de
 ## non-regression restent inchangees. Aucun tirage aleatoire (tempfile() et
@@ -1894,6 +1895,11 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
 ##    consigne l'encodage natif de la session. Elle identifie donc l'objet sur
 ##    la machine qui l'a produit ; elle ne se compare pas d'une plateforme a
 ##    l'autre.
+##
+## Resultat refuse (res$ok = FALSE) : aucune donnee n'a ete utilisee par un
+## calcul, donnees et texte_donnees valent donc NA ; resultat est l'empreinte
+## de l'objet refuse lui-meme (ok, validation, metadata sans horodatage),
+## stable a donnees egales. rapport_html() refuse un tel resultat.
 ## =============================================================================
 
 engine_empreinte <- function(res) {
