@@ -186,7 +186,7 @@ Circuit : `coder` → `audit` (moteur) → `app-review` (§ 5 de `docs/exigences
 
 Deux points de forme à régler dès le premier push : la **PR brouillon** (ADR 0007 point 1 ; `Closes #53`, `Closes #51`, mention de la partie `bloc_final` de #4) ; et le libellé de #51, `documentation`, qui n'est pas dans les cinq libellés canoniques de `docs/agents/triage-labels.md` : à laisser tel quel (libellé de type, pas de triage) ou à normaliser, au choix du mainteneur.
 
-- [ ] PR brouillon ouverte — [ ] commit `app:` / `moteur:` (#53) — [ ] `audit` (`engine_empreinte()`) — [ ] `app-review` — [ ] commit `docs:` (#51, § 5.6) — [ ] `docwriter` (index) — [ ] ADR 0009, `CONTEXT.md` — [ ] PR fusionnée ; #53, #51 fermées ; #4 piste 4 : case `bloc_final` cochée
+- [x] PR brouillon ouverte (#54) — [x] commit `app:` / `moteur:` (#53) — [ ] `audit` (`engine_empreinte()`) — [ ] `app-review` — [x] commit `docs:` (#51, § 5.6 : `53fe744`) — [ ] `docwriter` (index) — [ ] ADR 0009, `CONTEXT.md` — [ ] PR fusionnée ; #53, #51 fermées ; #4 piste 4 : case `bloc_final` cochée
 
 ### Branche B — Conformité et restitution (prochaine, après A-bis)
 
