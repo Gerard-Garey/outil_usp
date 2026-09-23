@@ -456,6 +456,9 @@ de calibration commune aux deux branches.}
 \code{\$ok}, \code{\$erreurs}, \code{\$avertissements} \\
 \code{usp\_controle\_donnees()} & $x$, $y$, \code{alpha} (0,10) &
 liste de contrôles de recevabilité \\
+\code{usp\_controles\_}\newline\code{numeriques()} & \code{fit} (sortie de \code{usp\_ajuster()}) &
+deux contrôles numériques de l'estimation (famille H, \code{OK} / \code{ECHEC},
+non bloquants), ajoutés à \code{res\$controles} \\
 \code{mw\_valider\_triangle()} & \code{tri}, \code{T\_min} &
 \code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, $I$, $J$ \\
 \code{mw\_valider\_ajustement()} & \code{aj} (sortie de \code{mw\_ajuster()}),
@@ -481,7 +484,15 @@ $\pi_t$, $\ln\hat\beta$, $\hat\beta$, $v_t$, $z_t$, $\sigma$, objectif \\
 \code{usp\_objectif()} & \code{par} $=(\delta,\gamma)$, $x$, $y$, \code{xbar} &
 $-2\ln L$ (à une constante près) \\
 \code{usp\_ajuster()} & $x$, $y$, \code{n\_starts\_delta} (9),
-\code{verbose} & \code{fit} complet, FOC, convergence \\
+\code{verbose}, \code{controle} (paramètres d'\code{optim()}, par défaut
+\code{factr = 1e5}, \code{maxit = 500}) & \code{fit} complet, gradient projeté,
+pas de Newton en $\gamma$, convergence multi-démarrages \\
+\code{usp\_gradient()} & $\delta$, $\gamma$, $x$, $y$, \code{xbar} &
+gradient analytique $(g_\delta, g_\gamma)$ de l'objectif profilé \\
+\code{usp\_condition\_}\newline\code{premier\_ordre()} & $\delta$, $\gamma$, $x$, $y$, \code{xbar},
+\code{tol} (\code{TOL\_DELTA\_BORD}), \code{h} ($10^{-4}$) &
+\code{\$gradient}, \code{\$gradient\_projete}, \code{\$hessien\_gamma},
+\code{\$pas\_newton\_gamma} \\
 \code{usp\_ajuster\_rapide()} & $x$, $y$, point de départ $(\delta_0,\gamma_0)$ &
 réajustement à un seul démarrage (\code{factr = 1e7}), employé par
 \code{usp\_bootstrap()} \\
@@ -1031,8 +1042,9 @@ direct, 2 retards) & \code{stats::Box.test()} (p asymptotique, $\chi^2$) &
 Suites (Wald--Wolfowitz) & \ref{fiche:suites-wald-wolfowitz} & \code{test\_runs()} &
 \code{runs\_p\_exacte()} (p exacte combinatoire, via \code{.runs\_dens()}) &
 \code{Runs} \\
-FOC (diagnostic) & \ref{fiche:foc} & \code{usp\_ajuster()} (champ \code{\$foc}) &
-diagnostic, aucune p-value & --- \\
+Condition du premier ordre (contrôle numérique, hors table des tests) & \ref{fiche:foc} &
+\code{usp\_condition\_premier\_ordre()}, \code{usp\_controles\_numeriques()} &
+contrôle \code{OK} / \code{ECHEC}, aucune p-value & --- \\
 Centrage des résidus (diagnostic) & \ref{fiche:centrage} & \code{mean()} sur $z$
 (appel direct dans \code{usp\_tests()}) & diagnostic, aucune p-value & --- \\
 Variance unitaire (diagnostic) & \ref{fiche:variance-unitaire} & \code{stats::var()} sur $z$
@@ -1062,8 +1074,10 @@ Jackknife & \ref{fiche:jackknife} & \code{usp\_jackknife()} &
 diagnostic, aucune p-value & --- \\
 IC bootstrap & \ref{fiche:ic-bootstrap} & \code{usp\_bootstrap()} (champ
 \code{\$sigma\_boot}) & diagnostic, aucune p-value & --- \\
-Convergence multi-démarrages & \ref{fiche:multi-demarrages} & \code{usp\_ajuster()} (champ
-\code{\$part\_starts\_convergents}) & diagnostic, aucune p-value & --- \\
+Convergence multi-démarrages (contrôle numérique, hors table des tests) &
+\ref{fiche:multi-demarrages} & \code{usp\_ajuster()} (champs
+\code{\$convergence}, \code{\$n\_starts\_optimum}), \code{usp\_controles\_numeriques()} &
+contrôle \code{OK} / \code{ECHEC}, aucune p-value & --- \\
 
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- M1 : proportionnalité des cumulés (annexe XVII, D(2)(h)(iii))}}} \\
 \midrule
@@ -1427,6 +1441,13 @@ Doublons & aucun couple $(x_t,y_t)$ répété & Signale une duplication de ligne
 Plausibilité du ratio & $r_t \in\, ]0\,;5[$ & Erreurs d'unité ou de saisie. \\
 Amplitude du volume & $\max_t x_t/\min_t x_t < 10$ & Rupture de périmètre probable. \\
 Crédibilité pleine & $T \ge 10$ (barème court) & Informatif, section~G annexe~XVII. \\
+Condition du premier ordre \emph{(post-ajustement, famille H)} & gradient projeté fini,
+$\hat\gamma$ hors des bornes numériques, $H_{\gamma\gamma} > 0$, $|\Delta\gamma| \le 10^{-6}$,
+$|\mathrm{pg}_\delta| \le 10^{-4}$ (fiche~\ref{fiche:foc}) & Contrôle numérique de l'estimation
+(\code{usp\_controles\_numeriques()}, issue~\#22). Non bloquant. \\
+Convergence multi-démarrages \emph{(post-ajustement, famille H)} & au moins un démarrage à
+l'optimum au code de retour~0, et au moins deux démarrages à l'optimum (fiche~\ref{fiche:multi-demarrages}) & Contrôle numérique de
+l'estimation~; convention minimale, sans référence. Non bloquant. \\
 \end{tabular}
 \end{center}
 
@@ -3850,10 +3871,17 @@ est inatteignable. Le verdict \code{OK} couvre les cinq valeurs $R \in \{3, \dot
 probabilité $66/70 = 0{,}943$ sous $H_0$~: il ne vaut pas validation de l'indépendance.
 \end{fiche}
 
-\begin{fiche}{Condition du premier ordre (diagnostic numérique)}
+\begin{fiche}{Condition du premier ordre (gradient projeté, KKT)}
 \label{fiche:foc}%
-\refl{Diagnostic numérique ; conditions d'optimalité du maximum de vraisemblance.}
+\refl{Contrôle numérique ; conditions d'optimalité de Kuhn et Tucker d'un minimum sous contraintes
+de bornes.}
 \Cadre
+\textbf{Contrôle numérique de l'estimation, ni test ni diagnostic} (issue~\#22, décision M11 du
+mainteneur)~: il ne figure pas dans la table des tests mais dans \code{res\$controles}, famille
+« H. Controles numeriques de l'estimation », au format de \code{usp\_controle\_donnees()}, avec un
+verdict \code{OK} / \code{ECHEC} \textbf{non bloquant}~: un \code{ECHEC} est restitué et
+\code{run\_engine()} produit le calcul.
+
 En annulant la dérivée de l'objectif par rapport à $\ln\beta$, on obtient la contrainte que
 l'estimation impose mécaniquement aux résidus \emph{quel que soit} le couple $(\delta,\gamma)$~:
 \[
@@ -3861,20 +3889,90 @@ l'estimation impose mécaniquement aux résidus \emph{quel que soit} le couple $
   \qquad\Longleftrightarrow\qquad
   \sum_{t=1}^{T} \sqrt{\hat\pi_t}\; z_t = 0 .
 \]
-\textbf{Diagnostic, non test.}
+Cette relation est une identité (rubrique~6)~: elle ne contrôle pas la convergence, et la grandeur
+$|\sum_t\hat\pi_t v_t|/\sum_t\hat\pi_t$ que restituait l'ancienne ligne de diagnostic a été
+retirée. Le contrôle porte sur les deux autres dérivées, celles de l'objectif \emph{profilé}
+$\mathcal{O}(\delta,\gamma)$ (\code{usp\_noyau()\$obj}, $\ln\beta$ remplacé par sa forme fermée).
 \Hzero
 Sans objet.
 \Stat
-Écart relatif à la condition d'optimalité~:
-$\displaystyle \mathrm{FOC} = \Big|\sum_t \hat\pi_t v_t\Big| \Big/ \sum_t \hat\pi_t$.
+Gradient analytique de $\mathcal{O}$ (\code{usp\_gradient()}). Comme $\ln\hat\beta$ minimise
+l'objectif à $(\delta,\gamma)$ fixés, la dérivée totale se réduit à la dérivée partielle à
+$\ln\beta$ fixé, avec $\partial\mathcal{O}/\partial\pi_t = s_t/\pi_t$. En posant
+$e = e^{2\gamma}$, $a_t = \delta + (1-\delta)\,\bar x/x_t$ et
+$s_t = z_t^2 - 1 - z_t/\sqrt{\hat\pi_t}$~:
+\[
+  g_\delta = \sum_{t=1}^{T} -\hat\pi_t\,\frac{e\,(1 - \bar x/x_t)}{1 + e\,a_t}\, s_t ,
+  \qquad
+  g_\gamma = \sum_{t=1}^{T} -\hat\pi_t\,\frac{2\,e\,a_t}{1 + e\,a_t}\, s_t .
+\]
+À $\hat\pi_t$ constant ($\hat\delta = 1$ ou volumes constants), $\sum_t z_t = 0$ et
+$g_\gamma = w\,\big(\sum_t z_t^2 - T\big)$, avec $w = -\pi\,2ea/(1+ea)$ commun à toutes les
+années. Le gradient est projeté sur les bornes (\code{usp\_condition\_premier\_ordre()})~:
+$\delta \in [0,1]$ et $\gamma \in [-12, 3]$ (constante \code{BORNES\_GAMMA}, bornes numériques
+et non réglementaires), le bord étant jugé à \code{TOL\_DELTA\_BORD} $= 10^{-6}$ près~; sur une
+borne inférieure la composante projetée vaut $\min(g, 0)$, sur une borne supérieure
+$\max(g, 0)$, à l'intérieur $g$. On en tire la courbure $H_{\gamma\gamma}$ par différence
+centrée du gradient analytique ($h = 10^{-4}$), puis le pas de Newton
+$\Delta\gamma = -\mathrm{pg}_\gamma / H_{\gamma\gamma}$. Lorsque $\hat\gamma$ est sur une borne
+numérique, le pas de Newton n'a pas de sens~: $\Delta\gamma$ vaut \code{NA}.
 \Loi
 Sans objet.
 \Pval
-Aucune. La ligne est restituée \code{INFO}, sans verdict ni sens du test
-(\code{sens\_du\_test} à \code{NA}). Le commentaire donne la valeur de $\mathrm{FOC}$ et le
-repère numérique $10^{-6}$, tolérance de calcul et non niveau de test~; jusqu'à l'issue~\#24, le
-moteur posait \code{ECHEC} au-delà de ce repère.
+Aucune. Le contrôle est \code{OK} si et seulement si~: le gradient est fini~; la courbure est
+finie (le commentaire distingue « gradient non fini » et « courbure non finie »)~; $\hat\gamma$
+n'est pas sur une borne numérique (sinon \code{ECHEC}, « maximum de vraisemblance non
+atteint »)~; $H_{\gamma\gamma} > 0$~; $|\Delta\gamma| \le 10^{-6}$~; $|\mathrm{pg}_\delta| \le
+10^{-4}$, \textbf{règle unique au bord comme à l'intérieur} (à l'intérieur,
+$\mathrm{pg}_\delta = g_\delta$). La règle unique a remplacé, après audit, l'exigence
+$\mathrm{pg}_\delta = 0$ au bord (décision du mainteneur, issue~\#22)~: celle-ci créait une
+discontinuité, un résidu $\mathrm{pg}_\delta = 3{,}6\cdot 10^{-6}$ à $\hat\delta = 1$ sortant
+\code{ECHEC}, alors qu'une perturbation relative des données inférieure à $10^{-12}$ plaçait
+$\hat\delta$ à l'intérieur ($0{,}99999809$, $g_\delta = 2{,}3\cdot 10^{-6}$) et le contrôle en
+\code{OK} (mesure). Le repère $10^{-4}$ est fixé sur mesure. À volumes constants,
+$g_\delta = 0$ et $\delta$ n'est pas identifié (fiche~\ref{fiche:position-delta}, issue~\#58)~: le
+commentaire le dit, au lieu de présenter la valeur rendue par l'optimiseur comme un bord.
+
+Le repère $10^{-6}$ est ancré sur la décision M9~: l'erreur relative sur $\hat\sigma$ est de
+l'ordre de $\Delta\gamma$. Son plancher est $\Delta\gamma \approx -h^2/3 \approx -3{,}3\cdot
+10^{-7}$, biais de la différence centrée par laquelle \code{optim()} dérive l'objectif (pas
+\code{ndeps} $= h = 10^{-3}$ par défaut)~; c'est une dérivation d'\code{actuary}, vérifiée par
+simulation (900 ajustements simulés sous le modèle, aucun \code{ECHEC} à tort de ce fait), et
+non un résultat tiré de la littérature. Sur le jeu de contrôle, $\Delta\gamma = -3{,}4\cdot
+10^{-7}$. Les valeurs $g$, $\mathrm{pg}$, $H_{\gamma\gamma}$ et $\Delta\gamma$ sont
+restituées dans les champs numériques \code{\$gradient}, \code{\$gradient\_projete},
+\code{\$hessien\_gamma} et \code{\$pas\_newton\_gamma} de \code{res\$ajustement}, et
+$\Delta\gamma$ dans le champ \code{stat} du contrôle~; le commentaire ne donne que les
+repères, le régime de $\hat\delta$ et la décision, car ces valeurs relèvent du bruit
+d'optimiseur et varient d'une plateforme à l'autre. Pour la même raison, \code{\$gradient} et
+\code{\$gradient\_projete} sont exclus par conception de la comparaison aux références de
+non-régression (\code{EXCLUS\_AJUSTEMENT}, \code{tests/outils\_tests.R})~: sur le jeu de
+contrôle, les 54 démarrages s'arrêtent à objectif égal ($1{,}88\cdot 10^{-12}$ près) avec
+$g_\gamma$ compris entre $-3{,}8\cdot 10^{-7}$ et $1{,}09\cdot 10^{-5}$, si bien que la valeur
+stockée dépend du démarrage retenu, non des données.
 \Usage
+\textbf{Réserve sur le repère $10^{-6}$.} Taux de faux \code{ECHEC} de l'ordre de 0,5 à 1~\% à
+$\hat\delta$ intérieur, nul au bord (mesure sur données simulées sous le modèle, consignée
+dans la décision du mainteneur du 23/09/2026, issue~\#22)~: la cause en est la dispersion des points d'arrêt équivalents de
+l'optimiseur, dont le pas de Newton atteint environ $2{,}5\cdot 10^{-6}$~; elle est traitée par
+l'issue~\#63. Le repère est maintenu (décision du mainteneur).
+
+\textbf{Portée mesurée.} Sur le jeu de contrôle ($\hat\delta = 1$)~: $g_\delta = -0{,}53$
+(composante projetée nulle, condition de Kuhn et Tucker satisfaite au bord supérieur),
+$H_{\gamma\gamma} = 31{,}3$, $\Delta\gamma = -3{,}4 \cdot 10^{-7}$, contrôle \code{OK}. Un
+ajustement délibérément non convergé à démarrage unique (\code{factr} $= 10^{13}$ ou
+\code{maxit} $= 2$) donne $|\Delta\gamma|$ compris entre $7{,}3\cdot 10^{-3}$ et
+$1{,}7\cdot 10^{-2}$ et sort \code{ECHEC}~; avec la grille complète de démarrages, le meilleur
+point non convergé est plus proche de l'optimum ($|\Delta\gamma|$ de $1{,}5\cdot 10^{-5}$ à
+$4{,}0\cdot 10^{-3}$), et le contrôle sort encore \code{ECHEC}, y compris lorsque
+\code{optim()} renvoie le code~0 (\code{factr} $= 10^{13}$).
+
+\textbf{Ancienne grandeur.} Jusqu'à l'issue~\#22, une ligne de diagnostic de la table des tests
+restituait $\mathrm{FOC} = \big|\sum_t \hat\pi_t v_t\big| \big/ \sum_t \hat\pi_t$ (champ
+\code{\$foc} de l'ajustement, supprimé), avec le repère $10^{-6}$~; jusqu'à l'issue~\#24, le
+moteur posait \code{ECHEC} au-delà de ce repère. Les deux paragraphes suivants expliquent
+pourquoi cette grandeur ne contrôlait rien.
+
 \textbf{Point de vigilance essentiel.} C'est la moyenne \emph{pondérée} $\sum_t\hat\pi_t v_t$ qui
 est contrainte à zéro, et non la moyenne simple $\bar z$ des résidus standardisés. Les deux ne
 coïncident que si $\hat\pi_t$ est constant, c'est-à-dire si $\hat\delta = 1$ ou si les volumes
@@ -3885,7 +3983,7 @@ convergence. Elle n'est pas pour autant une quantité libre~: l'écart entre les
 de l'ordre de la dispersion des poids $\hat\pi_t$, ce qui interdit d'en faire un test et conduit à
 la restituer comme diagnostic (fiche~\ref{fiche:centrage}).
 
-\textbf{Portée exacte de ce diagnostic.} $\mathrm{FOC}$ ne mesure pas non plus la convergence.
+\textbf{Pourquoi l'ancienne grandeur a été retirée.} $\mathrm{FOC}$ ne mesure pas non plus la convergence.
 \code{usp\_noyau()} calcule $\ln\hat\beta$ en forme fermée,
 $\ln\hat\beta = \big(T/2 + \sum_t\hat\pi_t\ln r_t\big)\big/\sum_t\hat\pi_t$~; en reportant dans
 $v_t = \ln r_t + 1/(2\hat\pi_t) - \ln\hat\beta$, on obtient $\sum_t\hat\pi_t v_t = 0$
@@ -3894,11 +3992,12 @@ numériquement sur des couples arbitraires --- $(0{,}5\,;-1)$, $(0\,;-3)$, $(1\,
 $(0{,}3\,;-2{,}5)$, $(1\,;3)$ --- où $\mathrm{FOC}$ reste inférieur à $10^{-15}$. Un
 dépassement du repère de la rubrique~5 ne peut donc survenir qu'en cas d'anomalie arithmétique
 (débordement, valeur non finie), jamais parce que l'optimisation se serait arrêtée trop tôt~;
-c'est pourquoi la ligne ne porte aucun verdict (ADR~0001, amendement du 23/09/2026)~: un
+c'est pourquoi la ligne ne portait plus aucun verdict (ADR~0001, amendement du 23/09/2026)~: un
 \code{OK} qui ne peut être perdu que sur une anomalie arithmétique n'apporterait aucune
 information sur l'estimation. La
-convergence en $\gamma$, elle, est signalée par l'écart de $\sum_t z_t^2$ à $T$
-(fiche~\ref{fiche:variance-unitaire}), seul indicateur de cette nature dans la restitution.
+convergence en $\gamma$ est désormais jugée par le pas de Newton $\Delta\gamma$ du présent
+contrôle~; l'écart de $\sum_t z_t^2$ à $T$ (fiche~\ref{fiche:variance-unitaire}) en est la
+lecture sur les résidus, exacte à $\hat\pi_t$ constant ($g_\gamma = w(\sum_t z_t^2 - T)$).
 \end{fiche}
 
 \begin{fiche}{Centrage des résidus standardisés (diagnostic)}
@@ -4651,34 +4750,55 @@ J.~Nocedal, C.~Zhu, \emph{A limited memory algorithm for bound constrained optim
 \emph{SIAM Journal on Scientific Computing}, 16(5), 1995, p.~1190--1208 (algorithme L-BFGS-B).}
 \Cadre
 L'optimisation de $\mathcal{O}(\delta,\gamma)$ est relancée depuis une grille de points de départ
-($9 \times 6 = 54$ démarrages dans la configuration par défaut). \textbf{Diagnostic, non test.}
+($9 \times 6 = 54$ démarrages dans la configuration par défaut). \textbf{Contrôle numérique de
+l'estimation, ni test ni diagnostic} (issue~\#22, décision M11 du mainteneur)~: il figure dans
+\code{res\$controles}, famille « H. Controles numeriques de l'estimation », avec un verdict
+\code{OK} / \code{ECHEC} non bloquant, et non dans la table des tests.
 \Hzero
 Sans objet.
 \Stat
-Proportion de démarrages atteignant le minimum global à $10^{-6}$ près~:
+Nombre $n^{\star}$ de démarrages atteignant le minimum global à $10^{-6}$ près (champ
+\code{\$n\_starts\_optimum}), nombre $n^{\star}_0$ d'entre eux dont \code{optim()} rend le code
+de retour~0 (champ \code{\$n\_starts\_optimum\_code0}), nombre de démarrages sans résultat, en
+erreur d'\code{optim()} (champ \code{\$n\_starts\_echec}), code de retour du démarrage retenu
+(champ \code{\$convergence}) et, à titre descriptif, la part parmi les $S$ démarrages aboutis~:
 \[
   \hat\kappa = \frac{1}{S}\sum_{s=1}^{S} \mathds{1}\Big\{\big|\mathcal{O}_s^{\star} -
-  \min_{s'}\mathcal{O}_{s'}^{\star}\big| < 10^{-6}\Big\},
+  \min_{s'}\mathcal{O}_{s'}^{\star}\big| < 10^{-6}\Big\} = \frac{n^{\star}}{S},
 \]
-complétée par le code de retour de l'optimiseur.
+restituée dans le champ \code{stat} du contrôle.
 \Loi
 Sans objet.
 \Pval
-Aucune. La ligne est restituée \code{INFO}, sans verdict ni sens du test
-(\code{sens\_du\_test} à \code{NA}). Le commentaire donne $\hat\kappa$, le repère conventionnel
-$0{,}5$ et le code de retour de l'optimiseur (0 pour une convergence)~; jusqu'à l'issue~\#24, le
-script marquait \code{ALERTE} si $\hat\kappa < 0{,}5$ ou si le code de retour était non nul.
+Aucune. Le contrôle est \code{OK} si et seulement si \emph{au moins un} démarrage à l'optimum
+rend le code~0 ($n^{\star}_0 \ge 1$) \emph{et} si au moins deux démarrages atteignent le minimum
+($n^{\star} \ge 2$). C'est une \textbf{convention minimale, sans référence}, écrite comme telle
+dans le commentaire, qui donne aussi le code du démarrage retenu. Précision apportée après
+audit (décision du mainteneur, issue~\#22)~: la règle initiale exigeait le code~0 du seul
+démarrage retenu. Or, à égalité d'objectif, le démarrage retenu est le premier de la grille (la
+marge de $10^{-10}$ de la sélection, conservée car elle stabilise $\hat\gamma$ d'une plateforme
+à l'autre)~; sur deux jeux simulés sous le modèle, les 54 démarrages s'arrêtent à
+$1{,}9\cdot 10^{-12}$ près, le premier rend le code~52 et 53 (resp.~52) autres rendent le
+code~0 (mesure)~: la règle initiale sortait \code{ECHEC} à tort, environ une fois sur cent sur
+données du modèle. Aucune estimation ne change.
+$\hat\kappa$ n'a plus de repère~: le repère conventionnel $0{,}5$ a été abandonné (décision M11),
+un modèle vrai ayant donné $\hat\kappa = 0{,}37$ une fois sur 300 (mesure consignée dans
+l'issue~\#22). Jusqu'à l'issue~\#24, le script marquait \code{ALERTE} si $\hat\kappa < 0{,}5$ ou
+si le code de retour était non nul~; de l'issue~\#24 à l'issue~\#22, la ligne était un diagnostic
+\code{INFO} de la table des tests. Sur le jeu de contrôle, les 54 démarrages aboutissent à moins
+de $1{,}9 \cdot 10^{-12}$ de l'objectif minimal (mesure), loin du repère $10^{-6}$.
 \Usage
 Garantit que le minimum rapporté est global et non local, ce qui n'a rien d'automatique~: la
 fonction objectif de l'annexe~XVII peut présenter un plateau très plat en $\delta$ lorsque
 l'amplitude des volumes $x_t$ est faible (car $\pi_t$ dépend alors peu de $\delta$), situation
 dans laquelle l'optimiseur s'arrête en des points différents selon son initialisation. Un
-$\hat\kappa$ faible est un signal d'alerte à traiter \emph{avant} toute interprétation des tests,
-au même titre que l'écart de $\sum_t z_t^2$ à $T$ (fiche~\ref{fiche:variance-unitaire})~; la nullité de la
-moyenne pondérée des résidus, elle, est une identité et ne signale rien (fiche~\ref{fiche:foc}).
-\emph{Pourquoi aucun verdict} (ADR~0001, amendement du 23/09/2026)~: $\hat\kappa$ est un contrôle
-de calcul, non une statistique~; il n'a ni hypothèse nulle ni loi de référence, et le repère
-$0{,}5$ est une convention.
+\code{ECHEC} est un signal d'alerte à traiter \emph{avant} toute interprétation des tests,
+au même titre qu'un \code{ECHEC} de la condition du premier ordre (fiche~\ref{fiche:foc})~; la
+nullité de la moyenne pondérée des résidus, elle, est une identité et ne signale rien
+(fiche~\ref{fiche:foc}). \emph{Pourquoi un verdict de contrôle et non de test}~: $\hat\kappa$ et
+$n^{\star}$ sont des grandeurs de calcul, non des statistiques~; elles n'ont ni hypothèse nulle
+ni loi de référence, et le verdict \code{OK} / \code{ECHEC} juge l'exécution de l'optimisation,
+non le modèle (ADR~0001).
 \end{fiche}
 
 \newpage
@@ -6385,10 +6505,10 @@ dans 92,5~\% des cas.
 \subsection*{Calibration des p-values de Monte-Carlo}
 
 C'est le point le plus important, puisque ces p-values sont celles retenues pour la majorité des
-tests --- mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$), 25 des 50 lignes de
+tests --- mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$), 25 des 48 lignes de
 la table auditable retiennent une p-value de Monte-Carlo, contre 10 une p-value exacte, 1 une
-p-value quasi-exacte et 2 une p-value asymptotique, les 12 dernières n'ayant aucune p-value
-retenue (10 diagnostics, 1 procédure de décision et 1 ligne non applicable). Sur 400 jeux de données simulés \emph{depuis le modèle} de
+p-value quasi-exacte et 2 une p-value asymptotique, les 10 dernières n'ayant aucune p-value
+retenue (8 diagnostics, 1 procédure de décision et 1 ligne non applicable). Sur 400 jeux de données simulés \emph{depuis le modèle} de
 l'annexe~XVII, la fréquence de
 rejet au seuil nominal de 10~\% a été mesurée pour chacune des statistiques bootstrapées.
 
@@ -6983,12 +7103,15 @@ envisagé, sensibilité du paramètre final. \\
 \code{p\_retenue}, \code{nature\_p} et \code{sens\_du\_test} valent \code{NA}~; le moteur refuse
 qu'un verdict soit fourni pour une telle ligne. Les seuils conventionnels attachés aux
 diagnostics --- $2k/T$ pour les leviers, $4/T$ pour la distance de Cook, $0{,}5$ pour $R^2$,
-$10^{-6}$ pour la condition du premier ordre, $0{,}5$ des démarrages, 10~\% / 20~\% pour le
+10~\% / 20~\% pour le
 jackknife, 50~\% / 80~\% pour la largeur de l'intervalle bootstrap --- et les libellés de la
 position de $\hat\delta$ (fiches~\ref{fiche:leviers}, \ref{fiche:cook}, \ref{fiche:r2},
-\ref{fiche:foc}, \ref{fiche:multi-demarrages}, \ref{fiche:jackknife}, \ref{fiche:ic-bootstrap}
+\ref{fiche:jackknife}, \ref{fiche:ic-bootstrap}
 et~\ref{fiche:position-delta}) sont des \emph{repères} conservés dans le commentaire, non des
-seuils de rejet~: ils ne produisent aucun verdict.
+seuils de rejet~: ils ne produisent aucun verdict. La condition du premier ordre et la
+convergence multi-démarrages ne sont plus des lignes de la table (issue~\#22)~: ce sont des
+contrôles \code{OK} / \code{ECHEC} de \code{res\$controles} (fiches~\ref{fiche:foc}
+et~\ref{fiche:multi-demarrages}).
 Une ligne de type \code{test} sans p-value retenue sort aussi \code{INFO}.
 Relèvent notamment de ce verdict~: test non applicable faute d'effectif
 ($T < 8$ pour D'Agostino, $T < 20$ pour Anscombe--Glynn), grandeur rivée par l'estimation
@@ -7010,8 +7133,10 @@ repère indicatif de 40~\% du second n'emporte aucun verdict (ADR~0001). \\
 \begin{enumerate}[itemsep=2pt]
   \item \textbf{Contrôles de données} (section~\ref{sec:controles}) -- bloquants. Aucun résultat
         n'a de sens si un contrôle est en échec.
-  \item \textbf{Convergence numérique} -- préalable technique~: part des démarrages convergents
-        (fiche~\ref{fiche:multi-demarrages}) et écart de $\sum_t z_t^2$ à $T$ (fiche~\ref{fiche:variance-unitaire}). La
+  \item \textbf{Convergence numérique} -- préalable technique~: contrôles numériques de
+        l'estimation de \code{res\$controles}, famille H, non bloquants --- condition du premier
+        ordre (fiche~\ref{fiche:foc}) et convergence multi-démarrages
+        (fiche~\ref{fiche:multi-demarrages}) ---, et écart de $\sum_t z_t^2$ à $T$ (fiche~\ref{fiche:variance-unitaire}). La
         nullité de la moyenne \emph{pondérée} des résidus n'en fait pas partie~: c'est une
         identité algébrique, vraie même sans convergence (fiche~\ref{fiche:foc}). La moyenne
         simple $\bar z$ est, elle, un diagnostic (fiche~\ref{fiche:centrage}).
@@ -7026,7 +7151,7 @@ repère indicatif de 40~\% du second n'emporte aucun verdict (ADR~0001). \\
         \code{nature\_p}. La hiérarchie appliquée est \emph{exacte $\succ$ Monte-Carlo
         $\succ$ asymptotique} (section~\ref{sec:nature})~: la p-value de Monte-Carlo n'est
         pas la première servie, elle vient \emph{après} la p-value exacte lorsque celle-ci
-        existe. Mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$)~: des 50
+        existe. Mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$)~: des 48
         lignes de la table auditable, 10 retiennent une p-value exacte, et 9 d'entre
         elles disposent pourtant d'une \code{p\_mc} qui n'est pas retenue~: lire
         systématiquement \code{p\_mc} reviendrait à écarter neuf p-values exactes au profit
