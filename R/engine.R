@@ -45,13 +45,15 @@
 # p. 230, annexe XIV p. 269) ont ete remplacees ici et ne sont pas conservees :
 # neuf valeurs different (II-6, II-7, II-8 primes et reserve ; XIV-1 reserve,
 # XIV-3 primes, XIV-4 reserve).
-# LIMITE DE PERIMETRE : l'outil ne vaut que pour un calibrage a une date
-# posterieure a l'application du reglement delegue (UE) 2019/981 (M6). Il ne
-# permet pas de reproduire un calibrage selon les valeurs de 2015.
+# LIMITE DE PERIMETRE : l'outil ne vaut que pour un calcul dont la date de
+# reference est posterieure ou egale a la date d'application du reglement
+# delegue (UE) 2019/981 (M6) : le sigma standard qui entre dans le melange de
+# l'annexe XVII est celui en vigueur a la date de reference du calcul. Il ne
+# permet pas de reproduire un calcul selon les valeurs de 2015.
 
 # Ecarts-types standard de l'annexe II (non-vie), version consolidee, tableau
-# sous le marqueur M6 de la ligne 36887 du xhtml (valeurs des segments 1 a 8
-# aux lignes 36945 a 37067 ; segment 6 : l. 37030 / 37033, segment 7 :
+# sous le marqueur M6 de la ligne 36887 du xhtml (valeurs des segments 1 a 12
+# aux lignes 36945 a 37135 ; segment 6 : l. 37030 / 37033, segment 7 :
 # l. 37047 / 37050, segment 8 : l. 37064 / 37067). Dix-huit valeurs sur 24
 # identiques a la version d'origine ; confrontation une a une par l'agent
 # regulatory (issue #19).
