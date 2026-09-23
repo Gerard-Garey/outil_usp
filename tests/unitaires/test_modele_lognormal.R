@@ -201,9 +201,32 @@ verifier("usp_regime : volumes constants (delta = 0,37) -> pi_t constant ; toler
          {
            alt <- rep(c(-1, 1), 4)
            identical(regime(0.37, rep(100, 8)),
-                     c(delta_au_bord = FALSE, volumes_constants = TRUE, pi_constant = TRUE)) &&
+                     c(delta_au_bord = FALSE, volumes_constants = TRUE, pi_constant = TRUE,
+                       pi_constant_exact = TRUE, delta_dans_bande = FALSE,
+                       volumes_dans_bande = FALSE)) &&
              isTRUE(usp_regime(0.37, 100 * (1 + alt * tau / 4))$volumes_constants) &&
              !isTRUE(usp_regime(0.37, 100 * (1 + alt * tau))$volumes_constants)
+         })
+# Revue de la PR #57 : constance exacte (delta == 1 ou volumes egaux) vs
+# constance a la tolerance pres, qui commande le libelle des diagnostics.
+verifier("usp_regime : pi_constant_exact vrai a delta = 1 ou volumes egaux, faux dans la bande de tolerance",
+         {
+           alt <- rep(c(-1, 1), 4)
+           isTRUE(usp_regime(1, x)$pi_constant_exact) &&
+             isTRUE(usp_regime(0.37, rep(100, 8))$pi_constant_exact) &&
+             !isTRUE(usp_regime(1 - tau / 2, x)$pi_constant_exact) &&
+             !isTRUE(usp_regime(0.37, 100 * (1 + alt * tau / 4))$pi_constant_exact) &&
+             !isTRUE(usp_regime(0, x)$pi_constant_exact)
+         })
+verifier("usp_regime : delta_dans_bande vrai a 1 - tau/2, faux a 1 et a 1 - 2 tau ; volumes_dans_bande",
+         {
+           alt <- rep(c(-1, 1), 4)
+           isTRUE(usp_regime(1 - tau / 2, x)$delta_dans_bande) &&
+             !isTRUE(usp_regime(1, x)$delta_dans_bande) &&
+             !isTRUE(usp_regime(1 - 2 * tau, x)$delta_dans_bande) &&
+             isTRUE(usp_regime(0.37, 100 * (1 + alt * tau / 4))$volumes_dans_bande) &&
+             !isTRUE(usp_regime(0.37, rep(100, 8))$volumes_dans_bande) &&
+             !isTRUE(usp_regime(0.37, 100 * (1 + alt * tau))$volumes_dans_bande)
          })
 verifier("usp_regime : a delta = 1 - tau, etendue relative des pi_t <= 2 tau etendue(xbar / x_t)",
          {

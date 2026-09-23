@@ -327,12 +327,30 @@ usp_ajuster <- function(x, y, n_starts_delta = 9, verbose = FALSE) {
 # usp_ajuster(), avant que l'objet fit n'existe, et se teste sans ajustement.
 # Rien n'est ajoute a fit (stocke dans res$ajustement, structure des
 # references de non-regression).
+# pi_constant_exact distingue, parmi les cas pi_constant, la constance EXACTE
+# (delta == 1, ou volumes rigoureusement egaux) de la constance a la
+# tolerance pres. Dans le premier cas pi_t est le meme nombre flottant pour
+# tout t (delta + 0 * xbar / x_t = 1, ou xbar / x_t identique en t) et
+# moyenne(z) = 0 tient a la precision machine ; dans la bande de tolerance,
+# non (mesure, donnees de test, gamma annulant exactement la derivee en
+# gamma : moyenne(z) = 3,6e-3 * (1 - delta) et somme(z_t^2) - T =
+# 2,7e-3 * (1 - delta) pour 1 - delta de 1e-8 a 1e-6 ; a delta = 0,37 et
+# volumes d'etendue relative e de 2e-8 a 2e-7 : moyenne(z) = -3,0e-3 * e,
+# somme(z_t^2) - T = 1,4e-3 * e ; -2,0e-16 et 1,8e-15 a la constance exacte).
+# Les coefficients dependent des donnees ; seul l'ordre (1 - delta), ou e,
+# est general. pi_constant_exact n'est lu que pour le libelle des diagnostics
+# de usp_tests().
 usp_regime <- function(delta, x, tol = TOL_DELTA_BORD) {
   delta_au_bord <- delta <= tol || delta >= 1 - tol
   volumes_constants <- diff(range(x)) <= tol * mean(x)
   list(delta_au_bord = delta_au_bord,
        volumes_constants = volumes_constants,
-       pi_constant = delta >= 1 - tol || volumes_constants)
+       pi_constant = delta >= 1 - tol || volumes_constants,
+       pi_constant_exact = delta == 1 || diff(range(x)) == 0,
+       # Causes de la constance a la tolerance pres seulement (libelle des
+       # diagnostics de usp_tests(), seule definition de la bande).
+       delta_dans_bande = delta >= 1 - tol && delta != 1,
+       volumes_dans_bande = volumes_constants && diff(range(x)) != 0)
 }
 
 # Paramètre propre final :
@@ -1513,9 +1531,13 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # conclure. La constance de pi_t est decidee sur sa cause (delta >= 1 - tol
   # ou volumes constants) par usp_regime(), avec la meme tolerance que
   # delta_au_bord (TOL_DELTA_BORD, issue #31).
-  # Trois cas sont distingues dans le libelle (voir aussi le commentaire de
-  # .stats_bootstrapables() pour la loi simulee, qui est un melange).
-  pi_constant <- usp_regime(fit$delta, fit$x)$pi_constant
+  # Quatre cas sont distingues dans le libelle : pi_t exactement constant,
+  # pi_t constant a la tolerance pres seulement (issue #31, revue de la
+  # PR #57), delta au bord avec pi_t variable, delta interieur (voir aussi le
+  # commentaire de .stats_bootstrapables() pour la loi simulee, qui est un
+  # melange).
+  regime <- usp_regime(fit$delta, fit$x)
+  pi_constant <- regime$pi_constant
   # Le libelle du cas pi_t constant DIFFERE selon la grandeur, et c'est le
   # coeur du diagnostic. somme(z_t) = 0 decoule de la forme FERMEE de ln(beta)
   # dans usp_noyau() : c'est une IDENTITE algebrique, vraie pour tout couple
@@ -1556,8 +1578,54 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     "relation ponderee distincte de la contrainte somme(sqrt(pi_t) z_t) = 0",
     "(condition en ln(beta), qui porte sur la moyenne) ; elle ne fixe pas",
     "somme(z_t^2).")
+  # Constance de pi_t a la tolerance pres seulement (delta dans la bande
+  # [1 - TOL_DELTA_BORD ; 1), ou volumes d'etendue relative non nulle mais
+  # <= TOL_DELTA_BORD) : l'identite sur moyenne(z) ne tient plus a la
+  # precision machine. Mesure (donnees premium, gamma de l'ajustement) :
+  # moyenne(z) = -2,0e-16 a delta = 1, mais 3,6e-10, 1,8e-9 et 3,2e-9 a
+  # 1 - delta = 1e-7, 5e-7 et 9e-7, soit 3,6e-3 * (1 - delta) (meme valeur,
+  # 3,575e-9 a 1 - delta = 1e-6, a gamma reoptimise : l'ecart ne renseigne
+  # donc pas sur la convergence en gamma ; il suit la position de delta,
+  # deja affichee). La variance n'est pas davantage exacte : a gamma
+  # annulant la derivee en gamma a 1e-14 pres (uniroot), somme(z_t^2) - T =
+  # 2,7e-3 * (1 - delta) au lieu de 0 ; cet ecart s'ajoute a celui de la
+  # tolerance d'arret (-5,4e-6 sur l'ajustement des donnees de test). Voir le
+  # commentaire de usp_regime() pour le cas des volumes quasi constants.
+  # 1 - delta est affiche plutot que delta : "%g" rendrait 1 - 5e-7 par "1".
+  ecart_tol <- local({
+    e <- character(0)
+    if (regime$delta_dans_bande)
+      e <- c(e, sprintf("1 - delta = %.2g", 1 - fit$delta))
+    if (regime$volumes_dans_bande)
+      e <- c(e, sprintf("etendue relative des volumes = %.2g",
+                        diff(range(fit$x)) / mean(fit$x)))
+    paste(e, collapse = ", ")
+  })
+  ordre_tol <- paste("d'ordre (1 - delta), ou de l'etendue relative des",
+                     "volumes x_t,")
+  tol_pres <- sprintf("Ici pi_t n'est constant qu'a la tolerance TOL_DELTA_BORD = %g pres (%s) :",
+                      TOL_DELTA_BORD, ecart_tol)
   contrainte <- function(quoi) {
-    if (isTRUE(pi_constant))
+    if (isTRUE(pi_constant) && !isTRUE(regime$pi_constant_exact))
+      switch(quoi,
+        centrage = paste(tol_pres,
+                         "seule somme(sqrt(pi_t) z_t) = 0 est une identite algebrique",
+                         "(ln(beta) etant obtenu en forme fermee) ; moyenne(z) n'est",
+                         "nulle qu'a un ecart", ordre_tol, "pres, du a la variation",
+                         "residuelle de pi_t. Cet ecart ne resulte pas de l'annulation",
+                         "d'une derivee : il est proportionnel a (1 - delta), ou a",
+                         "l'etendue relative des volumes x_t, deja affiche, et ne",
+                         "renseigne PAS sur la convergence en gamma."),
+        variance = paste(tol_pres,
+                         "var(z) = T/(T-1) suppose la derivee en gamma effectivement",
+                         "annulee, donc un optimum INTERIEUR en gamma, et elle tombe si",
+                         "gamma bute sur une borne de son domaine [-12, 3]. A un optimum",
+                         "interieur, l'egalite ne tient qu'a deux ecarts pres : la tolerance",
+                         "d'arret de l'optimiseur, et un ecart", ordre_tol, "du a la",
+                         "variation residuelle de pi_t. L'ecart residuel renseigne donc",
+                         "sur la convergence en gamma, sous ces reserves."),
+        stop("contrainte() : grandeur inconnue : ", quoi))
+    else if (isTRUE(pi_constant))
       switch(quoi,
         centrage = paste("Ici pi_t est constant (delta = 1, ou volumes x_t constants) :",
                          "moyenne(z) = 0 est alors une IDENTITE algebrique, ln(beta)",

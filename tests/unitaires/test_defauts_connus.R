@@ -110,7 +110,7 @@ verifier("Libelle du diagnostic : constance de pi_t, non position de delta au bo
            txt <- function(f) Filter(function(l) l$test == "Centrage des residus standardises",
                                      usp_tests(f, boot_fictif()))[[1]]$detail
            d1 <- txt(fit); d0 <- txt(fit0)
-           if (!grepl("pi_t est constant", d1, fixed = TRUE))
+           if (!grepl("Ici pi_t est constant (delta = 1", d1, fixed = TRUE))
              "delta = 1 : le libelle ne dit pas que pi_t est constant"
            else if (!grepl("n'est PAS constant", d0, fixed = TRUE))
              paste("delta = 0 : libelle errone ->", d0)
@@ -230,7 +230,7 @@ verifier("Libelles a delta = 1 - tau/2 (issue #31) : pi_t constant, controle sur
            diag <- dd[c("Centrage des residus standardises",
                         "Variance unitaire des residus standardises")]
            if (!isTRUE(f$delta_au_bord)) "delta_au_bord FALSE a 1 - tau/2"
-           else if (!all(grepl("pi_t est constant", diag, fixed = TRUE)))
+           else if (!all(grepl("Ici pi_t n'est constant qu'a", diag, fixed = TRUE)))
              paste("libelle diagnostic :", paste(diag, collapse = " | "))
            else if (any(grepl("ni nulle ni egale a T/(T-1)", dd, fixed = TRUE)))
              "libelle 'ni nulle ni egale a T/(T-1)' encore servi"
@@ -250,6 +250,60 @@ verifier("Libelles a delta = 1 - 2 tau (issue #31) : delta interieur, pi_t non c
            else if (any(grepl("CONTROLE SANS OBJET", dd, fixed = TRUE)))
              "note_r servie alors que pi_t varie"
            else TRUE
+         })
+# Revue de la PR #57 (issue #31) : dans la bande de tolerance de
+# usp_regime() (pi_t constant a TOL_DELTA_BORD pres mais non exactement),
+# moyenne(z) = 0 n'est plus une identite a la precision machine (mesure :
+# 1,8e-9 a delta = 1 - 5e-7 contre -2,0e-16 a delta = 1), ni somme(z^2) = T
+# un effet de la seule tolerance d'arret. Le libelle ne doit plus affirmer
+# l'IDENTITE ni le "bruit d'arrondi" ; a delta = 1 exactement, il reste
+# celui des references de non-regression, au caractere pres.
+verifier("Revue PR #57 (issue #31) : delta = 1 - tau/2, centrage et variance nomment la tolerance, plus d'IDENTITE",
+         {
+           f <- fit_regime(1 - tau / 2)
+           dd <- details_regime(f)
+           dc <- dd[["Centrage des residus standardises"]]
+           dv <- dd[["Variance unitaire des residus standardises"]]
+           if (!(abs(mean(f$z)) > 1e-12)) paste("moyenne(z) =", mean(f$z), ": cas non discriminant")
+           else if (isTRUE(usp_regime(f$delta, f$x)$pi_constant_exact))
+             "pi_constant_exact TRUE a 1 - tau/2"
+           else if (grepl("IDENTITE", dc, fixed = TRUE) || grepl("bruit d'arrondi", dc, fixed = TRUE))
+             paste("centrage :", dc)
+           else if (!grepl("n'est constant qu'a la tolerance TOL_DELTA_BORD = 1e-06 pres (1 - delta = 5e-07)",
+                           dc, fixed = TRUE) ||
+                    !grepl("ne renseigne PAS sur la convergence en gamma", dc, fixed = TRUE) ||
+                    grepl("qualite de l'arret", dc, fixed = TRUE))
+             paste("centrage, tolerance non nommee :", dc)
+           else if (!grepl("n'est constant qu'a la tolerance TOL_DELTA_BORD", dv, fixed = TRUE) ||
+                    !grepl("ne tient qu'a deux ecarts pres", dv, fixed = TRUE))
+             paste("variance :", dv)
+           else TRUE
+         })
+verifier("Revue PR #57 (issue #31) : volumes d'etendue relative tau/2 (delta = 0,37), tolerance nommee",
+         {
+           alt <- c(0.3, -1, 0.8, -0.2, 1, -0.6, 0.1, -0.4)
+           xv <- 100 * (1 + alt * tau / 4)
+           rg <- usp_regime(0.37, xv)
+           f <- c(usp_noyau(0.37, fit$gamma, xv, y),
+                  list(delta = 0.37, gamma = fit$gamma, T = length(xv), x = xv, y = y,
+                       xbar = mean(xv), foc = 0, convergence = 0L,
+                       part_starts_convergents = 1, delta_au_bord = rg$delta_au_bord))
+           dc <- details_regime(f)[["Centrage des residus standardises"]]
+           if (!isTRUE(rg$pi_constant) || isTRUE(rg$pi_constant_exact))
+             "regime : pi_constant TRUE et pi_constant_exact FALSE attendus"
+           else !grepl("IDENTITE", dc, fixed = TRUE) &&
+             grepl("etendue relative des volumes = 5e-07", dc, fixed = TRUE)
+         })
+verifier("Revue PR #57 (issue #31) : delta = 1 exactement, centrage et variance identiques aux references",
+         {
+           ref <- readRDS(file.path(RACINE, "tests", "reference", "premium.rds"))
+           rt <- stats::setNames(vapply(ref$tests, function(l) l$detail, character(1)),
+                                 vapply(ref$tests, function(l) l$test, character(1)))
+           nn <- c("Centrage des residus standardises", "Variance unitaire des residus standardises")
+           dd <- details_regime(fit)
+           isTRUE(usp_regime(fit$delta, fit$x)$pi_constant_exact) && fit$delta == 1 &&
+             identical(unname(dd[nn]), unname(rt[nn])) &&
+             grepl("IDENTITE algebrique", dd[[nn[1]]], fixed = TRUE)
          })
 verifier("MeanZ, VarZ, LB2r et BP2r ne sont plus simulees",
          {
