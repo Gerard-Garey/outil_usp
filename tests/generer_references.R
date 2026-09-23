@@ -17,9 +17,8 @@ if (!length(noms)) noms <- names(CAS)
 inconnus <- setdiff(noms, names(CAS))
 if (length(inconnus)) stop("Cas inconnu(s) : ", paste(inconnus, collapse = ", "))
 
-dir.create(DOSSIER_REF, showWarnings = FALSE, recursive = TRUE)
 for (nom in noms) {
   res <- executer_cas(nom)
-  saveRDS(res, chemin_reference(nom), version = 3)
+  ecrire_reference(nom, res)   # outils_tests.R, partage avec regenerer_et_rendre_compte.R
   cat(sprintf("%-9s reference ecrite : %s\n", nom, chemin_reference(nom)))
 }
