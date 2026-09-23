@@ -35,10 +35,26 @@
 ## 0. PARAMÈTRES STANDARD ET FACTEURS DE CRÉDIBILITÉ
 ## =============================================================================
 
-# Écarts-types standard de l'annexe II (non-vie), règlement délégué (UE)
-# 2015/35, JOUE L 12 du 17.1.2015, p. 230. Valeurs vérifiées ligne à ligne
-# contre le texte publié. Valeurs de la version d'origine de 2015 : l'annexe
-# II a ete remplacee depuis par le reglement delegue (UE) 2019/981 (issue #19).
+# SOURCE DES ECARTS-TYPES STANDARD (annexes II et XIV, issue #19)
+# Version en vigueur : reglement delegue (UE) 2015/35 dans sa version
+# consolidee du 14.11.2024 (fichier "TEXTE consolide_ 32015R0035 - FR -
+# 14.11.2024.xhtml" a la racine du depot, qui fait foi). Les annexes II et XIV
+# y portent le marqueur M6 : elles ont ete remplacees par le reglement delegue
+# (UE) 2019/981 de la Commission du 8 mars 2019, JO L 161 du 18.6.2019, p. 1.
+# Les valeurs de la version d'origine (JOUE L 12 du 17.1.2015, annexe II
+# p. 230, annexe XIV p. 269) ont ete remplacees ici et ne sont pas conservees :
+# neuf valeurs different (II-6, II-7, II-8 primes et reserve ; XIV-1 reserve,
+# XIV-3 primes, XIV-4 reserve).
+# LIMITE DE PERIMETRE : l'outil ne vaut que pour un calibrage a une date
+# posterieure a l'application du reglement delegue (UE) 2019/981 (M6). Il ne
+# permet pas de reproduire un calibrage selon les valeurs de 2015.
+
+# Ecarts-types standard de l'annexe II (non-vie), version consolidee, tableau
+# sous le marqueur M6 de la ligne 36887 du xhtml (valeurs des segments 1 a 8
+# aux lignes 36945 a 37067 ; segment 6 : l. 37030 / 37033, segment 7 :
+# l. 37047 / 37050, segment 8 : l. 37064 / 37067). Dix-huit valeurs sur 24
+# identiques a la version d'origine ; confrontation une a une par l'agent
+# regulatory (issue #19).
 ANNEXE_II <- data.frame(
   segment = 1:12,
   libelle = c(
@@ -55,17 +71,18 @@ ANNEXE_II <- data.frame(
     "Reass. non proportionnelle - maritime, aerien, transport",
     "Reass. non proportionnelle - dommages aux biens"
   ),
-  sigma_prime_brut = c(.10, .08, .15, .08, .14, .12, .07, .09, .13, .17, .17, .17),
-  sigma_reserve    = c(.09, .08, .11, .10, .11, .19, .12, .20, .20, .20, .20, .20),
+  sigma_prime_brut = c(.10, .08, .15, .08, .14, .19, .083, .064, .13, .17, .17, .17),
+  sigma_reserve    = c(.09, .08, .11, .10, .11, .172, .055, .22, .20, .20, .20, .20),
   stringsAsFactors = FALSE
 )
 
-# Écarts-types standard de l'annexe XIV (santé non-SLT), règlement délégué
-# (UE) 2015/35, JOUE L 12 du 17.1.2015, p. 269. Valeurs vérifiées ligne à ligne
-# contre le texte publié. Valeurs de la version d'origine de 2015 : l'annexe
-# XIV a ete remplacee depuis par le reglement delegue (UE) 2019/981 (issue
-# #19). La colonne `lob` rappelle les lignes d'activité de
-# l'annexe I dont se compose chaque segment.
+# Ecarts-types standard de l'annexe XIV (sante non-SLT), version consolidee,
+# tableau sous le marqueur M6 de la ligne 81342 du xhtml (valeurs aux lignes
+# 81400 a 81454 ; segment 1 reserve : l. 81403, segment 3 primes : l. 81434,
+# segment 4 reserve : l. 81454) ; cinq valeurs sur 8 identiques a la version
+# d'origine. Voir la source commune ci-dessus. La colonne
+# `lob` rappelle les lignes d'activite de l'annexe I dont se compose chaque
+# segment.
 ANNEXE_XIV <- data.frame(
   segment = 1:4,
   libelle = c(
@@ -75,8 +92,8 @@ ANNEXE_XIV <- data.frame(
     "Reassurance sante non proportionnelle"
   ),
   lob = c("1 et 13", "2 et 14", "3 et 15", "25"),
-  sigma_prime_brut = c(.050, .085, .080, .17),
-  sigma_reserve    = c(.050, .140, .110, .20),
+  sigma_prime_brut = c(.050, .085, .096, .17),
+  sigma_reserve    = c(.057, .140, .110, .17),
   stringsAsFactors = FALSE
 )
 

@@ -3,26 +3,28 @@
 #
 #  Tables des annexes II et XIV, bareme de credibilite (annexe XVII, section
 #  G), parametre final sigma_USP (sections B(4), C et D(4)).
-#  Source des valeurs : reglement delegue (UE) 2015/35, JOUE L 12 du
-#  17.1.2015 : annexe II p. L 12/230, annexe XIV p. L 12/269, annexe XVII
-#  section B(4) p. L 12/273, section D(4) p. L 12/277, section G p. L 12/282.
+#  Sources des valeurs :
+#  - annexes II et XIV : version consolidee du 14.11.2024 du reglement
+#    delegue (UE) 2015/35 (xhtml a la racine du depot, qui fait foi), tableaux
+#    sous le marqueur M6, soit le reglement delegue (UE) 2019/981 de la
+#    Commission du 8 mars 2019, JO L 161 du 18.6.2019, p. 1 (issue #19).
+#    Annexe II : lignes 36887 a 37140 environ du xhtml ; annexe XIV : lignes
+#    81342 a 81454. Les valeurs de la version d'origine (JOUE L 12 du
+#    17.1.2015, p. L 12/230 et L 12/269) sont perimees et ne sont plus
+#    testees ;
+#  - annexe XVII (sous le marqueur B, non modifiee sur ces points) : section
+#    B(4) p. L 12/273, section D(4) p. L 12/277, section G p. L 12/282 du
+#    JOUE L 12 du 17.1.2015.
 #  Les valeurs sont ressaisies ici independamment des tables du moteur
-#  (double saisie).
+#  (double saisie) : pour les annexes II et XIV, depuis la table etablie par
+#  l'agent regulatory sur la version consolidee (issue #19), sans copie
+#  depuis R/engine.R.
 #
-#  DEUX RESERVES SUR CE BANDEAU. La premiere reste a lever avant remise du
-#  dossier ; la seconde est levee.
-#
-#  1. La SOURCE est la version d'ORIGINE de 2015. Les annexes II et XIV ont
-#     ete remplacees depuis par le reglement delegue (UE) 2019/981 (marqueur
-#     M6 de la version consolidee) : neuf ecarts-types standard y different.
-#     La double saisie de ce fichier ne protege donc de rien sur ces neuf
-#     valeurs, puisqu'elle reproduit la meme source perimee que le moteur.
-#     Voir issue #19.
-#  2. PAGINATION (levee) : les pages ci-dessus ont ete verifiees le
-#     22/09/2026 sur la version d'origine (JOUE L 12 du 17.1.2015 ; agent
-#     regulatory, commentaire de l'issue #26). Elles ne valent que pour cette
-#     version : le par. D(5) applique par le moteur est celui de la version
-#     consolidee, dont la formule differe de celle d'origine (ADR 0005).
+#  PAGINATION (reserve levee) : les pages de l'annexe XVII ci-dessus ont ete
+#  verifiees le 22/09/2026 sur la version d'origine (JOUE L 12 du 17.1.2015 ;
+#  agent regulatory, commentaire de l'issue #26). Elles ne valent que pour
+#  cette version : le par. D(5) applique par le moteur est celui de la
+#  version consolidee, dont la formule differe de celle d'origine (ADR 0005).
 ###############################################################################
 
 if (!exists("verifier", mode = "function")) {
@@ -33,11 +35,11 @@ debut_fichier("test_calibration.R")
 
 champ <- function(liste, nom) vapply(liste, function(s) s[[nom]], numeric(1))
 
-## --- Tables des annexes II et XIV (double saisie) ---------------------------
-prime_II   <- c(10, 8, 15, 8, 14, 12, 7, 9, 13, 17, 17, 17) / 100
-reserve_II <- c(9, 8, 11, 10, 11, 19, 12, 20, 20, 20, 20, 20) / 100
-prime_XIV   <- c(5, 8.5, 8, 17) / 100
-reserve_XIV <- c(5, 14, 11, 20) / 100
+## --- Tables des annexes II et XIV (double saisie, version en vigueur M6) ----
+prime_II   <- c(10, 8, 15, 8, 14, 19, 8.3, 6.4, 13, 17, 17, 17) / 100
+reserve_II <- c(9, 8, 11, 10, 11, 17.2, 5.5, 22, 20, 20, 20, 20) / 100
+prime_XIV   <- c(5, 8.5, 9.6, 17) / 100
+reserve_XIV <- c(5.7, 14, 11, 17) / 100
 verifier("Annexe II : ecarts types standard des 12 segments (prime, reserve)",
          {
            inf <- lapply(1:12, usp_segment_infos, annexe = "II")
@@ -50,6 +52,23 @@ verifier("Annexe XIV : ecarts types standard des 4 segments (prime, reserve)",
            isTRUE(proche(champ(inf, "sigma_prime_brut"), prime_XIV)) &&
              isTRUE(proche(champ(inf, "sigma_reserve"), reserve_XIV))
          })
+# Une assertion par valeur remplacee par le reglement delegue (UE) 2019/981
+# (M6), avec la ligne du xhtml consolide du 14.11.2024 (issue #19). Valeurs
+# saisies en toutes lettres, independamment des vecteurs ci-dessus.
+valeur_M6 <- function(annexe, segment, champ_nom, attendu, ligne, avant) {
+  verifier(sprintf("M6 : %s-%d, %s = %s %% (xhtml l. %d ; %s %% en 2015)",
+                   annexe, segment, champ_nom, attendu, ligne, avant),
+           proche(usp_segment_infos(segment, annexe)[[champ_nom]], attendu / 100))
+}
+valeur_M6("II",  6, "sigma_prime_brut", 19,   37030, 12)
+valeur_M6("II",  6, "sigma_reserve",    17.2, 37033, 19)
+valeur_M6("II",  7, "sigma_prime_brut", 8.3,  37047, 7)
+valeur_M6("II",  7, "sigma_reserve",    5.5,  37050, 12)
+valeur_M6("II",  8, "sigma_prime_brut", 6.4,  37064, 9)
+valeur_M6("II",  8, "sigma_reserve",    22,   37067, 20)
+valeur_M6("XIV", 1, "sigma_reserve",    5.7,  81403, 5)
+valeur_M6("XIV", 3, "sigma_prime_brut", 9.6,  81434, 8)
+valeur_M6("XIV", 4, "sigma_reserve",    17,   81454, 20)
 verifier("SEGMENTS : 16 cles uniques annexe-segment",
          nrow(SEGMENTS) == 16 && !anyDuplicated(SEGMENTS$cle) &&
          all(c("II-1", "II-12", "XIV-1", "XIV-4") %in% SEGMENTS$cle))
