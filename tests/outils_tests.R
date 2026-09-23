@@ -90,7 +90,14 @@ INSTABLES <- list()
 # l'objet resultat ; restent compares le pas de Newton (stat du controle et
 # pas_newton_gamma, en absolu), hessien_gamma, les verdicts, les comptes de
 # demarrages, delta et gamma estimes.
-EXCLUS_AJUSTEMENT <- c("gradient", "gradient_projete")
+# n_starts_optimum_code0 (ajout du 23/09/2026, decision du mainteneur) :
+# nombre de demarrages a l'optimum rendant le code 0 d'optim(), qui depend
+# du chemin d'optimisation : un demarrage bascule entre les codes 0 et 52
+# selon la machine (constat CI du 23/09/2026 sur acfc0c0 : 54 contre 53 sous
+# perturbation de 1e-12 ; mesure locale : 52 a 54 sur 101 perturbations de
+# 1e-12). Restent compares n_starts_optimum (stable, 54) et le verdict, qui
+# ne demande qu'au moins un demarrage a l'optimum au code 0.
+EXCLUS_AJUSTEMENT <- c("gradient", "gradient_projete", "n_starts_optimum_code0")
 
 # Remplace par NA les grandeurs instables (INSTABLES) et les champs exclus par
 # conception (EXCLUS_AJUSTEMENT), dans le resultat comme dans la reference,

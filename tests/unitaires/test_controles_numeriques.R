@@ -224,6 +224,20 @@ verifier("Multi-demarrages : OK sur les jeux de test ; ECHEC si aucun demarrage 
              identical(ctrl(f2, NOM_MULTI)$verdict, "ECHEC") &&
              identical(ctrl(f3, NOM_MULTI)$verdict, "OK")
          })
+# Decision du mainteneur (23/09/2026) : le detail n'imprime pas le nombre de
+# demarrages a l'optimum au code 0 (un demarrage bascule entre les codes 0 et
+# 52 selon la machine), seulement le respect de la regle (oui / non).
+verifier("Multi-demarrages : detail invariant quand n_starts_optimum_code0 varie (>= 1), 'oui' / 'non' selon la regle",
+         {
+           fa <- f_t; fa$n_starts_optimum_code0 <- 53L
+           fb <- f_t; fb$n_starts_optimum_code0 <- 1L
+           fc <- f_t; fc$n_starts_optimum_code0 <- 0L
+           da <- ctrl(f_t, NOM_MULTI)$detail
+           identical(da, ctrl(fa, NOM_MULTI)$detail) && identical(da, ctrl(fb, NOM_MULTI)$detail) &&
+             grepl("au code de retour 0 d'optim() (convergence) : oui ;", da, fixed = TRUE) &&
+             grepl("au code de retour 0 d'optim() (convergence) : non ;", ctrl(fc, NOM_MULTI)$detail, fixed = TRUE) &&
+             !grepl("dont", da, fixed = TRUE)
+         })
 verifier("usp_ajuster : n_starts_optimum_code0 = demarrages a l'optimum rendant le code 0 (<= n_starts_optimum)",
          is.integer(f_t$n_starts_optimum_code0) &&
            f_t$n_starts_optimum_code0 <= f_t$n_starts_optimum && f_t$n_starts_optimum_code0 >= 1L)

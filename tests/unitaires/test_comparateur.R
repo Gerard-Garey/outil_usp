@@ -215,6 +215,22 @@ verifier("neutraliser_instables : une perturbation de hessien_gamma reste signal
            r <- comparer(neutr(aj_ref), neutr(b))
            !r$conforme && r$n_ecarts == 1L
          })
+# n_starts_optimum_code0 (ajout du 23/09/2026, decision du mainteneur) : depend
+# du chemin d'optimisation (un demarrage bascule entre les codes 0 et 52 selon
+# la machine), exclu ; n_starts_optimum reste compare.
+aj_dem <- list(ajustement = list(n_starts_optimum = 54L, n_starts_optimum_code0 = 53L))
+verifier("neutraliser_instables : n_starts_optimum_code0 54 contre 53 n'est pas signale",
+         {
+           b <- aj_dem; b$ajustement$n_starts_optimum_code0 <- 54L
+           brut <- comparer(aj_dem, b); r <- comparer(neutr(aj_dem), neutr(b))
+           !brut$conforme && r$conforme && r$n_ecarts == 0L
+         })
+verifier("neutraliser_instables : n_starts_optimum 54 contre 53 reste signale",
+         {
+           b <- aj_dem; b$ajustement$n_starts_optimum <- 53L
+           r <- comparer(neutr(aj_dem), neutr(b))
+           !r$conforme && r$n_ecarts == 1L
+         })
 verifier("neutraliser_instables : objet sans ajustement (Merz-Wuthrich) inchange",
          { o <- list(tests = list(list(test = "t", p_mc = 0.5))); identical(neutr(o), o) })
 
