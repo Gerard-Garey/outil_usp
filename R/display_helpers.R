@@ -46,8 +46,10 @@ GROUPES <- list(
   "F." = list(cle = "STAB", titre = "Stabilit\u00e9, ruptures et points aberrants",
               sous = "hors hypoth\u00e8ses r\u00e9glementaires, mais conditionne leur lecture",
               ref  = "diagnostics compl\u00e9mentaires"),
+  # Les controles numeriques (condition du premier ordre, multi-demarrages)
+  # ne sont plus dans la table des tests mais dans res$controles (#22).
   "G." = list(cle = "ROB", titre = "Robustesse de l'estimation",
-              sous = "diagnostics num\u00e9riques et de sensibilit\u00e9",
+              sous = "diagnostics de sensibilit\u00e9 (jackknife, IC bootstrap)",
               ref  = "diagnostics compl\u00e9mentaires"),
   # --- Familles propres a la methode Merz-Wuthrich (annexe XVII, section D).
   # Meme principe de presentation que H1 a H4 : une famille par hypothese du
