@@ -685,17 +685,55 @@ mk_p_exacte <- function(v) {
   list(R = rr, prob = pr / choose(n, n1))
 }
 
-# p-value bilaterale exacte du test des suites (methode de la densite : on
-# somme les probabilites des issues au plus aussi probables que l'observee).
+# p-value bilaterale exacte du test des suites, convention du DOUBLEMENT
+# (issue #29, decision M8 ; Gibbons & Pratt, 1975, Amer. Statist. 29, 20-25) :
+#     p = min(1, 2 min(P(R <= R_obs), P(R >= R_obs)))
+# C'est la convention du bootstrap (queue = "deux" dans usp_bootstrap()) et
+# des autres lois exactes du moteur (dw_p_exacte(), mk_p_exacte()) : la p
+# exacte et la p Monte-Carlo d'une meme ligne estiment la meme quantite.
+# Elle remplace la methode de la densite (somme des probabilites des issues
+# au plus aussi probables que l'observee), qui donnait p = 1 pour tout R
+# modal. A T = 8 (n1 = n2 = 4), valeurs atteignables : 1 (R = 5), 52/70
+# (R = 4, 6), 16/70 (R = 3, 7), 4/70 (R = 2, 8) ; a T = 5 (n1 = n2 = 2) :
+# 2/3 (R = 2, 4), 1 (R = 3).
 runs_p_exacte <- function(z) {
   sg <- sign(z - stats::median(z)); sg <- sg[sg != 0]
   n1 <- sum(sg > 0); n2 <- sum(sg < 0)
   if (n1 < 1 || n2 < 1) return(NA_real_)
   Robs <- 1 + sum(diff(sg) != 0)
   d <- .runs_dens(n1, n2)
-  pobs <- d$prob[d$R == Robs]
-  if (!length(pobs)) return(NA_real_)
-  .p_borne(sum(d$prob[d$prob <= pobs + 1e-12]))
+  if (!any(d$R == Robs)) return(NA_real_)
+  .p_borne(2 * min(sum(d$prob[d$R <= Robs]), sum(d$prob[d$R >= Robs])))
+}
+
+# p-value exacte du test des suites sur ratios bruts (ligne Runsr de
+# usp_tests() ; issue #29, decision M8, option A). La loi combinatoire de R
+# suppose un arrangement equiprobable des signes de u_t = r_t - moyenne(r) :
+# c'est le cas quand pi_t est constant (r_t i.i.d. sous le modele ajuste),
+# non quand pi_t varie (r_t heteroscedastiques). Deux conditions, toutes deux
+# exigees :
+#   1. pi_constant (usp_regime(), tolerance TOL_DELTA_BORD) : la raison
+#      actuarielle ;
+#   2. identite effective des signes de z_t - med(z) et de u_t - med(u) : la
+#      garantie exacte. A pi_t exactement constant elle decoule de 1 (z_t est
+#      une transformation croissante de r_t) ; dans la bande de tolerance de
+#      usp_regime() elle peut tomber (cas construit dans
+#      tests/unitaires/test_lois_exactes.R : deux ratios centraux distants de
+#      1e-10 en relatif, delta = 1 - TOL_DELTA_BORD / 2).
+# La condition porte sur u = r - moyenne(r), le vecteur effectivement teste
+# (celui de .stats_bootstrapables() et de la ligne Runsr), et non sur r : le
+# centrage par la moyenne, en arithmetique flottante, peut faire basculer le
+# signe d'une valeur egale ou quasi egale a la mediane (exemple dans les
+# tests unitaires : 0 sur r, -1 sur u).
+# Sinon NA : la ligne retombe sur la p Monte-Carlo par la hierarchie de add().
+usp_runsr_p_exacte <- function(z, u, pi_constant) {
+  if (!isTRUE(pi_constant) || !.signes_mediane_egaux(z, u)) return(NA_real_)
+  runs_p_exacte(u)
+}
+# TRUE si les signes de a - med(a) et de b - med(b) coincident terme a terme.
+.signes_mediane_egaux <- function(a, b) {
+  length(a) == length(b) &&
+    isTRUE(all(sign(a - stats::median(a)) == sign(b - stats::median(b))))
 }
 
 # Mann (1945) / Kendall (1975) - test de tendance monotone.
@@ -1028,9 +1066,11 @@ usp_simuler <- function(fit) {
   m <- ceiling(T / 2)
   # Serie des ratios bruts centres : base alternative pour les tests
   # d'independance et de stabilite (voir usp_tests, argument base_residus).
-  # Ces ratios sont heteroscedastiques par construction, donc leurs p-values
-  # classiques ne sont qu'indicatives ; seule la p-value de Monte-Carlo est
-  # valide, le bootstrap simulant sous le modele ajuste.
+  # Ces ratios sont heteroscedastiques par construction des que pi_t varie,
+  # donc leurs p-values classiques ne sont qu'indicatives ; seule la p-value
+  # de Monte-Carlo est valide, le bootstrap simulant sous le modele ajuste.
+  # Exception : a pi_t constant, la ligne Runsr recoit la p-value exacte de
+  # la loi combinatoire de R (usp_runsr_p_exacte(), issue #29).
   u <- r - mean(r)
   lb1u <- unname(stats::Box.test(u, lag = 1, type = "Ljung-Box")$statistic)
   c(AD = stat_ad(z), CvM = stat_cvm(z), KS = stat_ks(z),
@@ -1793,7 +1833,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # modele. Limite : les u_t sont heteroscedastiques par construction
   # (Var(r_t) depend de x_t), donc les p-values classiques ne sont
   # qu'INDICATIVES ; seule la p-value de Monte-Carlo est valide, le bootstrap
-  # simulant sous le modele ajuste. Verification par simulation a T = 8 :
+  # simulant sous le modele ajuste (exception : Runsr a pi_t constant, p-value
+  # exacte, issue #29 ; voir plus bas). Verification par simulation a T = 8 :
   # niveau tenu a 10,7 % et 5,0 % pour des seuils de 10 % et 5 %.
   loi_ind <- "loi classique INDICATIVE (ratios heteroscedastiques) -> Monte-Carlo"
   # QUAND pi_t EST CONSTANT, CETTE BASE PERD SON OBJET. ln(beta) se reduit
@@ -1813,9 +1854,65 @@ usp_tests <- function(fit, boot, alpha = 0.10,
           "x_t constants), il n'y a donc aucun artefact de ponderation a",
           "detecter. Cette ligne est un quasi-doublon de son homologue sur",
           "residus standardises, dont elle ne differe que par la transformation",
-          "logarithmique ; pour le test des suites, la statistique est meme",
-          "identique.") else ""
+          "logarithmique.") else ""
   detail_r <- function(txt = "") trimws(paste(txt, note_r))
+  # Ligne Runsr (issue #29, decision M8) : p-value exacte sous la double
+  # condition de usp_runsr_p_exacte(), calculee une fois ; le champ loi et le
+  # detail en suivent le regime (note_r n'est pas concatenee pour cette
+  # ligne) :
+  #   1  : p exacte attribuee (pi_t constant, signes identiques), avec la
+  #        variante 1b si pi_t n'est constant qu'a la tolerance pres ;
+  #   2  : pi_t constant mais au moins un signe differe entre u et z ;
+  #   2b : pi_t constant, signes identiques, mais p exacte non definie (un
+  #        seul cote de la mediane represente) ;
+  #   3  : pi_t variable.
+  p_ex_r <- usp_runsr_p_exacte(z, u, pi_constant)
+  detail_runsr <- if (is.finite(p_ex_r)) {
+    d1 <- paste("CONTROLE SANS OBJET ICI : pi_t est constant (delta = 1, ou volumes",
+                "x_t constants), il n'y a donc aucun artefact de ponderation a",
+                "detecter. Cette ligne est un quasi-doublon de son homologue sur",
+                "residus standardises : les signes de u_t - med(u) et de z_t - med(z)",
+                "coincident (z_t est une transformation croissante de r_t), la",
+                "statistique des suites est IDENTIQUE a celle de la ligne sur residus",
+                "standardises. Les r_t etant i.i.d. sous le modele ajuste, la loi",
+                "combinatoire de R s'applique aussi aux ratios bruts : la p-value",
+                "EXACTE est retenue (convention bilaterale du doublement, celle du",
+                "bootstrap), la meme que sur la ligne des suites sur residus",
+                "standardises (issue #29). La p-value Monte-Carlo de la colonne p_mc",
+                "estime la meme quantite, a l'erreur Monte-Carlo pres.")
+    if (!isTRUE(regime$pi_constant_exact))
+      d1 <- paste(d1, sprintf(paste(
+        "Ici pi_t n'est constant qu'a la tolerance TOL_DELTA_BORD = %g pres (%s) :",
+        "les arrangements de signes ne sont equiprobables qu'a un ecart d'ordre",
+        "(1 - delta), ou de l'etendue relative des volumes x_t, pres, inferieur a",
+        "la precision d'affichage ; la p-value est exacte a cet ordre pres."),
+        TOL_DELTA_BORD, ecart_tol))
+    d1
+  } else if (isTRUE(pi_constant) && !.signes_mediane_egaux(z, u)) {
+    sprintf(paste(
+      "CONTROLE SANS OBJET ICI : pi_t n'est constant qu'a la tolerance",
+      "TOL_DELTA_BORD = %g pres (%s), il n'y a donc aucun artefact de ponderation",
+      "a detecter, et cette ligne est un quasi-doublon de son homologue sur",
+      "residus standardises. Toutefois la variation residuelle de pi_t suffit ici",
+      "a inverser au moins un signe entre u_t - med(u) et z_t - med(z) : l'identite",
+      "des deux lignes n'est plus garantie (la statistique des suites peut",
+      "coincider ou non), la loi combinatoire de R n'est pas attribuee a cette",
+      "ligne (issue #29, seconde condition de usp_runsr_p_exacte()) et la p-value",
+      "Monte-Carlo, simulee sous le modele ajuste, est retenue."),
+      TOL_DELTA_BORD, ecart_tol)
+  } else if (isTRUE(pi_constant)) {
+    paste(note_r, "La loi combinatoire de R n'est pas definie ici (un seul cote",
+          "de la mediane represente) : aucune p-value exacte (issue #29).")
+  } else {
+    paste("pi_t varie avec t : sous le modele ajuste, les r_t sont independants",
+          "mais heteroscedastiques (echelle 1/sqrt(pi_t) et mediane propres a",
+          "chaque annee), les arrangements des signes de u_t - med(u) ne sont pas",
+          "equiprobables et la loi combinatoire de R n'est qu'une approximation,",
+          "sans borne d'erreur connue a T = 8. Seule la p-value Monte-Carlo,",
+          "simulee sous le modele ajuste avec ses pi_t, est retenue ; la",
+          "statistique differe en general de celle de la ligne des suites sur",
+          "residus standardises (issue #29).")
+  }
   add("E. H4 - independance et validite du MV (annexe XVII B(2)(f)(iv))",
       "Autocorrelation d'ordre 1 (Durbin-Watson) sur ratios bruts",
       "Durbin & Watson (1950, 1951)", base = "r",
@@ -1832,8 +1929,16 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       "Test des suites sur ratios bruts", "Wald & Wolfowitz (1940)",
       base = "r", H0 = "arrangement aleatoire des signes du ratio centre",
       H1 = "arrangement non aleatoire",
-      stat_nom = "Z", stat = boot$stats_obs$Runsr, loi = loi_ind, mc_nom = "Runsr",
-      detail = detail_r())
+      stat_nom = "Z", stat = boot$stats_obs$Runsr,
+      loi = if (is.finite(p_ex_r))
+        "loi combinatoire EXACTE de R (pi_t constant : r_t i.i.d., signes identiques a ceux de z_t)"
+      else loi_ind,
+      # Issue #29 (M8) : p exacte seulement sous la double condition de
+      # usp_runsr_p_exacte() ; sinon Monte-Carlo. Les cinq autres lignes de la
+      # base "r" restent en Monte-Carlo dans tous les regimes (u_t non
+      # gaussiens : ni Imhof ni loi normale).
+      p_ex = p_ex_r, mc_nom = "Runsr",
+      detail = detail_runsr)
   add(fam, "Rupture de niveau (sup-F) sur ratios bruts",
       "Quandt (1960) / Chow (1960) ; Andrews (1993)", base = "r",
       H0 = "niveau du ratio S/P constant", H1 = "rupture de niveau du ratio S/P",
