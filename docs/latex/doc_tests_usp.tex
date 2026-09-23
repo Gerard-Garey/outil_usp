@@ -2303,14 +2303,6 @@ OLS-CUSUM & $S(\lfloor uT\rfloor)$ & Pont brownien $B^\circ$ &
 Convergence faible (principe d'invariance) & $\mathcal{O}(T^{-1/2})$ &
 Erreurs i.i.d., variance finie & 8 points : non exploitable \\
 
-Six tests sur ratios bruts~: Durbin--Watson, Ljung--Box (1), suites, sup-F, OLS-CUSUM, Grubbs &
-\emph{Aucun} dans le moteur~: aucune loi limite n'est calculée sur $u_t$ & --- & --- & --- &
-$u_t$ non gaussiens, et hétéroscédastiques dès que $\hat\pi_t$ varie &
-Monte-Carlo seule, convergence en $B$ au bloc (B)~; exception~: suites à $\hat\pi_t$ constant,
-loi exacte (fiches~\ref{fiche:durbin-watson-ratios-bruts}, \ref{fiche:ljung-box-ratios-bruts},
-\ref{fiche:suites-ratios-bruts}, \ref{fiche:sup-f-ratios-bruts},
-\ref{fiche:ols-cusum-ratios-bruts} et~\ref{fiche:grubbs-ratios-bruts}) \\
-
 Shapiro--Wilk / Francia & $W$, $W'$ & Approx. normalisée de Royston &
 Approximation numérique, non asymptotique & Sans objet (ajustement empirique) &
 Domaine de validité annoncé par l'auteur & Domaine couvert mais
@@ -2345,6 +2337,36 @@ raffinement d'ordre supérieur pour statistiques pivotales &
 Modèle correctement spécifié, estimateur consistant &
 \textbf{Non quantifiable à $T=8$}. C'est ici, et non dans le choix de $B$, que
 réside la limite du dispositif~: la correction en $1/(B+1)$ ne rend pas le test exact \\
+
+Durbin--Watson sur ratios bruts & $\hat p_{\text{MC}}$ (loi limite de DW non employée) &
+$p_{\text{MC}}(\hat\theta)$, p-value sous le modèle ajusté de paramètres
+$\hat\theta = (\hat\beta, \hat\delta, \hat\gamma)$ & Convergence en $B$ & $\mathcal{O}(B^{-1/2})$ &
+Modèle ajusté pris pour vrai &
+Erreur de Monte-Carlo seule contrôlée~; validité en $T$ non quantifiable
+(fiche~\ref{fiche:durbin-watson-ratios-bruts}) \\
+
+Ljung--Box (1) sur ratios bruts & $\hat p_{\text{MC}}$ ($\chi^2(1)$ non employée) &
+$p_{\text{MC}}(\hat\theta)$ & Convergence en $B$ & $\mathcal{O}(B^{-1/2})$ &
+Modèle ajusté pris pour vrai & Idem (fiche~\ref{fiche:ljung-box-ratios-bruts}) \\
+
+Suites sur ratios bruts & \emph{Aucun} à $\hat\pi_t$ constant et signes identiques~: loi
+exacte de $R$~; sinon $\hat p_{\text{MC}}$ & Loi exacte~; sinon $p_{\text{MC}}(\hat\theta)$ &
+--- ~; sinon convergence en $B$ & ---~; sinon $\mathcal{O}(B^{-1/2})$ &
+$r_t$ i.i.d. ($\hat\pi_t$ constant)~; sinon modèle ajusté pris pour vrai &
+Exacte dans ce régime, régime estimé sur les données~; sinon comme ci-dessus
+(fiche~\ref{fiche:suites-ratios-bruts}) \\
+
+sup-F sur ratios bruts & $\hat p_{\text{MC}}$ (loi d'Andrews non employée) &
+$p_{\text{MC}}(\hat\theta)$ & Convergence en $B$ & $\mathcal{O}(B^{-1/2})$ &
+Modèle ajusté pris pour vrai & Idem (fiche~\ref{fiche:sup-f-ratios-bruts}) \\
+
+OLS-CUSUM sur ratios bruts & $\hat p_{\text{MC}}$ (loi de Kolmogorov non employée) &
+$p_{\text{MC}}(\hat\theta)$ & Convergence en $B$ & $\mathcal{O}(B^{-1/2})$ &
+Modèle ajusté pris pour vrai & Idem (fiche~\ref{fiche:ols-cusum-ratios-bruts}) \\
+
+Grubbs sur ratios bruts & $\hat p_{\text{MC}}$ (borne de Bonferroni non employée) &
+$p_{\text{MC}}(\hat\theta)$ & Convergence en $B$ & $\mathcal{O}(B^{-1/2})$ &
+Modèle ajusté pris pour vrai & Idem (fiche~\ref{fiche:grubbs-ratios-bruts}) \\
 
 \midrule
 \multicolumn{7}{@{}l@{}}{\textbf{(C) Convergence propre à la méthode Merz--Wüthrich}} \\
@@ -2626,11 +2648,12 @@ sans dépendre de la qualité de l'ajustement. \\
 
 Sur la base $u_t$, les p-values exactes et asymptotiques sont \textbf{indicatives
 seulement}~: elles supposent l'échangeabilité, mise en défaut par
-l'hétéroscédasticité résiduelle. En revanche, \textbf{la p-value de Monte-Carlo
-reste exactement valide}~: le bootstrap paramétrique simule $Y_t$ sous le modèle
-ajusté, donc la loi de référence d'une statistique quelconque des données --- y
-compris calculée sur $u_t$ --- est correctement reproduite, hétéroscédasticité
-comprise. C'est cette p-value que le moteur retient sur cette base, avec une
+l'hétéroscédasticité résiduelle. En revanche, la p-value de Monte-Carlo garde sur
+cette base la validité qu'elle a partout ailleurs~: le bootstrap paramétrique simule
+$Y_t$ sous le modèle ajusté, donc la loi de référence d'une statistique quelconque ---
+y compris calculée sur $u_t$ --- est reproduite hétéroscédasticité comprise, à l'erreur
+de Monte-Carlo près et sous le modèle ajusté pris pour vrai (section~\ref{sec:mc})~;
+elle n'est exacte ni au sens de l'ADR~0002 ni à $T$ fini. C'est cette p-value que le moteur retient sur cette base, avec une
 seule exception~: le test des suites sur ratios bruts retient la p-value exacte
 de la loi combinatoire de $R$ lorsque $\hat\pi_t$ est constant et que les
 signes de $u_t$ coïncident avec ceux de $z_t$, les $r_t$ étant alors i.i.d.
@@ -2728,7 +2751,10 @@ précision machine. Les six lignes sur base $u_t$ et leurs six homologues sur
 $z_t$ y portent le même verdict \code{OK}~; pour les cinq paires autres que le
 test des suites, les p-values retenues diffèrent d'au plus $0{,}091$ (sup-F,
 $0{,}840$ contre $0{,}931$), l'écart le plus faible étant celui de
-Durbin--Watson ($0{,}0011$). Une statistique qui
+Durbin--Watson ($0{,}0011$). Le second ordre vaut pour la série~; sa propagation à la
+statistique dépend de la régularité de celle-ci, faible pour Durbin--Watson, sensible pour
+sup-F, dont le maximum porte à $T = 8$ sur des segments de deux ou trois points au plus
+court. Une statistique qui
 repose sur une quasi-annulation garde en revanche un écart relatif important
 sur la valeur elle-même --- Ljung--Box au retard~1 vaut $9{,}2\cdot 10^{-3}$
 sur $z_t$ et $1{,}3\cdot 10^{-4}$ sur $u_t$ --- sans que le verdict en dépende
@@ -4137,7 +4163,9 @@ mathématiquement de (i), $z_t$
 résiduelle de $\hat\pi_t$ peut inverser un signe (cas construit dans les tests unitaires). La
 condition porte sur $u_t$, le vecteur effectivement testé, et non sur $r_t$~: en arithmétique
 flottante, le centrage peut faire basculer le signe d'une valeur égale ou quasi égale à la
-médiane. Si l'une des conditions manque, la p-value retenue est celle de Monte-Carlo, simulée
+médiane. Si la loi de $R$ n'est pas définie --- un seul côté de la médiane représenté ---, aucune
+p-value exacte n'est attribuée, même lorsque les deux conditions tiennent (cas~2b de
+\code{usp\_tests()}). Si l'une des conditions manque, la p-value retenue est celle de Monte-Carlo, simulée
 sous le modèle ajusté avec ses $\hat\pi_t$~: lorsque $\hat\pi_t$ varie, les $r_t$ sont
 indépendants mais non identiquement distribués, les arrangements de signes ne sont plus
 équiprobables et la loi combinatoire n'est qu'une approximation, sans borne d'erreur connue à
@@ -4151,7 +4179,10 @@ seulement), les arrangements ne sont équiprobables qu'à un écart d'ordre $1 -
 l'étendue relative des volumes, près~: la p-value n'est exacte qu'à cet ordre près, ce que le
 commentaire de la ligne indique. Et la p-value exacte est attribuée sur le régime \emph{estimé}
 $\hat\delta$, sans tenir compte de l'incertitude sur $\hat\delta$~; l'effet de cette incertitude
-sur la p-value n'est pas évalué.
+sur la p-value n'est pas évalué. Cette seconde limite n'est pas propre à cette ligne~: elle vaut
+pour les neuf p-values dont l'exactitude est conditionnée à $\hat\pi_t$ constant --- cette
+ligne, dont le moteur conditionne l'étiquette au régime estimé, et les huit de la
+section~\ref{sec:base-residus}, dont l'exactitude n'est acquise que dans ce même régime estimé.
 \Usage
 Test non paramétrique très général~: il détecte aussi bien une autocorrélation (trop peu de
 suites) qu'une alternance systématique (trop de suites), sans hypothèse de forme. Limite
@@ -4255,7 +4286,16 @@ stockée dépend du démarrage retenu, non des données.
 $\hat\delta$ intérieur, nul au bord (mesure sur données simulées sous le modèle, consignée
 dans la décision du mainteneur du 23/09/2026, issue~\#22)~: la cause en est la dispersion des points d'arrêt équivalents de
 l'optimiseur, dont le pas de Newton atteint environ $2{,}5\cdot 10^{-6}$~; elle est traitée par
-l'issue~\#63. Le repère est maintenu (décision du mainteneur).
+l'issue~\#63. Le repère est maintenu (décision du mainteneur). À $\hat\delta$ intérieur,
+$\Delta\gamma$ est en outre calculé à $\delta$ fixé et ignore le terme croisé $H_{\delta\gamma}$~:
+un résidu $g_\delta$ toléré ($\le 10^{-4}$) déplace l'optimum en $\gamma$ de
+$-(H_{\delta\gamma}/H_{\gamma\gamma})\,\Delta\delta$, $\Delta\delta$ étant la composante en
+$\delta$ du pas de Newton complet. Mesuré sur le jeu à $\hat\delta$ intérieur des tests
+unitaires ($\hat\delta = 0{,}664$~; $H_{\delta\delta} = 1{,}99$, $H_{\delta\gamma} = -3{,}34$,
+$H_{\gamma\gamma} = 31{,}66$, par différence centrée du gradient analytique, $h = 10^{-4}$), un
+résidu $g_\delta = 10^{-4}$ correspondrait à une erreur relative de $6{,}4\cdot 10^{-6}$ sur
+$\hat\sigma$, six fois le repère~; le résidu observé, $g_\delta = 8{,}3\cdot 10^{-7}$, est
+environ cent vingt fois plus petit. Le pas de Newton complet relève de l'issue~\#71.
 
 \textbf{Portée mesurée.} Sur le jeu de contrôle ($\hat\delta = 1$)~: $g_\delta = -0{,}53$
 (composante projetée nulle, condition de Kuhn et Tucker satisfaite au bord supérieur),
@@ -5191,7 +5231,10 @@ part estimée dans les deux cas. L'écart de $14{,}8~\%$ est un constat sur ce j
 l'ordre de grandeur attendu pour un paramètre d'échelle estimé sur huit points~: au premier
 ordre, à résidus $z_t$ fixés (sans réajustement de $\delta$, $\gamma$ et $\beta$), le retrait de
 l'année $t$ déplace $\hat\sigma$ de $(1 - z_t^2)/\big(2(T-1)\big)$ en relatif, soit jusqu'à
-$10~\%$ environ sur ce jeu (approximation heuristique, non un résultat). \emph{Pourquoi aucun
+$10~\%$ environ sur ce jeu (approximation heuristique, non un résultat). L'heuristique et la
+mesure ne désignent pas la même année~: l'heuristique désigne l'année~6 ($-9{,}5~\%$), la mesure
+l'année~8 ($-14{,}8~\%$)~; la différence tient au réajustement de $\hat\beta$ et $\hat\gamma$, que
+l'heuristique néglige ($\hat\delta$ reste égal à~1 pour les huit retraits, mesure). \emph{Pourquoi aucun
 verdict} (ADR~0001, amendement du 23/09/2026)~: $\Delta_{\max}$ n'a pas de loi de référence, et
 le repère 10~\% / 20~\% n'est pas un niveau de test~; sur l'échelle de
 $\sigma_{\mathrm{USP}}$, son franchissement dépend en outre de la table de l'annexe, non des
