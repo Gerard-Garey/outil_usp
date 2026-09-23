@@ -487,7 +487,8 @@ réajustement à un seul démarrage (\code{factr = 1e7}), employé par
 \code{usp\_bootstrap()} \\
 \code{usp\_regime()} & $\delta$, $x$, \code{tol} (constante
 \code{TOL\_DELTA\_BORD}, $10^{-6}$) & drapeaux \code{\$delta\_au\_bord},
-\code{\$volumes\_constants}, \code{\$pi\_constant} (fiche~\ref{fiche:17},
+\code{\$volumes\_constants}, \code{\$pi\_constant}, \code{\$pi\_constant\_exact},
+\code{\$delta\_dans\_bande}, \code{\$volumes\_dans\_bande} (fiche~\ref{fiche:17},
 fiche~\ref{fiche:32}) \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Lois exactes}}} \\
 \code{mk\_p\_exacte()} & série $r_t$ & p-value exacte (loi mahonienne) \\
@@ -3733,7 +3734,9 @@ contrainte pondérée ne se réduit à $\sum_t z_t = 0$ que lorsque
 $\hat\pi_t$ est \emph{constant}, c'est-à-dire lorsque $\hat\delta = 1$ ou lorsque les volumes
 $x_t$ le sont. Le seul fait que $\hat\delta$ soit au bord de $[0,1]$ ne suffit pas~: à
 $\hat\delta = 0$ avec des volumes variables, $\hat\pi_t$ varie et l'égalité $\sum_t z_t = 0$
-ne tient pas. Le moteur distingue ces trois situations dans le commentaire attaché à la ligne.
+ne tient pas. Le moteur distingue ces trois situations dans le commentaire attaché à la ligne,
+en séparant en outre, parmi les cas où $\hat\pi_t$ est déclaré constant, la constance exacte de
+la constance à la tolérance près (ci-dessous).
 
 \emph{Décision de la constance de $\hat\pi_t$.} $\pi_t = 1/\ln\!\big(1 + e^{2\gamma}(\delta +
 (1-\delta)\bar x/x_t)\big)$ est constant en $t$ si et seulement si $\delta = 1$ ou les volumes $x_t$
@@ -3758,6 +3761,25 @@ jeu de contrôle ($B = 999$, graine 20260831)~: 953 des 999 valeurs $\hat\delta^
 exactement sur une borne, et les 46 autres en sont distantes d'au moins
 $1{,}74\cdot 10^{-4}$~; aucune ne tombe entre $0$ et ce minimum, de sorte que le seuil
 $10^{-6}$ ne sépare aucun optimum intérieur observé.
+
+\emph{Constance exacte et constance à la tolérance près.} La tolérance fait coexister deux
+situations que le moteur distingue (champs \code{\$pi\_constant\_exact},
+\code{\$delta\_dans\_bande} et \code{\$volumes\_dans\_bande} de \code{usp\_regime()}). À
+constance \emph{exacte} --- $\hat\delta = 1$ exactement, ou volumes $x_t$ rigoureusement
+égaux ---, $\hat\pi_t$ est le même nombre flottant pour tout $t$, et $\bar z = 0$ est l'identité
+algébrique ci-dessus, vraie à la précision machine. Dans la \emph{bande de tolérance}
+--- $1 - 10^{-6} \le \hat\delta < 1$, ou volumes d'étendue relative non nulle mais au plus
+$10^{-6}$ ---, $\hat\pi_t$ varie encore légèrement~: seule $\sum_t\sqrt{\hat\pi_t}\,z_t = 0$
+reste une identité, et $\bar z$ n'est nulle qu'à un écart d'ordre $(1 - \hat\delta)$, ou de
+l'étendue relative des volumes, près. Cet écart ne résulte pas de l'annulation d'une dérivée~:
+il suit la position de $\hat\delta$ (ou l'étendue des volumes), déjà affichée, et ne renseigne
+\textbf{pas} sur la convergence en $\gamma$. Mesuré sur le jeu de contrôle, au $\hat\gamma$ de
+l'ajustement comme à $\gamma$ réoptimisé à $\delta$ fixé~: $\bar z = 3{,}575\cdot 10^{-3}\,(1 -
+\delta)$ pour $1 - \delta$ de $10^{-9}$ à $10^{-6}$, contre $-2{,}0\cdot 10^{-16}$ à
+$\delta = 1$ (constat numérique sur ces données~; seul l'ordre $(1 - \delta)$ est général, le
+coefficient dépend des données). Le champ \code{detail} de la ligne le dit dans ce cas, avec la
+valeur de $1 - \hat\delta$ ou de l'étendue relative des volumes~; à constance exacte, il énonce
+l'identité.
 \Hzero
 Sans objet. L'hypothèse $\mathbb{E}[z_t] = 0$, sous laquelle cette grandeur était auparavant
 restituée comme un test, ne peut pas être mise en défaut par les données~: $\bar z$ est déterminé
@@ -3772,7 +3794,7 @@ de trois paramètres estimés $(\hat\beta,\hat\delta,\hat\gamma)$ et satisfont l
 linéaire ci-dessus, de sorte que le nombre effectif de degrés de liberté est inférieur à $T-1$.
 Cet argument, exact, reste faible~: il suggère une p-value seulement trop optimiste, donc
 utilisable avec prudence. \textbf{Le fait qui tranche est plus radical.} Lorsque $\hat\pi_t$ est
-constant, $\bar z = 0$ est une identité algébrique~; la valeur affichée est un zéro machine, le
+exactement constant, $\bar z = 0$ est une identité algébrique~; la valeur affichée est un zéro machine, le
 rapport $\bar z\sqrt{T}/s_z$ l'est aussi, et la p-value bilatérale vaut $1$ \emph{quelles que
 soient les données}. Ce n'est pas une p-value élevée~: c'est une \textbf{constante de $T$}, qui
 ne contient aucune information sur l'échantillon. Conséquence algébrique exacte, vérifiée
@@ -3841,11 +3863,13 @@ asymptotique n'est calculée ni affichée pour cette ligne, et aucune p-value n'
 modèle~; lui attacher un verdict \code{OK} donnerait au lecteur du dossier l'assurance d'un
 contrôle qui n'en est pas un. La ligne est donc restituée comme diagnostic, avec le verdict
 \code{INFO}, et accompagnée du motif. Ce qu'elle apporte à $T = 8$ est très limité, et il faut le
-dire sans détour. Lorsque $\hat\pi_t$ est constant, $\bar z$ n'est que du bruit d'arrondi et ne
+dire sans détour. Lorsque $\hat\pi_t$ est exactement constant, $\bar z$ n'est que du bruit d'arrondi et ne
 renseigne sur rien --- en particulier \textbf{pas} sur la qualité de l'arrêt de l'optimiseur,
 puisque l'identité rappelée en rubrique~1 ne dépend pas de la convergence~: mesuré, $\bar z$ vaut
 $-1{,}7\cdot 10^{-17}$ à $(\hat\delta,\gamma) = (1,\,0)$ et $1{,}6\cdot 10^{-16}$ à $(1,\,3)$,
-deux points très éloignés de l'optimum. Lorsque $\hat\pi_t$ varie, $\bar z$ est l'écart entre
+deux points très éloignés de l'optimum. Dans la bande de tolérance (rubrique~1), $\bar z$ est
+proportionnel à $1 - \hat\delta$, ou à l'étendue relative des volumes, et n'en dit pas davantage.
+Lorsque $\hat\pi_t$ varie, $\bar z$ est l'écart entre
 centrage pondéré et centrage non pondéré~: l'identité
 $\sum_t\sqrt{\hat\pi_t}\,z_t = 0$ donne la borne exacte
 \[
@@ -3915,6 +3939,19 @@ $\gamma = 3$ signifierait $\sigma \approx 20\,\hat\beta$ et $\gamma = -12$,
 $\sigma \approx 6\cdot 10^{-6}\,\hat\beta$, deux situations sans réalité pour un ratio S/P~; sur
 le jeu de contrôle, aucune des 999 réplications n'atteint une borne ($\hat\gamma^{*}$ reste entre
 $-3{,}34$ et $-1{,}37$).
+
+\emph{Constance à la tolérance près.} Ce qui précède vaut à constance \emph{exacte} de
+$\hat\pi_t$. Dans la bande de tolérance définie au centrage (fiche~\ref{fiche:32}), $\hat\pi_t$
+varie encore légèrement et l'égalité $\operatorname{Var}(z) = T/(T-1)$, à optimum intérieur en
+$\gamma$, ne tient qu'à \textbf{deux écarts} près~: la tolérance d'arrêt de l'optimiseur, et un
+écart d'ordre $(1 - \hat\delta)$, ou de l'étendue relative des volumes, dû à la variation
+résiduelle de $\hat\pi_t$. Mesuré sur le jeu de contrôle~: la tolérance d'arrêt laisse
+$\sum_t z_t^2 - T = -5{,}4\cdot 10^{-6}$ sur l'ajustement ($\hat\delta = 1$)~; à $\gamma$
+annulant la dérivée en $\gamma$ à $10^{-14}$ près (\code{uniroot}), $\sum_t z_t^2 - T$ vaut
+$-1{,}8\cdot 10^{-15}$ à $\delta = 1$ mais $2{,}74\cdot 10^{-3}\,(1 - \delta)$ pour $1 - \delta$
+de $10^{-8}$ à $10^{-6}$ (constat numérique sur ces données, coefficient propre aux données).
+L'écart résiduel renseigne donc sur la convergence en $\gamma$ sous ces deux réserves, que le
+champ \code{detail} de la ligne énonce dans ce cas.
 \Hzero
 Sans objet. L'hypothèse $\operatorname{Var}(z_t) = 1$, sous laquelle cette grandeur était
 auparavant restituée comme un test, n'est pas celle que l'estimation laisse libre~: la valeur de
@@ -6767,7 +6804,8 @@ pente, Fisher global, $R^2$~: \textbf{quatre entrées issues d'un seul appel} \\
 \code{usp\_noyau()}, \code{usp\_pi()} & LN & Tout le noyau lognormal~:
 résidus $z_t$, donc l'intégralité de H2, H3, H4 \\
 \code{usp\_regime()} & LN & Drapeau de la position de $\hat\delta$, libellés du
-centrage et de la variance unitaire, réserve du champ \code{detail} des six
+centrage et de la variance unitaire (constance de $\hat\pi_t$ exacte ou à la
+tolérance près), réserve du champ \code{detail} des six
 lignes sur ratios bruts~: une seule tolérance, \code{TOL\_DELTA\_BORD} \\
 \code{.stats\_bootstrapables()} & LN & Les 34 statistiques bootstrapées de la
 méthode lognormale, en un seul appel \\
