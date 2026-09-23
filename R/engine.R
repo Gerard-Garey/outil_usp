@@ -1262,10 +1262,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       motif_non_mc = "H0 non simulable : le modele ajuste appartient a H1",
       detail = "Loi EXACTE sous normalite. Equivaut a t^2 en regression simple")
   add(fam, "Coefficient de determination R2", "lm(y ~ x)",
-      type = if (is.finite(lmc$R2)) "indicateur" else "non applicable",
+      type = if (is.finite(lmc$R2)) "diagnostic" else "non applicable",
       estim_nom = "R2", estim = lmc$R2,
       detail = if (is.finite(lmc$R2))
-        sprintf("R2 ajuste = %.4f ; sous H0 (b=0) E[R2] = 1/(T-1) = %.3f. Indicateur, pas un test",
+        sprintf("R2 ajuste = %.4f ; sous H0 (b=0) E[R2] = 1/(T-1) = %.3f. Diagnostic, pas un test",
                 lmc$R2_ajuste, 1 / (T - 1)) else "x_t constant : R2 non defini",
       verdict = if (!is.finite(lmc$R2)) "INFO" else if (lmc$R2 < 0.5) "ALERTE" else "OK")
   tr <- test_reset(x, y)
@@ -1324,7 +1324,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   bp <- test_breusch_pagan(z^2, x)
   add(fam, "Heteroscedasticite vs volume - Breusch-Pagan studentise (Koenker)",
       "Breusch & Pagan (1979) ; studentisation de Koenker (1981)",
-      H0 = "c1 = 0 : la variance des residus normalises ne depend pas du volume",
+      H0 = "c1 = 0 : la variance des residus standardises ne depend pas du volume",
       H1 = "variance residuelle dependante du volume",
       stat_nom = "LM", stat = bp$stat, loi = "chi2(1) asymptotique",
       p_as = bp$p, mc_nom = "BP",
@@ -1381,7 +1381,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 
   ## --- D. H3 : lognormalite --------------------------------------------------
   fam <- "D. H3 - lognormalite (annexe XVII B(2)(f)(iii))"
-  H0n <- "les residus normalises suivent une loi normale"
+  H0n <- "les residus standardises suivent une loi normale"
   H1n <- "loi non normale"
   sw <- .shapiro_sur(z)
   add(fam, "Shapiro-Wilk sur residus standardises", "Shapiro & Wilk (1965), Biometrika 52",
@@ -1534,6 +1534,28 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # de cette distinction, sans erreur ni avertissement (constat d'audit). Le
   # defaut leve donc une erreur. Le corps est entre accolades pour que le bloc
   # reste analysable s'il est un jour extrait de cette fonction.
+  # Issue #39 : quand pi_t n'est pas constant, ce qui subsiste pour la
+  # VARIANCE n'est pas la contrainte ponderee somme(sqrt(pi_t) z_t) = 0
+  # (condition en ln(beta), qui porte sur la moyenne et ne dit rien de
+  # somme(z_t^2)) mais la condition du premier ordre en gamma, relation
+  # ponderee distincte. Avec pi_t = 1 / log1p(exp(2 gamma) a_t) (usp_pi(),
+  # a_t = delta + (1 - delta) xbar / x_t),
+  # elle s'ecrit somme(k_t (z_t^2 - z_t / sqrt(pi_t) - 1)) = 0, avec
+  # k_t = pi_t (1 - exp(-1 / pi_t)) ; a pi_t constant, jointe a la condition
+  # en ln(beta), elle donne somme(z_t^2) = T. Mesure (usp_ajuster(), donnees
+  # de test) : cette somme vaut -3,3e-06 a delta = 0, T = 5 (volumes
+  # variables, somme(z_t^2) - T = -1,07e-02), -5,4e-06 a delta = 1 ; elle
+  # est de l'ordre de 1e-07 a delta = 0, T = 5 apres raffinement de gamma
+  # par optimize(tol = 1e-12) : -2,1e-07 sur l'intervalle [-5 ; 0],
+  # +1,2e-07 sur [gamma chapeau - 0,1 ; gamma chapeau + 0,1] (mesures
+  # distinctes selon l'intervalle). La formule n'est donnee qu'ici : le
+  # libelle nomme la condition sans l'ecrire.
+  cond_gamma_ponderee <- paste(
+    "pour la variance, la relation qui subsiste est la condition du premier",
+    "ordre en gamma (a un optimum interieur en gamma, domaine [-12, 3]),",
+    "relation ponderee distincte de la contrainte somme(sqrt(pi_t) z_t) = 0",
+    "(condition en ln(beta), qui porte sur la moyenne) ; elle ne fixe pas",
+    "somme(z_t^2).")
   contrainte <- function(quoi) {
     if (isTRUE(pi_constant))
       switch(quoi,
@@ -1552,28 +1574,42 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                          "sous cette reserve."),
         stop("contrainte() : grandeur inconnue : ", quoi))
     else if (isTRUE(fit$delta_au_bord))
-      paste("Ici delta est au bord de [0,1] mais pi_t n'est PAS constant :",
-            "seule la contrainte ponderee subsiste, la valeur affichee n'est",
-            "donc ni nulle ni egale a T/(T-1) ; elle mesure l'ecart entre",
-            "version ponderee et version non ponderee.")
+      switch(quoi,
+        centrage = paste("Ici delta est au bord de [0,1] mais pi_t n'est PAS constant :",
+                         "seule la contrainte ponderee subsiste, la valeur affichee n'est",
+                         "donc pas nulle ; elle mesure l'ecart entre",
+                         "version ponderee et version non ponderee."),
+        variance = paste("Ici delta est au bord de [0,1] mais pi_t n'est PAS constant :",
+                         cond_gamma_ponderee, "var(z) n'est donc pas fixee par",
+                         "l'estimation ; son ecart a T/(T-1) n'a pas de valeur de",
+                         "reference."),
+        stop("contrainte() : grandeur inconnue : ", quoi))
     else
-      paste("Ici delta est interieur a [0,1] et pi_t n'est pas constant :",
-            "seule la contrainte ponderee subsiste ; la valeur affichee mesure",
-            "l'ecart entre version ponderee et version non ponderee.")
+      switch(quoi,
+        centrage = paste("Ici delta est interieur a [0,1] et pi_t n'est pas constant :",
+                         "seule la contrainte ponderee subsiste ; la valeur affichee mesure",
+                         "l'ecart entre version ponderee et version non ponderee."),
+        variance = paste("Ici delta est interieur a [0,1] et pi_t n'est pas constant :",
+                         cond_gamma_ponderee, "var(z) n'est donc pas fixee par",
+                         "l'estimation ; son ecart a T/(T-1) n'a pas de valeur de",
+                         "reference."),
+        stop("contrainte() : grandeur inconnue : ", quoi))
   }
   sans_p <- paste("Aucune p-value retenue : la grandeur est rivee par",
                   "l'estimation, elle est restituee comme diagnostic (ADR 0001).")
   add(fam, "Centrage des residus standardises", "Diagnostic de centrage (ADR 0001)",
       type = "diagnostic", estim_nom = "moyenne(z)", estim = mean(z),
-      detail = paste("Grandeur contrainte par l'estimation :",
+      detail = paste("Grandeur rivee par l'estimation :",
                      "somme(sqrt(pi_t) z_t) = 0 par condition du premier ordre,",
                      "d'ou moyenne(z) = 0 lorsque pi_t est constant.",
                      contrainte("centrage"), sans_p))
   add(fam, "Variance unitaire des residus standardises", "Diagnostic d'echelle (ADR 0001)",
       type = "diagnostic", estim_nom = "var(z)", estim = stats::var(z),
-      detail = paste("Grandeur contrainte par l'estimation : les conditions du",
-                     "premier ordre donnent somme(z_t^2) = T lorsque pi_t est",
-                     "constant, soit var(z) = T/(T-1).",
+      detail = paste("Grandeur rivee par l'estimation : la condition du",
+                     "premier ordre en gamma, qui ne tient qu'a un optimum",
+                     "interieur en gamma, donne, jointe a celle en ln(beta),",
+                     "somme(z_t^2) = T lorsque pi_t est constant, soit",
+                     "var(z) = T/(T-1).",
                      contrainte("variance"), sans_p))
 
   ## --- F. Stabilite, ruptures et points aberrants ----------------------------

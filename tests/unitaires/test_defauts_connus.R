@@ -116,6 +116,98 @@ verifier("Libelle du diagnostic : constance de pi_t, non position de delta au bo
              paste("delta = 0 : libelle errone ->", d0)
            else TRUE
          })
+# Issue #39 : libelles alignes sur CONTEXT.md ("Grandeur rivee par
+# l'estimation", "Diagnostic"). Une assertion par point de l'issue.
+ligne_test <- function(f, nom)
+  Filter(function(l) l$test == nom, usp_tests(f, boot_fictif()))[[1]]
+verifier("Issue #39 (1) : le detail de la variance nomme la condition en gamma, optimum interieur",
+         {
+           dd <- vapply(list(fit, fit0), function(f)
+             ligne_test(f, "Variance unitaire des residus standardises")$detail, character(1))
+           ok <- grepl("condition du premier ordre en gamma", dd, fixed = TRUE) &
+                 grepl("optimum interieur en gamma", dd, fixed = TRUE) &
+                 !grepl("les conditions du premier ordre donnent", dd, fixed = TRUE)
+           if (all(ok)) TRUE else paste("libelle :", paste(dd[!ok], collapse = " | "))
+         })
+# Audit de #39, m3 : le preambule emploie le terme de CONTEXT.md.
+verifier("Issue #39 (m3) : centrage et variance, preambule 'Grandeur rivee par l'estimation'",
+         {
+           dd <- unlist(lapply(list(fit, fit0), function(f)
+             vapply(c("Centrage des residus standardises",
+                      "Variance unitaire des residus standardises"),
+                    function(n) ligne_test(f, n)$detail, character(1))))
+           ok <- startsWith(dd, "Grandeur rivee par l'estimation :") &
+                 !grepl("Grandeur contrainte", dd, fixed = TRUE)
+           if (all(ok)) TRUE else paste("libelle :", paste(dd[!ok], collapse = " | "))
+         })
+verifier("Issue #39 (2) : pi_t non constant, la variance renvoie a la condition en gamma, non a la contrainte ponderee",
+         {
+           # fit0 : delta = 0 au bord ; fit_int : delta = 1 - 2 tau, interieur
+           d_int <- 1 - 2 * tau
+           fit_int <- c(usp_noyau(d_int, fit$gamma, x, y),
+             list(delta = d_int, gamma = fit$gamma, T = length(x), x = x, y = y,
+                  xbar = mean(x), foc = 0, convergence = 0L, part_starts_convergents = 1,
+                  delta_au_bord = usp_regime(d_int, x)$delta_au_bord))
+           ff <- list(fit0, fit_int)
+           dv <- vapply(ff, function(f)
+             ligne_test(f, "Variance unitaire des residus standardises")$detail, character(1))
+           dc <- vapply(ff, function(f)
+             ligne_test(f, "Centrage des residus standardises")$detail, character(1))
+           if (any(grepl("seule la contrainte ponderee subsiste", dv, fixed = TRUE)))
+             "variance : 'seule la contrainte ponderee subsiste' encore servi"
+           else if (!all(grepl("la relation qui subsiste est la condition du premier ordre en gamma",
+                               dv, fixed = TRUE)))
+             paste("variance :", paste(dv, collapse = " | "))
+           else if (!all(grepl("seule la contrainte ponderee subsiste", dc, fixed = TRUE)))
+             "centrage : la contrainte ponderee n'est plus nommee"
+           # Audit m5 : la condition en gamma ne fixe pas somme(z_t^2), var(z)
+           # ne "mesure" donc aucun ecart de reference.
+           else if (!all(grepl("var(z) n'est donc pas fixee par l'estimation ; son ecart a T/(T-1) n'a pas de valeur de reference",
+                               dv, fixed = TRUE)) ||
+                    any(grepl("mesure l'ecart", dv, fixed = TRUE)))
+             paste("variance (m5) :", paste(dv, collapse = " | "))
+           # Audit m2 : T/(T-1) ne concerne que la variance.
+           else if (any(grepl("T/(T-1)", dc, fixed = TRUE)) ||
+                    !grepl("n'est donc pas nulle", dc[1], fixed = TRUE))
+             paste("centrage (m2) :", paste(dc, collapse = " | "))
+           else TRUE
+         })
+# Propriete invoquee par le commentaire de contrainte() (issue #39) : la
+# condition du premier ordre en gamma s'ecrit
+# somme(k_t (z_t^2 - z_t / sqrt(pi_t) - 1)) = 0, k_t = pi_t (1 - exp(-1/pi_t)),
+# et ne fixe pas somme(z_t^2) quand pi_t varie. Tolerance 1e-4 : l'ecart
+# mesure a l'arret de usp_ajuster() est -3,3e-06 sur fit0.
+verifier("Issue #39 : condition en gamma verifiee a delta = 0 (pi_t variable), somme(z_t^2) != T",
+         {
+           k <- fit0$pi * (1 - exp(-1 / fit0$pi))
+           cg <- sum(k * (fit0$z^2 - fit0$z / sqrt(fit0$pi) - 1))
+           abs(cg) < 1e-4 && abs(sum(fit0$z^2) - fit0$T) > 1e-3
+         })
+verifier("Issue #39 (3) : H0 de Breusch-Pagan (Koenker) et de normalite en residus standardises",
+         {
+           tt <- usp_tests(fit, boot_fictif())
+           h0 <- vapply(tt, function(l) if (is.na(l$H0)) "" else l$H0, character(1))
+           nm <- vapply(tt, function(l) l$test, character(1))
+           bp <- h0[nm == "Heteroscedasticite vs volume - Breusch-Pagan studentise (Koenker)"]
+           sw <- h0[nm == "Shapiro-Wilk sur residus standardises"]
+           if (any(grepl("normalises", h0, fixed = TRUE)))
+             paste("H0 en 'normalises' :", paste(nm[grepl("normalises", h0, fixed = TRUE)], collapse = ", "))
+           else identical(bp, "c1 = 0 : la variance des residus standardises ne depend pas du volume") &&
+             identical(sw, "les residus standardises suivent une loi normale")
+         })
+verifier("Issue #39 (4) : R2 de type diagnostic (type et detail), verdict force inchange (ALERTE a R2 < 0,5 ; #24)",
+         {
+           l1 <- ligne_test(fit, "Coefficient de determination R2")
+           l0 <- ligne_test(fit0, "Coefficient de determination R2")
+           types <- vapply(usp_tests(fit, boot_fictif()), function(l) l$type, character(1))
+           identical(l1$type, "diagnostic") && identical(l0$type, "diagnostic") &&
+             !"indicateur" %in% types &&
+             grepl("Diagnostic, pas un test", l1$detail, fixed = TRUE) &&
+             grepl("Diagnostic, pas un test", l0$detail, fixed = TRUE) &&
+             !grepl("Indicateur", l1$detail, fixed = TRUE) &&
+             identical(l1$verdict, if (l1$estim < 0.5) "ALERTE" else "OK") &&
+             identical(l0$verdict, if (l0$estim < 0.5) "ALERTE" else "OK")
+         })
 # Issue #31, cas de l'issue : delta a 1 - tau/2 avec des volumes variables.
 # L'ancien drapeau (etendue des pi_t <= 1e-9 en relatif) classait ce cas
 # "au bord mais pi_t n'est PAS constant" et affirmait une valeur "ni nulle ni
