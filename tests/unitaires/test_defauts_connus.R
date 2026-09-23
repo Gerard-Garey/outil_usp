@@ -71,13 +71,21 @@ verifier("Toute statistique simulee est exploitee par un test (pas d'orpheline)"
 # (delta = 1 ou volumes constants), non des que delta est au bord : le jeu
 # tronque a T = 5 ci-dessous donne delta = 0 avec des pi_t variables.
 # ADR 0001 : les deux verifications restent affichees, comme diagnostics.
+# Issue #31 : les drapeaux delta_au_bord et pi_constant partagent la tolerance
+# unique TOL_DELTA_BORD ; la constance de pi_t n'est plus exigee au bit pres
+# (un arret de l'optimiseur a delta = 1 - 1e-7 la romprait d'environ 1e-8)
+# mais bornee par tau * etendue(xbar / x_t).
+tau <- TOL_DELTA_BORD
 fit0 <- usp_ajuster(x[1:5], y[1:5])            # delta = 0, pi_t non constant
 verifier("pi_t constant (delta = 1) : moyenne des z nulle et somme des z^2 egale a T",
-         isTRUE(fit$delta_au_bord) && fit$delta > 1 - 1e-6 &&
-           diff(range(fit$pi)) == 0 && abs(mean(fit$z)) < 1e-12 &&
+         isTRUE(fit$delta_au_bord) && 1 - fit$delta <= tau &&
+           isTRUE(usp_regime(fit$delta, fit$x)$pi_constant) &&
+           diff(range(fit$pi)) / mean(fit$pi) <= tau * diff(range(fit$xbar / fit$x)) &&
+           abs(mean(fit$z)) < 1e-12 &&
            isTRUE(proche(sum(fit$z^2), fit$T, rel = 1e-5)))
 verifier("delta = 0 avec volumes variables : pi_t NON constant, aucune des deux egalites",
-         isTRUE(fit0$delta_au_bord) && fit0$delta < 1e-6 &&
+         isTRUE(fit0$delta_au_bord) && fit0$delta <= tau &&
+           !isTRUE(usp_regime(fit0$delta, fit0$x)$pi_constant) &&
            diff(range(fit0$pi)) / mean(fit0$pi) > 0.01 &&
            abs(mean(fit0$z)) > 1e-3 && abs(sum(fit0$z^2) - fit0$T) > 1e-3 &&
            abs(sum(sqrt(fit0$pi) * fit0$z)) < 1e-8)
@@ -106,6 +114,49 @@ verifier("Libelle du diagnostic : constance de pi_t, non position de delta au bo
              "delta = 1 : le libelle ne dit pas que pi_t est constant"
            else if (!grepl("n'est PAS constant", d0, fixed = TRUE))
              paste("delta = 0 : libelle errone ->", d0)
+           else TRUE
+         })
+# Issue #31, cas de l'issue : delta a 1 - tau/2 avec des volumes variables.
+# L'ancien drapeau (etendue des pi_t <= 1e-9 en relatif) classait ce cas
+# "au bord mais pi_t n'est PAS constant" et affirmait une valeur "ni nulle ni
+# egale a T/(T-1)" ; a delta = 1 - 2 tau, delta n'est plus au bord.
+fit_regime <- function(d) {
+  c(usp_noyau(d, fit$gamma, x, y),
+    list(delta = d, gamma = fit$gamma, T = length(x), x = x, y = y, xbar = mean(x),
+         foc = 0, convergence = 0L, part_starts_convergents = 1,
+         delta_au_bord = usp_regime(d, x)$delta_au_bord))
+}
+details_regime <- function(f) {
+  tt <- usp_tests(f, boot_fictif())
+  stats::setNames(vapply(tt, function(l) l$detail, character(1)),
+                  vapply(tt, function(l) l$test, character(1)))
+}
+verifier("Libelles a delta = 1 - tau/2 (issue #31) : pi_t constant, controle sur ratios sans objet",
+         {
+           f <- fit_regime(1 - tau / 2)
+           dd <- details_regime(f)
+           diag <- dd[c("Centrage des residus standardises",
+                        "Variance unitaire des residus standardises")]
+           if (!isTRUE(f$delta_au_bord)) "delta_au_bord FALSE a 1 - tau/2"
+           else if (!all(grepl("pi_t est constant", diag, fixed = TRUE)))
+             paste("libelle diagnostic :", paste(diag, collapse = " | "))
+           else if (any(grepl("ni nulle ni egale a T/(T-1)", dd, fixed = TRUE)))
+             "libelle 'ni nulle ni egale a T/(T-1)' encore servi"
+           else if (!any(grepl("CONTROLE SANS OBJET", dd, fixed = TRUE)))
+             "note_r absente"
+           else TRUE
+         })
+verifier("Libelles a delta = 1 - 2 tau (issue #31) : delta interieur, pi_t non constant",
+         {
+           f <- fit_regime(1 - 2 * tau)
+           dd <- details_regime(f)
+           diag <- dd[c("Centrage des residus standardises",
+                        "Variance unitaire des residus standardises")]
+           if (isTRUE(f$delta_au_bord)) "delta_au_bord TRUE a 1 - 2 tau"
+           else if (!all(grepl("interieur", diag, fixed = TRUE)))
+             paste("libelle diagnostic :", paste(diag, collapse = " | "))
+           else if (any(grepl("CONTROLE SANS OBJET", dd, fixed = TRUE)))
+             "note_r servie alors que pi_t varie"
            else TRUE
          })
 verifier("MeanZ, VarZ, LB2r et BP2r ne sont plus simulees",

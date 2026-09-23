@@ -120,6 +120,21 @@ CRED_LONG  <- c(`5` = .34, `6` = .43, `7` = .51, `8` = .59, `9` = .67,
 CRED_COURT <- c(`5` = .34, `6` = .51, `7` = .67, `8` = .81, `9` = .92,
                 `10` = 1.00)
 
+# Tolerance unique de regime des sections B et C (issue #31) : delta au bord
+# de [0,1] et pi_t constant. Ce n'est PAS une valeur reglementaire mais une
+# resolution numerique. Elle doit depasser la resolution du critere d'arret de
+# L-BFGS-B sur delta : environ 1e-9 pour l'ajustement complet usp_ajuster()
+# (factr = 1e5, reduction relative factr * eps = 2,2e-11) et environ 1e-7
+# pour le reajustement rapide usp_ajuster_rapide() (factr = 1e7, 2,2e-9),
+# l'objectif ne variant que de 2,3e-2 * (1 - delta) en relatif pres du bord
+# sur les donnees de test. Mesure (avis actuary, 23/09/2026) : sur
+# 1 399 ajustements (400 jeux simules ajustes par usp_ajuster(), 999
+# repliques bootstrap par usp_ajuster_rapide()), aucune distance de delta au
+# bord dans la fenetre (0 ; 1,7e-4) : le seuil 1e-6 ne separe donc aucun
+# optimum interieur observe. Unique source de cette tolerance : usp_ajuster()
+# (delta_au_bord) et usp_regime() (pi_constant).
+TOL_DELTA_BORD <- 1e-6
+
 usp_credibilite <- function(T, bareme = c("court", "long")) {
   bareme <- match.arg(bareme)
   tab <- if (bareme == "long") CRED_LONG else CRED_COURT
@@ -295,7 +310,27 @@ usp_ajuster <- function(x, y, n_starts_delta = 9, verbose = FALSE) {
             foc = foc,
             obj_min = best$value, convergence = best$convergence,
             part_starts_convergents = part_convergents,
-            delta_au_bord = (d < 1e-6 || d > 1 - 1e-6)))
+            delta_au_bord = usp_regime(d, x)$delta_au_bord))
+}
+
+# Regime de l'ajustement lognormal (issue #31), fonction pure de (delta, x).
+# pi_t = 1 / ln(1 + e^{2 gamma} (delta + (1 - delta) xbar / x_t)) est constant
+# en t si et seulement si delta = 1 ou les volumes x_t sont constants : le
+# drapeau pi_constant porte donc sur cette CAUSE, avec la tolerance unique
+# TOL_DELTA_BORD, et non sur l'etendue observee des pi_t (seuil distinct qui
+# laissait une zone "delta au bord mais pi_t non constant" pour delta dans
+# (1 - 1e-6 ; 1 - 3,9e-9) sur les volumes du cas de test). delta au bord 0
+# avec des volumes variables ne rend PAS pi_t constant.
+# Signature (delta, x) plutot que (fit) : la fonction sert aussi dans
+# usp_ajuster(), avant que l'objet fit n'existe, et se teste sans ajustement.
+# Rien n'est ajoute a fit (stocke dans res$ajustement, structure des
+# references de non-regression).
+usp_regime <- function(delta, x, tol = TOL_DELTA_BORD) {
+  delta_au_bord <- delta <= tol || delta >= 1 - tol
+  volumes_constants <- diff(range(x)) <= tol * mean(x)
+  list(delta_au_bord = delta_au_bord,
+       volumes_constants = volumes_constants,
+       pi_constant = delta >= 1 - tol || volumes_constants)
 }
 
 # Paramètre propre final :
@@ -1473,10 +1508,12 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # somme(z_t) = 0 et somme(z_t^2) = T que lorsque pi_t est CONSTANT, ce qui
   # suppose delta = 1 ou des volumes x_t constants. A delta = 0 avec des
   # volumes variables, pi_t varie : delta_au_bord ne suffit donc PAS a
-  # conclure, et c'est la constance effective de pi_t qui est testee ici.
+  # conclure. La constance de pi_t est decidee sur sa cause (delta >= 1 - tol
+  # ou volumes constants) par usp_regime(), avec la meme tolerance que
+  # delta_au_bord (TOL_DELTA_BORD, issue #31).
   # Trois cas sont distingues dans le libelle (voir aussi le commentaire de
   # .stats_bootstrapables() pour la loi simulee, qui est un melange).
-  pi_constant <- diff(range(fit$pi)) <= 1e-9 * mean(fit$pi)
+  pi_constant <- usp_regime(fit$delta, fit$x)$pi_constant
   # Le libelle du cas pi_t constant DIFFERE selon la grandeur, et c'est le
   # coeur du diagnostic. somme(z_t) = 0 decoule de la forme FERMEE de ln(beta)
   # dans usp_noyau() : c'est une IDENTITE algebrique, vraie pour tout couple
