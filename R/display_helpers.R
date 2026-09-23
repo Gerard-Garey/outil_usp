@@ -129,6 +129,11 @@ avertissement_T <- function(T) {
 }
 
 # --- Tableaux (mise en forme seule) -----------------------------------------
+# Les colonnes textuelles venant du moteur (test, noms de statistique et
+# d'estimation, H0, H1, loi, sens, reference) sont echappees ICI, source unique
+# pour l'onglet Tests et le rapport fige : elles contiennent des caracteres
+# HTML (ex. H1 = "|a| < Delta"). Les badges et balises construits ci-dessous
+# ne le sont pas. L'appelant passe donc la table brute du moteur.
 table_synthese_groupe <- function(tb) {
   # unname() et row.names = NULL sont indispensables : vapply() conserve les
   # noms de son vecteur d'entree, et data.frame() les promeut en noms de
@@ -136,11 +141,11 @@ table_synthese_groupe <- function(tb) {
   # diagnostics) produisaient alors une erreur de construction du tableau.
   data.frame(
     Verdict = unname(vapply(tb$verdict, badge_verdict, character(1))),
-    Test    = paste0("<span style='font-weight:600;color:#1B2631'>", tb$test, "</span>"),
+    Test    = paste0("<span style='font-weight:600;color:#1B2631'>", .txt(tb$test), "</span>"),
     `Statistique` = ifelse(is.finite(tb$statistique),
-        paste0("<code>", tb$nom_statistique, "</code> = ", fmt_nb(tb$statistique)), "\u2013"),
+        paste0("<code>", .txt(tb$nom_statistique), "</code> = ", fmt_nb(tb$statistique)), "\u2013"),
     Estimation = ifelse(is.finite(tb$estimation),
-        paste0(tb$nom_estimation, " = ", fmt_nb(tb$estimation)), "\u2013"),
+        paste0(.txt(tb$nom_estimation), " = ", fmt_nb(tb$estimation)), "\u2013"),
     `p retenue` = fmt_p(tb$p_retenue),
     Nature = unname(vapply(tb$nature_p, badge_nature, character(1))),
     check.names = FALSE, stringsAsFactors = FALSE, row.names = NULL)
@@ -148,14 +153,14 @@ table_synthese_groupe <- function(tb) {
 
 table_detail_groupe <- function(tb) {
   data.frame(
-    Test = paste0("<span style='font-weight:600;color:#1B2631'>", tb$test, "</span>"),
-    H0 = tb$H0, H1 = tb$H1,
-    `Loi sous H0` = tb$loi_sous_H0,
+    Test = paste0("<span style='font-weight:600;color:#1B2631'>", .txt(tb$test), "</span>"),
+    H0 = .txt(tb$H0), H1 = .txt(tb$H1),
+    `Loi sous H0` = .txt(tb$loi_sous_H0),
     `p exacte` = fmt_p(tb$p_exacte),
     `p asympt.` = fmt_p(tb$p_asymptotique),
     `p Monte-Carlo` = fmt_p(tb$p_monte_carlo),
     `erreur MC` = ifelse(is.finite(tb$erreur_MC), paste0("\u00b1 ", fmt_nb(tb$erreur_MC)), "\u2013"),
-    Sens = tb$sens_du_test, Reference = tb$reference,
+    Sens = .txt(tb$sens_du_test), Reference = .txt(tb$reference),
     check.names = FALSE, stringsAsFactors = FALSE, row.names = NULL)
 }
 
@@ -1349,10 +1354,10 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
           "</section>")
 
     # --- 5. Tests retenus -----------------------------------------------------
+    # Table brute : table_synthese_groupe() et table_detail_groupe() echappent
+    # elles-memes les colonnes textuelles (pas de pre-echappement, qui les
+    # doublerait en &amp;lt;).
     te <- tb
-    for (col in c("test", "H0", "H1", "loi_sous_H0", "nom_statistique", "nom_estimation",
-                  "sens_du_test", "reference", "commentaire"))
-      te[[col]] <- .txt(te[[col]])
     te$cle <- vapply(te$famille, function(f) groupe_de(f)$cle, character(1))
     ajout("<h2 id='tests-retenus'>5. Tests retenus</h2>",
           "<section id='section-tests-retenus'>",
@@ -1397,8 +1402,8 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
       paste0("calcul\u00e9 sur les ", nom_base[ex$base], " ; base retenue pour ce test : ",
              nom_base[sx$base]))
     tab_ex <- if (nrow(ex)) {
-      d <- data.frame(ex$cle, paste0("<span style='font-weight:600'>", ex$test, "</span>"),
-                      unname(nom_base[ex$base]), ex$variante,
+      d <- data.frame(ex$cle, paste0("<span style='font-weight:600'>", .txt(ex$test), "</span>"),
+                      unname(nom_base[ex$base]), .txt(ex$variante),
                       unname(vapply(ex$verdict, badge_verdict, character(1))),
                       fmt_p(ex$p_retenue),
                       unname(vapply(ex$nature_p, badge_nature, character(1))),
