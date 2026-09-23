@@ -180,6 +180,24 @@ verifier("Rapport lognormal : formule avec le facteur sqrt((T+1)/(T-1))",
          grepl(.echap_html(texte_formule(res_ln)), h, fixed = TRUE))
 verifier("Rapport : avertissement T = 8 en fin de document",
          grepl(avertissement_T(8), h, fixed = TRUE))
+# Echappement HTML des colonnes textuelles du moteur : fait une seule fois,
+# dans table_detail_groupe() / table_synthese_groupe(), source commune de
+# l'onglet Tests et du rapport (H1 du TOST = "|a| < Delta ...").
+i_tost <- which(grepl("^\\|a\\| < Delta", tb$H1))[1]
+det_tost <- table_detail_groupe(tb[i_tost, , drop = FALSE])
+verifier("table_detail_groupe() : H0 et H1 echappes (|a| &lt; Delta, |a| &gt;= Delta), balise du test conservee",
+         !is.na(i_tost) && startsWith(det_tost$H1, "|a| &lt; Delta") &&
+         startsWith(det_tost$H0, "|a| &gt;= Delta") &&
+         startsWith(det_tost$Test, "<span style=") &&
+         grepl("|a| &lt; Delta", html_table(det_tost), fixed = TRUE))
+verifier("table_synthese_groupe() : badges non echappes, texte echappe",
+         {
+           sy <- table_synthese_groupe(tb)
+           all(startsWith(sy$Verdict, "<span style=")) && !any(grepl("&lt;span", unlist(sy), fixed = TRUE))
+         })
+verifier("Rapport : pas de double echappement (&amp;lt; / &amp;gt; absents), H1 du TOST echappe une fois",
+         compte(h, "&amp;lt;") == 0 && compte(h, "&amp;gt;") == 0 &&
+         grepl("|a| &lt; Delta", h, fixed = TRUE))
 # Tableau "Robustesse du calibrage" : non filtre, comme l'onglet Calibration.
 cle_ln <- vapply(tb$famille, function(f) groupe_de(f)$cle, character(1))
 s_rob <- selection_defaut(tb); s_rob$garde[cle_ln == "ROB"] <- FALSE
