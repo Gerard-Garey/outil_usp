@@ -1162,7 +1162,8 @@ usp_profil <- function(fit, n = 41) {
 ## =============================================================================
 
 usp_tests <- function(fit, boot, alpha = 0.10,
-                      theta_equiv = 0.10, delta_equiv = NULL) {
+                      theta_equiv = 0.10, delta_equiv = NULL,
+                      robustesse = NULL) {
   z <- fit$z; x <- fit$x; y <- fit$y; T <- fit$T
   r <- y / x
   # Base alternative : ratios bruts centres. Voir la sous-section
@@ -1205,6 +1206,22 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       p_ret <- NA_real_; nature <- NA_character_
     }
     if (!is.na(nature_forcee) && is.finite(p_ret)) nature <- nature_forcee
+    # ADR 0001 (amendement du 23/09/2026, M7) : seule une ligne de type "test"
+    # ou "procedure de decision" porte un verdict. Toute autre ligne sort
+    # INFO et son sens est NA ; un verdict fourni pour un autre type est une
+    # erreur de programmation, refusee ici pour que l'invariant ne puisse pas
+    # etre contourne par un appel.
+    porte_verdict <- type %in% c("test", "procedure de decision")
+    if (!is.null(verdict) && !porte_verdict)
+      stop("add() : un verdict n'est admis que pour type = 'test' ou 'procedure de decision' (ADR 0001) : ", nom)
+    # La procedure de decision (ESD) decide sans p-value : son verdict est
+    # toujours fourni par l'appelant ; l'omettre est une erreur de programmation.
+    if (type == "procedure de decision" && is.null(verdict))
+      stop("add() : une ligne de type 'procedure de decision' doit fournir son verdict : ", nom)
+    # Sans verdict, ni sens ni p-value retenue (ADR 0001, CONTEXT.md).
+    if (!porte_verdict) {
+      sens <- NA_character_; p_ret <- NA_real_; nature <- NA_character_
+    }
     v <- if (!is.null(verdict)) verdict
     else if (type != "test" || !is.finite(p_ret)) "INFO"
     else if (sens == "rejeter") {
@@ -1283,9 +1300,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       type = if (is.finite(lmc$R2)) "diagnostic" else "non applicable",
       estim_nom = "R2", estim = lmc$R2,
       detail = if (is.finite(lmc$R2))
-        sprintf("R2 ajuste = %.4f ; sous H0 (b=0) E[R2] = 1/(T-1) = %.3f. Diagnostic, pas un test",
-                lmc$R2_ajuste, 1 / (T - 1)) else "x_t constant : R2 non defini",
-      verdict = if (!is.finite(lmc$R2)) "INFO" else if (lmc$R2 < 0.5) "ALERTE" else "OK")
+        sprintf("R2 ajuste = %.4f ; sous H0 (b=0) E[R2] = 1/(T-1) = %.3f ; repere conventionnel R2 < 0.5 : %s. Diagnostic, pas un test",
+                lmc$R2_ajuste, 1 / (T - 1),
+                if (lmc$R2 < 0.5) "en dessous" else "au-dessus") else "x_t constant : R2 non defini")
   tr <- test_reset(x, y)
   add(fam, "RESET (forme fonctionnelle)", "Ramsey (1969), JRSS B 31",
       H0 = "gamma2 = gamma3 = 0 (forme lineaire correcte)",
@@ -1394,8 +1411,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       type = "diagnostic", estim_nom = "delta", estim = fit$delta,
       detail = if (isTRUE(fit$delta_au_bord))
         "SOLUTION AU BORD : structure de variance non identifiee par les donnees"
-      else "interieur du domaine : melange des deux composantes identifie",
-      verdict = if (isTRUE(fit$delta_au_bord)) "ALERTE" else "OK")
+      else "interieur du domaine : melange des deux composantes identifie")
 
   ## --- D. H3 : lognormalite --------------------------------------------------
   fam <- "D. H3 - lognormalite (annexe XVII B(2)(f)(iii))"
@@ -1721,12 +1737,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   mlm <- stats::lm(y ~ x - 1); ck <- stats::cooks.distance(mlm); hv <- stats::hatvalues(mlm)
   add(fam, "Points influents (distance de Cook)", "Cook (1977), Technometrics 19",
       type = "diagnostic", estim_nom = "max D_t", estim = max(ck),
-      detail = sprintf("seuil conventionnel 4/T = %.3f ; %d observation(s) au-dessus%s",
+      detail = sprintf("repere conventionnel 4/T = %.3f ; %d observation(s) au-dessus%s",
                        4 / T, sum(ck > 4 / T),
                        if (any(ck > 4 / T))
-                         paste0(" (rangs ", paste(which(ck > 4 / T), collapse = ", "), ")") else ""),
-      verdict = if (sum(ck > 4 / T) >= 2) "ECHEC"
-                else if (sum(ck > 4 / T) == 1) "ALERTE" else "OK")
+                         paste0(" (rangs ", paste(which(ck > 4 / T), collapse = ", "), ")") else ""))
   ## --- Variante "ratios bruts" des tests d'independance et de stabilite -----
   # Memes statistiques appliquees aux ratios centres u_t = r_t - moyenne(r).
   # Interet : ces tests ne dependent d'aucun ajustement, ce qui les rend
@@ -1799,41 +1813,59 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 
   add(fam, "Leviers (hat values)", "Hoaglin & Welsch (1978), Amer. Statist. 32",
       type = "diagnostic", estim_nom = "max h_t", estim = max(hv),
-      detail = sprintf("seuil conventionnel 2k/T = %.3f ; %d observation(s) au-dessus",
-                       2 / T, sum(hv > 2 / T)),
-      verdict = if (any(hv > 2 / T)) "ALERTE" else "OK")
+      detail = sprintf("repere conventionnel 2k/T = %.3f ; %d observation(s) au-dessus",
+                       2 / T, sum(hv > 2 / T)))
 
   ## --- G. Robustesse de l'estimation -----------------------------------------
   fam <- "G. Robustesse de l'estimation"
   add(fam, "Condition du premier ordre |sum(pi_t*v_t)|/sum(pi_t)",
       "Diagnostic numerique (annexe XVII, par. 4-6)", type = "diagnostic",
       estim_nom = "FOC relative", estim = fit$foc,
-      detail = paste("IDENTITE algebrique, non un controle de convergence :",
-                     "ln(beta) etant obtenu en forme fermee par usp_noyau(),",
-                     "somme(pi_t v_t) = 0 pour TOUT couple (delta, gamma), converge",
-                     "ou non. Cette grandeur est donc nulle a la precision machine",
-                     "quel que soit l'etat de l'optimisation, et son ECHEC ne peut",
-                     "signaler qu'une anomalie arithmetique."),
-      verdict = if (!is.finite(fit$foc) || fit$foc > 1e-6) "ECHEC" else "OK")
+      detail = paste0(sprintf("valeur %.1e ; repere numerique 1e-6. ", fit$foc),
+                      "IDENTITE algebrique, non un controle de convergence : ",
+                      "ln(beta) etant obtenu en forme fermee par usp_noyau(), ",
+                      "somme(pi_t v_t) = 0 pour TOUT couple (delta, gamma), converge ",
+                      "ou non. Cette grandeur est donc nulle a la precision machine ",
+                      "quel que soit l'etat de l'optimisation ; une valeur au-dessus ",
+                      "du repere ne peut signaler qu'une anomalie arithmetique."))
   add(fam, "Convergence multi-demarrages", "Diagnostic numerique (L-BFGS-B)",
       type = "diagnostic",
       estim_nom = "part des demarrages a l'optimum", estim = fit$part_starts_convergents,
-      detail = sprintf("code de retour optim = %d", fit$convergence),
-      verdict = if (fit$part_starts_convergents < 0.5 || fit$convergence != 0) "ALERTE" else "OK")
+      detail = sprintf(paste("part des demarrages a l'optimum = %.2f ; repere conventionnel 0.5 ;",
+                             "code de retour optim = %d (0 = convergence)"),
+                       fit$part_starts_convergents, fit$convergence))
+  # Jackknife et IC : le detail restitue l'ecart sur sigma_USP (qui depend de
+  # la table de l'annexe par (1-c) sigma_std) ET l'ecart sur la seule part
+  # estimee sigma(delta, gamma) (independante de la table et du bareme). La
+  # seconde partie n'est ecrite que si run_engine() a fourni `robustesse`.
+  rb <- robustesse
   if (!is.null(fit$ecart_jackknife))
     add(fam, "Sensibilite au retrait d'une annee (jackknife)",
         "Quenouille (1949) / Tukey (1958)", type = "diagnostic",
         estim_nom = "ecart relatif max", estim = fit$ecart_jackknife,
-        detail = sprintf("ecart maximal sur sigma_USP = %+.1f%%", 100 * fit$ecart_jackknife),
-        verdict = if (fit$ecart_jackknife > 0.20) "ECHEC"
-                  else if (fit$ecart_jackknife > 0.10) "ALERTE" else "OK")
+        detail = if (!is.null(rb$jack_annee))
+          sprintf(paste("retrait de l'annee %d : %+.1f%% sur sigma_USP (repere conventionnel",
+                        "10 %% / 20 %% ; depend de la table de l'annexe par (1-c) sigma_std) ;",
+                        "%+.1f%% sur la part estimee sigma(delta, gamma) (independant de la",
+                        "table et du bareme)"),
+                  rb$jack_annee, 100 * rb$jack_usp, 100 * rb$jack_estim)
+        else sprintf(paste("ecart maximal sur sigma_USP = %+.1f%% (repere conventionnel",
+                           "10 %% / 20 %% ; depend de la table de l'annexe par (1-c) sigma_std)"),
+                     100 * fit$ecart_jackknife))
   if (!is.null(fit$largeur_ic))
     add(fam, "Largeur relative de l'IC bootstrap 90%", "Efron (1979), Ann. Statist. 7",
         type = "diagnostic",
         estim_nom = "largeur / sigma_USP", estim = fit$largeur_ic,
-        detail = sprintf("(q95 - q05) / sigma_USP = %.1f%%", 100 * fit$largeur_ic),
-        verdict = if (fit$largeur_ic > 0.80) "ECHEC"
-                  else if (fit$largeur_ic > 0.50) "ALERTE" else "OK")
+        detail = if (!is.null(rb$ic_estim))
+          sprintf(paste("(q95 - q05) / sigma_USP = %.1f%% (repere conventionnel 50 %% / 80 %% ;",
+                        "depend de la table de l'annexe par (1-c) sigma_std) ;",
+                        "(q95 - q05) / sigma(delta, gamma) = %.1f%% sur la part estimee",
+                        "(independant de la table et du bareme) ; IC 90 %% de sigma_USP :",
+                        "[%.4f ; %.4f]"),
+                  100 * fit$largeur_ic, 100 * rb$ic_estim, rb$ic_q05, rb$ic_q95)
+        else sprintf(paste("(q95 - q05) / sigma_USP = %.1f%% (repere conventionnel 50 %% / 80 %% ;",
+                           "depend de la table de l'annexe par (1-c) sigma_std)"),
+                     100 * fit$largeur_ic))
   L
 }
 
@@ -3228,6 +3260,20 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
     else if (is.finite(p_as)) { p_ret <- p_as; nature <- "asymptotique" }
     else                      { p_ret <- NA_real_; nature <- NA_character_ }
     if (!is.na(nature_forcee) && is.finite(p_ret)) nature <- nature_forcee
+    # ADR 0001 (amendement du 23/09/2026, M7) : meme invariant que add() de
+    # usp_tests() -- verdict reserve aux types "test" et "procedure de
+    # decision", INFO et sens NA pour toute autre ligne.
+    porte_verdict <- type %in% c("test", "procedure de decision")
+    if (!is.null(verdict) && !porte_verdict)
+      stop("add() : un verdict n'est admis que pour type = 'test' ou 'procedure de decision' (ADR 0001) : ", nom)
+    # La procedure de decision (ESD) decide sans p-value : son verdict est
+    # toujours fourni par l'appelant ; l'omettre est une erreur de programmation.
+    if (type == "procedure de decision" && is.null(verdict))
+      stop("add() : une ligne de type 'procedure de decision' doit fournir son verdict : ", nom)
+    # Sans verdict, ni sens ni p-value retenue (ADR 0001, CONTEXT.md).
+    if (!porte_verdict) {
+      sens <- NA_character_; p_ret <- NA_real_; nature <- NA_character_
+    }
     v <- if (!is.null(verdict)) verdict
     else if (type != "test" || !is.finite(p_ret)) "INFO"
     else if (sens == "rejeter") { if (p_ret < alpha) "OK" else if (p_ret < 0.30) "ALERTE" else "ECHEC" }
@@ -3446,8 +3492,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   add(fam, "Extrapolation de sigma pour la derniere annee de developpement",
       "Annexe XVII, D(5)(d)(ii), seconde ligne", type = "diagnostic",
       estim_nom = "sigma2_(J-1)", estim = aj$sigma2[aj$J],
-      detail = .mw_detail_extrapolation(ex),
-      verdict = "INFO")
+      detail = .mw_detail_extrapolation(ex))
   # ADR 0001 : un diagnostic n'a pas de verdict (il est affiche INFO). Le seuil
   # de 40 % qui figurait ici n'est ni un niveau de test ni une regle de
   # l'annexe XVII : le rendre en ALERTE / OK donnait a une convention
@@ -3761,12 +3806,33 @@ run_engine <- function(xt, yt,
   ic <- if (length(usp_b) > 20)
     stats::quantile(usp_b, c(.025, .05, .5, .95, .975)) else NULL
 
-  fit$ecart_jackknife <- max(abs(jack$sigma_usp - param$sigma_usp), na.rm = TRUE) /
-    param$sigma_usp
+  # Jackknife entierement non calcule (tous les reajustements en echec) : pas
+  # de ligne jackknife (fit$ecart_jackknife NULL) plutot qu'un max a -Inf.
+  d_jack <- jack$sigma_usp - param$sigma_usp
+  jack_calcule <- any(is.finite(d_jack))
+  fit$ecart_jackknife <- if (jack_calcule)
+    max(abs(jack$sigma_usp - param$sigma_usp), na.rm = TRUE) / param$sigma_usp else NULL
   fit$largeur_ic <- if (!is.null(ic)) unname((ic[4] - ic[2]) / param$sigma_usp) else NULL
 
+  # Elements du detail des lignes jackknife et IC de usp_tests() : calcules
+  # ici, transmis a usp_tests() et NON stockes dans fit ni dans le resultat.
+  # jack_usp : ecart signe sur sigma_USP a l'annee de plus grand |ecart| ;
+  # jack_estim : ecart relatif de la part estimee sigma(delta, gamma) a la
+  # meme annee ; ic_estim : largeur (q95 - q05) de sigma_boot rapportee a
+  # sigma(delta, gamma), independante de la table et du bareme.
+  # Partie jackknife omise (NULL) si aucun reajustement n'a abouti.
+  i_jack <- if (jack_calcule) which.max(abs(d_jack)) else NULL
+  robustesse <- list(
+    jack_annee = i_jack,
+    jack_usp   = if (jack_calcule) d_jack[i_jack] / param$sigma_usp else NULL,
+    jack_estim = if (jack_calcule) (jack$sigma[i_jack] - fit$sigma) / fit$sigma else NULL,
+    ic_estim   = if (!is.null(ic))
+      unname(diff(stats::quantile(boot$sigma_boot, c(.05, .95)))) / fit$sigma else NULL,
+    ic_q05 = if (!is.null(ic)) unname(ic[2]) else NULL,
+    ic_q95 = if (!is.null(ic)) unname(ic[4]) else NULL)
+
   tests <- usp_tests(fit, boot, alpha, theta_equiv = theta_equiv,
-                     delta_equiv = delta_equiv)
+                     delta_equiv = delta_equiv, robustesse = robustesse)
 
   # --- 4. Statistiques descriptives -----------------------------------------
   r <- yt / xt

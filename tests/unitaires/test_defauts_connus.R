@@ -195,7 +195,9 @@ verifier("Issue #39 (3) : H0 de Breusch-Pagan (Koenker) et de normalite en resid
            else identical(bp, "c1 = 0 : la variance des residus standardises ne depend pas du volume") &&
              identical(sw, "les residus standardises suivent une loi normale")
          })
-verifier("Issue #39 (4) : R2 de type diagnostic (type et detail), verdict force inchange (ALERTE a R2 < 0,5 ; #24)",
+# Le verdict force (ALERTE a R2 < 0,5) a ete retire par #24 (ADR 0001,
+# amendement du 23/09/2026) : un diagnostic sort INFO, sens NA.
+verifier("Issue #39 (4) : R2 de type diagnostic (type et detail), INFO et sens NA (#24)",
          {
            l1 <- ligne_test(fit, "Coefficient de determination R2")
            l0 <- ligne_test(fit0, "Coefficient de determination R2")
@@ -205,8 +207,8 @@ verifier("Issue #39 (4) : R2 de type diagnostic (type et detail), verdict force 
              grepl("Diagnostic, pas un test", l1$detail, fixed = TRUE) &&
              grepl("Diagnostic, pas un test", l0$detail, fixed = TRUE) &&
              !grepl("Indicateur", l1$detail, fixed = TRUE) &&
-             identical(l1$verdict, if (l1$estim < 0.5) "ALERTE" else "OK") &&
-             identical(l0$verdict, if (l0$estim < 0.5) "ALERTE" else "OK")
+             identical(l1$verdict, "INFO") && is.na(l1$sens) &&
+             identical(l0$verdict, "INFO") && is.na(l0$sens)
          })
 # Issue #31, cas de l'issue : delta a 1 - tau/2 avec des volumes variables.
 # L'ancien drapeau (etendue des pi_t <= 1e-9 en relatif) classait ce cas
@@ -310,6 +312,219 @@ verifier("MeanZ, VarZ, LB2r et BP2r ne sont plus simulees",
            restantes <- intersect(c("MeanZ", "VarZ", "LB2r", "BP2r"), names(s_obs))
            if (length(restantes))
              paste("encore simulees :", paste(restantes, collapse = ", ")) else TRUE
+         })
+
+## --- Issue #24 : toute ligne non-test sort INFO, sens NA (ADR 0001, M7) ------
+# Amendement du 23/09/2026 de l'ADR 0001 : seule une ligne de type "test" ou
+# "procedure de decision" (ESD) porte un verdict ; toute autre ligne sort
+# INFO, sens NA, et son seuil conventionnel n'est plus qu'un repere nomme
+# dans le detail. Invariant symetrique de celui de test_merz_wuthrich.R,
+# verifie sur une batterie sans jackknife ni IC (usp_tests + bootstrap
+# fictif) et sur un run_engine() complet (B = 99), qui les contient.
+res_ln_ii1 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1,
+                         annexe = "II", B = 99)
+res_ln_ii6 <- run_engine(xt = x, yt = y, methode = "premium", segment = 6,
+                         annexe = "II", B = 99)
+tab_ln <- engine_table_tests(res_ln_ii1)
+lignes_df <- function(L) data.frame(
+  test = vapply(L, function(l) l$test, character(1)),
+  type = vapply(L, function(l) l$type, character(1)),
+  verdict = vapply(L, function(l) l$verdict, character(1)),
+  sens_du_test = vapply(L, function(l) l$sens, character(1)),
+  p_retenue = vapply(L, function(l) l$p_retenue, numeric(1)),
+  nature_p = vapply(L, function(l) l$nature_p, character(1)),
+  commentaire = vapply(L, function(l) l$detail, character(1)),
+  stringsAsFactors = FALSE)
+tab_fictif <- lignes_df(usp_tests(fit, boot_fictif()))
+invariant_non_test <- function(tb) {
+  k <- !tb$type %in% c("test", "procedure de decision")
+  faux <- k & !(tb$verdict == "INFO" & is.na(tb$sens_du_test) &
+                  is.na(tb$p_retenue) & is.na(tb$nature_p))
+  if (!any(k)) "aucune ligne non-test : invariant non exerce"
+  else if (!any(faux)) TRUE
+  else paste("ligne non-test hors INFO / sens NA / p_retenue NA / nature_p NA :",
+             paste(sprintf("%s -> %s / %s / %s / %s", tb$test[faux], tb$verdict[faux],
+                           tb$sens_du_test[faux], tb$p_retenue[faux], tb$nature_p[faux]),
+                   collapse = " ; "))
+}
+verifier("usp_tests : toute ligne type != 'test' hors 'procedure de decision' sort INFO, sens, p_retenue et nature_p NA (bootstrap fictif)",
+         invariant_non_test(tab_fictif))
+verifier("usp_tests : toute ligne type != 'test' hors 'procedure de decision' sort INFO, sens, p_retenue et nature_p NA (run_engine, B = 99)",
+         {
+           r <- invariant_non_test(tab_ln)
+           if (!isTRUE(r)) r
+           else all(c("Sensibilite au retrait d'une annee (jackknife)",
+                      "Largeur relative de l'IC bootstrap 90%") %in% tab_ln$test)
+         })
+verifier("ESD lognormal (procedure de decision) : verdict OK / ALERTE / ECHEC, sens 'ne pas rejeter'",
+         {
+           ok <- TRUE
+           for (tb in list(tab_fictif, tab_ln)) {
+             e <- tb[tb$type == "procedure de decision", ]
+             ok <- ok && nrow(e) == 1L &&
+               identical(e$test, "Valeurs aberrantes multiples (ESD generalise)") &&
+               e$verdict %in% c("OK", "ALERTE", "ECHEC") &&
+               identical(e$sens_du_test, "ne pas rejeter")
+           }
+           ok
+         })
+verifier("usp_tests : types en usage dans {test, diagnostic, non applicable, procedure de decision}",
+         {
+           ty <- unique(c(tab_fictif$type, tab_ln$type))
+           hors <- setdiff(ty, c("test", "diagnostic", "non applicable", "procedure de decision"))
+           if (length(hors)) paste("type hors vocabulaire :", paste(hors, collapse = ", ")) else TRUE
+         })
+verifier("Diagnostics lognormaux : repere nomme dans le detail, jamais 'seuil' (#24)",
+         {
+           reperes <- c("Coefficient de determination R2" = "R2 < 0.5",
+                        "Points influents (distance de Cook)" = "4/T",
+                        "Leviers (hat values)" = "2k/T",
+                        "Condition du premier ordre |sum(pi_t*v_t)|/sum(pi_t)" = "1e-6",
+                        "Convergence multi-demarrages" = "0.5",
+                        "Sensibilite au retrait d'une annee (jackknife)" = "10 % / 20 %",
+                        "Largeur relative de l'IC bootstrap 90%" = "50 % / 80 %")
+           dd <- stats::setNames(tab_ln$commentaire, tab_ln$test)
+           pb <- character(0)
+           for (nm in names(reperes)) {
+             d <- dd[nm]
+             if (is.na(d)) { pb <- c(pb, paste(nm, ": ligne absente")); next }
+             if (!grepl("repere", d, fixed = TRUE)) pb <- c(pb, paste(nm, ": pas de 'repere'"))
+             if (!grepl(reperes[[nm]], d, fixed = TRUE))
+               pb <- c(pb, sprintf("%s : '%s' absent", nm, reperes[[nm]]))
+           }
+           d_delta <- dd["Position de delta dans [0,1]"]
+           for (nm in c(names(reperes), "Position de delta dans [0,1]"))
+             if (grepl("seuil", dd[nm], fixed = TRUE)) pb <- c(pb, paste(nm, ": contient 'seuil'"))
+           if (!grepl("AU BORD", d_delta, fixed = TRUE) && !grepl("interieur", d_delta, fixed = TRUE))
+             pb <- c(pb, "Position de delta : ni 'AU BORD' ni 'interieur'")
+           if (length(pb)) paste(pb, collapse = " ; ") else TRUE
+         })
+# Invariance a la table de l'annexe : entre les segments 1 et 6 de l'annexe II
+# (meme bareme long, sigma_std differents), la part estimee sigma(delta,
+# gamma) et ses ecarts ne dependent pas de la table ; les ecarts rapportes a
+# sigma_USP en dependent par (1-c) sigma_std. Relation exacte, recalculee ici
+# depuis res$jackknife, res$bootstrap$sigma_boot et res$parametre_final :
+#   |d sigma_hat| / sigma_hat = ecart_jackknife * sigma_USP / (c sqrt((T+1)/(T-1)) sigma_hat)
+# (et de meme pour la largeur de l'IC, le quantile commutant avec
+# l'application affine croissante sigma -> c corr sigma + (1-c) sigma_std).
+nombre_detail <- function(tb, nom, motif) {
+  d <- tb$commentaire[tb$test == nom]
+  as.numeric(sub(motif, "\\1", regmatches(d, regexpr(motif, d))))
+}
+NOM_JK <- "Sensibilite au retrait d'une annee (jackknife)"
+NOM_IC <- "Largeur relative de l'IC bootstrap 90%"
+M_JK_EST <- "([+-][0-9.]+)% sur la part estimee"
+M_JK_USP <- "annee [0-9]+ : ([+-][0-9.]+)% sur sigma_USP"
+M_IC_EST <- "= ([0-9.]+)% sur la part estimee"
+M_IC_USP <- "^\\(q95 - q05\\) / sigma_USP = ([0-9.]+)%"
+verifier("Jackknife et IC : part estimee identique entre II-1 et II-6, ecart sur sigma_USP different",
+         {
+           t1 <- tab_ln; t6 <- engine_table_tests(res_ln_ii6)
+           v <- c(jk_est_1 = nombre_detail(t1, NOM_JK, M_JK_EST), jk_est_6 = nombre_detail(t6, NOM_JK, M_JK_EST),
+                  jk_usp_1 = nombre_detail(t1, NOM_JK, M_JK_USP), jk_usp_6 = nombre_detail(t6, NOM_JK, M_JK_USP),
+                  ic_est_1 = nombre_detail(t1, NOM_IC, M_IC_EST), ic_est_6 = nombre_detail(t6, NOM_IC, M_IC_EST),
+                  ic_usp_1 = nombre_detail(t1, NOM_IC, M_IC_USP), ic_usp_6 = nombre_detail(t6, NOM_IC, M_IC_USP))
+           if (length(v) != 8L || any(!is.finite(v))) "nombre non extrait du detail"
+           else if (v[["jk_est_1"]] == v[["jk_est_6"]] && v[["ic_est_1"]] == v[["ic_est_6"]] &&
+                    v[["jk_usp_1"]] != v[["jk_usp_6"]] && v[["ic_usp_1"]] != v[["ic_usp_6"]]) TRUE
+           else paste(names(v), v, sep = " = ", collapse = " ; ")
+         })
+verifier("Jackknife et IC : part estimee = ecart sur sigma_USP * sigma_USP / (c corr sigma_hat), a 1e-10 (II-1, II-6)",
+         {
+           ok <- TRUE
+           for (r in list(res_ln_ii1, res_ln_ii6)) {
+             tb <- engine_table_tests(r); pf <- r$parametre_final
+             T <- length(r$donnees$xt); corr <- sqrt((T + 1) / (T - 1))
+             sh <- pf$sigma_estime_brut; cr <- pf$credibilite
+             J <- r$jackknife; i <- which.max(abs(J$sigma_usp - pf$sigma_usp))
+             jk_est <- (J$sigma[i] - sh) / sh
+             e_jk <- tb$estimation[tb$test == NOM_JK]
+             ic_est <- unname(diff(stats::quantile(r$bootstrap$sigma_boot, c(.05, .95)))) / sh
+             e_ic <- tb$estimation[tb$test == NOM_IC]
+             ok <- ok && T == 8L &&
+               isTRUE(proche(abs(jk_est), e_jk * pf$sigma_usp / (cr * corr * sh), rel = 1e-10)) &&
+               isTRUE(proche(ic_est, e_ic * pf$sigma_usp / (cr * corr * sh), rel = 1e-10)) &&
+               nombre_detail(tb, NOM_JK, M_JK_EST) == as.numeric(sprintf("%+.1f", 100 * jk_est)) &&
+               nombre_detail(tb, NOM_IC, M_IC_EST) == as.numeric(sprintf("%.1f", 100 * ic_est))
+           }
+           ok
+         })
+
+# Gardes de add() (revue d'audit du commit #24) : un verdict force sur un
+# diagnostic, ou une procedure de decision sans verdict, sont des erreurs de
+# programmation. Le corps de usp_tests() est modifie ici par texte (deparse)
+# pour reinjecter un tel appel, puis reevalue dans l'environnement du moteur.
+usp_tests_modifie <- function(avant, apres) {
+  txt <- paste(deparse(usp_tests), collapse = "\n")
+  if (!grepl(avant, txt, fixed = TRUE)) stop("motif absent du corps de usp_tests : ", avant)
+  f <- eval(parse(text = sub(avant, apres, txt, fixed = TRUE)))
+  environment(f) <- environment(usp_tests)
+  f
+}
+message_erreur <- function(expr) tryCatch({ expr; "" }, error = function(e) conditionMessage(e))
+verifier("add() (usp_tests) refuse un verdict force sur un diagnostic (Leviers, verdict = 'OK')",
+         {
+           f <- usp_tests_modifie('type = "diagnostic", estim_nom = "max h_t"',
+                                  'type = "diagnostic", verdict = "OK", estim_nom = "max h_t"')
+           m <- message_erreur(f(fit, boot_fictif()))
+           grepl("un verdict n'est admis que pour type = 'test' ou 'procedure de decision'", m, fixed = TRUE) &&
+             grepl("Leviers (hat values)", m, fixed = TRUE)
+         })
+verifier("add() (usp_tests) refuse une procedure de decision sans verdict (ESD)",
+         {
+           f <- usp_tests_modifie("verdict = if (ro$nb_outliers >= 2)",
+                                  "verdict = if (TRUE) NULL else if (ro$nb_outliers >= 2)")
+           m <- message_erreur(f(fit, boot_fictif()))
+           grepl("une ligne de type 'procedure de decision' doit fournir son verdict", m, fixed = TRUE) &&
+             grepl("Valeurs aberrantes multiples (ESD generalise)", m, fixed = TRUE)
+         })
+# Branche robustesse = NULL : usp_tests() appele directement avec un fit
+# portant ecart_jackknife et largeur_ic, sans les elements du detail.
+verifier("Jackknife et IC sans robustesse : detail sur sigma_USP seul, repere nomme, pas de part estimee",
+         {
+           f <- fit; f$ecart_jackknife <- 0.123; f$largeur_ic <- 0.456
+           tb <- lignes_df(usp_tests(f, boot_fictif()))
+           dj <- tb$commentaire[tb$test == NOM_JK]; di <- tb$commentaire[tb$test == NOM_IC]
+           length(dj) == 1L && length(di) == 1L &&
+             identical(dj, paste("ecart maximal sur sigma_USP = +12.3% (repere conventionnel",
+                                 "10 % / 20 % ; depend de la table de l'annexe par (1-c) sigma_std)")) &&
+             identical(di, paste("(q95 - q05) / sigma_USP = 45.6% (repere conventionnel 50 % / 80 % ;",
+                                 "depend de la table de l'annexe par (1-c) sigma_std)")) &&
+             all(tb$verdict[tb$test %in% c(NOM_JK, NOM_IC)] == "INFO")
+         })
+verifier("Jackknife : annee et signe du detail = argmax |d| et round(100 d[i] / sigma_USP, 1), depuis res$jackknife",
+         {
+           ok <- TRUE
+           for (r in list(res_ln_ii1, res_ln_ii6)) {
+             tb <- engine_table_tests(r); pf <- r$parametre_final
+             d <- r$jackknife$sigma_usp - pf$sigma_usp; i <- which.max(abs(d))
+             dj <- tb$commentaire[tb$test == NOM_JK]
+             an <- as.integer(sub("^retrait de l'annee ([0-9]+) :.*$", "\\1", dj))
+             ok <- ok && identical(an, i) &&
+               nombre_detail(tb, NOM_JK, M_JK_USP) == round(100 * d[i] / pf$sigma_usp, 1)
+           }
+           ok
+         })
+# Jackknife entierement non calcule (tous les reajustements en echec) : la
+# table est produite et ne porte pas de ligne jackknife (auparavant : estim
+# -Inf, detail "-Inf%"). usp_jackknife est redefini le temps de l'appel.
+verifier("run_engine : jackknife entierement NA -> table produite, pas de ligne jackknife ni de -Inf",
+         {
+           usp_jackknife_orig <- usp_jackknife
+           e <- environment(run_engine)
+           assign("usp_jackknife", function(fit, sigma_standard, bareme) {
+             o <- usp_jackknife_orig(fit, sigma_standard, bareme)
+             o[, c("sigma", "sigma_usp", "delta", "gamma")] <- NA_real_
+             o
+           }, envir = e)
+           r <- tryCatch(run_engine(xt = x, yt = y, methode = "premium", segment = 1,
+                                    annexe = "II", B = 99),
+                         finally = assign("usp_jackknife", usp_jackknife_orig, envir = e))
+           tb <- engine_table_tests(r)
+           isTRUE(r$ok) && all(is.na(r$jackknife$sigma_usp)) && nrow(tb) > 0 &&
+             !NOM_JK %in% tb$test && NOM_IC %in% tb$test &&
+             !any(grepl("Inf", tb$commentaire, fixed = TRUE)) &&
+             !any(is.infinite(tb$estimation))
          })
 
 ## --- Issue #4, piste 2 : etat du generateur aleatoire -------------------------
