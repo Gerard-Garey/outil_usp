@@ -868,13 +868,17 @@ chaque n\oe ud) est comparée à part, à l'identique. Avant comparaison,
 référence, deux catégories de grandeurs dont la structure reste comparée~: les résultats connus
 pour s'écarter d'une plateforme à l'autre au-delà du seuil ci-dessous (liste
 \code{INSTABLES}, où chaque entrée renvoie à l'issue qui la justifie~; vide à ce jour), et les
-champs \emph{exclus par conception}, \code{\$gradient} et \code{\$gradient\_projete} de
-\code{res\$ajustement} (liste \code{EXCLUS\_AJUSTEMENT}, décision du mainteneur,
-issue~\#22). Cette seconde exclusion ne repose pas sur un écart constaté entre plateformes
-mais sur la nature de la grandeur, établie sur une même machine~: un résidu d'optimiseur voisin
-de zéro, dont la valeur dépend du démarrage retenu et non des données
-(fiche~\ref{fiche:foc}). Le pas de Newton, la courbure, les verdicts des contrôles, les
-décomptes de démarrages et $(\hat\delta, \hat\gamma)$ restent comparés, et la reproductibilité
+champs \emph{exclus par conception} de \code{res\$ajustement} (liste
+\code{EXCLUS\_AJUSTEMENT}, décisions du mainteneur, issue~\#22)~: \code{\$gradient} et
+\code{\$gradient\_projete}, et \code{\$n\_starts\_optimum\_code0}. Cette seconde exclusion ne
+repose pas sur un écart constaté entre plateformes mais sur la nature de la grandeur, établie sur
+une même machine~: pour les deux premiers, un résidu d'optimiseur voisin de zéro, dont la valeur
+dépend du démarrage retenu et non des données (fiche~\ref{fiche:foc})~; pour le troisième, un
+décompte de démarrages dont l'un au moins bascule entre les codes de retour~0 et~52 d'\code{optim()}
+sous une perturbation des données de $10^{-12}$ (sur le jeu de contrôle, 53 ou 54 selon la
+perturbation, mesure sur 40 perturbations~; fiche~\ref{fiche:multi-demarrages}). Le pas de Newton,
+la courbure, les verdicts des contrôles, le nombre de démarrages à l'optimum et de démarrages
+sans résultat, le code du démarrage retenu et $(\hat\delta, \hat\gamma)$ restent comparés, et la reproductibilité
 à graine égale (\code{identical()}) porte sur l'objet entier. Ce critère a remplacé, le
 23~septembre 2026, une comparaison par \code{all.equal()} à la tolérance
 relative de $10^{-8}$, qui portait sur une différence relative \emph{moyenne}
@@ -945,7 +949,11 @@ après la même neutralisation. Il a révélé un second cas, corrigé~: le comm
 imprimait la marge $\Delta = 0{,}1\,\bar y = 8{,}5005$ à quatre chiffres significatifs, soit
 « 8.501 », devenu « 8.5 » sous la perturbation~; la valeur de $\Delta$ est désormais restituée
 dans le champ \code{estim} de la ligne (fiche~\ref{fiche:tost-constante}), et le commentaire n'en
-donne que la définition.
+donne que la définition. Un troisième cas est apparu sur la CI Linux~: le commentaire du contrôle
+de convergence multi-démarrages imprimait le nombre de démarrages à l'optimum rendant le code~0
+(« dont 54 » sur le poste, « dont 53 » sous Linux)~; il dit désormais seulement si au moins un
+tel démarrage existe (« oui » ou « non »), et le décompte, conservé dans \code{res\$ajustement},
+est exclu par conception de la comparaison (ci-dessus).
 
 \begin{encadre}
 \textbf{Point de revue.} L'objet retourné contient un champ \code{\$metadata}
@@ -4277,7 +4285,8 @@ $\Delta\gamma$ dans le champ \code{stat} du contrôle~; le commentaire ne donne 
 repères, le régime de $\hat\delta$ et la décision, car ces valeurs relèvent du bruit
 d'optimiseur et varient d'une plateforme à l'autre. Pour la même raison, \code{\$gradient} et
 \code{\$gradient\_projete} sont exclus par conception de la comparaison aux références de
-non-régression (\code{EXCLUS\_AJUSTEMENT}, \code{tests/outils\_tests.R})~: sur le jeu de
+non-régression (\code{EXCLUS\_AJUSTEMENT}, \code{tests/outils\_tests.R}, qui exclut aussi un
+décompte du contrôle multi-démarrages, fiche~\ref{fiche:multi-demarrages})~: sur le jeu de
 contrôle, les 54 démarrages s'arrêtent à objectif égal ($1{,}88\cdot 10^{-12}$ près) avec
 $g_\gamma$ compris entre $-3{,}8\cdot 10^{-7}$ et $1{,}09\cdot 10^{-5}$, si bien que la valeur
 stockée dépend du démarrage retenu, non des données.
@@ -5323,7 +5332,8 @@ Sans objet.
 \Stat
 Nombre $n^{\star}$ de démarrages atteignant le minimum global à $10^{-6}$ près (champ
 \code{\$n\_starts\_optimum}), nombre $n^{\star}_0$ d'entre eux dont \code{optim()} rend le code
-de retour~0 (champ \code{\$n\_starts\_optimum\_code0}), nombre de démarrages sans résultat, en
+de retour~0 (champ \code{\$n\_starts\_optimum\_code0}, que le commentaire n'imprime pas~: il
+dit seulement si $n^{\star}_0 \ge 1$, « oui » ou « non »), nombre de démarrages sans résultat, en
 erreur d'\code{optim()} (champ \code{\$n\_starts\_echec}), code de retour du démarrage retenu
 (champ \code{\$convergence}) et, à titre descriptif, la part parmi les $S$ démarrages aboutis~:
 \[
@@ -5345,7 +5355,15 @@ marge de $10^{-10}$ de la sélection, conservée car elle stabilise $\hat\gamma$
 les 54 démarrages s'arrêtent à
 $1{,}9\cdot 10^{-12}$ près, le premier rend le code~52 et 53 (resp.~52) autres rendent le
 code~0 (mesure)~: la règle initiale sortait \code{ECHEC} à tort, environ une fois sur cent sur
-données du modèle. Aucune estimation ne change.
+données du modèle. Aucune estimation ne change. Le même phénomène rend $n^{\star}_0$
+lui-même instable~: sous une perturbation relative des données de $10^{-12}$, un démarrage
+bascule entre les codes~0 et~52 (sur le jeu de contrôle, $n^{\star}_0$ vaut 53 ou 54 selon la
+perturbation, $n^{\star}$ restant égal à 54 et le code du démarrage retenu à~0~; mesure sur 40
+perturbations). C'est pourquoi le commentaire ne donne que la réponse « oui » ou « non » à
+$n^{\star}_0 \ge 1$, et pourquoi \code{\$n\_starts\_optimum\_code0} est exclu par conception de la
+comparaison aux références (\code{EXCLUS\_AJUSTEMENT}, décision du mainteneur, constat de la CI
+Linux par le test anti-bruit). La décision n'en dépend pas tant qu'un démarrage au moins rend
+le code~0.
 $\hat\kappa$ n'a plus de repère~: le repère conventionnel $0{,}5$ a été abandonné (décision M11),
 un modèle vrai ayant donné $\hat\kappa = 0{,}37$ une fois sur 300 (mesure consignée dans
 l'issue~\#22). Jusqu'à l'issue~\#24, le script marquait \code{ALERTE} si $\hat\kappa < 0{,}5$ ou
