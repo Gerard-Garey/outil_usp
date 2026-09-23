@@ -26,11 +26,11 @@ Une vérification d'hypothèse qui comporte une hypothèse nulle, une statistiqu
 _Avoid_ : contrôle, test complémentaire
 
 **Diagnostic** :
-Une quantité ou un graphique présenté sans verdict, pour éclairer la lecture des tests ou de l'estimation.
-_Avoid_ : indicateur, contrôle
+Une quantité ou un graphique présenté sans verdict, pour éclairer la lecture des tests ou de l'estimation. Un seuil conventionnel attaché à un diagnostic (2k/T pour les leviers, 4/T pour la distance de Cook, 10 % / 20 % pour le jackknife…) est un **repère** de lecture conservé dans `detail`, pas un seuil de rejet : il ne produit aucun verdict (ADR 0001, amendement du 23/09/2026, décision M7).
+_Avoid_ : indicateur, contrôle ; seuil de rejet (pour un repère)
 
 **Verdict** :
-La conclusion d'un test au seuil α : OK, ALERTE ou ECHEC. Un diagnostic n'a pas de verdict (affiché INFO).
+La conclusion d'un test au seuil α : OK, ALERTE ou ECHEC. Seules en portent une ligne de `type = "test"` et la procédure de décision ESD (`type = "procedure de decision"`, qui décide au niveau α sans p-value) ; toute autre ligne — diagnostic, « non applicable » — n'a pas de verdict (affiché INFO) et son `sens_du_test` vaut `NA` (ADR 0001, amendement du 23/09/2026, décision M7).
 
 **Test inopérant** :
 Un test dont la plus petite p-value atteignable, sur le jeu de données considéré, dépasse le seuil α retenu pour le calcul : il ne peut pas rejeter et il est restitué comme diagnostic, avec cette p-value minimale.
