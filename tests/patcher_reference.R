@@ -70,15 +70,19 @@ DOSSIER_TESTS <- if (exists("DOSSIER_TESTS", envir = environment(), inherits = F
 # avec local = TRUE) y reste confine.
 source(file.path(DOSSIER_TESTS, "outils_tests.R"), local = TRUE)
 
-# Au-dela de ce seuil relatif, un ecart non designe par un motif n'est plus
-# imputable a la derive de plateforme mesuree dans l'ADR 0006 : le script le
-# signale comme suspect plutot que de le laisser passer en silence.
-SEUIL_DERIVE <- 1e-6
+# Seuil de derive : c'est TOLERANCE (outils_tests.R), le seuil de la CI.
+# "Different" signifie ici non conforme au sens de ecart_feuille(), la regle
+# feuille par feuille de la non-regression (ADR 0006, second amendement) : un
+# ecart en deca du seuil est de la derive de plateforme, laissee a sa valeur
+# de reference sans etre listee ; un ecart au-dela, s'il n'est pas designe
+# par un motif, n'est pas imputable a cette derive et fait refuser le patch.
 
-# aplatir() vit dans outils_tests.R, partage avec comparer_references.R : la
+# aplatir(), ecart_feuille() et comparer_objets() vivent dans outils_tests.R,
+# partages avec comparer_references.R et test_reproductibilite.R : la
 # garantie du present script est que les chemins affiches par l'un sont les
-# motifs utilisables par l'autre, et deux copies d'une meme fonction sont le
-# moyen le plus sur de perdre cette garantie.
+# motifs utilisables par l'autre, et qu'un ecart y a le meme sens que pour la
+# CI ; deux copies d'une meme fonction sont le moyen le plus sur de perdre
+# cette garantie.
 
 # ---------------------------------------------------------------------------
 #  Chemins : decoupage en pas d'acces, lecture, ecriture, suppression.
@@ -238,7 +242,10 @@ patcher_objets <- function(avant, apres, motifs, nom = "objet") {
            paste(unique(names(etiq[[2L]])[duplicated(names(etiq[[2L]]))]), collapse = ", "))
 
   cles <- union(names(fa), names(fb))
-  differents <- Filter(function(cle) !isTRUE(all.equal(fa[[cle]], fb[[cle]], tolerance = TOLERANCE)), cles)
+  # Un chemin absent d'un cote vaut NULL : ecart_feuille() le juge non
+  # conforme (NULL n'est identical() qu'a NULL).
+  jugements <- stats::setNames(lapply(cles, function(cle) ecart_feuille(fa[[cle]], fb[[cle]], TOLERANCE)), cles)
+  differents <- Filter(function(cle) !isTRUE(jugements[[cle]]$conforme), cles)
 
   designes <- Filter(function(cle) any(vapply(motifs, grepl, logical(1), x = cle)), cles)
   inutiles <- setdiff(designes, differents)
@@ -247,7 +254,9 @@ patcher_objets <- function(avant, apres, motifs, nom = "objet") {
 
   fmt <- function(v) if (is.null(v)) "(absent)" else paste(format(v, digits = 12), collapse = " ")
 
-  cat(sprintf("\n=== %s : %d grandeur(s) differente(s) de la reference\n", nom, length(differents)))
+  cat(sprintf("\n=== %s : %d grandeur(s) differente(s) de la reference au seuil %g\n",
+              nom, length(differents), TOLERANCE))
+  cat("Comparaison avant patch :", resumer_comparaison(comparer_objets(avant, apres))[1], "\n")
 
   if (length(inutiles)) {
     cat("\nMOTIF SANS EFFET -- ces chemins sont designes mais ne different pas :\n")
@@ -275,27 +284,18 @@ patcher_objets <- function(avant, apres, motifs, nom = "objet") {
     cat(sprintf("  %-34s %-28s -> %s\n", cle, substr(fmt(fa[[cle]]), 1, 28), substr(fmt(fb[[cle]]), 1, 40)))
 
   cat(sprintf("\n--- LAISSEES (%d) : conservees a leur valeur de reference\n", length(laisses)))
-  ecarts <- stats::setNames(vapply(laisses, function(cle) {
-    a <- fa[[cle]]; b <- fb[[cle]]
-    if (is.numeric(a) && is.numeric(b) && length(a) == 1L && length(b) == 1L &&
-        is.finite(a) && is.finite(b) && a != 0) abs(b - a) / abs(a) else NA_real_
-  }, numeric(1)), laisses)
   for (cle in laisses)
-    cat(sprintf("  %-34s %-24s vs %-24s  rel=%s\n", cle,
+    cat(sprintf("  %-34s %-24s vs %-24s  %s=%s\n", cle,
                 substr(fmt(fa[[cle]]), 1, 24), substr(fmt(fb[[cle]]), 1, 24),
-                formatC(ecarts[[cle]], format = "e", digits = 2)))
-  # Tous les ecarts peuvent etre NA (ecarts non numeriques) : max() rendrait
-  # alors -Inf avec un avertissement ; on l'ecrit en clair.
-  if (length(laisses))
-    cat(sprintf("  ecart relatif maximal : %s\n",
-                if (all(is.na(ecarts))) "sans objet (aucun ecart numerique)"
-                else formatC(max(ecarts, na.rm = TRUE), format = "e", digits = 3)))
+                jugements[[cle]]$mesure, formatC(jugements[[cle]]$ecart, format = "e", digits = 2)))
 
-  suspects <- laisses[is.na(ecarts) | ecarts > SEUIL_DERIVE]
-  if (length(suspects)) {
-    cat("\nSUSPECT -- ecart non numerique ou superieur au seuil de derive ",
-        formatC(SEUIL_DERIVE, format = "e", digits = 0), " :\n", sep = "")
-    for (cle in suspects) cat("  ", cle, "\n")
+  # Par construction, toute grandeur laissee est en ecart au seuil TOLERANCE
+  # (non numerique, non finie, absente d'un cote ou au-dela du seuil) : elle
+  # n'est pas imputable a la derive de plateforme, que ce seuil absorbe.
+  if (length(laisses)) {
+    cat("\nSUSPECT -- ecart non designe, non numerique ou superieur au seuil de derive ",
+        formatC(TOLERANCE, format = "e", digits = 0), " :\n", sep = "")
+    for (cle in laisses) cat("  ", cle, "\n")
     stop("Des ecarts non designes ne sont pas imputables a la derive de plateforme : le patch est refuse.")
   }
 
@@ -394,14 +394,18 @@ patcher_objets <- function(avant, apres, motifs, nom = "objet") {
     stop("La structure du fichier patche differe de celle du resultat recalcule : patch refuse.")
   cat("Verifie : structure identique a celle du resultat recalcule.\n")
 
-  # 4. Ce que verra la CI. all.equal() compare aussi les attributs : c'est le
+  # 4. Ce que verra la CI : le comparateur unique de test_reproductibilite.R
+  #    (comparer_objets(), chemins, structure et chaque feuille au seuil
+  #    TOLERANCE), la reference patchee tenant lieu de reference. C'est le
   #    dernier filet, et le seul qui porte sur l'objet entier.
-  verdict_ci <- all.equal(patche, apres, tolerance = TOLERANCE)
-  if (!isTRUE(verdict_ci)) {
-    cat("\ntest_reproductibilite.R resterait ROUGE :\n"); print(verdict_ci)
+  verdict_ci <- comparer_objets(patche, apres, tol = TOLERANCE)
+  if (!verdict_ci$conforme) {
+    cat("\ntest_reproductibilite.R resterait ROUGE :\n")
+    cat(paste0("  ", resumer_comparaison(verdict_ci), collapse = "\n"), "\n")
     stop("Le patch ne rend pas la non-regression verte.")
   }
-  cat(sprintf("Verifie : all.equal(patche, recalcule, tolerance = %g) vaut TRUE -- la CI passe au vert.\n", TOLERANCE))
+  cat("Verifie : comparer_objets(patche, recalcule) est conforme -- la CI passe au vert.\n")
+  cat("  ", resumer_comparaison(verdict_ci)[1], "\n", sep = "")
   invisible(list(patche = patche, a_patcher = a_patcher))
 }
 

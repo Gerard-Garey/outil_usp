@@ -6,8 +6,11 @@
 #       les memes parametres et la meme graine donnent des objets identiques
 #       au bit pres (identical) ;
 #    2. NON-REGRESSION : le resultat coincide avec la reference enregistree
-#       dans tests/reference/, a la tolerance relative TOLERANCE pres, hors
-#       grandeurs connues comme instables (INSTABLES, chacune liee a une issue).
+#       dans tests/reference/, VALEUR PAR VALEUR a la tolerance TOLERANCE
+#       (comparer_objets() de outils_tests.R : chemins, structure et chaque
+#       feuille jugee isolement, sans moyenne), hors grandeurs connues comme
+#       instables (INSTABLES, chacune liee a une issue). L'ecart maximal
+#       mesure est affiche meme quand le cas est conforme.
 #
 #  Code de sortie 0 si tout passe, 1 sinon (utilise par l'integration
 #  continue). Duree : quelques minutes.
@@ -35,16 +38,18 @@ for (nom in names(CAS)) {
   if (!file.exists(ref_f)) {
     echecs <- c(echecs, sprintf("%s : reference absente (%s)", nom, ref_f))
   } else {
-    ecart <- all.equal(neutraliser_instables(readRDS(ref_f)),
-                       neutraliser_instables(a), tolerance = TOLERANCE)
-    if (!isTRUE(ecart))
+    cmp <- comparer_objets(neutraliser_instables(readRDS(ref_f)),
+                           neutraliser_instables(a), tol = TOLERANCE)
+    synthese <- resumer_comparaison(cmp)
+    if (!cmp$conforme)
       echecs <- c(echecs, sprintf("%s : ecart a la reference\n    %s", nom,
-                                  paste(utils::head(ecart, 10), collapse = "\n    ")))
+                                  paste(synthese, collapse = "\n    ")))
   }
 
   cat(sprintf("%-9s sigma_USP = %.10f  (%.0f s)\n", nom,
               a$parametre_final$sigma_usp,
               as.numeric(difftime(Sys.time(), t0, units = "secs"))))
+  if (file.exists(ref_f)) cat("          ", synthese[1], "\n", sep = "")
 }
 
 if (length(echecs)) {
