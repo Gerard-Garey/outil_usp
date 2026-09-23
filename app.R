@@ -906,23 +906,10 @@ server <- function(input, output, session) {
                Retenu = ifelse(d$retenu, "OUI", ""), stringsAsFactors = FALSE)
   }, striped = TRUE, width = "100%")
 
-  output$tab_robustesse <- renderTable({
-    # Le filtre passe par la CLE de groupe et non par le libelle de famille :
-    # celui-ci differe selon la methode ("G. Robustesse..." en lognormal,
-    # "M6. robustesse..." en Merz-Wuthrich). Un filtre litteral renvoyait zero
-    # ligne en Merz-Wuthrich, et paste0() sur un vecteur vide recycle a la
-    # longueur 1, d'ou une erreur de construction du data.frame.
-    tb <- TB()
-    cle <- vapply(tb$famille, function(f) groupe_de(f)$cle, character(1))
-    tb <- tb[cle %in% c("ROB", "M6"), , drop = FALSE]
-    if (!nrow(tb))
-      return(data.frame(Diagnostic = "Aucun diagnostic de robustesse disponible.",
-                        stringsAsFactors = FALSE))
-    data.frame(Diagnostic = tb$test,
-               Estimation = paste0(tb$nom_estimation, " = ", fmt_nb(tb$estimation, 6)),
-               Verdict = tb$verdict, Commentaire = tb$commentaire,
-               stringsAsFactors = FALSE, row.names = NULL)
-  }, striped = TRUE, width = "100%")
+  # Tableau partage avec la section 4 du rapport fige (display_helpers.R) :
+  # tous les diagnostics ROB / M6, independamment de la selection.
+  output$tab_robustesse <- renderTable(table_robustesse(TB()),
+                                       striped = TRUE, width = "100%")
 
   # --- Descriptif et journal ------------------------------------------------
   output$tab_desc <- renderTable({
@@ -955,6 +942,11 @@ server <- function(input, output, session) {
     if (is.null(resultat()))
       return(div(style = "color:#7F8C8D",
                  "Aucun resultat a exporter : lancez d'abord un calcul."))
+    # Le bloc est recree a chaque resultat : la case reprend le dernier choix
+    # de l'utilisateur (isolate : ce choix ne doit pas redeclencher le rendu),
+    # cochee par defaut a la premiere apparition.
+    choix_interactif <- isolate(input$rapport_interactif)
+    if (is.null(choix_interactif)) choix_interactif <- TRUE
     tagList(downloadButton("dl_tests", "Table complete des tests (CSV)"), " ",
             downloadButton("dl_calib", "Calibration (CSV)"),
             hr(),
@@ -966,7 +958,7 @@ server <- function(input, output, session) {
             checkboxInput("rapport_interactif",
                           paste("Graphiques interactifs (fichier d'environ 4 Mo ;",
                                 "sinon graphiques figes en PNG, environ 0,1 Mo)"),
-                          value = TRUE),
+                          value = choix_interactif),
             downloadButton("dl_rapport", "Rapport fige (HTML)"))
   })
 

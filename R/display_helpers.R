@@ -876,12 +876,34 @@ texte_formule <- function(res) {
     return(sprintf(paste(
       "Formule appliquee (annexe XVII, section D, paragraphe 4) :",
       "sigma_USP = c x racine(MSEP) / R + (1-c) x sigma_standard,",
-      "où R = somme_i (C^(i,J) - C(i,I-i)) est la reserve chain-ladder totale,",
+      "o\u00f9 R = somme_i (C^(i,J) - C(i,I-i)) est la reserve chain-ladder totale,",
       "sans correction de taille finie, avec c = %.0f %% (bareme %s, duree %d ans)."),
       100 * p$credibilite, m$bareme, as.integer(m$T)))
   sprintf(paste("Formule appliquee : sigma_USP = c x sigma_estime x sqrt((T+1)/(T-1))",
                 "+ (1-c) x sigma_standard, avec c = %.0f %% (bareme %s)."),
           100 * p$credibilite, m$bareme)
+}
+
+# Tableau "Robustesse du calibrage" (onglet Calibration et section 4 du
+# rapport fige) : tous les diagnostics des groupes ROB (lognormal) et M6
+# (Merz-Wuthrich) de engine_table_tests(), independamment de la selection de
+# l'onglet Personnalisation. Texte brut : l'appelant l'echappe s'il l'ecrit en
+# HTML.
+# Le filtre passe par la CLE de groupe et non par le libelle de famille :
+# celui-ci differe selon la methode ("G. Robustesse..." en lognormal,
+# "M6. robustesse..." en Merz-Wuthrich). Un filtre litteral renvoyait zero
+# ligne en Merz-Wuthrich, et paste0() sur un vecteur vide recycle a la
+# longueur 1, d'ou une erreur de construction du data.frame.
+table_robustesse <- function(tb) {
+  cle <- vapply(tb$famille, function(f) groupe_de(f)$cle, character(1))
+  tb <- tb[cle %in% c("ROB", "M6"), , drop = FALSE]
+  if (!nrow(tb))
+    return(data.frame(Diagnostic = "Aucun diagnostic de robustesse disponible.",
+                      stringsAsFactors = FALSE))
+  data.frame(Diagnostic = tb$test,
+             Estimation = paste0(tb$nom_estimation, " = ", fmt_nb(tb$estimation, 6)),
+             Verdict = tb$verdict, Commentaire = tb$commentaire,
+             stringsAsFactors = FALSE, row.names = NULL)
 }
 
 # Notes contextuelles des onglets graphiques (HTML). NULL si la quantite
@@ -1001,14 +1023,14 @@ encoder_base64 <- function(octets) {
   x <- gsub("<", "&lt;", x, fixed = TRUE)
   gsub(">", "&gt;", x, fixed = TRUE)
 }
-.txt <- function(x) ifelse(is.na(x), "–", .echap_html(as.character(x)))
+.txt <- function(x) ifelse(is.na(x), "\u2013", .echap_html(as.character(x)))
 
 .bandeau_html <- function(texte, classe = "avert")
   sprintf("<div class='%s'>%s</div>", classe, texte)
 
 .table_kv <- function(cles, valeurs) {
   d <- data.frame(a = cles, b = valeurs, stringsAsFactors = FALSE)
-  names(d) <- c("Élément", "Valeur")
+  names(d) <- c("\u00c9l\u00e9ment", "Valeur")
   html_table(d, classe = "data kv")
 }
 
@@ -1020,26 +1042,26 @@ encoder_base64 <- function(octets) {
   if (identical(res$metadata$methode, "reserve2")) return(list(
     list(titre = "Ajustement", note = NULL,
          g = list(g(function() plot_mw_facteurs(pd)), g(function() plot_mw_reserve(pd)))),
-    list(titre = "M1 - régressions", note = note_m1(pd),
+    list(titre = "M1 - r\u00e9gressions", note = note_m1(pd),
          g = list(g(function() plot_mw_regressions(pd), 560, TRUE),
                   g(function() plot_mw_origine(pd)), g(function() plot_mw_alpha(pd)))),
     list(titre = "M2 - variance", note = NULL,
          g = list(g(function() plot_mw_residus_C(pd)), g(function() plot_mw_residus_dev(pd)))),
-    list(titre = "M3 - indépendance", note = NULL,
+    list(titre = "M3 - ind\u00e9pendance", note = NULL,
          g = list(g(function() plot_mw_residus_acc(pd)), g(function() plot_mw_residus_cal(pd)))),
-    list(titre = "M5 - normalité (diagnostic)", note = NULL,
+    list(titre = "M5 - normalit\u00e9 (diagnostic)", note = NULL,
          g = list(g(function() plot_mw_qq(pd)), g(function() plot_boot_sigma(pd)))),
     list(titre = "Influence et leviers", note = note_influence_mw(pd),
          g = list(g(function() plot_mw_levier(pd), 380), g(function() plot_mw_contributions(pd), 380),
                   g(function() plot_mw_dfbeta(pd), 330, TRUE)))))
   ns <- note_surface(pd)
   list(
-    list(titre = "Données", note = NULL,
+    list(titre = "Donn\u00e9es", note = NULL,
          g = list(g(function() plot_ajustement(pd)), g(function() plot_ratio(pd)))),
     list(titre = "H2 - variance", note = NULL,
          g = list(g(function() plot_qq2ech(pd)), g(function() plot_spread(pd)),
                   g(function() plot_residus(pd), 330, TRUE))),
-    list(titre = "H3 - normalité", note = NULL,
+    list(titre = "H3 - normalit\u00e9", note = NULL,
          g = list(g(function() plot_qqnorm(pd), 420, TRUE))),
     list(titre = "Surface objectif",
          note = if (!is.null(ns)) list(html = ns$html, classe = if (ns$alerte) "avert" else "ok"),
@@ -1189,7 +1211,7 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
   mode <- if (isTRUE(interactif) && .plotly_dispo()) "plotly" else if (png_ok) "png" else "aucun"
   note_mode <- NULL
   if (isTRUE(interactif) && mode != "plotly")
-    note_mode <- "Graphiques interactifs demandés, mais le paquet plotly est absent."
+    note_mode <- "Graphiques interactifs demand\u00e9s, mais le paquet plotly est absent."
 
   construire <- function(mode) {
     if (mode == "png") {
@@ -1202,53 +1224,53 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
     # --- 1. En-tete de gel ----------------------------------------------------
     libelle_methode <- switch(m$methode,
       premium  = "risque de prime (annexe XVII, section B)",
-      reserve1 = "risque de réserve n° 1 (annexe XVII, section C)",
-      reserve2 = "risque de réserve n° 2, Merz-Wüthrich (annexe XVII, section D)",
+      reserve1 = "risque de r\u00e9serve n\u00b0 1 (annexe XVII, section C)",
+      reserve2 = "risque de r\u00e9serve n\u00b0 2, Merz-W\u00fcthrich (annexe XVII, section D)",
       m$methode)
-    cles <- c("Horodatage du calcul (run_engine)", "Durée du calcul",
-              "Génération du présent rapport",
-              "Méthode", "Périmètre", "Segment",
-              if (mw) "Profondeur (I + 1 années de survenance)" else "Profondeur T",
-              "Réplications B", "Granularité des p-values Monte-Carlo, 1/(B+1)",
-              "Seuil alpha des verdicts", "Graine (seed)", "Barème de crédibilité",
+    cles <- c("Horodatage du calcul (run_engine)", "Dur\u00e9e du calcul",
+              "G\u00e9n\u00e9ration du pr\u00e9sent rapport",
+              "M\u00e9thode", "P\u00e9rim\u00e8tre", "Segment",
+              if (mw) "Profondeur (I + 1 ann\u00e9es de survenance)" else "Profondeur T",
+              "R\u00e9plications B", "Granularit\u00e9 des p-values Monte-Carlo, 1/(B+1)",
+              "Seuil alpha des verdicts", "Graine (seed)", "Bar\u00e8me de cr\u00e9dibilit\u00e9",
               "sigma standard")
     vals <- c(format(m$horodatage, "%Y-%m-%d %H:%M:%S %Z"),
               sprintf("%.2f s", m$duree_sec), genere,
-              paste0("<code>", m$methode, "</code> — ", libelle_methode),
+              paste0("<code>", m$methode, "</code> \u2014 ", libelle_methode),
               paste("annexe", m$annexe),
-              if (is.null(m$segment)) "–" else paste0(m$segment, " — ", .txt(m$libelle_segment)),
+              if (is.null(m$segment)) "\u2013" else paste0(m$segment, " \u2014 ", .txt(m$libelle_segment)),
               as.character(m$T), as.character(m$B),
               format(res$bootstrap$granularite, digits = 6),
               format(m$alpha), format(m$seed, scientific = FALSE), .txt(m$bareme),
               format(m$sigma_standard, digits = 10))
     if (!mw) {
-      cles <- c(cles, "Test d'équivalence de la constante")
+      cles <- c(cles, "Test d'\u00e9quivalence de la constante")
       vals <- c(vals, if (is.null(m$delta_equiv))
         sprintf("marge = %s de la perte moyenne (theta_equiv)", format(m$theta_equiv))
-        else sprintf("marge Delta fixée a priori = %s", format(m$delta_equiv)))
+        else sprintf("marge Delta fix\u00e9e a priori = %s", format(m$delta_equiv)))
     }
     idt <- if (is.null(identite)) list(version = NA, md5_engine = NA, releve = NA) else identite
     cles <- c(cles, "Version de R", "Version de l'outil (DESCRIPTION)")
     vals <- c(vals, .txt(m$version_R), .txt(idt$version))
     empreintes <- data.frame(
-      a = c("Données du calcul", "Résultat du moteur", "Code du moteur (R/engine.R)"),
+      a = c("Donn\u00e9es du calcul", "R\u00e9sultat du moteur", "Code du moteur (R/engine.R)"),
       b = paste0("<code>", c(.txt(empr$donnees), .txt(empr$resultat), .txt(idt$md5_engine)),
                  "</code>"),
-      c = c(paste("Texte canonique des données du calcul (valeurs en %.17g, NA, fins de",
-                  "ligne LF) ; ne dépend que des valeurs. <code>engine_empreinte()</code>."),
-            paste("Objet sérialisé (saveRDS version 3, sans horodatage ni durée) ;",
-                  "stable sur une même machine, <b>dépend de la plateforme</b> (ADR 0006) :",
-                  "ne se compare pas d'une machine à l'autre. <code>engine_empreinte()</code>."),
-            paste("Octets du fichier (fins de ligne LF imposées par .gitattributes),",
-                  "relevés le", .txt(idt$releve), "au chargement du moteur par l'application.")),
+      c = c(paste("Texte canonique des donn\u00e9es du calcul (valeurs en %.17g, NA, fins de",
+                  "ligne LF) ; ne d\u00e9pend que des valeurs. <code>engine_empreinte()</code>."),
+            paste("Objet s\u00e9rialis\u00e9 (saveRDS version 3, sans horodatage ni dur\u00e9e) ;",
+                  "stable sur une m\u00eame machine, <b>d\u00e9pend de la plateforme</b> (ADR 0006) :",
+                  "ne se compare pas d'une machine \u00e0 l'autre. <code>engine_empreinte()</code>."),
+            paste("Octets du fichier (fins de ligne LF impos\u00e9es par .gitattributes),",
+                  "relev\u00e9s le", .txt(idt$releve), "au chargement du moteur par l'application.")),
       stringsAsFactors = FALSE)
     names(empreintes) <- c("Objet", "Empreinte md5", "Statut")
-    ajout("<h1>Rapport figé — paramètres propres à l'entreprise (USP)</h1>",
-          paste("<div class='gris'>Solvabilité II, règlement délégué (UE) 2015/35,",
+    ajout("<h1>Rapport fig\u00e9 \u2014 param\u00e8tres propres \u00e0 l'entreprise (USP)</h1>",
+          paste("<div class='gris'>Solvabilit\u00e9 II, r\u00e8glement d\u00e9l\u00e9gu\u00e9 (UE) 2015/35,",
                 "art. 218-220 et annexe XVII</div>"),
-          paste("<div class='gel'>Ce document fige l'objet renvoyé par <code>run_engine()</code>",
-                "tel qu'il était en mémoire lors de sa génération. Il ne relance aucun",
-                "calcul ; les données restituées sont celles du calcul, non la saisie en",
+          paste("<div class='gel'>Ce document fige l'objet renvoy\u00e9 par <code>run_engine()</code>",
+                "tel qu'il \u00e9tait en m\u00e9moire lors de sa g\u00e9n\u00e9ration. Il ne relance aucun",
+                "calcul ; les donn\u00e9es restitu\u00e9es sont celles du calcul, non la saisie en",
                 "cours dans l'application.</div>"),
           "<h2 id='gel'>1. Identification du calcul</h2>", .table_kv(cles, vals),
           "<h3>Empreintes</h3>", html_table(empreintes, classe = "data"))
@@ -1256,22 +1278,22 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
     # --- 2. Donnees -----------------------------------------------------------
     # as.character() ecrit chaque valeur isolement (15 chiffres significatifs),
     # sans l'alignement des decimales que format() applique a tout le vecteur.
-    num <- function(v) ifelse(is.na(v), "–", as.character(v))
+    num <- function(v) ifelse(is.na(v), "\u2013", as.character(v))
     if (mw) {
       tri <- res$triangle
       d <- data.frame(i = seq_len(nrow(tri)) - 1L, matrix(num(tri), nrow(tri)),
                       stringsAsFactors = FALSE)
       names(d) <- c("i \\ j", as.character(seq_len(ncol(tri)) - 1L))
-      titre_d <- "Triangle de paiements cumulés C(i,j) utilisé par le calcul"
+      titre_d <- "Triangle de paiements cumul\u00e9s C(i,j) utilis\u00e9 par le calcul"
     } else {
       dd <- res$donnees
       d <- data.frame(t = dd$t, x_t = num(dd$xt), y_t = num(dd$yt), r = fmt_nb(dd$ratio, 6),
                       stringsAsFactors = FALSE)
       names(d)[4] <- "y_t / x_t"
-      titre_d <- "Séries x_t et y_t utilisées par le calcul"
+      titre_d <- "S\u00e9ries x_t et y_t utilis\u00e9es par le calcul"
     }
     sd <- res$statistiques_descriptives
-    ajout("<h2 id='donnees'>2. Données</h2>", paste0("<h3>", titre_d, "</h3>"),
+    ajout("<h2 id='donnees'>2. Donn\u00e9es</h2>", paste0("<h3>", titre_d, "</h3>"),
           html_table(d, classe = "data"),
           "<h3>Statistiques descriptives</h3>",
           html_table(data.frame(Grandeur = .txt(sd$grandeur), Valeur = fmt_nb(sd$valeur, 4),
@@ -1282,29 +1304,29 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
     ctr <- do.call(rbind, lapply(res$controles, function(t)
       data.frame(a = .txt(t$test), b = badge_verdict(t$verdict), c = .txt(t$detail),
                  stringsAsFactors = FALSE)))
-    if (!is.null(ctr)) names(ctr) <- c("Contrôle", "Verdict", "Détail")
+    if (!is.null(ctr)) names(ctr) <- c("Contr\u00f4le", "Verdict", "D\u00e9tail")
     liste <- function(x) paste0("<ul>", paste0("<li>", .txt(x), "</li>", collapse = ""), "</ul>")
-    ajout("<h2 id='controles'>3. Contrôles et validation</h2>",
+    ajout("<h2 id='controles'>3. Contr\u00f4les et validation</h2>",
           if (length(v$erreurs)) .bandeau_html(paste0("<b>Erreurs :</b>", liste(v$erreurs)), "err"),
           if (length(v$avertissements))
             .bandeau_html(paste0("<b>Avertissements :</b>", liste(v$avertissements)))
-          else "<div class='ok'>Données valides, sans avertissement.</div>",
+          else "<div class='ok'>Donn\u00e9es valides, sans avertissement.</div>",
           if (!is.null(ctr)) html_table(ctr, classe = "data"))
 
     # --- 4. Parametre retenu et calibration -----------------------------------
     ic <- res$ic_bootstrap
     cal <- res$calibration; cand <- res$candidats
-    ajout("<h2 id='parametre'>4. Paramètre retenu et calibration</h2>",
+    ajout("<h2 id='parametre'>4. Param\u00e8tre retenu et calibration</h2>",
           "<div class='bloc'>",
           sprintf("<div><span class='cle'>sigma_USP = %.4f</span></div>", p$sigma_usp),
-          sprintf("<div>soit %+.1f %% par rapport au paramètre standard de %.4f</div>",
+          sprintf("<div>soit %+.1f %% par rapport au param\u00e8tre standard de %.4f</div>",
                   100 * p$variation_relative, p$sigma_standard),
           if (!is.null(ic)) sprintf(paste(
             "<div style='margin-top:6px'>Intervalle bootstrap 90 %% : [%.4f ; %.4f]",
             "&nbsp;|&nbsp; 95 %% : [%.4f ; %.4f]</div>"), ic[2], ic[4], ic[1], ic[5]),
           sprintf("<div class='gris' style='margin-top:6px'>%s</div>", .echap_html(texte_formule(res))),
           "</div>",
-          "<h3>Chaîne de calibration</h3>",
+          "<h3>Cha\u00eene de calibration</h3>",
           html_table(data.frame(Etape = .txt(cal$etape), Valeur = fmt_nb(cal$valeur, 5),
                                 stringsAsFactors = FALSE), classe = "data"),
           "<h3>Valeurs candidates</h3>",
@@ -1314,7 +1336,17 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
           "<div class='grille'>")
     B[[length(B) + 1L]] <- .graphique(list(f = function() plot_calibration(res$candidats),
                                            h = 300, plein = FALSE), mode)
-    ajout("</div>")
+    # Meme tableau que l'onglet Calibration : tous les diagnostics ROB / M6,
+    # retenus ou non par la selection.
+    rob <- table_robustesse(tb)
+    rob[] <- lapply(rob, .txt)
+    ajout("</div>",
+          "<h3>Robustesse du calibrage</h3>",
+          "<section id='section-robustesse'>",
+          "<div class='gris'>Tous les diagnostics de robustesse calcul\u00e9s par le moteur,",
+          "ind\u00e9pendamment de la s\u00e9lection des tests retenus (comme l'onglet Calibration).</div>",
+          html_table(rob, classe = "data"),
+          "</section>")
 
     # --- 5. Tests retenus -----------------------------------------------------
     te <- tb
@@ -1326,14 +1358,14 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
           "<section id='section-tests-retenus'>",
           sprintf(paste(
             "<div class='gel'><b>Personnalisation de la restitution, sans effet sur le calcul.</b>",
-            "Le moteur a calculé %d lignes (tests et diagnostics) ; la sélection de",
+            "Le moteur a calcul\u00e9 %d lignes (tests et diagnostics) ; la s\u00e9lection de",
             "l'application en restitue %d ci-dessous, les %d autres figurent en annexe avec leur",
             "verdict et le motif de leur exclusion.</div>"), nrow(tb), sum(retenu), sum(!retenu)),
           paste("<div class='gris'>Nature de la p-value retenue :",
                 "<b style='color:#1E8449'>exacte</b> &gt; <b style='color:#00468C'>Monte-Carlo</b>",
                 "&gt; <b style='color:#B9770E'>asymptotique</b>.</div>"))
     sel <- te[retenu, , drop = FALSE]
-    if (!nrow(sel)) ajout(.bandeau_html("Aucun test sélectionné."))
+    if (!nrow(sel)) ajout(.bandeau_html("Aucun test s\u00e9lectionn\u00e9."))
     for (k in cles_groupes()) {
       sub <- sel[sel$cle == k, , drop = FALSE]
       if (!nrow(sub)) next
@@ -1348,21 +1380,21 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
                     badge_verdict("OK"), nb[["OK"]], badge_verdict("ALERTE"), nb[["ALERTE"]],
                     badge_verdict("ECHEC"), nb[["ECHEC"]], nb[["INFO"]]),
             "</div>",
-            "<div class='gris'>Synthèse</div>",
+            "<div class='gris'>Synth\u00e8se</div>",
             html_table(table_synthese_groupe(sub), classe = "data"),
-            "<div class='gris'>Détail</div>",
+            "<div class='gris'>D\u00e9tail</div>",
             html_table(table_detail_groupe(sub), classe = "data"))
     }
     ajout("</section>")
 
     # --- 6. Annexe : tests exclus ---------------------------------------------
     ex <- te[!retenu, , drop = FALSE]; sx <- selection[!retenu, , drop = FALSE]
-    nom_base <- c(z = "résidus normalisés z_t", r = "ratios bruts", commun = "base unique")
+    nom_base <- c(z = "r\u00e9sidus normalis\u00e9s z_t", r = "ratios bruts", commun = "base unique")
     motif <- ifelse(!sx$garde,
       ifelse(ex$variante == "secondaire",
-             "variante secondaire non conservée dans la sélection",
-             "test non conservé dans la sélection"),
-      paste0("calculé sur les ", nom_base[ex$base], " ; base retenue pour ce test : ",
+             "variante secondaire non conserv\u00e9e dans la s\u00e9lection",
+             "test non conserv\u00e9 dans la s\u00e9lection"),
+      paste0("calcul\u00e9 sur les ", nom_base[ex$base], " ; base retenue pour ce test : ",
              nom_base[sx$base]))
     tab_ex <- if (nrow(ex)) {
       d <- data.frame(ex$cle, paste0("<span style='font-weight:600'>", ex$test, "</span>"),
@@ -1374,10 +1406,10 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
       names(d) <- c("Groupe", "Test", "Base", "Variante", "Verdict", "p retenue", "Nature", "Motif")
       html_table(d, classe = "data")
     }
-    ajout("<h2 id='annexe-exclus'>6. Annexe — tests exclus de la restitution</h2>",
+    ajout("<h2 id='annexe-exclus'>6. Annexe \u2014 tests exclus de la restitution</h2>",
           "<section id='section-annexe-exclus'>",
           if (!nrow(ex))
-            "<div class='ok'>Aucun test exclu : toutes les lignes calculées sont restituées.</div>"
+            "<div class='ok'>Aucun test exclu : toutes les lignes calcul\u00e9es sont restitu\u00e9es.</div>"
           else tab_ex,
           "</section>")
 
@@ -1385,11 +1417,11 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
     ajout("<h2 id='graphiques'>7. Graphiques</h2>",
           if (!is.null(note_mode)) .bandeau_html(note_mode),
           if (mode == "aucun") .bandeau_html(paste(
-            "<b>Graphiques non produits.</b> Les graphiques interactifs n'ont pas été",
-            "demandés ou plotly est absent, et ce système R ne dispose pas du",
-            "périphérique PNG (capabilities(\"png\") vaut FALSE)."), "err"),
+            "<b>Graphiques non produits.</b> Les graphiques interactifs n'ont pas \u00e9t\u00e9",
+            "demand\u00e9s ou plotly est absent, et ce syst\u00e8me R ne dispose pas du",
+            "p\u00e9riph\u00e9rique PNG (capabilities(\"png\") vaut FALSE)."), "err"),
           if (mode == "png")
-            "<div class='gris'>Graphiques figés en PNG (branches base R des fonctions de tracé).</div>")
+            "<div class='gris'>Graphiques fig\u00e9s en PNG (branches base R des fonctions de trac\u00e9).</div>")
     for (o in .graphiques_rapport(res)) {
       ajout(sprintf("<h3>%s</h3>", o$titre))
       if (!is.null(o$note)) {
@@ -1402,11 +1434,11 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
     }
     at <- avertissement_T(m$T)
     if (!is.null(at)) ajout(.bandeau_html(at))
-    ajout(sprintf(paste("<hr><div class='gris'>Rapport généré le %s par",
+    ajout(sprintf(paste("<hr><div class='gris'>Rapport g\u00e9n\u00e9r\u00e9 le %s par",
                         "<code>rapport_html()</code> (R/display_helpers.R) ; graphiques : %s.</div>"),
                   genere, switch(mode,
-                    plotly = "interactifs (plotly, bibliothèques intégrées au document)",
-                    png = "PNG intégrés en base64", aucun = "non produits")))
+                    plotly = "interactifs (plotly, biblioth\u00e8ques int\u00e9gr\u00e9es au document)",
+                    png = "PNG int\u00e9gr\u00e9s en base64", aucun = "non produits")))
     # Aplatissement : une liste d'elements, chacun chaine HTML ou widget.
     out <- list()
     for (b in B) for (x in b) if (!is.null(x)) out[[length(out) + 1L]] <- x
@@ -1425,7 +1457,7 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
       corps <- paste(unlist(items), collapse = "\n")
     }
     c("<!DOCTYPE html>", "<html lang=\"fr\">", "<head>", "<meta charset=\"utf-8\">",
-      sprintf("<title>Rapport USP figé — %s, calcul du %s</title>", m$methode,
+      sprintf("<title>Rapport USP fig\u00e9 \u2014 %s, calcul du %s</title>", m$methode,
               format(m$horodatage, "%Y-%m-%d %H:%M:%S")),
       "<style>", CSS_RAPPORT, "</style>", tete, "</head>", "<body>", corps, "</body>", "</html>")
   }
@@ -1434,7 +1466,7 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
   if (inherits(doc, "error")) {
     if (mode != "plotly") stop(doc)
     # Repli : dependances non integrables -> graphiques figes en PNG.
-    note_mode <- paste0("Graphiques interactifs impossibles à intégrer (",
+    note_mode <- paste0("Graphiques interactifs impossibles \u00e0 int\u00e9grer (",
                         .echap_html(conditionMessage(doc)), ").")
     mode <- if (png_ok) "png" else "aucun"
     doc <- assembler(construire(mode), mode)
