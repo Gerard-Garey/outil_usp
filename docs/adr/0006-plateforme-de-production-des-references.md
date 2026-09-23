@@ -23,7 +23,7 @@ mean relative difference : 6,200e-10  ->  all.equal(..., tol = 1e-8) = TRUE (tes
 Deux faits distincts en ressortent :
 
 1. Ce que le script vérifie se dédouble. Le premier volet — `identical()` entre deux appels sur une **même machine** — est bien du bit près, et il tient (mesuré). Le second volet — `all.equal` agrégé contre les références versionnées — ne l'est pas : `all.equal.numeric` compare une différence relative **moyenne**, si bien qu'une dérive diffuse sur 44 % des feuilles passe sous la tolérance. C'est ce second volet qu'un relecteur de l'ACPR exercerait en refaisant les calculs sur sa propre machine.
-2. **La branche Merz-Wüthrich est indemne** : `identical(reference_reserve2, calcul_ici)` vaut `TRUE`, 0 tirage différent sur 999 (mesuré sur le triangle de test). La question ne concerne donc que `premium.rds` et `reserve1.rds`.
+2. **La branche Merz-Wüthrich est indemne** : `identical(reference_reserve2, calcul_ici)` vaut `TRUE`, 0 tirage différent sur 999 (mesuré sur le triangle de test). La question ne concerne donc que `premium.rds` et `reserve1.rds`. [*Annotation du 23/09/2026 : vrai sous Linux R 4.3.3 (session cloud), faux sous Linux R 4.3.1 (CI) — voir la mesure consignée à la fin du second amendement : 8 feuilles de `reserve2.rds` diffèrent, écart maximal 1,339e-13, sur `tests[[1]]$stat`. « Indemne » doit se lire « à 1e-13 près », six ordres de grandeur sous la branche lognormale ; le point 4 de la décision, qui refusait déjà de faire de `reserve2.rds` une exception, s'en trouve confirmé.*]
 
 **Ce qui est une explication, pas une démonstration.** La branche lognormale passe par `L-BFGS-B` (`usp_ajuster()`, `usp_ajuster_rapide()`) sur une vraisemblance quasi plate en δ — le défaut d'identifiabilité que documente l'issue #5 (§ 2). Sur une surface plate, le chemin de l'optimiseur dépend de l'ordre des opérations en virgule flottante, donc de la bibliothèque BLAS et de la version de R ; `mw_ajuster()`, arithmétique fermée sans optimiseur, n'y est pas exposé. Cette origine est **cohérente** avec la répartition observée des écarts (tirages bootstrap touchés en quasi-totalité, Merz-Wüthrich intact, flux `rnorm` identique — sans quoi les écarts seraient d'ordre 1 et non 1e-7) ; elle n'a pas été démontrée par une expérience qui isolerait la BLAS ou la version de R.
 
@@ -136,6 +136,18 @@ Arbitrage du mainteneur (décision M9, issue #14, commentaire du 22/09/2026) : *
 La dérive de 3,508e-07 a été mesurée en session cloud, **Linux R 4.3.3**, contre les références du poste. L'écart contre la plateforme de la CI, **Linux R 4.3.1**, n'a jamais été mesuré directement : la CI était verte sous le critère agrégé, ce qui ne dit rien de l'écart maximal par feuille. La première exécution de la CI sur le commit qui met en œuvre ce critère constitue donc cette mesure.
 
 **Repli**, décidé à l'avance pour ne pas laisser une PR rouge s'installer (premier amendement) : si cette première CI passe au rouge sur `tests/test_reproductibilite.R` — c'est-à-dire si l'écart poste / CI dépasse 1e-6 sur au moins une feuille —, le commit est annulé par un commit de retour (`git revert`), le critère agrégé reste en vigueur, le point 1 de l'issue #14 rejoint le jalon J10 (bascule CI, branche F), et la branche de travail en cours continue avec ses autres issues. Le seuil ne sera **pas** relevé pour faire passer la CI : un seuil relevé au-delà de la mesure qui le justifie ne serait plus justifié, et l'écart mesuré sur la CI ira alors nourrir la décision de J10 (qui élimine la dérive plutôt que de l'absorber).
+
+### Mesure du 23 septembre 2026 sur la CI (annotation)
+
+La première exécution de la CI sur le commit de mise en œuvre (`f7e6d4f`, branche B, PR #57 ; Linux, R 4.3.1) a donné, contre les références produites sur le poste du mainteneur, la ligne de synthèse par fichier suivante :
+
+| Fichier | Écart maximal par feuille | Où | Sous le seuil 1e-6 |
+|---|---|---|---|
+| `premium.rds` | 3,508e-07 | `bootstrap$sigma_boot` | oui |
+| `reserve1.rds` | 3,508e-07 | `bootstrap$sigma_boot` | oui |
+| `reserve2.rds` | 1,339e-13 | `tests[[1]]$stat`, 8 feuilles non strictement identiques | oui |
+
+Trois enseignements. (1) **Le repli est sans objet** : la CI est verte au critère strict, le point 1 de l'issue #14 est clos par la branche B et ne rejoint pas J10. (2) **La dérive poste / CI R 4.3.1 sur la branche lognormale est exactement celle mesurée en session cloud R 4.3.3** (3,508e-07, même feuille) : la version mineure de R n'y change rien, ce qui est cohérent avec l'explication par la BLAS et l'optimiseur donnée en section « Contexte » (cohérence, toujours pas démonstration). Le seuil 1e-6 conserve sa marge (≈ 3 ×). (3) **La branche Merz-Wüthrich n'est pas strictement indemne sous R 4.3.1** : 8 feuilles diffèrent à 1,339e-13 (`tests[[1]]$stat`), alors que l'objet entier était `identical()` sous R 4.3.3 (section « Contexte », point 2, annoté en place ; issue #14). C'est un écart d'arrondi de dernier bit, six ordres de grandeur sous la dérive lognormale et treize sous le seuil ; il ne remet en cause ni le critère ni le point 4 de la décision initiale (aucune exception pour `reserve2.rds`, désormais justifiée par une mesure et non plus par prudence). Il modifie en revanche le critère d'acceptation du jalon J10 énoncé en « Conséquences » de la décision initiale (« une régénération sur la CI reproduit `identical()` les références du poste sur `reserve2.rds` ») : ce critère est faux tel quel et sera réécrit dans l'ADR de mise en œuvre de J10, avec la tolérance observée.
 
 ### Conséquences
 

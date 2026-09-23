@@ -11,6 +11,14 @@ _Avoid_ : modèle ajusté (qui désigne le modèle réglementaire aux paramètre
 **δ (paramètre de mélange)** :
 Le poids, dans [0, 1], de la composante de variance proportionnelle au carré du volume ; il est estimé par maximum de vraisemblance comme l'impose l'annexe XVII, et il est presque non identifiable à T = 8 quand les volumes varient peu (δ̂ au bord de [0, 1] dans la plupart des cas).
 
+**Tolérance de bord (`TOL_DELTA_BORD`)** :
+La tolérance unique, 1e-6, déclarée une fois en tête de `R/engine.R`, avec laquelle le moteur juge qu'un estimateur ou une donnée est à sa frontière : δ̂ au bord de [0, 1] (`delta_au_bord`, en absolu, inégalités larges) et volumes constants (en relatif à la moyenne). Elle est choisie au-dessus de la résolution de l'optimiseur L-BFGS-B (~1e-9 en ajustement complet, ~1e-7 en réajustement rapide) pour qu'un même δ̂ soit classé de la même façon quelle que soit la plateforme ; elle est calculée par `usp_regime()` et lue par `usp_ajuster()` et `usp_tests()` (issue #31). Elle ne dit rien de la précision de σ_USP : c'est une convention de restitution, pas un seuil statistique.
+_Avoid_ : 1e-9 (ancien seuil sur l'étendue des π̂_t, abandonné le 23/09/2026), tolérance d'arrêt (celle de l'optimiseur, distincte)
+
+**Volumes constants** :
+La configuration où les volumes x_t sont égaux entre eux à la tolérance de bord près, en relatif (`diff(range(x)) <= TOL_DELTA_BORD · mean(x)`, `usp_regime()$volumes_constants`). C'est l'une des deux causes, avec δ̂ = 1, pour lesquelles π̂_t est constant en t (`pi_constant`) ; c'est aussi la configuration où la vraisemblance ne dépend plus de δ, qui n'est alors pas identifié (la valeur affichée de δ̂ est celle où l'optimiseur s'est arrêté), et où toute vérification qui régresse sur le volume est sans objet. Une seule définition doit servir à toutes les lignes du moteur ; les gardes numériques `sd(x) == 0` de certains tests en sont une version exacte, à aligner (issue #59).
+_Avoid_ : volumes identiques, x constant au bit près (la constance est jugée à la tolérance de bord, pas exactement)
+
 ## Restitution des vérifications
 
 **Test** :
@@ -57,7 +65,7 @@ Une entrée du catalogue des statistiques simulées d'une méthode : sa fonction
 _Avoid_ : statistique bootstrapable, mc_nom (nom de variable, pas terme du domaine)
 
 **Grandeur rivée par l'estimation** :
-Une grandeur des résidus contrainte par une condition du premier ordre du maximum de vraisemblance plutôt que librement observée : sa dispersion sous le modèle est gouvernée par celle des poids π̂_t, non par les données, de sorte qu'elle ne peut pas contredire le modèle. Dans la branche lognormale, la condition en ln β (identité algébrique, Σ √π̂_t z_t = 0, forme fermée de `usp_noyau()`) rive la moyenne des résidus standardisés dans tous les cas ; la condition en γ, relation pondérée distincte qui ne tient qu'à un optimum intérieur en γ (domaine [−12, 3] de `usp_ajuster()`), rive leur variance. Quand π̂_t est constant, la contrainte détermine la grandeur : elle est alors une statistique dégénérée. Une grandeur rivée n'a aucune p-value retenue et est restituée comme diagnostic (« Centrage » et « Variance unitaire » dans `usp_tests()`, ADR 0001).
+Une grandeur des résidus contrainte par une condition du premier ordre du maximum de vraisemblance plutôt que librement observée : sa dispersion sous le modèle est gouvernée par celle des poids π̂_t, non par les données, de sorte qu'elle ne peut pas contredire le modèle. Dans la branche lognormale, la condition en ln β (identité algébrique, Σ √π̂_t z_t = 0, forme fermée de `usp_noyau()`) rive la moyenne des résidus standardisés dans tous les cas ; la condition en γ, relation pondérée distincte qui ne tient qu'à un optimum intérieur en γ (domaine [−12, 3] de `usp_ajuster()`), rive leur variance. Quand π̂_t est constant, la contrainte détermine la grandeur : elle est alors une statistique dégénérée. Quand π̂_t n'est pas constant (δ̂ au bord ou intérieur, volumes variables), la grandeur reste rivée par la condition mais n'est pas déterminée par elle : var(z) n'a alors pas de valeur de référence, et son écart à T/(T−1) ne se lit pas comme un écart au modèle (libellé de la ligne « Variance unitaire », issue #39). Une grandeur rivée n'a aucune p-value retenue et est restituée comme diagnostic (« Centrage » et « Variance unitaire » dans `usp_tests()`, ADR 0001).
 _Avoid_ : statistique rivée (ce n'est pas une statistique de test)
 
 **Statistique dégénérée** :
