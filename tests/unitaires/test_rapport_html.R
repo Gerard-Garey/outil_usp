@@ -26,6 +26,10 @@ debut_fichier("test_rapport_html.R")
 source(file.path(.racine, "R", "display_helpers.R"), local = TRUE)
 
 lire <- function(f) { t <- rawToChar(readBin(f, "raw", file.info(f)$size)); Encoding(t) <- "UTF-8"; t }
+# Les motifs non ASCII sont ecrits en echappements \uXXXX (chaines marquees
+# UTF-8), comme les libelles de display_helpers.R : un litteral accentue est
+# lu dans l'encodage natif et, sous LC_CTYPE=POSIX, grepl() echoue
+# ("regular expression is invalid UTF-8").
 compte <- function(txt, motif) lengths(regmatches(txt, gregexpr(motif, txt, fixed = TRUE)))
 # Extrait de txt, de la premiere occurrence de debut a la premiere occurrence
 # de fin qui la suit.
@@ -86,6 +90,16 @@ verifier("Empreintes : triangle Merz-Wuthrich, cellules non observees ecrites NA
          grepl("^triangle;8;8\n", engine_empreinte(res_mw)$texte_donnees) &&
          grepl(";NA\n", engine_empreinte(res_mw)$texte_donnees, fixed = TRUE))
 
+res_refus <- run_engine(xt = c(1, NA, 3, 4), yt = c(1, 2, 3, 4), methode = "premium",
+                        segment = 1, B = 99)
+e_refus <- engine_empreinte(res_refus)
+verifier("Empreintes : resultat refuse (ok = FALSE), donnees NA, empreinte md5 de l'objet refuse, stable",
+         !isTRUE(res_refus$ok) && is.na(e_refus$donnees) && is.na(e_refus$texte_donnees) &&
+         grepl("^[0-9a-f]{32}$", e_refus$resultat) &&
+         identical(engine_empreinte(run_engine(xt = c(1, NA, 3, 4), yt = c(1, 2, 3, 4),
+                                               methode = "premium", segment = 1, B = 99)),
+                   e_refus))
+
 ## --- Rapport fige, branche PNG, methode lognormale ----------------------------
 tb <- engine_table_tests(res_ln)
 s <- selection_defaut(tb)
@@ -131,7 +145,7 @@ verifier("Rapport : aucun script dans la branche PNG", compte(h, "<script") == 0
 principal <- entre(h, "<section id='section-tests-retenus'>", "</section>")
 annexe <- entre(h, "<section id='section-annexe-exclus'>", "</section>")
 verifier("Rapport : encadre de personnalisation avec le nombre de lignes du moteur",
-         grepl(sprintf("Le moteur a calculé %d lignes", nrow(tb)), principal, fixed = TRUE) &&
+         grepl(sprintf("Le moteur a calcul\u00e9 %d lignes", nrow(tb)), principal, fixed = TRUE) &&
          grepl("sans effet sur le calcul", principal, fixed = TRUE))
 verifier("Rapport : chaque test retenu est dans la section principale, pas en annexe",
          all(vapply(tb$test[retenu], function(n) length(ligne_de(principal, n)) >= 1 &&
@@ -147,7 +161,7 @@ verifier("Rapport : annexe = une ligne par test exclu, avec son verdict et sa p 
              grepl(paste0("<td>", fmt_p(tb$p_retenue[k]), "</td>"), l, fixed = TRUE)
          }, logical(1))))
 verifier("Rapport : motifs d'exclusion (test retire ; autre base retenue)",
-         grepl("test non conservé", ligne_de(annexe, tb$test[i_retire]), fixed = TRUE) &&
+         grepl("test non conserv\u00e9", ligne_de(annexe, tb$test[i_retire]), fixed = TRUE) &&
          grepl("base retenue pour ce test : ratios bruts", ligne_de(annexe, tb$test[i_z]),
                fixed = TRUE) &&
          length(ligne_de(principal, nom_r)) == 2)   # synthese et detail
@@ -166,6 +180,21 @@ verifier("Rapport lognormal : formule avec le facteur sqrt((T+1)/(T-1))",
          grepl(.echap_html(texte_formule(res_ln)), h, fixed = TRUE))
 verifier("Rapport : avertissement T = 8 en fin de document",
          grepl(avertissement_T(8), h, fixed = TRUE))
+# Tableau "Robustesse du calibrage" : non filtre, comme l'onglet Calibration.
+cle_ln <- vapply(tb$famille, function(f) groupe_de(f)$cle, character(1))
+s_rob <- selection_defaut(tb); s_rob$garde[cle_ln == "ROB"] <- FALSE
+f_rob <- tempfile(fileext = ".html")
+rapport_html(res_ln, s_rob, f_rob, interactif = FALSE, identite = idt)
+h_rob <- lire(f_rob)
+sec_rob <- entre(h_rob, "<section id='section-robustesse'>", "</section>")
+verifier("Rapport : tableau Robustesse du calibrage = table_robustesse(), meme si les diagnostics ROB sont deselectionnes",
+         any(cle_ln == "ROB") &&
+         identical(sec_rob, entre(h, "<section id='section-robustesse'>", "</section>")) &&
+         compte(sec_rob, "<tr><td>") == sum(cle_ln == "ROB") &&
+         all(vapply(tb$test[cle_ln == "ROB"], function(n)
+           grepl(paste0("<td>", .echap_html(n), "</td>"), sec_rob, fixed = TRUE) &&
+             length(ligne_de(entre(h_rob, "<section id='section-annexe-exclus'>", "</section>"), n)) == 1,
+           logical(1))))
 verifier("Rapport : selection NULL = selection par defaut",
          {
            f <- tempfile(fileext = ".html")
@@ -183,7 +212,7 @@ r_mw <- rapport_html(res_mw, NULL, f_mw, interactif = FALSE, identite = idt)
 hm <- lire(f_mw)
 tbm <- engine_table_tests(res_mw); rm <- filtrer_selection(tbm, selection_defaut(tbm))
 verifier("Rapport MW : triangle du calcul restitue, cellules non observees en tiret",
-         grepl("<td>2766.61</td>", hm, fixed = TRUE) && grepl("<td>–</td>", hm, fixed = TRUE))
+         grepl("<td>2766.61</td>", hm, fixed = TRUE) && grepl("<td>\u2013</td>", hm, fixed = TRUE))
 verifier("Rapport MW : exclus par defaut en annexe avec leur verdict",
          any(!rm) && all(vapply(which(!rm), function(k)
            grepl(badge_verdict(tbm$verdict[k]),
@@ -193,6 +222,14 @@ verifier("Rapport MW : formule racine(MSEP) / R, sans facteur de taille finie",
          grepl("racine(MSEP) / R", texte_formule(res_mw), fixed = TRUE) &&
          !grepl("(T+1)/(T-1)", texte_formule(res_mw), fixed = TRUE) &&
          grepl(.echap_html(texte_formule(res_mw)), hm, fixed = TRUE))
+verifier("Rapport MW : tableau Robustesse du calibrage avec tous les diagnostics M6",
+         {
+           cle_mw <- vapply(tbm$famille, function(f) groupe_de(f)$cle, character(1))
+           sec <- entre(hm, "<section id='section-robustesse'>", "</section>")
+           any(cle_mw == "M6") && compte(sec, "<tr><td>") == sum(cle_mw == "M6") &&
+             all(vapply(tbm$test[cle_mw == "M6"], function(n)
+               grepl(paste0("<td>", .echap_html(n), "</td>"), sec, fixed = TRUE), logical(1)))
+         })
 verifier("Rapport MW : aucune reference externe, empreintes presentes",
          compte(hm, "src=\"http") == 0 && compte(hm, "href=\"http") == 0 &&
          grepl(engine_empreinte(res_mw)$donnees, hm, fixed = TRUE))
