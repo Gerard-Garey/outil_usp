@@ -847,13 +847,26 @@ test_reset <- function(x, y) {
 # aleatoire : l'exactitude devient alors approchee (la simulation montre que le
 # niveau reste tenu, mais ce n'est plus un resultat exact). Pour un dossier
 # ACPR, fixer `delta_abs` a une valeur arretee a priori et documentee.
+# Branche non applicable (issue #58) : la liste porte les memes champs que la
+# branche calculee (p_bas, p_haut a NA, et non absents : sprintf() sur NULL
+# rendait un detail character(0) qui faisait planter engine_table_tests()) et
+# le motif, "volumes constants" (regression y ~ x non definie) ou "marge"
+# (sans delta_abs : theta non fini ou <= 0 ; avec delta_abs : delta_abs non
+# fini ou <= 0 ; theta est alors ignore). Les volumes constants priment sur la
+# marge. ddl = T - 2 y est renseigne : il ne depend que de T, pas de la
+# regression, et le garder donne aux deux branches les memes noms de champs.
+# theta = Inf donnait Delta = Inf, p = 0 et un verdict OK "preuve positive" :
+# il est traite en marge invalide.
 test_tost_intercept <- function(x, y, theta = 0.10, delta_abs = NULL) {
-  if (stats::sd(x) == 0 || length(unique(x)) < 2 ||
-      (is.null(delta_abs) && theta <= 0) ||
-      (!is.null(delta_abs) && (!is.finite(delta_abs) || delta_abs <= 0)))
+  motif <- if (stats::sd(x) == 0 || length(unique(x)) < 2) "volumes constants"
+  else if ((is.null(delta_abs) && (!is.finite(theta) || theta <= 0)) ||
+           (!is.null(delta_abs) && (!is.finite(delta_abs) || delta_abs <= 0))) "marge"
+  else NA_character_
+  if (!is.na(motif))
     return(list(stat = NA_real_, p = NA_real_, delta = NA_real_,
                 a = NA_real_, se = NA_real_, t_bas = NA_real_, t_haut = NA_real_,
-                marge_a_priori = FALSE))
+                p_bas = NA_real_, p_haut = NA_real_, ddl = length(x) - 2,
+                marge_a_priori = FALSE, non_applicable = motif))
   m <- summary(stats::lm(y ~ x))
   a  <- m$coefficients[1, 1]; se <- m$coefficients[1, 2]
   ddl <- length(x) - 2
@@ -867,7 +880,7 @@ test_tost_intercept <- function(x, y, theta = 0.10, delta_abs = NULL) {
   list(stat = if (p_bas >= p_haut) t_bas else t_haut,
        p = .p_borne(p), delta = Delta, a = a, se = se,
        t_bas = t_bas, t_haut = t_haut, p_bas = p_bas, p_haut = p_haut,
-       ddl = ddl, marge_a_priori = marge_a_priori)
+       ddl = ddl, marge_a_priori = marge_a_priori, non_applicable = NA_character_)
 }
 
 # Significativité de la constante : rejette la proportionnalité stricte.
@@ -1273,12 +1286,20 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       nature_forcee = if (isTRUE(tost$marge_a_priori)) NA_character_
                       else "quasi-exacte (loi de Student ; marge estimee sur les donnees)",
       sens = "rejeter",
-      detail = sprintf(paste("Rejeter H0 fournit une preuve POSITIVE de proportionnalite.",
-                             "Delta = %.4g (%s) ; p_bas = %.4f, p_haut = %.4f."),
-                       tost$delta,
-                       if (isTRUE(tost$marge_a_priori)) "fixee a priori"
-                       else sprintf("%.0f %% de la moyenne de y", 100 * theta_equiv),
-                       tost$p_bas, tost$p_haut))
+      # Issue #58 : un detail de longueur 1 sur chaque branche.
+      detail = switch(if (is.na(tost$non_applicable)) "calcule" else tost$non_applicable,
+        "volumes constants" = paste("x_t constant (volumes constants) : regression de y",
+                                    "sur x non definie, test non applicable"),
+        "marge" = paste("marge Delta invalide (sans delta_equiv : theta_equiv non",
+                        "fini ou <= 0 ; ou delta_equiv non fini ou <= 0) : test",
+                        "non applicable"),
+        "calcule" = sprintf(paste("Rejeter H0 fournit une preuve POSITIVE de proportionnalite.",
+                                  "Delta = %.4g (%s) ; p_bas = %.4f, p_haut = %.4f."),
+                            tost$delta,
+                            if (isTRUE(tost$marge_a_priori)) "fixee a priori"
+                            else sprintf("%.0f %% de la moyenne de y", 100 * theta_equiv),
+                            tost$p_bas, tost$p_haut),
+        stop("usp_tests : motif TOST inconnu : ", tost$non_applicable)))
   add(fam, "Test de Student sur la pente (lm(y~x))",
       "Student (1908), Biometrika 6",
       type = if (is.finite(lmc$t_pente)) "test" else "non applicable",
@@ -1407,9 +1428,32 @@ usp_tests <- function(fit, boot, alpha = 0.10,
           detail = "Voir aussi le QQ-plot a deux echantillons")
     }
   }
+  # Issue #58 : a volumes constants (usp_regime(), tolerance TOL_DELTA_BORD),
+  # a_t = 1 pour tout t, pi_t ne depend plus de delta et la vraisemblance est
+  # plate en delta (mesure : usp_objectif() identique sur delta = 0, 0.125,
+  # ..., 1 a x = rep(110, 8)). delta n'est pas identifie : la valeur est celle
+  # du demarrage retenu par usp_ajuster() (delta de depart 0, premier de la
+  # grille : les autres demarrages finissent a moins de 1e-12 de la meme valeur
+  # de l'objectif, sous l'ecart 1e-10 exige pour remplacer le meilleur ;
+  # mesure a x = rep(v, 8), v = 80, 110, 200, 5000 : delta final = 0 et
+  # deplacement en delta d'un demarrage au plus 4e-13). Ce cas prime sur "AU BORD", vrai ici pour une mauvaise
+  # raison. Dans la bande (volumes d'etendue relative e non nulle mais
+  # <= TOL_DELTA_BORD), la vraisemblance depend encore tres faiblement de
+  # delta (mesure, donnees premium, e = 5e-7, gamma = -1,8 : l'objectif
+  # varie de 3,0e-7 entre delta = 0 et delta = 1) : le libelle le dit.
+  reg_delta <- usp_regime(fit$delta, fit$x)
+  suite_cst <- paste(", qui n'est pas identifie ; la valeur affichee est celle",
+                     "ou l'optimiseur s'est arrete")
   add(fam, "Position de delta dans [0,1]", "Annexe XVII, section B/C par. 6",
       type = "diagnostic", estim_nom = "delta", estim = fit$delta,
-      detail = if (isTRUE(fit$delta_au_bord))
+      detail = if (isTRUE(reg_delta$volumes_dans_bande))
+        paste0(sprintf(paste("VOLUMES CONSTANTS a la tolerance TOL_DELTA_BORD = %g pres",
+                             "(etendue relative = %.2g) : la vraisemblance ne depend",
+                             "presque pas de delta"),
+                       TOL_DELTA_BORD, diff(range(fit$x)) / mean(fit$x)), suite_cst)
+      else if (isTRUE(reg_delta$volumes_constants))
+        paste0("VOLUMES CONSTANTS : la vraisemblance ne depend pas de delta", suite_cst)
+      else if (isTRUE(fit$delta_au_bord))
         "SOLUTION AU BORD : structure de variance non identifiee par les donnees"
       else "interieur du domaine : melange des deux composantes identifie")
 

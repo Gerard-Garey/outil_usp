@@ -395,8 +395,9 @@ verifier("Diagnostics lognormaux : repere nomme dans le detail, jamais 'seuil' (
            d_delta <- dd["Position de delta dans [0,1]"]
            for (nm in c(names(reperes), "Position de delta dans [0,1]"))
              if (grepl("seuil", dd[nm], fixed = TRUE)) pb <- c(pb, paste(nm, ": contient 'seuil'"))
-           if (!grepl("AU BORD", d_delta, fixed = TRUE) && !grepl("interieur", d_delta, fixed = TRUE))
-             pb <- c(pb, "Position de delta : ni 'AU BORD' ni 'interieur'")
+           if (!any(vapply(c("AU BORD", "interieur", "VOLUMES CONSTANTS"), grepl, logical(1),
+                           x = d_delta, fixed = TRUE)))
+             pb <- c(pb, "Position de delta : ni 'AU BORD' ni 'interieur' ni 'VOLUMES CONSTANTS'")
            if (length(pb)) paste(pb, collapse = " ; ") else TRUE
          })
 # Invariance a la table de l'annexe : entre les segments 1 et 6 de l'annexe II
@@ -525,6 +526,122 @@ verifier("run_engine : jackknife entierement NA -> table produite, pas de ligne 
              !NOM_JK %in% tb$test && NOM_IC %in% tb$test &&
              !any(grepl("Inf", tb$commentaire, fixed = TRUE)) &&
              !any(is.infinite(tb$estimation))
+         })
+
+## --- Issue #58 : volumes constants ------------------------------------------
+# A x_t constant, a_t = 1 pour tout t : pi_t ne depend plus de delta, la
+# vraisemblance est plate en delta, qui n'est pas identifie. La regression
+# y ~ x du TOST n'est pas definie. Avant #58 : detail TOST character(0)
+# (p_bas / p_haut NULL dans sprintf), engine_table_tests() plantait
+# ("arguments imply differing number of rows: 1, 0"), et la ligne delta
+# disait "SOLUTION AU BORD" (vrai pour une mauvaise raison).
+x_cst <- rep(110, 8)
+NOM_TOST <- "Equivalence de la constante a zero (TOST)"
+NOM_DELTA <- "Position de delta dans [0,1]"
+LIB_DELTA_CST <- "VOLUMES CONSTANTS : la vraisemblance ne depend pas de delta, qui n'est pas identifie"
+for (m in c("premium", "reserve1")) {
+  r_cst <- run_engine(xt = x_cst, yt = y, methode = m, segment = 1, annexe = "II", B = 99)
+  tb_cst <- tryCatch(engine_table_tests(r_cst), error = function(e) e)
+  verifier(sprintf("Volumes constants (%s) : run_engine ok et engine_table_tests() produit la table (#58)", m),
+           if (!isTRUE(r_cst$ok)) "run_engine : ok FALSE"
+           else if (inherits(tb_cst, "error")) paste("table :", conditionMessage(tb_cst))
+           else nrow(tb_cst) == length(r_cst$tests))
+  verifier(sprintf("Volumes constants (%s) : TOST non applicable, INFO, p_retenue NA, detail nommant les volumes constants (#58)", m),
+           {
+             if (inherits(tb_cst, "error")) "table non produite"
+             else {
+               l <- tb_cst[tb_cst$test == NOM_TOST, ]
+               nrow(l) == 1 && l$type == "non applicable" && l$verdict == "INFO" &&
+                 is.na(l$p_retenue) && is.na(l$nature_p) && is.na(l$sens_du_test) &&
+                 grepl("volumes constants", l$commentaire, fixed = TRUE) &&
+                 grepl("non applicable", l$commentaire, fixed = TRUE)
+             }
+           })
+  verifier(sprintf("Volumes constants (%s) : ligne delta INFO, libelle de non-identification (#58)", m),
+           {
+             if (inherits(tb_cst, "error")) "table non produite"
+             else {
+               l <- tb_cst[tb_cst$test == NOM_DELTA, ]
+               if (nrow(l) != 1) "ligne delta absente"
+               else if (l$verdict != "INFO") paste("verdict", l$verdict)
+               else if (!startsWith(l$commentaire, LIB_DELTA_CST)) paste("detail :", l$commentaire)
+               else TRUE
+             }
+           })
+}
+# Invariant : chaque champ texte d'une ligne de usp_tests() est de longueur 1
+# (et chaque champ numerique aussi), sur les configurations limites :
+# volumes constants, delta = 0 (fit0), delta = 1 (fit), marge TOST invalide.
+verifier("usp_tests : chaque champ de chaque ligne est de longueur 1 (volumes constants, delta = 0, delta = 1, marge invalide)",
+         {
+           fit_cst <- usp_ajuster(x_cst, y)
+           cas <- list("volumes constants" = usp_tests(fit_cst, boot_fictif()),
+                       "delta = 0" = usp_tests(fit0, boot_fictif()),
+                       "delta = 1" = usp_tests(fit, boot_fictif()),
+                       "delta_equiv = -1" = usp_tests(fit, boot_fictif(), delta_equiv = -1),
+                       "theta_equiv = 0" = usp_tests(fit, boot_fictif(), theta_equiv = 0))
+           pb <- character(0)
+           for (nm in names(cas)) for (l in cas[[nm]]) {
+             lg <- vapply(l, length, integer(1))
+             if (any(lg != 1))
+               pb <- c(pb, sprintf("%s / %s : %s", nm, l$test,
+                                   paste(names(lg)[lg != 1], collapse = ", ")))
+             if (!nzchar(l$detail) && l$type == "non applicable")
+               pb <- c(pb, sprintf("%s / %s : detail vide", nm, l$test))
+           }
+           if (length(pb)) paste(pb, collapse = " ; ") else TRUE
+         })
+verifier("TOST a marge invalide : non applicable, detail nommant la marge (#58)",
+         {
+           dd <- vapply(list(usp_tests(fit, boot_fictif(), delta_equiv = -1),
+                             usp_tests(fit, boot_fictif(), delta_equiv = NA),
+                             usp_tests(fit, boot_fictif(), delta_equiv = Inf),
+                             usp_tests(fit, boot_fictif(), theta_equiv = 0),
+                             usp_tests(fit, boot_fictif(), theta_equiv = Inf)),
+                        function(L) {
+                          l <- Filter(function(l) l$test == NOM_TOST, L)[[1]]
+                          if (l$type != "non applicable" || l$verdict != "INFO") "type/verdict"
+                          else l$detail
+                        }, character(1))
+           if (all(grepl("marge", dd, fixed = TRUE) & grepl("non applicable", dd, fixed = TRUE))) TRUE
+           else paste(dd, collapse = " | ")
+         })
+verifier("TOST : branches non applicable et calculee ont les memes noms de champs, ddl = T - 2 (#58)",
+         {
+           n_ok <- names(test_tost_intercept(x, y))
+           n_cst <- names(test_tost_intercept(x_cst, y))
+           n_mg <- names(test_tost_intercept(x, y, theta = 0))
+           identical(n_cst, n_ok) && identical(n_mg, n_ok) &&
+             test_tost_intercept(x_cst, y)$ddl == length(x_cst) - 2
+         })
+verifier("TOST : volumes constants priment sur la marge invalide (theta_equiv = 0 a x constant) (#58)",
+         {
+           l <- Filter(function(l) l$test == NOM_TOST,
+                       usp_tests(usp_ajuster(x_cst, y), boot_fictif(), theta_equiv = 0))[[1]]
+           l$type == "non applicable" && grepl("volumes constants", l$detail, fixed = TRUE) &&
+             !grepl("marge", l$detail, fixed = TRUE)
+         })
+verifier("TOST : theta_equiv <= 0 avec delta_equiv fixe -> test calcule, theta ignore (#58)",
+         {
+           a <- test_tost_intercept(x, y, theta = 0, delta_abs = 5)
+           b <- test_tost_intercept(x, y, theta = 0.10, delta_abs = 5)
+           is.finite(a$p) && is.na(a$non_applicable) && identical(a, b)
+         })
+verifier("Volumes constants a la tolerance pres (etendue relative 5e-7) : libelle 'presque pas', tolerance nommee (#58)",
+         {
+           x_b <- 110 * (1 + c(0, 5e-7, rep(0, 6)))
+           f_b <- usp_ajuster(x_b, y)
+           d <- ligne_test(f_b, NOM_DELTA)$detail
+           isTRUE(usp_regime(f_b$delta, x_b)$volumes_dans_bande) &&
+             startsWith(d, "VOLUMES CONSTANTS a la tolerance TOL_DELTA_BORD") &&
+             grepl("ne depend presque pas de delta, qui n'est pas identifie", d, fixed = TRUE)
+         })
+verifier("Volumes constants : vraisemblance plate en delta (objectif identique sur [0, 1] a gamma fixe)",
+         {
+           fit_cst <- usp_ajuster(x_cst, y)
+           v <- vapply(seq(0, 1, by = 0.125), function(d)
+             usp_objectif(c(d, fit_cst$gamma), x = x_cst, y = y, xbar = mean(x_cst)), numeric(1))
+           isTRUE(usp_regime(fit_cst$delta, x_cst)$volumes_constants) && diff(range(v)) == 0
          })
 
 ## --- Issue #4, piste 2 : etat du generateur aleatoire -------------------------
