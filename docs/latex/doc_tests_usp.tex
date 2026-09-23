@@ -492,7 +492,13 @@ réajustement à un seul démarrage (\code{factr = 1e7}), employé par
 fiche~\ref{fiche:centrage}) \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Lois exactes}}} \\
 \code{mk\_p\_exacte()} & série $r_t$ & p-value exacte (loi mahonienne) \\
-\code{runs\_p\_exacte()} & résidus $z_t$ & p-value exacte (Swed \& Eisenhart) \\
+\code{runs\_p\_exacte()} & résidus $z_t$ ou ratios centrés $u_t$ & p-value exacte
+(Swed \& Eisenhart), bilatérale par doublement (fiche~\ref{fiche:suites-wald-wolfowitz}) \\
+\code{usp\_runsr\_p\_exacte()} & $z_t$, $u_t$, drapeau \code{pi\_constant} &
+p-value exacte de \code{runs\_p\_exacte()} sur $u_t$ si $\hat\pi_t$ est constant
+\emph{et} si les signes de $u_t - \operatorname{med}(u)$ et de $z_t -
+\operatorname{med}(z)$ coïncident (\code{.signes\_mediane\_egaux()}), \code{NA}
+sinon \\
 \code{sw\_loi\_nulle()} & \code{n}, \code{B\_null} (20\,000), \code{seed}
 (20260901) & loi nulle simulée de $W$ (Shapiro--Wilk), triée et mise en cache \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Statistiques et tests}}} \\
@@ -510,11 +516,14 @@ ajusté \\
 \code{stats\_obs}, \code{p\_mc}, \code{err\_mc},
 \code{B\_effectif}, \code{granularite}, \code{sigma\_boot} \\
 \code{usp\_tests()} & \code{fit}, \code{boot}, \code{alpha} (0,10),
-\code{theta\_equiv} (0,10), \code{delta\_equiv} &
-liste des tests (H0, H1, statistique, 3 p-values, nature) \\
+\code{theta\_equiv} (0,10), \code{delta\_equiv}, \code{robustesse} (\code{NULL}) &
+liste des tests (H0, H1, statistique, 3 p-values, nature)~; \code{robustesse}, calculé par
+\code{run\_engine()} et non stocké, alimente le commentaire des lignes jackknife et intervalle
+bootstrap (fiches~\ref{fiche:jackknife} et~\ref{fiche:ic-bootstrap}) \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Robustesse et calibration}}} \\
 \code{usp\_jackknife()} & \code{fit}, $\sigma_{\text{std}}$, barème &
-table des $\sigma_{\mathrm{USP}}^{(-t)}$ \\
+table des $\hat\sigma^{(-t)}$, $\sigma_{\mathrm{USP}}^{(-t)}$, $\hat\delta^{(-t)}$,
+$\hat\gamma^{(-t)}$ \\
 \code{usp\_profil()} & \code{fit}, \code{n} (41 points) & profils en $\delta$ et $\gamma$, tests LR \\
 \code{usp\_segment\_infos()}, \code{usp\_bareme\_segment()} & segment, annexe &
 libellé, $\sigma$ standard, barème~; barème seul \\
@@ -1903,9 +1912,11 @@ Box--Pierce & LN & $Q$ & Non & Oui & Oui & Monte-Carlo &
 \textbf{Déconseillée} : encore moins bonne que Ljung--Box &
 Bootstrap ; préférer Ljung--Box \\
 
-Suites (W.--W.) & LN & $Z$ / $R$ & Oui (combinatoire) & Oui & Oui & \textbf{Exacte} &
+Suites (W.--W.) & LN & $Z$ / $R$ & Oui (combinatoire) & Oui & Oui & \textbf{Exacte}
+(doublement)~; sur ratios bruts $u_t$~: \textbf{exacte} si $\hat\pi_t$ constant
+\emph{et} signes de $u_t$ et $z_t$ identiques, Monte-Carlo sinon &
 \textbf{Déconseillée} : approx. normale requiert $n_1,n_2\ge 10$ &
-Distribution exacte à privilégier \\
+Distribution exacte à privilégier~; $p_{\min} = 0{,}057$ à $T = 8$ \\
 
 Centrage des résidus & LN & --- & --- & --- & --- &
 \textbf{Diagnostic} & Sans objet & Aucune p-value~: $\bar z$ est rivé par une
@@ -2370,7 +2381,12 @@ l'hétéroscédasticité résiduelle. En revanche, \textbf{la p-value de Monte-C
 reste exactement valide}~: le bootstrap paramétrique simule $Y_t$ sous le modèle
 ajusté, donc la loi de référence d'une statistique quelconque des données --- y
 compris calculée sur $u_t$ --- est correctement reproduite, hétéroscédasticité
-comprise. C'est cette p-value que le moteur retient sur cette base.
+comprise. C'est cette p-value que le moteur retient sur cette base, avec une
+seule exception~: le test des suites sur ratios bruts retient la p-value exacte
+de la loi combinatoire de $R$ lorsque $\hat\pi_t$ est constant et que les
+signes de $u_t$ coïncident avec ceux de $z_t$, les $r_t$ étant alors i.i.d.
+sous le modèle ajusté (issue~\#29~; condition détaillée à la
+fiche~\ref{fiche:suites-wald-wolfowitz}, rubrique~5).
 
 Vérification par simulation à $T = 8$, sous $H_0$, statistiques calculées sur
 $u_t$ et p-values de Monte-Carlo (400 réplications, $B = 199$)~:
@@ -2424,11 +2440,25 @@ dépend que des signes des écarts à la médiane, qu'une transformation monoton
 préserve~: elle prend donc la \textbf{même valeur} sur les deux bases. Mesuré
 sur le jeu de contrôle ($T = 8$, $\hat\delta = 1$)~: $Z = -0{,}7637626$ sur
 $z_t$ comme sur $u_t$, et les huit signes de $r_t - \operatorname{med}(r)$ et de
-$z_t - \operatorname{med}(z)$ coïncident un à un. Les deux lignes affichent
-néanmoins des p-values différentes ($1{,}000$ contre $0{,}768$), non parce que
-la statistique diffère, mais parce que la ligne sur $z_t$ retient la p-value
-exacte combinatoire alors que celle sur $u_t$ retient une p-value de
-Monte-Carlo.
+$z_t - \operatorname{med}(z)$ coïncident un à un. Jusqu'à l'issue~\#29, les
+deux lignes affichaient néanmoins des p-values différentes ($1{,}000$ contre
+$0{,}768$). Cet écart de $0{,}232$ ne tenait qu'en partie à la méthode retenue
+(p-value exacte sur $z_t$, de Monte-Carlo sur $u_t$)~: il se décomposait en
+$+0{,}257$ de \emph{convention bilatérale} et $-0{,}025$ d'\emph{erreur de
+Monte-Carlo}. La p-value exacte valait alors $1{,}000$ parce que
+\code{runs\_p\_exacte()} sommait les probabilités des issues au plus aussi
+probables que l'issue observée~: $R = 4$ étant observé et $R = 4$, $5$, $6$
+ayant la même probabilité modale $18/70$, toutes les issues étaient comptées.
+Le bootstrap applique au contraire le doublement, $2\min\big(P(R \le R_{\text{obs}}),
+P(R \ge R_{\text{obs}})\big)$, dont la valeur exacte est ici
+$2 \cdot 26/70 = 52/70 = 0{,}743$~; les p-values de Monte-Carlo, $0{,}762$ sur
+$z_t$ et $0{,}768$ sur $u_t$ (erreur de Monte-Carlo $0{,}013$), estiment cette
+quantité, d'où $1{,}000 - 0{,}743 = 0{,}257$ et $0{,}743 - 0{,}768 = -0{,}025$.
+Depuis l'issue~\#29, \code{runs\_p\_exacte()} applique le doublement et la
+ligne sur $u_t$ reçoit la p-value exacte dans ce régime
+(fiche~\ref{fiche:suites-wald-wolfowitz}, rubrique~5)~: les deux lignes portent
+désormais la même p-value exacte, $52/70 = 0{,}743$, et la colonne
+\code{p\_mc} de chacune l'estime, à l'erreur de Monte-Carlo près.
 
 \emph{Pour les cinq autres, un écart du second ordre.} En écrivant
 $r_t = \bar r\,(1 + \varepsilon_t)$, le développement de $\ln$ donne
@@ -2453,8 +2483,9 @@ sur $z_t$ et $1{,}3\cdot 10^{-4}$ sur $u_t$ --- sans que le verdict en dépende
 à ce niveau de p-value.
 
 \emph{Ce que cela change pour le dossier, et ce que cela ne change pas.} Les
-six lignes restent exactes~: leur statistique, leur p-value de Monte-Carlo et
-leur verdict sont justes, et elles gardent tout leur sens \emph{lorsque
+six lignes restent exactes~: leur statistique, leur p-value retenue --- de
+Monte-Carlo, sauf pour le test des suites, qui retient dans ce régime la
+p-value exacte --- et leur verdict sont justes, et elles gardent tout leur sens \emph{lorsque
 $\hat\pi_t$ varie}, cas pour lequel elles ont été prévues. Ce qui était faux
 est la promesse formulée sans condition~: présentées comme six vérifications
 indépendantes, elles sont, à $\hat\pi_t$ constant, des \textbf{quasi-doublons}
@@ -2471,7 +2502,10 @@ $49{,}3~\%$ --- ont un $\hat\pi_t^{*}$ constant (constat de simulation, graine
 \medskip
 \begin{encadre}
 \textbf{Usage recommandé.} La base $z_t$ reste celle du dossier~: c'est la seule
-sur laquelle les p-values exactes et asymptotiques sont valides, et c'est elle
+sur laquelle les p-values exactes et asymptotiques sont valides (à l'exception
+de la p-value exacte des suites sur $u_t$, attribuée seulement lorsque
+$\hat\pi_t$ est constant, où la ligne n'apporte rien de plus que son homologue
+sur $z_t$), et c'est elle
 qui teste les hypothèses telles que l'annexe~XVII les formule. La base $u_t$ est
 un \emph{contrôle de cohérence de la pondération}, \textbf{sous la condition
 que cette pondération existe}~: elle vérifie que les conclusions
@@ -2788,13 +2822,25 @@ $k/(T-1)$.
 \Pval
 Celle du test de Fisher,
 $p = 1 - F_{\mathcal{F},k,T-k-1}\!\big(\tfrac{R^2/k}{(1-R^2)/(T-k-1)}\big)$.
-Le script n'affiche pas de p-value sur cette ligne et lui donne le type \code{diagnostic}.
+Le script n'affiche pas de p-value sur cette ligne et lui donne le type \code{diagnostic}~: elle
+est restituée \code{INFO}, sans verdict ni sens du test (\code{sens\_du\_test} à \code{NA}). Le
+commentaire donne $R^2_{\text{aj}}$, l'espérance $1/(T-1)$ de $R^2$ sous $b = 0$ et la position
+de $R^2$ par rapport au repère conventionnel $0{,}5$ (« en dessous » ou « au-dessus »)~; ce repère
+n'est associé à aucune loi de référence ni à aucun niveau, et ne produit aucun verdict.
 \Usage
 La loi bêta donne la clé de lecture essentielle~: sous $H_0$, l'espérance de $R^2$ vaut
 $k/(T-1)$, soit $11\,\%$ pour $T=10$. Autrement dit, un $R^2$ apparemment « correct » est
 mécaniquement facile à atteindre sur un petit échantillon et ne doit jamais être lu comme une
-validation du modèle. Le script signale $R^2 < 0{,}5$ comme point d'attention, et il convient de
-privilégier $R^2_{\text{aj}}$, qui pénalise le nombre de paramètres.
+validation du modèle. Le script signale $R^2 < 0{,}5$ comme point d'attention, par le seul
+commentaire, et il convient de
+privilégier $R^2_{\text{aj}}$, qui pénalise le nombre de paramètres. \emph{Pourquoi aucun
+verdict} (ADR~0001, amendement du 23/09/2026)~: l'hypothèse $b = 0$ sous laquelle la loi bêta
+vaut n'est pas une alternative candidate du modèle réglementaire, où $\beta > 0$, et elle est
+déjà portée par les tests de Student sur la pente et de Fisher~; sous le modèle réglementaire,
+$R^2$ est gouverné par la dispersion des volumes rapportée à celle du bruit, de sorte qu'un $R^2$
+faible peut décrire l'étroitesse de la plage des $x_t$ plutôt qu'une inadéquation. Mesuré sur le
+jeu de contrôle~: $R^2 = 0{,}244$, sous le repère~; cette valeur ne permet, à elle seule, de
+conclure à aucun écart au modèle.
 \end{fiche}
 
 \begin{fiche}{Test RESET de Ramsey}
@@ -3188,7 +3234,13 @@ la fiche~\ref{fiche:centrage}.
 \Loi
 Sans objet.
 \Pval
-Sans objet~; le script marque la ligne \code{ALERTE} si la solution est au bord, \code{OK} sinon.
+Sans objet. La ligne est restituée \code{INFO}, sans verdict ni sens du test
+(\code{sens\_du\_test} à \code{NA}), que la solution soit au bord ou non~; la position de
+$\hat\delta$ est dite par le commentaire, qui porte l'un de trois libellés~:
+\code{VOLUMES CONSTANTS} (prioritaire, avec sa variante dans la bande de tolérance, voir
+ci-dessous), \code{SOLUTION AU BORD} si \code{\$delta\_au\_bord} est vrai, et « intérieur du
+domaine » sinon. Jusqu'à l'issue~\#24, le script marquait la ligne \code{ALERTE} au bord et
+\code{OK} à l'intérieur.
 \Usage
 Une solution \emph{au bord} signifie que les données ne permettent pas d'identifier un mélange
 interne des deux composantes de variance~: la vraisemblance est monotone en $\delta$ sur $[0,1]$
@@ -3197,7 +3249,12 @@ car (i) l'écart-type asymptotique de $\hat\delta$ n'est alors pas défini de ma
 (ii) le paramètre final peut varier fortement selon la borne retenue, et (iii) la théorie
 asymptotique standard des tests sur $\delta$ ne s'applique plus (voir la correction de Chernoff
 en section~\ref{sec:robustesse}). Sur des historiques de 5 à 12 points, la solution au bord est le cas de figure le
-plus fréquent en pratique.
+plus fréquent en pratique. \emph{Pourquoi aucun verdict} (ADR~0001, amendement du
+23/09/2026)~: la position de $\hat\delta$ décrit l'identifiabilité de la structure de variance,
+non l'adéquation du modèle, et n'a ni hypothèse nulle ni loi de référence~; un marquage
+\code{ALERTE} au bord, cas le plus fréquent sur ces historiques, ne distinguerait aucun dossier
+d'un autre. La décision formelle sur $\delta = 0$ ou $\delta = 1$ relève du test du rapport de
+vraisemblance (fiche~\ref{fiche:rv-delta}).
 
 \textbf{Volumes constants} (issue~\#58). Si les $x_t$ sont constants (drapeau
 \code{\$volumes\_constants} de \code{usp\_regime()}, tolérance relative
@@ -3719,13 +3776,78 @@ p-value exacte, retenue par le moteur~: elle est calculée par \code{runs\_p\_ex
 exacte de $R$ conditionnelle à $(n_1, n_2)$, celle de F.~Swed et C.~Eisenhart (1943, section~\ref{sec:biblio}),
 tabulée par \code{.runs\_dens()}. L'approximation normale $p = 2\big(1 - \Phi(|Z|)\big)$ est
 également calculée et restituée comme p-value asymptotique, sans être retenue.
+
+\emph{Convention bilatérale.} Le moteur applique le doublement (issue~\#29)~:
+\[
+  p \;=\; \min\Big\{1,\; 2\min\big(P(R \le R_{\text{obs}}),\ P(R \ge R_{\text{obs}})\big)\Big\},
+\]
+les probabilités étant celles de la loi exacte de $R$ à $(n_1, n_2)$ fixés. Le test est
+bilatéral parce que $H_1$ couvre le regroupement (trop peu de suites, $Z < 0$) aussi bien que
+l'alternance (trop de suites, $Z > 0$), comme le test de Durbin--Watson
+(fiche~\ref{fiche:durbin-watson}), dont la p-value exacte est elle aussi obtenue par doublement.
+Le doublement est en outre la convention de la p-value de Monte-Carlo de la même ligne (rejet
+bilatéral du bootstrap, section~\ref{sec:mc})~: les colonnes \code{p\_exacte} et \code{p\_mc}
+d'une même ligne estiment ainsi la même quantité. C'est une convention, l'une des définitions de
+la p-value bilatérale discutées par J.\,D. Gibbons et J.\,W. Pratt (1975,
+section~\ref{sec:biblio}). Elle remplace la sommation des probabilités des issues au plus aussi
+probables que l'issue observée, appliquée jusqu'à l'issue~\#29, qui donnait $p = 1$ pour toute
+valeur modale de $R$ (section~\ref{sec:base-residus}, « Ce contrôle est sans objet lorsque
+$\hat\pi_t$ est constant »).
+
+\emph{Valeurs atteignables.} À $T = 8$ sans ex \ae quo, la médiane sépare $n_1 = n_2 = 4$ signes,
+$70\,P(R = 2, \dots, 8) = (2, 6, 18, 18, 18, 6, 2)$, et la p-value ne prend que quatre valeurs~:
+$1$ ($R = 5$), $52/70 = 0{,}743$ ($R \in \{4, 6\}$), $16/70 = 0{,}229$ ($R \in \{3, 7\}$) et
+$4/70 = 0{,}057$ ($R \in \{2, 8\}$). Le test est donc \emph{inopérant} --- sa plus petite p-value
+atteignable dépasse le seuil --- à tout seuil $\alpha < 4/70$, soit $\alpha \le 0{,}057$~; le moteur le
+restitue néanmoins comme test dans tous les cas (le traitement des tests inopérants relève de
+l'issue~\#44). À $T = 5$, l'observation médiane est écartée, $n_1 = n_2 = 2$, $R$ est uniforme sur
+$\{2, 3, 4\}$ et $p \in \{2/3\ (R \in \{2, 4\}),\ 1\ (R = 3)\}$. \textbf{Réserve}~: $n_1 \ne n_2$ ne
+se produit qu'en présence d'ex \ae quo sur la médiane (pour $T$ impair, l'observation médiane est
+écartée et, sans autre ex \ae quo, $n_1 = n_2 = (T-1)/2$). La loi de $R$ est alors asymétrique
+--- à $n_1 = 3$, $n_2 = 4$, $35\,P(R = 2, \dots, 7) = (2, 5, 12, 9, 6, 1)$ --- et le doublement
+n'y est qu'une convention parmi d'autres.
+
+\emph{Ligne des suites sur ratios bruts.} La même statistique est calculée sur les ratios
+centrés $u_t = r_t - \bar r$ (section~\ref{sec:base-residus}). Elle reçoit la p-value exacte,
+calculée par \code{usp\_runsr\_p\_exacte()} (\code{runs\_p\_exacte()} appliquée à $u_t$), sous
+deux conditions cumulatives~:
+(i)~$\hat\pi_t$ constant au sens de \code{usp\_regime()} ($\hat\delta \ge 1 - 10^{-6}$ ou volumes
+égaux à $10^{-6}$ près en relatif, tolérance \code{TOL\_DELTA\_BORD})~: c'est la raison
+actuarielle, les $r_t$ étant alors i.i.d. sous le modèle ajusté et les $\binom{n}{n_1}$
+arrangements de signes équiprobables~;
+(ii)~signes de $u_t - \operatorname{med}(u)$ et de $z_t - \operatorname{med}(z)$ identiques terme à
+terme~: c'est la garantie exacte. À $\hat\pi_t$ exactement constant, (ii) découle
+mathématiquement de (i), $z_t$
+étant une transformation croissante de $r_t$~; dans la bande de tolérance, la variation
+résiduelle de $\hat\pi_t$ peut inverser un signe (cas construit dans les tests unitaires). La
+condition porte sur $u_t$, le vecteur effectivement testé, et non sur $r_t$~: en arithmétique
+flottante, le centrage peut faire basculer le signe d'une valeur égale ou quasi égale à la
+médiane. Si l'une des conditions manque, la p-value retenue est celle de Monte-Carlo, simulée
+sous le modèle ajusté avec ses $\hat\pi_t$~: lorsque $\hat\pi_t$ varie, les $r_t$ sont
+indépendants mais non identiquement distribués, les arrangements de signes ne sont plus
+équiprobables et la loi combinatoire n'est qu'une approximation, sans borne d'erreur connue à
+$T = 8$. Les cinq autres lignes de la base « ratios bruts » restent en Monte-Carlo dans tous les
+régimes. Mesuré (méthode prime, $B = 999$, graine 20260831)~: sur le jeu de contrôle
+($\hat\delta = 1$), p-value exacte $52/70 = 0{,}743$ sur les deux lignes, \code{p\_mc} $= 0{,}762$
+sur $z_t$ et $0{,}768$ sur $u_t$~; sur ses cinq premières années ($\hat\delta = 0$, $\hat\pi_t$
+variable), p-value exacte $2/3$ sur $z_t$ et p-value de Monte-Carlo $0{,}692$ retenue sur $u_t$.
+Deux limites. Dans la bande de tolérance ($\hat\pi_t$ constant à \code{TOL\_DELTA\_BORD} près
+seulement), les arrangements ne sont équiprobables qu'à un écart d'ordre $1 - \hat\delta$, ou de
+l'étendue relative des volumes, près~: la p-value n'est exacte qu'à cet ordre près, ce que le
+commentaire de la ligne indique. Et la p-value exacte est attribuée sur le régime \emph{estimé}
+$\hat\delta$, sans tenir compte de l'incertitude sur $\hat\delta$~; l'effet de cette incertitude
+sur la p-value n'est pas évalué.
 \Usage
 Test non paramétrique très général~: il détecte aussi bien une autocorrélation (trop peu de
 suites) qu'une alternance systématique (trop de suites), sans hypothèse de forme. Limite
 importante~: l'approximation normale n'est recommandée que pour $n_1, n_2 \ge 10$, soit
 $T \ge 20$. En-deçà, la loi exacte s'impose --- c'est elle que le moteur emploie (rubrique~5) ---,
 et la granularité de $R$ (entier compris
-entre 2 et $n$) limite fortement le nombre de p-values atteignables.
+entre 2 et $n$) limite fortement le nombre de p-values atteignables. À $T = 8$, au seuil par
+défaut $\alpha = 0{,}10$, seules les valeurs extrêmes $R \in \{2, 8\}$ conduisent au rejet
+($p = 0{,}057$, verdict \code{ALERTE})~; le verdict \code{ECHEC}, qui exige $p < \alpha/2 = 0{,}05$,
+est inatteignable. Le verdict \code{OK} couvre les cinq valeurs $R \in \{3, \dots, 7\}$, soit une
+probabilité $66/70 = 0{,}943$ sous $H_0$~: il ne vaut pas validation de l'indépendance.
 \end{fiche}
 
 \begin{fiche}{Condition du premier ordre (diagnostic numérique)}
@@ -3748,7 +3870,10 @@ $\displaystyle \mathrm{FOC} = \Big|\sum_t \hat\pi_t v_t\Big| \Big/ \sum_t \hat\p
 \Loi
 Sans objet.
 \Pval
-Aucune. Le moteur pose \code{ECHEC} si $\mathrm{FOC} > 10^{-6}$.
+Aucune. La ligne est restituée \code{INFO}, sans verdict ni sens du test
+(\code{sens\_du\_test} à \code{NA}). Le commentaire donne la valeur de $\mathrm{FOC}$ et le
+repère numérique $10^{-6}$, tolérance de calcul et non niveau de test~; jusqu'à l'issue~\#24, le
+moteur posait \code{ECHEC} au-delà de ce repère.
 \Usage
 \textbf{Point de vigilance essentiel.} C'est la moyenne \emph{pondérée} $\sum_t\hat\pi_t v_t$ qui
 est contrainte à zéro, et non la moyenne simple $\bar z$ des résidus standardisés. Les deux ne
@@ -3766,9 +3891,12 @@ $\ln\hat\beta = \big(T/2 + \sum_t\hat\pi_t\ln r_t\big)\big/\sum_t\hat\pi_t$~; en
 $v_t = \ln r_t + 1/(2\hat\pi_t) - \ln\hat\beta$, on obtient $\sum_t\hat\pi_t v_t = 0$
 \emph{identiquement}, pour tout couple $(\delta,\gamma)$ et non seulement à l'optimum. Vérifié
 numériquement sur des couples arbitraires --- $(0{,}5\,;-1)$, $(0\,;-3)$, $(1\,;0)$,
-$(0{,}3\,;-2{,}5)$, $(1\,;3)$ --- où $\mathrm{FOC}$ reste inférieur à $10^{-15}$. Le
-\code{ECHEC} de la rubrique~5 ne peut donc se déclencher qu'en cas d'anomalie arithmétique
-(débordement, valeur non finie), jamais parce que l'optimisation se serait arrêtée trop tôt. La
+$(0{,}3\,;-2{,}5)$, $(1\,;3)$ --- où $\mathrm{FOC}$ reste inférieur à $10^{-15}$. Un
+dépassement du repère de la rubrique~5 ne peut donc survenir qu'en cas d'anomalie arithmétique
+(débordement, valeur non finie), jamais parce que l'optimisation se serait arrêtée trop tôt~;
+c'est pourquoi la ligne ne porte aucun verdict (ADR~0001, amendement du 23/09/2026)~: un
+\code{OK} qui ne peut être perdu que sur une anomalie arithmétique n'apporterait aucune
+information sur l'estimation. La
 convergence en $\gamma$, elle, est signalée par l'écart de $\sum_t z_t^2$ à $T$
 (fiche~\ref{fiche:variance-unitaire}), seul indicateur de cette nature dans la restitution.
 \end{fiche}
@@ -4250,15 +4378,25 @@ où $\hat y_{i(-t)}$ est la prévision obtenue en retirant l'observation $t$.
 Aucune loi exacte. On rapproche parfois $D_t$ des quantiles de $\mathcal{F}(k, T-k)$, mais il
 s'agit d'une heuristique sans fondement rigoureux.
 \Pval
-Aucune. Le script applique le seuil conventionnel $D_t > 4/T$.
+Aucune. La ligne est restituée \code{INFO}, sans verdict ni sens du test
+(\code{sens\_du\_test} à \code{NA})~; le champ \code{estim} porte $\max_t D_t$. Le commentaire donne
+le repère conventionnel $4/T$ ($0{,}500$ à $T = 8$), le nombre d'observations au-dessus et leurs
+rangs~; ce repère n'est associé à aucune loi de référence ni à aucun niveau, et ne produit aucun
+verdict. Jusqu'à l'issue~\#24, le script marquait \code{ALERTE} une observation au-dessus de
+$4/T$ et \code{ECHEC} deux ou plus.
 \Usage
 Mesure combinée du levier et de l'ampleur du résidu~: elle répond à la question « de combien le
 modèle changerait-il si je retirais cette année ? ». C'est le diagnostic le plus directement utile
-en régime USP, où une seule année peut déterminer le paramètre. Limites~: le seuil $4/T$ est
+en régime USP, où une seule année peut déterminer le paramètre. Limites~: le repère $4/T$ est
 purement conventionnel (d'autres auteurs retiennent $1$), et la distance porte sur la régression
 contrainte des moindres carrés, non sur le modèle de vraisemblance complet -- le jackknife de la
 section~\ref{sec:robustesse} fournit la
-mesure exacte pour ce dernier.
+mesure exacte pour ce dernier. \emph{Pourquoi aucun verdict} (ADR~0001, amendement du
+23/09/2026)~: $D_t$ n'a pas de loi de référence (rubrique~4) et le repère n'est pas un niveau de
+test~; l'hypothèse sous-jacente, une année atypique, est testée avec p-value par Grubbs
+(fiche~\ref{fiche:grubbs}), et l'effet d'une année sur $\sigma_{\mathrm{USP}}$ est mesuré par le
+jackknife (fiche~\ref{fiche:jackknife}). Mesuré sur le jeu de contrôle~: $\max_t D_t = 0{,}554$,
+atteint à l'année~8, seule au-dessus du repère.
 \end{fiche}
 
 \begin{fiche}{Leviers (\emph{hat values}, diagnostic)}
@@ -4277,14 +4415,23 @@ $0 \le h_t \le 1$.
 \Loi
 Aucune.
 \Pval
-Aucune. Seuil conventionnel~: $h_t > 2k/T$.
+Aucune. La ligne est restituée \code{INFO}, sans verdict ni sens du test
+(\code{sens\_du\_test} à \code{NA})~; le champ \code{estim} porte $\max_t h_t$. Le commentaire donne
+le repère conventionnel $2k/T$ ($2/T = 0{,}250$ à $T = 8$, $k = 1$) et le nombre d'observations
+au-dessus~; ce repère n'est associé à aucune loi de référence ni à aucun niveau, et ne produit
+aucun verdict. Jusqu'à l'issue~\#24, le script marquait \code{ALERTE} tout dépassement.
 \Usage
 Le levier ne dépend que des $x_t$~: il identifie les années dont le \emph{volume} est atypique,
 indépendamment de la sinistralité observée. Une année à fort levier n'est pas problématique en
 soi, mais elle le devient si son résidu est également grand -- c'est exactement ce que combine la
 distance de Cook. En contexte USP, un levier élevé signale généralement une année de forte
 croissance ou une intégration de portefeuille, à rapprocher du contrôle d'amplitude du volume de
-la section~\ref{sec:controles}.
+la section~\ref{sec:controles}. \emph{Pourquoi aucun verdict} (ADR~0001, amendement du
+23/09/2026)~: $h_t$ ne dépend que des volumes, que le modèle réglementaire traite comme des
+covariables fixes et sur lesquels aucune de ses hypothèses ne porte~; il n'existe donc ni
+hypothèse nulle ni loi de référence, et le repère $2k/T$ --- deux fois le levier moyen $k/T$ ---
+est une règle de lecture. Mesuré sur le jeu de contrôle~: $\max_t h_t = 0{,}160$, aucune
+observation au-dessus du repère.
 \end{fiche}
 
 \newpage
@@ -4362,11 +4509,47 @@ Sans objet.
 L'estimateur jackknife du biais,
 $\widehat{\mathrm{biais}} = (T-1)\big(\overline{\sigma^{(-\cdot)}} - \hat\sigma\big)$, est
 également calculable à partir de la table produite.
+
+\emph{Part estimée et part standard.} Notons $\hat\sigma = \sigma(\hat\delta,\hat\gamma)$.
+On appelle \emph{part estimée} de $\sigma_{\mathrm{USP}}$ sa composante
+$c\,\sqrt{(T+1)/(T-1)}\;\hat\sigma$, par opposition à la
+\emph{part standard} $(1-c)\,\sigma_{\text{std}}$, qui ne dépend que de la table de l'annexe et
+du barème. Le facteur $c$ et la correction étant maintenus à ceux de l'échantillon complet
+(rubrique~1), la table produite par \code{usp\_jackknife()} vérifie l'identité
+\[
+  \sigma_{\mathrm{USP}}^{(-t)} - \sigma_{\mathrm{USP}}
+  \;=\; c\,\sqrt{\tfrac{T+1}{T-1}}\;\big(\hat\sigma^{(-t)} - \hat\sigma\big),
+\]
+d'où
+\[
+  \frac{\sigma_{\mathrm{USP}}^{(-t)} - \sigma_{\mathrm{USP}}}{\sigma_{\mathrm{USP}}}
+  \;=\; \frac{c\sqrt{(T+1)/(T-1)}\;\hat\sigma}{\sigma_{\mathrm{USP}}}\cdot
+  \frac{\hat\sigma^{(-t)} - \hat\sigma}{\hat\sigma}~:
+\]
+l'écart relatif de la part estimée est celui de
+$\hat\sigma$. Le facteur de gauche, compris entre~0 et~1, dépend de $\sigma_{\text{std}}$ (il
+vaut~1 lorsque $c = 1$, cas où les deux échelles coïncident)~; le second n'en dépend pas, ni
+de $c$. Le coefficient $c\sqrt{(T+1)/(T-1)}$ étant strictement
+positif, les deux échelles désignent, par construction, la même année d'écart maximal et
+donnent à l'écart le même signe. Le moteur restitue $\Delta_{\max}$ dans le champ \code{estim},
+non signé, et, dans le commentaire, l'année $t^\star$ qui l'atteint, l'écart \emph{signé} sur
+$\sigma_{\mathrm{USP}}$ et l'écart signé de la part estimée à cette même année,
+$\big(\hat\sigma^{(-t^\star)} - \hat\sigma\big)/\hat\sigma$. Le maximum ne porte que sur les années
+dont le réajustement a abouti~: une année dont le réajustement échoue n'a de valeur sur aucune
+des deux échelles et ne peut pas être désignée, même si elle était la plus influente. Si tous
+les réajustements échouent, la ligne est absente de la table.
 \Loi
 Aucune loi de référence n'est utilisée pour $\Delta_{\max}$.
 \Pval
-Aucune. Seuils conventionnels du script~: \code{ALERTE} au-delà de 10~\%, \code{ECHEC} au-delà de
-20~\%.
+Aucune. La ligne est restituée \code{INFO}, sans verdict ni sens du test
+(\code{sens\_du\_test} à \code{NA}). Le commentaire conserve, sur l'échelle de
+$\sigma_{\mathrm{USP}}$ seulement, le repère conventionnel 10~\% / 20~\%, qui n'est associé à
+aucune loi de référence ni à aucun niveau et ne produit aucun verdict~; jusqu'à l'issue~\#24, le
+script marquait \code{ALERTE} au-delà de 10~\% et \code{ECHEC} au-delà de 20~\%. Aucun repère
+n'est donné sur l'échelle de la part estimée~: transposer 10~\% ou 20~\% sur cette échelle
+reviendrait à les multiplier par $\sigma_{\mathrm{USP}}/\big(c\sqrt{(T+1)/(T-1)}\,\hat\sigma\big)$,
+rapport qui dépend de la table de l'annexe, et un repère fixe propre à cette échelle n'aurait
+aucune référence.
 \Usage
 C'est, à $T$ faible, le diagnostic le plus informatif de tout le dispositif. Il répond directement
 à la question que posera le superviseur~: le paramètre proposé résiste-t-il au retrait d'une seule
@@ -4375,6 +4558,24 @@ unique, ce qui fragilise le dossier bien davantage qu'un test de normalité en �
 jackknife suppose une influence approximativement linéaire de chaque observation, hypothèse
 discutable en présence d'une solution au bord sur $\delta$, où le retrait d'un point peut faire
 basculer l'optimum d'une borne à l'autre de façon discontinue.
+
+\emph{Deux échelles.} L'écart sur $\sigma_{\mathrm{USP}}$ est celui que subit le paramètre
+proposé~; il dépend de la table de l'annexe par la part standard $(1-c)\,\sigma_{\text{std}}$ du
+dénominateur, à données identiques. L'écart sur la part estimée mesure la seule sensibilité de
+l'estimation, indépendamment de la table et du barème. Mesuré (méthode prime, jeu de contrôle,
+$B = 999$, graine 20260831)~: au segment~1 de l'annexe~II, retrait de l'année~8, $-9{,}4~\%$ sur
+$\sigma_{\mathrm{USP}}$ et $-14{,}8~\%$ sur la part estimée~; au segment~6, $-7{,}0~\%$ sur
+$\sigma_{\mathrm{USP}}$ avec l'écart-type standard de 19~\% de la version consolidée du
+règlement, $-8{,}7~\%$ avec celui de 12~\% de la version d'origine de 2015, et $-14{,}8~\%$ sur la
+part estimée dans les deux cas. L'écart de $14{,}8~\%$ est un constat sur ce jeu~; il est de
+l'ordre de grandeur attendu pour un paramètre d'échelle estimé sur huit points~: au premier
+ordre, à résidus $z_t$ fixés (sans réajustement de $\delta$, $\gamma$ et $\beta$), le retrait de
+l'année $t$ déplace $\hat\sigma$ de $(1 - z_t^2)/\big(2(T-1)\big)$ en relatif, soit jusqu'à
+$10~\%$ environ sur ce jeu (approximation heuristique, non un résultat). \emph{Pourquoi aucun
+verdict} (ADR~0001, amendement du 23/09/2026)~: $\Delta_{\max}$ n'a pas de loi de référence, et
+le repère 10~\% / 20~\% n'est pas un niveau de test~; sur l'échelle de
+$\sigma_{\mathrm{USP}}$, son franchissement dépend en outre de la table de l'annexe, non des
+seules données.
 \end{fiche}
 
 \begin{fiche}{Intervalle de confiance par bootstrap paramétrique}
@@ -4391,12 +4592,31 @@ Sans objet (procédure d'estimation d'incertitude, non de décision).
 Quantiles empiriques de la distribution bootstrap~:
 $\big[\hat q_{\alpha/2},\, \hat q_{1-\alpha/2}\big]$ (intervalle de percentile), et largeur
 relative $L = \big(\hat q_{0{,}95} - \hat q_{0{,}05}\big)/\sigma_{\mathrm{USP}}$.
+$\sigma_{\mathrm{USP}}^{(b)}$ étant une fonction affine croissante de $\hat\sigma^{(b)}$, de
+coefficient $c\sqrt{(T+1)/(T-1)} > 0$, et le quantile empirique commutant avec une telle
+application, la largeur de l'intervalle vaut $c\sqrt{(T+1)/(T-1)}$ fois celle des quantiles de
+$\hat\sigma^{(b)}$. Le moteur restitue donc aussi la largeur relative sur la \emph{part estimée}
+(définie à la fiche~\ref{fiche:jackknife})~:
+\[
+  L_{\text{est}} = \frac{\hat q_{0{,}95}\big(\hat\sigma^{(\cdot)}\big) - \hat q_{0{,}05}\big(\hat\sigma^{(\cdot)}\big)}{\hat\sigma},
+  \qquad
+  L = \frac{c\sqrt{(T+1)/(T-1)}\;\hat\sigma}{\sigma_{\mathrm{USP}}}\; L_{\text{est}},
+\]
+où $L_{\text{est}}$ ne dépend ni de la table de l'annexe ni du barème. Le champ \code{estim}
+porte $L$~; le commentaire donne $L$, $L_{\text{est}}$ et les bornes de l'intervalle à 90~\% de
+$\sigma_{\mathrm{USP}}$.
 \Loi
 La distribution bootstrap approxime la loi d'échantillonnage de $\hat\sigma_{\mathrm{USP}}$
 conditionnellement au modèle ajusté.
 \Pval
-Aucune. Seuils conventionnels du script sur $L$~: \code{ALERTE} au-delà de 50~\%, \code{ECHEC}
-au-delà de 80~\%.
+Aucune. La ligne est restituée \code{INFO}, sans verdict ni sens du test
+(\code{sens\_du\_test} à \code{NA}). Le commentaire conserve, sur l'échelle de
+$\sigma_{\mathrm{USP}}$ seulement, le repère conventionnel 50~\% / 80~\% sur $L$, qui n'est
+associé à aucune loi de référence ni à aucun niveau et ne produit aucun verdict~; jusqu'à
+l'issue~\#24, le script marquait \code{ALERTE} au-delà de 50~\% et \code{ECHEC} au-delà de 80~\%.
+Aucun repère n'est donné sur $L_{\text{est}}$, pour la raison exposée à la
+fiche~\ref{fiche:jackknife}~: un repère transposé sur cette échelle bougerait avec la table de
+l'annexe.
 \Usage
 Quantifie l'incertitude d'échantillonnage du paramètre final, ce que ne fait aucun test
 d'hypothèse. Il est fréquent d'obtenir, sur un historique de 10 ans, un intervalle à 90~\% dont la
@@ -4405,6 +4625,23 @@ crédibilité en amortit une partie) mais doit être présenté explicitement. L
 de percentile n'est corrigé ni du biais ni de l'asymétrie -- les variantes BCa seraient plus
 exactes -- et il reste conditionnel à la validité du modèle paramétrique, donc optimiste si le
 modèle est mal spécifié.
+
+\emph{Dépendance de $L$ à la table de l'annexe.} À données identiques, $L$ varie avec
+$\sigma_{\text{std}}$ par le dénominateur. Mesuré (méthode prime, jeu de contrôle, segment~6 de
+l'annexe~II, $B = 999$, graine 20260831)~: la largeur $\hat q_{0{,}95} - \hat q_{0{,}05} = 0{,}06173$
+est la même avec l'écart-type standard de 12~\% de la version d'origine de 2015 et avec celui de
+19~\% de la version consolidée, mais $\sigma_{\mathrm{USP}}$ passe de $0{,}11965$ à $0{,}14835$ et
+$L$ de $0{,}5159$ à $0{,}4161$, de part et d'autre du repère de 50~\%~; $L_{\text{est}}$
+vaut $87{,}6~\%$ dans les deux cas. Au segment~1, $L = 55{,}4~\%$ et $L_{\text{est}} = 87{,}6~\%$.
+Cette dernière valeur est un constat sur ce jeu~; elle est de l'ordre de grandeur attendu pour un
+paramètre d'échelle estimé sur huit points~: pour un écart-type estimé à $\nu$ degrés de liberté
+sous normalité, la largeur relative de l'intervalle 5~\%--95~\% vaut
+$\sqrt{\chi^2_{0{,}95}(\nu)/\nu} - \sqrt{\chi^2_{0{,}05}(\nu)/\nu}$, soit $0{,}86$ pour $\nu = 7$
+et $0{,}93$ pour $\nu = 6$ (approximation heuristique, non un résultat). \emph{Pourquoi aucun
+verdict} (ADR~0001, amendement du 23/09/2026)~: $L$ quantifie l'incertitude d'échantillonnage
+sous le modèle ajusté, mais ne peut pas contredire ce modèle~; aucune loi de référence ni aucun
+niveau n'est attaché aux repères 50~\% / 80~\%, et leur franchissement dépend, sur l'échelle de
+$\sigma_{\mathrm{USP}}$, de la table de l'annexe autant que des données.
 \end{fiche}
 
 \begin{fiche}{Convergence multi-démarrages}
@@ -4427,7 +4664,10 @@ complétée par le code de retour de l'optimiseur.
 \Loi
 Sans objet.
 \Pval
-Aucune. \code{ALERTE} si $\hat\kappa < 0{,}5$ ou si le code de retour est non nul.
+Aucune. La ligne est restituée \code{INFO}, sans verdict ni sens du test
+(\code{sens\_du\_test} à \code{NA}). Le commentaire donne $\hat\kappa$, le repère conventionnel
+$0{,}5$ et le code de retour de l'optimiseur (0 pour une convergence)~; jusqu'à l'issue~\#24, le
+script marquait \code{ALERTE} si $\hat\kappa < 0{,}5$ ou si le code de retour était non nul.
 \Usage
 Garantit que le minimum rapporté est global et non local, ce qui n'a rien d'automatique~: la
 fonction objectif de l'annexe~XVII peut présenter un plateau très plat en $\delta$ lorsque
@@ -4436,6 +4676,9 @@ dans laquelle l'optimiseur s'arrête en des points différents selon son initial
 $\hat\kappa$ faible est un signal d'alerte à traiter \emph{avant} toute interprétation des tests,
 au même titre que l'écart de $\sum_t z_t^2$ à $T$ (fiche~\ref{fiche:variance-unitaire})~; la nullité de la
 moyenne pondérée des résidus, elle, est une identité et ne signale rien (fiche~\ref{fiche:foc}).
+\emph{Pourquoi aucun verdict} (ADR~0001, amendement du 23/09/2026)~: $\hat\kappa$ est un contrôle
+de calcul, non une statistique~; il n'a ni hypothèse nulle ni loi de référence, et le repère
+$0{,}5$ est une convention.
 \end{fiche}
 
 \newpage
@@ -4647,7 +4890,7 @@ les observations \emph{atypiques en volume} (levier élevé, résidu faible) de
 celles qui sont \emph{réellement influentes} (au-delà d'une iso-courbe de Cook).
 Un levier élevé seul n'est pas problématique~; c'est sa combinaison avec un
 résidu important qui l'est. Le deuxième donne la distance de Cook par année avec
-son seuil $4/T$. Le troisième, propre au projet, est le plus directement
+son repère conventionnel $4/T$ (sans verdict, fiche~\ref{fiche:cook}). Le troisième, propre au projet, est le plus directement
 exploitable en dossier~: il représente l'écart relatif sur $\sigma_{\mathrm{USP}}$
 induit par le retrait de chaque année, issu du jackknife. À $T = 8$, il n'est pas
 rare qu'une seule année déplace le paramètre de plus de 10~\%, ce que la seule
@@ -6142,8 +6385,8 @@ dans 92,5~\% des cas.
 \subsection*{Calibration des p-values de Monte-Carlo}
 
 C'est le point le plus important, puisque ces p-values sont celles retenues pour la majorité des
-tests --- mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$), 26 des 50 lignes de
-la table auditable retiennent une p-value de Monte-Carlo, contre 9 une p-value exacte, 1 une
+tests --- mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$), 25 des 50 lignes de
+la table auditable retiennent une p-value de Monte-Carlo, contre 10 une p-value exacte, 1 une
 p-value quasi-exacte et 2 une p-value asymptotique, les 12 dernières n'ayant aucune p-value
 retenue (10 diagnostics, 1 procédure de décision et 1 ligne non applicable). Sur 400 jeux de données simulés \emph{depuis le modèle} de
 l'annexe~XVII, la fréquence de
@@ -6388,6 +6631,16 @@ soutient dans le présent document.
   nombre de suites, qui est celle implémentée dans le moteur, l'approximation
   normale n'étant conservée qu'à titre indicatif.
 
+  \item J.\,D. Gibbons, J.\,W. Pratt, \emph{P-values: interpretation and
+  methodology}, \emph{The American Statistician}, 29(1), 1975, p.~20--25.
+  \emph{Portée.} Référence sur les définitions concurrentes de la p-value
+  bilatérale, citée pour situer la convention du doublement retenue par
+  \code{runs\_p\_exacte()} depuis l'issue~\#29
+  (fiche~\ref{fiche:suites-wald-wolfowitz}). Elle n'est invoquée que pour
+  établir que le doublement est une convention~; le choix du moteur est motivé
+  dans la fiche par la cohérence avec la p-value de Monte-Carlo et avec
+  Durbin--Watson, non par une recommandation de cet article.
+
   \item D.\,J. Best, D.\,E. Roberts, \emph{Algorithm AS 89: The upper tail
   probabilities of Spearman's $\rho$}, \emph{Journal of the Royal Statistical
   Society, Series C (Applied Statistics)}, 24(3), 1975, p.~377--379.
@@ -6530,13 +6783,15 @@ statistique ou actuarielle.
 Noyau du modèle ($\pi_t$, $\hat\beta$, $z_t$) & \code{usp\_pi()}, \code{usp\_noyau()} \\
 Optimisation sous contrainte $\delta\in[0,1]$ & \code{usp\_objectif()}, \code{usp\_ajuster()} \\
 $\hat\delta$ au bord, $\hat\pi_t$ constant (fiches~\ref{fiche:position-delta}, \ref{fiche:centrage}) & \code{usp\_regime()}, tolérance \code{TOL\_DELTA\_BORD} \\
-Lois exactes (Kendall, suites) & \code{mk\_p\_exacte()}, \code{runs\_p\_exacte()} \\
+Lois exactes (Kendall, suites) & \code{mk\_p\_exacte()}, \code{runs\_p\_exacte()},
+\code{usp\_runsr\_p\_exacte()} \\
 Statistiques de test & \code{stat\_*()}, \code{test\_*()} \\
 Bootstrap paramétrique et p-values MC & \code{.stats\_bootstrapables()}, \code{usp\_bootstrap()} \\
 Hiérarchie exacte $\succ$ MC $\succ$ asymptotique & fonction \code{add()} interne à \code{usp\_tests()}~;\newline
 fonction \code{add()} homonyme interne à \code{mw\_tests()} \\
 Sortie de la hiérarchie (grandeur rivée par l'estimation) & branche finale de \code{add()}~:
-\code{p\_retenue} et \code{nature\_p} à \code{NA}, verdict \code{INFO} \\
+\code{p\_retenue} et \code{nature\_p} à \code{NA}, verdict \code{INFO}, seul admis
+hors des types \code{test} et \code{procedure de decision} \\
 Réserve sur la base « ratios bruts » à $\hat\pi_t$ constant & champ \code{detail} des six lignes
 de base \code{r} dans \code{usp\_tests()} \\
 Erreur de Monte-Carlo & champ \code{err\_mc} de \code{usp\_bootstrap()} et de
@@ -6712,16 +6967,30 @@ les fondements théoriques du bootstrap et des tests de Monte-Carlo.
 \textbf{Verdict} & \textbf{Signification} \\
 \midrule
 \code{OK} & p-value \emph{retenue} --- celle que désigne \code{nature\_p}, choisie dans l'ordre
-exacte $\succ$ Monte-Carlo $\succ$ asymptotique --- au-dessus du seuil d'alerte, ou diagnostic
-sans anomalie. Pour les tests de Student sur la pente et de Fisher, la logique est inversée~:
-\code{OK} correspond à un $p$ \emph{faible}. \\
-\code{ALERTE} & p-value retenue dans la zone intermédiaire $[\alpha/2\,;\,\alpha]$ (par défaut
-$[5\,\%\,;\,10\,\%]$), ou diagnostic structurel à documenter~: solution au bord sur $\delta$,
-point influent isolé, jackknife entre 10~\% et 20~\%, intervalle bootstrap large. \\
-\code{ECHEC} & p-value retenue sous le seuil strict, ou anomalie structurelle marquée. N'invalide pas
+exacte $\succ$ Monte-Carlo $\succ$ asymptotique --- au-dessus du seuil d'alerte, ou, pour la
+procédure ESD de Rosner (fiches~\ref{fiche:rosner-esd} et~\ref{mw:m4ros}), aucune valeur
+aberrante détectée au niveau $\alpha$. Pour le TOST et les tests de Student sur la pente et de
+Fisher, la logique est inversée~: \code{OK} correspond à un $p$ \emph{faible} ($p < \alpha$),
+\code{ALERTE} à $\alpha \le p < 0{,}30$ et \code{ECHEC} à $p \ge 0{,}30$. \\
+\code{ALERTE} & p-value retenue dans la zone intermédiaire $[\alpha/2\,;\,\alpha[$ (par défaut
+$[5\,\%\,;\,10\,\%[$), ou, pour la procédure ESD, une valeur aberrante détectée. \\
+\code{ECHEC} & p-value retenue sous le seuil strict $\alpha/2$, ou, pour la procédure ESD, deux
+valeurs aberrantes ou plus. N'invalide pas
 mécaniquement l'USP, mais impose une justification explicite~: nature de l'écart, retraitement
 envisagé, sensibilité du paramètre final. \\
-\code{INFO} & Diagnostic sans seuil statistique associé~: test non applicable faute d'effectif
+\code{INFO} & Toute ligne dont le type n'est ni \code{test} ni \code{procedure de decision}
+(ADR~0001, amendement du 23/09/2026)~: diagnostics et lignes non applicables, dont
+\code{p\_retenue}, \code{nature\_p} et \code{sens\_du\_test} valent \code{NA}~; le moteur refuse
+qu'un verdict soit fourni pour une telle ligne. Les seuils conventionnels attachés aux
+diagnostics --- $2k/T$ pour les leviers, $4/T$ pour la distance de Cook, $0{,}5$ pour $R^2$,
+$10^{-6}$ pour la condition du premier ordre, $0{,}5$ des démarrages, 10~\% / 20~\% pour le
+jackknife, 50~\% / 80~\% pour la largeur de l'intervalle bootstrap --- et les libellés de la
+position de $\hat\delta$ (fiches~\ref{fiche:leviers}, \ref{fiche:cook}, \ref{fiche:r2},
+\ref{fiche:foc}, \ref{fiche:multi-demarrages}, \ref{fiche:jackknife}, \ref{fiche:ic-bootstrap}
+et~\ref{fiche:position-delta}) sont des \emph{repères} conservés dans le commentaire, non des
+seuils de rejet~: ils ne produisent aucun verdict.
+Une ligne de type \code{test} sans p-value retenue sort aussi \code{INFO}.
+Relèvent notamment de ce verdict~: test non applicable faute d'effectif
 ($T < 8$ pour D'Agostino, $T < 20$ pour Anscombe--Glynn), grandeur rivée par l'estimation
 (fiches~\ref{fiche:centrage} et~\ref{fiche:variance-unitaire}), grandeur descriptive, ou lecture graphique.
 Relève aussi de ce verdict la grandeur dont la valeur est \emph{contrainte par
@@ -6758,9 +7027,9 @@ repère indicatif de 40~\% du second n'emporte aucun verdict (ADR~0001). \\
         $\succ$ asymptotique} (section~\ref{sec:nature})~: la p-value de Monte-Carlo n'est
         pas la première servie, elle vient \emph{après} la p-value exacte lorsque celle-ci
         existe. Mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$)~: des 50
-        lignes de la table auditable, 9 retiennent une p-value exacte, et 8 d'entre
+        lignes de la table auditable, 10 retiennent une p-value exacte, et 9 d'entre
         elles disposent pourtant d'une \code{p\_mc} qui n'est pas retenue~: lire
-        systématiquement \code{p\_mc} reviendrait à écarter huit p-values exactes au profit
+        systématiquement \code{p\_mc} reviendrait à écarter neuf p-values exactes au profit
         d'estimations entachées d'une erreur de Monte-Carlo (section~\ref{sec:deuxerreurs}).
         Les trois colonnes restent affichées~: leur comparaison est un contrôle utile, mais
         elle ne modifie pas le verdict.
@@ -6779,7 +7048,8 @@ Anscombe--Glynn & $T \ge 20$ & Non défini en-deçà~; marqué \code{INFO}. \\
 D'Agostino (asymétrie) & $T \ge 8$ & Non défini en-deçà~; puissance faible jusqu'à $T \approx 20$. \\
 Jarque--Bera & $T \ge 50$ & $b_2$ borné par $\approx T$~; convergence $\chi^2$ très lente. \\
 Ljung--Box / Box--Pierce & $T \ge 30$ & Approximation $\chi^2$ mal calibrée. \\
-Wald--Wolfowitz & $n_1,n_2 \ge 10$ & Approximation normale~; granularité de $R$. \\
+Wald--Wolfowitz & $n_1,n_2 \ge 10$ & Approximation normale~; granularité de $R$ (loi exacte
+retenue, $p_{\min} = 0{,}057$ à $T = 8$). \\
 Breusch--Pagan / White & $T \ge 30$ & Convergence asymptotique lente. \\
 Rosner ESD & $T \ge 25$ & Valeurs critiques peu fiables en-deçà. \\
 Durbin--Watson & --- & Bornes invalides sur résidus de maximum de vraisemblance. \\
@@ -6862,6 +7132,8 @@ fonction de calcul commune aux deux branches \\
 résidus de Mack \\
 \code{test\_rosner()} & LN + MW & ESD généralisé, dans les deux méthodes \\
 \code{test\_runs()} & LN + MW & Test des suites, dans les deux méthodes \\
+\code{runs\_p\_exacte()} & LN & p-value exacte des suites sur $z_t$ et, par
+\code{usp\_runsr\_p\_exacte()}, sur ratios bruts \\
 \code{stat\_dw()} & LN + MW & Durbin--Watson, dans les deux méthodes \\
 \code{.shapiro\_sur()} & LN + MW & Shapiro--Wilk (Royston et loi nulle simulée),
 dans les deux méthodes \\
@@ -6874,7 +7146,8 @@ résidus $z_t$, donc l'intégralité de H2, H3, H4 \\
 \code{usp\_regime()} & LN & Drapeau de la position de $\hat\delta$, libellés du
 centrage et de la variance unitaire (constance de $\hat\pi_t$ exacte ou à la
 tolérance près), réserve du champ \code{detail} des six
-lignes sur ratios bruts~: une seule tolérance, \code{TOL\_DELTA\_BORD} \\
+lignes sur ratios bruts et première condition de la p-value exacte des suites sur ces ratios~:
+une seule tolérance, \code{TOL\_DELTA\_BORD} \\
 \code{.stats\_bootstrapables()} & LN & Les 34 statistiques bootstrapées de la
 méthode lognormale, en un seul appel \\
 \code{mw\_ajuster()} & MW & $\hat f_j$, $\hat\sigma_j^2$, $\hat C(i,j)$~: entrée
