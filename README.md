@@ -83,7 +83,7 @@ propriétés distinctes :
 | Propriété | Ce qui est vérifié | Statut |
 |---|---|---|
 | Reproductibilité à graine égale | `identical()` entre deux appels de `run_engine()` à données, paramètres et `seed` identiques, sur une même machine | au bit près, mesuré |
-| Non-régression | `all.equal(tolerance = 1e-8)` contre les références versionnées (`tests/reference/*.rds`), produites sur la plateforme désignée par l'ADR 0006 | à tolérance explicite ; ce n'est pas du bit près |
+| Non-régression | comparaison valeur par valeur (`comparer_objets()`, tolérance 1e-6, relative ou absolue pour une référence quasi nulle) contre les références versionnées (`tests/reference/*.rds`), produites sur la plateforme désignée par l'ADR 0006 | à tolérance explicite ; ce n'est pas du bit près |
 
 La seconde comparaison absorbe volontairement la dérive d'arrondi d'une
 plateforme à l'autre (écart relatif maximal mesuré 3,5e-07 sur la branche
