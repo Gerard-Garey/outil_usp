@@ -31,6 +31,10 @@ _Avoid_ : test non significatif
 **Sensibilité à δ** :
 Le diagnostic qui donne σ_USP recalculé avec δ fixé à 0 puis à 1, pour mesurer l'effet de l'incertitude sur δ sur le paramètre final ; le σ_USP retenu reste celui du maximum de vraisemblance.
 
+**Test retenu** :
+Une ligne de la table des tests (test ou diagnostic) que la personnalisation de la restitution conserve : cochée par l'utilisateur et calculée sur la base de résidus choisie pour ce test, ou à base unique. La sélection ne touche à aucun calcul — le moteur produit toutes les lignes — et une seule règle la définit (`filtrer_selection()`), appliquée à l'identique par l'onglet Tests et par le rapport figé ; une ligne non retenue est un **test exclu**, restitué en annexe du rapport figé avec son verdict et le motif de son exclusion (ADR 0009).
+_Avoid_ : test sélectionné, test affiché ; test désactivé, test masqué (suggèrent un effet sur le calcul)
+
 ## P-values
 
 **P-value exacte** :
@@ -76,3 +80,13 @@ _Avoid_ : tolérance agrégée, différence relative moyenne (critère antérieu
 **Référence de non-régression** :
 L'objet complet retourné par `run_engine()` pour un cas de test, enregistré dans `tests/reference/*.rds` (produit sur la plateforme désignée par l'ADR 0006) et auquel le second volet de `tests/test_reproductibilite.R` compare le résultat courant selon le critère de non-régression : feuille par feuille, tolérance 1e-6 par valeur élémentaire, structure contrôlée à part. Cette comparaison n'est pas du bit près : elle absorbe volontairement la dérive de plateforme (mesurée : écart relatif maximal 3,5e-07 sur les tirages bootstrap, 44 % des feuilles touchées, ADR 0006), mais tout écart au-delà du seuil sur une seule feuille, tout chemin ajouté ou retiré, toute feuille non numérique différente, est une régression nommée par son chemin. Tout champ ajouté, retiré ou modifié impose une régénération sur la plateforme désignée — ou, pour les seules grandeurs non numériques, un patch chirurgical (ADR 0006, premier amendement) — accompagnée d'un tableau avant / après expliqué ligne à ligne.
 _Avoid_ : golden file, snapshot ; « comparé au bit près » (propriété de la reproductibilité à graine égale, pas de la non-régression)
+
+## Restitution figée
+
+**Rapport figé** :
+Le document HTML autonome — un seul fichier, aucune ressource chargée par URL — qui restitue l'objet retourné par `run_engine()` tel qu'il est en mémoire au moment de sa génération : données du calcul (jamais la saisie courante), contrôles, paramètre retenu et calibration, tests retenus, tests exclus en annexe, graphiques, et empreintes. Il ne relance aucun calcul ; toute valeur qu'il porte vient du moteur (ADR 0009, `docs/exigences.md` § 5.6).
+_Avoid_ : export (désigne les tables CSV brutes), rapport dynamique, snapshot, rapport de session
+
+**Empreinte** :
+Un md5 qui identifie ce que le rapport figé restitue, calculé par le moteur hors `run_engine()` (`engine_empreinte()`). Trois empreintes, de statut différent : celle des **données** (texte canonique des données du calcul) ne dépend que des valeurs et se recalcule par un tiers ; celle du **résultat** (objet sérialisé sans horodatage ni durée) est stable sur une même machine mais dépend de la plateforme (ADR 0006) et ne se compare pas d'une machine à l'autre ; celle du **code** (octets de `R/engine.R`, avec la version de `DESCRIPTION`) identifie le moteur chargé. Elle atteste la correspondance entre une pièce et une exécution, pas l'authenticité de la pièce.
+_Avoid_ : hash, checksum, somme de contrôle ; signature (aucune clé : l'empreinte ne prouve pas la provenance)

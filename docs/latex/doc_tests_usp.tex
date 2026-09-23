@@ -290,7 +290,9 @@ Toute primitive Shiny (\code{input\$}, \code{output\$}, \code{reactive()},
 \code{app.R} & Saisie, déclenchement, stockage réactif, agencement des onglets &
 Tout calcul statistique ou actuariel \\
 \code{R/display\_helpers.R} & Formatage des nombres et des tableaux, tracés à
-partir de \code{res\$plots\_data} & Tout calcul de statistique, de p-value ou
+partir de \code{res\$plots\_data}, rapport HTML figé d'un résultat
+(\code{rapport\_html()}) et identité du code qu'il restitue
+(\code{identite\_code()}) & Tout calcul de statistique, de p-value ou
 de paramètre \\
 \end{tabular}
 \end{center}
@@ -309,6 +311,22 @@ Le moteur s'exécute seul~:
 \code{\phantom{res <- run\_engine(}T = 8, B = 999, seed = 20260831)}\\
 \code{res\$parametre\_final\$sigma\_usp \ \ ;\ \ engine\_table\_tests(res)}
 \end{encadre}
+
+Le \emph{rapport figé}, produit par \code{rapport\_html()}, est un fichier HTML
+unique, sans ressource externe, qui fige l'objet renvoyé par \code{run\_engine()}
+tel qu'il est en mémoire, et jamais la saisie en cours~; il ne relance aucun
+calcul et refuse un résultat que le moteur a rejeté (\code{docs/exigences.md},
+§~5.6~; ADR~0009). Son en-tête porte trois empreintes md5~: celle des données du
+calcul et celle de l'objet résultat, calculées par \code{engine\_empreinte()}
+(la seconde est stable sur une même machine et dépend de la plateforme,
+ADR~0006), et celle des octets de \code{R/engine.R}, relevée avec la version
+déclarée dans \code{DESCRIPTION} par \code{identite\_code()} au chargement du
+moteur par l'application. Les tests restitués sont les \emph{tests retenus}
+selon la règle de l'onglet Tests, appliquée par la même fonction
+(\code{filtrer\_selection()}), les tests exclus figurant en annexe avec leur
+verdict, leur p-value retenue et le motif de leur exclusion~; le tableau de
+robustesse du calibrage reprend, comme l'onglet Calibration, tous les
+diagnostics de robustesse, indépendamment de cette sélection.
 
 \subsection{Chaîne de calcul et flux de données}
 
@@ -6247,6 +6265,10 @@ Tirages aléatoires et graines (§\ref{sec:graines}) & \code{usp\_bootstrap()},
 Orchestration complète & \code{run\_engine()}~; méthode de réserve
 n\textsuperscript{o}~2 déléguée à\newline \code{.run\_engine\_mw()} \\
 Table auditable des tests & \code{engine\_table\_tests()} \\
+Empreintes md5 d'un résultat pour le rapport figé~: données du calcul
+(texte canonique, fonction des seules valeurs) et objet sérialisé (stable sur
+une même machine, dépendant de la plateforme) & \code{engine\_empreinte()}~;
+non appelée par \code{run\_engine()}, sans tirage aléatoire \\
 \bottomrule
 \end{tabular}
 \end{center}

@@ -2,8 +2,6 @@
 
 Cahier des charges de l'outil de calibrage des USP (Solvabilité II, annexe XVII). Il fixe ce que doivent respecter le code, la documentation et l'application, quelle que soit la personne ou l'agent qui intervient.
 
-> **Document incomplet.** Le texte d'origine s'interrompt dans la section sur l'onglet de calibration (§ 5.5) ; la suite est à restaurer par le mainteneur (issue #2).
-
 ## 1. Cadre
 
 - Le travail prépare des éléments destinés à un **dossier soumis à l'ACPR**. La rigueur statistique, mathématique, bibliographique et réglementaire, ainsi que la **traçabilité entre documentation, code et résultats**, sont prioritaires.
@@ -149,4 +147,13 @@ Présente clairement :
 
 Le paramètre retenu est immédiatement identifiable visuellement, et la logique conduisant à sa sélection est compréhensible.
 
-*[Suite du texte d'origine manquante — issue #2.]*
+### 5.6 Rapport figé
+
+Un bouton de l'application produit un **document HTML autonome** : un seul fichier, lisible hors ligne, sans aucune ressource externe (script, feuille de style, police ou image chargée par URL). Le rapport fige un résultat du moteur :
+
+- il est construit à partir de l'objet retourné par `run_engine()` au dernier clic sur « Relancer les calculs », et **jamais** à partir de la saisie courante ; il n'est proposé que si le moteur a accepté les données ;
+- il ne fait aucun calcul : toutes les valeurs, y compris les empreintes, proviennent de `engine.R` ;
+- un en-tête identifie le calcul : horodatage, méthode, annexe et segment, T, B, α, graine, barème de crédibilité, σ standard, version de R, version de l'outil (`DESCRIPTION`), empreinte md5 de `R/engine.R`, empreintes des données et du résultat ; il indique que l'empreinte du résultat dépend de la plateforme ;
+- il restitue les données et leurs contrôles, le paramètre retenu et sa calibration, les tests, les graphiques et les notes, avec l'avertissement lié à T = 8 ;
+- les tests restitués sont ceux que retient la personnalisation de l'onglet Tests, selon la même règle ; un encadré rappelle que cette sélection est une personnalisation de la restitution, sans effet sur le calcul, et les tests exclus sont listés en annexe avec leur verdict ;
+- les graphiques sont interactifs par défaut ; une option les fige en images intégrées au fichier, et leur absence éventuelle est signalée explicitement.
