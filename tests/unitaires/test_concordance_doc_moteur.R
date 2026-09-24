@@ -4,10 +4,12 @@
 #
 #  Teste les fonctions d'extraction de tests/concordance_doc_moteur.R sur des
 #  chaines LaTeX construites en memoire, sans lire le document ni executer le
-#  moteur : \code{} imbriques, noms coupes en deux \code{}, commentaires,
+#  moteur (sauf les deux derniers blocs, qui lancent le script) : \code{} imbriques, noms coupes en deux \code{}, commentaires,
 #  desechappement, citations de fonction (qualifiees, internes, a joker,
 #  avec arguments), nombres en lettres, registre des decomptes (phrase
-#  verifiee, ecart, phrase introuvable), inventaire, familles.
+#  verifiee, ecart, phrase introuvable), inventaire, familles, exemptions
+#  nominatives (appliquee, ancree sur son contexte, perimee) et mode --strict
+#  (script lance sur une copie modifiee du .tex et sur l'etat du depot).
 ###############################################################################
 
 if (!exists("verifier", mode = "function")) {
@@ -94,5 +96,55 @@ verifier("familles_produites : champ famille a toute profondeur, sans doublon",
          identical(cc$familles_produites(list(tests = list(list(famille = "B. x"), list(famille = "B. x")),
                                               controles = list(list(famille = "A. y")))),
                    c("B. x", "A. y")))
+
+## --- Exemptions nominatives (decision Q-O3) --------------------------------
+doc_ex <- c("\\code{R/engine.R} & Contenu &",
+            "Toute primitive Shiny (\\code{input\\$}, \\code{reactive()},",
+            "\\code{render*()}) \\\\", "Ligne sans rapport.", "Autre ligne.",
+            "Ailleurs, \\code{reactive()} cite hors du tableau.")
+cit_ex <- cc$citations_fonctions(cc$extraire_codes(doc_ex))
+st_ex <- c(reactive = "INTROUVABLE", "render*" = "INTROUVABLE")
+ex_reg <- list(list(nom = "reactive", contexte = "Toute primitive Shiny", fenetre = 2L, motif = "m1"),
+               list(nom = "render*", contexte = "Toute primitive Shiny", fenetre = 2L, motif = "m2"),
+               list(nom = "shinyApp", contexte = "Toute primitive Shiny", fenetre = 2L, motif = "m3"))
+ex <- cc$appliquer_exemptions(cit_ex, st_ex, doc_ex, ex_reg)
+verifier("Exemption appliquee : reactive() l.2 et render*() l.3 (contexte a la ligne precedente) exemptees",
+         identical(ex$exemptees$nom, c("reactive", "render*")) && identical(ex$exemptees$ligne, 2:3) &&
+           identical(ex$exemptees$motif, c("m1", "m2")))
+verifier("Exemption ancree sur son contexte : reactive() hors de la fenetre du contexte (l.6) reste un ecart",
+         identical(ex$ecarts$nom, "reactive") && identical(ex$ecarts$lignes, "6"))
+verifier("Exemption perimee (aucune citation introuvable correspondante) signalee",
+         identical(ex$perimees$nom, "shinyApp"))
+ex2 <- cc$appliquer_exemptions(cit_ex, c(reactive = "moteur ou affichage", "render*" = "INTROUVABLE"),
+                               doc_ex, ex_reg[1:2])
+verifier("Exemption d'un nom devenu trouvable : perimee, pas d'ecart pour ce nom",
+         identical(ex2$perimees$nom, "reactive") && !nrow(ex2$ecarts))
+verifier("Liste EXEMPTES_CODE du script : reactive et render*, motif de la colonne Interdit",
+         identical(vapply(cc$EXEMPTES_CODE, `[[`, "", "nom"), c("reactive", "render*")) &&
+           all(grepl("Interdit", vapply(cc$EXEMPTES_CODE, `[[`, "", "motif"))))
+
+## --- Mode --strict sur le document (execute le moteur, ~10 s par appel) ----
+.racine <- normalizePath(file.path(.dossier, "..", ".."))
+.lancer_concordance <- function(...) {
+  ancien <- setwd(.racine); on.exit(setwd(ancien))
+  sortie <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"),
+                                     c("tests/concordance_doc_moteur.R", ...), stdout = TRUE, stderr = TRUE))
+  list(code = if (is.null(attr(sortie, "status"))) 0L else attr(sortie, "status"), sortie = sortie)
+}
+.tex_mutant <- tempfile(fileext = ".tex")
+writeLines(c(readLines(file.path(.racine, "docs", "latex", "doc_tests_usp.tex"), warn = FALSE, encoding = "UTF-8"),
+             "Mutant : \\code{fonction\\_inventee\\_xyz()}."), .tex_mutant, useBytes = TRUE)
+r_mut <- .lancer_concordance("--strict", "--tex", .tex_mutant)
+unlink(.tex_mutant)
+verifier("--strict echoue (code 1) sur un nom invente dans une copie du .tex, signale comme ecart non exempte",
+         r_mut$code == 1L && any(grepl("^    fonction_inventee_xyz\\(\\) ", r_mut$sortie)) &&
+           any(grepl("non exempte", r_mut$sortie)))
+r_act <- .lancer_concordance("--strict")
+echec_attendu("--strict reussit (code 0) sur l'etat actuel du depot",
+              "#76 : engine_fmt_repere() supprime du moteur, encore cite par le .tex (l. ~462 et ~4374), docwriter en fin de branche O",
+              r_act$code == 0L)
+verifier("Etat actuel : reactive() et render*() exemptes, aucune exemption perimee",
+         sum(grepl("^    (reactive|render\\*)\\(\\) +ligne [0-9]+ +primitive Shiny", r_act$sortie)) == 2L &&
+           !any(grepl("perimee", r_act$sortie)))
 
 fin_fichier()
