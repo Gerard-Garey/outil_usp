@@ -238,7 +238,9 @@ jobs:
           ATTENDU: ${{ inputs.attendu }}
           ISSUE: ${{ inputs.issue }}
         run: |
-          [[ "$ISSUE" =~ ^[0-9]+$ ]] || { echo "::error::Entrée issue : numéro attendu (reçu « $ISSUE »)."; exit 1; }
+          # La valeur reçue n'est jamais renvoyée dans une commande de
+          # workflow (« ::… » injectable par un saut de ligne).
+          [[ "$ISSUE" =~ ^[0-9]+$ ]] || { echo "::error::Entrée issue : numéro attendu (chiffres seuls ; valeur reçue non reproduite)."; exit 1; }
           args=()
           IFS=';' read -ra motifs <<< "$ATTENDU"
           for m in "${motifs[@]}"; do
