@@ -102,9 +102,11 @@ Lorsqu'une modification change volontairement les résultats, lister les écarts
 plus régénérées hors de la CI, poste compris
 ([ADR 0011](docs/adr/0011-plateforme-ci-production-des-references.md)) : le
 workflow `.github/workflows/references.yml`, déclenché manuellement en mode
-`regeneration` (un cas, motifs attendus), produit les `.rds` et le tableau
-avant / après en artefact ; ils sont commités à part après visa et
-vérification. Si aucune valeur numérique ne change, les références peuvent
+`regeneration` (un cas, motifs attendus) ou `creation` (un cas nouveau,
+ajouté à `CAS` de `tests/outils_tests.R`, sans toucher aux références
+existantes), produit les `.rds` et le tableau avant / après en artefact ;
+après visa et vérification, ils sont commités avec le code qui les motive
+(procédure de la skill `verifier-reproductibilite`). Si aucune valeur numérique ne change, les références peuvent
 être patchées (`tests/patcher_reference.R`). La CI GitHub Actions lance les tests et compile la
 documentation à chaque push sur `main` et à chaque pull request.
 
