@@ -2,7 +2,9 @@
 #  tests/unitaires/test_calibration.R  --  CALIBRATION REGLEMENTAIRE
 #
 #  Tables des annexes II et XIV, bareme de credibilite (annexe XVII, section
-#  G), parametre final sigma_USP (sections B(4), C et D(4)).
+#  G), parametre final sigma_USP (sections B(4), C et D(4)), et parcours de
+#  bout en bout par run_engine() sur trois segments modifies par M6 (issue
+#  #61).
 #  Sources des valeurs :
 #  - annexes II et XIV : version consolidee du 14.11.2024 du reglement
 #    delegue (UE) 2015/35 (xhtml a la racine du depot, qui fait foi), tableaux
@@ -188,5 +190,69 @@ verifier("mw_valider_ajustement : le motif de refus donne la valeur de R",
              grepl("-27.5666", v$erreurs, fixed = TRUE) &&
              grepl("n'est pas applicable", v$erreurs, fixed = TRUE)
          })
+
+## --- Bout en bout sur des segments modifies par M6 (issue #61) --------------
+# run_engine() complet sur les donnees de non-regression (tests/donnees/),
+# segment designe par son numero et son annexe : la valeur de l'annexe en
+# vigueur doit atteindre parametre_final. Un segment au bareme long (II-6,
+# primes), deux au bareme court (II-7, reserve1 ; XIV-4, reserve2), T = 8.
+# Valeurs attendues saisies en dur (version consolidee du 14.11.2024, xhtml a
+# la racine du depot, marqueur M6 ; lignes indiquees ci-dessous, les memes
+# que plus haut), jamais relues de ANNEXE_II / ANNEXE_XIV. Credibilite a
+# T = 8 : 59 % (G(1)), 81 % (G(2)).
+# B = 19 : sigma_USP ne depend pas du bootstrap (estimation par maximum de
+# vraisemblance, MSEP analytique) ; mesure : memes sigma_USP a B = 19 et
+# B = 999 a 1e-10 pres. Les sigma_USP attendus sont ceux du tableau de #19
+# (B = 999, graine 20260831, vises par le mainteneur), arrondis a 1e-8 ;
+# tolerance relative 1e-6, celle de la non-regression (TOLERANCE).
+# Mordant : contre le moteur anterieur a #19 (f67f5e0 ; 12 %, 12 % et 20 %),
+# les 9 assertions sur sigma_standard et sigma_USP echouent ; les 3 sur T,
+# le bareme et c passent, M6 ne touchant pas la section G (mesure hors
+# depot, issue #61).
+.racine <- if (exists("RACINE", inherits = TRUE)) RACINE else "."
+.ln_m6 <- utils::read.csv(file.path(.racine, "tests", "donnees", "donnees_ln.csv"))
+.tri_m6 <- local({
+  df <- utils::read.csv(file.path(.racine, "tests", "donnees", "triangle_mw.csv"))
+  m <- as.matrix(df[, setdiff(names(df), "i")])
+  storage.mode(m) <- "double"
+  unname(m)
+})
+B_M6 <- 19
+bout_en_bout_M6 <- list(
+  list(methode = "premium",  annexe = "II",  segment = 6, sigma_std = 0.19,
+       ligne = 37030, cred = 0.59, bareme = "long",  sigma_usp = 0.14835244),
+  list(methode = "reserve1", annexe = "II",  segment = 7, sigma_std = 0.055,
+       ligne = 37050, cred = 0.81, bareme = "court", sigma_usp = 0.10717284),
+  list(methode = "reserve2", annexe = "XIV", segment = 4, sigma_std = 0.17,
+       ligne = 81454, cred = 0.81, bareme = "court", sigma_usp = 0.04997785))
+for (cas in bout_en_bout_M6) {
+  res <- if (cas$methode == "reserve2")
+    run_engine(methode = "reserve2", triangle = .tri_m6, segment = cas$segment,
+               annexe = cas$annexe, B = B_M6)
+  else run_engine(xt = .ln_m6$xt, yt = .ln_m6$yt, methode = cas$methode,
+                  segment = cas$segment, annexe = cas$annexe, B = B_M6)
+  pf <- res$parametre_final
+  etiquette <- sprintf("run_engine %s, %s-%d", cas$methode, cas$annexe, cas$segment)
+  verifier(sprintf("%s : T = 8, bareme %s, c = %g", etiquette, cas$bareme, cas$cred),
+           isTRUE(res$ok) && res$metadata$T == 8 && res$metadata$bareme == cas$bareme &&
+             isTRUE(proche(pf$credibilite, cas$cred)))
+  verifier(sprintf("%s : sigma_standard = %g %% (xhtml l. %d, M6)", etiquette,
+                   100 * cas$sigma_std, cas$ligne),
+           proche(pf$sigma_standard, cas$sigma_std))
+  # Relation du parametre final avec c et sigma_standard en dur : section
+  # B(4) (et C) pour les methodes lognormales, correction sqrt(9/7) sur le
+  # sigma(delta, gamma) de l'ajustement ; section D(4) pour Merz-Wuthrich,
+  # racine(MSEP) / reserve, sans correction de taille.
+  sigma_chapeau <- if (cas$methode == "reserve2")
+    sqrt(res$msep$msep) / res$ajustement$reserve
+  else res$ajustement$sigma * sqrt(9 / 7)
+  verifier(sprintf("%s : sigma_USP = c * sigma estime%s + (1 - c) * sigma_standard",
+                   etiquette, if (cas$methode == "reserve2") "" else " * sqrt(9/7)"),
+           proche(pf$sigma_usp, cas$cred * sigma_chapeau + (1 - cas$cred) * cas$sigma_std,
+                  rel = 1e-12))
+  verifier(sprintf("%s : sigma_USP = %.8f (tableau de #19, B = 999)", etiquette, cas$sigma_usp),
+           proche(pf$sigma_usp, cas$sigma_usp, rel = 1e-6))
+}
+rm(res, pf, cas)
 
 fin_fichier()
