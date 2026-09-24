@@ -60,14 +60,16 @@
 #      main. Le workflow calcule sur la réf. déclenchée (résumé : « Commit
 #      calculé … (réf. …) ») :
 #        - bascule : sur la branche de travail (aucun code à commiter) ;
-#        - regeneration (M30) : sur une BRANCHE ÉPHÉMÈRE. Le commit de code
-#          (moteur:, tests:…) est fait en local sur la branche de travail,
-#          NON poussé sur celle-ci, son parent étant la tête distante de la
-#          branche de travail ; il est poussé seul sur une branche
-#          temporaire :
-#            git push origin HEAD:refs/heads/claude/regeneration-<issue>
-#          et le workflow est déclenché avec ref = claude/regeneration-<issue>,
-#          mode « regeneration », cas, motifs séparés par « ; » et issue.
+#        - regeneration (M30, ADR 0011 amendé le 24/09/2026) : sur une
+#          BRANCHE ÉPHÉMÈRE claude/regeneration-<issue>, créée depuis la
+#          tête de la branche de travail et portant le seul commit de code
+#          de l'issue (R/, tests/ hors tests/reference/), NON poussé sur la
+#          branche de travail ; sans PR, jamais fusionnée :
+#            git switch -c claude/regeneration-<issue>   # depuis la tête
+#            git commit …                                # commit de code
+#            git push -u origin claude/regeneration-<issue>
+#          puis déclenchement avec ref = claude/regeneration-<issue>, mode
+#          « regeneration », cas, motifs séparés par « ; » et issue.
 #      Noter l'identifiant de l'exécution et le commit calculé.
 #   2. Lire le tableau (session principale, puis mainteneur) : résumé du
 #      job, tableau en deux parts. Bascule : chaque cas doit afficher
@@ -89,37 +91,45 @@
 #      plateforme.txt, sessionInfo.txt, md5.txt.
 #   5. Vérifier avant commit (session principale) :
 #      a. bascule : le commit calculé (plateforme.txt) est la tête actuelle
-#         de la branche de travail (sinon, redéclencher) ; regeneration :
-#         le commit calculé est le commit de code poussé sur la branche
-#         éphémère, et son parent est la tête distante actuelle de la
-#         branche de travail (sinon, rebaser le commit de code et
-#         redéclencher) ;
+#         de la branche de travail (sinon, redéclencher) ;
+#      a′. regeneration (M30) : le commit calculé (plateforme.txt) est la
+#         tête de la branche éphémère ; sur la branche de travail, après
+#         « git cherry-pick -n <commit calculé> » et copie du .rds (étape
+#         6), l'arbre de travail a exactement le code du commit calculé :
+#           git diff --quiet <commit calculé> -- R tests ':(exclude)tests/reference'
+#         (code de sortie 0) ; empreinte de l'arbre R/ consignée :
+#           git rev-parse <commit calculé>:R
+#         (après le commit final, git rev-parse HEAD:R doit être identique) ;
 #      b. les md5 des .rds copiés dans tests/reference/ sont ceux de
 #         md5.txt ;
 #      c. recomparaison locale : Rscript tests/comparer_references.R
 #         --deux-parts sur les .rds copiés (dans une session Linux, seule
 #         la dérive entre cette machine et la CI doit apparaître, part non
-#         numérique vide), puis Rscript tests/test_reproductibilite.R ;
-#      d. regeneration : le commit final (étape 6) ne diffère du commit
-#         calculé QUE par le .rds du cas ; code, tests hors références et
-#         documentation identiques :
-#           git diff --quiet <calculé> <final> -- . ':!tests/reference'
-#           git diff --name-only <calculé> <final>   # tests/reference/<cas>.rds seul
+#         numérique vide), puis Rscript tests/test_reproductibilite.R.
 #   6. Commiter (session principale) :
 #      - bascule : les seuls .rds, en un commit « tests: » (« tests:
-#        bascule des références sur la CI (#67) ») ;
-#      - regeneration (M30) : le code ET le .rds en UN SEUL commit sur la
-#        branche de travail, en complétant le commit calculé (git add
-#        tests/reference/<cas>.rds ; git commit --amend), puis vérification
-#        5d ; le préfixe est celui du commit de code ;
-#      dans les deux cas, le message reprend la plateforme (ImageOS,
-#      ImageVersion, R, BLAS), l'écart maximal par fichier, « aucune
-#      feuille non numérique modifiée » (bascule) ou le tableau avant /
-#      après (regeneration), le commit calculé, le lien de l'exécution, les
-#      md5 et le visa M3 du mainteneur ; pousser sur la branche de travail
-#      sur ordre du mainteneur, vérifier que la CI est verte, puis
-#      supprimer la branche éphémère :
-#        git push origin --delete claude/regeneration-<issue>
+#        bascule des références sur la CI (#67) ») dont le message reprend
+#        la plateforme (ImageOS, ImageVersion, R, BLAS), l'écart maximal
+#        par fichier, « aucune feuille non numérique modifiée », le lien de
+#        l'exécution et le visa M3 du mainteneur ;
+#      - regeneration (M30) : code ET .rds en UN SEUL commit NOUVEAU sur la
+#        branche de travail, jamais par --amend ni fixup (ADR 0007, point
+#        6) :
+#          git switch <branche de travail>
+#          git cherry-pick -n <commit calculé>
+#          cp <artefact>/<cas>.rds tests/reference/   # puis 5a′, 5b, 5c
+#          git add tests/reference/<cas>.rds
+#          git commit                                 # domaine du code
+#        message : tableau avant / après (ou son emplacement docs/tableaux/…),
+#        plateforme (ImageOS, ImageVersion, R, BLAS), écart maximal par
+#        fichier, lien de l'exécution, SHA du commit calculé, empreinte
+#        git rev-parse <commit calculé>:R, md5, visa ; puis suppression
+#        aussitôt de la branche éphémère (le commit calculé cesse d'être
+#        atteignable : le message du commit final en garde la trace) :
+#          git push origin --delete claude/regeneration-<issue>
+#          git branch -D claude/regeneration-<issue>
+#      Pousser sur la branche de travail sur ordre du mainteneur, puis
+#      vérifier que la CI est verte.
 #
 # À NE PAS FAIRE
 #
@@ -127,12 +137,13 @@
 #     mainteneur ; commiter avant son visa M3 sur le tableau réel.
 #   - Commiter des .rds issus d'une exécution en échec, d'une autre
 #     exécution que celle dont le tableau a été visé, ou calculés sur un
-#     autre commit que la tête de la branche (bascule) ou que le commit de
-#     code du commit final (regeneration, vérification 5d) ; commiter
-#     autre chose que les .rds dans le commit de bascule.
+#     autre commit que la tête de la branche de travail (bascule) ou que le
+#     commit dont le code est repris (regeneration, vérification 5a′) ;
+#     commiter autre chose que les .rds dans le commit de bascule.
 #   - Regeneration : pousser le commit de code sur la branche de travail
 #     avant ses .rds (la CI y serait rouge), séparer code et .rds en deux
-#     commits, ou laisser la branche éphémère après le commit final.
+#     commits, assembler le commit final par --amend ou fixup, ouvrir une
+#     PR pour la branche éphémère ou la garder après le commit final.
 #   - Régénérer ensuite sur le poste (generer_references.R local) : après
 #     la bascule, toute référence est produite ici.
 #   - Relever TOLERANCE, ou ajouter une feuille à INSTABLES, pour faire
