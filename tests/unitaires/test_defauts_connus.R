@@ -413,19 +413,20 @@ nombre_detail <- function(tb, nom, motif) {
   d <- tb$commentaire[tb$test == nom]
   as.numeric(sub(motif, "\\1", regmatches(d, regexpr(motif, d))))
 }
+# Issue #24 : les ecarts sur sigma_USP ne sont plus imprimes dans le detail
+# (ils sont dans la colonne estimation) ; seules les parts estimees le sont.
 NOM_JK <- "Sensibilite au retrait d'une annee (jackknife)"
 NOM_IC <- "Largeur relative de l'IC bootstrap 90%"
 M_JK_EST <- "([+-][0-9.]+)% sur la part estimee"
-M_JK_USP <- "annee [0-9]+ : ([+-][0-9.]+)% sur sigma_USP"
 M_IC_EST <- "= ([0-9.]+)% sur la part estimee"
-M_IC_USP <- "^\\(q95 - q05\\) / sigma_USP = ([0-9.]+)%"
-verifier("Jackknife et IC : part estimee identique entre II-1 et II-6, ecart sur sigma_USP different",
+estim_ligne <- function(tb, nom) tb$estimation[tb$test == nom]
+verifier("Jackknife et IC : part estimee identique entre II-1 et II-6, ecart sur sigma_USP (estim) different",
          {
            t1 <- tab_ln; t6 <- engine_table_tests(res_ln_ii6)
            v <- c(jk_est_1 = nombre_detail(t1, NOM_JK, M_JK_EST), jk_est_6 = nombre_detail(t6, NOM_JK, M_JK_EST),
-                  jk_usp_1 = nombre_detail(t1, NOM_JK, M_JK_USP), jk_usp_6 = nombre_detail(t6, NOM_JK, M_JK_USP),
+                  jk_usp_1 = estim_ligne(t1, NOM_JK), jk_usp_6 = estim_ligne(t6, NOM_JK),
                   ic_est_1 = nombre_detail(t1, NOM_IC, M_IC_EST), ic_est_6 = nombre_detail(t6, NOM_IC, M_IC_EST),
-                  ic_usp_1 = nombre_detail(t1, NOM_IC, M_IC_USP), ic_usp_6 = nombre_detail(t6, NOM_IC, M_IC_USP))
+                  ic_usp_1 = estim_ligne(t1, NOM_IC), ic_usp_6 = estim_ligne(t6, NOM_IC))
            if (length(v) != 8L || any(!is.finite(v))) "nombre non extrait du detail"
            else if (v[["jk_est_1"]] == v[["jk_est_6"]] && v[["ic_est_1"]] == v[["ic_est_6"]] &&
                     v[["jk_usp_1"]] != v[["jk_usp_6"]] && v[["ic_usp_1"]] != v[["ic_usp_6"]]) TRUE
@@ -482,19 +483,22 @@ verifier("add() (usp_tests) refuse une procedure de decision sans verdict (ESD)"
          })
 # Branche robustesse = NULL : usp_tests() appele directement avec un fit
 # portant ecart_jackknife et largeur_ic, sans les elements du detail.
-verifier("Jackknife et IC sans robustesse : detail sur sigma_USP seul, repere nomme, pas de part estimee",
+verifier("Jackknife et IC sans robustesse : detail renvoyant a estim, repere nomme, pas de part estimee",
          {
            f <- fit; f$ecart_jackknife <- 0.123; f$largeur_ic <- 0.456
            tb <- lignes_df(usp_tests(f, boot_fictif()))
            dj <- tb$commentaire[tb$test == NOM_JK]; di <- tb$commentaire[tb$test == NOM_IC]
            length(dj) == 1L && length(di) == 1L &&
-             identical(dj, paste("ecart maximal sur sigma_USP = +12.3% (repere conventionnel",
-                                 "10 % / 20 % ; depend de la table de l'annexe par (1-c) sigma_std)")) &&
-             identical(di, paste("(q95 - q05) / sigma_USP = 45.6% (repere conventionnel 50 % / 80 % ;",
+             identical(dj, paste("ecart maximal sur sigma_USP (valeur absolue : estimation",
+                                 "\"ecart relatif max\" ; repere conventionnel 10 % / 20 % ;",
                                  "depend de la table de l'annexe par (1-c) sigma_std)")) &&
+             identical(di, paste("(q95 - q05) / sigma_USP : estimation \"largeur / sigma_USP\"",
+                                 "(repere conventionnel 50 % / 80 % ; depend de la table de",
+                                 "l'annexe par (1-c) sigma_std)")) &&
+             all(tb$estimation[match(c(NOM_JK, NOM_IC), tb$test)] == c(0.123, 0.456)) &&
              all(tb$verdict[tb$test %in% c(NOM_JK, NOM_IC)] == "INFO")
          })
-verifier("Jackknife : annee et signe du detail = argmax |d| et round(100 d[i] / sigma_USP, 1), depuis res$jackknife",
+verifier("Jackknife : annee et sens du detail = argmax |d| et signe de d[i], estim = |d[i]| / sigma_USP, depuis res$jackknife",
          {
            ok <- TRUE
            for (r in list(res_ln_ii1, res_ln_ii6)) {
@@ -502,10 +506,38 @@ verifier("Jackknife : annee et signe du detail = argmax |d| et round(100 d[i] / 
              d <- r$jackknife$sigma_usp - pf$sigma_usp; i <- which.max(abs(d))
              dj <- tb$commentaire[tb$test == NOM_JK]
              an <- as.integer(sub("^retrait de l'annee ([0-9]+) :.*$", "\\1", dj))
+             sens_jk <- if (d[i] < 0) "en baisse" else "en hausse"
              ok <- ok && identical(an, i) &&
-               nombre_detail(tb, NOM_JK, M_JK_USP) == round(100 * d[i] / pf$sigma_usp, 1)
+               grepl(paste("sigma_USP", sens_jk), dj, fixed = TRUE) &&
+               isTRUE(proche(estim_ligne(tb, NOM_JK), abs(d[i]) / pf$sigma_usp, rel = 1e-12))
            }
            ok
+         })
+# Issue #24 (decision du mainteneur du 24/09/2026) : les nombres issus de
+# l'optimiseur ou du bootstrap deja restitues ailleurs dans le resultat ne
+# sont pas imprimes dans le detail (derive de plateforme jusqu'a 3,5e-7 en
+# relatif). Controle direct : aucune des valeurs formatees comme l'ancien
+# libelle n'apparait dans le detail de sa ligne.
+verifier("Libelles JB, jackknife et IC : ni bornes de l'IC, ni largeur, ni ecart sur sigma_USP, ni asymetrie / aplatissement (#24)",
+         {
+           pb <- character(0)
+           for (r in list(res_ln_ii1, res_ln_ii6)) {
+             tb <- engine_table_tests(r); pf <- r$parametre_final
+             d <- r$jackknife$sigma_usp - pf$sigma_usp; i <- which.max(abs(d))
+             jb <- test_jarque_bera(r$ajustement$z)
+             dj <- tb$commentaire[tb$test == NOM_JK]; di <- tb$commentaire[tb$test == NOM_IC]
+             dd <- tb$commentaire[tb$test == "Jarque-Bera"]
+             interdits <- list(
+               list(di, sprintf("%.4f", r$ic_bootstrap[c(2, 4)])),
+               list(di, sprintf("%.1f%%", 100 * r$ajustement$largeur_ic)),
+               list(di, "IC 90 % de sigma_USP : ["),
+               list(dj, sprintf("%+.1f%%", 100 * d[i] / pf$sigma_usp)),
+               list(dd, sprintf(c("%+.3f", "%.3f"), c(jb$skew, jb$kurt))))
+             for (it in interdits) for (motif in it[[2]])
+               if (grepl(motif, it[[1]], fixed = TRUE)) pb <- c(pb, motif)
+             if (length(dj) != 1L || length(di) != 1L || length(dd) != 1L) pb <- c(pb, "ligne absente")
+           }
+           if (length(pb)) paste("imprime :", paste(unique(pb), collapse = " ; ")) else TRUE
          })
 # Jackknife entierement non calcule (tous les reajustements en echec) : la
 # table est produite et ne porte pas de ligne jackknife (auparavant : estim

@@ -1757,8 +1757,16 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       H1 = "asymetrie ou aplatissement non normaux",
       stat_nom = "JB", stat = jb$stat, loi = "chi2(2) asymptotique",
       p_as = jb$p, mc_nom = "JB",
-      detail = sprintf("asymetrie = %+.3f ; aplatissement = %.3f (borne mecaniquement par ~T = %d)",
-                       jb$skew, jb$kurt, T))
+      # Asymetrie et aplatissement ne sont pas imprimes (issue #24, decision
+      # du mainteneur du 24/09/2026, meme mecanisme que le Delta du TOST) :
+      # calcules sur z, ils dependent de l'optimiseur et derivent d'une
+      # plateforme a l'autre ; mesure sur les donnees de test (Linux, R
+      # 4.3.3) : aplatissement 1,84047, a 1,4e-5 en relatif de la frontiere
+      # d'arrondi de %.3f. Les valeurs restent dans estim des lignes
+      # D'Agostino (asymetrie) et Anscombe-Glynn (aplatissement).
+      detail = sprintf(paste("asymetrie et aplatissement : estimations des lignes",
+                             "D'Agostino et Anscombe-Glynn (aplatissement borne",
+                             "mecaniquement par ~T = %d)"), T))
   ds <- test_dagostino_skew(z)
   if (is.finite(ds$stat))
     add(fam, "Asymetrie (D'Agostino, T >= 8)", "D'Agostino (1970), Biometrika 57",
@@ -2170,38 +2178,53 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # La condition du premier ordre et la convergence multi-demarrages ne sont
   # pas des tests : elles figurent dans res$controles, famille "H."
   # (usp_controles_numeriques(), issue #22, decision M11).
-  # Jackknife et IC : le detail restitue l'ecart sur sigma_USP (qui depend de
-  # la table de l'annexe par (1-c) sigma_std) ET l'ecart sur la seule part
-  # estimee sigma(delta, gamma) (independante de la table et du bareme). La
-  # seconde partie n'est ecrite que si run_engine() a fourni `robustesse`.
+  # Jackknife et IC : le detail renvoie a l'ecart sur sigma_USP, porte par
+  # estim (qui depend de la table de l'annexe par (1-c) sigma_std), ET
+  # restitue l'ecart sur la seule part estimee sigma(delta, gamma)
+  # (independante de la table et du bareme). La seconde partie n'est ecrite
+  # que si run_engine() a fourni `robustesse`.
+  # Issue #24 (decision du mainteneur du 24/09/2026, meme mecanisme que le
+  # Delta du TOST retire en M18) : les nombres issus du bootstrap ou des
+  # reajustements du jackknife qui sont restitues ailleurs dans le resultat
+  # ne sont plus imprimes dans le detail, ou ils derivent d'une plateforme a
+  # l'autre (jusqu'a 3,5e-7 en relatif ; mesure sur les donnees de test,
+  # Linux, R 4.3.3 : q95 = 0,136955, a 3,4e-5 en relatif de la frontiere
+  # d'arrondi de %.4f). Retires : l'ecart sur sigma_USP du jackknife (sa
+  # valeur absolue est estim ; seul son signe reste imprime), la largeur
+  # (q95 - q05) / sigma_USP (estim) et les bornes q05, q95 de l'IC 90 %
+  # (res$ic_bootstrap). Restent imprimes, faute d'etre stockes ailleurs :
+  # l'ecart jackknife et la largeur rapportes a la part estimee
+  # sigma(delta, gamma) (rb$jack_estim, rb$ic_estim).
   rb <- robustesse
+  rep_jk <- paste("(valeur absolue : estimation \"ecart relatif max\" ; repere",
+                  "conventionnel 10 % / 20 % ; depend de la table de l'annexe par",
+                  "(1-c) sigma_std)")
+  rep_ic <- paste("(q95 - q05) / sigma_USP : estimation \"largeur / sigma_USP\"",
+                  "(repere conventionnel 50 % / 80 % ; depend de la table de",
+                  "l'annexe par (1-c) sigma_std)")
   if (!is.null(fit$ecart_jackknife))
     add(fam, "Sensibilite au retrait d'une annee (jackknife)",
         "Quenouille (1949) / Tukey (1958)", type = "diagnostic",
         estim_nom = "ecart relatif max", estim = fit$ecart_jackknife,
         detail = if (!is.null(rb$jack_annee))
-          sprintf(paste("retrait de l'annee %d : %+.1f%% sur sigma_USP (repere conventionnel",
-                        "10 %% / 20 %% ; depend de la table de l'annexe par (1-c) sigma_std) ;",
-                        "%+.1f%% sur la part estimee sigma(delta, gamma) (independant de la",
-                        "table et du bareme)"),
-                  rb$jack_annee, 100 * rb$jack_usp, 100 * rb$jack_estim)
-        else sprintf(paste("ecart maximal sur sigma_USP = %+.1f%% (repere conventionnel",
-                           "10 %% / 20 %% ; depend de la table de l'annexe par (1-c) sigma_std)"),
-                     100 * fit$ecart_jackknife))
+          sprintf(paste("retrait de l'annee %d : sigma_USP %s %s ; %+.1f%% sur la part",
+                        "estimee sigma(delta, gamma) (independant de la table et du bareme)"),
+                  rb$jack_annee,
+                  if (rb$jack_usp < 0) "en baisse" else if (rb$jack_usp > 0) "en hausse"
+                  else "inchange",
+                  rep_jk, 100 * rb$jack_estim)
+        else paste("ecart maximal sur sigma_USP", rep_jk))
   if (!is.null(fit$largeur_ic))
     add(fam, "Largeur relative de l'IC bootstrap 90%", "Efron (1979), Ann. Statist. 7",
         type = "diagnostic",
         estim_nom = "largeur / sigma_USP", estim = fit$largeur_ic,
         detail = if (!is.null(rb$ic_estim))
-          sprintf(paste("(q95 - q05) / sigma_USP = %.1f%% (repere conventionnel 50 %% / 80 %% ;",
-                        "depend de la table de l'annexe par (1-c) sigma_std) ;",
-                        "(q95 - q05) / sigma(delta, gamma) = %.1f%% sur la part estimee",
-                        "(independant de la table et du bareme) ; IC 90 %% de sigma_USP :",
-                        "[%.4f ; %.4f]"),
-                  100 * fit$largeur_ic, 100 * rb$ic_estim, rb$ic_q05, rb$ic_q95)
-        else sprintf(paste("(q95 - q05) / sigma_USP = %.1f%% (repere conventionnel 50 %% / 80 %% ;",
-                           "depend de la table de l'annexe par (1-c) sigma_std)"),
-                     100 * fit$largeur_ic))
+          sprintf(paste("%s ; (q95 - q05) / sigma(delta, gamma) = %.1f%% sur la part estimee",
+                        "(independant de la table et du bareme) ; bornes de l'IC 90 %% de",
+                        "sigma_USP : intervalle bootstrap du parametre retenu",
+                        "(res$ic_bootstrap)"),
+                  rep_ic, 100 * rb$ic_estim)
+        else rep_ic)
   L
 }
 
@@ -4154,10 +4177,12 @@ run_engine <- function(xt, yt,
 
   # Elements du detail des lignes jackknife et IC de usp_tests() : calcules
   # ici, transmis a usp_tests() et NON stockes dans fit ni dans le resultat.
-  # jack_usp : ecart signe sur sigma_USP a l'annee de plus grand |ecart| ;
-  # jack_estim : ecart relatif de la part estimee sigma(delta, gamma) a la
-  # meme annee ; ic_estim : largeur (q95 - q05) de sigma_boot rapportee a
-  # sigma(delta, gamma), independante de la table et du bareme.
+  # jack_usp : ecart signe sur sigma_USP a l'annee de plus grand |ecart|
+  # (seul son signe est imprime, issue #24) ; jack_estim : ecart relatif de
+  # la part estimee sigma(delta, gamma) a la meme annee ; ic_estim : largeur
+  # (q95 - q05) de sigma_boot rapportee a sigma(delta, gamma), independante
+  # de la table et du bareme. Les bornes de l'IC ne sont plus transmises :
+  # le detail n'imprime plus que leur emplacement, res$ic_bootstrap (#24).
   # Partie jackknife omise (NULL) si aucun reajustement n'a abouti.
   i_jack <- if (jack_calcule) which.max(abs(d_jack)) else NULL
   robustesse <- list(
@@ -4165,9 +4190,7 @@ run_engine <- function(xt, yt,
     jack_usp   = if (jack_calcule) d_jack[i_jack] / param$sigma_usp else NULL,
     jack_estim = if (jack_calcule) (jack$sigma[i_jack] - fit$sigma) / fit$sigma else NULL,
     ic_estim   = if (!is.null(ic))
-      unname(diff(stats::quantile(boot$sigma_boot, c(.05, .95)))) / fit$sigma else NULL,
-    ic_q05 = if (!is.null(ic)) unname(ic[2]) else NULL,
-    ic_q95 = if (!is.null(ic)) unname(ic[4]) else NULL)
+      unname(diff(stats::quantile(boot$sigma_boot, c(.05, .95)))) / fit$sigma else NULL)
 
   tests <- usp_tests(fit, boot, alpha, theta_equiv = theta_equiv,
                      delta_equiv = delta_equiv, robustesse = robustesse)
