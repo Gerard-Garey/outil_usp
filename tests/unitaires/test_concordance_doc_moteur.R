@@ -10,8 +10,9 @@
 #  verifiee, ecart, phrase introuvable), inventaire, familles, exemptions
 #  nominatives (appliquee, ancree sur son contexte, perimee), seuil de B
 #  (valider_B(), --B sous B_MIN refuse), recapitulatif apres exemptions et
-#  mode --strict (script lance sur une copie modifiee du .tex et sur l'etat
-#  du depot).
+#  mode --strict (script lance sur une copie modifiee du .tex). L'etat reel
+#  du depot n'est pas juge ici : c'est l'etape --strict de la CI qui le fait
+#  (decision (a) du mainteneur sur l'audit de #65).
 ###############################################################################
 
 if (!exists("verifier", mode = "function")) {
@@ -157,18 +158,15 @@ verifier("--strict echoue (code 1) sur un nom invente dans une copie du .tex, si
            any(grepl("non exempte", r_mut$sortie)))
 verifier("Recapitulatif de la section 1 sur la copie mutante : 1 nom INTROUVABLE non exempte",
          any(grepl("^  INTROUVABLE non exempte +1$", r_mut$sortie)))
-r_act <- .lancer_concordance("--strict")
 r_b20 <- .lancer_concordance("--B", "20")
 verifier("--B 20 refuse par le script lance (code 1, erreur explicite, moteur non execute)",
          r_b20$code == 1L && any(grepl("--B = 20 refuse", r_b20$sortie, fixed = TRUE)) &&
            !any(grepl("^=== 2", r_b20$sortie)))
-verifier("--strict reussit (code 0) sur l'etat actuel du depot",
-         r_act$code == 0L)
-verifier("Recapitulatif de la section 1 apres exemptions : 2 noms exemptes, aucun INTROUVABLE non exempte",
-         any(grepl("^  exempte \\(EXEMPTES_CODE\\) +2$", r_act$sortie)) &&
-           !any(grepl("^  INTROUVABLE", r_act$sortie)))
-verifier("Etat actuel : reactive() et render*() exemptes, aucune exemption perimee",
-         sum(grepl("^    (reactive|render\\*)\\(\\) +ligne [0-9]+ +primitive Shiny", r_act$sortie)) == 2L &&
-           !any(grepl("perimee", r_act$sortie)))
+# Aucune assertion sur l'etat reel du depot (--strict sur le .tex versionne,
+# recapitulatif apres exemptions, exemptions perimees) : elle ferait echouer
+# test_unitaires.R sur un ecart de concordance, et sauter en CI l'etape de
+# reproductibilite qui la suit. Ce controle est porte par l'etape
+# "Concordance documentation <-> moteur (--strict)" de ci.yml, qui s'execute
+# meme apres un echec des tests (issue #65, decision (a) du mainteneur).
 
 fin_fichier()
