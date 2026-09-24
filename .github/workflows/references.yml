@@ -247,6 +247,12 @@ jobs:
           done
           [ ${#args[@]} -gt 0 ] || { echo "::error::Entrée attendu : au moins un motif (séparés par « ; »)."; exit 1; }
           md5_avant="$(md5sum < "tests/reference/$CAS.rds")"
+          # Marqueur horodaté : seuls les tableaux écrits (créés ou
+          # réécrits) par CETTE exécution sont publiés, pas ceux d'exécutions
+          # antérieures déjà versionnés sous le même motif.
+          marqueur="$RUNNER_TEMP/marqueur-regeneration"
+          touch "$marqueur"
+          sleep 1
           # Code de sortie conservé pour publier un compte rendu même en cas
           # d'échec. Le tableau docs/tableaux/… n'existe qu'après écriture
           # (batterie en échec comprise) : sur un REFUS, le script s'arrête
@@ -255,11 +261,13 @@ jobs:
           statut=0
           Rscript tests/regenerer_et_rendre_compte.R "$CAS" "${args[@]}" --issue "$ISSUE" --ecrire \
             | tee "$SORTIE/regeneration.txt" || statut=$?
-          shopt -s nullglob
-          for t in docs/tableaux/*-issue"$ISSUE"-"$CAS".md; do
-            cp "$t" "$SORTIE/"
-            cat "$t" >> "$GITHUB_STEP_SUMMARY"
-          done
+          if [ -d docs/tableaux ]; then
+            while IFS= read -r -d '' t; do
+              cp "$t" "$SORTIE/"
+              cat "$t" >> "$GITHUB_STEP_SUMMARY"
+            done < <(find docs/tableaux -maxdepth 1 -type f \
+                       -name "*-issue${ISSUE}-${CAS}.md" -newer "$marqueur" -print0)
+          fi
           if [ "$statut" -ne 0 ]; then
             {
               echo "## Régénération de \`$CAS\` : échec (code $statut)"
