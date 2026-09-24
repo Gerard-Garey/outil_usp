@@ -1,0 +1,256 @@
+# Production des références de non-régression par la CI (issue #67, jalon
+# J10 ; ADR 0006 point 2, compléments Q-O4 validés le 24/09/2026).
+#
+# Ce workflow ne s'exécute que sur déclenchement manuel (workflow_dispatch).
+# Il n'utilise aucun secret, ne pousse rien et n'écrit rien dans le dépôt :
+# il calcule sur un checkout jetable et publie un artefact. C'est le
+# mainteneur qui télécharge l'artefact et commite (humain dans la boucle).
+#
+# Plateforme : image épinglée ubuntu-22.04 et R 4.3.1, les mêmes que le job
+# « Tests du moteur » de ci.yml, pour que les références soient testées sur
+# la plateforme qui les produit. L'image exacte (ImageOS, ImageVersion), le
+# sessionInfo() (BLAS et LAPACK compris) et le commit calculé sont écrits
+# dans le journal, dans le résumé du job et dans l'artefact.
+#
+# Deux modes (entrée « mode ») :
+#
+#   bascule       (une seule fois : passage des références du poste à la CI)
+#     1. tests/comparer_references.R --deux-parts : tableau avant / après
+#        des trois cas contre les références versionnées, AVANT toute
+#        écriture, en deux parts :
+#          - part numérique : dérive de plateforme attendue, au plus
+#            ~3,5e-07 sur premium et reserve1, ~1,3e-13 sur reserve2
+#            (mesures de l'ADR 0006) ;
+#          - part non numérique (chaînes, booléens, verdicts, NA,
+#            structure) : doit être VIDE.
+#        Le job échoue (« BASCULE REFUSEE ») si la part non numérique n'est
+#        pas vide ou si un écart numérique dépasse 1e-6 : aucune référence
+#        n'est alors produite ni publiée.
+#     2. tests/generer_references.R : régénère les trois .rds. Le script
+#        n'a pas de répertoire de sortie : il écrit dans tests/reference/
+#        du checkout jetable du runner (sans effet sur le dépôt), après la
+#        comparaison de l'étape 1 ; les trois fichiers sont copiés dans
+#        l'artefact.
+#     3. tests/test_reproductibilite.R contre ces nouvelles références :
+#        la CI sera verte après leur commit.
+#
+#   regeneration  (après la bascule : toute régénération ordinaire d'un cas)
+#     tests/regenerer_et_rendre_compte.R <cas> --attendu ... --issue NN
+#     --ecrire : refus si une feuille change hors des motifs attendus,
+#     écriture atomique, tableau avant / après, relance des deux batteries.
+#     Entrées : cas, attendu (motifs séparés par « ; »), issue. Avant la
+#     bascule, ce mode est refusé par construction : la dérive poste / CI
+#     touche des feuilles hors motifs.
+#
+# PROCÉDURE DU MAINTENEUR
+#
+#   1. Onglet Actions > « Références de non-régression » > Run workflow,
+#      sur la branche de travail (pas main) ; mode « bascule » (ou
+#      « regeneration » avec cas, motifs et issue).
+#   2. Lire le résumé du job : tableau en deux parts. Bascule : chaque cas
+#      doit afficher « dérive numérique seule », part non numérique
+#      0 feuille, écart maximal de l'ordre attendu. Si le job échoue
+#      (« BASCULE REFUSEE ») : ne rien commiter ; retirer d'abord du moteur
+#      le libellé fautif (ou l'exclure, motif à l'appui), comme pour M18,
+#      M23 et M24, puis relancer. L'artefact « diagnostic-… » contient le
+#      tableau et le journal complets, sans .rds.
+#   3. Télécharger l'artefact « references-… » (bas de la page de
+#      l'exécution) : les .rds, le tableau (tableau_bascule.md ou le
+#      tableau de regenerer_et_rendre_compte.R), la comparaison complète,
+#      plateforme.txt, sessionInfo.txt, md5.txt.
+#   4. Vérifier que le commit calculé (plateforme.txt) est la tête de la
+#      branche de travail ; copier les .rds dans tests/reference/ ; vérifier
+#      les md5 (md5.txt) ; commiter les seuls .rds, en un commit « tests: »
+#      (bascule : les trois fichiers, « tests: bascule des références sur
+#      la CI (#67) ») dont le message reprend la plateforme (image, R,
+#      BLAS), l'écart maximal par fichier, « aucune feuille non numérique
+#      modifiée » et le lien de l'exécution ; viser le tableau (M3) ;
+#      pousser, puis vérifier que la CI est verte.
+#
+# À NE PAS FAIRE
+#
+#   - Commiter des .rds issus d'une exécution en échec, d'une autre
+#     exécution que celle dont on a lu le tableau, ou calculés sur un autre
+#     commit que la tête de la branche.
+#   - Régénérer ensuite sur le poste (generer_references.R local) : après
+#     la bascule, toute référence est produite ici.
+#   - Relever TOLERANCE, ou ajouter une feuille à INSTABLES, pour faire
+#     passer une bascule refusée.
+#   - Donner à ce workflow des droits d'écriture, un jeton, ou un push
+#     automatique.
+#   - Remplacer ubuntu-22.04 par ubuntu-latest, ici ou dans ci.yml.
+
+name: Références de non-régression
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "bascule (une fois : trois cas, tableau en deux parts) ou regeneration (un cas, motifs attendus)"
+        type: choice
+        options: [bascule, regeneration]
+        default: bascule
+      cas:
+        description: "Cas à régénérer (mode regeneration seulement ; la bascule porte sur les trois cas)"
+        type: choice
+        options: [premium, reserve1, reserve2]
+        default: premium
+      attendu:
+        description: "Motifs attendus, expressions régulières séparées par « ; » (mode regeneration)"
+        type: string
+        required: false
+        default: ""
+      issue:
+        description: "Numéro de l'issue qui motive la régénération (mode regeneration)"
+        type: string
+        required: false
+        default: ""
+
+# Lecture seule : le workflow n'écrit rien dans le dépôt.
+permissions:
+  contents: read
+
+jobs:
+  references:
+    name: Références (${{ inputs.mode }})
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    defaults:
+      run:
+        # bash -eo pipefail : l'échec d'un Rscript suivi de « | tee » fait
+        # échouer l'étape.
+        shell: bash
+    env:
+      SORTIE: ${{ github.workspace }}/sortie-references
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: r-lib/actions/setup-r@v2
+        id: installer_r
+        with:
+          # Même installation que ci.yml (job « Tests du moteur »).
+          r-version: "4.3.1"
+
+      - name: Plateforme (image, R, BLAS)
+        run: |
+          mkdir -p "$SORTIE"
+          {
+            echo "Image du runner : ${ImageOS:-inconnue} ${ImageVersion:-inconnue} (runs-on: ubuntu-22.04)"
+            echo "Système : $(lsb_release -ds 2>/dev/null || echo inconnu), $(uname -srm)"
+            echo "Commit calculé : $GITHUB_SHA (réf. $GITHUB_REF_NAME)"
+            echo "Exécution : $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID (tentative $GITHUB_RUN_ATTEMPT)"
+            echo "Mode : ${{ inputs.mode }}"
+          } | tee "$SORTIE/plateforme.txt"
+          Rscript -e 'print(sessionInfo()); cat("\nextSoftVersion() :\n"); print(extSoftVersion()); cat("\nLa_version() :", La_version(), "\nLa_library() :", La_library(), "\n")' \
+            | tee "$SORTIE/sessionInfo.txt"
+          echo "::notice title=Plateforme::${ImageOS:-?} ${ImageVersion:-?}, $(Rscript -e 'cat(R.version.string)')"
+          {
+            echo "## Plateforme"
+            echo
+            echo '```'
+            cat "$SORTIE/plateforme.txt"
+            echo
+            cat "$SORTIE/sessionInfo.txt"
+            echo '```'
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # ---------------------------------------------------------------- bascule
+      - name: "Bascule : tableau en deux parts contre les références versionnées"
+        id: comparaison
+        if: inputs.mode == 'bascule'
+        run: |
+          Rscript tests/comparer_references.R --deux-parts --markdown "$SORTIE/tableau_bascule.md" \
+            | tee "$SORTIE/comparaison_complete.txt"
+
+      - name: "Bascule : tableau dans le résumé du job"
+        if: ${{ !cancelled() && inputs.mode == 'bascule' && steps.installer_r.outcome == 'success' }}
+        run: |
+          if [ -f "$SORTIE/tableau_bascule.md" ]; then
+            cat "$SORTIE/tableau_bascule.md" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Tableau de bascule absent : voir le journal de l'étape de comparaison." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: "Bascule refusée : explication"
+        if: ${{ failure() && steps.comparaison.outcome == 'failure' }}
+        run: |
+          msg="Bascule refusée : part non numérique non vide, écart numérique au-delà de 1e-6, ou erreur de calcul (voir le journal de l'étape de comparaison). Aucune référence produite. Retirer d'abord du moteur le libellé fautif (ou l'exclure, motif à l'appui), comme pour M18, M23 et M24, puis relancer."
+          echo "::error title=BASCULE REFUSEE::$msg"
+          { echo; echo "**BASCULE REFUSÉE** : $msg"; } >> "$GITHUB_STEP_SUMMARY"
+          exit 1
+
+      - name: "Bascule : génération des trois références"
+        if: inputs.mode == 'bascule'
+        run: |
+          # generer_references.R écrit dans tests/reference/ du checkout
+          # jetable (aucun répertoire de sortie paramétrable) ; la
+          # comparaison aux références versionnées a eu lieu avant.
+          Rscript tests/generer_references.R | tee "$SORTIE/generation.txt"
+          cp tests/reference/premium.rds tests/reference/reserve1.rds tests/reference/reserve2.rds "$SORTIE/"
+          (cd "$SORTIE" && md5sum premium.rds reserve1.rds reserve2.rds | tee md5.txt)
+          git status --short -- tests/reference | tee "$SORTIE/fichiers_modifies.txt"
+
+      - name: "Bascule : non-régression contre les références produites"
+        if: inputs.mode == 'bascule'
+        run: Rscript tests/test_reproductibilite.R | tee "$SORTIE/test_reproductibilite.txt"
+
+      # ----------------------------------------------------------- regeneration
+      - name: "Régénération contrôlée d'un cas (regenerer_et_rendre_compte.R)"
+        if: inputs.mode == 'regeneration'
+        env:
+          # Entrées passées par l'environnement, jamais interpolées dans le
+          # script (pas d'injection de commande par un motif).
+          CAS: ${{ inputs.cas }}
+          ATTENDU: ${{ inputs.attendu }}
+          ISSUE: ${{ inputs.issue }}
+        run: |
+          [[ "$ISSUE" =~ ^[0-9]+$ ]] || { echo "::error::Entrée issue : numéro attendu (reçu « $ISSUE »)."; exit 1; }
+          args=()
+          IFS=';' read -ra motifs <<< "$ATTENDU"
+          for m in "${motifs[@]}"; do
+            m="$(printf '%s' "$m" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+            [ -n "$m" ] && args+=(--attendu "$m")
+          done
+          [ ${#args[@]} -gt 0 ] || { echo "::error::Entrée attendu : au moins un motif (séparés par « ; »)."; exit 1; }
+          md5_avant="$(md5sum < "tests/reference/$CAS.rds")"
+          # Code de sortie conservé pour publier le tableau même en cas de
+          # refus ou de batterie en échec (artefact de diagnostic).
+          statut=0
+          Rscript tests/regenerer_et_rendre_compte.R "$CAS" "${args[@]}" --issue "$ISSUE" --ecrire \
+            | tee "$SORTIE/regeneration.txt" || statut=$?
+          shopt -s nullglob
+          for t in docs/tableaux/*-issue"$ISSUE"-"$CAS".md; do
+            cp "$t" "$SORTIE/"
+            cat "$t" >> "$GITHUB_STEP_SUMMARY"
+          done
+          if [ "$statut" -ne 0 ]; then
+            echo "::error title=Régénération refusée ou en échec::code de sortie $statut ; voir le journal (REFUS ou batterie en échec). Aucun .rds publié."
+            exit "$statut"
+          fi
+          if [ "$(md5sum < "tests/reference/$CAS.rds")" = "$md5_avant" ]; then
+            echo "::notice::$CAS : résultat identical() à la référence, rien à régénérer (aucun .rds publié)."
+          else
+            cp "tests/reference/$CAS.rds" "$SORTIE/"
+            (cd "$SORTIE" && md5sum "$CAS.rds" | tee md5.txt)
+          fi
+
+      # -------------------------------------------------------------- artefacts
+      - name: Artefact des références
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: references-${{ inputs.mode }}-${{ github.run_id }}
+          path: ${{ env.SORTIE }}
+          if-no-files-found: error
+
+      - name: Artefact de diagnostic (échec, sans .rds)
+        if: ${{ failure() && steps.installer_r.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostic-${{ inputs.mode }}-${{ github.run_id }}
+          path: |
+            ${{ env.SORTIE }}
+            !${{ env.SORTIE }}/*.rds
+          if-no-files-found: warn
