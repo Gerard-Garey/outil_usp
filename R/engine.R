@@ -367,9 +367,9 @@ usp_condition_premier_ordre <- function(delta, gamma, x, y, xbar = mean(x),
 # pres), H_gamma_gamma finie et > 0, |pas de Newton en gamma| <= rep_pas et
 # |pg_delta| <= rep_gd. Reperes par defaut REP_PAS_KKT (1e-6, ancre sur M9,
 # M17) et REP_GD_KKT (1e-4, regle unique au bord comme a l'interieur, M16),
-# definis en tete du moteur ; le libelle de usp_controles_numeriques() les
-# imprime a partir des memes constantes. Point d'accroche de #71 (pas de
-# Newton complet).
+# definis en tete du moteur ; le libelle de usp_controles_numeriques() ne
+# les imprime pas (issue #76) : la regle et ses reperes sont dans la fiche
+# du .tex. Point d'accroche de #71 (pas de Newton complet).
 usp_kkt_satisfaite <- function(cpo, gamma, rep_pas = REP_PAS_KKT, rep_gd = REP_GD_KKT) {
   gamma_bord <- !is.finite(gamma) || gamma <= BORNES_GAMMA[1] + TOL_DELTA_BORD ||
     gamma >= BORNES_GAMMA[2] - TOL_DELTA_BORD
