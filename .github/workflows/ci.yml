@@ -30,6 +30,14 @@ jobs:
       - name: Tableau des écarts aux références (après un échec)
         if: failure() && steps.installer_r.outcome == 'success'
         run: Rscript tests/comparer_references.R --markdown "$GITHUB_STEP_SUMMARY"
+      # Issue #65 (décision Q-O3) : concordance documentation ↔ moteur en mode
+      # strict, bloquante. Le script exécute le moteur : l'étape est dans ce
+      # job, où R est installé. Placée après le tableau des écarts pour que
+      # son propre échec ne le déclenche pas ; lancée même si les tests
+      # précédents ont échoué, pour que tous les écarts soient visibles.
+      - name: Concordance documentation ↔ moteur (--strict)
+        if: ${{ !cancelled() && steps.installer_r.outcome == 'success' }}
+        run: Rscript tests/concordance_doc_moteur.R --strict
 
   documentation:
     name: Compilation de la documentation LaTeX
