@@ -10,7 +10,9 @@
 #  (UTF-8), ajout a un fichier existant sans depasser la limite, place
 #  insuffisante (rien d'ajoute, sans erreur), barre verticale non echappee
 #  hors tableau, valeur manquante distincte de la chaine "NA", reference
-#  absente comptee comme erreur (code de sortie 1).
+#  absente comptee comme erreur (code de sortie 1) ; tableau de bascule en
+#  deux parts (--deux-parts, issue #67) : separation numerique / non
+#  numerique, motifs de refus, section markdown.
 ###############################################################################
 
 if (!exists("verifier", mode = "function")) {
@@ -137,6 +139,54 @@ verifier("markdown_cas : NA manquant affiche \\<NA\\> hors police de code, chain
            identical(rn$ecarts$obtenu_na, c(TRUE, FALSE, TRUE)) })
 verifier("comparer_objets : NaN n'est pas marque manquant",
          !cr$comparer_objets(list(p = 1), list(p = NaN))$ecarts$obtenu_na)
+
+## --- Tableau de bascule en deux parts (--deux-parts, issue #67, Q-O4) -------------------
+ref_b <- list(sigma = 0.5, zero = 1e-17, n = 3L, v = c(1, 2, 3),
+              ctl = list(verdict = "OK", detail = "a", kkt = TRUE), p = 0.2)
+obt_b <- ref_b
+obt_b$sigma <- 0.5 * (1 + 3e-7); obt_b$zero <- 2e-16; obt_b$v[2] <- 2 * (1 + 1e-9)
+pb <- cr$separer_parts(cr$comparer_objets(ref_b, obt_b, tol = 0))
+verifier("separer_parts : derive seule -> part numerique (triee par ecart decroissant), part non numerique vide",
+         identical(pb$numerique$chemin, c("sigma", "v[2]", "zero")) &&
+         identical(pb$numerique$mesure, c("relatif", "relatif", "absolu")) &&
+         !nrow(pb$non_numerique) && !length(pb$structure) && !length(cr$refus_bascule(pb)))
+verifier("separer_parts : exige comparer_objets() au seuil 0",
+         leve(cr$separer_parts(cr$comparer_objets(ref_b, obt_b))))
+obt_c <- obt_b
+obt_c$ctl$detail <- "b"; obt_c$ctl$kkt <- FALSE; obt_c$p <- NA_real_; obt_c$n <- 3
+pc <- cr$separer_parts(cr$comparer_objets(ref_b, obt_c, tol = 0))
+verifier("separer_parts : chaine, booleen, NA et changement de type -> part non numerique",
+         setequal(pc$non_numerique$chemin, c("ctl$detail", "ctl$kkt", "p", "n")) &&
+         identical(sort(unique(pc$non_numerique$mesure)), c("non fini", "non numerique")) &&
+         identical(pc$numerique$chemin, c("sigma", "v[2]", "zero")))
+verifier("refus_bascule : part non numerique non vide -> un motif de refus",
+         { rf <- cr$refus_bascule(pc); length(rf) == 1L && grepl("^part non numerique non vide : 4 feuille", rf) })
+obt_d <- obt_b; obt_d$v[3] <- 3 * (1 + 2e-6)
+pd <- cr$separer_parts(cr$comparer_objets(ref_b, obt_d, tol = 0))
+verifier("refus_bascule : ecart numerique > TOLERANCE -> refus (ce n'est plus de la derive)",
+         { rf <- cr$refus_bascule(pd); length(rf) == 1L && grepl("^1 ecart\\(s\\) numerique\\(s\\) au-dela du seuil 1e-06", rf) })
+pe <- cr$separer_parts(cr$comparer_objets(list(a = list(1)), list(a = list(1L)), tol = 0))
+verifier("refus_bascule : structure differente seule -> refus",
+         length(pe$structure) > 0L && length(cr$refus_bascule(pe)) == 1L)
+verifier("markdown_deux_parts : derive seule -> titre, synthese des deux parts, un seul tableau",
+         { m <- cr$markdown_deux_parts("premium", pb, 9L)
+           m[1] == "### `premium` : d\u00e9rive num\u00e9rique seule" &&
+           any(grepl("^- Part num\u00e9rique : 3 feuille\\(s\\) .* sur 9 ; \u00e9cart maximal 3.000e-07 \\(relatif, `sigma`\\) ; 0 au-del\u00e0", m)) &&
+           any(m == "- Part non num\u00e9rique (doit \u00eatre vide) : 0 feuille(s)") &&
+           !any(grepl("^#### Part non", m)) && length(lignes_tableau(m)) == 3L && !any(grepl("Refus", m)) })
+verifier("markdown_deux_parts : part non numerique -> BASCULE REFUSEE, ses lignes, plafond par part",
+         { m <- cr$markdown_deux_parts("reserve1", pc, 9L, max_lignes = 2L)
+           m[1] == "### `reserve1` : BASCULE REFUS\u00c9E" && any(grepl("^- \\*\\*Refus\\*\\* : ", m)) &&
+           any(m == "#### Part non num\u00e9rique") && length(lignes_tableau(m)) == 4L &&
+           any(grepl("^\\*2 ligne\\(s\\) omise\\(s\\) sur 4 \\(au plus 2 par part\\)", m)) &&
+           any(grepl("^\\*1 ligne\\(s\\) omise\\(s\\) sur 3 \\(au plus 2 par part\\)", m)) })
+
+verifier("comparer_references.R : --deux-parts et --seuil incompatibles (erreur, aucun cas execute)",
+         { owd <- setwd(file.path(cr$DOSSIER_TESTS, "..")); on.exit(setwd(owd))
+           sortie <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"),
+             c("tests/comparer_references.R", "--deux-parts", "--seuil", "0"), stdout = TRUE, stderr = TRUE))
+           identical(attr(sortie, "status"), 1L) && any(grepl("--seuil incompatible", sortie)) &&
+           !any(grepl("^=== ", sortie)) })
 
 ## --- Reference absente : erreur, code de sortie 1 ------------------------------------------
 verifier("comparer_references.R : reference absente -> ERREUR dans le markdown et code de sortie 1",

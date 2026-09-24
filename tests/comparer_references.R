@@ -40,16 +40,34 @@
 #                      etape a 1 Mio) ; au-dela, le texte ajoute est tronque
 #                      a une fin de ligne, avec le nombre de lignes omises ;
 #                      si la place restante ne suffit pas meme a cette
-#                      mention, rien n'est ajoute (avertissement a l'ecran).
+#                      mention, rien n'est ajoute (avertissement a l'ecran) ;
+#      --deux-parts    tableau de BASCULE de plateforme (issue #67, Q-O4) :
+#                      toute feuille non strictement identique est listee
+#                      (seuil d'affichage 0, incompatible avec --seuil), en
+#                      deux parts. Part numerique : feuilles numeriques
+#                      finies des deux cotes (mesure relatif ou absolu de
+#                      comparer_objets()), c'est-a-dire la derive de
+#                      plateforme attendue. Part non numerique : tout le
+#                      reste -- chaine, booleen, verdict, NA ou valeur non
+#                      finie d'un cote, type ou attributs differents, feuille
+#                      absente ou ajoutee, structure differente --, qui doit
+#                      etre VIDE. Code de sortie 1 (bascule refusee, message
+#                      explicite) si la part non numerique n'est pas vide ou
+#                      si un ecart numerique depasse TOLERANCE (ce ne serait
+#                      plus de la derive). Console : liste complete, triee
+#                      par ecart decroissant ; markdown : les deux parts,
+#                      chacune plafonnee a --max-lignes.
 #
 #  Une erreur sur un cas (reference absente ou illisible, erreur du moteur) est
 #  signalee, a l'ecran et dans le markdown, et n'arrete pas les cas
 #  suivants ; le code de sortie est alors 1. Sinon 0, que les cas soient
 #  conformes ou non : le script est un rapport, le critere de la CI reste
-#  test_reproductibilite.R.
+#  test_reproductibilite.R. Seule exception : --deux-parts, dont le code 1
+#  signale aussi une bascule refusee (voir ci-dessus).
 #
 #  Source (plutot que lance par Rscript), le fichier ne fait que definir ses
-#  fonctions : markdown_cas() et borner_markdown() sont testees par
+#  fonctions : markdown_cas(), borner_markdown(), separer_parts(),
+#  refus_bascule() et markdown_deux_parts() sont testees par
 #  tests/unitaires/test_comparer_references.R.
 ###############################################################################
 
@@ -183,15 +201,91 @@ ajouter_markdown <- function(lignes, fichier, max_octets = MAX_OCTETS_MARKDOWN) 
 }
 
 # ---------------------------------------------------------------------------
+#  Tableau de bascule en deux parts (--deux-parts, issue #67, Q-O4)
+# ---------------------------------------------------------------------------
+
+# Mesures de comparer_objets() qui relevent de la part numerique : feuille
+# numerique, finie des deux cotes, de meme type et memes attributs. Toute
+# autre mesure (non numerique, non fini, absente, ajoutee, ordre ou
+# doublons) releve de la part non numerique.
+MESURES_NUMERIQUES <- c("relatif", "absolu")
+
+# Separe en deux parts la sortie de comparer_objets() appelee au seuil 0
+# (toute feuille non strictement identique figure alors dans r$ecarts).
+# Renvoie list(numerique, non_numerique, structure) : les deux data.frame
+# de r$ecarts, la part numerique triee par ecart decroissant ; structure,
+# les noeuds dont le type ou les attributs different (part non numerique).
+separer_parts <- function(r) {
+  if (!identical(r$tolerance, 0))
+    stop("separer_parts : comparer_objets() doit etre appelee au seuil 0 (tol = 0)")
+  num <- r$ecarts$mesure %in% MESURES_NUMERIQUES
+  numerique <- r$ecarts[num, , drop = FALSE]
+  numerique <- numerique[order(-numerique$ecart), , drop = FALSE]
+  list(numerique = numerique, non_numerique = r$ecarts[!num, , drop = FALSE],
+       structure = r$structure)
+}
+
+# Motifs de refus de la bascule pour un cas (character(0) si aucun) : part
+# non numerique non vide ; ecart numerique au-dela de tol (TOLERANCE, le
+# seuil de la CI), qui ne serait plus de la derive de plateforme.
+refus_bascule <- function(p, tol = TOLERANCE) {
+  n_nn <- nrow(p$non_numerique); n_st <- length(p$structure)
+  n_au_dela <- sum(p$numerique$ecart > tol)
+  c(if (n_nn || n_st)
+      sprintf(paste0("part non numerique non vide : %d feuille(s)%s -- une chaine, un booleen ou un verdict ",
+                     "qui differe n'est pas de la derive de plateforme"), n_nn,
+              if (n_st) sprintf(", %d noeud(s) de structure", n_st) else ""),
+    if (n_au_dela)
+      sprintf("%d ecart(s) numerique(s) au-dela du seuil %g de la CI : ce n'est plus de la derive de plateforme",
+              n_au_dela, tol))
+}
+
+# Section markdown d'un cas en deux parts : p, sortie de separer_parts() ;
+# n_feuilles, nombre de feuilles de la reference. Chaque part est plafonnee
+# a max_lignes lignes, les autres decomptees.
+markdown_deux_parts <- function(nom, p, n_feuilles, max_lignes = MAX_LIGNES_CAS, tol = TOLERANCE) {
+  refus <- refus_bascule(p, tol)
+  tableau <- function(e) {
+    if (!nrow(e)) return(character(0))
+    t <- utils::head(e, max_lignes)
+    ecart <- ifelse(is.na(t$ecart), "", formatC(t$ecart, format = "e", digits = 3))
+    c("| Feuille | R\u00e9f\u00e9rence | Valeur | \u00c9cart | Mesure |", "|---|---|---|---|---|",
+      sprintf("| `%s` | %s | %s | %s | %s |", cellule(t$chemin, 120L), code(cellule(t$reference), t$reference_na),
+              code(cellule(t$obtenu), t$obtenu_na), ecart, t$mesure),
+      if (nrow(e) > max_lignes)
+        c("", sprintf("*%d ligne(s) omise(s) sur %d (au plus %d par part) ; liste compl\u00e8te dans le journal.*",
+                      nrow(e) - max_lignes, nrow(e), max_lignes)))
+  }
+  pn <- p$numerique
+  c(sprintf("### `%s` : %s", nom, if (length(refus)) "BASCULE REFUS\u00c9E" else "d\u00e9rive num\u00e9rique seule"), "",
+    sprintf(paste0("- Part num\u00e9rique : %d feuille(s) non strictement identique(s) sur %d ; \u00e9cart maximal %s%s ; ",
+                   "%d au-del\u00e0 du seuil %g de la CI"),
+            nrow(pn), n_feuilles, if (nrow(pn)) formatC(pn$ecart[1], format = "e", digits = 3) else "0",
+            if (nrow(pn)) sprintf(" (%s, `%s`)", pn$mesure[1], texte_code(pn$chemin[1], 120L)) else "",
+            sum(pn$ecart > tol), tol),
+    sprintf("- Part non num\u00e9rique (doit \u00eatre vide) : %d feuille(s)%s", nrow(p$non_numerique),
+            if (length(p$structure))
+              sprintf(" ; structure (type ou attributs) diff\u00e9rente : %s",
+                      paste0("`", texte_code(utils::head(p$structure, 20L), 120L), "`", collapse = ", "))
+            else ""),
+    if (length(refus)) paste0("- **Refus** : ", texte_code(refus, 300L)), "",
+    if (nrow(p$non_numerique)) c("#### Part non num\u00e9rique", "", tableau(p$non_numerique), ""),
+    if (nrow(pn)) c("#### Part num\u00e9rique (\u00e9cart d\u00e9croissant)", "", tableau(pn), ""))
+}
+
+# ---------------------------------------------------------------------------
 #  Programme principal : execute seulement par Rscript.
 # ---------------------------------------------------------------------------
 
 if (sys.nframe() == 0L) {
   args <- commandArgs(trailingOnly = TRUE)
   tout <- "--tout" %in% args
-  args <- setdiff(args, "--tout")
+  deux_parts <- "--deux-parts" %in% args
+  args <- setdiff(args, c("--tout", "--deux-parts"))
   seuil <- TOLERANCE
   k <- match("--seuil", args)
+  if (!is.na(k) && deux_parts) stop("--deux-parts impose le seuil d'affichage 0 : --seuil incompatible")
+  if (deux_parts) seuil <- 0
   if (!is.na(k)) {
     if (k == length(args)) stop("--seuil sans valeur")
     seuil <- as.numeric(args[k + 1L])
@@ -218,7 +312,12 @@ if (sys.nframe() == 0L) {
   if (length(inconnus)) stop("Cas inconnu(s) : ", paste(inconnus, collapse = ", "))
 
   md <- markdown_entete(seuil, tout)
+  if (deux_parts)
+    md <- c(md, paste0("Tableau de **bascule** (`--deux-parts`) : part num\u00e9rique (d\u00e9rive de plateforme attendue) ",
+                       "et part non num\u00e9rique (cha\u00eenes, bool\u00e9ens, verdicts, valeurs non finies, structure), ",
+                       "qui doit \u00eatre vide."), "")
   erreurs <- 0L
+  refus <- character(0)
   for (nom in noms) {
     ref_f <- chemin_reference(nom)
     if (!file.exists(ref_f)) {
@@ -238,6 +337,34 @@ if (sys.nframe() == 0L) {
       erreurs <- erreurs + 1L
       cat("=== ", nom, " : ERREUR -- ", conditionMessage(r), "\n\n", sep = "")
       md <- c(md, markdown_cas(nom, erreur = conditionMessage(r)))
+      next
+    }
+    if (deux_parts) {
+      p <- separer_parts(r)
+      rf <- refus_bascule(p)
+      refus <- c(refus, if (length(rf)) paste0(nom, " : ", rf))
+      cat("=== ", nom, " : ", if (length(rf)) "BASCULE REFUSEE" else "derive numerique seule", "\n", sep = "")
+      montrer <- function(titre, e) {
+        cat(sprintf("--- %s : %d feuille(s)\n", titre, nrow(e)))
+        if (!nrow(e)) return(invisible())
+        e$ecart <- ifelse(is.na(e$ecart), "", formatC(e$ecart, digits = 3, format = "e"))
+        e$reference[e$reference_na] <- NA; e$obtenu[e$obtenu_na] <- NA
+        e$reference_na <- e$obtenu_na <- NULL
+        op <- options(width = 250L); on.exit(options(op))
+        print(e, row.names = FALSE, right = FALSE, max = .Machine$integer.max)
+      }
+      montrer("Part non numerique (doit etre vide)", p$non_numerique)
+      if (length(p$structure))
+        cat("Structure (type ou attributs) differente :", paste(p$structure, collapse = ", "), "\n")
+      montrer("Part numerique (ecart decroissant)", p$numerique)
+      cat(sprintf(paste0("Synthese : %d feuille(s) ; part numerique %d, ecart maximal %s, %d au-dela du seuil %g ",
+                         "de la CI ; part non numerique %d feuille(s), %d noeud(s) de structure\n"),
+                  r$n_feuilles, nrow(p$numerique),
+                  formatC(if (nrow(p$numerique)) p$numerique$ecart[1] else 0, format = "e", digits = 3),
+                  sum(p$numerique$ecart > TOLERANCE), TOLERANCE, nrow(p$non_numerique), length(p$structure)))
+      for (m in rf) cat("REFUS :", m, "\n")
+      cat("\n")
+      md <- c(md, markdown_deux_parts(nom, p, r$n_feuilles, max_lignes))
       next
     }
     cat("=== ", nom, " : ", r$n_ecarts, " grandeur(s) en ecart au seuil ",
@@ -262,5 +389,11 @@ if (sys.nframe() == 0L) {
     if (length(ecrit)) cat(sprintf("Markdown ajoute a %s : %d ligne(s)%s.\n", fichier_md, length(ecrit),
                 if (identical(ecrit, enc2utf8(md))) "" else " (tronque)"))
   }
-  if (erreurs) quit(status = 1)
+  if (length(refus)) {
+    cat("\nBASCULE REFUSEE -- ne pas commiter ces references :\n", paste0("  ", refus, "\n"), sep = "")
+    cat(paste0("Une feuille non numerique qui differe entre plateformes est un libelle qui imprime encore un ",
+               "artefact de l'optimiseur (M18, M23, M24) : retirer le libelle fautif (ou l'exclure, motif a ",
+               "l'appui) dans le moteur, puis relancer la bascule.\n"))
+  }
+  if (erreurs || length(refus)) quit(status = 1)
 }
