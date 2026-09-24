@@ -47,8 +47,20 @@
 #
 #  Le moteur est execute sur les jeux de tests/donnees/ avec B petit
 #  (defaut 99) : seule la STRUCTURE de la table des tests sert ici (nombre de
-#  lignes, familles, types, nature de la p-value retenue). Voir le compte
-#  rendu de l'issue #65 pour la mesure de l'independance de ces grandeurs a B.
+#  lignes, familles, types, nature de la p-value retenue). Cette structure
+#  DEPEND de B sous un seuil : run_engine() (branche lognormale, R/engine.R)
+#  calcule l'IC bootstrap par
+#      ic <- if (length(usp_b) > 20) stats::quantile(usp_b, ...) else NULL
+#  ou usp_b a la longueur de boot$sigma_boot (replications bootstrap FINIES
+#  seulement, usp_bootstrap()), puis fit$largeur_ic <- NULL si ic est NULL,
+#  et usp_tests() n'ajoute la ligne "Largeur relative de l'IC bootstrap 90%"
+#  (famille G.) que si fit$largeur_ic n'est pas NULL. Mesure sur
+#  tests/donnees/ : 47 lignes pour premium et reserve1 a B = 19 et 20, 48 a
+#  B = 21 et 22 ; reserve2 : 19 lignes a B = 19, 20, 21, 22. Le script
+#  refuse donc tout --B < B_MIN = 21 (erreur, code de sortie 1), et verifie
+#  apres execution que chaque resultat lognormal a bien plus de 20
+#  replications finies (B >= 21 est necessaire, pas suffisant si des
+#  replications echouent).
 #
 #  Usage (depuis la racine du depot) :
 #      Rscript tests/concordance_doc_moteur.R              # mode rapport
@@ -382,6 +394,31 @@ familles_produites <- function(o) {
 }
 
 # ---------------------------------------------------------------------------
+#  Nombre de replications bootstrap
+# ---------------------------------------------------------------------------
+
+# Seuil de B sous lequel la table des tests lognormale perd une ligne :
+# run_engine() ne calcule l'IC bootstrap (et usp_tests() la ligne "Largeur
+# relative de l'IC bootstrap 90%") que si length(usp_b) > 20, usp_b ayant
+# la longueur de boot$sigma_boot (replications finies). Voir l'en-tete.
+B_MIN <- 21L
+
+# Valide la valeur de --B (chaine ou nombre) ; erreur explicite si ce n'est
+# pas un entier ou s'il est sous B_MIN. Renvoie B entier.
+valider_B <- function(x) {
+  B <- suppressWarnings(as.integer(x))
+  if (length(B) != 1L || is.na(B) || as.character(B) != trimws(as.character(x)))
+    stop(sprintf("--B : entier attendu, recu \"%s\"", paste(x, collapse = " ")), call. = FALSE)
+  if (B < B_MIN)
+    stop(sprintf(paste0("--B = %d refuse : B >= %d requis. Sous ce seuil, run_engine() ne calcule pas ",
+                        "l'IC bootstrap (R/engine.R : ic <- if (length(usp_b) > 20) ... else NULL) et la ",
+                        "table des tests lognormale perd la ligne \"Largeur relative de l'IC bootstrap 90%%\" ",
+                        "(famille G.) : les decomptes du document ne seraient plus comparables."), B, B_MIN),
+         call. = FALSE)
+  B
+}
+
+# ---------------------------------------------------------------------------
 #  Programme principal
 # ---------------------------------------------------------------------------
 
@@ -392,8 +429,7 @@ if (sys.nframe() == 0L) {
   k <- match("--B", args)
   if (!is.na(k)) {
     if (k == length(args)) stop("--B sans valeur")
-    B <- as.integer(args[k + 1L])
-    if (is.na(B) || B < 1L) stop("--B : entier positif attendu")
+    B <- valider_B(args[k + 1L])
   }
   k <- match("--tex", args)
   fichier_tex <- if (is.na(k)) NULL else {
@@ -423,14 +459,20 @@ if (sys.nframe() == 0L) {
   statuts <- vapply(noms, statut_fonction, character(1), env = env, paquets = paquets, defs = defs)
   cat(sprintf("=== 1. Fonctions citees par \\code{nom()} : %d citation(s), %d nom(s) distinct(s)\n",
               nrow(cit), length(noms)))
-  tab <- table(sub(" \\(.*$", "", statuts))
+  # Recapitulatif par nom distinct, APRES exemptions : un nom introuvable
+  # dont toutes les citations sont exemptees est compte comme exempte ; un
+  # nom dont une citation au moins reste introuvable est un ecart.
+  ex <- appliquer_exemptions(cit, statuts, tex)
+  recap <- sub(" \\(.*$", "", statuts)
+  recap[statuts == "INTROUVABLE"] <- "exempte (EXEMPTES_CODE)"
+  recap[names(statuts) %in% ex$ecarts$nom] <- "INTROUVABLE non exempte"
+  tab <- table(recap)
   for (s in names(tab)) cat(sprintf("  %-26s %d\n", s, tab[[s]]))
   autres <- noms[!statuts %in% c("moteur ou affichage", "INTROUVABLE")]
   if (length(autres)) {
     cat("  Hors moteur et affichage (pour information) :\n")
     for (n in autres) cat(sprintf("    %-32s %s\n", n, statuts[[n]]))
   }
-  ex <- appliquer_exemptions(cit, statuts, tex)
   if (nrow(ex$exemptees)) {
     cat(sprintf("  Exemptees nommement (EXEMPTES_CODE, %d citation(s), pas des ecarts) :\n", nrow(ex$exemptees)))
     for (i in seq_len(nrow(ex$exemptees)))
@@ -457,6 +499,11 @@ if (sys.nframe() == 0L) {
     premium  = run_engine(xt = .ln$xt, yt = .ln$yt, methode = "premium", segment = 1, annexe = "II", B = B),
     reserve1 = run_engine(xt = .ln$xt, yt = .ln$yt, methode = "reserve1", segment = 1, annexe = "II", B = B),
     reserve2 = run_engine(methode = "reserve2", triangle = .tri, segment = 1, annexe = "II", B = B)))
+  n_finies <- vapply(resultats[c("premium", "reserve1")], function(r) length(r$bootstrap$sigma_boot), integer(1))
+  if (any(n_finies <= 20L))
+    stop(sprintf(paste0("replications bootstrap finies insuffisantes (%s) : run_engine() ne calcule l'IC ",
+                        "bootstrap que si length(usp_b) > 20 ; augmenter --B."),
+                 paste(sprintf("%s %d", names(n_finies), n_finies), collapse = ", ")), call. = FALSE)
   grandeurs <- lapply(resultats, function(r) grandeurs_moteur(r$tests))
   cat(sprintf("\n=== 2. Decomptes (moteur execute sur tests/donnees/, B = %d)\n", B))
   for (m in names(grandeurs))

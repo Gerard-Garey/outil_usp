@@ -4,12 +4,14 @@
 #
 #  Teste les fonctions d'extraction de tests/concordance_doc_moteur.R sur des
 #  chaines LaTeX construites en memoire, sans lire le document ni executer le
-#  moteur (sauf les deux derniers blocs, qui lancent le script) : \code{} imbriques, noms coupes en deux \code{}, commentaires,
+#  moteur (sauf le dernier bloc, qui lance le script) : \code{} imbriques, noms coupes en deux \code{}, commentaires,
 #  desechappement, citations de fonction (qualifiees, internes, a joker,
 #  avec arguments), nombres en lettres, registre des decomptes (phrase
 #  verifiee, ecart, phrase introuvable), inventaire, familles, exemptions
-#  nominatives (appliquee, ancree sur son contexte, perimee) et mode --strict
-#  (script lance sur une copie modifiee du .tex et sur l'etat du depot).
+#  nominatives (appliquee, ancree sur son contexte, perimee), seuil de B
+#  (valider_B(), --B sous B_MIN refuse), recapitulatif apres exemptions et
+#  mode --strict (script lance sur une copie modifiee du .tex et sur l'etat
+#  du depot).
 ###############################################################################
 
 if (!exists("verifier", mode = "function")) {
@@ -123,6 +125,20 @@ verifier("Liste EXEMPTES_CODE du script : reactive et render*, motif de la colon
          identical(vapply(cc$EXEMPTES_CODE, `[[`, "", "nom"), c("reactive", "render*")) &&
            all(grepl("Interdit", vapply(cc$EXEMPTES_CODE, `[[`, "", "motif"))))
 
+## --- Seuil de B (structure de la table des tests dependante de B) ---------
+.err <- function(expr) tryCatch({ expr; NA_character_ }, error = function(e) conditionMessage(e))
+verifier("B_MIN = 21 : premier B pour lequel length(usp_b) > 20 (condition de run_engine())",
+         identical(cc$B_MIN, 21L))
+verifier("valider_B : 21 et \"99\" acceptes, renvoyes en entier",
+         identical(cc$valider_B(21), 21L) && identical(cc$valider_B("99"), 99L))
+verifier("valider_B : 20 refuse, message citant la condition du moteur et la ligne perdue",
+         grepl("B >= 21 requis", .err(cc$valider_B(20)), fixed = TRUE) &&
+           grepl("length(usp_b) > 20", .err(cc$valider_B(20)), fixed = TRUE) &&
+           grepl("Largeur relative de l'IC bootstrap 90%", .err(cc$valider_B("1")), fixed = TRUE))
+verifier("valider_B : valeurs non entieres refusees (abc, 25.5, vide)",
+         all(grepl("entier attendu", c(.err(cc$valider_B("abc")), .err(cc$valider_B("25.5")),
+                                       .err(cc$valider_B(""))), fixed = TRUE)))
+
 ## --- Mode --strict sur le document (execute le moteur, ~10 s par appel) ----
 .racine <- normalizePath(file.path(.dossier, "..", ".."))
 .lancer_concordance <- function(...) {
@@ -139,10 +155,18 @@ unlink(.tex_mutant)
 verifier("--strict echoue (code 1) sur un nom invente dans une copie du .tex, signale comme ecart non exempte",
          r_mut$code == 1L && any(grepl("^    fonction_inventee_xyz\\(\\) ", r_mut$sortie)) &&
            any(grepl("non exempte", r_mut$sortie)))
+verifier("Recapitulatif de la section 1 sur la copie mutante : 1 nom INTROUVABLE non exempte",
+         any(grepl("^  INTROUVABLE non exempte +1$", r_mut$sortie)))
 r_act <- .lancer_concordance("--strict")
-echec_attendu("--strict reussit (code 0) sur l'etat actuel du depot",
-              "#76 : engine_fmt_repere() supprime du moteur, encore cite par le .tex (l. ~462 et ~4374), docwriter en fin de branche O",
-              r_act$code == 0L)
+r_b20 <- .lancer_concordance("--B", "20")
+verifier("--B 20 refuse par le script lance (code 1, erreur explicite, moteur non execute)",
+         r_b20$code == 1L && any(grepl("--B = 20 refuse", r_b20$sortie, fixed = TRUE)) &&
+           !any(grepl("^=== 2", r_b20$sortie)))
+verifier("--strict reussit (code 0) sur l'etat actuel du depot",
+         r_act$code == 0L)
+verifier("Recapitulatif de la section 1 apres exemptions : 2 noms exemptes, aucun INTROUVABLE non exempte",
+         any(grepl("^  exempte \\(EXEMPTES_CODE\\) +2$", r_act$sortie)) &&
+           !any(grepl("^  INTROUVABLE", r_act$sortie)))
 verifier("Etat actuel : reactive() et render*() exemptes, aucune exemption perimee",
          sum(grepl("^    (reactive|render\\*)\\(\\) +ligne [0-9]+ +primitive Shiny", r_act$sortie)) == 2L &&
            !any(grepl("perimee", r_act$sortie)))
