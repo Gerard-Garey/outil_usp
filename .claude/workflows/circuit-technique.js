@@ -41,7 +41,12 @@ export const meta = {
 //    revue finale complete (regle 10) est hors de ce workflow.
 //  - Principe 6 : constats sous schema (gravite, fichier:ligne, mesure).
 //  - Principe 7 : les batteries sont des scripts R executes par un agent ;
-//    le script du workflow n'a pas acces au systeme de fichiers.
+//    le script du workflow n'a pas acces au systeme de fichiers. La
+//    concordance est lancee en --strict (decision M32 du 24/09/2026) : un
+//    code 1 avec un BILAN d'ecarts n'arrete pas le workflow (le .tex peut
+//    etre en retard sur le code, M21), il est rapporte dans ecart_concordance
+//    et dans la surface documentaire, a corriger par un commit docs: minimal
+//    avant push ; toute autre sortie non nulle reste une batterie rouge.
 //  - Principe 8 : effort 'low' pour les etapes mecaniques ; le parametre
 //    model n'est pas fixe (herite du modele de session).
 //  Trois statuts de fin : 'termine', 'termine avec questions' (questions
@@ -76,12 +81,18 @@ const copieValide = function (v) { return /^(\/|[A-Za-z]:[\\/])/.test(String(v |
 // non ASCII), qui persiste avec core.quotePath=false pour les espaces
 const LISTE_NON_SUIVIS = 'git status --porcelain -z --untracked-files=all | tr "\\0" "\\n" | sed -n "s/^?? //p"'
 
-// Les trois batteries attendues a chaque verification (principe 7)
+// Les trois batteries attendues a chaque verification (principe 7). La
+// concordance est lancee en --strict (decision M32) ; son echec par ecart
+// n'est PAS une batterie rouge (le .tex peut etre en retard sur le code,
+// M21) : il est rapporte comme ecart de concordance (voir plus bas)
+const CONCORDANCE = 'tests/concordance_doc_moteur.R'
 const BATTERIES = [
   'tests/test_unitaires.R',
   'tests/test_reproductibilite.R',
-  'tests/concordance_doc_moteur.R'
+  CONCORDANCE + ' --strict'
 ]
+const PREFIXE_CONCORDANCE = 'Ecart de concordance'
+const CONSIGNE_M32 = 'a corriger par un commit docs: minimal avant push (M32)'
 
 // Lecture de l'argument : numero d'issue, suivi d'une consigne facultative.
 // Formes acceptees : 76, '76', '#76 consigne', {issue: 76, consigne: '...'}
@@ -114,6 +125,7 @@ const rapport = {
   tours: [],
   fichiers_modifies: [],
   surface_documentaire: [],
+  ecart_concordance: null,
   commit_propose_non_execute: null,
   copie_temporaire: 'aucun',
   rappel: "Aucun commit, push, regeneration de reference ni issue n'a ete execute par le workflow. La session principale verifie git status et git log, puis commite apres lecture. Le repertoire copie_temporaire (hors depot, cree par mktemp -d au tour 1) n'est pas supprime par le workflow : a supprimer par la session principale apres lecture."
@@ -318,6 +330,7 @@ function consigneVerification(depot, figer) {
     INTERDITS,
     "1. Depuis la racine du depot, execute dans cet ordre et rapporte pour chacun la commande, le code de sortie et les lignes de bilan recopiees telles quelles :",
     BATTERIES.map(function (b) { return '   Rscript ' + b }).join('\n'),
+    "   Pour " + CONCORDANCE + " --strict, recopie dans synthese la ligne « BILAN : … » telle quelle (et les lignes ECART s'il y en a).",
     "   ecart_aux_references est vrai si test_reproductibilite.R echoue par ecart a une reference (et non par difference entre deux appels a graine egale).",
     "2. Garde-fous : compare git rev-parse HEAD a " + depot.tete + " et git rev-parse @{u} a '" + depot.amont + "' ('aucun' si pas d'amont) ; git status --porcelain -- tests/reference/ et git status --porcelain -- docs/latex/ doivent etre vides. Recopie les sorties dans detail.",
   ]
@@ -351,7 +364,8 @@ function consigneAudit(depot, verif, reference, tour, aVerifier) {
     "Resultats des batteries executees juste avant (ne les relance pas sauf besoin d'une mesure precise) :",
     JSON.stringify(verif.batteries, null, 2),
     "Chaque constat porte sa gravite, fichier:ligne, la mesure executee (commande et sortie) et releve_de : 'coder' s'il se corrige sans decision, sinon 'actuary' (methode, pertinence a T = 8), 'regulatory' (formule, parametre, bareme) ou 'mainteneur' (sigma_USP, verdict, reference a regenerer). Un constat sans mesure ni emplacement n'est pas recevable.",
-    "contradiction_avec_batteries : vrai si tu conclus conforme alors qu'une batterie echoue, ou l'inverse sans explication."
+    "contradiction_avec_batteries : vrai si tu conclus conforme alors qu'une batterie echoue, ou l'inverse sans explication.",
+    "Exception (M32) : " + CONCORDANCE + " --strict en code 1 avec une ligne « BILAN : N ecart(s) (mode strict) », N > 0, est un ecart de concordance (documentation en retard sur le code, M21), pas une batterie en echec : il ne fonde ni constat ni contradiction ; le workflow le rapporte dans la surface documentaire, a corriger par un commit docs: minimal avant push."
   ]
   if (tour === 2) {
     lignes.push(
@@ -384,9 +398,33 @@ function constatsCorrigeables(audit) {
   })
 }
 
-// Batteries en echec : code de sortie non nul
+// Ecart de concordance (M32) : concordance --strict en code 1 avec un
+// BILAN d'au moins un ecart. Tout autre echec de la concordance (erreur R,
+// bilan absent) reste une batterie rouge
+function estConcordance(b) { return String(b.commande).indexOf(CONCORDANCE) >= 0 }
+function estEcartConcordance(b) {
+  return estConcordance(b) && b.code_sortie === 1 &&
+    /BILAN : [1-9][0-9]* ecart\(s\) \(mode strict\)/.test(String(b.synthese))
+}
+// Batteries en echec : code de sortie non nul, hors ecart de concordance
 function batteriesRouges(verif) {
-  return verif.batteries.filter(function (b) { return b.code_sortie !== 0 })
+  return verif.batteries.filter(function (b) { return b.code_sortie !== 0 && !estEcartConcordance(b) })
+}
+// Rapport de l'ecart de concordance de la derniere verification, repris
+// dans la surface documentaire ; une verification ulterieure verte l'efface
+function noterConcordance(verif, tour) {
+  const ecarts = verif.batteries.filter(estEcartConcordance)
+  rapport.surface_documentaire = rapport.surface_documentaire.filter(function (x) {
+    return String(x).indexOf(PREFIXE_CONCORDANCE) !== 0
+  })
+  if (ecarts.length === 0) {
+    rapport.ecart_concordance = null
+    return
+  }
+  const synthese = ecarts.map(function (b) { return String(b.synthese) }).join(' ; ')
+  rapport.ecart_concordance = { tour: tour, synthese: synthese, consigne: CONSIGNE_M32 }
+  rapport.surface_documentaire.push(PREFIXE_CONCORDANCE + ' (' + CONCORDANCE + ' --strict, tour ' + tour + ') : ' + synthese + ' -- ' + CONSIGNE_M32)
+  log(PREFIXE_CONCORDANCE + ' au tour ' + tour + ' : ' + CONSIGNE_M32)
 }
 // Batteries attendues absentes du rapport de verification
 function batteriesManquantes(verif) {
@@ -458,6 +496,7 @@ async function derouler() {
     { label: 'batteries tour 1', agentType: 'audit', effort: 'low', schema: SCHEMA_VERIFICATION })
   if (!verif1) return arreter("l'agent de verification n'a rien rendu")
   tour1.verification = verif1
+  noterConcordance(verif1, 1)
   // La copie existe des la verification : son chemin est rendu meme en cas d'arret
   rapport.copie_temporaire = copieValide(verif1.copie_non_suivis) ? verif1.copie_non_suivis.trim() : 'aucun'
   const violation1 = violationGardeFous(verif1)
@@ -528,6 +567,7 @@ async function derouler() {
     { label: 'batteries tour 2', agentType: 'audit', effort: 'low', schema: SCHEMA_VERIFICATION })
   if (!verif2) return arreter("l'agent de verification n'a rien rendu a la reprise")
   tour2.verification = verif2
+  noterConcordance(verif2, 2)
   const violation2 = violationGardeFous(verif2)
   if (violation2) return arreter(violation2)
   if (impl2.decision_requise) return arreter('decision requise selon coder a la reprise : ' + impl2.motif_decision)
