@@ -967,8 +967,9 @@ travail), les cas prime et réserve n\textsuperscript{o}~1 ne présentent plus q
 strictement identique, à $1{,}6\cdot 10^{-16}$, et le cas Merz--Wüthrich les mêmes 8 valeurs à
 $1{,}339\cdot 10^{-13}$ au plus~: entre deux plateformes Linux, la dérive est de l'ordre du
 dernier bit. L'écart entre le poste du mainteneur et les références de la CI n'a pas encore
-été mesuré~; on l'attend, par symétrie, voisin de $3{,}508\cdot 10^{-7}$, ce qui est une
-attente et non une mesure. L'origine vraisemblable de cette dérive est l'optimiseur employé
+été mesuré~; on l'attend, par symétrie, voisin de $3{,}508\cdot 10^{-7}$, à condition que le poste
+reproduise encore au bit près ses anciennes références, comme mesuré les 22 et
+23~septembre 2026~; c'est une attente et non une mesure. L'origine vraisemblable de cette dérive est l'optimiseur employé
 par la branche lognormale sur une vraisemblance quasi plate en $\delta$, dont le
 chemin dépend de l'ordre des opérations en virgule flottante~; cette explication
 est cohérente avec la répartition observée des écarts, mais elle n'a pas été
@@ -4377,8 +4378,10 @@ ses anomalies dans cet ordre~: gradient non fini~; courbure non finie ($H_{\gamm
 égale à \code{NaN} ou $\pm\infty$) ou non strictement positive ($H_{\gamma\gamma}$ finie et
 $\le 0$)~; $\hat\gamma$ sur une borne numérique. La courbure n'est pas mentionnée lorsque
 $\hat\gamma$ est sur une borne, le pas de Newton n'étant alors pas défini. Ces anomalies
-décrivent le seul démarrage retenu et peuvent donc accompagner un « oui » obtenu sur un autre
-démarrage à l'optimum. Le commentaire ne dit pas si $\hat\delta$ est au bord ou intérieur
+décrivent le seul démarrage retenu~; chacune suffisant à lui faire manquer la condition
+(\code{usp\_kkt\_satisfaite()}), un « oui » qui les accompagne est nécessairement obtenu sur un
+autre démarrage à l'optimum (conséquence de la construction du code, non illustrée par une
+mesure~; aucun cas sur les jeux de contrôle). Le commentaire ne dit pas si $\hat\delta$ est au bord ou intérieur
 (fiche~\ref{fiche:position-delta}) et ne compare pas le démarrage retenu aux repères~; sur le
 jeu de contrôle, il se réduit à la réponse « oui » (mesure).
 
@@ -5390,8 +5393,8 @@ les réajustements échouent, la ligne est absente de la table.
 Aucune loi de référence n'est utilisée pour $\Delta_{\max}$.
 \Pval
 Aucune. La ligne est restituée \code{INFO}, sans verdict ni sens du test
-(\code{sens\_du\_test} à \code{NA}). Le repère conventionnel 10~\% / 20~\% vaut sur l'échelle de
-$\sigma_{\mathrm{USP}}$ seulement~; il n'est associé à
+(\code{sens\_du\_test} à \code{NA}). Le repère conventionnel 10~\% / 20~\% s'entend sur l'échelle de
+$\sigma_{\mathrm{USP}}$ seulement (celle du champ \code{estim})~; il n'est associé à
 aucune loi de référence ni à aucun niveau et ne produit aucun verdict~; jusqu'à l'issue~\#24, le
 script marquait \code{ALERTE} au-delà de 10~\% et \code{ECHEC} au-delà de 20~\%. Le commentaire
 le rappelait jusqu'à la décision M27 du mainteneur (issue~\#76)~; il est désormais énoncé ici
