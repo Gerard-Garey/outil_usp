@@ -1,12 +1,14 @@
 ###############################################################################
 #  tests/generer_references.R  --  REGENERATION DES VALEURS DE REFERENCE
 #
-#  RESERVE A LA CI : execute par le workflow .github/workflows/references.yml
-#  (mode bascule), sur un checkout jetable du runner ; ADR 0011, point 10.
-#  Ne pas l'executer ailleurs (poste du mainteneur et sessions compris) : une
-#  regeneration ordinaire passe par le mode regeneration du meme workflow
-#  (tests/regenerer_et_rendre_compte.R), un changement non numerique par
-#  tests/patcher_reference.R (skill verifier-reproductibilite).
+#  Les references versionnees (tests/reference/) ne sont produites que par la
+#  CI : workflow .github/workflows/references.yml (mode bascule pour ce
+#  script, sur un checkout jetable du runner ; ADR 0011, point 10). Une
+#  execution locale, pour experimenter, est admise a condition de n'en
+#  commiter aucun .rds. Une regeneration ordinaire passe par le mode
+#  regeneration du meme workflow (tests/regenerer_et_rendre_compte.R), un
+#  changement non numerique par tests/patcher_reference.R (skill
+#  verifier-reproductibilite, etape 4).
 #
 #  Ecrit dans tests/reference/, sans repertoire de sortie parametrable ; les
 #  ecarts (valeur avant, valeur apres, explication) sont documentes avant,
