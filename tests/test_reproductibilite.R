@@ -9,7 +9,8 @@
 #       dans tests/reference/, VALEUR PAR VALEUR a la tolerance TOLERANCE
 #       (comparer_objets() de outils_tests.R : chemins, structure et chaque
 #       feuille jugee isolement, sans moyenne), hors grandeurs connues comme
-#       instables (INSTABLES, chacune liee a une issue). L'ecart maximal
+#       instables (INSTABLES, chacune liee a une issue) et des champs exclus
+#       par conception (EXCLUS_AJUSTEMENT, issue #22). L'ecart maximal
 #       mesure est affiche meme quand le cas est conforme.
 #
 #  Code de sortie 0 si tout passe, 1 sinon (utilise par l'integration

@@ -26,7 +26,8 @@
 #  sur la plateforme de reference (ADR 0006), avec le visa du mainteneur sur
 #  le tableau avant / apres.
 #
-#  CE SCRIPT NE NEUTRALISE PAS `INSTABLES`, a la difference de
+#  CE SCRIPT NE NEUTRALISE PAS `INSTABLES` (ni les champs exclus par
+#  conception `EXCLUS_AJUSTEMENT`, issue #22), a la difference de
 #  comparer_references.R qui le fait par defaut pour l'affichage. C'est
 #  voulu : comparer_references.R produit un TABLEAU, ou masquer une grandeur
 #  connue pour dependre de la plateforme le rend lisible ; le present script
@@ -397,8 +398,12 @@ patcher_objets <- function(avant, apres, motifs, nom = "objet") {
   # 4. Ce que verra la CI : le comparateur unique de test_reproductibilite.R
   #    (comparer_objets(), chemins, structure et chaque feuille au seuil
   #    TOLERANCE), la reference patchee tenant lieu de reference. C'est le
-  #    dernier filet, et le seul qui porte sur l'objet entier.
-  verdict_ci <- comparer_objets(patche, apres, tol = TOLERANCE)
+  #    dernier filet, et le seul qui porte sur l'objet entier. Comme
+  #    test_reproductibilite.R, on neutralise ici les grandeurs exclues de la
+  #    comparaison (neutraliser_instables()) : cette etape predit le verdict de
+  #    la CI, elle ne change rien a ce qui est ecrit.
+  verdict_ci <- comparer_objets(neutraliser_instables(patche),
+                                neutraliser_instables(apres), tol = TOLERANCE)
   if (!verdict_ci$conforme) {
     cat("\ntest_reproductibilite.R resterait ROUGE :\n")
     cat(paste0("  ", resumer_comparaison(verdict_ci), collapse = "\n"), "\n")

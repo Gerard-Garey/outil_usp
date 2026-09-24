@@ -81,9 +81,44 @@ executer_cas <- function(nom) nettoyer(CAS[[nom]]())
 # cette tolerance sont la regle et sont precisement ce qu'elle absorbe.
 INSTABLES <- list()
 
-# Remplace par NA les grandeurs instables, dans le resultat comme dans la
-# reference, avant comparaison.
+# Champs de res$ajustement EXCLUS PAR CONCEPTION de la comparaison aux
+# references (decision du mainteneur, issue #22). Categorie distincte de
+# INSTABLES : l'exclusion ne repose pas sur un constat de CI entre
+# plateformes mais sur la nature de la grandeur, etablie sur une meme
+# machine. Grandeur dont la valeur attendue est un residu ~0 dependant du
+# demarrage retenu ; mesure : 54 points d'arret a objectif egal (1,88e-12),
+# g_gamma dans [-3,8e-7 ; 1,09e-5] ; issue #22. Les champs restent dans
+# l'objet resultat ; restent compares le pas de Newton (stat du controle et
+# pas_newton_gamma, en absolu), hessien_gamma, les verdicts, les comptes de
+# demarrages, delta et gamma estimes.
+# n_starts_optimum_code0 (ajout du 23/09/2026, decision du mainteneur) :
+# nombre de demarrages a l'optimum rendant le code 0 d'optim(), qui depend
+# du chemin d'optimisation : un demarrage bascule entre les codes 0 et 52
+# selon la machine (constat CI du 23/09/2026 sur acfc0c0 : 54 contre 53 sous
+# perturbation de 1e-12 ; mesure locale : 52 a 54 sur 101 perturbations de
+# 1e-12). Restent compares n_starts_optimum (stable, 54) et le verdict, qui
+# ne demande qu'au moins un demarrage a l'optimum au code 0.
+# convergence (ajout du 24/09/2026, decision du mainteneur, option (a)) : code
+# de retour d'optim() du demarrage retenu, c'est-a-dire du premier demarrage
+# a moins de 1e-10 de l'objectif, departage par l'ordre de la grille. Meme
+# mecanisme que n_starts_optimum_code0 : il depend du chemin d'optimisation
+# (mesure du 24/09/2026, Linux, R 4.3.3 : cas d'audit 176 de
+# test_controles_numeriques.R, demarrage retenu au code 52 alors que 53
+# demarrages a l'optimum rendent 0). Il ne decide pas du verdict (precision
+# de M11) et n'est plus imprime dans le detail du controle. Le champ n'est
+# neutralise que dans res$ajustement (lognormale) ; l'objet Merz-Wuthrich
+# n'en comporte pas.
+EXCLUS_AJUSTEMENT <- c("gradient", "gradient_projete", "n_starts_optimum_code0",
+                       "convergence")
+
+# Remplace par NA les grandeurs instables (INSTABLES) et les champs exclus par
+# conception (EXCLUS_AJUSTEMENT), dans le resultat comme dans la reference,
+# avant comparaison. Les NA conservent la longueur et les noms du champ : la
+# structure de l'objet reste comparee.
 neutraliser_instables <- function(res) {
+  if (is.list(res$ajustement))
+    for (champ in EXCLUS_AJUSTEMENT)
+      if (!is.null(res$ajustement[[champ]])) res$ajustement[[champ]][] <- NA_real_
   for (ins in INSTABLES) {
     for (k in seq_along(res$tests)) {
       if (identical(res$tests[[k]]$test, ins$test))

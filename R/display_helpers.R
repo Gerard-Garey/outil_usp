@@ -46,8 +46,10 @@ GROUPES <- list(
   "F." = list(cle = "STAB", titre = "Stabilit\u00e9, ruptures et points aberrants",
               sous = "hors hypoth\u00e8ses r\u00e9glementaires, mais conditionne leur lecture",
               ref  = "diagnostics compl\u00e9mentaires"),
+  # Les controles numeriques (condition du premier ordre, multi-demarrages)
+  # ne sont plus dans la table des tests mais dans res$controles (#22).
   "G." = list(cle = "ROB", titre = "Robustesse de l'estimation",
-              sous = "diagnostics num\u00e9riques et de sensibilit\u00e9",
+              sous = "diagnostics de sensibilit\u00e9 (jackknife, IC bootstrap)",
               ref  = "diagnostics compl\u00e9mentaires"),
   # --- Familles propres a la methode Merz-Wuthrich (annexe XVII, section D).
   # Meme principe de presentation que H1 a H4 : une famille par hypothese du
@@ -589,7 +591,7 @@ plot_influence_levier <- function(pd) {
         line = list(color = COUL$ref, dash = "dash"), hoverinfo = "skip")
   p <- plotly::add_lines(p, x = rep(d$seuil_levier[1], 2), y = lim,
         line = list(color = COUL$trait, dash = "dash"),
-        hovertemplate = "seuil de levier 2k/T<extra></extra>")
+        hovertemplate = "repere de levier 2k/T<extra></extra>")
   p <- plotly::add_markers(p, x = d$levier, y = d$residu_std,
         text = paste("annee", d$t),
         marker = list(size = 11, color = ifelse(d$influent, COUL$trait, COUL$pt)),
@@ -619,8 +621,8 @@ plot_influence_cook <- function(pd) {
         hovertemplate = "annee %{x}<br>Cook = %{y:.4f}<extra></extra>")
   p <- plotly::add_lines(p, x = range(d$t), y = rep(d$seuil_cook[1], 2),
         line = list(color = COUL$trait, dash = "dash"),
-        hovertemplate = "seuil 4/T<extra></extra>")
-  .mep(p, "Distance de Cook par annee (seuil 4/T)", "annee t", "distance de Cook")
+        hovertemplate = "repere 4/T<extra></extra>")
+  .mep(p, "Distance de Cook par annee (repere 4/T)", "annee t", "distance de Cook")
 }
 
 # --- Methode lognormale : influence sur le parametre final ------------------
@@ -950,7 +952,7 @@ note_influence_mw <- function(pd) {
   mx <- d[which.max(abs(d$dfbeta_relatif)), ]
   sprintf(paste(
     "Le levier d'une cellule dans son facteur f_j vaut C(i,j) / S_j ; il somme &agrave; 1",
-    "par colonne. <b>%d cellule(s)</b> d&eacute;passent le seuil 2/n_j. La cellule la plus",
+    "par colonne. <b>%d cellule(s)</b> d&eacute;passent le rep&egrave;re 2/n_j. La cellule la plus",
     "influente est <b>(i = %d, j = %d)</b>, dont le retrait d&eacute;placerait f_%d de",
     "<b>%+.2f %%</b>."), nf, mx$i, mx$j, mx$j, 100 * mx$dfbeta_relatif)
 }
@@ -962,8 +964,8 @@ note_influence <- function(pd) {
   if (is.null(d$cook) || is.null(d$ecart_sigma)) return(NULL)
   ni <- sum(d$influent); nl <- sum(d$fort_levier)
   sprintf(paste(
-    "<b>%d</b> observation(s) au-del&agrave; du seuil de Cook (4/T = %.3f) et <b>%d</b>",
-    "au-del&agrave; du seuil de levier (2k/T = %.3f). Le retrait de l'ann&eacute;e la plus",
+    "<b>%d</b> observation(s) au-del&agrave; du rep&egrave;re de Cook (4/T = %.3f) et <b>%d</b>",
+    "au-del&agrave; du rep&egrave;re de levier (2k/T = %.3f). Le retrait de l'ann&eacute;e la plus",
     "influente d&eacute;place sigma_USP de <b>%+.1f %%</b>. Un levier &eacute;lev&eacute;",
     "seul n'est pas probl&eacute;matique : c'est sa combinaison avec un r&eacute;sidu",
     "important, mesur&eacute;e par la distance de Cook, qui l'est."),

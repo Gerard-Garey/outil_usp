@@ -565,14 +565,58 @@ verifier("M6 concentration de la reserve : diagnostic sans verdict (ADR 0001)",
 # Etait en echec attendu tant que la ligne M2 "Variance unitaire des residus
 # de Mack" forcait un verdict ALERTE/OK ; elle sort INFO depuis que sa valeur
 # de reference a ete corrigee. Marque retiree, test ordinaire.
-verifier("mw_tests : TOUT diagnostic sort en INFO (ADR 0001)",
+# Etendu par #24 (ADR 0001, amendement du 23/09/2026) : toute ligne dont le
+# type n'est ni "test" ni "procedure de decision" sort INFO ET sens NA.
+verifier("mw_tests : TOUT diagnostic sort en INFO, sens, p_retenue et nature_p NA (ADR 0001)",
          {
-           faux <- Filter(function(l) identical(l$type, "diagnostic") &&
-                                      !identical(l$verdict, "INFO"), lignes_mw)
+           faux <- Filter(function(l) !l$type %in% c("test", "procedure de decision") &&
+                                      !(identical(l$verdict, "INFO") &&
+                                          identical(l$sens, NA_character_) &&
+                                          identical(l$p_retenue, NA_real_) &&
+                                          identical(l$nature_p, NA_character_)), lignes_mw)
            if (!length(faux)) TRUE
-           else paste("verdict non INFO :",
-                      paste(vapply(faux, function(l) sprintf("%s -> %s", l$test, l$verdict),
+           else paste("ligne non-test hors INFO / sens NA / p_retenue NA / nature_p NA :",
+                      paste(vapply(faux, function(l) sprintf("%s -> %s / %s", l$test,
+                                                             l$verdict, l$sens),
                                    character(1)), collapse = " ; "))
+         })
+verifier("ESD Merz-Wuthrich (procedure de decision) : verdict OK / ALERTE / ECHEC, sens 'ne pas rejeter'",
+         {
+           e <- Filter(function(l) identical(l$type, "procedure de decision"), lignes_mw)
+           length(e) == 1L &&
+             identical(e[[1]]$test, "Cellules aberrantes multiples (ESD generalise)") &&
+             e[[1]]$verdict %in% c("OK", "ALERTE", "ECHEC") &&
+             identical(e[[1]]$sens, "ne pas rejeter")
+         })
+# Gardes de add() (revue d'audit du commit #24), exercees en reinjectant par
+# texte (deparse) un appel fautif dans le corps de mw_tests().
+mw_tests_modifie <- function(avant, apres) {
+  txt <- paste(deparse(mw_tests), collapse = "\n")
+  if (!grepl(avant, txt, fixed = TRUE)) stop("motif absent du corps de mw_tests : ", avant)
+  f <- eval(parse(text = sub(avant, apres, txt, fixed = TRUE)))
+  environment(f) <- environment(mw_tests)
+  f
+}
+erreur_mw <- function(f) tryCatch({ f(at, boot_mw_fictif); "" }, error = function(e) conditionMessage(e))
+verifier("add() (mw_tests) refuse un verdict force sur un diagnostic (part de la reserve, verdict = 'OK')",
+         {
+           m <- erreur_mw(mw_tests_modifie('type = "diagnostic", estim_nom = "part"',
+                                           'type = "diagnostic", verdict = "OK", estim_nom = "part"'))
+           grepl("un verdict n'est admis que pour type = 'test' ou 'procedure de decision'", m, fixed = TRUE) &&
+             grepl("Part de la reserve portee par la derniere annee d'accident", m, fixed = TRUE)
+         })
+verifier("add() (mw_tests) refuse une procedure de decision sans verdict (ESD)",
+         {
+           m <- erreur_mw(mw_tests_modifie("verdict = if (ro$nb_outliers >= 2)",
+                                           "verdict = if (TRUE) NULL else if (ro$nb_outliers >= 2)"))
+           grepl("une ligne de type 'procedure de decision' doit fournir son verdict", m, fixed = TRUE) &&
+             grepl("Cellules aberrantes multiples (ESD generalise)", m, fixed = TRUE)
+         })
+verifier("mw_tests : types en usage dans {test, diagnostic, non applicable, procedure de decision}",
+         {
+           hors <- setdiff(unique(vapply(lignes_mw, function(l) l$type, character(1))),
+                           c("test", "diagnostic", "non applicable", "procedure de decision"))
+           if (length(hors)) paste("type hors vocabulaire :", paste(hors, collapse = ", ")) else TRUE
          })
 
 # La contrainte qui fonde la valeur de reference du diagnostic M2 : sigma2_j

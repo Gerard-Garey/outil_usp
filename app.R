@@ -197,7 +197,11 @@ ui <- fluidPage(
               h4("Controles de validite"),
               helpText(paste("Ces controles ont une signification statistique et",
                              "actuarielle : ils sont implementes dans engine.R",
-                             "et non dans l'interface.")),
+                             "et non dans l'interface. Apres le calcul, la table",
+                             "comprend aussi les controles numeriques de",
+                             "l'estimation (famille H : condition du premier",
+                             "ordre, convergence multi-demarrages) ; un ECHEC y",
+                             "est signale sans bloquer le calcul.")),
               uiOutput("validation_live"),
               tableOutput("tab_controles"))
         ),

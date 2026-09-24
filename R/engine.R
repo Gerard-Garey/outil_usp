@@ -137,6 +137,39 @@ CRED_COURT <- c(`5` = .34, `6` = .51, `7` = .67, `8` = .81, `9` = .92,
 # (delta_au_bord) et usp_regime() (pi_constant).
 TOL_DELTA_BORD <- 1e-6
 
+# Bornes de recherche de gamma dans usp_ajuster() (L-BFGS-B). Bornes
+# NUMERIQUES, non reglementaires (le reglement ne borne que delta) : un gamma
+# estime sur l'une d'elles signale que le maximum de vraisemblance n'est pas
+# atteint (controle de la condition du premier ordre, issue #22). Source
+# unique de ces bornes : usp_ajuster(), usp_ajuster_rapide(), usp_profil()
+# et les libelles qui les citent (usp_controles_numeriques(), usp_tests(),
+# par sprintf) les lisent ici (issue #22).
+BORNES_GAMMA <- c(-12, 3)
+
+# Reperes des controles numeriques de l'estimation lognormale (issue #22).
+# Reperes NUMERIQUES, non reglementaires. Source unique : usp_ajuster()
+# (ensemble des demarrages a l'optimum), usp_kkt_satisfaite() (valeurs par
+# defaut) et les libelles de usp_controles_numeriques(), qui les impriment
+# par engine_fmt_repere().
+# - TOL_OPTIMUM : un demarrage est "a l'optimum" si son objectif est a moins
+#   de TOL_OPTIMUM de l'objectif minimal ; meme ensemble pour la convergence
+#   multi-demarrages (M15) et pour la condition de Kuhn-Tucker (M25).
+# - REP_PAS_KKT : repere sur |pas de Newton en gamma|, ancre sur M9 (erreur
+#   relative sur sigma de l'ordre de Delta gamma, tolerance de
+#   non-regression 1e-6), maintenu par M17.
+# - REP_GD_KKT : repere sur |pg_delta|, regle unique au bord comme a
+#   l'interieur (M16).
+TOL_OPTIMUM <- 1e-6
+REP_PAS_KKT <- 1e-6
+REP_GD_KKT  <- 1e-4
+
+# Ecriture d'un repere dans un libelle, sans zero de tete dans l'exposant
+# (1e-6 et non "1e-06" que rendraient format() ou sprintf("%g")). Element
+# par element : format() d'un vecteur aligne les mantisses ("1.0e-6").
+engine_fmt_repere <- function(x)
+  vapply(x, function(v) sub("e([-+])0*([0-9])", "e\\1\\2", format(v, scientific = TRUE)),
+         character(1), USE.NAMES = FALSE)
+
 usp_credibilite <- function(T, bareme = c("court", "long")) {
   bareme <- match.arg(bareme)
   tab <- if (bareme == "long") CRED_LONG else CRED_COURT
@@ -275,44 +308,282 @@ usp_objectif <- function(par, x, y, xbar) {
   if (!is.finite(o)) 1e12 else o
 }
 
+# Gradient analytique de l'objectif profile O(delta, gamma) = usp_noyau()$obj
+# (issue #22). ln(beta) etant le minimiseur de O a (delta, gamma) fixes (forme
+# fermee de usp_noyau(), dO/d ln(beta) = -2 somme(pi_t v_t) = 0), la derivee
+# totale se reduit a la derivee partielle a ln(beta) fixe (theoreme de
+# l'enveloppe) :
+#   dO/dpi_t = s_t / pi_t,  s_t = z_t^2 - 1 - z_t / sqrt(pi_t),
+#   pi_t = 1 / ln(1 + e a_t),  a_t = delta + (1 - delta) xbar / x_t,
+#   e = exp(2 gamma), d'ou
+#   g_delta = somme(-pi_t e (1 - xbar / x_t) / (1 + e a_t) s_t),
+#   g_gamma = somme(-pi_t 2 e a_t / (1 + e a_t) s_t).
+# A pi_t constant (delta = 1 ou volumes constants), somme(z_t) = 0 et
+# g_gamma = w (somme(z_t^2) - T), w = -pi 2 e a / (1 + e a) ; a volumes
+# constants, g_delta = 0 (delta non identifie). Verifie contre la
+# difference centree de usp_noyau()$obj (tests/unitaires/
+# test_controles_numeriques.R).
+usp_gradient <- function(delta, gamma, x, y, xbar = mean(x)) {
+  k <- usp_noyau(delta, gamma, x, y, xbar)
+  e <- exp(2 * gamma)
+  a <- delta + (1 - delta) * xbar / x
+  s <- k$z^2 - 1 - k$z / sqrt(k$pi)
+  c(delta = sum(-k$pi * e * (1 - xbar / x) / (1 + e * a) * s),
+    gamma = sum(-k$pi * 2 * e * a / (1 + e * a) * s))
+}
+
+# Condition du premier ordre (Kuhn-Tucker) au point (delta, gamma), issue #22 :
+#   - gradient : usp_gradient() ;
+#   - gradient_projete : composante annulee si elle pousse hors du domaine au
+#     bord (borne inferieure : min(g, 0) ; borne superieure : max(g, 0)),
+#     inchangee a l'interieur. Bord jugee a TOL_DELTA_BORD pres, pour delta
+#     dans [0, 1] comme pour gamma dans BORNES_GAMMA ;
+#   - hessien_gamma : difference centree (pas h) du gradient analytique en
+#     gamma ;
+#   - pas_newton_gamma : -pg_gamma / H_gamma_gamma, NA si la courbure n'est
+#     pas strictement positive, si le gradient n'est pas fini, ou si gamma
+#     est sur une borne numerique (le pas n'y a pas de sens : le maximum de
+#     vraisemblance n'est pas atteint ; mineur d'audit, issue #22).
+# Les valeurs sont du bruit d'optimiseur (dependant de la plateforme) : elles
+# ne sont restituees que dans des champs numeriques, jamais dans un libelle.
+usp_condition_premier_ordre <- function(delta, gamma, x, y, xbar = mean(x),
+                                        tol = TOL_DELTA_BORD, h = 1e-4) {
+  g <- usp_gradient(delta, gamma, x, y, xbar)
+  projeter <- function(gi, v, bas, haut) {
+    if (!is.finite(gi)) gi
+    else if (v <= bas + tol) min(gi, 0)
+    else if (v >= haut - tol) max(gi, 0)
+    else gi
+  }
+  pg <- c(delta = projeter(g[["delta"]], delta, 0, 1),
+          gamma = projeter(g[["gamma"]], gamma, BORNES_GAMMA[1], BORNES_GAMMA[2]))
+  H <- (usp_gradient(delta, gamma + h, x, y, xbar)[["gamma"]] -
+        usp_gradient(delta, gamma - h, x, y, xbar)[["gamma"]]) / (2 * h)
+  gamma_bord <- !is.finite(gamma) || gamma <= BORNES_GAMMA[1] + tol ||
+    gamma >= BORNES_GAMMA[2] - tol
+  pas <- if (!gamma_bord && is.finite(H) && H > 0 && is.finite(pg[["gamma"]]))
+    -pg[["gamma"]] / H else NA_real_
+  list(gradient = g, gradient_projete = pg, hessien_gamma = H, pas_newton_gamma = pas)
+}
+
+# Decision de Kuhn-Tucker pour UN demarrage (issue #22, decision du mainteneur
+# du 24/09/2026 ; specification d'actuary) : fonction pure de
+# cpo = usp_condition_premier_ordre(delta_s, gamma_s, ...) et de gamma_s.
+# TRUE si et seulement si, sur ce MEME point : gradient et gradient projete
+# finis, gamma_s hors des bornes numeriques BORNES_GAMMA (a TOL_DELTA_BORD
+# pres), H_gamma_gamma finie et > 0, |pas de Newton en gamma| <= rep_pas et
+# |pg_delta| <= rep_gd. Reperes par defaut REP_PAS_KKT (1e-6, ancre sur M9,
+# M17) et REP_GD_KKT (1e-4, regle unique au bord comme a l'interieur, M16),
+# definis en tete du moteur ; le libelle de usp_controles_numeriques() les
+# imprime a partir des memes constantes. Point d'accroche de #71 (pas de
+# Newton complet).
+usp_kkt_satisfaite <- function(cpo, gamma, rep_pas = REP_PAS_KKT, rep_gd = REP_GD_KKT) {
+  gamma_bord <- !is.finite(gamma) || gamma <= BORNES_GAMMA[1] + TOL_DELTA_BORD ||
+    gamma >= BORNES_GAMMA[2] - TOL_DELTA_BORD
+  isTRUE(all(is.finite(c(cpo$gradient, cpo$gradient_projete)))) && !gamma_bord &&
+    isTRUE(is.finite(cpo$hessien_gamma) && cpo$hessien_gamma > 0) &&
+    isTRUE(is.finite(cpo$pas_newton_gamma) && abs(cpo$pas_newton_gamma) <= rep_pas) &&
+    isTRUE(abs(cpo$gradient_projete[["delta"]]) <= rep_gd)
+}
+
 # Minimisation sous contrainte 0 <= delta <= 1 (annexe XVII, par. 6),
 # avec démarrages multiples pour éviter les optima locaux.
-usp_ajuster <- function(x, y, n_starts_delta = 9, verbose = FALSE) {
+# controle : parametres de stats::optim() ; la valeur par defaut est celle
+# du calcul. Un autre reglage ne sert qu'aux tests (ajustement deliberement
+# non converge, issue #22).
+usp_ajuster <- function(x, y, n_starts_delta = 9, verbose = FALSE,
+                        controle = list(factr = 1e5, maxit = 500)) {
   xbar <- mean(x)
   grille_d <- seq(0, 1, length.out = n_starts_delta)
   grille_g <- log(c(0.01, 0.03, 0.06, 0.10, 0.20, 0.40))
   starts <- expand.grid(delta = grille_d, gamma = grille_g)
   best <- NULL
   vals <- rep(NA_real_, nrow(starts))
+  codes <- rep(NA_integer_, nrow(starts))
+  pars <- matrix(NA_real_, nrow(starts), 2)
   for (i in seq_len(nrow(starts))) {
     fit <- try(stats::optim(
       par = c(starts$delta[i], starts$gamma[i]),
       fn = usp_objectif, x = x, y = y, xbar = xbar,
       method = "L-BFGS-B",
-      lower = c(0, -12), upper = c(1, 3),
-      control = list(factr = 1e5, maxit = 500)), silent = TRUE)
+      lower = c(0, BORNES_GAMMA[1]), upper = c(1, BORNES_GAMMA[2]),
+      control = controle), silent = TRUE)
     if (inherits(fit, "try-error")) next
     vals[i] <- fit$value
+    codes[i] <- fit$convergence
+    pars[i, ] <- fit$par
+    # La marge 1e-10 retient le PREMIER demarrage a l'optimum en cas
+    # d'egalite : elle stabilise gamma estime entre plateformes (ne pas la
+    # modifier, decision du mainteneur, issue #22).
     if (is.null(best) || fit$value < best$value - 1e-10) best <- fit
   }
   if (is.null(best)) stop("Echec de l'optimisation (annexe XVII, par. 6).")
 
-  # Contrôle de convergence : proportion de démarrages atteignant l'optimum
-  # global, mesuree sur la meme grille (aucune reoptimisation redondante).
-  part_convergents <- mean(abs(vals - best$value) < 1e-6, na.rm = TRUE)
+  # Controle de convergence multi-demarrages (issue #22), mesure sur la meme
+  # grille (aucune reoptimisation redondante) : nombre de demarrages
+  # atteignant l'objectif minimal a TOL_OPTIMUM (1e-6) pres, parmi eux ceux
+  # qui rendent le code 0 (precision de M11 : le code du seul demarrage retenu ne decide
+  # pas ; mesure d'audit, le premier demarrage a l'optimum peut rendre 52
+  # quand 53 autres, a 1,9e-12 pres, rendent 0), demarrages sans resultat
+  # (erreur d'optim()), et part kappa parmi les demarrages aboutis.
+  a_optimum <- abs(vals - best$value) < TOL_OPTIMUM
+  part_convergents <- mean(a_optimum, na.rm = TRUE)
+  n_optimum <- sum(a_optimum, na.rm = TRUE)
+  n_optimum_code0 <- sum(a_optimum & codes == 0L, na.rm = TRUE)
+  n_echec <- sum(is.na(vals))
+  # Condition de Kuhn-Tucker jugee sur CHAQUE demarrage a l'optimum (meme
+  # ensemble a_optimum que ci-dessus, aucune deuxieme notion d'optimum) :
+  # le controle est reussi si au moins un demarrage la satisfait (regle
+  # alignee sur M15, decision du mainteneur du 24/09/2026, issue #22). Le
+  # verdict ne depend plus du demarrage retenu, departage par l'ordre de la
+  # grille et variable selon la plateforme. Tous les demarrages sont evalues
+  # (pas d'arret au premier succes, qui reintroduirait un ordre).
+  idx <- which(!is.na(vals) & a_optimum)
+  kkt_ok <- vapply(idx, function(i) usp_kkt_satisfaite(
+    usp_condition_premier_ordre(pars[i, 1], pars[i, 2], x, y, xbar), pars[i, 2]),
+    logical(1))
 
   d <- best$par[1]; g <- best$par[2]
   k <- usp_noyau(d, g, x, y, xbar)
-  # Condition du premier ordre du maximum de vraisemblance : sum(pi_t * v_t) = 0.
-  # C'est CETTE somme ponderee qui est contrainte a zero, et non la moyenne
-  # simple des residus standardises (elles ne coincident que si pi_t est
-  # constant, c'est-a-dire delta = 1 ou volumes x_t constants).
-  foc <- abs(sum(k$pi * k$v)) / sum(k$pi)
+  # Condition du premier ordre (issue #22) : gradient analytique de l'objectif
+  # profile, projete sur les bornes. L'ancienne grandeur
+  # |somme(pi_t v_t)| / somme(pi_t) etait une identite de la forme fermee de
+  # ln(beta), nulle pour tout couple (delta, gamma) : elle ne controlait pas
+  # la convergence et a ete retiree.
+  cpo <- usp_condition_premier_ordre(d, g, x, y, xbar)
   c(k, list(delta = d, gamma = g, T = length(x), x = x, y = y, xbar = xbar,
-            foc = foc,
+            gradient = cpo$gradient, gradient_projete = cpo$gradient_projete,
+            hessien_gamma = cpo$hessien_gamma, pas_newton_gamma = cpo$pas_newton_gamma,
             obj_min = best$value, convergence = best$convergence,
             part_starts_convergents = part_convergents,
-            delta_au_bord = usp_regime(d, x)$delta_au_bord))
+            n_starts_optimum = n_optimum, n_starts_optimum_code0 = n_optimum_code0,
+            n_starts_echec = n_echec,
+            delta_au_bord = usp_regime(d, x)$delta_au_bord,
+            # En DERNIERE position (patch chirurgical des references, voir
+            # run_engine()).
+            kkt_au_moins_un = any(kkt_ok)))
+}
+
+# Controles numeriques de l'estimation lognormale (issue #22, decision M11 du
+# mainteneur) : condition du premier ordre et convergence multi-demarrages.
+# Ce ne sont pas des tests statistiques : ils figurent dans res$controles
+# (famille "H."), au format de usp_controle_donnees(), avec une semantique
+# OK / ECHEC, et ne sont PAS bloquants (un ECHEC est restitue, le calcul est
+# produit, comme "Credibilite pleine atteinte").
+# Regle de stabilite inter-plateformes : le detail ne contient aucune valeur
+# d'optimiseur (g, pg, H, pas de Newton, objectifs) ; ces valeurs sont dans
+# les champs numeriques de fit (res$ajustement) et dans stat. Seuls y
+# figurent les reperes, le regime (delta, gamma, courbure) du demarrage
+# retenu, le respect de la regle (oui / non) et des entiers.
+usp_controles_numeriques <- function(fit) {
+  fam <- "H. Controles numeriques de l'estimation"
+  res <- list()
+  add <- function(nom, ok, stat, detail) res[[length(res) + 1]] <<-
+    list(famille = fam, test = nom, stat = as.double(stat), p = NA_real_,
+         verdict = if (ok) "OK" else "ECHEC", detail = detail)
+
+  # --- Condition du premier ordre (KKT) -------------------------------------
+  # Regle (decision du mainteneur du 24/09/2026, issue #22, constat 4 de la
+  # revue finale d'audit ; specification d'actuary) : reussi si AU MOINS UN
+  # demarrage a l'optimum (objectif a moins de TOL_OPTIMUM du minimum, meme ensemble
+  # que M15) satisfait les deux conditions sur le MEME point
+  # (usp_kkt_satisfaite()) ; decision calculee dans usp_ajuster()
+  # (fit$kkt_au_moins_un). L'ancienne regle jugeait le seul demarrage
+  # retenu, departage par l'ordre de la grille : mesure d'actuary (200 jeux
+  # simules a delta interieur, graine 20260924, Linux, R 4.3.3), 2 faux
+  # ECHEC sur 200 (|Delta gamma| du retenu 1,24e-6 et 1,39e-6), 0 sur 200
+  # avec la nouvelle regle (max sur les jeux de min_s |Delta gamma_s| =
+  # 1,96e-7).
+  # Reperes (constantes REP_PAS_KKT et REP_GD_KKT, en tete du moteur, lues
+  # par usp_kkt_satisfaite() et imprimees ici) : |pas de Newton en gamma|
+  # <= 1e-6, ancre sur M9 (erreur relative sur sigma ~ Delta gamma,
+  # tolerance de non-regression 1e-6) ; plancher Delta gamma ~ -h^2/3
+  # ~ -3,3e-7 (biais de la difference centree d'optim(), ndeps = h = 1e-3 ;
+  # derivation d'actuary verifiee par simulation). |pg_delta| <= 1e-4, REGLE
+  # UNIQUE au bord comme a l'interieur (decision du mainteneur apres audit :
+  # exiger pg_delta = 0 au bord creait une discontinuite).
+  # Le detail decrit le regime du demarrage retenu (delta, gamma, finitude,
+  # signe de la courbure) mais ne le compare plus aux reperes : ces
+  # comparaisons dependaient du demarrage retenu et de la plateforme. stat
+  # reste le Delta gamma du demarrage retenu.
+  g <- fit$gradient; pg <- fit$gradient_projete
+  H <- fit$hessien_gamma
+  grad_fini <- all(is.finite(c(g, pg)))
+  courbure_finie <- is.finite(H)
+  gamma_bord <- !is.finite(fit$gamma) ||
+    fit$gamma <= BORNES_GAMMA[1] + TOL_DELTA_BORD || fit$gamma >= BORNES_GAMMA[2] - TOL_DELTA_BORD
+  courbure_ok <- courbure_finie && H > 0
+  au_bord <- isTRUE(fit$delta_au_bord)
+  ok <- isTRUE(fit$kkt_au_moins_un)
+  # Volumes constants (#58) : pi_t ne depend pas de delta, g_delta = 0 et
+  # delta n'est pas identifie ; la valeur rendue par l'optimiseur (souvent 0)
+  # est un artefact, et le libelle ne la presente pas comme un bord.
+  vol_cst <- isTRUE(usp_regime(fit$delta, fit$x)$volumes_constants)
+
+  txt_delta <- if (vol_cst) "volumes constants : delta non identifie (#58)"
+  else if (au_bord) sprintf("delta AU BORD %d", if (fit$delta >= 0.5) 1L else 0L)
+  else "delta interieur a [0, 1]"
+  dom_gamma <- sprintf("[%g, %g]", BORNES_GAMMA[1], BORNES_GAMMA[2])
+  r_opt <- engine_fmt_repere(TOL_OPTIMUM)
+  r_pas <- engine_fmt_repere(REP_PAS_KKT)
+  r_gd <- engine_fmt_repere(REP_GD_KKT)
+  txt_gamma <- if (gamma_bord)
+    sprintf(paste("gamma sur une borne numerique de %s : maximum de vraisemblance non",
+                  "atteint, pas de Newton non defini"), dom_gamma)
+  else sprintf("gamma interieur a %s", dom_gamma)
+  txt_courbure <- if (gamma_bord || !courbure_finie) NULL
+  else if (!courbure_ok)
+    "courbure H_gamma_gamma non strictement positive : pas de Newton non defini"
+  else "courbure H_gamma_gamma positive"
+  add("Condition du premier ordre (gradient projete, KKT)", ok, fit$pas_newton_gamma,
+      paste0(if (!grad_fini) "Gradient non fini. " else "",
+             if (!courbure_finie) "Courbure non finie. " else "",
+             "Gradient analytique de l'objectif profile O(delta, gamma), projete sur ",
+             "les bornes. Demarrage retenu : ",
+             paste(c(txt_delta, txt_gamma, txt_courbure), collapse = " ; "), ". ",
+             "Regle : au moins un demarrage a l'optimum (objectif a moins de ", r_opt, " du ",
+             "minimum) satisfait les deux conditions sur le meme point, pas de Newton ",
+             "|Delta gamma| = |pg_gamma / H_gamma_gamma| <= ", r_pas, " (gamma interieur, ",
+             "H_gamma_gamma > 0) et composante projetee du gradient en delta ",
+             "|pg_delta| <= ", r_gd, " : ", if (ok) "oui" else "non",
+             " (M15 etendue a KKT). ",
+             "Repere ", r_pas, " ancre sur M9 : l'erreur relative sur sigma estime est de ",
+             "l'ordre de Delta gamma ; plancher Delta gamma ~ -h^2/3 ~ -3,3e-7, biais ",
+             "de la difference centree d'optim() (ndeps = h = 1e-3). Repere ", r_gd, " : ",
+             "regle unique au bord comme a l'interieur. Valeurs numeriques du ",
+             "demarrage retenu : res$ajustement (gradient, gradient_projete, ",
+             "hessien_gamma, pas_newton_gamma) ; stat = Delta gamma du demarrage retenu."))
+
+  # --- Convergence multi-demarrages ------------------------------------------
+  # Precision de M11 (decision du mainteneur apres audit) : reussi si au
+  # moins UN demarrage a l'optimum rend le code 0 et si au moins deux
+  # demarrages atteignent l'optimum. Le detail n'imprime ni le NOMBRE de
+  # demarrages a l'optimum au code 0 (decision du mainteneur, 23/09/2026) ni
+  # le CODE du demarrage retenu (decision du mainteneur, 24/09/2026, issue
+  # #22) : l'un et l'autre dependent du chemin d'optimisation. Un demarrage
+  # bascule entre les codes 0 et 52 selon la machine (mesure : 52 a 54
+  # demarrages au code 0 sur 101 perturbations relatives de 1e-12 des donnees
+  # de test, contre 54 demarrages a l'optimum dans tous les cas) ; le
+  # demarrage retenu est le premier a moins de 1e-10 de l'objectif, departage
+  # par l'ordre de la grille, et peut rendre 52 quand d'autres rendent 0 (cas
+  # d'audit 176 de tests/unitaires/test_controles_numeriques.R). Le code du
+  # demarrage retenu ne decide pas du verdict (precision de M11). Seul le
+  # respect de la regle est imprime ; les valeurs restent dans res$ajustement
+  # (n_starts_optimum_code0, convergence).
+  n_opt <- fit$n_starts_optimum
+  n_opt0 <- fit$n_starts_optimum_code0
+  ok_m <- isTRUE(n_opt0 >= 1) && isTRUE(n_opt >= 2)
+  add("Convergence multi-demarrages", ok_m, fit$part_starts_convergents,
+      sprintf(paste("%d demarrage(s) a moins de %s de l'objectif minimal ; au moins un",
+                    "demarrage a l'optimum au code de retour 0 d'optim() (convergence) : %s ;",
+                    "%d demarrage(s) sans resultat. Regle : au moins un demarrage a l'optimum",
+                    "au code 0 et au moins deux demarrages a l'optimum (convention minimale,",
+                    "sans reference). Part kappa des demarrages aboutis a l'optimum = %.2f :",
+                    "grandeur descriptive, sans repere (stat = kappa)."),
+              as.integer(n_opt), engine_fmt_repere(TOL_OPTIMUM),
+              if (isTRUE(n_opt0 >= 1)) "oui" else "non",
+              as.integer(fit$n_starts_echec), fit$part_starts_convergents))
+  res
 }
 
 # Regime de l'ajustement lognormal (issue #31), fonction pure de (delta, x).
@@ -685,17 +956,55 @@ mk_p_exacte <- function(v) {
   list(R = rr, prob = pr / choose(n, n1))
 }
 
-# p-value bilaterale exacte du test des suites (methode de la densite : on
-# somme les probabilites des issues au plus aussi probables que l'observee).
+# p-value bilaterale exacte du test des suites, convention du DOUBLEMENT
+# (issue #29, decision M8 ; Gibbons & Pratt, 1975, Amer. Statist. 29, 20-25) :
+#     p = min(1, 2 min(P(R <= R_obs), P(R >= R_obs)))
+# C'est la convention du bootstrap (queue = "deux" dans usp_bootstrap()) et
+# des autres lois exactes du moteur (dw_p_exacte(), mk_p_exacte()) : la p
+# exacte et la p Monte-Carlo d'une meme ligne estiment la meme quantite.
+# Elle remplace la methode de la densite (somme des probabilites des issues
+# au plus aussi probables que l'observee), qui donnait p = 1 pour tout R
+# modal. A T = 8 (n1 = n2 = 4), valeurs atteignables : 1 (R = 5), 52/70
+# (R = 4, 6), 16/70 (R = 3, 7), 4/70 (R = 2, 8) ; a T = 5 (n1 = n2 = 2) :
+# 2/3 (R = 2, 4), 1 (R = 3).
 runs_p_exacte <- function(z) {
   sg <- sign(z - stats::median(z)); sg <- sg[sg != 0]
   n1 <- sum(sg > 0); n2 <- sum(sg < 0)
   if (n1 < 1 || n2 < 1) return(NA_real_)
   Robs <- 1 + sum(diff(sg) != 0)
   d <- .runs_dens(n1, n2)
-  pobs <- d$prob[d$R == Robs]
-  if (!length(pobs)) return(NA_real_)
-  .p_borne(sum(d$prob[d$prob <= pobs + 1e-12]))
+  if (!any(d$R == Robs)) return(NA_real_)
+  .p_borne(2 * min(sum(d$prob[d$R <= Robs]), sum(d$prob[d$R >= Robs])))
+}
+
+# p-value exacte du test des suites sur ratios bruts (ligne Runsr de
+# usp_tests() ; issue #29, decision M8, option A). La loi combinatoire de R
+# suppose un arrangement equiprobable des signes de u_t = r_t - moyenne(r) :
+# c'est le cas quand pi_t est constant (r_t i.i.d. sous le modele ajuste),
+# non quand pi_t varie (r_t heteroscedastiques). Deux conditions, toutes deux
+# exigees :
+#   1. pi_constant (usp_regime(), tolerance TOL_DELTA_BORD) : la raison
+#      actuarielle ;
+#   2. identite effective des signes de z_t - med(z) et de u_t - med(u) : la
+#      garantie exacte. A pi_t exactement constant elle decoule de 1 (z_t est
+#      une transformation croissante de r_t) ; dans la bande de tolerance de
+#      usp_regime() elle peut tomber (cas construit dans
+#      tests/unitaires/test_lois_exactes.R : deux ratios centraux distants de
+#      1e-10 en relatif, delta = 1 - TOL_DELTA_BORD / 2).
+# La condition porte sur u = r - moyenne(r), le vecteur effectivement teste
+# (celui de .stats_bootstrapables() et de la ligne Runsr), et non sur r : le
+# centrage par la moyenne, en arithmetique flottante, peut faire basculer le
+# signe d'une valeur egale ou quasi egale a la mediane (exemple dans les
+# tests unitaires : 0 sur r, -1 sur u).
+# Sinon NA : la ligne retombe sur la p Monte-Carlo par la hierarchie de add().
+usp_runsr_p_exacte <- function(z, u, pi_constant) {
+  if (!isTRUE(pi_constant) || !.signes_mediane_egaux(z, u)) return(NA_real_)
+  runs_p_exacte(u)
+}
+# TRUE si les signes de a - med(a) et de b - med(b) coincident terme a terme.
+.signes_mediane_egaux <- function(a, b) {
+  length(a) == length(b) &&
+    isTRUE(all(sign(a - stats::median(a)) == sign(b - stats::median(b))))
 }
 
 # Mann (1945) / Kendall (1975) - test de tendance monotone.
@@ -847,13 +1156,26 @@ test_reset <- function(x, y) {
 # aleatoire : l'exactitude devient alors approchee (la simulation montre que le
 # niveau reste tenu, mais ce n'est plus un resultat exact). Pour un dossier
 # ACPR, fixer `delta_abs` a une valeur arretee a priori et documentee.
+# Branche non applicable (issue #58) : la liste porte les memes champs que la
+# branche calculee (p_bas, p_haut a NA, et non absents : sprintf() sur NULL
+# rendait un detail character(0) qui faisait planter engine_table_tests()) et
+# le motif, "volumes constants" (regression y ~ x non definie) ou "marge"
+# (sans delta_abs : theta non fini ou <= 0 ; avec delta_abs : delta_abs non
+# fini ou <= 0 ; theta est alors ignore). Les volumes constants priment sur la
+# marge. ddl = T - 2 y est renseigne : il ne depend que de T, pas de la
+# regression, et le garder donne aux deux branches les memes noms de champs.
+# theta = Inf donnait Delta = Inf, p = 0 et un verdict OK "preuve positive" :
+# il est traite en marge invalide.
 test_tost_intercept <- function(x, y, theta = 0.10, delta_abs = NULL) {
-  if (stats::sd(x) == 0 || length(unique(x)) < 2 ||
-      (is.null(delta_abs) && theta <= 0) ||
-      (!is.null(delta_abs) && (!is.finite(delta_abs) || delta_abs <= 0)))
+  motif <- if (stats::sd(x) == 0 || length(unique(x)) < 2) "volumes constants"
+  else if ((is.null(delta_abs) && (!is.finite(theta) || theta <= 0)) ||
+           (!is.null(delta_abs) && (!is.finite(delta_abs) || delta_abs <= 0))) "marge"
+  else NA_character_
+  if (!is.na(motif))
     return(list(stat = NA_real_, p = NA_real_, delta = NA_real_,
                 a = NA_real_, se = NA_real_, t_bas = NA_real_, t_haut = NA_real_,
-                marge_a_priori = FALSE))
+                p_bas = NA_real_, p_haut = NA_real_, ddl = length(x) - 2,
+                marge_a_priori = FALSE, non_applicable = motif))
   m <- summary(stats::lm(y ~ x))
   a  <- m$coefficients[1, 1]; se <- m$coefficients[1, 2]
   ddl <- length(x) - 2
@@ -867,7 +1189,7 @@ test_tost_intercept <- function(x, y, theta = 0.10, delta_abs = NULL) {
   list(stat = if (p_bas >= p_haut) t_bas else t_haut,
        p = .p_borne(p), delta = Delta, a = a, se = se,
        t_bas = t_bas, t_haut = t_haut, p_bas = p_bas, p_haut = p_haut,
-       ddl = ddl, marge_a_priori = marge_a_priori)
+       ddl = ddl, marge_a_priori = marge_a_priori, non_applicable = NA_character_)
 }
 
 # Significativité de la constante : rejette la proportionnalité stricte.
@@ -1015,9 +1337,11 @@ usp_simuler <- function(fit) {
   m <- ceiling(T / 2)
   # Serie des ratios bruts centres : base alternative pour les tests
   # d'independance et de stabilite (voir usp_tests, argument base_residus).
-  # Ces ratios sont heteroscedastiques par construction, donc leurs p-values
-  # classiques ne sont qu'indicatives ; seule la p-value de Monte-Carlo est
-  # valide, le bootstrap simulant sous le modele ajuste.
+  # Ces ratios sont heteroscedastiques par construction des que pi_t varie,
+  # donc leurs p-values classiques ne sont qu'indicatives ; seule la p-value
+  # de Monte-Carlo est valide, le bootstrap simulant sous le modele ajuste.
+  # Exception : a pi_t constant, la ligne Runsr recoit la p-value exacte de
+  # la loi combinatoire de R (usp_runsr_p_exacte(), issue #29).
   u <- r - mean(r)
   lb1u <- unname(stats::Box.test(u, lag = 1, type = "Ljung-Box")$statistic)
   c(AD = stat_ad(z), CvM = stat_cvm(z), KS = stat_ks(z),
@@ -1098,7 +1422,8 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
 usp_ajuster_rapide <- function(x, y, d0, g0) {
   xbar <- mean(x)
   f <- stats::optim(c(d0, g0), usp_objectif, x = x, y = y, xbar = xbar,
-                    method = "L-BFGS-B", lower = c(0, -12), upper = c(1, 3),
+                    method = "L-BFGS-B",
+                    lower = c(0, BORNES_GAMMA[1]), upper = c(1, BORNES_GAMMA[2]),
                     control = list(factr = 1e7, maxit = 200))
   k <- usp_noyau(f$par[1], f$par[2], x, y, xbar)
   c(k, list(delta = f$par[1], gamma = f$par[2], T = length(x),
@@ -1136,7 +1461,7 @@ usp_profil <- function(fit, n = 41) {
   gd <- seq(0, 1, length.out = n)
   pd <- vapply(gd, function(d) {
     o <- stats::optimize(function(g) usp_objectif(c(d, g), fit$x, fit$y, fit$xbar),
-                         interval = c(-12, 3))
+                         interval = BORNES_GAMMA)
     o$objective
   }, numeric(1))
   gg <- seq(fit$gamma - 1.5, fit$gamma + 1.5, length.out = n)
@@ -1148,7 +1473,7 @@ usp_profil <- function(fit, n = 41) {
   # Tests du rapport de vraisemblance sur les cas limites de delta.
   lr <- function(d) {
     o <- stats::optimize(function(g) usp_objectif(c(d, g), fit$x, fit$y, fit$xbar),
-                         interval = c(-12, 3))$objective
+                         interval = BORNES_GAMMA)$objective
     st <- o - fit$obj_min
     list(stat = st, p = .p_borne(1 - stats::pchisq(st, 1)))
   }
@@ -1162,7 +1487,8 @@ usp_profil <- function(fit, n = 41) {
 ## =============================================================================
 
 usp_tests <- function(fit, boot, alpha = 0.10,
-                      theta_equiv = 0.10, delta_equiv = NULL) {
+                      theta_equiv = 0.10, delta_equiv = NULL,
+                      robustesse = NULL) {
   z <- fit$z; x <- fit$x; y <- fit$y; T <- fit$T
   r <- y / x
   # Base alternative : ratios bruts centres. Voir la sous-section
@@ -1205,6 +1531,22 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       p_ret <- NA_real_; nature <- NA_character_
     }
     if (!is.na(nature_forcee) && is.finite(p_ret)) nature <- nature_forcee
+    # ADR 0001 (amendement du 23/09/2026, M7) : seule une ligne de type "test"
+    # ou "procedure de decision" porte un verdict. Toute autre ligne sort
+    # INFO et son sens est NA ; un verdict fourni pour un autre type est une
+    # erreur de programmation, refusee ici pour que l'invariant ne puisse pas
+    # etre contourne par un appel.
+    porte_verdict <- type %in% c("test", "procedure de decision")
+    if (!is.null(verdict) && !porte_verdict)
+      stop("add() : un verdict n'est admis que pour type = 'test' ou 'procedure de decision' (ADR 0001) : ", nom)
+    # La procedure de decision (ESD) decide sans p-value : son verdict est
+    # toujours fourni par l'appelant ; l'omettre est une erreur de programmation.
+    if (type == "procedure de decision" && is.null(verdict))
+      stop("add() : une ligne de type 'procedure de decision' doit fournir son verdict : ", nom)
+    # Sans verdict, ni sens ni p-value retenue (ADR 0001, CONTEXT.md).
+    if (!porte_verdict) {
+      sens <- NA_character_; p_ret <- NA_real_; nature <- NA_character_
+    }
     v <- if (!is.null(verdict)) verdict
     else if (type != "test" || !is.finite(p_ret)) "INFO"
     else if (sens == "rejeter") {
@@ -1256,12 +1598,25 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       nature_forcee = if (isTRUE(tost$marge_a_priori)) NA_character_
                       else "quasi-exacte (loi de Student ; marge estimee sur les donnees)",
       sens = "rejeter",
-      detail = sprintf(paste("Rejeter H0 fournit une preuve POSITIVE de proportionnalite.",
-                             "Delta = %.4g (%s) ; p_bas = %.4f, p_haut = %.4f."),
-                       tost$delta,
-                       if (isTRUE(tost$marge_a_priori)) "fixee a priori"
-                       else sprintf("%.0f %% de la moyenne de y", 100 * theta_equiv),
-                       tost$p_bas, tost$p_haut))
+      # Issue #58 : un detail de longueur 1 sur chaque branche.
+      detail = switch(if (is.na(tost$non_applicable)) "calcule" else tost$non_applicable,
+        "volumes constants" = paste("x_t constant (volumes constants) : regression de y",
+                                    "sur x non definie, test non applicable"),
+        "marge" = paste("marge Delta invalide (sans delta_equiv : theta_equiv non",
+                        "fini ou <= 0 ; ou delta_equiv non fini ou <= 0) : test",
+                        "non applicable"),
+        # La valeur de Delta n'est pas imprimee (elle est dans estim) : sur
+        # les donnees de test, 0,1 * moyenne(y) = 8,5005 tombe sur un point
+        # de bascule de %.4g, et une perturbation relative de 1e-12 des
+        # donnees faisait passer le texte de "8.501" a "8.5" (issue #22,
+        # test anti-bruit).
+        "calcule" = sprintf(paste("Rejeter H0 fournit une preuve POSITIVE de proportionnalite.",
+                                  "Delta = %s (valeur : estimation \"marge Delta\") ;",
+                                  "p_bas = %.4f, p_haut = %.4f."),
+                            if (isTRUE(tost$marge_a_priori)) "marge fixee a priori"
+                            else sprintf("%.0f %% de la moyenne de y", 100 * theta_equiv),
+                            tost$p_bas, tost$p_haut),
+        stop("usp_tests : motif TOST inconnu : ", tost$non_applicable)))
   add(fam, "Test de Student sur la pente (lm(y~x))",
       "Student (1908), Biometrika 6",
       type = if (is.finite(lmc$t_pente)) "test" else "non applicable",
@@ -1283,9 +1638,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       type = if (is.finite(lmc$R2)) "diagnostic" else "non applicable",
       estim_nom = "R2", estim = lmc$R2,
       detail = if (is.finite(lmc$R2))
-        sprintf("R2 ajuste = %.4f ; sous H0 (b=0) E[R2] = 1/(T-1) = %.3f. Diagnostic, pas un test",
-                lmc$R2_ajuste, 1 / (T - 1)) else "x_t constant : R2 non defini",
-      verdict = if (!is.finite(lmc$R2)) "INFO" else if (lmc$R2 < 0.5) "ALERTE" else "OK")
+        sprintf("R2 ajuste = %.4f ; sous H0 (b=0) E[R2] = 1/(T-1) = %.3f ; repere conventionnel R2 < 0.5 : %s. Diagnostic, pas un test",
+                lmc$R2_ajuste, 1 / (T - 1),
+                if (lmc$R2 < 0.5) "en dessous" else "au-dessus") else "x_t constant : R2 non defini")
   tr <- test_reset(x, y)
   add(fam, "RESET (forme fonctionnelle)", "Ramsey (1969), JRSS B 31",
       H0 = "gamma2 = gamma3 = 0 (forme lineaire correcte)",
@@ -1390,12 +1745,34 @@ usp_tests <- function(fit, boot, alpha = 0.10,
           detail = "Voir aussi le QQ-plot a deux echantillons")
     }
   }
+  # Issue #58 : a volumes constants (usp_regime(), tolerance TOL_DELTA_BORD),
+  # a_t = 1 pour tout t, pi_t ne depend plus de delta et la vraisemblance est
+  # plate en delta (mesure : usp_objectif() identique sur delta = 0, 0.125,
+  # ..., 1 a x = rep(110, 8)). delta n'est pas identifie : la valeur est celle
+  # du demarrage retenu par usp_ajuster() (delta de depart 0, premier de la
+  # grille : les autres demarrages finissent a moins de 1e-12 de la meme valeur
+  # de l'objectif, sous l'ecart 1e-10 exige pour remplacer le meilleur ;
+  # mesure a x = rep(v, 8), v = 80, 110, 200, 5000 : delta final = 0 et
+  # deplacement en delta d'un demarrage au plus 4e-13). Ce cas prime sur "AU BORD", vrai ici pour une mauvaise
+  # raison. Dans la bande (volumes d'etendue relative e non nulle mais
+  # <= TOL_DELTA_BORD), la vraisemblance depend encore tres faiblement de
+  # delta (mesure, donnees premium, e = 5e-7, gamma = -1,8 : l'objectif
+  # varie de 3,0e-7 entre delta = 0 et delta = 1) : le libelle le dit.
+  reg_delta <- usp_regime(fit$delta, fit$x)
+  suite_cst <- paste(", qui n'est pas identifie ; la valeur affichee est celle",
+                     "ou l'optimiseur s'est arrete")
   add(fam, "Position de delta dans [0,1]", "Annexe XVII, section B/C par. 6",
       type = "diagnostic", estim_nom = "delta", estim = fit$delta,
-      detail = if (isTRUE(fit$delta_au_bord))
+      detail = if (isTRUE(reg_delta$volumes_dans_bande))
+        paste0(sprintf(paste("VOLUMES CONSTANTS a la tolerance TOL_DELTA_BORD = %g pres",
+                             "(etendue relative = %.2g) : la vraisemblance ne depend",
+                             "presque pas de delta"),
+                       TOL_DELTA_BORD, diff(range(fit$x)) / mean(fit$x)), suite_cst)
+      else if (isTRUE(reg_delta$volumes_constants))
+        paste0("VOLUMES CONSTANTS : la vraisemblance ne depend pas de delta", suite_cst)
+      else if (isTRUE(fit$delta_au_bord))
         "SOLUTION AU BORD : structure de variance non identifiee par les donnees"
-      else "interieur du domaine : melange des deux composantes identifie",
-      verdict = if (isTRUE(fit$delta_au_bord)) "ALERTE" else "OK")
+      else "interieur du domaine : melange des deux composantes identifie")
 
   ## --- D. H3 : lognormalite --------------------------------------------------
   fam <- "D. H3 - lognormalite (annexe XVII B(2)(f)(iii))"
@@ -1457,8 +1834,16 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       H1 = "asymetrie ou aplatissement non normaux",
       stat_nom = "JB", stat = jb$stat, loi = "chi2(2) asymptotique",
       p_as = jb$p, mc_nom = "JB",
-      detail = sprintf("asymetrie = %+.3f ; aplatissement = %.3f (borne mecaniquement par ~T = %d)",
-                       jb$skew, jb$kurt, T))
+      # Asymetrie et aplatissement ne sont pas imprimes (issue #24, decision
+      # du mainteneur du 24/09/2026, meme mecanisme que le Delta du TOST) :
+      # calcules sur z, ils dependent de l'optimiseur et derivent d'une
+      # plateforme a l'autre ; mesure sur les donnees de test (Linux, R
+      # 4.3.3) : aplatissement 1,84047, a 1,4e-5 en relatif de la frontiere
+      # d'arrondi de %.3f. Les valeurs restent dans estim des lignes
+      # D'Agostino (asymetrie) et Anscombe-Glynn (aplatissement).
+      detail = sprintf(paste("asymetrie et aplatissement : estimations des lignes",
+                             "D'Agostino et Anscombe-Glynn (aplatissement borne",
+                             "mecaniquement par ~T = %d)"), T))
   ds <- test_dagostino_skew(z)
   if (is.finite(ds$stat))
     add(fam, "Asymetrie (D'Agostino, T >= 8)", "D'Agostino (1970), Biometrika 57",
@@ -1572,9 +1957,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # +1,2e-07 sur [gamma chapeau - 0,1 ; gamma chapeau + 0,1] (mesures
   # distinctes selon l'intervalle). La formule n'est donnee qu'ici : le
   # libelle nomme la condition sans l'ecrire.
+  dom_gamma <- sprintf("[%g, %g]", BORNES_GAMMA[1], BORNES_GAMMA[2])
   cond_gamma_ponderee <- paste(
     "pour la variance, la relation qui subsiste est la condition du premier",
-    "ordre en gamma (a un optimum interieur en gamma, domaine [-12, 3]),",
+    paste0("ordre en gamma (a un optimum interieur en gamma, domaine ", dom_gamma, "),"),
     "relation ponderee distincte de la contrainte somme(sqrt(pi_t) z_t) = 0",
     "(condition en ln(beta), qui porte sur la moyenne) ; elle ne fixe pas",
     "somme(z_t^2).")
@@ -1619,7 +2005,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         variance = paste(tol_pres,
                          "var(z) = T/(T-1) suppose la derivee en gamma effectivement",
                          "annulee, donc un optimum INTERIEUR en gamma, et elle tombe si",
-                         "gamma bute sur une borne de son domaine [-12, 3]. A un optimum",
+                         "gamma bute sur une borne de son domaine", paste0(dom_gamma, ". A un optimum"),
                          "interieur, l'egalite ne tient qu'a deux ecarts pres : la tolerance",
                          "d'arret de l'optimiseur, et un ecart", ordre_tol, "du a la",
                          "variation residuelle de pi_t. L'ecart residuel renseigne donc",
@@ -1637,7 +2023,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                          "var(z) = T/(T-1) suppose la derivee en gamma effectivement",
                          "annulee, donc un optimum INTERIEUR en gamma : l'egalite ne",
                          "tient qu'a la tolerance d'arret de l'optimiseur pres, et elle",
-                         "tombe si gamma bute sur une borne de son domaine [-12, 3].",
+                         "tombe si gamma bute sur une borne de son domaine", paste0(dom_gamma, "."),
                          "L'ecart residuel renseigne donc sur la convergence en gamma,",
                          "sous cette reserve."),
         stop("contrainte() : grandeur inconnue : ", quoi))
@@ -1721,12 +2107,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   mlm <- stats::lm(y ~ x - 1); ck <- stats::cooks.distance(mlm); hv <- stats::hatvalues(mlm)
   add(fam, "Points influents (distance de Cook)", "Cook (1977), Technometrics 19",
       type = "diagnostic", estim_nom = "max D_t", estim = max(ck),
-      detail = sprintf("seuil conventionnel 4/T = %.3f ; %d observation(s) au-dessus%s",
+      detail = sprintf("repere conventionnel 4/T = %.3f ; %d observation(s) au-dessus%s",
                        4 / T, sum(ck > 4 / T),
                        if (any(ck > 4 / T))
-                         paste0(" (rangs ", paste(which(ck > 4 / T), collapse = ", "), ")") else ""),
-      verdict = if (sum(ck > 4 / T) >= 2) "ECHEC"
-                else if (sum(ck > 4 / T) == 1) "ALERTE" else "OK")
+                         paste0(" (rangs ", paste(which(ck > 4 / T), collapse = ", "), ")") else ""))
   ## --- Variante "ratios bruts" des tests d'independance et de stabilite -----
   # Memes statistiques appliquees aux ratios centres u_t = r_t - moyenne(r).
   # Interet : ces tests ne dependent d'aucun ajustement, ce qui les rend
@@ -1735,7 +2119,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # modele. Limite : les u_t sont heteroscedastiques par construction
   # (Var(r_t) depend de x_t), donc les p-values classiques ne sont
   # qu'INDICATIVES ; seule la p-value de Monte-Carlo est valide, le bootstrap
-  # simulant sous le modele ajuste. Verification par simulation a T = 8 :
+  # simulant sous le modele ajuste (exception : Runsr a pi_t constant, p-value
+  # exacte, issue #29 ; voir plus bas). Verification par simulation a T = 8 :
   # niveau tenu a 10,7 % et 5,0 % pour des seuils de 10 % et 5 %.
   loi_ind <- "loi classique INDICATIVE (ratios heteroscedastiques) -> Monte-Carlo"
   # QUAND pi_t EST CONSTANT, CETTE BASE PERD SON OBJET. ln(beta) se reduit
@@ -1755,9 +2140,65 @@ usp_tests <- function(fit, boot, alpha = 0.10,
           "x_t constants), il n'y a donc aucun artefact de ponderation a",
           "detecter. Cette ligne est un quasi-doublon de son homologue sur",
           "residus standardises, dont elle ne differe que par la transformation",
-          "logarithmique ; pour le test des suites, la statistique est meme",
-          "identique.") else ""
+          "logarithmique.") else ""
   detail_r <- function(txt = "") trimws(paste(txt, note_r))
+  # Ligne Runsr (issue #29, decision M8) : p-value exacte sous la double
+  # condition de usp_runsr_p_exacte(), calculee une fois ; le champ loi et le
+  # detail en suivent le regime (note_r n'est pas concatenee pour cette
+  # ligne) :
+  #   1  : p exacte attribuee (pi_t constant, signes identiques), avec la
+  #        variante 1b si pi_t n'est constant qu'a la tolerance pres ;
+  #   2  : pi_t constant mais au moins un signe differe entre u et z ;
+  #   2b : pi_t constant, signes identiques, mais p exacte non definie (un
+  #        seul cote de la mediane represente) ;
+  #   3  : pi_t variable.
+  p_ex_r <- usp_runsr_p_exacte(z, u, pi_constant)
+  detail_runsr <- if (is.finite(p_ex_r)) {
+    d1 <- paste("CONTROLE SANS OBJET ICI : pi_t est constant (delta = 1, ou volumes",
+                "x_t constants), il n'y a donc aucun artefact de ponderation a",
+                "detecter. Cette ligne est un quasi-doublon de son homologue sur",
+                "residus standardises : les signes de u_t - med(u) et de z_t - med(z)",
+                "coincident (z_t est une transformation croissante de r_t), la",
+                "statistique des suites est IDENTIQUE a celle de la ligne sur residus",
+                "standardises. Les r_t etant i.i.d. sous le modele ajuste, la loi",
+                "combinatoire de R s'applique aussi aux ratios bruts : la p-value",
+                "EXACTE est retenue (convention bilaterale du doublement, celle du",
+                "bootstrap), la meme que sur la ligne des suites sur residus",
+                "standardises (issue #29). La p-value Monte-Carlo de la colonne p_mc",
+                "estime la meme quantite, a l'erreur Monte-Carlo pres.")
+    if (!isTRUE(regime$pi_constant_exact))
+      d1 <- paste(d1, sprintf(paste(
+        "Ici pi_t n'est constant qu'a la tolerance TOL_DELTA_BORD = %g pres (%s) :",
+        "les arrangements de signes ne sont equiprobables qu'a un ecart d'ordre",
+        "(1 - delta), ou de l'etendue relative des volumes x_t, pres, inferieur a",
+        "la precision d'affichage ; la p-value est exacte a cet ordre pres."),
+        TOL_DELTA_BORD, ecart_tol))
+    d1
+  } else if (isTRUE(pi_constant) && !.signes_mediane_egaux(z, u)) {
+    sprintf(paste(
+      "CONTROLE SANS OBJET ICI : pi_t n'est constant qu'a la tolerance",
+      "TOL_DELTA_BORD = %g pres (%s), il n'y a donc aucun artefact de ponderation",
+      "a detecter, et cette ligne est un quasi-doublon de son homologue sur",
+      "residus standardises. Toutefois la variation residuelle de pi_t suffit ici",
+      "a inverser au moins un signe entre u_t - med(u) et z_t - med(z) : l'identite",
+      "des deux lignes n'est plus garantie (la statistique des suites peut",
+      "coincider ou non), la loi combinatoire de R n'est pas attribuee a cette",
+      "ligne (issue #29, seconde condition de usp_runsr_p_exacte()) et la p-value",
+      "Monte-Carlo, simulee sous le modele ajuste, est retenue."),
+      TOL_DELTA_BORD, ecart_tol)
+  } else if (isTRUE(pi_constant)) {
+    paste(note_r, "La loi combinatoire de R n'est pas definie ici (un seul cote",
+          "de la mediane represente) : aucune p-value exacte (issue #29).")
+  } else {
+    paste("pi_t varie avec t : sous le modele ajuste, les r_t sont independants",
+          "mais heteroscedastiques (echelle 1/sqrt(pi_t) et mediane propres a",
+          "chaque annee), les arrangements des signes de u_t - med(u) ne sont pas",
+          "equiprobables et la loi combinatoire de R n'est qu'une approximation,",
+          "sans borne d'erreur connue a T = 8. Seule la p-value Monte-Carlo,",
+          "simulee sous le modele ajuste avec ses pi_t, est retenue ; la",
+          "statistique differe en general de celle de la ligne des suites sur",
+          "residus standardises (issue #29).")
+  }
   add("E. H4 - independance et validite du MV (annexe XVII B(2)(f)(iv))",
       "Autocorrelation d'ordre 1 (Durbin-Watson) sur ratios bruts",
       "Durbin & Watson (1950, 1951)", base = "r",
@@ -1774,8 +2215,16 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       "Test des suites sur ratios bruts", "Wald & Wolfowitz (1940)",
       base = "r", H0 = "arrangement aleatoire des signes du ratio centre",
       H1 = "arrangement non aleatoire",
-      stat_nom = "Z", stat = boot$stats_obs$Runsr, loi = loi_ind, mc_nom = "Runsr",
-      detail = detail_r())
+      stat_nom = "Z", stat = boot$stats_obs$Runsr,
+      loi = if (is.finite(p_ex_r))
+        "loi combinatoire EXACTE de R (pi_t constant : r_t i.i.d., signes identiques a ceux de z_t)"
+      else loi_ind,
+      # Issue #29 (M8) : p exacte seulement sous la double condition de
+      # usp_runsr_p_exacte() ; sinon Monte-Carlo. Les cinq autres lignes de la
+      # base "r" restent en Monte-Carlo dans tous les regimes (u_t non
+      # gaussiens : ni Imhof ni loi normale).
+      p_ex = p_ex_r, mc_nom = "Runsr",
+      detail = detail_runsr)
   add(fam, "Rupture de niveau (sup-F) sur ratios bruts",
       "Quandt (1960) / Chow (1960) ; Andrews (1993)", base = "r",
       H0 = "niveau du ratio S/P constant", H1 = "rupture de niveau du ratio S/P",
@@ -1799,41 +2248,61 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 
   add(fam, "Leviers (hat values)", "Hoaglin & Welsch (1978), Amer. Statist. 32",
       type = "diagnostic", estim_nom = "max h_t", estim = max(hv),
-      detail = sprintf("seuil conventionnel 2k/T = %.3f ; %d observation(s) au-dessus",
-                       2 / T, sum(hv > 2 / T)),
-      verdict = if (any(hv > 2 / T)) "ALERTE" else "OK")
+      detail = sprintf("repere conventionnel 2k/T = %.3f ; %d observation(s) au-dessus",
+                       2 / T, sum(hv > 2 / T)))
 
   ## --- G. Robustesse de l'estimation -----------------------------------------
   fam <- "G. Robustesse de l'estimation"
-  add(fam, "Condition du premier ordre |sum(pi_t*v_t)|/sum(pi_t)",
-      "Diagnostic numerique (annexe XVII, par. 4-6)", type = "diagnostic",
-      estim_nom = "FOC relative", estim = fit$foc,
-      detail = paste("IDENTITE algebrique, non un controle de convergence :",
-                     "ln(beta) etant obtenu en forme fermee par usp_noyau(),",
-                     "somme(pi_t v_t) = 0 pour TOUT couple (delta, gamma), converge",
-                     "ou non. Cette grandeur est donc nulle a la precision machine",
-                     "quel que soit l'etat de l'optimisation, et son ECHEC ne peut",
-                     "signaler qu'une anomalie arithmetique."),
-      verdict = if (!is.finite(fit$foc) || fit$foc > 1e-6) "ECHEC" else "OK")
-  add(fam, "Convergence multi-demarrages", "Diagnostic numerique (L-BFGS-B)",
-      type = "diagnostic",
-      estim_nom = "part des demarrages a l'optimum", estim = fit$part_starts_convergents,
-      detail = sprintf("code de retour optim = %d", fit$convergence),
-      verdict = if (fit$part_starts_convergents < 0.5 || fit$convergence != 0) "ALERTE" else "OK")
+  # La condition du premier ordre et la convergence multi-demarrages ne sont
+  # pas des tests : elles figurent dans res$controles, famille "H."
+  # (usp_controles_numeriques(), issue #22, decision M11).
+  # Jackknife et IC : le detail renvoie a l'ecart sur sigma_USP, porte par
+  # estim (qui depend de la table de l'annexe par (1-c) sigma_std), ET
+  # restitue l'ecart sur la seule part estimee sigma(delta, gamma)
+  # (independante de la table et du bareme). La seconde partie n'est ecrite
+  # que si run_engine() a fourni `robustesse`.
+  # Issue #24 (decision du mainteneur du 24/09/2026, meme mecanisme que le
+  # Delta du TOST retire en M18) : les nombres issus du bootstrap ou des
+  # reajustements du jackknife qui sont restitues ailleurs dans le resultat
+  # ne sont plus imprimes dans le detail, ou ils derivent d'une plateforme a
+  # l'autre (jusqu'a 3,5e-7 en relatif ; mesure sur les donnees de test,
+  # Linux, R 4.3.3 : q95 = 0,136955, a 3,4e-5 en relatif de la frontiere
+  # d'arrondi de %.4f). Retires : l'ecart sur sigma_USP du jackknife (sa
+  # valeur absolue est estim ; seul son signe reste imprime), la largeur
+  # (q95 - q05) / sigma_USP (estim) et les bornes q05, q95 de l'IC 90 %
+  # (res$ic_bootstrap). Restent imprimes, faute d'etre stockes ailleurs :
+  # l'ecart jackknife et la largeur rapportes a la part estimee
+  # sigma(delta, gamma) (rb$jack_estim, rb$ic_estim).
+  rb <- robustesse
+  rep_jk <- paste("(valeur absolue : estimation \"ecart relatif max\" ; repere",
+                  "conventionnel 10 % / 20 % ; depend de la table de l'annexe par",
+                  "(1-c) sigma_std)")
+  rep_ic <- paste("(q95 - q05) / sigma_USP : estimation \"largeur / sigma_USP\"",
+                  "(repere conventionnel 50 % / 80 % ; depend de la table de",
+                  "l'annexe par (1-c) sigma_std)")
   if (!is.null(fit$ecart_jackknife))
     add(fam, "Sensibilite au retrait d'une annee (jackknife)",
         "Quenouille (1949) / Tukey (1958)", type = "diagnostic",
         estim_nom = "ecart relatif max", estim = fit$ecart_jackknife,
-        detail = sprintf("ecart maximal sur sigma_USP = %+.1f%%", 100 * fit$ecart_jackknife),
-        verdict = if (fit$ecart_jackknife > 0.20) "ECHEC"
-                  else if (fit$ecart_jackknife > 0.10) "ALERTE" else "OK")
+        detail = if (!is.null(rb$jack_annee))
+          sprintf(paste("retrait de l'annee %d : sigma_USP %s %s ; %+.1f%% sur la part",
+                        "estimee sigma(delta, gamma) (independant de la table et du bareme)"),
+                  rb$jack_annee,
+                  if (rb$jack_usp < 0) "en baisse" else if (rb$jack_usp > 0) "en hausse"
+                  else "inchange",
+                  rep_jk, 100 * rb$jack_estim)
+        else paste("ecart maximal sur sigma_USP", rep_jk))
   if (!is.null(fit$largeur_ic))
     add(fam, "Largeur relative de l'IC bootstrap 90%", "Efron (1979), Ann. Statist. 7",
         type = "diagnostic",
         estim_nom = "largeur / sigma_USP", estim = fit$largeur_ic,
-        detail = sprintf("(q95 - q05) / sigma_USP = %.1f%%", 100 * fit$largeur_ic),
-        verdict = if (fit$largeur_ic > 0.80) "ECHEC"
-                  else if (fit$largeur_ic > 0.50) "ALERTE" else "OK")
+        detail = if (!is.null(rb$ic_estim))
+          sprintf(paste("%s ; (q95 - q05) / sigma(delta, gamma) = %.1f%% sur la part estimee",
+                        "(independant de la table et du bareme) ; bornes de l'IC 90 %% de",
+                        "sigma_USP : intervalle bootstrap du parametre retenu",
+                        "(res$ic_bootstrap)"),
+                  rep_ic, 100 * rb$ic_estim)
+        else rep_ic)
   L
 }
 
@@ -3228,6 +3697,20 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
     else if (is.finite(p_as)) { p_ret <- p_as; nature <- "asymptotique" }
     else                      { p_ret <- NA_real_; nature <- NA_character_ }
     if (!is.na(nature_forcee) && is.finite(p_ret)) nature <- nature_forcee
+    # ADR 0001 (amendement du 23/09/2026, M7) : meme invariant que add() de
+    # usp_tests() -- verdict reserve aux types "test" et "procedure de
+    # decision", INFO et sens NA pour toute autre ligne.
+    porte_verdict <- type %in% c("test", "procedure de decision")
+    if (!is.null(verdict) && !porte_verdict)
+      stop("add() : un verdict n'est admis que pour type = 'test' ou 'procedure de decision' (ADR 0001) : ", nom)
+    # La procedure de decision (ESD) decide sans p-value : son verdict est
+    # toujours fourni par l'appelant ; l'omettre est une erreur de programmation.
+    if (type == "procedure de decision" && is.null(verdict))
+      stop("add() : une ligne de type 'procedure de decision' doit fournir son verdict : ", nom)
+    # Sans verdict, ni sens ni p-value retenue (ADR 0001, CONTEXT.md).
+    if (!porte_verdict) {
+      sens <- NA_character_; p_ret <- NA_real_; nature <- NA_character_
+    }
     v <- if (!is.null(verdict)) verdict
     else if (type != "test" || !is.finite(p_ret)) "INFO"
     else if (sens == "rejeter") { if (p_ret < alpha) "OK" else if (p_ret < 0.30) "ALERTE" else "ECHEC" }
@@ -3446,8 +3929,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   add(fam, "Extrapolation de sigma pour la derniere annee de developpement",
       "Annexe XVII, D(5)(d)(ii), seconde ligne", type = "diagnostic",
       estim_nom = "sigma2_(J-1)", estim = aj$sigma2[aj$J],
-      detail = .mw_detail_extrapolation(ex),
-      verdict = "INFO")
+      detail = .mw_detail_extrapolation(ex))
   # ADR 0001 : un diagnostic n'a pas de verdict (il est affiche INFO). Le seuil
   # de 40 % qui figurait ici n'est ni un niveau de test ni une regle de
   # l'annexe XVII : le rendre en ALERTE / OK donnait a une convention
@@ -3751,6 +4233,8 @@ run_engine <- function(xt, yt,
   # --- 3. Estimation, bootstrap, robustesse ---------------------------------
   controles <- usp_controle_donnees(xt, yt, alpha)
   fit   <- usp_ajuster(xt, yt)
+  # Controles numeriques de l'estimation (famille H, non bloquants, #22)
+  controles <- c(controles, usp_controles_numeriques(fit))
   boot  <- usp_bootstrap(fit, B = B, seed = seed, progres = FALSE)
   param <- usp_parametre(fit, sigma_standard, bareme)
   jack  <- usp_jackknife(fit, sigma_standard, bareme)
@@ -3761,12 +4245,38 @@ run_engine <- function(xt, yt,
   ic <- if (length(usp_b) > 20)
     stats::quantile(usp_b, c(.025, .05, .5, .95, .975)) else NULL
 
-  fit$ecart_jackknife <- max(abs(jack$sigma_usp - param$sigma_usp), na.rm = TRUE) /
-    param$sigma_usp
+  # Jackknife entierement non calcule (tous les reajustements en echec) : pas
+  # de ligne jackknife (fit$ecart_jackknife NULL) plutot qu'un max a -Inf.
+  d_jack <- jack$sigma_usp - param$sigma_usp
+  jack_calcule <- any(is.finite(d_jack))
+  fit$ecart_jackknife <- if (jack_calcule)
+    max(abs(jack$sigma_usp - param$sigma_usp), na.rm = TRUE) / param$sigma_usp else NULL
   fit$largeur_ic <- if (!is.null(ic)) unname((ic[4] - ic[2]) / param$sigma_usp) else NULL
+  # kkt_au_moins_un (#22) est replace en DERNIERE position de res$ajustement,
+  # apres ecart_jackknife et largeur_ic apposes ci-dessus : le patcheur des
+  # references (tests/patcher_reference.R) n'ajoute une feuille qu'en fin de
+  # conteneur, et refuse le patch (verification "structure") sinon.
+  fit <- fit[c(setdiff(names(fit), "kkt_au_moins_un"), "kkt_au_moins_un")]
+
+  # Elements du detail des lignes jackknife et IC de usp_tests() : calcules
+  # ici, transmis a usp_tests() et NON stockes dans fit ni dans le resultat.
+  # jack_usp : ecart signe sur sigma_USP a l'annee de plus grand |ecart|
+  # (seul son signe est imprime, issue #24) ; jack_estim : ecart relatif de
+  # la part estimee sigma(delta, gamma) a la meme annee ; ic_estim : largeur
+  # (q95 - q05) de sigma_boot rapportee a sigma(delta, gamma), independante
+  # de la table et du bareme. Les bornes de l'IC ne sont plus transmises :
+  # le detail n'imprime plus que leur emplacement, res$ic_bootstrap (#24).
+  # Partie jackknife omise (NULL) si aucun reajustement n'a abouti.
+  i_jack <- if (jack_calcule) which.max(abs(d_jack)) else NULL
+  robustesse <- list(
+    jack_annee = i_jack,
+    jack_usp   = if (jack_calcule) d_jack[i_jack] / param$sigma_usp else NULL,
+    jack_estim = if (jack_calcule) (jack$sigma[i_jack] - fit$sigma) / fit$sigma else NULL,
+    ic_estim   = if (!is.null(ic))
+      unname(diff(stats::quantile(boot$sigma_boot, c(.05, .95)))) / fit$sigma else NULL)
 
   tests <- usp_tests(fit, boot, alpha, theta_equiv = theta_equiv,
-                     delta_equiv = delta_equiv)
+                     delta_equiv = delta_equiv, robustesse = robustesse)
 
   # --- 4. Statistiques descriptives -----------------------------------------
   r <- yt / xt

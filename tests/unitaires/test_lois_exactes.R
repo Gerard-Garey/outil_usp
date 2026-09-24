@@ -112,12 +112,16 @@ for (cas in list(c(1, 1), c(2, 3), c(4, 4), c(3, 5), c(5, 4), c(6, 6))) {
            isTRUE(proche(sum(d$R^2 * d$prob) - sum(d$R * d$prob)^2,
                          2 * n1 * n2 * (2 * n1 * n2 - n) / (n^2 * (n - 1)), rel = 1e-10)))
 }
-# p exacte (methode de la densite) par enumeration directe.
+# p exacte bilaterale par enumeration directe, convention du DOUBLEMENT
+# (issue #29, decision M8 ; Gibbons & Pratt, 1975, Amer. Statist. 29, 20-25) :
+# 2 min(P(R <= R_obs), P(R >= R_obs)) bornee a 1, celle du bootstrap
+# (queue = "deux"). Les frequences sont comptees sur les choose(n, n1)
+# arrangements, sans passer par .runs_dens().
 runs_p_enum <- function(z) {
   s <- sign(z - stats::median(z)); s <- s[s != 0]
   n1 <- sum(s > 0); n2 <- sum(s < 0); Robs <- 1 + sum(diff(s) != 0)
-  R <- runs_enum(n1, n2); pr <- table(R) / length(R)
-  sum(pr[pr <= pr[as.character(Robs)] + 1e-12])
+  R <- runs_enum(n1, n2)
+  min(1, 2 * min(mean(R <= Robs), mean(R >= Robs)))
 }
 for (k in 1:3) {
   z <- list(z1, z2, z3)[[k]]
@@ -128,11 +132,45 @@ set.seed(103)
 z7 <- stats::rnorm(7)     # n impair : la valeur egale a la mediane est ecartee
 verifier("Suites n impair : p exacte = enumeration (mediane ecartee)",
          proche(runs_p_exacte(z7), runs_p_enum(z7), abs = 1e-12))
-# n1 = n2 = 4 : P(R = 2) = P(R = 8) = 2 / C(8, 4) = 2/70 sont les deux issues
-# les moins probables ; la p (methode de la densite) vaut donc 4/70.
+# n1 = n2 = 4 : P(R = 2) = P(R = 8) = 2 / C(8, 4) = 2/70. En doublement,
+# p = 2 P(R <= 2) = 2 P(R >= 8) = 4/70 (valeur identique en vraisemblance
+# minimale : cette assertion ne discrimine pas les deux conventions).
 verifier("Suites : z2 (R = 2) et z3 (R = 8) ont la p minimale 4/70",
          isTRUE(proche(runs_p_exacte(z2), 4 / 70, rel = 1e-12)) &&
          isTRUE(proche(runs_p_exacte(z3), 4 / 70, rel = 1e-12)))
+# Convention du doublement (issue #29, M8), valeurs ecrites en dur a partir de
+# 70 P(R = 2..8) = (2, 6, 18, 18, 18, 6, 2) : z1 a R = 6 (signes + - + + - - + -),
+# p = 2 P(R >= 6) = 2 x 26/70 = 52/70 = 0,743 ; la vraisemblance minimale
+# donnerait 1 (R = 4, 5, 6 equiprobables). Assertion discriminante.
+verifier("Suites (#29) : doublement, z1 (R = 6) -> p = 52/70, et non 1 (vraisemblance minimale)",
+         identical(test_runs(z1)$runs, 6) &&
+         isTRUE(proche(runs_p_exacte(z1), 52 / 70, rel = 1e-12)))
+# Valeurs atteignables a T = 8 (n1 = n2 = 4) : sur les 70 arrangements des
+# signes, la p exacte ne prend que 4 valeurs, 1 (R = 5), 52/70 = 0,743
+# (R = 4, 6), 16/70 = 0,229 (R = 3, 7), 4/70 = 0,057 (R = 2, 8).
+verifier("Suites (#29) : T = 8, valeurs atteignables {1 ; 0,743 ; 0,229 ; 0,057}",
+         {
+           pos <- utils::combn(8, 4)
+           pv <- apply(pos, 2, function(p) { s <- rep(-1, 8); s[p] <- 1; runs_p_exacte(s) })
+           vals <- sort(unique(round(pv, 12)), decreasing = TRUE)
+           isTRUE(proche(vals, c(1, 52 / 70, 16 / 70, 4 / 70), abs = 1e-12)) &&
+           isTRUE(all.equal(round(vals, 3), c(1, 0.743, 0.229, 0.057)))
+         })
+# T = 5 (n1 = n2 = 2 apres ecart de la valeur mediane) : R uniforme sur
+# {2, 3, 4} ; en doublement p = 2/3 pour R = 2 ou 4, 1 pour R = 3 (la
+# vraisemblance minimale donnerait 1 quel que soit R).
+verifier("Suites (#29) : T = 5, p exacte = 2/3 (R = 2, 4) ou 1 (R = 3), ensemble {0,667 ; 1}",
+         {
+           s5 <- list(c(-2, -1, 0, 1, 2), c(2, 1, 0, -1, -2),       # R = 2
+                      c(1, -1, 0, -2, 2), c(-1, 1, 0, 2, -2),       # R = 3
+                      c(1, -1, 0, 2, -2), c(-1, 1, 0, -2, 2))       # R = 4
+           R5 <- vapply(s5, function(v) test_runs(v)$runs, numeric(1))
+           p5 <- vapply(s5, runs_p_exacte, numeric(1))
+           identical(R5, c(2, 2, 3, 3, 4, 4)) &&
+           isTRUE(proche(p5, c(2, 2, 3, 3, 2, 2) / 3, abs = 1e-12)) &&
+           isTRUE(proche(p5, vapply(s5, runs_p_enum, numeric(1)), abs = 1e-12)) &&
+           isTRUE(all.equal(sort(unique(round(p5, 3))), c(0.667, 1)))
+         })
 verifier("Suites : p exacte invariante par transformation croissante",
          proche(runs_p_exacte(exp(z1)), runs_p_exacte(z1)))
 verifier("Suites : NA si un seul cote de la mediane est represente",
@@ -201,6 +239,197 @@ verifier("Suites : loi de R simulee (i.i.d., N = 10 000) = .runs_dens(4, 4) a 4 
            fsim <- vapply(d44$R, function(r) mean(Rsim == r), numeric(1))
            all(Rsim %in% d44$R) &&
            all(abs(fsim - d44$prob) <= 4 * sqrt(d44$prob * (1 - d44$prob) / N))
+         })
+
+## --- Issue #29 (M8) : p exacte du test des suites sur ratios bruts ---------
+# usp_runsr_p_exacte() n'attribue la p exacte a la ligne Runsr que si DEUX
+# conditions tiennent : pi_constant (usp_regime(), tolerance TOL_DELTA_BORD) et
+# identite effective des signes de z_t - med(z) et de u_t - med(u), u = r -
+# moyenne(r) etant le vecteur effectivement teste. A pi_t
+# EXACTEMENT constant la seconde decoule de la premiere (transformation
+# monotone) ; dans la bande de tolerance elle peut tomber, et le cas
+# f29_bande ci-dessous en est un exemple construit. Chaque condition est
+# testee isolement (deux mutations), puis dans usp_tests().
+x29 <- c(104.20, 102.25, 109.34, 114.64, 118.41, 121.28, 132.40, 131.22)
+y29 <- c(68.97, 76.76, 83.49, 95.38, 88.96, 70.22, 78.89, 117.37)
+f29 <- usp_ajuster(x29, y29)                        # delta = 1 : pi_t constant
+f29_0 <- usp_ajuster(x29[1:5], y29[1:5])            # delta = 0 : pi_t variable
+# Cas construit : delta = 1 - TOL_DELTA_BORD / 2 (pi_constant vrai a la
+# tolerance pres) et deux ratios centraux distants de 1e-10 relatif ; le
+# terme 1/(2 pi_t) de z_t les ordonne a l'inverse des r_t, donc les signes
+# des deux annees centrales s'echangent.
+f29_bande <- local({
+  d <- 1 - TOL_DELTA_BORD / 2; r <- y29 / x29; o <- order(r)
+  r[o[5]] <- r[o[4]] * (1 - 1e-10); yy <- r * x29
+  c(usp_noyau(d, f29$gamma, x29, yy),
+    list(delta = d, gamma = f29$gamma, T = length(x29), x = x29, y = yy,
+         xbar = mean(x29), convergence = 0L, part_starts_convergents = 1,
+         delta_au_bord = usp_regime(d, x29)$delta_au_bord))
+})
+u_de <- function(f) { r <- f$y / f$x; r - mean(r) }
+signes_egaux <- function(f) {
+  u <- u_de(f)
+  all(sign(f$z - stats::median(f$z)) == sign(u - stats::median(u)))
+}
+boot29 <- function(f) {
+  s <- .stats_bootstrapables(f$x, f$y, f$z)
+  p <- stats::setNames(rep(0.5, length(s)), names(s))
+  list(stats_obs = as.list(s), p_mc = p, err_mc = p * 0 + 0.01)
+}
+ligne29 <- function(f, nom) Filter(function(l) l$test == nom, usp_tests(f, boot29(f)))[[1]]
+verifier("Runsr (#29) : les trois cas couvrent les trois combinaisons des deux conditions",
+         isTRUE(usp_regime(f29$delta, f29$x)$pi_constant) && signes_egaux(f29) &&
+         !isTRUE(usp_regime(f29_0$delta, f29_0$x)$pi_constant) &&
+         isTRUE(usp_regime(f29_bande$delta, f29_bande$x)$pi_constant) &&
+         !isTRUE(usp_regime(f29_bande$delta, f29_bande$x)$pi_constant_exact) &&
+         !signes_egaux(f29_bande))
+verifier("Runsr (#29) : usp_runsr_p_exacte() = runs_p_exacte(u) si les deux conditions tiennent",
+         {
+           u <- u_de(f29)
+           isTRUE(proche(usp_runsr_p_exacte(f29$z, u, TRUE), runs_p_exacte(u), abs = 0)) &&
+           isTRUE(proche(usp_runsr_p_exacte(f29$z, u, TRUE), 52 / 70, rel = 1e-12))
+         })
+verifier("Runsr (#29) : mutation 1, pi_constant FALSE a signes identiques -> NA",
+         {
+           u <- u_de(f29)
+           is.na(usp_runsr_p_exacte(f29$z, u, FALSE)) &&
+           is.na(usp_runsr_p_exacte(f29$z, u, NA))
+         })
+verifier("Runsr (#29) : mutation 2, pi_constant TRUE a signes differents -> NA",
+         {
+           u <- u_de(f29)
+           zp <- f29$z[c(2:8, 1)]                    # memes valeurs, signes decales
+           !all(sign(zp - stats::median(zp)) == sign(u - stats::median(u))) &&
+           is.na(usp_runsr_p_exacte(zp, u, TRUE))
+         })
+verifier("Runsr (#29) : pi_t constant (delta = 1), Runs et Runsr portent la meme p_retenue exacte",
+         {
+           a <- ligne29(f29, "Test des suites (aleatoire des signes)")
+           b <- ligne29(f29, "Test des suites sur ratios bruts")
+           identical(a$stat, b$stat) && identical(a$p_retenue, b$p_retenue) &&
+           identical(b$nature_p, "exacte") && identical(b$p_exacte, b$p_retenue) &&
+           isTRUE(proche(b$p_retenue, 52 / 70, rel = 1e-12))
+         })
+verifier("Runsr (#29) : pi_t variable (T = 5, delta = 0), pas de p exacte, Monte-Carlo retenue",
+         {
+           b <- ligne29(f29_0, "Test des suites sur ratios bruts")
+           is.na(b$p_exacte) && identical(b$nature_p, "Monte-Carlo (bootstrap parametrique)") &&
+           identical(b$p_retenue, 0.5)
+         })
+verifier("Runsr (#29) : pi_constant vrai mais signes differents (bande de tolerance), pas de p exacte",
+         {
+           b <- ligne29(f29_bande, "Test des suites sur ratios bruts")
+           is.na(b$p_exacte) && identical(b$nature_p, "Monte-Carlo (bootstrap parametrique)")
+         })
+# Divergence flottante r / u (revue d'audit du commit #29) : r a deux valeurs
+# centrales distantes de 1 ulp relatif ; r_5 - med(r) vaut 0 exactement,
+# u_5 - med(u) vaut un negatif apres le centrage par la moyenne. La
+# condition porte sur u, le vecteur teste : avec z = u elle tient, avec
+# z = r (signes de r) elle tombe.
+verifier("Runsr (#29) : condition de signes sur u = r - moyenne(r), non sur r (divergence flottante)",
+         {
+           r <- c(0.53089313523378223, 0.60298728744965047, 0.58827837626449764,
+                  0.8435114233288914, 0.69205185910686851, 0.88492070999927819,
+                  0.69205185910686862, 0.85880925413221121)
+           u <- r - mean(r)
+           sr <- sign(r - stats::median(r)); su <- sign(u - stats::median(u))
+           if (all(sr == su)) "cas non discriminant sur cette plateforme : signes de r et u egaux"
+           else is.na(usp_runsr_p_exacte(r, u, TRUE)) &&
+             isTRUE(proche(usp_runsr_p_exacte(u, u, TRUE), runs_p_exacte(u), abs = 0))
+         })
+# Cas de bout en bout a volumes constants (pi_t exactement constant quel que
+# soit delta) : T = 5 (T impair, valeur mediane ecartee, n1 = n2 = 2) et
+# T = 8 avec deux ratios ex aequo sur la mediane (n1 = n2 = 3). Les p
+# attendues sont recalculees par l'enumeration independante runs_p_enum().
+f29_t5 <- usp_ajuster(rep(100, 5), c(66, 70, 75, 82, 91))     # signes - - 0 + +, R = 2
+f29_ea <- usp_ajuster(rep(100, 8), c(70, 82, 75, 75, 66, 90, 60, 88))
+verifier("Runsr (#29) : T = 5 a volumes constants, p exacte = 2/3 par usp_tests()",
+         {
+           b <- ligne29(f29_t5, "Test des suites sur ratios bruts")
+           a <- ligne29(f29_t5, "Test des suites (aleatoire des signes)")
+           isTRUE(usp_regime(f29_t5$delta, f29_t5$x)$pi_constant_exact) &&
+           identical(b$nature_p, "exacte") && identical(a$p_retenue, b$p_retenue) &&
+           isTRUE(proche(b$p_retenue, 2 / 3, rel = 1e-12)) &&
+           isTRUE(proche(b$p_retenue, runs_p_enum(u_de(f29_t5)), abs = 1e-12))
+         })
+verifier("Runsr (#29) : ex aequo sur la mediane (T = 8, n1 = n2 = 3), p exacte = enumeration",
+         {
+           u <- u_de(f29_ea)
+           b <- ligne29(f29_ea, "Test des suites sur ratios bruts")
+           sum(u == stats::median(u)) == 2 && signes_egaux(f29_ea) &&
+           identical(b$nature_p, "exacte") &&
+           isTRUE(proche(b$p_retenue, runs_p_enum(u), abs = 1e-12)) &&
+           isTRUE(proche(b$p_retenue, 0.2, rel = 1e-12))
+         })
+# Champs loi et detail de Runsr, par regime (revue d'audit et d'actuary).
+cas_runsr <- list(f29 = f29, f29_0 = f29_0, f29_bande = f29_bande,
+                  f29_t5 = f29_t5, f29_ea = f29_ea)
+verifier("Runsr (#29) : loi et detail contiennent EXACTE si et seulement si nature_p = exacte",
+         {
+           ok <- vapply(cas_runsr, function(f) {
+             b <- ligne29(f, "Test des suites sur ratios bruts")
+             ex <- identical(b$nature_p, "exacte")
+             ex == grepl("EXACTE", b$loi, fixed = TRUE) &&
+               ex == grepl("EXACTE", b$detail, fixed = TRUE)
+           }, logical(1))
+           if (all(ok)) TRUE else paste("cas en defaut :", paste(names(ok)[!ok], collapse = ", "))
+         })
+verifier("Runsr (#29) : detail du regime 1 a pi_t exactement constant, sans variante de tolerance",
+         {
+           d <- ligne29(f29, "Test des suites sur ratios bruts")$detail
+           grepl("IDENTIQUE", d, fixed = TRUE) && grepl("doublement", d, fixed = TRUE) &&
+             !grepl("n'est constant qu'a la tolerance", d, fixed = TRUE)
+         })
+verifier("Runsr (#29) : bande de tolerance a signes differents, identite 'n'est plus garantie', pas d'IDENTIQUE",
+         {
+           d <- ligne29(f29_bande, "Test des suites sur ratios bruts")$detail
+           grepl("n'est plus garantie", d, fixed = TRUE) && !grepl("IDENTIQUE", d, fixed = TRUE) &&
+             grepl("TOL_DELTA_BORD = 1e-06 pres (1 - delta = 5e-07)", d, fixed = TRUE)
+         })
+verifier("Runsr (#29) : pi_t variable (T = 5, delta = 0), detail 'heteroscedastiques'",
+         {
+           d <- ligne29(f29_0, "Test des suites sur ratios bruts")$detail
+           grepl("heteroscedastiques", d, fixed = TRUE) && !grepl("SANS OBJET", d, fixed = TRUE)
+         })
+verifier("Runsr (#29) : variante 1b, pi_t constant a la tolerance pres avec signes identiques",
+         {
+           f <- local({
+             d <- 1 - TOL_DELTA_BORD / 2
+             c(usp_noyau(d, f29$gamma, x29, y29),
+               list(delta = d, gamma = f29$gamma, T = length(x29), x = x29, y = y29,
+                    xbar = mean(x29), convergence = 0L, part_starts_convergents = 1,
+                    delta_au_bord = usp_regime(d, x29)$delta_au_bord))
+           })
+           b <- ligne29(f, "Test des suites sur ratios bruts")
+           signes_egaux(f) && identical(b$nature_p, "exacte") &&
+             grepl("exacte a cet ordre pres", b$detail, fixed = TRUE) &&
+             grepl("TOL_DELTA_BORD = 1e-06 pres (1 - delta = 5e-07)", b$detail, fixed = TRUE)
+         })
+verifier("Base r (#29) : les cinq autres detail ne disent plus 'statistique est meme identique'",
+         {
+           nn <- c("Autocorrelation d'ordre 1 (Durbin-Watson) sur ratios bruts",
+                   "Ljung-Box (retard 1) sur ratios bruts",
+                   "Rupture de niveau (sup-F) sur ratios bruts",
+                   "Stabilite cumulee (OLS-CUSUM) sur ratios bruts",
+                   "Valeur aberrante isolee (Grubbs) sur ratios bruts")
+           dd <- unlist(lapply(cas_runsr, function(f)
+             vapply(nn, function(n) ligne29(f, n)$detail, character(1))))
+           dc <- vapply(nn, function(n) ligne29(f29, n)$detail, character(1))
+           !any(grepl("statistique est meme identique", dd, fixed = TRUE)) &&
+             all(grepl("transformation logarithmique.", dc, fixed = TRUE))
+         })
+verifier("Base r (#29) : DWr, LB1r, supFr, CUSUMr, Grubbsr restent en Monte-Carlo, pi_t constant ou non",
+         {
+           nn <- c("Autocorrelation d'ordre 1 (Durbin-Watson) sur ratios bruts",
+                   "Ljung-Box (retard 1) sur ratios bruts",
+                   "Rupture de niveau (sup-F) sur ratios bruts",
+                   "Stabilite cumulee (OLS-CUSUM) sur ratios bruts",
+                   "Valeur aberrante isolee (Grubbs) sur ratios bruts")
+           all(vapply(list(f29, f29_0, f29_bande), function(f)
+             all(vapply(nn, function(n) {
+               l <- ligne29(f, n)
+               is.na(l$p_exacte) && identical(l$nature_p, "Monte-Carlo (bootstrap parametrique)")
+             }, logical(1))), logical(1)))
          })
 
 ## --- Durbin-Watson : loi exacte ---------------------------------------------

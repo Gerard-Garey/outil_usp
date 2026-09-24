@@ -192,4 +192,64 @@ verifier("Reference premium comparee a elle-meme : conforme, 0 feuille different
            r <- comparer(readRDS(f), readRDS(f))
            r$conforme && r$n_differentes == 0L && r$n_feuilles > 10000L })
 
+## --- Exclusion par conception (issue #22, decision du mainteneur) -----------
+# ajustement$gradient et ajustement$gradient_projete : residus ~0 dependant du
+# demarrage retenu, exclus de la comparaison ; hessien_gamma reste compare.
+aj_ref <- list(ajustement = list(gradient = c(delta = -0.53, gamma = 1.0763e-05),
+                                 gradient_projete = c(delta = 0, gamma = 1.0763e-05),
+                                 hessien_gamma = 31.3464, pas_newton_gamma = -3.4e-07),
+               tests = list(list(test = "t", p_mc = 0.5)))
+neutr <- outils_env$neutraliser_instables
+verifier("neutraliser_instables : une perturbation de gradient et gradient_projete n'est pas signalee",
+         {
+           b <- aj_ref
+           b$ajustement$gradient[["gamma"]] <- -3.8e-07
+           b$ajustement$gradient[["delta"]] <- -0.4
+           b$ajustement$gradient_projete[["gamma"]] <- -3.8e-07
+           brut <- comparer(aj_ref, b); r <- comparer(neutr(aj_ref), neutr(b))
+           !brut$conforme && r$conforme && r$n_ecarts == 0L
+         })
+verifier("neutraliser_instables : une perturbation de hessien_gamma reste signalee",
+         {
+           b <- aj_ref; b$ajustement$hessien_gamma <- 31.3464 * (1 + 1e-4)
+           r <- comparer(neutr(aj_ref), neutr(b))
+           !r$conforme && r$n_ecarts == 1L
+         })
+# n_starts_optimum_code0 (ajout du 23/09/2026, decision du mainteneur) : depend
+# du chemin d'optimisation (un demarrage bascule entre les codes 0 et 52 selon
+# la machine), exclu ; n_starts_optimum reste compare.
+aj_dem <- list(ajustement = list(n_starts_optimum = 54L, n_starts_optimum_code0 = 53L))
+verifier("neutraliser_instables : n_starts_optimum_code0 54 contre 53 n'est pas signale",
+         {
+           b <- aj_dem; b$ajustement$n_starts_optimum_code0 <- 54L
+           brut <- comparer(aj_dem, b); r <- comparer(neutr(aj_dem), neutr(b))
+           !brut$conforme && r$conforme && r$n_ecarts == 0L
+         })
+verifier("neutraliser_instables : n_starts_optimum 54 contre 53 reste signale",
+         {
+           b <- aj_dem; b$ajustement$n_starts_optimum <- 53L
+           r <- comparer(neutr(aj_dem), neutr(b))
+           !r$conforme && r$n_ecarts == 1L
+         })
+# convergence (ajout du 24/09/2026, decision du mainteneur, option (a)) : code
+# d'optim() du demarrage retenu (le premier a l'optimum, departage par l'ordre
+# de la grille), qui depend du chemin d'optimisation, exclu de res$ajustement
+# seulement ; un champ homonyme hors de res$ajustement reste compare.
+aj_cv <- list(ajustement = list(convergence = 0L, n_starts_optimum = 54L),
+              autre = list(convergence = 0L))
+verifier("neutraliser_instables : ajustement$convergence 0 contre 52 n'est pas signale",
+         {
+           b <- aj_cv; b$ajustement$convergence <- 52L
+           brut <- comparer(aj_cv, b); r <- comparer(neutr(aj_cv), neutr(b))
+           !brut$conforme && r$conforme && r$n_ecarts == 0L
+         })
+verifier("neutraliser_instables : un champ convergence hors de res$ajustement reste signale",
+         {
+           b <- aj_cv; b$autre$convergence <- 52L
+           r <- comparer(neutr(aj_cv), neutr(b))
+           !r$conforme && r$n_ecarts == 1L
+         })
+verifier("neutraliser_instables : objet sans ajustement (Merz-Wuthrich) inchange",
+         { o <- list(tests = list(list(test = "t", p_mc = 0.5))); identical(neutr(o), o) })
+
 fin_fichier()
