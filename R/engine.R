@@ -482,25 +482,30 @@ usp_controles_numeriques <- function(fit) {
   # --- Convergence multi-demarrages ------------------------------------------
   # Precision de M11 (decision du mainteneur apres audit) : reussi si au
   # moins UN demarrage a l'optimum rend le code 0 et si au moins deux
-  # demarrages atteignent l'optimum. Le code du demarrage retenu reste inscrit
-  # dans le detail (entier), sans decider seul. Le detail n'imprime pas le
-  # NOMBRE de demarrages a l'optimum au code 0 (decision du mainteneur,
-  # 23/09/2026) : il depend du chemin d'optimisation (un demarrage bascule
-  # entre les codes 0 et 52 selon la machine ; mesure : 52 a 54 sur 101
-  # perturbations relatives de 1e-12 des donnees de test, contre 54
-  # demarrages a l'optimum dans tous les cas). Seul le respect de la regle est
-  # imprime ; la valeur reste dans res$ajustement$n_starts_optimum_code0.
-  code <- fit$convergence; n_opt <- fit$n_starts_optimum
+  # demarrages atteignent l'optimum. Le detail n'imprime ni le NOMBRE de
+  # demarrages a l'optimum au code 0 (decision du mainteneur, 23/09/2026) ni
+  # le CODE du demarrage retenu (decision du mainteneur, 24/09/2026, issue
+  # #22) : l'un et l'autre dependent du chemin d'optimisation. Un demarrage
+  # bascule entre les codes 0 et 52 selon la machine (mesure : 52 a 54
+  # demarrages au code 0 sur 101 perturbations relatives de 1e-12 des donnees
+  # de test, contre 54 demarrages a l'optimum dans tous les cas) ; le
+  # demarrage retenu est le premier a moins de 1e-10 de l'objectif, departage
+  # par l'ordre de la grille, et peut rendre 52 quand d'autres rendent 0 (cas
+  # d'audit 176 de tests/unitaires/test_controles_numeriques.R). Le code du
+  # demarrage retenu ne decide pas du verdict (precision de M11). Seul le
+  # respect de la regle est imprime ; les valeurs restent dans res$ajustement
+  # (n_starts_optimum_code0, convergence).
+  n_opt <- fit$n_starts_optimum
   n_opt0 <- fit$n_starts_optimum_code0
   ok_m <- isTRUE(n_opt0 >= 1) && isTRUE(n_opt >= 2)
   add("Convergence multi-demarrages", ok_m, fit$part_starts_convergents,
       sprintf(paste("%d demarrage(s) a moins de 1e-6 de l'objectif minimal ; au moins un",
                     "demarrage a l'optimum au code de retour 0 d'optim() (convergence) : %s ;",
-                    "code du demarrage retenu = %d ; %d demarrage(s) sans resultat. Regle : au",
-                    "moins un demarrage a l'optimum au code 0 et au moins deux demarrages a",
-                    "l'optimum (convention minimale, sans reference). Part kappa des demarrages",
-                    "aboutis a l'optimum = %.2f : grandeur descriptive, sans repere (stat = kappa)."),
-              as.integer(n_opt), if (isTRUE(n_opt0 >= 1)) "oui" else "non", as.integer(code),
+                    "%d demarrage(s) sans resultat. Regle : au moins un demarrage a l'optimum",
+                    "au code 0 et au moins deux demarrages a l'optimum (convention minimale,",
+                    "sans reference). Part kappa des demarrages aboutis a l'optimum = %.2f :",
+                    "grandeur descriptive, sans repere (stat = kappa)."),
+              as.integer(n_opt), if (isTRUE(n_opt0 >= 1)) "oui" else "non",
               as.integer(fit$n_starts_echec), fit$part_starts_convergents))
   res
 }

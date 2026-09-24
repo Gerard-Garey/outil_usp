@@ -238,6 +238,19 @@ verifier("Multi-demarrages : detail invariant quand n_starts_optimum_code0 varie
              grepl("au code de retour 0 d'optim() (convergence) : non ;", ctrl(fc, NOM_MULTI)$detail, fixed = TRUE) &&
              !grepl("dont", da, fixed = TRUE)
          })
+# Decision du mainteneur (24/09/2026, option (a)) : le detail n'imprime pas non
+# plus le code d'optim() du demarrage retenu (premier demarrage a l'optimum,
+# departage par l'ordre de la grille ; 52 ou 0 selon la machine) ; la valeur
+# reste dans res$ajustement$convergence.
+verifier("Multi-demarrages : detail invariant quand le code du demarrage retenu varie (0 / 52), sans 'code du demarrage retenu'",
+         {
+           f52 <- f_t; f52$convergence <- 52L
+           f0 <- f_t; f0$convergence <- 0L
+           da <- ctrl(f0, NOM_MULTI)$detail
+           identical(da, ctrl(f52, NOM_MULTI)$detail) &&
+             !grepl("code du demarrage retenu", da, fixed = TRUE) &&
+             !grepl("code du demarrage retenu", ctrl(f_i, NOM_MULTI)$detail, fixed = TRUE)
+         })
 verifier("usp_ajuster : n_starts_optimum_code0 = demarrages a l'optimum rendant le code 0 (<= n_starts_optimum)",
          is.integer(f_t$n_starts_optimum_code0) &&
            f_t$n_starts_optimum_code0 <= f_t$n_starts_optimum && f_t$n_starts_optimum_code0 >= 1L)
@@ -246,6 +259,10 @@ verifier("usp_ajuster : n_starts_optimum_code0 = demarrages a l'optimum rendant 
 # premier, marge 1e-10) rend le code 52, 53 (resp. 52) autres rendent 0.
 # Mesure du 23/09/2026 : l'ancienne regle donnait ECHEC sur ces deux cas.
 # Propriete verifiee : OK, quel que soit le demarrage retenu sur la plateforme.
+# Mesure du 24/09/2026 (session cloud Linux, R 4.3.3) : cas 176, retenu au
+# code 52 et 53 demarrages a l'optimum au code 0 ; cas 187, retenu au code 0
+# et 54 au code 0 -- le code du demarrage retenu depend de la plateforme
+# (issue #22, decision du mainteneur du 24/09/2026).
 sim_audit <- local({
   set.seed(12345); out <- list()
   for (k in 1:187) {
@@ -258,7 +275,7 @@ sim_audit <- local({
   out
 })
 for (k in names(sim_audit))
-  verifier(sprintf("Multi-demarrages, cas d'audit %s (demarrage retenu au code 52, autres a 0) : OK", k),
+  verifier(sprintf("Multi-demarrages, cas d'audit %s (demarrage retenu au code 52 selon la plateforme, autres a 0) : OK", k),
            {
              f <- usp_ajuster(sim_audit[[k]]$x, sim_audit[[k]]$y)
              v <- ctrl(f, NOM_MULTI)$verdict

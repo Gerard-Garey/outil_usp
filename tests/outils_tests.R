@@ -98,7 +98,18 @@ INSTABLES <- list()
 # perturbation de 1e-12 ; mesure locale : 52 a 54 sur 101 perturbations de
 # 1e-12). Restent compares n_starts_optimum (stable, 54) et le verdict, qui
 # ne demande qu'au moins un demarrage a l'optimum au code 0.
-EXCLUS_AJUSTEMENT <- c("gradient", "gradient_projete", "n_starts_optimum_code0")
+# convergence (ajout du 24/09/2026, decision du mainteneur, option (a)) : code
+# de retour d'optim() du demarrage retenu, c'est-a-dire du premier demarrage
+# a moins de 1e-10 de l'objectif, departage par l'ordre de la grille. Meme
+# mecanisme que n_starts_optimum_code0 : il depend du chemin d'optimisation
+# (mesure du 24/09/2026, Linux, R 4.3.3 : cas d'audit 176 de
+# test_controles_numeriques.R, demarrage retenu au code 52 alors que 53
+# demarrages a l'optimum rendent 0). Il ne decide pas du verdict (precision
+# de M11) et n'est plus imprime dans le detail du controle. Le champ n'est
+# neutralise que dans res$ajustement (lognormale) ; l'objet Merz-Wuthrich
+# n'en comporte pas.
+EXCLUS_AJUSTEMENT <- c("gradient", "gradient_projete", "n_starts_optimum_code0",
+                       "convergence")
 
 # Remplace par NA les grandeurs instables (INSTABLES) et les champs exclus par
 # conception (EXCLUS_AJUSTEMENT), dans le resultat comme dans la reference,

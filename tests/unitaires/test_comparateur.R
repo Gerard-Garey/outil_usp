@@ -231,6 +231,24 @@ verifier("neutraliser_instables : n_starts_optimum 54 contre 53 reste signale",
            r <- comparer(neutr(aj_dem), neutr(b))
            !r$conforme && r$n_ecarts == 1L
          })
+# convergence (ajout du 24/09/2026, decision du mainteneur, option (a)) : code
+# d'optim() du demarrage retenu (le premier a l'optimum, departage par l'ordre
+# de la grille), qui depend du chemin d'optimisation, exclu de res$ajustement
+# seulement ; un champ homonyme hors de res$ajustement reste compare.
+aj_cv <- list(ajustement = list(convergence = 0L, n_starts_optimum = 54L),
+              autre = list(convergence = 0L))
+verifier("neutraliser_instables : ajustement$convergence 0 contre 52 n'est pas signale",
+         {
+           b <- aj_cv; b$ajustement$convergence <- 52L
+           brut <- comparer(aj_cv, b); r <- comparer(neutr(aj_cv), neutr(b))
+           !brut$conforme && r$conforme && r$n_ecarts == 0L
+         })
+verifier("neutraliser_instables : un champ convergence hors de res$ajustement reste signale",
+         {
+           b <- aj_cv; b$autre$convergence <- 52L
+           r <- comparer(neutr(aj_cv), neutr(b))
+           !r$conforme && r$n_ecarts == 1L
+         })
 verifier("neutraliser_instables : objet sans ajustement (Merz-Wuthrich) inchange",
          { o <- list(tests = list(list(test = "t", p_mc = 0.5))); identical(neutr(o), o) })
 
