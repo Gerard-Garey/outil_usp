@@ -102,7 +102,9 @@ Lorsqu'une modification change volontairement les résultats, lister les écarts
 plus régénérées hors de la CI, poste compris
 ([ADR 0011](docs/adr/0011-plateforme-ci-production-des-references.md)) : le
 workflow `.github/workflows/references.yml`, déclenché manuellement en mode
-`regeneration` (un cas, motifs attendus) ou `creation` (un cas nouveau,
+`regeneration` (un ou plusieurs cas existants en une seule exécution, motifs
+attendus par cas, batteries relancées une fois après le dernier cas) ou
+`creation` (un cas nouveau,
 ajouté à `CAS` de `tests/outils_tests.R`, sans toucher aux références
 existantes), produit les `.rds` et le tableau avant / après en artefact ;
 après visa et vérification, ils sont commités avec le code qui les motive
