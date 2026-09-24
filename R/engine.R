@@ -498,12 +498,15 @@ usp_controles_numeriques <- function(fit) {
   # d'actuary verifiee par simulation). |pg_delta| <= 1e-4, REGLE UNIQUE au
   # bord comme a l'interieur (decision du mainteneur apres audit : exiger
   # pg_delta = 0 au bord creait une discontinuite).
-  # Libelle concis (issue #76, textes retenus par le mainteneur) : le
-  # respect de la regle (oui / non), puis, selon le cas, les particularites
-  # du demarrage retenu, dans cet ordre : volumes constants, gradient non
-  # fini, courbure non strictement positive (H non fini compris), gamma sur
-  # une borne. La courbure n'est pas mentionnee quand gamma est sur une
-  # borne (pas de Newton non defini dans les deux cas). Ni repere, ni valeur
+  # Libelle concis (issue #76, textes retenus par le mainteneur, retouches
+  # du 24/09/2026) : le respect de la regle (oui / non), puis, s'il y a lieu,
+  # la phrase "Volumes constants : delta non identifie.", puis UNE phrase
+  # "Demarrage retenu : " reunissant, separees par " ; " et dans cet ordre,
+  # les anomalies du demarrage retenu : gradient non fini, courbure (« non
+  # finie » si H_gamma_gamma est NaN ou +-Inf, « non strictement positive »
+  # si H est finie et <= 0), gamma sur une borne. La courbure n'est pas
+  # mentionnee quand gamma est sur une borne (pas de Newton non defini dans
+  # les deux cas). Ni repere, ni valeur
   # d'optimiseur : la regle, les reperes et leur justification sont dans la
   # fiche du .tex ; les valeurs du demarrage retenu dans res$ajustement
   # (gradient, gradient_projete, hessien_gamma, pas_newton_gamma) ; stat
@@ -513,19 +516,22 @@ usp_controles_numeriques <- function(fit) {
   grad_fini <- all(is.finite(c(g, pg)))
   gamma_bord <- !is.finite(fit$gamma) ||
     fit$gamma <= BORNES_GAMMA[1] + TOL_DELTA_BORD || fit$gamma >= BORNES_GAMMA[2] - TOL_DELTA_BORD
-  courbure_ok <- is.finite(H) && H > 0
+  H_finie <- isTRUE(is.finite(H))
   ok <- isTRUE(fit$kkt_au_moins_un)
   # Volumes constants (#58) : pi_t ne depend pas de delta, g_delta = 0 et
   # delta n'est pas identifie ; la valeur rendue par l'optimiseur (souvent 0)
   # est un artefact, que le libelle ne presente pas comme un bord.
   vol_cst <- isTRUE(usp_regime(fit$delta, fit$x)$volumes_constants)
+  anomalies <- c(if (!grad_fini) "gradient non fini",
+                 if (!gamma_bord && !H_finie) "courbure non finie",
+                 if (!gamma_bord && H_finie && H <= 0) "courbure non strictement positive",
+                 if (gamma_bord) "gamma sur une borne")
   add("Condition du premier ordre (gradient projete, KKT)", ok, fit$pas_newton_gamma,
       paste(c(sprintf("Condition KKT verifiee par au moins un demarrage a l'optimum : %s.",
                       if (ok) "oui" else "non"),
               if (vol_cst) "Volumes constants : delta non identifie.",
-              if (!grad_fini) "Demarrage retenu : gradient non fini.",
-              if (!gamma_bord && !courbure_ok) "Demarrage retenu : courbure non strictement positive.",
-              if (gamma_bord) "Demarrage retenu : gamma sur une borne."),
+              if (length(anomalies))
+                paste0("Demarrage retenu : ", paste(anomalies, collapse = " ; "), ".")),
             collapse = " "))
 
   # --- Convergence multi-demarrages ------------------------------------------
@@ -543,7 +549,8 @@ usp_controles_numeriques <- function(fit) {
   # grille, et peut rendre 52 quand d'autres rendent 0 (cas d'audit 176 de
   # tests/unitaires/test_controles_numeriques.R). Sont imprimes (libelle
   # concis, issue #76) : le nombre de demarrages a l'optimum, le respect de
-  # la condition sur le code 0 (oui / non) et, s'il est non nul, le nombre
+  # la condition sur le code 0 (oui / non ; « au code 0 » sans « au moins
+  # un » quand un seul demarrage est a l'optimum) et, s'il est non nul, le nombre
   # de demarrages sans resultat (erreur d'optim()) ; ces deux entiers sont
   # compares aux references de non-regression. Les valeurs restent dans
   # res$ajustement (n_starts_optimum_code0, convergence) ; stat = part kappa
@@ -553,9 +560,9 @@ usp_controles_numeriques <- function(fit) {
   n_echec <- as.integer(fit$n_starts_echec)
   ok_m <- isTRUE(n_opt0 >= 1) && isTRUE(n_opt >= 2)
   add("Convergence multi-demarrages", ok_m, fit$part_starts_convergents,
-      paste(c(sprintf("%s ; au moins un au code 0 d'optim() : %s.",
-                      if (identical(n_opt, 1L)) "1 seul demarrage a l'optimum"
-                      else sprintf("%d demarrages a l'optimum", n_opt),
+      paste(c(sprintf("%s : %s.",
+                      if (identical(n_opt, 1L)) "1 seul demarrage a l'optimum ; au code 0 d'optim()"
+                      else sprintf("%d demarrages a l'optimum ; au moins un au code 0 d'optim()", n_opt),
                       if (isTRUE(n_opt0 >= 1)) "oui" else "non"),
               if (isTRUE(n_echec > 0L))
                 sprintf("%d demarrage%s sans resultat.", n_echec, if (n_echec > 1L) "s" else "")),

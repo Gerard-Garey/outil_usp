@@ -456,18 +456,69 @@ verifier("gamma sur une borne : pas de Newton et stat du controle NA",
            }
            ok
          })
-verifier("Libelle : gradient non fini et courbure non finie distingues (#76 : courbure non finie = non strictement positive)",
+# Libelles de la condition du premier ordre (#76, retouches du mainteneur du
+# 24/09/2026) : une assertion exacte par variante. Reference : les textes
+# valides par le mainteneur ; la courbure est « non finie » si H_gamma_gamma
+# est NaN ou +-Inf, « non strictement positive » si H est finie et <= 0 ;
+# les anomalies du demarrage retenu sont reunies sous un seul prefixe,
+# separees par " ; ", dans l'ordre gradient, courbure, gamma sur une borne ;
+# la phrase des volumes constants reste a part, avant ; la courbure n'est
+# pas mentionnee quand gamma est sur une borne.
+K_OUI <- "Condition KKT verifiee par au moins un demarrage a l'optimum : oui."
+K_NON <- "Condition KKT verifiee par au moins un demarrage a l'optimum : non."
+verifier("Libelle FOC : gradient non fini seul (#76)",
          {
            fg <- f_t; fg$gradient[["gamma"]] <- NaN; fg$gradient_projete[["gamma"]] <- NaN
            fg$pas_newton_gamma <- NA_real_
-           fh <- f_t; fh$hessien_gamma <- NaN; fh$pas_newton_gamma <- NA_real_
-           fh$kkt_au_moins_un <- FALSE
-           dg <- ctrl(fg, NOM_FOC)$detail; dh <- ctrl(fh, NOM_FOC)$detail
-           identical(dg, paste("Condition KKT verifiee par au moins un demarrage a l'optimum : oui.",
-                               "Demarrage retenu : gradient non fini.")) &&
-             identical(dh, paste("Condition KKT verifiee par au moins un demarrage a l'optimum : non.",
-                                 "Demarrage retenu : courbure non strictement positive.")) &&
-             identical(ctrl(fh, NOM_FOC)$verdict, "ECHEC")
+           identical(ctrl(fg, NOM_FOC)$detail,
+                     paste(K_OUI, "Demarrage retenu : gradient non fini."))
+         })
+verifier("Libelle FOC : H = +Inf -> 'courbure non finie', ECHEC (#76)",
+         {
+           f <- f_t; f$hessien_gamma <- Inf; f$pas_newton_gamma <- NA_real_
+           f$kkt_au_moins_un <- FALSE
+           identical(ctrl(f, NOM_FOC)$detail,
+                     paste(K_NON, "Demarrage retenu : courbure non finie.")) &&
+             identical(ctrl(f, NOM_FOC)$verdict, "ECHEC")
+         })
+verifier("Libelle FOC : H = -Inf -> 'courbure non finie' (#76)",
+         {
+           f <- f_t; f$hessien_gamma <- -Inf; f$pas_newton_gamma <- NA_real_
+           f$kkt_au_moins_un <- FALSE
+           identical(ctrl(f, NOM_FOC)$detail,
+                     paste(K_NON, "Demarrage retenu : courbure non finie."))
+         })
+verifier("Libelle FOC : H = NaN -> 'courbure non finie', ECHEC (#76)",
+         {
+           f <- f_t; f$hessien_gamma <- NaN; f$pas_newton_gamma <- NA_real_
+           f$kkt_au_moins_un <- FALSE
+           identical(ctrl(f, NOM_FOC)$detail,
+                     paste(K_NON, "Demarrage retenu : courbure non finie.")) &&
+             identical(ctrl(f, NOM_FOC)$verdict, "ECHEC")
+         })
+verifier("Libelle FOC : H finie <= 0 (-1 et 0) -> 'courbure non strictement positive' (#76)",
+         {
+           f <- f_t; f$hessien_gamma <- -1; f$kkt_au_moins_un <- FALSE
+           f0 <- f; f0$hessien_gamma <- 0
+           att <- paste(K_NON, "Demarrage retenu : courbure non strictement positive.")
+           identical(ctrl(f, NOM_FOC)$detail, att) && identical(ctrl(f0, NOM_FOC)$detail, att)
+         })
+verifier("Libelle FOC : cumul gradient non fini + courbure, un seul prefixe (#76)",
+         {
+           fa <- f_t; fa$gradient[["gamma"]] <- NaN; fa$gradient_projete[["gamma"]] <- NaN
+           fa$hessien_gamma <- NaN; fa$kkt_au_moins_un <- FALSE
+           fb <- fa; fb$hessien_gamma <- -1
+           identical(ctrl(fa, NOM_FOC)$detail,
+                     paste(K_NON, "Demarrage retenu : gradient non fini ; courbure non finie.")) &&
+             identical(ctrl(fb, NOM_FOC)$detail,
+                       paste(K_NON, "Demarrage retenu : gradient non fini ; courbure non strictement positive."))
+         })
+verifier("Libelle FOC : cumul avec gamma sur une borne, courbure omise (#76)",
+         {
+           fa <- f_t; fa$gradient[["gamma"]] <- NaN; fa$gradient_projete[["gamma"]] <- NaN
+           fa$hessien_gamma <- NaN; fa$kkt_au_moins_un <- FALSE; fa$gamma <- BORNES_GAMMA[2]
+           identical(ctrl(fa, NOM_FOC)$detail,
+                     paste(K_NON, "Demarrage retenu : gradient non fini ; gamma sur une borne."))
          })
 verifier("Volumes constants : le detail FOC dit delta non identifie (#58, #76)",
          {
@@ -477,30 +528,23 @@ verifier("Volumes constants : le detail FOC dit delta non identifie (#58, #76)",
                                       if (isTRUE(fv$kkt_au_moins_un)) "oui" else "non"),
                               "Volumes constants : delta non identifie."))
          })
-verifier("FOC : courbure H_gamma_gamma <= 0 -> 'Demarrage retenu : courbure non strictement positive.' (#76)",
-         {
-           f <- f_t; f$hessien_gamma <- -1; f$kkt_au_moins_un <- FALSE
-           identical(ctrl(f, NOM_FOC)$detail,
-                     paste("Condition KKT verifiee par au moins un demarrage a l'optimum : non.",
-                           "Demarrage retenu : courbure non strictement positive."))
-         })
-# Ordre des complements quand plusieurs cas se cumulent (#76) : volumes
-# constants, gradient non fini, courbure non strictement positive, gamma sur
-# une borne ; la courbure n'est pas mentionnee quand gamma est sur une borne.
-verifier("FOC : complements cumules dans l'ordre volumes constants, gradient, courbure, gamma (#76)",
+verifier("Libelle FOC : volumes constants + anomalies, phrase a part placee avant (#76, exemple du mainteneur)",
          {
            fa <- f_t; fa$x <- rep(100, 8); fa$gradient[["gamma"]] <- NaN
-           fa$hessien_gamma <- -1; fa$kkt_au_moins_un <- FALSE
+           fa$gradient_projete[["gamma"]] <- NaN
+           fa$hessien_gamma <- NaN; fa$kkt_au_moins_un <- FALSE
            fb <- fa; fb$gamma <- BORNES_GAMMA[2]
-           k <- "Condition KKT verifiee par au moins un demarrage a l'optimum : non."
+           fc <- fa; fc$gradient <- f_t$gradient; fc$gradient_projete <- f_t$gradient_projete
+           fc$hessien_gamma <- -1
            identical(ctrl(fa, NOM_FOC)$detail,
-                     paste(k, "Volumes constants : delta non identifie.",
-                           "Demarrage retenu : gradient non fini.",
-                           "Demarrage retenu : courbure non strictement positive.")) &&
+                     paste(K_NON, "Volumes constants : delta non identifie.",
+                           "Demarrage retenu : gradient non fini ; courbure non finie.")) &&
              identical(ctrl(fb, NOM_FOC)$detail,
-                       paste(k, "Volumes constants : delta non identifie.",
-                             "Demarrage retenu : gradient non fini.",
-                             "Demarrage retenu : gamma sur une borne."))
+                       paste(K_NON, "Volumes constants : delta non identifie.",
+                             "Demarrage retenu : gradient non fini ; gamma sur une borne.")) &&
+             identical(ctrl(fc, NOM_FOC)$detail,
+                       paste(K_NON, "Volumes constants : delta non identifie.",
+                             "Demarrage retenu : courbure non strictement positive."))
          })
 
 ## --- Forme des deux controles ----------------------------------------------
@@ -568,7 +612,8 @@ verifier("Libelles FOC et multi-demarrages : aucun repere imprime, invariants qu
          })
 # Libelle concis (#76) : nombre de demarrages a l'optimum, respect de la
 # condition sur le code 0, demarrages sans resultat seulement s'il y en a,
-# "1 seul demarrage a l'optimum" s'il n'y en a qu'un ; ni regle ni kappa.
+# "1 seul demarrage a l'optimum ; au code 0 d'optim()" s'il n'y en a qu'un
+# (retouche du mainteneur du 24/09/2026) ; ni regle ni kappa.
 verifier("Detail multi-demarrages : textes du mainteneur et variantes (sans resultat, 1 seul demarrage) (#76)",
          {
            f3 <- f_t; f3$n_starts_echec <- 3L
@@ -581,9 +626,9 @@ verifier("Detail multi-demarrages : textes du mainteneur et variantes (sans resu
              identical(ctrl(f1, NOM_MULTI)$detail,
                        "54 demarrages a l'optimum ; au moins un au code 0 d'optim() : oui. 1 demarrage sans resultat.") &&
              identical(ctrl(fu, NOM_MULTI)$detail,
-                       "1 seul demarrage a l'optimum ; au moins un au code 0 d'optim() : oui.") &&
+                       "1 seul demarrage a l'optimum ; au code 0 d'optim() : oui.") &&
              identical(ctrl(fz, NOM_MULTI)$detail,
-                       "1 seul demarrage a l'optimum ; au moins un au code 0 d'optim() : non.") &&
+                       "1 seul demarrage a l'optimum ; au code 0 d'optim() : non.") &&
              identical(ctrl(fu, NOM_MULTI)$verdict, "ECHEC") &&
              !grepl("kappa|Regle|convention", ctrl(f_t, NOM_MULTI)$detail)
          })
