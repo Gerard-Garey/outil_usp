@@ -46,9 +46,11 @@
 #                      (seuil d'affichage 0, incompatible avec --seuil), en
 #                      deux parts. Part numerique : feuilles numeriques
 #                      finies des deux cotes (mesure relatif ou absolu de
-#                      comparer_objets()), c'est-a-dire la derive de
-#                      plateforme attendue. Part non numerique : tout le
-#                      reste -- chaine, booleen, verdict, NA ou valeur non
+#                      comparer_objets()) de type double, c'est-a-dire la
+#                      derive de plateforme attendue. Part non numerique :
+#                      tout le reste -- valeur ENTIERE modifiee (un
+#                      decompte qui change n'est pas de la derive ; mesure
+#                      "entier modifie"), chaine, booleen, verdict, NA ou valeur non
 #                      finie d'un cote, type ou attributs differents, feuille
 #                      absente ou ajoutee, structure differente --, qui doit
 #                      etre VIDE. Code de sortie 1 (bascule refusee, message
@@ -56,7 +58,8 @@
 #                      si un ecart numerique depasse TOLERANCE (ce ne serait
 #                      plus de la derive). Console : liste complete, triee
 #                      par ecart decroissant ; markdown : les deux parts,
-#                      chacune plafonnee a --max-lignes.
+#                      chacune plafonnee a --max-lignes. Incompatible avec
+#                      --tout : la bascule juge ce que juge la CI.
 #
 #  Une erreur sur un cas (reference absente ou illisible, erreur du moteur) est
 #  signalee, a l'ecran et dans le markdown, et n'arrete pas les cas
@@ -205,20 +208,30 @@ ajouter_markdown <- function(lignes, fichier, max_octets = MAX_OCTETS_MARKDOWN) 
 # ---------------------------------------------------------------------------
 
 # Mesures de comparer_objets() qui relevent de la part numerique : feuille
-# numerique, finie des deux cotes, de meme type et memes attributs. Toute
-# autre mesure (non numerique, non fini, absente, ajoutee, ordre ou
-# doublons) releve de la part non numerique.
+# numerique, finie des deux cotes, de meme type et memes attributs, et de
+# type double. Toute autre mesure (non numerique, non fini, absente,
+# ajoutee, ordre ou doublons) releve de la part non numerique, de meme
+# qu'une feuille ENTIERE (integer) modifiee : un decompte qui change n'est
+# pas de la derive d'arrondi, quelle que soit la taille de l'ecart ; elle
+# y figure sous la mesure "entier modifie".
 MESURES_NUMERIQUES <- c("relatif", "absolu")
 
 # Separe en deux parts la sortie de comparer_objets() appelee au seuil 0
 # (toute feuille non strictement identique figure alors dans r$ecarts).
-# Renvoie list(numerique, non_numerique, structure) : les deux data.frame
-# de r$ecarts, la part numerique triee par ecart decroissant ; structure,
-# les noeuds dont le type ou les attributs different (part non numerique).
-separer_parts <- function(r) {
+# ref : l'objet de reference compare (sert a reperer les feuilles
+# entieres). Renvoie list(numerique, non_numerique, structure) : les deux
+# data.frame de r$ecarts, la part numerique triee par ecart decroissant ;
+# structure, les noeuds dont le type ou les attributs different (part non
+# numerique).
+separer_parts <- function(r, ref) {
   if (!identical(r$tolerance, 0))
     stop("separer_parts : comparer_objets() doit etre appelee au seuil 0 (tol = 0)")
+  fa <- aplatir(ref)
+  entiers <- names(fa)[vapply(fa, is.integer, logical(1))]
   num <- r$ecarts$mesure %in% MESURES_NUMERIQUES
+  ent <- num & r$ecarts$chemin %in% entiers
+  r$ecarts$mesure[ent] <- "entier modifie"
+  num <- num & !ent
   numerique <- r$ecarts[num, , drop = FALSE]
   numerique <- numerique[order(-numerique$ecart), , drop = FALSE]
   list(numerique = numerique, non_numerique = r$ecarts[!num, , drop = FALSE],
@@ -230,10 +243,12 @@ separer_parts <- function(r) {
 # seuil de la CI), qui ne serait plus de la derive de plateforme.
 refus_bascule <- function(p, tol = TOLERANCE) {
   n_nn <- nrow(p$non_numerique); n_st <- length(p$structure)
+  n_ent <- sum(p$non_numerique$mesure == "entier modifie")
   n_au_dela <- sum(p$numerique$ecart > tol)
   c(if (n_nn || n_st)
-      sprintf(paste0("part non numerique non vide : %d feuille(s)%s -- une chaine, un booleen ou un verdict ",
-                     "qui differe n'est pas de la derive de plateforme"), n_nn,
+      sprintf(paste0("part non numerique non vide : %d feuille(s)%s%s -- une chaine, un booleen, un verdict ",
+                     "ou un decompte qui differe n'est pas de la derive de plateforme"), n_nn,
+              if (n_ent) sprintf(" dont %d valeur(s) entiere(s) modifiee(s)", n_ent) else "",
               if (n_st) sprintf(", %d noeud(s) de structure", n_st) else ""),
     if (n_au_dela)
       sprintf("%d ecart(s) numerique(s) au-dela du seuil %g de la CI : ce n'est plus de la derive de plateforme",
@@ -285,6 +300,8 @@ if (sys.nframe() == 0L) {
   seuil <- TOLERANCE
   k <- match("--seuil", args)
   if (!is.na(k) && deux_parts) stop("--deux-parts impose le seuil d'affichage 0 : --seuil incompatible")
+  if (tout && deux_parts)
+    stop("--deux-parts juge ce que juge la CI (INSTABLES et EXCLUS_AJUSTEMENT neutralises) : --tout incompatible")
   if (deux_parts) seuil <- 0
   if (!is.na(k)) {
     if (k == length(args)) stop("--seuil sans valeur")
@@ -340,7 +357,7 @@ if (sys.nframe() == 0L) {
       next
     }
     if (deux_parts) {
-      p <- separer_parts(r)
+      p <- separer_parts(r, avant)
       rf <- refus_bascule(p)
       refus <- c(refus, if (length(rf)) paste0(nom, " : ", rf))
       cat("=== ", nom, " : ", if (length(rf)) "BASCULE REFUSEE" else "derive numerique seule", "\n", sep = "")

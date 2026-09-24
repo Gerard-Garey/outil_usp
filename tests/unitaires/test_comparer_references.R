@@ -12,7 +12,8 @@
 #  hors tableau, valeur manquante distincte de la chaine "NA", reference
 #  absente comptee comme erreur (code de sortie 1) ; tableau de bascule en
 #  deux parts (--deux-parts, issue #67) : separation numerique / non
-#  numerique, motifs de refus, section markdown.
+#  numerique, valeur entiere modifiee, motifs de refus, section markdown,
+#  options incompatibles (--seuil, --tout).
 ###############################################################################
 
 if (!exists("verifier", mode = "function")) {
@@ -145,16 +146,16 @@ ref_b <- list(sigma = 0.5, zero = 1e-17, n = 3L, v = c(1, 2, 3),
               ctl = list(verdict = "OK", detail = "a", kkt = TRUE), p = 0.2)
 obt_b <- ref_b
 obt_b$sigma <- 0.5 * (1 + 3e-7); obt_b$zero <- 2e-16; obt_b$v[2] <- 2 * (1 + 1e-9)
-pb <- cr$separer_parts(cr$comparer_objets(ref_b, obt_b, tol = 0))
+pb <- cr$separer_parts(cr$comparer_objets(ref_b, obt_b, tol = 0), ref_b)
 verifier("separer_parts : derive seule -> part numerique (triee par ecart decroissant), part non numerique vide",
          identical(pb$numerique$chemin, c("sigma", "v[2]", "zero")) &&
          identical(pb$numerique$mesure, c("relatif", "relatif", "absolu")) &&
          !nrow(pb$non_numerique) && !length(pb$structure) && !length(cr$refus_bascule(pb)))
 verifier("separer_parts : exige comparer_objets() au seuil 0",
-         leve(cr$separer_parts(cr$comparer_objets(ref_b, obt_b))))
+         leve(cr$separer_parts(cr$comparer_objets(ref_b, obt_b), ref_b)))
 obt_c <- obt_b
 obt_c$ctl$detail <- "b"; obt_c$ctl$kkt <- FALSE; obt_c$p <- NA_real_; obt_c$n <- 3
-pc <- cr$separer_parts(cr$comparer_objets(ref_b, obt_c, tol = 0))
+pc <- cr$separer_parts(cr$comparer_objets(ref_b, obt_c, tol = 0), ref_b)
 verifier("separer_parts : chaine, booleen, NA et changement de type -> part non numerique",
          setequal(pc$non_numerique$chemin, c("ctl$detail", "ctl$kkt", "p", "n")) &&
          identical(sort(unique(pc$non_numerique$mesure)), c("non fini", "non numerique")) &&
@@ -162,10 +163,18 @@ verifier("separer_parts : chaine, booleen, NA et changement de type -> part non 
 verifier("refus_bascule : part non numerique non vide -> un motif de refus",
          { rf <- cr$refus_bascule(pc); length(rf) == 1L && grepl("^part non numerique non vide : 4 feuille", rf) })
 obt_d <- obt_b; obt_d$v[3] <- 3 * (1 + 2e-6)
-pd <- cr$separer_parts(cr$comparer_objets(ref_b, obt_d, tol = 0))
+pd <- cr$separer_parts(cr$comparer_objets(ref_b, obt_d, tol = 0), ref_b)
 verifier("refus_bascule : ecart numerique > TOLERANCE -> refus (ce n'est plus de la derive)",
          { rf <- cr$refus_bascule(pd); length(rf) == 1L && grepl("^1 ecart\\(s\\) numerique\\(s\\) au-dela du seuil 1e-06", rf) })
-pe <- cr$separer_parts(cr$comparer_objets(list(a = list(1)), list(a = list(1L)), tol = 0))
+ref_e <- list(n = 10000000L, x = 1)
+obt_e <- list(n = 10000001L, x = 1)
+pi_ <- cr$separer_parts(cr$comparer_objets(ref_e, obt_e, tol = 0), ref_e)
+verifier("separer_parts : valeur entiere modifiee (ecart relatif 1e-7 < TOLERANCE) -> part non numerique, 'entier modifie', refus",
+         !nrow(pi_$numerique) && identical(pi_$non_numerique$chemin, "n") &&
+         identical(pi_$non_numerique$mesure, "entier modifie") &&
+         grepl("dont 1 valeur\\(s\\) entiere\\(s\\) modifiee\\(s\\)", cr$refus_bascule(pi_)) &&
+         any(grepl("\\| entier modifie \\|$", lignes_tableau(cr$markdown_deux_parts("premium", pi_, 2L)))))
+pe <- cr$separer_parts(cr$comparer_objets(list(a = list(1)), list(a = list(1L)), tol = 0), list(a = list(1)))
 verifier("refus_bascule : structure differente seule -> refus",
          length(pe$structure) > 0L && length(cr$refus_bascule(pe)) == 1L)
 verifier("markdown_deux_parts : derive seule -> titre, synthese des deux parts, un seul tableau",
@@ -186,6 +195,13 @@ verifier("comparer_references.R : --deux-parts et --seuil incompatibles (erreur,
            sortie <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"),
              c("tests/comparer_references.R", "--deux-parts", "--seuil", "0"), stdout = TRUE, stderr = TRUE))
            identical(attr(sortie, "status"), 1L) && any(grepl("--seuil incompatible", sortie)) &&
+           !any(grepl("^=== ", sortie)) })
+
+verifier("comparer_references.R : --deux-parts et --tout incompatibles (erreur, aucun cas execute)",
+         { owd <- setwd(file.path(cr$DOSSIER_TESTS, "..")); on.exit(setwd(owd))
+           sortie <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"),
+             c("tests/comparer_references.R", "--deux-parts", "--tout"), stdout = TRUE, stderr = TRUE))
+           identical(attr(sortie, "status"), 1L) && any(grepl("--tout incompatible", sortie)) &&
            !any(grepl("^=== ", sortie)) })
 
 ## --- Reference absente : erreur, code de sortie 1 ------------------------------------------
