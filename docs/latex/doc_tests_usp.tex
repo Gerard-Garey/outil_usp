@@ -4395,10 +4395,15 @@ retenu $1{,}24\cdot 10^{-6}$ et $1{,}39\cdot 10^{-6}$), aucun sous la nouvelle~;
 200 jeux, le plus petit $|\Delta\gamma_s|$ parmi les démarrages à l'optimum ne dépasse pas
 $1{,}96\cdot 10^{-7}$, soit une marge d'environ cinq sous le repère~; verdict inchangé sous cinq
 perturbations relatives des données de $10^{-12}$ (200 jeux sur 200). La contrepartie est une
-perte de puissance limitée sur des ajustements délibérément non convergés~: 46 et 47 détections
-sur deux séries de 60, contre 47 et 48 sous l'ancienne règle. Ce sont des constats de
+perte de puissance limitée sur des ajustements délibérément non convergés~: sur 60 autres jeux
+simulés (graine 7, sans condition sur $\hat\delta$), chacun ajusté sous les deux réglages
+\code{factr} $= 10^{13}$ et \code{maxit} $= 2$, 46 et 47 \code{ECHEC} contre 47 et 48 sous
+l'ancienne règle. Ce sont des constats de
 simulation, non des propriétés démontrées~; 0 faux \code{ECHEC} sur 200 borne seulement le taux
-à environ 1,5~\% (borne supérieure unilatérale à 95~\%, $1 - 0{,}05^{1/200}$). Le repère est
+à environ 1,5~\% (borne supérieure unilatérale exacte à 95~\% de Clopper--Pearson,
+$1 - 0{,}05^{1/200}$, pour 200 jeux indépendants~; taux moyen sous ce générateur, conditionnel
+au régime $\hat\delta$ intérieur et propre à la plateforme de mesure~;
+section~\ref{sec:biblio}). Le repère est
 maintenu (décision du mainteneur)~; l'issue~\#63 (gradient analytique fourni à \code{optim()})
 vise la dispersion elle-même. À $\hat\delta$ intérieur,
 $\Delta\gamma$ est en outre calculé à $\delta$ fixé et ignore le terme croisé $H_{\delta\gamma}$~:
@@ -4467,11 +4472,15 @@ modèle réglementaire. \emph{Lecture à $T = 8$}~: le contrôle ne se lit pas c
 statistique dont la loi dépendrait de $T$. Il vérifie seulement qu'un point d'arrêt au moins,
 parmi ceux qui atteignent l'objectif minimal à \code{TOL\_OPTIMUM} près, satisfait
 la condition d'optimalité \emph{locale} à la précision numérique annoncée~; le point rapporté,
-celui du démarrage retenu, atteint le même objectif à cette tolérance près sans être
+celui du démarrage retenu, atteint l'objectif minimal à la marge de sélection $10^{-10}$ près sans être
 nécessairement ce point, et son $\Delta\gamma$ reste lisible dans le champ \code{stat} (le
 caractère global
 du minimum relève de la fiche~\ref{fiche:multi-demarrages})~; l'erreur relative qu'il tolère sur $\hat\sigma$,
-de l'ordre de $10^{-6}$, est sans commune mesure avec l'incertitude d'échantillonnage de
+de l'ordre de $10^{-6}$ pour le point qui satisfait la règle et d'au plus quelques $10^{-6}$
+pour le point rapporté ($|\Delta\gamma| \lesssim \sqrt{2\cdot 10^{-10}/H_{\gamma\gamma}}
+\approx 2{,}6\cdot 10^{-6}$ pour $H_{\gamma\gamma} \approx 30$, par développement quadratique de
+l'objectif à $\delta$ fixé~: dérivation d'\code{actuary}, non tirée de la littérature~;
+$2{,}5\cdot 10^{-6}$ observé au plus), est sans commune mesure avec l'incertitude d'échantillonnage de
 $\hat\sigma$ sur huit points (fiche~\ref{fiche:ic-bootstrap}), qu'il ne mesure pas.
 \end{fiche}
 
@@ -7563,6 +7572,16 @@ soutient dans le présent document.
   d'un modèle à trois paramètres estimés sur $T = 8$ observations~: les
   proportions de sortie de bande citées dans la fiche sont des constats de
   simulation propres au jeu de contrôle.
+
+  \item C.\,J. Clopper, E.\,S. Pearson, \emph{The use of confidence or fiducial
+  limits illustrated in the case of the binomial}, \emph{Biometrika}, 26(4),
+  1934, p.~404--413.
+  \emph{Portée.} Intervalle de confiance exact d'une proportion binomiale~;
+  pour 0 succès sur $n$ essais indépendants, la borne supérieure unilatérale
+  au niveau $1-\alpha$ vaut $1 - \alpha^{1/n}$. Elle soutient la borne de
+  1,5~\% citée à la fiche~\ref{fiche:foc} pour le taux de faux \code{ECHEC}
+  (0 sur 200 jeux simulés), borne qui ne vaut que pour le générateur de
+  simulation employé, à $\hat\delta$ intérieur et sur la plateforme de mesure.
 \end{itemize}
 
 \subsection*{Comportement en petit échantillon des tests employés}
