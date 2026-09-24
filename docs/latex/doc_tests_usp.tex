@@ -539,7 +539,8 @@ ajusté \\
 \code{theta\_equiv} (0,10), \code{delta\_equiv}, \code{robustesse} (\code{NULL}) &
 liste des tests (H0, H1, statistique, 3 p-values, nature)~; \code{robustesse}, calculé par
 \code{run\_engine()} et non stocké, alimente le commentaire des lignes jackknife et intervalle
-bootstrap (fiches~\ref{fiche:jackknife} et~\ref{fiche:ic-bootstrap}) \\
+bootstrap (année d'écart maximal, sens de l'écart sur $\sigma_{\mathrm{USP}}$, écart et largeur
+rapportés à la part estimée~; fiches~\ref{fiche:jackknife} et~\ref{fiche:ic-bootstrap}) \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Robustesse et calibration}}} \\
 \code{usp\_jackknife()} & \code{fit}, $\sigma_{\text{std}}$, barème &
 table des $\hat\sigma^{(-t)}$, $\sigma_{\mathrm{USP}}^{(-t)}$, $\hat\delta^{(-t)}$,
@@ -981,6 +982,29 @@ de mesure (sur une autre plateforme, ce peuvent être d'autres couples). Pour la
 commentaire n'imprime plus le code de retour du démarrage retenu (décision M23 du mainteneur,
 issue~\#22), qui ne décide pas du verdict et reste dans \code{res\$ajustement\$convergence},
 exclu lui aussi de la comparaison (fiche~\ref{fiche:multi-demarrages}).
+
+La décision M24 du mainteneur (issue~\#24) a étendu la règle à tout nombre d'un commentaire de
+\code{usp\_tests()} qui provient de l'optimiseur, du bootstrap ou des réajustements du jackknife
+et dont la valeur est restituée ailleurs dans l'objet~: les bornes de l'intervalle bootstrap à
+90~\% et sa largeur rapportée à $\sigma_{\mathrm{USP}}$ (fiche~\ref{fiche:ic-bootstrap}), l'écart
+du jackknife sur $\sigma_{\mathrm{USP}}$, dont seul le sens reste écrit
+(fiche~\ref{fiche:jackknife}), l'asymétrie et l'aplatissement que la ligne de Jarque--Bera
+imprimait et pour lesquels elle renvoie désormais aux champs \code{estim} des lignes de
+D'Agostino et d'Anscombe--Glynn (fiche~\ref{fiche:jarque-bera}). Le motif est celui du
+$\Delta$ du TOST~: sur le jeu de contrôle de la méthode prime, le quantile à 95~\% de
+$\sigma_{\mathrm{USP}}$ bootstrap, $0{,}136955$, est à $3{,}4\cdot 10^{-5}$ en relatif de la
+frontière d'arrondi de son impression à quatre décimales, soit environ cent fois seulement la
+dérive de plateforme mesurée ($3{,}5\cdot 10^{-7}$). Deux nombres restent imprimés parce
+qu'ils ne sont stockés nulle part ailleurs~: l'écart du jackknife et la largeur de l'intervalle
+rapportés à la part estimée, affichés $-14{,}8~\%$ et $87{,}6~\%$ sur ce jeu (valeurs
+$-14{,}833~\%$ et $87{,}626~\%$, à $1{,}1\cdot 10^{-3}$ et $2{,}8\cdot 10^{-4}$ en relatif de
+leur frontière d'arrondi, soit au moins huit cents fois la dérive mesurée)~; le mainteneur en
+a accepté le risque, à réexaminer quand les références seront produites par la CI
+(issue~\#67). Reste aussi imprimée, hors du cas de contrôle ($\hat\delta = 1$), la valeur de
+$1 - \hat\delta$ que les commentaires des lignes de centrage et de variance donnent à deux
+chiffres significatifs dans la bande de tolérance (fiche~\ref{fiche:centrage})~: issue de
+l'optimiseur et non stockée en tant que telle ($\hat\delta$ l'est), elle a été signalée et
+conservée lors de la même revue.
 
 \begin{encadre}
 \textbf{Point de revue.} L'objet retourné contient un champ \code{\$metadata}
@@ -3920,7 +3944,12 @@ et $\mathbb{E}[b_2] = 3$ conjointement.
 $\mathrm{JB} \xrightarrow{\ \mathcal{L}\ } \chi^2(2)$, comme somme des carrés de deux
 statistiques asymptotiquement normales et indépendantes.
 \Pval
-$p = 1 - F_{\chi^2_2}(\mathrm{JB})$.
+$p = 1 - F_{\chi^2_2}(\mathrm{JB})$. Le commentaire de la ligne n'imprime ni $\sqrt{b_1}$ ni
+$b_2$~: il renvoie aux champs \code{estim} des lignes de D'Agostino et d'Anscombe--Glynn
+(fiches~\ref{fiche:dagostino-asymetrie} et~\ref{fiche:anscombe-glynn-aplatissement}), qui les
+portent même lorsque le test d'Anscombe--Glynn n'est pas défini ($T < 20$), et rappelle que
+l'aplatissement est borné mécaniquement par une quantité de l'ordre de $T$ (décision M24 du
+mainteneur, issue~\#24, §\ref{sec:graines}).
 \Usage
 \textbf{À manier avec une grande prudence en régime USP.} La convergence vers $\chi^2(2)$ est
 notoirement lente~: pour $T < 50$, la taille effective s'écarte fortement du niveau nominal.
@@ -5287,9 +5316,14 @@ vaut~1 lorsque $c = 1$, cas où les deux échelles coïncident)~; le second n'en
 de $c$. Le coefficient $c\sqrt{(T+1)/(T-1)}$ étant strictement
 positif, les deux échelles désignent, par construction, la même année d'écart maximal et
 donnent à l'écart le même signe. Le moteur restitue $\Delta_{\max}$ dans le champ \code{estim},
-non signé, et, dans le commentaire, l'année $t^\star$ qui l'atteint, l'écart \emph{signé} sur
-$\sigma_{\mathrm{USP}}$ et l'écart signé de la part estimée à cette même année,
-$\big(\hat\sigma^{(-t^\star)} - \hat\sigma\big)/\hat\sigma$. Le maximum ne porte que sur les années
+non signé, et, dans le commentaire, l'année $t^\star$ qui l'atteint, le \emph{sens} de l'écart
+sur $\sigma_{\mathrm{USP}}$ (« en baisse », « en hausse » ou « inchangé », sa valeur absolue étant celle du
+champ \code{estim}) et l'écart signé de la part estimée à cette même année,
+$\big(\hat\sigma^{(-t^\star)} - \hat\sigma\big)/\hat\sigma$, imprimé à un chiffre après la
+virgule. Jusqu'à la décision M24 du mainteneur (issue~\#24), le commentaire imprimait aussi
+l'écart signé sur $\sigma_{\mathrm{USP}}$~: valeur issue des réajustements du jackknife et déjà
+restituée dans \code{estim}, elle a été retirée du libellé en application de la règle d'écriture
+des libellés (§\ref{sec:graines}). Le maximum ne porte que sur les années
 dont le réajustement a abouti~: une année dont le réajustement échoue n'a de valeur sur aucune
 des deux échelles et ne peut pas être désignée, même si elle était la plus influente. Si tous
 les réajustements échouent, la ligne est absente de la table.
@@ -5361,8 +5395,12 @@ $\hat\sigma^{(b)}$. Le moteur restitue donc aussi la largeur relative sur la \em
   L = \frac{c\sqrt{(T+1)/(T-1)}\;\hat\sigma}{\sigma_{\mathrm{USP}}}\; L_{\text{est}},
 \]
 où $L_{\text{est}}$ ne dépend ni de la table de l'annexe ni du barème. Le champ \code{estim}
-porte $L$~; le commentaire donne $L$, $L_{\text{est}}$ et les bornes de l'intervalle à 90~\% de
-$\sigma_{\mathrm{USP}}$.
+porte $L$~; le commentaire donne $L_{\text{est}}$, à un chiffre après la virgule, et renvoie pour
+$L$ au champ \code{estim} et, pour les bornes de l'intervalle à 90~\% de
+$\sigma_{\mathrm{USP}}$, à \code{res\$ic\_bootstrap}. Jusqu'à la décision M24 du mainteneur
+(issue~\#24), il imprimait aussi $L$ et ces bornes, quantiles bootstrap restitués ailleurs dans
+l'objet et retirés du libellé en application de la règle d'écriture des libellés
+(§\ref{sec:graines}).
 \Loi
 La distribution bootstrap approxime la loi d'échantillonnage de $\hat\sigma_{\mathrm{USP}}$
 conditionnellement au modèle ajusté.
@@ -8305,7 +8343,7 @@ fournissent des lois de référence~; \code{.shapiro\_sur()} alimente \emph{deux
 \node[sor, anchor=west] at (cx |- m1)  (q1) {M1 (5 entrées)};
 \node[sor, anchor=west] at (cx |- m2)  (q2) {M2 (3 entrées)};
 \node[sor, anchor=west] at (cx |- cal) (q3) {M3 année calendaire};
-\node[sor, anchor=west] at (cx |- cor) (q4) {M3 (3 entrées)};
+\node[sor, anchor=west] at (cx |- cor) (q4) {M3 (2 entrées)};
 \node[sor, anchor=west] at (cx |- dw)  (q5) {M3 DW, suites};
 \node[sor, anchor=west] at (cx |- gr)  (q6) {M4 aberrants};
 \node[sor, anchor=west] at (cx |- sw)  (q7) {M5 normalité};
