@@ -32,9 +32,10 @@ export const meta = {
 //  - Principe 3 : arret avec les rapports des qu'un constat releve
 //    d'actuary, de regulatory ou du mainteneur (methode, sigma_USP, verdict,
 //    reference a regenerer) ou que deux verifications se contredisent.
-//    Questions pour actuary (doutes de coder, questions de l'audit) : fin
-//    au statut 'termine avec questions', questions en tete du rapport,
-//    sans reprise (decision du mainteneur du 24/09/2026).
+//    Questions pour actuary (doutes de coder, questions de l'audit) : pas de
+//    reprise, questions en tete du rapport ; statut 'termine avec questions'
+//    seulement si les seules remontees sont des questions, sinon 'arrete'
+//    (decision du mainteneur du 24/09/2026, ADR 0010 amende).
 //  - Principe 4 : au plus une reprise (deux tours coder -> audit).
 //  - Principe 5 : audit leger sur le diff contre la tete au lancement ; la
 //    revue finale complete (regle 10) est hors de ce workflow.
@@ -46,8 +47,10 @@ export const meta = {
 //  Trois statuts de fin : 'termine', 'termine avec questions' (questions
 //  pour actuary, portees par la session principale avant tout commit),
 //  'arrete'. Un constat conduit a la reprise ou a l'arret ; une question pour
-//  actuary conduit au statut 'termine avec questions' ; une batterie rouge
-//  ne finit jamais par un statut 'termine...'.
+//  actuary conduit au statut 'termine avec questions' seulement si les
+//  seules remontees sont des questions (un constat ou une batterie rouge qui
+//  l'accompagne reste un point d'arret) ; une batterie en echec a la
+//  derniere verification finit toujours par 'arrete'.
 //  Le workflow ne propose qu'un message de commit ; il ne l'execute pas.
 //  La copie des fichiers non suivis (mktemp -d, hors depot, tour 1) n'est pas
 //  supprimee par le workflow : son chemin est rendu dans copie_temporaire.
@@ -119,12 +122,18 @@ const rapport = {
 // Fin sans reprise quand actuary a des questions (doutes de coder ou
 // questions de l'audit) : statut distinct, la suite revient a la session
 // principale (decision du mainteneur du 24/09/2026, m4)
-function terminerAvecQuestions(enAttente) {
+function terminerAvecQuestions() {
   rapport.statut = 'termine avec questions'
-  rapport.motif_arret = rapport.questions_actuary.length + ' question(s) pour actuary, sans reprise' +
-    (enAttente ? ' ; en attente : ' + enAttente : '')
+  rapport.motif_arret = rapport.questions_actuary.length + ' question(s) pour actuary, sans reprise'
   log('Fin avec questions pour actuary : ' + rapport.motif_arret)
   return rapport
+}
+
+// Arret apres l'audit de la reprise : les questions pour actuary sont
+// mentionnees dans le motif, comme au tour 1
+function arreterReprise(motif) {
+  const n = rapport.questions_actuary.length
+  return arreter(n > 0 ? motif + ' ; ' + n + ' question(s) pour actuary en tete du rapport' : motif)
 }
 
 function arreter(motif) {
@@ -328,11 +337,11 @@ function consigneAudit(depot, verif, reference, tour, aVerifier) {
       (instantaneValide(reference.instantane) ? reference.instantane.trim() : depot.tete + " (aucun fichier suivi modifie au tour 1)") +
       " ; (b) fichiers non suivis deja presents au tour 1 : " +
       (copie
-        ? "pour chaque fichier de la copie (cd " + copie + " && find . -type f), diff entre la copie et le fichier du depot"
+        ? "pour chaque fichier de la copie (cd \"" + copie + "\" && find . -type f), diff entre la copie et le fichier du depot"
         : "aucun") +
       " ; (c) fichiers non suivis crees a la reprise, a lire en entier : " +
       (copie
-        ? "ce sont les lignes de comm -13 <(cd " + copie + " && find . -type f | sed 's|^\\./||' | sort) <(" + LISTE_NON_SUIVIS + " | sort), c'est-a-dire les chemins non suivis actuels (second flux) absents de la copie du tour 1 (premier flux) ; ne lis pas le reste du depot"
+        ? "ce sont les lignes de comm -13 <(cd \"" + copie + "\" && find . -type f | sed 's|^\\./||' | sort) <(" + LISTE_NON_SUIVIS + " | sort), c'est-a-dire les chemins non suivis actuels (second flux) absents de la copie du tour 1 (premier flux) ; ne lis pas le reste du depot"
         : "tous les fichiers de " + LISTE_NON_SUIVIS + " (aucun fichier non suivi au tour 1)") +
       "."
   const lignes = [
@@ -485,7 +494,7 @@ async function derouler() {
     if (attente1.length > 0) {
       return arreter('question(s) pour actuary et ' + attente1.join(' ; ') + ', sans reprise')
     }
-    return terminerAvecQuestions('')
+    return terminerAvecQuestions()
   }
   if (aCorriger.length === 0) {
     // Ni batterie rouge ni conclusion non conforme ne peuvent terminer le workflow
@@ -534,17 +543,17 @@ async function derouler() {
   if (!audit2) return arreter("audit n'a rien rendu a la reprise")
   tour2.audit = audit2
   rapport.questions_actuary = rapport.questions_actuary.concat(audit2.questions_actuary)
-  if (audit2.contradiction_avec_batteries) return arreter('contradiction entre audit et batteries apres la reprise (principe 3)')
-  if (constatsDecision(audit2).length > 0) return arreter('constat(s) a trancher hors workflow apres la reprise')
+  if (audit2.contradiction_avec_batteries) return arreterReprise('contradiction entre audit et batteries apres la reprise (principe 3)')
+  if (constatsDecision(audit2).length > 0) return arreterReprise('constat(s) a trancher hors workflow apres la reprise')
   if (constatsCorrigeables(audit2).length > 0) {
-    return arreter('constat bloquant ou majeur apres la reprise unique : suite rendue a la session principale (principe 4)')
+    return arreterReprise('constat bloquant ou majeur apres la reprise unique : suite rendue a la session principale (principe 4)')
   }
   const rouges2 = batteriesRouges(verif2)
   if (rouges2.length > 0) {
-    return arreter('batterie(s) en echec apres la reprise unique : ' + listerRouges(rouges2))
+    return arreterReprise('batterie(s) en echec apres la reprise unique : ' + listerRouges(rouges2))
   }
-  if (audit2.conclusion === 'non conforme') return arreter('audit de la reprise non conforme (principe 4)')
-  if (rapport.questions_actuary.length > 0) return terminerAvecQuestions('')
+  if (audit2.conclusion === 'non conforme') return arreterReprise('audit de la reprise non conforme (principe 4)')
+  if (rapport.questions_actuary.length > 0) return terminerAvecQuestions()
   rapport.statut = 'termine'
   log('Audit de la reprise : ' + audit2.conclusion)
   return rapport
