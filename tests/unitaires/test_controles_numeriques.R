@@ -186,7 +186,7 @@ verifier("usp_ajuster non converge (grille complete ; factr = 1e13, puis maxit =
              }
            ok
          })
-verifier("gamma force a la borne 3 : FOC ECHEC, 'maximum de vraisemblance non atteint'",
+verifier("gamma force a la borne 3 : FOC ECHEC, detail 'Demarrage retenu : gamma sur une borne.' sans mention de courbure (#76)",
          {
            cpo <- usp_condition_premier_ordre(f_t$delta, 3, x, y)
            f <- utils::modifyList(f_t, cpo)
@@ -194,9 +194,10 @@ verifier("gamma force a la borne 3 : FOC ECHEC, 'maximum de vraisemblance non at
            c1 <- ctrl(f, NOM_FOC)
            !usp_kkt_satisfaite(cpo, 3) &&
            identical(c1$verdict, "ECHEC") &&
-             grepl("maximum de vraisemblance non atteint", c1$detail, fixed = TRUE)
+             identical(c1$detail, paste("Condition KKT verifiee par au moins un demarrage a l'optimum : non.",
+                                        "Demarrage retenu : gamma sur une borne."))
          })
-verifier("gamma force a la borne -12 : FOC ECHEC, 'maximum de vraisemblance non atteint'",
+verifier("gamma force a la borne -12 : FOC ECHEC, detail 'Demarrage retenu : gamma sur une borne.' sans mention de courbure (#76)",
          {
            cpo <- usp_condition_premier_ordre(f_t$delta, -12, x, y)
            f <- utils::modifyList(f_t, cpo)
@@ -204,7 +205,8 @@ verifier("gamma force a la borne -12 : FOC ECHEC, 'maximum de vraisemblance non 
            c1 <- ctrl(f, NOM_FOC)
            !usp_kkt_satisfaite(cpo, -12) &&
            identical(c1$verdict, "ECHEC") &&
-             grepl("maximum de vraisemblance non atteint", c1$detail, fixed = TRUE)
+             identical(c1$detail, paste("Condition KKT verifiee par au moins un demarrage a l'optimum : non.",
+                                        "Demarrage retenu : gamma sur une borne."))
          })
 verifier("FOC : gradient non fini -> ECHEC",
          {
@@ -236,15 +238,16 @@ verifier("Multi-demarrages : OK sur les jeux de test ; ECHEC si aucun demarrage 
 # Decision du mainteneur (23/09/2026) : le detail n'imprime pas le nombre de
 # demarrages a l'optimum au code 0 (un demarrage bascule entre les codes 0 et
 # 52 selon la machine), seulement le respect de la regle (oui / non).
-verifier("Multi-demarrages : detail invariant quand n_starts_optimum_code0 varie (>= 1), 'oui' / 'non' selon la regle",
+verifier("Multi-demarrages : detail invariant quand n_starts_optimum_code0 varie (>= 1), 'oui' / 'non' selon la regle (#76)",
          {
            fa <- f_t; fa$n_starts_optimum_code0 <- 53L
            fb <- f_t; fb$n_starts_optimum_code0 <- 1L
            fc <- f_t; fc$n_starts_optimum_code0 <- 0L
            da <- ctrl(f_t, NOM_MULTI)$detail
            identical(da, ctrl(fa, NOM_MULTI)$detail) && identical(da, ctrl(fb, NOM_MULTI)$detail) &&
-             grepl("au code de retour 0 d'optim() (convergence) : oui ;", da, fixed = TRUE) &&
-             grepl("au code de retour 0 d'optim() (convergence) : non ;", ctrl(fc, NOM_MULTI)$detail, fixed = TRUE) &&
+             identical(da, "54 demarrages a l'optimum ; au moins un au code 0 d'optim() : oui.") &&
+             identical(ctrl(fc, NOM_MULTI)$detail,
+                       "54 demarrages a l'optimum ; au moins un au code 0 d'optim() : non.") &&
              !grepl("dont", da, fixed = TRUE)
          })
 # Decision du mainteneur (24/09/2026, option (a)) : le detail n'imprime pas non
@@ -436,11 +439,10 @@ verifier("Detail FOC invariant quand le pas de Newton et pg_delta du retenu fran
              identical(d0, ctrl(fc, NOM_FOC)$detail) &&
              !any(grepl("sous le repere|au-dessus de|Kuhn-Tucker satisfaite|Kuhn-Tucker violee",
                         c(d0, dt))) &&
-             all(grepl("au moins un demarrage a l'optimum", c(d0, dt), fixed = TRUE)) &&
-             grepl(sprintf("<= %s : oui (M15 etendue a KKT)", engine_fmt_repere(REP_GD_KKT)),
-                   d0, fixed = TRUE) &&
-             grepl(sprintf("<= %s : non (M15 etendue a KKT)", engine_fmt_repere(REP_GD_KKT)),
-                   ctrl(fn, NOM_FOC)$detail, fixed = TRUE)
+             identical(d0, "Condition KKT verifiee par au moins un demarrage a l'optimum : oui.") &&
+             identical(dt, d0) &&
+             identical(ctrl(fn, NOM_FOC)$detail,
+                       "Condition KKT verifiee par au moins un demarrage a l'optimum : non.")
          })
 
 ## --- Mineurs d'audit ---------------------------------------------------------
@@ -454,22 +456,51 @@ verifier("gamma sur une borne : pas de Newton et stat du controle NA",
            }
            ok
          })
-verifier("Libelle : gradient non fini et courbure non finie distingues",
+verifier("Libelle : gradient non fini et courbure non finie distingues (#76 : courbure non finie = non strictement positive)",
          {
            fg <- f_t; fg$gradient[["gamma"]] <- NaN; fg$gradient_projete[["gamma"]] <- NaN
            fg$pas_newton_gamma <- NA_real_
            fh <- f_t; fh$hessien_gamma <- NaN; fh$pas_newton_gamma <- NA_real_
            fh$kkt_au_moins_un <- FALSE
            dg <- ctrl(fg, NOM_FOC)$detail; dh <- ctrl(fh, NOM_FOC)$detail
-           grepl("Gradient non fini", dg, fixed = TRUE) && !grepl("Courbure non finie", dg, fixed = TRUE) &&
-             grepl("Courbure non finie", dh, fixed = TRUE) && !grepl("Gradient non fini", dh, fixed = TRUE) &&
+           identical(dg, paste("Condition KKT verifiee par au moins un demarrage a l'optimum : oui.",
+                               "Demarrage retenu : gradient non fini.")) &&
+             identical(dh, paste("Condition KKT verifiee par au moins un demarrage a l'optimum : non.",
+                                 "Demarrage retenu : courbure non strictement positive.")) &&
              identical(ctrl(fh, NOM_FOC)$verdict, "ECHEC")
          })
-verifier("Volumes constants : le detail FOC dit delta non identifie (#58), sans 'AU BORD' seul",
+verifier("Volumes constants : le detail FOC dit delta non identifie (#58, #76)",
          {
-           d <- ctrl(usp_ajuster(rep(100, 8), y), NOM_FOC)$detail
-           grepl("non identifie", d, fixed = TRUE) && grepl("#58", d, fixed = TRUE) &&
-             !grepl("AU BORD", d, fixed = TRUE)
+           fv <- usp_ajuster(rep(100, 8), y)
+           d <- ctrl(fv, NOM_FOC)$detail
+           identical(d, paste(sprintf("Condition KKT verifiee par au moins un demarrage a l'optimum : %s.",
+                                      if (isTRUE(fv$kkt_au_moins_un)) "oui" else "non"),
+                              "Volumes constants : delta non identifie."))
+         })
+verifier("FOC : courbure H_gamma_gamma <= 0 -> 'Demarrage retenu : courbure non strictement positive.' (#76)",
+         {
+           f <- f_t; f$hessien_gamma <- -1; f$kkt_au_moins_un <- FALSE
+           identical(ctrl(f, NOM_FOC)$detail,
+                     paste("Condition KKT verifiee par au moins un demarrage a l'optimum : non.",
+                           "Demarrage retenu : courbure non strictement positive."))
+         })
+# Ordre des complements quand plusieurs cas se cumulent (#76) : volumes
+# constants, gradient non fini, courbure non strictement positive, gamma sur
+# une borne ; la courbure n'est pas mentionnee quand gamma est sur une borne.
+verifier("FOC : complements cumules dans l'ordre volumes constants, gradient, courbure, gamma (#76)",
+         {
+           fa <- f_t; fa$x <- rep(100, 8); fa$gradient[["gamma"]] <- NaN
+           fa$hessien_gamma <- -1; fa$kkt_au_moins_un <- FALSE
+           fb <- fa; fb$gamma <- BORNES_GAMMA[2]
+           k <- "Condition KKT verifiee par au moins un demarrage a l'optimum : non."
+           identical(ctrl(fa, NOM_FOC)$detail,
+                     paste(k, "Volumes constants : delta non identifie.",
+                           "Demarrage retenu : gradient non fini.",
+                           "Demarrage retenu : courbure non strictement positive.")) &&
+             identical(ctrl(fb, NOM_FOC)$detail,
+                       paste(k, "Volumes constants : delta non identifie.",
+                             "Demarrage retenu : gradient non fini.",
+                             "Demarrage retenu : gamma sur une borne."))
          })
 
 ## --- Forme des deux controles ----------------------------------------------
@@ -489,43 +520,32 @@ verifier("usp_controles_numeriques : stat = pas de Newton (FOC) et part kappa (m
            identical(cc[[1]]$stat, f_i$pas_newton_gamma) &&
              identical(cc[[2]]$stat, f_i$part_starts_convergents)
          })
-verifier("Detail FOC : reperes REP_PAS_KKT (M9) et REP_GD_KKT, plancher ndeps, regime de delta nomme",
+# Libelle concis (#76) : ni regle, ni repere, ni regime de delta dans le
+# detail (fiches du .tex) ; delta au bord ou interieur, meme texte.
+verifier("Detail FOC concis : ni repere, ni regle, ni regime de delta ; meme texte au bord et a l'interieur (#76)",
          {
            dt <- ctrl(f_t, NOM_FOC)$detail; di <- ctrl(f_i, NOM_FOC)$detail
-           all(vapply(c(engine_fmt_repere(REP_PAS_KKT), "M9", "ndeps", engine_fmt_repere(REP_GD_KKT)),
-                      grepl, logical(1), x = di, fixed = TRUE)) &&
-             grepl("AU BORD", dt, fixed = TRUE) && grepl("interieur", di, fixed = TRUE)
+           isTRUE(f_t$delta_au_bord) && !isTRUE(f_i$delta_au_bord) && identical(dt, di) &&
+             !any(grepl("1e-|M9|ndeps|Regle|BORD|interieur", c(dt, di)))
          })
 ## --- Reperes : constantes du moteur et libelles (audit M1, issue #22) -------
 # Les reperes sont definis une seule fois en tete du moteur (TOL_OPTIMUM,
-# REP_PAS_KKT, REP_GD_KKT) et imprimes dans les libelles par
-# engine_fmt_repere(). Reference : les valeurs des decisions M15/M25
+# REP_PAS_KKT, REP_GD_KKT). Reference : les valeurs des decisions M15/M25
 # (1e-6), M17 (1e-6) et M16 (1e-4) ; puis propriete de liaison : une autre
-# valeur des constantes modifie la decision ET le libelle, qui ne peut donc
-# pas rester perime.
-verifier("Reperes : TOL_OPTIMUM = 1e-6 (M15, M25), REP_PAS_KKT = 1e-6 (M17), REP_GD_KKT = 1e-4 (M16), ecrits 1e-6 / 1e-4",
+# valeur des constantes modifie la decision. Depuis #76, les libelles ne
+# les impriment plus : ils ne changent pas avec elles, et ne peuvent donc
+# pas rester perimes.
+verifier("Reperes : TOL_OPTIMUM = 1e-6 (M15, M25), REP_PAS_KKT = 1e-6 (M17), REP_GD_KKT = 1e-4 (M16)",
          identical(TOL_OPTIMUM, 1e-6) && identical(REP_PAS_KKT, 1e-6) && identical(REP_GD_KKT, 1e-4) &&
-           identical(engine_fmt_repere(c(1e-6, 1e-4, 1e-10, 2.5e-7)), c("1e-6", "1e-4", "1e-10", "2.5e-7")) &&
            identical(formals(usp_kkt_satisfaite)$rep_pas, quote(REP_PAS_KKT)) &&
            identical(formals(usp_kkt_satisfaite)$rep_gd, quote(REP_GD_KKT)))
-verifier("Libelles FOC et multi-demarrages : chaque repere imprime est la valeur formatee de sa constante",
+verifier("Libelles FOC et multi-demarrages : aucun repere imprime, invariants quand les constantes changent, decision KKT liee a REP_PAS_KKT (#76)",
          {
            lib <- function() {
              cc <- usp_controles_numeriques(f_i)
              c(foc = cc[[1]]$detail, multi = cc[[2]]$detail)
            }
-           attendu <- function(d) {
-             o <- engine_fmt_repere(TOL_OPTIMUM); p <- engine_fmt_repere(REP_PAS_KKT)
-             g <- engine_fmt_repere(REP_GD_KKT)
-             all(vapply(c(sprintf("objectif a moins de %s du minimum", o),
-                          sprintf("|pg_gamma / H_gamma_gamma| <= %s (gamma interieur", p),
-                          sprintf("|pg_delta| <= %s : ", g),
-                          sprintf("Repere %s ancre sur M9", p),
-                          sprintf("Repere %s : regle unique", g)),
-                        grepl, logical(1), x = d[["foc"]], fixed = TRUE)) &&
-               grepl(sprintf("demarrage(s) a moins de %s de l'objectif minimal", o),
-                     d[["multi"]], fixed = TRUE)
-           }
+           attendu <- function(d) !any(grepl("e-[0-9]", d))
            d0 <- lib()
            ok0 <- attendu(d0)
            # Autres valeurs des constantes (environnement de definition du
@@ -540,17 +560,32 @@ verifier("Libelles FOC et multi-demarrages : chaque repere imprime est la valeur
            cpo <- usp_condition_premier_ordre(f_i$delta, f_i$gamma, xi, yi)
            cpo$pas_newton_gamma <- 1.5e-6
            kkt_suit <- isTRUE(usp_kkt_satisfaite(cpo, f_i$gamma))
-           ok1 <- attendu(d1) && !any(grepl("1e-6|1e-4", d1)) && kkt_suit
+           ok1 <- attendu(d1) && identical(d1, d0) && kkt_suit
            list2env(sauve, envir = env)
            if (ok0 && ok1 && identical(lib(), d0)) TRUE
            else sprintf("libelle initial conforme %s, apres changement %s, KKT suit REP_PAS_KKT %s",
                         ok0, attendu(d1), kkt_suit)
          })
-verifier("Detail multi-demarrages : convention minimale nommee, kappa sans repere 0.5",
+# Libelle concis (#76) : nombre de demarrages a l'optimum, respect de la
+# condition sur le code 0, demarrages sans resultat seulement s'il y en a,
+# "1 seul demarrage a l'optimum" s'il n'y en a qu'un ; ni regle ni kappa.
+verifier("Detail multi-demarrages : textes du mainteneur et variantes (sans resultat, 1 seul demarrage) (#76)",
          {
-           d <- ctrl(f_t, NOM_MULTI)$detail
-           grepl("convention minimale", d, fixed = TRUE) && grepl("sans reference", d, fixed = TRUE) &&
-             !grepl("0.5", d, fixed = TRUE) && !grepl("repere conventionnel", d, fixed = TRUE)
+           f3 <- f_t; f3$n_starts_echec <- 3L
+           f1 <- f_t; f1$n_starts_echec <- 1L
+           fu <- f_t; fu$n_starts_optimum <- 1L; fu$n_starts_optimum_code0 <- 1L
+           fz <- fu; fz$n_starts_optimum_code0 <- 0L
+           identical(ctrl(f_t, NOM_MULTI)$detail, "54 demarrages a l'optimum ; au moins un au code 0 d'optim() : oui.") &&
+             identical(ctrl(f3, NOM_MULTI)$detail,
+                       "54 demarrages a l'optimum ; au moins un au code 0 d'optim() : oui. 3 demarrages sans resultat.") &&
+             identical(ctrl(f1, NOM_MULTI)$detail,
+                       "54 demarrages a l'optimum ; au moins un au code 0 d'optim() : oui. 1 demarrage sans resultat.") &&
+             identical(ctrl(fu, NOM_MULTI)$detail,
+                       "1 seul demarrage a l'optimum ; au moins un au code 0 d'optim() : oui.") &&
+             identical(ctrl(fz, NOM_MULTI)$detail,
+                       "1 seul demarrage a l'optimum ; au moins un au code 0 d'optim() : non.") &&
+             identical(ctrl(fu, NOM_MULTI)$verdict, "ECHEC") &&
+             !grepl("kappa|Regle|convention", ctrl(f_t, NOM_MULTI)$detail)
          })
 # Regle de stabilite inter-plateformes : aucune chaine ne restitue une
 # valeur d'optimiseur. Une perturbation de gamma de 1e-9 (au-dela de la derive

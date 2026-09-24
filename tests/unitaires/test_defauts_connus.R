@@ -380,10 +380,11 @@ verifier("Diagnostics lognormaux : repere nomme dans le detail, jamais 'seuil' (
                         "Points influents (distance de Cook)" = "4/T",
                         "Leviers (hat values)" = "2k/T",
                         # Condition du premier ordre et multi-demarrages : sortis
-                        # de la table vers res$controles (#22, M11), reperes
-                        # verifies dans test_controles_numeriques.R.
-                        "Sensibilite au retrait d'une annee (jackknife)" = "10 % / 20 %",
-                        "Largeur relative de l'IC bootstrap 90%" = "50 % / 80 %")
+                        # de la table vers res$controles (#22, M11). Jackknife
+                        # et IC : libelles concis (#76), reperes 10 % / 20 % et
+                        # 50 % / 80 % dans les fiches du .tex seulement ; ils
+                        # restent soumis a l'interdiction de 'seuil' ci-dessous.
+                        NULL)
            dd <- stats::setNames(tab_ln$commentaire, tab_ln$test)
            pb <- character(0)
            for (nm in names(reperes)) {
@@ -394,7 +395,9 @@ verifier("Diagnostics lognormaux : repere nomme dans le detail, jamais 'seuil' (
                pb <- c(pb, sprintf("%s : '%s' absent", nm, reperes[[nm]]))
            }
            d_delta <- dd["Position de delta dans [0,1]"]
-           for (nm in c(names(reperes), "Position de delta dans [0,1]"))
+           for (nm in c(names(reperes), "Position de delta dans [0,1]",
+                        "Sensibilite au retrait d'une annee (jackknife)",
+                        "Largeur relative de l'IC bootstrap 90%"))
              if (grepl("seuil", dd[nm], fixed = TRUE)) pb <- c(pb, paste(nm, ": contient 'seuil'"))
            if (!any(vapply(c("AU BORD", "interieur", "VOLUMES CONSTANTS"), grepl, logical(1),
                            x = d_delta, fixed = TRUE)))
@@ -402,37 +405,32 @@ verifier("Diagnostics lognormaux : repere nomme dans le detail, jamais 'seuil' (
            if (length(pb)) paste(pb, collapse = " ; ") else TRUE
          })
 # Invariance a la table de l'annexe : entre les segments 1 et 6 de l'annexe II
-# (meme bareme long, sigma_std differents), la part estimee sigma(delta,
-# gamma) et ses ecarts ne dependent pas de la table ; les ecarts rapportes a
-# sigma_USP en dependent par (1-c) sigma_std. Relation exacte, recalculee ici
-# depuis res$jackknife, res$bootstrap$sigma_boot et res$parametre_final :
+# (meme bareme long, sigma_std differents), les ecarts rapportes a la part
+# estimee sigma(delta, gamma) ne dependent pas de la table ; ceux rapportes a
+# sigma_USP (estim) en dependent par (1-c) sigma_std. Relation exacte,
+# recalculee ici depuis res$jackknife, res$bootstrap$sigma_boot et
+# res$parametre_final :
 #   |d sigma_hat| / sigma_hat = ecart_jackknife * sigma_USP / (c sqrt((T+1)/(T-1)) sigma_hat)
 # (et de meme pour la largeur de l'IC, le quantile commutant avec
 # l'application affine croissante sigma -> c corr sigma + (1-c) sigma_std).
-nombre_detail <- function(tb, nom, motif) {
-  d <- tb$commentaire[tb$test == nom]
-  as.numeric(sub(motif, "\\1", regmatches(d, regexpr(motif, d))))
-}
-# Issue #24 : les ecarts sur sigma_USP ne sont plus imprimes dans le detail
-# (ils sont dans la colonne estimation) ; seules les parts estimees le sont.
+# Issue #76 : les ecarts sur la part estimee ne sont plus imprimes dans le
+# detail (libelles concis) ; la relation est verifiee sur estim seul, et le
+# detail ne porte plus aucun pourcentage.
 NOM_JK <- "Sensibilite au retrait d'une annee (jackknife)"
 NOM_IC <- "Largeur relative de l'IC bootstrap 90%"
-M_JK_EST <- "([+-][0-9.]+)% sur la part estimee"
-M_IC_EST <- "= ([0-9.]+)% sur la part estimee"
+DETAIL_IC <- "Intervalle bootstrap du parametre retenu : res$ic_bootstrap."
 estim_ligne <- function(tb, nom) tb$estimation[tb$test == nom]
-verifier("Jackknife et IC : part estimee identique entre II-1 et II-6, ecart sur sigma_USP (estim) different",
+verifier("Jackknife et IC : ecart sur sigma_USP (estim) different entre II-1 et II-6, detail sans pourcentage ni part estimee (#76)",
          {
            t1 <- tab_ln; t6 <- engine_table_tests(res_ln_ii6)
-           v <- c(jk_est_1 = nombre_detail(t1, NOM_JK, M_JK_EST), jk_est_6 = nombre_detail(t6, NOM_JK, M_JK_EST),
-                  jk_usp_1 = estim_ligne(t1, NOM_JK), jk_usp_6 = estim_ligne(t6, NOM_JK),
-                  ic_est_1 = nombre_detail(t1, NOM_IC, M_IC_EST), ic_est_6 = nombre_detail(t6, NOM_IC, M_IC_EST),
-                  ic_usp_1 = estim_ligne(t1, NOM_IC), ic_usp_6 = estim_ligne(t6, NOM_IC))
-           if (length(v) != 8L || any(!is.finite(v))) "nombre non extrait du detail"
-           else if (v[["jk_est_1"]] == v[["jk_est_6"]] && v[["ic_est_1"]] == v[["ic_est_6"]] &&
-                    v[["jk_usp_1"]] != v[["jk_usp_6"]] && v[["ic_usp_1"]] != v[["ic_usp_6"]]) TRUE
-           else paste(names(v), v, sep = " = ", collapse = " ; ")
+           d <- c(t1$commentaire[t1$test %in% c(NOM_JK, NOM_IC)], t6$commentaire[t6$test %in% c(NOM_JK, NOM_IC)])
+           length(d) == 4L && estim_ligne(t1, NOM_JK) != estim_ligne(t6, NOM_JK) &&
+             estim_ligne(t1, NOM_IC) != estim_ligne(t6, NOM_IC) &&
+             !any(grepl("%|part estimee", d)) &&
+             identical(t1$commentaire[t1$test == NOM_IC], DETAIL_IC) &&
+             identical(t6$commentaire[t6$test == NOM_IC], DETAIL_IC)
          })
-verifier("Jackknife et IC : part estimee = ecart sur sigma_USP * sigma_USP / (c corr sigma_hat), a 1e-10 (II-1, II-6)",
+verifier("Jackknife et IC : part estimee = ecart sur sigma_USP (estim) * sigma_USP / (c corr sigma_hat), a 1e-10 (II-1, II-6)",
          {
            ok <- TRUE
            for (r in list(res_ln_ii1, res_ln_ii6)) {
@@ -446,9 +444,7 @@ verifier("Jackknife et IC : part estimee = ecart sur sigma_USP * sigma_USP / (c 
              e_ic <- tb$estimation[tb$test == NOM_IC]
              ok <- ok && T == 8L &&
                isTRUE(proche(abs(jk_est), e_jk * pf$sigma_usp / (cr * corr * sh), rel = 1e-10)) &&
-               isTRUE(proche(ic_est, e_ic * pf$sigma_usp / (cr * corr * sh), rel = 1e-10)) &&
-               nombre_detail(tb, NOM_JK, M_JK_EST) == as.numeric(sprintf("%+.1f", 100 * jk_est)) &&
-               nombre_detail(tb, NOM_IC, M_IC_EST) == as.numeric(sprintf("%.1f", 100 * ic_est))
+               isTRUE(proche(ic_est, e_ic * pf$sigma_usp / (cr * corr * sh), rel = 1e-10))
            }
            ok
          })
@@ -483,18 +479,14 @@ verifier("add() (usp_tests) refuse une procedure de decision sans verdict (ESD)"
          })
 # Branche robustesse = NULL : usp_tests() appele directement avec un fit
 # portant ecart_jackknife et largeur_ic, sans les elements du detail.
-verifier("Jackknife et IC sans robustesse : detail renvoyant a estim, repere nomme, pas de part estimee",
+verifier("Jackknife et IC sans robustesse : 'Annee la plus influente non determinee.' et renvoi a res$ic_bootstrap (#76)",
          {
            f <- fit; f$ecart_jackknife <- 0.123; f$largeur_ic <- 0.456
            tb <- lignes_df(usp_tests(f, boot_fictif()))
            dj <- tb$commentaire[tb$test == NOM_JK]; di <- tb$commentaire[tb$test == NOM_IC]
            length(dj) == 1L && length(di) == 1L &&
-             identical(dj, paste("ecart maximal sur sigma_USP (valeur absolue : estimation",
-                                 "\"ecart relatif max\" ; repere conventionnel 10 % / 20 % ;",
-                                 "depend de la table de l'annexe par (1-c) sigma_std)")) &&
-             identical(di, paste("(q95 - q05) / sigma_USP : estimation \"largeur / sigma_USP\"",
-                                 "(repere conventionnel 50 % / 80 % ; depend de la table de",
-                                 "l'annexe par (1-c) sigma_std)")) &&
+             identical(dj, "Annee la plus influente non determinee.") &&
+             identical(di, DETAIL_IC) &&
              all(tb$estimation[match(c(NOM_JK, NOM_IC), tb$test)] == c(0.123, 0.456)) &&
              all(tb$verdict[tb$test %in% c(NOM_JK, NOM_IC)] == "INFO")
          })
@@ -505,13 +497,23 @@ verifier("Jackknife : annee et sens du detail = argmax |d| et signe de d[i], est
              tb <- engine_table_tests(r); pf <- r$parametre_final
              d <- r$jackknife$sigma_usp - pf$sigma_usp; i <- which.max(abs(d))
              dj <- tb$commentaire[tb$test == NOM_JK]
-             an <- as.integer(sub("^retrait de l'annee ([0-9]+) :.*$", "\\1", dj))
              sens_jk <- if (d[i] < 0) "en baisse" else "en hausse"
-             ok <- ok && identical(an, i) &&
-               grepl(paste("sigma_USP", sens_jk), dj, fixed = TRUE) &&
+             ok <- ok && identical(dj, sprintf("Annee la plus influente : %d (sigma_USP %s).", i, sens_jk)) &&
                isTRUE(proche(estim_ligne(tb, NOM_JK), abs(d[i]) / pf$sigma_usp, rel = 1e-12))
            }
            ok
+         })
+# Libelle concis du jackknife (#76), trois sens : robustesse fournie
+# directement a usp_tests() (annee 3, ecart signe negatif, positif, nul).
+verifier("Jackknife : 'Annee la plus influente : 3 (sigma_USP en baisse / en hausse / inchange).' selon le signe (#76)",
+         {
+           f <- fit; f$ecart_jackknife <- 0.1; f$largeur_ic <- 0.4
+           dj <- vapply(c(-0.1, 0.1, 0), function(s) {
+             tb <- lignes_df(usp_tests(f, boot_fictif(), robustesse = list(jack_annee = 3L, jack_usp = s)))
+             tb$commentaire[tb$test == NOM_JK]
+           }, character(1))
+           identical(dj, sprintf("Annee la plus influente : 3 (sigma_USP %s).",
+                                 c("en baisse", "en hausse", "inchange")))
          })
 # Issue #24 (decision du mainteneur du 24/09/2026) : les nombres issus de
 # l'optimiseur ou du bootstrap deja restitues ailleurs dans le resultat ne

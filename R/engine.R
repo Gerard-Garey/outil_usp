@@ -142,15 +142,15 @@ TOL_DELTA_BORD <- 1e-6
 # estime sur l'une d'elles signale que le maximum de vraisemblance n'est pas
 # atteint (controle de la condition du premier ordre, issue #22). Source
 # unique de ces bornes : usp_ajuster(), usp_ajuster_rapide(), usp_profil()
-# et les libelles qui les citent (usp_controles_numeriques(), usp_tests(),
-# par sprintf) les lisent ici (issue #22).
+# et les libelles qui les citent (usp_tests(), par sprintf) les lisent ici
+# (issue #22).
 BORNES_GAMMA <- c(-12, 3)
 
 # Reperes des controles numeriques de l'estimation lognormale (issue #22).
 # Reperes NUMERIQUES, non reglementaires. Source unique : usp_ajuster()
-# (ensemble des demarrages a l'optimum), usp_kkt_satisfaite() (valeurs par
-# defaut) et les libelles de usp_controles_numeriques(), qui les impriment
-# par engine_fmt_repere().
+# (ensemble des demarrages a l'optimum) et usp_kkt_satisfaite() (valeurs par
+# defaut). Les libelles de usp_controles_numeriques() ne les impriment plus
+# (issue #76) : la regle et ses reperes sont dans les fiches du .tex.
 # - TOL_OPTIMUM : un demarrage est "a l'optimum" si son objectif est a moins
 #   de TOL_OPTIMUM de l'objectif minimal ; meme ensemble pour la convergence
 #   multi-demarrages (M15) et pour la condition de Kuhn-Tucker (M25).
@@ -162,13 +162,6 @@ BORNES_GAMMA <- c(-12, 3)
 TOL_OPTIMUM <- 1e-6
 REP_PAS_KKT <- 1e-6
 REP_GD_KKT  <- 1e-4
-
-# Ecriture d'un repere dans un libelle, sans zero de tete dans l'exposant
-# (1e-6 et non "1e-06" que rendraient format() ou sprintf("%g")). Element
-# par element : format() d'un vecteur aligne les mantisses ("1.0e-6").
-engine_fmt_repere <- function(x)
-  vapply(x, function(v) sub("e([-+])0*([0-9])", "e\\1\\2", format(v, scientific = TRUE)),
-         character(1), USE.NAMES = FALSE)
 
 usp_credibilite <- function(T, bareme = c("court", "long")) {
   bareme <- match.arg(bareme)
@@ -472,9 +465,12 @@ usp_ajuster <- function(x, y, n_starts_delta = 9, verbose = FALSE,
 # produit, comme "Credibilite pleine atteinte").
 # Regle de stabilite inter-plateformes : le detail ne contient aucune valeur
 # d'optimiseur (g, pg, H, pas de Newton, objectifs) ; ces valeurs sont dans
-# les champs numeriques de fit (res$ajustement) et dans stat. Seuls y
-# figurent les reperes, le regime (delta, gamma, courbure) du demarrage
-# retenu, le respect de la regle (oui / non) et des entiers.
+# les champs numeriques de fit (res$ajustement) et dans stat. Libelles
+# concis (issue #76, textes retenus par le mainteneur) : y figurent
+# seulement le respect de la regle (oui / non), les particularites du
+# demarrage retenu (volumes constants, gradient non fini, courbure, gamma
+# sur une borne) et des entiers stables (demarrages a l'optimum, sans
+# resultat) ; la regle et ses reperes sont dans les fiches du .tex.
 usp_controles_numeriques <- function(fit) {
   fam <- "H. Controles numeriques de l'estimation"
   res <- list()
@@ -495,94 +491,75 @@ usp_controles_numeriques <- function(fit) {
   # avec la nouvelle regle (max sur les jeux de min_s |Delta gamma_s| =
   # 1,96e-7).
   # Reperes (constantes REP_PAS_KKT et REP_GD_KKT, en tete du moteur, lues
-  # par usp_kkt_satisfaite() et imprimees ici) : |pas de Newton en gamma|
-  # <= 1e-6, ancre sur M9 (erreur relative sur sigma ~ Delta gamma,
-  # tolerance de non-regression 1e-6) ; plancher Delta gamma ~ -h^2/3
-  # ~ -3,3e-7 (biais de la difference centree d'optim(), ndeps = h = 1e-3 ;
-  # derivation d'actuary verifiee par simulation). |pg_delta| <= 1e-4, REGLE
-  # UNIQUE au bord comme a l'interieur (decision du mainteneur apres audit :
-  # exiger pg_delta = 0 au bord creait une discontinuite).
-  # Le detail decrit le regime du demarrage retenu (delta, gamma, finitude,
-  # signe de la courbure) mais ne le compare plus aux reperes : ces
-  # comparaisons dependaient du demarrage retenu et de la plateforme. stat
+  # par usp_kkt_satisfaite()) : |pas de Newton en gamma| <= 1e-6, ancre sur
+  # M9 (erreur relative sur sigma ~ Delta gamma, tolerance de
+  # non-regression 1e-6) ; plancher Delta gamma ~ -h^2/3 ~ -3,3e-7 (biais de
+  # la difference centree d'optim(), ndeps = h = 1e-3 ; derivation
+  # d'actuary verifiee par simulation). |pg_delta| <= 1e-4, REGLE UNIQUE au
+  # bord comme a l'interieur (decision du mainteneur apres audit : exiger
+  # pg_delta = 0 au bord creait une discontinuite).
+  # Libelle concis (issue #76, textes retenus par le mainteneur) : le
+  # respect de la regle (oui / non), puis, selon le cas, les particularites
+  # du demarrage retenu, dans cet ordre : volumes constants, gradient non
+  # fini, courbure non strictement positive (H non fini compris), gamma sur
+  # une borne. La courbure n'est pas mentionnee quand gamma est sur une
+  # borne (pas de Newton non defini dans les deux cas). Ni repere, ni valeur
+  # d'optimiseur : la regle, les reperes et leur justification sont dans la
+  # fiche du .tex ; les valeurs du demarrage retenu dans res$ajustement
+  # (gradient, gradient_projete, hessien_gamma, pas_newton_gamma) ; stat
   # reste le Delta gamma du demarrage retenu.
   g <- fit$gradient; pg <- fit$gradient_projete
   H <- fit$hessien_gamma
   grad_fini <- all(is.finite(c(g, pg)))
-  courbure_finie <- is.finite(H)
   gamma_bord <- !is.finite(fit$gamma) ||
     fit$gamma <= BORNES_GAMMA[1] + TOL_DELTA_BORD || fit$gamma >= BORNES_GAMMA[2] - TOL_DELTA_BORD
-  courbure_ok <- courbure_finie && H > 0
-  au_bord <- isTRUE(fit$delta_au_bord)
+  courbure_ok <- is.finite(H) && H > 0
   ok <- isTRUE(fit$kkt_au_moins_un)
   # Volumes constants (#58) : pi_t ne depend pas de delta, g_delta = 0 et
   # delta n'est pas identifie ; la valeur rendue par l'optimiseur (souvent 0)
-  # est un artefact, et le libelle ne la presente pas comme un bord.
+  # est un artefact, que le libelle ne presente pas comme un bord.
   vol_cst <- isTRUE(usp_regime(fit$delta, fit$x)$volumes_constants)
-
-  txt_delta <- if (vol_cst) "volumes constants : delta non identifie (#58)"
-  else if (au_bord) sprintf("delta AU BORD %d", if (fit$delta >= 0.5) 1L else 0L)
-  else "delta interieur a [0, 1]"
-  dom_gamma <- sprintf("[%g, %g]", BORNES_GAMMA[1], BORNES_GAMMA[2])
-  r_opt <- engine_fmt_repere(TOL_OPTIMUM)
-  r_pas <- engine_fmt_repere(REP_PAS_KKT)
-  r_gd <- engine_fmt_repere(REP_GD_KKT)
-  txt_gamma <- if (gamma_bord)
-    sprintf(paste("gamma sur une borne numerique de %s : maximum de vraisemblance non",
-                  "atteint, pas de Newton non defini"), dom_gamma)
-  else sprintf("gamma interieur a %s", dom_gamma)
-  txt_courbure <- if (gamma_bord || !courbure_finie) NULL
-  else if (!courbure_ok)
-    "courbure H_gamma_gamma non strictement positive : pas de Newton non defini"
-  else "courbure H_gamma_gamma positive"
   add("Condition du premier ordre (gradient projete, KKT)", ok, fit$pas_newton_gamma,
-      paste0(if (!grad_fini) "Gradient non fini. " else "",
-             if (!courbure_finie) "Courbure non finie. " else "",
-             "Gradient analytique de l'objectif profile O(delta, gamma), projete sur ",
-             "les bornes. Demarrage retenu : ",
-             paste(c(txt_delta, txt_gamma, txt_courbure), collapse = " ; "), ". ",
-             "Regle : au moins un demarrage a l'optimum (objectif a moins de ", r_opt, " du ",
-             "minimum) satisfait les deux conditions sur le meme point, pas de Newton ",
-             "|Delta gamma| = |pg_gamma / H_gamma_gamma| <= ", r_pas, " (gamma interieur, ",
-             "H_gamma_gamma > 0) et composante projetee du gradient en delta ",
-             "|pg_delta| <= ", r_gd, " : ", if (ok) "oui" else "non",
-             " (M15 etendue a KKT). ",
-             "Repere ", r_pas, " ancre sur M9 : l'erreur relative sur sigma estime est de ",
-             "l'ordre de Delta gamma ; plancher Delta gamma ~ -h^2/3 ~ -3,3e-7, biais ",
-             "de la difference centree d'optim() (ndeps = h = 1e-3). Repere ", r_gd, " : ",
-             "regle unique au bord comme a l'interieur. Valeurs numeriques du ",
-             "demarrage retenu : res$ajustement (gradient, gradient_projete, ",
-             "hessien_gamma, pas_newton_gamma) ; stat = Delta gamma du demarrage retenu."))
+      paste(c(sprintf("Condition KKT verifiee par au moins un demarrage a l'optimum : %s.",
+                      if (ok) "oui" else "non"),
+              if (vol_cst) "Volumes constants : delta non identifie.",
+              if (!grad_fini) "Demarrage retenu : gradient non fini.",
+              if (!gamma_bord && !courbure_ok) "Demarrage retenu : courbure non strictement positive.",
+              if (gamma_bord) "Demarrage retenu : gamma sur une borne."),
+            collapse = " "))
 
   # --- Convergence multi-demarrages ------------------------------------------
   # Precision de M11 (decision du mainteneur apres audit) : reussi si au
-  # moins UN demarrage a l'optimum rend le code 0 et si au moins deux
-  # demarrages atteignent l'optimum. Le detail n'imprime ni le NOMBRE de
-  # demarrages a l'optimum au code 0 (decision du mainteneur, 23/09/2026) ni
-  # le CODE du demarrage retenu (decision du mainteneur, 24/09/2026, issue
-  # #22) : l'un et l'autre dependent du chemin d'optimisation. Un demarrage
-  # bascule entre les codes 0 et 52 selon la machine (mesure : 52 a 54
-  # demarrages au code 0 sur 101 perturbations relatives de 1e-12 des donnees
-  # de test, contre 54 demarrages a l'optimum dans tous les cas) ; le
-  # demarrage retenu est le premier a moins de 1e-10 de l'objectif, departage
-  # par l'ordre de la grille, et peut rendre 52 quand d'autres rendent 0 (cas
-  # d'audit 176 de tests/unitaires/test_controles_numeriques.R). Le code du
-  # demarrage retenu ne decide pas du verdict (precision de M11). Seul le
-  # respect de la regle est imprime ; les valeurs restent dans res$ajustement
-  # (n_starts_optimum_code0, convergence).
-  n_opt <- fit$n_starts_optimum
+  # moins UN demarrage a l'optimum (objectif a moins de TOL_OPTIMUM du
+  # minimum) rend le code 0 et si au moins deux demarrages atteignent
+  # l'optimum. Le detail n'imprime ni le NOMBRE de demarrages a l'optimum
+  # au code 0 (decision du mainteneur, 23/09/2026) ni le CODE du demarrage
+  # retenu (decision du mainteneur, 24/09/2026, issue #22) : l'un et l'autre
+  # dependent du chemin d'optimisation. Un demarrage bascule entre les codes
+  # 0 et 52 selon la machine (mesure : 52 a 54 demarrages au code 0 sur 101
+  # perturbations relatives de 1e-12 des donnees de test, contre 54
+  # demarrages a l'optimum dans tous les cas) ; le demarrage retenu est le
+  # premier a moins de 1e-10 de l'objectif, departage par l'ordre de la
+  # grille, et peut rendre 52 quand d'autres rendent 0 (cas d'audit 176 de
+  # tests/unitaires/test_controles_numeriques.R). Sont imprimes (libelle
+  # concis, issue #76) : le nombre de demarrages a l'optimum, le respect de
+  # la condition sur le code 0 (oui / non) et, s'il est non nul, le nombre
+  # de demarrages sans resultat (erreur d'optim()) ; ces deux entiers sont
+  # compares aux references de non-regression. Les valeurs restent dans
+  # res$ajustement (n_starts_optimum_code0, convergence) ; stat = part kappa
+  # des demarrages aboutis a l'optimum, grandeur descriptive sans repere.
+  n_opt <- as.integer(fit$n_starts_optimum)
   n_opt0 <- fit$n_starts_optimum_code0
+  n_echec <- as.integer(fit$n_starts_echec)
   ok_m <- isTRUE(n_opt0 >= 1) && isTRUE(n_opt >= 2)
   add("Convergence multi-demarrages", ok_m, fit$part_starts_convergents,
-      sprintf(paste("%d demarrage(s) a moins de %s de l'objectif minimal ; au moins un",
-                    "demarrage a l'optimum au code de retour 0 d'optim() (convergence) : %s ;",
-                    "%d demarrage(s) sans resultat. Regle : au moins un demarrage a l'optimum",
-                    "au code 0 et au moins deux demarrages a l'optimum (convention minimale,",
-                    "sans reference). Part kappa des demarrages aboutis a l'optimum = %.2f :",
-                    "grandeur descriptive, sans repere (stat = kappa)."),
-              as.integer(n_opt), engine_fmt_repere(TOL_OPTIMUM),
-              if (isTRUE(n_opt0 >= 1)) "oui" else "non",
-              as.integer(fit$n_starts_echec), fit$part_starts_convergents))
+      paste(c(sprintf("%s ; au moins un au code 0 d'optim() : %s.",
+                      if (identical(n_opt, 1L)) "1 seul demarrage a l'optimum"
+                      else sprintf("%d demarrages a l'optimum", n_opt),
+                      if (isTRUE(n_opt0 >= 1)) "oui" else "non"),
+              if (isTRUE(n_echec > 0L))
+                sprintf("%d demarrage%s sans resultat.", n_echec, if (n_echec > 1L) "s" else "")),
+            collapse = " "))
   res
 }
 
@@ -2256,53 +2233,33 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # La condition du premier ordre et la convergence multi-demarrages ne sont
   # pas des tests : elles figurent dans res$controles, famille "H."
   # (usp_controles_numeriques(), issue #22, decision M11).
-  # Jackknife et IC : le detail renvoie a l'ecart sur sigma_USP, porte par
-  # estim (qui depend de la table de l'annexe par (1-c) sigma_std), ET
-  # restitue l'ecart sur la seule part estimee sigma(delta, gamma)
-  # (independante de la table et du bareme). La seconde partie n'est ecrite
-  # que si run_engine() a fourni `robustesse`.
-  # Issue #24 (decision du mainteneur du 24/09/2026, meme mecanisme que le
-  # Delta du TOST retire en M18) : les nombres issus du bootstrap ou des
-  # reajustements du jackknife qui sont restitues ailleurs dans le resultat
-  # ne sont plus imprimes dans le detail, ou ils derivent d'une plateforme a
-  # l'autre (jusqu'a 3,5e-7 en relatif ; mesure sur les donnees de test,
-  # Linux, R 4.3.3 : q95 = 0,136955, a 3,4e-5 en relatif de la frontiere
-  # d'arrondi de %.4f). Retires : l'ecart sur sigma_USP du jackknife (sa
-  # valeur absolue est estim ; seul son signe reste imprime), la largeur
-  # (q95 - q05) / sigma_USP (estim) et les bornes q05, q95 de l'IC 90 %
-  # (res$ic_bootstrap). Restent imprimes, faute d'etre stockes ailleurs :
-  # l'ecart jackknife et la largeur rapportes a la part estimee
-  # sigma(delta, gamma) (rb$jack_estim, rb$ic_estim).
+  # Jackknife et IC : libelles concis (issue #76, textes retenus par le
+  # mainteneur). Aucun nombre issu du bootstrap ou des reajustements du
+  # jackknife n'est imprime, faute de quoi il deriverait d'une plateforme a
+  # l'autre (issue #24 ; jusqu'a 3,5e-7 en relatif). Les valeurs sont
+  # ailleurs : ecart relatif max sur sigma_USP et largeur (q95 - q05) /
+  # sigma_USP dans estim, bornes de l'IC 90 % dans res$ic_bootstrap ; les
+  # reperes conventionnels (10 % / 20 %, 50 % / 80 %) dans les fiches du
+  # .tex. Le jackknife imprime l'annee la plus influente et le signe de
+  # l'ecart sur sigma_USP a cette annee (entier et signe, stables), si
+  # run_engine() a fourni `robustesse`. Les ecarts rapportes a la seule part
+  # estimee sigma(delta, gamma), imprimes jusqu'ici faute d'etre stockes
+  # ailleurs (risque accepte en M24), sont retires (issue #76).
   rb <- robustesse
-  rep_jk <- paste("(valeur absolue : estimation \"ecart relatif max\" ; repere",
-                  "conventionnel 10 % / 20 % ; depend de la table de l'annexe par",
-                  "(1-c) sigma_std)")
-  rep_ic <- paste("(q95 - q05) / sigma_USP : estimation \"largeur / sigma_USP\"",
-                  "(repere conventionnel 50 % / 80 % ; depend de la table de",
-                  "l'annexe par (1-c) sigma_std)")
   if (!is.null(fit$ecart_jackknife))
     add(fam, "Sensibilite au retrait d'une annee (jackknife)",
         "Quenouille (1949) / Tukey (1958)", type = "diagnostic",
         estim_nom = "ecart relatif max", estim = fit$ecart_jackknife,
         detail = if (!is.null(rb$jack_annee))
-          sprintf(paste("retrait de l'annee %d : sigma_USP %s %s ; %+.1f%% sur la part",
-                        "estimee sigma(delta, gamma) (independant de la table et du bareme)"),
-                  rb$jack_annee,
+          sprintf("Annee la plus influente : %d (sigma_USP %s).", as.integer(rb$jack_annee),
                   if (rb$jack_usp < 0) "en baisse" else if (rb$jack_usp > 0) "en hausse"
-                  else "inchange",
-                  rep_jk, 100 * rb$jack_estim)
-        else paste("ecart maximal sur sigma_USP", rep_jk))
+                  else "inchange")
+        else "Annee la plus influente non determinee.")
   if (!is.null(fit$largeur_ic))
     add(fam, "Largeur relative de l'IC bootstrap 90%", "Efron (1979), Ann. Statist. 7",
         type = "diagnostic",
         estim_nom = "largeur / sigma_USP", estim = fit$largeur_ic,
-        detail = if (!is.null(rb$ic_estim))
-          sprintf(paste("%s ; (q95 - q05) / sigma(delta, gamma) = %.1f%% sur la part estimee",
-                        "(independant de la table et du bareme) ; bornes de l'IC 90 %% de",
-                        "sigma_USP : intervalle bootstrap du parametre retenu",
-                        "(res$ic_bootstrap)"),
-                  rep_ic, 100 * rb$ic_estim)
-        else rep_ic)
+        detail = "Intervalle bootstrap du parametre retenu : res$ic_bootstrap.")
   L
 }
 
@@ -4258,22 +4215,15 @@ run_engine <- function(xt, yt,
   # conteneur, et refuse le patch (verification "structure") sinon.
   fit <- fit[c(setdiff(names(fit), "kkt_au_moins_un"), "kkt_au_moins_un")]
 
-  # Elements du detail des lignes jackknife et IC de usp_tests() : calcules
-  # ici, transmis a usp_tests() et NON stockes dans fit ni dans le resultat.
-  # jack_usp : ecart signe sur sigma_USP a l'annee de plus grand |ecart|
-  # (seul son signe est imprime, issue #24) ; jack_estim : ecart relatif de
-  # la part estimee sigma(delta, gamma) a la meme annee ; ic_estim : largeur
-  # (q95 - q05) de sigma_boot rapportee a sigma(delta, gamma), independante
-  # de la table et du bareme. Les bornes de l'IC ne sont plus transmises :
-  # le detail n'imprime plus que leur emplacement, res$ic_bootstrap (#24).
-  # Partie jackknife omise (NULL) si aucun reajustement n'a abouti.
+  # Elements du detail de la ligne jackknife de usp_tests() : calcules ici,
+  # transmis a usp_tests() et NON stockes dans fit ni dans le resultat.
+  # jack_annee : annee de plus grand |ecart| sur sigma_USP ; jack_usp : ecart
+  # signe a cette annee (seul son signe est imprime, issues #24 et #76).
+  # NULL si aucun reajustement n'a abouti.
   i_jack <- if (jack_calcule) which.max(abs(d_jack)) else NULL
   robustesse <- list(
     jack_annee = i_jack,
-    jack_usp   = if (jack_calcule) d_jack[i_jack] / param$sigma_usp else NULL,
-    jack_estim = if (jack_calcule) (jack$sigma[i_jack] - fit$sigma) / fit$sigma else NULL,
-    ic_estim   = if (!is.null(ic))
-      unname(diff(stats::quantile(boot$sigma_boot, c(.05, .95)))) / fit$sigma else NULL)
+    jack_usp   = if (jack_calcule) d_jack[i_jack] / param$sigma_usp else NULL)
 
   tests <- usp_tests(fit, boot, alpha, theta_equiv = theta_equiv,
                      delta_equiv = delta_equiv, robustesse = robustesse)
