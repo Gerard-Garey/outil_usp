@@ -4,7 +4,8 @@
 #  Definit les cas de test (une methode, un jeu de donnees, des parametres) et
 #  la maniere d'executer le moteur pour chacun, et le comparateur unique de
 #  non-regression (comparer_objets). Source par test_reproductibilite.R,
-#  generer_references.R, comparer_references.R et patcher_reference.R ;
+#  generer_references.R, comparer_references.R, patcher_reference.R et
+#  regenerer_et_rendre_compte.R ;
 #  R base uniquement.
 ###############################################################################
 
@@ -121,6 +122,43 @@ neutraliser_instables <- function(res) {
 }
 
 chemin_reference <- function(nom) file.path(DOSSIER_REF, paste0(nom, ".rds"))
+
+# Ecriture d'une reference : un seul code, partage par generer_references.R et
+# regenerer_et_rendre_compte.R, pour qu'une reference regeneree par l'un ou
+# l'autre soit le meme fichier (format RDS version 3). chemin : destination
+# (par defaut la reference du cas ; regenerer_et_rendre_compte.R y passe un
+# fichier temporaire du meme dossier pour une ecriture atomique).
+ecrire_reference <- function(nom, res, chemin = chemin_reference(nom)) {
+  dir.create(dirname(chemin), showWarnings = FALSE, recursive = TRUE)
+  saveRDS(res, chemin, version = 3)
+  invisible(chemin)
+}
+
+# ---------------------------------------------------------------------------
+#  Motifs sur les chemins aplatis (patcher_reference.R --motif,
+#  regenerer_et_rendre_compte.R --attendu) : une seule grammaire, celle des
+#  expressions regulieres de grepl() appliquees aux chemins que produit
+#  aplatir() et qu'affiche comparer_references.R.
+# ---------------------------------------------------------------------------
+
+# Extrait d'une ligne de commande les valeurs d'une option repetable
+# (--motif a --motif b) ; renvoie list(valeurs, reste), reste etant les
+# arguments qui ne sont ni l'option ni sa valeur, dans leur ordre.
+extraire_option <- function(args, option) {
+  valeurs <- character(0); reste <- character(0)
+  k <- 1L
+  while (k <= length(args)) {
+    if (identical(args[k], option)) {
+      if (k == length(args)) stop(option, " sans valeur")
+      valeurs <- c(valeurs, args[k + 1L]); k <- k + 2L
+    } else { reste <- c(reste, args[k]); k <- k + 1L }
+  }
+  list(valeurs = valeurs, reste = reste)
+}
+
+# Chemins designes par au moins un motif (aucun motif : aucun chemin).
+designer <- function(cles, motifs)
+  Filter(function(cle) any(vapply(motifs, grepl, logical(1), x = cle)), cles)
 
 # Aplatit un objet en feuilles atomiques nommees par leur chemin
 # (ex. "parametre_final$sigma_usp", "tests[[12]]$p_mc", "donnees$xt[3]").

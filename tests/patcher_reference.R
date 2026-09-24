@@ -248,7 +248,7 @@ patcher_objets <- function(avant, apres, motifs, nom = "objet") {
   jugements <- stats::setNames(lapply(cles, function(cle) ecart_feuille(fa[[cle]], fb[[cle]], TOLERANCE)), cles)
   differents <- Filter(function(cle) !isTRUE(jugements[[cle]]$conforme), cles)
 
-  designes <- Filter(function(cle) any(vapply(motifs, grepl, logical(1), x = cle)), cles)
+  designes <- designer(cles, motifs)
   inutiles <- setdiff(designes, differents)
   a_patcher <- intersect(designes, differents)
   laisses   <- setdiff(differents, designes)
@@ -423,15 +423,11 @@ if (sys.nframe() == 0L) {
   args <- commandArgs(trailingOnly = TRUE)
   ecrire <- "--ecrire" %in% args
   args <- args[args != "--ecrire"]
-  motifs <- character(0)
-  noms <- character(0)
-  k <- 1L
-  while (k <= length(args)) {
-    if (identical(args[k], "--motif")) {
-      if (k == length(args)) stop("--motif sans valeur")
-      motifs <- c(motifs, args[k + 1L]); k <- k + 2L
-    } else { noms <- c(noms, args[k]); k <- k + 1L }
-  }
+  # Lecture des motifs : extraire_option() de outils_tests.R, partagee avec
+  # regenerer_et_rendre_compte.R (--attendu).
+  opt <- extraire_option(args, "--motif")
+  motifs <- opt$valeurs
+  noms <- opt$reste
   if (length(noms) != 1L) stop("Indiquer exactement un cas : ", paste(names(CAS), collapse = ", "))
   if (!noms %in% names(CAS)) stop("Cas inconnu : ", noms)
   if (!length(motifs)) stop("Aucun motif : le patch doit designer explicitement ce qu'il change.")
