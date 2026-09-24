@@ -150,11 +150,15 @@ verifier("comparer_references.R : reference absente -> ERREUR dans le markdown e
                      file.path(d, "tests", "donnees"))
            md <- file.path(d, "resume.md")
            # RACINE (outils_tests.R) se deduit du repertoire courant.
+           # Retour au repertoire initial garanti par on.exit(), meme si
+           # system2() leve une erreur (sinon les fichiers suivants
+           # tourneraient dans d, puis supprime) ; after = FALSE : on quitte d
+           # avant de le supprimer (unlink ci-dessus).
            owd <- setwd(d)
+           on.exit(setwd(owd), add = TRUE, after = FALSE)
            sortie <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"),
              c("tests/comparer_references.R", "premium", "--markdown", md),
              stdout = TRUE, stderr = TRUE))
-           setwd(owd)
            statut <- attr(sortie, "status")
            x <- readLines(md, encoding = "UTF-8")
            identical(statut, 1L) && any(x == "### `premium` : ERREUR") &&

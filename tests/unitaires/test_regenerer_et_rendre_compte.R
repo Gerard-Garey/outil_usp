@@ -228,4 +228,45 @@ verifier("Motif designant SEUIL_MOTIF_LARGE feuilles : non signale",
            g2$v <- lapply(g2$v, function(x) x + 0.5)
            !length(analyser(g1, g2, "^v")$motifs_larges) })
 
+## --- Alignement sur comparer_references.R (#66, audit leger de b012f7a) -----
+# Hors tableau (commande, motifs, structure, feuille maximale, batteries) :
+# texte_code(), barre verticale NON echappee (un antislash s'afficherait dans
+# la police de code) ; dans le tableau : cellule(), barre echappee.
+# Reference : texte_code() et cellule() de outils_tests.R, et le rendu de
+# comparer_references.R --markdown.
+verifier("Hors tableau : motifs, commande, structure et feuille maximale via texte_code() (barre non echappee)",
+         { b <- base; b[["x|y"]] <- 1; c2 <- b; c2[["x|y"]] <- 2; attr(c2$tests, "k") <- 1
+           a <- analyser(b, c2, c("x\\|y", "a|b"))
+           md3 <- rg$tableau_markdown(a, "cas", motifs = c("x\\|y", "a|b"),
+                                      commande = "Rscript tests/regenerer_et_rendre_compte.R cas --attendu 'a|b'")
+           hors <- grep("^\\|", md3, value = TRUE, invert = TRUE)
+           any(hors == "- Commande : `Rscript tests/regenerer_et_rendre_compte.R cas --attendu 'a|b'`") &&
+             any(hors == "- Motifs attendus : `x\\|y`, `a|b`") &&
+             any(grepl("(relatif, `x|y`)", hors, fixed = TRUE)) &&
+             any(grepl("modifi\u00e9s (type ou attributs) : `tests`", hors, fixed = TRUE)) &&
+             !any(grepl("a\\|b", hors, fixed = TRUE)) &&
+             any(grepl("^\\| `x\\\\\\|y` \\|", md3)) })
+verifier("Hors tableau : avertissement de motif large via texte_code() (barre non echappee)",
+         { g1 <- list(v = as.list(seq_len(rg$SEUIL_MOTIF_LARGE + 1L) + 0)); g2 <- g1
+           g2$v <- lapply(g2$v, function(x) x + 0.5)
+           m <- "^v|^w"
+           md3 <- rg$tableau_markdown(analyser(g1, g2, m), "cas", motifs = m)
+           l <- grep("Avertissement", md3, value = TRUE)
+           length(l) == 1L && grepl("motif `^v|^w` :", l, fixed = TRUE) })
+verifier("Tableau : valeur manquante affichee \\<NA\\> (reference_na / obtenu_na), distincte de la chaine \"NA\"",
+         { b <- list(a = NA_real_, s = "NA", c = 1, d = NA_character_)
+           c2 <- list(a = 0.5, s = "x", c = NA_real_, d = "NA")
+           md3 <- rg$tableau_markdown(analyser(b, c2, "."), "cas")
+           ligne <- function(ch) grep(sprintf("^\\| `%s` \\|", ch), md3, value = TRUE)
+           identical(ligne("a"), "| `a` | \\<NA\\> | 0.5 |  | non fini |") &&
+             identical(ligne("s"), "| `s` | NA | x |  | non numerique |") &&
+             identical(ligne("c"), "| `c` | 1 | \\<NA\\> |  | non fini |") &&
+             identical(ligne("d"), "| `d` | \\<NA\\> | NA |  | non numerique |") })
+verifier("Tableau : feuille ajoutee ou supprimee reste '(absente)' du cote manquant",
+         { b <- list(a = 1); c2 <- list(a = 1, n = NA_real_)
+           md3 <- rg$tableau_markdown(analyser(b, c2, "n"), "cas")
+           md4 <- rg$tableau_markdown(analyser(c2, b, "n"), "cas")
+           any(grepl("^\\| `n` \\| \\(absente\\) \\| \\\\<NA\\\\> \\|", md3)) &&
+             any(grepl("^\\| `n` \\| \\\\<NA\\\\> \\| \\(absente\\) \\|", md4)) })
+
 fin_fichier()
