@@ -52,8 +52,8 @@
 #
 # Rôles : la SESSION PRINCIPALE (Claude) déclenche, télécharge, vérifie et
 # commite, chaque fois sur ordre explicite du mainteneur ; le MAINTENEUR
-# lit le tableau et donne le visa M3, qu'il garde. Les commits sont signés
-# Claude <noreply@anthropic.com>.
+# lit le tableau et donne le visa M3, qu'il garde. Les commits ont pour
+# auteur Claude <noreply@anthropic.com> (pas de signature cryptographique).
 #
 #   1. Déclencher (session principale, sur ordre explicite du mainteneur) :
 #      par l'API GitHub (workflow_dispatch de references.yml), sur la
@@ -151,6 +151,9 @@ jobs:
         shell: bash
     env:
       SORTIE: ${{ github.workspace }}/sortie-references
+      # Entrée passée par l'environnement : aucune expression de contexte dans
+      # un script run:.
+      MODE: ${{ inputs.mode }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -169,7 +172,7 @@ jobs:
             echo "Système : $(lsb_release -ds 2>/dev/null || echo inconnu), $(uname -srm)"
             echo "Commit calculé : $GITHUB_SHA (réf. $GITHUB_REF_NAME)"
             echo "Exécution : $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID (tentative $GITHUB_RUN_ATTEMPT)"
-            echo "Mode : ${{ inputs.mode }}"
+            echo "Mode : $MODE"
           } | tee "$SORTIE/plateforme.txt"
           Rscript -e 'print(sessionInfo()); cat("\nextSoftVersion() :\n"); print(extSoftVersion()); cat("\nLa_version() :", La_version(), "\nLa_library() :", La_library(), "\n")' \
             | tee "$SORTIE/sessionInfo.txt"
@@ -244,8 +247,11 @@ jobs:
           done
           [ ${#args[@]} -gt 0 ] || { echo "::error::Entrée attendu : au moins un motif (séparés par « ; »)."; exit 1; }
           md5_avant="$(md5sum < "tests/reference/$CAS.rds")"
-          # Code de sortie conservé pour publier le tableau même en cas de
-          # refus ou de batterie en échec (artefact de diagnostic).
+          # Code de sortie conservé pour publier un compte rendu même en cas
+          # d'échec. Le tableau docs/tableaux/… n'existe qu'après écriture
+          # (batterie en échec comprise) : sur un REFUS, le script s'arrête
+          # avant de l'écrire, et c'est le journal regeneration.txt qui est
+          # porté au résumé (borné) et à l'artefact de diagnostic.
           statut=0
           Rscript tests/regenerer_et_rendre_compte.R "$CAS" "${args[@]}" --issue "$ISSUE" --ecrire \
             | tee "$SORTIE/regeneration.txt" || statut=$?
@@ -255,6 +261,15 @@ jobs:
             cat "$t" >> "$GITHUB_STEP_SUMMARY"
           done
           if [ "$statut" -ne 0 ]; then
+            {
+              echo "## Régénération de \`$CAS\` : échec (code $statut)"
+              echo
+              echo '```'
+              # Au plus 400 000 octets (le résumé d'une étape est borné à
+              # 1 Mio) ; fin du journal, où figurent REFUS et batteries.
+              tail -c 400000 "$SORTIE/regeneration.txt"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
             echo "::error title=Régénération refusée ou en échec::code de sortie $statut ; voir le journal (REFUS ou batterie en échec). Aucun .rds publié."
             exit "$statut"
           fi
