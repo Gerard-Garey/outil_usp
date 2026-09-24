@@ -535,9 +535,9 @@ ajusté \\
 \code{usp\_tests()} & \code{fit}, \code{boot}, \code{alpha} (0,10),
 \code{theta\_equiv} (0,10), \code{delta\_equiv}, \code{robustesse} (\code{NULL}) &
 liste des tests (H0, H1, statistique, 3 p-values, nature)~; \code{robustesse}, calculé par
-\code{run\_engine()} et non stocké, alimente le commentaire des lignes jackknife et intervalle
-bootstrap (année d'écart maximal, sens de l'écart sur $\sigma_{\mathrm{USP}}$, écart et largeur
-rapportés à la part estimée~; fiches~\ref{fiche:jackknife} et~\ref{fiche:ic-bootstrap}) \\
+\code{run\_engine()} et non stocké, alimente le seul commentaire de la ligne jackknife (année
+d'écart maximal et sens de l'écart sur $\sigma_{\mathrm{USP}}$~; fiche~\ref{fiche:jackknife})~;
+celui de la ligne de l'intervalle bootstrap n'en dépend pas (fiche~\ref{fiche:ic-bootstrap}) \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Robustesse et calibration}}} \\
 \code{usp\_jackknife()} & \code{fit}, $\sigma_{\text{std}}$, barème &
 table des $\hat\sigma^{(-t)}$, $\sigma_{\mathrm{USP}}^{(-t)}$, $\hat\delta^{(-t)}$,
@@ -991,13 +991,23 @@ D'Agostino et d'Anscombe--Glynn (fiche~\ref{fiche:jarque-bera}). Le motif est ce
 $\Delta$ du TOST~: sur le jeu de contrôle de la méthode prime, le quantile à 95~\% de
 $\sigma_{\mathrm{USP}}$ bootstrap, $0{,}136955$, est à $3{,}4\cdot 10^{-5}$ en relatif de la
 frontière d'arrondi de son impression à quatre décimales, soit environ cent fois seulement la
-dérive de plateforme mesurée ($3{,}5\cdot 10^{-7}$). Deux nombres restent imprimés parce
-qu'ils ne sont stockés nulle part ailleurs~: l'écart du jackknife et la largeur de l'intervalle
-rapportés à la part estimée, affichés $-14{,}8~\%$ et $87{,}6~\%$ sur ce jeu (valeurs
-$-14{,}833~\%$ et $87{,}626~\%$, à $1{,}1\cdot 10^{-3}$ et $2{,}8\cdot 10^{-4}$ en relatif de
-leur frontière d'arrondi, soit au moins huit cents fois la dérive mesurée)~; le mainteneur en
-a accepté le risque, à réexaminer quand les références seront produites par la CI
-(issue~\#67). Reste aussi imprimée, hors du cas de contrôle ($\hat\delta = 1$), la valeur de
+dérive de plateforme mesurée ($3{,}5\cdot 10^{-7}$). Deux nombres étaient restés imprimés
+parce qu'ils n'étaient stockés nulle part ailleurs~: l'écart du jackknife et la largeur de
+l'intervalle rapportés à la part estimée, affichés $-14{,}8~\%$ et $87{,}6~\%$ sur ce jeu
+(valeurs $-14{,}833~\%$ et $87{,}626~\%$, à $1{,}1\cdot 10^{-3}$ et $2{,}8\cdot 10^{-4}$ en
+relatif de leur frontière d'arrondi, soit au moins huit cents fois la dérive mesurée)~; le
+mainteneur en avait accepté le risque. La décision M27 du mainteneur (issue~\#76), prise avant
+la production des références par la CI, les a retirés~: les commentaires des lignes jackknife
+et intervalle bootstrap, et ceux des deux contrôles numériques de la famille~H, sont ramenés à
+une phrase~; la règle, les repères et leur justification figurent dans les fiches
+(\ref{fiche:foc}, \ref{fiche:multi-demarrages}, \ref{fiche:jackknife}
+et~\ref{fiche:ic-bootstrap}), les valeurs dans \code{res\$ajustement}, les champs
+\code{stat} et \code{estim} et \code{res\$ic\_bootstrap}. Ces quatre commentaires ne portent
+plus aucune valeur réelle issue de l'optimiseur, du bootstrap ou du jackknife, seulement des entiers
+(année la plus influente, nombres de démarrages à l'optimum et sans résultat)~; les deux
+grandeurs sur la part estimée ne sont plus restituées et se recalculent à partir de
+\code{res\$jackknife} et \code{res\$bootstrap\$sigma\_boot} (fiches~\ref{fiche:jackknife}
+et~\ref{fiche:ic-bootstrap}). Reste aussi imprimée, hors du cas de contrôle ($\hat\delta = 1$), la valeur de
 $1 - \hat\delta$ que les commentaires des lignes de centrage et de variance donnent à deux
 chiffres significatifs dans la bande de tolérance (fiche~\ref{fiche:centrage})~: issue de
 l'optimiseur et non stockée en tant que telle ($\hat\delta$ l'est), elle a été signalée et
@@ -4327,11 +4337,18 @@ $\mathrm{pg}_\delta = g_\delta$). \code{usp\_ajuster()} évalue tous les démarr
 sans s'arrêter au premier succès qui réintroduirait un ordre, et restitue la décision dans le
 champ \code{\$kkt\_au\_moins\_un} de \code{res\$ajustement}~; aucun décompte des démarrages
 qui satisfont la condition n'est stocké ni imprimé, car il dépendrait, comme
-$n^{\star}_0$ (fiche~\ref{fiche:multi-demarrages}), du chemin d'optimisation. Le commentaire
-décrit le démarrage retenu --- $\hat\delta$ au bord, intérieur ou non identifié (volumes
-constants), $\hat\gamma$ intérieur ou sur une borne (« maximum de vraisemblance non
-atteint »), signe de la courbure, « gradient non fini » ou « courbure non finie » ---, énonce la
-règle et y répond par « oui » ou « non »~; il ne compare pas le démarrage retenu aux repères.
+$n^{\star}_0$ (fiche~\ref{fiche:multi-demarrages}), du chemin d'optimisation. Le commentaire,
+concis depuis la décision M27 du mainteneur (issue~\#76), nomme la règle sans en rappeler les
+repères et y répond par « oui » ou « non »~; il signale ensuite, s'il y a lieu, des volumes
+constants ($\delta$ non identifié), puis, en une seule phrase consacrée au démarrage retenu,
+ses anomalies dans cet ordre~: gradient non fini~; courbure non finie ($H_{\gamma\gamma}$
+égale à \code{NaN} ou $\pm\infty$) ou non strictement positive ($H_{\gamma\gamma}$ finie et
+$\le 0$)~; $\hat\gamma$ sur une borne numérique. La courbure n'est pas mentionnée lorsque
+$\hat\gamma$ est sur une borne, le pas de Newton n'étant alors pas défini. Ces anomalies
+décrivent le seul démarrage retenu et peuvent donc accompagner un « oui » obtenu sur un autre
+démarrage à l'optimum. Le commentaire ne dit pas si $\hat\delta$ est au bord ou intérieur
+(fiche~\ref{fiche:position-delta}) et ne compare pas le démarrage retenu aux repères~; sur le
+jeu de contrôle, il se réduit à la réponse « oui » (mesure).
 
 La règle « au moins un démarrage » (décision M25 du mainteneur, issue~\#22, sur spécification
 d'\code{actuary}) aligne ce contrôle sur la convergence multi-démarrages. Jusqu'à cette
@@ -5322,14 +5339,18 @@ vaut~1 lorsque $c = 1$, cas où les deux échelles coïncident)~; le second n'en
 de $c$. Le coefficient $c\sqrt{(T+1)/(T-1)}$ étant strictement
 positif, les deux échelles désignent, par construction, la même année d'écart maximal et
 donnent à l'écart le même signe. Le moteur restitue $\Delta_{\max}$ dans le champ \code{estim},
-non signé, et, dans le commentaire, l'année $t^\star$ qui l'atteint, le \emph{sens} de l'écart
+non signé, et, dans le commentaire, l'année $t^\star$ qui l'atteint et le \emph{sens} de l'écart
 sur $\sigma_{\mathrm{USP}}$ (« en baisse », « en hausse » ou « inchangé », sa valeur absolue étant celle du
-champ \code{estim}) et l'écart signé de la part estimée à cette même année,
-$\big(\hat\sigma^{(-t^\star)} - \hat\sigma\big)/\hat\sigma$, imprimé à un chiffre après la
-virgule. Jusqu'à la décision M24 du mainteneur (issue~\#24), le commentaire imprimait aussi
+champ \code{estim})~; faute d'année déterminée, le commentaire le dit. Jusqu'à la décision M24
+du mainteneur (issue~\#24), le commentaire imprimait aussi
 l'écart signé sur $\sigma_{\mathrm{USP}}$~: valeur issue des réajustements du jackknife et déjà
 restituée dans \code{estim}, elle a été retirée du libellé en application de la règle d'écriture
-des libellés (§\ref{sec:graines}). Le maximum ne porte que sur les années
+des libellés (§\ref{sec:graines}). Jusqu'à la décision M27 du mainteneur (issue~\#76), il
+imprimait en outre, à un chiffre après la virgule, l'écart signé de la part estimée à l'année
+$t^\star$, $\big(\hat\sigma^{(-t^\star)} - \hat\sigma\big)/\hat\sigma$, qui n'est stocké nulle
+part~; il a été retiré pour la même raison, et se recalcule à partir de la colonne
+\code{sigma} de \code{res\$jackknife} (valeurs $\hat\sigma^{(-t)}$) et du champ \code{sigma} de
+\code{res\$ajustement} ($\hat\sigma$). Le maximum ne porte que sur les années
 dont le réajustement a abouti~: une année dont le réajustement échoue n'a de valeur sur aucune
 des deux échelles et ne peut pas être désignée, même si elle était la plus influente. Si tous
 les réajustements échouent, la ligne est absente de la table.
@@ -5337,10 +5358,12 @@ les réajustements échouent, la ligne est absente de la table.
 Aucune loi de référence n'est utilisée pour $\Delta_{\max}$.
 \Pval
 Aucune. La ligne est restituée \code{INFO}, sans verdict ni sens du test
-(\code{sens\_du\_test} à \code{NA}). Le commentaire conserve, sur l'échelle de
-$\sigma_{\mathrm{USP}}$ seulement, le repère conventionnel 10~\% / 20~\%, qui n'est associé à
+(\code{sens\_du\_test} à \code{NA}). Le repère conventionnel 10~\% / 20~\% vaut sur l'échelle de
+$\sigma_{\mathrm{USP}}$ seulement~; il n'est associé à
 aucune loi de référence ni à aucun niveau et ne produit aucun verdict~; jusqu'à l'issue~\#24, le
-script marquait \code{ALERTE} au-delà de 10~\% et \code{ECHEC} au-delà de 20~\%. Aucun repère
+script marquait \code{ALERTE} au-delà de 10~\% et \code{ECHEC} au-delà de 20~\%. Le commentaire
+le rappelait jusqu'à la décision M27 du mainteneur (issue~\#76)~; il est désormais énoncé ici
+seulement. Aucun repère
 n'est donné sur l'échelle de la part estimée~: transposer 10~\% ou 20~\% sur cette échelle
 reviendrait à les multiplier par $\sigma_{\mathrm{USP}}/\big(c\sqrt{(T+1)/(T-1)}\,\hat\sigma\big)$,
 rapport qui dépend de la table de l'annexe, et un repère fixe propre à cette échelle n'aurait
@@ -5393,7 +5416,7 @@ relative $L = \big(\hat q_{0{,}95} - \hat q_{0{,}05}\big)/\sigma_{\mathrm{USP}}$
 $\sigma_{\mathrm{USP}}^{(b)}$ étant une fonction affine croissante de $\hat\sigma^{(b)}$, de
 coefficient $c\sqrt{(T+1)/(T-1)} > 0$, et le quantile empirique commutant avec une telle
 application, la largeur de l'intervalle vaut $c\sqrt{(T+1)/(T-1)}$ fois celle des quantiles de
-$\hat\sigma^{(b)}$. Le moteur restitue donc aussi la largeur relative sur la \emph{part estimée}
+$\hat\sigma^{(b)}$. On en déduit la largeur relative sur la \emph{part estimée}
 (définie à la fiche~\ref{fiche:jackknife})~:
 \[
   L_{\text{est}} = \frac{\hat q_{0{,}95}\big(\hat\sigma^{(\cdot)}\big) - \hat q_{0{,}05}\big(\hat\sigma^{(\cdot)}\big)}{\hat\sigma},
@@ -5401,21 +5424,26 @@ $\hat\sigma^{(b)}$. Le moteur restitue donc aussi la largeur relative sur la \em
   L = \frac{c\sqrt{(T+1)/(T-1)}\;\hat\sigma}{\sigma_{\mathrm{USP}}}\; L_{\text{est}},
 \]
 où $L_{\text{est}}$ ne dépend ni de la table de l'annexe ni du barème. Le champ \code{estim}
-porte $L$~; le commentaire donne $L_{\text{est}}$, à un chiffre après la virgule, et renvoie pour
-$L$ au champ \code{estim} et, pour les bornes de l'intervalle à 90~\% de
+porte $L$~; le commentaire renvoie seulement, pour les bornes de l'intervalle à 90~\% de
 $\sigma_{\mathrm{USP}}$, à \code{res\$ic\_bootstrap}. Jusqu'à la décision M24 du mainteneur
 (issue~\#24), il imprimait aussi $L$ et ces bornes, quantiles bootstrap restitués ailleurs dans
 l'objet et retirés du libellé en application de la règle d'écriture des libellés
-(§\ref{sec:graines}).
+(§\ref{sec:graines}). Jusqu'à la décision M27 du mainteneur (issue~\#76), il donnait en outre
+$L_{\text{est}}$, à un chiffre après la virgule~; ce nombre, qui n'est stocké nulle part, a été
+retiré pour la même raison et n'est plus restitué par le moteur~: il se recalcule à partir de
+\code{res\$bootstrap\$sigma\_boot} (réplications $\hat\sigma^{(b)}$) et du champ \code{sigma} de
+\code{res\$ajustement} ($\hat\sigma$).
 \Loi
 La distribution bootstrap approxime la loi d'échantillonnage de $\hat\sigma_{\mathrm{USP}}$
 conditionnellement au modèle ajusté.
 \Pval
 Aucune. La ligne est restituée \code{INFO}, sans verdict ni sens du test
-(\code{sens\_du\_test} à \code{NA}). Le commentaire conserve, sur l'échelle de
-$\sigma_{\mathrm{USP}}$ seulement, le repère conventionnel 50~\% / 80~\% sur $L$, qui n'est
+(\code{sens\_du\_test} à \code{NA}). Le repère conventionnel 50~\% / 80~\% porte sur $L$, sur
+l'échelle de $\sigma_{\mathrm{USP}}$ seulement~; il n'est
 associé à aucune loi de référence ni à aucun niveau et ne produit aucun verdict~; jusqu'à
 l'issue~\#24, le script marquait \code{ALERTE} au-delà de 50~\% et \code{ECHEC} au-delà de 80~\%.
+Le commentaire le rappelait jusqu'à la décision M27 du mainteneur (issue~\#76)~; il est
+désormais énoncé ici seulement.
 Aucun repère n'est donné sur $L_{\text{est}}$, pour la raison exposée à la
 fiche~\ref{fiche:jackknife}~: un repère transposé sur cette échelle bougerait avec la table de
 l'annexe.
@@ -5479,8 +5507,11 @@ Sans objet.
 \Pval
 Aucune. Le contrôle est \code{OK} si et seulement si \emph{au moins un} démarrage à l'optimum
 rend le code~0 ($n^{\star}_0 \ge 1$) \emph{et} si au moins deux démarrages atteignent le minimum
-($n^{\star} \ge 2$). C'est une \textbf{convention minimale, sans référence}, écrite comme telle
-dans le commentaire. Précision apportée après
+($n^{\star} \ge 2$). C'est une \textbf{convention minimale, sans référence}~; le commentaire
+le disait jusqu'à la décision M27 du mainteneur (issue~\#76), qui l'a ramené à une phrase~: le
+nombre $n^{\star}$ de démarrages à l'optimum, la réponse « oui » ou
+« non » à $n^{\star}_0 \ge 1$ (formulée sans « au moins un » lorsque $n^{\star} = 1$), puis, s'il
+est non nul, le nombre de démarrages sans résultat. Précision apportée après
 audit (décision du mainteneur, issue~\#22)~: la règle initiale exigeait le code~0 du seul
 démarrage retenu. Or, à égalité d'objectif, le démarrage retenu est le premier de la grille (la
 marge de $10^{-10}$ de la sélection, conservée car elle stabilise $\hat\gamma$ d'une plateforme
@@ -7856,8 +7887,10 @@ diagnostics --- $2k/T$ pour les leviers, $4/T$ pour la distance de Cook, $0{,}5$
 jackknife, 50~\% / 80~\% pour la largeur de l'intervalle bootstrap --- et les libellés de la
 position de $\hat\delta$ (fiches~\ref{fiche:leviers}, \ref{fiche:cook}, \ref{fiche:r2},
 \ref{fiche:jackknife}, \ref{fiche:ic-bootstrap}
-et~\ref{fiche:position-delta}) sont des \emph{repères} conservés dans le commentaire, non des
-seuils de rejet~: ils ne produisent aucun verdict. La condition du premier ordre et la
+et~\ref{fiche:position-delta}) sont des \emph{repères}, non des
+seuils de rejet~: ils ne produisent aucun verdict. Ils sont conservés dans le commentaire,
+sauf ceux du jackknife et de l'intervalle bootstrap, énoncés dans leurs fiches seulement depuis
+la décision M27 du mainteneur (issue~\#76). La condition du premier ordre et la
 convergence multi-démarrages ne sont plus des lignes de la table (issue~\#22)~: ce sont des
 contrôles \code{OK} / \code{ECHEC} de \code{res\$controles} (fiches~\ref{fiche:foc}
 et~\ref{fiche:multi-demarrages}).
