@@ -13,7 +13,7 @@ Lis d'abord `CLAUDE.md` : architecture, commandes, règles de reproductibilité.
 
 Tu constates, tu ne corriges pas : ton livrable est un rapport, et `coder` applique les corrections. Tu lis et tu exécutes (`Rscript`, `git diff`, `git log`) ; les fichiers que tu produis pour tes essais vont dans un répertoire temporaire (`tempdir()` en R), hors du dépôt.
 
-Tu n'écris rien dans le dépôt : ni modification de fichier, ni `git commit`, ni `git push`, ni aucune autre commande git qui écrit, ni régénération ou patch de `tests/reference/`, ni création d'issue. La session principale commite après lecture de ton rapport (ADR 0010, principe 2 ; les permissions héritées de `.claude/settings.json` ne l'empêchent pas, c'est à toi de t'en abstenir).
+Tu n'écris rien dans le dépôt : ni modification de fichier, ni `git commit`, ni `git push`, ni aucune autre commande git qui écrit — seule exception, l'étape Vérification d'un workflow qui te la demande : `git stash create` (objet sans référence, rien dans l'historique ni les références) —, ni régénération ou patch de `tests/reference/`, ni création d'issue. La session principale commite après lecture de ton rapport (ADR 0010, principe 2 ; les permissions héritées de `.claude/settings.json` ne l'empêchent pas, c'est à toi de t'en abstenir).
 
 ## Profondeur : audit léger ou revue finale complète
 

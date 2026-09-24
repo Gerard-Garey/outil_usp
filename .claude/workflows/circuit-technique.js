@@ -32,6 +32,9 @@ export const meta = {
 //  - Principe 3 : arret avec les rapports des qu'un constat releve
 //    d'actuary, de regulatory ou du mainteneur (methode, sigma_USP, verdict,
 //    reference a regenerer) ou que deux verifications se contredisent.
+//    Questions pour actuary (doutes de coder, questions de l'audit) : fin
+//    au statut 'termine avec questions', questions en tete du rapport,
+//    sans reprise (decision du mainteneur du 24/09/2026).
 //  - Principe 4 : au plus une reprise (deux tours coder -> audit).
 //  - Principe 5 : audit leger sur le diff contre la tete au lancement ; la
 //    revue finale complete (regle 10) est hors de ce workflow.
@@ -41,12 +44,14 @@ export const meta = {
 //  - Principe 8 : effort 'low' pour les etapes mecaniques ; le parametre
 //    model n'est pas fixe (herite du modele de session).
 //  Le workflow ne propose qu'un message de commit ; il ne l'execute pas.
+//  La copie des fichiers non suivis (mktemp -d, hors depot, tour 1) n'est pas
+//  supprimee par le workflow : son chemin est rendu dans copie_temporaire.
 // ---------------------------------------------------------------------------
 
 // Consigne commune a tous les agents du workflow (principe 2)
 const INTERDITS = [
   "INTERDICTIONS ABSOLUES dans ce workflow (ADR 0010, principe 2) :",
-  "- aucune commande git qui ecrit : ni git commit, ni git push, ni git add, git stash push/pop, git reset, git checkout, git restore, git switch, git merge, git rebase, git tag, git branch ;",
+  "- aucune commande git qui ecrit : ni git commit, ni git push, ni git add, git stash push/pop, git reset, git checkout, git restore, git switch, git merge, git rebase, git tag, git branch <nom> / -d / -D ; seule exception, a l'etape Verification du tour 1 : git stash create (objet sans reference, rien dans l'historique ni les references) ;",
   "- aucune ecriture dans tests/reference/ : ne lance ni tests/generer_references.R, ni tests/regenerer_et_rendre_compte.R, ni tests/patcher_reference.R ;",
   "- aucune creation ni modification d'issue ou de commentaire GitHub (issue_write, add_issue_comment) ;",
   "- aucune modification de docs/latex/ (regle 9 : docwriter passe une seule fois, en fin de branche).",
@@ -74,7 +79,9 @@ const issue = entree.issue
 const consigne = entree.consigne
 
 // Etat du rapport final, complete au fil des phases
+// Les questions pour actuary figurent en tete du rapport (decision m4)
 const rapport = {
+  questions_actuary: [],
   issue: issue,
   statut: 'en cours',
   motif_arret: null,
@@ -83,8 +90,19 @@ const rapport = {
   fichiers_modifies: [],
   surface_documentaire: [],
   commit_propose_non_execute: null,
-  doutes_actuary: [],
-  rappel: "Aucun commit, push, regeneration de reference ni issue n'a ete execute par le workflow. La session principale verifie git status et git log, puis commite apres lecture."
+  copie_temporaire: 'aucun',
+  rappel: "Aucun commit, push, regeneration de reference ni issue n'a ete execute par le workflow. La session principale verifie git status et git log, puis commite apres lecture. Le repertoire copie_temporaire (hors depot, cree par mktemp -d au tour 1) n'est pas supprime par le workflow : a supprimer par la session principale apres lecture."
+}
+
+// Fin sans reprise quand actuary a des questions (doutes de coder ou
+// questions de l'audit) : statut distinct, la suite revient a la session
+// principale (decision du mainteneur du 24/09/2026, m4)
+function terminerAvecQuestions(enAttente) {
+  rapport.statut = 'termine avec questions'
+  rapport.motif_arret = rapport.questions_actuary.length + ' question(s) pour actuary, sans reprise' +
+    (enAttente ? ' ; en attente : ' + enAttente : '')
+  log('Fin avec questions pour actuary : ' + rapport.motif_arret)
+  return rapport
 }
 
 function arreter(motif) {
@@ -249,7 +267,7 @@ function consigneImplementation(base, constats) {
   if (consigne) lignes.push("Consigne complementaire du mainteneur : " + consigne)
   if (constats) {
     lignes.push(
-      "REPRISE (unique, principe 4) : corrige exactement les constats suivants de l'audit leger, et rien d'autre. Chaque correction s'adosse a une mesure que tu cites.",
+      "REPRISE (unique, principe 4) : corrige exactement les constats suivants de l'audit leger (et, s'il y en a, les batteries en echec listees), et rien d'autre. Chaque correction s'adosse a une mesure que tu cites.",
       JSON.stringify(constats, null, 2)
     )
   }
@@ -263,8 +281,8 @@ function consigneImplementation(base, constats) {
   return lignes.join('\n\n')
 }
 
-function consigneVerification(depot) {
-  return [
+function consigneVerification(depot, figer) {
+  const lignes = [
     "Etape mecanique du workflow circuit-technique (ADR 0010, principe 7) : tu executes des scripts et tu rapportes leur sortie ; tu ne juges pas le code et tu ne modifies aucun fichier du depot.",
     INTERDITS,
     "1. Depuis la racine du depot, execute dans cet ordre et rapporte pour chacun la commande, le code de sortie et les lignes de bilan recopiees telles quelles :",
@@ -273,14 +291,25 @@ function consigneVerification(depot) {
     "   Rscript tests/concordance_doc_moteur.R",
     "   ecart_aux_references est vrai si test_reproductibilite.R echoue par ecart a une reference (et non par difference entre deux appels a graine egale).",
     "2. Garde-fous : compare git rev-parse HEAD a " + depot.tete + " et git rev-parse @{u} a '" + depot.amont + "' ('aucun' si pas d'amont) ; git status --porcelain -- tests/reference/ et git status --porcelain -- docs/latex/ doivent etre vides. Recopie les sorties dans detail.",
-    "3. Instantane pour l'audit d'une eventuelle reprise : execute git stash create (cree un objet sans reference, ne touche ni l'arbre ni l'index ni l'historique) et rends le hash, ou 'aucun' si la sortie est vide ; copie les fichiers non suivis de git status --porcelain dans un repertoire cree par mktemp -d, HORS du depot, et rends son chemin, ou 'aucun'."
-  ].join('\n')
+  ]
+  if (figer) {
+    lignes.push("3. Instantane pour l'audit d'une eventuelle reprise : execute git stash create (objet sans reference, rien dans l'historique ni les references ; seule commande git d'ecriture permise) et rends le hash, ou 'aucun' si la sortie est vide ; copie les fichiers non suivis de git status --porcelain dans un repertoire cree par mktemp -d, HORS du depot, et rends son chemin, ou 'aucun' s'il n'y en a pas.")
+  } else {
+    lignes.push("3. Pas d'instantane a ce tour : n'execute pas git stash create, ne copie rien ; rends 'aucun' pour instantane et copie_non_suivis.")
+  }
+  return lignes.join('\n')
 }
 
 function consigneAudit(depot, verif, reference, tour) {
   const perimetre = tour === 1
     ? "le travail en cours contre la tete au lancement : git diff " + depot.tete + ", plus les fichiers non suivis listes par git status --porcelain (lis-les en entier)."
-    : "la SEULE correction de la reprise : git diff " + reference.instantane + " pour les fichiers suivis, et, pour les fichiers non suivis, diff -r " + reference.copie_non_suivis + " contre leur etat actuel ('aucun' = pas de fichier non suivi au tour 1)."
+    : "la SEULE correction de la reprise : (a) fichiers suivis : git diff " +
+      (reference.instantane === 'aucun' ? depot.tete + " (aucun fichier suivi modifie au tour 1)" : reference.instantane) +
+      " ; (b) fichiers non suivis deja presents au tour 1 : " +
+      (reference.copie_non_suivis === 'aucun' ? "aucun" : "diff -r " + reference.copie_non_suivis + " contre leur etat actuel") +
+      " ; (c) tout fichier non suivi de git status --porcelain absent de " +
+      (reference.copie_non_suivis === 'aucun' ? "cette copie (donc tout fichier non suivi)" : reference.copie_non_suivis) +
+      " : cree a la reprise, a lire en entier."
   return [
     "Audit LEGER du workflow circuit-technique (ADR 0010, principe 5), issue #" + issue + ", tour " + tour + ". Applique ta fiche, section audit leger.",
     "Perimetre : " + perimetre + " Lis les fonctions touchees avec leurs appelants et appeles, pas les fichiers entiers. Ce n'est pas la revue finale complete (regle 10).",
@@ -314,11 +343,19 @@ function constatsCorrigeables(audit) {
   })
 }
 
+// Batteries en echec : code de sortie non nul, ou batterie manquante
+function batteriesRouges(verif) {
+  return verif.batteries.filter(function (b) { return b.code_sortie !== 0 })
+}
+function batteriesIncompletes(verif) {
+  return verif.batteries.length < 3
+}
+
 function noterImplementation(impl) {
   rapport.fichiers_modifies = impl.fichiers_modifies
   rapport.surface_documentaire = impl.surface_documentaire
   rapport.commit_propose_non_execute = impl.commit_propose
-  rapport.doutes_actuary = rapport.doutes_actuary.concat(impl.doutes_actuary)
+  rapport.questions_actuary = rapport.questions_actuary.concat(impl.doutes_actuary)
 }
 
 // ---------------------------------------------------------------------------
@@ -358,7 +395,7 @@ async function derouler() {
   if (impl1.fichiers_modifies.length === 0) return arreter('coder ne declare aucun fichier modifie')
 
   phase('Vérification')
-  const verif1 = await agent(consigneVerification(depot),
+  const verif1 = await agent(consigneVerification(depot, true),
     { label: 'batteries tour 1', agentType: 'audit', effort: 'low', schema: SCHEMA_VERIFICATION })
   if (!verif1) return arreter("l'agent de verification n'a rien rendu")
   tour1.verification = verif1
@@ -368,13 +405,16 @@ async function derouler() {
   if (verif1.ecart_aux_references) {
     return arreter('ecart aux references : tableau avant / apres a viser, regeneration par la session principale')
   }
+  if (batteriesIncompletes(verif1)) return arreter('verification incomplete : moins de trois batteries rapportees')
+  rapport.copie_temporaire = verif1.copie_non_suivis
+  const rouges1 = batteriesRouges(verif1)
 
   phase('Audit léger')
   const audit1 = await agent(consigneAudit(depot, verif1, null, 1),
     { label: 'audit leger tour 1', agentType: 'audit', schema: SCHEMA_AUDIT })
   if (!audit1) return arreter("audit n'a rien rendu (agent saute ou interrompu)")
   tour1.audit = audit1
-  rapport.doutes_actuary = rapport.doutes_actuary.concat(audit1.questions_actuary)
+  rapport.questions_actuary = rapport.questions_actuary.concat(audit1.questions_actuary)
   if (audit1.contradiction_avec_batteries) return arreter('contradiction entre audit et batteries (principe 3)')
   const decisions1 = constatsDecision(audit1)
   if (decisions1.length > 0) {
@@ -382,18 +422,36 @@ async function derouler() {
       decisions1.map(function (c) { return c.releve_de + ' : ' + c.fichier_ligne }).join(' ; ') + ')')
   }
   const aCorriger = constatsCorrigeables(audit1)
+  if (rapport.questions_actuary.length > 0) {
+    const attente1 = []
+    if (aCorriger.length > 0) attente1.push(aCorriger.length + ' constat(s) bloquant(s) ou majeur(s) corrigeable(s) non repris')
+    if (rouges1.length > 0) attente1.push(rouges1.length + ' batterie(s) en echec')
+    if (audit1.conclusion === 'non conforme') attente1.push('audit non conforme')
+    return terminerAvecQuestions(attente1.join(' ; '))
+  }
   if (aCorriger.length === 0) {
+    // Ni batterie rouge ni conclusion non conforme ne peuvent terminer le workflow
+    if (rouges1.length > 0) {
+      return arreter('batterie(s) en echec sans constat corrigeable par coder : ' +
+        rouges1.map(function (b) { return b.commande + ' (code ' + b.code_sortie + ')' }).join(' ; '))
+    }
+    if (audit1.conclusion === 'non conforme') {
+      return arreter('audit non conforme sans constat bloquant ou majeur corrigeable par coder')
+    }
     rapport.statut = 'termine'
     log('Audit leger : ' + audit1.conclusion + ', aucune reprise necessaire')
     return rapport
   }
-  if (verif1.instantane === 'aucun') {
-    return arreter("instantane du tour 1 indisponible : l'audit de la reprise ne pourrait pas isoler le diff de la correction")
+  if (verif1.instantane === 'aucun' && verif1.copie_non_suivis === 'aucun') {
+    return arreter("ni instantane ni copie des fichiers non suivis au tour 1 : l'audit de la reprise ne pourrait pas isoler le diff de la correction")
   }
 
   // Tour 2 : reprise unique (principe 4)
   phase('Reprise')
-  const impl2 = await agent(consigneImplementation(depot.tete, aCorriger),
+  const aTransmettre = rouges1.length > 0
+    ? { constats: aCorriger, batteries_en_echec: rouges1 }
+    : aCorriger
+  const impl2 = await agent(consigneImplementation(depot.tete, aTransmettre),
     { label: 'reprise coder #' + issue, agentType: 'coder', schema: SCHEMA_IMPLEMENTATION })
   if (!impl2) return arreter("coder n'a rien rendu a la reprise")
   const tour2 = { implementation: impl2, verification: null, audit: null }
@@ -401,7 +459,7 @@ async function derouler() {
   noterImplementation(impl2)
 
   phase('Vérification de la reprise')
-  const verif2 = await agent(consigneVerification(depot),
+  const verif2 = await agent(consigneVerification(depot, false),
     { label: 'batteries tour 2', agentType: 'audit', effort: 'low', schema: SCHEMA_VERIFICATION })
   if (!verif2) return arreter("l'agent de verification n'a rien rendu a la reprise")
   tour2.verification = verif2
@@ -411,18 +469,26 @@ async function derouler() {
   if (verif2.ecart_aux_references) {
     return arreter('ecart aux references apres la reprise : tableau avant / apres a viser')
   }
+  if (batteriesIncompletes(verif2)) return arreter('verification incomplete a la reprise : moins de trois batteries rapportees')
 
   phase('Audit de la reprise')
   const audit2 = await agent(consigneAudit(depot, verif2, verif1, 2),
     { label: 'audit leger tour 2', agentType: 'audit', schema: SCHEMA_AUDIT })
   if (!audit2) return arreter("audit n'a rien rendu a la reprise")
   tour2.audit = audit2
-  rapport.doutes_actuary = rapport.doutes_actuary.concat(audit2.questions_actuary)
+  rapport.questions_actuary = rapport.questions_actuary.concat(audit2.questions_actuary)
   if (audit2.contradiction_avec_batteries) return arreter('contradiction entre audit et batteries apres la reprise (principe 3)')
   if (constatsDecision(audit2).length > 0) return arreter('constat(s) a trancher hors workflow apres la reprise')
   if (constatsCorrigeables(audit2).length > 0) {
     return arreter('constat bloquant ou majeur apres la reprise unique : suite rendue a la session principale (principe 4)')
   }
+  const rouges2 = batteriesRouges(verif2)
+  if (rouges2.length > 0) {
+    return arreter('batterie(s) en echec apres la reprise unique : ' +
+      rouges2.map(function (b) { return b.commande + ' (code ' + b.code_sortie + ')' }).join(' ; '))
+  }
+  if (audit2.conclusion === 'non conforme') return arreter('audit de la reprise non conforme (principe 4)')
+  if (rapport.questions_actuary.length > 0) return terminerAvecQuestions('')
   rapport.statut = 'termine'
   log('Audit de la reprise : ' + audit2.conclusion)
   return rapport
