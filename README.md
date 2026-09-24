@@ -83,11 +83,11 @@ propriétés distinctes :
 | Propriété | Ce qui est vérifié | Statut |
 |---|---|---|
 | Reproductibilité à graine égale | `identical()` entre deux appels de `run_engine()` à données, paramètres et `seed` identiques, sur une même machine | au bit près, mesuré |
-| Non-régression | comparaison valeur par valeur (`comparer_objets()`, tolérance 1e-6, relative ou absolue pour une référence quasi nulle) contre les références versionnées (`tests/reference/*.rds`), produites sur la plateforme désignée par l'ADR 0006 | à tolérance explicite ; ce n'est pas du bit près |
+| Non-régression | comparaison valeur par valeur (`comparer_objets()`, tolérance 1e-6, relative ou absolue pour une référence quasi nulle) contre les références versionnées (`tests/reference/*.rds`), produites par la CI (workflow `references.yml`, `ubuntu-22.04`, R 4.3.1 ; ADR 0011) | à tolérance explicite ; ce n'est pas du bit près |
 
 La seconde comparaison absorbe volontairement la dérive d'arrondi d'une
 plateforme à l'autre (écart relatif maximal mesuré 3,5e-07 sur la branche
-lognormale, ADR 0006) :
+lognormale entre le poste Windows et la CI, ADR 0006 et 0011) :
 
     Rscript tests/test_reproductibilite.R
 
@@ -98,10 +98,14 @@ avec renvoi à l'issue :
     Rscript tests/test_unitaires.R
 
 Lorsqu'une modification change volontairement les résultats, lister les écarts
-(`Rscript tests/comparer_references.R`), les expliquer, puis régénérer les
-références (`Rscript tests/generer_references.R`) dans le même commit, sur la
-plateforme désignée par l'ADR 0006, ou les patcher (`tests/patcher_reference.R`)
-si aucune valeur numérique ne change. La CI GitHub Actions lance les tests et compile la
+(`Rscript tests/comparer_references.R`) et les expliquer. Les références ne sont
+plus régénérées hors de la CI, poste compris
+([ADR 0011](docs/adr/0011-plateforme-ci-production-des-references.md)) : le
+workflow `.github/workflows/references.yml`, déclenché manuellement en mode
+`regeneration` (un cas, motifs attendus), produit les `.rds` et le tableau
+avant / après en artefact ; ils sont commités à part après visa et
+vérification. Si aucune valeur numérique ne change, les références peuvent
+être patchées (`tests/patcher_reference.R`). La CI GitHub Actions lance les tests et compile la
 documentation à chaque push sur `main` et à chaque pull request.
 
 ## Contribuer
