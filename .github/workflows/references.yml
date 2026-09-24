@@ -56,11 +56,19 @@
 # auteur Claude <noreply@anthropic.com> (pas de signature cryptographique).
 #
 #   1. Déclencher (session principale, sur ordre explicite du mainteneur) :
-#      par l'API GitHub (workflow_dispatch de references.yml), sur la
-#      branche de travail, jamais sur main ; mode « bascule » (ou
-#      « regeneration » avec cas, motifs séparés par « ; » et issue).
-#      Noter l'identifiant de l'exécution et le commit de tête de la
-#      branche au moment du déclenchement.
+#      par l'API GitHub (workflow_dispatch de references.yml), jamais sur
+#      main. Le workflow calcule sur la réf. déclenchée (résumé : « Commit
+#      calculé … (réf. …) ») :
+#        - bascule : sur la branche de travail (aucun code à commiter) ;
+#        - regeneration (M30) : sur une BRANCHE ÉPHÉMÈRE. Le commit de code
+#          (moteur:, tests:…) est fait en local sur la branche de travail,
+#          NON poussé sur celle-ci, son parent étant la tête distante de la
+#          branche de travail ; il est poussé seul sur une branche
+#          temporaire :
+#            git push origin HEAD:refs/heads/claude/regeneration-<issue>
+#          et le workflow est déclenché avec ref = claude/regeneration-<issue>,
+#          mode « regeneration », cas, motifs séparés par « ; » et issue.
+#      Noter l'identifiant de l'exécution et le commit calculé.
 #   2. Lire le tableau (session principale, puis mainteneur) : résumé du
 #      job, tableau en deux parts. Bascule : chaque cas doit afficher
 #      « dérive numérique seule », part non numérique 0 feuille, aucun
@@ -69,7 +77,10 @@
 #      (« BASCULE REFUSEE ») : rien à commiter ; retirer d'abord du moteur
 #      le libellé fautif (ou l'exclure, motif à l'appui), comme pour M18,
 #      M23 et M24, puis relancer. L'artefact « diagnostic-… » contient le
-#      tableau et le journal complets, sans .rds.
+#      tableau et le journal complets, sans .rds. Regeneration : tableau
+#      avant / après de regenerer_et_rendre_compte.R ; sur un REFUS, rien
+#      à commiter, corriger le code (nouveau commit calculé, nouvelle
+#      exécution sur la branche éphémère).
 #   3. Viser (mainteneur) : visa M3 EXPLICITE sur le tableau réel de cette
 #      exécution. Sans ce visa, rien n'est commité.
 #   4. Télécharger (session principale) l'artefact « references-… » de
@@ -77,21 +88,38 @@
 #      tableau de regenerer_et_rendre_compte.R), la comparaison complète,
 #      plateforme.txt, sessionInfo.txt, md5.txt.
 #   5. Vérifier avant commit (session principale) :
-#      a. le commit calculé (plateforme.txt) est la tête actuelle de la
-#         branche de travail (sinon, redéclencher) ;
+#      a. bascule : le commit calculé (plateforme.txt) est la tête actuelle
+#         de la branche de travail (sinon, redéclencher) ; regeneration :
+#         le commit calculé est le commit de code poussé sur la branche
+#         éphémère, et son parent est la tête distante actuelle de la
+#         branche de travail (sinon, rebaser le commit de code et
+#         redéclencher) ;
 #      b. les md5 des .rds copiés dans tests/reference/ sont ceux de
 #         md5.txt ;
 #      c. recomparaison locale : Rscript tests/comparer_references.R
 #         --deux-parts sur les .rds copiés (dans une session Linux, seule
 #         la dérive entre cette machine et la CI doit apparaître, part non
-#         numérique vide), puis Rscript tests/test_reproductibilite.R.
-#   6. Commiter (session principale) les seuls .rds, en un commit
-#      « tests: » (bascule : les trois fichiers, « tests: bascule des
-#      références sur la CI (#67) ») dont le message reprend la plateforme
-#      (ImageOS, ImageVersion, R, BLAS), l'écart maximal par fichier,
-#      « aucune feuille non numérique modifiée », le lien de l'exécution et
-#      le visa M3 du mainteneur ; pousser sur la branche de travail sur
-#      ordre du mainteneur, puis vérifier que la CI est verte.
+#         numérique vide), puis Rscript tests/test_reproductibilite.R ;
+#      d. regeneration : le commit final (étape 6) ne diffère du commit
+#         calculé QUE par le .rds du cas ; code, tests hors références et
+#         documentation identiques :
+#           git diff --quiet <calculé> <final> -- . ':!tests/reference'
+#           git diff --name-only <calculé> <final>   # tests/reference/<cas>.rds seul
+#   6. Commiter (session principale) :
+#      - bascule : les seuls .rds, en un commit « tests: » (« tests:
+#        bascule des références sur la CI (#67) ») ;
+#      - regeneration (M30) : le code ET le .rds en UN SEUL commit sur la
+#        branche de travail, en complétant le commit calculé (git add
+#        tests/reference/<cas>.rds ; git commit --amend), puis vérification
+#        5d ; le préfixe est celui du commit de code ;
+#      dans les deux cas, le message reprend la plateforme (ImageOS,
+#      ImageVersion, R, BLAS), l'écart maximal par fichier, « aucune
+#      feuille non numérique modifiée » (bascule) ou le tableau avant /
+#      après (regeneration), le commit calculé, le lien de l'exécution, les
+#      md5 et le visa M3 du mainteneur ; pousser sur la branche de travail
+#      sur ordre du mainteneur, vérifier que la CI est verte, puis
+#      supprimer la branche éphémère :
+#        git push origin --delete claude/regeneration-<issue>
 #
 # À NE PAS FAIRE
 #
@@ -99,8 +127,12 @@
 #     mainteneur ; commiter avant son visa M3 sur le tableau réel.
 #   - Commiter des .rds issus d'une exécution en échec, d'une autre
 #     exécution que celle dont le tableau a été visé, ou calculés sur un
-#     autre commit que la tête de la branche ; commiter autre chose que
-#     les .rds dans le commit de bascule.
+#     autre commit que la tête de la branche (bascule) ou que le commit de
+#     code du commit final (regeneration, vérification 5d) ; commiter
+#     autre chose que les .rds dans le commit de bascule.
+#   - Regeneration : pousser le commit de code sur la branche de travail
+#     avant ses .rds (la CI y serait rouge), séparer code et .rds en deux
+#     commits, ou laisser la branche éphémère après le commit final.
 #   - Régénérer ensuite sur le poste (generer_references.R local) : après
 #     la bascule, toute référence est produite ici.
 #   - Relever TOLERANCE, ou ajouter une feuille à INSTABLES, pour faire
@@ -176,9 +208,12 @@ jobs:
           } | tee "$SORTIE/plateforme.txt"
           Rscript -e 'print(sessionInfo()); cat("\nextSoftVersion() :\n"); print(extSoftVersion()); cat("\nLa_version() :", La_version(), "\nLa_library() :", La_library(), "\n")' \
             | tee "$SORTIE/sessionInfo.txt"
+          echo "::notice title=Commit calculé::$GITHUB_SHA (réf. $GITHUB_REF_NAME)"
           echo "::notice title=Plateforme::${ImageOS:-?} ${ImageVersion:-?}, $(Rscript -e 'cat(R.version.string)')"
           {
             echo "## Plateforme"
+            echo
+            echo "**Commit calculé : \`$GITHUB_SHA\` (réf. \`$GITHUB_REF_NAME\`)**"
             echo
             echo '```'
             cat "$SORTIE/plateforme.txt"
