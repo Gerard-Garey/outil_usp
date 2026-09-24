@@ -128,8 +128,10 @@
 #        obligatoire) ;
 #        message : tableau avant / après (ou son emplacement docs/tableaux/…),
 #        plateforme (ImageOS, ImageVersion, R, BLAS), écart maximal par
-#        fichier, lien de l'exécution, SHA du commit calculé, empreinte
-#        git rev-parse <commit calculé>:R, md5, visa ; puis suppression
+#        fichier, lien de la DERNIÈRE exécution, SHA de la TÊTE calculée,
+#        empreinte git rev-parse <commit calculé>:R, md5, visa ; après une
+#        reprise, une ligne cite les exécutions refusées (lien, cause du
+#        refus) ; puis suppression
 #        aussitôt de la branche éphémère (le commit calculé cesse d'être
 #        atteignable : le message du commit final en garde la trace) :
 #          git push origin --delete claude/regeneration-<issue>
