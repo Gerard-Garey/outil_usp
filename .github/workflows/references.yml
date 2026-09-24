@@ -62,9 +62,9 @@
 #        - bascule : sur la branche de travail (aucun code à commiter) ;
 #        - regeneration (M30, ADR 0011 amendé le 24/09/2026) : sur une
 #          BRANCHE ÉPHÉMÈRE claude/regeneration-<issue>, créée depuis la
-#          tête de la branche de travail et portant le seul commit de code
-#          de l'issue (R/, tests/ hors tests/reference/), NON poussé sur la
-#          branche de travail ; sans PR, jamais fusionnée :
+#          tête de la branche de travail (notée <tête W>) et portant le
+#          commit de code de l'issue (R/, tests/ hors tests/reference/),
+#          NON poussé sur la branche de travail ; sans PR, jamais fusionnée :
 #            git switch -c claude/regeneration-<issue>   # depuis la tête
 #            git commit …                                # commit de code
 #            git push -u origin claude/regeneration-<issue>
@@ -81,8 +81,9 @@
 #      M23 et M24, puis relancer. L'artefact « diagnostic-… » contient le
 #      tableau et le journal complets, sans .rds. Regeneration : tableau
 #      avant / après de regenerer_et_rendre_compte.R ; sur un REFUS, rien
-#      à commiter, corriger le code (nouveau commit calculé, nouvelle
-#      exécution sur la branche éphémère).
+#      à commiter sur la branche de travail : la correction devient un
+#      commit SUPPLÉMENTAIRE sur la branche éphémère (poussé), dont la
+#      nouvelle tête est le nouveau commit calculé ; nouvelle exécution.
 #   3. Viser (mainteneur) : visa M3 EXPLICITE sur le tableau réel de cette
 #      exécution. Sans ce visa, rien n'est commité.
 #   4. Télécharger (session principale) l'artefact « references-… » de
@@ -94,9 +95,10 @@
 #         de la branche de travail (sinon, redéclencher) ;
 #      a′. regeneration (M30) : le commit calculé (plateforme.txt) est la
 #         tête de la branche éphémère ; sur la branche de travail, après
-#         « git cherry-pick -n <commit calculé> » et copie du .rds (étape
-#         6), l'arbre de travail a exactement le code du commit calculé :
-#           git diff --quiet <commit calculé> -- R tests ':(exclude)tests/reference'
+#         « git cherry-pick -n <tête W>..<commit calculé> », copie du .rds
+#         et git add (étape 6), l'INDEX a exactement le code du commit
+#         calculé :
+#           git diff --cached --quiet <commit calculé> -- R tests ':(exclude)tests/reference'
 #         (code de sortie 0) ; empreinte de l'arbre R/ consignée :
 #           git rev-parse <commit calculé>:R
 #         (après le commit final, git rev-parse HEAD:R doit être identique) ;
@@ -116,10 +118,14 @@
 #        branche de travail, jamais par --amend ni fixup (ADR 0007, point
 #        6) :
 #          git switch <branche de travail>
-#          git cherry-pick -n <commit calculé>
-#          cp <artefact>/<cas>.rds tests/reference/   # puis 5a′, 5b, 5c
-#          git add tests/reference/<cas>.rds
-#          git commit                                 # domaine du code
+#          git cherry-pick -n <tête W>..<commit calculé>   # tous les commits
+#                                                          # de la branche éphémère
+#          cp <artefact>/<cas>.rds tests/reference/
+#          git add tests/reference/<cas>.rds             # puis 5a′, 5b, 5c
+#          git commit                                    # domaine du code
+#        (« cherry-pick -n <commit calculé> » seul échoue en conflit dès
+#        que la branche éphémère porte deux commits : l'intervalle est
+#        obligatoire) ;
 #        message : tableau avant / après (ou son emplacement docs/tableaux/…),
 #        plateforme (ImageOS, ImageVersion, R, BLAS), écart maximal par
 #        fichier, lien de l'exécution, SHA du commit calculé, empreinte
