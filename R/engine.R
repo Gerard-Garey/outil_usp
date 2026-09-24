@@ -342,6 +342,25 @@ usp_condition_premier_ordre <- function(delta, gamma, x, y, xbar = mean(x),
   list(gradient = g, gradient_projete = pg, hessien_gamma = H, pas_newton_gamma = pas)
 }
 
+# Decision de Kuhn-Tucker pour UN demarrage (issue #22, decision du mainteneur
+# du 24/09/2026 ; specification d'actuary) : fonction pure de
+# cpo = usp_condition_premier_ordre(delta_s, gamma_s, ...) et de gamma_s.
+# TRUE si et seulement si, sur ce MEME point : gradient et gradient projete
+# finis, gamma_s hors des bornes numeriques BORNES_GAMMA (a TOL_DELTA_BORD
+# pres), H_gamma_gamma finie et > 0, |pas de Newton en gamma| <= rep_pas et
+# |pg_delta| <= rep_gd. Reperes : 1e-6 ancre sur M9 (M17), 1e-4 regle unique
+# au bord comme a l'interieur (M16) ; ce sont les seules definitions de ces
+# reperes (le libelle de usp_controles_numeriques() les cite en toutes
+# lettres). Point d'accroche de #71 (pas de Newton complet).
+usp_kkt_satisfaite <- function(cpo, gamma, rep_pas = 1e-6, rep_gd = 1e-4) {
+  gamma_bord <- !is.finite(gamma) || gamma <= BORNES_GAMMA[1] + TOL_DELTA_BORD ||
+    gamma >= BORNES_GAMMA[2] - TOL_DELTA_BORD
+  isTRUE(all(is.finite(c(cpo$gradient, cpo$gradient_projete)))) && !gamma_bord &&
+    isTRUE(is.finite(cpo$hessien_gamma) && cpo$hessien_gamma > 0) &&
+    isTRUE(is.finite(cpo$pas_newton_gamma) && abs(cpo$pas_newton_gamma) <= rep_pas) &&
+    isTRUE(abs(cpo$gradient_projete[["delta"]]) <= rep_gd)
+}
+
 # Minimisation sous contrainte 0 <= delta <= 1 (annexe XVII, par. 6),
 # avec démarrages multiples pour éviter les optima locaux.
 # controle : parametres de stats::optim() ; la valeur par defaut est celle
@@ -356,6 +375,7 @@ usp_ajuster <- function(x, y, n_starts_delta = 9, verbose = FALSE,
   best <- NULL
   vals <- rep(NA_real_, nrow(starts))
   codes <- rep(NA_integer_, nrow(starts))
+  pars <- matrix(NA_real_, nrow(starts), 2)
   for (i in seq_len(nrow(starts))) {
     fit <- try(stats::optim(
       par = c(starts$delta[i], starts$gamma[i]),
@@ -366,6 +386,7 @@ usp_ajuster <- function(x, y, n_starts_delta = 9, verbose = FALSE,
     if (inherits(fit, "try-error")) next
     vals[i] <- fit$value
     codes[i] <- fit$convergence
+    pars[i, ] <- fit$par
     # La marge 1e-10 retient le PREMIER demarrage a l'optimum en cas
     # d'egalite : elle stabilise gamma estime entre plateformes (ne pas la
     # modifier, decision du mainteneur, issue #22).
@@ -385,6 +406,17 @@ usp_ajuster <- function(x, y, n_starts_delta = 9, verbose = FALSE,
   n_optimum <- sum(a_optimum, na.rm = TRUE)
   n_optimum_code0 <- sum(a_optimum & codes == 0L, na.rm = TRUE)
   n_echec <- sum(is.na(vals))
+  # Condition de Kuhn-Tucker jugee sur CHAQUE demarrage a l'optimum (meme
+  # ensemble a_optimum que ci-dessus, aucune deuxieme notion d'optimum) :
+  # le controle est reussi si au moins un demarrage la satisfait (regle
+  # alignee sur M15, decision du mainteneur du 24/09/2026, issue #22). Le
+  # verdict ne depend plus du demarrage retenu, departage par l'ordre de la
+  # grille et variable selon la plateforme. Tous les demarrages sont evalues
+  # (pas d'arret au premier succes, qui reintroduirait un ordre).
+  idx <- which(!is.na(vals) & a_optimum)
+  kkt_ok <- vapply(idx, function(i) usp_kkt_satisfaite(
+    usp_condition_premier_ordre(pars[i, 1], pars[i, 2], x, y, xbar), pars[i, 2]),
+    logical(1))
 
   d <- best$par[1]; g <- best$par[2]
   k <- usp_noyau(d, g, x, y, xbar)
@@ -401,7 +433,10 @@ usp_ajuster <- function(x, y, n_starts_delta = 9, verbose = FALSE,
             part_starts_convergents = part_convergents,
             n_starts_optimum = n_optimum, n_starts_optimum_code0 = n_optimum_code0,
             n_starts_echec = n_echec,
-            delta_au_bord = usp_regime(d, x)$delta_au_bord))
+            delta_au_bord = usp_regime(d, x)$delta_au_bord,
+            # En DERNIERE position (patch chirurgical des references, voir
+            # run_engine()).
+            kkt_au_moins_un = any(kkt_ok)))
 }
 
 # Controles numeriques de l'estimation lognormale (issue #22, decision M11 du
@@ -413,7 +448,8 @@ usp_ajuster <- function(x, y, n_starts_delta = 9, verbose = FALSE,
 # Regle de stabilite inter-plateformes : le detail ne contient aucune valeur
 # d'optimiseur (g, pg, H, pas de Newton, objectifs) ; ces valeurs sont dans
 # les champs numeriques de fit (res$ajustement) et dans stat. Seuls y
-# figurent les reperes, le regime de delta, la decision et des entiers.
+# figurent les reperes, le regime (delta, gamma, courbure) du demarrage
+# retenu, le respect de la regle (oui / non) et des entiers.
 usp_controles_numeriques <- function(fit) {
   fam <- "H. Controles numeriques de l'estimation"
   res <- list()
@@ -422,66 +458,72 @@ usp_controles_numeriques <- function(fit) {
          verdict = if (ok) "OK" else "ECHEC", detail = detail)
 
   # --- Condition du premier ordre (KKT) -------------------------------------
-  # Reperes : |pas de Newton en gamma| <= 1e-6, ancre sur M9 (erreur relative
-  # sur sigma ~ Delta gamma, tolerance de non-regression 1e-6) ; plancher
-  # Delta gamma ~ -h^2/3 ~ -3,3e-7 (biais de la difference centree d'optim(),
-  # ndeps = h = 1e-3 ; derivation d'actuary verifiee par simulation). Taux de
-  # faux ECHEC mesure de 0,5 a 1 % a delta interieur (dispersion des points
-  # d'arret equivalents, jusqu'a ~2,5e-6), nul au bord : cause traitee par #63.
-  # |pg_delta| <= 1e-4, REGLE UNIQUE au bord comme a l'interieur (decision du
-  # mainteneur apres audit : exiger pg_delta = 0 au bord creait une
-  # discontinuite, residu 3,6e-6 -> ECHEC au bord, OK a delta interieur apres
-  # une perturbation des donnees de 1e-12) ; repere fixe sur mesure.
-  REP_PAS <- 1e-6; REP_GD <- 1e-4
+  # Regle (decision du mainteneur du 24/09/2026, issue #22, constat 4 de la
+  # revue finale d'audit ; specification d'actuary) : reussi si AU MOINS UN
+  # demarrage a l'optimum (objectif a moins de 1e-6 du minimum, meme ensemble
+  # que M15) satisfait les deux conditions sur le MEME point
+  # (usp_kkt_satisfaite()) ; decision calculee dans usp_ajuster()
+  # (fit$kkt_au_moins_un). L'ancienne regle jugeait le seul demarrage
+  # retenu, departage par l'ordre de la grille : mesure d'actuary (200 jeux
+  # simules a delta interieur, graine 20260924, Linux, R 4.3.3), 2 faux
+  # ECHEC sur 200 (|Delta gamma| du retenu 1,24e-6 et 1,39e-6), 0 sur 200
+  # avec la nouvelle regle (max sur les jeux de min_s |Delta gamma_s| =
+  # 1,96e-7).
+  # Reperes (definis dans usp_kkt_satisfaite()) : |pas de Newton en gamma|
+  # <= 1e-6, ancre sur M9 (erreur relative sur sigma ~ Delta gamma,
+  # tolerance de non-regression 1e-6) ; plancher Delta gamma ~ -h^2/3
+  # ~ -3,3e-7 (biais de la difference centree d'optim(), ndeps = h = 1e-3 ;
+  # derivation d'actuary verifiee par simulation). |pg_delta| <= 1e-4, REGLE
+  # UNIQUE au bord comme a l'interieur (decision du mainteneur apres audit :
+  # exiger pg_delta = 0 au bord creait une discontinuite).
+  # Le detail decrit le regime du demarrage retenu (delta, gamma, finitude,
+  # signe de la courbure) mais ne le compare plus aux reperes : ces
+  # comparaisons dependaient du demarrage retenu et de la plateforme. stat
+  # reste le Delta gamma du demarrage retenu.
   g <- fit$gradient; pg <- fit$gradient_projete
-  H <- fit$hessien_gamma; pas <- fit$pas_newton_gamma
+  H <- fit$hessien_gamma
   grad_fini <- all(is.finite(c(g, pg)))
   courbure_finie <- is.finite(H)
   gamma_bord <- !is.finite(fit$gamma) ||
     fit$gamma <= BORNES_GAMMA[1] + TOL_DELTA_BORD || fit$gamma >= BORNES_GAMMA[2] - TOL_DELTA_BORD
   courbure_ok <- courbure_finie && H > 0
-  pas_ok <- !gamma_bord && is.finite(pas) && abs(pas) <= REP_PAS
   au_bord <- isTRUE(fit$delta_au_bord)
-  delta_ok <- isTRUE(abs(pg[["delta"]]) <= REP_GD)
-  ok <- grad_fini && !gamma_bord && courbure_ok && pas_ok && delta_ok
+  ok <- isTRUE(fit$kkt_au_moins_un)
   # Volumes constants (#58) : pi_t ne depend pas de delta, g_delta = 0 et
   # delta n'est pas identifie ; la valeur rendue par l'optimiseur (souvent 0)
   # est un artefact, et le libelle ne la presente pas comme un bord.
   vol_cst <- isTRUE(usp_regime(fit$delta, fit$x)$volumes_constants)
 
-  txt_delta <- if (vol_cst)
-    sprintf(paste("volumes constants : delta non identifie (#58), composante en delta",
-                  "du gradient %s le repere 1e-4"),
-            if (delta_ok) "sous" else "au-dessus de")
-  else if (au_bord)
-    sprintf(paste("delta AU BORD %d : composante projetee du gradient en delta %s le",
-                  "repere 1e-4 (condition de Kuhn-Tucker %s)"),
-            if (fit$delta >= 0.5) 1L else 0L,
-            if (delta_ok) "sous" else "au-dessus de",
-            if (delta_ok) "satisfaite" else "violee")
-  else sprintf("delta interieur a [0, 1] : |g_delta| %s le repere 1e-4",
-               if (delta_ok) "sous" else "au-dessus de")
+  txt_delta <- if (vol_cst) "volumes constants : delta non identifie (#58)"
+  else if (au_bord) sprintf("delta AU BORD %d", if (fit$delta >= 0.5) 1L else 0L)
+  else "delta interieur a [0, 1]"
   dom_gamma <- sprintf("[%g, %g]", BORNES_GAMMA[1], BORNES_GAMMA[2])
   txt_gamma <- if (gamma_bord)
     sprintf(paste("gamma sur une borne numerique de %s : maximum de vraisemblance non",
                   "atteint, pas de Newton non defini"), dom_gamma)
   else sprintf("gamma interieur a %s", dom_gamma)
-  txt_pas <- if (gamma_bord) NULL
+  txt_courbure <- if (gamma_bord || !courbure_finie) NULL
   else if (!courbure_ok)
     "courbure H_gamma_gamma non strictement positive : pas de Newton non defini"
-  else sprintf(paste("courbure H_gamma_gamma positive ; pas de Newton |Delta gamma| =",
-                     "|pg_gamma / H_gamma_gamma| %s le repere 1e-6"),
-               if (pas_ok) "sous" else "au-dessus de")
-  add("Condition du premier ordre (gradient projete, KKT)", ok, pas,
+  else "courbure H_gamma_gamma positive"
+  add("Condition du premier ordre (gradient projete, KKT)", ok, fit$pas_newton_gamma,
       paste0(if (!grad_fini) "Gradient non fini. " else "",
              if (!courbure_finie) "Courbure non finie. " else "",
              "Gradient analytique de l'objectif profile O(delta, gamma), projete sur ",
-             "les bornes. ", paste(c(txt_delta, txt_gamma, txt_pas), collapse = " ; "), ". ",
+             "les bornes. Demarrage retenu : ",
+             paste(c(txt_delta, txt_gamma, txt_courbure), collapse = " ; "), ". ",
+             "Regle : au moins un demarrage a l'optimum (objectif a moins de 1e-6 du ",
+             "minimum) satisfait les deux conditions sur le meme point, pas de Newton ",
+             "|Delta gamma| = |pg_gamma / H_gamma_gamma| <= 1e-6 (gamma interieur, ",
+             "H_gamma_gamma > 0) et composante projetee du gradient en delta ",
+             "|pg_delta| <= 1e-4 : ", if (ok) "oui" else "non",
+             " (M15 etendue a KKT). ",
              "Repere 1e-6 ancre sur M9 : l'erreur relative sur sigma estime est de ",
              "l'ordre de Delta gamma ; plancher Delta gamma ~ -h^2/3 ~ -3,3e-7, biais ",
-             "de la difference centree d'optim() (ndeps = h = 1e-3). Valeurs numeriques : ",
-             "res$ajustement (gradient, gradient_projete, hessien_gamma, ",
-             "pas_newton_gamma) ; stat = Delta gamma."))
+             "de la difference centree d'optim() (ndeps = h = 1e-3). Repere 1e-4 : ",
+             "regle unique au bord comme a l'interieur. Valeurs numeriques du ",
+             "demarrage retenu : res$ajustement (gradient, gradient_projete, ",
+             "hessien_gamma, pas_newton_gamma) ; stat = Delta gamma du demarrage retenu."))
 
   # --- Convergence multi-demarrages ------------------------------------------
   # Precision de M11 (decision du mainteneur apres audit) : reussi si au
@@ -4180,6 +4222,11 @@ run_engine <- function(xt, yt,
   fit$ecart_jackknife <- if (jack_calcule)
     max(abs(jack$sigma_usp - param$sigma_usp), na.rm = TRUE) / param$sigma_usp else NULL
   fit$largeur_ic <- if (!is.null(ic)) unname((ic[4] - ic[2]) / param$sigma_usp) else NULL
+  # kkt_au_moins_un (#22) est replace en DERNIERE position de res$ajustement,
+  # apres ecart_jackknife et largeur_ic apposes ci-dessus : le patcheur des
+  # references (tests/patcher_reference.R) n'ajoute une feuille qu'en fin de
+  # conteneur, et refuse le patch (verification "structure") sinon.
+  fit <- fit[c(setdiff(names(fit), "kkt_au_moins_un"), "kkt_au_moins_un")]
 
   # Elements du detail des lignes jackknife et IC de usp_tests() : calcules
   # ici, transmis a usp_tests() et NON stockes dans fit ni dans le resultat.

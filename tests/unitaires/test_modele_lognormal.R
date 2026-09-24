@@ -246,7 +246,16 @@ verifier("usp_ajuster : liste exacte des champs de l'ajustement (structure des r
                                  "obj_min", "convergence", "part_starts_convergents",
                                  "n_starts_optimum", "n_starts_optimum_code0",
                                  "n_starts_echec",
-                                 "delta_au_bord")))
+                                 "delta_au_bord", "kkt_au_moins_un")))
+# Condition du patch chirurgical des references (#22) : le patcheur n'ajoute
+# une feuille qu'en fin de conteneur ; run_engine() replace kkt_au_moins_un
+# apres ecart_jackknife et largeur_ic.
+verifier("run_engine : res$ajustement se termine par kkt_au_moins_un (condition de patchabilite des references)",
+         {
+           r <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II", B = 99)
+           identical(utils::tail(names(r$ajustement), 1), "kkt_au_moins_un") &&
+             all(c("ecart_jackknife", "largeur_ic") %in% names(r$ajustement))
+         })
 echec_attendu("usp_ajuster : erreur explicite si l'objectif n'est fini en aucun point",
               "constat audit : y[3] = Inf -> sigma = Inf, obj_min = 1e12, sans erreur",
               leve_erreur(usp_ajuster(x, replace(y, 3, Inf))))
