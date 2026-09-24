@@ -99,9 +99,18 @@
 #         et git add (étape 6), l'INDEX a exactement le code du commit
 #         calculé :
 #           git diff --cached --quiet <commit calculé> -- R tests ':(exclude)tests/reference'
+#         (code de sortie 0), et l'arbre de travail est l'index (l'étape c
+#         teste l'arbre de travail ; une modification non indexée passerait
+#         la ligne précédente) :
+#           git diff --quiet -- R tests
 #         (code de sortie 0) ; empreinte de l'arbre R/ consignée :
 #           git rev-parse <commit calculé>:R
-#         (après le commit final, git rev-parse HEAD:R doit être identique) ;
+#         (après le commit final, git rev-parse HEAD:R doit être identique).
+#         Si la branche de travail a avancé sur R/ ou tests/ depuis la
+#         création de la branche éphémère, (a′) refuse : supprimer la
+#         branche éphémère, la recréer depuis la nouvelle tête et relancer
+#         le workflow. Un commit qui change plusieurs cas (#40) n'a pas de
+#         voie avant le commit préparatoire de la branche D (M33) ;
 #      b. les md5 des .rds copiés dans tests/reference/ sont ceux de
 #         md5.txt ;
 #      c. recomparaison locale : Rscript tests/comparer_references.R
@@ -123,8 +132,9 @@
 #          cp <artefact>/<cas>.rds tests/reference/
 #          git add tests/reference/<cas>.rds             # puis 5a′, 5b, 5c
 #          git commit                                    # domaine du code
-#        (« cherry-pick -n <commit calculé> » seul échoue en conflit dès
-#        que la branche éphémère porte deux commits : l'intervalle est
+#        (quand la branche éphémère porte deux commits, « cherry-pick -n
+#        <commit calculé> » seul échoue en conflit, ou n'applique que la
+#        tête sans le signaler, arrêté alors par (a′) : l'intervalle est
 #        obligatoire) ;
 #        message : tableau avant / après (ou son emplacement docs/tableaux/…),
 #        plateforme (ImageOS, ImageVersion, R, BLAS), écart maximal par
