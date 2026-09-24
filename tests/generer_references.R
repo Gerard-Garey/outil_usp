@@ -1,9 +1,16 @@
 ###############################################################################
 #  tests/generer_references.R  --  REGENERATION DES VALEURS DE REFERENCE
 #
-#  A lancer UNIQUEMENT lorsqu'une modification change volontairement les
-#  resultats du moteur, apres avoir documente les ecarts (valeur avant, valeur
-#  apres, explication) dans la PR ou le commit correspondant.
+#  RESERVE A LA CI : execute par le workflow .github/workflows/references.yml
+#  (mode bascule), sur un checkout jetable du runner ; ADR 0011, point 10.
+#  Ne pas l'executer ailleurs (poste du mainteneur et sessions compris) : une
+#  regeneration ordinaire passe par le mode regeneration du meme workflow
+#  (tests/regenerer_et_rendre_compte.R), un changement non numerique par
+#  tests/patcher_reference.R (skill verifier-reproductibilite).
+#
+#  Ecrit dans tests/reference/, sans repertoire de sortie parametrable ; les
+#  ecarts (valeur avant, valeur apres, explication) sont documentes avant,
+#  dans la PR ou le commit correspondant.
 #
 #  Usage (depuis la racine du depot) :
 #      Rscript tests/generer_references.R            # tous les cas

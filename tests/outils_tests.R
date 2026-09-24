@@ -31,8 +31,10 @@ DOSSIER_REF <- file.path(RACINE, "tests", "reference")
 # elementaire par comparer_objets() (plus bas) : relative si |reference| >
 # TOLERANCE, absolue sinon. Decision M9 du mainteneur (issue #14, point 1 ;
 # ADR 0006, second amendement) : 1e-6, soit environ trois fois la derive
-# maximale mesuree entre le poste du mainteneur (plateforme de production des
-# references) et Linux R 4.3.3 (3,508e-07 sur bootstrap$sigma_boot). Seuil
+# maximale mesuree entre le poste du mainteneur (alors plateforme de
+# production des references ; depuis l'ADR 0011, les references sont
+# produites par la CI, workflow references.yml) et Linux R 4.3.3 (3,508e-07
+# sur bootstrap$sigma_boot). Seuil
 # empirique, cale sur cette mesure : il absorbe la derive d'optimiseur entre
 # plateformes et detecte, valeur par valeur, tout changement de methode.
 TOLERANCE <- 1e-6
