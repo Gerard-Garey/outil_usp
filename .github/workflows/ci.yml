@@ -13,6 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: r-lib/actions/setup-r@v2
+        id: installer_r
         with:
           # Même version que le poste de développement.
           r-version: "4.3.1"
@@ -20,6 +21,15 @@ jobs:
         run: Rscript tests/test_unitaires.R
       - name: Reproductibilité et non-régression
         run: Rscript tests/test_reproductibilite.R
+      # Issue #66 : si une étape précédente du job a échoué (tests unitaires
+      # ou reproductibilité ; l'étape de reproductibilité est alors sautée
+      # quand ce sont les tests unitaires qui échouent), publie le tableau des
+      # écarts aux références dans le résumé du job, visible depuis la PR.
+      # Ne s'exécute pas quand tout est vert (coût nul) ; R doit avoir été
+      # installé. Rapport seulement : un job en échec le reste.
+      - name: Tableau des écarts aux références (après un échec)
+        if: failure() && steps.installer_r.outcome == 'success'
+        run: Rscript tests/comparer_references.R --markdown "$GITHUB_STEP_SUMMARY"
 
   documentation:
     name: Compilation de la documentation LaTeX
