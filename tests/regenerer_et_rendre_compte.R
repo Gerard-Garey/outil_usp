@@ -80,8 +80,9 @@ DOSSIER_TESTS <- if (exists("DOSSIER_TESTS", envir = environment(), inherits = F
   })
 source(file.path(DOSSIER_TESTS, "outils_tests.R"), local = TRUE)
 
-# Longueur maximale d'une valeur affichee dans le tableau (caracteres).
-LARGEUR_CELLULE <- 60L
+# LARGEUR_CELLULE, une_ligne(), echapper(), cellule() et plateforme() sont
+# definies dans outils_tests.R, partagees avec comparer_references.R
+# --markdown (issue #66).
 
 # ---------------------------------------------------------------------------
 #  Analyse : quelles feuilles changent, sont-elles toutes attendues ?
@@ -225,17 +226,6 @@ remplacer_reference <- function(apres, avant, designees, chemin) {
 #  Tableau avant / apres en markdown
 # ---------------------------------------------------------------------------
 
-# Cellule de tableau : une ligne, pas de barre verticale ni d'accent grave
-# non echappes, tronquee lisiblement au-dela de largeur caracteres.
-une_ligne <- function(x) trimws(gsub("[\r\n\t]+", " ", x))
-echapper <- function(x) gsub("|", "\\|", gsub("`", "'", x, fixed = TRUE), fixed = TRUE)
-cellule <- function(x, largeur = LARGEUR_CELLULE) {
-  x <- une_ligne(x)
-  long <- nchar(x) > largeur
-  x[long] <- sprintf("%s\u2026 (%d car.)", substr(x[long], 1L, largeur - 1L), nchar(x[long]))
-  echapper(x)
-}
-
 # Position du premier caractere different de deux chaines (NA si egales).
 premiere_difference <- function(a, b) {
   ca <- strsplit(a, "")[[1]]; cb <- strsplit(b, "")[[1]]
@@ -261,8 +251,6 @@ cellules_paire <- function(avant, apres, largeur = LARGEUR_CELLULE) {
   }
   list(avant = echapper(fen(a)), apres = echapper(fen(b)))
 }
-
-plateforme <- function() sprintf("%s, %s", R.version.string, Sys.info()[["sysname"]])
 
 tableau_markdown <- function(a, nom, issue = NA, motifs = character(0),
                              date = Sys.Date(), plateforme_txt = plateforme(),

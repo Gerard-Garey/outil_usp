@@ -171,6 +171,28 @@ extraire_option <- function(args, option) {
 designer <- function(cles, motifs)
   Filter(function(cle) any(vapply(motifs, grepl, logical(1), x = cle)), cles)
 
+# ---------------------------------------------------------------------------
+#  Cellules de tableau markdown : partagees par regenerer_et_rendre_compte.R
+#  (tableau avant / apres, issue #64) et comparer_references.R --markdown
+#  (resume du job de CI, issue #66).
+# ---------------------------------------------------------------------------
+
+# Longueur maximale d'une valeur affichee dans le tableau (caracteres).
+LARGEUR_CELLULE <- 60L
+
+# Cellule de tableau : une ligne, pas de barre verticale ni d'accent grave
+# non echappes, tronquee lisiblement au-dela de largeur caracteres.
+une_ligne <- function(x) trimws(gsub("[\r\n\t]+", " ", x))
+echapper <- function(x) gsub("|", "\\|", gsub("`", "'", x, fixed = TRUE), fixed = TRUE)
+cellule <- function(x, largeur = LARGEUR_CELLULE) {
+  x <- une_ligne(x)
+  long <- nchar(x) > largeur
+  x[long] <- sprintf("%s\u2026 (%d car.)", substr(x[long], 1L, largeur - 1L), nchar(x[long]))
+  echapper(x)
+}
+
+plateforme <- function() sprintf("%s, %s", R.version.string, Sys.info()[["sysname"]])
+
 # Aplatit un objet en feuilles atomiques nommees par leur chemin
 # (ex. "parametre_final$sigma_usp", "tests[[12]]$p_mc", "donnees$xt[3]").
 # Partage par comparer_references.R et patcher_reference.R : le second prend
