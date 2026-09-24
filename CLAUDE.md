@@ -39,6 +39,7 @@ Les tests de reproductibilité exécutent `run_engine()` pour les trois méthode
 - **Un problème hors périmètre devient une issue**, pas une branche, sauf **correctif rapide** (références identiques, un seul domaine, pas de `.tex`) : branche temporaire partie de `main`, PR directe vers `main`.
 - **Création d'issue sur accord du mainteneur** : agents et sessions rédigent l'issue proposée (titre, libellés, corps) dans leur compte rendu ; elle n'est créée qu'une fois approuvée, sauf autorisation explicite du brief.
 - Messages de commit en français, avec accents, préfixés par le domaine : `moteur:` (`R/engine.R`), `app:` (`app.R`, `R/display_helpers.R`), `tests:`, `docs:` (doc LaTeX, `docs/`, README), `claude:` (`CLAUDE.md`, `.claude/`), `repo:` (`.github/`, `.gitignore`, `DESCRIPTION`, licence). Renvoyer à l'issue concernée (`#3`) quand elle existe.
+- **Auteur des commits faits par Claude** (sessions, sous-agents, workflows ; poste local comme cloud) : `Claude <noreply@anthropic.com>` (`git config user.name Claude` et `git config user.email noreply@anthropic.com` dans le dépôt), jamais l'identité du mainteneur ni un `-c user.name=…` qui la reprend ; le pied de message garde `Co-Authored-By` et, en session cloud, `Claude-Session`. Décision du mainteneur du 24/09/2026 ; les commits antérieurs, déjà publiés, ne sont pas réécrits.
 
 ## Architecture (contrainte impérative)
 
