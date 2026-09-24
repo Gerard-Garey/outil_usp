@@ -50,6 +50,28 @@
 #       sortie 1 si l'une echoue. --sans-batteries les omet (le tableau le
 #       dit et donne les commandes a lancer).
 #
+#  Mode creation (decision M31, ADR 0011 amende ; mode creation de
+#  .github/workflows/references.yml) : creer la reference d'un cas de CAS
+#  (outils_tests.R) qui n'en a pas encore.
+#      Rscript tests/regenerer_et_rendre_compte.R <cas> --creer [--issue NN]
+#              [--ecrire] [--sans-batteries]
+#    - REFUS (code de sortie 1, avec ou sans --ecrire), avant tout calcul, si
+#      tests/reference/<cas>.rds existe deja (une reference existante se
+#      regenere, elle ne se cree pas), si le cas n'est pas dans CAS, si son
+#      nom sort de NOM_CAS_VALIDE, ou si --attendu est donne (une creation
+#      n'a pas de motifs : toutes les feuilles sont ajoutees) ; apres le
+#      calcul, si run_engine() renvoie ok = FALSE ;
+#    - sans --ecrire : essai a blanc, rien n'est ecrit ;
+#    - avec --ecrire (--issue obligatoire) : ecriture ATOMIQUE
+#      (creer_reference() : temporaire du meme dossier, relu, verifie
+#      identical() au resultat calcule, puis renomme) ; empreintes md5 des
+#      autres .rds de tests/reference/ comparees avant / apres : code 1 si
+#      l'une a change, a disparu, ou si un autre fichier est apparu ;
+#      tableau "absent / ajoute" (tableau_creation_markdown(), pas de
+#      tableau feuille a feuille : aucune feuille n'existait) dans
+#      docs/tableaux/AAAAMMJJ-issueNN-<cas>.md, puis batteries comme
+#      ci-dessus (test_reproductibilite.R couvre alors le nouveau cas).
+#
 #  Un motif qui designe plus de SEUIL_MOTIF_LARGE (50) feuilles est signale
 #  (console et tableau), sans refus. La ligne "Commande" du tableau reprend
 #  toutes les options, motifs entre apostrophes : rejouable dans un shell
@@ -66,8 +88,9 @@
 #
 #  Source (plutot que lance par Rscript), le fichier ne fait que definir ses
 #  fonctions, sans lire ni ecrire de fichier : analyser_regeneration(),
-#  verifier_regeneration() et tableau_markdown() sont testees par
-#  tests/unitaires/test_regenerer_et_rendre_compte.R.
+#  verifier_regeneration(), tableau_markdown() et, pour le mode creation,
+#  references_modifiees(), creer_reference() et tableau_creation_markdown()
+#  sont testees par tests/unitaires/test_regenerer_et_rendre_compte.R.
 ###############################################################################
 
 # Dossier tests/ : meme logique que patcher_reference.R (fourni par
@@ -179,9 +202,9 @@ decider <- function(a, ecrire) {
 
 # Ligne de commande rejouable telle quelle dans un shell POSIX : toutes les
 # options, motifs entre apostrophes (une apostrophe interne devient '\'').
-commande_rejouable <- function(nom, motifs, issue, ecrire, batteries) {
+commande_rejouable <- function(nom, motifs, issue, ecrire, batteries, creer = FALSE) {
   sq <- function(x) paste0("'", gsub("'", "'\\''", x, fixed = TRUE), "'")
-  paste(c("Rscript tests/regenerer_et_rendre_compte.R", nom,
+  paste(c("Rscript tests/regenerer_et_rendre_compte.R", nom, if (creer) "--creer",
           if (length(motifs)) paste("--attendu", sq(motifs)),
           if (!is.na(issue)) paste("--issue", issue), if (ecrire) "--ecrire",
           if (!batteries) "--sans-batteries"), collapse = " ")
@@ -314,6 +337,93 @@ tableau_markdown <- function(a, nom, issue = NA, motifs = character(0),
 }
 
 # ---------------------------------------------------------------------------
+#  Mode creation (M31) : reference d'un cas de CAS qui n'en a pas encore
+# ---------------------------------------------------------------------------
+
+# Noms de cas admis : minuscules, chiffres et soulignes, une lettre en tete
+# (premium, reserve1, premium_ii6...). Le nom devient un nom de fichier
+# (tests/reference/<cas>.rds, docs/tableaux/...-<cas>.md) : ni point, ni
+# barre oblique, ni espace. Meme expression dans references.yml.
+NOM_CAS_VALIDE <- "^[a-z][a-z0-9_]*$"
+
+# Empreintes md5 des .rds d'un dossier (vecteur nomme par nom de fichier,
+# trie). Les temporaires de creer_reference() et remplacer_reference()
+# commencent par un point : le motif ne les prend pas, ils ne doivent plus
+# exister a la fin (le workflow le verifie par git status).
+empreintes_references <- function(dossier) {
+  f <- sort(list.files(dossier, pattern = "^[^.].*[.]rds$", full.names = TRUE))
+  stats::setNames(unname(tools::md5sum(f)), basename(f))
+}
+
+# Ecarts entre deux jeux d'empreintes autres que l'ajout de `ajoute` (nom de
+# fichier) : fichiers modifies, disparus, ou apparus en plus. character(0)
+# si seul `ajoute` est apparu et que tous les autres fichiers sont intacts.
+references_modifiees <- function(avant, apres, ajoute) {
+  # Le fichier cree est traite par les deux dernieres lignes seulement.
+  communs <- setdiff(intersect(names(avant), names(apres)), ajoute)
+  diff <- communs[avant[communs] != apres[communs]]
+  c(sprintf("%s : modifie (md5 %s -> %s)", diff, avant[diff], apres[diff]),
+    sprintf("%s : disparu", setdiff(names(avant), names(apres))),
+    sprintf("%s : apparu en plus de %s", setdiff(names(apres), c(names(avant), ajoute)), ajoute),
+    if (ajoute %in% names(avant)) sprintf("%s : existait deja avant la creation", ajoute),
+    if (!ajoute %in% names(apres)) sprintf("%s : absent apres la creation", ajoute))
+}
+
+# Ecriture atomique d'une reference NOUVELLE : refus si le fichier existe ;
+# temporaire du meme dossier ecrit par ecrire_reference() (outils_tests.R,
+# le code de generer_references.R), relu et verifie identical() au resultat
+# calcule, puis renomme ; existence re-verifiee juste avant le renommage
+# (file.rename() ecraserait un fichier apparu entre-temps). En cas d'echec,
+# aucun fichier n'est laisse (temporaire supprime).
+creer_reference <- function(res, chemin) {
+  if (file.exists(chemin)) stop("Reference deja presente, creation refusee : ", chemin)
+  tmp <- tempfile(pattern = paste0(".", sub("[.]rds$", "", basename(chemin)), "-"),
+                  tmpdir = dirname(chemin), fileext = ".rds")
+  on.exit(if (file.exists(tmp)) unlink(tmp), add = TRUE)
+  ecrire_reference(NA, res, chemin = tmp)
+  if (!identical(readRDS(tmp), res))
+    stop("La reference ecrite n'est pas identical() au resultat calcule (structure comprise).")
+  if (file.exists(chemin)) stop("Reference apparue pendant l'ecriture, creation refusee : ", chemin)
+  if (!file.rename(tmp, chemin)) stop("file.rename() a echoue : aucune reference creee.")
+  if (!identical(readRDS(chemin), res)) stop("Reference relue apres renommage differente du resultat calcule.")
+  invisible(chemin)
+}
+
+# Tableau de non-regression d'une creation : "absent / ajoute" seulement
+# (regle 2 du paragraphe 2 de la feuille de route, M31). Aucune feuille
+# n'existait avant : pas de tableau feuille a feuille. La comparaison du
+# nouveau cas a un cas existant, si elle est demandee, est produite a part.
+# emp_avant, emp_apres : empreintes_references() avant et apres ; fichier :
+# nom du .rds cree.
+tableau_creation_markdown <- function(nom, res, fichier, emp_avant, emp_apres, issue = NA,
+                                      date = Sys.Date(), plateforme_txt = plateforme(),
+                                      commande = NA_character_) {
+  modif <- references_modifiees(emp_avant, emp_apres, fichier)
+  sigma <- res$parametre_final$sigma_usp
+  existants <- names(emp_avant)
+  c(sprintf("# Tableau avant / apr\u00e8s \u2014 cr\u00e9ation de la r\u00e9f\u00e9rence `%s`%s", nom,
+            if (is.na(issue)) "" else sprintf(" (issue #%s)", issue)),
+    "",
+    sprintf("- Date : %s", format(date, "%Y-%m-%d")),
+    sprintf("- Plateforme : %s", plateforme_txt),
+    if (!is.na(commande)) sprintf("- Commande : `%s`", texte_code(commande, 500L)),
+    "- Mode : cr\u00e9ation (M31) ; tableau de non-r\u00e9gression \u00ab absent / ajout\u00e9 \u00bb seulement",
+    "",
+    "| R\u00e9f\u00e9rence | Avant | Apr\u00e8s |",
+    "|---|---|---|",
+    sprintf("| `tests/reference/%s` | (absente) | ajout\u00e9e : %d feuille(s), md5 `%s` |",
+            fichier, length(aplatir(res)),
+            if (fichier %in% names(emp_apres)) emp_apres[[fichier]] else "?"),
+    "",
+    sprintf("- \u03c3_USP du cas ajout\u00e9 (`parametre_final$sigma_usp`) : %s",
+            if (is.numeric(sigma) && length(sigma) == 1L) formatC(sigma, format = "f", digits = 10) else "(absent)"),
+    if (!length(modif))
+      sprintf("- R\u00e9f\u00e9rences existantes : %d fichier(s), md5 identiques avant / apr\u00e8s (%s) ; aucun autre fichier ajout\u00e9",
+              length(existants), if (length(existants)) paste0("`", existants, "`", collapse = ", ") else "aucune")
+    else c("- **R\u00e9f\u00e9rences existantes MODIFI\u00c9ES** :", paste0("  - `", texte_code(modif, 200L), "`")))
+}
+
+# ---------------------------------------------------------------------------
 #  Batteries : relance et extraction des lignes de synthese
 # ---------------------------------------------------------------------------
 
@@ -325,6 +435,46 @@ lancer_batterie <- function(script) {
   list(script = script, statut = statut, synthese = trimws(synth))
 }
 
+# Fin commune aux modes regeneration et creation, apres ecriture de la
+# reference : relance des batteries (sauf --sans-batteries), tableau md
+# complete de leur bilan et ecrit dans dest, code de sortie 1 si une
+# batterie echoue.
+finir_avec_batteries <- function(md, dest, batteries) {
+  bilan <- c("", "## Batteries", "")
+  echec <- FALSE
+  if (batteries) {
+    for (s in c("test_reproductibilite.R", "test_unitaires.R")) {
+      cat("Lancement de", s, "...\n")
+      b <- lancer_batterie(s)
+      echec <- echec || b$statut != 0L
+      bilan <- c(bilan, sprintf("- `Rscript tests/%s` : code de sortie %d", s, b$statut),
+                 paste0("  - `", texte_code(b$synthese, 300L), "`"))
+    }
+  } else {
+    bilan <- c(bilan, "Non relanc\u00e9es (`--sans-batteries`). \u00c0 lancer :",
+               "- `Rscript tests/test_reproductibilite.R`", "- `Rscript tests/test_unitaires.R`")
+  }
+  dir.create(dirname(dest), showWarnings = FALSE, recursive = TRUE)
+  if (file.exists(dest)) cat("Tableau existant remplace :", dest, "\n")
+  con <- file(dest, open = "wb")
+  writeLines(enc2utf8(c(md, bilan)), con, sep = "\n", useBytes = TRUE)
+  close(con)
+  cat("Tableau ecrit :", dest, "\n")
+  writeLines(bilan)
+  if (echec) {
+    cat("\nUNE BATTERIE ECHOUE : reference ecrite mais a examiner (git restore, ou suppression du fichier cree, pour revenir).\n")
+    quit(status = 1)
+  }
+  invisible(TRUE)
+}
+
+# Chemin du tableau avant / apres : docs/tableaux/AAAAMMJJ-issueNN-<cas>.md
+# (motif que references.yml recherche pour le publier).
+chemin_tableau <- function(nom, issue)
+  file.path(RACINE, "docs", "tableaux",
+            sprintf("%s-issue%s-%s.md", format(Sys.Date(), "%Y%m%d"),
+                    if (is.na(issue)) "NN" else issue, nom))
+
 # ---------------------------------------------------------------------------
 #  Programme principal : execute seulement par Rscript.
 # ---------------------------------------------------------------------------
@@ -333,7 +483,8 @@ if (sys.nframe() == 0L) {
   args <- commandArgs(trailingOnly = TRUE)
   ecrire <- "--ecrire" %in% args
   batteries <- !"--sans-batteries" %in% args
-  args <- args[!args %in% c("--ecrire", "--sans-batteries")]
+  creer <- "--creer" %in% args
+  args <- args[!args %in% c("--ecrire", "--sans-batteries", "--creer")]
   opt <- extraire_option(args, "--attendu")
   motifs <- opt$valeurs
   opt_i <- extraire_option(opt$reste, "--issue")
@@ -345,10 +496,50 @@ if (sys.nframe() == 0L) {
   if (!noms %in% names(CAS)) stop("Cas inconnu : ", noms)
   if (ecrire && is.na(issue)) stop("--ecrire exige --issue NN (il nomme le tableau avant / apres).")
   nom <- noms
-  commande <- commande_rejouable(nom, motifs, issue, ecrire, batteries)
-
+  commande <- commande_rejouable(nom, motifs, issue, ecrire, batteries, creer = creer)
   ref_f <- chemin_reference(nom)
-  if (!file.exists(ref_f)) stop("Reference absente : ", ref_f)
+
+  # ------------------------------------------------------------ creation (M31)
+  if (creer) {
+    refuser <- function(motif) {
+      cat("\nREFUS -- ", motif, "\nCreation refusee : rien n'a ete ecrit.\n", sep = "")
+      quit(status = 1)
+    }
+    if (length(motifs)) refuser("--creer et --attendu sont incompatibles (une creation n'a pas de motifs attendus).")
+    if (!grepl(NOM_CAS_VALIDE, nom)) refuser(sprintf("nom de cas hors de %s.", NOM_CAS_VALIDE))
+    if (file.exists(ref_f))
+      refuser(sprintf("%s existe deja : une reference existante se regenere (mode regeneration), elle ne se cree pas.", ref_f))
+    emp_avant <- empreintes_references(DOSSIER_REF)
+    res <- executer_cas(nom)
+    if (!isTRUE(res$ok)) refuser(sprintf("run_engine() renvoie ok = FALSE pour le cas %s.", nom))
+    dest <- chemin_tableau(nom, issue)
+    cat(sprintf("\n=== %s : creation ; %d feuille(s) ; sigma_USP = %.10f\n", nom,
+                length(aplatir(res)), res$parametre_final$sigma_usp))
+    if (!ecrire) {
+      cat(sprintf(paste0("\nEssai a blanc : avec --ecrire, %s serait cree (%d reference(s) existante(s) ",
+                         "verifiee(s) inchangee(s) par md5),\nle tableau absent / ajoute ecrit dans %s, ",
+                         "puis les batteries relancees.\n"), ref_f, length(emp_avant), dest))
+      quit(status = 0)
+    }
+    creer_reference(res, ref_f)
+    emp_apres <- empreintes_references(DOSSIER_REF)
+    md <- tableau_creation_markdown(nom, res, basename(ref_f), emp_avant, emp_apres, issue,
+                                    commande = commande)
+    cat("\n"); writeLines(md)
+    modif <- references_modifiees(emp_avant, emp_apres, basename(ref_f))
+    if (length(modif)) {
+      cat("\nECHEC -- references existantes modifiees ou fichiers inattendus :\n",
+          paste0("  ", modif, collapse = "\n"), "\n", sep = "")
+      quit(status = 1)
+    }
+    cat(sprintf("\n%s cree. Verifie avant renommage : reference ecrite identical() au resultat calcule ; %d reference(s) existante(s) de md5 inchange.\n",
+                ref_f, length(emp_avant)))
+    finir_avec_batteries(md, dest, batteries)
+    quit(status = 0)
+  }
+
+  # --------------------------------------------------------------- regeneration
+  if (!file.exists(ref_f)) stop("Reference absente : ", ref_f, " (un cas nouveau se cree : --creer)")
   avant <- readRDS(ref_f)
   apres <- executer_cas(nom)
   a <- analyser_regeneration(avant, apres, motifs)
@@ -381,9 +572,7 @@ if (sys.nframe() == 0L) {
     quit(status = d$code)
   }
 
-  dest <- file.path(RACINE, "docs", "tableaux",
-                    sprintf("%s-issue%s-%s.md", format(Sys.Date(), "%Y%m%d"),
-                            if (is.na(issue)) "NN" else issue, nom))
+  dest <- chemin_tableau(nom, issue)
   if (!ecrire) {
     cat(sprintf(paste0("\nEssai a blanc : avec --ecrire, %s serait regeneree (%d feuille(s) designee(s) changent, ",
                        "%d identique(s)),\nle tableau ci-dessus ecrit dans %s, puis les batteries relancees.\n"),
@@ -396,30 +585,5 @@ if (sys.nframe() == 0L) {
   n_hors <- remplacer_reference(apres, avant, a$designees, ref_f)
   cat(sprintf("\n%s regeneree. Verifie avant substitution : reference ecrite identical() au resultat recalcule ; %d feuille(s) hors motifs identical() a l'ancienne reference.\n",
               ref_f, n_hors))
-
-  bilan <- c("", "## Batteries", "")
-  echec <- FALSE
-  if (batteries) {
-    for (s in c("test_reproductibilite.R", "test_unitaires.R")) {
-      cat("Lancement de", s, "...\n")
-      b <- lancer_batterie(s)
-      echec <- echec || b$statut != 0L
-      bilan <- c(bilan, sprintf("- `Rscript tests/%s` : code de sortie %d", s, b$statut),
-                 paste0("  - `", texte_code(b$synthese, 300L), "`"))
-    }
-  } else {
-    bilan <- c(bilan, "Non relanc\u00e9es (`--sans-batteries`). \u00c0 lancer :",
-               "- `Rscript tests/test_reproductibilite.R`", "- `Rscript tests/test_unitaires.R`")
-  }
-  dir.create(dirname(dest), showWarnings = FALSE, recursive = TRUE)
-  if (file.exists(dest)) cat("Tableau existant remplace :", dest, "\n")
-  con <- file(dest, open = "wb")
-  writeLines(enc2utf8(c(md, bilan)), con, sep = "\n", useBytes = TRUE)
-  close(con)
-  cat("Tableau ecrit :", dest, "\n")
-  writeLines(bilan)
-  if (echec) {
-    cat("\nUNE BATTERIE ECHOUE : reference regeneree mais a examiner (git restore pour revenir).\n")
-    quit(status = 1)
-  }
+  finir_avec_batteries(md, dest, batteries)
 }

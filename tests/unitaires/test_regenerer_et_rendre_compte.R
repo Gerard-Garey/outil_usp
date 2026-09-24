@@ -269,4 +269,58 @@ verifier("Tableau : feuille ajoutee ou supprimee reste '(absente)' du cote manqu
            any(grepl("^\\| `n` \\| \\(absente\\) \\| \\\\<NA\\\\> \\|", md3)) &&
              any(grepl("^\\| `n` \\| \\\\<NA\\\\> \\| \\(absente\\) \\|", md4)) })
 
+## --- Mode creation (M31) -----------------------------------------------------
+# Reference : specification M31 (ADR 0011 amende) -- refus si le .rds existe,
+# aucun .rds existant modifie, tableau "absent / ajoute" seulement. Fichiers
+# ecrits dans un dossier temporaire, jamais dans tests/reference/.
+verifier("NOM_CAS_VALIDE : noms de CAS et premium_ii6 admis ; point, barre, espace, majuscule refuses",
+         all(grepl(rg$NOM_CAS_VALIDE, c(names(rg$CAS), "premium_ii6", "premium_net"))) &&
+           !any(grepl(rg$NOM_CAS_VALIDE, c("../premium", "premium.rds", "a b", "Premium", "_x", "1cas", ""))))
+verifier("references_modifiees : seul l'ajout du fichier cree -> aucun ecart",
+         identical(rg$references_modifiees(c(a.rds = "1", b.rds = "2"),
+                                           c(a.rds = "1", b.rds = "2", n.rds = "3"), "n.rds"), character(0)))
+verifier("references_modifiees : md5 modifie, fichier disparu, fichier en plus, fichier deja present",
+         { m <- rg$references_modifiees(c(a.rds = "1", b.rds = "2", n.rds = "0"),
+                                        c(a.rds = "9", n.rds = "3", x.rds = "4"), "n.rds")
+           length(m) == 4L && any(grepl("^a.rds : modifie", m)) && any(grepl("^b.rds : disparu", m)) &&
+             any(grepl("^x.rds : apparu", m)) && any(grepl("^n.rds : existait deja", m)) })
+verifier("references_modifiees : fichier cree absent apres -> ecart",
+         identical(rg$references_modifiees(c(a.rds = "1"), c(a.rds = "1"), "n.rds"),
+                   "n.rds : absent apres la creation"))
+.dos <- tempfile("creation-"); dir.create(.dos)
+verifier("creer_reference : ecrit un fichier relu identical(), sans temporaire residuel ; md5 des autres inchange",
+         { rg$ecrire_reference(NA, list(x = 1), chemin = file.path(.dos, "a.rds"))
+           e0 <- rg$empreintes_references(.dos)
+           obj <- list(sigma = 0.1, v = 1:3, s = "t")
+           rg$creer_reference(obj, file.path(.dos, "n.rds"))
+           e1 <- rg$empreintes_references(.dos)
+           identical(readRDS(file.path(.dos, "n.rds")), obj) &&
+             identical(sort(list.files(.dos, all.files = TRUE, no.. = TRUE)), c("a.rds", "n.rds")) &&
+             !length(rg$references_modifiees(e0, e1, "n.rds")) })
+verifier("creer_reference : refus si le fichier existe, fichier existant intact",
+         { f <- file.path(.dos, "a.rds"); m0 <- unname(tools::md5sum(f))
+           leve(rg$creer_reference(list(y = 2), f)) && identical(unname(tools::md5sum(f)), m0) &&
+             identical(readRDS(f), list(x = 1)) })
+verifier("empreintes_references : ignore les fichiers caches (temporaires) et non .rds",
+         { writeLines("t", file.path(.dos, ".n-tmp.rds")); writeLines("t", file.path(.dos, "notes.txt"))
+           identical(names(rg$empreintes_references(.dos)), c("a.rds", "n.rds")) })
+unlink(.dos, recursive = TRUE)
+verifier("tableau_creation_markdown : ligne absent / ajoute, sigma, references existantes intactes",
+         { res <- list(parametre_final = list(sigma_usp = 0.1234567891), v = 1:3)
+           md <- rg$tableau_creation_markdown("cas_x", res, "cas_x.rds", c(a.rds = "m1"),
+                                              c(a.rds = "m1", cas_x.rds = "m2"), issue = "61",
+                                              commande = "Rscript tests/regenerer_et_rendre_compte.R cas_x --creer --issue 61 --ecrire")
+           any(md == "| `tests/reference/cas_x.rds` | (absente) | ajout\u00e9e : 4 feuille(s), md5 `m2` |") &&
+             any(grepl("0.1234567891", md, fixed = TRUE)) &&
+             any(grepl("md5 identiques avant / apr\u00e8s (`a.rds`)", md, fixed = TRUE)) &&
+             grepl("(issue #61)", md[1], fixed = TRUE) && !any(grepl("MODIFI", md)) })
+verifier("tableau_creation_markdown : reference existante modifiee signalee",
+         { md <- rg$tableau_creation_markdown("cas_x", list(v = 1), "cas_x.rds", c(a.rds = "m1"),
+                                              c(a.rds = "m9", cas_x.rds = "m2"))
+           any(grepl("MODIFI\u00c9ES", md)) && any(grepl("a.rds : modifie", md, fixed = TRUE)) })
+verifier("commande_rejouable : --creer apres le nom du cas",
+         identical(rg$commande_rejouable("premium_ii6", character(0), "61", ecrire = TRUE,
+                                         batteries = TRUE, creer = TRUE),
+                   "Rscript tests/regenerer_et_rendre_compte.R premium_ii6 --creer --issue 61 --ecrire"))
+
 fin_fichier()

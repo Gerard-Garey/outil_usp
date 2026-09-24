@@ -18,7 +18,7 @@
 # dans le journal, dans le résumé du job et dans l'artefact (plateforme.txt,
 # sessionInfo.txt), puis reportés dans le message du commit des .rds.
 #
-# Deux modes (entrée « mode ») :
+# Trois modes (entrée « mode ») :
 #
 #   bascule       (une seule fois : passage des références du poste à la CI)
 #     1. tests/comparer_references.R --deux-parts : tableau avant / après
@@ -48,6 +48,22 @@
 #     bascule, ce mode est refusé par construction : la dérive poste / CI
 #     touche des feuilles hors motifs.
 #
+#   creation      (M31, ADR 0011 amendé : référence d'un cas NOUVEAU)
+#     tests/regenerer_et_rendre_compte.R <cas> --creer --issue NN --ecrire,
+#     pour un cas de CAS (tests/outils_tests.R) qui n'a pas encore de .rds
+#     (#61 premium_ii6, #55 premium_net) : refus si tests/reference/<cas>.rds
+#     existe, écriture atomique, relance des deux batteries
+#     (test_reproductibilite.R couvre alors le nouveau cas). Le workflow
+#     vérifie en outre que les md5 des .rds existants n'ont pas changé et que
+#     git status sous tests/reference/ ne montre que le fichier ajouté.
+#     Tableau de non-régression « absent / ajouté » seulement ; même artefact
+#     que regeneration. Entrées : cas, issue (attendu ignoré).
+#
+#   L'entrée « cas » est un texte libre (une entrée choice ne peut pas
+#   proposer un cas nouveau) : modes regeneration et creation, elle est
+#   validée avant tout calcul (^[a-z][a-z0-9_]*$, présence dans CAS du commit
+#   calculé ; .rds présent en regeneration, absent en creation).
+#
 # PROCÉDURE (décisions du mainteneur du 24/09/2026)
 #
 # Rôles : la SESSION PRINCIPALE (Claude) déclenche, télécharge, vérifie et
@@ -69,7 +85,11 @@
 #            git commit …                                # commit de code
 #            git push -u origin claude/regeneration-<issue>
 #          puis déclenchement avec ref = claude/regeneration-<issue>, mode
-#          « regeneration », cas, motifs séparés par « ; » et issue.
+#          « regeneration », cas, motifs séparés par « ; » et issue ;
+#        - creation (M31) : même branche éphémère, dont le commit ajoute le
+#          cas à CAS (et, s'il y a lieu, le code de l'issue) ; mode
+#          « creation », cas et issue. La suite (2 à 6) est celle de
+#          regeneration, <cas>.rds étant un fichier ajouté.
 #      Noter l'identifiant de l'exécution et le commit calculé.
 #   2. Lire le tableau (session principale, puis mainteneur) : résumé du
 #      job, tableau en deux parts. Bascule : chaque cas doit afficher
@@ -93,8 +113,9 @@
 #   5. Vérifier avant commit (session principale) :
 #      a. bascule : le commit calculé (plateforme.txt) est la tête actuelle
 #         de la branche de travail (sinon, redéclencher) ;
-#      a′. regeneration (M30) : le commit calculé (plateforme.txt) est la
-#         tête de la branche éphémère ; sur la branche de travail, après
+#      a′. regeneration et creation (M30) : le commit calculé
+#         (plateforme.txt) est la tête de la branche éphémère ; sur la
+#         branche de travail, après
 #         « git cherry-pick -n <tête W>..<commit calculé> », copie du .rds
 #         et git add (étape 6), l'INDEX a exactement le code du commit
 #         calculé :
@@ -123,9 +144,9 @@
 #        la plateforme (ImageOS, ImageVersion, R, BLAS), l'écart maximal
 #        par fichier, « aucune feuille non numérique modifiée », le lien de
 #        l'exécution et le visa M3 du mainteneur ;
-#      - regeneration (M30) : code ET .rds en UN SEUL commit NOUVEAU sur la
-#        branche de travail, jamais par --amend ni fixup (ADR 0007, point
-#        6) :
+#      - regeneration et creation (M30) : code ET .rds en UN SEUL commit
+#        NOUVEAU sur la branche de travail, jamais par --amend ni fixup
+#        (ADR 0007, point 6) :
 #          git switch <branche de travail>
 #          git cherry-pick -n <tête W>..<commit calculé>   # tous les commits
 #                                                          # de la branche éphémère
@@ -156,14 +177,18 @@
 #   - Commiter des .rds issus d'une exécution en échec, d'une autre
 #     exécution que celle dont le tableau a été visé, ou calculés sur un
 #     autre commit que la tête de la branche de travail (bascule) ou que le
-#     commit dont le code est repris (regeneration, vérification 5a′) ;
-#     commiter autre chose que les .rds dans le commit de bascule.
-#   - Regeneration : pousser le commit de code sur la branche de travail
-#     avant ses .rds (la CI y serait rouge), séparer code et .rds en deux
-#     commits, assembler le commit final par --amend ou fixup, ouvrir une
-#     PR pour la branche éphémère ou la garder après le commit final.
-#   - Régénérer ensuite sur le poste (generer_references.R local) : après
-#     la bascule, toute référence est produite ici.
+#     commit dont le code est repris (regeneration, creation, vérification
+#     5a′) ; commiter autre chose que les .rds dans le commit de bascule.
+#   - Créer une référence autrement que par le mode creation (génération
+#     locale, patch, copie d'un .rds venu d'une autre exécution), ou
+#     contourner son refus d'un cas qui a déjà un .rds.
+#   - Regeneration et creation : pousser le commit de code sur la branche
+#     de travail avant ses .rds (la CI y serait rouge), séparer code et
+#     .rds en deux commits, assembler le commit final par --amend ou
+#     fixup, ouvrir une PR pour la branche éphémère ou la garder après le
+#     commit final.
+#   - Régénérer ou créer ensuite sur le poste (generer_references.R
+#     local) : après la bascule, toute référence est produite ici.
 #   - Relever TOLERANCE, ou ajouter une feuille à INSTABLES, pour faire
 #     passer une bascule refusée.
 #   - Donner à ce workflow des droits d'écriture, un jeton, ou un push
@@ -176,14 +201,17 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "bascule (une fois : trois cas, tableau en deux parts) ou regeneration (un cas, motifs attendus)"
+        description: "bascule (une fois : trois cas, tableau en deux parts), regeneration (un cas existant, motifs attendus) ou creation (un cas nouveau de CAS, sans .rds)"
         type: choice
-        options: [bascule, regeneration]
+        options: [bascule, regeneration, creation]
         default: bascule
       cas:
-        description: "Cas à régénérer (mode regeneration seulement ; la bascule porte sur les trois cas)"
-        type: choice
-        options: [premium, reserve1, reserve2]
+        # Texte libre (une entrée choice ne peut pas proposer un cas nouveau) :
+        # nom validé par le workflow (NOM_CAS_VALIDE) puis par le script
+        # (présence dans CAS de tests/outils_tests.R).
+        description: "Nom du cas, tel qu'il figure dans CAS de tests/outils_tests.R (modes regeneration et creation ; la bascule porte sur les trois cas)"
+        type: string
+        required: false
         default: premium
       attendu:
         description: "Motifs attendus, expressions régulières séparées par « ; » (mode regeneration)"
@@ -191,7 +219,7 @@ on:
         required: false
         default: ""
       issue:
-        description: "Numéro de l'issue qui motive la régénération (mode regeneration)"
+        description: "Numéro de l'issue qui motive la régénération ou la création (modes regeneration et creation)"
         type: string
         required: false
         default: ""
@@ -292,6 +320,38 @@ jobs:
         if: inputs.mode == 'bascule'
         run: Rscript tests/test_reproductibilite.R | tee "$SORTIE/test_reproductibilite.txt"
 
+      # ------------------------------------ entrées (regeneration, creation)
+      - name: "Validation des entrées cas et issue"
+        if: inputs.mode == 'regeneration' || inputs.mode == 'creation'
+        env:
+          # Entrées passées par l'environnement, jamais interpolées dans le
+          # script ; une valeur reçue n'est reproduite dans une commande de
+          # workflow (« ::… ») qu'après validation.
+          CAS: ${{ inputs.cas }}
+          ISSUE: ${{ inputs.issue }}
+        run: |
+          [[ "$ISSUE" =~ ^[0-9]+$ ]] || { echo "::error::Entrée issue : numéro attendu (chiffres seuls ; valeur reçue non reproduite)."; exit 1; }
+          # Même expression que NOM_CAS_VALIDE (tests/regenerer_et_rendre_compte.R) :
+          # le nom devient un nom de fichier (ni point, ni barre oblique).
+          [[ "$CAS" =~ ^[a-z][a-z0-9_]*$ ]] || { echo "::error::Entrée cas : minuscules, chiffres et « _ », une lettre en tête (valeur reçue non reproduite)."; exit 1; }
+          # Code 2 réservé au cas absent ; toute autre erreur (échec du
+          # source(), code 1 de Rscript) est un échec de chargement.
+          statut_cas=0
+          Rscript -e 'source("tests/outils_tests.R"); quit(status = if (Sys.getenv("CAS") %in% names(CAS)) 0L else 2L)' \
+            || statut_cas=$?
+          if [ "$statut_cas" -eq 2 ]; then
+            echo "::error::Cas $CAS absent de CAS (tests/outils_tests.R) sur le commit calculé : l'ajouter au commit de la branche éphémère."; exit 1
+          elif [ "$statut_cas" -ne 0 ]; then
+            echo "::error::Chargement de tests/outils_tests.R en échec (code $statut_cas, voir le journal) : présence du cas dans CAS non vérifiée."; exit 1
+          fi
+          if [ "$MODE" = creation ] && [ -e "tests/reference/$CAS.rds" ]; then
+            echo "::error title=Création refusée::tests/reference/$CAS.rds existe déjà : une référence existante se régénère (mode regeneration)."; exit 1
+          fi
+          if [ "$MODE" = regeneration ] && [ ! -f "tests/reference/$CAS.rds" ]; then
+            echo "::error title=Régénération refusée::tests/reference/$CAS.rds absent : un cas nouveau se crée (mode creation)."; exit 1
+          fi
+          echo "Entrées valides : mode $MODE, cas $CAS, issue $ISSUE."
+
       # ----------------------------------------------------------- regeneration
       - name: "Régénération contrôlée d'un cas (regenerer_et_rendre_compte.R)"
         if: inputs.mode == 'regeneration'
@@ -353,6 +413,63 @@ jobs:
             cp "tests/reference/$CAS.rds" "$SORTIE/"
             (cd "$SORTIE" && md5sum "$CAS.rds" | tee md5.txt)
           fi
+
+      # --------------------------------------------------------------- creation
+      - name: "Création d'un cas de référence (regenerer_et_rendre_compte.R --creer)"
+        if: inputs.mode == 'creation'
+        env:
+          # Entrées validées à l'étape précédente (nom, présence dans CAS,
+          # .rds absent, issue numérique).
+          CAS: ${{ inputs.cas }}
+          ISSUE: ${{ inputs.issue }}
+        run: |
+          # Empreintes des références existantes AVANT : contrôle du
+          # workflow, indépendant de celui du script (M31 : aucun .rds
+          # existant modifié).
+          (cd tests/reference && md5sum -- *.rds) | tee "$RUNNER_TEMP/md5_existants.txt"
+          marqueur="$RUNNER_TEMP/marqueur-creation"
+          touch "$marqueur"
+          sleep 1
+          # Refus (cas existant, ok = FALSE) et batteries en échec : code
+          # non nul, journal porté au résumé, aucun .rds publié.
+          statut=0
+          Rscript tests/regenerer_et_rendre_compte.R "$CAS" --creer --issue "$ISSUE" --ecrire \
+            | tee "$SORTIE/creation.txt" || statut=$?
+          if [ -d docs/tableaux ]; then
+            while IFS= read -r -d '' t; do
+              cp "$t" "$SORTIE/"
+              cat "$t" >> "$GITHUB_STEP_SUMMARY"
+            done < <(find docs/tableaux -maxdepth 1 -type f \
+                       -name "*-issue${ISSUE}-${CAS}.md" -newer "$marqueur" -print0)
+          fi
+          if [ "$statut" -ne 0 ]; then
+            {
+              echo "## Création de \`$CAS\` : échec (code $statut)"
+              echo
+              echo '```'
+              tail -c 400000 "$SORTIE/creation.txt"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error title=Création refusée ou en échec::code de sortie $statut ; voir le journal (REFUS ou batterie en échec). Aucun .rds publié."
+            exit "$statut"
+          fi
+          # Contrôles après écriture : références existantes intactes (md5),
+          # et le seul changement sous tests/reference/ est le fichier ajouté
+          # (ni temporaire résiduel, ni autre fichier).
+          (cd tests/reference && md5sum -c --quiet "$RUNNER_TEMP/md5_existants.txt") \
+            || { echo "::error title=Création refusée::une référence existante a changé (md5) ; aucun .rds publié."; exit 1; }
+          modifs="$(git status --porcelain --untracked-files=all -- tests/reference)"
+          printf '%s\n' "$modifs" | tee "$SORTIE/fichiers_modifies.txt"
+          if [ "$modifs" != "?? tests/reference/$CAS.rds" ]; then
+            echo "::error title=Création refusée::changements sous tests/reference/ autres que l'ajout de $CAS.rds (voir fichiers_modifies.txt) ; aucun .rds publié."
+            exit 1
+          fi
+          cp "tests/reference/$CAS.rds" "$SORTIE/"
+          (cd "$SORTIE" && md5sum "$CAS.rds" | tee md5.txt)
+          {
+            echo
+            echo "**Création vérifiée par le workflow** : \`tests/reference/$CAS.rds\` ajouté ; md5 des références existantes identiques avant / après ; aucun autre changement sous \`tests/reference/\`."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # -------------------------------------------------------------- artefacts
       - name: Artefact des références
