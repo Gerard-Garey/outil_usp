@@ -2,8 +2,8 @@
 #  tests/unitaires/test_anti_bruit.R  --  TEST ANTI-BRUIT (issue #22)
 #
 #  Propriete (decision du mainteneur, 23/09/2026) : des donnees perturbees
-#  d'un facteur (1 + 1e-12 * s), s alternant +1 / -1 (deterministe, aucun
-#  tirage), donnent un objet resultat dont
+#  d'un facteur (1 + 1e-12 * s), s un motif de signes +1 / -1 deterministe
+#  (aucun tirage), donnent un objet resultat dont
 #    - toutes les feuilles de type caractere sont identical() a celles du
 #      calcul non perturbe ;
 #    - toutes les feuilles numeriques restent sous le seuil de
@@ -17,10 +17,26 @@
 #  seule chaine. Une chaine qui imprime un nombre sensible a l'arrondi est
 #  detectee ici sur une meme machine, sans attendre la CI.
 #
+#  Huit motifs de signes (revue finale d'audit, 24/09/2026). Un seul motif
+#  (signes alternes) ne detectait pas un libelle imprimant le nombre de
+#  demarrages a l'optimum au code 0 : ce nombre ne change que pour certains
+#  motifs (audit : 54 dans 29 cas, 53 dans 9, 52 dans 2 sur 40 motifs
+#  aleatoires ; mesure sur les 49 couples de motifs de Walsh ci-dessous,
+#  Linux, R 4.3.3 : 14 couples le font changer, pas le motif alterne).
+#  Motifs de Walsh-Hadamard, s_i = (-1)^popcount((i - 1) & k), k = 1..7,
+#  construits sans generateur aleatoire : xt recoit le motif kx, yt le motif
+#  ky, le triangle (indice lineaire) le motif kx. Les couples retenus
+#  (MOTIFS) : le motif alterne historique (1, 1), puis une permutation de
+#  ky sur kx = 1..7 choisie sur la mesure ci-dessus pour que 5 des 8 couples
+#  changent ce nombre sur la plateforme de mesure (sur une autre plateforme,
+#  les couples qui le changent peuvent differer ; le controle, lui, reste
+#  valide). Mordant mesure hors depot : un moteur qui reimprime ce nombre
+#  dans le detail echoue ici.
+#
 #  Trois methodes sur tests/donnees/, parametres de test_reproductibilite.R
-#  sauf B = 199 (duree). Mordant verifie en fin de fichier : une chaine
-#  bruitee et un ecart numerique reintroduits en memoire font echouer le
-#  controle.
+#  sauf B = 99 (duree : huit motifs, 27 appels de run_engine()). Mordant
+#  verifie en fin de fichier : une chaine bruitee et un ecart numerique
+#  reintroduits en memoire font echouer le controle.
 ###############################################################################
 
 if (!exists("verifier", mode = "function")) {
@@ -38,12 +54,20 @@ debut_fichier("test_anti_bruit.R")
 outils_env <- new.env(parent = globalenv())
 sys.source(file.path(.dossier, "..", "outils_tests.R"), envir = outils_env)
 
-B_ANTI_BRUIT <- 199
+B_ANTI_BRUIT <- 99
 
-# Perturbation relative deterministe : signes alternes, dim conservee (le
-# triangle reste une matrice ; les NA restent NA).
-perturber <- function(x) {
-  s <- rep_len(c(1, -1), length(x)); dim(s) <- dim(x)
+# Motif de Walsh-Hadamard d'indice k (1 a 7) sur n positions : arithmetique
+# entiere, sans generateur aleatoire (.Random.seed intact). k = 1 donne les
+# signes alternes +1, -1, +1...
+signes_walsh <- function(n, k)
+  vapply(seq_len(n) - 1L,
+         function(v) (-1)^sum(as.integer(intToBits(bitwAnd(v, as.integer(k))))), 1)
+# Couples (kx, ky) retenus : voir l'en-tete.
+MOTIFS <- list(c(1, 1), c(1, 3), c(2, 4), c(3, 7), c(4, 1), c(5, 2), c(6, 5), c(7, 6))
+# Perturbation relative deterministe, dim conservee (le triangle reste une
+# matrice ; les NA restent NA).
+perturber <- function(x, k) {
+  s <- signes_walsh(length(x), k); dim(s) <- dim(x)
   x * (1 + 1e-12 * s)
 }
 
@@ -70,23 +94,39 @@ controle_anti_bruit <- function(a, b) {
 
 ln  <- outils_env$.ln
 tri <- outils_env$.tri
+nom_motif <- function(m) sprintf("(kx = %d, ky = %d)", m[1], m[2])
+# Controle de tous les motifs contre le calcul non perturbe `a` : la
+# perturbation doit atteindre le champ `champ` du resultat, et le controle
+# anti-bruit passer. Renvoie le resultat du premier motif (mordant, plus
+# bas) et TRUE ou la liste des motifs fautifs.
+controler_motifs <- function(a, calcul, champ) {
+  pb <- character(0); premier <- NULL
+  for (m in MOTIFS) {
+    b <- calcul(m)
+    if (is.null(premier)) premier <- b
+    r <- if (identical(a[[champ]], b[[champ]])) paste("la perturbation n'atteint pas", champ)
+         else controle_anti_bruit(a, b)
+    if (!isTRUE(r)) pb <- c(pb, paste(nom_motif(m), ":", r))
+  }
+  list(b = premier, verdict = if (length(pb)) paste(pb, collapse = " | ") else TRUE)
+}
 res <- list()
 for (m in c("premium", "reserve1")) {
   a <- executer(m, xt = ln$xt, yt = ln$yt)
-  b <- executer(m, xt = perturber(ln$xt), yt = perturber(ln$yt))
-  res[[m]] <- list(a = a, b = b)
-  verifier(sprintf("%s : la perturbation atteint bien les donnees du resultat", m),
-           !identical(a$donnees, b$donnees))
-  verifier(sprintf("%s : donnees perturbees de 1e-12 -> chaines identiques, nombres sous le seuil", m),
-           controle_anti_bruit(a, b))
+  cm <- controler_motifs(a, function(k)
+    executer(m, xt = perturber(ln$xt, k[1]), yt = perturber(ln$yt, k[2])), "donnees")
+  res[[m]] <- list(a = a, b = cm$b)
+  verifier(sprintf(paste("%s : donnees perturbees de 1e-12 (%d motifs) -> perturbation visible",
+                         "dans res$donnees, chaines identiques, nombres sous le seuil"),
+                   m, length(MOTIFS)), cm$verdict)
 }
 a <- executer("reserve2", triangle = tri)
-b <- executer("reserve2", triangle = perturber(tri))
-res$reserve2 <- list(a = a, b = b)
-verifier("reserve2 : la perturbation atteint bien le triangle du resultat",
-         !identical(a$triangle, b$triangle))
-verifier("reserve2 : triangle perturbe de 1e-12 -> chaines identiques, nombres sous le seuil",
-         controle_anti_bruit(a, b))
+cm <- controler_motifs(a, function(k) executer("reserve2", triangle = perturber(tri, k[1])),
+                       "triangle")
+res$reserve2 <- list(a = a, b = cm$b)
+verifier(sprintf(paste("reserve2 : triangle perturbe de 1e-12 (%d motifs) -> perturbation visible",
+                       "dans res$triangle, chaines identiques, nombres sous le seuil"),
+                 length(MOTIFS)), cm$verdict)
 
 ## --- Mordant du controle (en memoire) ----------------------------------------
 # Chaine imprimant un residu au bruit machine, comme l'ancien detail de la FOC
