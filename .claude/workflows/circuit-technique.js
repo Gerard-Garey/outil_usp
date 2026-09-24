@@ -1,0 +1,431 @@
+export const meta = {
+  name: 'circuit-technique',
+  description: "Circuit 3 de CLAUDE.md (correction technique) : coder implemente une issue, un agent execute les batteries R, audit leger sur le diff, au plus une reprise, arret a tout point de decision. N'ecrit rien dans l'historique : ni commit, ni push, ni regeneration de reference, ni issue (ADR 0010).",
+  whenToUse: "Uniquement sur commande explicite du mainteneur (ADR 0010, principe 1), avec en argument le numero d'une issue de correction technique de la branche de travail courante (par ex. '76', ou '76 consigne complementaire'). Jamais de la propre initiative d'une session, d'un agent ou d'un hook. Pas pour une evolution methodologique, une correction reglementaire ni la revue finale complete avant fusion (regle 10).",
+  phases: [
+    { title: 'Préparation', detail: "Etat du depot au lancement : branche, tete, amont, arbre de travail propre" },
+    { title: 'Implémentation', detail: "coder implemente l'issue, sans commit, push, regeneration, issue ni .tex" },
+    { title: 'Vérification', detail: "Execution des trois batteries R et controle des garde-fous du principe 2" },
+    { title: 'Audit léger', detail: "audit lit le diff contre la tete au lancement et les fonctions touchees" },
+    { title: 'Reprise', detail: "Au plus une reprise de coder sur les constats bloquants ou majeurs corrigeables" },
+    { title: 'Vérification de la reprise', detail: "Batteries R et garde-fous apres la reprise" },
+    { title: 'Audit de la reprise', detail: "audit lit le diff de la seule correction" }
+  ]
+}
+
+// ---------------------------------------------------------------------------
+//  Workflow circuit-technique : mise en oeuvre du circuit 3 de CLAUDE.md
+//  (coder -> audit), cadre fixe par docs/adr/0010-*.md (huit principes,
+//  regles 9 et 10), issue #68.
+//
+//  Garde-fous et leurs limites :
+//  - Principe 1 : lancement sur commande explicite du mainteneur (whenToUse).
+//  - Principe 2 : un script de workflow ne peut pas retirer d'outils a un
+//    agent, et .claude/settings.json autorise git commit et git push sans
+//    dialogue. L'interdiction de git commit, git push, de toute ecriture dans
+//    tests/reference/ et de issue_write n'est donc PAS imposee par
+//    construction : elle est portee par la consigne de chaque agent() et par
+//    les fiches .claude/agents/*.md, puis CONTROLEE apres chaque tour
+//    (tete, amont, tests/reference/, docs/latex/ inchanges) ; une violation
+//    detectee arrete le workflow. La session principale verifie en outre
+//    git status et git log apres chaque workflow (ADR 0010, Consequences).
+//  - Principe 3 : arret avec les rapports des qu'un constat releve
+//    d'actuary, de regulatory ou du mainteneur (methode, sigma_USP, verdict,
+//    reference a regenerer) ou que deux verifications se contredisent.
+//  - Principe 4 : au plus une reprise (deux tours coder -> audit).
+//  - Principe 5 : audit leger sur le diff contre la tete au lancement ; la
+//    revue finale complete (regle 10) est hors de ce workflow.
+//  - Principe 6 : constats sous schema (gravite, fichier:ligne, mesure).
+//  - Principe 7 : les batteries sont des scripts R executes par un agent ;
+//    le script du workflow n'a pas acces au systeme de fichiers.
+//  - Principe 8 : effort 'low' pour les etapes mecaniques ; le parametre
+//    model n'est pas fixe (herite du modele de session).
+//  Le workflow ne propose qu'un message de commit ; il ne l'execute pas.
+// ---------------------------------------------------------------------------
+
+// Consigne commune a tous les agents du workflow (principe 2)
+const INTERDITS = [
+  "INTERDICTIONS ABSOLUES dans ce workflow (ADR 0010, principe 2) :",
+  "- aucune commande git qui ecrit : ni git commit, ni git push, ni git add, git stash push/pop, git reset, git checkout, git restore, git switch, git merge, git rebase, git tag, git branch ;",
+  "- aucune ecriture dans tests/reference/ : ne lance ni tests/generer_references.R, ni tests/regenerer_et_rendre_compte.R, ni tests/patcher_reference.R ;",
+  "- aucune creation ni modification d'issue ou de commentaire GitHub (issue_write, add_issue_comment) ;",
+  "- aucune modification de docs/latex/ (regle 9 : docwriter passe une seule fois, en fin de branche).",
+  "Si ta tache semble exiger l'un de ces actes, ne le fais pas : dis-le dans ta reponse, la session principale decidera."
+].join('\n')
+
+// Lecture de l'argument : numero d'issue, suivi d'une consigne facultative.
+// Formes acceptees : 76, '76', '#76 consigne', {issue: 76, consigne: '...'}
+// ou la chaine JSON de cet objet (args peut arriver non analyse).
+function lireArgs(a) {
+  let v = (typeof a === 'undefined') ? null : a
+  if (typeof v === 'string') {
+    try { v = JSON.parse(v) } catch (e) { /* chaine libre : lue plus bas */ }
+  }
+  if (v !== null && typeof v === 'object') {
+    const n = String(v.issue === undefined || v.issue === null ? '' : v.issue).match(/\d+/)
+    return { issue: n ? n[0] : null, consigne: v.consigne ? String(v.consigne) : '' }
+  }
+  const brut = v === null ? '' : String(v)
+  const m = brut.match(/^\s*#?(\d+)\b/)
+  return { issue: m ? m[1] : null, consigne: m ? brut.slice(m[0].length).trim() : '' }
+}
+const entree = lireArgs(typeof args === 'undefined' ? undefined : args)
+const issue = entree.issue
+const consigne = entree.consigne
+
+// Etat du rapport final, complete au fil des phases
+const rapport = {
+  issue: issue,
+  statut: 'en cours',
+  motif_arret: null,
+  depot: null,
+  tours: [],
+  fichiers_modifies: [],
+  surface_documentaire: [],
+  commit_propose_non_execute: null,
+  doutes_actuary: [],
+  rappel: "Aucun commit, push, regeneration de reference ni issue n'a ete execute par le workflow. La session principale verifie git status et git log, puis commite apres lecture."
+}
+
+function arreter(motif) {
+  rapport.statut = 'arrete'
+  rapport.motif_arret = motif
+  log('Arret : ' + motif)
+  return rapport
+}
+
+// ---------------------------------------------------------------------------
+//  Schemas des sorties structurees
+// ---------------------------------------------------------------------------
+
+const SCHEMA_DEPOT = {
+  type: 'object',
+  properties: {
+    branche: { type: 'string' },
+    tete: { type: 'string', description: 'git rev-parse HEAD' },
+    amont: { type: 'string', description: "git rev-parse @{u}, ou 'aucun'" },
+    arbre_propre: { type: 'boolean', description: 'git status --porcelain vide' },
+    status_porcelain: { type: 'string' }
+  },
+  required: ['branche', 'tete', 'amont', 'arbre_propre', 'status_porcelain']
+}
+
+const SCHEMA_IMPLEMENTATION = {
+  type: 'object',
+  properties: {
+    fichiers_modifies: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: { fichier: { type: 'string' }, changement: { type: 'string' } },
+        required: ['fichier', 'changement']
+      }
+    },
+    mesures: {
+      type: 'array',
+      description: 'Mesure derriere chaque affirmation sur le comportement du code',
+      items: {
+        type: 'object',
+        properties: { affirmation: { type: 'string' }, commande: { type: 'string' }, sortie: { type: 'string' } },
+        required: ['affirmation', 'commande', 'sortie']
+      }
+    },
+    resultats_modifies: {
+      type: 'string',
+      description: "Tableau avant / apres de tests/comparer_references.R, ou 'aucun'"
+    },
+    surface_documentaire: {
+      type: 'array',
+      description: 'Endroits du .tex a rouvrir par docwriter (fiches, tableaux 1 et 2, decomptes, fonctions citees, encadres de portee)',
+      items: { type: 'string' }
+    },
+    commit_propose: { type: 'string', description: 'Message de commit propose, NON execute' },
+    doutes_actuary: { type: 'array', items: { type: 'string' } },
+    decision_requise: {
+      type: 'boolean',
+      description: "Vrai si la suite exige actuary, regulatory ou le mainteneur (methode, sigma_USP, verdict, reference a regenerer, acte interdit)"
+    },
+    motif_decision: { type: 'string' }
+  },
+  required: ['fichiers_modifies', 'mesures', 'resultats_modifies', 'surface_documentaire', 'commit_propose', 'doutes_actuary', 'decision_requise', 'motif_decision']
+}
+
+const SCHEMA_VERIFICATION = {
+  type: 'object',
+  properties: {
+    batteries: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          commande: { type: 'string' },
+          code_sortie: { type: 'integer' },
+          synthese: { type: 'string', description: 'Lignes de bilan de la sortie, recopiees telles quelles' }
+        },
+        required: ['commande', 'code_sortie', 'synthese']
+      }
+    },
+    ecart_aux_references: {
+      type: 'boolean',
+      description: 'Vrai si test_reproductibilite.R echoue par ecart a une reference (regeneration a decider)'
+    },
+    garde_fous: {
+      type: 'object',
+      properties: {
+        tete_inchangee: { type: 'boolean' },
+        amont_inchange: { type: 'boolean' },
+        reference_intacte: { type: 'boolean', description: 'git status --porcelain -- tests/reference/ vide' },
+        latex_intact: { type: 'boolean', description: 'git status --porcelain -- docs/latex/ vide' },
+        detail: { type: 'string' }
+      },
+      required: ['tete_inchangee', 'amont_inchange', 'reference_intacte', 'latex_intact', 'detail']
+    },
+    instantane: {
+      type: 'string',
+      description: "Sortie de git stash create (objet sans reference), ou 'aucun' si rien a figer"
+    },
+    copie_non_suivis: {
+      type: 'string',
+      description: "Repertoire temporaire hors depot ou sont copies les fichiers non suivis, ou 'aucun'"
+    }
+  },
+  required: ['batteries', 'ecart_aux_references', 'garde_fous', 'instantane', 'copie_non_suivis']
+}
+
+const SCHEMA_AUDIT = {
+  type: 'object',
+  properties: {
+    conclusion: { type: 'string', enum: ['conforme', 'conforme avec reserves', 'non conforme'] },
+    constats: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          gravite: { type: 'string', enum: ['bloquant', 'majeur', 'mineur'] },
+          fichier_ligne: { type: 'string', description: 'fichier:ligne' },
+          description: { type: 'string', description: 'Scenario concret : entrees -> sortie fausse' },
+          mesure: {
+            type: 'object',
+            properties: { commande: { type: 'string' }, sortie: { type: 'string' } },
+            required: ['commande', 'sortie']
+          },
+          correction_suggeree: { type: 'string' },
+          releve_de: {
+            type: 'string',
+            enum: ['coder', 'actuary', 'regulatory', 'mainteneur'],
+            description: "coder si corrigeable sans decision ; sinon qui doit trancher"
+          }
+        },
+        required: ['gravite', 'fichier_ligne', 'description', 'mesure', 'correction_suggeree', 'releve_de']
+      }
+    },
+    verifications_executees: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: { commande: { type: 'string' }, resultat: { type: 'string' } },
+        required: ['commande', 'resultat']
+      }
+    },
+    questions_actuary: { type: 'array', items: { type: 'string' } },
+    contradiction_avec_batteries: {
+      type: 'boolean',
+      description: 'Vrai si ta conclusion contredit le resultat des batteries fourni'
+    }
+  },
+  required: ['conclusion', 'constats', 'verifications_executees', 'questions_actuary', 'contradiction_avec_batteries']
+}
+
+// ---------------------------------------------------------------------------
+//  Consignes des etapes
+// ---------------------------------------------------------------------------
+
+function consigneImplementation(base, constats) {
+  const lignes = [
+    "Tu es lance par le workflow circuit-technique (ADR 0010), circuit 3 de CLAUDE.md, pour l'issue #" + issue + " du depot Gerard-Garey/outil_usp.",
+    "Lis l'issue et ses commentaires (mcp__github__issue_read, methodes get et get_comments), puis ta fiche et CLAUDE.md, et applique leurs regles de travail.",
+    "Tete de branche au lancement du workflow : " + base + ". Ne change pas de branche."
+  ]
+  if (consigne) lignes.push("Consigne complementaire du mainteneur : " + consigne)
+  if (constats) {
+    lignes.push(
+      "REPRISE (unique, principe 4) : corrige exactement les constats suivants de l'audit leger, et rien d'autre. Chaque correction s'adosse a une mesure que tu cites.",
+      JSON.stringify(constats, null, 2)
+    )
+  }
+  lignes.push(
+    INTERDITS,
+    "Reproductibilite : lance Rscript tests/test_reproductibilite.R. En cas d'ecart aux references, produis le tableau avant / apres par Rscript tests/comparer_references.R et explique chaque ligne, mais NE regenere PAS : mets decision_requise a vrai (le visa et la regeneration appartiennent a la session principale et au mainteneur).",
+    "Mets aussi decision_requise a vrai si sigma_USP ou un verdict change, si la tache exige un choix de methode, ou si elle semble exiger un acte interdit ; motif_decision le dit.",
+    "surface_documentaire : liste les endroits du .tex que docwriter devra rouvrir (fiches, tableaux 1 et 2, decomptes, fonctions citees, encadres de portee), en suivant la grille « Surface d'impact » de .claude/agents/docwriter.md ; liste vide si aucune.",
+    "commit_propose : message au format de CLAUDE.md (prefixe de domaine, renvoi a #" + issue + ", surface d'impact documentaire, tableau avant / apres s'il y a lieu). Il ne sera PAS execute par le workflow."
+  )
+  return lignes.join('\n\n')
+}
+
+function consigneVerification(depot) {
+  return [
+    "Etape mecanique du workflow circuit-technique (ADR 0010, principe 7) : tu executes des scripts et tu rapportes leur sortie ; tu ne juges pas le code et tu ne modifies aucun fichier du depot.",
+    INTERDITS,
+    "1. Depuis la racine du depot, execute dans cet ordre et rapporte pour chacun la commande, le code de sortie et les lignes de bilan recopiees telles quelles :",
+    "   Rscript tests/test_unitaires.R",
+    "   Rscript tests/test_reproductibilite.R",
+    "   Rscript tests/concordance_doc_moteur.R",
+    "   ecart_aux_references est vrai si test_reproductibilite.R echoue par ecart a une reference (et non par difference entre deux appels a graine egale).",
+    "2. Garde-fous : compare git rev-parse HEAD a " + depot.tete + " et git rev-parse @{u} a '" + depot.amont + "' ('aucun' si pas d'amont) ; git status --porcelain -- tests/reference/ et git status --porcelain -- docs/latex/ doivent etre vides. Recopie les sorties dans detail.",
+    "3. Instantane pour l'audit d'une eventuelle reprise : execute git stash create (cree un objet sans reference, ne touche ni l'arbre ni l'index ni l'historique) et rends le hash, ou 'aucun' si la sortie est vide ; copie les fichiers non suivis de git status --porcelain dans un repertoire cree par mktemp -d, HORS du depot, et rends son chemin, ou 'aucun'."
+  ].join('\n')
+}
+
+function consigneAudit(depot, verif, reference, tour) {
+  const perimetre = tour === 1
+    ? "le travail en cours contre la tete au lancement : git diff " + depot.tete + ", plus les fichiers non suivis listes par git status --porcelain (lis-les en entier)."
+    : "la SEULE correction de la reprise : git diff " + reference.instantane + " pour les fichiers suivis, et, pour les fichiers non suivis, diff -r " + reference.copie_non_suivis + " contre leur etat actuel ('aucun' = pas de fichier non suivi au tour 1)."
+  return [
+    "Audit LEGER du workflow circuit-technique (ADR 0010, principe 5), issue #" + issue + ", tour " + tour + ". Applique ta fiche, section audit leger.",
+    "Perimetre : " + perimetre + " Lis les fonctions touchees avec leurs appelants et appeles, pas les fichiers entiers. Ce n'est pas la revue finale complete (regle 10).",
+    INTERDITS,
+    "Resultats des batteries executees juste avant (ne les relance pas sauf besoin d'une mesure precise) :",
+    JSON.stringify(verif.batteries, null, 2),
+    "Chaque constat porte sa gravite, fichier:ligne, la mesure executee (commande et sortie) et releve_de : 'coder' s'il se corrige sans decision, sinon 'actuary' (methode, pertinence a T = 8), 'regulatory' (formule, parametre, bareme) ou 'mainteneur' (sigma_USP, verdict, reference a regenerer). Un constat sans mesure ni emplacement n'est pas recevable.",
+    "contradiction_avec_batteries : vrai si tu conclus conforme alors qu'une batterie echoue, ou l'inverse sans explication."
+  ].join('\n\n')
+}
+
+// ---------------------------------------------------------------------------
+//  Decisions d'arret (principes 2, 3, 4)
+// ---------------------------------------------------------------------------
+
+function violationGardeFous(verif) {
+  const g = verif.garde_fous
+  if (!g.tete_inchangee || !g.amont_inchange || !g.reference_intacte || !g.latex_intact) {
+    return 'violation du principe 2 detectee (' + g.detail + ')'
+  }
+  return null
+}
+
+function constatsDecision(audit) {
+  return audit.constats.filter(function (c) { return c.releve_de !== 'coder' })
+}
+
+function constatsCorrigeables(audit) {
+  return audit.constats.filter(function (c) {
+    return c.releve_de === 'coder' && (c.gravite === 'bloquant' || c.gravite === 'majeur')
+  })
+}
+
+function noterImplementation(impl) {
+  rapport.fichiers_modifies = impl.fichiers_modifies
+  rapport.surface_documentaire = impl.surface_documentaire
+  rapport.commit_propose_non_execute = impl.commit_propose
+  rapport.doutes_actuary = rapport.doutes_actuary.concat(impl.doutes_actuary)
+}
+
+// ---------------------------------------------------------------------------
+//  Deroulement
+// ---------------------------------------------------------------------------
+
+// Corps du workflow dans une fonction : un seul return au niveau superieur,
+// qui rend le rapport final a l'appelant
+async function derouler() {
+  if (!issue) {
+    return arreter("argument sans numero d'issue (attendu : '76' ou '76 consigne')")
+  }
+
+  phase('Préparation')
+  const depot = await agent(
+    [
+      "Etape mecanique du workflow circuit-technique : releve l'etat du depot, sans rien modifier.",
+      INTERDITS,
+      "Execute git branch --show-current, git rev-parse HEAD, git rev-parse @{u} (rends 'aucun' en cas d'erreur) et git status --porcelain, et rends les sorties."
+    ].join('\n\n'),
+    { label: 'etat du depot', agentType: 'audit', effort: 'low', schema: SCHEMA_DEPOT }
+  )
+  if (!depot) return arreter("l'agent de preparation n'a rien rendu")
+  rapport.depot = depot
+  if (!depot.arbre_propre) {
+    return arreter("arbre de travail non propre au lancement : le diff audite melangerait un travail anterieur (" + depot.status_porcelain + ")")
+  }
+
+  // Tour 1
+  phase('Implémentation')
+  const impl1 = await agent(consigneImplementation(depot.tete, null),
+    { label: 'coder #' + issue, agentType: 'coder', schema: SCHEMA_IMPLEMENTATION })
+  if (!impl1) return arreter("coder n'a rien rendu (agent saute ou interrompu)")
+  const tour1 = { implementation: impl1, verification: null, audit: null }
+  rapport.tours.push(tour1)
+  noterImplementation(impl1)
+  if (impl1.fichiers_modifies.length === 0) return arreter('coder ne declare aucun fichier modifie')
+
+  phase('Vérification')
+  const verif1 = await agent(consigneVerification(depot),
+    { label: 'batteries tour 1', agentType: 'audit', effort: 'low', schema: SCHEMA_VERIFICATION })
+  if (!verif1) return arreter("l'agent de verification n'a rien rendu")
+  tour1.verification = verif1
+  const violation1 = violationGardeFous(verif1)
+  if (violation1) return arreter(violation1)
+  if (impl1.decision_requise) return arreter('decision requise selon coder : ' + impl1.motif_decision)
+  if (verif1.ecart_aux_references) {
+    return arreter('ecart aux references : tableau avant / apres a viser, regeneration par la session principale')
+  }
+
+  phase('Audit léger')
+  const audit1 = await agent(consigneAudit(depot, verif1, null, 1),
+    { label: 'audit leger tour 1', agentType: 'audit', schema: SCHEMA_AUDIT })
+  if (!audit1) return arreter("audit n'a rien rendu (agent saute ou interrompu)")
+  tour1.audit = audit1
+  rapport.doutes_actuary = rapport.doutes_actuary.concat(audit1.questions_actuary)
+  if (audit1.contradiction_avec_batteries) return arreter('contradiction entre audit et batteries (principe 3)')
+  const decisions1 = constatsDecision(audit1)
+  if (decisions1.length > 0) {
+    return arreter(decisions1.length + ' constat(s) a trancher hors workflow (' +
+      decisions1.map(function (c) { return c.releve_de + ' : ' + c.fichier_ligne }).join(' ; ') + ')')
+  }
+  const aCorriger = constatsCorrigeables(audit1)
+  if (aCorriger.length === 0) {
+    rapport.statut = 'termine'
+    log('Audit leger : ' + audit1.conclusion + ', aucune reprise necessaire')
+    return rapport
+  }
+  if (verif1.instantane === 'aucun') {
+    return arreter("instantane du tour 1 indisponible : l'audit de la reprise ne pourrait pas isoler le diff de la correction")
+  }
+
+  // Tour 2 : reprise unique (principe 4)
+  phase('Reprise')
+  const impl2 = await agent(consigneImplementation(depot.tete, aCorriger),
+    { label: 'reprise coder #' + issue, agentType: 'coder', schema: SCHEMA_IMPLEMENTATION })
+  if (!impl2) return arreter("coder n'a rien rendu a la reprise")
+  const tour2 = { implementation: impl2, verification: null, audit: null }
+  rapport.tours.push(tour2)
+  noterImplementation(impl2)
+
+  phase('Vérification de la reprise')
+  const verif2 = await agent(consigneVerification(depot),
+    { label: 'batteries tour 2', agentType: 'audit', effort: 'low', schema: SCHEMA_VERIFICATION })
+  if (!verif2) return arreter("l'agent de verification n'a rien rendu a la reprise")
+  tour2.verification = verif2
+  const violation2 = violationGardeFous(verif2)
+  if (violation2) return arreter(violation2)
+  if (impl2.decision_requise) return arreter('decision requise selon coder a la reprise : ' + impl2.motif_decision)
+  if (verif2.ecart_aux_references) {
+    return arreter('ecart aux references apres la reprise : tableau avant / apres a viser')
+  }
+
+  phase('Audit de la reprise')
+  const audit2 = await agent(consigneAudit(depot, verif2, verif1, 2),
+    { label: 'audit leger tour 2', agentType: 'audit', schema: SCHEMA_AUDIT })
+  if (!audit2) return arreter("audit n'a rien rendu a la reprise")
+  tour2.audit = audit2
+  rapport.doutes_actuary = rapport.doutes_actuary.concat(audit2.questions_actuary)
+  if (audit2.contradiction_avec_batteries) return arreter('contradiction entre audit et batteries apres la reprise (principe 3)')
+  if (constatsDecision(audit2).length > 0) return arreter('constat(s) a trancher hors workflow apres la reprise')
+  if (constatsCorrigeables(audit2).length > 0) {
+    return arreter('constat bloquant ou majeur apres la reprise unique : suite rendue a la session principale (principe 4)')
+  }
+  rapport.statut = 'termine'
+  log('Audit de la reprise : ' + audit2.conclusion)
+  return rapport
+}
+
+return await derouler()

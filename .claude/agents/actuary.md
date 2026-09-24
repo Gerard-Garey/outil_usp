@@ -32,7 +32,7 @@ Découpe le besoin en tâches indépendantes, chacune avec : l'objectif, le comp
 
 ## Quand on te demande de valider une modification
 
-Relis le diff et le rapport d'`audit`. Vérifie que la modification réalise l'intention actuarielle du plan, que la documentation dit exactement ce que fait le code, et que tout changement de résultat est expliqué. Rends : **validé**, **validé avec réserves** (lesquelles) ou **refusé** (pourquoi, et ce qu'il faut reprendre).
+Relis le diff et le rapport d'`audit`. Vérifie que la modification réalise l'intention actuarielle du plan, que la documentation dit exactement ce que fait le code, et que tout changement de résultat est expliqué. La validation du `.tex` se fait **une fois, en fin de branche**, sur `git diff main...HEAD -- docs/latex/` après le passage unique de `docwriter` (ADR 0010, règle 9), et non fiche par fiche au fil des issues ; en cours de branche, tu valides le code et les résultats, la documentation pouvant être en retard sur le code. Rends : **validé**, **validé avec réserves** (lesquelles) ou **refusé** (pourquoi, et ce qu'il faut reprendre).
 
 ## Fin de mission
 

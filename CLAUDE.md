@@ -89,12 +89,12 @@ Sept sous-agents de projet (`.claude/agents/`), orchestrés par la session princ
 | Pilotage | `architect` | `docs/adr/`, `CONTEXT.md` | Dans quel ordre, avec quels agents, sous quelle forme ? |
 | Fond | `actuary` | rien (avis, issues) | Statistiquement pertinent à T = 8 ? |
 | Fond | `regulatory` | rien (matrice, issues) | Exactement ce que prescrit le règlement ? |
-| Réalisation | `coder` | code R, tests, doc accompagnant le code | Comment l'implémenter ? |
+| Réalisation | `coder` | code R, tests (pas `docs/latex/`) ; surface d'impact documentaire dans le commit proposé | Comment l'implémenter ? |
 | Réalisation | `docwriter` | `docs/latex/` | Doc juste, rigoureuse, conforme à `docs/latex/CONVENTIONS.md` ? |
 | Vérification | `audit` | rien (rapport) | Code correct et reproductible ? |
 | Vérification | `app-review` | rien (rapport) | Application conforme à `docs/exigences.md` § 5 ? |
 
-**Déclencheurs** — un agent n'entre dans le circuit que si la modification touche son domaine : plusieurs issues ou forme du moteur → `architect` en amont ; méthode ou test statistique → `actuary` (spécification en amont, validation en aval) ; formule, paramètre ou barème du règlement → `regulatory` (lecture du texte en amont, contrôle de conformité en aval) ; `R/engine.R` → `audit` ; `app.R` ou `R/display_helpers.R` → `app-review` ; fond de `docs/latex/` → `docwriter`, en dernier.
+**Déclencheurs** — un agent n'entre dans le circuit que si la modification touche son domaine : plusieurs issues ou forme du moteur → `architect` en amont ; méthode ou test statistique → `actuary` (spécification en amont, validation en aval) ; formule, paramètre ou barème du règlement → `regulatory` (lecture du texte en amont, contrôle de conformité en aval) ; `R/engine.R` → `audit` ; `app.R` ou `R/display_helpers.R` → `app-review` ; fond de `docs/latex/` → `docwriter`, en dernier, une seule fois par branche (règle 9 ci-dessous).
 
 **Circuits types** (chacun se termine par un ou plusieurs commits sur la branche de travail, voir « Git et GitHub ») :
 
@@ -103,7 +103,13 @@ Sept sous-agents de projet (`.claude/agents/`), orchestrés par la session princ
 3. **Correction technique** : `coder` → `audit`.
 4. **Documentation seule** : `docwriter` (+ `actuary` si le fond change, `regulatory` si une formule réglementaire est touchée).
 
-Un constat bloquant ou majeur d'un vérificateur renvoie à l'étape de réalisation. Sur une même branche, `docwriter` passe **après** `coder`, jamais en parallèle. Quand le texte réglementaire admet deux lectures, `regulatory` les décrit, `actuary` donne son avis, le mainteneur tranche.
+**Workflows.** Un circuit type peut être mis en œuvre par un workflow de `.claude/workflows/` (le premier : `circuit-technique <issue>`, circuit 3), qui en fixe les appels d'agents, les sorties structurées et les conditions d'arrêt. Tout workflow respecte les huit principes de l'ADR 0010 (`docs/adr/0010-…`) : lancement sur commande explicite du mainteneur uniquement ; aucun `git commit`, `git push`, régénération ou patch de `tests/reference/` ni création d'issue par le workflow ou ses agents (interdiction portée par les consignes et les fiches, les permissions de `.claude/settings.json` ne l'imposant pas : la session principale vérifie `git status` et `git log` après chaque workflow) ; arrêt avec les rapports à tout point de décision (`actuary`, mainteneur, contradiction entre vérificateurs) ; au plus une reprise `coder` → `audit` ; vérificateurs ciblés sur le diff ; constats sous forme structurée (gravité, `fichier:ligne`, mesure) ; contrôles mécaniques confiés aux scripts de `tests/` ; effort réduit pour les étapes mécaniques.
+
+**Règle 9 — un seul passage de `docwriter` par branche** (M21, ADR 0010) : `docwriter` intervient une fois, en fin de branche, sur l'état final du code, avec **un commit `docs:` par issue** ; `coder` ne modifie pas le `.tex` et liste dans chaque commit proposé la **surface d'impact documentaire**, dont `docwriter` part ; `tests/concordance_doc_moteur.R` signale entre-temps les noms et décomptes devenus faux ; `actuary` valide le diff du `.tex` une fois, en fin de branche. Exceptions : commits `docs:` préparatoires qui protègent la suite, branches où le document porte la décision et précède le code (amendement d'ADR, lecture réglementaire, circuit 2).
+
+**Règle 10 — audit léger en cours, revue finale complète avant la sortie du brouillon** (M26, ADR 0010) : pendant l'implémentation, `audit` (et `app-review`) peuvent se limiter au diff et aux fonctions touchées avec leurs appelants et appelés ; avant la sortie du brouillon, revue finale complète du `git diff main...HEAD` entier (fonctions touchées avec appelants et appelés, batteries complètes, scénarios adverses, cohérence code ↔ tests ↔ `.tex`) par les vérificateurs que désignent les déclencheurs, plus `/code-review` ; toute correction postérieure est revue à son tour, sur son diff, avant la sortie du brouillon. La relecture intégrale hors diff reste réservée à la remise du dossier.
+
+Un constat bloquant ou majeur d'un vérificateur renvoie à l'étape de réalisation. Sur une même branche, `docwriter` passe **après** `coder` — après le dernier commit de code de la branche (règle 9) —, jamais en parallèle. Quand le texte réglementaire admet deux lectures, `regulatory` les décrit, `actuary` donne son avis, le mainteneur tranche.
 
 **Revues périodiques**, hors de tout changement : `architect` (point d'étape et feuille de route, après chaque série de PR fusionnées) ; `regulatory` (matrice de conformité complète avant remise du dossier et après toute correction de formule) ; `actuary` (revue des tests si leur liste change notablement) ; `app-review` et `docwriter` (relecture intégrale avant démonstration ou remise).
 

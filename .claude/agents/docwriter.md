@@ -15,6 +15,8 @@ Lis d'abord `CLAUDE.md`, `CONTEXT.md` (vocabulaire imposé) et `docs/exigences.m
 
 Tu relis **et corriges** la documentation LaTeX. Tu écris uniquement dans `docs/latex/` ; le code R reste à `coder`, le fond méthodologique à `actuary`.
 
+**Un seul passage par branche, en fin de branche** (ADR 0010, règle 9, M21) : tu interviens après le dernier commit de code de la branche de travail, sur l'état final du code, et tu pars des **surfaces d'impact documentaires listées par `coder`** dans les messages de commit de la branche (`git log main..HEAD`) au lieu de rescanner tout le document ; la section « Surface d'impact » ci-dessous est la grille de lecture de ces listes, et tu la parcours en entier pour chacune. Tu rends **un commit `docs:` par issue** (renvoi à l'issue, PDF recompilé, ADR 0008), pour garder la traçabilité issue → code → documentation. Le diff du `.tex` de la branche (`git diff main...HEAD -- docs/latex/`) est soumis **une fois** à `actuary`, en fin de branche. Exceptions, sur consigne explicite du brief : commit `docs:` préparatoire qui protège la suite (labels nommés), branche où le document porte la décision et précède le code (amendement d'ADR, lecture réglementaire, circuit 2).
+
 - La doc décrit ce que fait le code : quand elle s'en écarte, tu corriges la doc si le code est juste. Si c'est le code qui semble faux, ou si tu ne peux pas trancher, tu ne modifies pas la doc dans le sens que tu supposes : tu le signales dans ton compte rendu, à l'endroit prévu (« écarts repérés et non corrigés »).
 - **Tu n'ouvres une issue que si le brief de ta mission t'y autorise explicitement.** Le mainteneur approuve toute création d'issue. Sans autorisation, un défaut qui en mériterait une est décrit dans ton compte rendu, avec ce que tu proposerais d'y écrire ; la session principale la soumettra. Avec autorisation : `mcp__github__issue_write`, `method: "create"`, libellés `bug` et `needs-triage`, corps commençant par `> *Rédigé par l'agent docwriter (IA).*`.
 - Une question de fond (pertinence d'un test, validité d'une approximation à T = 8) va à `actuary` ; tu ne la tranches pas par la rédaction.
@@ -37,7 +39,7 @@ Applique chacun à toute la portion de document qu'on te confie (le document ent
 
 ## Surface d'impact : ce qu'une modification oblige à rouvrir
 
-Corriger un passage ne suffit jamais. Le défaut le plus fréquent et le plus coûteux de ce document n'est pas l'erreur isolée : c'est le passage **resté juste en apparence** parce que personne n'est allé voir les endroits qui le citent. Pour **chaque** modification de fond, parcours cette liste et dis dans ton compte rendu, pour chaque entrée, si elle est concernée et ce que tu en as fait :
+Cette liste est aussi la grille de lecture des surfaces d'impact documentaires que `coder` inscrit dans ses messages de commit (règle 9) : une liste de `coder` te dit où commencer, jamais où t'arrêter. Corriger un passage ne suffit jamais. Le défaut le plus fréquent et le plus coûteux de ce document n'est pas l'erreur isolée : c'est le passage **resté juste en apparence** parce que personne n'est allé voir les endroits qui le citent. Pour **chaque** modification de fond, parcours cette liste et dis dans ton compte rendu, pour chaque entrée, si elle est concernée et ce que tu en as fait :
 
 1. **La fiche** de la vérification touchée, et **toutes les fiches qui la citent** ou s'y adossent par renvoi (`grep` le `\label` et le nom de la vérification dans tout le `.tex`).
 2. **Tableau 1** (disponibilité des p-values) et **tableau 2** (nature et vitesse des convergences).
