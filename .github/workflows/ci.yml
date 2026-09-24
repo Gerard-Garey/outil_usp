@@ -6,13 +6,24 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Lecture seule : aucune étape n'écrit dans le dépôt (checkout en lecture ;
+# upload-artifact passe par le jeton d'exécution d'Actions, pas par
+# GITHUB_TOKEN ; le résumé du job est un fichier du runner).
+permissions:
+  contents: read
+
 jobs:
   tests-moteur:
     name: Tests du moteur (unitaires, reproductibilité)
-    runs-on: ubuntu-latest
+    # Image épinglée (issue #67, Q-O4) : la même que celle du workflow de
+    # production des références (references.yml), pour que les références
+    # soient testées sur la plateforme qui les produit. ubuntu-latest
+    # changerait d'image (et de BLAS) sans commit.
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: r-lib/actions/setup-r@v2
+        id: installer_r
         with:
           # Même version que le poste de développement.
           r-version: "4.3.1"
@@ -20,10 +31,28 @@ jobs:
         run: Rscript tests/test_unitaires.R
       - name: Reproductibilité et non-régression
         run: Rscript tests/test_reproductibilite.R
+      # Issue #66 : si une étape précédente du job a échoué (tests unitaires
+      # ou reproductibilité ; l'étape de reproductibilité est alors sautée
+      # quand ce sont les tests unitaires qui échouent), publie le tableau des
+      # écarts aux références dans le résumé du job, visible depuis la PR.
+      # Ne s'exécute pas quand tout est vert (coût nul) ; R doit avoir été
+      # installé. Rapport seulement : un job en échec le reste.
+      - name: Tableau des écarts aux références (après un échec)
+        if: failure() && steps.installer_r.outcome == 'success'
+        run: Rscript tests/comparer_references.R --markdown "$GITHUB_STEP_SUMMARY"
+      # Issue #65 (décision Q-O3) : concordance documentation ↔ moteur en mode
+      # strict, bloquante. Le script exécute le moteur : l'étape est dans ce
+      # job, où R est installé. Placée après le tableau des écarts pour que
+      # son propre échec ne le déclenche pas ; lancée même si les tests
+      # précédents ont échoué, pour que tous les écarts soient visibles.
+      - name: Concordance documentation ↔ moteur (--strict)
+        if: ${{ !cancelled() && steps.installer_r.outcome == 'success' }}
+        run: Rscript tests/concordance_doc_moteur.R --strict
 
   documentation:
     name: Compilation de la documentation LaTeX
-    runs-on: ubuntu-latest
+    # Épinglée par cohérence avec le job des tests (issue #67).
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: xu-cheng/latex-action@v3

@@ -4,10 +4,15 @@
 #
 #  Teste les fonctions d'extraction de tests/concordance_doc_moteur.R sur des
 #  chaines LaTeX construites en memoire, sans lire le document ni executer le
-#  moteur : \code{} imbriques, noms coupes en deux \code{}, commentaires,
+#  moteur (sauf le dernier bloc, qui lance le script) : \code{} imbriques, noms coupes en deux \code{}, commentaires,
 #  desechappement, citations de fonction (qualifiees, internes, a joker,
 #  avec arguments), nombres en lettres, registre des decomptes (phrase
-#  verifiee, ecart, phrase introuvable), inventaire, familles.
+#  verifiee, ecart, phrase introuvable), inventaire, familles, exemptions
+#  nominatives (appliquee, ancree sur son contexte, perimee), seuil de B
+#  (valider_B(), --B sous B_MIN refuse), recapitulatif apres exemptions et
+#  mode --strict (script lance sur une copie modifiee du .tex). L'etat reel
+#  du depot n'est pas juge ici : c'est l'etape --strict de la CI qui le fait
+#  (decision (a) du mainteneur sur l'audit de #65).
 ###############################################################################
 
 if (!exists("verifier", mode = "function")) {
@@ -94,5 +99,74 @@ verifier("familles_produites : champ famille a toute profondeur, sans doublon",
          identical(cc$familles_produites(list(tests = list(list(famille = "B. x"), list(famille = "B. x")),
                                               controles = list(list(famille = "A. y")))),
                    c("B. x", "A. y")))
+
+## --- Exemptions nominatives (decision Q-O3) --------------------------------
+doc_ex <- c("\\code{R/engine.R} & Contenu &",
+            "Toute primitive Shiny (\\code{input\\$}, \\code{reactive()},",
+            "\\code{render*()}) \\\\", "Ligne sans rapport.", "Autre ligne.",
+            "Ailleurs, \\code{reactive()} cite hors du tableau.")
+cit_ex <- cc$citations_fonctions(cc$extraire_codes(doc_ex))
+st_ex <- c(reactive = "INTROUVABLE", "render*" = "INTROUVABLE")
+ex_reg <- list(list(nom = "reactive", contexte = "Toute primitive Shiny", fenetre = 2L, motif = "m1"),
+               list(nom = "render*", contexte = "Toute primitive Shiny", fenetre = 2L, motif = "m2"),
+               list(nom = "shinyApp", contexte = "Toute primitive Shiny", fenetre = 2L, motif = "m3"))
+ex <- cc$appliquer_exemptions(cit_ex, st_ex, doc_ex, ex_reg)
+verifier("Exemption appliquee : reactive() l.2 et render*() l.3 (contexte a la ligne precedente) exemptees",
+         identical(ex$exemptees$nom, c("reactive", "render*")) && identical(ex$exemptees$ligne, 2:3) &&
+           identical(ex$exemptees$motif, c("m1", "m2")))
+verifier("Exemption ancree sur son contexte : reactive() hors de la fenetre du contexte (l.6) reste un ecart",
+         identical(ex$ecarts$nom, "reactive") && identical(ex$ecarts$lignes, "6"))
+verifier("Exemption perimee (aucune citation introuvable correspondante) signalee",
+         identical(ex$perimees$nom, "shinyApp"))
+ex2 <- cc$appliquer_exemptions(cit_ex, c(reactive = "moteur ou affichage", "render*" = "INTROUVABLE"),
+                               doc_ex, ex_reg[1:2])
+verifier("Exemption d'un nom devenu trouvable : perimee, pas d'ecart pour ce nom",
+         identical(ex2$perimees$nom, "reactive") && !nrow(ex2$ecarts))
+verifier("Liste EXEMPTES_CODE du script : reactive et render*, motif de la colonne Interdit",
+         identical(vapply(cc$EXEMPTES_CODE, `[[`, "", "nom"), c("reactive", "render*")) &&
+           all(grepl("Interdit", vapply(cc$EXEMPTES_CODE, `[[`, "", "motif"))))
+
+## --- Seuil de B (structure de la table des tests dependante de B) ---------
+.err <- function(expr) tryCatch({ expr; NA_character_ }, error = function(e) conditionMessage(e))
+verifier("B_MIN = 21 : premier B pour lequel length(usp_b) > 20 (condition de run_engine())",
+         identical(cc$B_MIN, 21L))
+verifier("valider_B : 21 et \"99\" acceptes, renvoyes en entier",
+         identical(cc$valider_B(21), 21L) && identical(cc$valider_B("99"), 99L))
+verifier("valider_B : 20 refuse, message citant la condition du moteur et la ligne perdue",
+         grepl("B >= 21 requis", .err(cc$valider_B(20)), fixed = TRUE) &&
+           grepl("length(usp_b) > 20", .err(cc$valider_B(20)), fixed = TRUE) &&
+           grepl("Largeur relative de l'IC bootstrap 90%", .err(cc$valider_B("1")), fixed = TRUE))
+verifier("valider_B : valeurs non entieres refusees (abc, 25.5, vide)",
+         all(grepl("entier attendu", c(.err(cc$valider_B("abc")), .err(cc$valider_B("25.5")),
+                                       .err(cc$valider_B(""))), fixed = TRUE)))
+
+## --- Mode --strict sur le document (execute le moteur, ~10 s par appel) ----
+.racine <- normalizePath(file.path(.dossier, "..", ".."))
+.lancer_concordance <- function(...) {
+  ancien <- setwd(.racine); on.exit(setwd(ancien))
+  sortie <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"),
+                                     c("tests/concordance_doc_moteur.R", ...), stdout = TRUE, stderr = TRUE))
+  list(code = if (is.null(attr(sortie, "status"))) 0L else attr(sortie, "status"), sortie = sortie)
+}
+.tex_mutant <- tempfile(fileext = ".tex")
+writeLines(c(readLines(file.path(.racine, "docs", "latex", "doc_tests_usp.tex"), warn = FALSE, encoding = "UTF-8"),
+             "Mutant : \\code{fonction\\_inventee\\_xyz()}."), .tex_mutant, useBytes = TRUE)
+r_mut <- .lancer_concordance("--strict", "--tex", .tex_mutant)
+unlink(.tex_mutant)
+verifier("--strict echoue (code 1) sur un nom invente dans une copie du .tex, signale comme ecart non exempte",
+         r_mut$code == 1L && any(grepl("^    fonction_inventee_xyz\\(\\) ", r_mut$sortie)) &&
+           any(grepl("non exempte", r_mut$sortie)))
+verifier("Recapitulatif de la section 1 sur la copie mutante : 1 nom INTROUVABLE non exempte",
+         any(grepl("^  INTROUVABLE non exempte +1$", r_mut$sortie)))
+r_b20 <- .lancer_concordance("--B", "20")
+verifier("--B 20 refuse par le script lance (code 1, erreur explicite, moteur non execute)",
+         r_b20$code == 1L && any(grepl("--B = 20 refuse", r_b20$sortie, fixed = TRUE)) &&
+           !any(grepl("^=== 2", r_b20$sortie)))
+# Aucune assertion sur l'etat reel du depot (--strict sur le .tex versionne,
+# recapitulatif apres exemptions, exemptions perimees) : elle ferait echouer
+# test_unitaires.R sur un ecart de concordance, et sauter en CI l'etape de
+# reproductibilite qui la suit. Ce controle est porte par l'etape
+# "Concordance documentation <-> moteur (--strict)" de ci.yml, qui s'execute
+# meme apres un echec des tests (issue #65, decision (a) du mainteneur).
 
 fin_fichier()

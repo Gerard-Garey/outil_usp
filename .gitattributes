@@ -11,3 +11,8 @@
 *.xlsx binary
 *.png  binary
 *.jpg  binary
+# References de non-regression (tests/reference/*.rds) : binaires par
+# attribut, et non plus par seule detection heuristique, pour qu'aucune
+# conversion de fin de ligne ne touche un .rds telecharge d'un artefact de
+# la CI et commite (issue #67).
+*.rds  binary

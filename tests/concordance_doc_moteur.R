@@ -10,7 +10,11 @@
 #       dans app.R, outil de test (defini dans tests/*.R), ou fonction locale
 #       (definie a l'interieur d'une autre) ; app.R et tests/*.R sont lus
 #       sans etre executes ; un nom a joker (test_*()) doit designer au
-#       moins une fonction ;
+#       moins une fonction. Un nom introuvable peut etre exempte nommement
+#       (liste EXEMPTES_CODE : nom, motif de contexte, motif ecrit ; decision
+#       Q-O3 du 24/09/2026) : c'est le cas des primitives Shiny citees dans
+#       la colonne "Interdit" du tableau d'architecture. Une exemption qui
+#       n'exempte plus rien est un ecart (exemption perimee) ;
 #    2. les decomptes de lignes de tests annonces par le document :
 #       a) VERIFIES automatiquement pour les phrases du registre DECOMPTES
 #          (plus bas), chacune ancree sur sa formulation exacte et rattachee a
@@ -30,15 +34,11 @@
 #       verifie : N formulations"). Un BILAN a 0 ecart ne garantit donc pas
 #       que tous les decomptes du document sont justes.
 #
-#       Voie proposee pour le mode strict de la branche O (non implementee) :
-#       toute formulation de l'inventaire doit etre soit couverte par une
-#       phrase du registre DECOMPTES, soit exemptee nommement dans une liste
-#       EXEMPTES (extrait ancre + motif de l'exemption, par ex. "sous-ensemble
-#       d'une famille, schema") ; --strict echoue alors sur toute formulation
-#       ni verifiee ni exemptee. Chaque nouveau decompte ecrit par docwriter
-#       devrait ainsi etre enregistre (verifie) ou justifie (exempte), et le
-#       faux negatif disparait. Etendre au passage l'inventaire aux
-#       formulations "N tests" ;
+#       Suite (issue #75, non implementee ici) : toute formulation de
+#       l'inventaire devra etre soit couverte par une phrase du registre
+#       DECOMPTES, soit exemptee nommement avec son motif ; --strict
+#       echouera alors sur toute formulation ni verifiee ni exemptee, et
+#       l'inventaire s'etendra aux formulations "N tests" ;
 #    3. chaque prefixe de famille produit par le moteur dans res$tests (deux
 #       premiers caracteres du champ famille, cle de GROUPES) est declare
 #       dans GROUPES de R/display_helpers.R ; les familles rencontrees
@@ -47,16 +47,34 @@
 #
 #  Le moteur est execute sur les jeux de tests/donnees/ avec B petit
 #  (defaut 99) : seule la STRUCTURE de la table des tests sert ici (nombre de
-#  lignes, familles, types, nature de la p-value retenue). Voir le compte
-#  rendu de l'issue #65 pour la mesure de l'independance de ces grandeurs a B.
+#  lignes, familles, types, nature de la p-value retenue). Cette structure
+#  DEPEND de B sous un seuil : run_engine() (branche lognormale, R/engine.R)
+#  calcule l'IC bootstrap par
+#      ic <- if (length(usp_b) > 20) stats::quantile(usp_b, ...) else NULL
+#  ou usp_b a la longueur de boot$sigma_boot (replications bootstrap FINIES
+#  seulement, usp_bootstrap()), puis fit$largeur_ic <- NULL si ic est NULL,
+#  et usp_tests() n'ajoute la ligne "Largeur relative de l'IC bootstrap 90%"
+#  (famille G.) que si fit$largeur_ic n'est pas NULL. Mesure sur
+#  tests/donnees/ : 47 lignes pour premium et reserve1 a B = 19 et 20, 48 a
+#  B = 21 et 22 ; reserve2 : 19 lignes a B = 19, 20, 21, 22. Le script
+#  refuse donc tout --B < B_MIN = 21 (erreur, code de sortie 1), et verifie
+#  apres execution que chaque resultat lognormal a bien plus de 20
+#  replications finies (B >= 21 est necessaire, pas suffisant si des
+#  replications echouent).
 #
 #  Usage (depuis la racine du depot) :
 #      Rscript tests/concordance_doc_moteur.R              # mode rapport
 #      Rscript tests/concordance_doc_moteur.R --strict     # code 1 si ecart
 #      Rscript tests/concordance_doc_moteur.R --B 999
+#      Rscript tests/concordance_doc_moteur.R --strict --tex autre.tex
 #
-#  Mode rapport (defaut) : code de sortie 0 meme en cas d'ecart. --strict :
-#  code de sortie 1 des qu'il y a un ecart (branche O, issue #65).
+#  Mode rapport (defaut) : code de sortie 0 meme en cas d'ecart. --strict
+#  (branche O, issue #65, --strict minimal de la decision Q-O3) : code de
+#  sortie 1 des qu'il y a un ecart VERIFIE -- nom introuvable non exempte,
+#  exemption perimee, phrase du registre DECOMPTES absente ou fausse,
+#  prefixe de famille non declare dans GROUPES. L'inventaire b) reste une
+#  information sans effet sur le code de sortie (issue #75). --tex remplace
+#  le document lu (tests du mode strict sur une copie modifiee).
 #
 #  Source (plutot que lance par Rscript), le fichier ne fait que definir ses
 #  fonctions d'extraction, testees sur des chaines LaTeX en memoire par
@@ -177,6 +195,61 @@ statut_fonction <- function(nom, env, paquets = character(0), defs = NULL) {
   }
   for (p in paquets) if (dans_paquet(p, nom)) return(sprintf("paquet %s", p))
   "INTROUVABLE"
+}
+
+# ---------------------------------------------------------------------------
+#  Exemptions nominatives des citations de fonction (decision Q-O3 du
+#  mainteneur du 24/09/2026, issue #65)
+# ---------------------------------------------------------------------------
+
+# Citations \code{nom()} qui designent a juste titre une fonction absente du
+# code et que le script ne doit pas compter comme ecarts. Chaque exemption
+# porte : nom (tel qu'extrait par citations_fonctions(), joker compris),
+# contexte (expression reguliere, perl, cherchee dans le texte normalise de
+# la ligne de la citation et des `fenetre` lignes qui la precedent : un
+# motif de contexte plutot qu'un numero de ligne, pour survivre au
+# deplacement des lignes), motif (raison ecrite de l'exemption). Seule une
+# citation INTROUVABLE dont le contexte correspond est exemptee ; une
+# exemption qui n'exempte plus aucune citation est PERIMEE et comptee comme
+# ecart, pour que la liste ne perime pas en silence.
+MOTIF_INTERDIT_SHINY <- paste0("primitive Shiny citée dans la colonne « Interdit » du tableau ",
+                               "d'architecture, pour être exclue")
+EXEMPTES_CODE <- list(
+  list(nom = "reactive", contexte = "Toute primitive Shiny", fenetre = 2L, motif = MOTIF_INTERDIT_SHINY),
+  list(nom = "render*", contexte = "Toute primitive Shiny", fenetre = 2L, motif = MOTIF_INTERDIT_SHINY)
+)
+
+# Applique les exemptions aux citations. cit : sortie de
+# citations_fonctions() ; statuts : vecteur nomme (par nom) de
+# statut_fonction() ; lignes : texte LaTeX. Renvoie une liste :
+#   ecarts    data.frame (nom, lignes) des noms introuvables non exemptes ;
+#   exemptees data.frame (nom, ligne, motif) des citations exemptees ;
+#   perimees  data.frame (nom, contexte) des exemptions sans effet.
+appliquer_exemptions <- function(cit, statuts, lignes, exemptions = EXEMPTES_CODE) {
+  norm <- normaliser_ligne(lignes)
+  introuv <- cit[unname(statuts[cit$nom]) %in% "INTROUVABLE", , drop = FALSE]
+  exemptee <- logical(nrow(introuv)); motif <- rep(NA_character_, nrow(introuv))
+  utilisee <- logical(length(exemptions))
+  for (k in seq_along(exemptions)) {
+    e <- exemptions[[k]]
+    for (i in which(introuv$nom == e$nom & !exemptee)) {
+      fen <- norm[max(1L, introuv$ligne[i] - e$fenetre):introuv$ligne[i]]
+      if (grepl(e$contexte, paste(fen, collapse = " "), perl = TRUE)) {
+        exemptee[i] <- TRUE; motif[i] <- e$motif; utilisee[k] <- TRUE
+      }
+    }
+  }
+  rest <- introuv[!exemptee, , drop = FALSE]
+  noms <- unique(rest$nom)
+  list(ecarts = data.frame(nom = noms,
+                           lignes = vapply(noms, function(n) paste(unique(rest$ligne[rest$nom == n]), collapse = ", "),
+                                           character(1), USE.NAMES = FALSE),
+                           stringsAsFactors = FALSE),
+       exemptees = data.frame(nom = introuv$nom[exemptee], ligne = introuv$ligne[exemptee],
+                              motif = motif[exemptee], stringsAsFactors = FALSE),
+       perimees = data.frame(nom = vapply(exemptions[!utilisee], `[[`, character(1), "nom"),
+                             contexte = vapply(exemptions[!utilisee], `[[`, character(1), "contexte"),
+                             stringsAsFactors = FALSE))
 }
 
 # ---------------------------------------------------------------------------
@@ -321,6 +394,31 @@ familles_produites <- function(o) {
 }
 
 # ---------------------------------------------------------------------------
+#  Nombre de replications bootstrap
+# ---------------------------------------------------------------------------
+
+# Seuil de B sous lequel la table des tests lognormale perd une ligne :
+# run_engine() ne calcule l'IC bootstrap (et usp_tests() la ligne "Largeur
+# relative de l'IC bootstrap 90%") que si length(usp_b) > 20, usp_b ayant
+# la longueur de boot$sigma_boot (replications finies). Voir l'en-tete.
+B_MIN <- 21L
+
+# Valide la valeur de --B (chaine ou nombre) ; erreur explicite si ce n'est
+# pas un entier ou s'il est sous B_MIN. Renvoie B entier.
+valider_B <- function(x) {
+  B <- suppressWarnings(as.integer(x))
+  if (length(B) != 1L || is.na(B) || as.character(B) != trimws(as.character(x)))
+    stop(sprintf("--B : entier attendu, recu \"%s\"", paste(x, collapse = " ")), call. = FALSE)
+  if (B < B_MIN)
+    stop(sprintf(paste0("--B = %d refuse : B >= %d requis. Sous ce seuil, run_engine() ne calcule pas ",
+                        "l'IC bootstrap (R/engine.R : ic <- if (length(usp_b) > 20) ... else NULL) et la ",
+                        "table des tests lognormale perd la ligne \"Largeur relative de l'IC bootstrap 90%%\" ",
+                        "(famille G.) : les decomptes du document ne seraient plus comparables."), B, B_MIN),
+         call. = FALSE)
+  B
+}
+
+# ---------------------------------------------------------------------------
 #  Programme principal
 # ---------------------------------------------------------------------------
 
@@ -331,8 +429,12 @@ if (sys.nframe() == 0L) {
   k <- match("--B", args)
   if (!is.na(k)) {
     if (k == length(args)) stop("--B sans valeur")
-    B <- as.integer(args[k + 1L])
-    if (is.na(B) || B < 1L) stop("--B : entier positif attendu")
+    B <- valider_B(args[k + 1L])
+  }
+  k <- match("--tex", args)
+  fichier_tex <- if (is.na(k)) NULL else {
+    if (k == length(args)) stop("--tex sans valeur")
+    args[k + 1L]
   }
   RACINE <- if (file.exists("R/engine.R")) "." else if (file.exists("../R/engine.R")) ".." else
     stop("R/engine.R introuvable : lancer depuis la racine du depot.")
@@ -340,7 +442,8 @@ if (sys.nframe() == 0L) {
   env <- new.env(parent = globalenv())
   sys.source(file.path(RACINE, "R", "engine.R"), envir = env)
   sys.source(file.path(RACINE, "R", "display_helpers.R"), envir = env)
-  tex <- readLines(file.path(RACINE, "docs", "latex", "doc_tests_usp.tex"), warn = FALSE, encoding = "UTF-8")
+  if (is.null(fichier_tex)) fichier_tex <- file.path(RACINE, "docs", "latex", "doc_tests_usp.tex")
+  tex <- readLines(fichier_tex, warn = FALSE, encoding = "UTF-8")
   n_ecarts <- 0L
 
   # 1. Fonctions citees
@@ -356,21 +459,37 @@ if (sys.nframe() == 0L) {
   statuts <- vapply(noms, statut_fonction, character(1), env = env, paquets = paquets, defs = defs)
   cat(sprintf("=== 1. Fonctions citees par \\code{nom()} : %d citation(s), %d nom(s) distinct(s)\n",
               nrow(cit), length(noms)))
-  tab <- table(sub(" \\(.*$", "", statuts))
+  # Recapitulatif par nom distinct, APRES exemptions : un nom introuvable
+  # dont toutes les citations sont exemptees est compte comme exempte ; un
+  # nom dont une citation au moins reste introuvable est un ecart.
+  ex <- appliquer_exemptions(cit, statuts, tex)
+  recap <- sub(" \\(.*$", "", statuts)
+  recap[statuts == "INTROUVABLE"] <- "exempte (EXEMPTES_CODE)"
+  recap[names(statuts) %in% ex$ecarts$nom] <- "INTROUVABLE non exempte"
+  tab <- table(recap)
   for (s in names(tab)) cat(sprintf("  %-26s %d\n", s, tab[[s]]))
   autres <- noms[!statuts %in% c("moteur ou affichage", "INTROUVABLE")]
   if (length(autres)) {
     cat("  Hors moteur et affichage (pour information) :\n")
     for (n in autres) cat(sprintf("    %-32s %s\n", n, statuts[[n]]))
   }
-  introuvables <- noms[statuts == "INTROUVABLE"]
-  n_ecarts <- n_ecarts + length(introuvables)
-  if (length(introuvables)) {
-    cat(sprintf("  ECART -- %d nom(s) introuvable(s) :\n", length(introuvables)))
-    for (n in introuvables) {
-      l <- cit$ligne[cit$nom == n]
-      cat(sprintf("    %-32s ligne(s) %s\n", paste0(n, "()"), paste(unique(l), collapse = ", ")))
-    }
+  if (nrow(ex$exemptees)) {
+    cat(sprintf("  Exemptees nommement (EXEMPTES_CODE, %d citation(s), pas des ecarts) :\n", nrow(ex$exemptees)))
+    for (i in seq_len(nrow(ex$exemptees)))
+      cat(sprintf("    %-32s ligne %-5d %s\n", paste0(ex$exemptees$nom[i], "()"), ex$exemptees$ligne[i],
+                  ex$exemptees$motif[i]))
+  }
+  n_ecarts <- n_ecarts + nrow(ex$ecarts) + nrow(ex$perimees)
+  if (nrow(ex$ecarts)) {
+    cat(sprintf("  ECART -- %d nom(s) introuvable(s) non exempte(s) :\n", nrow(ex$ecarts)))
+    for (i in seq_len(nrow(ex$ecarts)))
+      cat(sprintf("    %-32s ligne(s) %s\n", paste0(ex$ecarts$nom[i], "()"), ex$ecarts$lignes[i]))
+  }
+  if (nrow(ex$perimees)) {
+    cat(sprintf("  ECART -- %d exemption(s) perimee(s) (aucune citation introuvable ne lui correspond) :\n",
+                nrow(ex$perimees)))
+    for (i in seq_len(nrow(ex$perimees)))
+      cat(sprintf("    %-32s contexte \"%s\"\n", paste0(ex$perimees$nom[i], "()"), ex$perimees$contexte[i]))
   }
 
   # 2. Decomptes
@@ -380,6 +499,11 @@ if (sys.nframe() == 0L) {
     premium  = run_engine(xt = .ln$xt, yt = .ln$yt, methode = "premium", segment = 1, annexe = "II", B = B),
     reserve1 = run_engine(xt = .ln$xt, yt = .ln$yt, methode = "reserve1", segment = 1, annexe = "II", B = B),
     reserve2 = run_engine(methode = "reserve2", triangle = .tri, segment = 1, annexe = "II", B = B)))
+  n_finies <- vapply(resultats[c("premium", "reserve1")], function(r) length(r$bootstrap$sigma_boot), integer(1))
+  if (any(n_finies <= 20L))
+    stop(sprintf(paste0("replications bootstrap finies insuffisantes (%s) : run_engine() ne calcule l'IC ",
+                        "bootstrap que si length(usp_b) > 20 ; augmenter --B."),
+                 paste(sprintf("%s %d", names(n_finies), n_finies), collapse = ", ")), call. = FALSE)
   grandeurs <- lapply(resultats, function(r) grandeurs_moteur(r$tests))
   cat(sprintf("\n=== 2. Decomptes (moteur execute sur tests/donnees/, B = %d)\n", B))
   for (m in names(grandeurs))
@@ -424,7 +548,7 @@ if (sys.nframe() == 0L) {
   if (length(inutilises)) cat("  (information) cle(s) de GROUPES non produites sur ces jeux :",
                               paste(inutilises, collapse = " "), "\n")
 
-  cat(sprintf("\nBILAN : %d ecart(s)%s ; inventaire non verifie : %d formulation(s) (un decompte faux hors registre DECOMPTES n'est pas detecte)\n",
+  cat(sprintf("\nBILAN : %d ecart(s)%s ; inventaire non verifie : %d formulation(s) (information, sans effet sur le code de sortie : un decompte faux hors registre DECOMPTES n'est pas detecte, issue #75)\n",
               n_ecarts, if (strict) " (mode strict)" else " (mode rapport : code de sortie 0)", nrow(inv)))
   if (strict && n_ecarts) quit(status = 1)
 }

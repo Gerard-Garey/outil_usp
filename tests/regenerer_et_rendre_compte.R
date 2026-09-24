@@ -80,8 +80,12 @@ DOSSIER_TESTS <- if (exists("DOSSIER_TESTS", envir = environment(), inherits = F
   })
 source(file.path(DOSSIER_TESTS, "outils_tests.R"), local = TRUE)
 
-# Longueur maximale d'une valeur affichee dans le tableau (caracteres).
-LARGEUR_CELLULE <- 60L
+# LARGEUR_CELLULE, une_ligne(), echapper(), cellule(), texte_code() et
+# plateforme() sont definies dans outils_tests.R, partagees avec
+# comparer_references.R --markdown (issue #66). cellule() sert aux cellules
+# du tableau ; texte_code() aux lignes hors tableau (commande, motifs,
+# structure, feuille maximale, batteries), ou une barre verticale echappee
+# afficherait l'antislash.
 
 # ---------------------------------------------------------------------------
 #  Analyse : quelles feuilles changent, sont-elles toutes attendues ?
@@ -225,17 +229,6 @@ remplacer_reference <- function(apres, avant, designees, chemin) {
 #  Tableau avant / apres en markdown
 # ---------------------------------------------------------------------------
 
-# Cellule de tableau : une ligne, pas de barre verticale ni d'accent grave
-# non echappes, tronquee lisiblement au-dela de largeur caracteres.
-une_ligne <- function(x) trimws(gsub("[\r\n\t]+", " ", x))
-echapper <- function(x) gsub("|", "\\|", gsub("`", "'", x, fixed = TRUE), fixed = TRUE)
-cellule <- function(x, largeur = LARGEUR_CELLULE) {
-  x <- une_ligne(x)
-  long <- nchar(x) > largeur
-  x[long] <- sprintf("%s\u2026 (%d car.)", substr(x[long], 1L, largeur - 1L), nchar(x[long]))
-  echapper(x)
-}
-
 # Position du premier caractere different de deux chaines (NA si egales).
 premiere_difference <- function(a, b) {
   ca <- strsplit(a, "")[[1]]; cb <- strsplit(b, "")[[1]]
@@ -262,8 +255,6 @@ cellules_paire <- function(avant, apres, largeur = LARGEUR_CELLULE) {
   list(avant = echapper(fen(a)), apres = echapper(fen(b)))
 }
 
-plateforme <- function() sprintf("%s, %s", R.version.string, Sys.info()[["sysname"]])
-
 tableau_markdown <- function(a, nom, issue = NA, motifs = character(0),
                              date = Sys.Date(), plateforme_txt = plateforme(),
                              commande = NA_character_) {
@@ -287,32 +278,38 @@ tableau_markdown <- function(a, nom, issue = NA, motifs = character(0),
     else sprintf("dont %d HORS des motifs attendus", length(a$hors_motifs)),
     a$n_identiques, formatC(a$comparaison$ecart_max, format = "e", digits = 3),
     if (is.na(a$comparaison$feuille_max)) "" else
-      sprintf(" (%s, `%s`)", a$comparaison$mesure_max, cellule(a$comparaison$feuille_max)))
+      sprintf(" (%s, `%s`)", a$comparaison$mesure_max, texte_code(a$comparaison$feuille_max)))
   c(sprintf("# Tableau avant / apr\u00e8s \u2014 r\u00e9f\u00e9rence `%s`%s", nom,
             if (is.na(issue)) "" else sprintf(" (issue #%s)", issue)),
     "",
     sprintf("- Date : %s", format(date, "%Y-%m-%d")),
     sprintf("- Plateforme : %s", plateforme_txt),
-    if (!is.na(commande)) sprintf("- Commande : `%s`", cellule(commande, 500L)),
+    if (!is.na(commande)) sprintf("- Commande : `%s`", texte_code(commande, 500L)),
     sprintf("- Motifs attendus : %s",
-            if (length(motifs)) paste0("`", cellule(motifs, 200L), "`", collapse = ", ") else "(aucun)"),
+            if (length(motifs)) paste0("`", texte_code(motifs, 200L), "`", collapse = ", ") else "(aucun)"),
     sprintf("- Comparateur : `comparer_objets()` (tests/outils_tests.R), seuil 0 pour lister, seuil %g pour juger ; `INSTABLES` non neutralis\u00e9", TOLERANCE),
     "",
     synthese,
     "",
     if (length(a$motifs_larges))
       c(sprintf("**Avertissement** : motif `%s` : %d feuilles d\u00e9sign\u00e9es (seuil d'avertissement %d) ; v\u00e9rifier qu'il n'est pas trop large.",
-                cellule(names(a$motifs_larges), 200L), a$motifs_larges, SEUIL_MOTIF_LARGE), ""),
+                texte_code(names(a$motifs_larges), 200L), a$motifs_larges, SEUIL_MOTIF_LARGE), ""),
     if (length(a$comparaison$structure))
       c(sprintf("N\u0153uds de structure modifi\u00e9s (type ou attributs) : %s",
-                paste0("`", cellule(a$comparaison$structure), "`", collapse = ", ")), ""),
+                paste0("`", texte_code(a$comparaison$structure), "`", collapse = ", ")), ""),
     "| Feuille | Avant | Apr\u00e8s | \u00c9cart | Mesure |",
     "|---|---|---|---|---|",
     if (nrow(l)) {
       paires <- lapply(seq_len(nrow(l)), function(i) cellules_paire(avant[i], apres[i]))
+      c_avant <- vapply(paires, `[[`, character(1), "avant")
+      c_apres <- vapply(paires, `[[`, character(1), "apres")
+      # Valeur manquante (reference_na / obtenu_na de comparer_objets())
+      # affichee \<NA\>, comme dans comparer_references.R : distincte de la
+      # chaine "NA" ; chevrons echappes, sans quoi GitHub lirait une balise.
+      c_avant[l$reference_na & l$mesure != "ajoutee"] <- "\\<NA\\>"
+      c_apres[l$obtenu_na & l$mesure != "absente"] <- "\\<NA\\>"
       sprintf("| `%s` | %s | %s | %s | %s |", cellule(l$chemin, 120L),
-              vapply(paires, `[[`, character(1), "avant"), vapply(paires, `[[`, character(1), "apres"),
-              ecart, mesure)
+              c_avant, c_apres, ecart, mesure)
     })
 }
 
@@ -408,7 +405,7 @@ if (sys.nframe() == 0L) {
       b <- lancer_batterie(s)
       echec <- echec || b$statut != 0L
       bilan <- c(bilan, sprintf("- `Rscript tests/%s` : code de sortie %d", s, b$statut),
-                 paste0("  - `", cellule(b$synthese, 300L), "`"))
+                 paste0("  - `", texte_code(b$synthese, 300L), "`"))
     }
   } else {
     bilan <- c(bilan, "Non relanc\u00e9es (`--sans-batteries`). \u00c0 lancer :",

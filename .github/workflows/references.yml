@@ -56,11 +56,21 @@
 # auteur Claude <noreply@anthropic.com> (pas de signature cryptographique).
 #
 #   1. Déclencher (session principale, sur ordre explicite du mainteneur) :
-#      par l'API GitHub (workflow_dispatch de references.yml), sur la
-#      branche de travail, jamais sur main ; mode « bascule » (ou
-#      « regeneration » avec cas, motifs séparés par « ; » et issue).
-#      Noter l'identifiant de l'exécution et le commit de tête de la
-#      branche au moment du déclenchement.
+#      par l'API GitHub (workflow_dispatch de references.yml), jamais sur
+#      main. Le workflow calcule sur la réf. déclenchée (résumé : « Commit
+#      calculé … (réf. …) ») :
+#        - bascule : sur la branche de travail (aucun code à commiter) ;
+#        - regeneration (M30, ADR 0011 amendé le 24/09/2026) : sur une
+#          BRANCHE ÉPHÉMÈRE claude/regeneration-<issue>, créée depuis la
+#          tête de la branche de travail (notée <tête W>) et portant le
+#          commit de code de l'issue (R/, tests/ hors tests/reference/),
+#          NON poussé sur la branche de travail ; sans PR, jamais fusionnée :
+#            git switch -c claude/regeneration-<issue>   # depuis la tête
+#            git commit …                                # commit de code
+#            git push -u origin claude/regeneration-<issue>
+#          puis déclenchement avec ref = claude/regeneration-<issue>, mode
+#          « regeneration », cas, motifs séparés par « ; » et issue.
+#      Noter l'identifiant de l'exécution et le commit calculé.
 #   2. Lire le tableau (session principale, puis mainteneur) : résumé du
 #      job, tableau en deux parts. Bascule : chaque cas doit afficher
 #      « dérive numérique seule », part non numérique 0 feuille, aucun
@@ -69,7 +79,11 @@
 #      (« BASCULE REFUSEE ») : rien à commiter ; retirer d'abord du moteur
 #      le libellé fautif (ou l'exclure, motif à l'appui), comme pour M18,
 #      M23 et M24, puis relancer. L'artefact « diagnostic-… » contient le
-#      tableau et le journal complets, sans .rds.
+#      tableau et le journal complets, sans .rds. Regeneration : tableau
+#      avant / après de regenerer_et_rendre_compte.R ; sur un REFUS, rien
+#      à commiter sur la branche de travail : la correction devient un
+#      commit SUPPLÉMENTAIRE sur la branche éphémère (poussé), dont la
+#      nouvelle tête est le nouveau commit calculé ; nouvelle exécution.
 #   3. Viser (mainteneur) : visa M3 EXPLICITE sur le tableau réel de cette
 #      exécution. Sans ce visa, rien n'est commité.
 #   4. Télécharger (session principale) l'artefact « references-… » de
@@ -77,21 +91,63 @@
 #      tableau de regenerer_et_rendre_compte.R), la comparaison complète,
 #      plateforme.txt, sessionInfo.txt, md5.txt.
 #   5. Vérifier avant commit (session principale) :
-#      a. le commit calculé (plateforme.txt) est la tête actuelle de la
-#         branche de travail (sinon, redéclencher) ;
+#      a. bascule : le commit calculé (plateforme.txt) est la tête actuelle
+#         de la branche de travail (sinon, redéclencher) ;
+#      a′. regeneration (M30) : le commit calculé (plateforme.txt) est la
+#         tête de la branche éphémère ; sur la branche de travail, après
+#         « git cherry-pick -n <tête W>..<commit calculé> », copie du .rds
+#         et git add (étape 6), l'INDEX a exactement le code du commit
+#         calculé :
+#           git diff --cached --quiet <commit calculé> -- R tests ':(exclude)tests/reference'
+#         (code de sortie 0), et l'arbre de travail est l'index (l'étape c
+#         teste l'arbre de travail ; une modification non indexée passerait
+#         la ligne précédente) :
+#           git diff --quiet -- R tests
+#         (code de sortie 0) ; empreinte de l'arbre R/ consignée :
+#           git rev-parse <commit calculé>:R
+#         (après le commit final, git rev-parse HEAD:R doit être identique).
+#         Si la branche de travail a avancé sur R/ ou tests/ depuis la
+#         création de la branche éphémère, (a′) refuse : supprimer la
+#         branche éphémère, la recréer depuis la nouvelle tête et relancer
+#         le workflow. Un commit qui change plusieurs cas (#40) n'a pas de
+#         voie avant le commit préparatoire de la branche D (M33) ;
 #      b. les md5 des .rds copiés dans tests/reference/ sont ceux de
 #         md5.txt ;
 #      c. recomparaison locale : Rscript tests/comparer_references.R
 #         --deux-parts sur les .rds copiés (dans une session Linux, seule
 #         la dérive entre cette machine et la CI doit apparaître, part non
 #         numérique vide), puis Rscript tests/test_reproductibilite.R.
-#   6. Commiter (session principale) les seuls .rds, en un commit
-#      « tests: » (bascule : les trois fichiers, « tests: bascule des
-#      références sur la CI (#67) ») dont le message reprend la plateforme
-#      (ImageOS, ImageVersion, R, BLAS), l'écart maximal par fichier,
-#      « aucune feuille non numérique modifiée », le lien de l'exécution et
-#      le visa M3 du mainteneur ; pousser sur la branche de travail sur
-#      ordre du mainteneur, puis vérifier que la CI est verte.
+#   6. Commiter (session principale) :
+#      - bascule : les seuls .rds, en un commit « tests: » (« tests:
+#        bascule des références sur la CI (#67) ») dont le message reprend
+#        la plateforme (ImageOS, ImageVersion, R, BLAS), l'écart maximal
+#        par fichier, « aucune feuille non numérique modifiée », le lien de
+#        l'exécution et le visa M3 du mainteneur ;
+#      - regeneration (M30) : code ET .rds en UN SEUL commit NOUVEAU sur la
+#        branche de travail, jamais par --amend ni fixup (ADR 0007, point
+#        6) :
+#          git switch <branche de travail>
+#          git cherry-pick -n <tête W>..<commit calculé>   # tous les commits
+#                                                          # de la branche éphémère
+#          cp <artefact>/<cas>.rds tests/reference/
+#          git add tests/reference/<cas>.rds             # puis 5a′, 5b, 5c
+#          git commit                                    # domaine du code
+#        (quand la branche éphémère porte deux commits, « cherry-pick -n
+#        <commit calculé> » seul échoue en conflit, ou n'applique que la
+#        tête sans le signaler, arrêté alors par (a′) : l'intervalle est
+#        obligatoire) ;
+#        message : tableau avant / après (ou son emplacement docs/tableaux/…),
+#        plateforme (ImageOS, ImageVersion, R, BLAS), écart maximal par
+#        fichier, lien de la DERNIÈRE exécution, SHA de la TÊTE calculée,
+#        empreinte git rev-parse <commit calculé>:R, md5, visa ; après une
+#        reprise, une ligne cite les exécutions refusées (lien, cause du
+#        refus) ; puis suppression
+#        aussitôt de la branche éphémère (le commit calculé cesse d'être
+#        atteignable : le message du commit final en garde la trace) :
+#          git push origin --delete claude/regeneration-<issue>
+#          git branch -D claude/regeneration-<issue>
+#      Pousser sur la branche de travail sur ordre du mainteneur, puis
+#      vérifier que la CI est verte.
 #
 # À NE PAS FAIRE
 #
@@ -99,8 +155,13 @@
 #     mainteneur ; commiter avant son visa M3 sur le tableau réel.
 #   - Commiter des .rds issus d'une exécution en échec, d'une autre
 #     exécution que celle dont le tableau a été visé, ou calculés sur un
-#     autre commit que la tête de la branche ; commiter autre chose que
-#     les .rds dans le commit de bascule.
+#     autre commit que la tête de la branche de travail (bascule) ou que le
+#     commit dont le code est repris (regeneration, vérification 5a′) ;
+#     commiter autre chose que les .rds dans le commit de bascule.
+#   - Regeneration : pousser le commit de code sur la branche de travail
+#     avant ses .rds (la CI y serait rouge), séparer code et .rds en deux
+#     commits, assembler le commit final par --amend ou fixup, ouvrir une
+#     PR pour la branche éphémère ou la garder après le commit final.
 #   - Régénérer ensuite sur le poste (generer_references.R local) : après
 #     la bascule, toute référence est produite ici.
 #   - Relever TOLERANCE, ou ajouter une feuille à INSTABLES, pour faire
@@ -176,9 +237,12 @@ jobs:
           } | tee "$SORTIE/plateforme.txt"
           Rscript -e 'print(sessionInfo()); cat("\nextSoftVersion() :\n"); print(extSoftVersion()); cat("\nLa_version() :", La_version(), "\nLa_library() :", La_library(), "\n")' \
             | tee "$SORTIE/sessionInfo.txt"
+          echo "::notice title=Commit calculé::$GITHUB_SHA (réf. $GITHUB_REF_NAME)"
           echo "::notice title=Plateforme::${ImageOS:-?} ${ImageVersion:-?}, $(Rscript -e 'cat(R.version.string)')"
           {
             echo "## Plateforme"
+            echo
+            echo "**Commit calculé : \`$GITHUB_SHA\` (réf. \`$GITHUB_REF_NAME\`)**"
             echo
             echo '```'
             cat "$SORTIE/plateforme.txt"
@@ -238,7 +302,9 @@ jobs:
           ATTENDU: ${{ inputs.attendu }}
           ISSUE: ${{ inputs.issue }}
         run: |
-          [[ "$ISSUE" =~ ^[0-9]+$ ]] || { echo "::error::Entrée issue : numéro attendu (reçu « $ISSUE »)."; exit 1; }
+          # La valeur reçue n'est jamais renvoyée dans une commande de
+          # workflow (« ::… » injectable par un saut de ligne).
+          [[ "$ISSUE" =~ ^[0-9]+$ ]] || { echo "::error::Entrée issue : numéro attendu (chiffres seuls ; valeur reçue non reproduite)."; exit 1; }
           args=()
           IFS=';' read -ra motifs <<< "$ATTENDU"
           for m in "${motifs[@]}"; do
@@ -247,6 +313,12 @@ jobs:
           done
           [ ${#args[@]} -gt 0 ] || { echo "::error::Entrée attendu : au moins un motif (séparés par « ; »)."; exit 1; }
           md5_avant="$(md5sum < "tests/reference/$CAS.rds")"
+          # Marqueur horodaté : seuls les tableaux écrits (créés ou
+          # réécrits) par CETTE exécution sont publiés, pas ceux d'exécutions
+          # antérieures déjà versionnés sous le même motif.
+          marqueur="$RUNNER_TEMP/marqueur-regeneration"
+          touch "$marqueur"
+          sleep 1
           # Code de sortie conservé pour publier un compte rendu même en cas
           # d'échec. Le tableau docs/tableaux/… n'existe qu'après écriture
           # (batterie en échec comprise) : sur un REFUS, le script s'arrête
@@ -255,11 +327,13 @@ jobs:
           statut=0
           Rscript tests/regenerer_et_rendre_compte.R "$CAS" "${args[@]}" --issue "$ISSUE" --ecrire \
             | tee "$SORTIE/regeneration.txt" || statut=$?
-          shopt -s nullglob
-          for t in docs/tableaux/*-issue"$ISSUE"-"$CAS".md; do
-            cp "$t" "$SORTIE/"
-            cat "$t" >> "$GITHUB_STEP_SUMMARY"
-          done
+          if [ -d docs/tableaux ]; then
+            while IFS= read -r -d '' t; do
+              cp "$t" "$SORTIE/"
+              cat "$t" >> "$GITHUB_STEP_SUMMARY"
+            done < <(find docs/tableaux -maxdepth 1 -type f \
+                       -name "*-issue${ISSUE}-${CAS}.md" -newer "$marqueur" -print0)
+          fi
           if [ "$statut" -ne 0 ]; then
             {
               echo "## Régénération de \`$CAS\` : échec (code $statut)"
