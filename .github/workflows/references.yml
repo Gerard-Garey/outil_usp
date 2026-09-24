@@ -3,14 +3,20 @@
 #
 # Ce workflow ne s'exécute que sur déclenchement manuel (workflow_dispatch).
 # Il n'utilise aucun secret, ne pousse rien et n'écrit rien dans le dépôt :
-# il calcule sur un checkout jetable et publie un artefact. C'est le
-# mainteneur qui télécharge l'artefact et commite (humain dans la boucle).
+# il calcule sur un checkout jetable et publie un artefact. Le commit des
+# .rds est fait à part, après le visa du mainteneur (humain dans la boucle,
+# voir la procédure ci-dessous).
 #
-# Plateforme : image épinglée ubuntu-22.04 et R 4.3.1, les mêmes que le job
-# « Tests du moteur » de ci.yml, pour que les références soient testées sur
-# la plateforme qui les produit. L'image exacte (ImageOS, ImageVersion), le
-# sessionInfo() (BLAS et LAPACK compris) et le commit calculé sont écrits
-# dans le journal, dans le résumé du job et dans l'artefact.
+# Plateforme : ubuntu-22.04 et R 4.3.1, les mêmes que le job « Tests du
+# moteur » de ci.yml, pour que les références soient testées sur la
+# plateforme qui les produit. ATTENTION : ubuntu-22.04 est un LIBELLÉ
+# épinglé, pas une image figée. GitHub met l'image à jour (ImageVersion)
+# chaque semaine environ, BLAS et bibliothèques système compris, et
+# retirera un jour ce libellé. L'épinglage fixe la version d'Ubuntu, pas
+# l'image exacte. C'est pourquoi l'image exacte (ImageOS, ImageVersion), le
+# sessionInfo() (BLAS et LAPACK compris) et le commit calculé sont consignés
+# dans le journal, dans le résumé du job et dans l'artefact (plateforme.txt,
+# sessionInfo.txt), puis reportés dans le message du commit des .rds.
 #
 # Deux modes (entrée « mode ») :
 #
@@ -42,36 +48,59 @@
 #     bascule, ce mode est refusé par construction : la dérive poste / CI
 #     touche des feuilles hors motifs.
 #
-# PROCÉDURE DU MAINTENEUR
+# PROCÉDURE (décisions du mainteneur du 24/09/2026)
 #
-#   1. Onglet Actions > « Références de non-régression » > Run workflow,
-#      sur la branche de travail (pas main) ; mode « bascule » (ou
-#      « regeneration » avec cas, motifs et issue).
-#   2. Lire le résumé du job : tableau en deux parts. Bascule : chaque cas
-#      doit afficher « dérive numérique seule », part non numérique
-#      0 feuille, écart maximal de l'ordre attendu. Si le job échoue
-#      (« BASCULE REFUSEE ») : ne rien commiter ; retirer d'abord du moteur
+# Rôles : la SESSION PRINCIPALE (Claude) déclenche, télécharge, vérifie et
+# commite, chaque fois sur ordre explicite du mainteneur ; le MAINTENEUR
+# lit le tableau et donne le visa M3, qu'il garde. Les commits sont signés
+# Claude <noreply@anthropic.com>.
+#
+#   1. Déclencher (session principale, sur ordre explicite du mainteneur) :
+#      par l'API GitHub (workflow_dispatch de references.yml), sur la
+#      branche de travail, jamais sur main ; mode « bascule » (ou
+#      « regeneration » avec cas, motifs séparés par « ; » et issue).
+#      Noter l'identifiant de l'exécution et le commit de tête de la
+#      branche au moment du déclenchement.
+#   2. Lire le tableau (session principale, puis mainteneur) : résumé du
+#      job, tableau en deux parts. Bascule : chaque cas doit afficher
+#      « dérive numérique seule », part non numérique 0 feuille, aucun
+#      écart au-delà de 1e-6, écart maximal de l'ordre attendu (~3,5e-07
+#      premium et reserve1, ~1,3e-13 reserve2). Si le job échoue
+#      (« BASCULE REFUSEE ») : rien à commiter ; retirer d'abord du moteur
 #      le libellé fautif (ou l'exclure, motif à l'appui), comme pour M18,
 #      M23 et M24, puis relancer. L'artefact « diagnostic-… » contient le
 #      tableau et le journal complets, sans .rds.
-#   3. Télécharger l'artefact « references-… » (bas de la page de
-#      l'exécution) : les .rds, le tableau (tableau_bascule.md ou le
+#   3. Viser (mainteneur) : visa M3 EXPLICITE sur le tableau réel de cette
+#      exécution. Sans ce visa, rien n'est commité.
+#   4. Télécharger (session principale) l'artefact « references-… » de
+#      cette exécution : les .rds, le tableau (tableau_bascule.md ou le
 #      tableau de regenerer_et_rendre_compte.R), la comparaison complète,
 #      plateforme.txt, sessionInfo.txt, md5.txt.
-#   4. Vérifier que le commit calculé (plateforme.txt) est la tête de la
-#      branche de travail ; copier les .rds dans tests/reference/ ; vérifier
-#      les md5 (md5.txt) ; commiter les seuls .rds, en un commit « tests: »
-#      (bascule : les trois fichiers, « tests: bascule des références sur
-#      la CI (#67) ») dont le message reprend la plateforme (image, R,
-#      BLAS), l'écart maximal par fichier, « aucune feuille non numérique
-#      modifiée » et le lien de l'exécution ; viser le tableau (M3) ;
-#      pousser, puis vérifier que la CI est verte.
+#   5. Vérifier avant commit (session principale) :
+#      a. le commit calculé (plateforme.txt) est la tête actuelle de la
+#         branche de travail (sinon, redéclencher) ;
+#      b. les md5 des .rds copiés dans tests/reference/ sont ceux de
+#         md5.txt ;
+#      c. recomparaison locale : Rscript tests/comparer_references.R
+#         --deux-parts sur les .rds copiés (dans une session Linux, seule
+#         la dérive entre cette machine et la CI doit apparaître, part non
+#         numérique vide), puis Rscript tests/test_reproductibilite.R.
+#   6. Commiter (session principale) les seuls .rds, en un commit
+#      « tests: » (bascule : les trois fichiers, « tests: bascule des
+#      références sur la CI (#67) ») dont le message reprend la plateforme
+#      (ImageOS, ImageVersion, R, BLAS), l'écart maximal par fichier,
+#      « aucune feuille non numérique modifiée », le lien de l'exécution et
+#      le visa M3 du mainteneur ; pousser sur la branche de travail sur
+#      ordre du mainteneur, puis vérifier que la CI est verte.
 #
 # À NE PAS FAIRE
 #
+#   - Déclencher ce workflow, ou commiter ses .rds, sans ordre explicite du
+#     mainteneur ; commiter avant son visa M3 sur le tableau réel.
 #   - Commiter des .rds issus d'une exécution en échec, d'une autre
-#     exécution que celle dont on a lu le tableau, ou calculés sur un autre
-#     commit que la tête de la branche.
+#     exécution que celle dont le tableau a été visé, ou calculés sur un
+#     autre commit que la tête de la branche ; commiter autre chose que
+#     les .rds dans le commit de bascule.
 #   - Régénérer ensuite sur le poste (generer_references.R local) : après
 #     la bascule, toute référence est produite ici.
 #   - Relever TOLERANCE, ou ajouter une feuille à INSTABLES, pour faire
