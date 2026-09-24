@@ -140,8 +140,10 @@ TOL_DELTA_BORD <- 1e-6
 # Bornes de recherche de gamma dans usp_ajuster() (L-BFGS-B). Bornes
 # NUMERIQUES, non reglementaires (le reglement ne borne que delta) : un gamma
 # estime sur l'une d'elles signale que le maximum de vraisemblance n'est pas
-# atteint (controle de la condition du premier ordre, issue #22). Les memes
-# valeurs sont ecrites en dur dans usp_ajuster_rapide() et usp_profil().
+# atteint (controle de la condition du premier ordre, issue #22). Source
+# unique de ces bornes : usp_ajuster(), usp_ajuster_rapide(), usp_profil()
+# et les libelles qui les citent (usp_controles_numeriques(), usp_tests(),
+# par sprintf) les lisent ici (issue #22).
 BORNES_GAMMA <- c(-12, 3)
 
 usp_credibilite <- function(T, bareme = c("court", "long")) {
@@ -459,9 +461,11 @@ usp_controles_numeriques <- function(fit) {
             if (delta_ok) "satisfaite" else "violee")
   else sprintf("delta interieur a [0, 1] : |g_delta| %s le repere 1e-4",
                if (delta_ok) "sous" else "au-dessus de")
+  dom_gamma <- sprintf("[%g, %g]", BORNES_GAMMA[1], BORNES_GAMMA[2])
   txt_gamma <- if (gamma_bord)
-    "gamma sur une borne numerique de [-12, 3] : maximum de vraisemblance non atteint, pas de Newton non defini"
-  else "gamma interieur a [-12, 3]"
+    sprintf(paste("gamma sur une borne numerique de %s : maximum de vraisemblance non",
+                  "atteint, pas de Newton non defini"), dom_gamma)
+  else sprintf("gamma interieur a %s", dom_gamma)
   txt_pas <- if (gamma_bord) NULL
   else if (!courbure_ok)
     "courbure H_gamma_gamma non strictement positive : pas de Newton non defini"
@@ -1346,7 +1350,8 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
 usp_ajuster_rapide <- function(x, y, d0, g0) {
   xbar <- mean(x)
   f <- stats::optim(c(d0, g0), usp_objectif, x = x, y = y, xbar = xbar,
-                    method = "L-BFGS-B", lower = c(0, -12), upper = c(1, 3),
+                    method = "L-BFGS-B",
+                    lower = c(0, BORNES_GAMMA[1]), upper = c(1, BORNES_GAMMA[2]),
                     control = list(factr = 1e7, maxit = 200))
   k <- usp_noyau(f$par[1], f$par[2], x, y, xbar)
   c(k, list(delta = f$par[1], gamma = f$par[2], T = length(x),
@@ -1384,7 +1389,7 @@ usp_profil <- function(fit, n = 41) {
   gd <- seq(0, 1, length.out = n)
   pd <- vapply(gd, function(d) {
     o <- stats::optimize(function(g) usp_objectif(c(d, g), fit$x, fit$y, fit$xbar),
-                         interval = c(-12, 3))
+                         interval = BORNES_GAMMA)
     o$objective
   }, numeric(1))
   gg <- seq(fit$gamma - 1.5, fit$gamma + 1.5, length.out = n)
@@ -1396,7 +1401,7 @@ usp_profil <- function(fit, n = 41) {
   # Tests du rapport de vraisemblance sur les cas limites de delta.
   lr <- function(d) {
     o <- stats::optimize(function(g) usp_objectif(c(d, g), fit$x, fit$y, fit$xbar),
-                         interval = c(-12, 3))$objective
+                         interval = BORNES_GAMMA)$objective
     st <- o - fit$obj_min
     list(stat = st, p = .p_borne(1 - stats::pchisq(st, 1)))
   }
@@ -1880,9 +1885,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # +1,2e-07 sur [gamma chapeau - 0,1 ; gamma chapeau + 0,1] (mesures
   # distinctes selon l'intervalle). La formule n'est donnee qu'ici : le
   # libelle nomme la condition sans l'ecrire.
+  dom_gamma <- sprintf("[%g, %g]", BORNES_GAMMA[1], BORNES_GAMMA[2])
   cond_gamma_ponderee <- paste(
     "pour la variance, la relation qui subsiste est la condition du premier",
-    "ordre en gamma (a un optimum interieur en gamma, domaine [-12, 3]),",
+    paste0("ordre en gamma (a un optimum interieur en gamma, domaine ", dom_gamma, "),"),
     "relation ponderee distincte de la contrainte somme(sqrt(pi_t) z_t) = 0",
     "(condition en ln(beta), qui porte sur la moyenne) ; elle ne fixe pas",
     "somme(z_t^2).")
@@ -1927,7 +1933,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         variance = paste(tol_pres,
                          "var(z) = T/(T-1) suppose la derivee en gamma effectivement",
                          "annulee, donc un optimum INTERIEUR en gamma, et elle tombe si",
-                         "gamma bute sur une borne de son domaine [-12, 3]. A un optimum",
+                         "gamma bute sur une borne de son domaine", paste0(dom_gamma, ". A un optimum"),
                          "interieur, l'egalite ne tient qu'a deux ecarts pres : la tolerance",
                          "d'arret de l'optimiseur, et un ecart", ordre_tol, "du a la",
                          "variation residuelle de pi_t. L'ecart residuel renseigne donc",
@@ -1945,7 +1951,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                          "var(z) = T/(T-1) suppose la derivee en gamma effectivement",
                          "annulee, donc un optimum INTERIEUR en gamma : l'egalite ne",
                          "tient qu'a la tolerance d'arret de l'optimiseur pres, et elle",
-                         "tombe si gamma bute sur une borne de son domaine [-12, 3].",
+                         "tombe si gamma bute sur une borne de son domaine", paste0(dom_gamma, "."),
                          "L'ecart residuel renseigne donc sur la convergence en gamma,",
                          "sous cette reserve."),
         stop("contrainte() : grandeur inconnue : ", quoi))
