@@ -63,8 +63,15 @@ const INTERDITS = [
   "Si ta tache semble exiger l'un de ces actes, ne le fais pas : dis-le dans ta reponse, la session principale decidera."
 ].join('\n')
 
-// Valeur absente : null, chaine vide ou 'aucun' quelle que soit la casse
-const vide = function (v) { return !v || /^\s*aucun\b/i.test(String(v)) }
+// Validation positive des sorties de l'etape 3 : tout ce qui n'est pas un
+// hash d'objet git ou un chemin absolu est traite comme absent
+const instantaneValide = function (v) { return /^[0-9a-f]{7,40}$/.test(String(v || '').trim()) }
+const copieValide = function (v) { return /^(\/|[A-Za-z]:[\\/])/.test(String(v || '').trim()) }
+
+// Liste des fichiers non suivis, un chemin par ligne, sans guillemets ni
+// echappement : -z desactive la citation des chemins (espaces, caracteres
+// non ASCII), qui persiste avec core.quotePath=false pour les espaces
+const LISTE_NON_SUIVIS = 'git status --porcelain -z --untracked-files=all | tr "\\0" "\\n" | sed -n "s/^?? //p"'
 
 // Les trois batteries attendues a chaque verification (principe 7)
 const BATTERIES = [
@@ -215,11 +222,11 @@ const SCHEMA_VERIFICATION = {
     },
     instantane: {
       type: 'string',
-      description: "Sortie de git stash create (objet sans reference), ou 'aucun' si rien a figer"
+      description: "Hash rendu par git stash create (objet sans reference), ou 'aucun' si rien a figer ; toute valeur qui n'est pas un hash est traitee comme absente"
     },
     copie_non_suivis: {
       type: 'string',
-      description: "Repertoire temporaire hors depot ou sont copies les fichiers non suivis, ou 'aucun'"
+      description: "Chemin ABSOLU du repertoire temporaire hors depot ou sont copies les fichiers non suivis, ou 'aucun' ; toute valeur qui n'est pas un chemin absolu est traitee comme absente"
     }
   },
   required: ['batteries', 'ecart_aux_references', 'garde_fous', 'instantane', 'copie_non_suivis']
@@ -306,7 +313,7 @@ function consigneVerification(depot, figer) {
     "2. Garde-fous : compare git rev-parse HEAD a " + depot.tete + " et git rev-parse @{u} a '" + depot.amont + "' ('aucun' si pas d'amont) ; git status --porcelain -- tests/reference/ et git status --porcelain -- docs/latex/ doivent etre vides. Recopie les sorties dans detail.",
   ]
   if (figer) {
-    lignes.push("3. Instantane pour l'audit d'une eventuelle reprise : execute git stash create (objet sans reference, rien dans l'historique ni les references ; seule commande git d'ecriture permise) et rends le hash, ou 'aucun' si la sortie est vide ; copie les fichiers non suivis de git status --porcelain --untracked-files=all (fichiers des repertoires non suivis compris) dans un repertoire cree par mktemp -d, HORS du depot, en conservant leurs chemins relatifs (cp --parents depuis la racine du depot), et rends son chemin, ou 'aucun' s'il n'y en a pas.")
+    lignes.push("3. Instantane pour l'audit d'une eventuelle reprise : execute git stash create (objet sans reference, rien dans l'historique ni les references ; seule commande git d'ecriture permise) et rends le hash, ou 'aucun' si la sortie est vide ; copie les fichiers non suivis (fichiers des repertoires non suivis compris), listes par " + LISTE_NON_SUIVIS + " (-z : chemins sans guillemets ni echappement), dans un repertoire cree par mktemp -d, HORS du depot, en conservant leurs chemins relatifs depuis la racine du depot : COPIE=$(mktemp -d); " + LISTE_NON_SUIVIS + " | while IFS= read -r f; do cp --parents -- \"$f\" \"$COPIE\"; done ; rends le chemin absolu de COPIE, ou 'aucun' s'il n'y a aucun fichier non suivi.")
   } else {
     lignes.push("3. Pas d'instantane a ce tour : n'execute pas git stash create, ne copie rien ; rends 'aucun' pour instantane et copie_non_suivis.")
   }
@@ -314,16 +321,20 @@ function consigneVerification(depot, figer) {
 }
 
 function consigneAudit(depot, verif, reference, tour, aVerifier) {
-  const copie = vide(reference && reference.copie_non_suivis) ? null : reference.copie_non_suivis
+  const copie = (reference && copieValide(reference.copie_non_suivis)) ? reference.copie_non_suivis.trim() : null
   const perimetre = tour === 1
-    ? "le travail en cours contre la tete au lancement : git diff " + depot.tete + ", plus les fichiers non suivis listes par git status --porcelain --untracked-files=all (lis-les en entier)."
+    ? "le travail en cours contre la tete au lancement : git diff " + depot.tete + ", plus les fichiers non suivis listes par " + LISTE_NON_SUIVIS + " (lis-les en entier)."
     : "la SEULE correction de la reprise : (a) fichiers suivis : git diff " +
-      (vide(reference.instantane) ? depot.tete + " (aucun fichier suivi modifie au tour 1)" : reference.instantane) +
+      (instantaneValide(reference.instantane) ? reference.instantane.trim() : depot.tete + " (aucun fichier suivi modifie au tour 1)") +
       " ; (b) fichiers non suivis deja presents au tour 1 : " +
-      (copie ? "diff -r " + copie + " . restreint aux chemins de la copie" : "aucun") +
-      " ; (c) tout fichier non suivi de git status --porcelain --untracked-files=all absent de " +
-      (copie ? copie + " (en particulier toute ligne « Only in » cote depot du diff -r)" : "cette copie (donc tout fichier non suivi)") +
-      " : cree a la reprise, a lire en entier."
+      (copie
+        ? "pour chaque fichier de la copie (cd " + copie + " && find . -type f), diff entre la copie et le fichier du depot"
+        : "aucun") +
+      " ; (c) fichiers non suivis crees a la reprise, a lire en entier : " +
+      (copie
+        ? "ce sont les lignes de comm -13 <(cd " + copie + " && find . -type f | sed 's|^\\./||' | sort) <(" + LISTE_NON_SUIVIS + " | sort), c'est-a-dire les chemins non suivis actuels (second flux) absents de la copie du tour 1 (premier flux) ; ne lis pas le reste du depot"
+        : "tous les fichiers de " + LISTE_NON_SUIVIS + " (aucun fichier non suivi au tour 1)") +
+      "."
   const lignes = [
     "Audit LEGER du workflow circuit-technique (ADR 0010, principe 5), issue #" + issue + ", tour " + tour + ". Applique ta fiche, section audit leger.",
     "Perimetre : " + perimetre + " Lis les fonctions touchees avec leurs appelants et appeles, pas les fichiers entiers. Ce n'est pas la revue finale complete (regle 10).",
@@ -413,7 +424,7 @@ async function derouler() {
     [
       "Etape mecanique du workflow circuit-technique : releve l'etat du depot, sans rien modifier.",
       INTERDITS,
-      "Execute git branch --show-current, git rev-parse HEAD, git rev-parse @{u} (rends 'aucun' en cas d'erreur) et git status --porcelain, et rends les sorties."
+      "Execute git branch --show-current, git rev-parse HEAD, git rev-parse @{u} (rends 'aucun' en cas d'erreur) et git -c core.quotePath=false status --porcelain --untracked-files=all, et rends les sorties."
     ].join('\n\n'),
     { label: 'etat du depot', agentType: 'audit', effort: 'low', schema: SCHEMA_DEPOT }
   )
@@ -439,7 +450,7 @@ async function derouler() {
   if (!verif1) return arreter("l'agent de verification n'a rien rendu")
   tour1.verification = verif1
   // La copie existe des la verification : son chemin est rendu meme en cas d'arret
-  rapport.copie_temporaire = vide(verif1.copie_non_suivis) ? 'aucun' : verif1.copie_non_suivis
+  rapport.copie_temporaire = copieValide(verif1.copie_non_suivis) ? verif1.copie_non_suivis.trim() : 'aucun'
   const violation1 = violationGardeFous(verif1)
   if (violation1) return arreter(violation1)
   if (impl1.decision_requise) return arreter('decision requise selon coder : ' + impl1.motif_decision)
@@ -464,14 +475,17 @@ async function derouler() {
   }
   const aCorriger = constatsCorrigeables(audit1)
   if (rapport.questions_actuary.length > 0) {
-    // Une batterie rouge ne finit jamais par un statut termine (decision du mainteneur)
-    if (rouges1.length > 0) {
-      return arreter('batterie(s) en echec et question(s) pour actuary, sans reprise : ' + listerRouges(rouges1))
-    }
+    // Questions pour actuary : pas de reprise. Un constat ou une batterie
+    // rouge reste un point d'arret ; 'termine avec questions' seulement
+    // quand les seules remontees sont des questions (ADR 0010 amende)
     const attente1 = []
+    if (rouges1.length > 0) attente1.push('batterie(s) en echec : ' + listerRouges(rouges1))
     if (aCorriger.length > 0) attente1.push(aCorriger.length + ' constat(s) bloquant(s) ou majeur(s) corrigeable(s) non repris')
     if (audit1.conclusion === 'non conforme') attente1.push('audit non conforme')
-    return terminerAvecQuestions(attente1.join(' ; '))
+    if (attente1.length > 0) {
+      return arreter('question(s) pour actuary et ' + attente1.join(' ; ') + ', sans reprise')
+    }
+    return terminerAvecQuestions('')
   }
   if (aCorriger.length === 0) {
     // Ni batterie rouge ni conclusion non conforme ne peuvent terminer le workflow
@@ -485,7 +499,7 @@ async function derouler() {
     log('Audit leger : ' + audit1.conclusion + ', aucune reprise necessaire')
     return rapport
   }
-  if (vide(verif1.instantane) && vide(verif1.copie_non_suivis)) {
+  if (!instantaneValide(verif1.instantane) && !copieValide(verif1.copie_non_suivis)) {
     return arreter("ni instantane ni copie des fichiers non suivis au tour 1 : l'audit de la reprise ne pourrait pas isoler le diff de la correction")
   }
 
