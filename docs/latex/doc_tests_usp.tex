@@ -849,7 +849,17 @@ tient (vérification exécutée).
 \emph{La non-régression.} Le résultat est en outre confronté à des valeurs de
 référence enregistrées (\code{tests/reference/}) et versionnées avec le code.
 Leurs valeurs \emph{numériques} sont produites sur une plateforme unique
-désignée, le poste du mainteneur (ADR~0006)~; leurs grandeurs \emph{non
+désignée~: la CI du dépôt, par le workflow \code{.github/workflows/references.yml}, déclenché
+manuellement, sous Linux avec R~4.3.1 et le libellé d'image \code{ubuntu-22.04}, celui du job
+« Tests du moteur » qui compare les résultats aux références. Il en est ainsi depuis la
+bascule du 24~septembre 2026 (ADR~0011, qui remplace le point~1 de l'ADR~0006)~; jusque-là,
+les références étaient produites sur le poste du mainteneur (Windows, R~4.3.1). Le libellé
+\code{ubuntu-22.04} fixe la version du système, non l'image exacte, que GitHub met à jour~:
+l'image réelle, la version de R et les bibliothèques d'algèbre linéaire (BLAS, LAPACK) sont
+consignées dans le message de chaque commit de référence. Le workflow ne fait que calculer et
+publier les références~; leur commit reste un geste distinct, après visa du mainteneur sur le
+tableau avant / après, et aucune valeur numérique de référence n'est plus produite sur un
+poste ni dans une session de travail. Leurs grandeurs \emph{non
 numériques} (libellés, verdicts, valeurs manquantes, entrées retirées) peuvent
 en outre être mises à jour par un \emph{patch chirurgical}, qui recalcule le cas
 mais ne reprend que ces grandeurs et refuse d'écrire la moindre valeur
@@ -899,8 +909,11 @@ dérivent --- les tirages bootstrap en sont le cas réel (décision M9 du
 mainteneur, ADR~0006, second amendement). Le seuil $10^{-6}$ est
 \emph{empirique}, non théorique~: il vaut environ trois fois la dérive maximale
 mesurée entre plateformes, décrite ci-après ($3{,}508\cdot 10^{-7}$), qu'il
-absorbe avec une marge, et il est à réexaminer lorsque les références seront
-produites par la CI (ADR~0006). Une telle dérive existe entre plateformes et a été mesurée lors de
+absorbe avec une marge. Il a été maintenu lors de la bascule vers la CI (ADR~0011, point~6)~:
+sur la CI, les résultats sont désormais comparés à des références produites sur la même
+plateforme, mais le poste du mainteneur exécute lui aussi les tests, contre ces mêmes
+références, et la dérive y joue alors dans l'autre sens~; le seuil sera réexaminé une fois
+mesuré l'écart entre le poste et les références de la CI. Une telle dérive existe entre plateformes et a été mesurée lors de
 l'audit consigné dans l'ADR~0006 (22~septembre 2026), en confrontant le code
 alors en vigueur, exécuté sous Linux avec R~4.3.3, aux références produites sur
 le poste du mainteneur~: sur le cas de contrôle de la méthode prime, 5\,515
@@ -912,10 +925,12 @@ de $10^{-14}$ en relatif, très en deçà de la précision à laquelle le param�
 est lu. La branche Merz--Wüthrich était, elle, indemne sous R~4.3.3 (aucun écart sur le
 triangle de contrôle)~; ce n'est plus vrai sous R~4.3.1 (voir ci-dessous). Ces décomptes sont datés~: l'objet a changé depuis l'audit (il
 comptait 12\,393 valeurs élémentaires sur le cas de la méthode prime lors de la mesure du
-23~septembre 2026 rapportée ci-dessous, et en compte 12\,369 depuis l'issue~\#22),
-et la mesure ne peut se refaire qu'en confrontant deux plateformes. Sur le poste
+23~septembre 2026 rapportée ci-dessous, 12\,369 après l'issue~\#22, et en compte 12\,370
+depuis l'ajout de \code{\$kkt\_au\_moins\_un}, décision M25),
+et la mesure ne peut se refaire qu'en confrontant deux plateformes. Tant que les références
+étaient produites sur le poste
 du mainteneur (Windows, R~4.3.1), le résultat courant des trois cas de contrôle
-est identique au bit près à sa référence, hors les trois champs d'exécution de
+y était identique au bit près à sa référence, hors les trois champs d'exécution de
 \code{\$metadata} (\code{identical()}, mesuré le 22~septembre 2026, puis de nouveau le
 23~septembre 2026 sur les références régénérées pour l'issue~\#22). Refaite
 le 23~septembre 2026 sous Linux avec R~4.3.3, au critère ci-dessus, la
@@ -936,7 +951,24 @@ dépend pas de la version mineure de R, et le seuil $10^{-6}$ garde sa marge
 d'environ trois~; la branche Merz--Wüthrich, qui n'emploie pas d'optimiseur,
 n'est pas strictement indemne de toute dérive de plateforme, mais son écart,
 d'ordre $10^{-13}$, relève de l'arrondi du dernier bit et se situe six ordres de
-grandeur sous la dérive lognormale et sept sous le seuil. L'origine vraisemblable de cette dérive est l'optimiseur employé
+grandeur sous la dérive lognormale et sept sous le seuil. La bascule du 24~septembre 2026 a
+refait la mesure sur l'état courant de l'objet, avant de produire les nouvelles
+références~: exécuté sur la CI (image \code{ubuntu22 20260920.303.1}, R~4.3.1, OpenBLAS~0.3.20),
+le workflow a comparé ses résultats aux références du poste en deux parts. Dans la part
+numérique, les cas prime et réserve n\textsuperscript{o}~1 comptent chacun 5\,505 valeurs non
+strictement identiques sur 12\,370, d'écart relatif maximal $3{,}508\cdot 10^{-7}$ sur la même
+valeur de \code{bootstrap\$sigma\_boot}, et le cas Merz--Wüthrich 8 sur 4\,211, d'écart maximal
+$1{,}339\cdot 10^{-13}$, aucune au-delà du seuil~; la part non numérique (chaînes, verdicts,
+booléens dont \code{\$kkt\_au\_moins\_un}, valeurs non finies, structure) est vide dans les
+trois cas, ce qui confirme entre deux machines la règle d'écriture des libellés exposée
+ci-après. Les références versionnées depuis sont celles de cette exécution (empreintes md5
+identiques à celles qu'elle a publiées). Comparées à elles sous Linux avec R~4.3.3 (session de
+travail), les cas prime et réserve n\textsuperscript{o}~1 ne présentent plus qu'une valeur non
+strictement identique, à $1{,}6\cdot 10^{-16}$, et le cas Merz--Wüthrich les mêmes 8 valeurs à
+$1{,}339\cdot 10^{-13}$ au plus~: entre deux plateformes Linux, la dérive est de l'ordre du
+dernier bit. L'écart entre le poste du mainteneur et les références de la CI n'a pas encore
+été mesuré~; on l'attend, par symétrie, voisin de $3{,}508\cdot 10^{-7}$, ce qui est une
+attente et non une mesure. L'origine vraisemblable de cette dérive est l'optimiseur employé
 par la branche lognormale sur une vraisemblance quasi plate en $\delta$, dont le
 chemin dépend de l'ordre des opérations en virgule flottante~; cette explication
 est cohérente avec la répartition observée des écarts, mais elle n'a pas été
