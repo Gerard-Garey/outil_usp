@@ -35,7 +35,7 @@ DOSSIER_REF <- file.path(RACINE, "tests", "reference")
 # references) et Linux R 4.3.3 (3,508e-07 sur bootstrap$sigma_boot). Seuil
 # empirique, cale sur cette mesure : il absorbe la derive d'optimiseur entre
 # plateformes et detecte, valeur par valeur, tout changement de methode.
-TOLERANCE <- 1e-12
+TOLERANCE <- 1e-6
 
 .ln  <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln.csv"))
 .tri <- local({
