@@ -146,6 +146,30 @@ TOL_DELTA_BORD <- 1e-6
 # par sprintf) les lisent ici (issue #22).
 BORNES_GAMMA <- c(-12, 3)
 
+# Reperes des controles numeriques de l'estimation lognormale (issue #22).
+# Reperes NUMERIQUES, non reglementaires. Source unique : usp_ajuster()
+# (ensemble des demarrages a l'optimum), usp_kkt_satisfaite() (valeurs par
+# defaut) et les libelles de usp_controles_numeriques(), qui les impriment
+# par engine_fmt_repere().
+# - TOL_OPTIMUM : un demarrage est "a l'optimum" si son objectif est a moins
+#   de TOL_OPTIMUM de l'objectif minimal ; meme ensemble pour la convergence
+#   multi-demarrages (M15) et pour la condition de Kuhn-Tucker (M25).
+# - REP_PAS_KKT : repere sur |pas de Newton en gamma|, ancre sur M9 (erreur
+#   relative sur sigma de l'ordre de Delta gamma, tolerance de
+#   non-regression 1e-6), maintenu par M17.
+# - REP_GD_KKT : repere sur |pg_delta|, regle unique au bord comme a
+#   l'interieur (M16).
+TOL_OPTIMUM <- 1e-6
+REP_PAS_KKT <- 1e-6
+REP_GD_KKT  <- 1e-4
+
+# Ecriture d'un repere dans un libelle, sans zero de tete dans l'exposant
+# (1e-6 et non "1e-06" que rendraient format() ou sprintf("%g")). Element
+# par element : format() d'un vecteur aligne les mantisses ("1.0e-6").
+engine_fmt_repere <- function(x)
+  vapply(x, function(v) sub("e([-+])0*([0-9])", "e\\1\\2", format(v, scientific = TRUE)),
+         character(1), USE.NAMES = FALSE)
+
 usp_credibilite <- function(T, bareme = c("court", "long")) {
   bareme <- match.arg(bareme)
   tab <- if (bareme == "long") CRED_LONG else CRED_COURT
@@ -348,11 +372,12 @@ usp_condition_premier_ordre <- function(delta, gamma, x, y, xbar = mean(x),
 # TRUE si et seulement si, sur ce MEME point : gradient et gradient projete
 # finis, gamma_s hors des bornes numeriques BORNES_GAMMA (a TOL_DELTA_BORD
 # pres), H_gamma_gamma finie et > 0, |pas de Newton en gamma| <= rep_pas et
-# |pg_delta| <= rep_gd. Reperes : 1e-6 ancre sur M9 (M17), 1e-4 regle unique
-# au bord comme a l'interieur (M16) ; ce sont les seules definitions de ces
-# reperes (le libelle de usp_controles_numeriques() les cite en toutes
-# lettres). Point d'accroche de #71 (pas de Newton complet).
-usp_kkt_satisfaite <- function(cpo, gamma, rep_pas = 1e-6, rep_gd = 1e-4) {
+# |pg_delta| <= rep_gd. Reperes par defaut REP_PAS_KKT (1e-6, ancre sur M9,
+# M17) et REP_GD_KKT (1e-4, regle unique au bord comme a l'interieur, M16),
+# definis en tete du moteur ; le libelle de usp_controles_numeriques() les
+# imprime a partir des memes constantes. Point d'accroche de #71 (pas de
+# Newton complet).
+usp_kkt_satisfaite <- function(cpo, gamma, rep_pas = REP_PAS_KKT, rep_gd = REP_GD_KKT) {
   gamma_bord <- !is.finite(gamma) || gamma <= BORNES_GAMMA[1] + TOL_DELTA_BORD ||
     gamma >= BORNES_GAMMA[2] - TOL_DELTA_BORD
   isTRUE(all(is.finite(c(cpo$gradient, cpo$gradient_projete)))) && !gamma_bord &&
@@ -396,12 +421,12 @@ usp_ajuster <- function(x, y, n_starts_delta = 9, verbose = FALSE,
 
   # Controle de convergence multi-demarrages (issue #22), mesure sur la meme
   # grille (aucune reoptimisation redondante) : nombre de demarrages
-  # atteignant l'objectif minimal a 1e-6 pres, parmi eux ceux qui rendent le
-  # code 0 (precision de M11 : le code du seul demarrage retenu ne decide
+  # atteignant l'objectif minimal a TOL_OPTIMUM (1e-6) pres, parmi eux ceux
+  # qui rendent le code 0 (precision de M11 : le code du seul demarrage retenu ne decide
   # pas ; mesure d'audit, le premier demarrage a l'optimum peut rendre 52
   # quand 53 autres, a 1,9e-12 pres, rendent 0), demarrages sans resultat
   # (erreur d'optim()), et part kappa parmi les demarrages aboutis.
-  a_optimum <- abs(vals - best$value) < 1e-6
+  a_optimum <- abs(vals - best$value) < TOL_OPTIMUM
   part_convergents <- mean(a_optimum, na.rm = TRUE)
   n_optimum <- sum(a_optimum, na.rm = TRUE)
   n_optimum_code0 <- sum(a_optimum & codes == 0L, na.rm = TRUE)
@@ -460,7 +485,7 @@ usp_controles_numeriques <- function(fit) {
   # --- Condition du premier ordre (KKT) -------------------------------------
   # Regle (decision du mainteneur du 24/09/2026, issue #22, constat 4 de la
   # revue finale d'audit ; specification d'actuary) : reussi si AU MOINS UN
-  # demarrage a l'optimum (objectif a moins de 1e-6 du minimum, meme ensemble
+  # demarrage a l'optimum (objectif a moins de TOL_OPTIMUM du minimum, meme ensemble
   # que M15) satisfait les deux conditions sur le MEME point
   # (usp_kkt_satisfaite()) ; decision calculee dans usp_ajuster()
   # (fit$kkt_au_moins_un). L'ancienne regle jugeait le seul demarrage
@@ -469,7 +494,8 @@ usp_controles_numeriques <- function(fit) {
   # ECHEC sur 200 (|Delta gamma| du retenu 1,24e-6 et 1,39e-6), 0 sur 200
   # avec la nouvelle regle (max sur les jeux de min_s |Delta gamma_s| =
   # 1,96e-7).
-  # Reperes (definis dans usp_kkt_satisfaite()) : |pas de Newton en gamma|
+  # Reperes (constantes REP_PAS_KKT et REP_GD_KKT, en tete du moteur, lues
+  # par usp_kkt_satisfaite() et imprimees ici) : |pas de Newton en gamma|
   # <= 1e-6, ancre sur M9 (erreur relative sur sigma ~ Delta gamma,
   # tolerance de non-regression 1e-6) ; plancher Delta gamma ~ -h^2/3
   # ~ -3,3e-7 (biais de la difference centree d'optim(), ndeps = h = 1e-3 ;
@@ -498,6 +524,9 @@ usp_controles_numeriques <- function(fit) {
   else if (au_bord) sprintf("delta AU BORD %d", if (fit$delta >= 0.5) 1L else 0L)
   else "delta interieur a [0, 1]"
   dom_gamma <- sprintf("[%g, %g]", BORNES_GAMMA[1], BORNES_GAMMA[2])
+  r_opt <- engine_fmt_repere(TOL_OPTIMUM)
+  r_pas <- engine_fmt_repere(REP_PAS_KKT)
+  r_gd <- engine_fmt_repere(REP_GD_KKT)
   txt_gamma <- if (gamma_bord)
     sprintf(paste("gamma sur une borne numerique de %s : maximum de vraisemblance non",
                   "atteint, pas de Newton non defini"), dom_gamma)
@@ -512,15 +541,15 @@ usp_controles_numeriques <- function(fit) {
              "Gradient analytique de l'objectif profile O(delta, gamma), projete sur ",
              "les bornes. Demarrage retenu : ",
              paste(c(txt_delta, txt_gamma, txt_courbure), collapse = " ; "), ". ",
-             "Regle : au moins un demarrage a l'optimum (objectif a moins de 1e-6 du ",
+             "Regle : au moins un demarrage a l'optimum (objectif a moins de ", r_opt, " du ",
              "minimum) satisfait les deux conditions sur le meme point, pas de Newton ",
-             "|Delta gamma| = |pg_gamma / H_gamma_gamma| <= 1e-6 (gamma interieur, ",
+             "|Delta gamma| = |pg_gamma / H_gamma_gamma| <= ", r_pas, " (gamma interieur, ",
              "H_gamma_gamma > 0) et composante projetee du gradient en delta ",
-             "|pg_delta| <= 1e-4 : ", if (ok) "oui" else "non",
+             "|pg_delta| <= ", r_gd, " : ", if (ok) "oui" else "non",
              " (M15 etendue a KKT). ",
-             "Repere 1e-6 ancre sur M9 : l'erreur relative sur sigma estime est de ",
+             "Repere ", r_pas, " ancre sur M9 : l'erreur relative sur sigma estime est de ",
              "l'ordre de Delta gamma ; plancher Delta gamma ~ -h^2/3 ~ -3,3e-7, biais ",
-             "de la difference centree d'optim() (ndeps = h = 1e-3). Repere 1e-4 : ",
+             "de la difference centree d'optim() (ndeps = h = 1e-3). Repere ", r_gd, " : ",
              "regle unique au bord comme a l'interieur. Valeurs numeriques du ",
              "demarrage retenu : res$ajustement (gradient, gradient_projete, ",
              "hessien_gamma, pas_newton_gamma) ; stat = Delta gamma du demarrage retenu."))
@@ -545,13 +574,14 @@ usp_controles_numeriques <- function(fit) {
   n_opt0 <- fit$n_starts_optimum_code0
   ok_m <- isTRUE(n_opt0 >= 1) && isTRUE(n_opt >= 2)
   add("Convergence multi-demarrages", ok_m, fit$part_starts_convergents,
-      sprintf(paste("%d demarrage(s) a moins de 1e-6 de l'objectif minimal ; au moins un",
+      sprintf(paste("%d demarrage(s) a moins de %s de l'objectif minimal ; au moins un",
                     "demarrage a l'optimum au code de retour 0 d'optim() (convergence) : %s ;",
                     "%d demarrage(s) sans resultat. Regle : au moins un demarrage a l'optimum",
                     "au code 0 et au moins deux demarrages a l'optimum (convention minimale,",
                     "sans reference). Part kappa des demarrages aboutis a l'optimum = %.2f :",
                     "grandeur descriptive, sans repere (stat = kappa)."),
-              as.integer(n_opt), if (isTRUE(n_opt0 >= 1)) "oui" else "non",
+              as.integer(n_opt), engine_fmt_repere(TOL_OPTIMUM),
+              if (isTRUE(n_opt0 >= 1)) "oui" else "non",
               as.integer(fit$n_starts_echec), fit$part_starts_convergents))
   res
 }

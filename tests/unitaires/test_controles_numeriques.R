@@ -437,8 +437,10 @@ verifier("Detail FOC invariant quand le pas de Newton et pg_delta du retenu fran
              !any(grepl("sous le repere|au-dessus de|Kuhn-Tucker satisfaite|Kuhn-Tucker violee",
                         c(d0, dt))) &&
              all(grepl("au moins un demarrage a l'optimum", c(d0, dt), fixed = TRUE)) &&
-             grepl("<= 1e-4 : oui (M15 etendue a KKT)", d0, fixed = TRUE) &&
-             grepl("<= 1e-4 : non (M15 etendue a KKT)", ctrl(fn, NOM_FOC)$detail, fixed = TRUE)
+             grepl(sprintf("<= %s : oui (M15 etendue a KKT)", engine_fmt_repere(REP_GD_KKT)),
+                   d0, fixed = TRUE) &&
+             grepl(sprintf("<= %s : non (M15 etendue a KKT)", engine_fmt_repere(REP_GD_KKT)),
+                   ctrl(fn, NOM_FOC)$detail, fixed = TRUE)
          })
 
 ## --- Mineurs d'audit ---------------------------------------------------------
@@ -487,11 +489,62 @@ verifier("usp_controles_numeriques : stat = pas de Newton (FOC) et part kappa (m
            identical(cc[[1]]$stat, f_i$pas_newton_gamma) &&
              identical(cc[[2]]$stat, f_i$part_starts_convergents)
          })
-verifier("Detail FOC : reperes 1e-6 (M9) et 1e-4, plancher ndeps, regime de delta nomme",
+verifier("Detail FOC : reperes REP_PAS_KKT (M9) et REP_GD_KKT, plancher ndeps, regime de delta nomme",
          {
            dt <- ctrl(f_t, NOM_FOC)$detail; di <- ctrl(f_i, NOM_FOC)$detail
-           all(vapply(c("1e-6", "M9", "ndeps", "1e-4"), grepl, logical(1), x = di, fixed = TRUE)) &&
+           all(vapply(c(engine_fmt_repere(REP_PAS_KKT), "M9", "ndeps", engine_fmt_repere(REP_GD_KKT)),
+                      grepl, logical(1), x = di, fixed = TRUE)) &&
              grepl("AU BORD", dt, fixed = TRUE) && grepl("interieur", di, fixed = TRUE)
+         })
+## --- Reperes : constantes du moteur et libelles (audit M1, issue #22) -------
+# Les reperes sont definis une seule fois en tete du moteur (TOL_OPTIMUM,
+# REP_PAS_KKT, REP_GD_KKT) et imprimes dans les libelles par
+# engine_fmt_repere(). Reference : les valeurs des decisions M15/M25
+# (1e-6), M17 (1e-6) et M16 (1e-4) ; puis propriete de liaison : une autre
+# valeur des constantes modifie la decision ET le libelle, qui ne peut donc
+# pas rester perime.
+verifier("Reperes : TOL_OPTIMUM = 1e-6 (M15, M25), REP_PAS_KKT = 1e-6 (M17), REP_GD_KKT = 1e-4 (M16), ecrits 1e-6 / 1e-4",
+         identical(TOL_OPTIMUM, 1e-6) && identical(REP_PAS_KKT, 1e-6) && identical(REP_GD_KKT, 1e-4) &&
+           identical(engine_fmt_repere(c(1e-6, 1e-4, 1e-10, 2.5e-7)), c("1e-6", "1e-4", "1e-10", "2.5e-7")) &&
+           identical(formals(usp_kkt_satisfaite)$rep_pas, quote(REP_PAS_KKT)) &&
+           identical(formals(usp_kkt_satisfaite)$rep_gd, quote(REP_GD_KKT)))
+verifier("Libelles FOC et multi-demarrages : chaque repere imprime est la valeur formatee de sa constante",
+         {
+           lib <- function() {
+             cc <- usp_controles_numeriques(f_i)
+             c(foc = cc[[1]]$detail, multi = cc[[2]]$detail)
+           }
+           attendu <- function(d) {
+             o <- engine_fmt_repere(TOL_OPTIMUM); p <- engine_fmt_repere(REP_PAS_KKT)
+             g <- engine_fmt_repere(REP_GD_KKT)
+             all(vapply(c(sprintf("objectif a moins de %s du minimum", o),
+                          sprintf("|pg_gamma / H_gamma_gamma| <= %s (gamma interieur", p),
+                          sprintf("|pg_delta| <= %s : ", g),
+                          sprintf("Repere %s ancre sur M9", p),
+                          sprintf("Repere %s : regle unique", g)),
+                        grepl, logical(1), x = d[["foc"]], fixed = TRUE)) &&
+               grepl(sprintf("demarrage(s) a moins de %s de l'objectif minimal", o),
+                     d[["multi"]], fixed = TRUE)
+           }
+           d0 <- lib()
+           ok0 <- attendu(d0)
+           # Autres valeurs des constantes (environnement de definition du
+           # moteur), restaurees a la sortie
+           env <- environment(usp_controles_numeriques)
+           sauve <- mget(c("TOL_OPTIMUM", "REP_PAS_KKT", "REP_GD_KKT"), envir = env)
+           on.exit(list2env(sauve, envir = env), add = TRUE)
+           assign("TOL_OPTIMUM", 3e-7, envir = env)
+           assign("REP_PAS_KKT", 2e-6, envir = env)
+           assign("REP_GD_KKT", 5e-5, envir = env)
+           d1 <- lib()
+           cpo <- usp_condition_premier_ordre(f_i$delta, f_i$gamma, xi, yi)
+           cpo$pas_newton_gamma <- 1.5e-6
+           kkt_suit <- isTRUE(usp_kkt_satisfaite(cpo, f_i$gamma))
+           ok1 <- attendu(d1) && !any(grepl("1e-6|1e-4", d1)) && kkt_suit
+           list2env(sauve, envir = env)
+           if (ok0 && ok1 && identical(lib(), d0)) TRUE
+           else sprintf("libelle initial conforme %s, apres changement %s, KKT suit REP_PAS_KKT %s",
+                        ok0, attendu(d1), kkt_suit)
          })
 verifier("Detail multi-demarrages : convention minimale nommee, kappa sans repere 0.5",
          {
