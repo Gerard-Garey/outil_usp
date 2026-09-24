@@ -22,7 +22,9 @@
 #  demarrages a l'optimum au code 0 : ce nombre ne change que pour certains
 #  motifs (audit : 54 dans 29 cas, 53 dans 9, 52 dans 2 sur 40 motifs
 #  aleatoires ; mesure sur les 49 couples de motifs de Walsh ci-dessous,
-#  Linux, R 4.3.3 : 14 couples le font changer, pas le motif alterne).
+#  Linux, R 4.3.3 : 13 couples le font changer, pas le motif alterne ;
+#  54 pour 36 couples, 53 pour 11, 52 pour 2 ; remesure par docwriter et
+#  actuary, 24/09/2026).
 #  Motifs de Walsh-Hadamard, s_i = (-1)^popcount((i - 1) & k), k = 1..7,
 #  construits sans generateur aleatoire : xt recoit le motif kx, yt le motif
 #  ky, le triangle (indice lineaire) le motif kx. Les couples retenus
