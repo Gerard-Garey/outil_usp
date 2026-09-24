@@ -38,9 +38,11 @@
 #                      taille maximale du fichier markdown apres ajout
 #                      (defaut 1000000 octets : GitHub borne le resume d'une
 #                      etape a 1 Mio) ; au-dela, le texte ajoute est tronque
-#                      a une fin de ligne, avec le nombre de lignes omises.
+#                      a une fin de ligne, avec le nombre de lignes omises ;
+#                      si la place restante ne suffit pas meme a cette
+#                      mention, rien n'est ajoute (avertissement a l'ecran).
 #
-#  Une erreur sur un cas (reference illisible, erreur du moteur) est
+#  Une erreur sur un cas (reference absente ou illisible, erreur du moteur) est
 #  signalee, a l'ecran et dans le markdown, et n'arrete pas les cas
 #  suivants ; le code de sortie est alors 1. Sinon 0, que les cas soient
 #  conformes ou non : le script est un rapport, le critere de la CI reste
@@ -83,8 +85,13 @@ seuil_applique <- function(mesure, seuil) {
 }
 
 # Valeur en police de code (un $ isole ne declenche pas le rendu
-# mathematique de GitHub) ; cellule vide laissee vide.
-code <- function(x) ifelse(nzchar(x), paste0("`", x, "`"), "")
+# mathematique de GitHub) ; cellule vide laissee vide ; valeur manquante
+# (na = TRUE, voir reference_na / obtenu_na de comparer_objets()) affichee
+# <NA> hors police de code, pour la distinguer de la chaine "NA" (`NA`).
+# Les chevrons sont echappes : nu, <NA> serait lu par GitHub comme une
+# balise HTML et omis.
+code <- function(x, na = rep(FALSE, length(x)))
+  ifelse(na, "\\<NA\\>", ifelse(nzchar(x), paste0("`", x, "`"), ""))
 
 # Section markdown d'un cas : r, sortie de comparer_objets() ; erreur,
 # message d'erreur (r ignore). Au plus max_lignes lignes de tableau, les
@@ -93,12 +100,12 @@ markdown_cas <- function(nom, r = NULL, seuil = TOLERANCE, max_lignes = MAX_LIGN
                          erreur = NULL) {
   if (!is.null(erreur))
     return(c(sprintf("### `%s` : ERREUR", nom), "",
-             sprintf("Comparaison impossible : `%s`", cellule(erreur, 500L)), ""))
+             sprintf("Comparaison impossible : `%s`", texte_code(erreur, 500L)), ""))
   md <- c(sprintf("### `%s` : %s", nom, if (r$conforme) "CONFORME" else "NON CONFORME"), "",
-          sprintf("- Synth\u00e8se : `%s`", cellule(resumer_comparaison(r)[1], 500L)))
+          sprintf("- Synth\u00e8se : `%s`", texte_code(resumer_comparaison(r)[1], 500L)))
   if (length(r$structure))
     md <- c(md, sprintf("- Structure (type ou attributs) diff\u00e9rente : %s%s",
-                        paste0("`", cellule(utils::head(r$structure, 20L), 120L), "`", collapse = ", "),
+                        paste0("`", texte_code(utils::head(r$structure, 20L), 120L), "`", collapse = ", "),
                         if (length(r$structure) > 20L) sprintf(" et %d autre(s)", length(r$structure) - 20L) else ""))
   md <- c(md, "")
   if (!r$n_ecarts) return(md)
@@ -107,8 +114,8 @@ markdown_cas <- function(nom, r = NULL, seuil = TOLERANCE, max_lignes = MAX_LIGN
   md <- c(md,
           "| Feuille | R\u00e9f\u00e9rence | Valeur | \u00c9cart | Seuil |",
           "|---|---|---|---|---|",
-          sprintf("| `%s` | %s | %s | %s | %s |", cellule(e$chemin, 120L), code(cellule(e$reference)),
-                  code(cellule(e$obtenu)), ecart, seuil_applique(e$mesure, seuil)))
+          sprintf("| `%s` | %s | %s | %s | %s |", cellule(e$chemin, 120L), code(cellule(e$reference), e$reference_na),
+                  code(cellule(e$obtenu), e$obtenu_na), ecart, seuil_applique(e$mesure, seuil)))
   if (r$n_ecarts > max_lignes)
     md <- c(md, "", sprintf(paste0("*%d ligne(s) omise(s) sur %d (au plus %d par cas) ; liste compl\u00e8te : ",
                                    "`Rscript tests/comparer_references.R %s`.*"),
@@ -145,16 +152,30 @@ borner_markdown <- function(lignes, max_octets = MAX_OCTETS_MARKDOWN, limite = m
     "GitHub borne le r\u00e9sum\u00e9 d'une \u00e9tape \u00e0 1 Mio). Liste compl\u00e8te : ",
     "`Rscript tests/comparer_references.R`."), n, length(lignes), format(limite, scientific = FALSE)))
   reserve <- sum(nchar(enc2utf8(mention(length(lignes))), type = "bytes") + 1)
-  if (reserve > max_octets) stop("borner_markdown : max_octets trop petit (", max_octets, ")")
+  if (reserve > max_octets)
+    stop(structure(class = c("markdown_trop_petit", "error", "condition"),
+                   list(message = paste0("borner_markdown : max_octets trop petit (", max_octets, ")"),
+                        call = sys.call())))
   k <- sum(cumsum(octets) <= max_octets - reserve)
   c(lignes[seq_len(k)], enc2utf8(mention(length(lignes) - k)))
 }
 
 # Ajoute les lignes au fichier, en UTF-8, en ne depassant pas max_octets
-# pour le fichier entier (contenu deja present compris).
+# pour le fichier entier (contenu deja present compris). Si la place
+# restante ne suffit pas meme a la mention de troncature, n'ajoute rien,
+# avertit en console et renvoie character(0) : le markdown n'est qu'un
+# rapport, son absence ne doit pas faire echouer l'etape.
 ajouter_markdown <- function(lignes, fichier, max_octets = MAX_OCTETS_MARKDOWN) {
   deja <- if (file.exists(fichier)) file.size(fichier) else 0
-  lignes <- borner_markdown(lignes, max_octets - deja, limite = max_octets)
+  lignes <- tryCatch(borner_markdown(lignes, max_octets - deja, limite = max_octets),
+                     markdown_trop_petit = function(e) NULL)
+  if (is.null(lignes)) {
+    cat(sprintf(paste0("AVERTISSEMENT : markdown non ajoute a %s : place restante (%s octets sur %s) ",
+                       "insuffisante meme pour la mention de troncature.\n"),
+                fichier, format(max_octets - deja, scientific = FALSE),
+                format(max_octets, scientific = FALSE)))
+    return(invisible(character(0)))
+  }
   con <- file(fichier, open = "ab")
   on.exit(close(con))
   writeLines(lignes, con, sep = "\n", useBytes = TRUE)
@@ -201,7 +222,8 @@ if (sys.nframe() == 0L) {
   for (nom in noms) {
     ref_f <- chemin_reference(nom)
     if (!file.exists(ref_f)) {
-      cat(nom, ": reference absente\n\n")
+      erreurs <- erreurs + 1L
+      cat("=== ", nom, " : ERREUR -- reference absente : ", ref_f, "\n\n", sep = "")
       md <- c(md, markdown_cas(nom, erreur = paste("r\u00e9f\u00e9rence absente :", ref_f)))
       next
     }
@@ -225,6 +247,9 @@ if (sys.nframe() == 0L) {
       names(tab)[names(tab) == "reference"] <- "avant"
       names(tab)[names(tab) == "obtenu"] <- "apres"
       tab$ecart <- ifelse(is.na(tab$ecart), "", formatC(tab$ecart, digits = 3, format = "e"))
+      # Valeur manquante affichee <NA> par print(), distincte de la chaine "NA".
+      tab$avant[tab$reference_na] <- NA; tab$apres[tab$obtenu_na] <- NA
+      tab$reference_na <- tab$obtenu_na <- NULL
       print(tab, row.names = FALSE, right = FALSE)
     }
     if (length(r$structure))
@@ -234,7 +259,7 @@ if (sys.nframe() == 0L) {
   }
   if (!is.na(fichier_md)) {
     ecrit <- ajouter_markdown(md, fichier_md, max_octets)
-    cat(sprintf("Markdown ajoute a %s : %d ligne(s)%s.\n", fichier_md, length(ecrit),
+    if (length(ecrit)) cat(sprintf("Markdown ajoute a %s : %d ligne(s)%s.\n", fichier_md, length(ecrit),
                 if (identical(ecrit, enc2utf8(md))) "" else " (tronque)"))
   }
   if (erreurs) quit(status = 1)

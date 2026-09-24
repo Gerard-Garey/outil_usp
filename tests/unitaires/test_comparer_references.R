@@ -7,7 +7,10 @@
 #  reference ni appel du moteur : section d'un cas conforme, tableau des
 #  ecarts (colonnes, echappement, colonne Seuil), plafond de lignes par cas,
 #  cas en erreur, troncature a une fin de ligne sous la limite d'octets
-#  (UTF-8), ajout a un fichier existant sans depasser la limite.
+#  (UTF-8), ajout a un fichier existant sans depasser la limite, place
+#  insuffisante (rien d'ajoute, sans erreur), barre verticale non echappee
+#  hors tableau, valeur manquante distincte de la chaine "NA", reference
+#  absente comptee comme erreur (code de sortie 1).
 ###############################################################################
 
 if (!exists("verifier", mode = "function")) {
@@ -82,8 +85,8 @@ verifier("borner_markdown : au-dela, taille <= limite, debut conserve, lignes om
            grepl(sprintf("^\\*\\*R\u00e9sum\u00e9 tronqu\u00e9\\*\\* : %d ligne\\(s\\) omise\\(s\\) sur %d ",
                          length(l) - n, length(l)), t[length(t)]) &&
            octets(c(t[seq_len(n)], l[n + 1L], t[(n + 1L):length(t)])) > 2000 })
-verifier("borner_markdown : limite plus petite que la mention -> erreur",
-         leve(cr$borner_markdown(l, 50)))
+verifier("borner_markdown : limite plus petite que la mention -> erreur de classe markdown_trop_petit",
+         inherits(tryCatch(cr$borner_markdown(l, 50), error = function(e) e), "markdown_trop_petit"))
 
 ## --- Ajout a un fichier -----------------------------------------------------------------
 verifier("ajouter_markdown : ajoute a la suite du contenu existant, fichier <= limite",
@@ -92,5 +95,69 @@ verifier("ajouter_markdown : ajoute a la suite du contenu existant, fichier <= l
            cr$ajouter_markdown(l, f, max_octets = 3000)
            x <- readLines(f, encoding = "UTF-8")
            x[1] == "deja la" && file.size(f) <= 3000 && grepl("limite de 3000 octets", x[length(x)]) })
+
+verifier("ajouter_markdown : place restante trop petite -> rien d'ajoute, avertissement, pas d'erreur",
+         { f <- tempfile(fileext = ".md"); on.exit(unlink(f))
+           writeLines(strrep("x", 2950), f); t0 <- file.size(f)
+           sortie <- capture.output(res <- tryCatch(cr$ajouter_markdown(l, f, max_octets = 3000),
+                                                    error = function(e) e))
+           identical(res, character(0)) && file.size(f) == t0 &&
+           any(grepl("^AVERTISSEMENT : markdown non ajoute", sortie)) })
+verifier("ajouter_markdown : fichier deja au-dela de la limite -> rien d'ajoute, pas d'erreur",
+         { f <- tempfile(fileext = ".md"); on.exit(unlink(f))
+           writeLines(strrep("x", 4000), f); t0 <- file.size(f)
+           invisible(capture.output(res <- cr$ajouter_markdown(l, f, max_octets = 3000)))
+           identical(res, character(0)) && file.size(f) == t0 })
+verifier("ajouter_markdown : place trop petite et fichier absent -> fichier non cree",
+         { f <- tempfile(fileext = ".md")
+           invisible(capture.output(cr$ajouter_markdown(l, f, max_octets = 50)))
+           !file.exists(f) })
+
+## --- Barre verticale hors tableau, manquants (issue #66, audit leger) --------------------
+verifier("texte_code : une ligne, accent grave remplace, barre verticale non echappee, troncature de cellule()",
+         identical(cr$texte_code("a|b\nc`d"), "a|b c'd") &&
+         identical(cr$texte_code(strrep("z", 70)), gsub("\\|", "|", cr$cellule(strrep("z", 70)))) &&
+         identical(cr$cellule("a|b\nc`d"), "a\\|b c'd"))
+verifier("markdown_cas : barre verticale non echappee hors tableau (erreur, synthese, structure)",
+         { m <- cr$markdown_cas("reserve2", erreur = "x | y")
+           rs <- cr$comparer_objets(list(`a|b` = 1), list(`a|b` = 2))
+           rt <- cr$comparer_objets(list(`a|b` = list(1)), list(`a|b` = list(1L)))
+           ms <- cr$markdown_cas("premium", rs); mt <- cr$markdown_cas("premium", rt)
+           any(m == "Comparaison impossible : `x | y`") &&
+           any(grepl("^- Synth.*a\\|b", ms)) && !any(grepl("^- Synth.*\\\\\\|", ms)) &&
+           any(grepl("^- Structure .*`a\\|b", mt)) && !any(grepl("^- Structure .*\\\\\\|", mt)) &&
+           any(grepl("^\\| `a\\\\\\|b` \\|", lignes_tableau(ms))) })
+verifier("markdown_cas : NA manquant affiche \\<NA\\> hors police de code, chaine \"NA\" en `NA`",
+         { rn <- cr$comparer_objets(list(p = 0.5, q = "NA", s = "x"), list(p = NA_real_, q = "y", s = NA))
+           tn <- lignes_tableau(cr$markdown_cas("premium", rn))
+           any(grepl("^\\| `p` \\| `0.5` \\| \\\\<NA\\\\> \\|", tn)) &&
+           any(grepl("^\\| `q` \\| `NA` \\| `y` \\|", tn)) &&
+           any(grepl("^\\| `s` \\| `x` \\| \\\\<NA\\\\> \\|", tn)) &&
+           identical(rn$ecarts$reference_na, c(FALSE, FALSE, FALSE)) &&
+           identical(rn$ecarts$obtenu_na, c(TRUE, FALSE, TRUE)) })
+verifier("comparer_objets : NaN n'est pas marque manquant",
+         !cr$comparer_objets(list(p = 1), list(p = NaN))$ecarts$obtenu_na)
+
+## --- Reference absente : erreur, code de sortie 1 ------------------------------------------
+verifier("comparer_references.R : reference absente -> ERREUR dans le markdown et code de sortie 1",
+         { d <- tempfile(); dir.create(file.path(d, "tests", "reference"), recursive = TRUE)
+           on.exit(unlink(d, recursive = TRUE))
+           for (f in c("tests/outils_tests.R", "tests/comparer_references.R"))
+             file.copy(file.path(cr$DOSSIER_TESTS, "..", f), file.path(d, f))
+           dir.create(file.path(d, "R")); dir.create(file.path(d, "tests", "donnees"))
+           file.copy(file.path(cr$DOSSIER_TESTS, "..", "R", "engine.R"), file.path(d, "R"))
+           file.copy(list.files(file.path(cr$DOSSIER_TESTS, "donnees"), full.names = TRUE),
+                     file.path(d, "tests", "donnees"))
+           md <- file.path(d, "resume.md")
+           # RACINE (outils_tests.R) se deduit du repertoire courant.
+           owd <- setwd(d)
+           sortie <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"),
+             c("tests/comparer_references.R", "premium", "--markdown", md),
+             stdout = TRUE, stderr = TRUE))
+           setwd(owd)
+           statut <- attr(sortie, "status")
+           x <- readLines(md, encoding = "UTF-8")
+           identical(statut, 1L) && any(x == "### `premium` : ERREUR") &&
+           any(grepl("reference absente", sortie)) })
 
 fin_fichier()

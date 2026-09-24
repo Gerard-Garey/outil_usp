@@ -184,12 +184,19 @@ LARGEUR_CELLULE <- 60L
 # non echappes, tronquee lisiblement au-dela de largeur caracteres.
 une_ligne <- function(x) trimws(gsub("[\r\n\t]+", " ", x))
 echapper <- function(x) gsub("|", "\\|", gsub("`", "'", x, fixed = TRUE), fixed = TRUE)
-cellule <- function(x, largeur = LARGEUR_CELLULE) {
-  x <- une_ligne(x)
-  long <- nchar(x) > largeur
+tronquer <- function(x, largeur) {
+  long <- !is.na(x) & nchar(x) > largeur
   x[long] <- sprintf("%s\u2026 (%d car.)", substr(x[long], 1L, largeur - 1L), nchar(x[long]))
-  echapper(x)
+  x
 }
+cellule <- function(x, largeur = LARGEUR_CELLULE) echapper(tronquer(une_ligne(x), largeur))
+
+# Meme mise en forme hors tableau (ligne de liste, paragraphe), pour un texte
+# place en police de code : la barre verticale n'y est pas echappee (hors
+# tableau, GitHub afficherait l'antislash) ; l'accent grave, qui fermerait
+# la police de code, reste remplace par une apostrophe.
+texte_code <- function(x, largeur = LARGEUR_CELLULE)
+  gsub("`", "'", tronquer(une_ligne(x), largeur), fixed = TRUE)
 
 plateforme <- function() sprintf("%s, %s", R.version.string, Sys.info()[["sysname"]])
 
@@ -314,7 +321,11 @@ ecart_feuille <- function(ref, val, tol = TOLERANCE, bascule = TOLERANCE) {
 #                    tous deux compares a tol), 0 si tout est identique ;
 #   feuille_max, mesure_max : ou il est atteint et selon quelle mesure ;
 #   ecarts         : data.frame des feuilles non conformes (chemin, reference,
-#                    obtenu, ecart, mesure), chemins absents compris ;
+#                    obtenu, ecart, mesure, reference_na, obtenu_na), chemins
+#                    absents compris ; reference et obtenu sont les valeurs
+#                    mises en texte, ou NA et "NA" coincident : reference_na
+#                    et obtenu_na les distinguent (TRUE pour une feuille
+#                    valant NA, NaN exclu) ;
 #   structure      : chemins des noeuds dont le type ou les attributs
 #                    different (character(0) si aucun).
 comparer_objets <- function(ref, obtenu, tol = TOLERANCE, bascule = TOLERANCE) {
@@ -322,11 +333,14 @@ comparer_objets <- function(ref, obtenu, tol = TOLERANCE, bascule = TOLERANCE) {
   na <- names(fa); nb <- names(fb)
   fmt <- function(v) if (is.null(v)) "(absent)" else if (!length(v)) sprintf("%s(0)", typeof(v)) else
     paste(if (is.numeric(v)) formatC(v, digits = 10, format = "g") else as.character(v), collapse = " ")
+  est_na <- function(v) is.atomic(v) && length(v) == 1L && is.na(v) && !(is.numeric(v) && is.nan(v))
 
   lignes <- list()
   ajouter <- function(chemin, a, b, ecart, mesure)
     lignes[[length(lignes) + 1L]] <<- data.frame(chemin = chemin, reference = fmt(a), obtenu = fmt(b),
-                                                 ecart = ecart, mesure = mesure, stringsAsFactors = FALSE)
+                                                 ecart = ecart, mesure = mesure,
+                                                 reference_na = est_na(a), obtenu_na = est_na(b),
+                                                 stringsAsFactors = FALSE)
 
   # Chemins : memes chemins, dans le meme ordre. Un chemin en double (nom
   # contenant $, [ ou ") rendrait l'appariement par nom ambigu : on apparie
@@ -361,7 +375,8 @@ comparer_objets <- function(ref, obtenu, tol = TOLERANCE, bascule = TOLERANCE) {
 
   ecarts <- if (length(lignes)) do.call(rbind, lignes) else
     data.frame(chemin = character(0), reference = character(0), obtenu = character(0),
-               ecart = numeric(0), mesure = character(0), stringsAsFactors = FALSE)
+               ecart = numeric(0), mesure = character(0),
+               reference_na = logical(0), obtenu_na = logical(0), stringsAsFactors = FALSE)
   list(conforme = !nrow(ecarts) && !length(struct), tolerance = tol,
        n_feuilles = length(fa), n_differentes = n_diff + sum(ecarts$mesure %in% c("absente", "ajoutee")),
        n_ecarts = nrow(ecarts), ecart_max = e_max, feuille_max = f_max, mesure_max = m_max,
