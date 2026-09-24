@@ -6,6 +6,12 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Lecture seule : aucune étape n'écrit dans le dépôt (checkout en lecture ;
+# upload-artifact passe par le jeton d'exécution d'Actions, pas par
+# GITHUB_TOKEN ; le résumé du job est un fichier du runner).
+permissions:
+  contents: read
+
 jobs:
   tests-moteur:
     name: Tests du moteur (unitaires, reproductibilité)
