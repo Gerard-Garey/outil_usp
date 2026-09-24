@@ -231,4 +231,33 @@ verifier("Grubbs : p = alpha a la valeur critique de Grubbs (1969), T = 8, alpha
 verifier("Grubbs : p = 0 a la borne (n-1)/sqrt(n) ; NA si ecart-type nul",
          isTRUE(proche(test_grubbs(c(rep(0, 7), 1))$p, 0)) && is.na(test_grubbs(rep(3, 8))$p))
 
+## --- P-value de Monte-Carlo : engine_p_mc() (issue #41) ----------------------
+# Reference : enumeration directe sur sim = 1..9 (B_eff = 9).
+# obs = 7 : #{sim >= 7} = 3, #{sim <= 7} = 7, d'ou p haut = 4/10, p bas =
+# 8/10, p bilaterale = 2 min(4/10, 8/10) = 8/10.
+# err_mc = sqrt(p (1 - p) / B_eff), formule inchangee par #41 (issue #40).
+verifier("engine_p_mc : queues haute, basse, bilaterale par enumeration (sim = 1..9, obs = 7)",
+         {
+           h <- engine_p_mc(1:9, 7, "haut"); b <- engine_p_mc(1:9, 7, "bas")
+           d <- engine_p_mc(1:9, 7, "deux")
+           proche(h$p_mc, 0.4) && proche(b$p_mc, 0.8) && proche(d$p_mc, 0.8) &&
+             proche(h$err_mc, sqrt(0.4 * 0.6 / 9)) && proche(d$err_mc, sqrt(0.8 * 0.2 / 9)) &&
+             identical(h$B_effectif, 9)
+         })
+verifier("engine_p_mc : bilaterale bornee a 1 (obs = mediane), err_mc nulle",
+         { d <- engine_p_mc(1:9, 5, "deux"); identical(d$p_mc, 1) && identical(d$err_mc, 0) })
+verifier("engine_p_mc : simulations non finies ignorees dans p et B_effectif",
+         identical(engine_p_mc(c(1:9, NA, Inf, NaN), 7, "haut"), engine_p_mc(1:9, 7, "haut")))
+verifier("engine_p_mc : NA si valeur observee non finie ou aucune simulation finie",
+         {
+           o <- engine_p_mc(1:9, NA_real_, "haut"); v <- engine_p_mc(c(NA, NA), 1, "bas")
+           is.na(o$p_mc) && is.na(o$err_mc) && identical(o$B_effectif, 9) &&
+             is.na(v$p_mc) && identical(v$B_effectif, 0)
+         })
+verifier("engine_p_mc : sens de rejet inconnu refuse",
+         leve_erreur(engine_p_mc(1:9, 7, "gauche")) && leve_erreur(engine_p_mc(1:9, 7, NA)))
+verifier(".mc_p_values : une colonne absente du catalogue est refusee",
+         leve_erreur(.mc_p_values(matrix(1:9, 9, 1, dimnames = list(NULL, "Inconnue")),
+                                  list(Inconnue = 7), USP_CATALOGUE_MC)))
+
 fin_fichier()

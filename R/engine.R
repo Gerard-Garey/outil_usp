@@ -1295,56 +1295,259 @@ usp_simuler <- function(fit) {
 #   - LB2r et BP2r, statistiques au retard 2 sur les ratios bruts : jamais
 #     associees a un test affiche (issue #5) ; au retard 2, rho_2 ne repose
 #     que sur T-2 produits et Box-Pierce est domine par Ljung-Box.
-.stats_bootstrapables <- function(x, y, z) {
+# --- Catalogue des statistiques Monte-Carlo (ADR 0003, issue #41) -------------
+# Une entree par statistique simulee : sa fonction de calcul `calc` (appliquee
+# au contexte e construit par .usp_contexte_mc() ou .mw_contexte_mc()), son
+# sens de rejet `queue` ("haut", "bas" ou "deux") et sa condition de
+# degenerescence `degenere`. Le calcul observe et simule
+# (.stats_bootstrapables(), .mw_stats()), la p-value de Monte-Carlo
+# (.mc_p_values(), engine_p_mc()) et l'association a une ligne de test
+# (add(mc_nom = ) de engine_registre_tests()) lisent ce seul catalogue ; un
+# nom absent du catalogue leve une erreur.
+# `degenere` : NULL pour toutes les entrees actuelles. Les deux statistiques
+# degenerees (MeanZ, VarZ) ont ete retirees du bootstrap et restituees comme
+# diagnostics par usp_tests() (issue #3, ADR 0001) ; le champ est reserve a une
+# condition future et n'est lu par aucun calcul a ce jour.
+# L'ordre des entrees fixe celui des statistiques dans l'objet bootstrap.
+.mc_entree <- function(calc, queue, degenere = NULL) {
+  if (length(queue) != 1L || !queue %in% c("haut", "bas", "deux"))
+    stop("catalogue Monte-Carlo : sens de rejet inconnu : ", paste(queue, collapse = ", "))
+  list(calc = calc, queue = queue, degenere = degenere)
+}
+
+# Contexte commun aux fonctions de calcul du catalogue lognormal.
+# r : ratios S/P bruts ; u : ratios bruts centres, base alternative pour les
+# tests d'independance et de stabilite (voir usp_tests, argument base_residus).
+# Ces ratios sont heteroscedastiques par construction des que pi_t varie,
+# donc leurs p-values classiques ne sont qu'indicatives ; seule la p-value
+# de Monte-Carlo est valide, le bootstrap simulant sous le modele ajuste.
+# Exception : a pi_t constant, la ligne Runsr recoit la p-value exacte de
+# la loi combinatoire de R (usp_runsr_p_exacte(), issue #29).
+.usp_contexte_mc <- function(x, y, z) {
   r <- y / x
-  lbp <- test_breusch_pagan(z^2, x); lwh <- test_white(z^2, x)
-  lbp79 <- test_breusch_pagan_original(z^2, x)
-  gq <- test_goldfeld_quandt(z, x);  bf <- test_brown_forsythe(z, x)
-  rs <- test_reset(x, y);            ti <- test_intercept(x, y)
-  mk <- test_mann_kendall(r);        ru <- test_runs(z)
-  ds <- test_dagostino_skew(z)
-  sv <- if (stats::sd(x) > 0)
-    suppressWarnings(unname(stats::cor.test(r, x, method = "spearman",
-                                            exact = FALSE)$estimate)) else NA_real_
-  st <- suppressWarnings(unname(stats::cor.test(r, seq_along(r),
-                                                method = "spearman", exact = FALSE)$estimate))
-  T <- length(x)
-  lb2 <- if (T >= 8) unname(stats::Box.test(z, lag = 2, type = "Ljung-Box")$statistic) else NA_real_
-  bp2 <- if (T >= 8) unname(stats::Box.test(z, lag = 2, type = "Box-Pierce")$statistic) else NA_real_
-  sm <- NA_real_
-  if (T >= 8 && stats::sd(x) > 0) {
-    g <- x > stats::median(x)
-    if (sum(g) >= 3 && sum(!g) >= 3)
-      sm <- unname(suppressWarnings(stats::ks.test(z[g], z[!g])$statistic))
+  list(x = x, y = y, z = z, r = r, u = r - mean(r), T = length(x))
+}
+
+USP_CATALOGUE_MC <- list(
+  AD     = .mc_entree(function(e) stat_ad(e$z), "haut"),
+  CvM    = .mc_entree(function(e) stat_cvm(e$z), "haut"),
+  KS     = .mc_entree(function(e) stat_ks(e$z), "haut"),
+  SW     = .mc_entree(function(e) .shapiro_sur(e$z)$stat, "bas"),
+  SF     = .mc_entree(function(e) test_shapiro_francia(e$z)$stat, "bas"),
+  JB     = .mc_entree(function(e) test_jarque_bera(e$z)$stat, "haut"),
+  DW     = .mc_entree(function(e) stat_dw(e$z), "deux"),
+  LB1    = .mc_entree(function(e)
+    unname(stats::Box.test(e$z, lag = 1, type = "Ljung-Box")$statistic), "haut"),
+  supF   = .mc_entree(function(e) stat_supF(e$z), "haut"),
+  CUSUM  = .mc_entree(function(e) stat_cusum(e$z), "haut"),
+  Grubbs = .mc_entree(function(e) test_grubbs(e$z)$stat, "haut"),
+  Lillie = .mc_entree(function(e) stat_lilliefors(e$z), "haut"),
+  # statistiques ajoutees : loi de reference seulement asymptotique
+  Intercept = .mc_entree(function(e) test_intercept(e$x, e$y)$stat, "deux"),
+  RESET  = .mc_entree(function(e) test_reset(e$x, e$y)$stat, "haut"),
+  BP     = .mc_entree(function(e) test_breusch_pagan(e$z^2, e$x)$stat, "haut"),
+  BP79   = .mc_entree(function(e) test_breusch_pagan_original(e$z^2, e$x)$stat, "haut"),
+  White  = .mc_entree(function(e) test_white(e$z^2, e$x)$stat, "haut"),
+  GQ     = .mc_entree(function(e) test_goldfeld_quandt(e$z, e$x)$stat, "deux"),
+  BF     = .mc_entree(function(e) test_brown_forsythe(e$z, e$x)$stat, "haut"),
+  Smirnov = .mc_entree(function(e) {
+    sm <- NA_real_
+    if (e$T >= 8 && stats::sd(e$x) > 0) {
+      g <- e$x > stats::median(e$x)
+      if (sum(g) >= 3 && sum(!g) >= 3)
+        sm <- unname(suppressWarnings(stats::ks.test(e$z[g], e$z[!g])$statistic))
+    }
+    sm
+  }, "haut"),
+  LB2    = .mc_entree(function(e)
+    if (e$T >= 8) unname(stats::Box.test(e$z, lag = 2, type = "Ljung-Box")$statistic)
+    else NA_real_, "haut"),
+  BP2    = .mc_entree(function(e)
+    if (e$T >= 8) unname(stats::Box.test(e$z, lag = 2, type = "Box-Pierce")$statistic)
+    else NA_real_, "haut"),
+  Runs   = .mc_entree(function(e) test_runs(e$z)$stat, "deux"),
+  MK     = .mc_entree(function(e) test_mann_kendall(e$r)$stat, "deux"),
+  SpearVol = .mc_entree(function(e)
+    if (stats::sd(e$x) > 0)
+      suppressWarnings(unname(stats::cor.test(e$r, e$x, method = "spearman",
+                                              exact = FALSE)$estimate)) else NA_real_,
+    "deux"),
+  SpearTps = .mc_entree(function(e)
+    suppressWarnings(unname(stats::cor.test(e$r, seq_along(e$r),
+                                            method = "spearman", exact = FALSE)$estimate)),
+    "deux"),
+  DAgo   = .mc_entree(function(e) test_dagostino_skew(e$z)$stat, "deux"),
+  # Cox-Stuart : la region de rejet bilaterale de K (nombre de differences
+  # positives entre les deux moities) est pliee en |K - n_p / 2|, rejet en
+  # queue haute, n_p = T - ceiling(T / 2) etant le nombre de paires. Sans
+  # difference nulle, c'est le test binomial exact bilateral (loi de K
+  # symetrique sous H0). La statistique affichee par usp_tests() reste K.
+  CoxStuart = .mc_entree(function(e) {
+    cx <- test_cox_stuart(e$r)
+    m <- ceiling(e$T / 2)
+    if (is.finite(cx$stat)) abs(cx$stat - (e$T - m) / 2) else NA_real_
+  }, "haut"),
+  # --- memes statistiques sur les ratios bruts centres (base "r") -----------
+  DWr    = .mc_entree(function(e) stat_dw(e$u), "deux"),
+  LB1r   = .mc_entree(function(e)
+    unname(stats::Box.test(e$u, lag = 1, type = "Ljung-Box")$statistic), "haut"),
+  Runsr  = .mc_entree(function(e) test_runs(e$u)$stat, "deux"),
+  supFr  = .mc_entree(function(e) stat_supF(e$u), "haut"),
+  CUSUMr = .mc_entree(function(e) stat_cusum(e$u), "haut"),
+  Grubbsr = .mc_entree(function(e) test_grubbs(e$u)$stat, "haut")
+)
+
+# Evalue toutes les statistiques d'un catalogue sur un contexte. do.call(c, .)
+# garde la semantique de c(AD = ..., CvM = ...) : vecteur numerique nomme dans
+# l'ordre du catalogue. Une erreur de calcul se propage a l'appelant (dans le
+# bootstrap, la replication est alors ecartee).
+# Chaque entree doit rendre une valeur de longueur 1 (eventuellement NA) : une
+# valeur NULL disparaitrait du vecteur et decalerait les noms, une valeur de
+# longueur 2 en ajouterait. Toute autre longueur leve une erreur qui nomme la
+# statistique ; dans le bootstrap, le try() existant ecarte la replication.
+.mc_evaluer <- function(catalogue, e) {
+  vals <- lapply(names(catalogue), function(nm) {
+    v <- catalogue[[nm]]$calc(e)
+    if (length(v) != 1L)
+      stop("statistique Monte-Carlo ", nm, " : valeur de longueur ", length(v),
+           " (longueur 1 attendue)")
+    v
+  })
+  names(vals) <- names(catalogue)
+  do.call(c, vals)
+}
+
+# Statistiques simulables de la methode lognormale (catalogue USP_CATALOGUE_MC).
+.stats_bootstrapables <- function(x, y, z)
+  .mc_evaluer(USP_CATALOGUE_MC, .usp_contexte_mc(x, y, z))
+
+# --- P-value de Monte-Carlo d'une statistique ---------------------------------
+# Fonction unique, partagee par usp_bootstrap() et mw_bootstrap().
+#   sim   : valeurs simulees de la statistique (NA / non finies ignorees)
+#   obs   : valeur observee
+#   queue : sens du rejet, "haut", "bas" ou "deux" (lu au catalogue)
+# Retour : p_mc (bornee a 1), err_mc, B_effectif (nombre de simulations finies).
+# p_mc = (1 + #{sim >= obs}) / (B_eff + 1) en queue haute, symetrique en queue
+# basse, 2 * min des deux en bilateral. NA si aucune simulation finie ou si la
+# valeur observee n'est pas finie.
+# err_mc : ecart-type binomial sqrt(p (1 - p) / B_eff), en 1/sqrt(B), a
+# distinguer strictement de l'erreur d'approximation liee a T. Meme formule
+# quel que soit le sens du rejet (issue #40 : sa correction s'ecrit ici).
+engine_p_mc <- function(sim, obs, queue) {
+  if (length(queue) != 1L || !queue %in% c("haut", "bas", "deux"))
+    stop("engine_p_mc() : sens de rejet inconnu : ", paste(queue, collapse = ", "))
+  fin <- is.finite(sim)
+  B_eff <- as.numeric(sum(fin))
+  s <- sim[fin]
+  p <- if (!length(s) || !is.finite(obs)) NA_real_ else
+    switch(queue,
+           haut = (1 + sum(s >= obs)) / (length(s) + 1),
+           bas  = (1 + sum(s <= obs)) / (length(s) + 1),
+           deux = 2 * min((1 + sum(s >= obs)) / (length(s) + 1),
+                          (1 + sum(s <= obs)) / (length(s) + 1)))
+  p <- pmin(p, 1)
+  list(p_mc = p, err_mc = sqrt(p * (1 - p) / pmax(B_eff, 1)), B_effectif = B_eff)
+}
+
+# Applique engine_p_mc() a chaque colonne de la matrice des simulations, le
+# sens du rejet etant lu au catalogue. Une statistique absente du catalogue
+# leve une erreur.
+.mc_p_values <- function(sim, obs, catalogue) {
+  noms <- colnames(sim)
+  inconnus <- setdiff(noms, names(catalogue))
+  if (length(inconnus))
+    stop("statistique(s) Monte-Carlo absente(s) du catalogue : ",
+         paste(inconnus, collapse = ", "))
+  r <- lapply(noms, function(nm) engine_p_mc(sim[, nm], obs[[nm]], catalogue[[nm]]$queue))
+  champ <- function(k) stats::setNames(vapply(r, function(o) o[[k]], numeric(1)), noms)
+  list(p_mc = champ("p_mc"), err_mc = champ("err_mc"), B_effectif = champ("B_effectif"))
+}
+
+# --- Enregistrement des lignes de resultat des tests --------------------------
+# Fonction unique, partagee par usp_tests() et mw_tests() (ADR 0003, point 2).
+# Renvoie list(add, lignes) : add() enregistre une ligne, lignes() rend la
+# liste des lignes enregistrees. Parametres :
+#   boot      : objet bootstrap (p_mc et err_mc nommes)
+#   catalogue : catalogue Monte-Carlo de la methode
+#   alpha     : seuil des verdicts
+#   nature_mc : libelle de la nature d'une p-value de Monte-Carlo retenue
+# Grandeurs strictement separees dans chaque ligne :
+#   stat        : STATISTIQUE DE TEST (loi de reference connue ou simulee)
+#   estim       : ESTIMATION / grandeur descriptive (aucune loi de reference)
+#   p_exacte / p_asymptotique / p_mc : les trois p-values possibles
+#   p_retenue + nature_p : celle effectivement utilisee pour le verdict
+#   err_mc      : erreur de Monte-Carlo (liee a B), a ne PAS confondre avec
+#                 l'erreur d'approximation statistique (liee a T)
+engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
+  pmc <- boot$p_mc; emc <- boot$err_mc
+  L <- list()
+  add <- function(fam, nom, ref, type = "test",
+                  H0 = NA_character_, H1 = NA_character_,
+                  stat_nom = NA_character_, stat = NA_real_,
+                  loi = NA_character_,
+                  estim_nom = NA_character_, estim = NA_real_,
+                  p_ex = NA_real_, p_as = NA_real_, mc_nom = NA_character_,
+                  detail = "", verdict = NULL, sens = "ne pas rejeter",
+                  motif_non_mc = NA_character_, nature_forcee = NA_character_,
+                  base = "commun", variante = "principale") {
+    # Refus explicite (ADR 0003, point 3) : une statistique Monte-Carlo
+    # inconnue du catalogue, ou absente de l'objet bootstrap, est une erreur
+    # de programmation ; le repli silencieux sur l'asymptotique est interdit.
+    if (!is.na(mc_nom)) {
+      if (!mc_nom %in% names(catalogue))
+        stop("add() : statistique Monte-Carlo inconnue du catalogue : ", mc_nom, " (", nom, ")")
+      if (!mc_nom %in% names(pmc) || !mc_nom %in% names(emc))
+        stop("add() : statistique Monte-Carlo absente du bootstrap : ", mc_nom, " (", nom, ")")
+    }
+    p_mc <- if (!is.na(mc_nom)) unname(pmc[[mc_nom]]) else NA_real_
+    e_mc <- if (!is.na(mc_nom)) unname(emc[[mc_nom]]) else NA_real_
+    # Hierarchie adaptee a T faible : exacte > Monte-Carlo > asymptotique.
+    if (is.finite(p_ex)) {
+      p_ret <- p_ex; nature <- "exacte"
+    } else if (is.finite(p_mc)) {
+      p_ret <- p_mc; nature <- nature_mc
+    } else if (is.finite(p_as)) {
+      p_ret <- p_as
+      nature <- if (!is.na(motif_non_mc))
+        paste0("asymptotique (", motif_non_mc, ")") else "asymptotique"
+    } else {
+      p_ret <- NA_real_; nature <- NA_character_
+    }
+    if (!is.na(nature_forcee) && is.finite(p_ret)) nature <- nature_forcee
+    # ADR 0001 (amendement du 23/09/2026, M7) : seule une ligne de type "test"
+    # ou "procedure de decision" porte un verdict. Toute autre ligne sort
+    # INFO et son sens est NA ; un verdict fourni pour un autre type est une
+    # erreur de programmation, refusee ici pour que l'invariant ne puisse pas
+    # etre contourne par un appel.
+    porte_verdict <- type %in% c("test", "procedure de decision")
+    if (!is.null(verdict) && !porte_verdict)
+      stop("add() : un verdict n'est admis que pour type = 'test' ou 'procedure de decision' (ADR 0001) : ", nom)
+    # La procedure de decision (ESD) decide sans p-value : son verdict est
+    # toujours fourni par l'appelant ; l'omettre est une erreur de programmation.
+    if (type == "procedure de decision" && is.null(verdict))
+      stop("add() : une ligne de type 'procedure de decision' doit fournir son verdict : ", nom)
+    # Sans verdict, ni sens ni p-value retenue (ADR 0001, CONTEXT.md).
+    if (!porte_verdict) {
+      sens <- NA_character_; p_ret <- NA_real_; nature <- NA_character_
+    }
+    v <- if (!is.null(verdict)) verdict
+    else if (type != "test" || !is.finite(p_ret)) "INFO"
+    else if (sens == "rejeter") {
+      if (p_ret < alpha) "OK" else if (p_ret < 0.30) "ALERTE" else "ECHEC"
+    } else {
+      if (p_ret < alpha / 2) "ECHEC" else if (p_ret < alpha) "ALERTE" else "OK"
+    }
+    L[[length(L) + 1]] <<- list(
+      famille = fam, test = nom, reference = ref, type = type,
+      base = base, variante = variante,
+      H0 = H0, H1 = H1,
+      stat_nom = stat_nom, stat = stat, loi = loi,
+      estim_nom = estim_nom, estim = estim,
+      p_exacte = p_ex, p_asymptotique = p_as, p_mc = p_mc, err_mc = e_mc,
+      p_retenue = p_ret, nature_p = nature,
+      verdict = v, detail = detail, sens = sens)
   }
-  cx <- test_cox_stuart(r)
-  m <- ceiling(T / 2)
-  # Serie des ratios bruts centres : base alternative pour les tests
-  # d'independance et de stabilite (voir usp_tests, argument base_residus).
-  # Ces ratios sont heteroscedastiques par construction des que pi_t varie,
-  # donc leurs p-values classiques ne sont qu'indicatives ; seule la p-value
-  # de Monte-Carlo est valide, le bootstrap simulant sous le modele ajuste.
-  # Exception : a pi_t constant, la ligne Runsr recoit la p-value exacte de
-  # la loi combinatoire de R (usp_runsr_p_exacte(), issue #29).
-  u <- r - mean(r)
-  lb1u <- unname(stats::Box.test(u, lag = 1, type = "Ljung-Box")$statistic)
-  c(AD = stat_ad(z), CvM = stat_cvm(z), KS = stat_ks(z),
-    SW = .shapiro_sur(z)$stat, SF = test_shapiro_francia(z)$stat,
-    JB = test_jarque_bera(z)$stat, DW = stat_dw(z),
-    LB1 = unname(stats::Box.test(z, lag = 1, type = "Ljung-Box")$statistic),
-    supF = stat_supF(z), CUSUM = stat_cusum(z), Grubbs = test_grubbs(z)$stat,
-    Lillie = stat_lilliefors(z),
-    # statistiques ajoutees : loi de reference seulement asymptotique
-    Intercept = ti$stat, RESET = rs$stat, BP = lbp$stat, BP79 = lbp79$stat,
-    White = lwh$stat,
-    GQ = gq$stat, BF = bf$stat, Smirnov = sm, LB2 = lb2, BP2 = bp2,
-    Runs = ru$stat, MK = mk$stat, SpearVol = sv, SpearTps = st,
-    DAgo = ds$stat,
-    CoxStuart = if (is.finite(cx$stat)) abs(cx$stat - (T - m) / 2) else NA_real_,
-    # --- memes statistiques sur les ratios bruts centres (base "r") ---------
-    DWr = stat_dw(u), LB1r = lb1u,
-    Runsr = test_runs(u)$stat, supFr = stat_supF(u), CUSUMr = stat_cusum(u),
-    Grubbsr = test_grubbs(u)$stat)
+  list(add = add, lignes = function() L)
 }
 
 usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
@@ -1369,35 +1572,12 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
   }
   if (progres) cat("\n")
 
-  # Sens du rejet, statistique par statistique.
-  queue <- c(AD = "haut", CvM = "haut", KS = "haut", SW = "bas", SF = "bas",
-             JB = "haut", DW = "deux", LB1 = "haut", supF = "haut",
-             CUSUM = "haut", Grubbs = "haut", Lillie = "haut",
-             Intercept = "deux", RESET = "haut", BP = "haut", BP79 = "haut",
-             White = "haut",
-             GQ = "deux", BF = "haut", Smirnov = "haut", LB2 = "haut",
-             BP2 = "haut", Runs = "deux", MK = "deux", SpearVol = "deux",
-             SpearTps = "deux", DAgo = "deux", CoxStuart = "haut",
-             DWr = "deux", LB1r = "haut",
-             Runsr = "deux", supFr = "haut", CUSUMr = "haut", Grubbsr = "haut")
-  pv <- vapply(noms, function(nm) {
-    sv <- sim[, nm]; sv <- sv[is.finite(sv)]; o <- stats_obs[[nm]]
-    if (!length(sv) || !is.finite(o)) return(NA_real_)
-    switch(queue[[nm]],
-           haut = (1 + sum(sv >= o)) / (length(sv) + 1),
-           bas  = (1 + sum(sv <= o)) / (length(sv) + 1),
-           deux = 2 * min((1 + sum(sv >= o)) / (length(sv) + 1),
-                          (1 + sum(sv <= o)) / (length(sv) + 1)))
-  }, numeric(1))
-  pv <- pmin(pv, 1)
+  # P-values de Monte-Carlo, erreur de Monte-Carlo et B effectif, le sens du
+  # rejet etant lu au catalogue USP_CATALOGUE_MC.
+  mc <- .mc_p_values(sim, stats_obs, USP_CATALOGUE_MC)
 
-  # Erreur de Monte-Carlo sur chaque p-value : ecart-type binomial en 1/sqrt(B),
-  # a distinguer strictement de l'erreur d'approximation liee a T.
-  B_eff <- colSums(is.finite(sim))
-  err_mc <- sqrt(pv * (1 - pv) / pmax(B_eff, 1))
-
-  list(stats_obs = as.list(stats_obs), p_mc = pv, err_mc = err_mc,
-       B_effectif = B_eff, granularite = 1 / (B + 1),
+  list(stats_obs = as.list(stats_obs), p_mc = mc$p_mc, err_mc = mc$err_mc,
+       B_effectif = mc$B_effectif, granularite = 1 / (B + 1),
        sigma_boot = sig[is.finite(sig)],
        delta_boot = del[is.finite(del)], gamma_boot = gam[is.finite(gam)], B = B)
 }
@@ -1478,76 +1658,12 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # Base alternative : ratios bruts centres. Voir la sous-section
   # "Choix de la base de residus" de la documentation.
   u <- r - mean(r)
-  pmc <- boot$p_mc; emc <- boot$err_mc
-  gp  <- function(nm) if (nm %in% names(pmc)) unname(pmc[[nm]]) else NA_real_
-  ge  <- function(nm) if (nm %in% names(emc)) unname(emc[[nm]]) else NA_real_
-  L <- list()
-
-  # -- Enregistrement d'une ligne de resultat ---------------------------------
-  # Grandeurs strictement separees :
-  #   stat        : STATISTIQUE DE TEST (loi de reference connue ou simulee)
-  #   estim       : ESTIMATION / grandeur descriptive (aucune loi de reference)
-  #   p_exacte / p_asymptotique / p_mc : les trois p-values possibles
-  #   p_retenue + nature_p : celle effectivement utilisee pour le verdict
-  #   err_mc      : erreur de Monte-Carlo (liee a B), a ne PAS confondre avec
-  #                 l'erreur d'approximation statistique (liee a T)
-  add <- function(fam, nom, ref, type = "test",
-                  H0 = NA_character_, H1 = NA_character_,
-                  stat_nom = NA_character_, stat = NA_real_,
-                  loi = NA_character_,
-                  estim_nom = NA_character_, estim = NA_real_,
-                  p_ex = NA_real_, p_as = NA_real_, mc_nom = NA_character_,
-                  detail = "", verdict = NULL, sens = "ne pas rejeter",
-                  motif_non_mc = NA_character_, nature_forcee = NA_character_,
-                  base = "commun", variante = "principale") {
-    p_mc <- if (!is.na(mc_nom)) gp(mc_nom) else NA_real_
-    e_mc <- if (!is.na(mc_nom)) ge(mc_nom) else NA_real_
-    # Hierarchie adaptee a T faible : exacte > Monte-Carlo > asymptotique.
-    if (is.finite(p_ex)) {
-      p_ret <- p_ex; nature <- "exacte"
-    } else if (is.finite(p_mc)) {
-      p_ret <- p_mc; nature <- "Monte-Carlo (bootstrap parametrique)"
-    } else if (is.finite(p_as)) {
-      p_ret <- p_as
-      nature <- if (!is.na(motif_non_mc))
-        paste0("asymptotique (", motif_non_mc, ")") else "asymptotique"
-    } else {
-      p_ret <- NA_real_; nature <- NA_character_
-    }
-    if (!is.na(nature_forcee) && is.finite(p_ret)) nature <- nature_forcee
-    # ADR 0001 (amendement du 23/09/2026, M7) : seule une ligne de type "test"
-    # ou "procedure de decision" porte un verdict. Toute autre ligne sort
-    # INFO et son sens est NA ; un verdict fourni pour un autre type est une
-    # erreur de programmation, refusee ici pour que l'invariant ne puisse pas
-    # etre contourne par un appel.
-    porte_verdict <- type %in% c("test", "procedure de decision")
-    if (!is.null(verdict) && !porte_verdict)
-      stop("add() : un verdict n'est admis que pour type = 'test' ou 'procedure de decision' (ADR 0001) : ", nom)
-    # La procedure de decision (ESD) decide sans p-value : son verdict est
-    # toujours fourni par l'appelant ; l'omettre est une erreur de programmation.
-    if (type == "procedure de decision" && is.null(verdict))
-      stop("add() : une ligne de type 'procedure de decision' doit fournir son verdict : ", nom)
-    # Sans verdict, ni sens ni p-value retenue (ADR 0001, CONTEXT.md).
-    if (!porte_verdict) {
-      sens <- NA_character_; p_ret <- NA_real_; nature <- NA_character_
-    }
-    v <- if (!is.null(verdict)) verdict
-    else if (type != "test" || !is.finite(p_ret)) "INFO"
-    else if (sens == "rejeter") {
-      if (p_ret < alpha) "OK" else if (p_ret < 0.30) "ALERTE" else "ECHEC"
-    } else {
-      if (p_ret < alpha / 2) "ECHEC" else if (p_ret < alpha) "ALERTE" else "OK"
-    }
-    L[[length(L) + 1]] <<- list(
-      famille = fam, test = nom, reference = ref, type = type,
-      base = base, variante = variante,
-      H0 = H0, H1 = H1,
-      stat_nom = stat_nom, stat = stat, loi = loi,
-      estim_nom = estim_nom, estim = estim,
-      p_exacte = p_ex, p_asymptotique = p_as, p_mc = p_mc, err_mc = e_mc,
-      p_retenue = p_ret, nature_p = nature,
-      verdict = v, detail = detail, sens = sens)
-  }
+  # Enregistrement des lignes de resultat : fonction partagee avec mw_tests()
+  # (engine_registre_tests(), ADR 0003) ; une statistique Monte-Carlo absente
+  # du catalogue ou du bootstrap leve une erreur.
+  reg <- engine_registre_tests(boot, USP_CATALOGUE_MC, alpha,
+                               nature_mc = "Monte-Carlo (bootstrap parametrique)")
+  add <- reg$add
 
   ## --- B. H1 : E[Y_t] lineaire proportionnelle en X_t ------------------------
   fam <- "B. H1 - linearite / proportionnalite (annexe XVII B(2)(f)(i))"
@@ -2267,7 +2383,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         type = "diagnostic",
         estim_nom = "largeur / sigma_USP", estim = fit$largeur_ic,
         detail = "Intervalle bootstrap du parametre retenu : res$ic_bootstrap.")
-  L
+  reg$lignes()
 }
 
 
@@ -3586,106 +3702,76 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
   # 5 %). La normalite n'est d'ailleurs PAS une hypothese du modele de Mack :
   # l'annexe XVII, D(2)(h), ne specifie que les deux premiers moments. Elle est
   # donc traitee comme un diagnostic descriptif, avec sa loi nulle propre.
-  queue <- c(Calendrier = "deux", CorrDev = "deux",
-             BP = "haut", Grubbs = "haut", DW = "deux", Runs = "deux",
-             Intercept = "deux",
-             # Les statistiques de Fisher et de Kruskal-Wallis rejettent en
-             # queue haute ; l'amplitude de la famille alpha egalement.
-             Origine = "haut", HomogF = "haut", Courbure = "haut",
-             Alpha = "haut", ExpVar = "haut", KruskalAcc = "haut")
-  pv <- vapply(noms, function(nm) {
-    s <- sim[, nm]; s <- s[is.finite(s)]; o <- obs[[nm]]
-    if (!length(s) || !is.finite(o)) return(NA_real_)
-    switch(queue[[nm]],
-           haut = (1 + sum(s >= o)) / (length(s) + 1),
-           bas  = (1 + sum(s <= o)) / (length(s) + 1),
-           deux = 2 * min((1 + sum(s >= o)) / (length(s) + 1),
-                          (1 + sum(s <= o)) / (length(s) + 1)))
-  }, numeric(1))
-  pv <- pmin(pv, 1)
-  B_eff <- colSums(is.finite(sim))
-  list(stats_obs = as.list(obs), p_mc = pv,
-       err_mc = sqrt(pv * (1 - pv) / pmax(B_eff, 1)),
-       B_effectif = B_eff, granularite = 1 / (B + 1),
+  # P-values de Monte-Carlo, erreur de Monte-Carlo et B effectif, le sens du
+  # rejet etant lu au catalogue MW_CATALOGUE_MC (fonction partagee avec
+  # usp_bootstrap()).
+  mc <- .mc_p_values(sim, obs, MW_CATALOGUE_MC)
+  list(stats_obs = as.list(obs), p_mc = mc$p_mc,
+       err_mc = mc$err_mc,
+       B_effectif = mc$B_effectif, granularite = 1 / (B + 1),
        sigma_boot = sig[is.finite(sig)], B = B)
 }
 
-# Statistiques bootstrapables de la methode Merz-Wuthrich.
-.mw_stats <- function(aj) {
+# --- Catalogue Monte-Carlo de la methode Merz-Wuthrich (ADR 0003) -------------
+# Meme structure que USP_CATALOGUE_MC (voir .mc_entree()) ; contexte construit
+# par .mw_contexte_mc(). `degenere` : NULL pour toutes les entrees.
+# Contexte : ajustement aj, residus de Mack (mw_residus(), calcules une fois)
+# et leur vecteur r.
+.mw_contexte_mc <- function(aj) {
   res <- mw_residus(aj)
-  r <- res$residu
-  cal <- mw_test_annees_calendaires(aj)
-  cor <- mw_stat_correlation_dev(aj)
-  # Regression auxiliaire testant la proportionnalite sur l'ensemble du triangle.
-  # L'EFFET DE COLONNE EST INDISPENSABLE : le facteur f_j decroit avec j alors
-  # que le cumule C(i,j) croit, de sorte qu'une regression agregee sans terme
-  # d'annee de developpement capte cette relation mecanique et rejette H0 de
-  # facon quasi systematique (verifie par simulation : 100 % de rejets sous H0).
-  # L'ajout de facteur(j) ramene le test a ce qu'il pretend mesurer : une
-  # dependance au volume A L'INTERIEUR de chaque colonne.
-  ti <- .mw_pente_intra(res)
+  list(aj = aj, res = res, r = res$residu)
+}
+
+MW_CATALOGUE_MC <- list(
+  Calendrier = .mc_entree(function(e) mw_test_annees_calendaires(e$aj)$stat, "deux"),
+  CorrDev    = .mc_entree(function(e) mw_stat_correlation_dev(e$aj)$stat, "deux"),
   # Heteroscedasticite residuelle : les residus de Mack ne doivent plus
   # dependre de C(i,j) si la variance est bien proportionnelle a C(i,j).
-  bp <- if (nrow(res) > 3 && stats::sd(res$C) > 0)
-    nrow(res) * summary(stats::lm(I(r^2) ~ res$C))$r.squared else NA_real_
-  # Tests specifiques de l'hypothese (iii), colonne par colonne
-  oo <- mw_test_ordonnee_origine(aj); hf <- mw_test_homogeneite_f(aj)
-  cb <- mw_test_courbure(aj);         al <- mw_famille_alpha(aj)
-  ev <- mw_test_exposant_variance(aj); ka <- mw_test_homogeneite_accident(aj)
-  c(Calendrier = cal$stat, CorrDev = cor$stat,
-    BP = bp, Grubbs = test_grubbs(r)$stat,
-    DW = stat_dw(r), Runs = test_runs(r)$stat, Intercept = ti,
-    Origine = oo$stat, HomogF = hf$stat, Courbure = cb$stat,
-    Alpha = al$stat, ExpVar = ev$stat, KruskalAcc = ka$stat)
-}
+  BP         = .mc_entree(function(e) {
+    res <- e$res; r <- e$r
+    if (nrow(res) > 3 && stats::sd(res$C) > 0)
+      nrow(res) * summary(stats::lm(I(r^2) ~ res$C))$r.squared else NA_real_
+  }, "haut"),
+  Grubbs     = .mc_entree(function(e) test_grubbs(e$r)$stat, "haut"),
+  DW         = .mc_entree(function(e) stat_dw(e$r), "deux"),
+  Runs       = .mc_entree(function(e) test_runs(e$r)$stat, "deux"),
+  # Regression auxiliaire testant la proportionnalite sur l'ensemble du
+  # triangle. L'EFFET DE COLONNE EST INDISPENSABLE : le facteur f_j decroit
+  # avec j alors que le cumule C(i,j) croit, de sorte qu'une regression
+  # agregee sans terme d'annee de developpement capte cette relation mecanique
+  # et rejette H0 de facon quasi systematique (verifie par simulation : 100 %
+  # de rejets sous H0). L'ajout de facteur(j) ramene le test a ce qu'il
+  # pretend mesurer : une dependance au volume A L'INTERIEUR de chaque
+  # colonne. Le nom "Intercept" est historique : la statistique est la pente
+  # intra-colonne de .mw_pente_intra() (ADR 0003 ; renommage non fait, il
+  # changerait les noms de l'objet bootstrap dans les references, issue #41).
+  Intercept  = .mc_entree(function(e) .mw_pente_intra(e$res), "deux"),
+  # Tests specifiques de l'hypothese (iii), colonne par colonne. Les
+  # statistiques de Fisher et de Kruskal-Wallis rejettent en queue haute ;
+  # l'amplitude de la famille alpha egalement.
+  Origine    = .mc_entree(function(e) mw_test_ordonnee_origine(e$aj)$stat, "haut"),
+  HomogF     = .mc_entree(function(e) mw_test_homogeneite_f(e$aj)$stat, "haut"),
+  Courbure   = .mc_entree(function(e) mw_test_courbure(e$aj)$stat, "haut"),
+  Alpha      = .mc_entree(function(e) mw_famille_alpha(e$aj)$stat, "haut"),
+  ExpVar     = .mc_entree(function(e) mw_test_exposant_variance(e$aj)$stat, "haut"),
+  KruskalAcc = .mc_entree(function(e) mw_test_homogeneite_accident(e$aj)$stat, "haut")
+)
+
+# Statistiques bootstrapables de la methode Merz-Wuthrich (catalogue
+# MW_CATALOGUE_MC).
+.mw_stats <- function(aj) .mc_evaluer(MW_CATALOGUE_MC, .mw_contexte_mc(aj))
 
 # --- Table des tests de la methode Merz-Wuthrich ------------------------------
 # Meme structure de sortie que usp_tests() : chaque ligne porte H0, H1, la
 # statistique, les p-values disponibles et la nature de celle qui est retenue.
 mw_tests <- function(aj, boot, alpha = 0.10) {
   res <- mw_residus(aj); r <- res$residu; n <- length(r)
-  gp <- function(nm) if (nm %in% names(boot$p_mc)) unname(boot$p_mc[[nm]]) else NA_real_
-  ge <- function(nm) if (nm %in% names(boot$err_mc)) unname(boot$err_mc[[nm]]) else NA_real_
-  L <- list()
-  add <- function(fam, nom, ref, type = "test", H0 = NA_character_, H1 = NA_character_,
-                  stat_nom = NA_character_, stat = NA_real_, loi = NA_character_,
-                  estim_nom = NA_character_, estim = NA_real_,
-                  p_ex = NA_real_, p_as = NA_real_, mc_nom = NA_character_,
-                  detail = "", verdict = NULL, sens = "ne pas rejeter",
-                  base = "commun", variante = "principale",
-                  nature_forcee = NA_character_) {
-    p_mc <- if (!is.na(mc_nom)) gp(mc_nom) else NA_real_
-    e_mc <- if (!is.na(mc_nom)) ge(mc_nom) else NA_real_
-    if (is.finite(p_ex))      { p_ret <- p_ex; nature <- "exacte" }
-    else if (is.finite(p_mc)) { p_ret <- p_mc; nature <- "Monte-Carlo (bootstrap de residus)" }
-    else if (is.finite(p_as)) { p_ret <- p_as; nature <- "asymptotique" }
-    else                      { p_ret <- NA_real_; nature <- NA_character_ }
-    if (!is.na(nature_forcee) && is.finite(p_ret)) nature <- nature_forcee
-    # ADR 0001 (amendement du 23/09/2026, M7) : meme invariant que add() de
-    # usp_tests() -- verdict reserve aux types "test" et "procedure de
-    # decision", INFO et sens NA pour toute autre ligne.
-    porte_verdict <- type %in% c("test", "procedure de decision")
-    if (!is.null(verdict) && !porte_verdict)
-      stop("add() : un verdict n'est admis que pour type = 'test' ou 'procedure de decision' (ADR 0001) : ", nom)
-    # La procedure de decision (ESD) decide sans p-value : son verdict est
-    # toujours fourni par l'appelant ; l'omettre est une erreur de programmation.
-    if (type == "procedure de decision" && is.null(verdict))
-      stop("add() : une ligne de type 'procedure de decision' doit fournir son verdict : ", nom)
-    # Sans verdict, ni sens ni p-value retenue (ADR 0001, CONTEXT.md).
-    if (!porte_verdict) {
-      sens <- NA_character_; p_ret <- NA_real_; nature <- NA_character_
-    }
-    v <- if (!is.null(verdict)) verdict
-    else if (type != "test" || !is.finite(p_ret)) "INFO"
-    else if (sens == "rejeter") { if (p_ret < alpha) "OK" else if (p_ret < 0.30) "ALERTE" else "ECHEC" }
-    else { if (p_ret < alpha / 2) "ECHEC" else if (p_ret < alpha) "ALERTE" else "OK" }
-    L[[length(L) + 1]] <<- list(famille = fam, test = nom, reference = ref, type = type,
-      base = base, variante = variante, H0 = H0, H1 = H1,
-      stat_nom = stat_nom, stat = stat, loi = loi,
-      estim_nom = estim_nom, estim = estim,
-      p_exacte = p_ex, p_asymptotique = p_as, p_mc = p_mc, err_mc = e_mc,
-      p_retenue = p_ret, nature_p = nature, verdict = v, detail = detail, sens = sens)
-  }
+  # Enregistrement des lignes de resultat : fonction partagee avec usp_tests()
+  # (engine_registre_tests(), ADR 0003) ; une statistique Monte-Carlo absente
+  # du catalogue ou du bootstrap leve une erreur.
+  reg <- engine_registre_tests(boot, MW_CATALOGUE_MC, alpha,
+                               nature_mc = "Monte-Carlo (bootstrap de residus)")
+  add <- reg$add
 
   ## --- M1 : proportionnalite des cumules (D(2)(h)(iii)) ---------------------
   fam <- "M1. proportionnalite des cumules (annexe XVII D(2)(h)(iii))"
@@ -3910,7 +3996,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                              "facteurs sont les plus extrapoles. Repere indicatif de 40 %%,",
                              "sans fondement reglementaire ni statistique : il n'emporte aucun",
                              "verdict."), 100 * part_derniere))
-  L
+  reg$lignes()
 }
 
 

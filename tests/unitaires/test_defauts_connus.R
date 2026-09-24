@@ -56,9 +56,42 @@ verifier("usp_tests() sur un bootstrap complet : hierarchie exacte > Monte-Carlo
            }
            ok
          })
-echec_attendu("add() refuse un mc_nom absent du bootstrap (erreur explicite)",
-              "issue #4 : gp() renvoie NA, repli silencieux sur la p asymptotique",
-              leve_erreur(usp_tests(fit, boot_fictif(sans = "RESET"))))
+# Issue #41 (ADR 0003, point 3) : ancien echec attendu de l'issue #4, devenu
+# test ordinaire. add() de engine_registre_tests() refuse une statistique
+# Monte-Carlo absente du bootstrap ou inconnue du catalogue, au lieu du repli
+# silencieux sur la p-value asymptotique.
+verifier("add() refuse un mc_nom absent du bootstrap (erreur explicite)",
+         leve_erreur(usp_tests(fit, boot_fictif(sans = "RESET"))))
+verifier("add() refuse un mc_nom inconnu du catalogue (erreur explicite)",
+         {
+           reg <- engine_registre_tests(boot_fictif(), USP_CATALOGUE_MC, 0.10, "Monte-Carlo")
+           leve_erreur(reg$add("F", "t", "r", mc_nom = "Inconnue"))
+         })
+verifier("mw_tests() refuse un mc_nom absent du bootstrap (erreur explicite)",
+         {
+           p <- stats::setNames(rep(0.5, length(s_mw)), names(s_mw))
+           p <- p[setdiff(names(p), "Calendrier")]
+           leve_erreur(mw_tests(mw_ajuster(tri_mw),
+                                list(stats_obs = as.list(s_mw), p_mc = p, err_mc = p * 0 + 0.01)))
+         })
+verifier("Catalogues Monte-Carlo : les statistiques simulees sont exactement celles du catalogue, dans son ordre",
+         identical(names(s_obs), names(USP_CATALOGUE_MC)) &&
+           identical(names(s_mw), names(MW_CATALOGUE_MC)))
+verifier(".mc_evaluer : une entree de longueur 0 (NULL) ou 2 leve une erreur qui nomme la statistique",
+         {
+           msg <- function(val) {
+             cat_f <- list(A = .mc_entree(function(e) 1, "haut"),
+                           Fautive = .mc_entree(function(e) val, "haut"))
+             tryCatch({ .mc_evaluer(cat_f, list()); "" }, error = function(err) conditionMessage(err))
+           }
+           m0 <- msg(NULL); m2 <- msg(c(1, 2))
+           grepl("Fautive", m0, fixed = TRUE) && grepl("Fautive", m2, fixed = TRUE) &&
+             identical(.mc_evaluer(list(A = .mc_entree(function(e) NA_real_, "bas")), list()),
+                       c(A = NA_real_))
+         })
+verifier("Catalogues Monte-Carlo : sens de rejet dans {haut, bas, deux} pour chaque entree",
+         all(vapply(c(USP_CATALOGUE_MC, MW_CATALOGUE_MC),
+                    function(e) e$queue %in% c("haut", "bas", "deux"), logical(1))))
 verifier("Toute statistique simulee est exploitee par un test (pas d'orpheline)",
          {
            orph <- setdiff(names(s_obs), noms_ln)
