@@ -1,7 +1,8 @@
 ###############################################################################
 #  tests/test_reproductibilite.R  --  TESTS DE NON-REGRESSION DU MOTEUR
 #
-#  Pour chaque methode (prime, reserve 1, reserve 2 Merz-Wuthrich) :
+#  Pour chaque cas de CAS (outils_tests.R : prime, reserve 1, reserve 2
+#  Merz-Wuthrich, et prime sur le segment II-6 modifie par M6, issue #61) :
 #    1. REPRODUCTIBILITE : deux appels de run_engine() avec les memes donnees,
 #       les memes parametres et la meme graine donnent des objets identiques
 #       au bit pres (identical) ;
@@ -47,10 +48,10 @@ for (nom in names(CAS)) {
                                   paste(synthese, collapse = "\n    ")))
   }
 
-  cat(sprintf("%-9s sigma_USP = %.10f  (%.0f s)\n", nom,
+  cat(sprintf("%-11s sigma_USP = %.10f  (%.0f s)\n", nom,
               a$parametre_final$sigma_usp,
               as.numeric(difftime(Sys.time(), t0, units = "secs"))))
-  if (file.exists(ref_f)) cat("          ", synthese[1], "\n", sep = "")
+  if (file.exists(ref_f)) cat("            ", synthese[1], "\n", sep = "")
 }
 
 if (length(echecs)) {
@@ -58,4 +59,4 @@ if (length(echecs)) {
   quit(status = 1)
 }
 cat("\nOK : reproductibilite et non-regression verifiees pour",
-    length(CAS), "methodes.\n")
+    length(CAS), "cas.\n")

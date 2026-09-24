@@ -55,7 +55,12 @@ CAS <- list(
   reserve1 = function() run_engine(xt = .ln$xt, yt = .ln$yt, methode = "reserve1",
                                    segment = 1, annexe = "II"),
   reserve2 = function() run_engine(methode = "reserve2", triangle = .tri,
-                                   segment = 1, annexe = "II")
+                                   segment = 1, annexe = "II"),
+  # Segment modifie par le reglement delegue (UE) 2019/981 (M6), bareme long
+  # comme le segment 1 (annexe II, segment 6 ; issue #61) : sigma standard de
+  # primes de 19 % au lieu de 10 %, memes donnees, B et graine que premium.
+  premium_ii6 = function() run_engine(xt = .ln$xt, yt = .ln$yt, methode = "premium",
+                                      segment = 6, annexe = "II")
 )
 
 # Retire les champs qui varient d'un appel a l'autre ou d'une machine a
