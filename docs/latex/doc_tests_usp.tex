@@ -322,7 +322,8 @@ calcul et celle de l'objet résultat, calculées par \code{engine\_empreinte()}
 (la seconde est stable sur une même machine et dépend de la plateforme,
 ADR~0006), et celle des octets de \code{R/engine.R}, relevée avec la version
 déclarée dans \code{DESCRIPTION} par \code{identite\_code()} au chargement du
-moteur par l'application. Les tests restitués sont les \emph{tests retenus}
+moteur par l'application~; il porte aussi le générateur et les graines fixes des simulations,
+lus dans \code{\$metadata} (\code{valeurs\_generateur()}, issue~\#37). Les tests restitués sont les \emph{tests retenus}
 selon la règle de l'onglet Tests, appliquée par la même fonction
 (\code{filtrer\_selection()}), les tests exclus figurant en annexe avec leur
 verdict, leur p-value retenue et le motif de leur exclusion~; le tableau de
@@ -529,11 +530,15 @@ p-value exacte de \code{runs\_p\_exacte()} sur $u_t$ si $\hat\pi_t$ est constant
 \emph{et} si les signes de $u_t - \operatorname{med}(u)$ et de $z_t -
 \operatorname{med}(z)$ coïncident (\code{.signes\_mediane\_egaux()}), \code{NA}
 sinon \\
-\code{sw\_loi\_nulle()} & \code{n}, \code{B\_null} (20\,000), \code{seed}
-(20260901) & loi nulle simulée de $W$ (Shapiro--Wilk), triée et mise en cache \\
+\code{sw\_loi\_nulle()},\newline \code{sw\_cle\_cache()} & \code{n}, \code{B\_null}
+(20\,000), \code{seed} (\code{SEED\_LOI\_NULLE\_SW}, 20260901) & loi nulle simulée de $W$
+(Shapiro--Wilk), triée et mise en cache sous une clé qui comporte le générateur \\
 \code{engine\_sous\_graine()} & \code{seed}, expression & valeur de l'expression évaluée sous
-la graine \code{seed}, état du générateur de l'appelant restauré, y compris en cas d'erreur
-(§\ref{sec:graines}) \\
+la graine \code{seed} et le générateur \code{ENGINE\_RNG\_KIND}~; \code{RNGkind()} et
+\code{.Random.seed} de l'appelant restaurés, y compris en cas d'erreur (§\ref{sec:graines}) \\
+\code{ENGINE\_RNG\_KIND},\newline \code{SEED\_LOI\_NULLE\_SW},\newline
+\code{SEED\_ENVELOPPE\_QQ} & constantes & générateur posé par le moteur~; graines fixes de la
+loi nulle de Shapiro--Wilk et de l'enveloppe du QQ-plot, consignées dans \code{\$metadata} \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Statistiques et tests}}} \\
 \code{stat\_*()}, \code{test\_*()} & $x$, $y$ ou $z$ & statistique et p-value \\
 \code{test\_tost\_intercept()} & $x$, $y$, $\theta$ ou $\Delta$ &
@@ -632,7 +637,7 @@ d'enregistrement \code{engine\_registre\_tests()}) \\
 \code{mw\_parametre()} & \code{aj}, \code{msep} (champ \code{\$msep}),
 $\sigma_{\text{std}}$, barème & $\sigma_{\mathrm{USP}}$ et ses composantes \\
 \code{mw\_influence()} & \code{aj} & levier, facteur sans la cellule,
-écart relatif de $\hat f_j$, par cellule \\
+écart relatif de $\hat f_j$, par cellule, et booléen de coloration \code{fort\_dfbeta} \\
 \code{mw\_contributions()} & \code{aj}, \code{msep} (sortie de
 \code{mw\_msep()}) & parts de chaque année de survenance dans la réserve et
 dans le terme de variance de processus \\
@@ -643,8 +648,8 @@ lognormale) \\
 \code{engine\_surface\_objectif()}\newline \code{engine\_influence()}\newline
 \code{engine\_contours\_cook()} & \code{fit}~; \code{fit}, \code{jackknife},
 \code{sigma\_usp}~; $T$ & surface de l'objectif en $(\delta,\gamma)$~; leviers,
-distances de Cook~; courbes d'iso-Cook (appelées par
-\code{engine\_plots\_data()}) \\
+distances de Cook, écarts du jackknife et booléen de coloration \code{fort\_ecart\_sigma}~;
+courbes d'iso-Cook (appelées par \code{engine\_plots\_data()}) \\
 \code{mw\_plots\_data()} & \code{aj}, résidus, \code{boot}, \code{msep} &
 toutes les quantités tracées (branche Merz--Wüthrich) \\
 \code{REPERE\_INFLUENCE\_SIGMA},\newline \code{REPERE\_DFBETA\_MW} & constantes ($0{,}10$ et
@@ -832,9 +837,10 @@ texte.
 Le moteur comporte quatre sources de tirages aléatoires, et quatre seulement, qui toutes
 s'exécutent sous \emph{graine locale} par la fonction unique \code{engine\_sous\_graine(seed,
 expr)} (ADR~0004, issue~\#42)~: celle-ci sauvegarde l'objet \code{.Random.seed} de
-l'environnement global, ou note son absence, pose la graine, évalue l'expression, puis restaure
-l'état initial, ou retire \code{.Random.seed} s'il n'existait pas, y compris quand l'évaluation
-échoue. Une recherche dans \code{R/engine.R} de \code{set.seed()}, \code{RNGkind()},
+l'environnement global, ou note son absence, et le \code{RNGkind()} de l'appelant, pose la
+graine sous le générateur fixé \code{ENGINE\_RNG\_KIND} (issue~\#37), évalue l'expression, puis
+restaure le \code{RNGkind()} et l'état initial, ou retire \code{.Random.seed} s'il n'existait
+pas, y compris quand l'évaluation échoue. Une recherche dans \code{R/engine.R} de \code{set.seed()}, \code{RNGkind()},
 \code{.Random.seed}, \code{sample()} et des générateurs \code{r*()} de \code{stats} ne renvoie
 aucun appel qui n'appartienne à \code{engine\_sous\_graine()} ou à l'une des quatre sources.
 Pour chacune, on indique la fonction qui tire, la graine, la portée du tirage et le sort de
@@ -856,21 +862,23 @@ l'état du générateur (l'objet \code{.Random.seed} de l'environnement global) 
   de la branche Merz--Wüthrich (p-values Monte-Carlo, \code{sigma\_boot} et
   l'intervalle qui en est tiré). \emph{État}~: restauré.
 \item \code{sw\_loi\_nulle()}, appelée par \code{sw\_p\_loi\_nulle()} dans les
-  deux branches. \emph{Graine}~: fixe, 20260901, indépendante de \code{seed}~;
+  deux branches. \emph{Graine}~: fixe, 20260901 (constante \code{SEED\_LOI\_NULLE\_SW}),
+  indépendante de \code{seed} et consignée dans \code{\$metadata}, champ
+  \code{seed\_loi\_nulle\_sw}~;
   \code{engine\_sous\_graine()} pose la graine avant 20\,000 échantillons $\mathcal{N}(0,1)$ de
   taille $n$ tirés par \code{stats::rnorm()}, où $n$ vaut $T$ dans la branche
   lognormale et le nombre de résidus dans la branche Merz--Wüthrich. La loi
   simulée est mise en cache, pour la durée de la session R, sous une clé formée
-  de $n$, du nombre de tirages et de la graine~: un second appel à la même
-  taille ne tire plus rien et renvoie la même loi. \emph{Portée}~: la p-value
+  de $n$, du nombre de tirages, de la graine et du générateur (\code{sw\_cle\_cache()},
+  issue~\#37)~: un second appel à la même taille ne tire plus rien et renvoie la même loi. \emph{Portée}~: la p-value
   exacte simulée du test de Shapiro--Wilk sans la normalisation de Royston
   (fiche~\ref{fiche:shapiro-wilk-sans-royston}) et du test de Shapiro--Wilk sur les résidus de Mack
   (fiche~\ref{mw:m5sw}).
   \emph{État}~: restauré, ou retiré s'il n'existait pas avant l'appel (l'exception qui
   laissait l'état produit dans ce cas a disparu avec l'issue~\#42).
-\item \code{engine\_plots\_data()} (branche lognormale). \emph{Graine}~: fixe,
-  20260831, indépendante de \code{seed} bien qu'elle en égale la valeur par
-  défaut~; \code{engine\_sous\_graine()} la pose avant 499 échantillons $\mathcal{N}(0,1)$ de
+\item \code{engine\_plots\_data()} (branche lognormale). \emph{Graine}~: la constante fixe
+  \code{SEED\_ENVELOPPE\_QQ}, qui vaut 20260831, indépendante de \code{seed} bien qu'elle en égale la
+  valeur par défaut, et consignée dans \code{\$metadata}, champ \code{seed\_enveloppe\_qq}~; \code{engine\_sous\_graine()} la pose avant 499 échantillons $\mathcal{N}(0,1)$ de
   taille $T$ tirés par \code{stats::rnorm()}, dont les statistiques d'ordre
   fournissent, point par point, les quantiles à 5~\% et 95~\% de l'enveloppe du
   QQ-plot. \emph{Portée}~: ce seul graphique (champs \code{env\_bas} et
@@ -893,16 +901,32 @@ dans la fonction même qui l'effectue~; les résultats de \code{run\_engine()} n
 pas de l'état du générateur avant l'appel (trois états de départ différents, dont un
 générateur non initialisé, donnent pour chacune des trois méthodes des objets
 identiques, aux champs d'exécution de \code{\$metadata} près).
-\emph{Dépendance au type de générateur}~: le moteur ne fixe pas
-\code{RNGkind()} et suppose le générateur par défaut de R (Mersenne-Twister,
-inversion pour la loi normale, rejet pour \code{sample()}), et
-\code{\$metadata} ne consigne pas le générateur employé (issue~\#37). Sous un
-autre générateur, les tirages et donc les résultats de Monte-Carlo changent,
-mais ni le paramètre final ni aucune grandeur issue de l'estimation~:
-$\sigma_{\mathrm{USP}}$ est identique sous les trois réglages testés (branche
-lognormale~: $0{,}1114524359$~; Merz--Wüthrich~: $0{,}0497764613$), parce qu'il
-ne dépend d'aucun tirage. Mesuré sur les cas de contrôle~: sous
-\code{RNGkind("L'Ecuyer-CMRG")}, 33 des 34 p-values de Monte-Carlo de la
+\emph{Indépendance à l'égard du type de générateur}~: depuis l'issue~\#37,
+\code{engine\_sous\_graine()} pose la graine sous un générateur fixé, la constante
+\code{ENGINE\_RNG\_KIND} (Mersenne-Twister, inversion pour la loi normale, rejet pour
+\code{sample()}, réglage par défaut de R), quel que soit le \code{RNGkind()} de l'appelant,
+puis restaure à la sortie le \code{RNGkind()} de l'appelant et enfin son \code{.Random.seed},
+erreur comprise. Le générateur employé est consigné dans \code{\$metadata\$generateur}. Mesuré
+sur les cas de contrôle~: sous \code{RNGkind("L'Ecuyer-CMRG")} (méthode de primes), sous
+\code{RNGkind(sample.kind = "Rounding")} (méthode de réserve n\textsuperscript{o}~2) et sous
+\code{RNGkind("Knuth-TAOCP-2002", "Box-Muller")} (méthode de primes) chez l'appelant, le résultat
+est identique au bit près, hors champs d'exécution, à celui qu'on obtient sous le réglage par
+défaut, et le réglage de l'appelant est retrouvé après l'appel. Une limite, antérieure à
+l'issue~\#37, demeure sous le seul générateur normal de Box--Muller chez l'appelant~: R garde en
+réserve, hors de \code{.Random.seed}, le second tirage normal de chaque paire, réserve qui n'est
+pas restaurable et que R efface quand une graine est posée~; le tirage normal suivant de
+l'appelant peut alors différer de celui qu'il aurait obtenu sans l'appel (mesuré~: il diffère
+après un nombre impair de tirages normaux, coïncide après un nombre pair). La limite est sans
+effet sur les résultats du moteur, qui tire toujours sous inversion.
+
+\emph{Avant l'issue~\#37}, le moteur ne fixait pas \code{RNGkind()}~: il supposait le
+générateur par défaut de R, que \code{\$metadata} ne consignait pas, et un autre générateur
+chez l'appelant changeait les tirages, donc les résultats de Monte-Carlo, mais ni le paramètre
+final ni aucune grandeur issue de l'estimation~: $\sigma_{\mathrm{USP}}$ était identique sous
+les trois réglages testés (branche lognormale~: $0{,}1114524359$~; Merz--Wüthrich~:
+$0{,}0497764613$), parce qu'il ne dépend d'aucun tirage. Mesuré alors sur les cas de
+contrôle, et conservé parce qu'il illustre l'ordre de grandeur de l'erreur de Monte-Carlo~:
+sous \code{RNGkind("L'Ecuyer-CMRG")}, 33 des 34 p-values de Monte-Carlo de la
 méthode de primes changent, d'au plus $0{,}043$ (sup-F~: $0{,}840 \to 0{,}883$),
 sans qu'aucun verdict change, et la médiane de \code{sigma\_boot} passe de
 $0{,}092079$ à $0{,}092274$~; sous \code{RNGkind(sample.kind = "Rounding")},
@@ -913,9 +937,9 @@ changement de verdict, la médiane de \code{sigma\_boot} passant de $0{,}016359$
 \code{RNGkind("L'Ecuyer-CMRG")}, la méthode de réserve n\textsuperscript{o}~2
 voit elle aussi 12 de ses 13 p-values de Monte-Carlo changer, d'au plus
 $0{,}062$, sans changement de verdict~; sous
-\code{RNGkind(sample.kind = "Rounding")}, la méthode de primes est inchangée,
+\code{RNGkind(sample.kind = "Rounding")}, la méthode de primes était inchangée,
 la branche lognormale ne tirant rien par \code{sample()}. Parmi les champs du
-résultat, seuls changent ceux qui dérivent des tirages~: p-values et erreurs de
+résultat, seuls changeaient ceux qui dérivent des tirages~: p-values et erreurs de
 Monte-Carlo, et avec elles les p-values retenues qui en sont issues, les
 réplications \code{sigma\_boot} (ainsi que \code{delta\_boot} et
 \code{gamma\_boot} dans la branche lognormale) et l'intervalle bootstrap (y compris le champ
@@ -925,10 +949,11 @@ exactes simulées de Shapiro--Wilk, qui reposent sur la loi nulle de
 \code{sw\_loi\_nulle()}~: mesuré dans une session R neuve, $0{,}596370 \to
 0{,}595220$ (fiche~\ref{fiche:shapiro-wilk-sans-royston}) et $0{,}0713964 \to 0{,}0712964$ (résidus de
 Mack, fiche~\ref{mw:m5sw}), sans changement de verdict. Ces deux dernières ne
-changent toutefois que si la loi nulle n'a pas déjà été simulée dans la
-session~: la clé du cache (taille, nombre de tirages, graine) ne comporte pas
-le générateur, de sorte qu'une loi simulée sous un générateur reste servie
-après un changement de \code{RNGkind()}. L'ordre de grandeur des écarts
+changeaient toutefois que si la loi nulle n'avait pas déjà été simulée dans la
+session, la clé du cache (taille, nombre de tirages, graine) ne comportant pas le
+générateur~; depuis l'issue~\#37, la loi est toujours simulée sous \code{ENGINE\_RNG\_KIND}, et
+la clé, construite par \code{sw\_cle\_cache()}, comporte le générateur, de sorte qu'une loi
+simulée sous un autre générateur ne peut pas être servie. L'ordre de grandeur des écarts
 sur les p-values de Monte-Carlo est celui de leur erreur de Monte-Carlo à $B = 999$
 (§\ref{sec:deuxerreurs})~: pour une p-value unilatérale estimée par une
 proportion, l'écart-type de la différence entre deux estimations indépendantes
@@ -937,14 +962,16 @@ soit $0{,}016$ pour $p = 0{,}84$ (sup-F)~; pour une p-value bilatérale
 $2\min(\hat p^{+},\hat p^{-})$, la queue retenue $q = p/2$ est doublée et
 l'écart-type devient $\sqrt{2p(2-p)/B}$, soit $0{,}035$ pour $p = 0{,}37$ (test
 des suites). Les écarts maximaux observés, $0{,}043$, $0{,}046$ et $0{,}062$,
-valent entre $1{,}3$ et $2{,}6$ fois ces écarts-types, ce qui est attendu pour
+valaient entre $1{,}3$ et $2{,}6$ fois ces écarts-types, ce qui est attendu pour
 le maximum sur 34 et 13 statistiques.
+
 \emph{État laissé à l'appelant}~: les quatre sources restaurant l'état qu'elles ont trouvé,
 \code{run\_engine()} laisse l'état du générateur de l'appelant intact (ADR~0004, point~3).
 Mesuré sur les cas de contrôle~: après un \code{set.seed()} quelconque, \code{.Random.seed} est
 identique avant et après l'appel~; sans \code{.Random.seed} avant l'appel, aucun n'est créé,
 pour chacune des trois méthodes. Un code appelant qui tire ses propres nombres après
-\code{run\_engine()} obtient donc les mêmes tirages que sans l'appel. Jusqu'à l'issue~\#42,
+\code{run\_engine()} obtient donc les mêmes tirages que sans l'appel, sous la seule réserve
+du générateur normal de Box--Muller exposée ci-dessus. Jusqu'à l'issue~\#42,
 seule \code{sw\_loi\_nulle()} restaurait l'état, et \code{run\_engine()} laissait celui de
 \code{engine\_plots\_data()} (branche lognormale) ou de \code{mw\_bootstrap()}
 (Merz--Wüthrich).
@@ -1203,9 +1230,16 @@ consignant la méthode, le segment, $\sigma_{\text{standard}}$, la nature décla
 $\sigma_{\text{standard}}$ (\code{sigma\_standard\_saisi}, trois méthodes~: dérogation au
 paramètre réglementaire), le barème de
 crédibilité, $T$, $B$ (dont se déduit la granularité $1/(B+1)$), le seuil
-$\alpha$, la graine, l'horodatage, la durée et la version de R. Ce champ suffit,
-avec les données, à rejouer un calcul à l'identique sur une même machine, sous
-le générateur par défaut de R, que \code{\$metadata} ne consigne pas.
+$\alpha$, la graine du bootstrap (\code{seed}), le générateur posé par le moteur
+(\code{generateur}~: \code{kind}, \code{normal.kind}, \code{sample.kind}, soit
+\code{ENGINE\_RNG\_KIND}), les graines fixes des deux autres simulations
+(\code{seed\_loi\_nulle\_sw} pour les trois méthodes, \code{seed\_enveloppe\_qq} pour les
+méthodes lognormales~; issue~\#37, ADR~0004, point~2), l'horodatage, la durée et la version de
+R~; le nombre de tirages de la loi nulle (20\,000) et celui de l'enveloppe (499) restent des
+constantes du code. Ce champ suffit, avec les données, à rejouer un calcul à l'identique sur une
+même machine, quel que soit le générateur actif chez l'appelant. Le générateur et les graines
+sont affichés dans le journal d'exécution de l'application et dans l'en-tête du rapport figé
+(\code{valeurs\_generateur()} de \code{R/display\_helpers.R}, en lecture seule).
 \end{encadre}
 
 \subsection{Index des fonctions de statistique et de p-value}
@@ -5709,7 +5743,8 @@ le rappelait jusqu'à la décision M27 du mainteneur (issue~\#76)~; il est déso
 seulement. Le graphique d'influence de la branche lognormale (écart relatif de
 $\sigma_{\mathrm{USP}}$ au retrait de chaque année) ne se sert que du repère de 10~\%~: il
 colore les années dont l'écart dépasse strictement 10~\% en valeur absolue (constante
-\code{REPERE\_INFLUENCE\_SIGMA} du moteur, issue~\#33), sans tracer celui de 20~\%. Aucun repère
+\code{REPERE\_INFLUENCE\_SIGMA} du moteur, issue~\#33~; booléen \code{fort\_ecart\_sigma}
+calculé par \code{engine\_influence()}, issue~\#37), sans tracer celui de 20~\%. Aucun repère
 n'est donné sur l'échelle de la part estimée~: transposer 10~\% ou 20~\% sur cette échelle
 reviendrait à les multiplier par $\sigma_{\mathrm{USP}}/\big(c\sqrt{(T+1)/(T-1)}\,\hat\sigma\big)$,
 rapport qui dépend de la table de l'annexe, et un repère fixe propre à cette échelle n'aurait
@@ -6035,7 +6070,8 @@ courbure convexe ou concave traduit une asymétrie. Limite~: sur 8 à 12 points,
 facilement les écarts -- il est utile de superposer une enveloppe de simulation pour calibrer la
 lecture. Celle que calcule \code{engine\_plots\_data()} est formée, point par point, des quantiles
 à 5~\% et 95~\% des statistiques d'ordre de 499 échantillons $\mathcal{N}(0,1)$ indépendants de
-taille $T$, tirés sous une graine fixe (§\ref{sec:graines})~: ce n'est pas un bootstrap
+taille $T$, tirés sous une graine fixe, \code{SEED\_ENVELOPPE\_QQ}, consignée dans
+\code{\$metadata\$seed\_enveloppe\_qq} (§\ref{sec:graines})~: ce n'est pas un bootstrap
 paramétrique sous le modèle ajusté, car les échantillons simulés ne sont pas des résidus d'un
 modèle réestimé, et la bande est ponctuelle, non simultanée.
 
@@ -6128,7 +6164,10 @@ lecture des distances de Cook ne montre pas. Les années dont l'écart dépasse 
 10~\% sont colorées (constante \code{REPERE\_INFLUENCE\_SIGMA} du moteur~; repère de lecture sans
 verdict, fiche~\ref{fiche:jackknife})~; le graphique DFBETA de la méthode Merz--Wüthrich colore
 de même les cellules au-delà de $2~\%$ (\code{REPERE\_DFBETA\_MW}, repère sans source,
-fiche~\ref{mw:influence}).
+fiche~\ref{mw:influence}). Les booléens de coloration, \code{fort\_ecart\_sigma} et
+\code{fort\_dfbeta}, sont calculés par le moteur (\code{engine\_influence()},
+\code{mw\_influence()}) et rangés dans \code{res\$plots\_data\$influence}~; l'affichage les
+lit sans comparaison (issue~\#37).
 
 \medskip
 \textbf{Transposition à la méthode Merz--Wüthrich.} Le facteur $\hat f_j$ étant
@@ -6249,7 +6288,8 @@ atypiques par leur \emph{poids} de celles qui sont réellement influentes. Le
 deuxième donne le DFBETA cellule par cellule, directement interprétable~: de
 combien le facteur de développement bougerait si cette cellule était retirée. Il colore les
 cellules dont la variation relative dépasse $2~\%$ en valeur absolue (constante
-\code{REPERE\_DFBETA\_MW} du moteur, issue~\#33). Ce repère de lecture est propre à l'outil,
+\code{REPERE\_DFBETA\_MW} du moteur, issue~\#33~; booléen \code{fort\_dfbeta} calculé par
+\code{mw\_influence()}, issue~\#37). Ce repère de lecture est propre à l'outil,
 hérité de l'affichage~: il n'a \textbf{aucune source}, ni statistique ni réglementaire, et ne
 produit aucun verdict~; il n'est pas non plus le repère $2/\sqrt{n}$ de D.\,A. Belsley, E.~Kuh et R.\,E. Welsch
 (\emph{Regression Diagnostics: Identifying Influential Data and Sources of Collinearity}, Wiley,
@@ -8139,7 +8179,9 @@ laquelle passent toutes les sources~: \code{usp\_bootstrap()} (tirages de
 \code{usp\_simuler()}), \code{mw\_bootstrap()} (tirages de
 \code{mw\_simuler\_triangle()}),\newline \code{sw\_loi\_nulle()},
 \code{engine\_plots\_data()}~; \code{engine\_ecrire\_xlsx()} et \code{engine\_lire\_xlsx()} ne
-tirent plus rien depuis l'issue~\#42 \\
+tirent plus rien depuis l'issue~\#42~; générateur fixé \code{ENGINE\_RNG\_KIND} et graines fixes
+\code{SEED\_LOI\_NULLE\_SW}, \code{SEED\_ENVELOPPE\_QQ}, consignés dans \code{\$metadata} par
+\code{run\_engine()}~; clé du cache de la loi nulle, \code{sw\_cle\_cache()} (issue~\#37) \\
 Orchestration complète & \code{run\_engine()}~; méthode de réserve
 n\textsuperscript{o}~2 déléguée à\newline \code{.run\_engine\_mw()} \\
 Table auditable des tests & \code{engine\_table\_tests()} \\
