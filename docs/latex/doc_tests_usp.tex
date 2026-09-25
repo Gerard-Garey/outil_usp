@@ -536,7 +536,8 @@ résidus de Mack \\
 \code{.mc\_evaluer()} & catalogue, contexte & vecteur nommé dans l'ordre du catalogue~; erreur
 qui nomme la statistique si une entrée ne rend pas une valeur de longueur~1 \\
 \code{engine\_p\_mc()} & valeurs simulées, valeur observée, sens du rejet & \code{p\_mc},
-\code{err\_mc}, \code{B\_effectif} d'une statistique (fiche~\ref{fiche:procedure-mc})~;
+\code{err\_mc} (formule selon le sens, §\ref{sec:deuxerreurs}), \code{B\_effectif},
+\code{granularite} d'une statistique (fiche~\ref{fiche:procedure-mc})~;
 fonction unique des deux méthodes \\
 \code{.mc\_p\_values()} & matrice des simulations, valeurs observées, catalogue &
 \code{engine\_p\_mc()} colonne par colonne, sens lu au catalogue~; erreur si une statistique
@@ -550,10 +551,11 @@ ajusté \\
 \code{usp\_bootstrap()} & \code{fit}, $B$ (999), \code{seed} (20260831),
 \code{refit} (vrai), \code{progres} &
 \code{stats\_obs}, \code{p\_mc}, \code{err\_mc}, \code{B\_effectif},
-\code{granularite}, \code{sigma\_boot}, \code{delta\_boot}, \code{gamma\_boot} \\
+\code{granularite}, \code{sigma\_boot}, \code{delta\_boot}, \code{gamma\_boot}, \code{B},
+\code{granularite\_stat} \\
 \code{mw\_bootstrap()} & \code{aj}, $B$ (999), \code{seed} (20260831) &
 \code{stats\_obs}, \code{p\_mc}, \code{err\_mc},
-\code{B\_effectif}, \code{granularite}, \code{sigma\_boot} \\
+\code{B\_effectif}, \code{granularite}, \code{sigma\_boot}, \code{B}, \code{granularite\_stat} \\
 \code{usp\_tests()} & \code{fit}, \code{boot}, \code{alpha} (0,10),
 \code{theta\_equiv} (0,10), \code{delta\_equiv}, \code{robustesse} (\code{NULL}) &
 liste des tests (H0, H1, statistique, 3 p-values, nature), enregistrés par l'\code{add()}
@@ -1258,7 +1260,7 @@ contrôle \code{OK} / \code{ECHEC}, aucune p-value & --- \\
 \midrule
 Tendance avec le cumulé, à colonne donnée & \ref{mw:m1} &
 \code{.mw\_lm\_intra()} (via \code{.mw\_pente\_intra()}) &
-idem (p de Student, approchée) & \code{Intercept} \\
+idem (p de Student, approchée) & \code{PenteIntra} \\
 Ordonnée à l'origine par colonne & \ref{mw:m1a} &
 \code{mw\_test\_ordonnee\_origine()} &
 idem (p de Fisher, via \code{.fisher\_combine()}) & \code{Origine} \\
@@ -1534,7 +1536,10 @@ confondues et figurent dans des champs séparés~:
 \toprule
 \code{stat} & \textbf{Statistique de test}~: la quantité dont la loi sous $H_0$ est connue (ou
 simulée). C'est elle, et elle seule, qui est comparée à une loi de référence pour produire une
-p-value. Le champ \code{loi} rappelle cette loi. \\
+p-value. Le champ \code{loi} rappelle cette loi. Quand une p-value de Monte-Carlo est calculée,
+la statistique affichée est celle que simule le catalogue de la méthode, à une transformation
+près qui conserve la région de rejet et que le champ \code{loi} énonce alors~; un seul cas,
+Cox--Stuart (fiche~\ref{fiche:cox-stuart}~; ADR~0003). \\
 \code{estim} & \textbf{Estimation ou grandeur descriptive}~: pente, constante, $\hat\rho_s$,
 $\hat\delta$, $R^2$, nombre de valeurs aberrantes, distance de Cook maximale\dots Ces quantités
 n'ont \emph{aucune} loi de référence dans ce dispositif et ne doivent pas être lues comme des
@@ -1833,7 +1838,11 @@ section~\ref{sec:verif} en constitue la seule mesure disponible à $T = 8$.
 \Usage
 C'est la seule p-value réellement calibrée aux tailles d'échantillon du régime USP. Sa
 granularité est bornée par $1/(B+1)$~: avec $B = 999$, la plus petite p-value atteignable vaut
-$0{,}001$. Sa limite est qu'elle teste la conformité au \emph{modèle ajusté}~: si le modèle est
+$0{,}001$ en queue haute ou basse, et $2/(B+1) = 0{,}002$ au bilatéral, du fait du doublement.
+Le moteur restitue ce pas par statistique, sur $B_{\text{eff}}$, dans le champ
+\code{granularite\_stat} de l'objet bootstrap~: $1/(B_{\text{eff}}+1)$ en queue haute ou basse,
+$2/(B_{\text{eff}}+1)$ au bilatéral (issue~\#40)~; le champ \code{granularite}, lu par
+l'application, reste le pas unilatéral nominal $1/(B+1)$. Sa limite est qu'elle teste la conformité au \emph{modèle ajusté}~: si le modèle est
 mal spécifié dans une direction que $S$ ne détecte pas, la p-value sera élevée à tort. Dans les
 sorties du script, elle figure en colonne \code{p\_mc} et prime sur la p-value asymptotique
 lorsque les deux sont disponibles.
@@ -1961,22 +1970,67 @@ différents, et ne doivent en aucun cas être confondues.
 Source & Nombre fini $B$ de réplications & Taille finie $T$ de l'échantillon \\
 Grandeur affectée & L'estimateur $\hat p_{\text{MC}}$ de la p-value bootstrap
 & L'écart entre la loi bootstrap et la vraie loi sous $H_0$ \\
-Ordre de grandeur & $\sqrt{p(1-p)/B}$, soit $\mathcal{O}(B^{-1/2})$ &
+Ordre de grandeur & $\sqrt{p(1-p)/B}$ en queue haute ou basse,
+$\sqrt{p(2-p)/B}$ au bilatéral, soit $\mathcal{O}(B^{-1/2})$ &
 Dépend du test~; typiquement $\mathcal{O}(T^{-1/2})$ ou $\mathcal{O}(T^{-1})$ \\
 Réduction & Augmenter $B$ (gratuit, purement numérique) &
 \textbf{Impossible}~: $T = 8$ est une donnée du problème \\
-Mesure dans le moteur & champ \code{erreur\_MC} & non mesurable directement~;
+Mesure dans le moteur & champ \code{err\_mc} (colonne \code{erreur\_MC} de la table
+auditable) & non mesurable directement~;
 approchée par l'étude de simulation de la section~\ref{sec:verif} \\
 \bottomrule
 \end{tabular}
 \end{center}
 
 Avec $B = 999$ et $\hat p \approx 0{,}10$, l'erreur de Monte-Carlo vaut environ
-$0{,}009$. Il serait erroné d'en conclure que la p-value est « précise à
+$0{,}009$ pour une p-value unilatérale et $0{,}014$ pour une p-value bilatérale. Il serait erroné d'en conclure que la p-value est « précise à
 $\pm 0{,}01$ »~: cette précision porte sur l'estimation de la p-value
 \emph{bootstrap}, pas sur son écart à la vraie p-value sous $H_0$. La granularité
 de $\hat p_{\text{MC}}$ est en outre bornée inférieurement par $1/(B+1)$
-(Dwass, 1957 ; Hope, 1968 ; voir la bibliographie complémentaire, section~\ref{sec:biblio}).
+(Dwass, 1957 ; Hope, 1968 ; voir la bibliographie complémentaire, section~\ref{sec:biblio}),
+et par $2/(B+1)$ au bilatéral (champ \code{granularite\_stat}, fiche~\ref{fiche:procedure-mc}).
+
+\emph{Formule de l'erreur de Monte-Carlo} (\code{engine\_p\_mc()}, issue~\#40). Sous le modèle
+de la simulation --- réplications indépendantes et de même loi sous le modèle ajusté,
+conditionnellement aux données ---, le nombre $N^{+}$ de réplications au moins égales à la valeur
+observée suit \textbf{exactement} une loi binomiale $\mathcal{B}(B_{\text{eff}}, q^{+})$, où $q^{+}$
+est la p-value bootstrap que donnerait un $B$ infini. En queue haute (symétriquement en queue
+basse), $\operatorname{Var}(\hat p) = B_{\text{eff}}\,q^{+}(1-q^{+})/(B_{\text{eff}}+1)^2$~: la
+formule du moteur, $\sqrt{\hat p(1-\hat p)/B_{\text{eff}}}$, en est l'écart-type au facteur
+$B_{\text{eff}}/(B_{\text{eff}}+1)$ près et au remplacement de $q^{+}$ par son estimateur
+$\hat p$ près~; c'est une approximation numérique d'un écart-type exact, sans lien avec $T$. Au
+bilatéral, $\hat p = 2\min(\hat p^{+}, \hat p^{-})$~: tant que le minimum ne change pas de côté
+d'une réalisation à l'autre, $\hat p$ est le double d'une proportion de queue d'espérance
+$q = p/2$, de variance $4q(1-q)/B = p(2-p)/B$, et le moteur retient
+$\sqrt{\hat p(2-\hat p)/B_{\text{eff}}}$, $\hat p$ étant pris après la borne à~1. L'énumération
+exacte de la loi binomiale à $B = 999$ --- constat numérique, non théorème --- montre que
+l'écart-type exact de $\hat p$ et la formule bilatérale coïncident à moins de $0{,}5~\%$ pour
+$p \le 0{,}90$ ($0{,}0138$ à $p = 0{,}10$, $0{,}0247$ à $p = 0{,}374$, $0{,}0310$ à $p = 0{,}80$).
+Au-delà, le minimum change de côté avec une probabilité non négligeable et la formule
+\textbf{majore} l'écart-type exact~: $0{,}0316$ contre $0{,}0290$ à $p = 0{,}95$, $0{,}0222$ à
+$p = 0{,}98$ et $0{,}0190$ à $p = 1$, soit jusqu'à $1{,}66$ fois l'écart-type exact en $p = 1$
+($1/\sqrt{B}$ contre $\sqrt{(1-2/\pi)/B}$ sous l'approximation normale). Le moteur garde une
+seule formule, sans cas particulier au bord~: une borne supérieure est préférable, dans une table
+auditable, à une valeur exacte en un seul point et fausse à côté. La formule unilatérale,
+appliquée jusqu'à l'issue~\#40 aux p-values bilatérales, sous-estimait leur erreur d'un facteur
+$\sqrt{(1-p)/(2-p)}$ ($0{,}62$ à $p = 0{,}374$)~; aucune p-value ni aucun verdict n'en dépendait.
+
+À $\hat p = 1$ en queue haute ou basse --- toutes les réplications au-delà de la valeur
+observée, cas de la p-value de Monte-Carlo de Cox--Stuart sur le jeu de contrôle
+(fiche~\ref{fiche:cox-stuart}) ---, la formule donne une erreur nulle. Cela ne signifie pas
+l'absence d'erreur, mais une erreur inférieure à la granularité~: $N^{+} = B_{\text{eff}}$
+implique, au niveau de confiance de $95~\%$, $q^{+} \ge 0{,}05^{1/B}$, soit $1 - q^{+} \le 0{,}003$
+à $B = 999$.
+
+Au bilatéral s'ajoutent deux biais de signes opposés, d'ordre $1/B$ à $1/\sqrt{B}$ et sans lien
+avec $T$ (énumération à $B = 999$)~: la convention $(1+N)/(B+1)$ relève chaque queue de
+$1/(B+1)$, soit environ $+0{,}002$ après doublement~; le minimum biaise vers le bas, de façon
+négligeable tant que $1 - p$ dépasse $3/\sqrt{B} \approx 0{,}10$, puis jusqu'à
+$-0{,}024$ en $p = 1$, voisin de $-\sqrt{2/(\pi B)} = -0{,}025$. Le biais total reste au plus
+égal à $0{,}8/\sqrt{B}$ en valeur absolue~; son maximum, atteint en $p = 1$, est loin des seuils
+de verdict ($0{,}05$, $0{,}10$ et $0{,}30$ au seuil $\alpha = 0{,}10$) et sans conséquence sur
+un verdict, tandis qu'au voisinage de ces seuils il se réduit au relèvement de la convention,
+de l'ordre de la granularité.
 
 \subsection{Ce que l'on peut et ne peut pas affirmer à $T = 8$}
 \label{sec:t8}
@@ -2473,9 +2527,10 @@ Monte-Carlo --- entièrement contrôlable}} \\
 Toutes statistiques bootstrapées & $\hat p_{\text{MC}} =
 \frac{1+\#\{S^{(b)}\ge S_{\text{obs}}\}}{B+1}$ & $p^{*}$, p-value bootstrap
 exacte & Convergence presque sûre (LFGN) et en loi (TCL) &
-Écart-type $\sqrt{p(1-p)/B} = \mathcal{O}(B^{-1/2})$ ; granularité $1/(B+1)$ &
+Écart-type $\sqrt{p(1-p)/B} = \mathcal{O}(B^{-1/2})$, $\sqrt{p(2-p)/B}$ au bilatéral
+(majorant au-delà de $p = 0{,}9$) ; granularité $1/(B+1)$, $2/(B+1)$ au bilatéral &
 Réplications i.i.d. sous le modèle ajusté &
-$B=999 \Rightarrow \pm 0{,}009$ à $p=0{,}10$. \textbf{Sans lien avec $T$} \\
+$B=999 \Rightarrow \pm 0{,}009$ à $p=0{,}10$ ($\pm 0{,}014$ au bilatéral). \textbf{Sans lien avec $T$} \\
 
 Idem & Loi bootstrap $p^{*}$ & Vraie p-value sous $H_0$ &
 Convergence bootstrap en $T$ & Consistance établie asymptotiquement ;
@@ -2873,7 +2928,7 @@ ayant la même probabilité modale $18/70$, toutes les issues étaient comptées
 Le bootstrap applique au contraire le doublement, $2\min\big(P(R \le R_{\text{obs}}),
 P(R \ge R_{\text{obs}})\big)$, dont la valeur exacte est ici
 $2 \cdot 26/70 = 52/70 = 0{,}743$~; les p-values de Monte-Carlo, $0{,}762$ sur
-$z_t$ et $0{,}768$ sur $u_t$ (erreur de Monte-Carlo $0{,}013$), estiment cette
+$z_t$ et $0{,}768$ sur $u_t$ (erreur de Monte-Carlo $0{,}031$), estiment cette
 quantité, d'où $1{,}000 - 0{,}743 = 0{,}257$ et $0{,}743 - 0{,}768 = -0{,}025$.
 Depuis l'issue~\#29, \code{runs\_p\_exacte()} applique le doublement et la
 ligne sur $u_t$ reçoit la p-value exacte dans ce régime
@@ -3331,6 +3386,12 @@ avec celle de l'énumération des $8!$ permutations, doublement bilatéral compr
 50 séries tirées au hasard, mesure).
 L'approximation de Student, $p = 2\big(1 - F_{t,T-2}(|t|)\big)$ (appel avec
 \code{exact = FALSE}), est restituée comme p-value asymptotique, sans être retenue.
+La p-value de Monte-Carlo (clés \code{SpearVol} et \code{SpearTps}), bilatérale, est calculée
+sans être retenue. Depuis l'issue~\#41, la statistique simulée est $S$, celle qu'affiche la
+ligne, et non plus $\hat\rho_s$~; $S = T(T^2-1)(1-\hat\rho_s)/6$ étant une fonction affine
+décroissante de $\hat\rho_s$, la région de rejet bilatérale est la même et la p-value de
+Monte-Carlo aussi (mesure sur le cas de contrôle de la méthode prime~: $0{,}878$ et $0{,}872$,
+identiques au bit près dans les deux codages).
 L'équiprobabilité des $T!$ appariements suppose les $r_t$ échangeables, donc identiquement
 distribués~: sous le modèle ajusté, ils ne le sont qu'à $\hat\pi_t$ constant, et la variante
 « ratio contre volume » exigeant des volumes non constants, cela signifie $\hat\delta = 1$. La
@@ -3419,7 +3480,18 @@ Test binomial bilatéral exact~:
 \[
   p = \sum_{j\,:\,\mathbb{P}(K=j)\,\le\,\mathbb{P}(K=k_{\text{obs}})} \binom{m}{j}\left(\tfrac12\right)^{m},
 \]
-somme des probabilités des issues au moins aussi improbables que celle observée.
+somme des probabilités des issues au moins aussi improbables que celle observée. C'est la
+p-value retenue. La p-value de Monte-Carlo (clé \code{CoxStuart}), calculée sans être retenue,
+ne simule pas $K$ lui-même mais $|K - n_p/2|$, $n_p = T - c$ étant le nombre de paires, avec
+rejet en queue haute~: la loi de $K$ étant symétrique sous $H_0$, la queue haute de
+$|K - n_p/2|$ est la région de rejet bilatérale de $K$. C'est une transformation qui conserve la
+région de rejet, et non une autre statistique (ADR~0003, annotation du 24~septembre 2026)~; la
+chaîne \code{loi} de la ligne la mentionne. Sans différence nulle, $m = n_p$ et $n_p/2$ est le
+centre de la loi de $K$~; en présence de différences nulles ($m < n_p$), le choix de recentrer
+sur $n_p/2$ plutôt que sur $m/2$ est une question relevée et non tranchée à ce jour. Sur le jeu de
+contrôle ($T = 8$, $n_p = 4$), $K = 2$, au centre~: la p-value exacte et la p-value de
+Monte-Carlo valent~1, et l'erreur de Monte-Carlo affichée est nulle, ce qui signifie une erreur
+inférieure à la granularité et non une absence d'erreur (section~\ref{sec:deuxerreurs}).
 \Usage
 Avantage décisif~: la loi est exacte, sans hypothèse de normalité ni approximation asymptotique.
 \textbf{Limite rédhibitoire à petit $T$}~: le test n'utilise que le signe de $m \approx T/2$
@@ -4905,7 +4977,7 @@ p-value de Monte-Carlo, bilatérale (clé \code{DWr}, procédure de la
 fiche~\ref{fiche:procedure-mc}), seule calculée et seule retenue, avec son erreur de
 Monte-Carlo \code{err\_mc} en $\mathcal{O}(B^{-1/2})$. Mesuré sur le jeu de contrôle
 ($\hat\delta = 1$, $B = 999$, graine 20260831)~: $\mathrm{DW} = 1{,}630$, \code{p\_mc}
-$= 0{,}566$ (erreur de Monte-Carlo $0{,}016$), contre $\mathrm{DW} = 1{,}618$ et une p-value
+$= 0{,}566$ (erreur de Monte-Carlo $0{,}029$), contre $\mathrm{DW} = 1{,}618$ et une p-value
 exacte de $0{,}565$ sur $z_t$.
 \Usage
 Même portée que le test sur $z_t$ (ordre~1 seulement), sans passer par le modèle. À
@@ -4983,7 +5055,7 @@ Monte-Carlo (clé \code{Runsr}), bilatérale. La condition, ses deux motifs et l
 (bande de tolérance, régime estimé) sont détaillés à la fiche~\ref{fiche:suites-wald-wolfowitz},
 rubrique~5. Mesuré sur le jeu de contrôle ($\hat\delta = 1$)~: $Z = -0{,}764$ sur $u_t$ comme sur
 $z_t$, p-value exacte $52/70 = 0{,}743$ retenue sur les deux lignes, \code{p\_mc} $= 0{,}768$
-(erreur $0{,}013$).
+(erreur $0{,}031$).
 \Usage
 À $\hat\pi_t$ constant, la ligne est un \textbf{doublon exact} de la ligne des suites sur $z_t$~:
 même statistique, même p-value exacte, même verdict (section~\ref{sec:base-residus}). Elle
@@ -6485,8 +6557,10 @@ Loi de Student approchée~: les cellules d'une même colonne partagent $\hat f_j
 et $\hat\sigma_j$, ce qui invalide les degrés de liberté nominaux. Loi de
 référence~: bootstrap de résidus.
 \Pval
-p-value de Monte-Carlo retenue~; la p-value de Student est fournie comme
-complément non simulé.
+p-value de Monte-Carlo retenue, au bilatéral. Sa clé, \code{PenteIntra}, désigne la
+statistique $t$ de \code{.mw\_pente\_intra()}, la même que celle qu'affiche la ligne~; elle s'appelait
+\code{Intercept} jusqu'à l'issue~\#41, nom qui ne disait pas ce qu'elle simule. La p-value
+de Student est fournie comme complément non simulé.
 \Usage
 Ce test est le pendant \emph{agrégé} du test d'ordonnée à l'origine par colonne
 qui suit~: il gagne en puissance ce que l'autre gagne en localisation. Puissance
@@ -7778,8 +7852,10 @@ Sortie de la hiérarchie (grandeur rivée par l'estimation) & branche finale de 
 hors des types \code{test} et \code{procedure de decision} \\
 Réserve sur la base « ratios bruts » à $\hat\pi_t$ constant & champ \code{detail} des six lignes
 de base \code{r} dans \code{usp\_tests()} \\
-Erreur de Monte-Carlo & champ \code{err\_mc} de \code{usp\_bootstrap()} et de
-\code{mw\_bootstrap()} \\
+Erreur de Monte-Carlo (§\ref{sec:deuxerreurs}) & champ \code{err\_mc} de \code{usp\_bootstrap()} et de
+\code{mw\_bootstrap()}, calculé par \code{engine\_p\_mc()}~: $\sqrt{\hat p(1-\hat p)/B_{\text{eff}}}$
+en queue haute ou basse, $\sqrt{\hat p(2-\hat p)/B_{\text{eff}}}$ au bilatéral~; pas élémentaire
+de $\hat p$, par statistique, dans \code{granularite\_stat} \\
 Jackknife, profils, rapport de vraisemblance & \code{usp\_jackknife()}, \code{usp\_profil()} \\
 Calibration et paramètre final & \code{usp\_parametre()}, \code{usp\_credibilite()} \\
 Merz--Wüthrich~: facteurs $\hat f_j$, variances $\hat\sigma_j^2$, cumulés
