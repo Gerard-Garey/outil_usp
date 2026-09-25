@@ -85,11 +85,13 @@ propriétés distinctes :
 | Propriété | Ce qui est vérifié | Statut |
 |---|---|---|
 | Reproductibilité à graine égale | `identical()` entre deux appels de `run_engine()` à données, paramètres et `seed` identiques, sur une même machine | au bit près, mesuré |
-| Non-régression | comparaison valeur par valeur (`comparer_objets()`, tolérance 1e-6, relative ou absolue pour une référence quasi nulle) contre les références versionnées (`tests/reference/*.rds`), produites par la CI (workflow `references.yml`, `ubuntu-22.04`, R 4.3.1 ; ADR 0011) | à tolérance explicite ; ce n'est pas du bit près |
+| Non-régression | comparaison valeur par valeur (`comparer_objets()`, tolérance 1e-6, relative ou absolue pour une référence quasi nulle) contre les références versionnées (`tests/reference/*.rds`), produites par la CI (workflow `references.yml`, `ubuntu-22.04`, R 4.3.1, BLAS et LAPACK de référence monothread ; ADR 0011 amendé M34) | à tolérance explicite ; ce n'est pas du bit près |
 
 La seconde comparaison absorbe volontairement la dérive d'arrondi d'une
 plateforme à l'autre (écart relatif maximal mesuré 3,5e-07 sur la branche
-lognormale entre le poste Windows et la CI, ADR 0006 et 0011) :
+lognormale entre le poste Windows et la CI, alors sous OpenBLAS, ADR 0006 et
+0011 ; depuis M34, la CI calcule sous BLAS et LAPACK de référence et deux
+exécutions successives y sont identiques au bit près) :
 
     Rscript tests/test_reproductibilite.R
 
