@@ -452,8 +452,10 @@ de calibration commune aux deux branches.}
 \textcolor{financeblue}{\textbf{Sorties}} \\
 \endhead
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Contrôles et données}}} \\
-\code{engine\_valider\_donnees()} & \code{xt}, \code{yt}, \code{T\_min} &
-\code{\$ok}, \code{\$erreurs}, \code{\$avertissements} \\
+\code{engine\_valider\_donnees()} & \code{xt}, \code{yt}, \code{T\_min},
+\code{theta\_equiv}, \code{delta\_equiv} &
+\code{\$ok}, \code{\$erreurs}, \code{\$avertissements}~; refus des valeurs infinies et d'une
+marge du TOST hors domaine (§\ref{sec:controles}) \\
 \code{usp\_controle\_donnees()} & $x$, $y$, \code{alpha} (0,10) &
 liste de contrôles de recevabilité \\
 \code{usp\_controles\_}\newline\code{numeriques()} & \code{fit} (sortie de \code{usp\_ajuster()}) &
@@ -468,11 +470,16 @@ non bloquants), ajoutés à \code{res\$controles} \\
 \code{usp\_lire\_vecteur()},\newline \code{usp\_charger()} & chemins de fichiers CSV,
 \code{sep}, \code{dec}~; pour la seconde, $T$ et le sens chronologique des
 données &
-vecteur lu~; liste \code{\$x}, \code{\$y}, \code{\$T} (les $T$ années les plus
-récentes) \\
-\code{engine\_lire\_donnees\_csv()} & \code{data.frame} (colonnes $t$,
-\code{xt}, \code{yt}) & \code{\$ok}, \code{\$erreurs}, \code{\$xt}, \code{\$yt},
-\code{\$n} \\
+vecteur lu, cellule vide ou non numérique au milieu de la série refusée avec sa position~;
+liste \code{\$x}, \code{\$y}, \code{\$T} (les $T$ années les plus récentes) \\
+\code{engine\_lire\_donnees\_}\newline\code{csv()}, \code{.en\_numerique()} & \code{data.frame}
+(colonnes $t$, \code{xt}, \code{yt})~; vecteur & \code{\$ok}, \code{\$erreurs}, \code{\$xt},
+\code{\$yt}, \code{\$n}, lignes rangées par $t$ (entier, sans doublon, consécutif)~; conversion
+numérique d'un facteur par ses valeurs \\
+\code{engine\_lire\_triangle()} & \code{data.frame} ou matrice (une ligne par année de
+survenance) & \code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, \code{\$triangle},
+\code{\$I}, \code{\$J}~; cellule non numérique refusée avec sa position, puis
+\code{mw\_valider\_triangle()} \\
 \code{engine\_lire\_xlsx()}, \code{engine\_ecrire\_xlsx()} & \code{chemin},
 \code{entete}~; \code{df}, \code{chemin}, \code{feuille} & \code{data.frame}
 lu~; chemin du fichier écrit~; sans tirage aléatoire, dossier temporaire de la voie de repli
@@ -574,7 +581,10 @@ $\hat\gamma^{(-t)}$ \\
 \code{usp\_profil()} & \code{fit}, \code{n} (41 points) & profils en $\delta$ et $\gamma$, tests LR \\
 \code{usp\_segment\_infos()}, \code{usp\_bareme\_segment()} & segment, annexe &
 libellé, $\sigma$ standard, barème~; barème seul \\
-\code{usp\_credibilite()} & $T$, barème & facteur $c$ \\
+\code{usp\_credibilite()} & $T$, barème & facteur $c$~; erreur si $T$ n'est pas un entier
+fini ou si $T < 5$ \\
+\code{.annexe\_verifiee()} & \code{annexe} & \code{"II"} ou \code{"XIV"}, erreur pour toute
+autre valeur \\
 \code{usp\_parametre()} & \code{fit}, $\sigma_{\text{std}}$, barème &
 $\sigma_{\mathrm{USP}}$ et ses composantes \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Chaîne Merz--Wüthrich (section~D, §\ref{sec:mw})}}} \\
@@ -619,6 +629,9 @@ distances de Cook~; courbes d'iso-Cook (appelées par
 \code{engine\_plots\_data()}) \\
 \code{mw\_plots\_data()} & \code{aj}, résidus, \code{boot}, \code{msep} &
 toutes les quantités tracées (branche Merz--Wüthrich) \\
+\code{REPERE\_INFLUENCE\_SIGMA},\newline \code{REPERE\_DFBETA\_MW} & constantes ($0{,}10$ et
+$0{,}02$) & repères de lecture des graphiques d'influence, sans verdict
+(fiches~\ref{fiche:jackknife} et~\ref{mw:influence}) \\
 \code{engine\_table\_tests()} & \code{res} & \code{data.frame} auditable \\
 \code{run\_engine()} & entrées utilisateur & objet \code{usp\_engine} complet \\
 \code{.run\_engine\_mw()} & entrées de \code{run\_engine()} pour
@@ -1635,9 +1648,12 @@ s'exécute \emph{après} \code{mw\_ajuster()} et \code{mw\_msep()}, parce que le
 deux grandeurs dont elle contrôle le domaine --- la réserve chain-ladder totale
 $\hat R = \sum_{i=0}^{I}\big(\hat C(i,J) - C(i,I-i)\big)$ et la MSEP --- ne sont
 pas connues avant lui~; elle précède en revanche le calcul du paramètre propre et
-le bootstrap. Elle émet en outre, sans refuser le calcul, l'avertissement relatif
-à une colonne $J-3$ ou $J-2$ à facteurs individuels tous égaux, décrit dans le tableau
-ci-dessous et justifié au §\ref{sec:mw}.
+le bootstrap. Elle émet en outre, sans refuser le calcul, trois avertissements décrits dans
+le tableau ci-dessous~: colonne $J-3$ ou $J-2$ à facteurs individuels tous égaux (justifié au
+§\ref{sec:mw}), colonnes sans résidu de Mack, réserve faible devant son incertitude.
+\code{engine\_lire\_triangle()} convertit en amont le tableau lu en triangle~: une cellule vide
+vaut « non observée », une cellule non vide et non numérique est refusée avec sa position,
+jamais lue comme manquante~; elle appelle ensuite \code{mw\_valider\_triangle()} (issue~\#33).
 
 \textbf{Son fondement n'est pas le même que celui des autres contrôles}, et c'est
 l'exception annoncée ci-dessus. Tous les autres relèvent des exigences de données
@@ -1673,12 +1689,18 @@ exporté à côté d'un triangle refusé.
 \textcolor{financeblue}{\textbf{Justification}} \\
 Profondeur minimale & $T \ge 5$ & Annexe XVII, B/C(2)(b). Bloquant. \\
 Valeurs manquantes & aucun \code{NA} & Art.~19 : exhaustivité. Bloquant. \\
+Valeurs finies & aucune valeur infinie & Art.~19 : exactitude~; refus explicite au lieu
+d'une erreur R en cours de calcul (issue~\#33). Bloquant. \\
 Positivité de $x_t$ & $\min_t x_t > 0$ & $r_t = y_t/x_t$ doit être défini. Bloquant. \\
 Positivité de $y_t$ & $\min_t y_t > 0$ & Support de la loi lognormale. Bloquant. \\
 Doublons & aucun couple $(x_t,y_t)$ répété & Signale une duplication de ligne. \\
 Plausibilité du ratio & $r_t \in\, ]0\,;5[$ & Erreurs d'unité ou de saisie. \\
 Amplitude du volume & $\max_t x_t/\min_t x_t < 10$ & Rupture de périmètre probable. \\
 Crédibilité pleine & $T \ge 10$ (barème court) & Informatif, section~G annexe~XVII. \\
+Marge du test d'équivalence & $0 < \theta < 1$~; si $\Delta$ est fourni,
+$0 < \Delta < \bar y$, $\theta$ étant alors ignoré & Paramètre du TOST, non une donnée
+(fiche~\ref{fiche:tost-constante})~; contrôlé par \code{engine\_valider\_donnees()} seul.
+Bloquant. \\
 \end{tabular}
 \end{center}
 
@@ -1687,25 +1709,52 @@ Les contrôles non bloquants ci-dessus sont restitués dans \code{res\$controles
 comme avertissements~: \code{run\_engine()} produit le calcul (vérifié par exécution~:
 un ratio hors de $]0\,;5[$, une amplitude de volume de~10 ou plus, un couple dupliqué ou
 $T = 5$ laissent \code{ok = TRUE}~; une valeur manquante, un $y_t$ négatif ou $T = 4$
-donnent \code{ok = FALSE}).
+donnent \code{ok = FALSE}~; de même une valeur infinie, $\theta = 1$ ou
+$\Delta = \bar y$, mesuré sur le jeu de contrôle). Un contrôle de la famille~A qui ne peut pas
+être établi --- valeur manquante, séries de longueurs différentes --- vaut \code{ECHEC}, et son
+champ \code{detail} le dit («~contrôle non établi~») au lieu de juger les seules valeurs
+disponibles~; sous $T = 5$, la ligne de crédibilité sort \code{ECHEC} sans appeler le barème,
+qui n'y est pas défini (section~G). Ces cas ne se présentent pas dans \code{run\_engine()}, qui
+refuse de telles données en amont~; ils concernent un appel direct de
+\code{usp\_controle\_donnees()} (issue~\#33).
+
+\emph{Lecture des fichiers.} \code{engine\_lire\_donnees\_csv()} (colonnes $t$, \code{xt},
+\code{yt}) convertit une colonne de type facteur par ses valeurs (\code{.en\_numerique()}) et,
+si la colonne $t$ est présente, exige des années entières, finies, sans doublon et consécutives
+(annexe~XVII, B(2)(b) et C(2)(b)), puis range les lignes par $t$ croissant~; à défaut, le
+fichier est refusé, sans tri ni comblement. Sans colonne $t$, l'ordre du fichier est réputé
+chronologique et la consécutivité n'est pas vérifiable. \code{usp\_lire\_vecteur()} refuse une
+cellule vide ou non numérique au milieu de la série, en donnant sa position, parce que la
+retirer décalerait les années suivantes et désalignerait $x_t$ et $y_t$~; elle refuse aussi un
+tableau de plusieurs lignes et plusieurs colonnes~; seuls un en-tête et les cellules vides de
+tête et de fin sont écartés. Les fonctions réglementaires refusent explicitement une entrée hors
+domaine au lieu de la traiter en silence~: \code{usp\_credibilite()} une durée non entière,
+\code{.annexe\_verifiee()} une annexe autre que \code{"II"} ou \code{"XIV"} (auparavant lue
+comme l'annexe~II).
 
 \subsection*{Méthode Merz--Wüthrich (annexe XVII, section D, paragraphes 2, 4 et 5)}
 
-\begin{center}
-\small
+{\small
 \rowcolors{2}{tablerow}{white}
-\begin{tabular}{@{}p{4.4cm}p{5.0cm}p{5.4cm}@{}}
+\begin{longtable}{@{}p{4.4cm}p{5.0cm}p{5.4cm}@{}}
 \rowcolor{tableheader}
 \textcolor{financeblue}{\textbf{Contrôle}} &
 \textcolor{financeblue}{\textbf{Critère}} &
 \textcolor{financeblue}{\textbf{Justification}} \\
+\endfirsthead
+\rowcolor{tableheader}
+\textcolor{financeblue}{\textbf{Contrôle}} &
+\textcolor{financeblue}{\textbf{Critère}} &
+\textcolor{financeblue}{\textbf{Justification}} \\
+\endhead
 Années de survenance & $I + 1 \ge 5$ & D(2)(b). Bloquant. \\
 Années de développement & $J + 1 \ge 5$ & D(2)(c). Bloquant. \\
 Forme du triangle & $I + 1 \ge J + 1$ & D(2)(e). Bloquant. \\
 Géométrie carrée & $I = J$ & Restriction d'implémentation~: la formule du
 paragraphe~4 fait intervenir $C(i,I-i)$, indéfinie si $I - i > J$. Bloquant. \\
-Cellules observées & aucune valeur manquante pour $i + j \le I$ & Le
-chain-ladder exige la partie supérieure gauche complète. \\
+Cellules observées & aucune valeur manquante ni non finie pour $i + j \le I$ & Le
+chain-ladder exige la partie supérieure gauche complète~; une valeur non finie est un
+motif distinct d'une cellule manquante. \\
 Positivité des cumulés & $C(i,j) > 0$ & Les facteurs $F(i,j)$ et la pondération
 en $C(i,j)$ doivent être définis. \\
 Monotonie des cumulés & $C(i,j+1) \ge C(i,j)$ & Avertissement \emph{actuariel,
@@ -1733,10 +1782,21 @@ triangle, de même structure pour les trois chemins (colonne $J-3$, colonne
 $J-2$, les deux), seule la cause nommée variant. Le critère porte sur les
 facteurs, non sur une égalité à zéro en virgule flottante, que l'arrondi rend
 inopérante. \\
+Colonnes sans résidu de Mack \emph{(post-ajustement)} & $\hat\sigma^2_j = 0$ (facteurs
+individuels tous égaux à $\hat f_j$, égalité exacte) & \textbf{Avertissement}, non
+bloquant~: le résidu de Mack y vaut $0/0$ et n'est pas défini~; ces facteurs sont exclus des
+onze lignes de M1 à M5 fondées sur les résidus. Un seul avertissement par triangle, qui nomme
+les colonnes, compte les résidus exclus et retenus et cite ces lignes (issue~\#33). \\
+Réserve faible devant son incertitude \emph{(post-ajustement)} & $\sqrt{\mathrm{MSEP}}/\hat R
+\ge 1$ & \textbf{Avertissement}, non bloquant~: D(4) définit le paramètre pour tout
+$\hat R > 0$, sans plancher ni plage~; le repère~1 est un repère de lecture, sans fondement
+réglementaire ni statistique (aucun $\sigma_{(\text{res},s)}$ des annexes~II et~XIV n'excède
+$22~\%$)~; deux lectures, réserve résiduelle d'un segment en run-off ou triangle anormalement
+volatil (décision du mainteneur du 24~septembre 2026, issue~\#33). \\
 Crédibilité pleine & $I + 1 \ge 10$ (barème court) & Informatif~; à défaut,
 $\hat\sigma_j^2$ repose sur deux ou trois observations en fin de triangle. \\
-\end{tabular}
-\end{center}
+\end{longtable}
+}
 
 \medskip
 \begin{encadre}
@@ -3200,7 +3260,15 @@ en outre une \emph{marge d'équivalence} $\Delta > 0$, qui n'est pas une quantit
 un seuil économique~: en deçà de $\Delta$, une composante fixe de sinistralité est jugée sans
 portée pratique. Le moteur propose deux modes~: $\Delta$ fixée a priori
 (\code{delta\_equiv}), ou $\Delta = \theta\,\bar y$ (\code{theta\_equiv}, 10~\% par défaut),
-c'est-à-dire une fraction de la perte annuelle moyenne.
+c'est-à-dire une fraction de la perte annuelle moyenne. Domaines (issue~\#33)~: $\theta$ réel
+fini, $0 < \theta < 1$~; si $\Delta$ est fournie, réel fini, $0 < \Delta < \bar y$, $\bar y$ étant
+la moyenne des $T$ pertes retenues, et $\theta$ est alors ignoré. Au-delà ($\theta \ge 1$ ou
+$\Delta \ge \bar y$), l'hypothèse $H_1 : |a| < \Delta$ contiendrait le modèle $a = \bar y$,
+$b = 0$, négation de la proportionnalité, et un rejet de $H_0$ ne se lirait plus comme une
+proportionnalité pratique. Aucune borne plus serrée n'est imposée~: le choix de la marge relève
+du dossier. Une marge hors domaine est une erreur d'entrée, refusée par
+\code{engine\_valider\_donnees()}~: \code{run\_engine()} rend alors \code{ok = FALSE} avec le
+motif (mesuré~: $\theta = 1$ et $\Delta = \bar y$ sont refusés sur le jeu de contrôle).
 \Hzero
 \[
   H_0 : |a| \ge \Delta \quad\text{(la constante n'est \emph{pas} négligeable)}
@@ -3239,7 +3307,9 @@ Deux cas sont restitués «~non applicable~», sans p-value retenue et en \code{
 invalide (sans \code{delta\_equiv}~: \code{theta\_equiv} non fini ou $\theta \le 0$~; avec
 \code{delta\_equiv}~: $\Delta$ non finie ou non strictement positive, $\theta$ étant alors
 ignoré)~; les volumes constants priment sur la marge, et le commentaire de la ligne nomme le
-motif.
+motif. Depuis l'issue~\#33, la garde « marge » de \code{test\_tost\_intercept()} est
+inatteignable depuis \code{run\_engine()}, dont la validation refuse en amont toute marge hors
+domaine~; elle ne sert plus qu'à un appel direct de la fonction.
 \Usage
 C'est le seul test du dispositif qui puisse fournir une \emph{preuve positive} de la
 proportionnalité exigée par l'annexe~XVII. Sa limite est celle de tous les tests à $T = 8$~: la
@@ -4279,14 +4349,19 @@ $P = M$, n'est plus qu'une approximation de la loi de $\mathrm{DW}$, sans borne 
 On écrit $\mathbb{P}(\mathrm{DW} \le c) = \mathbb{P}\big(z'(A - cI)z \le 0\big)$, queue d'une
 forme quadratique évaluée par la méthode d'Imhof (1961)~:
 \[
-  \mathbb{P}(Q > 0) = \frac{1}{2} - \frac{1}{\pi}\int_0^{\infty}
+  \mathbb{P}(Q > 0) = \frac{1}{2} + \frac{1}{\pi}\int_0^{\infty}
   \frac{\sin\theta(u)}{u\,\rho(u)}\,\mathrm{d}u,
   \quad
   \theta(u) = \tfrac12\sum_j \arctan(h_j u),
   \quad
   \rho(u) = \prod_j \big(1 + h_j^2u^2\big)^{1/4},
 \]
-avec $h_j = \lambda_j - c$. La p-value bilatérale est
+avec $h_j = \lambda_j - c$ (Imhof, 1961, $\mathbb{P}(Q > x)$ en $x = 0$~;
+\code{.imhof\_p\_sup0()}). Jusqu'à l'issue~\#33, la fonction et la présente fiche portaient un
+signe «~$-$~» devant l'intégrale, qui rendait $\mathbb{P}(Q < 0)$ au lieu de
+$\mathbb{P}(Q > 0)$~; la p-value bilatérale, symétrique en les deux queues, n'en dépendait pas
+(écart maximal $1{,}1\cdot 10^{-16}$ entre les deux signes, mesuré sur 300 séries gaussiennes
+de taille~8). La p-value bilatérale est
 $2\min\big(\mathbb{P}(\mathrm{DW} \le d),\, \mathbb{P}(\mathrm{DW} \ge d)\big)$.
 Le centrage retirant une dimension, l'intégration porte sur les $T-1$ valeurs propres non nulles
 de $A$ projetée sur l'orthogonal du vecteur constant, soit $MAM$ (\code{dw\_p\_exacte()}).
@@ -5550,7 +5625,10 @@ $\sigma_{\mathrm{USP}}$ seulement (celle du champ \code{estim})~; il n'est assoc
 aucune loi de référence ni à aucun niveau et ne produit aucun verdict~; jusqu'à l'issue~\#24, le
 script marquait \code{ALERTE} au-delà de 10~\% et \code{ECHEC} au-delà de 20~\%. Le commentaire
 le rappelait jusqu'à la décision M27 du mainteneur (issue~\#76)~; il est désormais énoncé ici
-seulement. Aucun repère
+seulement. Le graphique d'influence de la branche lognormale (écart relatif de
+$\sigma_{\mathrm{USP}}$ au retrait de chaque année) ne se sert que du repère de 10~\%~: il
+colore les années dont l'écart dépasse strictement 10~\% en valeur absolue (constante
+\code{REPERE\_INFLUENCE\_SIGMA} du moteur, issue~\#33), sans tracer celui de 20~\%. Aucun repère
 n'est donné sur l'échelle de la part estimée~: transposer 10~\% ou 20~\% sur cette échelle
 reviendrait à les multiplier par $\sigma_{\mathrm{USP}}/\big(c\sqrt{(T+1)/(T-1)}\,\hat\sigma\big)$,
 rapport qui dépend de la table de l'annexe, et un repère fixe propre à cette échelle n'aurait
@@ -5965,7 +6043,11 @@ son repère conventionnel $4/T$ (sans verdict, fiche~\ref{fiche:cook}). Le trois
 exploitable en dossier~: il représente l'écart relatif sur $\sigma_{\mathrm{USP}}$
 induit par le retrait de chaque année, issu du jackknife. À $T = 8$, il n'est pas
 rare qu'une seule année déplace le paramètre de plus de 10~\%, ce que la seule
-lecture des distances de Cook ne montre pas.
+lecture des distances de Cook ne montre pas. Les années dont l'écart dépasse ce repère de
+10~\% sont colorées (constante \code{REPERE\_INFLUENCE\_SIGMA} du moteur~; repère de lecture sans
+verdict, fiche~\ref{fiche:jackknife})~; le graphique DFBETA de la méthode Merz--Wüthrich colore
+de même les cellules au-delà de $2~\%$ (\code{REPERE\_DFBETA\_MW}, repère sans source,
+fiche~\ref{mw:influence}).
 
 \medskip
 \textbf{Transposition à la méthode Merz--Wüthrich.} Le facteur $\hat f_j$ étant
@@ -6038,7 +6120,12 @@ que les dernières colonnes ne reposent que sur deux ou trois points.
 
 \medskip
 Le graphique des ordonnées à l'origine résume les mêmes informations sous forme
-compacte, les colonnes significatives étant mises en évidence. Celui de la
+compacte, les colonnes significatives étant mises en évidence~: celles dont la p-value de
+Student par colonne est inférieure au seuil $\alpha$ du calcul (\code{res\$metadata\$alpha}),
+lu par \code{plot\_mw\_origine(pd, alpha)} et par la note \code{note\_m1(pd, alpha)} qui les
+compte, et non plus fixé à $0{,}10$ dans l'affichage (issue~\#4, piste~3). Cette coloration
+colonne par colonne est une aide de lecture~: elle ne tient pas compte de la multiplicité des
+colonnes, et le verdict est celui de la fiche~\ref{mw:m1a}. Celui de la
 famille $\alpha$ chiffre l'enjeu du choix de pondération~: des courbes
 confondues signifient que la question est sans portée pratique sur le triangle
 considéré~; des courbes qui divergent sur une colonne désignent celle où
@@ -6079,8 +6166,14 @@ Sans objet.
 Le premier graphique croise levier et résidu de Mack~: il sépare les cellules
 atypiques par leur \emph{poids} de celles qui sont réellement influentes. Le
 deuxième donne le DFBETA cellule par cellule, directement interprétable~: de
-combien le facteur de développement bougerait si cette cellule était retirée. Le
-troisième compare, année de survenance par année de survenance, la part de la
+combien le facteur de développement bougerait si cette cellule était retirée. Il colore les
+cellules dont la variation relative dépasse $2~\%$ en valeur absolue (constante
+\code{REPERE\_DFBETA\_MW} du moteur, issue~\#33). Ce repère de lecture est propre à l'outil,
+hérité de l'affichage~: il n'a \textbf{aucune source}, ni statistique ni réglementaire, et ne
+produit aucun verdict~; il n'est pas non plus le repère $2/\sqrt{n}$ de D.\,A. Belsley, E.~Kuh et R.\,E. Welsch
+(\emph{Regression Diagnostics: Identifying Influential Data and Sources of Collinearity}, Wiley,
+1980), qui porte sur un DFBETAS standardisé et non sur une variation relative non standardisée
+(issue~\#89). Le troisième compare, année de survenance par année de survenance, la part de la
 réserve et la part de la variance de processus de la MSEP.
 
 \medskip
@@ -6242,15 +6335,19 @@ Parce que la variance ainsi annulée n'est, en général, pas nulle en réalité
 refus, le cas étant licite au regard du texte --- nommant la ou les colonnes
 dégénérées, le nombre de facteurs individuels concernés, leur valeur commune,
 l'écart relatif maximal mesuré, les trois arguments du minimum et la valeur
-retenue. Lorsque des facteurs individuels des colonnes dégénérées n'ont pas de
-résidu de Mack ($\hat\sigma_j^2$ exactement nul), leur nombre, lu dans la
-sortie de \code{mw\_residus()}, est donné avec les onze lignes de M1 à M5 qui
-consomment ces résidus (constante \code{.MW\_LIGNES\_RESIDUS})~: M1, absence de
+retenue. Que des facteurs individuels n'aient pas de résidu de Mack
+($\hat\sigma_j^2$ exactement nul) n'y est plus dit depuis l'issue~\#33~: un avertissement
+général, unique par triangle, couvre toute colonne exclue, $J-3$ et $J-2$ comprises, sans
+doublon. \code{mw\_residus()} consigne ces colonnes dans l'attribut \code{colonnes\_exclues}
+(retiré avant le stockage des résidus dans le résultat, dont la structure est inchangée), et
+\code{mw\_valider\_ajustement()} nomme chacune, compte les résidus exclus et retenus et cite les
+onze lignes de M1 à M5 qui consomment ces résidus (constante \code{.MW\_LIGNES\_RESIDUS})~: M1, absence de
 tendance des facteurs~; M2, hétéroscédasticité résiduelle, adéquation de
 l'exposant de variance et variance unitaire des résidus~; M3, homogénéité entre
 années de survenance, Durbin--Watson et test des suites~; M4, Grubbs et ESD
 généralisé~; M5, Shapiro--Wilk et Lilliefors. Lorsque $\hat f_{J-2}$ ou
-$\hat f_{J-1}$ diffère de~1, il ajoute que le développement n'est pas achevé,
+$\hat f_{J-1}$ diffère de~1, l'avertissement relatif aux colonnes dégénérées ajoute que le
+développement n'est pas achevé,
 que la variance omise n'est donc pas nulle en réalité et que
 $\sigma_{(\text{res},s,\mathrm{USP})}$ s'en trouve sous-estimé. La détection
 porte sur l'égalité des facteurs individuels des colonnes $J-3$ et $J-2$, et
@@ -7915,10 +8012,13 @@ Merz--Wüthrich~: tests et diagnostics M1 à M6 (sections~\ref{sec:mwm1}
 à~\ref{sec:mwm6}) & \code{mw\_tests()} \\
 Merz--Wüthrich~: leviers, DFBETA et contributions par année de survenance
 (fiche~\ref{mw:influence}) & \code{mw\_influence()}, \code{mw\_contributions()} \\
-Contrôles de validité & \code{engine\_valider\_donnees()}, \code{usp\_controle\_donnees()},
-\code{mw\_valider\_triangle()}, \code{mw\_valider\_ajustement()} \\
+Contrôles de validité (§\ref{sec:controles}) & \code{engine\_valider\_donnees()}, \code{usp\_controle\_donnees()},
+\code{mw\_valider\_triangle()}, \code{mw\_valider\_ajustement()}~;\newline lecture des
+fichiers~: \code{engine\_lire\_donnees\_csv()}, \code{usp\_lire\_vecteur()},
+\code{engine\_lire\_triangle()} \\
 Quantités des graphiques & \code{engine\_plots\_data()} (branche lognormale),\newline
-\code{mw\_plots\_data()} (branche Merz--Wüthrich) \\
+\code{mw\_plots\_data()} (branche Merz--Wüthrich)~; repères de lecture des graphiques
+d'influence \code{REPERE\_INFLUENCE\_SIGMA} et \code{REPERE\_DFBETA\_MW} \\
 Tirages aléatoires et graines (§\ref{sec:graines}) & \code{engine\_sous\_graine()}, par
 laquelle passent toutes les sources~: \code{usp\_bootstrap()} (tirages de
 \code{usp\_simuler()}), \code{mw\_bootstrap()} (tirages de
