@@ -599,6 +599,13 @@ colonne, \code{\$degeneree\_Jm3} (champs historiques \code{\$colonne},
 \code{\$degeneree\_Jm2} (\code{\$nb\_facteurs\_Jm2},
 \code{\$ecart\_relatif\_Jm2}, \code{\$f\_colonne\_Jm2}), et leur union
 \code{\$degeneree} \\
+\code{.mw\_ecart\_facteurs()},\newline \code{.mw\_colonne\_degeneree()},\newline
+\code{.mw\_colonnes\_degenerees()} & \code{aj}, $j$, \code{tol} ($10^{-12}$) & écart relatif
+maximal des facteurs individuels à $\hat f_j$~; prédicat unique de colonne dégénérée~; ensemble
+des colonnes dégénérées, figé à l'observé par \code{mw\_bootstrap()} (fiche~\ref{mw:m1a}) \\
+\code{.mw\_j\_exclues()},\newline \code{.mw\_stat\_non\_definie()} & \code{aj},
+\code{j\_degeneres} & colonnes exclues d'une vérification de M1~; résultat \code{NA} d'une
+réplication où une colonne retenue devient dégénérée \\
 \code{mw\_msep()} & \code{aj} & \code{\$msep}, \code{\$terme\_variance},
 \code{\$terme\_covariance} \\
 \code{mw\_residus()} & \code{aj} & \code{data.frame} des résidus de Mack
@@ -606,8 +613,8 @@ $r(i,j)$ \\
 \code{mw\_simuler\_triangle()}, \code{.mw\_stats()} & \code{aj}, vivier de
 résidus~; \code{aj} & triangle simulé~; vecteur de 13 statistiques \\
 \code{mw\_test\_*()}, \code{mw\_famille\_alpha()},
-\code{mw\_stat\_correlation\_dev()} & \code{aj} & statistiques des tests M1 à
-M6 (détail~: §\ref{sec:index-fonctions}) \\
+\code{mw\_stat\_correlation\_dev()} & \code{aj}~; argument \code{j\_degeneres} des trois
+vérifications colonne par colonne de M1 (\code{NULL}~: ensemble calculé sur \code{aj}) & statistiques des tests M1 à M6 (détail~: §\ref{sec:index-fonctions}) \\
 \code{mw\_tests()} & \code{aj}, \code{boot}, \code{alpha} (0,10) &
 liste des tests M1 à M6 (même structure que \code{usp\_tests()}, même fonction
 d'enregistrement \code{engine\_registre\_tests()}) \\
@@ -1313,11 +1320,11 @@ Tendance avec le cumulé, à colonne donnée & \ref{mw:m1} &
 \code{.mw\_lm\_intra()} (via \code{.mw\_pente\_intra()}) &
 idem (p de Student, approchée) & \code{PenteIntra} \\
 Ordonnée à l'origine par colonne & \ref{mw:m1a} &
-\code{mw\_test\_ordonnee\_origine()} &
+\code{mw\_test\_ordonnee\_origine()}~; colonnes dégénérées par \code{.mw\_colonne\_degeneree()} &
 idem (p de Fisher, via \code{.fisher\_combine()}) & \code{Origine} \\
-Homogénéité de $f_j$ & \ref{mw:m1b} & \code{mw\_test\_homogeneite\_f()} &
+Homogénéité de $f_j$ & \ref{mw:m1b} & \code{mw\_test\_homogeneite\_f()}, même exclusion &
 idem (p de Fisher) & \code{HomogF} \\
-Absence de courbure & \ref{mw:m1c} & \code{mw\_test\_courbure()} &
+Absence de courbure & \ref{mw:m1c} & \code{mw\_test\_courbure()}, même exclusion &
 idem (p de Fisher) & \code{Courbure} \\
 Famille $\alpha$ & \ref{mw:m1d} & \code{mw\_famille\_alpha()} &
 \textbf{aucune} (pas de loi analytique) & \code{Alpha} \\
@@ -6739,6 +6746,24 @@ proportionnalité stricte exigée par D(2)(h)(iii).
 Statistique de Student $t_j = \hat a_j / \widehat{\mathrm{se}}(\hat a_j)$ dans
 chaque colonne, puis combinaison des $K$ p-values par la méthode de Fisher~:
 $X = -2\sum_{k} \ln p_k$.
+
+\emph{Colonnes dégénérées} (issue~\#56, règle commune aux trois vérifications colonne par
+colonne de M1, fiches~\ref{mw:m1a} à~\ref{mw:m1c}). Une colonne éligible dont les facteurs
+individuels sont tous égaux à $\hat f_j$, à $10^{-12}$ près en relatif
+($\max_i |F(i,j) - \hat f_j| \le 10^{-12}\,\hat f_j$, prédicat unique
+\code{.mw\_colonne\_degeneree()}, celui de la détection des colonnes $J-3$ et $J-2$, fiche~\ref{mw:m6sig}), n'a
+pas de statistique définie~: $t_j$, la corrélation de rang ou le terme quadratique y valent
+$0/0$. Elle est exclue de la combinaison de Fisher avant tout appel à \code{lm()} ou
+\code{cor.test()}, comme une colonne trop courte, et nommée dans le libellé de la ligne
+(«~$K$ colonne(s) testée(s) sur $n$ éligible(s)~»), sans champ nouveau~; l'exclusion ne vaut
+pas preuve de proportionnalité. Le seuil $10^{-12}$ est une convention de restitution, environ
+$10^{4}$ fois l'epsilon machine, et non un seuil statistique~; l'exclusion des résidus de
+Mack par \code{mw\_residus()} garde, elle, le critère $\hat\sigma^2_j = 0$ exact, divergence
+transitoire dont l'alignement est suivi par l'issue~\#60. La dernière colonne, qui n'a
+qu'un facteur individuel, appartient trivialement à l'ensemble, sans effet puisqu'elle n'est
+jamais éligible. Mesuré sur le triangle de contrôle rendu dégénéré en $j = 4$ (trois facteurs
+égaux)~: la colonne est exclue de la seule ligne d'ordonnée à l'origine, où elle est éligible
+($K = 4$ colonnes testées sur 5 éligibles), et \code{run\_engine()} n'émet aucun avertissement~R.
 \Loi
 $X \sim \chi^2(2K)$ \emph{si les colonnes étaient indépendantes}. Elles ne le
 sont pas tout à fait~: les colonnes $j$ et $j+1$ partagent le vecteur
@@ -6749,6 +6774,19 @@ résidus.
 p-value de Monte-Carlo retenue. Calibration vérifiée par simulation sous $H_0$
 (1\,500 triangles $10\times10$)~: 10,7~\% de rejets au seuil nominal de 10~\% et
 4,7~\% au seuil de 5~\%.
+
+\emph{Colonnes dégénérées dans le bootstrap.} L'ensemble des colonnes dégénérées (tolérance
+$10^{-12}$ relative) est déterminé sur le triangle observé et conservé dans chaque réplication,
+de sorte que $K$ est identique entre statistique observée et simulée~; une réplication dans
+laquelle une colonne retenue devient dégénérée n'a pas de statistique et est comptée hors de
+\code{B\_effectif} (\code{.mw\_colonnes\_degenerees()}, argument \code{j\_degeneres}). $K$ peut
+encore varier d'une réplication à l'autre pour une autre cause~: \code{.fisher\_combine()}
+écarte les p-values nulles, défaut antérieur à l'issue~\#56, suivi par l'issue~\#90. Limite
+mesurée et acceptée~: une colonne dont l'écart relatif dépasse à peine $10^{-12}$ reste soumise
+à \code{lm()}, dont le critère d'ajustement parfait (\code{summary.lm()}) n'est pas relatif et
+dépend de l'échelle des cumulés~; un avertissement~R peut alors encore apparaître, comme avant
+l'issue~\#56, jusqu'à un écart relatif de l'ordre de $10^{-11}$ sur le triangle où il a été
+mesuré. Ce voisinage est un constat sur ce triangle, non un seuil.
 \Usage
 C'est le test central de M1, et celui que la régression agrégée ne pouvait pas
 fournir. Il répond à la première des deux exigences du texte réglementaire~: une
@@ -6779,7 +6817,9 @@ l'année de survenance. Hypothèses non testées~: continuité, absence d'ex
 $H_0$ : le facteur $f_j$ est \emph{commun à toutes les années de survenance}~;
 les facteurs individuels ne présentent aucune tendance en $i$.
 \Stat
-$\hat\rho_{s,j}$ par colonne, p-values combinées par la méthode de Fisher.
+$\hat\rho_{s,j}$ par colonne, p-values combinées par la méthode de Fisher. Colonnes
+dégénérées exclues, dans l'observé comme dans le bootstrap, selon la règle de la
+fiche~\ref{mw:m1a}.
 \Loi
 $\chi^2(2K)$ approchée, avec la même réserve d'indépendance que la fiche
 précédente. Loi de référence~: bootstrap de résidus.
@@ -6805,7 +6845,8 @@ $1/C(i,j)$, sur les colonnes comptant au moins quatre observations.
 \Hzero
 $H_0 : c_j = 0$ dans chaque colonne.
 \Stat
-Statistique de Student sur $\hat c_j$, p-values combinées par Fisher.
+Statistique de Student sur $\hat c_j$, p-values combinées par Fisher. Colonnes dégénérées
+exclues, dans l'observé comme dans le bootstrap, selon la règle de la fiche~\ref{mw:m1a}.
 \Loi
 $\chi^2(2K)$ approchée. Loi de référence~: bootstrap de résidus.
 \Pval
