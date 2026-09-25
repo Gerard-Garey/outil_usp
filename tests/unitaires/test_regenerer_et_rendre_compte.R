@@ -9,7 +9,10 @@
 #  de structure, motifs sans effet, tableau markdown bien forme, et
 #  verification qu'aucune feuille hors motifs n'a bouge.
 #  Teste aussi extraire_option() et designer() de outils_tests.R, partagees
-#  avec patcher_reference.R.
+#  avec patcher_reference.R ; le mode creation (M31) ; et, pour plusieurs cas
+#  (M33), lire_arguments() (motifs par cas, doublons, noms invalides),
+#  commande_rejouable(), remplacer_references() (tout ou rien, restauration)
+#  et references_hors_liste() (md5 des .rds hors liste).
 ###############################################################################
 
 if (!exists("verifier", mode = "function")) {
@@ -322,5 +325,104 @@ verifier("commande_rejouable : --creer apres le nom du cas",
          identical(rg$commande_rejouable("premium_ii6", character(0), "61", ecrire = TRUE,
                                          batteries = TRUE, creer = TRUE),
                    "Rscript tests/regenerer_et_rendre_compte.R premium_ii6 --creer --issue 61 --ecrire"))
+
+## --- Plusieurs cas (M33) -------------------------------------------------------
+# Reference : specification M33 (ADR 0011, complement du 24/09/2026) --
+# motifs attendus par cas, tout ou rien, cas seul inchange. Fichiers ecrits
+# dans un dossier temporaire, jamais dans tests/reference/.
+la <- rg$lire_arguments
+verifier("lire_arguments : un cas, motifs avant ou apres le nom, dans l'ordre (usage anterieur)",
+         { x <- la(c("--attendu", "a", "premium", "--attendu", "b", "--issue", "40", "--ecrire"))
+           identical(x$cas, "premium") && identical(x$motifs, list(premium = c("a", "b"))) &&
+             identical(x$issue, "40") && x$ecrire && x$batteries && !x$creer })
+verifier("lire_arguments : plusieurs cas, chaque --attendu rattache au dernier cas nomme",
+         { x <- la(c("premium", "--attendu", "a", "--attendu", "b", "reserve2", "--attendu", "c",
+                     "--issue", "40", "--sans-batteries"))
+           identical(x$cas, c("premium", "reserve2")) &&
+             identical(x$motifs, list(premium = c("a", "b"), reserve2 = "c")) && !x$batteries })
+verifier("lire_arguments : cas sans motif conserve (vecteur vide)",
+         identical(la(c("premium", "reserve1", "--attendu", "c"))$motifs,
+                   list(premium = character(0), reserve1 = "c")))
+verifier("lire_arguments : refus d'un doublon, d'un motif avant le premier de plusieurs cas, d'un nom invalide ou inconnu",
+         leve(la(c("premium", "--attendu", "a", "premium", "--attendu", "b"))) &&
+           leve(la(c("--attendu", "a", "premium", "reserve1"))) &&
+           leve(la(c("premium", "../x"))) && leve(la(c("Premium"))) &&
+           leve(la(c("premium", "inconnu_x"))))
+verifier("lire_arguments : --creer a plusieurs cas, --ecrire sans --issue, --issue double ou non numerique, aucun cas -> erreur",
+         leve(la(c("premium", "reserve1", "--creer"))) && leve(la(c("premium", "--ecrire"))) &&
+           leve(la(c("premium", "--issue", "1", "--issue", "2"))) && leve(la(c("premium", "--issue", "x"))) &&
+           leve(la(c("--issue", "1"))) && leve(la(c("premium", "--attendu"))))
+verifier("lire_arguments : valeur de --attendu egale a un drapeau ou commencant par -- refusee, drapeaux lus a leur place",
+         leve(la(c("premium", "--attendu", "--sans-batteries", "reserve1", "--attendu", "b"))) &&
+           leve(la(c("premium", "--attendu", "--ecrire", "--issue", "40"))) &&
+           leve(la(c("premium", "--attendu", "--x"))) && leve(la(c("premium", "--issue", "--ecrire"))) &&
+           { x <- la(c("premium", "--sans-batteries", "--attendu", "a", "reserve1", "--attendu", "b",
+                       "--issue", "40", "--ecrire"))
+             !x$batteries && x$ecrire && !x$creer &&
+               identical(x$motifs, list(premium = "a", reserve1 = "b")) })
+verifier("commande_rejouable : un cas, motifs en liste = motifs en vecteur (sortie d'avant M33)",
+         identical(rg$commande_rejouable("premium", list(premium = c("a", "it's")), "40", TRUE, TRUE),
+                   rg$commande_rejouable("premium", c("a", "it's"), "40", TRUE, TRUE)))
+verifier("commande_rejouable : plusieurs cas, chacun suivi de ses --attendu ; relue par lire_arguments a l'identique",
+         { cmd <- rg$commande_rejouable(c("premium", "reserve2"), list(premium = c("a", "b"), reserve2 = "c|d"),
+                                        "40", ecrire = TRUE, batteries = FALSE)
+           # Relecture comme le ferait un shell POSIX (motifs sans apostrophe).
+           mots <- gsub("^'|'$", "", strsplit(sub("^Rscript tests/regenerer_et_rendre_compte.R ", "", cmd), " ")[[1]])
+           x <- la(mots)
+           identical(cmd, paste("Rscript tests/regenerer_et_rendre_compte.R premium --attendu 'a' --attendu 'b'",
+                                "reserve2 --attendu 'c|d' --issue 40 --ecrire --sans-batteries")) &&
+             identical(x$motifs, list(premium = c("a", "b"), reserve2 = "c|d")) && !x$batteries })
+verifier("tableau_markdown : ligne multi-cas seulement avec plusieurs cas",
+         { a <- analyser(base, apres1, "detail")
+           m1 <- rg$tableau_markdown(a, "premium", 40, "detail", cas_execution = "premium")
+           m2 <- rg$tableau_markdown(a, "premium", 40, "detail", cas_execution = c("premium", "reserve2"))
+           identical(m1, rg$tableau_markdown(a, "premium", 40, "detail")) &&
+             length(m2) == length(m1) + 1L &&
+             any(grepl("plusieurs cas (M33) : `premium`, `reserve2`", m2, fixed = TRUE)) })
+verifier("references_hors_liste : seuls des fichiers de la liste changent -> aucun ecart",
+         identical(rg$references_hors_liste(c(a.rds = "1", b.rds = "2", c.rds = "3"),
+                                            c(a.rds = "9", b.rds = "8", c.rds = "3"), c("a.rds", "b.rds")),
+                   character(0)))
+verifier("references_hors_liste : hors liste modifie, fichier disparu, fichier apparu",
+         { m <- rg$references_hors_liste(c(a.rds = "1", b.rds = "2", c.rds = "3"),
+                                         c(a.rds = "9", c.rds = "7", x.rds = "4"), "a.rds")
+           length(m) == 3L && any(grepl("^c.rds : modifie hors liste", m)) &&
+             any(grepl("^b.rds : disparu", m)) && any(grepl("^x.rds : apparu", m)) })
+.dm <- tempfile("multi-"); dir.create(.dm)
+fa <- file.path(.dm, "a.rds"); fb <- file.path(.dm, "b.rds"); fc <- file.path(.dm, "c.rds")
+for (f in c(fa, fb, fc)) saveRDS(base, f, version = 3)
+e0 <- rg$empreintes_references(.dm)
+cache_vide <- function() identical(sort(list.files(.dm, all.files = TRUE, no.. = TRUE)), c("a.rds", "b.rds", "c.rds"))
+verifier("remplacer_references : echec du 2e cas -> 1er cas restaure, aucune reference modifiee, aucun fichier residuel",
+         { mauvais <- apres1; mauvais$sigma <- 1   # sigma change hors motifs : verification en echec
+           lots <- list(list(apres = apres1, avant = base, designees = "tests[[2]]$detail", chemin = fa),
+                        list(apres = mauvais, avant = base, designees = "tests[[2]]$detail", chemin = fb))
+           e <- tryCatch(rg$remplacer_references(lots), error = function(e) conditionMessage(e))
+           is.character(e) && grepl("b.rds", e, fixed = TRUE) && grepl("2 reference(s) restauree(s)", e, fixed = TRUE) &&
+             identical(rg$empreintes_references(.dm), e0) && cache_vide() })
+verifier("remplacer_references : echec du 2e cas APRES sa substitution -> tous les md5 d'origine, aucun fichier residuel",
+         { # Enveloppe : le 2e appel substitue (vraie fonction), puis echoue,
+           # comme une relecture differente apres file.rename() (audit de M33).
+           vraie <- rg$remplacer_reference; appels <- 0L
+           rg$remplacer_reference <- function(...) {
+             appels <<- appels + 1L; n <- vraie(...)
+             if (appels == 2L) stop("relecture simulee differente apres substitution")
+             n }
+           lots <- list(list(apres = apres1, avant = base, designees = "tests[[2]]$detail", chemin = fa),
+                        list(apres = apres1, avant = base, designees = "tests[[2]]$detail", chemin = fb))
+           e <- tryCatch(rg$remplacer_references(lots), error = function(e) conditionMessage(e))
+           rg$remplacer_reference <- vraie
+           is.character(e) && appels == 2L && grepl("aucune reference modifiee", e, fixed = TRUE) &&
+             identical(rg$empreintes_references(.dm), e0) && cache_vide() })
+verifier("remplacer_references : succes -> cas de la liste remplaces, hors liste intact, aucun fichier residuel",
+         { lots <- list(list(apres = apres1, avant = base, designees = "tests[[2]]$detail", chemin = fa),
+                        list(apres = apres1, avant = base, designees = "tests[[2]]$detail", chemin = fb))
+           n <- rg$remplacer_references(lots)
+           e1 <- rg$empreintes_references(.dm)
+           identical(n, rep(length(rg$aplatir(base)) - 1L, 2L)) &&
+             identical(readRDS(fa), apres1) && identical(readRDS(fb), apres1) &&
+             !length(rg$references_hors_liste(e0, e1, c("a.rds", "b.rds"))) &&
+             e1[["c.rds"]] == e0[["c.rds"]] && e1[["a.rds"]] != e0[["a.rds"]] && cache_vide() })
+unlink(.dm, recursive = TRUE)
 
 fin_fichier()

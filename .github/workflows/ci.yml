@@ -18,7 +18,9 @@ jobs:
     # Image épinglée (issue #67, Q-O4) : la même que celle du workflow de
     # production des références (references.yml), pour que les références
     # soient testées sur la plateforme qui les produit. ubuntu-latest
-    # changerait d'image (et de BLAS) sans commit.
+    # changerait d'image sans commit. Le BLAS est fixé à part (action
+    # blas-reference ci-dessous) : l'épinglage de l'image ne l'empêchait
+    # pas de varier avec le processeur du runner (OpenBLAS).
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -27,6 +29,13 @@ jobs:
         with:
           # Même version que le poste de développement.
           r-version: "4.3.1"
+      # BLAS et LAPACK de référence, monothread, avec contrôle bloquant (R ne
+      # doit pas charger OpenBLAS) : même action que references.yml, pour que
+      # les références soient testées sous le BLAS qui les produit
+      # (décision du 24/09/2026, exécution 36055472513, #40, #67).
+      - name: BLAS et LAPACK de référence
+        id: blas
+        uses: ./.github/actions/blas-reference
       - name: Tests unitaires
         run: Rscript tests/test_unitaires.R
       - name: Reproductibilité et non-régression
@@ -36,9 +45,11 @@ jobs:
       # quand ce sont les tests unitaires qui échouent), publie le tableau des
       # écarts aux références dans le résumé du job, visible depuis la PR.
       # Ne s'exécute pas quand tout est vert (coût nul) ; R doit avoir été
-      # installé. Rapport seulement : un job en échec le reste.
+      # installé, sous le BLAS de référence (un tableau calculé sous un autre
+      # BLAS mêlerait la dérive de plateforme aux écarts). Rapport seulement :
+      # un job en échec le reste.
       - name: Tableau des écarts aux références (après un échec)
-        if: failure() && steps.installer_r.outcome == 'success'
+        if: failure() && steps.installer_r.outcome == 'success' && steps.blas.outcome == 'success'
         run: Rscript tests/comparer_references.R --markdown "$GITHUB_STEP_SUMMARY"
       # Issue #65 (décision Q-O3) : concordance documentation ↔ moteur en mode
       # strict, bloquante. Le script exécute le moteur : l'étape est dans ce

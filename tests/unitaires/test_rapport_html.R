@@ -51,7 +51,8 @@ xt <- c(104.20, 102.25, 109.34, 114.64, 118.41, 121.28, 132.40, 131.22)
 yt <- c(68.97, 76.76, 83.49, 95.38, 88.96, 70.22, 78.89, 117.37)
 tri <- unname(as.matrix(utils::read.csv(file.path(.racine, "tests", "donnees",
                                                   "triangle_mw.csv"))[, -1]))
-res_ln <- run_engine(xt = xt, yt = yt, methode = "premium", segment = 1, B = 99)
+res_ln <- run_engine(xt = xt, yt = yt, methode = "premium", segment = 1, B = 99,
+                     nature_donnees = "brutes")
 res_mw <- run_engine(methode = "reserve2", triangle = tri, segment = 1, B = 99)
 idt <- identite_code(.racine)
 png_ok <- isTRUE(capabilities("png"))
@@ -75,12 +76,14 @@ verifier("Empreintes : md5 de 32 caracteres hexadecimaux, donnees et resultat",
          all(grepl("^[0-9a-f]{32}$", c(e1$donnees, e1$resultat))))
 verifier("Empreintes : stables pour un meme res", identical(e1, e2))
 x2 <- xt; x2[1] <- 104.21
-e3 <- engine_empreinte(run_engine(xt = x2, yt = yt, methode = "premium", segment = 1, B = 99))
+e3 <- engine_empreinte(run_engine(xt = x2, yt = yt, methode = "premium", segment = 1, B = 99,
+                                  nature_donnees = "brutes"))
 verifier("Empreintes : changent si xt[1] change (donnees et resultat)",
          e3$donnees != e1$donnees && e3$resultat != e1$resultat)
 verifier("Empreintes : stables entre deux run_engine() a graine egale (hors horodatage)",
          identical(engine_empreinte(run_engine(xt = xt, yt = yt, methode = "premium",
-                                               segment = 1, B = 99))[c("donnees", "resultat")],
+                                               segment = 1, B = 99,
+                                               nature_donnees = "brutes"))[c("donnees", "resultat")],
                    e1[c("donnees", "resultat")]))
 verifier("Empreintes : texte canonique en %.17g, recalculable",
          grepl("1;104.2;68.969999999999999", e1$texte_donnees, fixed = TRUE) && {
@@ -91,13 +94,14 @@ verifier("Empreintes : triangle Merz-Wuthrich, cellules non observees ecrites NA
          grepl(";NA\n", engine_empreinte(res_mw)$texte_donnees, fixed = TRUE))
 
 res_refus <- run_engine(xt = c(1, NA, 3, 4), yt = c(1, 2, 3, 4), methode = "premium",
-                        segment = 1, B = 99)
+                        segment = 1, B = 99, nature_donnees = "brutes")
 e_refus <- engine_empreinte(res_refus)
 verifier("Empreintes : resultat refuse (ok = FALSE), donnees NA, empreinte md5 de l'objet refuse, stable",
          !isTRUE(res_refus$ok) && is.na(e_refus$donnees) && is.na(e_refus$texte_donnees) &&
          grepl("^[0-9a-f]{32}$", e_refus$resultat) &&
          identical(engine_empreinte(run_engine(xt = c(1, NA, 3, 4), yt = c(1, 2, 3, 4),
-                                               methode = "premium", segment = 1, B = 99)),
+                                               methode = "premium", segment = 1, B = 99,
+                                               nature_donnees = "brutes")),
                    e_refus))
 
 ## --- Rapport fige, branche PNG, methode lognormale ----------------------------
@@ -221,7 +225,8 @@ verifier("Rapport : selection NULL = selection par defaut",
          })
 verifier("Rapport : refus explicite sur un resultat refuse ou une selection d'un autre resultat",
          leve_erreur(rapport_html(run_engine(xt = xt[1:4], yt = yt[1:4], methode = "premium",
-                                             segment = 1, B = 99), NULL, tempfile())) &&
+                                             segment = 1, B = 99, nature_donnees = "brutes"),
+                                  NULL, tempfile())) &&
          leve_erreur(rapport_html(res_ln, selection_defaut(engine_table_tests(res_mw)), tempfile())))
 
 ## --- Rapport fige, Merz-Wuthrich ----------------------------------------------

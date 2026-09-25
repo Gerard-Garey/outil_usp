@@ -189,11 +189,6 @@ verifier("usp_simuler : E[Y_t/x_t] = beta et Var(ln Y_t) = 1/pi_t",
              isTRUE(proche(apply(log(S), 2, stats::var), 1 / f_i$pi, rel = 0.05))
          })
 
-# Constat d'audit : avec une valeur infinie (acceptee par la validation, voir
-# test_controles_entree.R), l'objectif vaut la penalite 1e12 en tout point ;
-# le premier demarrage est retenu comme optimum et sigma = Inf est renvoye
-# sans erreur.
-# Issue #33 (defaut releve par audit, repris de l'issue #7)
 ## --- usp_regime : tolerance unique delta au bord / pi_t constant (issue #31) --
 # pi_t est constant en t si et seulement si delta = 1 ou x_t constant ; les
 # deux drapeaux partagent TOL_DELTA_BORD (seuils a tau/2 et 2 tau de part et
@@ -264,12 +259,19 @@ verifier("usp_ajuster : liste exacte des champs de l'ajustement (structure des r
 # apres ecart_jackknife et largeur_ic.
 verifier("run_engine : res$ajustement se termine par kkt_au_moins_un (condition de patchabilite des references)",
          {
-           r <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II", B = 99)
+           r <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II", B = 99,
+                           nature_donnees = "brutes")
            identical(utils::tail(names(r$ajustement), 1), "kkt_au_moins_un") &&
              all(c("ecart_jackknife", "largeur_ic") %in% names(r$ajustement))
          })
-echec_attendu("usp_ajuster : erreur explicite si l'objectif n'est fini en aucun point",
-              "constat audit : y[3] = Inf -> sigma = Inf, obj_min = 1e12, sans erreur",
-              leve_erreur(usp_ajuster(x, replace(y, 3, Inf))))
+# Issue #33 (defaut releve par audit, repris de l'issue #7), corrige : avec
+# une valeur infinie, l'objectif valait la penalite 1e12 en tout point ; le
+# premier demarrage etait retenu comme optimum et sigma = Inf renvoye sans
+# erreur (la validation refuse desormais Inf en amont, test_controles_entree.R).
+verifier("usp_ajuster : erreur explicite si l'objectif n'est fini en aucun point (#33)",
+         {
+           e <- tryCatch(usp_ajuster(x, replace(y, 3, Inf)), error = function(e) conditionMessage(e))
+           is.character(e) && grepl("n'est fini en aucun point", e, fixed = TRUE)
+         })
 
 fin_fichier()

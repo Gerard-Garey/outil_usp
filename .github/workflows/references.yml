@@ -1,5 +1,6 @@
 # Production des références de non-régression par la CI (issue #67, jalon
-# J10 ; ADR 0006 point 2, compléments Q-O4 validés le 24/09/2026).
+# J10 ; ADR 0006 point 2, compléments Q-O4 validés le 24/09/2026 ; ADR 0011
+# et ses compléments M30, M31, M33).
 #
 # Ce workflow ne s'exécute que sur déclenchement manuel (workflow_dispatch).
 # Il n'utilise aucun secret, ne pousse rien et n'écrit rien dans le dépôt :
@@ -18,35 +19,84 @@
 # dans le journal, dans le résumé du job et dans l'artefact (plateforme.txt,
 # sessionInfo.txt), puis reportés dans le message du commit des .rds.
 #
+# BLAS et LAPACK de référence, monothread (décision du mainteneur du
+# 24/09/2026, M34, ADR 0011 amendé) : l'image épinglée chargeait OpenBLAS,
+# qui choisit ses noyaux selon le processeur du runner ; deux exécutions sur
+# la même image et le même R différaient hors motifs (exécution refusée
+# 36055472513, mode regeneration pour #40 : 5 526 feuilles hors motifs par
+# cas lognormal, 5 583 − 57, écart maximal 3,508e-07 ; 45 sur reserve2), et
+# le mode regeneration ne pouvait pas passer. L'action locale
+# .github/actions/blas-reference, PARTAGÉE avec ci.yml (job « Tests du
+# moteur »), sélectionne libblas3 et liblapack3 par update-alternatives,
+# pose OPENBLAS_NUM_THREADS=1 en garde et échoue, avant tout calcul, si R ne
+# charge pas le BLAS et le LAPACK de référence d'Ubuntu (LAPACK 3.10.0).
+# Le processeur du runner (modèle et drapeaux fma, avx2, avx512f) est
+# consigné dans plateforme.txt, avec ImageOS et ImageVersion.
+#
 # Trois modes (entrée « mode ») :
 #
-#   bascule       (une seule fois : passage des références du poste à la CI)
+#   bascule       (tout changement de plateforme de calcul -- BLAS ou
+#                 LAPACK, image, version de R --, sur décision du
+#                 mainteneur ; M34 : première bascule, poste → CI, #67 ;
+#                 deuxième, OpenBLAS → BLAS de référence, 24/09/2026)
+#     0. Liste des cas : TOUS les cas de CAS (tests/outils_tests.R) du
+#        commit calculé (quatre au 24/09/2026 : premium, reserve1,
+#        reserve2, premium_ii6), consignée dans cas.txt ; refus si un .rds
+#        de tests/reference/ n'est pas un cas de CAS (un cas de CAS sans
+#        .rds est refusé à l'étape 1 : référence absente).
 #     1. tests/comparer_references.R --deux-parts : tableau avant / après
-#        des trois cas contre les références versionnées, AVANT toute
-#        écriture, en deux parts :
-#          - part numérique : dérive de plateforme attendue, au plus
-#            ~3,5e-07 sur premium et reserve1, ~1,3e-13 sur reserve2
-#            (mesures de l'ADR 0006) ;
+#        de tous les cas de CAS contre les références versionnées, AVANT
+#        toute écriture, en deux parts :
+#          - part numérique : dérive de plateforme, au plus 1e-6
+#            (TOLERANCE) ; aucune attente numérique n'est écrite ici :
+#            l'ordre de grandeur est celui que mesure le tableau pour CE
+#            changement (M34, point 3) ;
 #          - part non numérique (chaînes, booléens, verdicts, NA,
 #            structure) : doit être VIDE.
 #        Le job échoue (« BASCULE REFUSEE ») si la part non numérique n'est
 #        pas vide ou si un écart numérique dépasse 1e-6 : aucune référence
 #        n'est alors produite ni publiée.
-#     2. tests/generer_references.R : régénère les trois .rds. Le script
-#        n'a pas de répertoire de sortie : il écrit dans tests/reference/
-#        du checkout jetable du runner (sans effet sur le dépôt), après la
-#        comparaison de l'étape 1 ; les trois fichiers sont copiés dans
-#        l'artefact.
+#     2. tests/generer_references.R : régénère le .rds de chaque cas de
+#        CAS. Le script n'a pas de répertoire de sortie : il écrit dans
+#        tests/reference/ du checkout jetable du runner (sans effet sur le
+#        dépôt), après la comparaison de l'étape 1 ; refus si git status
+#        sous tests/reference/ montre autre chose que des .rds de CAS
+#        modifiés ; les .rds de tous les cas de CAS sont copiés dans
+#        l'artefact (md5 dans md5.txt).
 #     3. tests/test_reproductibilite.R contre ces nouvelles références :
 #        la CI sera verte après leur commit.
 #
-#   regeneration  (après la bascule : toute régénération ordinaire d'un cas)
-#     tests/regenerer_et_rendre_compte.R <cas> --attendu ... --issue NN
-#     --ecrire : refus si une feuille change hors des motifs attendus,
-#     écriture atomique, tableau avant / après, relance des deux batteries.
-#     Entrées : cas, attendu (motifs séparés par « ; »), issue. Avant la
-#     bascule, ce mode est refusé par construction : la dérive poste / CI
-#     touche des feuilles hors motifs.
+#   regeneration  (après la bascule : toute régénération ordinaire d'un ou
+#                 de plusieurs cas existants ; M33, ADR 0011 complété le
+#                 24/09/2026)
+#     tests/regenerer_et_rendre_compte.R <cas1> --attendu … [<cas2>
+#     --attendu … …] --issue NN --ecrire, chaque cas suivi de SES motifs :
+#     chaque cas recalculé et vérifié à son tour contre ses motifs (refus
+#     si une feuille change hors de ses motifs attendus), tableau avant /
+#     après par cas (docs/tableaux/AAAAMMJJ-issueNN-<cas>.md) ; TOUT OU
+#     RIEN : un seul cas refusé, aucune référence écrite ; sinon écriture
+#     atomique de chaque cas, puis les deux batteries relancées UNE SEULE
+#     FOIS, après le dernier cas, sur l'ensemble des références ainsi
+#     rendu cohérent (un commit qui change plusieurs cas, comme #40 qui en
+#     change quatre, se régénère en UNE exécution : régénérer un cas seul
+#     laisserait les autres en écart et la batterie refuserait). Le
+#     workflow vérifie en outre que les md5 des .rds hors liste n'ont pas
+#     changé et que git status sous tests/reference/ ne montre que des
+#     .rds de la liste modifiés ; échec d'un cas ou d'une batterie : aucun
+#     .rds publié. Un cas seul se comporte comme avant M33.
+#     Entrées : cas (un ou plusieurs noms séparés par « , »), attendu (un
+#     jeu de motifs par cas, dans l'ordre de « cas », jeux séparés par
+#     « ;; », motifs d'un jeu séparés par « ; » ; un motif ne contient donc
+#     ni « ; » ni saut de ligne, et ne commence pas par « -- »), issue. Exemple pour #40 :
+#       cas     = premium, reserve1, reserve2, premium_ii6
+#       attendu = err_mc ;; err_mc ;; err_mc ;; err_mc
+#     (motifs d'illustration : les motifs réels sont fixés par l'essai à
+#     blanc, puis le tableau de la CI fait foi). Tant que les références
+#     n'ont pas été reproduites (bascule) sur la plateforme de calcul
+#     actuelle, ce mode est refusé par construction : la dérive entre
+#     plateformes touche des feuilles hors motifs (poste / CI à la
+#     première bascule ; OpenBLAS d'un runner à l'autre, exécution
+#     36055472513).
 #
 #   creation      (M31, ADR 0011 amendé : référence d'un cas NOUVEAU)
 #     tests/regenerer_et_rendre_compte.R <cas> --creer --issue NN --ecrire,
@@ -59,10 +109,11 @@
 #     Tableau de non-régression « absent / ajouté » seulement ; même artefact
 #     que regeneration. Entrées : cas, issue (attendu ignoré).
 #
-#   L'entrée « cas » est un texte libre (une entrée choice ne peut pas
-#   proposer un cas nouveau) : modes regeneration et creation, elle est
-#   validée avant tout calcul (^[a-z][a-z0-9_]*$, présence dans CAS du commit
-#   calculé ; .rds présent en regeneration, absent en creation).
+#   L'entrée « cas » est un texte libre (une entrée choice ne peut proposer
+#   ni un cas nouveau ni une liste) : modes regeneration et creation, elle
+#   est validée avant tout calcul, nom par nom (^[a-z][a-z0-9_]*$, pas de
+#   doublon, présence dans CAS du commit calculé ; .rds présent en
+#   regeneration, absent en creation ; un seul nom en creation).
 #
 # PROCÉDURE (décisions du mainteneur du 24/09/2026)
 #
@@ -75,7 +126,8 @@
 #      par l'API GitHub (workflow_dispatch de references.yml), jamais sur
 #      main. Le workflow calcule sur la réf. déclenchée (résumé : « Commit
 #      calculé … (réf. …) ») :
-#        - bascule : sur la branche de travail (aucun code à commiter) ;
+#        - bascule : sur la branche de travail (aucun code à commiter ; le
+#          changement de plateforme, dans .github/, y est déjà commité) ;
 #        - regeneration (M30, ADR 0011 amendé le 24/09/2026) : sur une
 #          BRANCHE ÉPHÉMÈRE claude/regeneration-<issue>, créée depuis la
 #          tête de la branche de travail (notée <tête W>) et portant le
@@ -85,30 +137,52 @@
 #            git commit …                                # commit de code
 #            git push -u origin claude/regeneration-<issue>
 #          puis déclenchement avec ref = claude/regeneration-<issue>, mode
-#          « regeneration », cas, motifs séparés par « ; » et issue ;
+#          « regeneration », cas (un ou plusieurs, séparés par « , » : tous
+#          ceux dont le commit de code change la référence), un jeu de
+#          motifs par cas (jeux séparés par « ;; », motifs par « ; ») et
+#          issue ;
 #        - creation (M31) : même branche éphémère, dont le commit ajoute le
 #          cas à CAS (et, s'il y a lieu, le code de l'issue) ; mode
 #          « creation », cas et issue. La suite (2 à 6) est celle de
 #          regeneration, <cas>.rds étant un fichier ajouté.
 #      Noter l'identifiant de l'exécution et le commit calculé.
 #   2. Lire le tableau (session principale, puis mainteneur) : résumé du
-#      job, tableau en deux parts. Bascule : chaque cas doit afficher
-#      « dérive numérique seule », part non numérique 0 feuille, aucun
-#      écart au-delà de 1e-6, écart maximal de l'ordre attendu (~3,5e-07
-#      premium et reserve1, ~1,3e-13 reserve2). Si le job échoue
+#      job, tableau en deux parts. Bascule : chaque cas de CAS (cas.txt)
+#      doit afficher « dérive numérique seule », part non numérique 0
+#      feuille, aucun écart au-delà de 1e-6 ; l'écart maximal et sa feuille,
+#      par fichier, sont relevés tels que mesurés (aucune attente écrite
+#      d'avance, M34). ÉPREUVE DU DÉTERMINISME (M34, point 5) : la bascule
+#      est lancée DEUX FOIS sur la même tête de la branche de travail
+#      (exécutions A puis B) ; les md5.txt de A et de B doivent être
+#      IDENTIQUES pour tous les .rds ; le processeur (modèle, drapeaux) et
+#      l'ImageVersion de chacune sont relevés dans leur plateforme.txt. Si
+#      les md5 diffèrent : écart entre les deux artefacts quantifié par
+#      comparer_objets() (feuilles non strictement identiques, écart
+#      maximal, feuille), rien n'est commité, le mainteneur est saisi. Si
+#      le job échoue
 #      (« BASCULE REFUSEE ») : rien à commiter ; retirer d'abord du moteur
 #      le libellé fautif (ou l'exclure, motif à l'appui), comme pour M18,
 #      M23 et M24, puis relancer. L'artefact « diagnostic-… » contient le
-#      tableau et le journal complets, sans .rds. Regeneration : tableau
-#      avant / après de regenerer_et_rendre_compte.R ; sur un REFUS, rien
+#      tableau et le journal complets, sans .rds. Regeneration : un tableau
+#      avant / après de regenerer_et_rendre_compte.R par cas, bilan des
+#      batteries (relancées une fois) en fin de chacun ; sur un REFUS, rien
 #      à commiter sur la branche de travail : la correction devient un
 #      commit SUPPLÉMENTAIRE sur la branche éphémère (poussé), dont la
 #      nouvelle tête est le nouveau commit calculé ; nouvelle exécution.
 #   3. Viser (mainteneur) : visa M3 EXPLICITE sur le tableau réel de cette
-#      exécution. Sans ce visa, rien n'est commité.
+#      exécution. Sans ce visa, rien n'est commité. Bascule M34 : visa M3
+#      CONDITIONNEL, donné d'avance par le mainteneur le 24/09/2026, acquis
+#      seulement si le workflow accepte A et B, si leurs md5 sont
+#      identiques, ET si actuary confirme sur le tableau réel de A : part
+#      non numérique vide sur tous les cas ; σ_USP de tous les cas
+#      inchangé à la précision restituée ; toutes les feuilles numériques
+#      sous 1e-6, avec l'écart maximal et sa feuille par fichier (constats
+#      repris dans le message du commit). Au moindre écart, rien n'est
+#      commité et le mainteneur est saisi.
 #   4. Télécharger (session principale) l'artefact « references-… » de
-#      cette exécution : les .rds, le tableau (tableau_bascule.md ou le
-#      tableau de regenerer_et_rendre_compte.R), la comparaison complète,
+#      cette exécution : les .rds, le tableau (tableau_bascule.md ou les
+#      tableaux de regenerer_et_rendre_compte.R, un par cas), la
+#      comparaison complète,
 #      plateforme.txt, sessionInfo.txt, md5.txt.
 #   5. Vérifier avant commit (session principale) :
 #      a. bascule : le commit calculé (plateforme.txt) est la tête actuelle
@@ -116,7 +190,7 @@
 #      a′. regeneration et creation (M30) : le commit calculé
 #         (plateforme.txt) est la tête de la branche éphémère ; sur la
 #         branche de travail, après
-#         « git cherry-pick -n <tête W>..<commit calculé> », copie du .rds
+#         « git cherry-pick -n <tête W>..<commit calculé> », copie des .rds
 #         et git add (étape 6), l'INDEX a exactement le code du commit
 #         calculé :
 #           git diff --cached --quiet <commit calculé> -- R tests ':(exclude)tests/reference'
@@ -127,31 +201,40 @@
 #         (code de sortie 0) ; empreinte de l'arbre R/ consignée :
 #           git rev-parse <commit calculé>:R
 #         (après le commit final, git rev-parse HEAD:R doit être identique).
-#         Si la branche de travail a avancé sur R/ ou tests/ depuis la
-#         création de la branche éphémère, (a′) refuse : supprimer la
-#         branche éphémère, la recréer depuis la nouvelle tête et relancer
-#         le workflow. Un commit qui change plusieurs cas (#40) n'a pas de
-#         voie avant le commit préparatoire de la branche D (M33) ;
-#      b. les md5 des .rds copiés dans tests/reference/ sont ceux de
-#         md5.txt ;
+#         Si la branche de travail a reçu, depuis la création de la
+#         branche éphémère, un commit touchant R/ ou tests/ (hors
+#         tests/reference/), (a′) refuse, et ne se contourne pas :
+#         supprimer la branche éphémère, la recréer depuis la nouvelle tête
+#         de la branche de travail en y reportant le commit de code et ses
+#         correctifs, et relancer le workflow ; l'artefact de la première
+#         branche est abandonné et son exécution devient une exécution NON
+#         RETENUE, citée dans le message du commit final (étape 6). Un
+#         commit de la branche de travail qui ne touche ni R/ ni tests/
+#         (.tex, docs/, .claude/, .github/) ne provoque pas ce refus ;
+#      b. les md5 de TOUS les .rds copiés dans tests/reference/ sont ceux
+#         de md5.txt (un par cas régénéré ; M33) ;
 #      c. recomparaison locale : Rscript tests/comparer_references.R
 #         --deux-parts sur les .rds copiés (dans une session Linux, seule
 #         la dérive entre cette machine et la CI doit apparaître, part non
 #         numérique vide), puis Rscript tests/test_reproductibilite.R.
 #   6. Commiter (session principale) :
-#      - bascule : les seuls .rds, en un commit « tests: » (« tests:
-#        bascule des références sur la CI (#67) ») dont le message reprend
-#        la plateforme (ImageOS, ImageVersion, R, BLAS), l'écart maximal
-#        par fichier, « aucune feuille non numérique modifiée », le lien de
-#        l'exécution et le visa M3 du mainteneur ;
+#      - bascule : les seuls .rds, de TOUS les cas de CAS (cas.txt), en
+#        un commit « tests: » qui nomme le changement de plateforme
+#        (première bascule : « tests: bascule des références sur la CI
+#        (#67) ») et dont le message reprend la plateforme (ImageOS,
+#        ImageVersion, R, BLAS, LAPACK, processeur), l'écart maximal par
+#        fichier, « aucune feuille non numérique modifiée », le lien de
+#        l'exécution et le visa M3 du mainteneur (M34 : les .rds de A ;
+#        B citée comme exécution de contrôle du déterminisme, md5
+#        identiques ; constats d'actuary ; visa conditionnel) ;
 #      - regeneration et creation (M30) : code ET .rds en UN SEUL commit
 #        NOUVEAU sur la branche de travail, jamais par --amend ni fixup
 #        (ADR 0007, point 6) :
 #          git switch <branche de travail>
 #          git cherry-pick -n <tête W>..<commit calculé>   # tous les commits
 #                                                          # de la branche éphémère
-#          cp <artefact>/<cas>.rds tests/reference/
-#          git add tests/reference/<cas>.rds             # puis 5a′, 5b, 5c
+#          cp <artefact>/*.rds tests/reference/          # tous les cas
+#          git add tests/reference/<cas>.rds …           # puis 5a′, 5b, 5c
 #          git commit                                    # domaine du code
 #        (quand la branche éphémère porte deux commits, « cherry-pick -n
 #        <commit calculé> » seul échoue en conflit, ou n'applique que la
@@ -162,11 +245,16 @@
 #        fichier, lien de la DERNIÈRE exécution, SHA de la TÊTE calculée,
 #        empreinte git rev-parse <commit calculé>:R, md5, visa ; après une
 #        reprise, une ligne cite les exécutions refusées (lien, cause du
-#        refus) ; puis suppression
-#        aussitôt de la branche éphémère (le commit calculé cesse d'être
-#        atteignable : le message du commit final en garde la trace) :
+#        refus), et une ligne les exécutions non retenues (lien, motif :
+#        branche de travail avancée, branche éphémère recréée ; étape 5a′) ;
+#        puis suppression aussitôt de la branche éphémère (le commit calculé
+#        cesse d'être atteignable : le message du commit final en garde la
+#        trace) :
 #          git push origin --delete claude/regeneration-<issue>
 #          git branch -D claude/regeneration-<issue>
+#        (en session cloud, le proxy git coupe la suppression d'une branche
+#        distante : supprimer la branche locale et demander au mainteneur
+#        de supprimer la branche distante ; fiche D, 24/09/2026).
 #      Pousser sur la branche de travail sur ordre du mainteneur, puis
 #      vérifier que la CI est verte.
 #
@@ -174,11 +262,13 @@
 #
 #   - Déclencher ce workflow, ou commiter ses .rds, sans ordre explicite du
 #     mainteneur ; commiter avant son visa M3 sur le tableau réel.
-#   - Commiter des .rds issus d'une exécution en échec, d'une autre
-#     exécution que celle dont le tableau a été visé, ou calculés sur un
-#     autre commit que la tête de la branche de travail (bascule) ou que le
-#     commit dont le code est repris (regeneration, creation, vérification
-#     5a′) ; commiter autre chose que les .rds dans le commit de bascule.
+#   - Commiter des .rds issus d'une exécution en échec ou non retenue,
+#     d'une autre exécution que celle dont le tableau a été visé, une
+#     partie seulement des .rds d'une exécution à plusieurs cas, ou
+#     calculés sur un autre commit que la tête de la branche de travail
+#     (bascule) ou que le commit dont le code est repris (regeneration,
+#     creation, vérification 5a′) ; commiter autre chose que les .rds dans
+#     le commit de bascule.
 #   - Créer une référence autrement que par le mode creation (génération
 #     locale, patch, copie d'un .rds venu d'une autre exécution), ou
 #     contourner son refus d'un cas qui a déjà un .rds.
@@ -194,6 +284,8 @@
 #   - Donner à ce workflow des droits d'écriture, un jeton, ou un push
 #     automatique.
 #   - Remplacer ubuntu-22.04 par ubuntu-latest, ici ou dans ci.yml.
+#   - Retirer l'action blas-reference ou son contrôle, ici ou dans ci.yml,
+#     ou faire diverger les deux workflows sur le BLAS.
 
 name: Références de non-régression
 
@@ -201,20 +293,21 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "bascule (une fois : trois cas, tableau en deux parts), regeneration (un cas existant, motifs attendus) ou creation (un cas nouveau de CAS, sans .rds)"
+        description: "bascule (changement de plateforme de calcul : tous les cas de CAS, tableau en deux parts), regeneration (un ou plusieurs cas existants, motifs attendus par cas) ou creation (un cas nouveau de CAS, sans .rds)"
         type: choice
         options: [bascule, regeneration, creation]
         default: bascule
       cas:
-        # Texte libre (une entrée choice ne peut pas proposer un cas nouveau) :
-        # nom validé par le workflow (NOM_CAS_VALIDE) puis par le script
-        # (présence dans CAS de tests/outils_tests.R).
-        description: "Nom du cas, tel qu'il figure dans CAS de tests/outils_tests.R (modes regeneration et creation ; la bascule porte sur les trois cas)"
+        # Texte libre (une entrée choice ne peut pas proposer un cas nouveau
+        # ni une liste) : noms validés par le workflow (NOM_CAS_VALIDE,
+        # présence dans CAS de tests/outils_tests.R, pas de doublon) puis par
+        # le script.
+        description: "Nom(s) du ou des cas, tels qu'ils figurent dans CAS de tests/outils_tests.R, séparés par « , » (regeneration : un ou plusieurs, ex. « premium, reserve1 » ; creation : un seul ; la bascule porte sur tous les cas de CAS et ignore cette entrée)"
         type: string
         required: false
         default: premium
       attendu:
-        description: "Motifs attendus, expressions régulières séparées par « ; » (mode regeneration)"
+        description: "Mode regeneration : un jeu de motifs par cas, dans l'ordre de « cas », jeux séparés par « ;; », motifs d'un jeu (expressions régulières) séparés par « ; » (ex. « m1 ; m2 ;; m3 »)"
         type: string
         required: false
         default: ""
@@ -253,12 +346,21 @@ jobs:
           # Même installation que ci.yml (job « Tests du moteur »).
           r-version: "4.3.1"
 
+      # BLAS et LAPACK de référence, monothread, avec contrôle bloquant :
+      # même action que ci.yml (voir l'en-tête).
+      - name: BLAS et LAPACK de référence
+        id: blas
+        uses: ./.github/actions/blas-reference
+
       - name: Plateforme (image, R, BLAS)
         run: |
           mkdir -p "$SORTIE"
           {
             echo "Image du runner : ${ImageOS:-inconnue} ${ImageVersion:-inconnue} (runs-on: ubuntu-22.04)"
             echo "Système : $(lsb_release -ds 2>/dev/null || echo inconnu), $(uname -srm)"
+            echo "Processeur : $(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2- | sed 's/^ *//') ($(nproc) cœurs) ; drapeaux : $(grep -m1 -o -w 'fma\|avx2\|avx512f' /proc/cpuinfo | sort -u | tr '\n' ' ' || true)"
+            echo "BLAS : $(readlink -f /usr/lib/x86_64-linux-gnu/libblas.so.3) ; LAPACK : $(readlink -f /usr/lib/x86_64-linux-gnu/liblapack.so.3) ; OPENBLAS_NUM_THREADS=${OPENBLAS_NUM_THREADS:-non défini}"
+            dpkg-query -W -f='Paquet ${Package} ${Version}\n' libblas3 liblapack3
             echo "Commit calculé : $GITHUB_SHA (réf. $GITHUB_REF_NAME)"
             echo "Exécution : $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID (tentative $GITHUB_RUN_ATTEMPT)"
             echo "Mode : $MODE"
@@ -281,40 +383,78 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       # ---------------------------------------------------------------- bascule
+      - name: "Bascule : liste des cas (tous les cas de CAS)"
+        id: cas_bascule
+        if: inputs.mode == 'bascule'
+        run: |
+          # Noms écrits dans un fichier plutôt que sur la sortie standard,
+          # que le chargement de outils_tests.R pourrait encombrer.
+          Rscript -e 'source("tests/outils_tests.R"); writeLines(names(CAS), file.path(Sys.getenv("SORTIE"), "cas.txt"))'
+          mapfile -t cas < <(tr -d '\r' < "$SORTIE/cas.txt")
+          [ ${#cas[@]} -gt 0 ] || { echo "::error title=BASCULE REFUSEE::CAS vide."; exit 1; }
+          for c in "${cas[@]}"; do
+            [[ "$c" =~ ^[a-z][a-z0-9_]*$ ]] || { echo "::error title=BASCULE REFUSEE::nom de cas invalide dans CAS."; exit 1; }
+          done
+          # Un .rds versionné hors de CAS ne serait ni comparé ni régénéré.
+          for f in tests/reference/*.rds; do
+            [ -e "$f" ] || continue
+            b="$(basename "$f" .rds)"; dedans=0
+            for c in "${cas[@]}"; do [ "$c" != "$b" ] || dedans=1; done
+            [ "$dedans" -eq 1 ] || { echo "::error title=BASCULE REFUSEE::$f n'est pas un cas de CAS (tests/outils_tests.R)."; exit 1; }
+          done
+          echo "Bascule sur ${#cas[@]} cas de CAS : ${cas[*]}"
+          { echo "**Bascule : ${#cas[@]} cas de CAS** : ${cas[*]}"; echo; } >> "$GITHUB_STEP_SUMMARY"
+
       - name: "Bascule : tableau en deux parts contre les références versionnées"
         id: comparaison
         if: inputs.mode == 'bascule'
         run: |
+          # Sans nom de cas, comparer_references.R parcourt tous les cas de
+          # CAS ; un cas sans .rds y est une erreur (code 1, refus).
           Rscript tests/comparer_references.R --deux-parts --markdown "$SORTIE/tableau_bascule.md" \
             | tee "$SORTIE/comparaison_complete.txt"
 
       - name: "Bascule : tableau dans le résumé du job"
-        if: ${{ !cancelled() && inputs.mode == 'bascule' && steps.installer_r.outcome == 'success' }}
+        if: ${{ !cancelled() && inputs.mode == 'bascule' && steps.installer_r.outcome == 'success' && steps.blas.outcome == 'success' }}
         run: |
           if [ -f "$SORTIE/tableau_bascule.md" ]; then
             cat "$SORTIE/tableau_bascule.md" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "Tableau de bascule absent : voir le journal de l'étape de comparaison." >> "$GITHUB_STEP_SUMMARY"
+            echo "Tableau de bascule absent : voir le journal des étapes de liste des cas et de comparaison." >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: "Bascule refusée : explication"
-        if: ${{ failure() && steps.comparaison.outcome == 'failure' }}
+        if: ${{ failure() && (steps.cas_bascule.outcome == 'failure' || steps.comparaison.outcome == 'failure') }}
         run: |
-          msg="Bascule refusée : part non numérique non vide, écart numérique au-delà de 1e-6, ou erreur de calcul (voir le journal de l'étape de comparaison). Aucune référence produite. Retirer d'abord du moteur le libellé fautif (ou l'exclure, motif à l'appui), comme pour M18, M23 et M24, puis relancer."
+          msg="Bascule refusée : .rds hors de CAS, part non numérique non vide, écart numérique au-delà de 1e-6, référence absente ou erreur de calcul (voir le journal des étapes de liste des cas et de comparaison). Aucune référence produite. Retirer d'abord du moteur le libellé fautif (ou l'exclure, motif à l'appui), comme pour M18, M23 et M24, puis relancer."
           echo "::error title=BASCULE REFUSEE::$msg"
           { echo; echo "**BASCULE REFUSÉE** : $msg"; } >> "$GITHUB_STEP_SUMMARY"
           exit 1
 
-      - name: "Bascule : génération des trois références"
+      - name: "Bascule : génération des références de tous les cas de CAS"
         if: inputs.mode == 'bascule'
         run: |
-          # generer_references.R écrit dans tests/reference/ du checkout
-          # jetable (aucun répertoire de sortie paramétrable) ; la
-          # comparaison aux références versionnées a eu lieu avant.
+          # generer_references.R, sans nom de cas, régénère tous les cas de
+          # CAS dans tests/reference/ du checkout jetable (aucun répertoire
+          # de sortie paramétrable) ; la comparaison aux références
+          # versionnées a eu lieu avant.
+          mapfile -t cas < <(tr -d '\r' < "$SORTIE/cas.txt")
           Rscript tests/generer_references.R | tee "$SORTIE/generation.txt"
-          cp tests/reference/premium.rds tests/reference/reserve1.rds tests/reference/reserve2.rds "$SORTIE/"
-          (cd "$SORTIE" && md5sum premium.rds reserve1.rds reserve2.rds | tee md5.txt)
-          git status --short -- tests/reference | tee "$SORTIE/fichiers_modifies.txt"
+          modifs="$(git status --porcelain --untracked-files=all -- tests/reference)"
+          printf '%s\n' "$modifs" | tee "$SORTIE/fichiers_modifies.txt"
+          # Seuls des .rds de CAS modifiés (un .rds identique au bit près
+          # n'apparaît pas) : ni ajout, ni suppression, ni temporaire.
+          while IFS= read -r ligne; do
+            [ -n "$ligne" ] || continue
+            dedans=0
+            for c in "${cas[@]}"; do [ "$ligne" != " M tests/reference/$c.rds" ] || dedans=1; done
+            [ "$dedans" -eq 1 ] || { echo "::error title=BASCULE REFUSEE::changement sous tests/reference/ autre qu'un .rds de CAS modifié (voir fichiers_modifies.txt) ; aucun .rds publié."; exit 1; }
+          done <<< "$modifs"
+          # Publication : les .rds de TOUS les cas de CAS (un .rds inchangé
+          # est publié aussi : le commit n'en retiendra que les modifiés).
+          publies=()
+          for c in "${cas[@]}"; do cp "tests/reference/$c.rds" "$SORTIE/"; publies+=("$c.rds"); done
+          (cd "$SORTIE" && md5sum -- "${publies[@]}" | tee md5.txt)
 
       - name: "Bascule : non-régression contre les références produites"
         if: inputs.mode == 'bascule'
@@ -322,6 +462,7 @@ jobs:
 
       # ------------------------------------ entrées (regeneration, creation)
       - name: "Validation des entrées cas et issue"
+        id: entrees
         if: inputs.mode == 'regeneration' || inputs.mode == 'creation'
         env:
           # Entrées passées par l'environnement, jamais interpolées dans le
@@ -331,48 +472,103 @@ jobs:
           ISSUE: ${{ inputs.issue }}
         run: |
           [[ "$ISSUE" =~ ^[0-9]+$ ]] || { echo "::error::Entrée issue : numéro attendu (chiffres seuls ; valeur reçue non reproduite)."; exit 1; }
-          # Même expression que NOM_CAS_VALIDE (tests/regenerer_et_rendre_compte.R) :
-          # le nom devient un nom de fichier (ni point, ni barre oblique).
-          [[ "$CAS" =~ ^[a-z][a-z0-9_]*$ ]] || { echo "::error::Entrée cas : minuscules, chiffres et « _ », une lettre en tête (valeur reçue non reproduite)."; exit 1; }
-          # Code 2 réservé au cas absent ; toute autre erreur (échec du
-          # source(), code 1 de Rscript) est un échec de chargement.
+          # Liste de cas (M33) : noms séparés par « , », espaces tolérés
+          # autour ; élément vide refusé. Aucun saut de ligne (read ne lirait
+          # que la première ligne).
+          case "$CAS" in *$'\n'*|*$'\r'*) echo "::error::Entrée cas : saut de ligne interdit (valeur reçue non reproduite)."; exit 1 ;; esac
+          IFS=',' read -ra bruts <<< "$CAS"
+          liste=()
+          for c in "${bruts[@]}"; do
+            c="$(printf '%s' "$c" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+            # Même expression que NOM_CAS_VALIDE (tests/regenerer_et_rendre_compte.R) :
+            # le nom devient un nom de fichier (ni point, ni barre oblique).
+            [[ "$c" =~ ^[a-z][a-z0-9_]*$ ]] || { echo "::error::Entrée cas : chaque nom en minuscules, chiffres et « _ », une lettre en tête, noms séparés par « , » (valeur reçue non reproduite)."; exit 1; }
+            for d in "${liste[@]}"; do
+              [ "$d" != "$c" ] || { echo "::error::Entrée cas : $c donné deux fois."; exit 1; }
+            done
+            liste+=("$c")
+          done
+          # « a, » : read ignore le dernier élément vide ; « , » en fin est
+          # donc refusé explicitement, comme « a,,b » ci-dessus.
+          if [[ "$CAS" =~ ,[[:space:]]*$ ]]; then echo "::error::Entrée cas : élément vide en fin de liste."; exit 1; fi
+          [ ${#liste[@]} -gt 0 ] || { echo "::error::Entrée cas : au moins un nom."; exit 1; }
+          if [ "$MODE" = creation ] && [ ${#liste[@]} -ne 1 ]; then
+            echo "::error title=Création refusée::un seul cas par création (${#liste[@]} donnés)."; exit 1
+          fi
+          LISTE_CAS="$(IFS=,; printf '%s' "${liste[*]}")"
+          export LISTE_CAS
+          # Code 2 réservé aux cas absents (noms listés, déjà validés) ; toute
+          # autre erreur (échec du source(), code 1 de Rscript) est un échec
+          # de chargement.
           statut_cas=0
-          Rscript -e 'source("tests/outils_tests.R"); quit(status = if (Sys.getenv("CAS") %in% names(CAS)) 0L else 2L)' \
-            || statut_cas=$?
+          Rscript -e 'source("tests/outils_tests.R"); n <- strsplit(Sys.getenv("LISTE_CAS"), ",")[[1]]; a <- setdiff(n, names(CAS)); if (length(a)) { cat(a, sep = "\n"); quit(status = 2L) }' \
+            > "$RUNNER_TEMP/cas_absents.txt" || statut_cas=$?
           if [ "$statut_cas" -eq 2 ]; then
-            echo "::error::Cas $CAS absent de CAS (tests/outils_tests.R) sur le commit calculé : l'ajouter au commit de la branche éphémère."; exit 1
+            echo "::error::Cas absent(s) de CAS (tests/outils_tests.R) sur le commit calculé : $(paste -sd, "$RUNNER_TEMP/cas_absents.txt") ; l'ajouter au commit de la branche éphémère."; exit 1
           elif [ "$statut_cas" -ne 0 ]; then
-            echo "::error::Chargement de tests/outils_tests.R en échec (code $statut_cas, voir le journal) : présence du cas dans CAS non vérifiée."; exit 1
+            echo "::error::Chargement de tests/outils_tests.R en échec (code $statut_cas, voir le journal) : présence des cas dans CAS non vérifiée."; exit 1
           fi
-          if [ "$MODE" = creation ] && [ -e "tests/reference/$CAS.rds" ]; then
-            echo "::error title=Création refusée::tests/reference/$CAS.rds existe déjà : une référence existante se régénère (mode regeneration)."; exit 1
-          fi
-          if [ "$MODE" = regeneration ] && [ ! -f "tests/reference/$CAS.rds" ]; then
-            echo "::error title=Régénération refusée::tests/reference/$CAS.rds absent : un cas nouveau se crée (mode creation)."; exit 1
-          fi
-          echo "Entrées valides : mode $MODE, cas $CAS, issue $ISSUE."
+          for c in "${liste[@]}"; do
+            if [ "$MODE" = creation ] && [ -e "tests/reference/$c.rds" ]; then
+              echo "::error title=Création refusée::tests/reference/$c.rds existe déjà : une référence existante se régénère (mode regeneration)."; exit 1
+            fi
+            if [ "$MODE" = regeneration ] && [ ! -f "tests/reference/$c.rds" ]; then
+              echo "::error title=Régénération refusée::tests/reference/$c.rds absent : un cas nouveau se crée (mode creation)."; exit 1
+            fi
+          done
+          # Liste normalisée (noms validés) : seule forme lue par les étapes
+          # suivantes.
+          echo "cas=$LISTE_CAS" >> "$GITHUB_OUTPUT"
+          echo "Entrées valides : mode $MODE, cas $LISTE_CAS, issue $ISSUE."
 
       # ----------------------------------------------------------- regeneration
-      - name: "Régénération contrôlée d'un cas (regenerer_et_rendre_compte.R)"
+      - name: "Régénération contrôlée d'un ou plusieurs cas (regenerer_et_rendre_compte.R)"
         if: inputs.mode == 'regeneration'
         env:
           # Entrées passées par l'environnement, jamais interpolées dans le
-          # script (pas d'injection de commande par un motif).
-          CAS: ${{ inputs.cas }}
+          # script (pas d'injection de commande par un motif). LISTE_CAS est
+          # la liste validée et normalisée par l'étape précédente.
+          LISTE_CAS: ${{ steps.entrees.outputs.cas }}
           ATTENDU: ${{ inputs.attendu }}
           ISSUE: ${{ inputs.issue }}
         run: |
           # La valeur reçue n'est jamais renvoyée dans une commande de
           # workflow (« ::… » injectable par un saut de ligne).
           [[ "$ISSUE" =~ ^[0-9]+$ ]] || { echo "::error::Entrée issue : numéro attendu (chiffres seuls ; valeur reçue non reproduite)."; exit 1; }
+          IFS=',' read -ra cas <<< "$LISTE_CAS"
+          [ ${#cas[@]} -gt 0 ] || { echo "::error::Liste de cas vide (étape de validation)."; exit 1; }
+          # Motifs par cas (M33) : un jeu par cas, dans l'ordre de « cas »,
+          # jeux séparés par « ;; », motifs d'un jeu séparés par « ; ». Un
+          # motif ne contient donc ni « ; » ni saut de ligne. Découpage par
+          # expansion de paramètres (read s'arrêterait au premier saut de
+          # ligne, sans le dire).
+          case "$ATTENDU" in *$'\n'*|*$'\r'*) echo "::error::Entrée attendu : saut de ligne interdit."; exit 1 ;; esac
+          jeux=(); reste="$ATTENDU"
+          while [[ "$reste" == *';;'* ]]; do jeux+=("${reste%%;;*}"); reste="${reste#*;;}"; done
+          jeux+=("$reste")
+          if [ ${#jeux[@]} -ne ${#cas[@]} ]; then
+            echo "::error::Entrée attendu : ${#jeux[@]} jeu(x) de motifs (séparés par « ;; ») pour ${#cas[@]} cas ($LISTE_CAS) : un jeu par cas, dans l'ordre."; exit 1
+          fi
+          # Arguments du script : chaque cas suivi de SES --attendu.
           args=()
-          IFS=';' read -ra motifs <<< "$ATTENDU"
-          for m in "${motifs[@]}"; do
-            m="$(printf '%s' "$m" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
-            [ -n "$m" ] && args+=(--attendu "$m")
+          for k in "${!cas[@]}"; do
+            args+=("${cas[k]}"); n=0; r="${jeux[k]};"
+            while [[ "$r" == *';'* ]]; do
+              m="${r%%;*}"; r="${r#*;}"
+              m="$(printf '%s' "$m" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+              # Un motif commençant par « -- » serait lu comme une option
+              # par le script (qui le refuse aussi) : refus ici, avant calcul.
+              if [[ "$m" == --* ]]; then
+                echo "::error::Entrée attendu : motif commençant par « -- » refusé (cas ${cas[k]}, jeu n° $((k + 1)))."; exit 1
+              fi
+              if [ -n "$m" ]; then args+=(--attendu "$m"); n=$((n + 1)); fi
+            done
+            [ "$n" -gt 0 ] || { echo "::error::Entrée attendu : aucun motif pour le cas ${cas[k]} (jeu n° $((k + 1)))."; exit 1; }
           done
-          [ ${#args[@]} -gt 0 ] || { echo "::error::Entrée attendu : au moins un motif (séparés par « ; »)."; exit 1; }
-          md5_avant="$(md5sum < "tests/reference/$CAS.rds")"
+          # Empreintes de toutes les références AVANT : contrôle du
+          # workflow, indépendant de celui du script (M33 : les .rds hors
+          # liste restent inchangés).
+          (cd tests/reference && md5sum -- *.rds) | tee "$RUNNER_TEMP/md5_avant.txt"
           # Marqueur horodaté : seuls les tableaux écrits (créés ou
           # réécrits) par CETTE exécution sont publiés, pas ceux d'exécutions
           # antérieures déjà versionnés sous le même motif.
@@ -380,23 +576,27 @@ jobs:
           touch "$marqueur"
           sleep 1
           # Code de sortie conservé pour publier un compte rendu même en cas
-          # d'échec. Le tableau docs/tableaux/… n'existe qu'après écriture
-          # (batterie en échec comprise) : sur un REFUS, le script s'arrête
-          # avant de l'écrire, et c'est le journal regeneration.txt qui est
-          # porté au résumé (borné) et à l'artefact de diagnostic.
+          # d'échec. Les tableaux docs/tableaux/… n'existent qu'après
+          # écriture (batterie en échec comprise) : sur un REFUS d'un seul
+          # cas, le script n'écrit rien (tout ou rien), et c'est le journal
+          # regeneration.txt qui est porté au résumé (borné) et à l'artefact
+          # de diagnostic. Batteries relancées une seule fois par le script,
+          # après le dernier cas.
           statut=0
-          Rscript tests/regenerer_et_rendre_compte.R "$CAS" "${args[@]}" --issue "$ISSUE" --ecrire \
+          Rscript tests/regenerer_et_rendre_compte.R "${args[@]}" --issue "$ISSUE" --ecrire \
             | tee "$SORTIE/regeneration.txt" || statut=$?
           if [ -d docs/tableaux ]; then
-            while IFS= read -r -d '' t; do
-              cp "$t" "$SORTIE/"
-              cat "$t" >> "$GITHUB_STEP_SUMMARY"
-            done < <(find docs/tableaux -maxdepth 1 -type f \
-                       -name "*-issue${ISSUE}-${CAS}.md" -newer "$marqueur" -print0)
+            for c in "${cas[@]}"; do
+              while IFS= read -r -d '' t; do
+                cp "$t" "$SORTIE/"
+                cat "$t" >> "$GITHUB_STEP_SUMMARY"
+              done < <(find docs/tableaux -maxdepth 1 -type f \
+                         -name "*-issue${ISSUE}-${c}.md" -newer "$marqueur" -print0)
+            done
           fi
           if [ "$statut" -ne 0 ]; then
             {
-              echo "## Régénération de \`$CAS\` : échec (code $statut)"
+              echo "## Régénération de \`$LISTE_CAS\` : échec (code $statut)"
               echo
               echo '```'
               # Au plus 400 000 octets (le résumé d'une étape est borné à
@@ -404,23 +604,56 @@ jobs:
               tail -c 400000 "$SORTIE/regeneration.txt"
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
-            echo "::error title=Régénération refusée ou en échec::code de sortie $statut ; voir le journal (REFUS ou batterie en échec). Aucun .rds publié."
+            echo "::error title=Régénération refusée ou en échec::code de sortie $statut ; voir le journal (REFUS d'un cas ou batterie en échec). Aucun .rds publié."
             exit "$statut"
           fi
-          if [ "$(md5sum < "tests/reference/$CAS.rds")" = "$md5_avant" ]; then
-            echo "::notice::$CAS : résultat identical() à la référence, rien à régénérer (aucun .rds publié)."
-          else
-            cp "tests/reference/$CAS.rds" "$SORTIE/"
-            (cd "$SORTIE" && md5sum "$CAS.rds" | tee md5.txt)
+          # Contrôles après écriture (M33) : .rds hors liste inchangés (md5),
+          # et sous tests/reference/ seuls des .rds de la liste sont modifiés
+          # (ni ajout, ni suppression, ni temporaire résiduel).
+          hors=()
+          while IFS= read -r ligne; do
+            f="${ligne#*  }"; dedans=0
+            for c in "${cas[@]}"; do [ "$f" != "$c.rds" ] || dedans=1; done
+            [ "$dedans" -eq 1 ] || hors+=("$ligne")
+          done < "$RUNNER_TEMP/md5_avant.txt"
+          if [ ${#hors[@]} -gt 0 ]; then
+            printf '%s\n' "${hors[@]}" > "$RUNNER_TEMP/md5_hors_liste.txt"
+            (cd tests/reference && md5sum -c --quiet "$RUNNER_TEMP/md5_hors_liste.txt") \
+              || { echo "::error title=Régénération refusée::une référence hors liste a changé (md5) ; aucun .rds publié."; exit 1; }
           fi
+          modifs="$(git status --porcelain --untracked-files=all -- tests/reference)"
+          printf '%s\n' "$modifs" | tee "$SORTIE/fichiers_modifies.txt"
+          while IFS= read -r ligne; do
+            [ -n "$ligne" ] || continue
+            dedans=0
+            for c in "${cas[@]}"; do [ "$ligne" != " M tests/reference/$c.rds" ] || dedans=1; done
+            [ "$dedans" -eq 1 ] || { echo "::error title=Régénération refusée::changement sous tests/reference/ hors des cas de la liste (voir fichiers_modifies.txt) ; aucun .rds publié."; exit 1; }
+          done <<< "$modifs"
+          # Publication : les .rds modifiés de la liste (un cas identical() à
+          # sa référence n'est pas réécrit et n'est pas publié).
+          publies=()
+          for c in "${cas[@]}"; do
+            if grep -qxF " M tests/reference/$c.rds" <<< "$modifs"; then
+              cp "tests/reference/$c.rds" "$SORTIE/"; publies+=("$c.rds")
+            else
+              echo "::notice::$c : résultat identical() à la référence, rien à régénérer (aucun .rds publié pour ce cas)."
+            fi
+          done
+          if [ ${#publies[@]} -gt 0 ]; then
+            (cd "$SORTIE" && md5sum -- "${publies[@]}" | tee md5.txt)
+          fi
+          {
+            echo
+            echo "**Régénération vérifiée par le workflow** : cas \`$LISTE_CAS\` ; .rds publiés : ${publies[*]:-(aucun)} ; md5 des références hors liste identiques avant / après ; aucun autre changement sous \`tests/reference/\` ; batteries relancées une seule fois, après le dernier cas."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # --------------------------------------------------------------- creation
       - name: "Création d'un cas de référence (regenerer_et_rendre_compte.R --creer)"
         if: inputs.mode == 'creation'
         env:
-          # Entrées validées à l'étape précédente (nom, présence dans CAS,
-          # .rds absent, issue numérique).
-          CAS: ${{ inputs.cas }}
+          # Entrées validées à l'étape précédente (nom normalisé, un seul,
+          # présence dans CAS, .rds absent, issue numérique).
+          CAS: ${{ steps.entrees.outputs.cas }}
           ISSUE: ${{ inputs.issue }}
         run: |
           # Empreintes des références existantes AVANT : contrôle du

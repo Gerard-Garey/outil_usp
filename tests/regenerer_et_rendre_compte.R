@@ -12,6 +12,32 @@
 #      Rscript tests/regenerer_et_rendre_compte.R <cas> --attendu "<regex>" \
 #              [--attendu ...] [--issue NN] [--ecrire] [--sans-batteries]
 #
+#  Plusieurs cas (decision M33, ADR 0011 complete le 24/09/2026 ; mode
+#  regeneration de .github/workflows/references.yml) : chaque cas est suivi
+#  de SES motifs attendus, un --attendu se rattachant au dernier cas nomme :
+#      Rscript tests/regenerer_et_rendre_compte.R \
+#              premium --attendu "<regex>" [--attendu ...] \
+#              reserve2 --attendu "<regex>" [--attendu ...] \
+#              [--issue NN] [--ecrire] [--sans-batteries]
+#  Avec un seul cas, les motifs s'y rattachent ou qu'ils soient (usage
+#  anterieur inchange) ; avec plusieurs, un --attendu place avant le premier
+#  cas est ambigu et refuse, comme un cas nomme deux fois. Deroulement :
+#    a. tous les cas sont recalcules et analyses, dans l'ordre donne, chacun
+#       contre ses propres motifs (tableau et refus par cas, comme pour un
+#       cas seul) ;
+#    b. TOUT OU RIEN : si un seul cas est refuse, aucune reference n'est
+#       ecrite (code 1 avec --ecrire) ;
+#    c. sinon, ecriture atomique de chaque cas (remplacer_references() :
+#       sauvegarde prealable, restauration des cas deja substitues si l'un
+#       echoue) ; puis controle des empreintes md5 : les .rds hors liste
+#       (et les cas de la liste identical() a leur reference) sont
+#       inchanges, aucun fichier n'est apparu ni n'a disparu ;
+#    d. batteries relancees UNE SEULE FOIS, apres le dernier cas, sur
+#       l'ensemble des references ainsi rendu coherent ; leur bilan est
+#       reporte dans le tableau de chaque cas
+#       (docs/tableaux/AAAAMMJJ-issueNN-<cas>.md, un par cas ecrit).
+#  --creer n'accepte qu'un cas.
+#
 #  La commande reportee dans le tableau est ecrite pour un shell POSIX (bash,
 #  Git Bash, CI) : les motifs y sont entre apostrophes, une apostrophe interne
 #  devenant '\''. Sous PowerShell ou cmd.exe, elle ne se rejoue pas telle
@@ -89,8 +115,10 @@
 #  Source (plutot que lance par Rscript), le fichier ne fait que definir ses
 #  fonctions, sans lire ni ecrire de fichier : analyser_regeneration(),
 #  verifier_regeneration(), tableau_markdown() et, pour le mode creation,
-#  references_modifiees(), creer_reference() et tableau_creation_markdown()
-#  sont testees par tests/unitaires/test_regenerer_et_rendre_compte.R.
+#  references_modifiees(), creer_reference() et tableau_creation_markdown(),
+#  pour plusieurs cas (M33), lire_arguments(), remplacer_references() et
+#  references_hors_liste(), sont testees par
+#  tests/unitaires/test_regenerer_et_rendre_compte.R.
 ###############################################################################
 
 # Dossier tests/ : meme logique que patcher_reference.R (fourni par
@@ -202,12 +230,74 @@ decider <- function(a, ecrire) {
 
 # Ligne de commande rejouable telle quelle dans un shell POSIX : toutes les
 # options, motifs entre apostrophes (une apostrophe interne devient '\'').
+# nom : un cas, ou plusieurs (M33) ; motifs : vecteur (un cas) ou liste
+# nommee par cas, chaque cas etant alors suivi de ses propres --attendu.
 commande_rejouable <- function(nom, motifs, issue, ecrire, batteries, creer = FALSE) {
   sq <- function(x) paste0("'", gsub("'", "'\\''", x, fixed = TRUE), "'")
-  paste(c("Rscript tests/regenerer_et_rendre_compte.R", nom, if (creer) "--creer",
-          if (length(motifs)) paste("--attendu", sq(motifs)),
+  if (!is.list(motifs)) motifs <- stats::setNames(list(motifs), nom[1L])
+  par_cas <- unlist(lapply(nom, function(n) {
+    m <- motifs[[n]]
+    c(n, if (n == nom[1L] && creer) "--creer", if (length(m)) paste("--attendu", sq(m)))
+  }))
+  paste(c("Rscript tests/regenerer_et_rendre_compte.R", par_cas,
           if (!is.na(issue)) paste("--issue", issue), if (ecrire) "--ecrire",
           if (!batteries) "--sans-batteries"), collapse = " ")
+}
+
+# Lecture de la ligne de commande (M33) : un ou plusieurs cas, chacun suivi
+# de ses motifs attendus ; un --attendu se rattache au dernier cas nomme.
+# Un seul cas : tous les motifs s'y rattachent, dans l'ordre, ou qu'ils
+# soient (usage anterieur, "--attendu m premium" compris). Plusieurs cas :
+# un --attendu avant le premier cas est ambigu (erreur). Erreur aussi : cas
+# nomme deux fois, cas hors de CAS ou de NOM_CAS_VALIDE, --issue repete ou
+# non numerique, --ecrire sans --issue, --creer avec plusieurs cas, et
+# valeur de --attendu ou --issue commencant par "--" (un drapeau pris pour
+# une valeur decalerait les cas ; audit de M33). Les drapeaux (--ecrire,
+# --sans-batteries, --creer) sont reconnus pendant la lecture, a leur
+# place, jamais retires d'avance : un motif egal a un drapeau est refuse,
+# pas avale.
+# Renvoie list(cas, motifs (liste nommee par cas), issue, ecrire,
+# batteries, creer).
+lire_arguments <- function(args) {
+  ecrire <- FALSE; batteries <- TRUE; creer <- FALSE
+  cas <- character(0); motifs <- list(); avant_cas <- character(0); issue <- character(0)
+  k <- 1L
+  while (k <= length(args)) {
+    a <- args[k]
+    if (a %in% c("--ecrire", "--sans-batteries", "--creer")) {
+      if (a == "--ecrire") ecrire <- TRUE
+      else if (a == "--sans-batteries") batteries <- FALSE
+      else creer <- TRUE
+      k <- k + 1L
+    } else if (a %in% c("--attendu", "--issue")) {
+      if (k == length(args)) stop(a, " sans valeur")
+      v <- args[k + 1L]; k <- k + 2L
+      if (startsWith(v, "--")) stop(a, " : valeur commencant par \"--\" refusee (option prise pour une valeur ?) : ", v)
+      if (a == "--issue") issue <- c(issue, v)
+      else if (length(cas)) motifs[[length(cas)]] <- c(motifs[[length(cas)]], v)
+      else avant_cas <- c(avant_cas, v)
+    } else {
+      if (a %in% cas) stop("Cas donne deux fois : ", a)
+      cas <- c(cas, a); motifs[[length(cas)]] <- character(0); k <- k + 1L
+    }
+  }
+  if (length(issue) > 1L) stop("--issue donne plusieurs fois")
+  issue <- if (length(issue)) issue else NA
+  if (!is.na(issue) && !grepl("^[0-9]+$", issue)) stop("--issue : numero attendu, recu ", issue)
+  if (!length(cas)) stop("Indiquer au moins un cas : ", paste(names(CAS), collapse = ", "))
+  if (length(avant_cas)) {
+    if (length(cas) > 1L)
+      stop("--attendu avant le premier cas, avec plusieurs cas : motif ambigu (le placer apres son cas)")
+    motifs[[1L]] <- c(avant_cas, motifs[[1L]])
+  }
+  if (creer && length(cas) > 1L) stop("--creer : un seul cas a la fois")
+  invalides <- cas[!grepl(NOM_CAS_VALIDE, cas)]
+  if (length(invalides)) stop("Nom de cas hors de ", NOM_CAS_VALIDE, " : ", paste(invalides, collapse = ", "))
+  inconnus <- setdiff(cas, names(CAS))
+  if (length(inconnus)) stop("Cas inconnu : ", paste(inconnus, collapse = ", "))
+  if (ecrire && is.na(issue)) stop("--ecrire exige --issue NN (il nomme le tableau avant / apres).")
+  list(cas = cas, motifs = stats::setNames(motifs, cas), issue = issue,
+       ecrire = ecrire, batteries = batteries, creer = creer)
 }
 
 # ---------------------------------------------------------------------------
@@ -248,6 +338,60 @@ remplacer_reference <- function(apres, avant, designees, chemin) {
   n
 }
 
+# Ecriture de plusieurs references, tout ou rien (M33). Avant la premiere
+# substitution, chaque reference est copiee dans une sauvegarde cachee du
+# meme dossier (nom commencant par un point : empreintes_references() ne la
+# voit pas) ; chaque cas est ensuite substitue par remplacer_reference()
+# (atomique, verifie). Si une substitution echoue, on ne suppose pas que
+# le cas en echec a laisse sa reference intacte : remplacer_reference() peut
+# echouer APRES son file.rename() (relecture differente du resultat). Les
+# references deja substituees ET celle du cas en echec sont donc restaurees
+# par file.rename() de leur sauvegarde (pour un cas en echec avant
+# substitution, la sauvegarde est identique au fichier en place) : aucune
+# reference n'est modifiee, et l'erreur est relevee. Sauvegardes supprimees
+# dans tous les cas.
+# lots : liste de list(apres, avant, designees, chemin). Renvoie le nombre
+# de feuilles hors motifs verifiees identiques, par cas.
+remplacer_references <- function(lots) {
+  chemins <- vapply(lots, `[[`, character(1), "chemin")
+  saufs <- vapply(chemins, function(ch)
+    tempfile(pattern = paste0(".", sub("[.]rds$", "", basename(ch)), "-sauvegarde-"),
+             tmpdir = dirname(ch), fileext = ".rds"), character(1), USE.NAMES = FALSE)
+  on.exit(unlink(saufs[file.exists(saufs)]), add = TRUE)
+  if (!all(file.copy(chemins, saufs)))
+    stop("Sauvegarde des references impossible : aucune reference ecrite.")
+  n <- integer(length(lots)); faits <- 0L
+  tryCatch({
+    for (i in seq_along(lots)) {
+      l <- lots[[i]]
+      n[i] <- remplacer_reference(l$apres, l$avant, l$designees, l$chemin)
+      faits <- i
+    }
+  }, error = function(e) {
+    a_rest <- seq_len(min(faits + 1L, length(lots)))
+    rest <- vapply(a_rest, function(i) file.rename(saufs[i], chemins[i]), logical(1))
+    stop(sprintf("Ecriture de %s en echec (%s) ; %s", basename(chemins[faits + 1L]), conditionMessage(e),
+                 if (all(rest)) sprintf("%d reference(s) restauree(s) depuis leur sauvegarde (%d deja substituee(s) et celle du cas en echec) : aucune reference modifiee.",
+                                        length(a_rest), faits)
+                 else paste("RESTAURATION IMPOSSIBLE pour :", paste(basename(chemins[a_rest][!rest]), collapse = ", "))),
+         call. = FALSE)
+  })
+  n
+}
+
+# Ecarts d'empreintes (empreintes_references() avant / apres) hors des
+# fichiers `liste` (noms de fichier des references regenerees) : fichier
+# hors liste modifie, fichier disparu, fichier apparu. character(0) si seuls
+# des fichiers de la liste ont change (M33 : les .rds hors liste restent
+# inchanges).
+references_hors_liste <- function(avant, apres, liste) {
+  hors <- setdiff(intersect(names(avant), names(apres)), liste)
+  diff <- hors[avant[hors] != apres[hors]]
+  c(sprintf("%s : modifie hors liste (md5 %s -> %s)", diff, avant[diff], apres[diff]),
+    sprintf("%s : disparu", setdiff(names(avant), names(apres))),
+    sprintf("%s : apparu", setdiff(names(apres), names(avant))))
+}
+
 # ---------------------------------------------------------------------------
 #  Tableau avant / apres en markdown
 # ---------------------------------------------------------------------------
@@ -280,7 +424,7 @@ cellules_paire <- function(avant, apres, largeur = LARGEUR_CELLULE) {
 
 tableau_markdown <- function(a, nom, issue = NA, motifs = character(0),
                              date = Sys.Date(), plateforme_txt = plateforme(),
-                             commande = NA_character_) {
+                             commande = NA_character_, cas_execution = character(0)) {
   l <- a$lignes
   avant <- ifelse(l$mesure == "ajoutee", "(absente)", l$reference)
   apres <- ifelse(l$mesure == "absente", "(absente)", l$obtenu)
@@ -310,6 +454,11 @@ tableau_markdown <- function(a, nom, issue = NA, motifs = character(0),
     if (!is.na(commande)) sprintf("- Commande : `%s`", texte_code(commande, 500L)),
     sprintf("- Motifs attendus : %s",
             if (length(motifs)) paste0("`", texte_code(motifs, 200L), "`", collapse = ", ") else "(aucun)"),
+    # Execution a plusieurs cas (M33) : la ligne n'apparait pas pour un cas
+    # seul, dont le tableau reste celui d'avant M33.
+    if (length(cas_execution) > 1L)
+      sprintf("- Ex\u00e9cution \u00e0 plusieurs cas (M33) : %s, chacun avec ses motifs ; tout ou rien ; batteries relanc\u00e9es une seule fois, apr\u00e8s le dernier cas",
+              paste0("`", cas_execution, "`", collapse = ", ")),
     sprintf("- Comparateur : `comparer_objets()` (tests/outils_tests.R), seuil 0 pour lister, seuil %g pour juger ; `INSTABLES` non neutralis\u00e9", TOLERANCE),
     "",
     synthese,
@@ -435,11 +584,15 @@ lancer_batterie <- function(script) {
   list(script = script, statut = statut, synthese = trimws(synth))
 }
 
-# Fin commune aux modes regeneration et creation, apres ecriture de la
-# reference : relance des batteries (sauf --sans-batteries), tableau md
-# complete de leur bilan et ecrit dans dest, code de sortie 1 si une
-# batterie echoue.
-finir_avec_batteries <- function(md, dest, batteries) {
+# Fin commune aux modes regeneration et creation, apres ecriture des
+# references : relance des batteries UNE SEULE FOIS (sauf --sans-batteries),
+# quel que soit le nombre de cas ecrits (M33 : apres le dernier cas, sur
+# l'ensemble des references) ; chaque tableau md (mds : un vecteur de lignes
+# ou une liste de vecteurs, un par cas) est complete du meme bilan et ecrit
+# dans son dest ; code de sortie 1 si une batterie echoue.
+finir_avec_batteries <- function(mds, dests, batteries) {
+  if (!is.list(mds)) mds <- list(mds)
+  stopifnot(length(mds) == length(dests))
   bilan <- c("", "## Batteries", "")
   echec <- FALSE
   if (batteries) {
@@ -454,15 +607,19 @@ finir_avec_batteries <- function(md, dest, batteries) {
     bilan <- c(bilan, "Non relanc\u00e9es (`--sans-batteries`). \u00c0 lancer :",
                "- `Rscript tests/test_reproductibilite.R`", "- `Rscript tests/test_unitaires.R`")
   }
-  dir.create(dirname(dest), showWarnings = FALSE, recursive = TRUE)
-  if (file.exists(dest)) cat("Tableau existant remplace :", dest, "\n")
-  con <- file(dest, open = "wb")
-  writeLines(enc2utf8(c(md, bilan)), con, sep = "\n", useBytes = TRUE)
-  close(con)
-  cat("Tableau ecrit :", dest, "\n")
+  for (k in seq_along(dests)) {
+    dir.create(dirname(dests[k]), showWarnings = FALSE, recursive = TRUE)
+    if (file.exists(dests[k])) cat("Tableau existant remplace :", dests[k], "\n")
+    con <- file(dests[k], open = "wb")
+    writeLines(enc2utf8(c(mds[[k]], bilan)), con, sep = "\n", useBytes = TRUE)
+    close(con)
+    cat("Tableau ecrit :", dests[k], "\n")
+  }
   writeLines(bilan)
   if (echec) {
-    cat("\nUNE BATTERIE ECHOUE : reference ecrite mais a examiner (git restore, ou suppression du fichier cree, pour revenir).\n")
+    cat(if (length(dests) == 1L)
+          "\nUNE BATTERIE ECHOUE : reference ecrite mais a examiner (git restore, ou suppression du fichier cree, pour revenir).\n"
+        else sprintf("\nUNE BATTERIE ECHOUE : %d references ecrites mais a examiner (git restore pour revenir).\n", length(dests)))
     quit(status = 1)
   }
   invisible(TRUE)
@@ -480,27 +637,15 @@ chemin_tableau <- function(nom, issue)
 # ---------------------------------------------------------------------------
 
 if (sys.nframe() == 0L) {
-  args <- commandArgs(trailingOnly = TRUE)
-  ecrire <- "--ecrire" %in% args
-  batteries <- !"--sans-batteries" %in% args
-  creer <- "--creer" %in% args
-  args <- args[!args %in% c("--ecrire", "--sans-batteries", "--creer")]
-  opt <- extraire_option(args, "--attendu")
-  motifs <- opt$valeurs
-  opt_i <- extraire_option(opt$reste, "--issue")
-  issue <- if (length(opt_i$valeurs)) opt_i$valeurs else NA
-  noms <- opt_i$reste
-  if (length(opt_i$valeurs) > 1L) stop("--issue donne plusieurs fois")
-  if (!is.na(issue) && !grepl("^[0-9]+$", issue)) stop("--issue : numero attendu, recu ", issue)
-  if (length(noms) != 1L) stop("Indiquer exactement un cas : ", paste(names(CAS), collapse = ", "))
-  if (!noms %in% names(CAS)) stop("Cas inconnu : ", noms)
-  if (ecrire && is.na(issue)) stop("--ecrire exige --issue NN (il nomme le tableau avant / apres).")
-  nom <- noms
-  commande <- commande_rejouable(nom, motifs, issue, ecrire, batteries, creer = creer)
-  ref_f <- chemin_reference(nom)
+  arg <- lire_arguments(commandArgs(trailingOnly = TRUE))
+  ecrire <- arg$ecrire; batteries <- arg$batteries; creer <- arg$creer
+  issue <- arg$issue; noms <- arg$cas; motifs_par_cas <- arg$motifs
+  commande <- commande_rejouable(noms, motifs_par_cas, issue, ecrire, batteries, creer = creer)
 
   # ------------------------------------------------------------ creation (M31)
   if (creer) {
+    nom <- noms; motifs <- motifs_par_cas[[nom]]
+    ref_f <- chemin_reference(nom)
     refuser <- function(motif) {
       cat("\nREFUS -- ", motif, "\nCreation refusee : rien n'a ete ecrit.\n", sep = "")
       quit(status = 1)
@@ -539,51 +684,95 @@ if (sys.nframe() == 0L) {
   }
 
   # --------------------------------------------------------------- regeneration
-  if (!file.exists(ref_f)) stop("Reference absente : ", ref_f, " (un cas nouveau se cree : --creer)")
-  avant <- readRDS(ref_f)
-  apres <- executer_cas(nom)
-  a <- analyser_regeneration(avant, apres, motifs)
-  d <- decider(a, ecrire)
+  # Un ou plusieurs cas (M33). Toutes les references doivent exister avant
+  # le premier calcul.
+  refs <- vapply(noms, chemin_reference, character(1), USE.NAMES = FALSE)
+  if (!all(file.exists(refs)))
+    stop("Reference absente : ", paste(refs[!file.exists(refs)], collapse = ", "),
+         " (un cas nouveau se cree : --creer)")
+  multi <- length(noms) > 1L
+  emp_avant <- empreintes_references(DOSSIER_REF)
 
-  cat(sprintf("\n=== %s : comparaison au seuil %g\n", nom, TOLERANCE))
-  cat(resumer_comparaison(a$comparaison_seuil)[1], "\n")
-  cat(sprintf("Feuilles non strictement identiques : %d (dont %d designee(s) par les motifs attendus)\n",
-              nrow(a$lignes), length(a$designees)))
-  for (m in names(a$motifs_larges))
-    cat(sprintf("AVERTISSEMENT : le motif %s designe %d feuilles (seuil d'avertissement %d) : trop large ?\n",
-                m, a$motifs_larges[[m]], SEUIL_MOTIF_LARGE))
+  # a. Chaque cas, dans l'ordre donne, recalcule et analyse contre SES
+  # motifs ; rien n'est ecrit a ce stade. Messages et tableau par cas : ceux
+  # d'un cas seul.
+  traites <- lapply(seq_along(noms), function(k) {
+    nom <- noms[k]; ref_f <- refs[k]; motifs <- motifs_par_cas[[nom]]
+    avant <- readRDS(ref_f)
+    apres <- executer_cas(nom)
+    a <- analyser_regeneration(avant, apres, motifs)
+    d <- decider(a, ecrire)
+    dest <- chemin_tableau(nom, issue)
 
-  if (d$action == "rien") {
-    cat(sprintf("\n%s : resultat recalcule identical() a la reference -- rien a regenerer (fichier non reecrit, aucun tableau ecrit).\n", nom))
-    if (length(d$refus)) {
-      cat("REFUS -- ", paste(d$refus, collapse = "\n"), "\n", sep = "")
-      cat(if (ecrire) "\nCode de sortie 1 : un changement annonce n'a pas lieu.\n"
-          else "\nEssai a blanc : avec --ecrire, code de sortie 1 (changement annonce absent).\n")
+    cat(sprintf("\n=== %s : comparaison au seuil %g\n", nom, TOLERANCE))
+    cat(resumer_comparaison(a$comparaison_seuil)[1], "\n")
+    cat(sprintf("Feuilles non strictement identiques : %d (dont %d designee(s) par les motifs attendus)\n",
+                nrow(a$lignes), length(a$designees)))
+    for (m in names(a$motifs_larges))
+      cat(sprintf("AVERTISSEMENT : le motif %s designe %d feuilles (seuil d'avertissement %d) : trop large ?\n",
+                  m, a$motifs_larges[[m]], SEUIL_MOTIF_LARGE))
+
+    md <- NULL
+    if (d$action == "rien") {
+      cat(sprintf("\n%s : resultat recalcule identical() a la reference -- rien a regenerer (fichier non reecrit, aucun tableau ecrit).\n", nom))
+      if (length(d$refus)) {
+        cat("REFUS -- ", paste(d$refus, collapse = "\n"), "\n", sep = "")
+        cat(if (ecrire) "\nCode de sortie 1 : un changement annonce n'a pas lieu.\n"
+            else "\nEssai a blanc : avec --ecrire, code de sortie 1 (changement annonce absent).\n")
+      }
+    } else {
+      md <- tableau_markdown(a, nom, issue, motifs, commande = commande, cas_execution = noms)
+      cat("\n"); writeLines(md)
+      if (d$action == "refus") {
+        cat("\nREFUS -- ", paste(d$refus, collapse = "\n"), "\n", sep = "")
+        cat(if (ecrire) "\nRegeneration refusee : rien n'a ete ecrit.\n"
+            else "\nEssai a blanc : avec --ecrire, la regeneration serait REFUSEE (rien ne serait ecrit).\n")
+      } else if (!ecrire) {
+        cat(sprintf(paste0("\nEssai a blanc : avec --ecrire, %s serait regeneree (%d feuille(s) designee(s) changent, ",
+                           "%d identique(s)),\nle tableau ci-dessus ecrit dans %s, puis les batteries relancees.\n"),
+                    ref_f, length(a$designees), a$n_identiques, dest))
+      }
     }
-    quit(status = d$code)
-  }
+    list(nom = nom, ref_f = ref_f, avant = avant, apres = apres, a = a, d = d, md = md, dest = dest)
+  })
 
-  md <- tableau_markdown(a, nom, issue, motifs, commande = commande)
-  cat("\n"); writeLines(md)
-  if (d$action == "refus") {
-    cat("\nREFUS -- ", paste(d$refus, collapse = "\n"), "\n", sep = "")
-    cat(if (ecrire) "\nRegeneration refusee : rien n'a ete ecrit.\n"
-        else "\nEssai a blanc : avec --ecrire, la regeneration serait REFUSEE (rien ne serait ecrit).\n")
-    quit(status = d$code)
+  # b. Tout ou rien : un cas refuse (feuille hors motifs, structure, motif
+  # sans effet) bloque l'ecriture de TOUS les cas.
+  refuses <- noms[vapply(traites, function(t) length(t$d$refus) > 0L, logical(1))]
+  if (multi) {
+    cat(sprintf("\n=== Bilan des %d cas (M33, tout ou rien) : %s\n", length(noms),
+                if (length(refuses)) sprintf("%d refuse(s) : %s", length(refuses), paste(refuses, collapse = ", "))
+                else "aucun refus"))
+    if (length(refuses))
+      cat(if (ecrire) "Regeneration refusee : AUCUNE reference n'a ete ecrite.\n"
+          else "Essai a blanc : avec --ecrire, AUCUNE reference ne serait ecrite (code de sortie 1).\n")
+    else if (!ecrire)
+      cat("Essai a blanc : avec --ecrire, les cas a regenerer ci-dessus seraient ecrits, puis les batteries relancees UNE fois.\n")
   }
+  if (!ecrire) quit(status = 0)
+  if (length(refuses)) quit(status = 1)
+  a_ecrire <- Filter(function(t) t$d$action == "ecrire", traites)
+  if (!length(a_ecrire)) quit(status = 0)
 
-  dest <- chemin_tableau(nom, issue)
-  if (!ecrire) {
-    cat(sprintf(paste0("\nEssai a blanc : avec --ecrire, %s serait regeneree (%d feuille(s) designee(s) changent, ",
-                       "%d identique(s)),\nle tableau ci-dessus ecrit dans %s, puis les batteries relancees.\n"),
-                ref_f, length(a$designees), a$n_identiques, dest))
-    quit(status = 0)
+  # c. Regeneration atomique de chaque cas (temporaire du meme dossier,
+  # relu et verifie, puis substitue), tout ou rien (restauration des cas deja
+  # substitues si l'un echoue), puis controle des empreintes.
+  n_hors <- remplacer_references(lapply(a_ecrire, function(t)
+    list(apres = t$apres, avant = t$avant, designees = t$a$designees, chemin = t$ref_f)))
+  for (k in seq_along(a_ecrire))
+    cat(sprintf("\n%s regeneree. Verifie avant substitution : reference ecrite identical() au resultat recalcule ; %d feuille(s) hors motifs identical() a l'ancienne reference.\n",
+                a_ecrire[[k]]$ref_f, n_hors[k]))
+  ecrits <- vapply(a_ecrire, function(t) basename(t$ref_f), character(1))
+  hors <- references_hors_liste(emp_avant, empreintes_references(DOSSIER_REF), ecrits)
+  if (length(hors)) {
+    cat("\nECHEC -- references hors liste modifiees ou fichiers inattendus :\n",
+        paste0("  ", hors, collapse = "\n"), "\n", sep = "")
+    quit(status = 1)
   }
+  cat(sprintf("Empreintes md5 : %d reference(s) hors des cas ecrits inchangee(s), aucun fichier apparu ni disparu.\n",
+              length(setdiff(names(emp_avant), ecrits))))
 
-  # Regeneration atomique : temporaire du meme dossier (code de
-  # generer_references.R), relu et verifie, puis substitue a la reference.
-  n_hors <- remplacer_reference(apres, avant, a$designees, ref_f)
-  cat(sprintf("\n%s regeneree. Verifie avant substitution : reference ecrite identical() au resultat recalcule ; %d feuille(s) hors motifs identical() a l'ancienne reference.\n",
-              ref_f, n_hors))
-  finir_avec_batteries(md, dest, batteries)
+  # d. Batteries une seule fois, apres le dernier cas ; bilan reporte dans le
+  # tableau de chaque cas ecrit.
+  finir_avec_batteries(lapply(a_ecrire, `[[`, "md"), vapply(a_ecrire, `[[`, character(1), "dest"), batteries)
 }

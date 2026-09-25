@@ -65,8 +65,10 @@ La profondeur T est déduite du fichier.
     source("R/engine.R")
 
     # méthode lognormale
+    # nature_donnees obligatoire pour premium : "brutes" ou "nettes" (#55)
     res <- run_engine(xt = ..., yt = ..., methode = "premium",
-                      segment = 1, annexe = "II", T = 8, B = 999, seed = 20260831)
+                      segment = 1, annexe = "II", nature_donnees = "brutes",
+                      T = 8, B = 999, seed = 20260831)
 
     # méthode Merz-Wüthrich
     res <- run_engine(methode = "reserve2", triangle = tri,
@@ -83,11 +85,13 @@ propriétés distinctes :
 | Propriété | Ce qui est vérifié | Statut |
 |---|---|---|
 | Reproductibilité à graine égale | `identical()` entre deux appels de `run_engine()` à données, paramètres et `seed` identiques, sur une même machine | au bit près, mesuré |
-| Non-régression | comparaison valeur par valeur (`comparer_objets()`, tolérance 1e-6, relative ou absolue pour une référence quasi nulle) contre les références versionnées (`tests/reference/*.rds`), produites par la CI (workflow `references.yml`, `ubuntu-22.04`, R 4.3.1 ; ADR 0011) | à tolérance explicite ; ce n'est pas du bit près |
+| Non-régression | comparaison valeur par valeur (`comparer_objets()`, tolérance 1e-6, relative ou absolue pour une référence quasi nulle) contre les références versionnées (`tests/reference/*.rds`), produites par la CI (workflow `references.yml`, `ubuntu-22.04`, R 4.3.1, BLAS et LAPACK de référence monothread ; ADR 0011 amendé M34) | à tolérance explicite ; ce n'est pas du bit près |
 
 La seconde comparaison absorbe volontairement la dérive d'arrondi d'une
 plateforme à l'autre (écart relatif maximal mesuré 3,5e-07 sur la branche
-lognormale entre le poste Windows et la CI, ADR 0006 et 0011) :
+lognormale entre le poste Windows et la CI, alors sous OpenBLAS, ADR 0006 et
+0011 ; depuis M34, la CI calcule sous BLAS et LAPACK de référence et deux
+exécutions successives y sont identiques au bit près) :
 
     Rscript tests/test_reproductibilite.R
 
@@ -102,7 +106,9 @@ Lorsqu'une modification change volontairement les résultats, lister les écarts
 plus régénérées hors de la CI, poste compris
 ([ADR 0011](docs/adr/0011-plateforme-ci-production-des-references.md)) : le
 workflow `.github/workflows/references.yml`, déclenché manuellement en mode
-`regeneration` (un cas, motifs attendus) ou `creation` (un cas nouveau,
+`regeneration` (un ou plusieurs cas existants en une seule exécution, motifs
+attendus par cas, batteries relancées une fois après le dernier cas) ou
+`creation` (un cas nouveau,
 ajouté à `CAS` de `tests/outils_tests.R`, sans toucher aux références
 existantes), produit les `.rds` et le tableau avant / après en artefact ;
 après visa et vérification, ils sont commités avec le code qui les motive

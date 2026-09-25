@@ -628,22 +628,24 @@ plot_influence_cook <- function(pd) {
 # --- Methode lognormale : influence sur le parametre final ------------------
 # Mesure la plus directement interpretable pour le dossier : de combien
 # sigma_USP se deplace si l'annee t est retiree (jackknife).
+# Couleur de repere : booleen fort_ecart_sigma, calcule par le moteur
+# (engine_influence(), repere REPERE_INFLUENCE_SIGMA ; issue #33).
 plot_influence_sigma <- function(pd) {
   if (!.influence_ln(pd)) return(.vide())
   d <- pd$influence
-  if (is.null(d$ecart_sigma)) return(.vide())
+  if (is.null(d$ecart_sigma) || is.null(d$fort_ecart_sigma)) return(.vide())
   v <- 100 * d$ecart_sigma
   if (!.plotly_dispo()) {
     .cadre()
     graphics::barplot(v, names.arg = d$t, border = NA,
-                      col = ifelse(abs(v) > 10, COUL$trait, COUL$env),
+                      col = ifelse(d$fort_ecart_sigma, COUL$trait, COUL$env),
                       xlab = "annee retiree", ylab = "ecart sur sigma_USP (%)",
                       main = "Influence du retrait d'une annee sur sigma_USP")
     graphics::abline(h = 0, col = COUL$pt)
     return(invisible())
   }
   p <- plotly::plot_ly(x = d$t, y = v, type = "bar",
-        marker = list(color = ifelse(abs(v) > 10, COUL$trait, COUL$env),
+        marker = list(color = ifelse(d$fort_ecart_sigma, COUL$trait, COUL$env),
                       line = list(color = COUL$pt, width = 1)),
         hovertemplate = "sans l'annee %{x}<br>ecart = %{y:+.2f} %<extra></extra>")
   p <- plotly::add_lines(p, x = range(d$t), y = c(0, 0),
@@ -677,13 +679,15 @@ plot_mw_levier <- function(pd) {
 }
 
 # --- Merz-Wuthrich : DFBETA sur les facteurs de developpement ---------------
+# Couleur de repere : booleen fort_dfbeta, calcule par le moteur
+# (mw_influence(), repere REPERE_DFBETA_MW ; issue #33).
 plot_mw_dfbeta <- function(pd) {
-  if (!.influence_mw(pd)) return(.vide())
+  if (!.influence_mw(pd) || is.null(pd$influence$fort_dfbeta)) return(.vide())
   d <- pd$influence; v <- 100 * d$dfbeta_relatif
   etiq <- paste0("(", d$i, ",", d$j, ")")
   if (!.plotly_dispo()) {
     .cadre()
-    plot(seq_along(v), v, type = "h", col = ifelse(abs(v) > 2, COUL$trait, COUL$pt),
+    plot(seq_along(v), v, type = "h", col = ifelse(d$fort_dfbeta, COUL$trait, COUL$pt),
          lwd = 2, xlab = "cellule (i, j)", ylab = "variation de f_j (%)",
          main = "Influence de chaque cellule sur f_j")
     graphics::abline(h = 0, col = COUL$ref)
@@ -691,7 +695,7 @@ plot_mw_dfbeta <- function(pd) {
   }
   p <- plotly::plot_ly(x = seq_along(v), y = v, type = "bar",
         text = etiq,
-        marker = list(color = ifelse(abs(v) > 2, COUL$trait, COUL$env),
+        marker = list(color = ifelse(d$fort_dfbeta, COUL$trait, COUL$env),
                       line = list(color = COUL$pt, width = 1)),
         hovertemplate = paste0("cellule %{text}<br>variation de f_j = ",
                                "%{y:+.3f} %<extra></extra>"))
@@ -803,11 +807,13 @@ plot_mw_regressions <- function(pd, max_panneaux = 9) {
 }
 
 # --- Ordonnee a l'origine par colonne, avec son intervalle -------------------
-plot_mw_origine <- function(pd) {
+# alpha : seuil des verdicts du calcul (res$metadata$alpha), qui colore les
+# colonnes a ordonnee significative (issue #4, piste 3 : plus de 0,10 en dur).
+plot_mw_origine <- function(pd, alpha) {
   d <- pd$origine
   if (is.null(d) || !nrow(d)) return(.vide("Ordonnees a l'origine indisponibles"))
   bas <- d$a - 1.96 * d$se_a; haut <- d$a + 1.96 * d$se_a
-  sig <- d$p < 0.10
+  sig <- d$p < alpha
   if (!.plotly_dispo()) {
     .cadre()
     plot(d$j, d$a, pch = 19, col = ifelse(sig, COUL$trait, COUL$pt),
@@ -891,6 +897,50 @@ texte_formule <- function(res) {
           100 * p$credibilite, m$bareme)
 }
 
+# Tableau "Parametre standard remplace" (onglet Calibration et section 4 du
+# rapport fige ; issue #55) : mise en forme de engine_parametre_standard(res),
+# qui fournit toutes les valeurs (nature declaree des donnees, point de
+# l'art. 218, paragraphe 1, exigence relative aux donnees, sigma de l'annexe,
+# NP standard, sigma standard reglementaire et retenu, origine). Une ligne
+# porte une valeur, un texte, ou les deux ("valeur (texte)"). Texte brut :
+# l'appelant l'echappe s'il l'ecrit en HTML.
+table_parametre_standard <- function(res) {
+  d <- engine_parametre_standard(res)
+  if (is.null(d)) return(NULL)
+  val <- ifelse(is.na(d$valeur), NA_character_, fmt_nb(d$valeur, 4))
+  txt <- ifelse(is.na(val), d$texte,
+                ifelse(is.na(d$texte), val, paste0(val, " (", d$texte, ")")))
+  data.frame(Grandeur = d$grandeur, Valeur = txt, stringsAsFactors = FALSE)
+}
+
+# Vrai si le sigma standard retenu est une saisie libre (derogation au
+# parametre reglementaire, decision du mainteneur du 24/09/2026, issue #55) :
+# lecture de la ligne "Origine" de engine_parametre_standard(res).
+derogation_sigma_standard <- function(res) {
+  d <- engine_parametre_standard(res)
+  !is.null(d) && any(grepl("derogation", d$texte[d$grandeur == "Origine du sigma standard retenu"],
+                           fixed = TRUE))
+}
+
+# Generateur aleatoire et graines fixes consignes dans res$metadata (issue #37,
+# decision (iii) du mainteneur du 25/09/2026 : ils sont affiches dans l'onglet
+# Donnees et dans l'en-tete du rapport fige). Lecture seule de metadata, aucun
+# calcul : un champ absent (objet anterieur a l'issue #37, ou enveloppe du
+# QQ-plot pour Merz-Wuthrich) ne produit pas d'element. Rend un vecteur de
+# textes bruts nomme par champ de metadata (generateur, seed_loi_nulle_sw,
+# seed_enveloppe_qq) ; chaque appelant choisit ses libelles (ASCII dans
+# l'onglet Donnees, accentues dans le rapport) et echappe s'il ecrit en HTML.
+valeurs_generateur <- function(m) {
+  out <- character(0)
+  g <- m$generateur
+  if (!is.null(g))
+    out["generateur"] <- paste0("kind = ", g$kind, ", normal.kind = ", g$normal.kind,
+                                ", sample.kind = ", g$sample.kind)
+  for (ch in c("seed_loi_nulle_sw", "seed_enveloppe_qq"))
+    if (!is.null(m[[ch]])) out[ch] <- format(m[[ch]], scientific = FALSE)
+  out
+}
+
 # Tableau "Robustesse du calibrage" (onglet Calibration et section 4 du
 # rapport fige) : tous les diagnostics des groupes ROB (lognormal) et M6
 # (Merz-Wuthrich) de engine_table_tests(), independamment de la selection de
@@ -930,10 +980,12 @@ note_surface <- function(pd) {
       S$delta_opt, S$amplitude_delta))
 }
 
-note_m1 <- function(pd) {
+# alpha : seuil des verdicts du calcul (res$metadata$alpha), et non 0,10 en
+# dur (issue #4, piste 3).
+note_m1 <- function(pd, alpha) {
   d <- pd$origine
   if (is.null(d) || !nrow(d)) return(NULL)
-  k <- sum(d$p < 0.10, na.rm = TRUE)
+  k <- sum(d$p < alpha, na.rm = TRUE)
   w <- d[which.min(d$p), ]
   sprintf(paste(
     "Le r&egrave;glement impose E[C(i,j+1) | C(i,j)] = f_j C(i,j),",
@@ -941,8 +993,8 @@ note_m1 <- function(pd) {
     "est la droite ajust&eacute;e avec constante : un &eacute;cart marqu&eacute;",
     "entre les deux signale une composante fixe non pr&eacute;vue par le mod&egrave;le.",
     "<br><b>%d colonne(s) sur %d</b> pr&eacute;sentent une ordonn&eacute;e &agrave;",
-    "l'origine significative au seuil de 10 %%, la plus marqu&eacute;e &eacute;tant",
-    "<b>j = %d</b> (p = %.4f)."), k, nrow(d), w$j, w$p)
+    "l'origine significative au seuil alpha = %s, la plus marqu&eacute;e &eacute;tant",
+    "<b>j = %d</b> (p = %.4f)."), k, nrow(d), format(alpha), w$j, w$p)
 }
 
 note_influence_mw <- function(pd) {
@@ -1049,9 +1101,10 @@ encoder_base64 <- function(octets) {
   if (identical(res$metadata$methode, "reserve2")) return(list(
     list(titre = "Ajustement", note = NULL,
          g = list(g(function() plot_mw_facteurs(pd)), g(function() plot_mw_reserve(pd)))),
-    list(titre = "M1 - r\u00e9gressions", note = note_m1(pd),
+    list(titre = "M1 - r\u00e9gressions", note = note_m1(pd, res$metadata$alpha),
          g = list(g(function() plot_mw_regressions(pd), 560, TRUE),
-                  g(function() plot_mw_origine(pd)), g(function() plot_mw_alpha(pd)))),
+                  g(function() plot_mw_origine(pd, res$metadata$alpha)),
+                  g(function() plot_mw_alpha(pd)))),
     list(titre = "M2 - variance", note = NULL,
          g = list(g(function() plot_mw_residus_C(pd)), g(function() plot_mw_residus_dev(pd)))),
     list(titre = "M3 - ind\u00e9pendance", note = NULL,
@@ -1238,9 +1291,12 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
               "G\u00e9n\u00e9ration du pr\u00e9sent rapport",
               "M\u00e9thode", "P\u00e9rim\u00e8tre", "Segment",
               if (mw) "Profondeur (I + 1 ann\u00e9es de survenance)" else "Profondeur T",
-              "R\u00e9plications B", "Granularit\u00e9 des p-values Monte-Carlo, 1/(B+1)",
+              "R\u00e9plications B",
+              paste("Granularit\u00e9 nominale d'une p-value Monte-Carlo unilat\u00e9rale,",
+                    "1/(B+1) sur B nominal (bilat\u00e9rale : 2/(B_eff+1), par statistique,",
+                    "champ granularite_stat)"),
               "Seuil alpha des verdicts", "Graine (seed)", "Bar\u00e8me de cr\u00e9dibilit\u00e9",
-              "sigma standard")
+              "sigma standard", "Nature des donn\u00e9es")
     vals <- c(format(m$horodatage, "%Y-%m-%d %H:%M:%S %Z"),
               sprintf("%.2f s", m$duree_sec), genere,
               paste0("<code>", m$methode, "</code> \u2014 ", libelle_methode),
@@ -1249,7 +1305,17 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
               as.character(m$T), as.character(m$B),
               format(res$bootstrap$granularite, digits = 6),
               format(m$alpha), format(m$seed, scientific = FALSE), .txt(m$bareme),
-              format(m$sigma_standard, digits = 10))
+              paste0(format(m$sigma_standard, digits = 10),
+                     if (derogation_sigma_standard(res))
+                       " \u2014 <b>sigma standard saisi, d\u00e9rogation au param\u00e8tre r\u00e9glementaire</b>"),
+              .txt(table_parametre_standard(res)$Valeur[1]))
+    # Generateur et graines fixes (issue #37) : lignes absentes si le champ
+    # manque dans metadata.
+    gen <- valeurs_generateur(m)
+    lib_gen <- c(generateur = "G\u00e9n\u00e9rateur al\u00e9atoire",
+                 seed_loi_nulle_sw = "Graine de la loi nulle de Shapiro-Wilk",
+                 seed_enveloppe_qq = "Graine de l'enveloppe du QQ-plot")
+    cles <- c(cles, unname(lib_gen[names(gen)])); vals <- c(vals, .txt(unname(gen)))
     if (!mw) {
       cles <- c(cles, "Test d'\u00e9quivalence de la constante")
       vals <- c(vals, if (is.null(m$delta_equiv))
@@ -1333,6 +1399,15 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
             "&nbsp;|&nbsp; 95 %% : [%.4f ; %.4f]</div>"), ic[2], ic[4], ic[1], ic[5]),
           sprintf("<div class='gris' style='margin-top:6px'>%s</div>", .echap_html(texte_formule(res))),
           "</div>",
+          "<h3>Param\u00e8tre standard remplac\u00e9</h3>",
+          if (derogation_sigma_standard(res))
+            .bandeau_html(paste("<b>sigma standard saisi, d\u00e9rogation au param\u00e8tre",
+                                "r\u00e9glementaire</b> : le sigma standard du m\u00e9lange est une",
+                                "saisie libre, et non le param\u00e8tre r\u00e9glementaire de l'annexe",
+                                "(m\u00eame s'il en \u00e9gale la valeur) ; nature des donn\u00e9es :",
+                                paste0(.txt(table_parametre_standard(res)$Valeur[1]), "."))),
+          html_table(local({ d <- table_parametre_standard(res); d[] <- lapply(d, .txt); d }),
+                     classe = "data"),
           "<h3>Cha\u00eene de calibration</h3>",
           html_table(data.frame(Etape = .txt(cal$etape), Valeur = fmt_nb(cal$valeur, 5),
                                 stringsAsFactors = FALSE), classe = "data"),

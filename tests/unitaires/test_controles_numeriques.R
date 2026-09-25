@@ -646,7 +646,8 @@ verifier("Details des deux controles invariants a une perturbation de gamma de 1
          })
 
 ## --- Place dans le resultat de run_engine() --------------------------------
-res <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II", B = 99)
+res <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II", B = 99,
+                  nature_donnees = "brutes")
 tb <- engine_table_tests(res)
 verifier("run_engine : table des tests a 48 lignes, sans les deux controles numeriques",
          nrow(tb) == 48L && !any(tb$test %in% c(NOM_FOC, NOM_MULTI,

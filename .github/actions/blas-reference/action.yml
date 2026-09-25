@@ -1,0 +1,62 @@
+# BLAS et LAPACK de référence, monothread (décision du mainteneur du
+# 24/09/2026, M34, ADR 0011 amendé ; issues #67 et #40).
+#
+# Constat (exécution refusée 36055472513 de references.yml, mode
+# regeneration pour #40) : sur la même image (ubuntu-22.04, 20260920.303.1)
+# et le même R 4.3.1, R chargeait OpenBLAS (openblas-pthread/libblas.so.3),
+# qui choisit ses noyaux selon le processeur du runner ; 5 526 feuilles hors
+# motifs par cas lognormal (5 583 non strictement identiques − 57 désignées
+# par les motifs ; 45 sur reserve2) différaient d'une exécution de la CI à
+# l'autre (écart maximal 3,508e-07), et le mode
+# regeneration, qui exige l'identité stricte hors motifs, ne pouvait pas
+# passer. Le BLAS et le LAPACK de référence (Netlib, paquets libblas3 et
+# liblapack3) n'ont pas de choix de noyau selon le processeur.
+#
+# Action partagée par .github/workflows/ci.yml (job « Tests du moteur ») et
+# .github/workflows/references.yml : les références doivent être testées sous
+# le BLAS qui les produit. À appeler APRÈS actions/checkout (action locale) et
+# r-lib/actions/setup-r (qui peut installer OpenBLAS). R charge libblas.so.3
+# et liblapack.so.3 par les liens symboliques gérés par update-alternatives :
+# le choix fait ici vaut pour tous les Rscript des étapes suivantes.
+#
+# La seconde étape ÉCHOUE, avant tout calcul, si R ne charge pas exactement
+# le BLAS et le LAPACK de référence d'Ubuntu 22.04 (OpenBLAS ou autre BLAS
+# optimisé, BLAS ou LAPACK interne de R, La_version() différente de 3.10.0) :
+# un changement d'image ou de setup-r ne peut pas modifier la plateforme de
+# calcul en silence ; il passe par une bascule (M34).
+
+name: BLAS et LAPACK de référence
+description: Sélectionne le BLAS et le LAPACK de référence (Netlib), monothread, et vérifie que R les charge.
+
+runs:
+  using: composite
+  steps:
+    - name: Sélection du BLAS et du LAPACK de référence
+      shell: bash
+      run: |
+        set -euo pipefail
+        [ "$(uname -m)" = x86_64 ] || { echo "::error title=BLAS::architecture $(uname -m) inattendue (chemins x86_64-linux-gnu)."; exit 1; }
+        # Garde : si OpenBLAS était chargé malgré tout, un seul fil (pas de
+        # découpage des produits dépendant du nombre de cœurs). Exporté pour
+        # toutes les étapes suivantes du job.
+        echo "OPENBLAS_NUM_THREADS=1" >> "$GITHUB_ENV"
+        lib=/usr/lib/x86_64-linux-gnu
+        sudo apt-get update -q
+        sudo apt-get install -y -q --no-install-recommends libblas3 liblapack3
+        # Groupes d'alternatives de Debian / Ubuntu (multiarch) ; --set échoue
+        # si le groupe ou le chemin n'est pas enregistré, et l'étape avec lui.
+        sudo update-alternatives --set libblas.so.3-x86_64-linux-gnu "$lib/blas/libblas.so.3"
+        sudo update-alternatives --set liblapack.so.3-x86_64-linux-gnu "$lib/lapack/liblapack.so.3"
+        update-alternatives --display libblas.so.3-x86_64-linux-gnu
+        update-alternatives --display liblapack.so.3-x86_64-linux-gnu
+        echo "libblas.so.3   -> $(readlink -f "$lib/libblas.so.3")"
+        echo "liblapack.so.3 -> $(readlink -f "$lib/liblapack.so.3")"
+        dpkg-query -W -f='${Package} ${Version}\n' libblas3 liblapack3
+        dpkg-query -W -f='${Package} ${Version} ${Status}\n' 'libopenblas*' 2>/dev/null || echo "Aucun paquet libopenblas* connu de dpkg."
+        # Relevé seulement : les drapeaux ne font jamais échouer l'action.
+        echo "Processeur : $(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2- | sed 's/^ *//') ($(nproc) cœurs) ; drapeaux : $(grep -m1 -o -w 'fma\|avx2\|avx512f' /proc/cpuinfo | sort -u | tr '\n' ' ' || true)"
+
+    - name: "Contrôle : R charge le BLAS et le LAPACK de référence"
+      shell: bash
+      # env -u : la variable de test CONTROLE_BLAS_SOURCE ne peut pas desactiver le controle en CI
+      run: env -u CONTROLE_BLAS_SOURCE Rscript "$GITHUB_ACTION_PATH/controle_blas.R"

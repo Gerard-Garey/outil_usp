@@ -76,7 +76,10 @@ perturber <- function(x, k) {
 executer <- function(methode, xt = NULL, yt = NULL, triangle = NULL)
   outils_env$nettoyer(outils_env$run_engine(xt = xt, yt = yt, triangle = triangle,
                                             methode = methode, segment = 1, annexe = "II",
-                                            B = B_ANTI_BRUIT))
+                                            B = B_ANTI_BRUIT,
+                                            # nature declaree : premium seulement
+                                            # ("brutes" refuse en reserve, #55)
+                                            nature_donnees = if (methode == "premium") "brutes"))
 
 # Controle anti-bruit : TRUE, ou un message listant les feuilles fautives.
 controle_anti_bruit <- function(a, b) {
