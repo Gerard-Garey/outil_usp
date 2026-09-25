@@ -19,7 +19,7 @@ Le hook `SessionStart` (`.claude/hooks/preparer_r.sh`) rend `Rscript` disponible
 Rscript -e 'shiny::runApp(".")'
 
 # Exécuter le moteur seul
-Rscript -e 'source("R/engine.R"); res <- run_engine(xt = c(104.20,102.25,109.34,114.64,118.41,121.28,132.40,131.22), yt = c(68.97,76.76,83.49,95.38,88.96,70.22,78.89,117.37), methode = "premium", segment = 1, annexe = "II", B = 999, seed = 20260831); print(res$parametre_final$sigma_usp); print(engine_table_tests(res)[, c("test","p_retenue","nature_p","verdict")])'
+Rscript -e 'source("R/engine.R"); res <- run_engine(xt = c(104.20,102.25,109.34,114.64,118.41,121.28,132.40,131.22), yt = c(68.97,76.76,83.49,95.38,88.96,70.22,78.89,117.37), methode = "premium", segment = 1, annexe = "II", nature_donnees = "brutes", B = 999, seed = 20260831); print(res$parametre_final$sigma_usp); print(engine_table_tests(res)[, c("test","p_retenue","nature_p","verdict")])'
 
 # Tests de reproductibilité et de non-régression (~2 min ; code de sortie 1 en cas d'échec)
 Rscript tests/test_reproductibilite.R
