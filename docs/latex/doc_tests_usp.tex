@@ -522,7 +522,29 @@ sinon \\
 \code{stat\_*()}, \code{test\_*()} & $x$, $y$ ou $z$ & statistique et p-value \\
 \code{test\_tost\_intercept()} & $x$, $y$, $\theta$ ou $\Delta$ &
 p-value d'équivalence (TOST) \\
-\code{.stats\_bootstrapables()} & $x$, $y$, $z$ & vecteur de 34 statistiques \\
+\code{.stats\_bootstrapables()} & $x$, $y$, $z$ & vecteur de 34 statistiques, évaluation
+du catalogue \code{USP\_CATALOGUE\_MC} \\
+\code{USP\_CATALOGUE\_MC},\newline \code{MW\_CATALOGUE\_MC} & entrées construites par
+\code{.mc\_entree(calc, queue,}\newline\code{degenere)} & catalogues des statistiques
+Monte-Carlo (34 et 13 entrées)~: fonction de calcul, sens du rejet (\code{haut}, \code{bas},
+\code{deux}) et condition de dégénérescence (\code{NULL} pour toutes les entrées, lue par aucun
+calcul)~; seule source du calcul observé, du calcul simulé et de la p-value de Monte-Carlo
+(ADR~0003) \\
+\code{.usp\_contexte\_mc()},\newline \code{.mw\_contexte\_mc()} & $x$, $y$, $z$~; \code{aj} &
+contexte des fonctions de calcul du catalogue~: ratios $r_t$ et ratios centrés $u_t$~;
+résidus de Mack \\
+\code{.mc\_evaluer()} & catalogue, contexte & vecteur nommé dans l'ordre du catalogue~; erreur
+qui nomme la statistique si une entrée ne rend pas une valeur de longueur~1 \\
+\code{engine\_p\_mc()} & valeurs simulées, valeur observée, sens du rejet & \code{p\_mc},
+\code{err\_mc}, \code{B\_effectif} d'une statistique (fiche~\ref{fiche:procedure-mc})~;
+fonction unique des deux méthodes \\
+\code{.mc\_p\_values()} & matrice des simulations, valeurs observées, catalogue &
+\code{engine\_p\_mc()} colonne par colonne, sens lu au catalogue~; erreur si une statistique
+simulée est absente du catalogue \\
+\code{engine\_registre\_}\newline\code{tests()} & \code{boot}, catalogue, \code{alpha},
+libellé de nature Monte-Carlo & fonction \code{add()} d'enregistrement d'une ligne de test,
+unique et partagée par \code{usp\_tests()} et \code{mw\_tests()}~: hiérarchie des p-values,
+règle de verdict, refus d'une clé Monte-Carlo absente du catalogue ou du bootstrap \\
 \code{usp\_simuler()} & \code{fit} & $T$ pertes $y_t$ simulées sous le modèle
 ajusté \\
 \code{usp\_bootstrap()} & \code{fit}, $B$ (999), \code{seed} (20260831),
@@ -534,7 +556,8 @@ ajusté \\
 \code{B\_effectif}, \code{granularite}, \code{sigma\_boot} \\
 \code{usp\_tests()} & \code{fit}, \code{boot}, \code{alpha} (0,10),
 \code{theta\_equiv} (0,10), \code{delta\_equiv}, \code{robustesse} (\code{NULL}) &
-liste des tests (H0, H1, statistique, 3 p-values, nature)~; \code{robustesse}, calculé par
+liste des tests (H0, H1, statistique, 3 p-values, nature), enregistrés par l'\code{add()}
+d'\code{engine\_registre\_tests()}~; \code{robustesse}, calculé par
 \code{run\_engine()} et non stocké, alimente le seul commentaire de la ligne jackknife (année
 d'écart maximal et sens de l'écart sur $\sigma_{\mathrm{USP}}$~; fiche~\ref{fiche:jackknife})~;
 celui de la ligne de l'intervalle bootstrap n'en dépend pas (fiche~\ref{fiche:ic-bootstrap}) \\
@@ -570,7 +593,8 @@ résidus~; \code{aj} & triangle simulé~; vecteur de 13 statistiques \\
 \code{mw\_stat\_correlation\_dev()} & \code{aj} & statistiques des tests M1 à
 M6 (détail~: §\ref{sec:index-fonctions}) \\
 \code{mw\_tests()} & \code{aj}, \code{boot}, \code{alpha} (0,10) &
-liste des tests M1 à M6 (même structure que \code{usp\_tests()}) \\
+liste des tests M1 à M6 (même structure que \code{usp\_tests()}, même fonction
+d'enregistrement \code{engine\_registre\_tests()}) \\
 \code{mw\_parametre()} & \code{aj}, \code{msep} (champ \code{\$msep}),
 $\sigma_{\text{std}}$, barème & $\sigma_{\mathrm{USP}}$ et ses composantes \\
 \code{mw\_influence()} & \code{aj} & levier, facteur sans la cellule,
@@ -1067,8 +1091,11 @@ disponibles. Les entrées sont groupées par hypothèse~: H1 à H4 pour la méth
 lognormale, M1 à M6 pour la méthode Merz--Wüthrich. La colonne « Réf. » renvoie à la fiche correspondante. La méthode
 générale de p-value de Monte-Carlo est décrite à part
 (fiche~\ref{fiche:procedure-mc}, page~\pageref{fiche:procedure-mc})~: la colonne « Clé MC » indique,
-pour chaque test, le nom de la statistique dans \code{.stats\_bootstrapables()}
-qui lui correspond, lorsqu'une p-value de Monte-Carlo est calculée.
+pour chaque test, le nom de l'entrée du catalogue des statistiques Monte-Carlo de la méthode
+(\code{USP\_CATALOGUE\_MC} pour la méthode lognormale, évalué par
+\code{.stats\_bootstrapables()}~; \code{MW\_CATALOGUE\_MC} pour la méthode Merz--Wüthrich,
+évalué par \code{.mw\_stats()}) qui lui correspond, lorsqu'une p-value de Monte-Carlo est
+calculée.
 
 Certains tests s'appuient sur un appel direct à une fonction de \code{stats}
 plutôt que sur une fonction dédiée du moteur~: cela est indiqué explicitement,
@@ -1347,8 +1374,12 @@ $\hat\pi_t$, non par les données, de sorte qu'elle ne peut pas contredire le
 modèle~; à $\hat\pi_t$ constant, sa loi simulée porte en outre un atome en la
 valeur observée (centrage et variance unitaire des résidus
 standardisés, fiches~\ref{fiche:centrage} et~\ref{fiche:variance-unitaire}). Dans tous les autres cas, la clé
-correspond au nom de colonne retourné par \code{.stats\_bootstrapables()} et
-consommé par \code{usp\_bootstrap()}.
+est le nom d'une entrée du catalogue de la méthode, qui est aussi le nom de colonne retourné
+par \code{.stats\_bootstrapables()} (ou \code{.mw\_stats()}) et consommé par
+\code{usp\_bootstrap()} (ou \code{mw\_bootstrap()}). La fonction d'enregistrement
+\code{add()} d'\code{engine\_registre\_tests()} refuse, par une erreur, une clé absente du
+catalogue ou de l'objet bootstrap~: une p-value asymptotique ne peut donc pas être retenue à la
+place d'une p-value de Monte-Carlo prévue par suite d'une clé mal écrite (ADR~0003, point~3).
 \end{encadre}
 
 
@@ -1508,8 +1539,13 @@ p-value. Le champ \code{loi} rappelle cette loi. \\
 $\hat\delta$, $R^2$, nombre de valeurs aberrantes, distance de Cook maximale\dots Ces quantités
 n'ont \emph{aucune} loi de référence dans ce dispositif et ne doivent pas être lues comme des
 statistiques de test. \\
-\code{p}, \code{p\_mc} & \textbf{p-values}~: respectivement asymptotique (ou exacte selon le
-test) et par bootstrap paramétrique. \\
+\code{p\_exacte},\newline \code{p\_}\newline\code{asymptotique},\newline \code{p\_mc} & \textbf{p-values}~:
+respectivement exacte, asymptotique et de Monte-Carlo (bootstrap paramétrique, ou de résidus
+pour la méthode Merz--Wüthrich), chacune \code{NA} quand elle n'est pas calculée~;
+\code{err\_mc} porte l'erreur de Monte-Carlo de \code{p\_mc}. La p-value qui fonde le verdict
+est \code{p\_retenue}, choisie dans l'ordre exacte, Monte-Carlo, asymptotique par la fonction
+\code{add()} d'\code{engine\_registre\_tests()}, commune aux deux méthodes~; \code{nature\_p}
+dit laquelle. \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -1765,7 +1801,13 @@ Pour un test unilatéral à droite,
   \hat p_{\text{MC}} = \frac{1 + \#\{b : S^{(b)} \ge S_{\text{obs}}\}}{B+1},
 \]
 avec l'adaptation évidente à gauche, et
-$\hat p = 2\min(\hat p_{\text{gauche}}, \hat p_{\text{droite}})$ au bilatéral.
+$\hat p = 2\min(\hat p_{\text{gauche}}, \hat p_{\text{droite}})$ au bilatéral, borné à~1.
+Dans le moteur, le sens du rejet de chaque statistique (\code{haut}, \code{bas} ou
+\code{deux}) est déclaré une seule fois, dans le catalogue de la méthode
+(\code{USP\_CATALOGUE\_MC}, \code{MW\_CATALOGUE\_MC}~; ADR~0003), et la p-value est calculée
+par une seule fonction, \code{engine\_p\_mc()}, commune aux deux méthodes. $B$ y est remplacé
+par $B_{\text{eff}}$ (champ \code{B\_effectif}), nombre de réplications où la statistique est
+finie~: une réplication dont le réajustement ou le calcul des statistiques échoue est écartée.
 
 \medskip
 La portée de l'ajout de~1 au numérateur et au dénominateur mérite d'être énoncée avec précision,
@@ -4885,8 +4927,8 @@ bootstrap paramétrique, asymptotique en $T$ et non quantifiable à $T = 8$
 Statistique de Ljung--Box au seul retard~1, appliquée aux ratios centrés $u_t$ (base
 « ratios bruts », section~\ref{sec:base-residus}). Mêmes hypothèses non testées et même objet que
 la fiche~\ref{fiche:durbin-watson-ratios-bruts}. Le retard~2 n'est pas restitué sur cette base~:
-$\hat\rho_2$ n'y reposerait que sur $T-2$ produits (commentaire de
-\code{.stats\_bootstrapables()}).
+$\hat\rho_2$ n'y reposerait que sur $T-2$ produits (commentaire qui précède le catalogue
+\code{USP\_CATALOGUE\_MC}).
 \Hzero
 $H_0 : \rho_1 = 0$ pour le ratio S/P, contre $H_1$~: autocorrélation au retard~1.
 \Stat
@@ -7708,21 +7750,29 @@ Chaque affirmation quantitative de ce document correspond à une fonction
 identifiable du moteur \code{R/engine.R}, seul fichier contenant de la logique
 statistique ou actuarielle.
 
-\begin{center}
-\small
-\begin{tabular}{@{}p{5.6cm}p{9.4cm}@{}}
+{\small
+\begin{longtable}{@{}p{5.6cm}p{9.4cm}@{}}
 \toprule
 \textbf{Élément documenté} & \textbf{Implémentation dans \code{R/engine.R}} \\
 \midrule
+\endfirsthead
+\toprule
+\textbf{Élément documenté} & \textbf{Implémentation dans \code{R/engine.R}} \\
+\midrule
+\endhead
 Noyau du modèle ($\pi_t$, $\hat\beta$, $z_t$) & \code{usp\_pi()}, \code{usp\_noyau()} \\
 Optimisation sous contrainte $\delta\in[0,1]$ & \code{usp\_objectif()}, \code{usp\_ajuster()} \\
 $\hat\delta$ au bord, $\hat\pi_t$ constant (fiches~\ref{fiche:position-delta}, \ref{fiche:centrage}) & \code{usp\_regime()}, tolérance \code{TOL\_DELTA\_BORD} \\
 Lois exactes (Kendall, suites) & \code{mk\_p\_exacte()}, \code{runs\_p\_exacte()},
 \code{usp\_runsr\_p\_exacte()} \\
 Statistiques de test & \code{stat\_*()}, \code{test\_*()} \\
-Bootstrap paramétrique et p-values MC & \code{.stats\_bootstrapables()}, \code{usp\_bootstrap()} \\
-Hiérarchie exacte $\succ$ MC $\succ$ asymptotique & fonction \code{add()} interne à \code{usp\_tests()}~;\newline
-fonction \code{add()} homonyme interne à \code{mw\_tests()} \\
+Bootstrap paramétrique et p-values MC & \code{.stats\_bootstrapables()}, \code{usp\_bootstrap()}~;\newline
+catalogues \code{USP\_CATALOGUE\_MC} et \code{MW\_CATALOGUE\_MC} (\code{.mc\_entree()},
+\code{.mc\_evaluer()})~;\newline p-value de Monte-Carlo par \code{engine\_p\_mc()}, appliquée par
+\code{.mc\_p\_values()} \\
+Hiérarchie exacte $\succ$ MC $\succ$ asymptotique & fonction \code{add()}
+d'\code{engine\_registre\_tests()}, unique et partagée par \code{usp\_tests()} et
+\code{mw\_tests()} \\
 Sortie de la hiérarchie (grandeur rivée par l'estimation) & branche finale de \code{add()}~:
 \code{p\_retenue} et \code{nature\_p} à \code{NA}, verdict \code{INFO}, seul admis
 hors des types \code{test} et \code{procedure de decision} \\
@@ -7768,8 +7818,8 @@ Empreintes md5 d'un résultat pour le rapport figé~: données du calcul
 une même machine, dépendant de la plateforme) & \code{engine\_empreinte()}~;
 non appelée par \code{run\_engine()}, sans tirage aléatoire \\
 \bottomrule
-\end{tabular}
-\end{center}
+\end{longtable}
+}
 
 \noindent
 L'application Shiny (\code{app.R}, \code{R/display\_helpers.R}) ne contient
@@ -8073,7 +8123,11 @@ suivant les recense.
 \textcolor{financeblue}{\textbf{Portée}} &
 \textcolor{financeblue}{\textbf{Tests concernés}} \\
 \code{usp\_credibilite()} & LN + MW & Calibration des deux méthodes~: seule
-fonction de calcul commune aux deux branches \\
+fonction de calibration commune aux deux branches \\
+\code{engine\_p\_mc()},\newline \code{.mc\_evaluer()} & LN + MW & Toutes les p-values de
+Monte-Carlo et leurs erreurs, dans les deux méthodes~; évaluation des deux catalogues \\
+\code{engine\_registre\_}\newline\code{tests()} & LN + MW & Enregistrement de toutes les lignes
+des tables de tests~: hiérarchie des p-values et verdicts des deux méthodes \\
 \code{test\_grubbs()} & LN + MW & Grubbs sur $z_t$, sur ratios bruts, et sur
 résidus de Mack \\
 \code{test\_rosner()} & LN + MW & ESD généralisé, dans les deux méthodes \\
@@ -8490,7 +8544,8 @@ Une fonction, plusieurs tests & \code{test\_lm\_complet()} (4 entrées),
 \code{stat\_supF()}, \code{stat\_cusum()} et \code{test\_grubbs()} (2 entrées
 chacune, sur $z_t$ et sur les ratios bruts $u_t$) & Une anomalie se propage à toutes les
 entrées issues de l'appel. \\
-Base « ratios bruts » & six lignes sur $u_t$, calculées dans
+Base « ratios bruts » & six lignes sur $u_t$, construit par
+\code{.usp\_contexte\_}\newline\code{mc()}, statistiques calculées dans
 \code{.stats\_}\newline\code{bootstrapables()}\newline suites~: \code{usp\_runsr\_}\newline
 \code{p\_exacte()} + \code{usp\_regime()} & La série $u_t$ est construite hors de \code{usp\_noyau()}~:
 une anomalie du noyau n'atteint pas la statistique observée de ces six lignes, mais
@@ -8499,7 +8554,8 @@ suites dépend en outre du régime de $\hat\pi_t$ et du test de concordance des
 signes. \\
 Fonction commune aux deux méthodes & \code{test\_grubbs()},
 \code{test\_rosner()}, \code{test\_runs()}, \code{stat\_dw()},
-\code{.shapiro\_sur()}, \code{stat\_lilliefors()}, \code{usp\_credibilite()} &
+\code{.shapiro\_sur()}, \code{stat\_lilliefors()}, \code{usp\_credibilite()},
+\code{engine\_p\_mc()}, \code{engine\_registre\_}\newline\code{tests()} &
 Portée maximale~: une anomalie affecterait les deux dispositifs, donc les deux
 dossiers. Priorité de revue. \\
 \end{tabular}
