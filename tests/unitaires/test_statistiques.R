@@ -235,17 +235,20 @@ verifier("Grubbs : p = 0 a la borne (n-1)/sqrt(n) ; NA si ecart-type nul",
 # Reference : enumeration directe sur sim = 1..9 (B_eff = 9).
 # obs = 7 : #{sim >= 7} = 3, #{sim <= 7} = 7, d'ou p haut = 4/10, p bas =
 # 8/10, p bilaterale = 2 min(4/10, 8/10) = 8/10.
-# err_mc = sqrt(p (1 - p) / B_eff), formule inchangee par #41 (issue #40).
+# err_mc = sqrt(p (1 - p) / B_eff) en queue haute ou basse, sqrt(p (2 - p) /
+# B_eff) en bilateral (issue #40).
 verifier("engine_p_mc : queues haute, basse, bilaterale par enumeration (sim = 1..9, obs = 7)",
          {
            h <- engine_p_mc(1:9, 7, "haut"); b <- engine_p_mc(1:9, 7, "bas")
            d <- engine_p_mc(1:9, 7, "deux")
            proche(h$p_mc, 0.4) && proche(b$p_mc, 0.8) && proche(d$p_mc, 0.8) &&
-             proche(h$err_mc, sqrt(0.4 * 0.6 / 9)) && proche(d$err_mc, sqrt(0.8 * 0.2 / 9)) &&
+             proche(h$err_mc, sqrt(0.4 * 0.6 / 9)) && proche(b$err_mc, sqrt(0.8 * 0.2 / 9)) &&
+             proche(d$err_mc, sqrt(0.8 * 1.2 / 9)) &&
+             proche(h$granularite, 1 / 10) && proche(d$granularite, 2 / 10) &&
              identical(h$B_effectif, 9)
          })
-verifier("engine_p_mc : bilaterale bornee a 1 (obs = mediane), err_mc nulle",
-         { d <- engine_p_mc(1:9, 5, "deux"); identical(d$p_mc, 1) && identical(d$err_mc, 0) })
+verifier("engine_p_mc : bilaterale bornee a 1 (obs = mediane), err_mc = 1 / sqrt(B_eff)",
+         { d <- engine_p_mc(1:9, 5, "deux"); identical(d$p_mc, 1) && proche(d$err_mc, 1 / 3) })
 verifier("engine_p_mc : simulations non finies ignorees dans p et B_effectif",
          identical(engine_p_mc(c(1:9, NA, Inf, NaN), 7, "haut"), engine_p_mc(1:9, 7, "haut")))
 verifier("engine_p_mc : NA si valeur observee non finie ou aucune simulation finie",
@@ -256,6 +259,114 @@ verifier("engine_p_mc : NA si valeur observee non finie ou aucune simulation fin
          })
 verifier("engine_p_mc : sens de rejet inconnu refuse",
          leve_erreur(engine_p_mc(1:9, 7, "gauche")) && leve_erreur(engine_p_mc(1:9, 7, NA)))
+
+## --- Erreur de Monte-Carlo selon le sens du rejet (issue #40) ---------------
+# Reference : enumeration exacte de la loi binomiale des comptages, sans
+# erreur Monte-Carlo (avis d'actuary du 24/09/2026 sur #40). Avec sim =
+# N fois +1 et B - N fois -1 et obs = 0 : #{sim >= 0} = N, #{sim <= 0} = B - N.
+# Sous le modele de la simulation, N ~ Binomiale(B, q+) exactement, q+ = p / 2
+# en bilateral (queue la plus petite, q- = 1 - p / 2), q+ = p en queue haute.
+# L'ecart-type exact de p_mc est celui de engine_p_mc() applique a chaque N,
+# pondere par dbinom ; err_mc est evaluee par engine_p_mc() au N qui donne
+# p_mc = p exactement. Tolerance 1 % relative (ecart d'enumeration <= 0,5 %
+# pour p <= 0,9 ; la formule unilaterale appliquee au bilateral en est a 30 %
+# a 70 %).
+.p40_B <- 999
+.p40_sim <- function(N, B = .p40_B) c(rep(1, N), rep(-1, B - N))
+.p40_sd_exact <- function(q, queue, B = .p40_B) {
+  N <- 0:B
+  pm <- vapply(N, function(n) engine_p_mc(.p40_sim(n, B), 0, queue)$p_mc, numeric(1))
+  w <- stats::dbinom(N, B, q)
+  sqrt(sum(w * pm^2) - sum(w * pm)^2)
+}
+.p40_err <- function(N, queue) engine_p_mc(.p40_sim(N), 0, queue)
+# N tel que 2 (1 + N) / (B + 1) = p : 49, 186, 399, 449 pour p = 0,10 ;
+# 0,374 ; 0,80 ; 0,90.
+for (.cas in list(c(0.10, 49), c(0.374, 186), c(0.80, 399), c(0.90, 449))) local({
+  p <- .cas[1]; N <- .cas[2]
+  verifier(sprintf("engine_p_mc : err_mc bilaterale = ecart-type exact (dbinom, B = 999) a 1 %%, p = %.3f", p),
+           {
+             e <- .p40_err(N, "deux")
+             proche(e$p_mc, p, rel = 1e-12) &&
+               proche(e$err_mc, sqrt(p * (2 - p) / .p40_B), rel = 1e-12) &&
+               isTRUE(proche(e$err_mc, .p40_sd_exact(p / 2, "deux"), rel = 0.01))
+           })
+})
+# Bord p = 1 (q+ = q- = 1/2) : la formule vaut 1 / sqrt(B) et majore
+# l'ecart-type exact, lui-meme egal a sqrt((1 - 2/pi) / B) a 5 % pres
+# (approximation normale de |p+ - 1/2|).
+verifier("engine_p_mc : bord p = 1, err_mc >= ecart-type exact = sqrt((1 - 2/pi)/B) a 5 %",
+         {
+           e <- .p40_err(499, "deux"); sdx <- .p40_sd_exact(0.5, "deux")
+           identical(e$p_mc, 1) && proche(e$err_mc, 1 / sqrt(.p40_B), rel = 1e-12) &&
+             e$err_mc >= sdx && isTRUE(proche(sdx, sqrt((1 - 2 / pi) / .p40_B), rel = 0.05))
+         })
+# Unilateral (queue haute) : N tel que (1 + N) / (B + 1) = p : 99 et 499.
+for (.cas in list(c(0.10, 99), c(0.50, 499))) local({
+  p <- .cas[1]; N <- .cas[2]
+  verifier(sprintf("engine_p_mc : err_mc unilaterale = ecart-type exact (dbinom, B = 999) a 1 %%, p = %.2f", p),
+           {
+             e <- .p40_err(N, "haut")
+             proche(e$p_mc, p, rel = 1e-12) &&
+               proche(e$err_mc, sqrt(p * (1 - p) / .p40_B), rel = 1e-12) &&
+               isTRUE(proche(e$err_mc, .p40_sd_exact(p, "haut"), rel = 0.01))
+           })
+})
+# Simulations non finies : B_eff les exclut, le denominateur de p_mc est
+# B_eff + 1, err_mc et granularite sont calculees sur B_eff.
+verifier("engine_p_mc : NA dans sim exclus de B_eff (p = 2 (1+3)/10, err_mc et granularite sur B_eff = 9)",
+         {
+           d <- engine_p_mc(c(NA, 1:4, NA, 5:9, NA), 7, "deux")
+           identical(d$B_effectif, 9) && proche(d$p_mc, 0.8) &&
+             proche(d$err_mc, sqrt(0.8 * 1.2 / 9)) && proche(d$granularite, 0.2)
+         })
+# Simulation a travers engine_p_mc() : S ~ N(0, 1), B = 999, obs =
+# qnorm(1 - p/2), R = 2 000 repetitions sous graine locale (restauree, ou
+# supprimee si elle n'existait pas) ; pour une meme observation, ecart-type
+# empirique des p_mc a 10 % de la moyenne des err_mc rendues par
+# engine_p_mc() (incertitude d'un ecart-type estime sur R = 2 000 :
+# 1 / sqrt(2R) = 1,6 %, approximation normale), et cette moyenne a 10 % de
+# sqrt(p (2 - p) / B) ; queue haute a p = 0,10, reference sqrt(p (1 - p) / B).
+verifier("engine_p_mc : ecart-type simule des p_mc (R = 2 000) a 10 % de err_mc, bilateral et unilateral",
+         {
+           existait <- exists(".Random.seed", envir = globalenv())
+           avant <- if (existait) get(".Random.seed", envir = globalenv()) else NULL
+           set.seed(40); R <- 2000; B <- .p40_B
+           S <- matrix(stats::rnorm(R * B), R, B)
+           if (existait) assign(".Random.seed", avant, envir = globalenv())
+           else rm(".Random.seed", envir = globalenv())
+           compare <- function(obs, queue, p, k) {
+             r <- apply(S, 1, function(s) unlist(engine_p_mc(s, obs, queue)[c("p_mc", "err_mc")]))
+             e <- mean(r["err_mc", ])
+             isTRUE(proche(stats::sd(r["p_mc", ]), e, rel = 0.10)) &&
+               isTRUE(proche(e, sqrt(p * (k - p) / B), rel = 0.10))
+           }
+           ok <- vapply(c(0.10, 0.374, 0.80), function(p)
+             compare(stats::qnorm(1 - p / 2), "deux", p, 2), logical(1))
+           all(ok) && compare(stats::qnorm(0.90), "haut", 0.10, 1) &&
+             identical(exists(".Random.seed", envir = globalenv()), existait)
+         })
+# Champ granularite_stat de l'objet bootstrap (issue #40) : 2 / (B_eff + 1)
+# pour une statistique bilaterale, 1 / (B_eff + 1) sinon, le sens etant lu au
+# catalogue. Bootstrap B = 19 sur les donnees de CLAUDE.md, etat du
+# generateur restaure (usp_bootstrap() appelle set.seed(), issue #4).
+verifier("usp_bootstrap : granularite_stat = k / (B_eff + 1), k = 2 en bilateral, 1 sinon",
+         {
+           existait <- exists(".Random.seed", envir = globalenv())
+           avant <- if (existait) get(".Random.seed", envir = globalenv()) else NULL
+           xb <- c(104.20, 102.25, 109.34, 114.64, 118.41, 121.28, 132.40, 131.22)
+           yb <- c(68.97, 76.76, 83.49, 95.38, 88.96, 70.22, 78.89, 117.37)
+           bt <- usp_bootstrap(usp_ajuster(xb, yb), B = 19)
+           if (existait) assign(".Random.seed", avant, envir = globalenv())
+           else rm(".Random.seed", envir = globalenv())
+           g <- bt$granularite_stat
+           k <- ifelse(vapply(USP_CATALOGUE_MC, `[[`, "", "queue") == "deux", 2, 1)
+           identical(names(g), names(bt$B_effectif)) && identical(names(g), names(k)) &&
+             any(k == 2) && any(k == 1) &&
+             isTRUE(proche(g, k / (bt$B_effectif + 1), rel = 1e-12)) &&
+             identical(bt$granularite, 1 / 20)
+         })
+rm(.p40_B, .p40_sim, .p40_sd_exact, .p40_err, .cas)
 verifier(".mc_p_values : une colonne absente du catalogue est refusee",
          leve_erreur(.mc_p_values(matrix(1:9, 9, 1, dimnames = list(NULL, "Inconnue")),
                                   list(Inconnue = 7), USP_CATALOGUE_MC)))

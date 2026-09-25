@@ -880,7 +880,7 @@ test_runs <- function(z) {
   list(stat = Z, p = .p_borne(2 * (1 - stats::pnorm(abs(Z)))), runs = R)
 }
 
-# Cox & Stuart (1955), JRSS B 17, 1-26 (test de tendance par signes).
+# Cox & Stuart (1955), Biometrika 42, 80-93 (test de tendance par signes).
 test_cox_stuart <- function(v) {
   n <- length(v); c0 <- ceiling(n / 2)
   d <- v[(c0 + 1):n] - v[1:(n - c0)]
@@ -1367,14 +1367,19 @@ USP_CATALOGUE_MC <- list(
     else NA_real_, "haut"),
   Runs   = .mc_entree(function(e) test_runs(e$z)$stat, "deux"),
   MK     = .mc_entree(function(e) test_mann_kendall(e$r)$stat, "deux"),
+  # Spearman : la statistique simulee est S (statistique de test affichee par
+  # usp_tests()), S = (T^3 - T) (1 - rho_s) / 6 dans stats::cor.test(),
+  # fonction affine decroissante de rho_s : la region bilaterale est la meme
+  # (mesure du 24/09/2026 sur les trois cas lognormaux de reference : p_mc
+  # identiques au bit pres a celles calculees sur rho_s ; issue #41).
   SpearVol = .mc_entree(function(e)
     if (stats::sd(e$x) > 0)
       suppressWarnings(unname(stats::cor.test(e$r, e$x, method = "spearman",
-                                              exact = FALSE)$estimate)) else NA_real_,
+                                              exact = FALSE)$statistic)) else NA_real_,
     "deux"),
   SpearTps = .mc_entree(function(e)
     suppressWarnings(unname(stats::cor.test(e$r, seq_along(e$r),
-                                            method = "spearman", exact = FALSE)$estimate)),
+                                            method = "spearman", exact = FALSE)$statistic)),
     "deux"),
   DAgo   = .mc_entree(function(e) test_dagostino_skew(e$z)$stat, "deux"),
   # Cox-Stuart : la region de rejet bilaterale de K (nombre de differences
@@ -1426,13 +1431,23 @@ USP_CATALOGUE_MC <- list(
 #   sim   : valeurs simulees de la statistique (NA / non finies ignorees)
 #   obs   : valeur observee
 #   queue : sens du rejet, "haut", "bas" ou "deux" (lu au catalogue)
-# Retour : p_mc (bornee a 1), err_mc, B_effectif (nombre de simulations finies).
+# Retour : p_mc (bornee a 1), err_mc, B_effectif (nombre de simulations finies),
+# granularite (pas elementaire de p_mc, voir plus bas).
 # p_mc = (1 + #{sim >= obs}) / (B_eff + 1) en queue haute, symetrique en queue
 # basse, 2 * min des deux en bilateral. NA si aucune simulation finie ou si la
 # valeur observee n'est pas finie.
-# err_mc : ecart-type binomial sqrt(p (1 - p) / B_eff), en 1/sqrt(B), a
-# distinguer strictement de l'erreur d'approximation liee a T. Meme formule
-# quel que soit le sens du rejet (issue #40 : sa correction s'ecrit ici).
+# err_mc : ecart-type de Monte-Carlo de p_mc, en 1/sqrt(B), a distinguer
+# strictement de l'erreur d'approximation liee a T (issue #40) :
+#   - queue haute ou basse : sqrt(p (1 - p) / B_eff), ecart-type binomial
+#     (N ~ Binomiale(B_eff, q), p estimateur plug-in de q) ;
+#   - bilateral : sqrt(p (2 - p) / B_eff), p pris apres la borne pmin(p, 1).
+#     Tant que le min des deux queues ne change pas de cote, p = 2 p_queue et
+#     Var = 4 q (1 - q) / B = p (2 - p) / B. Une seule formule, sans cas
+#     particulier au bord : pour p >= 0,9 c'est une borne conservatrice de
+#     l'ecart-type exact (enumeration binomiale a B = 999), jusqu'a 1,66 fois
+#     l'ecart-type exact en p = 1 (1 / sqrt(B) contre sqrt((1 - 2/pi) / B)).
+# granularite : pas elementaire de p_mc, 1 / (B_eff + 1) en queue haute ou
+# basse, 2 / (B_eff + 1) en bilateral ; NA si aucune simulation finie.
 engine_p_mc <- function(sim, obs, queue) {
   if (length(queue) != 1L || !queue %in% c("haut", "bas", "deux"))
     stop("engine_p_mc() : sens de rejet inconnu : ", paste(queue, collapse = ", "))
@@ -1446,7 +1461,9 @@ engine_p_mc <- function(sim, obs, queue) {
            deux = 2 * min((1 + sum(s >= obs)) / (length(s) + 1),
                           (1 + sum(s <= obs)) / (length(s) + 1)))
   p <- pmin(p, 1)
-  list(p_mc = p, err_mc = sqrt(p * (1 - p) / pmax(B_eff, 1)), B_effectif = B_eff)
+  k <- if (queue == "deux") 2 else 1
+  list(p_mc = p, err_mc = sqrt(p * (k - p) / pmax(B_eff, 1)), B_effectif = B_eff,
+       granularite = if (B_eff > 0) k / (B_eff + 1) else NA_real_)
 }
 
 # Applique engine_p_mc() a chaque colonne de la matrice des simulations, le
@@ -1460,7 +1477,8 @@ engine_p_mc <- function(sim, obs, queue) {
          paste(inconnus, collapse = ", "))
   r <- lapply(noms, function(nm) engine_p_mc(sim[, nm], obs[[nm]], catalogue[[nm]]$queue))
   champ <- function(k) stats::setNames(vapply(r, function(o) o[[k]], numeric(1)), noms)
-  list(p_mc = champ("p_mc"), err_mc = champ("err_mc"), B_effectif = champ("B_effectif"))
+  list(p_mc = champ("p_mc"), err_mc = champ("err_mc"), B_effectif = champ("B_effectif"),
+       granularite = champ("granularite"))
 }
 
 # --- Enregistrement des lignes de resultat des tests --------------------------
@@ -1576,10 +1594,15 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
   # rejet etant lu au catalogue USP_CATALOGUE_MC.
   mc <- .mc_p_values(sim, stats_obs, USP_CATALOGUE_MC)
 
+  # granularite : 1 / (B + 1) sur B nominal, pas elementaire unilateral (champ
+  # affiche par app.R et display_helpers.R). granularite_stat : pas par
+  # statistique, 1 / (B_eff + 1), ou 2 / (B_eff + 1) en bilateral (issue #40) ;
+  # place en fin de liste pour ne pas deplacer les champs existants.
   list(stats_obs = as.list(stats_obs), p_mc = mc$p_mc, err_mc = mc$err_mc,
        B_effectif = mc$B_effectif, granularite = 1 / (B + 1),
        sigma_boot = sig[is.finite(sig)],
-       delta_boot = del[is.finite(del)], gamma_boot = gam[is.finite(gam)], B = B)
+       delta_boot = del[is.finite(del)], gamma_boot = gam[is.finite(gam)], B = B,
+       granularite_stat = mc$granularite)
 }
 
 # Réajustement rapide (un seul démarrage, à partir de l'optimum observé).
@@ -1787,7 +1810,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   cx <- test_cox_stuart(r); m_paires <- T - ceiling(T / 2)
   add(fam, "Tendance par signes du ratio S/P", "Cox & Stuart (1955), Biometrika 42",
       H0 = "P(D_t > 0) = 1/2 (absence de tendance)", H1 = "P(D_t > 0) != 1/2",
-      stat_nom = "K", stat = cx$stat, loi = "Binomiale(m, 1/2) EXACTE",
+      stat_nom = "K", stat = cx$stat,
+      loi = paste("Binomiale(m, 1/2) EXACTE, m differences non nulles ;",
+                  "p_mc par |K - n_p/2|, n_p paires, queue haute"),
       p_ex = cx$p, mc_nom = "CoxStuart",
       detail = sprintf("m = %d paires ; p bilaterale minimale atteignable = %.4f",
                        m_paires, 2 * 0.5^m_paires))
@@ -3706,10 +3731,13 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
   # rejet etant lu au catalogue MW_CATALOGUE_MC (fonction partagee avec
   # usp_bootstrap()).
   mc <- .mc_p_values(sim, obs, MW_CATALOGUE_MC)
+  # granularite (B nominal) et granularite_stat (par statistique, sur B_eff) :
+  # comme dans usp_bootstrap() (issue #40).
   list(stats_obs = as.list(obs), p_mc = mc$p_mc,
        err_mc = mc$err_mc,
        B_effectif = mc$B_effectif, granularite = 1 / (B + 1),
-       sigma_boot = sig[is.finite(sig)], B = B)
+       sigma_boot = sig[is.finite(sig)], B = B,
+       granularite_stat = mc$granularite)
 }
 
 # --- Catalogue Monte-Carlo de la methode Merz-Wuthrich (ADR 0003) -------------
@@ -3742,10 +3770,9 @@ MW_CATALOGUE_MC <- list(
   # et rejette H0 de facon quasi systematique (verifie par simulation : 100 %
   # de rejets sous H0). L'ajout de facteur(j) ramene le test a ce qu'il
   # pretend mesurer : une dependance au volume A L'INTERIEUR de chaque
-  # colonne. Le nom "Intercept" est historique : la statistique est la pente
-  # intra-colonne de .mw_pente_intra() (ADR 0003 ; renommage non fait, il
-  # changerait les noms de l'objet bootstrap dans les references, issue #41).
-  Intercept  = .mc_entree(function(e) .mw_pente_intra(e$res), "deux"),
+  # colonne. La statistique est la pente intra-colonne de .mw_pente_intra()
+  # (cle renommee a l'issue #41 ; ADR 0003).
+  PenteIntra = .mc_entree(function(e) .mw_pente_intra(e$res), "deux"),
   # Tests specifiques de l'hypothese (iii), colonne par colonne. Les
   # statistiques de Fisher et de Kruskal-Wallis rejettent en queue haute ;
   # l'amplitude de la famille alpha egalement.
@@ -3782,7 +3809,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       H1 = "les facteurs varient avec le volume a l'interieur d'une colonne",
       stat_nom = "t", stat = if (!is.null(ti)) unname(ti[3]) else NA_real_,
       loi = "t ponderee a effet de colonne fixe ; p de reference par Monte-Carlo",
-      p_as = if (!is.null(ti)) unname(ti[4]) else NA_real_, mc_nom = "Intercept",
+      p_as = if (!is.null(ti)) unname(ti[4]) else NA_real_, mc_nom = "PenteIntra",
       detail = paste("Regression ponderee sur tout le triangle AVEC effet fixe d'annee de",
                      "developpement. Sans ce terme, la decroissance de f_j et la croissance",
                      "de C(i,j) creent une relation mecanique qui fait rejeter H0 dans la",
