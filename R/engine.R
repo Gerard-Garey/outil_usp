@@ -986,16 +986,45 @@ lillie_p <- function(D, n) {
 # initial, ou retire .Random.seed s'il n'existait pas, y compris en cas
 # d'erreur (on.exit). Le flux tire a l'interieur de expr est celui de
 # set.seed(seed) : memes tirages qu'un set.seed(seed) suivi de expr.
+#
+# Generateur fixe (issue #37) : la graine est posee sous le generateur
+# ENGINE_RNG_KIND, quel que soit RNGkind() chez l'appelant, et le reglage de
+# l'appelant (RNGkind() comme .Random.seed) est restaure en sortie. Sans
+# cela, un appelant sous RNGkind("L'Ecuyer-CMRG") ou sample.kind = "Rounding"
+# obtenait d'autres tirages a graine egale (mesure de l'issue #37). Sous le
+# reglage par defaut de R (celui de ENGINE_RNG_KIND), les tirages sont ceux
+# de set.seed(seed). RNGkind() en simple lecture ne cree pas .Random.seed ;
+# le reposer en sortie en cree un, retire ensuite s'il n'existait pas.
+# Limite (preexistante) : sous normal.kind = "Box-Muller" chez l'appelant, R
+# garde en reserve, hors .Random.seed, le second tirage normal de chaque
+# paire ; cette reserve n'est pas restauree (R l'efface quand le generateur
+# est repose), de sorte que le prochain rnorm() de l'appelant peut differer
+# de celui qu'il aurait obtenu sans l'appel. Sans effet sur les resultats du
+# moteur, qui tire toujours sous Inversion (ENGINE_RNG_KIND).
+ENGINE_RNG_KIND <- c(kind = "Mersenne-Twister", normal.kind = "Inversion",
+                     sample.kind = "Rejection")
+# Graines fixes des simulations autres que le bootstrap (ADR 0004, point 2),
+# consignees dans res$metadata : loi nulle de Shapiro-Wilk (sw_loi_nulle())
+# et enveloppe du QQ-plot (engine_plots_data()).
+SEED_LOI_NULLE_SW <- 20260901
+SEED_ENVELOPPE_QQ <- 20260831
 engine_sous_graine <- function(seed, expr) {
   genv <- globalenv()
   existait <- exists(".Random.seed", envir = genv, inherits = FALSE)
   avant <- if (existait) get(".Random.seed", envir = genv, inherits = FALSE) else NULL
+  kind_avant <- RNGkind()
   on.exit({
+    # sample.kind = "Rounding" emet un avertissement a chaque pose : le
+    # reglage de l'appelant est repose tel quel, sans le repeter.
+    suppressWarnings(RNGkind(kind = kind_avant[1], normal.kind = kind_avant[2],
+                             sample.kind = kind_avant[3]))
     if (existait) assign(".Random.seed", avant, envir = genv)
     else if (exists(".Random.seed", envir = genv, inherits = FALSE))
       rm(".Random.seed", envir = genv)
   }, add = TRUE)
-  set.seed(seed)
+  set.seed(seed, kind = ENGINE_RNG_KIND[["kind"]],
+           normal.kind = ENGINE_RNG_KIND[["normal.kind"]],
+           sample.kind = ENGINE_RNG_KIND[["sample.kind"]])
   expr
 }
 
@@ -1008,11 +1037,18 @@ engine_sous_graine <- function(seed, expr) {
 # simulation est independante du modele USP ajuste : ce n'est PAS un bootstrap
 # parametrique, mais une evaluation numerique de la loi exacte de W sous H0.
 # Le resultat est exact a l'erreur de Monte-Carlo pres, en 1/sqrt(B_null).
+# Cle du cache : taille, nombre de tirages, graine et generateur (issue #37).
+# Le generateur est celui que pose engine_sous_graine() (ENGINE_RNG_KIND), et
+# non celui de l'appelant : la loi servie ne depend plus du RNGkind() actif
+# au premier appel de la session ; le generateur figure dans la cle pour
+# qu'une loi calculee sous un autre generateur ne puisse pas etre servie.
 .cache_sw <- new.env(parent = emptyenv())
-sw_loi_nulle <- function(n, B_null = 20000, seed = 20260901) {
-  cle <- paste0("n", n, "_B", B_null, "_s", seed)
+sw_cle_cache <- function(n, B_null, seed, kind = ENGINE_RNG_KIND)
+  paste0("n", n, "_B", B_null, "_s", seed, "_", paste(kind, collapse = "/"))
+sw_loi_nulle <- function(n, B_null = 20000, seed = SEED_LOI_NULLE_SW) {
+  cle <- sw_cle_cache(n, B_null, seed)
   if (!is.null(.cache_sw[[cle]])) return(.cache_sw[[cle]])
-  # Graine propre (20260901 par defaut), etat de l'appelant restaure
+  # Graine propre (SEED_LOI_NULLE_SW par defaut), etat de l'appelant restaure
   w <- engine_sous_graine(seed, replicate(B_null, {
     r <- try(stats::shapiro.test(stats::rnorm(n))$statistic, silent = TRUE)
     if (inherits(r, "try-error")) NA_real_ else unname(r)
@@ -3123,9 +3159,11 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
 # Toutes les quantites tracees sont calculees ICI. La couche d'affichage ne fait
 # que les representer (choix des couleurs, titres, axes).
 
-# Reperes de LECTURE des graphiques d'influence, lus par display_helpers.R
-# pour colorer les barres (issue #4, piste 3 ; valeurs jusqu'ici ecrites en
-# dur dans l'affichage, conservees telles quelles). Ce ne sont ni des seuils
+# Reperes de LECTURE des graphiques d'influence (issue #4, piste 3 ; valeurs
+# jusqu'ici ecrites en dur dans l'affichage, conservees telles quelles). Le
+# moteur en tire les booleens de coloration fort_ecart_sigma
+# (engine_influence()) et fort_dfbeta (mw_influence()), que display_helpers.R
+# lit sans comparaison (issue #33, constat C1 d'app-review). Ce ne sont ni des seuils
 # reglementaires ni des niveaux de test ; aucun verdict n'en depend.
 # - REPERE_INFLUENCE_SIGMA : |ecart relatif de sigma_USP| au retrait d'une
 #   annee (jackknife) ; renvoie au repere conventionnel de 10 % de la fiche
@@ -3189,6 +3227,10 @@ engine_influence <- function(fit, jackknife = NULL, sigma_usp = NULL) {
   if (!is.null(jackknife) && !is.null(sigma_usp)) {
     d$sigma_usp_sans_t <- jackknife$sigma_usp
     d$ecart_sigma <- (jackknife$sigma_usp - sigma_usp) / sigma_usp
+    # Coloration du graphique d'influence sur sigma_USP (plot_influence_sigma()) :
+    # |ecart relatif| au-dela du repere de lecture REPERE_INFLUENCE_SIGMA,
+    # calcule ici comme fort_levier (issue #33, constat C1 d'app-review).
+    d$fort_ecart_sigma <- abs(d$ecart_sigma) > REPERE_INFLUENCE_SIGMA
   }
   d
 }
@@ -3215,10 +3257,11 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
 
   # Enveloppe de simulation du QQ-plot : quantiles 5 % et 95 % des
   # statistiques d'ordre de 499 echantillons N(0,1) independants de taille T,
-  # sous graine fixe, sans reestimation du modele (l'enveloppe ne depend des
+  # sous graine fixe SEED_ENVELOPPE_QQ (consignee dans metadata, issue #37),
+  # sans reestimation du modele (l'enveloppe ne depend des
   # donnees que par T). Calibre la lecture visuelle a T faible. Tirages sous
   # graine locale (ADR 0004, #42) : etat de l'appelant restaure.
-  ordres <- engine_sous_graine(20260831, replicate(499, sort(stats::rnorm(T))))
+  ordres <- engine_sous_graine(SEED_ENVELOPPE_QQ, replicate(499, sort(stats::rnorm(T))))
   env <- t(apply(ordres, 1, stats::quantile, probs = c(0.05, 0.95)))
 
   # QQ-plot a deux echantillons (faible vs fort volume)
@@ -4796,9 +4839,15 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                     libelle_segment = if (!is.null(infos)) infos$libelle else NA_character_,
                     T = aj$I + 1L, I = aj$I, J = aj$J, B = B, alpha = alpha,
                     seed = seed, bareme = bareme, sigma_standard = sigma_standard,
-                    # Place avant les champs d'execution (issue #55) : dernier
-                    # champ de metadata une fois ceux-ci retires (nettoyer()).
+                    # Place apres les champs anterieurs (issue #55), suivi des
+                    # seuls champs de l'issue #37 puis des champs d'execution.
                     sigma_standard_saisi = saisi,
+                    # Generateur pose par engine_sous_graine() et graine fixe
+                    # de la loi nulle de Shapiro-Wilk (issue #37, ADR 0004
+                    # point 2). Places apres les champs existants, avant les
+                    # champs d'execution.
+                    generateur = as.list(ENGINE_RNG_KIND),
+                    seed_loi_nulle_sw = SEED_LOI_NULLE_SW,
                     horodatage = t0,
                     duree_sec = as.numeric(difftime(Sys.time(), t0, units = "secs")),
                     version_R = R.version.string)
@@ -4834,6 +4883,10 @@ mw_influence <- function(aj) {
       residu = resid, stringsAsFactors = FALSE))
   }
   out$fort_levier <- out$levier > out$seuil_levier
+  # Coloration du graphique DFBETA (plot_mw_dfbeta()) : |variation relative
+  # de f_j| au-dela du repere de lecture REPERE_DFBETA_MW (issue #33,
+  # constat C1 d'app-review).
+  out$fort_dfbeta <- abs(out$dfbeta_relatif) > REPERE_DFBETA_MW
   out
 }
 
@@ -5063,11 +5116,18 @@ run_engine <- function(xt, yt,
       # seulement (les methodes de reserve n'ont pas ce champ : donnees
       # nettes par exigence du texte, C(2)(c), D(2)(f)). Saisie libre du
       # sigma standard (derogation au parametre reglementaire) : drapeau
-      # explicite pour les trois methodes. Places avant les champs
-      # d'execution, ils sont les derniers de metadata une fois ceux-ci
-      # retires (nettoyer() des tests).
+      # explicite pour les trois methodes. Places apres les champs
+      # anterieurs, suivis des seuls champs de l'issue #37 puis des champs
+      # d'execution (retires par nettoyer() des tests).
       if (methode == "premium") list(nature_donnees = nature_donnees),
       list(sigma_standard_saisi = saisi),
+      # Generateur pose par engine_sous_graine() et graines fixes des
+      # simulations autres que le bootstrap (issue #37, ADR 0004 point 2) :
+      # loi nulle de Shapiro-Wilk, enveloppe du QQ-plot. Places apres les
+      # champs existants, avant les champs d'execution.
+      list(generateur = as.list(ENGINE_RNG_KIND),
+           seed_loi_nulle_sw = SEED_LOI_NULLE_SW,
+           seed_enveloppe_qq = SEED_ENVELOPPE_QQ),
       list(horodatage = t0,
            duree_sec = as.numeric(difftime(Sys.time(), t0, units = "secs")),
            version_R = R.version.string))

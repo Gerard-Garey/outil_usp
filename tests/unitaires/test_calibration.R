@@ -447,13 +447,19 @@ verifier("Methodes de reserve : donnees \"brutes\" refusees (ok = FALSE, motif C
            !inherits(r2_brut, "error") && identical(r2_brut$ok, FALSE) &&
            any(grepl("section D, point (2)(f)", r2_brut$validation$erreurs, fixed = TRUE)) &&
            identical(r2_brut$metadata$methode, "reserve2"))
-verifier("Drapeau explicite sigma_standard_saisi (FALSE sans saisie) pour les trois methodes, avant horodatage",
+# Ordre des champs : sigma_standard_saisi (#55) est suivi des seuls champs
+# ajoutes par l'issue #37 (generateur et graines fixes), puis des champs
+# d'execution ; les champs ajoutes le sont en fin de metadata.
+verifier("Drapeau explicite sigma_standard_saisi (FALSE sans saisie) pour les trois methodes, suivi des seuls champs de #37 puis de horodatage",
          identical(r_b$metadata$sigma_standard_saisi, FALSE) &&
            identical(r1_sans$metadata$sigma_standard_saisi, FALSE) &&
            identical(r2_sans$metadata$sigma_standard_saisi, FALSE) &&
            all(vapply(list(r_b, r1_sans, r2_sans), function(r) {
              nm <- names(r$metadata)
-             match("sigma_standard_saisi", nm) == match("horodatage", nm) - 1L
+             entre <- nm[seq.int(match("sigma_standard_saisi", nm) + 1L, match("horodatage", nm) - 1L)]
+             attendu <- c("generateur", "seed_loi_nulle_sw",
+                          if (!identical(r$metadata$methode, "reserve2")) "seed_enveloppe_qq")
+             identical(entre, attendu)
            }, logical(1))))
 verifier("Saisie EGALE a la table : derogation pour les trois methodes (drapeau TRUE, origine \"saisi\")",
          {

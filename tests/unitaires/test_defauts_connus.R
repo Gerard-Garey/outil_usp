@@ -806,6 +806,169 @@ for (m in names(appels_run)) local({
              identical(r_0, r_1) && identical(r_0, r_2)
            })
 })
+## --- Issue #37 : generateur fixe et consigne, cache de sw_loi_nulle() -------
+# engine_sous_graine() pose la graine sous ENGINE_RNG_KIND quel que soit le
+# RNGkind() de l'appelant, et restaure le reglage de l'appelant (kind et
+# .Random.seed). Chaque test repose ensuite le generateur par defaut de R
+# (sous_generateur()), pour ne pas contaminer les fichiers suivants.
+sous_generateur <- function(kind, normal.kind = "Inversion", sample.kind = "Rejection", expr) {
+  on.exit(suppressWarnings(RNGkind("Mersenne-Twister", "Inversion", "Rejection")), add = TRUE)
+  suppressWarnings(RNGkind(kind = kind, normal.kind = normal.kind, sample.kind = sample.kind))
+  expr
+}
+generateurs_appelant <- list(
+  lecuyer  = list(kind = "L'Ecuyer-CMRG", normal.kind = "Inversion", sample.kind = "Rejection"),
+  rounding = list(kind = "Mersenne-Twister", normal.kind = "Inversion", sample.kind = "Rounding"),
+  knuth_bm = list(kind = "Knuth-TAOCP-2002", normal.kind = "Box-Muller", sample.kind = "Rejection"))
+verifier("ENGINE_RNG_KIND : generateur par defaut de R (Mersenne-Twister, Inversion, Rejection)",
+         identical(unname(ENGINE_RNG_KIND), c("Mersenne-Twister", "Inversion", "Rejection")) &&
+           identical(names(ENGINE_RNG_KIND), c("kind", "normal.kind", "sample.kind")))
+for (g in names(generateurs_appelant)) local({
+  a <- generateurs_appelant[[g]]
+  verifier(sprintf("engine_sous_graine() sous l'appelant %s : RNGkind() interne = ENGINE_RNG_KIND, tirages de set.seed(seed) par defaut", g),
+           {
+             set.seed(7); ref <- c(stats::runif(3), stats::rnorm(3), sample.int(1000, 3))
+             interne <- sous_generateur(a$kind, a$normal.kind, a$sample.kind,
+               engine_sous_graine(7, list(k = RNGkind(),
+                                          v = c(stats::runif(3), stats::rnorm(3), sample.int(1000, 3)))))
+             identical(interne$k, unname(ENGINE_RNG_KIND)) && identical(interne$v, ref)
+           })
+  # Sous Box-Muller, la reserve du second tirage normal (hors .Random.seed)
+  # n'est pas restauree (limite documentee dans engine_sous_graine()) : le
+  # test ne porte que sur RNGkind() et .Random.seed.
+  verifier(sprintf("engine_sous_graine() restaure le generateur de l'appelant %s (RNGkind() et .Random.seed%s)", g,
+                   if (a$normal.kind == "Box-Muller") " ; reserve normale de Box-Muller non restauree, hors test" else ""),
+           sous_generateur(a$kind, a$normal.kind, a$sample.kind, {
+             set.seed(415); k_avant <- RNGkind(); s_avant <- .Random.seed
+             engine_sous_graine(7, stats::runif(5))
+             identical(RNGkind(), k_avant) && identical(.Random.seed, s_avant)
+           }))
+})
+verifier("engine_sous_graine() sans .Random.seed chez l'appelant en L'Ecuyer-CMRG : kind restaure, aucun .Random.seed cree",
+         sous_generateur("L'Ecuyer-CMRG", expr = {
+           retirer_graine()
+           engine_sous_graine(7, stats::runif(5))
+           r <- !exists(".Random.seed", envir = globalenv()) && identical(RNGkind()[1], "L'Ecuyer-CMRG")
+           # le generateur de l'appelant est bien celui qui sert ensuite
+           stats::runif(1)
+           r && get(".Random.seed", envir = globalenv())[1] %% 100L == 7L
+         }))
+verifier("engine_sous_graine() : generateur de l'appelant restaure meme si l'expression leve une erreur",
+         sous_generateur("L'Ecuyer-CMRG", expr = {
+           set.seed(416); s_avant <- .Random.seed
+           try(engine_sous_graine(7, { stats::runif(1); stop("essai") }), silent = TRUE)
+           identical(RNGkind()[1], "L'Ecuyer-CMRG") && identical(.Random.seed, s_avant)
+         }))
+verifier("sw_cle_cache() : la cle du cache depend du generateur",
+         {
+           k1 <- sw_cle_cache(8, 20000, 20260901)
+           k2 <- sw_cle_cache(8, 20000, 20260901, kind = c("L'Ecuyer-CMRG", "Inversion", "Rejection"))
+           k3 <- sw_cle_cache(8, 20000, 20260901, kind = c("Mersenne-Twister", "Inversion", "Rounding"))
+           identical(k1, sw_cle_cache(8, 20000, 20260901, kind = ENGINE_RNG_KIND)) &&
+             length(unique(c(k1, k2, k3))) == 3L
+         })
+verifier("sw_loi_nulle() : loi identique qu'elle soit calculee sous L'Ecuyer-CMRG ou sous le generateur par defaut",
+         {
+           vider <- function() rm(list = grep("^n10_B500_s13", ls(.cache_sw), value = TRUE), envir = .cache_sw)
+           vider(); w_l <- sous_generateur("L'Ecuyer-CMRG", expr = sw_loi_nulle(10, B_null = 500, seed = 13))
+           vider(); w_m <- sw_loi_nulle(10, B_null = 500, seed = 13)
+           vider()
+           identical(w_l, w_m)
+         })
+# Critere d'acceptation de l'issue #37 : run_engine() rend des objets
+# identical() (hors horodatage et duree) quel que soit RNGkind() avant l'appel,
+# et laisse le generateur de l'appelant intact. Le cache de la loi nulle de
+# Shapiro-Wilk est vide avant chaque appel sous un autre generateur, pour que
+# la loi soit recalculee sous ce generateur (constat du 22/09 sur #37).
+for (m in names(appels_run)) local({
+  appel <- appels_run[[m]]
+  r_def <- sans_horodatage(appel())
+  for (g in names(generateurs_appelant)) {
+    a <- generateurs_appelant[[g]]
+    verifier(sprintf("run_engine(%s) sous l'appelant %s : resultat identique au generateur par defaut, generateur de l'appelant intact", m, g),
+             sous_generateur(a$kind, a$normal.kind, a$sample.kind, {
+               rm(list = ls(.cache_sw), envir = .cache_sw)
+               set.seed(417); k_avant <- RNGkind(); s_avant <- .Random.seed
+               r_g <- sans_horodatage(appel())
+               identical(r_g, r_def) && identical(RNGkind(), k_avant) && identical(.Random.seed, s_avant)
+             }))
+  }
+})
+# ADR 0004, point 2 (decision du mainteneur du 25/09/2026) : generateur et
+# graines fixes des simulations autres que le bootstrap consignes dans
+# $metadata ; les valeurs consignees sont celles qui ont servi (la loi nulle
+# et l'enveloppe se recalculent a partir de metadata).
+for (m in names(appels_run)) local({
+  r <- appels_run[[m]]()
+  verifier(sprintf("run_engine(%s) : generateur et graines consignes dans $metadata", m),
+           {
+             md <- r$metadata
+             ok <- identical(md$generateur, as.list(ENGINE_RNG_KIND)) &&
+               identical(md$seed, 5) && identical(md$seed_loi_nulle_sw, SEED_LOI_NULLE_SW) &&
+               identical(md$seed_loi_nulle_sw, 20260901)
+             if (m == "reserve2") ok && is.null(md$seed_enveloppe_qq) && !"seed_enveloppe_qq" %in% names(md)
+             else ok && identical(md$seed_enveloppe_qq, SEED_ENVELOPPE_QQ) &&
+               identical(md$seed_enveloppe_qq, 20260831)
+           })
+  if (m != "reserve2")
+    verifier(sprintf("run_engine(%s) : enveloppe du QQ-plot recalculee a partir de metadata$seed_enveloppe_qq", m),
+             {
+               T <- r$metadata$T
+               ordres <- engine_sous_graine(r$metadata$seed_enveloppe_qq,
+                                            replicate(499, sort(stats::rnorm(T))))
+               env <- t(apply(ordres, 1, stats::quantile, probs = c(0.05, 0.95)))
+               q <- r$plots_data$qqnorm
+               o <- order(order(q$theorique))
+               identical(q$env_bas, env[o, 1]) && identical(q$env_haut, env[o, 2])
+             })
+})
+verifier("sw_loi_nulle() par defaut = loi tiree sous metadata$seed_loi_nulle_sw",
+         {
+           rm(list = grep("^n9_B300_", ls(.cache_sw), value = TRUE), envir = .cache_sw)
+           a <- sw_loi_nulle(9, B_null = 300)
+           b <- sw_loi_nulle(9, B_null = 300, seed = appels_run$premium()$metadata$seed_loi_nulle_sw)
+           w <- engine_sous_graine(20260901, replicate(300, unname(stats::shapiro.test(stats::rnorm(9))$statistic)))
+           identical(a, b) && identical(a, sort(w[is.finite(w)]))
+         })
+# Constat C1 d'app-review sur #33 (decision du mainteneur du 25/09/2026) :
+# booleens de coloration des graphiques d'influence calcules par le moteur.
+# L'affichage comparait 100 * ecart a 100 * REPERE (pourcentages) ; le moteur
+# compare les fractions : les deux doivent coincider sur les cas de test.
+verifier("engine_influence() : fort_ecart_sigma = |ecart_sigma| > REPERE_INFLUENCE_SIGMA (et = ancienne comparaison en %)",
+         {
+           ok <- TRUE
+           for (m in c("premium", "reserve1")) {
+             d <- appels_run[[m]]()$plots_data$influence
+             ok <- ok && is.logical(d$fort_ecart_sigma) &&
+               identical(d$fort_ecart_sigma, abs(d$ecart_sigma) > REPERE_INFLUENCE_SIGMA) &&
+               identical(d$fort_ecart_sigma, abs(100 * d$ecart_sigma) > 100 * REPERE_INFLUENCE_SIGMA)
+           }
+           # cas construit de part et d'autre du repere
+           f <- usp_ajuster(x, y)
+           dj <- engine_influence(f, list(sigma_usp = c(1.2, 0.95, 1.05, 0.85, 1, 1.11, 0.89, 1)), 1)
+           ok && identical(dj$fort_ecart_sigma, c(TRUE, FALSE, FALSE, TRUE, FALSE, TRUE, TRUE, FALSE))
+         })
+verifier("engine_influence() sans jackknife : ni ecart_sigma ni fort_ecart_sigma",
+         {
+           d <- engine_influence(usp_ajuster(x, y))
+           is.null(d$ecart_sigma) && is.null(d$fort_ecart_sigma)
+         })
+verifier("mw_influence() : fort_dfbeta = |dfbeta_relatif| > REPERE_DFBETA_MW (et = ancienne comparaison en %)",
+         {
+           d <- appels_run$reserve2()$plots_data$influence
+           d2 <- mw_influence(mw_ajuster(tri_mw))
+           is.logical(d$fort_dfbeta) &&
+             identical(d$fort_dfbeta, abs(d$dfbeta_relatif) > REPERE_DFBETA_MW) &&
+             identical(d$fort_dfbeta, abs(100 * d$dfbeta_relatif) > 100 * REPERE_DFBETA_MW) &&
+             identical(d2, d)
+         })
+verifier("mw_influence() : fort_dfbeta discrimine de part et d'autre du repere (triangle perturbe)",
+         {
+           t2 <- tri_mw; t2[1, 2] <- t2[1, 2] * 1.5
+           d <- mw_influence(mw_ajuster(t2))
+           any(d$fort_dfbeta) && !all(d$fort_dfbeta) &&
+             identical(d$fort_dfbeta, abs(d$dfbeta_relatif) > REPERE_DFBETA_MW)
+         })
 # ADR 0004, point 4 : aucun alea hors calcul. Les dossiers temporaires de
 # engine_ecrire_xlsx() / engine_lire_xlsx() viennent de tempfile() et sont
 # supprimes en sortie. Le repli interne (sans openxlsx) a besoin de la

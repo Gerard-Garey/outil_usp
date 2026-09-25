@@ -1059,6 +1059,18 @@ server <- function(input, output, session) {
         "par statistique : res$bootstrap$granularite_stat )\n")
     cat("Seuil alpha          :", m$alpha, "\n")
     cat("Graine (seed)        :", format(m$seed, scientific = FALSE), "\n")
+    # Generateur et graines fixes consignes par le moteur (issue #37) ; un
+    # champ absent de metadata ne produit pas de ligne.
+    # Libelles ASCII, comme les autres lignes de ce bloc.
+    gen <- valeurs_generateur(m)
+    if (!is.na(gen["generateur"]))
+      cat("Generateur aleatoire :", gen[["generateur"]], "\n")
+    if (!is.na(gen["seed_loi_nulle_sw"]))
+      cat("Graine loi nulle SW  :", gen[["seed_loi_nulle_sw"]],
+          "(loi nulle de Shapiro-Wilk)\n")
+    if (!is.na(gen["seed_enveloppe_qq"]))
+      cat("Graine enveloppe QQ  :", gen[["seed_enveloppe_qq"]],
+          "(enveloppe du QQ-plot)\n")
     cat("Horodatage           :", format(m$horodatage, "%Y-%m-%d %H:%M:%S"), "\n")
     cat("Duree (s)            :", round(m$duree_sec, 2), "\n")
     cat("Version R            :", m$version_R, "\n")

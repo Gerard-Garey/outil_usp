@@ -628,23 +628,24 @@ plot_influence_cook <- function(pd) {
 # --- Methode lognormale : influence sur le parametre final ------------------
 # Mesure la plus directement interpretable pour le dossier : de combien
 # sigma_USP se deplace si l'annee t est retiree (jackknife).
-# Couleur de repere : REPERE_INFLUENCE_SIGMA (R/engine.R), en %.
+# Couleur de repere : booleen fort_ecart_sigma, calcule par le moteur
+# (engine_influence(), repere REPERE_INFLUENCE_SIGMA ; issue #33).
 plot_influence_sigma <- function(pd) {
   if (!.influence_ln(pd)) return(.vide())
   d <- pd$influence
-  if (is.null(d$ecart_sigma)) return(.vide())
+  if (is.null(d$ecart_sigma) || is.null(d$fort_ecart_sigma)) return(.vide())
   v <- 100 * d$ecart_sigma
   if (!.plotly_dispo()) {
     .cadre()
     graphics::barplot(v, names.arg = d$t, border = NA,
-                      col = ifelse(abs(v) > 100 * REPERE_INFLUENCE_SIGMA, COUL$trait, COUL$env),
+                      col = ifelse(d$fort_ecart_sigma, COUL$trait, COUL$env),
                       xlab = "annee retiree", ylab = "ecart sur sigma_USP (%)",
                       main = "Influence du retrait d'une annee sur sigma_USP")
     graphics::abline(h = 0, col = COUL$pt)
     return(invisible())
   }
   p <- plotly::plot_ly(x = d$t, y = v, type = "bar",
-        marker = list(color = ifelse(abs(v) > 100 * REPERE_INFLUENCE_SIGMA, COUL$trait, COUL$env),
+        marker = list(color = ifelse(d$fort_ecart_sigma, COUL$trait, COUL$env),
                       line = list(color = COUL$pt, width = 1)),
         hovertemplate = "sans l'annee %{x}<br>ecart = %{y:+.2f} %<extra></extra>")
   p <- plotly::add_lines(p, x = range(d$t), y = c(0, 0),
@@ -678,14 +679,15 @@ plot_mw_levier <- function(pd) {
 }
 
 # --- Merz-Wuthrich : DFBETA sur les facteurs de developpement ---------------
-# Couleur de repere : REPERE_DFBETA_MW (R/engine.R), en %.
+# Couleur de repere : booleen fort_dfbeta, calcule par le moteur
+# (mw_influence(), repere REPERE_DFBETA_MW ; issue #33).
 plot_mw_dfbeta <- function(pd) {
-  if (!.influence_mw(pd)) return(.vide())
+  if (!.influence_mw(pd) || is.null(pd$influence$fort_dfbeta)) return(.vide())
   d <- pd$influence; v <- 100 * d$dfbeta_relatif
   etiq <- paste0("(", d$i, ",", d$j, ")")
   if (!.plotly_dispo()) {
     .cadre()
-    plot(seq_along(v), v, type = "h", col = ifelse(abs(v) > 100 * REPERE_DFBETA_MW, COUL$trait, COUL$pt),
+    plot(seq_along(v), v, type = "h", col = ifelse(d$fort_dfbeta, COUL$trait, COUL$pt),
          lwd = 2, xlab = "cellule (i, j)", ylab = "variation de f_j (%)",
          main = "Influence de chaque cellule sur f_j")
     graphics::abline(h = 0, col = COUL$ref)
@@ -693,7 +695,7 @@ plot_mw_dfbeta <- function(pd) {
   }
   p <- plotly::plot_ly(x = seq_along(v), y = v, type = "bar",
         text = etiq,
-        marker = list(color = ifelse(abs(v) > 100 * REPERE_DFBETA_MW, COUL$trait, COUL$env),
+        marker = list(color = ifelse(d$fort_dfbeta, COUL$trait, COUL$env),
                       line = list(color = COUL$pt, width = 1)),
         hovertemplate = paste0("cellule %{text}<br>variation de f_j = ",
                                "%{y:+.3f} %<extra></extra>"))
@@ -918,6 +920,25 @@ derogation_sigma_standard <- function(res) {
   d <- engine_parametre_standard(res)
   !is.null(d) && any(grepl("derogation", d$texte[d$grandeur == "Origine du sigma standard retenu"],
                            fixed = TRUE))
+}
+
+# Generateur aleatoire et graines fixes consignes dans res$metadata (issue #37,
+# decision (iii) du mainteneur du 25/09/2026 : ils sont affiches dans l'onglet
+# Donnees et dans l'en-tete du rapport fige). Lecture seule de metadata, aucun
+# calcul : un champ absent (objet anterieur a l'issue #37, ou enveloppe du
+# QQ-plot pour Merz-Wuthrich) ne produit pas d'element. Rend un vecteur de
+# textes bruts nomme par champ de metadata (generateur, seed_loi_nulle_sw,
+# seed_enveloppe_qq) ; chaque appelant choisit ses libelles (ASCII dans
+# l'onglet Donnees, accentues dans le rapport) et echappe s'il ecrit en HTML.
+valeurs_generateur <- function(m) {
+  out <- character(0)
+  g <- m$generateur
+  if (!is.null(g))
+    out["generateur"] <- paste0("kind = ", g$kind, ", normal.kind = ", g$normal.kind,
+                                ", sample.kind = ", g$sample.kind)
+  for (ch in c("seed_loi_nulle_sw", "seed_enveloppe_qq"))
+    if (!is.null(m[[ch]])) out[ch] <- format(m[[ch]], scientific = FALSE)
+  out
 }
 
 # Tableau "Robustesse du calibrage" (onglet Calibration et section 4 du
@@ -1288,6 +1309,13 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
                      if (derogation_sigma_standard(res))
                        " \u2014 <b>sigma standard saisi, d\u00e9rogation au param\u00e8tre r\u00e9glementaire</b>"),
               .txt(table_parametre_standard(res)$Valeur[1]))
+    # Generateur et graines fixes (issue #37) : lignes absentes si le champ
+    # manque dans metadata.
+    gen <- valeurs_generateur(m)
+    lib_gen <- c(generateur = "G\u00e9n\u00e9rateur al\u00e9atoire",
+                 seed_loi_nulle_sw = "Graine de la loi nulle de Shapiro-Wilk",
+                 seed_enveloppe_qq = "Graine de l'enveloppe du QQ-plot")
+    cles <- c(cles, unname(lib_gen[names(gen)])); vals <- c(vals, .txt(unname(gen)))
     if (!mw) {
       cles <- c(cles, "Test d'\u00e9quivalence de la constante")
       vals <- c(vals, if (is.null(m$delta_equiv))
