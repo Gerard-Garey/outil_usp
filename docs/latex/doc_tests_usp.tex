@@ -308,7 +308,8 @@ Le moteur s'exécute seul~:
 \small
 \code{source("R/engine.R")}\\
 \code{res <- run\_engine(xt = ..., yt = ..., methode = "premium", segment = 1,}\\
-\code{\phantom{res <- run\_engine(}T = 8, B = 999, seed = 20260831)}\\
+\code{\phantom{res <- run\_engine(}nature\_donnees = "brutes", T = 8, B = 999,}\\
+\code{\phantom{res <- run\_engine(}seed = 20260831)}\\
 \code{res\$parametre\_final\$sigma\_usp \ \ ;\ \ engine\_table\_tests(res)}
 \end{encadre}
 
@@ -453,9 +454,13 @@ de calibration commune aux deux branches.}
 \endhead
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Contrôles et données}}} \\
 \code{engine\_valider\_donnees()} & \code{xt}, \code{yt}, \code{T\_min},
-\code{theta\_equiv}, \code{delta\_equiv} &
-\code{\$ok}, \code{\$erreurs}, \code{\$avertissements}~; refus des valeurs infinies et d'une
-marge du TOST hors domaine (§\ref{sec:controles}) \\
+\code{theta\_equiv}, \code{delta\_equiv}, \code{methode}, \code{nature\_donnees} &
+\code{\$ok}, \code{\$erreurs}, \code{\$avertissements}~; refus des valeurs infinies, d'une
+marge du TOST hors domaine et d'une nature des données absente ou non recevable
+(§\ref{sec:controles}) \\
+\code{NATURES\_DONNEES},\newline \code{.nature\_erreurs()} & \code{methode},
+\code{nature\_donnees} & natures recevables (\code{"brutes"}, \code{"nettes"})~; motifs de refus~:
+déclaration obligatoire pour \code{premium}, «~brutes~» refusé pour les méthodes de réserve \\
 \code{usp\_controle\_donnees()} & $x$, $y$, \code{alpha} (0,10) &
 liste de contrôles de recevabilité \\
 \code{usp\_controles\_}\newline\code{numeriques()} & \code{fit} (sortie de \code{usp\_ajuster()}) &
@@ -580,7 +585,13 @@ table des $\hat\sigma^{(-t)}$, $\sigma_{\mathrm{USP}}^{(-t)}$, $\hat\delta^{(-t)
 $\hat\gamma^{(-t)}$ \\
 \code{usp\_profil()} & \code{fit}, \code{n} (41 points) & profils en $\delta$ et $\gamma$, tests LR \\
 \code{usp\_segment\_infos()}, \code{usp\_bareme\_segment()} & segment, annexe &
-libellé, $\sigma$ standard, barème~; barème seul \\
+libellé, $\sigma$ standard brut et de réserve, facteur \code{np\_standard}, barème~; barème seul \\
+\code{usp\_parametre\_}\newline\code{standard()} & \code{methode}, \code{segment}, \code{annexe},
+\code{nature\_donnees}, \code{sigma\_standard} & paramètre standard du mélange selon la
+nature déclarée (décision M13), point de l'article~218 remplacé, exigence relative aux données,
+drapeau de saisie (§\ref{sec:segments}) \\
+\code{engine\_parametre\_}\newline\code{standard()} & \code{res} & tableau «~Paramètre standard remplacé~»
+d'un résultat, recalculé et contrôlé contre \code{\$metadata} (hors \code{run\_engine()}) \\
 \code{usp\_credibilite()} & $T$, barème & facteur $c$~; erreur si $T$ n'est pas un entier
 fini ou si $T < 5$ \\
 \code{.annexe\_verifiee()} & \code{annexe} & \code{"II"} ou \code{"XIV"}, erreur pour toute
@@ -640,9 +651,10 @@ toutes les quantités tracées (branche Merz--Wüthrich) \\
 $0{,}02$) & repères de lecture des graphiques d'influence, sans verdict
 (fiches~\ref{fiche:jackknife} et~\ref{mw:influence}) \\
 \code{engine\_table\_tests()} & \code{res} & \code{data.frame} auditable \\
-\code{run\_engine()} & entrées utilisateur & objet \code{usp\_engine} complet \\
+\code{run\_engine()} & entrées utilisateur, dont \code{nature\_donnees} (obligatoire pour
+\code{premium}) & objet \code{usp\_engine} complet \\
 \code{.run\_engine\_mw()} & entrées de \code{run\_engine()} pour
-\code{methode = "reserve2"} & objet \code{usp\_engine} de la branche
+\code{methode = "reserve2"}, dont \code{nature\_donnees} & objet \code{usp\_engine} de la branche
 Merz--Wüthrich \\
 \end{longtable}
 }
@@ -713,7 +725,14 @@ pour l'historique seulement.
 
 \noindent
 Libellés, lignes d'activité de l'annexe~I et valeurs sont ceux de la version
-consolidée. Neuf des trente-deux valeurs diffèrent de la version d'origine de
+consolidée. Les tables \code{ANNEXE\_II}, \code{ANNEXE\_XIV} et \code{SEGMENTS} portent en
+outre la colonne \code{np\_standard}, facteur d'ajustement standard pour la réassurance non
+proportionnelle~: $0{,}8$ pour les segments 1, 4 et 5 de l'annexe~II, $1$ pour les autres
+(article~117, paragraphe~3, $\blacktriangledown$\,B, \emph{Journal officiel}, L~12,
+p.~75), $1$ pour tous les segments de l'annexe~XIV (article~148, paragraphe~3,
+$\blacktriangledown$\,B, p.~94)~; le renvoi de l'article~117 aux segments 1, 4 et~5 reste exact
+après le remplacement de l'annexe~II par M6, leurs intitulés et lignes d'activité étant
+inchangés. Neuf des trente-deux valeurs diffèrent de la version d'origine de
 2015 (entre parenthèses)~: segment~6 de l'annexe~II, $19~\%$ ($12~\%$) et
 $17{,}2~\%$ ($19~\%$)~; segment~7, $8{,}3~\%$ ($7~\%$) et $5{,}5~\%$
 ($12~\%$)~; segment~8, $6{,}4~\%$ ($9~\%$) et $22~\%$ ($20~\%$)~; segment~1 de
@@ -747,12 +766,6 @@ de l'article~218, paragraphe~1 (version consolidée)~:
   l'annexe~II et $100~\%$ pour les autres (article~117, paragraphe~3), $100~\%$
   par défaut pour tous les segments de l'annexe~XIV (article~148,
   paragraphe~3)~;
-\item l'\emph{écart-type du risque de primes} (net) visé aux points~a)~i) et
-  c)~i), égal au produit de l'écart-type brut et de ce facteur (articles~117
-  et~148, paragraphe~3)~; l'outil prend pour paramètre standard du mélange
-  l'écart-type brut des annexes~II et~XIV quelle que soit la nature des
-  données, et le choix entre les deux lectures, nette ou brute, est ouvert
-  (issue~\#55 du dépôt)~;
 \item l'augmentation du montant des prestations de rente des sous-modules
   « risque de révision en vie » (point~b) et « risque de révision en santé »
   (point~d).
@@ -762,6 +775,55 @@ l'annexe~XVII~: risque de primes (section~B), risque de réserve
 n\textsuperscript{o}~1 (section~C) et risque de réserve
 n\textsuperscript{o}~2 (section~D~: chaîne d'échelle et erreur de prédiction à un
 an, §\ref{sec:mw}).
+
+\smallskip
+\textbf{Paramètre remplacé par la méthode du risque de primes} (décision M13 du mainteneur,
+issue~\#55). Le paramètre standard qui entre dans le mélange de B(4) est «~le paramètre
+standard à remplacer~», et c'est la nature des données qui le désigne~; la nature est donc
+\textbf{déclarée obligatoirement} (\code{nature\_donnees = "brutes"} ou \code{"nettes"}, sans
+valeur par défaut~: \code{run\_engine()} rend \code{ok = FALSE} avec le motif si elle manque).
+\emph{Texte} (annexe~XVII, version consolidée)~: selon B(2)(c), remplacé par le règlement
+délégué (UE)~2016/467 (marqueur $\blacktriangledown$\,M1, \emph{Journal officiel de l'Union
+européenne}, L~85 du 1\textsuperscript{er}~avril 2016, p.~6), lorsque la méthode est appliquée
+pour remplacer les paramètres standard de l'article~218, paragraphe~1, points~a)~ii) et c)~ii),
+les pertes agrégées et les primes acquises ne sont pas ajustées de la réassurance et des
+véhicules de titrisation~; selon B(2)(d), dont le chapeau a été modifié par le même acte, lorsque
+la méthode remplace les points~a)~i) et c)~i), pertes et primes sont ajustées conformément aux
+contrats de réassurance et véhicules de titrisation en place pour les douze mois à venir. La
+valeur standard des points~a)~ii) et c)~ii) est l'écart-type brut de l'annexe~; celle des
+points~a)~i) et c)~i) est le produit de l'écart-type brut et du facteur d'ajustement pour la
+réassurance non proportionnelle (article~117, paragraphe~3~; article~148, paragraphe~3). Dans la
+version d'origine (\emph{Journal officiel}, L~12 du 17~janvier 2015, p.~272), les renvois de
+B(2)(c) et B(2)(d) sont inversés~: seule la version consolidée est citée. \emph{Lecture
+retenue par l'outil} (M13)~: la nature déclarée des données désigne le paramètre remplacé,
+brutes pour a)~ii) ou c)~ii), nettes pour a)~i) ou c)~i)~; le texte lie explicitement chaque
+paramètre remplacé à une exigence sur les données, dont cette lecture est la réciproque. \emph{Interprétation}, et non texte~: sur données nettes, le
+facteur est le facteur \emph{standard} ($80~\%$ pour les segments 1, 4
+et 5 de l'annexe~II, $100~\%$ ailleurs, colonne \code{np\_standard} des tables), et non un
+facteur propre à l'entreprise au titre du point~a)~iii), que l'outil ne reçoit pas. Sur le
+segment~1 de l'annexe~II ($c = 0{,}59$ à $T = 8$), l'écart vaut
+$-(1-c)(1-\mathrm{NP})\,\sigma_{\text{brut}} = -0{,}41 \times 0{,}2 \times 0{,}1 = -0{,}0082$~:
+mesuré sur le jeu de contrôle, $\sigma_{\mathrm{USP}}$ passe de $0{,}1114524$ (brutes) à
+$0{,}1032524$ (nettes). Les méthodes de réserve remplacent le point~a)~iv) ou c)~iv),
+$\sigma_{(\text{res},s)}$ de l'annexe, sans facteur NP, et exigent des données nettes
+(C(2)(c)~; D(2)(f))~: une déclaration «~brutes~» y est refusée, l'absence de déclaration
+ou «~nettes~» acceptées. Un $\sigma$ standard saisi librement reste possible pour les trois
+méthodes~: il prime sur la table, et le résultat le signale comme \emph{dérogation au paramètre
+réglementaire}, même s'il égale la valeur de la table (\code{\$metadata\$sigma\_standard\_saisi}).
+Le tableau «~Paramètre standard remplacé~» (\code{engine\_parametre\_standard()}~: nature,
+point de l'article~218 remplacé, exigence relative aux données, $\sigma$ de l'annexe, facteur
+NP, $\sigma$ retenu, origine) est restitué par l'onglet Calibration et par le rapport figé.
+
+\smallskip
+\emph{Anomalies rédactionnelles du texte consolidé}, relevées par la lecture réglementaire de
+l'issue~\#55 et sans incidence sur les calculs~: C(4)(e) nomme $\sigma_{(\text{prem},s)}$ le
+paramètre à remplacer de la méthode de réserve n\textsuperscript{o}~1, alors que la formule du
+point~(4) écrit $\sigma_{(\text{res},s)}$ et que la méthode remplace le point~a)~iv) ou c)~iv)~:
+le moteur suit la formule~; l'article~117, paragraphe~2, point~a), renvoie au «~paragraphe~2~»,
+lu comme le paragraphe~3 par parallélisme avec l'article~148, paragraphe~2, point~a)~;
+l'article~218, paragraphe~1, point~c)~iv), renvoie à l'article~148, paragraphe~2, point~a), au
+lieu du point~b)~: le moteur retient $\sigma_{(\text{res},s)}$ de l'annexe~XIV, sens évident du
+texte.
 \end{encadre}
 
 \subsection{Reproductibilité et gestion des graines}
@@ -888,7 +950,11 @@ seule \code{sw\_loi\_nulle()} restaurait l'état, et \code{run\_engine()} laissa
 (Merz--Wüthrich).
 
 Le script \code{tests/test\_reproductibilite.R} vérifie, pour chacune des trois
-méthodes, deux propriétés qu'il ne faut pas confondre.
+méthodes, deux propriétés qu'il ne faut pas confondre. Ses cinq cas de contrôle
+(\code{CAS} de \code{tests/outils\_tests.R}) sont la méthode de primes au segment~1 de
+l'annexe~II sur données déclarées brutes, la même sur données déclarées nettes (issue~\#55), la
+méthode de primes au segment~6 sur données déclarées brutes, la méthode de réserve n\textsuperscript{o}~1 et la méthode de
+réserve n\textsuperscript{o}~2.
 
 \emph{La reproductibilité.} Deux appels de \code{run\_engine()} avec les mêmes
 données, les mêmes paramètres et la même graine, \textbf{sur une même machine},
@@ -1132,7 +1198,10 @@ conservée lors de la même revue.
 
 \begin{encadre}
 \textbf{Point de revue.} L'objet retourné contient un champ \code{\$metadata}
-consignant la méthode, le segment, $\sigma_{\text{standard}}$, le barème de
+consignant la méthode, le segment, $\sigma_{\text{standard}}$, la nature déclarée des données
+(\code{nature\_donnees}, méthode de primes seulement), le drapeau de saisie libre de
+$\sigma_{\text{standard}}$ (\code{sigma\_standard\_saisi}, trois méthodes~: dérogation au
+paramètre réglementaire), le barème de
 crédibilité, $T$, $B$ (dont se déduit la granularité $1/(B+1)$), le seuil
 $\alpha$, la graine, l'horodatage, la durée et la version de R. Ce champ suffit,
 avec les données, à rejouer un calcul à l'identique sur une même machine, sous
@@ -1695,6 +1764,9 @@ exporté à côté d'un triangle refusé.
 \textcolor{financeblue}{\textbf{Critère}} &
 \textcolor{financeblue}{\textbf{Justification}} \\
 Profondeur minimale & $T \ge 5$ & Annexe XVII, B/C(2)(b). Bloquant. \\
+Nature des données & méthode de primes~: «~brutes~» ou «~nettes~» déclarée, sans défaut~;
+réserve n\textsuperscript{o}~1~: «~brutes~» refusé & Désigne le paramètre remplacé
+(B(2)(c), B(2)(d), §\ref{sec:segments})~; données nettes exigées par C(2)(c). Bloquant. \\
 Valeurs manquantes & aucun \code{NA} & Art.~19 : exhaustivité. Bloquant. \\
 Valeurs finies & aucune valeur infinie & Art.~19 : exactitude~; refus explicite au lieu
 d'une erreur R en cours de calcul (issue~\#33). Bloquant. \\
@@ -1754,6 +1826,8 @@ comme l'annexe~II).
 \textcolor{financeblue}{\textbf{Critère}} &
 \textcolor{financeblue}{\textbf{Justification}} \\
 \endhead
+Nature des données & «~brutes~» refusé (absence de déclaration ou «~nettes~» acceptées) &
+Données nettes exigées par D(2)(f)~; contrôle de \code{.run\_engine\_mw()}. Bloquant. \\
 Années de survenance & $I + 1 \ge 5$ & D(2)(b). Bloquant. \\
 Années de développement & $J + 1 \ge 5$ & D(2)(c). Bloquant. \\
 Forme du triangle & $I + 1 \ge J + 1$ & D(2)(e). Bloquant. \\
