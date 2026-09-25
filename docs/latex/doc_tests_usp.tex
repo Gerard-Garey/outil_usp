@@ -783,16 +783,18 @@ an, §\ref{sec:mw}).
 
 \smallskip
 \textbf{Paramètre remplacé par la méthode du risque de primes} (décision M13 du mainteneur,
-issue~\#55). Le paramètre standard qui entre dans le mélange de B(4) est «~le paramètre
-standard à remplacer~», et c'est la nature des données qui le désigne~; la nature est donc
+issue~\#55). Le paramètre standard qui entre dans le mélange de B(4) est, selon B(4)(e),
+«~le paramètre standard à remplacer par le paramètre propre à l'entreprise~», et c'est la
+nature des données qui le désigne (lecture retenue, ci-dessous)~; la nature est donc
 \textbf{déclarée obligatoirement} (\code{nature\_donnees = "brutes"} ou \code{"nettes"}, sans
 valeur par défaut~: \code{run\_engine()} rend \code{ok = FALSE} avec le motif si elle manque).
 \emph{Texte} (annexe~XVII, version consolidée)~: selon B(2)(c), remplacé par le règlement
 délégué (UE)~2016/467 (marqueur $\blacktriangledown$\,M1, \emph{Journal officiel de l'Union
 européenne}, L~85 du 1\textsuperscript{er}~avril 2016, p.~6), lorsque la méthode est appliquée
 pour remplacer les paramètres standard de l'article~218, paragraphe~1, points~a)~ii) et c)~ii),
-les pertes agrégées et les primes acquises ne sont pas ajustées de la réassurance et des
-véhicules de titrisation~; selon B(2)(d), dont le chapeau a été modifié par le même acte, lorsque
+«~les pertes agrégées et les primes acquises ne sont pas ajustées pour tenir compte des montants
+recouvrables au titre des contrats de réassurance et des véhicules de titrisation ou des primes
+de réassurance~»~; selon B(2)(d), dont le chapeau a été modifié par le même acte, lorsque
 la méthode remplace les points~a)~i) et c)~i), pertes et primes sont ajustées conformément aux
 contrats de réassurance et véhicules de titrisation en place pour les douze mois à venir. La
 valeur standard des points~a)~ii) et c)~ii) est l'écart-type brut de l'annexe~; celle des
@@ -801,15 +803,21 @@ réassurance non proportionnelle (article~117, paragraphe~3~; article~148, parag
 version d'origine (\emph{Journal officiel}, L~12 du 17~janvier 2015, p.~272), les renvois de
 B(2)(c) et B(2)(d) sont inversés~: seule la version consolidée est citée. \emph{Lecture
 retenue par l'outil} (M13)~: la nature déclarée des données désigne le paramètre remplacé,
-brutes pour a)~ii) ou c)~ii), nettes pour a)~i) ou c)~i)~; le texte lie explicitement chaque
-paramètre remplacé à une exigence sur les données, dont cette lecture est la réciproque. \emph{Interprétation}, et non texte~: sur données nettes, le
+brutes pour a)~ii) ou c)~ii), nettes pour a)~i) ou c)~i) («~nettes~» s'entend au sens de
+B(2)(d), C(2)(c) et D(2)(f)~: données ajustées conformément aux contrats de réassurance et
+véhicules de titrisation en place pour les douze mois à venir, ce que l'outil ne vérifie pas et
+que la déclaration atteste)~; le texte lie explicitement chaque paramètre remplacé à une
+exigence sur les données, dont cette lecture est la réciproque, les quatre points étant les
+seuls que la méthode puisse remplacer (article~220, paragraphe~1, point~a)).
+\emph{Interprétation}, et non texte~: sur données nettes, le
 facteur est le facteur \emph{standard} ($80~\%$ pour les segments 1, 4
 et 5 de l'annexe~II, $100~\%$ ailleurs, colonne \code{np\_standard} des tables), et non un
 facteur propre à l'entreprise au titre du point~a)~iii), que l'outil ne reçoit pas. Sur le
 segment~1 de l'annexe~II ($c = 0{,}59$ à $T = 8$), l'écart vaut
 $-(1-c)(1-\mathrm{NP})\,\sigma_{\text{brut}} = -0{,}41 \times 0{,}2 \times 0{,}1 = -0{,}0082$~:
 mesuré sur le jeu de contrôle, $\sigma_{\mathrm{USP}}$ passe de $0{,}1114524$ (brutes) à
-$0{,}1032524$ (nettes). Les méthodes de réserve remplacent le point~a)~iv) ou c)~iv),
+$0{,}1032524$ (nettes). Les méthodes de réserve remplacent le point~a)~iv) ou c)~iv)
+(article~220, paragraphe~1, point~b)),
 $\sigma_{(\text{res},s)}$ de l'annexe, sans facteur NP, et exigent des données nettes
 (C(2)(c)~; D(2)(f))~: une déclaration «~brutes~» y est refusée, l'absence de déclaration
 ou «~nettes~» acceptées. Un $\sigma$ standard saisi librement reste possible pour les trois
@@ -823,7 +831,8 @@ NP, $\sigma$ retenu, origine) est restitué par l'onglet Calibration et par le r
 \emph{Anomalies rédactionnelles du texte consolidé}, relevées par la lecture réglementaire de
 l'issue~\#55 et sans incidence sur les calculs~: C(4)(e) nomme $\sigma_{(\text{prem},s)}$ le
 paramètre à remplacer de la méthode de réserve n\textsuperscript{o}~1, alors que la formule du
-point~(4) écrit $\sigma_{(\text{res},s)}$ et que la méthode remplace le point~a)~iv) ou c)~iv)~:
+point~(4) écrit $\sigma_{(\text{res},s)}$ et que la méthode remplace le point~a)~iv) ou c)~iv)
+(article~220, paragraphe~1, point~b))~:
 le moteur suit la formule~; l'article~117, paragraphe~2, point~a), renvoie au «~paragraphe~2~»,
 lu comme le paragraphe~3 par parallélisme avec l'article~148, paragraphe~2, point~a)~;
 l'article~218, paragraphe~1, point~c)~iv), renvoie à l'article~148, paragraphe~2, point~a), au
@@ -1801,8 +1810,8 @@ Profondeur minimale & $T \ge 5$ & Annexe XVII, B/C(2)(b). Bloquant. \\
 Nature des données & méthode de primes~: «~brutes~» ou «~nettes~» déclarée, sans défaut~;
 réserve n\textsuperscript{o}~1~: «~brutes~» refusé & Désigne le paramètre remplacé
 (B(2)(c), B(2)(d), §\ref{sec:segments})~; données nettes exigées par C(2)(c). Bloquant. \\
-Valeurs manquantes & aucun \code{NA} & Art.~19 : exhaustivité. Bloquant. \\
-Valeurs finies & aucune valeur infinie & Art.~19 : exactitude~; refus explicite au lieu
+Valeurs manquantes & aucun \code{NA} & Art.~219, §~1, a), renvoyant à l'art.~19, §~1~: exhaustivité. Bloquant. \\
+Valeurs finies & aucune valeur infinie & Art.~219, §~1, a), renvoyant à l'art.~19, §~2~: exactitude~; refus explicite au lieu
 d'une erreur R en cours de calcul (issue~\#33). Bloquant. \\
 Positivité de $x_t$ & $\min_t x_t > 0$ & $r_t = y_t/x_t$ doit être défini. Bloquant. \\
 Positivité de $y_t$ & $\min_t y_t > 0$ & Support de la loi lognormale. Bloquant. \\
@@ -1826,8 +1835,8 @@ donnent \code{ok = FALSE}~; de même une valeur infinie, $\theta = 1$ ou
 $\Delta = \bar y$, mesuré sur le jeu de contrôle). Un contrôle de la famille~A qui ne peut pas
 être établi --- valeur manquante, séries de longueurs différentes --- vaut \code{ECHEC}, et son
 champ \code{detail} le dit («~contrôle non établi~») au lieu de juger les seules valeurs
-disponibles~; sous $T = 5$, la ligne de crédibilité sort \code{ECHEC} sans appeler le barème,
-qui n'y est pas défini (section~G). Ces cas ne se présentent pas dans \code{run\_engine()}, qui
+disponibles~; pour $T < 5$, la ligne de crédibilité sort \code{ECHEC} sans appeler le barème,
+qui n'est pas défini en deçà de $T = 5$ (section~G). Ces cas ne se présentent pas dans \code{run\_engine()}, qui
 refuse de telles données en amont~; ils concernent un appel direct de
 \code{usp\_controle\_donnees()} (issue~\#33).
 
@@ -2235,11 +2244,13 @@ l'absence d'erreur, mais une erreur inférieure à la granularité~: $N^{+} = B_
 implique, au niveau de confiance de $95~\%$, $q^{+} \ge 0{,}05^{1/B}$, soit $1 - q^{+} \le 0{,}003$
 à $B = 999$.
 
-Au bilatéral s'ajoutent deux biais de signes opposés, d'ordre $1/B$ à $1/\sqrt{B}$ et sans lien
-avec $T$ (énumération à $B = 999$)~: la convention $(1+N)/(B+1)$ relève chaque queue de
-$1/(B+1)$, soit environ $+0{,}002$ après doublement~; le minimum biaise vers le bas, de façon
-négligeable tant que $1 - p$ dépasse $3/\sqrt{B} \approx 0{,}10$, puis jusqu'à
-$-0{,}024$ en $p = 1$, voisin de $-\sqrt{2/(\pi B)} = -0{,}025$. Le biais total reste au plus
+À ces erreurs s'ajoutent deux biais, d'ordre $1/B$ à $1/\sqrt{B}$ et sans lien avec $T$
+(énumération à $B = 999$)~: la convention $(1+N)/(B+1)$ relève chaque queue de $1/(B+1)$, soit
+$+0{,}001$ en queue haute ou basse et environ $+0{,}002$ après doublement au bilatéral~; au
+bilatéral seulement, le minimum biaise vers le bas, de façon négligeable tant que $1 - p$
+dépasse $3/\sqrt{B} \approx 0{,}10$, puis, convention comprise, jusqu'à un biais total de
+$-0{,}024$ en $p = 1$ ($\mathbb{E}[\hat p] = 0{,}976$ par énumération), voisin de
+$-\sqrt{2/(\pi B)} = -0{,}025$. Le biais total reste ainsi au plus
 égal à $0{,}8/\sqrt{B}$ en valeur absolue~; son maximum, atteint en $p = 1$, est loin des seuils
 de verdict ($0{,}05$, $0{,}10$ et $0{,}30$ au seuil $\alpha = 0{,}10$) et sans conséquence sur
 un verdict, tandis qu'au voisinage de ces seuils il se réduit au relèvement de la convention,
@@ -3711,7 +3722,10 @@ $|K - n_p/2|$ est la région de rejet bilatérale de $K$. C'est une transformati
 région de rejet, et non une autre statistique (ADR~0003, annotation du 24~septembre 2026)~; la
 chaîne \code{loi} de la ligne la mentionne. Sans différence nulle, $m = n_p$ et $n_p/2$ est le
 centre de la loi de $K$~; en présence de différences nulles ($m < n_p$), le choix de recentrer
-sur $n_p/2$ plutôt que sur $m/2$ est une question relevée et non tranchée à ce jour. Sur le jeu de
+sur $n_p/2$ plutôt que sur $m/2$ est une question relevée et non tranchée à ce jour
+(issue~\#85)~; les réplications, tirées d'une loi continue, ne comportent jamais de différence
+nulle, de sorte qu'en présence d'ex æquo la loi simulée n'est pas celle du $K$ observé et la
+p-value de Monte-Carlo n'est qu'indicative, la p-value exacte étant retenue. Sur le jeu de
 contrôle ($T = 8$, $n_p = 4$), $K = 2$, au centre~: la p-value exacte et la p-value de
 Monte-Carlo valent~1, et l'erreur de Monte-Carlo affichée est nulle, ce qui signifie une erreur
 inférieure à la granularité et non une absence d'erreur (section~\ref{sec:deuxerreurs}).
@@ -4324,9 +4338,11 @@ exacte de JB n'est employée à $T$ fini. La loi de référence retenue est \emp
 de JB sous le modèle ajusté, par le bootstrap paramétrique (fiche~\ref{fiche:procedure-mc}).
 \Pval
 p-value retenue~: \textbf{Monte-Carlo} (clé \code{JB}, rejet en queue haute~;
-\code{nature\_p}~: «~Monte-Carlo (bootstrap paramétrique)~»), avec son erreur de Monte-Carlo.
+\code{nature\_p}~: \code{"Monte-Carlo (bootstrap parametrique)"}, libellé du moteur sans
+accent), avec son erreur de Monte-Carlo.
 La p-value asymptotique $p = 1 - F_{\chi^2_2}(\mathrm{JB})$ est calculée et restituée dans la
-colonne \code{p\_asymptotique}, sans être retenue~: aucune p-value exacte n'existe, et la
+colonne \code{p\_asymptotique}, sans être retenue~: aucune p-value exacte n'est calculée (la loi de JB à $T$ fini n'est pas
+tabulée dans le moteur), et la
 hiérarchie exacte $\succ$ Monte-Carlo $\succ$ asymptotique place la p-value de Monte-Carlo avant
 elle, d'autant que la convergence vers $\chi^2(2)$ est trop lente pour être présumée à $T = 8$
 (rubrique~6). Mesuré sur le jeu de contrôle (méthode prime, $B = 999$, graine 20260831)~:
@@ -6306,7 +6322,7 @@ cellules dont la variation relative dépasse $2~\%$ en valeur absolue (constante
 hérité de l'affichage~: il n'a \textbf{aucune source}, ni statistique ni réglementaire, et ne
 produit aucun verdict~; il n'est pas non plus le repère $2/\sqrt{n}$ de D.\,A. Belsley, E.~Kuh et R.\,E. Welsch
 (\emph{Regression Diagnostics: Identifying Influential Data and Sources of Collinearity}, Wiley,
-1980), qui porte sur un DFBETAS standardisé et non sur une variation relative non standardisée
+1980, chapitre~2~; section~\ref{sec:biblio}), qui porte sur un DFBETAS standardisé et non sur une variation relative non standardisée
 (issue~\#89). Le troisième compare, année de survenance par année de survenance, la part de la
 réserve et la part de la variance de processus de la MSEP.
 
@@ -6884,7 +6900,7 @@ $0/0$. Elle est exclue de la combinaison de Fisher avant tout appel à \code{lm(
 \code{cor.test()}, comme une colonne trop courte, et nommée dans le libellé de la ligne
 («~$K$ colonne(s) testée(s) sur $n$ éligible(s)~»), sans champ nouveau~; l'exclusion ne vaut
 pas preuve de proportionnalité. Le seuil $10^{-12}$ est une convention de restitution, environ
-$10^{4}$ fois l'epsilon machine, et non un seuil statistique~; l'exclusion des résidus de
+$4\,500$ fois l'epsilon machine ($2{,}2\cdot 10^{-16}$), et non un seuil statistique~; l'exclusion des résidus de
 Mack par \code{mw\_residus()} garde, elle, le critère $\hat\sigma^2_j = 0$ exact, divergence
 transitoire dont l'alignement est suivi par l'issue~\#60. La dernière colonne, qui n'a
 qu'un facteur individuel, appartient trivialement à l'ensemble, sans effet puisqu'elle n'est
@@ -6910,8 +6926,11 @@ laquelle une colonne retenue devient dégénérée n'a pas de statistique et est
 encore varier d'une réplication à l'autre pour une autre cause~: \code{.fisher\_combine()}
 écarte les p-values nulles, défaut antérieur à l'issue~\#56, suivi par l'issue~\#90. Limite
 mesurée et acceptée~: une colonne dont l'écart relatif dépasse à peine $10^{-12}$ reste soumise
-à \code{lm()}, dont le critère d'ajustement parfait (\code{summary.lm()}) n'est pas relatif et
-dépend de l'échelle des cumulés~; un avertissement~R peut alors encore apparaître, comme avant
+à \code{lm()}, dont le critère d'ajustement parfait (\code{summary.lm()}~: variance résiduelle
+\emph{pondérée} inférieure à $10^{-30}$ fois le carré de l'échelle des valeurs ajustées) n'est
+pas un écart relatif des facteurs~: la pondération $1/C(i,j)$ de la régression le rend
+dépendant de l'échelle des cumulés, l'écart relatif à partir duquel il se déclenche croissant
+avec elle~; un avertissement~R peut alors encore apparaître, comme avant
 l'issue~\#56, jusqu'à un écart relatif de l'ordre de $10^{-11}$ sur le triangle où il a été
 mesuré. Ce voisinage est un constat sur ce triangle, non un seuil.
 \Usage
@@ -8112,6 +8131,12 @@ soutient dans le présent document.
   \emph{Portée.} Référence exacte de la méthode évoquée dans la
   fiche Durbin--Watson pour le calcul de la loi exacte de la statistique, dont
   le document mentionnait le nom sans la référencer.
+
+  \item D.\,A. Belsley, E.~Kuh, R.\,E. Welsch, \emph{Regression Diagnostics: Identifying
+  Influential Data and Sources of Collinearity}, Wiley, New York, 1980, chapitre~2 (DFBETAS et
+  repère $2/\sqrt{n}$).
+  \emph{Portée.} Cité à la fiche~\ref{mw:influence} pour distinguer ce repère du repère de
+  2~\% de l'outil (issue~\#89).
 \end{itemize}
 
 
