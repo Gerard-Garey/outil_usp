@@ -372,5 +372,36 @@ verifier("Lecture vecteur : tableau a plusieurs lignes et colonnes refuse (forma
            f <- tempfile(); writeLines(c("a,b", "1,2", "3,4"), f)
            leve_erreur(usp_lire_vecteur(f))
          })
+# Revue finale de la branche (#33) : le format en ligne avec en-tete (ligne 1
+# = en-tetes non numeriques, ligne 2 = la serie), lu par l'ancien lecteur,
+# etait refuse comme tableau. Retabli par decision du mainteneur du
+# 25/09/2026 ; tout autre tableau reste refuse, sans aplatissement.
+verifier("Lecture vecteur : serie en ligne avec ligne d'en-tetes acceptee (sep ',' et ';', dec ',') (#33)",
+         {
+           lit <- function(l, sep = ",", dec = ".") {
+             f <- tempfile(); writeLines(l, f); usp_lire_vecteur(f, sep, dec)
+           }
+           identical(lit(c("a2017,a2018,a2019,a2020", "104.2,102.25,109.34,114.64")),
+                     c(104.2, 102.25, 109.34, 114.64)) &&
+             identical(lit(c("a2017;a2018;a2019;a2020", "104,2;102,25;109,34;114,64"), ";", ","),
+                       c(104.2, 102.25, 109.34, 114.64)) &&
+             identical(lit("104.2,102.25,109.34,114.64"), c(104.2, 102.25, 109.34, 114.64))
+         })
+verifier("Lecture vecteur : 2 lignes numeriques ou 3 lignes x n refusees (tableau, pas d'aplatissement) (#33)",
+         {
+           msg <- function(l) {
+             f <- tempfile(); writeLines(l, f)
+             tryCatch(usp_lire_vecteur(f), error = function(e) conditionMessage(e))
+           }
+           grepl("Format non reconnu", msg(c("1,2,3", "4,5,6")), fixed = TRUE) &&
+             grepl("Format non reconnu", msg(c("a,b,c", "1,2,3", "4,5,6")), fixed = TRUE) &&
+             grepl("Format non reconnu", msg(c("a,2018,c", "1,2,3")), fixed = TRUE)
+         })
+verifier("Lecture vecteur : cellule vide au milieu d'une serie en ligne avec en-tetes refusee avec sa position (#33)",
+         {
+           f <- tempfile(); writeLines(c("a2017;a2018;a2019;a2020", "104,2;;109,34;114,64"), f)
+           e <- tryCatch(usp_lire_vecteur(f, ";", ","), error = function(e) conditionMessage(e))
+           is.character(e) && grepl("Cellule(s) vide(s) en position 2", e, fixed = TRUE)
+         })
 
 fin_fichier()

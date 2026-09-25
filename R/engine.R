@@ -390,14 +390,22 @@ usp_parametre_standard <- function(methode = c("premium", "reserve1", "reserve2"
 ## 1. LECTURE ET CONTRÔLES DE QUALITÉ DES DONNÉES (art. 19 et 219)
 ## =============================================================================
 
-# Lecture d'un CSV "vecteur" (une serie annuelle), en ligne ou en colonne,
-# avec ou sans en-tete. Les cellules sont lues comme du texte, sans retirer
-# les lignes vides, afin que la position de chaque valeur soit conservee :
-# une cellule vide ou non numerique AU MILIEU de la serie est refusee, car la
-# retirer decalerait toutes les annees suivantes et desalignerait x et y
-# (issue #33). Sont seulement ecartes : une premiere cellule non numerique
-# (en-tete) et les cellules vides en tete de fichier, entre l'en-tete et la
-# premiere valeur, et en fin de fichier (lues sans effet par l'ancien
+# Lecture d'un CSV "vecteur" (une serie annuelle). Formats acceptes, apres
+# retrait des lignes et colonnes entierement vides de bord :
+#  - une seule colonne, avec ou sans en-tete (premiere cellule non numerique) ;
+#  - une seule ligne, avec ou sans en-tete en premiere cellule ;
+#  - deux lignes dont la PREMIERE est entierement non numerique (ligne
+#    d'en-tetes, cellules vides comprises, ex. a2017;...;a2024) : elle est
+#    ecartee et la seconde est lue comme une serie en ligne.
+# Tout autre tableau de plusieurs lignes et plusieurs colonnes est refuse
+# (pas d'aplatissement silencieux ; decision du 25/09/2026). Les cellules
+# sont lues comme du texte, sans retirer les lignes vides, afin que la
+# position de chaque valeur soit conservee : une cellule vide ou non
+# numerique AU MILIEU de la serie est refusee, car la retirer decalerait
+# toutes les annees suivantes et desalignerait x et y (issue #33). Sont
+# seulement ecartes : la ligne d'en-tetes ci-dessus, une premiere cellule non
+# numerique (en-tete) et les cellules vides en tete de serie, entre l'en-tete
+# et la premiere valeur, et en fin de serie (lues sans effet par l'ancien
 # lecteur, qui sautait les lignes vides).
 usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
   if (!file.exists(chemin)) stop("Fichier introuvable : ", chemin)
@@ -410,15 +418,20 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
   # Lignes et colonnes entierement vides AVANT la premiere valeur ou APRES
   # la derniere (debut ou fin de fichier, separateur final) ecartees ; une
   # ligne ou une colonne vide intercalee est conservee (cellule vide, refusee
-  # plus bas). Il doit rester une seule ligne ou une seule colonne.
+  # plus bas). Il doit rester une seule ligne ou une seule colonne, ou deux
+  # lignes dont la premiere est une ligne d'en-tetes (ci-dessous).
   nz <- matrix(nzchar(m), nrow(m), ncol(m))
   bornes <- function(k) if (length(k)) seq(min(k), max(k)) else integer(0)
   m <- m[bornes(which(rowSums(nz) > 0)), bornes(which(colSums(nz) > 0)), drop = FALSE]
+  en_nombre <- function(v) suppressWarnings(as.numeric(if (dec != ".") gsub(dec, ".", v, fixed = TRUE) else v))
+  # Serie en ligne avec en-tete : 2 lignes dont la premiere n'a aucune cellule
+  # numerique ; la ligne d'en-tetes est ecartee.
+  if (nrow(m) == 2 && ncol(m) > 1 && all(is.na(en_nombre(m[1, ]))))
+    m <- m[2, , drop = FALSE]
   if (nrow(m) > 1 && ncol(m) > 1)
     stop("Format non reconnu dans ", chemin, " : une serie sur une seule ligne ou ",
          "une seule colonne est attendue (", nrow(m), " lignes x ", ncol(m), " colonnes).")
   cel <- as.vector(m)
-  en_nombre <- function(v) suppressWarnings(as.numeric(if (dec != ".") gsub(dec, ".", v, fixed = TRUE) else v))
   # Cellules vides de tete ignorees, puis en-tete (premiere cellule non vide
   # et non numerique), puis cellules vides entre l'en-tete et la premiere
   # valeur. Les positions rapportees plus bas partent de la premiere valeur.
