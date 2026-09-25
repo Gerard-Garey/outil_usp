@@ -1847,9 +1847,12 @@ si la colonne $t$ est présente, exige des années entières, finies, sans doubl
 fichier est refusé, sans tri ni comblement. Sans colonne $t$, l'ordre du fichier est réputé
 chronologique et la consécutivité n'est pas vérifiable. \code{usp\_lire\_vecteur()} refuse une
 cellule vide ou non numérique au milieu de la série, en donnant sa position, parce que la
-retirer décalerait les années suivantes et désalignerait $x_t$ et $y_t$~; elle refuse aussi un
-tableau de plusieurs lignes et plusieurs colonnes~; seuls un en-tête et les cellules vides de
-tête et de fin sont écartés. Les fonctions réglementaires refusent explicitement une entrée hors
+retirer décalerait les années suivantes et désalignerait $x_t$ et $y_t$~; elle lit une série en
+colonne ou en ligne, avec ou sans en-tête, y compris une série en ligne précédée immédiatement
+d'une ligne d'en-têtes sans aucune cellule numérique (par exemple \code{a2017;\ldots;a2024}),
+qui est écartée~; elle refuse tout autre tableau de plusieurs lignes et plusieurs colonnes,
+sans l'aplatir~; seuls cette ligne d'en-têtes, un en-tête et les cellules vides de tête et de
+fin sont écartés. Les fonctions réglementaires refusent explicitement une entrée hors
 domaine au lieu de la traiter en silence~: \code{usp\_credibilite()} une durée non entière,
 \code{.annexe\_verifiee()} une annexe autre que \code{"II"} ou \code{"XIV"} (auparavant lue
 comme l'annexe~II).
