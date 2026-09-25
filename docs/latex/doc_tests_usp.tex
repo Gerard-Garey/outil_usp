@@ -475,7 +475,8 @@ récentes) \\
 \code{\$n} \\
 \code{engine\_lire\_xlsx()}, \code{engine\_ecrire\_xlsx()} & \code{chemin},
 \code{entete}~; \code{df}, \code{chemin}, \code{feuille} & \code{data.frame}
-lu~; chemin du fichier écrit (§\ref{sec:graines} pour la voie de repli) \\
+lu~; chemin du fichier écrit~; sans tirage aléatoire, dossier temporaire de la voie de repli
+supprimé à la sortie (§\ref{sec:graines}) \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Noyau du modèle}}} \\
 \code{usp\_pi()} & $\delta$, $\gamma$, $x$, \code{xbar} (moyenne de $x$) &
 vecteur $\pi_t$ \\
@@ -518,6 +519,9 @@ p-value exacte de \code{runs\_p\_exacte()} sur $u_t$ si $\hat\pi_t$ est constant
 sinon \\
 \code{sw\_loi\_nulle()} & \code{n}, \code{B\_null} (20\,000), \code{seed}
 (20260901) & loi nulle simulée de $W$ (Shapiro--Wilk), triée et mise en cache \\
+\code{engine\_sous\_graine()} & \code{seed}, expression & valeur de l'expression évaluée sous
+la graine \code{seed}, état du générateur de l'appelant restauré, y compris en cas d'erreur
+(§\ref{sec:graines}) \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Statistiques et tests}}} \\
 \code{stat\_*()}, \code{test\_*()} & $x$, $y$ ou $z$ & statistique et p-value \\
 \code{test\_tost\_intercept()} & $x$, $y$, $\theta$ ou $\Delta$ &
@@ -743,32 +747,35 @@ an, §\ref{sec:mw}).
 \subsection{Reproductibilité et gestion des graines}
 \label{sec:graines}
 
-Le moteur comporte cinq sources de tirages aléatoires, et cinq seulement~: une
-recherche dans \code{R/engine.R} de \code{set.seed()}, \code{RNGkind()},
-\code{.Random.seed}, \code{sample()} et des générateurs \code{r*()} de
-\code{stats} ne renvoie aucun appel qui n'appartienne à l'une d'elles. Pour chacune, on indique
-la fonction qui tire, la graine, la portée du tirage et le sort de l'état du
-générateur (l'objet \code{.Random.seed} de l'environnement global) après l'appel.
+Le moteur comporte quatre sources de tirages aléatoires, et quatre seulement, qui toutes
+s'exécutent sous \emph{graine locale} par la fonction unique \code{engine\_sous\_graine(seed,
+expr)} (ADR~0004, issue~\#42)~: celle-ci sauvegarde l'objet \code{.Random.seed} de
+l'environnement global, ou note son absence, pose la graine, évalue l'expression, puis restaure
+l'état initial, ou retire \code{.Random.seed} s'il n'existait pas, y compris quand l'évaluation
+échoue. Une recherche dans \code{R/engine.R} de \code{set.seed()}, \code{RNGkind()},
+\code{.Random.seed}, \code{sample()} et des générateurs \code{r*()} de \code{stats} ne renvoie
+aucun appel qui n'appartienne à \code{engine\_sous\_graine()} ou à l'une des quatre sources.
+Pour chacune, on indique la fonction qui tire, la graine, la portée du tirage et le sort de
+l'état du générateur (l'objet \code{.Random.seed} de l'environnement global) après l'appel.
 \begin{itemize}
 \item \code{usp\_bootstrap()} (méthodes de primes et de réserve
   n\textsuperscript{o}~1). \emph{Graine}~: le paramètre \code{seed} de
-  \code{run\_engine()} (défaut 20260831), posé par \code{set.seed(seed)} une
+  \code{run\_engine()} (défaut 20260831), posé par \code{engine\_sous\_graine()} une
   seule fois, avant la boucle des $B$ réplications~; à chaque réplication,
   \code{usp\_simuler()} tire par \code{stats::rnorm()} les logarithmes des $T$
   pertes simulées sous le modèle ajusté. \emph{Portée}~: tous les résultats de Monte-Carlo de la
   branche lognormale (p-values Monte-Carlo, erreurs \code{err\_mc},
-  \code{sigma\_boot} et les grandeurs qui en sont tirées). \emph{État}~: non
-  restauré.
+  \code{sigma\_boot} et les grandeurs qui en sont tirées). \emph{État}~: restauré.
 \item \code{mw\_bootstrap()} (méthode de réserve n\textsuperscript{o}~2).
-  \emph{Graine}~: le même paramètre \code{seed}, posé par \code{set.seed(seed)}
-  une seule fois avant la boucle~; à chaque réplication,
+  \emph{Graine}~: le même paramètre \code{seed}, posé une seule fois avant la boucle par
+  \code{engine\_sous\_graine()}~; à chaque réplication,
   \code{mw\_simuler\_triangle()} tire avec remise, par \code{sample()}, les
   résidus du vivier recentré. \emph{Portée}~: tous les résultats de Monte-Carlo
   de la branche Merz--Wüthrich (p-values Monte-Carlo, \code{sigma\_boot} et
-  l'intervalle qui en est tiré). \emph{État}~: non restauré.
+  l'intervalle qui en est tiré). \emph{État}~: restauré.
 \item \code{sw\_loi\_nulle()}, appelée par \code{sw\_p\_loi\_nulle()} dans les
   deux branches. \emph{Graine}~: fixe, 20260901, indépendante de \code{seed}~;
-  \code{set.seed()} est suivi de 20\,000 échantillons $\mathcal{N}(0,1)$ de
+  \code{engine\_sous\_graine()} pose la graine avant 20\,000 échantillons $\mathcal{N}(0,1)$ de
   taille $n$ tirés par \code{stats::rnorm()}, où $n$ vaut $T$ dans la branche
   lognormale et le nombre de résidus dans la branche Merz--Wüthrich. La loi
   simulée est mise en cache, pour la durée de la session R, sous une clé formée
@@ -777,36 +784,33 @@ générateur (l'objet \code{.Random.seed} de l'environnement global) après l'ap
   exacte simulée du test de Shapiro--Wilk sans la normalisation de Royston
   (fiche~\ref{fiche:shapiro-wilk-sans-royston}) et du test de Shapiro--Wilk sur les résidus de Mack
   (fiche~\ref{mw:m5sw}).
-  \emph{État}~: sauvegardé avant le tirage et restauré après. Exception~: si
-  aucun état n'existait avant l'appel, la fonction laisse celui qu'elle a
-  produit~; le cas ne se présente pas dans \code{run\_engine()}, où le bootstrap
-  a déjà initialisé le générateur.
+  \emph{État}~: restauré, ou retiré s'il n'existait pas avant l'appel (l'exception qui
+  laissait l'état produit dans ce cas a disparu avec l'issue~\#42).
 \item \code{engine\_plots\_data()} (branche lognormale). \emph{Graine}~: fixe,
   20260831, indépendante de \code{seed} bien qu'elle en égale la valeur par
-  défaut~; \code{set.seed()} est suivi de 499 échantillons $\mathcal{N}(0,1)$ de
+  défaut~; \code{engine\_sous\_graine()} la pose avant 499 échantillons $\mathcal{N}(0,1)$ de
   taille $T$ tirés par \code{stats::rnorm()}, dont les statistiques d'ordre
   fournissent, point par point, les quantiles à 5~\% et 95~\% de l'enveloppe du
   QQ-plot. \emph{Portée}~: ce seul graphique (champs \code{env\_bas} et
   \code{env\_haut} de \code{plots\_data\$qqnorm})~; aucun test ni aucun
-  paramètre n'en dépend. \emph{État}~: non restauré.
-\item \code{engine\_ecrire\_xlsx()} et \code{engine\_lire\_xlsx()}, dans leur
-  seule voie de repli, empruntée quand le paquet \code{openxlsx} n'est pas
-  installé. \emph{Graine}~: aucune~; chacune tire une valeur par
-  \code{runif()} sur l'état courant du générateur. \emph{Portée}~: le nom d'un
-  dossier temporaire créé sous \code{tempdir()}, rien d'autre. \emph{État}~:
-  avancé d'un tirage, non restauré.
+  paramètre n'en dépend. \emph{État}~: restauré.
 \end{itemize}
+Jusqu'à l'issue~\#42, \code{engine\_ecrire\_xlsx()} et \code{engine\_lire\_xlsx()}, dans leur
+voie de repli sans le paquet \code{openxlsx}, tiraient une valeur par \code{runif()}, sans
+graine, pour nommer un dossier temporaire qui n'était jamais supprimé. Elles ne tirent plus
+rien~: le dossier vient de \code{tempfile()} et est supprimé à la sortie de la fonction
+(\code{on.exit(unlink(\dots, recursive = TRUE))}). Mesuré dans les deux voies, avec et sans
+\code{openxlsx}~: un aller-retour écriture puis lecture laisse \code{.Random.seed} identique et
+ne laisse aucun dossier dans \code{tempdir()}.
 
 Sur les cas de contrôle de \code{tests/test\_reproductibilite.R}, on a vérifié
 par exécution les trois propriétés qui en découlent.
 \emph{Indépendance à l'égard de l'état antérieur}~: tout tirage qui alimente un
-résultat numérique est précédé d'un \code{set.seed()} dans la fonction même qui
-l'effectue~; les résultats de \code{run\_engine()} ne dépendent donc pas de
-l'état du générateur avant l'appel (trois états de départ différents, dont un
+résultat numérique est précédé de la pose de sa graine par \code{engine\_sous\_graine()},
+dans la fonction même qui l'effectue~; les résultats de \code{run\_engine()} ne dépendent donc
+pas de l'état du générateur avant l'appel (trois états de départ différents, dont un
 générateur non initialisé, donnent pour chacune des trois méthodes des objets
-identiques, aux champs d'exécution de \code{\$metadata} près). Les tirages des
-fonctions de lecture et d'écriture xlsx, appelées par l'application hors de
-\code{run\_engine()}, n'atteignent pour cette raison aucun résultat.
+identiques, aux champs d'exécution de \code{\$metadata} près).
 \emph{Dépendance au type de générateur}~: le moteur ne fixe pas
 \code{RNGkind()} et suppose le générateur par défaut de R (Mersenne-Twister,
 inversion pour la loi normale, rejet pour \code{sample()}), et
@@ -853,13 +857,15 @@ l'écart-type devient $\sqrt{2p(2-p)/B}$, soit $0{,}035$ pour $p = 0{,}37$ (test
 des suites). Les écarts maximaux observés, $0{,}043$, $0{,}046$ et $0{,}062$,
 valent entre $1{,}3$ et $2{,}6$ fois ces écarts-types, ce qui est attendu pour
 le maximum sur 34 et 13 statistiques.
-\emph{État laissé à l'appelant}~: seule \code{sw\_loi\_nulle()} restaure
-l'état du générateur. Après \code{run\_engine()}, cet état est donc modifié~:
-dans la branche lognormale, c'est celui que laisse \code{engine\_plots\_data()},
-le même quels que soient \code{seed} et l'état de départ~; dans la branche
-Merz--Wüthrich, celui que laisse \code{mw\_bootstrap()}. Un code appelant qui
-tire ses propres nombres après \code{run\_engine()} sans reposer sa graine
-hérite de cet état.
+\emph{État laissé à l'appelant}~: les quatre sources restaurant l'état qu'elles ont trouvé,
+\code{run\_engine()} laisse l'état du générateur de l'appelant intact (ADR~0004, point~3).
+Mesuré sur les cas de contrôle~: après un \code{set.seed()} quelconque, \code{.Random.seed} est
+identique avant et après l'appel~; sans \code{.Random.seed} avant l'appel, aucun n'est créé,
+pour chacune des trois méthodes. Un code appelant qui tire ses propres nombres après
+\code{run\_engine()} obtient donc les mêmes tirages que sans l'appel. Jusqu'à l'issue~\#42,
+seule \code{sw\_loi\_nulle()} restaurait l'état, et \code{run\_engine()} laissait celui de
+\code{engine\_plots\_data()} (branche lognormale) ou de \code{mw\_bootstrap()}
+(Merz--Wüthrich).
 
 Le script \code{tests/test\_reproductibilite.R} vérifie, pour chacune des trois
 méthodes, deux propriétés qu'il ne faut pas confondre.
@@ -7913,11 +7919,12 @@ Contrôles de validité & \code{engine\_valider\_donnees()}, \code{usp\_controle
 \code{mw\_valider\_triangle()}, \code{mw\_valider\_ajustement()} \\
 Quantités des graphiques & \code{engine\_plots\_data()} (branche lognormale),\newline
 \code{mw\_plots\_data()} (branche Merz--Wüthrich) \\
-Tirages aléatoires et graines (§\ref{sec:graines}) & \code{usp\_bootstrap()},
-\code{usp\_simuler()}, \code{mw\_bootstrap()},\newline
-\code{mw\_simuler\_triangle()}, \code{sw\_loi\_nulle()},\newline
-\code{engine\_plots\_data()}, \code{engine\_ecrire\_xlsx()},\newline
-\code{engine\_lire\_xlsx()} \\
+Tirages aléatoires et graines (§\ref{sec:graines}) & \code{engine\_sous\_graine()}, par
+laquelle passent toutes les sources~: \code{usp\_bootstrap()} (tirages de
+\code{usp\_simuler()}), \code{mw\_bootstrap()} (tirages de
+\code{mw\_simuler\_triangle()}),\newline \code{sw\_loi\_nulle()},
+\code{engine\_plots\_data()}~; \code{engine\_ecrire\_xlsx()} et \code{engine\_lire\_xlsx()} ne
+tirent plus rien depuis l'issue~\#42 \\
 Orchestration complète & \code{run\_engine()}~; méthode de réserve
 n\textsuperscript{o}~2 déléguée à\newline \code{.run\_engine\_mw()} \\
 Table auditable des tests & \code{engine\_table\_tests()} \\
@@ -8236,6 +8243,8 @@ fonction de calibration commune aux deux branches \\
 Monte-Carlo et leurs erreurs, dans les deux méthodes~; évaluation des deux catalogues \\
 \code{engine\_registre\_}\newline\code{tests()} & LN + MW & Enregistrement de toutes les lignes
 des tables de tests~: hiérarchie des p-values et verdicts des deux méthodes \\
+\code{engine\_sous\_graine()} & LN + MW & Toutes les simulations~: les deux bootstraps, la loi
+nulle de Shapiro--Wilk, l'enveloppe du QQ-plot \\
 \code{test\_grubbs()} & LN + MW & Grubbs sur $z_t$, sur ratios bruts, et sur
 résidus de Mack \\
 \code{test\_rosner()} & LN + MW & ESD généralisé, dans les deux méthodes \\
