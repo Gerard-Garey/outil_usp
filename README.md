@@ -65,8 +65,10 @@ La profondeur T est déduite du fichier.
     source("R/engine.R")
 
     # méthode lognormale
+    # nature_donnees obligatoire pour premium : "brutes" ou "nettes" (#55)
     res <- run_engine(xt = ..., yt = ..., methode = "premium",
-                      segment = 1, annexe = "II", T = 8, B = 999, seed = 20260831)
+                      segment = 1, annexe = "II", nature_donnees = "brutes",
+                      T = 8, B = 999, seed = 20260831)
 
     # méthode Merz-Wüthrich
     res <- run_engine(methode = "reserve2", triangle = tri,
