@@ -3243,6 +3243,43 @@ mw_ajuster <- function(tri) {
        reserve = sum(ultimes - derniers))
 }
 
+# --- Colonne de developpement degeneree : predicat unique (issue #56) --------
+# Une colonne j est DEGENEREE lorsque ses facteurs individuels
+# F(i,j) = C(i,j+1) / C(i,j), i = 0..I-j-1, sont tous egaux a leur moyenne
+# ponderee f_j a tol pres en relatif :
+#     max_i |F(i,j) - f_j| / |f_j| <= tol   (tol = 1e-12 par defaut).
+# C'est la propriete qui annule sigma2_j ; elle est testee sur les facteurs et
+# non sur sigma2_j == 0, que l'arrondi rend en general strictement positif
+# (voir mw_extrapolation_sigma2()). Le seuil est une convention de
+# restitution, pas un seuil statistique (avis d'actuary sur #56) : environ
+# 1e4 fois l'epsilon machine, plusieurs ordres de grandeur sous la dispersion
+# d'une colonne reelle.
+# UNE SEULE DEFINITION dans le moteur : mw_extrapolation_sigma2() (colonnes
+# J-3 et J-2) et les trois verifications colonne par colonne de M1
+# (mw_test_ordonnee_origine(), mw_test_homogeneite_f(), mw_test_courbure())
+# appellent ce predicat. L'exclusion des residus de Mack par mw_residus()
+# garde, elle, le critere sigma2_j = 0 exact (alignement renvoye a #60).
+# .mw_ecart_facteurs() rend le nombre de facteurs n, f_j et l'ecart relatif
+# maximal (NA si la colonne n'a aucun facteur).
+.mw_ecart_facteurs <- function(aj, j) {
+  if (aj$I - j - 1 < 0) return(list(n = 0L, f = aj$f[j + 1], ecart = NA_real_))
+  idx <- 0:(aj$I - j - 1)
+  Fij <- aj$tri[idx + 1, j + 2] / aj$tri[idx + 1, j + 1]
+  list(n = length(idx), f = aj$f[j + 1],
+       ecart = max(abs(Fij - aj$f[j + 1])) / abs(aj$f[j + 1]))
+}
+.mw_colonne_degeneree <- function(aj, j, tol = 1e-12) {
+  e <- .mw_ecart_facteurs(aj, j)$ecart
+  is.finite(e) && e <= tol
+}
+# Ensemble des colonnes j = 0..J-1 degenerees au sens du predicat ci-dessus
+# (vecteur d'entiers, eventuellement vide). mw_bootstrap() le calcule UNE FOIS
+# sur le triangle observe et le fige pour toutes les replications (#56).
+.mw_colonnes_degenerees <- function(aj, tol = 1e-12) {
+  j <- 0:(aj$J - 1L)
+  as.integer(j[vapply(j, function(k) .mw_colonne_degeneree(aj, k, tol), logical(1))])
+}
+
 # --- Lecture de l'extrapolation de sigma2_{J-1} : par. 5(d)(ii), 2e ligne ----
 # Fonction de RESTITUTION, sans effet sur les calculs : elle recompose, a
 # partir d'un ajustement deja produit par mw_ajuster(), les TROIS arguments du
@@ -3310,25 +3347,19 @@ mw_extrapolation_sigma2 <- function(aj, tol = 1e-12) {
   # texte. which.min ignore le quotient non defini, sans effet sur le minimum.
   out$retenu <- c("sigma2_(J-2)", "sigma2_(J-3)", "sigma2_(J-2)^2/sigma2_(J-3)")[
     which.min(c(out$sigma2_Jm2, out$sigma2_Jm3, out$quotient))]
-  # Critere de degenerescence d'une colonne j : ecart relatif maximal des
-  # facteurs individuels F(i,j) a leur moyenne ponderee f_j.
-  colonne_facteurs <- function(j) {
-    if (I - j - 1 < 0) return(list(n = 0L, f = aj$f[j + 1], ecart = NA_real_))
-    idx <- 0:(I - j - 1)
-    Fij <- aj$tri[idx + 1, j + 2] / aj$tri[idx + 1, j + 1]
-    list(n = length(idx), f = aj$f[j + 1],
-         ecart = max(abs(Fij - aj$f[j + 1])) / abs(aj$f[j + 1]))
-  }
-  c3 <- colonne_facteurs(J - 3L)               # colonne J-3 : sigma2_{J-3}
+  # Critere de degenerescence d'une colonne j : predicat unique
+  # .mw_colonne_degeneree() (issue #56), ecart relatif maximal des facteurs
+  # individuels F(i,j) a leur moyenne ponderee f_j (.mw_ecart_facteurs()).
+  c3 <- .mw_ecart_facteurs(aj, J - 3L)         # colonne J-3 : sigma2_{J-3}
   out$nb_facteurs <- c3$n
   out$f_colonne <- c3$f
   out$ecart_relatif <- c3$ecart
-  out$degeneree_Jm3 <- is.finite(c3$ecart) && c3$ecart <= tol
-  c2 <- colonne_facteurs(J - 2L)               # colonne J-2 : sigma2_{J-2}
+  out$degeneree_Jm3 <- .mw_colonne_degeneree(aj, J - 3L, tol)
+  c2 <- .mw_ecart_facteurs(aj, J - 2L)         # colonne J-2 : sigma2_{J-2}
   out$nb_facteurs_Jm2 <- c2$n
   out$f_colonne_Jm2 <- c2$f
   out$ecart_relatif_Jm2 <- c2$ecart
-  out$degeneree_Jm2 <- is.finite(c2$ecart) && c2$ecart <= tol
+  out$degeneree_Jm2 <- .mw_colonne_degeneree(aj, J - 2L, tol)
   # Union : un seul des deux chemins suffit a annuler sigma2_{J-1}.
   out$degeneree <- out$degeneree_Jm3 || out$degeneree_Jm2
   out$f_Jm2 <- aj$f[J - 1]                     # f_{J-2}
@@ -3833,14 +3864,102 @@ mw_stat_correlation_dev <- function(aj) {
   list(stat = X, p = .p_borne(1 - stats::pchisq(X, 2 * length(p))), K = length(p))
 }
 
+# Colonnes degenerees des verifications colonne par colonne de M1 (issue #56,
+# avis d'actuary du 24/09/2026). Une colonne eligible (assez de facteurs pour
+# la verification) mais degeneree au sens de .mw_colonne_degeneree() n'a pas
+# de statistique definie (0/0) : elle est exclue de la combinaison de Fisher,
+# comme une colonne trop courte. Dans le bootstrap, la regle a deux volets
+# (option (a) d'actuary sur #56) :
+#   1. l'ensemble des colonnes degenerees est determine UNE FOIS sur le
+#      triangle observe (argument j_degeneres, transmis par mw_bootstrap() via
+#      le contexte de .mw_contexte_mc()) ; chaque replication exclut
+#      exactement ces colonnes, degenerees ou non dans le triangle simule :
+#      au regard des colonnes degenerees, K est identique entre statistique
+#      observee et simulee (K peut encore varier pour une autre cause :
+#      .fisher_combine() ecarte les p-values nulles, par exemple Spearman
+#      asymptotique a rho = +-1 pour n = 4 ; defaut anterieur, issue #90) ;
+#   2. une colonne retenue a l'observe mais degeneree dans la replication
+#      n'est ni exclue (K changerait) ni soumise a lm() / cor.test() : la
+#      statistique de la replication vaut NA et sort de B_effectif.
+# Avec j_degeneres = NULL (appel sur le triangle observe, mw_tests()),
+# l'ensemble est calcule sur aj lui-meme : f(aj) et
+# f(aj, j_degeneres = .mw_colonnes_degenerees(aj)) sont identiques. Des
+# donnees proportionnelles a 12 chiffres pres ne se rencontrent pas sur
+# donnees reelles : ces cas sont des garde-fous numeriques. Le moteur detecte
+# la degenerescence lui-meme avant tout appel a lm() : une colonne degeneree
+# ne produit aucun avertissement R, et aucun n'est ni capture ni masque.
+# Limite mesuree, acceptee par actuary (#56) : une colonne a peine
+# au-dessus du seuil reste soumise a lm(), dont le critere "essentially
+# perfect fit" de summary.lm() n'est pas relatif (variance residuelle
+# ponderee, rss/ddl, comparee a 1e-30 fois le carre des valeurs ajustees non
+# ponderees) ; sur Taylor & Ashe, colonne j = 4, cet avertissement sort a
+# l'ecart relatif 1,02e-12 (observe et replications) et a 2,26e-12
+# (replications seulement), plus a 1,13e-11. Les colonnes exclues
+# sont rendues a part (element "exclues", data.frame j, n_facteurs ; element
+# "eligibles", nombre de colonnes eligibles), sans ligne ni colonne nouvelle
+# dans le tableau "detail" ; mw_tests() les restitue dans le libelle de la
+# ligne, sans champ nouveau dans le resultat.
+.mw_exclues_vide <- function()
+  list(colonnes = data.frame(j = integer(0), n_facteurs = integer(0)), eligibles = 0L)
+.mw_exclure <- function(ex, j, n) {
+  ex$colonnes[nrow(ex$colonnes) + 1L, ] <- list(as.integer(j), as.integer(n))
+  ex$eligibles <- ex$eligibles + 1L
+  ex
+}
+# Phrase ajoutee au libelle ("detail") d'une ligne de M1, SEULEMENT si une
+# colonne est exclue ; chaine vide sinon (libelle inchange). quoi : ce qui
+# n'est pas defini sur la colonne ; preuve : ce que l'exclusion ne prouve pas.
+.mw_phrase_exclusion <- function(r, quoi, preuve) {
+  ex <- r$exclues
+  if (is.null(ex) || !nrow(ex)) return("")
+  K <- if (is.null(r$K)) 0L else r$K
+  plur <- nrow(ex) > 1
+  sprintf(paste0(
+    "%s (facteurs individuels tous egaux a f_j a 1e-12 pres en relatif, ",
+    "sigma2_j nul ou numeriquement nul) : %s ; %s, %s hors de la combinaison ",
+    "de Fisher ; K = %d colonne(s) testee(s) sur %d eligible(s). ",
+    "L'exclusion ne vaut pas preuve %s."),
+    if (plur) "Colonnes degenerees" else "Colonne degeneree",
+    paste(sprintf("j = %d (%d facteurs)", ex$j, ex$n_facteurs), collapse = ", "),
+    quoi, if (plur) "colonnes" else "colonne", K, r$eligibles, preuve)
+}
+
+# Ensemble des colonnes exclues d'une verification de M1 : j_degeneres s'il
+# est fourni (ensemble fige a l'observe par mw_bootstrap()), sinon calcule sur
+# aj lui-meme (appel observe).
+.mw_j_exclues <- function(aj, j_degeneres) {
+  if (is.null(j_degeneres)) .mw_colonnes_degenerees(aj) else as.integer(j_degeneres)
+}
+# Resultat d'une replication dans laquelle une colonne retenue a l'observe est
+# degeneree (volet 2 de la regle ci-dessus) : statistique non definie, sans
+# appel a lm() / cor.test() ; K = NA (et non un K different de l'observe).
+.mw_stat_non_definie <- function(ex)
+  list(stat = NA_real_, p = NA_real_, K = NA_integer_, detail = data.frame(),
+       exclues = ex$colonnes, eligibles = ex$eligibles)
+
+# Libelle de base, suivi de la phrase d'exclusion s'il y en a une : sans
+# colonne exclue, le libelle est exactement le libelle de base.
+.mw_avec_exclusion <- function(base, phrase) {
+  if (!nzchar(phrase)) return(base)
+  paste0(base, if (grepl("\\.$", base)) " " else ". ", phrase)
+}
+
 # (a) Nullite de l'ordonnee a l'origine, colonne par colonne.
 # Regression ponderee C(i,j+1) = a_j + b_j C(i,j), poids 1/C(i,j).
-mw_test_ordonnee_origine <- function(aj) {
+mw_test_ordonnee_origine <- function(aj, j_degeneres = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
   det <- data.frame()
+  ex <- .mw_exclues_vide()
+  jd <- .mw_j_exclues(aj, j_degeneres)
   for (j in 0:(J - 1)) {
     idx <- 0:(I - j - 1)
     if (length(idx) < 3) next                    # 2 parametres + 1 ddl minimum
+    # Colonne degeneree (issue #56) : t_j = a_j / se(a_j) vaut 0/0, statistique
+    # non definie ; colonne de l'ensemble fige exclue, colonne retenue mais
+    # degeneree -> statistique NA, AVANT tout appel a lm().
+    if (j %in% jd) { ex <- .mw_exclure(ex, j, length(idx)); next }
+    ex$eligibles <- ex$eligibles + 1L
+    if (.mw_colonne_degeneree(aj, j)) return(.mw_stat_non_definie(ex))
     C0 <- tri[idx + 1, j + 1]; C1 <- tri[idx + 1, j + 2]
     m <- try(summary(stats::lm(C1 ~ C0, weights = 1 / C0)), silent = TRUE)
     if (inherits(m, "try-error") || nrow(m$coefficients) < 2) next
@@ -3850,42 +3969,62 @@ mw_test_ordonnee_origine <- function(aj) {
       t = m$coefficients[1, 3], p = m$coefficients[1, 4],
       b = m$coefficients[2, 1], f_cl = aj$f[j + 1], stringsAsFactors = FALSE))
   }
-  if (!nrow(det)) return(list(stat = NA_real_, p = NA_real_, detail = det))
+  if (!nrow(det)) return(list(stat = NA_real_, p = NA_real_, detail = det,
+                              exclues = ex$colonnes, eligibles = ex$eligibles))
   fc <- .fisher_combine(det$p)
   list(stat = fc$stat, p = fc$p, K = fc$K, detail = det,
-       t_max = det$t[which.max(abs(det$t))], j_max = det$j[which.max(abs(det$t))])
+       t_max = det$t[which.max(abs(det$t))], j_max = det$j[which.max(abs(det$t))],
+       exclues = ex$colonnes, eligibles = ex$eligibles)
 }
 
 # (b) Homogeneite de f_j entre annees de survenance.
 # Si f_j est commun a toutes les annees d'accident, les facteurs individuels
 # F(i,j) d'une meme colonne ne doivent presenter aucune tendance en i.
 # Correlation de rang de Spearman entre F(i,j) et i, colonne par colonne.
-mw_test_homogeneite_f <- function(aj) {
+mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
   det <- data.frame()
+  ex <- .mw_exclues_vide()
+  jd <- .mw_j_exclues(aj, j_degeneres)
   for (j in 0:(J - 1)) {
     idx <- 0:(I - j - 1)
     if (length(idx) < 4) next
+    # Colonne degeneree (issue #56) : facteurs constants, correlation de rang
+    # non definie. Le predicat unique remplace le test sd(F) == 0 exact, qui
+    # laissait passer une colonne constante a 1e-14 pres. Colonne de l'ensemble
+    # fige exclue, colonne retenue mais degeneree -> statistique NA.
+    if (j %in% jd) { ex <- .mw_exclure(ex, j, length(idx)); next }
+    ex$eligibles <- ex$eligibles + 1L
+    if (.mw_colonne_degeneree(aj, j)) return(.mw_stat_non_definie(ex))
     F <- tri[idx + 1, j + 2] / tri[idx + 1, j + 1]
-    if (stats::sd(F) == 0) next
     ct <- suppressWarnings(stats::cor.test(F, idx, method = "spearman", exact = FALSE))
     det <- rbind(det, data.frame(j = j, n = length(idx),
       rho = unname(ct$estimate), p = ct$p.value, stringsAsFactors = FALSE))
   }
-  if (!nrow(det)) return(list(stat = NA_real_, p = NA_real_, detail = det))
+  if (!nrow(det)) return(list(stat = NA_real_, p = NA_real_, detail = det,
+                              exclues = ex$colonnes, eligibles = ex$eligibles))
   fc <- .fisher_combine(det$p)
-  list(stat = fc$stat, p = fc$p, K = fc$K, detail = det)
+  list(stat = fc$stat, p = fc$p, K = fc$K, detail = det,
+       exclues = ex$colonnes, eligibles = ex$eligibles)
 }
 
 # (c) Absence de courbure : terme quadratique dans la regression ponderee.
 # Une courbure significative contredit la LINEARITE, meme si la constante est
 # nulle : E[C(i,j+1)|C(i,j)] ne serait alors pas proportionnelle a C(i,j).
-mw_test_courbure <- function(aj) {
+mw_test_courbure <- function(aj, j_degeneres = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
   det <- data.frame()
+  ex <- .mw_exclues_vide()
+  jd <- .mw_j_exclues(aj, j_degeneres)
   for (j in 0:(J - 1)) {
     idx <- 0:(I - j - 1)
     if (length(idx) < 4) next                    # 3 parametres + 1 ddl
+    # Colonne degeneree (issue #56) : terme quadratique exactement nul, t = 0/0 ;
+    # colonne de l'ensemble fige exclue, colonne retenue mais degeneree ->
+    # statistique NA, AVANT tout appel a lm().
+    if (j %in% jd) { ex <- .mw_exclure(ex, j, length(idx)); next }
+    ex$eligibles <- ex$eligibles + 1L
+    if (.mw_colonne_degeneree(aj, j)) return(.mw_stat_non_definie(ex))
     C0 <- tri[idx + 1, j + 1]; C1 <- tri[idx + 1, j + 2]
     if (stats::sd(C0) == 0) next
     m <- try(summary(stats::lm(C1 ~ C0 + I(C0^2), weights = 1 / C0)), silent = TRUE)
@@ -3894,9 +4033,11 @@ mw_test_courbure <- function(aj) {
       c2 = m$coefficients[3, 1], t = m$coefficients[3, 3],
       p = m$coefficients[3, 4], stringsAsFactors = FALSE))
   }
-  if (!nrow(det)) return(list(stat = NA_real_, p = NA_real_, detail = det))
+  if (!nrow(det)) return(list(stat = NA_real_, p = NA_real_, detail = det,
+                              exclues = ex$colonnes, eligibles = ex$eligibles))
   fc <- .fisher_combine(det$p)
-  list(stat = fc$stat, p = fc$p, K = fc$K, detail = det)
+  list(stat = fc$stat, p = fc$p, K = fc$K, detail = det,
+       exclues = ex$colonnes, eligibles = ex$eligibles)
 }
 
 # (d) Stabilite du facteur selon la ponderation : famille alpha.
@@ -3991,7 +4132,10 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
     res <- mw_residus(aj)
     pool <- res$residu
     pool <- pool - mean(pool)                     # recentrage usuel
-    obs <- .mw_stats(aj)
+    # Colonnes degenerees de M1 determinees UNE FOIS sur le triangle observe et
+    # figees pour la statistique observee et chaque replication (issue #56).
+    jd <- .mw_colonnes_degenerees(aj)
+    obs <- .mw_stats(aj, jd)
     noms <- names(obs)
     sim <- matrix(NA_real_, B, length(noms), dimnames = list(NULL, noms))
     sig <- rep(NA_real_, B)
@@ -4000,7 +4144,7 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
       if (anyNA(tb[upper.tri(tb, diag = TRUE)[, rev(seq_len(ncol(tb)))]])) next
       ab <- try(mw_ajuster(tb), silent = TRUE)
       if (inherits(ab, "try-error")) next
-      sb <- try(.mw_stats(ab), silent = TRUE)
+      sb <- try(.mw_stats(ab, jd), silent = TRUE)
       if (inherits(sb, "try-error")) next
       sim[b, ] <- sb[noms]
       mb <- try(mw_msep(ab), silent = TRUE)
@@ -4032,11 +4176,14 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
 # --- Catalogue Monte-Carlo de la methode Merz-Wuthrich (ADR 0003) -------------
 # Meme structure que USP_CATALOGUE_MC (voir .mc_entree()) ; contexte construit
 # par .mw_contexte_mc(). `degenere` : NULL pour toutes les entrees.
-# Contexte : ajustement aj, residus de Mack (mw_residus(), calcules une fois)
-# et leur vecteur r.
-.mw_contexte_mc <- function(aj) {
+# Contexte : ajustement aj, residus de Mack (mw_residus(), calcules une fois),
+# leur vecteur r et l'ensemble j_degeneres des colonnes degenerees exclues des
+# verifications colonne par colonne de M1 (issue #56) : fige a l'observe par
+# mw_bootstrap(), calcule sur aj s'il n'est pas fourni.
+.mw_contexte_mc <- function(aj, j_degeneres = NULL) {
   res <- mw_residus(aj)
-  list(aj = aj, res = res, r = res$residu)
+  list(aj = aj, res = res, r = res$residu,
+       j_degeneres = .mw_j_exclues(aj, j_degeneres))
 }
 
 MW_CATALOGUE_MC <- list(
@@ -4065,17 +4212,19 @@ MW_CATALOGUE_MC <- list(
   # Tests specifiques de l'hypothese (iii), colonne par colonne. Les
   # statistiques de Fisher et de Kruskal-Wallis rejettent en queue haute ;
   # l'amplitude de la famille alpha egalement.
-  Origine    = .mc_entree(function(e) mw_test_ordonnee_origine(e$aj)$stat, "haut"),
-  HomogF     = .mc_entree(function(e) mw_test_homogeneite_f(e$aj)$stat, "haut"),
-  Courbure   = .mc_entree(function(e) mw_test_courbure(e$aj)$stat, "haut"),
+  Origine    = .mc_entree(function(e) mw_test_ordonnee_origine(e$aj, e$j_degeneres)$stat, "haut"),
+  HomogF     = .mc_entree(function(e) mw_test_homogeneite_f(e$aj, e$j_degeneres)$stat, "haut"),
+  Courbure   = .mc_entree(function(e) mw_test_courbure(e$aj, e$j_degeneres)$stat, "haut"),
   Alpha      = .mc_entree(function(e) mw_famille_alpha(e$aj)$stat, "haut"),
   ExpVar     = .mc_entree(function(e) mw_test_exposant_variance(e$aj)$stat, "haut"),
   KruskalAcc = .mc_entree(function(e) mw_test_homogeneite_accident(e$aj)$stat, "haut")
 )
 
 # Statistiques bootstrapables de la methode Merz-Wuthrich (catalogue
-# MW_CATALOGUE_MC).
-.mw_stats <- function(aj) .mc_evaluer(MW_CATALOGUE_MC, .mw_contexte_mc(aj))
+# MW_CATALOGUE_MC). j_degeneres : ensemble fige des colonnes degenerees de M1
+# (NULL : calcule sur aj).
+.mw_stats <- function(aj, j_degeneres = NULL)
+  .mc_evaluer(MW_CATALOGUE_MC, .mw_contexte_mc(aj, j_degeneres))
 
 # --- Table des tests de la methode Merz-Wuthrich ------------------------------
 # Meme structure de sortie que usp_tests() : chaque ligne porte H0, H1, la
@@ -4114,10 +4263,14 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       loi = "chi2(2K) approx. (colonnes non independantes) -> Monte-Carlo",
       estim_nom = "colonnes testees", estim = if (is.null(oo$K)) NA_real_ else oo$K,
       p_as = oo$p, mc_nom = "Origine",
-      detail = paste("La regression ponderee SANS constante et de poids 1/C(i,j) a pour",
+      detail = .mw_avec_exclusion(paste(
+                     "La regression ponderee SANS constante et de poids 1/C(i,j) a pour",
                      "estimateur exactement f_j (identite de Mack, verifiee a 1e-16).",
                      "Ajouter une constante fournit donc le test naturel de la",
-                     "proportionnalite, colonne par colonne."))
+                     "proportionnalite, colonne par colonne."),
+                   .mw_phrase_exclusion(oo, paste0(
+                     "ordonnee a l'origine nulle en arithmetique exacte, statistique de Student ",
+                     "non definie (0/0)"), "de proportionnalite")))
   hf <- mw_test_homogeneite_f(aj)
   add(fam, "Homogeneite de f_j entre annees de survenance",
       "Annexe XVII, D(2)(h)(iii) : 'pour toutes les annees d'accident'",
@@ -4127,7 +4280,11 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       loi = "chi2(2K) approx. -> Monte-Carlo",
       estim_nom = "colonnes testees", estim = if (is.null(hf$K)) NA_real_ else hf$K,
       p_as = hf$p, mc_nom = "HomogF",
-      detail = "Correlation de rang entre F(i,j) et i, colonne par colonne, combinee par Fisher")
+      detail = .mw_avec_exclusion(
+        "Correlation de rang entre F(i,j) et i, colonne par colonne, combinee par Fisher",
+        .mw_phrase_exclusion(hf,
+          "facteurs individuels constants, correlation de rang non definie",
+          "de l'homogeneite de f_j entre annees de survenance")))
   cb <- mw_test_courbure(aj)
   add(fam, "Absence de courbure de la regression",
       "Test du terme quadratique, dans l'esprit de Ramsey (1969)",
@@ -4137,7 +4294,11 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       loi = "chi2(2K) approx. -> Monte-Carlo",
       estim_nom = "colonnes testees", estim = if (is.null(cb$K)) NA_real_ else cb$K,
       p_as = cb$p, mc_nom = "Courbure",
-      detail = "Une courbure invalide la linearite meme si la constante est nulle")
+      detail = .mw_avec_exclusion(
+        "Une courbure invalide la linearite meme si la constante est nulle",
+        .mw_phrase_exclusion(cb,
+          "terme quadratique nul en arithmetique exacte, statistique de Student non definie (0/0)",
+          "de linearite")))
   al <- mw_famille_alpha(aj)
   add(fam, "Stabilite du facteur selon la ponderation (famille alpha)",
       "Mack (1994), Insurance: Mathematics and Economics 15",
