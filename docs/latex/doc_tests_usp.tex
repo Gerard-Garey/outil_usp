@@ -4319,9 +4319,22 @@ et $\mathbb{E}[b_2] = 3$ conjointement.
 \]
 \Loi
 $\mathrm{JB} \xrightarrow{\ \mathcal{L}\ } \chi^2(2)$, comme somme des carrés de deux
-statistiques asymptotiquement normales et indépendantes.
+statistiques asymptotiquement normales et indépendantes~: loi \emph{asymptotique}. Aucune loi
+exacte de JB n'est employée à $T$ fini. La loi de référence retenue est \emph{simulée}~: celle
+de JB sous le modèle ajusté, par le bootstrap paramétrique (fiche~\ref{fiche:procedure-mc}).
 \Pval
-$p = 1 - F_{\chi^2_2}(\mathrm{JB})$. Le commentaire de la ligne n'imprime ni $\sqrt{b_1}$ ni
+p-value retenue~: \textbf{Monte-Carlo} (clé \code{JB}, rejet en queue haute~;
+\code{nature\_p}~: «~Monte-Carlo (bootstrap paramétrique)~»), avec son erreur de Monte-Carlo.
+La p-value asymptotique $p = 1 - F_{\chi^2_2}(\mathrm{JB})$ est calculée et restituée dans la
+colonne \code{p\_asymptotique}, sans être retenue~: aucune p-value exacte n'existe, et la
+hiérarchie exacte $\succ$ Monte-Carlo $\succ$ asymptotique place la p-value de Monte-Carlo avant
+elle, d'autant que la convergence vers $\chi^2(2)$ est trop lente pour être présumée à $T = 8$
+(rubrique~6). Mesuré sur le jeu de contrôle (méthode prime, $B = 999$, graine 20260831)~:
+$\mathrm{JB} = 0{,}506$, p-value de Monte-Carlo retenue $0{,}674$ (erreur $0{,}015$), p-value
+asymptotique $0{,}776$. La p-value de Monte-Carlo est exacte à l'erreur de Monte-Carlo près
+sous le modèle ajusté pris pour vrai~; sa validité à $T = 8$ est celle du bootstrap
+paramétrique, asymptotique en $T$ (section~\ref{sec:mc}), et l'étude de simulation de la
+section~\ref{sec:verif} en donne la seule mesure disponible. Le commentaire de la ligne n'imprime ni $\sqrt{b_1}$ ni
 $b_2$~: il renvoie aux champs \code{estim} des lignes de D'Agostino et d'Anscombe--Glynn
 (fiches~\ref{fiche:dagostino-asymetrie} et~\ref{fiche:anscombe-glynn-aplatissement}), qui les
 portent même lorsque le test d'Anscombe--Glynn n'est pas défini ($T < 20$), et rappelle que
@@ -8171,6 +8184,15 @@ Contrôles de validité (§\ref{sec:controles}) & \code{engine\_valider\_donnees
 \code{mw\_valider\_triangle()}, \code{mw\_valider\_ajustement()}~;\newline lecture des
 fichiers~: \code{engine\_lire\_donnees\_csv()}, \code{usp\_lire\_vecteur()},
 \code{engine\_lire\_triangle()} \\
+Contrôles numériques de l'estimation (famille~H~; §\ref{sec:controles},
+fiches~\ref{fiche:foc} et~\ref{fiche:multi-demarrages}) & \code{usp\_controles\_numeriques()},
+qui produit les deux entrées ajoutées à \code{res\$controles} par \code{run\_engine()}~;
+décisions calculées dans \code{usp\_ajuster()}~: démarrages à l'optimum (\code{TOL\_OPTIMUM}),
+condition de Kuhn et Tucker par \code{usp\_condition\_premier\_ordre()} et
+\code{usp\_kkt\_satisfaite()} (\code{REP\_PAS\_KKT}, \code{REP\_GD\_KKT}, \code{BORNES\_GAMMA}),
+champ \code{\$kkt\_au\_moins\_un}~; convergence multi-démarrages~: champs
+\code{\$n\_starts\_optimum}, \code{\$n\_starts\_optimum\_code0}, \code{\$n\_starts\_echec},
+\code{\$part\_starts\_convergents}~; gradient analytique \code{usp\_gradient()} \\
 Quantités des graphiques & \code{engine\_plots\_data()} (branche lognormale),\newline
 \code{mw\_plots\_data()} (branche Merz--Wüthrich)~; repères de lecture des graphiques
 d'influence \code{REPERE\_INFLUENCE\_SIGMA} et \code{REPERE\_DFBETA\_MW} \\
