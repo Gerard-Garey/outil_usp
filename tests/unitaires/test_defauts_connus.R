@@ -6,7 +6,8 @@
 #  une issue est resolue, le test passe, est signale "succes inattendu" et fait
 #  echouer la batterie : il faut alors le transformer en test ordinaire.
 #  Les tests ordinaires de ce fichier verifient la coherence actuelle des noms
-#  Monte-Carlo, dont depend l'absence d'erreur silencieuse.
+#  Monte-Carlo, dont depend l'absence d'erreur silencieuse, et la gestion de
+#  l'etat du generateur aleatoire (issue #42, ADR 0004).
 ###############################################################################
 
 if (!exists("verifier", mode = "function")) {
@@ -712,23 +713,116 @@ verifier("Volumes constants : vraisemblance plate en delta (objectif identique s
            isTRUE(usp_regime(fit_cst$delta, x_cst)$volumes_constants) && diff(range(v)) == 0
          })
 
-## --- Issue #4, piste 2 : etat du generateur aleatoire -------------------------
-echec_attendu("sw_loi_nulle() ne cree pas de .Random.seed s'il n'en existait pas",
-              "issue #4 : l'etat n'est restaure que s'il existait",
-              {
-                if (exists(".Random.seed", envir = globalenv()))
-                  rm(".Random.seed", envir = globalenv())
-                sw_loi_nulle(10, B_null = 200, seed = 11)
-                r <- !exists(".Random.seed", envir = globalenv())
-                set.seed(401)
-                r
-              })
-echec_attendu("usp_bootstrap() restaure l'etat du generateur de l'appelant",
-              "issue #4 : set.seed(seed) sans restauration",
-              {
-                set.seed(402); avant <- .Random.seed
-                usp_bootstrap(fit, B = 3, seed = 1)
-                identical(avant, .Random.seed)
-              })
+## --- Issue #4, piste 2 (#42, ADR 0004) : etat du generateur aleatoire --------
+# Anciens echecs attendus de l'issue #4, devenus tests ordinaires avec la
+# fonction unique engine_sous_graine() (#42), et proprietes nouvelles : toute
+# simulation restaure l'etat du generateur de l'appelant, run_engine() compris,
+# et le resultat ne depend pas de cet etat. Chaque test repose un etat connu
+# (set.seed) pour les suivants.
+retirer_graine <- function()
+  if (exists(".Random.seed", envir = globalenv())) rm(".Random.seed", envir = globalenv())
+etat_graine <- function()
+  if (exists(".Random.seed", envir = globalenv())) get(".Random.seed", envir = globalenv()) else NULL
+verifier("sw_loi_nulle() ne cree pas de .Random.seed s'il n'en existait pas",
+         {
+           retirer_graine()
+           sw_loi_nulle(10, B_null = 200, seed = 11)
+           r <- !exists(".Random.seed", envir = globalenv())
+           set.seed(401)
+           r
+         })
+verifier("usp_bootstrap() restaure l'etat du generateur de l'appelant",
+         {
+           set.seed(402); avant <- .Random.seed
+           usp_bootstrap(fit, B = 3, seed = 1)
+           identical(avant, .Random.seed)
+         })
+verifier("mw_bootstrap() restaure l'etat du generateur de l'appelant, et n'en cree pas",
+         {
+           aj_mw <- mw_ajuster(tri_mw)
+           set.seed(403); avant <- .Random.seed
+           mw_bootstrap(aj_mw, B = 3, seed = 1)
+           r1 <- identical(avant, .Random.seed)
+           retirer_graine()
+           mw_bootstrap(aj_mw, B = 3, seed = 1)
+           r2 <- !exists(".Random.seed", envir = globalenv())
+           set.seed(404)
+           r1 && r2
+         })
+verifier("engine_sous_graine() : memes tirages que set.seed(seed) suivi de l'expression",
+         {
+           set.seed(405)
+           a <- engine_sous_graine(7, stats::runif(5))
+           set.seed(7); b <- stats::runif(5)
+           identical(a, b)
+         })
+verifier("engine_sous_graine() : etat restaure (ou retire) meme si l'expression leve une erreur",
+         {
+           set.seed(406); avant <- .Random.seed
+           msg <- function(expr) tryCatch({ expr; "" }, error = function(e) conditionMessage(e))
+           e1 <- identical(msg(engine_sous_graine(7, { stats::runif(1); stop("essai") })), "essai")
+           r1 <- identical(avant, .Random.seed)
+           retirer_graine()
+           e2 <- identical(msg(engine_sous_graine(7, { stats::runif(1); stop("essai") })), "essai")
+           r2 <- !exists(".Random.seed", envir = globalenv())
+           set.seed(407)
+           e1 && r1 && e2 && r2
+         })
+# Propriete de l'ADR 0004, point 3 : run_engine() laisse l'etat du generateur
+# de l'appelant intact (existant ou absent), pour les trois methodes, et deux
+# appels a parametres egaux restent identiques quel que soit cet etat. B = 19
+# pour la duree ; horodatage et duree retires comme dans nettoyer().
+appels_run <- list(
+  premium  = function() run_engine(xt = x, yt = y, methode = "premium",
+                                   segment = 1, annexe = "II", B = 19, seed = 5),
+  reserve1 = function() run_engine(xt = x, yt = y, methode = "reserve1",
+                                   segment = 1, annexe = "II", B = 19, seed = 5),
+  reserve2 = function() run_engine(methode = "reserve2", triangle = tri_mw,
+                                   segment = 1, annexe = "II", B = 19, seed = 5))
+sans_horodatage <- function(res) {
+  res$metadata[c("horodatage", "duree_sec")] <- NULL
+  res
+}
+for (m in names(appels_run)) local({
+  appel <- appels_run[[m]]
+  verifier(sprintf("run_engine(%s) laisse .Random.seed de l'appelant intact, et n'en cree pas", m),
+           {
+             set.seed(408); avant <- .Random.seed
+             r_a <- appel()
+             r1 <- isTRUE(r_a$ok) && identical(avant, .Random.seed)
+             retirer_graine()
+             appel()
+             r2 <- !exists(".Random.seed", envir = globalenv())
+             set.seed(409)
+             r1 && r2
+           })
+  verifier(sprintf("run_engine(%s) : resultat identique quel que soit l'etat du generateur avant l'appel", m),
+           {
+             retirer_graine(); r_0 <- sans_horodatage(appel())
+             set.seed(410);    r_1 <- sans_horodatage(appel())
+             set.seed(411); invisible(stats::runif(100)); r_2 <- sans_horodatage(appel())
+             identical(r_0, r_1) && identical(r_0, r_2)
+           })
+})
+# ADR 0004, point 4 : aucun alea hors calcul. Les dossiers temporaires de
+# engine_ecrire_xlsx() / engine_lire_xlsx() viennent de tempfile() et sont
+# supprimes en sortie. Le repli interne (sans openxlsx) a besoin de la
+# commande zip pour ecrire : test saute, et signale, sans openxlsx ni zip.
+if (requireNamespace("openxlsx", quietly = TRUE) || nzchar(Sys.which("zip"))) {
+  verifier("engine_ecrire_xlsx() / engine_lire_xlsx() : aller-retour sans tirage ni dossier temporaire residuel",
+           {
+             residus <- function() list.files(tempdir(), pattern = "^(xlsx|unx)_")
+             avant_d <- residus()
+             set.seed(412); avant <- .Random.seed
+             f <- tempfile(fileext = ".xlsx")
+             df <- data.frame(t = 2001:2003, x = c(1.5, 2, 3), lib = c("a", "b", "c"),
+                              stringsAsFactors = FALSE)
+             engine_ecrire_xlsx(df, f)
+             lu <- engine_lire_xlsx(f)
+             unlink(f)
+             identical(avant, .Random.seed) && identical(residus(), avant_d) &&
+               identical(as.numeric(lu$x), df$x) && identical(as.character(lu$lib), df$lib)
+           })
+} else cat("  [saute] engine_ecrire_xlsx() / engine_lire_xlsx() : ni openxlsx ni zip\n")
 
 fin_fichier()

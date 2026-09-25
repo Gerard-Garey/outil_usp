@@ -724,6 +724,28 @@ lillie_p <- function(D, n) {
   .p_borne(p)
 }
 
+# --- Execution sous graine locale (ADR 0004, issue #42) ----------------------
+# Fonction unique par laquelle passe toute simulation du moteur
+# (usp_bootstrap(), mw_bootstrap(), sw_loi_nulle(), engine_plots_data()).
+# Sauvegarde .Random.seed de l'environnement global (ou note son absence),
+# pose la graine, evalue expr (evaluation differee : l'expression est evaluee
+# dans l'environnement de l'appelant, apres set.seed()), puis restaure l'etat
+# initial, ou retire .Random.seed s'il n'existait pas, y compris en cas
+# d'erreur (on.exit). Le flux tire a l'interieur de expr est celui de
+# set.seed(seed) : memes tirages qu'un set.seed(seed) suivi de expr.
+engine_sous_graine <- function(seed, expr) {
+  genv <- globalenv()
+  existait <- exists(".Random.seed", envir = genv, inherits = FALSE)
+  avant <- if (existait) get(".Random.seed", envir = genv, inherits = FALSE) else NULL
+  on.exit({
+    if (existait) assign(".Random.seed", avant, envir = genv)
+    else if (exists(".Random.seed", envir = genv, inherits = FALSE))
+      rm(".Random.seed", envir = genv)
+  }, add = TRUE)
+  set.seed(seed)
+  expr
+}
+
 # --- Shapiro-Wilk SANS la normalisation de Royston --------------------------
 # shapiro.test() calcule W puis en tire une p-value par la transformation
 # normalisante de Royston (1992), qui est un ajustement empirique. On propose
@@ -737,13 +759,11 @@ lillie_p <- function(D, n) {
 sw_loi_nulle <- function(n, B_null = 20000, seed = 20260901) {
   cle <- paste0("n", n, "_B", B_null, "_s", seed)
   if (!is.null(.cache_sw[[cle]])) return(.cache_sw[[cle]])
-  old <- if (exists(".Random.seed", .GlobalEnv)) get(".Random.seed", .GlobalEnv) else NULL
-  set.seed(seed)
-  w <- replicate(B_null, {
+  # Graine propre (20260901 par defaut), etat de l'appelant restaure
+  w <- engine_sous_graine(seed, replicate(B_null, {
     r <- try(stats::shapiro.test(stats::rnorm(n))$statistic, silent = TRUE)
     if (inherits(r, "try-error")) NA_real_ else unname(r)
-  })
-  if (!is.null(old)) assign(".Random.seed", old, envir = .GlobalEnv)
+  }))
   w <- sort(w[is.finite(w)])
   .cache_sw[[cle]] <- w
   w
@@ -880,7 +900,7 @@ test_runs <- function(z) {
   list(stat = Z, p = .p_borne(2 * (1 - stats::pnorm(abs(Z)))), runs = R)
 }
 
-# Cox & Stuart (1955), Biometrika 42, 80-93 (test de tendance par signes).
+# Cox & Stuart (1955), Biometrika 42, 80-95 (test de tendance par signes).
 test_cox_stuart <- function(v) {
   n <- length(v); c0 <- ceiling(n / 2)
   d <- v[(c0 + 1):n] - v[1:(n - c0)]
@@ -1570,25 +1590,27 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
 
 usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
                           progres = FALSE) {
-  set.seed(seed)
-  stats_obs <- .stats_bootstrapables(fit$x, fit$y, fit$z)
-  noms <- names(stats_obs)
-  sim <- matrix(NA_real_, B, length(noms), dimnames = list(NULL, noms))
-  sig <- del <- gam <- rep(NA_real_, B)
-  for (b in seq_len(B)) {
-    yb <- usp_simuler(fit)
-    fb <- if (refit) {
-      f <- try(usp_ajuster_rapide(fit$x, yb, fit$delta, fit$gamma), silent = TRUE)
-      if (inherits(f, "try-error")) next else f
-    } else usp_noyau(fit$delta, fit$gamma, fit$x, yb, fit$xbar)
-    sb <- try(.stats_bootstrapables(fit$x, yb, fb$z), silent = TRUE)
-    if (inherits(sb, "try-error")) next
-    sim[b, ] <- sb[noms]
-    sig[b] <- fb$sigma
-    if (!is.null(fb$delta)) { del[b] <- fb$delta; gam[b] <- fb$gamma }
-    if (progres && b %% 100 == 0) cat(".")
-  }
-  if (progres) cat("\n")
+  # Tirages sous graine locale (ADR 0004, #42) : etat de l'appelant restaure.
+  engine_sous_graine(seed, {
+    stats_obs <- .stats_bootstrapables(fit$x, fit$y, fit$z)
+    noms <- names(stats_obs)
+    sim <- matrix(NA_real_, B, length(noms), dimnames = list(NULL, noms))
+    sig <- del <- gam <- rep(NA_real_, B)
+    for (b in seq_len(B)) {
+      yb <- usp_simuler(fit)
+      fb <- if (refit) {
+        f <- try(usp_ajuster_rapide(fit$x, yb, fit$delta, fit$gamma), silent = TRUE)
+        if (inherits(f, "try-error")) next else f
+      } else usp_noyau(fit$delta, fit$gamma, fit$x, yb, fit$xbar)
+      sb <- try(.stats_bootstrapables(fit$x, yb, fb$z), silent = TRUE)
+      if (inherits(sb, "try-error")) next
+      sim[b, ] <- sb[noms]
+      sig[b] <- fb$sigma
+      if (!is.null(fb$delta)) { del[b] <- fb$delta; gam[b] <- fb$gamma }
+      if (progres && b %% 100 == 0) cat(".")
+    }
+    if (progres) cat("\n")
+  })
 
   # P-values de Monte-Carlo, erreur de Monte-Carlo et B effectif, le sens du
   # rejet etant lu au catalogue USP_CATALOGUE_MC.
@@ -2513,7 +2535,9 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
     '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">',
     '<sheetData>', paste(lignes, collapse = ""), '</sheetData></worksheet>')
 
-  d <- file.path(tempdir(), paste0("xlsx_", as.integer(runif(1, 1, 1e9))))
+  # Dossier temporaire propre a l'appel, supprime en sortie (ADR 0004, #42)
+  d <- tempfile("xlsx_")
+  on.exit(unlink(d, recursive = TRUE), add = TRUE)
   dir.create(file.path(d, "_rels"), recursive = TRUE, showWarnings = FALSE)
   dir.create(file.path(d, "xl", "_rels"), recursive = TRUE, showWarnings = FALSE)
   dir.create(file.path(d, "xl", "worksheets"), recursive = TRUE, showWarnings = FALSE)
@@ -2539,7 +2563,9 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
     '</Relationships>'), file.path(d, "xl", "_rels", "workbook.xml.rels"), useBytes = TRUE)
   writeLines(sheet, file.path(d, "xl", "worksheets", "sheet1.xml"), useBytes = TRUE)
 
-  wd <- setwd(d); on.exit(setwd(wd), add = TRUE)
+  # Retour au repertoire initial AVANT la suppression de d (after = FALSE) :
+  # on ne supprime pas le repertoire courant.
+  wd <- setwd(d); on.exit(setwd(wd), add = TRUE, after = FALSE)
   cible <- if (grepl("^(/|[A-Za-z]:)", chemin)) chemin else file.path(wd, chemin)
   if (file.exists(cible)) unlink(cible)
   st <- utils::zip(cible, c("[Content_Types].xml", "_rels", "xl"), flags = "-r9Xq")
@@ -2553,7 +2579,10 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
 engine_lire_xlsx <- function(chemin, entete = TRUE) {
   if (requireNamespace("openxlsx", quietly = TRUE))
     return(openxlsx::read.xlsx(chemin, sheet = 1, colNames = entete))
-  d <- file.path(tempdir(), paste0("unx_", as.integer(runif(1, 1, 1e9))))
+  # Dossier temporaire propre a l'appel, supprime en sortie (ADR 0004, #42) :
+  # aucun sharedStrings.xml residuel d'une lecture anterieure.
+  d <- tempfile("unx_")
+  on.exit(unlink(d, recursive = TRUE), add = TRUE)
   dir.create(d, recursive = TRUE, showWarnings = FALSE)
   utils::unzip(chemin, exdir = d)
   f <- list.files(file.path(d, "xl", "worksheets"), pattern = "\\.xml$", full.names = TRUE)
@@ -2805,9 +2834,9 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
   # Enveloppe de simulation du QQ-plot : quantiles 5 % et 95 % des
   # statistiques d'ordre de 499 echantillons N(0,1) independants de taille T,
   # sous graine fixe, sans reestimation du modele (l'enveloppe ne depend des
-  # donnees que par T). Calibre la lecture visuelle a T faible.
-  set.seed(20260831)
-  ordres <- replicate(499, sort(stats::rnorm(T)))
+  # donnees que par T). Calibre la lecture visuelle a T faible. Tirages sous
+  # graine locale (ADR 0004, #42) : etat de l'appelant restaure.
+  ordres <- engine_sous_graine(20260831, replicate(499, sort(stats::rnorm(T))))
   env <- t(apply(ordres, 1, stats::quantile, probs = c(0.05, 0.95)))
 
   # QQ-plot a deux echantillons (faible vs fort volume)
@@ -3699,26 +3728,28 @@ mw_simuler_triangle <- function(aj, res_pool) {
 }
 
 mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
-  set.seed(seed)
-  res <- mw_residus(aj)
-  pool <- res$residu
-  pool <- pool - mean(pool)                     # recentrage usuel
-  obs <- .mw_stats(aj)
-  noms <- names(obs)
-  sim <- matrix(NA_real_, B, length(noms), dimnames = list(NULL, noms))
-  sig <- rep(NA_real_, B)
-  for (b in seq_len(B)) {
-    tb <- mw_simuler_triangle(aj, pool)
-    if (anyNA(tb[upper.tri(tb, diag = TRUE)[, rev(seq_len(ncol(tb)))]])) next
-    ab <- try(mw_ajuster(tb), silent = TRUE)
-    if (inherits(ab, "try-error")) next
-    sb <- try(.mw_stats(ab), silent = TRUE)
-    if (inherits(sb, "try-error")) next
-    sim[b, ] <- sb[noms]
-    mb <- try(mw_msep(ab), silent = TRUE)
-    if (!inherits(mb, "try-error") && is.finite(mb$msep) && ab$reserve > 0)
-      sig[b] <- sqrt(mb$msep) / ab$reserve
-  }
+  # Tirages sous graine locale (ADR 0004, #42) : etat de l'appelant restaure.
+  engine_sous_graine(seed, {
+    res <- mw_residus(aj)
+    pool <- res$residu
+    pool <- pool - mean(pool)                     # recentrage usuel
+    obs <- .mw_stats(aj)
+    noms <- names(obs)
+    sim <- matrix(NA_real_, B, length(noms), dimnames = list(NULL, noms))
+    sig <- rep(NA_real_, B)
+    for (b in seq_len(B)) {
+      tb <- mw_simuler_triangle(aj, pool)
+      if (anyNA(tb[upper.tri(tb, diag = TRUE)[, rev(seq_len(ncol(tb)))]])) next
+      ab <- try(mw_ajuster(tb), silent = TRUE)
+      if (inherits(ab, "try-error")) next
+      sb <- try(.mw_stats(ab), silent = TRUE)
+      if (inherits(sb, "try-error")) next
+      sim[b, ] <- sb[noms]
+      mb <- try(mw_msep(ab), silent = TRUE)
+      if (!inherits(mb, "try-error") && is.finite(mb$msep) && ab$reserve > 0)
+        sig[b] <- sqrt(mb$msep) / ab$reserve
+    }
+  })
   # Les tests de NORMALITE sont volontairement exclus du bootstrap. Le
   # reechantillonnage tire dans la loi empirique des residus OBSERVES : son
   # hypothese nulle est "les residus suivent leur propre loi empirique", et non
