@@ -876,7 +876,9 @@ tient (vérification exécutée).
 référence enregistrées (\code{tests/reference/}) et versionnées avec le code.
 Leurs valeurs \emph{numériques} sont produites sur une plateforme unique
 désignée~: la CI du dépôt, par le workflow \code{.github/workflows/references.yml}, déclenché
-manuellement, sous Linux avec R~4.3.1 et le libellé d'image \code{ubuntu-22.04}, celui du job
+manuellement, sous Linux avec R~4.3.1, le libellé d'image \code{ubuntu-22.04} et, depuis la
+décision M34 du mainteneur (24~septembre 2026 au soir, ADR~0011 amendé), les bibliothèques
+BLAS et LAPACK de référence, monothread~; c'est aussi la plateforme du job
 « Tests du moteur » qui compare les résultats aux références. Il en est ainsi depuis la
 bascule du 24~septembre 2026 (ADR~0011, qui remplace le point~1 de l'ADR~0006)~; jusque-là,
 les références étaient produites sur le poste du mainteneur (Windows, R~4.3.1). Le libellé
@@ -938,8 +940,9 @@ mesurée entre plateformes, décrite ci-après ($3{,}508\cdot 10^{-7}$), qu'il
 absorbe avec une marge. Il a été maintenu lors de la bascule vers la CI (ADR~0011, point~6)~:
 sur la CI, les résultats sont désormais comparés à des références produites sur la même
 plateforme, mais le poste du mainteneur exécute lui aussi les tests, contre ces mêmes
-références, et la dérive y joue alors dans l'autre sens~; le seuil sera réexaminé une fois
-mesuré l'écart entre le poste et les références de la CI. Une telle dérive existe entre plateformes et a été mesurée lors de
+références, et la dérive y joue alors dans l'autre sens~; l'écart entre le poste et les
+références de la CI, mesuré depuis (ci-après), vaut encore $3{,}508\cdot 10^{-7}$, et le seuil
+garde sa marge. Une telle dérive existe entre plateformes et a été mesurée lors de
 l'audit consigné dans l'ADR~0006 (22~septembre 2026), en confrontant le code
 alors en vigueur, exécuté sous Linux avec R~4.3.3, aux références produites sur
 le poste du mainteneur~: sur le cas de contrôle de la méthode prime, 5\,515
@@ -951,8 +954,9 @@ de $10^{-14}$ en relatif, très en deçà de la précision à laquelle le param�
 est lu. La branche Merz--Wüthrich était, elle, indemne sous R~4.3.3 (aucun écart sur le
 triangle de contrôle)~; ce n'est plus vrai sous R~4.3.1 (voir ci-dessous). Ces décomptes sont datés~: l'objet a changé depuis l'audit (il
 comptait 12\,393 valeurs élémentaires sur le cas de la méthode prime lors de la mesure du
-23~septembre 2026 rapportée ci-dessous, 12\,369 après l'issue~\#22, et en compte 12\,370
-depuis l'ajout de \code{\$kkt\_au\_moins\_un}, décision M25),
+23~septembre 2026 rapportée ci-dessous, 12\,369 après l'issue~\#22, 12\,370
+depuis l'ajout de \code{\$kkt\_au\_moins\_un}, décision M25, et en compte 12\,419 le
+25~septembre 2026, après les issues~\#40, \#55 et~\#37),
 et la mesure ne peut se refaire qu'en confrontant deux plateformes. Tant que les références
 étaient produites sur le poste
 du mainteneur (Windows, R~4.3.1), le résultat courant des trois cas de contrôle
@@ -987,20 +991,48 @@ valeur de \code{bootstrap\$sigma\_boot}, et le cas Merz--Wüthrich 8 sur 4\,211,
 $1{,}339\cdot 10^{-13}$, aucune au-delà du seuil~; la part non numérique (chaînes, verdicts,
 booléens dont \code{\$kkt\_au\_moins\_un}, valeurs non finies, structure) est vide dans les
 trois cas, ce qui confirme entre deux machines la règle d'écriture des libellés exposée
-ci-après. Les références versionnées depuis sont celles de cette exécution (empreintes md5
-identiques à celles qu'elle a publiées). Comparées à elles sous Linux avec R~4.3.3 (session de
-travail), les cas prime et réserve n\textsuperscript{o}~1 ne présentent plus qu'une valeur non
-strictement identique, à $1{,}6\cdot 10^{-16}$, et le cas Merz--Wüthrich les mêmes 8 valeurs à
-$1{,}339\cdot 10^{-13}$ au plus~: entre deux plateformes Linux, la dérive est de l'ordre du
-dernier bit. L'écart entre le poste du mainteneur et les références de la CI n'a pas encore
-été mesuré~; on l'attend, par symétrie, voisin de $3{,}508\cdot 10^{-7}$, à condition que le poste
-reproduise encore au bit près ses anciennes références, comme mesuré les 22 et
-23~septembre 2026~; c'est une attente et non une mesure. L'origine vraisemblable de cette dérive est l'optimiseur employé
+ci-après. Comparées aux références issues de cette exécution sous Linux avec R~4.3.3 (session
+de travail), les cas prime et réserve n\textsuperscript{o}~1 ne présentaient plus qu'une valeur
+non strictement identique, à $1{,}6\cdot 10^{-16}$, et le cas Merz--Wüthrich les mêmes 8 valeurs à
+$1{,}339\cdot 10^{-13}$ au plus.
+
+Ces références n'ont servi que jusqu'au soir du même jour. La première régénération demandée à
+la CI (issue~\#40) a été refusée~: à image, version de R et BLAS identiques, son résultat
+différait de celui de la bascule, hors des seules valeurs que le code de l'issue devait changer, sur 5\,526 valeurs de chaque cas
+lognormal, jusqu'à $3{,}508\cdot 10^{-7}$ sur la même valeur de \code{bootstrap\$sigma\_boot},
+et sur 45 valeurs du cas Merz--Wüthrich, jusqu'à $6{,}5\cdot 10^{-14}$~: deux exécutions de la
+CI sous OpenBLAS n'étaient pas strictement identiques. OpenBLAS choisit ses noyaux de calcul
+selon le processeur, qui varie d'un runner à l'autre~; c'est la cause probable, non démontrée,
+retenue par l'ADR~0011 amendé. Depuis la décision M34, les deux workflows calculent avec le BLAS
+et le LAPACK de référence (LAPACK~3.10.0), monothread, qu'une étape de contrôle bloquante
+(\code{.github/actions/blas-reference/controle\_blas.R}) vérifie avant tout calcul~; le modèle
+de processeur est consigné. Les références ont été reproduites sous cette plateforme par deux
+exécutions successives, sur deux runners distincts, aux empreintes md5 identiques pour les quatre
+fichiers~; par rapport aux références sous OpenBLAS, les trois cas lognormaux étaient identiques
+au bit près, et le cas Merz--Wüthrich différait sur 8 valeurs, d'au plus
+$1{,}339\cdot 10^{-13}$. Deux exécutions identiques ne démontrent pas le déterminisme de la
+plateforme, elles ne le réfutent pas~; chaque régénération ultérieure en est une épreuve de plus,
+et celles des issues~\#40 et~\#37 ont été acceptées sans aucune valeur modifiée hors des
+changements attendus.
+
+Mesure à la date du 25~septembre 2026 (\code{tests/comparer\_references.R --deux-parts}, session
+de travail Linux, R~4.3.3, BLAS et LAPACK de référence~3.12.0)~: comparés aux références
+versionnées, les quatre cas lognormaux ne présentent qu'une valeur non strictement identique,
+à $1{,}577\cdot 10^{-16}$ (\code{plots\_data\$surface\$objectif}), et le cas Merz--Wüthrich
+aucune~; la part non numérique est vide pour les cinq cas. Sur le poste du mainteneur (Windows,
+R~4.3.1, BLAS interne de R, LAPACK~3.11.0), la comparaison aux références produites sous le BLAS
+de référence, mesurée le 24~septembre 2026 et consignée dans le message du commit de ces
+références, donne 5\,505 valeurs non strictement identiques par cas lognormal, d'écart maximal
+$3{,}508\cdot 10^{-7}$, et le cas Merz--Wüthrich identique au bit près~: le poste ne coïncide pas
+avec la CI sur la branche lognormale, et le seuil $10^{-6}$ garde sa marge d'environ trois.
+L'origine vraisemblable de cette dérive est l'optimiseur employé
 par la branche lognormale sur une vraisemblance quasi plate en $\delta$, dont le
 chemin dépend de l'ordre des opérations en virgule flottante~; cette explication
-est cohérente avec la répartition observée des écarts, mais elle n'a pas été
-démontrée par une expérience isolant la bibliothèque d'algèbre linéaire ou la
-version de R. Ce qui précède ne remet en cause aucun résultat publié~: c'est la
+est cohérente avec la répartition observée des écarts. L'expérience de M34 en isole une partie
+--- à version de R, image et système fixés, deux exécutions sous OpenBLAS ont différé, deux sous
+le BLAS de référence non ---, mais elle ne démontre pas que la bibliothèque d'algèbre linéaire
+en soit la seule cause, les compilateurs et bibliothèques mathématiques différant aussi entre le
+poste et la CI. Ce qui précède ne remet en cause aucun résultat publié~: c'est la
 portée de la garantie qui doit être énoncée exactement.
 
 \emph{Les libellés.} Les chaînes de caractères de l'objet (commentaires des tests et des
