@@ -269,8 +269,11 @@ verifier("sigma2_(J-2) = 0 avec sigma2_(J-3) > 0 : sigma2_(J-1) = 0, avertisseme
              !grepl("sigma2_(J-3) = 0", av, fixed = TRUE) &&
              grepl("facteurs individuels tous egaux", detail_m6(r), fixed = TRUE) &&
              grepl("nul par voie de consequence", detail_m6(r), fixed = TRUE) &&
-             grepl("Les 2 facteurs individuels de la colonne degeneree n'ont pas de residu de Mack",
-                   av, fixed = TRUE) &&
+             # Depuis #33, l'absence de residus est dite par l'avertissement
+             # general sur les colonnes exclues, et non plus par celui-ci.
+             !grepl("n'ont pas de residu de Mack", av, fixed = TRUE) &&
+             any(grepl("j = 3 (2 facteurs). Le residu de Mack y vaut 0/0",
+                       r$validation$avertissements, fixed = TRUE)) &&
              isTRUE(proche(r$parametre_final$sigma_usp, 0.0769833895, rel = 1e-8))
          })
 verifier("Colonne J-3 degeneree (tri_deg) : colonne J-2 non degeneree, sigma_USP inchange",
@@ -379,6 +382,93 @@ verifier("Colonne degeneree : aucun residu de Mack (mw_residus) pour ses facteur
              !any(j_res(tri_2) %in% 2:3) && !any(j_res(tri_ach) == 3) &&
              any(j_res(tri_sym) == 2) && any(j_res(tri_deg) == 3)
          })
+## --- Colonnes exclues de mw_residus() et reserve negligeable (#33) ----------
+# Avis d'actuary du 24/09/2026 (commentaire de #33) : une colonne a
+# sigma2_j = 0 reste exclue, mais l'exclusion est dite par UN avertissement
+# de validation par triangle (colonnes, residus exclus et retenus, lignes
+# concernees), sans champ nouveau dans le resultat. Triangle tri_j1 : colonne
+# j = 1 (hors J-3 = 2 et J-2 = 3) a facteurs tous egaux a 1,25 (exact en
+# binaire, sigma2_1 = 0 exactement), la colonne J-2 de tri_sym rendue non
+# degeneree (2195 au lieu de 2193).
+tri_j1 <- tri_sym
+tri_j1[2, 5] <- 2195
+for (i in 1:4) tri_j1[i, 3] <- 1.25 * tri_j1[i, 2]
+for (i in 1:3) tri_j1[i, 4:(7 - i)] <- tri_sym[i, 4:(7 - i)] / tri_sym[i, 3] * tri_j1[i, 3]
+tri_j1[2, 5] <- 2195 / 2000 * tri_j1[2, 3]
+av_exclues <- function(av) grep("a sigma2_j = 0 (facteurs individuels tous egaux a f_j)", av,
+                                fixed = TRUE, value = TRUE)
+verifier("Colonne j = 1 a sigma2 = 0 (hors J-3, J-2) : exclue, attribut renseigne, un avertissement (#33)",
+         {
+           a <- mw_ajuster(tri_j1)
+           rs <- mw_residus(a)
+           ce <- attr(rs, "colonnes_exclues")
+           r <- run_mw(tri_j1)
+           av <- av_exclues(r$validation$avertissements)
+           ex <- mw_extrapolation_sigma2(a)
+           isTRUE(mw_valider_triangle(tri_j1)$ok) && isTRUE(r$ok) &&
+             a$sigma2[2] == 0 && all(a$sigma2[-c(2, a$J)] > 0) && !isTRUE(ex$degeneree) &&
+             identical(ce$j, 1L) && identical(ce$n_facteurs, 4L) && !any(rs$j == 1) &&
+             nrow(rs) == sum(pmax(a$I - (0:(a$J - 1)), 0)[-c(2, a$J)]) &&
+             length(av) == 1 &&
+             grepl("Colonne de developpement a sigma2_j = 0", av, fixed = TRUE) &&
+             grepl("j = 1 (4 facteurs)", av, fixed = TRUE) &&
+             grepl(sprintf("ces 4 facteurs individuels n'ont pas de residu de Mack et sont exclus ; %d residu(s)",
+                           nrow(rs)), av, fixed = TRUE) &&
+             grepl(.MW_LIGNES_RESIDUS_TEXTE, av, fixed = TRUE) &&
+             !any(grepl("sigma2_(J-1) = min", r$validation$avertissements, fixed = TRUE))
+         })
+verifier("Colonnes exclues : une seule phrase par triangle, J-3 / J-2 compris (tri_deg, tri_sym, tri_2)",
+         all(vapply(list(tri_deg, tri_sym, tri_2), function(t) {
+           av <- run_mw(t)$validation$avertissements
+           length(av_exclues(av)) == 1 &&
+             sum(grepl("n'ont pas de residu de Mack", av, fixed = TRUE)) == 1
+         }, logical(1))) &&
+         grepl("Colonnes de developpement a sigma2_j = 0", av_exclues(run_mw(tri_2)$validation$avertissements),
+               fixed = TRUE))
+verifier("Colonnes exclues : l'attribut n'est pas stocke dans le resultat (res$residus, plots_data)",
+         {
+           r <- run_mw(tri_j1)
+           is.null(attr(r$residus, "colonnes_exclues")) &&
+             is.null(attr(r$plots_data$residus, "colonnes_exclues"))
+         })
+# Reserve positive mais negligeable (decision du mainteneur du 24/09/2026) :
+# avertissement non bloquant si racine(MSEP) / R >= 1, aucun refus, M4
+# inchangee. Triangle tri_vol : cumuls quasi plats et bruites (facteurs
+# autour de 1), R = 20,27, racine(MSEP) / R = 1,96 (mesure du 25/09/2026).
+tri_vol <- matrix(NA_real_, 6, 6)
+tri_vol[1, ] <- c(1000, 1003, 998, 1004, 999, 1001)
+tri_vol[2, 1:5] <- c(1100, 1096, 1104, 1097, 1102)
+tri_vol[3, 1:4] <- c(900, 905, 898, 903)
+tri_vol[4, 1:3] <- c(1200, 1193, 1207)
+tri_vol[5, 1:2] <- c(1050, 1056)
+tri_vol[6, 1]   <- 980
+av_cv <- function(av) grep("Reserve chain-ladder positive mais faible devant son incertitude",
+                           av, fixed = TRUE, value = TRUE)
+verifier("Reserve negligeable : racine(MSEP) / R >= 1 -> ok = TRUE et avertissement (#33)",
+         {
+           r <- run_mw(tri_vol)
+           av <- av_cv(r$validation$avertissements)
+           isTRUE(r$ok) && r$parametre_final$sigma_estime >= 1 && length(av) == 1 &&
+             grepl(sprintf("= %s >= 1", format(r$parametre_final$sigma_estime, digits = 4)), av,
+                   fixed = TRUE) &&
+             grepl("de l'ultime total", av, fixed = TRUE) &&
+             grepl("sans fondement reglementaire ni statistique", av, fixed = TRUE) &&
+             grepl("run-off", av, fixed = TRUE)
+         })
+verifier("Reserve negligeable : pas d'avertissement sous le repere (triangles de test et tri_sym)",
+         {
+           d <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
+           m <- as.matrix(d[, setdiff(names(d), "i")]); storage.mode(m) <- "double"
+           a <- mw_ajuster(unname(m)); ms <- mw_msep(a)$msep
+           v <- mw_valider_ajustement(a, ms)
+           isTRUE(v$ok) && sqrt(ms) / a$reserve < 1 && !length(v$avertissements) &&
+             !length(av_cv(run_mw(tri_sym)$validation$avertissements))
+         })
+verifier("Reserve negligeable : repere a la frontiere (objet reduit, racine(MSEP) / R = 1 et 0,999)",
+         length(av_cv(mw_valider_ajustement(list(I = 4L, reserve = 10), 100)$avertissements)) == 1 &&
+         !length(av_cv(mw_valider_ajustement(list(I = 4L, reserve = 10), 99.8)$avertissements)) &&
+         isTRUE(mw_valider_ajustement(list(I = 4L, reserve = 10), 400)$ok))
+
 # Les lignes citees par l'avertissement comme fondees sur les residus de Mack
 # (.MW_LIGNES_RESIDUS) sont exactement celles de mw_tests() qui consomment
 # mw_residus() : mesure par perturbation de mw_residus() (bootstrap fixe),

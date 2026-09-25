@@ -434,11 +434,12 @@ verifier("Base r (#29) : DWr, LB1r, supFr, CUSUMr, Grubbsr restent en Monte-Carl
 
 ## --- Durbin-Watson : loi exacte ---------------------------------------------
 # Controle de l'integrale d'Imhof sur une forme dont la loi est connue :
-# Q = chi2_k - c chi2_1 (independants), P(Q < 0) = P(F(k, 1) < c / k).
+# Q = chi2_k - c chi2_1 (independants), P(Q > 0) = P(F(k, 1) > c / k)
+# (issue #33 : la fonction rend P(Q > 0), Imhof 1961).
 for (k in c(1, 3, 5)) for (cc in c(0.5, 7)) {
   h <- c(rep(1, k), -cc)
-  verifier(sprintf("Imhof : forme chi2_%d - %.1f chi2_1, P(Q < 0) = pf(c/k, %d, 1)", k, cc, k),
-           proche(.imhof_p_sup0(h), stats::pf(cc / k, k, 1), abs = 1e-7))
+  verifier(sprintf("Imhof : forme chi2_%d - %.1f chi2_1, P(Q > 0) = pf(c/k, %d, 1, lower.tail = FALSE)", k, cc, k),
+           proche(.imhof_p_sup0(h), stats::pf(cc / k, k, 1, lower.tail = FALSE), abs = 1e-7))
 }
 verifier("Imhof : les valeurs pour h et -h sont complementaires",
          proche(.imhof_p_sup0(c(2, 1, -0.7)) + .imhof_p_sup0(-c(2, 1, -0.7)), 1, abs = 1e-8))
@@ -470,15 +471,14 @@ verifier("DW : p dans [0, 1] et NA pour T < 4",
          all(vapply(list(z1, z2, z3), dw_p_exacte, numeric(1)) >= 0) &&
          all(vapply(list(z1, z2, z3), dw_p_exacte, numeric(1)) <= 1) &&
          is.na(dw_p_exacte(c(1, 2, 0))))
-# Constat d'audit : le nom et le commentaire annoncent P(Q > 0), la fonction
-# renvoie P(Q < 0) (0,5 - integrale / pi, alors qu'Imhof 1961 donne
-# P(Q > x) = 0,5 + integrale / pi). Sans effet sur la p bilaterale de
-# dw_p_exacte, symetrique ; toute utilisation unilaterale serait inversee.
-# Issue #33 (defaut releve par audit, repris de l'issue #7)
-echec_attendu(".imhof_p_sup0 renvoie P(Q > 0) comme annonce",
-              "constat audit : renvoie P(Q < 0)",
-              isTRUE(proche(.imhof_p_sup0(c(1, -0.5)),
-                            stats::pf(0.5, 1, 1, lower.tail = FALSE), abs = 1e-7)))
+# Issue #33 (defaut releve par audit, repris de l'issue #7), corrige : la
+# fonction renvoyait P(Q < 0) (0,5 - integrale / pi) alors qu'Imhof 1961
+# donne P(Q > x) = 0,5 + integrale / pi. Sans effet sur la p bilaterale de
+# dw_p_exacte(), symetrique (valeurs de lmtest ci-dessus inchangees).
+verifier(".imhof_p_sup0 renvoie P(Q > 0) comme annonce (#33)",
+         isTRUE(proche(.imhof_p_sup0(c(1, -0.5)),
+                       stats::pf(0.5, 1, 1, lower.tail = FALSE), abs = 1e-7)) &&
+         .imhof_p_sup0(c(1, 1, 1)) > 0.999999 && .imhof_p_sup0(-c(1, 1, 1)) < 1e-6)
 
 ## --- Moments de Z = min(L, n - L), test calendaire de Mack --------------------
 for (n in 2:15) {

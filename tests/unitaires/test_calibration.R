@@ -82,10 +82,14 @@ verifier("usp_segment_infos : segment 1 de l'annexe XIV = frais medicaux, bareme
 verifier("usp_segment_infos : erreur pour un segment inexistant (II-13, II-0, XIV-5)",
          leve_erreur(usp_segment_infos(13, "II")) && leve_erreur(usp_segment_infos(0, "II")) &&
          leve_erreur(usp_segment_infos(5, "XIV")))
-# Issue #33 (defaut releve par audit, repris de l'issue #7)
-echec_attendu("usp_segment_infos : une annexe inconnue (xiv en minuscules, III) est refusee",
-              "constat audit : traitee silencieusement comme l'annexe II",
-              leve_erreur(usp_segment_infos(1, "xiv")) && leve_erreur(usp_segment_infos(1, "III")))
+# Issue #33 (defaut releve par audit, repris de l'issue #7), corrige.
+verifier("usp_segment_infos : une annexe inconnue (xiv en minuscules, III, NA, vecteur) est refusee (#33)",
+         leve_erreur(usp_segment_infos(1, "xiv")) && leve_erreur(usp_segment_infos(1, "III")) &&
+         leve_erreur(usp_segment_infos(1, NA_character_)) &&
+         leve_erreur(usp_segment_infos(1, c("II", "XIV"))) && leve_erreur(usp_segment_infos(1, 2)))
+verifier("usp_bareme_segment : une annexe inconnue est refusee, y compris sans segment (#33)",
+         leve_erreur(usp_bareme_segment(1, "xiv")) && leve_erreur(usp_bareme_segment(NULL, "III")) &&
+         identical(usp_bareme_segment(NULL, "II"), "court"))
 
 ## --- Bareme de credibilite (section G) ---------------------------------------
 long  <- c(34, 43, 51, 59, 67, 74, 81, 87, 92, 96, 100) / 100     # T = 5..15
@@ -106,10 +110,11 @@ verifier("Credibilite : bareme inconnu refuse", leve_erreur(usp_credibilite(8, "
 verifier("Credibilite : croissante en T",
          all(diff(vapply(5:20, usp_credibilite, 0, bareme = "long")) >= 0) &&
          all(diff(vapply(5:20, usp_credibilite, 0, bareme = "court")) >= 0))
-# Issue #33 (defaut releve par audit, repris de l'issue #7)
-echec_attendu("Credibilite : une duree non entiere est refusee explicitement",
-              "constat audit : T = 7.5 renvoie NA sans erreur",
-              leve_erreur(usp_credibilite(7.5)))
+# Issue #33 (defaut releve par audit, repris de l'issue #7), corrige.
+verifier("Credibilite : une duree non entiere, non finie, manquante ou multiple est refusee explicitement (#33)",
+         leve_erreur(usp_credibilite(7.5)) && leve_erreur(usp_credibilite(Inf)) &&
+         leve_erreur(usp_credibilite(NA_real_)) && leve_erreur(usp_credibilite(c(8, 9))) &&
+         leve_erreur(usp_credibilite("8")) && usp_credibilite(8L) == 0.81)
 
 ## --- Attribution du bareme (G(1) et G(2)) -----------------------------------
 verifier("Bareme : annexe II segments 1, 5, 6 -> long",

@@ -166,6 +166,13 @@ REP_GD_KKT  <- 1e-4
 usp_credibilite <- function(T, bareme = c("court", "long")) {
   bareme <- match.arg(bareme)
   tab <- if (bareme == "long") CRED_LONG else CRED_COURT
+  # La duree est un nombre entier d'annees (section G : "duree de la serie
+  # chronologique") ; une valeur non entiere, non finie ou multiple n'a pas
+  # de ligne dans le bareme et est refusee explicitement (issue #33), au lieu
+  # de renvoyer NA.
+  if (!is.numeric(T) || length(T) != 1L || !is.finite(T) || T != round(T))
+    stop("Annexe XVII, section G : la duree T doit etre un nombre entier d'annees (T = ",
+         paste(format(T), collapse = ", "), ").")
   if (T < 5) stop("Annexe XVII : au moins 5 annees consecutives sont exigees (T = ", T, ").")
   Tc <- min(T, max(as.integer(names(tab))))
   unname(tab[as.character(Tc)])
@@ -179,7 +186,19 @@ usp_credibilite <- function(T, bareme = c("court", "long")) {
 # L'annexe d'appartenance est donc necessaire : le segment 1 de l'annexe XIV
 # (frais medicaux) releve du bareme court, contrairement au segment 1 de
 # l'annexe II (RC automobile).
+# Annexe d'appartenance : "II" ou "XIV" exactement. Toute autre valeur ("xiv",
+# "III", vecteur, NA) est refusee explicitement (issue #33) : elle etait
+# auparavant traitee en silence comme l'annexe II.
+.annexe_verifiee <- function(annexe) {
+  if (!is.character(annexe) || length(annexe) != 1L || is.na(annexe) ||
+      !annexe %in% c("II", "XIV"))
+    stop("Annexe inconnue (", paste(format(annexe), collapse = ", "),
+         ") : valeurs admises \"II\" (non-vie) ou \"XIV\" (sante non-SLT).")
+  annexe
+}
+
 usp_bareme_segment <- function(segment, annexe = "II") {
+  annexe <- .annexe_verifiee(annexe)
   if (is.null(segment) || is.na(segment)) return("court")
   if (identical(annexe, "XIV")) return("court")
   if (segment %in% c(1, 5, 6)) "long" else "court"
@@ -188,6 +207,7 @@ usp_bareme_segment <- function(segment, annexe = "II") {
 # Renvoie les caracteristiques reglementaires d'un segment : libelle, ecarts
 # types standard et bareme de credibilite applicable.
 usp_segment_infos <- function(segment, annexe = "II") {
+  annexe <- .annexe_verifiee(annexe)
   tab <- if (identical(annexe, "XIV")) ANNEXE_XIV else ANNEXE_II
   i <- match(segment, tab$segment)
   if (is.na(i)) stop(sprintf("Segment %s inconnu dans l'annexe %s.", segment, annexe))
@@ -202,19 +222,57 @@ usp_segment_infos <- function(segment, annexe = "II") {
 ## 1. LECTURE ET CONTRÔLES DE QUALITÉ DES DONNÉES (art. 19 et 219)
 ## =============================================================================
 
+# Lecture d'un CSV "vecteur" (une serie annuelle), en ligne ou en colonne,
+# avec ou sans en-tete. Les cellules sont lues comme du texte, sans retirer
+# les lignes vides, afin que la position de chaque valeur soit conservee :
+# une cellule vide ou non numerique AU MILIEU de la serie est refusee, car la
+# retirer decalerait toutes les annees suivantes et desalignerait x et y
+# (issue #33). Sont seulement ecartes : une premiere cellule non numerique
+# (en-tete) et les cellules vides en tete de fichier, entre l'en-tete et la
+# premiere valeur, et en fin de fichier (lues sans effet par l'ancien
+# lecteur, qui sautait les lignes vides).
 usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
   if (!file.exists(chemin)) stop("Fichier introuvable : ", chemin)
   brut <- utils::read.csv(chemin, header = FALSE, sep = sep, dec = dec,
-                          stringsAsFactors = FALSE)
-  # Un CSV "vecteur" peut être en ligne ou en colonne, avec ou sans en-tête.
-  v <- suppressWarnings(as.numeric(unlist(brut, use.names = FALSE)))
-  if (all(is.na(v))) {                       # en-tête probable : on relit
-    brut <- utils::read.csv(chemin, header = TRUE, sep = sep, dec = dec,
-                            stringsAsFactors = FALSE)
-    v <- suppressWarnings(as.numeric(unlist(brut, use.names = FALSE)))
-  }
-  v <- v[!is.na(v)]
-  if (!length(v)) stop("Aucune valeur numerique exploitable dans ", chemin)
+                          colClasses = "character", blank.lines.skip = FALSE,
+                          na.strings = character(0), strip.white = TRUE)
+  m <- as.matrix(brut)
+  m[is.na(m)] <- ""
+  m <- trimws(m)
+  # Lignes et colonnes entierement vides AVANT la premiere valeur ou APRES
+  # la derniere (debut ou fin de fichier, separateur final) ecartees ; une
+  # ligne ou une colonne vide intercalee est conservee (cellule vide, refusee
+  # plus bas). Il doit rester une seule ligne ou une seule colonne.
+  nz <- matrix(nzchar(m), nrow(m), ncol(m))
+  bornes <- function(k) if (length(k)) seq(min(k), max(k)) else integer(0)
+  m <- m[bornes(which(rowSums(nz) > 0)), bornes(which(colSums(nz) > 0)), drop = FALSE]
+  if (nrow(m) > 1 && ncol(m) > 1)
+    stop("Format non reconnu dans ", chemin, " : une serie sur une seule ligne ou ",
+         "une seule colonne est attendue (", nrow(m), " lignes x ", ncol(m), " colonnes).")
+  cel <- as.vector(m)
+  en_nombre <- function(v) suppressWarnings(as.numeric(if (dec != ".") gsub(dec, ".", v, fixed = TRUE) else v))
+  # Cellules vides de tete ignorees, puis en-tete (premiere cellule non vide
+  # et non numerique), puis cellules vides entre l'en-tete et la premiere
+  # valeur. Les positions rapportees plus bas partent de la premiere valeur.
+  sans_vides_tete <- function(v) { while (length(v) && !nzchar(v[1])) v <- v[-1]; v }
+  cel <- sans_vides_tete(cel)
+  if (length(cel) && is.na(en_nombre(cel[1]))) cel <- sans_vides_tete(cel[-1])
+  # Cellules vides finales (fin de fichier) : ignorees.
+  while (length(cel) && !nzchar(cel[length(cel)])) cel <- cel[-length(cel)]
+  if (!length(cel)) stop("Aucune valeur numerique exploitable dans ", chemin)
+  v <- en_nombre(cel)
+  vides <- which(!nzchar(cel))
+  if (length(vides))
+    stop(sprintf(paste("Cellule(s) vide(s) en position %s de la serie (comptee depuis la premiere valeur) de %s :",
+                       "une valeur manquante",
+                       "au milieu de la serie decalerait les annees suivantes ; completer",
+                       "ou retirer l'annee dans les deux fichiers."),
+                 paste(vides, collapse = ", "), chemin))
+  non_num <- which(is.na(v))
+  if (length(non_num))
+    stop(sprintf("Valeur(s) non numerique(s) en position %s de la serie (comptee depuis la premiere valeur) de %s : %s.",
+                 paste(non_num, collapse = ", "), chemin,
+                 paste0("\"", cel[non_num], "\"", collapse = ", ")))
   v
 }
 
@@ -234,34 +292,54 @@ usp_charger <- function(fichier_x, fichier_y, T = NULL, plus_recent_en_dernier =
   list(x = x, y = y, T = length(x))
 }
 
+# Controles de qualite (famille A). Verdict OK / ECHEC sans niveau alpha.
+# Un controle qui ne peut pas etre etabli (valeur manquante, serie vide) vaut
+# ECHEC, jamais un jugement sur les seules valeurs disponibles, et son detail
+# le dit au lieu d'imprimer NA comme un nombre ; sous T = 5, la ligne de
+# credibilite sort ECHEC sans appeler le bareme, qui n'y est pas defini
+# (issue #33, avis d'actuary du 24/09/2026). run_engine() valide en amont :
+# ces cas ne s'y presentent pas.
 usp_controle_donnees <- function(x, y, alpha = 0.10) {
   T <- length(x)
   res <- list()
   add <- function(nom, ok, detail) res[[length(res) + 1]] <<-
     list(famille = "A. Qualite des donnees", test = nom,
-         stat = NA_real_, p = NA_real_, verdict = if (ok) "OK" else "ECHEC",
+         stat = NA_real_, p = NA_real_, verdict = if (isTRUE(ok)) "OK" else "ECHEC",
          detail = detail)
+  non_etabli <- "controle non etabli : valeur(s) manquante(s)"
+  etabli <- function(...) all(vapply(list(...), function(v) length(v) > 0 && !anyNA(v), logical(1)))
 
   add("Profondeur minimale (annexe XVII, B/C(2)(b))", T >= 5,
       sprintf("T = %d annee(s) consecutive(s) ; minimum reglementaire = 5", T))
   add("Absence de valeurs manquantes", !any(is.na(c(x, y))),
       sprintf("%d NA detecte(s)", sum(is.na(c(x, y)))))
-  add("Strict positivite de x_t", all(x > 0),
-      sprintf("min(x) = %.6g", min(x)))
-  add("Strict positivite de y_t (requise par la lognormale)", all(y > 0),
-      sprintf("min(y) = %.6g", min(y)))
-  add("Absence de doublons parfaits", !any(duplicated(data.frame(x, y))),
-      sprintf("%d couple(s) (x,y) duplique(s)", sum(duplicated(data.frame(x, y)))))
-  ratio <- y / x
-  add("Plausibilite du ratio y/x", all(ratio > 0 & ratio < 5),
-      sprintf("min = %.3f ; median = %.3f ; max = %.3f",
-              min(ratio), stats::median(ratio), max(ratio)))
-  amp <- max(x) / min(x)
-  add("Amplitude du volume (stabilite du perimetre)", amp < 10,
-      sprintf("max(x)/min(x) = %.2f ; une amplitude elevee signale une rupture de perimetre", amp))
+  add("Strict positivite de x_t", etabli(x) && all(x > 0),
+      if (etabli(x)) sprintf("min(x) = %.6g", min(x)) else non_etabli)
+  add("Strict positivite de y_t (requise par la lognormale)", etabli(y) && all(y > 0),
+      if (etabli(y)) sprintf("min(y) = %.6g", min(y)) else non_etabli)
+  if (etabli(x, y) && length(x) == length(y)) {
+    dup <- sum(duplicated(data.frame(x, y)))
+    add("Absence de doublons parfaits", dup == 0,
+        sprintf("%d couple(s) (x,y) duplique(s)", dup))
+    ratio <- y / x
+    add("Plausibilite du ratio y/x", all(ratio > 0 & ratio < 5),
+        sprintf("min = %.3f ; median = %.3f ; max = %.3f",
+                min(ratio), stats::median(ratio), max(ratio)))
+  } else {
+    motif <- if (etabli(x, y)) "controle non etabli : x et y de longueurs differentes"
+             else non_etabli
+    add("Absence de doublons parfaits", FALSE, motif)
+    add("Plausibilite du ratio y/x", FALSE, motif)
+  }
+  if (etabli(x)) {
+    amp <- max(x) / min(x)
+    add("Amplitude du volume (stabilite du perimetre)", amp < 10,
+        sprintf("max(x)/min(x) = %.2f ; une amplitude elevee signale une rupture de perimetre", amp))
+  } else add("Amplitude du volume (stabilite du perimetre)", FALSE, non_etabli)
   add("Credibilite pleine atteinte", T >= 10,
-      sprintf("T = %d ; c = %.0f%% (bareme court) / %.0f%% (bareme long)",
-              T, 100 * usp_credibilite(T, "court"), 100 * usp_credibilite(T, "long")))
+      if (T >= 5) sprintf("T = %d ; c = %.0f%% (bareme court) / %.0f%% (bareme long)",
+                          T, 100 * usp_credibilite(T, "court"), 100 * usp_credibilite(T, "long"))
+      else sprintf("T = %d ; bareme non defini sous T = 5 (annexe XVII, section G)", T))
   res
 }
 
@@ -438,6 +516,13 @@ usp_ajuster <- function(x, y, n_starts_delta = 9, verbose = FALSE,
 
   d <- best$par[1]; g <- best$par[2]
   k <- usp_noyau(d, g, x, y, xbar)
+  # Objectif non fini au point retenu : usp_objectif() y rend la penalite
+  # 1e12, et comme toute valeur finie lui serait preferee, il n'est fini en
+  # aucun point visite (valeur infinie dans x ou y, par exemple). Erreur
+  # explicite plutot qu'un sigma = Inf rendu comme un optimum (issue #33).
+  if (!is.finite(k$obj))
+    stop("Echec de l'optimisation (annexe XVII, par. 6) : l'objectif n'est fini en aucun ",
+         "point visite ; verifier que x et y sont finis et strictement positifs.")
   # Condition du premier ordre (issue #22) : gradient analytique de l'objectif
   # profile, projete sur les bornes. L'ancienne grandeur
   # |somme(pi_t v_t)| / somme(pi_t) etait une identite de la forme fermee de
@@ -855,7 +940,9 @@ stat_dw <- function(z) {
 #     P(DW <= c) = P( z'(A - cI)z <= 0 )
 # soit la queue d'une forme quadratique en variables normales, calculable
 # exactement par la methode d'Imhof (1961), Biometrika 48, 419-426 :
-#     P(Q > 0) = 1/2 - (1/pi) * integrale_0^inf sin(theta(u)) / (u rho(u)) du
+#     P(Q > 0) = 1/2 + (1/pi) * integrale_0^inf sin(theta(u)) / (u rho(u)) du
+# (Imhof 1961, P(Q > x) en x = 0 ; le signe "-" des versions anterieures
+# rendait P(Q < 0), sans effet sur la p bilaterale, issue #33).
 # Aucune approximation asymptotique n'intervient ; les bornes d_L/d_U de
 # Durbin-Watson, etablies pour des residus MCO, ne sont pas utilisees.
 .imhof_p_sup0 <- function(h) {
@@ -867,7 +954,7 @@ stat_dw <- function(z) {
   v <- try(stats::integrate(integrand, 0, Inf, subdivisions = 2000L,
                             rel.tol = 1e-10)$value, silent = TRUE)
   if (inherits(v, "try-error")) return(NA_real_)
-  min(max(0.5 - v / pi, 0), 1)
+  min(max(0.5 + v / pi, 0), 1)
 }
 
 # p-value bilaterale exacte de Durbin-Watson (centrage compris : le centrage
@@ -883,9 +970,10 @@ dw_p_exacte <- function(z) {
   M <- diag(n) - matrix(1 / n, n, n)          # projecteur de centrage
   lam <- eigen(M %*% A %*% M, symmetric = TRUE, only.values = TRUE)$values
   lam <- sort(lam, decreasing = TRUE)[1:(n - 1)]   # on ecarte la valeur nulle
-  p_inf <- .imhof_p_sup0(lam - d)             # P(DW > d)
-  if (!is.finite(p_inf)) return(NA_real_)
-  .p_borne(2 * min(p_inf, 1 - p_inf))
+  # Q = z'(A - dI)z : P(Q > 0) = P(DW > d)
+  p_sup <- .imhof_p_sup0(lam - d)
+  if (!is.finite(p_sup)) return(NA_real_)
+  .p_borne(2 * min(p_sup, 1 - p_sup))
 }
 
 # Wald & Wolfowitz (1940), Ann. Math. Statist. 11, 147-162 (test des suites).
@@ -2440,12 +2528,28 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 
 # Interprete un data.frame deja charge (colonnes attendues : t, xt, yt -- le
 # format exact ecrit par le bouton d'export de l'application) et en extrait les
-# vecteurs xt, yt, tries selon t si cette colonne est presente et exploitable.
+# vecteurs xt, yt, tries selon t si cette colonne est presente.
 # La LECTURE du fichier (acces disque) reste du ressort de la couche Shiny ;
 # cette fonction ne fait que l'interpretation structurelle du tableau une fois
 # charge, ce qui la rend testable independamment de toute interface :
 #     df  <- utils::read.csv("usp_donnees.csv")
 #     res <- engine_lire_donnees_csv(df)
+# Regles (issue #33, avis d'actuary du 24/09/2026) :
+#  - une colonne facteur est convertie par ses VALEURS (texte), jamais par ses
+#    codes internes ;
+#  - la colonne t, si elle est presente, doit etre complete, numerique,
+#    entiere, sans doublon et CONSECUTIVE (annexe XVII, B(2)(b) et C(2)(b) :
+#    "annees d'accident consecutives") ; elle est alors triee en croissant.
+#    Sinon le fichier est refuse : aucun tri ni comblement silencieux. Les
+#    tests de la famille H3 supposent des annees equidistantes ;
+#  - sans colonne t, l'ordre du fichier est repute chronologique et la
+#    consecutivite n'est pas verifiable.
+.en_numerique <- function(v) {
+  if (is.factor(v)) v <- as.character(v)
+  if (is.character(v)) v <- trimws(v)
+  suppressWarnings(as.numeric(v))
+}
+
 engine_lire_donnees_csv <- function(df) {
   err <- character(0)
   if (!is.data.frame(df) || !nrow(df))
@@ -2460,15 +2564,66 @@ engine_lire_donnees_csv <- function(df) {
                   paste(manquantes, collapse = ", "), paste(noms, collapse = ", ")),
                 xt = NULL, yt = NULL, n = 0L))
   }
-  xt <- suppressWarnings(as.numeric(df$xt))
-  yt <- suppressWarnings(as.numeric(df$yt))
+  xt <- .en_numerique(df$xt)
+  yt <- .en_numerique(df$yt)
   if (anyNA(xt) || anyNA(yt))
     err <- c(err, "Certaines valeurs de xt ou yt ne sont pas numeriques.")
   if ("t" %in% noms) {
-    to <- suppressWarnings(as.numeric(df$t))
-    if (!anyNA(to)) { o <- order(to); xt <- xt[o]; yt <- yt[o] }
+    to <- .en_numerique(df$t)
+    if (anyNA(to))
+      err <- c(err, sprintf(paste("Colonne t incomplete ou non numerique (ligne(s) %s) :",
+                                  "chaque ligne doit porter son annee."),
+                            paste(which(is.na(to)), collapse = ", ")))
+    else if (any(!is.finite(to) | to != round(to)))
+      err <- c(err, "Colonne t : les annees doivent etre des entiers finis.")
+    else if (anyDuplicated(to))
+      err <- c(err, sprintf("Colonne t : annee(s) dupliquee(s) (%s).",
+                            paste(unique(to[duplicated(to)]), collapse = ", ")))
+    else if (length(to) > 1 && any(diff(sort(to)) != 1))
+      err <- c(err, sprintf(paste("Colonne t : annees non consecutives (%s) ; l'annexe XVII,",
+                                  "B(2)(b) et C(2)(b), exige des annees consecutives."),
+                            paste(sort(to), collapse = ", ")))
+    else { o <- order(to); xt <- xt[o]; yt <- yt[o] }
   }
   list(ok = length(err) == 0, erreurs = err, xt = xt, yt = yt, n = length(xt))
+}
+
+# Conversion d'un tableau deja charge (data.frame ou matrice : une ligne par
+# annee d'accident, une colonne par annee de developpement, colonne "i"
+# facultative ignoree) en triangle de cumules, puis controle de recevabilite
+# par mw_valider_triangle(). Fonction unique de conversion fichier ->
+# triangle (issue #33, #4 piste 3) : l'interface n'a plus a convertir. Une
+# cellule vide vaut NA (partie non observee) ; une cellule non vide et non
+# numerique est refusee, jamais lue comme NA. Les colonnes facteur sont
+# converties par leurs valeurs.
+# Renvoie list(ok, erreurs, avertissements, triangle, I, J).
+engine_lire_triangle <- function(df) {
+  refus <- function(e) list(ok = FALSE, erreurs = e, avertissements = character(0),
+                            triangle = NULL, I = NA, J = NA)
+  if (is.matrix(df)) df <- as.data.frame(df, stringsAsFactors = FALSE)
+  if (!is.data.frame(df) || !nrow(df) || !ncol(df))
+    return(refus("Fichier vide ou illisible comme tableau."))
+  df <- df[, setdiff(names(df), "i"), drop = FALSE]
+  if (!ncol(df)) return(refus("Aucune colonne d'annee de developpement."))
+  brut <- lapply(df, function(v) {
+    if (is.factor(v)) v <- as.character(v)
+    if (is.character(v)) v <- trimws(v)
+    v
+  })
+  num <- lapply(brut, .en_numerique)
+  vide <- lapply(brut, function(v) is.na(v) | (is.character(v) & !nzchar(v)))
+  illisible <- which(!do.call(cbind, vide) & is.na(do.call(cbind, num)), arr.ind = TRUE)
+  if (length(illisible)) {
+    k <- utils::head(illisible, 5)
+    return(refus(sprintf("Cellule(s) non numerique(s) en %s%s.",
+                         paste0("(i=", k[, 1] - 1L, ", j=", k[, 2] - 1L, ")", collapse = ", "),
+                         if (nrow(illisible) > 5) sprintf(" et %d autre(s)", nrow(illisible) - 5) else "")))
+  }
+  m <- unname(do.call(cbind, num))
+  storage.mode(m) <- "double"
+  v <- mw_valider_triangle(m)
+  list(ok = v$ok, erreurs = v$erreurs, avertissements = v$avertissements,
+       triangle = if (v$ok) m else NULL, I = v$I, J = v$J)
 }
 
 
@@ -2717,7 +2872,17 @@ engine_empreinte <- function(res) {
 # XVII. Ce controle a une signification statistique et actuarielle : il est donc
 # implemente ICI, afin que le moteur reste sur meme appele hors de Shiny.
 # Retourne une liste : $ok (logique), $erreurs (bloquantes), $avertissements.
-engine_valider_donnees <- function(xt, yt, T_min = 5) {
+# theta_equiv / delta_equiv : marge du test d'equivalence de la constante
+# (TOST), memes valeurs par defaut que run_engine(). Un parametre hors de son
+# domaine est une erreur d'entree, refusee ici (issue #33, avis d'actuary du
+# 24/09/2026) : theta reel fini, 0 < theta < 1 ; delta_equiv, s'il est
+# fourni, reel fini, 0 < Delta < moyenne(yt), theta etant alors ignore (seul
+# celui des deux qui sert est controle). Pour theta >= 1 (ou Delta >= ybar),
+# H1 : |a| < Delta contient le modele a = ybar, b = 0, negation de la
+# proportionnalite : un rejet de H0 ne se lirait plus "proportionnalite
+# pratique". Aucune borne plus serree n'est imposee (choix du dossier).
+engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
+                                   delta_equiv = NULL) {
   err <- character(0); avt <- character(0)
   if (!is.numeric(xt) || !is.numeric(yt))
     err <- c(err, "xt et yt doivent etre numeriques.")
@@ -2726,6 +2891,10 @@ engine_valider_donnees <- function(xt, yt, T_min = 5) {
                           length(xt), length(yt)))
   if (anyNA(xt) || anyNA(yt))
     err <- c(err, "Valeurs manquantes : le calibrage exige des series completes (art. 19).")
+  # Valeur infinie (issue #33) : anyNA(Inf) est FALSE et Inf > 0 ; sans ce
+  # controle, run_engine() s'arretait sur une erreur R au lieu de refuser.
+  if (is.numeric(xt) && is.numeric(yt) && any(is.infinite(c(xt, yt))))
+    err <- c(err, "Valeurs infinies : xt et yt doivent etre des nombres finis.")
   if (length(xt) && any(xt <= 0, na.rm = TRUE))
     err <- c(err, "Toutes les valeurs de xt doivent etre strictement positives.")
   if (length(yt) && any(yt <= 0, na.rm = TRUE))
@@ -2733,6 +2902,27 @@ engine_valider_donnees <- function(xt, yt, T_min = 5) {
   if (length(xt) < T_min)
     err <- c(err, sprintf("Annexe XVII, B/C(2)(b) : au moins %d annees consecutives (T = %d).",
                           T_min, length(xt)))
+  # Marge du TOST. Un scalaire numerique fini est exige avant toute
+  # comparaison (NA, vide, vecteur, texte : refuses, sans erreur R).
+  scalaire_fini <- function(v) is.numeric(v) && length(v) == 1L && is.finite(v)
+  # Valeur refusee restituee par deparse() : un texte garde ses guillemets
+  # ("0.1"), un vecteur sa forme c(...), afin que le motif du refus se voie.
+  saisie <- function(v) if (is.null(v) || !length(v)) "vide" else paste(deparse(v), collapse = " ")
+  if (!is.null(delta_equiv)) {
+    if (!scalaire_fini(delta_equiv) || delta_equiv <= 0)
+      err <- c(err, sprintf(paste("Marge Delta du test d'equivalence (delta_equiv = %s) : un nombre",
+                                  "fini strictement positif est attendu."),
+                            saisie(delta_equiv)))
+    else if (is.numeric(yt) && length(yt) && all(is.finite(yt)) &&
+             delta_equiv >= mean(yt))
+      err <- c(err, sprintf(paste("Marge Delta du test d'equivalence (delta_equiv = %s) superieure",
+                                  "ou egale a la perte moyenne (%s) : l'equivalence ne se lirait plus",
+                                  "comme une proportionnalite ; 0 < Delta < moyenne(yt) est attendu."),
+                            format(delta_equiv), format(mean(yt), digits = 6)))
+  } else if (!scalaire_fini(theta_equiv) || theta_equiv <= 0 || theta_equiv >= 1)
+    err <- c(err, sprintf(paste("Marge theta du test d'equivalence (theta_equiv = %s) : un nombre",
+                                "fini, 0 < theta < 1 (fraction de la perte moyenne), est attendu."),
+                          saisie(theta_equiv)))
   if (!length(err)) {
     r <- yt / xt
     if (any(r <= 0 | r >= 5))
@@ -2756,6 +2946,22 @@ engine_valider_donnees <- function(xt, yt, T_min = 5) {
 
 # Toutes les quantites tracees sont calculees ICI. La couche d'affichage ne fait
 # que les representer (choix des couleurs, titres, axes).
+
+# Reperes de LECTURE des graphiques d'influence, lus par display_helpers.R
+# pour colorer les barres (issue #4, piste 3 ; valeurs jusqu'ici ecrites en
+# dur dans l'affichage, conservees telles quelles). Ce ne sont ni des seuils
+# reglementaires ni des niveaux de test ; aucun verdict n'en depend.
+# - REPERE_INFLUENCE_SIGMA : |ecart relatif de sigma_USP| au retrait d'une
+#   annee (jackknife) ; renvoie au repere conventionnel de 10 % de la fiche
+#   jackknife, qui cite 10 % et 20 % : seul 10 % sert ici, a la couleur.
+# - REPERE_DFBETA_MW : |variation relative de f_j| au retrait d'une cellule
+#   du triangle (DFBETA de mw_influence()). Repere de lecture propre a
+#   l'outil, herite de l'affichage, sans source, sans fondement statistique
+#   ni reglementaire ; il ne produit aucun verdict et n'est pas le repere
+#   2/sqrt(n) de Belsley-Kuh-Welsch, qui porte sur un DFBETAS standardise et
+#   non sur une variation relative (issue #89).
+REPERE_INFLUENCE_SIGMA <- 0.10
+REPERE_DFBETA_MW <- 0.02
 # Surface de la fonction objectif sur une grille (delta, gamma). Elle sert a
 # visualiser la geometrie de l'optimisation, notamment lorsque delta est au
 # bord : un plateau plat en delta signifie que la structure de variance n'est
@@ -2922,8 +3128,13 @@ mw_valider_triangle <- function(tri, T_min = 5) {
     for (i in 0:I) for (j in 0:J) {
       obs <- (i + j <= I)
       v <- tri[i + 1, j + 1]
-      if (obs && (is.na(v) || !is.finite(v)))
+      # Manquante (NA) et non finie (Inf, -Inf lus depuis un texte ; NaN fourni
+      # dans une matrice numerique) sont deux motifs distincts (issue #33) :
+      # "Inf" n'est pas une cellule vide.
+      if (obs && is.na(v) && !is.nan(v))
         err <- c(err, sprintf("Cellule observee manquante en (i=%d, j=%d).", i, j))
+      else if (obs && !is.finite(v))
+        err <- c(err, sprintf("Valeur non finie en (i=%d, j=%d) : %s.", i, j, format(v)))
       if (obs && is.finite(v) && v <= 0)
         err <- c(err, sprintf("Cumul non strictement positif en (i=%d, j=%d).", i, j))
     }
@@ -3357,24 +3568,10 @@ mw_valider_ajustement <- function(aj, msep) {
       k$n, k$j, k$j, format(k$f, digits = 8), k$ecart), ""))
     nuls <- et(vapply(cols, function(k) sprintf("sigma2_(%s) = %s", k$nom,
                                                  format(k$s2, digits = 3)), ""))
-    n_deg <- sum(vapply(cols, function(k) k$n, 0L))
-    # Facteurs des colonnes degenerees REELLEMENT absents de mw_residus() :
-    # celle-ci n'ecarte une colonne que si sigma2_j <= 0 exactement, alors que
-    # la detection tolere 1e-12 en relatif sur les facteurs. Une colonne
-    # detectee avec sigma2_j > 0 (arrondi, par ex. 2e-28) garde ses residus :
-    # le nombre est donc mesure sur mw_residus(aj), et la phrase n'est emise
-    # que s'il est positif.
-    j_res <- mw_residus(aj)$j
-    n_abs <- sum(vapply(cols, function(k) k$n - sum(j_res == k$j), 0L))
-    phrase_res <- if (n_abs > 0) sprintf(paste0(
-      "%s n'ont pas de residu de Mack (sigma2_j exactement nul) : ils sont absents des ",
-      "lignes fondees sur ces residus, soit %s. "),
-      if (n_abs == n_deg)
-        sprintf("Les %d facteurs individuels %s", n_deg,
-                if (length(cols) > 1) "des colonnes degenerees" else "de la colonne degeneree")
-      else sprintf("%d des %d facteurs individuels des colonnes degenerees", n_abs, n_deg),
-      .MW_LIGNES_RESIDUS_TEXTE)
-    else ""
+    # L'absence de residus de Mack des colonnes a sigma2_j = 0 n'est plus dite
+    # ici mais dans l'avertissement general sur les colonnes exclues (ci-
+    # dessous), qui couvre toute colonne, J-3 et J-2 comprises, sans doublon
+    # (issue #33).
     q <- if (is.na(ex$quotient)) "non defini" else format(ex$quotient, digits = 3)
     msg <- sprintf(paste0(
       "%s %s : %s, donc %s. ",
@@ -3382,14 +3579,12 @@ mw_valider_ajustement <- function(aj, msep) {
       "sigma2_(J-1) = min(sigma2_(J-2), sigma2_(J-3), sigma2_(J-2)^2/sigma2_(J-3)) ",
       "= min(%s ; %s ; %s) = %s : ",
       "la MSEP ne porte donc AUCUNE variance sur la derniere annee de developpement. ",
-      "%s",
       "Verifier l'origine des donnees (colonne recopiee d'une autre, paiements arretes, ",
       "cellules completees a la main)."),
       if (length(cols) > 1) "Colonnes de developpement" else "Colonne de developpement",
       entete, facteurs, nuls,
       format(ex$sigma2_Jm2, digits = 3), format(ex$sigma2_Jm3, digits = 3), q,
-      format(ex$valeur, digits = 3),
-      phrase_res)
+      format(ex$valeur, digits = 3))
     if (!isTRUE(ex$developpement_acheve))
       msg <- paste(msg, sprintf(paste0(
         "Le developpement n'est pourtant PAS acheve (f_(J-2) = %s, f_(J-1) = %s : ",
@@ -3397,6 +3592,53 @@ mw_valider_ajustement <- function(aj, msep) {
         "n'est pas nulle en realite, et sigma(res,s,USP) s'en trouve sous-estime."),
         format(ex$f_Jm2, digits = 8), format(ex$f_Jm1, digits = 8)))
     avt <- c(avt, msg)
+  }
+  # Avertissement (et non refus) : colonnes sans residu de Mack (issue #33,
+  # avis d'actuary du 24/09/2026). mw_residus() ecarte toute colonne a
+  # sigma2_j = 0 (residu 0/0, non defini) ; sous le modele D(2)(h), une
+  # colonne a facteurs tous egaux n'est pas un motif de refus (developpement
+  # acheve, par exemple). UN SEUL avertissement par triangle, qui nomme
+  # chaque colonne exclue, compte les residus exclus et retenus et cite les
+  # lignes de mw_tests() fondees sur ces residus.
+  # Objet d'ajustement reduit (I et reserve seuls, fonction publique) : rien
+  # a restituer, comme dans mw_extrapolation_sigma2().
+  complet <- is.list(aj) && all(c("I", "J", "sigma2", "f", "tri") %in% names(aj))
+  rs <- if (complet) mw_residus(aj) else NULL
+  ex_col <- attr(rs, "colonnes_exclues")
+  if (!is.null(ex_col) && nrow(ex_col)) {
+    n_ex <- sum(ex_col$n_facteurs)
+    avt <- c(avt, sprintf(paste0(
+      "%s a sigma2_j = 0 (facteurs individuels tous egaux a f_j) : %s. ",
+      "Le residu de Mack y vaut 0/0 et n'est pas defini : ces %d facteurs individuels ",
+      "n'ont pas de residu de Mack et sont exclus ; %d residu(s) de Mack sont retenus ",
+      "pour les lignes fondees sur ces residus, soit %s. ",
+      "Une colonne a facteurs tous egaux n'est pas un motif de refus (developpement ",
+      "acheve, par exemple) ; verifier l'origine des donnees si ce n'est pas le cas."),
+      if (nrow(ex_col) > 1) "Colonnes de developpement" else "Colonne de developpement",
+      paste(sprintf("j = %d (%d facteurs)", ex_col$j, ex_col$n_facteurs), collapse = ", "),
+      n_ex, nrow(rs), .MW_LIGNES_RESIDUS_TEXTE))
+  }
+  # Avertissement (et non refus) : reserve positive mais negligeable devant
+  # son incertitude (issue #33, decision du mainteneur du 24/09/2026). D(4)
+  # definit sigma(res,s,USP) = racine(MSEP) / R pour tout R > 0 sans plancher
+  # ni plage : le repere sigma estime >= 1 (ecart-type a un an superieur a la
+  # reserve elle-meme) est un repere de lecture, sans fondement reglementaire
+  # ni statistique ; aucun sigma(res,s) des annexes II et XIV n'excede 0,22.
+  # Aucun seuil sur R (grandeur monetaire) ; M4 (R <= 0 refuse) inchangee.
+  if (!length(err) && R > 0 && sqrt(msep) / R >= 1) {
+    ult <- if (length(aj$ultime)) sum(aj$ultime) else NA_real_
+    part <- if (is.finite(ult) && ult > 0)
+      sprintf(", soit %s %% de l'ultime total %s", format(100 * R / ult, digits = 3),
+              format(ult, digits = 6)) else ""
+    avt <- c(avt, sprintf(paste0(
+      "Reserve chain-ladder positive mais faible devant son incertitude : sigma estime = ",
+      "racine(MSEP) / R = %s >= 1 (R = %s%s). ",
+      "Le parametre est defini (annexe XVII, D(4)) mais hors de toute plage ou le melange ",
+      "par credibilite a un sens (aucun sigma(res,s) des annexes II et XIV n'excede 0,22). ",
+      "Deux lectures : reserve residuelle d'un segment en run-off, ou triangle anormalement ",
+      "volatil. Le repere 1 est un repere de lecture, sans fondement reglementaire ni ",
+      "statistique ; le calcul n'est pas refuse."),
+      format(sqrt(msep) / R, digits = 4), format(R, digits = 6), part))
   }
   list(ok = length(err) == 0, erreurs = err, avertissements = avt,
        reserve = R, msep = msep)
@@ -3431,13 +3673,28 @@ mw_parametre <- function(aj, msep, sigma_standard, bareme = "court") {
 # Sous les hypotheses D(2)(h)(iii) et (iv), ces residus sont centres, de
 # variance approximativement unitaire et mutuellement non correles. Ce sont eux
 # qui servent de support aux tests des sections H1, H2 et H4 adaptees.
+# Colonnes exclues (issue #33, avis d'actuary du 24/09/2026) : une colonne
+# j a au moins deux facteurs dont sigma2_j n'est pas strictement positif (une
+# somme ponderee de carres : "<= 0" se lit "= 0", facteurs individuels tous
+# egaux a f_j) n'a pas de residu defini (0/0) ; elle est ecartee, et
+# l'exclusion n'est plus silencieuse : l'attribut "colonnes_exclues"
+# (data.frame j, n_facteurs) la consigne, et mw_valider_ajustement() en fait
+# un avertissement. .run_engine_mw() retire l'attribut avant de stocker les
+# residus (aucun champ nouveau dans le resultat). La colonne J-1 (un seul
+# facteur) n'a jamais de residu et n'est pas comptee comme exclue. Le seuil
+# reste l'egalite exacte a 0 : l'alignement sur la detection a 1e-12 des
+# colonnes degenerees releve de l'issue #60.
 mw_residus <- function(aj) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
   out <- data.frame()
+  exclues <- data.frame(j = integer(0), n_facteurs = integer(0))
   for (j in 0:(J - 1)) {
-    if (!is.finite(aj$sigma2[j + 1]) || aj$sigma2[j + 1] <= 0) next
     idx <- 0:(I - j - 1)
     if (length(idx) < 2) next
+    if (!is.finite(aj$sigma2[j + 1]) || aj$sigma2[j + 1] <= 0) {
+      exclues[nrow(exclues) + 1L, ] <- list(as.integer(j), length(idx))
+      next
+    }
     Cij <- tri[idx + 1, j + 1]; Cij1 <- tri[idx + 1, j + 2]
     out <- rbind(out, data.frame(
       i = idx, j = j, calendrier = idx + j,
@@ -3446,6 +3703,7 @@ mw_residus <- function(aj) {
       residu = sqrt(Cij) * (Cij1 / Cij - aj$f[j + 1]) / sqrt(aj$sigma2[j + 1]),
       stringsAsFactors = FALSE))
   }
+  attr(out, "colonnes_exclues") <- exclues
   out
 }
 
@@ -4126,6 +4384,10 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   boot <- mw_bootstrap(aj, B = B, seed = seed)
   tests <- mw_tests(aj, boot, alpha)
   res   <- mw_residus(aj)
+  # L'exclusion de colonnes est restituee par l'avertissement de
+  # mw_valider_ajustement() ; l'attribut n'est pas stocke dans le resultat
+  # (structure des references inchangee, issue #33).
+  attr(res, "colonnes_exclues") <- NULL
 
   ic <- if (length(boot$sigma_boot) > 20)
     stats::quantile(par$credibilite * boot$sigma_boot +
@@ -4320,7 +4582,8 @@ run_engine <- function(xt, yt,
     if (T > n) stop(sprintf("T = %d > profondeur disponible (%d).", T, n))
     idx <- (n - T + 1):n; xt <- xt[idx]; yt <- yt[idx]
   }
-  validation <- engine_valider_donnees(xt, yt)
+  validation <- engine_valider_donnees(xt, yt, theta_equiv = theta_equiv,
+                                       delta_equiv = delta_equiv)
   if (!validation$ok)
     return(structure(list(ok = FALSE, validation = validation,
                           metadata = list(horodatage = t0)), class = "usp_engine"))
