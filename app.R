@@ -300,6 +300,10 @@ ui <- fluidPage(
               h4("Parametre retenu"),
               uiOutput("bloc_final")),
           div(class = "bloc",
+              h4("Parametre standard remplace (art. 218, paragraphe 1)"),
+              uiOutput("derogation_sigma"),
+              tableOutput("tab_param_std")),
+          div(class = "bloc",
               h4("Chaine de calibration (annexe XVII, sections B/C et G)"),
               tableOutput("tab_calibration")),
           div(class = "bloc",
@@ -340,10 +344,28 @@ ui <- fluidPage(
                                    "Sante non-SLT (annexe XIV)" = "XIV"),
                        selected = "II"),
           uiOutput("choix_segment"),
+          # Nature des donnees (issue #55, decision M13) : declaration
+          # obligatoire pour la methode du risque de primes, SANS
+          # preselection (selected = character(0) : aucune case cochee,
+          # input$nature_donnees vaut NULL). Le refus en l'absence de
+          # declaration est celui du moteur (engine_valider_donnees()).
+          conditionalPanel("input.methode == 'premium'",
+                           radioButtons("nature_donnees",
+                                        "Nature des donnees (declaration obligatoire)",
+                                        choices = c("Brutes de reassurance (annexe XVII, B(2)(c))" = "brutes",
+                                                    "Nettes de reassurance (annexe XVII, B(2)(d))" = "nettes"),
+                                        selected = character(0)),
+                           helpText("Brutes : sigma standard = sigma brut de l'annexe.",
+                                    "Nettes : sigma standard = NP standard x sigma brut ;",
+                                    "donnees ajustees de la reassurance et des vehicules",
+                                    "de titrisation, conformement aux contrats en place",
+                                    "pour les douze mois a venir (B(2)(d)).")),
           checkboxInput("sigma_manuel", "Saisir sigma standard manuellement", FALSE),
           conditionalPanel("input.sigma_manuel",
                            numericInput("sigma_std", "sigma standard",
-                                        value = 0.10, min = 0.01, max = 1, step = 0.005)),
+                                        value = 0.10, min = 0.01, max = 1, step = 0.005),
+                           helpText("Saisie libre : derogation au parametre reglementaire,",
+                                    "signalee dans les resultats et le rapport fige.")),
           numericInput("profondeur", "Profondeur T retenue", value = T_INIT,
                        min = 5, max = 40, step = 1),
           helpText("T pilote la taille de la grille de saisie de l'onglet Donnees."),
@@ -409,6 +431,11 @@ server <- function(input, output, session) {
   # engine_valider_donnees().
   marge_theta <- function() if (isTRUE(input$delta_apriori)) 0.10 else input$theta_equiv
   marge_delta <- function() if (isTRUE(input$delta_apriori)) input$delta_equiv else NULL
+  # Nature des donnees transmise au moteur : la declaration de l'utilisateur
+  # pour la methode du risque de primes (NULL tant qu'aucun choix n'est
+  # fait : le moteur refuse alors le calcul), rien pour les methodes de
+  # reserve (issue #55).
+  nature_saisie <- function() if (identical(input$methode, "premium")) input$nature_donnees else NULL
 
   # Retour anticipe de observeEvent(input$go) : on retire le resultat du
   # calcul precedent (il ne correspond plus aux donnees affichees, et il ne
@@ -546,8 +573,11 @@ server <- function(input, output, session) {
   output$validation_live <- renderUI({
     v <- if (est_mw()) mw_valider_triangle(lire_triangle())
          else { sa <- lire_saisie()
+                # Methode et nature declaree transmises comme au clic
+                # (issue #55) : la nature manquante s'affiche des la saisie.
                 engine_valider_donnees(sa$xt, sa$yt, theta_equiv = marge_theta(),
-                                       delta_equiv = marge_delta()) }
+                                       delta_equiv = marge_delta(), methode = input$methode,
+                                       nature_donnees = nature_saisie()) }
     tagList(
       if (length(v$erreurs))
         div(class = "err", tags$b("Donnees non exploitables :"),
@@ -618,9 +648,11 @@ server <- function(input, output, session) {
       # mais hors des controles de validite du moteur sont chargees pour etre
       # corrigees dans la grille, avec les motifs du moteur ; le calcul reste
       # bloque par les memes controles au clic. Marge courante transmise,
-      # comme dans la validation en direct.
+      # comme dans la validation en direct, avec la methode et la nature
+      # declaree (issue #55).
       v <- engine_valider_donnees(r$xt, r$yt, theta_equiv = marge_theta(),
-                                  delta_equiv = marge_delta())
+                                  delta_equiv = marge_delta(), methode = input$methode,
+                                  nature_donnees = nature_saisie())
       if (!v$ok) {
         statut_import(list(ok = FALSE, msg = paste(
           sprintf("%d annees importees depuis %s (%s), mais les donnees ne passent pas",
@@ -674,7 +706,8 @@ server <- function(input, output, session) {
     } else {
       sa <- lire_saisie()
       v <- engine_valider_donnees(sa$xt, sa$yt, theta_equiv = marge_theta(),
-                                  delta_equiv = marge_delta())
+                                  delta_equiv = marge_delta(), methode = input$methode,
+                                  nature_donnees = nature_saisie())
       if (!v$ok) {
         refuser(TITRE_NON_LANCE, utils::head(v$erreurs, 6))
         showNotification(paste("Calcul non lance :", paste(v$erreurs, collapse = " ")),
@@ -686,7 +719,8 @@ server <- function(input, output, session) {
                               sigma_standard = if (isTRUE(input$sigma_manuel)) input$sigma_std else NULL,
                               T = input$profondeur, B = input$B, alpha = input$alpha,
                               seed = input$seed,
-                              theta_equiv = marge_theta(), delta_equiv = marge_delta()),
+                              theta_equiv = marge_theta(), delta_equiv = marge_delta(),
+                              nature_donnees = nature_saisie()),
                    silent = TRUE)
         if (inherits(res, "try-error")) {
           refuser(TITRE_ERREUR, conditionMessage(attr(res, "condition")))
@@ -976,6 +1010,17 @@ server <- function(input, output, session) {
     )
   })
 
+  # Parametre standard remplace (issue #55) : valeurs de
+  # engine_parametre_standard(), mises en forme par display_helpers.R.
+  output$tab_param_std <- renderTable(table_parametre_standard(R()),
+                                      striped = TRUE, width = "100%")
+  output$derogation_sigma <- renderUI({
+    if (!derogation_sigma_standard(R())) return(NULL)
+    div(class = "avert", tags$b("sigma standard saisi, derogation au parametre reglementaire"),
+        " : le sigma standard du melange est une saisie libre, et non le parametre",
+        "reglementaire de l'annexe (meme s'il en egale la valeur).")
+  })
+
   output$tab_calibration <- renderTable({
     d <- R()$calibration; d$valeur <- fmt_nb(d$valeur, 5)
     names(d) <- c("Etape", "Valeur"); d
@@ -1003,7 +1048,9 @@ server <- function(input, output, session) {
     cat("Methode              :", m$methode, "\n")
     cat("Perimetre            : annexe", m$annexe, "\n")
     cat("Segment              :", m$segment, "-", m$libelle_segment, "\n")
-    cat("sigma standard       :", m$sigma_standard, "\n")
+    cat("sigma standard       :", m$sigma_standard,
+        if (derogation_sigma_standard(R())) "(saisi : derogation au parametre reglementaire)", "\n")
+    cat("Nature des donnees   :", table_parametre_standard(R())$Valeur[1], "\n")
     cat("Bareme credibilite   :", m$bareme, "\n")
     cat("Profondeur T         :", m$T, "\n")
     cat("Replications B       :", m$B, "\n")

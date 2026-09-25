@@ -2,7 +2,8 @@
 #  tests/test_reproductibilite.R  --  TESTS DE NON-REGRESSION DU MOTEUR
 #
 #  Pour chaque cas de CAS (outils_tests.R : prime, reserve 1, reserve 2
-#  Merz-Wuthrich, et prime sur le segment II-6 modifie par M6, issue #61) :
+#  Merz-Wuthrich, prime sur le segment II-6 modifie par M6, issue #61, et
+#  prime II-1 sur donnees declarees nettes, issue #55) :
 #    1. REPRODUCTIBILITE : deux appels de run_engine() avec les memes donnees,
 #       les memes parametres et la meme graine donnent des objets identiques
 #       au bit pres (identical) ;

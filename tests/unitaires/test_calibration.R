@@ -235,7 +235,8 @@ for (cas in bout_en_bout_M6) {
     run_engine(methode = "reserve2", triangle = .tri_m6, segment = cas$segment,
                annexe = cas$annexe, B = B_M6)
   else run_engine(xt = .ln_m6$xt, yt = .ln_m6$yt, methode = cas$methode,
-                  segment = cas$segment, annexe = cas$annexe, B = B_M6)
+                  segment = cas$segment, annexe = cas$annexe, B = B_M6,
+                  nature_donnees = if (cas$methode == "premium") "brutes")
   pf <- res$parametre_final
   etiquette <- sprintf("run_engine %s, %s-%d", cas$methode, cas$annexe, cas$segment)
   verifier(sprintf("%s : T = 8, bareme %s, c = %g", etiquette, cas$bareme, cas$cred),
@@ -259,5 +260,238 @@ for (cas in bout_en_bout_M6) {
            proche(pf$sigma_usp, cas$sigma_usp, rel = 1e-6))
 }
 rm(res, pf, cas)
+
+## --- Parametre standard remplace : donnees brutes ou nettes (issue #55) ------
+# Decision M13 du mainteneur (commentaire de l'issue #55, 23/09/2026) et
+# lecture de l'agent regulatory (commentaire du 24/09/2026) :
+# - facteur NP standard (reassurance non proportionnelle), saisi ici en dur,
+#   independamment de R/engine.R : art. 117, paragraphe 3, deuxieme et
+#   troisieme phrases (marqueur B, JOUE L 12/75) : 80 % pour les segments 1,
+#   4 et 5 de l'annexe II, 100 % pour tous les autres ; art. 148,
+#   paragraphe 3, deuxieme phrase (marqueur B, L 12/94) : 100 % pour tous
+#   les segments de l'annexe XIV ;
+# - donnees brutes : parametre remplace art. 218, paragraphe 1, point a) ii)
+#   (c) ii) en sante), valeur standard = sigma brut de l'annexe (annexe XVII,
+#   B(2)(c), marqueur M1) ; donnees nettes : point a) i) (c) i)), valeur
+#   standard = NP standard x sigma brut (B(2)(d), marqueur M1) ;
+# - methodes de reserve : sigma(res,s), sans NP ; donnees nettes exigees
+#   (C(2)(c), D(2)(f)) : NULL ou "nettes" acceptes, "brutes" refuse
+#   (decision du mainteneur du 25/09/2026) ;
+# - toute saisie du sigma standard est une derogation, meme egale a la table,
+#   signalee par le drapeau explicite metadata$sigma_standard_saisi pour les
+#   trois methodes (decision du mainteneur du 25/09/2026).
+np_II  <- c(80, 100, 100, 80, 80, 100, 100, 100, 100, 100, 100, 100) / 100
+np_XIV <- c(100, 100, 100, 100) / 100
+verifier("NP standard, annexe II : 80 % pour 1, 4, 5 ; 100 % ailleurs (art. 117, par. 3)",
+         identical(vapply(1:12, function(k) usp_segment_infos(k, "II")$np_standard, 0), np_II))
+verifier("NP standard, annexe XIV : 100 % pour les 4 segments (art. 148, par. 3)",
+         identical(vapply(1:4, function(k) usp_segment_infos(k, "XIV")$np_standard, 0), np_XIV))
+verifier("SEGMENTS : colonne np_standard alignee sur les deux annexes (16 cles)",
+         identical(SEGMENTS$np_standard, c(np_II, np_XIV)))
+
+ps_b <- usp_parametre_standard("premium", 1, "II", "brutes")
+ps_n <- usp_parametre_standard("premium", 1, "II", "nettes")
+verifier("Donnees brutes II-1 : sigma standard = sigma brut de la table, sans multiplication (identical), point a) ii), B(2)(c)",
+         identical(ps_b$sigma_standard, ANNEXE_II$sigma_prime_brut[1]) &&
+           identical(ps_b$sigma_standard, 0.10) &&
+           identical(ps_b$point_art218, "art. 218, paragraphe 1, point a) ii)") &&
+           grepl("section B, point (2)(c)", ps_b$exigence_donnees, fixed = TRUE) &&
+           !ps_b$saisie && identical(ps_b$nature_donnees, "brutes"))
+verifier("Donnees nettes II-1 : sigma standard = 0,8 x 10 % = 8 %, point a) i), B(2)(d)",
+         isTRUE(proche(ps_n$sigma_standard, 0.08, rel = 1e-15)) &&
+           identical(ps_n$np_standard, 0.8) && identical(ps_n$sigma_annexe, 0.10) &&
+           identical(ps_n$point_art218, "art. 218, paragraphe 1, point a) i)") &&
+           grepl("section B, point (2)(d)", ps_n$exigence_donnees, fixed = TRUE))
+verifier("Donnees nettes : II-4 = 0,8 x 8 %, II-5 = 0,8 x 14 %, II-2 = 8 % (NP 100 %), II-6 = 19 %",
+         isTRUE(proche(usp_parametre_standard("premium", 4, "II", "nettes")$sigma_standard, 0.064, rel = 1e-15)) &&
+           isTRUE(proche(usp_parametre_standard("premium", 5, "II", "nettes")$sigma_standard, 0.112, rel = 1e-15)) &&
+           identical(usp_parametre_standard("premium", 2, "II", "nettes")$sigma_standard, 0.08) &&
+           identical(usp_parametre_standard("premium", 6, "II", "nettes")$sigma_standard, 0.19))
+verifier("Annexe XIV : nettes = brutes (NP 100 %), points c) i) / c) ii)",
+         {
+           a <- usp_parametre_standard("premium", 1, "XIV", "brutes")
+           b <- usp_parametre_standard("premium", 1, "XIV", "nettes")
+           identical(a$sigma_standard, 0.05) && identical(b$sigma_standard, 0.05) &&
+             identical(a$point_art218, "art. 218, paragraphe 1, point c) ii)") &&
+             identical(b$point_art218, "art. 218, paragraphe 1, point c) i)")
+         })
+verifier("Nature non declaree ou irrecevable (NULL, NA, \"Brutes\", \"net\", vecteur, nombre) : erreur pour premium",
+         leve_erreur(usp_parametre_standard("premium", 1, "II")) &&
+           leve_erreur(usp_parametre_standard("premium", 1, "II", NA_character_)) &&
+           leve_erreur(usp_parametre_standard("premium", 1, "II", "Brutes")) &&
+           leve_erreur(usp_parametre_standard("premium", 1, "II", "net")) &&
+           leve_erreur(usp_parametre_standard("premium", 1, "II", c("brutes", "nettes"))) &&
+           leve_erreur(usp_parametre_standard("premium", 1, "II", 1)))
+verifier("Methodes de reserve : sigma(res,s) de la table, point a) iv), NULL = \"nettes\" (exigence C(2)(c), D(2)(f))",
+         {
+           r1 <- usp_parametre_standard("reserve1", 1, "II")
+           r1n <- usp_parametre_standard("reserve1", 1, "II", "nettes")
+           r2 <- usp_parametre_standard("reserve2", 4, "XIV", "nettes")
+           identical(r1, r1n) && identical(r1$sigma_standard, 0.09) &&
+             identical(r1$point_art218, "art. 218, paragraphe 1, point a) iv)") &&
+             grepl("section C, point (2)(c)", r1$exigence_donnees, fixed = TRUE) &&
+             identical(r1$nature_donnees, "nettes") && is.na(r1$np_standard) &&
+             identical(r2$sigma_standard, 0.17) &&
+             identical(r2$point_art218, "art. 218, paragraphe 1, point c) iv)") &&
+             grepl("section D, point (2)(f)", r2$exigence_donnees, fixed = TRUE)
+         })
+verifier("Methodes de reserve, appel direct : \"brutes\" (et valeur non reconnue) -> erreur R",
+         leve_erreur(usp_parametre_standard("reserve1", 1, "II", "brutes")) &&
+           leve_erreur(usp_parametre_standard("reserve2", 1, "II", "brutes")) &&
+           leve_erreur(usp_parametre_standard("reserve1", 1, "II", "net")) &&
+           leve_erreur(usp_parametre_standard("reserve2", 1, "II", NA_character_)))
+verifier("Saisie libre : elle prime (derogation signalee), la valeur reglementaire reste restituee",
+         {
+           s <- usp_parametre_standard("premium", 1, "II", "nettes", sigma_standard = 0.12)
+           s0 <- usp_parametre_standard("premium", NULL, "II", "brutes", sigma_standard = 0.12)
+           identical(s$sigma_standard, 0.12) && isTRUE(s$saisie) &&
+             isTRUE(proche(s$sigma_reglementaire, 0.08, rel = 1e-15)) &&
+             identical(s0$sigma_standard, 0.12) && is.na(s0$sigma_reglementaire) &&
+             leve_erreur(usp_parametre_standard("premium", NULL, "II", "brutes"))
+         })
+
+# Bout en bout, B = 19 (sigma_USP ne depend pas du bootstrap, voir plus haut).
+.args55 <- list(xt = .ln_m6$xt, yt = .ln_m6$yt, methode = "premium", segment = 1,
+                annexe = "II", B = B_M6)
+r_sans <- tryCatch(do.call(run_engine, .args55), error = function(e) e)
+verifier("run_engine premium sans declaration : ok = FALSE avec motif, sans erreur R (M13)",
+         !inherits(r_sans, "error") && identical(r_sans$ok, FALSE) &&
+           any(grepl("Nature des donnees non declaree", r_sans$validation$erreurs, fixed = TRUE)))
+verifier("run_engine premium, nature irrecevable (\"brut\", NA) : ok = FALSE, sans erreur R",
+         identical(do.call(run_engine, c(.args55, nature_donnees = "brut"))$ok, FALSE) &&
+           identical(do.call(run_engine, c(.args55, list(nature_donnees = NA_character_)))$ok, FALSE))
+verifier("run_engine premium, sigma standard saisi sans declaration : refuse aussi (ok = FALSE)",
+         identical(do.call(run_engine, c(.args55, sigma_standard = 0.12))$ok, FALSE))
+verifier("engine_valider_donnees : nature obligatoire pour premium, \"brutes\" refuse en reserve, rien sans methode",
+         isTRUE(engine_valider_donnees(.ln_m6$xt, .ln_m6$yt)$ok) &&
+           isTRUE(engine_valider_donnees(.ln_m6$xt, .ln_m6$yt, nature_donnees = "brutes")$ok) &&
+           !engine_valider_donnees(.ln_m6$xt, .ln_m6$yt, methode = "premium")$ok &&
+           isTRUE(engine_valider_donnees(.ln_m6$xt, .ln_m6$yt, methode = "premium",
+                                         nature_donnees = "nettes")$ok) &&
+           isTRUE(engine_valider_donnees(.ln_m6$xt, .ln_m6$yt, methode = "reserve1")$ok) &&
+           isTRUE(engine_valider_donnees(.ln_m6$xt, .ln_m6$yt, methode = "reserve1",
+                                         nature_donnees = "nettes")$ok) &&
+           {
+             v <- engine_valider_donnees(.ln_m6$xt, .ln_m6$yt, methode = "reserve1",
+                                         nature_donnees = "brutes")
+             !v$ok && length(v$erreurs) == 1L &&
+               grepl("section C, point (2)(c)", v$erreurs, fixed = TRUE)
+           } &&
+           {
+             v <- engine_valider_donnees(.ln_m6$xt, .ln_m6$yt, methode = "reserve2",
+                                         nature_donnees = "brutes")
+             !v$ok && grepl("section D, point (2)(f)", v$erreurs[1], fixed = TRUE)
+           } &&
+           !engine_valider_donnees(.ln_m6$xt, .ln_m6$yt, methode = "reserve1",
+                                   nature_donnees = "net")$ok)
+
+r_b <- do.call(run_engine, c(.args55, nature_donnees = "brutes"))
+r_n <- do.call(run_engine, c(.args55, nature_donnees = "nettes"))
+verifier("run_engine II-1 : sigma standard 10 % (brutes) et 8 % (nettes), nature et saisie dans metadata",
+         identical(r_b$parametre_final$sigma_standard, 0.10) &&
+           isTRUE(proche(r_n$parametre_final$sigma_standard, 0.08, rel = 1e-15)) &&
+           identical(r_b$metadata$nature_donnees, "brutes") &&
+           identical(r_n$metadata$nature_donnees, "nettes") &&
+           identical(r_b$metadata$sigma_standard_saisi, FALSE))
+# Delta sigma_USP = -(1 - c)(1 - NP) sigma brut, exact et independant des
+# donnees : sigma estime ne depend pas du sigma standard (avis actuary, #55).
+verifier("run_engine II-1 : sigma_USP(nettes) - sigma_USP(brutes) = -(1 - 0,59)(1 - 0,8) x 10 % = -0,0082",
+         isTRUE(proche(r_n$parametre_final$sigma_usp - r_b$parametre_final$sigma_usp,
+                       -(1 - 0.59) * (1 - 0.8) * 0.10, rel = 1e-10)) &&
+           identical(r_n$parametre_final$sigma_estime, r_b$parametre_final$sigma_estime))
+verifier("engine_parametre_standard : nature, point, exigence, sigma brut, NP, sigma retenu (nettes II-1)",
+         {
+           d <- engine_parametre_standard(r_n)
+           v <- stats::setNames(d$valeur, d$grandeur); t <- stats::setNames(d$texte, d$grandeur)
+           grepl("^nettes", t[["Nature declaree des donnees"]]) &&
+             grepl("point a) i) :", t[["Parametre standard remplace"]], fixed = TRUE) &&
+             grepl("B, point (2)(d)", t[["Exigence relative aux donnees"]], fixed = TRUE) &&
+             identical(v[["sigma brut (primes) de l'annexe II"]], 0.10) &&
+             identical(v[["Facteur NP standard (art. 117, paragraphe 3)"]], 0.8) &&
+             identical(v[["sigma standard retenu dans le melange"]], r_n$parametre_final$sigma_standard) &&
+             identical(t[["Origine du sigma standard retenu"]], "parametre reglementaire")
+         })
+r_d <- do.call(run_engine, c(.args55, nature_donnees = "nettes", sigma_standard = 0.12))
+verifier("Saisie libre du sigma standard (premium) : conservee, derogation dans metadata et dans la restitution",
+         identical(r_d$parametre_final$sigma_standard, 0.12) &&
+           identical(r_d$metadata$sigma_standard_saisi, TRUE) &&
+           {
+             d <- engine_parametre_standard(r_d)
+             identical(d$texte[d$grandeur == "Origine du sigma standard retenu"],
+                       "sigma standard saisi, derogation au parametre reglementaire") &&
+               isTRUE(proche(d$valeur[d$grandeur == "sigma standard reglementaire"], 0.08, rel = 1e-15))
+           })
+sans_exec <- function(r) { r$metadata[c("horodatage", "duree_sec")] <- NULL; r }
+r1_sans <- run_engine(xt = .ln_m6$xt, yt = .ln_m6$yt, methode = "reserve1", segment = 1,
+                      annexe = "II", B = B_M6)
+r1_net <- run_engine(xt = .ln_m6$xt, yt = .ln_m6$yt, methode = "reserve1", segment = 1,
+                     annexe = "II", B = B_M6, nature_donnees = "nettes")
+r1_brut <- tryCatch(run_engine(xt = .ln_m6$xt, yt = .ln_m6$yt, methode = "reserve1", segment = 1,
+                               annexe = "II", B = B_M6, nature_donnees = "brutes"),
+                    error = function(e) e)
+r2_sans <- run_engine(methode = "reserve2", triangle = .tri_m6, segment = 1, annexe = "II", B = B_M6)
+r2_net <- run_engine(methode = "reserve2", triangle = .tri_m6, segment = 1, annexe = "II", B = B_M6,
+                     nature_donnees = "nettes")
+r2_brut <- tryCatch(run_engine(methode = "reserve2", triangle = .tri_m6, segment = 1, annexe = "II",
+                               B = B_M6, nature_donnees = "brutes"),
+                    error = function(e) e)
+verifier("Methodes de reserve : NULL et \"nettes\" acceptes (resultats identical), sigma(res,s) = 9 %, metadata sans nature",
+         identical(sans_exec(r1_sans), sans_exec(r1_net)) &&
+           identical(sans_exec(r2_sans), sans_exec(r2_net)) &&
+           identical(r1_sans$parametre_final$sigma_standard, 0.09) &&
+           identical(r2_sans$parametre_final$sigma_standard, 0.09) &&
+           !"nature_donnees" %in% c(names(r1_sans$metadata), names(r2_sans$metadata)))
+verifier("Methodes de reserve : donnees \"brutes\" refusees (ok = FALSE, motif C(2)(c) / D(2)(f), sans erreur R)",
+         !inherits(r1_brut, "error") && identical(r1_brut$ok, FALSE) &&
+           any(grepl("section C, point (2)(c)", r1_brut$validation$erreurs, fixed = TRUE)) &&
+           !inherits(r2_brut, "error") && identical(r2_brut$ok, FALSE) &&
+           any(grepl("section D, point (2)(f)", r2_brut$validation$erreurs, fixed = TRUE)) &&
+           identical(r2_brut$metadata$methode, "reserve2"))
+verifier("Drapeau explicite sigma_standard_saisi (FALSE sans saisie) pour les trois methodes, avant horodatage",
+         identical(r_b$metadata$sigma_standard_saisi, FALSE) &&
+           identical(r1_sans$metadata$sigma_standard_saisi, FALSE) &&
+           identical(r2_sans$metadata$sigma_standard_saisi, FALSE) &&
+           all(vapply(list(r_b, r1_sans, r2_sans), function(r) {
+             nm <- names(r$metadata)
+             match("sigma_standard_saisi", nm) == match("horodatage", nm) - 1L
+           }, logical(1))))
+verifier("Saisie EGALE a la table : derogation pour les trois methodes (drapeau TRUE, origine \"saisi\")",
+         {
+           e_p <- do.call(run_engine, c(.args55, nature_donnees = "brutes", sigma_standard = 0.10))
+           e_1 <- run_engine(xt = .ln_m6$xt, yt = .ln_m6$yt, methode = "reserve1", segment = 1,
+                             annexe = "II", B = B_M6, sigma_standard = 0.09)
+           e_2 <- run_engine(methode = "reserve2", triangle = .tri_m6, segment = 1, annexe = "II",
+                             B = B_M6, sigma_standard = 0.09)
+           all(vapply(list(e_p, e_1, e_2), function(r) {
+             d <- engine_parametre_standard(r)
+             identical(r$metadata$sigma_standard_saisi, TRUE) &&
+               identical(d$texte[d$grandeur == "Origine du sigma standard retenu"],
+                         "sigma standard saisi, derogation au parametre reglementaire") &&
+               identical(d$valeur[d$grandeur == "sigma standard retenu dans le melange"],
+                         d$valeur[d$grandeur == "sigma standard reglementaire"])
+           }, logical(1))) &&
+             identical(e_p$parametre_final$sigma_usp, r_b$parametre_final$sigma_usp)
+         })
+verifier("engine_parametre_standard : table rendue visiblement ; drapeau absent -> erreur (pas de deduction)",
+         isTRUE(withVisible(engine_parametre_standard(r_b))$visible) &&
+           is.data.frame(engine_parametre_standard(r_b)) &&
+           {
+             r_x <- r1_sans; r_x$metadata$sigma_standard_saisi <- NULL
+             leve_erreur(engine_parametre_standard(r_x))
+           })
+verifier("engine_parametre_standard, reserve : nettes (exigence), a) iv), derogation si sigma saisi (drapeau)",
+         {
+           d1 <- engine_parametre_standard(r1_sans)
+           d2 <- engine_parametre_standard(r2_sans)
+           r2s <- run_engine(methode = "reserve2", triangle = .tri_m6, segment = 1, annexe = "II",
+                             B = B_M6, sigma_standard = 0.15)
+           d3 <- engine_parametre_standard(r2s)
+           grepl("^nettes", d1$texte[1]) && grepl("point a) iv)", d1$texte[2], fixed = TRUE) &&
+             grepl("section C, point (2)(c)", d1$texte[3], fixed = TRUE) &&
+             grepl("section D, point (2)(f)", d2$texte[3], fixed = TRUE) &&
+             identical(d2$texte[nrow(d2)], "parametre reglementaire") &&
+             identical(d3$texte[nrow(d3)], "sigma standard saisi, derogation au parametre reglementaire")
+         })
+rm(r_sans, r_b, r_n, r_d, r1_sans, r1_net, r1_brut, r2_sans, r2_net, r2_brut)
 
 fin_fichier()

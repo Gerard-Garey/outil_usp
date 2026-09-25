@@ -496,7 +496,8 @@ if (sys.nframe() == 0L) {
   outils <- new.env(parent = globalenv())
   sys.source(file.path(RACINE, "tests", "outils_tests.R"), envir = outils)
   resultats <- with(outils, list(
-    premium  = run_engine(xt = .ln$xt, yt = .ln$yt, methode = "premium", segment = 1, annexe = "II", B = B),
+    premium  = run_engine(xt = .ln$xt, yt = .ln$yt, methode = "premium", segment = 1, annexe = "II", B = B,
+                          nature_donnees = "brutes"),
     reserve1 = run_engine(xt = .ln$xt, yt = .ln$yt, methode = "reserve1", segment = 1, annexe = "II", B = B),
     reserve2 = run_engine(methode = "reserve2", triangle = .tri, segment = 1, annexe = "II", B = B)))
   n_finies <- vapply(resultats[c("premium", "reserve1")], function(r) length(r$bootstrap$sigma_boot), integer(1))

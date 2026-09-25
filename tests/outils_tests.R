@@ -49,9 +49,14 @@ TOLERANCE <- 1e-6
 
 # Chaque cas est un appel complet de run_engine() avec ses parametres par
 # defaut (B = 999, graine 20260831, alpha = 0,10).
+# Nature des donnees de la methode du risque de primes (declaration
+# obligatoire, issue #55, decision M13) : les donnees de tests/donnees/, de
+# provenance non documentee, sont REPUTEES BRUTES par convention pour les cas
+# premium et premium_ii6 (references inchangees) ; premium_net est le meme
+# cas II-1 declare net (sigma standard = NP standard x sigma brut = 0,8 x 10 %).
 CAS <- list(
   premium  = function() run_engine(xt = .ln$xt, yt = .ln$yt, methode = "premium",
-                                   segment = 1, annexe = "II"),
+                                   segment = 1, annexe = "II", nature_donnees = "brutes"),
   reserve1 = function() run_engine(xt = .ln$xt, yt = .ln$yt, methode = "reserve1",
                                    segment = 1, annexe = "II"),
   reserve2 = function() run_engine(methode = "reserve2", triangle = .tri,
@@ -60,7 +65,14 @@ CAS <- list(
   # comme le segment 1 (annexe II, segment 6 ; issue #61) : sigma standard de
   # primes de 19 % au lieu de 10 %, memes donnees, B et graine que premium.
   premium_ii6 = function() run_engine(xt = .ln$xt, yt = .ln$yt, methode = "premium",
-                                      segment = 6, annexe = "II")
+                                      segment = 6, annexe = "II", nature_donnees = "brutes"),
+  # Meme cas II-1 que premium, donnees declarees NETTES de reassurance
+  # (annexe XVII, B(2)(d), marqueur M1 ; parametre remplace : art. 218,
+  # paragraphe 1, point a) i)) : memes donnees, B et graine ; seul le sigma
+  # standard du melange change (NP standard 80 %, art. 117, paragraphe 3 ;
+  # issue #55). Reference creee par la CI (mode creation, M31, M30).
+  premium_net = function() run_engine(xt = .ln$xt, yt = .ln$yt, methode = "premium",
+                                      segment = 1, annexe = "II", nature_donnees = "nettes")
 )
 
 # Retire les champs qui varient d'un appel a l'autre ou d'une machine a

@@ -69,7 +69,7 @@ verifier("Validation : valeur infinie dans y ou x refusee (#33)",
 verifier("run_engine : valeur infinie -> ok = FALSE avec motif, sans erreur R (#33)",
          {
            r <- run_engine(xt = x, yt = replace(y, 3, Inf), methode = "premium",
-                           segment = 1, annexe = "II", B = 19)
+                           segment = 1, annexe = "II", B = 19, nature_donnees = "brutes")
            identical(r$ok, FALSE) && contient(r$validation$erreurs, "infinies")
          })
 ## --- Marge du test d'equivalence (#33, complement d'audit de #58) ------------
@@ -107,11 +107,11 @@ verifier("Marge Delta fournie : theta ignore (theta = 5 ou NA accepte avec Delta
 verifier("run_engine : theta_equiv NA ou 1, delta_equiv vide -> ok = FALSE, sans erreur R",
          {
            r1 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 19,
-                            theta_equiv = NA)
+                            theta_equiv = NA, nature_donnees = "brutes")
            r2 <- run_engine(xt = x, yt = y, methode = "reserve1", segment = 1, B = 19,
                             theta_equiv = 1)
            r3 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 19,
-                            delta_equiv = numeric(0))
+                            delta_equiv = numeric(0), nature_donnees = "brutes")
            identical(r1$ok, FALSE) && identical(r2$ok, FALSE) && identical(r3$ok, FALSE) &&
              contient(r1$validation$erreurs, "theta_equiv") &&
              contient(r3$validation$erreurs, "delta_equiv")

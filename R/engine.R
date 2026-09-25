@@ -14,7 +14,8 @@
 #
 #  Il est utilisable SANS Shiny :
 #      source("R/engine.R")
-#      res <- run_engine(xt = ..., yt = ..., methode = "premium", segment = 1)
+#      res <- run_engine(xt = ..., yt = ..., methode = "premium", segment = 1,
+#                        nature_donnees = "brutes")   # ou "nettes" (issue #55)
 #  Aucune dependance a input$/output$/reactive()/render*() n'y figure.
 #  Dependances : R base + stats uniquement.
 #
@@ -75,6 +76,18 @@ ANNEXE_II <- data.frame(
   ),
   sigma_prime_brut = c(.10, .08, .15, .08, .14, .19, .083, .064, .13, .17, .17, .17),
   sigma_reserve    = c(.09, .08, .11, .10, .11, .172, .055, .22, .20, .20, .20, .20),
+  # Facteur d'ajustement standard pour la reassurance non proportionnelle
+  # (NP) : art. 117, paragraphe 3 (marqueur B, JOUE L 12/75), deuxieme
+  # phrase ("Dans le cas des segments 1, 4 et 5 vises a l'annexe II, le
+  # facteur d'ajustement pour la reassurance non proportionnelle est egal a
+  # 80 %") et troisieme phrase ("Pour tous les autres segments vises a
+  # l'annexe II, [...] est de 100 %"). Le renvoi aux segments 1, 4
+  # et 5 reste exact apres le remplacement de l'annexe II par M6 (memes
+  # intitules et lignes d'activite ; lecture de l'agent regulatory, issue #55).
+  # Sert a la valeur standard du parametre a) i) de l'art. 218, paragraphe 1
+  # (ecart type net = NP x ecart type brut), remplace sur donnees nettes
+  # (usp_parametre_standard(), decision M13).
+  np_standard      = c(.8, 1, 1, .8, .8, 1, 1, 1, 1, 1, 1, 1),
   stringsAsFactors = FALSE
 )
 
@@ -96,6 +109,10 @@ ANNEXE_XIV <- data.frame(
   lob = c("1 et 13", "2 et 14", "3 et 15", "25"),
   sigma_prime_brut = c(.050, .085, .096, .17),
   sigma_reserve    = c(.057, .140, .110, .17),
+  # Facteur NP par defaut : art. 148, paragraphe 3, deuxieme phrase (marqueur
+  # B, JOUE L 12/94) : "Pour tous les segments vises a l'annexe XIV, le
+  # facteur d'ajustement par defaut [...] est egal a 100 %" (issue #55).
+  np_standard      = c(1, 1, 1, 1),
   stringsAsFactors = FALSE
 )
 
@@ -105,10 +122,12 @@ ANNEXE_XIV <- data.frame(
 SEGMENTS <- rbind(
   data.frame(annexe = "II", ANNEXE_II[, c("segment", "libelle")],
              sigma_prime_brut = ANNEXE_II$sigma_prime_brut,
-             sigma_reserve = ANNEXE_II$sigma_reserve, stringsAsFactors = FALSE),
+             sigma_reserve = ANNEXE_II$sigma_reserve,
+             np_standard = ANNEXE_II$np_standard, stringsAsFactors = FALSE),
   data.frame(annexe = "XIV", ANNEXE_XIV[, c("segment", "libelle")],
              sigma_prime_brut = ANNEXE_XIV$sigma_prime_brut,
-             sigma_reserve = ANNEXE_XIV$sigma_reserve, stringsAsFactors = FALSE)
+             sigma_reserve = ANNEXE_XIV$sigma_reserve,
+             np_standard = ANNEXE_XIV$np_standard, stringsAsFactors = FALSE)
 )
 SEGMENTS$cle <- paste0(SEGMENTS$annexe, "-", SEGMENTS$segment)
 
@@ -205,7 +224,7 @@ usp_bareme_segment <- function(segment, annexe = "II") {
 }
 
 # Renvoie les caracteristiques reglementaires d'un segment : libelle, ecarts
-# types standard et bareme de credibilite applicable.
+# types standard, facteur NP standard et bareme de credibilite applicable.
 usp_segment_infos <- function(segment, annexe = "II") {
   annexe <- .annexe_verifiee(annexe)
   tab <- if (identical(annexe, "XIV")) ANNEXE_XIV else ANNEXE_II
@@ -214,7 +233,156 @@ usp_segment_infos <- function(segment, annexe = "II") {
   list(annexe = annexe, segment = segment, libelle = tab$libelle[i],
        sigma_prime_brut = tab$sigma_prime_brut[i],
        sigma_reserve = tab$sigma_reserve[i],
+       np_standard = tab$np_standard[i],
        bareme = usp_bareme_segment(segment, annexe))
+}
+
+# Nature des donnees de la methode du risque de primes (issue #55, decision
+# M13 du mainteneur) : "brutes" (pertes agregees et primes acquises non
+# ajustees de la reassurance) ou "nettes" (ajustees de la reassurance). La
+# declaration est OBLIGATOIRE pour la methode "premium", sans valeur par
+# defaut : c'est elle qui fixe le parametre standard remplace (annexe XVII,
+# section B, point (2), c) et d), dans leur version consolidee, marqueur M1 :
+# les renvois de la version d'origine, JOUE L 12/272, y sont inverses).
+NATURES_DONNEES <- c("brutes", "nettes")
+
+# Declaration recevable : une chaine unique de NATURES_DONNEES (NULL, NA,
+# vecteur, autre texte ou casse : refuses).
+.nature_valide <- function(nature)
+  is.character(nature) && length(nature) == 1L && !is.na(nature) &&
+    nature %in% NATURES_DONNEES
+
+# Controle de la nature declaree selon la methode (issue #55, decision M13 ;
+# decisions du mainteneur du 25/09/2026 pour les methodes de reserve).
+# Renvoie les motifs de refus (vecteur vide si la declaration est recevable) :
+#   - "premium" : declaration obligatoire, "brutes" ou "nettes" ;
+#   - "reserve1", "reserve2" : donnees nettes par exigence du texte (annexe
+#     XVII, C(2)(c) ; D(2)(f)) : NULL (pas de declaration) ou "nettes"
+#     acceptes, "brutes" refuse avec ce motif, toute autre valeur refusee
+#     comme non reconnue ;
+#   - methode NULL (controle d'une saisie ou d'un import hors calcul) : aucun
+#     controle.
+# Partage par engine_valider_donnees() (premium, reserve1), .run_engine_mw()
+# (reserve2) et usp_parametre_standard() (appel direct).
+.nature_erreurs <- function(methode, nature_donnees) {
+  if (is.null(methode)) return(character(0))
+  if (is.factor(methode)) methode <- as.character(methode)
+  if (identical(methode, "premium")) {
+    if (.nature_valide(nature_donnees)) return(character(0))
+    return(paste(
+      "Nature des donnees non declaree : pour la methode du risque de primes, declarer",
+      "des donnees \"brutes\" (non ajustees de la reassurance, annexe XVII, B(2)(c) :",
+      "sigma brut de l'annexe) ou \"nettes\" (ajustees de la reassurance, B(2)(d) :",
+      "NP standard x sigma brut) ; aucune valeur par defaut (issue #55)."))
+  }
+  # Robustesse (audit de la reprise de #55) : une methode non scalaire ou non
+  # textuelle n'est pas une methode de reserve, sans erreur R "condition has
+  # length > 1" (run_engine() et app.R passent toujours un scalaire).
+  if (!(is.character(methode) && length(methode) == 1L &&
+        methode %in% c("reserve1", "reserve2"))) return(character(0))
+  if (is.null(nature_donnees) || identical(nature_donnees, "nettes")) return(character(0))
+  exigence <- if (identical(methode, "reserve1"))
+    paste("annexe XVII, section C, point (2)(c) : donnees ajustees de la reassurance",
+          "et des vehicules de titrisation, conformement aux contrats en place pour",
+          "les douze mois a venir")
+  else paste("annexe XVII, section D, point (2)(f) : montants de sinistres cumules",
+             "ajustes de la reassurance et des vehicules de titrisation, conformement",
+             "aux contrats en place pour les douze mois a venir")
+  if (identical(nature_donnees, "brutes"))
+    return(sprintf(paste("Donnees declarees \"brutes\" refusees : la methode du risque de",
+                         "reserve no %s exige des donnees nettes de reassurance (%s) ;",
+                         "declarer \"nettes\" ou ne rien declarer (issue #55)."),
+                   if (identical(methode, "reserve1")) "1" else "2", exigence))
+  sprintf(paste("Nature des donnees non reconnue (nature_donnees = %s) : pour la methode du",
+                "risque de reserve no %s, seules \"nettes\" ou l'absence de declaration sont",
+                "recevables (%s ; issue #55)."),
+          paste(deparse(nature_donnees), collapse = " "),
+          if (identical(methode, "reserve1")) "1" else "2", exigence)
+}
+
+# Parametre standard qui entre dans le melange de l'annexe XVII (B(4), C(4),
+# D(4) : "le parametre standard a remplacer"), et sa tracabilite
+# reglementaire. Lecture CONDITIONNELLE de la decision M13 (issue #55) :
+#   - methode du risque de primes, donnees BRUTES (B(2)(c), M1) : parametre
+#     remplace art. 218, paragraphe 1, point a) ii) (annexe II) ou c) ii)
+#     (annexe XIV) ; valeur standard = sigma brut de l'annexe ;
+#   - methode du risque de primes, donnees NETTES (B(2)(d), M1) : parametre
+#     remplace point a) i) ou c) i) ; valeur standard = NP standard x sigma
+#     brut (art. 117, paragraphe 3 ; art. 148, paragraphe 3). NP est le
+#     facteur STANDARD de la colonne np_standard, jamais un NP propre a
+#     l'entreprise (pas d'entree NP : M13) ;
+#   - methodes de reserve (C, D) : parametre a) iv) ou c) iv), sigma(res,s)
+#     de l'annexe, sans NP ; donnees nettes par exigence du texte (C(2)(c),
+#     D(2)(f)) : NULL ou "nettes" acceptes, "brutes" refuse (erreur,
+#     .nature_erreurs(), decision du mainteneur du 25/09/2026).
+# sigma_standard : valeur saisie librement ; si elle est fournie, elle prime
+# sur le segment (comportement conserve, decision du mainteneur du
+# 24/09/2026) et le resultat la signale comme DEROGATION au parametre
+# reglementaire (champ saisie), meme si elle egale la valeur de la table
+# (decision du mainteneur du 25/09/2026).
+# Donnees brutes et methodes de reserve : la valeur de la table est reprise
+# telle quelle, sans multiplication, afin que le sigma standard soit le meme
+# double qu'avant l'issue #55.
+usp_parametre_standard <- function(methode = c("premium", "reserve1", "reserve2"),
+                                   segment = NULL, annexe = "II",
+                                   nature_donnees = NULL, sigma_standard = NULL) {
+  methode <- match.arg(methode)
+  annexe  <- .annexe_verifiee(annexe)
+  infos <- if (!is.null(segment)) usp_segment_infos(segment, annexe) else NULL
+  if (is.null(infos) && is.null(sigma_standard))
+    stop("Fournir soit sigma_standard, soit segment (avec son annexe).")
+  lettre  <- if (identical(annexe, "XIV")) "c)" else "a)"
+  article <- if (identical(annexe, "XIV")) "art. 148" else "art. 117"
+  err_nature <- .nature_erreurs(methode, nature_donnees)
+  if (length(err_nature)) stop(err_nature)
+  if (methode == "premium") {
+    nettes <- identical(nature_donnees, "nettes")
+    sigma_annexe <- if (!is.null(infos)) infos$sigma_prime_brut else NA_real_
+    np <- if (!is.null(infos)) infos$np_standard else NA_real_
+    sigma_regl <- if (is.null(infos)) NA_real_ else if (nettes) np * sigma_annexe else sigma_annexe
+    point <- paste(lettre, if (nettes) "i)" else "ii)")
+    parametre <- if (nettes)
+      sprintf(paste("ecart type du risque de primes (%s, paragraphe 2, point a)),",
+                    "valeur standard NP x ecart type brut (%s, paragraphe 3)"), article, article)
+    else sprintf("ecart type du risque de primes brut (%s, paragraphe 3)", article)
+    exigence <- if (nettes)
+      paste("annexe XVII, section B, point (2)(d), chapeau modifie par le reglement",
+            "delegue (UE) 2016/467 (M1) : pertes agregees ajustees des montants",
+            "recouvrables au titre de la reassurance et des vehicules de titrisation,",
+            "primes acquises ajustees des primes de reassurance, conformement aux",
+            "contrats de reassurance et vehicules de titrisation en place pour les",
+            "douze mois a venir")
+    else paste("annexe XVII, section B, point (2)(c), remplace par le reglement delegue",
+               "(UE) 2016/467 (M1) : pertes agregees et primes acquises non ajustees",
+               "des montants recouvrables au titre de la reassurance et des vehicules",
+               "de titrisation ni des primes de reassurance")
+    nature <- nature_donnees
+  } else {
+    sigma_annexe <- if (!is.null(infos)) infos$sigma_reserve else NA_real_
+    np <- NA_real_
+    sigma_regl <- sigma_annexe
+    point <- paste(lettre, "iv)")
+    parametre <- sprintf("ecart type du risque de reserve sigma(res,s) de l'annexe %s", annexe)
+    exigence <- if (methode == "reserve1")
+      paste("annexe XVII, section C, point (2)(c) : donnees ajustees de la reassurance",
+            "et des vehicules de titrisation, conformement aux contrats en place pour",
+            "les douze mois a venir (exigence de la methode)")
+    else paste("annexe XVII, section D, point (2)(f) : montants de sinistres cumules",
+               "ajustes de la reassurance et des vehicules de titrisation, conformement",
+               "aux contrats en place pour les douze mois a venir (exigence de la methode)")
+    nature <- "nettes"
+  }
+  saisie <- !is.null(sigma_standard)
+  list(methode = methode, annexe = annexe, segment = segment,
+       nature_donnees = nature,
+       point_art218 = sprintf("art. 218, paragraphe 1, point %s", point),
+       parametre_remplace = parametre,
+       exigence_donnees = exigence,
+       sigma_annexe = sigma_annexe,
+       np_standard = np,
+       sigma_reglementaire = sigma_regl,
+       sigma_standard = if (saisie) sigma_standard else sigma_regl,
+       saisie = saisie)
 }
 
 
@@ -2881,9 +3049,17 @@ engine_empreinte <- function(res) {
 # H1 : |a| < Delta contient le modele a = ybar, b = 0, negation de la
 # proportionnalite : un rejet de H0 ne se lirait plus "proportionnalite
 # pratique". Aucune borne plus serree n'est imposee (choix du dossier).
+# methode / nature_donnees (issue #55, decision M13) : pour la methode du
+# risque de primes, la nature des donnees ("brutes" ou "nettes" de
+# reassurance) doit etre declaree ; son absence est une erreur bloquante, sans
+# valeur par defaut. Pour une methode de reserve, des donnees declarees
+# "brutes" sont refusees (C(2)(c), D(2)(f) : donnees nettes exigees ; NULL ou
+# "nettes" acceptes). Sans methode (controle d'une saisie ou d'un import,
+# hors calcul), la nature n'est pas controlee (.nature_erreurs()).
 engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
-                                   delta_equiv = NULL) {
-  err <- character(0); avt <- character(0)
+                                   delta_equiv = NULL, methode = NULL,
+                                   nature_donnees = NULL) {
+  err <- .nature_erreurs(methode, nature_donnees); avt <- character(0)
   if (!is.numeric(xt) || !is.numeric(yt))
     err <- c(err, "xt et yt doivent etre numeriques.")
   if (length(xt) != length(yt))
@@ -4492,6 +4668,12 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
 #   segment        segment de l'annexe II (1 a 12) ; sert a determiner
 #                  sigma_standard et le bareme de credibilite
 #   sigma_standard ecart-type standard ; s'il est fourni, il prime sur `segment`
+#                  (saisie libre : derogation au parametre reglementaire,
+#                  signalee par metadata$sigma_standard_saisi, issue #55)
+#   nature_donnees "brutes" ou "nettes" (de reassurance) ; OBLIGATOIRE pour
+#                  "premium", sans defaut (issue #55, M13) : sans elle, ok =
+#                  FALSE ; methodes de reserve : NULL ou "nettes" acceptes,
+#                  "brutes" refuse (ok = FALSE, C(2)(c), D(2)(f))
 #   T              profondeur retenue (les T dernieres annees) ; NULL = tout
 #   B              nombre de replications bootstrap / Monte-Carlo
 #   alpha          seuil des verdicts
@@ -4503,17 +4685,27 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
 # meme classe et de meme forme generale que la branche lognormale, afin que la
 # couche d'affichage puisse le consommer sans traitement particulier.
 .run_engine_mw <- function(triangle, segment, annexe, sigma_standard,
-                           B, alpha, seed, bareme, t0) {
+                           B, alpha, seed, bareme, t0, nature_donnees = NULL) {
   if (is.null(triangle))
     stop("La methode du risque de reserve no 2 exige un triangle de paiements cumules.")
   triangle <- as.matrix(triangle)
   validation <- mw_valider_triangle(triangle)
+  # Nature declaree (issue #55) : des donnees "brutes" sont refusees, D(2)(f)
+  # exigeant des montants ajustes de la reassurance (.nature_erreurs()).
+  err_nature <- .nature_erreurs("reserve2", nature_donnees)
+  if (length(err_nature)) {
+    validation$ok <- FALSE
+    validation$erreurs <- c(err_nature, validation$erreurs)
+  }
   if (!validation$ok)
     return(structure(list(ok = FALSE, validation = validation, methode = "reserve2",
                           metadata = list(horodatage = t0, methode = "reserve2")),
                      class = "usp_engine"))
 
   infos <- if (!is.null(segment)) usp_segment_infos(segment, annexe) else NULL
+  # Saisie libre du sigma standard : derogation au parametre reglementaire,
+  # restituee par metadata$sigma_standard_saisi (issue #55).
+  saisi <- !is.null(sigma_standard)
   if (is.null(sigma_standard)) {
     if (is.null(infos)) stop("Fournir soit sigma_standard, soit segment (avec son annexe).")
     sigma_standard <- infos$sigma_reserve      # methode de reserve : sigma(res,s)
@@ -4604,6 +4796,9 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                     libelle_segment = if (!is.null(infos)) infos$libelle else NA_character_,
                     T = aj$I + 1L, I = aj$I, J = aj$J, B = B, alpha = alpha,
                     seed = seed, bareme = bareme, sigma_standard = sigma_standard,
+                    # Place avant les champs d'execution (issue #55) : dernier
+                    # champ de metadata une fois ceux-ci retires (nettoyer()).
+                    sigma_standard_saisi = saisi,
                     horodatage = t0,
                     duree_sec = as.numeric(difftime(Sys.time(), t0, units = "secs")),
                     version_R = R.version.string)
@@ -4723,7 +4918,8 @@ run_engine <- function(xt, yt,
                        delta_equiv = NULL,
                        seed = 20260831,
                        bareme = NULL,
-                       plus_recent_en_dernier = TRUE) {
+                       plus_recent_en_dernier = TRUE,
+                       nature_donnees = NULL) {
   t0 <- Sys.time()
   methode <- match.arg(methode)
   annexe  <- match.arg(annexe)
@@ -4734,7 +4930,8 @@ run_engine <- function(xt, yt,
   if (methode == "reserve2")
     return(.run_engine_mw(triangle = triangle, segment = segment, annexe = annexe,
                           sigma_standard = sigma_standard, B = B, alpha = alpha,
-                          seed = seed, bareme = bareme, t0 = t0))
+                          seed = seed, bareme = bareme, t0 = t0,
+                          nature_donnees = nature_donnees))
 
   # --- 1. Donnees et controles de validite ---------------------------------
   if (!plus_recent_en_dernier) { xt <- rev(xt); yt <- rev(yt) }
@@ -4744,20 +4941,22 @@ run_engine <- function(xt, yt,
     idx <- (n - T + 1):n; xt <- xt[idx]; yt <- yt[idx]
   }
   validation <- engine_valider_donnees(xt, yt, theta_equiv = theta_equiv,
-                                       delta_equiv = delta_equiv)
+                                       delta_equiv = delta_equiv, methode = methode,
+                                       nature_donnees = nature_donnees)
   if (!validation$ok)
     return(structure(list(ok = FALSE, validation = validation,
                           metadata = list(horodatage = t0)), class = "usp_engine"))
   T <- length(xt)
 
   # --- 2. Parametre standard et bareme de credibilite -----------------------
+  # Lecture conditionnelle de M13 (issue #55) : sigma brut sur donnees brutes,
+  # NP standard x sigma brut sur donnees nettes (primes) ; sigma(res,s) pour
+  # la methode de reserve no 1. Un sigma_standard saisi prime (derogation,
+  # restituee par metadata$sigma_standard_saisi, pour les trois methodes).
   infos <- if (!is.null(segment)) usp_segment_infos(segment, annexe) else NULL
-  if (is.null(sigma_standard)) {
-    if (is.null(infos))
-      stop("Fournir soit sigma_standard, soit segment (avec son annexe).")
-    sigma_standard <- if (methode == "premium") infos$sigma_prime_brut
-                      else infos$sigma_reserve
-  }
+  saisi <- !is.null(sigma_standard)
+  sigma_standard <- usp_parametre_standard(methode, segment, annexe, nature_donnees,
+                                           sigma_standard)$sigma_standard
   # Annexe XVII, section G(2) : les segments de l'annexe XIV relevent tous du
   # bareme court, quel que soit leur numero.
   if (is.null(bareme)) bareme <- usp_bareme_segment(segment, annexe)
@@ -4853,18 +5052,85 @@ run_engine <- function(xt, yt,
     candidats = candidats,
     parametre_final = param,
     plots_data = engine_plots_data(fit, boot, prof, jack, param$sigma_usp),
-    metadata = list(methode = methode, segment = segment, annexe = annexe,
-                    libelle_segment = if (!is.null(infos)) infos$libelle else NA_character_,
-                    T = T, B = B,
-                    alpha = alpha, seed = seed, bareme = bareme,
-                    theta_equiv = theta_equiv, delta_equiv = delta_equiv,
-                    sigma_standard = sigma_standard,
-                    horodatage = t0,
-                    duree_sec = as.numeric(difftime(Sys.time(), t0, units = "secs")),
-                    version_R = R.version.string)
+    metadata = c(
+      list(methode = methode, segment = segment, annexe = annexe,
+           libelle_segment = if (!is.null(infos)) infos$libelle else NA_character_,
+           T = T, B = B,
+           alpha = alpha, seed = seed, bareme = bareme,
+           theta_equiv = theta_equiv, delta_equiv = delta_equiv,
+           sigma_standard = sigma_standard),
+      # Issue #55. Nature declaree des donnees : methode du risque de primes
+      # seulement (les methodes de reserve n'ont pas ce champ : donnees
+      # nettes par exigence du texte, C(2)(c), D(2)(f)). Saisie libre du
+      # sigma standard (derogation au parametre reglementaire) : drapeau
+      # explicite pour les trois methodes. Places avant les champs
+      # d'execution, ils sont les derniers de metadata une fois ceux-ci
+      # retires (nettoyer() des tests).
+      if (methode == "premium") list(nature_donnees = nature_donnees),
+      list(sigma_standard_saisi = saisi),
+      list(horodatage = t0,
+           duree_sec = as.numeric(difftime(Sys.time(), t0, units = "secs")),
+           version_R = R.version.string))
   ), class = "usp_engine")
 }
 
+
+# Parametre standard remplace et sa tracabilite (issue #55, decision M13),
+# sous forme de data.frame pour la restitution (onglet Calibration, rapport
+# fige) : nature declaree des donnees, point de l'art. 218, paragraphe 1,
+# remplace, exigence relative aux donnees, sigma de l'annexe, NP standard,
+# sigma standard reglementaire, sigma standard retenu dans le melange et son
+# origine (parametre reglementaire ou saisie libre, derogation).
+# Colonnes : grandeur ; valeur (numerique, NA pour une ligne de texte) ;
+# texte (NA pour une ligne purement numerique).
+# Tout est recalcule ici a partir de res$metadata par usp_parametre_standard()
+# (aucun calcul dans l'affichage) ; le sigma standard retenu recalcule doit
+# etre identique a celui du resultat, sinon erreur.
+# Saisie libre : drapeau explicite metadata$sigma_standard_saisi, pour les
+# trois methodes (toute saisie est une derogation, meme egale a la table ;
+# decision du mainteneur du 25/09/2026). Un resultat qui ne le porte pas
+# (produit avant l'issue #55) est refuse plutot que devine.
+engine_parametre_standard <- function(res) {
+  if (!isTRUE(res$ok)) return(NULL)
+  m <- res$metadata
+  if (!is.logical(m$sigma_standard_saisi) || length(m$sigma_standard_saisi) != 1L ||
+      is.na(m$sigma_standard_saisi))
+    stop("engine_parametre_standard() : drapeau metadata$sigma_standard_saisi absent ou invalide.")
+  saisi <- m$sigma_standard_saisi
+  ps <- usp_parametre_standard(m$methode, m$segment, m$annexe, m$nature_donnees,
+                               if (saisi) m$sigma_standard else NULL)
+  if (!identical(ps$sigma_standard, m$sigma_standard))
+    stop("engine_parametre_standard() : sigma standard recalcule different de celui du resultat.")
+  prime <- identical(m$methode, "premium")
+  lib_nature <- c(brutes = "brutes : non ajustees de la reassurance",
+                  nettes = "nettes : ajustees de la reassurance")[[ps$nature_donnees]]
+  d <- data.frame(
+    grandeur = c(
+      if (prime) "Nature declaree des donnees" else "Nature des donnees (exigence de la methode)",
+      "Parametre standard remplace",
+      "Exigence relative aux donnees",
+      sprintf("sigma %s de l'annexe %s", if (prime) "brut (primes)" else "(reserve)", ps$annexe),
+      if (prime) sprintf("Facteur NP standard (%s, paragraphe 3)",
+                         if (identical(ps$annexe, "XIV")) "art. 148" else "art. 117"),
+      "sigma standard reglementaire",
+      "sigma standard retenu dans le melange",
+      "Origine du sigma standard retenu"),
+    valeur = c(NA, NA, NA, ps$sigma_annexe, if (prime) ps$np_standard,
+               ps$sigma_reglementaire, ps$sigma_standard, NA),
+    texte = c(lib_nature,
+              paste0(ps$point_art218, " : ", ps$parametre_remplace),
+              ps$exigence_donnees,
+              if (is.null(m$segment)) "aucun segment designe" else NA,
+              if (prime) NA,
+              if (is.null(m$segment)) "aucun segment designe" else
+                if (!prime) "sigma(res,s)" else
+                if (identical(ps$nature_donnees, "nettes")) "NP standard x sigma brut" else "sigma brut",
+              NA,
+              if (ps$saisie) "sigma standard saisi, derogation au parametre reglementaire"
+              else "parametre reglementaire"),
+    stringsAsFactors = FALSE)
+  d
+}
 
 # Table des tests sous forme de data.frame auditable (donnees, pas affichage).
 engine_table_tests <- function(res) {

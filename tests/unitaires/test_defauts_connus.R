@@ -356,9 +356,9 @@ verifier("MeanZ, VarZ, LB2r et BP2r ne sont plus simulees",
 # verifie sur une batterie sans jackknife ni IC (usp_tests + bootstrap
 # fictif) et sur un run_engine() complet (B = 99), qui les contient.
 res_ln_ii1 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1,
-                         annexe = "II", B = 99)
+                         annexe = "II", B = 99, nature_donnees = "brutes")
 res_ln_ii6 <- run_engine(xt = x, yt = y, methode = "premium", segment = 6,
-                         annexe = "II", B = 99)
+                         annexe = "II", B = 99, nature_donnees = "brutes")
 tab_ln <- engine_table_tests(res_ln_ii1)
 lignes_df <- function(L) data.frame(
   test = vapply(L, function(l) l$test, character(1)),
@@ -588,7 +588,7 @@ verifier("run_engine : jackknife entierement NA -> table produite, pas de ligne 
              o
            }, envir = e)
            r <- tryCatch(run_engine(xt = x, yt = y, methode = "premium", segment = 1,
-                                    annexe = "II", B = 99),
+                                    annexe = "II", B = 99, nature_donnees = "brutes"),
                          finally = assign("usp_jackknife", usp_jackknife_orig, envir = e))
            tb <- engine_table_tests(r)
            isTRUE(r$ok) && all(is.na(r$jackknife$sigma_usp)) && nrow(tb) > 0 &&
@@ -609,7 +609,8 @@ NOM_TOST <- "Equivalence de la constante a zero (TOST)"
 NOM_DELTA <- "Position de delta dans [0,1]"
 LIB_DELTA_CST <- "VOLUMES CONSTANTS : la vraisemblance ne depend pas de delta, qui n'est pas identifie"
 for (m in c("premium", "reserve1")) {
-  r_cst <- run_engine(xt = x_cst, yt = y, methode = m, segment = 1, annexe = "II", B = 99)
+  r_cst <- run_engine(xt = x_cst, yt = y, methode = m, segment = 1, annexe = "II", B = 99,
+                      nature_donnees = if (m == "premium") "brutes")
   tb_cst <- tryCatch(engine_table_tests(r_cst), error = function(e) e)
   verifier(sprintf("Volumes constants (%s) : run_engine ok et engine_table_tests() produit la table (#58)", m),
            if (!isTRUE(r_cst$ok)) "run_engine : ok FALSE"
@@ -774,7 +775,8 @@ verifier("engine_sous_graine() : etat restaure (ou retire) meme si l'expression 
 # pour la duree ; horodatage et duree retires comme dans nettoyer().
 appels_run <- list(
   premium  = function() run_engine(xt = x, yt = y, methode = "premium",
-                                   segment = 1, annexe = "II", B = 19, seed = 5),
+                                   segment = 1, annexe = "II", B = 19, seed = 5,
+                                   nature_donnees = "brutes"),
   reserve1 = function() run_engine(xt = x, yt = y, methode = "reserve1",
                                    segment = 1, annexe = "II", B = 19, seed = 5),
   reserve2 = function() run_engine(methode = "reserve2", triangle = tri_mw,

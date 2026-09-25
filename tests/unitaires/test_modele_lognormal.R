@@ -259,7 +259,8 @@ verifier("usp_ajuster : liste exacte des champs de l'ajustement (structure des r
 # apres ecart_jackknife et largeur_ic.
 verifier("run_engine : res$ajustement se termine par kkt_au_moins_un (condition de patchabilite des references)",
          {
-           r <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II", B = 99)
+           r <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II", B = 99,
+                           nature_donnees = "brutes")
            identical(utils::tail(names(r$ajustement), 1), "kkt_au_moins_un") &&
              all(c("ecart_jackknife", "largeur_ic") %in% names(r$ajustement))
          })

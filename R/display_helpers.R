@@ -895,6 +895,31 @@ texte_formule <- function(res) {
           100 * p$credibilite, m$bareme)
 }
 
+# Tableau "Parametre standard remplace" (onglet Calibration et section 4 du
+# rapport fige ; issue #55) : mise en forme de engine_parametre_standard(res),
+# qui fournit toutes les valeurs (nature declaree des donnees, point de
+# l'art. 218, paragraphe 1, exigence relative aux donnees, sigma de l'annexe,
+# NP standard, sigma standard reglementaire et retenu, origine). Une ligne
+# porte une valeur, un texte, ou les deux ("valeur (texte)"). Texte brut :
+# l'appelant l'echappe s'il l'ecrit en HTML.
+table_parametre_standard <- function(res) {
+  d <- engine_parametre_standard(res)
+  if (is.null(d)) return(NULL)
+  val <- ifelse(is.na(d$valeur), NA_character_, fmt_nb(d$valeur, 4))
+  txt <- ifelse(is.na(val), d$texte,
+                ifelse(is.na(d$texte), val, paste0(val, " (", d$texte, ")")))
+  data.frame(Grandeur = d$grandeur, Valeur = txt, stringsAsFactors = FALSE)
+}
+
+# Vrai si le sigma standard retenu est une saisie libre (derogation au
+# parametre reglementaire, decision du mainteneur du 24/09/2026, issue #55) :
+# lecture de la ligne "Origine" de engine_parametre_standard(res).
+derogation_sigma_standard <- function(res) {
+  d <- engine_parametre_standard(res)
+  !is.null(d) && any(grepl("derogation", d$texte[d$grandeur == "Origine du sigma standard retenu"],
+                           fixed = TRUE))
+}
+
 # Tableau "Robustesse du calibrage" (onglet Calibration et section 4 du
 # rapport fige) : tous les diagnostics des groupes ROB (lognormal) et M6
 # (Merz-Wuthrich) de engine_table_tests(), independamment de la selection de
@@ -1250,7 +1275,7 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
                     "1/(B+1) sur B nominal (bilat\u00e9rale : 2/(B_eff+1), par statistique,",
                     "champ granularite_stat)"),
               "Seuil alpha des verdicts", "Graine (seed)", "Bar\u00e8me de cr\u00e9dibilit\u00e9",
-              "sigma standard")
+              "sigma standard", "Nature des donn\u00e9es")
     vals <- c(format(m$horodatage, "%Y-%m-%d %H:%M:%S %Z"),
               sprintf("%.2f s", m$duree_sec), genere,
               paste0("<code>", m$methode, "</code> \u2014 ", libelle_methode),
@@ -1259,7 +1284,10 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
               as.character(m$T), as.character(m$B),
               format(res$bootstrap$granularite, digits = 6),
               format(m$alpha), format(m$seed, scientific = FALSE), .txt(m$bareme),
-              format(m$sigma_standard, digits = 10))
+              paste0(format(m$sigma_standard, digits = 10),
+                     if (derogation_sigma_standard(res))
+                       " \u2014 <b>sigma standard saisi, d\u00e9rogation au param\u00e8tre r\u00e9glementaire</b>"),
+              .txt(table_parametre_standard(res)$Valeur[1]))
     if (!mw) {
       cles <- c(cles, "Test d'\u00e9quivalence de la constante")
       vals <- c(vals, if (is.null(m$delta_equiv))
@@ -1343,6 +1371,15 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
             "&nbsp;|&nbsp; 95 %% : [%.4f ; %.4f]</div>"), ic[2], ic[4], ic[1], ic[5]),
           sprintf("<div class='gris' style='margin-top:6px'>%s</div>", .echap_html(texte_formule(res))),
           "</div>",
+          "<h3>Param\u00e8tre standard remplac\u00e9</h3>",
+          if (derogation_sigma_standard(res))
+            .bandeau_html(paste("<b>sigma standard saisi, d\u00e9rogation au param\u00e8tre",
+                                "r\u00e9glementaire</b> : le sigma standard du m\u00e9lange est une",
+                                "saisie libre, et non le param\u00e8tre r\u00e9glementaire de l'annexe",
+                                "(m\u00eame s'il en \u00e9gale la valeur) ; nature des donn\u00e9es :",
+                                .txt(table_parametre_standard(res)$Valeur[1]), ".")),
+          html_table(local({ d <- table_parametre_standard(res); d[] <- lapply(d, .txt); d }),
+                     classe = "data"),
           "<h3>Cha\u00eene de calibration</h3>",
           html_table(data.frame(Etape = .txt(cal$etape), Valeur = fmt_nb(cal$valeur, 5),
                                 stringsAsFactors = FALSE), classe = "data"),
