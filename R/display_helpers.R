@@ -628,6 +628,7 @@ plot_influence_cook <- function(pd) {
 # --- Methode lognormale : influence sur le parametre final ------------------
 # Mesure la plus directement interpretable pour le dossier : de combien
 # sigma_USP se deplace si l'annee t est retiree (jackknife).
+# Couleur de repere : REPERE_INFLUENCE_SIGMA (R/engine.R), en %.
 plot_influence_sigma <- function(pd) {
   if (!.influence_ln(pd)) return(.vide())
   d <- pd$influence
@@ -636,14 +637,14 @@ plot_influence_sigma <- function(pd) {
   if (!.plotly_dispo()) {
     .cadre()
     graphics::barplot(v, names.arg = d$t, border = NA,
-                      col = ifelse(abs(v) > 10, COUL$trait, COUL$env),
+                      col = ifelse(abs(v) > 100 * REPERE_INFLUENCE_SIGMA, COUL$trait, COUL$env),
                       xlab = "annee retiree", ylab = "ecart sur sigma_USP (%)",
                       main = "Influence du retrait d'une annee sur sigma_USP")
     graphics::abline(h = 0, col = COUL$pt)
     return(invisible())
   }
   p <- plotly::plot_ly(x = d$t, y = v, type = "bar",
-        marker = list(color = ifelse(abs(v) > 10, COUL$trait, COUL$env),
+        marker = list(color = ifelse(abs(v) > 100 * REPERE_INFLUENCE_SIGMA, COUL$trait, COUL$env),
                       line = list(color = COUL$pt, width = 1)),
         hovertemplate = "sans l'annee %{x}<br>ecart = %{y:+.2f} %<extra></extra>")
   p <- plotly::add_lines(p, x = range(d$t), y = c(0, 0),
@@ -677,13 +678,14 @@ plot_mw_levier <- function(pd) {
 }
 
 # --- Merz-Wuthrich : DFBETA sur les facteurs de developpement ---------------
+# Couleur de repere : REPERE_DFBETA_MW (R/engine.R), en %.
 plot_mw_dfbeta <- function(pd) {
   if (!.influence_mw(pd)) return(.vide())
   d <- pd$influence; v <- 100 * d$dfbeta_relatif
   etiq <- paste0("(", d$i, ",", d$j, ")")
   if (!.plotly_dispo()) {
     .cadre()
-    plot(seq_along(v), v, type = "h", col = ifelse(abs(v) > 2, COUL$trait, COUL$pt),
+    plot(seq_along(v), v, type = "h", col = ifelse(abs(v) > 100 * REPERE_DFBETA_MW, COUL$trait, COUL$pt),
          lwd = 2, xlab = "cellule (i, j)", ylab = "variation de f_j (%)",
          main = "Influence de chaque cellule sur f_j")
     graphics::abline(h = 0, col = COUL$ref)
@@ -691,7 +693,7 @@ plot_mw_dfbeta <- function(pd) {
   }
   p <- plotly::plot_ly(x = seq_along(v), y = v, type = "bar",
         text = etiq,
-        marker = list(color = ifelse(abs(v) > 2, COUL$trait, COUL$env),
+        marker = list(color = ifelse(abs(v) > 100 * REPERE_DFBETA_MW, COUL$trait, COUL$env),
                       line = list(color = COUL$pt, width = 1)),
         hovertemplate = paste0("cellule %{text}<br>variation de f_j = ",
                                "%{y:+.3f} %<extra></extra>"))
@@ -803,11 +805,13 @@ plot_mw_regressions <- function(pd, max_panneaux = 9) {
 }
 
 # --- Ordonnee a l'origine par colonne, avec son intervalle -------------------
-plot_mw_origine <- function(pd) {
+# alpha : seuil des verdicts du calcul (res$metadata$alpha), qui colore les
+# colonnes a ordonnee significative (issue #4, piste 3 : plus de 0,10 en dur).
+plot_mw_origine <- function(pd, alpha) {
   d <- pd$origine
   if (is.null(d) || !nrow(d)) return(.vide("Ordonnees a l'origine indisponibles"))
   bas <- d$a - 1.96 * d$se_a; haut <- d$a + 1.96 * d$se_a
-  sig <- d$p < 0.10
+  sig <- d$p < alpha
   if (!.plotly_dispo()) {
     .cadre()
     plot(d$j, d$a, pch = 19, col = ifelse(sig, COUL$trait, COUL$pt),
@@ -930,10 +934,12 @@ note_surface <- function(pd) {
       S$delta_opt, S$amplitude_delta))
 }
 
-note_m1 <- function(pd) {
+# alpha : seuil des verdicts du calcul (res$metadata$alpha), et non 0,10 en
+# dur (issue #4, piste 3).
+note_m1 <- function(pd, alpha) {
   d <- pd$origine
   if (is.null(d) || !nrow(d)) return(NULL)
-  k <- sum(d$p < 0.10, na.rm = TRUE)
+  k <- sum(d$p < alpha, na.rm = TRUE)
   w <- d[which.min(d$p), ]
   sprintf(paste(
     "Le r&egrave;glement impose E[C(i,j+1) | C(i,j)] = f_j C(i,j),",
@@ -941,8 +947,8 @@ note_m1 <- function(pd) {
     "est la droite ajust&eacute;e avec constante : un &eacute;cart marqu&eacute;",
     "entre les deux signale une composante fixe non pr&eacute;vue par le mod&egrave;le.",
     "<br><b>%d colonne(s) sur %d</b> pr&eacute;sentent une ordonn&eacute;e &agrave;",
-    "l'origine significative au seuil de 10 %%, la plus marqu&eacute;e &eacute;tant",
-    "<b>j = %d</b> (p = %.4f)."), k, nrow(d), w$j, w$p)
+    "l'origine significative au seuil alpha = %s, la plus marqu&eacute;e &eacute;tant",
+    "<b>j = %d</b> (p = %.4f)."), k, nrow(d), format(alpha), w$j, w$p)
 }
 
 note_influence_mw <- function(pd) {
@@ -1049,9 +1055,10 @@ encoder_base64 <- function(octets) {
   if (identical(res$metadata$methode, "reserve2")) return(list(
     list(titre = "Ajustement", note = NULL,
          g = list(g(function() plot_mw_facteurs(pd)), g(function() plot_mw_reserve(pd)))),
-    list(titre = "M1 - r\u00e9gressions", note = note_m1(pd),
+    list(titre = "M1 - r\u00e9gressions", note = note_m1(pd, res$metadata$alpha),
          g = list(g(function() plot_mw_regressions(pd), 560, TRUE),
-                  g(function() plot_mw_origine(pd)), g(function() plot_mw_alpha(pd)))),
+                  g(function() plot_mw_origine(pd, res$metadata$alpha)),
+                  g(function() plot_mw_alpha(pd)))),
     list(titre = "M2 - variance", note = NULL,
          g = list(g(function() plot_mw_residus_C(pd)), g(function() plot_mw_residus_dev(pd)))),
     list(titre = "M3 - ind\u00e9pendance", note = NULL,
@@ -1238,7 +1245,10 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
               "G\u00e9n\u00e9ration du pr\u00e9sent rapport",
               "M\u00e9thode", "P\u00e9rim\u00e8tre", "Segment",
               if (mw) "Profondeur (I + 1 ann\u00e9es de survenance)" else "Profondeur T",
-              "R\u00e9plications B", "Granularit\u00e9 des p-values Monte-Carlo, 1/(B+1)",
+              "R\u00e9plications B",
+              paste("Granularit\u00e9 nominale d'une p-value Monte-Carlo unilat\u00e9rale,",
+                    "1/(B+1) sur B nominal (bilat\u00e9rale : 2/(B_eff+1), par statistique,",
+                    "champ granularite_stat)"),
               "Seuil alpha des verdicts", "Graine (seed)", "Bar\u00e8me de cr\u00e9dibilit\u00e9",
               "sigma standard")
     vals <- c(format(m$horodatage, "%Y-%m-%d %H:%M:%S %Z"),

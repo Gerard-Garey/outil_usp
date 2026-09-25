@@ -101,39 +101,76 @@ triangle_defaut <- function(T = 8) {
   tri
 }
 
-# Chargement du fichier lognormal. Le nombre d'annees T est deduit du fichier
-# lui-meme : il n'est pas impose par une valeur par defaut.
-# Au demarrage, le classeur Excel est cherche en premier, puis le CSV.
+# Chargement des fichiers d'echange au demarrage. La lecture disque est faite
+# ici ; l'interpretation et les controles reviennent au moteur
+# (engine_lire_donnees_csv(), engine_valider_donnees(), engine_lire_triangle()).
+# Aucun remplacement silencieux (issue #33, #4 piste 3) : un fichier present
+# mais refuse laisse une grille VIDE et un statut affiche dans l'onglet
+# Donnees ; le jeu par defaut n'est charge que si aucun fichier n'existe, ou
+# sur clic de "Reinitialiser les donnees". Chaque fonction renvoie
+# list(valeur, statut) ; statut vaut NULL si aucun fichier n'existe.
+statut_fichier <- function(ok, src, texte)
+  list(ok = ok, msg = sprintf("Fichier %s %s", src, texte))
+
+REFUS_DEMARRAGE <- paste("Aucune donnee n'a ete chargee a sa place : corriger le",
+                         "fichier puis l'importer, ou cliquer sur \"Reinitialiser les",
+                         "donnees\" pour charger le jeu par defaut.")
+
+grille_vide_ln <- function(T) data.frame(t = seq_len(T), xt = NA_real_, yt = NA_real_)
+triangle_vide <- function(T) matrix(NA_real_, T, T)
+
+# Le nombre d'annees T est deduit du fichier lui-meme : il n'est pas impose
+# par une valeur par defaut. Le classeur Excel est cherche en premier, puis le CSV.
 charger_ln <- function() {
   x <- sub("\\.csv$", ".xlsx", FICHIER_LN)
   src <- if (file.exists(x)) x else FICHIER_LN
-  if (!file.exists(src)) return(DONNEES_DEFAUT)
+  if (!file.exists(src)) return(list(valeur = DONNEES_DEFAUT, statut = NULL))
+  refus <- function(motifs) list(valeur = grille_vide_ln(nrow(DONNEES_DEFAUT)),
+    statut = statut_fichier(FALSE, src, paste("present mais refuse au demarrage :",
+                                              paste(motifs, collapse = " "), REFUS_DEMARRAGE)))
   df <- try(if (grepl("xlsx$", src)) engine_lire_xlsx(src)
             else utils::read.csv(src, stringsAsFactors = FALSE), silent = TRUE)
-  if (inherits(df, "try-error")) return(DONNEES_DEFAUT)
+  if (inherits(df, "try-error")) return(refus(conditionMessage(attr(df, "condition"))))
   r <- engine_lire_donnees_csv(df)
-  if (!r$ok) return(DONNEES_DEFAUT)
-  data.frame(t = seq_along(r$xt), xt = r$xt, yt = r$yt)
+  if (!r$ok) return(refus(r$erreurs))
+  d <- data.frame(t = seq_along(r$xt), xt = r$xt, yt = r$yt)
+  # Donnees lisibles mais hors des controles de validite : chargees pour
+  # etre corrigees dans la grille, avec les motifs du moteur (le calcul reste
+  # bloque par les memes controles au clic).
+  v <- engine_valider_donnees(r$xt, r$yt)
+  list(valeur = d, statut = if (v$ok)
+    statut_fichier(TRUE, src, sprintf("charge au demarrage (%d annees).", r$n))
+    else statut_fichier(FALSE, src, paste("charge au demarrage, mais les donnees ne passent",
+                                          "pas les controles de validite du moteur :",
+                                          paste(v$erreurs, collapse = " "))))
 }
 
-# Chargement du triangle. Format attendu : une colonne par annee de
-# developpement, une ligne par annee d'accident, cellules non observees vides.
+# Triangle : une colonne par annee de developpement, une ligne par annee
+# d'accident, cellules non observees vides ; conversion et controle de
+# recevabilite par engine_lire_triangle() (moteur).
 charger_mw <- function() {
   x <- sub("\\.csv$", ".xlsx", FICHIER_MW)
   src <- if (file.exists(x)) x else FICHIER_MW
-  if (!file.exists(src)) return(triangle_defaut(8))
+  if (!file.exists(src)) return(list(valeur = triangle_defaut(8), statut = NULL))
+  refus <- function(motifs) list(valeur = triangle_vide(8),
+    statut = statut_fichier(FALSE, src, paste("present mais refuse au demarrage :",
+                                              paste(utils::head(motifs, 6), collapse = " "),
+                                              REFUS_DEMARRAGE)))
   df <- try(if (grepl("xlsx$", src)) engine_lire_xlsx(src)
             else utils::read.csv(src, stringsAsFactors = FALSE, row.names = NULL),
             silent = TRUE)
-  if (inherits(df, "try-error")) return(triangle_defaut(8))
-  m <- as.matrix(df[, setdiff(names(df), "i"), drop = FALSE])
-  storage.mode(m) <- "double"
-  if (nrow(m) < 5 || ncol(m) != nrow(m)) return(triangle_defaut(8))
-  unname(m)
+  if (inherits(df, "try-error")) return(refus(conditionMessage(attr(df, "condition"))))
+  r <- engine_lire_triangle(df)
+  if (!r$ok) return(refus(r$erreurs))
+  list(valeur = r$triangle,
+       statut = statut_fichier(TRUE, src, sprintf("charge au demarrage (triangle %d x %d).",
+                                                  nrow(r$triangle), ncol(r$triangle))))
 }
 
-DONNEES_INIT  <- charger_ln()
-TRIANGLE_INIT <- charger_mw()
+CHARGE_LN <- charger_ln()
+CHARGE_MW <- charger_mw()
+DONNEES_INIT  <- CHARGE_LN$valeur
+TRIANGLE_INIT <- CHARGE_MW$valeur
 T_INIT        <- nrow(DONNEES_INIT)
 
 # ---------------------------------------------------------------------------
@@ -188,6 +225,7 @@ ui <- fluidPage(
                                     accept = c(".csv", ".xlsx"), buttonLabel = "Parcourir",
                                     placeholder = "CSV ou Excel"))
               ),
+              uiOutput("statut_demarrage"),
               uiOutput("import_statut"),
               helpText(paste("Le nombre d'annees T se regle dans le panneau de",
                              "parametres, a droite. La grille de saisie s'y adapte",
@@ -319,12 +357,12 @@ ui <- fluidPage(
           h5("Test d'equivalence de la constante"),
           checkboxInput("delta_apriori", "Marge Delta fixee a priori", FALSE),
           conditionalPanel("!input.delta_apriori",
-                           numericInput("theta_equiv", "Marge en % de la perte moyenne",
-                                        value = 0.10, min = 0.01, max = 0.50, step = 0.01)),
+                           numericInput("theta_equiv", "Marge theta, fraction de la perte moyenne (0,10 = 10 %)",
+                                        value = 0.10, min = 0.01, max = 0.95, step = 0.01)),
           conditionalPanel("input.delta_apriori",
                            numericInput("delta_equiv", "Marge Delta (unite monetaire)",
                                         value = 8, min = 0, step = 0.5)),
-          helpText("Marge fixee a priori : test exact. Marge en % de la moyenne :",
+          helpText("Marge fixee a priori : test exact. Marge en fraction de la moyenne :",
                    "exactitude seulement approchee (la marge depend des donnees)."),
           numericInput("seed", "Graine (reproductibilite)", value = 20260831, step = 1),
           hr(),
@@ -352,6 +390,25 @@ server <- function(input, output, session) {
   # Motif du dernier calcul non abouti, remis a NULL des qu'un calcul aboutit.
   dernier_refus <- reactiveVal(NULL)
   est_mw <- reactive(identical(input$methode, "reserve2"))
+  # Statut du chargement des fichiers d'echange au demarrage (charger_ln(),
+  # charger_mw()), par methode ; efface par une reinitialisation ou un import
+  # reussi de la methode concernee.
+  statut_demarrage <- reactiveVal(list(LN = CHARGE_LN$statut, MW = CHARGE_MW$statut))
+  effacer_statut_demarrage <- function() {
+    st <- statut_demarrage(); st[if (est_mw()) "MW" else "LN"] <- list(NULL)
+    statut_demarrage(st)
+  }
+  output$statut_demarrage <- renderUI({
+    st <- statut_demarrage()[[if (est_mw()) "MW" else "LN"]]
+    if (is.null(st)) return(NULL)
+    div(class = if (st$ok) "avert" else "err",
+        style = if (st$ok) "border-left-color:#1E8449;background:#EAFAF1" else NULL, st$msg)
+  })
+  # Marge du test d'equivalence telle que transmise au moteur (au clic comme
+  # dans la validation en direct) ; le controle de son domaine est fait par
+  # engine_valider_donnees().
+  marge_theta <- function() if (isTRUE(input$delta_apriori)) 0.10 else input$theta_equiv
+  marge_delta <- function() if (isTRUE(input$delta_apriori)) input$delta_equiv else NULL
 
   # Retour anticipe de observeEvent(input$go) : on retire le resultat du
   # calcul precedent (il ne correspond plus aux donnees affichees, et il ne
@@ -488,7 +545,9 @@ server <- function(input, output, session) {
   # Validation en direct : l'appel est fait au moteur, pas reimplemente ici.
   output$validation_live <- renderUI({
     v <- if (est_mw()) mw_valider_triangle(lire_triangle())
-         else { sa <- lire_saisie(); engine_valider_donnees(sa$xt, sa$yt) }
+         else { sa <- lire_saisie()
+                engine_valider_donnees(sa$xt, sa$yt, theta_equiv = marge_theta(),
+                                       delta_equiv = marge_delta()) }
     tagList(
       if (length(v$erreurs))
         div(class = "err", tags$b("Donnees non exploitables :"),
@@ -513,7 +572,7 @@ server <- function(input, output, session) {
       }
       donnees(d)
     }
-    statut_import(NULL)
+    statut_import(NULL); effacer_statut_demarrage()
     showNotification("Donnees reinitialisees.", type = "message")
   })
 
@@ -535,14 +594,15 @@ server <- function(input, output, session) {
                       conditionMessage(attr(df, "condition"))))); return()
     }
     if (est_mw()) {
-      m <- as.matrix(df[, setdiff(names(df), "i"), drop = FALSE])
-      storage.mode(m) <- "double"; m <- unname(m)
-      v <- mw_valider_triangle(m)
+      # Conversion fichier -> triangle et recevabilite : moteur.
+      v <- engine_lire_triangle(df)
       if (!v$ok) {
         statut_import(list(ok = FALSE, msg = paste(utils::head(v$erreurs, 3), collapse = " ")))
         showNotification("Import refuse.", type = "error", duration = 8); return()
       }
+      m <- v$triangle
       triangle(m); updateNumericInput(session, "profondeur", value = nrow(m))
+      effacer_statut_demarrage()
       statut_import(list(ok = TRUE, msg = sprintf("Triangle %d x %d importe depuis %s (%s).",
                                                   nrow(m), ncol(m), fi$name, toupper(ext))))
     } else {
@@ -553,6 +613,22 @@ server <- function(input, output, session) {
       }
       donnees(data.frame(t = seq_along(r$xt), xt = r$xt, yt = r$yt))
       updateNumericInput(session, "profondeur", value = r$n)
+      effacer_statut_demarrage()
+      # Meme politique qu'au demarrage (charger_ln()) : des donnees lisibles
+      # mais hors des controles de validite du moteur sont chargees pour etre
+      # corrigees dans la grille, avec les motifs du moteur ; le calcul reste
+      # bloque par les memes controles au clic. Marge courante transmise,
+      # comme dans la validation en direct.
+      v <- engine_valider_donnees(r$xt, r$yt, theta_equiv = marge_theta(),
+                                  delta_equiv = marge_delta())
+      if (!v$ok) {
+        statut_import(list(ok = FALSE, msg = paste(
+          sprintf("%d annees importees depuis %s (%s), mais les donnees ne passent pas",
+                  r$n, fi$name, toupper(ext)),
+          "les controles de validite du moteur :", paste(v$erreurs, collapse = " "))))
+        showNotification("Donnees importees, mais non valides : voir le statut d'import.",
+                         type = "warning", duration = 8); return()
+      }
       statut_import(list(ok = TRUE, msg = sprintf("%d annees importees depuis %s (%s).",
                                                   r$n, fi$name, toupper(ext))))
     }
@@ -596,7 +672,9 @@ server <- function(input, output, session) {
         resultat(res); selection(NULL); dernier_refus(NULL)
       })
     } else {
-      sa <- lire_saisie(); v <- engine_valider_donnees(sa$xt, sa$yt)
+      sa <- lire_saisie()
+      v <- engine_valider_donnees(sa$xt, sa$yt, theta_equiv = marge_theta(),
+                                  delta_equiv = marge_delta())
       if (!v$ok) {
         refuser(TITRE_NON_LANCE, utils::head(v$erreurs, 6))
         showNotification(paste("Calcul non lance :", paste(v$erreurs, collapse = " ")),
@@ -608,8 +686,7 @@ server <- function(input, output, session) {
                               sigma_standard = if (isTRUE(input$sigma_manuel)) input$sigma_std else NULL,
                               T = input$profondeur, B = input$B, alpha = input$alpha,
                               seed = input$seed,
-                              theta_equiv = if (isTRUE(input$delta_apriori)) 0.10 else input$theta_equiv,
-                              delta_equiv = if (isTRUE(input$delta_apriori)) input$delta_equiv else NULL),
+                              theta_equiv = marge_theta(), delta_equiv = marge_delta()),
                    silent = TRUE)
         if (inherits(res, "try-error")) {
           refuser(TITRE_ERREUR, conditionMessage(attr(res, "condition")))
@@ -827,13 +904,13 @@ server <- function(input, output, session) {
   output$mw_rcal <- rendu_graphique(plot_mw_residus_cal(R()$plots_data))
   output$mw_qq   <- rendu_graphique(plot_mw_qq(R()$plots_data))
   output$mw_reg   <- rendu_graphique(plot_mw_regressions(R()$plots_data))
-  output$mw_orig  <- rendu_graphique(plot_mw_origine(R()$plots_data))
+  output$mw_orig  <- rendu_graphique(plot_mw_origine(R()$plots_data, R()$metadata$alpha))
   output$mw_alpha <- rendu_graphique(plot_mw_alpha(R()$plots_data))
 
   # Note contextuelle du volet M1 : les valeurs proviennent du moteur.
   # Texte partage avec le rapport fige (note_m1, R/display_helpers.R).
   output$note_m1 <- renderUI({
-    n <- note_m1(R()$plots_data)
+    n <- note_m1(R()$plots_data, R()$metadata$alpha)
     if (is.null(n)) return(NULL)
     helpText(HTML(n))
   })
@@ -930,7 +1007,9 @@ server <- function(input, output, session) {
     cat("Bareme credibilite   :", m$bareme, "\n")
     cat("Profondeur T         :", m$T, "\n")
     cat("Replications B       :", m$B, "\n")
-    cat("Granularite p_mc     :", format(R()$bootstrap$granularite), "( = 1/(B+1) )\n")
+    cat("Granularite p_mc     :", format(R()$bootstrap$granularite),
+        "( = 1/(B+1), B nominal : p-value unilaterale ; bilaterale 2/(B_eff+1),",
+        "par statistique : res$bootstrap$granularite_stat )\n")
     cat("Seuil alpha          :", m$alpha, "\n")
     cat("Graine (seed)        :", format(m$seed, scientific = FALSE), "\n")
     cat("Horodatage           :", format(m$horodatage, "%Y-%m-%d %H:%M:%S"), "\n")
