@@ -1405,7 +1405,7 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
                                 "r\u00e9glementaire</b> : le sigma standard du m\u00e9lange est une",
                                 "saisie libre, et non le param\u00e8tre r\u00e9glementaire de l'annexe",
                                 "(m\u00eame s'il en \u00e9gale la valeur) ; nature des donn\u00e9es :",
-                                .txt(table_parametre_standard(res)$Valeur[1]), ".")),
+                                paste0(.txt(table_parametre_standard(res)$Valeur[1]), "."))),
           html_table(local({ d <- table_parametre_standard(res); d[] <- lapply(d, .txt); d }),
                      classe = "data"),
           "<h3>Cha\u00eene de calibration</h3>",
