@@ -2742,8 +2742,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 #  - une colonne facteur est convertie par ses VALEURS (texte), jamais par ses
 #    codes internes ;
 #  - la colonne t, si elle est presente, doit etre complete, numerique,
-#    entiere, sans doublon et CONSECUTIVE (annexe XVII, B(2)(b) et C(2)(b) :
-#    "annees d'accident consecutives") ; elle est alors triee en croissant.
+#    entiere, sans doublon et CONSECUTIVE (annexe XVII, B(2)(b) : "cinq
+#    annees d'accident consecutives" ; C(2)(b) : "cinq exercices
+#    consecutifs") ; elle est alors triee en croissant.
 #    Sinon le fichier est refuse : aucun tri ni comblement silencieux. Les
 #    tests de la famille H3 supposent des annees equidistantes ;
 #  - sans colonne t, l'ordre du fichier est repute chronologique et la
