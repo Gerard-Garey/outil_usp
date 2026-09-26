@@ -12,7 +12,8 @@
 #  avec patcher_reference.R ; le mode creation (M31) ; et, pour plusieurs cas
 #  (M33), lire_arguments() (motifs par cas, doublons, noms invalides),
 #  commande_rejouable(), remplacer_references() (tout ou rien, restauration)
-#  et references_hors_liste() (md5 des .rds hors liste).
+#  et references_hors_liste() (md5 des .rds hors liste) ; enfin
+#  ecrire_console() sous LC_ALL=C et sous la locale du poste (issue #82).
 ###############################################################################
 
 if (!exists("verifier", mode = "function")) {
@@ -424,5 +425,41 @@ verifier("remplacer_references : succes -> cas de la liste remplaces, hors liste
              !length(rg$references_hors_liste(e0, e1, c("a.rds", "b.rds"))) &&
              e1[["c.rds"]] == e0[["c.rds"]] && e1[["a.rds"]] != e0[["a.rds"]] && cache_vide() })
 unlink(.dm, recursive = TRUE)
+
+## --- Console en UTF-8 quelle que soit la locale (issue #82) ---------------
+# Script lance dans un processus R separe, sous LC_ALL=C puis sous la locale
+# du poste ; la sortie standard est relue en octets. Le script source
+# regenerer_et_rendre_compte.R (programme principal non execute) et ecrit la
+# meme ligne par ecrire_console() puis par writeLines() (temoin du defaut).
+.console82 <- function(lc) {
+  d <- tempfile("console82-"); dir.create(d); on.exit(unlink(d, recursive = TRUE))
+  s <- file.path(d, "s.R"); o <- file.path(d, "o.txt")
+  writeLines(c(sprintf("DOSSIER_TESTS <- \"%s\"", normalizePath(rg$DOSSIER_TESTS, winslash = "/")),
+               "source(file.path(DOSSIER_TESTS, \"regenerer_et_rendre_compte.R\"))",
+               "x <- \"apr\\u00e8s \\u2014 r\\u00e9f\\u00e9rence\"",
+               "ecrire_console(x); writeLines(x)",
+               "cat(\"UTF8LOCALE=\", isTRUE(l10n_info()[[\"UTF-8\"]]), \"\\n\", sep = \"\")"), s)
+  ancien <- Sys.getenv("LC_ALL", unset = NA)
+  on.exit(if (is.na(ancien)) Sys.unsetenv("LC_ALL") else Sys.setenv(LC_ALL = ancien), add = TRUE)
+  if (is.na(lc)) Sys.unsetenv("LC_ALL") else Sys.setenv(LC_ALL = lc)
+  suppressWarnings(system2(file.path(R.home("bin"), "Rscript"), s, stdout = o, stderr = FALSE))
+  l <- strsplit(rawToChar(readBin(o, "raw", file.size(o))), "\r?\n", useBytes = TRUE)[[1]]
+  l <- l[nzchar(l)]
+  # Derniere ligne : la locale du processus fils est-elle UTF-8 ?
+  list(lignes = lapply(utils::head(l, -1L), charToRaw), utf8 = identical(utils::tail(l, 1L), "UTF8LOCALE=TRUE"))
+}
+.utf8_82 <- charToRaw(enc2utf8("apr\u00e8s \u2014 r\u00e9f\u00e9rence"))
+.c82 <- .console82("C")
+verifier("Issue #82 : ecrire_console() ecrit les octets UTF-8 sous LC_ALL=C",
+         length(.c82$lignes) == 2L && identical(.c82$lignes[[1]], .utf8_82))
+verifier("Issue #82 (temoin) : writeLines() seul sous LC_ALL=C n'ecrit pas ces octets (<U+00E8>...)",
+         length(.c82$lignes) == 2L && !.c82$utf8 && !identical(.c82$lignes[[2]], .utf8_82) &&
+           grepl("<U+00E8>", rawToChar(.c82$lignes[[2]]), fixed = TRUE))
+# Garde sur la locale reelle du processus fils (celle qu'il herite sans
+# LC_ALL), non sur celle du processus qui lance le test.
+.n82 <- .console82(NA)
+verifier("Issue #82 : sans LC_ALL, sous une locale UTF-8, ecrire_console() et writeLines() ecrivent les memes octets (sortie inchangee)",
+         !.n82$utf8 || (length(.n82$lignes) == 2L && identical(.n82$lignes[[1]], .utf8_82) &&
+                          identical(.n82$lignes[[2]], .utf8_82)))
 
 fin_fichier()

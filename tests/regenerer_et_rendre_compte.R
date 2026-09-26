@@ -117,8 +117,8 @@
 #  verifier_regeneration(), tableau_markdown() et, pour le mode creation,
 #  references_modifiees(), creer_reference() et tableau_creation_markdown(),
 #  pour plusieurs cas (M33), lire_arguments(), remplacer_references() et
-#  references_hors_liste(), sont testees par
-#  tests/unitaires/test_regenerer_et_rendre_compte.R.
+#  references_hors_liste(), ainsi que ecrire_console() (issue #82), sont
+#  testees par tests/unitaires/test_regenerer_et_rendre_compte.R.
 ###############################################################################
 
 # Dossier tests/ : meme logique que patcher_reference.R (fourni par
@@ -584,6 +584,15 @@ lancer_batterie <- function(script) {
   list(script = script, statut = statut, synthese = trimws(synth))
 }
 
+# Ecriture sur la console (sortie standard) en octets UTF-8, quelle que soit
+# la locale (issue #82). writeLines() sans useBytes traduit vers l'encodage
+# de la locale : sous LC_ALL=C, les caracteres non ASCII du tableau y
+# devenaient <U+00E8>, <U+2014>... dans le journal (regeneration.txt de
+# references.yml, porte au resume du workflow en cas d'echec). Sous une
+# locale UTF-8, octets identiques a writeLines(x). Les fichiers md, eux,
+# sont deja ecrits en UTF-8 (enc2utf8() et useBytes, finir_avec_batteries()).
+ecrire_console <- function(x) writeLines(enc2utf8(x), useBytes = TRUE)
+
 # Fin commune aux modes regeneration et creation, apres ecriture des
 # references : relance des batteries UNE SEULE FOIS (sauf --sans-batteries),
 # quel que soit le nombre de cas ecrits (M33 : apres le dernier cas, sur
@@ -615,7 +624,7 @@ finir_avec_batteries <- function(mds, dests, batteries) {
     close(con)
     cat("Tableau ecrit :", dests[k], "\n")
   }
-  writeLines(bilan)
+  ecrire_console(bilan)
   if (echec) {
     cat(if (length(dests) == 1L)
           "\nUNE BATTERIE ECHOUE : reference ecrite mais a examiner (git restore, ou suppression du fichier cree, pour revenir).\n"
@@ -670,7 +679,7 @@ if (sys.nframe() == 0L) {
     emp_apres <- empreintes_references(DOSSIER_REF)
     md <- tableau_creation_markdown(nom, res, basename(ref_f), emp_avant, emp_apres, issue,
                                     commande = commande)
-    cat("\n"); writeLines(md)
+    cat("\n"); ecrire_console(md)
     modif <- references_modifiees(emp_avant, emp_apres, basename(ref_f))
     if (length(modif)) {
       cat("\nECHEC -- references existantes modifiees ou fichiers inattendus :\n",
@@ -722,7 +731,7 @@ if (sys.nframe() == 0L) {
       }
     } else {
       md <- tableau_markdown(a, nom, issue, motifs, commande = commande, cas_execution = noms)
-      cat("\n"); writeLines(md)
+      cat("\n"); ecrire_console(md)
       if (d$action == "refus") {
         cat("\nREFUS -- ", paste(d$refus, collapse = "\n"), "\n", sep = "")
         cat(if (ecrire) "\nRegeneration refusee : rien n'a ete ecrit.\n"

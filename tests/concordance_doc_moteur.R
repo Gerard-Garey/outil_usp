@@ -13,8 +13,10 @@
 #       moins une fonction. Un nom introuvable peut etre exempte nommement
 #       (liste EXEMPTES_CODE : nom, motif de contexte, motif ecrit ; decision
 #       Q-O3 du 24/09/2026) : c'est le cas des primitives Shiny citees dans
-#       la colonne "Interdit" du tableau d'architecture. Une exemption qui
-#       n'exempte plus rien est un ecart (exemption perimee) ;
+#       la colonne "Interdit" du tableau d'architecture. Un nom exempte est
+#       juge sans consulter les paquets (verdict independant des paquets
+#       installes, issue #86). Une exemption qui n'exempte plus rien est un
+#       ecart (exemption perimee) ;
 #    2. les decomptes de lignes de tests annonces par le document :
 #       a) VERIFIES automatiquement pour les phrases du registre DECOMPTES
 #          (plus bas), chacune ancree sur sa formulation exacte et rattachee a
@@ -43,7 +45,16 @@
 #       premiers caracteres du champ famille, cle de GROUPES) est declare
 #       dans GROUPES de R/display_helpers.R ; les familles rencontrees
 #       ailleurs dans le resultat (res$controles : "A. Qualite des donnees")
-#       ne passent pas par GROUPES et sont signalees pour information.
+#       ne passent pas par GROUPES et sont signalees pour information ;
+#    4. chaque cle de la colonne "Cle MC" de l'index des fonctions appartient
+#       au catalogue Monte-Carlo de la methode de sa section (intertitres
+#       H1 a H4, stabilite, robustesse -> USP_CATALOGUE_MC ; intertitres
+#       "Methode Merz--Wuthrich" -> MW_CATALOGUE_MC) : une cle du mauvais
+#       catalogue ou d'aucun est un ecart (issue #91), de meme qu'une
+#       rangee non terminee avant \end{longtable} et un tableau sans aucune
+#       cle. Les cles d'un catalogue non citees sont signalees pour
+#       information. Limite : l'appartenance au catalogue est verifiee, pas
+#       la correspondance cle <-> test (voir cles_mc_index()).
 #
 #  Le moteur est execute sur les jeux de tests/donnees/ avec B petit
 #  (defaut 99) : seule la STRUCTURE de la table des tests sert ici (nombre de
@@ -72,7 +83,9 @@
 #  (branche O, issue #65, --strict minimal de la decision Q-O3) : code de
 #  sortie 1 des qu'il y a un ecart VERIFIE -- nom introuvable non exempte,
 #  exemption perimee, phrase du registre DECOMPTES absente ou fausse,
-#  prefixe de famille non declare dans GROUPES. L'inventaire b) reste une
+#  prefixe de famille non declare dans GROUPES, cle MC hors du catalogue de
+#  sa methode, tableau de l'index introuvable, sans cle ou a rangee non
+#  terminee. L'inventaire b) reste une
 #  information sans effet sur le code de sortie (issue #75). --tex remplace
 #  le document lu (tests du mode strict sur une copie modifiee).
 #
@@ -252,6 +265,20 @@ appliquer_exemptions <- function(cit, statuts, lignes, exemptions = EXEMPTES_COD
                              stringsAsFactors = FALSE))
 }
 
+# Statuts des noms cites (vecteur nomme, par nom). Un nom vise par une
+# exemption est juge contre le code du depot seul (moteur, affichage, app.R,
+# tests, chemin de recherche de base), sans consulter les paquets : une
+# exemption couvre un nom absent du code, et son application comme sa
+# peremption ne doivent pas dependre des paquets installes (issue #86 :
+# reactive() et render*() trouves dans shiny quand il est installe,
+# introuvables sinon).
+statuts_citations <- function(noms, env, paquets = character(0), defs = NULL, exemptions = EXEMPTES_CODE) {
+  exemptes <- vapply(exemptions, `[[`, character(1), "nom")
+  vapply(noms, function(n)
+    statut_fonction(n, env, paquets = if (n %in% exemptes) character(0) else paquets, defs = defs),
+    character(1))
+}
+
 # ---------------------------------------------------------------------------
 #  Decomptes
 # ---------------------------------------------------------------------------
@@ -394,6 +421,81 @@ familles_produites <- function(o) {
 }
 
 # ---------------------------------------------------------------------------
+#  Colonne "Cle MC" de l'index des fonctions (issue #91)
+# ---------------------------------------------------------------------------
+
+# Cles de la colonne "Cle MC" (derniere colonne) du longtable dont l'en-tete
+# porte \textbf{Cle MC} (e accent aigu, ecrit par l'echappement unicode 00E9 dans le code pour ne
+# pas dependre de la locale de lecture du script), avec la methode de leur
+# section : "MW" sous un
+# intertitre \multicolumn qui contient "Merz", "USP" sous tout autre
+# intertitre, NA avant le premier. Seules les lignes apres \endlastfoot sont
+# lues (les en-tetes repetes du longtable ne portent pas de cle). Une ligne
+# du tableau se termine par \\, \\* ou \\[espacement] ; les cellules sont
+# separees par les & non echappes. Renvoie NULL si le tableau est
+# introuvable, sinon un data.frame (ligne, cle, methode), une ligne par
+# \code{} de la derniere cellule (texte sans \code{}, tiret ou "toutes les
+# cles ci-dessus", ne produit aucune cle), avec l'attribut "non_terminee" :
+# ligne de debut d'une rangee non terminee avant \end{longtable} (NA sinon),
+# que l'appelant compte comme ecart.
+# LIMITE de conception : seule l'appartenance de la cle au catalogue de sa
+# methode est verifiee, pas la correspondance cle <-> test de la ligne. Une
+# cle commune aux deux catalogues (DW, Grubbs, BP, Runs) ou une cle du bon
+# catalogue portee par la mauvaise ligne n'est pas detectee.
+FIN_RANGEE <- "\\\\\\\\\\*?(\\[[^]]*\\])?\\s*$"
+cles_mc_index <- function(lignes) {
+  lignes <- retirer_commentaires(lignes)
+  deb <- grep("\\textbf{Cl\u00e9 MC}", lignes, fixed = TRUE)[1L]
+  if (is.na(deb)) return(NULL)
+  fin <- grep("\\end{longtable}", lignes, fixed = TRUE)
+  fin <- fin[fin > deb][1L]
+  pied <- grep("\\endlastfoot", lignes, fixed = TRUE)
+  pied <- pied[pied > deb & pied < fin][1L]
+  if (is.na(fin) || is.na(pied)) return(NULL)
+  res <- data.frame(ligne = integer(0), cle = character(0), methode = character(0), stringsAsFactors = FALSE)
+  methode <- NA_character_; tampon <- character(0); l0 <- NA_integer_
+  for (k in seq.int(pied + 1L, fin - 1L)) {
+    l <- lignes[k]
+    if (!length(tampon) && grepl("^\\s*(\\\\(midrule|toprule|bottomrule))?\\s*$", l)) next
+    if (!length(tampon)) l0 <- k
+    tampon <- c(tampon, l)
+    if (!grepl(FIN_RANGEE, l, perl = TRUE)) next
+    rangee <- paste(tampon, collapse = "\n"); tampon <- character(0)
+    if (grepl("\\multicolumn", rangee, fixed = TRUE)) {
+      methode <- if (grepl("Merz", rangee, fixed = TRUE)) "MW" else "USP"
+      next
+    }
+    esp <- gregexpr("(?<!\\\\)&", rangee, perl = TRUE)[[1]]
+    if (esp[1L] == -1L) next
+    p <- esp[length(esp)]
+    cellule <- sub(FIN_RANGEE, "", substring(rangee, p + 1L), perl = TRUE)
+    decal <- l0 + lengths(regmatches(substr(rangee, 1L, p), gregexpr("\n", substr(rangee, 1L, p))))
+    cod <- extraire_codes(strsplit(cellule, "\n", fixed = TRUE)[[1]])
+    if (nrow(cod))
+      res <- rbind(res, data.frame(ligne = decal + cod$ligne - 1L, cle = desechapper(cod$brut),
+                                   methode = methode, stringsAsFactors = FALSE))
+  }
+  attr(res, "non_terminee") <- if (length(tampon) && any(nzchar(trimws(tampon)))) l0 else NA_integer_
+  res
+}
+
+# Ecarts de la colonne "Cle MC" : cle absente du catalogue de la methode de
+# sa section (catalogues : liste nommee USP, MW de noms de cles), ou cle
+# hors de toute section. Renvoie un data.frame (ligne, cle, methode, motif).
+verifier_cles_mc <- function(cles, catalogues) {
+  ok <- vapply(seq_len(nrow(cles)), function(i)
+    !is.na(cles$methode[i]) && cles$cle[i] %in% catalogues[[cles$methode[i]]], logical(1))
+  e <- cles[!ok, , drop = FALSE]
+  motif <- vapply(seq_len(nrow(e)), function(i) {
+    if (is.na(e$methode[i])) return("hors de toute section de methode")
+    autres <- names(catalogues)[vapply(catalogues, function(cat) e$cle[i] %in% cat, logical(1))]
+    sprintf("absente du catalogue %s%s", e$methode[i],
+            if (length(autres)) sprintf(" (cle du catalogue %s)", paste(autres, collapse = ", ")) else "")
+  }, character(1))
+  data.frame(ligne = e$ligne, cle = e$cle, methode = e$methode, motif = motif, stringsAsFactors = FALSE)
+}
+
+# ---------------------------------------------------------------------------
 #  Nombre de replications bootstrap
 # ---------------------------------------------------------------------------
 
@@ -456,7 +558,7 @@ if (sys.nframe() == 0L) {
                                   list.files(file.path(RACINE, "tests"), pattern = "[.]R$", full.names = TRUE)))
   cit <- citations_fonctions(extraire_codes(tex))
   noms <- unique(cit$nom)
-  statuts <- vapply(noms, statut_fonction, character(1), env = env, paquets = paquets, defs = defs)
+  statuts <- statuts_citations(noms, env = env, paquets = paquets, defs = defs)
   cat(sprintf("=== 1. Fonctions citees par \\code{nom()} : %d citation(s), %d nom(s) distinct(s)\n",
               nrow(cit), length(noms)))
   # Recapitulatif par nom distinct, APRES exemptions : un nom introuvable
@@ -548,6 +650,38 @@ if (sys.nframe() == 0L) {
   inutilises <- setdiff(names(env$GROUPES), pref)
   if (length(inutilises)) cat("  (information) cle(s) de GROUPES non produites sur ces jeux :",
                               paste(inutilises, collapse = " "), "\n")
+
+  # 4. Colonne "Cle MC" de l'index des fonctions (issue #91) : chaque cle
+  # appartient au catalogue de la methode de sa section.
+  catalogues <- list(USP = names(env$USP_CATALOGUE_MC), MW = names(env$MW_CATALOGUE_MC))
+  cles <- cles_mc_index(tex)
+  if (is.null(cles)) {
+    n_ecarts <- n_ecarts + 1L
+    cat("\n=== 4. Colonne \"Cle MC\" de l'index des fonctions\n  ECART -- tableau introuvable (en-tete \\textbf{Cl\u00e9 MC} et \\endlastfoot attendus)\n")
+  } else {
+    e_mc <- verifier_cles_mc(cles, catalogues)
+    cat(sprintf("\n=== 4. Colonne \"Cle MC\" de l'index des fonctions : %d cle(s) (USP %d, MW %d)\n",
+                nrow(cles), sum(cles$methode %in% "USP"), sum(cles$methode %in% "MW")))
+    if (!nrow(cles)) {
+      n_ecarts <- n_ecarts + 1L
+      cat("  ECART -- tableau trouve mais aucune cle lue (colonne vide ou fins de rangee non reconnues)\n")
+    }
+    nt <- attr(cles, "non_terminee")
+    if (!is.null(nt) && !is.na(nt)) {
+      n_ecarts <- n_ecarts + 1L
+      cat(sprintf("  ECART -- rangee commencee l.%d non terminee (\\\\, \\\\* ou \\\\[...]) avant \\end{longtable} : ses cles ne sont pas lues\n", nt))
+    }
+    for (m in names(catalogues)) {
+      nc <- setdiff(catalogues[[m]], cles$cle[cles$methode %in% m])
+      if (length(nc)) cat(sprintf("  (information) cle(s) du catalogue %s non citee(s) : %s\n", m, paste(nc, collapse = " ")))
+    }
+    n_ecarts <- n_ecarts + nrow(e_mc)
+    if (nrow(e_mc)) {
+      cat(sprintf("  ECART -- %d cle(s) hors du catalogue de leur methode :\n", nrow(e_mc)))
+      for (i in seq_len(nrow(e_mc)))
+        cat(sprintf("    l.%-5d %-12s %s\n", e_mc$ligne[i], e_mc$cle[i], e_mc$motif[i]))
+    }
+  }
 
   cat(sprintf("\nBILAN : %d ecart(s)%s ; inventaire non verifie : %d formulation(s) (information, sans effet sur le code de sortie : un decompte faux hors registre DECOMPTES n'est pas detecte, issue #75)\n",
               n_ecarts, if (strict) " (mode strict)" else " (mode rapport : code de sortie 0)", nrow(inv)))
