@@ -474,6 +474,36 @@ verifier("Lecture vecteur : formats sains inchanges (en-tete x en colonne, etiqu
              identical(lit(c("12a", "1", "2")), c(1, 2)) &&
              identical(lit(c("a2017;a2018;a2019", "1,5;2;3"), ";", ","), c(1.5, 2, 3))
          })
+# Audit (mineur 2) et avis d'actuary : espace fine insecable U+202F (octets
+# E2 80 AF) traitee comme une espace ; exception des etiquettes d'exercice
+# AAAA-AA / AAAA-AAAA ; valeurs non finies refusees des la lecture.
+verifier("Predicat .allure_manquante_ou_nombre() : U+202F reconnue, 12.2017, +1 et '2017 refuses, 2017-2018 et 2017-18 admis (#95)",
+         {
+           fine <- rawToChar(as.raw(c(0x31, 0xe2, 0x80, 0xaf, 0x32, 0x33, 0x34)))
+           identical(.allure_manquante_ou_nombre(c(fine, "12.2017", "+1", "'2017")), rep(TRUE, 4)) &&
+             identical(.allure_manquante_ou_nombre(c("2017-2018", "2017-18")), c(FALSE, FALSE))
+         })
+verifier("Lecture vecteur : en-tete ou etiquette 1<U+202F>234 et '2017 refuses ; 2017-2018 et 2017-18 admis en en-tete et en etiquette (#95)",
+         {
+           lit_brut <- function(r, sep = ",") {
+             f <- tempfile(); writeBin(r, f)
+             tryCatch(usp_lire_vecteur(f, sep), error = function(e) conditionMessage(e))
+           }
+           fine <- as.raw(c(0x31, 0xe2, 0x80, 0xaf, 0x32, 0x33, 0x34))
+           a_motif(lit_brut(c(fine, charToRaw("\n1\n2\n"))), "en position d'en-tete") &&
+             a_motif(lit_brut(c(charToRaw("a,b,c\n"), fine, charToRaw(",2,3\n"))),
+                     "(colonne 1), en position d'etiquette") &&
+             a_motif(msg_ligne(c("'2017", "1", "2")), "cellule \"'2017\" en position d'en-tete") &&
+             identical(msg_ligne(c("2017-2018", "1", "2")), c(1, 2)) &&
+             identical(msg_ligne(c("2017-18", "1", "2")), c(1, 2)) &&
+             identical(msg_ligne(c("a,b,c", "2017-2018,1,2")), c(1, 2)) &&
+             identical(msg_ligne(c("a,b,c", "2017-18,1,2")), c(1, 2))
+         })
+verifier("Lecture vecteur : Inf, -Inf en tete ou au milieu de la serie refuses a la lecture avec leur position",
+         a_motif(msg_ligne("Inf,2,3"), "non numerique(s) en position 1", "\"Inf\"") &&
+           a_motif(msg_ligne(c("Inf", "2", "3")), "non numerique(s) en position 1", "\"Inf\"") &&
+           a_motif(msg_ligne(c("x", "1", "-Inf", "3")), "non numerique(s) en position 2", "\"-Inf\"") &&
+           a_motif(msg_ligne("1,2,Inf"), "non numerique(s) en position 3", "\"Inf\""))
 verifier("Lecture vecteur : serie en ligne, vide au milieu de la ligne de valeurs : message #33 inchange (#95)",
          a_motif(msg_ligne(c("a,b,c", "1,,3")), "Cellule(s) vide(s) en position 2"))
 verifier("Lecture vecteur : serie en ligne, colonnes alignees acceptees (colonne vide de bord, etiquette de ligne) (#95)",

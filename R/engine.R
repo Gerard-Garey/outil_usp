@@ -503,7 +503,9 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
                        "au milieu de la serie decalerait les annees suivantes ; completer",
                        "ou retirer l'annee dans les deux fichiers."),
                  paste(vides, collapse = ", "), chemin))
-  non_num <- which(is.na(v))
+  # Valeurs non finies (Inf, -Inf, NaN) refusees des la lecture, comme une
+  # valeur non numerique.
+  non_num <- which(is.na(v) | !is.finite(v))
   if (length(non_num))
     stop(sprintf("Valeur(s) non numerique(s) en position %s de la serie (comptee depuis la premiere valeur) de %s : %s.",
                  paste(non_num, collapse = ", "), chemin,
@@ -546,12 +548,17 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
 # ligne dans usp_lire_vecteur() (issue #95, avis d'actuary) :
 #  (a) NA, NaN, N/A, #N/A, N.D. ou "-", casse ignoree ;
 #  (b) ou cellule faite uniquement de chiffres, d'espaces (ordinaire ou
-#      insecable U+00A0), de ".", ",", "'", "+", "-", avec au moins un chiffre
-#      (ex. "1,5" avec dec = ".", "1 234", "1.234,5", "1,234.5").
+#      insecable U+00A0 ou fine insecable U+202F), de ".", ",", "'", "+",
+#      "-", avec au moins un chiffre (ex. "1,5" avec dec = ".", "1 234",
+#      "1.234,5", "1,234.5", "12.2017", "+1", "'2017") ;
+#  exception (avis d'actuary) : une etiquette d'exercice de la forme
+#  AAAA-AA a AAAA-AAAA ("2017-18", "2017-2018") n'est pas refusee.
 # "12a" ou "TRUE" restent admis. Comparaisons faites octet par octet
-# (useBytes, motifs ASCII), sans conversion d'encodage : une cellule non UTF-8
-# lue en locale UTF-8 ne provoque pas d'erreur. L'espace insecable est
-# remplace par une espace sur les octets bruts, en UTF-8 (C2 A0) comme en
+# (useBytes, motifs ASCII), sans conversion d'encodage : le predicat isole ne
+# leve pas d'erreur sur une cellule non UTF-8 lue en locale UTF-8, mais
+# usp_lire_vecteur() echoue plus tot sur une telle cellule, dans trimws()
+# (defaut suivi par l'issue #99). Les espaces insecables sont remplacees par
+# une espace sur les octets bruts, en UTF-8 (C2 A0, E2 80 AF) comme en
 # Windows-1252 (A0) : un litteral "\u00a0" dans gsub() donnait, sous une
 # locale Windows-1252, un resultat qui changeait entre le premier appel et
 # les suivants (mesure du 26/09/2026, R 4.3.1).
@@ -560,12 +567,20 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
   x <- vapply(cel, function(s) {
     if (is.na(s)) return(NA_character_)
     r <- charToRaw(s)
+    # U+202F (E2 80 AF) -> une espace
+    n <- length(r)
+    if (n >= 3) {
+      i <- which(r[1:(n - 2)] == as.raw(0xe2) & r[2:(n - 1)] == as.raw(0x80) &
+                 r[3:n] == as.raw(0xaf))
+      if (length(i)) { r[i] <- as.raw(0x20); r <- r[-c(i + 1L, i + 2L)] }
+    }
     suivant <- c(r[-1], as.raw(0))
     r <- r[!(r == as.raw(0xc2) & suivant == as.raw(0xa0))]
     r[r == as.raw(0xa0)] <- as.raw(0x20)
     rawToChar(r)
   }, character(1), USE.NAMES = FALSE)
-  b <- grepl("^[0-9 .,'+-]*[0-9][0-9 .,'+-]*$", x, useBytes = TRUE)
+  b <- grepl("^[0-9 .,'+-]*[0-9][0-9 .,'+-]*$", x, useBytes = TRUE) &
+    !grepl("^[0-9]{4}-[0-9]{2,4}$", x, useBytes = TRUE)
   unname(!is.na(cel) & (a | b))
 }
 
