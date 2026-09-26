@@ -13,8 +13,10 @@
 #       moins une fonction. Un nom introuvable peut etre exempte nommement
 #       (liste EXEMPTES_CODE : nom, motif de contexte, motif ecrit ; decision
 #       Q-O3 du 24/09/2026) : c'est le cas des primitives Shiny citees dans
-#       la colonne "Interdit" du tableau d'architecture. Une exemption qui
-#       n'exempte plus rien est un ecart (exemption perimee) ;
+#       la colonne "Interdit" du tableau d'architecture. Un nom exempte est
+#       juge sans consulter les paquets (verdict independant des paquets
+#       installes, issue #86). Une exemption qui n'exempte plus rien est un
+#       ecart (exemption perimee) ;
 #    2. les decomptes de lignes de tests annonces par le document :
 #       a) VERIFIES automatiquement pour les phrases du registre DECOMPTES
 #          (plus bas), chacune ancree sur sa formulation exacte et rattachee a
@@ -252,6 +254,20 @@ appliquer_exemptions <- function(cit, statuts, lignes, exemptions = EXEMPTES_COD
                              stringsAsFactors = FALSE))
 }
 
+# Statuts des noms cites (vecteur nomme, par nom). Un nom vise par une
+# exemption est juge contre le code du depot seul (moteur, affichage, app.R,
+# tests, chemin de recherche de base), sans consulter les paquets : une
+# exemption couvre un nom absent du code, et son application comme sa
+# peremption ne doivent pas dependre des paquets installes (issue #86 :
+# reactive() et render*() trouves dans shiny quand il est installe,
+# introuvables sinon).
+statuts_citations <- function(noms, env, paquets = character(0), defs = NULL, exemptions = EXEMPTES_CODE) {
+  exemptes <- vapply(exemptions, `[[`, character(1), "nom")
+  vapply(noms, function(n)
+    statut_fonction(n, env, paquets = if (n %in% exemptes) character(0) else paquets, defs = defs),
+    character(1))
+}
+
 # ---------------------------------------------------------------------------
 #  Decomptes
 # ---------------------------------------------------------------------------
@@ -456,7 +472,7 @@ if (sys.nframe() == 0L) {
                                   list.files(file.path(RACINE, "tests"), pattern = "[.]R$", full.names = TRUE)))
   cit <- citations_fonctions(extraire_codes(tex))
   noms <- unique(cit$nom)
-  statuts <- vapply(noms, statut_fonction, character(1), env = env, paquets = paquets, defs = defs)
+  statuts <- statuts_citations(noms, env = env, paquets = paquets, defs = defs)
   cat(sprintf("=== 1. Fonctions citees par \\code{nom()} : %d citation(s), %d nom(s) distinct(s)\n",
               nrow(cit), length(noms)))
   # Recapitulatif par nom distinct, APRES exemptions : un nom introuvable

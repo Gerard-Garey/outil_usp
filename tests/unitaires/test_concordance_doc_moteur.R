@@ -8,7 +8,8 @@
 #  desechappement, citations de fonction (qualifiees, internes, a joker,
 #  avec arguments), nombres en lettres, registre des decomptes (phrase
 #  verifiee, ecart, phrase introuvable), inventaire, familles, exemptions
-#  nominatives (appliquee, ancree sur son contexte, perimee), seuil de B
+#  nominatives (appliquee, ancree sur son contexte, perimee, jugee sans
+#  paquet : issue #86), seuil de B
 #  (valider_B(), --B sous B_MIN refuse), recapitulatif apres exemptions et
 #  mode --strict (script lance sur une copie modifiee du .tex). L'etat reel
 #  du depot n'est pas juge ici : c'est l'etape --strict de la CI qui le fait
@@ -122,6 +123,18 @@ ex2 <- cc$appliquer_exemptions(cit_ex, c(reactive = "moteur ou affichage", "rend
                                doc_ex, ex_reg[1:2])
 verifier("Exemption d'un nom devenu trouvable : perimee, pas d'ecart pour ce nom",
          identical(ex2$perimees$nom, "reactive") && !nrow(ex2$ecarts))
+# Issue #86 : un nom exempte est juge sans consulter les paquets. Simule avec
+# tools (installe avec R, non attache par Rscript) a la place de shiny :
+# file_ext() et le joker file_* ne sont trouves que dans le paquet.
+.env86 <- new.env(parent = globalenv())
+.ex86 <- list(list(nom = "file_ext", contexte = "x", fenetre = 0L, motif = "m"),
+              list(nom = "file_*", contexte = "x", fenetre = 0L, motif = "m"))
+.st86 <- cc$statuts_citations(c("file_ext", "file_*", "md5sum"), .env86, paquets = "tools", exemptions = .ex86)
+.st86_sans <- cc$statuts_citations(c("file_ext", "file_*"), .env86, paquets = "tools", exemptions = list())
+verifier("Issue #86 (temoin) : sans exemption, file_ext() et file_*() sont trouves dans le paquet tools",
+         identical(.st86_sans[["file_ext"]], "paquet tools") && startsWith(.st86_sans[["file_*"]], "joker ("))
+verifier("Issue #86 : nom et joker exemptes juges sans paquet (INTROUVABLE), nom non exempte trouve dans le paquet",
+         identical(unname(.st86), c("INTROUVABLE", "INTROUVABLE", "paquet tools")))
 verifier("Liste EXEMPTES_CODE du script : reactive et render*, motif de la colonne Interdit",
          identical(vapply(cc$EXEMPTES_CODE, `[[`, "", "nom"), c("reactive", "render*")) &&
            all(grepl("Interdit", vapply(cc$EXEMPTES_CODE, `[[`, "", "motif"))))
