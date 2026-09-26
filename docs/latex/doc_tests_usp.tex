@@ -1871,7 +1871,23 @@ Un refus n'est pas un avertissement que l'on peut laisser passer~: l'interface l
 restitue par un bandeau persistant portant les motifs renvoyés par le moteur,
 vide les onglets de résultat et rend indisponible l'export du calcul précédent,
 de sorte qu'un paramètre calculé sur d'autres données ne puisse être ni lu ni
-exporté à côté d'un triangle refusé.
+exporté à côté d'un triangle refusé. Le titre du bandeau dit où le calcul s'est arrêté, lu dans
+ce que le moteur retourne, sans règle métier dans l'interface (issue~\#94)~: calcul non lancé
+(les données saisies n'ont pas passé les contrôles de validité du moteur, appelés avant
+\code{run\_engine()})~; calcul refusé par le moteur (\code{ok = FALSE} sans
+\code{validation\$erreur\_r})~; défaut de calcul (\code{ok = FALSE} avec
+\code{validation\$erreur\_r})~; erreur d'usage (\code{run\_engine()} a levé une erreur R, dont le
+texte, écrit par le moteur, nomme l'argument rejeté). Le motif affiché vient toujours du
+moteur~; le diagnostic d'un défaut de calcul (message R, appel, origine, pile) n'est écrit que
+dans le journal de la session R, jamais à l'écran. Un champ $\alpha$, graine ou $\sigma$ standard (saisie libre
+cochée) laissé vide est transmis comme \code{NA} et s'affiche en erreur d'usage~; un champ $T$ vide
+reste refusé par le moteur, sans profondeur implicite, et l'interface ajoute seulement au motif
+le nom du champ en cause. La notification «~Calculs terminés~» n'est émise qu'après un calcul
+abouti. À la lecture d'un fichier, enfin, l'application ne montre jamais un message de R~: un
+fichier CSV ou xlsx illisible (binaire, vide, lignes plus longues que l'en-tête, classeur
+corrompu ou tronqué) est signalé par un message fixe selon le format (\code{lire\_tableau()} de
+\code{app.R}), le message de R étant écrit dans le journal~; l'interprétation d'un tableau lu
+reste au moteur (\code{engine\_lire\_donnees\_csv()}, \code{engine\_lire\_triangle()}).
 
 \subsection*{Méthodes lognormales (annexe XVII, section B/C, paragraphe 2)}
 
