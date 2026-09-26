@@ -425,7 +425,7 @@ familles_produites <- function(o) {
 # ---------------------------------------------------------------------------
 
 # Cles de la colonne "Cle MC" (derniere colonne) du longtable dont l'en-tete
-# porte \textbf{Cle MC} (e accent aigu, ecrit é dans le code pour ne
+# porte \textbf{Cle MC} (e accent aigu, ecrit par l'echappement unicode 00E9 dans le code pour ne
 # pas dependre de la locale de lecture du script), avec la methode de leur
 # section : "MW" sous un
 # intertitre \multicolumn qui contient "Merz", "USP" sous tout autre
