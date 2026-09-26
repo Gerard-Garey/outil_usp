@@ -9,7 +9,7 @@
 #  avec arguments), nombres en lettres, registre des decomptes (phrase
 #  verifiee, ecart, phrase introuvable), inventaire, familles, exemptions
 #  nominatives (appliquee, ancree sur son contexte, perimee, jugee sans
-#  paquet : issue #86), seuil de B
+#  paquet : issue #86), colonne "Cle MC" (issue #91), seuil de B
 #  (valider_B(), --B sous B_MIN refuse), recapitulatif apres exemptions et
 #  mode --strict (script lance sur une copie modifiee du .tex). L'etat reel
 #  du depot n'est pas juge ici : c'est l'etape --strict de la CI qui le fait
@@ -139,6 +139,41 @@ verifier("Liste EXEMPTES_CODE du script : reactive et render*, motif de la colon
          identical(vapply(cc$EXEMPTES_CODE, `[[`, "", "nom"), c("reactive", "render*")) &&
            all(grepl("Interdit", vapply(cc$EXEMPTES_CODE, `[[`, "", "motif"))))
 
+## --- Colonne "Cle MC" de l'index des fonctions (issue #91) ----------------
+doc_mc <- c("\\code{A} & x \\\\",
+            "\\begin{longtable}{ll}",
+            "\\textbf{Test} & \\textbf{Clé MC} \\\\",
+            "\\endfirsthead",
+            "\\multicolumn{2}{l}{\\textit{Suite page suivante}} \\\\",
+            "\\endlastfoot",
+            "\\multicolumn{2}{l}{\\textbf{Hypothèse H1}} \\\\",
+            "\\midrule",
+            "Student & \\code{test\\_intercept()} (Dallal \\& Wilkinson) & \\code{Intercept} \\\\",
+            "Spearman & \\code{stats::cor.test()} & \\code{SpearVol} /",
+            "\\code{SpearTps} \\\\",
+            "TOST & \\code{test\\_tost\\_intercept()} & --- \\\\",
+            "\\multicolumn{2}{l}{\\textbf{Méthode Merz--Wüthrich --- M1}} \\\\",
+            "Pente & \\code{.mw\\_lm\\_intra()} & \\code{Intercept} \\\\",
+            "Bootstrap & \\code{mw\\_bootstrap()} & toutes les clés ci-dessus \\\\",
+            "\\end{longtable}")
+cles_mc <- cc$cles_mc_index(doc_mc)
+verifier("cles_mc_index : cles de la derniere colonne apres \\endlastfoot, methode de l'intertitre, ligne exacte",
+         identical(cles_mc$cle, c("Intercept", "SpearVol", "SpearTps", "Intercept")) &&
+           identical(cles_mc$methode, c("USP", "USP", "USP", "MW")) &&
+           identical(cles_mc$ligne, c(9L, 10L, 11L, 14L)))
+verifier("cles_mc_index : NULL si le tableau a en-tete Clé MC est absent",
+         is.null(cc$cles_mc_index(doc_mc[-3])))
+.cat_mc <- list(USP = c("Intercept", "SpearVol", "SpearTps"), MW = c("PenteIntra", "Origine"))
+e_mc <- cc$verifier_cles_mc(cles_mc, .cat_mc)
+verifier("Issue #91 : cle USP (Intercept) citee sous un intertitre Merz--Wuthrich signalee, avec son catalogue d'origine",
+         identical(e_mc$cle, "Intercept") && identical(e_mc$ligne, 14L) &&
+           identical(e_mc$motif, "absente du catalogue MW (cle du catalogue USP)"))
+verifier("verifier_cles_mc : cle hors de toute section signalee ; aucune cle, aucun ecart",
+         identical(cc$verifier_cles_mc(data.frame(ligne = 1L, cle = "SW", methode = NA_character_,
+                                                  stringsAsFactors = FALSE), .cat_mc)$motif,
+                   "hors de toute section de methode") &&
+           !nrow(cc$verifier_cles_mc(cles_mc[0, ], .cat_mc)))
+
 ## --- Seuil de B (structure de la table des tests dependante de B) ---------
 .err <- function(expr) tryCatch({ expr; NA_character_ }, error = function(e) conditionMessage(e))
 verifier("B_MIN = 21 : premier B pour lequel length(usp_b) > 20 (condition de run_engine())",
@@ -171,6 +206,18 @@ verifier("--strict echoue (code 1) sur un nom invente dans une copie du .tex, si
            any(grepl("non exempte", r_mut$sortie)))
 verifier("Recapitulatif de la section 1 sur la copie mutante : 1 nom INTROUVABLE non exempte",
          any(grepl("^  INTROUVABLE non exempte +1$", r_mut$sortie)))
+# Issue #91 : regression reelle (e2eabea) reinjectee dans une copie du .tex,
+# la cle MW PenteIntra remplacee par la cle USP Intercept sur la ligne M1.
+.tex_91 <- readLines(file.path(.racine, "docs", "latex", "doc_tests_usp.tex"), warn = FALSE, encoding = "UTF-8")
+.k91 <- grep("& \\code{PenteIntra} \\\\", .tex_91, fixed = TRUE)
+.tex_mutant <- tempfile(fileext = ".tex")
+writeLines(sub("\\code{PenteIntra}", "\\code{Intercept}", .tex_91, fixed = TRUE), .tex_mutant, useBytes = TRUE)
+r_91 <- .lancer_concordance("--strict", "--tex", .tex_mutant)
+unlink(.tex_mutant)
+verifier("Issue #91 : --strict echoue (code 1) sur la cle USP Intercept injectee a la ligne M1 d'une copie du .tex",
+         length(.k91) == 1L && r_91$code == 1L &&
+           any(grepl(sprintf("^    l\\.%-5d Intercept +absente du catalogue MW \\(cle du catalogue USP\\)$", .k91),
+                     r_91$sortie)))
 r_b20 <- .lancer_concordance("--B", "20")
 verifier("--B 20 refuse par le script lance (code 1, erreur explicite, moteur non execute)",
          r_b20$code == 1L && any(grepl("--B = 20 refuse", r_b20$sortie, fixed = TRUE)) &&
