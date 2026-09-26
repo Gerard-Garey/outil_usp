@@ -593,7 +593,8 @@ ajusté \\
 \code{B\_effectif}, \code{granularite}, \code{sigma\_boot}, \code{B}, \code{granularite\_stat} \\
 \code{usp\_tests()} & \code{fit}, \code{boot}, \code{alpha} (0,10),
 \code{theta\_equiv} (0,10), \code{delta\_equiv}, \code{robustesse} (\code{NULL}),
-\code{methode} (\code{"premium"}, ou \code{"reserve1"}~; toute autre valeur refusée) &
+\code{methode} (obligatoire, sans défaut~: \code{"premium"} ou \code{"reserve1"}~; absence ou
+toute autre valeur refusée par une erreur) &
 liste des tests (H0, H1, statistique, 3 p-values, nature~; citation de l'hypothèse H1 à H4 dans
 le champ \code{famille}, B(2)(g) ou C(2)(e) selon \code{methode}, section~\ref{sec:h1}), enregistrés par l'\code{add()}
 d'\code{engine\_registre\_tests()}~; \code{robustesse}, calculé par
@@ -690,7 +691,7 @@ $0{,}02$) & repères de lecture des graphiques d'influence, sans verdict
 complet~; \code{ok = FALSE} pour un refus de données ou un défaut de calcul intercepté, erreur
 R pour une erreur d'usage (§\ref{sec:controles}) \\
 \code{.engine\_verifier\_}\newline\code{usage()} & \code{B}, \code{seed}, \code{bareme},
-\code{alpha}, \code{sigma\_standard} & erreur R explicite, citant la valeur reçue, pour un
+\code{alpha}, \code{sigma\_standard}, \code{segment}, \code{annexe} & erreur R explicite, citant la valeur reçue, pour un
 argument d'appel invalide (erreur d'usage), appelée par les deux branches avant tout calcul
 (§\ref{sec:controles}) \\
 \code{.engine\_calcul\_}\newline\code{protege()} & \code{methode}, horodatage,
@@ -1885,10 +1886,14 @@ autres qu'un calcul abouti, à ne pas confondre (issue~\#88, décision du mainte
   \code{validation\$erreurs}, aucune erreur R~;
 \item l'\textbf{erreur d'usage}~: un argument d'appel est invalide, et la faute est dans l'appel,
   non dans les données~; \code{run\_engine()} lève avant tout calcul une erreur R explicite et ne
-  rend aucun objet. En relèvent \code{methode} ou \code{annexe} hors de leur liste, un segment
-  inconnu, l'absence à la fois de \code{segment} et de \code{sigma\_standard}, \code{xt}
-  manquant, la méthode du risque de réserve n\textsuperscript{o}~2 sans triangle, et les cinq
-  arguments contrôlés par \code{.engine\_verifier\_usage()}, appelée par les deux branches~:
+  rend aucun objet. En relèvent \code{methode} ou \code{annexe} hors de leur liste, \code{xt}
+  manquant, la méthode du risque de réserve n\textsuperscript{o}~2 sans triangle, et les
+  arguments contrôlés par \code{.engine\_verifier\_usage()}, appelée par les deux branches avant
+  toute validation des données, donc quelles que soient celles-ci~: \code{segment} (avec
+  \code{annexe}), un segment inconnu de l'annexe ou l'absence à la fois de \code{segment} et de
+  \code{sigma\_standard} étant refusés (contrôles faits jusqu'à la revue finale de l'issue~\#88
+  après la validation des données, si bien que le même appel levait une erreur R sur des données
+  valides et rendait \code{ok = FALSE} sur des données refusées)~;
   \code{B}, nombre scalaire fini, $B \ge 0$~; \code{seed}, nombre scalaire fini entier,
   $|\mathtt{seed}| \le 2\,147\,483\,647$ (\code{.Machine\$integer.max}, domaine de
   \code{set.seed()}), \code{NULL} étant refusé parce que \code{set.seed(NULL)} réinitialise le
@@ -1900,7 +1905,8 @@ autres qu'un calcul abouti, à ne pas confondre (issue~\#88, décision du mainte
   \code{ALERTE} des tests en sens «~rejeter~» disparaîtrait et le verdict ne suivrait plus la
   règle de la section~\ref{sec:synthese}~; \code{sigma\_standard}, \code{NULL} ou nombre
   scalaire fini strictement positif, aucun écart-type réglementaire n'étant nul. Un attribut
-  (noms, dimensions) porté par l'un de ces cinq arguments est refusé plutôt que normalisé~: il
+  (noms, dimensions) porté par \code{B}, \code{seed}, \code{bareme}, \code{alpha} ou
+  \code{sigma\_standard} est refusé plutôt que normalisé~: il
   se propageait tel quel dans \code{\$metadata} et dans $\sigma_{\mathrm{USP}}$. Le message, écrit
   par le moteur, cite la valeur reçue (mesuré~: $\alpha = 0{,}30$, \code{seed = NULL},
   \code{seed = 1.5}, \code{bareme = "co"} et \code{sigma\_standard = 0} lèvent chacun
@@ -3546,10 +3552,12 @@ n\textsuperscript{o}~1).}
 de réserve n\textsuperscript{o}~1, p.~274~; numérotation et texte identiques dans la version
 consolidée du 14~novembre 2024, citée ci-dessus). Le texte énonce une relation entre les données
 (pertes agrégées ou montant de C(1)(a), et primes acquises ou provision d'ouverture). Le texte
-nomme, pour la méthode du risque de primes, les pertes agrégées \emph{attendues} (leur espérance)
-et, pour la méthode du risque de réserve n\textsuperscript{o}~1, le montant de C(1)(a) lui-même,
-sans le mot «~attendu~»~; il n'écrit ni la forme fonctionnelle de la relation ni l'absence de
-terme constant. L'outil lit les deux points comme une relation sur l'espérance. \emph{Traduction dans le modèle réglementaire} (lecture de
+nomme, pour la méthode du risque de primes, les pertes agrégées \emph{attendues} (l'outil y
+lit leur espérance) et, pour la méthode du risque de réserve n\textsuperscript{o}~1, le montant
+de C(1)(a) lui-même, sans le mot «~attendu~»~; il ne l'écrit pas sous forme d'équation~;
+l'outil lit «~linéaire proportionnelle~» comme $\mathbb{E}[Y_t] = \beta x_t$, sans terme
+constant, et «~pertes agrégées attendues~» comme l'espérance. L'outil lit les deux points comme
+une relation sur l'espérance. \emph{Traduction dans le modèle réglementaire} (lecture de
 l'outil~: modèle des paragraphes (5) et (6) des sections~B et~C, section~\ref{sec:notations})~:
 l'espérance de $Y_t$ est \emph{linéairement proportionnelle} à $x_t$,
 $\mathbb{E}[Y_t] = \beta x_t$, sans terme constant, avec $\beta$ constant dans le temps.
@@ -4716,9 +4724,11 @@ et pour la méthode du risque de réserve n\textsuperscript{o}~1).}
 texte ne nomme ni l'indépendance ni aucune autre condition~: il pose seulement que l'estimation
 par maximum de vraisemblance est adéquate. \emph{Lecture de l'outil}~: l'estimation visée est
 celle de $(\delta, \gamma)$ par minimisation du critère des paragraphes B(6) et C(6), que
-\code{usp\_objectif()} calcule exactement (pénalité, la valeur $10^{12}$, hors de
-$\delta \in [0,1]$, que B(6) exclut~; section~\ref{sec:inventaire})~; ce critère est $-2\ln L$ du
-modèle lognormal, profilée en $\ln\beta$, à la constante $T\ln(2\pi) + 2\sum_t \ln y_t$ près.
+\code{usp\_objectif()} calcule exactement (pénalité $10^{12}$ hors de $\delta \in [0,1]$, que B(6)
+exclut, et pour une valeur non finie, de $\delta$, de $\gamma$ ou du critère~;
+section~\ref{sec:inventaire})~; ce critère est $-2\ln L$ du modèle lognormal, profilée en
+$\ln\beta$, à la constante $T\ln(2\pi) + 2\sum_t \ln y_t$ près, où $\pi$ désigne la constante
+et non les poids $\pi_t$.
 Son adéquation suppose notamment l'indépendance des $Y_t$ conditionnellement aux $x_t$, sans
 autocorrélation résiduelle~: le critère est une somme de contributions par année, c'est-à-dire la
 log-vraisemblance d'observations indépendantes~; sous dépendance sérielle, son minimiseur n'est
