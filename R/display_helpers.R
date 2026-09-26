@@ -929,13 +929,16 @@ table_parametre_standard <- function(res) {
   data.frame(Grandeur = d$grandeur, Valeur = txt, stringsAsFactors = FALSE)
 }
 
-# Vrai si le sigma standard retenu est une saisie libre (derogation au
-# parametre reglementaire, decision du mainteneur du 24/09/2026, issue #55) :
-# lecture de la ligne "Origine" de engine_parametre_standard(res).
-derogation_sigma_standard <- function(res) {
-  d <- engine_parametre_standard(res)
-  !is.null(d) && any(grepl("derogation", d$texte[d$grandeur == "Origine du sigma standard retenu"],
-                           fixed = TRUE))
+# Libelle de la derogation portant sur `parametre` ("sigma_standard" ou
+# "bareme"), ou NULL s'il n'y en a pas (issue #93) : lecture de
+# engine_derogations(res), seul point de lecture des derogations (sigma
+# standard saisi, #55 ; bareme de credibilite saisi ou non determine par la
+# section G, #93). Aucun calcul.
+libelle_derogation <- function(res, parametre) {
+  d <- engine_derogations(res)
+  if (is.null(d)) return(NULL)
+  l <- d$libelle[d$parametre == parametre]
+  if (length(l)) l[1] else NULL
 }
 
 # Generateur aleatoire et graines fixes consignes dans res$metadata (issue #37,
@@ -1320,10 +1323,13 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
               if (is.null(m$segment)) "\u2013" else paste0(m$segment, " \u2014 ", .txt(m$libelle_segment)),
               as.character(m$T), as.character(m$B),
               format(res$bootstrap$granularite, digits = 6),
-              format(m$alpha), format(m$seed, scientific = FALSE), .txt(m$bareme),
+              format(m$alpha), format(m$seed, scientific = FALSE),
+              paste0(.txt(m$bareme),
+                     if (!is.null(lib_bareme <- libelle_derogation(res, "bareme")))
+                       paste0(" \u2014 <b>", .echap_html(lib_bareme), "</b>")),
               paste0(format(m$sigma_standard, digits = 10),
-                     if (derogation_sigma_standard(res))
-                       " \u2014 <b>sigma standard saisi, d\u00e9rogation au param\u00e8tre r\u00e9glementaire</b>"),
+                     if (!is.null(lib_sigma <- libelle_derogation(res, "sigma_standard")))
+                       paste0(" \u2014 <b>", .echap_html(lib_sigma), "</b>")),
               .txt(table_parametre_standard(res)$Valeur[1]))
     # Generateur et graines fixes (issue #37) : lignes absentes si le champ
     # manque dans metadata.
@@ -1415,13 +1421,19 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
             "&nbsp;|&nbsp; 95 %% : [%.4f ; %.4f]</div>"), ic[2], ic[4], ic[1], ic[5]),
           sprintf("<div class='gris' style='margin-top:6px'>%s</div>", .echap_html(texte_formule(res))),
           "</div>",
-          "<h3>Param\u00e8tre standard remplac\u00e9</h3>",
-          if (derogation_sigma_standard(res))
-            .bandeau_html(paste("<b>sigma standard saisi, d\u00e9rogation au param\u00e8tre",
-                                "r\u00e9glementaire</b> : le sigma standard du m\u00e9lange est une",
+          paste("<h3>Param\u00e8tre standard remplac\u00e9 (art. 218, paragraphe 1) et",
+                "bar\u00e8me de cr\u00e9dibilit\u00e9 (annexe XVII, section G)</h3>"),
+          # Bandeaux des derogations (issue #93) : une ligne par derogation
+          # de engine_derogations() ; partie en gras reprise du libelle du
+          # moteur, phrase explicative du sigma standard inchangee.
+          if (!is.null(lib_sigma <- libelle_derogation(res, "sigma_standard")))
+            .bandeau_html(paste(paste0("<b>", .echap_html(lib_sigma), "</b>"),
+                                ": le sigma standard du m\u00e9lange est une",
                                 "saisie libre, et non le param\u00e8tre r\u00e9glementaire de l'annexe",
                                 "(m\u00eame s'il en \u00e9gale la valeur) ; nature des donn\u00e9es :",
                                 paste0(.txt(table_parametre_standard(res)$Valeur[1]), "."))),
+          if (!is.null(lib_bareme <- libelle_derogation(res, "bareme")))
+            .bandeau_html(paste0("<b>", .echap_html(lib_bareme), "</b>.")),
           html_table(local({ d <- table_parametre_standard(res); d[] <- lapply(d, .txt); d }),
                      classe = "data"),
           "<h3>Cha\u00eene de calibration</h3>",

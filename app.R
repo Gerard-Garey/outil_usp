@@ -345,8 +345,9 @@ ui <- fluidPage(
               h4("Parametre retenu"),
               uiOutput("bloc_final")),
           div(class = "bloc",
-              h4("Parametre standard remplace (art. 218, paragraphe 1)"),
-              uiOutput("derogation_sigma"),
+              h4(paste("Parametre standard remplace (art. 218, paragraphe 1) et bareme de",
+                       "credibilite (annexe XVII, section G)")),
+              uiOutput("derogations"),
               tableOutput("tab_param_std")),
           div(class = "bloc",
               h4("Chaine de calibration (annexe XVII, sections B/C et G)"),
@@ -1086,11 +1087,19 @@ server <- function(input, output, session) {
   # engine_parametre_standard(), mises en forme par display_helpers.R.
   output$tab_param_std <- renderTable(table_parametre_standard(R()),
                                       striped = TRUE, width = "100%")
-  output$derogation_sigma <- renderUI({
-    if (!derogation_sigma_standard(R())) return(NULL)
-    div(class = "avert", tags$b("sigma standard saisi, derogation au parametre reglementaire"),
-        " : le sigma standard du melange est une saisie libre, et non le parametre",
-        "reglementaire de l'annexe (meme s'il en egale la valeur).")
+  # Bandeaux des derogations (issue #93) : une ligne par derogation de
+  # engine_derogations(), lue par libelle_derogation() : partie en gras
+  # reprise du libelle du moteur, phrase explicative du sigma standard
+  # inchangee.
+  output$derogations <- renderUI({
+    lib_sigma <- libelle_derogation(R(), "sigma_standard")
+    lib_bareme <- libelle_derogation(R(), "bareme")
+    tagList(
+      if (!is.null(lib_sigma))
+        div(class = "avert", tags$b(lib_sigma),
+            " : le sigma standard du melange est une saisie libre, et non le parametre",
+            "reglementaire de l'annexe (meme s'il en egale la valeur)."),
+      if (!is.null(lib_bareme)) div(class = "avert", tags$b(lib_bareme)))
   })
 
   output$tab_calibration <- renderTable({
@@ -1121,9 +1130,12 @@ server <- function(input, output, session) {
     cat("Perimetre            : annexe", m$annexe, "\n")
     cat("Segment              :", m$segment, "-", m$libelle_segment, "\n")
     cat("sigma standard       :", m$sigma_standard,
-        if (derogation_sigma_standard(R())) "(saisi : derogation au parametre reglementaire)", "\n")
+        if (!is.null(libelle_derogation(R(), "sigma_standard")))
+          "(saisi : derogation au parametre reglementaire)", "\n")
     cat("Nature des donnees   :", table_parametre_standard(R())$Valeur[1], "\n")
-    cat("Bareme credibilite   :", m$bareme, "\n")
+    lib_bareme <- libelle_derogation(R(), "bareme")
+    cat("Bareme credibilite   :", m$bareme,
+        if (!is.null(lib_bareme)) paste0("(", lib_bareme, ")"), "\n")
     cat("Profondeur T         :", m$T, "\n")
     cat("Replications B       :", m$B, "\n")
     cat("Granularite p_mc     :", format(R()$bootstrap$granularite),

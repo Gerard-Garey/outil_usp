@@ -239,8 +239,10 @@ for (cas in bout_en_bout_M6) {
                   nature_donnees = if (cas$methode == "premium") "brutes")
   pf <- res$parametre_final
   etiquette <- sprintf("run_engine %s, %s-%d", cas$methode, cas$annexe, cas$segment)
-  verifier(sprintf("%s : T = 8, bareme %s, c = %g", etiquette, cas$bareme, cas$cred),
+  # bareme_saisi (issue #93) : bareme deduit du segment, drapeau FALSE.
+  verifier(sprintf("%s : T = 8, bareme %s (non saisi), c = %g", etiquette, cas$bareme, cas$cred),
            isTRUE(res$ok) && res$metadata$T == 8 && res$metadata$bareme == cas$bareme &&
+             identical(res$metadata$bareme_saisi, FALSE) &&
              isTRUE(proche(pf$credibilite, cas$cred)))
   verifier(sprintf("%s : sigma_standard = %g %% (xhtml l. %d, M6)", etiquette,
                    100 * cas$sigma_std, cas$ligne),
@@ -448,9 +450,11 @@ verifier("Methodes de reserve : donnees \"brutes\" refusees (ok = FALSE, motif C
            any(grepl("section D, point (2)(f)", r2_brut$validation$erreurs, fixed = TRUE)) &&
            identical(r2_brut$metadata$methode, "reserve2"))
 # Ordre des champs : sigma_standard_saisi (#55) est suivi des seuls champs
-# ajoutes par l'issue #37 (generateur et graines fixes), puis des champs
-# d'execution ; les champs ajoutes le sont en fin de metadata.
-verifier("Drapeau explicite sigma_standard_saisi (FALSE sans saisie) pour les trois methodes, suivi des seuls champs de #37 puis de horodatage",
+# ajoutes par l'issue #37 (generateur et graines fixes), puis de
+# bareme_saisi (#93), dernier avant les champs d'execution ; les champs
+# ajoutes le sont en fin de metadata (patch des references, feuille ajoutee
+# en fin de conteneur).
+verifier("Drapeau explicite sigma_standard_saisi (FALSE sans saisie) pour les trois methodes, suivi des seuls champs de #37, de bareme_saisi (#93) puis de horodatage",
          identical(r_b$metadata$sigma_standard_saisi, FALSE) &&
            identical(r1_sans$metadata$sigma_standard_saisi, FALSE) &&
            identical(r2_sans$metadata$sigma_standard_saisi, FALSE) &&
@@ -458,7 +462,8 @@ verifier("Drapeau explicite sigma_standard_saisi (FALSE sans saisie) pour les tr
              nm <- names(r$metadata)
              entre <- nm[seq.int(match("sigma_standard_saisi", nm) + 1L, match("horodatage", nm) - 1L)]
              attendu <- c("generateur", "seed_loi_nulle_sw",
-                          if (!identical(r$metadata$methode, "reserve2")) "seed_enveloppe_qq")
+                          if (!identical(r$metadata$methode, "reserve2")) "seed_enveloppe_qq",
+                          "bareme_saisi")
              identical(entre, attendu)
            }, logical(1))))
 verifier("Saisie EGALE a la table : derogation pour les trois methodes (drapeau TRUE, origine \"saisi\")",
@@ -495,9 +500,176 @@ verifier("engine_parametre_standard, reserve : nettes (exigence), a) iv), deroga
            grepl("^nettes", d1$texte[1]) && grepl("point a) iv)", d1$texte[2], fixed = TRUE) &&
              grepl("section C, point (2)(c)", d1$texte[3], fixed = TRUE) &&
              grepl("section D, point (2)(f)", d2$texte[3], fixed = TRUE) &&
-             identical(d2$texte[nrow(d2)], "parametre reglementaire") &&
-             identical(d3$texte[nrow(d3)], "sigma standard saisi, derogation au parametre reglementaire")
+             identical(d2$texte[d2$grandeur == "Origine du sigma standard retenu"],
+                       "parametre reglementaire") &&
+             identical(d3$texte[d3$grandeur == "Origine du sigma standard retenu"],
+                       "sigma standard saisi, derogation au parametre reglementaire")
          })
+## --- Bareme de credibilite saisi : derogation declaree (issue #93) ----------
+# Source : annexe XVII, section G, points (1) et (2) (marqueur B, JOUE L 12
+# du 17.1.2015, p. L 12/282) : le bareme est une fonction du segment et de
+# T, le texte n'ouvre aucun choix. Decision du mainteneur du 26/09/2026
+# (lecture (B), avis actuary de l'issue #93) : un bareme saisi est admis et
+# signale par metadata$bareme_saisi, meme egal au bareme du segment
+# (parallelisme strict avec sigma_standard_saisi) ; sans segment designe, le
+# bareme "court" pose par convention est restitue comme non determine par
+# la section G. Valeurs attendues du chiffrage de l'avis actuary (tableau
+# du paragraphe 3, jeu donnees_ln.csv, brutes, a 1e-8 pres), saisies en dur ;
+# tolerance relative 1e-6, celle des cas M6 ci-dessus.
+# Le refus d'une valeur de bareme invalide ("moyen", "Court", NA,
+# c("court", "long"), 1) par une erreur d'usage est teste dans
+# test_controles_entree.R (issue #88).
+sans_meta <- function(r) { r$metadata <- NULL; r }
+meta_sans <- function(r, champs = c("horodatage", "duree_sec", "bareme_saisi")) {
+  m <- r$metadata; m[champs] <- NULL; m
+}
+r_b1c <- do.call(run_engine, c(.args55, nature_donnees = "brutes", bareme = "court"))
+r_b1l <- do.call(run_engine, c(.args55, nature_donnees = "brutes", bareme = "long"))
+.args93_2 <- .args55; .args93_2$segment <- 2
+r_b2  <- do.call(run_engine, c(.args93_2, nature_donnees = "brutes"))
+r_b2l <- do.call(run_engine, c(.args93_2, nature_donnees = "brutes", bareme = "long"))
+verifier("Bareme force : II-1 brutes \"court\" -> c = 0,81, sigma_USP = 0,11572284 ; II-2 brutes \"long\" -> c = 0,59, sigma_USP = 0,10325244 (#93)",
+         identical(r_b1c$parametre_final$credibilite, 0.81) &&
+           isTRUE(proche(r_b1c$parametre_final$sigma_usp, 0.11572284, rel = 1e-6)) &&
+           identical(r_b2l$parametre_final$credibilite, 0.59) &&
+           isTRUE(proche(r_b2l$parametre_final$sigma_usp, 0.10325244, rel = 1e-6)) &&
+           identical(r_b1c$parametre_final$sigma_estime, r_b$parametre_final$sigma_estime) &&
+           identical(r_b2l$parametre_final$sigma_estime, r_b2$parametre_final$sigma_estime))
+# Identite exacte, independante des donnees : sigma estime corrige ne depend
+# pas du bareme, seul le poids c du melange change.
+verifier("Bareme force : sigma_USP(force) - sigma_USP(regl.) = (c_force - c_regl.) x (sigma estime corrige - sigma standard) (#93)",
+         all(vapply(list(list(r_b1c, r_b), list(r_b2l, r_b2)), function(p) {
+           f <- p[[1]]$parametre_final; g <- p[[2]]$parametre_final
+           isTRUE(proche(f$sigma_usp - g$sigma_usp,
+                         (f$credibilite - g$credibilite) * (g$sigma_estime - g$sigma_standard),
+                         rel = 1e-10))
+         }, logical(1))))
+r1_c <- run_engine(xt = .ln_m6$xt, yt = .ln_m6$yt, methode = "reserve1", segment = 1,
+                   annexe = "II", B = B_M6, bareme = "court")
+r1_l <- run_engine(xt = .ln_m6$xt, yt = .ln_m6$yt, methode = "reserve1", segment = 1,
+                   annexe = "II", B = B_M6, bareme = "long")
+r2_c <- run_engine(methode = "reserve2", triangle = .tri_m6, segment = 1, annexe = "II",
+                   B = B_M6, bareme = "court")
+r2_l <- run_engine(methode = "reserve2", triangle = .tri_m6, segment = 1, annexe = "II",
+                   B = B_M6, bareme = "long")
+origine_bareme <- function(r) {
+  d <- engine_parametre_standard(r); d$texte[d$grandeur == "Origine du bareme retenu"]
+}
+verifier("Drapeau bareme_saisi : FALSE sans saisie, TRUE avec saisie (contraire ou egale), trois methodes (#93)",
+         all(vapply(list(r_b, r1_sans, r2_sans), function(r)
+           identical(r$metadata$bareme_saisi, FALSE), logical(1))) &&
+           all(vapply(list(r_b1c, r_b1l, r1_c, r1_l, r2_c, r2_l), function(r)
+             identical(r$metadata$bareme_saisi, TRUE), logical(1))))
+verifier("Saisie EGALE au bareme du segment (II-1 \"long\" : premium, reserve1, reserve2) : resultat identical hors metadata, drapeau TRUE, origine \"saisi, egal\" (#93)",
+         all(vapply(list(list(r_b1l, r_b), list(r1_l, r1_sans), list(r2_l, r2_sans)), function(p)
+           identical(sans_meta(p[[1]]), sans_meta(p[[2]])) &&
+             identical(meta_sans(p[[1]]), meta_sans(p[[2]])) &&
+             identical(p[[1]]$metadata$bareme_saisi, TRUE) &&
+             identical(origine_bareme(p[[1]]),
+                       paste("bareme saisi (long), egal au bareme de l'annexe XVII, section G,",
+                             "paragraphe 1 : saisie declaree comme derogation")),
+           logical(1))))
+r_0  <- do.call(run_engine, c(.args55[setdiff(names(.args55), "segment")],
+                              nature_donnees = "brutes", sigma_standard = 0.12))
+r_0l <- do.call(run_engine, c(.args55[setdiff(names(.args55), "segment")],
+                              nature_donnees = "brutes", sigma_standard = 0.12, bareme = "long"))
+verifier("engine_parametre_standard : bareme applicable, bareme retenu (c, T) et origine, quatre etats (#93)",
+         {
+           lignes <- c("Bareme et facteur c applicables (annexe XVII, section G)",
+                       "Bareme et facteur c retenus", "Origine du bareme retenu")
+           d_b <- engine_parametre_standard(r_b); d_c <- engine_parametre_standard(r_b1c)
+           d_2 <- engine_parametre_standard(r_b2l); d_0 <- engine_parametre_standard(r_0)
+           identical(tail(d_b$grandeur, 3), lignes) &&
+             identical(tail(d_b$valeur, 3), c(0.59, 0.59, NA)) &&
+             identical(tail(d_b$texte, 3), c("long, annexe XVII, section G, paragraphe 1", "long, T = 8",
+                                             "bareme reglementaire du segment")) &&
+             identical(tail(d_c$valeur, 3), c(0.59, 0.81, NA)) &&
+             identical(tail(d_c$texte, 3), c("long, annexe XVII, section G, paragraphe 1", "court, T = 8", paste(
+               "bareme saisi (court), contraire a l'annexe XVII, section G, paragraphe 1 :",
+               "derogation au bareme de l'annexe XVII, section G"))) &&
+             identical(tail(d_2$texte, 1), paste(
+               "bareme saisi (long), contraire a l'annexe XVII, section G, paragraphe 2 :",
+               "derogation au bareme de l'annexe XVII, section G")) &&
+             identical(tail(d_0$valeur, 3), c(NA, 0.81, NA)) &&
+             identical(tail(d_0$texte, 3), c("non determine : aucun segment designe",
+               "court, T = 8", paste("bareme par defaut (court), aucun segment designe :",
+                                     "non determine par l'annexe XVII, section G"))) &&
+             identical(origine_bareme(r2_sans), "bareme reglementaire du segment") &&
+             identical(tail(engine_parametre_standard(r2_sans)$valeur, 3), c(0.59, 0.59, NA))
+         })
+verifier("engine_parametre_standard : drapeau bareme_saisi absent ou NA -> erreur ; bareme non saisi incoherent avec le segment -> erreur (#93)",
+         {
+           r_x <- r_b; r_x$metadata$bareme_saisi <- NULL
+           r_y <- r_b; r_y$metadata$bareme_saisi <- NA
+           r_z <- r_b1c; r_z$metadata$bareme_saisi <- FALSE
+           r_w <- r_b; r_w$metadata$bareme <- "court"; r_w$metadata$bareme_saisi <- TRUE
+           leve_erreur(engine_parametre_standard(r_x)) && leve_erreur(engine_parametre_standard(r_y)) &&
+             leve_erreur(engine_parametre_standard(r_z)) &&
+             leve_erreur(engine_parametre_standard(r_w))
+         })
+verifier("engine_derogations : 0 ligne sans derogation ; sigma seul, bareme seul, les deux ; data.frame visible ; NULL si ok = FALSE (#93)",
+         {
+           r_sb <- do.call(run_engine, c(.args55, nature_donnees = "nettes", sigma_standard = 0.12,
+                                         bareme = "court"))
+           d0 <- withVisible(engine_derogations(r_b)); d_s <- engine_derogations(r_d)
+           d_c <- engine_derogations(r_b1c); d_l <- engine_derogations(r_b1l)
+           d_sb <- engine_derogations(r_sb)
+           isTRUE(d0$visible) && is.data.frame(d0$value) && nrow(d0$value) == 0L &&
+             identical(names(d0$value), c("parametre", "valeur_reglementaire", "valeur_retenue",
+                                          "conforme", "libelle")) &&
+             identical(d_s$parametre, "sigma_standard") && identical(d_s$conforme, FALSE) &&
+             identical(d_s$libelle, "sigma standard saisi, derogation au parametre reglementaire") &&
+             identical(d_c$parametre, "bareme") && identical(d_c$conforme, FALSE) &&
+             identical(d_c$valeur_reglementaire, "long") && identical(d_c$valeur_retenue, "court") &&
+             identical(d_c$libelle, paste(
+               "bareme de credibilite saisi (court), derogation au bareme de l'annexe XVII,",
+               "section G : bareme reglementaire du segment 1 de l'annexe II : long (annexe XVII,",
+               "section G, paragraphe 1)")) &&
+             identical(d_l$conforme, TRUE) &&
+             identical(d_l$libelle, paste(
+               "bareme de credibilite saisi (long), egal au bareme de l'annexe XVII, section G,",
+               "paragraphe 1 : saisie declaree comme derogation")) &&
+             identical(d_sb$parametre, c("sigma_standard", "bareme")) &&
+             is.null(engine_derogations(r_sans))
+         })
+verifier("engine_derogations : sans segment, ligne \"non determine par l'annexe XVII, section G\" (conforme NA), saisie ou non ; drapeau absent -> erreur (#93)",
+         {
+           d_0 <- engine_derogations(r_0); d_0l <- engine_derogations(r_0l)
+           r_x <- r_b; r_x$metadata$bareme_saisi <- NULL
+           r_y <- r_b; r_y$metadata$sigma_standard_saisi <- NULL
+           identical(d_0$parametre, c("sigma_standard", "bareme")) &&
+             identical(d_0$conforme, c(NA, NA)) &&
+             identical(d_0$valeur_reglementaire, c(NA_character_, NA_character_)) &&
+             identical(d_0$valeur_retenue[2], "court") &&
+             identical(d_0$libelle[2], paste("bareme de credibilite court non determine par",
+                                             "l'annexe XVII, section G : aucun segment designe")) &&
+             identical(r_0$metadata$bareme_saisi, FALSE) &&
+             identical(d_0l$conforme[2], NA) &&
+             identical(d_0l$libelle[2], paste(
+               "bareme de credibilite saisi (long), non determine par l'annexe XVII, section G :",
+               "aucun segment designe (saisie declaree comme derogation)")) &&
+             identical(origine_bareme(r_0l), paste(
+               "bareme saisi (long), non determine par l'annexe XVII, section G : aucun segment",
+               "designe (saisie declaree comme derogation)")) &&
+             leve_erreur(engine_derogations(r_x)) && leve_erreur(engine_derogations(r_y))
+         })
+# Constat M1 de l'audit de #93 : conforme = TRUE pour un sigma standard saisi
+# egal a NP standard x sigma brut (0,08 = 0,8 x 10 %, premium nettes II-1),
+# egalite jugee a TOLERANCE_CONFORME_SIGMA pres ; reserve2 sans segment :
+# deux lignes, conforme non determinable.
+verifier("engine_derogations : sigma saisi 0,08 egal a 0,8 x 10 % (premium nettes II-1) -> conforme TRUE ; reserve2 sans segment -> 2 lignes, conforme NA (#93)",
+         {
+           r_e <- do.call(run_engine, c(.args55, nature_donnees = "nettes", sigma_standard = 0.08))
+           r_m <- run_engine(methode = "reserve2", triangle = .tri_m6, B = B_M6,
+                             sigma_standard = 0.09)
+           d_e <- engine_derogations(r_e); d_m <- engine_derogations(r_m)
+           identical(d_e$parametre, "sigma_standard") && identical(d_e$conforme, TRUE) &&
+             identical(r_m$metadata$bareme_saisi, FALSE) &&
+             identical(d_m$parametre, c("sigma_standard", "bareme")) &&
+             identical(d_m$conforme, c(NA, NA)) &&
+             identical(d_m$valeur_retenue, c("0.09", "court"))
+         })
+rm(r_b1c, r_b1l, r_b2, r_b2l, r1_c, r1_l, r2_c, r2_l, r_0, r_0l, .args93_2)
 ## --- Citation des hypotheses H1-H4 (issue #92) -------------------------------
 # Source : annexe XVII, point B(2)(g) i. a iv. (methode du risque de primes,
 # JOUE L 12/273) et point C(2)(e) i. a iv. (methode du risque de reserve

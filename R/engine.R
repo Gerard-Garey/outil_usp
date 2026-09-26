@@ -189,11 +189,20 @@ REP_GD_KKT  <- 1e-4
 # ALERTE disparait et le verdict ne suit plus la regle documentee.
 SEUIL_ECHEC_SENS_REJETER <- 0.30
 
+# Tolerance relative de l'egalite entre sigma standard saisi et sigma
+# standard reglementaire (colonne conforme de engine_derogations(), issue
+# #93) : NP standard x sigma brut n'est pas toujours representable
+# exactement (0,8 x 0,10), une comparaison par identical() dirait alors
+# differente une saisie egale a la table.
+TOLERANCE_CONFORME_SIGMA <- 1e-12
+
 usp_credibilite <- function(T, bareme = c("court", "long")) {
   bareme <- match.arg(bareme)
   tab <- if (bareme == "long") CRED_LONG else CRED_COURT
-  # La duree est un nombre entier d'annees (section G : "duree de la serie
-  # chronologique") ; une valeur non entiere, non finie ou multiple n'a pas
+  # La duree est un nombre entier d'annees (section G, paragraphe 3 : "La
+  # duree correspond" au "nombre d'annees d'accident" ou au "nombre
+  # d'exercices pour lesquels des donnees sont disponibles", selon la
+  # methode) ; une valeur non entiere, non finie ou multiple n'a pas
   # de ligne dans le bareme et est refusee explicitement (issue #33), au lieu
   # de renvoyer NA.
   if (!is.numeric(T) || length(T) != 1L || !is.finite(T) || T != round(T))
@@ -5098,6 +5107,11 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
 #   seed           graine des simulations (reproductibilite) ; entier scalaire
 #                  fini, |seed| <= .Machine$integer.max (NULL refuse)
 #   bareme         "court" ou "long" exactement ; NULL = deduit du segment
+#                  (usp_bareme_segment() ; "court" par convention sans
+#                  segment, bareme non determine par la section G) ; saisie
+#                  libre : derogation au bareme de la section G, signalee
+#                  par metadata$bareme_saisi (issue #93), meme egale au
+#                  bareme du segment
 #
 # Valeur : liste de classe "usp_engine" (voir la structure en fin de fonction).
 # Erreurs (issue #88) : un argument d'usage invalide (methode, annexe,
@@ -5137,6 +5151,9 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
     if (is.null(infos)) stop("Fournir soit sigma_standard, soit segment (avec son annexe).")
     sigma_standard <- infos$sigma_reserve      # methode de reserve : sigma(res,s)
   }
+  # Saisie libre du bareme : derogation au bareme de la section G, restituee
+  # par metadata$bareme_saisi (issue #93), meme egale au bareme du segment.
+  saisi_bareme <- !is.null(bareme)
   if (is.null(bareme)) bareme <- usp_bareme_segment(segment, annexe)
 
   # --- Calcul protege (issue #88) : ajustement et sorties, apres
@@ -5233,7 +5250,8 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                       T = aj$I + 1L, I = aj$I, J = aj$J, B = B, alpha = alpha,
                       seed = seed, bareme = bareme, sigma_standard = sigma_standard,
                       # Place apres les champs anterieurs (issue #55), suivi des
-                      # seuls champs de l'issue #37 puis des champs d'execution.
+                      # seuls champs de l'issue #37, de bareme_saisi (#93), puis des
+                      # champs d'execution.
                       sigma_standard_saisi = saisi,
                       # Generateur pose par engine_sous_graine() et graine fixe
                       # de la loi nulle de Shapiro-Wilk (issue #37, ADR 0004
@@ -5241,6 +5259,10 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                       # champs d'execution.
                       generateur = as.list(ENGINE_RNG_KIND),
                       seed_loi_nulle_sw = SEED_LOI_NULLE_SW,
+                      # Bareme saisi (issue #93) : place apres les champs de
+                      # l'issue #37, en dernier avant les champs d'execution
+                      # (le patch des references ajoute la feuille en fin).
+                      bareme_saisi = saisi_bareme,
                       horodatage = t0,
                       duree_sec = as.numeric(difftime(Sys.time(), t0, units = "secs")),
                       version_R = R.version.string)
@@ -5425,7 +5447,10 @@ run_engine <- function(xt, yt,
   sigma_standard <- usp_parametre_standard(methode, segment, annexe, nature_donnees,
                                            sigma_standard)$sigma_standard
   # Annexe XVII, section G(2) : les segments de l'annexe XIV relevent tous du
-  # bareme court, quel que soit leur numero.
+  # bareme court, quel que soit leur numero. Un bareme saisi prime :
+  # derogation au bareme de la section G, restituee par
+  # metadata$bareme_saisi (issue #93), meme egale au bareme du segment.
+  saisi_bareme <- !is.null(bareme)
   if (is.null(bareme)) bareme <- usp_bareme_segment(segment, annexe)
 
   # --- Calcul protege (issue #88) : estimation et sorties, apres une
@@ -5536,8 +5561,9 @@ run_engine <- function(xt, yt,
         # nettes par exigence du texte, C(2)(c), D(2)(f)). Saisie libre du
         # sigma standard (derogation au parametre reglementaire) : drapeau
         # explicite pour les trois methodes. Places apres les champs
-        # anterieurs, suivis des seuls champs de l'issue #37 puis des champs
-        # d'execution (retires par nettoyer() des tests).
+        # anterieurs, suivis des seuls champs de l'issue #37, de bareme_saisi
+        # (#93), puis des champs d'execution (retires par nettoyer() des
+        # tests).
         if (methode == "premium") list(nature_donnees = nature_donnees),
         list(sigma_standard_saisi = saisi),
         # Generateur pose par engine_sous_graine() et graines fixes des
@@ -5547,6 +5573,10 @@ run_engine <- function(xt, yt,
         list(generateur = as.list(ENGINE_RNG_KIND),
              seed_loi_nulle_sw = SEED_LOI_NULLE_SW,
              seed_enveloppe_qq = SEED_ENVELOPPE_QQ),
+        # Bareme saisi (issue #93) : place apres les champs de l'issue #37, en
+        # dernier avant les champs d'execution (le patch des references
+        # ajoute la feuille en fin de metadata).
+        list(bareme_saisi = saisi_bareme),
         list(horodatage = t0,
              duree_sec = as.numeric(difftime(Sys.time(), t0, units = "secs")),
              version_R = R.version.string))
@@ -5560,30 +5590,94 @@ run_engine <- function(xt, yt,
 # fige) : nature declaree des donnees, point de l'art. 218, paragraphe 1,
 # remplace, exigence relative aux donnees, sigma de l'annexe, NP standard,
 # sigma standard reglementaire, sigma standard retenu dans le melange et son
-# origine (parametre reglementaire ou saisie libre, derogation).
+# origine (parametre reglementaire ou saisie libre, derogation), puis le
+# bareme de credibilite applicable, le bareme retenu et son origine (issue
+# #93).
 # Colonnes : grandeur ; valeur (numerique, NA pour une ligne de texte) ;
 # texte (NA pour une ligne purement numerique).
 # Tout est recalcule ici a partir de res$metadata par usp_parametre_standard()
-# (aucun calcul dans l'affichage) ; le sigma standard retenu recalcule doit
-# etre identique a celui du resultat, sinon erreur.
-# Saisie libre : drapeau explicite metadata$sigma_standard_saisi, pour les
-# trois methodes (toute saisie est une derogation, meme egale a la table ;
-# decision du mainteneur du 25/09/2026). Un resultat qui ne le porte pas
-# (produit avant l'issue #55) est refuse plutot que devine.
-engine_parametre_standard <- function(res) {
-  if (!isTRUE(res$ok)) return(NULL)
+# et usp_bareme_segment() (aucun calcul dans l'affichage) ; le sigma standard
+# et le bareme recalcules doivent etre identiques a ceux du resultat, sinon
+# erreur.
+# Saisie libre : drapeaux explicites metadata$sigma_standard_saisi et
+# metadata$bareme_saisi, pour les trois methodes (toute saisie est une
+# derogation, meme egale a la table ; decisions du mainteneur du 25/09/2026
+# et du 26/09/2026, issue #93). Un resultat qui ne les porte pas (produit
+# avant l'issue #55 ou #93) est refuse plutot que devine.
+.engine_drapeau <- function(m, nom, appelant) {
+  v <- m[[nom]]
+  if (!is.logical(v) || length(v) != 1L || is.na(v))
+    stop(sprintf("%s : drapeau metadata$%s absent ou invalide.", appelant, nom))
+  v
+}
+
+# Sigma standard retenu et sa tracabilite, recalcules depuis res$metadata ;
+# controle de coherence avec le sigma standard du resultat.
+.engine_trace_sigma <- function(res, appelant) {
   m <- res$metadata
-  if (!is.logical(m$sigma_standard_saisi) || length(m$sigma_standard_saisi) != 1L ||
-      is.na(m$sigma_standard_saisi))
-    stop("engine_parametre_standard() : drapeau metadata$sigma_standard_saisi absent ou invalide.")
-  saisi <- m$sigma_standard_saisi
+  saisi <- .engine_drapeau(m, "sigma_standard_saisi", appelant)
   ps <- usp_parametre_standard(m$methode, m$segment, m$annexe, m$nature_donnees,
                                if (saisi) m$sigma_standard else NULL)
   if (!identical(ps$sigma_standard, m$sigma_standard))
-    stop("engine_parametre_standard() : sigma standard recalcule different de celui du resultat.")
+    stop(sprintf("%s : sigma standard recalcule different de celui du resultat.", appelant))
+  ps
+}
+
+# Bareme de credibilite retenu et sa tracabilite (issue #93), recalcules
+# depuis res$metadata : bareme applicable selon la section G (NA sans
+# segment designe : aucun texte ne le determine), paragraphe de la section G,
+# facteurs c applicable et retenu (usp_credibilite(), duree metadata$T),
+# etat de l'origine. Controles de coherence : un bareme non saisi doit etre
+# celui de usp_bareme_segment() (le bareme "court" pose par convention sans
+# segment compris) ; le c retenu doit etre celui de res$parametre_final.
+.engine_trace_bareme <- function(res, appelant) {
+  m <- res$metadata
+  saisi <- .engine_drapeau(m, "bareme_saisi", appelant)
+  if (!is.character(m$bareme) || length(m$bareme) != 1L ||
+      !m$bareme %in% c("court", "long"))
+    stop(sprintf("%s : bareme du resultat absent ou invalide.", appelant))
+  if (!saisi && !identical(usp_bareme_segment(m$segment, m$annexe), m$bareme))
+    stop(sprintf("%s : bareme recalcule different de celui du resultat.", appelant))
+  c_ret <- usp_credibilite(m$T, m$bareme)
+  if (!identical(c_ret, res$parametre_final$credibilite))
+    stop(sprintf("%s : facteur de credibilite recalcule different de celui du resultat.",
+                 appelant))
+  sans_segment <- is.null(m$segment)
+  regl <- if (sans_segment) NA_character_ else usp_bareme_segment(m$segment, m$annexe)
+  paragraphe <- c(long = "annexe XVII, section G, paragraphe 1",
+                  court = "annexe XVII, section G, paragraphe 2")
+  etat <- if (!saisi) { if (sans_segment) "defaut" else "reglementaire" } else
+          if (sans_segment) "saisi_sans_segment" else
+          if (identical(regl, m$bareme)) "saisi_egal" else "saisi_contraire"
+  list(saisi = saisi, retenu = m$bareme, reglementaire = regl,
+       ref_reglementaire = if (sans_segment) NA_character_ else paragraphe[[regl]],
+       c_reglementaire = if (sans_segment) NA_real_ else usp_credibilite(m$T, regl),
+       c_retenu = c_ret, T = m$T, etat = etat,
+       conforme = if (sans_segment) NA else identical(regl, m$bareme))
+}
+
+engine_parametre_standard <- function(res) {
+  if (!isTRUE(res$ok)) return(NULL)
+  m <- res$metadata
+  ps <- .engine_trace_sigma(res, "engine_parametre_standard()")
+  tb <- .engine_trace_bareme(res, "engine_parametre_standard()")
   prime <- identical(m$methode, "premium")
   lib_nature <- c(brutes = "brutes : non ajustees de la reassurance",
                   nettes = "nettes : ajustees de la reassurance")[[ps$nature_donnees]]
+  origine_bareme <- switch(tb$etat,
+    reglementaire = "bareme reglementaire du segment",
+    defaut = paste("bareme par defaut (court), aucun segment designe : non determine par",
+                   "l'annexe XVII, section G"),
+    saisi_egal = sprintf(paste("bareme saisi (%s), egal au bareme de l'%s :",
+                               "saisie declaree comme derogation"),
+                         tb$retenu, tb$ref_reglementaire),
+    saisi_contraire = sprintf(paste("bareme saisi (%s), contraire a l'%s :",
+                                    "derogation au bareme de l'annexe XVII, section G"),
+                              tb$retenu, tb$ref_reglementaire),
+    saisi_sans_segment = sprintf(paste("bareme saisi (%s), non determine par l'annexe XVII,",
+                                       "section G : aucun segment designe (saisie declaree",
+                                       "comme derogation)"),
+                                 tb$retenu))
   d <- data.frame(
     grandeur = c(
       if (prime) "Nature declaree des donnees" else "Nature des donnees (exigence de la methode)",
@@ -5594,9 +5688,13 @@ engine_parametre_standard <- function(res) {
                          if (identical(ps$annexe, "XIV")) "art. 148" else "art. 117"),
       "sigma standard reglementaire",
       "sigma standard retenu dans le melange",
-      "Origine du sigma standard retenu"),
+      "Origine du sigma standard retenu",
+      "Bareme et facteur c applicables (annexe XVII, section G)",
+      "Bareme et facteur c retenus",
+      "Origine du bareme retenu"),
     valeur = c(NA, NA, NA, ps$sigma_annexe, if (prime) ps$np_standard,
-               ps$sigma_reglementaire, ps$sigma_standard, NA),
+               ps$sigma_reglementaire, ps$sigma_standard, NA,
+               tb$c_reglementaire, tb$c_retenu, NA),
     texte = c(lib_nature,
               paste0(ps$point_art218, " : ", ps$parametre_remplace),
               ps$exigence_donnees,
@@ -5607,8 +5705,72 @@ engine_parametre_standard <- function(res) {
                 if (identical(ps$nature_donnees, "nettes")) "NP standard x sigma brut" else "sigma brut",
               NA,
               if (ps$saisie) "sigma standard saisi, derogation au parametre reglementaire"
-              else "parametre reglementaire"),
+              else "parametre reglementaire",
+              if (is.na(tb$reglementaire)) "non determine : aucun segment designe"
+              else paste0(tb$reglementaire, ", ", tb$ref_reglementaire),
+              sprintf("%s, T = %d", tb$retenu, as.integer(tb$T)),
+              origine_bareme),
     stringsAsFactors = FALSE)
+  d
+}
+
+# Point de lecture unique des derogations (issue #93, forme de module de la
+# fiche E0) : sigma standard saisi (#55) et bareme de credibilite saisi
+# (#93), lus sur les drapeaux explicites de res$metadata, plus le bareme
+# "court" pose par convention sans segment designe, non determine par la
+# section G (ligne sans drapeau). L'affichage (bandeau de l'onglet
+# Calibration, rapport fige, journal) ne connait que cette table.
+# Valeur : NULL si !isTRUE(res$ok) ; sinon data.frame (0 ligne sans
+# derogation), colonnes :
+#   parametre            "sigma_standard" ou "bareme" ;
+#   valeur_reglementaire valeur du texte (caractere ; NA sans segment) ;
+#   valeur_retenue       valeur du melange (caractere) ;
+#   conforme             valeur retenue egale a la valeur reglementaire
+#                        (logique ; NA si non determinable, sans segment) ;
+#                        une saisie egale reste une derogation ;
+#   libelle              phrase complete pour bandeau et journal.
+# Erreur si un drapeau manque ou est invalide (pas de deduction), ou si le
+# sigma standard ou le bareme recalcules different du resultat.
+engine_derogations <- function(res) {
+  if (!isTRUE(res$ok)) return(NULL)
+  ps <- .engine_trace_sigma(res, "engine_derogations()")
+  tb <- .engine_trace_bareme(res, "engine_derogations()")
+  fmt <- function(x) if (is.na(x)) NA_character_ else format(x, digits = 10)
+  d <- data.frame(parametre = character(0), valeur_reglementaire = character(0),
+                  valeur_retenue = character(0), conforme = logical(0),
+                  libelle = character(0), stringsAsFactors = FALSE)
+  if (ps$saisie) {
+    # Egalite a TOLERANCE_CONFORME_SIGMA pres en relatif (voir sa
+    # definition en tete du moteur).
+    conf <- if (is.na(ps$sigma_reglementaire)) NA else
+      abs(ps$sigma_standard - ps$sigma_reglementaire) <=
+        TOLERANCE_CONFORME_SIGMA * abs(ps$sigma_reglementaire)
+    d <- rbind(d, data.frame(parametre = "sigma_standard",
+      valeur_reglementaire = fmt(ps$sigma_reglementaire),
+      valeur_retenue = fmt(ps$sigma_standard), conforme = conf,
+      libelle = "sigma standard saisi, derogation au parametre reglementaire",
+      stringsAsFactors = FALSE))
+  }
+  if (tb$etat != "reglementaire") {
+    lib <- switch(tb$etat,
+      defaut = sprintf(paste("bareme de credibilite %s non determine par l'annexe XVII,",
+                             "section G : aucun segment designe"), tb$retenu),
+      saisi_egal = sprintf(paste("bareme de credibilite saisi (%s), egal au bareme de l'%s :",
+                                 "saisie declaree comme derogation"),
+                           tb$retenu, tb$ref_reglementaire),
+      saisi_contraire = sprintf(paste("bareme de credibilite saisi (%s), derogation au bareme",
+                                      "de l'annexe XVII, section G : bareme reglementaire du",
+                                      "segment %s de l'annexe %s : %s (%s)"),
+                                tb$retenu, format(res$metadata$segment), res$metadata$annexe,
+                                tb$reglementaire, tb$ref_reglementaire),
+      saisi_sans_segment = sprintf(paste("bareme de credibilite saisi (%s), non determine par",
+                                         "l'annexe XVII, section G : aucun segment designe",
+                                         "(saisie declaree comme derogation)"), tb$retenu))
+    d <- rbind(d, data.frame(parametre = "bareme",
+      valeur_reglementaire = tb$reglementaire, valeur_retenue = tb$retenu,
+      conforme = tb$conforme, libelle = lib, stringsAsFactors = FALSE))
+  }
+  rownames(d) <- NULL
   d
 }
 
