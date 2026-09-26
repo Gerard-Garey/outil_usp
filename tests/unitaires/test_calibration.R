@@ -703,6 +703,16 @@ verifier("usp_tests() : methode hors premium / reserve1 refusee (erreur de progr
              grepl(motif, msg("reserve2"), fixed = TRUE) &&
              grepl(motif, msg(NA_character_), fixed = TRUE)
          })
+verifier("usp_tests() : methode obligatoire, sans valeur par defaut (revue finale de #88, constat 3)",
+         {
+           f <- usp_ajuster(.ln_m6$xt, .ln_m6$yt)
+           e <- tryCatch(usp_tests(f, r_b$bootstrap), error = function(e) e)
+           fm <- formals(usp_tests)
+           "methode" %in% names(fm) && identical(deparse(fm[["methode"]]), "") &&
+             inherits(e, "error") &&
+             grepl("l'argument methode (\"premium\" ou \"reserve1\") est obligatoire",
+                   conditionMessage(e), fixed = TRUE)
+         })
 verifier("GROUPES (display_helpers.R) : prefixes B. a E. inchanges, citations B(2)(g) ; C(2)(e) (issue #92)",
          {
            e <- new.env()

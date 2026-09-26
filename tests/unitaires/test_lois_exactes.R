@@ -276,7 +276,7 @@ boot29 <- function(f) {
   p <- stats::setNames(rep(0.5, length(s)), names(s))
   list(stats_obs = as.list(s), p_mc = p, err_mc = p * 0 + 0.01)
 }
-ligne29 <- function(f, nom) Filter(function(l) l$test == nom, usp_tests(f, boot29(f)))[[1]]
+ligne29 <- function(f, nom) Filter(function(l) l$test == nom, usp_tests(f, boot29(f), methode = "premium"))[[1]]
 verifier("Runsr (#29) : les trois cas couvrent les trois combinaisons des deux conditions",
          isTRUE(usp_regime(f29$delta, f29$x)$pi_constant) && signes_egaux(f29) &&
          !isTRUE(usp_regime(f29_0$delta, f29_0$x)$pi_constant) &&

@@ -358,6 +358,45 @@ verifier("run_engine : bareme 'moyen', 'Court', 'co', '', NA, c('court', 'long')
            })
 verifier("run_engine : bareme NULL, 'court' et 'long' acceptes (premium, reserve2)",
          usage_accepte("bareme", list(NULL, "court", "long")))
+
+# Constat 4 de la revue finale de #88 : un segment inconnu, ou l'absence a la
+# fois de segment et de sigma_standard, etaient controles apres la validation
+# des donnees ; l'appel levait une erreur R sur des donnees valides et
+# rendait ok = FALSE sur des donnees refusees. Controles desormais dans
+# .engine_verifier_usage() : erreur R quelles que soient les donnees.
+y_neg <- y; y_neg[3] <- -1
+tri_2x2 <- matrix(c(1, 2, 3, NA), 2)
+# TRUE si chaque appel (liste d'arguments de run_engine) leve une erreur R
+# dont le message contient motif.
+erreurs_segment <- function(appels, motif) {
+  all(vapply(appels, function(a) {
+    e <- tryCatch(do.call(run_engine, a), error = function(e) e)
+    inherits(e, "error") && grepl(motif, conditionMessage(e), fixed = TRUE)
+  }, logical(1)))
+}
+appels_segment <- function(...) {
+  s <- list(...)
+  list(c(list(xt = x, yt = y, methode = "premium", B = 19, nature_donnees = "brutes"), s),
+       c(list(xt = x, yt = y_neg, methode = "premium", B = 19, nature_donnees = "brutes"), s),
+       c(list(xt = x[1:4], yt = y[1:4], methode = "premium", B = 19, nature_donnees = "brutes"), s),
+       c(list(xt = x, yt = y, methode = "reserve1", B = 19), s),
+       c(list(xt = x, yt = y_neg, methode = "reserve1", B = 19), s),
+       c(list(methode = "reserve2", triangle = tri_usage, B = 19), s),
+       c(list(methode = "reserve2", triangle = tri_2x2, B = 19), s))
+}
+verifier("run_engine : segment 99 -> erreur d'usage, donnees valides ou refusees (yt negatif, T = 4, triangle 2x2 ; premium, reserve1, reserve2)",
+         erreurs_segment(appels_segment(segment = 99), "Segment 99 inconnu dans l'annexe II.") &&
+           erreurs_segment(appels_segment(segment = 5, annexe = "XIV"),
+                           "Segment 5 inconnu dans l'annexe XIV."))
+verifier("run_engine : ni segment ni sigma_standard -> erreur d'usage, donnees valides ou refusees (premium, reserve1, reserve2)",
+         erreurs_segment(appels_segment(),
+                         "Fournir soit sigma_standard, soit segment (avec son annexe)."))
+verifier("run_engine : sigma_standard seul accepte sans segment (premium, reserve2)",
+         {
+           a <- usage_premium(segment = NULL, sigma_standard = 0.1)
+           b <- usage_mw(segment = NULL, sigma_standard = 0.1)
+           isTRUE(a$ok) && isTRUE(b$ok)
+         })
 # Reserve d'audit : une valeur porteuse d'attributs etait acceptee et son
 # attribut propage dans le resultat ; elle est refusee.
 verifier("run_engine : B, alpha, seed, bareme, sigma_standard porteurs d'attributs (noms, dim) -> erreur d'usage (premium, reserve2)",

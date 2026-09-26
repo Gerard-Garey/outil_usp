@@ -2169,13 +2169,18 @@ usp_profil <- function(fit, n = 41) {
 
 usp_tests <- function(fit, boot, alpha = 0.10,
                       theta_equiv = 0.10, delta_equiv = NULL,
-                      robustesse = NULL, methode = "premium") {
+                      robustesse = NULL, methode) {
   z <- fit$z; x <- fit$x; y <- fit$y; T <- fit$T
   # Citation des hypotheses H1-H4 dans le champ famille (issue #92) : les
   # quatre hypotheses sont au point B(2)(g) i. a iv. de l'annexe XVII pour la
   # methode du risque de primes, au point C(2)(e) i. a iv. pour la methode du
   # risque de reserve no 1 (B(2)(f) porte sur les depenses, C(2)(f) n'existe
   # pas). Le prefixe "B." a "E." reste la cle de GROUPES (display_helpers.R).
+  # methode est obligatoire, sans valeur par defaut (revue finale de #88,
+  # constat 3) : un defaut "premium" faisait citer B(2)(g) en silence a un
+  # appel direct pour la reserve no 1.
+  if (missing(methode))
+    stop("usp_tests() : l'argument methode (\"premium\" ou \"reserve1\") est obligatoire.")
   if (!(is.character(methode) && length(methode) == 1L &&
         methode %in% c("premium", "reserve1")))
     stop("usp_tests() : methode doit valoir \"premium\" ou \"reserve1\".")
@@ -4943,7 +4948,13 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
 #   (deduit du segment) ;
 # - alpha : nombre scalaire fini, 0 < alpha < SEUIL_ECHEC_SENS_REJETER (avis
 #   d'actuary) : au-dela, la zone ALERTE des tests en sens rejeter disparait ;
-# - sigma_standard : NULL (valeur de l'annexe), ou nombre scalaire fini > 0.
+# - sigma_standard : NULL (valeur de l'annexe), ou nombre scalaire fini > 0 ;
+# - segment et annexe (revue finale de #88, constat 4) : un segment fourni
+#   doit exister dans l'annexe (usp_segment_infos()), et il faut segment ou
+#   sigma_standard. Ces deux controles etaient faits apres la validation des
+#   donnees, dans chaque branche : le meme appel levait une erreur R sur des
+#   donnees valides et rendait ok = FALSE sur des donnees refusees. Faits ici,
+#   ils levent une erreur R quelles que soient les donnees.
 # Aucune de ces valeurs ne doit porter d'attribut (noms, dim...) : refusee
 # plutot que normalisee, car l'attribut etait propage tel quel dans le
 # resultat (mesure sur la tete 743bb75 : B = c(a = 19), alpha = c(a = 0.1),
@@ -4964,7 +4975,8 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
 # delta_equiv est fourni ; seule la branche Merz-Wuthrich (reserve2) ne le lit
 # pas.
 .engine_verifier_usage <- function(B, seed, bareme, alpha = 0.10,
-                                   sigma_standard = NULL) {
+                                   sigma_standard = NULL, segment = NULL,
+                                   annexe = "II") {
   saisie <- function(v) if (!length(v)) "vide" else paste(deparse(v), collapse = " ")
   sans_attribut <- function(v) is.null(attributes(v))
   scalaire_fini <- function(v) is.numeric(v) && length(v) == 1L && is.finite(v) &&
@@ -4993,6 +5005,10 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
     stop(sprintf(paste("sigma_standard = %s : NULL ou un nombre scalaire fini,",
                        "sans attribut, sigma_standard > 0, est attendu."),
                  saisie(sigma_standard)), call. = FALSE)
+  # Segment inconnu : erreur de usp_segment_infos() (message inchange).
+  if (!is.null(segment)) usp_segment_infos(segment, annexe)
+  else if (is.null(sigma_standard))
+    stop("Fournir soit sigma_standard, soit segment (avec son annexe).")
   invisible(TRUE)
 }
 
@@ -5143,6 +5159,10 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                           metadata = list(horodatage = t0, methode = "reserve2")),
                      class = "usp_engine"))
 
+  # Segment connu, ou sigma_standard fourni : deja verifie avant la
+  # validation du triangle par .engine_verifier_usage() (constat 4 de la
+  # revue finale de #88) ; le stop() ci-dessous n'est plus atteint depuis
+  # run_engine().
   infos <- if (!is.null(segment)) usp_segment_infos(segment, annexe) else NULL
   # Saisie libre du sigma standard : derogation au parametre reglementaire,
   # restituee par metadata$sigma_standard_saisi (issue #55).
@@ -5396,7 +5416,8 @@ run_engine <- function(xt, yt,
   # valeur invalide reste une erreur R explicite, jamais un defaut de calcul
   # intercepte.
   .engine_verifier_usage(B, seed, bareme, alpha = alpha,
-                         sigma_standard = sigma_standard)
+                         sigma_standard = sigma_standard, segment = segment,
+                         annexe = annexe)
 
   # --- Branche Merz-Wuthrich (methode du risque de reserve no 2) ------------
   # Cette methode ne prend pas en entree deux vecteurs mais un TRIANGLE de
@@ -5442,6 +5463,9 @@ run_engine <- function(xt, yt,
   # NP standard x sigma brut sur donnees nettes (primes) ; sigma(res,s) pour
   # la methode de reserve no 1. Un sigma_standard saisi prime (derogation,
   # restituee par metadata$sigma_standard_saisi, pour les trois methodes).
+  # Segment connu, ou sigma_standard fourni : deja verifie avant la
+  # validation des donnees par .engine_verifier_usage() (constat 4 de la
+  # revue finale de #88).
   infos <- if (!is.null(segment)) usp_segment_infos(segment, annexe) else NULL
   saisi <- !is.null(sigma_standard)
   sigma_standard <- usp_parametre_standard(methode, segment, annexe, nature_donnees,

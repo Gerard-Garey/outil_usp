@@ -46,7 +46,7 @@ verifier("Merz-Wuthrich : chaque mc_nom de mw_tests() est une statistique simule
          else paste("inconnus :", paste(setdiff(noms_mw, names(s_mw)), collapse = ", ")))
 verifier("usp_tests() sur un bootstrap complet : hierarchie exacte > Monte-Carlo > asymptotique",
          {
-           tt <- usp_tests(fit, boot_fictif())
+           tt <- usp_tests(fit, boot_fictif(), methode = "premium")
            ok <- TRUE
            for (l in tt) {
              attendu <- if (is.finite(l$p_exacte)) l$p_exacte
@@ -62,7 +62,7 @@ verifier("usp_tests() sur un bootstrap complet : hierarchie exacte > Monte-Carlo
 # Monte-Carlo absente du bootstrap ou inconnue du catalogue, au lieu du repli
 # silencieux sur la p-value asymptotique.
 verifier("add() refuse un mc_nom absent du bootstrap (erreur explicite)",
-         leve_erreur(usp_tests(fit, boot_fictif(sans = "RESET"))))
+         leve_erreur(usp_tests(fit, boot_fictif(sans = "RESET"), methode = "premium")))
 verifier("add() refuse un mc_nom inconnu du catalogue (erreur explicite)",
          {
            reg <- engine_registre_tests(boot_fictif(), USP_CATALOGUE_MC, 0.10, "Monte-Carlo")
@@ -129,7 +129,7 @@ verifier("Centrage et variance unitaire : diagnostics INFO, sans p-value retenue
            for (f in list(fit, fit0)) {
              ll <- Filter(function(l) l$test %in% c("Centrage des residus standardises",
                                                     "Variance unitaire des residus standardises"),
-                          usp_tests(f, boot_fictif()))
+                          usp_tests(f, boot_fictif(), methode = "premium"))
              ok <- ok && length(ll) == 2 &&
                all(vapply(ll, function(l)
                  identical(l$type, "diagnostic") && identical(l$verdict, "INFO") &&
@@ -142,7 +142,7 @@ verifier("Centrage et variance unitaire : diagnostics INFO, sans p-value retenue
 verifier("Libelle du diagnostic : constance de pi_t, non position de delta au bord",
          {
            txt <- function(f) Filter(function(l) l$test == "Centrage des residus standardises",
-                                     usp_tests(f, boot_fictif()))[[1]]$detail
+                                     usp_tests(f, boot_fictif(), methode = "premium"))[[1]]$detail
            d1 <- txt(fit); d0 <- txt(fit0)
            if (!grepl("Ici pi_t est constant (delta = 1", d1, fixed = TRUE))
              "delta = 1 : le libelle ne dit pas que pi_t est constant"
@@ -153,7 +153,7 @@ verifier("Libelle du diagnostic : constance de pi_t, non position de delta au bo
 # Issue #39 : libelles alignes sur CONTEXT.md ("Grandeur rivee par
 # l'estimation", "Diagnostic"). Une assertion par point de l'issue.
 ligne_test <- function(f, nom)
-  Filter(function(l) l$test == nom, usp_tests(f, boot_fictif()))[[1]]
+  Filter(function(l) l$test == nom, usp_tests(f, boot_fictif(), methode = "premium"))[[1]]
 verifier("Issue #39 (1) : le detail de la variance nomme la condition en gamma, optimum interieur",
          {
            dd <- vapply(list(fit, fit0), function(f)
@@ -219,7 +219,7 @@ verifier("Issue #39 : condition en gamma verifiee a delta = 0 (pi_t variable), s
          })
 verifier("Issue #39 (3) : H0 de Breusch-Pagan (Koenker) et de normalite en residus standardises",
          {
-           tt <- usp_tests(fit, boot_fictif())
+           tt <- usp_tests(fit, boot_fictif(), methode = "premium")
            h0 <- vapply(tt, function(l) if (is.na(l$H0)) "" else l$H0, character(1))
            nm <- vapply(tt, function(l) l$test, character(1))
            bp <- h0[nm == "Heteroscedasticite vs volume - Breusch-Pagan studentise (Koenker)"]
@@ -235,7 +235,7 @@ verifier("Issue #39 (4) : R2 de type diagnostic (type et detail), INFO et sens N
          {
            l1 <- ligne_test(fit, "Coefficient de determination R2")
            l0 <- ligne_test(fit0, "Coefficient de determination R2")
-           types <- vapply(usp_tests(fit, boot_fictif()), function(l) l$type, character(1))
+           types <- vapply(usp_tests(fit, boot_fictif(), methode = "premium"), function(l) l$type, character(1))
            identical(l1$type, "diagnostic") && identical(l0$type, "diagnostic") &&
              !"indicateur" %in% types &&
              grepl("Diagnostic, pas un test", l1$detail, fixed = TRUE) &&
@@ -255,7 +255,7 @@ fit_regime <- function(d) {
          delta_au_bord = usp_regime(d, x)$delta_au_bord))
 }
 details_regime <- function(f) {
-  tt <- usp_tests(f, boot_fictif())
+  tt <- usp_tests(f, boot_fictif(), methode = "premium")
   stats::setNames(vapply(tt, function(l) l$detail, character(1)),
                   vapply(tt, function(l) l$test, character(1)))
 }
@@ -369,7 +369,7 @@ lignes_df <- function(L) data.frame(
   nature_p = vapply(L, function(l) l$nature_p, character(1)),
   commentaire = vapply(L, function(l) l$detail, character(1)),
   stringsAsFactors = FALSE)
-tab_fictif <- lignes_df(usp_tests(fit, boot_fictif()))
+tab_fictif <- lignes_df(usp_tests(fit, boot_fictif(), methode = "premium"))
 invariant_non_test <- function(tb) {
   k <- !tb$type %in% c("test", "procedure de decision")
   faux <- k & !(tb$verdict == "INFO" & is.na(tb$sens_du_test) &
@@ -499,7 +499,7 @@ verifier("add() (usp_tests) refuse un verdict force sur un diagnostic (Leviers, 
          {
            f <- usp_tests_modifie('type = "diagnostic", estim_nom = "max h_t"',
                                   'type = "diagnostic", verdict = "OK", estim_nom = "max h_t"')
-           m <- message_erreur(f(fit, boot_fictif()))
+           m <- message_erreur(f(fit, boot_fictif(), methode = "premium"))
            grepl("un verdict n'est admis que pour type = 'test' ou 'procedure de decision'", m, fixed = TRUE) &&
              grepl("Leviers (hat values)", m, fixed = TRUE)
          })
@@ -507,7 +507,7 @@ verifier("add() (usp_tests) refuse une procedure de decision sans verdict (ESD)"
          {
            f <- usp_tests_modifie("verdict = if (ro$nb_outliers >= 2)",
                                   "verdict = if (TRUE) NULL else if (ro$nb_outliers >= 2)")
-           m <- message_erreur(f(fit, boot_fictif()))
+           m <- message_erreur(f(fit, boot_fictif(), methode = "premium"))
            grepl("une ligne de type 'procedure de decision' doit fournir son verdict", m, fixed = TRUE) &&
              grepl("Valeurs aberrantes multiples (ESD generalise)", m, fixed = TRUE)
          })
@@ -516,7 +516,7 @@ verifier("add() (usp_tests) refuse une procedure de decision sans verdict (ESD)"
 verifier("Jackknife et IC sans robustesse : 'Annee la plus influente non determinee.' et renvoi a res$ic_bootstrap (#76)",
          {
            f <- fit; f$ecart_jackknife <- 0.123; f$largeur_ic <- 0.456
-           tb <- lignes_df(usp_tests(f, boot_fictif()))
+           tb <- lignes_df(usp_tests(f, boot_fictif(), methode = "premium"))
            dj <- tb$commentaire[tb$test == NOM_JK]; di <- tb$commentaire[tb$test == NOM_IC]
            length(dj) == 1L && length(di) == 1L &&
              identical(dj, "Annee la plus influente non determinee.") &&
@@ -543,7 +543,7 @@ verifier("Jackknife : 'Annee la plus influente : 3 (sigma_USP en baisse / en hau
          {
            f <- fit; f$ecart_jackknife <- 0.1; f$largeur_ic <- 0.4
            dj <- vapply(c(-0.1, 0.1, 0), function(s) {
-             tb <- lignes_df(usp_tests(f, boot_fictif(), robustesse = list(jack_annee = 3L, jack_usp = s)))
+             tb <- lignes_df(usp_tests(f, boot_fictif(), methode = "premium", robustesse = list(jack_annee = 3L, jack_usp = s)))
              tb$commentaire[tb$test == NOM_JK]
            }, character(1))
            identical(dj, sprintf("Annee la plus influente : 3 (sigma_USP %s).",
@@ -645,11 +645,11 @@ for (m in c("premium", "reserve1")) {
 verifier("usp_tests : chaque champ de chaque ligne est de longueur 1 (volumes constants, delta = 0, delta = 1, marge invalide)",
          {
            fit_cst <- usp_ajuster(x_cst, y)
-           cas <- list("volumes constants" = usp_tests(fit_cst, boot_fictif()),
-                       "delta = 0" = usp_tests(fit0, boot_fictif()),
-                       "delta = 1" = usp_tests(fit, boot_fictif()),
-                       "delta_equiv = -1" = usp_tests(fit, boot_fictif(), delta_equiv = -1),
-                       "theta_equiv = 0" = usp_tests(fit, boot_fictif(), theta_equiv = 0))
+           cas <- list("volumes constants" = usp_tests(fit_cst, boot_fictif(), methode = "premium"),
+                       "delta = 0" = usp_tests(fit0, boot_fictif(), methode = "premium"),
+                       "delta = 1" = usp_tests(fit, boot_fictif(), methode = "premium"),
+                       "delta_equiv = -1" = usp_tests(fit, boot_fictif(), methode = "premium", delta_equiv = -1),
+                       "theta_equiv = 0" = usp_tests(fit, boot_fictif(), methode = "premium", theta_equiv = 0))
            pb <- character(0)
            for (nm in names(cas)) for (l in cas[[nm]]) {
              lg <- vapply(l, length, integer(1))
@@ -663,11 +663,11 @@ verifier("usp_tests : chaque champ de chaque ligne est de longueur 1 (volumes co
          })
 verifier("TOST a marge invalide : non applicable, detail nommant la marge (#58)",
          {
-           dd <- vapply(list(usp_tests(fit, boot_fictif(), delta_equiv = -1),
-                             usp_tests(fit, boot_fictif(), delta_equiv = NA),
-                             usp_tests(fit, boot_fictif(), delta_equiv = Inf),
-                             usp_tests(fit, boot_fictif(), theta_equiv = 0),
-                             usp_tests(fit, boot_fictif(), theta_equiv = Inf)),
+           dd <- vapply(list(usp_tests(fit, boot_fictif(), methode = "premium", delta_equiv = -1),
+                             usp_tests(fit, boot_fictif(), methode = "premium", delta_equiv = NA),
+                             usp_tests(fit, boot_fictif(), methode = "premium", delta_equiv = Inf),
+                             usp_tests(fit, boot_fictif(), methode = "premium", theta_equiv = 0),
+                             usp_tests(fit, boot_fictif(), methode = "premium", theta_equiv = Inf)),
                         function(L) {
                           l <- Filter(function(l) l$test == NOM_TOST, L)[[1]]
                           if (l$type != "non applicable" || l$verdict != "INFO") "type/verdict"
@@ -687,7 +687,7 @@ verifier("TOST : branches non applicable et calculee ont les memes noms de champ
 verifier("TOST : volumes constants priment sur la marge invalide (theta_equiv = 0 a x constant) (#58)",
          {
            l <- Filter(function(l) l$test == NOM_TOST,
-                       usp_tests(usp_ajuster(x_cst, y), boot_fictif(), theta_equiv = 0))[[1]]
+                       usp_tests(usp_ajuster(x_cst, y), boot_fictif(), methode = "premium", theta_equiv = 0))[[1]]
            l$type == "non applicable" && grepl("volumes constants", l$detail, fixed = TRUE) &&
              !grepl("marge", l$detail, fixed = TRUE)
          })
