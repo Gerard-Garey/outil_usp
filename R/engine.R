@@ -407,6 +407,23 @@ usp_parametre_standard <- function(methode = c("premium", "reserve1", "reserve2"
 # numerique (en-tete) et les cellules vides en tete de serie, entre l'en-tete
 # et la premiere valeur, et en fin de serie (lues sans effet par l'ancien
 # lecteur, qui sautait les lignes vides).
+#
+# Serie en ligne avec ligne d'en-tetes (issue #95, decision du mainteneur) :
+# en-tetes et valeurs doivent etre alignes colonne par colonne. Hors colonne
+# d'etiquette, chaque colonne porte un en-tete non vide et une valeur, ou ni
+# l'un ni l'autre ; sinon une valeur manquante en tete ou en fin de serie
+# (cellule vide de bord, ecartee ci-dessus) ou une valeur en surnombre
+# passerait sans message. Le fichier est refuse en listant les colonnes
+# fautives, avec les deux decomptes. L'etiquette de ligne (premiere cellule non
+# vide de la serie, non numerique) est admise, que l'en-tete au-dessus soit
+# vide ou non.
+#
+# En-tete et etiquette (issue #95, avis d'actuary) : dans tous les formats, la
+# premiere cellule non vide et non numerique, ecartee comme en-tete (formats
+# en colonne et en ligne sans en-tetes) ou comme etiquette de ligne (format
+# avec ligne d'en-tetes), est refusee si elle a l'allure d'une valeur
+# manquante ou d'un nombre (.allure_manquante_ou_nombre()) : l'ecarter ferait
+# perdre une annee sans message.
 usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
   if (!file.exists(chemin)) stop("Fichier introuvable : ", chemin)
   brut <- utils::read.csv(chemin, header = FALSE, sep = sep, dec = dec,
@@ -414,6 +431,12 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
                           na.strings = character(0), strip.white = TRUE)
   m <- as.matrix(brut)
   m[is.na(m)] <- ""
+  # Marque d'ordre des octets UTF-8 (EF BB BF, "UTF-8 avec BOM" d'Excel) :
+  # hors locale UTF-8, read.csv la laisse en tete de la premiere cellule, qui
+  # n'est alors plus numerique et serait prise pour un en-tete (premiere
+  # valeur perdue sans message, issue #96). Retiree octet par octet, quelle
+  # que soit la locale ; une locale UTF-8 l'a deja retiree.
+  if (length(m)) m[1, 1] <- .sans_bom(m[1, 1])
   m <- trimws(m)
   # Lignes et colonnes entierement vides AVANT la premiere valeur ou APRES
   # la derniere (debut ou fin de fichier, separateur final) ecartees ; une
@@ -422,12 +445,37 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
   # lignes dont la premiere est une ligne d'en-tetes (ci-dessous).
   nz <- matrix(nzchar(m), nrow(m), ncol(m))
   bornes <- function(k) if (length(k)) seq(min(k), max(k)) else integer(0)
-  m <- m[bornes(which(rowSums(nz) > 0)), bornes(which(colSums(nz) > 0)), drop = FALSE]
+  # Numeros de colonne du fichier conserves pour les messages (colonnes de bord
+  # vides retirees).
+  cols <- bornes(which(colSums(nz) > 0))
+  m <- m[bornes(which(rowSums(nz) > 0)), cols, drop = FALSE]
   en_nombre <- function(v) suppressWarnings(as.numeric(if (dec != ".") gsub(dec, ".", v, fixed = TRUE) else v))
   # Serie en ligne avec en-tete : 2 lignes dont la premiere n'a aucune cellule
-  # numerique ; la ligne d'en-tetes est ecartee.
-  if (nrow(m) == 2 && ncol(m) > 1 && all(is.na(en_nombre(m[1, ]))))
+  # numerique ; la ligne d'en-tetes est ecartee apres controle de l'etiquette
+  # de ligne ; l'alignement colonne par colonne est controle plus bas (#95).
+  aligne <- NULL
+  refus_allure <- function(x, ou)
+    stop(sprintf(paste("Lecture de %s : la cellule \"%s\" %s, a l'allure d'une valeur manquante",
+                       "(NA, NaN, N/A, #N/A, n.d., -) ou d'un nombre (chiffres, espaces, points,",
+                       "virgules, apostrophes, signes ; separateur decimal attendu : \"%s\") ;",
+                       "l'ecarter comme en-tete ou etiquette ferait perdre une annee sans message.",
+                       "Corriger la valeur ou le separateur decimal, ou renseigner un en-tete ou",
+                       "une etiquette textuels."),
+                 chemin, x, ou, dec))
+  if (nrow(m) == 2 && ncol(m) > 1 && all(is.na(en_nombre(m[1, ])))) {
+    ent <- m[1, ]; val <- m[2, ]
+    # Etiquette de ligne : premiere cellule non vide de la serie, non
+    # numerique ; admise que l'en-tete au-dessus soit vide ou non, et exclue
+    # du controle d'alignement, sauf allure de valeur manquante ou de nombre.
+    j1 <- which(nzchar(val))[1]
+    if (!is.na(j1) && is.na(en_nombre(val[j1]))) {
+      if (.allure_manquante_ou_nombre(val[j1]))
+        refus_allure(val[j1], sprintf("(colonne %d), en position d'etiquette de ligne", cols[j1]))
+      garde <- setdiff(seq_along(val), j1)
+    } else garde <- seq_along(val)
+    aligne <- list(ent = ent[garde], val = val[garde], col = cols[garde])
     m <- m[2, , drop = FALSE]
+  }
   if (nrow(m) > 1 && ncol(m) > 1)
     stop("Format non reconnu dans ", chemin, " : une serie sur une seule ligne ou ",
          "une seule colonne est attendue (", nrow(m), " lignes x ", ncol(m), " colonnes).")
@@ -437,7 +485,13 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
   # valeur. Les positions rapportees plus bas partent de la premiere valeur.
   sans_vides_tete <- function(v) { while (length(v) && !nzchar(v[1])) v <- v[-1]; v }
   cel <- sans_vides_tete(cel)
-  if (length(cel) && is.na(en_nombre(cel[1]))) cel <- sans_vides_tete(cel[-1])
+  if (length(cel) && is.na(en_nombre(cel[1]))) {
+    # En-tete des formats en colonne et en ligne sans en-tetes ; l'etiquette
+    # du format avec en-tetes a ete controlee plus haut (meme predicat).
+    if (is.null(aligne) && .allure_manquante_ou_nombre(cel[1]))
+      refus_allure(cel[1], "en position d'en-tete (premiere cellule non vide)")
+    cel <- sans_vides_tete(cel[-1])
+  }
   # Cellules vides finales (fin de fichier) : ignorees.
   while (length(cel) && !nzchar(cel[length(cel)])) cel <- cel[-length(cel)]
   if (!length(cel)) stop("Aucune valeur numerique exploitable dans ", chemin)
@@ -454,7 +508,85 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
     stop(sprintf("Valeur(s) non numerique(s) en position %s de la serie (comptee depuis la premiere valeur) de %s : %s.",
                  paste(non_num, collapse = ", "), chemin,
                  paste0("\"", cel[non_num], "\"", collapse = ", ")))
+  # Alignement (#95) : hors etiquette, chaque colonne porte un en-tete non
+  # vide ET une valeur, ou ni l'un ni l'autre. Les cellules vides au milieu de
+  # la serie ont deja ete refusees ci-dessus (message #33).
+  if (!is.null(aligne)) {
+    he <- nzchar(aligne$ent); va <- nzchar(aligne$val)
+    fautes <- c(
+      sprintf("colonne %d : en-tete \"%s\" sans valeur", aligne$col[he & !va], aligne$ent[he & !va]),
+      sprintf("colonne %d : valeur \"%s\" sans en-tete", aligne$col[!he & va], aligne$val[!he & va]))
+    ordre <- order(c(aligne$col[he & !va], aligne$col[!he & va]))
+    if (length(fautes))
+      stop(sprintf(paste("Serie en ligne de %s : en-tetes et valeurs non alignes (%s ; %d valeur(s)",
+                         "pour %d en-tete(s) non vide(s)). Une valeur manquante ou en surnombre",
+                         "decalerait les annees ; completer la serie ou corriger la ligne",
+                         "d'en-tetes (si la premiere colonne porte une etiquette de ligne, la",
+                         "renseigner ou retirer son en-tete)."),
+                   chemin, paste(fautes[ordre], collapse = " ; "), sum(va), sum(he)))
+  }
   v
+}
+
+# Retire la marque d'ordre des octets UTF-8 (EF BB BF) en tete d'une chaine,
+# en comparant les octets, independamment de la locale et de l'encodage
+# declare de la chaine (issue #96).
+.sans_bom <- function(s) {
+  if (is.na(s)) return(s)
+  r <- charToRaw(s)
+  if (length(r) >= 3 && identical(r[1:3], as.raw(c(0xef, 0xbb, 0xbf)))) {
+    out <- rawToChar(r[-(1:3)])
+    Encoding(out) <- Encoding(s)
+    out
+  } else s
+}
+
+# Vrai si la cellule (deja passee par trimws) a l'allure d'une valeur
+# manquante ou d'un nombre, et ne peut donc servir d'en-tete ni d'etiquette de
+# ligne dans usp_lire_vecteur() (issue #95, avis d'actuary) :
+#  (a) NA, NaN, N/A, #N/A, N.D. ou "-", casse ignoree ;
+#  (b) ou cellule faite uniquement de chiffres, d'espaces (ordinaire ou
+#      insecable U+00A0), de ".", ",", "'", "+", "-", avec au moins un chiffre
+#      (ex. "1,5" avec dec = ".", "1 234", "1.234,5", "1,234.5").
+# "12a" ou "TRUE" restent admis. Comparaisons faites octet par octet
+# (useBytes, motifs ASCII), sans conversion d'encodage : une cellule non UTF-8
+# lue en locale UTF-8 ne provoque pas d'erreur. L'espace insecable est
+# remplace par une espace sur les octets bruts, en UTF-8 (C2 A0) comme en
+# Windows-1252 (A0) : un litteral "\u00a0" dans gsub() donnait, sous une
+# locale Windows-1252, un resultat qui changeait entre le premier appel et
+# les suivants (mesure du 26/09/2026, R 4.3.1).
+.allure_manquante_ou_nombre <- function(cel) {
+  a <- grepl("^(NA|NAN|N/A|#N/A|N\\.D\\.|-)$", cel, ignore.case = TRUE, useBytes = TRUE)
+  x <- vapply(cel, function(s) {
+    if (is.na(s)) return(NA_character_)
+    r <- charToRaw(s)
+    suivant <- c(r[-1], as.raw(0))
+    r <- r[!(r == as.raw(0xc2) & suivant == as.raw(0xa0))]
+    r[r == as.raw(0xa0)] <- as.raw(0x20)
+    rawToChar(r)
+  }, character(1), USE.NAMES = FALSE)
+  b <- grepl("^[0-9 .,'+-]*[0-9][0-9 .,'+-]*$", x, useBytes = TRUE)
+  unname(!is.na(cel) & (a | b))
+}
+
+# Retire la marque d'ordre des octets UTF-8 du premier nom de colonne d'un
+# tableau lu par read.csv (header = TRUE) hors locale UTF-8, sous ses formes
+# mesurees sur R 4.3.1 (Windows) : BOM brut EF BB BF (check.names = FALSE) ;
+# "X..." sous LC_CTYPE = C (make.names remplace chaque octet par un point et
+# prefixe X) ; octets EF 2E 2E sous une locale Windows-1252 (le premier octet
+# y est une lettre, les deux suivants deviennent des points). La forme
+# "X.U.FEFF." (make.names sur le caractere U+FEFF) est aussi reconnue, non
+# observee sur ce poste. Le prefixe n'est retire que s'il reste un nom
+# (issue #96).
+.nom_sans_bom <- function(n) {
+  if (!length(n) || is.na(n)) return(n)
+  n <- .sans_bom(n)
+  r <- charToRaw(n)
+  for (p in list(as.raw(c(0xef, 0x2e, 0x2e)), charToRaw("X.U.FEFF."), charToRaw("X..."))) {
+    k <- length(p)
+    if (length(r) > k && identical(r[seq_len(k)], p)) return(rawToChar(r[-seq_len(k)]))
+  }
+  n
 }
 
 usp_charger <- function(fichier_x, fichier_y, T = NULL, plus_recent_en_dernier = TRUE,
@@ -2773,6 +2905,10 @@ engine_lire_donnees_csv <- function(df) {
   if (!is.data.frame(df) || !nrow(df))
     return(list(ok = FALSE, erreurs = "Fichier vide ou illisible comme tableau.",
                 xt = NULL, yt = NULL, n = 0L))
+  # BOM d'un CSV lu hors locale UTF-8 : sans ce retrait, la colonne t
+  # (premiere colonne) n'etait plus reconnue et le controle des annees ne
+  # s'appliquait pas, sans message (issue #96).
+  if (ncol(df)) names(df)[1] <- .nom_sans_bom(names(df)[1])
   noms <- names(df)
   manquantes <- setdiff(c("xt", "yt"), noms)
   if (length(manquantes)) {
@@ -2821,6 +2957,9 @@ engine_lire_triangle <- function(df) {
   if (is.matrix(df)) df <- as.data.frame(df, stringsAsFactors = FALSE)
   if (!is.data.frame(df) || !nrow(df) || !ncol(df))
     return(refus("Fichier vide ou illisible comme tableau."))
+  # BOM d'un CSV lu hors locale UTF-8 : sans ce retrait, la colonne "i" n'etait
+  # plus reconnue et le triangle etait refuse avec un motif trompeur (#96).
+  names(df)[1] <- .nom_sans_bom(names(df)[1])
   df <- df[, setdiff(names(df), "i"), drop = FALSE]
   if (!ncol(df)) return(refus("Aucune colonne d'annee de developpement."))
   brut <- lapply(df, function(v) {

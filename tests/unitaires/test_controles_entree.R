@@ -403,5 +403,165 @@ verifier("Lecture vecteur : cellule vide au milieu d'une serie en ligne avec en-
            e <- tryCatch(usp_lire_vecteur(f, ";", ","), error = function(e) conditionMessage(e))
            is.character(e) && grepl("Cellule(s) vide(s) en position 2", e, fixed = TRUE)
          })
+# Issue #95 : serie en ligne avec ligne d'en-tetes ; une valeur manquante de
+# bord (cellule vide ecartee) ou en surnombre passait sans message. Decision
+# du mainteneur : alignement colonne par colonne (en-tete non vide et valeur,
+# ou rien) ; etiquette de ligne admise, sauf "NA", "-" ou nombre ecrit avec
+# l'autre separateur decimal.
+msg_ligne <- function(l, sep = ",", dec = ".") {
+  f <- tempfile(); writeLines(l, f)
+  tryCatch(usp_lire_vecteur(f, sep, dec), error = function(e) conditionMessage(e))
+}
+a_motif <- function(txt, ...) all(vapply(c(...), function(p) grepl(p, txt, fixed = TRUE), TRUE))
+verifier("Lecture vecteur : serie en ligne, valeur manquante de bord ou en surnombre refusee, colonnes fautives et decomptes donnes (#95)",
+         a_motif(msg_ligne(c("a,b,c,d", "1,2,3,")),
+                 "colonne 4 : en-tete \"d\" sans valeur", "3 valeur(s) pour 4 en-tete(s) non vide(s)") &&
+           a_motif(msg_ligne(c("a,b,c,d", ",2,3,4")),
+                   "colonne 1 : en-tete \"a\" sans valeur", "3 valeur(s) pour 4 en-tete(s) non vide(s)") &&
+           a_motif(msg_ligne(c("a,b", "1,2,3")),
+                   "colonne 3 : valeur \"3\" sans en-tete", "3 valeur(s) pour 2 en-tete(s) non vide(s)"))
+verifier("Lecture vecteur : serie en ligne, en-tetes et valeurs decales ou en-tete vide intercale refuses colonne par colonne (#95)",
+         a_motif(msg_ligne(c("a,b,c,", ",2,3,4")),
+                 "colonne 1 : en-tete \"a\" sans valeur ; colonne 4 : valeur \"4\" sans en-tete") &&
+           a_motif(msg_ligne(c("a,b,,d", "1,2,3,4")), "colonne 3 : valeur \"3\" sans en-tete") &&
+           a_motif(msg_ligne(c("a,,c", "1,2,3")), "colonne 2 : valeur \"2\" sans en-tete") &&
+           a_motif(msg_ligne(c("serie,a2017,a2018", ",1,2")),
+                   "colonne 1 : en-tete \"serie\" sans valeur", "retirer son en-tete"))
+verifier("Lecture vecteur : serie en ligne, etiquette \"NA\", \"-\" ou nombre a l'autre separateur decimal refusee (#95)",
+         a_motif(msg_ligne(c("a,b,c", "NA,2,3")), "cellule \"NA\" (colonne 1)", "etiquette") &&
+           a_motif(msg_ligne(c("a,b,c", "-,2,3")), "cellule \"-\" (colonne 1)", "etiquette") &&
+           a_motif(msg_ligne(c("a2017;a2018;a2019", "1,5;2;3"), ";", "."),
+                   "cellule \"1,5\" (colonne 1)", "separateur decimal"))
+# Avis d'actuary : predicat unique .allure_manquante_ou_nombre(), applique a
+# l'etiquette du format avec en-tetes et a l'en-tete des autres formats.
+verifier("Lecture vecteur : etiquette NaN, #N/A, N/A, n.d., 1 234, 1.234,5 (dec ',') ou 1,234.5 (dec '.') refusee (#95)",
+         a_motif(msg_ligne(c("a,b,c", "NaN,2,3")), "cellule \"NaN\" (colonne 1), en position d'etiquette") &&
+           a_motif(msg_ligne(c("a,b,c", "#N/A,2,3")), "cellule \"#N/A\"", "valeur manquante") &&
+           a_motif(msg_ligne(c("a,b,c", "N/A,2,3")), "cellule \"N/A\"", "etiquette") &&
+           a_motif(msg_ligne(c("a,b,c", "n.d.,2,3")), "cellule \"n.d.\"", "etiquette") &&
+           a_motif(msg_ligne(c("a,b,c", "1 234,2,3")), "cellule \"1 234\"", "etiquette") &&
+           a_motif(msg_ligne(c("a;b;c", "1.234,5;2;3"), ";", ","), "cellule \"1.234,5\"", "etiquette") &&
+           a_motif(msg_ligne(c("a;b;c", "1,234.5;2;3"), ";", "."), "cellule \"1,234.5\"", "etiquette"))
+verifier("Lecture vecteur : en-tete NA, - ou NaN refuse en format ligne sans en-tetes et en format colonne (#95)",
+         {
+           en_tete <- "en position d'en-tete (premiere cellule non vide)"
+           all(vapply(c("NA", "-", "NaN"), function(z)
+             a_motif(msg_ligne(paste0(z, ",2,3")), paste0("cellule \"", z, "\" ", en_tete)) &&
+               a_motif(msg_ligne(c(z, "2", "3")), paste0("cellule \"", z, "\" ", en_tete)), TRUE))
+         })
+verifier("Predicat .allure_manquante_ou_nombre() : manquants et nombres refuses, 12a, TRUE et en-tetes ordinaires admis (#95)",
+         {
+           # Espace insecable en UTF-8 (C2 A0) et en Windows-1252 (A0) ; deux
+           # appels successifs (un litteral dans gsub() donnait un resultat
+           # instable sous une locale Windows-1252).
+           nbsp <- paste0("1", intToUtf8(160), "234")
+           nbsp1252 <- rawToChar(as.raw(c(0x31, 0xa0, 0x32, 0x33, 0x34)))
+           oui <- c("NA", "nan", "N/A", "#n/a", "N.D.", "-", "1,5", "1 234", nbsp, nbsp1252,
+                    "1.234,5", "1,234.5", "'1'234", "+3")
+           identical(.allure_manquante_ou_nombre(oui), rep(TRUE, 14)) &&
+             identical(.allure_manquante_ou_nombre(oui), rep(TRUE, 14)) &&
+             identical(.allure_manquante_ou_nombre(
+               c("12a", "TRUE", "x", "a2017", "serie", "annee", "--", "", ".", "NA2", NA)), rep(FALSE, 11))
+         })
+verifier("Lecture vecteur : cellule d'espaces sous un en-tete refusee a l'alignement (colonne 1 : en-tete \"a\" sans valeur) (#95)",
+         a_motif(msg_ligne(c("a,b,c", "\"   \",2,3")), "colonne 1 : en-tete \"a\" sans valeur"))
+verifier("Lecture vecteur : formats sains inchanges (en-tete x en colonne, etiquette x, en-tetes a2017...) (#95)",
+         {
+           lit <- function(l, sep = ",", dec = ".") { f <- tempfile(); writeLines(l, f); usp_lire_vecteur(f, sep, dec) }
+           identical(lit(c("x", "1", "2", "3")), c(1, 2, 3)) &&
+             identical(lit("x,1,2,3"), c(1, 2, 3)) &&
+             identical(lit(c("serie,a2017,a2018", "x,1,2")), c(1, 2)) &&
+             identical(lit(c("12a", "1", "2")), c(1, 2)) &&
+             identical(lit(c("a2017;a2018;a2019", "1,5;2;3"), ";", ","), c(1.5, 2, 3))
+         })
+verifier("Lecture vecteur : serie en ligne, vide au milieu de la ligne de valeurs : message #33 inchange (#95)",
+         a_motif(msg_ligne(c("a,b,c", "1,,3")), "Cellule(s) vide(s) en position 2"))
+verifier("Lecture vecteur : serie en ligne, colonnes alignees acceptees (colonne vide de bord, etiquette de ligne) (#95)",
+         {
+           lit <- function(l) { f <- tempfile(); writeLines(l, f); usp_lire_vecteur(f) }
+           identical(lit(c(",b,c,d", ",2,3,4")), c(2, 3, 4)) &&
+             identical(lit(c("a,b,c,d,", "1,2,3,4,")), c(1, 2, 3, 4)) &&
+             identical(lit(c("serie,a2017,a2018", "x,1,2")), c(1, 2)) &&
+             identical(lit(c(",a2017,a2018", "x,1,2")), c(1, 2)) &&
+             identical(lit(c("a,b,c", "1,2,3", "")), c(1, 2, 3))
+         })
+# Issue #96 : BOM UTF-8 (EF BB BF) en tete du fichier. Fichiers ecrits en
+# binaire ; lecture dans la locale courante, puis, si le systeme l'accepte,
+# sous LC_CTYPE = "C" (non UTF-8, ou le defaut se manifestait), la locale
+# de l'appelant etant restauree en sortie.
+bom_csv <- function(txt) {
+  f <- tempfile(fileext = ".csv")
+  writeBin(c(as.raw(c(0xef, 0xbb, 0xbf)), charToRaw(txt)), f)
+  f
+}
+lit_bom <- function() list(
+  usp_lire_vecteur(bom_csv("1,2,3\n")),
+  usp_lire_vecteur(bom_csv("1\n2\n3\n")),
+  usp_lire_vecteur(bom_csv("x\n1\n2\n3\n")),
+  usp_lire_vecteur(bom_csv("a2017;a2018;a2019\n1,5;2;3\n"), ";", ","))
+attendu_bom <- list(c(1, 2, 3), c(1, 2, 3), c(1, 2, 3), c(1.5, 2, 3))
+verifier("Lecture vecteur : CSV avec BOM ecrit en binaire lu sans perte dans la locale courante (#96)",
+         identical(lit_bom(), attendu_bom))
+# Evalue f() sous LC_CTYPE = "C" et restaure la locale de l'appelant ; rend
+# "locale C indisponible" (avec un message visible) si le systeme refuse la
+# locale ou si elle reste UTF-8, l'assertion etant alors neutre.
+sous_locale_c <- function(f) {
+  avant <- Sys.getlocale("LC_CTYPE")
+  r <- tryCatch({
+    pose <- suppressWarnings(Sys.setlocale("LC_CTYPE", "C"))
+    if (!nzchar(pose) || isTRUE(l10n_info()[["UTF-8"]])) "locale C indisponible" else f()
+  }, finally = suppressWarnings(Sys.setlocale("LC_CTYPE", avant)))
+  if (!identical(Sys.getlocale("LC_CTYPE"), avant)) stop("locale LC_CTYPE non restauree")
+  if (identical(r, "locale C indisponible"))
+    message("  (information) LC_CTYPE = C indisponible ou UTF-8 : assertion BOM non exercee")
+  r
+}
+verifier("Lecture vecteur : CSV avec BOM lu sans perte sous LC_CTYPE = C (non UTF-8), locale restauree (#96)",
+         {
+           r <- sous_locale_c(lit_bom)
+           identical(r, "locale C indisponible") || identical(r, attendu_bom)
+         })
+# Lecteurs de l'application (read.csv avec en-tete, puis engine_lire_*) : hors
+# locale UTF-8, le BOM altere le premier nom de colonne ("X...t" sous C).
+verifier("Lecture t, xt, yt : CSV avec BOM lu par read.csv sous LC_CTYPE = C, colonne t reconnue et controlee (#96)",
+         {
+           r <- sous_locale_c(function() {
+             ok <- engine_lire_donnees_csv(utils::read.csv(
+               bom_csv("t,xt,yt\n2,11,21\n1,10,20\n3,12,22\n"), stringsAsFactors = FALSE))
+             trou <- engine_lire_donnees_csv(utils::read.csv(
+               bom_csv("t,xt,yt\n1,10,20\n3,12,22\n"), stringsAsFactors = FALSE))
+             list(isTRUE(ok$ok) && identical(ok$xt, c(10, 11, 12)) && identical(ok$yt, c(20, 21, 22)),
+                  !trou$ok && contient(trou$erreurs, "non consecutives"))
+           })
+           identical(r, "locale C indisponible") || identical(r, list(TRUE, TRUE))
+         })
+verifier("Lecture triangle : CSV 5 x 5 avec colonne i et BOM lu par read.csv sous LC_CTYPE = C, ok = TRUE (#96)",
+         {
+           tri <- paste0("i,d1,d2,d3,d4,d5\n1,100,150,170,180,185\n2,110,160,180,190,\n",
+                         "3,120,175,195,,\n4,130,185,,,\n5,140,,,,\n")
+           r <- sous_locale_c(function() {
+             v <- engine_lire_triangle(utils::read.csv(bom_csv(tri), stringsAsFactors = FALSE,
+                                                       row.names = NULL))
+             isTRUE(v$ok) && identical(dim(v$triangle), c(5L, 5L)) && identical(v$triangle[1, 1], 100)
+           })
+           identical(r, "locale C indisponible") || isTRUE(r)
+         })
+verifier("Retrait du BOM d'un nom de colonne : formes brute, \"X...\", \"X.U.FEFF.\" et EF 2E 2E ; autres noms intacts (#96)",
+         {
+           b <- function(...) rawToChar(as.raw(c(...)))
+           identical(.nom_sans_bom(b(0xef, 0xbb, 0xbf, 0x74)), "t") &&
+             identical(.nom_sans_bom("X...t"), "t") && identical(.nom_sans_bom("X.U.FEFF.i"), "i") &&
+             identical(.nom_sans_bom(b(0xef, 0x2e, 0x2e, 0x78, 0x74)), "xt") &&
+             identical(.nom_sans_bom("t"), "t") && identical(.nom_sans_bom("X..."), "X...") &&
+             identical(.nom_sans_bom("X.1"), "X.1") && identical(.nom_sans_bom(NA_character_), NA_character_)
+         })
+verifier("Retrait du BOM : .sans_bom() retire EF BB BF de tete seulement, laisse le reste intact (#96)",
+         {
+           s <- rawToChar(as.raw(c(0xef, 0xbb, 0xbf, 0x31, 0x32)))
+           identical(.sans_bom(s), "12") && identical(.sans_bom("12"), "12") &&
+             identical(.sans_bom(""), "") && identical(.sans_bom(NA_character_), NA_character_) &&
+             identical(.sans_bom(rawToChar(as.raw(c(0x31, 0xef, 0xbb, 0xbf)))),
+                       rawToChar(as.raw(c(0x31, 0xef, 0xbb, 0xbf))))
+         })
 
 fin_fichier()
