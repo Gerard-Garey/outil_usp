@@ -592,8 +592,10 @@ ajusté \\
 \code{stats\_obs}, \code{p\_mc}, \code{err\_mc},
 \code{B\_effectif}, \code{granularite}, \code{sigma\_boot}, \code{B}, \code{granularite\_stat} \\
 \code{usp\_tests()} & \code{fit}, \code{boot}, \code{alpha} (0,10),
-\code{theta\_equiv} (0,10), \code{delta\_equiv}, \code{robustesse} (\code{NULL}) &
-liste des tests (H0, H1, statistique, 3 p-values, nature), enregistrés par l'\code{add()}
+\code{theta\_equiv} (0,10), \code{delta\_equiv}, \code{robustesse} (\code{NULL}),
+\code{methode} (\code{"premium"}, ou \code{"reserve1"}~; toute autre valeur refusée) &
+liste des tests (H0, H1, statistique, 3 p-values, nature~; citation de l'hypothèse H1 à H4 dans
+le champ \code{famille}, B(2)(g) ou C(2)(e) selon \code{methode}, section~\ref{sec:h1}), enregistrés par l'\code{add()}
 d'\code{engine\_registre\_tests()}~; \code{robustesse}, calculé par
 \code{run\_engine()} et non stocké, alimente le seul commentaire de la ligne jackknife (année
 d'écart maximal et sens de l'écart sur $\sigma_{\mathrm{USP}}$~; fiche~\ref{fiche:jackknife})~;
@@ -1363,7 +1365,7 @@ Position de $\hat\delta$ & \ref{fiche:position-delta} & \code{usp\_ajuster()} (c
 \code{\$delta})~; drapeau \code{\$delta\_au\_bord} par \code{usp\_regime()},
 tolérance \code{TOL\_DELTA\_BORD} & diagnostic, aucune p-value & --- \\
 
-\multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Hypothèse H3 --- lognormalité des pertes agrégées}}} \\
+\multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Hypothèse H3 --- lognormalité de la variable modélisée (pertes agrégées ; montant de C(1)(a))}}} \\
 \midrule
 Shapiro--Wilk & \ref{fiche:shapiro-wilk} & \code{.shapiro\_sur()} (encapsule
 \code{stats::shapiro.test()}) & \code{.shapiro\_sur()} (p approx. Royston 1992) &
@@ -1585,6 +1587,7 @@ place d'une p-value de Monte-Carlo prévue par suite d'une clé mal écrite (ADR
 \clearpage
 % =============================================================================
 \section{Notations générales}
+\label{sec:notations}
 % =============================================================================
 
 L'outil couvre deux familles de méthodes, aux géométries de données distinctes.
@@ -3472,10 +3475,35 @@ Loi nulle propre pour Shapiro--Wilk~; lecture comme diagnostic seulement \\
 \label{sec:h1}
 % =============================================================================
 
+\reglement{Annexe XVII, B(2)(g)(i) et C(2)(e)(i), du règlement délégué (UE) 2015/35}{Les
+données sont conformes aux hypothèses suivantes~: [\dots] «~pour un segment et une année
+d'accident particuliers, les pertes agrégées attendues sont en relation linéaire proportionnelle
+avec les primes acquises au cours de cette année d'accident~» (méthode du risque de primes)~;
+«~pour un segment et un exercice particuliers, le montant visé au paragraphe 1, point a), est en
+relation linéaire proportionnelle avec la meilleure estimation de la provision pour sinistres à
+payer dans ce segment et au cours de cet exercice~» (méthode du risque de réserve
+n\textsuperscript{o}~1).}
+
 \begin{encadre}
-\textbf{Énoncé réglementaire} (annexe~XVII, B/C(2)(f)(i)). L'espérance des pertes agrégées est
-\emph{linéairement proportionnelle} aux primes acquises (ou à la provision d'ouverture)~:
+\textbf{Énoncé réglementaire} (annexe~XVII, B(2)(g)(i) pour la méthode du risque de primes,
+\emph{Journal officiel}, L~12 du 17~janvier 2015, p.~273~; C(2)(e)(i) pour la méthode du risque
+de réserve n\textsuperscript{o}~1, p.~274~; numérotation et texte identiques dans la version
+consolidée du 14~novembre 2024, citée ci-dessus). Le texte énonce une relation entre les données
+(pertes agrégées ou montant de C(1)(a), et primes acquises ou provision d'ouverture)~; il ne
+l'écrit pas sous forme de moments. \emph{Traduction dans le modèle réglementaire} (lecture de
+l'outil~: modèle des paragraphes (5) et (6) des sections~B et~C, section~\ref{sec:notations})~:
+l'espérance de $Y_t$ est \emph{linéairement proportionnelle} à $x_t$,
 $\mathbb{E}[Y_t] = \beta x_t$, sans terme constant, avec $\beta$ constant dans le temps.
+
+\smallskip
+Les quatre hypothèses H1 à H4 sont les points (i) à (iv) de B(2)(g) et de C(2)(e). Le champ
+\code{famille} des lignes H1 à H4 de la table des tests cite le seul point de la méthode
+appliquée (par exemple «~(annexe XVII B(2)(g)(i))~» pour la méthode de primes, «~(annexe XVII
+C(2)(e)(i))~» pour la méthode de réserve n\textsuperscript{o}~1), et l'application comme le
+rapport figé le reprennent sous chaque groupe (\code{citation\_de()} de
+\code{R/display\_helpers.R}), issue~\#92. Jusqu'à cette issue, les quatre hypothèses étaient
+citées «~B/C(2)(f)~», renvoi erroné~: B(2)(f) porte sur l'inclusion des dépenses dans les pertes
+agrégées, et le paragraphe~C(2) n'a pas de point~f).
 \end{encadre}
 
 \begin{fiche}{Test de Student sur la constante}
@@ -3887,8 +3915,22 @@ Mann--Kendall doit lui être préféré.
 \label{sec:h2}
 % =============================================================================
 
+\reglement{Annexe XVII, B(2)(g)(ii) et C(2)(e)(ii), du règlement délégué (UE) 2015/35}{«~pour un
+segment et une année d'accident particuliers, la variance des pertes agrégées est en relation
+quadratique avec les primes acquises au cours de cette année d'accident~» (méthode du risque de
+primes)~; «~pour un segment et un exercice particuliers, la variance du montant visé au
+paragraphe (1), point (a), est en relation quadratique avec la meilleure estimation de la
+provision pour sinistres à payer dans ce segment et au cours de cet exercice~» (méthode du risque
+de réserve n\textsuperscript{o}~1, version consolidée).}
+
 \begin{encadre}
-\textbf{Énoncé réglementaire} (annexe~XVII, B/C(2)(f)(ii)). La variance des pertes agrégées est
+\textbf{Énoncé réglementaire} (annexe~XVII, B(2)(g)(ii), \emph{Journal officiel}, L~12 du
+17~janvier 2015, p.~273~; C(2)(e)(ii), p.~274). Le point C(2)(e)(ii) est cité dans la version
+consolidée, où il porte le marqueur $\blacktriangleright$\,C4 (rectificatif, \emph{Journal
+officiel}, L~2 du 6~janvier 2022, p.~8)~; la version d'origine écrivait «~le montant visé au
+paragraphe 1, point a), est en relation quadratique avec la provision pour sinistres à payer dans
+ce segment et au cours de cet exercice~», sans le mot «~variance~». \emph{Traduction dans le modèle réglementaire} (lecture de
+l'outil, section~\ref{sec:notations})~: la variance des pertes agrégées est
 $\operatorname{Var}(Y_t) = \sigma^2\big[(1-\delta)\bar x\, x_t + \delta x_t^2\big]$, mélange
 convexe d'une composante linéaire en volume (risque mutualisable) et d'une composante quadratique
 (risque systématique). Le paramètre $\delta \in [0,1]$ est estimé conjointement à $\gamma$.
@@ -4182,14 +4224,25 @@ précise que la vraisemblance ne dépend \emph{presque} pas de $\delta$.
 \newpage
 \clearpage
 % =============================================================================
-\section{Hypothèse H3 --- lognormalité des pertes agrégées}
+\section{Hypothèse H3 --- lognormalité de la variable modélisée}
 \label{sec:h3}
 % =============================================================================
 
+\reglement{Annexe XVII, B(2)(g)(iii) et C(2)(e)(iii), du règlement délégué (UE) 2015/35}{«~les
+pertes agrégées suivent une distribution log-normale~» (méthode du risque de primes)~; «~le
+montant visé au paragraphe 1, point a), suit une distribution log-normale~» (méthode du risque de
+réserve n\textsuperscript{o}~1).}
+
 \begin{encadre}
-\textbf{Énoncé réglementaire} (annexe~XVII, B/C(2)(f)(iii)). Les pertes agrégées (ou le montant
-de liquidation) suivent une loi lognormale. Cette hypothèse se teste de façon équivalente comme
-la normalité des résidus standardisés $z_t$.
+\textbf{Énoncé réglementaire} (annexe~XVII, B(2)(g)(iii), \emph{Journal officiel}, L~12 du
+17~janvier 2015, p.~273~; C(2)(e)(iii), p.~275~; texte identique dans la version consolidée). La
+variable modélisée $y_t$ est, selon la méthode, les pertes agrégées (méthode du risque de primes)
+ou le montant de C(1)(a), somme des paiements de l'exercice et de la meilleure estimation de
+clôture sur les sinistres à payer en début d'exercice (méthode du risque de réserve
+n\textsuperscript{o}~1)~; le titre de la section vaut pour les deux. Les pertes agrégées (ou le
+montant de liquidation) suivent une loi lognormale. \emph{Traduction dans le modèle
+réglementaire} (lecture de l'outil, section~\ref{sec:notations})~: cette hypothèse se teste de
+façon équivalente comme la normalité des résidus standardisés $z_t$.
 \end{encadre}
 
 \begin{encadre}
@@ -4590,10 +4643,22 @@ queue doit reposer sur le QQ-plot, sur Anderson--Darling et sur les tests de val
 \label{sec:h4}
 % =============================================================================
 
+\reglement{Annexe XVII, B(2)(g)(iv) et C(2)(e)(iv), du règlement délégué (UE) 2015/35}{«~l'estimation
+de la vraisemblance maximum est adéquate~» (texte identique pour la méthode du risque de primes
+et pour la méthode du risque de réserve n\textsuperscript{o}~1).}
+
 \begin{encadre}
-\textbf{Énoncé réglementaire} (annexe~XVII, B/C(2)(f)(iv)). L'estimation par maximum de
-vraisemblance est appropriée, ce qui suppose notamment l'indépendance des $Y_t$ conditionnellement
-aux $x_t$, sans autocorrélation résiduelle.
+\textbf{Énoncé réglementaire} (annexe~XVII, B(2)(g)(iv), \emph{Journal officiel}, L~12 du
+17~janvier 2015, p.~273~; C(2)(e)(iv), p.~275~; texte identique dans la version consolidée). Le
+texte ne nomme ni l'indépendance ni aucune autre condition~: il pose seulement que l'estimation
+par maximum de vraisemblance est adéquate. \emph{Lecture de l'outil}~: l'estimation visée est
+celle de $(\delta, \gamma)$ par minimisation du critère des paragraphes B(6) et C(6), que
+\code{usp\_objectif()} calcule comme $-2\ln L$ du modèle lognormal à une constante près
+(section~\ref{sec:inventaire})~; elle est appropriée si ses conditions de validité tiennent, ce
+qui suppose notamment l'indépendance des $Y_t$ conditionnellement aux $x_t$, sans
+autocorrélation résiduelle. Le titre de la section, «~indépendance et validité du maximum de
+vraisemblance~», est cette lecture, non une citation~: les tests d'autocorrélation et les
+diagnostics de validité de l'estimation qui suivent la mettent en œuvre.
 \end{encadre}
 
 \begin{fiche}{Test de Durbin--Watson}
