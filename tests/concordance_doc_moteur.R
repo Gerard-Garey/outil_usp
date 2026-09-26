@@ -50,8 +50,11 @@
 #       au catalogue Monte-Carlo de la methode de sa section (intertitres
 #       H1 a H4, stabilite, robustesse -> USP_CATALOGUE_MC ; intertitres
 #       "Methode Merz--Wuthrich" -> MW_CATALOGUE_MC) : une cle du mauvais
-#       catalogue ou d'aucun est un ecart (issue #91). Les cles d'un
-#       catalogue non citees sont signalees pour information.
+#       catalogue ou d'aucun est un ecart (issue #91), de meme qu'une
+#       rangee non terminee avant \end{longtable} et un tableau sans aucune
+#       cle. Les cles d'un catalogue non citees sont signalees pour
+#       information. Limite : l'appartenance au catalogue est verifiee, pas
+#       la correspondance cle <-> test (voir cles_mc_index()).
 #
 #  Le moteur est execute sur les jeux de tests/donnees/ avec B petit
 #  (defaut 99) : seule la STRUCTURE de la table des tests sert ici (nombre de
@@ -81,7 +84,8 @@
 #  sortie 1 des qu'il y a un ecart VERIFIE -- nom introuvable non exempte,
 #  exemption perimee, phrase du registre DECOMPTES absente ou fausse,
 #  prefixe de famille non declare dans GROUPES, cle MC hors du catalogue de
-#  sa methode ou tableau de l'index introuvable. L'inventaire b) reste une
+#  sa methode, tableau de l'index introuvable, sans cle ou a rangee non
+#  terminee. L'inventaire b) reste une
 #  information sans effet sur le code de sortie (issue #75). --tex remplace
 #  le document lu (tests du mode strict sur une copie modifiee).
 #
@@ -421,18 +425,27 @@ familles_produites <- function(o) {
 # ---------------------------------------------------------------------------
 
 # Cles de la colonne "Cle MC" (derniere colonne) du longtable dont l'en-tete
-# porte \textbf{Clé MC}, avec la methode de leur section : "MW" sous un
+# porte \textbf{Cle MC} (e accent aigu, ecrit é dans le code pour ne
+# pas dependre de la locale de lecture du script), avec la methode de leur
+# section : "MW" sous un
 # intertitre \multicolumn qui contient "Merz", "USP" sous tout autre
 # intertitre, NA avant le premier. Seules les lignes apres \endlastfoot sont
 # lues (les en-tetes repetes du longtable ne portent pas de cle). Une ligne
-# du tableau se termine par \\ ; les cellules sont separees par les &
-# non echappes. Renvoie NULL si le tableau est introuvable, sinon un
-# data.frame (ligne, cle, methode), une ligne par \code{} de la derniere
-# cellule (texte sans \code{}, tiret ou "toutes les cles ci-dessus", ne
-# produit aucune cle).
+# du tableau se termine par \\, \\* ou \\[espacement] ; les cellules sont
+# separees par les & non echappes. Renvoie NULL si le tableau est
+# introuvable, sinon un data.frame (ligne, cle, methode), une ligne par
+# \code{} de la derniere cellule (texte sans \code{}, tiret ou "toutes les
+# cles ci-dessus", ne produit aucune cle), avec l'attribut "non_terminee" :
+# ligne de debut d'une rangee non terminee avant \end{longtable} (NA sinon),
+# que l'appelant compte comme ecart.
+# LIMITE de conception : seule l'appartenance de la cle au catalogue de sa
+# methode est verifiee, pas la correspondance cle <-> test de la ligne. Une
+# cle commune aux deux catalogues (DW, Grubbs, BP, Runs) ou une cle du bon
+# catalogue portee par la mauvaise ligne n'est pas detectee.
+FIN_RANGEE <- "\\\\\\\\\\*?(\\[[^]]*\\])?\\s*$"
 cles_mc_index <- function(lignes) {
   lignes <- retirer_commentaires(lignes)
-  deb <- grep("\\textbf{Clé MC}", lignes, fixed = TRUE)[1L]
+  deb <- grep("\\textbf{Cl\u00e9 MC}", lignes, fixed = TRUE)[1L]
   if (is.na(deb)) return(NULL)
   fin <- grep("\\end{longtable}", lignes, fixed = TRUE)
   fin <- fin[fin > deb][1L]
@@ -446,7 +459,7 @@ cles_mc_index <- function(lignes) {
     if (!length(tampon) && grepl("^\\s*(\\\\(midrule|toprule|bottomrule))?\\s*$", l)) next
     if (!length(tampon)) l0 <- k
     tampon <- c(tampon, l)
-    if (!grepl("\\\\\\\\\\s*$", l)) next
+    if (!grepl(FIN_RANGEE, l, perl = TRUE)) next
     rangee <- paste(tampon, collapse = "\n"); tampon <- character(0)
     if (grepl("\\multicolumn", rangee, fixed = TRUE)) {
       methode <- if (grepl("Merz", rangee, fixed = TRUE)) "MW" else "USP"
@@ -455,13 +468,14 @@ cles_mc_index <- function(lignes) {
     esp <- gregexpr("(?<!\\\\)&", rangee, perl = TRUE)[[1]]
     if (esp[1L] == -1L) next
     p <- esp[length(esp)]
-    cellule <- sub("\\\\\\\\\\s*$", "", substring(rangee, p + 1L))
+    cellule <- sub(FIN_RANGEE, "", substring(rangee, p + 1L), perl = TRUE)
     decal <- l0 + lengths(regmatches(substr(rangee, 1L, p), gregexpr("\n", substr(rangee, 1L, p))))
     cod <- extraire_codes(strsplit(cellule, "\n", fixed = TRUE)[[1]])
     if (nrow(cod))
       res <- rbind(res, data.frame(ligne = decal + cod$ligne - 1L, cle = desechapper(cod$brut),
                                    methode = methode, stringsAsFactors = FALSE))
   }
+  attr(res, "non_terminee") <- if (length(tampon) && any(nzchar(trimws(tampon)))) l0 else NA_integer_
   res
 }
 
@@ -643,11 +657,20 @@ if (sys.nframe() == 0L) {
   cles <- cles_mc_index(tex)
   if (is.null(cles)) {
     n_ecarts <- n_ecarts + 1L
-    cat("\n=== 4. Colonne \"Cle MC\" de l'index des fonctions\n  ECART -- tableau introuvable (en-tete \\textbf{Clé MC} et \\endlastfoot attendus)\n")
+    cat("\n=== 4. Colonne \"Cle MC\" de l'index des fonctions\n  ECART -- tableau introuvable (en-tete \\textbf{Cl\u00e9 MC} et \\endlastfoot attendus)\n")
   } else {
     e_mc <- verifier_cles_mc(cles, catalogues)
     cat(sprintf("\n=== 4. Colonne \"Cle MC\" de l'index des fonctions : %d cle(s) (USP %d, MW %d)\n",
                 nrow(cles), sum(cles$methode %in% "USP"), sum(cles$methode %in% "MW")))
+    if (!nrow(cles)) {
+      n_ecarts <- n_ecarts + 1L
+      cat("  ECART -- tableau trouve mais aucune cle lue (colonne vide ou fins de rangee non reconnues)\n")
+    }
+    nt <- attr(cles, "non_terminee")
+    if (!is.null(nt) && !is.na(nt)) {
+      n_ecarts <- n_ecarts + 1L
+      cat(sprintf("  ECART -- rangee commencee l.%d non terminee (\\\\, \\\\* ou \\\\[...]) avant \\end{longtable} : ses cles ne sont pas lues\n", nt))
+    }
     for (m in names(catalogues)) {
       nc <- setdiff(catalogues[[m]], cles$cle[cles$methode %in% m])
       if (length(nc)) cat(sprintf("  (information) cle(s) du catalogue %s non citee(s) : %s\n", m, paste(nc, collapse = " ")))
