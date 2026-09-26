@@ -437,22 +437,29 @@ unlink(.dm, recursive = TRUE)
   writeLines(c(sprintf("DOSSIER_TESTS <- \"%s\"", normalizePath(rg$DOSSIER_TESTS, winslash = "/")),
                "source(file.path(DOSSIER_TESTS, \"regenerer_et_rendre_compte.R\"))",
                "x <- \"apr\\u00e8s \\u2014 r\\u00e9f\\u00e9rence\"",
-               "ecrire_console(x); writeLines(x)"), s)
+               "ecrire_console(x); writeLines(x)",
+               "cat(\"UTF8LOCALE=\", isTRUE(l10n_info()[[\"UTF-8\"]]), \"\\n\", sep = \"\")"), s)
   ancien <- Sys.getenv("LC_ALL", unset = NA)
   on.exit(if (is.na(ancien)) Sys.unsetenv("LC_ALL") else Sys.setenv(LC_ALL = ancien), add = TRUE)
   if (is.na(lc)) Sys.unsetenv("LC_ALL") else Sys.setenv(LC_ALL = lc)
   suppressWarnings(system2(file.path(R.home("bin"), "Rscript"), s, stdout = o, stderr = FALSE))
   l <- strsplit(rawToChar(readBin(o, "raw", file.size(o))), "\r?\n", useBytes = TRUE)[[1]]
-  lapply(l[nzchar(l)], charToRaw)
+  l <- l[nzchar(l)]
+  # Derniere ligne : la locale du processus fils est-elle UTF-8 ?
+  list(lignes = lapply(utils::head(l, -1L), charToRaw), utf8 = identical(utils::tail(l, 1L), "UTF8LOCALE=TRUE"))
 }
-.utf8_82 <- charToRaw(enc2utf8("après — référence"))
+.utf8_82 <- charToRaw(enc2utf8("apr\u00e8s \u2014 r\u00e9f\u00e9rence"))
 .c82 <- .console82("C")
 verifier("Issue #82 : ecrire_console() ecrit les octets UTF-8 sous LC_ALL=C",
-         length(.c82) == 2L && identical(.c82[[1]], .utf8_82))
+         length(.c82$lignes) == 2L && identical(.c82$lignes[[1]], .utf8_82))
 verifier("Issue #82 (temoin) : writeLines() seul sous LC_ALL=C n'ecrit pas ces octets (<U+00E8>...)",
-         length(.c82) == 2L && !identical(.c82[[2]], .utf8_82) && grepl("<U+00E8>", rawToChar(.c82[[2]]), fixed = TRUE))
+         length(.c82$lignes) == 2L && !.c82$utf8 && !identical(.c82$lignes[[2]], .utf8_82) &&
+           grepl("<U+00E8>", rawToChar(.c82$lignes[[2]]), fixed = TRUE))
+# Garde sur la locale reelle du processus fils (celle qu'il herite sans
+# LC_ALL), non sur celle du processus qui lance le test.
 .n82 <- .console82(NA)
-verifier("Issue #82 : sans LC_ALL, ecrire_console() et writeLines() ecrivent les memes octets (sortie inchangee sous une locale UTF-8)",
-         !isTRUE(l10n_info()[["UTF-8"]]) || (length(.n82) == 2L && identical(.n82[[1]], .utf8_82) && identical(.n82[[2]], .utf8_82)))
+verifier("Issue #82 : sans LC_ALL, sous une locale UTF-8, ecrire_console() et writeLines() ecrivent les memes octets (sortie inchangee)",
+         !.n82$utf8 || (length(.n82$lignes) == 2L && identical(.n82$lignes[[1]], .utf8_82) &&
+                          identical(.n82$lignes[[2]], .utf8_82)))
 
 fin_fichier()
