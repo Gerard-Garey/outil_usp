@@ -153,6 +153,20 @@ neutraliser_instables <- function(res) {
 
 chemin_reference <- function(nom) file.path(DOSSIER_REF, paste0(nom, ".rds"))
 
+# Description d'un resultat ok = FALSE de run_engine() (issue #88), pour les
+# messages des scripts : motifs de validation$erreurs et, pour un defaut de
+# calcul intercepte par le moteur, message, appel, origine et pile de
+# validation$erreur_r. Renvoie un texte de plusieurs lignes.
+decrire_refus <- function(res) {
+  v <- res$validation
+  l <- if (length(v$erreurs)) paste0("  motif : ", v$erreurs) else "  (aucun motif)"
+  er <- v$erreur_r
+  if (!is.null(er))
+    l <- c(l, paste0("  erreur R : ", er$message), paste0("  appel : ", er$appel),
+           paste0("  origine : ", er$origine), paste0("  pile : ", paste(er$pile, collapse = " > ")))
+  paste(l, collapse = "\n")
+}
+
 # Ecriture d'une reference : un seul code, partage par generer_references.R et
 # regenerer_et_rendre_compte.R, pour qu'une reference regeneree par l'un ou
 # l'autre soit le meme fichier (format RDS version 3). chemin : destination

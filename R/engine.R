@@ -182,11 +182,27 @@ TOL_OPTIMUM <- 1e-6
 REP_PAS_KKT <- 1e-6
 REP_GD_KKT  <- 1e-4
 
+# Seuil d'ECHEC des tests en sens "rejeter" (engine_registre_tests()) : p <
+# alpha donne OK, alpha <= p < SEUIL_ECHEC_SENS_REJETER donne ALERTE, au-dela
+# ECHEC. Borne aussi le seuil alpha admis par run_engine() (suite de #88, avis
+# d'actuary) : 0 < alpha < SEUIL_ECHEC_SENS_REJETER, faute de quoi la zone
+# ALERTE disparait et le verdict ne suit plus la regle documentee.
+SEUIL_ECHEC_SENS_REJETER <- 0.30
+
+# Tolerance relative de l'egalite entre sigma standard saisi et sigma
+# standard reglementaire (colonne conforme de engine_derogations(), issue
+# #93) : NP standard x sigma brut n'est pas toujours representable
+# exactement (0,8 x 0,10), une comparaison par identical() dirait alors
+# differente une saisie egale a la table.
+TOLERANCE_CONFORME_SIGMA <- 1e-12
+
 usp_credibilite <- function(T, bareme = c("court", "long")) {
   bareme <- match.arg(bareme)
   tab <- if (bareme == "long") CRED_LONG else CRED_COURT
-  # La duree est un nombre entier d'annees (section G : "duree de la serie
-  # chronologique") ; une valeur non entiere, non finie ou multiple n'a pas
+  # La duree est un nombre entier d'annees (section G, paragraphe 3 : "La
+  # duree correspond" au "nombre d'annees d'accident" ou au "nombre
+  # d'exercices pour lesquels des donnees sont disponibles", selon la
+  # methode) ; une valeur non entiere, non finie ou multiple n'a pas
   # de ligne dans le bareme et est refusee explicitement (issue #33), au lieu
   # de renvoyer NA.
   if (!is.numeric(T) || length(T) != 1L || !is.finite(T) || T != round(T))
@@ -407,6 +423,23 @@ usp_parametre_standard <- function(methode = c("premium", "reserve1", "reserve2"
 # numerique (en-tete) et les cellules vides en tete de serie, entre l'en-tete
 # et la premiere valeur, et en fin de serie (lues sans effet par l'ancien
 # lecteur, qui sautait les lignes vides).
+#
+# Serie en ligne avec ligne d'en-tetes (issue #95, decision du mainteneur) :
+# en-tetes et valeurs doivent etre alignes colonne par colonne. Hors colonne
+# d'etiquette, chaque colonne porte un en-tete non vide et une valeur, ou ni
+# l'un ni l'autre ; sinon une valeur manquante en tete ou en fin de serie
+# (cellule vide de bord, ecartee ci-dessus) ou une valeur en surnombre
+# passerait sans message. Le fichier est refuse en listant les colonnes
+# fautives, avec les deux decomptes. L'etiquette de ligne (premiere cellule non
+# vide de la serie, non numerique) est admise, que l'en-tete au-dessus soit
+# vide ou non.
+#
+# En-tete et etiquette (issue #95, avis d'actuary) : dans tous les formats, la
+# premiere cellule non vide et non numerique, ecartee comme en-tete (formats
+# en colonne et en ligne sans en-tetes) ou comme etiquette de ligne (format
+# avec ligne d'en-tetes), est refusee si elle a l'allure d'une valeur
+# manquante ou d'un nombre (.allure_manquante_ou_nombre()) : l'ecarter ferait
+# perdre une annee sans message.
 usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
   if (!file.exists(chemin)) stop("Fichier introuvable : ", chemin)
   brut <- utils::read.csv(chemin, header = FALSE, sep = sep, dec = dec,
@@ -414,6 +447,12 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
                           na.strings = character(0), strip.white = TRUE)
   m <- as.matrix(brut)
   m[is.na(m)] <- ""
+  # Marque d'ordre des octets UTF-8 (EF BB BF, "UTF-8 avec BOM" d'Excel) :
+  # hors locale UTF-8, read.csv la laisse en tete de la premiere cellule, qui
+  # n'est alors plus numerique et serait prise pour un en-tete (premiere
+  # valeur perdue sans message, issue #96). Retiree octet par octet, quelle
+  # que soit la locale ; une locale UTF-8 l'a deja retiree.
+  if (length(m)) m[1, 1] <- .sans_bom(m[1, 1])
   m <- trimws(m)
   # Lignes et colonnes entierement vides AVANT la premiere valeur ou APRES
   # la derniere (debut ou fin de fichier, separateur final) ecartees ; une
@@ -422,12 +461,37 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
   # lignes dont la premiere est une ligne d'en-tetes (ci-dessous).
   nz <- matrix(nzchar(m), nrow(m), ncol(m))
   bornes <- function(k) if (length(k)) seq(min(k), max(k)) else integer(0)
-  m <- m[bornes(which(rowSums(nz) > 0)), bornes(which(colSums(nz) > 0)), drop = FALSE]
+  # Numeros de colonne du fichier conserves pour les messages (colonnes de bord
+  # vides retirees).
+  cols <- bornes(which(colSums(nz) > 0))
+  m <- m[bornes(which(rowSums(nz) > 0)), cols, drop = FALSE]
   en_nombre <- function(v) suppressWarnings(as.numeric(if (dec != ".") gsub(dec, ".", v, fixed = TRUE) else v))
   # Serie en ligne avec en-tete : 2 lignes dont la premiere n'a aucune cellule
-  # numerique ; la ligne d'en-tetes est ecartee.
-  if (nrow(m) == 2 && ncol(m) > 1 && all(is.na(en_nombre(m[1, ]))))
+  # numerique ; la ligne d'en-tetes est ecartee apres controle de l'etiquette
+  # de ligne ; l'alignement colonne par colonne est controle plus bas (#95).
+  aligne <- NULL
+  refus_allure <- function(x, ou)
+    stop(sprintf(paste("Lecture de %s : la cellule \"%s\" %s, a l'allure d'une valeur manquante",
+                       "(NA, NaN, N/A, #N/A, n.d., -) ou d'un nombre (chiffres, espaces, points,",
+                       "virgules, apostrophes, signes ; separateur decimal attendu : \"%s\") ;",
+                       "l'ecarter comme en-tete ou etiquette ferait perdre une annee sans message.",
+                       "Corriger la valeur ou le separateur decimal, ou renseigner un en-tete ou",
+                       "une etiquette textuels."),
+                 chemin, x, ou, dec))
+  if (nrow(m) == 2 && ncol(m) > 1 && all(is.na(en_nombre(m[1, ])))) {
+    ent <- m[1, ]; val <- m[2, ]
+    # Etiquette de ligne : premiere cellule non vide de la serie, non
+    # numerique ; admise que l'en-tete au-dessus soit vide ou non, et exclue
+    # du controle d'alignement, sauf allure de valeur manquante ou de nombre.
+    j1 <- which(nzchar(val))[1]
+    if (!is.na(j1) && is.na(en_nombre(val[j1]))) {
+      if (.allure_manquante_ou_nombre(val[j1]))
+        refus_allure(val[j1], sprintf("(colonne %d), en position d'etiquette de ligne", cols[j1]))
+      garde <- setdiff(seq_along(val), j1)
+    } else garde <- seq_along(val)
+    aligne <- list(ent = ent[garde], val = val[garde], col = cols[garde])
     m <- m[2, , drop = FALSE]
+  }
   if (nrow(m) > 1 && ncol(m) > 1)
     stop("Format non reconnu dans ", chemin, " : une serie sur une seule ligne ou ",
          "une seule colonne est attendue (", nrow(m), " lignes x ", ncol(m), " colonnes).")
@@ -437,7 +501,13 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
   # valeur. Les positions rapportees plus bas partent de la premiere valeur.
   sans_vides_tete <- function(v) { while (length(v) && !nzchar(v[1])) v <- v[-1]; v }
   cel <- sans_vides_tete(cel)
-  if (length(cel) && is.na(en_nombre(cel[1]))) cel <- sans_vides_tete(cel[-1])
+  if (length(cel) && is.na(en_nombre(cel[1]))) {
+    # En-tete des formats en colonne et en ligne sans en-tetes ; l'etiquette
+    # du format avec en-tetes a ete controlee plus haut (meme predicat).
+    if (is.null(aligne) && .allure_manquante_ou_nombre(cel[1]))
+      refus_allure(cel[1], "en position d'en-tete (premiere cellule non vide)")
+    cel <- sans_vides_tete(cel[-1])
+  }
   # Cellules vides finales (fin de fichier) : ignorees.
   while (length(cel) && !nzchar(cel[length(cel)])) cel <- cel[-length(cel)]
   if (!length(cel)) stop("Aucune valeur numerique exploitable dans ", chemin)
@@ -449,12 +519,105 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
                        "au milieu de la serie decalerait les annees suivantes ; completer",
                        "ou retirer l'annee dans les deux fichiers."),
                  paste(vides, collapse = ", "), chemin))
-  non_num <- which(is.na(v))
+  # Valeurs non finies (Inf, -Inf, NaN) refusees des la lecture, comme une
+  # valeur non numerique.
+  non_num <- which(is.na(v) | !is.finite(v))
   if (length(non_num))
     stop(sprintf("Valeur(s) non numerique(s) en position %s de la serie (comptee depuis la premiere valeur) de %s : %s.",
                  paste(non_num, collapse = ", "), chemin,
                  paste0("\"", cel[non_num], "\"", collapse = ", ")))
+  # Alignement (#95) : hors etiquette, chaque colonne porte un en-tete non
+  # vide ET une valeur, ou ni l'un ni l'autre. Les cellules vides au milieu de
+  # la serie ont deja ete refusees ci-dessus (message #33).
+  if (!is.null(aligne)) {
+    he <- nzchar(aligne$ent); va <- nzchar(aligne$val)
+    fautes <- c(
+      sprintf("colonne %d : en-tete \"%s\" sans valeur", aligne$col[he & !va], aligne$ent[he & !va]),
+      sprintf("colonne %d : valeur \"%s\" sans en-tete", aligne$col[!he & va], aligne$val[!he & va]))
+    ordre <- order(c(aligne$col[he & !va], aligne$col[!he & va]))
+    if (length(fautes))
+      stop(sprintf(paste("Serie en ligne de %s : en-tetes et valeurs non alignes (%s ; %d valeur(s)",
+                         "pour %d en-tete(s) non vide(s)). Une valeur manquante ou en surnombre",
+                         "decalerait les annees ; completer la serie ou corriger la ligne",
+                         "d'en-tetes (si la premiere colonne porte une etiquette de ligne, la",
+                         "renseigner ou retirer son en-tete)."),
+                   chemin, paste(fautes[ordre], collapse = " ; "), sum(va), sum(he)))
+  }
   v
+}
+
+# Retire la marque d'ordre des octets UTF-8 (EF BB BF) en tete d'une chaine,
+# en comparant les octets, independamment de la locale et de l'encodage
+# declare de la chaine (issue #96).
+.sans_bom <- function(s) {
+  if (is.na(s)) return(s)
+  r <- charToRaw(s)
+  if (length(r) >= 3 && identical(r[1:3], as.raw(c(0xef, 0xbb, 0xbf)))) {
+    out <- rawToChar(r[-(1:3)])
+    Encoding(out) <- Encoding(s)
+    out
+  } else s
+}
+
+# Vrai si la cellule (deja passee par trimws) a l'allure d'une valeur
+# manquante ou d'un nombre, et ne peut donc servir d'en-tete ni d'etiquette de
+# ligne dans usp_lire_vecteur() (issue #95, avis d'actuary) :
+#  (a) NA, NaN, N/A, #N/A, N.D. ou "-", casse ignoree ;
+#  (b) ou cellule faite uniquement de chiffres, d'espaces (ordinaire ou
+#      insecable U+00A0 ou fine insecable U+202F), de ".", ",", "'", "+",
+#      "-", avec au moins un chiffre (ex. "1,5" avec dec = ".", "1 234",
+#      "1.234,5", "1,234.5", "12.2017", "+1", "'2017") ;
+#  exception (avis d'actuary) : une etiquette d'exercice de la forme
+#  AAAA-AA a AAAA-AAAA ("2017-18", "2017-2018") n'est pas refusee.
+# "12a" ou "TRUE" restent admis. Comparaisons faites octet par octet
+# (useBytes, motifs ASCII), sans conversion d'encodage : le predicat isole ne
+# leve pas d'erreur sur une cellule non UTF-8 lue en locale UTF-8, mais
+# usp_lire_vecteur() echoue plus tot sur une telle cellule, dans trimws()
+# (defaut suivi par l'issue #99). Les espaces insecables sont remplacees par
+# une espace sur les octets bruts, en UTF-8 (C2 A0, E2 80 AF) comme en
+# Windows-1252 (A0) : un litteral "\u00a0" dans gsub() donnait, sous une
+# locale Windows-1252, un resultat qui changeait entre le premier appel et
+# les suivants (mesure du 26/09/2026, R 4.3.1).
+.allure_manquante_ou_nombre <- function(cel) {
+  a <- grepl("^(NA|NAN|N/A|#N/A|N\\.D\\.|-)$", cel, ignore.case = TRUE, useBytes = TRUE)
+  x <- vapply(cel, function(s) {
+    if (is.na(s)) return(NA_character_)
+    r <- charToRaw(s)
+    # U+202F (E2 80 AF) -> une espace
+    n <- length(r)
+    if (n >= 3) {
+      i <- which(r[1:(n - 2)] == as.raw(0xe2) & r[2:(n - 1)] == as.raw(0x80) &
+                 r[3:n] == as.raw(0xaf))
+      if (length(i)) { r[i] <- as.raw(0x20); r <- r[-c(i + 1L, i + 2L)] }
+    }
+    suivant <- c(r[-1], as.raw(0))
+    r <- r[!(r == as.raw(0xc2) & suivant == as.raw(0xa0))]
+    r[r == as.raw(0xa0)] <- as.raw(0x20)
+    rawToChar(r)
+  }, character(1), USE.NAMES = FALSE)
+  b <- grepl("^[0-9 .,'+-]*[0-9][0-9 .,'+-]*$", x, useBytes = TRUE) &
+    !grepl("^[0-9]{4}-[0-9]{2,4}$", x, useBytes = TRUE)
+  unname(!is.na(cel) & (a | b))
+}
+
+# Retire la marque d'ordre des octets UTF-8 du premier nom de colonne d'un
+# tableau lu par read.csv (header = TRUE) hors locale UTF-8, sous ses formes
+# mesurees sur R 4.3.1 (Windows) : BOM brut EF BB BF (check.names = FALSE) ;
+# "X..." sous LC_CTYPE = C (make.names remplace chaque octet par un point et
+# prefixe X) ; octets EF 2E 2E sous une locale Windows-1252 (le premier octet
+# y est une lettre, les deux suivants deviennent des points). La forme
+# "X.U.FEFF." (make.names sur le caractere U+FEFF) est aussi reconnue, non
+# observee sur ce poste. Le prefixe n'est retire que s'il reste un nom
+# (issue #96).
+.nom_sans_bom <- function(n) {
+  if (!length(n) || is.na(n)) return(n)
+  n <- .sans_bom(n)
+  r <- charToRaw(n)
+  for (p in list(as.raw(c(0xef, 0x2e, 0x2e)), charToRaw("X.U.FEFF."), charToRaw("X..."))) {
+    k <- length(p)
+    if (length(r) > k && identical(r[seq_len(k)], p)) return(rawToChar(r[-seq_len(k)]))
+  }
+  n
 }
 
 usp_charger <- function(fichier_x, fichier_y, T = NULL, plus_recent_en_dernier = TRUE,
@@ -466,7 +629,11 @@ usp_charger <- function(fichier_x, fichier_y, T = NULL, plus_recent_en_dernier =
   if (!plus_recent_en_dernier) { x <- rev(x); y <- rev(y) }
   n <- length(x)
   if (!is.null(T)) {
-    if (T > n) stop("T = ", T, " > profondeur disponible (", n, ").")
+    # T entier scalaire fini, 1 <= T <= n (issue #87 : un T non entier
+    # tronquait la serie en silence) ; la duree minimale de 5 ans est
+    # controlee par engine_valider_donnees().
+    err_T <- engine_valider_profondeur(T, n, T_min = 1)
+    if (length(err_T)) stop(err_T)
     idx <- (n - T + 1):n                     # on garde les T annees les plus recentes
     x <- x[idx]; y <- y[idx]
   }
@@ -1876,7 +2043,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     v <- if (!is.null(verdict)) verdict
     else if (type != "test" || !is.finite(p_ret)) "INFO"
     else if (sens == "rejeter") {
-      if (p_ret < alpha) "OK" else if (p_ret < 0.30) "ALERTE" else "ECHEC"
+      if (p_ret < alpha) "OK" else if (p_ret < SEUIL_ECHEC_SENS_REJETER) "ALERTE" else "ECHEC"
     } else {
       if (p_ret < alpha / 2) "ECHEC" else if (p_ret < alpha) "ALERTE" else "OK"
     }
@@ -2002,8 +2169,24 @@ usp_profil <- function(fit, n = 41) {
 
 usp_tests <- function(fit, boot, alpha = 0.10,
                       theta_equiv = 0.10, delta_equiv = NULL,
-                      robustesse = NULL) {
+                      robustesse = NULL, methode) {
   z <- fit$z; x <- fit$x; y <- fit$y; T <- fit$T
+  # Citation des hypotheses H1-H4 dans le champ famille (issue #92) : les
+  # quatre hypotheses sont au point B(2)(g) i. a iv. de l'annexe XVII pour la
+  # methode du risque de primes, au point C(2)(e) i. a iv. pour la methode du
+  # risque de reserve no 1 (B(2)(f) porte sur les depenses, C(2)(f) n'existe
+  # pas). Le prefixe "B." a "E." reste la cle de GROUPES (display_helpers.R).
+  # methode est obligatoire, sans valeur par defaut (revue finale de #88,
+  # constat 3) : un defaut "premium" faisait citer B(2)(g) en silence a un
+  # appel direct pour la reserve no 1.
+  if (missing(methode))
+    stop("usp_tests() : l'argument methode (\"premium\" ou \"reserve1\") est obligatoire.")
+  if (!(is.character(methode) && length(methode) == 1L &&
+        methode %in% c("premium", "reserve1")))
+    stop("usp_tests() : methode doit valoir \"premium\" ou \"reserve1\".")
+  pt_hyp <- if (methode == "premium") "B(2)(g)" else "C(2)(e)"
+  cite_hyp <- function(i) sprintf("(annexe XVII %s(%s))", pt_hyp, i)
+  fam_h4 <- paste("E. H4 - independance et validite du MV", cite_hyp("iv"))
   r <- y / x
   # Base alternative : ratios bruts centres. Voir la sous-section
   # "Choix de la base de residus" de la documentation.
@@ -2016,7 +2199,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   add <- reg$add
 
   ## --- B. H1 : E[Y_t] lineaire proportionnelle en X_t ------------------------
-  fam <- "B. H1 - linearite / proportionnalite (annexe XVII B(2)(f)(i))"
+  fam <- paste("B. H1 - linearite / proportionnalite", cite_hyp("i"))
   ti <- test_intercept(x, y); lmc <- test_lm_complet(x, y)
   # p-value EXACTE prioritaire : sous normalite des erreurs, t_a suit
   # exactement une loi de Student a T-2 ddl. La p-value de Monte-Carlo reste
@@ -2145,7 +2328,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                        m_paires, 2 * 0.5^m_paires))
 
   ## --- C. H2 : variance quadratique en X_t -----------------------------------
-  fam <- "C. H2 - structure de variance (annexe XVII B(2)(f)(ii))"
+  fam <- paste("C. H2 - structure de variance", cite_hyp("ii"))
   bp <- test_breusch_pagan(z^2, x)
   add(fam, "Heteroscedasticite vs volume - Breusch-Pagan studentise (Koenker)",
       "Breusch & Pagan (1979) ; studentisation de Koenker (1981)",
@@ -2227,7 +2410,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       else "interieur du domaine : melange des deux composantes identifie")
 
   ## --- D. H3 : lognormalite --------------------------------------------------
-  fam <- "D. H3 - lognormalite (annexe XVII B(2)(f)(iii))"
+  fam <- paste("D. H3 - lognormalite", cite_hyp("iii"))
   H0n <- "les residus standardises suivent une loi normale"
   H1n <- "loi non normale"
   sw <- .shapiro_sur(z)
@@ -2318,7 +2501,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         detail = sprintf("T = %d < 20 : test non defini", T))
 
   ## --- E. H4 : independance / validite du MV ---------------------------------
-  fam <- "E. H4 - independance et validite du MV (annexe XVII B(2)(f)(iv))"
+  fam <- fam_h4
   add(fam, "Autocorrelation d'ordre 1 (Durbin-Watson)", "Durbin & Watson (1950, 1951)",
       base = "z",
       H0 = "rho = 0 (absence d'autocorrelation d'ordre 1)", H1 = "rho != 0",
@@ -2651,19 +2834,19 @@ usp_tests <- function(fit, boot, alpha = 0.10,
           "statistique differe en general de celle de la ligne des suites sur",
           "residus standardises (issue #29).")
   }
-  add("E. H4 - independance et validite du MV (annexe XVII B(2)(f)(iv))",
+  add(fam_h4,
       "Autocorrelation d'ordre 1 (Durbin-Watson) sur ratios bruts",
       "Durbin & Watson (1950, 1951)", base = "r",
       H0 = "absence d'autocorrelation d'ordre 1 du ratio S/P",
       H1 = "autocorrelation du ratio S/P",
       stat_nom = "DW", stat = boot$stats_obs$DWr, loi = loi_ind, mc_nom = "DWr",
       detail = detail_r())
-  add("E. H4 - independance et validite du MV (annexe XVII B(2)(f)(iv))",
+  add(fam_h4,
       "Ljung-Box (retard 1) sur ratios bruts", "Ljung & Box (1978), Biometrika 65",
       base = "r", H0 = "rho_1 = 0 pour le ratio S/P", H1 = "autocorrelation au retard 1",
       stat_nom = "Q", stat = boot$stats_obs$LB1r, loi = loi_ind, mc_nom = "LB1r",
       detail = detail_r())
-  add("E. H4 - independance et validite du MV (annexe XVII B(2)(f)(iv))",
+  add(fam_h4,
       "Test des suites sur ratios bruts", "Wald & Wolfowitz (1940)",
       base = "r", H0 = "arrangement aleatoire des signes du ratio centre",
       H1 = "arrangement non aleatoire",
@@ -2773,6 +2956,10 @@ engine_lire_donnees_csv <- function(df) {
   if (!is.data.frame(df) || !nrow(df))
     return(list(ok = FALSE, erreurs = "Fichier vide ou illisible comme tableau.",
                 xt = NULL, yt = NULL, n = 0L))
+  # BOM d'un CSV lu hors locale UTF-8 : sans ce retrait, la colonne t
+  # (premiere colonne) n'etait plus reconnue et le controle des annees ne
+  # s'appliquait pas, sans message (issue #96).
+  if (ncol(df)) names(df)[1] <- .nom_sans_bom(names(df)[1])
   noms <- names(df)
   manquantes <- setdiff(c("xt", "yt"), noms)
   if (length(manquantes)) {
@@ -2821,6 +3008,9 @@ engine_lire_triangle <- function(df) {
   if (is.matrix(df)) df <- as.data.frame(df, stringsAsFactors = FALSE)
   if (!is.data.frame(df) || !nrow(df) || !ncol(df))
     return(refus("Fichier vide ou illisible comme tableau."))
+  # BOM d'un CSV lu hors locale UTF-8 : sans ce retrait, la colonne "i" n'etait
+  # plus reconnue et le triangle etait refuse avec un motif trompeur (#96).
+  names(df)[1] <- .nom_sans_bom(names(df)[1])
   df <- df[, setdiff(names(df), "i"), drop = FALSE]
   if (!ncol(df)) return(refus("Aucune colonne d'annee de developpement."))
   brut <- lapply(df, function(v) {
@@ -3163,6 +3353,34 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
                             length(xt)))
   }
   list(ok = length(err) == 0, erreurs = err, avertissements = avt, T = length(xt))
+}
+
+# Profondeur T demandee (issue #87) : les T annees les plus recentes d'une
+# serie de n annees. NULL : toute la serie, aucune erreur. Sinon, un nombre
+# entier scalaire fini, T_min <= T <= n, est exige (annexe XVII,
+# B/C(2)(b) : au moins 5 annees) ; une valeur non numerique, vide, multiple,
+# NA, infinie ou non entiere est refusee, faute de quoi l'indice
+# (n - T + 1):n tronquait la serie en silence (T = 5.5 : 3.5:8, soit les
+# annees 3 a 7). Retourne les motifs de refus (character(0) si T convient),
+# sans erreur R. T_min = 1 pour un simple chargement (usp_charger()), la
+# duree minimale y etant controlee plus tard par engine_valider_donnees().
+engine_valider_profondeur <- function(T, n, T_min = 5) {
+  if (is.null(T)) return(character(0))
+  # L'annexe XVII n'est citee que si la borne est la sienne (T_min >= 5) ;
+  # pour un simple chargement (T_min = 1), les motifs sont neutres.
+  source_T <- if (T_min >= 5) " (annexe XVII, B/C(2)(b))" else ""
+  if (!is.numeric(T) || length(T) != 1L || !is.finite(T) || T != round(T))
+    return(sprintf("Profondeur T = %s : un nombre entier d'annees est attendu%s ; la serie n'est pas tronquee.",
+                   if (!length(T)) "vide" else paste(deparse(T), collapse = " "), source_T))
+  if (T > n)
+    return(sprintf("Profondeur T = %s superieure au nombre d'annees disponibles (%d).",
+                   format(T), n))
+  if (T < T_min)
+    return(if (T_min >= 5)
+      sprintf("Annexe XVII, B/C(2)(b) : au moins %d annees consecutives (T = %s).",
+              T_min, format(T))
+      else sprintf("Profondeur T = %s : T >= %d attendu.", format(T), T_min))
+  character(0)
 }
 
 
@@ -4714,6 +4932,170 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
 ## 11. ORCHESTRATEUR PRINCIPAL
 ## =============================================================================
 
+# Arguments d'usage de run_engine() resolus avant le calcul protege (issue
+# #88) : une valeur invalide leve une erreur R explicite, comme avant #88,
+# et n'est jamais rendue en defaut de calcul intercepte. Sont refusees les
+# valeurs qui faisaient deja echouer le calcul (mesure sur la tete 5fe3d67 :
+# B = -1, NA, Inf, "a", "5", NULL, c(9, 19) levaient une erreur dans le
+# bootstrap ; seed NA dans set.seed()), plus B logique (TRUE etait calcule
+# comme B = 1) ; B = 0 et B = 10.5 etaient calcules et le restent.
+# - B : nombre scalaire fini >= 0 ;
+# - seed : nombre scalaire fini entier, |seed| <= .Machine$integer.max
+#   (domaine de set.seed()) ; NULL est refuse (decision du mainteneur du
+#   26/09/2026) : set.seed(NULL) reinitialise le generateur au hasard et rend
+#   le calcul non reproductible ;
+# - bareme : "court" ou "long" exactement (annexe XVII, section G), ou NULL
+#   (deduit du segment) ;
+# - alpha : nombre scalaire fini, 0 < alpha < SEUIL_ECHEC_SENS_REJETER (avis
+#   d'actuary) : au-dela, la zone ALERTE des tests en sens rejeter disparait ;
+# - sigma_standard : NULL (valeur de l'annexe), ou nombre scalaire fini > 0 ;
+# - segment et annexe (revue finale de #88, constat 4) : un segment fourni
+#   doit exister dans l'annexe (usp_segment_infos()), et il faut segment ou
+#   sigma_standard. Ces deux controles etaient faits apres la validation des
+#   donnees, dans chaque branche : le meme appel levait une erreur R sur des
+#   donnees valides et rendait ok = FALSE sur des donnees refusees. Faits ici,
+#   ils levent une erreur R quelles que soient les donnees.
+# Aucune de ces valeurs ne doit porter d'attribut (noms, dim...) : refusee
+# plutot que normalisee, car l'attribut etait propage tel quel dans le
+# resultat (mesure sur la tete 743bb75 : B = c(a = 19), alpha = c(a = 0.1),
+# bareme = c(a = "court") nommes dans metadata, seed = matrix(5) en matrice
+# dans metadata$seed, sigma_standard = c(a = 0.1) nomme dans sigma_usp), et
+# qu'une normalisation silencieuse masquerait l'erreur de l'appelant.
+# Suite de #88 (decision du mainteneur du 26/09/2026) : alpha, sigma_standard
+# et une graine invalides (NA, texte, vecteur, hors domaine) etaient rendus en
+# defaut de calcul intercepte (alpha NA dans usp_tests(), mw_tests() ;
+# sigma_standard "a" dans usp_parametre()), ou calcules (alpha 0, 1, -0,1 ;
+# sigma_standard 0, -0,1, Inf, NA ; seed NULL, "5", 1.5, c(1, 2) ; bareme
+# "co", c("court", "long"), completes par match.arg()), ou refuses par un
+# message de R (seed NA, Inf, 3e9 ; bareme NA, 1, "moyen"). La graine n'est
+# plus essayee sous engine_sous_graine() : toute valeur qui passe le controle
+# est acceptee par set.seed(). theta_equiv n'est pas controle ici : dans la
+# branche lognormale (premium et reserve1), il l'est par
+# engine_valider_donnees() (refus ok = FALSE, issue #33), qui l'ignore quand
+# delta_equiv est fourni ; seule la branche Merz-Wuthrich (reserve2) ne le lit
+# pas.
+.engine_verifier_usage <- function(B, seed, bareme, alpha = 0.10,
+                                   sigma_standard = NULL, segment = NULL,
+                                   annexe = "II") {
+  saisie <- function(v) if (!length(v)) "vide" else paste(deparse(v), collapse = " ")
+  sans_attribut <- function(v) is.null(attributes(v))
+  scalaire_fini <- function(v) is.numeric(v) && length(v) == 1L && is.finite(v) &&
+                                 sans_attribut(v)
+  if (!scalaire_fini(B) || B < 0)
+    stop(sprintf(paste("B = %s : un nombre scalaire fini de replications, B >= 0,",
+                       "sans attribut, est attendu."),
+                 saisie(B)), call. = FALSE)
+  if (!scalaire_fini(seed) || seed != round(seed) || abs(seed) > .Machine$integer.max)
+    stop(sprintf(paste("seed = %s : un nombre scalaire fini entier, |seed| <= %d, sans",
+                       "attribut, est attendu (NULL refuse : calcul non reproductible)."),
+                 saisie(seed), .Machine$integer.max), call. = FALSE)
+  if (!is.null(bareme) &&
+      !(is.character(bareme) && length(bareme) == 1L && !is.na(bareme) &&
+        sans_attribut(bareme) && bareme %in% c("court", "long")))
+    stop(sprintf(paste("bareme = %s : NULL, \"court\" ou \"long\" (sans attribut) est",
+                       "attendu (bareme de credibilite de l'annexe XVII, section G)."),
+                 saisie(bareme)), call. = FALSE)
+  if (!scalaire_fini(alpha) || alpha <= 0 || alpha >= SEUIL_ECHEC_SENS_REJETER)
+    stop(sprintf(paste("alpha = %s : un nombre scalaire fini, sans attribut,",
+                       "0 < alpha < SEUIL_ECHEC_SENS_REJETER = %s, est attendu ; au-dela,",
+                       "la zone ALERTE des tests en sens rejeter disparait et le verdict",
+                       "ne suit plus la regle documentee."),
+                 saisie(alpha), format(SEUIL_ECHEC_SENS_REJETER)), call. = FALSE)
+  if (!is.null(sigma_standard) && (!scalaire_fini(sigma_standard) || sigma_standard <= 0))
+    stop(sprintf(paste("sigma_standard = %s : NULL ou un nombre scalaire fini,",
+                       "sans attribut, sigma_standard > 0, est attendu."),
+                 saisie(sigma_standard)), call. = FALSE)
+  # Segment inconnu : erreur de usp_segment_infos() (message inchange).
+  if (!is.null(segment)) usp_segment_infos(segment, annexe)
+  else if (is.null(sigma_standard))
+    stop("Fournir soit sigma_standard, soit segment (avec son annexe).")
+  invisible(TRUE)
+}
+
+# Calcul protege (issue #88, decision du mainteneur du 26/09/2026 : filet
+# limite au calcul). expr est le calcul qui suit une validation reussie
+# (branche lognormale apres engine_valider_donnees(), branche Merz-Wuthrich
+# apres mw_valider_triangle()). Une erreur R qui s'y produit est un DEFAUT
+# DE CALCUL INTERCEPTE, non un refus de donnees : le resultat porte ok =
+# FALSE, un motif neutre et fixe dans validation$erreurs (seul le nom de la
+# fonction d'origine y est variable) et le diagnostic dans
+# validation$erreur_r = list(message, appel, origine, pile) :
+#   message : conditionMessage() (traduit selon la locale) ;
+#   appel   : conditionCall(), deparse (premiere ligne), NA s'il n'y en a pas ;
+#   pile    : noms des fonctions appelees depuis le calcul protege jusqu'au
+#             point de l'erreur (sys.calls() capture par withCallingHandlers,
+#             avant le deroulement de la pile), sans les cadres de
+#             tryCatch() et de signalement ;
+#   origine : derniere fonction de la pile DEFINIE DANS LE MOTEUR (son nom
+#             designe, dans l'environnement de run_engine(), la fonction
+#             meme qui s'executait dans ce cadre) ; a defaut, dernier
+#             element de la pile. Les fonctions de R et les fermetures
+#             creees en cours de calcul (add() de engine_registre_tests())
+#             ne sont pas retenues : une erreur nee dans un argument
+#             evalue paresseusement (argument de sprintf() dans add()) ou
+#             dans une fonction de R appelee par le moteur (lm.fit()) est
+#             attribuee a la fonction du moteur qui la porte.
+# Resultat : meme forme que le refus de .run_engine_mw() (ok, validation,
+# methode, metadata$horodatage, metadata$methode). Aucun resultat partiel.
+# Les avertissements R ne sont pas captures. Option de developpement
+# options(usp.engine.lever_erreurs = TRUE) : l'erreur est relevee telle
+# quelle, sans interception. Les graines sont restaurees par
+# engine_sous_graine() (on.exit) lors du deroulement de la pile.
+.engine_calcul_protege <- function(methode, t0, validation, expr) {
+  if (isTRUE(getOption("usp.engine.lever_erreurs", FALSE))) return(expr)
+  niveau <- sys.nframe()
+  pile <- character(0)
+  du_moteur <- logical(0)
+  env_moteur <- environment(run_engine)
+  internes <- c("tryCatch", "tryCatchList", "tryCatchOne", "doTryCatch",
+                "withCallingHandlers", ".handleSimpleError", "h", "stop",
+                "signalCondition", ".signalSimpleWarning")
+  tryCatch(
+    withCallingHandlers(expr, error = function(e) {
+      cs <- sys.calls()
+      # Cadres propres au calcul : apres celui de .engine_calcul_protege(),
+      # sans le dernier (ce gestionnaire).
+      idx <- which(seq_along(cs) > niveau & seq_along(cs) < length(cs))
+      cs <- cs[idx]
+      # Nom de la fonction appelee ; "stats::lm" pour un appel qualifie.
+      noms <- vapply(cs, function(cl) {
+        f <- cl[[1]]
+        if (is.name(f)) as.character(f)
+        else if (is.call(f) && as.character(f[[1]])[1] %in% c("::", ":::"))
+          paste(deparse(f), collapse = "")
+        else "(fonction anonyme)"
+      }, "")
+      # Fonction du moteur : nom present dans l'environnement du moteur et
+      # designant la fonction meme executee dans le cadre.
+      moteur <- vapply(seq_along(cs), function(k) {
+        exists(noms[k], envir = env_moteur, mode = "function", inherits = FALSE) &&
+          identical(get(noms[k], envir = env_moteur, mode = "function", inherits = FALSE),
+                    sys.function(idx[k]))
+      }, logical(1))
+      garde <- !noms %in% internes
+      pile <<- noms[garde]
+      du_moteur <<- moteur[garde]
+    }),
+    error = function(e) {
+      appel <- conditionCall(e)
+      origine <- if (any(du_moteur)) pile[max(which(du_moteur))]
+                 else if (length(pile)) pile[length(pile)] else NA_character_
+      motif <- paste0("Defaut de calcul intercepte",
+                      if (!is.na(origine)) sprintf(" (erreur R dans %s())", origine) else " (erreur R)",
+                      " : aucun resultat n'est produit ; diagnostic dans validation$erreur_r.")
+      validation$ok <- FALSE
+      validation$erreurs <- c(validation$erreurs, motif)
+      validation$erreur_r <- list(
+        message = conditionMessage(e),
+        appel = if (is.null(appel)) NA_character_ else deparse(appel, nlines = 1L)[1],
+        origine = origine,
+        pile = pile)
+      structure(list(ok = FALSE, validation = validation, methode = methode,
+                     metadata = list(horodatage = t0, methode = methode)),
+                class = "usp_engine")
+    })
+}
+
 # run_engine() : lance toute la chaine de calcul a partir des donnees brutes et
 # des parametres utilisateur, et retourne un objet structure contenant
 # l'integralite des resultats necessaires a l'application.
@@ -4726,18 +5108,36 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
 #                  sigma_standard et le bareme de credibilite
 #   sigma_standard ecart-type standard ; s'il est fourni, il prime sur `segment`
 #                  (saisie libre : derogation au parametre reglementaire,
-#                  signalee par metadata$sigma_standard_saisi, issue #55)
+#                  signalee par metadata$sigma_standard_saisi, issue #55) ;
+#                  nombre scalaire fini > 0
 #   nature_donnees "brutes" ou "nettes" (de reassurance) ; OBLIGATOIRE pour
 #                  "premium", sans defaut (issue #55, M13) : sans elle, ok =
 #                  FALSE ; methodes de reserve : NULL ou "nettes" acceptes,
 #                  "brutes" refuse (ok = FALSE, C(2)(c), D(2)(f))
-#   T              profondeur retenue (les T dernieres annees) ; NULL = tout
+#   T              profondeur retenue (les T dernieres annees) ; NULL = tout ;
+#                  sinon entier scalaire fini, 5 <= T <= nombre d'annees, et
+#                  toute autre valeur donne ok = FALSE, sans troncature
+#                  (engine_valider_profondeur(), issue #87)
 #   B              nombre de replications bootstrap / Monte-Carlo
-#   alpha          seuil des verdicts
-#   seed           graine des simulations (reproductibilite)
-#   bareme         "court" ou "long" ; NULL = deduit du segment
+#   alpha          seuil des verdicts, 0 < alpha < SEUIL_ECHEC_SENS_REJETER
+#   seed           graine des simulations (reproductibilite) ; entier scalaire
+#                  fini, |seed| <= .Machine$integer.max (NULL refuse)
+#   bareme         "court" ou "long" exactement ; NULL = deduit du segment
+#                  (usp_bareme_segment() ; "court" par convention sans
+#                  segment, bareme non determine par la section G) ; saisie
+#                  libre : derogation au bareme de la section G, signalee
+#                  par metadata$bareme_saisi (issue #93), meme egale au
+#                  bareme du segment
 #
 # Valeur : liste de classe "usp_engine" (voir la structure en fin de fonction).
+# Erreurs (issue #88) : un argument d'usage invalide (methode, annexe,
+# segment inconnu, ni segment ni sigma_standard, xt manquant, B, seed,
+# bareme, alpha, sigma_standard, reserve no 2 sans triangle ;
+# .engine_verifier_usage()) leve une erreur R explicite ; des
+# donnees refusees par la validation donnent ok = FALSE ; une erreur R levee
+# par le calcul qui suit une validation reussie est un DEFAUT DE CALCUL
+# INTERCEPTE (.engine_calcul_protege()) : ok = FALSE, motif neutre dans
+# validation$erreurs, diagnostic dans validation$erreur_r.
 # Orchestrateur de la methode du risque de reserve no 2. Retourne un objet de
 # meme classe et de meme forme generale que la branche lognormale, afin que la
 # couche d'affichage puisse le consommer sans traitement particulier.
@@ -4759,6 +5159,10 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                           metadata = list(horodatage = t0, methode = "reserve2")),
                      class = "usp_engine"))
 
+  # Segment connu, ou sigma_standard fourni : deja verifie avant la
+  # validation du triangle par .engine_verifier_usage() (constat 4 de la
+  # revue finale de #88) ; le stop() ci-dessous n'est plus atteint depuis
+  # run_engine().
   infos <- if (!is.null(segment)) usp_segment_infos(segment, annexe) else NULL
   # Saisie libre du sigma standard : derogation au parametre reglementaire,
   # restituee par metadata$sigma_standard_saisi (issue #55).
@@ -4767,105 +5171,123 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
     if (is.null(infos)) stop("Fournir soit sigma_standard, soit segment (avec son annexe).")
     sigma_standard <- infos$sigma_reserve      # methode de reserve : sigma(res,s)
   }
+  # Saisie libre du bareme : derogation au bareme de la section G, restituee
+  # par metadata$bareme_saisi (issue #93), meme egale au bareme du segment.
+  saisi_bareme <- !is.null(bareme)
   if (is.null(bareme)) bareme <- usp_bareme_segment(segment, annexe)
 
-  aj   <- mw_ajuster(triangle)
-  msep <- mw_msep(aj)
-  # Second controle de validite metier, impossible avant l'ajustement : la
-  # reserve totale et la MSEP conditionnent l'existence meme de sigma(res,s,USP)
-  # (voir mw_valider_ajustement). Il est place ici, avant tout calcul de
-  # parametre ou de bootstrap, pour renvoyer ok = FALSE avec la validation
-  # plutot que de lever une erreur, comme la branche lognormale le fait pour
-  # des donnees invalides.
-  vc <- mw_valider_ajustement(aj, msep$msep)
-  # Les avertissements du second controle (extrapolation de sigma2_(J-1) sur
-  # une colonne degeneree) rejoignent ceux du premier, que le triangle soit
-  # accepte ou refuse.
-  validation$avertissements <- c(validation$avertissements, vc$avertissements)
-  if (!vc$ok) {
-    validation$ok <- FALSE
-    validation$erreurs <- c(validation$erreurs, vc$erreurs)
-    return(structure(list(ok = FALSE, validation = validation, methode = "reserve2",
-                          metadata = list(horodatage = t0, methode = "reserve2")),
-                     class = "usp_engine"))
-  }
+  # --- Calcul protege (issue #88) : ajustement et sorties, apres
+  # mw_valider_triangle() et la resolution des arguments d'usage. Une erreur R
+  # y est un defaut de calcul intercepte (.engine_calcul_protege()) ; le
+  # refus de mw_valider_ajustement() garde son return() (ok = FALSE).
+  # L'argument validation de .engine_calcul_protege() est une promesse
+  # evaluee a sa premiere utilisation, a l'entree du gestionnaire d'erreur,
+  # donc apres que le calcul l'a modifiee ici : un defaut intercepte garde
+  # les avertissements de mw_valider_ajustement().
+  .engine_calcul_protege("reserve2", t0, validation, {
+    aj   <- mw_ajuster(triangle)
+    msep <- mw_msep(aj)
+    # Second controle de validite metier, impossible avant l'ajustement : la
+    # reserve totale et la MSEP conditionnent l'existence meme de sigma(res,s,USP)
+    # (voir mw_valider_ajustement). Il est place ici, avant tout calcul de
+    # parametre ou de bootstrap, pour renvoyer ok = FALSE avec la validation
+    # plutot que de lever une erreur, comme la branche lognormale le fait pour
+    # des donnees invalides.
+    vc <- mw_valider_ajustement(aj, msep$msep)
+    # Les avertissements du second controle (extrapolation de sigma2_(J-1) sur
+    # une colonne degeneree) rejoignent ceux du premier, que le triangle soit
+    # accepte ou refuse.
+    validation$avertissements <- c(validation$avertissements, vc$avertissements)
+    if (!vc$ok) {
+      validation$ok <- FALSE
+      validation$erreurs <- c(validation$erreurs, vc$erreurs)
+      return(structure(list(ok = FALSE, validation = validation, methode = "reserve2",
+                            metadata = list(horodatage = t0, methode = "reserve2")),
+                       class = "usp_engine"))
+    }
 
-  par  <- mw_parametre(aj, msep$msep, sigma_standard, bareme)
-  boot <- mw_bootstrap(aj, B = B, seed = seed)
-  tests <- mw_tests(aj, boot, alpha)
-  res   <- mw_residus(aj)
-  # L'exclusion de colonnes est restituee par l'avertissement de
-  # mw_valider_ajustement() ; l'attribut n'est pas stocke dans le resultat
-  # (structure des references inchangee, issue #33).
-  attr(res, "colonnes_exclues") <- NULL
+    par  <- mw_parametre(aj, msep$msep, sigma_standard, bareme)
+    boot <- mw_bootstrap(aj, B = B, seed = seed)
+    tests <- mw_tests(aj, boot, alpha)
+    res   <- mw_residus(aj)
+    # L'exclusion de colonnes est restituee par l'avertissement de
+    # mw_valider_ajustement() ; l'attribut n'est pas stocke dans le resultat
+    # (structure des references inchangee, issue #33).
+    attr(res, "colonnes_exclues") <- NULL
 
-  ic <- if (length(boot$sigma_boot) > 20)
-    stats::quantile(par$credibilite * boot$sigma_boot +
-                    (1 - par$credibilite) * sigma_standard,
-                    c(.025, .05, .5, .95, .975)) else NULL
+    ic <- if (length(boot$sigma_boot) > 20)
+      stats::quantile(par$credibilite * boot$sigma_boot +
+                      (1 - par$credibilite) * sigma_standard,
+                      c(.025, .05, .5, .95, .975)) else NULL
 
-  descriptif <- data.frame(
-    grandeur = c("Annees d'accident (I+1)", "Annees de developpement (J+1)",
-                 "Cellules observees", "Dernier cumul total", "Ultime total",
-                 "Reserve totale", "racine(MSEP) a un an", "CV a un an"),
-    valeur = c(aj$I + 1, aj$J + 1, sum(!is.na(triangle)),
-               sum(aj$dernier_observe), sum(aj$ultime), aj$reserve,
-               par$racine_msep, par$sigma_estime),
-    stringsAsFactors = FALSE)
+    descriptif <- data.frame(
+      grandeur = c("Annees d'accident (I+1)", "Annees de developpement (J+1)",
+                   "Cellules observees", "Dernier cumul total", "Ultime total",
+                   "Reserve totale", "racine(MSEP) a un an", "CV a un an"),
+      valeur = c(aj$I + 1, aj$J + 1, sum(!is.na(triangle)),
+                 sum(aj$dernier_observe), sum(aj$ultime), aj$reserve,
+                 par$racine_msep, par$sigma_estime),
+      stringsAsFactors = FALSE)
 
-  calibration <- data.frame(
-    etape = c("Reserve chain-ladder totale", "MSEP a un an",
-              "racine(MSEP)", "sigma estime = racine(MSEP) / reserve",
-              "facteur de credibilite c", "sigma standard (formule standard)",
-              "sigma_USP = c*sigma_estime + (1-c)*sigma_standard"),
-    valeur = c(aj$reserve, msep$msep, par$racine_msep, par$sigma_estime,
-               par$credibilite, sigma_standard, par$sigma_usp),
-    stringsAsFactors = FALSE)
+    calibration <- data.frame(
+      etape = c("Reserve chain-ladder totale", "MSEP a un an",
+                "racine(MSEP)", "sigma estime = racine(MSEP) / reserve",
+                "facteur de credibilite c", "sigma standard (formule standard)",
+                "sigma_USP = c*sigma_estime + (1-c)*sigma_standard"),
+      valeur = c(aj$reserve, msep$msep, par$racine_msep, par$sigma_estime,
+                 par$credibilite, sigma_standard, par$sigma_usp),
+      stringsAsFactors = FALSE)
 
-  candidats <- data.frame(
-    variante = c("sigma standard (aucun USP)", "sigma estime seul (credibilite 100%)",
-                 "sigma_USP retenu (annexe XVII)"),
-    valeur = c(sigma_standard, par$sigma_estime, par$sigma_usp),
-    retenu = c(FALSE, FALSE, TRUE), stringsAsFactors = FALSE)
+    candidats <- data.frame(
+      variante = c("sigma standard (aucun USP)", "sigma estime seul (credibilite 100%)",
+                   "sigma_USP retenu (annexe XVII)"),
+      valeur = c(sigma_standard, par$sigma_estime, par$sigma_usp),
+      retenu = c(FALSE, FALSE, TRUE), stringsAsFactors = FALSE)
 
-  structure(list(
-    ok = TRUE, methode = "reserve2",
-    triangle = triangle,
-    donnees = data.frame(i = res$i, j = res$j, C = res$C, F = res$F,
-                         residu = res$residu),
-    validation = validation,
-    controles = list(list(test = "Structure du triangle", verdict = "OK",
-                          detail = sprintf("I = %d, J = %d, %d cellules observees",
-                                           aj$I, aj$J, sum(!is.na(triangle))))),
-    statistiques_descriptives = descriptif,
-    ajustement = aj, msep = msep, residus = res,
-    tests = tests, bootstrap = boot, ic_bootstrap = ic,
-    calibration = calibration, candidats = candidats,
-    parametre_final = list(sigma_usp = par$sigma_usp,
-                           sigma_estime = par$sigma_estime,
-                           sigma_estime_brut = par$sigma_estime,
-                           correction_taille = 1,
-                           credibilite = par$credibilite,
-                           sigma_standard = sigma_standard,
-                           variation_relative = par$variation_relative),
-    plots_data = mw_plots_data(aj, res, boot, msep),
-    metadata = list(methode = "reserve2", segment = segment, annexe = annexe,
-                    libelle_segment = if (!is.null(infos)) infos$libelle else NA_character_,
-                    T = aj$I + 1L, I = aj$I, J = aj$J, B = B, alpha = alpha,
-                    seed = seed, bareme = bareme, sigma_standard = sigma_standard,
-                    # Place apres les champs anterieurs (issue #55), suivi des
-                    # seuls champs de l'issue #37 puis des champs d'execution.
-                    sigma_standard_saisi = saisi,
-                    # Generateur pose par engine_sous_graine() et graine fixe
-                    # de la loi nulle de Shapiro-Wilk (issue #37, ADR 0004
-                    # point 2). Places apres les champs existants, avant les
-                    # champs d'execution.
-                    generateur = as.list(ENGINE_RNG_KIND),
-                    seed_loi_nulle_sw = SEED_LOI_NULLE_SW,
-                    horodatage = t0,
-                    duree_sec = as.numeric(difftime(Sys.time(), t0, units = "secs")),
-                    version_R = R.version.string)
-  ), class = "usp_engine")
+    structure(list(
+      ok = TRUE, methode = "reserve2",
+      triangle = triangle,
+      donnees = data.frame(i = res$i, j = res$j, C = res$C, F = res$F,
+                           residu = res$residu),
+      validation = validation,
+      controles = list(list(test = "Structure du triangle", verdict = "OK",
+                            detail = sprintf("I = %d, J = %d, %d cellules observees",
+                                             aj$I, aj$J, sum(!is.na(triangle))))),
+      statistiques_descriptives = descriptif,
+      ajustement = aj, msep = msep, residus = res,
+      tests = tests, bootstrap = boot, ic_bootstrap = ic,
+      calibration = calibration, candidats = candidats,
+      parametre_final = list(sigma_usp = par$sigma_usp,
+                             sigma_estime = par$sigma_estime,
+                             sigma_estime_brut = par$sigma_estime,
+                             correction_taille = 1,
+                             credibilite = par$credibilite,
+                             sigma_standard = sigma_standard,
+                             variation_relative = par$variation_relative),
+      plots_data = mw_plots_data(aj, res, boot, msep),
+      metadata = list(methode = "reserve2", segment = segment, annexe = annexe,
+                      libelle_segment = if (!is.null(infos)) infos$libelle else NA_character_,
+                      T = aj$I + 1L, I = aj$I, J = aj$J, B = B, alpha = alpha,
+                      seed = seed, bareme = bareme, sigma_standard = sigma_standard,
+                      # Place apres les champs anterieurs (issue #55), suivi des
+                      # seuls champs de l'issue #37, de bareme_saisi (#93), puis des
+                      # champs d'execution.
+                      sigma_standard_saisi = saisi,
+                      # Generateur pose par engine_sous_graine() et graine fixe
+                      # de la loi nulle de Shapiro-Wilk (issue #37, ADR 0004
+                      # point 2). Places apres les champs existants, avant les
+                      # champs d'execution.
+                      generateur = as.list(ENGINE_RNG_KIND),
+                      seed_loi_nulle_sw = SEED_LOI_NULLE_SW,
+                      # Bareme saisi (issue #93) : place apres les champs de
+                      # l'issue #37, en dernier avant les champs d'execution
+                      # (le patch des references ajoute la feuille en fin).
+                      bareme_saisi = saisi_bareme,
+                      horodatage = t0,
+                      duree_sec = as.numeric(difftime(Sys.time(), t0, units = "secs")),
+                      version_R = R.version.string)
+    ), class = "usp_engine")
+  })
 }
 
 # --- Diagnostics d'influence du triangle (methode Merz-Wuthrich) -------------
@@ -4990,6 +5412,12 @@ run_engine <- function(xt, yt,
   t0 <- Sys.time()
   methode <- match.arg(methode)
   annexe  <- match.arg(annexe)
+  # Arguments d'usage resolus AVANT le calcul protege (issue #88) : une
+  # valeur invalide reste une erreur R explicite, jamais un defaut de calcul
+  # intercepte.
+  .engine_verifier_usage(B, seed, bareme, alpha = alpha,
+                         sigma_standard = sigma_standard, segment = segment,
+                         annexe = annexe)
 
   # --- Branche Merz-Wuthrich (methode du risque de reserve no 2) ------------
   # Cette methode ne prend pas en entree deux vecteurs mais un TRIANGLE de
@@ -5002,14 +5430,29 @@ run_engine <- function(xt, yt,
 
   # --- 1. Donnees et controles de validite ---------------------------------
   if (!plus_recent_en_dernier) { xt <- rev(xt); yt <- rev(yt) }
+  # Profondeur T (issue #87) : controlee AVANT toute troncature. Une valeur
+  # non entiere, NA, non finie, multiple ou hors de [5 ; n] est refusee
+  # (ok = FALSE) ; elle etait auparavant ignoree (NA, Inf, texte) ou
+  # tronquait la serie en silence ((n - 5.5 + 1):n = 3.5:8 retient 5 annees
+  # et ecarte la plus recente). Refusee, la serie n'est pas tronquee et la
+  # validation des donnees porte sur la serie entiere.
   n <- length(xt)
-  if (!is.null(T) && is.finite(T)) {
-    if (T > n) stop(sprintf("T = %d > profondeur disponible (%d).", T, n))
+  err_T <- engine_valider_profondeur(T, n)
+  if (!is.null(T) && !length(err_T)) {
     idx <- (n - T + 1):n; xt <- xt[idx]; yt <- yt[idx]
   }
   validation <- engine_valider_donnees(xt, yt, theta_equiv = theta_equiv,
                                        delta_equiv = delta_equiv, methode = methode,
                                        nature_donnees = nature_donnees)
+  # T refuse : aucune serie n'est retenue ; les avertissements, qui portent
+  # sur une serie retenue (longueur, ratios, amplitude), sont retires et la
+  # longueur retenue validation$T vaut NA (audit de #87, constat 4).
+  if (length(err_T)) {
+    validation$ok <- FALSE
+    validation$erreurs <- c(err_T, validation$erreurs)
+    validation$avertissements <- character(0)
+    validation$T <- NA_integer_
+  }
   if (!validation$ok)
     return(structure(list(ok = FALSE, validation = validation,
                           metadata = list(horodatage = t0)), class = "usp_engine"))
@@ -5020,132 +5463,149 @@ run_engine <- function(xt, yt,
   # NP standard x sigma brut sur donnees nettes (primes) ; sigma(res,s) pour
   # la methode de reserve no 1. Un sigma_standard saisi prime (derogation,
   # restituee par metadata$sigma_standard_saisi, pour les trois methodes).
+  # Segment connu, ou sigma_standard fourni : deja verifie avant la
+  # validation des donnees par .engine_verifier_usage() (constat 4 de la
+  # revue finale de #88).
   infos <- if (!is.null(segment)) usp_segment_infos(segment, annexe) else NULL
   saisi <- !is.null(sigma_standard)
   sigma_standard <- usp_parametre_standard(methode, segment, annexe, nature_donnees,
                                            sigma_standard)$sigma_standard
   # Annexe XVII, section G(2) : les segments de l'annexe XIV relevent tous du
-  # bareme court, quel que soit leur numero.
+  # bareme court, quel que soit leur numero. Un bareme saisi prime :
+  # derogation au bareme de la section G, restituee par
+  # metadata$bareme_saisi (issue #93), meme egale au bareme du segment.
+  saisi_bareme <- !is.null(bareme)
   if (is.null(bareme)) bareme <- usp_bareme_segment(segment, annexe)
 
-  # --- 3. Estimation, bootstrap, robustesse ---------------------------------
-  controles <- usp_controle_donnees(xt, yt, alpha)
-  fit   <- usp_ajuster(xt, yt)
-  # Controles numeriques de l'estimation (famille H, non bloquants, #22)
-  controles <- c(controles, usp_controles_numeriques(fit))
-  boot  <- usp_bootstrap(fit, B = B, seed = seed, progres = FALSE)
-  param <- usp_parametre(fit, sigma_standard, bareme)
-  jack  <- usp_jackknife(fit, sigma_standard, bareme)
-  prof  <- usp_profil(fit)
+  # --- Calcul protege (issue #88) : estimation et sorties, apres une
+  # validation reussie. Une erreur R y est un defaut de calcul intercepte
+  # (.engine_calcul_protege()), rendu en ok = FALSE.
+  .engine_calcul_protege(methode, t0, validation, {
+    # --- 3. Estimation, bootstrap, robustesse ---------------------------------
+    controles <- usp_controle_donnees(xt, yt, alpha)
+    fit   <- usp_ajuster(xt, yt)
+    # Controles numeriques de l'estimation (famille H, non bloquants, #22)
+    controles <- c(controles, usp_controles_numeriques(fit))
+    boot  <- usp_bootstrap(fit, B = B, seed = seed, progres = FALSE)
+    param <- usp_parametre(fit, sigma_standard, bareme)
+    jack  <- usp_jackknife(fit, sigma_standard, bareme)
+    prof  <- usp_profil(fit)
 
-  cred <- param$credibilite; corr <- param$correction_taille
-  usp_b <- cred * boot$sigma_boot * corr + (1 - cred) * sigma_standard
-  ic <- if (length(usp_b) > 20)
-    stats::quantile(usp_b, c(.025, .05, .5, .95, .975)) else NULL
+    cred <- param$credibilite; corr <- param$correction_taille
+    usp_b <- cred * boot$sigma_boot * corr + (1 - cred) * sigma_standard
+    ic <- if (length(usp_b) > 20)
+      stats::quantile(usp_b, c(.025, .05, .5, .95, .975)) else NULL
 
-  # Jackknife entierement non calcule (tous les reajustements en echec) : pas
-  # de ligne jackknife (fit$ecart_jackknife NULL) plutot qu'un max a -Inf.
-  d_jack <- jack$sigma_usp - param$sigma_usp
-  jack_calcule <- any(is.finite(d_jack))
-  fit$ecart_jackknife <- if (jack_calcule)
-    max(abs(jack$sigma_usp - param$sigma_usp), na.rm = TRUE) / param$sigma_usp else NULL
-  fit$largeur_ic <- if (!is.null(ic)) unname((ic[4] - ic[2]) / param$sigma_usp) else NULL
-  # kkt_au_moins_un (#22) est replace en DERNIERE position de res$ajustement,
-  # apres ecart_jackknife et largeur_ic apposes ci-dessus : le patcheur des
-  # references (tests/patcher_reference.R) n'ajoute une feuille qu'en fin de
-  # conteneur, et refuse le patch (verification "structure") sinon.
-  fit <- fit[c(setdiff(names(fit), "kkt_au_moins_un"), "kkt_au_moins_un")]
+    # Jackknife entierement non calcule (tous les reajustements en echec) : pas
+    # de ligne jackknife (fit$ecart_jackknife NULL) plutot qu'un max a -Inf.
+    d_jack <- jack$sigma_usp - param$sigma_usp
+    jack_calcule <- any(is.finite(d_jack))
+    fit$ecart_jackknife <- if (jack_calcule)
+      max(abs(jack$sigma_usp - param$sigma_usp), na.rm = TRUE) / param$sigma_usp else NULL
+    fit$largeur_ic <- if (!is.null(ic)) unname((ic[4] - ic[2]) / param$sigma_usp) else NULL
+    # kkt_au_moins_un (#22) est replace en DERNIERE position de res$ajustement,
+    # apres ecart_jackknife et largeur_ic apposes ci-dessus : le patcheur des
+    # references (tests/patcher_reference.R) n'ajoute une feuille qu'en fin de
+    # conteneur, et refuse le patch (verification "structure") sinon.
+    fit <- fit[c(setdiff(names(fit), "kkt_au_moins_un"), "kkt_au_moins_un")]
 
-  # Elements du detail de la ligne jackknife de usp_tests() : calcules ici,
-  # transmis a usp_tests() et NON stockes dans fit ni dans le resultat.
-  # jack_annee : annee de plus grand |ecart| sur sigma_USP ; jack_usp : ecart
-  # signe a cette annee (seul son signe est imprime, issues #24 et #76).
-  # NULL si aucun reajustement n'a abouti.
-  i_jack <- if (jack_calcule) which.max(abs(d_jack)) else NULL
-  robustesse <- list(
-    jack_annee = i_jack,
-    jack_usp   = if (jack_calcule) d_jack[i_jack] / param$sigma_usp else NULL)
+    # Elements du detail de la ligne jackknife de usp_tests() : calcules ici,
+    # transmis a usp_tests() et NON stockes dans fit ni dans le resultat.
+    # jack_annee : annee de plus grand |ecart| sur sigma_USP ; jack_usp : ecart
+    # signe a cette annee (seul son signe est imprime, issues #24 et #76).
+    # NULL si aucun reajustement n'a abouti.
+    i_jack <- if (jack_calcule) which.max(abs(d_jack)) else NULL
+    robustesse <- list(
+      jack_annee = i_jack,
+      jack_usp   = if (jack_calcule) d_jack[i_jack] / param$sigma_usp else NULL)
 
-  tests <- usp_tests(fit, boot, alpha, theta_equiv = theta_equiv,
-                     delta_equiv = delta_equiv, robustesse = robustesse)
+    tests <- usp_tests(fit, boot, alpha, theta_equiv = theta_equiv,
+                       delta_equiv = delta_equiv, robustesse = robustesse,
+                       methode = methode)
 
-  # --- 4. Statistiques descriptives -----------------------------------------
-  r <- yt / xt
-  descriptif <- data.frame(
-    grandeur = c("T", "somme(xt)", "somme(yt)", "moyenne(xt)", "moyenne(yt)",
-                 "ratio moyen y/x", "mediane du ratio", "ecart-type du ratio",
-                 "coefficient de variation du ratio", "min du ratio", "max du ratio",
-                 "amplitude max(x)/min(x)"),
-    valeur = c(T, sum(xt), sum(yt), mean(xt), mean(yt), mean(r), stats::median(r),
-               stats::sd(r), stats::sd(r) / mean(r), min(r), max(r), max(xt) / min(xt)),
-    stringsAsFactors = FALSE)
+    # --- 4. Statistiques descriptives -----------------------------------------
+    r <- yt / xt
+    descriptif <- data.frame(
+      grandeur = c("T", "somme(xt)", "somme(yt)", "moyenne(xt)", "moyenne(yt)",
+                   "ratio moyen y/x", "mediane du ratio", "ecart-type du ratio",
+                   "coefficient de variation du ratio", "min du ratio", "max du ratio",
+                   "amplitude max(x)/min(x)"),
+      valeur = c(T, sum(xt), sum(yt), mean(xt), mean(yt), mean(r), stats::median(r),
+                 stats::sd(r), stats::sd(r) / mean(r), min(r), max(r), max(xt) / min(xt)),
+      stringsAsFactors = FALSE)
 
-  # --- 5. Calibration : etapes explicites -----------------------------------
-  calibration <- data.frame(
-    etape = c("delta (parametre de melange)",
-              "gamma (coefficient de variation logarithmique)",
-              "beta (ratio moyen implicite)",
-              "sigma(delta, gamma) estime",
-              "correction de taille finie sqrt((T+1)/(T-1))",
-              "sigma estime corrige",
-              "facteur de credibilite c",
-              "sigma standard (formule standard)",
-              "sigma_USP = c*sigma_corrige + (1-c)*sigma_standard"),
-    valeur = c(fit$delta, fit$gamma, fit$beta, param$sigma_estime_brut,
-               param$correction_taille, param$sigma_estime, param$credibilite,
-               param$sigma_standard, param$sigma_usp),
-    stringsAsFactors = FALSE)
+    # --- 5. Calibration : etapes explicites -----------------------------------
+    calibration <- data.frame(
+      etape = c("delta (parametre de melange)",
+                "gamma (coefficient de variation logarithmique)",
+                "beta (ratio moyen implicite)",
+                "sigma(delta, gamma) estime",
+                "correction de taille finie sqrt((T+1)/(T-1))",
+                "sigma estime corrige",
+                "facteur de credibilite c",
+                "sigma standard (formule standard)",
+                "sigma_USP = c*sigma_corrige + (1-c)*sigma_standard"),
+      valeur = c(fit$delta, fit$gamma, fit$beta, param$sigma_estime_brut,
+                 param$correction_taille, param$sigma_estime, param$credibilite,
+                 param$sigma_standard, param$sigma_usp),
+      stringsAsFactors = FALSE)
 
-  candidats <- data.frame(
-    variante = c("sigma standard (aucun USP)", "sigma estime seul (credibilite 100%)",
-                 "sigma_USP retenu (annexe XVII)"),
-    valeur = c(sigma_standard, param$sigma_estime, param$sigma_usp),
-    retenu = c(FALSE, FALSE, TRUE), stringsAsFactors = FALSE)
+    candidats <- data.frame(
+      variante = c("sigma standard (aucun USP)", "sigma estime seul (credibilite 100%)",
+                   "sigma_USP retenu (annexe XVII)"),
+      valeur = c(sigma_standard, param$sigma_estime, param$sigma_usp),
+      retenu = c(FALSE, FALSE, TRUE), stringsAsFactors = FALSE)
 
-  # --- 6. Objet de sortie ----------------------------------------------------
-  structure(list(
-    ok = TRUE,
-    donnees = data.frame(t = seq_len(T), xt = xt, yt = yt, ratio = r),
-    validation = validation,
-    controles = controles,
-    statistiques_descriptives = descriptif,
-    ajustement = fit,
-    tests = tests,
-    bootstrap = boot,
-    ic_bootstrap = ic,
-    jackknife = jack,
-    profil = prof,
-    calibration = calibration,
-    candidats = candidats,
-    parametre_final = param,
-    plots_data = engine_plots_data(fit, boot, prof, jack, param$sigma_usp),
-    metadata = c(
-      list(methode = methode, segment = segment, annexe = annexe,
-           libelle_segment = if (!is.null(infos)) infos$libelle else NA_character_,
-           T = T, B = B,
-           alpha = alpha, seed = seed, bareme = bareme,
-           theta_equiv = theta_equiv, delta_equiv = delta_equiv,
-           sigma_standard = sigma_standard),
-      # Issue #55. Nature declaree des donnees : methode du risque de primes
-      # seulement (les methodes de reserve n'ont pas ce champ : donnees
-      # nettes par exigence du texte, C(2)(c), D(2)(f)). Saisie libre du
-      # sigma standard (derogation au parametre reglementaire) : drapeau
-      # explicite pour les trois methodes. Places apres les champs
-      # anterieurs, suivis des seuls champs de l'issue #37 puis des champs
-      # d'execution (retires par nettoyer() des tests).
-      if (methode == "premium") list(nature_donnees = nature_donnees),
-      list(sigma_standard_saisi = saisi),
-      # Generateur pose par engine_sous_graine() et graines fixes des
-      # simulations autres que le bootstrap (issue #37, ADR 0004 point 2) :
-      # loi nulle de Shapiro-Wilk, enveloppe du QQ-plot. Places apres les
-      # champs existants, avant les champs d'execution.
-      list(generateur = as.list(ENGINE_RNG_KIND),
-           seed_loi_nulle_sw = SEED_LOI_NULLE_SW,
-           seed_enveloppe_qq = SEED_ENVELOPPE_QQ),
-      list(horodatage = t0,
-           duree_sec = as.numeric(difftime(Sys.time(), t0, units = "secs")),
-           version_R = R.version.string))
-  ), class = "usp_engine")
+    # --- 6. Objet de sortie ----------------------------------------------------
+    structure(list(
+      ok = TRUE,
+      donnees = data.frame(t = seq_len(T), xt = xt, yt = yt, ratio = r),
+      validation = validation,
+      controles = controles,
+      statistiques_descriptives = descriptif,
+      ajustement = fit,
+      tests = tests,
+      bootstrap = boot,
+      ic_bootstrap = ic,
+      jackknife = jack,
+      profil = prof,
+      calibration = calibration,
+      candidats = candidats,
+      parametre_final = param,
+      plots_data = engine_plots_data(fit, boot, prof, jack, param$sigma_usp),
+      metadata = c(
+        list(methode = methode, segment = segment, annexe = annexe,
+             libelle_segment = if (!is.null(infos)) infos$libelle else NA_character_,
+             T = T, B = B,
+             alpha = alpha, seed = seed, bareme = bareme,
+             theta_equiv = theta_equiv, delta_equiv = delta_equiv,
+             sigma_standard = sigma_standard),
+        # Issue #55. Nature declaree des donnees : methode du risque de primes
+        # seulement (les methodes de reserve n'ont pas ce champ : donnees
+        # nettes par exigence du texte, C(2)(c), D(2)(f)). Saisie libre du
+        # sigma standard (derogation au parametre reglementaire) : drapeau
+        # explicite pour les trois methodes. Places apres les champs
+        # anterieurs, suivis des seuls champs de l'issue #37, de bareme_saisi
+        # (#93), puis des champs d'execution (retires par nettoyer() des
+        # tests).
+        if (methode == "premium") list(nature_donnees = nature_donnees),
+        list(sigma_standard_saisi = saisi),
+        # Generateur pose par engine_sous_graine() et graines fixes des
+        # simulations autres que le bootstrap (issue #37, ADR 0004 point 2) :
+        # loi nulle de Shapiro-Wilk, enveloppe du QQ-plot. Places apres les
+        # champs existants, avant les champs d'execution.
+        list(generateur = as.list(ENGINE_RNG_KIND),
+             seed_loi_nulle_sw = SEED_LOI_NULLE_SW,
+             seed_enveloppe_qq = SEED_ENVELOPPE_QQ),
+        # Bareme saisi (issue #93) : place apres les champs de l'issue #37, en
+        # dernier avant les champs d'execution (le patch des references
+        # ajoute la feuille en fin de metadata).
+        list(bareme_saisi = saisi_bareme),
+        list(horodatage = t0,
+             duree_sec = as.numeric(difftime(Sys.time(), t0, units = "secs")),
+             version_R = R.version.string))
+    ), class = "usp_engine")
+  })
 }
 
 
@@ -5154,30 +5614,94 @@ run_engine <- function(xt, yt,
 # fige) : nature declaree des donnees, point de l'art. 218, paragraphe 1,
 # remplace, exigence relative aux donnees, sigma de l'annexe, NP standard,
 # sigma standard reglementaire, sigma standard retenu dans le melange et son
-# origine (parametre reglementaire ou saisie libre, derogation).
+# origine (parametre reglementaire ou saisie libre, derogation), puis le
+# bareme de credibilite applicable, le bareme retenu et son origine (issue
+# #93).
 # Colonnes : grandeur ; valeur (numerique, NA pour une ligne de texte) ;
 # texte (NA pour une ligne purement numerique).
 # Tout est recalcule ici a partir de res$metadata par usp_parametre_standard()
-# (aucun calcul dans l'affichage) ; le sigma standard retenu recalcule doit
-# etre identique a celui du resultat, sinon erreur.
-# Saisie libre : drapeau explicite metadata$sigma_standard_saisi, pour les
-# trois methodes (toute saisie est une derogation, meme egale a la table ;
-# decision du mainteneur du 25/09/2026). Un resultat qui ne le porte pas
-# (produit avant l'issue #55) est refuse plutot que devine.
-engine_parametre_standard <- function(res) {
-  if (!isTRUE(res$ok)) return(NULL)
+# et usp_bareme_segment() (aucun calcul dans l'affichage) ; le sigma standard
+# et le bareme recalcules doivent etre identiques a ceux du resultat, sinon
+# erreur.
+# Saisie libre : drapeaux explicites metadata$sigma_standard_saisi et
+# metadata$bareme_saisi, pour les trois methodes (toute saisie est une
+# derogation, meme egale a la table ; decisions du mainteneur du 25/09/2026
+# et du 26/09/2026, issue #93). Un resultat qui ne les porte pas (produit
+# avant l'issue #55 ou #93) est refuse plutot que devine.
+.engine_drapeau <- function(m, nom, appelant) {
+  v <- m[[nom]]
+  if (!is.logical(v) || length(v) != 1L || is.na(v))
+    stop(sprintf("%s : drapeau metadata$%s absent ou invalide.", appelant, nom))
+  v
+}
+
+# Sigma standard retenu et sa tracabilite, recalcules depuis res$metadata ;
+# controle de coherence avec le sigma standard du resultat.
+.engine_trace_sigma <- function(res, appelant) {
   m <- res$metadata
-  if (!is.logical(m$sigma_standard_saisi) || length(m$sigma_standard_saisi) != 1L ||
-      is.na(m$sigma_standard_saisi))
-    stop("engine_parametre_standard() : drapeau metadata$sigma_standard_saisi absent ou invalide.")
-  saisi <- m$sigma_standard_saisi
+  saisi <- .engine_drapeau(m, "sigma_standard_saisi", appelant)
   ps <- usp_parametre_standard(m$methode, m$segment, m$annexe, m$nature_donnees,
                                if (saisi) m$sigma_standard else NULL)
   if (!identical(ps$sigma_standard, m$sigma_standard))
-    stop("engine_parametre_standard() : sigma standard recalcule different de celui du resultat.")
+    stop(sprintf("%s : sigma standard recalcule different de celui du resultat.", appelant))
+  ps
+}
+
+# Bareme de credibilite retenu et sa tracabilite (issue #93), recalcules
+# depuis res$metadata : bareme applicable selon la section G (NA sans
+# segment designe : aucun texte ne le determine), paragraphe de la section G,
+# facteurs c applicable et retenu (usp_credibilite(), duree metadata$T),
+# etat de l'origine. Controles de coherence : un bareme non saisi doit etre
+# celui de usp_bareme_segment() (le bareme "court" pose par convention sans
+# segment compris) ; le c retenu doit etre celui de res$parametre_final.
+.engine_trace_bareme <- function(res, appelant) {
+  m <- res$metadata
+  saisi <- .engine_drapeau(m, "bareme_saisi", appelant)
+  if (!is.character(m$bareme) || length(m$bareme) != 1L ||
+      !m$bareme %in% c("court", "long"))
+    stop(sprintf("%s : bareme du resultat absent ou invalide.", appelant))
+  if (!saisi && !identical(usp_bareme_segment(m$segment, m$annexe), m$bareme))
+    stop(sprintf("%s : bareme recalcule different de celui du resultat.", appelant))
+  c_ret <- usp_credibilite(m$T, m$bareme)
+  if (!identical(c_ret, res$parametre_final$credibilite))
+    stop(sprintf("%s : facteur de credibilite recalcule different de celui du resultat.",
+                 appelant))
+  sans_segment <- is.null(m$segment)
+  regl <- if (sans_segment) NA_character_ else usp_bareme_segment(m$segment, m$annexe)
+  paragraphe <- c(long = "annexe XVII, section G, paragraphe 1",
+                  court = "annexe XVII, section G, paragraphe 2")
+  etat <- if (!saisi) { if (sans_segment) "defaut" else "reglementaire" } else
+          if (sans_segment) "saisi_sans_segment" else
+          if (identical(regl, m$bareme)) "saisi_egal" else "saisi_contraire"
+  list(saisi = saisi, retenu = m$bareme, reglementaire = regl,
+       ref_reglementaire = if (sans_segment) NA_character_ else paragraphe[[regl]],
+       c_reglementaire = if (sans_segment) NA_real_ else usp_credibilite(m$T, regl),
+       c_retenu = c_ret, T = m$T, etat = etat,
+       conforme = if (sans_segment) NA else identical(regl, m$bareme))
+}
+
+engine_parametre_standard <- function(res) {
+  if (!isTRUE(res$ok)) return(NULL)
+  m <- res$metadata
+  ps <- .engine_trace_sigma(res, "engine_parametre_standard()")
+  tb <- .engine_trace_bareme(res, "engine_parametre_standard()")
   prime <- identical(m$methode, "premium")
   lib_nature <- c(brutes = "brutes : non ajustees de la reassurance",
                   nettes = "nettes : ajustees de la reassurance")[[ps$nature_donnees]]
+  origine_bareme <- switch(tb$etat,
+    reglementaire = "bareme reglementaire du segment",
+    defaut = paste("bareme par defaut (court), aucun segment designe : non determine par",
+                   "l'annexe XVII, section G"),
+    saisi_egal = sprintf(paste("bareme saisi (%s), egal au bareme de l'%s :",
+                               "saisie declaree comme derogation"),
+                         tb$retenu, tb$ref_reglementaire),
+    saisi_contraire = sprintf(paste("bareme saisi (%s), contraire a l'%s :",
+                                    "derogation au bareme de l'annexe XVII, section G"),
+                              tb$retenu, tb$ref_reglementaire),
+    saisi_sans_segment = sprintf(paste("bareme saisi (%s), non determine par l'annexe XVII,",
+                                       "section G : aucun segment designe (saisie declaree",
+                                       "comme derogation)"),
+                                 tb$retenu))
   d <- data.frame(
     grandeur = c(
       if (prime) "Nature declaree des donnees" else "Nature des donnees (exigence de la methode)",
@@ -5188,9 +5712,13 @@ engine_parametre_standard <- function(res) {
                          if (identical(ps$annexe, "XIV")) "art. 148" else "art. 117"),
       "sigma standard reglementaire",
       "sigma standard retenu dans le melange",
-      "Origine du sigma standard retenu"),
+      "Origine du sigma standard retenu",
+      "Bareme et facteur c applicables (annexe XVII, section G)",
+      "Bareme et facteur c retenus",
+      "Origine du bareme retenu"),
     valeur = c(NA, NA, NA, ps$sigma_annexe, if (prime) ps$np_standard,
-               ps$sigma_reglementaire, ps$sigma_standard, NA),
+               ps$sigma_reglementaire, ps$sigma_standard, NA,
+               tb$c_reglementaire, tb$c_retenu, NA),
     texte = c(lib_nature,
               paste0(ps$point_art218, " : ", ps$parametre_remplace),
               ps$exigence_donnees,
@@ -5201,8 +5729,72 @@ engine_parametre_standard <- function(res) {
                 if (identical(ps$nature_donnees, "nettes")) "NP standard x sigma brut" else "sigma brut",
               NA,
               if (ps$saisie) "sigma standard saisi, derogation au parametre reglementaire"
-              else "parametre reglementaire"),
+              else "parametre reglementaire",
+              if (is.na(tb$reglementaire)) "non determine : aucun segment designe"
+              else paste0(tb$reglementaire, ", ", tb$ref_reglementaire),
+              sprintf("%s, T = %d", tb$retenu, as.integer(tb$T)),
+              origine_bareme),
     stringsAsFactors = FALSE)
+  d
+}
+
+# Point de lecture unique des derogations (issue #93, forme de module de la
+# fiche E0) : sigma standard saisi (#55) et bareme de credibilite saisi
+# (#93), lus sur les drapeaux explicites de res$metadata, plus le bareme
+# "court" pose par convention sans segment designe, non determine par la
+# section G (ligne sans drapeau). L'affichage (bandeau de l'onglet
+# Calibration, rapport fige, journal) ne connait que cette table.
+# Valeur : NULL si !isTRUE(res$ok) ; sinon data.frame (0 ligne sans
+# derogation), colonnes :
+#   parametre            "sigma_standard" ou "bareme" ;
+#   valeur_reglementaire valeur du texte (caractere ; NA sans segment) ;
+#   valeur_retenue       valeur du melange (caractere) ;
+#   conforme             valeur retenue egale a la valeur reglementaire
+#                        (logique ; NA si non determinable, sans segment) ;
+#                        une saisie egale reste une derogation ;
+#   libelle              phrase complete pour bandeau et journal.
+# Erreur si un drapeau manque ou est invalide (pas de deduction), ou si le
+# sigma standard ou le bareme recalcules different du resultat.
+engine_derogations <- function(res) {
+  if (!isTRUE(res$ok)) return(NULL)
+  ps <- .engine_trace_sigma(res, "engine_derogations()")
+  tb <- .engine_trace_bareme(res, "engine_derogations()")
+  fmt <- function(x) if (is.na(x)) NA_character_ else format(x, digits = 10)
+  d <- data.frame(parametre = character(0), valeur_reglementaire = character(0),
+                  valeur_retenue = character(0), conforme = logical(0),
+                  libelle = character(0), stringsAsFactors = FALSE)
+  if (ps$saisie) {
+    # Egalite a TOLERANCE_CONFORME_SIGMA pres en relatif (voir sa
+    # definition en tete du moteur).
+    conf <- if (is.na(ps$sigma_reglementaire)) NA else
+      abs(ps$sigma_standard - ps$sigma_reglementaire) <=
+        TOLERANCE_CONFORME_SIGMA * abs(ps$sigma_reglementaire)
+    d <- rbind(d, data.frame(parametre = "sigma_standard",
+      valeur_reglementaire = fmt(ps$sigma_reglementaire),
+      valeur_retenue = fmt(ps$sigma_standard), conforme = conf,
+      libelle = "sigma standard saisi, derogation au parametre reglementaire",
+      stringsAsFactors = FALSE))
+  }
+  if (tb$etat != "reglementaire") {
+    lib <- switch(tb$etat,
+      defaut = sprintf(paste("bareme de credibilite %s non determine par l'annexe XVII,",
+                             "section G : aucun segment designe"), tb$retenu),
+      saisi_egal = sprintf(paste("bareme de credibilite saisi (%s), egal au bareme de l'%s :",
+                                 "saisie declaree comme derogation"),
+                           tb$retenu, tb$ref_reglementaire),
+      saisi_contraire = sprintf(paste("bareme de credibilite saisi (%s), derogation au bareme",
+                                      "de l'annexe XVII, section G : bareme reglementaire du",
+                                      "segment %s de l'annexe %s : %s (%s)"),
+                                tb$retenu, format(res$metadata$segment), res$metadata$annexe,
+                                tb$reglementaire, tb$ref_reglementaire),
+      saisi_sans_segment = sprintf(paste("bareme de credibilite saisi (%s), non determine par",
+                                         "l'annexe XVII, section G : aucun segment designe",
+                                         "(saisie declaree comme derogation)"), tb$retenu))
+    d <- rbind(d, data.frame(parametre = "bareme",
+      valeur_reglementaire = tb$reglementaire, valeur_retenue = tb$retenu,
+      conforme = tb$conforme, libelle = lib, stringsAsFactors = FALSE))
+  }
+  rownames(d) <- NULL
   d
 }
 

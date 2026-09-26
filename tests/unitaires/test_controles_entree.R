@@ -117,6 +117,317 @@ verifier("run_engine : theta_equiv NA ou 1, delta_equiv vide -> ok = FALSE, sans
              contient(r3$validation$erreurs, "delta_equiv")
          })
 
+## --- Profondeur T (issue #87) ------------------------------------------------
+# Defaut releve par audit (audit leger de #33) : T = 5.5 donnait l'indice
+# (n - T + 1):n = 3.5:8, soit les annees 3 a 7 (l'annee la plus recente
+# ecartee en silence, sigma_USP 0,108587 au lieu de 0,111452) ; NA, Inf et un
+# texte etaient ignores (T = 8) ; c(5, 6) et T = 9.5 > n levaient une erreur
+# R. Attendu : ok = FALSE avec un motif, sans troncature ni erreur R.
+T_refuses <- list(5.5, 7.5, 9.5, NA, NA_real_, Inf, -Inf, c(5, 6), "6", numeric(0), TRUE)
+verifier("engine_valider_profondeur : NULL et entiers de [5 ; n] acceptes (5, 8, 6L)",
+         identical(engine_valider_profondeur(NULL, 8), character(0)) &&
+         all(vapply(list(5, 8, 6L, 7), function(t)
+           identical(engine_valider_profondeur(t, 8), character(0)), logical(1))))
+verifier("engine_valider_profondeur : non entier, NA, infini, multiple, texte, vide, logique refuses (motif 'entier')",
+         all(vapply(T_refuses, function(t) {
+           e <- engine_valider_profondeur(t, 8)
+           length(e) == 1L && contient(e, "nombre entier d'annees")
+         }, logical(1))))
+verifier("engine_valider_profondeur : T > n et T < 5 refuses ; T_min parametrable",
+         contient(engine_valider_profondeur(9, 8), "superieure au nombre d'annees disponibles (8)") &&
+         all(vapply(c(4, 0, -1), function(t)
+           contient(engine_valider_profondeur(t, 8), "au moins 5"), logical(1))) &&
+         identical(engine_valider_profondeur(3, 8, T_min = 1), character(0)))
+verifier("run_engine : T refuse (5.5, NA, Inf, c(5, 6), '6', T > n entier ou non) -> ok = FALSE avec motif, sans erreur R (#87)",
+         all(vapply(c(T_refuses[c(1, 3, 4, 6, 8, 9)], list(9)), function(t) {
+           r <- tryCatch(run_engine(xt = x, yt = y, methode = "premium", segment = 1,
+                                    B = 19, T = t, nature_donnees = "brutes"),
+                         error = function(e) e)
+           !inherits(r, "error") && identical(r$ok, FALSE) &&
+             contient(r$validation$erreurs, "Profondeur T")
+         }, logical(1))))
+verifier("run_engine : T = 6 retient les 6 annees les plus recentes (metadata$T = 6), T = 8 equivaut a T absent",
+         {
+           r6 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 19,
+                            T = 6, nature_donnees = "brutes")
+           r8 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 19,
+                            T = 8, nature_donnees = "brutes")
+           r0 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 19,
+                            nature_donnees = "brutes")
+           isTRUE(r6$ok) && identical(r6$metadata$T, 6L) &&
+             identical(r6$donnees$xt, x[3:8]) && identical(r6$donnees$yt, y[3:8]) &&
+             identical(r8$parametre_final, r0$parametre_final) && identical(r8$metadata$T, 8L)
+         })
+verifier("usp_charger : T non entier ou NA refuse (erreur explicite, pas de troncature) (#87)",
+         {
+           fx3 <- tempfile(fileext = ".csv"); fy3 <- tempfile(fileext = ".csv")
+           writeLines(as.character(x), fx3); writeLines(as.character(y), fy3)
+           e <- tryCatch(usp_charger(fx3, fy3, T = 5.5), error = function(e) conditionMessage(e))
+           is.character(e) && grepl("nombre entier", e, fixed = TRUE) &&
+             leve_erreur(usp_charger(fx3, fy3, T = NA))
+         })
+
+verifier("run_engine : T refuse -> aucun avertissement de serie retenue, validation$T = NA (#87, audit)",
+         {
+           r <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 19,
+                           T = 5.5, nature_donnees = "brutes")
+           identical(r$ok, FALSE) && identical(r$validation$avertissements, character(0)) &&
+             identical(r$validation$T, NA_integer_)
+         })
+verifier("engine_valider_profondeur : annexe XVII citee si T_min >= 5 seulement ; motif neutre sinon",
+         contient(engine_valider_profondeur(5.5, 8), "annexe XVII") &&
+         !contient(engine_valider_profondeur(5.5, 8, T_min = 1), "annexe XVII") &&
+         identical(engine_valider_profondeur(0, 8, T_min = 1), "Profondeur T = 0 : T >= 1 attendu."))
+
+## --- Donnees a l'echelle extreme (issue #88) ---------------------------------
+# Defaut releve par audit (audit leger de #33) : des donnees finies et
+# strictement positives mais a l'echelle extreme passaient la validation et
+# faisaient lever une erreur R en cours de calcul (xt x 1e298 : lm.fit() de
+# test_white(), regresseur x^2 infini ; yt x 1e-300 : test logique sur NA
+# dans le detail de la distance de Cook). Decision du mainteneur (26/09/2026)
+# : filet limite au calcul qui suit une validation reussie ; l'erreur y est
+# un DEFAUT DE CALCUL INTERCEPTE (ok = FALSE, motif neutre, diagnostic dans
+# validation$erreur_r) ; les erreurs d'usage restent des erreurs R. Aucun
+# seuil d'echelle. Les motifs compares sont les textes fixes du moteur, en
+# ASCII, jamais le message traduit de conditionMessage().
+MOTIF_DEFAUT <- "Defaut de calcul intercepte"
+calcul_extreme <- function(xt, yt) suppressWarnings(
+  run_engine(xt = xt, yt = yt, methode = "premium", segment = 1, B = 19,
+             nature_donnees = "brutes"))
+verifier("run_engine : xt x 1e298, xt x 1e200, yt x 1e-300, xt et yt x 1e-300 -> ok = FALSE, defaut intercepte, sans erreur R (#88)",
+         all(vapply(list(list(x * 1e298, y), list(x * 1e200, y), list(x, y * 1e-300),
+                         list(x * 1e-300, y * 1e-300)), function(d) {
+           r <- tryCatch(calcul_extreme(d[[1]], d[[2]]), error = function(e) e)
+           er <- r$validation$erreur_r
+           !inherits(r, "error") && identical(r$ok, FALSE) && inherits(r, "usp_engine") &&
+             contient(r$validation$erreurs, MOTIF_DEFAUT) &&
+             is.list(er) && identical(names(er), c("message", "appel", "origine", "pile")) &&
+             is.character(er$message) && length(er$pile) >= 1L &&
+             is.character(er$origine) && length(er$origine) == 1L && er$origine %in% er$pile &&
+             identical(r$methode, "premium") && identical(r$metadata$methode, "premium")
+         }, logical(1))))
+# Origine = derniere fonction de la pile definie dans le moteur. yt x 1e-300 :
+# l'erreur nait du if (any(ck > 4 / T)) ecrit dans usp_tests(), passe en
+# argument de sprintf() dans add() et evalue paresseusement dans le cadre de
+# sprintf() ; add() est une fermeture creee par engine_registre_tests(), non
+# une fonction de l'environnement du moteur : l'origine est usp_tests.
+# xt x 1e298 : l'erreur nait dans lm.fit() (stats) appele par test_white().
+verifier("run_engine : origine reelle de l'erreur, fonction du moteur (xt x 1e298 : test_white, pile jusqu'a lm.fit ; yt x 1e-300 : usp_tests, pile usp_tests > add > sprintf)",
+         {
+           a <- calcul_extreme(x * 1e298, y)$validation
+           b <- calcul_extreme(x, y * 1e-300)$validation
+           a$erreur_r$origine == "test_white" && a$erreur_r$pile[length(a$erreur_r$pile)] == "lm.fit" && all(c("usp_bootstrap", "test_white", "stats::lm") %in% a$erreur_r$pile) &&
+             contient(a$erreurs, "(erreur R dans test_white())") &&
+             identical(b$erreur_r$pile, c("usp_tests", "add", "sprintf")) &&
+             identical(b$erreur_r$origine, "usp_tests") &&
+             contient(b$erreurs, "(erreur R dans usp_tests())")
+         })
+verifier("run_engine : xt x 1e-300 (cas cite par l'issue) -> aucune erreur R, ok logique",
+         {
+           r <- tryCatch(calcul_extreme(x * 1e-300, y), error = function(e) e)
+           !inherits(r, "error") && is.logical(r$ok) && length(r$ok) == 1L && !is.na(r$ok)
+         })
+verifier("run_engine : generateur et graine de l'appelant restaures apres un defaut intercepte",
+         {
+           kind0 <- RNGkind()
+           suppressWarnings(RNGkind("Wichmann-Hill", "Box-Muller", "Rounding"))
+           set.seed(7); avant <- .Random.seed; k_avant <- RNGkind()
+           r <- calcul_extreme(x * 1e298, y)
+           ok <- identical(r$ok, FALSE) && identical(.Random.seed, avant) &&
+             identical(RNGkind(), k_avant)
+           suppressWarnings(RNGkind(kind0[1], kind0[2], kind0[3]))
+           ok
+         })
+verifier("run_engine : options(usp.engine.lever_erreurs = TRUE) releve l'erreur au lieu de l'intercepter",
+         {
+           ancien <- options(usp.engine.lever_erreurs = TRUE)
+           leve <- leve_erreur(calcul_extreme(x * 1e298, y))
+           options(ancien)
+           leve && identical(calcul_extreme(x * 1e298, y)$ok, FALSE)
+         })
+verifier("run_engine, Merz-Wuthrich : erreur dans le calcul apres mw_valider_triangle() -> defaut intercepte (reserve2)",
+         {
+           e <- environment(run_engine)
+           orig <- get("mw_bootstrap", envir = e)
+           assign("mw_bootstrap", function(...) stop("panne simulee"), envir = e)
+           tri <- as.matrix(read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv")))
+           tri <- unname(tri[, colnames(tri) != "i"]); storage.mode(tri) <- "double"
+           r <- tryCatch(run_engine(methode = "reserve2", triangle = tri, segment = 1, B = 19),
+                         error = function(err) err,
+                         finally = assign("mw_bootstrap", orig, envir = e))
+           !inherits(r, "error") && identical(r$ok, FALSE) && identical(r$methode, "reserve2") &&
+             contient(r$validation$erreurs, "(erreur R dans mw_bootstrap())") &&
+             identical(r$validation$erreur_r$origine, "mw_bootstrap")
+         })
+verifier("run_engine : erreurs d'usage -> erreur R explicite, non interceptee (annexe III, methode 'prime', segment 99, reserve2 sans triangle, xt manquant, B = -1, seed NA, bareme 'x')",
+         leve_erreur(run_engine(xt = x, yt = y, methode = "premium", annexe = "III", segment = 1,
+                                B = 19, nature_donnees = "brutes")) &&
+         leve_erreur(run_engine(xt = x, yt = y, methode = "prime", segment = 1, B = 19)) &&
+         leve_erreur(run_engine(xt = x, yt = y, methode = "premium", segment = 99, B = 19,
+                                nature_donnees = "brutes")) &&
+         leve_erreur(run_engine(methode = "reserve2", B = 19)) &&
+         leve_erreur(run_engine(yt = y, methode = "premium", segment = 1, B = 19,
+                                nature_donnees = "brutes")) &&
+         leve_erreur(run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = -1,
+                                nature_donnees = "brutes")) &&
+         leve_erreur(run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 19,
+                                seed = NA, nature_donnees = "brutes")) &&
+         leve_erreur(run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 19,
+                                bareme = "x", nature_donnees = "brutes")))
+
+# Suite de #88 (decision du mainteneur du 26/09/2026) : alpha, sigma_standard,
+# seed et bareme invalides levent une erreur d'usage de
+# .engine_verifier_usage(), sur les deux branches (premium et reserve2),
+# avant tout calcul : ni defaut de calcul intercepte, ni message traduit de
+# R. Le motif est une sous-chaine ASCII du message du moteur.
+tri_usage <- as.matrix(read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv")))
+tri_usage <- unname(tri_usage[, colnames(tri_usage) != "i"])
+storage.mode(tri_usage) <- "double"
+# Les arguments passes remplacent ceux de l'appel nominal (B compris) ; une
+# valeur NULL est transmise telle quelle (a[n] <- l[n] conserve l'entree).
+appel_usage <- function(nominal, ...) {
+  l <- list(...)
+  for (n in names(l)) nominal[n] <- l[n]
+  do.call(run_engine, nominal)
+}
+usage_premium <- function(...) appel_usage(list(xt = x, yt = y, methode = "premium", segment = 1,
+                                                B = 19, nature_donnees = "brutes"), ...)
+usage_mw <- function(...) appel_usage(list(methode = "reserve2", triangle = tri_usage,
+                                           segment = 1, B = 19), ...)
+# TRUE si chaque valeur de `valeurs`, passee comme argument `arg`, leve une
+# erreur R dont le message contient `motif` (fixe), sur les deux branches.
+erreur_usage <- function(arg, valeurs, motif) {
+  all(vapply(valeurs, function(v) {
+    all(vapply(list(usage_premium, usage_mw), function(f) {
+      e <- tryCatch(do.call(f, stats::setNames(list(v), arg)), error = function(e) e)
+      inherits(e, "error") && grepl(motif, conditionMessage(e), fixed = TRUE)
+    }, logical(1)))
+  }, logical(1)))
+}
+# TRUE si chaque valeur est acceptee (ok = TRUE) sur les deux branches.
+usage_accepte <- function(arg, valeurs) {
+  all(vapply(valeurs, function(v) {
+    all(vapply(list(usage_premium, usage_mw), function(f) {
+      r <- tryCatch(do.call(f, stats::setNames(list(v), arg)), error = function(e) e)
+      !inherits(r, "error") && isTRUE(r$ok)
+    }, logical(1)))
+  }, logical(1)))
+}
+verifier("run_engine : alpha NA, vide, texte, vecteur, logique, 0, 0,30, 0,5, 0,999, 1, 1.5, -0.1, Inf -> erreur d'usage (premium, reserve2)",
+         erreur_usage("alpha", list(NA, NULL, "0.1", c(0.1, 0.2), TRUE, 0, 0.30, 0.5, 0.999,
+                                    1, 1.5, -0.1, Inf),
+                      "0 < alpha < SEUIL_ECHEC_SENS_REJETER = 0.3, est attendu"))
+verifier("run_engine : alpha 0,30 refuse, message citant la zone ALERTE",
+         {
+           e <- tryCatch(usage_premium(alpha = 0.30), error = function(e) e)
+           inherits(e, "error") && startsWith(conditionMessage(e), "alpha = 0.3 : ") &&
+             grepl("la zone ALERTE des tests en sens rejeter disparait", conditionMessage(e),
+                   fixed = TRUE)
+         })
+verifier("run_engine : alpha 0,01 ; 0,10 ; 0,29 acceptes (premium, reserve2)",
+         usage_accepte("alpha", list(0.01, 0.10, 0.29)))
+verifier("run_engine : SEUIL_ECHEC_SENS_REJETER vaut 0,30 (seuil ECHEC des tests en sens rejeter)",
+         identical(SEUIL_ECHEC_SENS_REJETER, 0.30))
+verifier("run_engine : sigma_standard NA, texte, vecteur, logique, 0, negatif, Inf -> erreur d'usage (premium, reserve2)",
+         erreur_usage("sigma_standard", list(NA, NA_real_, "0.1", c(0.1, 0.2), TRUE, 0, -0.1, Inf),
+                      "sigma_standard > 0, est attendu"))
+verifier("run_engine : sigma_standard NULL, 0,10 et 2 acceptes (premium, reserve2)",
+         usage_accepte("sigma_standard", list(NULL, 0.10, 2)))
+verifier("run_engine : seed NULL, NA, texte, vecteur, logique, 1.5, Inf, 3e9 -> erreur d'usage du moteur (premium, reserve2)",
+         erreur_usage("seed", list(NULL, NA, NA_real_, "5", "a", c(1, 2), TRUE, 1.5, Inf, 3e9),
+                      "un nombre scalaire fini entier, |seed| <= 2147483647"))
+verifier("run_engine : seed NA et NULL -> message du moteur citant la valeur recue",
+         {
+           e1 <- tryCatch(usage_premium(seed = NA), error = function(e) e)
+           e2 <- tryCatch(usage_mw(seed = NULL), error = function(e) e)
+           inherits(e1, "error") && inherits(e2, "error") &&
+             startsWith(conditionMessage(e1), "seed = NA : un nombre scalaire fini entier") &&
+             startsWith(conditionMessage(e2), "seed = vide : ") &&
+             grepl("NULL refuse : calcul non reproductible", conditionMessage(e2), fixed = TRUE)
+         })
+verifier("run_engine : seed 20260831, -5, 5L, .Machine$integer.max et son oppose acceptes (premium, reserve2)",
+         usage_accepte("seed", list(20260831, -5, 5L, .Machine$integer.max,
+                                    -.Machine$integer.max)))
+verifier("run_engine : bareme 'moyen', 'Court', 'co', '', NA, c('court', 'long'), 1 -> erreur d'usage citant l'annexe XVII, section G (premium, reserve2)",
+         erreur_usage("bareme", list("moyen", "Court", "co", "", NA, NA_character_,
+                                     c("court", "long"), 1),
+                      "(bareme de credibilite de l'annexe XVII, section G)") &&
+           {
+             e <- tryCatch(usage_mw(bareme = "moyen"), error = function(e) e)
+             startsWith(conditionMessage(e), "bareme = \"moyen\" : ")
+           })
+verifier("run_engine : bareme NULL, 'court' et 'long' acceptes (premium, reserve2)",
+         usage_accepte("bareme", list(NULL, "court", "long")))
+
+# Constat 4 de la revue finale de #88 : un segment inconnu, ou l'absence a la
+# fois de segment et de sigma_standard, etaient controles apres la validation
+# des donnees ; l'appel levait une erreur R sur des donnees valides et
+# rendait ok = FALSE sur des donnees refusees. Controles desormais dans
+# .engine_verifier_usage() : erreur R quelles que soient les donnees.
+y_neg <- y; y_neg[3] <- -1
+tri_2x2 <- matrix(c(1, 2, 3, NA), 2)
+# TRUE si chaque appel (liste d'arguments de run_engine) leve une erreur R
+# dont le message contient motif.
+erreurs_segment <- function(appels, motif) {
+  all(vapply(appels, function(a) {
+    e <- tryCatch(do.call(run_engine, a), error = function(e) e)
+    inherits(e, "error") && grepl(motif, conditionMessage(e), fixed = TRUE)
+  }, logical(1)))
+}
+appels_segment <- function(...) {
+  s <- list(...)
+  list(c(list(xt = x, yt = y, methode = "premium", B = 19, nature_donnees = "brutes"), s),
+       c(list(xt = x, yt = y_neg, methode = "premium", B = 19, nature_donnees = "brutes"), s),
+       c(list(xt = x[1:4], yt = y[1:4], methode = "premium", B = 19, nature_donnees = "brutes"), s),
+       c(list(xt = x, yt = y, methode = "reserve1", B = 19), s),
+       c(list(xt = x, yt = y_neg, methode = "reserve1", B = 19), s),
+       c(list(methode = "reserve2", triangle = tri_usage, B = 19), s),
+       c(list(methode = "reserve2", triangle = tri_2x2, B = 19), s))
+}
+verifier("run_engine : segment 99 -> erreur d'usage, donnees valides ou refusees (yt negatif, T = 4, triangle 2x2 ; premium, reserve1, reserve2)",
+         erreurs_segment(appels_segment(segment = 99), "Segment 99 inconnu dans l'annexe II.") &&
+           erreurs_segment(appels_segment(segment = 5, annexe = "XIV"),
+                           "Segment 5 inconnu dans l'annexe XIV."))
+verifier("run_engine : ni segment ni sigma_standard -> erreur d'usage, donnees valides ou refusees (premium, reserve1, reserve2)",
+         erreurs_segment(appels_segment(),
+                         "Fournir soit sigma_standard, soit segment (avec son annexe)."))
+verifier("run_engine : sigma_standard seul accepte sans segment (premium, reserve2)",
+         {
+           a <- usage_premium(segment = NULL, sigma_standard = 0.1)
+           b <- usage_mw(segment = NULL, sigma_standard = 0.1)
+           isTRUE(a$ok) && isTRUE(b$ok)
+         })
+# Reserve d'audit : une valeur porteuse d'attributs etait acceptee et son
+# attribut propage dans le resultat ; elle est refusee.
+verifier("run_engine : B, alpha, seed, bareme, sigma_standard porteurs d'attributs (noms, dim) -> erreur d'usage (premium, reserve2)",
+         erreur_usage("B", list(c(a = 19), matrix(19)), "sans attribut, est attendu") &&
+           erreur_usage("alpha", list(c(a = 0.1), matrix(0.1)), "sans attribut") &&
+           erreur_usage("seed", list(c(a = 5), matrix(5)), "sans attribut") &&
+           erreur_usage("bareme", list(c(a = "court"), matrix("court")), "(sans attribut)") &&
+           erreur_usage("sigma_standard", list(c(a = 0.1), matrix(0.1)), "sans attribut"))
+verifier("run_engine : theta_equiv invalide -> refus ok = FALSE en premium et reserve1 (#33), ignore en reserve2",
+         {
+           r1 <- usage_premium(theta_equiv = NA)
+           r3 <- run_engine(xt = x, yt = y, methode = "reserve1", segment = 1, B = 19,
+                            theta_equiv = NA)
+           r2 <- usage_mw(theta_equiv = NA)
+           identical(r1$ok, FALSE) && is.null(r1$validation$erreur_r) &&
+             contient(r1$validation$erreurs, "theta_equiv = NA") &&
+             identical(r3$ok, FALSE) && is.null(r3$validation$erreur_r) &&
+             contient(r3$validation$erreurs, "theta_equiv = NA") && isTRUE(r2$ok)
+         })
+verifier("run_engine : filet transparent sans erreur (identique avec et sans interception, hors horodatage et duree)",
+         {
+           sans_temps <- function(r) { r$metadata$horodatage <- NULL; r$metadata$duree_sec <- NULL; r }
+           a <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 19,
+                           nature_donnees = "brutes")
+           ancien <- options(usp.engine.lever_erreurs = TRUE)
+           b <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 19,
+                           nature_donnees = "brutes")
+           options(ancien)
+           identical(sans_temps(a), sans_temps(b))
+         })
+
 ## --- mw_valider_triangle -----------------------------------------------------
 triangle <- function(n, f = 1.3, base = 100) {
   m <- matrix(NA_real_, n, n)
@@ -402,6 +713,196 @@ verifier("Lecture vecteur : cellule vide au milieu d'une serie en ligne avec en-
            f <- tempfile(); writeLines(c("a2017;a2018;a2019;a2020", "104,2;;109,34;114,64"), f)
            e <- tryCatch(usp_lire_vecteur(f, ";", ","), error = function(e) conditionMessage(e))
            is.character(e) && grepl("Cellule(s) vide(s) en position 2", e, fixed = TRUE)
+         })
+# Issue #95 : serie en ligne avec ligne d'en-tetes ; une valeur manquante de
+# bord (cellule vide ecartee) ou en surnombre passait sans message. Decision
+# du mainteneur : alignement colonne par colonne (en-tete non vide et valeur,
+# ou rien) ; etiquette de ligne admise, sauf "NA", "-" ou nombre ecrit avec
+# l'autre separateur decimal.
+msg_ligne <- function(l, sep = ",", dec = ".") {
+  f <- tempfile(); writeLines(l, f)
+  tryCatch(usp_lire_vecteur(f, sep, dec), error = function(e) conditionMessage(e))
+}
+a_motif <- function(txt, ...) all(vapply(c(...), function(p) grepl(p, txt, fixed = TRUE), TRUE))
+verifier("Lecture vecteur : serie en ligne, valeur manquante de bord ou en surnombre refusee, colonnes fautives et decomptes donnes (#95)",
+         a_motif(msg_ligne(c("a,b,c,d", "1,2,3,")),
+                 "colonne 4 : en-tete \"d\" sans valeur", "3 valeur(s) pour 4 en-tete(s) non vide(s)") &&
+           a_motif(msg_ligne(c("a,b,c,d", ",2,3,4")),
+                   "colonne 1 : en-tete \"a\" sans valeur", "3 valeur(s) pour 4 en-tete(s) non vide(s)") &&
+           a_motif(msg_ligne(c("a,b", "1,2,3")),
+                   "colonne 3 : valeur \"3\" sans en-tete", "3 valeur(s) pour 2 en-tete(s) non vide(s)"))
+verifier("Lecture vecteur : serie en ligne, en-tetes et valeurs decales ou en-tete vide intercale refuses colonne par colonne (#95)",
+         a_motif(msg_ligne(c("a,b,c,", ",2,3,4")),
+                 "colonne 1 : en-tete \"a\" sans valeur ; colonne 4 : valeur \"4\" sans en-tete") &&
+           a_motif(msg_ligne(c("a,b,,d", "1,2,3,4")), "colonne 3 : valeur \"3\" sans en-tete") &&
+           a_motif(msg_ligne(c("a,,c", "1,2,3")), "colonne 2 : valeur \"2\" sans en-tete") &&
+           a_motif(msg_ligne(c("serie,a2017,a2018", ",1,2")),
+                   "colonne 1 : en-tete \"serie\" sans valeur", "retirer son en-tete"))
+verifier("Lecture vecteur : serie en ligne, etiquette \"NA\", \"-\" ou nombre a l'autre separateur decimal refusee (#95)",
+         a_motif(msg_ligne(c("a,b,c", "NA,2,3")), "cellule \"NA\" (colonne 1)", "etiquette") &&
+           a_motif(msg_ligne(c("a,b,c", "-,2,3")), "cellule \"-\" (colonne 1)", "etiquette") &&
+           a_motif(msg_ligne(c("a2017;a2018;a2019", "1,5;2;3"), ";", "."),
+                   "cellule \"1,5\" (colonne 1)", "separateur decimal"))
+# Avis d'actuary : predicat unique .allure_manquante_ou_nombre(), applique a
+# l'etiquette du format avec en-tetes et a l'en-tete des autres formats.
+verifier("Lecture vecteur : etiquette NaN, #N/A, N/A, n.d., 1 234, 1.234,5 (dec ',') ou 1,234.5 (dec '.') refusee (#95)",
+         a_motif(msg_ligne(c("a,b,c", "NaN,2,3")), "cellule \"NaN\" (colonne 1), en position d'etiquette") &&
+           a_motif(msg_ligne(c("a,b,c", "#N/A,2,3")), "cellule \"#N/A\"", "valeur manquante") &&
+           a_motif(msg_ligne(c("a,b,c", "N/A,2,3")), "cellule \"N/A\"", "etiquette") &&
+           a_motif(msg_ligne(c("a,b,c", "n.d.,2,3")), "cellule \"n.d.\"", "etiquette") &&
+           a_motif(msg_ligne(c("a,b,c", "1 234,2,3")), "cellule \"1 234\"", "etiquette") &&
+           a_motif(msg_ligne(c("a;b;c", "1.234,5;2;3"), ";", ","), "cellule \"1.234,5\"", "etiquette") &&
+           a_motif(msg_ligne(c("a;b;c", "1,234.5;2;3"), ";", "."), "cellule \"1,234.5\"", "etiquette"))
+verifier("Lecture vecteur : en-tete NA, - ou NaN refuse en format ligne sans en-tetes et en format colonne (#95)",
+         {
+           en_tete <- "en position d'en-tete (premiere cellule non vide)"
+           all(vapply(c("NA", "-", "NaN"), function(z)
+             a_motif(msg_ligne(paste0(z, ",2,3")), paste0("cellule \"", z, "\" ", en_tete)) &&
+               a_motif(msg_ligne(c(z, "2", "3")), paste0("cellule \"", z, "\" ", en_tete)), TRUE))
+         })
+verifier("Predicat .allure_manquante_ou_nombre() : manquants et nombres refuses, 12a, TRUE et en-tetes ordinaires admis (#95)",
+         {
+           # Espace insecable en UTF-8 (C2 A0) et en Windows-1252 (A0) ; deux
+           # appels successifs (un litteral dans gsub() donnait un resultat
+           # instable sous une locale Windows-1252).
+           nbsp <- paste0("1", intToUtf8(160), "234")
+           nbsp1252 <- rawToChar(as.raw(c(0x31, 0xa0, 0x32, 0x33, 0x34)))
+           oui <- c("NA", "nan", "N/A", "#n/a", "N.D.", "-", "1,5", "1 234", nbsp, nbsp1252,
+                    "1.234,5", "1,234.5", "'1'234", "+3")
+           identical(.allure_manquante_ou_nombre(oui), rep(TRUE, 14)) &&
+             identical(.allure_manquante_ou_nombre(oui), rep(TRUE, 14)) &&
+             identical(.allure_manquante_ou_nombre(
+               c("12a", "TRUE", "x", "a2017", "serie", "annee", "--", "", ".", "NA2", NA)), rep(FALSE, 11))
+         })
+verifier("Lecture vecteur : cellule d'espaces sous un en-tete refusee a l'alignement (colonne 1 : en-tete \"a\" sans valeur) (#95)",
+         a_motif(msg_ligne(c("a,b,c", "\"   \",2,3")), "colonne 1 : en-tete \"a\" sans valeur"))
+verifier("Lecture vecteur : formats sains inchanges (en-tete x en colonne, etiquette x, en-tetes a2017...) (#95)",
+         {
+           lit <- function(l, sep = ",", dec = ".") { f <- tempfile(); writeLines(l, f); usp_lire_vecteur(f, sep, dec) }
+           identical(lit(c("x", "1", "2", "3")), c(1, 2, 3)) &&
+             identical(lit("x,1,2,3"), c(1, 2, 3)) &&
+             identical(lit(c("serie,a2017,a2018", "x,1,2")), c(1, 2)) &&
+             identical(lit(c("12a", "1", "2")), c(1, 2)) &&
+             identical(lit(c("a2017;a2018;a2019", "1,5;2;3"), ";", ","), c(1.5, 2, 3))
+         })
+# Audit (mineur 2) et avis d'actuary : espace fine insecable U+202F (octets
+# E2 80 AF) traitee comme une espace ; exception des etiquettes d'exercice
+# AAAA-AA / AAAA-AAAA ; valeurs non finies refusees des la lecture.
+verifier("Predicat .allure_manquante_ou_nombre() : U+202F reconnue, 12.2017, +1 et '2017 refuses, 2017-2018 et 2017-18 admis (#95)",
+         {
+           fine <- rawToChar(as.raw(c(0x31, 0xe2, 0x80, 0xaf, 0x32, 0x33, 0x34)))
+           identical(.allure_manquante_ou_nombre(c(fine, "12.2017", "+1", "'2017")), rep(TRUE, 4)) &&
+             identical(.allure_manquante_ou_nombre(c("2017-2018", "2017-18")), c(FALSE, FALSE))
+         })
+verifier("Lecture vecteur : en-tete ou etiquette 1<U+202F>234 et '2017 refuses ; 2017-2018 et 2017-18 admis en en-tete et en etiquette (#95)",
+         {
+           lit_brut <- function(r, sep = ",") {
+             f <- tempfile(); writeBin(r, f)
+             tryCatch(usp_lire_vecteur(f, sep), error = function(e) conditionMessage(e))
+           }
+           fine <- as.raw(c(0x31, 0xe2, 0x80, 0xaf, 0x32, 0x33, 0x34))
+           a_motif(lit_brut(c(fine, charToRaw("\n1\n2\n"))), "en position d'en-tete") &&
+             a_motif(lit_brut(c(charToRaw("a,b,c\n"), fine, charToRaw(",2,3\n"))),
+                     "(colonne 1), en position d'etiquette") &&
+             a_motif(msg_ligne(c("'2017", "1", "2")), "cellule \"'2017\" en position d'en-tete") &&
+             identical(msg_ligne(c("2017-2018", "1", "2")), c(1, 2)) &&
+             identical(msg_ligne(c("2017-18", "1", "2")), c(1, 2)) &&
+             identical(msg_ligne(c("a,b,c", "2017-2018,1,2")), c(1, 2)) &&
+             identical(msg_ligne(c("a,b,c", "2017-18,1,2")), c(1, 2))
+         })
+verifier("Lecture vecteur : Inf, -Inf en tete ou au milieu de la serie refuses a la lecture avec leur position",
+         a_motif(msg_ligne("Inf,2,3"), "non numerique(s) en position 1", "\"Inf\"") &&
+           a_motif(msg_ligne(c("Inf", "2", "3")), "non numerique(s) en position 1", "\"Inf\"") &&
+           a_motif(msg_ligne(c("x", "1", "-Inf", "3")), "non numerique(s) en position 2", "\"-Inf\"") &&
+           a_motif(msg_ligne("1,2,Inf"), "non numerique(s) en position 3", "\"Inf\""))
+verifier("Lecture vecteur : serie en ligne, vide au milieu de la ligne de valeurs : message #33 inchange (#95)",
+         a_motif(msg_ligne(c("a,b,c", "1,,3")), "Cellule(s) vide(s) en position 2"))
+verifier("Lecture vecteur : serie en ligne, colonnes alignees acceptees (colonne vide de bord, etiquette de ligne) (#95)",
+         {
+           lit <- function(l) { f <- tempfile(); writeLines(l, f); usp_lire_vecteur(f) }
+           identical(lit(c(",b,c,d", ",2,3,4")), c(2, 3, 4)) &&
+             identical(lit(c("a,b,c,d,", "1,2,3,4,")), c(1, 2, 3, 4)) &&
+             identical(lit(c("serie,a2017,a2018", "x,1,2")), c(1, 2)) &&
+             identical(lit(c(",a2017,a2018", "x,1,2")), c(1, 2)) &&
+             identical(lit(c("a,b,c", "1,2,3", "")), c(1, 2, 3))
+         })
+# Issue #96 : BOM UTF-8 (EF BB BF) en tete du fichier. Fichiers ecrits en
+# binaire ; lecture dans la locale courante, puis, si le systeme l'accepte,
+# sous LC_CTYPE = "C" (non UTF-8, ou le defaut se manifestait), la locale
+# de l'appelant etant restauree en sortie.
+bom_csv <- function(txt) {
+  f <- tempfile(fileext = ".csv")
+  writeBin(c(as.raw(c(0xef, 0xbb, 0xbf)), charToRaw(txt)), f)
+  f
+}
+lit_bom <- function() list(
+  usp_lire_vecteur(bom_csv("1,2,3\n")),
+  usp_lire_vecteur(bom_csv("1\n2\n3\n")),
+  usp_lire_vecteur(bom_csv("x\n1\n2\n3\n")),
+  usp_lire_vecteur(bom_csv("a2017;a2018;a2019\n1,5;2;3\n"), ";", ","))
+attendu_bom <- list(c(1, 2, 3), c(1, 2, 3), c(1, 2, 3), c(1.5, 2, 3))
+verifier("Lecture vecteur : CSV avec BOM ecrit en binaire lu sans perte dans la locale courante (#96)",
+         identical(lit_bom(), attendu_bom))
+# Evalue f() sous LC_CTYPE = "C" et restaure la locale de l'appelant ; rend
+# "locale C indisponible" (avec un message visible) si le systeme refuse la
+# locale ou si elle reste UTF-8, l'assertion etant alors neutre.
+sous_locale_c <- function(f) {
+  avant <- Sys.getlocale("LC_CTYPE")
+  r <- tryCatch({
+    pose <- suppressWarnings(Sys.setlocale("LC_CTYPE", "C"))
+    if (!nzchar(pose) || isTRUE(l10n_info()[["UTF-8"]])) "locale C indisponible" else f()
+  }, finally = suppressWarnings(Sys.setlocale("LC_CTYPE", avant)))
+  if (!identical(Sys.getlocale("LC_CTYPE"), avant)) stop("locale LC_CTYPE non restauree")
+  if (identical(r, "locale C indisponible"))
+    message("  (information) LC_CTYPE = C indisponible ou UTF-8 : assertion BOM non exercee")
+  r
+}
+verifier("Lecture vecteur : CSV avec BOM lu sans perte sous LC_CTYPE = C (non UTF-8), locale restauree (#96)",
+         {
+           r <- sous_locale_c(lit_bom)
+           identical(r, "locale C indisponible") || identical(r, attendu_bom)
+         })
+# Lecteurs de l'application (read.csv avec en-tete, puis engine_lire_*) : hors
+# locale UTF-8, le BOM altere le premier nom de colonne ("X...t" sous C).
+verifier("Lecture t, xt, yt : CSV avec BOM lu par read.csv sous LC_CTYPE = C, colonne t reconnue et controlee (#96)",
+         {
+           r <- sous_locale_c(function() {
+             ok <- engine_lire_donnees_csv(utils::read.csv(
+               bom_csv("t,xt,yt\n2,11,21\n1,10,20\n3,12,22\n"), stringsAsFactors = FALSE))
+             trou <- engine_lire_donnees_csv(utils::read.csv(
+               bom_csv("t,xt,yt\n1,10,20\n3,12,22\n"), stringsAsFactors = FALSE))
+             list(isTRUE(ok$ok) && identical(ok$xt, c(10, 11, 12)) && identical(ok$yt, c(20, 21, 22)),
+                  !trou$ok && contient(trou$erreurs, "non consecutives"))
+           })
+           identical(r, "locale C indisponible") || identical(r, list(TRUE, TRUE))
+         })
+verifier("Lecture triangle : CSV 5 x 5 avec colonne i et BOM lu par read.csv sous LC_CTYPE = C, ok = TRUE (#96)",
+         {
+           tri <- paste0("i,d1,d2,d3,d4,d5\n1,100,150,170,180,185\n2,110,160,180,190,\n",
+                         "3,120,175,195,,\n4,130,185,,,\n5,140,,,,\n")
+           r <- sous_locale_c(function() {
+             v <- engine_lire_triangle(utils::read.csv(bom_csv(tri), stringsAsFactors = FALSE,
+                                                       row.names = NULL))
+             isTRUE(v$ok) && identical(dim(v$triangle), c(5L, 5L)) && identical(v$triangle[1, 1], 100)
+           })
+           identical(r, "locale C indisponible") || isTRUE(r)
+         })
+verifier("Retrait du BOM d'un nom de colonne : formes brute, \"X...\", \"X.U.FEFF.\" et EF 2E 2E ; autres noms intacts (#96)",
+         {
+           b <- function(...) rawToChar(as.raw(c(...)))
+           identical(.nom_sans_bom(b(0xef, 0xbb, 0xbf, 0x74)), "t") &&
+             identical(.nom_sans_bom("X...t"), "t") && identical(.nom_sans_bom("X.U.FEFF.i"), "i") &&
+             identical(.nom_sans_bom(b(0xef, 0x2e, 0x2e, 0x78, 0x74)), "xt") &&
+             identical(.nom_sans_bom("t"), "t") && identical(.nom_sans_bom("X..."), "X...") &&
+             identical(.nom_sans_bom("X.1"), "X.1") && identical(.nom_sans_bom(NA_character_), NA_character_)
+         })
+verifier("Retrait du BOM : .sans_bom() retire EF BB BF de tete seulement, laisse le reste intact (#96)",
+         {
+           s <- rawToChar(as.raw(c(0xef, 0xbb, 0xbf, 0x31, 0x32)))
+           identical(.sans_bom(s), "12") && identical(.sans_bom("12"), "12") &&
+             identical(.sans_bom(""), "") && identical(.sans_bom(NA_character_), NA_character_) &&
+             identical(.sans_bom(rawToChar(as.raw(c(0x31, 0xef, 0xbb, 0xbf)))),
+                       rawToChar(as.raw(c(0x31, 0xef, 0xbb, 0xbf))))
          })
 
 fin_fichier()

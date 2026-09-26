@@ -26,8 +26,19 @@ if (!length(noms)) noms <- names(CAS)
 inconnus <- setdiff(noms, names(CAS))
 if (length(inconnus)) stop("Cas inconnu(s) : ", paste(inconnus, collapse = ", "))
 
+# Tous les cas sont calcules avant toute ecriture : un resultat ok = FALSE
+# (refus ou defaut de calcul intercepte, issue #88) n'est jamais ecrit comme
+# reference ; ses motifs et son diagnostic sont affiches, arret en code 1,
+# aucune reference n'etant alors ecrite.
+resultats <- lapply(stats::setNames(noms, noms), executer_cas)
+refuses <- names(resultats)[!vapply(resultats, function(r) isTRUE(r$ok), logical(1))]
+if (length(refuses)) {
+  for (nom in refuses)
+    cat(sprintf("%s : run_engine() renvoie ok = FALSE\n%s\n", nom, decrire_refus(resultats[[nom]])))
+  cat("Aucune reference ecrite.\n")
+  quit(status = 1)
+}
 for (nom in noms) {
-  res <- executer_cas(nom)
-  ecrire_reference(nom, res)   # outils_tests.R, partage avec regenerer_et_rendre_compte.R
+  ecrire_reference(nom, resultats[[nom]])   # outils_tests.R, partage avec regenerer_et_rendre_compte.R
   cat(sprintf("%-9s reference ecrite : %s\n", nom, chemin_reference(nom)))
 }
