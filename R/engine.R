@@ -182,6 +182,13 @@ TOL_OPTIMUM <- 1e-6
 REP_PAS_KKT <- 1e-6
 REP_GD_KKT  <- 1e-4
 
+# Seuil d'ECHEC des tests en sens "rejeter" (engine_registre_tests()) : p <
+# alpha donne OK, alpha <= p < SEUIL_ECHEC_SENS_REJETER donne ALERTE, au-dela
+# ECHEC. Borne aussi le seuil alpha admis par run_engine() (suite de #88, avis
+# d'actuary) : 0 < alpha < SEUIL_ECHEC_SENS_REJETER, faute de quoi la zone
+# ALERTE disparait et le verdict ne suit plus la regle documentee.
+SEUIL_ECHEC_SENS_REJETER <- 0.30
+
 usp_credibilite <- function(T, bareme = c("court", "long")) {
   bareme <- match.arg(bareme)
   tab <- if (bareme == "long") CRED_LONG else CRED_COURT
@@ -2027,7 +2034,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     v <- if (!is.null(verdict)) verdict
     else if (type != "test" || !is.finite(p_ret)) "INFO"
     else if (sens == "rejeter") {
-      if (p_ret < alpha) "OK" else if (p_ret < 0.30) "ALERTE" else "ECHEC"
+      if (p_ret < alpha) "OK" else if (p_ret < SEUIL_ECHEC_SENS_REJETER) "ALERTE" else "ECHEC"
     } else {
       if (p_ret < alpha / 2) "ECHEC" else if (p_ret < alpha) "ALERTE" else "OK"
     }
@@ -4906,18 +4913,66 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
 # valeurs qui faisaient deja echouer le calcul (mesure sur la tete 5fe3d67 :
 # B = -1, NA, Inf, "a", "5", NULL, c(9, 19) levaient une erreur dans le
 # bootstrap ; seed NA dans set.seed()), plus B logique (TRUE etait calcule
-# comme B = 1) ; B = 0 et B = 10.5 etaient calcules et le restent, de meme
-# que seed NULL, "5" ou 1.5.
+# comme B = 1) ; B = 0 et B = 10.5 etaient calcules et le restent.
 # - B : nombre scalaire fini >= 0 ;
-# - seed : acceptee par set.seed(), essayee sous engine_sous_graine(), qui
-#   restaure l'etat du generateur de l'appelant ;
-# - bareme : NULL, "court" ou "long" (match.arg(), comme usp_credibilite()).
-.engine_verifier_usage <- function(B, seed, bareme) {
-  if (!is.numeric(B) || length(B) != 1L || !is.finite(B) || B < 0)
-    stop(sprintf("B = %s : un nombre scalaire fini de replications, B >= 0, est attendu.",
-                 if (!length(B)) "vide" else paste(deparse(B), collapse = " ")))
-  engine_sous_graine(seed, invisible(NULL))
-  if (!is.null(bareme)) match.arg(bareme, c("court", "long"))
+# - seed : nombre scalaire fini entier, |seed| <= .Machine$integer.max
+#   (domaine de set.seed()) ; NULL est refuse (decision du mainteneur du
+#   26/09/2026) : set.seed(NULL) reinitialise le generateur au hasard et rend
+#   le calcul non reproductible ;
+# - bareme : "court" ou "long" exactement (annexe XVII, section G), ou NULL
+#   (deduit du segment) ;
+# - alpha : nombre scalaire fini, 0 < alpha < SEUIL_ECHEC_SENS_REJETER (avis
+#   d'actuary) : au-dela, la zone ALERTE des tests en sens rejeter disparait ;
+# - sigma_standard : NULL (valeur de l'annexe), ou nombre scalaire fini > 0.
+# Aucune de ces valeurs ne doit porter d'attribut (noms, dim...) : refusee
+# plutot que normalisee, car l'attribut etait propage tel quel dans le
+# resultat (mesure sur la tete 743bb75 : B = c(a = 19), alpha = c(a = 0.1),
+# bareme = c(a = "court") nommes dans metadata, seed = matrix(5) en matrice
+# dans metadata$seed, sigma_standard = c(a = 0.1) nomme dans sigma_usp), et
+# qu'une normalisation silencieuse masquerait l'erreur de l'appelant.
+# Suite de #88 (decision du mainteneur du 26/09/2026) : alpha, sigma_standard
+# et une graine invalides (NA, texte, vecteur, hors domaine) etaient rendus en
+# defaut de calcul intercepte (alpha NA dans usp_tests(), mw_tests() ;
+# sigma_standard "a" dans usp_parametre()), ou calcules (alpha 0, 1, -0,1 ;
+# sigma_standard 0, -0,1, Inf, NA ; seed NULL, "5", 1.5, c(1, 2) ; bareme
+# "co", c("court", "long"), completes par match.arg()), ou refuses par un
+# message de R (seed NA, Inf, 3e9 ; bareme NA, 1, "moyen"). La graine n'est
+# plus essayee sous engine_sous_graine() : toute valeur qui passe le controle
+# est acceptee par set.seed(). theta_equiv n'est pas controle ici : dans la
+# branche lognormale (premium et reserve1), il l'est par
+# engine_valider_donnees() (refus ok = FALSE, issue #33), qui l'ignore quand
+# delta_equiv est fourni ; seule la branche Merz-Wuthrich (reserve2) ne le lit
+# pas.
+.engine_verifier_usage <- function(B, seed, bareme, alpha = 0.10,
+                                   sigma_standard = NULL) {
+  saisie <- function(v) if (!length(v)) "vide" else paste(deparse(v), collapse = " ")
+  sans_attribut <- function(v) is.null(attributes(v))
+  scalaire_fini <- function(v) is.numeric(v) && length(v) == 1L && is.finite(v) &&
+                                 sans_attribut(v)
+  if (!scalaire_fini(B) || B < 0)
+    stop(sprintf(paste("B = %s : un nombre scalaire fini de replications, B >= 0,",
+                       "sans attribut, est attendu."),
+                 saisie(B)), call. = FALSE)
+  if (!scalaire_fini(seed) || seed != round(seed) || abs(seed) > .Machine$integer.max)
+    stop(sprintf(paste("seed = %s : un nombre scalaire fini entier, |seed| <= %d, sans",
+                       "attribut, est attendu (NULL refuse : calcul non reproductible)."),
+                 saisie(seed), .Machine$integer.max), call. = FALSE)
+  if (!is.null(bareme) &&
+      !(is.character(bareme) && length(bareme) == 1L && !is.na(bareme) &&
+        sans_attribut(bareme) && bareme %in% c("court", "long")))
+    stop(sprintf(paste("bareme = %s : NULL, \"court\" ou \"long\" (sans attribut) est",
+                       "attendu (bareme de credibilite de l'annexe XVII, section G)."),
+                 saisie(bareme)), call. = FALSE)
+  if (!scalaire_fini(alpha) || alpha <= 0 || alpha >= SEUIL_ECHEC_SENS_REJETER)
+    stop(sprintf(paste("alpha = %s : un nombre scalaire fini, sans attribut,",
+                       "0 < alpha < SEUIL_ECHEC_SENS_REJETER = %s, est attendu ; au-dela,",
+                       "la zone ALERTE des tests en sens rejeter disparait et le verdict",
+                       "ne suit plus la regle documentee."),
+                 saisie(alpha), format(SEUIL_ECHEC_SENS_REJETER)), call. = FALSE)
+  if (!is.null(sigma_standard) && (!scalaire_fini(sigma_standard) || sigma_standard <= 0))
+    stop(sprintf(paste("sigma_standard = %s : NULL ou un nombre scalaire fini,",
+                       "sans attribut, sigma_standard > 0, est attendu."),
+                 saisie(sigma_standard)), call. = FALSE)
   invisible(TRUE)
 }
 
@@ -5017,7 +5072,8 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
 #                  sigma_standard et le bareme de credibilite
 #   sigma_standard ecart-type standard ; s'il est fourni, il prime sur `segment`
 #                  (saisie libre : derogation au parametre reglementaire,
-#                  signalee par metadata$sigma_standard_saisi, issue #55)
+#                  signalee par metadata$sigma_standard_saisi, issue #55) ;
+#                  nombre scalaire fini > 0
 #   nature_donnees "brutes" ou "nettes" (de reassurance) ; OBLIGATOIRE pour
 #                  "premium", sans defaut (issue #55, M13) : sans elle, ok =
 #                  FALSE ; methodes de reserve : NULL ou "nettes" acceptes,
@@ -5027,14 +5083,16 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
 #                  toute autre valeur donne ok = FALSE, sans troncature
 #                  (engine_valider_profondeur(), issue #87)
 #   B              nombre de replications bootstrap / Monte-Carlo
-#   alpha          seuil des verdicts
-#   seed           graine des simulations (reproductibilite)
-#   bareme         "court" ou "long" ; NULL = deduit du segment
+#   alpha          seuil des verdicts, 0 < alpha < SEUIL_ECHEC_SENS_REJETER
+#   seed           graine des simulations (reproductibilite) ; entier scalaire
+#                  fini, |seed| <= .Machine$integer.max (NULL refuse)
+#   bareme         "court" ou "long" exactement ; NULL = deduit du segment
 #
 # Valeur : liste de classe "usp_engine" (voir la structure en fin de fonction).
 # Erreurs (issue #88) : un argument d'usage invalide (methode, annexe,
 # segment inconnu, ni segment ni sigma_standard, xt manquant, B, seed,
-# bareme, reserve no 2 sans triangle) leve une erreur R explicite ; des
+# bareme, alpha, sigma_standard, reserve no 2 sans triangle ;
+# .engine_verifier_usage()) leve une erreur R explicite ; des
 # donnees refusees par la validation donnent ok = FALSE ; une erreur R levee
 # par le calcul qui suit une validation reussie est un DEFAUT DE CALCUL
 # INTERCEPTE (.engine_calcul_protege()) : ok = FALSE, motif neutre dans
@@ -5304,7 +5362,8 @@ run_engine <- function(xt, yt,
   # Arguments d'usage resolus AVANT le calcul protege (issue #88) : une
   # valeur invalide reste une erreur R explicite, jamais un defaut de calcul
   # intercepte.
-  .engine_verifier_usage(B, seed, bareme)
+  .engine_verifier_usage(B, seed, bareme, alpha = alpha,
+                         sigma_standard = sigma_standard)
 
   # --- Branche Merz-Wuthrich (methode du risque de reserve no 2) ------------
   # Cette methode ne prend pas en entree deux vecteurs mais un TRIANGLE de

@@ -274,6 +274,109 @@ verifier("run_engine : erreurs d'usage -> erreur R explicite, non interceptee (a
                                 seed = NA, nature_donnees = "brutes")) &&
          leve_erreur(run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 19,
                                 bareme = "x", nature_donnees = "brutes")))
+
+# Suite de #88 (decision du mainteneur du 26/09/2026) : alpha, sigma_standard,
+# seed et bareme invalides levent une erreur d'usage de
+# .engine_verifier_usage(), sur les deux branches (premium et reserve2),
+# avant tout calcul : ni defaut de calcul intercepte, ni message traduit de
+# R. Le motif est une sous-chaine ASCII du message du moteur.
+tri_usage <- as.matrix(read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv")))
+tri_usage <- unname(tri_usage[, colnames(tri_usage) != "i"])
+storage.mode(tri_usage) <- "double"
+# Les arguments passes remplacent ceux de l'appel nominal (B compris) ; une
+# valeur NULL est transmise telle quelle (a[n] <- l[n] conserve l'entree).
+appel_usage <- function(nominal, ...) {
+  l <- list(...)
+  for (n in names(l)) nominal[n] <- l[n]
+  do.call(run_engine, nominal)
+}
+usage_premium <- function(...) appel_usage(list(xt = x, yt = y, methode = "premium", segment = 1,
+                                                B = 19, nature_donnees = "brutes"), ...)
+usage_mw <- function(...) appel_usage(list(methode = "reserve2", triangle = tri_usage,
+                                           segment = 1, B = 19), ...)
+# TRUE si chaque valeur de `valeurs`, passee comme argument `arg`, leve une
+# erreur R dont le message contient `motif` (fixe), sur les deux branches.
+erreur_usage <- function(arg, valeurs, motif) {
+  all(vapply(valeurs, function(v) {
+    all(vapply(list(usage_premium, usage_mw), function(f) {
+      e <- tryCatch(do.call(f, stats::setNames(list(v), arg)), error = function(e) e)
+      inherits(e, "error") && grepl(motif, conditionMessage(e), fixed = TRUE)
+    }, logical(1)))
+  }, logical(1)))
+}
+# TRUE si chaque valeur est acceptee (ok = TRUE) sur les deux branches.
+usage_accepte <- function(arg, valeurs) {
+  all(vapply(valeurs, function(v) {
+    all(vapply(list(usage_premium, usage_mw), function(f) {
+      r <- tryCatch(do.call(f, stats::setNames(list(v), arg)), error = function(e) e)
+      !inherits(r, "error") && isTRUE(r$ok)
+    }, logical(1)))
+  }, logical(1)))
+}
+verifier("run_engine : alpha NA, vide, texte, vecteur, logique, 0, 0,30, 0,5, 0,999, 1, 1.5, -0.1, Inf -> erreur d'usage (premium, reserve2)",
+         erreur_usage("alpha", list(NA, NULL, "0.1", c(0.1, 0.2), TRUE, 0, 0.30, 0.5, 0.999,
+                                    1, 1.5, -0.1, Inf),
+                      "0 < alpha < SEUIL_ECHEC_SENS_REJETER = 0.3, est attendu"))
+verifier("run_engine : alpha 0,30 refuse, message citant la zone ALERTE",
+         {
+           e <- tryCatch(usage_premium(alpha = 0.30), error = function(e) e)
+           inherits(e, "error") && startsWith(conditionMessage(e), "alpha = 0.3 : ") &&
+             grepl("la zone ALERTE des tests en sens rejeter disparait", conditionMessage(e),
+                   fixed = TRUE)
+         })
+verifier("run_engine : alpha 0,01 ; 0,10 ; 0,29 acceptes (premium, reserve2)",
+         usage_accepte("alpha", list(0.01, 0.10, 0.29)))
+verifier("run_engine : SEUIL_ECHEC_SENS_REJETER vaut 0,30 (seuil ECHEC des tests en sens rejeter)",
+         identical(SEUIL_ECHEC_SENS_REJETER, 0.30))
+verifier("run_engine : sigma_standard NA, texte, vecteur, logique, 0, negatif, Inf -> erreur d'usage (premium, reserve2)",
+         erreur_usage("sigma_standard", list(NA, NA_real_, "0.1", c(0.1, 0.2), TRUE, 0, -0.1, Inf),
+                      "sigma_standard > 0, est attendu"))
+verifier("run_engine : sigma_standard NULL, 0,10 et 2 acceptes (premium, reserve2)",
+         usage_accepte("sigma_standard", list(NULL, 0.10, 2)))
+verifier("run_engine : seed NULL, NA, texte, vecteur, logique, 1.5, Inf, 3e9 -> erreur d'usage du moteur (premium, reserve2)",
+         erreur_usage("seed", list(NULL, NA, NA_real_, "5", "a", c(1, 2), TRUE, 1.5, Inf, 3e9),
+                      "un nombre scalaire fini entier, |seed| <= 2147483647"))
+verifier("run_engine : seed NA et NULL -> message du moteur citant la valeur recue",
+         {
+           e1 <- tryCatch(usage_premium(seed = NA), error = function(e) e)
+           e2 <- tryCatch(usage_mw(seed = NULL), error = function(e) e)
+           inherits(e1, "error") && inherits(e2, "error") &&
+             startsWith(conditionMessage(e1), "seed = NA : un nombre scalaire fini entier") &&
+             startsWith(conditionMessage(e2), "seed = vide : ") &&
+             grepl("NULL refuse : calcul non reproductible", conditionMessage(e2), fixed = TRUE)
+         })
+verifier("run_engine : seed 20260831, -5, 5L, .Machine$integer.max et son oppose acceptes (premium, reserve2)",
+         usage_accepte("seed", list(20260831, -5, 5L, .Machine$integer.max,
+                                    -.Machine$integer.max)))
+verifier("run_engine : bareme 'moyen', 'Court', 'co', '', NA, c('court', 'long'), 1 -> erreur d'usage citant l'annexe XVII, section G (premium, reserve2)",
+         erreur_usage("bareme", list("moyen", "Court", "co", "", NA, NA_character_,
+                                     c("court", "long"), 1),
+                      "(bareme de credibilite de l'annexe XVII, section G)") &&
+           {
+             e <- tryCatch(usage_mw(bareme = "moyen"), error = function(e) e)
+             startsWith(conditionMessage(e), "bareme = \"moyen\" : ")
+           })
+verifier("run_engine : bareme NULL, 'court' et 'long' acceptes (premium, reserve2)",
+         usage_accepte("bareme", list(NULL, "court", "long")))
+# Reserve d'audit : une valeur porteuse d'attributs etait acceptee et son
+# attribut propage dans le resultat ; elle est refusee.
+verifier("run_engine : B, alpha, seed, bareme, sigma_standard porteurs d'attributs (noms, dim) -> erreur d'usage (premium, reserve2)",
+         erreur_usage("B", list(c(a = 19), matrix(19)), "sans attribut, est attendu") &&
+           erreur_usage("alpha", list(c(a = 0.1), matrix(0.1)), "sans attribut") &&
+           erreur_usage("seed", list(c(a = 5), matrix(5)), "sans attribut") &&
+           erreur_usage("bareme", list(c(a = "court"), matrix("court")), "(sans attribut)") &&
+           erreur_usage("sigma_standard", list(c(a = 0.1), matrix(0.1)), "sans attribut"))
+verifier("run_engine : theta_equiv invalide -> refus ok = FALSE en premium et reserve1 (#33), ignore en reserve2",
+         {
+           r1 <- usage_premium(theta_equiv = NA)
+           r3 <- run_engine(xt = x, yt = y, methode = "reserve1", segment = 1, B = 19,
+                            theta_equiv = NA)
+           r2 <- usage_mw(theta_equiv = NA)
+           identical(r1$ok, FALSE) && is.null(r1$validation$erreur_r) &&
+             contient(r1$validation$erreurs, "theta_equiv = NA") &&
+             identical(r3$ok, FALSE) && is.null(r3$validation$erreur_r) &&
+             contient(r3$validation$erreurs, "theta_equiv = NA") && isTRUE(r2$ok)
+         })
 verifier("run_engine : filet transparent sans erreur (identique avec et sans interception, hors horodatage et duree)",
          {
            sans_temps <- function(r) { r$metadata$horodatage <- NULL; r$metadata$duree_sec <- NULL; r }
