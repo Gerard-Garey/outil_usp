@@ -508,7 +508,7 @@ vecteur $\pi_t$ \\
 \code{usp\_noyau()} & $\delta$, $\gamma$, $x$, $y$, \code{xbar} &
 $\pi_t$, $\ln\hat\beta$, $\hat\beta$, $v_t$, $z_t$, $\sigma$, objectif \\
 \code{usp\_objectif()} & \code{par} $=(\delta,\gamma)$, $x$, $y$, \code{xbar} &
-$-2\ln L$ (à une constante près) \\
+$-2\ln L$ profilée en $\ln\beta$ (à une constante près) \\
 \code{usp\_ajuster()} & $x$, $y$, \code{n\_starts\_delta} (9),
 \code{verbose}, \code{controle} (paramètres d'\code{optim()}, par défaut
 \code{factr = 1e5}, \code{maxit = 500}) & \code{fit} complet, gradient projeté,
@@ -808,14 +808,15 @@ saisie égale le barème du segment (issue~\#93, lecture retenue par le maintene
 sens de l'article~218~: un barème contraire à la section~G est une dérogation, non un
 «~paramètre standard remplacé~». Sans segment désigné ($\sigma$ standard saisi seul),
 \code{usp\_bareme\_segment()} pose le barème court par convention, barème qu'aucun texte ne
-détermine~: il est restitué comme «~non déterminé par l'annexe~XVII, section~G~», sans drapeau.
+détermine (l'annexe~XVII, section~A, paragraphe~2, définit toujours le segment~$s$ comme «~l'un
+des segments visés à l'annexe II ou bien l'un de ceux visés à l'annexe XIV~»)~: il est restitué comme «~non déterminé par l'annexe~XVII, section~G~», sans drapeau.
 Mesuré sur le jeu de contrôle ($T = 8$, données déclarées brutes)~: au segment~1 de
 l'annexe~II, le barème court porte $\sigma_{\mathrm{USP}}$ de $0{,}1114524$ à $0{,}1157228$~; au
 segment~2, le barème long le porte de $0{,}1119228$ à $0{,}1032524$~; l'écart vaut exactement
-$(c_{\text{retenu}} - c_{\text{réglementaire}})\,(\hat\sigma_{\text{corrigé}} -
-\sigma_{\text{standard}})$, soit $-0{,}22 \times (0{,}1194109 - 0{,}08) = -0{,}0086704$ au
+$(c_{\text{retenu}} - c_{\text{réglementaire}})\,\big(\sqrt{(T+1)/(T-1)}\,\hat\sigma -
+\sigma_{\text{std}}\big)$, soit $-0{,}22 \times (0{,}1194109 - 0{,}08) = -0{,}0086704$ au
 segment~2. Ce dernier résultat égale, à $10^{-16}$ près, celui du segment~1 sur données déclarées
-nettes ($c = 0{,}59$ et $\sigma_{\text{standard}} = 0{,}08$ dans les deux cas)~: seul le drapeau
+nettes ($c = 0{,}59$ et $\sigma_{\text{std}} = 0{,}08$ dans les deux cas)~: seul le drapeau
 distingue alors un calcul conforme d'un calcul dérogatoire.
 
 \begin{encadre}
@@ -1420,7 +1421,7 @@ Position de $\hat\delta$ & \ref{fiche:position-delta} & \code{usp\_ajuster()} (c
 \code{\$delta})~; drapeau \code{\$delta\_au\_bord} par \code{usp\_regime()},
 tolérance \code{TOL\_DELTA\_BORD} & diagnostic, aucune p-value & --- \\
 
-\multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Hypothèse H3 --- lognormalité de la variable modélisée (pertes agrégées ; montant de C(1)(a))}}} \\
+\multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Hypothèse H3 --- lognormalité de la variable modélisée (pertes agrégées~; montant de C(1)(a))}}} \\
 \midrule
 Shapiro--Wilk & \ref{fiche:shapiro-wilk} & \code{.shapiro\_sur()} (encapsule
 \code{stats::shapiro.test()}) & \code{.shapiro\_sur()} (p approx. Royston 1992) &
@@ -2028,8 +2029,8 @@ du mainteneur du 26~septembre 2026)~: \code{NA}, \code{NaN}, \code{N/A}, \code{\
 d'espaces (ordinaire, insécable U+00A0 ou fine insécable U+202F, reconnues sur les octets
 bruts), de points, de virgules, d'apostrophes et de signes, avec au moins un chiffre~; l'écarter
 ferait perdre une année sans message (mesuré sur le code antérieur~: la ligne \code{NA,2,3}
-donnait la série $2, 3$). Une étiquette d'exercice de la forme AAAA-AA ou AAAA-AAAA
-(\code{2017-18}, \code{2017-2018}) fait exception et reste admise~; un texte comme \code{12a} ou
+donnait la série $2, 3$). Une étiquette d'exercice de la forme quatre chiffres, un tiret, puis deux à
+quatre chiffres (\code{2017-18}, \code{2017-2018}) fait exception et reste admise~; un texte comme \code{12a} ou
 \code{TRUE} reste un en-tête. Seuls sont donc écartés la ligne d'en-têtes, un en-tête ou une
 étiquette de ligne qui ne relève pas de ce prédicat, et les cellules vides de tête et de fin.
 La marque d'ordre des octets UTF-8 (EF~BB~BF, «~UTF-8 avec BOM~» d'Excel) est retirée de la
@@ -3544,8 +3545,11 @@ n\textsuperscript{o}~1).}
 \emph{Journal officiel}, L~12 du 17~janvier 2015, p.~273~; C(2)(e)(i) pour la méthode du risque
 de réserve n\textsuperscript{o}~1, p.~274~; numérotation et texte identiques dans la version
 consolidée du 14~novembre 2024, citée ci-dessus). Le texte énonce une relation entre les données
-(pertes agrégées ou montant de C(1)(a), et primes acquises ou provision d'ouverture)~; il ne
-l'écrit pas sous forme de moments. \emph{Traduction dans le modèle réglementaire} (lecture de
+(pertes agrégées ou montant de C(1)(a), et primes acquises ou provision d'ouverture). Le texte
+nomme, pour la méthode du risque de primes, les pertes agrégées \emph{attendues} (leur espérance)
+et, pour la méthode du risque de réserve n\textsuperscript{o}~1, le montant de C(1)(a) lui-même,
+sans le mot «~attendu~»~; il n'écrit ni la forme fonctionnelle de la relation ni l'absence de
+terme constant. L'outil lit les deux points comme une relation sur l'espérance. \emph{Traduction dans le modèle réglementaire} (lecture de
 l'outil~: modèle des paragraphes (5) et (6) des sections~B et~C, section~\ref{sec:notations})~:
 l'espérance de $Y_t$ est \emph{linéairement proportionnelle} à $x_t$,
 $\mathbb{E}[Y_t] = \beta x_t$, sans terme constant, avec $\beta$ constant dans le temps.
@@ -3616,9 +3620,9 @@ la moyenne des $T$ pertes retenues, et $\theta$ est alors ignoré. Au-delà ($\t
 $\Delta \ge \bar y$), l'hypothèse $H_1 : |a| < \Delta$ contiendrait le modèle $a = \bar y$,
 $b = 0$, négation de la proportionnalité, et un rejet de $H_0$ ne se lirait plus comme une
 proportionnalité pratique. Aucune borne plus serrée n'est imposée~: le choix de la marge relève
-du dossier. Une marge hors domaine est un refus de données, et non une erreur d'usage~: elle est
-refusée par \code{engine\_valider\_donnees()}~: \code{run\_engine()} rend alors \code{ok = FALSE} avec le
-motif (mesuré~: $\theta = 1$ et $\Delta = \bar y$ sont refusés sur le jeu de contrôle).
+du dossier. Une marge hors domaine est un refus de données, et non une erreur d'usage~: refusée par
+\code{engine\_valider\_donnees()}, elle conduit \code{run\_engine()} à rendre \code{ok = FALSE} avec
+le motif (mesuré~: $\theta = 1$ et $\Delta = \bar y$ sont refusés sur le jeu de contrôle).
 \Hzero
 \[
   H_0 : |a| \ge \Delta \quad\text{(la constante n'est \emph{pas} négligeable)}
@@ -3984,8 +3988,10 @@ de réserve n\textsuperscript{o}~1, version consolidée).}
 consolidée, où il porte le marqueur $\blacktriangleright$\,C4 (rectificatif, \emph{Journal
 officiel}, L~2 du 6~janvier 2022, p.~8)~; la version d'origine écrivait «~le montant visé au
 paragraphe 1, point a), est en relation quadratique avec la provision pour sinistres à payer dans
-ce segment et au cours de cet exercice~», sans le mot «~variance~». \emph{Traduction dans le modèle réglementaire} (lecture de
-l'outil, section~\ref{sec:notations})~: la variance des pertes agrégées est
+ce segment et au cours de cet exercice~», sans les mots «~la variance du~» ni «~la meilleure
+estimation de la~», qu'insère le rectificatif C4. \emph{Traduction dans le modèle réglementaire}
+(lecture de l'outil~: modèle des paragraphes (5) et (6) des sections~B et~C,
+section~\ref{sec:notations})~: la variance des pertes agrégées (ou du montant de C(1)(a)) est
 $\operatorname{Var}(Y_t) = \sigma^2\big[(1-\delta)\bar x\, x_t + \delta x_t^2\big]$, mélange
 convexe d'une composante linéaire en volume (risque mutualisable) et d'une composante quadratique
 (risque systématique). Le paramètre $\delta \in [0,1]$ est estimé conjointement à $\gamma$.
@@ -4292,12 +4298,14 @@ réserve n\textsuperscript{o}~1).}
 \textbf{Énoncé réglementaire} (annexe~XVII, B(2)(g)(iii), \emph{Journal officiel}, L~12 du
 17~janvier 2015, p.~273~; C(2)(e)(iii), p.~275~; texte identique dans la version consolidée). La
 variable modélisée $y_t$ est, selon la méthode, les pertes agrégées (méthode du risque de primes)
-ou le montant de C(1)(a), somme des paiements de l'exercice et de la meilleure estimation de
-clôture sur les sinistres à payer en début d'exercice (méthode du risque de réserve
-n\textsuperscript{o}~1)~; le titre de la section vaut pour les deux. Les pertes agrégées (ou le
-montant de liquidation) suivent une loi lognormale. \emph{Traduction dans le modèle
+ou le montant de C(1)(a), somme de la meilleure estimation de la provision établie à la fin de
+l'exercice et des paiements effectués durant l'exercice, l'une et les autres pour les sinistres
+qui étaient à payer en début d'exercice (méthode du risque de réserve
+n\textsuperscript{o}~1)~; le titre de la section vaut pour les deux. Le texte pose que cette
+variable suit une distribution log-normale. \emph{Traduction dans le modèle
 réglementaire} (lecture de l'outil, section~\ref{sec:notations})~: cette hypothèse se teste de
-façon équivalente comme la normalité des résidus standardisés $z_t$.
+façon équivalente comme la normalité des résidus standardisés $z_t$ (aux effets d'estimation
+près, section~\ref{sec:notations}).
 \end{encadre}
 
 \begin{encadre}
@@ -4708,10 +4716,13 @@ et pour la méthode du risque de réserve n\textsuperscript{o}~1).}
 texte ne nomme ni l'indépendance ni aucune autre condition~: il pose seulement que l'estimation
 par maximum de vraisemblance est adéquate. \emph{Lecture de l'outil}~: l'estimation visée est
 celle de $(\delta, \gamma)$ par minimisation du critère des paragraphes B(6) et C(6), que
-\code{usp\_objectif()} calcule comme $-2\ln L$ du modèle lognormal à une constante près
-(section~\ref{sec:inventaire})~; elle est appropriée si ses conditions de validité tiennent, ce
-qui suppose notamment l'indépendance des $Y_t$ conditionnellement aux $x_t$, sans
-autocorrélation résiduelle. Le titre de la section, «~indépendance et validité du maximum de
+\code{usp\_objectif()} calcule exactement (pénalité, la valeur $10^{12}$, hors de
+$\delta \in [0,1]$, que B(6) exclut~; section~\ref{sec:inventaire})~; ce critère est $-2\ln L$ du
+modèle lognormal, profilée en $\ln\beta$, à la constante $T\ln(2\pi) + 2\sum_t \ln y_t$ près.
+Son adéquation suppose notamment l'indépendance des $Y_t$ conditionnellement aux $x_t$, sans
+autocorrélation résiduelle~: le critère est une somme de contributions par année, c'est-à-dire la
+log-vraisemblance d'observations indépendantes~; sous dépendance sérielle, son minimiseur n'est
+plus un estimateur du maximum de vraisemblance. Le titre de la section, «~indépendance et validité du maximum de
 vraisemblance~», est cette lecture, non une citation~: les tests d'autocorrélation et les
 diagnostics de validité de l'estimation qui suivent la mettent en œuvre.
 \end{encadre}
