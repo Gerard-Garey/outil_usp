@@ -61,16 +61,42 @@ rendu_graphique <- function(expr, env = parent.frame(), quoted = FALSE) {
 FICHIER_LN <- "usp_donnees_LN.csv"     # methodes lognormales (prime, reserve 1)
 FICHIER_MW <- "usp_donnees_MW.csv"     # methode Merz-Wuthrich (reserve 2)
 
-# Libelles du bandeau de refus. Trois natures, distinguees par l'endroit ou le
-# calcul s'est arrete : avant tout appel au moteur (controles de validite),
-# apres calcul du moteur (run_engine() retourne ok = FALSE), ou sur une erreur
-# R interceptee. Le motif detaille vient toujours du moteur ; ces libelles ne
-# font que le presenter.
+# Libelles du bandeau de refus. Quatre natures, distinguees par l'endroit ou
+# le calcul s'est arrete (issue #94, suites de #87 et #88) :
+#  - avant tout appel au moteur (controles de validite) : TITRE_NON_LANCE ;
+#  - run_engine() retourne ok = FALSE sans validation$erreur_r : refus des
+#    donnees ou des parametres (profondeur T, reserve ou MSEP de Merz-
+#    Wuthrich...) : TITRE_REFUSE ;
+#  - run_engine() retourne ok = FALSE avec validation$erreur_r : defaut de
+#    calcul intercepte par le moteur apres une validation reussie :
+#    TITRE_DEFAUT ;
+#  - run_engine() leve une erreur R (branche try-error) : erreur d'usage,
+#    argument rejete par le moteur : TITRE_ERREUR.
+# Le motif detaille vient toujours du moteur ; ces libelles ne font que le
+# presenter. Une pile d'appels n'est jamais affichee : elle va au journal.
 TITRE_NON_LANCE <- paste("Calcul non lance : les donnees saisies n'ont pas passe",
                          "les controles de validite du moteur.")
-TITRE_REFUSE    <- paste("Calcul refuse : le moteur a calcule, puis refuse",
-                         "ce jeu de donnees.")
-TITRE_ERREUR    <- "Erreur du moteur : le calcul a ete interrompu."
+TITRE_REFUSE    <- paste("Calcul refuse par le moteur : les donnees ou les parametres",
+                         "transmis ne sont pas recevables.")
+TITRE_DEFAUT    <- paste("Defaut de calcul : le moteur a accepte les donnees, mais le",
+                         "calcul s'est interrompu sur une erreur interne, interceptee",
+                         "par le moteur ; aucun resultat n'est produit.")
+TITRE_ERREUR    <- paste("Erreur d'usage : le moteur a rejete un parametre transmis ;",
+                         "aucun resultat n'est produit.")
+
+# Lignes ajoutees au motif du moteur, sans rien decider : elles disent ou
+# trouver le diagnostic, ou quel champ de l'interface corriger.
+AIDE_DEFAUT <- paste("Le diagnostic technique (message R, appel, pile) est consigne",
+                     "dans le journal de la session R ; le transmettre avec les",
+                     "donnees et les parametres utilises.")
+AIDE_USAGE  <- "Verifier les parametres du panneau de droite."
+AIDE_T_VIDE <- paste("Le champ \"Profondeur T retenue\" du panneau de droite est vide :",
+                     "y saisir le nombre d'annees a retenir.")
+
+# Journal de la session R (console, sortie d'erreur) : seul endroit ou un
+# message R brut ou une pile d'appels est ecrit.
+journaliser <- function(contexte, lignes)
+  message(sprintf("[outil USP] %s\n  %s", contexte, paste(lignes, collapse = "\n  ")))
 
 # Explication commune : elle dit pourquoi l'ecran est vide. Le resultat du
 # calcul precedent est retire de l'affichage ET des exports, pour qu'aucun
@@ -119,6 +145,28 @@ REFUS_DEMARRAGE <- paste("Aucune donnee n'a ete chargee a sa place : corriger le
 grille_vide_ln <- function(T) data.frame(t = seq_len(T), xt = NA_real_, yt = NA_real_)
 triangle_vide <- function(T) matrix(NA_real_, T, T)
 
+# Lecture disque d'un fichier d'echange (demarrage) ou d'import (issue #94).
+# Une erreur de lecture n'est jamais montree telle quelle a l'utilisateur :
+# elle est remplacee par un message fixe selon le format, et le message R est
+# consigne dans le journal. Les avertissements de lecture ne sont pas
+# modifies. L'interpretation du tableau lu reste au moteur
+# (engine_lire_donnees_csv(), engine_lire_triangle()). Retourne list(df,
+# erreur) : erreur vaut NULL si la lecture a abouti, le message fixe sinon.
+MESSAGE_ILLISIBLE <- c(
+  xlsx = paste("illisible comme classeur Excel : verifier qu'il s'agit d'un fichier",
+               ".xlsx valide et non corrompu, dont la premiere feuille porte les donnees."),
+  csv  = paste("illisible comme tableau (fichier vide, binaire ou mal structure) :",
+               "verifier l'encodage, le separateur (virgule attendue) et que chaque",
+               "ligne a autant de valeurs que la ligne d'en-tete."))
+lire_tableau <- function(chemin, xlsx, nom = basename(chemin), ...) {
+  df <- tryCatch(if (xlsx) engine_lire_xlsx(chemin)
+                 else utils::read.csv(chemin, stringsAsFactors = FALSE, ...),
+                 error = function(e) e)
+  if (!inherits(df, "error")) return(list(df = df, erreur = NULL))
+  journaliser(sprintf("Lecture du fichier %s impossible", nom), conditionMessage(df))
+  list(df = NULL, erreur = MESSAGE_ILLISIBLE[[if (xlsx) "xlsx" else "csv"]])
+}
+
 # Le nombre d'annees T est deduit du fichier lui-meme : il n'est pas impose
 # par une valeur par defaut. Le classeur Excel est cherche en premier, puis le CSV.
 charger_ln <- function() {
@@ -128,10 +176,9 @@ charger_ln <- function() {
   refus <- function(motifs) list(valeur = grille_vide_ln(nrow(DONNEES_DEFAUT)),
     statut = statut_fichier(FALSE, src, paste("present mais refuse au demarrage :",
                                               paste(motifs, collapse = " "), REFUS_DEMARRAGE)))
-  df <- try(if (grepl("xlsx$", src)) engine_lire_xlsx(src)
-            else utils::read.csv(src, stringsAsFactors = FALSE), silent = TRUE)
-  if (inherits(df, "try-error")) return(refus(conditionMessage(attr(df, "condition"))))
-  r <- engine_lire_donnees_csv(df)
+  lu <- lire_tableau(src, grepl("xlsx$", src))
+  if (!is.null(lu$erreur)) return(refus(lu$erreur))
+  r <- engine_lire_donnees_csv(lu$df)
   if (!r$ok) return(refus(r$erreurs))
   d <- data.frame(t = seq_along(r$xt), xt = r$xt, yt = r$yt)
   # Donnees lisibles mais hors des controles de validite : chargees pour
@@ -156,11 +203,9 @@ charger_mw <- function() {
     statut = statut_fichier(FALSE, src, paste("present mais refuse au demarrage :",
                                               paste(utils::head(motifs, 6), collapse = " "),
                                               REFUS_DEMARRAGE)))
-  df <- try(if (grepl("xlsx$", src)) engine_lire_xlsx(src)
-            else utils::read.csv(src, stringsAsFactors = FALSE, row.names = NULL),
-            silent = TRUE)
-  if (inherits(df, "try-error")) return(refus(conditionMessage(attr(df, "condition"))))
-  r <- engine_lire_triangle(df)
+  lu <- lire_tableau(src, grepl("xlsx$", src), row.names = NULL)
+  if (!is.null(lu$erreur)) return(refus(lu$erreur))
+  r <- engine_lire_triangle(lu$df)
   if (!r$ok) return(refus(r$erreurs))
   list(valeur = r$triangle,
        statut = statut_fichier(TRUE, src, sprintf("charge au demarrage (triangle %d x %d).",
@@ -446,6 +491,52 @@ server <- function(input, output, session) {
     dernier_refus(list(titre = titre, motifs = as.character(motifs)))
   }
 
+  # Issue d'un appel a run_engine() (issue #94, suites de #87 et #88).
+  # Conserve le resultat et renvoie TRUE si le calcul a abouti ; sinon
+  # restitue la situation et renvoie FALSE. La nature de l'echec est lue dans
+  # ce que le moteur retourne, sans regle metier : erreur R (try-error),
+  # ok = FALSE avec validation$erreur_r (defaut de calcul intercepte), ok =
+  # FALSE sans (refus). Le message R et la pile ne vont qu'au journal.
+  conserver <- function(res) {
+    if (inherits(res, "try-error")) {
+      cond <- attr(res, "condition")
+      journaliser("Erreur d'usage : run_engine() a leve une erreur R",
+                  c(paste("message :", conditionMessage(cond)),
+                    paste("appel :", paste(deparse(conditionCall(cond), nlines = 1L), collapse = ""))))
+      # Message de l'erreur d'usage : texte du moteur, qui nomme l'argument
+      # rejete (.engine_verifier_usage(), issue #88).
+      refuser(TITRE_ERREUR, c(conditionMessage(cond), AIDE_USAGE))
+      showNotification(paste("Erreur d'usage :", conditionMessage(cond)),
+                       type = "error", duration = 12)
+      return(FALSE)
+    }
+    if (isTRUE(res$ok)) {
+      resultat(res); selection(NULL); dernier_refus(NULL)
+      return(TRUE)
+    }
+    motifs <- utils::head(res$validation$erreurs, 6)
+    er <- res$validation$erreur_r
+    if (!is.null(er)) {
+      journaliser("Defaut de calcul intercepte par le moteur (validation$erreur_r)",
+                  c(paste("message :", er$message), paste("appel :", er$appel),
+                    paste("origine :", er$origine),
+                    paste("pile :", paste(er$pile, collapse = " > "))))
+      refuser(TITRE_DEFAUT, c(motifs, AIDE_DEFAUT))
+      showNotification("Defaut de calcul : aucun resultat n'est produit (voir le bandeau).",
+                       type = "error", duration = 15)
+      return(FALSE)
+    }
+    # Champ T vide : input$profondeur vaut NA et le moteur refuse (issue
+    # #87) ; l'interface dit seulement quel champ est en cause.
+    if (!est_mw() && (is.null(input$profondeur) || is.na(input$profondeur)))
+      motifs <- c(motifs, AIDE_T_VIDE)
+    refuser(TITRE_REFUSE, motifs)
+    showNotification(paste("Calcul refuse :",
+                           paste(utils::head(res$validation$erreurs, 2), collapse = " ")),
+                     type = "error", duration = 15)
+    FALSE
+  }
+
   output$aide_methode <- renderText({
     if (est_mw())
       "Entree : triangle de paiements cumules (T annees d'accident x T annees de developpement)."
@@ -614,15 +705,15 @@ server <- function(input, output, session) {
     # Le format est deduit de l'extension du fichier depose. La lecture est du
     # ressort de l'interface ; l'interpretation structurelle revient au moteur.
     ext <- tolower(tools::file_ext(fi$name))
-    df <- try(
-      if (ext %in% c("xlsx", "xlsm")) engine_lire_xlsx(fi$datapath)
-      else utils::read.csv(fi$datapath, stringsAsFactors = FALSE),
-      silent = TRUE)
-    if (inherits(df, "try-error")) {
+    # Fichier illisible : message fixe, message R au journal (issue #94).
+    lu <- lire_tableau(fi$datapath, ext %in% c("xlsx", "xlsm"), nom = fi$name)
+    if (!is.null(lu$erreur)) {
       statut_import(list(ok = FALSE,
-        msg = sprintf("Fichier illisible (%s) : %s", toupper(ext),
-                      conditionMessage(attr(df, "condition"))))); return()
+        msg = sprintf("Fichier %s (%s) %s", fi$name, toupper(ext), lu$erreur)))
+      showNotification("Import refuse : fichier illisible.", type = "error", duration = 8)
+      return()
     }
+    df <- lu$df
     if (est_mw()) {
       # Conversion fichier -> triangle et recevabilite : moteur.
       v <- engine_lire_triangle(df)
@@ -682,26 +773,15 @@ server <- function(input, output, session) {
         showNotification(paste("Calcul non lance :", paste(utils::head(v$erreurs, 2), collapse = " ")),
                          type = "error", duration = 10); return()
       }
-      withProgress(message = "Merz-Wuthrich : chain-ladder, MSEP et bootstrap", value = 0.4, {
+      abouti <- withProgress(message = "Merz-Wuthrich : chain-ladder, MSEP et bootstrap", value = 0.4, {
         res <- try(run_engine(methode = "reserve2", triangle = m,
                               segment = as.integer(input$segment), annexe = input$annexe,
                               sigma_standard = if (isTRUE(input$sigma_manuel)) input$sigma_std else NULL,
                               B = input$B, alpha = input$alpha, seed = input$seed), silent = TRUE)
-        if (inherits(res, "try-error")) {
-          refuser(TITRE_ERREUR, conditionMessage(attr(res, "condition")))
-          showNotification(paste("Erreur du moteur :", conditionMessage(attr(res, "condition"))),
-                           type = "error", duration = 12); return()
-        }
         # Le moteur peut refuser le calcul APRES l'ajustement (reserve
         # chain-ladder totale <= 0, MSEP non finie) : le motif vient de lui,
-        # l'interface ne fait que le restituer.
-        if (!isTRUE(res$ok)) {
-          refuser(TITRE_REFUSE, utils::head(res$validation$erreurs, 6))
-          showNotification(paste("Calcul refuse :",
-                                 paste(utils::head(res$validation$erreurs, 2), collapse = " ")),
-                           type = "error", duration = 15); return()
-        }
-        resultat(res); selection(NULL); dernier_refus(NULL)
+        # l'interface ne fait que le restituer (conserver()).
+        conserver(res)
       })
     } else {
       sa <- lire_saisie()
@@ -713,7 +793,7 @@ server <- function(input, output, session) {
         showNotification(paste("Calcul non lance :", paste(v$erreurs, collapse = " ")),
                          type = "error", duration = 10); return()
       }
-      withProgress(message = "Calculs en cours (bootstrap parametrique)", value = 0.4, {
+      abouti <- withProgress(message = "Calculs en cours (bootstrap parametrique)", value = 0.4, {
         res <- try(run_engine(xt = sa$xt, yt = sa$yt, methode = input$methode,
                               segment = as.integer(input$segment), annexe = input$annexe,
                               sigma_standard = if (isTRUE(input$sigma_manuel)) input$sigma_std else NULL,
@@ -722,21 +802,13 @@ server <- function(input, output, session) {
                               theta_equiv = marge_theta(), delta_equiv = marge_delta(),
                               nature_donnees = nature_saisie()),
                    silent = TRUE)
-        if (inherits(res, "try-error")) {
-          refuser(TITRE_ERREUR, conditionMessage(attr(res, "condition")))
-          showNotification(paste("Erreur du moteur :", conditionMessage(attr(res, "condition"))),
-                           type = "error", duration = 12); return()
-        }
-        if (!isTRUE(res$ok)) {
-          refuser(TITRE_REFUSE, utils::head(res$validation$erreurs, 6))
-          showNotification(paste("Calcul refuse :",
-                                 paste(utils::head(res$validation$erreurs, 2), collapse = " ")),
-                           type = "error", duration = 15); return()
-        }
-        resultat(res); selection(NULL); dernier_refus(NULL)
+        conserver(res)
       })
     }
-    showNotification("Calculs termines.", type = "message")
+    # withProgress() evalue son bloc par eval() : un return() dans ce bloc ne
+    # sortait que du bloc, et "Calculs termines." s'affichait aussi apres un
+    # refus. L'issue est donc rendue par le bloc lui-meme.
+    if (abouti) showNotification("Calculs termines.", type = "message")
   })
 
   R <- reactive({ req(resultat()); resultat() })
