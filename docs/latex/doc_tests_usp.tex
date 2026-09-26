@@ -606,13 +606,23 @@ table des $\hat\sigma^{(-t)}$, $\sigma_{\mathrm{USP}}^{(-t)}$, $\hat\delta^{(-t)
 $\hat\gamma^{(-t)}$ \\
 \code{usp\_profil()} & \code{fit}, \code{n} (41 points) & profils en $\delta$ et $\gamma$, tests LR \\
 \code{usp\_segment\_infos()}, \code{usp\_bareme\_segment()} & segment, annexe &
-libellé, $\sigma$ standard brut et de réserve, facteur \code{np\_standard}, barème~; barème seul \\
+libellé, $\sigma$ standard brut et de réserve, facteur \code{np\_standard}, barème~; barème seul
+(court par convention sans segment, barème non déterminé par la section~G) \\
 \code{usp\_parametre\_}\newline\code{standard()} & \code{methode}, \code{segment}, \code{annexe},
 \code{nature\_donnees}, \code{sigma\_standard} & paramètre standard du mélange selon la
 nature déclarée (décision M13), point de l'article~218 remplacé, exigence relative aux données,
 drapeau de saisie (§\ref{sec:segments}) \\
 \code{engine\_parametre\_}\newline\code{standard()} & \code{res} & tableau «~Paramètre standard remplacé~»
-d'un résultat, recalculé et contrôlé contre \code{\$metadata} (hors \code{run\_engine()}) \\
+d'un résultat, complété du barème et du facteur $c$ applicables et retenus et de l'origine du
+barème, recalculé et contrôlé contre \code{\$metadata} et \code{\$parametre\_final} (hors
+\code{run\_engine()}~; erreur si un drapeau de saisie manque) \\
+\code{engine\_derogations()} & \code{res} & \code{NULL} si le calcul n'a pas abouti~; sinon table
+des dérogations (\code{parametre}, \code{valeur\_reglementaire}, \code{valeur\_retenue},
+\code{conforme}, \code{libelle}), zéro ligne sans dérogation~: $\sigma$ standard saisi, barème
+saisi, barème non déterminé faute de segment (§\ref{sec:segments}) \\
+\code{TOLERANCE\_CONFORME\_}\newline\code{SIGMA} & constante ($10^{-12}$) & tolérance relative de
+l'égalité entre $\sigma$ standard saisi et $\sigma$ standard réglementaire (colonne
+\code{conforme} d'\code{engine\_derogations()}) \\
 \code{usp\_credibilite()} & $T$, barème & facteur $c$~; erreur si $T$ n'est pas un entier
 fini ou si $T < 5$ \\
 \code{.annexe\_verifiee()} & \code{annexe} & \code{"II"} ou \code{"XIV"}, erreur pour toute
@@ -673,7 +683,9 @@ $0{,}02$) & repères de lecture des graphiques d'influence, sans verdict
 (fiches~\ref{fiche:jackknife} et~\ref{mw:influence}) \\
 \code{engine\_table\_tests()} & \code{res} & \code{data.frame} auditable \\
 \code{run\_engine()} & entrées utilisateur, dont \code{nature\_donnees} (obligatoire pour
-\code{premium}) et $T$ (contrôlé par \code{engine\_valider\_}\newline\code{profondeur()}) & objet
+\code{premium}), $T$ (contrôlé par \code{engine\_valider\_}\newline\code{profondeur()}) et
+\code{bareme} (\code{NULL}~: barème du segment~; valeur saisie~: dérogation déclarée,
+§\ref{sec:segments}) & objet
 \code{usp\_engine}
 complet~; \code{ok = FALSE} pour un refus de données ou un défaut de calcul intercepté, erreur
 R pour une erreur d'usage (§\ref{sec:controles}) \\
@@ -784,6 +796,28 @@ $c = 59~\%$. La fonction \code{usp\_bareme\_segment(segment, annexe)} implément
 cette distinction, et \code{usp\_segment\_infos()} renvoie l'ensemble des
 caractéristiques réglementaires d'un segment.
 
+\noindent
+La section~G fait du barème une fonction du segment et de la durée~; elle n'ouvre aucun choix.
+L'argument \code{bareme} de \code{run\_engine()} (\code{"court"} ou \code{"long"}~; interface de
+programmation seule, l'application restant sur le barème du segment) permet néanmoins de
+l'imposer, pour une analyse de sensibilité ou une validation du moteur~: le barème saisi prime
+sur celui du segment et le résultat le restitue comme \emph{dérogation déclarée au barème de
+l'annexe~XVII, section~G}, par le drapeau \code{\$metadata\$bareme\_saisi}, même si la valeur
+saisie égale le barème du segment (issue~\#93, lecture retenue par le mainteneur le 26~septembre
+2026 sur l'avis d'\code{actuary}). Le facteur $c$ n'est pas un paramètre standard remplaçable au
+sens de l'article~218~: un barème contraire à la section~G est une dérogation, non un
+«~paramètre standard remplacé~». Sans segment désigné ($\sigma$ standard saisi seul),
+\code{usp\_bareme\_segment()} pose le barème court par convention, barème qu'aucun texte ne
+détermine~: il est restitué comme «~non déterminé par l'annexe~XVII, section~G~», sans drapeau.
+Mesuré sur le jeu de contrôle ($T = 8$, données déclarées brutes)~: au segment~1 de
+l'annexe~II, le barème court porte $\sigma_{\mathrm{USP}}$ de $0{,}1114524$ à $0{,}1157228$~; au
+segment~2, le barème long le porte de $0{,}1119228$ à $0{,}1032524$~; l'écart vaut exactement
+$(c_{\text{retenu}} - c_{\text{réglementaire}})\,(\hat\sigma_{\text{corrigé}} -
+\sigma_{\text{standard}})$, soit $-0{,}22 \times (0{,}1194109 - 0{,}08) = -0{,}0086704$ au
+segment~2. Ce dernier résultat égale, à $10^{-16}$ près, celui du segment~1 sur données déclarées
+nettes ($c = 0{,}59$ et $\sigma_{\text{standard}} = 0{,}08$ dans les deux cas)~: seul le drapeau
+distingue alors un calcul conforme d'un calcul dérogatoire.
+
 \begin{encadre}
 \textbf{Portée.} L'outil ne couvre pas les autres paramètres remplaçables
 de l'article~218, paragraphe~1 (version consolidée)~:
@@ -850,9 +884,28 @@ $\sigma_{(\text{res},s)}$ de l'annexe, sans facteur NP, et exigent des données 
 ou «~nettes~» acceptées. Un $\sigma$ standard saisi librement reste possible pour les trois
 méthodes~: il prime sur la table, et le résultat le signale comme \emph{dérogation au paramètre
 réglementaire}, même s'il égale la valeur de la table (\code{\$metadata\$sigma\_standard\_saisi}).
-Le tableau «~Paramètre standard remplacé~» (\code{engine\_parametre\_standard()}~: nature,
-point de l'article~218 remplacé, exigence relative aux données, $\sigma$ de l'annexe, facteur
-NP, $\sigma$ retenu, origine) est restitué par l'onglet Calibration et par le rapport figé.
+Il en va de même du barème de crédibilité saisi (\code{\$metadata\$bareme\_saisi},
+§\ref{sec:segments}, paragraphe de la section~G ci-dessus)~: toute saisie de l'un ou l'autre
+paramètre est une \emph{dérogation déclarée}, et sa conformité au texte, information distincte,
+est recalculée et jamais stockée. \code{engine\_derogations()} en est le point de lecture unique
+(issue~\#93)~: pour un résultat abouti, elle rend une table à une ligne par dérogation (aucune
+sans dérogation), qui donne le paramètre (\code{sigma\_standard} ou \code{bareme}), la valeur
+réglementaire (manquante sans segment), la valeur retenue, leur conformité (manquante si elle ne
+peut être établie) et un libellé complet, écrit par le moteur, que l'onglet Calibration, le
+rapport figé et le journal de l'application reprennent tels quels~; elle porte aussi, sans
+drapeau, le barème non déterminé faute de segment, et refuse, par une erreur, un résultat
+dépourvu de l'un des deux drapeaux. L'égalité du $\sigma$ saisi à la valeur réglementaire y est
+jugée en relatif à $10^{-12}$ près (constante \code{TOLERANCE\_CONFORME\_SIGMA}), parce que le
+produit du facteur NP standard et de $\sigma$ brut n'est pas toujours représentable exactement
+(mesuré~: $0{,}8 \times 0{,}10$ diffère de $0{,}08$ de $1{,}4\cdot 10^{-17}$, et une saisie de
+$0{,}08$ au segment~1 sur données nettes est dite conforme). Le tableau «~Paramètre standard
+remplacé~» (\code{engine\_parametre\_standard()}~: nature, point de l'article~218 remplacé,
+exigence relative aux données, $\sigma$ de l'annexe, facteur NP, $\sigma$ retenu, origine, puis,
+depuis l'issue~\#93, barème et facteur $c$ applicables selon la section~G, paragraphe~1 ou~2,
+barème et facteur $c$ retenus, et origine du barème retenu~: réglementaire, défaut sans segment,
+saisi égal, saisi contraire ou saisi sans segment) est restitué par l'onglet Calibration et par
+le rapport figé, sous l'intitulé «~Paramètre standard remplacé (art.~218, paragraphe~1) et
+barème de crédibilité (annexe~XVII, section~G)~».
 
 \smallskip
 \emph{Anomalies rédactionnelles du texte consolidé}, relevées par la lecture réglementaire de
@@ -1266,7 +1319,9 @@ consignant la méthode, le segment, $\sigma_{\text{standard}}$, la nature décla
 (\code{nature\_donnees}, méthode de primes seulement), le drapeau de saisie libre de
 $\sigma_{\text{standard}}$ (\code{sigma\_standard\_saisi}, trois méthodes~: dérogation au
 paramètre réglementaire), le barème de
-crédibilité, $T$, $B$ (dont se déduit la granularité $1/(B+1)$), le seuil
+crédibilité et le drapeau de sa saisie (\code{bareme\_saisi}, trois méthodes~: dérogation au
+barème de l'annexe~XVII, section~G, issue~\#93, placé après les champs de l'issue~\#37 et avant
+les champs d'exécution), $T$, $B$ (dont se déduit la granularité $1/(B+1)$), le seuil
 $\alpha$, la graine du bootstrap (\code{seed}), le générateur posé par le moteur
 (\code{generateur}~: \code{kind}, \code{normal.kind}, \code{sample.kind}, soit
 \code{ENGINE\_RNG\_KIND}), les graines fixes des deux autres simulations
@@ -8392,6 +8447,11 @@ en queue haute ou basse, $\sqrt{\hat p(2-\hat p)/B_{\text{eff}}}$ au bilatéral~
 de $\hat p$, par statistique, dans \code{granularite\_stat} \\
 Jackknife, profils, rapport de vraisemblance & \code{usp\_jackknife()}, \code{usp\_profil()} \\
 Calibration et paramètre final & \code{usp\_parametre()}, \code{usp\_credibilite()} \\
+Paramètre standard remplacé, barème de crédibilité et dérogations déclarées
+(§\ref{sec:segments}) & \code{usp\_parametre\_standard()}, \code{usp\_bareme\_segment()},
+\code{engine\_parametre\_standard()}, \code{engine\_derogations()} (constante
+\code{TOLERANCE\_CONFORME\_SIGMA})~; drapeaux \code{\$metadata\$sigma\_standard\_saisi} et
+\code{\$metadata\$bareme\_saisi} posés par \code{run\_engine()} \\
 Merz--Wüthrich~: facteurs $\hat f_j$, variances $\hat\sigma_j^2$, cumulés
 projetés $\hat C(i,J)$, réserve (§\ref{sec:mw}) & \code{mw\_ajuster()} \\
 Merz--Wüthrich~: extrapolation de $\hat\sigma^2_{J-1}$ (§\ref{sec:mw},
