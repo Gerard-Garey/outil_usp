@@ -2160,8 +2160,19 @@ usp_profil <- function(fit, n = 41) {
 
 usp_tests <- function(fit, boot, alpha = 0.10,
                       theta_equiv = 0.10, delta_equiv = NULL,
-                      robustesse = NULL) {
+                      robustesse = NULL, methode = "premium") {
   z <- fit$z; x <- fit$x; y <- fit$y; T <- fit$T
+  # Citation des hypotheses H1-H4 dans le champ famille (issue #92) : les
+  # quatre hypotheses sont au point B(2)(g) i. a iv. de l'annexe XVII pour la
+  # methode du risque de primes, au point C(2)(e) i. a iv. pour la methode du
+  # risque de reserve no 1 (B(2)(f) porte sur les depenses, C(2)(f) n'existe
+  # pas). Le prefixe "B." a "E." reste la cle de GROUPES (display_helpers.R).
+  if (!(is.character(methode) && length(methode) == 1L &&
+        methode %in% c("premium", "reserve1")))
+    stop("usp_tests() : methode doit valoir \"premium\" ou \"reserve1\".")
+  pt_hyp <- if (methode == "premium") "B(2)(g)" else "C(2)(e)"
+  cite_hyp <- function(i) sprintf("(annexe XVII %s(%s))", pt_hyp, i)
+  fam_h4 <- paste("E. H4 - independance et validite du MV", cite_hyp("iv"))
   r <- y / x
   # Base alternative : ratios bruts centres. Voir la sous-section
   # "Choix de la base de residus" de la documentation.
@@ -2174,7 +2185,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   add <- reg$add
 
   ## --- B. H1 : E[Y_t] lineaire proportionnelle en X_t ------------------------
-  fam <- "B. H1 - linearite / proportionnalite (annexe XVII B(2)(f)(i))"
+  fam <- paste("B. H1 - linearite / proportionnalite", cite_hyp("i"))
   ti <- test_intercept(x, y); lmc <- test_lm_complet(x, y)
   # p-value EXACTE prioritaire : sous normalite des erreurs, t_a suit
   # exactement une loi de Student a T-2 ddl. La p-value de Monte-Carlo reste
@@ -2303,7 +2314,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                        m_paires, 2 * 0.5^m_paires))
 
   ## --- C. H2 : variance quadratique en X_t -----------------------------------
-  fam <- "C. H2 - structure de variance (annexe XVII B(2)(f)(ii))"
+  fam <- paste("C. H2 - structure de variance", cite_hyp("ii"))
   bp <- test_breusch_pagan(z^2, x)
   add(fam, "Heteroscedasticite vs volume - Breusch-Pagan studentise (Koenker)",
       "Breusch & Pagan (1979) ; studentisation de Koenker (1981)",
@@ -2385,7 +2396,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       else "interieur du domaine : melange des deux composantes identifie")
 
   ## --- D. H3 : lognormalite --------------------------------------------------
-  fam <- "D. H3 - lognormalite (annexe XVII B(2)(f)(iii))"
+  fam <- paste("D. H3 - lognormalite", cite_hyp("iii"))
   H0n <- "les residus standardises suivent une loi normale"
   H1n <- "loi non normale"
   sw <- .shapiro_sur(z)
@@ -2476,7 +2487,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         detail = sprintf("T = %d < 20 : test non defini", T))
 
   ## --- E. H4 : independance / validite du MV ---------------------------------
-  fam <- "E. H4 - independance et validite du MV (annexe XVII B(2)(f)(iv))"
+  fam <- fam_h4
   add(fam, "Autocorrelation d'ordre 1 (Durbin-Watson)", "Durbin & Watson (1950, 1951)",
       base = "z",
       H0 = "rho = 0 (absence d'autocorrelation d'ordre 1)", H1 = "rho != 0",
@@ -2809,19 +2820,19 @@ usp_tests <- function(fit, boot, alpha = 0.10,
           "statistique differe en general de celle de la ligne des suites sur",
           "residus standardises (issue #29).")
   }
-  add("E. H4 - independance et validite du MV (annexe XVII B(2)(f)(iv))",
+  add(fam_h4,
       "Autocorrelation d'ordre 1 (Durbin-Watson) sur ratios bruts",
       "Durbin & Watson (1950, 1951)", base = "r",
       H0 = "absence d'autocorrelation d'ordre 1 du ratio S/P",
       H1 = "autocorrelation du ratio S/P",
       stat_nom = "DW", stat = boot$stats_obs$DWr, loi = loi_ind, mc_nom = "DWr",
       detail = detail_r())
-  add("E. H4 - independance et validite du MV (annexe XVII B(2)(f)(iv))",
+  add(fam_h4,
       "Ljung-Box (retard 1) sur ratios bruts", "Ljung & Box (1978), Biometrika 65",
       base = "r", H0 = "rho_1 = 0 pour le ratio S/P", H1 = "autocorrelation au retard 1",
       stat_nom = "Q", stat = boot$stats_obs$LB1r, loi = loi_ind, mc_nom = "LB1r",
       detail = detail_r())
-  add("E. H4 - independance et validite du MV (annexe XVII B(2)(f)(iv))",
+  add(fam_h4,
       "Test des suites sur ratios bruts", "Wald & Wolfowitz (1940)",
       base = "r", H0 = "arrangement aleatoire des signes du ratio centre",
       H1 = "arrangement non aleatoire",
@@ -5460,7 +5471,8 @@ run_engine <- function(xt, yt,
       jack_usp   = if (jack_calcule) d_jack[i_jack] / param$sigma_usp else NULL)
 
     tests <- usp_tests(fit, boot, alpha, theta_equiv = theta_equiv,
-                       delta_equiv = delta_equiv, robustesse = robustesse)
+                       delta_equiv = delta_equiv, robustesse = robustesse,
+                       methode = methode)
 
     # --- 4. Statistiques descriptives -----------------------------------------
     r <- yt / xt

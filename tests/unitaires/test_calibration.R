@@ -498,6 +498,53 @@ verifier("engine_parametre_standard, reserve : nettes (exigence), a) iv), deroga
              identical(d2$texte[nrow(d2)], "parametre reglementaire") &&
              identical(d3$texte[nrow(d3)], "sigma standard saisi, derogation au parametre reglementaire")
          })
+## --- Citation des hypotheses H1-H4 (issue #92) -------------------------------
+# Source : annexe XVII, point B(2)(g) i. a iv. (methode du risque de primes,
+# JOUE L 12/273) et point C(2)(e) i. a iv. (methode du risque de reserve
+# no 1, L 12/274-275) ; numerotation identique dans la version consolidee du
+# 14.11.2024 (lecture de l'agent regulatory, issue #92). B(2)(f) porte sur les
+# depenses et C(2)(f) n'existe pas : aucune famille ne doit citer "(2)(f)".
+# Chaines attendues ressaisies ici (double saisie), sans copie du moteur.
+familles_h <- function(res) {
+  f <- unique(engine_table_tests(res)$famille)
+  f[substr(f, 1, 2) %in% c("B.", "C.", "D.", "E.")]
+}
+fam_attendues <- function(pt) c(
+  paste0("B. H1 - linearite / proportionnalite (annexe XVII ", pt, "(i))"),
+  paste0("C. H2 - structure de variance (annexe XVII ", pt, "(ii))"),
+  paste0("D. H3 - lognormalite (annexe XVII ", pt, "(iii))"),
+  paste0("E. H4 - independance et validite du MV (annexe XVII ", pt, "(iv))"))
+verifier("Citation H1-H4, premium : annexe XVII, B(2)(g)(i) a (iv) (issue #92)",
+         identical(familles_h(r_b), fam_attendues("B(2)(g)")))
+verifier("Citation H1-H4, reserve1 : annexe XVII, C(2)(e)(i) a (iv) (issue #92)",
+         identical(familles_h(r1_sans), fam_attendues("C(2)(e)")))
+verifier("Aucune famille ne cite \"(2)(f)\" (premium, reserve1, reserve2 ; issue #92)",
+         !any(grepl("(2)(f)", c(engine_table_tests(r_b)$famille, engine_table_tests(r1_sans)$famille,
+                                  engine_table_tests(r2_sans)$famille), fixed = TRUE)))
+verifier("usp_tests() : methode hors premium / reserve1 refusee (erreur de programmation)",
+         {
+           f <- usp_ajuster(.ln_m6$xt, .ln_m6$yt)
+           msg <- function(m) tryCatch({ usp_tests(f, r_b$bootstrap, methode = m); "" },
+                                       error = function(e) conditionMessage(e))
+           motif <- "methode doit valoir \"premium\" ou \"reserve1\""
+           identical(msg("reserve1"), "") &&
+             grepl(motif, msg("reserve2"), fixed = TRUE) &&
+             grepl(motif, msg(NA_character_), fixed = TRUE)
+         })
+verifier("GROUPES (display_helpers.R) : prefixes B. a E. inchanges, citations B(2)(g) ; C(2)(e) (issue #92)",
+         {
+           e <- new.env()
+           sys.source(file.path(.racine, "R", "display_helpers.R"), envir = e)
+           g <- e$GROUPES[c("B.", "C.", "D.", "E.")]
+           r <- c("i", "ii", "iii", "iv")
+           identical(unname(vapply(g, function(x) x$cle, character(1))),
+                     c("H1", "H2", "H3", "H4")) &&
+             identical(unname(vapply(g, function(x) x$ref, character(1))),
+                       sprintf("annexe XVII, B(2)(g)(%s) ; C(2)(e)(%s)", r, r)) &&
+             !any(grepl("(2)(f)", vapply(e$GROUPES, function(x) x$ref, character(1)),
+                        fixed = TRUE)) &&
+             identical(e$groupe_de(familles_h(r1_sans)[1])$cle, "H1")
+         })
 rm(r_sans, r_b, r_n, r_d, r1_sans, r1_net, r1_brut, r2_sans, r2_net, r2_brut)
 
 fin_fichier()
