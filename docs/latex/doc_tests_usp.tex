@@ -459,6 +459,10 @@ de calibration commune aux deux branches.}
 \code{\$ok}, \code{\$erreurs}, \code{\$avertissements}~; refus des valeurs infinies, d'une
 marge du TOST hors domaine et d'une nature des données absente ou non recevable
 (§\ref{sec:controles}) \\
+\code{engine\_valider\_}\newline\code{profondeur()} & \code{T}, $n$ (années fournies),
+\code{T\_min} (5) & motifs de refus d'une profondeur $T$ autre que \code{NULL} ou qu'un entier
+scalaire fini, \code{T\_min} $\le T \le n$, contrôlée avant toute troncature~; vide si $T$
+convient (§\ref{sec:controles}) \\
 \code{NATURES\_DONNEES},\newline \code{.nature\_erreurs()} & \code{methode},
 \code{nature\_donnees} & natures recevables (\code{"brutes"}, \code{"nettes"})~; motifs de refus~:
 déclaration obligatoire pour \code{premium}, «~brutes~» refusé pour les méthodes de réserve \\
@@ -474,7 +478,8 @@ non bloquants), ajoutés à \code{res\$controles} \\
 \code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, \code{\$reserve},
 \code{\$msep} \\
 \code{usp\_lire\_vecteur()},\newline \code{usp\_charger()} & chemins de fichiers CSV,
-\code{sep}, \code{dec}~; pour la seconde, $T$ et le sens chronologique des
+\code{sep}, \code{dec}~; pour la seconde, $T$ (\code{NULL} ou entier, $1 \le T \le n$, contrôlé
+par \code{engine\_valider\_}\newline\code{profondeur()}, erreur sinon) et le sens chronologique des
 données &
 vecteur lu, cellule vide, non numérique ou non finie au milieu de la série refusée avec sa
 position, en-têtes et valeurs d'une série en ligne alignés colonne par colonne, BOM UTF-8
@@ -573,7 +578,9 @@ simulée est absente du catalogue \\
 \code{engine\_registre\_}\newline\code{tests()} & \code{boot}, catalogue, \code{alpha},
 libellé de nature Monte-Carlo & fonction \code{add()} d'enregistrement d'une ligne de test,
 unique et partagée par \code{usp\_tests()} et \code{mw\_tests()}~: hiérarchie des p-values,
-règle de verdict, refus d'une clé Monte-Carlo absente du catalogue ou du bootstrap \\
+règle de verdict (seuil d'\code{ECHEC} des tests en sens «~rejeter~», constante
+\code{SEUIL\_ECHEC\_SENS\_REJETER} $= 0{,}30$, §\ref{sec:synthese}), refus d'une clé
+Monte-Carlo absente du catalogue ou du bootstrap \\
 \code{usp\_simuler()} & \code{fit} & $T$ pertes $y_t$ simulées sous le modèle
 ajusté \\
 \code{usp\_bootstrap()} & \code{fit}, $B$ (999), \code{seed} (20260831),
@@ -664,7 +671,18 @@ $0{,}02$) & repères de lecture des graphiques d'influence, sans verdict
 (fiches~\ref{fiche:jackknife} et~\ref{mw:influence}) \\
 \code{engine\_table\_tests()} & \code{res} & \code{data.frame} auditable \\
 \code{run\_engine()} & entrées utilisateur, dont \code{nature\_donnees} (obligatoire pour
-\code{premium}) & objet \code{usp\_engine} complet \\
+\code{premium}) et $T$ (contrôlé par \code{engine\_valider\_}\newline\code{profondeur()}) & objet
+\code{usp\_engine}
+complet~; \code{ok = FALSE} pour un refus de données ou un défaut de calcul intercepté, erreur
+R pour une erreur d'usage (§\ref{sec:controles}) \\
+\code{.engine\_verifier\_}\newline\code{usage()} & \code{B}, \code{seed}, \code{bareme},
+\code{alpha}, \code{sigma\_standard} & erreur R explicite, citant la valeur reçue, pour un
+argument d'appel invalide (erreur d'usage), appelée par les deux branches avant tout calcul
+(§\ref{sec:controles}) \\
+\code{.engine\_calcul\_}\newline\code{protege()} & \code{methode}, horodatage,
+\code{validation}, calcul & résultat du calcul, ou objet \code{ok = FALSE} portant
+\code{validation\$erreur\_r} si ce calcul, qui suit une validation réussie, lève une erreur R
+(défaut de calcul intercepté~; option \code{usp.engine.lever\_erreurs}, §\ref{sec:controles}) \\
 \code{.run\_engine\_mw()} & entrées de \code{run\_engine()} pour
 \code{methode = "reserve2"}, dont \code{nature\_donnees} & objet \code{usp\_engine} de la branche
 Merz--Wüthrich \\
@@ -864,7 +882,8 @@ l'état du générateur (l'objet \code{.Random.seed} de l'environnement global) 
 \begin{itemize}
 \item \code{usp\_bootstrap()} (méthodes de primes et de réserve
   n\textsuperscript{o}~1). \emph{Graine}~: le paramètre \code{seed} de
-  \code{run\_engine()} (défaut 20260831), posé par \code{engine\_sous\_graine()} une
+  \code{run\_engine()} (défaut 20260831~; entier scalaire fini, \code{NULL} refusé par une erreur
+  d'usage depuis l'issue~\#88, §\ref{sec:controles}), posé par \code{engine\_sous\_graine()} une
   seule fois, avant la boucle des $B$ réplications~; à chaque réplication,
   \code{usp\_simuler()} tire par \code{stats::rnorm()} les logarithmes des $T$
   pertes simulées sous le modèle ajusté. \emph{Portée}~: tous les résultats de Monte-Carlo de la
@@ -1792,10 +1811,61 @@ détaillée figure au §\ref{sec:mw}.
 
 Dans les deux cas, un refus conduit \code{run\_engine()} à
 retourner un objet portant \code{ok = FALSE} et le champ \code{validation}
-détaillant les motifs~: aucune erreur R n'est levée.
+détaillant les motifs, sans lever d'erreur R.
 \code{mw\_parametre()} porte en outre une garde défensive sur le même
 diagnostic, destinée à un appel direct de la fonction hors de la chaîne~; elle
 est inatteignable depuis \code{run\_engine()}.
+
+Ce \emph{refus de données} n'est que l'un des trois régimes de sortie de \code{run\_engine()}
+autres qu'un calcul abouti, à ne pas confondre (issue~\#88, décision du mainteneur du
+26~septembre 2026)~:
+\begin{itemize}[itemsep=2pt]
+\item le \textbf{refus de données}~: les données, ou un paramètre qui leur est attaché (marge du
+  test d'équivalence, nature des données, profondeur $T$), ne satisfont pas un contrôle de
+  validité des tableaux ci-dessous~; \code{ok = FALSE}, motifs dans
+  \code{validation\$erreurs}, aucune erreur R~;
+\item l'\textbf{erreur d'usage}~: un argument d'appel est invalide, et la faute est dans l'appel,
+  non dans les données~; \code{run\_engine()} lève avant tout calcul une erreur R explicite et ne
+  rend aucun objet. En relèvent \code{methode} ou \code{annexe} hors de leur liste, un segment
+  inconnu, l'absence à la fois de \code{segment} et de \code{sigma\_standard}, \code{xt}
+  manquant, la méthode du risque de réserve n\textsuperscript{o}~2 sans triangle, et les cinq
+  arguments contrôlés par \code{.engine\_verifier\_usage()}, appelée par les deux branches~:
+  \code{B}, nombre scalaire fini, $B \ge 0$~; \code{seed}, nombre scalaire fini entier,
+  $|\mathtt{seed}| \le 2\,147\,483\,647$ (\code{.Machine\$integer.max}, domaine de
+  \code{set.seed()}), \code{NULL} étant refusé parce que \code{set.seed(NULL)} réinitialise le
+  générateur au hasard et rend le calcul non reproductible, et une graine non entière parce que
+  \code{set.seed()} la tronquerait alors que \code{\$metadata\$seed} consignerait la valeur
+  transmise~; \code{bareme}, \code{NULL}, \code{"court"} ou \code{"long"} exactement (barème de
+  l'annexe~XVII, section~G, §\ref{sec:segments})~; \code{alpha}, nombre scalaire fini,
+  $0 < \alpha <$ \code{SEUIL\_ECHEC\_SENS\_REJETER} $= 0{,}30$, faute de quoi la zone
+  \code{ALERTE} des tests en sens «~rejeter~» disparaîtrait et le verdict ne suivrait plus la
+  règle de la section~\ref{sec:synthese}~; \code{sigma\_standard}, \code{NULL} ou nombre
+  scalaire fini strictement positif, aucun écart-type réglementaire n'étant nul. Un attribut
+  (noms, dimensions) porté par l'un de ces cinq arguments est refusé plutôt que normalisé~: il
+  se propageait tel quel dans \code{\$metadata} et dans $\sigma_{\mathrm{USP}}$. Le message, écrit
+  par le moteur, cite la valeur reçue (mesuré~: $\alpha = 0{,}30$, \code{seed = NULL},
+  \code{seed = 1.5}, \code{bareme = "co"} et \code{sigma\_standard = 0} lèvent chacun
+  l'erreur correspondante, $\alpha = 0{,}2999$ est calculé). Relèvent du même régime, en appel
+  direct, la durée non entière refusée par \code{usp\_credibilite()} et l'annexe refusée par
+  \code{.annexe\_verifiee()}~; \code{theta\_equiv} n'en relève pas~: hors domaine, c'est un
+  refus de données~;
+\item le \textbf{défaut de calcul intercepté}~: une erreur R survient dans le calcul qui suit une
+  validation réussie (après \code{engine\_valider\_donnees()} dans la branche lognormale, après
+  \code{mw\_valider\_triangle()} dans la branche Merz--Wüthrich)~; \code{.engine\_calcul\_protege()}
+  l'intercepte et \code{run\_engine()} rend \code{ok = FALSE}, sans aucun résultat partiel, avec
+  dans \code{validation\$erreurs} le motif fixe «~Defaut de calcul intercepte (erreur R dans
+  $f$()) : aucun resultat n'est produit ; diagnostic dans validation\$erreur\_r~», où seul le nom
+  $f$ varie, et dans le champ distinct \code{validation\$erreur\_r} le diagnostic~: message de
+  l'erreur, appel, pile des fonctions appelées depuis le calcul protégé et \code{origine},
+  dernière fonction de cette pile définie dans le moteur. Les données étant valides et l'appel
+  aussi, ce n'est ni un refus ni une erreur d'usage, mais un défaut du moteur ou une limite
+  numérique, à rapporter avec sa fonction d'origine. Mesuré sur le jeu de contrôle~: $x_t$
+  multipliés par $10^{298}$ donnent l'origine \code{test\_white()} (erreur de \code{lm.fit()}),
+  $y_t$ multipliés par $10^{-300}$ l'origine \code{usp\_tests()}~; les deux levaient auparavant
+  une erreur R. L'option \code{options(usp.engine.lever\_erreurs = TRUE)}, réservée au
+  développement, relève l'erreur telle quelle au lieu de l'intercepter. Les erreurs d'usage
+  restent hors de ce filet, limité au calcul par décision du mainteneur.
+\end{itemize}
 
 Un refus n'est pas un avertissement que l'on peut laisser passer~: l'interface le
 restitue par un bandeau persistant portant les motifs renvoyés par le moteur,
@@ -1813,7 +1883,13 @@ exporté à côté d'un triangle refusé.
 \textcolor{financeblue}{\textbf{Contrôle}} &
 \textcolor{financeblue}{\textbf{Critère}} &
 \textcolor{financeblue}{\textbf{Justification}} \\
-Profondeur minimale & $T \ge 5$ & Annexe XVII, B/C(2)(b). Bloquant. \\
+Profondeur minimale & $T \ge 5$~; $T$ demandé~: \code{NULL} (toute la série) ou entier
+scalaire fini, $5 \le T \le n$ ($n$ années fournies) & Annexe XVII, B/C(2)(b). Bloquant.
+Le $T$ demandé est contrôlé par \code{engine\_valider\_profondeur()} \emph{avant} toute
+troncature~: une valeur non entière, manquante, infinie, multiple, textuelle ou vide est
+refusée sans tronquer la série (issue~\#87~; auparavant, $T = 5{,}5$ retenait en silence les
+années 3 à 7, $\sigma_{\mathrm{USP}} = 0{,}108587$ au lieu de $0{,}111452$ sur le jeu de
+contrôle). \\
 Nature des données & méthode de primes~: «~brutes~» ou «~nettes~» déclarée, sans défaut~;
 réserve n\textsuperscript{o}~1~: «~brutes~» refusé & Désigne le paramètre remplacé
 (B(2)(c), B(2)(d), §\ref{sec:segments})~; données nettes exigées par C(2)(c). Bloquant. \\
@@ -1839,7 +1915,10 @@ comme avertissements~: \code{run\_engine()} produit le calcul (vérifié par ex�
 un ratio hors de $]0\,;5[$, une amplitude de volume de~10 ou plus, un couple dupliqué ou
 $T = 5$ laissent \code{ok = TRUE}~; une valeur manquante, un $y_t$ négatif ou $T = 4$
 donnent \code{ok = FALSE}~; de même une valeur infinie, $\theta = 1$ ou
-$\Delta = \bar y$, mesuré sur le jeu de contrôle). Un contrôle de la famille~A qui ne peut pas
+$\Delta = \bar y$, mesuré sur le jeu de contrôle~; de même encore $T = 5{,}5$, $T = 9$ pour
+huit années fournies, $T$ égal à \code{NA} ou textuel, sans troncature de la série, avec
+\code{validation\$T} manquant et sans avertissement, les avertissements portant sur une série
+retenue). Un contrôle de la famille~A qui ne peut pas
 être établi --- valeur manquante, séries de longueurs différentes --- vaut \code{ECHEC}, et son
 champ \code{detail} le dit («~contrôle non établi~») au lieu de juger les seules valeurs
 disponibles~; pour $T < 5$, la ligne de crédibilité sort \code{ECHEC} sans appeler le barème,
@@ -1898,7 +1977,7 @@ fichier encodé en Windows-1252 qui contient un octet non ASCII fait échouer
 lieu d'un refus motivé. Les fonctions réglementaires refusent explicitement une entrée hors
 domaine au lieu de la traiter en silence~: \code{usp\_credibilite()} une durée non entière,
 \code{.annexe\_verifiee()} une annexe autre que \code{"II"} ou \code{"XIV"} (auparavant lue
-comme l'annexe~II).
+comme l'annexe~II), l'une et l'autre par une erreur d'usage (ci-dessus).
 
 \subsection*{Méthode Merz--Wüthrich (annexe XVII, section D, paragraphes 2, 4 et 5)}
 
@@ -3438,8 +3517,8 @@ la moyenne des $T$ pertes retenues, et $\theta$ est alors ignoré. Au-delà ($\t
 $\Delta \ge \bar y$), l'hypothèse $H_1 : |a| < \Delta$ contiendrait le modèle $a = \bar y$,
 $b = 0$, négation de la proportionnalité, et un rejet de $H_0$ ne se lirait plus comme une
 proportionnalité pratique. Aucune borne plus serrée n'est imposée~: le choix de la marge relève
-du dossier. Une marge hors domaine est une erreur d'entrée, refusée par
-\code{engine\_valider\_donnees()}~: \code{run\_engine()} rend alors \code{ok = FALSE} avec le
+du dossier. Une marge hors domaine est un refus de données, et non une erreur d'usage~: elle est
+refusée par \code{engine\_valider\_donnees()}~: \code{run\_engine()} rend alors \code{ok = FALSE} avec le
 motif (mesuré~: $\theta = 1$ et $\Delta = \bar y$ sont refusés sur le jeu de contrôle).
 \Hzero
 \[
@@ -8277,6 +8356,10 @@ tirent plus rien depuis l'issue~\#42~; générateur fixé \code{ENGINE\_RNG\_KIN
 \code{run\_engine()}~; clé du cache de la loi nulle, \code{sw\_cle\_cache()} (issue~\#37) \\
 Orchestration complète & \code{run\_engine()}~; méthode de réserve
 n\textsuperscript{o}~2 déléguée à\newline \code{.run\_engine\_mw()} \\
+Refus de données, erreur d'usage, défaut de calcul intercepté (§\ref{sec:controles}) &
+\code{engine\_valider\_profondeur()} (profondeur $T$, refus)~;
+\code{.engine\_verifier\_usage()} (arguments d'appel, erreur R)~;
+\code{.engine\_calcul\_protege()} (\code{validation\$erreur\_r}) \\
 Table auditable des tests & \code{engine\_table\_tests()} \\
 Empreintes md5 d'un résultat pour le rapport figé~: données du calcul
 (texte canonique, fonction des seules valeurs) et objet sérialisé (stable sur
@@ -8421,7 +8504,10 @@ exacte $\succ$ Monte-Carlo $\succ$ asymptotique --- au-dessus du seuil d'alerte,
 procédure ESD de Rosner (fiches~\ref{fiche:rosner-esd} et~\ref{mw:m4ros}), aucune valeur
 aberrante détectée au niveau $\alpha$. Pour le TOST et les tests de Student sur la pente et de
 Fisher, la logique est inversée~: \code{OK} correspond à un $p$ \emph{faible} ($p < \alpha$),
-\code{ALERTE} à $\alpha \le p < 0{,}30$ et \code{ECHEC} à $p \ge 0{,}30$. \\
+\code{ALERTE} à $\alpha \le p < 0{,}30$ et \code{ECHEC} à $p \ge 0{,}30$ (constante
+\code{SEUIL\_ECHEC\_SENS\_REJETER}~; c'est pourquoi \code{run\_engine()} exige
+$0 < \alpha < 0{,}30$, faute de quoi la zone \code{ALERTE} de ces tests disparaîtrait~:
+erreur d'usage, section~\ref{sec:controles}). \\
 \code{ALERTE} & p-value retenue dans la zone intermédiaire $[\alpha/2\,;\,\alpha[$ (par défaut
 $[5\,\%\,;\,10\,\%[$), ou, pour la procédure ESD, une valeur aberrante détectée. \\
 \code{ECHEC} & p-value retenue sous le seuil strict $\alpha/2$, ou, pour la procédure ESD, deux
@@ -8466,7 +8552,9 @@ repère indicatif de 40~\% du second n'emporte aucun verdict (ADR~0001). \\
   \item \textbf{Contrôles de données} (section~\ref{sec:controles}) -- bloquants pour ceux que
         les tableaux de cette section désignent comme tels~: \code{run\_engine()} rend alors
         \code{ok = FALSE} et aucun résultat. Les autres sont des avertissements ou des
-        informations, à examiner avant toute lecture.
+        informations, à examiner avant toute lecture. Un \code{ok = FALSE} qui porte
+        \code{validation\$erreur\_r} n'est pas un refus mais un défaut de calcul intercepté,
+        à rapporter comme tel (même section).
   \item \textbf{Convergence numérique} -- préalable technique~: contrôles numériques de
         l'estimation de \code{res\$controles}, famille H, non bloquants mais dont un
         \code{ECHEC} est à traiter avant toute lecture des tests (section~\ref{sec:controles})
