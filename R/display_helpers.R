@@ -37,7 +37,7 @@ GROUPES <- list(
   "C." = list(cle = "H2", titre = "H2 \u2014 Structure de variance quadratique",
               sous = "Var(Y_t) = sigma\u00b2 [(1-delta) \u00b7 xbar \u00b7 x_t + delta \u00b7 x_t\u00b2]",
               ref  = "annexe XVII, B(2)(g)(ii) ; C(2)(e)(ii)"),
-  "D." = list(cle = "H3", titre = "H3 \u2014 Lognormalit\u00e9 des pertes agr\u00e9g\u00e9es",
+  "D." = list(cle = "H3", titre = "H3 \u2014 Lognormalit\u00e9 de la variable mod\u00e9lis\u00e9e",
               sous = "test\u00e9e comme la normalit\u00e9 des r\u00e9sidus normalis\u00e9s z_t",
               ref  = "annexe XVII, B(2)(g)(iii) ; C(2)(e)(iii)"),
   "E." = list(cle = "H4", titre = "H4 \u2014 Ind\u00e9pendance et validit\u00e9 du maximum de vraisemblance",
@@ -74,9 +74,25 @@ GROUPES <- list(
               ref  = "diagnostics compl\u00e9mentaires")
 )
 
+# Citation reglementaire d'un groupe (issue #92). Le moteur ecrit la citation
+# du point de l'annexe XVII dans le champ famille, selon la methode appliquee
+# (par exemple "(annexe XVII B(2)(g)(i))" pour premium, "(annexe XVII
+# C(2)(e)(i))" pour reserve1) : l'affichage la lit la, pour n'avoir qu'une
+# source. Extraction de chaine seulement : renvoie "annexe XVII, B(2)(g)(i)",
+# ou NA si la famille ne se termine pas par une parenthese "(annexe XVII ...)".
+citation_de <- function(famille) {
+  m <- regmatches(famille, regexec("\\(annexe XVII ([^ ].*)\\)\\s*$", famille))[[1]]
+  if (length(m) == 2L) paste0("annexe XVII, ", m[2]) else NA_character_
+}
+
+# Groupe d'affichage d'une famille. ref : citation lue dans la famille si elle
+# y figure (citation_de()), sinon GROUPES$ref (repli : F., G., M4 a M6).
 groupe_de <- function(famille) {
   g <- GROUPES[[substr(famille, 1, 2)]]
-  if (is.null(g)) list(cle = "AUTRE", titre = famille, sous = "", ref = "") else g
+  if (is.null(g)) g <- list(cle = "AUTRE", titre = famille, sous = "", ref = "")
+  cit <- citation_de(famille)
+  if (!is.na(cit)) g$ref <- cit
+  g
 }
 cles_groupes <- function() unname(vapply(GROUPES, function(g) g$cle, character(1)))
 

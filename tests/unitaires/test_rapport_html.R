@@ -261,6 +261,71 @@ if (png_ok)
            compte(hm, "src='data:image/png;base64,iVBORw0KGgo") ==
              sum(vapply(.graphiques_rapport(res_mw), function(o) length(o$g), integer(1))) + 1L)
 
+## --- Citation reglementaire sous chaque groupe (issue #92) --------------------
+# Source : annexe XVII, point B(2)(g) i. a iv. (methode du risque de primes) et
+# point C(2)(e) i. a iv. (methode du risque de reserve no 1) ; D(2)(h) pour
+# Merz-Wuthrich. L'application (onglet Tests) et le rapport fige citent le
+# seul point de la methode appliquee, lu dans le champ famille du moteur par
+# groupe_de() ; repli sur GROUPES$ref pour les groupes sans citation (F., G.,
+# M4 a M6). Valeurs attendues ressaisies ici (double saisie).
+res_r1 <- run_engine(xt = xt, yt = yt, methode = "reserve1", segment = 1, annexe = "II",
+                     B = 99)
+diag_c <- "diagnostics compl\u00e9mentaires"
+ref_attendue <- function(pt) c(
+  H1 = paste0("annexe XVII, ", pt, "(i)"),   H2 = paste0("annexe XVII, ", pt, "(ii)"),
+  H3 = paste0("annexe XVII, ", pt, "(iii)"), H4 = paste0("annexe XVII, ", pt, "(iv)"),
+  STAB = diag_c, ROB = diag_c)
+ref_mw <- c(M1 = "annexe XVII, D(2)(h)(iii)", M2 = "annexe XVII, D(2)(h)(iv)",
+            M3 = "annexe XVII, D(2)(h)(i) et (ii)", M4 = diag_c,
+            M5 = "hors annexe XVII, D(2)(h)", M6 = diag_c)
+# Reference affichee par groupe, dans l'ordre de cles_groupes() (premiere
+# famille du groupe, comme app.R et rapport_html()).
+refs_groupes <- function(res) {
+  f <- engine_table_tests(res)$famille
+  cle <- vapply(f, function(x) groupe_de(x)$cle, character(1))
+  k <- intersect(cles_groupes(), cle)
+  setNames(vapply(k, function(x) groupe_de(f[match(x, cle)])$ref, character(1)), k)
+}
+# Citations en italique de la section 5 du rapport fige.
+refs_rapport <- function(res) {
+  f <- tempfile(fileext = ".html")
+  rapport_html(res, NULL, f, interactif = FALSE, identite = idt)
+  sec <- entre(lire(f), "<section id='section-tests-retenus'>", "</section>")
+  sub("^<div class='gris'><i>(.*)</i></div>$", "\\1",
+      regmatches(sec, gregexpr("<div class='gris'><i>.*?</i></div>", sec, perl = TRUE))[[1]])
+}
+verifier("Citation affichee, premium : B(2)(g)(i) a (iv), une par groupe H1-H4 (issue #92)",
+         identical(refs_groupes(res_ln), ref_attendue("B(2)(g)")))
+verifier("Citation affichee, reserve1 : C(2)(e)(i) a (iv), une par groupe H1-H4 (issue #92)",
+         identical(refs_groupes(res_r1), ref_attendue("C(2)(e)")))
+verifier("Citation affichee : repli sur GROUPES$ref pour F. et G. (aucune citation dans la famille)",
+         {
+           f <- unique(engine_table_tests(res_ln)$famille)
+           fg <- f[substr(f, 1, 2) %in% c("F.", "G.")]
+           length(fg) == 2L && all(is.na(vapply(fg, citation_de, character(1)))) &&
+             identical(unname(vapply(fg, function(x) groupe_de(x)$ref, character(1))),
+                       c(GROUPES[["F."]]$ref, GROUPES[["G."]]$ref))
+         })
+verifier("Citation affichee, Merz-Wuthrich : M1 a M6 inchanges (egaux a GROUPES$ref)",
+         identical(refs_groupes(res_mw), ref_mw) &&
+           identical(unname(ref_mw), unname(vapply(GROUPES[paste0("M", 1:6)],
+                                                   function(g) g$ref, character(1)))))
+verifier("Rapport fige : citations de la methode appliquee seulement (premium B(2)(g), reserve1 C(2)(e))",
+         {
+           rp <- refs_rapport(res_ln); rr <- refs_rapport(res_r1)
+           identical(rp, unname(ref_attendue("B(2)(g)")[names(refs_groupes(res_ln))])) &&
+             identical(rr, unname(ref_attendue("C(2)(e)")[names(refs_groupes(res_r1))])) &&
+             !any(grepl("C(2)(e)", rp, fixed = TRUE)) && !any(grepl("B(2)(g)", rr, fixed = TRUE)) &&
+             !any(grepl(" ; ", c(rp, rr), fixed = TRUE))
+         })
+verifier("citation_de() : parentheses imbriquees et forme \"et (ii)\" ; NA sans citation",
+         identical(citation_de("M3. independance (annexe XVII D(2)(h)(i) et (ii))"),
+                   "annexe XVII, D(2)(h)(i) et (ii)") &&
+           identical(citation_de("M5. normalite des residus (diagnostic, NON exige par le modele)"),
+                     NA_character_) &&
+           identical(groupe_de("Z. inconnue")$ref, ""))
+rm(res_r1)
+
 ## --- Branche interactive (plotly), si le paquet est installe -----------------
 if (requireNamespace("plotly", quietly = TRUE) && requireNamespace("htmltools", quietly = TRUE)) {
   f_int <- tempfile(fileext = ".html")
