@@ -613,7 +613,11 @@ usp_charger <- function(fichier_x, fichier_y, T = NULL, plus_recent_en_dernier =
   if (!plus_recent_en_dernier) { x <- rev(x); y <- rev(y) }
   n <- length(x)
   if (!is.null(T)) {
-    if (T > n) stop("T = ", T, " > profondeur disponible (", n, ").")
+    # T entier scalaire fini, 1 <= T <= n (issue #87 : un T non entier
+    # tronquait la serie en silence) ; la duree minimale de 5 ans est
+    # controlee par engine_valider_donnees().
+    err_T <- engine_valider_profondeur(T, n, T_min = 1)
+    if (length(err_T)) stop(err_T)
     idx <- (n - T + 1):n                     # on garde les T annees les plus recentes
     x <- x[idx]; y <- y[idx]
   }
@@ -3319,6 +3323,34 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
   list(ok = length(err) == 0, erreurs = err, avertissements = avt, T = length(xt))
 }
 
+# Profondeur T demandee (issue #87) : les T annees les plus recentes d'une
+# serie de n annees. NULL : toute la serie, aucune erreur. Sinon, un nombre
+# entier scalaire fini, T_min <= T <= n, est exige (annexe XVII,
+# B/C(2)(b) : au moins 5 annees) ; une valeur non numerique, vide, multiple,
+# NA, infinie ou non entiere est refusee, faute de quoi l'indice
+# (n - T + 1):n tronquait la serie en silence (T = 5.5 : 3.5:8, soit les
+# annees 3 a 7). Retourne les motifs de refus (character(0) si T convient),
+# sans erreur R. T_min = 1 pour un simple chargement (usp_charger()), la
+# duree minimale y etant controlee plus tard par engine_valider_donnees().
+engine_valider_profondeur <- function(T, n, T_min = 5) {
+  if (is.null(T)) return(character(0))
+  # L'annexe XVII n'est citee que si la borne est la sienne (T_min >= 5) ;
+  # pour un simple chargement (T_min = 1), les motifs sont neutres.
+  source_T <- if (T_min >= 5) " (annexe XVII, B/C(2)(b))" else ""
+  if (!is.numeric(T) || length(T) != 1L || !is.finite(T) || T != round(T))
+    return(sprintf("Profondeur T = %s : un nombre entier d'annees est attendu%s ; la serie n'est pas tronquee.",
+                   if (!length(T)) "vide" else paste(deparse(T), collapse = " "), source_T))
+  if (T > n)
+    return(sprintf("Profondeur T = %s superieure au nombre d'annees disponibles (%d).",
+                   format(T), n))
+  if (T < T_min)
+    return(if (T_min >= 5)
+      sprintf("Annexe XVII, B/C(2)(b) : au moins %d annees consecutives (T = %s).",
+              T_min, format(T))
+      else sprintf("Profondeur T = %s : T >= %d attendu.", format(T), T_min))
+  character(0)
+}
+
 
 ## =============================================================================
 ## 9. QUANTITES NUMERIQUES DES GRAPHIQUES
@@ -4868,6 +4900,111 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
 ## 11. ORCHESTRATEUR PRINCIPAL
 ## =============================================================================
 
+# Arguments d'usage de run_engine() resolus avant le calcul protege (issue
+# #88) : une valeur invalide leve une erreur R explicite, comme avant #88,
+# et n'est jamais rendue en defaut de calcul intercepte. Sont refusees les
+# valeurs qui faisaient deja echouer le calcul (mesure sur la tete 5fe3d67 :
+# B = -1, NA, Inf, "a", "5", NULL, c(9, 19) levaient une erreur dans le
+# bootstrap ; seed NA dans set.seed()), plus B logique (TRUE etait calcule
+# comme B = 1) ; B = 0 et B = 10.5 etaient calcules et le restent, de meme
+# que seed NULL, "5" ou 1.5.
+# - B : nombre scalaire fini >= 0 ;
+# - seed : acceptee par set.seed(), essayee sous engine_sous_graine(), qui
+#   restaure l'etat du generateur de l'appelant ;
+# - bareme : NULL, "court" ou "long" (match.arg(), comme usp_credibilite()).
+.engine_verifier_usage <- function(B, seed, bareme) {
+  if (!is.numeric(B) || length(B) != 1L || !is.finite(B) || B < 0)
+    stop(sprintf("B = %s : un nombre scalaire fini de replications, B >= 0, est attendu.",
+                 if (!length(B)) "vide" else paste(deparse(B), collapse = " ")))
+  engine_sous_graine(seed, invisible(NULL))
+  if (!is.null(bareme)) match.arg(bareme, c("court", "long"))
+  invisible(TRUE)
+}
+
+# Calcul protege (issue #88, decision du mainteneur du 26/09/2026 : filet
+# limite au calcul). expr est le calcul qui suit une validation reussie
+# (branche lognormale apres engine_valider_donnees(), branche Merz-Wuthrich
+# apres mw_valider_triangle()). Une erreur R qui s'y produit est un DEFAUT
+# DE CALCUL INTERCEPTE, non un refus de donnees : le resultat porte ok =
+# FALSE, un motif neutre et fixe dans validation$erreurs (seul le nom de la
+# fonction d'origine y est variable) et le diagnostic dans
+# validation$erreur_r = list(message, appel, origine, pile) :
+#   message : conditionMessage() (traduit selon la locale) ;
+#   appel   : conditionCall(), deparse (premiere ligne), NA s'il n'y en a pas ;
+#   pile    : noms des fonctions appelees depuis le calcul protege jusqu'au
+#             point de l'erreur (sys.calls() capture par withCallingHandlers,
+#             avant le deroulement de la pile), sans les cadres de
+#             tryCatch() et de signalement ;
+#   origine : derniere fonction de la pile DEFINIE DANS LE MOTEUR (son nom
+#             designe, dans l'environnement de run_engine(), la fonction
+#             meme qui s'executait dans ce cadre) ; a defaut, dernier
+#             element de la pile. Les fonctions de R et les fermetures
+#             creees en cours de calcul (add() de engine_registre_tests())
+#             ne sont pas retenues : une erreur nee dans un argument
+#             evalue paresseusement (argument de sprintf() dans add()) ou
+#             dans une fonction de R appelee par le moteur (lm.fit()) est
+#             attribuee a la fonction du moteur qui la porte.
+# Resultat : meme forme que le refus de .run_engine_mw() (ok, validation,
+# methode, metadata$horodatage, metadata$methode). Aucun resultat partiel.
+# Les avertissements R ne sont pas captures. Option de developpement
+# options(usp.engine.lever_erreurs = TRUE) : l'erreur est relevee telle
+# quelle, sans interception. Les graines sont restaurees par
+# engine_sous_graine() (on.exit) lors du deroulement de la pile.
+.engine_calcul_protege <- function(methode, t0, validation, expr) {
+  if (isTRUE(getOption("usp.engine.lever_erreurs", FALSE))) return(expr)
+  niveau <- sys.nframe()
+  pile <- character(0)
+  du_moteur <- logical(0)
+  env_moteur <- environment(run_engine)
+  internes <- c("tryCatch", "tryCatchList", "tryCatchOne", "doTryCatch",
+                "withCallingHandlers", ".handleSimpleError", "h", "stop",
+                "signalCondition", ".signalSimpleWarning")
+  tryCatch(
+    withCallingHandlers(expr, error = function(e) {
+      cs <- sys.calls()
+      # Cadres propres au calcul : apres celui de .engine_calcul_protege(),
+      # sans le dernier (ce gestionnaire).
+      idx <- which(seq_along(cs) > niveau & seq_along(cs) < length(cs))
+      cs <- cs[idx]
+      # Nom de la fonction appelee ; "stats::lm" pour un appel qualifie.
+      noms <- vapply(cs, function(cl) {
+        f <- cl[[1]]
+        if (is.name(f)) as.character(f)
+        else if (is.call(f) && as.character(f[[1]])[1] %in% c("::", ":::"))
+          paste(deparse(f), collapse = "")
+        else "(fonction anonyme)"
+      }, "")
+      # Fonction du moteur : nom present dans l'environnement du moteur et
+      # designant la fonction meme executee dans le cadre.
+      moteur <- vapply(seq_along(cs), function(k) {
+        exists(noms[k], envir = env_moteur, mode = "function", inherits = FALSE) &&
+          identical(get(noms[k], envir = env_moteur, mode = "function", inherits = FALSE),
+                    sys.function(idx[k]))
+      }, logical(1))
+      garde <- !noms %in% internes
+      pile <<- noms[garde]
+      du_moteur <<- moteur[garde]
+    }),
+    error = function(e) {
+      appel <- conditionCall(e)
+      origine <- if (any(du_moteur)) pile[max(which(du_moteur))]
+                 else if (length(pile)) pile[length(pile)] else NA_character_
+      motif <- paste0("Defaut de calcul intercepte",
+                      if (!is.na(origine)) sprintf(" (erreur R dans %s())", origine) else " (erreur R)",
+                      " : aucun resultat n'est produit ; diagnostic dans validation$erreur_r.")
+      validation$ok <- FALSE
+      validation$erreurs <- c(validation$erreurs, motif)
+      validation$erreur_r <- list(
+        message = conditionMessage(e),
+        appel = if (is.null(appel)) NA_character_ else deparse(appel, nlines = 1L)[1],
+        origine = origine,
+        pile = pile)
+      structure(list(ok = FALSE, validation = validation, methode = methode,
+                     metadata = list(horodatage = t0, methode = methode)),
+                class = "usp_engine")
+    })
+}
+
 # run_engine() : lance toute la chaine de calcul a partir des donnees brutes et
 # des parametres utilisateur, et retourne un objet structure contenant
 # l'integralite des resultats necessaires a l'application.
@@ -4885,13 +5022,23 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
 #                  "premium", sans defaut (issue #55, M13) : sans elle, ok =
 #                  FALSE ; methodes de reserve : NULL ou "nettes" acceptes,
 #                  "brutes" refuse (ok = FALSE, C(2)(c), D(2)(f))
-#   T              profondeur retenue (les T dernieres annees) ; NULL = tout
+#   T              profondeur retenue (les T dernieres annees) ; NULL = tout ;
+#                  sinon entier scalaire fini, 5 <= T <= nombre d'annees, et
+#                  toute autre valeur donne ok = FALSE, sans troncature
+#                  (engine_valider_profondeur(), issue #87)
 #   B              nombre de replications bootstrap / Monte-Carlo
 #   alpha          seuil des verdicts
 #   seed           graine des simulations (reproductibilite)
 #   bareme         "court" ou "long" ; NULL = deduit du segment
 #
 # Valeur : liste de classe "usp_engine" (voir la structure en fin de fonction).
+# Erreurs (issue #88) : un argument d'usage invalide (methode, annexe,
+# segment inconnu, ni segment ni sigma_standard, xt manquant, B, seed,
+# bareme, reserve no 2 sans triangle) leve une erreur R explicite ; des
+# donnees refusees par la validation donnent ok = FALSE ; une erreur R levee
+# par le calcul qui suit une validation reussie est un DEFAUT DE CALCUL
+# INTERCEPTE (.engine_calcul_protege()) : ok = FALSE, motif neutre dans
+# validation$erreurs, diagnostic dans validation$erreur_r.
 # Orchestrateur de la methode du risque de reserve no 2. Retourne un objet de
 # meme classe et de meme forme generale que la branche lognormale, afin que la
 # couche d'affichage puisse le consommer sans traitement particulier.
@@ -4923,103 +5070,113 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   }
   if (is.null(bareme)) bareme <- usp_bareme_segment(segment, annexe)
 
-  aj   <- mw_ajuster(triangle)
-  msep <- mw_msep(aj)
-  # Second controle de validite metier, impossible avant l'ajustement : la
-  # reserve totale et la MSEP conditionnent l'existence meme de sigma(res,s,USP)
-  # (voir mw_valider_ajustement). Il est place ici, avant tout calcul de
-  # parametre ou de bootstrap, pour renvoyer ok = FALSE avec la validation
-  # plutot que de lever une erreur, comme la branche lognormale le fait pour
-  # des donnees invalides.
-  vc <- mw_valider_ajustement(aj, msep$msep)
-  # Les avertissements du second controle (extrapolation de sigma2_(J-1) sur
-  # une colonne degeneree) rejoignent ceux du premier, que le triangle soit
-  # accepte ou refuse.
-  validation$avertissements <- c(validation$avertissements, vc$avertissements)
-  if (!vc$ok) {
-    validation$ok <- FALSE
-    validation$erreurs <- c(validation$erreurs, vc$erreurs)
-    return(structure(list(ok = FALSE, validation = validation, methode = "reserve2",
-                          metadata = list(horodatage = t0, methode = "reserve2")),
-                     class = "usp_engine"))
-  }
+  # --- Calcul protege (issue #88) : ajustement et sorties, apres
+  # mw_valider_triangle() et la resolution des arguments d'usage. Une erreur R
+  # y est un defaut de calcul intercepte (.engine_calcul_protege()) ; le
+  # refus de mw_valider_ajustement() garde son return() (ok = FALSE).
+  # L'argument validation de .engine_calcul_protege() est une promesse
+  # evaluee a sa premiere utilisation, a l'entree du gestionnaire d'erreur,
+  # donc apres que le calcul l'a modifiee ici : un defaut intercepte garde
+  # les avertissements de mw_valider_ajustement().
+  .engine_calcul_protege("reserve2", t0, validation, {
+    aj   <- mw_ajuster(triangle)
+    msep <- mw_msep(aj)
+    # Second controle de validite metier, impossible avant l'ajustement : la
+    # reserve totale et la MSEP conditionnent l'existence meme de sigma(res,s,USP)
+    # (voir mw_valider_ajustement). Il est place ici, avant tout calcul de
+    # parametre ou de bootstrap, pour renvoyer ok = FALSE avec la validation
+    # plutot que de lever une erreur, comme la branche lognormale le fait pour
+    # des donnees invalides.
+    vc <- mw_valider_ajustement(aj, msep$msep)
+    # Les avertissements du second controle (extrapolation de sigma2_(J-1) sur
+    # une colonne degeneree) rejoignent ceux du premier, que le triangle soit
+    # accepte ou refuse.
+    validation$avertissements <- c(validation$avertissements, vc$avertissements)
+    if (!vc$ok) {
+      validation$ok <- FALSE
+      validation$erreurs <- c(validation$erreurs, vc$erreurs)
+      return(structure(list(ok = FALSE, validation = validation, methode = "reserve2",
+                            metadata = list(horodatage = t0, methode = "reserve2")),
+                       class = "usp_engine"))
+    }
 
-  par  <- mw_parametre(aj, msep$msep, sigma_standard, bareme)
-  boot <- mw_bootstrap(aj, B = B, seed = seed)
-  tests <- mw_tests(aj, boot, alpha)
-  res   <- mw_residus(aj)
-  # L'exclusion de colonnes est restituee par l'avertissement de
-  # mw_valider_ajustement() ; l'attribut n'est pas stocke dans le resultat
-  # (structure des references inchangee, issue #33).
-  attr(res, "colonnes_exclues") <- NULL
+    par  <- mw_parametre(aj, msep$msep, sigma_standard, bareme)
+    boot <- mw_bootstrap(aj, B = B, seed = seed)
+    tests <- mw_tests(aj, boot, alpha)
+    res   <- mw_residus(aj)
+    # L'exclusion de colonnes est restituee par l'avertissement de
+    # mw_valider_ajustement() ; l'attribut n'est pas stocke dans le resultat
+    # (structure des references inchangee, issue #33).
+    attr(res, "colonnes_exclues") <- NULL
 
-  ic <- if (length(boot$sigma_boot) > 20)
-    stats::quantile(par$credibilite * boot$sigma_boot +
-                    (1 - par$credibilite) * sigma_standard,
-                    c(.025, .05, .5, .95, .975)) else NULL
+    ic <- if (length(boot$sigma_boot) > 20)
+      stats::quantile(par$credibilite * boot$sigma_boot +
+                      (1 - par$credibilite) * sigma_standard,
+                      c(.025, .05, .5, .95, .975)) else NULL
 
-  descriptif <- data.frame(
-    grandeur = c("Annees d'accident (I+1)", "Annees de developpement (J+1)",
-                 "Cellules observees", "Dernier cumul total", "Ultime total",
-                 "Reserve totale", "racine(MSEP) a un an", "CV a un an"),
-    valeur = c(aj$I + 1, aj$J + 1, sum(!is.na(triangle)),
-               sum(aj$dernier_observe), sum(aj$ultime), aj$reserve,
-               par$racine_msep, par$sigma_estime),
-    stringsAsFactors = FALSE)
+    descriptif <- data.frame(
+      grandeur = c("Annees d'accident (I+1)", "Annees de developpement (J+1)",
+                   "Cellules observees", "Dernier cumul total", "Ultime total",
+                   "Reserve totale", "racine(MSEP) a un an", "CV a un an"),
+      valeur = c(aj$I + 1, aj$J + 1, sum(!is.na(triangle)),
+                 sum(aj$dernier_observe), sum(aj$ultime), aj$reserve,
+                 par$racine_msep, par$sigma_estime),
+      stringsAsFactors = FALSE)
 
-  calibration <- data.frame(
-    etape = c("Reserve chain-ladder totale", "MSEP a un an",
-              "racine(MSEP)", "sigma estime = racine(MSEP) / reserve",
-              "facteur de credibilite c", "sigma standard (formule standard)",
-              "sigma_USP = c*sigma_estime + (1-c)*sigma_standard"),
-    valeur = c(aj$reserve, msep$msep, par$racine_msep, par$sigma_estime,
-               par$credibilite, sigma_standard, par$sigma_usp),
-    stringsAsFactors = FALSE)
+    calibration <- data.frame(
+      etape = c("Reserve chain-ladder totale", "MSEP a un an",
+                "racine(MSEP)", "sigma estime = racine(MSEP) / reserve",
+                "facteur de credibilite c", "sigma standard (formule standard)",
+                "sigma_USP = c*sigma_estime + (1-c)*sigma_standard"),
+      valeur = c(aj$reserve, msep$msep, par$racine_msep, par$sigma_estime,
+                 par$credibilite, sigma_standard, par$sigma_usp),
+      stringsAsFactors = FALSE)
 
-  candidats <- data.frame(
-    variante = c("sigma standard (aucun USP)", "sigma estime seul (credibilite 100%)",
-                 "sigma_USP retenu (annexe XVII)"),
-    valeur = c(sigma_standard, par$sigma_estime, par$sigma_usp),
-    retenu = c(FALSE, FALSE, TRUE), stringsAsFactors = FALSE)
+    candidats <- data.frame(
+      variante = c("sigma standard (aucun USP)", "sigma estime seul (credibilite 100%)",
+                   "sigma_USP retenu (annexe XVII)"),
+      valeur = c(sigma_standard, par$sigma_estime, par$sigma_usp),
+      retenu = c(FALSE, FALSE, TRUE), stringsAsFactors = FALSE)
 
-  structure(list(
-    ok = TRUE, methode = "reserve2",
-    triangle = triangle,
-    donnees = data.frame(i = res$i, j = res$j, C = res$C, F = res$F,
-                         residu = res$residu),
-    validation = validation,
-    controles = list(list(test = "Structure du triangle", verdict = "OK",
-                          detail = sprintf("I = %d, J = %d, %d cellules observees",
-                                           aj$I, aj$J, sum(!is.na(triangle))))),
-    statistiques_descriptives = descriptif,
-    ajustement = aj, msep = msep, residus = res,
-    tests = tests, bootstrap = boot, ic_bootstrap = ic,
-    calibration = calibration, candidats = candidats,
-    parametre_final = list(sigma_usp = par$sigma_usp,
-                           sigma_estime = par$sigma_estime,
-                           sigma_estime_brut = par$sigma_estime,
-                           correction_taille = 1,
-                           credibilite = par$credibilite,
-                           sigma_standard = sigma_standard,
-                           variation_relative = par$variation_relative),
-    plots_data = mw_plots_data(aj, res, boot, msep),
-    metadata = list(methode = "reserve2", segment = segment, annexe = annexe,
-                    libelle_segment = if (!is.null(infos)) infos$libelle else NA_character_,
-                    T = aj$I + 1L, I = aj$I, J = aj$J, B = B, alpha = alpha,
-                    seed = seed, bareme = bareme, sigma_standard = sigma_standard,
-                    # Place apres les champs anterieurs (issue #55), suivi des
-                    # seuls champs de l'issue #37 puis des champs d'execution.
-                    sigma_standard_saisi = saisi,
-                    # Generateur pose par engine_sous_graine() et graine fixe
-                    # de la loi nulle de Shapiro-Wilk (issue #37, ADR 0004
-                    # point 2). Places apres les champs existants, avant les
-                    # champs d'execution.
-                    generateur = as.list(ENGINE_RNG_KIND),
-                    seed_loi_nulle_sw = SEED_LOI_NULLE_SW,
-                    horodatage = t0,
-                    duree_sec = as.numeric(difftime(Sys.time(), t0, units = "secs")),
-                    version_R = R.version.string)
-  ), class = "usp_engine")
+    structure(list(
+      ok = TRUE, methode = "reserve2",
+      triangle = triangle,
+      donnees = data.frame(i = res$i, j = res$j, C = res$C, F = res$F,
+                           residu = res$residu),
+      validation = validation,
+      controles = list(list(test = "Structure du triangle", verdict = "OK",
+                            detail = sprintf("I = %d, J = %d, %d cellules observees",
+                                             aj$I, aj$J, sum(!is.na(triangle))))),
+      statistiques_descriptives = descriptif,
+      ajustement = aj, msep = msep, residus = res,
+      tests = tests, bootstrap = boot, ic_bootstrap = ic,
+      calibration = calibration, candidats = candidats,
+      parametre_final = list(sigma_usp = par$sigma_usp,
+                             sigma_estime = par$sigma_estime,
+                             sigma_estime_brut = par$sigma_estime,
+                             correction_taille = 1,
+                             credibilite = par$credibilite,
+                             sigma_standard = sigma_standard,
+                             variation_relative = par$variation_relative),
+      plots_data = mw_plots_data(aj, res, boot, msep),
+      metadata = list(methode = "reserve2", segment = segment, annexe = annexe,
+                      libelle_segment = if (!is.null(infos)) infos$libelle else NA_character_,
+                      T = aj$I + 1L, I = aj$I, J = aj$J, B = B, alpha = alpha,
+                      seed = seed, bareme = bareme, sigma_standard = sigma_standard,
+                      # Place apres les champs anterieurs (issue #55), suivi des
+                      # seuls champs de l'issue #37 puis des champs d'execution.
+                      sigma_standard_saisi = saisi,
+                      # Generateur pose par engine_sous_graine() et graine fixe
+                      # de la loi nulle de Shapiro-Wilk (issue #37, ADR 0004
+                      # point 2). Places apres les champs existants, avant les
+                      # champs d'execution.
+                      generateur = as.list(ENGINE_RNG_KIND),
+                      seed_loi_nulle_sw = SEED_LOI_NULLE_SW,
+                      horodatage = t0,
+                      duree_sec = as.numeric(difftime(Sys.time(), t0, units = "secs")),
+                      version_R = R.version.string)
+    ), class = "usp_engine")
+  })
 }
 
 # --- Diagnostics d'influence du triangle (methode Merz-Wuthrich) -------------
@@ -5144,6 +5301,10 @@ run_engine <- function(xt, yt,
   t0 <- Sys.time()
   methode <- match.arg(methode)
   annexe  <- match.arg(annexe)
+  # Arguments d'usage resolus AVANT le calcul protege (issue #88) : une
+  # valeur invalide reste une erreur R explicite, jamais un defaut de calcul
+  # intercepte.
+  .engine_verifier_usage(B, seed, bareme)
 
   # --- Branche Merz-Wuthrich (methode du risque de reserve no 2) ------------
   # Cette methode ne prend pas en entree deux vecteurs mais un TRIANGLE de
@@ -5156,14 +5317,29 @@ run_engine <- function(xt, yt,
 
   # --- 1. Donnees et controles de validite ---------------------------------
   if (!plus_recent_en_dernier) { xt <- rev(xt); yt <- rev(yt) }
+  # Profondeur T (issue #87) : controlee AVANT toute troncature. Une valeur
+  # non entiere, NA, non finie, multiple ou hors de [5 ; n] est refusee
+  # (ok = FALSE) ; elle etait auparavant ignoree (NA, Inf, texte) ou
+  # tronquait la serie en silence ((n - 5.5 + 1):n = 3.5:8 retient 5 annees
+  # et ecarte la plus recente). Refusee, la serie n'est pas tronquee et la
+  # validation des donnees porte sur la serie entiere.
   n <- length(xt)
-  if (!is.null(T) && is.finite(T)) {
-    if (T > n) stop(sprintf("T = %d > profondeur disponible (%d).", T, n))
+  err_T <- engine_valider_profondeur(T, n)
+  if (!is.null(T) && !length(err_T)) {
     idx <- (n - T + 1):n; xt <- xt[idx]; yt <- yt[idx]
   }
   validation <- engine_valider_donnees(xt, yt, theta_equiv = theta_equiv,
                                        delta_equiv = delta_equiv, methode = methode,
                                        nature_donnees = nature_donnees)
+  # T refuse : aucune serie n'est retenue ; les avertissements, qui portent
+  # sur une serie retenue (longueur, ratios, amplitude), sont retires et la
+  # longueur retenue validation$T vaut NA (audit de #87, constat 4).
+  if (length(err_T)) {
+    validation$ok <- FALSE
+    validation$erreurs <- c(err_T, validation$erreurs)
+    validation$avertissements <- character(0)
+    validation$T <- NA_integer_
+  }
   if (!validation$ok)
     return(structure(list(ok = FALSE, validation = validation,
                           metadata = list(horodatage = t0)), class = "usp_engine"))
@@ -5182,124 +5358,129 @@ run_engine <- function(xt, yt,
   # bareme court, quel que soit leur numero.
   if (is.null(bareme)) bareme <- usp_bareme_segment(segment, annexe)
 
-  # --- 3. Estimation, bootstrap, robustesse ---------------------------------
-  controles <- usp_controle_donnees(xt, yt, alpha)
-  fit   <- usp_ajuster(xt, yt)
-  # Controles numeriques de l'estimation (famille H, non bloquants, #22)
-  controles <- c(controles, usp_controles_numeriques(fit))
-  boot  <- usp_bootstrap(fit, B = B, seed = seed, progres = FALSE)
-  param <- usp_parametre(fit, sigma_standard, bareme)
-  jack  <- usp_jackknife(fit, sigma_standard, bareme)
-  prof  <- usp_profil(fit)
+  # --- Calcul protege (issue #88) : estimation et sorties, apres une
+  # validation reussie. Une erreur R y est un defaut de calcul intercepte
+  # (.engine_calcul_protege()), rendu en ok = FALSE.
+  .engine_calcul_protege(methode, t0, validation, {
+    # --- 3. Estimation, bootstrap, robustesse ---------------------------------
+    controles <- usp_controle_donnees(xt, yt, alpha)
+    fit   <- usp_ajuster(xt, yt)
+    # Controles numeriques de l'estimation (famille H, non bloquants, #22)
+    controles <- c(controles, usp_controles_numeriques(fit))
+    boot  <- usp_bootstrap(fit, B = B, seed = seed, progres = FALSE)
+    param <- usp_parametre(fit, sigma_standard, bareme)
+    jack  <- usp_jackknife(fit, sigma_standard, bareme)
+    prof  <- usp_profil(fit)
 
-  cred <- param$credibilite; corr <- param$correction_taille
-  usp_b <- cred * boot$sigma_boot * corr + (1 - cred) * sigma_standard
-  ic <- if (length(usp_b) > 20)
-    stats::quantile(usp_b, c(.025, .05, .5, .95, .975)) else NULL
+    cred <- param$credibilite; corr <- param$correction_taille
+    usp_b <- cred * boot$sigma_boot * corr + (1 - cred) * sigma_standard
+    ic <- if (length(usp_b) > 20)
+      stats::quantile(usp_b, c(.025, .05, .5, .95, .975)) else NULL
 
-  # Jackknife entierement non calcule (tous les reajustements en echec) : pas
-  # de ligne jackknife (fit$ecart_jackknife NULL) plutot qu'un max a -Inf.
-  d_jack <- jack$sigma_usp - param$sigma_usp
-  jack_calcule <- any(is.finite(d_jack))
-  fit$ecart_jackknife <- if (jack_calcule)
-    max(abs(jack$sigma_usp - param$sigma_usp), na.rm = TRUE) / param$sigma_usp else NULL
-  fit$largeur_ic <- if (!is.null(ic)) unname((ic[4] - ic[2]) / param$sigma_usp) else NULL
-  # kkt_au_moins_un (#22) est replace en DERNIERE position de res$ajustement,
-  # apres ecart_jackknife et largeur_ic apposes ci-dessus : le patcheur des
-  # references (tests/patcher_reference.R) n'ajoute une feuille qu'en fin de
-  # conteneur, et refuse le patch (verification "structure") sinon.
-  fit <- fit[c(setdiff(names(fit), "kkt_au_moins_un"), "kkt_au_moins_un")]
+    # Jackknife entierement non calcule (tous les reajustements en echec) : pas
+    # de ligne jackknife (fit$ecart_jackknife NULL) plutot qu'un max a -Inf.
+    d_jack <- jack$sigma_usp - param$sigma_usp
+    jack_calcule <- any(is.finite(d_jack))
+    fit$ecart_jackknife <- if (jack_calcule)
+      max(abs(jack$sigma_usp - param$sigma_usp), na.rm = TRUE) / param$sigma_usp else NULL
+    fit$largeur_ic <- if (!is.null(ic)) unname((ic[4] - ic[2]) / param$sigma_usp) else NULL
+    # kkt_au_moins_un (#22) est replace en DERNIERE position de res$ajustement,
+    # apres ecart_jackknife et largeur_ic apposes ci-dessus : le patcheur des
+    # references (tests/patcher_reference.R) n'ajoute une feuille qu'en fin de
+    # conteneur, et refuse le patch (verification "structure") sinon.
+    fit <- fit[c(setdiff(names(fit), "kkt_au_moins_un"), "kkt_au_moins_un")]
 
-  # Elements du detail de la ligne jackknife de usp_tests() : calcules ici,
-  # transmis a usp_tests() et NON stockes dans fit ni dans le resultat.
-  # jack_annee : annee de plus grand |ecart| sur sigma_USP ; jack_usp : ecart
-  # signe a cette annee (seul son signe est imprime, issues #24 et #76).
-  # NULL si aucun reajustement n'a abouti.
-  i_jack <- if (jack_calcule) which.max(abs(d_jack)) else NULL
-  robustesse <- list(
-    jack_annee = i_jack,
-    jack_usp   = if (jack_calcule) d_jack[i_jack] / param$sigma_usp else NULL)
+    # Elements du detail de la ligne jackknife de usp_tests() : calcules ici,
+    # transmis a usp_tests() et NON stockes dans fit ni dans le resultat.
+    # jack_annee : annee de plus grand |ecart| sur sigma_USP ; jack_usp : ecart
+    # signe a cette annee (seul son signe est imprime, issues #24 et #76).
+    # NULL si aucun reajustement n'a abouti.
+    i_jack <- if (jack_calcule) which.max(abs(d_jack)) else NULL
+    robustesse <- list(
+      jack_annee = i_jack,
+      jack_usp   = if (jack_calcule) d_jack[i_jack] / param$sigma_usp else NULL)
 
-  tests <- usp_tests(fit, boot, alpha, theta_equiv = theta_equiv,
-                     delta_equiv = delta_equiv, robustesse = robustesse)
+    tests <- usp_tests(fit, boot, alpha, theta_equiv = theta_equiv,
+                       delta_equiv = delta_equiv, robustesse = robustesse)
 
-  # --- 4. Statistiques descriptives -----------------------------------------
-  r <- yt / xt
-  descriptif <- data.frame(
-    grandeur = c("T", "somme(xt)", "somme(yt)", "moyenne(xt)", "moyenne(yt)",
-                 "ratio moyen y/x", "mediane du ratio", "ecart-type du ratio",
-                 "coefficient de variation du ratio", "min du ratio", "max du ratio",
-                 "amplitude max(x)/min(x)"),
-    valeur = c(T, sum(xt), sum(yt), mean(xt), mean(yt), mean(r), stats::median(r),
-               stats::sd(r), stats::sd(r) / mean(r), min(r), max(r), max(xt) / min(xt)),
-    stringsAsFactors = FALSE)
+    # --- 4. Statistiques descriptives -----------------------------------------
+    r <- yt / xt
+    descriptif <- data.frame(
+      grandeur = c("T", "somme(xt)", "somme(yt)", "moyenne(xt)", "moyenne(yt)",
+                   "ratio moyen y/x", "mediane du ratio", "ecart-type du ratio",
+                   "coefficient de variation du ratio", "min du ratio", "max du ratio",
+                   "amplitude max(x)/min(x)"),
+      valeur = c(T, sum(xt), sum(yt), mean(xt), mean(yt), mean(r), stats::median(r),
+                 stats::sd(r), stats::sd(r) / mean(r), min(r), max(r), max(xt) / min(xt)),
+      stringsAsFactors = FALSE)
 
-  # --- 5. Calibration : etapes explicites -----------------------------------
-  calibration <- data.frame(
-    etape = c("delta (parametre de melange)",
-              "gamma (coefficient de variation logarithmique)",
-              "beta (ratio moyen implicite)",
-              "sigma(delta, gamma) estime",
-              "correction de taille finie sqrt((T+1)/(T-1))",
-              "sigma estime corrige",
-              "facteur de credibilite c",
-              "sigma standard (formule standard)",
-              "sigma_USP = c*sigma_corrige + (1-c)*sigma_standard"),
-    valeur = c(fit$delta, fit$gamma, fit$beta, param$sigma_estime_brut,
-               param$correction_taille, param$sigma_estime, param$credibilite,
-               param$sigma_standard, param$sigma_usp),
-    stringsAsFactors = FALSE)
+    # --- 5. Calibration : etapes explicites -----------------------------------
+    calibration <- data.frame(
+      etape = c("delta (parametre de melange)",
+                "gamma (coefficient de variation logarithmique)",
+                "beta (ratio moyen implicite)",
+                "sigma(delta, gamma) estime",
+                "correction de taille finie sqrt((T+1)/(T-1))",
+                "sigma estime corrige",
+                "facteur de credibilite c",
+                "sigma standard (formule standard)",
+                "sigma_USP = c*sigma_corrige + (1-c)*sigma_standard"),
+      valeur = c(fit$delta, fit$gamma, fit$beta, param$sigma_estime_brut,
+                 param$correction_taille, param$sigma_estime, param$credibilite,
+                 param$sigma_standard, param$sigma_usp),
+      stringsAsFactors = FALSE)
 
-  candidats <- data.frame(
-    variante = c("sigma standard (aucun USP)", "sigma estime seul (credibilite 100%)",
-                 "sigma_USP retenu (annexe XVII)"),
-    valeur = c(sigma_standard, param$sigma_estime, param$sigma_usp),
-    retenu = c(FALSE, FALSE, TRUE), stringsAsFactors = FALSE)
+    candidats <- data.frame(
+      variante = c("sigma standard (aucun USP)", "sigma estime seul (credibilite 100%)",
+                   "sigma_USP retenu (annexe XVII)"),
+      valeur = c(sigma_standard, param$sigma_estime, param$sigma_usp),
+      retenu = c(FALSE, FALSE, TRUE), stringsAsFactors = FALSE)
 
-  # --- 6. Objet de sortie ----------------------------------------------------
-  structure(list(
-    ok = TRUE,
-    donnees = data.frame(t = seq_len(T), xt = xt, yt = yt, ratio = r),
-    validation = validation,
-    controles = controles,
-    statistiques_descriptives = descriptif,
-    ajustement = fit,
-    tests = tests,
-    bootstrap = boot,
-    ic_bootstrap = ic,
-    jackknife = jack,
-    profil = prof,
-    calibration = calibration,
-    candidats = candidats,
-    parametre_final = param,
-    plots_data = engine_plots_data(fit, boot, prof, jack, param$sigma_usp),
-    metadata = c(
-      list(methode = methode, segment = segment, annexe = annexe,
-           libelle_segment = if (!is.null(infos)) infos$libelle else NA_character_,
-           T = T, B = B,
-           alpha = alpha, seed = seed, bareme = bareme,
-           theta_equiv = theta_equiv, delta_equiv = delta_equiv,
-           sigma_standard = sigma_standard),
-      # Issue #55. Nature declaree des donnees : methode du risque de primes
-      # seulement (les methodes de reserve n'ont pas ce champ : donnees
-      # nettes par exigence du texte, C(2)(c), D(2)(f)). Saisie libre du
-      # sigma standard (derogation au parametre reglementaire) : drapeau
-      # explicite pour les trois methodes. Places apres les champs
-      # anterieurs, suivis des seuls champs de l'issue #37 puis des champs
-      # d'execution (retires par nettoyer() des tests).
-      if (methode == "premium") list(nature_donnees = nature_donnees),
-      list(sigma_standard_saisi = saisi),
-      # Generateur pose par engine_sous_graine() et graines fixes des
-      # simulations autres que le bootstrap (issue #37, ADR 0004 point 2) :
-      # loi nulle de Shapiro-Wilk, enveloppe du QQ-plot. Places apres les
-      # champs existants, avant les champs d'execution.
-      list(generateur = as.list(ENGINE_RNG_KIND),
-           seed_loi_nulle_sw = SEED_LOI_NULLE_SW,
-           seed_enveloppe_qq = SEED_ENVELOPPE_QQ),
-      list(horodatage = t0,
-           duree_sec = as.numeric(difftime(Sys.time(), t0, units = "secs")),
-           version_R = R.version.string))
-  ), class = "usp_engine")
+    # --- 6. Objet de sortie ----------------------------------------------------
+    structure(list(
+      ok = TRUE,
+      donnees = data.frame(t = seq_len(T), xt = xt, yt = yt, ratio = r),
+      validation = validation,
+      controles = controles,
+      statistiques_descriptives = descriptif,
+      ajustement = fit,
+      tests = tests,
+      bootstrap = boot,
+      ic_bootstrap = ic,
+      jackknife = jack,
+      profil = prof,
+      calibration = calibration,
+      candidats = candidats,
+      parametre_final = param,
+      plots_data = engine_plots_data(fit, boot, prof, jack, param$sigma_usp),
+      metadata = c(
+        list(methode = methode, segment = segment, annexe = annexe,
+             libelle_segment = if (!is.null(infos)) infos$libelle else NA_character_,
+             T = T, B = B,
+             alpha = alpha, seed = seed, bareme = bareme,
+             theta_equiv = theta_equiv, delta_equiv = delta_equiv,
+             sigma_standard = sigma_standard),
+        # Issue #55. Nature declaree des donnees : methode du risque de primes
+        # seulement (les methodes de reserve n'ont pas ce champ : donnees
+        # nettes par exigence du texte, C(2)(c), D(2)(f)). Saisie libre du
+        # sigma standard (derogation au parametre reglementaire) : drapeau
+        # explicite pour les trois methodes. Places apres les champs
+        # anterieurs, suivis des seuls champs de l'issue #37 puis des champs
+        # d'execution (retires par nettoyer() des tests).
+        if (methode == "premium") list(nature_donnees = nature_donnees),
+        list(sigma_standard_saisi = saisi),
+        # Generateur pose par engine_sous_graine() et graines fixes des
+        # simulations autres que le bootstrap (issue #37, ADR 0004 point 2) :
+        # loi nulle de Shapiro-Wilk, enveloppe du QQ-plot. Places apres les
+        # champs existants, avant les champs d'execution.
+        list(generateur = as.list(ENGINE_RNG_KIND),
+             seed_loi_nulle_sw = SEED_LOI_NULLE_SW,
+             seed_enveloppe_qq = SEED_ENVELOPPE_QQ),
+        list(horodatage = t0,
+             duree_sec = as.numeric(difftime(Sys.time(), t0, units = "secs")),
+             version_R = R.version.string))
+    ), class = "usp_engine")
+  })
 }
 
 

@@ -665,7 +665,8 @@ if (sys.nframe() == 0L) {
       refuser(sprintf("%s existe deja : une reference existante se regenere (mode regeneration), elle ne se cree pas.", ref_f))
     emp_avant <- empreintes_references(DOSSIER_REF)
     res <- executer_cas(nom)
-    if (!isTRUE(res$ok)) refuser(sprintf("run_engine() renvoie ok = FALSE pour le cas %s.", nom))
+    if (!isTRUE(res$ok)) refuser(sprintf("run_engine() renvoie ok = FALSE pour le cas %s.\n%s",
+                                         nom, decrire_refus(res)))
     dest <- chemin_tableau(nom, issue)
     cat(sprintf("\n=== %s : creation ; %d feuille(s) ; sigma_USP = %.10f\n", nom,
                 length(aplatir(res)), res$parametre_final$sigma_usp))
@@ -709,6 +710,13 @@ if (sys.nframe() == 0L) {
     nom <- noms[k]; ref_f <- refs[k]; motifs <- motifs_par_cas[[nom]]
     avant <- readRDS(ref_f)
     apres <- executer_cas(nom)
+    # Resultat ok = FALSE (refus ou defaut de calcul intercepte, issue #88) :
+    # rien n'est compare ni ecrit ; motifs et diagnostic affiches, code 1.
+    if (!isTRUE(apres$ok)) {
+      cat(sprintf("\nREFUS -- run_engine() renvoie ok = FALSE pour le cas %s.\n%s\nRegeneration refusee : rien n'a ete ecrit.\n",
+                  nom, decrire_refus(apres)))
+      quit(status = 1)
+    }
     a <- analyser_regeneration(avant, apres, motifs)
     d <- decider(a, ecrire)
     dest <- chemin_tableau(nom, issue)

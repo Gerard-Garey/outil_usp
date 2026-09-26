@@ -117,6 +117,175 @@ verifier("run_engine : theta_equiv NA ou 1, delta_equiv vide -> ok = FALSE, sans
              contient(r3$validation$erreurs, "delta_equiv")
          })
 
+## --- Profondeur T (issue #87) ------------------------------------------------
+# Defaut releve par audit (audit leger de #33) : T = 5.5 donnait l'indice
+# (n - T + 1):n = 3.5:8, soit les annees 3 a 7 (l'annee la plus recente
+# ecartee en silence, sigma_USP 0,108587 au lieu de 0,111452) ; NA, Inf et un
+# texte etaient ignores (T = 8) ; c(5, 6) et T = 9.5 > n levaient une erreur
+# R. Attendu : ok = FALSE avec un motif, sans troncature ni erreur R.
+T_refuses <- list(5.5, 7.5, 9.5, NA, NA_real_, Inf, -Inf, c(5, 6), "6", numeric(0), TRUE)
+verifier("engine_valider_profondeur : NULL et entiers de [5 ; n] acceptes (5, 8, 6L)",
+         identical(engine_valider_profondeur(NULL, 8), character(0)) &&
+         all(vapply(list(5, 8, 6L, 7), function(t)
+           identical(engine_valider_profondeur(t, 8), character(0)), logical(1))))
+verifier("engine_valider_profondeur : non entier, NA, infini, multiple, texte, vide, logique refuses (motif 'entier')",
+         all(vapply(T_refuses, function(t) {
+           e <- engine_valider_profondeur(t, 8)
+           length(e) == 1L && contient(e, "nombre entier d'annees")
+         }, logical(1))))
+verifier("engine_valider_profondeur : T > n et T < 5 refuses ; T_min parametrable",
+         contient(engine_valider_profondeur(9, 8), "superieure au nombre d'annees disponibles (8)") &&
+         all(vapply(c(4, 0, -1), function(t)
+           contient(engine_valider_profondeur(t, 8), "au moins 5"), logical(1))) &&
+         identical(engine_valider_profondeur(3, 8, T_min = 1), character(0)))
+verifier("run_engine : T refuse (5.5, NA, Inf, c(5, 6), '6', T > n entier ou non) -> ok = FALSE avec motif, sans erreur R (#87)",
+         all(vapply(c(T_refuses[c(1, 3, 4, 6, 8, 9)], list(9)), function(t) {
+           r <- tryCatch(run_engine(xt = x, yt = y, methode = "premium", segment = 1,
+                                    B = 19, T = t, nature_donnees = "brutes"),
+                         error = function(e) e)
+           !inherits(r, "error") && identical(r$ok, FALSE) &&
+             contient(r$validation$erreurs, "Profondeur T")
+         }, logical(1))))
+verifier("run_engine : T = 6 retient les 6 annees les plus recentes (metadata$T = 6), T = 8 equivaut a T absent",
+         {
+           r6 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 19,
+                            T = 6, nature_donnees = "brutes")
+           r8 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 19,
+                            T = 8, nature_donnees = "brutes")
+           r0 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 19,
+                            nature_donnees = "brutes")
+           isTRUE(r6$ok) && identical(r6$metadata$T, 6L) &&
+             identical(r6$donnees$xt, x[3:8]) && identical(r6$donnees$yt, y[3:8]) &&
+             identical(r8$parametre_final, r0$parametre_final) && identical(r8$metadata$T, 8L)
+         })
+verifier("usp_charger : T non entier ou NA refuse (erreur explicite, pas de troncature) (#87)",
+         {
+           fx3 <- tempfile(fileext = ".csv"); fy3 <- tempfile(fileext = ".csv")
+           writeLines(as.character(x), fx3); writeLines(as.character(y), fy3)
+           e <- tryCatch(usp_charger(fx3, fy3, T = 5.5), error = function(e) conditionMessage(e))
+           is.character(e) && grepl("nombre entier", e, fixed = TRUE) &&
+             leve_erreur(usp_charger(fx3, fy3, T = NA))
+         })
+
+verifier("run_engine : T refuse -> aucun avertissement de serie retenue, validation$T = NA (#87, audit)",
+         {
+           r <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 19,
+                           T = 5.5, nature_donnees = "brutes")
+           identical(r$ok, FALSE) && identical(r$validation$avertissements, character(0)) &&
+             identical(r$validation$T, NA_integer_)
+         })
+verifier("engine_valider_profondeur : annexe XVII citee si T_min >= 5 seulement ; motif neutre sinon",
+         contient(engine_valider_profondeur(5.5, 8), "annexe XVII") &&
+         !contient(engine_valider_profondeur(5.5, 8, T_min = 1), "annexe XVII") &&
+         identical(engine_valider_profondeur(0, 8, T_min = 1), "Profondeur T = 0 : T >= 1 attendu."))
+
+## --- Donnees a l'echelle extreme (issue #88) ---------------------------------
+# Defaut releve par audit (audit leger de #33) : des donnees finies et
+# strictement positives mais a l'echelle extreme passaient la validation et
+# faisaient lever une erreur R en cours de calcul (xt x 1e298 : lm.fit() de
+# test_white(), regresseur x^2 infini ; yt x 1e-300 : test logique sur NA
+# dans le detail de la distance de Cook). Decision du mainteneur (26/09/2026)
+# : filet limite au calcul qui suit une validation reussie ; l'erreur y est
+# un DEFAUT DE CALCUL INTERCEPTE (ok = FALSE, motif neutre, diagnostic dans
+# validation$erreur_r) ; les erreurs d'usage restent des erreurs R. Aucun
+# seuil d'echelle. Les motifs compares sont les textes fixes du moteur, en
+# ASCII, jamais le message traduit de conditionMessage().
+MOTIF_DEFAUT <- "Defaut de calcul intercepte"
+calcul_extreme <- function(xt, yt) suppressWarnings(
+  run_engine(xt = xt, yt = yt, methode = "premium", segment = 1, B = 19,
+             nature_donnees = "brutes"))
+verifier("run_engine : xt x 1e298, xt x 1e200, yt x 1e-300, xt et yt x 1e-300 -> ok = FALSE, defaut intercepte, sans erreur R (#88)",
+         all(vapply(list(list(x * 1e298, y), list(x * 1e200, y), list(x, y * 1e-300),
+                         list(x * 1e-300, y * 1e-300)), function(d) {
+           r <- tryCatch(calcul_extreme(d[[1]], d[[2]]), error = function(e) e)
+           er <- r$validation$erreur_r
+           !inherits(r, "error") && identical(r$ok, FALSE) && inherits(r, "usp_engine") &&
+             contient(r$validation$erreurs, MOTIF_DEFAUT) &&
+             is.list(er) && identical(names(er), c("message", "appel", "origine", "pile")) &&
+             is.character(er$message) && length(er$pile) >= 1L &&
+             is.character(er$origine) && length(er$origine) == 1L && er$origine %in% er$pile &&
+             identical(r$methode, "premium") && identical(r$metadata$methode, "premium")
+         }, logical(1))))
+# Origine = derniere fonction de la pile definie dans le moteur. yt x 1e-300 :
+# l'erreur nait du if (any(ck > 4 / T)) ecrit dans usp_tests(), passe en
+# argument de sprintf() dans add() et evalue paresseusement dans le cadre de
+# sprintf() ; add() est une fermeture creee par engine_registre_tests(), non
+# une fonction de l'environnement du moteur : l'origine est usp_tests.
+# xt x 1e298 : l'erreur nait dans lm.fit() (stats) appele par test_white().
+verifier("run_engine : origine reelle de l'erreur, fonction du moteur (xt x 1e298 : test_white, pile jusqu'a lm.fit ; yt x 1e-300 : usp_tests, pile usp_tests > add > sprintf)",
+         {
+           a <- calcul_extreme(x * 1e298, y)$validation
+           b <- calcul_extreme(x, y * 1e-300)$validation
+           a$erreur_r$origine == "test_white" && a$erreur_r$pile[length(a$erreur_r$pile)] == "lm.fit" && all(c("usp_bootstrap", "test_white", "stats::lm") %in% a$erreur_r$pile) &&
+             contient(a$erreurs, "(erreur R dans test_white())") &&
+             identical(b$erreur_r$pile, c("usp_tests", "add", "sprintf")) &&
+             identical(b$erreur_r$origine, "usp_tests") &&
+             contient(b$erreurs, "(erreur R dans usp_tests())")
+         })
+verifier("run_engine : xt x 1e-300 (cas cite par l'issue) -> aucune erreur R, ok logique",
+         {
+           r <- tryCatch(calcul_extreme(x * 1e-300, y), error = function(e) e)
+           !inherits(r, "error") && is.logical(r$ok) && length(r$ok) == 1L && !is.na(r$ok)
+         })
+verifier("run_engine : generateur et graine de l'appelant restaures apres un defaut intercepte",
+         {
+           kind0 <- RNGkind()
+           suppressWarnings(RNGkind("Wichmann-Hill", "Box-Muller", "Rounding"))
+           set.seed(7); avant <- .Random.seed; k_avant <- RNGkind()
+           r <- calcul_extreme(x * 1e298, y)
+           ok <- identical(r$ok, FALSE) && identical(.Random.seed, avant) &&
+             identical(RNGkind(), k_avant)
+           suppressWarnings(RNGkind(kind0[1], kind0[2], kind0[3]))
+           ok
+         })
+verifier("run_engine : options(usp.engine.lever_erreurs = TRUE) releve l'erreur au lieu de l'intercepter",
+         {
+           ancien <- options(usp.engine.lever_erreurs = TRUE)
+           leve <- leve_erreur(calcul_extreme(x * 1e298, y))
+           options(ancien)
+           leve && identical(calcul_extreme(x * 1e298, y)$ok, FALSE)
+         })
+verifier("run_engine, Merz-Wuthrich : erreur dans le calcul apres mw_valider_triangle() -> defaut intercepte (reserve2)",
+         {
+           e <- environment(run_engine)
+           orig <- get("mw_bootstrap", envir = e)
+           assign("mw_bootstrap", function(...) stop("panne simulee"), envir = e)
+           tri <- as.matrix(read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv")))
+           tri <- unname(tri[, colnames(tri) != "i"]); storage.mode(tri) <- "double"
+           r <- tryCatch(run_engine(methode = "reserve2", triangle = tri, segment = 1, B = 19),
+                         error = function(err) err,
+                         finally = assign("mw_bootstrap", orig, envir = e))
+           !inherits(r, "error") && identical(r$ok, FALSE) && identical(r$methode, "reserve2") &&
+             contient(r$validation$erreurs, "(erreur R dans mw_bootstrap())") &&
+             identical(r$validation$erreur_r$origine, "mw_bootstrap")
+         })
+verifier("run_engine : erreurs d'usage -> erreur R explicite, non interceptee (annexe III, methode 'prime', segment 99, reserve2 sans triangle, xt manquant, B = -1, seed NA, bareme 'x')",
+         leve_erreur(run_engine(xt = x, yt = y, methode = "premium", annexe = "III", segment = 1,
+                                B = 19, nature_donnees = "brutes")) &&
+         leve_erreur(run_engine(xt = x, yt = y, methode = "prime", segment = 1, B = 19)) &&
+         leve_erreur(run_engine(xt = x, yt = y, methode = "premium", segment = 99, B = 19,
+                                nature_donnees = "brutes")) &&
+         leve_erreur(run_engine(methode = "reserve2", B = 19)) &&
+         leve_erreur(run_engine(yt = y, methode = "premium", segment = 1, B = 19,
+                                nature_donnees = "brutes")) &&
+         leve_erreur(run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = -1,
+                                nature_donnees = "brutes")) &&
+         leve_erreur(run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 19,
+                                seed = NA, nature_donnees = "brutes")) &&
+         leve_erreur(run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 19,
+                                bareme = "x", nature_donnees = "brutes")))
+verifier("run_engine : filet transparent sans erreur (identique avec et sans interception, hors horodatage et duree)",
+         {
+           sans_temps <- function(r) { r$metadata$horodatage <- NULL; r$metadata$duree_sec <- NULL; r }
+           a <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 19,
+                           nature_donnees = "brutes")
+           ancien <- options(usp.engine.lever_erreurs = TRUE)
+           b <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 19,
+                           nature_donnees = "brutes")
+           options(ancien)
+           identical(sans_temps(a), sans_temps(b))
+         })
+
 ## --- mw_valider_triangle -----------------------------------------------------
 triangle <- function(n, f = 1.3, base = 100) {
   m <- matrix(NA_real_, n, n)

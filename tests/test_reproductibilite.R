@@ -31,7 +31,7 @@ for (nom in names(CAS)) {
   b <- executer_cas(nom)
 
   if (!isTRUE(a$ok)) {
-    echecs <- c(echecs, sprintf("%s : run_engine() a renvoye ok = FALSE", nom))
+    echecs <- c(echecs, sprintf("%s : run_engine() a renvoye ok = FALSE\n%s", nom, decrire_refus(a)))
     next
   }
   if (!identical(a, b))
