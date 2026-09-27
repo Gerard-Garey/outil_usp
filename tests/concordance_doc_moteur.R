@@ -83,7 +83,9 @@
 #  refuse donc tout --B < B_MIN = 21 (erreur, code de sortie 1), et verifie
 #  apres execution que chaque resultat lognormal a bien plus de 20
 #  replications finies (B >= 21 est necessaire, pas suffisant si des
-#  replications echouent).
+#  replications echouent). Les methodes lognormales sont en outre executees
+#  a volumes constants (x_t = 100, pertes de tests/donnees/donnees_ln.csv ;
+#  issue #59) pour les seules phrases du registre qui les nomment.
 #
 #  Usage (depuis la racine du depot) :
 #      Rscript tests/concordance_doc_moteur.R              # mode rapport
@@ -404,8 +406,15 @@ DECOMPTES <- list(
        motif = paste0("qui produit les ", N_, " entr\u00e9es ajout\u00e9es \u00e0 res.{0,2}controles"),
        champs = "controles famille H."),
   list(id = "prime : lignes a p exacte attribuee (loi pour observations echangeables)", methode = "premium",
-       motif = paste0(N_, " lignes de la table auditable retiennent une p-value exacte dont la loi de r\u00e9f\u00e9rence"),
+       motif = paste0(N_, " lignes de la table auditable se voient attribuer, .{0,40}?une p-value exacte ",
+                      "dont la loi de r\u00e9f\u00e9rence"),
        champs = "p exacte hors base r"),
+  # Suite de la meme phrase (jeu de controle, delta = 1) : parmi ces lignes,
+  # celles dont la p-value retenue est la p-value exacte.
+  list(id = "prime : lignes a p exacte attribuee qui la retiennent (jeu de controle)", methode = "premium",
+       motif = paste0("sur le jeu de contr\u00f4le\\s+\\(.{1,20}\\), ", N_,
+                      " d'entre elles retiennent leur p-value exacte"),
+       champs = "p exacte hors base r retenue"),
   list(id = "prime : lignes sur la base u_t", methode = "premium",
        motif = paste0(N_, " lignes de la table auditable sont calcul\u00e9es sur la base"),
        champs = "base r"),
@@ -415,7 +424,8 @@ DECOMPTES <- list(
   list(id = "prime : lignes sur u_t (restent exactes)", methode = "premium",
        motif = paste0("les ", N_, " lignes restent exactes"), champs = "base r"),
   list(id = "prime : lignes sur u_t (detail CONTROLE SANS OBJET ICI)", methode = "premium",
-       motif = paste0("detail de chacune des ", N_, " lignes commence par"), champs = "detail sans objet ici"),
+       motif = paste0("detail de chacune des ", N_, " lignes contient .{1,3}CONTROLE SANS OBJET ICI"),
+       champs = "detail sans objet ici"),
   list(id = "prime : lignes sur u_t (quasi-doublons)", methode = "premium",
        motif = paste0("les ", N_, " lignes correspondantes sont des quasi-doublons"), champs = "base r"),
   list(id = "prime : lignes sur u_t (index des decisions)", methode = "premium",
@@ -460,7 +470,15 @@ DECOMPTES <- list(
   list(id = "prime : lignes de base r hors suites (restent en Monte-Carlo)", methode = "premium",
        motif = paste0("Les (?=", N_, ")", N_, " autres lignes de la base .{1,3}ratios bruts.{1,3} ",
                       "restent en Monte-Carlo"),
-       champs = c("base r hors suites", "base r hors suites Monte-Carlo"))
+       champs = c("base r hors suites", "base r hors suites Monte-Carlo")),
+  # Issue #59 : lignes restituees non applicables a volumes constants,
+  # mesurees sur une execution supplementaire (volumes x_t = 100 constants,
+  # pertes y_t de tests/donnees/donnees_ln.csv ; cles premium_vc et
+  # reserve1_vc, voir le programme principal).
+  list(id = "lognormale : lignes non applicables a volumes constants (#59)",
+       methode = c("premium_vc", "reserve1_vc"),
+       motif = paste0(N_, " lignes d'usp_tests\\(\\) sont restitu\u00e9es .{1,3}non applicable"),
+       champs = "non applicable volumes constants")
 )
 
 # ---------------------------------------------------------------------------
@@ -547,13 +565,16 @@ grandeurs_moteur <- function(tests, controles = NULL) {
          "base z" = sum(base %in% "z"),
          "base r" = sum(base %in% "r"),
          "p exacte hors base r" = sum(pex & !base %in% "r"),
+         "p exacte hors base r retenue" = sum(pex & !base %in% "r" & grepl("^exacte", nat)),
          "variante secondaire" = sum(champ("variante") %in% "secondaire"),
          "lignes du test des suites" = sum(startsWith(nom, "Test des suites") %in% TRUE),
          "base r hors suites" = sum(base %in% "r" & !startsWith(nom, "Test des suites") %in% TRUE),
          "base r hors suites Monte-Carlo" = sum(base %in% "r" & !startsWith(nom, "Test des suites") %in% TRUE &
                                                   grepl("^Monte-Carlo", nat)),
          "grandeur rivee" = sum(startsWith(det, "Grandeur rivee par l'estimation") %in% TRUE),
-         "detail sans objet ici" = sum(grepl("CONTROLE SANS OBJET ICI", det, fixed = TRUE)))
+         "detail sans objet ici" = sum(grepl("CONTROLE SANS OBJET ICI", det, fixed = TRUE)),
+         "non applicable volumes constants" =
+           sum(startsWith(det, "volumes x_t constants a la tolerance relative") %in% TRUE))
   for (f in unique(fam)) g[paste("famille", f)] <- sum(fam == f)
   for (f in unique(fam)) for (ty in unique(typ[fam %in% f]))
     g[paste("famille", f, "type", ty)] <- sum(fam %in% f & typ %in% ty)
@@ -884,7 +905,19 @@ if (sys.nframe() == 0L) {
     stop(sprintf(paste0("replications bootstrap finies insuffisantes (%s) : run_engine() ne calcule l'IC ",
                         "bootstrap que si length(usp_b) > 20 ; augmenter --B."),
                  paste(sprintf("%s %d", names(n_finies), n_finies), collapse = ", ")), call. = FALSE)
+  # Executions supplementaires a volumes constants (issue #59) : leurs
+  # grandeurs ne servent qu'aux phrases du registre qui les nomment
+  # (premium_vc, reserve1_vc) ; elles n'entrent ni dans le recapitulatif des
+  # familles ci-dessous, ni dans la section 3.
+  resultats_vc <- with(outils, list(
+    premium_vc  = run_engine(xt = rep(100, length(.ln$yt)), yt = .ln$yt, methode = "premium", segment = 1,
+                             annexe = "II", B = B, nature_donnees = "brutes"),
+    reserve1_vc = run_engine(xt = rep(100, length(.ln$yt)), yt = .ln$yt, methode = "reserve1", segment = 1,
+                             annexe = "II", B = B)))
+  if (!all(vapply(resultats_vc, function(r) isTRUE(r$ok), logical(1))))
+    stop("run_engine() a volumes constants : resultat ok = FALSE", call. = FALSE)
   grandeurs <- c(lapply(resultats, function(r) grandeurs_moteur(r$tests, r$controles)),
+                 lapply(resultats_vc, function(r) grandeurs_moteur(r$tests, r$controles)),
                  list(code = grandeurs_code(env)))
   cat(sprintf("\n=== 2. Decomptes (moteur execute sur tests/donnees/, B = %d)\n", B))
   for (m in names(resultats))

@@ -220,6 +220,26 @@ verifier("grandeurs_moteur : base, variante, suites, grandeur rivee, sans objet,
                                  "controles (total)", "controles famille H.")]) ==
                         c(1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1)))
          })
+verifier("grandeurs_moteur : p exacte hors base r retenue, lignes non applicables a volumes constants (#59)",
+         {
+           lg <- list(list(base = "z", p_exacte = 0.5, nature_p = "exacte"),
+                      list(base = "commun", p_exacte = 0.5, nature_p = "Monte-Carlo (bootstrap parametrique)"),
+                      list(base = "r", p_exacte = 0.5, nature_p = "exacte"),
+                      list(base = "commun", type = "non applicable",
+                           detail = "volumes x_t constants a la tolerance relative TOL_DELTA_BORD = 1e-06 pres"),
+                      list(base = "commun", type = "non applicable", detail = "autre motif ; volumes x_t constants a la tolerance relative"))
+           g <- cc$grandeurs_moteur(lg)
+           isTRUE(all(unname(g[c("p exacte hors base r", "p exacte hors base r retenue",
+                                 "non applicable volumes constants")]) == c(2, 1, 1)))
+         })
+.reg_59 <- Filter(function(a) grepl("(#59)", a$id, fixed = TRUE), cc$DECOMPTES)
+.doc_59 <- c("(fiche \\ref{fiche:position-delta}), et treize lignes d'\\code{usp\\_tests()} sont restitu\u00e9es",
+             "\u00ab~non applicable~\u00bb, sans verdict")
+verifier("Registre (#59) : treize lignes non applicables, mesurees sur les deux executions a volumes constants",
+         length(.reg_59) == 1L &&
+           identical(cc$verifier_decomptes(.doc_59, list(premium_vc = c("non applicable volumes constants" = 13),
+                                                          reserve1_vc = c("non applicable volumes constants" = 12)),
+                                           .reg_59)$statut, c("ok", "ECART")))
 verifier("grandeurs_code : tailles des catalogues et lignes Merz-Wuthrich sur residus",
          identical(cc$grandeurs_code(list(USP_CATALOGUE_MC = list(a = 1, b = 2), MW_CATALOGUE_MC = list(c = 3),
                                           .MW_LIGNES_RESIDUS = list(M1 = "u", M2 = c("v", "w")))),
