@@ -3306,7 +3306,11 @@ la ligne qu'à $T \ge 8$. (v)~\emph{Nature}~: ces valeurs sont exactes, par énu
 de référence discrète. Elles sont la $p_{\min}$ de la p-value retenue lorsque celle-ci est exacte,
 à $\hat\pi_t$ constant (section~\ref{sec:base-residus})~; à $\hat\pi_t$ variable, la p-value retenue
 est de Monte-Carlo et la valeur du tableau n'en est qu'une approximation (loi échangeable),
-ce que le commentaire de la ligne dit.
+ce que le commentaire de la ligne dit. Pour Spearman à $T > 9$, quel que soit le régime, le moteur
+pose $p_{\min} = 2/T!$ (\code{mk\_p\_min()}) sans attribuer de p-value exacte,
+\code{cor.test(exact = TRUE)} ne rendant au-delà de $T = 9$ qu'un développement d'Edgeworth~: la
+valeur du tableau n'y est que l'approximation de la $p_{\min}$ de la p-value de Monte-Carlo
+retenue.
 
 \noindent\emph{Seuils de bascule au seuil par défaut $\alpha = 0{,}10$} (verdict \code{ECHEC} si
 $p < \alpha/2$, \code{ALERTE} si $\alpha/2 \le p < \alpha$, en sens « ne pas rejeter »)~:
@@ -3351,7 +3355,10 @@ et aucune référence de la littérature n'a été vérifiée pour la puissance 
 sortie \code{docs/tableaux/}\newline \code{20260927-issue114-constats-puissance.md}, graine 20260927, générateur
 du moteur). \emph{C1, puissance contre un AR(1)}~: 20\,000 séries gaussiennes de longueur~8 par
 valeur de $\rho$, AR(1) stationnaire ($u_1 = e_1/\sqrt{1-\rho^2}$, $u_t = \rho u_{t-1} + e_t$,
-innovations communes à tous les $\rho$)~; test des suites par \code{runs\_p\_exacte()} et
+innovations communes à tous les $\rho$) --- le constat du 23~septembre 2026 ne consignant pas
+l'initialisation, la variante stationnaire est retenue comme hypothèse de reproduction parce
+qu'elle seule reproduit les huit valeurs publiées ($|z| \le 1{,}62$), la variante à départ nul
+étant incompatible sur six valeurs sur huit (même fichier) ---~; test des suites par \code{runs\_p\_exacte()} et
 Durbin--Watson exact par \code{dw\_p\_exacte()} sur la série centrée~; rejet si $p < \alpha =
 0{,}10$. À $\hat\pi_t$ constant, $z_t$ est une transformation affine croissante des log-ratios et
 les deux p-values y sont invariantes (contrôle d'intégrité du script)~: la mesure vaut pour les
@@ -3514,7 +3521,9 @@ un vecteur échangeable ou un échantillon i.i.d.~: quatre sur $z_t$ --- Durbin-
 combinatoire), Shapiro--Wilk à loi nulle simulée (échantillons $\mathcal{N}(0,1)$ i.i.d.) et
 Smirnov (loi combinatoire) ---, et quatre sur les ratios $r_t$ --- Spearman ratio contre volume
 et ratio contre temps, Mann--Kendall et Cox--Stuart, qui supposent les $r_t$ identiquement
-distribués. \textbf{À $\hat\pi_t$ constant}, ces lois sont exactes au sens de l'ADR~0002~:
+distribués («~sur~» désigne l'argument de la statistique, non le champ \code{base} de la table,
+qui ne vaut \code{z} ou \code{r} que pour les lignes doublées sur ratios bruts et \code{commun}
+ailleurs). \textbf{À $\hat\pi_t$ constant}, ces lois sont exactes au sens de l'ADR~0002~:
 $z$ est proportionnel à $M\varepsilon$ et les $r_t$ sont i.i.d. \textbf{À $\hat\pi_t$
 variable}, ce ne sont que des approximations~; aucune borne d'erreur n'a été trouvée dans la
 littérature consultée pour un projecteur $P$ non uniforme, et le document n'affirme rien sur
@@ -4482,7 +4491,12 @@ statistique Monte-Carlo n'est donc définie que sans ex \ae quo~: avec ex \ae qu
 est \code{NA} (\code{USP\_CATALOGUE\_MC\$CoxStuart}), \code{p\_mc} et \code{err\_mc} valent
 \code{NA}, le motif «~\code{statistique observee non definie : ex aequo}~» est restitué dans
 \code{bootstrap\$motif\_mc} (champ \code{non\_definie} du catalogue), et la p-value exacte
-binomiale, conditionnelle à $m$, reste la seule calculée, à $\hat\pi_t$ constant~; le commentaire de la ligne affiche
+binomiale, conditionnelle à $m$, reste la seule calculée, à $\hat\pi_t$ constant~; à $\hat\pi_t$
+variable avec ex \ae quo, aucune des trois p-values n'existe (p exacte non attribuée, règle~R7~;
+statistique Monte-Carlo non définie~; pas de loi asymptotique)~: si $\alpha > p_{\min}$ --- soit
+$\alpha > 0{,}25$ à $m = 3$, seul cas atteignable sous la borne $\alpha < 0{,}30$ ---, la ligne
+reste de type test, sans p-value retenue ni verdict (\code{INFO}), son commentaire portant les
+deux motifs~; au seuil par défaut, la règle~R1 la classe inopérante avant~; le commentaire de la ligne affiche
 alors les deux nombres (\code{m = 3 differences non nulles sur n\_p = 4 paires~; p\_mc non
 calculee (replications sans ex aequo)}), et, à $m = 0$, que $K$ n'est pas défini. Mesuré sur le
 jeu de contrôle modifié pour que $r_5 = r_1$ ($x_5 = 2x_1$, $y_5 = 2y_1$~; méthode prime,
@@ -5073,7 +5087,11 @@ et le commentaire le dit~; la plage de la table de D'Agostino \& Stephens elle-m
 vérifiée sur l'ouvrage. Ce sont des ajustements empiriques et non un résultat exact~; sur
 20\,000 échantillons i.i.d. $\mathcal{N}(0,1)$ de taille $T = 8$ re-standardisés (graine~1,
 constat de simulation), la fréquence de $p \le 0{,}05$ vaut $5{,}0~\%$ et celle de $p \le 0{,}10$
-vaut $10{,}5~\%$. Mesuré sur le jeu de contrôle~: $0{,}527$ (contre $0{,}431$ avant l'issue~\#44,
+vaut $10{,}5~\%$. Protocole de reproduction~: les 20\,000 échantillons sont tirés
+successivement, huit valeurs chacun, sous \code{engine\_sous\_graine(1, \ldots)} (générateur
+\code{ENGINE\_RNG\_KIND}), re-standardisés par leur moyenne et leur écart-type empiriques
+(\code{sd()}, dénominateur $T - 1$), et la p-value est celle de \code{ad\_p\_stephens()} appliquée
+à \code{stat\_ad()} de l'échantillon re-standardisé, avec $n = 8$. Mesuré sur le jeu de contrôle~: $0{,}527$ (contre $0{,}431$ avant l'issue~\#44,
 calculée sur $z$). La seconde est la p-value de Monte-Carlo, qui reste celle retenue pour le verdict
 car elle tient compte du modèle effectivement ajusté.
 \Usage
@@ -5116,7 +5134,8 @@ p-value non simulée, calculées comme pour Anderson--Darling sur la statistique
 $W^2$ de $(z - \bar z)/s_z$, restituée dans le champ \code{estim}, et non calculées pour
 $T < 8$ (règle~R6, issue~\#44)~; sur les mêmes 20\,000 échantillons re-standardisés, la fréquence
 de $p \le 0{,}05$ vaut $4{,}8~\%$ et celle de $p \le 0{,}10$ vaut $10{,}0~\%$ (constat de
-simulation). Mesuré sur le jeu de contrôle~: $0{,}480$ (contre $0{,}398$ avant l'issue~\#44).
+simulation, même protocole que pour Anderson--Darling, fiche~\ref{fiche:anderson-darling}, la
+p-value étant celle de \code{cvm\_p\_stephens()} appliquée à \code{stat\_cvm()}). Mesuré sur le jeu de contrôle~: $0{,}480$ (contre $0{,}398$ avant l'issue~\#44).
 La p-value de Monte-Carlo reste celle retenue pour le verdict.
 \Usage
 Version non pondérée d'Anderson--Darling~: elle accorde le même poids à toute la distribution, et
@@ -5550,7 +5569,7 @@ utilisées. Le test ne détecte par ailleurs qu'une dépendance d'ordre~1.
 
 \textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. Puissance contre un AR(1) stationnaire (constat~C1, 20\,000 séries par valeur de $\rho$, $\alpha = 0{,}10$)~: $0{,}159$~; $0{,}261$~; $0{,}396$~; $0{,}528$ pour $\rho = 0{,}3$~; $0{,}5$~; $0{,}7$~; $0{,}9$, pour un niveau de $0{,}100$ à $\rho = 0$. Mesure sur la série centrée, qui vaut pour la ligne à $\hat\pi_t$ constant~; hors modèle réglementaire.
 
-\textbf{Statut des valeurs.} Puissances~: constat de simulation, hors modèle réglementaire (intervalles de Clopper--Pearson dans le fichier de résultats)~; elles reproduisent, à l'erreur de simulation près (écart normalisé $|z| \le 1{,}96$ à chaque $\rho$), le constat du 23~septembre 2026 de l'issue~\#44. Plancher de Monte-Carlo~: exact, fonction de $B$.
+\textbf{Statut des valeurs.} Puissances~: constat de simulation, hors modèle réglementaire (intervalles de Clopper--Pearson dans le fichier de résultats)~; elles reproduisent, sous l'hypothèse d'initialisation stationnaire (tableau~\ref{tab:tracabilite-puissance}), à l'erreur de simulation près (écart normalisé $|z| \le 1{,}96$ à chaque $\rho$), le constat du 23~septembre 2026 de l'issue~\#44. Plancher de Monte-Carlo~: exact, fonction de $B$.
 \end{fiche}
 
 \begin{fiche}{Tests portemanteau de Ljung--Box et de Box--Pierce}
@@ -5716,9 +5735,9 @@ probabilité $66/70 = 0{,}943$ sous $H_0$~: il ne vaut pas validation de l'indé
 
 \textbf{Table.} Tableau~\ref{tab:pmin}~: inopérant pour $T \le 7$~; \code{ECHEC} inatteignable à $T = 8$ et $9$.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test, à \code{ECHEC} inatteignable ($\alpha/2 \le p_{\min} < \alpha$)~: à $\hat\pi_t$ constant, \code{ALERTE} seulement si $R \in \{2, 8\}$. Puissance contre un AR(1) stationnaire (constat~C1, 20\,000 séries par valeur de $\rho$, $\alpha = 0{,}10$, rejet signifiant ici \code{ALERTE})~: $0{,}081$~; $0{,}120$~; $0{,}175$~; $0{,}246$ pour $\rho = 0{,}3$~; $0{,}5$~; $0{,}7$~; $0{,}9$, pour un niveau de $0{,}057$ ($4/70$) à $\rho = 0$~; de l'ordre de la moitié de celle de Durbin--Watson exact (fiche~\ref{fiche:durbin-watson}) à chaque $\rho$. Mesure valable à $\hat\pi_t$ constant~; hors modèle réglementaire.
+\textbf{Pertinence à $T = 8$.} Ligne de type test, à \code{ECHEC} inatteignable ($\alpha/2 \le p_{\min} < \alpha$)~: à $\hat\pi_t$ constant, \code{ALERTE} seulement si $R \in \{2, 8\}$. Puissance contre un AR(1) stationnaire (constat~C1, 20\,000 séries par valeur de $\rho$, $\alpha = 0{,}10$, rejet signifiant ici \code{ALERTE})~: $0{,}081$~; $0{,}120$~; $0{,}175$~; $0{,}246$ pour $\rho = 0{,}3$~; $0{,}5$~; $0{,}7$~; $0{,}9$, pour un niveau de $0{,}057$ ($4/70$) à $\rho = 0$~; de l'ordre de la moitié de celle de Durbin--Watson exact (fiche~\ref{fiche:durbin-watson}) à chaque $\rho$, à niveau effectif plus faible ($0{,}057$ contre $0{,}100$), ce qui explique une partie de l'écart. Mesure valable à $\hat\pi_t$ constant~; hors modèle réglementaire.
 
-\textbf{Statut des valeurs.} $p_{\min}$ et p-values atteignables~: exactes (énumération) à $\hat\pi_t$ constant, approximation à $\hat\pi_t$ variable~; puissances~: constat de simulation, hors modèle réglementaire, reproduisant le constat du 23~septembre 2026 de l'issue~\#44 (écart normalisé $|z| \le 1{,}96$).
+\textbf{Statut des valeurs.} $p_{\min}$ et p-values atteignables~: exactes (énumération) à $\hat\pi_t$ constant, approximation à $\hat\pi_t$ variable~; puissances~: constat de simulation, hors modèle réglementaire, reproduisant, sous l'hypothèse d'initialisation stationnaire, le constat du 23~septembre 2026 de l'issue~\#44 (écart normalisé $|z| \le 1{,}96$).
 \end{fiche}
 
 \begin{fiche}{Condition du premier ordre (gradient projeté, KKT)}
@@ -6587,8 +6606,8 @@ sur une analyse métier (sinistre exceptionnel identifié, erreur de saisie avé
 \begin{fiche}{Distance de Cook (diagnostic)}
 \label{fiche:cook}%
 \refl{R.\,D. Cook, \emph{Detection of influential observation in linear regression},
-\emph{Technometrics}, 19(1), 1977, p.~15--18~; repère $4/n$~: K.\,A. Bollen, R.\,W. Jackman
-(1990, section~\ref{sec:biblio}).}
+\emph{Technometrics}, 19(1), 1977, p.~15--18~; seuil $4/(n-k-1)$, dont le repère $4/T$ est la
+simplification usuelle~: K.\,A. Bollen, R.\,W. Jackman (1990, section~\ref{sec:biblio}).}
 \Cadre
 Régression contrainte $y_t = \beta x_t + \varepsilon_t$ à $k$ paramètres ($k=1$), de résidus
 $e_t$, de variance résiduelle estimée $\hat s^2$ et de leviers $h_t$ (fiche suivante).
@@ -6624,8 +6643,10 @@ test~; l'hypothèse sous-jacente, une année atypique, est testée avec p-value 
 (fiche~\ref{fiche:grubbs}), et l'effet d'une année sur $\sigma_{\mathrm{USP}}$ est mesuré par le
 jackknife (fiche~\ref{fiche:jackknife}). Mesuré sur le jeu de contrôle~: $\max_t D_t = 0{,}554$,
 atteint à l'année~8, seule au-dessus du repère. \emph{Source du repère et taux de franchissement}
-(issue~\#72)~: Cook (1977) compare $D_t$ aux quantiles de $\mathcal{F}(k, T-k)$~; la règle $4/n$ est
-due à Bollen et Jackman (1990), et sa proximité à $T = 8$ de la médiane de $\mathcal{F}(1,7)$,
+(issue~\#72)~: Cook (1977) compare $D_t$ aux quantiles de $\mathcal{F}(k, T-k)$~; Bollen et Jackman
+(1990) proposent le seuil $4/(n-k-1)$, dont le repère $4/T$ du projet est la simplification usuelle
+(à $T = 8$ et $k = 1$~: $0{,}667$ contre $0{,}5$)~; le repère $4/T$ reste une convention de lecture,
+sans source qui le fonde tel quel, et sa proximité à $T = 8$ de la médiane de $\mathcal{F}(1,7)$,
 $0{,}506$, est une coïncidence numérique. Sous le modèle ajusté, au moins une année franchit le
 repère dans $47{,}7~\%$ $[45{,}5~;~49{,}9]$ des jeux simulés sur le jeu de contrôle et dans
 $86{,}0~\%$ $[84{,}3~;~87{,}4]$ sur le jeu à $\hat\delta$ intérieur (constat de simulation,
@@ -7943,7 +7964,8 @@ de référence, et sa valeur est de surcroît \emph{contrainte par construction}
 (fiche~\ref{mw:m2var}). Aucun des trois diagnostics ne porte de verdict~: tous
 sont restitués \code{INFO}, conformément à l'ADR~0001. Treize de ces quinze
 tests reposent sur le bootstrap de résidus~; Shapiro--Wilk dispose d'une loi nulle propre, pour la raison exposée
-dans sa fiche, et Lilliefors d'une p-value asymptotique. Les six entrées en gras ci-dessus sont celles qui
+dans sa fiche, et Lilliefors de l'approximation analytique de Dallal et Wilkinson, restituée
+sous la nature \code{asymptotique} faute de catégorie propre (fiche~\ref{mw:m5li}). Les six entrées en gras ci-dessus sont celles qui
 vérifient les hypothèses de chaîne d'échelle \emph{colonne par colonne}, comme
 l'exige la formulation « pour toutes les années d'accident » du texte~; la
 régression agrégée initiale, conservée en tête, ne le permettait pas.
@@ -8859,7 +8881,7 @@ Stephens. p-value non simulée, disponible dès $n \ge 5$.
 Complément de recoupement à Shapiro--Wilk, moins puissant. Même réserve de fond~:
 la normalité n'est pas exigée par la méthode.
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} Sans objet~: la p-value retenue est l'approximation de Dallal et Wilkinson (\code{lillie\_p()}), de nature asymptotique, fonction continue de $D$ sans plancher. Elle est retenue faute d'alternative~: les tests de normalité sont exclus du bootstrap de résidus, dont la loi nulle est la loi empirique des résidus (tableau~\ref{tab:conv}), et aucune loi exacte n'est disponible.
+\textbf{p-value minimale à $T = 8$.} Sans objet~: la p-value retenue est l'approximation analytique de Dallal et Wilkinson (\code{lillie\_p()}), ajustement numérique de la loi à $n$ fini et non loi limite, que le moteur range dans la colonne \code{p\_asymptotique} et restitue sous la nature \code{asymptotique} faute de catégorie propre~; fonction continue de $D$, sans plancher. Elle est retenue faute d'alternative~: les tests de normalité sont exclus du bootstrap de résidus, dont la loi nulle est la loi empirique des résidus (tableau~\ref{tab:conv}), et aucune loi exacte n'est disponible.
 
 \textbf{Table.} Sans objet (loi continue).
 
@@ -9469,9 +9491,12 @@ soutient dans le présent document.
 
   \item K.\,A. Bollen, R.\,W. Jackman, \emph{Regression diagnostics: an expository treatment of
   outliers and influential cases}, in J.~Fox, J.\,S. Long (dir.), \emph{Modern Methods of Data
-  Analysis}, Sage, Newbury Park, 1990, p.~257--291.
-  \emph{Portée.} Source de la règle $4/n$ que reprend le repère $4/T$ de la distance de Cook
-  (fiche~\ref{fiche:cook}, issue~\#72)~: règle de lecture, non seuil de test. Elle ne dit rien
+  Analysis}, Sage, Newbury Park, 1990, p.~257--291~; chapitre reprenant l'article paru sous le
+  même titre dans \emph{Sociological Methods \& Research}, 13(4), 1985, p.~510--542.
+  \emph{Portée.} Source du seuil $4/(n-k-1)$ de la distance de Cook, dont le repère $4/T$ du
+  projet est la forme simplifiée (fiche~\ref{fiche:cook}, issue~\#72)~: à $T = 8$ et $k = 1$, le
+  seuil de la source vaut $0{,}667$ et le repère $0{,}5$, qui reste une convention de lecture
+  sans source qui le fonde tel quel~; règle de lecture, non seuil de test. Elle ne dit rien
   du taux de franchissement de ce repère à $T = 8$, mesuré par simulation à la
   section~\ref{sec:taux-reperes}.
 \end{itemize}
@@ -9812,7 +9837,8 @@ taux, fonction du nombre de jeux simulés, et rien de l'erreur d'approximation e
 \textcolor{financeblue}{\textbf{Source du seuil}} &
 \textcolor{financeblue}{\textbf{J1, \% [IC 95 \%]}} &
 \textcolor{financeblue}{\textbf{J2, \% [IC 95 \%]}} \\
-Cook~: au moins un $D_t > 4/T$ (fiche~\ref{fiche:cook}) & Bollen et Jackman (1990) &
+Cook~: au moins un $D_t > 4/T$ (fiche~\ref{fiche:cook}) & $4/(n-k-1)$ de Bollen et Jackman
+(1990), simplifié en $4/T$ &
 $47{,}7$ $[45{,}5~;~49{,}9]$ & $86{,}0$ $[84{,}3~;~87{,}4]$ \\
 Leviers~: au moins un $h_t > 2k/T$ (fiche~\ref{fiche:leviers}) & Hoaglin et Welsch (1978),
 règle empirique & non franchi, déterministe ($\max_t h_t = 0{,}160$) & franchi, déterministe
@@ -9840,8 +9866,10 @@ $\hat\delta^{*}$ au bord de $[0,1]$ (fiche~\ref{fiche:position-delta}) &
 
 \noindent
 \emph{Sources des seuils.} Cook (1977) compare $D_t$ aux quantiles de la loi $\mathcal{F}(k, T-k)$~;
-la règle $4/n$ est due à K.\,A. Bollen et R.\,W. Jackman (1990, section~\ref{sec:biblio}). À
-$T = 8$ et $k = 1$, la médiane de $\mathcal{F}(1, 7)$ vaut $0{,}506$, proche de $4/T = 0{,}5$~: c'est
+K.\,A. Bollen et R.\,W. Jackman (1990, section~\ref{sec:biblio}) proposent le seuil $4/(n-k-1)$,
+dont le repère $4/T$ du projet est la simplification usuelle (à $T = 8$ et $k = 1$~: $0{,}667$
+contre $0{,}5$)~; le repère $4/T$ reste une convention de lecture, sans source qui le fonde tel
+quel. À $T = 8$ et $k = 1$, la médiane de $\mathcal{F}(1, 7)$ vaut $0{,}506$, proche de $4/T = 0{,}5$~: c'est
 une coïncidence numérique, non une justification. Le repère $2k/T$ des leviers, deux fois le levier
 moyen, est la règle empirique de Hoaglin et Welsch (1978, fiche~\ref{fiche:leviers}). Les repères
 de $R^2$ ($0{,}5$), du jackknife (10~\% et 20~\%) et de la largeur de l'intervalle bootstrap
