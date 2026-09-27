@@ -2698,6 +2698,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
             idp$puissance, if (pente_ident) ">=" else "<", SEUIL_PUISSANCE_PENTE,
             idp$lambda)
   nat_mco <- "sous le modele auxiliaire MCO : t(T-2) exacte (H0 non simulable : le modele ajuste appartient a H1)"
+  # Ligne Fisher : sa loi de reference est F(1,T-2), non t(T-2) (#117) ;
+  # meme p-value a l'arrondi pres (F = t^2 en regression simple).
+  nat_mco_F <- "sous le modele auxiliaire MCO : F(1,T-2) exacte (H0 non simulable : le modele ajuste appartient a H1)"
   type_pente <- function(stat) if (!is.finite(stat)) "non applicable"
                                else if (pente_ident) "test" else "diagnostic"
   add(fam, "Test de Student sur la pente (lm(y~x))",
@@ -2717,7 +2720,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       loi = if (is.finite(lmc$F))
         sprintf("F(%d,%d) exacte sous le modele auxiliaire MCO", lmc$ddl1, lmc$ddl2)
       else NA_character_,
-      p_as = lmc$p_F, sens = "rejeter", nature_forcee = nat_mco,
+      p_as = lmc$p_F, sens = "rejeter", nature_forcee = nat_mco_F,
       detail = detail_vol(trimws(paste("Equivaut a t^2 en regression simple.", txt_ident))))
   add(fam, "Coefficient de determination R2", "lm(y ~ x)",
       type = if (is.finite(lmc$R2)) "diagnostic" else "non applicable",

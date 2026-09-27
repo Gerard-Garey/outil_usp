@@ -310,6 +310,23 @@ verifier("Pente et Fisher (R4) : donnees de test -> diagnostic, lambda et puissa
                                          "le modele ajuste appartient a H1)")) &&
              is.finite(l$p_asymptotique)
          })
+# Nature propre a la ligne Fisher (#117) : sa loi de reference est F(1,T-2),
+# non t(T-2). Jeu (xi, yi) de test_controles_numeriques.R (J2, delta
+# interieur), ou pente et Fisher sont de type test.
+xi <- c(50, 80, 120, 200, 300, 150, 90, 60)
+yi <- c(29.92, 56.9, 101.25, 123.06, 207.23, 105.91, 68.59, 40.05)
+f_i <- usp_ajuster(xi, yi)
+t_i <- usp_tests(f_i, boot_fictif(f_i), methode = "premium")
+verifier("Pente et Fisher (#117) : jeu J2 (xi, yi), deux tests ; nature de Fisher F(1,T-2), de la pente t(T-2), loi de Fisher F(1,6)",
+         {
+           m <- ligne(t_i, pente); f <- ligne(t_i, fisher)
+           identical(m$type, "test") && identical(f$type, "test") &&
+             identical(m$nature_p, paste("sous le modele auxiliaire MCO : t(T-2) exacte (H0 non simulable :",
+                                         "le modele ajuste appartient a H1)")) &&
+             identical(f$nature_p, paste("sous le modele auxiliaire MCO : F(1,T-2) exacte (H0 non simulable :",
+                                         "le modele ajuste appartient a H1)")) &&
+             grepl("^F\\(1,6\\)", f$loi) && !grepl("t(T-2)", f$nature_p, fixed = TRUE)
+         })
 verifier("AD, CvM (R6) : estim = statistique sur (z - zbar)/s_z, p_asymptotique = Stephens sur estim",
          {
            zs <- (fit$z - mean(fit$z)) / stats::sd(fit$z)
