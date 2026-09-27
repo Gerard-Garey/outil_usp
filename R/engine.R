@@ -1373,13 +1373,19 @@ test_runs <- function(z) {
 }
 
 # Cox & Stuart (1955), Biometrika 42, 80-95 (test de tendance par signes).
+# n_p = n - ceiling(n / 2) paires (valeur centrale ecartee si n impair). Les
+# differences nulles sont ecartees : m est le nombre de differences non nulles
+# (m <= n_p) et, sous H0, K ~ Binomiale(m, 1/2) conditionnellement a m (#85).
 test_cox_stuart <- function(v) {
   n <- length(v); c0 <- ceiling(n / 2)
   d <- v[(c0 + 1):n] - v[1:(n - c0)]
+  n_p <- length(d)
   d <- d[d != 0]
-  if (!length(d)) return(list(stat = NA_real_, p = NA_real_))
-  k <- sum(d > 0); m <- length(d)
-  list(stat = k, p = .p_borne(stats::binom.test(k, m, 0.5)$p.value))
+  m <- length(d)
+  if (!m) return(list(stat = NA_real_, p = NA_real_, m = 0L, n_p = n_p))
+  k <- sum(d > 0)
+  list(stat = k, p = .p_borne(stats::binom.test(k, m, 0.5)$p.value),
+       m = m, n_p = n_p)
 }
 
 # --- Lois EXACTES sous H0 (disponibles aux petites tailles, donc a T = 8) ----
@@ -1877,12 +1883,14 @@ USP_CATALOGUE_MC <- list(
   # Cox-Stuart : la region de rejet bilaterale de K (nombre de differences
   # positives entre les deux moities) est pliee en |K - n_p / 2|, rejet en
   # queue haute, n_p = T - ceiling(T / 2) etant le nombre de paires. Sans
-  # difference nulle, c'est le test binomial exact bilateral (loi de K
-  # symetrique sous H0). La statistique affichee par usp_tests() reste K.
+  # difference nulle (m = n_p), c'est le test binomial exact bilateral (loi
+  # de K symetrique sous H0). La statistique n'est definie que sans ex aequo :
+  # avec ex aequo, la loi simulee (K* ~ B(n_p, 1/2), replications continues)
+  # n'est pas celle du K observe (B(m, 1/2)), donc pas de p_mc (NA ; #85).
+  # La statistique affichee par usp_tests() reste K.
   CoxStuart = .mc_entree(function(e) {
     cx <- test_cox_stuart(e$r)
-    m <- ceiling(e$T / 2)
-    if (is.finite(cx$stat)) abs(cx$stat - (e$T - m) / 2) else NA_real_
+    if (is.finite(cx$stat) && cx$m == cx$n_p) abs(cx$stat - cx$n_p / 2) else NA_real_
   }, "haut"),
   # --- memes statistiques sur les ratios bruts centres (base "r") -----------
   DWr    = .mc_entree(function(e) stat_dw(e$u), "deux"),
@@ -2317,15 +2325,28 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       estim_nom = "S de Kendall", estim = mk$S,
       p_ex = mk_p_exacte(r), p_as = mk$p, mc_nom = "MK",
       detail = "Une derive du S/P contredit la constance de beta")
-  cx <- test_cox_stuart(r); m_paires <- T - ceiling(T / 2)
+  cx <- test_cox_stuart(r)
+  # m : differences non nulles, n_p : paires. Sans ex aequo (m = n_p), le
+  # libelle est inchange ; avec ex aequo, les deux nombres sont affiches et
+  # la p_mc n'est pas calculee (statistique NA au catalogue, #85).
+  p_min <- min(1, 2 * 0.5^cx$m)
+  cx_detail <- if (cx$m == 0L)
+    sprintf(paste("aucune difference non nulle sur n_p = %d paires : K non defini ;",
+                  "p bilaterale minimale atteignable = %.4f"), cx$n_p, p_min)
+  else if (cx$m == cx$n_p)
+    sprintf("m = %d paires ; p bilaterale minimale atteignable = %.4f", cx$m, p_min)
+  else
+    sprintf(paste("m = %d differences non nulles sur n_p = %d paires ;",
+                  "p bilaterale minimale atteignable = %.4f ;",
+                  "p_mc non calculee (replications sans ex aequo)"),
+            cx$m, cx$n_p, p_min)
   add(fam, "Tendance par signes du ratio S/P", "Cox & Stuart (1955), Biometrika 42",
       H0 = "P(D_t > 0) = 1/2 (absence de tendance)", H1 = "P(D_t > 0) != 1/2",
       stat_nom = "K", stat = cx$stat,
       loi = paste("Binomiale(m, 1/2) EXACTE, m differences non nulles ;",
                   "p_mc par |K - n_p/2|, n_p paires, queue haute"),
       p_ex = cx$p, mc_nom = "CoxStuart",
-      detail = sprintf("m = %d paires ; p bilaterale minimale atteignable = %.4f",
-                       m_paires, 2 * 0.5^m_paires))
+      detail = cx_detail)
 
   ## --- C. H2 : variance quadratique en X_t -----------------------------------
   fam <- paste("C. H2 - structure de variance", cite_hyp("ii"))

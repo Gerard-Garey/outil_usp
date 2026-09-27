@@ -139,6 +139,76 @@ verifier("Cox-Stuart : T = 7 impair -> 3 paires (valeur centrale ecartee), p = 0
          isTRUE(proche(test_cox_stuart(c(1, 3, 2, 9, 5, 6, 4))$p, 0.25, rel = 1e-12)))
 verifier("Cox-Stuart : NA si toutes les differences sont nulles",
          is.na(test_cox_stuart(rep(2, 8))$p))
+# Ex aequo (#85) : m = differences non nulles, n_p = paires. Reference : test
+# binomial exact, K ~ Binomiale(m, 1/2) sous H0 conditionnellement a m. La
+# statistique Monte-Carlo n'est definie que sans ex aequo (m = n_p) : les
+# replications, continues, suivent B(n_p, 1/2) et non la loi B(m, 1/2) du K
+# observe, d'ou une p_mc NA en presence d'ex aequo.
+cs_a <- c(1, 2, 3, 4, 1, 5, 6, 7)   # differences (0, 3, 3, 3) : K = 3, m = 3
+cs_b <- c(1, 2, 3, 4, 1, 1, 1, 1)   # differences (0, -1, -2, -3) : K = 0, m = 3
+cs_mc <- function(v) USP_CATALOGUE_MC$CoxStuart$calc(.usp_contexte_mc(rep(1, length(v)), v,
+                                                                       rep(0, length(v))))
+cs_ligne <- function(res) {
+  t <- Filter(function(t) identical(t$test, "Tendance par signes du ratio S/P"), res$tests)
+  if (length(t) == 1L) t[[1]] else NULL
+}
+verifier("Cox-Stuart : une difference nulle -> m = 3 sur n_p = 4 paires, p = binom.test(K, 3)",
+         identical(test_cox_stuart(cs_a)[c("stat", "m", "n_p")], list(stat = 3L, m = 3L, n_p = 4L)) &&
+         identical(test_cox_stuart(cs_b)[c("stat", "m", "n_p")], list(stat = 0L, m = 3L, n_p = 4L)) &&
+         isTRUE(proche(test_cox_stuart(cs_a)$p, 0.25, rel = 1e-12)) &&
+         isTRUE(proche(test_cox_stuart(cs_b)$p, 0.25, rel = 1e-12)))
+verifier("Cox-Stuart Monte-Carlo : statistique de catalogue NA pour K = 3 et K = 0 a m = 3 (ex aequo)",
+         is.na(cs_mc(cs_a)) && is.na(cs_mc(cs_b)))
+# Enumeration par le moteur : pour n_p = 1..8 et K = 0..n_p, serie SANS ex
+# aequo de T = 2 n_p valeurs (K differences +10, n_p - K differences -10). La
+# p exacte de test_cox_stuart() doit egaler P(|K' - n_p/2| >= s), K' de loi
+# B(n_p, 1/2) enumeree, s = statistique du catalogue : le pliage est la
+# region de rejet du test binomial exact.
+verifier("Cox-Stuart : p exacte = queue haute enumeree de la statistique du catalogue (n_p = 1..8, sans ex aequo)",
+         all(vapply(1:8, function(n_p) {
+           kk <- 0:n_p; pk <- stats::dbinom(kk, n_p, 0.5); sk <- abs(kk - n_p / 2)
+           all(vapply(kk, function(K) {
+             v <- c(seq_len(n_p), seq_len(n_p) + ifelse(seq_len(n_p) <= K, 10, -10))
+             cx <- test_cox_stuart(v); s <- cs_mc(v)
+             identical(cx$stat, K) && identical(cx$m, n_p) && is.finite(s) &&
+               isTRUE(proche(cx$p, min(1, sum(pk[sk >= s - 1e-12])), rel = 1e-12))
+           }, logical(1)))
+         }, logical(1))))
+verifier("Cox-Stuart Monte-Carlo : sans ex aequo, statistique inchangee |K - n_p/2|, n_p = T - ceiling(T/2)",
+         all(vapply(list(1:8, 8:1, y_ln / x_ln, z1, z2, za, c(1, 3, 2, 9, 5, 6, 4)), function(v) {
+           n_p <- length(v) - ceiling(length(v) / 2)
+           isTRUE(proche(cs_mc(v), abs(test_cox_stuart(v)$stat - n_p / 2), rel = 1e-12))
+         }, logical(1))))
+# Le verdict n'est pas verifie ici : il changera avec #44.
+verifier("Cox-Stuart, run_engine() avec ex aequo (m = 3, n_p = 4) : p exacte retenue, p_mc NA, detail (#85)",
+         {
+           res_cs <- run_engine(xt = rep(100, 8), yt = c(70, 76, 83, 95, 70, 72, 78, 117),
+                                methode = "premium", segment = 1, annexe = "II",
+                                nature_donnees = "brutes", B = 19, seed = 20260831)
+           t_cs <- cs_ligne(res_cs)
+           isTRUE(res_cs$ok) && !is.null(t_cs) && identical(t_cs$stat, 1L) &&
+             identical(t_cs$detail, paste("m = 3 differences non nulles sur n_p = 4 paires ;",
+                                          "p bilaterale minimale atteignable = 0.2500 ;",
+                                          "p_mc non calculee (replications sans ex aequo)")) &&
+             isTRUE(proche(t_cs$p_exacte, 1, rel = 1e-12)) &&
+             is.na(t_cs$p_mc) && is.na(t_cs$err_mc) && identical(t_cs$nature_p, "exacte") &&
+             is.na(res_cs$bootstrap$stats_obs[["CoxStuart"]]) &&
+             identical(unname(res_cs$bootstrap$B_effectif[["CoxStuart"]]), 19)
+         })
+verifier("Cox-Stuart, run_engine() sans difference non nulle (m = 0) : K non defini, ligne INFO (#85)",
+         {
+           res_c0 <- run_engine(xt = rep(100, 8), yt = c(70, 76, 83, 95, 70, 76, 83, 95),
+                                methode = "premium", segment = 1, annexe = "II",
+                                nature_donnees = "brutes", B = 19, seed = 20260831)
+           t_c0 <- cs_ligne(res_c0)
+           tb_c0 <- tryCatch(engine_table_tests(res_c0), error = function(e) NULL)
+           isTRUE(res_c0$ok) && !is.null(t_c0) &&
+             is.na(t_c0$stat) && is.na(t_c0$p_exacte) && is.na(t_c0$p_mc) &&
+             is.na(t_c0$p_retenue) && is.na(t_c0$nature_p) && identical(t_c0$verdict, "INFO") &&
+             identical(t_c0$detail, paste("aucune difference non nulle sur n_p = 4 paires :",
+                                          "K non defini ; p bilaterale minimale atteignable = 1.0000")) &&
+             is.data.frame(tb_c0)
+         })
 
 ## --- Heteroscedasticite -------------------------------------------------------
 u <- z1 - mean(z1)   # residus centres : lmtest::bptest(u ~ 1) regresse u^2 sur x
