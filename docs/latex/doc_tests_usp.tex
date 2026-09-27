@@ -112,7 +112,8 @@
           innerleftmargin=6mm, innertopmargin=4pt, innerbottommargin=4pt,
           backgroundcolor=tablerow, skipabove=3mm, skipbelow=3mm]{encadre}
 
-% Fiches de test : six rubriques fixes.
+% Fiches de test : six rubriques fixes, plus la rubrique 7 (\Pertinence) pour
+% les fiches de test et de procedure de decision (issue #114).
 \newcounter{ficheid}
 \newenvironment{fiche}[1]{%
   \stepcounter{ficheid}%
@@ -130,6 +131,11 @@
 \newcommand{\Loi}{\item[\textcolor{financeblue}{\textbf{4. Loi sous $H_0$.}}]}
 \newcommand{\Pval}{\item[\textcolor{financeblue}{\textbf{5. p-value.}}]}
 \newcommand{\Usage}{\item[\textcolor{financeblue}{\textbf{6. Usage et limites.}}]}
+% Rubrique 7 (issue #114) : p-value minimale atteignable, pertinence et puissance a
+% faible T. Reservee aux fiches de test (ligne de type test dans au moins un regime)
+% et de procedure de decision (ESD) ; jamais sur un diagnostic, un controle
+% numerique, une fiche graphique ou de procedure (docs/latex/CONVENTIONS.md).
+\newcommand{\Pertinence}{\item[\textcolor{financeblue}{\textbf{7. Pertinence et puissance à faible $T$.}}]}
 
 
 % Titre de partie : allege par rapport a une premiere version qui doublait le
@@ -215,7 +221,9 @@ taille $T$ de l'échantillon. La \textbf{partie~III} rassemble les fiches de
 tests, groupées par hypothèse réglementaire H1 à H4, chacune suivant une
 structure uniforme en six rubriques~: cadre et hypothèses de validité (non
 testées), hypothèse nulle, statistique de test, loi sous l'hypothèse nulle,
-p-value, usage et limites. La \textbf{partie~IV} rassemble la validation
+p-value, usage et limites~; les fiches de test et de procédure de décision y
+ajoutent une septième, pertinence et puissance à faible $T$ (p-value minimale
+atteignable, statut de la ligne, puissance lorsqu'elle a été mesurée). La \textbf{partie~IV} rassemble la validation
 empirique de l'implémentation, les références bibliographiques et la synthèse
 de lecture.
 
@@ -3239,6 +3247,207 @@ position de $\hat\delta$) doit primer sur la lecture des p-values dans le
 dossier remis au superviseur.
 \end{encadre}
 
+% -----------------------------------------------------------------------------
+\subsection{Tableau des p-values minimales atteignables, de $T = 5$ à $T = 12$}
+\label{tab:pmin}
+% -----------------------------------------------------------------------------
+
+La plus petite p-value qu'une statistique puisse produire aux effectifs observés, $p_{\min}$, borne
+ce qu'un test peut conclure~: si $p_{\min} \ge \alpha$, le test est \emph{inopérant} au sens de
+\code{CONTEXT.md} (règle~R1, section~\ref{sec:nature}). Elle n'est une contrainte que pour une loi
+de référence \emph{discrète}~; pour une loi continue (Student, Fisher, loi d'Imhof, loi
+asymptotique), toute p-value est atteignable et $p_{\min}$ est sans objet. Le tableau ci-dessous
+donne, de $T = 5$ à $T = 12$, les valeurs des lois discrètes de la méthode lognormale, calculées
+par les fonctions du moteur qui alimentent le champ \code{p\_min} et la règle~R1~:
+\code{runs\_p\_min()} (suites), \code{cox\_stuart\_p\_min()}, \code{smirnov\_p\_min()} et
+\code{mk\_p\_min()} (Mann--Kendall et Spearman). La rubrique~7 de chaque fiche de test y renvoie.
+
+\begin{center}
+\small
+\rowcolors{2}{tablerow}{white}
+\begin{tabular}{@{}cccccccc@{}}
+\rowcolor{tableheader}
+\textcolor{financeblue}{\textbf{$T$}} &
+\textcolor{financeblue}{\textbf{\shortstack{Suites\\$n_1/n_2$}}} &
+\textcolor{financeblue}{\textbf{\shortstack{$p_{\min}$\\suites}}} &
+\textcolor{financeblue}{\textbf{\shortstack{Cox--Stuart\\$m$}}} &
+\textcolor{financeblue}{\textbf{\shortstack{$p_{\min}$\\Cox--Stuart}}} &
+\textcolor{financeblue}{\textbf{\shortstack{Smirnov\\$n_1/n_2$}}} &
+\textcolor{financeblue}{\textbf{\shortstack{$p_{\min}$\\Smirnov}}} &
+\textcolor{financeblue}{\textbf{\shortstack{$p_{\min} = 2/T!$\\M.--K., Spearman}}} \\
+5  & 2/2 & $0{,}667$  & 2 & $0{,}5$     & (2/3) & ($0{,}2$)      & $1{,}67\cdot 10^{-2}$ \\
+6  & 3/3 & $0{,}2$    & 3 & $0{,}25$    & (3/3) & ($0{,}1$)      & $2{,}78\cdot 10^{-3}$ \\
+7  & 3/3 & $0{,}2$    & 3 & $0{,}25$    & (3/4) & ($0{,}0571$)   & $3{,}97\cdot 10^{-4}$ \\
+\textbf{8} & \textbf{4/4} & $\mathbf{0{,}0571}$ & \textbf{4} & $\mathbf{0{,}125}$ & \textbf{4/4} &
+$\mathbf{0{,}0286}$ & $\mathbf{4{,}96\cdot 10^{-5}}$ \\
+9  & 4/4 & $0{,}0571$ & 4 & $0{,}125$   & 4/5   & $0{,}0159$     & $5{,}51\cdot 10^{-6}$ \\
+10 & 5/5 & $0{,}0159$ & 5 & $0{,}0625$  & 5/5   & $0{,}00794$    & $5{,}51\cdot 10^{-7}$ \\
+11 & 5/5 & $0{,}0159$ & 5 & $0{,}0625$  & 5/6   & $0{,}00433$    & $5{,}01\cdot 10^{-8}$ \\
+12 & 6/6 & $0{,}00433$ & 6 & $0{,}03125$ & 6/6  & $0{,}00216$    & $4{,}18\cdot 10^{-9}$ \\
+\end{tabular}
+\end{center}
+
+\noindent\emph{Hypothèses et conventions.} (i)~\emph{Effectifs}~: suites, $n_1$ et $n_2$ signes de
+part et d'autre de la médiane, un résidu égal à la médiane étant écarté ($n_1 = n_2 = \lfloor
+T/2\rfloor$ sans ex \ae quo, \code{.runs\_effectifs()})~; Cox--Stuart, $m = n_p = \lfloor T/2
+\rfloor$ différences non nulles (aucun ex \ae quo dans une paire)~; Smirnov, $n_1 = \lfloor T/2
+\rfloor$ années de volume strictement supérieur à la médiane des volumes et $n_2 = T - n_1$,
+volumes distincts. (ii)~\emph{Bilatéralité}~: convention du doublement, $p = \min\big(1,\,
+2\min(\mathbb{P}(S \le s), \mathbb{P}(S \ge s))\big)$, pour les suites (décision M8) et
+Cox--Stuart ($p_{\min} = \min(1, 2\cdot 0{,}5^{m})$)~; Smirnov, loi exacte de $D$ de
+\code{stats::ks.test()}, $p_{\min} = 2/\binom{n_1+n_2}{n_1}$, atteinte pour $D = 1$~;
+Mann--Kendall et Spearman, $p_{\min} = 2/T!$, atteinte par les deux permutations extrêmes.
+(iii)~\emph{Ex \ae quo}~: le tableau les exclut. Avec ex \ae quo, Mann--Kendall et Spearman n'ont
+ni $p_{\min}$ ni p-value exacte (\code{p\_min} vaut \code{NA}, loi de permutation conditionnelle
+non tabulée, issue~\#70)~; pour Cox--Stuart, $m$ diminue et $p_{\min}$ augmente ($0{,}25$ à
+$m = 3$)~; pour les suites, $p_{\min}$ se lit aux effectifs observés. (iv)~\emph{Smirnov
+à $T < 8$}~: les valeurs entre parenthèses sont celles de la seule loi, hors moteur, qui ne calcule
+la ligne qu'à $T \ge 8$. (v)~\emph{Nature}~: ces valeurs sont exactes, par énumération de la loi
+de référence discrète. Elles sont la $p_{\min}$ de la p-value retenue lorsque celle-ci est exacte,
+à $\hat\pi_t$ constant (section~\ref{sec:base-residus})~; à $\hat\pi_t$ variable, la p-value retenue
+est de Monte-Carlo et la valeur du tableau n'en est qu'une approximation (loi échangeable),
+ce que le commentaire de la ligne dit.
+
+\noindent\emph{Seuils de bascule au seuil par défaut $\alpha = 0{,}10$} (verdict \code{ECHEC} si
+$p < \alpha/2$, \code{ALERTE} si $\alpha/2 \le p < \alpha$, en sens « ne pas rejeter »)~:
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item \emph{suites}~: inopérant pour $T \le 7$ ($p_{\min} \ge 0{,}2$)~; test à \code{ECHEC}
+  inatteignable pour $T = 8$ et $9$ ($\alpha/2 \le p_{\min} = 0{,}0571 < \alpha$)~; \code{ECHEC}
+  atteignable dès $T = 10$. À $T = 8$, les p-values atteignables sont $0{,}0571$~; $0{,}2286$~;
+  $0{,}7429$ et $1$~: \code{ALERTE} seulement si $R \in \{2, 8\}$~;
+  \item \emph{Cox--Stuart}~: inopérant pour $T \le 9$~; test à \code{ECHEC} inatteignable pour
+  $T = 10$ et $11$ ($p_{\min} = 0{,}0625$)~; \code{ECHEC} atteignable dès $T = 12$. À $T = 8$, les
+  p-values atteignables sont $0{,}125$~; $0{,}625$ et $1$~;
+  \item \emph{Smirnov}~: $p_{\min} < \alpha/2$ à tout $T \ge 8$. À $T = 8$, les p-values
+  atteignables sont $0{,}0286$~; $0{,}2286$~; $0{,}7714$ et $1$~: le verdict est binaire,
+  \code{ECHEC} ($D = 1$) ou \code{OK}, et l'\code{ALERTE} est impossible~;
+  \item \emph{Mann--Kendall et Spearman}~: $p_{\min} < \alpha/2$ à tout $T \ge 5$ sans ex \ae quo~:
+  aucune bascule.
+\end{itemize}
+Ces seuils se déduisent du tableau et de la règle de verdict d'\code{add()}~; les ensembles de
+p-values atteignables à $T = 8$ ont été obtenus par énumération (\code{.runs\_dens()} pour les
+suites, loi $\mathcal{B}(4, 1/2)$ pour Cox--Stuart, les $\binom{8}{4} = 70$ partitions pour
+Smirnov). Les planchers des p-values de Monte-Carlo et de la loi nulle simulée de Shapiro--Wilk,
+qui ne dépendent pas de $T$, sont donnés dans les fiches~: $1/(B+1)$ en queue unilatérale,
+$2/(B+1)$ en bilatéral (\code{engine\_p\_mc()}, $B$ compté en réplications finies), soit
+$0{,}001$ et $0{,}002$ à $B = 999$~; $1/20\,001 \approx 5{,}0\cdot 10^{-5}$ pour
+\code{sw\_p\_loi\_nulle()}. Les règles générales d'\code{add()} (loi simulée dégénérée,
+statistique observée non finie, section~\ref{sec:nature}) peuvent en outre changer le type d'une
+ligne sur un jeu donné~; les rubriques~7 ne les répètent pas.
+
+% -----------------------------------------------------------------------------
+\subsection{Tableau de traçabilité de la rubrique 7}
+\label{tab:tracabilite-puissance}
+% -----------------------------------------------------------------------------
+
+Chaque valeur chiffrée d'une rubrique~7 (p-value minimale, plancher, puissance approchée, taux ou
+puissance mesurés) a sa source exécutable~: une fonction du moteur, ou un script hors CI de
+\code{tests/} dont la sortie est versionnée dans \code{docs/tableaux/}. Le tableau ci-dessous en
+donne une ligne par fiche portant la rubrique~7. «~Non étudiée~» signifie qu'aucun calcul
+versionné ne mesure la puissance du test à $T = 8$~: le document n'en cite alors aucune valeur,
+et aucune référence de la littérature n'a été vérifiée pour la puissance à $n = 8$.
+
+\noindent\emph{Protocoles des constats de simulation} (script \code{tests/constats\_puissance\_t8.R},
+sortie \code{docs/tableaux/}\newline \code{20260927-issue114-constats-puissance.md}, graine 20260927, générateur
+du moteur). \emph{C1, puissance contre un AR(1)}~: 20\,000 séries gaussiennes de longueur~8 par
+valeur de $\rho$, AR(1) stationnaire ($u_1 = e_1/\sqrt{1-\rho^2}$, $u_t = \rho u_{t-1} + e_t$,
+innovations communes à tous les $\rho$)~; test des suites par \code{runs\_p\_exacte()} et
+Durbin--Watson exact par \code{dw\_p\_exacte()} sur la série centrée~; rejet si $p < \alpha =
+0{,}10$. À $\hat\pi_t$ constant, $z_t$ est une transformation affine croissante des log-ratios et
+les deux p-values y sont invariantes (contrôle d'intégrité du script)~: la mesure vaut pour les
+lignes de ce régime. Statut~: \emph{constat de simulation, hors modèle réglementaire} ---
+l'annexe~XVII suppose des années indépendantes, l'AR(1) est une alternative choisie pour mesurer
+la puissance. Une variante secondaire à départ nul ($u_1 = e_1$), non stationnaire, donne des
+puissances plus faibles ou égales (même fichier). \emph{C2, niveau de la formule de
+Kolmogorov}~: 3\,000 échantillons de taille~8, rejet si la p-value de Kolmogorov de la ligne est
+inférieure à $5~\%$~; lecture principale K1, résidus $z_t$ de \code{usp\_ajuster()} réajusté sur
+des jeux simulés par \code{usp\_simuler()} sous le modèle ajusté au jeu de contrôle~; lectures
+K2 et K3, échantillons $\mathcal{N}(0,1)$ standardisés par la moyenne et l'écart-type empiriques~;
+référence K0, paramètres connus. Statut~: \emph{constat de simulation} du niveau d'une p-value
+restituée sans être retenue.
+
+\begin{landscape}
+\begin{center}
+\scriptsize
+\setlength{\tabcolsep}{2pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{2.5cm}>{\raggedright\arraybackslash}p{3.6cm}>{\raggedright\arraybackslash}p{4.0cm}>{\raggedright\arraybackslash}p{6.7cm}>{\raggedright\arraybackslash}p{7.2cm}@{}}
+\toprule
+\textbf{Test (fiche)} & \textbf{$p_{\min}$ et planchers à $T = 8$} &
+\textbf{Puissance, pertinence} & \textbf{Recalcul} & \textbf{Résultats} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Test (fiche)} & \textbf{$p_{\min}$ et planchers à $T = 8$} &
+\textbf{Puissance, pertinence} & \textbf{Recalcul} & \textbf{Résultats} \\
+\midrule
+\endhead
+\multicolumn{5}{@{}l@{}}{\textit{Suite page suivante}} \\
+\endfoot
+\bottomrule
+\endlastfoot
+\multicolumn{5}{@{}l@{}}{\textbf{Méthode lognormale}} \\
+\midrule
+Student, constante (\ref{fiche:student-constante}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+TOST, constante (\ref{fiche:tost-constante}) & Sans objet (loi continue) & Non étudiée (valeur de la rubrique~6 sans script versionné) & --- & --- \\
+Student, pente (\ref{fiche:student-pente}) & Sans objet (loi continue) & $\hat\pi_b = 0{,}47$ (contrôle), $1{,}00$ ($\hat\delta$ intérieur)~; diagnostic dans $38{,}0~\%$ et $0{,}0~\%$ des jeux simulés & \code{usp\_identifiabilite\_pente()},\newline \code{tests/taux\_franchissement\_reperes.R} & \code{docs/tableaux/}\newline \code{20260927-issue72-J1.md},\newline \code{docs/tableaux/}\newline \code{20260927-issue72-J2.md} \\
+Fisher global (\ref{fiche:fisher-global}) & Sans objet (loi continue) & $\hat\pi_b = 0{,}47$ (contrôle), $1{,}00$ ($\hat\delta$ intérieur)~; diagnostic dans $38{,}0~\%$ et $0{,}0~\%$ des jeux simulés & \code{usp\_identifiabilite\_pente()},\newline \code{tests/taux\_franchissement\_reperes.R} & \code{docs/tableaux/}\newline \code{20260927-issue72-J1.md},\newline \code{docs/tableaux/}\newline \code{20260927-issue72-J2.md} \\
+RESET (\ref{fiche:reset}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+Spearman (\ref{fiche:spearman}) & $2/T! = 4{,}96\cdot 10^{-5}$~; plancher Monte-Carlo $0{,}002$ (bilatéral) & Non étudiée & \code{mk\_p\_min()}, \code{engine\_p\_mc()} & --- \\
+Mann--Kendall (\ref{fiche:mann-kendall}) & $2/T! = 4{,}96\cdot 10^{-5}$~; plancher Monte-Carlo $0{,}002$ (bilatéral) & Non étudiée & \code{mk\_p\_min()}, \code{engine\_p\_mc()} & --- \\
+Cox--Stuart (\ref{fiche:cox-stuart}) & $0{,}125$ ($m = 4$) & Inopérant~: puissance nulle à $\alpha = 0{,}10$ pour $T \le 9$ & \code{cox\_stuart\_p\_min()} & --- \\
+Breusch--Pagan (Koenker) (\ref{fiche:breusch-pagan-koenker}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+Breusch--Pagan (1979) (\ref{fiche:breusch-pagan-1979}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+White (\ref{fiche:white}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+Goldfeld--Quandt (\ref{fiche:goldfeld-quandt}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+Brown--Forsythe (\ref{fiche:brown-forsythe}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+Smirnov (\ref{fiche:smirnov}) & $2/70 = 0{,}0286$~; plancher Monte-Carlo $0{,}001$ (unilatéral) & Non étudiée~; verdict binaire à $T = 8$ & \code{smirnov\_p\_min()}, \code{engine\_p\_mc()} & --- \\
+Shapiro--Wilk (\ref{fiche:shapiro-wilk}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+Shapiro--Wilk sans Royston (\ref{fiche:shapiro-wilk-sans-royston}) & Plancher de la loi nulle simulée $1/20\,001 \approx 5{,}0\cdot 10^{-5}$ & Non étudiée & \code{sw\_p\_loi\_nulle()} & --- \\
+Shapiro--Francia (\ref{fiche:shapiro-francia}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+Anderson--Darling (\ref{fiche:anderson-darling}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+Cramér--von Mises (\ref{fiche:cramer-von-mises}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+Kolmogorov--Smirnov (\ref{fiche:kolmogorov-smirnov}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée~; niveau de la formule de Kolmogorov~: 0/3\,000 (paramètres estimés), $3{,}2~\%$ (connus) & \code{engine\_p\_mc()},\newline \code{tests/constats\_puissance\_t8.R} & \code{docs/tableaux/}\newline \code{20260927-issue114-constats-puissance.md} \\
+Lilliefors (\ref{fiche:lilliefors}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+Jarque--Bera (\ref{fiche:jarque-bera}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+D'Agostino (asymétrie) (\ref{fiche:dagostino-asymetrie}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+Anscombe--Glynn (\ref{fiche:anscombe-glynn-aplatissement}) & Sans objet ($T < 20$) & Non applicable à $T = 8$ & \code{usp\_tests()} & --- \\
+Durbin--Watson (\ref{fiche:durbin-watson}) & Sans objet ($\hat\pi_t$ constant)~; plancher Monte-Carlo $0{,}002$ (bilatéral) sinon & AR(1)~: $0{,}159$~; $0{,}261$~; $0{,}396$~; $0{,}528$ ($\rho = 0{,}3$ à $0{,}9$) & \code{dw\_p\_exacte()}, \code{engine\_p\_mc()},\newline \code{tests/constats\_puissance\_t8.R} & \code{docs/tableaux/}\newline \code{20260927-issue114-constats-puissance.md} \\
+Ljung--Box, Box--Pierce (\ref{fiche:ljung-box}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+Suites (Wald--Wolfowitz) (\ref{fiche:suites-wald-wolfowitz}) & $4/70 = 0{,}0571$~; plancher Monte-Carlo $0{,}002$ (bilatéral) & AR(1)~: $0{,}081$~; $0{,}120$~; $0{,}175$~; $0{,}246$ ($\rho = 0{,}3$ à $0{,}9$)~; \code{ECHEC} inatteignable & \code{runs\_p\_min()}, \code{runs\_p\_exacte()},\newline \code{tests/constats\_puissance\_t8.R} & \code{docs/tableaux/}\newline \code{20260927-issue114-constats-puissance.md} \\
+sup-F (\ref{fiche:sup-f}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+OLS-CUSUM (\ref{fiche:ols-cusum}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+Grubbs (\ref{fiche:grubbs}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+ESD de Rosner (\ref{fiche:rosner-esd}) & Sans objet (procédure sans p-value) & Non étudiée & \code{test\_rosner()} & --- \\
+Durbin--Watson, ratios bruts (\ref{fiche:durbin-watson-ratios-bruts}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+Ljung--Box, ratios bruts (\ref{fiche:ljung-box-ratios-bruts}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+Suites, ratios bruts (\ref{fiche:suites-ratios-bruts}) & $4/70 = 0{,}0571$~; plancher Monte-Carlo $0{,}002$ (bilatéral) & Celle des suites sur $z_t$ à $\hat\pi_t$ constant~; non étudiée sinon & \code{runs\_p\_min()},\newline \code{tests/constats\_puissance\_t8.R} & \code{docs/tableaux/}\newline \code{20260927-issue114-constats-puissance.md} \\
+sup-F, ratios bruts (\ref{fiche:sup-f-ratios-bruts}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+OLS-CUSUM, ratios bruts (\ref{fiche:ols-cusum-ratios-bruts}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+Grubbs, ratios bruts (\ref{fiche:grubbs-ratios-bruts}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+\midrule
+\multicolumn{5}{@{}l@{}}{\textbf{Méthode Merz--Wüthrich}} \\
+\midrule
+M1, tendance avec le cumulé (\ref{mw:m1}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée (valeur de la rubrique~6 sans script versionné) & \code{engine\_p\_mc()} & --- \\
+M1, ordonnée à l'origine (\ref{mw:m1a}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+M1, homogénéité de $f_j$ (\ref{mw:m1b}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral)~; $p_{\min}$ non calculée & Non étudiée & \code{engine\_p\_mc()} & --- \\
+M1, courbure (\ref{mw:m1c}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+M1, famille $\alpha$ (\ref{mw:m1d}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+M2, hétéroscédasticité (\ref{mw:m2bp}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+M2, exposant de variance (\ref{mw:m2b}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+M3, effets calendaires (\ref{mw:m3cal}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral)~; $p_{\min}$ non calculée & Non étudiée & \code{engine\_p\_mc()} & --- \\
+M3, homogénéité entre années (\ref{mw:m3acc}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral)~; $p_{\min}$ non calculée & Non étudiée & \code{engine\_p\_mc()} & --- \\
+M3, corrélation entre colonnes (\ref{mw:m3cor}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral)~; $p_{\min}$ non calculée & Non étudiée & \code{engine\_p\_mc()} & --- \\
+M3, Durbin--Watson (\ref{mw:m3dw}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+M3, suites (\ref{mw:m3runs}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral)~; $p_{\min}$ non calculée~; $3{,}85\cdot 10^{-7}$ indicative & Non étudiée & \code{engine\_p\_mc()}, \code{runs\_p\_min()} & --- \\
+M4, Grubbs (\ref{mw:m4gr}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+M4, ESD de Rosner (\ref{mw:m4ros}) & Sans objet (procédure sans p-value) & Non étudiée & \code{test\_rosner()} & --- \\
+M5, Shapiro--Wilk (\ref{mw:m5sw}) & Plancher de la loi nulle simulée $1/20\,001 \approx 5{,}0\cdot 10^{-5}$ & Non étudiée & \code{sw\_p\_loi\_nulle()} & --- \\
+M5, Lilliefors (\ref{mw:m5li}) & Sans objet (approximation continue) & Non étudiée & \code{lillie\_p()} & --- \\
+\end{longtable}
+\end{center}
+\end{landscape}
+
 \subsection{Choix de la base de résidus}
 \label{sec:base-residus}
 
@@ -3782,6 +3991,14 @@ amplitude relative. La constante est donc extrapolée loin du domaine des donné
 $\widehat{\mathrm{se}}(\hat a)$ est mécaniquement très grande (le terme $\bar x^2/S_{xx}$ domine),
 si bien que le test ne rejette pratiquement jamais. Le test d'équivalence de la fiche suivante
 renverse cette charge de la preuve.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{Intercept}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes, sauf à volumes constants, où elle est non applicable (section~\ref{sec:volumes-constants}). La p-value de Student, exacte sous le seul modèle auxiliaire MCO, est restituée sans être retenue. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 \begin{fiche}{Équivalence de la constante à zéro (TOST)}
@@ -3875,6 +4092,14 @@ la valeur $a = 0$ est adhérente à cet ensemble, la borne supérieure de la pro
 sur $H_0$ y vaut 1, et aucun test de niveau $\alpha < 1$ n'existe. L'introduction d'une marge
 $\Delta > 0$ strictement positive est ce qui rend le problème bien posé.
 \end{encadre}
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet~: la p-value, maximum des deux p-values unilatérales de Student, suit une loi continue et n'a pas de plancher~; aucune p-value de Monte-Carlo n'est possible (hypothèse nulle composite, section~\ref{sec:nature}).
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes, sauf à volumes constants, où elle est non applicable (section~\ref{sec:volumes-constants}). Puissance non étudiée à $T = 8$ par un calcul versionné~: la probabilité de conclure à l'équivalence citée en rubrique~6 (46~\% à $T = 8$) provient d'une simulation dont le script n'est pas versionné~; elle n'est pas reprise au tableau~\ref{tab:tracabilite-puissance}.
+
+\textbf{Statut des valeurs.} Aucune valeur chiffrée propre à cette rubrique.
 \end{fiche}
 
 \begin{fiche}{Test de Student sur la pente}
@@ -3927,6 +4152,14 @@ jeux simulés sur le jeu de contrôle, aucun ($0{,}0~\%$ $[0{,}0~;~0{,}2]$) sur 
 intérieur. Le premier chiffre mesure l'instabilité de la règle au voisinage de son seuil --- le jeu
 de contrôle est à $\hat\pi_b = 0{,}475$, près de $1/2$ ---, non une fréquence générale~; ni l'un
 ni l'autre ne se transpose à d'autres volumes.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet (loi $t(T-2)$, continue)~; aucune p-value de Monte-Carlo n'est possible, le modèle simulé appartenant à $H_1$ (section~\ref{sec:t8}).
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Le type de la ligne dépend de la puissance approchée $\hat\pi_b$ de la règle~R4 (\code{usp\_identifiabilite\_pente()}, section~\ref{sec:t8})~: test si $\hat\pi_b \ge 1/2$, diagnostic sinon~; non applicable à volumes constants (section~\ref{sec:volumes-constants}). Jeu de contrôle~: $\hat\lambda = 1{,}78$, $\hat\pi_b = 0{,}47$, diagnostic~; jeu à $\hat\delta$ intérieur de la section~\ref{sec:verif}~: $\hat\lambda = 17{,}28$, $\hat\pi_b = 1{,}00$, test. Fréquence de la restitution en diagnostic sous le modèle ajusté, sur 2\,000 jeux simulés (section~\ref{sec:taux-reperes})~: $38{,}0~\%$ $[35{,}8~;~40{,}1]$ sur le jeu de contrôle, $0{,}0~\%$ $[0{,}0~;~0{,}2]$ sur le jeu à $\hat\delta$ intérieur. $\hat\pi_b$ est la seule puissance que le moteur calcule~; elle vaut sous le modèle ajusté, aux volumes observés, et ne se transpose pas à d'autres volumes.
+
+\textbf{Statut des valeurs.} $\hat\lambda$ et $\hat\pi_b$~: approximation analytique au premier ordre (loi de Student décentrée), calcul déterministe~; fréquences~: constat de simulation sous le modèle ajusté, intervalles de Clopper--Pearson à $95~\%$.
 \end{fiche}
 
 \begin{fiche}{Test de Fisher de significativité globale}
@@ -3960,6 +4193,14 @@ On souhaite, comme pour la pente, \emph{rejeter} $H_0$. En régression simple ce
 strictement équivalent au test de Student sur la pente ($F = t_b^2$, p-values identiques)~: il est
 conservé pour la lisibilité du rapport et redeviendrait informatif si l'on ajoutait des
 régresseurs (indicatrices d'année, variable d'inflation). Même limite de puissance à $T$ faible.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet (loi $\mathcal{F}(1, T-2)$, continue)~; aucune p-value de Monte-Carlo n'est possible (section~\ref{sec:t8}).
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Mêmes règle et valeurs que la pente ($F = t_b^2$), la pente et Fisher changeant de type ensemble. Le type de la ligne dépend de la puissance approchée $\hat\pi_b$ de la règle~R4 (\code{usp\_identifiabilite\_pente()}, section~\ref{sec:t8})~: test si $\hat\pi_b \ge 1/2$, diagnostic sinon~; non applicable à volumes constants (section~\ref{sec:volumes-constants}). Jeu de contrôle~: $\hat\lambda = 1{,}78$, $\hat\pi_b = 0{,}47$, diagnostic~; jeu à $\hat\delta$ intérieur de la section~\ref{sec:verif}~: $\hat\lambda = 17{,}28$, $\hat\pi_b = 1{,}00$, test. Fréquence de la restitution en diagnostic sous le modèle ajusté, sur 2\,000 jeux simulés (section~\ref{sec:taux-reperes})~: $38{,}0~\%$ $[35{,}8~;~40{,}1]$ sur le jeu de contrôle, $0{,}0~\%$ $[0{,}0~;~0{,}2]$ sur le jeu à $\hat\delta$ intérieur. $\hat\pi_b$ est la seule puissance que le moteur calcule~; elle vaut sous le modèle ajusté, aux volumes observés, et ne se transpose pas à d'autres volumes.
+
+\textbf{Statut des valeurs.} $\hat\lambda$ et $\hat\pi_b$~: approximation analytique au premier ordre (loi de Student décentrée), calcul déterministe~; fréquences~: constat de simulation sous le modèle ajusté, intervalles de Clopper--Pearson à $95~\%$.
 \end{fiche}
 
 \begin{fiche}{Coefficient de détermination $R^2$}
@@ -4046,6 +4287,14 @@ indiquer la forme. Limites à $T$ faible~: avec $T = 5$ il ne reste que 2 degré
 dénominateur, ce qui le rend presque inopérant~; et $\hat y^2$, $\hat y^3$ sont fortement
 colinéaires lorsque l'amplitude des volumes est faible, ce qui réduit encore la puissance. À
 utiliser en complément, non en substitution, de l'examen graphique.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{RESET}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes, sauf à volumes constants, où elle est non applicable (section~\ref{sec:volumes-constants}). Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 \begin{fiche}{Corrélation de rang de Spearman (ratio contre volume, ratio contre temps)}
@@ -4116,6 +4365,14 @@ tests paramétriques précédents. Deux limites~: (i) il ne détecte que les ass
 médiocre pour $T < 10$, raison pour laquelle le moteur retient la loi exacte de permutation. Sur la variante
 « ratio contre volume », un rejet signale un effet d'échelle non capté par la proportionnalité
 stricte.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} $2/T! = 4{,}96\cdot 10^{-5}$ sans ex \ae quo (\code{mk\_p\_min()}). Exacte sur la loi de permutation à $\hat\pi_t$ constant, où la p-value exacte est retenue (\code{stats::cor.test()}, $T \le 9$, sans ex \ae quo)~; à $\hat\pi_t$ variable, ou au-delà de $T = 9$, la p-value retenue est de Monte-Carlo (clé \code{SpearVol}, \code{SpearTps}, bilatérale) et $4{,}96\cdot 10^{-5}$ n'en est qu'une approximation~: le plancher effectif est alors $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}). Avec ex \ae quo, \code{p\_min} vaut \code{NA} et aucune p-value exacte n'est attribuée (issue~\#70).
+
+\textbf{Table.} Tableau~\ref{tab:pmin}, dernière colonne~: aucune bascule de $T = 5$ à $T = 12$.
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes ($p_{\min} \ll \alpha$)~; la ligne « ratio contre volume » est non applicable à volumes constants (section~\ref{sec:volumes-constants}). Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} $p_{\min}$~: exacte (énumération de la loi de permutation) à $\hat\pi_t$ constant, approximation à $\hat\pi_t$ variable~; plancher de Monte-Carlo~: exact, fonction de $B$.
 \end{fiche}
 
 \begin{fiche}{Test de tendance de Mann--Kendall}
@@ -4170,6 +4427,14 @@ constance de $\beta$. Limites~: l'approximation normale n'est acceptable qu'à p
 $T \approx 10$, en-deçà la loi exacte est nécessaire. Surtout, le test suppose
 \emph{l'indépendance} des observations~: en présence d'autocorrélation positive il rejette
 beaucoup trop souvent, ce qui impose de le lire conjointement avec les tests de la section~\ref{sec:h4}.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} $2/T! = 4{,}96\cdot 10^{-5}$ sans ex \ae quo (\code{mk\_p\_min()}). Exacte sur la loi de permutation à $\hat\pi_t$ constant, où la p-value exacte est retenue (\code{mk\_p\_exacte()}, $T \le 12$, sans ex \ae quo)~; à $\hat\pi_t$ variable, ou au-delà de $T = 12$, la p-value retenue est de Monte-Carlo (clé \code{MK}, bilatérale) et $4{,}96\cdot 10^{-5}$ n'en est qu'une approximation~: le plancher effectif est alors $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}). Avec ex \ae quo, \code{p\_min} vaut \code{NA} et aucune p-value exacte n'est attribuée (issue~\#70).
+
+\textbf{Table.} Tableau~\ref{tab:pmin}, dernière colonne~: aucune bascule de $T = 5$ à $T = 12$.
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes ($p_{\min} \ll \alpha$). Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} $p_{\min}$~: exacte (énumération de la loi de permutation) à $\hat\pi_t$ constant, approximation à $\hat\pi_t$ variable~; plancher de Monte-Carlo~: exact, fonction de $B$.
 \end{fiche}
 
 \begin{fiche}{Test de tendance par signes de Cox--Stuart}
@@ -4243,6 +4508,14 @@ issue~\#44~; \code{cox\_stuart\_p\_min()}), la p-value minimale figurant dans le
 minimale atteignable = 0.1250 (m = 4 differences non nulles)}), les p-values calculées restant
 affichées. Jusqu'à l'issue~\#44, la ligne sortait \code{OK} sur le jeu de contrôle. Elle ne
 redevient un test qu'à un seuil $\alpha > p_{\min}$, soit $\alpha > 0{,}125$ sans ex \ae quo.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} $0{,}125$ ($m = 4$ différences non nulles, \code{cox\_stuart\_p\_min()})~; p-values atteignables $0{,}125$~; $0{,}625$~; $1$. Exacte sur la loi binomiale à $\hat\pi_t$ constant~; approximation à $\hat\pi_t$ variable, où la p-value exacte n'est pas attribuée. Avec ex \ae quo, $m < 4$ et $p_{\min} \ge 0{,}25$. Aucune p-value n'est retenue à $T = 8$, la ligne étant un diagnostic.
+
+\textbf{Table.} Tableau~\ref{tab:pmin}~: inopérant pour $T \le 9$~; \code{ECHEC} atteignable dès $T = 12$.
+
+\textbf{Pertinence à $T = 8$.} Test inopérant pour toute donnée à $T = 8$ ($p_{\min} \ge \alpha = 0{,}10$)~: ligne restituée en diagnostic, sans verdict (règle~R1)~; sans ex \ae quo, elle ne devient un test qu'à partir de $T = 10$. Au seuil $\alpha = 0{,}10$, la puissance est nulle pour $T \le 9$, aucune donnée ne pouvant donner $p < \alpha$~; au-delà, puissance non étudiée.
+
+\textbf{Statut des valeurs.} Exact (loi binomiale, énumération)~; la puissance nulle pour $T \le 9$ en est une conséquence exacte.
 \end{fiche}
 
 \newpage
@@ -4312,6 +4585,14 @@ $T < 30$. De plus, la forme testée est \emph{linéaire} en $x_t$~: une hétéro
 résiduelle de forme différente peut échapper au test, d'où la variante de White. Enfin, la
 version originale de Breusch--Pagan exige la normalité des erreurs~; la forme $T R^2$ retenue ici
 (Koenker) s'en affranchit et est donc préférable dans ce contexte.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{BP}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes, sauf à volumes constants, où elle est non applicable (section~\ref{sec:volumes-constants}). Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 \begin{fiche}{Test de Breusch--Pagan, version originale de 1979}
@@ -4375,6 +4656,14 @@ marquée entre elles ne signale pas une hétéroscédasticité, mais un écart �
 renvoie à H3 et non à H2. Pour conclure sur la structure de variance, c'est la version
 studentisée qui fait foi, la normalité n'étant jamais acquise à $T = 8$.
 \end{encadre}
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{BP79}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes, sauf à volumes constants, où elle est non applicable (section~\ref{sec:volumes-constants}). Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 \begin{fiche}{Test de White}
@@ -4402,6 +4691,14 @@ trois coefficients auxiliaires laisse trop peu d'information et la puissance dev
 Le test est par ailleurs un test de mauvaise spécification \emph{générale} plutôt que
 d'hétéroscédasticité stricto sensu~: un rejet peut aussi traduire une erreur de forme
 fonctionnelle relevant de H1.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{White}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes, sauf à volumes constants, où elle est non applicable (section~\ref{sec:volumes-constants}). Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 \begin{fiche}{Test de Goldfeld--Quandt}
@@ -4434,6 +4731,14 @@ Test simple et lisible dont le principal défaut est de \emph{jeter la moitié d
 utile~: il ne compare que deux blocs et ignore la structure interne à chacun. Avec $T = 10$, on
 compare deux blocs de 5 observations~: un rapport de variances de 2 ou 3 ne sera pas détecté.
 Sensible à la non-normalité, contrairement à Brown--Forsythe.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{GQ}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes, sauf à volumes constants, où elle est non applicable (section~\ref{sec:volumes-constants}). Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 \begin{fiche}{Test de Brown--Forsythe}
@@ -4465,6 +4770,14 @@ L'usage de la médiane (plutôt que de la moyenne, comme chez Levene) confère u
 aux distributions asymétriques ou à queues lourdes, ce qui est précieux en assurance non-vie.
 Limite~: comme Goldfeld--Quandt, il ne compare que deux blocs et la loi de Fisher n'est
 qu'approximative. À $T \le 10$, à considérer comme un simple indicateur.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{BF}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes, sauf à volumes constants, où elle est non applicable (section~\ref{sec:volumes-constants}). Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 \begin{fiche}{Test de Smirnov à deux échantillons}
@@ -4522,6 +4835,14 @@ constant, et retient sinon la p-value de Monte-Carlo (clé \code{Smirnov}), le c
 commençant par «~\code{p exacte non attribuee~: loi de reference exacte seulement a pi\_t constant (z = P
 epsilon non echangeable, r\_t non identiquement distribues).}~» Le
 \emph{QQ-plot à deux échantillons} associé (section~\ref{sec:graphiques}) reste le diagnostic le plus lisible.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} $2/\binom{8}{4} = 2/70 = 0{,}0286$ ($n_1 = n_2 = 4$, \code{smirnov\_p\_min()}), atteinte seulement pour $D = 1$~; p-values atteignables $0{,}0286$~; $0{,}2286$~; $0{,}7714$~; $1$. Exacte à $\hat\pi_t$ constant, où la p-value exacte de \code{stats::ks.test()} est retenue~; à $\hat\pi_t$ variable, la p-value retenue est de Monte-Carlo (clé \code{Smirnov}, rejet en queue haute, plancher $1/(B+1)$, soit $0{,}001$ à $B = 999$) et $0{,}0286$ n'en est qu'une approximation.
+
+\textbf{Table.} Tableau~\ref{tab:pmin}~: $p_{\min} < \alpha/2$ à tout $T \ge 8$~; les valeurs pour $T < 8$ sont hors moteur.
+
+\textbf{Pertinence à $T = 8$.} Ligne calculée seulement pour $T \ge 8$~; non applicable à volumes constants (section~\ref{sec:volumes-constants}) ou si un groupe compte moins de trois années. À $T = 8$ et $\hat\pi_t$ constant, le verdict est binaire~: \code{ECHEC} si $D = 1$, \code{OK} sinon, l'\code{ALERTE} étant impossible. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} $p_{\min}$ et p-values atteignables~: exactes (énumération des 70 partitions) à $\hat\pi_t$ constant, approximation à $\hat\pi_t$ variable~; plancher de Monte-Carlo~: exact, fonction de $B$.
 \end{fiche}
 
 \begin{fiche}{Position de $\hat\delta$ dans son domaine (diagnostic)}
@@ -4662,6 +4983,14 @@ puissance contre une loi à queues lourdes réaliste n'est que de quelques dizai
 si bien qu'un $p$ élevé n'apporte quasiment aucune information. Il est par ailleurs sensible aux
 ex \ae quo (fréquents si les montants sont arrondis) et à l'estimation préalable des paramètres.
 \textbf{Lire prioritairement \code{p\_mc}.}
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $W$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{SW}, rejet en queue basse)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. L'ordre de grandeur de puissance cité en rubrique~6 (« quelques dizaines de pour cent ») n'a pas de calcul versionné et n'est pas repris ici. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 \begin{fiche}{Test de Shapiro--Francia}
@@ -4696,6 +5025,14 @@ Simplification de Shapiro--Wilk (remplacement de $V^{-1}$ par l'identité), souv
 contre les alternatives \emph{à queues lourdes} et légèrement moins contre les alternatives
 asymétriques. Son intérêt est d'être la traduction numérique exacte du QQ-plot, ce qui facilite la
 justification en dossier. Mêmes limites de puissance qu'à la fiche précédente.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $W'$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{SF}, rejet en queue basse)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 \begin{fiche}{Test d'Anderson--Darling}
@@ -4745,6 +5082,14 @@ précisément là où se joue le capital réglementaire. Limite propre à ce con
 sensibilité est aussi sa fragilité, car sur 8 à 12 points les deux ou trois observations extrêmes
 déterminent presque entièrement $A^2$. À croiser impérativement avec les tests de valeurs
 aberrantes de la section~\ref{sec:stabilite}.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $A^2$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{AD}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 \begin{fiche}{Test de Cramér--von Mises}
@@ -4778,6 +5123,14 @@ Version non pondérée d'Anderson--Darling~: elle accorde le même poids à tout
 est donc \emph{moins} sensible aux queues, ce qui la rend plus stable mais moins pertinente pour
 un usage prudentiel. Utile en recoupement~: un rejet par $A^2$ non confirmé par $W^2$ oriente vers
 un problème localisé en queue plutôt que vers une non-normalité d'ensemble.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $W^2$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{CvM}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 \begin{fiche}{Test de Kolmogorov--Smirnov contre $\mathcal{N}(0,1)$}
@@ -4812,6 +5165,14 @@ appliquer la loi de Kolmogorov alors que les paramètres ont été estimés rend
 test extrêmement conservateur. Une simulation à $T = 8$ donne \textbf{zéro rejet sur 3\,000
 réplications} au seuil de 5~\%, ce qui produirait une fausse impression de validation. Le test de
 Lilliefors (fiche suivante) est la réponse correcte à cette situation.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $D$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{KS}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. Puissance non étudiée à $T = 8$. Niveau de la formule de Kolmogorov, restituée sans être retenue (constat~C2, tableau~\ref{tab:tracabilite-puissance})~: 0 rejet sur 3\,000 échantillons au seuil de $5~\%$ sur les résidus réestimés sous le modèle ajusté au jeu de contrôle (intervalle de Clopper--Pearson à $95~\%$~: $[0{,}000~;~0{,}001]$), de même sur des normales standardisées par la moyenne et l'écart-type empiriques ou du maximum de vraisemblance~; $3{,}2~\%$ ($97/3\,000$, $[2{,}6~;~3{,}9]~\%$) à paramètres connus~: la formule est conservatrice même alors. Ce constat reproduit, par un script versionné, celui de la rubrique~6~; il ne porte pas sur la p-value retenue, de Monte-Carlo, simulée sous le modèle ajusté.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, fonction de $B$~; niveau de la formule de Kolmogorov~: constat de simulation (constat~C2).
 \end{fiche}
 
 \begin{fiche}{Test de Lilliefors}
@@ -4851,6 +5212,14 @@ La calibration a été vérifiée par simulation à
 $T = 8$~: 10,6~\% de rejets au seuil nominal de 10~\% et 5,2~\% au seuil de 5~\%, à comparer aux
 0~\% du test de Kolmogorov mal appliqué. Sa puissance reste néanmoins celle de la famille
 Kolmogorov--Smirnov, c'est-à-dire faible devant Shapiro--Wilk et Anderson--Darling.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $D$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{Lillie}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 \begin{fiche}{Shapiro--Wilk sans la normalisation de Royston}
@@ -4905,6 +5274,14 @@ réplications à $T = 8$, la fréquence de rejet au seuil de 5~\% vaut 4,95~\% p
 contre 5,05~\% pour la normalisation de Royston, ce qui valide a posteriori l'approximation de
 Royston à cette taille d'échantillon (constat de simulation dont le régime de $\hat\pi_t$ n'est
 pas consigné~; la calibration par régime figure à la section~\ref{sec:base-residus}).
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $W$, continue. La p-value retenue, exacte au sens de l'ADR~0002 à $\hat\pi_t$ constant, est lue sur une loi nulle simulée de 20\,000 tirages (\code{sw\_p\_loi\_nulle()})~: son plancher est $1/20\,001 \approx 5{,}0\cdot 10^{-5}$, fonction du nombre de tirages et non de $T$.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test à $\hat\pi_t$ constant~; non applicable à $\hat\pi_t$ variable, où la loi nulle i.i.d. est sans objet (section~\ref{sec:base-residus}). Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété de l'estimateur $(1 + \#\{W^\ast \le W\})/(N + 1)$~; la loi nulle simulée porte une erreur de Monte-Carlo en $1/\sqrt{20\,000}$.
 \end{fiche}
 
 \begin{fiche}{Test de Jarque--Bera}
@@ -4956,6 +5333,14 @@ quantité de l'ordre de $T$~: avec $T = 8$, l'échantillon est structurellement 
 manifester une queue lourde et le test ne peut pratiquement pas rejeter pour excès
 d'aplatissement. La p-value \code{p\_mc} est ici indispensable~; en son absence, ce test n'apporte
 à peu près rien sur un historique réglementaire minimal.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{JB}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 \begin{fiche}{Test d'asymétrie de D'Agostino}
@@ -4994,6 +5379,14 @@ oriente vers un mélange de sinistres graves et attritionnels mal séparés, dia
 au regard de l'exigence de l'annexe~XVII sur le retraitement des événements déjà couverts par les
 sous-modules catastrophe. Limite~: la correction de petit échantillon vaut dès $T \ge 8$, mais la
 puissance ne devient réellement exploitable que vers $T \ge 20$.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{DAgo}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. Non applicable en deçà de $T = 8$. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 \begin{fiche}{Test d'aplatissement d'Anscombe--Glynn}
@@ -5032,6 +5425,14 @@ C'est le test le plus directement pertinent pour un actuaire (l'épaisseur de qu
 quantile à 99,5~\%), mais aussi le moins souvent disponible~: il exige $T \ge 20$, davantage que
 ce qu'exige la crédibilité pleine de l'annexe~XVII. Lorsqu'il n'est pas applicable, l'analyse de
 queue doit reposer sur le QQ-plot, sur Anderson--Darling et sur les tests de valeurs aberrantes.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet à $T = 8$~: la ligne est non applicable pour $T < 20$. À $T \ge 20$, la p-value retenue est asymptotique (approximation normale), sans p-value de Monte-Carlo~: loi continue, $p_{\min}$ sans objet.
+
+\textbf{Table.} Sans objet.
+
+\textbf{Pertinence à $T = 8$.} Jamais de type test à $T = 8$ (non applicable)~; test seulement à partir de $T = 20$. Puissance sans objet à $T = 8$.
+
+\textbf{Statut des valeurs.} Seuil $T \ge 20$~: borne de définition de la ligne dans \code{usp\_tests()}~; aucune autre valeur chiffrée.
 \end{fiche}
 
 \newpage
@@ -5142,6 +5543,14 @@ figure à la section~\ref{sec:base-residus}~: compatible avec le niveau nominal 
 scénario où $\pi_t$ est constant, inférieure au nominal (9,0~\% au seuil de 10~\%) dans le
 scénario à $\hat\pi_t$ variable, constat propre à ce scénario. Les bornes $d_L/d_U$, établies pour des résidus de moindres carrés, ne sont pas
 utilisées. Le test ne détecte par ailleurs qu'une dépendance d'ordre~1.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet (loi d'Imhof, continue)~: à $\hat\pi_t$ constant, la p-value exacte de \code{dw\_p\_exacte()} est retenue, sans plancher~; à $\hat\pi_t$ variable, la p-value retenue est de Monte-Carlo (clé \code{DW}, bilatérale), de plancher $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}).
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. Puissance contre un AR(1) stationnaire (constat~C1, 20\,000 séries par valeur de $\rho$, $\alpha = 0{,}10$)~: $0{,}159$~; $0{,}261$~; $0{,}396$~; $0{,}528$ pour $\rho = 0{,}3$~; $0{,}5$~; $0{,}7$~; $0{,}9$, pour un niveau de $0{,}100$ à $\rho = 0$. Mesure sur la série centrée, qui vaut pour la ligne à $\hat\pi_t$ constant~; hors modèle réglementaire.
+
+\textbf{Statut des valeurs.} Puissances~: constat de simulation, hors modèle réglementaire (intervalles de Clopper--Pearson dans le fichier de résultats)~; elles reproduisent, à l'erreur de simulation près (écart normalisé $|z| \le 1{,}96$ à chaque $\rho$), le constat du 23~septembre 2026 de l'issue~\#44. Plancher de Monte-Carlo~: exact, fonction de $B$.
 \end{fiche}
 
 \begin{fiche}{Tests portemanteau de Ljung--Box et de Box--Pierce}
@@ -5175,6 +5584,14 @@ Ljung--Box est à préférer systématiquement à Box--Pierce, dont l'approximat
 fiable qu'à partir de $T \approx 30$, et la règle d'usage $h \le T/5$ impose de se restreindre à
 $h \le 2$ ou $3$ sur un historique réglementaire. Un rejet au retard 2 non confirmé au retard 1
 doit être interprété avec prudence~: sur 12 points, il s'agit souvent d'un artefact.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $Q$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{LB1}, \code{LB2}, \code{BP2}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. Les lignes au retard~2 ne sont calculées qu'à $T \ge 8$. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 \begin{fiche}{Test des suites de Wald--Wolfowitz}
@@ -5294,6 +5711,14 @@ défaut $\alpha = 0{,}10$, seules les valeurs extrêmes $R \in \{2, 8\}$ conduis
 est inatteignable, ce que le commentaire de la ligne dit depuis l'issue~\#44
 (\code{ECHEC inatteignable~: p\_min = 0.0571 >= alpha/2 = 0.05 (n1 = 4, n2 = 4)}). Le verdict \code{OK} couvre les cinq valeurs $R \in \{3, \dots, 7\}$, soit une
 probabilité $66/70 = 0{,}943$ sous $H_0$~: il ne vaut pas validation de l'indépendance.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} $4/70 = 0{,}0571$ ($n_1 = n_2 = 4$, \code{runs\_p\_min()})~; p-values atteignables $0{,}0571$~; $0{,}2286$~; $0{,}7429$~; $1$. Exacte à $\hat\pi_t$ constant, où la p-value exacte de \code{runs\_p\_exacte()} est retenue~; à $\hat\pi_t$ variable, la p-value retenue est de Monte-Carlo (clé \code{Runs}, bilatérale, plancher $2/(B+1)$, soit $0{,}002$ à $B = 999$) et $0{,}0571$ n'en est qu'une approximation.
+
+\textbf{Table.} Tableau~\ref{tab:pmin}~: inopérant pour $T \le 7$~; \code{ECHEC} inatteignable à $T = 8$ et $9$.
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test, à \code{ECHEC} inatteignable ($\alpha/2 \le p_{\min} < \alpha$)~: à $\hat\pi_t$ constant, \code{ALERTE} seulement si $R \in \{2, 8\}$. Puissance contre un AR(1) stationnaire (constat~C1, 20\,000 séries par valeur de $\rho$, $\alpha = 0{,}10$, rejet signifiant ici \code{ALERTE})~: $0{,}081$~; $0{,}120$~; $0{,}175$~; $0{,}246$ pour $\rho = 0{,}3$~; $0{,}5$~; $0{,}7$~; $0{,}9$, pour un niveau de $0{,}057$ ($4/70$) à $\rho = 0$~; de l'ordre de la moitié de celle de Durbin--Watson exact (fiche~\ref{fiche:durbin-watson}) à chaque $\rho$. Mesure valable à $\hat\pi_t$ constant~; hors modèle réglementaire.
+
+\textbf{Statut des valeurs.} $p_{\min}$ et p-values atteignables~: exactes (énumération) à $\hat\pi_t$ constant, approximation à $\hat\pi_t$ variable~; puissances~: constat de simulation, hors modèle réglementaire, reproduisant le constat du 23~septembre 2026 de l'issue~\#44 (écart normalisé $|z| \le 1{,}96$).
 \end{fiche}
 
 \begin{fiche}{Condition du premier ordre (gradient projeté, KKT)}
@@ -5867,6 +6292,14 @@ Monte-Carlo près \emph{et} sous le modèle ajusté pris pour vrai~: sa validit�
 bootstrap paramétrique, asymptotique en $T$ et non quantifiable à $T = 8$
 (section~\ref{sec:mc})~; la calibration mesurée sur cette base est un constat de simulation
 (section~\ref{sec:base-residus}).
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{DWr}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. À $\hat\pi_t$ constant, la p-value retenue reste de Monte-Carlo. Dans ce régime, le commentaire de la ligne signale un contrôle sans objet, quasi-doublon de la ligne sur $z_t$~; la ligne reste un test. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 \begin{fiche}{Ljung--Box au retard 1 sur ratios bruts}
@@ -5899,6 +6332,14 @@ de $\hat\rho_1$~: sa valeur relative varie fortement d'une base à l'autre sans 
 dépende à ce niveau (section~\ref{sec:base-residus}). Même réserve à $\hat\pi_t$ constant
 (quasi-doublon, « \code{CONTROLE SANS OBJET ICI} ») et même portée de la p-value de Monte-Carlo à
 $T = 8$ que pour la fiche~\ref{fiche:durbin-watson-ratios-bruts}.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $Q$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{LB1r}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. À $\hat\pi_t$ constant, le commentaire de la ligne signale un contrôle sans objet, quasi-doublon de la ligne sur $z_t$~; la ligne reste un test. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 \begin{fiche}{Test des suites sur ratios bruts}
@@ -5944,6 +6385,14 @@ s'applique à cette ligne comme à celle sur $z_t$, avec la p-value minimale aux
 de $u_t$ (champ \code{p\_min}). Sans p-value exacte, cette p-value minimale, calculée sur la loi
 combinatoire, n'est qu'une approximation de celle de la p-value de Monte-Carlo, ce que le
 commentaire de la ligne précise (issue~\#44).
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} $4/70 = 0{,}0571$ ($n_1 = n_2 = 4$, \code{runs\_p\_min()}). Exacte à $\hat\pi_t$ constant, où la statistique et la p-value exacte retenue sont celles de la ligne sur $z_t$ (\code{usp\_runsr\_p\_exacte()})~; à $\hat\pi_t$ variable, la p-value retenue est de Monte-Carlo (clé \code{Runsr}, bilatérale, plancher $2/(B+1)$, soit $0{,}002$ à $B = 999$) et $0{,}0571$ n'en est qu'une approximation.
+
+\textbf{Table.} Tableau~\ref{tab:pmin}~: \code{ECHEC} inatteignable à $T = 8$ et $9$.
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test, à \code{ECHEC} inatteignable. À $\hat\pi_t$ constant, la statistique étant identique à celle de la ligne sur $z_t$, la puissance est celle du constat~C1 (fiche~\ref{fiche:suites-wald-wolfowitz})~; à $\hat\pi_t$ variable, puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} $p_{\min}$~: exacte à $\hat\pi_t$ constant, approximation à $\hat\pi_t$ variable~; puissance~: constat de simulation (fiche~\ref{fiche:suites-wald-wolfowitz}).
 \end{fiche}
 
 \newpage
@@ -5996,6 +6445,14 @@ surestime massivement le nombre de ruptures détectées, le maximum sur une diza
 étant mécaniquement grand sous $H_0$. La simulation règle ce problème. Un rejet est très
 informatif~: il signale un changement de politique de souscription, de provisionnement ou de
 périmètre, et peut justifier de restreindre la profondeur $T$ retenue.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $\sup F$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{supF}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 \begin{fiche}{Test de stabilité OLS-CUSUM}
@@ -6028,6 +6485,14 @@ Complémentaire du sup-F~: le CUSUM détecte plutôt des dérives \emph{graduell
 détecte des ruptures \emph{brutales}. Sa limite majeure ici est que la convergence vers le pont
 brownien suppose $T$ grand~: sur 10 points, le processus cumulé n'a aucune chance de ressembler à
 une trajectoire brownienne et seule la simulation donne un niveau correct.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{CUSUM}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 \begin{fiche}{Test de Grubbs}
@@ -6064,6 +6529,14 @@ celles-ci gonflent $s_z$ et le test ne détecte plus rien, d'où la nécessité 
 petits échantillons, aucune observation ne peut être « suffisamment » extrême. Enfin, la
 sensibilité à l'hypothèse de normalité est totale~: sur une vraie loi à queue lourde, le test
 signale des aberrations qui n'en sont pas.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $G$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{Grubbs}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. $G$ est borné par $(T-1)/\sqrt{T}$, soit $2{,}475$ à $T = 8$ (borne algébrique, citée dans le commentaire de la ligne)~; la borne vaut aussi pour les réplications et ne crée pas de plancher propre. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance. La borne de $G$ est exacte (algébrique).
 \end{fiche}
 
 \begin{fiche}{Procédure ESD généralisée de Rosner}
@@ -6101,6 +6574,14 @@ ce qui n'est jamais atteint en régime USP~; le choix de $k$ est arbitraire et i
 résultat~; l'hypothèse de normalité reste critique. À $T \le 15$, la procédure est un simple
 signal d'attention, non une justification d'exclusion de données -- laquelle doit toujours reposer
 sur une analyse métier (sinistre exceptionnel identifié, erreur de saisie avérée).
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet~: procédure de décision sans p-value (\code{test\_rosner()}, décision par comparaison aux valeurs critiques de Rosner au niveau $\alpha$).
+
+\textbf{Table.} Sans objet.
+
+\textbf{Pertinence à $T = 8$.} Ligne de type procédure de décision dans tous les régimes~; limites des valeurs critiques en rubrique~6. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Aucune valeur chiffrée.
 \end{fiche}
 
 \begin{fiche}{Distance de Cook (diagnostic)}
@@ -6225,6 +6706,14 @@ provisionnement ou de périmètre). À $\hat\pi_t$ constant, quasi-doublon de so
 $z_t$ (« \code{CONTROLE SANS OBJET ICI} »). À $T = 8$, l'ensemble des points de rupture ne compte
 que quelques candidats et la p-value de Monte-Carlo a la portée du bootstrap paramétrique
 (section~\ref{sec:mc}).
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $\sup F$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{supFr}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 \begin{fiche}{Stabilité OLS-CUSUM sur ratios bruts}
@@ -6252,6 +6741,14 @@ Complément graduel du sup-F sur la même base. À $\hat\pi_t$ constant, quasi-d
 homologue sur $z_t$ (« \code{CONTROLE SANS OBJET ICI} »). À $T = 8$, le processus cumulé ne
 compte que huit points~: seule la simulation fournit une loi de référence, avec la portée du
 bootstrap paramétrique (section~\ref{sec:mc}).
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{CUSUMr}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 \begin{fiche}{Grubbs sur ratios bruts}
@@ -6283,6 +6780,14 @@ borne $G \le (T-1)/\sqrt{T} = 2{,}47$ à $T = 8$. À $\hat\pi_t$ constant, quasi
 homologue sur $z_t$ (« \code{CONTROLE SANS OBJET ICI} »). À $T = 8$, la p-value de Monte-Carlo a
 la portée du bootstrap paramétrique (section~\ref{sec:mc})~; la calibration mesurée sur cette base
 est un constat de simulation (section~\ref{sec:base-residus}).
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $G$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{Grubbsr}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. $G$ est borné par $(T-1)/\sqrt{T}$, soit $2{,}475$ à $T = 8$ (borne algébrique, citée dans le commentaire de la ligne)~; la borne vaut aussi pour les réplications et ne crée pas de plancher propre. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance. La borne de $G$ est exacte (algébrique).
 \end{fiche}
 
 \newpage
@@ -7454,7 +7959,8 @@ régression agrégée initiale, conservée en tête, ne le permettait pas.
 \end{encadre}
 
 Les fiches ci-dessous suivent la structure en six rubriques employée pour les
-hypothèses H1 à H4 de la méthode lognormale. Les notations sont celles de la
+hypothèses H1 à H4 de la méthode lognormale, complétée de la rubrique~7 pour les
+fiches de test et de procédure de décision. Les notations sont celles de la
 section~\ref{sec:notations-mw}.
 
 \begin{fiche}{M1 --- Absence de tendance des facteurs avec le cumulé, à colonne donnée}
@@ -7507,6 +8013,14 @@ mesurée sous une alternative où le facteur dépend linéairement du volume~:
 $100~\%$ de rejets au seuil de $10~\%$. Il ne dit pas, en revanche, quelle
 colonne est en cause~: c'est le rôle du test par colonne et du graphique en
 petits multiples.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $t$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{PenteIntra}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$. La puissance de $100~\%$ citée en rubrique~6 provient d'une simulation dont le script n'est pas versionné~; elle n'est pas reprise au tableau~\ref{tab:tracabilite-puissance}.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 \begin{fiche}{M1 --- Nullité de l'ordonnée à l'origine, colonne par colonne}
@@ -7601,6 +8115,14 @@ Limite~: le nombre d'observations décroît de $I$ à~3 le long du triangle, si
 bien que les dernières colonnes ne contribuent presque rien. Le tableau détaillé
 restitué par le moteur donne la colonne responsable, ce qui est la seule lecture
 actionnable.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $X$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{Origine}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 \begin{fiche}{M1 --- Homogénéité de $f_j$ entre années de survenance}
@@ -7632,6 +8154,14 @@ d'une année de survenance à l'autre invaliderait le modèle. En pratique, une
 telle dérive traduit un changement de politique de règlement ou de mix de
 portefeuille. Elle n'est pas détectable par le test d'ordonnée à l'origine, qui
 porte sur le niveau et non sur la pente.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Non calculée par le moteur~: la statistique, combinaison de corrélations de rang calculées colonne par colonne sur de petits effectifs, est discrète, mais \code{mw\_tests()} ne calcule pas sa $p_{\min}$. La p-value retenue est de Monte-Carlo (clé \code{HomogF}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est le seul plancher établi de la p-value retenue.
+
+\textbf{Table.} Sans objet (aucune $p_{\min}$ calculée par le moteur).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: exact, fonction de $B$~; aucune $p_{\min}$ établie par le moteur.
 \end{fiche}
 
 \begin{fiche}{M1 --- Absence de courbure de la régression}
@@ -7658,6 +8188,14 @@ contredisant $\mathbb{E}[C(i,j+1)\mid C(i,j)] = f_j C(i,j)$. Ce test ferme cette
 possibilité. Limite sévère à faible profondeur~: estimer trois paramètres sur
 quatre à six observations laisse très peu de degrés de liberté, et la puissance
 est faible.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $X$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{Courbure}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 \begin{fiche}{M1 --- Stabilité du facteur selon la pondération (famille $\alpha$)}
@@ -7698,6 +8236,14 @@ test ne sépare pas les deux causes, et doit donc être lu conjointement avec la
 fiche~\ref{mw:m2b}. Son intérêt propre est de chiffrer l'enjeu~: si $A$ est
 faible, le choix de pondération imposé par le règlement est sans conséquence
 matérielle sur le paramètre final.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $A$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{Alpha}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -7716,7 +8262,8 @@ $\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$.
 \end{encadre}
 
 Les fiches ci-dessous suivent la structure en six rubriques employée pour les
-hypothèses H1 à H4 de la méthode lognormale. Les notations sont celles de la
+hypothèses H1 à H4 de la méthode lognormale, complétée de la rubrique~7 pour les
+fiches de test et de procédure de décision. Les notations sont celles de la
 section~\ref{sec:notations-mw}.
 
 \begin{fiche}{M2 --- Hétéroscédasticité résiduelle contre le cumulé}
@@ -7753,6 +8300,14 @@ carré ($\alpha = 2$) --- alternatives discutées par Barnett \& Zehnwirth mais
 \emph{non prévues par l'annexe~XVII}, qui impose $\alpha = 1$. Le rejet doit donc
 être documenté comme une limite du modèle réglementaire, non comme un motif de
 changement de méthode.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{BP}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -7780,6 +8335,14 @@ inadapté --- l'alternative étant un exposant~0 (variance constante) ou~2
 (proportionnelle au carré). \textbf{Le règlement ne laissant pas ce choix
 ouvert}, un rejet doit être documenté comme une limite du modèle réglementaire
 et non comme un motif de changement de méthode.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $X$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{ExpVar}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 \begin{fiche}{M2 --- Variance unitaire des résidus de Mack (diagnostic)}
@@ -7910,7 +8473,8 @@ colonnes.
 \end{encadre}
 
 Les fiches ci-dessous suivent la structure en six rubriques employée pour les
-hypothèses H1 à H4 de la méthode lognormale. Les notations sont celles de la
+hypothèses H1 à H4 de la méthode lognormale, complétée de la rubrique~7 pour les
+fiches de test et de procédure de décision. Les notations sont celles de la
 section~\ref{sec:notations-mw}.
 
 \begin{fiche}{M3 --- Effets d'année calendaire (test de Mack)}
@@ -7957,6 +8521,14 @@ provisionnement). Un tel choc viole l'indépendance des années de survenance
 posée par D(2)(h)(i). Limite à $T = 8$~: la somme ne porte que sur $I-1$
 diagonales exploitables, dont plusieurs ne comptent que deux ou trois
 étiquettes, d'où le recours au bootstrap plutôt qu'à l'approximation normale.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Non calculée par le moteur~: la statistique $Z$, somme de minima de comptages binomiaux, est discrète, mais \code{mw\_tests()} ne calcule pas sa $p_{\min}$. La p-value retenue est de Monte-Carlo (clé \code{Calendrier}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est le seul plancher établi de la p-value retenue.
+
+\textbf{Table.} Sans objet (aucune $p_{\min}$ calculée par le moteur).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: exact, fonction de $B$~; aucune $p_{\min}$ établie par le moteur.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -7990,6 +8562,14 @@ survenance se comporte différemment des autres, ce qui viole l'hypothèse
 d'indépendance et d'identité de distribution. Limite structurelle~: les groupes
 sont très déséquilibrés, la première ligne comptant $J$ résidus et la dernière
 un seul.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Non calculée par le moteur~: la statistique $H$ de Kruskal--Wallis, fonction des rangs, est discrète, mais \code{mw\_tests()} ne calcule pas sa $p_{\min}$. La p-value retenue est de Monte-Carlo (clé \code{KruskalAcc}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est le seul plancher établi de la p-value retenue.
+
+\textbf{Table.} Sans objet (aucune $p_{\min}$ calculée par le moteur).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: exact, fonction de $B$~; aucune $p_{\min}$ établie par le moteur.
 \end{fiche}
 
 \begin{fiche}{M3 --- Corrélation entre années de développement adjacentes}
@@ -8022,6 +8602,14 @@ faire sur la suivante. Cela contredit l'indépendance des incréments et biaise 
 MSEP, qui suppose que les erreurs de projection ne se cumulent pas. Limite~: sur
 un triangle $8\times8$, seules cinq ou six paires de colonnes comptent au moins
 trois observations, ce qui rend le test très peu puissant.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Non calculée par le moteur~: la statistique, moyenne de corrélations de rang, est discrète, mais \code{mw\_tests()} ne calcule pas sa $p_{\min}$. La p-value retenue est de Monte-Carlo (clé \code{CorrDev}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est le seul plancher établi de la p-value retenue.
+
+\textbf{Table.} Sans objet (aucune $p_{\min}$ calculée par le moteur).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: exact, fonction de $B$~; aucune $p_{\min}$ établie par le moteur.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -8049,6 +8637,14 @@ Complément aux deux tests précédents~: l'ordre de parcours étant conventionn
 un rejet est plus difficile à interpréter que pour une série chronologique. Il
 faut alors se reporter aux graphiques des résidus par année de survenance, de
 développement et calendaire, qui localisent la structure.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $DW$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{DW}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -8086,6 +8682,14 @@ supposée.
 Test non paramétrique robuste, sensible aussi bien au regroupement qu'à
 l'alternance excessive des signes. Sa lecture souffre, comme celle de
 Durbin--Watson, du caractère conventionnel de l'ordre de parcours.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Non calculée par le moteur~: la statistique, fonction du nombre de suites $R$, est discrète, mais \code{mw\_tests()} ne calcule pas sa $p_{\min}$. La p-value retenue est de Monte-Carlo (clé \code{Runs}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est le seul plancher établi de la p-value retenue. À titre indicatif, la loi combinatoire aux effectifs du triangle de contrôle ($n_1 = n_2 = 13$) donne \code{runs\_p\_min(13, 13)} $= 3{,}85\cdot 10^{-7}$, très en deçà du plancher de Monte-Carlo.
+
+\textbf{Table.} Sans objet (aucune $p_{\min}$ calculée par le moteur).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: exact, fonction de $B$~; aucune $p_{\min}$ établie par le moteur~; valeur indicative~: exacte pour la loi combinatoire, qui n'est pas celle des résidus de Mack.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -8100,7 +8704,8 @@ Durbin--Watson, du caractère conventionnel de l'ordre de parcours.
 \end{encadre}
 
 Les fiches ci-dessous suivent la structure en six rubriques employée pour les
-hypothèses H1 à H4 de la méthode lognormale. Les notations sont celles de la
+hypothèses H1 à H4 de la méthode lognormale, complétée de la rubrique~7 pour les
+fiches de test et de procédure de décision. Les notations sont celles de la
 section~\ref{sec:notations-mw}.
 
 \begin{fiche}{M4 --- Cellule aberrante du triangle (Grubbs)}
@@ -8131,6 +8736,14 @@ rend le résultat directement actionnable~: il s'agit typiquement d'un sinistre
 exceptionnel ou d'une erreur de saisie sur une année de développement donnée.
 \textbf{Aucune exclusion de cellule ne doit être opérée sur ce seul fondement}~:
 la justification doit être métier.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $G$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{Grubbs}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -8158,6 +8771,14 @@ critiques~; un triangle $8\times8$ fournit $27$ résidus de Mack --- et non 28~:
 la colonne $j = J-1$ ne comporte qu'un seul facteur individuel et n'entre pas
 dans les résidus (fiche~\ref{mw:m2var}) ---, ce qui place la procédure à la
 limite de son domaine. À traiter comme un signal d'attention.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet~: procédure de décision sans p-value (\code{test\_rosner()}, décision par comparaison aux valeurs critiques de Rosner au niveau $\alpha$).
+
+\textbf{Table.} Sans objet.
+
+\textbf{Pertinence à $T = 8$.} Ligne de type procédure de décision~; limites des valeurs critiques en rubrique~6. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Aucune valeur chiffrée.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -8172,7 +8793,8 @@ limite de son domaine. À traiter comme un signal d'attention.
 \end{encadre}
 
 Les fiches ci-dessous suivent la structure en six rubriques employée pour les
-hypothèses H1 à H4 de la méthode lognormale. Les notations sont celles de la
+hypothèses H1 à H4 de la méthode lognormale, complétée de la rubrique~7 pour les
+fiches de test et de procédure de décision. Les notations sont celles de la
 section~\ref{sec:notations-mw}.
 
 \begin{fiche}{M5 --- Shapiro--Wilk sur les résidus de Mack}
@@ -8204,6 +8826,14 @@ le test vide de sens (la simulation confirme une fréquence de rejet nulle au
 lieu de 5~\%). D'où le recours à une loi nulle propre, indépendante du triangle
 ajusté. Le résultat n'est pertinent que si l'on souhaite exploiter la MSEP pour
 construire un quantile, usage qui excède la méthode réglementaire.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $W$, continue. La p-value retenue, de nature exacte, est lue sur une loi nulle simulée de 20\,000 tirages à la taille du vecteur des résidus (\code{sw\_p\_loi\_nulle()})~: son plancher est $1/20\,001 \approx 5{,}0\cdot 10^{-5}$, fonction du nombre de tirages.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test~; la normalité n'est pas exigée par le modèle (rubrique~6). Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte~; la loi nulle simulée porte une erreur de Monte-Carlo en $1/\sqrt{20\,000}$.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -8228,6 +8858,14 @@ Stephens. p-value non simulée, disponible dès $n \ge 5$.
 \Usage
 Complément de recoupement à Shapiro--Wilk, moins puissant. Même réserve de fond~:
 la normalité n'est pas exigée par la méthode.
+\Pertinence
+\textbf{p-value minimale à $T = 8$.} Sans objet~: la p-value retenue est l'approximation de Dallal et Wilkinson (\code{lillie\_p()}), de nature asymptotique, fonction continue de $D$ sans plancher. Elle est retenue faute d'alternative~: les tests de normalité sont exclus du bootstrap de résidus, dont la loi nulle est la loi empirique des résidus (tableau~\ref{tab:conv}), et aucune loi exacte n'est disponible.
+
+\textbf{Table.} Sans objet (loi continue).
+
+\textbf{Pertinence à $T = 8$.} Ligne de type test, variante secondaire de Shapiro--Wilk. Puissance non étudiée à $T = 8$.
+
+\textbf{Statut des valeurs.} Aucune valeur chiffrée.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -9269,7 +9907,9 @@ peut alors le faire rejeter. Depuis l'issue~\#44, le moteur calcule $p_{\min}$ p
 de référence discrètes (suites sur $z_t$ et sur $u_t$, Cox--Stuart, Smirnov, Mann--Kendall et
 Spearman) et restitue en diagnostic, sans verdict, toute ligne inopérante (règle~R1,
 section~\ref{sec:nature})~; à $T = 8$ et $\alpha = 0{,}10$, sans ex \ae quo, seul Cox--Stuart
-l'est, et il l'est pour toute donnée. Les autres entrées du tableau relèvent d'une approximation mal calibrée ou d'une
+l'est, et il l'est pour toute donnée. Les valeurs de $p_{\min}$ de $T = 5$ à $T = 12$ et les seuils
+de bascule à $\alpha = 0{,}10$ sont au tableau~\ref{tab:pmin}~; la rubrique~7 de chaque fiche de
+test en donne la lecture propre au test. Les autres entrées du tableau relèvent d'une approximation mal calibrée ou d'une
 définition impossible à faible $T$, non de l'inopérance.
 
 \begin{center}
@@ -9278,9 +9918,10 @@ définition impossible à faible $T$, non de l'inopérance.
 \toprule
 \textbf{Test} & \textbf{Seuil de validité} & \textbf{Nature du problème} \\
 \midrule
-Cox--Stuart & $T \ge 12$ & Rejet à 5~\% \emph{impossible} pour $m \le 5$ différences non
-nulles~; au seuil par défaut $\alpha = 0{,}10$, impossible pour $m \le 4$, donc toujours à
-$T = 8$~: restitué en diagnostic (règle~R1). \\
+Cox--Stuart & $T \ge 10$ ($\alpha = 0{,}10$)~; $T \ge 12$ à 5~\% & Rejet à 5~\% \emph{impossible}
+pour $m \le 5$ différences non nulles~; au seuil par défaut $\alpha = 0{,}10$, impossible pour
+$m \le 4$, donc pour $T \le 9$ sans ex \ae quo, et toujours à $T = 8$~: restitué en diagnostic
+(règle~R1)~; \code{ECHEC} atteignable seulement dès $T = 12$ (tableau~\ref{tab:pmin}). \\
 Anscombe--Glynn & $T \ge 20$ & Non défini en-deçà~; marqué \code{INFO}. \\
 D'Agostino (asymétrie) & $T \ge 8$ & Non défini en-deçà~; puissance faible jusqu'à $T \approx 20$. \\
 Jarque--Bera & $T \ge 50$ & $b_2$ borné par $\approx T$~; convergence $\chi^2$ très lente. \\
