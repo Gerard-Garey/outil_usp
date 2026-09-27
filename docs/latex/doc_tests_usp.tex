@@ -2462,6 +2462,18 @@ quatre règles, chacune en un seul endroit et chacune dite dans le commentaire d
 observée ne peut donner $p < \alpha$, et la ligne est restituée en diagnostic, sans verdict, ses
 p-values restant affichées~; si $\alpha/2 \le p_{\min} < \alpha$ pour un test en sens « ne pas
 rejeter », la ligne reste un test et son commentaire dit que l'\code{ECHEC} est inatteignable.
+Ces deux conclusions ne valent à la lettre que si la p-value retenue est exacte, donc à
+$\hat\pi_t$ constant~: $p_{\min}$ est alors le minimum de la p-value retenue. Sans p-value exacte
+(à $\hat\pi_t$ variable, où la p-value retenue est de Monte-Carlo, simulée sous le modèle ajusté),
+$p_{\min}$ est celle de la loi de référence échangeable et ne borne pas la p-value retenue, qui
+peut lui être inférieure, pour deux raisons distinctes~: l'erreur de Monte-Carlo, fonction de $B$,
+et la non-échangeabilité sous le modèle ajusté (résidus $z_t$ non échangeables, ratios $r_t$ non
+identiquement distribués), qui écarte la loi simulée de la loi échangeable et ne disparaît pas
+quand $B$ croît. Le moteur maintient alors la bascule en test inopérant, dont le
+commentaire parle de \code{p-value minimale atteignable sous la loi de reference echangeable}, et,
+pour $\alpha/2 \le p_{\min} < \alpha$, écrit que l'\code{ECHEC} est possible au lieu
+d'inatteignable (issue~\#44~; ordre de grandeur à la fiche~\ref{fiche:suites-wald-wolfowitz},
+rubrique~6).
 \emph{(ii) Monte-Carlo indisponible} (règles~R2 et~R3)~: quand \code{p\_mc} manque,
 \code{engine\_p\_mc()} en donne le motif (\code{bootstrap\$motif\_mc}), jamais deviné par
 l'appelant~: statistique observée non finie, aucune réplication finie, ou loi simulée
@@ -2822,7 +2834,7 @@ Suites (W.--W.) & LN & $Z$ / $R$ & Oui (combinatoire) & Oui & Oui & \textbf{Exac
 (doublement) si $\hat\pi_t$ constant, Monte-Carlo sinon &
 \textbf{Déconseillée} : approx. normale requiert $n_1,n_2\ge 10$ &
 Distribution exacte à privilégier~; $p_{\min} = 0{,}057$ à $T = 8$ : \code{ECHEC}
-inatteignable à $\alpha = 0{,}10$ \\
+inatteignable à $\alpha = 0{,}10$ à $\hat\pi_t$ constant \\
 
 Durbin--Watson sur ratios bruts & LN & DW & Non : $u_t$ non gaussiens, Imhof inapplicable &
 --- & Oui & Monte-Carlo & Sans objet (aucune loi limite employée) &
@@ -3305,22 +3317,25 @@ $m = 3$)~; pour les suites, $p_{\min}$ se lit aux effectifs observés. (iv)~\emp
 la ligne qu'à $T \ge 8$. (v)~\emph{Nature}~: ces valeurs sont exactes, par énumération de la loi
 de référence discrète. Elles sont la $p_{\min}$ de la p-value retenue lorsque celle-ci est exacte,
 à $\hat\pi_t$ constant (section~\ref{sec:base-residus})~; à $\hat\pi_t$ variable, la p-value retenue
-est de Monte-Carlo et la valeur du tableau n'en est qu'une approximation (loi échangeable),
-ce que le commentaire de la ligne dit. Pour Spearman à $T > 9$, quel que soit le régime, le moteur
-pose $p_{\min} = 2/T!$ (\code{mk\_p\_min()}) sans attribuer de p-value exacte,
-\code{cor.test(exact = TRUE)} ne rendant au-delà de $T = 9$ qu'un développement d'Edgeworth~: la
-valeur du tableau n'y est que l'approximation de la $p_{\min}$ de la p-value de Monte-Carlo
-retenue.
+est de Monte-Carlo, et la valeur du tableau, $p_{\min}$ de la loi de référence échangeable, n'en
+est pas une borne~: la p-value de Monte-Carlo peut lui être inférieure (erreur de Monte-Carlo et
+non-échangeabilité, section~\ref{sec:nature}), ce que le commentaire de la ligne dit. Pour Spearman
+à $T > 9$, quel que soit le régime, le moteur pose $p_{\min} = 2/T!$ (\code{mk\_p\_min()}) sans
+attribuer de p-value exacte, \code{cor.test(exact = TRUE)} ne rendant au-delà de $T = 9$ qu'un
+développement d'Edgeworth~: la valeur du tableau y est celle de la loi de référence échangeable,
+non une borne de la p-value de Monte-Carlo retenue, dont le plancher propre est $2/(B+1)$.
 
 \noindent\emph{Seuils de bascule au seuil par défaut $\alpha = 0{,}10$} (verdict \code{ECHEC} si
 $p < \alpha/2$, \code{ALERTE} si $\alpha/2 \le p < \alpha$, en sens « ne pas rejeter »)~:
 \begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
   \item \emph{suites}~: inopérant pour $T \le 7$ ($p_{\min} \ge 0{,}2$)~; test à \code{ECHEC}
-  inatteignable pour $T = 8$ et $9$ ($\alpha/2 \le p_{\min} = 0{,}0571 < \alpha$)~; \code{ECHEC}
+  inatteignable pour $T = 8$ et $9$ ($\alpha/2 \le p_{\min} = 0{,}0571 < \alpha$) à $\hat\pi_t$
+  constant, possible à $\hat\pi_t$ variable (note~(v))~; \code{ECHEC}
   atteignable dès $T = 10$. À $T = 8$, les p-values atteignables sont $0{,}0571$~; $0{,}2286$~;
   $0{,}7429$ et $1$~: \code{ALERTE} seulement si $R \in \{2, 8\}$~;
   \item \emph{Cox--Stuart}~: inopérant pour $T \le 9$~; test à \code{ECHEC} inatteignable pour
-  $T = 10$ et $11$ ($p_{\min} = 0{,}0625$)~; \code{ECHEC} atteignable dès $T = 12$. À $T = 8$, les
+  $T = 10$ et $11$ ($p_{\min} = 0{,}0625$) à $\hat\pi_t$ constant, possible à $\hat\pi_t$
+  variable~; \code{ECHEC} atteignable dès $T = 12$. À $T = 8$, les
   p-values atteignables sont $0{,}125$~; $0{,}625$ et $1$~;
   \item \emph{Smirnov}~: $p_{\min} < \alpha/2$ à tout $T \ge 8$. À $T = 8$, les p-values
   atteignables sont $0{,}0286$~; $0{,}2286$~; $0{,}7714$ et $1$~: le verdict est binaire,
@@ -3421,7 +3436,7 @@ D'Agostino (asymétrie) (\ref{fiche:dagostino-asymetrie}) & Plancher Monte-Carlo
 Anscombe--Glynn (\ref{fiche:anscombe-glynn-aplatissement}) & Sans objet ($T < 20$) & Non applicable à $T = 8$ & \code{usp\_tests()} & --- \\
 Durbin--Watson (\ref{fiche:durbin-watson}) & Sans objet ($\hat\pi_t$ constant)~; plancher Monte-Carlo $0{,}002$ (bilatéral) sinon & AR(1)~: $0{,}159$~; $0{,}261$~; $0{,}396$~; $0{,}528$ ($\rho = 0{,}3$ à $0{,}9$) & \code{dw\_p\_exacte()}, \code{engine\_p\_mc()},\newline \code{tests/constats\_puissance\_t8.R} & \code{docs/tableaux/}\newline \code{20260927-issue114-constats-puissance.md} \\
 Ljung--Box, Box--Pierce (\ref{fiche:ljung-box}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
-Suites (Wald--Wolfowitz) (\ref{fiche:suites-wald-wolfowitz}) & $4/70 = 0{,}0571$~; plancher Monte-Carlo $0{,}002$ (bilatéral) & AR(1)~: $0{,}081$~; $0{,}120$~; $0{,}175$~; $0{,}246$ ($\rho = 0{,}3$ à $0{,}9$)~; \code{ECHEC} inatteignable & \code{runs\_p\_min()}, \code{runs\_p\_exacte()},\newline \code{tests/constats\_puissance\_t8.R} & \code{docs/tableaux/}\newline \code{20260927-issue114-constats-puissance.md} \\
+Suites (Wald--Wolfowitz) (\ref{fiche:suites-wald-wolfowitz}) & $4/70 = 0{,}0571$~; plancher Monte-Carlo $0{,}002$ (bilatéral) & AR(1)~: $0{,}081$~; $0{,}120$~; $0{,}175$~; $0{,}246$ ($\rho = 0{,}3$ à $0{,}9$)~; \code{ECHEC} inatteignable à $\hat\pi_t$ constant & \code{runs\_p\_min()}, \code{runs\_p\_exacte()},\newline \code{tests/constats\_puissance\_t8.R} & \code{docs/tableaux/}\newline \code{20260927-issue114-constats-puissance.md} \\
 sup-F (\ref{fiche:sup-f}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
 OLS-CUSUM (\ref{fiche:ols-cusum}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
 Grubbs (\ref{fiche:grubbs}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
@@ -4520,7 +4535,9 @@ de simulation. Le moteur le restitue en diagnostic, sans verdict ni p-value rete
 issue~\#44~; \code{cox\_stuart\_p\_min()}), la p-value minimale figurant dans le champ
 \code{p\_min} et en tête du commentaire (\code{TEST INOPERANT au seuil alpha = 0.1~: p-value
 minimale atteignable = 0.1250 (m = 4 differences non nulles)}), les p-values calculées restant
-affichées. Jusqu'à l'issue~\#44, la ligne sortait \code{OK} sur le jeu de contrôle. Elle ne
+affichées~; à $\hat\pi_t$ variable, où la p-value exacte n'est pas attribuée, le commentaire dit
+\code{p-value minimale atteignable sous la loi de reference echangeable = 0.1250}, cette valeur
+n'étant pas une borne de la p-value de Monte-Carlo (section~\ref{sec:nature}). Jusqu'à l'issue~\#44, la ligne sortait \code{OK} sur le jeu de contrôle. Elle ne
 redevient un test qu'à un seuil $\alpha > p_{\min}$, soit $\alpha > 0{,}125$ sans ex \ae quo.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} $0{,}125$ ($m = 4$ différences non nulles, \code{cox\_stuart\_p\_min()})~; p-values atteignables $0{,}125$~; $0{,}625$~; $1$. Exacte sur la loi binomiale à $\hat\pi_t$ constant~; approximation à $\hat\pi_t$ variable, où la p-value exacte n'est pas attribuée. Avec ex \ae quo, $m < 4$ et $p_{\min} \ge 0{,}25$. Aucune p-value n'est retenue à $T = 8$, la ligne étant un diagnostic.
@@ -5727,15 +5744,31 @@ et la granularité de $R$ (entier compris
 entre 2 et $n$) limite fortement le nombre de p-values atteignables. À $T = 8$, au seuil par
 défaut $\alpha = 0{,}10$, seules les valeurs extrêmes $R \in \{2, 8\}$ conduisent au rejet
 ($p = 0{,}057$, verdict \code{ALERTE})~; le verdict \code{ECHEC}, qui exige $p < \alpha/2 = 0{,}05$,
-est inatteignable, ce que le commentaire de la ligne dit depuis l'issue~\#44
+est inatteignable à $\hat\pi_t$ constant, ce que le commentaire de la ligne dit depuis l'issue~\#44
 (\code{ECHEC inatteignable~: p\_min = 0.0571 >= alpha/2 = 0.05 (n1 = 4, n2 = 4)}). Le verdict \code{OK} couvre les cinq valeurs $R \in \{3, \dots, 7\}$, soit une
 probabilité $66/70 = 0{,}943$ sous $H_0$~: il ne vaut pas validation de l'indépendance.
+À $\hat\pi_t$ variable, la p-value retenue est de Monte-Carlo et $0{,}0571$, $p_{\min}$ de la loi
+de référence échangeable, ne la borne pas~: l'\code{ECHEC} est possible, ce que le commentaire
+dit~: il donne \code{p\_min de la loi de reference echangeable = 0.0571}, précise que la p-value
+de Monte-Carlo retenue peut lui être inférieure (erreur de Monte-Carlo, non-échangeabilité) et
+conclut \code{ECHEC possible} (section~\ref{sec:nature}). Ordre de grandeur
+des deux causes. \emph{Erreur de Monte-Carlo} (fonction de $B$)~: autour de $p = 0{,}057$, elle
+vaut environ $0{,}011$ à $B = 999$ et $0{,}003$ à $B = 9\,999$ (formule bilatérale de
+\code{engine\_p\_mc()}, section~\ref{sec:deuxerreurs}), du même ordre, à $B = 999$, que l'écart
+entre $0{,}057$ et $\alpha/2$. \emph{Non-échangeabilité} (fonction du modèle ajusté, non de $B$)~:
+sous des modèles ajustés à volumes très hétérogènes (rapport~17 entre volumes extrêmes, $\sigma$
+de $0{,}2$ à $0{,}5$), la probabilité $\mathbb{P}(R^* = 2)$ qu'une série simulée ne compte que deux
+suites a été mesurée de $0{,}016$ à $0{,}032$, contre $2/70 = 0{,}0286$ sous la loi échangeable
+--- constat de simulation d'\code{actuary} du 27~septembre 2026, sur une grille de modèles, hors
+jeux de référence, par des scripts non versionnés~; l'issue~\#125 propose de lire la règle~R1 sur
+la loi bootstrap. Remède d'usage~: quand la p-value de Monte-Carlo est proche du seuil, relancer
+avec $B = 9\,999$, ce qui réduit la première cause et laisse la seconde inchangée.
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} $4/70 = 0{,}0571$ ($n_1 = n_2 = 4$, \code{runs\_p\_min()})~; p-values atteignables $0{,}0571$~; $0{,}2286$~; $0{,}7429$~; $1$. Exacte à $\hat\pi_t$ constant, où la p-value exacte de \code{runs\_p\_exacte()} est retenue~; à $\hat\pi_t$ variable, la p-value retenue est de Monte-Carlo (clé \code{Runs}, bilatérale, plancher $2/(B+1)$, soit $0{,}002$ à $B = 999$) et $0{,}0571$ n'en est qu'une approximation.
+\textbf{p-value minimale à $T = 8$.} $4/70 = 0{,}0571$ ($n_1 = n_2 = 4$, \code{runs\_p\_min()})~; p-values atteignables $0{,}0571$~; $0{,}2286$~; $0{,}7429$~; $1$. Exacte à $\hat\pi_t$ constant, où la p-value exacte de \code{runs\_p\_exacte()} est retenue~; à $\hat\pi_t$ variable, la p-value retenue est de Monte-Carlo (clé \code{Runs}, bilatérale, plancher $2/(B+1)$, soit $0{,}002$ à $B = 999$) et $0{,}0571$, calculée sur la loi de référence échangeable, n'en est qu'une approximation, non une borne (rubrique~6).
 
-\textbf{Table.} Tableau~\ref{tab:pmin}~: inopérant pour $T \le 7$~; \code{ECHEC} inatteignable à $T = 8$ et $9$.
+\textbf{Table.} Tableau~\ref{tab:pmin}~: inopérant pour $T \le 7$~; \code{ECHEC} inatteignable à $T = 8$ et $9$ à $\hat\pi_t$ constant.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test, à \code{ECHEC} inatteignable ($\alpha/2 \le p_{\min} < \alpha$)~: à $\hat\pi_t$ constant, \code{ALERTE} seulement si $R \in \{2, 8\}$. Puissance contre un AR(1) stationnaire (constat~C1, 20\,000 séries par valeur de $\rho$, $\alpha = 0{,}10$, rejet signifiant ici \code{ALERTE})~: $0{,}081$~; $0{,}120$~; $0{,}175$~; $0{,}246$ pour $\rho = 0{,}3$~; $0{,}5$~; $0{,}7$~; $0{,}9$, pour un niveau de $0{,}057$ ($4/70$) à $\rho = 0$~; de l'ordre de la moitié de celle de Durbin--Watson exact (fiche~\ref{fiche:durbin-watson}) à chaque $\rho$, à niveau effectif plus faible ($0{,}057$ contre $0{,}100$), ce qui explique une partie de l'écart. Mesure valable à $\hat\pi_t$ constant~; hors modèle réglementaire.
+\textbf{Pertinence à $T = 8$.} Ligne de type test, à \code{ECHEC} inatteignable à $\hat\pi_t$ constant ($\alpha/2 \le p_{\min} < \alpha$), possible à $\hat\pi_t$ variable (rubrique~6)~: à $\hat\pi_t$ constant, \code{ALERTE} seulement si $R \in \{2, 8\}$. Puissance contre un AR(1) stationnaire (constat~C1, 20\,000 séries par valeur de $\rho$, $\alpha = 0{,}10$, rejet signifiant ici \code{ALERTE})~: $0{,}081$~; $0{,}120$~; $0{,}175$~; $0{,}246$ pour $\rho = 0{,}3$~; $0{,}5$~; $0{,}7$~; $0{,}9$, pour un niveau de $0{,}057$ ($4/70$) à $\rho = 0$~; de l'ordre de la moitié de celle de Durbin--Watson exact (fiche~\ref{fiche:durbin-watson}) à chaque $\rho$, à niveau effectif plus faible ($0{,}057$ contre $0{,}100$), ce qui explique une partie de l'écart. Mesure valable à $\hat\pi_t$ constant~; hors modèle réglementaire.
 
 \textbf{Statut des valeurs.} $p_{\min}$ et p-values atteignables~: exactes (énumération) à $\hat\pi_t$ constant, approximation à $\hat\pi_t$ variable~; puissances~: constat de simulation, hors modèle réglementaire, reproduisant, sous l'hypothèse d'initialisation stationnaire, le constat du 23~septembre 2026 de l'issue~\#44 (écart normalisé $|z| \le 1{,}96$).
 \end{fiche}
@@ -6402,14 +6435,18 @@ p-value de Monte-Carlo, dont la portée à $T = 8$ est celle du bootstrap param�
 fiche~\ref{fiche:suites-wald-wolfowitz} lorsque la p-value exacte est retenue~; la règle~R1
 s'applique à cette ligne comme à celle sur $z_t$, avec la p-value minimale aux effectifs des signes
 de $u_t$ (champ \code{p\_min}). Sans p-value exacte, cette p-value minimale, calculée sur la loi
-combinatoire, n'est qu'une approximation de celle de la p-value de Monte-Carlo, ce que le
-commentaire de la ligne précise (issue~\#44).
+de référence échangeable, ne borne pas la p-value de Monte-Carlo retenue, qui peut lui être
+inférieure (erreur de Monte-Carlo, non-échangeabilité)~: le commentaire de la ligne dit alors
+\code{ECHEC possible} au lieu d'\code{ECHEC inatteignable} (issue~\#44~; ordre de grandeur à la
+fiche~\ref{fiche:suites-wald-wolfowitz}, rubrique~6~; sur $u_t$, dont les $r_t$ ne sont pas
+identiquement distribués, la loi simulée peut s'écarter de la loi échangeable dans l'un ou
+l'autre sens, issue~\#125).
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} $4/70 = 0{,}0571$ ($n_1 = n_2 = 4$, \code{runs\_p\_min()}). Exacte à $\hat\pi_t$ constant, où la statistique et la p-value exacte retenue sont celles de la ligne sur $z_t$ (\code{usp\_runsr\_p\_exacte()})~; à $\hat\pi_t$ variable, la p-value retenue est de Monte-Carlo (clé \code{Runsr}, bilatérale, plancher $2/(B+1)$, soit $0{,}002$ à $B = 999$) et $0{,}0571$ n'en est qu'une approximation.
+\textbf{p-value minimale à $T = 8$.} $4/70 = 0{,}0571$ ($n_1 = n_2 = 4$, \code{runs\_p\_min()}). Exacte à $\hat\pi_t$ constant, où la statistique et la p-value exacte retenue sont celles de la ligne sur $z_t$ (\code{usp\_runsr\_p\_exacte()})~; à $\hat\pi_t$ variable, la p-value retenue est de Monte-Carlo (clé \code{Runsr}, bilatérale, plancher $2/(B+1)$, soit $0{,}002$ à $B = 999$) et $0{,}0571$, calculée sur la loi de référence échangeable, n'en est qu'une approximation, non une borne (rubrique~6).
 
-\textbf{Table.} Tableau~\ref{tab:pmin}~: \code{ECHEC} inatteignable à $T = 8$ et $9$.
+\textbf{Table.} Tableau~\ref{tab:pmin}~: \code{ECHEC} inatteignable à $T = 8$ et $9$ à $\hat\pi_t$ constant.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test, à \code{ECHEC} inatteignable. À $\hat\pi_t$ constant, la statistique étant identique à celle de la ligne sur $z_t$, la puissance est celle du constat~C1 (fiche~\ref{fiche:suites-wald-wolfowitz})~; à $\hat\pi_t$ variable, puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test, à \code{ECHEC} inatteignable à $\hat\pi_t$ constant, possible à $\hat\pi_t$ variable (rubrique~6). À $\hat\pi_t$ constant, la statistique étant identique à celle de la ligne sur $z_t$, la puissance est celle du constat~C1 (fiche~\ref{fiche:suites-wald-wolfowitz})~; à $\hat\pi_t$ variable, puissance non étudiée à $T = 8$.
 
 \textbf{Statut des valeurs.} $p_{\min}$~: exacte à $\hat\pi_t$ constant, approximation à $\hat\pi_t$ variable~; puissance~: constat de simulation (fiche~\ref{fiche:suites-wald-wolfowitz}).
 \end{fiche}
@@ -9955,8 +9992,8 @@ D'Agostino (asymétrie) & $T \ge 8$ & Non défini en-deçà~; puissance faible j
 Jarque--Bera & $T \ge 50$ & $b_2$ borné par $\approx T$~; convergence $\chi^2$ très lente. \\
 Ljung--Box / Box--Pierce & $T \ge 30$ & Approximation $\chi^2$ mal calibrée. \\
 Wald--Wolfowitz & $n_1,n_2 \ge 10$ & Approximation normale~; granularité de $R$ (loi exacte
-retenue, $p_{\min} = 0{,}057$ à $T = 8$~: \code{ECHEC} inatteignable à $\alpha = 0{,}10$,
-test inopérant à $\alpha \le 0{,}057$). \\
+retenue, $p_{\min} = 0{,}057$ à $T = 8$~: \code{ECHEC} inatteignable à $\alpha = 0{,}10$ à
+$\hat\pi_t$ constant, possible à $\hat\pi_t$ variable, test inopérant à $\alpha \le 0{,}057$). \\
 Breusch--Pagan / White & $T \ge 30$ & Convergence asymptotique lente. \\
 Rosner ESD & $T \ge 25$ & Valeurs critiques peu fiables en-deçà. \\
 Durbin--Watson & --- & Bornes invalides sur résidus de maximum de vraisemblance. \\
