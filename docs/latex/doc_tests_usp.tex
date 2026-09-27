@@ -2223,7 +2223,10 @@ au modèle.
 $S_{\text{obs}}$, calculée sur l'échantillon réel. Pour $b = 1,\dots,B$, on simule
 $y_t^{(b)} \sim \mathcal{LN}\!\big(\ln(\hat\beta x_t) - \tfrac{1}{2\hat\pi_t},\, \hat\pi_t^{-1}\big)$,
 on \textbf{réestime intégralement} $(\delta,\gamma)$ sur $(x_t, y_t^{(b)})$, et l'on recalcule
-$S^{(b)}$.
+$S^{(b)}$. Dans la branche lognormale, ce réajustement est fait par
+\code{usp\_ajuster\_rapide()}~: un seul démarrage, depuis $(\hat\delta,\hat\gamma)$, avec
+\code{factr = 1e7}, et non les 54 démarrages de l'ajusteur complet \code{usp\_ajuster()}~; son
+écart à l'ajusteur complet est mesuré à la section~\ref{sec:verif} (issue~\#43).
 \Loi
 La loi empirique de $\{S^{(1)},\dots,S^{(B)}\}$ est, par construction, un échantillon de la loi
 exacte de $S$ sous $H_0$ conditionnellement au modèle ajusté -- \emph{y compris} l'effet de
@@ -8061,6 +8064,43 @@ Toutes les valeurs sont compatibles avec le niveau nominal de 10~\% à l'intéri
 l'intervalle de confiance à 95~\% ($\pm 0{,}029$ pour 400 réplications). La procédure de
 bootstrap paramétrique est donc correctement calibrée, y compris à $T = 10$ où aucune des lois
 asymptotiques utilisées par les tests classiques ne l'est.
+
+\emph{Réajustement rapide des réplications} (issue~\#43). Chaque réplication du bootstrap
+lognormal est réajustée par \code{usp\_ajuster\_rapide()} --- un seul démarrage, depuis
+$(\hat\delta,\hat\gamma)$, \code{factr = 1e7}, \code{maxit = 200} --- et non par l'ajusteur
+complet \code{usp\_ajuster()} de l'estimation observée (54 démarrages, \code{factr = 1e5}). L'objectif
+profilé pouvant présenter en $\delta$ un optimum local distinct de l'optimum global, le réajustement
+rapide peut rester dans le bassin de son point de départ alors que l'optimum est sur l'autre bord. Le script
+hors CI \code{tests/comparer\_ajusteurs\_bootstrap.R} rejoue, sous \code{engine\_sous\_graine()}
+et la graine du moteur, les réplications de \code{usp\_bootstrap()} (identité vérifiée par
+\code{identical()} avec le bootstrap du moteur) et réajuste chacune par les deux ajusteurs, sur
+deux jeux à $T = 8$~: J1, le jeu de contrôle ($\hat\delta = 1$), et J2, un jeu à $\hat\delta$
+intérieur ($\hat\delta = 0{,}664$, $\hat\pi_t$ variable~; jeu \code{xi}, \code{yi} de
+\code{tests/unitaires/test\_controles\_numeriques.R}). La part $q$ des réplications où le
+réajustement rapide n'atteint pas l'optimum de l'ajusteur complet (objectif supérieur de plus de
+\code{TOL\_OPTIMUM} $= 10^{-6}$) vaut, avec son intervalle de Clopper--Pearson à 95~\%~: sur J1,
+4 sur 999 ($B = 999$, graine 20260831), puis 18 sur 4\,999, soit $0{,}36~\%$
+$[0{,}21~\%~;~0{,}57~\%]$ (seconde passe, graine 20260926)~; sur J2, 7 sur 999, puis 34 sur
+4\,999, soit $0{,}68~\%$ $[0{,}47~\%~;~0{,}95~\%]$. Effet sur les résultats du jeu de contrôle,
+recalculé exactement sur les 999 tirages des références~: une seule p-value de Monte-Carlo change,
+celle de Shapiro--Wilk ($0{,}621$ contre $0{,}620$, soit un pas de granularité), aucun verdict ne
+change, et l'écart relatif maximal des quantiles de l'intervalle bootstrap de
+$\sigma_{\mathrm{USP}}$ vaut $1{,}7\cdot 10^{-4}$ sur les quatre cas de référence lognormaux. Le
+critère fixé avant la mesure --- divergence si $q$ dépasse 1~\% sur l'un des deux jeux, si un
+verdict change ou si un quantile de l'intervalle bouge de plus de $10^{-3}$ en relatif sur le jeu
+de contrôle --- n'est pas atteint~: le réajustement rapide est conservé. Les régimes de
+$\hat\delta^{*}$ (bord~0, intérieur, bord~1) des deux ajusteurs coïncident sur 996 des
+999 réplications de J1 et sur 992 des 999 de J2 (première passe)~: le taux de $\hat\delta^{*}$
+au bord n'est pas un artefact du réajustement rapide, seul le bord choisi l'est, sur les
+réplications où l'optimum n'est pas atteint. \emph{Statut}~: constat de simulation sur deux jeux à $T = 8$, sans portée
+générale~; les seuils du critère sont des repères du protocole, ancrés sur l'erreur de
+Monte-Carlo d'une p-value au seuil $\alpha = 0{,}10$ ($\sqrt{0{,}1\cdot 0{,}9/999} \approx
+0{,}0095$), non tirés de la littérature. L'intervalle de Clopper--Pearson mesure l'incertitude
+de simulation sur $q$ (nombre de réplications du protocole), non l'erreur d'approximation en
+$T$~; $q$ est une propriété de l'ajusteur et ne décroît pas quand $B$ augmente. Un réajustement
+à trois démarrages, depuis $(\hat\delta,\hat\gamma)$, $(0,\hat\gamma)$ et $(1,\hat\gamma)$,
+atteint l'optimum de l'ajusteur complet sur toutes les réplications mesurées~; son adoption, qui
+changerait les références, relève de l'issue~\#109.
 
 \medskip
 \begin{encadre}
