@@ -192,15 +192,25 @@ verifier("engine_p_mc : loi ponctuelle, observee hors de l'atome -> motif atome 
            o <- engine_p_mc(rep(2, 50), 3, "haut")
            identical(o$motif, MOTIF_MC_ATOME_HORS_OBS) && is.na(o$p_mc) && is.na(o$err_mc)
          })
-verifier("run_engine(B = 2) : Smirnov et Cox-Stuart gardent leur p exacte (aucune degenerescence sous 50)",
+# run_engine() refuse B < B_MIN_USAGE = 99 (constat C1 de la revue finale
+# d'E1) : la branche "sous B_MIN_DEGENERESCENCE" est exercee par
+# usp_bootstrap() et usp_tests() appeles directement, non bornes.
+verifier("usp_bootstrap(B = 2) + usp_tests() : Smirnov et Cox-Stuart gardent leur p exacte (aucune degenerescence sous 50)",
          {
-           r2 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
-                            nature_donnees = "brutes", B = 2, seed = 20260831)
-           sm <- ligne(r2$tests, "Egalite des lois petits vs gros volumes (2 ech.)")
-           cs <- ligne(r2$tests, "Tendance par signes du ratio S/P")
-           isTRUE(r2$ok) && identical(sm$nature_p, "exacte") && is.finite(sm$p_retenue) &&
+           b2 <- usp_bootstrap(fit, B = 2, seed = 20260831)
+           t2 <- usp_tests(fit, b2, methode = "premium")
+           sm <- ligne(t2, "Egalite des lois petits vs gros volumes (2 ech.)")
+           cs <- ligne(t2, "Tendance par signes du ratio S/P")
+           identical(sm$nature_p, "exacte") && is.finite(sm$p_retenue) &&
              is.finite(cs$p_exacte) && identical(cs$type, "diagnostic") &&
-             all(is.na(r2$bootstrap$motif_mc))
+             all(is.na(b2$motif_mc)) && all(is.finite(b2$p_mc[c("Smirnov", "CoxStuart")]))
+         })
+verifier("run_engine(B = 2) refuse : erreur d'usage citant B_MIN_USAGE",
+         {
+           e <- tryCatch(run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
+                                    nature_donnees = "brutes", B = 2, seed = 20260831),
+                         error = function(e) e)
+           inherits(e, "error") && grepl("B >= B_MIN_USAGE = 99", conditionMessage(e), fixed = TRUE)
          })
 cat_synth <- list(
   A = .mc_entree(function(e) e$v, "haut", degenere = function(e) TRUE),
@@ -429,9 +439,9 @@ inv_i2 <- function(res) {
   else paste("lignes 'asymptotique' sans motif :", n_nu)
 }
 res_ln <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
-                     nature_donnees = "brutes", B = 19, seed = 20260831)
+                     nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831)
 res_vc <- run_engine(xt = rep(100, 8), yt = y, methode = "premium", segment = 1, annexe = "II",
-                     nature_donnees = "brutes", B = 19, seed = 20260831)
+                     nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831)
 verifier("Invariant I2 : donnees de test, aucune nature 'asymptotique' sans motif ; motif_mc tout NA",
          isTRUE(inv_i2(res_ln)) && all(is.na(res_ln$bootstrap$motif_mc)) &&
            identical(names(res_ln$bootstrap$motif_mc), names(USP_CATALOGUE_MC)))
@@ -440,8 +450,12 @@ verifier("engine_table_tests : colonne p_min presente, une valeur par ligne",
          { tb <- engine_table_tests(res_ln); "p_min" %in% names(tb) && nrow(tb) == length(res_ln$tests) })
 # L'invariant I5 (memes lignes a volumes constants) est teste dans
 # test_volumes_constants.R (#59).
-# B = 19 : pas d'IC bootstrap 90 %, donc pas de ligne de largeur d'IC (47 lignes).
-verifier("run_engine : 47 lignes sur les donnees de test a B = 19 (48 avec IC)",
-         length(res_ln$tests) == 47L)
+# B = B_MIN_USAGE = 99 : IC bootstrap 90 % calcule (plus de 20 tirages), donc
+# ligne de largeur d'IC presente (48 lignes) ; sous 21 tirages, que run_engine()
+# n'admet plus, elle manquait (47 lignes).
+verifier("run_engine : 48 lignes sur les donnees de test a B = B_MIN_USAGE (ligne de largeur d'IC comprise)",
+         length(res_ln$tests) == 48L && !is.null(res_ln$ic_bootstrap) &&
+           any(vapply(res_ln$tests, function(l) identical(l$test, "Largeur relative de l'IC bootstrap 90%"),
+                      logical(1))))
 
 fin_fichier()

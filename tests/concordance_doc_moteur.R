@@ -118,11 +118,14 @@
 #  et usp_tests() n'ajoute la ligne "Largeur relative de l'IC bootstrap 90%"
 #  (famille G.) que si fit$largeur_ic n'est pas NULL. Mesure sur
 #  tests/donnees/ : 47 lignes pour premium et reserve1 a B = 19 et 20, 48 a
-#  B = 21 et 22 ; reserve2 : 19 lignes a B = 19, 20, 21, 22. Le script
-#  refuse donc tout --B < B_MIN = 21 (erreur, code de sortie 1), et verifie
-#  apres execution que chaque resultat lognormal a bien plus de 20
-#  replications finies (B >= 21 est necessaire, pas suffisant si des
-#  replications echouent). Les methodes lognormales sont en outre executees
+#  B = 21 et 22 ; reserve2 : 19 lignes a B = 19, 20, 21, 22 (mesure faite
+#  avant le seuil B_MIN_USAGE). run_engine() refuse desormais tout
+#  B < B_MIN_USAGE = 99 (R/engine.R, .engine_verifier_usage(), constat C1 de
+#  la revue finale d'E1), seuil qui couvre celui de l'IC. Le script lit
+#  B_MIN = B_MIN_USAGE dans R/engine.R, refuse tout --B < B_MIN (erreur,
+#  code de sortie 1, moteur non execute), et verifie apres execution que
+#  chaque resultat lognormal a bien plus de 20 replications finies (B >= 21
+#  est necessaire, pas suffisant si des replications echouent). Les methodes lognormales sont en outre executees
 #  a volumes constants (x_t = 100, pertes de tests/donnees/donnees_ln.csv ;
 #  issue #59) pour les seules phrases du registre qui les nomment, et sur
 #  le jeu J2 pour le seul controle 5 (issue #114).
@@ -1162,11 +1165,27 @@ lire_jeu_j2 <- function(racine) {
 #  Nombre de replications bootstrap
 # ---------------------------------------------------------------------------
 
-# Seuil de B sous lequel la table des tests lognormale perd une ligne :
-# run_engine() ne calcule l'IC bootstrap (et usp_tests() la ligne "Largeur
-# relative de l'IC bootstrap 90%") que si length(usp_b) > 20, usp_b ayant
-# la longueur de boot$sigma_boot (replications finies). Voir l'en-tete.
-B_MIN <- 21L
+# Seuil de B : B_MIN_USAGE de R/engine.R, le minimum admis par run_engine()
+# (.engine_verifier_usage(), erreur d'usage en dessous). Il couvre le seuil
+# sous lequel la table des tests lognormale perd une ligne : run_engine() ne
+# calcule l'IC bootstrap (et usp_tests() la ligne "Largeur relative de l'IC
+# bootstrap 90%") que si length(usp_b) > 20, usp_b ayant la longueur de
+# boot$sigma_boot (replications finies). Voir l'en-tete. La constante est lue
+# par analyse syntaxique de R/engine.R (sans le charger : valider_B() tourne
+# avant le chargement du moteur) ; le depot est cherche depuis le repertoire
+# courant, comme dans le programme principal.
+lire_B_MIN_USAGE <- function(racine = NULL) {
+  if (is.null(racine))
+    racine <- if (file.exists("R/engine.R")) "." else if (file.exists("../R/engine.R")) ".." else
+      if (file.exists("../../R/engine.R")) "../.." else
+        stop("R/engine.R introuvable : lancer depuis la racine du depot.", call. = FALSE)
+  exprs <- parse(file.path(racine, "R", "engine.R"), keep.source = FALSE, encoding = "UTF-8")
+  for (e in exprs)
+    if (is.call(e) && identical(e[[1]], as.name("<-")) && identical(e[[2]], as.name("B_MIN_USAGE")))
+      return(as.integer(eval(e[[3]], baseenv())))
+  stop("B_MIN_USAGE introuvable dans R/engine.R", call. = FALSE)
+}
+B_MIN <- lire_B_MIN_USAGE()
 
 # Valide la valeur de --B (chaine ou nombre) ; erreur explicite si ce n'est
 # pas un entier ou s'il est sous B_MIN. Renvoie B entier.
@@ -1175,10 +1194,12 @@ valider_B <- function(x) {
   if (length(B) != 1L || is.na(B) || as.character(B) != trimws(as.character(x)))
     stop(sprintf("--B : entier attendu, recu \"%s\"", paste(x, collapse = " ")), call. = FALSE)
   if (B < B_MIN)
-    stop(sprintf(paste0("--B = %d refuse : B >= %d requis. Sous ce seuil, run_engine() ne calcule pas ",
-                        "l'IC bootstrap (R/engine.R : ic <- if (length(usp_b) > 20) ... else NULL) et la ",
-                        "table des tests lognormale perd la ligne \"Largeur relative de l'IC bootstrap 90%%\" ",
-                        "(famille G.) : les decomptes du document ne seraient plus comparables."), B, B_MIN),
+    stop(sprintf(paste0("--B = %d refuse : B >= B_MIN_USAGE = %d requis (R/engine.R, ",
+                        ".engine_verifier_usage() : run_engine() refuse un B inferieur, erreur d'usage). ",
+                        "Ce seuil couvre celui de l'IC bootstrap (R/engine.R : ic <- if (length(usp_b) > 20) ",
+                        "... else NULL), sous lequel la table des tests lognormale perdrait la ligne ",
+                        "\"Largeur relative de l'IC bootstrap 90%%\" (famille G.) et les decomptes du ",
+                        "document ne seraient plus comparables."), B, B_MIN),
          call. = FALSE)
   B
 }

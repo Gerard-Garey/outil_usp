@@ -107,7 +107,6 @@ FICHIERS_COMB <- if (is.na(i_comb)) character(0) else ARGS[-seq_len(i_comb)]
 if (!is.na(i_comb) && !length(FICHIERS_COMB)) stop("--combiner : aucun fichier")
 if (!OPT_JEU %in% c("J1", "J2")) stop("--jeu : J1 ou J2")
 if (!is.finite(OPT_R) || OPT_R < 1L) stop("--R : entier >= 1")
-if (!is.finite(OPT_B_IC) || OPT_B_IC < 21L) stop("--B-ic : entier >= 21 (IC calcule si plus de 20 replications)")
 
 # Configuration de run_engine() reproduite (cas de reference "premium").
 METHODE <- "premium"; SEGMENT <- 1; ANNEXE <- "II"; NATURE <- "brutes"
@@ -119,6 +118,11 @@ DOSSIER_SCRIPT <- local({
   if (length(f) == 1L) dirname(f) else if (file.exists("tests/outils_tests.R")) "tests" else "."
 })
 source(file.path(DOSSIER_SCRIPT, "outils_tests.R"))
+# --B-ic est passe a run_engine() : il doit etre au moins B_MIN_USAGE du moteur
+# (erreur d'usage en dessous ; constat C1 de la revue finale d'E1), seuil qui
+# couvre celui de l'IC bootstrap (plus de 20 replications).
+if (!is.finite(OPT_B_IC) || OPT_B_IC < B_MIN_USAGE)
+  stop(sprintf("--B-ic : entier >= B_MIN_USAGE = %d (minimum admis par run_engine())", B_MIN_USAGE))
 
 # Commit du depot (voir l'en-tete) ; "inconnu" si git est indisponible.
 commit_depot <- function() {

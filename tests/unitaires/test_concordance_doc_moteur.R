@@ -16,7 +16,7 @@
 #  nominatives (appliquee, ancree sur son contexte, perimee, jugee sans
 #  paquet : issue #86), colonne "Cle MC" (issue #91 : cles, fins de rangee
 #  \\, \\* et \\[..], rangee non terminee), seuil de B
-#  (valider_B(), --B sous B_MIN refuse), rubrique 7 et tableau de
+#  (valider_B(), --B sous B_MIN = B_MIN_USAGE refuse), rubrique 7 et tableau de
 #  tracabilite (issue #114 : presence, unicite, position apres \Usage,
 #  fiches hors registre, registre confronte a des lignes du moteur
 #  construites en memoire, rangees manquantes, en double ou non reconnues,
@@ -347,13 +347,14 @@ verifier("Rangee non terminee avant \\end{longtable} signalee (attribut non_term
 
 ## --- Seuil de B (structure de la table des tests dependante de B) ---------
 .err <- function(expr) tryCatch({ expr; NA_character_ }, error = function(e) conditionMessage(e))
-verifier("B_MIN = 21 : premier B pour lequel length(usp_b) > 20 (condition de run_engine())",
-         identical(cc$B_MIN, 21L))
-verifier("valider_B : 21 et \"99\" acceptes, renvoyes en entier",
-         identical(cc$valider_B(21), 21L) && identical(cc$valider_B("99"), 99L))
-verifier("valider_B : 20 refuse, message citant la condition du moteur et la ligne perdue",
-         grepl("B >= 21 requis", .err(cc$valider_B(20)), fixed = TRUE) &&
-           grepl("length(usp_b) > 20", .err(cc$valider_B(20)), fixed = TRUE) &&
+verifier("B_MIN = B_MIN_USAGE = 99, lu dans R/engine.R (minimum admis par run_engine(), au-dessus de length(usp_b) > 20)",
+         identical(cc$B_MIN, 99L) && identical(cc$B_MIN, as.integer(B_MIN_USAGE)) && cc$B_MIN > 20L)
+verifier("valider_B : 99 et \"999\" acceptes, renvoyes en entier",
+         identical(cc$valider_B(99), 99L) && identical(cc$valider_B("999"), 999L))
+verifier("valider_B : 98 et 20 refuses, message citant B_MIN_USAGE, la condition de l'IC et la ligne perdue",
+         grepl("B >= B_MIN_USAGE = 99 requis", .err(cc$valider_B(98)), fixed = TRUE) &&
+           grepl("B >= B_MIN_USAGE = 99 requis", .err(cc$valider_B(20)), fixed = TRUE) &&
+           grepl("length(usp_b) > 20", .err(cc$valider_B(98)), fixed = TRUE) &&
            grepl("Largeur relative de l'IC bootstrap 90%", .err(cc$valider_B("1")), fixed = TRUE))
 verifier("valider_B : valeurs non entieres refusees (abc, 25.5, vide)",
          all(grepl("entier attendu", c(.err(cc$valider_B("abc")), .err(cc$valider_B("25.5")),
@@ -420,10 +421,10 @@ verifier("Audit de #75, C2 : --strict signale le decompte faux injecte apres un 
          length(.k75r) == 1L &&
            any(grepl(sprintf("^    \\[ECART +\\] l\\.%-5d prime : lignes de base r hors suites .* base r hors suites +annonce 6 +mesure 5$",
                              .k75r), r_75$sortie)))
-r_b20 <- .lancer_concordance("--B", "20")
-verifier("--B 20 refuse par le script lance (code 1, erreur explicite, moteur non execute)",
-         r_b20$code == 1L && any(grepl("--B = 20 refuse", r_b20$sortie, fixed = TRUE)) &&
-           !any(grepl("^=== 2", r_b20$sortie)))
+r_b98 <- .lancer_concordance("--B", "98")
+verifier("--B 98 refuse par le script lance (code 1, erreur explicite, moteur non execute)",
+         r_b98$code == 1L && any(grepl("--B = 98 refuse", r_b98$sortie, fixed = TRUE)) &&
+           !any(grepl("^=== 2", r_b98$sortie)))
 # Natures des p retenues (#44, reprise) : exacte, sous le modele auxiliaire
 # MCO, Monte-Carlo, asymptotique et sans p retenue partitionnent les lignes.
 # Lignes construites en memoire (une par nature), et table du moteur sur les

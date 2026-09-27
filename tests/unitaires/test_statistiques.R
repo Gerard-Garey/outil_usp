@@ -195,7 +195,7 @@ verifier("Cox-Stuart, run_engine() avec ex aequo (m = 3, n_p = 4) : p exacte cal
          {
            res_cs <- run_engine(xt = rep(100, 8), yt = c(70, 76, 83, 95, 70, 72, 78, 117),
                                 methode = "premium", segment = 1, annexe = "II",
-                                nature_donnees = "brutes", B = 19, seed = 20260831)
+                                nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831)
            t_cs <- cs_ligne(res_cs)
            isTRUE(res_cs$ok) && !is.null(t_cs) && identical(t_cs$stat, 1L) &&
              identical(t_cs$detail, paste(
@@ -208,13 +208,13 @@ verifier("Cox-Stuart, run_engine() avec ex aequo (m = 3, n_p = 4) : p exacte cal
              is.na(res_cs$bootstrap$stats_obs[["CoxStuart"]]) &&
              identical(unname(res_cs$bootstrap$motif_mc[["CoxStuart"]]),
                        "statistique observee non definie : ex aequo") &&
-             identical(unname(res_cs$bootstrap$B_effectif[["CoxStuart"]]), 19)
+             identical(unname(res_cs$bootstrap$B_effectif[["CoxStuart"]]), B_MIN_USAGE)
          })
 verifier("Cox-Stuart, run_engine() sans difference non nulle (m = 0) : K non defini, p_min = 1, inoperant sans cas particulier (#85, #44)",
          {
            res_c0 <- run_engine(xt = rep(100, 8), yt = c(70, 76, 83, 95, 70, 76, 83, 95),
                                 methode = "premium", segment = 1, annexe = "II",
-                                nature_donnees = "brutes", B = 19, seed = 20260831)
+                                nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831)
            t_c0 <- cs_ligne(res_c0)
            tb_c0 <- tryCatch(engine_table_tests(res_c0), error = function(e) NULL)
            isTRUE(res_c0$ok) && !is.null(t_c0) &&

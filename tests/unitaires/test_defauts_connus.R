@@ -778,16 +778,17 @@ verifier("engine_sous_graine() : etat restaure (ou retire) meme si l'expression 
          })
 # Propriete de l'ADR 0004, point 3 : run_engine() laisse l'etat du generateur
 # de l'appelant intact (existant ou absent), pour les trois methodes, et deux
-# appels a parametres egaux restent identiques quel que soit cet etat. B = 19
-# pour la duree ; horodatage et duree retires comme dans nettoyer().
+# appels a parametres egaux restent identiques quel que soit cet etat.
+# B = B_MIN_USAGE (minimum admis par run_engine()) pour la duree ; horodatage
+# et duree retires comme dans nettoyer().
 appels_run <- list(
   premium  = function() run_engine(xt = x, yt = y, methode = "premium",
-                                   segment = 1, annexe = "II", B = 19, seed = 5,
+                                   segment = 1, annexe = "II", B = B_MIN_USAGE, seed = 5,
                                    nature_donnees = "brutes"),
   reserve1 = function() run_engine(xt = x, yt = y, methode = "reserve1",
-                                   segment = 1, annexe = "II", B = 19, seed = 5),
+                                   segment = 1, annexe = "II", B = B_MIN_USAGE, seed = 5),
   reserve2 = function() run_engine(methode = "reserve2", triangle = tri_mw,
-                                   segment = 1, annexe = "II", B = 19, seed = 5))
+                                   segment = 1, annexe = "II", B = B_MIN_USAGE, seed = 5))
 sans_horodatage <- function(res) {
   res$metadata[c("horodatage", "duree_sec")] <- NULL
   res

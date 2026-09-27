@@ -45,7 +45,7 @@ MOTIF_R13 <- "^volumes x_t constants a la tolerance relative TOL_DELTA_BORD = 1e
 
 lancer <- function(xx, methode = "premium")
   run_engine(xt = xx, yt = y, methode = methode, segment = 1, annexe = "II",
-             nature_donnees = if (methode == "premium") "brutes", B = 19, seed = 20260831)
+             nature_donnees = if (methode == "premium") "brutes", B = B_MIN_USAGE, seed = 20260831)
 
 ## --- 1. Predicat unique (regle R11) ------------------------------------------
 verifier("usp_volumes_constants : definition diff(range(x)) <= TOL_DELTA_BORD * mean(x)",

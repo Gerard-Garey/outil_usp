@@ -189,6 +189,17 @@ REP_GD_KKT  <- 1e-4
 # ALERTE disparait et le verdict ne suit plus la regle documentee.
 SEUIL_ECHEC_SENS_REJETER <- 0.30
 
+# Nombre minimal de replications bootstrap admis par run_engine() (constat C1
+# de la revue finale d'E1, #44 ; .engine_verifier_usage()), pour les trois
+# methodes. A B = B_MIN_USAGE = 99 : le plancher bilateral de la p-value
+# Monte-Carlo, 2/(B+1) = 0,02, est sous alpha/2 = 0,05 ; la detection de
+# degenerescence de engine_p_mc() est armee (B_MIN_DEGENERESCENCE = 50
+# simulations finies, si au moins 50 des 99 sont finies) ; la ligne de largeur
+# de l'IC bootstrap 90 % est presente (IC calcule au-dela de 20 tirages) ;
+# c'est le minimum du champ B de l'application (app.R). Les appels directs de
+# usp_bootstrap() et mw_bootstrap() ne sont pas bornes.
+B_MIN_USAGE <- 99
+
 # Tolerance relative de l'egalite entre sigma standard saisi et sigma
 # standard reglementaire (colonne conforme de engine_derogations(), issue
 # #93) : NP standard x sigma brut n'est pas toujours representable
@@ -2139,7 +2150,11 @@ USP_CATALOGUE_MC <- list(
 #                               p_mc = NA (reprise de #44, constat 1 d'audit).
 # Sous B_MIN_DEGENERESCENCE simulations finies, une loi simulee constante
 # peut n'etre qu'un effet de petit B : p_mc est calculee comme avant, sans
-# motif (B = 2 : Smirnov et Cox-Stuart gardent leur p exacte).
+# motif (B = 2 : Smirnov et Cox-Stuart gardent leur p exacte). Cette branche
+# n'est plus atteinte par run_engine() que si moins de 50 des B >= B_MIN_USAGE
+# = 99 simulations sont finies : run_engine() refuse B < B_MIN_USAGE (constat
+# C1 de la revue finale d'E1) ; elle l'est par les appels directs de
+# usp_bootstrap(), mw_bootstrap() ou engine_p_mc().
 # Limite (a dire dans le .tex) : cette detection generique n'aurait PAS
 # attrape le cas historique de MeanZ (melange a atome en la valeur observee,
 # ADR 0001 amende) ; l'atome releve de la condition `degenere` du catalogue.
@@ -5580,10 +5595,10 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   sans_attribut <- function(v) is.null(attributes(v))
   scalaire_fini <- function(v) is.numeric(v) && length(v) == 1L && is.finite(v) &&
                                  sans_attribut(v)
-  if (!scalaire_fini(B) || B < 0)
-    stop(sprintf(paste("B = %s : un nombre scalaire fini de replications, B >= 0,",
-                       "sans attribut, est attendu."),
-                 saisie(B)), call. = FALSE)
+  if (!scalaire_fini(B) || B < B_MIN_USAGE)
+    stop(sprintf(paste("B = %s : un nombre scalaire fini de replications, B >=",
+                       "B_MIN_USAGE = %d, sans attribut, est attendu."),
+                 saisie(B), B_MIN_USAGE), call. = FALSE)
   if (!scalaire_fini(seed) || seed != round(seed) || abs(seed) > .Machine$integer.max)
     stop(sprintf(paste("seed = %s : un nombre scalaire fini entier, |seed| <= %d, sans",
                        "attribut, est attendu (NULL refuse : calcul non reproductible)."),
@@ -5717,7 +5732,8 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
 #                  sinon entier scalaire fini, 5 <= T <= nombre d'annees, et
 #                  toute autre valeur donne ok = FALSE, sans troncature
 #                  (engine_valider_profondeur(), issue #87)
-#   B              nombre de replications bootstrap / Monte-Carlo
+#   B              nombre de replications bootstrap / Monte-Carlo ; nombre
+#                  scalaire fini >= B_MIN_USAGE = 99 (.engine_verifier_usage())
 #   alpha          seuil des verdicts, 0 < alpha < SEUIL_ECHEC_SENS_REJETER
 #   seed           graine des simulations (reproductibilite) ; entier scalaire
 #                  fini, |seed| <= .Machine$integer.max (NULL refuse)
