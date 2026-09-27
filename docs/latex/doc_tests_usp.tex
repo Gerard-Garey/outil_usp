@@ -597,7 +597,9 @@ qui nomme la statistique si une entrée ne rend pas une valeur de longueur~1 \\
 \code{granularite} d'une statistique (fiche~\ref{fiche:procedure-mc}), et \code{motif}
 d'absence de \code{p\_mc} (constantes \code{MOTIF\_MC\_*}~; loi dégénérée jugée à
 \code{TOL\_DISPERSION\_MC} $= 10^{-12}$ près dès \code{B\_MIN\_DEGENERESCENCE} $= 50$
-réplications finies, issue~\#44, §\ref{sec:nature})~; fonction unique des deux méthodes \\
+réplications finies, issue~\#44, §\ref{sec:nature}~; en deçà, branche que \code{run\_engine()},
+qui exige $B \ge$ \code{B\_MIN\_USAGE} $= 99$, n'atteint que si moins de 50 réplications sont
+finies, et que les appels directs atteignent)~; fonction unique des deux méthodes \\
 \code{.mc\_p\_values()} & matrice des simulations, valeurs observées, catalogue, contexte
 observé & \code{engine\_p\_mc()} colonne par colonne, sens lu au catalogue, conditions
 \code{degenere} et \code{non\_definie} évaluées sur le contexte observé~; vecteur
@@ -723,7 +725,7 @@ complet~; \code{ok = FALSE} pour un refus de données ou un défaut de calcul in
 R pour une erreur d'usage (§\ref{sec:controles}) \\
 \code{.engine\_verifier\_}\newline\code{usage()} & \code{B}, \code{seed}, \code{bareme},
 \code{alpha}, \code{sigma\_standard}, \code{segment}, \code{annexe} & erreur R explicite, citant la valeur reçue, pour un
-argument d'appel invalide (erreur d'usage), appelée par les deux branches avant tout calcul
+argument d'appel invalide (erreur d'usage, dont $B <$ \code{B\_MIN\_USAGE} $= 99$), appelée par les deux branches avant tout calcul
 (§\ref{sec:controles}) \\
 \code{.engine\_calcul\_}\newline\code{protege()} & \code{methode}, horodatage,
 \code{validation}, calcul & résultat du calcul, ou objet \code{ok = FALSE} portant
@@ -1947,7 +1949,14 @@ autres qu'un calcul abouti, à ne pas confondre (issue~\#88, décision du mainte
   \code{sigma\_standard} étant refusés (contrôles faits jusqu'à la revue finale de l'issue~\#88
   après la validation des données, si bien que le même appel levait une erreur R sur des données
   valides et rendait \code{ok = FALSE} sur des données refusées)~;
-  \code{B}, nombre scalaire fini, $B \ge 0$~; \code{seed}, nombre scalaire fini entier,
+  \code{B}, nombre scalaire fini, $B \ge$ \code{B\_MIN\_USAGE} $= 99$, pour les trois méthodes
+  (auparavant $B \ge 0$~; à $B = 0$, des lignes restaient de type test sans p-value retenue),
+  seuil qui garantit un plancher bilatéral de la p-value de Monte-Carlo
+  $2/(B+1) = 0{,}02 < \alpha/2$ au seuil par défaut, une détection de dégénérescence armée
+  (\code{B\_MIN\_DEGENERESCENCE} $= 50$ réplications finies, section~\ref{sec:nature}) et la
+  présence de l'intervalle bootstrap à 90~\%, calculé au-delà de 20 valeurs bootstrap, avec la
+  ligne de sa largeur, et qui est le minimum du champ $B$ de l'application~; \code{seed}, nombre
+  scalaire fini entier,
   $|\mathtt{seed}| \le 2\,147\,483\,647$ (\code{.Machine\$integer.max}, domaine de
   \code{set.seed()}), \code{NULL} étant refusé parce que \code{set.seed(NULL)} réinitialise le
   générateur au hasard et rend le calcul non reproductible, et une graine non entière parce que
@@ -2331,6 +2340,9 @@ section~\ref{sec:verif} en constitue la seule mesure disponible à $T = 8$.
 C'est la seule p-value réellement calibrée aux tailles d'échantillon du régime USP. Sa
 granularité est bornée par $1/(B+1)$~: avec $B = 999$, la plus petite p-value atteignable vaut
 $0{,}001$ en queue haute ou basse, et $2/(B+1) = 0{,}002$ au bilatéral, du fait du doublement.
+$B = 999$ est la valeur du dossier~; \code{run\_engine()} refuse $B <$ \code{B\_MIN\_USAGE} $= 99$
+(erreur d'usage, section~\ref{sec:controles}), valeur à laquelle le plancher bilatéral,
+$2/(B+1) = 0{,}02$, reste sous $\alpha/2 = 0{,}05$ au seuil par défaut.
 Le moteur restitue ce pas par statistique, sur $B_{\text{eff}}$, dans le champ
 \code{granularite\_stat} de l'objet bootstrap~: $1/(B_{\text{eff}}+1)$ en queue haute ou basse,
 $2/(B_{\text{eff}}+1)$ au bilatéral (issue~\#40)~; le champ \code{granularite}, lu par
@@ -2480,7 +2492,12 @@ l'appelant~: statistique observée non finie, aucune réplication finie, ou loi 
 \emph{dégénérée} --- au moins \code{B\_MIN\_DEGENERESCENCE} $= 50$ réplications finies
 d'étendue au plus \code{TOL\_DISPERSION\_MC} $\times \max(1, |S_{\text{obs}}|)$,
 \code{TOL\_DISPERSION\_MC} $= 10^{-12}$, que la valeur observée soit sur l'atome ou hors de lui,
-ou condition \code{degenere} du catalogue vraie sur le contexte observé. Une dégénérescence fait
+ou condition \code{degenere} du catalogue vraie sur le contexte observé. Sous
+\code{B\_MIN\_DEGENERESCENCE} réplications finies, une loi simulée constante peut n'être qu'un
+effet de petit $B$~: \code{p\_mc} est alors calculée sans motif. \code{run\_engine()} exigeant
+$B \ge$ \code{B\_MIN\_USAGE} $= 99$ (section~\ref{sec:controles}), cette branche n'y est plus
+atteinte que si moins de 50 des $B$ réplications sont finies~; elle l'est par les appels directs de
+\code{usp\_bootstrap()}, \code{mw\_bootstrap()} ou \code{engine\_p\_mc()}, que rien ne borne. Une dégénérescence fait
 sortir la ligne en diagnostic, sans p-value retenue, p-value exacte comprise~: la loi de
 référence y compare du bruit d'arrondi (ADR~0001). Une statistique observée non finie, sans
 p-value exacte, rend la ligne non applicable. Dans les autres cas, sans p-value exacte, la
@@ -9650,7 +9667,8 @@ Orchestration complète & \code{run\_engine()}~; méthode de réserve
 n\textsuperscript{o}~2 déléguée à\newline \code{.run\_engine\_mw()} \\
 Refus de données, erreur d'usage, défaut de calcul intercepté (§\ref{sec:controles}) &
 \code{engine\_valider\_profondeur()} (profondeur $T$, refus)~;
-\code{.engine\_verifier\_usage()} (arguments d'appel, erreur R)~;
+\code{.engine\_verifier\_usage()} (arguments d'appel, erreur R~; plancher de $B$~:
+\code{B\_MIN\_USAGE})~;
 \code{.engine\_calcul\_protege()} (\code{validation\$erreur\_r}) \\
 Table auditable des tests & \code{engine\_table\_tests()} \\
 Empreintes md5 d'un résultat pour le rapport figé~: données du calcul
