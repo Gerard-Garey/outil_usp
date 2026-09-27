@@ -1400,8 +1400,10 @@ Spearman ($\times 2$) & \ref{fiche:spearman} & \code{stats::cor.test()} (appel d
 Mann--Kendall & \ref{fiche:mann-kendall} & \code{test\_mann\_kendall()} &
 \code{mk\_p\_exacte()} (p exacte, loi mahonienne, via \code{.mk\_loi\_exacte()},
 \code{.poly\_mult()}) & \code{MK} \\
-Cox--Stuart & \ref{fiche:cox-stuart} & \code{test\_cox\_stuart()} &
-\code{test\_cox\_stuart()} (p exacte, loi binomiale) & \code{CoxStuart} \\
+Cox--Stuart & \ref{fiche:cox-stuart} & \code{test\_cox\_stuart()} ($K$, $m$
+différences non nulles, $n_p$ paires) &
+\code{test\_cox\_stuart()} (p exacte, loi binomiale conditionnelle à $m$) & \code{CoxStuart}
+(sans ex \ae quo seulement) \\
 
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Hypothèse H2 --- structure de variance quadratique}}} \\
 \midrule
@@ -2592,7 +2594,8 @@ $\hat\pi_t$ constant, approximation sinon &
 \textbf{Déconseillée} : approx. normale usuellement requise à $T\ge 10$ &
 Distribution exacte à privilégier \\
 
-Cox--Stuart & LN & $K$ & Oui (binomiale) & --- & Oui & \textbf{Exacte} si
+Cox--Stuart & LN & $K$ & Oui (binomiale) & --- & Oui sans ex \ae quo, \code{NA} sinon
+(issue~\#85) & \textbf{Exacte} si
 $\hat\pi_t$ constant, approximation sinon &
 Sans objet & Exacte ; mais $p_{\min}=0{,}125$ à $T=8$ : test inopérant \\
 
@@ -3487,8 +3490,8 @@ méthodologique, indiqué en troisième colonne.
 \textcolor{financeblue}{\textbf{Complément méthodologique}} \\
 \rowcolor{tableheader}
 \multicolumn{3}{@{}l@{}}{\textcolor{financeblue}{\textbf{Méthode lognormale}}} \\
-Cox--Stuart & $m = 4$ paires $\Rightarrow$
-$p_{\min} = 2\cdot 2^{-4} = 0{,}125$~: le rejet est \emph{impossible} à tout
+Cox--Stuart & $n_p = 4$ paires, donc au plus $m = 4$ différences non nulles
+$\Rightarrow$ $p_{\min} = 2\cdot 2^{-m} \ge 0{,}125$~: le rejet est \emph{impossible} à tout
 seuil usuel & Conservé (loi exacte), mais signalé comme inopérant~; la détection
 de tendance repose sur Mann--Kendall exact \\
 Jarque--Bera & $b_2$ borné par $\sim T$~; convergence $\chi^2_2$ très lente &
@@ -3933,9 +3936,11 @@ beaucoup trop souvent, ce qui impose de le lire conjointement avec les tests de 
 \refl{D.\,R. Cox, A.~Stuart, \emph{Some quick sign tests for trend in location and dispersion},
 \emph{Biometrika}, 42(1/2), 1955, p.~80--95.}
 \Cadre
-On pose $c = \lceil T/2 \rceil$ et l'on forme les paires $(r_t, r_{t+c})$. Soit
-$D_t = r_{t+c} - r_t$ et $m$ le nombre de paires avec $D_t \neq 0$. Hypothèses non testées~:
-indépendance des observations, continuité.
+On pose $c = \lceil T/2 \rceil$ et l'on forme les $n_p = T - c$ paires $(r_t, r_{t+c})$,
+$t = 1, \dots, n_p$ (valeur centrale écartée si $T$ est impair). Soit $D_t = r_{t+c} - r_t$ et
+$m \le n_p$ le nombre de différences non nulles, $D_t \neq 0$~; $m = n_p$ en l'absence d'ex \ae quo
+dans une paire. \code{test\_cox\_stuart()} rend $K$, $m$ et $n_p$ (issue~\#85). Hypothèses non
+testées~: indépendance des observations, continuité.
 \Hzero
 $H_0$ : absence de tendance, formalisée par $\mathbb{P}(D_t > 0) = 1/2$ pour toute paire.
 \Stat
@@ -3959,12 +3964,24 @@ ne simule pas $K$ lui-même mais $|K - n_p/2|$, $n_p = T - c$ étant le nombre d
 rejet en queue haute~: la loi de $K$ étant symétrique sous $H_0$, la queue haute de
 $|K - n_p/2|$ est la région de rejet bilatérale de $K$. C'est une transformation qui conserve la
 région de rejet, et non une autre statistique (ADR~0003, annotation du 24~septembre 2026)~; la
-chaîne \code{loi} de la ligne la mentionne. Sans différence nulle, $m = n_p$ et $n_p/2$ est le
-centre de la loi de $K$~; en présence de différences nulles ($m < n_p$), le choix de recentrer
-sur $n_p/2$ plutôt que sur $m/2$ est une question relevée et non tranchée à ce jour
-(issue~\#85)~; les réplications, tirées d'une loi continue, ne comportent jamais de différence
-nulle, de sorte qu'en présence d'ex æquo la loi simulée n'est pas celle du $K$ observé et la
-p-value de Monte-Carlo n'est qu'indicative, la p-value exacte étant retenue. Sur le jeu de
+chaîne \code{loi} de la ligne la mentionne. Cette équivalence suppose $m = n_p$, c'est-à-dire
+aucune différence nulle~: $n_p/2$ est alors le centre de la loi de $K$. Or les réplications,
+tirées d'une loi continue, ne comportent jamais de différence nulle~: elles simulent
+$K^{*} \sim \mathcal{B}(n_p, 1/2)$, alors qu'en présence d'ex \ae quo ($m < n_p$) le $K$ observé
+suit $\mathcal{B}(m, 1/2)$ conditionnellement à $m$. Aucune statistique simulée ne reproduit alors
+la loi du $K$ observé, et une p-value de Monte-Carlo calculée sur l'une ou l'autre ne serait la
+p-value d'aucun test. Depuis l'issue~\#85 (décision d'\code{actuary} du 27~septembre 2026), la
+statistique Monte-Carlo n'est donc définie que sans ex \ae quo~: avec ex \ae quo, sa valeur observée
+est \code{NA} (\code{USP\_CATALOGUE\_MC\$CoxStuart}), \code{p\_mc} et \code{err\_mc} valent
+\code{NA}, le motif «~\code{statistique observee non definie : ex aequo}~» est restitué dans
+\code{bootstrap\$motif\_mc} (champ \code{non\_definie} du catalogue), et la p-value exacte
+binomiale, conditionnelle à $m$, reste la seule calculée~; le commentaire de la ligne affiche
+alors les deux nombres (\code{m = 3 differences non nulles sur n\_p = 4 paires~; p\_mc non
+calculee (replications sans ex aequo)}), et, à $m = 0$, que $K$ n'est pas défini. Mesuré sur le
+jeu de contrôle modifié pour que $r_5 = r_1$ ($x_5 = 2x_1$, $y_5 = 2y_1$~; méthode prime,
+$B = 999$, graine 20260831)~: $m = 3$, $n_p = 4$, $K = 1$, p-value exacte~1, \code{p\_mc}
+\code{NA} avec ce motif. Avant l'issue~\#85, la statistique simulée restait centrée sur $n_p/2$
+en présence d'ex \ae quo et la p-value de Monte-Carlo était calculée. Sur le jeu de
 contrôle ($T = 8$, $n_p = 4$), $K = 2$, au centre~: la p-value exacte et la p-value de
 Monte-Carlo valent~1, et l'erreur de Monte-Carlo affichée est nulle, ce qui signifie une erreur
 inférieure à la granularité et non une absence d'erreur (section~\ref{sec:deuxerreurs}).
@@ -8794,7 +8811,8 @@ repère indicatif de 40~\% du second n'emporte aucun verdict (ADR~0001). \\
 \toprule
 \textbf{Test} & \textbf{Seuil de validité} & \textbf{Nature du problème} \\
 \midrule
-Cox--Stuart & $T \ge 12$ & Rejet à 5~\% \emph{impossible} pour $m \le 5$ paires. \\
+Cox--Stuart & $T \ge 12$ & Rejet à 5~\% \emph{impossible} pour $m \le 5$ différences non
+nulles. \\
 Anscombe--Glynn & $T \ge 20$ & Non défini en-deçà~; marqué \code{INFO}. \\
 D'Agostino (asymétrie) & $T \ge 8$ & Non défini en-deçà~; puissance faible jusqu'à $T \approx 20$. \\
 Jarque--Bera & $T \ge 50$ & $b_2$ borné par $\approx T$~; convergence $\chi^2$ très lente. \\
