@@ -3558,8 +3558,10 @@ indépendantes, elles sont, à $\hat\pi_t$ constant, des \textbf{quasi-doublons}
 de leurs homologues sur $z_t$ --- et un doublon exact pour le test des suites.
 Six verdicts \code{OK} de la table auditable n'y apportent donc pas six
 informations. Le moteur porte lui-même cette réserve~: dans ce cas, le champ
-\code{detail} de chacune des six lignes commence par « \code{CONTROLE SANS
-OBJET ICI} » et indique que la ligne est un quasi-doublon de son homologue sur
+\code{detail} de chacune des six lignes contient « \code{CONTROLE SANS
+OBJET ICI} » --- en tête pour Durbin--Watson, Ljung--Box, le test des suites et
+OLS-CUSUM, après une phrase propre à la ligne pour la rupture sup-F et Grubbs ---
+et indique que la ligne est un quasi-doublon de son homologue sur
 résidus standardisés. La situation n'a rien d'exceptionnel~: sur les $999$
 réplications du bootstrap paramétrique du jeu de contrôle, $493$ --- soit
 $49{,}3~\%$ --- ont un $\hat\pi_t^{*}$ constant (constat de simulation, graine
