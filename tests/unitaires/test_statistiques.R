@@ -98,8 +98,12 @@ verifier("AD, CvM, Lilliefors : p dans [0, 1], decroissante (sauts <= 0,005 aux 
            all(c(pa, pc, pl) >= 0 & c(pa, pc, pl) <= 1) &&
              all(diff(pa) <= 0.005) && all(diff(pc) <= 0.005) && all(diff(pl) <= 0.005)
          })
-verifier("AD, CvM, Lilliefors, Shapiro-Francia : NA pour T < 5",
-         is.na(ad_p_stephens(0.5, 4)) && is.na(cvm_p_stephens(0.1, 4)) &&
+# AD et CvM : NA pour T = 4..7, plage de nortest::ad.test (n > 7 ; #44, R6) ;
+# Lilliefors et Shapiro-Francia : NA pour T < 5.
+verifier("AD, CvM : NA pour T = 4..7 ; Lilliefors, Shapiro-Francia : NA pour T < 5",
+         all(vapply(4:7, function(n) is.na(ad_p_stephens(0.5, n)) && is.na(cvm_p_stephens(0.1, n)),
+                    logical(1))) &&
+         is.finite(ad_p_stephens(0.5, 8)) && is.finite(cvm_p_stephens(0.1, 8)) &&
          is.na(lillie_p(0.3, 4)) && is.na(test_shapiro_francia(z1[1:4])$p))
 verifier("Shapiro-Francia : W' = cor(z tries, scores de Blom)^2",
          proche(test_shapiro_francia(za)$stat,
@@ -180,22 +184,33 @@ verifier("Cox-Stuart Monte-Carlo : sans ex aequo, statistique inchangee |K - n_p
            isTRUE(proche(cs_mc(v), abs(test_cox_stuart(v)$stat - n_p / 2), rel = 1e-12))
          }, logical(1))))
 # Le verdict n'est pas verifie ici : il changera avec #44.
-verifier("Cox-Stuart, run_engine() avec ex aequo (m = 3, n_p = 4) : p exacte retenue, p_mc NA, detail (#85)",
+# Depuis #44 (regle R1), p_min = 0,25 (m = 3) ou 1 (m = 0) >= alpha = 0,10 :
+# la ligne est un test inoperant, restituee en diagnostic INFO, p exacte
+# conservee mais non retenue, detail prefixe ; le motif d'indisponibilite
+# Monte-Carlo est celui du catalogue ("statistique observee non definie :
+# ex aequo"), et non le motif generique de statistique non finie.
+detail_cs_85 <- paste("m = 3 differences non nulles sur n_p = 4 paires ;",
+                      "p_mc non calculee (replications sans ex aequo)")
+verifier("Cox-Stuart, run_engine() avec ex aequo (m = 3, n_p = 4) : p exacte calculee, p_mc NA avec motif, inoperant (#85, #44)",
          {
            res_cs <- run_engine(xt = rep(100, 8), yt = c(70, 76, 83, 95, 70, 72, 78, 117),
                                 methode = "premium", segment = 1, annexe = "II",
                                 nature_donnees = "brutes", B = 19, seed = 20260831)
            t_cs <- cs_ligne(res_cs)
            isTRUE(res_cs$ok) && !is.null(t_cs) && identical(t_cs$stat, 1L) &&
-             identical(t_cs$detail, paste("m = 3 differences non nulles sur n_p = 4 paires ;",
-                                          "p bilaterale minimale atteignable = 0.2500 ;",
-                                          "p_mc non calculee (replications sans ex aequo)")) &&
+             identical(t_cs$detail, paste(
+               "TEST INOPERANT au seuil alpha = 0.1 : p-value minimale atteignable = 0.2500",
+               "(m = 3 differences non nulles) ; aucun verdict (ADR 0001).", detail_cs_85)) &&
              isTRUE(proche(t_cs$p_exacte, 1, rel = 1e-12)) &&
-             is.na(t_cs$p_mc) && is.na(t_cs$err_mc) && identical(t_cs$nature_p, "exacte") &&
+             is.na(t_cs$p_mc) && is.na(t_cs$err_mc) &&
+             identical(t_cs$type, "diagnostic") && is.na(t_cs$nature_p) &&
+             identical(t_cs$verdict, "INFO") && identical(t_cs$p_min, 0.25) &&
              is.na(res_cs$bootstrap$stats_obs[["CoxStuart"]]) &&
+             identical(unname(res_cs$bootstrap$motif_mc[["CoxStuart"]]),
+                       "statistique observee non definie : ex aequo") &&
              identical(unname(res_cs$bootstrap$B_effectif[["CoxStuart"]]), 19)
          })
-verifier("Cox-Stuart, run_engine() sans difference non nulle (m = 0) : K non defini, ligne INFO (#85)",
+verifier("Cox-Stuart, run_engine() sans difference non nulle (m = 0) : K non defini, p_min = 1, inoperant sans cas particulier (#85, #44)",
          {
            res_c0 <- run_engine(xt = rep(100, 8), yt = c(70, 76, 83, 95, 70, 76, 83, 95),
                                 methode = "premium", segment = 1, annexe = "II",
@@ -205,8 +220,12 @@ verifier("Cox-Stuart, run_engine() sans difference non nulle (m = 0) : K non def
            isTRUE(res_c0$ok) && !is.null(t_c0) &&
              is.na(t_c0$stat) && is.na(t_c0$p_exacte) && is.na(t_c0$p_mc) &&
              is.na(t_c0$p_retenue) && is.na(t_c0$nature_p) && identical(t_c0$verdict, "INFO") &&
-             identical(t_c0$detail, paste("aucune difference non nulle sur n_p = 4 paires :",
-                                          "K non defini ; p bilaterale minimale atteignable = 1.0000")) &&
+             identical(t_c0$type, "diagnostic") && identical(t_c0$p_min, 1) &&
+             identical(t_c0$detail, paste(
+               "TEST INOPERANT au seuil alpha = 0.1 : p-value minimale atteignable = 1.0000",
+               "(m = 0 differences non nulles) ; aucun verdict (ADR 0001).",
+               "aucune difference non nulle sur n_p = 4 paires :",
+               "K non defini")) &&
              is.data.frame(tb_c0)
          })
 
@@ -343,10 +362,15 @@ verifier("engine_p_mc : sens de rejet inconnu refuse",
 # a 70 %).
 .p40_B <- 999
 .p40_sim <- function(N, B = .p40_B) c(rep(1, N), rep(-1, B - N))
+# N = 0 et N = B sont exclus : les B = 999 simulations y sont constantes
+# (toutes -1 ou toutes +1), l'observee 0 est hors de l'atome, et
+# engine_p_mc() rend alors p_mc = NA, motif MOTIF_MC_ATOME_HORS_OBS (#44,
+# regle R2 et reprise) ; leur poids binomial est inferieur a 1e-20 pour tous les
+# q ci-dessous (0,05 <= q <= 0,5), les poids restants sont renormalises.
 .p40_sd_exact <- function(q, queue, B = .p40_B) {
-  N <- 0:B
+  N <- 1:(B - 1)
   pm <- vapply(N, function(n) engine_p_mc(.p40_sim(n, B), 0, queue)$p_mc, numeric(1))
-  w <- stats::dbinom(N, B, q)
+  w <- stats::dbinom(N, B, q); w <- w / sum(w)
   sqrt(sum(w * pm^2) - sum(w * pm)^2)
 }
 .p40_err <- function(N, queue) engine_p_mc(.p40_sim(N), 0, queue)

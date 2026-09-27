@@ -132,8 +132,12 @@ badge_verdict <- function(v) {
 
 badge_nature <- function(n) {
   if (is.na(n)) return("\u2013")
+  # Natures du modele auxiliaire MCO (#44, regle R5 : TOST, pente, Fisher) :
+  # la loi de Student n'y vaut que sous ce modele, hors hierarchie ; badge
+  # distinct de "exacte", par sa couleur comme par son libelle.
+  if (grepl("^sous le modele auxiliaire MCO", n))
+    return("<span style='color:#7D3C98;font-weight:600'>mod\u00e8le MCO</span>")
   if (grepl("^exacte", n))      return("<span style='color:#1E8449;font-weight:600'>exacte</span>")
-  if (grepl("^quasi", n))       return("<span style='color:#1E8449;font-weight:600'>quasi-exacte</span>")
   if (grepl("^Monte-Carlo", n)) return("<span style='color:#00468C;font-weight:600'>Monte-Carlo</span>")
   "<span style='color:#B9770E;font-weight:600'>asymptotique</span>"
 }
@@ -178,6 +182,11 @@ table_detail_groupe <- function(tb) {
     `p asympt.` = fmt_p(tb$p_asymptotique),
     `p Monte-Carlo` = fmt_p(tb$p_monte_carlo),
     `erreur MC` = ifelse(is.finite(tb$erreur_MC), paste0("\u00b1 ", fmt_nb(tb$erreur_MC)), "\u2013"),
+    # p-value minimale atteignable (loi de reference discrete, #44) ; colonne
+    # absente d'une table anterieure au champ : tiret. Trois chiffres
+    # significatifs : 2/8! = 5,0e-5 s'afficherait 0.0000 avec fmt_p().
+    `p min` = if (is.null(tb$p_min)) rep("\u2013", nrow(tb))
+              else ifelse(is.finite(tb$p_min), formatC(tb$p_min, format = "g", digits = 3), "\u2013"),
     Sens = .txt(tb$sens_du_test), Reference = .txt(tb$reference),
     check.names = FALSE, stringsAsFactors = FALSE, row.names = NULL)
 }
@@ -1473,7 +1482,11 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
             "verdict et le motif de leur exclusion.</div>"), nrow(tb), sum(retenu), sum(!retenu)),
           paste("<div class='gris'>Nature de la p-value retenue :",
                 "<b style='color:#1E8449'>exacte</b> &gt; <b style='color:#00468C'>Monte-Carlo</b>",
-                "&gt; <b style='color:#B9770E'>asymptotique</b>.</div>"))
+                "&gt; <b style='color:#B9770E'>asymptotique</b>.",
+                "Les p-values <b style='color:#7D3C98'>sous le mod\u00e8le auxiliaire MCO</b>",
+                "(TOST, pente, Fisher) sont hors hi\u00e9rarchie : elles ne sont retenues que",
+                "faute de p exacte ou Monte-Carlo sous le mod\u00e8le r\u00e9glementaire, et ne",
+                "sont pas exactes au sens de l'outil.</div>"))
     sel <- te[retenu, , drop = FALSE]
     if (!nrow(sel)) ajout(.bandeau_html("Aucun test s\u00e9lectionn\u00e9."))
     for (k in cles_groupes()) {

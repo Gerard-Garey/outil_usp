@@ -1099,8 +1099,12 @@ stat_cvm <- function(z) {
 # Ce sont des ajustements empiriques, non un resultat exact : la p-value est
 # fournie a titre de p-value NON simulee, la p-value de Monte-Carlo restant
 # calculee en parallele.
+# Plage : NA pour n < 8, comme l'implementation de reference nortest::ad.test
+# (n > 7) ; la plage annoncee par la table 4.9 elle-meme n'a pas ete verifiee
+# sur l'ouvrage (#44, regle R6, avis d'actuary Q6). Meme garde pour
+# cvm_p_stephens().
 ad_p_stephens <- function(A2, n) {
-  if (!is.finite(A2) || n < 5) return(NA_real_)
+  if (!is.finite(A2) || n < 8) return(NA_real_)
   a <- A2 * (1 + 0.75 / n + 2.25 / n^2)
   p <- if (a < 0.200)      1 - exp(-13.436 + 101.14 * a - 223.73 * a^2)
        else if (a < 0.340) 1 - exp(-8.318 + 42.796 * a - 59.938 * a^2)
@@ -1112,7 +1116,7 @@ ad_p_stephens <- function(A2, n) {
 
 # p-value analytique de Cramer-von Mises, cas 3, memes sources.
 cvm_p_stephens <- function(W2, n) {
-  if (!is.finite(W2) || n < 5) return(NA_real_)
+  if (!is.finite(W2) || n < 8) return(NA_real_)
   w <- W2 * (1 + 0.5 / n)
   p <- if (w < 0.0275)      1 - exp(-13.953 + 775.5 * w - 12542.61 * w^2)
        else if (w < 0.051)  1 - exp(-5.903 + 179.546 * w - 1515.29 * w^2)
@@ -1459,6 +1463,58 @@ runs_p_exacte <- function(z) {
   .p_borne(2 * min(sum(d$prob[d$R <= Robs]), sum(d$prob[d$R >= Robs])))
 }
 
+# --- P-value minimale atteignable des lois de reference discretes (#44) ------
+# Regle R1 de la specification commune #44 / #70 / #59 (ADR 0001, CONTEXT.md
+# "Test inoperant") : p_min est la plus petite p-value que la statistique peut
+# produire sur le jeu considere, calculee sur la loi de reference discrete aux
+# effectifs observes, sous la convention bilaterale du doublement (M8). Si
+# p_min >= alpha, aucune valeur observee ne peut donner p < alpha : le test
+# est inoperant et add() le restitue en diagnostic (engine_registre_tests()).
+# Valeurs a T = 8 sans ex aequo (enumeration exhaustive, tests unitaires) :
+# suites 4/70 = 0,0571 ; Cox-Stuart 0,125 ; Smirnov 2/70 = 0,0286 ;
+# Mann-Kendall et Spearman 2/8! = 5,0e-5.
+
+# Suites : min sur le support de R (probabilites > 0) de
+# 2 min(P(R <= r), P(R >= r)), loi de Swed & Eisenhart aux effectifs (n1, n2)
+# de part et d'autre de la mediane. NA si un seul cote est represente.
+runs_p_min <- function(n1, n2) {
+  if (!is.finite(n1) || !is.finite(n2) || n1 < 1 || n2 < 1) return(NA_real_)
+  d <- .runs_dens(n1, n2)
+  sup <- d$R[d$prob > 0]
+  p <- vapply(sup, function(r) 2 * min(sum(d$prob[d$R <= r]), sum(d$prob[d$R >= r])),
+              numeric(1))
+  .p_borne(min(p))
+}
+# Effectifs (n1, n2) de part et d'autre de la mediane, ceux de runs_p_exacte().
+.runs_effectifs <- function(z) {
+  sg <- sign(z - stats::median(z)); sg <- sg[sg != 0]
+  c(n1 = sum(sg > 0), n2 = sum(sg < 0))
+}
+
+# Cox-Stuart : K ~ Binomiale(m, 1/2) conditionnellement aux m differences non
+# nulles (#85) ; la plus petite p bilaterale est celle de K = 0 ou K = m,
+# 2 * 0,5^m, bornee a 1 (m = 0 : p_min = 1, test sans objet).
+cox_stuart_p_min <- function(m) {
+  if (!is.finite(m) || m < 0) return(NA_real_)
+  min(1, 2 * 0.5^m)
+}
+
+# Smirnov a deux echantillons (ks.test exact, sans ex aequo) : la plus grande
+# valeur D = 1 n'est atteinte que par les deux arrangements totalement separes,
+# d'ou p_min = 2 / C(n1 + n2, n1) (ks.test(1:4, 5:8) : 2/70).
+smirnov_p_min <- function(n1, n2) {
+  if (!is.finite(n1) || !is.finite(n2) || n1 < 1 || n2 < 1) return(NA_real_)
+  .p_borne(2 / choose(n1 + n2, n1))
+}
+
+# Mann-Kendall (loi mahonienne de S) et Spearman (loi de permutation, meme
+# fonction pour les deux lignes) : la p bilaterale minimale est celle des deux
+# permutations extremes, 2 / T!.
+mk_p_min <- function(n) {
+  if (!is.finite(n) || n < 2) return(NA_real_)
+  .p_borne(2 / factorial(n))
+}
+
 # p-value exacte du test des suites sur ratios bruts (ligne Runsr de
 # usp_tests() ; issue #29, decision M8, option A). La loi combinatoire de R
 # suppose un arrangement equiprobable des signes de u_t = r_t - moyenne(r) :
@@ -1593,12 +1649,44 @@ test_lm_complet <- function(x, y) {
     F            = unname(s$fstatistic[1]),
     ddl1         = unname(s$fstatistic[2]),
     ddl2         = unname(s$fstatistic[3]),
-    p_F          = stats::pf(s$fstatistic[1], s$fstatistic[2], s$fstatistic[3],
-                             lower.tail = FALSE),
+    # unname() : pf() heritait le nom "value" de s$fstatistic[1] (#44,
+    # reprise, constat 3 d'audit : nom present ou absent selon le regime).
+    p_F          = unname(stats::pf(s$fstatistic[1], s$fstatistic[2], s$fstatistic[3],
+                             lower.tail = FALSE)),
     R2           = s$r.squared,
     R2_ajuste    = s$adj.r.squared,
     modele       = m
   )
+}
+
+# --- Identifiabilite de la pente (#44, regle R4, option E) --------------------
+# Sous le modele ajuste (a = 0, b = beta, Var(Y_t) = sigma^2 ((1 - delta) xbar
+# x_t + delta x_t^2)), l'esperance du t de la pente de lm(y ~ x) vaut, au
+# premier ordre, lambda = sqrt(S_xx) b / sigma_e avec S_xx = (T - 1) sd(x)^2 et
+# sigma_e ~ sigma xbar, soit
+#     lambda = sqrt(T - 1) * CV(x) * beta / sigma,   CV(x) = sd(x) / mean(x).
+# La puissance du test bilateral au seuil alpha est approchee par celle d'une
+# loi de Student decentree t(T - 2, lambda) :
+#     pi_b = P(|t| > t_{1 - alpha/2, T - 2} | ncp = lambda)
+# (stats::pt(, ncp =), deterministe, aucun alea). Statut : approximation au
+# premier ordre sous le modele auxiliaire MCO, controlee par simulation sous le
+# modele ajuste dans la specification d'actuary (#44 : 0,47 approche contre
+# 0,48 simule sur les donnees de test ; 0,136 contre 0,133 a CV = 3 %).
+# SEUIL_PUISSANCE_PENTE = 1/2 est une CONVENTION (repere : "le test a moins
+# d'une chance sur deux de rejeter quand le modele est vrai"), non un seuil
+# statistique : en dessous, les lignes "Student sur la pente" et "Fisher" sont
+# restituees en diagnostic (usp_tests()).
+SEUIL_PUISSANCE_PENTE <- 0.5
+usp_identifiabilite_pente <- function(x, beta, sigma, alpha) {
+  T <- length(x)
+  if (T < 3 || !is.finite(beta) || !is.finite(sigma) || sigma <= 0 ||
+      !is.finite(stats::sd(x)) || stats::sd(x) == 0)
+    return(list(lambda = NA_real_, puissance = NA_real_))
+  lambda <- sqrt(T - 1) * stats::sd(x) / mean(x) * beta / sigma
+  q <- stats::qt(1 - alpha / 2, T - 2)
+  puissance <- stats::pt(-q, T - 2, ncp = lambda) +
+    stats::pt(q, T - 2, ncp = lambda, lower.tail = FALSE)
+  list(lambda = lambda, puissance = puissance)
 }
 
 test_reset <- function(x, y) {
@@ -1802,15 +1890,30 @@ usp_simuler <- function(fit) {
 # (.mc_p_values(), engine_p_mc()) et l'association a une ligne de test
 # (add(mc_nom = ) de engine_registre_tests()) lisent ce seul catalogue ; un
 # nom absent du catalogue leve une erreur.
-# `degenere` : NULL pour toutes les entrees actuelles. Les deux statistiques
-# degenerees (MeanZ, VarZ) ont ete retirees du bootstrap et restituees comme
-# diagnostics par usp_tests() (issue #3, ADR 0001) ; le champ est reserve a une
-# condition future et n'est lu par aucun calcul a ce jour.
+# `degenere` (ADR 0003 point 5, forme fixee par la specification de #44,
+# regle R2) : NULL, ou une fonction du contexte OBSERVE (meme signature que
+# `calc`, function(e)) rendant un logique de longueur 1 ; TRUE signifie "sur
+# ces donnees, la statistique est fixee par l'estimation" (exemples
+# historiques : MeanZ, VarZ a pi_t constant, retirees du bootstrap et
+# restituees comme diagnostics par usp_tests(), issue #3, ADR 0001). Elle est
+# evaluee une fois, sur l'observe, par .mc_p_values() ; la p Monte-Carlo est
+# alors NA, avec le motif MOTIF_MC_CONDITION, et add() restitue la ligne en
+# diagnostic. NULL pour toutes les entrees actuelles.
+# `non_definie` : NULL, ou une fonction du contexte observe rendant le motif
+# (chaine) pour lequel la statistique n'est pas definie sur ces donnees, ou
+# NA_character_ ; lue seulement si la statistique observee n'est pas finie,
+# elle remplace alors le motif generique MOTIF_MC_OBS_NON_FINIE (seul cas :
+# Cox-Stuart avec ex aequo, #85). La p exacte eventuelle de la ligne n'en est
+# pas affectee.
 # L'ordre des entrees fixe celui des statistiques dans l'objet bootstrap.
-.mc_entree <- function(calc, queue, degenere = NULL) {
+.mc_entree <- function(calc, queue, degenere = NULL, non_definie = NULL) {
   if (length(queue) != 1L || !queue %in% c("haut", "bas", "deux"))
     stop("catalogue Monte-Carlo : sens de rejet inconnu : ", paste(queue, collapse = ", "))
-  list(calc = calc, queue = queue, degenere = degenere)
+  if (!is.null(degenere) && !is.function(degenere))
+    stop("catalogue Monte-Carlo : degenere doit etre NULL ou une fonction du contexte")
+  if (!is.null(non_definie) && !is.function(non_definie))
+    stop("catalogue Monte-Carlo : non_definie doit etre NULL ou une fonction du contexte")
+  list(calc = calc, queue = queue, degenere = degenere, non_definie = non_definie)
 }
 
 # Contexte commun aux fonctions de calcul du catalogue lognormal.
@@ -1888,10 +1991,16 @@ USP_CATALOGUE_MC <- list(
   # avec ex aequo, la loi simulee (K* ~ B(n_p, 1/2), replications continues)
   # n'est pas celle du K observe (B(m, 1/2)), donc pas de p_mc (NA ; #85).
   # La statistique affichee par usp_tests() reste K.
+  # Motif d'indisponibilite (#44, complement du 27/09) : "statistique
+  # observee non definie : ex aequo", distinct de l'absence de replication
+  # finie ; la p exacte binomiale de la ligne reste retenue.
   CoxStuart = .mc_entree(function(e) {
     cx <- test_cox_stuart(e$r)
     if (is.finite(cx$stat) && cx$m == cx$n_p) abs(cx$stat - cx$n_p / 2) else NA_real_
-  }, "haut"),
+  }, "haut", non_definie = function(e) {
+    cx <- test_cox_stuart(e$r)
+    if (cx$m < cx$n_p) "statistique observee non definie : ex aequo" else NA_character_
+  }),
   # --- memes statistiques sur les ratios bruts centres (base "r") -----------
   DWr    = .mc_entree(function(e) stat_dw(e$u), "deux"),
   LB1r   = .mc_entree(function(e)
@@ -1948,13 +2057,51 @@ USP_CATALOGUE_MC <- list(
 #     l'ecart-type exact en p = 1 (1 / sqrt(B) contre sqrt((1 - 2/pi) / B)).
 # granularite : pas elementaire de p_mc, 1 / (B_eff + 1) en queue haute ou
 # basse, 2 / (B_eff + 1) en bilateral ; NA si aucune simulation finie.
+# motif (#44, regle R2 ; ADR 0003 point 5) : NA_character_ si p_mc est
+# calculee ; sinon la cause de son absence, produite ICI et non devinee par
+# l'appelant, dans cet ordre de priorite :
+#   MOTIF_MC_OBS_NON_FINIE    : statistique observee non finie ;
+#   MOTIF_MC_AUCUNE_REPLIC    : aucune simulation finie (B_effectif = 0) ;
+#   MOTIF_MC_DISPERSION_NULLE : au moins B_MIN_DEGENERESCENCE simulations
+#                               finies, d'etendue <= tol et dont la valeur
+#                               commune coincide avec l'observee a tol pres
+#                               (tol = TOL_DISPERSION_MC * max(1, |obs|)) :
+#                               la loi simulee est degeneree en la valeur
+#                               observee, la p-value compare du bruit
+#                               d'arrondi ; p_mc = NA, jamais remplacee
+#                               (ADR 0001) ;
+#   MOTIF_MC_ATOME_HORS_OBS   : meme loi ponctuelle, mais l'observee est hors
+#                               de l'atome (a plus de tol) : le modele simule
+#                               ne peut pas produire la valeur observee ;
+#                               p_mc = NA (reprise de #44, constat 1 d'audit).
+# Sous B_MIN_DEGENERESCENCE simulations finies, une loi simulee constante
+# peut n'etre qu'un effet de petit B : p_mc est calculee comme avant, sans
+# motif (B = 2 : Smirnov et Cox-Stuart gardent leur p exacte).
+# Limite (a dire dans le .tex) : cette detection generique n'aurait PAS
+# attrape le cas historique de MeanZ (melange a atome en la valeur observee,
+# ADR 0001 amende) ; l'atome releve de la condition `degenere` du catalogue.
+MOTIF_MC_OBS_NON_FINIE    <- "statistique observee non finie"
+MOTIF_MC_AUCUNE_REPLIC    <- "aucune replication finie (B_effectif = 0)"
+MOTIF_MC_DISPERSION_NULLE <- "loi simulee de dispersion nulle"
+MOTIF_MC_CONDITION        <- "statistique degeneree sur ces donnees (condition du catalogue)"
+MOTIF_MC_ATOME_HORS_OBS   <- "loi simulee ponctuelle, statistique observee hors de l'atome"
+TOL_DISPERSION_MC <- 1e-12
+B_MIN_DEGENERESCENCE <- 50
 engine_p_mc <- function(sim, obs, queue) {
   if (length(queue) != 1L || !queue %in% c("haut", "bas", "deux"))
     stop("engine_p_mc() : sens de rejet inconnu : ", paste(queue, collapse = ", "))
   fin <- is.finite(sim)
   B_eff <- as.numeric(sum(fin))
   s <- sim[fin]
-  p <- if (!length(s) || !is.finite(obs)) NA_real_ else
+  tol <- TOL_DISPERSION_MC * max(1, abs(obs))
+  ponctuelle <- is.finite(obs) && length(s) >= B_MIN_DEGENERESCENCE &&
+    diff(range(s)) <= tol
+  motif <- if (!is.finite(obs)) MOTIF_MC_OBS_NON_FINIE
+           else if (!length(s)) MOTIF_MC_AUCUNE_REPLIC
+           else if (ponctuelle && abs(obs - s[1]) <= tol) MOTIF_MC_DISPERSION_NULLE
+           else if (ponctuelle) MOTIF_MC_ATOME_HORS_OBS
+           else NA_character_
+  p <- if (!is.na(motif)) NA_real_ else
     switch(queue,
            haut = (1 + sum(s >= obs)) / (length(s) + 1),
            bas  = (1 + sum(s <= obs)) / (length(s) + 1),
@@ -1963,22 +2110,48 @@ engine_p_mc <- function(sim, obs, queue) {
   p <- pmin(p, 1)
   k <- if (queue == "deux") 2 else 1
   list(p_mc = p, err_mc = sqrt(p * (k - p) / pmax(B_eff, 1)), B_effectif = B_eff,
-       granularite = if (B_eff > 0) k / (B_eff + 1) else NA_real_)
+       granularite = if (B_eff > 0) k / (B_eff + 1) else NA_real_,
+       motif = motif)
 }
 
 # Applique engine_p_mc() a chaque colonne de la matrice des simulations, le
 # sens du rejet etant lu au catalogue. Une statistique absente du catalogue
 # leve une erreur.
-.mc_p_values <- function(sim, obs, catalogue) {
+# e : contexte OBSERVE (celui qui a produit obs) ; s'il est fourni, les
+# conditions `degenere` et `non_definie` du catalogue y sont evaluees une
+# fois (#44, regle R2) : degenere(e) TRUE -> p_mc et err_mc NA, motif
+# MOTIF_MC_CONDITION (sauf motif d'engine_p_mc() deja pose) ; statistique
+# observee non finie et non_definie(e) renseigne -> ce motif remplace le motif
+# generique. Rend en plus motif_mc, vecteur nomme de chaines (NA si p_mc est
+# calculee).
+.mc_p_values <- function(sim, obs, catalogue, e = NULL) {
   noms <- colnames(sim)
   inconnus <- setdiff(noms, names(catalogue))
   if (length(inconnus))
     stop("statistique(s) Monte-Carlo absente(s) du catalogue : ",
          paste(inconnus, collapse = ", "))
-  r <- lapply(noms, function(nm) engine_p_mc(sim[, nm], obs[[nm]], catalogue[[nm]]$queue))
+  r <- lapply(noms, function(nm) {
+    o <- engine_p_mc(sim[, nm], obs[[nm]], catalogue[[nm]]$queue)
+    ent <- catalogue[[nm]]
+    if (!is.null(e) && !is.null(ent$degenere) && is.na(o$motif)) {
+      dg <- ent$degenere(e)
+      if (!(is.logical(dg) && length(dg) == 1L && !is.na(dg)))
+        stop("catalogue Monte-Carlo : degenere(", nm, ") doit rendre TRUE ou FALSE")
+      if (dg) { o$p_mc <- NA_real_; o$err_mc <- NA_real_; o$motif <- MOTIF_MC_CONDITION }
+    }
+    if (!is.null(e) && !is.null(ent$non_definie) &&
+        identical(o$motif, MOTIF_MC_OBS_NON_FINIE)) {
+      nd <- ent$non_definie(e)
+      if (!(is.character(nd) && length(nd) == 1L))
+        stop("catalogue Monte-Carlo : non_definie(", nm, ") doit rendre une chaine")
+      if (!is.na(nd)) o$motif <- nd
+    }
+    o
+  })
   champ <- function(k) stats::setNames(vapply(r, function(o) o[[k]], numeric(1)), noms)
   list(p_mc = champ("p_mc"), err_mc = champ("err_mc"), B_effectif = champ("B_effectif"),
-       granularite = champ("granularite"))
+       granularite = champ("granularite"),
+       motif_mc = stats::setNames(vapply(r, function(o) o$motif, character(1)), noms))
 }
 
 # --- Enregistrement des lignes de resultat des tests --------------------------
@@ -1996,8 +2169,31 @@ engine_p_mc <- function(sim, obs, queue) {
 #   p_retenue + nature_p : celle effectivement utilisee pour le verdict
 #   err_mc      : erreur de Monte-Carlo (liee a B), a ne PAS confondre avec
 #                 l'erreur d'approximation statistique (liee a T)
+#   p_min       : p-value minimale atteignable (loi de reference discrete aux
+#                 effectifs observes ; NA pour une loi continue), regle R1
+#                 de #44 : voir plus bas
+# Motif d'indisponibilite Monte-Carlo (#44, regle R3) : si mc_nom est
+# renseigne et p_mc absente, le motif est lu dans boot$motif_mc (produit par
+# engine_p_mc() / .mc_p_values(), jamais devine) quand l'appelant n'en
+# fournit pas, puis, pour une ligne de type "test" :
+#   - motif de degenerescence (motifs_degeneres ci-dessous)
+#     -> diagnostic (INFO), detail prefixe du motif, aucune p retenue, jamais
+#     de repli sur une autre p-value (ADR 0001) ;
+#   - MOTIF_MC_OBS_NON_FINIE, sans p exacte -> "non applicable", detail
+#     prefixe du motif ;
+#   - autre motif (aucune replication finie, statistique non definie d'apres
+#     le catalogue), sans p exacte, avec p asymptotique -> repli NOMME :
+#     nature "asymptotique (Monte-Carlo indisponible : <motif>)", si
+#     repli_asymptotique (defaut TRUE) ; sinon (repli_asymptotique = FALSE,
+#     ligne "Nullite de la constante") -> diagnostic, detail prefixe
+#     "Monte-Carlo indisponible : <motif> ; <libelle_p_as> non retenue".
+# Une ligne a p exacte finie garde sa p exacte retenue (hierarchie), hors
+# degenerescence (MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_ATOME_HORS_OBS,
+# MOTIF_MC_CONDITION), qui ecarte aussi la p exacte.
 engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
-  pmc <- boot$p_mc; emc <- boot$err_mc
+  pmc <- boot$p_mc; emc <- boot$err_mc; mmc <- boot$motif_mc
+  motifs_degeneres <- c(MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_ATOME_HORS_OBS,
+                        MOTIF_MC_CONDITION)
   L <- list()
   add <- function(fam, nom, ref, type = "test",
                   H0 = NA_character_, H1 = NA_character_,
@@ -2007,7 +2203,9 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
                   p_ex = NA_real_, p_as = NA_real_, mc_nom = NA_character_,
                   detail = "", verdict = NULL, sens = "ne pas rejeter",
                   motif_non_mc = NA_character_, nature_forcee = NA_character_,
-                  base = "commun", variante = "principale") {
+                  base = "commun", variante = "principale",
+                  p_min = NA_real_, effectifs = NA_character_,
+                  repli_asymptotique = TRUE, libelle_p_as = "p asymptotique") {
     # Refus explicite (ADR 0003, point 3) : une statistique Monte-Carlo
     # inconnue du catalogue, ou absente de l'objet bootstrap, est une erreur
     # de programmation ; le repli silencieux sur l'asymptotique est interdit.
@@ -2019,6 +2217,57 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     }
     p_mc <- if (!is.na(mc_nom)) unname(pmc[[mc_nom]]) else NA_real_
     e_mc <- if (!is.na(mc_nom)) unname(emc[[mc_nom]]) else NA_real_
+    # Regle R3 (#44) : motif d'indisponibilite lu au bootstrap.
+    motif_boot <- if (!is.na(mc_nom) && !is.finite(p_mc) && !is.null(mmc) &&
+                      mc_nom %in% names(mmc)) unname(mmc[[mc_nom]]) else NA_character_
+    if (type == "test" && !is.na(motif_boot)) {
+      if (motif_boot %in% motifs_degeneres) {
+        type <- "diagnostic"
+        detail <- trimws(paste0(motif_boot, " : aucune p-value retenue (ADR 0001). ", detail))
+      } else if (!is.finite(p_ex) && identical(motif_boot, MOTIF_MC_OBS_NON_FINIE)) {
+        type <- "non applicable"
+        detail <- trimws(paste0(motif_boot, " : test non applicable. ", detail))
+      } else if (!is.finite(p_ex) && is.na(motif_non_mc)) {
+        if (isTRUE(repli_asymptotique)) {
+          motif_non_mc <- paste("Monte-Carlo indisponible :", motif_boot)
+        } else if (is.finite(p_as)) {
+          # Repli interdit par l'appelant (#44, reprise, constat 2 d'audit) :
+          # la p non simulee ne vaut pas sous le modele reglementaire, elle
+          # n'est pas retenue a la place de la p Monte-Carlo absente.
+          type <- "diagnostic"
+          detail <- trimws(paste0("Monte-Carlo indisponible : ", motif_boot, " ; ",
+                                  libelle_p_as, " non retenue (ADR 0001). ", detail))
+        }
+      }
+    }
+    # Regle R1 (#44, ADR 0001, CONTEXT.md "Test inoperant") : p_min >= alpha
+    # -> aucune valeur observee ne peut donner p < alpha, la ligne est
+    # restituee en diagnostic (donc INFO, sans p retenue ni sens), ses
+    # p-values calculees etant conservees ; alpha/2 <= p_min < alpha en sens
+    # "ne pas rejeter" -> la ligne reste un test, ECHEC inatteignable. Le
+    # critere ne depend pas du sens : en sens "rejeter", un OK exige p < alpha.
+    # p_min est calculee sur la loi de reference discrete (loi echangeable) :
+    # sans p exacte (p Monte-Carlo ou asymptotique seule), c'est une
+    # approximation de la p_min de celle-ci, ce que le detail dit.
+    if (type == "test" && is.finite(p_min)) {
+      eff <- if (!is.na(effectifs)) paste0(" (", effectifs, ")") else ""
+      approx_pmin <- if (!is.finite(p_ex) && (is.finite(p_mc) || is.finite(p_as)))
+        paste(" ; p_min calculee sur la loi de reference discrete : approximation",
+              "de celle de la p-value Monte-Carlo ou asymptotique, aucune p exacte",
+              "n'etant disponible") else ""
+      if (p_min >= alpha) {
+        type <- "diagnostic"
+        detail <- trimws(paste0(sprintf(paste("TEST INOPERANT au seuil alpha = %g : p-value",
+                                              "minimale atteignable = %.4f%s%s ; aucun verdict",
+                                              "(ADR 0001)."), alpha, p_min, eff, approx_pmin),
+                                " ", detail))
+      } else if (identical(sens, "ne pas rejeter") && p_min >= alpha / 2) {
+        sep <- if (!nzchar(detail)) "" else if (grepl("\\.$", detail)) " " else " ; "
+        detail <- trimws(paste0(detail, sep,
+                                sprintf("ECHEC inatteignable : p_min = %.4f >= alpha/2 = %g%s%s",
+                                        p_min, alpha / 2, eff, approx_pmin)))
+      }
+    }
     # Hierarchie adaptee a T faible : exacte > Monte-Carlo > asymptotique.
     if (is.finite(p_ex)) {
       p_ret <- p_ex; nature <- "exacte"
@@ -2063,7 +2312,10 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
       estim_nom = estim_nom, estim = estim,
       p_exacte = p_ex, p_asymptotique = p_as, p_mc = p_mc, err_mc = e_mc,
       p_retenue = p_ret, nature_p = nature,
-      verdict = v, detail = detail, sens = sens)
+      verdict = v, detail = detail, sens = sens,
+      # p_min en fin de ligne (#44, Q1 (a)) : un champ ajoute en fin de
+      # conteneur ne deplace aucun champ existant des references.
+      p_min = p_min)
   }
   list(add = add, lignes = function() L)
 }
@@ -2071,8 +2323,11 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
 usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
                           progres = FALSE) {
   # Tirages sous graine locale (ADR 0004, #42) : etat de l'appelant restaure.
+  # Contexte observe, conserve pour l'evaluation des conditions du catalogue
+  # (degenere, non_definie) par .mc_p_values() (#44).
+  e_obs <- .usp_contexte_mc(fit$x, fit$y, fit$z)
   engine_sous_graine(seed, {
-    stats_obs <- .stats_bootstrapables(fit$x, fit$y, fit$z)
+    stats_obs <- .mc_evaluer(USP_CATALOGUE_MC, e_obs)
     noms <- names(stats_obs)
     sim <- matrix(NA_real_, B, length(noms), dimnames = list(NULL, noms))
     sig <- del <- gam <- rep(NA_real_, B)
@@ -2094,17 +2349,19 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
 
   # P-values de Monte-Carlo, erreur de Monte-Carlo et B effectif, le sens du
   # rejet etant lu au catalogue USP_CATALOGUE_MC.
-  mc <- .mc_p_values(sim, stats_obs, USP_CATALOGUE_MC)
+  mc <- .mc_p_values(sim, stats_obs, USP_CATALOGUE_MC, e_obs)
 
   # granularite : 1 / (B + 1) sur B nominal, pas elementaire unilateral (champ
   # affiche par app.R et display_helpers.R). granularite_stat : pas par
   # statistique, 1 / (B_eff + 1), ou 2 / (B_eff + 1) en bilateral (issue #40) ;
   # place en fin de liste pour ne pas deplacer les champs existants.
+  # motif_mc (#44, regle R2) : motif d'indisponibilite de chaque p_mc (NA si
+  # calculee), en fin de liste pour la meme raison.
   list(stats_obs = as.list(stats_obs), p_mc = mc$p_mc, err_mc = mc$err_mc,
        B_effectif = mc$B_effectif, granularite = 1 / (B + 1),
        sigma_boot = sig[is.finite(sig)],
        delta_boot = del[is.finite(del)], gamma_boot = gam[is.finite(gam)], B = B,
-       granularite_stat = mc$granularite)
+       granularite_stat = mc$granularite, motif_mc = mc$motif_mc)
 }
 
 # Réajustement rapide (un seul démarrage, à partir de l'optimum observé).
@@ -2209,18 +2466,27 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   ## --- B. H1 : E[Y_t] lineaire proportionnelle en X_t ------------------------
   fam <- paste("B. H1 - linearite / proportionnalite", cite_hyp("i"))
   ti <- test_intercept(x, y); lmc <- test_lm_complet(x, y)
-  # p-value EXACTE prioritaire : sous normalite des erreurs, t_a suit
-  # exactement une loi de Student a T-2 ddl. La p-value de Monte-Carlo reste
-  # calculee et affichee, mais a titre de complement seulement.
+  # Regle R5 (#44, ADR 0002) : la loi t(T-2) du t de la constante n'est
+  # exacte que sous le modele auxiliaire MCO (erreurs i.i.d. normales
+  # homoscedastiques), que H2 et H3 contredisent : sa p-value est rangee dans
+  # p_asymptotique, non retenue ; la p-value Monte-Carlo (statistique
+  # Intercept, simulee sous le modele de l'annexe XVII, ou a = 0 est vrai)
+  # est retenue.
   add(fam, "Nullite de la constante (proportionnalite stricte)",
       "Student (1908), Biometrika 6",
       type = if (is.finite(ti$stat)) "test" else "non applicable",
       H0 = "a = 0 (proportionnalite stricte)", H1 = "a != 0",
       stat_nom = "t", stat = ti$stat,
-      loi = sprintf("t(%d) EXACTE sous normalite des erreurs", T - 2),
+      loi = sprintf(paste("t(%d) exacte sous le modele auxiliaire MCO seulement (erreurs",
+                          "i.i.d. normales homoscedastiques, contredites par H2 et H3) ;",
+                          "non retenue"), T - 2),
       estim_nom = "constante a",
       estim = if (is.finite(ti$stat)) unname(stats::coef(lmc$modele)[1]) else NA_real_,
-      p_ex = ti$p, mc_nom = "Intercept",
+      p_as = ti$p, mc_nom = "Intercept",
+      # Sans p Monte-Carlo (B_eff = 0), aucune p retenue : la p de Student ne
+      # vaut que sous le modele auxiliaire MCO (#44, reprise, constat 2).
+      repli_asymptotique = FALSE,
+      libelle_p_as = "p de Student sous le modele auxiliaire MCO",
       detail = paste("Le NON-rejet ne prouve pas la proportionnalite :",
                      "voir le test d'equivalence ci-dessous."))
   tost <- test_tost_intercept(x, y, theta = theta_equiv, delta_abs = delta_equiv)
@@ -2230,14 +2496,18 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       H0 = "|a| >= Delta (la constante n'est PAS negligeable)",
       H1 = "|a| < Delta (constante negligeable : proportionnalite pratique)",
       stat_nom = "t (max des 2 unilateraux)", stat = tost$stat,
+      # #44 (regle R5, TOST) : aucune p Monte-Carlo possible (H0 composite) ;
+      # la p reste retenue, et nature et loi disent sous quel modele elle vaut.
       loi = if (isTRUE(tost$marge_a_priori))
-        sprintf("t(%d) EXACTE (marge fixee a priori)", T - 2)
-      else sprintf("t(%d) ; marge estimee sur les donnees -> exactitude approchee", T - 2),
+        sprintf("t(%d) exacte sous le modele auxiliaire MCO (marge fixee a priori)", T - 2)
+      else sprintf(paste("t(%d) sous le modele auxiliaire MCO ; marge estimee sur les",
+                         "donnees -> exactitude approchee"), T - 2),
       estim_nom = "marge Delta", estim = tost$delta,
       p_ex = if (isTRUE(tost$marge_a_priori)) tost$p else NA_real_,
       p_as = if (isTRUE(tost$marge_a_priori)) NA_real_ else tost$p,
-      nature_forcee = if (isTRUE(tost$marge_a_priori)) NA_character_
-                      else "quasi-exacte (loi de Student ; marge estimee sur les donnees)",
+      nature_forcee = if (isTRUE(tost$marge_a_priori))
+        "sous le modele auxiliaire MCO : t(T-2) exacte, marge fixee a priori"
+      else "sous le modele auxiliaire MCO : loi de Student, marge estimee sur les donnees",
       sens = "rejeter",
       # Issue #58 : un detail de longueur 1 sur chaque branche.
       detail = switch(if (is.na(tost$non_applicable)) "calcule" else tost$non_applicable,
@@ -2258,23 +2528,48 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                             else sprintf("%.0f %% de la moyenne de y", 100 * theta_equiv),
                             tost$p_bas, tost$p_haut),
         stop("usp_tests : motif TOST inconnu : ", tost$non_applicable)))
+  # Regle R4 (#44, option E) : identifiabilite de la pente. Si la puissance
+  # approchee du test de la pente sous le modele ajuste est inferieure au
+  # repere SEUIL_PUISSANCE_PENTE, un ECHEC decrit le plan d'experience (volumes
+  # peu disperses), non un ecart au modele : les lignes pente et Fisher
+  # (F = t^2, meme puissance) sont restituees en diagnostic. lambda et la
+  # puissance approchee sont rappeles dans le detail dans les deux cas.
+  # Quand elles restent des tests, la nature de leur p est celle du modele
+  # auxiliaire MCO (la loi t n'est pas asymptotique ; H0 n'est pas simulable,
+  # le modele ajuste appartenant a H1).
+  idp <- usp_identifiabilite_pente(x, fit$beta, fit$sigma, alpha)
+  pente_ident <- !is.finite(idp$puissance) || idp$puissance >= SEUIL_PUISSANCE_PENTE
+  txt_ident <- if (!is.finite(idp$puissance)) "" else
+    sprintf(paste("%s puissance approchee sous le modele ajuste = %.2f %s %.1f (repere",
+                  "conventionnel), indice d'identifiabilite lambda = sqrt(T-1) CV(x)",
+                  "beta / sigma = %.2f (approximation au premier ordre, loi de",
+                  "Student decentree)."),
+            if (pente_ident) "Pente identifiable par les donnees :"
+            else "PENTE NON IDENTIFIABLE PAR LES DONNEES :",
+            idp$puissance, if (pente_ident) ">=" else "<", SEUIL_PUISSANCE_PENTE,
+            idp$lambda)
+  nat_mco <- "sous le modele auxiliaire MCO : t(T-2) exacte (H0 non simulable : le modele ajuste appartient a H1)"
+  type_pente <- function(stat) if (!is.finite(stat)) "non applicable"
+                               else if (pente_ident) "test" else "diagnostic"
   add(fam, "Test de Student sur la pente (lm(y~x))",
       "Student (1908), Biometrika 6",
-      type = if (is.finite(lmc$t_pente)) "test" else "non applicable",
+      type = type_pente(lmc$t_pente),
       H0 = "b = 0 (aucun lien volume / pertes)", H1 = "b != 0",
-      stat_nom = "t", stat = lmc$t_pente, loi = sprintf("t(%d)", T - 2),
+      stat_nom = "t", stat = lmc$t_pente,
+      loi = sprintf(paste("t(%d) exacte sous le modele auxiliaire MCO (erreurs i.i.d.",
+                          "normales homoscedastiques)"), T - 2),
       estim_nom = "pente b", estim = lmc$pente,
-      p_as = lmc$p_pente, sens = "rejeter",
-      motif_non_mc = "H0 non simulable : le modele ajuste appartient a H1",
-      detail = "Loi EXACTE sous normalite des erreurs. Ici on souhaite REJETER H0")
+      p_as = lmc$p_pente, sens = "rejeter", nature_forcee = nat_mco,
+      detail = trimws(paste("Ici on souhaite REJETER H0.", txt_ident)))
   add(fam, "Test de Fisher (significativite globale)", "Fisher (1922, 1925)",
-      type = if (is.finite(lmc$F)) "test" else "non applicable",
+      type = type_pente(lmc$F),
       H0 = "b = 0", H1 = "b != 0",
       stat_nom = "F", stat = lmc$F,
-      loi = if (is.finite(lmc$F)) sprintf("F(%d,%d)", lmc$ddl1, lmc$ddl2) else NA_character_,
-      p_as = lmc$p_F, sens = "rejeter",
-      motif_non_mc = "H0 non simulable : le modele ajuste appartient a H1",
-      detail = "Loi EXACTE sous normalite. Equivaut a t^2 en regression simple")
+      loi = if (is.finite(lmc$F))
+        sprintf("F(%d,%d) exacte sous le modele auxiliaire MCO", lmc$ddl1, lmc$ddl2)
+      else NA_character_,
+      p_as = lmc$p_F, sens = "rejeter", nature_forcee = nat_mco,
+      detail = trimws(paste("Equivaut a t^2 en regression simple.", txt_ident)))
   add(fam, "Coefficient de determination R2", "lm(y ~ x)",
       type = if (is.finite(lmc$R2)) "diagnostic" else "non applicable",
       estim_nom = "R2", estim = lmc$R2,
@@ -2289,6 +2584,16 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       stat_nom = "F", stat = tr$stat, loi = sprintf("F(2,%d) approx.", T - 3),
       p_as = tr$p, mc_nom = "RESET",
       detail = "La loi F n'est PAS exacte : les regresseurs auxiliaires y^2, y^3 dependent de y")
+  # p_min des lignes de rangs (Spearman, Mann-Kendall ; #44, reprise, avis
+  # d'actuary Q5) : 2/T! n'est la p minimale que sans ex aequo ; avec ex
+  # aequo (dans r, ou dans x pour Spearman-volume), la loi de permutation
+  # conditionnelle n'est pas tabulee : p_min NA, dit dans effectifs.
+  ex_aequo <- function(...) any(vapply(list(...), function(v) anyDuplicated(v) > 0, logical(1)))
+  pmin_rangs <- function(...) if (ex_aequo(...)) NA_real_ else mk_p_min(T)
+  eff_rangs <- function(...) if (ex_aequo(...))
+    sprintf(paste("T = %d ; ex aequo : p_min non calculee (loi de permutation",
+                  "conditionnelle non tabulee)"), T)
+  else sprintf("T = %d, sans ex aequo", T)
   if (stats::sd(x) > 0) {
     cs_ex <- suppressWarnings(try(stats::cor.test(r, x, method = "spearman", exact = TRUE),
                                   silent = TRUE))
@@ -2300,6 +2605,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         estim_nom = "rho_s", estim = unname(cs$estimate),
         p_ex = if (!inherits(cs_ex, "try-error")) cs_ex$p.value else NA_real_,
         p_as = cs$p.value, mc_nom = "SpearVol",
+        p_min = pmin_rangs(r, x), effectifs = eff_rangs(r, x),
         detail = "Une correlation signale un effet d'echelle non modelise")
   } else {
     add(fam, "Independance ratio S/P vs volume", "Spearman (1904)",
@@ -2315,7 +2621,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       loi = "permutation exacte (T <= 9, sans ex aequo)",
       estim_nom = "rho_s", estim = unname(ct$estimate),
       p_ex = if (!inherits(ct_ex, "try-error")) ct_ex$p.value else NA_real_,
-      p_as = ct$p.value, mc_nom = "SpearTps")
+      p_as = ct$p.value, mc_nom = "SpearTps",
+      p_min = pmin_rangs(r), effectifs = eff_rangs(r))
   mk <- test_mann_kendall(r)
   add(fam, "Tendance monotone du ratio S/P",
       "Mann (1945) ; loi exacte : Kendall & Gibbons (1990), ch. 4-5",
@@ -2324,28 +2631,32 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       loi = "loi exacte de S (distribution mahonienne)",
       estim_nom = "S de Kendall", estim = mk$S,
       p_ex = mk_p_exacte(r), p_as = mk$p, mc_nom = "MK",
+      p_min = pmin_rangs(r), effectifs = eff_rangs(r),
       detail = "Une derive du S/P contredit la constance de beta")
   cx <- test_cox_stuart(r)
   # m : differences non nulles, n_p : paires. Sans ex aequo (m = n_p), le
   # libelle est inchange ; avec ex aequo, les deux nombres sont affiches et
   # la p_mc n'est pas calculee (statistique NA au catalogue, #85).
-  p_min <- min(1, 2 * 0.5^cx$m)
+  # p_min (cox_stuart_p_min()) : champ de la ligne et regle d'inoperance R1
+  # de add() (#44) ; a m = 0, p_min = 1 y tombe sans cas particulier.
+  p_min <- cox_stuart_p_min(cx$m)
+  # La p minimale atteignable n'est plus imprimee ici : elle est dans le champ
+  # p_min et dans le prefixe de la regle R1 (#44, reprise, avis d'actuary Q7).
   cx_detail <- if (cx$m == 0L)
-    sprintf(paste("aucune difference non nulle sur n_p = %d paires : K non defini ;",
-                  "p bilaterale minimale atteignable = %.4f"), cx$n_p, p_min)
+    sprintf("aucune difference non nulle sur n_p = %d paires : K non defini", cx$n_p)
   else if (cx$m == cx$n_p)
-    sprintf("m = %d paires ; p bilaterale minimale atteignable = %.4f", cx$m, p_min)
+    sprintf("m = %d paires", cx$m)
   else
     sprintf(paste("m = %d differences non nulles sur n_p = %d paires ;",
-                  "p bilaterale minimale atteignable = %.4f ;",
                   "p_mc non calculee (replications sans ex aequo)"),
-            cx$m, cx$n_p, p_min)
+            cx$m, cx$n_p)
   add(fam, "Tendance par signes du ratio S/P", "Cox & Stuart (1955), Biometrika 42",
       H0 = "P(D_t > 0) = 1/2 (absence de tendance)", H1 = "P(D_t > 0) != 1/2",
       stat_nom = "K", stat = cx$stat,
       loi = paste("Binomiale(m, 1/2) EXACTE, m differences non nulles ;",
                   "p_mc par |K - n_p/2|, n_p paires, queue haute"),
       p_ex = cx$p, mc_nom = "CoxStuart",
+      p_min = p_min, effectifs = sprintf("m = %d differences non nulles", cx$m),
       detail = cx_detail)
 
   ## --- C. H2 : variance quadratique en X_t -----------------------------------
@@ -2398,7 +2709,12 @@ usp_tests <- function(fit, boot, alpha = 0.10,
           stat_nom = "D", stat = unname(ks2$statistic),
           loi = "exacte combinatoire (ks.test, sans ex aequo)",
           p_ex = ks2$p.value, mc_nom = "Smirnov",
-          detail = "Voir aussi le QQ-plot a deux echantillons")
+          p_min = smirnov_p_min(sum(grp), sum(!grp)),
+          effectifs = sprintf("n1 = %d, n2 = %d", sum(grp), sum(!grp)),
+          detail = sprintf(paste("Voir aussi le QQ-plot a deux echantillons ; p-value",
+                                 "minimale atteignable = %.4f, atteinte seulement pour",
+                                 "D = 1 (deux groupes totalement separes)"),
+                           smirnov_p_min(sum(grp), sum(!grp))))
     }
   }
   # Issue #58 : a volumes constants (usp_regime(), tolerance TOL_DELTA_BORD),
@@ -2453,16 +2769,39 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       H0 = H0n, H1 = H1n, stat_nom = "W'", stat = sf$stat,
       loi = "aucune forme fermee ; normalisation de Royston (1993)",
       p_as = sf$p, mc_nom = "SF")
+  # Regle R6 (#44) : l'ajustement de Stephens (cas 3 : moyenne et variance
+  # estimees, standardisation par zbar et s_z, celle de nortest::ad.test) ne
+  # s'applique pas a z, standardise par le MODELE (a pi_t constant, z_t =
+  # sqrt(T/(T-1)) (v_t - vbar)/s_v, valeurs gonflees de sqrt(T/(T-1))). La p
+  # non simulee est donc calculee sur la statistique re-standardisee,
+  # (z - zbar)/s_z, rangee dans estim ; stat reste la statistique du
+  # catalogue, base de la p Monte-Carlo retenue. Plage : nortest::ad.test
+  # exige n > 7 ; en dessous, p non simulee NA avec le motif.
+  zs <- if (is.finite(stats::sd(z)) && stats::sd(z) > 0) (z - mean(z)) / stats::sd(z) else NULL
+  a2_std <- if (!is.null(zs)) stat_ad(zs) else NA_real_
+  w2_std <- if (!is.null(zs)) stat_cvm(zs) else NA_real_
+  hors_plage <- T < 8
+  txt_plage <- if (hors_plage)
+    sprintf(paste(" p non simulee NA : T = %d hors de la plage de l'implementation",
+                  "de reference (n > 7)."), T) else ""
+  loi_stephens <- function(st) sprintf(paste(
+    "loi %s, cas parametres estimes ; p non simulee : ajustement de Stephens (cas 3)",
+    "sur estim (statistique re-standardisee), non sur stat ; p_mc sur stat",
+    "(statistique du catalogue)"), st)
   add(fam, "Anderson-Darling", "Anderson & Darling (1954), JASA 49",
       H0 = H0n, H1 = H1n, stat_nom = "A2", stat = boot$stats_obs$AD,
-      loi = "loi AD, cas parametres estimes ; approximation de Stephens",
-      p_as = ad_p_stephens(boot$stats_obs$AD, T), mc_nom = "AD",
-      detail = paste("Sensible aux queues. p non simulee disponible :",
-                     "ajustement empirique de D'Agostino & Stephens (1986)."))
+      loi = loi_stephens("AD"),
+      estim_nom = "A2 sur (z - zbar)/s_z", estim = a2_std,
+      p_as = if (hors_plage) NA_real_ else ad_p_stephens(a2_std, T), mc_nom = "AD",
+      detail = paste0("Sensible aux queues. p non simulee : ajustement empirique de",
+                      " D'Agostino & Stephens (1986) sur la statistique re-standardisee.",
+                      txt_plage))
   add(fam, "Cramer-von Mises", "Cramer (1928) / von Mises (1928) ; Stephens (1974)",
       H0 = H0n, H1 = H1n, stat_nom = "W2", stat = boot$stats_obs$CvM,
-      loi = "loi CvM, cas parametres estimes ; approximation de Stephens",
-      p_as = cvm_p_stephens(boot$stats_obs$CvM, T), mc_nom = "CvM")
+      loi = loi_stephens("CvM"),
+      estim_nom = "W2 sur (z - zbar)/s_z", estim = w2_std,
+      p_as = if (hors_plage) NA_real_ else cvm_p_stephens(w2_std, T), mc_nom = "CvM",
+      detail = trimws(txt_plage))
   add(fam, "Kolmogorov-Smirnov contre N(0,1)", "Kolmogorov (1933) ; Smirnov (1948)",
       H0 = H0n, H1 = H1n, stat_nom = "D", stat = boot$stats_obs$KS,
       variante = "secondaire",
@@ -2551,15 +2890,23 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         stat_nom = "Q", stat = unname(bp2$statistic), loi = "chi2(2) asymptotique",
         p_as = bp2$p.value, mc_nom = "BP2")
   }
-  ru <- test_runs(z)
+  # p_min (#44, regle R1) sur la loi de R aux effectifs (n1, n2) observes ;
+  # un seul cote de la mediane represente : loi non definie, ligne non
+  # applicable (et non INFO muet).
+  ru <- test_runs(z); eff_z <- .runs_effectifs(z)
   add(fam, "Test des suites (aleatoire des signes)",
       base = "z",
       "Wald & Wolfowitz (1940) ; loi exacte : Swed & Eisenhart (1943)",
+      type = if (is.finite(ru$stat)) "test" else "non applicable",
       H0 = "la suite des signes est un arrangement aleatoire",
       H1 = "arrangement non aleatoire (regroupement ou alternance)",
       stat_nom = "Z", stat = ru$stat, loi = "loi combinatoire EXACTE de R",
       estim_nom = "nb de suites R", estim = ru$runs,
-      p_ex = runs_p_exacte(z), p_as = ru$p, mc_nom = "Runs")
+      p_ex = runs_p_exacte(z), p_as = ru$p, mc_nom = "Runs",
+      p_min = runs_p_min(eff_z[["n1"]], eff_z[["n2"]]),
+      effectifs = sprintf("n1 = %d, n2 = %d", eff_z[["n1"]], eff_z[["n2"]]),
+      detail = if (is.finite(ru$stat)) "" else
+        "un seul cote de la mediane represente : loi de R non definie, test non applicable")
   # Centrage et variance unitaire : DIAGNOSTICS, sans verdict ni p-value
   # retenue (ADR 0001 ; issues #3 et #5). La condition du premier ordre en
   # ln(beta) impose TOUJOURS somme(sqrt(pi_t) z_t) = 0 (identite) et rive la
@@ -2809,6 +3156,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   #        seul cote de la mediane represente) ;
   #   3  : pi_t variable.
   p_ex_r <- usp_runsr_p_exacte(z, u, pi_constant)
+  eff_u <- .runs_effectifs(u)
   detail_runsr <- if (is.finite(p_ex_r)) {
     d1 <- paste("CONTROLE SANS OBJET ICI : pi_t est constant (delta = 1, ou volumes",
                 "x_t constants), il n'y a donc aucun artefact de ponderation a",
@@ -2880,7 +3228,12 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       # base "r" restent en Monte-Carlo dans tous les regimes (u_t non
       # gaussiens : ni Imhof ni loi normale).
       p_ex = p_ex_r, mc_nom = "Runsr",
-      detail = detail_runsr)
+      type = if (is.finite(boot$stats_obs$Runsr)) "test" else "non applicable",
+      p_min = runs_p_min(eff_u[["n1"]], eff_u[["n2"]]),
+      effectifs = sprintf("n1 = %d, n2 = %d", eff_u[["n1"]], eff_u[["n2"]]),
+      detail = if (is.finite(boot$stats_obs$Runsr)) detail_runsr else
+        paste("un seul cote de la mediane represente : loi de R non definie,",
+              "test non applicable"))
   add(fam, "Rupture de niveau (sup-F) sur ratios bruts",
       "Quandt (1960) / Chow (1960) ; Andrews (1993)", base = "r",
       H0 = "niveau du ratio S/P constant", H1 = "rupture de niveau du ratio S/P",
@@ -4607,7 +4960,9 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
     # Colonnes degenerees de M1 determinees UNE FOIS sur le triangle observe et
     # figees pour la statistique observee et chaque replication (issue #56).
     jd <- .mw_colonnes_degenerees(aj)
-    obs <- .mw_stats(aj, jd)
+    # Contexte observe conserve pour les conditions du catalogue (#44).
+    e_obs <- .mw_contexte_mc(aj, jd)
+    obs <- .mc_evaluer(MW_CATALOGUE_MC, e_obs)
     noms <- names(obs)
     sim <- matrix(NA_real_, B, length(noms), dimnames = list(NULL, noms))
     sig <- rep(NA_real_, B)
@@ -4635,14 +4990,15 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
   # P-values de Monte-Carlo, erreur de Monte-Carlo et B effectif, le sens du
   # rejet etant lu au catalogue MW_CATALOGUE_MC (fonction partagee avec
   # usp_bootstrap()).
-  mc <- .mc_p_values(sim, obs, MW_CATALOGUE_MC)
+  mc <- .mc_p_values(sim, obs, MW_CATALOGUE_MC, e_obs)
   # granularite (B nominal) et granularite_stat (par statistique, sur B_eff) :
-  # comme dans usp_bootstrap() (issue #40).
+  # comme dans usp_bootstrap() (issue #40) ; motif_mc (#44, regle R2) en fin
+  # de liste.
   list(stats_obs = as.list(obs), p_mc = mc$p_mc,
        err_mc = mc$err_mc,
        B_effectif = mc$B_effectif, granularite = 1 / (B + 1),
        sigma_boot = sig[is.finite(sig)], B = B,
-       granularite_stat = mc$granularite)
+       granularite_stat = mc$granularite, motif_mc = mc$motif_mc)
 }
 
 # --- Catalogue Monte-Carlo de la methode Merz-Wuthrich (ADR 0003) -------------
@@ -5829,6 +6185,8 @@ engine_table_tests <- function(res) {
     nom_estimation = t$estim_nom, estimation = t$estim,
     p_exacte = t$p_exacte, p_asymptotique = t$p_asymptotique,
     p_monte_carlo = t$p_mc, erreur_MC = t$err_mc,
+    # p_min (#44) : NULL sur un objet anterieur au champ, rendu NA.
+    p_min = if (is.null(t$p_min)) NA_real_ else t$p_min,
     p_retenue = t$p_retenue, nature_p = t$nature_p,
     sens_du_test = t$sens, verdict = t$verdict,
     commentaire = t$detail, reference = t$reference,

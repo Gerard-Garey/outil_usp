@@ -48,13 +48,20 @@ verifier("usp_tests() sur un bootstrap complet : hierarchie exacte > Monte-Carlo
          {
            tt <- usp_tests(fit, boot_fictif(), methode = "premium")
            ok <- TRUE
-           for (l in tt) {
+           # Lignes de type "test" seulement : toute autre ligne n'a aucune p
+           # retenue (ADR 0001, M7), y compris un test inoperant (p_min >=
+           # alpha) ou une pente non identifiable restitues en diagnostic (#44).
+           for (l in Filter(function(l) l$type == "test", tt)) {
              attendu <- if (is.finite(l$p_exacte)) l$p_exacte
                         else if (is.finite(l$p_mc)) l$p_mc else l$p_asymptotique
              ok <- ok && (identical(is.na(attendu), is.na(l$p_retenue)) &&
                           (is.na(attendu) || attendu == l$p_retenue)) &&
                    (is.na(l$p_retenue) || (l$p_retenue >= 0 && l$p_retenue <= 1))
            }
+           # Toute ligne non-test : ni p retenue ni nature (M7, constat 5
+           # d'audit de #44).
+           for (l in Filter(function(l) l$type != "test", tt))
+             ok <- ok && is.na(l$p_retenue) && is.na(l$nature_p)
            ok
          })
 # Issue #41 (ADR 0003, point 3) : ancien echec attendu de l'issue #4, devenu
