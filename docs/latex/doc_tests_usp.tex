@@ -528,6 +528,9 @@ point (fiche~\ref{fiche:foc}) \\
 \code{usp\_ajuster\_rapide()} & $x$, $y$, point de départ $(\delta_0,\gamma_0)$ &
 réajustement à un seul démarrage (\code{factr = 1e7}), employé par
 \code{usp\_bootstrap()} \\
+\code{usp\_volumes\_}\newline\code{constants()} & $x$, \code{tol}
+(\code{TOL\_DELTA\_BORD}) & booléen~: étendue des $x_t$ au plus \code{tol} fois leur moyenne~;
+seule définition des volumes constants (issue~\#59, section~\ref{sec:volumes-constants}) \\
 \code{usp\_regime()} & $\delta$, $x$, \code{tol} (constante
 \code{TOL\_DELTA\_BORD}, $10^{-6}$) & drapeaux \code{\$delta\_au\_bord},
 \code{\$volumes\_constants}, \code{\$pi\_constant}, \code{\$pi\_constant\_exact},
@@ -2031,6 +2034,10 @@ $0 < \Delta < \bar y$, $\theta$ étant alors ignoré & Paramètre du TOST, non u
 Bloquant. \\
 \end{tabular}
 \end{center}
+
+Des volumes constants, au sens de \code{usp\_volumes\_constants()}, ne sont pas un motif de refus~:
+le calcul aboutit, mais les vérifications qui régressent sur le volume ou partitionnent par lui
+sont restituées «~non applicable~» (section~\ref{sec:volumes-constants}, issue~\#59).
 
 Les contrôles non bloquants ci-dessus sont restitués dans \code{res\$controles}
 (famille « A. Qualite des donnees ») et signalés par \code{engine\_valider\_donnees()}
@@ -3732,7 +3739,8 @@ agrégées, et le paragraphe~C(2) n'a pas de point~f).
 Régression auxiliaire $y_t = a + b x_t + \varepsilon_t$. Hypothèses non testées~: les
 $\varepsilon_t$ sont indépendants, de variance constante $\sigma_\varepsilon^2$, de loi
 $\mathcal{N}(0,\sigma_\varepsilon^2)$, et les $x_t$ sont exogènes et non aléatoires. Nécessite
-$T \ge 3$ et $S_{xx} > 0$.
+$T \ge 3$ et $S_{xx} > 0$. À volumes constants au sens de \code{usp\_volumes\_constants()}, la ligne est non applicable
+(section~\ref{sec:volumes-constants}).
 \Hzero
 $H_0 : a = 0$, absence de composante de sinistralité indépendante du volume. C'est la traduction
 testable de la \emph{proportionnalité stricte} exigée par le règlement.
@@ -3834,8 +3842,10 @@ donnees} (colonne \code{p\_asymptotique}). Ni l'une ni l'autre n'est exacte au s
 jusqu'à l'issue~\#44, le moteur nommait la seconde \emph{quasi-exacte}, catégorie supprimée. Pour
 un dossier ACPR, il est recommandé d'arrêter $\Delta$ à l'avance et de le documenter.
 Deux cas sont restitués «~non applicable~», sans p-value retenue et en \code{INFO}
-(issue~\#58)~: les volumes constants ($x_t$ tous égaux, garde \code{sd(x) == 0} de
-\code{test\_tost\_intercept()}), où la régression auxiliaire n'est pas définie, et une marge
+(issue~\#58)~: les volumes constants, au sens du critère unique
+\code{usp\_volumes\_constants()} (étendue relative des $x_t$ au plus \code{TOL\_DELTA\_BORD},
+issue~\#59, section~\ref{sec:volumes-constants}), où la régression auxiliaire n'est pas définie
+ou porte sur le bruit d'arrondi, et une marge
 invalide (sans \code{delta\_equiv}~: \code{theta\_equiv} non fini ou $\theta \le 0$~; avec
 \code{delta\_equiv}~: $\Delta$ non finie ou non strictement positive, $\theta$ étant alors
 ignoré)~; les volumes constants priment sur la marge, et le commentaire de la ligne nomme le
@@ -3889,7 +3899,8 @@ sous quel modèle elle vaut (issue~\#44)~; elle figure dans la colonne \code{p\_
 sans être une p-value asymptotique. \textbf{Règle~R4}~: si la puissance approchée
 $\hat\pi_b$ du test sous le modèle ajusté est inférieure à $1/2$ (section~\ref{sec:t8}), la ligne
 est restituée en diagnostic, sans verdict ni p-value retenue, et son commentaire donne
-$\hat\pi_b$ et l'indice $\hat\lambda$~; à volumes constants, elle est non applicable.
+$\hat\pi_b$ et l'indice $\hat\lambda$~; à volumes constants, elle est non applicable
+(section~\ref{sec:volumes-constants}).
 \Usage
 \textbf{Ce test s'interprète en sens inverse des autres tests de cette section}~: on souhaite ici
 \emph{rejeter} $H_0$. Une pente non significative signifierait que le volume n'explique pas les
@@ -3914,7 +3925,8 @@ section~\ref{sec:verif}, la ligne reste un test (p-value $5{,}9\cdot 10^{-6}$, \
 \emph{Statistical Methods for Research Workers}, Oliver \& Boyd, Édimbourg, 1925.}
 \Cadre
 Identique aux deux fiches précédentes. On note $k$ le nombre de régresseurs hors constante
-(ici $k=1$).
+(ici $k=1$). À volumes constants au sens de \code{usp\_volumes\_constants()}, la ligne est non applicable
+(section~\ref{sec:volumes-constants}).
 \Hzero
 $H_0 : b = 0$ (plus généralement, nullité conjointe de tous les coefficients de pente).
 \Stat
@@ -3945,7 +3957,8 @@ sampling distribution of the multiple correlation coefficient}, \emph{Proceeding
 Society A}, 121, 1928, p.~654--673.}
 \Cadre
 Même régression auxiliaire. \textbf{Il ne s'agit pas d'un test} mais d'un diagnostic descriptif ;
-les rubriques sont renseignées par cohérence de présentation.
+les rubriques sont renseignées par cohérence de présentation. À volumes constants au sens de \code{usp\_volumes\_constants()}, la ligne est non applicable
+(section~\ref{sec:volumes-constants}).
 \Hzero
 Aucune en tant que diagnostic. Si l'on souhaite néanmoins tester $R^2$, l'hypothèse pertinente est
 celle du test de Fisher ci-dessus, $H_0 : b = 0$.
@@ -3993,7 +4006,11 @@ On part du modèle contraint réglementaire $y_t = \beta x_t + \varepsilon_t$ (s
 d'où $\hat y_t = \hat\beta x_t$, puis l'on estime le modèle augmenté
 $y_t = \beta x_t + \gamma_2 \hat y_t^2 + \gamma_3 \hat y_t^3 + \varepsilon_t$.
 Hypothèses non testées~: erreurs indépendantes, homoscédastiques, normales. Nécessite
-$T > k + q = 3$.
+$T > k + q = 3$. À volumes constants au sens de \code{usp\_volumes\_constants()}, la ligne est non applicable
+(section~\ref{sec:volumes-constants}). Défaut connu (issue~\#110)~: lorsque la régression augmentée est de
+rang déficient hors de la bande de tolérance --- deux volumes distincts seulement, ou étendue
+relative des volumes inférieure à $10^{-3}$ environ ---, \code{lm()} écarte $\hat y_t^3$ et la
+comparaison porte sur un degré de liberté de moins que la loi $\mathcal{F}(2, T-3)$ annoncée.
 \Hzero
 $H_0 : \gamma_2 = \gamma_3 = 0$, soit « la forme linéaire est correctement spécifiée ».
 \Stat
@@ -4022,7 +4039,9 @@ utiliser en complément, non en substitution, de l'examen graphique.
 Couple de séries $(u_t, v_t)$~: $(r_t, x_t)$ pour la variante « ratio contre volume »,
 $(r_t, t)$ pour la variante « ratio contre temps ». On note $R_t$, $Q_t$ les rangs respectifs et
 $d_t = R_t - Q_t$. Hypothèses non testées~: observations indépendantes, variables continues (peu
-ou pas d'ex \ae quo).
+ou pas d'ex \ae quo). À volumes constants au sens de \code{usp\_volumes\_constants()}, la variante
+« ratio contre volume » est non applicable (section~\ref{sec:volumes-constants})~; jusqu'à
+l'issue~\#59, elle était calculée sur le bruit d'arrondi des $x_t$.
 \Hzero
 $H_0$ : indépendance des deux séries, donc absence de toute association monotone.
 \Stat
@@ -4253,7 +4272,10 @@ $T R^2$ due à R.~Koenker, \emph{A note on studentizing a test for heteroscedast
 \Cadre
 Régression auxiliaire $z_t^2 = c_0 + c_1 x_t + \eta_t$, de coefficient de détermination
 $R^2_{\text{aux}}$. Hypothèses non testées~: indépendance des observations et validité de
-l'approximation asymptotique.
+l'approximation asymptotique. À volumes constants au sens de \code{usp\_volumes\_constants()}, la ligne est non applicable
+(section~\ref{sec:volumes-constants}). Garde-fou (issue~\#59)~: si \code{lm()} écarte $x_t$
+de la régression auxiliaire pour colinéarité hors de la bande de tolérance, la statistique vaut
+\code{NA}, au lieu d'une statistique nulle et d'une p-value égale à~1.
 \Hzero
 $H_0 : c_1 = 0$ : la variance des résidus standardisés ne dépend pas du volume, donc la pondération
 réglementaire $\pi_t$ est correctement spécifiée.
@@ -4283,7 +4305,8 @@ coefficient variation}, \emph{Econometrica}, 47(5), 1979, p.~1287--1294.}
 Mêmes données et mêmes notations que la fiche précédente. \textbf{Hypothèse de validité
 supplémentaire, et déterminante~: la normalité des erreurs.} C'est elle qui justifie
 $\operatorname{Var}(u_t^2) = 2\sigma^4$, d'où le facteur $\tfrac12$ de la statistique. Cette
-hypothèse n'est pas testée ici~: elle relève de H3, examinée séparément en partie~III.
+hypothèse n'est pas testée ici~: elle relève de H3, examinée séparément en partie~III. Volumes
+constants et garde-fou de colinéarité~: comme à la fiche précédente.
 \Hzero
 $H_0 : c_1 = 0$, la variance des résidus standardisés ne dépend pas du volume.
 \Stat
@@ -4343,7 +4366,10 @@ studentisée qui fait foi, la normalité n'étant jamais acquise à $T = 8$.
 test for heteroskedasticity}, \emph{Econometrica}, 48(4), 1980, p.~817--838.}
 \Cadre
 Régression auxiliaire enrichie $z_t^2 = c_0 + c_1 x_t + c_2 x_t^2 + \eta_t$. Mêmes hypothèses de
-validité que Breusch--Pagan. Nécessite $T > 3$.
+validité que Breusch--Pagan. Nécessite $T > 3$. Volumes constants et garde-fou de colinéarité sur
+$x_t$~: comme pour Breusch--Pagan. Défaut connu (issue~\#110)~: si \code{lm()} écarte le terme
+$x_t^2$ (régression auxiliaire de rang déficient hors de la bande de tolérance), la statistique
+est comparée à une loi $\chi^2(2)$ pour un seul régresseur effectif.
 \Hzero
 $H_0 : c_1 = c_2 = 0$.
 \Stat
@@ -4369,6 +4395,9 @@ the American Statistical Association}, 60(310), 1965, p.~539--547.}
 Résidus triés selon $x_t$ croissant, puis scindés en deux sous-groupes de taille
 $h = \lfloor T/2 \rfloor$ (observation centrale écartée si $T$ impair). Hypothèses non testées~:
 normalité et indépendance des résidus~; la variance, si elle varie, est monotone en $x_t$.
+À volumes constants au sens de \code{usp\_volumes\_constants()}, la ligne est non applicable
+(section~\ref{sec:volumes-constants}). Sans cette garde, le tri par $x_t$ de volumes égaux garde l'ordre du temps, et le
+test comparerait les deux moitiés de la période.
 \Hzero
 $H_0 : \sigma_1^2 = \sigma_2^2$, égalité des variances entre le sous-groupe des faibles volumes et
 celui des forts volumes.
@@ -4401,7 +4430,8 @@ Deux groupes $g \in \{1,2\}$ définis par $x_t \le \operatorname{med}(x)$ et
 $x_t > \operatorname{med}(x)$, d'effectifs $n_1, n_2$, $N = n_1+n_2$, $k=2$. On calcule les écarts
 absolus à la médiane du groupe, $d_{gi} = |z_{gi} - \operatorname{med}_g(z)|$, de moyennes
 $\bar d_g$ et $\bar d$. Hypothèse non testée~: indépendance des observations. La normalité n'est
-\emph{pas} requise, c'est l'apport de la méthode.
+\emph{pas} requise, c'est l'apport de la méthode. À volumes constants au sens de \code{usp\_volumes\_constants()}, la ligne est non applicable
+(section~\ref{sec:volumes-constants}).
 \Hzero
 $H_0$ : égalité des dispersions entre les deux groupes.
 \Stat
@@ -4428,7 +4458,11 @@ qu'approximative. À $T \le 10$, à considérer comme un simple indicateur.
 Deux sous-échantillons de résidus standardisés~: $z^{(1)}$ (années à faible volume, effectif $n_1$)
 et $z^{(2)}$ (années à fort volume, effectif $n_2$), de fonctions de répartition empiriques
 $\hat F_1$, $\hat F_2$. Hypothèses non testées~: indépendance intra et inter échantillons,
-continuité des lois. Le script n'active ce test que si $T \ge 8$ et $n_1, n_2 \ge 3$.
+continuité des lois. La ligne existe à tout $T \ge 8$ (issue~\#59)~; elle est non applicable
+à volumes constants au sens de \code{usp\_volumes\_constants()}
+(section~\ref{sec:volumes-constants}) ou si la partition par la médiane des volumes laisse un
+groupe de moins de trois années (ex \ae quo sur la médiane), le commentaire donnant alors les
+effectifs~; jusqu'à l'issue~\#59, elle était absente de la table dans ces deux cas.
 \Hzero
 $H_0 : F_1 = F_2$, égalité complète des lois -- hypothèse plus forte que la seule égalité des
 variances.
@@ -4517,7 +4551,8 @@ vraisemblance (fiche~\ref{fiche:rv-delta}).
 
 \textbf{Volumes constants} (issue~\#58). Si les $x_t$ sont constants (drapeau
 \code{\$volumes\_constants} de \code{usp\_regime()}, tolérance relative
-\code{TOL\_DELTA\_BORD}), $a_t = 1$ pour tout $t$~: $\pi_t$ ne dépend plus de $\delta$ et la
+\code{TOL\_DELTA\_BORD}, critère unique \code{usp\_volumes\_constants()} depuis l'issue~\#59,
+section~\ref{sec:volumes-constants}), $a_t = 1$ pour tout $t$~: $\pi_t$ ne dépend plus de $\delta$ et la
 vraisemblance est plate en $\delta$, qui n'est pas identifié. La valeur affichée est celle du
 démarrage retenu par \code{usp\_ajuster()}~: le premier de la grille ($\delta = 0$), les
 autres démarrages finissant à moins de $10^{-12}$ de la même valeur de l'objectif, en deçà de
@@ -6691,6 +6726,9 @@ Les résidus sont scindés en deux groupes selon $x_t$ inférieur ou supérieur 
 $\operatorname{med}(x)$. On porte en abscisse les quantiles empiriques du groupe « faible volume »
 et en ordonnée ceux du groupe « fort volume », évalués aux mêmes probabilités avec
 $n = \min(n_1,n_2)$. Droite de référence~: la première bissectrice. Rattaché à l'hypothèse H2.
+Le graphique n'est pas produit à volumes constants au sens de \code{usp\_volumes\_constants()}, y
+compris dans la bande de tolérance, ni si l'un des deux groupes compte moins de trois années
+(issue~\#59).
 \Hzero
 Sans objet. Le test numérique correspondant est le test de Smirnov à deux échantillons
 (section~\ref{sec:h2}).
@@ -8782,6 +8820,10 @@ auxiliaire MCO~» (§\ref{sec:nature}, issue~\#44) & \code{add()}~: arguments \c
 \code{TOL\_DISPERSION\_MC}, \code{B\_MIN\_DEGENERESCENCE}) \\
 Identifiabilité de la pente, règle~R4 (§\ref{sec:t8}) & \code{usp\_identifiabilite\_pente()},
 constante \code{SEUIL\_PUISSANCE\_PENTE}, lue par \code{usp\_tests()} \\
+Volumes constants et lignes non applicables (§\ref{sec:volumes-constants}, issue~\#59) &
+\code{usp\_volumes\_constants()}, lue par \code{usp\_regime()}, par les fonctions de test sur le
+volume, par le catalogue Monte-Carlo et par \code{engine\_plots\_data()}~; motif unique et
+type «~non applicable~» posés par \code{usp\_tests()} \\
 Réserve sur la base « ratios bruts » à $\hat\pi_t$ constant & champ \code{detail} des six lignes
 de base \code{r} dans \code{usp\_tests()} \\
 Erreur de Monte-Carlo (§\ref{sec:deuxerreurs}) & champ \code{err\_mc} de \code{usp\_bootstrap()} et de
@@ -9108,6 +9150,43 @@ sup-F de Quandt & --- & Loi de Fisher inapplicable (point de rupture estimé). \
 \bottomrule
 \end{tabular}
 \end{center}
+
+\subsection*{Lignes non applicables à volumes constants}
+\label{sec:volumes-constants}
+
+Depuis l'issue~\#59, les volumes sont dits \emph{constants} selon une seule définition,
+\code{usp\_volumes\_constants()}~: $\max_t x_t - \min_t x_t \le$ \code{TOL\_DELTA\_BORD}
+$\times\, \bar x$, avec \code{TOL\_DELTA\_BORD} $= 10^{-6}$, la tolérance du drapeau
+« $\hat\delta$ au bord » (fiche~\ref{fiche:centrage}). Ce critère est lu par \code{usp\_regime()}
+(drapeau \code{\$volumes\_constants}), par chaque fonction de test qui régresse sur le volume ou
+partitionne par lui, par les entrées \code{Smirnov} et \code{SpearVol} du catalogue Monte-Carlo,
+par \code{usp\_identifiabilite\_pente()} et par le QQ-plot à deux échantillons
+d'\code{engine\_plots\_data()}. Il remplace les gardes exactes \code{sd(x) == 0}, qui laissaient
+passer des volumes quasi constants~: la régression de $y_t$ sur $x_t$ y écartait $x_t$ pour
+colinéarité, ou était calculée sur le bruit d'arrondi. Mesuré sur le moteur antérieur à
+l'issue~\#59 (commit \code{5f5459b}), pertes du jeu de contrôle et volumes $100\,(1 \pm \varepsilon)$
+alternés~: \code{test\_lm\_complet()} levait l'erreur R «~\code{subscript out of bounds}~» à
+$\varepsilon = 10^{-12}$ et $10^{-9}$. Des volumes constants ne sont pas un motif de refus des
+données (section~\ref{sec:controles})~: le calcul aboutit, $\delta$ n'est pas identifié
+(fiche~\ref{fiche:position-delta}), et treize lignes d'\code{usp\_tests()} sont restituées
+«~non applicable~», sans verdict, avec un motif unique, \code{volumes x\_t constants a la tolerance
+relative TOL\_DELTA\_BORD = 1e-06 pres (etendue relative = \dots)~: regression / partition sur le
+volume sans objet}~: nullité de la constante, TOST, Student sur la pente, Fisher, $R^2$, RESET,
+Spearman ratio contre volume, Breusch--Pagan studentisé et original, White, Goldfeld--Quandt,
+Brown--Forsythe et Smirnov. La liste des lignes de la table ne dépend pas du régime~: la ligne de
+Smirnov, auparavant absente dans ce cas, est présente à tout $T \ge 8$. Mesuré (méthode prime,
+pertes du jeu de contrôle, volumes $100\,(1 \pm \varepsilon)$ alternés, $B = 99$, graine
+20260831)~: à $\varepsilon = 0$, $10^{-12}$, $10^{-9}$, $10^{-8}$ et $10^{-7}$, \code{ok = TRUE}
+et ces lignes sont non applicables avec ce motif, auxquelles s'ajoute, à $T = 8$, la ligne
+d'Anscombe--Glynn, non définie en deçà de $T = 20$. Ces lignes ne sont pas des tests
+\emph{inopérants} au sens de \code{CONTEXT.md}~: l'inopérance tient à la loi de référence, qui ne
+peut produire une p-value inférieure à $\alpha$~; ici, c'est la statistique elle-même qui est sans
+objet. Hors de la bande de tolérance, un garde-fou rend \code{NA} si \code{lm()} écarte malgré tout
+le coefficient du volume pour colinéarité (régressions de $y_t$ sur $x_t$ de la constante, du
+TOST, de la pente, de Fisher, du $R^2$ et de RESET~; régressions auxiliaires de Breusch--Pagan et
+de White). Défaut connu, non corrigé (issue~\#110)~: RESET et White
+peuvent rester calculés sur une régression auxiliaire de rang déficient (fiches~\ref{fiche:reset}
+et~\ref{fiche:white}).
 
 \vspace{1em}
 \begin{encadre}
@@ -9601,7 +9680,8 @@ Une fonction, plusieurs tests & \code{test\_lm\_complet()} (4 entrées),
 \code{.shapiro\_sur()} (2 entrées)~; \code{stat\_dw()}, \code{test\_runs()},
 \code{stat\_supF()}, \code{stat\_cusum()} et \code{test\_grubbs()} (2 entrées
 chacune, sur $z_t$ et sur les ratios bruts $u_t$)~; \code{usp\_identifiabilite\_pente()} (type des
-lignes de la pente et de Fisher) & Une anomalie se propage à toutes les
+lignes de la pente et de Fisher)~; \code{usp\_volumes\_constants()} (régime de $\hat\pi_t$ et
+lignes non applicables à volumes constants) & Une anomalie se propage à toutes les
 entrées issues de l'appel. \\
 Base « ratios bruts » & six lignes sur $u_t$, construit par
 \code{.usp\_contexte\_}\newline\code{mc()}, statistiques calculées dans
