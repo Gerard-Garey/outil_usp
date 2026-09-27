@@ -3281,9 +3281,7 @@ dossier remis au superviseur.
 \label{tab:pmin}
 % -----------------------------------------------------------------------------
 
-La plus petite p-value qu'une statistique puisse produire aux effectifs observés, $p_{\min}$, borne
-ce qu'un test peut conclure~: si $p_{\min} \ge \alpha$, le test est \emph{inopérant} au sens de
-\code{CONTEXT.md} (règle~R1, section~\ref{sec:nature}). Elle n'est une contrainte que pour une loi
+La plus petite p-value qu'une statistique puisse produire aux effectifs observés sous sa loi de référence discrète échangeable, $p_{\min}$, borne ce qu'un test peut conclure lorsque cette loi fournit la p-value retenue (p-value exacte, $\hat\pi_t$ constant)~: si $p_{\min} \ge \alpha$, le test est \emph{inopérant} au sens de \code{CONTEXT.md} (règle~R1, section~\ref{sec:nature}). Le moteur maintient cette bascule à $\hat\pi_t$ variable, où $p_{\min}$ ne borne pas la p-value de Monte-Carlo retenue (note~(v), issue~\#125). Elle n'est une contrainte que pour une loi
 de référence \emph{discrète}~; pour une loi continue (Student, Fisher, loi d'Imhof, loi
 asymptotique), toute p-value est atteignable et $p_{\min}$ est sans objet. Le tableau ci-dessous
 donne, de $T = 5$ à $T = 12$, les valeurs des lois discrètes de la méthode lognormale, calculées
@@ -5773,11 +5771,7 @@ des deux causes. \emph{Erreur de Monte-Carlo} (fonction de $B$)~: autour de $p =
 vaut environ $0{,}011$ à $B = 999$ et $0{,}003$ à $B = 9\,999$ (formule bilatérale de
 \code{engine\_p\_mc()}, section~\ref{sec:deuxerreurs}), du même ordre, à $B = 999$, que l'écart
 entre $0{,}057$ et $\alpha/2$. \emph{Non-échangeabilité} (fonction du modèle ajusté, non de $B$)~:
-sous des modèles ajustés à volumes très hétérogènes (rapport~17 entre volumes extrêmes, $\sigma$
-de $0{,}2$ à $0{,}5$), la probabilité $\mathbb{P}(R^* = 2)$ qu'une série simulée ne compte que deux
-suites a été mesurée de $0{,}016$ à $0{,}032$, contre $2/70 = 0{,}0286$ sous la loi échangeable
---- constat de simulation d'\code{actuary} du 27~septembre 2026, sur une grille de modèles, hors
-jeux de référence, par des scripts non versionnés~; l'issue~\#125 propose de lire la règle~R1 sur
+sous des modèles ajustés à volumes croissants dans un rapport~17 ($\sigma = 0{,}5$), la probabilité $\mathbb{P}(R^* = 2)$ qu'une série simulée ne compte que deux suites a été mesurée de $0{,}032$ à $0{,}016$, et jusqu'à $0{,}003$ à volumes extrêmes, contre $2/70 = 0{,}0286$ sous la loi échangeable --- constat de simulation d'\code{actuary} du 27~septembre 2026 (grille de 36 modèles, $B = 5\,000$ par modèle, hors jeux de référence, scripts non versionnés, consigné à l'issue~\#125, seule trace)~; l'issue~\#125 propose de lire la règle~R1 sur
 la loi bootstrap. Remède d'usage~: quand la p-value de Monte-Carlo est proche du seuil, relancer
 avec $B = 9\,999$, ce qui réduit la première cause et laisse la seconde inchangée.
 \Pertinence
@@ -6455,9 +6449,7 @@ de $u_t$ (champ \code{p\_min}). Sans p-value exacte, cette p-value minimale, cal
 de référence échangeable, ne borne pas la p-value de Monte-Carlo retenue, qui peut lui être
 inférieure (erreur de Monte-Carlo, non-échangeabilité)~: le commentaire de la ligne dit alors
 \code{ECHEC possible} au lieu d'\code{ECHEC inatteignable} (issue~\#44~; ordre de grandeur à la
-fiche~\ref{fiche:suites-wald-wolfowitz}, rubrique~6~; sur $u_t$, dont les $r_t$ ne sont pas
-identiquement distribués, la loi simulée peut s'écarter de la loi échangeable dans l'un ou
-l'autre sens, issue~\#125).
+fiche~\ref{fiche:suites-wald-wolfowitz}, rubrique~6~; sur $u_t$, dont les $r_t$ ne sont pas identiquement distribués, l'écart mesuré va dans l'autre sens que sur $z_t$~: $\mathbb{P}(R^* = 2)$ jusqu'à $0{,}26$ contre $2/70$, soit une $p_{\min}$ bootstrap au-dessus de $0{,}0571$ (issue~\#125)~; l'\code{ECHEC} n'y reste possible que par l'erreur de Monte-Carlo).
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} $4/70 = 0{,}0571$ ($n_1 = n_2 = 4$, \code{runs\_p\_min()}). Exacte à $\hat\pi_t$ constant, où la statistique et la p-value exacte retenue sont celles de la ligne sur $z_t$ (\code{usp\_runsr\_p\_exacte()})~; à $\hat\pi_t$ variable, la p-value retenue est de Monte-Carlo (clé \code{Runsr}, bilatérale, plancher $2/(B+1)$, soit $0{,}002$ à $B = 999$) et $0{,}0571$, calculée sur la loi de référence échangeable, n'en est qu'une approximation, non une borne (rubrique~6).
 
@@ -9984,9 +9976,7 @@ autre paramétrage, et le script peut être rejoué sur les données d'un dossie
 \subsection*{Tests structurellement inopérants à faible $T$}
 
 Le tableau ci-dessous recense les tests dont la validité ou le pouvoir de rejet dépend de $T$.
-Au sens de \code{CONTEXT.md}, un test est \emph{inopérant} lorsque sa plus petite p-value
-atteignable aux effectifs observés, $p_{\min}$, atteint ou dépasse $\alpha$~: aucune donnée ne
-peut alors le faire rejeter. Depuis l'issue~\#44, le moteur calcule $p_{\min}$ pour les cinq lois
+Au sens de \code{CONTEXT.md}, un test est \emph{inopérant} lorsque sa plus petite p-value atteignable aux effectifs observés sous la loi de référence discrète échangeable, $p_{\min}$, atteint ou dépasse $\alpha$~: à $\hat\pi_t$ constant, où la p-value exacte est retenue, aucune donnée ne peut alors le faire rejeter~; à $\hat\pi_t$ variable, la bascule est maintenue sur cette même $p_{\min}$, qui ne borne pas la p-value de Monte-Carlo retenue (section~\ref{sec:nature}, issue~\#125). Depuis l'issue~\#44, le moteur calcule $p_{\min}$ pour les cinq lois
 de référence discrètes (suites sur $z_t$ et sur $u_t$, Cox--Stuart, Smirnov, Mann--Kendall et
 Spearman) et restitue en diagnostic, sans verdict, toute ligne inopérante (règle~R1,
 section~\ref{sec:nature})~; à $T = 8$ et $\alpha = 0{,}10$, sans ex \ae quo, seul Cox--Stuart
