@@ -542,6 +542,12 @@ p-value exacte de \code{runs\_p\_exacte()} sur $u_t$ si $\hat\pi_t$ est constant
 \emph{et} si les signes de $u_t - \operatorname{med}(u)$ et de $z_t -
 \operatorname{med}(z)$ coïncident (\code{.signes\_mediane\_egaux()}), \code{NA}
 sinon \\
+\code{runs\_p\_min()},\newline \code{cox\_stuart\_p\_min()},\newline
+\code{smirnov\_p\_min()},\newline \code{mk\_p\_min()} & effectifs $(n_1, n_2)$~; $m$~;
+$(n_1, n_2)$~; $T$ & plus petite p-value atteignable de la loi de référence discrète aux effectifs
+observés, convention bilatérale du doublement (règle~R1, issue~\#44~; §\ref{sec:nature}) \\
+\code{.runs\_effectifs()} & $z_t$ ou $u_t$ & effectifs $(n_1, n_2)$ de part et d'autre de la
+médiane \\
 \code{sw\_loi\_nulle()},\newline \code{sw\_cle\_cache()} & \code{n}, \code{B\_null}
 (20\,000), \code{seed} (\code{SEED\_LOI\_NULLE\_SW}, 20260901) & loi nulle simulée de $W$
 (Shapiro--Wilk), triée et mise en cache sous une clé qui comporte le générateur \\
@@ -555,14 +561,21 @@ loi nulle de Shapiro--Wilk et de l'enveloppe du QQ-plot, consignées dans \code{
 \code{stat\_*()}, \code{test\_*()} & $x$, $y$ ou $z$ & statistique et p-value \\
 \code{test\_tost\_intercept()} & $x$, $y$, $\theta$ ou $\Delta$ &
 p-value d'équivalence (TOST) \\
+\code{usp\_identifiabilite\_}\newline\code{pente()},\newline
+\code{SEUIL\_PUISSANCE\_PENTE} & $x$, $\hat\beta$, $\hat\sigma$, $\alpha$~; constante
+($0{,}5$) & indice $\hat\lambda$ et puissance approchée $\hat\pi_b$ du test de la pente
+(\code{NA} à volumes constants)~; en dessous du seuil, pente et Fisher restitués en diagnostic
+(règle~R4, §\ref{sec:t8}) \\
 \code{.stats\_bootstrapables()} & $x$, $y$, $z$ & vecteur de 34 statistiques, évaluation
 du catalogue \code{USP\_CATALOGUE\_MC} \\
 \code{USP\_CATALOGUE\_MC},\newline \code{MW\_CATALOGUE\_MC} & entrées construites par
 \code{.mc\_entree(calc, queue,}\newline\code{degenere)} & catalogues des statistiques
 Monte-Carlo (34 et 13 entrées)~: fonction de calcul, sens du rejet (\code{haut}, \code{bas},
-\code{deux}) et condition de dégénérescence (\code{NULL} pour toutes les entrées, lue par aucun
-calcul)~; seule source du calcul observé, du calcul simulé et de la p-value de Monte-Carlo
-(ADR~0003) \\
+\code{deux}), condition de dégénérescence \code{degenere} (\code{NULL} pour toutes les entrées~;
+évaluée sur le contexte observé par \code{.mc\_p\_values()} depuis l'issue~\#44) et motif
+\code{non\_definie} d'une statistique non définie sur ces données (seule entrée qui le renseigne~:
+\code{CoxStuart}, ex \ae quo, issue~\#85)~; seule source du calcul observé, du calcul simulé et
+de la p-value de Monte-Carlo (ADR~0003) \\
 \code{.usp\_contexte\_mc()},\newline \code{.mw\_contexte\_mc()} & $x$, $y$, $z$~; \code{aj} &
 contexte des fonctions de calcul du catalogue~: ratios $r_t$ et ratios centrés $u_t$~;
 résidus de Mack \\
@@ -570,15 +583,20 @@ résidus de Mack \\
 qui nomme la statistique si une entrée ne rend pas une valeur de longueur~1 \\
 \code{engine\_p\_mc()} & valeurs simulées, valeur observée, sens du rejet & \code{p\_mc},
 \code{err\_mc} (formule selon le sens, §\ref{sec:deuxerreurs}), \code{B\_effectif},
-\code{granularite} d'une statistique (fiche~\ref{fiche:procedure-mc})~;
-fonction unique des deux méthodes \\
-\code{.mc\_p\_values()} & matrice des simulations, valeurs observées, catalogue &
-\code{engine\_p\_mc()} colonne par colonne, sens lu au catalogue~; erreur si une statistique
-simulée est absente du catalogue \\
+\code{granularite} d'une statistique (fiche~\ref{fiche:procedure-mc}), et \code{motif}
+d'absence de \code{p\_mc} (constantes \code{MOTIF\_MC\_*}~; loi dégénérée jugée à
+\code{TOL\_DISPERSION\_MC} $= 10^{-12}$ près dès \code{B\_MIN\_DEGENERESCENCE} $= 50$
+réplications finies, issue~\#44, §\ref{sec:nature})~; fonction unique des deux méthodes \\
+\code{.mc\_p\_values()} & matrice des simulations, valeurs observées, catalogue, contexte
+observé & \code{engine\_p\_mc()} colonne par colonne, sens lu au catalogue, conditions
+\code{degenere} et \code{non\_definie} évaluées sur le contexte observé~; vecteur
+\code{motif\_mc}~; erreur si une statistique simulée est absente du catalogue \\
 \code{engine\_registre\_}\newline\code{tests()} & \code{boot}, catalogue, \code{alpha},
 libellé de nature Monte-Carlo & fonction \code{add()} d'enregistrement d'une ligne de test,
 unique et partagée par \code{usp\_tests()} et \code{mw\_tests()}~: hiérarchie des p-values,
-règle de verdict (seuil d'\code{ECHEC} des tests en sens «~rejeter~», constante
+règles de sortie de l'issue~\#44 (test inopérant par \code{p\_min}, motif Monte-Carlo lu dans
+\code{motif\_mc}, repli asymptotique nommé ou interdit par \code{repli\_asymptotique},
+§\ref{sec:nature}), règle de verdict (seuil d'\code{ECHEC} des tests en sens «~rejeter~», constante
 \code{SEUIL\_ECHEC\_SENS\_REJETER} $= 0{,}30$, §\ref{sec:synthese}), refus d'une clé
 Monte-Carlo absente du catalogue ou du bootstrap \\
 \code{usp\_simuler()} & \code{fit} & $T$ pertes $y_t$ simulées sous le modèle
@@ -587,10 +605,11 @@ ajusté \\
 \code{refit} (vrai), \code{progres} &
 \code{stats\_obs}, \code{p\_mc}, \code{err\_mc}, \code{B\_effectif},
 \code{granularite}, \code{sigma\_boot}, \code{delta\_boot}, \code{gamma\_boot}, \code{B},
-\code{granularite\_stat} \\
+\code{granularite\_stat}, \code{motif\_mc} \\
 \code{mw\_bootstrap()} & \code{aj}, $B$ (999), \code{seed} (20260831) &
 \code{stats\_obs}, \code{p\_mc}, \code{err\_mc},
-\code{B\_effectif}, \code{granularite}, \code{sigma\_boot}, \code{B}, \code{granularite\_stat} \\
+\code{B\_effectif}, \code{granularite}, \code{sigma\_boot}, \code{B}, \code{granularite\_stat},
+\code{motif\_mc} \\
 \code{usp\_tests()} & \code{fit}, \code{boot}, \code{alpha} (0,10),
 \code{theta\_equiv} (0,10), \code{delta\_equiv}, \code{robustesse} (\code{NULL}),
 \code{methode} (obligatoire, sans défaut~: \code{"premium"} ou \code{"reserve1"}~; absence ou
@@ -682,7 +701,8 @@ toutes les quantités tracées (branche Merz--Wüthrich) \\
 \code{REPERE\_INFLUENCE\_SIGMA},\newline \code{REPERE\_DFBETA\_MW} & constantes ($0{,}10$ et
 $0{,}02$) & repères de lecture des graphiques d'influence, sans verdict
 (fiches~\ref{fiche:jackknife} et~\ref{mw:influence}) \\
-\code{engine\_table\_tests()} & \code{res} & \code{data.frame} auditable \\
+\code{engine\_table\_tests()} & \code{res} & \code{data.frame} auditable, dont la colonne
+\code{p\_min} (issue~\#44) \\
 \code{run\_engine()} & entrées utilisateur, dont \code{nature\_donnees} (obligatoire pour
 \code{premium}), $T$ (contrôlé par \code{engine\_valider\_}\newline\code{profondeur()}) et
 \code{bareme} (\code{NULL}~: barème du segment~; valeur saisie~: dérogation déclarée,
@@ -1383,26 +1403,31 @@ auditable du code de \code{usp\_tests()}.
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Hypothèse H1 --- linéarité et proportionnalité}}} \\
 \midrule
 Student, constante & \ref{fiche:student-constante} & \code{test\_intercept()} &
-\code{test\_intercept()} (p exacte, loi $t$) & \code{Intercept} \\
+\code{test\_intercept()} (p de Student, exacte sous le seul modèle auxiliaire MCO, non
+retenue~; p Monte-Carlo retenue) & \code{Intercept} \\
 Équivalence (TOST) & \ref{fiche:tost-constante} & \code{test\_tost\_intercept()} &
-\code{test\_tost\_intercept()} (p exacte si $\Delta$ a priori) & --- \\
+\code{test\_tost\_intercept()} (p de Student sous le modèle auxiliaire MCO, exacte sous ce modèle
+si $\Delta$ a priori) & --- \\
 Student, pente & \ref{fiche:student-pente} & \code{test\_lm\_complet()} &
-\code{test\_lm\_complet()} (p exacte, loi $t$) & --- \\
+\code{test\_lm\_complet()} (p sous le modèle auxiliaire MCO, loi $t$)~; type de la ligne selon
+\code{usp\_identifiabilite\_pente()} (règle~R4) & --- \\
 Fisher global & \ref{fiche:fisher-global} & \code{test\_lm\_complet()} &
-\code{test\_lm\_complet()} (p exacte, loi $F$) & --- \\
+\code{test\_lm\_complet()} (p sous le modèle auxiliaire MCO, loi $F$)~; même règle~R4 & --- \\
 Coefficient $R^2$ & \ref{fiche:r2} & \code{test\_lm\_complet()} &
 diagnostic, aucune p-value & --- \\
 RESET & \ref{fiche:reset} & \code{test\_reset()} &
 \code{test\_reset()} (p asymptotique, loi $F$ approchée) & \code{RESET} \\
 Spearman ($\times 2$) & \ref{fiche:spearman} & \code{stats::cor.test()} (appel direct) &
-\code{stats::cor.test(..., exact = TRUE)} (p exacte, permutation) & \code{SpearVol} /
+\code{stats::cor.test(..., exact = TRUE)} (p exacte, permutation)~; \code{mk\_p\_min()}
+($p_{\min}$) & \code{SpearVol} /
 \code{SpearTps} \\
 Mann--Kendall & \ref{fiche:mann-kendall} & \code{test\_mann\_kendall()} &
 \code{mk\_p\_exacte()} (p exacte, loi mahonienne, via \code{.mk\_loi\_exacte()},
-\code{.poly\_mult()}) & \code{MK} \\
+\code{.poly\_mult()})~; \code{mk\_p\_min()} ($p_{\min}$) & \code{MK} \\
 Cox--Stuart & \ref{fiche:cox-stuart} & \code{test\_cox\_stuart()} ($K$, $m$
 différences non nulles, $n_p$ paires) &
-\code{test\_cox\_stuart()} (p exacte, loi binomiale conditionnelle à $m$) & \code{CoxStuart}
+\code{test\_cox\_stuart()} (p exacte, loi binomiale conditionnelle à $m$)~;
+\code{cox\_stuart\_p\_min()} ($p_{\min}$) & \code{CoxStuart}
 (sans ex \ae quo seulement) \\
 
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Hypothèse H2 --- structure de variance quadratique}}} \\
@@ -1419,7 +1444,8 @@ Goldfeld--Quandt & \ref{fiche:goldfeld-quandt} & \code{test\_goldfeld\_quandt()}
 Brown--Forsythe & \ref{fiche:brown-forsythe} & \code{test\_brown\_forsythe()} &
 \code{test\_brown\_forsythe()} (p asymptotique, loi $F$ approchée) & \code{BF} \\
 Smirnov (2 éch.) & \ref{fiche:smirnov} & \code{stats::ks.test()} (appel direct) &
-\code{stats::ks.test()} (p exacte combinatoire, sans ex \ae quo) & \code{Smirnov} \\
+\code{stats::ks.test()} (p exacte combinatoire, sans ex \ae quo)~; \code{smirnov\_p\_min()}
+($p_{\min}$) & \code{Smirnov} \\
 Position de $\hat\delta$ & \ref{fiche:position-delta} & \code{usp\_ajuster()} (champ
 \code{\$delta})~; drapeau \code{\$delta\_au\_bord} par \code{usp\_regime()},
 tolérance \code{TOL\_DELTA\_BORD} & diagnostic, aucune p-value & --- \\
@@ -1432,9 +1458,11 @@ Shapiro--Wilk & \ref{fiche:shapiro-wilk} & \code{.shapiro\_sur()} (encapsule
 Shapiro--Francia & \ref{fiche:shapiro-francia} & \code{test\_shapiro\_francia()} &
 \code{test\_shapiro\_francia()} (p approx. Royston 1993) & \code{SF} \\
 Anderson--Darling & \ref{fiche:anderson-darling} & \code{stat\_ad()} &
-\code{ad\_p\_stephens()} (p approx. D'Agostino \& Stephens) & \code{AD} \\
+\code{ad\_p\_stephens()} (p approx. D'Agostino \& Stephens, sur la statistique re-standardisée,
+$T \ge 8$) & \code{AD} \\
 Cramér--von Mises & \ref{fiche:cramer-von-mises} & \code{stat\_cvm()} &
-\code{cvm\_p\_stephens()} (p approx. D'Agostino \& Stephens) & \code{CvM} \\
+\code{cvm\_p\_stephens()} (p approx. D'Agostino \& Stephens, sur la statistique re-standardisée,
+$T \ge 8$) & \code{CvM} \\
 KS contre $\mathcal{N}(0,1)$ & \ref{fiche:kolmogorov-smirnov} & \code{stat\_ks()} &
 formule de Kolmogorov, calculée en ligne dans \code{usp\_tests()} & \code{KS} \\
 Lilliefors & \ref{fiche:lilliefors} & \code{stat\_lilliefors()} &
@@ -1458,15 +1486,16 @@ Ljung--Box / Box--Pierce & \ref{fiche:ljung-box} & \code{stats::Box.test()} (app
 direct, 2 retards) & \code{stats::Box.test()} (p asymptotique, $\chi^2$) &
 \code{LB1}, \code{LB2}, \code{BP2} \\
 Suites (Wald--Wolfowitz) & \ref{fiche:suites-wald-wolfowitz} & \code{test\_runs()} &
-\code{runs\_p\_exacte()} (p exacte combinatoire, via \code{.runs\_dens()}) &
+\code{runs\_p\_exacte()} (p exacte combinatoire, via \code{.runs\_dens()})~;
+\code{runs\_p\_min()} ($p_{\min}$, effectifs par \code{.runs\_effectifs()}) &
 \code{Runs} \\
 Durbin--Watson sur ratios bruts & \ref{fiche:durbin-watson-ratios-bruts} & \code{stat\_dw()} sur
 $u_t$ & aucune hors Monte-Carlo & \code{DWr} \\
 Ljung--Box (retard 1) sur ratios bruts & \ref{fiche:ljung-box-ratios-bruts} &
 \code{stats::Box.test()} sur $u_t$ & aucune hors Monte-Carlo & \code{LB1r} \\
 Suites sur ratios bruts & \ref{fiche:suites-ratios-bruts} & \code{test\_runs()} sur $u_t$ &
-\code{usp\_runsr\_p\_exacte()} (p exacte de \code{runs\_p\_exacte()} sous double condition) &
-\code{Runsr} \\
+\code{usp\_runsr\_p\_exacte()} (p exacte de \code{runs\_p\_exacte()} sous double condition)~;
+\code{runs\_p\_min()} ($p_{\min}$) & \code{Runsr} \\
 Condition du premier ordre (contrôle numérique, hors table des tests) & \ref{fiche:foc} &
 \code{usp\_condition\_premier\_ordre()}, \code{usp\_kkt\_satisfaite()}, \code{usp\_ajuster()}
 (champ \code{\$kkt\_au\_moins\_un}), \code{usp\_controles\_numeriques()} &
@@ -1809,6 +1838,10 @@ pour la méthode Merz--Wüthrich), chacune \code{NA} quand elle n'est pas calcul
 est \code{p\_retenue}, choisie dans l'ordre exacte, Monte-Carlo, asymptotique par la fonction
 \code{add()} d'\code{engine\_registre\_tests()}, commune aux deux méthodes~; \code{nature\_p}
 dit laquelle. \\
+\code{p\_min} & \textbf{p-value minimale atteignable} (issue~\#44)~: plus petite p-value que
+la loi de référence discrète peut produire aux effectifs observés (suites, Cox--Stuart, Smirnov,
+Mann--Kendall, Spearman)~; \code{NA} pour une loi continue. Elle fonde la règle d'inopérance
+(section~\ref{sec:nature}) et figure en dernière colonne de la table auditable. \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -2245,7 +2278,11 @@ Dans le moteur, le sens du rejet de chaque statistique (\code{haut}, \code{bas} 
 (\code{USP\_CATALOGUE\_MC}, \code{MW\_CATALOGUE\_MC}~; ADR~0003), et la p-value est calculée
 par une seule fonction, \code{engine\_p\_mc()}, commune aux deux méthodes. $B$ y est remplacé
 par $B_{\text{eff}}$ (champ \code{B\_effectif}), nombre de réplications où la statistique est
-finie~: une réplication dont le réajustement ou le calcul des statistiques échoue est écartée.
+finie~: une réplication dont le réajustement ou le calcul des statistiques échoue est écartée. Si
+la statistique observée n'est pas finie, si aucune réplication n'est finie ou si la loi simulée
+est dégénérée, \code{p\_mc} vaut \code{NA} et \code{engine\_p\_mc()} en rend le motif (champ
+\code{motif\_mc} de l'objet bootstrap, issue~\#44)~; la conséquence sur la ligne est décrite à
+la section~\ref{sec:nature}.
 
 \medskip
 La portée de l'ajout de~1 au numérateur et au dénominateur mérite d'être énoncée avec précision,
@@ -2324,7 +2361,11 @@ distinction est reprise systématiquement dans les tableaux~\ref{tab:nature} et
 \textbf{Exact} & La loi de la statistique sous $H_0$ est connue pour la taille
 d'échantillon considérée, sans approximation (loi combinatoire, de permutation,
 binomiale, ou loi de Student/Fisher sous normalité exacte des erreurs). La
-p-value est alors valide à $T = 8$ comme à $T = 1000$. \\
+p-value est alors valide à $T = 8$ comme à $T = 1000$, sous le modèle pour lequel
+la loi est exacte~: est dite \emph{exacte} au sens de l'outil (ADR~0002) la seule
+p-value exacte sous le modèle réglementaire~; une loi de Student ou de Fisher,
+exacte sous le seul modèle auxiliaire des moindres carrés, est nommée comme telle
+(section~\ref{sec:t8}). \\
 \textbf{Asymptotique} & La loi n'est connue qu'à la limite $T \to \infty$.
 L'existence du résultat limite ne dit \emph{rien} de la qualité de
 l'approximation à $T$ fini~: il faut disposer, séparément, d'un résultat sur la
@@ -2383,9 +2424,50 @@ fiches~\ref{fiche:centrage} et~\ref{fiche:variance-unitaire}. Ces lignes sont do
 \emph{diagnostics}, sans p-value retenue et avec le motif. Cette règle de
 sortie ne concerne ni le test de Student sur la pente ni le test de Fisher
 global~: leur statistique est librement observée et leur loi est exacte sous
-normalité des erreurs~; ils conservent leur p-value, pour la raison exposée à
-la sous-section~\ref{sec:t8}.
+le modèle auxiliaire des moindres carrés (erreurs i.i.d. normales
+homoscédastiques)~; ils conservent leur p-value, sous une nature qui nomme ce
+modèle, pour la raison exposée à la sous-section~\ref{sec:t8}, sauf lorsque la
+pente n'est pas identifiable par les données (règle~R4, même sous-section).
 \end{encadre}
+
+\emph{Autres sorties de la hiérarchie} (issue~\#44). La fonction d'enregistrement
+\code{add()} d'\code{engine\_registre\_tests()}, commune aux deux méthodes, applique en outre
+quatre règles, chacune en un seul endroit et chacune dite dans le commentaire de la ligne.
+\emph{(i) Test inopérant} (règle~R1)~: pour un test à loi de référence discrète, le champ
+\code{p\_min} porte la plus petite p-value atteignable aux effectifs observés
+(\code{runs\_p\_min()}, \code{cox\_stuart\_p\_min()}, \code{smirnov\_p\_min()},
+\code{mk\_p\_min()}~; \code{NA} pour une loi continue)~; si $p_{\min} \ge \alpha$, aucune valeur
+observée ne peut donner $p < \alpha$, et la ligne est restituée en diagnostic, sans verdict, ses
+p-values restant affichées~; si $\alpha/2 \le p_{\min} < \alpha$ pour un test en sens « ne pas
+rejeter », la ligne reste un test et son commentaire dit que l'\code{ECHEC} est inatteignable.
+\emph{(ii) Monte-Carlo indisponible} (règles~R2 et~R3)~: quand \code{p\_mc} manque,
+\code{engine\_p\_mc()} en donne le motif (\code{bootstrap\$motif\_mc}), jamais deviné par
+l'appelant~: statistique observée non finie, aucune réplication finie, ou loi simulée
+\emph{dégénérée} --- au moins \code{B\_MIN\_DEGENERESCENCE} $= 50$ réplications finies
+d'étendue au plus \code{TOL\_DISPERSION\_MC} $\times \max(1, |S_{\text{obs}}|)$,
+\code{TOL\_DISPERSION\_MC} $= 10^{-12}$, que la valeur observée soit sur l'atome ou hors de lui,
+ou condition \code{degenere} du catalogue vraie sur le contexte observé. Une dégénérescence fait
+sortir la ligne en diagnostic, sans p-value retenue, p-value exacte comprise~: la loi de
+référence y compare du bruit d'arrondi (ADR~0001). Une statistique observée non finie, sans
+p-value exacte, rend la ligne non applicable. Dans les autres cas, sans p-value exacte, la
+p-value asymptotique n'est retenue que sous une nature qui nomme le repli, «~asymptotique
+(Monte-Carlo indisponible~: \emph{motif})~», jamais en silence~; ce repli est interdit pour la
+nullité de la constante, dont la ligne passe alors en diagnostic (point (iii)). La détection
+générique de dégénérescence ne voit qu'une loi simulée \emph{ponctuelle}~: elle n'aurait pas
+détecté la loi en mélange, à atome en la valeur observée, du centrage des résidus
+(fiche~\ref{fiche:centrage}), qui relève de la condition \code{degenere} du catalogue~; cette
+condition vaut \code{NULL} pour toutes les entrées des deux catalogues, les deux grandeurs rivées
+étant restituées en diagnostic sans clé Monte-Carlo. \emph{(iii) Nullité de la constante}
+(règle~R5)~: la p-value de Monte-Carlo est retenue, $H_0 : a = 0$ étant vraie sous le modèle
+simulé~; la p-value de Student, exacte sous le seul modèle auxiliaire des moindres carrés, que les
+hypothèses H2 et H3 contredisent, est restituée sans être retenue (fiche~\ref{fiche:student-constante}).
+\emph{(iv) Nature « sous le modèle auxiliaire MCO »}~: pour le TOST et les tests de Student sur la
+pente et de Fisher, aucune p-value de Monte-Carlo n'est possible (hypothèse nulle composite pour
+le premier, hors du modèle simulé pour les deux autres), et la seule p-value disponible, celle de
+la loi de Student ou de Fisher, n'est exacte que sous le modèle auxiliaire~: elle est retenue sous
+une nature qui le dit (par exemple \code{sous le modele auxiliaire MCO~: t(T-2) exacte (H0 non
+simulable~: le modele ajuste appartient a H1)}), en dehors des trois catégories de la hiérarchie,
+et n'est jamais présentée comme exacte au sens de l'ADR~0002.
 
 \subsection{Deux sources d'erreur distinctes}
 \label{sec:deuxerreurs}
@@ -2474,9 +2556,12 @@ de l'ordre de la granularité.
   \item \textbf{Résultats exacts disponibles à $T = 8$.} Loi binomiale
   (Cox--Stuart), loi de permutation de Spearman, loi mahonienne du $S$ de
   Kendall, loi combinatoire du nombre de suites, loi exacte de Smirnov à deux
-  échantillons, et les lois de Student et de Fisher de la régression auxiliaire
-  \emph{sous l'hypothèse de normalité exacte des erreurs}. Ces p-values sont
-  valides sans réserve de taille d'échantillon.
+  échantillons. Ces p-values sont valides sans réserve de taille d'échantillon. Les
+  lois de Student et de Fisher de la régression auxiliaire ne sont exactes que
+  \emph{sous le modèle auxiliaire des moindres carrés} (erreurs i.i.d. normales
+  homoscédastiques), que les hypothèses H2 et H3 du modèle réglementaire
+  contredisent~: ce ne sont pas des p-values exactes au sens de l'ADR~0002, et le
+  moteur les restitue sous une nature qui nomme ce modèle (issue~\#44).
   \item \textbf{Résultats asymptotiques sans justification suffisante à
   $T = 8$.} Les statistiques de type multiplicateur de Lagrange
   (Breusch--Pagan, White), portmanteau (Ljung--Box, Box--Pierce),
@@ -2488,9 +2573,31 @@ de l'ordre de la granularité.
   $b = 0$. Or le bootstrap paramétrique simule sous le \emph{modèle ajusté},
   pour lequel $\hat b \neq 0$~: le modèle de simulation appartient à $H_1$ et
   non à $H_0$. Une p-value de Monte-Carlo y serait dépourvue de sens. Ces deux
-  tests conservent donc leur loi de Fisher/Student, qui est \emph{exacte} sous
-  normalité des erreurs~: la limitation porte sur l'hypothèse de normalité, non
-  sur la taille d'échantillon.
+  tests conservent donc leur loi de Fisher/Student, qui est \emph{exacte} sous le
+  modèle auxiliaire des moindres carrés~: la limitation porte sur ce modèle, que
+  H2 et H3 contredisent, non sur la taille d'échantillon. Aucune des trois voies
+  de la hiérarchie n'est ouverte au sens strict --- pas de loi exacte sous le modèle
+  réglementaire, pas de Monte-Carlo, et aucune loi asymptotique distincte de cette
+  loi à $T$ fini ---~; la p-value de Student ou de Fisher est donc retenue comme la
+  seule disponible, sous la nature \code{sous le modele auxiliaire MCO~: t(T-2)
+  exacte (H0 non simulable~: le modele ajuste appartient a H1)}, qui dit sous quel
+  modèle elle vaut. \textbf{Règle~R4, identifiabilité de la pente} (issue~\#44)~:
+  sous le modèle ajusté, l'espérance du $t$ de la pente vaut, au premier ordre,
+  $\hat\lambda = \sqrt{T-1}\,\mathrm{CV}(x)\,\hat\beta/\hat\sigma$, avec
+  $\mathrm{CV}(x)$ le coefficient de variation des volumes, et la puissance du
+  test bilatéral au seuil $\alpha$ est approchée par
+  $\hat\pi_b = \mathbb{P}\big(|t| > t_{1-\alpha/2,\,T-2}\big)$ pour une loi de
+  Student décentrée $t(T-2, \hat\lambda)$ (\code{usp\_identifiabilite\_pente()},
+  calcul déterministe). Si $\hat\pi_b < 1/2$ (constante
+  \code{SEUIL\_PUISSANCE\_PENTE}), le test a moins d'une chance sur deux de rejeter
+  $b = 0$ quand le modèle réglementaire est vrai~: un \code{ECHEC} y décrirait le
+  plan d'expérience --- des volumes peu dispersés --- et non un écart au modèle, et
+  les lignes de la pente et de Fisher sont restituées en diagnostic, $\hat\lambda$ et $\hat\pi_b$
+  figurant dans leur commentaire. Le seuil $1/2$ est une convention de
+  restitution, non un seuil statistique~; $\hat\pi_b$ est une approximation au
+  premier ordre. Mesuré sur le jeu de contrôle~: $\hat\lambda = 1{,}78$,
+  $\hat\pi_b = 0{,}47$, la pente et Fisher sont des diagnostics
+  (fiches~\ref{fiche:student-pente} et~\ref{fiche:fisher-global}).
   \item \textbf{Un troisième cas, de nature différente~: la grandeur rivée par
   l'estimation.} Le centrage et la variance unitaire des résidus standardisés
   (fiches~\ref{fiche:centrage} et~\ref{fiche:variance-unitaire}) sont contraints par les conditions
@@ -2564,22 +2671,27 @@ deux régimes.
 \bottomrule
 \endlastfoot
 
-Student, constante & LN & $t_a$ & Oui (sous normalité) & --- & Oui &
-\textbf{Exacte} (MC en recoupement) &
-Sans objet : loi exacte & Distribution exacte à privilégier. \emph{Mais} le non-rejet ne
+Student, constante & LN & $t_a$ & Sous le modèle auxiliaire MCO seulement & --- & Oui &
+\textbf{Monte-Carlo} (p de Student restituée, non retenue~; issue~\#44) &
+Sans objet : la loi $t$ n'est exacte que sous le modèle auxiliaire, contredit par H2 et H3 &
+Bootstrap retenu, $H_0 : a = 0$ étant vraie sous le modèle simulé. \emph{Mais} le non-rejet ne
 prouve rien : compléter par le TOST \\
 
-Équivalence (TOST) & LN & $\max$ des 2 unilatéraux & Oui si $\Delta$ fixée a priori & --- &
-Sans objet & \textbf{Exacte} ($\Delta$ a priori) ou quasi-exacte ($\Delta = \theta\bar y$) &
-Sans objet : loi exacte & \textbf{Seul test fournissant une preuve positive} de
+Équivalence (TOST) & LN & $\max$ des 2 unilatéraux & Sous le modèle auxiliaire MCO, si
+$\Delta$ fixée a priori & --- &
+Sans objet & \textbf{Sous le modèle auxiliaire MCO}~: loi $t$ exacte ($\Delta$ a priori) ou
+d'exactitude approchée ($\Delta = \theta\bar y$) &
+Sans objet : aucune loi asymptotique employée & \textbf{Seul test fournissant une preuve positive} de
 proportionnalité ; fixer $\Delta$ a priori. Puissance de 46~\% seulement à $T=8$ \\
 
-Student, pente & LN & $t_b$ & Oui (sous normalité) & --- & Non (voir texte) &
-Exacte (loi $t$) & Sans objet : loi exacte & Distribution exacte à privilégier ;
-vérifier la normalité \\
+Student, pente & LN & $t_b$ & Sous le modèle auxiliaire MCO seulement & --- & Non (voir texte) &
+Sous le modèle auxiliaire MCO (loi $t$)~; \textbf{diagnostic} si $\hat\pi_b < 1/2$ (règle~R4) &
+Sans objet : aucune loi asymptotique employée & Seule p-value possible~; vérifier la normalité~;
+diagnostic sur le jeu de contrôle ($\hat\pi_b = 0{,}47$) \\
 
-Fisher global & LN & $F$ & Oui (sous normalité) & --- & Non (voir texte) &
-Exacte (loi $F$) & Sans objet : loi exacte & Idem ; redondant avec $t_b$ \\
+Fisher global & LN & $F$ & Sous le modèle auxiliaire MCO seulement & --- & Non (voir texte) &
+Sous le modèle auxiliaire MCO (loi $F$)~; \textbf{diagnostic} si $\hat\pi_b < 1/2$ (règle~R4) &
+Sans objet : aucune loi asymptotique employée & Idem ; redondant avec $t_b$ \\
 
 RESET & LN & $F$ & \textbf{Non} & Oui & Oui & Monte-Carlo &
 \textbf{Déconseillée} : $\hat y^2,\hat y^3$ dépendent de $y$, la loi $F$ n'est
@@ -2597,7 +2709,8 @@ Distribution exacte à privilégier \\
 Cox--Stuart & LN & $K$ & Oui (binomiale) & --- & Oui sans ex \ae quo, \code{NA} sinon
 (issue~\#85) & \textbf{Exacte} si
 $\hat\pi_t$ constant, approximation sinon &
-Sans objet & Exacte ; mais $p_{\min}=0{,}125$ à $T=8$ : test inopérant \\
+Sans objet & Exacte ; mais $p_{\min} \ge 0{,}125$ à $T=8$ : test inopérant, restitué en
+diagnostic (règle~R1) \\
 
 Breusch--Pagan studentisé (Koenker) & LN & LM & Non & Oui & Oui & Monte-Carlo &
 \textbf{Déconseillée} : convergence $\chi^2$ lente, aucune borne à $T=8$ &
@@ -2621,7 +2734,7 @@ Bootstrap recommandé \\
 
 Smirnov 2 éch. & LN & $D$ & Oui (combinatoire) & Oui & Oui & \textbf{Exacte} si
 $\hat\pi_t$ constant ($\hat\delta = 1$), approximation sinon &
-Inutile & Exacte ; $n_1=n_2=4$ : $p_{\min}=0{,}029$ \\
+Inutile & Exacte ; $n_1=n_2=4$ : $p_{\min}=2/70=0{,}029$ (champ \code{p\_min}) \\
 
 Shapiro--Wilk & LN & $W$ & \textbf{Oui} si $\hat\pi_t$ constant, loi de $W$ évaluée par
 simulation directe (sans Royston)~; approximation sinon
@@ -2633,12 +2746,14 @@ Shapiro--Francia & LN & $W'$ & Non & Approx. Royston & Oui & Monte-Carlo &
 \textbf{Sous conditions} : validité annoncée $5\le T\le 5000$ &
 Bootstrap recommandé \\
 
-Anderson--Darling & LN & $A^2$ & Non (param. estimés) & Oui (Stephens, cas 3) & Oui &
+Anderson--Darling & LN & $A^2$ & Non (param. estimés) & Oui (Stephens, cas 3, sur la statistique
+re-standardisée, $T \ge 8$) & Oui &
 Monte-Carlo, p de Stephens en complément &
 \textbf{Sous conditions} : ajustement empirique, calibration vérifiée à $T=8$ &
 Bootstrap retenu ; p de Stephens disponible \\
 
-Cramér--von~Mises & LN & $W^2$ & Non & Oui (Stephens, cas 3) & Oui &
+Cramér--von~Mises & LN & $W^2$ & Non & Oui (Stephens, cas 3, sur la statistique
+re-standardisée, $T \ge 8$) & Oui &
 Monte-Carlo, p de Stephens en complément & Idem $A^2$ &
 Bootstrap retenu ; p de Stephens disponible \\
 
@@ -2677,7 +2792,8 @@ Bootstrap ; préférer Ljung--Box \\
 Suites (W.--W.) & LN & $Z$ / $R$ & Oui (combinatoire) & Oui & Oui & \textbf{Exacte}
 (doublement) si $\hat\pi_t$ constant, approximation sinon &
 \textbf{Déconseillée} : approx. normale requiert $n_1,n_2\ge 10$ &
-Distribution exacte à privilégier~; $p_{\min} = 0{,}057$ à $T = 8$ \\
+Distribution exacte à privilégier~; $p_{\min} = 0{,}057$ à $T = 8$ : \code{ECHEC}
+inatteignable à $\alpha = 0{,}10$ \\
 
 Durbin--Watson sur ratios bruts & LN & DW & Non : $u_t$ non gaussiens, Imhof inapplicable &
 --- & Oui & Monte-Carlo & Sans objet (aucune loi limite employée) &
@@ -2883,9 +2999,11 @@ jusqu'à 2 ou 3 sur les dernières années de développement.
 statistique --- non contrôlable, $T$ est une donnée}} \\
 \midrule
 
-Student / Fisher & \emph{Aucune} : loi exacte à $T$ fini & --- & --- & --- &
-Erreurs i.i.d. $\mathcal{N}(0,\sigma^2)$, régresseurs fixes &
-Valide, sous réserve de la normalité \\
+Student / Fisher & \emph{Aucune} : loi exacte à $T$ fini sous le modèle auxiliaire MCO & --- & --- & --- &
+Erreurs i.i.d. $\mathcal{N}(0,\sigma^2)$, régresseurs fixes (modèle auxiliaire, contredit par H2
+et H3) &
+Valide sous ce seul modèle~; constante~: p de Student non retenue (Monte-Carlo)~; pente et
+Fisher~: nature «~sous le modèle auxiliaire MCO~», diagnostic si $\hat\pi_b < 1/2$ \\
 
 Breusch--Pagan (Koenker), White & $\mathrm{LM} = TR^2_{\text{aux}}$ & $\chi^2(q)$ &
 Convergence en loi & Non établie de façon exploitable ; TCL sous-jacent en
@@ -2929,7 +3047,8 @@ Anderson--Darling, CvM, KS & Processus empirique
 $\sqrt{T}(\hat F - F_0)$ & Pont brownien (transformé) &
 Convergence faible dans $D[0,1]$ & $\mathcal{O}(T^{-1/2})$ pour les
 fonctionnelles régulières & $F_0$ continue, paramètres \emph{connus} &
-Hypothèse violée (paramètres estimés) ; bootstrap requis \\
+Hypothèse violée (paramètres estimés) ; bootstrap requis~; p de Stephens ($A^2$, $W^2$) calculée
+sur la statistique re-standardisée \\
 
 sup-F & $\{F(k)\}_k$ & Sup. d'un processus de Bessel &
 Convergence faible & Fonctionnelle : lente, non quantifiée à $T$ petit &
@@ -3492,8 +3611,8 @@ méthodologique, indiqué en troisième colonne.
 \multicolumn{3}{@{}l@{}}{\textcolor{financeblue}{\textbf{Méthode lognormale}}} \\
 Cox--Stuart & $n_p = 4$ paires, donc au plus $m = 4$ différences non nulles
 $\Rightarrow$ $p_{\min} = 2\cdot 2^{-m} \ge 0{,}125$~: le rejet est \emph{impossible} à tout
-seuil usuel & Conservé (loi exacte), mais signalé comme inopérant~; la détection
-de tendance repose sur Mann--Kendall exact \\
+seuil usuel & Restitué en diagnostic, sans verdict~: test inopérant, $p_{\min} \ge \alpha$
+(règle~R1, issue~\#44)~; la détection de tendance repose sur Mann--Kendall \\
 Jarque--Bera & $b_2$ borné par $\sim T$~; convergence $\chi^2_2$ très lente &
 p-value de Monte-Carlo ajoutée~; test à lire comme purement indicatif \\
 White & 3 coefficients auxiliaires estimés sur 8 points & p-value de
@@ -3509,10 +3628,12 @@ découler sans justification métier \\
 sup-F, OLS-CUSUM & Convergence fonctionnelle~; 8 points ne forment pas une
 trajectoire limite & p-value de Monte-Carlo seule retenue~; à lire
 conjointement avec la distance de Cook \\
-Student / Fisher (pente) & Loi exacte, mais \emph{conditionnelle} à la
-normalité des erreurs, non testable indépendamment à $T = 8$ &
-Aucune p-value de Monte-Carlo possible (voir texte)~; la normalité est
-examinée séparément en section~\ref{sec:h3} \\
+Student / Fisher (pente) & Loi exacte sous le seul modèle auxiliaire des moindres
+carrés (erreurs i.i.d. normales homoscédastiques), que H2 et H3 contredisent~; puissance
+approchée $\hat\pi_b = 0{,}47$ sur le jeu de contrôle &
+Aucune p-value de Monte-Carlo possible (section~\ref{sec:t8})~; nature «~sous le modèle auxiliaire
+MCO~»~; diagnostic si $\hat\pi_b < 1/2$ (règle~R4)~; la normalité est examinée séparément en
+section~\ref{sec:h3} \\
 \rowcolor{tableheader}
 \multicolumn{3}{@{}l@{}}{\textcolor{financeblue}{\textbf{Méthode Merz--Wüthrich}}} \\
 Corrélation entre années de développement & Cinq à six paires de colonnes
@@ -3562,8 +3683,7 @@ nomme, pour la méthode du risque de primes, les pertes agrégées \emph{attendu
 lit leur espérance) et, pour la méthode du risque de réserve n\textsuperscript{o}~1, le montant
 de C(1)(a) lui-même, sans le mot «~attendu~»~; il ne l'écrit pas sous forme d'équation~;
 l'outil lit «~linéaire proportionnelle~» comme $\mathbb{E}[Y_t] = \beta x_t$, sans terme
-constant, et «~pertes agrégées attendues~» comme l'espérance. L'outil lit les deux points comme
-une relation sur l'espérance. \emph{Traduction dans le modèle réglementaire} (lecture de
+constant. \emph{Traduction dans le modèle réglementaire} (lecture de
 l'outil~: modèle des paragraphes (5) et (6) des sections~B et~C, section~\ref{sec:notations})~:
 l'espérance de $Y_t$ est \emph{linéairement proportionnelle} à $x_t$,
 $\mathbb{E}[Y_t] = \beta x_t$, sans terme constant, avec $\beta$ constant dans le temps.
@@ -3599,11 +3719,22 @@ testable de la \emph{proportionnalité stricte} exigée par le règlement.
   \qquad \hat s^2 = \frac{\mathrm{SCR}}{T-2}.
 \]
 \Loi
-$t_a \sim t(T-2)$, loi exacte sous normalité des erreurs.
+$t_a \sim t(T-2)$, loi exacte sous le modèle auxiliaire des moindres carrés (erreurs i.i.d.
+normales homoscédastiques, rubrique~1). Sous le modèle réglementaire, qui pose une variance
+quadratique en $x_t$ (H2) et des pertes lognormales (H3), cette loi n'est pas exacte, et aucune
+borne d'erreur n'est connue à $T = 8$.
 \Pval
-$p = 2\big(1 - F_{t,T-2}(|t_a|)\big)$. Cette p-value est \textbf{exacte} sous normalité des
-erreurs~: elle est donc retenue en priorité par le moteur, la p-value de Monte-Carlo n'étant
-calculée qu'à titre de recoupement (les deux concordent étroitement sur le jeu de référence).
+La p-value de Student, $p = 2\big(1 - F_{t,T-2}(|t_a|)\big)$, est calculée et restituée dans la
+colonne \code{p\_asymptotique}, \textbf{sans être retenue}~: elle n'est exacte que sous le modèle
+auxiliaire. Depuis l'issue~\#44 (règle~R5), la p-value retenue est celle de Monte-Carlo (clé
+\code{Intercept}, bilatérale)~: $t_a$ est simulée sous le modèle ajusté de l'annexe~XVII, où
+$a = 0$ est vrai, ce qui en fait une loi de référence sous $H_0$ conditionnelle au modèle ajusté
+(fiche~\ref{fiche:procedure-mc}). Mesuré sur le jeu de contrôle (méthode prime, $B = 999$, graine
+20260831)~: p-value de Student $0{,}938$, p-value de Monte-Carlo $0{,}944$, retenue, verdict
+\code{OK}~; jusqu'à l'issue~\#44, la p-value de Student était retenue sous la nature
+\code{exacte}. Si la p-value de Monte-Carlo manque, la p-value de Student n'est pas retenue à sa
+place~: la ligne passe en diagnostic et son commentaire nomme le motif (repli interdit,
+ADR~0001~; section~\ref{sec:nature}).
 \Usage
 On souhaite \emph{ne pas} rejeter $H_0$, ce qui constitue la faiblesse logique de ce test~:
 \textbf{l'absence de preuve n'est pas une preuve d'absence}. Un non-rejet ne démontre pas la
@@ -3659,15 +3790,23 @@ On rejette $H_0$ au niveau $\alpha$ si et seulement si les deux sous-hypothèses
 soit $t_{\text{bas}} > t_{1-\alpha,\,T-2}$ \emph{et} $t_{\text{haut}} < -t_{1-\alpha,\,T-2}$.
 \Loi
 Chaque statistique unilatérale suit \emph{exactement} une loi de Student à $T-2$ degrés de
-liberté sous normalité des erreurs. Aucun résultat asymptotique n'intervient.
+liberté sous le modèle auxiliaire des moindres carrés (erreurs i.i.d. normales homoscédastiques),
+que les hypothèses H2 et H3 du modèle réglementaire contredisent. Aucun résultat asymptotique
+n'intervient.
 \Pval
 Règle du maximum, propre aux procédures d'intersection-union~:
 \[
   p_{\text{TOST}} = \max\Big(1 - F_{t,T-2}(t_{\text{bas}}),\ F_{t,T-2}(t_{\text{haut}})\Big).
 \]
-Cette p-value est exacte \textbf{si $\Delta$ est fixée a priori}. Avec la marge relative
-$\Delta = \theta\bar y$, la marge dépend des données et l'exactitude n'est plus qu'approchée~; le
-moteur signale alors la nature de la p-value comme \emph{quasi-exacte} et non comme exacte. Pour
+Sous le modèle auxiliaire, cette p-value est exacte \textbf{si $\Delta$ est fixée a priori}. Avec la
+marge relative $\Delta = \theta\bar y$, la marge dépend des données et l'exactitude n'est plus
+qu'approchée. Aucune p-value de Monte-Carlo n'est possible, l'hypothèse nulle $|a| \ge \Delta$
+étant composite et le modèle simulé, où $a = 0$, appartenant à $H_1$~: la p-value de Student est
+donc retenue, sous une nature qui dit sous quel modèle et à quelle condition elle vaut (issue~\#44),
+\code{sous le modele auxiliaire MCO~: t(T-2) exacte, marge fixee a priori} (colonne
+\code{p\_exacte}) ou \code{sous le modele auxiliaire MCO~: loi de Student, marge estimee sur les
+donnees} (colonne \code{p\_asymptotique}). Ni l'une ni l'autre n'est exacte au sens de l'ADR~0002~;
+jusqu'à l'issue~\#44, le moteur nommait la seconde \emph{quasi-exacte}, catégorie supprimée. Pour
 un dossier ACPR, il est recommandé d'arrêter $\Delta$ à l'avance et de le documenter.
 Deux cas sont restitués «~non applicable~», sans p-value retenue et en \code{INFO}
 (issue~\#58)~: les volumes constants ($x_t$ tous égaux, garde \code{sd(x) == 0} de
@@ -3714,9 +3853,18 @@ $H_0 : b = 0$, absence de tout lien linéaire entre le volume et les pertes.
   \widehat{\mathrm{se}}(\hat b) = \frac{\hat s}{\sqrt{S_{xx}}}.
 \]
 \Loi
-$t_b \sim t(T-2)$.
+$t_b \sim t(T-2)$, loi exacte sous le modèle auxiliaire des moindres carrés seulement (fiche
+précédente, rubrique~4).
 \Pval
-$p = 2\big(1 - F_{t,T-2}(|t_b|)\big)$.
+$p = 2\big(1 - F_{t,T-2}(|t_b|)\big)$, seule p-value de la ligne~: $H_0 : b = 0$ n'appartient pas
+au modèle simulé, dont la pente est $\hat\beta \ne 0$, de sorte qu'aucune p-value de Monte-Carlo
+n'est possible (section~\ref{sec:t8}). Elle est retenue sous la nature \code{sous le modele
+auxiliaire MCO~: t(T-2) exacte (H0 non simulable~: le modele ajuste appartient a H1)}, qui dit
+sous quel modèle elle vaut (issue~\#44)~; elle figure dans la colonne \code{p\_asymptotique},
+sans être une p-value asymptotique. \textbf{Règle~R4}~: si la puissance approchée
+$\hat\pi_b$ du test sous le modèle ajusté est inférieure à $1/2$ (section~\ref{sec:t8}), la ligne
+est restituée en diagnostic, sans verdict ni p-value retenue, et son commentaire donne
+$\hat\pi_b$ et l'indice $\hat\lambda$~; à volumes constants, elle est non applicable.
 \Usage
 \textbf{Ce test s'interprète en sens inverse des autres tests de cette section}~: on souhaite ici
 \emph{rejeter} $H_0$. Une pente non significative signifierait que le volume n'explique pas les
@@ -3724,7 +3872,14 @@ pertes, ce qui priverait de fondement le modèle réglementaire sur ce segment. 
 cette inversion dans ses verdicts ($p$ faible $\Rightarrow$ \code{OK}). Limites~: avec $T = 10$
 la puissance reste modeste~; et la significativité de la pente ne dit rien sur la
 \emph{proportionnalité} (absence de constante), qui relève de la fiche précédente. Les deux tests
-sont complémentaires et non substituables.
+sont complémentaires et non substituables. \emph{Pourquoi un diagnostic quand la pente n'est pas
+identifiable} (règle~R4)~: à $\hat\pi_b < 1/2$, le test a moins d'une chance sur deux de rejeter
+$b = 0$ quand le modèle réglementaire est vrai~; un \code{ECHEC} y décrirait l'étroitesse de la
+plage des volumes, non un écart au modèle. Le seuil $1/2$ est une convention de restitution, non
+un seuil statistique ni un repère de diagnostic~: il fixe le type de la ligne. Mesuré sur le jeu de
+contrôle~: $\hat\lambda = 1{,}78$, $\hat\pi_b = 0{,}47$, ligne restituée en diagnostic (elle
+sortait \code{ALERTE} avant l'issue~\#44)~; sur le jeu à $\hat\delta$ intérieur de la
+section~\ref{sec:verif}, la ligne reste un test (p-value $5{,}9\cdot 10^{-6}$, \code{OK}).
 \end{fiche}
 
 \begin{fiche}{Test de Fisher de significativité globale}
@@ -3743,9 +3898,14 @@ $H_0 : b = 0$ (plus généralement, nullité conjointe de tous les coefficients 
     \;=\; \frac{R^2/k}{(1-R^2)/(T-k-1)} .
 \]
 \Loi
-$F \sim \mathcal{F}(k,\,T-k-1)$, soit ici $\mathcal{F}(1, T-2)$.
+$F \sim \mathcal{F}(k,\,T-k-1)$, soit ici $\mathcal{F}(1, T-2)$, loi exacte sous le modèle
+auxiliaire des moindres carrés seulement.
 \Pval
-$p = 1 - F_{\mathcal{F},k,T-k-1}(F)$.
+$p = 1 - F_{\mathcal{F},k,T-k-1}(F)$, seule p-value de la ligne, retenue sous la même nature que
+celle de la pente (\code{sous le modele auxiliaire MCO~: \dots}), pour la même raison (fiche
+précédente). La règle~R4 s'applique à l'identique~: $F = t_b^2$, le test a la même puissance, et
+les lignes de la pente et de Fisher sont restituées ensemble en diagnostic lorsque $\hat\pi_b < 1/2$ (cas du jeu de
+contrôle).
 \Usage
 On souhaite, comme pour la pente, \emph{rejeter} $H_0$. En régression simple ce test est
 strictement équivalent au test de Student sur la pente ($F = t_b^2$, p-values identiques)~: il est
@@ -3862,6 +4022,9 @@ avec celle de l'énumération des $8!$ permutations, doublement bilatéral compr
 50 séries tirées au hasard, mesure).
 L'approximation de Student, $p = 2\big(1 - F_{t,T-2}(|t|)\big)$ (appel avec
 \code{exact = FALSE}), est restituée comme p-value asymptotique, sans être retenue.
+La plus petite p-value atteignable, celle des deux appariements extrêmes, vaut $2/T!$
+(\code{mk\_p\_min()}, champ \code{p\_min}), soit $5{,}0\cdot 10^{-5}$ à $T = 8$~: la règle
+d'inopérance (issue~\#44) ne s'applique en pratique jamais à cette ligne.
 La p-value de Monte-Carlo (clés \code{SpearVol} et \code{SpearTps}), bilatérale, est calculée
 sans être retenue. Depuis l'issue~\#41, la statistique simulée est $S$, celle qu'affiche la
 ligne, et non plus $\hat\rho_s$~; $S = T(T^2-1)(1-\hat\rho_s)/6$ étant une fonction affine
@@ -3918,6 +4081,8 @@ obtenue par la distribution mahonienne du nombre d'inversions (M.\,G. Kendall, J
 probabilités des issues telles que $|S| \ge |S_{\text{obs}}|$~; elle est
 calculée pour $T \le 12$ sans ex \ae quo. L'approximation normale
 $p = 2\big(1 - \Phi(|Z|)\big)$ est restituée comme p-value asymptotique, sans être retenue.
+La plus petite p-value atteignable, celle des deux ordres extrêmes, vaut $2/T!$
+(\code{mk\_p\_min()}, champ \code{p\_min}), soit $5{,}0\cdot 10^{-5}$ à $T = 8$ (issue~\#44).
 L'équiprobabilité des ordres chronologiques suppose les $r_t$ identiquement distribués~: sous le
 modèle ajusté, ils ne le sont qu'à $\hat\pi_t$ constant. La p-value n'est exacte au sens de
 l'ADR~0002 que dans ce régime~; le moteur l'étiquette \code{exacte} et la retient dans tous les
@@ -3959,7 +4124,8 @@ Test binomial bilatéral exact~:
   p = \sum_{j\,:\,\mathbb{P}(K=j)\,\le\,\mathbb{P}(K=k_{\text{obs}})} \binom{m}{j}\left(\tfrac12\right)^{m},
 \]
 somme des probabilités des issues au moins aussi improbables que celle observée. C'est la
-p-value retenue. La p-value de Monte-Carlo (clé \code{CoxStuart}), calculée sans être retenue,
+p-value retenue lorsque la ligne est un test~; à $T = 8$ et $\alpha = 0{,}10$, elle ne l'est jamais
+(rubrique~6). La p-value de Monte-Carlo (clé \code{CoxStuart}), calculée sans être retenue,
 ne simule pas $K$ lui-même mais $|K - n_p/2|$, $n_p = T - c$ étant le nombre de paires, avec
 rejet en queue haute~: la loi de $K$ étant symétrique sous $H_0$, la queue haute de
 $|K - n_p/2|$ est la région de rejet bilatérale de $K$. C'est une transformation qui conserve la
@@ -3992,7 +4158,15 @@ différences. Pour $T = 10$, $m = 5$ et la p-value bilatérale minimale atteigna
 $2 \times (1/2)^5 = 0{,}0625 > 0{,}05$~: \emph{le test ne peut structurellement jamais rejeter au
 seuil de 5~\%}, quelle que soit la force de la tendance. Il faut $m \ge 6$ (donc $T \ge 12$) pour
 qu'un rejet à 5~\% devienne possible. À $T$ faible, ce test est purement indicatif et
-Mann--Kendall doit lui être préféré.
+Mann--Kendall doit lui être préféré. \textbf{À $T = 8$}, $n_p = 4$, donc $m \le 4$ et
+$p_{\min} = \min(1, 2 \cdot 0{,}5^{m}) \ge 0{,}125 > \alpha = 0{,}10$~: au seuil par défaut, le
+test est \emph{inopérant} pour toute donnée --- propriété exacte de la loi binomiale, non constat
+de simulation. Le moteur le restitue en diagnostic, sans verdict ni p-value retenue (règle~R1,
+issue~\#44~; \code{cox\_stuart\_p\_min()}), la p-value minimale figurant dans le champ
+\code{p\_min} et en tête du commentaire (\code{TEST INOPERANT au seuil alpha = 0.1~: p-value
+minimale atteignable = 0.1250 (m = 4 differences non nulles)}), les p-values calculées restant
+affichées. Jusqu'à l'issue~\#44, la ligne sortait \code{OK} sur le jeu de contrôle. Elle ne
+redevient un test qu'à un seuil $\alpha > p_{\min}$, soit $\alpha > 0{,}125$ sans ex \ae quo.
 \end{fiche}
 
 \newpage
@@ -4241,7 +4415,11 @@ Exacte par énumération pour $n_1 n_2$ petit ; sinon
 Complément utile aux tests de variance~: il détecte aussi un décalage de niveau ou un changement
 de forme entre petits et gros volumes. Deux limites~: (i) puissance faible à effectifs réduits --
 avec $n_1 = n_2 = 5$, la plus petite p-value atteignable est $2/\binom{10}{5} \approx 0{,}008$,
-le rejet reste donc possible mais exige un écart maximal~; (ii) les deux échantillons ne sont pas
+le rejet reste donc possible mais exige un écart maximal~; à $T = 8$, $n_1 = n_2 = 4$ et
+$p_{\min} = 2/\binom{8}{4} = 2/70 \approx 0{,}029$ (\code{smirnov\_p\_min()}, champ
+\code{p\_min}, atteinte seulement pour $D = 1$), sous $\alpha/2 = 0{,}05$~: le test n'est pas
+inopérant au seuil par défaut, il le serait à tout seuil $\alpha \le 0{,}029$ (règle~R1,
+issue~\#44)~; (ii) les deux échantillons ne sont pas
 indépendants puisque les $z_t$ partagent les mêmes paramètres estimés
 $(\hat\beta, \hat\delta, \hat\gamma)$~: $z \sim \mathcal{N}(0, P)$ sous le modèle ajusté
 (section~\ref{sec:base-residus}, issue~\#25). La loi combinatoire suppose seulement les $z_t$
@@ -4442,9 +4620,20 @@ $A^{*2} = A^2\big(1 + 0{,}75/T + 2{,}25/T^2\big)$, de loi différente.
 Deux p-values sont rapportées. La première est \emph{non simulée}~: approximations par
 morceaux de D'Agostino \& Stephens (1986) pour le cas où moyenne et variance sont estimées, par
 exemple $p \approx \exp(1{,}2937 - 5{,}709\,A^{*2} + 0{,}0186\,A^{*4})$ sur la plage
-$0{,}60 < A^{*2} < 13$, avec d'autres branches ailleurs. Ce sont des ajustements empiriques et non
-un résultat exact~; leur calibration a été vérifiée par simulation (5,2~\% de rejets au seuil de
-5~\% à $T = 8$). La seconde est la p-value de Monte-Carlo, qui reste celle retenue pour le verdict
+$0{,}60 < A^{*2} < 13$, avec d'autres branches ailleurs. Ce cas suppose l'échantillon standardisé
+par sa moyenne et son écart-type empiriques, ce que n'est pas $z$, standardisé par le
+\emph{modèle}~: à $\hat\pi_t$ constant, $z_t = \sqrt{T/(T-1)}\,(v_t - \bar v)/s_v$, valeurs
+gonflées du facteur $\sqrt{T/(T-1)}$. Depuis l'issue~\#44 (règle~R6), la p-value non simulée est
+donc calculée sur la statistique \emph{re-standardisée}, $A^2$ de $(z - \bar z)/s_z$, restituée
+dans le champ \code{estim}~; le champ \code{stat} garde $A^2$ calculée sur $z$, statistique du
+catalogue sur laquelle porte la p-value de Monte-Carlo. La p-value non simulée n'est pas calculée
+pour $T < 8$, hors de la plage de l'implémentation de référence \code{nortest::ad.test} ($n > 7$),
+et le commentaire le dit~; la plage de la table de D'Agostino \& Stephens elle-même n'a pas été
+vérifiée sur l'ouvrage. Ce sont des ajustements empiriques et non un résultat exact~; sur
+20\,000 échantillons i.i.d. $\mathcal{N}(0,1)$ de taille $T = 8$ re-standardisés (graine~1,
+constat de simulation), la fréquence de $p \le 0{,}05$ vaut $5{,}0~\%$ et celle de $p \le 0{,}10$
+vaut $10{,}5~\%$. Mesuré sur le jeu de contrôle~: $0{,}527$ (contre $0{,}431$ avant l'issue~\#44,
+calculée sur $z$). La seconde est la p-value de Monte-Carlo, qui reste celle retenue pour le verdict
 car elle tient compte du modèle effectivement ajusté.
 \Usage
 Test le plus pertinent pour un usage actuariel~: la pondération en queue le rend sensible
@@ -4474,8 +4663,12 @@ Loi limite de Cramér--von Mises sous $H_0$ à paramètres connus ; statistique 
 $W^{*2} = W^2(1 + 0{,}5/T)$ lorsque les paramètres sont estimés.
 \Pval
 Approximations par morceaux de Stephens pour le cas à paramètres estimés, rapportées comme
-p-value non simulée (calibration vérifiée par simulation~: 4,9~\% de rejets au seuil de
-5~\% à $T = 8$)~; la p-value de Monte-Carlo reste celle retenue pour le verdict.
+p-value non simulée, calculées comme pour Anderson--Darling sur la statistique re-standardisée,
+$W^2$ de $(z - \bar z)/s_z$, restituée dans le champ \code{estim}, et non calculées pour
+$T < 8$ (règle~R6, issue~\#44)~; sur les mêmes 20\,000 échantillons re-standardisés, la fréquence
+de $p \le 0{,}05$ vaut $4{,}8~\%$ et celle de $p \le 0{,}10$ vaut $10{,}0~\%$ (constat de
+simulation). Mesuré sur le jeu de contrôle~: $0{,}480$ (contre $0{,}398$ avant l'issue~\#44).
+La p-value de Monte-Carlo reste celle retenue pour le verdict.
 \Usage
 Version non pondérée d'Anderson--Darling~: elle accorde le même poids à toute la distribution, et
 est donc \emph{moins} sensible aux queues, ce qui la rend plus stable mais moins pertinente pour
@@ -4921,9 +5114,11 @@ $\hat\pi_t$ est constant »).
 $70\,P(R = 2, \dots, 8) = (2, 6, 18, 18, 18, 6, 2)$, et la p-value ne prend que quatre valeurs~:
 $1$ ($R = 5$), $52/70 = 0{,}743$ ($R \in \{4, 6\}$), $16/70 = 0{,}229$ ($R \in \{3, 7\}$) et
 $4/70 = 0{,}057$ ($R \in \{2, 8\}$). Le test est donc \emph{inopérant} --- sa plus petite p-value
-atteignable dépasse le seuil --- à tout seuil $\alpha < 4/70$, soit $\alpha \le 0{,}057$~; le moteur le
-restitue néanmoins comme test dans tous les cas (le traitement des tests inopérants relève de
-l'issue~\#44). À $T = 5$, l'observation médiane est écartée, $n_1 = n_2 = 2$, $R$ est uniforme sur
+atteignable atteint ou dépasse le seuil --- à tout seuil $\alpha \le 4/70 \approx 0{,}057$~; le
+moteur le restitue alors en diagnostic, sans verdict (règle~R1, issue~\#44), la p-value minimale
+aux effectifs $(n_1, n_2)$ observés étant calculée par \code{runs\_p\_min()} et portée par le
+champ \code{p\_min}. Si un seul côté de la médiane est représenté, la loi de $R$ n'est pas
+définie et la ligne est non applicable. À $T = 5$, l'observation médiane est écartée, $n_1 = n_2 = 2$, $R$ est uniforme sur
 $\{2, 3, 4\}$ et $p \in \{2/3\ (R \in \{2, 4\}),\ 1\ (R = 3)\}$. \textbf{Réserve}~: $n_1 \ne n_2$ ne
 se produit qu'en présence d'ex \ae quo sur la médiane (pour $T$ impair, l'observation médiane est
 écartée et, sans autre ex \ae quo, $n_1 = n_2 = (T-1)/2$). La loi de $R$ est alors asymétrique
@@ -4974,7 +5169,8 @@ et la granularité de $R$ (entier compris
 entre 2 et $n$) limite fortement le nombre de p-values atteignables. À $T = 8$, au seuil par
 défaut $\alpha = 0{,}10$, seules les valeurs extrêmes $R \in \{2, 8\}$ conduisent au rejet
 ($p = 0{,}057$, verdict \code{ALERTE})~; le verdict \code{ECHEC}, qui exige $p < \alpha/2 = 0{,}05$,
-est inatteignable. Le verdict \code{OK} couvre les cinq valeurs $R \in \{3, \dots, 7\}$, soit une
+est inatteignable, ce que le commentaire de la ligne dit depuis l'issue~\#44
+(\code{ECHEC inatteignable~: p\_min = 0.0571 >= alpha/2 = 0.05 (n1 = 4, n2 = 4)}). Le verdict \code{OK} couvre les cinq valeurs $R \in \{3, \dots, 7\}$, soit une
 probabilité $66/70 = 0{,}943$ sous $H_0$~: il ne vaut pas validation de l'indépendance.
 \end{fiche}
 
@@ -5621,7 +5817,11 @@ même statistique, même p-value exacte, même verdict (section~\ref{sec:base-re
 n'apporte une information propre que lorsque $\hat\pi_t$ varie, où elle retient alors la
 p-value de Monte-Carlo, dont la portée à $T = 8$ est celle du bootstrap paramétrique
 (section~\ref{sec:mc}). Granularité et test inopérant~: mêmes valeurs atteignables qu'à la
-fiche~\ref{fiche:suites-wald-wolfowitz} lorsque la p-value exacte est retenue.
+fiche~\ref{fiche:suites-wald-wolfowitz} lorsque la p-value exacte est retenue~; la règle~R1
+s'applique à cette ligne comme à celle sur $z_t$, avec la p-value minimale aux effectifs des signes
+de $u_t$ (champ \code{p\_min}). Sans p-value exacte, cette p-value minimale, calculée sur la loi
+combinatoire, n'est qu'une approximation de celle de la p-value de Monte-Carlo, ce que le
+commentaire de la ligne précise (issue~\#44).
 \end{fiche}
 
 \newpage
@@ -8517,6 +8717,14 @@ d'\code{engine\_registre\_tests()}, unique et partagée par \code{usp\_tests()} 
 Sortie de la hiérarchie (grandeur rivée par l'estimation) & branche finale de \code{add()}~:
 \code{p\_retenue} et \code{nature\_p} à \code{NA}, verdict \code{INFO}, seul admis
 hors des types \code{test} et \code{procedure de decision} \\
+Test inopérant, Monte-Carlo indisponible ou dégénéré, repli nommé, nature «~sous le modèle
+auxiliaire MCO~» (§\ref{sec:nature}, issue~\#44) & \code{add()}~: arguments \code{p\_min},
+\code{effectifs}, \code{repli\_asymptotique}, \code{nature\_forcee}~; \code{runs\_p\_min()},
+\code{cox\_stuart\_p\_min()}, \code{smirnov\_p\_min()}, \code{mk\_p\_min()}~; motif
+\code{motif\_mc} d'\code{engine\_p\_mc()} et de \code{.mc\_p\_values()} (constantes
+\code{TOL\_DISPERSION\_MC}, \code{B\_MIN\_DEGENERESCENCE}) \\
+Identifiabilité de la pente, règle~R4 (§\ref{sec:t8}) & \code{usp\_identifiabilite\_pente()},
+constante \code{SEUIL\_PUISSANCE\_PENTE}, lue par \code{usp\_tests()} \\
 Réserve sur la base « ratios bruts » à $\hat\pi_t$ constant & champ \code{detail} des six lignes
 de base \code{r} dans \code{usp\_tests()} \\
 Erreur de Monte-Carlo (§\ref{sec:deuxerreurs}) & champ \code{err\_mc} de \code{usp\_bootstrap()} et de
@@ -8750,7 +8958,12 @@ convergence multi-démarrages ne sont plus des lignes de la table (issue~\#22)~:
 contrôles \code{OK} / \code{ECHEC} de \code{res\$controles} (fiches~\ref{fiche:foc}
 et~\ref{fiche:multi-demarrages}).
 Une ligne de type \code{test} sans p-value retenue sort aussi \code{INFO}.
-Relèvent notamment de ce verdict~: test non applicable faute d'effectif
+Relèvent notamment de ce verdict~: test \emph{inopérant}, dont la plus petite p-value
+atteignable $p_{\min}$ atteint ou dépasse $\alpha$ (règle~R1, issue~\#44~; Cox--Stuart à $T = 8$,
+fiche~\ref{fiche:cox-stuart}), restitué en diagnostic~; tests de Student sur la pente et de
+Fisher lorsque la pente n'est pas identifiable par les données, $\hat\pi_b < 1/2$ (règle~R4,
+section~\ref{sec:t8})~; ligne dont la loi simulée est dégénérée (section~\ref{sec:nature})~;
+test non applicable faute d'effectif
 ($T < 8$ pour D'Agostino, $T < 20$ pour Anscombe--Glynn), grandeur rivée par l'estimation
 (fiches~\ref{fiche:centrage} et~\ref{fiche:variance-unitaire}), grandeur descriptive, ou lecture graphique.
 Relève aussi de ce verdict la grandeur dont la valeur est \emph{contrainte par
@@ -8805,6 +9018,16 @@ repère indicatif de 40~\% du second n'emporte aucun verdict (ADR~0001). \\
 
 \subsection*{Tests structurellement inopérants à faible $T$}
 
+Le tableau ci-dessous recense les tests dont la validité ou le pouvoir de rejet dépend de $T$.
+Au sens de \code{CONTEXT.md}, un test est \emph{inopérant} lorsque sa plus petite p-value
+atteignable aux effectifs observés, $p_{\min}$, atteint ou dépasse $\alpha$~: aucune donnée ne
+peut alors le faire rejeter. Depuis l'issue~\#44, le moteur calcule $p_{\min}$ pour les cinq lois
+de référence discrètes (suites sur $z_t$ et sur $u_t$, Cox--Stuart, Smirnov, Mann--Kendall et
+Spearman) et restitue en diagnostic, sans verdict, toute ligne inopérante (règle~R1,
+section~\ref{sec:nature})~; à $T = 8$ et $\alpha = 0{,}10$, sans ex \ae quo, seul Cox--Stuart
+l'est, et il l'est pour toute donnée. Les autres entrées du tableau relèvent d'une approximation mal calibrée ou d'une
+définition impossible à faible $T$, non de l'inopérance.
+
 \begin{center}
 \small
 \begin{tabular}{@{}p{4.4cm}p{2.6cm}p{8.0cm}@{}}
@@ -8812,13 +9035,15 @@ repère indicatif de 40~\% du second n'emporte aucun verdict (ADR~0001). \\
 \textbf{Test} & \textbf{Seuil de validité} & \textbf{Nature du problème} \\
 \midrule
 Cox--Stuart & $T \ge 12$ & Rejet à 5~\% \emph{impossible} pour $m \le 5$ différences non
-nulles. \\
+nulles~; au seuil par défaut $\alpha = 0{,}10$, impossible pour $m \le 4$, donc toujours à
+$T = 8$~: restitué en diagnostic (règle~R1). \\
 Anscombe--Glynn & $T \ge 20$ & Non défini en-deçà~; marqué \code{INFO}. \\
 D'Agostino (asymétrie) & $T \ge 8$ & Non défini en-deçà~; puissance faible jusqu'à $T \approx 20$. \\
 Jarque--Bera & $T \ge 50$ & $b_2$ borné par $\approx T$~; convergence $\chi^2$ très lente. \\
 Ljung--Box / Box--Pierce & $T \ge 30$ & Approximation $\chi^2$ mal calibrée. \\
 Wald--Wolfowitz & $n_1,n_2 \ge 10$ & Approximation normale~; granularité de $R$ (loi exacte
-retenue, $p_{\min} = 0{,}057$ à $T = 8$). \\
+retenue, $p_{\min} = 0{,}057$ à $T = 8$~: \code{ECHEC} inatteignable à $\alpha = 0{,}10$,
+test inopérant à $\alpha \le 0{,}057$). \\
 Breusch--Pagan / White & $T \ge 30$ & Convergence asymptotique lente. \\
 Rosner ESD & $T \ge 25$ & Valeurs critiques peu fiables en-deçà. \\
 Durbin--Watson & --- & Bornes invalides sur résidus de maximum de vraisemblance. \\
@@ -9317,7 +9542,8 @@ d'appariement. \\
 Une fonction, plusieurs tests & \code{test\_lm\_complet()} (4 entrées),
 \code{.shapiro\_sur()} (2 entrées)~; \code{stat\_dw()}, \code{test\_runs()},
 \code{stat\_supF()}, \code{stat\_cusum()} et \code{test\_grubbs()} (2 entrées
-chacune, sur $z_t$ et sur les ratios bruts $u_t$) & Une anomalie se propage à toutes les
+chacune, sur $z_t$ et sur les ratios bruts $u_t$)~; \code{usp\_identifiabilite\_pente()} (type des
+lignes de la pente et de Fisher) & Une anomalie se propage à toutes les
 entrées issues de l'appel. \\
 Base « ratios bruts » & six lignes sur $u_t$, construit par
 \code{.usp\_contexte\_}\newline\code{mc()}, statistiques calculées dans
