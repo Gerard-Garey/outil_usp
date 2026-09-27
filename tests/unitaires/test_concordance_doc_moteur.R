@@ -9,7 +9,10 @@
 #  avec arguments), nombres en lettres, registre des decomptes (phrase
 #  verifiee, ecart, phrase introuvable, methode multiple), inventaire par
 #  occurrence et classement des formulations (verifiee, exemptee, non
-#  classee, exemption perimee ; issue #75), grandeurs, familles, exemptions
+#  classee, exemption perimee ; issue #75 ; audit de #75 : verifiee a la
+#  seule position d'un nombre capture, qualificatif intercale, nombre en
+#  mode mathematique, nombres en lettres jusqu'a cent, risque residuel des
+#  exemptions de provenance), grandeurs, familles, exemptions
 #  nominatives (appliquee, ancree sur son contexte, perimee, jugee sans
 #  paquet : issue #86), colonne "Cle MC" (issue #91 : cles, fins de rangee
 #  \\, \\* et \\[..], rangee non terminee), seuil de B
@@ -132,6 +135,73 @@ verifier("Classement : exemption de decompte perimee signalee",
 verifier("Classement : une phrase du registre introuvable ne couvre aucune formulation",
          identical(cc$classer_formulations(doc75, cc$verifier_decomptes(doc75, g75, reg75[2]), list())$formulations$statut,
                    c("NON CLASSEE", "verifiee", "NON CLASSEE", "NON CLASSEE")))
+# Audit de #75, C3 : un nombre NON capture dans l'etendue d'une phrase du
+# registre n'est pas verifie par elle (il l'etait auparavant, la phrase
+# couvrant toute formulation commencant dans son etendue).
+.doc_c3 <- "Des 50 lignes de la table auditable, dont 7 lignes fixes, on retient tout."
+.reg_c3 <- list(list(id = "c3", methode = "m", motif = paste0("des ", cc$N_, " lignes de la table auditable, dont"),
+                     champs = "lignes (total)"))
+.v_c3 <- cc$verifier_decomptes(c(.doc_c3), list(m = c("lignes (total)" = 50)), .reg_c3)
+.cl_c3 <- cc$classer_formulations(.doc_c3, .v_c3, list())
+.reg_c3l <- list(list(id = "c3l", methode = "m",
+                      motif = paste0("des ", cc$N_, " lignes de la table auditable, dont 7 lignes fixes"),
+                      champs = "lignes (total)"))
+.cl_c3l <- cc$classer_formulations(.doc_c3, cc$verifier_decomptes(.doc_c3, list(m = c("lignes (total)" = 50)), .reg_c3l),
+                                   list())
+verifier("C3 : verifiee seulement a la position d'un groupe capturant ; nombre non capture dans l'etendue d'une phrase -> NON CLASSEE",
+         identical(.v_c3$pos_cap, 5L) &&
+           identical(.cl_c3$formulations$formulation, c("50 lignes", "7 lignes")) &&
+           identical(.cl_c3$formulations$statut, c("verifiee", "NON CLASSEE")) &&
+           identical(.cl_c3l$formulations$statut, c("verifiee", "NON CLASSEE")))
+verifier("C3 : registre dont le nombre de groupes capturants differe du nombre de champs -> erreur explicite",
+         grepl("groupe(s) capturant(s)", tryCatch({
+           cc$verifier_decomptes(.doc_c3, list(m = c("lignes (total)" = 50)),
+                                 list(list(id = "x", methode = "m", motif = paste0("des ", cc$N_, " lignes"),
+                                           champs = c("a", "b")))); ""
+         }, error = function(e) conditionMessage(e)), fixed = TRUE))
+
+## --- Audit de #75, C2 : qualificatif intercale, mode mathematique, cent ----
+verifier("nombre_fr : jusqu'a cent (soixante-dix, soixante-et-onze, quatre-vingts, quatre-vingt-dix-neuf, cent)",
+         identical(unname(vapply(c("soixante-dix", "soixante-et-onze", "quatre-vingts", "quatre-vingt",
+                                   "quatre-vingt-un", "quatre-vingt-dix-neuf", "cent", "vingts"),
+                                 cc$nombre_fr, numeric(1))),
+                   c(70, 71, 80, 80, 81, 99, 100, NA)))
+.doc_c2 <- c("On compte $6$ lignes, puis quatre-vingts lignes et quatre-vingt-dix-neuf entr\u00e9es ;",
+             "les cinq autres lignes, les deux derni\u00e8res entr\u00e9es, les trois autres m\u00eames tests ;",
+             "mais six grandes lignes et deux cents lignes ne sont pas lues.")
+.inv_c2 <- cc$inventaire_decomptes(.doc_c2)
+verifier("Inventaire C2 : $6$ lignes, quatre-vingts lignes, quatre-vingt-dix-neuf entrees, un ou deux qualificatifs intercales",
+         identical(.inv_c2$formulation,
+                   c("6 lignes", "quatre-vingts lignes", "quatre-vingt-dix-neuf entr\u00e9es", "cinq autres lignes",
+                     "deux derni\u00e8res entr\u00e9es", "trois autres m\u00eames tests")) &&
+           identical(unname(vapply(sub(" .*$", "", .inv_c2$formulation), cc$nombre_fr, numeric(1))),
+                     c(6, 80, 99, 5, 2, 3)))
+.id_r <- "prime : lignes de base r hors suites (restent en Monte-Carlo)"
+.reg_r <- Filter(function(a) identical(a$id, .id_r), cc$DECOMPTES)
+.doc_r <- c("Les six autres lignes de la base \u00ab ratios bruts \u00bb restent en Monte-Carlo dans tous les",
+            "r\u00e9gimes.")
+.g_r <- list(premium = c("base r hors suites" = 5, "base r hors suites Monte-Carlo" = 5))
+.v_r <- cc$verifier_decomptes(.doc_r, .g_r, .reg_r)
+.cl_r <- cc$classer_formulations(.doc_r, .v_r, list())
+verifier("C2 : decompte faux apres un qualificatif intercale (six autres lignes, mesure 5) -> ECART sur les deux grandeurs, formulation verifiee",
+         length(.reg_r) == 1L && identical(.v_r$annonce, c(6, 6)) && identical(.v_r$statut, c("ECART", "ECART")) &&
+           identical(.cl_r$formulations$formulation, "six autres lignes") &&
+           identical(.cl_r$formulations$statut, "verifiee"))
+verifier("C2 : meme phrase juste (cinq), une ligne de base r hors suites sortie de Monte-Carlo -> ECART sur la seconde grandeur",
+         identical(cc$verifier_decomptes(sub("six", "cinq", .doc_r),
+                                         list(premium = c("base r hors suites" = 5, "base r hors suites Monte-Carlo" = 4)),
+                                         .reg_r)$statut, c("ok", "ECART")))
+verifier("grandeurs_moteur : lignes de base r hors test des suites, et parmi elles en Monte-Carlo",
+         {
+           lr <- list(list(base = "r", test = "Test des suites sur ratios bruts", nature_p = "exacte"),
+                      list(base = "r", test = "Grubbs sur ratios bruts", nature_p = "Monte-Carlo (bootstrap parametrique)"),
+                      list(base = "r", test = "sup-F sur ratios bruts", nature_p = "asymptotique (x)"),
+                      list(base = "z", test = "Grubbs", nature_p = "Monte-Carlo (bootstrap parametrique)"))
+           g <- cc$grandeurs_moteur(lr)
+           isTRUE(all(unname(g[c("base r hors suites", "base r hors suites Monte-Carlo")]) == c(2, 1)))
+         })
+verifier("Exemptions de provenance par fonction : motif ecrivant le risque residuel (code change, document non)",
+         sum(vapply(cc$EXEMPTES_DECOMPTES, function(e) grepl("risque residuel", e$motif, fixed = TRUE), logical(1))) == 8L)
 verifier("Registre et exemptions du script : identifiants uniques, motif ecrit pour chaque exemption",
          !anyDuplicated(vapply(cc$DECOMPTES, `[[`, "", "id")) &&
            !anyDuplicated(vapply(cc$EXEMPTES_DECOMPTES, `[[`, "", "id")) &&
@@ -305,17 +375,26 @@ verifier("Issue #91 : --strict echoue (code 1) sur la cle USP Intercept injectee
 .tex_75 <- readLines(file.path(.racine, "docs", "latex", "doc_tests_usp.tex"), warn = FALSE, encoding = "UTF-8")
 .k75 <- grep("Treize de ces quinze", .tex_75, fixed = TRUE)
 .tex_mutant <- tempfile(fileext = ".tex")
-writeLines(c(sub("Treize de ces quinze", "Douze de ces quinze", .tex_75, fixed = TRUE),
-             "Mutant : on compte 51~lignes de tests pour la prime."), .tex_mutant, useBytes = TRUE)
+.k75r <- grep("Les cinq autres lignes de la base", .tex_75, fixed = TRUE)
+writeLines(c(sub("Les cinq autres lignes de la base", "Les six autres lignes de la base",
+                 sub("Treize de ces quinze", "Douze de ces quinze", .tex_75, fixed = TRUE), fixed = TRUE),
+             "Mutant : on compte 51~lignes de tests pour la prime.",
+             "Mutant : puis $6$ lignes et quatre-vingts lignes."), .tex_mutant, useBytes = TRUE)
 r_75 <- .lancer_concordance("--strict", "--tex", .tex_mutant)
 unlink(.tex_mutant)
 verifier("Issue #75 : --strict echoue (code 1) sur un decompte faux injecte dans une phrase du registre (annonce 12, mesure 13)",
          length(.k75) == 1L && r_75$code == 1L &&
            any(grepl(sprintf("^    \\[ECART +\\] l\\.%-5d Merz-Wuthrich : tests reposant sur le bootstrap +nature Monte-Carlo +annonce 12 +mesure 13$",
                              .k75), r_75$sortie)))
-verifier("Issue #75 : formulation injectee ni verifiee ni exemptee signalee NON CLASSEE (ecart), les autres restant classees",
+verifier("Issue #75 : formulations injectees ni verifiees ni exemptees signalees NON CLASSEES (51 lignes, $6$ lignes, quatre-vingts lignes), les autres restant classees",
          any(grepl(sprintf("^    l\\.%-5d 51 lignes ", length(.tex_75) + 1L), r_75$sortie)) &&
-           any(grepl("^  ECART -- 1 formulation\\(s\\) ni verifiee\\(s\\)", r_75$sortie)))
+           any(grepl(sprintf("^    l\\.%-5d 6 lignes ", length(.tex_75) + 2L), r_75$sortie)) &&
+           any(grepl(sprintf("^    l\\.%-5d quatre-vingts lignes ", length(.tex_75) + 2L), r_75$sortie)) &&
+           any(grepl("^  ECART -- 3 formulation\\(s\\) ni verifiee\\(s\\)", r_75$sortie)))
+verifier("Audit de #75, C2 : --strict signale le decompte faux injecte apres un qualificatif intercale (six autres lignes, mesure 5)",
+         length(.k75r) == 1L &&
+           any(grepl(sprintf("^    \\[ECART +\\] l\\.%-5d prime : lignes de base r hors suites .* base r hors suites +annonce 6 +mesure 5$",
+                             .k75r), r_75$sortie)))
 r_b20 <- .lancer_concordance("--B", "20")
 verifier("--B 20 refuse par le script lance (code 1, erreur explicite, moteur non execute)",
          r_b20$code == 1L && any(grepl("--B = 20 refuse", r_b20$sortie, fixed = TRUE)) &&

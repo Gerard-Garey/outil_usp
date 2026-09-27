@@ -26,21 +26,33 @@
 #          (reformulee) est un ecart, pour que le registre ne perime pas en
 #          silence ;
 #       b) CLASSES : toute formulation "N lignes" / "N entrees" / "N tests"
-#          du document (chiffres ou nombres en lettres, au pluriel, y compris
-#          coupee par un retour a la ligne ; classer_formulations()) est soit
-#          verifiee (elle commence dans l'etendue d'une phrase du registre),
-#          soit exemptee nommement (liste EXEMPTES_DECOMPTES : id, contexte,
-#          motif ecrit), soit NON CLASSEE, et c'est alors un ecart. Une
-#          exemption qui n'exempte plus rien est un ecart (perimee).
+#          du document (chiffres, nombre en mode mathematique $6$ ou nombre
+#          en lettres jusqu'a cent, au pluriel, avec au plus deux
+#          qualificatifs intercales -- "cinq autres lignes", "les deux
+#          dernieres entrees" (liste QUALIFICATIFS) --, y compris coupee par
+#          un retour a la ligne ; classer_formulations()) est soit verifiee
+#          (son nombre est a la position d'un nombre capture par une phrase
+#          du registre), soit exemptee nommement (liste EXEMPTES_DECOMPTES :
+#          id, contexte, motif ecrit), soit NON CLASSEE, et c'est alors un
+#          ecart. Une exemption qui n'exempte plus rien est un ecart
+#          (perimee).
 #
 #       LIMITES : (i) une formulation exemptee n'est pas verifiee (anaphore,
 #       provenance par fonction, lignes d'un tableau du document, constat
 #       de simulation) ; (ii) un decompte ecrit sans les mots "lignes",
 #       "entrees" ou "tests" apres le nombre ("six verdicts", "quinze
-#       p-values", "un test") n'est pas inventorie ; (iii) une phrase du
-#       registre mesure sa grandeur sur les jeux de tests/donnees/ : un
-#       decompte qui depend des donnees (par ex. une nature de p-value) n'est
-#       verifie que sur ces jeux ;
+#       p-values", "un test") n'est pas inventorie, pas plus qu'un nombre
+#       separe de ces mots par un qualificatif hors de la liste
+#       QUALIFICATIFS ("six lignes" oui, "six grandes lignes" non) ou par
+#       plus de deux qualificatifs ; (iii) une phrase du registre mesure sa
+#       grandeur sur les jeux de tests/donnees/ : un decompte qui depend des
+#       donnees (par ex. une nature de p-value, "restent en Monte-Carlo dans
+#       tous les regimes") n'est verifie que sur ces jeux ; (iv) nombres en
+#       lettres lus jusqu'a cent ("quatre-vingts", "quatre-vingt-dix-neuf",
+#       "cent") : au-dela ("deux cents"), la formulation n'est pas
+#       inventoriee ; (v) les formules mathematiques sont lues sans leurs
+#       delimiteurs $ : "$6$ lignes" est inventorie, mais un nombre calcule
+#       dans une formule ("$2k/T$ lignes") ne l'est pas ;
 #    3. chaque prefixe de famille produit par le moteur dans res$tests (deux
 #       premiers caracteres du champ famille, cle de GROUPES) est declare
 #       dans GROUPES de R/display_helpers.R ; les familles rencontrees
@@ -284,35 +296,53 @@ statuts_citations <- function(noms, env, paquets = character(0), defs = NULL, ex
 # ---------------------------------------------------------------------------
 
 # Ligne LaTeX ramenee a du texte pour la recherche des decomptes : \_ -> _,
-# commandes de mise en forme et accolades retirees, espaces insecables
-# (~, \,) -> espace.
+# commandes de mise en forme et accolades retirees, delimiteurs de mode
+# mathematique $ retires ("$6$ lignes" -> "6 lignes", "$u_t$" -> "u_t"),
+# espaces insecables (~, \,) -> espace.
 normaliser_ligne <- function(l) {
   l <- retirer_commentaires(l)
   l <- gsub("\\_", "_", l, fixed = TRUE)
   l <- gsub("\\\\(textbf|emph|textit|code|texttt)\\{", "", l)
-  l <- gsub("[{}]", "", l)
+  l <- gsub("[{}$]", "", l)
   l <- gsub("~|\\\\,", " ", l)
   l
 }
 
+# Mots-nombres lus (jusqu'a cent). "quatre-vingt(s)" vaut 80 d'un seul
+# tenant (lu avant "quatre" par MOT_NOMBRE) ; "vingts" n'existe qu'apres
+# "quatre".
 NOMBRES_FR <- c(un = 1, une = 1, deux = 2, trois = 3, quatre = 4, cinq = 5, six = 6, sept = 7,
                 huit = 8, neuf = 9, dix = 10, onze = 11, douze = 12, treize = 13, quatorze = 14,
                 quinze = 15, seize = 16, vingt = 20, trente = 30, quarante = 40, cinquante = 50,
-                soixante = 60)
+                soixante = 60, "quatre-vingts" = 80, "quatre-vingt" = 80, cent = 100)
 
-# Nombre ecrit en chiffres ou en lettres (jusqu'a 69 : dix-neuf,
-# vingt-et-un, trente-deux...) ; NA si illisible.
+# Nombre ecrit en chiffres ou en lettres (jusqu'a cent : dix-neuf,
+# vingt-et-un, soixante-douze, quatre-vingts, quatre-vingt-dix-neuf, cent) ;
+# NA si illisible.
 nombre_fr <- function(x) {
   x <- tolower(trimws(x))
   if (grepl("^[0-9]+$", x)) return(as.numeric(x))
+  x <- gsub("quatre-vingts?", "quatrevingt", x)
   parties <- strsplit(gsub("-et-| et ", "-", x), "-")[[1]]
+  parties[parties == "quatrevingt"] <- "quatre-vingt"
   v <- NOMBRES_FR[parties]
   if (anyNA(v)) return(NA_real_)
   sum(v)
 }
 
-MOT_NOMBRE <- paste0("(?:[0-9]+|(?:", paste(names(NOMBRES_FR), collapse = "|"), ")(?:-(?:et-)?(?:",
-                     paste(names(NOMBRES_FR), collapse = "|"), "))*)")
+# Alternatives triees par longueur decroissante : "quatre-vingts" avant
+# "quatre-vingt" avant "quatre", "une" avant "un".
+.MOTS_NOMBRES <- names(NOMBRES_FR)[order(-nchar(names(NOMBRES_FR)))]
+MOT_NOMBRE <- paste0("(?:[0-9]+|(?:", paste(.MOTS_NOMBRES, collapse = "|"), ")(?:-(?:et-)?(?:",
+                     paste(.MOTS_NOMBRES, collapse = "|"), "))*)")
+
+# Qualificatifs admis entre le nombre et "lignes" / "entrees" / "tests"
+# dans l'inventaire (au plus deux) : "les cinq autres lignes", "les deux
+# dernieres entrees", "les six memes tests".
+QUALIFICATIFS <- c("autres", "premi(?:e|\u00e8)res", "premiers", "derni(?:e|\u00e8)res", "derniers",
+                   "seules", "seuls", "m(?:e|\u00ea)mes", "nouvelles", "nouveaux", "principales",
+                   "principaux", "restantes", "restants", "suivantes", "suivants",
+                   "pr(?:e|\u00e9)c(?:e|\u00e9)dentes", "pr(?:e|\u00e9)c(?:e|\u00e9)dents")
 
 # Capture d'un nombre en chiffres ou en lettres, pour les motifs du registre :
 # un nombre modifie dans le document reste capture (ECART), il ne rend pas la
@@ -327,8 +357,10 @@ N_ <- paste0("(", MOT_NOMBRE, ")")
 # grandeurs_moteur() sur le resultat de run_engine()), "code" (sortie de
 # grandeurs_code(), constantes du moteur) ; plusieurs cles : l'annonce est
 # comparee a la mesure de chacune. champs : grandeur comparee a chaque
-# capture, dans l'ordre. Une phrase du registre couvre les formulations de
-# l'inventaire (N lignes / entrees / tests) qui commencent dans son etendue.
+# capture, dans l'ordre (le nombre de groupes capturants doit egaler celui
+# des champs). Une phrase du registre couvre les formulations de
+# l'inventaire (N lignes / entrees / tests) dont le nombre est a la position
+# de l'un de ses groupes capturants.
 DECOMPTES <- list(
   list(id = "prime : nature des p-values retenues (calibration des p-values MC)",
        methode = "premium",
@@ -378,7 +410,7 @@ DECOMPTES <- list(
        motif = paste0(N_, " lignes de la table auditable sont calcul\u00e9es sur la base"),
        champs = "base r"),
   list(id = "prime : lignes sur u_t et homologues sur z_t", methode = "premium",
-       motif = paste0("les ", N_, " lignes sur base \\$u_t\\$ et leurs ", N_, " homologues sur"),
+       motif = paste0("les ", N_, " lignes sur base u_t et leurs ", N_, " homologues sur"),
        champs = c("base r", "base z")),
   list(id = "prime : lignes sur u_t (restent exactes)", methode = "premium",
        motif = paste0("les ", N_, " lignes restent exactes"), champs = "base r"),
@@ -391,7 +423,7 @@ DECOMPTES <- list(
   list(id = "prime : lignes sur u_t (index des fonctions, usp_regime)", methode = "premium",
        motif = paste0("champ detail des ", N_, " lignes sur ratios bruts"), champs = "base r"),
   list(id = "prime : lignes sur u_t (graphe d'appels)", methode = "premium",
-       motif = paste0(N_, " lignes sur \\$u_t\\$, construit par"), champs = "base r"),
+       motif = paste0(N_, " lignes sur u_t, construit par"), champs = "base r"),
   list(id = "prime : lignes sur u_t (loi de reference simulee)", methode = "premium",
        motif = paste0("la statistique observ\u00e9e de ces ", N_, " lignes"), champs = "base r"),
   list(id = "prime : tests sous deux formes (variante secondaire)", methode = c("premium", "reserve1"),
@@ -404,9 +436,9 @@ DECOMPTES <- list(
        motif = paste0("les ", N_, " lignes portent d\u00e9sormais la m\u00eame p-value exacte"),
        champs = "lignes du test des suites"),
   list(id = "prime : lignes du test des suites (fiche des suites, rubrique 5)", methode = "premium",
-       motif = paste0("0,743\\$ sur les ", N_, " lignes, p_mc"), champs = "lignes du test des suites"),
+       motif = paste0("0,743 sur les ", N_, " lignes, p_mc"), champs = "lignes du test des suites"),
   list(id = "prime : lignes du test des suites (fiche des suites sur u_t)", methode = "premium",
-       motif = paste0("0,743\\$ retenue sur les ", N_, " lignes, p_mc"), champs = "lignes du test des suites"),
+       motif = paste0("0,743 retenue sur les ", N_, " lignes, p_mc"), champs = "lignes du test des suites"),
   list(id = "prime : grandeurs rivees par l'estimation", methode = "premium",
        motif = paste0("Ces ", N_, " lignes sont restitu\u00e9es comme diagnostics, sans p-value retenue"),
        champs = "grandeur rivee"),
@@ -418,7 +450,17 @@ DECOMPTES <- list(
        champs = "famille M5 type test"),
   list(id = "Merz-Wuthrich : tests reposant sur le bootstrap", methode = "reserve2",
        motif = paste0(N_, " de ces ", N_, " tests reposent sur le bootstrap"),
-       champs = c("nature Monte-Carlo", "type test"))
+       champs = c("nature Monte-Carlo", "type test")),
+  # Formulation a qualificatif intercale ("cinq autres lignes"), inventoriee
+  # depuis l'audit de #75 (C2). Le meme nombre est capture deux fois (groupe
+  # dans une assertion avant, puis groupe ordinaire, a la meme position) :
+  # le nombre de lignes de base r hors test des suites, et le nombre de ces
+  # lignes dont la p-value retenue est de Monte-Carlo ; une ligne de base r
+  # ajoutee ou sortie de Monte-Carlo fait diverger l'un des deux.
+  list(id = "prime : lignes de base r hors suites (restent en Monte-Carlo)", methode = "premium",
+       motif = paste0("Les (?=", N_, ")", N_, " autres lignes de la base .{1,3}ratios bruts.{1,3} ",
+                      "restent en Monte-Carlo"),
+       champs = c("base r hors suites", "base r hors suites Monte-Carlo"))
 )
 
 # ---------------------------------------------------------------------------
@@ -436,7 +478,9 @@ DECOMPTES <- list(
 # comme ecart.
 MOTIF_ANAPHORE <- "reprise anaphorique de tests nommes dans le texte qui precede, pas un decompte de la table"
 MOTIF_PROVENANCE <- paste("provenance d'entrees (graphe d'appels du moteur) : la fonction qui produit",
-                          "une ligne n'est pas restituee dans res$tests")
+                          "une ligne n'est pas restituee dans res$tests ; risque residuel : si le code",
+                          "change (la fonction alimente plus ou moins d'entrees) et que le document ne",
+                          "change pas, le decompte devenu faux n'est pas detecte")
 EXEMPTES_DECOMPTES <- list(
   list(id = "pente et Fisher (cas sans p Monte-Carlo possible)",
        contexte = "Ces deux tests conservent donc leur loi", motif = MOTIF_ANAPHORE),
@@ -505,6 +549,9 @@ grandeurs_moteur <- function(tests, controles = NULL) {
          "p exacte hors base r" = sum(pex & !base %in% "r"),
          "variante secondaire" = sum(champ("variante") %in% "secondaire"),
          "lignes du test des suites" = sum(startsWith(nom, "Test des suites") %in% TRUE),
+         "base r hors suites" = sum(base %in% "r" & !startsWith(nom, "Test des suites") %in% TRUE),
+         "base r hors suites Monte-Carlo" = sum(base %in% "r" & !startsWith(nom, "Test des suites") %in% TRUE &
+                                                  grepl("^Monte-Carlo", nat)),
          "grandeur rivee" = sum(startsWith(det, "Grandeur rivee par l'estimation") %in% TRUE),
          "detail sans objet ici" = sum(grepl("CONTROLE SANS OBJET ICI", det, fixed = TRUE)))
   for (f in unique(fam)) g[paste("famille", f)] <- sum(fam == f)
@@ -530,10 +577,11 @@ grandeurs_code <- function(env) {
 # Applique le registre au texte (vecteur de lignes LaTeX). grandeurs : liste
 # nommee par methode de sorties de grandeurs_moteur() (et "code" :
 # grandeurs_code()). Renvoie un data.frame (assertion, ligne, ligne_fin,
-# pos, pos_fin, grandeur, annonce, mesure, statut), pos et pos_fin etant les
-# positions de debut et de fin de la phrase dans le texte normalise (lignes
-# jointes par "\n") ; une assertion introuvable donne une ligne de statut
-# "INTROUVABLE". Une grandeur absente des mesures vaut 0 (famille ou type
+# pos, pos_fin, pos_cap, grandeur, annonce, mesure, statut), pos et pos_fin
+# etant les positions de debut et de fin de la phrase dans le texte
+# normalise (lignes jointes par "\n"), pos_cap la position de debut du
+# groupe capturant (nombre annonce) de la grandeur ; une assertion
+# introuvable donne une ligne de statut "INTROUVABLE". Une grandeur absente des mesures vaut 0 (famille ou type
 # non produit).
 verifier_decomptes <- function(lignes, grandeurs, registre = DECOMPTES) {
   norm <- normaliser_ligne(lignes)
@@ -546,7 +594,7 @@ verifier_decomptes <- function(lignes, grandeurs, registre = DECOMPTES) {
     cap <- regmatches(texte, m)[[1]]
     if (!length(cap)) {
       out[[length(out) + 1L]] <- data.frame(assertion = a$id, ligne = NA_integer_, ligne_fin = NA_integer_,
-                                            pos = NA_integer_, pos_fin = NA_integer_,
+                                            pos = NA_integer_, pos_fin = NA_integer_, pos_cap = NA_integer_,
                                             grandeur = "(phrase)",
                                             annonce = NA_real_, mesure = NA_real_, statut = "INTROUVABLE",
                                             stringsAsFactors = FALSE)
@@ -556,11 +604,15 @@ verifier_decomptes <- function(lignes, grandeurs, registre = DECOMPTES) {
     ligne <- findInterval(pos, debuts)
     ligne_fin <- findInterval(pos_fin, debuts)
     ann <- unname(vapply(cap[-1L], nombre_fr, numeric(1)))
+    pos_cap <- as.integer(m[[1]][-1L])
+    if (length(pos_cap) != length(a$champs))
+      stop("registre DECOMPTES, \"", a$id, "\" : ", length(pos_cap), " groupe(s) capturant(s) pour ",
+           length(a$champs), " champ(s)", call. = FALSE)
     for (meth in a$methode) {
       g <- grandeurs[[meth]]
       mes <- unname(ifelse(a$champs %in% names(g), g[a$champs], 0))
       out[[length(out) + 1L]] <- data.frame(assertion = a$id, ligne = ligne, ligne_fin = ligne_fin,
-                                            pos = pos, pos_fin = pos_fin,
+                                            pos = pos, pos_fin = pos_fin, pos_cap = pos_cap,
                                             grandeur = if (length(a$methode) > 1L) paste0(meth, " : ", a$champs) else a$champs,
                                             annonce = ann, mesure = mes,
                                             statut = ifelse(!is.na(ann) & ann == mes, "ok", "ECART"),
@@ -571,12 +623,16 @@ verifier_decomptes <- function(lignes, grandeurs, registre = DECOMPTES) {
 }
 
 # Inventaire de toutes les formulations "N lignes" / "N entrees" / "N tests"
-# (nombre en chiffres ou en lettres, au pluriel ; un article singulier, "un
-# test", n'est pas un decompte), une par occurrence, cherchees dans le texte
+# (nombre en chiffres, y compris en mode mathematique, ou en lettres
+# jusqu'a cent, au pluriel ; un article singulier, "un test", n'est pas un
+# decompte), avec au plus deux qualificatifs intercales (QUALIFICATIFS :
+# "cinq autres lignes"), une par occurrence, cherchees dans le texte
 # normalise entier : une formulation coupee par un retour a la ligne est
-# trouvee. Renvoie un data.frame (ligne, ligne_fin, pos, formulation,
-# extrait), extrait etant la ligne de debut normalisee.
-RX_FORMULATION <- paste0("(?i)(?<![A-Za-z\u00c0-\u00ff-])", MOT_NOMBRE, "\\s+(lignes|entr\u00e9es|tests)\\b")
+# trouvee. pos est la position du nombre. Renvoie un data.frame (ligne,
+# ligne_fin, pos, formulation, extrait), extrait etant la ligne de debut
+# normalisee.
+RX_FORMULATION <- paste0("(?i)(?<![A-Za-z\u00c0-\u00ff-])", MOT_NOMBRE, "\\s+(?:(?:",
+                         paste(QUALIFICATIFS, collapse = "|"), ")\\s+){0,2}(lignes|entr\u00e9es|tests)\\b")
 inventaire_decomptes <- function(lignes) {
   norm <- normaliser_ligne(lignes)
   texte <- paste(norm, collapse = "\n")
@@ -593,8 +649,10 @@ inventaire_decomptes <- function(lignes) {
 }
 
 # Classe chaque formulation de l'inventaire (issue #75) : "verifiee" si
-# elle commence dans l'etendue d'une phrase trouvee du registre DECOMPTES
-# (v : sortie de verifier_decomptes()), sinon "exemptee" si elle commence
+# son nombre est a la position d'un groupe capturant d'une phrase trouvee du
+# registre DECOMPTES (v : sortie de verifier_decomptes(), colonne pos_cap) --
+# un nombre non capture situe dans l'etendue d'une phrase du registre n'est
+# pas verifie (audit de #75, C3) --, sinon "exemptee" si elle commence
 # dans l'etendue d'une occurrence du contexte d'une exemption, sinon
 # "NON CLASSEE" (ecart). Renvoie une liste :
 #   formulations  inventaire complete des colonnes statut et par (id de la
@@ -605,10 +663,10 @@ classer_formulations <- function(lignes, v, exemptions = EXEMPTES_DECOMPTES) {
   inv <- inventaire_decomptes(lignes)
   texte <- paste(normaliser_ligne(lignes), collapse = "\n")
   statut <- rep("NON CLASSEE", nrow(inv)); par <- rep(NA_character_, nrow(inv))
-  vt <- v[!is.na(v$pos), , drop = FALSE]
-  vt <- vt[!duplicated(vt$assertion), , drop = FALSE]
+  vt <- v[!is.na(v$pos_cap), , drop = FALSE]
+  vt <- vt[!duplicated(vt[c("assertion", "pos_cap")]), , drop = FALSE]
   for (i in seq_len(nrow(vt))) {
-    k <- which(statut == "NON CLASSEE" & inv$pos >= vt$pos[i] & inv$pos <= vt$pos_fin[i])
+    k <- which(statut == "NON CLASSEE" & inv$pos == vt$pos_cap[i])
     statut[k] <- "verifiee"; par[k] <- vt$assertion[i]
   }
   utilisee <- logical(length(exemptions))
