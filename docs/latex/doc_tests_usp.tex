@@ -2445,7 +2445,7 @@ pente n'est pas identifiable par les données (règle~R4, même sous-section).
 \end{encadre}
 
 \emph{Autres sorties de la hiérarchie} (issue~\#44). La fonction d'enregistrement
-\code{add()} d'\code{engine\_registre\_tests()}, commune aux deux méthodes, applique en outre
+\code{add()} d'\code{engine\_registre\_}\allowbreak\code{tests()}, commune aux deux méthodes, applique en outre
 quatre règles, chacune en un seul endroit et chacune dite dans le commentaire de la ligne.
 \emph{(i) Test inopérant} (règle~R1)~: pour un test à loi de référence discrète, le champ
 \code{p\_min} porte la plus petite p-value atteignable aux effectifs observés
@@ -2764,14 +2764,14 @@ Shapiro--Francia & LN & $W'$ & Non & Approx. Royston & Oui & Monte-Carlo &
 \textbf{Sous conditions} : validité annoncée $5\le T\le 5000$ &
 Bootstrap recommandé \\
 
-Anderson--Darling & LN & $A^2$ & Non (param. estimés) & Oui (Stephens, cas 3, sur la statistique
-re-standardisée, $T \ge 8$) & Oui &
+Anderson--Darling & LN & $A^2$ & Non (param. estimés) & Oui (Stephens, cas 3~; sur
+$(z-\bar z)/s_z$, $T \ge 8$) & Oui &
 Monte-Carlo, p de Stephens en complément &
 \textbf{Sous conditions} : ajustement empirique, calibration vérifiée à $T=8$ &
 Bootstrap retenu ; p de Stephens disponible \\
 
-Cramér--von~Mises & LN & $W^2$ & Non & Oui (Stephens, cas 3, sur la statistique
-re-standardisée, $T \ge 8$) & Oui &
+Cramér--von~Mises & LN & $W^2$ & Non & Oui (Stephens, cas 3~; sur
+$(z-\bar z)/s_z$, $T \ge 8$) & Oui &
 Monte-Carlo, p de Stephens en complément & Idem $A^2$ &
 Bootstrap retenu ; p de Stephens disponible \\
 
@@ -9296,7 +9296,7 @@ sup-F de Quandt & --- & Loi de Fisher inapplicable (point de rupture estimé). \
 \label{sec:volumes-constants}
 
 Depuis l'issue~\#59, les volumes sont dits \emph{constants} selon une seule définition,
-\code{usp\_volumes\_constants()}~: $\max_t x_t - \min_t x_t \le$ \code{TOL\_DELTA\_BORD}
+\code{usp\_volumes\_}\allowbreak\code{constants()}~: $\max_t x_t - \min_t x_t \le$ \code{TOL\_DELTA\_BORD}
 $\times\, \bar x$, avec \code{TOL\_DELTA\_BORD} $= 10^{-6}$, la tolérance du drapeau
 « $\hat\delta$ au bord » (fiche~\ref{fiche:centrage}). Ce critère est lu par \code{usp\_regime()}
 (drapeau \code{\$volumes\_constants}), par chaque fonction de test qui régresse sur le volume ou
@@ -9820,10 +9820,10 @@ d'appariement. \\
 Une fonction, plusieurs tests & \code{test\_lm\_complet()} (4 entrées),
 \code{.shapiro\_sur()} (2 entrées)~; \code{stat\_dw()}, \code{test\_runs()},
 \code{stat\_supF()}, \code{stat\_cusum()} et \code{test\_grubbs()} (2 entrées
-chacune, sur $z_t$ et sur les ratios bruts $u_t$)~; \code{usp\_identifiabilite\_pente()} (type des
-lignes de la pente et de Fisher)~; \code{usp\_volumes\_constants()} (régime de $\hat\pi_t$ et
-lignes non applicables à volumes constants) & Une anomalie se propage à toutes les
-entrées issues de l'appel. \\
+chacune, sur $z_t$ et sur les ratios bruts $u_t$) & Une anomalie se propage à toutes les
+entrées issues de l'appel~; de même, sans calculer de statistique, pour
+\code{usp\_identifiabilite\_pente()} (type des lignes de la pente et de Fisher) et
+\code{usp\_volumes\_constants()} (régime de $\hat\pi_t$, lignes non applicables). \\
 Base « ratios bruts » & six lignes sur $u_t$, construit par
 \code{.usp\_contexte\_}\newline\code{mc()}, statistiques calculées dans
 \code{.stats\_}\newline\code{bootstrapables()}\newline suites~: \code{usp\_runsr\_}\newline
