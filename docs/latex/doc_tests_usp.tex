@@ -2479,8 +2479,10 @@ hypothèses H2 et H3 contredisent, est restituée sans être retenue (fiche~\ref
 pente et de Fisher, aucune p-value de Monte-Carlo n'est possible (hypothèse nulle composite pour
 le premier, hors du modèle simulé pour les deux autres), et la seule p-value disponible, celle de
 la loi de Student ou de Fisher, n'est exacte que sous le modèle auxiliaire~: elle est retenue sous
-une nature qui le dit (par exemple \code{sous le modele auxiliaire MCO~: t(T-2) exacte (H0 non
-simulable~: le modele ajuste appartient a H1)}), en dehors des trois catégories de la hiérarchie,
+une nature qui le dit (\code{sous le modele auxiliaire MCO~: t(T-2) exacte (H0 non
+simulable~: le modele ajuste appartient a H1)} pour la pente, \code{sous le modele auxiliaire
+MCO~: F(1,T-2) exacte (H0 non simulable~: le modele ajuste appartient a H1)} pour Fisher), en
+dehors des trois catégories de la hiérarchie,
 et n'est jamais présentée comme exacte au sens de l'ADR~0002.
 
 \subsection{Deux sources d'erreur distinctes}
@@ -2596,8 +2598,9 @@ de l'ordre de la granularité.
   réglementaire, pas de Monte-Carlo, et aucune loi asymptotique distincte de cette
   loi à $T$ fini ---~; la p-value de Student ou de Fisher est donc retenue comme la
   seule disponible, sous la nature \code{sous le modele auxiliaire MCO~: t(T-2)
-  exacte (H0 non simulable~: le modele ajuste appartient a H1)}, qui dit sous quel
-  modèle elle vaut. \textbf{Règle~R4, identifiabilité de la pente} (issue~\#44)~:
+  exacte (H0 non simulable~: le modele ajuste appartient a H1)} pour la pente et
+  \code{sous le modele auxiliaire MCO~: F(1,T-2) exacte (H0 non simulable~: le
+  modele ajuste appartient a H1)} pour Fisher, qui dit sous quel modèle elle vaut. \textbf{Règle~R4, identifiabilité de la pente} (issue~\#44)~:
   sous le modèle ajusté, l'espérance du $t$ de la pente vaut, au premier ordre,
   $\hat\lambda = \sqrt{T-1}\,\mathrm{CV}(x)\,\hat\beta/\hat\sigma$, avec
   $\mathrm{CV}(x)$ le coefficient de variation des volumes, et la puissance du
@@ -3946,9 +3949,10 @@ $H_0 : b = 0$ (plus généralement, nullité conjointe de tous les coefficients 
 $F \sim \mathcal{F}(k,\,T-k-1)$, soit ici $\mathcal{F}(1, T-2)$, loi exacte sous le modèle
 auxiliaire des moindres carrés seulement.
 \Pval
-$p = 1 - F_{\mathcal{F},k,T-k-1}(F)$, seule p-value de la ligne, retenue sous la même nature que
-celle de la pente (\code{sous le modele auxiliaire MCO~: \dots}), pour la même raison (fiche
-précédente). La règle~R4 s'applique à l'identique~: $F = t_b^2$, le test a la même puissance, et
+$p = 1 - F_{\mathcal{F},k,T-k-1}(F)$, seule p-value de la ligne, retenue sous la nature
+\code{sous le modele auxiliaire MCO~: F(1,T-2) exacte (H0 non simulable~: le modele ajuste
+appartient a H1)}, propre à la ligne (sa loi de référence est $\mathcal{F}(1,T-2)$ et non la loi
+$t(T-2)$ de la pente), pour la même raison que la pente (fiche précédente). La règle~R4 s'applique à l'identique~: $F = t_b^2$, le test a la même puissance, et
 les lignes de la pente et de Fisher sont restituées ensemble en diagnostic lorsque $\hat\pi_b < 1/2$ (cas du jeu de
 contrôle~; fréquence sous le modèle ajusté~: fiche précédente, rubrique~6).
 \Usage
