@@ -116,13 +116,15 @@ DONNEES_DEFAUT <- data.frame(
 
 # Triangle par defaut : 8 annees d'accident, cumules croissants, servant de
 # point de depart lorsqu'aucun fichier n'est disponible.
+# seq_len(T)[-1] et non 2:T : pour T = 1, 2:1 vaut c(2, 1) et la colonne 2
+# n'existe pas (issue #100) ; triangle identique pour T >= 2.
 triangle_defaut <- function(T = 8) {
   f <- c(3.20, 1.65, 1.32, 1.14, 1.08, 1.05, 1.02, 1.01, 1.005, 1.003)
   base <- seq(300, 380, length.out = T)
   tri <- matrix(NA_real_, T, T)
   tri[, 1] <- base
-  for (j in 2:T) tri[, j] <- round(tri[, j - 1] * f[j - 1] *
-                                     (1 + 0.02 * sin(seq_len(T) + j)), 2)
+  for (j in seq_len(T)[-1]) tri[, j] <- round(tri[, j - 1] * f[j - 1] *
+                                                (1 + 0.02 * sin(seq_len(T) + j)), 2)
   for (i in 1:T) if (T - i + 1 < T) tri[i, (T - i + 2):T] <- NA_real_
   tri
 }
@@ -686,11 +688,27 @@ server <- function(input, output, session) {
     )
   })
 
+  # Reinitialisation : jeu par defaut dimensionne a la profondeur T saisie.
+  # Si le champ T est vide ou non recevable (NA, non entier, < 1), la
+  # grille ne peut pas etre dimensionnee sur lui (issue #100) : le jeu par
+  # defaut est restaure a sa propre profondeur, que l'on reporte dans le
+  # champ T, et le motif du moteur (engine_valider_profondeur(), meme borne
+  # T_min = 1 que le redimensionnement de la grille) est affiche. Aucune
+  # borne superieure (n = Inf) : au-dela de 8 annees, les series sont
+  # completees par des lignes vides, le triangle par defaut est prolonge.
   observeEvent(input$reinit, {
-    if (est_mw()) triangle(triangle_defaut(input$profondeur))
+    T <- input$profondeur
+    err_T <- if (is.null(T) || is.na(T)) "Profondeur T : champ vide."
+             else engine_valider_profondeur(T, n = Inf, T_min = 1)
+    if (length(err_T)) {
+      T <- nrow(DONNEES_DEFAUT)
+      updateNumericInput(session, "profondeur", value = T)
+      showNotification(paste(c(err_T, sprintf("Profondeur par defaut retablie : T = %d.", T)),
+                             collapse = " "), type = "warning", duration = 10)
+    }
+    if (est_mw()) triangle(triangle_defaut(T))
     else {
       d <- DONNEES_DEFAUT
-      T <- input$profondeur
       if (nrow(d) != T) {
         if (T < nrow(d)) d <- d[seq_len(T), ]
         else d <- rbind(d, data.frame(t = (nrow(d)+1):T, xt = NA_real_, yt = NA_real_))
