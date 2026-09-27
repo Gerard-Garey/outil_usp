@@ -2311,28 +2311,48 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     # -> aucune valeur observee ne peut donner p < alpha, la ligne est
     # restituee en diagnostic (donc INFO, sans p retenue ni sens), ses
     # p-values calculees etant conservees ; alpha/2 <= p_min < alpha en sens
-    # "ne pas rejeter" -> la ligne reste un test, ECHEC inatteignable. Le
-    # critere ne depend pas du sens : en sens "rejeter", un OK exige p < alpha.
-    # p_min est calculee sur la loi de reference discrete (loi echangeable) :
-    # sans p exacte (p Monte-Carlo ou asymptotique seule), c'est une
-    # approximation de la p_min de celle-ci, ce que le detail dit.
+    # "ne pas rejeter" -> la ligne reste un test. Le critere ne depend pas du
+    # sens : en sens "rejeter", un OK exige p < alpha.
+    # p_min est calculee sur la loi de reference discrete (loi echangeable).
+    # Avec une p exacte finie, c'est la p_min de la p retenue : ECHEC
+    # inatteignable. Sans p exacte mais avec une p Monte-Carlo ou
+    # asymptotique (pi_t variable, regle R7 : p Monte-Carlo retenue, simulee
+    # sous le modele ajuste), p_min n'est pas une borne de la p retenue, qui
+    # peut lui etre inferieure (erreur Monte-Carlo, non-echangeabilite) :
+    # l'ECHEC reste possible et le detail le dit (#44, option 3 d'actuary,
+    # decision du 27/09/2026). La bascule en test inoperant (p_min >= alpha)
+    # est maintenue dans ce cas ; son libelle precise que p_min est celle de
+    # la loi de reference echangeable. Sans aucune p (ex. Cox-Stuart a m = 0),
+    # aucun verdict n'est rendu et les libelles sont ceux de la p exacte. Le
+    # prefixe "TEST INOPERANT" reste en tete du detail (type_ligne() de
+    # display_helpers.R, concordance doc-moteur).
     if (type == "test" && is.finite(p_min)) {
       eff <- if (!is.na(effectifs)) paste0(" (", effectifs, ")") else ""
-      approx_pmin <- if (!is.finite(p_ex) && (is.finite(p_mc) || is.finite(p_as)))
-        paste(" ; p_min calculee sur la loi de reference discrete : approximation",
-              "de celle de la p-value Monte-Carlo ou asymptotique, aucune p exacte",
-              "n'etant disponible") else ""
+      # Meme condition que l'ancien suffixe d'approximation : p exacte absente,
+      # p Monte-Carlo ou asymptotique presente.
+      sans_p_ex <- !is.finite(p_ex) && (is.finite(p_mc) || is.finite(p_as))
       if (p_min >= alpha) {
         type <- "diagnostic"
-        detail <- trimws(paste0(sprintf(paste("TEST INOPERANT au seuil alpha = %g : p-value",
-                                              "minimale atteignable = %.4f%s%s ; aucun verdict",
-                                              "(ADR 0001)."), alpha, p_min, eff, approx_pmin),
+        lib_pmin <- if (!sans_p_ex) "p-value minimale atteignable" else
+          "p-value minimale atteignable sous la loi de reference echangeable"
+        detail <- trimws(paste0(sprintf("TEST INOPERANT au seuil alpha = %g : %s = %.4f%s ; aucun verdict (ADR 0001).",
+                                        alpha, lib_pmin, p_min, eff),
                                 " ", detail))
       } else if (identical(sens, "ne pas rejeter") && p_min >= alpha / 2) {
         sep <- if (!nzchar(detail)) "" else if (grepl("\\.$", detail)) " " else " ; "
-        detail <- trimws(paste0(detail, sep,
-                                sprintf("ECHEC inatteignable : p_min = %.4f >= alpha/2 = %g%s%s",
-                                        p_min, alpha / 2, eff, approx_pmin)))
+        # Sans p exacte, la suite du texte suit la p qui sera retenue par la
+        # hierarchie ci-dessous (Monte-Carlo, sinon asymptotique).
+        txt_r1 <- if (!sans_p_ex)
+          sprintf("ECHEC inatteignable : p_min = %.4f >= alpha/2 = %g%s", p_min, alpha / 2, eff)
+        else paste0(
+          sprintf("p_min de la loi de reference echangeable = %.4f >= alpha/2 = %g%s", p_min, alpha / 2, eff),
+          if (is.finite(p_mc))
+            paste(" ; la p-value Monte-Carlo retenue, simulee sous le modele ajuste, peut",
+                  "lui etre inferieure (erreur Monte-Carlo, non-echangeabilite) : ECHEC possible")
+          else
+            paste(" ; la p-value asymptotique retenue, calculee hors de cette loi, peut",
+                  "lui etre inferieure : ECHEC possible"))
+        detail <- trimws(paste0(detail, sep, txt_r1))
       }
     }
     # Restitution du motif de l'absence de p_min (#70, 5a) : pour un test

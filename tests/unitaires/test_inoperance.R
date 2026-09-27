@@ -78,8 +78,8 @@ verifier("mk_p_min : = cor.test exact (Kendall et Spearman) sur la permutation e
          }, logical(1))))
 
 ## --- 2. Regle d'inoperance dans add() -----------------------------------------
-reg_fictif <- function(alpha = 0.10) {
-  engine_registre_tests(list(p_mc = c(A = 0.5), err_mc = c(A = 0.01)),
+reg_fictif <- function(alpha = 0.10, p_mc = 0.5) {
+  engine_registre_tests(list(p_mc = c(A = p_mc), err_mc = c(A = 0.01)),
                         list(A = .mc_entree(function(e) 1, "haut")), alpha, "Monte-Carlo")
 }
 verifier("add() : p_min >= alpha -> diagnostic INFO, p_retenue NA, p_exacte conservee, detail TEST INOPERANT",
@@ -102,6 +102,57 @@ verifier("add() : alpha/2 <= p_min < alpha -> test maintenu, ECHEC inatteignable
            l <- r$lignes()[[1]]
            identical(l$type, "test") && identical(l$verdict, "ALERTE") &&
              grepl("ECHEC inatteignable : p_min = 0.0571 >= alpha/2 = 0.05", l$detail, fixed = TRUE)
+         })
+# p exacte absente (pi_t variable, regle R7) : p_min est celle de la loi de
+# reference echangeable, pas une borne de la p Monte-Carlo retenue (#44,
+# option 3 d'actuary, 27/09/2026). Cas construit : p_mc = 0,048 < alpha/2
+# alors que p_min = 4/70 = 0,0571 >= alpha/2.
+verifier("add() : p_ex NA, p_min = 0,0571, p_mc = 0,048 -> ECHEC, detail 'ECHEC possible' sans 'ECHEC inatteignable'",
+         {
+           r <- reg_fictif(p_mc = 0.048)
+           r$add("F", "t", "ref", p_min = 4 / 70, mc_nom = "A", effectifs = "n1 = 4, n2 = 4",
+                 detail = "d.")
+           l <- r$lignes()[[1]]
+           identical(l$type, "test") && identical(l$verdict, "ECHEC") && identical(l$p_retenue, 0.048) &&
+             !grepl("ECHEC inatteignable", l$detail, fixed = TRUE) &&
+             identical(l$detail, paste("d. p_min de la loi de reference echangeable = 0.0571 >= alpha/2 = 0.05",
+                                       "(n1 = 4, n2 = 4) ; la p-value Monte-Carlo retenue, simulee sous le",
+                                       "modele ajuste, peut lui etre inferieure (erreur Monte-Carlo,",
+                                       "non-echangeabilite) : ECHEC possible"))
+         })
+verifier("add() : p_ex NA, alpha/2 <= p_min < alpha, p_mc = 0,5 -> test OK, meme texte 'ECHEC possible'",
+         {
+           r <- reg_fictif(); r$add("F", "t", "ref", p_min = 4 / 70, mc_nom = "A")
+           l <- r$lignes()[[1]]
+           identical(l$type, "test") && identical(l$verdict, "OK") &&
+             startsWith(l$detail, "p_min de la loi de reference echangeable = 0.0571 >= alpha/2 = 0.05 ;") &&
+             endsWith(l$detail, ": ECHEC possible") && !grepl("inatteignable", l$detail, fixed = TRUE)
+         })
+verifier("add() : p_ex NA, p asymptotique seule, alpha/2 <= p_min < alpha -> texte de la p asymptotique",
+         {
+           r <- reg_fictif(); r$add("F", "t", "ref", p_as = 0.3, p_min = 4 / 70)
+           l <- r$lignes()[[1]]
+           identical(l$type, "test") && identical(l$nature_p, "asymptotique") &&
+             grepl("la p-value asymptotique retenue, calculee hors de cette loi", l$detail, fixed = TRUE) &&
+             !grepl("inatteignable", l$detail, fixed = TRUE)
+         })
+verifier("add() : aucune p (exacte, Monte-Carlo, asymptotique), alpha/2 <= p_min < alpha -> INFO, texte 'ECHEC inatteignable' inchange",
+         {
+           r <- reg_fictif(); r$add("F", "t", "ref", p_min = 4 / 70)
+           l <- r$lignes()[[1]]
+           identical(l$type, "test") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
+             identical(l$detail, "ECHEC inatteignable : p_min = 0.0571 >= alpha/2 = 0.05")
+         })
+verifier("add() : p_ex NA, p_min >= alpha -> TEST INOPERANT en tete, p_min 'sous la loi de reference echangeable'",
+         {
+           r <- reg_fictif(p_mc = 0.048)
+           r$add("F", "t", "ref", p_min = 0.125, mc_nom = "A", effectifs = "m = 4", detail = "d")
+           l <- r$lignes()[[1]]
+           identical(l$type, "diagnostic") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
+             identical(l$p_mc, 0.048) &&
+             identical(l$detail, paste("TEST INOPERANT au seuil alpha = 0.1 : p-value minimale atteignable",
+                                       "sous la loi de reference echangeable = 0.1250 (m = 4) ; aucun",
+                                       "verdict (ADR 0001). d"))
          })
 verifier("add() : p_min NA -> comportement inchange (verdict, detail)",
          {
