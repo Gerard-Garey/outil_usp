@@ -16,6 +16,15 @@
 #  parametrique), la frequence de franchissement de chaque repere, avec son
 #  intervalle de Clopper-Pearson a 95 % (incertitude Monte-Carlo sur le taux,
 #  fonction de R ; elle ne dit rien de l'erreur d'approximation en T).
+#  Tableaux : T1, reperes des diagnostics (taux simules) ; T1 bis, regle
+#  d'inoperance R4 (seuil de restitution de la pente et de Fisher, #44) et
+#  position de delta chapeau (au bord, dont bord 0, dont bord 1), taux
+#  simules, qui ne sont pas des reperes de diagnostic ; repere des leviers
+#  2k/T hors des taux simules : les hat values de lm(y ~ x - 1) ne
+#  dependent que de X, fixe dans les replications, et le franchissement est
+#  donc deterministe (le script verifie que la valeur de chaque replication
+#  est identique a celle du jeu observe, sinon controle d'integrite en
+#  echec) ; T2, classement des lignes de usp_tests().
 #
 #  Chaque replication est traitee comme run_engine() traite un jeu observe
 #  (methode prime, segment 1 de l'annexe II, donnees brutes, alpha = 0,10) :
@@ -52,14 +61,27 @@
 #          [--jeu J1|J2] [--tranche i/K]
 #      Rscript tests/taux_franchissement_reperes.R --combiner f1 f2 ...
 #  --tranche i/K : ne traite que la i-eme de K tranches de replications
-#  consecutives et imprime, en plus des tableaux partiels, ses comptes bruts
-#  (lignes "COMPTE") ; rediriger la sortie de chaque tranche vers un fichier
-#  HORS du depot, puis --combiner additionne les comptes des K fichiers (memes
-#  parametres, tranches disjointes couvrant 1..R, sinon erreur) et imprime
-#  les tableaux complets, identiques a ceux d'une execution d'un seul tenant.
+#  consecutives et imprime, en plus des tableaux partiels, des lignes machine :
+#  PARAMETRES, TRANCHE, CONTEXTE (contenu de T0 hors durees et hors bornes de
+#  la tranche : jeu, modele ajuste, configuration, sigma_USP observe,
+#  graines, B, generateur, commit, leviers), INTEGRITE (OK ou ECHEC),
+#  NCOMPTES (nombre de lignes COMPTE annoncees), les comptes bruts (COMPTE)
+#  et, en derniere ligne, FIN (nombre de lignes COMPTE ecrites). Rediriger la
+#  sortie de chaque tranche vers un fichier HORS du depot, puis --combiner
+#  additionne les comptes des K fichiers et imprime T0 et les tableaux
+#  complets, identiques a ceux d'une execution d'un seul tenant. --combiner
+#  refuse (code de sortie 1, sans tableau) : une tranche sans ligne
+#  INTEGRITE ou en ECHEC ; une sortie incomplete (FIN absente ou pas en
+#  derniere ligne, nombre de lignes COMPTE different de NCOMPTES ou de FIN :
+#  troncature) ; des PARAMETRES ou un CONTEXTE differents entre tranches ;
+#  des tranches qui ne couvrent pas 1..R exactement une fois.
+#  Commit : sortie de "git rev-parse HEAD" (suivie de "(arbre de travail
+#  modifie)" si "git status --porcelain --untracked-files=no" n'est pas
+#  vide), "inconnu" si git n'est pas disponible.
 #  Duree mesuree (poste du mainteneur, R 4.3.1, 27/09/2026) : 0,6 a 0,7 s par
 #  replication a --B-ic 999 ; 2 000 replications en 8 tranches : 1 312 s.
-#  Code de sortie : 0 si les controles d'integrite tiennent, 1 sinon.
+#  Code de sortie : 0 si les controles d'integrite tiennent, 1 sinon ; en
+#  mode --combiner, 0 si la combinaison est acceptee, 1 si elle est refusee.
 #  La lecture des taux (rubrique 6 des fiches, statut de constat de
 #  simulation) revient a actuary et a docwriter.
 ###############################################################################
@@ -98,6 +120,15 @@ DOSSIER_SCRIPT <- local({
 })
 source(file.path(DOSSIER_SCRIPT, "outils_tests.R"))
 
+# Commit du depot (voir l'en-tete) ; "inconnu" si git est indisponible.
+commit_depot <- function() {
+  git <- function(...) tryCatch(suppressWarnings(system2("git", c("-C", RACINE, ...), stdout = TRUE, stderr = FALSE)),
+                                error = function(e) character(0))
+  h <- git("rev-parse", "HEAD")
+  if (length(h) != 1L || !grepl("^[0-9a-f]{40}$", h)) return("inconnu")
+  if (length(git("status", "--porcelain", "--untracked-files=no"))) paste(h, "(arbre de travail modifi\u00e9)") else h
+}
+
 # Console en UTF-8 quelle que soit la locale (meme definition que
 # tests/comparer_ajusteurs_bootstrap.R).
 ecrire_console <- function(x) writeLines(enc2utf8(x), useBytes = TRUE)
@@ -113,11 +144,14 @@ ic_cp <- function(k, n) if (n > 0) {
 } else "NA"
 
 # --- Reperes ---------------------------------------------------------------------
-# cle : identifiant des comptes ; ligne : nom exact de la ligne de usp_tests()
-# lue ; seuil et source : affiches. Les seuils 4/T et 2k/T (k = 1) sont ceux
-# que usp_tests() imprime ; 10 % est REPERE_INFLUENCE_SIGMA du moteur ; 20 %,
-# 50 % et 80 % sont les reperes conventionnels des fiches (commentaire de
-# usp_tests(), famille G) ; 1/2 est SEUIL_PUISSANCE_PENTE (regle R4, #44).
+# cle : identifiant des comptes ; groupe : "diag" (repere d'un diagnostic,
+# tableau T1) ou "regle" (regle d'inoperance ou position de delta chapeau,
+# tableau T1 bis : pas des reperes de diagnostic) ; seuil et source :
+# affiches. Le seuil 4/T est celui que usp_tests() imprime ; 10 % est
+# REPERE_INFLUENCE_SIGMA du moteur ; 20 %, 50 % et 80 % sont les reperes
+# conventionnels des fiches (commentaire de usp_tests(), famille G) ; 1/2 est
+# SEUIL_PUISSANCE_PENTE (regle d'inoperance R4, #44). Le repere 2k/T des
+# leviers est traite a part (deterministe a X fixes, voir l'en-tete).
 LIGNE_COOK  <- "Points influents (distance de Cook)"
 LIGNE_LEV   <- "Leviers (hat values)"
 LIGNE_R2    <- "Coefficient de determination R2"
@@ -126,54 +160,108 @@ LIGNE_FISH  <- "Test de Fisher (significativite globale)"
 LIGNE_JACK  <- "Sensibilite au retrait d'une annee (jackknife)"
 LIGNE_IC    <- "Largeur relative de l'IC bootstrap 90%"
 REPERES <- list(
-  list(cle = "cook", libelle = "Distance de Cook : au moins une observation au-dessus",
+  list(cle = "cook", groupe = "diag", libelle = "Distance de Cook : au moins une observation au-dessus",
        seuil = "4/T", source = "usp_tests() (d\u00e9tail de la ligne)"),
-  list(cle = "leviers", libelle = "Leviers : au moins une observation au-dessus",
-       seuil = "2k/T, k = 1", source = "usp_tests() (d\u00e9tail de la ligne)"),
-  list(cle = "r2", libelle = "R\u00b2 de lm(y ~ x) en dessous", seuil = "0,5",
+  list(cle = "r2", groupe = "diag", libelle = "R\u00b2 de lm(y ~ x) en dessous", seuil = "0,5",
        source = "usp_tests() (d\u00e9tail de la ligne)"),
-  list(cle = "pente", libelle = "Pente non identifiable : Student pente et Fisher restitu\u00e9s en diagnostic",
+  list(cle = "pente", groupe = "regle",
+       libelle = "R\u00e8gle d'inop\u00e9rance R4 (seuil de restitution, #44) : Student pente et Fisher restitu\u00e9s en diagnostic",
        seuil = "puissance approch\u00e9e < 1/2", source = "SEUIL_PUISSANCE_PENTE (r\u00e8gle R4, #44)"),
-  list(cle = "jack10", libelle = "Jackknife : \u00e9cart relatif max sur \u03c3_USP au-dessus", seuil = "10 %",
+  list(cle = "jack10", groupe = "diag", libelle = "Jackknife : \u00e9cart relatif max sur \u03c3_USP au-dessus", seuil = "10 %",
        source = "REPERE_INFLUENCE_SIGMA ; fiche du jackknife"),
-  list(cle = "jack20", libelle = "Jackknife : \u00e9cart relatif max sur \u03c3_USP au-dessus", seuil = "20 %",
+  list(cle = "jack20", groupe = "diag", libelle = "Jackknife : \u00e9cart relatif max sur \u03c3_USP au-dessus", seuil = "20 %",
        source = "fiche du jackknife"),
-  list(cle = "ic50", libelle = "IC bootstrap 90 % : largeur relative au-dessus", seuil = "50 %",
+  list(cle = "ic50", groupe = "diag", libelle = "IC bootstrap 90 % : largeur relative au-dessus", seuil = "50 %",
        source = "fiche de l'IC bootstrap"),
-  list(cle = "ic80", libelle = "IC bootstrap 90 % : largeur relative au-dessus", seuil = "80 %",
+  list(cle = "ic80", groupe = "diag", libelle = "IC bootstrap 90 % : largeur relative au-dessus", seuil = "80 %",
        source = "fiche de l'IC bootstrap"),
-  list(cle = "bord", libelle = "Position de \u03b4\u0302 : solution au bord (0 ou 1)",
+  list(cle = "bord", groupe = "regle", libelle = "Position de \u03b4\u0302 : solution au bord (0 ou 1)",
        seuil = "TOL_DELTA_BORD", source = "usp_regime()"),
-  list(cle = "bord1", libelle = "dont \u03b4\u0302 au bord 1 (\u03c0\u0302 constant)",
+  list(cle = "bord0", groupe = "regle", libelle = "dont \u03b4\u0302 au bord 0",
+       seuil = "\u03b4\u0302 \u2264 TOL_DELTA_BORD", source = "usp_regime()"),
+  list(cle = "bord1", groupe = "regle", libelle = "dont \u03b4\u0302 au bord 1 (\u03c0\u0302 constant)",
        seuil = "\u03b4\u0302 \u2265 1 \u2212 TOL_DELTA_BORD", source = "usp_regime()")
 )
 
+# Libelles de T0 pour les lignes machine CONTEXTE (cle ASCII -> libelle).
+LIBELLES_CONTEXTE <- c(
+  jeu = "Jeu", modele = "Mod\u00e8le ajust\u00e9 (usp_ajuster())", configuration = "Configuration",
+  sigma_usp = "\u03c3_USP observ\u00e9 (run_engine())", graines = "Graines", B_ic = "B de l'IC bootstrap",
+  generateur = "G\u00e9n\u00e9rateur", commit = "Commit", leviers = "Leviers (rep\u00e8re 2k/T, jeu observ\u00e9)")
+
 # --- Mode --combiner ---------------------------------------------------------------
+# Refus de la combinaison : message et code de sortie 1, aucun tableau.
+refuser <- function(...) {
+  message("--combiner : REFUS -- ", ...)
+  quit(status = 1L)
+}
+
+# Lecture d'une sortie de tranche ; refus si elle est incomplete ou en echec.
 lire_comptes <- function(f) {
+  if (!file.exists(f)) refuser(f, " introuvable")
   l <- readLines(f, warn = FALSE, encoding = "UTF-8")
-  par <- sub("^PARAMETRES\t", "", grep("^PARAMETRES\t", l, value = TRUE))
-  tr <- strsplit(sub("^TRANCHE\t", "", grep("^TRANCHE\t", l, value = TRUE)), "\t")
-  cp <- strsplit(sub("^COMPTE\t", "", grep("^COMPTE\t", l, value = TRUE)), "\t")
-  if (length(par) != 1L || length(tr) != 1L || !length(cp))
-    stop("--combiner : ", f, " n'est pas une sortie de tranche complete (PARAMETRES, TRANCHE, COMPTE)")
-  list(parametres = par, debut = as.integer(tr[[1]][1]), fin = as.integer(tr[[1]][2]),
+  champs <- function(etq) strsplit(sub(paste0("^", etq, "\t"), "", grep(paste0("^", etq, "\t"), l, value = TRUE)), "\t")
+  unique1 <- function(etq) {
+    x <- champs(etq)
+    if (length(x) != 1L) refuser(f, " : ", length(x), " ligne(s) ", etq, " (une attendue) -- sortie de tranche incomplete ?")
+    x[[1]]
+  }
+  par <- unique1("PARAMETRES")
+  tr <- unique1("TRANCHE")
+  integ <- champs("INTEGRITE")
+  if (length(integ) != 1L) refuser(f, " : ligne INTEGRITE absente ou multiple")
+  if (!identical(integ[[1]], "OK")) refuser(f, " : controle d'integrite de la tranche en ECHEC (INTEGRITE\t", integ[[1]][1], ")")
+  n_ann <- suppressWarnings(as.integer(unique1("NCOMPTES")))
+  fin <- unique1("FIN")
+  non_vides <- l[nzchar(trimws(l))]
+  if (!length(non_vides) || !startsWith(non_vides[length(non_vides)], "FIN\t"))
+    refuser(f, " : la ligne FIN n'est pas la derniere ligne -- sortie tronquee ou modifiee")
+  cp <- champs("COMPTE")
+  if (is.na(n_ann) || length(cp) != n_ann || !identical(as.integer(fin), n_ann))
+    refuser(f, sprintf(" : %d ligne(s) COMPTE lue(s), NCOMPTES = %s, FIN = %s -- sortie tronquee ou modifiee",
+                       length(cp), n_ann, fin))
+  if (any(lengths(cp) != 2L) || anyNA(suppressWarnings(as.numeric(vapply(cp, `[`, "", 2L)))))
+    refuser(f, " : ligne COMPTE illisible")
+  ctx <- champs("CONTEXTE")
+  if (!length(ctx) || any(lengths(ctx) != 2L)) refuser(f, " : lignes CONTEXTE absentes ou illisibles")
+  ctx <- stats::setNames(vapply(ctx, `[`, "", 2L), vapply(ctx, `[`, "", 1L))
+  if (!setequal(names(ctx), names(LIBELLES_CONTEXTE)) || anyDuplicated(names(ctx)))
+    refuser(f, " : lignes CONTEXTE incompletes (attendues : ", paste(names(LIBELLES_CONTEXTE), collapse = ", "), ")")
+  list(parametres = par, debut = as.integer(tr[1]), fin = as.integer(tr[2]), contexte = ctx[names(LIBELLES_CONTEXTE)],
        comptes = stats::setNames(as.numeric(vapply(cp, `[`, "", 2L)), vapply(cp, `[`, "", 1L)))
 }
 
+# Lignes de T0 tirees du contexte (vecteur nomme par les cles de
+# LIBELLES_CONTEXTE).
+lignes_contexte <- function(ctx) vapply(names(LIBELLES_CONTEXTE), function(k)
+  ligne_md(LIBELLES_CONTEXTE[[k]], ctx[[k]]), "")
+
 # --- Tableaux a partir des comptes -------------------------------------------------
 # cpt : vecteur nomme de comptes ("k|cle", "n|cle", "type|ligne|type",
-# "inop|ligne", "nl|ligne").
-tableaux <- function(cpt, R) {
+# "inop|ligne", "nl|ligne", "k|lev_diff" et "n|lev_diff" : replications dont
+# la valeur max h_t differe de celle du jeu observe) ; lev : texte du
+# contexte "leviers".
+tableau_reperes <- function(cpt, groupe) {
   g <- function(n) if (n %in% names(cpt)) cpt[[n]] else 0
-  L <- c("### T1 -- taux de franchissement des rep\u00e8res (constat de simulation sous le mod\u00e8le ajust\u00e9)", "",
-         entete_md(c("Rep\u00e8re", "Seuil", "Source du seuil", "Franchi", "n", "Taux", "IC 95 % (Clopper-Pearson)")))
-  for (r in REPERES) {
+  L <- entete_md(c("Rep\u00e8re", "Seuil", "Source du seuil", "Franchi", "n", "Taux", "IC 95 % (Clopper-Pearson)"))
+  for (r in REPERES) if (identical(r$groupe, groupe)) {
     k <- g(paste0("k|", r$cle)); n <- g(paste0("n|", r$cle))
     L <- c(L, ligne_md(r$libelle, r$seuil, r$source, k, n, pct(k, n), ic_cp(k, n)))
   }
-  L <- c(L, "", sprintf(paste("n : r\u00e9plications o\u00f9 la ligne du rep\u00e8re existe et porte une valeur finie",
-                              "(sur %d). IC : incertitude Monte-Carlo sur le taux (fonction de R), pas",
-                              "l'erreur d'approximation en T."), R), "")
+  L
+}
+tableaux <- function(cpt, R, lev) {
+  g <- function(n) if (n %in% names(cpt)) cpt[[n]] else 0
+  note_n <- sprintf(paste("n : r\u00e9plications o\u00f9 la grandeur existe et porte une valeur finie",
+                          "(sur %d). IC : incertitude Monte-Carlo sur le taux (fonction de R), pas",
+                          "l'erreur d'approximation en T."), R)
+  L <- c("### T1 -- taux de franchissement des rep\u00e8res des diagnostics (constat de simulation sous le mod\u00e8le ajust\u00e9)", "",
+         tableau_reperes(cpt, "diag"), "", note_n, "",
+         sprintf(paste("Leviers (rep\u00e8re 2k/T, k = 1) : d\u00e9terministe \u00e0 X fix\u00e9s (%s), hors des taux simul\u00e9s ;",
+                       "valeur des r\u00e9plications identique \u00e0 celle du jeu observ\u00e9 : %.0f sur %.0f."),
+                 lev, g("n|lev_diff") - g("k|lev_diff"), g("n|lev_diff")), "",
+         "### T1 bis -- r\u00e8gle d'inop\u00e9rance R4 et position de \u03b4\u0302 (constat de simulation sous le mod\u00e8le ajust\u00e9 ; pas des rep\u00e8res de diagnostic)", "",
+         tableau_reperes(cpt, "regle"), "", note_n, "")
   lignes <- unique(sub("^nl\\|", "", grep("^nl\\|", names(cpt), value = TRUE)))
   types <- c("test", "diagnostic", "non applicable", "procedure de decision")
   L <- c(L, "### T2 -- classement des lignes de usp_tests() sur les r\u00e9plications (lignes non restitu\u00e9es \"test\" au moins une fois)", "",
@@ -192,17 +280,32 @@ tableaux <- function(cpt, R) {
 if (length(FICHIERS_COMB)) {
   parts <- lapply(FICHIERS_COMB, lire_comptes)
   par <- unique(vapply(parts, `[[`, "", "parametres"))
-  if (length(par) != 1L) stop("--combiner : parametres differents entre les fichiers")
+  if (length(par) != 1L) refuser("parametres differents entre les fichiers")
+  ctx <- unique(lapply(parts, `[[`, "contexte"))
+  if (length(ctx) != 1L) {
+    k_diff <- names(LIBELLES_CONTEXTE)[vapply(names(LIBELLES_CONTEXTE), function(k)
+      length(unique(vapply(parts, function(p) p$contexte[[k]], ""))) > 1L, logical(1))]
+    refuser("contexte (T0) different entre les tranches : ", paste(k_diff, collapse = ", "))
+  }
+  ctx <- ctx[[1]]
   R_tot <- as.integer(sub("^.*;R=([0-9]+);.*$", "\\1", par))
   idx <- unlist(lapply(parts, function(p) seq.int(p$debut, p$fin)))
   if (anyDuplicated(idx) || !setequal(idx, seq_len(R_tot)))
-    stop("--combiner : les tranches ne couvrent pas 1..", R_tot, " exactement une fois")
+    refuser("les tranches ne couvrent pas 1..", R_tot, " exactement une fois")
   cles <- unique(unlist(lapply(parts, function(p) names(p$comptes))))
   cpt <- stats::setNames(vapply(cles, function(k) sum(vapply(parts, function(p)
     if (k %in% names(p$comptes)) p$comptes[[k]] else 0, numeric(1))), numeric(1)), cles)
   ecrire_console(c(sprintf("## Taux de franchissement des rep\u00e8res -- combinaison de %d tranche(s)", length(parts)), "",
-                   sprintf("Param\u00e8tres : %s", par), ""))
-  ecrire_console(tableaux(cpt, R_tot))
+                   sprintf("Param\u00e8tres : %s", par), "",
+                   "### T0 -- contexte (identique dans toutes les tranches, v\u00e9rifi\u00e9)", "",
+                   entete_md(c("Grandeur", "Valeur")),
+                   lignes_contexte(ctx),
+                   ligne_md("R\u00e9plications", sprintf("%d (%d tranche(s) : %s)", R_tot, length(parts),
+                                                          paste(vapply(parts, function(p) sprintf("%d-%d", p$debut, p$fin), ""),
+                                                                collapse = ", "))),
+                   ligne_md("Commit de la combinaison", commit_depot()),
+                   ligne_md("Contr\u00f4le d'int\u00e9grit\u00e9", sprintf("OK dans les %d tranche(s) (agr\u00e9g\u00e9 : OK)", length(parts))), ""))
+  ecrire_console(tableaux(cpt, R_tot, ctx[["leviers"]]))
   quit(status = 0L)
 }
 
@@ -292,7 +395,9 @@ compter <- function(cpt, r) {
   for (nm in c(LIGNE_COOK, LIGNE_LEV, LIGNE_R2, LIGNE_PENTE, LIGNE_FISH))
     if (is.null(ligne(nm))) stop("ligne \"", nm, "\" absente de usp_tests() : script a mettre a jour")
   repere("cook", lu(LIGNE_COOK) > 4 / T_)
-  repere("leviers", lu(LIGNE_LEV) > 2 / T_)
+  # Leviers : pas un taux simule (deterministe a X fixes) ; on compte les
+  # replications dont max h_t differe de celui du jeu observe (LEV_OBS).
+  repere("lev_diff", !identical(lu(LIGNE_LEV), LEV_OBS))
   r2 <- ligne(LIGNE_R2)
   repere("r2", if (identical(r2$type, "diagnostic") && is.finite(r2$estim)) r2$estim < 0.5 else NA)
   tp <- ligne(LIGNE_PENTE)$type
@@ -300,6 +405,7 @@ compter <- function(cpt, r) {
   j <- lu(LIGNE_JACK); repere("jack10", j > REPERE_INFLUENCE_SIGMA); repere("jack20", j > 0.20)
   w <- lu(LIGNE_IC); repere("ic50", w > 0.50); repere("ic80", w > 0.80)
   repere("bord", r$regime$delta_au_bord)
+  repere("bord0", r$fit$delta <= TOL_DELTA_BORD)
   repere("bord1", r$fit$delta >= 1 - TOL_DELTA_BORD)
   for (l in r$tests) {
     ajoute(paste0("nl|", l$test), 1)
@@ -327,6 +433,12 @@ if (length(obs$tests) != length(res$tests) ||
     !identical(lapply(obs$tests, `[`, champs), lapply(res$tests, `[`, champs)))
   integrite <- c(integrite, "usp_tests() reconstruit : lignes, types, statistiques ou estimations differents de res$tests")
 t_controle <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
+# Repere des leviers sur le jeu observe (ligne de run_engine()).
+LEV_OBS <- local({
+  i <- match(LIGNE_LEV, vapply(res$tests, `[[`, "", "test"))
+  if (is.na(i)) NA_real_ else res$tests[[i]]$estim
+})
+if (!is.finite(LEV_OBS)) integrite <- c(integrite, "ligne des leviers absente ou non finie sur le jeu observe")
 
 # --- Replications ----------------------------------------------------------------------
 t0 <- Sys.time()
@@ -334,33 +446,47 @@ cpt <- numeric(0)
 for (b in seq.int(DEBUT, FIN))
   cpt <- compter(cpt, traiter(X, YSIM[b, ], OPT_GRAINE_IC + b))
 t_rep <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
+if (("k|lev_diff" %in% names(cpt)) && cpt[["k|lev_diff"]] > 0)
+  integrite <- c(integrite, sprintf("leviers : max h_t different de celui du jeu observe dans %.0f replication(s) (repere suppose deterministe a X fixes)",
+                                    cpt[["k|lev_diff"]]))
 
 # --- Sortie ------------------------------------------------------------------------------
 PAR <- sprintf("jeu=%s;R=%d;graine=%.0f;graine_ic=%.0f;B_ic=%d;methode=%s;segment=%d;annexe=%s;nature=%s;alpha=%g",
                OPT_JEU, OPT_R, OPT_GRAINE, OPT_GRAINE_IC, OPT_B_IC, METHODE, SEGMENT, ANNEXE, NATURE, ALPHA)
+# Contexte de T0 hors durees et hors bornes de la tranche : identique entre
+# tranches, verifie par --combiner (lignes CONTEXTE).
+CTX <- c(
+  jeu = JEU$libelle,
+  modele = sprintf("\u03b4\u0302 = %.6g ; \u03b3\u0302 = %.6g ; \u03b2\u0302 = %.6g ; \u03c3\u0302 = %.6g ; \u03c0\u0302 constant : %s",
+                   FIT0$delta, FIT0$gamma, FIT0$beta, FIT0$sigma, usp_regime(FIT0$delta, X)$pi_constant),
+  configuration = sprintf("m\u00e9thode %s, segment %d de l'annexe %s, donn\u00e9es %s, \u03b1 = %g, \u03c3 standard = %g, bar\u00e8me %s",
+                          METHODE, SEGMENT, ANNEXE, NATURE, ALPHA, SIGMA_STD, BAREME),
+  sigma_usp = sprintf("%.6g", res$parametre_final$sigma_usp),
+  graines = sprintf("jeux simul\u00e9s %.0f ; IC de la r\u00e9plication b : %.0f + b", OPT_GRAINE, OPT_GRAINE_IC),
+  B_ic = as.character(OPT_B_IC),
+  generateur = paste(ENGINE_RNG_KIND, collapse = ", "),
+  commit = commit_depot(),
+  leviers = sprintf("max h_t = %.4f ; seuil 2k/T = %.4f : %s", LEV_OBS, 2 / T_,
+                    if (!is.finite(LEV_OBS)) "NA" else if (LEV_OBS > 2 / T_) "franchi" else "non franchi"))
+stopifnot(identical(names(CTX), names(LIBELLES_CONTEXTE)))
 L0 <- c("## Taux de franchissement des rep\u00e8res des diagnostics sous le mod\u00e8le ajust\u00e9 (issue #72)", "",
         "### T0 -- contexte", "",
         entete_md(c("Grandeur", "Valeur")),
-        ligne_md("Jeu", JEU$libelle),
-        ligne_md("Mod\u00e8le ajust\u00e9 (usp_ajuster())",
-                 sprintf("\u03b4\u0302 = %.6g ; \u03b3\u0302 = %.6g ; \u03b2\u0302 = %.6g ; \u03c3\u0302 = %.6g ; \u03c0\u0302 constant : %s",
-                         FIT0$delta, FIT0$gamma, FIT0$beta, FIT0$sigma, usp_regime(FIT0$delta, X)$pi_constant)),
-        ligne_md("Configuration", sprintf("m\u00e9thode %s, segment %d de l'annexe %s, donn\u00e9es %s, \u03b1 = %g, \u03c3 standard = %g, bar\u00e8me %s",
-                                          METHODE, SEGMENT, ANNEXE, NATURE, ALPHA, SIGMA_STD, BAREME)),
-        ligne_md("\u03c3_USP observ\u00e9 (run_engine())", sprintf("%.6g", res$parametre_final$sigma_usp)),
+        lignes_contexte(CTX),
         ligne_md("R\u00e9plications", sprintf("%d (trait\u00e9es : %d \u00e0 %d)", OPT_R, DEBUT, FIN)),
-        ligne_md("Graines", sprintf("jeux simul\u00e9s %.0f ; IC de la r\u00e9plication b : %.0f + b", OPT_GRAINE, OPT_GRAINE_IC)),
-        ligne_md("B de l'IC bootstrap", OPT_B_IC),
-        ligne_md("G\u00e9n\u00e9rateur", paste(ENGINE_RNG_KIND, collapse = ", ")),
         ligne_md("Dur\u00e9e (s)", sprintf("contr\u00f4le %.1f ; r\u00e9plications %.1f ; total %.1f", t_controle, t_rep,
                                           as.numeric(difftime(Sys.time(), t_debut, units = "secs")))),
         ligne_md("Contr\u00f4le d'int\u00e9grit\u00e9", if (length(integrite)) "\u00c9CHEC" else "OK"), "")
 ecrire_console(L0)
 if (!is.na(OPT_TRANCHE))
   ecrire_console(c("Tableaux PARTIELS (une tranche) : combiner les sorties des K tranches par --combiner.", ""))
-ecrire_console(tableaux(cpt, FIN - DEBUT + 1L))
+ecrire_console(tableaux(cpt, FIN - DEBUT + 1L, CTX[["leviers"]]))
 if (length(integrite)) ecrire_console(c("Contr\u00f4le d'int\u00e9grit\u00e9 : \u00c9CHEC", paste("-", integrite), ""))
 if (!is.na(OPT_TRANCHE))
   ecrire_console(c(paste0("PARAMETRES\t", PAR), sprintf("TRANCHE\t%d\t%d", DEBUT, FIN),
-                   sprintf("COMPTE\t%s\t%.0f", names(cpt), cpt)))
+                   sprintf("CONTEXTE\t%s\t%s", names(CTX), CTX),
+                   paste0("INTEGRITE\t", if (length(integrite)) "ECHEC" else "OK"),
+                   sprintf("NCOMPTES\t%d", length(cpt)),
+                   sprintf("COMPTE\t%s\t%.0f", names(cpt), cpt),
+                   sprintf("FIN\t%d", length(cpt))))
 quit(status = if (length(integrite)) 1L else 0L)
