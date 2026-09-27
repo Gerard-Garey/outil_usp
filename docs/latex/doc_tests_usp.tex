@@ -8029,10 +8029,10 @@ dans 92,5~\% des cas.
 \subsection*{Calibration des p-values de Monte-Carlo}
 
 C'est le point le plus important, puisque ces p-values sont celles retenues pour la majorité des
-tests --- mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$), 25 des 48 lignes de
-la table auditable retiennent une p-value de Monte-Carlo, contre 10 une p-value exacte, 1 une
-p-value quasi-exacte et 2 une p-value asymptotique, les 10 dernières n'ayant aucune p-value
-retenue (8 diagnostics, 1 procédure de décision et 1 ligne non applicable). Sur 400 jeux de données simulés \emph{depuis le modèle} de
+tests --- mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$), 26 des 48 lignes de
+la table auditable retiennent une p-value de Monte-Carlo, contre 8 une p-value exacte, 1 une
+p-value sous le modèle auxiliaire MCO et 0 une p-value asymptotique, les 13 dernières n'ayant
+aucune p-value retenue (11 diagnostics, 1 procédure de décision et 1 ligne non applicable). Sur 400 jeux de données simulés \emph{depuis le modèle} de
 l'annexe~XVII, la fréquence de
 rejet au seuil nominal de 10~\% a été mesurée pour chacune des statistiques bootstrapées.
 
@@ -8738,9 +8738,9 @@ repère indicatif de 40~\% du second n'emporte aucun verdict (ADR~0001). \\
         $\succ$ asymptotique} (section~\ref{sec:nature})~: la p-value de Monte-Carlo n'est
         pas la première servie, elle vient \emph{après} la p-value exacte lorsque celle-ci
         existe. Mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$)~: des 48
-        lignes de la table auditable, 10 retiennent une p-value exacte, et 9 d'entre
+        lignes de la table auditable, 8 retiennent une p-value exacte, et 7 d'entre
         elles disposent pourtant d'une \code{p\_mc} qui n'est pas retenue~: lire
-        systématiquement \code{p\_mc} reviendrait à écarter neuf p-values exactes au profit
+        systématiquement \code{p\_mc} reviendrait à écarter sept p-values exactes au profit
         d'estimations entachées d'une erreur de Monte-Carlo (section~\ref{sec:deuxerreurs}).
         Les trois colonnes restent affichées~: leur comparaison est un contrôle utile, mais
         elle ne modifie pas le verdict.
