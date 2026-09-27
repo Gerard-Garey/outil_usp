@@ -3916,6 +3916,12 @@ un seuil statistique ni un repère de diagnostic~: il fixe le type de la ligne. 
 contrôle~: $\hat\lambda = 1{,}78$, $\hat\pi_b = 0{,}47$, ligne restituée en diagnostic (elle
 sortait \code{ALERTE} avant l'issue~\#44)~; sur le jeu à $\hat\delta$ intérieur de la
 section~\ref{sec:verif}, la ligne reste un test (p-value $5{,}9\cdot 10^{-6}$, \code{OK}).
+\emph{Fréquence de la restitution en diagnostic} (issue~\#72, constat de simulation sous le modèle
+ajusté, 2\,000 réplications, section~\ref{sec:taux-reperes})~: $38{,}0~\%$ $[35{,}8~;~40{,}1]$ des
+jeux simulés sur le jeu de contrôle, aucun ($0{,}0~\%$ $[0{,}0~;~0{,}2]$) sur le jeu à $\hat\delta$
+intérieur. Le premier chiffre mesure l'instabilité de la règle au voisinage de son seuil --- le jeu
+de contrôle est à $\hat\pi_b = 0{,}475$, près de $1/2$ ---, non une fréquence générale~; ni l'un
+ni l'autre ne se transpose à d'autres volumes.
 \end{fiche}
 
 \begin{fiche}{Test de Fisher de significativité globale}
@@ -3942,7 +3948,7 @@ $p = 1 - F_{\mathcal{F},k,T-k-1}(F)$, seule p-value de la ligne, retenue sous la
 celle de la pente (\code{sous le modele auxiliaire MCO~: \dots}), pour la même raison (fiche
 précédente). La règle~R4 s'applique à l'identique~: $F = t_b^2$, le test a la même puissance, et
 les lignes de la pente et de Fisher sont restituées ensemble en diagnostic lorsque $\hat\pi_b < 1/2$ (cas du jeu de
-contrôle).
+contrôle~; fréquence sous le modèle ajusté~: fiche précédente, rubrique~6).
 \Usage
 On souhaite, comme pour la pente, \emph{rejeter} $H_0$. En régression simple ce test est
 strictement équivalent au test de Student sur la pente ($F = t_b^2$, p-values identiques)~: il est
@@ -3993,7 +3999,12 @@ déjà portée par les tests de Student sur la pente et de Fisher~; sous le mod�
 $R^2$ est gouverné par la dispersion des volumes rapportée à celle du bruit, de sorte qu'un $R^2$
 faible peut décrire l'étroitesse de la plage des $x_t$ plutôt qu'une inadéquation. Mesuré sur le
 jeu de contrôle~: $R^2 = 0{,}244$, sous le repère~; cette valeur ne permet, à elle seule, de
-conclure à aucun écart au modèle.
+conclure à aucun écart au modèle. Le repère $0{,}5$ est une convention propre au projet, sans
+source. Sous le modèle ajusté, $R^2$ passe sous ce repère dans $68{,}0~\%$ $[65{,}9~;~70{,}0]$ des
+jeux simulés sur le jeu de contrôle et dans aucun ($0{,}0~\%$ $[0{,}0~;~0{,}2]$) sur le jeu à
+$\hat\delta$ intérieur, aux volumes bien plus dispersés (constat de simulation, 2\,000
+réplications, section~\ref{sec:taux-reperes})~: le franchissement décrit la dispersion des
+volumes plus que l'adéquation, et ces taux ne se transposent pas à d'autres données.
 \end{fiche}
 
 \begin{fiche}{Test RESET de Ramsey}
@@ -4542,8 +4553,17 @@ car (i) l'écart-type asymptotique de $\hat\delta$ n'est alors pas défini de ma
 (ii) le paramètre final peut varier fortement selon la borne retenue, et (iii) la théorie
 asymptotique standard des tests sur $\delta$ ne s'applique plus (voir la correction de Chernoff
 en section~\ref{sec:robustesse}). Sur des historiques de 5 à 12 points, la solution au bord est le cas de figure le
-plus fréquent en pratique. \emph{Pourquoi aucun verdict} (ADR~0001, amendement du
-23/09/2026)~: la position de $\hat\delta$ décrit l'identifiabilité de la structure de variance,
+plus fréquent en pratique. \emph{Fréquence sous le modèle ajusté} (issue~\#72, constat de
+simulation, 2\,000 réplications, section~\ref{sec:taux-reperes})~: sur le jeu de contrôle, où
+le $\delta$ du modèle simulé vaut~1, $\hat\delta^{*}$ est au bord dans $96{,}2~\%$
+$[95{,}3~;~97{,}0]$ des jeux simulés, au bord~0 dans $46{,}5~\%$ $[44{,}3~;~48{,}7]$ et au bord~1
+dans $49{,}8~\%$ $[47{,}5~;~52{,}0]$~; ce n'est pas un taux de fausse alarme, la position au bord
+n'étant pas une alerte, mais la mesure de la non-identifiabilité de $\delta$ à $T = 8$~: le modèle
+vrai à $\delta = 1$ produit presque aussi souvent $\hat\delta = 0$ que $\hat\delta = 1$. Sur le
+jeu à $\hat\delta$ intérieur ($\delta = 0{,}664$ dans le modèle simulé), $\hat\delta^{*}$ est au
+bord dans $76{,}8~\%$ $[74{,}9~;~78{,}6]$ des cas ($40{,}7~\%$ au bord~0, $36{,}1~\%$ au bord~1).
+La restitution de cette incertitude relève de l'issue~\#45. \emph{Pourquoi aucun verdict}
+(ADR~0001, amendement du 23/09/2026)~: la position de $\hat\delta$ décrit l'identifiabilité de la structure de variance,
 non l'adéquation du modèle, et n'a ni hypothèse nulle ni loi de référence~; un marquage
 \code{ALERTE} au bord, cas le plus fréquent sur ces historiques, ne distinguerait aucun dossier
 d'un autre. La décision formelle sur $\delta = 0$ ou $\delta = 1$ relève du test du rapport de
@@ -4854,7 +4874,12 @@ basse, attribuée à $\hat\pi_t$ constant seulement. Depuis l'issue~\#70 (règle
 ligne est \emph{non applicable} à $\hat\pi_t$ variable~: la loi nulle i.i.d. n'y décrit pas $W(z)$,
 elle n'est ni calculée ni rappelée ($W$ reste dans \code{stat}), et le commentaire renvoie à la
 ligne de Shapiro--Wilk sur résidus standardisés, dont la p-value de Monte-Carlo, simulée sous le
-modèle ajusté, reste disponible.
+modèle ajusté, reste disponible. Sous le modèle ajusté, la ligne est non applicable dans $50{,}2~\%$
+des jeux simulés sur le jeu de contrôle et $63{,}9~\%$ sur le jeu à $\hat\delta$ intérieur,
+exactement ceux où $\hat\delta^{*}$ n'est pas au bord~1 (constat de simulation, issue~\#72,
+2\,000 réplications, section~\ref{sec:taux-reperes})~: même sur le jeu de contrôle, où
+$\hat\pi_t$ est constant, la p-value de cette ligne n'existe qu'une fois sur deux sous le modèle
+vrai.
 \Usage
 Cette variante répond à une objection de principe~: la p-value de \code{shapiro.test()} repose sur
 la transformation normalisante de Royston (1992), qui est un \emph{ajustement empirique}, non un
@@ -6075,7 +6100,8 @@ sur une analyse métier (sinistre exceptionnel identifié, erreur de saisie avé
 \begin{fiche}{Distance de Cook (diagnostic)}
 \label{fiche:cook}%
 \refl{R.\,D. Cook, \emph{Detection of influential observation in linear regression},
-\emph{Technometrics}, 19(1), 1977, p.~15--18.}
+\emph{Technometrics}, 19(1), 1977, p.~15--18~; repère $4/n$~: K.\,A. Bollen, R.\,W. Jackman
+(1990, section~\ref{sec:biblio}).}
 \Cadre
 Régression contrainte $y_t = \beta x_t + \varepsilon_t$ à $k$ paramètres ($k=1$), de résidus
 $e_t$, de variance résiduelle estimée $\hat s^2$ et de leviers $h_t$ (fiche suivante).
@@ -6110,7 +6136,15 @@ mesure exacte pour ce dernier. \emph{Pourquoi aucun verdict} (ADR~0001, amendeme
 test~; l'hypothèse sous-jacente, une année atypique, est testée avec p-value par Grubbs
 (fiche~\ref{fiche:grubbs}), et l'effet d'une année sur $\sigma_{\mathrm{USP}}$ est mesuré par le
 jackknife (fiche~\ref{fiche:jackknife}). Mesuré sur le jeu de contrôle~: $\max_t D_t = 0{,}554$,
-atteint à l'année~8, seule au-dessus du repère.
+atteint à l'année~8, seule au-dessus du repère. \emph{Source du repère et taux de franchissement}
+(issue~\#72)~: Cook (1977) compare $D_t$ aux quantiles de $\mathcal{F}(k, T-k)$~; la règle $4/n$ est
+due à Bollen et Jackman (1990), et sa proximité à $T = 8$ de la médiane de $\mathcal{F}(1,7)$,
+$0{,}506$, est une coïncidence numérique. Sous le modèle ajusté, au moins une année franchit le
+repère dans $47{,}7~\%$ $[45{,}5~;~49{,}9]$ des jeux simulés sur le jeu de contrôle et dans
+$86{,}0~\%$ $[84{,}3~;~87{,}4]$ sur le jeu à $\hat\delta$ intérieur (constat de simulation,
+2\,000 réplications, section~\ref{sec:taux-reperes})~: son franchissement par les données
+observées ne distingue pas un écart au modèle de la variabilité du modèle vrai à $T = 8$, et ces
+taux ne se transposent pas à d'autres volumes.
 \end{fiche}
 
 \begin{fiche}{Leviers (\emph{hat values}, diagnostic)}
@@ -6144,8 +6178,13 @@ la section~\ref{sec:controles}. \emph{Pourquoi aucun verdict} (ADR~0001, amendem
 23/09/2026)~: $h_t$ ne dépend que des volumes, que le modèle réglementaire traite comme des
 covariables fixes et sur lesquels aucune de ses hypothèses ne porte~; il n'existe donc ni
 hypothèse nulle ni loi de référence, et le repère $2k/T$ --- deux fois le levier moyen $k/T$ ---
-est une règle de lecture. Mesuré sur le jeu de contrôle~: $\max_t h_t = 0{,}160$, aucune
-observation au-dessus du repère.
+est une règle de lecture, empirique, proposée par Hoaglin et Welsch (1978). Mesuré sur le jeu de
+contrôle~: $\max_t h_t = 0{,}160$, aucune observation au-dessus du repère. Les leviers ne
+dépendant que des $x_t$, fixés dans les simulations, le franchissement du repère est
+\emph{déterministe à volumes fixés}~: non franchi sur le jeu de contrôle, franchi sur le jeu à
+$\hat\delta$ intérieur ($\max_t h_t = 0{,}480$), dans toutes les réplications de chacun
+(section~\ref{sec:taux-reperes})~; ce n'est pas un résultat de simulation, et il ne dit rien des
+pertes.
 \end{fiche}
 
 \begin{fiche}{Rupture sup-F sur ratios bruts}
@@ -6399,7 +6438,13 @@ l'heuristique néglige ($\hat\delta$ reste égal à~1 pour les huit retraits, me
 verdict} (ADR~0001, amendement du 23/09/2026)~: $\Delta_{\max}$ n'a pas de loi de référence, et
 le repère 10~\% / 20~\% n'est pas un niveau de test~; sur l'échelle de
 $\sigma_{\mathrm{USP}}$, son franchissement dépend en outre de la table de l'annexe, non des
-seules données.
+seules données. Ce repère est une convention propre au projet, sans source. Sous le modèle
+ajusté (segment~1 de l'annexe~II), $\Delta_{\max}$ dépasse 10~\% dans $70{,}4~\%$
+$[68{,}3~;~72{,}4]$ des jeux simulés sur le jeu de contrôle et $56{,}8~\%$ $[54{,}6~;~59{,}0]$ sur le
+jeu à $\hat\delta$ intérieur, et 20~\% dans $18{,}1~\%$ $[16{,}5~;~19{,}9]$ et $9{,}2~\%$
+$[8{,}0~;~10{,}6]$ (constat de simulation, 2\,000 réplications, section~\ref{sec:taux-reperes})~:
+à $T = 8$, le modèle vrai franchit le premier repère plus d'une fois sur deux, qui ne renseigne
+donc pas, à lui seul, sur l'adéquation~; ces taux ne se transposent pas à d'autres données.
 \end{fiche}
 
 \begin{fiche}{Intervalle de confiance par bootstrap paramétrique}
@@ -6474,7 +6519,14 @@ et $0{,}93$ pour $\nu = 6$ (approximation heuristique, non un résultat). \emph{
 verdict} (ADR~0001, amendement du 23/09/2026)~: $L$ quantifie l'incertitude d'échantillonnage
 sous le modèle ajusté, mais ne peut pas contredire ce modèle~; aucune loi de référence ni aucun
 niveau n'est attaché aux repères 50~\% / 80~\%, et leur franchissement dépend, sur l'échelle de
-$\sigma_{\mathrm{USP}}$, de la table de l'annexe autant que des données.
+$\sigma_{\mathrm{USP}}$, de la table de l'annexe autant que des données. Ces repères sont des
+conventions propres au projet, sans source. Sous le modèle ajusté (segment~1 de l'annexe~II),
+$L$ dépasse 50~\% dans $49{,}0~\%$ $[46{,}8~;~51{,}2]$ des jeux simulés sur le jeu de contrôle et
+$4{,}2~\%$ $[3{,}4~;~5{,}2]$ sur le jeu à $\hat\delta$ intérieur, et 80~\% dans aucun des deux
+($0{,}0~\%$ $[0{,}0~;~0{,}2]$~; constat de simulation, 2\,000 réplications,
+section~\ref{sec:taux-reperes})~: le repère de 50~\% est franchi une fois sur deux par le modèle
+vrai sur le jeu de contrôle et ne renseigne pas sur l'adéquation~; ces taux ne se transposent pas
+à d'autres données.
 \end{fiche}
 
 \begin{fiche}{Convergence multi-démarrages}
@@ -8770,6 +8822,14 @@ soutient dans le présent document.
   repère $2/\sqrt{n}$).
   \emph{Portée.} Cité à la fiche~\ref{mw:influence} pour distinguer ce repère du repère de
   2~\% de l'outil (issue~\#89).
+
+  \item K.\,A. Bollen, R.\,W. Jackman, \emph{Regression diagnostics: an expository treatment of
+  outliers and influential cases}, in J.~Fox, J.\,S. Long (dir.), \emph{Modern Methods of Data
+  Analysis}, Sage, Newbury Park, 1990, p.~257--291.
+  \emph{Portée.} Source de la règle $4/n$ que reprend le repère $4/T$ de la distance de Cook
+  (fiche~\ref{fiche:cook}, issue~\#72)~: règle de lecture, non seuil de test. Elle ne dit rien
+  du taux de franchissement de ce repère à $T = 8$, mesuré par simulation à la
+  section~\ref{sec:taux-reperes}.
 \end{itemize}
 
 
@@ -9050,7 +9110,9 @@ jackknife, 50~\% / 80~\% pour la largeur de l'intervalle bootstrap --- et les li
 position de $\hat\delta$ (fiches~\ref{fiche:leviers}, \ref{fiche:cook}, \ref{fiche:r2},
 \ref{fiche:jackknife}, \ref{fiche:ic-bootstrap}
 et~\ref{fiche:position-delta}) sont des \emph{repères}, non des
-seuils de rejet~: ils ne produisent aucun verdict. Ils sont conservés dans le commentaire,
+seuils de rejet~: ils ne produisent aucun verdict. Le modèle ajusté, pris pour vrai, en franchit
+plusieurs une fois sur deux ou davantage à $T = 8$ (sous-section « Taux de franchissement des
+repères », section~\ref{sec:taux-reperes}). Ils sont conservés dans le commentaire,
 sauf ceux du jackknife et de l'intervalle bootstrap, énoncés dans leurs fiches seulement depuis
 la décision M27 du mainteneur (issue~\#76). La condition du premier ordre et la
 convergence multi-démarrages ne sont plus des lignes de la table (issue~\#22)~: ce sont des
@@ -9076,6 +9138,83 @@ repère indicatif de 40~\% du second n'emporte aucun verdict (ADR~0001). \\
 \bottomrule
 \end{tabular}
 \end{center}
+
+\subsection*{Taux de franchissement des repères sous le modèle ajusté}
+\label{sec:taux-reperes}
+
+Un repère de diagnostic ne porte aucun verdict (ADR~0001, décision M7 du mainteneur, issue~\#24).
+Pour que le relecteur sache ce que vaut son franchissement, on a mesuré à quelle fréquence le
+\emph{modèle ajusté lui-même}, pris pour vrai, franchit chaque repère à $T = 8$ (issue~\#72).
+\emph{Protocole}~: script hors CI \code{tests/taux\_franchissement\_reperes.R}~; 2\,000 jeux simulés
+sous le modèle ajusté par \code{usp\_simuler()}, volumes $x_t$ fixés, graine 20260927~; chaque jeu
+traité comme \code{run\_engine()} traite un jeu observé (méthode prime, segment~1 de l'annexe~II,
+données brutes, $\alpha = 0{,}10$~: \code{usp\_ajuster()}, jackknife, \code{usp\_tests()}), l'intervalle
+bootstrap de la réplication $b$ étant calculé sur $B = 999$ tirages, graine $20260831 + b$~; tous
+les tirages sous \code{engine\_sous\_graine()}, générateur \code{ENGINE\_RNG\_KIND}. Deux jeux~: J1,
+le jeu de contrôle ($\hat\delta = 1$, $\hat\pi_t$ constant, volumes de $102$ à $132$), et J2, le jeu
+à $\hat\delta$ intérieur de la section~\ref{sec:verif} ($\hat\delta = 0{,}664$, $\hat\pi_t$ variable,
+volumes de $50$ à $300$). Sorties complètes~: \code{docs/tableaux/20260927-issue72-J1.md} et
+\code{docs/tableaux/20260927-issue72-J2.md}, contrôle d'intégrité contre \code{run\_engine()} réussi
+sur chacun. \emph{Statut}~: constat de simulation sous le modèle ajusté à chaque jeu, à $T = 8$~;
+les intervalles de Clopper--Pearson à 95~\% ne mesurent que l'incertitude de simulation sur le
+taux, fonction du nombre de jeux simulés, et rien de l'erreur d'approximation en $T$.
+
+\begin{center}
+\small
+\rowcolors{2}{tablerow}{white}
+\begin{tabular}{@{}p{4.9cm}p{3.6cm}p{3.1cm}p{3.1cm}@{}}
+\rowcolor{tableheader}
+\textcolor{financeblue}{\textbf{Repère (fiche)}} &
+\textcolor{financeblue}{\textbf{Source du seuil}} &
+\textcolor{financeblue}{\textbf{J1, \% [IC 95 \%]}} &
+\textcolor{financeblue}{\textbf{J2, \% [IC 95 \%]}} \\
+Cook~: au moins un $D_t > 4/T$ (fiche~\ref{fiche:cook}) & Bollen et Jackman (1990) &
+$47{,}7$ $[45{,}5~;~49{,}9]$ & $86{,}0$ $[84{,}3~;~87{,}4]$ \\
+Leviers~: au moins un $h_t > 2k/T$ (fiche~\ref{fiche:leviers}) & Hoaglin et Welsch (1978),
+règle empirique & non franchi, déterministe ($\max_t h_t = 0{,}160$) & franchi, déterministe
+($\max_t h_t = 0{,}480$) \\
+$R^2 < 0{,}5$ (fiche~\ref{fiche:r2}) & convention du projet, sans source &
+$68{,}0$ $[65{,}9~;~70{,}0]$ & $0{,}0$ $[0{,}0~;~0{,}2]$ \\
+Jackknife~: $\Delta_{\max} > 10~\%$ (fiche~\ref{fiche:jackknife}) & convention du projet, sans
+source & $70{,}4$ $[68{,}3~;~72{,}4]$ & $56{,}8$ $[54{,}6~;~59{,}0]$ \\
+Jackknife~: $\Delta_{\max} > 20~\%$ & convention du projet, sans source &
+$18{,}1$ $[16{,}5~;~19{,}9]$ & $9{,}2$ $[8{,}0~;~10{,}6]$ \\
+Intervalle bootstrap~: $L > 50~\%$ (fiche~\ref{fiche:ic-bootstrap}) & convention du projet, sans
+source & $49{,}0$ $[46{,}8~;~51{,}2]$ & $4{,}2$ $[3{,}4~;~5{,}2]$ \\
+Intervalle bootstrap~: $L > 80~\%$ & convention du projet, sans source &
+$0{,}0$ $[0{,}0~;~0{,}2]$ & $0{,}0$ $[0{,}0~;~0{,}2]$ \\
+\rowcolor{tableheader}
+\multicolumn{4}{@{}l@{}}{\textcolor{financeblue}{\textbf{Pour mémoire, hors repères de diagnostic}}} \\
+Pente et Fisher en diagnostic, $\hat\pi_b < 1/2$ (fiche~\ref{fiche:student-pente}) &
+règle~R4, convention de restitution & $38{,}0$ $[35{,}8~;~40{,}1]$ & $0{,}0$ $[0{,}0~;~0{,}2]$ \\
+$\hat\delta^{*}$ au bord de $[0,1]$ (fiche~\ref{fiche:position-delta}) &
+\code{TOL\_DELTA\_BORD} & $96{,}2$ $[95{,}3~;~97{,}0]$ & $76{,}8$ $[74{,}9~;~78{,}6]$ \\
+\quad dont bord~0 & & $46{,}5$ $[44{,}3~;~48{,}7]$ & $40{,}7$ $[38{,}5~;~42{,}9]$ \\
+\quad dont bord~1 & & $49{,}8$ $[47{,}5~;~52{,}0]$ & $36{,}1$ $[34{,}0~;~38{,}2]$ \\
+\end{tabular}
+\end{center}
+
+\noindent
+\emph{Sources des seuils.} Cook (1977) compare $D_t$ aux quantiles de la loi $\mathcal{F}(k, T-k)$~;
+la règle $4/n$ est due à K.\,A. Bollen et R.\,W. Jackman (1990, section~\ref{sec:biblio}). À
+$T = 8$ et $k = 1$, la médiane de $\mathcal{F}(1, 7)$ vaut $0{,}506$, proche de $4/T = 0{,}5$~: c'est
+une coïncidence numérique, non une justification. Le repère $2k/T$ des leviers, deux fois le levier
+moyen, est la règle empirique de Hoaglin et Welsch (1978, fiche~\ref{fiche:leviers}). Les repères
+de $R^2$ ($0{,}5$), du jackknife (10~\% et 20~\%) et de la largeur de l'intervalle bootstrap
+(50~\% et 80~\%) sont des conventions propres au projet~: aucune source ne les fonde.
+\emph{Lecture.} Le modèle vrai franchit le repère de Cook, celui de la largeur de l'intervalle à
+50~\% et celui du jackknife à 10~\% dans environ la moitié des jeux de J1 ou davantage, et celui
+de $R^2$ dans deux jeux sur trois~: un repère que le modèle vrai franchit une fois sur deux
+n'informe pas sur l'adéquation du modèle, et c'est la raison pour laquelle ces lignes sont des
+diagnostics sans verdict. La décision M7 s'appuyait sur une mesure à 60 réplications, qui situait
+ces taux entre 50~\% et 80~\%~; la mesure à 2\,000 réplications en précise l'ordre de grandeur
+sans changer la conclusion. Le repère de 80~\% de l'intervalle bootstrap n'est franchi dans
+aucune réplication des deux jeux. L'écart entre J1 et J2 --- $R^2$ jamais sous $0{,}5$ et largeur
+de l'intervalle rarement au-dessus de 50~\% sur J2, dont les volumes sont bien plus dispersés
+(coefficient de variation $0{,}64$ contre $0{,}097$), mais Cook plus souvent franchi --- montre que ces taux dépendent des volumes et du régime de
+$\hat\pi_t$. \emph{Portée}~: ces taux valent pour ces deux jeux, sous leur modèle ajusté et à
+$T = 8$~; ils ne se transposent ni à un autre portefeuille, ni à une autre profondeur, ni à un
+autre paramétrage, et le script peut être rejoué sur les données d'un dossier.
 
 \subsection*{Hiérarchie de lecture recommandée}
 
