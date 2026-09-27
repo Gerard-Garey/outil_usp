@@ -16,7 +16,12 @@
 #  nominatives (appliquee, ancree sur son contexte, perimee, jugee sans
 #  paquet : issue #86), colonne "Cle MC" (issue #91 : cles, fins de rangee
 #  \\, \\* et \\[..], rangee non terminee), seuil de B
-#  (valider_B(), --B sous B_MIN refuse), recapitulatif apres exemptions et
+#  (valider_B(), --B sous B_MIN refuse), rubrique 7 et tableau de
+#  tracabilite (issue #114 : presence, unicite, position apres \Usage,
+#  fiches hors registre, registre confronte a des lignes du moteur
+#  construites en memoire, rangees manquantes, en double ou non reconnues,
+#  chemins cites inexistants, injections dans une copie du .tex),
+#  recapitulatif apres exemptions et
 #  mode --strict (script lance sur une copie modifiee du .tex). L'etat reel
 #  du depot n'est pas juge ici : c'est l'etape --strict de la CI qui le fait
 #  (decision (a) du mainteneur sur l'audit de #65).
@@ -440,6 +445,169 @@ verifier("grandeurs_moteur : les cinq categories de nature partitionnent les lig
            all(g[cinq] == 1) && sum(g[cinq]) == g[["lignes (total)"]] &&
              sum(g2[cinq]) == g2[["lignes (total)"]] && g2[["nature modele auxiliaire MCO"]] >= 1
          })
+# Issue #114 : rubrique 7 "Pertinence et puissance a faible T" et tableau de
+# tracabilite, sur des chaines LaTeX en memoire.
+.t7 <- c("\\newcommand{\\Pertinence}{\\item[7.]}",          # 1  definition : ignoree
+         "\\begin{fiche}{A}", "\\label{fiche:a}%",            # 2-3
+         "\\Cadre x", "\\Usage u", "\\Pertinence p",          # 4-6  rubrique 7 apres \Usage
+         "\\end{fiche}",                                      # 7
+         "\\begin{fiche}{B}", "\\label{fiche:b}%",            # 8-9
+         "\\Usage u \\PertinenceX", "\\end{fiche}",           # 10-11 \PertinenceX : autre macro
+         "\\begin{fiche}{C}", "\\label{fiche:c}%",            # 12-13
+         "\\Pertinence p", "\\Usage u", "\\end{fiche}",       # 14-16 rubrique 7 avant \Usage
+         "\\begin{fiche}{D}", "\\label{fiche:d}%",            # 17-18
+         "\\Usage u", "\\Pertinence p", "\\Pertinence q",     # 19-21 rubrique 7 deux fois
+         "\\end{fiche}",                                      # 22
+         "\\begin{fiche}{E}", "Sans label", "\\Usage",        # 23-25 fiche sans label nomme
+         "\\Pertinence", "\\end{fiche}",                      # 26-27
+         "% \\Pertinence commentee", "\\Pertinence hors fiche", # 28-29
+         "\\begin{fiche}{F}", "\\label{fiche:f}%")            # 30-31 fiche non terminee
+.f7 <- cc$fiches_rubrique7(.t7)
+verifier("Issue #114 : fiches_rubrique7() lit label, nombre de \\Pertinence et position par rapport a \\Usage",
+         identical(.f7$label, c("fiche:a", "fiche:b", "fiche:c", "fiche:d", NA)) &&
+           identical(.f7$n_pertinence, c(1L, 0L, 1L, 2L, 1L)) &&
+           identical(.f7$apres_usage, c(TRUE, FALSE, FALSE, TRUE, TRUE)) &&
+           identical(.f7$ligne_pertinence, c(6L, NA, 14L, 20L, 26L)))
+verifier("Issue #114 : \\Pertinence hors fiche signale (definition \\newcommand et commentaire exceptes), fiche non terminee signalee",
+         identical(attr(.f7, "hors_fiche"), 29L) && identical(attr(.f7, "non_terminee"), 30L))
+.e7 <- cc$verifier_rubrique7(.f7, c("fiche:a", "fiche:b", "fiche:c", "fiche:z"))
+.a_motif <- function(e, label, rx, ligne = NULL)
+  any((if (is.na(label)) is.na(e$label) else e$label %in% label) & grepl(rx, e$motif) &
+        (if (is.null(ligne)) TRUE else e$ligne %in% ligne))
+verifier("Issue #114 : fiche de test sans rubrique 7 (fiche du registre) signalee",
+         .a_motif(.e7, "fiche:b", "^rubrique 7 absente de la fiche$", 8L))
+verifier("Issue #114 : rubrique 7 sur une fiche hors du registre (diagnostic) signalee",
+         .a_motif(.e7, "fiche:d", "hors du registre", 20L))
+verifier("Issue #114 : rubrique 7 avant \\Usage signalee",
+         .a_motif(.e7, "fiche:c", "avant \\\\Usage", 14L))
+verifier("Issue #114 : rubrique 7 presente deux fois signalee",
+         .a_motif(.e7, "fiche:d", "presente 2 fois", 20L))
+verifier("Issue #114 : rubrique 7 dans une fiche sans label nomme, hors fiche, fiche non terminee, label du registre introuvable",
+         .a_motif(.e7, NA, "sans label nomme", 26L) && .a_motif(.e7, NA, "hors de tout environnement", 29L) &&
+           .a_motif(.e7, NA, "non termine", 30L) && .a_motif(.e7, "fiche:z", "introuvable dans le document"))
+verifier("Issue #114 : aucune autre signalisation (fiche:a conforme ; 8 ecarts au total)",
+         !any(.e7$label %in% "fiche:a") && nrow(.e7) == 8L)
+verifier("Issue #114 : fiche sans \\Usage portant la rubrique 7 signalee",
+         .a_motif(cc$verifier_rubrique7(cc$fiches_rubrique7(c("\\begin{fiche}{G}", "\\label{fiche:g}", "\\Pertinence",
+                                                              "\\end{fiche}")), "fiche:g"),
+                  "fiche:g", "sans \\\\Usage", 3L))
+
+.tt <- c("\\subsection{Tracabilite}", "\\label{tab:tracabilite-puissance}",                         # 1-2
+         "Script \\code{tests/concordance\\_doc\\_moteur.R}, sortie \\code{docs/tableaux/}\\newline",  # 3
+         "\\code{absent\\_114.md} ; \\code{tests/} puis \\code{docs/} ; \\code{p\\_min}.",             # 4
+         "\\begin{longtable}{lll}", "\\textbf{Test (fiche)} & a & b \\\\", "\\endhead",                # 5-7
+         "\\bottomrule", "\\endlastfoot",                                                              # 8-9
+         "\\multicolumn{3}{l}{\\textbf{M\\'ethode}} \\\\", "\\midrule",                                # 10-11
+         "A (\\ref{fiche:a}) & \\code{f()} & \\code{tests/outils\\_tests.R} \\\\",                     # 12
+         "B, variante (\\ref{fiche:b}) & x & --- \\\\",                                                # 13
+         "B (\\ref{fiche:b}) & x & --- \\\\*",                                                         # 14
+         "Sans renvoi & x & --- \\\\",                                                                 # 15
+         "C (\\ref{fiche:c})", "& x & \\code{tests/inexistant\\_114.R} \\\\[2pt]",                     # 16-17
+         "Non terminee (\\ref{fiche:d}) & x",                                                          # 18
+         "\\end{longtable}")                                                                           # 19
+.rg <- cc$lignes_tracabilite(.tt)
+verifier("Issue #114 : lignes_tracabilite() lit une rangee par fiche (fins \\\\, \\\\* et \\\\[..], rangee sur deux lignes), intertitre ignore",
+         identical(.rg$label, c("fiche:a", "fiche:b", "fiche:b", "fiche:c")) &&
+           identical(.rg$ligne, c(12L, 13L, 14L, 16L)) &&
+           identical(attr(.rg, "non_reconnues"), 15L) && identical(attr(.rg, "non_terminee"), 18L))
+.etr <- cc$verifier_tracabilite(.rg, c("fiche:a", "fiche:c", "fiche:e"))
+verifier("Issue #114 : rangee en double signalee",
+         .a_motif(.etr, "fiche:b", "citee par 2 rangees", 14L))
+verifier("Issue #114 : rangee manquante (fiche a rubrique 7 sans rangee) signalee",
+         .a_motif(.etr, "fiche:e", "sans rangee"))
+verifier("Issue #114 : rangee pour une fiche sans rubrique 7, rangee sans renvoi et rangee non terminee signalees",
+         .a_motif(.etr, "fiche:b", "sans rubrique 7", 13L) && .a_motif(.etr, NA, "Nom \\(\\\\ref", 15L) &&
+           .a_motif(.etr, NA, "non terminee", 18L) && nrow(.etr) == 5L &&
+           !any(.etr$label %in% c("fiche:a", "fiche:c")))
+verifier("Issue #114 : lignes_tracabilite() renvoie NULL sans le label du tableau",
+         is.null(cc$lignes_tracabilite(.tt[-2L])))
+.ch <- cc$chemins_tracabilite(.tt)
+verifier("Issue #114 : chemins cites dans la sous-section, coupe en deux \\code{} recolle, texte intercale non recolle, champs et fonctions exclus",
+         identical(.ch$chemin, c("tests/concordance_doc_moteur.R", "docs/tableaux/absent_114.md", "tests/", "docs/",
+                                 "tests/outils_tests.R", "tests/inexistant_114.R")) &&
+           identical(.ch$ligne, c(3L, 3L, 4L, 4L, 12L, 17L)))
+.mq <- cc$verifier_chemins(.ch, .racine)
+verifier("Issue #114 : fichier cite inexistant signale, fichiers et dossiers existants acceptes",
+         identical(.mq$chemin, c("docs/tableaux/absent_114.md", "tests/inexistant_114.R")))
+
+.reg <- list(list(label = "fiche:a", tests = c("A1", "A2")),
+             list(label = "fiche:b", tests = "B", hors_jeux = "motif"),
+             list(label = "fiche:c", tests = "C"),
+             list(label = "fiche:d", tests = "D"))
+.lm <- data.frame(test = c("A1", "A2", "B", "C", "X", "Z"),
+                  type = c("test", "diagnostic", "diagnostic", "diagnostic", "procedure de decision", "diagnostic"),
+                  stringsAsFactors = FALSE)
+.er <- cc$verifier_registre_rubrique7(.lm, .reg)
+verifier("Issue #114 : registre au moteur -- ligne de type procedure sans fiche, nom perime, fiche sans ligne de type test signales ; hors_jeux accepte",
+         .a_motif(.er, NA, "rattachee a aucune fiche") && .er$test[is.na(.er$label)] == "X" &&
+           .a_motif(.er, "fiche:d", "produit par aucune execution") &&
+           .a_motif(.er, "fiche:c", "aucune ligne de type test") && nrow(.er) == 3L)
+.lm$type[.lm$test == "B"] <- "test"
+.reg[[4L]]$tests <- c("D", "A1")
+.lm <- rbind(.lm, data.frame(test = "D", type = "diagnostic", stringsAsFactors = FALSE))
+.er2 <- cc$verifier_registre_rubrique7(.lm, .reg)
+verifier("Issue #114 : registre au moteur -- declaration hors_jeux perimee et ligne rattachee a deux fiches signalees",
+         .a_motif(.er2, "fiche:b", "hors_jeux perimee") && .a_motif(.er2, "fiche:a, fiche:d", "plusieurs fiches"))
+.labs <- vapply(cc$REGISTRE_RUBRIQUE7, `[[`, character(1), "label")
+.noms <- unlist(lapply(cc$REGISTRE_RUBRIQUE7, `[[`, "tests"))
+verifier("Issue #114 : registre REGISTRE_RUBRIQUE7 -- 53 fiches (decision du mainteneur du 27/09/2026), labels et noms uniques",
+         length(.labs) == 53L && !anyDuplicated(.labs) && !anyDuplicated(.noms) &&
+           all(grepl("^(fiche|mw):[a-z0-9-]+$", .labs)) && sum(startsWith(.labs, "mw:")) == 16L)
+verifier("Issue #114 : jeu J2 lu dans test_controles_numeriques.R (T = 8)",
+         { j <- cc$lire_jeu_j2(.racine); length(j$x) == 8L && length(j$y) == 8L })
+
+# Issue #114 : injections dans une copie du .tex, un seul appel du script
+# --strict, lignes conservees (remplacement de contenu, pas d'insertion) :
+# rubrique 7 retiree d'une fiche de test (RESET), ajoutee a un diagnostic
+# (R2), deplacee avant \Usage (White), doublee (Goldfeld-Quandt) ; rangee
+# Lilliefors remplacee par un double de la rangee Jarque-Bera ; fichier cite
+# inexistant (issue72-J2.md -> issue72-J3.md sur la rangee Fisher).
+.tex_114 <- readLines(file.path(.racine, "docs", "latex", "doc_tests_usp.tex"), warn = FALSE, encoding = "UTF-8")
+.bornes <- function(lab) {
+  d <- grep(sprintf("\\label{%s}", lab), .tex_114, fixed = TRUE)
+  f <- grep("\\end{fiche}", .tex_114, fixed = TRUE); c(d - 1L, f[f > d][1L])
+}
+.dans <- function(lab, rx) { b <- .bornes(lab); k <- grep(rx, .tex_114); k[k > b[1L] & k < b[2L]] }
+.m <- .tex_114
+.k_reset <- .dans("fiche:reset", "^\\\\Pertinence\\s*$"); .m[.k_reset] <- ""
+.b_r2 <- .bornes("fiche:r2"); .m[.b_r2[2L] - 1L] <- paste(.m[.b_r2[2L] - 1L], "\\Pertinence")
+.k_white <- .dans("fiche:white", "^\\\\Pertinence\\s*$"); .k_white_h <- .dans("fiche:white", "^\\\\Hzero")
+.m[.k_white] <- ""; .m[.k_white_h] <- paste(.m[.k_white_h], "\\Pertinence")
+.k_gq <- .dans("fiche:goldfeld-quandt", "^\\\\Pertinence\\s*$"); .m[.k_gq] <- "\\Pertinence \\Pertinence"
+.k_li <- grep("(\\ref{fiche:lilliefors}) &", .tex_114, fixed = TRUE)
+.k_jb <- grep("(\\ref{fiche:jarque-bera}) &", .tex_114, fixed = TRUE)
+.m[.k_li] <- .tex_114[.k_jb]
+.k_fi <- grep("(\\ref{fiche:fisher-global}) &", .tex_114, fixed = TRUE)
+.m[.k_fi] <- sub("issue72-J2.md", "issue72-J3.md", .m[.k_fi], fixed = TRUE)
+.tex_mutant <- tempfile(fileext = ".tex")
+writeLines(.m, .tex_mutant, useBytes = TRUE)
+r_114 <- .lancer_concordance("--strict", "--tex", .tex_mutant)
+unlink(.tex_mutant)
+.sortie_a <- function(ligne, label, rx) {
+  lig <- gsub("?", "\\?", sprintf("%-5s", if (is.na(ligne)) "?" else ligne), fixed = TRUE)
+  any(grepl(sprintf("^    l\\.%s %-34s %s", lig, label, rx), r_114$sortie))
+}
+verifier("Issue #114 : injections localisees dans la copie du .tex (une ligne chacune)",
+         all(lengths(list(.k_reset, .k_white, .k_white_h, .k_gq, .k_li, .k_jb, .k_fi)) == 1L) &&
+           !is.na(.b_r2[2L]) && .m[.k_fi] != .tex_114[.k_fi])
+verifier("Issue #114 : --strict echoue (code 1) sur les injections de rubrique 7 et du tableau",
+         r_114$code == 1L)
+verifier("Issue #114 : --strict signale la fiche de test privee de rubrique 7 (RESET)",
+         .sortie_a(.bornes("fiche:reset")[1L], "fiche:reset", "rubrique 7 absente de la fiche$"))
+verifier("Issue #114 : --strict signale la rubrique 7 sur un diagnostic (R2)",
+         .sortie_a(.b_r2[2L] - 1L, "fiche:r2", "rubrique 7 sur une fiche hors du registre"))
+verifier("Issue #114 : --strict signale la rubrique 7 avant \\Usage (White) et en double (Goldfeld-Quandt)",
+         .sortie_a(.k_white_h, "fiche:white", "rubrique 7 avant \\\\Usage") &&
+           .sortie_a(.k_gq, "fiche:goldfeld-quandt", "rubrique 7 presente 2 fois"))
+verifier("Issue #114 : --strict signale le tableau -- rangee en double, rangee manquante, rangee d'une fiche sans rubrique 7, fiche a rubrique 7 sans rangee",
+         .sortie_a(max(.k_li, .k_jb), "fiche:jarque-bera", "fiche citee par 2 rangees") &&
+           .sortie_a(NA, "fiche:lilliefors", "fiche a rubrique 7 sans rangee") &&
+           .sortie_a(grep("(\\ref{fiche:reset}) &", .tex_114, fixed = TRUE), "fiche:reset", "rangee pour une fiche sans rubrique 7") &&
+           .sortie_a(NA, "fiche:r2", "fiche a rubrique 7 sans rangee"))
+verifier("Issue #114 : --strict signale le fichier cite inexistant (issue72-J3.md), et lui seul",
+         any(grepl(sprintf("^    l\\.%-5d docs/tableaux/20260927-issue72-J3\\.md$", .k_fi), r_114$sortie)) &&
+           any(grepl("^  ECART -- 1 chemin\\(s\\) cite\\(s\\) inexistant\\(s\\)", r_114$sortie)))
+
 # Aucune assertion sur l'etat reel du depot (--strict sur le .tex versionne,
 # recapitulatif apres exemptions, exemptions perimees) : elle ferait echouer
 # test_unitaires.R sur un ecart de concordance, et sauter en CI l'etape de

@@ -67,6 +67,45 @@
 #       cle. Les cles d'un catalogue non citees sont signalees pour
 #       information. Limite : l'appartenance au catalogue est verifiee, pas
 #       la correspondance cle <-> test (voir cles_mc_index()).
+#    5. la rubrique 7 "Pertinence et puissance a faible T" (issue #114,
+#       decisions du mainteneur du 27/09/2026, points 3 et 5) :
+#       a) le registre REGISTRE_RUBRIQUE7 (label de fiche -> noms exacts des
+#          lignes du moteur) est confronte aux lignes de res$tests de toutes
+#          les executions (J1 et volumes constants pour premium et reserve1,
+#          J2 -- delta interieur, xi, yi de
+#          tests/unitaires/test_controles_numeriques.R -- pour premium et
+#          reserve1, triangle pour reserve2) : toute ligne de type "test" ou
+#          "procedure de decision" doit etre rattachee a une et une seule
+#          fiche du registre ; chaque nom du registre doit etre produit par
+#          une execution ; chaque fiche du registre doit avoir une ligne de
+#          ce type, sauf declaration hors_jeux motivee (qui devient un ecart
+#          si elle ne sert plus) ;
+#       b) dans le .tex, chaque environnement fiche qui porte \Pertinence le
+#          porte une seule fois, apres \Usage ; l'ensemble des fiches (label
+#          nomme de la ligne qui suit \begin{fiche}{...}) qui la portent est
+#          exactement celui du registre ; \Pertinence hors de toute fiche
+#          (definition \newcommand exceptee) est un ecart ;
+#       c) le tableau \label{tab:tracabilite-puissance} a une rangee et une
+#          seule par fiche a rubrique 7 (premiere cellule "Nom
+#          (\ref{label})"), aucune pour une autre fiche ; chaque chemin de
+#          fichier cite par \code{} dans sa sous-section (tests/*.R,
+#          docs/tableaux/*.md, recolles s'ils sont coupes en deux \code{})
+#          existe dans le depot. Les fonctions citees par \code{nom()} dans
+#          ce tableau sont jugees par le controle 1, qui lit tout le document.
+#
+#       LIMITES : (i) le lien ligne du moteur -> fiche n'existe pas dans le
+#       moteur (issue #111) : il est ecrit a la main dans REGISTRE_RUBRIQUE7,
+#       et le script verifie sa coherence avec le moteur (couverture des
+#       lignes de type test ou procedure, noms existants), pas qu'une ligne
+#       est rattachee a la BONNE fiche ; (ii) le type d'une ligne depend des
+#       donnees (regle R1, R4, regimes) : l'ensemble attendu n'est mesure
+#       que sur les jeux executes (T = 8) ; une fiche dont la ligne n'est de
+#       type test qu'a d'autres T (Cox-Stuart, T >= 10 ; Anscombe-Glynn,
+#       T >= 20) est declaree hors_jeux avec son motif, verifie seulement en
+#       ce que la ligne existe et n'est pas de type test sur ces jeux ;
+#       (iii) le contenu de la rubrique 7 et des cellules du tableau
+#       (valeurs, natures) n'est pas verifie ; un chemin ecrit hors de
+#       \code{}, ou dans \code{} avec un blanc, n'est pas controle.
 #
 #  Le moteur est execute sur les jeux de tests/donnees/ avec B petit
 #  (defaut 99) : seule la STRUCTURE de la table des tests sert ici (nombre de
@@ -85,7 +124,8 @@
 #  replications finies (B >= 21 est necessaire, pas suffisant si des
 #  replications echouent). Les methodes lognormales sont en outre executees
 #  a volumes constants (x_t = 100, pertes de tests/donnees/donnees_ln.csv ;
-#  issue #59) pour les seules phrases du registre qui les nomment.
+#  issue #59) pour les seules phrases du registre qui les nomment, et sur
+#  le jeu J2 pour le seul controle 5 (issue #114).
 #
 #  Usage (depuis la racine du depot) :
 #      Rscript tests/concordance_doc_moteur.R              # mode rapport
@@ -100,8 +140,12 @@
 #  DECOMPTES absente ou fausse, formulation de decompte ni verifiee ni
 #  exemptee (issue #75), prefixe de famille non declare dans GROUPES, cle
 #  MC hors du catalogue de sa methode, tableau de l'index introuvable, sans
-#  cle ou a rangee non terminee. --tex remplace le document lu (tests du
-#  mode strict sur une copie modifiee).
+#  cle ou a rangee non terminee, ecart de la rubrique 7 (registre au
+#  moteur, presence, unicite, position, fiches concernees) ou du tableau de
+#  tracabilite (introuvable, rangee manquante, en double, non reconnue ou
+#  pour une fiche sans rubrique 7, chemin cite inexistant ; issue #114).
+#  --tex remplace le document lu (tests du mode strict sur une copie
+#  modifiee ; les chemins cites restent cherches depuis la racine du depot).
 #
 #  Source (plutot que lance par Rscript), le fichier ne fait que definir ses
 #  fonctions d'extraction, testees sur des chaines LaTeX en memoire par
@@ -794,6 +838,327 @@ verifier_cles_mc <- function(cles, catalogues) {
 }
 
 # ---------------------------------------------------------------------------
+#  Rubrique 7 "Pertinence et puissance a faible T" (issue #114)
+# ---------------------------------------------------------------------------
+
+# Registre des fiches qui portent la rubrique 7 (decisions du mainteneur du
+# 27/09/2026 sur #114, points 1 et 3) : fiches dont une ligne du moteur est de
+# type "test" ou "procedure de decision" dans au moins un regime. Le moteur
+# ne porte pas le lien ligne -> fiche (objet de l'issue #111) : ce registre
+# l'ecrit, une entree par fiche. label : label nomme de la fiche (ligne qui
+# suit \begin{fiche}{...}, docs/latex/CONVENTIONS.md) ; tests : champ test
+# exact des lignes du moteur rattachees a la fiche ; hors_jeux : NULL, ou
+# motif ecrit pour une fiche dont aucune ligne n'est de type test ou
+# procedure sur les jeux executes par le script (le type n'y est atteint
+# qu'a d'autres T). Le registre est confronte au moteur par
+# verifier_registre_rubrique7().
+MOTIF_COX_STUART_T8 <- paste("inoperant pour T <= 9 (regle R1, p_min = 0,125 a T = 8) : ligne de type test",
+                             "a partir de T = 10 seulement, hors des jeux executes (T = 8)")
+MOTIF_ANSCOMBE_T8 <- paste("ligne non applicable pour T < 20 : type test a partir de T = 20 seulement,",
+                           "hors des jeux executes (T = 8)")
+REGISTRE_RUBRIQUE7 <- list(
+  # Methode lognormale
+  list(label = "fiche:student-constante", tests = "Nullite de la constante (proportionnalite stricte)"),
+  list(label = "fiche:tost-constante", tests = "Equivalence de la constante a zero (TOST)"),
+  list(label = "fiche:student-pente", tests = "Test de Student sur la pente (lm(y~x))"),
+  list(label = "fiche:fisher-global", tests = "Test de Fisher (significativite globale)"),
+  list(label = "fiche:reset", tests = "RESET (forme fonctionnelle)"),
+  list(label = "fiche:spearman", tests = c("Independance ratio S/P vs volume", "Correlation ratio S/P vs temps")),
+  list(label = "fiche:mann-kendall", tests = "Tendance monotone du ratio S/P"),
+  list(label = "fiche:cox-stuart", tests = "Tendance par signes du ratio S/P", hors_jeux = MOTIF_COX_STUART_T8),
+  list(label = "fiche:breusch-pagan-koenker",
+       tests = "Heteroscedasticite vs volume - Breusch-Pagan studentise (Koenker)"),
+  list(label = "fiche:breusch-pagan-1979",
+       tests = "Heteroscedasticite vs volume - Breusch-Pagan original (non robuste)"),
+  list(label = "fiche:white", tests = "Heteroscedasticite (forme quadratique)"),
+  list(label = "fiche:goldfeld-quandt", tests = "Egalite des variances petits vs gros volumes"),
+  list(label = "fiche:brown-forsythe", tests = "Homogeneite des dispersions (mediane)"),
+  list(label = "fiche:smirnov", tests = "Egalite des lois petits vs gros volumes (2 ech.)"),
+  list(label = "fiche:shapiro-wilk", tests = "Shapiro-Wilk sur residus standardises"),
+  list(label = "fiche:shapiro-wilk-sans-royston",
+       tests = "Shapiro-Wilk (loi nulle simulee, sans normalisation de Royston)"),
+  list(label = "fiche:shapiro-francia", tests = "Shapiro-Francia"),
+  list(label = "fiche:anderson-darling", tests = "Anderson-Darling"),
+  list(label = "fiche:cramer-von-mises", tests = "Cramer-von Mises"),
+  list(label = "fiche:kolmogorov-smirnov", tests = "Kolmogorov-Smirnov contre N(0,1)"),
+  list(label = "fiche:lilliefors", tests = "Lilliefors (KS a parametres estimes)"),
+  list(label = "fiche:jarque-bera", tests = "Jarque-Bera"),
+  list(label = "fiche:dagostino-asymetrie", tests = "Asymetrie (D'Agostino, T >= 8)"),
+  list(label = "fiche:anscombe-glynn-aplatissement", tests = "Aplatissement (Anscombe-Glynn, T >= 20)",
+       hors_jeux = MOTIF_ANSCOMBE_T8),
+  list(label = "fiche:durbin-watson", tests = "Autocorrelation d'ordre 1 (Durbin-Watson)"),
+  list(label = "fiche:ljung-box", tests = c("Ljung-Box (retard 1)", "Ljung-Box (retard 2)", "Box-Pierce (retard 2)")),
+  list(label = "fiche:suites-wald-wolfowitz", tests = "Test des suites (aleatoire des signes)"),
+  list(label = "fiche:sup-f", tests = "Rupture de niveau (sup-F)"),
+  list(label = "fiche:ols-cusum", tests = "Stabilite cumulee (OLS-CUSUM)"),
+  list(label = "fiche:grubbs", tests = "Valeur aberrante isolee (Grubbs)"),
+  list(label = "fiche:rosner-esd", tests = "Valeurs aberrantes multiples (ESD generalise)"),
+  list(label = "fiche:durbin-watson-ratios-bruts", tests = "Autocorrelation d'ordre 1 (Durbin-Watson) sur ratios bruts"),
+  list(label = "fiche:ljung-box-ratios-bruts", tests = "Ljung-Box (retard 1) sur ratios bruts"),
+  list(label = "fiche:suites-ratios-bruts", tests = "Test des suites sur ratios bruts"),
+  list(label = "fiche:sup-f-ratios-bruts", tests = "Rupture de niveau (sup-F) sur ratios bruts"),
+  list(label = "fiche:ols-cusum-ratios-bruts", tests = "Stabilite cumulee (OLS-CUSUM) sur ratios bruts"),
+  list(label = "fiche:grubbs-ratios-bruts", tests = "Valeur aberrante isolee (Grubbs) sur ratios bruts"),
+  # Methode Merz-Wuthrich
+  list(label = "mw:m1", tests = "Absence de tendance des facteurs avec le cumul, a colonne donnee"),
+  list(label = "mw:m1a", tests = "Nullite de l'ordonnee a l'origine, colonne par colonne"),
+  list(label = "mw:m1b", tests = "Homogeneite de f_j entre annees de survenance"),
+  list(label = "mw:m1c", tests = "Absence de courbure de la regression"),
+  list(label = "mw:m1d", tests = "Stabilite du facteur selon la ponderation (famille alpha)"),
+  list(label = "mw:m2bp", tests = "Heteroscedasticite residuelle vs cumul"),
+  list(label = "mw:m2b", tests = "Adequation de l'exposant de variance, colonne par colonne"),
+  list(label = "mw:m3cal", tests = "Effets d'annee calendaire (test de Mack)"),
+  list(label = "mw:m3acc", tests = "Homogeneite des residus entre annees de survenance"),
+  list(label = "mw:m3cor", tests = "Correlation entre annees de developpement adjacentes"),
+  list(label = "mw:m3dw", tests = "Autocorrelation des residus (Durbin-Watson)"),
+  list(label = "mw:m3runs", tests = "Test des suites sur les residus de Mack"),
+  list(label = "mw:m4gr", tests = "Cellule aberrante du triangle (Grubbs)"),
+  list(label = "mw:m4ros", tests = "Cellules aberrantes multiples (ESD generalise)"),
+  list(label = "mw:m5sw", tests = "Shapiro-Wilk sur les residus de Mack"),
+  list(label = "mw:m5li", tests = "Lilliefors sur les residus de Mack")
+)
+TYPES_RUBRIQUE7 <- c("test", "procedure de decision")
+
+# Fiches du document et leur rubrique 7. Pour chaque environnement fiche
+# (\begin{fiche} ... premier \end{fiche} qui suit ; commentaires retires) :
+# label nomme (ligne qui suit \begin{fiche}{...} si elle porte \label{...},
+# NA sinon), nombre de \Pertinence et de \Usage, ligne du premier
+# \Pertinence et apres_usage (VRAI si chaque \Pertinence suit le dernier
+# \Usage de la fiche). Renvoie un data.frame (debut, fin, label, n_pertinence,
+# n_usage, ligne_pertinence, apres_usage), avec les attributs hors_fiche
+# (lignes portant \Pertinence hors de tout environnement fiche, definition
+# \newcommand exceptee) et non_terminee (lignes de \begin{fiche} sans
+# \end{fiche} avant la fiche suivante).
+RX_PERTINENCE <- "\\\\Pertinence(?![A-Za-z])"
+RX_USAGE <- "\\\\Usage(?![A-Za-z])"
+fiches_rubrique7 <- function(lignes) {
+  l <- retirer_commentaires(lignes)
+  deb <- grep("\\begin{fiche}", l, fixed = TRUE)
+  fins <- grep("\\end{fiche}", l, fixed = TRUE)
+  res <- data.frame(debut = integer(0), fin = integer(0), label = character(0), n_pertinence = integer(0),
+                    n_usage = integer(0), ligne_pertinence = integer(0), apres_usage = logical(0),
+                    stringsAsFactors = FALSE)
+  non_term <- integer(0); couvertes <- logical(length(l))
+  for (i in seq_along(deb)) {
+    d <- deb[i]; f <- fins[fins > d][1L]
+    suiv <- if (i < length(deb)) deb[i + 1L] else Inf
+    if (is.na(f) || f > suiv) { non_term <- c(non_term, d); next }
+    couvertes[d:f] <- TRUE
+    lab <- if (d < length(l)) regmatches(l[d + 1L], regexec("^\\s*\\\\label\\{([^}]+)\\}", l[d + 1L]))[[1]] else character(0)
+    bloc <- l[d:f]; txt <- paste(bloc, collapse = "\n")
+    debuts <- cumsum(c(1L, nchar(bloc) + 1L))[seq_along(bloc)]
+    pp <- gregexpr(RX_PERTINENCE, txt, perl = TRUE)[[1]]; pp <- pp[pp > 0L]
+    pu <- gregexpr(RX_USAGE, txt, perl = TRUE)[[1]]; pu <- pu[pu > 0L]
+    res <- rbind(res, data.frame(debut = d, fin = f, label = if (length(lab) == 2L) lab[2L] else NA_character_,
+                                 n_pertinence = length(pp), n_usage = length(pu),
+                                 ligne_pertinence = if (length(pp)) d - 1L + findInterval(pp[1L], debuts) else NA_integer_,
+                                 apres_usage = length(pp) > 0L && length(pu) > 0L && all(pp > max(pu)),
+                                 stringsAsFactors = FALSE))
+  }
+  hors <- which(grepl(RX_PERTINENCE, l, perl = TRUE) & !couvertes &
+                  !grepl("\\\\(re)?newcommand\\{?\\\\Pertinence", l, perl = TRUE))
+  attr(res, "hors_fiche") <- hors
+  attr(res, "non_terminee") <- non_term
+  res
+}
+
+# Ecarts de la rubrique 7 : fiches (sortie de fiches_rubrique7()) confrontees
+# a l'ensemble attendu des labels (attendus : labels du registre). Renvoie un
+# data.frame (ligne, label, motif), un ecart par ligne.
+verifier_rubrique7 <- function(fiches, attendus) {
+  e <- list()
+  ajoute <- function(ligne, label, motif)
+    e[[length(e) + 1L]] <<- data.frame(ligne = as.integer(ligne), label = label, motif = motif, stringsAsFactors = FALSE)
+  for (d in attr(fiches, "non_terminee")) ajoute(d, NA_character_, "environnement fiche non termine avant la fiche suivante")
+  for (h in attr(fiches, "hors_fiche")) ajoute(h, NA_character_, "rubrique 7 hors de tout environnement fiche")
+  for (i in seq_len(nrow(fiches))) {
+    fi <- fiches[i, ]
+    if (fi$n_pertinence == 0L) next
+    if (is.na(fi$label)) ajoute(fi$ligne_pertinence, NA_character_,
+                                "rubrique 7 dans une fiche sans label nomme sur la ligne qui suit \\begin{fiche}")
+    if (fi$n_pertinence > 1L) ajoute(fi$ligne_pertinence, fi$label,
+                                     sprintf("rubrique 7 presente %d fois dans la fiche", fi$n_pertinence))
+    if (!fi$apres_usage) ajoute(fi$ligne_pertinence, fi$label,
+                                if (fi$n_usage == 0L) "rubrique 7 dans une fiche sans \\Usage" else
+                                  "rubrique 7 avant \\Usage (rubrique 6)")
+    if (!is.na(fi$label) && !fi$label %in% attendus)
+      ajoute(fi$ligne_pertinence, fi$label,
+             "rubrique 7 sur une fiche hors du registre REGISTRE_RUBRIQUE7 (aucune ligne de type test ou procedure de decision)")
+  }
+  for (a in attendus) {
+    k <- which(fiches$label %in% a)
+    if (!length(k)) ajoute(NA_integer_, a, "label du registre REGISTRE_RUBRIQUE7 introuvable dans le document")
+    else if (all(fiches$n_pertinence[k] == 0L)) ajoute(fiches$debut[k[1L]], a, "rubrique 7 absente de la fiche")
+  }
+  if (!length(e)) return(data.frame(ligne = integer(0), label = character(0), motif = character(0),
+                                    stringsAsFactors = FALSE))
+  do.call(rbind, e)
+}
+
+# Registre confronte au moteur. lignes_moteur : data.frame (test, type) des
+# lignes de res$tests de toutes les executions (jeux et methodes). Ecarts :
+# ligne de type test ou procedure de decision rattachee a aucune entree (une
+# ligne nouvelle sans fiche a rubrique 7 au registre) ou a plusieurs ; nom
+# du registre absent de toutes les executions (registre perime) ; entree
+# sans hors_jeux dont aucune ligne n'est de type test ou procedure ; entree
+# hors_jeux dont une ligne l'est (declaration perimee). Renvoie un
+# data.frame (label, test, motif).
+verifier_registre_rubrique7 <- function(lignes_moteur, registre = REGISTRE_RUBRIQUE7) {
+  e <- list()
+  ajoute <- function(label, test, motif)
+    e[[length(e) + 1L]] <<- data.frame(label = label, test = test, motif = motif, stringsAsFactors = FALSE)
+  noms_reg <- unlist(lapply(registre, `[[`, "tests"))
+  labels_reg <- rep(vapply(registre, `[[`, character(1), "label"), lengths(lapply(registre, `[[`, "tests")))
+  tp <- unique(lignes_moteur$test[lignes_moteur$type %in% TYPES_RUBRIQUE7])
+  for (n in tp) {
+    k <- which(noms_reg == n)
+    if (!length(k)) ajoute(NA_character_, n, "ligne de type test ou procedure de decision rattachee a aucune fiche du registre")
+    else if (length(k) > 1L) ajoute(paste(labels_reg[k], collapse = ", "), n, "ligne rattachee a plusieurs fiches du registre")
+  }
+  for (r in registre) {
+    abs <- setdiff(r$tests, lignes_moteur$test)
+    for (n in abs) ajoute(r$label, n, "nom de ligne du registre produit par aucune execution du moteur")
+    actif <- any(r$tests %in% tp)
+    if (is.null(r$hors_jeux) && !actif && !length(abs))
+      ajoute(r$label, paste(r$tests, collapse = " ; "), "aucune ligne de type test ou procedure de decision sur les jeux executes")
+    if (!is.null(r$hors_jeux) && actif)
+      ajoute(r$label, paste(intersect(r$tests, tp), collapse = " ; "),
+             "declaration hors_jeux perimee : ligne de type test ou procedure sur les jeux executes")
+  }
+  if (!length(e)) return(data.frame(label = character(0), test = character(0), motif = character(0),
+                                    stringsAsFactors = FALSE))
+  do.call(rbind, e)
+}
+
+# Tableau de tracabilite de la rubrique 7 (\label{tab:tracabilite-puissance},
+# puis premier \end{longtable}) : une rangee par fiche, dont la premiere
+# cellule se termine par (\ref{label}). Seules les rangees apres
+# \endlastfoot sont lues ; les intertitres \multicolumn et les filets sont
+# ignores ; fin de rangee : FIN_RANGEE. Renvoie NULL si le tableau est
+# introuvable, sinon un data.frame (ligne, label), avec les attributs
+# non_reconnues (lignes des rangees dont la premiere cellule n'a pas cette
+# forme) et non_terminee (ligne de debut d'une rangee non terminee, NA sinon).
+RX_PREMIERE_CELLULE <- "\\(\\\\ref\\{([^}]+)\\}\\)\\s*$"
+lignes_tracabilite <- function(lignes) {
+  l <- retirer_commentaires(lignes)
+  deb <- grep("\\label{tab:tracabilite-puissance}", l, fixed = TRUE)[1L]
+  if (is.na(deb)) return(NULL)
+  fin <- grep("\\end{longtable}", l, fixed = TRUE); fin <- fin[fin > deb][1L]
+  pied <- grep("\\endlastfoot", l, fixed = TRUE); pied <- pied[pied > deb & pied < fin][1L]
+  if (is.na(fin) || is.na(pied)) return(NULL)
+  res <- data.frame(ligne = integer(0), label = character(0), stringsAsFactors = FALSE)
+  non_rec <- integer(0); tampon <- character(0); l0 <- NA_integer_
+  for (k in seq.int(pied + 1L, fin - 1L)) {
+    x <- l[k]
+    if (!length(tampon) && grepl("^\\s*(\\\\(midrule|toprule|bottomrule))?\\s*$", x)) next
+    if (!length(tampon)) l0 <- k
+    tampon <- c(tampon, x)
+    if (!grepl(FIN_RANGEE, x, perl = TRUE)) next
+    rangee <- paste(tampon, collapse = "\n"); tampon <- character(0)
+    if (grepl("\\multicolumn", rangee, fixed = TRUE)) next
+    esp <- regexpr("(?<!\\\\)&", rangee, perl = TRUE)
+    cell <- if (esp > 0L) substr(rangee, 1L, esp - 1L) else rangee
+    m <- regmatches(cell, regexec(RX_PREMIERE_CELLULE, cell, perl = TRUE))[[1]]
+    if (esp > 0L && length(m) == 2L) res <- rbind(res, data.frame(ligne = l0, label = m[2L], stringsAsFactors = FALSE))
+    else non_rec <- c(non_rec, l0)
+  }
+  attr(res, "non_reconnues") <- non_rec
+  attr(res, "non_terminee") <- if (length(tampon) && any(nzchar(trimws(tampon)))) l0 else NA_integer_
+  res
+}
+
+# Ecarts du tableau de tracabilite (rangees : sortie de lignes_tracabilite() ;
+# labels_r7 : labels des fiches portant la rubrique 7 dans le document).
+# Renvoie un data.frame (ligne, label, motif).
+verifier_tracabilite <- function(rangees, labels_r7) {
+  e <- list()
+  ajoute <- function(ligne, label, motif)
+    e[[length(e) + 1L]] <<- data.frame(ligne = as.integer(ligne), label = label, motif = motif, stringsAsFactors = FALSE)
+  for (k in attr(rangees, "non_reconnues"))
+    ajoute(k, NA_character_, "rangee sans premiere cellule de la forme Nom (\\ref{label})")
+  nt <- attr(rangees, "non_terminee")
+  if (!is.null(nt) && !is.na(nt)) ajoute(nt, NA_character_, "rangee non terminee avant \\end{longtable}")
+  for (lab in unique(rangees$label[duplicated(rangees$label)]))
+    ajoute(rangees$ligne[rangees$label == lab][2L], lab,
+           sprintf("fiche citee par %d rangees (une attendue)", sum(rangees$label == lab)))
+  for (i in which(!rangees$label %in% labels_r7 & !duplicated(rangees$label)))
+    ajoute(rangees$ligne[i], rangees$label[i], "rangee pour une fiche sans rubrique 7")
+  for (lab in setdiff(labels_r7, rangees$label))
+    ajoute(NA_integer_, lab, "fiche a rubrique 7 sans rangee dans le tableau")
+  if (!length(e)) return(data.frame(ligne = integer(0), label = character(0), motif = character(0),
+                                    stringsAsFactors = FALSE))
+  do.call(rbind, e)
+}
+
+# Chemins de fichier cites par \code{} dans la sous-section du tableau de
+# tracabilite (de \label{tab:tracabilite-puissance} au premier
+# \end{longtable} qui suit) : contenu sans blanc ni parenthese qui contient
+# une barre oblique ou se termine par une extension de fichier. Un chemin
+# coupe en deux \code{} pour la mise en page (\code{docs/tableaux/}\newline
+# \code{fichier.md}) est recolle : le premier se termine par / et n'est
+# separe du second que par des blancs ou une commande de coupure. Les
+# citations de fonction (avec parentheses) relevent de la section 1.
+# Renvoie NULL si la sous-section est introuvable, sinon un data.frame
+# (ligne, chemin).
+RX_CHEMIN <- "^[A-Za-z0-9_.*-]+(/[A-Za-z0-9_.*-]*)*$"
+chemins_tracabilite <- function(lignes) {
+  l <- retirer_commentaires(lignes)
+  deb <- grep("\\label{tab:tracabilite-puissance}", l, fixed = TRUE)[1L]
+  if (is.na(deb)) return(NULL)
+  fin <- grep("\\end{longtable}", l, fixed = TRUE); fin <- fin[fin > deb][1L]
+  if (is.na(fin)) return(NULL)
+  bloc <- l[deb:fin]; txt <- paste(bloc, collapse = "\n")
+  debuts <- cumsum(c(1L, nchar(bloc) + 1L))[seq_along(bloc)]
+  m <- gregexpr("\\\\code\\{((?:[^{}\\\\]|\\\\.)*)\\}", txt, perl = TRUE)[[1]]
+  vide <- data.frame(ligne = integer(0), chemin = character(0), stringsAsFactors = FALSE)
+  if (m[1L] == -1L) return(vide)
+  lg <- attr(m, "match.length")
+  cont <- desechapper(substring(txt, m + 6L, m + lg - 2L))
+  res <- list(); fin_prec <- -1L
+  for (i in seq_along(m)) {
+    entre <- if (fin_prec > 0L) substring(txt, fin_prec, m[i] - 1L) else NA_character_
+    n <- length(res)
+    if (n && endsWith(res[[n]]$chemin, "/") && !is.na(entre) &&
+        grepl("^(\\s|\\\\\\\\|\\\\allowbreak|\\\\-|\\\\linebreak|\\\\newline)*$", entre))
+      res[[n]]$chemin <- paste0(res[[n]]$chemin, cont[i])
+    else res[[n + 1L]] <- list(ligne = deb - 1L + findInterval(m[i], debuts), chemin = cont[i])
+    fin_prec <- m[i] + lg[i]
+  }
+  ch <- vapply(res, `[[`, character(1), "chemin")
+  ok <- grepl(RX_CHEMIN, ch) & (grepl("/", ch, fixed = TRUE) | grepl("\\.(R|md|csv|rds|tex|pdf)$", ch))
+  if (!any(ok)) return(vide)
+  data.frame(ligne = vapply(res[ok], function(r) as.integer(r$ligne), integer(1)), chemin = ch[ok],
+             stringsAsFactors = FALSE)
+}
+
+# Chemins cites inexistants dans le depot (racine : racine du depot ; un
+# chemin a joker * doit designer au moins un fichier). Renvoie le
+# sous-ensemble (ligne, chemin) des chemins introuvables.
+verifier_chemins <- function(chemins, racine) {
+  existe <- vapply(chemins$chemin, function(p) {
+    f <- file.path(racine, p)
+    if (grepl("*", p, fixed = TRUE)) length(Sys.glob(f)) > 0L else file.exists(f)
+  }, logical(1), USE.NAMES = FALSE)
+  chemins[!existe, , drop = FALSE]
+}
+
+# Jeu J2 (delta estime interieur, section sec:verif du document) : vecteurs
+# xi, yi lus dans tests/unitaires/test_controles_numeriques.R, comme le fait
+# tests/taux_franchissement_reperes.R, pour que les deux scripts partagent
+# une seule source du jeu.
+lire_jeu_j2 <- function(racine) {
+  f <- file.path(racine, "tests", "unitaires", "test_controles_numeriques.R")
+  l <- readLines(f, warn = FALSE)
+  env <- new.env()
+  for (v in c("xi", "yi")) {
+    li <- grep(sprintf("^%s <- c\\(", v), l, value = TRUE)
+    if (length(li) != 1L) stop("J2 : ligne '", v, " <- c(' introuvable ou multiple dans ", f, call. = FALSE)
+    eval(parse(text = li), envir = env)
+  }
+  list(x = env$xi, y = env$yi)
+}
+
+# ---------------------------------------------------------------------------
 #  Nombre de replications bootstrap
 # ---------------------------------------------------------------------------
 
@@ -916,6 +1281,16 @@ if (sys.nframe() == 0L) {
                              annexe = "II", B = B)))
   if (!all(vapply(resultats_vc, function(r) isTRUE(r$ok), logical(1))))
     stop("run_engine() a volumes constants : resultat ok = FALSE", call. = FALSE)
+  # Executions supplementaires sur le jeu J2 (delta estime interieur, issue
+  # #114) : elles ne servent qu'a la section 5 (registre de la rubrique 7),
+  # la pente et Fisher n'etant de type test que sur ce jeu.
+  j2 <- lire_jeu_j2(RACINE)
+  resultats_j2 <- with(outils, list(
+    premium_j2  = run_engine(xt = j2$x, yt = j2$y, methode = "premium", segment = 1, annexe = "II", B = B,
+                             nature_donnees = "brutes"),
+    reserve1_j2 = run_engine(xt = j2$x, yt = j2$y, methode = "reserve1", segment = 1, annexe = "II", B = B)))
+  if (!all(vapply(resultats_j2, function(r) isTRUE(r$ok), logical(1))))
+    stop("run_engine() sur le jeu J2 : resultat ok = FALSE", call. = FALSE)
   grandeurs <- c(lapply(resultats, function(r) grandeurs_moteur(r$tests, r$controles)),
                  lapply(resultats_vc, function(r) grandeurs_moteur(r$tests, r$controles)),
                  list(code = grandeurs_code(env)))
@@ -1011,6 +1386,68 @@ if (sys.nframe() == 0L) {
       cat(sprintf("  ECART -- %d cle(s) hors du catalogue de leur methode :\n", nrow(e_mc)))
       for (i in seq_len(nrow(e_mc)))
         cat(sprintf("    l.%-5d %-12s %s\n", e_mc$ligne[i], e_mc$cle[i], e_mc$motif[i]))
+    }
+  }
+
+  # 5. Rubrique 7 "Pertinence et puissance a faible T" (issue #114) :
+  # a) registre REGISTRE_RUBRIQUE7 confronte aux lignes du moteur (toutes les
+  #    executions : J1, volumes constants, J2, triangle) ;
+  # b) presence de la rubrique 7 (une fois, apres \Usage) sur les fiches du
+  #    registre, et sur elles seules ;
+  # c) tableau de tracabilite : une rangee par fiche a rubrique 7, aucune
+  #    autre ; chemins de fichier cites existants.
+  tous <- c(resultats, resultats_vc, resultats_j2)
+  lm7 <- do.call(rbind, lapply(tous, function(r) data.frame(
+    test = vapply(r$tests, function(t) as.character(t$test)[1], character(1)),
+    type = vapply(r$tests, function(t) if (is.null(t$type)) NA_character_ else as.character(t$type)[1], character(1)),
+    stringsAsFactors = FALSE)))
+  attendus <- vapply(REGISTRE_RUBRIQUE7, `[[`, character(1), "label")
+  tp7 <- unique(lm7$test[lm7$type %in% TYPES_RUBRIQUE7])
+  n_hj <- sum(vapply(REGISTRE_RUBRIQUE7, function(r) !is.null(r$hors_jeux), logical(1)))
+  cat(sprintf(paste0("\n=== 5. Rubrique 7 (issue #114) : registre de %d fiche(s) (dont %d hors jeux) ; ",
+                     "%d ligne(s) distincte(s) de type test ou procedure de decision sur %d execution(s) du moteur\n"),
+              length(attendus), n_hj, length(tp7), length(tous)))
+  for (r in REGISTRE_RUBRIQUE7) if (!is.null(r$hors_jeux))
+    cat(sprintf("  (information) %s hors jeux : %s\n", r$label, r$hors_jeux))
+  e_reg <- verifier_registre_rubrique7(lm7)
+  n_ecarts <- n_ecarts + nrow(e_reg)
+  if (nrow(e_reg)) {
+    cat(sprintf("  ECART -- %d ecart(s) du registre REGISTRE_RUBRIQUE7 au moteur :\n", nrow(e_reg)))
+    for (i in seq_len(nrow(e_reg)))
+      cat(sprintf("    %-34s %s : %s\n", ifelse(is.na(e_reg$label[i]), "-", e_reg$label[i]), e_reg$test[i], e_reg$motif[i]))
+  }
+  fi7 <- fiches_rubrique7(tex)
+  labels_r7 <- fi7$label[fi7$n_pertinence > 0L & !is.na(fi7$label)]
+  cat(sprintf("  Fiches du document : %d ; portant la rubrique 7 : %d\n", nrow(fi7), sum(fi7$n_pertinence > 0L)))
+  e_r7 <- verifier_rubrique7(fi7, attendus)
+  n_ecarts <- n_ecarts + nrow(e_r7)
+  if (nrow(e_r7)) {
+    cat(sprintf("  ECART -- %d ecart(s) de la rubrique 7 :\n", nrow(e_r7)))
+    for (i in seq_len(nrow(e_r7)))
+      cat(sprintf("    l.%-5s %-34s %s\n", ifelse(is.na(e_r7$ligne[i]), "?", e_r7$ligne[i]),
+                  ifelse(is.na(e_r7$label[i]), "-", e_r7$label[i]), e_r7$motif[i]))
+  }
+  rg <- lignes_tracabilite(tex)
+  if (is.null(rg)) {
+    n_ecarts <- n_ecarts + 1L
+    cat("  ECART -- tableau de tracabilite introuvable (\\label{tab:tracabilite-puissance}, \\endlastfoot et \\end{longtable} attendus)\n")
+  } else {
+    e_tr <- verifier_tracabilite(rg, labels_r7)
+    cat(sprintf("  Tableau de tracabilite : %d rangee(s) de fiche\n", nrow(rg)))
+    n_ecarts <- n_ecarts + nrow(e_tr)
+    if (nrow(e_tr)) {
+      cat(sprintf("  ECART -- %d ecart(s) du tableau de tracabilite :\n", nrow(e_tr)))
+      for (i in seq_len(nrow(e_tr)))
+        cat(sprintf("    l.%-5s %-34s %s\n", ifelse(is.na(e_tr$ligne[i]), "?", e_tr$ligne[i]),
+                    ifelse(is.na(e_tr$label[i]), "-", e_tr$label[i]), e_tr$motif[i]))
+    }
+    ch <- chemins_tracabilite(tex)
+    manq <- verifier_chemins(ch, RACINE)
+    cat(sprintf("  Chemins de fichier cites dans la sous-section : %d (%d distinct(s))\n", nrow(ch), length(unique(ch$chemin))))
+    n_ecarts <- n_ecarts + nrow(manq)
+    if (nrow(manq)) {
+      cat(sprintf("  ECART -- %d chemin(s) cite(s) inexistant(s) dans le depot :\n", nrow(manq)))
+      for (i in seq_len(nrow(manq))) cat(sprintf("    l.%-5d %s\n", manq$ligne[i], manq$chemin[i]))
     }
   }
 
