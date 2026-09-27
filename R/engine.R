@@ -1993,7 +1993,8 @@ USP_CATALOGUE_MC <- list(
   # La statistique affichee par usp_tests() reste K.
   # Motif d'indisponibilite (#44, complement du 27/09) : "statistique
   # observee non definie : ex aequo", distinct de l'absence de replication
-  # finie ; la p exacte binomiale de la ligne reste retenue.
+  # finie ; la p exacte binomiale de la ligne reste retenue (a pi_t constant,
+  # regle R7 de #70).
   CoxStuart = .mc_entree(function(e) {
     cx <- test_cox_stuart(e$r)
     if (is.finite(cx$stat) && cx$m == cx$n_p) abs(cx$stat - cx$n_p / 2) else NA_real_
@@ -2172,6 +2173,10 @@ engine_p_mc <- function(sim, obs, queue) {
 #   p_min       : p-value minimale atteignable (loi de reference discrete aux
 #                 effectifs observes ; NA pour une loi continue), regle R1
 #                 de #44 : voir plus bas
+#   effectifs   : effectifs de la loi discrete, imprimes entre parentheses
+#                 avec p_min ; si p_min est NA, la chaine est restituee telle
+#                 quelle dans detail (elle porte alors le motif de l'absence
+#                 de p_min ; #70)
 # Motif d'indisponibilite Monte-Carlo (#44, regle R3) : si mc_nom est
 # renseigne et p_mc absente, le motif est lu dans boot$motif_mc (produit par
 # engine_p_mc() / .mc_p_values(), jamais devine) quand l'appelant n'en
@@ -2267,6 +2272,15 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
                                 sprintf("ECHEC inatteignable : p_min = %.4f >= alpha/2 = %g%s%s",
                                         p_min, alpha / 2, eff, approx_pmin)))
       }
+    }
+    # Restitution du motif de l'absence de p_min (#70, 5a) : pour un test
+    # sans p_min, la chaine effectifs, qui porte alors ce motif (ex aequo des
+    # lignes de rangs), est ajoutee telle quelle au detail, avec le separateur
+    # de la branche "ECHEC inatteignable". Les lignes non applicables ne sont
+    # pas concernees.
+    if (type == "test" && !is.finite(p_min) && !is.na(effectifs)) {
+      sep <- if (!nzchar(detail)) "" else if (grepl("\\.$", detail)) " " else " ; "
+      detail <- trimws(paste0(detail, sep, effectifs))
     }
     # Hierarchie adaptee a T faible : exacte > Monte-Carlo > asymptotique.
     if (is.finite(p_ex)) {
@@ -2462,6 +2476,60 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   reg <- engine_registre_tests(boot, USP_CATALOGUE_MC, alpha,
                                nature_mc = "Monte-Carlo (bootstrap parametrique)")
   add <- reg$add
+  # Regime de l'ajustement (usp_regime(), issue #31), calcule une seule fois
+  # (#70) : il conditionne l'attribution des p exactes (regle R7 ci-dessous),
+  # le libelle de la position de delta, des diagnostics de centrage et de
+  # variance et de la ligne Runsr.
+  regime <- usp_regime(fit$delta, fit$x)
+  pi_constant <- regime$pi_constant
+  # Ecart a la constance exacte de pi_t dans la bande de tolerance ; chaine
+  # vide hors de la bande. 1 - delta est affiche plutot que delta : "%g"
+  # rendrait 1 - 5e-7 par "1".
+  ecart_tol <- local({
+    e <- character(0)
+    if (regime$delta_dans_bande)
+      e <- c(e, sprintf("1 - delta = %.2g", 1 - fit$delta))
+    if (regime$volumes_dans_bande)
+      e <- c(e, sprintf("etendue relative des volumes = %.2g",
+                        diff(range(fit$x)) / mean(fit$x)))
+    paste(e, collapse = ", ")
+  })
+  # Regle R7 (#70, ADR 0002) : les lois de reference exactes des huit lignes
+  # Durbin-Watson, suites, Shapiro-Wilk (loi nulle simulee), Smirnov,
+  # Spearman (volume, temps), Mann-Kendall et Cox-Stuart supposent des
+  # observations echangeables (z_t, ou r_t, i.i.d. sous H0). C'est le cas a
+  # pi_t constant ; a pi_t variable, z = P epsilon n'est pas echangeable et
+  # les r_t ne sont pas identiquement distribues : aucune p exacte n'est
+  # attribuee. L'argument p n'est evalue qu'a pi_t constant (evaluation
+  # paresseuse : ni Imhof ni enumeration a pi_t variable), et la valeur est
+  # alors celle d'avant #70 au bit pres.
+  p_ex_si_pi_constant <- function(p) if (isTRUE(pi_constant)) p else NA_real_
+  # Regle R8 (#70) : libelles des huit lignes selon le regime. Jonction de
+  # deux textes selon la regle de la branche "ECHEC inatteignable" de add() :
+  # " " apres un point final, " ; " sinon, rien si l'un des deux est vide.
+  joindre <- function(a, b) {
+    if (!nzchar(b)) return(a)
+    if (!nzchar(a)) return(b)
+    paste0(a, if (grepl("\\.$", a)) " " else " ; ", b)
+  }
+  txt_pi_variable <- paste("p exacte non attribuee : loi de reference exacte seulement",
+                           "a pi_t constant (z = P epsilon non echangeable, r_t non",
+                           "identiquement distribues).")
+  txt_bande <- if (isTRUE(pi_constant) && !isTRUE(regime$pi_constant_exact))
+    sprintf(paste("pi_t constant a la tolerance TOL_DELTA_BORD = %g pres (%s) : loi",
+                  "de reference exacte a un ecart d'ordre (1 - delta), ou de l'etendue",
+                  "relative des volumes, pres"), TOL_DELTA_BORD, ecart_tol) else ""
+  # A pi_t exactement constant, le detail est rendu tel quel (octet pour
+  # octet celui d'avant #70) ; a pi_t variable, il est prefixe de
+  # txt_pi_variable ; dans la bande, suffixe de txt_bande, ligne par ligne
+  # seulement si la p exacte p_ex de la ligne est attribuee (finie) : une
+  # ligne sans p exacte (Spearman ou Mann-Kendall avec ex aequo, Spearman a
+  # T > 9) ne dit pas qu'une loi exacte vaut a un ecart pres.
+  detail_r7 <- function(detail = "", p_ex = NA_real_) {
+    if (!isTRUE(pi_constant)) joindre(txt_pi_variable, detail)
+    else if (is.finite(p_ex)) joindre(detail, txt_bande)
+    else detail
+  }
 
   ## --- B. H1 : E[Y_t] lineaire proportionnelle en X_t ------------------------
   fam <- paste("B. H1 - linearite / proportionnalite", cite_hyp("i"))
@@ -2587,53 +2655,80 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # p_min des lignes de rangs (Spearman, Mann-Kendall ; #44, reprise, avis
   # d'actuary Q5) : 2/T! n'est la p minimale que sans ex aequo ; avec ex
   # aequo (dans r, ou dans x pour Spearman-volume), la loi de permutation
-  # conditionnelle n'est pas tabulee : p_min NA, dit dans effectifs.
+  # conditionnelle n'est pas tabulee : ni p_min ni p exacte (#70, regle 2b ;
+  # mk_p_exacte() rend deja NA avec ex aequo), et le motif, porte par
+  # effectifs, est restitue dans detail par add() (p_min NA).
   ex_aequo <- function(...) any(vapply(list(...), function(v) anyDuplicated(v) > 0, logical(1)))
   pmin_rangs <- function(...) if (ex_aequo(...)) NA_real_ else mk_p_min(T)
-  eff_rangs <- function(...) if (ex_aequo(...))
-    sprintf(paste("T = %d ; ex aequo : p_min non calculee (loi de permutation",
-                  "conditionnelle non tabulee)"), T)
-  else sprintf("T = %d, sans ex aequo", T)
+  eff_rangs <- function(r, x = NULL) {
+    er <- ex_aequo(r); ex <- !is.null(x) && ex_aequo(x)
+    if (er || ex)
+      sprintf(paste("T = %d ; ex aequo %s : loi de permutation conditionnelle non",
+                    "tabulee, p_min et p exacte non attribuees"),
+              T, if (er && ex) "dans r et x" else if (er) "dans r" else "dans x")
+    else sprintf("T = %d, sans ex aequo", T)
+  }
+  # Regle 2c (#70) : cor.test(exact = TRUE) n'enumere la loi de permutation
+  # que pour T <= 9 (prho.c, n_small = 9) ; au-dela il rend un developpement
+  # d'Edgeworth (AS 89) : aucune p exacte. Avec ex aequo, cor.test(exact =
+  # TRUE) rend la p asymptotique sous un avertissement : aucune p exacte non
+  # plus, sans se fier a try() ni a l'avertissement. Le motif Edgeworth est
+  # ecrit a T > 9 quel que soit l'etat des ex aequo (le motif ex aequo, porte
+  # par effectifs, s'y ajoute alors).
+  txt_edgeworth <- paste("T > 9 : cor.test(exact = TRUE) rend un developpement",
+                         "d'Edgeworth (AS 89, prho.c, n_small = 9), non une loi exacte")
+  p_spearman_exacte <- function(a, b, ...) {
+    if (T > 9 || ex_aequo(...)) return(NA_real_)
+    p_ex_si_pi_constant({
+      o <- suppressWarnings(try(stats::cor.test(a, b, method = "spearman", exact = TRUE),
+                                silent = TRUE))
+      if (!inherits(o, "try-error")) o$p.value else NA_real_
+    })
+  }
+  detail_spearman <- function(detail, p_ex)
+    detail_r7(if (T > 9) joindre(detail, txt_edgeworth) else detail, p_ex)
   if (stats::sd(x) > 0) {
-    cs_ex <- suppressWarnings(try(stats::cor.test(r, x, method = "spearman", exact = TRUE),
-                                  silent = TRUE))
     cs <- suppressWarnings(stats::cor.test(r, x, method = "spearman", exact = FALSE))
+    p_sv <- p_spearman_exacte(r, x, r, x)
     add(fam, "Independance ratio S/P vs volume", "Spearman (1904) ; exact : Best & Roberts (1975), AS 89",
         H0 = "independance (aucune association monotone)", H1 = "association monotone",
         stat_nom = "S", stat = unname(cs$statistic),
         loi = "permutation exacte (T <= 9, sans ex aequo)",
         estim_nom = "rho_s", estim = unname(cs$estimate),
-        p_ex = if (!inherits(cs_ex, "try-error")) cs_ex$p.value else NA_real_,
+        p_ex = p_sv,
         p_as = cs$p.value, mc_nom = "SpearVol",
         p_min = pmin_rangs(r, x), effectifs = eff_rangs(r, x),
-        detail = "Une correlation signale un effet d'echelle non modelise")
+        detail = detail_spearman("Une correlation signale un effet d'echelle non modelise",
+                                 p_sv))
   } else {
     add(fam, "Independance ratio S/P vs volume", "Spearman (1904)",
         type = "non applicable", detail = "x_t constant : test non applicable")
   }
-  ct_ex <- suppressWarnings(try(stats::cor.test(r, seq_along(r), method = "spearman",
-                                                exact = TRUE), silent = TRUE))
   ct <- suppressWarnings(stats::cor.test(r, seq_along(r), method = "spearman", exact = FALSE))
+  p_st <- p_spearman_exacte(r, seq_along(r), r)
   add(fam, "Correlation ratio S/P vs temps", "Spearman (1904) ; exact : Best & Roberts (1975)",
       H0 = "independance entre le ratio et le rang chronologique",
       H1 = "association monotone avec le temps",
       stat_nom = "S", stat = unname(ct$statistic),
       loi = "permutation exacte (T <= 9, sans ex aequo)",
       estim_nom = "rho_s", estim = unname(ct$estimate),
-      p_ex = if (!inherits(ct_ex, "try-error")) ct_ex$p.value else NA_real_,
+      p_ex = p_st,
       p_as = ct$p.value, mc_nom = "SpearTps",
-      p_min = pmin_rangs(r), effectifs = eff_rangs(r))
+      p_min = pmin_rangs(r), effectifs = eff_rangs(r),
+      detail = detail_spearman("", p_st))
   mk <- test_mann_kendall(r)
+  p_mk <- p_ex_si_pi_constant(mk_p_exacte(r))
   add(fam, "Tendance monotone du ratio S/P",
       "Mann (1945) ; loi exacte : Kendall & Gibbons (1990), ch. 4-5",
       H0 = "absence de tendance monotone (r_t i.i.d.)", H1 = "tendance monotone",
       stat_nom = "Z", stat = mk$stat,
       loi = "loi exacte de S (distribution mahonienne)",
       estim_nom = "S de Kendall", estim = mk$S,
-      p_ex = mk_p_exacte(r), p_as = mk$p, mc_nom = "MK",
+      p_ex = p_mk, p_as = mk$p, mc_nom = "MK",
       p_min = pmin_rangs(r), effectifs = eff_rangs(r),
-      detail = "Une derive du S/P contredit la constance de beta")
+      detail = detail_r7("Une derive du S/P contredit la constance de beta", p_mk))
   cx <- test_cox_stuart(r)
+  p_cx <- p_ex_si_pi_constant(cx$p)
   # m : differences non nulles, n_p : paires. Sans ex aequo (m = n_p), le
   # libelle est inchange ; avec ex aequo, les deux nombres sont affiches et
   # la p_mc n'est pas calculee (statistique NA au catalogue, #85).
@@ -2655,9 +2750,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       stat_nom = "K", stat = cx$stat,
       loi = paste("Binomiale(m, 1/2) EXACTE, m differences non nulles ;",
                   "p_mc par |K - n_p/2|, n_p paires, queue haute"),
-      p_ex = cx$p, mc_nom = "CoxStuart",
+      p_ex = p_cx, mc_nom = "CoxStuart",
       p_min = p_min, effectifs = sprintf("m = %d differences non nulles", cx$m),
-      detail = cx_detail)
+      detail = detail_r7(cx_detail, p_cx))
 
   ## --- C. H2 : variance quadratique en X_t -----------------------------------
   fam <- paste("C. H2 - structure de variance", cite_hyp("ii"))
@@ -2704,17 +2799,18 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     grp <- x > stats::median(x)
     if (sum(grp) >= 3 && sum(!grp) >= 3) {
       ks2 <- suppressWarnings(stats::ks.test(z[grp], z[!grp]))
+      p_sm <- p_ex_si_pi_constant(ks2$p.value)
       add(fam, "Egalite des lois petits vs gros volumes (2 ech.)", "Smirnov (1939)",
           H0 = "F1 = F2 (memes lois)", H1 = "lois differentes",
           stat_nom = "D", stat = unname(ks2$statistic),
           loi = "exacte combinatoire (ks.test, sans ex aequo)",
-          p_ex = ks2$p.value, mc_nom = "Smirnov",
+          p_ex = p_sm, mc_nom = "Smirnov",
           p_min = smirnov_p_min(sum(grp), sum(!grp)),
           effectifs = sprintf("n1 = %d, n2 = %d", sum(grp), sum(!grp)),
-          detail = sprintf(paste("Voir aussi le QQ-plot a deux echantillons ; p-value",
-                                 "minimale atteignable = %.4f, atteinte seulement pour",
-                                 "D = 1 (deux groupes totalement separes)"),
-                           smirnov_p_min(sum(grp), sum(!grp))))
+          detail = detail_r7(sprintf(paste("Voir aussi le QQ-plot a deux echantillons ; p-value",
+                                           "minimale atteignable = %.4f, atteinte seulement pour",
+                                           "D = 1 (deux groupes totalement separes)"),
+                                     smirnov_p_min(sum(grp), sum(!grp))), p_sm))
     }
   }
   # Issue #58 : a volumes constants (usp_regime(), tolerance TOL_DELTA_BORD),
@@ -2730,17 +2826,16 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # <= TOL_DELTA_BORD), la vraisemblance depend encore tres faiblement de
   # delta (mesure, donnees premium, e = 5e-7, gamma = -1,8 : l'objectif
   # varie de 3,0e-7 entre delta = 0 et delta = 1) : le libelle le dit.
-  reg_delta <- usp_regime(fit$delta, fit$x)
   suite_cst <- paste(", qui n'est pas identifie ; la valeur affichee est celle",
                      "ou l'optimiseur s'est arrete")
   add(fam, "Position de delta dans [0,1]", "Annexe XVII, section B/C par. 6",
       type = "diagnostic", estim_nom = "delta", estim = fit$delta,
-      detail = if (isTRUE(reg_delta$volumes_dans_bande))
+      detail = if (isTRUE(regime$volumes_dans_bande))
         paste0(sprintf(paste("VOLUMES CONSTANTS a la tolerance TOL_DELTA_BORD = %g pres",
                              "(etendue relative = %.2g) : la vraisemblance ne depend",
                              "presque pas de delta"),
                        TOL_DELTA_BORD, diff(range(fit$x)) / mean(fit$x)), suite_cst)
-      else if (isTRUE(reg_delta$volumes_constants))
+      else if (isTRUE(regime$volumes_constants))
         paste0("VOLUMES CONSTANTS : la vraisemblance ne depend pas de delta", suite_cst)
       else if (isTRUE(fit$delta_au_bord))
         "SOLUTION AU BORD : structure de variance non identifiee par les donnees"
@@ -2755,15 +2850,24 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       H0 = H0n, H1 = H1n, stat_nom = "W", stat = sw$stat,
       loi = "aucune forme fermee ; normalisation de Royston (1992)",
       p_as = sw$p, mc_nom = "SW")
+  p_sw <- p_ex_si_pi_constant(sw_p_loi_nulle(sw$stat, T))
   add(fam, "Shapiro-Wilk (loi nulle simulee, sans normalisation de Royston)",
       "Shapiro & Wilk (1965) ; loi nulle evaluee par simulation directe",
       variante = "secondaire",
       H0 = H0n, H1 = H1n, stat_nom = "W", stat = sw$stat,
       loi = "loi exacte de W sous normalite, evaluee numeriquement (20 000 tirages)",
-      p_ex = sw_p_loi_nulle(sw$stat, T),
-      detail = paste("W etant invariant par translation et changement d'echelle,",
-                     "sa loi nulle ne depend d'aucun parametre : la simulation est",
-                     "independante du modele USP ajuste (ce n'est pas un bootstrap)."))
+      # Regle R9 amendee (#70) : a pi_t variable, W(P epsilon) n'a pas la loi
+      # de W sous i.i.d. normal ; la ligne est non applicable, la p i.i.d.
+      # n'est ni calculee ni rappelee (W reste dans stat).
+      type = if (isTRUE(pi_constant)) "test" else "non applicable",
+      p_ex = p_sw,
+      detail = if (isTRUE(pi_constant))
+        detail_r7(paste("W etant invariant par translation et changement d'echelle,",
+                        "sa loi nulle ne depend d'aucun parametre : la simulation est",
+                        "independante du modele USP ajuste (ce n'est pas un bootstrap)."), p_sw)
+      else paste("loi nulle i.i.d. sans objet a pi_t variable (W(P epsilon) n'a pas",
+                 "la loi de W sous i.i.d. normal) ; voir la ligne Shapiro-Wilk sur",
+                 "residus standardises (p Monte-Carlo)"))
   sf <- test_shapiro_francia(z)
   add(fam, "Shapiro-Francia", "Shapiro & Francia (1972), JASA 67 ; Royston (1993)",
       H0 = H0n, H1 = H1n, stat_nom = "W'", stat = sf$stat,
@@ -2862,15 +2966,16 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 
   ## --- E. H4 : independance / validite du MV ---------------------------------
   fam <- fam_h4
+  p_dw <- p_ex_si_pi_constant(dw_p_exacte(z))
   add(fam, "Autocorrelation d'ordre 1 (Durbin-Watson)", "Durbin & Watson (1950, 1951)",
       base = "z",
       H0 = "rho = 0 (absence d'autocorrelation d'ordre 1)", H1 = "rho != 0",
       stat_nom = "DW", stat = boot$stats_obs$DW,
       loi = "forme quadratique en normales ; loi EXACTE par la methode d'Imhof (1961)",
-      p_ex = dw_p_exacte(z), mc_nom = "DW",
-      detail = paste("Statistique calculee sur residus CENTRES. Les bornes d_L/d_U,",
-                     "etablies pour des residus MCO, ne sont pas utilisees : la loi",
-                     "exacte est obtenue par integration numerique d'Imhof."))
+      p_ex = p_dw, mc_nom = "DW",
+      detail = detail_r7(paste("Statistique calculee sur residus CENTRES. Les bornes d_L/d_U,",
+                               "etablies pour des residus MCO, ne sont pas utilisees : la loi",
+                               "exacte est obtenue par integration numerique d'Imhof."), p_dw))
   lb1 <- stats::Box.test(z, lag = 1, type = "Ljung-Box")
   add(fam, "Ljung-Box (retard 1)", "Ljung & Box (1978), Biometrika 65",
       base = "z",
@@ -2894,6 +2999,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # un seul cote de la mediane represente : loi non definie, ligne non
   # applicable (et non INFO muet).
   ru <- test_runs(z); eff_z <- .runs_effectifs(z)
+  p_ru <- p_ex_si_pi_constant(runs_p_exacte(z))
   add(fam, "Test des suites (aleatoire des signes)",
       base = "z",
       "Wald & Wolfowitz (1940) ; loi exacte : Swed & Eisenhart (1943)",
@@ -2902,10 +3008,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       H1 = "arrangement non aleatoire (regroupement ou alternance)",
       stat_nom = "Z", stat = ru$stat, loi = "loi combinatoire EXACTE de R",
       estim_nom = "nb de suites R", estim = ru$runs,
-      p_ex = runs_p_exacte(z), p_as = ru$p, mc_nom = "Runs",
+      p_ex = p_ru, p_as = ru$p, mc_nom = "Runs",
       p_min = runs_p_min(eff_z[["n1"]], eff_z[["n2"]]),
       effectifs = sprintf("n1 = %d, n2 = %d", eff_z[["n1"]], eff_z[["n2"]]),
-      detail = if (is.finite(ru$stat)) "" else
+      detail = if (is.finite(ru$stat)) detail_r7("", p_ru) else
         "un seul cote de la mediane represente : loi de R non definie, test non applicable")
   # Centrage et variance unitaire : DIAGNOSTICS, sans verdict ni p-value
   # retenue (ADR 0001 ; issues #3 et #5). La condition du premier ordre en
@@ -2923,9 +3029,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # pi_t constant a la tolerance pres seulement (issue #31, revue de la
   # PR #57), delta au bord avec pi_t variable, delta interieur (voir aussi le
   # commentaire de .stats_bootstrapables() pour la loi simulee, qui est un
-  # melange).
-  regime <- usp_regime(fit$delta, fit$x)
-  pi_constant <- regime$pi_constant
+  # melange). regime et pi_constant sont calcules en tete de la fonction.
   # Le libelle du cas pi_t constant DIFFERE selon la grandeur, et c'est le
   # coeur du diagnostic. somme(z_t) = 0 decoule de la forme FERMEE de ln(beta)
   # dans usp_noyau() : c'est une IDENTITE algebrique, vraie pour tout couple
@@ -2980,16 +3084,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # 2,7e-3 * (1 - delta) au lieu de 0 ; cet ecart s'ajoute a celui de la
   # tolerance d'arret (-5,4e-6 sur l'ajustement des donnees de test). Voir le
   # commentaire de usp_regime() pour le cas des volumes quasi constants.
-  # 1 - delta est affiche plutot que delta : "%g" rendrait 1 - 5e-7 par "1".
-  ecart_tol <- local({
-    e <- character(0)
-    if (regime$delta_dans_bande)
-      e <- c(e, sprintf("1 - delta = %.2g", 1 - fit$delta))
-    if (regime$volumes_dans_bande)
-      e <- c(e, sprintf("etendue relative des volumes = %.2g",
-                        diff(range(fit$x)) / mean(fit$x)))
-    paste(e, collapse = ", ")
-  })
+  # ecart_tol est calcule en tete de la fonction.
   ordre_tol <- paste("d'ordre (1 - delta), ou de l'etendue relative des",
                      "volumes x_t,")
   tol_pres <- sprintf("Ici pi_t n'est constant qu'a la tolerance TOL_DELTA_BORD = %g pres (%s) :",
