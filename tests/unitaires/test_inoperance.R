@@ -370,7 +370,8 @@ verifier("Invariant I2 : donnees de test, aucune nature 'asymptotique' sans moti
 verifier("Invariant I2 : volumes constants, aucune nature 'asymptotique' sans motif", inv_i2(res_vc))
 verifier("engine_table_tests : colonne p_min presente, une valeur par ligne",
          { tb <- engine_table_tests(res_ln); "p_min" %in% names(tb) && nrow(tb) == length(res_ln$tests) })
-# L'invariant I5 (memes lignes a volumes constants) releve de #59.
+# L'invariant I5 (memes lignes a volumes constants) est teste dans
+# test_volumes_constants.R (#59).
 # B = 19 : pas d'IC bootstrap 90 %, donc pas de ligne de largeur d'IC (47 lignes).
 verifier("run_engine : 47 lignes sur les donnees de test a B = 19 (48 avec IC)",
          length(res_ln$tests) == 47L)

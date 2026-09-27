@@ -630,8 +630,8 @@ for (m in c("premium", "reserve1")) {
                l <- tb_cst[tb_cst$test == NOM_TOST, ]
                nrow(l) == 1 && l$type == "non applicable" && l$verdict == "INFO" &&
                  is.na(l$p_retenue) && is.na(l$nature_p) && is.na(l$sens_du_test) &&
-                 grepl("volumes constants", l$commentaire, fixed = TRUE) &&
-                 grepl("non applicable", l$commentaire, fixed = TRUE)
+                 # Motif unique de la regle R13 (#59), qui remplace le libelle de #58.
+                 startsWith(l$commentaire, "volumes x_t constants a la tolerance relative TOL_DELTA_BORD")
              }
            })
   verifier(sprintf("Volumes constants (%s) : ligne delta INFO, libelle de non-identification (#58)", m),
@@ -695,7 +695,7 @@ verifier("TOST : volumes constants priment sur la marge invalide (theta_equiv = 
          {
            l <- Filter(function(l) l$test == NOM_TOST,
                        usp_tests(usp_ajuster(x_cst, y), boot_fictif(), methode = "premium", theta_equiv = 0))[[1]]
-           l$type == "non applicable" && grepl("volumes constants", l$detail, fixed = TRUE) &&
+           l$type == "non applicable" && grepl("volumes x_t constants", l$detail, fixed = TRUE) &&
              !grepl("marge", l$detail, fixed = TRUE)
          })
 verifier("TOST : theta_equiv <= 0 avec delta_equiv fixe -> test calcule, theta ignore (#58)",

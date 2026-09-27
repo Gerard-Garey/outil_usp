@@ -1003,6 +1003,19 @@ usp_controles_numeriques <- function(fit) {
   res
 }
 
+# Volumes constants (issue #59, regle R11 de la specification commune #44 /
+# #70 / #59) : SEULE definition du moteur, en relatif a la moyenne, a la
+# tolerance de bord TOL_DELTA_BORD (CONTEXT.md "Volumes constants"). Lue par
+# usp_regime() et par toute fonction qui regresse sur x ou partitionne par x
+# (test_lm_complet(), test_intercept(), test_tost_intercept(), test_reset(),
+# tests d'heteroscedasticite, Smirnov, Spearman ratio / volume, QQ-plot a deux
+# echantillons) : aucune garde numerique sd(x) == 0 ne subsiste. Une garde
+# exacte laissait passer les volumes quasi constants (etendue relative de
+# 1e-12 a 2e-7), ou lm(y ~ x) ecarte x pour colinearite (erreur R dans
+# test_lm_complet()) ou calcule sur le bruit d'arrondi.
+usp_volumes_constants <- function(x, tol = TOL_DELTA_BORD)
+  diff(range(x)) <= tol * mean(x)
+
 # Regime de l'ajustement lognormal (issue #31), fonction pure de (delta, x).
 # pi_t = 1 / ln(1 + e^{2 gamma} (delta + (1 - delta) xbar / x_t)) est constant
 # en t si et seulement si delta = 1 ou les volumes x_t sont constants : le
@@ -1030,7 +1043,7 @@ usp_controles_numeriques <- function(fit) {
 # de usp_tests().
 usp_regime <- function(delta, x, tol = TOL_DELTA_BORD) {
   delta_au_bord <- delta <= tol || delta >= 1 - tol
-  volumes_constants <- diff(range(x)) <= tol * mean(x)
+  volumes_constants <- usp_volumes_constants(x, tol)
   list(delta_au_bord = delta_au_bord,
        volumes_constants = volumes_constants,
        pi_constant = delta >= 1 - tol || volumes_constants,
@@ -1578,21 +1591,39 @@ test_mann_kendall <- function(v) {
 # est justement l'objet de l'hypothese H3, testee separement.
 test_breusch_pagan_original <- function(u2, reg) {
   n <- length(u2)
-  if (stats::sd(reg) == 0 || mean(u2) <= 0)
+  if (usp_volumes_constants(reg) || mean(u2) <= 0)
     return(list(stat = NA_real_, p = NA_real_, ddl = NA_integer_))
   g <- u2 / mean(u2)
   aux <- stats::lm(g ~ reg)
+  # Garde-fou R12 (#59, audit C2) : reg ecarte par lm() -> NA.
+  if (is.na(stats::coef(aux)["reg"]))
+    return(list(stat = NA_real_, p = NA_real_, ddl = NA_integer_))
   sce <- sum((stats::fitted(aux) - mean(g))^2)   # somme des carres expliques
   LM <- 0.5 * sce
   q <- 1
   list(stat = LM, p = .p_borne(1 - stats::pchisq(LM, q)), ddl = q)
 }
 
+# Garde commune des tests d'heteroscedasticite sur le volume (issue #59,
+# regle R11) : a volumes constants (usp_volumes_constants(), tolerance
+# TOL_DELTA_BORD), la regression auxiliaire sur reg ou la partition par reg
+# est sans objet ; stat et p valent NA (memes noms de champs que la branche
+# calculee), au lieu d'une statistique nulle (Breusch-Pagan de Koenker,
+# White : LM = 0, p = 1), d'une comparaison des deux moities de la periode
+# (Goldfeld-Quandt : order() garde l'ordre du temps sur des ex aequo) ou
+# d'une partition par l'arrondi (Brown-Forsythe dans la bande).
+# Garde-fou R12 (audit C2) des regressions auxiliaires de Breusch-Pagan
+# (1979 et Koenker) et de White : si lm() ecarte le coefficient de reg pour
+# colinearite (hors de la bande : mesure a T = 200, x = rep(110, 200) sauf
+# x[2] = 110 (1 + 1,1e-6), Koenker rendait LM = 0, p = 1), NA.
+
 # Breusch & Pagan (1979), Econometrica 47, 1287-1294 ; version studentisee
 # (robuste a la non-normalite) de Koenker (1981) : LM = n R^2.
 test_breusch_pagan <- function(u2, reg) {
+  if (usp_volumes_constants(reg)) return(list(stat = NA_real_, p = NA_real_))
   d <- data.frame(u2 = u2, reg = reg)
   m <- stats::lm(u2 ~ reg, data = d)
+  if (is.na(stats::coef(m)["reg"])) return(list(stat = NA_real_, p = NA_real_))
   R2 <- summary(m)$r.squared
   LM <- length(u2) * R2
   list(stat = LM, p = .p_borne(1 - stats::pchisq(LM, 1)))
@@ -1600,8 +1631,10 @@ test_breusch_pagan <- function(u2, reg) {
 
 # White (1980), Econometrica 48, 817-838 (forme auxiliaire quadratique).
 test_white <- function(u2, reg) {
+  if (usp_volumes_constants(reg)) return(list(stat = NA_real_, p = NA_real_))
   d <- data.frame(u2 = u2, reg = reg, reg2 = reg^2)
   m <- stats::lm(u2 ~ reg + reg2, data = d)
+  if (is.na(stats::coef(m)["reg"])) return(list(stat = NA_real_, p = NA_real_))
   R2 <- summary(m)$r.squared
   LM <- length(u2) * R2
   list(stat = LM, p = .p_borne(1 - stats::pchisq(LM, 2)))
@@ -1609,6 +1642,7 @@ test_white <- function(u2, reg) {
 
 # Goldfeld & Quandt (1965), JASA 60, 539-547.
 test_goldfeld_quandt <- function(u, reg) {
+  if (usp_volumes_constants(reg)) return(list(stat = NA_real_, p = NA_real_))
   o <- order(reg); u <- u[o]; n <- length(u)
   h <- floor(n / 2)
   s1 <- sum(u[1:h]^2) / h
@@ -1619,6 +1653,7 @@ test_goldfeld_quandt <- function(u, reg) {
 
 # Brown & Forsythe (1974), JASA 69, 364-367 (variante robuste de Levene).
 test_brown_forsythe <- function(u, reg) {
+  if (usp_volumes_constants(reg)) return(list(stat = NA_real_, p = NA_real_))
   g <- factor(reg > stats::median(reg))
   if (nlevels(g) < 2) return(list(stat = NA_real_, p = NA_real_))
   dev <- unlist(tapply(u, g, function(v) abs(v - stats::median(v))))
@@ -1631,17 +1666,20 @@ test_brown_forsythe <- function(u, reg) {
 # utilisee uniquement comme diagnostic exploratoire de H1 - le modele
 # reglementaire lui-meme est y = beta*x + e, sans constante (cf. test_intercept).
 test_lm_complet <- function(x, y) {
-  # x constant => colonne singuliere : la pente n'est pas identifiee et la
-  # ligne "x" est absente de la matrice des coefficients. On renvoie des NA
-  # plutot que de laisser une erreur d'indexation remonter.
-  if (stats::sd(x) == 0 || length(unique(x)) < 2) {
-    return(list(pente = NA_real_, t_pente = NA_real_, p_pente = NA_real_,
-                F = NA_real_, ddl1 = NA_integer_, ddl2 = NA_integer_,
-                p_F = NA_real_, R2 = NA_real_, R2_ajuste = NA_real_,
-                modele = stats::lm(y ~ 1)))
-  }
+  # Volumes constants (usp_volumes_constants(), issue #59) => colonne
+  # singuliere ou quasi singuliere : la pente n'est pas identifiee. On
+  # renvoie des NA plutot que de laisser une erreur d'indexation remonter.
+  # Garde-fou (regle R12) : si lm() ecarte malgre tout x pour colinearite
+  # (ligne "x" absente de la matrice des coefficients), meme branche NA.
+  na_lm <- function()
+    list(pente = NA_real_, t_pente = NA_real_, p_pente = NA_real_,
+         F = NA_real_, ddl1 = NA_integer_, ddl2 = NA_integer_,
+         p_F = NA_real_, R2 = NA_real_, R2_ajuste = NA_real_,
+         modele = stats::lm(y ~ 1))
+  if (usp_volumes_constants(x)) return(na_lm())
   m <- stats::lm(y ~ x)
   s <- summary(m)
+  if (!"x" %in% rownames(s$coefficients)) return(na_lm())
   list(
     pente        = s$coefficients["x", "Estimate"],
     t_pente      = s$coefficients["x", "t value"],
@@ -1680,7 +1718,7 @@ SEUIL_PUISSANCE_PENTE <- 0.5
 usp_identifiabilite_pente <- function(x, beta, sigma, alpha) {
   T <- length(x)
   if (T < 3 || !is.finite(beta) || !is.finite(sigma) || sigma <= 0 ||
-      !is.finite(stats::sd(x)) || stats::sd(x) == 0)
+      !is.finite(stats::sd(x)) || usp_volumes_constants(x))
     return(list(lambda = NA_real_, puissance = NA_real_))
   lambda <- sqrt(T - 1) * stats::sd(x) / mean(x) * beta / sigma
   q <- stats::qt(1 - alpha / 2, T - 2)
@@ -1690,11 +1728,21 @@ usp_identifiabilite_pente <- function(x, beta, sigma, alpha) {
 }
 
 test_reset <- function(x, y) {
-  if (stats::sd(x) == 0 || length(unique(x)) < 2)
+  # Volumes constants (usp_volumes_constants(), issue #59) : regression sur
+  # x sans objet. Garde-fou (regle R12) : coefficient de x ecarte par lm()
+  # -> NA. Seul le coefficient de x est controle (R12) : lm() ecarte f^3
+  # quand x ne prend que deux valeurs distinctes (rang structurel 2, quelle
+  # que soit l'etendue : mesure jusqu'a 20 %) ou, a huit valeurs distinctes,
+  # quand l'etendue relative est inferieure a environ 1e-3 (deficience
+  # numerique) ; anova() compare alors sur 1 ddl sous un libelle F(2, T-3) :
+  # defaut connu, issue #110.
+  if (usp_volumes_constants(x))
     return(list(stat = NA_real_, p = NA_real_))
   m0 <- stats::lm(y ~ x - 1)                 # E[Y] = beta * X, sans constante
   f <- stats::fitted(m0)
   m1 <- stats::lm(y ~ x + I(f^2) + I(f^3) - 1)
+  if (is.na(stats::coef(m0)["x"]) || is.na(stats::coef(m1)["x"]))
+    return(list(stat = NA_real_, p = NA_real_))
   a <- stats::anova(m0, m1)
   list(stat = a[["F"]][2], p = .p_borne(a[["Pr(>F)"]][2]))
 }
@@ -1737,16 +1785,21 @@ test_reset <- function(x, y) {
 # theta = Inf donnait Delta = Inf, p = 0 et un verdict OK "preuve positive" :
 # il est traite en marge invalide.
 test_tost_intercept <- function(x, y, theta = 0.10, delta_abs = NULL) {
-  motif <- if (stats::sd(x) == 0 || length(unique(x)) < 2) "volumes constants"
+  # Volumes constants : critere unique usp_volumes_constants() (issue #59).
+  motif <- if (usp_volumes_constants(x)) "volumes constants"
   else if ((is.null(delta_abs) && (!is.finite(theta) || theta <= 0)) ||
            (!is.null(delta_abs) && (!is.finite(delta_abs) || delta_abs <= 0))) "marge"
   else NA_character_
-  if (!is.na(motif))
-    return(list(stat = NA_real_, p = NA_real_, delta = NA_real_,
-                a = NA_real_, se = NA_real_, t_bas = NA_real_, t_haut = NA_real_,
-                p_bas = NA_real_, p_haut = NA_real_, ddl = length(x) - 2,
-                marge_a_priori = FALSE, non_applicable = motif))
+  non_applicable <- function(motif)
+    list(stat = NA_real_, p = NA_real_, delta = NA_real_,
+         a = NA_real_, se = NA_real_, t_bas = NA_real_, t_haut = NA_real_,
+         p_bas = NA_real_, p_haut = NA_real_, ddl = length(x) - 2,
+         marge_a_priori = FALSE, non_applicable = motif)
+  if (!is.na(motif)) return(non_applicable(motif))
   m <- summary(stats::lm(y ~ x))
+  # Garde-fou (regle R12, #59) : si lm() a ecarte x, coefficients[1, ] serait
+  # la moyenne de y du modele y ~ 1 ; aucune p-value n'est calculee.
+  if (!"x" %in% rownames(m$coefficients)) return(non_applicable("volumes constants"))
   a  <- m$coefficients[1, 1]; se <- m$coefficients[1, 2]
   ddl <- length(x) - 2
   marge_a_priori <- !is.null(delta_abs)
@@ -1764,9 +1817,13 @@ test_tost_intercept <- function(x, y, theta = 0.10, delta_abs = NULL) {
 
 # Significativité de la constante : rejette la proportionnalité stricte.
 test_intercept <- function(x, y) {
-  if (stats::sd(x) == 0 || length(unique(x)) < 2)
+  # Volumes constants (usp_volumes_constants(), #59) ; garde-fou R12 : x
+  # ecarte par lm() -> NA, jamais le t de la moyenne du modele y ~ 1.
+  if (usp_volumes_constants(x))
     return(list(stat = NA_real_, p = NA_real_))
   m <- summary(stats::lm(y ~ x))
+  if (!"x" %in% rownames(m$coefficients))
+    return(list(stat = NA_real_, p = NA_real_))
   list(stat = m$coefficients[1, 3], p = .p_borne(m$coefficients[1, 4]))
 }
 
@@ -1924,6 +1981,11 @@ usp_simuler <- function(fit) {
 # de Monte-Carlo est valide, le bootstrap simulant sous le modele ajuste.
 # Exception : a pi_t constant, la ligne Runsr recoit la p-value exacte de
 # la loi combinatoire de R (usp_runsr_p_exacte(), issue #29).
+# Volumes constants (usp_volumes_constants(), #59, regle R14) : x etant fixe
+# dans le bootstrap, le regime est le meme dans toutes les replications ; les
+# statistiques qui regressent sur x ou partitionnent par x (Intercept, RESET,
+# BP, BP79, White, GQ, BF, Smirnov, SpearVol) y valent NA, sans erreur, et
+# leurs lignes sont "non applicable" par la regle R13 de usp_tests().
 .usp_contexte_mc <- function(x, y, z) {
   r <- y / x
   list(x = x, y = y, z = z, r = r, u = r - mean(r), T = length(x))
@@ -1953,7 +2015,7 @@ USP_CATALOGUE_MC <- list(
   BF     = .mc_entree(function(e) test_brown_forsythe(e$z, e$x)$stat, "haut"),
   Smirnov = .mc_entree(function(e) {
     sm <- NA_real_
-    if (e$T >= 8 && stats::sd(e$x) > 0) {
+    if (e$T >= 8 && !usp_volumes_constants(e$x)) {
       g <- e$x > stats::median(e$x)
       if (sum(g) >= 3 && sum(!g) >= 3)
         sm <- unname(suppressWarnings(stats::ks.test(e$z[g], e$z[!g])$statistic))
@@ -1974,7 +2036,7 @@ USP_CATALOGUE_MC <- list(
   # (mesure du 24/09/2026 sur les trois cas lognormaux de reference : p_mc
   # identiques au bit pres a celles calculees sur rho_s ; issue #41).
   SpearVol = .mc_entree(function(e)
-    if (stats::sd(e$x) > 0)
+    if (!usp_volumes_constants(e$x))
       suppressWarnings(unname(stats::cor.test(e$r, e$x, method = "spearman",
                                               exact = FALSE)$statistic)) else NA_real_,
     "deux"),
@@ -2482,6 +2544,22 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # variance et de la ligne Runsr.
   regime <- usp_regime(fit$delta, fit$x)
   pi_constant <- regime$pi_constant
+  # Regle R13 (#59, invariants I4 et I5) : a volumes constants
+  # (usp_volumes_constants(), tolerance TOL_DELTA_BORD, seule definition), les
+  # treize lignes qui regressent sur x ou partitionnent par x (constante,
+  # TOST, pente, Fisher, R2, RESET, Spearman ratio / volume, Breusch-Pagan
+  # Koenker et 1979, White, Goldfeld-Quandt, Brown-Forsythe, Smirnov) sont
+  # restituees "non applicable" avec ce motif unique, au lieu d'etre
+  # calculees sur le bruit d'arrondi, restituees en diagnostic par le motif
+  # Monte-Carlo, ou absentes (Smirnov). Leurs fonctions rendent NA sous le
+  # meme critere ; la liste des lignes ne depend pas du regime.
+  vol_cst <- isTRUE(regime$volumes_constants)
+  txt_vol_cst <- sprintf(paste("volumes x_t constants a la tolerance relative TOL_DELTA_BORD",
+                               "= %g pres (etendue relative = %.2g) : regression / partition",
+                               "sur le volume sans objet"),
+                         TOL_DELTA_BORD, diff(range(x)) / mean(x))
+  si_vol_cst <- function(type) if (vol_cst) "non applicable" else type
+  detail_vol <- function(detail) if (vol_cst) txt_vol_cst else detail
   # Ecart a la constance exacte de pi_t dans la bande de tolerance ; chaine
   # vide hors de la bande. 1 - delta est affiche plutot que delta : "%g"
   # rendrait 1 - 5e-7 par "1".
@@ -2542,7 +2620,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # est retenue.
   add(fam, "Nullite de la constante (proportionnalite stricte)",
       "Student (1908), Biometrika 6",
-      type = if (is.finite(ti$stat)) "test" else "non applicable",
+      type = si_vol_cst(if (is.finite(ti$stat)) "test" else "non applicable"),
       H0 = "a = 0 (proportionnalite stricte)", H1 = "a != 0",
       stat_nom = "t", stat = ti$stat,
       loi = sprintf(paste("t(%d) exacte sous le modele auxiliaire MCO seulement (erreurs",
@@ -2555,8 +2633,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       # vaut que sous le modele auxiliaire MCO (#44, reprise, constat 2).
       repli_asymptotique = FALSE,
       libelle_p_as = "p de Student sous le modele auxiliaire MCO",
-      detail = paste("Le NON-rejet ne prouve pas la proportionnalite :",
-                     "voir le test d'equivalence ci-dessous."))
+      detail = detail_vol(paste("Le NON-rejet ne prouve pas la proportionnalite :",
+                                "voir le test d'equivalence ci-dessous.")))
   tost <- test_tost_intercept(x, y, theta = theta_equiv, delta_abs = delta_equiv)
   add(fam, "Equivalence de la constante a zero (TOST)",
       "Schuirmann (1987), J. Pharmacokinet. Biopharm. 15",
@@ -2579,8 +2657,11 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       sens = "rejeter",
       # Issue #58 : un detail de longueur 1 sur chaque branche.
       detail = switch(if (is.na(tost$non_applicable)) "calcule" else tost$non_applicable,
-        "volumes constants" = paste("x_t constant (volumes constants) : regression de y",
-                                    "sur x non definie, test non applicable"),
+        # Motif unique de la regle R13 (#59) ; hors volumes constants, le
+        # motif ne peut venir que du garde-fou R12 (x ecarte par lm()).
+        "volumes constants" = if (vol_cst) txt_vol_cst
+        else paste("regression de y sur x : x ecarte par lm() pour colinearite,",
+                   "test non applicable"),
         "marge" = paste("marge Delta invalide (sans delta_equiv : theta_equiv non",
                         "fini ou <= 0 ; ou delta_equiv non fini ou <= 0) : test",
                         "non applicable"),
@@ -2628,7 +2709,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                           "normales homoscedastiques)"), T - 2),
       estim_nom = "pente b", estim = lmc$pente,
       p_as = lmc$p_pente, sens = "rejeter", nature_forcee = nat_mco,
-      detail = trimws(paste("Ici on souhaite REJETER H0.", txt_ident)))
+      detail = detail_vol(trimws(paste("Ici on souhaite REJETER H0.", txt_ident))))
   add(fam, "Test de Fisher (significativite globale)", "Fisher (1922, 1925)",
       type = type_pente(lmc$F),
       H0 = "b = 0", H1 = "b != 0",
@@ -2637,21 +2718,24 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         sprintf("F(%d,%d) exacte sous le modele auxiliaire MCO", lmc$ddl1, lmc$ddl2)
       else NA_character_,
       p_as = lmc$p_F, sens = "rejeter", nature_forcee = nat_mco,
-      detail = trimws(paste("Equivaut a t^2 en regression simple.", txt_ident)))
+      detail = detail_vol(trimws(paste("Equivaut a t^2 en regression simple.", txt_ident))))
   add(fam, "Coefficient de determination R2", "lm(y ~ x)",
       type = if (is.finite(lmc$R2)) "diagnostic" else "non applicable",
       estim_nom = "R2", estim = lmc$R2,
       detail = if (is.finite(lmc$R2))
         sprintf("R2 ajuste = %.4f ; sous H0 (b=0) E[R2] = 1/(T-1) = %.3f ; repere conventionnel R2 < 0.5 : %s. Diagnostic, pas un test",
                 lmc$R2_ajuste, 1 / (T - 1),
-                if (lmc$R2 < 0.5) "en dessous" else "au-dessus") else "x_t constant : R2 non defini")
+                if (lmc$R2 < 0.5) "en dessous" else "au-dessus")
+      else detail_vol("x ecarte par lm() pour colinearite : R2 non defini"))
   tr <- test_reset(x, y)
   add(fam, "RESET (forme fonctionnelle)", "Ramsey (1969), JRSS B 31",
+      type = si_vol_cst("test"),
       H0 = "gamma2 = gamma3 = 0 (forme lineaire correcte)",
       H1 = "forme fonctionnelle mal specifiee",
       stat_nom = "F", stat = tr$stat, loi = sprintf("F(2,%d) approx.", T - 3),
       p_as = tr$p, mc_nom = "RESET",
-      detail = "La loi F n'est PAS exacte : les regresseurs auxiliaires y^2, y^3 dependent de y")
+      detail = detail_vol(paste("La loi F n'est PAS exacte : les regresseurs auxiliaires",
+                                "y^2, y^3 dependent de y")))
   # p_min des lignes de rangs (Spearman, Mann-Kendall ; #44, reprise, avis
   # d'actuary Q5) : 2/T! n'est la p minimale que sans ex aequo ; avec ex
   # aequo (dans r, ou dans x pour Spearman-volume), la loi de permutation
@@ -2687,7 +2771,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   }
   detail_spearman <- function(detail, p_ex)
     detail_r7(if (T > 9) joindre(detail, txt_edgeworth) else detail, p_ex)
-  if (stats::sd(x) > 0) {
+  if (!vol_cst) {
     cs <- suppressWarnings(stats::cor.test(r, x, method = "spearman", exact = FALSE))
     p_sv <- p_spearman_exacte(r, x, r, x)
     add(fam, "Independance ratio S/P vs volume", "Spearman (1904) ; exact : Best & Roberts (1975), AS 89",
@@ -2701,8 +2785,12 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         detail = detail_spearman("Une correlation signale un effet d'echelle non modelise",
                                  p_sv))
   } else {
-    add(fam, "Independance ratio S/P vs volume", "Spearman (1904)",
-        type = "non applicable", detail = "x_t constant : test non applicable")
+    # Regle R13 (#59) : meme reference que la branche calculee (I5).
+    add(fam, "Independance ratio S/P vs volume", "Spearman (1904) ; exact : Best & Roberts (1975), AS 89",
+        type = "non applicable",
+        H0 = "independance (aucune association monotone)", H1 = "association monotone",
+        stat_nom = "S", loi = "permutation exacte (T <= 9, sans ex aequo)",
+        estim_nom = "rho_s", mc_nom = "SpearVol", detail = txt_vol_cst)
   }
   ct <- suppressWarnings(stats::cor.test(r, seq_along(r), method = "spearman", exact = FALSE))
   p_st <- p_spearman_exacte(r, seq_along(r), r)
@@ -2759,59 +2847,74 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   bp <- test_breusch_pagan(z^2, x)
   add(fam, "Heteroscedasticite vs volume - Breusch-Pagan studentise (Koenker)",
       "Breusch & Pagan (1979) ; studentisation de Koenker (1981)",
+      type = si_vol_cst("test"),
       H0 = "c1 = 0 : la variance des residus standardises ne depend pas du volume",
       H1 = "variance residuelle dependante du volume",
       stat_nom = "LM", stat = bp$stat, loi = "chi2(1) asymptotique",
       p_as = bp$p, mc_nom = "BP",
-      detail = "Doit etre non significatif si la ponderation pi_t est correcte")
+      detail = detail_vol("Doit etre non significatif si la ponderation pi_t est correcte"))
   bp79 <- test_breusch_pagan_original(z^2, x)
   add(fam, "Heteroscedasticite vs volume - Breusch-Pagan original (non robuste)",
       "Breusch & Pagan (1979), Econometrica 47",
+      type = si_vol_cst("test"),
       variante = "secondaire",
       H0 = "c1 = 0 ET erreurs normales : variance residuelle independante du volume",
       H1 = "variance residuelle dependante du volume",
       stat_nom = "LM", stat = bp79$stat, loi = "chi2(1) asymptotique, SOUS NORMALITE",
       p_as = bp79$p, mc_nom = "BP79",
-      detail = paste("Version publiee, avec le facteur 1/2 issu de Var(u^2) = 2 sigma^4.",
-                     "NON ROBUSTE : sur-rejette si les erreurs ne sont pas normales.",
-                     "A confronter systematiquement a la version de Koenker ci-dessus."))
+      detail = detail_vol(paste("Version publiee, avec le facteur 1/2 issu de Var(u^2) = 2 sigma^4.",
+                                "NON ROBUSTE : sur-rejette si les erreurs ne sont pas normales.",
+                                "A confronter systematiquement a la version de Koenker ci-dessus.")))
   wh <- test_white(z^2, x)
   add(fam, "Heteroscedasticite (forme quadratique)", "White (1980), Econometrica 48",
+      type = si_vol_cst("test"),
       H0 = "c1 = c2 = 0", H1 = "heteroscedasticite residuelle de forme quadratique",
       stat_nom = "LM", stat = wh$stat, loi = "chi2(2) asymptotique",
-      p_as = wh$p, mc_nom = "White")
+      p_as = wh$p, mc_nom = "White", detail = detail_vol(""))
   gq <- test_goldfeld_quandt(z, x)
   add(fam, "Egalite des variances petits vs gros volumes",
       "Goldfeld & Quandt (1965), JASA 60",
+      type = si_vol_cst("test"),
       H0 = "sigma1^2 = sigma2^2", H1 = "variances inegales entre les deux blocs",
       stat_nom = "F", stat = gq$stat,
       loi = sprintf("F(%d,%d) approx. (residus issus d'un ajustement global)",
                     floor(T / 2), floor(T / 2)),
-      p_as = gq$p, mc_nom = "GQ")
+      p_as = gq$p, mc_nom = "GQ", detail = detail_vol(""))
   bf <- test_brown_forsythe(z, x)
   add(fam, "Homogeneite des dispersions (mediane)",
       "Brown & Forsythe (1974), JASA 69",
+      type = si_vol_cst("test"),
       H0 = "egalite des dispersions entre les deux groupes",
       H1 = "dispersions inegales",
       stat_nom = "W", stat = bf$stat, loi = sprintf("F(1,%d) approx.", T - 2),
-      p_as = bf$p, mc_nom = "BF")
-  if (T >= 8 && stats::sd(x) > 0) {
-    grp <- x > stats::median(x)
-    if (sum(grp) >= 3 && sum(!grp) >= 3) {
-      ks2 <- suppressWarnings(stats::ks.test(z[grp], z[!grp]))
-      p_sm <- p_ex_si_pi_constant(ks2$p.value)
-      add(fam, "Egalite des lois petits vs gros volumes (2 ech.)", "Smirnov (1939)",
-          H0 = "F1 = F2 (memes lois)", H1 = "lois differentes",
-          stat_nom = "D", stat = unname(ks2$statistic),
-          loi = "exacte combinatoire (ks.test, sans ex aequo)",
-          p_ex = p_sm, mc_nom = "Smirnov",
-          p_min = smirnov_p_min(sum(grp), sum(!grp)),
-          effectifs = sprintf("n1 = %d, n2 = %d", sum(grp), sum(!grp)),
-          detail = detail_r7(sprintf(paste("Voir aussi le QQ-plot a deux echantillons ; p-value",
-                                           "minimale atteignable = %.4f, atteinte seulement pour",
-                                           "D = 1 (deux groupes totalement separes)"),
-                                     smirnov_p_min(sum(grp), sum(!grp))), p_sm))
-    }
+      p_as = bf$p, mc_nom = "BF", detail = detail_vol(""))
+  # Smirnov (T >= 8) : la ligne existe dans tous les regimes (invariant I5,
+  # #59) ; non applicable a volumes constants (regle R13) ou si la partition
+  # par la mediane des volumes laisse un groupe de moins de trois annees (ex
+  # aequo sur la mediane), au lieu d'etre absente.
+  if (T >= 8) {
+    grp <- if (vol_cst) NULL else x > stats::median(x)
+    calculable <- !vol_cst && sum(grp) >= 3 && sum(!grp) >= 3
+    ks2 <- if (calculable) suppressWarnings(stats::ks.test(z[grp], z[!grp]))
+    p_sm <- if (calculable) p_ex_si_pi_constant(ks2$p.value) else NA_real_
+    add(fam, "Egalite des lois petits vs gros volumes (2 ech.)", "Smirnov (1939)",
+        type = if (calculable) "test" else "non applicable",
+        H0 = "F1 = F2 (memes lois)", H1 = "lois differentes",
+        stat_nom = "D", stat = if (calculable) unname(ks2$statistic) else NA_real_,
+        loi = "exacte combinatoire (ks.test, sans ex aequo)",
+        p_ex = p_sm, mc_nom = "Smirnov",
+        p_min = if (calculable) smirnov_p_min(sum(grp), sum(!grp)) else NA_real_,
+        effectifs = if (calculable) sprintf("n1 = %d, n2 = %d", sum(grp), sum(!grp))
+                    else NA_character_,
+        detail = if (vol_cst) txt_vol_cst
+        else if (!calculable)
+          sprintf(paste("partition par la mediane des volumes : groupes de %d et %d",
+                        "annees (moins de 3 dans un groupe, ex aequo sur la mediane) :",
+                        "test non applicable"), sum(grp), sum(!grp))
+        else detail_r7(sprintf(paste("Voir aussi le QQ-plot a deux echantillons ; p-value",
+                                     "minimale atteignable = %.4f, atteinte seulement pour",
+                                     "D = 1 (deux groupes totalement separes)"),
+                               smirnov_p_min(sum(grp), sum(!grp))), p_sm))
   }
   # Issue #58 : a volumes constants (usp_regime(), tolerance TOL_DELTA_BORD),
   # a_t = 1 pour tout t, pi_t ne depend plus de delta et la vraisemblance est
@@ -3967,7 +4070,8 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
 
   # QQ-plot a deux echantillons (faible vs fort volume)
   qq2 <- NULL
-  if (stats::sd(x) > 0) {
+  # Partition par le volume : sans objet a volumes constants (#59).
+  if (!usp_volumes_constants(x)) {
     g <- x > stats::median(x)
     if (sum(g) >= 3 && sum(!g) >= 3) {
       nn <- min(sum(g), sum(!g)); pr <- stats::ppoints(nn)
