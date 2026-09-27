@@ -1374,6 +1374,13 @@ pour chaque test, le nom de l'entrée du catalogue des statistiques Monte-Carlo 
 évalué par \code{.mw\_stats()}) qui lui correspond, lorsqu'une p-value de Monte-Carlo est
 calculée.
 
+Dans la branche lognormale, les p-values exactes de Durbin--Watson, des suites (sur $z_t$ et
+sur $u_t$), de Shapiro--Wilk à loi nulle simulée, de Smirnov, de Spearman, de Mann--Kendall et de
+Cox--Stuart ne sont attribuées qu'à $\hat\pi_t$ constant (règle~R7 d'\code{usp\_tests()},
+issue~\#70, section~\ref{sec:base-residus})~: à $\hat\pi_t$ variable, la p-value de la colonne
+« p-value non simulée » n'est pas attribuée, et ni l'intégrale d'Imhof ni les énumérations des
+lois de permutation n'y sont évaluées.
+
 Certains tests s'appuient sur un appel direct à une fonction de \code{stats}
 plutôt que sur une fonction dédiée du moteur~: cela est indiqué explicitement,
 la fonction \code{stats::}\emph{...} restant néanmoins un élément identifiable et
@@ -2556,7 +2563,9 @@ de l'ordre de la granularité.
   \item \textbf{Résultats exacts disponibles à $T = 8$.} Loi binomiale
   (Cox--Stuart), loi de permutation de Spearman, loi mahonienne du $S$ de
   Kendall, loi combinatoire du nombre de suites, loi exacte de Smirnov à deux
-  échantillons. Ces p-values sont valides sans réserve de taille d'échantillon. Les
+  échantillons. Ces p-values sont valides sans réserve de taille d'échantillon, sous le
+  modèle ajusté et à $\hat\pi_t$ constant seulement~: le moteur ne les attribue que dans ce
+  régime (issue~\#70, section~\ref{sec:base-residus}). Les
   lois de Student et de Fisher de la régression auxiliaire ne sont exactes que
   \emph{sous le modèle auxiliaire des moindres carrés} (erreurs i.i.d. normales
   homoscédastiques), que les hypothèses H2 et H3 du modèle réglementaire
@@ -2644,9 +2653,11 @@ sur les tests dont la loi de référence suppose un vecteur échangeable ou un �
 sous le modèle ajusté, les résidus standardisés suivent $\mathcal{N}(0, P)$ et les ratios $r_t$
 ne sont identiquement distribués qu'à $\hat\pi_t$ constant ($\hat\delta = 1$ ou volumes
 constants, au sens de \code{usp\_regime()}~; section~\ref{sec:base-residus}). Dans ce régime la
-p-value est exacte au sens de l'ADR~0002~; hors de lui, c'est une approximation sans borne
-d'erreur connue à $T = 8$. Le moteur étiquette ces p-values \code{exacte} et les retient dans les
-deux régimes.
+p-value est exacte au sens de l'ADR~0002~; hors de lui, la loi de référence ne serait qu'une
+approximation sans borne d'erreur connue à $T = 8$. Depuis l'issue~\#70 (règle~R7), le moteur
+n'attribue ces p-values exactes qu'à $\hat\pi_t$ constant~; à $\hat\pi_t$ variable, la colonne
+\code{p\_exacte} vaut \code{NA} et la p-value de Monte-Carlo est retenue (la ligne de Shapiro--Wilk
+à loi nulle simulée, sans p-value de Monte-Carlo, est alors non applicable).
 
 \begin{landscape}
 \begin{center}
@@ -2697,18 +2708,18 @@ RESET & LN & $F$ & \textbf{Non} & Oui & Oui & Monte-Carlo &
 \textbf{Déconseillée} : $\hat y^2,\hat y^3$ dépendent de $y$, la loi $F$ n'est
 pas exacte & Bootstrap recommandé \\
 
-Spearman ($\times 2$) & LN & $S$ & Oui ($T\le 9$) & Oui & Oui & \textbf{Exacte} si
-$\hat\pi_t$ constant, approximation sinon &
+Spearman ($\times 2$) & LN & $S$ & Oui ($T\le 9$, sans ex \ae quo) & Oui & Oui & \textbf{Exacte} si
+$\hat\pi_t$ constant, $T \le 9$ et sans ex \ae quo, Monte-Carlo sinon &
 Inutile : l'exacte est calculable & Distribution exacte à privilégier \\
 
 Mann--Kendall & LN & $Z$ / $S$ & Oui (loi mahonienne) & Oui & Oui & \textbf{Exacte} si
-$\hat\pi_t$ constant, approximation sinon &
+$\hat\pi_t$ constant et sans ex \ae quo, Monte-Carlo sinon &
 \textbf{Déconseillée} : approx. normale usuellement requise à $T\ge 10$ &
 Distribution exacte à privilégier \\
 
 Cox--Stuart & LN & $K$ & Oui (binomiale) & --- & Oui sans ex \ae quo, \code{NA} sinon
 (issue~\#85) & \textbf{Exacte} si
-$\hat\pi_t$ constant, approximation sinon &
+$\hat\pi_t$ constant, Monte-Carlo sinon &
 Sans objet & Exacte ; mais $p_{\min} \ge 0{,}125$ à $T=8$ : test inopérant, restitué en
 diagnostic (règle~R1) \\
 
@@ -2733,11 +2744,11 @@ Brown--Forsythe & LN & $W$ & Non & Oui & Oui & Monte-Carlo &
 Bootstrap recommandé \\
 
 Smirnov 2 éch. & LN & $D$ & Oui (combinatoire) & Oui & Oui & \textbf{Exacte} si
-$\hat\pi_t$ constant ($\hat\delta = 1$), approximation sinon &
+$\hat\pi_t$ constant ($\hat\delta = 1$), Monte-Carlo sinon &
 Inutile & Exacte ; $n_1=n_2=4$ : $p_{\min}=2/70=0{,}029$ (champ \code{p\_min}) \\
 
 Shapiro--Wilk & LN & $W$ & \textbf{Oui} si $\hat\pi_t$ constant, loi de $W$ évaluée par
-simulation directe (sans Royston)~; approximation sinon
+simulation directe (sans Royston)~; ligne à loi nulle simulée non applicable sinon
 & Approx. Royston & Oui & Monte-Carlo, avec p Royston \emph{et} p de loi nulle simulée &
 \textbf{Sous conditions} pour Royston ; la loi nulle simulée s'en affranchit &
 Loi nulle simulée à privilégier ; les deux concordent à $T=8$ \\
@@ -2777,7 +2788,7 @@ Anscombe--Glynn & LN & $Z$ & Non & Oui & --- & \textbf{Non applicable} ($T<20$) 
 Sans objet & Non utilisable à $T=8$ \\
 
 Durbin--Watson & LN & DW & \textbf{Oui} : forme quadratique, méthode d'Imhof & --- & Oui &
-\textbf{Exacte} (Imhof) si $\hat\pi_t$ constant, approximation sinon & Sans objet : loi
+\textbf{Exacte} (Imhof) si $\hat\pi_t$ constant, Monte-Carlo sinon & Sans objet : loi
 exacte à $\hat\pi_t$ constant &
 Distribution exacte à privilégier ; statistique calculée sur résidus centrés \\
 
@@ -2790,7 +2801,7 @@ Box--Pierce & LN & $Q$ & Non & Oui & Oui & Monte-Carlo &
 Bootstrap ; préférer Ljung--Box \\
 
 Suites (W.--W.) & LN & $Z$ / $R$ & Oui (combinatoire) & Oui & Oui & \textbf{Exacte}
-(doublement) si $\hat\pi_t$ constant, approximation sinon &
+(doublement) si $\hat\pi_t$ constant, Monte-Carlo sinon &
 \textbf{Déconseillée} : approx. normale requiert $n_1,n_2\ge 10$ &
 Distribution exacte à privilégier~; $p_{\min} = 0{,}057$ à $T = 8$ : \code{ECHEC}
 inatteignable à $\alpha = 0{,}10$ \\
@@ -3027,16 +3038,16 @@ par $\sim T$ \\
 Mann--Kendall & $S$ ($U$-statistique) & $\mathcal{N}(0,1)$ après
 normalisation & Convergence en loi & Berry--Esseen pour $U$-statistiques :
 $\mathcal{O}(T^{-1/2})$ & Variance de la projection non nulle, moment d'ordre 3 &
-Borne $\mathcal{O}(8^{-1/2})\approx 0{,}35$ : inexploitable. Loi exacte employée (exacte à $\hat\pi_t$ constant) \\
+Borne $\mathcal{O}(8^{-1/2})\approx 0{,}35$ : inexploitable. Loi exacte employée à $\hat\pi_t$ constant sans ex \ae quo~; Monte-Carlo sinon \\
 
 Wald--Wolfowitz & $R$ & $\mathcal{N}(0,1)$ & Convergence en loi &
 Vitesse non documentée dans la littérature consultée~; loi exacte employée, la
 question est sans objet~; recommandation d'usage $n_1,n_2\ge 10$ &
-Continuité, indépendance & Loi exacte employée (exacte à $\hat\pi_t$ constant) \\
+Continuité, indépendance & Loi exacte employée à $\hat\pi_t$ constant~; Monte-Carlo sinon \\
 
 Spearman & $\hat\rho_s$ & $\mathcal{N}$ / $t(T-2)$ & Convergence en loi &
 $\mathcal{O}(T^{-1/2})$ & Indépendance, absence d'ex \ae quo &
-Loi de permutation exacte employée (exacte à $\hat\pi_t$ constant) \\
+Loi de permutation exacte employée à $\hat\pi_t$ constant, $T \le 9$, sans ex \ae quo~; Monte-Carlo sinon \\
 
 D'Agostino & $\sqrt{b_1}$ transformé & $\mathcal{N}(0,1)$ &
 Convergence en loi & Transformation $S_U$ conçue pour corriger l'ordre
@@ -3278,9 +3289,9 @@ sont échangeables si et seulement si les $\pi_t$ sont égaux, et $P$ est alors 
 centrage $M = I_T - \mathbf{1}\mathbf{1}'/T$. Ce calcul tient $\hat\pi_t$ pour connu~: il ne
 rend pas compte de ce que $\hat\delta$ et $\hat\gamma$ sont estimés sur les mêmes données.
 
-\emph{Conséquence sur les p-values dites exactes.} Huit lignes de la table auditable retiennent
-une p-value exacte dont la loi de référence est construite pour un vecteur échangeable ou un
-échantillon i.i.d.~: quatre sur $z_t$ --- Durbin--Watson (loi d'Imhof de $MAM$), suites (loi
+\emph{Conséquence sur les p-values dites exactes.} Huit lignes de la table auditable se voient
+attribuer, à $\hat\pi_t$ constant, une p-value exacte dont la loi de référence est construite pour
+un vecteur échangeable ou un échantillon i.i.d.~: quatre sur $z_t$ --- Durbin--Watson (loi d'Imhof de $MAM$), suites (loi
 combinatoire), Shapiro--Wilk à loi nulle simulée (échantillons $\mathcal{N}(0,1)$ i.i.d.) et
 Smirnov (loi combinatoire) ---, et quatre sur les ratios $r_t$ --- Spearman ratio contre volume
 et ratio contre temps, Mann--Kendall et Cox--Stuart, qui supposent les $r_t$ identiquement
@@ -3288,11 +3299,25 @@ distribués. \textbf{À $\hat\pi_t$ constant}, ces lois sont exactes au sens de 
 $z$ est proportionnel à $M\varepsilon$ et les $r_t$ sont i.i.d. \textbf{À $\hat\pi_t$
 variable}, ce ne sont que des approximations~; aucune borne d'erreur n'a été trouvée dans la
 littérature consultée pour un projecteur $P$ non uniforme, et le document n'affirme rien sur
-l'ampleur de l'écart. Le moteur, lui, étiquette ces huit p-values \code{exacte} et les retient
-dans tous les régimes~; seule la ligne des suites sur ratios bruts conditionne son étiquette au
-régime (issue~\#29, fiche~\ref{fiche:suites-wald-wolfowitz}). Dans la bande de tolérance de
-\code{usp\_regime()}, $\hat\pi_t$ n'est constant qu'à un écart d'ordre $1 - \hat\delta$ près, et
-l'exactitude ne vaut qu'à cet ordre près.
+l'ampleur de l'écart. Le moteur n'attribue donc ces p-values exactes qu'à $\hat\pi_t$ constant
+(règle~R7, issue~\#70, ADR~0002), comme il le faisait déjà pour la ligne des suites sur ratios
+bruts (issue~\#29, fiche~\ref{fiche:suites-wald-wolfowitz})~: à $\hat\pi_t$ variable, la colonne
+\code{p\_exacte} vaut \code{NA}, la p-value de Monte-Carlo, simulée sous le modèle ajusté avec
+ses $\hat\pi_t$, est retenue, et le commentaire de la ligne commence par
+«~\code{p exacte non attribuee~: loi de reference exacte seulement a pi\_t constant (z = P
+epsilon non echangeable, r\_t non identiquement distribues).}~»~; la ligne de Shapiro--Wilk à loi
+nulle simulée, qui n'a pas de p-value de Monte-Carlo, est alors non applicable
+(fiche~\ref{fiche:shapiro-wilk-sans-royston}). Les lignes de rangs portent deux conditions de plus~:
+pas d'ex \ae quo (Spearman, Mann--Kendall) et $T \le 9$ (Spearman,
+fiche~\ref{fiche:spearman}). À $T = 8$ et $\alpha = 0{,}10$, sur le jeu de contrôle
+($\hat\delta = 1$), sept d'entre elles retiennent leur p-value exacte~; la huitième, Cox--Stuart,
+est inopérante (règle~R1, fiche~\ref{fiche:cox-stuart}) et n'en retient aucune. Mesuré sur le jeu
+à $\hat\delta$ intérieur de la section~\ref{sec:verif} ($\hat\delta = 0{,}664$, méthode prime,
+$B = 999$, graine 20260831)~: aucune de ces lignes n'a de p-value exacte, Cox--Stuart reste
+inopérant, Shapiro--Wilk à loi nulle simulée est non applicable, et les six autres retiennent leur
+p-value de Monte-Carlo. Dans la bande de tolérance de \code{usp\_regime()}, $\hat\pi_t$ n'est
+constant qu'à un écart d'ordre $1 - \hat\delta$ près, et l'exactitude ne vaut qu'à cet ordre
+près~; le commentaire des seules lignes dont la p-value exacte est attribuée le dit.
 
 \emph{Calibration mesurée par régime} (constat de simulation, non une borne). Deux scénarios à
 $T = 8$, $\beta = 0{,}7$, $\sigma = 0{,}15$, 10\,000 jeux chacun~: (A)~$\delta = 1$, volumes du jeu
@@ -4014,7 +4039,8 @@ Sous $H_0$, la loi exacte de $S$ est la loi de permutation~: les $T!$ appariemen
   t = \hat\rho_s\sqrt{\frac{T-2}{1-\hat\rho_s^2}} \;\sim\; t(T-2).
 \]
 \Pval
-p-value exacte de la loi de permutation, retenue par le moteur~: \code{stats::cor.test()} avec
+p-value exacte de la loi de permutation, retenue par le moteur lorsqu'elle est attribuée (voir
+ci-dessous)~: \code{stats::cor.test()} avec
 \code{exact = TRUE}, qui met en \oe uvre l'algorithme de D.\,J. Best, D.\,E. Roberts,
 \emph{Algorithm AS~89~: the upper tail probabilities of Spearman's rho}, \emph{Applied
 Statistics}, 24(3), 1975, p.~377--379. À $T = 8$, sans ex \ae quo, la p-value rendue coïncide
@@ -4034,8 +4060,19 @@ identiques au bit près dans les deux codages).
 L'équiprobabilité des $T!$ appariements suppose les $r_t$ échangeables, donc identiquement
 distribués~: sous le modèle ajusté, ils ne le sont qu'à $\hat\pi_t$ constant, et la variante
 « ratio contre volume » exigeant des volumes non constants, cela signifie $\hat\delta = 1$. La
-p-value n'est exacte au sens de l'ADR~0002 que dans ce régime~; le moteur l'étiquette
-\code{exacte} et la retient dans tous les régimes (section~\ref{sec:base-residus}, issue~\#25).
+p-value n'est exacte au sens de l'ADR~0002 que dans ce régime (section~\ref{sec:base-residus},
+issue~\#25). Depuis l'issue~\#70, le moteur n'attribue la p-value exacte que sous trois
+conditions, toutes exigées~: (i)~$\hat\pi_t$ constant (règle~R7), sinon le commentaire commence
+par «~\code{p exacte non attribuee~: loi de reference exacte seulement a pi\_t constant (z = P
+epsilon non echangeable, r\_t non identiquement distribues).}~»~;
+(ii)~aucun ex \ae quo, dans $r_t$ et, pour la variante « ratio contre volume », dans $x_t$~: avec
+ex \ae quo, \code{cor.test(exact = TRUE)} ne rend pas la loi de permutation conditionnelle mais la
+p-value asymptotique, et ni p-value exacte ni $p_{\min}$ ne sont attribuées, le commentaire le
+disant (par exemple \code{T = 8~; ex aequo dans r~: loi de permutation conditionnelle non tabulee,
+p\_min et p exacte non attribuees})~; (iii)~$T \le 9$~: \code{cor.test()} n'énumère la loi de
+permutation que jusqu'à $T = 9$ et rend au-delà un développement d'Edgeworth, qui n'est pas une loi
+exacte, ce que le commentaire dit aussi. Faute de p-value exacte, la p-value de Monte-Carlo est
+retenue.
 \Usage
 Test non paramétrique robuste aux valeurs extrêmes et à la non-normalité, bon complément des
 tests paramétriques précédents. Deux limites~: (i) il ne détecte que les associations
@@ -4085,8 +4122,11 @@ La plus petite p-value atteignable, celle des deux ordres extrêmes, vaut $2/T!$
 (\code{mk\_p\_min()}, champ \code{p\_min}), soit $5{,}0\cdot 10^{-5}$ à $T = 8$ (issue~\#44).
 L'équiprobabilité des ordres chronologiques suppose les $r_t$ identiquement distribués~: sous le
 modèle ajusté, ils ne le sont qu'à $\hat\pi_t$ constant. La p-value n'est exacte au sens de
-l'ADR~0002 que dans ce régime~; le moteur l'étiquette \code{exacte} et la retient dans tous les
-régimes (section~\ref{sec:base-residus}, issue~\#25).
+l'ADR~0002 que dans ce régime (section~\ref{sec:base-residus}, issue~\#25)~: depuis
+l'issue~\#70 (règle~R7), le moteur ne l'attribue qu'à $\hat\pi_t$ constant et sans ex \ae quo~;
+sinon la p-value de Monte-Carlo est retenue, et le commentaire nomme la raison
+(«~\code{p exacte non attribuee~: loi de reference exacte seulement a pi\_t constant (z = P
+epsilon non echangeable, r\_t non identiquement distribues).}~», ou l'ex \ae quo, qui prive aussi la ligne de $p_{\min}$).
 \Usage
 Test de référence pour détecter une dérive progressive du ratio S/P (dérive tarifaire, inflation
 des sinistres, évolution de la politique de provisionnement), ce qui contredirait directement la
@@ -4116,8 +4156,8 @@ pourvu que chaque différence $D_t$ soit de loi symétrique autour de~0. C'est l
 sont i.i.d., donc sous le modèle ajusté à $\hat\pi_t$ constant~; à $\hat\pi_t$ variable, deux
 ratios lognormaux de même espérance et de variances différentes n'ont pas la même médiane, et
 $\mathbb{P}(D_t > 0) \ne 1/2$. La p-value n'est exacte au sens de l'ADR~0002 qu'à $\hat\pi_t$
-constant~; le moteur l'étiquette \code{exacte} et la retient dans tous les régimes
-(section~\ref{sec:base-residus}, issue~\#25).
+constant (section~\ref{sec:base-residus}, issue~\#25)~; depuis l'issue~\#70 (règle~R7), le moteur
+ne l'attribue que dans ce régime, et le commentaire le dit sinon.
 \Pval
 Test binomial bilatéral exact~:
 \[
@@ -4141,7 +4181,7 @@ statistique Monte-Carlo n'est donc définie que sans ex \ae quo~: avec ex \ae qu
 est \code{NA} (\code{USP\_CATALOGUE\_MC\$CoxStuart}), \code{p\_mc} et \code{err\_mc} valent
 \code{NA}, le motif «~\code{statistique observee non definie : ex aequo}~» est restitué dans
 \code{bootstrap\$motif\_mc} (champ \code{non\_definie} du catalogue), et la p-value exacte
-binomiale, conditionnelle à $m$, reste la seule calculée~; le commentaire de la ligne affiche
+binomiale, conditionnelle à $m$, reste la seule calculée, à $\hat\pi_t$ constant~; le commentaire de la ligne affiche
 alors les deux nombres (\code{m = 3 differences non nulles sur n\_p = 4 paires~; p\_mc non
 calculee (replications sans ex aequo)}), et, à $m = 0$, que $K$ n'est pas défini. Mesuré sur le
 jeu de contrôle modifié pour que $r_5 = r_1$ ($x_5 = 2x_1$, $y_5 = 2y_1$~; méthode prime,
@@ -4425,8 +4465,11 @@ $(\hat\beta, \hat\delta, \hat\gamma)$~: $z \sim \mathcal{N}(0, P)$ sous le modè
 (section~\ref{sec:base-residus}, issue~\#25). La loi combinatoire suppose seulement les $z_t$
 échangeables, la partition en petits et gros volumes ne dépendant que des $x_t$~; elle est donc
 exacte à $\hat\pi_t$ constant, soit ici à $\hat\delta = 1$ (le test exige des volumes non
-constants). À $\hat\pi_t$ variable, c'est une approximation dont l'écart n'est pas borné~; le
-moteur étiquette néanmoins la p-value \code{exacte} et la retient dans tous les régimes. Le
+constants). À $\hat\pi_t$ variable, ce ne serait qu'une approximation dont l'écart n'est pas
+borné~: depuis l'issue~\#70 (règle~R7), le moteur n'attribue la p-value exacte qu'à $\hat\pi_t$
+constant, et retient sinon la p-value de Monte-Carlo (clé \code{Smirnov}), le commentaire
+commençant par «~\code{p exacte non attribuee~: loi de reference exacte seulement a pi\_t constant (z = P
+epsilon non echangeable, r\_t non identiquement distribues).}~» Le
 \emph{QQ-plot à deux échantillons} associé (section~\ref{sec:graphiques}) reste le diagnostic le plus lisible.
 \end{fiche}
 
@@ -4772,7 +4815,11 @@ loi simulée n'en est qu'une approximation, sans borne d'erreur connue à $T = 8
 20\,000 tirages, mis en cache par valeur de $T$ et pilotés par une graine dédiée.
 \Pval
 $\hat p = \big(1 + \#\{W^{(b)} \le W_{\text{obs}}\}\big) / (B_{\text{null}} + 1)$, rejet en queue
-basse.
+basse, attribuée à $\hat\pi_t$ constant seulement. Depuis l'issue~\#70 (règle~R9 amendée), la
+ligne est \emph{non applicable} à $\hat\pi_t$ variable~: la loi nulle i.i.d. n'y décrit pas $W(z)$,
+elle n'est ni calculée ni rappelée ($W$ reste dans \code{stat}), et le commentaire renvoie à la
+ligne de Shapiro--Wilk sur résidus standardisés, dont la p-value de Monte-Carlo, simulée sous le
+modèle ajusté, reste disponible.
 \Usage
 Cette variante répond à une objection de principe~: la p-value de \code{shapiro.test()} repose sur
 la transformation normalisante de Royston (1992), qui est un \emph{ajustement empirique}, non un
@@ -4784,8 +4831,9 @@ Monte-Carlo près, en $\mathcal{O}(B_{\text{null}}^{-1/2})$.
 paramétrique~: elle ne dépend pas du modèle USP ajusté, mais seulement de $T$. Elle relève donc
 de la catégorie « exacte, évaluée numériquement » et non de la catégorie « Monte-Carlo » du
 tableau~\ref{tab:nature} --- au sens strict de l'ADR~0002, à $\hat\pi_t$ constant seulement
-(rubrique~4)~; le moteur l'étiquette \code{exacte} dans tous les régimes, et le commentaire de la
-ligne, qui la dit indépendante du modèle ajusté, ne mentionne pas cette condition. En pratique,
+(rubrique~4)~; le moteur ne l'attribue que dans ce régime, et le commentaire de la ligne, qui la
+dit indépendante du modèle ajusté, n'est plus servi qu'à $\hat\pi_t$ constant (rubrique~5,
+issue~\#70). En pratique,
 les deux versions concordent étroitement~: sur 2\,000
 réplications à $T = 8$, la fréquence de rejet au seuil de 5~\% vaut 4,95~\% pour la loi simulée
 contre 5,05~\% pour la normalisation de Royston, ce qui valide a posteriori l'approximation de
@@ -5005,9 +5053,14 @@ $2\min\big(\mathbb{P}(\mathrm{DW} \le d),\, \mathbb{P}(\mathrm{DW} \ge d)\big)$.
 Le centrage retirant une dimension, l'intégration porte sur les $T-1$ valeurs propres non nulles
 de $A$ projetée sur l'orthogonal du vecteur constant, soit $MAM$ (\code{dw\_p\_exacte()}).
 Cette p-value est \emph{exacte} au sens de l'ADR~0002 \textbf{à $\hat\pi_t$ constant seulement}
-($\hat\delta = 1$ ou volumes constants, au sens de \code{usp\_regime()}). Le moteur l'étiquette
-\code{exacte} et la retient dans tous les régimes~: à $\hat\pi_t$ variable, la p-value retenue
-est donc une approximation (section~\ref{sec:base-residus}).
+($\hat\delta = 1$ ou volumes constants, au sens de \code{usp\_regime()}). Depuis l'issue~\#70
+(règle~R7), le moteur ne l'attribue que dans ce régime~: à $\hat\pi_t$ variable, la colonne
+\code{p\_exacte} vaut \code{NA}, l'intégrale d'Imhof n'est pas évaluée, la p-value de Monte-Carlo
+(clé \code{DW}) est retenue et le commentaire commence par «~\code{p exacte non attribuee~: loi de reference exacte seulement a pi\_t constant (z = P
+epsilon non echangeable, r\_t non identiquement distribues).}~» Dans la bande de
+tolérance de \code{usp\_regime()}, le commentaire ajoute que la loi n'est exacte qu'à un écart
+d'ordre $1 - \hat\delta$, ou de l'étendue relative des volumes, près
+(section~\ref{sec:base-residus}).
 \Usage
 Deux points d'implémentation méritent d'être signalés. \emph{Le centrage}~: la statistique est
 calculée sur des résidus centrés, car la définition classique porte sur des résidus de moindres
@@ -5090,8 +5143,9 @@ tabulée par \code{.runs\_dens()}. L'approximation normale $p = 2\big(1 - \Phi(|
 des $\binom{n}{n_1}$ arrangements suppose les $z_t$ échangeables, ce qu'ils ne sont qu'à
 $\hat\pi_t$ constant ($z \sim \mathcal{N}(0, P)$, section~\ref{sec:base-residus}, issue~\#25)~:
 la p-value n'est exacte au sens de l'ADR~0002 que dans ce régime. Sur la ligne calculée sur
-$z_t$, le moteur l'étiquette \code{exacte} et la retient dans tous les régimes~; à $\hat\pi_t$
-variable, c'est une approximation, sans borne d'erreur connue à $T = 8$.
+$z_t$, le moteur ne l'attribue depuis l'issue~\#70 (règle~R7) qu'à $\hat\pi_t$ constant~; à
+$\hat\pi_t$ variable, où elle ne serait qu'une approximation sans borne d'erreur connue à
+$T = 8$, la p-value de Monte-Carlo est retenue et le commentaire le dit.
 
 \emph{Convention bilatérale.} Le moteur applique le doublement (issue~\#29)~:
 \[
@@ -5150,7 +5204,9 @@ $T = 8$. Les cinq autres lignes de la base « ratios bruts » restent en Monte-C
 régimes. Mesuré (méthode prime, $B = 999$, graine 20260831)~: sur le jeu de contrôle
 ($\hat\delta = 1$), p-value exacte $52/70 = 0{,}743$ sur les deux lignes, \code{p\_mc} $= 0{,}762$
 sur $z_t$ et $0{,}768$ sur $u_t$~; sur ses cinq premières années ($\hat\delta = 0$, $\hat\pi_t$
-variable), p-value exacte $2/3$ sur $z_t$ et p-value de Monte-Carlo $0{,}692$ retenue sur $u_t$.
+variable), aucune p-value exacte n'est attribuée, ni sur $z_t$ (depuis l'issue~\#70) ni sur $u_t$,
+les p-values de Monte-Carlo valent $0{,}690$ et $0{,}692$, et chacune de ces lignes est restituée
+en diagnostic, le test étant inopérant ($p_{\min} = 2/3 \ge \alpha$ à $n_1 = n_2 = 2$, règle~R1).
 Deux limites. Dans la bande de tolérance ($\hat\pi_t$ constant à \code{TOL\_DELTA\_BORD} près
 seulement), les arrangements ne sont équiprobables qu'à un écart d'ordre $1 - \hat\delta$, ou de
 l'étendue relative des volumes, près~: la p-value n'est exacte qu'à cet ordre près, ce que le
@@ -5158,8 +5214,8 @@ commentaire de la ligne indique. Et la p-value exacte est attribuée sur le rég
 $\hat\delta$, sans tenir compte de l'incertitude sur $\hat\delta$~; l'effet de cette incertitude
 sur la p-value n'est pas évalué. Cette seconde limite n'est pas propre à cette ligne~: elle vaut
 pour les neuf p-values dont l'exactitude est conditionnée à $\hat\pi_t$ constant --- cette
-ligne, dont le moteur conditionne l'étiquette au régime estimé, et les huit de la
-section~\ref{sec:base-residus}, dont l'exactitude n'est acquise que dans ce même régime estimé.
+ligne et les huit de la section~\ref{sec:base-residus}, que le moteur n'attribue toutes, depuis
+l'issue~\#70, que dans ce régime estimé.
 \Usage
 Test non paramétrique très général~: il détecte aussi bien une autocorrélation (trop peu de
 suites) qu'une alternance systématique (trop de suites), sans hypothèse de forme. Limite
@@ -8705,7 +8761,8 @@ Noyau du modèle ($\pi_t$, $\hat\beta$, $z_t$) & \code{usp\_pi()}, \code{usp\_no
 Optimisation sous contrainte $\delta\in[0,1]$ & \code{usp\_objectif()}, \code{usp\_ajuster()} \\
 $\hat\delta$ au bord, $\hat\pi_t$ constant (fiches~\ref{fiche:position-delta}, \ref{fiche:centrage}) & \code{usp\_regime()}, tolérance \code{TOL\_DELTA\_BORD} \\
 Lois exactes (Kendall, suites) & \code{mk\_p\_exacte()}, \code{runs\_p\_exacte()},
-\code{usp\_runsr\_p\_exacte()} \\
+\code{usp\_runsr\_p\_exacte()}~; attribution des p-values exactes à $\hat\pi_t$ constant seulement
+et libellés selon le régime (règles~R7 et~R8 d'\code{usp\_tests()}, issue~\#70) \\
 Statistiques de test & \code{stat\_*()}, \code{test\_*()} \\
 Bootstrap paramétrique et p-values MC & \code{.stats\_bootstrapables()}, \code{usp\_bootstrap()}~;\newline
 catalogues \code{USP\_CATALOGUE\_MC} et \code{MW\_CATALOGUE\_MC} (\code{.mc\_entree()},
@@ -9146,8 +9203,9 @@ résidus $z_t$, donc l'intégralité de H2, H3, H4 \\
 \code{usp\_regime()} & LN & Drapeau de la position de $\hat\delta$, libellés du
 centrage et de la variance unitaire (constance de $\hat\pi_t$ exacte ou à la
 tolérance près), réserve du champ \code{detail} des six
-lignes sur ratios bruts et première condition de la p-value exacte des suites sur ces ratios~:
-une seule tolérance, \code{TOL\_DELTA\_BORD} \\
+lignes sur ratios bruts, première condition de la p-value exacte des suites sur ces ratios et,
+depuis l'issue~\#70, attribution des p-values exactes des autres lignes à loi de référence
+échangeable~: une seule tolérance, \code{TOL\_DELTA\_BORD} \\
 \code{.stats\_bootstrapables()} & LN & Les 34 statistiques bootstrapées de la
 méthode lognormale, en un seul appel \\
 \code{mw\_ajuster()} & MW & $\hat f_j$, $\hat\sigma_j^2$, $\hat C(i,j)$~: entrée
