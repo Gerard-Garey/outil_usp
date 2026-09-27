@@ -17,30 +17,30 @@
 #       juge sans consulter les paquets (verdict independant des paquets
 #       installes, issue #86). Une exemption qui n'exempte plus rien est un
 #       ecart (exemption perimee) ;
-#    2. les decomptes de lignes de tests annonces par le document :
+#    2. les decomptes annonces par le document (issue #75) :
 #       a) VERIFIES automatiquement pour les phrases du registre DECOMPTES
 #          (plus bas), chacune ancree sur sa formulation exacte et rattachee a
-#          une methode ; une phrase du registre introuvable (reformulee) est
-#          un ecart, pour que le registre ne perime pas en silence ;
-#       b) INVENTORIES (ligne, extrait) pour toutes les autres formulations
-#          "N lignes" / "N entrees" (chiffres ou nombres en lettres) : leur
-#          objet (table entiere, famille, sous-ensemble) ne se lit pas de facon
-#          fiable par une expression reguliere, elles sont listees pour
-#          relecture humaine et ne comptent pas comme ecarts ;
+#          une grandeur mesuree : table des tests ou res$controles d'une
+#          methode (grandeurs_moteur()), ou constante du moteur
+#          (grandeurs_code()) ; une phrase du registre introuvable
+#          (reformulee) est un ecart, pour que le registre ne perime pas en
+#          silence ;
+#       b) CLASSES : toute formulation "N lignes" / "N entrees" / "N tests"
+#          du document (chiffres ou nombres en lettres, au pluriel, y compris
+#          coupee par un retour a la ligne ; classer_formulations()) est soit
+#          verifiee (elle commence dans l'etendue d'une phrase du registre),
+#          soit exemptee nommement (liste EXEMPTES_DECOMPTES : id, contexte,
+#          motif ecrit), soit NON CLASSEE, et c'est alors un ecart. Une
+#          exemption qui n'exempte plus rien est un ecart (perimee).
 #
-#       LIMITE (faux negatif par construction, audit R1 point 7) : seules
-#       les phrases du registre DECOMPTES sont verifiees. Un decompte faux
-#       ecrit ailleurs -- par ex. "51 lignes de tests pour la prime" --
-#       n'apparait que dans l'inventaire b), n'est PAS un ecart et ne fait
-#       pas echouer --strict. La sortie le rappelle ("inventaire non
-#       verifie : N formulations"). Un BILAN a 0 ecart ne garantit donc pas
-#       que tous les decomptes du document sont justes.
-#
-#       Suite (issue #75, non implementee ici) : toute formulation de
-#       l'inventaire devra etre soit couverte par une phrase du registre
-#       DECOMPTES, soit exemptee nommement avec son motif ; --strict
-#       echouera alors sur toute formulation ni verifiee ni exemptee, et
-#       l'inventaire s'etendra aux formulations "N tests" ;
+#       LIMITES : (i) une formulation exemptee n'est pas verifiee (anaphore,
+#       provenance par fonction, lignes d'un tableau du document, constat
+#       de simulation) ; (ii) un decompte ecrit sans les mots "lignes",
+#       "entrees" ou "tests" apres le nombre ("six verdicts", "quinze
+#       p-values", "un test") n'est pas inventorie ; (iii) une phrase du
+#       registre mesure sa grandeur sur les jeux de tests/donnees/ : un
+#       decompte qui depend des donnees (par ex. une nature de p-value) n'est
+#       verifie que sur ces jeux ;
 #    3. chaque prefixe de famille produit par le moteur dans res$tests (deux
 #       premiers caracteres du champ famille, cle de GROUPES) est declare
 #       dans GROUPES de R/display_helpers.R ; les familles rencontrees
@@ -81,13 +81,13 @@
 #
 #  Mode rapport (defaut) : code de sortie 0 meme en cas d'ecart. --strict
 #  (branche O, issue #65, --strict minimal de la decision Q-O3) : code de
-#  sortie 1 des qu'il y a un ecart VERIFIE -- nom introuvable non exempte,
-#  exemption perimee, phrase du registre DECOMPTES absente ou fausse,
-#  prefixe de famille non declare dans GROUPES, cle MC hors du catalogue de
-#  sa methode, tableau de l'index introuvable, sans cle ou a rangee non
-#  terminee. L'inventaire b) reste une
-#  information sans effet sur le code de sortie (issue #75). --tex remplace
-#  le document lu (tests du mode strict sur une copie modifiee).
+#  sortie 1 des qu'il y a un ecart -- nom introuvable non exempte,
+#  exemption perimee (de citation ou de decompte), phrase du registre
+#  DECOMPTES absente ou fausse, formulation de decompte ni verifiee ni
+#  exemptee (issue #75), prefixe de famille non declare dans GROUPES, cle
+#  MC hors du catalogue de sa methode, tableau de l'index introuvable, sans
+#  cle ou a rangee non terminee. --tex remplace le document lu (tests du
+#  mode strict sur une copie modifiee).
 #
 #  Source (plutot que lance par Rscript), le fichier ne fait que definir ses
 #  fonctions d'extraction, testees sur des chaines LaTeX en memoire par
@@ -314,11 +314,21 @@ nombre_fr <- function(x) {
 MOT_NOMBRE <- paste0("(?:[0-9]+|(?:", paste(names(NOMBRES_FR), collapse = "|"), ")(?:-(?:et-)?(?:",
                      paste(names(NOMBRES_FR), collapse = "|"), "))*)")
 
+# Capture d'un nombre en chiffres ou en lettres, pour les motifs du registre :
+# un nombre modifie dans le document reste capture (ECART), il ne rend pas la
+# phrase introuvable.
+N_ <- paste0("(", MOT_NOMBRE, ")")
+
 # Registre des phrases de decompte verifiees. motif : expression reguliere
 # (perl, insensible a la casse) sur le texte normalise ; une espace du motif
-# vaut n'importe quel blanc, retour a la ligne compris. verifier : fonction
-# (captures, grandeurs) -> vecteur nomme "annonce = mesure" des comparaisons,
-# grandeurs etant la sortie de grandeurs_moteur() pour la methode.
+# vaut n'importe quel blanc, retour a la ligne compris ; chaque groupe
+# capturant est un nombre annonce. methode : cle (ou vecteur de cles) de la
+# liste des grandeurs mesurees -- "premium", "reserve1", "reserve2" (sortie de
+# grandeurs_moteur() sur le resultat de run_engine()), "code" (sortie de
+# grandeurs_code(), constantes du moteur) ; plusieurs cles : l'annonce est
+# comparee a la mesure de chacune. champs : grandeur comparee a chaque
+# capture, dans l'ordre. Une phrase du registre couvre les formulations de
+# l'inventaire (N lignes / entrees / tests) qui commencent dans son etendue.
 DECOMPTES <- list(
   list(id = "prime : nature des p-values retenues (calibration des p-values MC)",
        methode = "premium",
@@ -343,15 +353,138 @@ DECOMPTES <- list(
   list(id = "Merz-Wuthrich : famille M1 (schema)", methode = "reserve2",
        motif = "M1 \\((\\d+) entr\u00e9es\\)", champs = "famille M1"),
   list(id = "Merz-Wuthrich : famille M2 (schema)", methode = "reserve2",
-       motif = "M2 \\((\\d+) entr\u00e9es\\)", champs = "famille M2")
+       motif = "M2 \\((\\d+) entr\u00e9es\\)", champs = "famille M2"),
+  # Issue #75 : formulations de l'ancien inventaire non verifie, rattachees
+  # a une grandeur mesurable du moteur.
+  list(id = "catalogues Monte-Carlo (index des fonctions)", methode = "code",
+       motif = paste0("catalogues des statistiques Monte-Carlo \\(", N_, " et ", N_, " entr\u00e9es\\)"),
+       champs = c("catalogue USP", "catalogue MW")),
+  list(id = "Merz-Wuthrich : lignes fondees sur les residus (controle d'entree)", methode = "code",
+       motif = paste0(N_, " lignes de M1 \u00e0 M5 fond\u00e9es sur les r\u00e9sidus"),
+       champs = "lignes MW sur residus"),
+  list(id = "Merz-Wuthrich : lignes qui consomment les residus (M1 a M5)", methode = "code",
+       motif = paste0(N_, " lignes de M1 \u00e0 M5 qui consomment ces r\u00e9sidus"),
+       champs = "lignes MW sur residus"),
+  list(id = "lognormale : entrees de res$controles", methode = c("premium", "reserve1"),
+       motif = paste0("res.{0,2}controles \u00e0 ", N_, " entr\u00e9es pour les m\u00e9thodes lognormales"),
+       champs = "controles (total)"),
+  list(id = "lognormale : entrees de la famille H de res$controles", methode = c("premium", "reserve1"),
+       motif = paste0("qui produit les ", N_, " entr\u00e9es ajout\u00e9es \u00e0 res.{0,2}controles"),
+       champs = "controles famille H."),
+  list(id = "prime : lignes a p exacte attribuee (loi pour observations echangeables)", methode = "premium",
+       motif = paste0(N_, " lignes de la table auditable retiennent une p-value exacte dont la loi de r\u00e9f\u00e9rence"),
+       champs = "p exacte hors base r"),
+  list(id = "prime : lignes sur la base u_t", methode = "premium",
+       motif = paste0(N_, " lignes de la table auditable sont calcul\u00e9es sur la base"),
+       champs = "base r"),
+  list(id = "prime : lignes sur u_t et homologues sur z_t", methode = "premium",
+       motif = paste0("les ", N_, " lignes sur base \\$u_t\\$ et leurs ", N_, " homologues sur"),
+       champs = c("base r", "base z")),
+  list(id = "prime : lignes sur u_t (restent exactes)", methode = "premium",
+       motif = paste0("les ", N_, " lignes restent exactes"), champs = "base r"),
+  list(id = "prime : lignes sur u_t (detail CONTROLE SANS OBJET ICI)", methode = "premium",
+       motif = paste0("detail de chacune des ", N_, " lignes commence par"), champs = "detail sans objet ici"),
+  list(id = "prime : lignes sur u_t (quasi-doublons)", methode = "premium",
+       motif = paste0("les ", N_, " lignes correspondantes sont des quasi-doublons"), champs = "base r"),
+  list(id = "prime : lignes sur u_t (index des decisions)", methode = "premium",
+       motif = paste0("champ detail des ", N_, " lignes de base r dans usp_tests"), champs = "base r"),
+  list(id = "prime : lignes sur u_t (index des fonctions, usp_regime)", methode = "premium",
+       motif = paste0("champ detail des ", N_, " lignes sur ratios bruts"), champs = "base r"),
+  list(id = "prime : lignes sur u_t (graphe d'appels)", methode = "premium",
+       motif = paste0(N_, " lignes sur \\$u_t\\$, construit par"), champs = "base r"),
+  list(id = "prime : lignes sur u_t (loi de reference simulee)", methode = "premium",
+       motif = paste0("la statistique observ\u00e9e de ces ", N_, " lignes"), champs = "base r"),
+  list(id = "prime : tests sous deux formes (variante secondaire)", methode = c("premium", "reserve1"),
+       motif = paste0(N_, " tests existent dans le dispositif sous deux formes concurrentes"),
+       champs = "variante secondaire"),
+  list(id = "prime : lignes du test des suites (p-values differentes avant #29)", methode = "premium",
+       motif = paste0("les ", N_, " lignes affichaient n\u00e9anmoins des p-values diff\u00e9rentes"),
+       champs = "lignes du test des suites"),
+  list(id = "prime : lignes du test des suites (meme p exacte depuis #29)", methode = "premium",
+       motif = paste0("les ", N_, " lignes portent d\u00e9sormais la m\u00eame p-value exacte"),
+       champs = "lignes du test des suites"),
+  list(id = "prime : lignes du test des suites (fiche des suites, rubrique 5)", methode = "premium",
+       motif = paste0("0,743\\$ sur les ", N_, " lignes, p_mc"), champs = "lignes du test des suites"),
+  list(id = "prime : lignes du test des suites (fiche des suites sur u_t)", methode = "premium",
+       motif = paste0("0,743\\$ retenue sur les ", N_, " lignes, p_mc"), champs = "lignes du test des suites"),
+  list(id = "prime : grandeurs rivees par l'estimation", methode = "premium",
+       motif = paste0("Ces ", N_, " lignes sont restitu\u00e9es comme diagnostics, sans p-value retenue"),
+       champs = "grandeur rivee"),
+  list(id = "prime : tests de H2 (graphe d'appels)", methode = "premium",
+       motif = paste0("Chacun des ", N_, " tests dispose de sa propre fonction"),
+       champs = "famille C. type test"),
+  list(id = "Merz-Wuthrich : tests de normalite (M5)", methode = "reserve2",
+       motif = paste0("Les ", N_, " tests de normalit\u00e9 sont compt\u00e9s parmi les tests"),
+       champs = "famille M5 type test"),
+  list(id = "Merz-Wuthrich : tests reposant sur le bootstrap", methode = "reserve2",
+       motif = paste0(N_, " de ces ", N_, " tests reposent sur le bootstrap"),
+       champs = c("nature Monte-Carlo", "type test"))
 )
 
-# Grandeurs structurelles de la table des tests d'un resultat du moteur.
-grandeurs_moteur <- function(tests) {
-  champ <- function(n) vapply(tests, function(t) { v <- t[[n]]; if (is.null(v) || !length(v)) NA_character_ else as.character(v)[1] },
-                              character(1))
+# ---------------------------------------------------------------------------
+#  Exemptions nominatives des decomptes (issue #75)
+# ---------------------------------------------------------------------------
+
+# Formulations "N lignes / N entrees / N tests" du document qui ne
+# denombrent pas une grandeur de res$tests, res$controles ou des constantes
+# du moteur, et que le script ne doit donc ni verifier ni compter comme
+# ecarts. Chaque exemption porte : id ; contexte (expression reguliere, perl,
+# insensible a la casse, cherchee dans le texte normalise entier ; une espace
+# vaut n'importe quel blanc ; elle doit contenir la formulation, qu'elle
+# exempte si celle-ci commence dans son etendue) ; motif (raison ecrite). Une
+# exemption qui n'exempte plus aucune formulation est PERIMEE et comptee
+# comme ecart.
+MOTIF_ANAPHORE <- "reprise anaphorique de tests nommes dans le texte qui precede, pas un decompte de la table"
+MOTIF_PROVENANCE <- paste("provenance d'entrees (graphe d'appels du moteur) : la fonction qui produit",
+                          "une ligne n'est pas restituee dans res$tests")
+EXEMPTES_DECOMPTES <- list(
+  list(id = "pente et Fisher (cas sans p Monte-Carlo possible)",
+       contexte = "Ces deux tests conservent donc leur loi", motif = MOTIF_ANAPHORE),
+  list(id = "tableau 2 : deux lignes du tableau du document",
+       contexte = "document\u00e9s sur deux lignes distinctes",
+       motif = "lignes du tableau du document, pas de la table des tests"),
+  list(id = "TOST : deux tests unilateraux", contexte = "D\u00e9composition en deux tests unilat\u00e9raux",
+       motif = "construction statistique de la procedure TOST (intersection-union), pas un decompte de la table"),
+  list(id = "TOST : formulation ecartee", contexte = "comme deux tests s\u00e9par\u00e9s sans",
+       motif = "formulation hypothetique ecartee par le document, pas un decompte de la table"),
+  list(id = "constante et pente : deux tests complementaires",
+       contexte = "Les deux tests sont compl\u00e9mentaires", motif = MOTIF_ANAPHORE),
+  list(id = "Merz-Wuthrich : entrees en gras du schema",
+       contexte = "Les six entr\u00e9es en gras ci-dessus",
+       motif = "element de mise en forme du document (entrees en gras de la liste qui precede)"),
+  list(id = "Merz-Wuthrich : complement aux deux tests precedents",
+       contexte = "Compl\u00e9ment aux deux tests pr\u00e9c\u00e9dents", motif = MOTIF_ANAPHORE),
+  list(id = "calibration Merz-Wuthrich : trois tests s'ecartent",
+       contexte = "Trois tests s'en \u00e9cartent fortement",
+       motif = "constat de simulation de la calibration des lois de reference, pas un decompte de la table"),
+  list(id = "test_lm_complet() (index des fonctions)", contexte = "quatre entr\u00e9es issues d'un seul appel",
+       motif = MOTIF_PROVENANCE),
+  list(id = "test_lm_complet() (graphe H1)", contexte = "alimente quatre entr\u00e9es de la table des tests",
+       motif = MOTIF_PROVENANCE),
+  list(id = ".shapiro_sur() (graphe H3-H4)", contexte = "shapiro_sur\\(\\) alimente deux entr\u00e9es",
+       motif = MOTIF_PROVENANCE),
+  list(id = ".fisher_combine() (graphe Merz-Wuthrich)", contexte = "dessert 4 tests M1",
+       motif = MOTIF_PROVENANCE),
+  list(id = "noeud M3 correlations (graphe Merz-Wuthrich)", contexte = "\\(q4\\) M3 \\(2 entr\u00e9es\\)",
+       motif = paste(MOTIF_PROVENANCE, "(sous-ensemble de la famille M3 rattache a un noeud du schema)")),
+  list(id = "test_lm_complet() (tableau des portees)", contexte = "test_lm_complet\\(\\) \\(4 entr\u00e9es\\)",
+       motif = MOTIF_PROVENANCE),
+  list(id = ".shapiro_sur() (tableau des portees)", contexte = "shapiro_sur\\(\\) \\(2 entr\u00e9es\\)",
+       motif = MOTIF_PROVENANCE),
+  list(id = "stat_dw() ... test_grubbs() (tableau des portees)", contexte = "test_grubbs\\(\\) \\(2 entr\u00e9es chacune",
+       motif = MOTIF_PROVENANCE)
+)
+
+# Grandeurs structurelles de la table des tests d'un resultat du moteur
+# (et, si fourni, de res$controles). Un champ absent d'une ligne vaut NA :
+# la ligne n'est alors comptee dans aucune grandeur qui porte sur ce champ.
+grandeurs_moteur <- function(tests, controles = NULL) {
+  champ <- function(n, l = tests) vapply(l, function(t) { v <- t[[n]]; if (is.null(v) || !length(v)) NA_character_ else as.character(v)[1] },
+                                         character(1))
   nat <- champ("nature_p"); typ <- champ("type"); fam <- substr(champ("famille"), 1L, 2L)
+  base <- champ("base"); det <- champ("detail"); nom <- champ("test")
   pmc <- vapply(tests, function(t) !is.null(t$p_mc) && length(t$p_mc) && !is.na(t$p_mc), logical(1))
+  pex <- vapply(tests, function(t) !is.null(t$p_exacte) && length(t$p_exacte) && is.finite(t$p_exacte[1]), logical(1))
   g <- c("lignes (total)" = length(tests),
          "nature exacte" = sum(grepl("^exacte", nat)),
          "nature modele auxiliaire MCO" = sum(grepl("^sous le modele auxiliaire MCO", nat)),
@@ -362,15 +495,46 @@ grandeurs_moteur <- function(tests) {
          "type test" = sum(typ %in% "test"),
          "type diagnostic" = sum(typ %in% "diagnostic"),
          "type procedure de decision" = sum(typ %in% "procedure de decision"),
-         "type non applicable" = sum(typ %in% "non applicable"))
+         "type non applicable" = sum(typ %in% "non applicable"),
+         # Issue #75 : grandeurs des formulations de l'ancien inventaire.
+         # base : "z" (residus standardises), "r" (ratios bruts u_t),
+         # "commun" ; variante : "secondaire" pour la forme non retenue d'un
+         # test present sous deux formes.
+         "base z" = sum(base %in% "z"),
+         "base r" = sum(base %in% "r"),
+         "p exacte hors base r" = sum(pex & !base %in% "r"),
+         "variante secondaire" = sum(champ("variante") %in% "secondaire"),
+         "lignes du test des suites" = sum(startsWith(nom, "Test des suites") %in% TRUE),
+         "grandeur rivee" = sum(startsWith(det, "Grandeur rivee par l'estimation") %in% TRUE),
+         "detail sans objet ici" = sum(grepl("CONTROLE SANS OBJET ICI", det, fixed = TRUE)))
   for (f in unique(fam)) g[paste("famille", f)] <- sum(fam == f)
+  for (f in unique(fam)) for (ty in unique(typ[fam %in% f]))
+    g[paste("famille", f, "type", ty)] <- sum(fam %in% f & typ %in% ty)
+  if (!is.null(controles)) {
+    fc <- substr(champ("famille", controles), 1L, 2L)
+    g["controles (total)"] <- length(controles)
+    for (f in unique(fc)) g[paste("controles famille", f)] <- sum(fc %in% f)
+  }
   g
 }
 
+# Grandeurs tirees des constantes du moteur (env : environnement ou
+# R/engine.R a ete charge) : tailles des catalogues Monte-Carlo et nombre de
+# lignes Merz-Wuthrich fondees sur les residus (.MW_LIGNES_RESIDUS).
+grandeurs_code <- function(env) {
+  c("catalogue USP" = length(env$USP_CATALOGUE_MC),
+    "catalogue MW" = length(env$MW_CATALOGUE_MC),
+    "lignes MW sur residus" = sum(lengths(env$.MW_LIGNES_RESIDUS)))
+}
+
 # Applique le registre au texte (vecteur de lignes LaTeX). grandeurs : liste
-# nommee par methode de sorties de grandeurs_moteur(). Renvoie un
-# data.frame (assertion, ligne, grandeur, annonce, mesure, statut) ; une
-# assertion introuvable donne une ligne de statut "INTROUVABLE".
+# nommee par methode de sorties de grandeurs_moteur() (et "code" :
+# grandeurs_code()). Renvoie un data.frame (assertion, ligne, ligne_fin,
+# pos, pos_fin, grandeur, annonce, mesure, statut), pos et pos_fin etant les
+# positions de debut et de fin de la phrase dans le texte normalise (lignes
+# jointes par "\n") ; une assertion introuvable donne une ligne de statut
+# "INTROUVABLE". Une grandeur absente des mesures vaut 0 (famille ou type
+# non produit).
 verifier_decomptes <- function(lignes, grandeurs, registre = DECOMPTES) {
   norm <- normaliser_ligne(lignes)
   texte <- paste(norm, collapse = "\n")
@@ -382,31 +546,86 @@ verifier_decomptes <- function(lignes, grandeurs, registre = DECOMPTES) {
     cap <- regmatches(texte, m)[[1]]
     if (!length(cap)) {
       out[[length(out) + 1L]] <- data.frame(assertion = a$id, ligne = NA_integer_, ligne_fin = NA_integer_,
+                                            pos = NA_integer_, pos_fin = NA_integer_,
                                             grandeur = "(phrase)",
                                             annonce = NA_real_, mesure = NA_real_, statut = "INTROUVABLE",
                                             stringsAsFactors = FALSE)
       next
     }
-    ligne <- findInterval(m[[1]][1], debuts)
-    ligne_fin <- findInterval(m[[1]][1] + attr(m[[1]], "match.length")[1] - 1L, debuts)
-    ann <- vapply(cap[-1L], nombre_fr, numeric(1))
-    g <- grandeurs[[a$methode]]
-    mes <- unname(ifelse(a$champs %in% names(g), g[a$champs], 0))
-    out[[length(out) + 1L]] <- data.frame(assertion = a$id, ligne = ligne, ligne_fin = ligne_fin,
-                                          grandeur = a$champs,
-                                          annonce = unname(ann), mesure = mes,
-                                          statut = ifelse(!is.na(ann) & ann == mes, "ok", "ECART"),
-                                          stringsAsFactors = FALSE)
+    pos <- m[[1]][1]; pos_fin <- pos + attr(m[[1]], "match.length")[1] - 1L
+    ligne <- findInterval(pos, debuts)
+    ligne_fin <- findInterval(pos_fin, debuts)
+    ann <- unname(vapply(cap[-1L], nombre_fr, numeric(1)))
+    for (meth in a$methode) {
+      g <- grandeurs[[meth]]
+      mes <- unname(ifelse(a$champs %in% names(g), g[a$champs], 0))
+      out[[length(out) + 1L]] <- data.frame(assertion = a$id, ligne = ligne, ligne_fin = ligne_fin,
+                                            pos = pos, pos_fin = pos_fin,
+                                            grandeur = if (length(a$methode) > 1L) paste0(meth, " : ", a$champs) else a$champs,
+                                            annonce = ann, mesure = mes,
+                                            statut = ifelse(!is.na(ann) & ann == mes, "ok", "ECART"),
+                                            stringsAsFactors = FALSE)
+    }
   }
   do.call(rbind, out)
 }
 
-# Inventaire des autres formulations "N lignes" / "N entrees".
+# Inventaire de toutes les formulations "N lignes" / "N entrees" / "N tests"
+# (nombre en chiffres ou en lettres, au pluriel ; un article singulier, "un
+# test", n'est pas un decompte), une par occurrence, cherchees dans le texte
+# normalise entier : une formulation coupee par un retour a la ligne est
+# trouvee. Renvoie un data.frame (ligne, ligne_fin, pos, formulation,
+# extrait), extrait etant la ligne de debut normalisee.
+RX_FORMULATION <- paste0("(?i)(?<![A-Za-z\u00c0-\u00ff-])", MOT_NOMBRE, "\\s+(lignes|entr\u00e9es|tests)\\b")
 inventaire_decomptes <- function(lignes) {
   norm <- normaliser_ligne(lignes)
-  rx <- paste0("(?i)(?<![A-Za-z\u00c0-\u00ff-])", MOT_NOMBRE, "\\s+(lignes|entr\u00e9es)\\b")
-  k <- grep(rx, norm, perl = TRUE)
-  data.frame(ligne = k, extrait = trimws(substr(norm[k], 1L, 110L)), stringsAsFactors = FALSE)
+  texte <- paste(norm, collapse = "\n")
+  debuts <- cumsum(c(1L, nchar(norm) + 1L))[seq_along(norm)]
+  m <- gregexpr(RX_FORMULATION, texte, perl = TRUE)[[1]]
+  if (m[1L] == -1L)
+    return(data.frame(ligne = integer(0), ligne_fin = integer(0), pos = integer(0), formulation = character(0),
+                      extrait = character(0), stringsAsFactors = FALSE))
+  fin <- m + attr(m, "match.length") - 1L
+  l1 <- findInterval(m, debuts)
+  data.frame(ligne = l1, ligne_fin = findInterval(fin, debuts), pos = as.integer(m),
+             formulation = gsub("\\s+", " ", substring(texte, m, fin)),
+             extrait = trimws(substr(norm[l1], 1L, 110L)), stringsAsFactors = FALSE)
+}
+
+# Classe chaque formulation de l'inventaire (issue #75) : "verifiee" si
+# elle commence dans l'etendue d'une phrase trouvee du registre DECOMPTES
+# (v : sortie de verifier_decomptes()), sinon "exemptee" si elle commence
+# dans l'etendue d'une occurrence du contexte d'une exemption, sinon
+# "NON CLASSEE" (ecart). Renvoie une liste :
+#   formulations  inventaire complete des colonnes statut et par (id de la
+#                 phrase du registre ou de l'exemption) ;
+#   perimees      data.frame (id, contexte) des exemptions qui n'exemptent
+#                 aucune formulation (ecarts).
+classer_formulations <- function(lignes, v, exemptions = EXEMPTES_DECOMPTES) {
+  inv <- inventaire_decomptes(lignes)
+  texte <- paste(normaliser_ligne(lignes), collapse = "\n")
+  statut <- rep("NON CLASSEE", nrow(inv)); par <- rep(NA_character_, nrow(inv))
+  vt <- v[!is.na(v$pos), , drop = FALSE]
+  vt <- vt[!duplicated(vt$assertion), , drop = FALSE]
+  for (i in seq_len(nrow(vt))) {
+    k <- which(statut == "NON CLASSEE" & inv$pos >= vt$pos[i] & inv$pos <= vt$pos_fin[i])
+    statut[k] <- "verifiee"; par[k] <- vt$assertion[i]
+  }
+  utilisee <- logical(length(exemptions))
+  for (j in seq_along(exemptions)) {
+    e <- exemptions[[j]]
+    m <- gregexpr(gsub(" ", "\\s+", e$contexte, fixed = TRUE), texte, perl = TRUE, ignore.case = TRUE)[[1]]
+    if (m[1L] == -1L) next
+    for (d in seq_along(m)) {
+      k <- which(statut == "NON CLASSEE" & inv$pos >= m[d] & inv$pos <= m[d] + attr(m, "match.length")[d] - 1L)
+      if (length(k)) { statut[k] <- "exemptee"; par[k] <- e$id; utilisee[j] <- TRUE }
+    }
+  }
+  inv$statut <- statut; inv$par <- par
+  list(formulations = inv,
+       perimees = data.frame(id = vapply(exemptions[!utilisee], `[[`, character(1), "id"),
+                             contexte = vapply(exemptions[!utilisee], `[[`, character(1), "contexte"),
+                             stringsAsFactors = FALSE))
 }
 
 # Prefixes de famille (deux premiers caracteres) de tous les champs
@@ -607,12 +826,13 @@ if (sys.nframe() == 0L) {
     stop(sprintf(paste0("replications bootstrap finies insuffisantes (%s) : run_engine() ne calcule l'IC ",
                         "bootstrap que si length(usp_b) > 20 ; augmenter --B."),
                  paste(sprintf("%s %d", names(n_finies), n_finies), collapse = ", ")), call. = FALSE)
-  grandeurs <- lapply(resultats, function(r) grandeurs_moteur(r$tests))
+  grandeurs <- c(lapply(resultats, function(r) grandeurs_moteur(r$tests, r$controles)),
+                 list(code = grandeurs_code(env)))
   cat(sprintf("\n=== 2. Decomptes (moteur execute sur tests/donnees/, B = %d)\n", B))
-  for (m in names(grandeurs))
+  for (m in names(resultats))
     cat(sprintf("  %-9s %d lignes de tests ; familles : %s\n", m, grandeurs[[m]][["lignes (total)"]],
-                paste(sprintf("%s=%d", sub("famille ", "", grep("^famille", names(grandeurs[[m]]), value = TRUE)),
-                              grandeurs[[m]][grep("^famille", names(grandeurs[[m]]))]), collapse = " ")))
+                paste(sprintf("%s=%d", sub("famille ", "", grep("^famille [^ ]+$", names(grandeurs[[m]]), value = TRUE)),
+                              grandeurs[[m]][grep("^famille [^ ]+$", names(grandeurs[[m]]))]), collapse = " ")))
   v <- verifier_decomptes(tex, grandeurs)
   cat("  a) Phrases du registre DECOMPTES (verifiees) :\n")
   for (i in seq_len(nrow(v)))
@@ -621,12 +841,32 @@ if (sys.nframe() == 0L) {
                 ifelse(is.na(v$annonce[i]), "-", format(v$annonce[i])),
                 ifelse(is.na(v$mesure[i]), "-", format(v$mesure[i]))))
   n_ecarts <- n_ecarts + sum(v$statut != "ok")
-  inv <- inventaire_decomptes(tex)
-  couvertes <- unlist(lapply(which(!is.na(v$ligne)), function(i) v$ligne[i]:v$ligne_fin[i]))
-  inv <- inv[!inv$ligne %in% couvertes, , drop = FALSE]
-  cat(sprintf("  b) Inventaire NON VERIFIE : %d formulation(s) \"N lignes\" / \"N entrees\" hors registre (a relire ; jamais comptees comme ecarts) :\n",
-              nrow(inv)))
-  for (i in seq_len(nrow(inv))) cat(sprintf("    l.%-5d %s\n", inv$ligne[i], inv$extrait[i]))
+  cl <- classer_formulations(tex, v)
+  fo <- cl$formulations
+  cat(sprintf(paste0("  b) Formulations \"N lignes\" / \"N entrees\" / \"N tests\" du document : %d ",
+                     "(verifiees par le registre %d, exemptees %d, NON CLASSEES %d)\n"),
+              nrow(fo), sum(fo$statut == "verifiee"), sum(fo$statut == "exemptee"), sum(fo$statut == "NON CLASSEE")))
+  ex_f <- fo[fo$statut == "exemptee", , drop = FALSE]
+  if (nrow(ex_f)) {
+    cat("    Exemptees nommement (EXEMPTES_DECOMPTES, pas des ecarts) :\n")
+    motifs <- setNames(vapply(EXEMPTES_DECOMPTES, `[[`, character(1), "motif"),
+                       vapply(EXEMPTES_DECOMPTES, `[[`, character(1), "id"))
+    for (i in seq_len(nrow(ex_f)))
+      cat(sprintf("      l.%-5d %-18s [%s] %s\n", ex_f$ligne[i], ex_f$formulation[i], ex_f$par[i], motifs[[ex_f$par[i]]]))
+  }
+  nc <- fo[fo$statut == "NON CLASSEE", , drop = FALSE]
+  n_ecarts <- n_ecarts + nrow(nc) + nrow(cl$perimees)
+  if (nrow(nc)) {
+    cat(sprintf("  ECART -- %d formulation(s) ni verifiee(s) par le registre DECOMPTES ni exemptee(s) (EXEMPTES_DECOMPTES) :\n",
+                nrow(nc)))
+    for (i in seq_len(nrow(nc))) cat(sprintf("    l.%-5d %-18s %s\n", nc$ligne[i], nc$formulation[i], nc$extrait[i]))
+  }
+  if (nrow(cl$perimees)) {
+    cat(sprintf("  ECART -- %d exemption(s) de decompte perimee(s) (aucune formulation ne lui correspond) :\n",
+                nrow(cl$perimees)))
+    for (i in seq_len(nrow(cl$perimees)))
+      cat(sprintf("    %-50s contexte \"%s\"\n", cl$perimees$id[i], cl$perimees$contexte[i]))
+  }
 
   # 3. Familles. GROUPES regroupe les lignes de res$tests (groupe_de() de
   # display_helpers.R, appele sur la table des tests) : c'est la que tout
@@ -683,7 +923,8 @@ if (sys.nframe() == 0L) {
     }
   }
 
-  cat(sprintf("\nBILAN : %d ecart(s)%s ; inventaire non verifie : %d formulation(s) (information, sans effet sur le code de sortie : un decompte faux hors registre DECOMPTES n'est pas detecte, issue #75)\n",
-              n_ecarts, if (strict) " (mode strict)" else " (mode rapport : code de sortie 0)", nrow(inv)))
+  cat(sprintf("\nBILAN : %d ecart(s)%s ; formulations de decompte : %d verifiee(s), %d exemptee(s), %d non classee(s)\n",
+              n_ecarts, if (strict) " (mode strict)" else " (mode rapport : code de sortie 0)",
+              sum(fo$statut == "verifiee"), sum(fo$statut == "exemptee"), sum(fo$statut == "NON CLASSEE")))
   if (strict && n_ecarts) quit(status = 1)
 }

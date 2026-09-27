@@ -1,13 +1,15 @@
 ###############################################################################
 #  tests/unitaires/test_concordance_doc_moteur.R  --  EXTRACTION DES
-#  CITATIONS ET DES DECOMPTES DU LATEX (issue #65)
+#  CITATIONS ET DES DECOMPTES DU LATEX (issues #65, #75)
 #
 #  Teste les fonctions d'extraction de tests/concordance_doc_moteur.R sur des
 #  chaines LaTeX construites en memoire, sans lire le document ni executer le
 #  moteur (sauf le dernier bloc, qui lance le script) : \code{} imbriques, noms coupes en deux \code{}, commentaires,
 #  desechappement, citations de fonction (qualifiees, internes, a joker,
 #  avec arguments), nombres en lettres, registre des decomptes (phrase
-#  verifiee, ecart, phrase introuvable), inventaire, familles, exemptions
+#  verifiee, ecart, phrase introuvable, methode multiple), inventaire par
+#  occurrence et classement des formulations (verifiee, exemptee, non
+#  classee, exemption perimee ; issue #75), grandeurs, familles, exemptions
 #  nominatives (appliquee, ancree sur son contexte, perimee, jugee sans
 #  paquet : issue #86), colonne "Cle MC" (issue #91 : cles, fins de rangee
 #  \\, \\* et \\[..], rangee non terminee), seuil de B
@@ -93,8 +95,65 @@ verifier("Nombres en lettres sous \\textbf{} : total 19 annonce contre 50 mesure
 verifier("Phrase du registre introuvable : statut INTROUVABLE",
          v$statut[v$assertion == "absente"] == "INTROUVABLE")
 inv <- cc$inventaire_decomptes(doc)
-verifier("Inventaire : 'N lignes' / 'N entrees' en chiffres et en lettres",
-         identical(inv$ligne, 1:3))
+verifier("Inventaire : 'N lignes' / 'N entrees' / 'N tests' en chiffres et en lettres, une ligne par occurrence",
+         identical(inv$ligne, c(1L, 2L, 2L, 3L, 3L)) &&
+           identical(inv$formulation, c("50 lignes", "Dix-neuf entr\u00e9es", "quinze tests", "six lignes", "3 entr\u00e9es")))
+
+## --- Classement des formulations (issue #75) --------------------------------
+doc75 <- c("Au total, des 50 lignes de la table auditable, et un test",
+           "isol\u00e9 ; puis Treize de ces quinze",
+           "tests reposent sur le bootstrap. Ailleurs, les deux tests pr\u00e9c\u00e9dents",
+           "et enfin 51 lignes de tests pour la prime.")
+reg75 <- list(
+  list(id = "total", methode = "m", motif = paste0("des ", cc$N_, " lignes de la table auditable"),
+       champs = "lignes (total)"),
+  list(id = "boot", methode = c("m", "m2"), motif = paste0(cc$N_, " de ces ", cc$N_, " tests reposent"),
+       champs = c("nature Monte-Carlo", "type test")))
+ex75 <- list(list(id = "anaphore", contexte = "les deux tests pr\u00e9c\u00e9dents", motif = "a"),
+             list(id = "perimee", contexte = "phrase disparue", motif = "b"))
+g75 <- list(m = c("lignes (total)" = 50, "nature Monte-Carlo" = 13, "type test" = 15),
+            m2 = c("nature Monte-Carlo" = 12, "type test" = 15))
+inv75 <- cc$inventaire_decomptes(doc75)
+verifier("Inventaire : formulation coupee par un retour a la ligne trouvee (l.2 a 3) ; 'un test' (singulier) ignore",
+         identical(inv75$formulation, c("50 lignes", "quinze tests", "deux tests", "51 lignes")) &&
+           identical(inv75$ligne, c(1L, 2L, 3L, 4L)) && identical(inv75$ligne_fin, c(1L, 3L, 3L, 4L)))
+v75 <- cc$verifier_decomptes(doc75, g75, reg75)
+verifier("Registre, methode multiple : une ligne par methode et par grandeur, prefixe de methode ; 13 contre 12 -> ecart",
+         identical(v75$grandeur[v75$assertion == "boot"],
+                   c("m : nature Monte-Carlo", "m : type test", "m2 : nature Monte-Carlo", "m2 : type test")) &&
+           identical(v75$statut[v75$assertion == "boot"], c("ok", "ok", "ECART", "ok")) &&
+           all(v75$ligne[v75$assertion == "boot"] == 2L) && all(v75$ligne_fin[v75$assertion == "boot"] == 3L))
+cl75 <- cc$classer_formulations(doc75, v75, ex75)
+verifier("Classement : verifiee (registre, y compris a cheval sur deux lignes), exemptee, NON CLASSEE",
+         identical(cl75$formulations$statut, c("verifiee", "verifiee", "exemptee", "NON CLASSEE")) &&
+           identical(cl75$formulations$par, c("total", "boot", "anaphore", NA)))
+verifier("Classement : exemption de decompte perimee signalee",
+         identical(cl75$perimees$id, "perimee"))
+verifier("Classement : une phrase du registre introuvable ne couvre aucune formulation",
+         identical(cc$classer_formulations(doc75, cc$verifier_decomptes(doc75, g75, reg75[2]), list())$formulations$statut,
+                   c("NON CLASSEE", "verifiee", "NON CLASSEE", "NON CLASSEE")))
+verifier("Registre et exemptions du script : identifiants uniques, motif ecrit pour chaque exemption",
+         !anyDuplicated(vapply(cc$DECOMPTES, `[[`, "", "id")) &&
+           !anyDuplicated(vapply(cc$EXEMPTES_DECOMPTES, `[[`, "", "id")) &&
+           all(nzchar(vapply(cc$EXEMPTES_DECOMPTES, `[[`, "", "motif"))))
+verifier("grandeurs_moteur : base, variante, suites, grandeur rivee, sans objet, p exacte hors base r, famille x type, res$controles",
+         {
+           lg <- list(list(famille = "E. x", type = "test", base = "z", test = "Test des suites (x)", p_exacte = 0.5),
+                      list(famille = "E. x", type = "test", base = "r", test = "Test des suites sur ratios bruts",
+                           p_exacte = 0.5, detail = "a. CONTROLE SANS OBJET ICI : b"),
+                      list(famille = "E. x", type = "diagnostic", base = "commun", variante = "secondaire",
+                           detail = "Grandeur rivee par l'estimation : c", p_exacte = NA_real_))
+           g <- cc$grandeurs_moteur(lg, controles = list(list(famille = "A. y"), list(famille = "H. z")))
+           isTRUE(all(unname(g[c("base z", "base r", "variante secondaire", "lignes du test des suites",
+                                 "grandeur rivee", "detail sans objet ici", "p exacte hors base r",
+                                 "famille E. type test", "famille E. type diagnostic",
+                                 "controles (total)", "controles famille H.")]) ==
+                        c(1, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1)))
+         })
+verifier("grandeurs_code : tailles des catalogues et lignes Merz-Wuthrich sur residus",
+         identical(cc$grandeurs_code(list(USP_CATALOGUE_MC = list(a = 1, b = 2), MW_CATALOGUE_MC = list(c = 3),
+                                          .MW_LIGNES_RESIDUS = list(M1 = "u", M2 = c("v", "w")))),
+                   c("catalogue USP" = 2L, "catalogue MW" = 1L, "lignes MW sur residus" = 3L)))
 
 ## --- Familles --------------------------------------------------------------
 verifier("familles_produites : champ famille a toute profondeur, sans doublon",
@@ -238,6 +297,25 @@ verifier("Issue #91 : --strict echoue (code 1) sur la cle USP Intercept injectee
          length(.k91) == 1L && r_91$code == 1L &&
            any(grepl(sprintf("^    l\\.%-5d Intercept +absente du catalogue MW \\(cle du catalogue USP\\)$", .k91),
                      r_91$sortie)))
+# Issue #75 : deux injections dans une meme copie du .tex (un seul appel du
+# script) -- un decompte faux dans une phrase du registre ("Treize de ces
+# quinze tests" -> "Douze", mesure 13) et une formulation nouvelle ni
+# verifiee ni exemptee (l'exemple de faux negatif de l'ancien en-tete,
+# "51 lignes de tests pour la prime").
+.tex_75 <- readLines(file.path(.racine, "docs", "latex", "doc_tests_usp.tex"), warn = FALSE, encoding = "UTF-8")
+.k75 <- grep("Treize de ces quinze", .tex_75, fixed = TRUE)
+.tex_mutant <- tempfile(fileext = ".tex")
+writeLines(c(sub("Treize de ces quinze", "Douze de ces quinze", .tex_75, fixed = TRUE),
+             "Mutant : on compte 51~lignes de tests pour la prime."), .tex_mutant, useBytes = TRUE)
+r_75 <- .lancer_concordance("--strict", "--tex", .tex_mutant)
+unlink(.tex_mutant)
+verifier("Issue #75 : --strict echoue (code 1) sur un decompte faux injecte dans une phrase du registre (annonce 12, mesure 13)",
+         length(.k75) == 1L && r_75$code == 1L &&
+           any(grepl(sprintf("^    \\[ECART +\\] l\\.%-5d Merz-Wuthrich : tests reposant sur le bootstrap +nature Monte-Carlo +annonce 12 +mesure 13$",
+                             .k75), r_75$sortie)))
+verifier("Issue #75 : formulation injectee ni verifiee ni exemptee signalee NON CLASSEE (ecart), les autres restant classees",
+         any(grepl(sprintf("^    l\\.%-5d 51 lignes ", length(.tex_75) + 1L), r_75$sortie)) &&
+           any(grepl("^  ECART -- 1 formulation\\(s\\) ni verifiee\\(s\\)", r_75$sortie)))
 r_b20 <- .lancer_concordance("--B", "20")
 verifier("--B 20 refuse par le script lance (code 1, erreur explicite, moteur non execute)",
          r_b20$code == 1L && any(grepl("--B = 20 refuse", r_b20$sortie, fixed = TRUE)) &&
