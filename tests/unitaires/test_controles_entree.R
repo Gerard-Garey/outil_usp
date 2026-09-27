@@ -366,9 +366,11 @@ verifier("run_engine : bareme NULL, 'court' et 'long' acceptes (premium, reserve
 # (plancher bilateral 2/(B+1) = 0,02 < alpha/2, detection de degenerescence
 # armee, ligne de largeur d'IC presente) ; B = 0 et B = 98 etaient acceptes
 # (controle B >= 0).
-verifier("run_engine : B 0, 98, -1, NA, texte, vecteur, Inf -> erreur d'usage citant B_MIN_USAGE = 99 (premium, reserve2)",
+# Constat m1 de l'audit leger (#44) : B non entier (99.5, 999.5) etait
+# accepte et consigne tel quel dans metadata$B pour floor(B) tirages.
+verifier("run_engine : B 0, 98, 99.5, 999.5, -1, NA, texte, vecteur, Inf -> erreur d'usage citant B_MIN_USAGE = 99 (premium, reserve2)",
          B_MIN_USAGE == 99 &&
-           erreur_usage("B", list(0, 98, 98.9, -1, NA, NA_real_, "999", c(99, 999), Inf),
+           erreur_usage("B", list(0, 98, 98.9, 99.5, 999.5, -1, NA, NA_real_, "999", c(99, 999), Inf),
                         "B >= B_MIN_USAGE = 99, sans attribut, est attendu") &&
            {
              e <- tryCatch(usage_premium(B = 98), error = function(e) e)

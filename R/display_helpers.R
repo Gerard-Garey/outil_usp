@@ -209,7 +209,8 @@ table_synthese_groupe <- function(tb) {
 # Colonnes Type et "Motif / commentaire" (#124) : le commentaire du moteur est
 # restitue pour TOUTES les lignes, pas seulement les INFO : sur une ligne de
 # type "test", il porte aussi des elements de lecture du verdict (ECHEC
-# inatteignable, controle sans objet, loi de reference non exacte). Vide :
+# inatteignable, ECHEC possible - regle R1 sans p exacte -, controle sans
+# objet, loi de reference non exacte). Vide :
 # tiret. Colonne commentaire absente (objet anterieur) : tiret.
 table_detail_groupe <- function(tb) {
   com <- if (is.null(tb$commentaire)) rep(NA_character_, nrow(tb)) else tb$commentaire

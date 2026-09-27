@@ -5552,8 +5552,11 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
 # valeurs qui faisaient deja echouer le calcul (mesure sur la tete 5fe3d67 :
 # B = -1, NA, Inf, "a", "5", NULL, c(9, 19) levaient une erreur dans le
 # bootstrap ; seed NA dans set.seed()), plus B logique (TRUE etait calcule
-# comme B = 1) ; B = 0 et B = 10.5 etaient calcules et le restent.
-# - B : nombre scalaire fini >= 0 ;
+# comme B = 1) ; B = 0 et B = 10.5 etaient calcules (refuses depuis le
+# constat C1 de la revue finale d'E1 et le constat m1 de l'audit leger, #44).
+# - B : nombre scalaire fini entier >= B_MIN_USAGE (constat m1, #44 : B = 99.5
+#   etait accepte, consigne tel quel dans metadata$B et bootstrap$B, pour 99
+#   tirages effectifs) ;
 # - seed : nombre scalaire fini entier, |seed| <= .Machine$integer.max
 #   (domaine de set.seed()) ; NULL est refuse (decision du mainteneur du
 #   26/09/2026) : set.seed(NULL) reinitialise le generateur au hasard et rend
@@ -5595,8 +5598,8 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   sans_attribut <- function(v) is.null(attributes(v))
   scalaire_fini <- function(v) is.numeric(v) && length(v) == 1L && is.finite(v) &&
                                  sans_attribut(v)
-  if (!scalaire_fini(B) || B < B_MIN_USAGE)
-    stop(sprintf(paste("B = %s : un nombre scalaire fini de replications, B >=",
+  if (!scalaire_fini(B) || B != round(B) || B < B_MIN_USAGE)
+    stop(sprintf(paste("B = %s : un nombre scalaire fini entier de replications, B >=",
                        "B_MIN_USAGE = %d, sans attribut, est attendu."),
                  saisie(B), B_MIN_USAGE), call. = FALSE)
   if (!scalaire_fini(seed) || seed != round(seed) || abs(seed) > .Machine$integer.max)
@@ -5733,7 +5736,8 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
 #                  toute autre valeur donne ok = FALSE, sans troncature
 #                  (engine_valider_profondeur(), issue #87)
 #   B              nombre de replications bootstrap / Monte-Carlo ; nombre
-#                  scalaire fini >= B_MIN_USAGE = 99 (.engine_verifier_usage())
+#                  scalaire fini entier >= B_MIN_USAGE = 99
+#                  (.engine_verifier_usage())
 #   alpha          seuil des verdicts, 0 < alpha < SEUIL_ECHEC_SENS_REJETER
 #   seed           graine des simulations (reproductibilite) ; entier scalaire
 #                  fini, |seed| <= .Machine$integer.max (NULL refuse)

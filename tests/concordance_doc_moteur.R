@@ -1211,7 +1211,7 @@ valider_B <- function(x) {
 if (sys.nframe() == 0L) {
   args <- commandArgs(trailingOnly = TRUE)
   strict <- "--strict" %in% args
-  B <- 99L
+  B <- B_MIN
   k <- match("--B", args)
   if (!is.na(k)) {
     if (k == length(args)) stop("--B sans valeur")
