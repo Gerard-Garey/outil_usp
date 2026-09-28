@@ -736,8 +736,17 @@ complet~; \code{ok = FALSE} pour un refus de données ou un défaut de calcul in
 R pour une erreur d'usage (§\ref{sec:controles}) \\
 \code{.engine\_verifier\_}\newline\code{usage()} & \code{B}, \code{seed}, \code{bareme},
 \code{alpha}, \code{sigma\_standard}, \code{segment}, \code{annexe} & erreur R explicite, citant la valeur reçue, pour un
-argument d'appel invalide (erreur d'usage, dont $B <$ \code{B\_MIN\_USAGE} $= 99$), appelée par les deux branches avant tout calcul
+argument d'appel invalide (erreur d'usage, dont $B <$ \code{B\_MIN\_USAGE} $= 99$ et, à $B$ et
+$\alpha$ valides isolément, $B + 1 \le 4/\alpha$), appelée par les deux branches avant tout calcul
 (§\ref{sec:controles}) \\
+\code{engine\_motif\_b\_alpha()} & \code{B}, \code{alpha} & \code{NULL} si
+$2/(B+1) < \alpha/2$, ou hors du domaine de la règle ($B$ ou $\alpha$ invalide isolément,
+$B <$ \code{B\_MIN\_USAGE})~; sinon le message de l'erreur d'usage, seule source du texte, levé
+par \code{.engine\_verifier\_usage()} et affiché par l'application avant le clic
+(§\ref{sec:controles}, issue~\#127) \\
+\code{engine\_b\_minimal()} & \code{alpha} & plus petit entier $B \ge 1$ tel que
+$2/(B+1) < \alpha/2$, cité dans le message d'\code{engine\_motif\_b\_alpha()}~; erreur R si
+$4/\alpha$ n'est pas fini et inférieur à $2^{52}$ \\
 \code{.engine\_calcul\_}\newline\code{protege()} & \code{methode}, horodatage,
 \code{validation}, calcul & résultat du calcul, ou objet \code{ok = FALSE} portant
 \code{validation\$erreur\_r} si ce calcul, qui suit une validation réussie, lève une erreur R
@@ -1971,7 +1980,26 @@ autres qu'un calcul abouti, à ne pas confondre (issue~\#88, décision du mainte
   $2/(B+1) = 0{,}02 < \alpha/2$ au seuil par défaut, une détection de dégénérescence armée
   (\code{B\_MIN\_DEGENERESCENCE} $= 50$ réplications finies, section~\ref{sec:nature}) et la
   présence de l'intervalle bootstrap à 90~\%, calculé au-delà de 20 valeurs bootstrap, avec la
-  ligne de sa largeur, et qui est le minimum du champ $B$ de l'application~; \code{seed}, nombre
+  ligne de sa largeur, et qui est le minimum du champ $B$ de l'application~; \code{B} et
+  \code{alpha} conjointement, $B + 1 > 4/\alpha$ en plus de $B \ge$ \code{B\_MIN\_USAGE}
+  (issue~\#127), contrôle fait après ceux de $B$ et de $\alpha$, dont les messages restent
+  inchangés pour une valeur invalide isolément~: le plancher bilatéral $2/(B+1)$ de la p-value de
+  Monte-Carlo doit être strictement inférieur à $\alpha/2$, seuil d'\code{ECHEC} de la règle des
+  verdicts (section~\ref{sec:synthese}), faute de quoi l'\code{ECHEC} d'une ligne dont la seule
+  p-value est de Monte-Carlo serait inatteignable sans signal~; le plancher unilatéral
+  $1/(B+1)$ est alors inférieur à $\alpha/4$. \code{B\_MIN\_USAGE} suffit pour
+  $\alpha > 0{,}04$~; en deçà, le $B$ minimal, donné par \code{engine\_b\_minimal()} et cité par
+  le message, vaut $100$ à $\alpha = 0{,}04$, $133$ à $0{,}03$, $200$ à $0{,}02$ et $400$ à
+  $0{,}01$ (à $\alpha = 0{,}05$ et $0{,}10$, il vaudrait $80$ et $40$, sous
+  \code{B\_MIN\_USAGE}). L'inégalité est stricte (à $2/(B+1) = \alpha/2$, la p-value minimale
+  donne \code{ALERTE}) et évaluée par \code{engine\_motif\_b\_alpha()} dans l'arithmétique
+  flottante de la règle des verdicts, $2/(B+1) < \alpha/2$, et non sous la forme
+  $B + 1 > 4/\alpha$, qui lui est équivalente en arithmétique exacte mais peut s'en écarter en
+  double (mesuré~: à $\alpha = 0{,}00128$ et $B = 3124$, $B + 1 > 4/\alpha$ est évaluée vraie et
+  $2/(B+1) < \alpha/2$ fausse)~: le contrôle d'entrée et le verdict ne peuvent diverger. Le contrôle porte sur $B$ nominal~; le plancher réel,
+  $2/(B_{\text{eff}}+1)$, est plus élevé si des réplications ne sont pas finies. Mesuré~:
+  $B = 99$ à $\alpha = 0{,}04$ et $B = 399$ à $\alpha = 0{,}01$ lèvent l'erreur, $B = 400$ à
+  $\alpha = 0{,}01$ et $B = 99$ à $\alpha = 0{,}05$ sont admis~; \code{seed}, nombre
   scalaire fini entier,
   $|\mathtt{seed}| \le 2\,147\,483\,647$ (\code{.Machine\$integer.max}, domaine de
   \code{set.seed()}), \code{NULL} étant refusé parce que \code{set.seed(NULL)} réinitialise le
@@ -2026,7 +2054,11 @@ moteur~; le diagnostic d'un défaut de calcul (message R, appel, origine, pile) 
 dans le journal de la session R, jamais à l'écran. Un champ $\alpha$, graine ou $\sigma$ standard (saisie libre
 cochée) laissé vide est transmis comme \code{NA} et s'affiche en erreur d'usage~; un champ $T$ vide
 reste refusé par le moteur, sans profondeur implicite, et l'interface ajoute seulement au motif
-le nom du champ en cause. La notification «~Calculs terminés~» n'est émise qu'après un calcul
+le nom du champ en cause. Le champ $B$ a pour minimum \code{B\_MIN\_USAGE}~; quand le couple
+$(B, \alpha)$ saisi ne satisfait pas $B + 1 > 4/\alpha$, un bandeau d'avertissement l'annonce
+avant le clic, avec le texte d'\code{engine\_motif\_b\_alpha()}, sans règle dans l'interface~; le
+bouton «~Relancer les calculs~» reste actif et le clic produit l'erreur d'usage de même texte
+(issue~\#127, décisions du mainteneur du 28~septembre 2026). La notification «~Calculs terminés~» n'est émise qu'après un calcul
 abouti. À la lecture d'un fichier, enfin, l'application ne montre jamais un message de R~: un
 fichier CSV ou xlsx illisible (binaire, vide, lignes plus longues que l'en-tête, classeur
 corrompu ou tronqué) est signalé par un message fixe selon le format (\code{lire\_tableau()} de
@@ -2375,7 +2407,10 @@ granularité est bornée par $1/(B+1)$~: avec $B = 999$, la plus petite p-value 
 $0{,}001$ en queue haute ou basse, et $2/(B+1) = 0{,}002$ au bilatéral, du fait du doublement.
 $B = 999$ est la valeur du dossier~; \code{run\_engine()} refuse $B <$ \code{B\_MIN\_USAGE} $= 99$
 (erreur d'usage, section~\ref{sec:controles}), valeur à laquelle le plancher bilatéral,
-$2/(B+1) = 0{,}02$, reste sous $\alpha/2 = 0{,}05$ au seuil par défaut.
+$2/(B+1) = 0{,}02$, reste sous $\alpha/2 = 0{,}05$ au seuil par défaut. Pour $\alpha \le 0{,}04$,
+ce plancher n'est plus sous $\alpha/2$~: \code{run\_engine()} exige en outre $B + 1 > 4/\alpha$
+(erreur d'usage, issue~\#127), soit un $B$ minimal fonction de $\alpha$ (\code{engine\_b\_minimal()}),
+de $100$ à $\alpha = 0{,}04$ et de $400$ à $\alpha = 0{,}01$ (section~\ref{sec:controles}).
 Le moteur restitue ce pas par statistique, sur $B_{\text{eff}}$, dans le champ
 \code{granularite\_stat} de l'objet bootstrap~: $1/(B_{\text{eff}}+1)$ en queue haute ou basse,
 $2/(B_{\text{eff}}+1)$ au bilatéral (issue~\#40)~; le champ \code{granularite}, lu par
@@ -3398,7 +3433,9 @@ Smirnov). Les planchers des p-values de Monte-Carlo et de la loi nulle simulée 
 qui ne dépendent pas de $T$, sont donnés dans les fiches~: $1/(B+1)$ en queue unilatérale,
 $2/(B+1)$ en bilatéral (\code{engine\_p\_mc()}, $B$ compté en réplications finies), soit
 $0{,}001$ et $0{,}002$ à $B = 999$~; $1/20\,001 \approx 5{,}0\cdot 10^{-5}$ pour
-\code{sw\_p\_loi\_nulle()}. Les règles générales d'\code{add()} (loi simulée dégénérée,
+\code{sw\_p\_loi\_nulle()}. Les deux premiers sont sous $\alpha/2$ pour tout $B$ admis par
+\code{run\_engine()}, qui exige $B + 1 > 4/\alpha$ (section~\ref{sec:controles}), tant que
+toutes les réplications sont finies ($B_{\text{eff}} = B$). Les règles générales d'\code{add()} (loi simulée dégénérée,
 statistique observée non finie, section~\ref{sec:nature}) peuvent en outre changer le type d'une
 ligne sur un jeu donné~; les rubriques~7 ne les répètent pas.
 
@@ -9693,7 +9730,8 @@ n\textsuperscript{o}~2 déléguée à\newline \code{.run\_engine\_mw()} \\
 Refus de données, erreur d'usage, défaut de calcul intercepté (§\ref{sec:controles}) &
 \code{engine\_valider\_profondeur()} (profondeur $T$, refus)~;
 \code{.engine\_verifier\_usage()} (arguments d'appel, erreur R~; plancher de $B$~:
-\code{B\_MIN\_USAGE})~;
+\code{B\_MIN\_USAGE}, et $B + 1 > 4/\alpha$ par \code{engine\_motif\_b\_alpha()},
+\code{engine\_b\_minimal()})~;
 \code{.engine\_calcul\_protege()} (\code{validation\$erreur\_r}) \\
 Table auditable des tests & \code{engine\_table\_tests()} \\
 Empreintes md5 d'un résultat pour le rapport figé~: données du calcul
