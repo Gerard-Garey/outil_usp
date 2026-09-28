@@ -918,8 +918,9 @@ Ce qui bloque le démarrage d'E0 : Q-E1 seule (et la PR brouillon). Ce qui bloqu
 - **Décisions du mainteneur du 28/09/2026 sur ces propositions** (session principale, questions posées après le passage `docwriter` d'E0b) :
   1. **E1d à six numéros** : #126, #128, #129, #111, **#131**, **#133** (alternative F écartée) ;
   2. **#134 → correctif rapide `app:` R5 avec #108**, piste d'`architect` retenue (ne plus aligner la grille sur T, laisser le moteur tronquer) ;
-  3. **constats 1 à 3 → une issue unique pour E1d** (commentaires faux de `.nettoyer_cellules()` et au-dessus d'`engine_b_minimal()`, dont « et » au lieu de « ou » à `R/engine.R:5789` ; message masqué de `.engine_trace_profondeur()`), rédigée par la session principale et créée sur accord ; E1d passe alors à sept numéros ; aucun code dans E0b après son passage `docwriter` (règle 9) ;
+  3. **constats 1 à 3 → une issue unique pour E1d** (commentaires faux de `.nettoyer_cellules()` et au-dessus d'`engine_b_minimal()`, dont « et » au lieu de « ou » à `R/engine.R:5789` ; message masqué de `.engine_trace_profondeur()`), rédigée par la session principale et **créée sur accord : #135** (`bug`, `ready-for-agent`) ; E1d passe à **sept numéros** (#126, #128, #129, #111, #131, #133, #135) ; aucun code dans E0b après son passage `docwriter` (règle 9) ;
   4. **constat 4 → joint au correctif rapide `tests:` R6** (#113, #121), sans issue nouvelle.
+  5. **revue finale d'E0b, constat d'`app-review`** : le journal de session (`app.R:1176-1183`) refait la condition « exercices / années fournies » du moteur au lieu de lire le libellé de la ligne « profondeur » → **issue #136** créée sur accord (`bug`, `ready-for-agent`), rattachée au **correctif rapide `app:` R5**, avec #108 et #134.
 
   Corrections de relecture d'E0b faites après ce point (validation d'`actuary` avec réserves C1-C4, contrôle `regulatory` conforme avec réserves R1-R4) : `90b86a8` #127, `9a70bf0` #102 + #103, `0cca2b4` #101, `ebf6834` #104 ; le résidu « plancher Monte-Carlo réel 2/(B_eff + 1) ≥ α/2 sans motif » (C1) est rattaché à **#128** (E1d).
 
