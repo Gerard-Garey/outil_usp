@@ -11,7 +11,10 @@
 #      motif unique (R13), aucune erreur R pour une etendue relative de 1e-12
 #      a 1e-6 (constat de l'issue : "subscript out of bounds" dans
 #      test_lm_complet()) ;
-#    - invariant I5 : la liste des lignes ne depend pas du regime.
+#    - invariant I5 : la liste des lignes ne depend pas du regime ;
+#    - issue #110 (specification d'actuary) : RESET et White en base reduite
+#      s = (x - moyenne) / etendue, non applicables a moins de trois volumes
+#      distincts (motif (a)) ou sur rang numerique deficient (motif (b)).
 #  References : definition de la specification (diff(range(x)) <= tol *
 #  mean(x)), texte des regles R11-R13, liste des lignes de run_engine() sur
 #  les donnees de test (volumes variables).
@@ -185,64 +188,200 @@ verifier("Volumes exactement constants : sigma_USP = 0,1261524 (premium) et 0,12
          })
 
 ## --- 4. Hors de la bande : lignes calculees ------------------------------------
-# Huit volumes distincts, etendue relative ~4 % : la regression auxiliaire de
-# RESET est de plein rang (anova() sur 2 ddl, loi F(2, T-3) annoncee).
-verifier("x = 100 (1 + 0,01 scale(1:8)), hors bande, huit volumes distincts : treize lignes calculees, RESET sur 2 ddl",
+# Formes de reference calculees ici, independamment du moteur (issue #110) :
+# forme standard de RESET (f = beta_hat x, regresseurs f^2, f^3) et de White
+# ({1, x, x^2}) ; forme orthogonale poly(x, 2), qui engendre le meme espace
+# et reste de plein rang quand la forme standard perd x^3 (resp. x^2) par
+# colinearite numerique.
+reset_std <- function(v, yy) {
+  m0 <- stats::lm(yy ~ v - 1); f <- stats::fitted(m0)
+  stats::anova(m0, stats::lm(yy ~ v + I(f^2) + I(f^3) - 1))$F[2]
+}
+reset_poly <- function(v, yy) {
+  m0 <- stats::lm(yy ~ v - 1); P <- stats::poly(v, 2)
+  stats::anova(m0, stats::lm(yy ~ v + I(v * P[, 1]) + I(v * P[, 2]) - 1))$F[2]
+}
+white_std  <- function(u2, v) length(u2) * summary(stats::lm(u2 ~ v + I(v^2)))$r.squared
+white_poly <- function(u2, v) length(u2) * summary(stats::lm(u2 ~ stats::poly(v, 2)))$r.squared
+fit_x <- usp_ajuster(x, y)
+MOTIF_A <- "moins de trois volumes distincts (k = 2)"
+MOTIF_B <- "de rang deficient : terme ecarte par lm() pour colinearite, test non applicable"
+ligne <- function(r, nom) Filter(function(l) l$test == nom, r$tests)[[1]]
+
+# Huit volumes distincts, etendue relative ~4 % : la forme standard est de
+# plein rang ; le moteur (base reduite) rend la meme statistique.
+verifier("x = 100 (1 + 0,01 scale(1:8)), hors bande, huit volumes distincts : treize lignes calculees, F RESET et LM White du moteur = forme standard (rel 1e-10)",
          {
            x8 <- 100 * (1 + 0.01 * as.numeric(scale(1:8)))
            r <- lancer(x8)
            L <- Filter(function(l) l$test %in% NOMS_R13, r$tests)
            ty <- vapply(L, `[[`, character(1), "type")
-           m0 <- stats::lm(y ~ x8 - 1); f <- stats::fitted(m0)
-           ddl <- stats::anova(m0, stats::lm(y ~ x8 + I(f^2) + I(f^3) - 1))$Df[2]
+           f8 <- usp_ajuster(x8, y)
            isTRUE(r$ok) && length(L) == 13L && all(ty %in% c("test", "diagnostic")) &&
              identical(vapply(r$tests, `[[`, character(1), "test"), noms_ref) &&
-             isTRUE(ddl == 2)
+             isTRUE(proche(test_reset(x8, y)$stat, reset_std(x8, y), rel = 1e-10)) &&
+             isTRUE(proche(test_white(f8$z^2, x8)$stat, white_std(f8$z^2, x8), rel = 1e-10))
          })
-# Deux volumes distincts : RESET y est calculee sur une regression
-# auxiliaire de rang 2 (issue #110).
-verifier("x = 100 (1 +/- 1e-5), hors bande : les treize lignes sont calculees (test ou diagnostic)",
+# Deux volumes distincts : regression auxiliaire de rang 2, RESET et White
+# non applicables au motif (a) (issue #110) ; les onze autres lignes de R13
+# sont calculees.
+verifier("x = 100 (1 +/- 1e-5), hors bande, k = 2 : onze lignes calculees, RESET et White non applicables au motif (a), INFO, p_retenue NA, motif Monte-Carlo observe non fini",
          {
            r <- lancer(100 * (1 + alt * 1e-5))
            L <- Filter(function(l) l$test %in% NOMS_R13, r$tests)
-           ty <- vapply(L, `[[`, character(1), "type")
-           isTRUE(r$ok) && length(L) == 13L && all(ty %in% c("test", "diagnostic")) &&
+           ty <- stats::setNames(vapply(L, `[[`, character(1), "type"),
+                                 vapply(L, `[[`, character(1), "test"))
+           na <- NOMS_R13[c(6, 10)]
+           b <- r$bootstrap
+           isTRUE(r$ok) && length(L) == 13L &&
+             all(ty[setdiff(NOMS_R13, na)] %in% c("test", "diagnostic")) &&
+             all(vapply(na, function(nm) {
+               l <- ligne(r, nm)
+               l$type == "non applicable" && startsWith(l$detail, MOTIF_A) &&
+                 l$verdict == "INFO" && is.na(l$p_retenue) && is.na(l$nature_p)
+             }, logical(1))) &&
+             all(b$motif_mc[c("RESET", "White")] == MOTIF_MC_OBS_NON_FINIE) &&
+             all(b$B_effectif[c("RESET", "White")] == 0) &&
              identical(vapply(r$tests, `[[`, character(1), "test"), noms_ref)
          })
-# A e = 2e-6 une seule annee differe : la partition par la mediane des
-# volumes laisse 1 et 7 annees, Smirnov n'est pas calculable (ligne presente,
-# non applicable, motif de la partition et non celui des volumes constants).
-verifier("x = 110 (1 + (0, 2e-6, 0...)), hors bande : douze lignes calculees, Smirnov non applicable par la partition",
+# A e = 2e-6 une seule annee differe (k = 2) : RESET et White au motif (a) ;
+# la partition par la mediane des volumes laisse 1 et 7 annees, Smirnov n'est
+# pas calculable (ligne presente, non applicable, motif de la partition et
+# non celui des volumes constants).
+verifier("x = 110 (1 + (0, 2e-6, 0...)), hors bande, k = 2 : dix lignes calculees, RESET et White au motif (a), Smirnov non applicable par la partition",
          {
            r <- lancer(110 * (1 + c(0, 2e-6, rep(0, 6))))
            L <- Filter(function(l) l$test %in% NOMS_R13, r$tests)
            ty <- stats::setNames(vapply(L, `[[`, character(1), "type"),
                                  vapply(L, `[[`, character(1), "test"))
-           sm <- Filter(function(l) l$test == NOMS_R13[13], L)[[1]]
+           sm <- ligne(r, NOMS_R13[13])
            isTRUE(r$ok) && length(L) == 13L &&
-             all(ty[NOMS_R13[-13]] %in% c("test", "diagnostic")) &&
+             all(ty[NOMS_R13[-c(6, 10, 13)]] %in% c("test", "diagnostic")) &&
+             all(vapply(NOMS_R13[c(6, 10)], function(nm) {
+               l <- ligne(r, nm); l$type == "non applicable" && startsWith(l$detail, MOTIF_A)
+             }, logical(1))) &&
              sm$type == "non applicable" &&
              startsWith(sm$detail, "partition par la mediane des volumes : groupes de 1 et 7") &&
              identical(vapply(r$tests, `[[`, character(1), "test"), noms_ref)
          })
 
-# Defaut connu (issue #110) : a deux volumes distincts, lm() ecarte f^3 et
-# anova() compare sur 1 ddl sous le libelle F(2, T-3) ; test_reset() rend
-# aujourd'hui une F finie (mesure : stat 0,624, p 0,460 sur 100, 101 alternes).
-echec_attendu("test_reset() sur x a deux volumes distincts (100, 101 alternes) : stat et p NA (a revoir si #110 retient le ddl effectif, avec la ligne hors bande a 1e-5 ci-dessus)",
-              "issue #110",
-              {
-                tr <- test_reset(rep(c(100, 101), 4), y)
-                is.na(tr$stat) && is.na(tr$p)
-              })
+## --- 4ter. RESET et White en base reduite (issue #110) ---------------------------
+verifier("test_reset() et test_white() a deux volumes distincts (100, 101 alternes) : stat et p NA, motif (a)",
+         {
+           x2 <- rep(c(100, 101), 4)
+           tr <- test_reset(x2, y); wh <- test_white(fit_x$z^2, x2)
+           is.na(tr$stat) && is.na(tr$p) && startsWith(tr$non_applicable, MOTIF_A) &&
+             is.na(wh$stat) && is.na(wh$p) && startsWith(wh$non_applicable, MOTIF_A)
+         })
+verifier("Branche calculee : non_applicable = NA_character_ ; volumes constants : motif \"volumes constants\"",
+         identical(test_reset(x, y)$non_applicable, NA_character_) &&
+           identical(test_white(fit_x$z^2, x)$non_applicable, NA_character_) &&
+           identical(test_reset(rep(110, 8), y)$non_applicable, "volumes constants") &&
+           identical(test_white(fit_x$z^2, rep(110, 8))$non_applicable, "volumes constants"))
+# Etendue relative 2,9e-6 (hors bande, huit volumes distincts) : la forme
+# standard perd x^3 (resp. x^2) ; la base reduite reste de plein rang et
+# egale la forme orthogonale poly(x, 2).
+verifier("x = 100 (1 + 1e-6 scale(1:8)), etendue 2,9e-6 : RESET et White finies, = forme poly(x, 2) (rel 1e-10)",
+         {
+           xe <- 100 * (1 + 1e-6 * as.numeric(scale(1:8)))
+           fe <- usp_ajuster(xe, y)
+           tr <- test_reset(xe, y); wh <- test_white(fe$z^2, xe)
+           !usp_volumes_constants(xe) && is.finite(tr$stat) && is.finite(tr$p) &&
+             is.finite(wh$stat) && is.finite(wh$p) &&
+             isTRUE(proche(tr$stat, reset_poly(xe, y), rel = 1e-10)) &&
+             isTRUE(proche(wh$stat, white_poly(fe$z^2, xe), rel = 1e-10))
+         })
+verifier("Grille d'etendues relatives {2,9e-6, 2,9e-4, 2,9e-3, 2,9e-2} : RESET et White = forme poly(x, 2) (rel 1e-10)",
+         {
+           pb <- character(0)
+           for (cv in c(1e-6, 1e-4, 1e-3, 1e-2)) {
+             xe <- 100 * (1 + cv * as.numeric(scale(1:8)))
+             u2 <- fit_x$z^2
+             if (!isTRUE(proche(test_reset(xe, y)$stat, reset_poly(xe, y), rel = 1e-10)))
+               pb <- c(pb, sprintf("RESET cv = %g", cv))
+             if (!isTRUE(proche(test_white(u2, xe)$stat, white_poly(u2, xe), rel = 1e-10)))
+               pb <- c(pb, sprintf("White cv = %g", cv))
+           }
+           if (length(pb)) paste(pb, collapse = " ; ") else TRUE
+         })
+x3 <- 100 * (1 + 1e-2 * rep(c(-1, 0, 1), length.out = 8))
+verifier("k = 3 (100 (1 + 1e-2 (-1, 0, 1, ...))) : RESET et White finies",
+         {
+           tr <- test_reset(x3, y); wh <- test_white(fit_x$z^2, x3)
+           .usp_nb_volumes_distincts(x3) == 3L && is.finite(tr$stat) && is.finite(tr$p) &&
+             is.finite(wh$stat) && is.finite(wh$p) && is.na(tr$non_applicable) && is.na(wh$non_applicable)
+         })
+verifier("k = 3, troisieme valeur a 1e-13 relatif de la premiere : RESET et White au motif (b) (rang numerique deficient)",
+         {
+           x3b <- x3; x3b[x3b == max(x3b)] <- min(x3b) * (1 + 1e-13)
+           tr <- test_reset(x3b, y); wh <- test_white(fit_x$z^2, x3b)
+           .usp_nb_volumes_distincts(x3b) == 3L && !usp_volumes_constants(x3b) &&
+             is.na(tr$stat) && is.na(tr$p) && endsWith(tr$non_applicable, MOTIF_B) &&
+             startsWith(tr$non_applicable, "regression auxiliaire RESET") &&
+             is.na(wh$stat) && is.na(wh$p) && endsWith(wh$non_applicable, MOTIF_B) &&
+             startsWith(wh$non_applicable, "regression auxiliaire de White")
+         })
+verifier("Invariance d'unite : test_reset(c x, c y) et test_white(u2, c x) = valeurs a l'echelle 1 (rel 1e-10), c = 1e-150 et 1e150",
+         {
+           r1 <- test_reset(x, y); w1 <- test_white(fit_x$z^2, x)
+           all(vapply(c(1e-150, 1e150), function(cc) {
+             rc <- test_reset(cc * x, cc * y); wc <- test_white(fit_x$z^2, cc * x)
+             isTRUE(proche(rc$stat, r1$stat, rel = 1e-10)) && isTRUE(proche(rc$p, r1$p, rel = 1e-10)) &&
+               isTRUE(proche(wc$stat, w1$stat, rel = 1e-10)) && isTRUE(proche(wc$p, w1$p, rel = 1e-10))
+           }, logical(1)))
+         })
+# Echelles extremes (constat C1 d'audit, #110) : sans normalisation
+# d'echelle, F de RESET etait faux sans alerte a x et y x 1e-160 a 1e-162
+# (0,241146 ; 0,241012 ; 0,2) et NaN a partir de 1e-163 (sous-depassement
+# des sommes de carres dans anova()). Avec .usp_normaliser_echelle(), la
+# statistique est finie et egale a celle de l'echelle 1.
+verifier("Echelles extremes : test_reset(c x, c y), c = 1e-200 et 1e200, et balayage c = 1e-160, 1e-161, 1e-162 : F fini = echelle 1 (rel 1e-10), non_applicable NA",
+         {
+           r1 <- test_reset(x, y)
+           all(vapply(c(1e-200, 1e200, 1e-160, 1e-161, 1e-162), function(cc) {
+             rc <- test_reset(cc * x, cc * y)
+             is.finite(rc$stat) && isTRUE(proche(rc$stat, r1$stat, rel = 1e-10)) &&
+               isTRUE(proche(rc$p, r1$p, rel = 1e-10)) && identical(rc$non_applicable, NA_character_)
+           }, logical(1)))
+         })
+verifier("Echelles extremes : test_white(c u2, x), c = 1e-200, 1e200, 1e-160, 1e-161, 1e-162 : LM fini = echelle 1 (rel 1e-10), non_applicable NA",
+         {
+           w1 <- test_white(fit_x$z^2, x)
+           all(vapply(c(1e-200, 1e200, 1e-160, 1e-161, 1e-162), function(cc) {
+             wc <- test_white(cc * fit_x$z^2, x)
+             is.finite(wc$stat) && isTRUE(proche(wc$stat, w1$stat, rel = 1e-10)) &&
+               isTRUE(proche(wc$p, w1$p, rel = 1e-10)) && identical(wc$non_applicable, NA_character_)
+           }, logical(1)))
+         })
+# Garde (c) : non_applicable NA si et seulement si la statistique est finie.
+# Declencheurs mesures : y identiquement nul pour RESET (F = 0/0), u2
+# identiquement nul pour White (R^2 = 0/0) ; avant la garde, stat NaN et
+# non_applicable NA.
+verifier("Garde (c) : test_reset(x, 0) et test_white(0, x) -> stat et p NA (et non NaN), motif de statistique non finie",
+         {
+           tr <- test_reset(x, rep(0, 8)); wh <- test_white(rep(0, 8), x)
+           identical(tr$stat, NA_real_) && identical(tr$p, NA_real_) &&
+             identical(tr$non_applicable, "statistique F non finie : test non applicable") &&
+             identical(wh$stat, NA_real_) && identical(wh$p, NA_real_) &&
+             identical(wh$non_applicable, "statistique LM non finie : test non applicable")
+         })
+verifier(".stats_bootstrapables() : RESET et White NA a k = 2 hors bande, finies a k = 3",
+         {
+           x2 <- 100 * (1 + alt * 1e-5)
+           s2 <- .stats_bootstrapables(x2, y, usp_ajuster(x2, y)$z)
+           s3 <- .stats_bootstrapables(x3, y, usp_ajuster(x3, y)$z)
+           all(is.na(s2[c("RESET", "White")])) && all(is.finite(s3[c("RESET", "White")]))
+         })
 
 ## --- 4bis. Garde-fou R12 des regressions auxiliaires d'heteroscedasticite ----
 # Scenario d'audit (C2) : T = 200, x = rep(110, 200) sauf x[2] = 110 (1 +
 # 1,1e-6), etendue relative 1,1e-6 > TOL_DELTA_BORD (hors bande) ; lm() ecarte
 # reg. Avant : Koenker LM = 0, p = 1 (ligne OK a p_retenue 1), BP79 LM de
 # l'ordre de 1e-29. Reference : la regle R12 (jamais de p calculee sur une
-# regression auxiliaire sans reg).
-verifier("Breusch-Pagan (Koenker, 1979) et White : reg ecarte par lm() hors bande -> NA, memes champs",
+# regression auxiliaire sans reg) pour Breusch-Pagan ; White est non
+# applicable ici des le motif (a) de l'issue #110 (deux volumes distincts,
+# k = 2), avant toute regression.
+verifier("Breusch-Pagan (Koenker, 1979) : reg ecarte par lm() hors bande -> NA ; White : NA au motif (a) de #110 ; memes champs",
          {
            xa <- rep(110, 200); xa[2] <- 110 * (1 + 1.1e-6)
            u2 <- (sin(seq_len(200)) + 1.5)^2        # deterministe, non constant

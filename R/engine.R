@@ -1238,6 +1238,13 @@ usp_controles_numeriques <- function(fit) {
 usp_volumes_constants <- function(x, tol = TOL_DELTA_BORD)
   diff(range(x)) <= tol * mean(x)
 
+# Nombre de volumes distincts k (issue #110) : les regressions auxiliaires
+# polynomiales de degre 2 en x (RESET {x, x^2, x^3}, White {1, x, x^2}) sont
+# de rang min(k, 3) ; a k < 3, test_reset() et test_white() sont non
+# applicables. Egalite EXACTE a dessein : deux volumes voisins mais distincts
+# comptent pour deux (l'issue #112 y branchera la fonction d'ex aequo).
+.usp_nb_volumes_distincts <- function(x) length(unique(x))
+
 # Regime de l'ajustement lognormal (issue #31), fonction pure de (delta, x).
 # pi_t = 1 / ln(1 + e^{2 gamma} (delta + (1 - delta) xbar / x_t)) est constant
 # en t si et seulement si delta = 1 ou les volumes x_t sont constants : le
@@ -1835,9 +1842,12 @@ test_breusch_pagan_original <- function(u2, reg) {
 # (Goldfeld-Quandt : order() garde l'ordre du temps sur des ex aequo) ou
 # d'une partition par l'arrondi (Brown-Forsythe dans la bande).
 # Garde-fou R12 (audit C2) des regressions auxiliaires de Breusch-Pagan
-# (1979 et Koenker) et de White : si lm() ecarte le coefficient de reg pour
-# colinearite (hors de la bande : mesure a T = 200, x = rep(110, 200) sauf
-# x[2] = 110 (1 + 1,1e-6), Koenker rendait LM = 0, p = 1), NA.
+# (1979 et Koenker) : si lm() ecarte le coefficient de reg pour colinearite
+# (hors de la bande : mesure a T = 200, x = rep(110, 200) sauf
+# x[2] = 110 (1 + 1,1e-6), Koenker rendait LM = 0, p = 1), NA. White a ses
+# propres gardes (issue #110, voir test_white()) : moins de trois volumes
+# distincts, puis regression auxiliaire de rang deficient (tout coefficient
+# ecarte par lm(), et non plus le seul coefficient de reg).
 
 # Breusch & Pagan (1979), Econometrica 47, 1287-1294 ; version studentisee
 # (robuste a la non-normalite) de Koenker (1981) : LM = n R^2.
@@ -1851,15 +1861,60 @@ test_breusch_pagan <- function(u2, reg) {
   list(stat = LM, p = .p_borne(1 - stats::pchisq(LM, 1)))
 }
 
+# Normalisation d'echelle des regressions auxiliaires de RESET et White
+# (#110) : v / max(|v|). F de RESET est invariant par multiplication de x ou
+# de y par une constante non nulle, et R^2 (donc LM) de White par
+# multiplication de u2 : la normalisation ne change pas la statistique en
+# arithmetique exacte. Raison : sans elle, les sommes de carres calculees
+# par lm() / anova() sortent du domaine flottant aux echelles extremes
+# (mesure d'audit, RESET avec x et y x 1e-160 a 1e-162 : F faux sans alerte,
+# 0,241146 ; 0,241012 ; 0,2 exactement, contre 0,2411534 a l'echelle 1 ;
+# x 1e-163 et au-dela : F = NaN par sous-depassement ; NaN aussi par
+# debordement au-dela de x 1e160). v est rendu inchange si max(|v|) n'est
+# pas fini et strictement positif (v identiquement nul : rien a normaliser).
+.usp_normaliser_echelle <- function(v) {
+  m <- max(abs(v))
+  if (is.finite(m) && m > 0) v / m else v
+}
+
 # White (1980), Econometrica 48, 817-838 (forme auxiliaire quadratique).
+# Issue #110. Base reduite : s = (reg - moyenne) / etendue ; {1, s, s^2}
+# engendre le meme espace que {1, reg, reg^2} (changement de base affine),
+# donc meme R^2 et meme LM en arithmetique exacte. Le diviseur est l'etendue
+# et non sd() : sd() sous-deborde pour reg de l'ordre de 1e-300. Les colonnes
+# ont une echelle comparable (|s| <= 1), ce qui evite que le pivotage de
+# lm.fit (tol 1e-7) n'ecarte reg^2 par colinearite numerique quand
+# l'etendue relative est petite (forme standard, mesure sur les donnees de
+# test, x = 100 (1 + cv scale(1:8)) : reg^2 ecarte a l'etendue relative
+# 8,6e-4, conserve a 2,9e-3 ; base reduite : LM inchange jusqu'a 2,9e-6).
+# Gardes, dans cet ordre, chacune rendant stat = p = NA et son motif dans
+# non_applicable (NA_character_ sur la branche calculee) :
+#   (0) volumes constants (R11, #59) ;
+#   (a) moins de trois volumes distincts : rang structurel k < 3, la
+#       regression ne peut porter les deux degres de liberte de chi2(2) ;
+#   (b) coefficient ecarte par lm() (rang deficient, colinearite exacte ou
+#       numerique) : LM ne serait pas compare a la bonne loi ;
+#   (c) statistique LM non finie (mesure : u2 identiquement nul, R^2 = 0/0,
+#       LM = NaN) : non_applicable est NA si et seulement si LM est fini.
+# u2 est normalise par .usp_normaliser_echelle() (R^2 invariant) ; reg n'a
+# pas besoin de l'etre, s etant deja reduit.
 test_white <- function(u2, reg) {
-  if (usp_volumes_constants(reg)) return(list(stat = NA_real_, p = NA_real_))
-  d <- data.frame(u2 = u2, reg = reg, reg2 = reg^2)
-  m <- stats::lm(u2 ~ reg + reg2, data = d)
-  if (is.na(stats::coef(m)["reg"])) return(list(stat = NA_real_, p = NA_real_))
-  R2 <- summary(m)$r.squared
-  LM <- length(u2) * R2
-  list(stat = LM, p = .p_borne(1 - stats::pchisq(LM, 2)))
+  na <- function(motif) list(stat = NA_real_, p = NA_real_, non_applicable = motif)
+  if (usp_volumes_constants(reg)) return(na("volumes constants"))
+  k <- .usp_nb_volumes_distincts(reg)
+  if (k < 3)
+    return(na(sprintf(paste("moins de trois volumes distincts (k = %d) : regression",
+                            "auxiliaire de White {1, x, x^2} de rang %d, test non",
+                            "applicable"), k, k)))
+  s <- (reg - mean(reg)) / diff(range(reg))
+  u2 <- .usp_normaliser_echelle(u2)
+  m <- stats::lm(u2 ~ s + I(s^2))
+  if (anyNA(stats::coef(m)))
+    return(na(paste("regression auxiliaire de White de rang deficient : terme ecarte",
+                    "par lm() pour colinearite, test non applicable")))
+  LM <- length(u2) * summary(m)$r.squared
+  if (!is.finite(LM)) return(na("statistique LM non finie : test non applicable"))
+  list(stat = LM, p = .p_borne(1 - stats::pchisq(LM, 2)), non_applicable = NA_character_)
 }
 
 # Goldfeld & Quandt (1965), JASA 60, 539-547.
@@ -1949,24 +2004,58 @@ usp_identifiabilite_pente <- function(x, beta, sigma, alpha) {
   list(lambda = lambda, puissance = puissance)
 }
 
+# RESET (Ramsey, 1969) sur le modele sans constante E[Y] = beta X.
+# Issue #110. La forme standard ajoute f^2 et f^3, f = beta_hat x : l'espace
+# engendre est {x, x^2, x^3}. On l'engendre ici par la base reduite
+# {x, x s, x s^2}, s = (x - moyenne) / etendue (x {1, s, s^2} = x {1, x, x^2},
+# changement de base affine) : meme modele, donc meme F en arithmetique
+# exacte. Le diviseur est l'etendue et non sd() : sd() sous-deborde pour x de
+# l'ordre de 1e-300. Les colonnes ont une echelle comparable (|s| <= 1), ce
+# qui evite que le pivotage de lm.fit (tol 1e-7) n'ecarte f^3 par colinearite
+# numerique quand l'etendue relative est petite (forme standard, mesure sur
+# les donnees de test, x = 100 (1 + cv scale(1:8)) : f^3 ecarte a l'etendue
+# relative 8,6e-4, conserve a 2,9e-3).
+# Gardes, dans cet ordre, chacune rendant stat = p = NA et son motif dans
+# non_applicable (NA_character_ sur la branche calculee) :
+#   (0) volumes constants (R11, #59) ;
+#   (a) moins de trois volumes distincts : rang structurel k < 3, anova()
+#       comparerait sur k - 1 ddl sous le libelle F(2, T-3) ;
+#   (b) coefficient ecarte par lm() (rang deficient, colinearite exacte ou
+#       numerique) ;
+#   (c) statistique F non finie apres anova() (mesure : y identiquement nul,
+#       F = 0/0 = NaN ; cause historique, avant .usp_normaliser_echelle() :
+#       sous-depassement des sommes de carres a x et y x 1e-163 et au-dela,
+#       voir ci-dessus) : non_applicable est NA si et seulement si la
+#       statistique est finie. Motif generique, comme la garde (c) de White.
+# x et y sont normalises par .usp_normaliser_echelle() (F invariant) avant
+# toute regression. Le garde-fou R12 sur le coefficient de x dans m0 est
+# couvert par anyNA(coef(m1)) (m1 contient x) ; il est conserve par regle
+# (#59).
 test_reset <- function(x, y) {
-  # Volumes constants (usp_volumes_constants(), issue #59) : regression sur
-  # x sans objet. Garde-fou (regle R12) : coefficient de x ecarte par lm()
-  # -> NA. Seul le coefficient de x est controle (R12) : lm() ecarte f^3
-  # quand x ne prend que deux valeurs distinctes (rang structurel 2, quelle
-  # que soit l'etendue : mesure jusqu'a 20 %) ou, a huit valeurs distinctes,
-  # quand l'etendue relative est inferieure a environ 1e-3 (deficience
-  # numerique) ; anova() compare alors sur 1 ddl sous un libelle F(2, T-3) :
-  # defaut connu, issue #110.
-  if (usp_volumes_constants(x))
-    return(list(stat = NA_real_, p = NA_real_))
+  na <- function(motif) list(stat = NA_real_, p = NA_real_, non_applicable = motif)
+  if (usp_volumes_constants(x)) return(na("volumes constants"))
+  k <- .usp_nb_volumes_distincts(x)
+  if (k < 3)
+    return(na(sprintf(paste("moins de trois volumes distincts (k = %d) : regression",
+                            "auxiliaire RESET {x, x^2, x^3} de rang %d, test non",
+                            "applicable"), k, k)))
+  # s, invariant d'echelle, est calcule sur x brut : la normalisation arrondit
+  # chaque x_i (1 ulp), erreur que x - moyenne amplifie d'un facteur
+  # 1 / etendue relative (mesure a l'etendue 2,9e-6 : F a 1,1e-10 relatif de
+  # la forme poly(x, 2) si s est pris apres normalisation).
+  s <- (x - mean(x)) / diff(range(x))
+  x <- .usp_normaliser_echelle(x)
+  y <- .usp_normaliser_echelle(y)
   m0 <- stats::lm(y ~ x - 1)                 # E[Y] = beta * X, sans constante
-  f <- stats::fitted(m0)
-  m1 <- stats::lm(y ~ x + I(f^2) + I(f^3) - 1)
-  if (is.na(stats::coef(m0)["x"]) || is.na(stats::coef(m1)["x"]))
-    return(list(stat = NA_real_, p = NA_real_))
+  m1 <- stats::lm(y ~ x + I(x * s) + I(x * s^2) - 1)
+  if (is.na(stats::coef(m0)["x"]) || anyNA(stats::coef(m1)))
+    return(na(paste("regression auxiliaire RESET de rang deficient : terme ecarte",
+                    "par lm() pour colinearite, test non applicable")))
   a <- stats::anova(m0, m1)
-  list(stat = a[["F"]][2], p = .p_borne(a[["Pr(>F)"]][2]))
+  stat <- a[["F"]][2]
+  if (!is.finite(stat))
+    return(na("statistique F non finie : test non applicable"))
+  list(stat = stat, p = .p_borne(a[["Pr(>F)"]][2]), non_applicable = NA_character_)
 }
 
 # --- Test d'equivalence sur la constante (TOST) ------------------------------
@@ -2976,15 +3065,27 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                 lmc$R2_ajuste, 1 / (T - 1),
                 if (lmc$R2 < 0.5) "en dessous" else "au-dessus")
       else detail_vol("x ecarte par lm() pour colinearite : R2 non defini"))
+  # Issue #110 : branche non applicable sur le modele de la ligne TOST ;
+  # priorite volumes constants (R13, txt_vol_cst) > moins de trois volumes
+  # distincts > rang deficient (motif rendu par test_reset()).
   tr <- test_reset(x, y)
   add(fam, "RESET (forme fonctionnelle)", "Ramsey (1969), JRSS B 31",
-      type = si_vol_cst("test"),
+      type = if (vol_cst || !is.na(tr$non_applicable)) "non applicable" else "test",
       H0 = "gamma2 = gamma3 = 0 (forme lineaire correcte)",
       H1 = "forme fonctionnelle mal specifiee",
       stat_nom = "F", stat = tr$stat, loi = sprintf("F(2,%d) approx.", T - 3),
       p_as = tr$p, mc_nom = "RESET",
-      detail = detail_vol(paste("La loi F n'est PAS exacte : les regresseurs auxiliaires",
-                                "y^2, y^3 dependent de y")))
+      detail = if (vol_cst) txt_vol_cst
+      else if (!is.na(tr$non_applicable)) tr$non_applicable
+      else paste("La loi F(2,T-3) n'est pas exacte sous le modele de l'annexe",
+                 "XVII : elle suppose des erreurs additives normales",
+                 "homoscedastiques dans y = beta x + eps, alors que Y_t est",
+                 "lognormale de variance beta^2 x_t^2 (exp(1/pi_t) - 1) (erreur",
+                 "multiplicative, asymetrique, heteroscedastique). Les regresseurs",
+                 "auxiliaires engendrent {x, x^2, x^3}, espace fixe : la dependance",
+                 "en y de f = beta_hat x n'est pas en cause (Milliken et Graybill,",
+                 "1970). La p Monte-Carlo, simulee sous le modele ajuste, est",
+                 "retenue."))
   # p_min des lignes de rangs (Spearman, Mann-Kendall ; #44, reprise, avis
   # d'actuary Q5) : 2/T! n'est la p minimale que sans ex aequo ; avec ex
   # aequo (dans r, ou dans x pour Spearman-volume), la loi de permutation
@@ -3114,12 +3215,16 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       detail = detail_vol(paste("Version publiee, avec le facteur 1/2 issu de Var(u^2) = 2 sigma^4.",
                                 "NON ROBUSTE : sur-rejette si les erreurs ne sont pas normales.",
                                 "A confronter systematiquement a la version de Koenker ci-dessus.")))
+  # Issue #110 : meme restitution que RESET (priorite R13 > (a) > (b)).
   wh <- test_white(z^2, x)
   add(fam, "Heteroscedasticite (forme quadratique)", "White (1980), Econometrica 48",
-      type = si_vol_cst("test"),
+      type = if (vol_cst || !is.na(wh$non_applicable)) "non applicable" else "test",
       H0 = "c1 = c2 = 0", H1 = "heteroscedasticite residuelle de forme quadratique",
       stat_nom = "LM", stat = wh$stat, loi = "chi2(2) asymptotique",
-      p_as = wh$p, mc_nom = "White", detail = detail_vol(""))
+      p_as = wh$p, mc_nom = "White",
+      detail = if (vol_cst) txt_vol_cst
+      else if (!is.na(wh$non_applicable)) wh$non_applicable
+      else "")
   gq <- test_goldfeld_quandt(z, x)
   add(fam, "Egalite des variances petits vs gros volumes",
       "Goldfeld & Quandt (1965), JASA 60",
