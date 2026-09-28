@@ -915,6 +915,14 @@ Ce qui bloque le démarrage d'E0 : Q-E1 seule (et la PR brouillon). Ce qui bloqu
   3. **Message inatteignable dans `.engine_trace_profondeur()`** (`R/engine.R` l. ~6635-6636) : « metadata$T absent ou invalide » ne peut pas être levé par `engine_derogations()`, seul appelant, qui appelle d'abord `.engine_trace_bareme()`, dont `usp_credibilite(m$T, m$bareme)` (l. ~6605) échoue avant sur un `T` invalide (« la duree T doit etre un nombre entier d'annees ») ; le test unitaire de `64b0d4d` le sait et l'exerce en appel direct de `.engine_trace_profondeur()` (`test_calibration.R` l. ~825-838). Constat mineur de `docwriter` (message de `01e5fcc`) pour `coder` et `audit` ; sans effet sur les résultats ; à traiter dans la revue finale d'E0b (ordre des appels, ou message de `.engine_trace_bareme()` nommant `T`) ou à laisser documenté.
   4. **Faux positif « deux lignes » de `tests/concordance_doc_moteur.R`** : `RX_FORMULATION` (l. ~702) prend « un tableau de deux lignes » — le format d'entrée du lecteur, § « Lecture des fichiers » — pour un décompte « N lignes » de la table des tests ; `docwriter` l'a contourné en écrivant « le tableau n'a pas de troisième ligne » (`.tex` l. ~2235), ce qui plie la prose au script. Une exemption nommée dans `EXEMPTES_DECOMPTES` (comme « documentés sur deux lignes distinctes » du tableau 2, l. ~552-554) ou une garde de contexte (« tableau de », « fichier de ») relève du même script que #113 et #121 : **à joindre au correctif rapide R6** sur accord, sans issue nouvelle.
 
+- **Décisions du mainteneur du 28/09/2026 sur ces propositions** (session principale, questions posées après le passage `docwriter` d'E0b) :
+  1. **E1d à six numéros** : #126, #128, #129, #111, **#131**, **#133** (alternative F écartée) ;
+  2. **#134 → correctif rapide `app:` R5 avec #108**, piste d'`architect` retenue (ne plus aligner la grille sur T, laisser le moteur tronquer) ;
+  3. **constats 1 à 3 → une issue unique pour E1d** (commentaires faux de `.nettoyer_cellules()` et au-dessus d'`engine_b_minimal()`, dont « et » au lieu de « ou » à `R/engine.R:5789` ; message masqué de `.engine_trace_profondeur()`), rédigée par la session principale et créée sur accord ; E1d passe alors à sept numéros ; aucun code dans E0b après son passage `docwriter` (règle 9) ;
+  4. **constat 4 → joint au correctif rapide `tests:` R6** (#113, #121), sans issue nouvelle.
+
+  Corrections de relecture d'E0b faites après ce point (validation d'`actuary` avec réserves C1-C4, contrôle `regulatory` conforme avec réserves R1-R4) : `90b86a8` #127, `9a70bf0` #102 + #103, `0cca2b4` #101, `ebf6834` #104 ; le résidu « plancher Monte-Carlo réel 2/(B_eff + 1) ≥ α/2 sans motif » (C1) est rattaché à **#128** (E1d).
+
 ## 6. Historique des jalons terminés
 
 Toutes les fusions par commit de fusion sur `main` ; SHA vérifiés par `git log --merges main`.
