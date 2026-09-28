@@ -12,7 +12,65 @@ on:
 permissions:
   contents: read
 
+# Issue #123 : un nouveau push sur une PR annule l'exécution en cours de la
+# même PR (minutes d'Actions). Les exécutions sur main ne sont jamais
+# annulées. references.yml n'est pas concerné (groupe distinct, aucune
+# annulation d'une régénération par un push).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  # Issue #123 : filtres de chemins au niveau des jobs. Sur une PR, la liste
+  # des fichiers modifiés est celle du commit de fusion de test contre son
+  # premier parent (la base) ; git seul, sans action tierce ni permission
+  # supplémentaire. Push sur main et lancement manuel : tout s'exécute.
+  # Un job sauté par son « if » a le statut « ignoré », qui ne bloque pas une
+  # vérification requise.
+  changements:
+    name: Fichiers modifiés
+    runs-on: ubuntu-22.04
+    outputs:
+      moteur: ${{ steps.filtre.outputs.moteur }}
+      latex: ${{ steps.filtre.outputs.latex }}
+    steps:
+      - uses: actions/checkout@v4
+        if: github.event_name == 'pull_request'
+        with:
+          fetch-depth: 2
+      - name: Filtre des chemins
+        id: filtre
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "Événement ${{ github.event_name }} : tous les jobs s'exécutent."
+            echo "moteur=true" >> "$GITHUB_OUTPUT"
+            echo "latex=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Sûreté : si la liste ne peut pas être établie, tout s'exécute
+          # (jamais un job requis sauté à tort).
+          if ! git diff --name-only HEAD^1 HEAD > fichiers.txt; then
+            echo "::warning title=Filtre des chemins::liste des fichiers indisponible, tous les jobs s'exécutent."
+            echo "moteur=true" >> "$GITHUB_OUTPUT"
+            echo "latex=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Fichiers modifiés par la PR :"; cat fichiers.txt
+          # Tests du moteur : moteur, application, tests, dépendances, CI.
+          if grep -qE '^(R/|app\.R$|tests/|DESCRIPTION$|\.github/)' fichiers.txt; then
+            echo "moteur=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "moteur=false" >> "$GITHUB_OUTPUT"
+          fi
+          # Documentation LaTeX (et concordance, qui lit le .tex) : docs/latex/, CI.
+          if grep -qE '^(docs/latex/|\.github/)' fichiers.txt; then
+            echo "latex=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "latex=false" >> "$GITHUB_OUTPUT"
+          fi
+          cat "$GITHUB_OUTPUT"
+
   tests-moteur:
     name: Tests du moteur (unitaires, reproductibilité)
     # Image épinglée (issue #67, Q-O4) : la même que celle du workflow de
@@ -22,6 +80,11 @@ jobs:
     # blas-reference ci-dessous) : l'épinglage de l'image ne l'empêchait
     # pas de varier avec le processeur du runner (OpenBLAS).
     runs-on: ubuntu-22.04
+    # Issue #123 : le job s'exécute si le moteur ou le .tex change ; les
+    # tests unitaires et de reproductibilité seulement si le moteur change,
+    # la concordance (qui lit le moteur et le .tex) dans les deux cas.
+    needs: changements
+    if: needs.changements.outputs.moteur == 'true' || needs.changements.outputs.latex == 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: r-lib/actions/setup-r@v2
@@ -37,8 +100,10 @@ jobs:
         id: blas
         uses: ./.github/actions/blas-reference
       - name: Tests unitaires
+        if: needs.changements.outputs.moteur == 'true'
         run: Rscript tests/test_unitaires.R
       - name: Reproductibilité et non-régression
+        if: needs.changements.outputs.moteur == 'true'
         run: Rscript tests/test_reproductibilite.R
       # Issue #66 : si une étape précédente du job a échoué (tests unitaires
       # ou reproductibilité ; l'étape de reproductibilité est alors sautée
@@ -64,6 +129,9 @@ jobs:
     name: Compilation de la documentation LaTeX
     # Épinglée par cohérence avec le job des tests (issue #67).
     runs-on: ubuntu-22.04
+    # Issue #123 : seulement si docs/latex/ ou la CI change (tout sur main).
+    needs: changements
+    if: needs.changements.outputs.latex == 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: xu-cheng/latex-action@v3
