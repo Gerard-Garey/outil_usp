@@ -890,15 +890,17 @@ la méthode du risque de réserve n\textsuperscript{o}~1, «~au nombre d'exercic
 données sont disponibles~» (G(3)(b))~; B(3)(a)-(b) et C(3)(a)-(b) numérotent les années
 d'accident (les exercices) de~1 à~$T$ selon le même critère, $T$ représentant «~la dernière année
 d'accident pour laquelle des données sont disponibles~» («~le dernier exercice~» en C(3)(b)). La
-durée de G(3) et le $T$ des sommes de B/C(4) à~(6) sont donc un seul et même nombre~: le texte ne
+durée de G(3) et le $T$ de B/C(4) à~(6) (facteur de correction du paragraphe~4, sommes des
+paragraphes~5 et~6) sont donc un seul et même nombre~: le texte ne
 prévoit ni une durée de crédibilité distincte de la profondeur d'estimation, ni une fenêtre
-glissante. Il ne définit pas «~disponibles~», et n'interdit pas d'écarter des années~: l'exclusion
-d'une donnée pertinente est admise si elle est justifiée (article~19, paragraphe~1, point~b),
-rendu applicable par l'article~219, paragraphe~1, point~a)), et le choix doit être documenté
+glissante. Il ne définit pas «~disponibles~», et n'interdit pas d'écarter des années~: aucune donnée
+pertinente ne peut en être exclue sans justification (article~19, paragraphe~1, point~b), rendu
+applicable par l'article~219, paragraphe~1, point~a)), et le choix doit être documenté
 (article~219, paragraphe~1, point~e)). \emph{Lecture retenue par l'outil} (lecture~(A))~: des
 années fournies mais écartées de l'estimation, au motif qu'elles ne sont plus représentatives du
-risque des douze mois à venir (B(2)(a), C(2)(a)~: changement de périmètre, de réassurance, de
-tarification ou de gestion des sinistres), ne sont pas «~disponibles~», et la durée de
+risque des douze mois à venir (B(2)(a), C(2)(a), qui n'exigent que cette représentativité sans
+énumérer de motifs~; motifs types, non tirés du texte~: changement de périmètre, de réassurance,
+de tarification ou de gestion des sinistres), ne sont pas «~disponibles~», et la durée de
 crédibilité est la profondeur $T$ retenue. Est écartée la lecture qui calculerait $c$ sur les $n$
 années fournies tout en estimant $\hat\sigma$ sur les $T$ retenues~: elle donnerait à
 «~disponibles~» deux sens dans la même annexe et, actuariellement, attribuerait à un estimateur
@@ -910,7 +912,8 @@ $T$ années les plus récentes des $n$ fournies, calcule $c$ sur~$T$ (\code{usp\
 consigne $n$ dans \code{\$metadata\$n\_fournies} et, si $n > T$, fait restituer la troncature par
 une ligne \code{parametre = "profondeur"} d'\code{engine\_derogations()}~: \code{valeur\_retenue}
 égale à~$T$, \code{valeur\_reglementaire} et \code{conforme} manquants, le texte ne fixant aucune
-profondeur (choix de périmètre, et non dérogation à un paramètre), et un libellé qui donne $T$,
+profondeur au-delà du minimum de cinq années d'accident (B(2)(b)) ou
+exercices (C(2)(b)) consécutifs (choix de périmètre, et non dérogation à un paramètre), et un libellé qui donne $T$,
 $n$ et le nombre d'années écartées («~exercices~» en réserve n\textsuperscript{o}~1), cite
 G(3)(a) (primes) ou G(3)(b) (réserve n\textsuperscript{o}~1) pour la durée égale à~$T$, et
 rappelle que l'exclusion est à justifier (article~219, paragraphe~1, point~a), renvoyant à
@@ -7822,8 +7825,8 @@ Estimation de l'écart-type & fonction $\sigma(\delta,\gamma)$ &
 $\sqrt{\mathrm{MSEP}}$ rapportée à la réserve \\
 Correction de taille finie & $\sqrt{(T+1)/(T-1)}$ & aucune \\
 Durée de crédibilité & $T$ années de survenance (B) ou exercices (C) retenus pour l'estimation,
-section~G(3)(a) ou~(b), §\ref{sec:segments} &
-années de survenance, section~G(3)(c) \\
+G(3)(a) ou~(b), §\ref{sec:segments} &
+années de survenance, G(3)(c) \\
 Nature du bootstrap & paramétrique (loi entièrement spécifiée) &
 semi-paramétrique, par rééchantillonnage des résidus \\
 \end{tabular}
