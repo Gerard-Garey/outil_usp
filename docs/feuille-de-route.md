@@ -924,6 +924,8 @@ Ce qui bloque le démarrage d'E0 : Q-E1 seule (et la PR brouillon). Ce qui bloqu
 
   Corrections de relecture d'E0b faites après ce point (validation d'`actuary` avec réserves C1-C4, contrôle `regulatory` conforme avec réserves R1-R4) : `90b86a8` #127, `9a70bf0` #102 + #103, `0cca2b4` #101, `ebf6834` #104 ; le résidu « plancher Monte-Carlo réel 2/(B_eff + 1) ≥ α/2 sans motif » (C1) est rattaché à **#128** (E1d).
 
+- **Revue finale d'E0b (règle 10), 28/09/2026** : `audit` conforme avec réserves (batteries complètes vertes, dérive de plateforme seule ; M1 : phrase fausse du `.tex` sur la limite (H1), corrigée par `8de9a3a` avec le texte d'`actuary` ; m1 couvert par #133) ; `app-review` conforme avec réserves (journal de session → #136, R5) ; `/code-review` (niveau high, rapport seul) : aucun défaut de correction ; remarque déjà couverte par #133 (`usp_bareme_segment("1")` sans contrôle en appel direct). **#139** créée sur accord (`bug`, `ready-for-agent`) : (H1) refuse une ligne d'en-têtes dont une cellule relève du prédicat entier (décision du mainteneur) ; rattachement proposé : prochaine branche `moteur:` avec #133 et #135. **PR #137** (correctif rapide `repo:`, dépôt public : actions épinglées par SHA, `persist-credentials: false`, délais, rétention des artefacts, Dependabot, LICENSE et README) fusionnée (`4eb0eee`), intégrée dans E0b (`8b01ae6`) ; réglages du dépôt (ruleset, Actions, sécurité) à appliquer par le mainteneur. **Données de test** (`tests/donnees/`) : fictives ou publiques (mainteneur, 28/09/2026).
+
 ## 6. Historique des jalons terminés
 
 Toutes les fusions par commit de fusion sur `main` ; SHA vérifiés par `git log --merges main`.
