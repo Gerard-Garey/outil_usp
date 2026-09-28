@@ -15,6 +15,11 @@ GPT intervient **épisodiquement** ; Claude (Claude Code) reste le contributeur 
 1. **Ne jamais toucher `main`** : ni commit, ni push, ni fusion, ni PR depuis une branche de travail.
 2. **`main-GPT`** est le `main` de GPT. Si elle n'existe pas, la créer depuis `main` au début du travail et la pousser. **En début de chaque session**, y intégrer `main` par un commit de fusion (`git merge origin/main`, jamais de rebase ni de force-push) et résoudre les conflits ; `main` prime : un conflit de fond avec une décision déjà prise sur `main` se règle en faveur de `main`, ou se signale au mainteneur.
 3. **Une branche de travail à la fois**, `gpt/<objet>`, créée depuis `main-GPT`, au périmètre fermé d'issues. Ce périmètre est le lot d'une **période GPT** : un lot d'issues **disjoint par fichier** de la branche de travail courante de Claude (aucun fichier commun, en particulier `R/engine.R`, `tests/reference/`, `docs/latex/doc_tests_usp.tex` et le PDF compilé), proposé par `architect` dans la feuille de route et **fixé par le mainteneur** avant l'ouverture de la période (ADR 0012, annotation du 28/09/2026 au soir, point 3). Une issue qui exigerait un fichier que la branche de Claude modifie attend la fusion de celle-ci. PR vers `main-GPT`, **fusionnée par le mainteneur** (commit de fusion), CI verte. GPT ne fusionne jamais une PR et n'active pas l'auto-merge.
+   **Publication sous Codex Cloud.** Le terminal d'une tâche peut n'avoir aucun remote Git (branche locale `work`) : ne jamais présumer qu'un `git push` est possible.
+   - **Ouverture de la branche de travail** (aucune PR de travail GPT ouverte) : tâche lancée dans Codex Cloud sur le dépôt, avec `main-GPT` pour base → le mainteneur examine le diff → il crée la PR vers `main-GPT` depuis l'interface Codex Cloud, en nommant la branche `gpt/<objet>` si l'interface le permet. Cette PR est la branche de travail de la période ; les rôles interviennent ensuite selon le circuit (« Sous-agents et rôles »).
+   - **Toute réalisation ultérieure de la période**, correction comprise, se fait **sur cette PR** (`@codex` en commentaire de la PR) et se publie sur sa branche. Ne jamais créer une deuxième PR pour contourner un push impossible.
+   - **Publication impossible ou incertaine** : le livrable le dit explicitement (« publication non faite », avec la cause), finit en statut `arrete` et contient le diff complet, pour que le mainteneur le publie. L'intégration de `main` dans `main-GPT` (point 2) suit la même règle.
+   - **Vérification sur GitHub** : toute publication annoncée (PR créée, commit poussé) est vérifiée sur GitHub (PR existante, base, SHA de tête, liste des commits) avant d'être tenue pour faite, par la tâche si elle y a accès, sinon au point de départ de la tâche suivante. Un livrable ne vaut que pour le SHA effectivement publié.
 4. **PR `main-GPT` → `main`** : ouverte par GPT quand son travail est prêt. Son corps contient :
    - la liste des **issues que GPT considère comme résolues**, un `Closes #N` par ligne (GitHub ne lie que le premier numéro d'une liste) ;
    - la liste des **issues créées par GPT** ;
@@ -124,4 +129,4 @@ Chaque rôle poste son livrable **en entier** en commentaire de la PR ; un lien 
 
 ### Livraison du code
 
-Sous Codex Cloud, la tâche n'a pas de remote : un rôle de réalisation **commite** dans sa tâche et livre par une PR créée depuis la tâche (`make_pr`), dont le livrable donne le titre et la base. La vérification porte sur la tête de cette PR, dans une tâche distincte.
+Voir « Branches », point 3, « Publication sous Codex Cloud ».
