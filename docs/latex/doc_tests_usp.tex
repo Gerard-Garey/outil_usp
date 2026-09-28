@@ -645,7 +645,9 @@ table des $\hat\sigma^{(-t)}$, $\sigma_{\mathrm{USP}}^{(-t)}$, $\hat\delta^{(-t)
 $\hat\gamma^{(-t)}$ \\
 \code{usp\_profil()} & \code{fit}, \code{n} (41 points) & profils en $\delta$ et $\gamma$, tests LR \\
 \code{usp\_segment\_infos()}, \code{usp\_bareme\_segment()} & segment, annexe &
-libellé, $\sigma$ standard brut et de réserve, facteur \code{np\_standard}, barème~; barème seul
+libellé, $\sigma$ standard brut et de réserve, facteur \code{np\_standard}, barème, erreur
+d'usage pour un segment qui n'est pas un nombre scalaire fini entier sans attribut
+(\code{.segment\_verifie()}) ou qui est inconnu de l'annexe~; barème seul
 (court par convention sans segment, barème non déterminé par la section~G) \\
 \code{usp\_parametre\_}\newline\code{standard()} & \code{methode}, \code{segment}, \code{annexe},
 \code{nature\_donnees}, \code{sigma\_standard} & paramètre standard du mélange selon la
@@ -666,6 +668,9 @@ l'égalité entre $\sigma$ standard saisi et $\sigma$ standard réglementaire (c
 fini ou si $T < 5$ \\
 \code{.annexe\_verifiee()} & \code{annexe} & \code{"II"} ou \code{"XIV"}, erreur pour toute
 autre valeur \\
+\code{.segment\_verifie()} & \code{segment} & segment inchangé s'il est un nombre scalaire fini
+entier sans attribut, erreur d'usage nommant \code{segment} pour toute autre valeur, texte
+compris (sans conversion, issue~\#105) \\
 \code{usp\_parametre()} & \code{fit}, $\sigma_{\text{std}}$, barème &
 $\sigma_{\mathrm{USP}}$ et ses composantes \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Chaîne Merz--Wüthrich (section~D, §\ref{sec:mw})}}} \\
@@ -1951,7 +1956,12 @@ autres qu'un calcul abouti, à ne pas confondre (issue~\#88, décision du mainte
   manquant, la méthode du risque de réserve n\textsuperscript{o}~2 sans triangle, et les
   arguments contrôlés par \code{.engine\_verifier\_usage()}, appelée par les deux branches avant
   toute validation des données, donc quelles que soient celles-ci~: \code{segment} (avec
-  \code{annexe}), un segment inconnu de l'annexe ou l'absence à la fois de \code{segment} et de
+  \code{annexe}), nombre scalaire fini entier sans attribut (\code{.segment\_verifie()},
+  issue~\#105), le texte (\code{"1"}) étant refusé sans conversion (décision du mainteneur du
+  27~septembre 2026)~: une conversion silencieuse masquerait l'erreur de l'appelant (mesuré sur
+  le code antérieur~: \code{"1"}, \code{TRUE}, \code{c(a = 1)} et \code{matrix(1)} étaient
+  acceptés et recopiés tels quels dans le résultat, \code{c(1, 2)} et \code{integer(0)} levaient
+  une erreur R qui ne nommait pas l'argument), un segment inconnu de l'annexe ou l'absence à la fois de \code{segment} et de
   \code{sigma\_standard} étant refusés (contrôles faits jusqu'à la revue finale de l'issue~\#88
   après la validation des données, si bien que le même appel levait une erreur R sur des données
   valides et rendait \code{ok = FALSE} sur des données refusées)~;
@@ -1979,8 +1989,9 @@ autres qu'un calcul abouti, à ne pas confondre (issue~\#88, décision du mainte
   par le moteur, cite la valeur reçue (mesuré~: $\alpha = 0{,}30$, \code{seed = NULL},
   \code{seed = 1.5}, \code{bareme = "co"} et \code{sigma\_standard = 0} lèvent chacun
   l'erreur correspondante, $\alpha = 0{,}2999$ est calculé). Relèvent du même régime, en appel
-  direct, la durée non entière refusée par \code{usp\_credibilite()} et l'annexe refusée par
-  \code{.annexe\_verifiee()}~; \code{theta\_equiv} n'en relève pas~: hors domaine, c'est un
+  direct, la durée non entière refusée par \code{usp\_credibilite()}, l'annexe refusée par
+  \code{.annexe\_verifiee()} et le segment refusé par \code{.segment\_verifie()}, qu'appellent
+  \code{usp\_segment\_infos()} et, par elle, \code{usp\_parametre\_standard()}~; \code{theta\_equiv} n'en relève pas~: hors domaine, c'est un
   refus de données~;
 \item le \textbf{défaut de calcul intercepté}~: une erreur R survient dans le calcul qui suit une
   validation réussie (après \code{engine\_valider\_donnees()} dans la branche lognormale, après
