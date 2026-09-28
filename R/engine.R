@@ -192,7 +192,9 @@ SEUIL_ECHEC_SENS_REJETER <- 0.30
 # Nombre minimal de replications bootstrap admis par run_engine() (constat C1
 # de la revue finale d'E1, #44 ; .engine_verifier_usage()), pour les trois
 # methodes. A B = B_MIN_USAGE = 99 : le plancher bilateral de la p-value
-# Monte-Carlo, 2/(B+1) = 0,02, est sous alpha/2 = 0,05 ; la detection de
+# Monte-Carlo, 2/(B+1) = 0,02, est sous alpha/2 = 0,05 au seuil par defaut
+# alpha = 0,10 (pour alpha <= 0,04, la condition B + 1 > 4/alpha de
+# engine_b_minimal() s'y ajoute, #127) ; la detection de
 # degenerescence de engine_p_mc() est armee (B_MIN_DEGENERESCENCE = 50
 # simulations finies, si au moins 50 des 99 sont finies) ; la ligne de largeur
 # de l'IC bootstrap 90 % est presente (IC calcule au-dela de 20 tirages) ;
@@ -5623,6 +5625,80 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
 ## 11. ORCHESTRATEUR PRINCIPAL
 ## =============================================================================
 
+# B minimal en fonction du seuil alpha (#127, note d'actuary et decisions du
+# mainteneur du 28/09/2026). Le plancher de la p-value Monte-Carlo
+# bilaterale (queue "deux" de engine_p_mc(), N = 0 depassement, B_eff = B)
+# vaut 2 * (1 / (B + 1)) ; la regle des verdicts de engine_registre_tests()
+# (sens "ne pas rejeter") rend ECHEC si p < alpha/2. L'ECHEC d'une ligne dont
+# la seule p-value est Monte-Carlo n'est atteignable que si
+# 2 * (1 / (B + 1)) < alpha / 2, soit B + 1 > 4/alpha (inegalite stricte : a
+# egalite, p = alpha/2 donne ALERTE). La condition bilaterale, la plus
+# contraignante, vaut pour toute la table (les deux catalogues ont des
+# statistiques bilaterales ; les lignes unilaterales ont un plancher
+# 1/(B + 1) < alpha/4). Elle est ecrite dans l'arithmetique flottante de la
+# regle des verdicts, et non comme 4/alpha, pour qu'aucune divergence ne soit
+# possible entre le controle d'entree et le verdict (4/0,1 n'est pas
+# exactement 40 en double). Limite : le controle porte sur B nominal ; le
+# plancher reel est 2/(B_eff + 1).
+# engine_b_minimal(alpha) : plus petit entier B >= 1 tel que
+# 2 * (1 / (B + 1)) < alpha / 2 (borne pure d'alpha, sans le max avec
+# B_MIN_USAGE). Ne sert qu'au message de engine_motif_b_alpha() : l'admission
+# de B y est decidee directement par la condition, sans ce calcul. Recherche
+# bornee autour de 4/alpha (au plus quatre essais) ; erreur explicite si
+# 4/alpha n'est pas fini et < 2^52 (au-dela, b + 1 n'est plus exact en
+# double : revue d'audit de #127, boucle sans fin a alpha = 1e-16) ou si
+# aucun essai ne convient. alpha : nombre scalaire fini > 0.
+engine_b_minimal <- function(alpha) {
+  if (!is.numeric(alpha) || length(alpha) != 1L || !is.finite(alpha) || alpha <= 0)
+    stop("engine_b_minimal() : alpha doit etre un nombre scalaire fini > 0.", call. = FALSE)
+  q <- 4 / alpha
+  if (!(is.finite(q) && q < 2^52))
+    stop(sprintf(paste("engine_b_minimal() : 4/alpha = %g, non fini ou >= 2^52 : B minimal",
+                       "non calculable exactement en double (alpha = %g)."),
+                 q, alpha), call. = FALSE)
+  b <- max(1, floor(q) - 1)
+  for (k in 1:4) {
+    if (2 * (1 / (b + 1)) < alpha / 2) return(b)
+    b <- b + 1
+  }
+  stop(sprintf("engine_b_minimal() : B minimal introuvable pour alpha = %g.", alpha),
+       call. = FALSE)
+}
+
+# Motif du refus de B au seuil alpha (#127) : NULL si 2 * (1 / (B + 1)) <
+# alpha / 2 (condition testee directement, dans l'arithmetique de la regle
+# des verdicts d'add(), sans calcul de B minimal ni boucle), sinon le message
+# de l'erreur d'usage, chaine ASCII unique. Seule source du texte :
+# .engine_verifier_usage() le leve par stop() ; app.R l'affiche tel quel
+# avant le clic, sans recalculer la regle. Rend NULL hors du domaine de la
+# regle (B non scalaire fini, alpha hors de ]0, SEUIL_ECHEC_SENS_REJETER[)
+# et pour B < B_MIN_USAGE (decision du mainteneur du 28/09/2026, avis
+# d'actuary) : ces saisies relevent des controles de B et d'alpha, faits
+# avant, et le bandeau de l'application concorde ainsi avec l'erreur levee
+# au clic. Le B minimal cite est formate par %.0f ; s'il n'est pas calculable
+# (engine_b_minimal() en erreur, alpha tres petit), le message ne cite pas
+# de valeur.
+engine_motif_b_alpha <- function(B, alpha) {
+  scalaire_fini <- function(v) is.numeric(v) && length(v) == 1L && is.finite(v)
+  if (!scalaire_fini(B) || !scalaire_fini(alpha) || alpha <= 0 ||
+      alpha >= SEUIL_ECHEC_SENS_REJETER || B < B_MIN_USAGE) return(NULL)
+  if (2 * (1 / (B + 1)) < alpha / 2) return(NULL)
+  b_min <- tryCatch(engine_b_minimal(alpha), error = function(e) NULL)
+  seuil_b <- if (is.null(b_min)) "B trop petit pour ce seuil" else
+    sprintf("soit B >= %.0f a ce seuil", b_min)
+  # Valeurs citees comme par saisie() de .engine_verifier_usage(), en double :
+  # un entier (99L, forme possible d'une saisie numerique transmise par
+  # l'application) est cite 99, comme le double 99.
+  saisie <- function(v) paste(deparse(as.double(v)), collapse = " ")
+  sprintf(paste("B = %s et alpha = %s : B + 1 > 4/alpha est requis, %s",
+                "(en plus de B >= B_MIN_USAGE = %.0f). Le plancher bilateral de la p-value",
+                "Monte-Carlo, 2/(B+1) = %.4g, n'est pas inferieur a alpha/2 = %.4g :",
+                "l'ECHEC des tests dont la seule p-value est Monte-Carlo serait",
+                "inatteignable (regle des verdicts d'engine_registre_tests())."),
+          saisie(B), saisie(alpha), seuil_b, B_MIN_USAGE,
+          2 * (1 / (B + 1)), alpha / 2)
+}
+
 # Arguments d'usage de run_engine() resolus avant le calcul protege (issue
 # #88) : une valeur invalide leve une erreur R explicite, comme avant #88,
 # et n'est jamais rendue en defaut de calcul intercepte. Sont refusees les
@@ -5642,6 +5718,10 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
 #   (deduit du segment) ;
 # - alpha : nombre scalaire fini, 0 < alpha < SEUIL_ECHEC_SENS_REJETER (avis
 #   d'actuary) : au-dela, la zone ALERTE des tests en sens rejeter disparait ;
+# - B et alpha conjointement (#127) : B + 1 > 4/alpha, soit
+#   B >= engine_b_minimal(alpha), en plus de B >= B_MIN_USAGE ; faute de quoi
+#   l'ECHEC des lignes a p-value Monte-Carlo seule est inatteignable
+#   (engine_motif_b_alpha()) ;
 # - sigma_standard : NULL (valeur de l'annexe), ou nombre scalaire fini > 0 ;
 # - segment et annexe (revue finale de #88, constat 4) : un segment fourni
 #   doit etre un nombre scalaire fini entier sans attribut (#105,
@@ -5697,6 +5777,10 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                        "la zone ALERTE des tests en sens rejeter disparait et le verdict",
                        "ne suit plus la regle documentee."),
                  saisie(alpha), format(SEUIL_ECHEC_SENS_REJETER)), call. = FALSE)
+  # B minimal fonction d'alpha (#127) : apres les controles de B et d'alpha,
+  # dont les messages restent inchanges pour une valeur invalide isolement.
+  motif_b_alpha <- engine_motif_b_alpha(B, alpha)
+  if (!is.null(motif_b_alpha)) stop(motif_b_alpha, call. = FALSE)
   if (!is.null(sigma_standard) && (!scalaire_fini(sigma_standard) || sigma_standard <= 0))
     stop(sprintf(paste("sigma_standard = %s : NULL ou un nombre scalaire fini,",
                        "sans attribut, sigma_standard > 0, est attendu."),

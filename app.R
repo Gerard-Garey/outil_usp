@@ -421,12 +421,14 @@ ui <- fluidPage(
           numericInput("profondeur", "Profondeur T retenue", value = T_INIT,
                        min = 5, max = 40, step = 1),
           helpText("T pilote la taille de la grille de saisie de l'onglet Donnees."),
-          numericInput("B", "Replications bootstrap B", value = 999, min = 99,
+          numericInput("B", "Replications bootstrap B", value = 999, min = B_MIN_USAGE,
                        max = 9999, step = 100),
           helpText("L'erreur de Monte-Carlo decroit en 1/sqrt(B) ; elle est",
-                   "independante de la qualite de l'approximation liee a T."),
+                   "independante de la qualite de l'approximation liee a T.",
+                   "B + 1 > 4/alpha requis pour que l'ECHEC bilateral reste atteignable."),
           numericInput("alpha", "Seuil alpha des verdicts", value = 0.10,
                        min = 0.01, max = 0.20, step = 0.01),
+          uiOutput("avert_b_alpha"),
           hr(),
           h5("Test d'equivalence de la constante"),
           checkboxInput("delta_apriori", "Marge Delta fixee a priori", FALSE),
@@ -849,6 +851,15 @@ server <- function(input, output, session) {
         if (length(ref$motifs))
           tags$ul(style = "margin:4px 0", lapply(ref$motifs, tags$li)),
         tags$div(EXPLICATION_REFUS))
+  })
+
+  # B minimal fonction d'alpha (#127) : avertissement avant le clic, texte
+  # rendu par le moteur (engine_motif_b_alpha()), aucune regle ici. Le bouton
+  # reste actif ; au clic, run_engine() leve la meme erreur d'usage.
+  output$avert_b_alpha <- renderUI({
+    msg <- engine_motif_b_alpha(input$B, input$alpha)
+    if (is.null(msg)) return(NULL)
+    div(class = "avert", msg)
   })
 
   output$bandeau_T <- renderUI({

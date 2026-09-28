@@ -328,8 +328,11 @@ verifier("run_engine : alpha 0,30 refuse, message citant la zone ALERTE",
              grepl("la zone ALERTE des tests en sens rejeter disparait", conditionMessage(e),
                    fixed = TRUE)
          })
-verifier("run_engine : alpha 0,01 ; 0,10 ; 0,29 acceptes (premium, reserve2)",
-         usage_accepte("alpha", list(0.01, 0.10, 0.29)))
+# alpha = 0,01 n'est plus accepte a B = B_MIN_USAGE = 99 (#127 : B >= 400 a
+# ce seuil) ; son acceptation a B = 400 est verifiee plus bas sur
+# .engine_verifier_usage(), sans bootstrap.
+verifier("run_engine : alpha 0,05 ; 0,10 ; 0,29 acceptes a B = 99 (premium, reserve2)",
+         usage_accepte("alpha", list(0.05, 0.10, 0.29)))
 verifier("run_engine : SEUIL_ECHEC_SENS_REJETER vaut 0,30 (seuil ECHEC des tests en sens rejeter)",
          identical(SEUIL_ECHEC_SENS_REJETER, 0.30))
 verifier("run_engine : sigma_standard NA, texte, vecteur, logique, 0, negatif, Inf -> erreur d'usage (premium, reserve2)",
@@ -378,6 +381,110 @@ verifier("run_engine : B 0, 98, 99.5, 999.5, -1, NA, texte, vecteur, Inf -> erre
            })
 verifier("run_engine : B = B_MIN_USAGE = 99 accepte (premium, reserve2)",
          usage_accepte("B", list(99)))
+
+# #127 (note d'actuary et decisions du mainteneur du 28/09/2026) : B + 1 >
+# 4/alpha, en plus de B_MIN_USAGE, pour que l'ECHEC bilateral d'une ligne a
+# p-value Monte-Carlo seule reste atteignable (plancher 2/(B+1) < alpha/2).
+# Reference : table du paragraphe 2 de la note, plus petit entier B tel que
+# 2 * (1 / (B + 1)) < alpha / 2 (4/alpha si entier, ceiling(4/alpha) - 1 sinon).
+verifier("engine_b_minimal : table de la note (#127) pour alpha 0,01 a 0,29",
+         identical(vapply(c(0.01, 0.02, 0.025, 0.03, 0.04, 0.05, 0.10, 0.20, 0.29),
+                          engine_b_minimal, numeric(1)),
+                   c(400, 200, 160, 133, 100, 80, 40, 20, 13)))
+verifier("engine_b_minimal : minimalite sur alpha = 0,005..0,295 (b admis, b - 1 refuse)",
+         all(vapply(seq(0.005, 0.295, by = 0.005), function(a) {
+           b <- engine_b_minimal(a)
+           (2 * (1 / (b + 1)) < a / 2) && !(2 * (1 / b) < a / 2)
+         }, logical(1))))
+verifier("run_engine : B = 99, alpha = 0,01 -> erreur d'usage B + 1 > 4/alpha, B >= 400 (premium, reserve2)",
+         erreur_usage("alpha", list(0.01), "B + 1 > 4/alpha") &&
+           erreur_usage("alpha", list(0.01), "B >= 400 a ce seuil") &&
+           {
+             e <- tryCatch(usage_mw(alpha = 0.01), error = function(e) e)
+             inherits(e, "error") && startsWith(conditionMessage(e), "B = 99 et alpha = 0.01 : ")
+           })
+verifier("run_engine : B = 99, alpha = 0,04 -> erreur d'usage, B >= 100 (premium, reserve2)",
+         erreur_usage("alpha", list(0.04), "B >= 100 a ce seuil"))
+verifier("run_engine : B = 99 et alpha 0,05 ou 0,10 acceptes (premium, reserve2)",
+         usage_accepte("alpha", list(0.05, 0.10)))
+# Bords, sur .engine_verifier_usage() directement (aucun bootstrap).
+verif_usage <- function(B, alpha) {
+  tryCatch(.engine_verifier_usage(B, 20260831, NULL, alpha = alpha, segment = 1),
+           error = function(e) e)
+}
+verifier(".engine_verifier_usage : (399 ; 0,01) refuse par la regle en alpha, (400 ; 0,01) accepte",
+         {
+           e <- verif_usage(399, 0.01)
+           inherits(e, "error") && grepl("B >= 400 a ce seuil", conditionMessage(e), fixed = TRUE) &&
+             isTRUE(verif_usage(400, 0.01))
+         })
+# B < B_MIN_USAGE : engine_motif_b_alpha() rend NULL (decision du mainteneur
+# du 28/09/2026), le bandeau de l'application concorde avec l'erreur au clic.
+verifier(".engine_verifier_usage : (39 ; 0,10) et (40 ; 0,10) refuses par B_MIN_USAGE avant la regle en alpha ; motif en alpha NULL",
+         all(vapply(c(39, 40), function(b) {
+           e <- verif_usage(b, 0.10)
+           inherits(e, "error") &&
+             grepl("B >= B_MIN_USAGE = 99, sans attribut, est attendu", conditionMessage(e), fixed = TRUE) &&
+             !grepl("4/alpha", conditionMessage(e), fixed = TRUE)
+         }, logical(1))) &&
+           is.null(engine_motif_b_alpha(39, 0.10)) && is.null(engine_motif_b_alpha(98, 0.01)))
+# Revue d'audit de #127 (constats C1 et C2) : alpha tres petit faisait
+# boucler engine_b_minimal() sans fin (b + 1 == b au-dela de 2^53) et
+# as.integer() du B minimal rendait NA au-dela de .Machine$integer.max.
+# L'admission est decidee par la condition directe ; chaque appel est borne
+# par setTimeLimit (5 s ; une boucle sans fin leve alors une erreur de
+# delai, distincte du refus attendu).
+sous_delai <- function(expr) {
+  setTimeLimit(elapsed = 5, transient = TRUE)
+  on.exit(setTimeLimit(elapsed = Inf))
+  tryCatch(expr, error = function(e) e)
+}
+verifier(".engine_verifier_usage : alpha 1e-16, 1e-200, 1e-310, 5e-324 -> refus B + 1 > 4/alpha sans blocage, sans valeur de B minimal",
+         all(vapply(c(1e-16, 1e-200, 1e-310, 5e-324), function(a) {
+           e <- sous_delai(.engine_verifier_usage(999, 20260831, NULL, alpha = a, segment = 1))
+           inherits(e, "error") &&
+             grepl("B + 1 > 4/alpha est requis, B trop petit pour ce seuil", conditionMessage(e), fixed = TRUE) &&
+             !grepl("NA", conditionMessage(e), fixed = TRUE)
+         }, logical(1))))
+verifier("engine_b_minimal : alpha 1e-16, 1e-200, 1e-310, 5e-324 -> erreur explicite sans blocage",
+         all(vapply(c(1e-16, 1e-200, 1e-310, 5e-324), function(a) {
+           e <- sous_delai(engine_b_minimal(a))
+           inherits(e, "error") &&
+             startsWith(conditionMessage(e), "engine_b_minimal() : 4/alpha = ")
+         }, logical(1))))
+verifier("engine_motif_b_alpha : alpha = 1e-10 -> B >= 40000000000 cite, sans NA ni avertissement",
+         {
+           w <- NULL
+           m <- withCallingHandlers(engine_motif_b_alpha(999, 1e-10),
+                                    warning = function(c) { w <<- c; invokeRestart("muffleWarning") })
+           is.null(w) && is.character(m) && !grepl("NA", m, fixed = TRUE) &&
+             grepl("soit B >= 40000000000 a ce seuil", m, fixed = TRUE)
+         })
+verifier("engine_motif_b_alpha : NULL a (999 ; 0,01), message identique a l'erreur de run_engine a (99 ; 0,01)",
+         {
+           e <- tryCatch(usage_premium(alpha = 0.01), error = function(e) e)
+           m <- engine_motif_b_alpha(99, 0.01)
+           is.null(engine_motif_b_alpha(999, 0.01)) && is.character(m) && length(m) == 1L &&
+             inherits(e, "error") && identical(conditionMessage(e), m) &&
+             identical(engine_motif_b_alpha(99L, 0.01), m)
+         })
+# Coherence avec la regle des verdicts de add() (engine_registre_tests()),
+# sans bootstrap : ligne a p-value Monte-Carlo seule, cle bilaterale, p_mc
+# egal au plancher 2 * (1 / (B + 1)) a B = engine_b_minimal(alpha) (ECHEC) et
+# a B - 1 (ALERTE) : la borne est celle du verdict, non une approximation.
+verdict_plancher <- function(alpha, B) {
+  r <- engine_registre_tests(list(p_mc = c(A = 2 * (1 / (B + 1))), err_mc = c(A = 0)),
+                             list(A = .mc_entree(function(e) 1, "deux")), alpha, "Monte-Carlo")
+  r$add("F", "t", "ref", mc_nom = "A")
+  l <- r$lignes()[[1]]
+  c(l$nature_p, l$verdict)
+}
+verifier("add() : p_mc au plancher bilateral -> ECHEC a b = engine_b_minimal(alpha), ALERTE a b - 1 (alpha 0,005..0,295)",
+         all(vapply(seq(0.005, 0.295, by = 0.005), function(a) {
+           b <- engine_b_minimal(a)
+           identical(verdict_plancher(a, b), c("Monte-Carlo", "ECHEC")) &&
+             identical(verdict_plancher(a, b - 1), c("Monte-Carlo", "ALERTE"))
+         }, logical(1))))
 
 # Constat 4 de la revue finale de #88 : un segment inconnu, ou l'absence a la
 # fois de segment et de sigma_standard, etaient controles apres la validation
