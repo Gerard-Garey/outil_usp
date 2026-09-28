@@ -83,6 +83,32 @@ verifier("usp_segment_infos : erreur pour un segment inexistant (II-13, II-0, XI
          leve_erreur(usp_segment_infos(13, "II")) && leve_erreur(usp_segment_infos(0, "II")) &&
          leve_erreur(usp_segment_infos(5, "XIV")))
 # Issue #33 (defaut releve par audit, repris de l'issue #7), corrige.
+# Issue #105 : erreur d'usage nommant segment en appel direct (texte "1"
+# refuse sans conversion, decision du mainteneur du 27/09/2026, Q-E0b-2).
+verifier("usp_segment_infos : segment c(1, 2), integer(0), NA, Inf, 1.5, TRUE, \"1\", c(a = 1), matrix(1) -> erreur d'usage nommant segment (#105)",
+         all(vapply(list(c(1, 2), integer(0), NA, NA_real_, Inf, 1.5, TRUE, "1",
+                         c(a = 1), matrix(1)),
+                    function(s) {
+                      e <- tryCatch(usp_segment_infos(s, "II"), error = function(e) e)
+                      inherits(e, "error") && startsWith(conditionMessage(e), "segment = ") &&
+                        grepl("un nombre scalaire fini entier, sans attribut, est attendu",
+                              conditionMessage(e), fixed = TRUE)
+                    }, logical(1))))
+verifier("usp_segment_infos : les seize segments acceptes en entier (1L) et en double (1), memes caracteristiques (#105)",
+         {
+           sans_num <- function(l) { l$segment <- NULL; l }
+           paires <- rbind(data.frame(a = "II", k = 1:12), data.frame(a = "XIV", k = 1:4))
+           all(mapply(function(a, k) {
+             d <- tryCatch(usp_segment_infos(as.double(k), a), error = function(e) NULL)
+             i <- tryCatch(usp_segment_infos(as.integer(k), a), error = function(e) NULL)
+             !is.null(d) && !is.null(i) && identical(sans_num(d), sans_num(i))
+           }, paires$a, paires$k))
+         })
+verifier("usp_segment_infos : message du segment inconnu inchange (II-13, XIV-5 ; #105)",
+         identical(tryCatch(usp_segment_infos(13, "II"), error = conditionMessage),
+                   "Segment 13 inconnu dans l'annexe II.") &&
+           identical(tryCatch(usp_segment_infos(5, "XIV"), error = conditionMessage),
+                     "Segment 5 inconnu dans l'annexe XIV."))
 verifier("usp_segment_infos : une annexe inconnue (xiv en minuscules, III, NA, vecteur) est refusee (#33)",
          leve_erreur(usp_segment_infos(1, "xiv")) && leve_erreur(usp_segment_infos(1, "III")) &&
          leve_erreur(usp_segment_infos(1, NA_character_)) &&

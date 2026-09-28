@@ -250,9 +250,32 @@ usp_bareme_segment <- function(segment, annexe = "II") {
   if (segment %in% c(1, 5, 6)) "long" else "court"
 }
 
+# Numero de segment (issue #105) : nombre scalaire fini entier, sans attribut
+# (noms, dim). Toute autre valeur est une erreur d'usage nommant segment :
+# vecteur (c(1, 2)), vide (integer(0)), NA, Inf, non entier (1.5), logique
+# (TRUE), texte ("1"). Le texte est refuse et non converti (decision du
+# mainteneur du 27/09/2026, Q-E0b-2), comme dans les autres controles de
+# .engine_verifier_usage() : une conversion silencieuse masquerait l'erreur
+# de l'appelant. Avant #105, c(1, 2) et integer(0) levaient une erreur R qui
+# ne nommait pas l'argument, et "1", TRUE, c(a = 1) ou matrix(1) etaient
+# acceptes (la valeur recue etait recopiee telle quelle dans le resultat).
+# Un segment conforme mais absent de l'annexe garde le message d'origine de
+# usp_segment_infos() ("Segment 13 inconnu dans l'annexe II.").
+.segment_verifie <- function(segment) {
+  if (!(is.numeric(segment) && length(segment) == 1L && is.null(attributes(segment)) &&
+        is.finite(segment) && segment == round(segment)))
+    stop(sprintf(paste("segment = %s : un nombre scalaire fini entier, sans attribut,",
+                       "est attendu (numero de segment de l'annexe II ou XIV ; texte",
+                       "refuse, sans conversion)."),
+                 if (!length(segment)) "vide" else paste(deparse(segment), collapse = " ")),
+         call. = FALSE)
+  segment
+}
+
 # Renvoie les caracteristiques reglementaires d'un segment : libelle, ecarts
 # types standard, facteur NP standard et bareme de credibilite applicable.
 usp_segment_infos <- function(segment, annexe = "II") {
+  segment <- .segment_verifie(segment)
   annexe <- .annexe_verifiee(annexe)
   tab <- if (identical(annexe, "XIV")) ANNEXE_XIV else ANNEXE_II
   i <- match(segment, tab$segment)
@@ -5621,11 +5644,13 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
 #   d'actuary) : au-dela, la zone ALERTE des tests en sens rejeter disparait ;
 # - sigma_standard : NULL (valeur de l'annexe), ou nombre scalaire fini > 0 ;
 # - segment et annexe (revue finale de #88, constat 4) : un segment fourni
-#   doit exister dans l'annexe (usp_segment_infos()), et il faut segment ou
-#   sigma_standard. Ces deux controles etaient faits apres la validation des
-#   donnees, dans chaque branche : le meme appel levait une erreur R sur des
-#   donnees valides et rendait ok = FALSE sur des donnees refusees. Faits ici,
-#   ils levent une erreur R quelles que soient les donnees.
+#   doit etre un nombre scalaire fini entier sans attribut (#105,
+#   .segment_verifie()) et exister dans l'annexe (usp_segment_infos()), et
+#   il faut segment ou sigma_standard. Ces controles etaient faits apres la
+#   validation des donnees, dans chaque branche : le meme appel levait une
+#   erreur R sur des donnees valides et rendait ok = FALSE sur des donnees
+#   refusees. Faits ici, ils levent une erreur R quelles que soient les
+#   donnees.
 # Aucune de ces valeurs ne doit porter d'attribut (noms, dim...) : refusee
 # plutot que normalisee, car l'attribut etait propage tel quel dans le
 # resultat (mesure sur la tete 743bb75 : B = c(a = 19), alpha = c(a = 0.1),
@@ -5676,7 +5701,9 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
     stop(sprintf(paste("sigma_standard = %s : NULL ou un nombre scalaire fini,",
                        "sans attribut, sigma_standard > 0, est attendu."),
                  saisie(sigma_standard)), call. = FALSE)
-  # Segment inconnu : erreur de usp_segment_infos() (message inchange).
+  # Segment : usp_segment_infos() leve l'erreur d'usage de .segment_verifie()
+  # (valeur non scalaire, vide, NA, non entiere ou non numerique, #105), puis
+  # celle du segment inconnu de l'annexe (message inchange).
   if (!is.null(segment)) usp_segment_infos(segment, annexe)
   else if (is.null(sigma_standard))
     stop("Fournir soit sigma_standard, soit segment (avec son annexe).")

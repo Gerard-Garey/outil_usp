@@ -408,6 +408,23 @@ verifier("run_engine : segment 99 -> erreur d'usage, donnees valides ou refusees
          erreurs_segment(appels_segment(segment = 99), "Segment 99 inconnu dans l'annexe II.") &&
            erreurs_segment(appels_segment(segment = 5, annexe = "XIV"),
                            "Segment 5 inconnu dans l'annexe XIV."))
+# Issue #105 : segment non scalaire, vide, NA, non fini, non entier, logique,
+# texte ("1" refuse sans conversion, decision du mainteneur du 27/09/2026,
+# Q-E0b-2) ou porteur d'attributs -> erreur d'usage nommant segment, quelles
+# que soient les donnees. Avant #105, c(1, 2) et integer(0) levaient une
+# erreur R sans nom d'argument ("the condition has length > 1", "argument is
+# of length zero") et "1", TRUE, c(a = 1), matrix(1) etaient acceptes.
+motif_segment <- "un nombre scalaire fini entier, sans attribut, est attendu (numero de segment"
+verifier("run_engine : segment c(1, 2), integer(0), NA, NA_real_, Inf, 1.5, TRUE, \"1\", c(a = 1), matrix(1) -> erreur d'usage nommant segment, donnees valides ou refusees (premium, reserve1, reserve2 ; #105)",
+         all(vapply(list(c(1, 2), integer(0), NA, NA_real_, Inf, 1.5, TRUE, "1",
+                         c(a = 1), matrix(1)),
+                    function(s) erreurs_segment(appels_segment(segment = s), motif_segment) &&
+                      erreurs_segment(appels_segment(segment = s, annexe = "XIV"), motif_segment),
+                    logical(1))))
+verifier("run_engine : message de segment invalide citant la valeur recue (\"1\", c(1, 2), integer(0) ; #105)",
+         erreurs_segment(appels_segment(segment = "1"), "segment = \"1\" : ") &&
+           erreurs_segment(appels_segment(segment = c(1, 2)), "segment = c(1, 2) : ") &&
+           erreurs_segment(appels_segment(segment = integer(0)), "segment = vide : "))
 verifier("run_engine : ni segment ni sigma_standard -> erreur d'usage, donnees valides ou refusees (premium, reserve1, reserve2)",
          erreurs_segment(appels_segment(),
                          "Fournir soit sigma_standard, soit segment (avec son annexe)."))
