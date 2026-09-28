@@ -36,7 +36,7 @@ jobs:
       moteur: ${{ steps.filtre.outputs.moteur }}
       latex: ${{ steps.filtre.outputs.latex }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: github.event_name == 'pull_request'
         with:
           fetch-depth: 2
@@ -91,7 +91,7 @@ jobs:
     # Durée observée : 9 à 15 min (unitaires, reproductibilité des cinq cas).
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: r-lib/actions/setup-r@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2.14.0
@@ -142,16 +142,16 @@ jobs:
     # Durée observée : 2 à 3 min (dont le téléchargement de l'image TeX Live).
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: xu-cheng/latex-action@e2f99d4b3685b0da93f97e1b86ad8fab81105098 # v3 (3.3.0)
+      - uses: xu-cheng/latex-action@6549dc21effb2730855a1281407ecfcececc6c1b # v3 (3.3.0)
         with:
           root_file: doc_tests_usp.tex
           working_directory: docs/latex
           # latexmk enchaîne les passes nécessaires (table des matières, renvois).
           args: -pdf -interaction=nonstopmode -halt-on-error
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: doc_tests_usp
           path: docs/latex/doc_tests_usp.pdf
