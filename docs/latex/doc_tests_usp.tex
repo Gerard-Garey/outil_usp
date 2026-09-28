@@ -498,6 +498,12 @@ liste \code{\$x}, \code{\$y}, \code{\$T} (les $T$ années les plus récentes) \\
 chaîne sans la marque d'ordre des octets UTF-8 (comparaison d'octets)~; premier nom de colonne
 sans BOM, y compris sous ses formes lues hors locale UTF-8~; prédicat de refus d'un en-tête ou
 d'une étiquette de ligne à l'allure de valeur manquante ou de nombre (§\ref{sec:controles}) \\
+\code{.octets\_non\_utf8()},\newline \code{.nettoyer\_cellules()},\newline
+\code{.cellules\_en\_nombre()} & cellules~; cellules~; cellules, \code{dec} &
+prédicat «~octets non UTF-8 lus en locale UTF-8~» (faux hors locale UTF-8)~; cellules sans
+blancs ASCII de bord, retirés octet par octet, une cellule non UTF-8 étant déclarée Latin-1 en
+locale UTF-8~; conversion numérique, une cellule non UTF-8 en locale UTF-8 valant \code{NA}
+sans erreur de R (§\ref{sec:controles}, issue~\#99) \\
 \code{engine\_lire\_donnees\_}\newline\code{csv()}, \code{.en\_numerique()} & \code{data.frame}
 (colonnes $t$, \code{xt}, \code{yt})~; vecteur & \code{\$ok}, \code{\$erreurs}, \code{\$xt},
 \code{\$yt}, \code{\$n}, lignes rangées par $t$ (entier, sans doublon, consécutif), BOM retiré
@@ -2118,10 +2124,26 @@ s'appliquait pas, et la colonne \code{i} d'un triangle n'était plus écartée, 
 motif trompeur.
 \code{engine\_lire\_donnees\_csv()} ne refuse pas, elle, une valeur non finie de \code{xt} ou
 \code{yt}~: c'est \code{engine\_valider\_donnees()} qui la refuse (ligne «~Valeurs finies~» du
-tableau ci-dessus). \emph{Limite connue} (issue~\#99, ouverte)~: lu sous une locale UTF-8, un
-fichier encodé en Windows-1252 qui contient un octet non ASCII fait échouer
-\code{usp\_lire\_vecteur()} sur une erreur de R (dans \code{trimws()}), avant tout contrôle, au
-lieu d'un refus motivé. Les fonctions réglementaires refusent explicitement une entrée hors
+tableau ci-dessus). Un fichier encodé en Windows-1252 (ou Latin-1) et lu sous une locale UTF-8
+donne des cellules dont les octets ne forment pas de l'UTF-8 valide (lettre accentuée codée
+E9, espace insécable codée A0)~; sur le code antérieur, \code{trimws()} puis
+\code{as.numeric()} levaient alors une erreur de R avant tout contrôle, au lieu d'un refus
+motivé (issue~\#99~; mesuré sous la locale \code{C.UTF-8}~: erreur «~\code{input string \ldots{} is invalid
+UTF-8}~» pour \code{usp\_lire\_vecteur()}, \code{engine\_lire\_donnees\_csv()} et
+\code{engine\_lire\_triangle()}). Les blancs de bord (espace, tabulation, retour chariot, saut
+de ligne) sont désormais retirés octet par octet (\code{.nettoyer\_cellules()}, dont le
+résultat coïncide avec celui de \code{trimws()} sur une cellule valide)~; en locale UTF-8, une
+cellule non UTF-8 d'encodage non déclaré est déclarée Latin-1, sans que ses octets changent,
+de sorte que les messages qui la citent restent de l'UTF-8 valide, et elle est tenue pour non
+numérique sans appel à \code{as.numeric()} (\code{.cellules\_en\_nombre()}~; le prédicat
+commun \code{.octets\_non\_utf8()} est faux hors locale UTF-8, où rien ne change). Le fichier
+est ainsi lu, ou refusé avec le même motif, sous une locale UTF-8 comme hors d'elle, où ces
+cellules valaient déjà \code{NA}~; l'espace insécable Windows-1252 (octet A0 isolé) est
+reconnue par \code{.allure\_manquante\_ou\_nombre()} sous toute locale. La règle s'applique à
+\code{usp\_lire\_vecteur()}, à \code{engine\_lire\_donnees\_csv()} (par
+\code{.en\_numerique()}) et à \code{engine\_lire\_triangle()}~; elle est vérifiée par
+\code{tests/unitaires/test\_controles\_entree.R} sur des fichiers écrits octet par octet et
+lus dans la locale courante, sous la locale \code{C} et sous une locale UTF-8. Les fonctions réglementaires refusent explicitement une entrée hors
 domaine au lieu de la traiter en silence~: \code{usp\_credibilite()} une durée non entière,
 \code{.annexe\_verifiee()} une annexe autre que \code{"II"} ou \code{"XIV"} (auparavant lue
 comme l'annexe~II), l'une et l'autre par une erreur d'usage (ci-dessus).
