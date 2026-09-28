@@ -1,8 +1,11 @@
 # Mises à jour des actions GitHub épinglées par SHA (ci.yml, references.yml).
 # Chaque mise à jour arrive en pull request, passe la CI et n'est fusionnée
 # que par le mainteneur (aucune fusion automatique ; CLAUDE.md, « Git et
-# GitHub »). Les versions majeures sont proposées comme les autres : leur
-# fusion suit la même revue.
+# GitHub »). Les versions majeures sont ignorées : une montée majeure se
+# décide à part (décision du mainteneur du 28/09/2026, PR #138 fermée), avec
+# un essai de references.yml, que la CI des pull requests ne lance pas.
+# Commentaire de version des lignes uses: sous la forme « # vX.Y.Z », que
+# Dependabot met à jour avec le SHA.
 version: 2
 updates:
   - package-ecosystem: "github-actions"
@@ -21,3 +24,6 @@ updates:
     labels:
       - "needs-triage"
     open-pull-requests-limit: 2
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
