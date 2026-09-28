@@ -4190,6 +4190,10 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
 # annees 3 a 7). Retourne les motifs de refus (character(0) si T convient),
 # sans erreur R. T_min = 1 pour un simple chargement (usp_charger()), la
 # duree minimale y etant controlee plus tard par engine_valider_donnees().
+# n est le nombre d'annees FOURNIES : les annees "disponibles" au sens de
+# l'annexe XVII (sections B/C, paragraphe 3, et G, paragraphe 3) sont les T
+# annees retenues (lecture (A) de l'issue #104, decision du mainteneur du
+# 28/09/2026).
 engine_valider_profondeur <- function(T, n, T_min = 5) {
   if (is.null(T)) return(character(0))
   # L'annexe XVII n'est citee que si la borne est la sienne (T_min >= 5) ;
@@ -4199,7 +4203,7 @@ engine_valider_profondeur <- function(T, n, T_min = 5) {
     return(sprintf("Profondeur T = %s : un nombre entier d'annees est attendu%s ; la serie n'est pas tronquee.",
                    if (!length(T)) "vide" else paste(deparse(T), collapse = " "), source_T))
   if (T > n)
-    return(sprintf("Profondeur T = %s superieure au nombre d'annees disponibles (%d).",
+    return(sprintf("Profondeur T = %s superieure au nombre d'annees fournies (%d).",
                    format(T), n))
   if (T < T_min)
     return(if (T_min >= 5)
@@ -6036,7 +6040,10 @@ engine_motif_b_alpha <- function(B, alpha) {
 #   T              profondeur retenue (les T dernieres annees) ; NULL = tout ;
 #                  sinon entier scalaire fini, 5 <= T <= nombre d'annees, et
 #                  toute autre valeur donne ok = FALSE, sans troncature
-#                  (engine_valider_profondeur(), issue #87)
+#                  (engine_valider_profondeur(), issue #87) ; le nombre
+#                  d'annees fournies est restitue par metadata$n_fournies, et
+#                  une troncature (n_fournies > T) par une ligne "profondeur"
+#                  de engine_derogations() (issue #104)
 #   B              nombre de replications bootstrap / Monte-Carlo ; nombre
 #                  scalaire fini entier >= B_MIN_USAGE = 99
 #                  (.engine_verifier_usage())
@@ -6204,6 +6211,10 @@ engine_motif_b_alpha <- function(B, alpha) {
                       # l'issue #37, en dernier avant les champs d'execution
                       # (le patch des references ajoute la feuille en fin).
                       bareme_saisi = saisi_bareme,
+                      # Annees d'accident fournies (issue #104) : lignes du
+                      # triangle, jamais tronque (n_fournies = T = I + 1).
+                      # Place apres bareme_saisi, avant les champs d'execution.
+                      n_fournies = nrow(triangle),
                       horodatage = t0,
                       duree_sec = as.numeric(difftime(Sys.time(), t0, units = "secs")),
                       version_R = R.version.string)
@@ -6522,6 +6533,14 @@ run_engine <- function(xt, yt,
         # dernier avant les champs d'execution (le patch des references
         # ajoute la feuille en fin de metadata).
         list(bareme_saisi = saisi_bareme),
+        # Annees fournies avant troncature a la profondeur T (issue #104,
+        # decision du mainteneur du 28/09/2026) : n_fournies > T signale que
+        # les n_fournies - T annees les plus anciennes ont ete ecartees
+        # (ligne "profondeur" de engine_derogations()). La duree de
+        # credibilite reste T (lecture (A) : annexe XVII, section G,
+        # paragraphe 3). Place apres bareme_saisi, en dernier avant les champs
+        # d'execution.
+        list(n_fournies = n),
         list(horodatage = t0,
              duree_sec = as.numeric(difftime(Sys.time(), t0, units = "secs")),
              version_R = R.version.string))
@@ -6601,6 +6620,28 @@ run_engine <- function(xt, yt,
        conforme = if (sans_segment) NA else identical(regl, m$bareme))
 }
 
+# Profondeur retenue et annees fournies (issue #104), lues sur res$metadata :
+# n_fournies (annees fournies avant troncature) et T (annees retenues, duree
+# de credibilite de l'annexe XVII, section G, paragraphe 3, lecture (A),
+# decision du mainteneur du 28/09/2026). Un resultat qui ne porte pas
+# n_fournies (produit avant l'issue #104), ou dont n_fournies n'est pas un
+# entier >= T, est refuse plutot que devine ; pour la methode du risque de
+# reserve no 2, le triangle n'est jamais tronque (n_fournies = T exige).
+.engine_trace_profondeur <- function(res, appelant) {
+  m <- res$metadata
+  n <- m$n_fournies; T <- m$T
+  if (!is.numeric(n) || length(n) != 1L || !is.finite(n) || n != round(n))
+    stop(sprintf("%s : metadata$n_fournies absent ou invalide.", appelant))
+  if (!is.numeric(T) || length(T) != 1L || !is.finite(T) || T != round(T))
+    stop(sprintf("%s : metadata$T absent ou invalide.", appelant))
+  if (n < T)
+    stop(sprintf("%s : metadata$n_fournies inferieur a la profondeur T retenue.", appelant))
+  if (identical(m$methode, "reserve2") && n != T)
+    stop(sprintf("%s : triangle tronque (n_fournies different de T), impossible en reserve no 2.",
+                 appelant))
+  list(n_fournies = as.integer(n), T = as.integer(T), tronque = n > T)
+}
+
 engine_parametre_standard <- function(res) {
   if (!isTRUE(res$ok)) return(NULL)
   m <- res$metadata
@@ -6663,23 +6704,32 @@ engine_parametre_standard <- function(res) {
 # fiche E0) : sigma standard saisi (#55) et bareme de credibilite saisi
 # (#93), lus sur les drapeaux explicites de res$metadata, plus le bareme
 # "court" pose par convention sans segment designe, non determine par la
-# section G (ligne sans drapeau). L'affichage (bandeau de l'onglet
-# Calibration, rapport fige, journal) ne connait que cette table.
+# section G (ligne sans drapeau), plus la troncature de la serie fournie a
+# la profondeur T (#104 : ligne "profondeur" si metadata$n_fournies > T ;
+# choix de perimetre plutot que derogation a un parametre, restitue ici pour
+# etre repris par le bandeau et le rapport fige, decision du mainteneur du
+# 28/09/2026). L'affichage (bandeau de l'onglet Calibration, rapport fige,
+# journal) ne connait que cette table.
 # Valeur : NULL si !isTRUE(res$ok) ; sinon data.frame (0 ligne sans
 # derogation), colonnes :
-#   parametre            "sigma_standard" ou "bareme" ;
-#   valeur_reglementaire valeur du texte (caractere ; NA sans segment) ;
-#   valeur_retenue       valeur du melange (caractere) ;
+#   parametre            "sigma_standard", "bareme" ou "profondeur" ;
+#   valeur_reglementaire valeur du texte (caractere ; NA sans segment, et
+#                        toujours NA pour "profondeur", que le texte ne fixe
+#                        pas) ;
+#   valeur_retenue       valeur du melange (caractere ; "profondeur" : T) ;
 #   conforme             valeur retenue egale a la valeur reglementaire
-#                        (logique ; NA si non determinable, sans segment) ;
-#                        une saisie egale reste une derogation ;
+#                        (logique ; NA si non determinable, sans segment, et
+#                        toujours NA pour "profondeur") ; une saisie egale
+#                        reste une derogation ;
 #   libelle              phrase complete pour bandeau et journal.
-# Erreur si un drapeau manque ou est invalide (pas de deduction), ou si le
-# sigma standard ou le bareme recalcules different du resultat.
+# Erreur si un drapeau manque ou est invalide (pas de deduction), si le
+# sigma standard ou le bareme recalcules different du resultat, ou si
+# metadata$n_fournies manque ou est incoherent (.engine_trace_profondeur()).
 engine_derogations <- function(res) {
   if (!isTRUE(res$ok)) return(NULL)
   ps <- .engine_trace_sigma(res, "engine_derogations()")
   tb <- .engine_trace_bareme(res, "engine_derogations()")
+  tp <- .engine_trace_profondeur(res, "engine_derogations()")
   fmt <- function(x) if (is.na(x)) NA_character_ else format(x, digits = 10)
   d <- data.frame(parametre = character(0), valeur_reglementaire = character(0),
                   valeur_retenue = character(0), conforme = logical(0),
@@ -6714,6 +6764,42 @@ engine_derogations <- function(res) {
     d <- rbind(d, data.frame(parametre = "bareme",
       valeur_reglementaire = tb$reglementaire, valeur_retenue = tb$retenu,
       conforme = tb$conforme, libelle = lib, stringsAsFactors = FALSE))
+  }
+  if (tp$tronque) {
+    # Troncature n_fournies -> T (issue #104) : lecture (A), la duree de
+    # credibilite est T ; l'exclusion des annees les plus anciennes est a
+    # justifier au titre de l'art. 219, paragraphe 1, point a), qui rend
+    # applicable l'art. 19, paragraphe 1, point b), et a documenter au titre
+    # de l'art. 219, paragraphe 1, point e) (lecture de regulatory, issue
+    # #104) ; motif de representativite : annexe XVII, section B (primes) ou
+    # C (reserve no 1), paragraphe 2, point a). Methodes lognormales
+    # seulement (.engine_trace_profondeur() refuse un triangle tronque).
+    # Point de G(3) et vocabulaire du texte selon la methode : point a) et
+    # "annees" pour le risque de primes (section B), point b) et "exercices"
+    # pour le risque de reserve no 1 (section C, paragraphe 3 ; G(3)(b)).
+    r1 <- identical(res$metadata$methode, "reserve1")
+    section <- if (r1) "C" else "B"
+    point_g3 <- if (r1) "b" else "a"
+    nb <- tp$n_fournies - tp$T
+    unite <- if (r1) "exercices fournis" else "annees fournies"
+    ecartes <- if (r1) {
+      if (nb == 1L) "l'exercice le plus ancien est ecarte" else
+        sprintf("les %d exercices les plus anciens sont ecartes", nb)
+    } else {
+      if (nb == 1L) "l'annee la plus ancienne est ecartee" else
+        sprintf("les %d annees les plus anciennes sont ecartees", nb)
+    }
+    lib <- sprintf(paste(
+      "profondeur retenue T = %d sur n = %d %s : %s de l'estimation, la duree de",
+      "credibilite (annexe XVII, section G, paragraphe 3, point %s)) etant",
+      "T = %d ; exclusion a justifier dans le dossier (art. 219, paragraphe 1, point a),",
+      "renvoyant a l'art. 19, paragraphe 1, point b) ; motif de representativite :",
+      "annexe XVII, section %s, paragraphe 2, point a)) et a documenter (art. 219,",
+      "paragraphe 1, point e))"),
+      tp$T, tp$n_fournies, unite, ecartes, point_g3, tp$T, section)
+    d <- rbind(d, data.frame(parametre = "profondeur",
+      valeur_reglementaire = NA_character_, valeur_retenue = as.character(tp$T),
+      conforme = NA, libelle = lib, stringsAsFactors = FALSE))
   }
   rownames(d) <- NULL
   d

@@ -982,11 +982,12 @@ table_parametre_standard <- function(res) {
   data.frame(Grandeur = d$grandeur, Valeur = txt, stringsAsFactors = FALSE)
 }
 
-# Libelle de la derogation portant sur `parametre` ("sigma_standard" ou
-# "bareme"), ou NULL s'il n'y en a pas (issue #93) : lecture de
-# engine_derogations(res), seul point de lecture des derogations (sigma
+# Libelle de la derogation portant sur `parametre` ("sigma_standard",
+# "bareme" ou "profondeur"), ou NULL s'il n'y en a pas (issue #93) : lecture
+# de engine_derogations(res), seul point de lecture des derogations (sigma
 # standard saisi, #55 ; bareme de credibilite saisi ou non determine par la
-# section G, #93). Aucun calcul.
+# section G, #93 ; troncature des annees fournies a la profondeur T, #104).
+# Aucun calcul.
 libelle_derogation <- function(res, parametre) {
   d <- engine_derogations(res)
   if (is.null(d)) return(NULL)
@@ -1374,7 +1375,10 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
               paste0("<code>", m$methode, "</code> \u2014 ", libelle_methode),
               paste("annexe", m$annexe),
               if (is.null(m$segment)) "\u2013" else paste0(m$segment, " \u2014 ", .txt(m$libelle_segment)),
-              as.character(m$T), as.character(m$B),
+              paste0(as.character(m$T),
+                     if (!is.null(lib_prof <- libelle_derogation(res, "profondeur")))
+                       paste0(" \u2014 <b>", .echap_html(lib_prof), "</b>")),
+              as.character(m$B),
               format(res$bootstrap$granularite, digits = 6),
               format(m$alpha), format(m$seed, scientific = FALSE),
               paste0(.txt(m$bareme),
@@ -1487,6 +1491,10 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
                                 paste0(.txt(table_parametre_standard(res)$Valeur[1]), "."))),
           if (!is.null(lib_bareme <- libelle_derogation(res, "bareme")))
             .bandeau_html(paste0("<b>", .echap_html(lib_bareme), "</b>.")),
+          # Troncature des annees fournies a la profondeur T (issue #104) :
+          # ligne "profondeur" de engine_derogations() (n_fournies > T).
+          if (!is.null(lib_prof <- libelle_derogation(res, "profondeur")))
+            .bandeau_html(paste0("<b>", .echap_html(lib_prof), "</b>.")),
           html_table(local({ d <- table_parametre_standard(res); d[] <- lapply(d, .txt); d }),
                      classe = "data"),
           "<h3>Cha\u00eene de calibration</h3>",

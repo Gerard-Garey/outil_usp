@@ -1127,12 +1127,16 @@ server <- function(input, output, session) {
   output$derogations <- renderUI({
     lib_sigma <- libelle_derogation(R(), "sigma_standard")
     lib_bareme <- libelle_derogation(R(), "bareme")
+    # Troncature des annees fournies a la profondeur T (issue #104) : ligne
+    # "profondeur" de engine_derogations(), rendue si n_fournies > T.
+    lib_prof <- libelle_derogation(R(), "profondeur")
     tagList(
       if (!is.null(lib_sigma))
         div(class = "avert", tags$b(lib_sigma),
             " : le sigma standard du melange est une saisie libre, et non le parametre",
             "reglementaire de l'annexe (meme s'il en egale la valeur)."),
-      if (!is.null(lib_bareme)) div(class = "avert", tags$b(lib_bareme)))
+      if (!is.null(lib_bareme)) div(class = "avert", tags$b(lib_bareme)),
+      if (!is.null(lib_prof)) div(class = "avert", tags$b(lib_prof)))
   })
 
   output$tab_calibration <- renderTable({
@@ -1169,7 +1173,14 @@ server <- function(input, output, session) {
     lib_bareme <- libelle_derogation(R(), "bareme")
     cat("Bareme credibilite   :", m$bareme,
         if (!is.null(lib_bareme)) paste0("(", lib_bareme, ")"), "\n")
-    cat("Profondeur T         :", m$T, "\n")
+    # Annees fournies (issue #104) : mention rendue seulement si la ligne
+    # "profondeur" de engine_derogations() existe (n_fournies > T). Meme mot
+    # que cette ligne : "exercices" en reserve no 1, "annees" en primes.
+    cat("Profondeur T         :", m$T,
+        if (!is.null(libelle_derogation(R(), "profondeur")))
+          sprintf("(sur n = %d %s : troncature)", as.integer(m$n_fournies),
+                  if (identical(m$methode, "reserve1")) "exercices fournis"
+                  else "annees fournies"), "\n")
     cat("Replications B       :", m$B, "\n")
     cat("Granularite p_mc     :", format(R()$bootstrap$granularite),
         "( = 1/(B+1), B nominal : p-value unilaterale ; bilaterale 2/(B_eff+1),",

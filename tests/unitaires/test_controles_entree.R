@@ -134,7 +134,7 @@ verifier("engine_valider_profondeur : non entier, NA, infini, multiple, texte, v
            length(e) == 1L && contient(e, "nombre entier d'annees")
          }, logical(1))))
 verifier("engine_valider_profondeur : T > n et T < 5 refuses ; T_min parametrable",
-         contient(engine_valider_profondeur(9, 8), "superieure au nombre d'annees disponibles (8)") &&
+         contient(engine_valider_profondeur(9, 8), "superieure au nombre d'annees fournies (8)") &&
          all(vapply(c(4, 0, -1), function(t)
            contient(engine_valider_profondeur(t, 8), "au moins 5"), logical(1))) &&
          identical(engine_valider_profondeur(3, 8, T_min = 1), character(0)))

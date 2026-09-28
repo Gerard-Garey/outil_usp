@@ -479,10 +479,10 @@ verifier("Methodes de reserve : donnees \"brutes\" refusees (ok = FALSE, motif C
            identical(r2_brut$metadata$methode, "reserve2"))
 # Ordre des champs : sigma_standard_saisi (#55) est suivi des seuls champs
 # ajoutes par l'issue #37 (generateur et graines fixes), puis de
-# bareme_saisi (#93), dernier avant les champs d'execution ; les champs
-# ajoutes le sont en fin de metadata (patch des references, feuille ajoutee
-# en fin de conteneur).
-verifier("Drapeau explicite sigma_standard_saisi (FALSE sans saisie) pour les trois methodes, suivi des seuls champs de #37, de bareme_saisi (#93) puis de horodatage",
+# bareme_saisi (#93), puis de n_fournies (#104), dernier avant les champs
+# d'execution ; les champs ajoutes le sont en fin de metadata (patch des
+# references, feuille ajoutee en fin de conteneur).
+verifier("Drapeau explicite sigma_standard_saisi (FALSE sans saisie) pour les trois methodes, suivi des seuls champs de #37, de bareme_saisi (#93), de n_fournies (#104) puis de horodatage",
          identical(r_b$metadata$sigma_standard_saisi, FALSE) &&
            identical(r1_sans$metadata$sigma_standard_saisi, FALSE) &&
            identical(r2_sans$metadata$sigma_standard_saisi, FALSE) &&
@@ -491,7 +491,7 @@ verifier("Drapeau explicite sigma_standard_saisi (FALSE sans saisie) pour les tr
              entre <- nm[seq.int(match("sigma_standard_saisi", nm) + 1L, match("horodatage", nm) - 1L)]
              attendu <- c("generateur", "seed_loi_nulle_sw",
                           if (!identical(r$metadata$methode, "reserve2")) "seed_enveloppe_qq",
-                          "bareme_saisi")
+                          "bareme_saisi", "n_fournies")
              identical(entre, attendu)
            }, logical(1))))
 verifier("Saisie EGALE a la table : derogation pour les trois methodes (drapeau TRUE, origine \"saisi\")",
@@ -755,6 +755,92 @@ verifier("GROUPES (display_helpers.R) : prefixes B. a E. inchanges, citations B(
                         fixed = TRUE)) &&
              identical(e$groupe_de(familles_h(r1_sans)[1])$cle, "H1")
          })
+## --- Annees fournies et profondeur retenue (issue #104) ---------------------
+# Lecture (A), decision du mainteneur du 28/09/2026 : la duree de credibilite
+# est la profondeur T retenue (annexe XVII, section G, paragraphe 3), pas le
+# nombre n d'annees fournies ; la troncature est restituee par
+# metadata$n_fournies et par une ligne "profondeur" de engine_derogations().
+# Serie de n = 12 annees : les 8 annees de tests/donnees/donnees_ln.csv,
+# precedees de 4 annees SYNTHETIQUES (valeurs arbitraires, sans source :
+# elles sont ecartees par T = 8 et ne doivent peser sur aucun resultat).
+.x12 <- c(95.10, 97.80, 99.40, 101.05, .ln_m6$xt)
+.y12 <- c(71.30, 64.20, 80.15, 69.90, .ln_m6$yt)
+r_12 <- do.call(run_engine, c(modifyList(.args55, list(xt = .x12, yt = .y12)),
+                              nature_donnees = "brutes", T = 8))
+verifier("Profondeur, n = 12, T = 8, II-1 : n_fournies = 12, T = 8, c = c(8) = 0,59 ; sigma_USP et parametre final identiques au calcul sur les 8 annees retenues (#104)",
+         identical(r_12$metadata$n_fournies, 12L) && identical(r_12$metadata$T, 8L) &&
+           identical(r_12$parametre_final$credibilite, 0.59) &&
+           identical(r_12$parametre_final$sigma_usp, r_b$parametre_final$sigma_usp) &&
+           identical(r_12$parametre_final, r_b$parametre_final))
+verifier("Profondeur, n = 12, T = 8 : une ligne \"profondeur\" (valeur retenue \"8\", valeur reglementaire et conforme NA), libelle cite G(3)(a), art. 219(1)(a) -> art. 19(1)(b), B(2)(a), art. 219(1)(e) (#104)",
+         {
+           d <- engine_derogations(r_12)
+           identical(d$parametre, "profondeur") && identical(d$valeur_retenue, "8") &&
+             identical(d$valeur_reglementaire, NA_character_) && identical(d$conforme, NA) &&
+             identical(d$libelle, paste(
+               "profondeur retenue T = 8 sur n = 12 annees fournies : les 4 annees les plus",
+               "anciennes sont ecartees de l'estimation, la duree de credibilite (annexe XVII,",
+               "section G, paragraphe 3, point a)) etant T = 8 ; exclusion a justifier dans le dossier",
+               "(art. 219, paragraphe 1, point a), renvoyant a l'art. 19, paragraphe 1, point b) ;",
+               "motif de representativite : annexe XVII, section B, paragraphe 2, point a)) et a",
+               "documenter (art. 219, paragraphe 1, point e))"))
+         })
+verifier("Profondeur, n = T : n_fournies = T, aucune ligne \"profondeur\" (premium T = 8 sur 8, T NULL ; reserve2) (#104)",
+         {
+           r_8 <- do.call(run_engine, c(.args55, nature_donnees = "brutes", T = 8))
+           identical(r_b$metadata$n_fournies, 8L) && identical(r_8$metadata$n_fournies, 8L) &&
+             nrow(engine_derogations(r_b)) == 0L && nrow(engine_derogations(r_8)) == 0L &&
+             identical(r2_sans$metadata$n_fournies, r2_sans$metadata$T) &&
+             !"profondeur" %in% engine_derogations(r2_sans)$parametre
+         })
+verifier("Profondeur, reserve no 1, n = 12, T = 11 : \"exercices\", singulier masculin, G(3)(b) et section C cites ; n_fournies absent, non entier ou < T -> erreur (#104)",
+         {
+           r1_11 <- run_engine(xt = .x12, yt = .y12, methode = "reserve1", segment = 1,
+                               annexe = "II", B = B_M6, T = 11)
+           l <- engine_derogations(r1_11)$libelle
+           r_x <- r_12; r_x$metadata$n_fournies <- NULL
+           r_y <- r_12; r_y$metadata$n_fournies <- 7L
+           r_z <- r_12; r_z$metadata$n_fournies <- 12.5
+           identical(r1_11$metadata$n_fournies, 12L) &&
+             grepl("sur n = 12 exercices fournis : l'exercice le plus ancien est ecarte de l'estimation",
+                   l, fixed = TRUE) &&
+             grepl("annexe XVII, section G, paragraphe 3, point b)) etant T = 11", l, fixed = TRUE) &&
+             !grepl("annee", l, fixed = TRUE) &&
+             grepl("annexe XVII, section C, paragraphe 2, point a)", l, fixed = TRUE) &&
+             leve_erreur(engine_derogations(r_x)) && leve_erreur(engine_derogations(r_y)) &&
+             leve_erreur(engine_derogations(r_z))
+         })
+verifier("Profondeur, reserve no 1, n = 12, T = 10 : pluriel masculin \"les 2 exercices les plus anciens sont ecartes\" (#104)",
+         {
+           r1_10 <- run_engine(xt = .x12, yt = .y12, methode = "reserve1", segment = 1,
+                               annexe = "II", B = B_M6, T = 10)
+           grepl("sur n = 12 exercices fournis : les 2 exercices les plus anciens sont ecartes de",
+                 engine_derogations(r1_10)$libelle, fixed = TRUE)
+         })
+verifier("Profondeur, reserve no 2 : n_fournies different de T (triangle tronque) -> erreur (#104)",
+         {
+           r_t <- r2_sans; r_t$metadata$n_fournies <- r_t$metadata$T + 1L
+           leve_erreur(engine_derogations(r_t))
+         })
+# Via engine_derogations(), un metadata$T absent est deja refuse en amont par
+# .engine_trace_bareme() (usp_credibilite() : "la duree T doit etre un nombre
+# entier d'annees") ; le message propre de .engine_trace_profondeur() est donc
+# verifie par appel direct.
+verifier("Profondeur : metadata$T absent ou non fini -> .engine_trace_profondeur() leve \"metadata$T absent ou invalide\", distinct de n_fournies < T (#104)",
+         {
+           msg <- function(expr) tryCatch({ expr; NA_character_ },
+                                          error = function(e) conditionMessage(e))
+           r_u <- r_12; r_u$metadata$T <- NULL
+           r_v <- r_12; r_v$metadata$T <- NA_real_
+           r_w <- r_12; r_w$metadata$n_fournies <- 7L
+           attendu <- "engine_derogations() : metadata$T absent ou invalide."
+           identical(msg(.engine_trace_profondeur(r_u, "engine_derogations()")), attendu) &&
+             identical(msg(.engine_trace_profondeur(r_v, "engine_derogations()")), attendu) &&
+             leve_erreur(engine_derogations(r_u)) &&
+             identical(msg(engine_derogations(r_w)),
+                       "engine_derogations() : metadata$n_fournies inferieur a la profondeur T retenue.")
+         })
+rm(r_12, .x12, .y12)
 rm(r_sans, r_b, r_n, r_d, r1_sans, r1_net, r1_brut, r2_sans, r2_net, r2_brut)
 
 fin_fichier()
