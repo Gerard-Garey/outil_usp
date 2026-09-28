@@ -2302,9 +2302,18 @@ trop proche d'une valeur mal saisie (\code{1O4.2}) pour être écarté sans mess
 et rappelle le séparateur décimal attendu. Les cellules de la ligne d'en-têtes elle-même, hors
 la cellule d'angle sous (H2), ne sont pas soumises au prédicat, ce qui est une limite de la
 règle~: elles sont écartées avec la ligne entière, sans décaler la série de la seconde ligne
-(mesuré~: \code{NA,\#N/A} au-dessus de \code{1,2} est lu $1, 2$). Cette limite est sans
-conséquence sous (H1)~: une ligne sans cellule numérique ne peut contenir aucune valeur de la
-série~; rien n'en est perdu. Seuls sont donc écartés la
+(mesuré~: \code{NA,\#N/A} au-dessus de \code{1,2} est lu $1, 2$). Sous (H1), «~non
+numérique~» signifie seulement qu'\code{as.numeric()} ne convertit aucune cellule de la ligne,
+ce qui n'exclut pas une ligne de valeurs mal formées~: une première ligne de nombres écrits avec
+un séparateur de milliers, une lettre \code{O} pour un zéro ou un séparateur décimal autre que
+celui déclaré est écartée comme ligne d'en-têtes, sans message, alors que la même ligne, lue
+seule, serait refusée cellule par cellule (mesuré~: \code{1 000;2 000;3 000} au-dessus de
+\code{104,2;102,5;109,3}, séparateur \code{;} et décimale \code{,}, est lu $104{,}2$,
+$102{,}5$, $109{,}3$~; \code{1O4.2,1O2.5} au-dessus de \code{1,2} est lu $1, 2$~;
+\code{1 000,abc,x} au-dessus de \code{1,2,3} est lu $1, 2, 3$). Ce comportement est celui du
+code antérieur à l'issue~\#103, dont la règle (H1) est reprise sans changement~; l'application
+du prédicat aux cellules de la ligne d'en-têtes fait l'objet de l'issue~\#139. Sont ainsi
+écartés sans message la
 ligne d'en-têtes, un en-tête ou une étiquette de ligne qui ne relève pas de ce prédicat, et les
 cellules vides de tête et de fin. Le prédicat, la ligne d'années, la cellule d'angle et la règle
 stricte de l'étiquette sont vérifiés par \code{tests/unitaires/test\_controles\_entree.R}
