@@ -132,8 +132,13 @@ badge_verdict <- function(v) {
 
 badge_nature <- function(n) {
   if (is.na(n)) return("\u2013")
+  # Natures du modele auxiliaire MCO (#44, regle R5 : TOST, pente, Fisher) :
+  # la loi de reference (t(T-2) pour le TOST et la pente, F(1, T-2) pour
+  # Fisher, #117) n'y vaut que sous ce modele auxiliaire, hors hierarchie ;
+  # badge distinct de "exacte", par sa couleur comme par son libelle.
+  if (grepl("^sous le modele auxiliaire MCO", n))
+    return("<span style='color:#7D3C98;font-weight:600'>mod\u00e8le MCO</span>")
   if (grepl("^exacte", n))      return("<span style='color:#1E8449;font-weight:600'>exacte</span>")
-  if (grepl("^quasi", n))       return("<span style='color:#1E8449;font-weight:600'>quasi-exacte</span>")
   if (grepl("^Monte-Carlo", n)) return("<span style='color:#00468C;font-weight:600'>Monte-Carlo</span>")
   "<span style='color:#B9770E;font-weight:600'>asymptotique</span>"
 }
@@ -144,6 +149,37 @@ avertissement_T <- function(T) {
                 "taille : les p-values exactes, lorsqu'elles existent, et les p-values de",
                 "Monte-Carlo priment. Une p-value \u00e9lev\u00e9e ne d\u00e9montre pas la validit\u00e9 de",
                 "l'hypoth\u00e8se : elle ne permet pas de la rejeter."), T)
+}
+
+# --- Type et motif d'une ligne (#124) ----------------------------------------
+# Libelle court du type de la ligne, lu dans tb$type (engine_table_tests()).
+# Un test inoperant (regle R1, #44) est une ligne "diagnostic" dont le
+# commentaire commence par "TEST INOPERANT", prefixe pose par la seule
+# fonction add() de engine_registre_tests() : la distinction est une lecture
+# de ce libelle, sans calcul. Table sans colonne type (objet anterieur) :
+# NA partout, rien n'est affiche.
+type_ligne <- function(tb) {
+  n <- nrow(tb)
+  if (is.null(tb$type)) return(rep(NA_character_, n))
+  com <- if (is.null(tb$commentaire)) rep("", n) else tb$commentaire
+  inop <- tb$type %in% "diagnostic" & !is.na(com) & startsWith(com, "TEST INOPERANT")
+  lib <- c("test" = "test", "diagnostic" = "diagnostic",
+           "non applicable" = "non applicable",
+           "procedure de decision" = "proc\u00e9dure de d\u00e9cision")
+  out <- unname(lib[tb$type])
+  out[is.na(out) & !is.na(tb$type)] <- tb$type[is.na(out) & !is.na(tb$type)]
+  out[inop] <- "test inop\u00e9rant"
+  out
+}
+
+# Libelle du type sous le badge de verdict (vue Synthese) : seulement pour
+# les lignes qui ne sont pas des tests ordinaires, qui expliquent un INFO
+# ou une decision sans p-value. Texte echappe.
+.sous_badge_type <- function(tb) {
+  ty <- type_ligne(tb)
+  ifelse(is.na(ty) | ty == "test", "",
+         paste0("<br><span style='color:#5D6D7E;font-size:10.5px;font-style:italic'>",
+                .txt(ty), "</span>"))
 }
 
 # --- Tableaux (mise en forme seule) -----------------------------------------
@@ -158,7 +194,8 @@ table_synthese_groupe <- function(tb) {
   # lignes. Des verdicts dupliques ou une nature de p-value manquante (cas des
   # diagnostics) produisaient alors une erreur de construction du tableau.
   data.frame(
-    Verdict = unname(vapply(tb$verdict, badge_verdict, character(1))),
+    Verdict = paste0(unname(vapply(tb$verdict, badge_verdict, character(1))),
+                     .sous_badge_type(tb)),
     Test    = paste0("<span style='font-weight:600;color:#1B2631'>", .txt(tb$test), "</span>"),
     `Statistique` = ifelse(is.finite(tb$statistique),
         paste0("<code>", .txt(tb$nom_statistique), "</code> = ", fmt_nb(tb$statistique)), "\u2013"),
@@ -169,16 +206,32 @@ table_synthese_groupe <- function(tb) {
     check.names = FALSE, stringsAsFactors = FALSE, row.names = NULL)
 }
 
+# Colonnes Type et "Motif / commentaire" (#124) : le commentaire du moteur est
+# restitue pour TOUTES les lignes, pas seulement les INFO : sur une ligne de
+# type "test", il porte aussi des elements de lecture du verdict (ECHEC
+# inatteignable, ECHEC possible - regle R1 sans p exacte -, controle sans
+# objet, loi de reference non exacte). Vide :
+# tiret. Colonne commentaire absente (objet anterieur) : tiret.
 table_detail_groupe <- function(tb) {
+  com <- if (is.null(tb$commentaire)) rep(NA_character_, nrow(tb)) else tb$commentaire
+  com[!is.na(com) & !nzchar(trimws(com))] <- NA_character_
   data.frame(
     Test = paste0("<span style='font-weight:600;color:#1B2631'>", .txt(tb$test), "</span>"),
+    Type = .txt(type_ligne(tb)),
     H0 = .txt(tb$H0), H1 = .txt(tb$H1),
     `Loi sous H0` = .txt(tb$loi_sous_H0),
     `p exacte` = fmt_p(tb$p_exacte),
     `p asympt.` = fmt_p(tb$p_asymptotique),
     `p Monte-Carlo` = fmt_p(tb$p_monte_carlo),
     `erreur MC` = ifelse(is.finite(tb$erreur_MC), paste0("\u00b1 ", fmt_nb(tb$erreur_MC)), "\u2013"),
-    Sens = .txt(tb$sens_du_test), Reference = .txt(tb$reference),
+    # p-value minimale atteignable (loi de reference discrete, #44) ; colonne
+    # absente d'une table anterieure au champ : tiret. Trois chiffres
+    # significatifs : 2/8! = 5,0e-5 s'afficherait 0.0000 avec fmt_p().
+    `p min` = if (is.null(tb$p_min)) rep("\u2013", nrow(tb))
+              else ifelse(is.finite(tb$p_min), formatC(tb$p_min, format = "g", digits = 3), "\u2013"),
+    Sens = .txt(tb$sens_du_test),
+    `Motif / commentaire` = .txt(com),
+    Reference = .txt(tb$reference),
     check.names = FALSE, stringsAsFactors = FALSE, row.names = NULL)
 }
 
@@ -1473,7 +1526,11 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
             "verdict et le motif de leur exclusion.</div>"), nrow(tb), sum(retenu), sum(!retenu)),
           paste("<div class='gris'>Nature de la p-value retenue :",
                 "<b style='color:#1E8449'>exacte</b> &gt; <b style='color:#00468C'>Monte-Carlo</b>",
-                "&gt; <b style='color:#B9770E'>asymptotique</b>.</div>"))
+                "&gt; <b style='color:#B9770E'>asymptotique</b>.",
+                "Les p-values <b style='color:#7D3C98'>sous le mod\u00e8le auxiliaire MCO</b>",
+                "(TOST, pente, Fisher) sont hors hi\u00e9rarchie : elles ne sont retenues que",
+                "faute de p exacte ou Monte-Carlo sous le mod\u00e8le r\u00e9glementaire, et ne",
+                "sont pas exactes au sens de l'outil.</div>"))
     sel <- te[retenu, , drop = FALSE]
     if (!nrow(sel)) ajout(.bandeau_html("Aucun test s\u00e9lectionn\u00e9."))
     for (k in cles_groupes()) {

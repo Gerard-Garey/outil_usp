@@ -310,11 +310,15 @@ verifier("Runsr (#29) : pi_t constant (delta = 1), Runs et Runsr portent la meme
            identical(b$nature_p, "exacte") && identical(b$p_exacte, b$p_retenue) &&
            isTRUE(proche(b$p_retenue, 52 / 70, rel = 1e-12))
          })
-verifier("Runsr (#29) : pi_t variable (T = 5, delta = 0), pas de p exacte, Monte-Carlo retenue",
+# A T = 5, la p minimale atteignable des suites (n1 = n2 = 2) vaut 2/3 >= alpha :
+# la ligne est un test inoperant restitue en diagnostic, sans p retenue (#44,
+# regle R1) ; ses p-values calculees sont conservees.
+verifier("Runsr (#29) : pi_t variable (T = 5, delta = 0), pas de p exacte, p Monte-Carlo calculee ; inoperant (#44)",
          {
            b <- ligne29(f29_0, "Test des suites sur ratios bruts")
-           is.na(b$p_exacte) && identical(b$nature_p, "Monte-Carlo (bootstrap parametrique)") &&
-           identical(b$p_retenue, 0.5)
+           is.na(b$p_exacte) && identical(b$p_mc, 0.5) &&
+           identical(b$type, "diagnostic") && is.na(b$p_retenue) &&
+           isTRUE(proche(b$p_min, 2 / 3, rel = 1e-12))
          })
 verifier("Runsr (#29) : pi_constant vrai mais signes differents (bande de tolerance), pas de p exacte",
          {
@@ -343,32 +347,39 @@ verifier("Runsr (#29) : condition de signes sur u = r - moyenne(r), non sur r (d
 # attendues sont recalculees par l'enumeration independante runs_p_enum().
 f29_t5 <- usp_ajuster(rep(100, 5), c(66, 70, 75, 82, 91))     # signes - - 0 + +, R = 2
 f29_ea <- usp_ajuster(rep(100, 8), c(70, 82, 75, 75, 66, 90, 60, 88))
-verifier("Runsr (#29) : T = 5 a volumes constants, p exacte = 2/3 par usp_tests()",
+# Les deux cas suivants (T = 5 ; T = 8 avec deux ex aequo sur la mediane,
+# n1 = n2 = 3) ont une p minimale atteignable >= alpha (2/3 ; 0,2) : inoperants
+# (#44, regle R1), sans p retenue ; la p exacte reste calculee et verifiee.
+verifier("Runsr (#29) : T = 5 a volumes constants, p exacte = 2/3 par usp_tests() ; inoperant (#44)",
          {
            b <- ligne29(f29_t5, "Test des suites sur ratios bruts")
            a <- ligne29(f29_t5, "Test des suites (aleatoire des signes)")
            isTRUE(usp_regime(f29_t5$delta, f29_t5$x)$pi_constant_exact) &&
-           identical(b$nature_p, "exacte") && identical(a$p_retenue, b$p_retenue) &&
-           isTRUE(proche(b$p_retenue, 2 / 3, rel = 1e-12)) &&
-           isTRUE(proche(b$p_retenue, runs_p_enum(u_de(f29_t5)), abs = 1e-12))
+           identical(a$p_exacte, b$p_exacte) &&
+           isTRUE(proche(b$p_exacte, 2 / 3, rel = 1e-12)) &&
+           isTRUE(proche(b$p_exacte, runs_p_enum(u_de(f29_t5)), abs = 1e-12)) &&
+           identical(b$type, "diagnostic") && is.na(b$p_retenue) &&
+           isTRUE(proche(b$p_min, 2 / 3, rel = 1e-12))
          })
-verifier("Runsr (#29) : ex aequo sur la mediane (T = 8, n1 = n2 = 3), p exacte = enumeration",
+verifier("Runsr (#29) : ex aequo sur la mediane (T = 8, n1 = n2 = 3), p exacte = enumeration ; inoperant (#44)",
          {
            u <- u_de(f29_ea)
            b <- ligne29(f29_ea, "Test des suites sur ratios bruts")
            sum(u == stats::median(u)) == 2 && signes_egaux(f29_ea) &&
-           identical(b$nature_p, "exacte") &&
-           isTRUE(proche(b$p_retenue, runs_p_enum(u), abs = 1e-12)) &&
-           isTRUE(proche(b$p_retenue, 0.2, rel = 1e-12))
+           isTRUE(proche(b$p_exacte, runs_p_enum(u), abs = 1e-12)) &&
+           isTRUE(proche(b$p_exacte, 0.2, rel = 1e-12)) &&
+           identical(b$type, "diagnostic") && isTRUE(proche(b$p_min, 0.2, rel = 1e-12))
          })
 # Champs loi et detail de Runsr, par regime (revue d'audit et d'actuary).
 cas_runsr <- list(f29 = f29, f29_0 = f29_0, f29_bande = f29_bande,
                   f29_t5 = f29_t5, f29_ea = f29_ea)
-verifier("Runsr (#29) : loi et detail contiennent EXACTE si et seulement si nature_p = exacte",
+# Critere sur p_exacte (et non sur nature_p) : un test inoperant (#44) garde
+# sa p exacte calculee mais n'a plus de p retenue ni de nature.
+verifier("Runsr (#29) : loi et detail contiennent EXACTE si et seulement si une p exacte est attribuee",
          {
            ok <- vapply(cas_runsr, function(f) {
              b <- ligne29(f, "Test des suites sur ratios bruts")
-             ex <- identical(b$nature_p, "exacte")
+             ex <- is.finite(b$p_exacte)
              ex == grepl("EXACTE", b$loi, fixed = TRUE) &&
                ex == grepl("EXACTE", b$detail, fixed = TRUE)
            }, logical(1))

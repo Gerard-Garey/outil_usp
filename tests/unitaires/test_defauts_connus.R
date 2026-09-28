@@ -48,13 +48,20 @@ verifier("usp_tests() sur un bootstrap complet : hierarchie exacte > Monte-Carlo
          {
            tt <- usp_tests(fit, boot_fictif(), methode = "premium")
            ok <- TRUE
-           for (l in tt) {
+           # Lignes de type "test" seulement : toute autre ligne n'a aucune p
+           # retenue (ADR 0001, M7), y compris un test inoperant (p_min >=
+           # alpha) ou une pente non identifiable restitues en diagnostic (#44).
+           for (l in Filter(function(l) l$type == "test", tt)) {
              attendu <- if (is.finite(l$p_exacte)) l$p_exacte
                         else if (is.finite(l$p_mc)) l$p_mc else l$p_asymptotique
              ok <- ok && (identical(is.na(attendu), is.na(l$p_retenue)) &&
                           (is.na(attendu) || attendu == l$p_retenue)) &&
                    (is.na(l$p_retenue) || (l$p_retenue >= 0 && l$p_retenue <= 1))
            }
+           # Toute ligne non-test : ni p retenue ni nature (M7, constat 5
+           # d'audit de #44).
+           for (l in Filter(function(l) l$type != "test", tt))
+             ok <- ok && is.na(l$p_retenue) && is.na(l$nature_p)
            ok
          })
 # Issue #41 (ADR 0003, point 3) : ancien echec attendu de l'issue #4, devenu
@@ -623,8 +630,8 @@ for (m in c("premium", "reserve1")) {
                l <- tb_cst[tb_cst$test == NOM_TOST, ]
                nrow(l) == 1 && l$type == "non applicable" && l$verdict == "INFO" &&
                  is.na(l$p_retenue) && is.na(l$nature_p) && is.na(l$sens_du_test) &&
-                 grepl("volumes constants", l$commentaire, fixed = TRUE) &&
-                 grepl("non applicable", l$commentaire, fixed = TRUE)
+                 # Motif unique de la regle R13 (#59), qui remplace le libelle de #58.
+                 startsWith(l$commentaire, "volumes x_t constants a la tolerance relative TOL_DELTA_BORD")
              }
            })
   verifier(sprintf("Volumes constants (%s) : ligne delta INFO, libelle de non-identification (#58)", m),
@@ -688,7 +695,7 @@ verifier("TOST : volumes constants priment sur la marge invalide (theta_equiv = 
          {
            l <- Filter(function(l) l$test == NOM_TOST,
                        usp_tests(usp_ajuster(x_cst, y), boot_fictif(), methode = "premium", theta_equiv = 0))[[1]]
-           l$type == "non applicable" && grepl("volumes constants", l$detail, fixed = TRUE) &&
+           l$type == "non applicable" && grepl("volumes x_t constants", l$detail, fixed = TRUE) &&
              !grepl("marge", l$detail, fixed = TRUE)
          })
 verifier("TOST : theta_equiv <= 0 avec delta_equiv fixe -> test calcule, theta ignore (#58)",
@@ -771,16 +778,17 @@ verifier("engine_sous_graine() : etat restaure (ou retire) meme si l'expression 
          })
 # Propriete de l'ADR 0004, point 3 : run_engine() laisse l'etat du generateur
 # de l'appelant intact (existant ou absent), pour les trois methodes, et deux
-# appels a parametres egaux restent identiques quel que soit cet etat. B = 19
-# pour la duree ; horodatage et duree retires comme dans nettoyer().
+# appels a parametres egaux restent identiques quel que soit cet etat.
+# B = B_MIN_USAGE (minimum admis par run_engine()) pour la duree ; horodatage
+# et duree retires comme dans nettoyer().
 appels_run <- list(
   premium  = function() run_engine(xt = x, yt = y, methode = "premium",
-                                   segment = 1, annexe = "II", B = 19, seed = 5,
+                                   segment = 1, annexe = "II", B = B_MIN_USAGE, seed = 5,
                                    nature_donnees = "brutes"),
   reserve1 = function() run_engine(xt = x, yt = y, methode = "reserve1",
-                                   segment = 1, annexe = "II", B = 19, seed = 5),
+                                   segment = 1, annexe = "II", B = B_MIN_USAGE, seed = 5),
   reserve2 = function() run_engine(methode = "reserve2", triangle = tri_mw,
-                                   segment = 1, annexe = "II", B = 19, seed = 5))
+                                   segment = 1, annexe = "II", B = B_MIN_USAGE, seed = 5))
 sans_horodatage <- function(res) {
   res$metadata[c("horodatage", "duree_sec")] <- NULL
   res

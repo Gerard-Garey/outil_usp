@@ -205,9 +205,11 @@ verifier("mw_valider_ajustement : le motif de refus donne la valeur de R",
 # la racine du depot, marqueur M6 ; lignes indiquees ci-dessous, les memes
 # que plus haut), jamais relues de ANNEXE_II / ANNEXE_XIV. Credibilite a
 # T = 8 : 59 % (G(1)), 81 % (G(2)).
-# B = 19 : sigma_USP ne depend pas du bootstrap (estimation par maximum de
-# vraisemblance, MSEP analytique) ; mesure : memes sigma_USP a B = 19 et
-# B = 999 a 1e-10 pres. Les sigma_USP attendus sont ceux du tableau de #19
+# B = B_MIN_USAGE = 99, le minimum admis par run_engine() (constat C1 de la
+# revue finale d'E1) : sigma_USP ne depend pas du bootstrap (estimation par
+# maximum de vraisemblance, MSEP analytique) ; mesure du 27/09/2026 : sigma_USP
+# egaux a B = 99 et B = 999 pour les trois cas ci-dessous (difference nulle
+# en double precision). Les sigma_USP attendus sont ceux du tableau de #19
 # (B = 999, graine 20260831, vises par le mainteneur), arrondis a 1e-8 ;
 # tolerance relative 1e-6, celle de la non-regression (TOLERANCE).
 # Mordant : contre le moteur anterieur a #19 (f67f5e0 ; 12 %, 12 % et 20 %),
@@ -222,7 +224,7 @@ verifier("mw_valider_ajustement : le motif de refus donne la valeur de R",
   storage.mode(m) <- "double"
   unname(m)
 })
-B_M6 <- 19
+B_M6 <- B_MIN_USAGE
 bout_en_bout_M6 <- list(
   list(methode = "premium",  annexe = "II",  segment = 6, sigma_std = 0.19,
        ligne = 37030, cred = 0.59, bareme = "long",  sigma_usp = 0.14835244),
@@ -352,7 +354,7 @@ verifier("Saisie libre : elle prime (derogation signalee), la valeur reglementai
              leve_erreur(usp_parametre_standard("premium", NULL, "II", "brutes"))
          })
 
-# Bout en bout, B = 19 (sigma_USP ne depend pas du bootstrap, voir plus haut).
+# Bout en bout, B = B_MIN_USAGE (sigma_USP ne depend pas du bootstrap, voir plus haut).
 .args55 <- list(xt = .ln_m6$xt, yt = .ln_m6$yt, methode = "premium", segment = 1,
                 annexe = "II", B = B_M6)
 r_sans <- tryCatch(do.call(run_engine, .args55), error = function(e) e)

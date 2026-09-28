@@ -202,6 +202,45 @@ verifier("table_synthese_groupe() : badges non echappes, texte echappe",
 verifier("Rapport : pas de double echappement (&amp;lt; / &amp;gt; absents), H1 du TOST echappe une fois",
          compte(h, "&amp;lt;") == 0 && compte(h, "&amp;gt;") == 0 &&
          grepl("|a| &lt; Delta", h, fixed = TRUE))
+# Type et motif d'une ligne (#124) : lus dans tb$type et tb$commentaire
+# (engine_table_tests()), restitues par table_detail_groupe() (colonnes Type
+# et "Motif / commentaire") et, pour les lignes autres que "test", sous le
+# badge de table_synthese_groupe() ; memes fonctions dans le rapport fige.
+det_all <- table_detail_groupe(tb); sy_all <- table_synthese_groupe(tb)
+i_fis <- grep("^Test de Fisher", tb$test)[1]
+i_inop <- grep("^TEST INOPERANT", tb$commentaire)[1]
+verifier("table_detail_groupe() : colonnes Type et Motif / commentaire, motif echappe (Fisher R4, J1)",
+         all(c("Type", "Motif / commentaire") %in% names(det_all)) &&
+         !is.na(i_fis) && identical(tb$type[i_fis], "diagnostic") &&
+         identical(det_all$Type[i_fis], "diagnostic") &&
+         grepl("PENTE NON IDENTIFIABLE", det_all[["Motif / commentaire"]][i_fis], fixed = TRUE) &&
+         grepl("0.47 &lt; 0.5", det_all[["Motif / commentaire"]][i_fis], fixed = TRUE))
+verifier("table_detail_groupe() : toute ligne INFO a un motif (aucun tiret)",
+         all(det_all[["Motif / commentaire"]][tb$verdict == "INFO"] != "\u2013"))
+verifier("Type : test inoperant (R1) distingue du diagnostic, en detail et sous le badge de synthese",
+         !is.na(i_inop) && identical(type_ligne(tb)[i_inop], "test inop\u00e9rant") &&
+         identical(det_all$Type[i_inop], "test inop\u00e9rant") &&
+         grepl("test inop\u00e9rant</span>", sy_all$Verdict[i_inop], fixed = TRUE) &&
+         all(!grepl("<br>", sy_all$Verdict[tb$type == "test"], fixed = TRUE)))
+verifier("Rapport : motif de la ligne Fisher restitue dans la section des tests retenus",
+         retenu[i_fis] &&
+         grepl("PENTE NON IDENTIFIABLE", paste(ligne_de(principal, tb$test[i_fis]), collapse = ""),
+               fixed = TRUE))
+verifier("Garde : table sans colonnes type ni commentaire -> tirets, aucun libelle sous le badge",
+         {
+           tb0 <- tb; tb0$type <- NULL; tb0$commentaire <- NULL
+           d0 <- table_detail_groupe(tb0); s0 <- table_synthese_groupe(tb0)
+           all(d0$Type == "\u2013") && all(d0[["Motif / commentaire"]] == "\u2013") &&
+             !any(grepl("<br>", s0$Verdict, fixed = TRUE))
+         })
+tb_vc <- engine_table_tests(run_engine(xt = rep(100, 8), yt = yt, methode = "premium",
+                                       segment = 1, B = 99, nature_donnees = "brutes"))
+i_r13 <- which(tb_vc$type == "non applicable" & startsWith(tb_vc$commentaire, "volumes x_t constants"))
+verifier("Volumes constants (R13) : 13 lignes non applicables, type et motif restitues",
+         length(i_r13) == 13 &&
+         all(table_detail_groupe(tb_vc)$Type[i_r13] == "non applicable") &&
+         all(startsWith(table_detail_groupe(tb_vc)[["Motif / commentaire"]][i_r13], "volumes x_t constants")) &&
+         all(grepl("non applicable</span>", table_synthese_groupe(tb_vc)$Verdict[i_r13], fixed = TRUE)))
 # Tableau "Robustesse du calibrage" : non filtre, comme l'onglet Calibration.
 cle_ln <- vapply(tb$famille, function(f) groupe_de(f)$cle, character(1))
 s_rob <- selection_defaut(tb); s_rob$garde[cle_ln == "ROB"] <- FALSE

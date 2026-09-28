@@ -69,7 +69,7 @@ verifier("Validation : valeur infinie dans y ou x refusee (#33)",
 verifier("run_engine : valeur infinie -> ok = FALSE avec motif, sans erreur R (#33)",
          {
            r <- run_engine(xt = x, yt = replace(y, 3, Inf), methode = "premium",
-                           segment = 1, annexe = "II", B = 19, nature_donnees = "brutes")
+                           segment = 1, annexe = "II", B = B_MIN_USAGE, nature_donnees = "brutes")
            identical(r$ok, FALSE) && contient(r$validation$erreurs, "infinies")
          })
 ## --- Marge du test d'equivalence (#33, complement d'audit de #58) ------------
@@ -106,11 +106,11 @@ verifier("Marge Delta fournie : theta ignore (theta = 5 ou NA accepte avec Delta
          isTRUE(engine_valider_donnees(x, y, theta_equiv = NA, delta_equiv = 8)$ok))
 verifier("run_engine : theta_equiv NA ou 1, delta_equiv vide -> ok = FALSE, sans erreur R",
          {
-           r1 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 19,
+           r1 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = B_MIN_USAGE,
                             theta_equiv = NA, nature_donnees = "brutes")
-           r2 <- run_engine(xt = x, yt = y, methode = "reserve1", segment = 1, B = 19,
+           r2 <- run_engine(xt = x, yt = y, methode = "reserve1", segment = 1, B = B_MIN_USAGE,
                             theta_equiv = 1)
-           r3 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 19,
+           r3 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = B_MIN_USAGE,
                             delta_equiv = numeric(0), nature_donnees = "brutes")
            identical(r1$ok, FALSE) && identical(r2$ok, FALSE) && identical(r3$ok, FALSE) &&
              contient(r1$validation$erreurs, "theta_equiv") &&
@@ -141,18 +141,18 @@ verifier("engine_valider_profondeur : T > n et T < 5 refuses ; T_min parametrabl
 verifier("run_engine : T refuse (5.5, NA, Inf, c(5, 6), '6', T > n entier ou non) -> ok = FALSE avec motif, sans erreur R (#87)",
          all(vapply(c(T_refuses[c(1, 3, 4, 6, 8, 9)], list(9)), function(t) {
            r <- tryCatch(run_engine(xt = x, yt = y, methode = "premium", segment = 1,
-                                    B = 19, T = t, nature_donnees = "brutes"),
+                                    B = B_MIN_USAGE, T = t, nature_donnees = "brutes"),
                          error = function(e) e)
            !inherits(r, "error") && identical(r$ok, FALSE) &&
              contient(r$validation$erreurs, "Profondeur T")
          }, logical(1))))
 verifier("run_engine : T = 6 retient les 6 annees les plus recentes (metadata$T = 6), T = 8 equivaut a T absent",
          {
-           r6 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 19,
+           r6 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = B_MIN_USAGE,
                             T = 6, nature_donnees = "brutes")
-           r8 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 19,
+           r8 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = B_MIN_USAGE,
                             T = 8, nature_donnees = "brutes")
-           r0 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 19,
+           r0 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = B_MIN_USAGE,
                             nature_donnees = "brutes")
            isTRUE(r6$ok) && identical(r6$metadata$T, 6L) &&
              identical(r6$donnees$xt, x[3:8]) && identical(r6$donnees$yt, y[3:8]) &&
@@ -169,7 +169,7 @@ verifier("usp_charger : T non entier ou NA refuse (erreur explicite, pas de tron
 
 verifier("run_engine : T refuse -> aucun avertissement de serie retenue, validation$T = NA (#87, audit)",
          {
-           r <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 19,
+           r <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = B_MIN_USAGE,
                            T = 5.5, nature_donnees = "brutes")
            identical(r$ok, FALSE) && identical(r$validation$avertissements, character(0)) &&
              identical(r$validation$T, NA_integer_)
@@ -192,7 +192,7 @@ verifier("engine_valider_profondeur : annexe XVII citee si T_min >= 5 seulement 
 # ASCII, jamais le message traduit de conditionMessage().
 MOTIF_DEFAUT <- "Defaut de calcul intercepte"
 calcul_extreme <- function(xt, yt) suppressWarnings(
-  run_engine(xt = xt, yt = yt, methode = "premium", segment = 1, B = 19,
+  run_engine(xt = xt, yt = yt, methode = "premium", segment = 1, B = B_MIN_USAGE,
              nature_donnees = "brutes"))
 verifier("run_engine : xt x 1e298, xt x 1e200, yt x 1e-300, xt et yt x 1e-300 -> ok = FALSE, defaut intercepte, sans erreur R (#88)",
          all(vapply(list(list(x * 1e298, y), list(x * 1e200, y), list(x, y * 1e-300),
@@ -252,27 +252,31 @@ verifier("run_engine, Merz-Wuthrich : erreur dans le calcul apres mw_valider_tri
            assign("mw_bootstrap", function(...) stop("panne simulee"), envir = e)
            tri <- as.matrix(read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv")))
            tri <- unname(tri[, colnames(tri) != "i"]); storage.mode(tri) <- "double"
-           r <- tryCatch(run_engine(methode = "reserve2", triangle = tri, segment = 1, B = 19),
+           r <- tryCatch(run_engine(methode = "reserve2", triangle = tri, segment = 1, B = B_MIN_USAGE),
                          error = function(err) err,
                          finally = assign("mw_bootstrap", orig, envir = e))
            !inherits(r, "error") && identical(r$ok, FALSE) && identical(r$methode, "reserve2") &&
              contient(r$validation$erreurs, "(erreur R dans mw_bootstrap())") &&
              identical(r$validation$erreur_r$origine, "mw_bootstrap")
          })
-verifier("run_engine : erreurs d'usage -> erreur R explicite, non interceptee (annexe III, methode 'prime', segment 99, reserve2 sans triangle, xt manquant, B = -1, seed NA, bareme 'x')",
+verifier("run_engine : erreurs d'usage -> erreur R explicite, non interceptee (annexe III, methode 'prime', segment 99, reserve2 sans triangle, xt manquant, B = -1, 0 ou 98, seed NA, bareme 'x')",
          leve_erreur(run_engine(xt = x, yt = y, methode = "premium", annexe = "III", segment = 1,
-                                B = 19, nature_donnees = "brutes")) &&
-         leve_erreur(run_engine(xt = x, yt = y, methode = "prime", segment = 1, B = 19)) &&
-         leve_erreur(run_engine(xt = x, yt = y, methode = "premium", segment = 99, B = 19,
+                                B = B_MIN_USAGE, nature_donnees = "brutes")) &&
+         leve_erreur(run_engine(xt = x, yt = y, methode = "prime", segment = 1, B = B_MIN_USAGE)) &&
+         leve_erreur(run_engine(xt = x, yt = y, methode = "premium", segment = 99, B = B_MIN_USAGE,
                                 nature_donnees = "brutes")) &&
-         leve_erreur(run_engine(methode = "reserve2", B = 19)) &&
-         leve_erreur(run_engine(yt = y, methode = "premium", segment = 1, B = 19,
+         leve_erreur(run_engine(methode = "reserve2", B = B_MIN_USAGE)) &&
+         leve_erreur(run_engine(yt = y, methode = "premium", segment = 1, B = B_MIN_USAGE,
                                 nature_donnees = "brutes")) &&
          leve_erreur(run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = -1,
                                 nature_donnees = "brutes")) &&
-         leve_erreur(run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 19,
+         leve_erreur(run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 0,
+                                nature_donnees = "brutes")) &&
+         leve_erreur(run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 98,
+                                nature_donnees = "brutes")) &&
+         leve_erreur(run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = B_MIN_USAGE,
                                 seed = NA, nature_donnees = "brutes")) &&
-         leve_erreur(run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 19,
+         leve_erreur(run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = B_MIN_USAGE,
                                 bareme = "x", nature_donnees = "brutes")))
 
 # Suite de #88 (decision du mainteneur du 26/09/2026) : alpha, sigma_standard,
@@ -291,9 +295,9 @@ appel_usage <- function(nominal, ...) {
   do.call(run_engine, nominal)
 }
 usage_premium <- function(...) appel_usage(list(xt = x, yt = y, methode = "premium", segment = 1,
-                                                B = 19, nature_donnees = "brutes"), ...)
+                                                B = B_MIN_USAGE, nature_donnees = "brutes"), ...)
 usage_mw <- function(...) appel_usage(list(methode = "reserve2", triangle = tri_usage,
-                                           segment = 1, B = 19), ...)
+                                           segment = 1, B = B_MIN_USAGE), ...)
 # TRUE si chaque valeur de `valeurs`, passee comme argument `arg`, leve une
 # erreur R dont le message contient `motif` (fixe), sur les deux branches.
 erreur_usage <- function(arg, valeurs, motif) {
@@ -358,6 +362,22 @@ verifier("run_engine : bareme 'moyen', 'Court', 'co', '', NA, c('court', 'long')
            })
 verifier("run_engine : bareme NULL, 'court' et 'long' acceptes (premium, reserve2)",
          usage_accepte("bareme", list(NULL, "court", "long")))
+# Constat C1 de la revue finale d'E1 : B est borne par B_MIN_USAGE = 99
+# (plancher bilateral 2/(B+1) = 0,02 < alpha/2, detection de degenerescence
+# armee, ligne de largeur d'IC presente) ; B = 0 et B = 98 etaient acceptes
+# (controle B >= 0).
+# Constat m1 de l'audit leger (#44) : B non entier (99.5, 999.5) etait
+# accepte et consigne tel quel dans metadata$B pour floor(B) tirages.
+verifier("run_engine : B 0, 98, 99.5, 999.5, -1, NA, texte, vecteur, Inf -> erreur d'usage citant B_MIN_USAGE = 99 (premium, reserve2)",
+         B_MIN_USAGE == 99 &&
+           erreur_usage("B", list(0, 98, 98.9, 99.5, 999.5, -1, NA, NA_real_, "999", c(99, 999), Inf),
+                        "B >= B_MIN_USAGE = 99, sans attribut, est attendu") &&
+           {
+             e <- tryCatch(usage_premium(B = 98), error = function(e) e)
+             inherits(e, "error") && startsWith(conditionMessage(e), "B = 98 : ")
+           })
+verifier("run_engine : B = B_MIN_USAGE = 99 accepte (premium, reserve2)",
+         usage_accepte("B", list(99)))
 
 # Constat 4 de la revue finale de #88 : un segment inconnu, ou l'absence a la
 # fois de segment et de sigma_standard, etaient controles apres la validation
@@ -376,13 +396,13 @@ erreurs_segment <- function(appels, motif) {
 }
 appels_segment <- function(...) {
   s <- list(...)
-  list(c(list(xt = x, yt = y, methode = "premium", B = 19, nature_donnees = "brutes"), s),
-       c(list(xt = x, yt = y_neg, methode = "premium", B = 19, nature_donnees = "brutes"), s),
-       c(list(xt = x[1:4], yt = y[1:4], methode = "premium", B = 19, nature_donnees = "brutes"), s),
-       c(list(xt = x, yt = y, methode = "reserve1", B = 19), s),
-       c(list(xt = x, yt = y_neg, methode = "reserve1", B = 19), s),
-       c(list(methode = "reserve2", triangle = tri_usage, B = 19), s),
-       c(list(methode = "reserve2", triangle = tri_2x2, B = 19), s))
+  list(c(list(xt = x, yt = y, methode = "premium", B = B_MIN_USAGE, nature_donnees = "brutes"), s),
+       c(list(xt = x, yt = y_neg, methode = "premium", B = B_MIN_USAGE, nature_donnees = "brutes"), s),
+       c(list(xt = x[1:4], yt = y[1:4], methode = "premium", B = B_MIN_USAGE, nature_donnees = "brutes"), s),
+       c(list(xt = x, yt = y, methode = "reserve1", B = B_MIN_USAGE), s),
+       c(list(xt = x, yt = y_neg, methode = "reserve1", B = B_MIN_USAGE), s),
+       c(list(methode = "reserve2", triangle = tri_usage, B = B_MIN_USAGE), s),
+       c(list(methode = "reserve2", triangle = tri_2x2, B = B_MIN_USAGE), s))
 }
 verifier("run_engine : segment 99 -> erreur d'usage, donnees valides ou refusees (yt negatif, T = 4, triangle 2x2 ; premium, reserve1, reserve2)",
          erreurs_segment(appels_segment(segment = 99), "Segment 99 inconnu dans l'annexe II.") &&
@@ -400,7 +420,7 @@ verifier("run_engine : sigma_standard seul accepte sans segment (premium, reserv
 # Reserve d'audit : une valeur porteuse d'attributs etait acceptee et son
 # attribut propage dans le resultat ; elle est refusee.
 verifier("run_engine : B, alpha, seed, bareme, sigma_standard porteurs d'attributs (noms, dim) -> erreur d'usage (premium, reserve2)",
-         erreur_usage("B", list(c(a = 19), matrix(19)), "sans attribut, est attendu") &&
+         erreur_usage("B", list(c(a = B_MIN_USAGE), matrix(B_MIN_USAGE)), "sans attribut, est attendu") &&
            erreur_usage("alpha", list(c(a = 0.1), matrix(0.1)), "sans attribut") &&
            erreur_usage("seed", list(c(a = 5), matrix(5)), "sans attribut") &&
            erreur_usage("bareme", list(c(a = "court"), matrix("court")), "(sans attribut)") &&
@@ -408,7 +428,7 @@ verifier("run_engine : B, alpha, seed, bareme, sigma_standard porteurs d'attribu
 verifier("run_engine : theta_equiv invalide -> refus ok = FALSE en premium et reserve1 (#33), ignore en reserve2",
          {
            r1 <- usage_premium(theta_equiv = NA)
-           r3 <- run_engine(xt = x, yt = y, methode = "reserve1", segment = 1, B = 19,
+           r3 <- run_engine(xt = x, yt = y, methode = "reserve1", segment = 1, B = B_MIN_USAGE,
                             theta_equiv = NA)
            r2 <- usage_mw(theta_equiv = NA)
            identical(r1$ok, FALSE) && is.null(r1$validation$erreur_r) &&
@@ -419,10 +439,10 @@ verifier("run_engine : theta_equiv invalide -> refus ok = FALSE en premium et re
 verifier("run_engine : filet transparent sans erreur (identique avec et sans interception, hors horodatage et duree)",
          {
            sans_temps <- function(r) { r$metadata$horodatage <- NULL; r$metadata$duree_sec <- NULL; r }
-           a <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 19,
+           a <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = B_MIN_USAGE,
                            nature_donnees = "brutes")
            ancien <- options(usp.engine.lever_erreurs = TRUE)
-           b <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 19,
+           b <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = B_MIN_USAGE,
                            nature_donnees = "brutes")
            options(ancien)
            identical(sans_temps(a), sans_temps(b))
