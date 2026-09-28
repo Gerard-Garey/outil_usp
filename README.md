@@ -43,6 +43,7 @@ Périmètres : annexe II (non-vie, 12 segments) et annexe XIV (santé non-SLT, 4
     docs/latex/                 documentation de l'outil (.tex et PDF compilé)
     docs/agents/                configuration des agents (issues, libellés, domaine)
     .claude/                    Claude Code : sous-agents, skills, hook de session
+    AGENTS.md                   consignes de ChatGPT (Codex), contributeur épisodique
     .github/                    intégration continue, modèles d'issues et de PR
     DESCRIPTION                 version de R et dépendances
 
@@ -162,3 +163,6 @@ artefacts de la CI) est lisible par tous et le reste dans l'historique.
   `Claude <noreply@anthropic.com>` pour ceux de Claude (CLAUDE.md).
 - Les pull requests sont fusionnées par le mainteneur seul, manuellement, par
   commit de fusion, une fois la CI verte ; aucune fusion automatique.
+- ChatGPT (Codex) peut intervenir épisodiquement, sur sa propre branche
+  `main-GPT` ([AGENTS.md](AGENTS.md), ADR 0012) ; sa fusion dans `main` suit un
+  audit de Claude lancé par le mainteneur.
