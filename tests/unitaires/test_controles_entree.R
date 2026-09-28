@@ -134,7 +134,7 @@ verifier("engine_valider_profondeur : non entier, NA, infini, multiple, texte, v
            length(e) == 1L && contient(e, "nombre entier d'annees")
          }, logical(1))))
 verifier("engine_valider_profondeur : T > n et T < 5 refuses ; T_min parametrable",
-         contient(engine_valider_profondeur(9, 8), "superieure au nombre d'annees disponibles (8)") &&
+         contient(engine_valider_profondeur(9, 8), "superieure au nombre d'annees fournies (8)") &&
          all(vapply(c(4, 0, -1), function(t)
            contient(engine_valider_profondeur(t, 8), "au moins 5"), logical(1))) &&
          identical(engine_valider_profondeur(3, 8, T_min = 1), character(0)))
@@ -328,8 +328,11 @@ verifier("run_engine : alpha 0,30 refuse, message citant la zone ALERTE",
              grepl("la zone ALERTE des tests en sens rejeter disparait", conditionMessage(e),
                    fixed = TRUE)
          })
-verifier("run_engine : alpha 0,01 ; 0,10 ; 0,29 acceptes (premium, reserve2)",
-         usage_accepte("alpha", list(0.01, 0.10, 0.29)))
+# alpha = 0,01 n'est plus accepte a B = B_MIN_USAGE = 99 (#127 : B >= 400 a
+# ce seuil) ; son acceptation a B = 400 est verifiee plus bas sur
+# .engine_verifier_usage(), sans bootstrap.
+verifier("run_engine : alpha 0,05 ; 0,10 ; 0,29 acceptes a B = 99 (premium, reserve2)",
+         usage_accepte("alpha", list(0.05, 0.10, 0.29)))
 verifier("run_engine : SEUIL_ECHEC_SENS_REJETER vaut 0,30 (seuil ECHEC des tests en sens rejeter)",
          identical(SEUIL_ECHEC_SENS_REJETER, 0.30))
 verifier("run_engine : sigma_standard NA, texte, vecteur, logique, 0, negatif, Inf -> erreur d'usage (premium, reserve2)",
@@ -379,6 +382,110 @@ verifier("run_engine : B 0, 98, 99.5, 999.5, -1, NA, texte, vecteur, Inf -> erre
 verifier("run_engine : B = B_MIN_USAGE = 99 accepte (premium, reserve2)",
          usage_accepte("B", list(99)))
 
+# #127 (note d'actuary et decisions du mainteneur du 28/09/2026) : B + 1 >
+# 4/alpha, en plus de B_MIN_USAGE, pour que l'ECHEC bilateral d'une ligne a
+# p-value Monte-Carlo seule reste atteignable (plancher 2/(B+1) < alpha/2).
+# Reference : table du paragraphe 2 de la note, plus petit entier B tel que
+# 2 * (1 / (B + 1)) < alpha / 2 (4/alpha si entier, ceiling(4/alpha) - 1 sinon).
+verifier("engine_b_minimal : table de la note (#127) pour alpha 0,01 a 0,29",
+         identical(vapply(c(0.01, 0.02, 0.025, 0.03, 0.04, 0.05, 0.10, 0.20, 0.29),
+                          engine_b_minimal, numeric(1)),
+                   c(400, 200, 160, 133, 100, 80, 40, 20, 13)))
+verifier("engine_b_minimal : minimalite sur alpha = 0,005..0,295 (b admis, b - 1 refuse)",
+         all(vapply(seq(0.005, 0.295, by = 0.005), function(a) {
+           b <- engine_b_minimal(a)
+           (2 * (1 / (b + 1)) < a / 2) && !(2 * (1 / b) < a / 2)
+         }, logical(1))))
+verifier("run_engine : B = 99, alpha = 0,01 -> erreur d'usage B + 1 > 4/alpha, B >= 400 (premium, reserve2)",
+         erreur_usage("alpha", list(0.01), "B + 1 > 4/alpha") &&
+           erreur_usage("alpha", list(0.01), "B >= 400 a ce seuil") &&
+           {
+             e <- tryCatch(usage_mw(alpha = 0.01), error = function(e) e)
+             inherits(e, "error") && startsWith(conditionMessage(e), "B = 99 et alpha = 0.01 : ")
+           })
+verifier("run_engine : B = 99, alpha = 0,04 -> erreur d'usage, B >= 100 (premium, reserve2)",
+         erreur_usage("alpha", list(0.04), "B >= 100 a ce seuil"))
+verifier("run_engine : B = 99 et alpha 0,05 ou 0,10 acceptes (premium, reserve2)",
+         usage_accepte("alpha", list(0.05, 0.10)))
+# Bords, sur .engine_verifier_usage() directement (aucun bootstrap).
+verif_usage <- function(B, alpha) {
+  tryCatch(.engine_verifier_usage(B, 20260831, NULL, alpha = alpha, segment = 1),
+           error = function(e) e)
+}
+verifier(".engine_verifier_usage : (399 ; 0,01) refuse par la regle en alpha, (400 ; 0,01) accepte",
+         {
+           e <- verif_usage(399, 0.01)
+           inherits(e, "error") && grepl("B >= 400 a ce seuil", conditionMessage(e), fixed = TRUE) &&
+             isTRUE(verif_usage(400, 0.01))
+         })
+# B < B_MIN_USAGE : engine_motif_b_alpha() rend NULL (decision du mainteneur
+# du 28/09/2026), le bandeau de l'application concorde avec l'erreur au clic.
+verifier(".engine_verifier_usage : (39 ; 0,10) et (40 ; 0,10) refuses par B_MIN_USAGE avant la regle en alpha ; motif en alpha NULL",
+         all(vapply(c(39, 40), function(b) {
+           e <- verif_usage(b, 0.10)
+           inherits(e, "error") &&
+             grepl("B >= B_MIN_USAGE = 99, sans attribut, est attendu", conditionMessage(e), fixed = TRUE) &&
+             !grepl("4/alpha", conditionMessage(e), fixed = TRUE)
+         }, logical(1))) &&
+           is.null(engine_motif_b_alpha(39, 0.10)) && is.null(engine_motif_b_alpha(98, 0.01)))
+# Revue d'audit de #127 (constats C1 et C2) : alpha tres petit faisait
+# boucler engine_b_minimal() sans fin (b + 1 == b au-dela de 2^53) et
+# as.integer() du B minimal rendait NA au-dela de .Machine$integer.max.
+# L'admission est decidee par la condition directe ; chaque appel est borne
+# par setTimeLimit (5 s ; une boucle sans fin leve alors une erreur de
+# delai, distincte du refus attendu).
+sous_delai <- function(expr) {
+  setTimeLimit(elapsed = 5, transient = TRUE)
+  on.exit(setTimeLimit(elapsed = Inf))
+  tryCatch(expr, error = function(e) e)
+}
+verifier(".engine_verifier_usage : alpha 1e-16, 1e-200, 1e-310, 5e-324 -> refus B + 1 > 4/alpha sans blocage, sans valeur de B minimal",
+         all(vapply(c(1e-16, 1e-200, 1e-310, 5e-324), function(a) {
+           e <- sous_delai(.engine_verifier_usage(999, 20260831, NULL, alpha = a, segment = 1))
+           inherits(e, "error") &&
+             grepl("B + 1 > 4/alpha est requis, B trop petit pour ce seuil", conditionMessage(e), fixed = TRUE) &&
+             !grepl("NA", conditionMessage(e), fixed = TRUE)
+         }, logical(1))))
+verifier("engine_b_minimal : alpha 1e-16, 1e-200, 1e-310, 5e-324 -> erreur explicite sans blocage",
+         all(vapply(c(1e-16, 1e-200, 1e-310, 5e-324), function(a) {
+           e <- sous_delai(engine_b_minimal(a))
+           inherits(e, "error") &&
+             startsWith(conditionMessage(e), "engine_b_minimal() : 4/alpha = ")
+         }, logical(1))))
+verifier("engine_motif_b_alpha : alpha = 1e-10 -> B >= 40000000000 cite, sans NA ni avertissement",
+         {
+           w <- NULL
+           m <- withCallingHandlers(engine_motif_b_alpha(999, 1e-10),
+                                    warning = function(c) { w <<- c; invokeRestart("muffleWarning") })
+           is.null(w) && is.character(m) && !grepl("NA", m, fixed = TRUE) &&
+             grepl("soit B >= 40000000000 a ce seuil", m, fixed = TRUE)
+         })
+verifier("engine_motif_b_alpha : NULL a (999 ; 0,01), message identique a l'erreur de run_engine a (99 ; 0,01)",
+         {
+           e <- tryCatch(usage_premium(alpha = 0.01), error = function(e) e)
+           m <- engine_motif_b_alpha(99, 0.01)
+           is.null(engine_motif_b_alpha(999, 0.01)) && is.character(m) && length(m) == 1L &&
+             inherits(e, "error") && identical(conditionMessage(e), m) &&
+             identical(engine_motif_b_alpha(99L, 0.01), m)
+         })
+# Coherence avec la regle des verdicts de add() (engine_registre_tests()),
+# sans bootstrap : ligne a p-value Monte-Carlo seule, cle bilaterale, p_mc
+# egal au plancher 2 * (1 / (B + 1)) a B = engine_b_minimal(alpha) (ECHEC) et
+# a B - 1 (ALERTE) : la borne est celle du verdict, non une approximation.
+verdict_plancher <- function(alpha, B) {
+  r <- engine_registre_tests(list(p_mc = c(A = 2 * (1 / (B + 1))), err_mc = c(A = 0)),
+                             list(A = .mc_entree(function(e) 1, "deux")), alpha, "Monte-Carlo")
+  r$add("F", "t", "ref", mc_nom = "A")
+  l <- r$lignes()[[1]]
+  c(l$nature_p, l$verdict)
+}
+verifier("add() : p_mc au plancher bilateral -> ECHEC a b = engine_b_minimal(alpha), ALERTE a b - 1 (alpha 0,005..0,295)",
+         all(vapply(seq(0.005, 0.295, by = 0.005), function(a) {
+           b <- engine_b_minimal(a)
+           identical(verdict_plancher(a, b), c("Monte-Carlo", "ECHEC")) &&
+             identical(verdict_plancher(a, b - 1), c("Monte-Carlo", "ALERTE"))
+         }, logical(1))))
+
 # Constat 4 de la revue finale de #88 : un segment inconnu, ou l'absence a la
 # fois de segment et de sigma_standard, etaient controles apres la validation
 # des donnees ; l'appel levait une erreur R sur des donnees valides et
@@ -408,6 +515,23 @@ verifier("run_engine : segment 99 -> erreur d'usage, donnees valides ou refusees
          erreurs_segment(appels_segment(segment = 99), "Segment 99 inconnu dans l'annexe II.") &&
            erreurs_segment(appels_segment(segment = 5, annexe = "XIV"),
                            "Segment 5 inconnu dans l'annexe XIV."))
+# Issue #105 : segment non scalaire, vide, NA, non fini, non entier, logique,
+# texte ("1" refuse sans conversion, decision du mainteneur du 27/09/2026,
+# Q-E0b-2) ou porteur d'attributs -> erreur d'usage nommant segment, quelles
+# que soient les donnees. Avant #105, c(1, 2) et integer(0) levaient une
+# erreur R sans nom d'argument ("the condition has length > 1", "argument is
+# of length zero") et "1", TRUE, c(a = 1), matrix(1) etaient acceptes.
+motif_segment <- "un nombre scalaire fini entier, sans attribut, est attendu (numero de segment"
+verifier("run_engine : segment c(1, 2), integer(0), NA, NA_real_, Inf, 1.5, TRUE, \"1\", c(a = 1), matrix(1) -> erreur d'usage nommant segment, donnees valides ou refusees (premium, reserve1, reserve2 ; #105)",
+         all(vapply(list(c(1, 2), integer(0), NA, NA_real_, Inf, 1.5, TRUE, "1",
+                         c(a = 1), matrix(1)),
+                    function(s) erreurs_segment(appels_segment(segment = s), motif_segment) &&
+                      erreurs_segment(appels_segment(segment = s, annexe = "XIV"), motif_segment),
+                    logical(1))))
+verifier("run_engine : message de segment invalide citant la valeur recue (\"1\", c(1, 2), integer(0) ; #105)",
+         erreurs_segment(appels_segment(segment = "1"), "segment = \"1\" : ") &&
+           erreurs_segment(appels_segment(segment = c(1, 2)), "segment = c(1, 2) : ") &&
+           erreurs_segment(appels_segment(segment = integer(0)), "segment = vide : "))
 verifier("run_engine : ni segment ni sigma_standard -> erreur d'usage, donnees valides ou refusees (premium, reserve1, reserve2)",
          erreurs_segment(appels_segment(),
                          "Fournir soit sigma_standard, soit segment (avec son annexe)."))
@@ -689,7 +813,7 @@ verifier("Lecture vecteur : valeur non numerique au milieu refusee ; separateur 
 # sans effet. Seule une cellule vide au milieu de la serie est refusee.
 verifier("Lecture vecteur : lignes vides de tete ou apres l'en-tete ignorees, vide au milieu refuse avec sa position (#33)",
          {
-           lit <- function(l) { f <- tempfile(); writeLines(l, f); usp_lire_vecteur(f) }
+           lit <- function(l) { f <- tempfile(); writeLines(l, f, useBytes = TRUE); usp_lire_vecteur(f) }
            msg <- function(l) tryCatch(lit(l), error = function(e) conditionMessage(e))
            identical(lit(c("", "100", "110")), c(100, 110)) &&
              identical(lit(c("x", "", "100", "110")), c(100, 110)) &&
@@ -710,7 +834,7 @@ verifier("Lecture vecteur : tableau a plusieurs lignes et colonnes refuse (forma
 verifier("Lecture vecteur : serie en ligne avec ligne d'en-tetes acceptee (sep ',' et ';', dec ',') (#33)",
          {
            lit <- function(l, sep = ",", dec = ".") {
-             f <- tempfile(); writeLines(l, f); usp_lire_vecteur(f, sep, dec)
+             f <- tempfile(); writeLines(l, f, useBytes = TRUE); usp_lire_vecteur(f, sep, dec)
            }
            identical(lit(c("a2017,a2018,a2019,a2020", "104.2,102.25,109.34,114.64")),
                      c(104.2, 102.25, 109.34, 114.64)) &&
@@ -721,7 +845,7 @@ verifier("Lecture vecteur : serie en ligne avec ligne d'en-tetes acceptee (sep '
 verifier("Lecture vecteur : 2 lignes numeriques ou 3 lignes x n refusees (tableau, pas d'aplatissement) (#33)",
          {
            msg <- function(l) {
-             f <- tempfile(); writeLines(l, f)
+             f <- tempfile(); writeLines(l, f, useBytes = TRUE)
              tryCatch(usp_lire_vecteur(f), error = function(e) conditionMessage(e))
            }
            grepl("Format non reconnu", msg(c("1,2,3", "4,5,6")), fixed = TRUE) &&
@@ -739,11 +863,17 @@ verifier("Lecture vecteur : cellule vide au milieu d'une serie en ligne avec en-
 # du mainteneur : alignement colonne par colonne (en-tete non vide et valeur,
 # ou rien) ; etiquette de ligne admise, sauf "NA", "-" ou nombre ecrit avec
 # l'autre separateur decimal.
+# useBytes = TRUE : les chaines non ASCII ("\u2013"...) sont ecrites en
+# octets UTF-8 quelle que soit la locale (sous LC_ALL = C, writeLines() sans
+# useBytes les ecrivait "<U+2013>" ; audit de la reprise de #102).
 msg_ligne <- function(l, sep = ",", dec = ".") {
-  f <- tempfile(); writeLines(l, f)
+  f <- tempfile(); writeLines(l, f, useBytes = TRUE)
   tryCatch(usp_lire_vecteur(f, sep, dec), error = function(e) conditionMessage(e))
 }
-a_motif <- function(txt, ...) all(vapply(c(...), function(p) grepl(p, txt, fixed = TRUE), TRUE))
+# is.character(txt) : une serie lue (numerique) au lieu d'un refus fait
+# echouer le test proprement (audit de #102).
+a_motif <- function(txt, ...)
+  is.character(txt) && all(vapply(c(...), function(p) grepl(p, txt, fixed = TRUE), TRUE))
 verifier("Lecture vecteur : serie en ligne, valeur manquante de bord ou en surnombre refusee, colonnes fautives et decomptes donnes (#95)",
          a_motif(msg_ligne(c("a,b,c,d", "1,2,3,")),
                  "colonne 4 : en-tete \"d\" sans valeur", "3 valeur(s) pour 4 en-tete(s) non vide(s)") &&
@@ -758,6 +888,11 @@ verifier("Lecture vecteur : serie en ligne, en-tetes et valeurs decales ou en-te
            a_motif(msg_ligne(c("a,,c", "1,2,3")), "colonne 2 : valeur \"2\" sans en-tete") &&
            a_motif(msg_ligne(c("serie,a2017,a2018", ",1,2")),
                    "colonne 1 : en-tete \"serie\" sans valeur", "retirer son en-tete"))
+# Depuis #102 (regle stricte), ces trois cellules, sous un en-tete non vide,
+# sont refusees par le message de la regle stricte, qui cite la cellule, sa
+# colonne et, pour une cellule a l'allure d'un nombre, le separateur decimal
+# attendu ; le predicat en position d'etiquette (sous une cellule d'angle
+# vide) est exerce au test suivant.
 verifier("Lecture vecteur : serie en ligne, etiquette \"NA\", \"-\" ou nombre a l'autre separateur decimal refusee (#95)",
          a_motif(msg_ligne(c("a,b,c", "NA,2,3")), "cellule \"NA\" (colonne 1)", "etiquette") &&
            a_motif(msg_ligne(c("a,b,c", "-,2,3")), "cellule \"-\" (colonne 1)", "etiquette") &&
@@ -765,14 +900,17 @@ verifier("Lecture vecteur : serie en ligne, etiquette \"NA\", \"-\" ou nombre a 
                    "cellule \"1,5\" (colonne 1)", "separateur decimal"))
 # Avis d'actuary : predicat unique .allure_manquante_ou_nombre(), applique a
 # l'etiquette du format avec en-tetes et a l'en-tete des autres formats.
+# Adapte a #102 (regle stricte) : l'etiquette n'est admise que sous une
+# cellule d'angle vide ; la ligne d'en-tetes commence donc par une cellule
+# vide pour que le predicat soit exerce en position d'etiquette.
 verifier("Lecture vecteur : etiquette NaN, #N/A, N/A, n.d., 1 234, 1.234,5 (dec ',') ou 1,234.5 (dec '.') refusee (#95)",
-         a_motif(msg_ligne(c("a,b,c", "NaN,2,3")), "cellule \"NaN\" (colonne 1), en position d'etiquette") &&
-           a_motif(msg_ligne(c("a,b,c", "#N/A,2,3")), "cellule \"#N/A\"", "valeur manquante") &&
-           a_motif(msg_ligne(c("a,b,c", "N/A,2,3")), "cellule \"N/A\"", "etiquette") &&
-           a_motif(msg_ligne(c("a,b,c", "n.d.,2,3")), "cellule \"n.d.\"", "etiquette") &&
-           a_motif(msg_ligne(c("a,b,c", "1 234,2,3")), "cellule \"1 234\"", "etiquette") &&
-           a_motif(msg_ligne(c("a;b;c", "1.234,5;2;3"), ";", ","), "cellule \"1.234,5\"", "etiquette") &&
-           a_motif(msg_ligne(c("a;b;c", "1,234.5;2;3"), ";", "."), "cellule \"1,234.5\"", "etiquette"))
+         a_motif(msg_ligne(c(",b,c", "NaN,2,3")), "cellule \"NaN\" (colonne 1), en position d'etiquette") &&
+           a_motif(msg_ligne(c(",b,c", "#N/A,2,3")), "cellule \"#N/A\"", "valeur manquante") &&
+           a_motif(msg_ligne(c(",b,c", "N/A,2,3")), "cellule \"N/A\"", "etiquette") &&
+           a_motif(msg_ligne(c(",b,c", "n.d.,2,3")), "cellule \"n.d.\"", "etiquette") &&
+           a_motif(msg_ligne(c(",b,c", "1 234,2,3")), "cellule \"1 234\"", "etiquette") &&
+           a_motif(msg_ligne(c(";b;c", "1.234,5;2;3"), ";", ","), "cellule \"1.234,5\"", "etiquette") &&
+           a_motif(msg_ligne(c(";b;c", "1,234.5;2;3"), ";", "."), "cellule \"1,234.5\"", "etiquette"))
 verifier("Lecture vecteur : en-tete NA, - ou NaN refuse en format ligne sans en-tetes et en format colonne (#95)",
          {
            en_tete <- "en position d'en-tete (premiere cellule non vide)"
@@ -780,7 +918,10 @@ verifier("Lecture vecteur : en-tete NA, - ou NaN refuse en format ligne sans en-
              a_motif(msg_ligne(paste0(z, ",2,3")), paste0("cellule \"", z, "\" ", en_tete)) &&
                a_motif(msg_ligne(c(z, "2", "3")), paste0("cellule \"", z, "\" ", en_tete)), TRUE))
          })
-verifier("Predicat .allure_manquante_ou_nombre() : manquants et nombres refuses, 12a, TRUE et en-tetes ordinaires admis (#95)",
+# Adapte a #102 (decision du mainteneur du 28/09/2026) : "12a" (commence par
+# un chiffre), "--" et "." (faits de tirets et de points) passent de la liste
+# des cellules admises a celle des cellules refusees.
+verifier("Predicat .allure_manquante_ou_nombre() : manquants et nombres refuses, TRUE et en-tetes ordinaires admis (#95, #102)",
          {
            # Espace insecable en UTF-8 (C2 A0) et en Windows-1252 (A0) ; deux
            # appels successifs (un litteral dans gsub() donnait un resultat
@@ -788,21 +929,24 @@ verifier("Predicat .allure_manquante_ou_nombre() : manquants et nombres refuses,
            nbsp <- paste0("1", intToUtf8(160), "234")
            nbsp1252 <- rawToChar(as.raw(c(0x31, 0xa0, 0x32, 0x33, 0x34)))
            oui <- c("NA", "nan", "N/A", "#n/a", "N.D.", "-", "1,5", "1 234", nbsp, nbsp1252,
-                    "1.234,5", "1,234.5", "'1'234", "+3")
-           identical(.allure_manquante_ou_nombre(oui), rep(TRUE, 14)) &&
-             identical(.allure_manquante_ou_nombre(oui), rep(TRUE, 14)) &&
+                    "1.234,5", "1,234.5", "'1'234", "+3", "12a", "--", ".")
+           identical(.allure_manquante_ou_nombre(oui), rep(TRUE, 17)) &&
+             identical(.allure_manquante_ou_nombre(oui), rep(TRUE, 17)) &&
              identical(.allure_manquante_ou_nombre(
-               c("12a", "TRUE", "x", "a2017", "serie", "annee", "--", "", ".", "NA2", NA)), rep(FALSE, 11))
+               c("TRUE", "x", "a2017", "serie", "annee", "", "NA2", NA)), rep(FALSE, 8))
          })
 verifier("Lecture vecteur : cellule d'espaces sous un en-tete refusee a l'alignement (colonne 1 : en-tete \"a\" sans valeur) (#95)",
          a_motif(msg_ligne(c("a,b,c", "\"   \",2,3")), "colonne 1 : en-tete \"a\" sans valeur"))
-verifier("Lecture vecteur : formats sains inchanges (en-tete x en colonne, etiquette x, en-tetes a2017...) (#95)",
+# Adapte a #102 : l'etiquette x est lue sous une cellule d'angle vide (sous
+# "serie", elle est refusee : regle stricte) et l'en-tete "12a" est refuse
+# (commence par un chiffre).
+verifier("Lecture vecteur : formats sains inchanges (en-tete x en colonne, etiquette x, en-tetes a2017...) (#95, #102)",
          {
-           lit <- function(l, sep = ",", dec = ".") { f <- tempfile(); writeLines(l, f); usp_lire_vecteur(f, sep, dec) }
+           lit <- function(l, sep = ",", dec = ".") { f <- tempfile(); writeLines(l, f, useBytes = TRUE); usp_lire_vecteur(f, sep, dec) }
            identical(lit(c("x", "1", "2", "3")), c(1, 2, 3)) &&
              identical(lit("x,1,2,3"), c(1, 2, 3)) &&
-             identical(lit(c("serie,a2017,a2018", "x,1,2")), c(1, 2)) &&
-             identical(lit(c("12a", "1", "2")), c(1, 2)) &&
+             identical(lit(c(",a2017,a2018", "x,1,2")), c(1, 2)) &&
+             a_motif(msg_ligne(c("12a", "1", "2")), "cellule \"12a\" en position d'en-tete") &&
              identical(lit(c("a2017;a2018;a2019", "1,5;2;3"), ";", ","), c(1.5, 2, 3))
          })
 # Audit (mineur 2) et avis d'actuary : espace fine insecable U+202F (octets
@@ -814,6 +958,7 @@ verifier("Predicat .allure_manquante_ou_nombre() : U+202F reconnue, 12.2017, +1 
            identical(.allure_manquante_ou_nombre(c(fine, "12.2017", "+1", "'2017")), rep(TRUE, 4)) &&
              identical(.allure_manquante_ou_nombre(c("2017-2018", "2017-18")), c(FALSE, FALSE))
          })
+# Adapte a #102 (regle stricte) : etiquettes lues sous une cellule d'angle vide.
 verifier("Lecture vecteur : en-tete ou etiquette 1<U+202F>234 et '2017 refuses ; 2017-2018 et 2017-18 admis en en-tete et en etiquette (#95)",
          {
            lit_brut <- function(r, sep = ",") {
@@ -822,13 +967,17 @@ verifier("Lecture vecteur : en-tete ou etiquette 1<U+202F>234 et '2017 refuses ;
            }
            fine <- as.raw(c(0x31, 0xe2, 0x80, 0xaf, 0x32, 0x33, 0x34))
            a_motif(lit_brut(c(fine, charToRaw("\n1\n2\n"))), "en position d'en-tete") &&
-             a_motif(lit_brut(c(charToRaw("a,b,c\n"), fine, charToRaw(",2,3\n"))),
+             a_motif(lit_brut(c(charToRaw(",b,c\n"), fine, charToRaw(",2,3\n"))),
                      "(colonne 1), en position d'etiquette") &&
              a_motif(msg_ligne(c("'2017", "1", "2")), "cellule \"'2017\" en position d'en-tete") &&
              identical(msg_ligne(c("2017-2018", "1", "2")), c(1, 2)) &&
              identical(msg_ligne(c("2017-18", "1", "2")), c(1, 2)) &&
-             identical(msg_ligne(c("a,b,c", "2017-2018,1,2")), c(1, 2)) &&
-             identical(msg_ligne(c("a,b,c", "2017-18,1,2")), c(1, 2))
+             identical(msg_ligne(c(",b,c", "2017-2018,1,2")), c(1, 2)) &&
+             identical(msg_ligne(c(",b,c", "2017-18,1,2")), c(1, 2)) &&
+             # Variante au tiret demi-cadratin U+2013, admise (reprise de #102, C2)
+             identical(msg_ligne(c("2017\u201318", "1", "2")), c(1, 2)) &&
+             identical(msg_ligne(c(",b,c", "2017\u201318,1,2")), c(1, 2)) &&
+             identical(.allure_manquante_ou_nombre(c("2017\u201318", "2017\u20132018")), c(FALSE, FALSE))
          })
 verifier("Lecture vecteur : Inf, -Inf en tete ou au milieu de la serie refuses a la lecture avec leur position",
          a_motif(msg_ligne("Inf,2,3"), "non numerique(s) en position 1", "\"Inf\"") &&
@@ -837,12 +986,16 @@ verifier("Lecture vecteur : Inf, -Inf en tete ou au milieu de la serie refuses a
            a_motif(msg_ligne("1,2,Inf"), "non numerique(s) en position 3", "\"Inf\""))
 verifier("Lecture vecteur : serie en ligne, vide au milieu de la ligne de valeurs : message #33 inchange (#95)",
          a_motif(msg_ligne(c("a,b,c", "1,,3")), "Cellule(s) vide(s) en position 2"))
-verifier("Lecture vecteur : serie en ligne, colonnes alignees acceptees (colonne vide de bord, etiquette de ligne) (#95)",
+# Adapte a #102 (regle stricte) : l'etiquette "x" sous l'en-tete "serie",
+# admise depuis le 26/09, est refusee ; sous une cellule d'angle vide, elle
+# reste admise.
+verifier("Lecture vecteur : serie en ligne, colonnes alignees acceptees (colonne vide de bord, etiquette de ligne sous angle vide) (#95, #102)",
          {
-           lit <- function(l) { f <- tempfile(); writeLines(l, f); usp_lire_vecteur(f) }
+           lit <- function(l) { f <- tempfile(); writeLines(l, f, useBytes = TRUE); usp_lire_vecteur(f) }
            identical(lit(c(",b,c,d", ",2,3,4")), c(2, 3, 4)) &&
              identical(lit(c("a,b,c,d,", "1,2,3,4,")), c(1, 2, 3, 4)) &&
-             identical(lit(c("serie,a2017,a2018", "x,1,2")), c(1, 2)) &&
+             a_motif(msg_ligne(c("serie,a2017,a2018", "x,1,2")), "cellule \"x\" (colonne 1)",
+                     "l'en-tete \"serie\" au-dessus d'elle n'est pas vide") &&
              identical(lit(c(",a2017,a2018", "x,1,2")), c(1, 2)) &&
              identical(lit(c("a,b,c", "1,2,3", "")), c(1, 2, 3))
          })
@@ -923,6 +1076,271 @@ verifier("Retrait du BOM : .sans_bom() retire EF BB BF de tete seulement, laisse
              identical(.sans_bom(""), "") && identical(.sans_bom(NA_character_), NA_character_) &&
              identical(.sans_bom(rawToChar(as.raw(c(0x31, 0xef, 0xbb, 0xbf)))),
                        rawToChar(as.raw(c(0x31, 0xef, 0xbb, 0xbf))))
+         })
+
+# Issue #99 : CSV encode en Windows-1252 (octets non UTF-8) lu sous une locale
+# UTF-8. trimws() puis as.numeric() levaient une erreur R brute ("input string
+# 1 is invalid UTF-8") avant tout controle. Fichiers ecrits en binaire, lus
+# dans la locale courante, sous LC_CTYPE = C et sous une locale UTF-8
+# (C.UTF-8, sinon en_US.UTF-8), la locale de l'appelant etant restauree.
+sous_locale_utf8 <- function(f) {
+  avant <- Sys.getlocale("LC_CTYPE")
+  r <- tryCatch({
+    pose <- ""
+    for (loc in c("C.UTF-8", "C.utf8", "en_US.UTF-8", "fr_FR.UTF-8")) {
+      pose <- suppressWarnings(Sys.setlocale("LC_CTYPE", loc))
+      if (nzchar(pose) && isTRUE(l10n_info()[["UTF-8"]])) break
+    }
+    if (!nzchar(pose) || !isTRUE(l10n_info()[["UTF-8"]])) "locale UTF-8 indisponible" else f()
+  }, finally = suppressWarnings(Sys.setlocale("LC_CTYPE", avant)))
+  if (!identical(Sys.getlocale("LC_CTYPE"), avant)) stop("locale LC_CTYPE non restauree")
+  if (identical(r, "locale UTF-8 indisponible"))
+    message("  (information) aucune locale UTF-8 disponible : assertion #99 non exercee")
+  r
+}
+csv_brut <- function(...) {
+  f <- tempfile(fileext = ".csv")
+  writeBin(unlist(lapply(list(...), function(z) if (is.raw(z)) z else charToRaw(z))), f)
+  f
+}
+# Quatre fichiers Windows-1252 : en-tete "ann<E9>e" en colonne (lu 1, 2) ;
+# "1<A0>2,2,3" (espace insecable A0 : en-tete a l'allure d'un nombre,
+# refuse par le predicat, qui voit donc l'octet A0 isole) ; meme cellule en
+# etiquette sous une ligne d'en-tetes ; cellule "<E9>" au milieu d'une serie
+# en colonne (valeur non numerique, position 2). L'etiquette est placee sous
+# une cellule d'angle vide (regle stricte de #102). Renvoie, pour chaque fichier,
+# la serie lue ou le message d'erreur, et la validite UTF-8 des messages en
+# locale UTF-8.
+lit_1252 <- function() {
+  lit <- function(f) tryCatch(usp_lire_vecteur(f), error = function(e) conditionMessage(e))
+  r <- list(
+    entete = lit(csv_brut("ann", as.raw(0xe9), "e\n1\n2\n")),
+    nbsp   = lit(csv_brut("1", as.raw(0xa0), "2,2,3\n")),
+    etiq   = lit(csv_brut(",b,c\n1", as.raw(0xa0), "2,2,3\n")),
+    milieu = lit(csv_brut("x\n1\n", as.raw(0xe9), "\n3\n")))
+  ok <- identical(r$entete, c(1, 2)) &&
+    a_motif(r$nbsp, "en position d'en-tete (premiere cellule non vide)", "l'allure d'une valeur manquante") &&
+    a_motif(r$etiq, "(colonne 1), en position d'etiquette de ligne") &&
+    a_motif(r$milieu, "Valeur(s) non numerique(s) en position 2")
+  if (isTRUE(l10n_info()[["UTF-8"]]))
+    ok <- ok && all(validUTF8(unlist(r[c("nbsp", "etiq", "milieu")])))
+  ok
+}
+verifier("Lecture vecteur : CSV Windows-1252 (ann<E9>e, 1<A0>2, <E9>) ecrit en binaire lu ou refuse avec motif dans la locale courante (#99)",
+         isTRUE(lit_1252()))
+verifier("Lecture vecteur : CSV Windows-1252 lu ou refuse avec motif sous LC_CTYPE = C, locale restauree (#99)",
+         {
+           r <- sous_locale_c(lit_1252)
+           identical(r, "locale C indisponible") || isTRUE(r)
+         })
+verifier("Lecture vecteur : CSV Windows-1252 lu ou refuse avec motif sous une locale UTF-8, sans erreur R, messages UTF-8 valides ; octet A0 isole reconnu par le predicat (#99)",
+         {
+           r <- sous_locale_utf8(lit_1252)
+           identical(r, "locale UTF-8 indisponible") || isTRUE(r)
+         })
+verifier("Lecture vecteur : formats sains inchanges sous une locale UTF-8 (colonne, ligne, en-tetes a2017, dec ',', BOM) (#99)",
+         {
+           r <- sous_locale_utf8(function() {
+             lit <- function(l, sep = ",", dec = ".") { f <- tempfile(); writeLines(l, f, useBytes = TRUE); usp_lire_vecteur(f, sep, dec) }
+             identical(lit(c("x", " 1 ", "2", "3")), c(1, 2, 3)) &&
+               identical(lit("x,1,2,3"), c(1, 2, 3)) &&
+               # Etiquette x sous une cellule d'angle vide (regle stricte, #102).
+               identical(lit(c(",a2017,a2018", "x,1,2")), c(1, 2)) &&
+               identical(lit(c("a2017;a2018;a2019", "1,5;2;3"), ";", ","), c(1.5, 2, 3)) &&
+               identical(lit_bom(), attendu_bom)
+           })
+           identical(r, "locale UTF-8 indisponible") || isTRUE(r)
+         })
+# Lecteurs de l'application : une cellule non UTF-8 d'un data.frame (lu par
+# read.csv quand la conversion de type l'admet, ex. "x<E9>" ; construit ici
+# directement) est une cellule non numerique, refusee avec motif, sans
+# erreur R.
+verifier("Lecture t, xt, yt et triangle : cellule non UTF-8 sous une locale UTF-8 -> refus motive, sans erreur R (#99)",
+         {
+           r <- sous_locale_utf8(function() {
+             e9 <- rawToChar(as.raw(c(0x78, 0xe9)))
+             a0 <- rawToChar(as.raw(c(0x31, 0xa0, 0x32)))
+             d <- tryCatch(engine_lire_donnees_csv(data.frame(t = 1:2, xt = c(a0, "2"), yt = c("3", e9),
+                                                              stringsAsFactors = FALSE)),
+                           error = function(e) conditionMessage(e))
+             tri <- tryCatch(engine_lire_triangle(data.frame(i = 1:2, d1 = c(e9, "4"), d2 = c("3", ""),
+                                                             stringsAsFactors = FALSE)),
+                             error = function(e) conditionMessage(e))
+             is.list(d) && !d$ok && contient(d$erreurs, "ne sont pas numeriques") &&
+               is.list(tri) && !tri$ok && contient(tri$erreurs, "Cellule(s) non numerique(s) en (i=0, j=0)")
+           })
+           identical(r, "locale UTF-8 indisponible") || isTRUE(r)
+         })
+verifier(".nettoyer_cellules() : identique a trimws() sur des cellules valides (blancs ASCII, U+00A0 conserve, NA, matrice) ; octets et dim conserves sur une cellule non UTF-8 (#99)",
+         {
+           x <- c(" a ", "\t\r\nb\n", "", NA, paste0(" ", intToUtf8(233), " "),
+                  paste0(intToUtf8(160), "1", intToUtf8(160)), "1 2")
+           m <- matrix(c(" 1", "2 ", " x ", ""), 2)
+           brut <- rawToChar(as.raw(c(0x20, 0x31, 0xa0, 0x32, 0x20)))
+           valides <- function() identical(.nettoyer_cellules(x), trimws(x)) &&
+             identical(.nettoyer_cellules(m), trimws(m)) &&
+             identical(charToRaw(.nettoyer_cellules(brut)), as.raw(c(0x31, 0xa0, 0x32)))
+           r <- sous_locale_utf8(valides)
+           valides() && (identical(r, "locale UTF-8 indisponible") || isTRUE(r))
+         })
+# Audit leger de #99 (constat C1) : Encoding<- refusait une entree de
+# longueur nulle.
+verifier(".nettoyer_cellules() et .en_numerique() : entree vide (character(0), matrice 0 x 3) sans erreur, identique a trimws() / numeric(0) (#99)",
+         {
+           vides <- function() {
+             m0 <- matrix(character(0), 0, 3)
+             identical(.nettoyer_cellules(character(0)), trimws(character(0))) &&
+               identical(.nettoyer_cellules(m0), trimws(m0)) &&
+               identical(.en_numerique(character(0)), numeric(0))
+           }
+           r <- sous_locale_utf8(vides)
+           vides() && (identical(r, "locale UTF-8 indisponible") || isTRUE(r))
+         })
+
+
+# Issues #102 et #103 : regle commune d'actuary du 28/09/2026 (commentaire
+# 5864139292 de #102) et decisions du mainteneur du meme jour (regle stricte
+# pour l'etiquette ; refus de "12a" et de "." ; sens des annees fixe par
+# plus_recent_en_dernier d'usp_charger()). Mesure sur le code anterieur
+# (tete cf3bba8) : "#DIV/0!", "n/d", "N.D", "--", ".", "12a", "1O4.2",
+# "104.2 EUR" en premiere cellule d'une colonne etaient ecartes comme en-tete
+# (serie lue sans sa premiere valeur) ; "2017,2018,2019" / "1,2,3" etait
+# refuse comme "Format non reconnu" sans cause.
+marqueurs_102 <- c("NA", "NAN", "N/A", "N.A.", "N.A", "N.D.", "N.D", "ND", "N/D", "NR", "N.R.", "NULL",
+                   "NONE", "S.O.", "S.O", "S/O", "NIL", "N.C.", "N.C", "NC", "N/C",
+                   "n/d", "null", "s.o.", "n.c.", "nc",
+                   "#N/A", "#DIV/0!", "#VALEUR!", "#VALUE!", "#REF!", "#NOM?", "#NAME?", "#NUM!",
+                   "#NULL!", "#####", "#",
+                   "-", "--", "---", ".", "?", "\u2013", "\u2014", "\u2026", "\u2212")
+chiffre_102 <- c("1O4.2", "104.2 EUR", "2017 primes", "12a", "'104", "+104x", "-1O4")
+# Signe ecrit avec U+2013 ou le signe moins U+2212 (reprise de #102, C3).
+signe_unic_102 <- c("\u2013104.2", "\u2212104.2")
+verifier("Predicat .allure_manquante_ou_nombre() : marqueurs (a1)-(a3) et cellules commencant par un chiffre refuses ; en-tetes ordinaires admis ; deux appels identiques (#102)",
+         {
+           oui <- c(marqueurs_102, chiffre_102, signe_unic_102, "104,2 \u20ac", "---.", "?-")
+           non <- c("x", "xt", "a2017", "S1", "LoB12", "2017-18", "2017-2018", "TRUE", "serie",
+                    "NA2", "a-", "N.D.x", "x#", "", NA)
+           # Tirets et points de suspension en Windows-1252 (octets 96, 97, 85) ;
+           # "\u00d6" (C3 96) ne doit pas etre pris pour un tiret.
+           w1252 <- vapply(list(0x96, 0x97, 0x85, c(0x2d, 0x96)),
+                           function(o) rawToChar(as.raw(o)), "")
+           r1 <- .allure_manquante_ou_nombre(c(oui, w1252))
+           identical(r1, rep(TRUE, length(oui) + 4)) &&
+             identical(.allure_manquante_ou_nombre(c(oui, w1252)), r1) &&
+             identical(.allure_manquante_ou_nombre(non), rep(FALSE, length(non))) &&
+             identical(.allure_manquante_ou_nombre(c("\u00d6", "a\u2013")), c(FALSE, FALSE))
+         })
+verifier("Lecture vecteur : marqueur de valeur manquante ou cellule commencant par un chiffre en premiere cellule refuse en en-tete, formats colonne et ligne (#102)",
+         {
+           en_tete <- "en position d'en-tete (premiere cellule non vide)"
+           ascii <- c(marqueurs_102[!grepl("[^ -~]", marqueurs_102)], chiffre_102)
+           unic <- c(marqueurs_102[grepl("[^ -~]", marqueurs_102)], signe_unic_102)
+           # Cellules ASCII : message citant la cellule ; cellules non ASCII
+           # (tirets, points de suspension, dont les octets dependent de la
+           # locale d'ecriture) : motif de position seulement.
+           all(vapply(ascii, function(z)
+             a_motif(msg_ligne(c(z, "102.25", "109.34")), paste0("cellule \"", z, "\" ", en_tete)) &&
+               a_motif(msg_ligne(paste0(z, ",102.25,109.34")), paste0("cellule \"", z, "\" ", en_tete)),
+             TRUE)) &&
+             all(vapply(unic, function(z)
+               a_motif(msg_ligne(c(z, "102.25", "109.34")), en_tete) &&
+                 a_motif(msg_ligne(paste0(z, ",102.25,109.34")), en_tete), TRUE))
+         })
+verifier("Lecture vecteur : regle stricte, etiquette refusee sous un en-tete non vide (cellule, colonne, en-tete nommes), admise sous une cellule d'angle vide (#102)",
+         {
+           stricte <- function(z) a_motif(msg_ligne(c("a17,a18,a19", paste0(z, ",102.25,109.34"))),
+                                          paste0("cellule \"", z, "\" (colonne 1) n'est pas numerique"),
+                                          "l'en-tete \"a17\" au-dessus d'elle n'est pas vide",
+                                          "laisser vide l'en-tete de sa colonne")
+           stricte("1O4.2") && stricte("104.2 EUR") && stricte("abc") &&
+             identical(msg_ligne(c(",a18,a19", "abc,102.25,109.34")), c(102.25, 109.34)) &&
+             a_motif(msg_ligne(c(",a18,a19", "1O4.2,102.25,109.34")),
+                     "cellule \"1O4.2\" (colonne 1), en position d'etiquette de ligne") &&
+             a_motif(msg_ligne(c("serie,a2017,a2018", "x,1,2")),
+                     "cellule \"x\" (colonne 1) n'est pas numerique", "l'en-tete \"serie\"") &&
+             # Etiquette dans une colonne de bord gauche vide cote en-tetes, en colonne 2 du fichier
+             a_motif(msg_ligne(c(",a,b,c", ",lab,1,2")), "cellule \"lab\" (colonne 2)", "l'en-tete \"a\"")
+         })
+verifier("Lecture vecteur : marqueurs N.A, S.O, N.C., N.C, NC, N/C refuses en en-tete et en etiquette sous angle vide (reprise de #102)",
+         all(vapply(c("N.A", "S.O", "N.C.", "N.C", "NC", "N/C"), function(z)
+           a_motif(msg_ligne(c(z, "1", "2")), paste0("cellule \"", z, "\" en position d'en-tete")) &&
+             a_motif(msg_ligne(c(",b,c", paste0(z, ",1,2"))),
+                     paste0("cellule \"", z, "\" (colonne 1), en position d'etiquette de ligne")), TRUE)))
+# Audit de #103 (C1, majeur) : une premiere cellule prise pour une cellule
+# d'angle ("2016r", "2016 (prov.)", "2016*", "NA", "a2016") faisait ecarter
+# la valeur au-dessous comme etiquette (serie lue "1 2", une annee perdue sans
+# message). Regle d'actuary : cellule d'angle vide, ou libelle non numerique
+# sans aucun chiffre et hors predicat.
+verifier("Lecture vecteur : ligne d'annees, premiere cellule ni vide ni libelle sans chiffre refusee avec sa cause ; annee, exercice, vide admis en angle (#103)",
+         {
+           cause_angle <- "ici : premiere cellule ni vide ni libelle sans chiffre."
+           refus <- list(c("2016r,2017,2018", "abc,1,2"), c("2016 (prov.),2017,2018", "n.c.,1,2"),
+                         c("2016*,2017,2018", "x,1,2"), c("2016*,2017,2018", "5,1,2"),
+                         c("2016*,2017,2018", ",1,2"), c("NA,2017,2018", "x,1,2"),
+                         c("a2016,2017,2018", "abc,1,2"), c("Segment 1,2017,2018", "x,1,2"),
+                         c("2016 (prov.),2017,2018", "x,1,2"))
+           all(vapply(refus, function(l) a_motif(msg_ligne(l), "Format non reconnu", cause_angle), TRUE)) &&
+             identical(msg_ligne(c("annee,2017,2018", "xt,1,2")), c(1, 2)) &&
+             identical(msg_ligne(c("exercice,2017,2018", "xt,1,2")), c(1, 2)) &&
+             identical(msg_ligne(c(",2017,2018", "xt,1,2")), c(1, 2)) &&
+             # Ligne entierement textuelle (H1) : regle stricte, inchangee
+             a_motif(msg_ligne(c("a2016,a2017,a2018", "abc,1,2")), "l'en-tete \"a2016\" au-dessus d'elle")
+         })
+# Cas d'audit de la reprise de #102 (scratchpad/audit/p2.R), en
+# non-regression.
+verifier("Lecture vecteur : cas d'audit de #102 (signes U+2013 / U+2212, 1O4.2 avec sep ';', etiquette 1,234.5, NA au milieu)",
+         a_motif(msg_ligne(c("\u2013104.2", "102.25", "109.34")), "en position d'en-tete") &&
+           a_motif(msg_ligne(c("\u2212104.2", "102.25", "109.34")), "en position d'en-tete") &&
+           a_motif(msg_ligne("\u2013104.2,102.25,109.34"), "en position d'en-tete") &&
+           a_motif(msg_ligne("\u2212104.2,102.25,109.34"), "en position d'en-tete") &&
+           a_motif(msg_ligne("1O4.2;102,25;109,34", ";", ","), "cellule \"1O4.2\" en position d'en-tete") &&
+           a_motif(msg_ligne(c("a;b;c", "1O4.2;102,25;109,34"), ";", ","),
+                   "cellule \"1O4.2\" (colonne 1) n'est pas numerique", "l'en-tete \"a\"") &&
+           a_motif(msg_ligne(c(";b;c", "1,234.5;2;3"), ";", ","),
+                   "cellule \"1,234.5\" (colonne 1), en position d'etiquette de ligne") &&
+           a_motif(msg_ligne(c("x", "NA", "2")), "non numerique(s) en position 1", "\"NA\"") &&
+           identical(msg_ligne(c("2017\u201318,2018\u201319", "1,2")), c(1, 2)) &&
+           identical(.allure_manquante_ou_nombre(c("2017\u201318", "2017 - 18", "2017-18 ", "\u2013104")),
+                     c(FALSE, TRUE, FALSE, TRUE)))
+verifier("Lecture vecteur : ligne d'en-tetes d'annees a quatre chiffres consecutives (H2), serie lue dans l'ordre du fichier (#103)",
+         identical(msg_ligne(c("2017,2018,2019", "1,2,3")), c(1, 2, 3)) &&
+           identical(msg_ligne(c(",2017,2018", "xt,1,2")), c(1, 2)) &&
+           identical(msg_ligne(c("annee,2017,2018", "xt,1,2")), c(1, 2)) &&
+           identical(msg_ligne(c("2017;2018;2019", "1,5;2;3"), ";", ","), c(1.5, 2, 3)) &&
+           identical(msg_ligne(c("2019,2018,2017", "3,2,1")), c(3, 2, 1)) &&
+           identical(msg_ligne(c("2017,2018,2019,", "1,2,3,")), c(1, 2, 3)) &&
+           identical(msg_ligne(c("1900,1901", "1,2")), c(1, 2)) &&
+           identical(msg_ligne(c("2099,2100", "1,2")), c(1, 2)) &&
+           a_motif(msg_ligne(c("2017,2018,2019", "1,2,")), "colonne 3 : en-tete \"2019\" sans valeur") &&
+           # Cellule d'angle textuelle : pas un en-tete d'annee ; une valeur au-dessous est sans en-tete
+           a_motif(msg_ligne(c("annee,2017,2018", "5,1,2")), "colonne 1 : valeur \"5\" sans en-tete") &&
+           # Etiquette sous l'angle : predicat applique
+           a_motif(msg_ligne(c(",2017,2018", "NA,1,2")), "cellule \"NA\" (colonne 1), en position d'etiquette"))
+verifier("Lecture vecteur : sens des annees non interprete, fixe par plus_recent_en_dernier d'usp_charger() (#103)",
+         {
+           fa <- tempfile(); writeLines(c("2019,2018,2017", "3,2,1"), fa)
+           fb <- tempfile(); writeLines(c("2019,2018,2017", "30,20,10"), fb)
+           r <- usp_charger(fa, fb, plus_recent_en_dernier = FALSE)
+           identical(r$x, c(1, 2, 3)) && identical(r$y, c(10, 20, 30))
+         })
+verifier("Lecture vecteur : tableau de deux lignes hors H1 et H2 refuse, message nommant la cause (#103)",
+         {
+           fnr <- function(l, cause) a_motif(msg_ligne(l), "Format non reconnu",
+                                              "annees a quatre chiffres consecutives ; ici : ",
+                                              paste0("ici : ", cause, "."))
+           fnr(c("1,2,3", "4,5,6"), "deux lignes numeriques, la premiere sans annees a quatre chiffres") &&
+             fnr(c("17,18,19", "1,2,3"), "deux lignes numeriques, la premiere sans annees a quatre chiffres") &&
+             fnr(c("2017,2019,2021", "1,2,3"), "entiers non consecutifs") &&
+             fnr(c("2017,2017", "1,2"), "entiers non consecutifs") &&
+             fnr(c("2017,2018,2017", "1,2,3"), "entiers non consecutifs") &&
+             fnr(c("1899,1900", "1,2"), "annees hors 1900-2100") &&
+             fnr(c("2100,2101", "1,2"), "annees hors 1900-2100") &&
+             fnr(c("a,2018,c", "1,2,3"), "cellules numeriques melees a du texte") &&
+             fnr(c(",2017", "x,5"), "une seule annee") &&
+             fnr(c("1.5,2", "a,b"), "cellules numeriques qui ne sont pas des annees a quatre chiffres") &&
+             # Trois lignes : message sans phrase de cause (H1/H2 ne valent que pour deux lignes)
+             (function(e) grepl("Format non reconnu", e, fixed = TRUE) && !grepl("ici :", e, fixed = TRUE))(
+               msg_ligne(c("a,b,c", "1,2,3", "4,5,6")))
          })
 
 fin_fichier()

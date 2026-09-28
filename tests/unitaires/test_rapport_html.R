@@ -389,4 +389,21 @@ if (requireNamespace("plotly", quietly = TRUE) && requireNamespace("htmltools", 
   cat("  note : plotly absent ; branche interactive non exercee (attendu en CI, issue #53).\n")
 }
 
+## --- Troncature des annees fournies (issue #104) ------------------------------
+# n = 12 annees (4 annees synthetiques, sans source, devant les 8 du jeu
+# ci-dessus), T = 8 : la ligne "profondeur" de engine_derogations() est
+# reprise dans le rapport fige (en-tete et bandeau de la calibration) ;
+# absente quand n = T (res_ln).
+res_12 <- run_engine(xt = c(95.10, 97.80, 99.40, 101.05, xt),
+                     yt = c(71.30, 64.20, 80.15, 69.90, yt), methode = "premium",
+                     segment = 1, B = 99, nature_donnees = "brutes", T = 8)
+f_12 <- tempfile(fileext = ".html")
+rapport_html(res_12, selection_defaut(engine_table_tests(res_12)), f_12,
+             interactif = FALSE, identite = idt)
+h12 <- lire(f_12)
+lib12 <- .echap_html(engine_derogations(res_12)$libelle)
+verifier("Rapport fige, n = 12, T = 8 : libelle \"profondeur\" du moteur repris deux fois (en-tete, bandeau) ; absent pour n = T (#104)",
+         length(lib12) == 1L && compte(h12, lib12) == 2L &&
+           !grepl("annees fournies", h, fixed = TRUE))
+
 fin_fichier()

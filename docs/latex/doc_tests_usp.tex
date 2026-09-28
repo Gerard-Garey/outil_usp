@@ -490,14 +490,24 @@ non bloquants), ajoutés à \code{res\$controles} \\
 par \code{engine\_valider\_}\newline\code{profondeur()}, erreur sinon) et le sens chronologique des
 données &
 vecteur lu, cellule vide, non numérique ou non finie au milieu de la série refusée avec sa
-position, en-têtes et valeurs d'une série en ligne alignés colonne par colonne, BOM UTF-8
-retiré (§\ref{sec:controles})~;
+position, ligne d'en-têtes sans cellule numérique ou d'années consécutives, en-têtes et valeurs
+d'une série en ligne alignés colonne par colonne, BOM UTF-8 retiré (§\ref{sec:controles})~;
 liste \code{\$x}, \code{\$y}, \code{\$T} (les $T$ années les plus récentes) \\
 \code{.sans\_bom()},\newline \code{.nom\_sans\_bom()},\newline
-\code{.allure\_manquante\_}\newline\code{ou\_nombre()} & chaîne~; nom de colonne~; cellules &
+\code{.allure\_manquante\_}\newline\code{ou\_nombre()},\newline \code{.ligne\_annees()} &
+chaîne~; nom de colonne~; cellules~; première et seconde lignes, \code{dec} &
 chaîne sans la marque d'ordre des octets UTF-8 (comparaison d'octets)~; premier nom de colonne
-sans BOM, y compris sous ses formes lues hors locale UTF-8~; prédicat de refus d'un en-tête ou
-d'une étiquette de ligne à l'allure de valeur manquante ou de nombre (§\ref{sec:controles}) \\
+sans BOM, y compris sous ses formes lues hors locale UTF-8~; prédicat de refus d'un en-tête,
+d'une étiquette de ligne ou d'une cellule d'angle à l'allure de valeur manquante ou de nombre~;
+\code{\$ok}, \code{\$angle}, \code{\$cause}~: première ligne lue comme ligne d'années
+consécutives entre 1900 et 2100, cause du refus sinon (§\ref{sec:controles}, issues~\#102
+et~\#103) \\
+\code{.octets\_non\_utf8()},\newline \code{.nettoyer\_cellules()},\newline
+\code{.cellules\_en\_nombre()} & cellules~; cellules~; cellules, \code{dec} &
+prédicat «~octets non UTF-8 lus en locale UTF-8~» (faux hors locale UTF-8)~; cellules sans
+blancs ASCII de bord, retirés octet par octet, une cellule non UTF-8 étant déclarée Latin-1 en
+locale UTF-8~; conversion numérique, une cellule non UTF-8 en locale UTF-8 valant \code{NA}
+sans erreur de R (§\ref{sec:controles}, issue~\#99) \\
 \code{engine\_lire\_donnees\_}\newline\code{csv()}, \code{.en\_numerique()} & \code{data.frame}
 (colonnes $t$, \code{xt}, \code{yt})~; vecteur & \code{\$ok}, \code{\$erreurs}, \code{\$xt},
 \code{\$yt}, \code{\$n}, lignes rangées par $t$ (entier, sans doublon, consécutif), BOM retiré
@@ -639,7 +649,9 @@ table des $\hat\sigma^{(-t)}$, $\sigma_{\mathrm{USP}}^{(-t)}$, $\hat\delta^{(-t)
 $\hat\gamma^{(-t)}$ \\
 \code{usp\_profil()} & \code{fit}, \code{n} (41 points) & profils en $\delta$ et $\gamma$, tests LR \\
 \code{usp\_segment\_infos()}, \code{usp\_bareme\_segment()} & segment, annexe &
-libellé, $\sigma$ standard brut et de réserve, facteur \code{np\_standard}, barème~; barème seul
+libellé, $\sigma$ standard brut et de réserve, facteur \code{np\_standard}, barème, erreur
+d'usage pour un segment qui n'est pas un nombre scalaire fini entier sans attribut
+(\code{.segment\_verifie()}) ou qui est inconnu de l'annexe~; barème seul
 (court par convention sans segment, barème non déterminé par la section~G) \\
 \code{usp\_parametre\_}\newline\code{standard()} & \code{methode}, \code{segment}, \code{annexe},
 \code{nature\_donnees}, \code{sigma\_standard} & paramètre standard du mélange selon la
@@ -652,7 +664,9 @@ barème, recalculé et contrôlé contre \code{\$metadata} et \code{\$parametre\
 \code{engine\_derogations()} & \code{res} & \code{NULL} si le calcul n'a pas abouti~; sinon table
 des dérogations (\code{parametre}, \code{valeur\_reglementaire}, \code{valeur\_retenue},
 \code{conforme}, \code{libelle}), zéro ligne sans dérogation~: $\sigma$ standard saisi, barème
-saisi, barème non déterminé faute de segment (§\ref{sec:segments}) \\
+saisi, barème non déterminé faute de segment, troncature des années fournies à la profondeur $T$
+(ligne \code{profondeur}, issue~\#104) (§\ref{sec:segments})~; erreur si un drapeau de saisie ou
+\code{\$metadata\$n\_fournies} manque ou est incohérent (\code{.engine\_trace\_profondeur()}) \\
 \code{TOLERANCE\_CONFORME\_}\newline\code{SIGMA} & constante ($10^{-12}$) & tolérance relative de
 l'égalité entre $\sigma$ standard saisi et $\sigma$ standard réglementaire (colonne
 \code{conforme} d'\code{engine\_derogations()}) \\
@@ -660,6 +674,9 @@ l'égalité entre $\sigma$ standard saisi et $\sigma$ standard réglementaire (c
 fini ou si $T < 5$ \\
 \code{.annexe\_verifiee()} & \code{annexe} & \code{"II"} ou \code{"XIV"}, erreur pour toute
 autre valeur \\
+\code{.segment\_verifie()} & \code{segment} & segment inchangé s'il est un nombre scalaire fini
+entier sans attribut, erreur d'usage nommant \code{segment} pour toute autre valeur, texte
+compris (sans conversion, issue~\#105) \\
 \code{usp\_parametre()} & \code{fit}, $\sigma_{\text{std}}$, barème &
 $\sigma_{\mathrm{USP}}$ et ses composantes \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Chaîne Merz--Wüthrich (section~D, §\ref{sec:mw})}}} \\
@@ -717,7 +734,9 @@ $0{,}02$) & repères de lecture des graphiques d'influence, sans verdict
 \code{engine\_table\_tests()} & \code{res} & \code{data.frame} auditable, dont la colonne
 \code{p\_min} (issue~\#44) \\
 \code{run\_engine()} & entrées utilisateur, dont \code{nature\_donnees} (obligatoire pour
-\code{premium}), $T$ (contrôlé par \code{engine\_valider\_}\newline\code{profondeur()}) et
+\code{premium}), $T$ (contrôlé par \code{engine\_valider\_}\newline\code{profondeur()}~; les $T$
+années les plus récentes des $n$ fournies sont retenues, $n$ étant consigné dans
+\code{\$metadata\$n\_fournies}) et
 \code{bareme} (\code{NULL}~: barème du segment~; valeur saisie~: dérogation déclarée,
 §\ref{sec:segments}) & objet
 \code{usp\_engine}
@@ -725,8 +744,17 @@ complet~; \code{ok = FALSE} pour un refus de données ou un défaut de calcul in
 R pour une erreur d'usage (§\ref{sec:controles}) \\
 \code{.engine\_verifier\_}\newline\code{usage()} & \code{B}, \code{seed}, \code{bareme},
 \code{alpha}, \code{sigma\_standard}, \code{segment}, \code{annexe} & erreur R explicite, citant la valeur reçue, pour un
-argument d'appel invalide (erreur d'usage, dont $B <$ \code{B\_MIN\_USAGE} $= 99$), appelée par les deux branches avant tout calcul
+argument d'appel invalide (erreur d'usage, dont $B <$ \code{B\_MIN\_USAGE} $= 99$ et, à $B$ et
+$\alpha$ valides isolément, $B + 1 \le 4/\alpha$), appelée par les deux branches avant tout calcul
 (§\ref{sec:controles}) \\
+\code{engine\_motif\_b\_alpha()} & \code{B}, \code{alpha} & \code{NULL} si
+$2/(B+1) < \alpha/2$, ou hors du domaine de la règle ($B$ ou $\alpha$ invalide isolément,
+$B <$ \code{B\_MIN\_USAGE})~; sinon le message de l'erreur d'usage, seule source du texte, levé
+par \code{.engine\_verifier\_usage()} et affiché par l'application avant le clic
+(§\ref{sec:controles}, issue~\#127) \\
+\code{engine\_b\_minimal()} & \code{alpha} & plus petit entier $B \ge 1$ tel que
+$2/(B+1) < \alpha/2$, cité dans le message d'\code{engine\_motif\_b\_alpha()}~; erreur R si
+$4/\alpha$ n'est pas fini ou n'est pas inférieur à $2^{52}$ \\
 \code{.engine\_calcul\_}\newline\code{protege()} & \code{methode}, horodatage,
 \code{validation}, calcul & résultat du calcul, ou objet \code{ok = FALSE} portant
 \code{validation\$erreur\_r} si ce calcul, qui suit une validation réussie, lève une erreur R
@@ -853,6 +881,53 @@ segment~2. Ce dernier résultat égale, à $10^{-16}$ près, celui du segment~1 
 nettes ($c = 0{,}59$ et $\sigma_{\text{std}} = 0{,}08$ dans les deux cas)~: seul le drapeau
 distingue alors un calcul conforme d'un calcul dérogatoire.
 
+\noindent
+\emph{Durée de crédibilité et profondeur retenue} (issue~\#104, lecture retenue par le mainteneur
+le 28~septembre 2026 sur l'avis d'\code{actuary} et la lecture de \code{regulatory}).
+\emph{Texte} (version consolidée)~: la durée «~correspond~», pour la méthode du risque de primes,
+«~au nombre d'années d'accident pour lesquelles des données sont disponibles~» (G(3)(a)) et, pour
+la méthode du risque de réserve n\textsuperscript{o}~1, «~au nombre d'exercices pour lesquels des
+données sont disponibles~» (G(3)(b))~; B(3)(a)-(b) et C(3)(a)-(b) numérotent les années
+d'accident (les exercices) de~1 à~$T$ selon le même critère, $T$ représentant «~la dernière année
+d'accident pour laquelle des données sont disponibles~» («~le dernier exercice~» en C(3)(b)). La
+durée de G(3) et le $T$ de B/C(4) à~(6) (facteur de correction du paragraphe~4, sommes des
+paragraphes~5 et~6) sont donc un seul et même nombre~: le texte ne
+prévoit ni une durée de crédibilité distincte de la profondeur d'estimation, ni une fenêtre
+glissante. Il ne définit pas «~disponibles~», et n'interdit pas d'écarter des années~: aucune donnée
+pertinente ne peut en être exclue sans justification (article~19, paragraphe~1, point~b), rendu
+applicable par l'article~219, paragraphe~1, point~a)), et le choix doit être documenté
+(article~219, paragraphe~1, point~e)). \emph{Lecture retenue par l'outil} (lecture~(A))~: des
+années fournies mais écartées de l'estimation, au motif qu'elles ne sont plus représentatives du
+risque des douze mois à venir (B(2)(a), C(2)(a), qui n'exigent que cette représentativité sans
+énumérer de motifs~; motifs types, non tirés du texte~: changement de périmètre, de réassurance,
+de tarification ou de gestion des sinistres), ne sont pas «~disponibles~», et la durée de
+crédibilité est la profondeur $T$ retenue. Est écartée la lecture qui calculerait $c$ sur les $n$
+années fournies tout en estimant $\hat\sigma$ sur les $T$ retenues~: elle donnerait à
+«~disponibles~» deux sens dans la même annexe et, actuariellement, attribuerait à un estimateur
+fondé sur $T$ années le poids de crédibilité prévu pour $n$ années. La lecture qui tient toutes
+les années fournies pour disponibles ne change pas le calcul de $c$, qui porte toujours sur les
+années de l'estimation~: elle ne diffère de~(A) que sur la licéité de la troncature, qui relève
+de la justification propre au dossier. \emph{Mise en \oe uvre}~: \code{run\_engine()} retient les
+$T$ années les plus récentes des $n$ fournies, calcule $c$ sur~$T$ (\code{usp\_credibilite()}),
+consigne $n$ dans \code{\$metadata\$n\_fournies} et, si $n > T$, fait restituer la troncature par
+une ligne \code{parametre = "profondeur"} d'\code{engine\_derogations()}~: \code{valeur\_retenue}
+égale à~$T$, \code{valeur\_reglementaire} et \code{conforme} manquants, le texte ne fixant aucune
+profondeur au-delà du minimum de cinq années d'accident (B(2)(b)) ou
+exercices (C(2)(b)) consécutifs (choix de périmètre, et non dérogation à un paramètre), et un libellé qui donne $T$,
+$n$ et le nombre d'années écartées («~exercices~» en réserve n\textsuperscript{o}~1), cite
+G(3)(a) (primes) ou G(3)(b) (réserve n\textsuperscript{o}~1) pour la durée égale à~$T$, et
+rappelle que l'exclusion est à justifier (article~219, paragraphe~1, point~a), renvoyant à
+l'article~19, paragraphe~1, point~b)~; motif de représentativité B(2)(a) ou C(2)(a)) et à
+documenter (article~219, paragraphe~1, point~e)). Pour la méthode Merz--Wüthrich, le triangle
+n'est jamais tronqué~: $n$ est son nombre de lignes, égal à la durée $I + 1$ de G(3)(c), et
+aucune ligne \code{profondeur} n'est produite. Mesuré sur le jeu de contrôle (segment~1 de
+l'annexe~II, données déclarées brutes, $B = 99$) précédé de deux années ajoutées en tête ($n =
+10$, $T = 8$)~: $\sigma_{\mathrm{USP}} = 0{,}1114524$, identique au bit près au calcul sur les
+huit années seules, avec $c = 0{,}59$~; calculé sur $n = 10$, $c$ vaudrait $0{,}74$
+(\code{usp\_credibilite(10, "long")}). L'outil rend la troncature visible et quantifiée~; il ne
+distingue pas une troncature justifiée d'une troncature de convenance, dont la justification est
+un élément du dossier.
+
 \begin{encadre}
 \textbf{Portée.} L'outil ne couvre pas les autres paramètres remplaçables
 de l'article~218, paragraphe~1 (version consolidée)~:
@@ -879,7 +954,8 @@ an, §\ref{sec:mw}).
 
 \smallskip
 \textbf{Paramètre remplacé par la méthode du risque de primes} (décision M13 du mainteneur,
-issue~\#55). Le paramètre standard qui entre dans le mélange de B(4) est, selon B(4)(e),
+issue~\#55). Le paramètre standard qui entre dans le mélange de B(4) (annexe~XVII, section~B,
+paragraphe~4~; forme abrégée définie en section~\ref{sec:notations}) est, selon B(4)(e),
 «~le paramètre standard à remplacer par le paramètre propre à l'entreprise~», et c'est la
 nature des données qui le désigne (lecture retenue, ci-dessous)~; la nature est donc
 \textbf{déclarée obligatoirement} (\code{nature\_donnees = "brutes"} ou \code{"nettes"}, sans
@@ -926,10 +1002,15 @@ est recalculée et jamais stockée. \code{engine\_derogations()} en est le point
 (issue~\#93)~: pour un résultat abouti, elle rend une table à une ligne par dérogation (aucune
 sans dérogation), qui donne le paramètre (\code{sigma\_standard} ou \code{bareme}), la valeur
 réglementaire (manquante sans segment), la valeur retenue, leur conformité (manquante si elle ne
-peut être établie) et un libellé complet, écrit par le moteur, que l'onglet Calibration, le
-rapport figé et le journal de l'application reprennent tels quels~; elle porte aussi, sans
-drapeau, le barème non déterminé faute de segment, et refuse, par une erreur, un résultat
-dépourvu de l'un des deux drapeaux. L'égalité du $\sigma$ saisi à la valeur réglementaire y est
+peut être établie) et un libellé complet, écrit par le moteur, que l'onglet Calibration et le
+rapport figé reprennent tels quels, et le journal de l'application en entier pour le barème, sous
+une mention abrégée pour le $\sigma$ standard saisi et pour la profondeur~; elle porte aussi, sans
+drapeau, le barème non déterminé faute de segment et, depuis l'issue~\#104, la troncature des
+années fournies à la profondeur~$T$ (ligne \code{profondeur}, paragraphe de la durée de
+crédibilité ci-dessus), et refuse, par une erreur, un résultat dépourvu de l'un des deux drapeaux
+ou dont \code{\$metadata\$n\_fournies} manque ou contredit $T$ (\code{.engine\_trace\_profondeur()}~:
+$n$ non entier, $n < T$, ou triangle tronqué en réserve n\textsuperscript{o}~2), plutôt que de
+deviner. L'égalité du $\sigma$ saisi à la valeur réglementaire y est
 jugée en relatif à $10^{-12}$ près (constante \code{TOLERANCE\_CONFORME\_SIGMA}), parce que le
 produit du facteur NP standard et de $\sigma$ brut n'est pas toujours représentable exactement
 (mesuré~: $0{,}8 \times 0{,}10$ diffère de $0{,}08$ de $1{,}4\cdot 10^{-17}$, et une saisie de
@@ -946,7 +1027,7 @@ barème de crédibilité (annexe~XVII, section~G)~».
 \emph{Anomalies rédactionnelles du texte consolidé}, relevées par la lecture réglementaire de
 l'issue~\#55 et sans incidence sur les calculs~: C(4)(e) nomme $\sigma_{(\text{prem},s)}$ le
 paramètre à remplacer de la méthode de réserve n\textsuperscript{o}~1, alors que la formule du
-point~(4) écrit $\sigma_{(\text{res},s)}$ et que la méthode remplace le point~a)~iv) ou c)~iv)
+paragraphe~4 écrit $\sigma_{(\text{res},s)}$ et que la méthode remplace le point~a)~iv) ou c)~iv)
 (article~220, paragraphe~1, point~b))~:
 le moteur suit la formule~; l'article~117, paragraphe~2, point~a), renvoie au «~paragraphe~2~»,
 lu comme le paragraphe~3 par parallélisme avec l'article~148, paragraphe~2, point~a)~;
@@ -1356,7 +1437,9 @@ $\sigma_{\text{standard}}$ (\code{sigma\_standard\_saisi}, trois méthodes~: dé
 paramètre réglementaire), le barème de
 crédibilité et le drapeau de sa saisie (\code{bareme\_saisi}, trois méthodes~: dérogation au
 barème de l'annexe~XVII, section~G, issue~\#93, placé après les champs de l'issue~\#37 et avant
-les champs d'exécution), $T$, $B$ (dont se déduit la granularité $1/(B+1)$), le seuil
+les champs d'exécution), le nombre d'années fournies avant troncature (\code{n\_fournies}, trois
+méthodes, issue~\#104, placé après \code{bareme\_saisi} et avant les champs d'exécution~;
+nombre de lignes du triangle, jamais tronqué, en réserve n\textsuperscript{o}~2), $T$, $B$ (dont se déduit la granularité $1/(B+1)$), le seuil
 $\alpha$, la graine du bootstrap (\code{seed}), le générateur posé par le moteur
 (\code{generateur}~: \code{kind}, \code{normal.kind}, \code{sample.kind}, soit
 \code{ENGINE\_RNG\_KIND}), les graines fixes des deux autres simulations
@@ -1705,6 +1788,27 @@ section~\ref{sec:notations-mw} la méthode Merz--Wüthrich (section~D). Les
 conventions communes --- lois, fonctions de répartition, convention de
 restitution --- valent pour les deux.
 
+\smallskip
+\emph{Citations de l'annexe~XVII.} L'annexe~XVII nomme \emph{paragraphes} les divisions
+numérotées (1), (2)\dots{} de chacune de ses sections, et \emph{points} leurs divisions
+lettrées a), b)\dots{}~; certains points sont eux-mêmes divisés en i., ii.\dots{}, niveau que
+l'annexe ne nomme pas~: ses renvois internes s'arrêtent au point («~paragraphe~5,
+point~b)~»). Ailleurs, le règlement cite ce niveau à la suite du point, sans lui donner de nom
+(article~218, paragraphe~1, dernière phrase~: «~points a)~ii) et a)~iii)~»~; article~220,
+paragraphe~1, point~b)~: «~points a)~iv) et c)~iv)~»~; annexe~XVII, section~B, paragraphe~2,
+point~c)~: «~article~218, paragraphe~1, point~a)~ii)~»). Le document l'appelle
+\emph{subdivision}, pour éviter l'homonymie avec les points lettrés. Il
+cite ces divisions sous l'une de deux formes équivalentes~: la forme développée
+«~annexe~XVII, section~X, paragraphe~$n$, point~$y$)~», et la forme abrégée X($n$)($y$)($z$), qui
+désigne l'annexe~XVII, section~X, paragraphe~$n$, point~$y$), subdivision~$z$. Ainsi B(2)(g)(i)
+désigne la subdivision~i. du point~g) du paragraphe~2 de la section~B. La forme abrégée s'arrête
+au niveau cité (D(5)~: paragraphe~5 de la section~D~; C(1)(a)~: point~a) du paragraphe~1 de la
+section~C), et B/C($n$)($y$) désigne la division de même numéro dans chacune des sections~B
+et~C (B/C(2)(b)~: B(2)(b) et C(2)(b)). La forme abrégée est aussi celle du champ \code{famille}
+de la table des tests et de plusieurs messages de validation du moteur. Les citations textuelles
+du règlement conservent sa propre typographie, qui varie d'un passage à l'autre («~paragraphe~1,
+point~a)~», «~paragraphe~(1), point~(a)~»).
+
 \subsection*{Méthodes lognormales : données et modèle}
 
 Pour un segment donné et une profondeur $T$~:
@@ -1945,7 +2049,12 @@ autres qu'un calcul abouti, à ne pas confondre (issue~\#88, décision du mainte
   manquant, la méthode du risque de réserve n\textsuperscript{o}~2 sans triangle, et les
   arguments contrôlés par \code{.engine\_verifier\_usage()}, appelée par les deux branches avant
   toute validation des données, donc quelles que soient celles-ci~: \code{segment} (avec
-  \code{annexe}), un segment inconnu de l'annexe ou l'absence à la fois de \code{segment} et de
+  \code{annexe}), nombre scalaire fini entier sans attribut (\code{.segment\_verifie()},
+  issue~\#105), le texte (\code{"1"}) étant refusé sans conversion (décision du mainteneur du
+  27~septembre 2026)~: une conversion silencieuse masquerait l'erreur de l'appelant (mesuré sur
+  le code antérieur~: \code{"1"}, \code{TRUE}, \code{c(a = 1)} et \code{matrix(1)} étaient
+  acceptés et recopiés tels quels dans le résultat, \code{c(1, 2)} et \code{integer(0)} levaient
+  une erreur R qui ne nommait pas l'argument), un segment inconnu de l'annexe ou l'absence à la fois de \code{segment} et de
   \code{sigma\_standard} étant refusés (contrôles faits jusqu'à la revue finale de l'issue~\#88
   après la validation des données, si bien que le même appel levait une erreur R sur des données
   valides et rendait \code{ok = FALSE} sur des données refusées)~;
@@ -1955,7 +2064,35 @@ autres qu'un calcul abouti, à ne pas confondre (issue~\#88, décision du mainte
   $2/(B+1) = 0{,}02 < \alpha/2$ au seuil par défaut, une détection de dégénérescence armée
   (\code{B\_MIN\_DEGENERESCENCE} $= 50$ réplications finies, section~\ref{sec:nature}) et la
   présence de l'intervalle bootstrap à 90~\%, calculé au-delà de 20 valeurs bootstrap, avec la
-  ligne de sa largeur, et qui est le minimum du champ $B$ de l'application~; \code{seed}, nombre
+  ligne de sa largeur, et qui est le minimum du champ $B$ de l'application~; \code{B} et
+  \code{alpha} conjointement, $B + 1 > 4/\alpha$ en plus de $B \ge$ \code{B\_MIN\_USAGE}
+  (issue~\#127), contrôle fait après ceux de $B$ et de $\alpha$, dont les messages restent
+  inchangés pour une valeur invalide isolément~: le plancher bilatéral $2/(B+1)$ de la p-value de
+  Monte-Carlo doit être strictement inférieur à $\alpha/2$, seuil d'\code{ECHEC} de la règle des
+  verdicts (section~\ref{sec:synthese}), faute de quoi l'\code{ECHEC} d'une ligne dont la seule
+  p-value est de Monte-Carlo serait inatteignable sans signal~; le plancher unilatéral
+  $1/(B+1)$ est alors inférieur à $\alpha/4$. \code{B\_MIN\_USAGE} suffit pour
+  $\alpha > 0{,}04$~; en deçà, le $B$ minimal, donné par \code{engine\_b\_minimal()} et cité par
+  le message, vaut $100$ à $\alpha = 0{,}04$, $133$ à $0{,}03$, $200$ à $0{,}02$ et $400$ à
+  $0{,}01$ (à $\alpha = 0{,}05$ et $0{,}10$, il vaudrait $80$ et $40$, sous
+  \code{B\_MIN\_USAGE}). L'inégalité est stricte (à $2/(B+1) = \alpha/2$, la p-value minimale
+  donne \code{ALERTE}) et évaluée par \code{engine\_motif\_b\_alpha()} dans l'arithmétique
+  flottante de la règle des verdicts, $2/(B+1) < \alpha/2$, et non sous la forme
+  $B + 1 > 4/\alpha$, qui lui est équivalente en arithmétique exacte mais peut s'en écarter en
+  double (mesuré~: à $\alpha = 0{,}00128$ et $B = 3124$, $B + 1 > 4/\alpha$ est évaluée vraie et
+  $2/(B+1) < \alpha/2$ fausse)~: le contrôle d'entrée et le verdict ne peuvent diverger. Le contrôle porte sur $B$ nominal~; le plancher réel,
+  $2/(B_{\text{eff}}+1)$, est plus élevé si des réplications ne sont pas finies, et ce cas n'est
+  pas détecté par le moteur~: le champ \code{p\_min} n'est renseigné que pour un test à loi de
+  référence discrète (règle~R1, section~\ref{sec:nature}), jamais à partir du plancher de
+  Monte-Carlo, de sorte que la branche «~\code{ECHEC} inatteignable~» de la règle des verdicts
+  d'\code{add()} ne joue pas pour une ligne dont la seule p-value est de Monte-Carlo, et qu'aucun
+  motif n'est écrit dans son commentaire. Le cas se lit sur \code{bootstrap\$B\_effectif} et
+  \code{bootstrap\$granularite\_stat} (issue~\#40). Mesuré par \code{engine\_p\_mc()}~: à
+  $B = 99$ et $\alpha = 0{,}05$, valeurs admises, $60$ réplications finies donnent une p-value de
+  Monte-Carlo bilatérale minimale de $2/61 \approx 0{,}0328 \ge \alpha/2 = 0{,}025$, sans motif.
+  Mesuré aussi~:
+  $B = 99$ à $\alpha = 0{,}04$ et $B = 399$ à $\alpha = 0{,}01$ lèvent l'erreur, $B = 400$ à
+  $\alpha = 0{,}01$ et $B = 99$ à $\alpha = 0{,}05$ sont admis~; \code{seed}, nombre
   scalaire fini entier,
   $|\mathtt{seed}| \le 2\,147\,483\,647$ (\code{.Machine\$integer.max}, domaine de
   \code{set.seed()}), \code{NULL} étant refusé parce que \code{set.seed(NULL)} réinitialise le
@@ -1973,8 +2110,9 @@ autres qu'un calcul abouti, à ne pas confondre (issue~\#88, décision du mainte
   par le moteur, cite la valeur reçue (mesuré~: $\alpha = 0{,}30$, \code{seed = NULL},
   \code{seed = 1.5}, \code{bareme = "co"} et \code{sigma\_standard = 0} lèvent chacun
   l'erreur correspondante, $\alpha = 0{,}2999$ est calculé). Relèvent du même régime, en appel
-  direct, la durée non entière refusée par \code{usp\_credibilite()} et l'annexe refusée par
-  \code{.annexe\_verifiee()}~; \code{theta\_equiv} n'en relève pas~: hors domaine, c'est un
+  direct, la durée non entière refusée par \code{usp\_credibilite()}, l'annexe refusée par
+  \code{.annexe\_verifiee()} et le segment refusé par \code{.segment\_verifie()}, qu'appellent
+  \code{usp\_segment\_infos()} et, par elle, \code{usp\_parametre\_standard()}~; \code{theta\_equiv} n'en relève pas~: hors domaine, c'est un
   refus de données~;
 \item le \textbf{défaut de calcul intercepté}~: une erreur R survient dans le calcul qui suit une
   validation réussie (après \code{engine\_valider\_donnees()} dans la branche lognormale, après
@@ -2009,7 +2147,11 @@ moteur~; le diagnostic d'un défaut de calcul (message R, appel, origine, pile) 
 dans le journal de la session R, jamais à l'écran. Un champ $\alpha$, graine ou $\sigma$ standard (saisie libre
 cochée) laissé vide est transmis comme \code{NA} et s'affiche en erreur d'usage~; un champ $T$ vide
 reste refusé par le moteur, sans profondeur implicite, et l'interface ajoute seulement au motif
-le nom du champ en cause. La notification «~Calculs terminés~» n'est émise qu'après un calcul
+le nom du champ en cause. Le champ $B$ a pour minimum \code{B\_MIN\_USAGE}~; quand le couple
+$(B, \alpha)$ saisi ne satisfait pas $B + 1 > 4/\alpha$, un bandeau d'avertissement l'annonce
+avant le clic, avec le texte d'\code{engine\_motif\_b\_alpha()}, sans règle dans l'interface~; le
+bouton «~Relancer les calculs~» reste actif et le clic produit l'erreur d'usage de même texte
+(issue~\#127, décisions du mainteneur du 28~septembre 2026). La notification «~Calculs terminés~» n'est émise qu'après un calcul
 abouti. À la lecture d'un fichier, enfin, l'application ne montre jamais un message de R~: un
 fichier CSV ou xlsx illisible (binaire, vide, lignes plus longues que l'en-tête, classeur
 corrompu ou tronqué) est signalé par un message fixe selon le format (\code{lire\_tableau()} de
@@ -2032,7 +2174,10 @@ Le $T$ demandé est contrôlé par \code{engine\_valider\_profondeur()} \emph{av
 troncature~: une valeur non entière, manquante, infinie, multiple, textuelle ou vide est
 refusée sans tronquer la série (issue~\#87~; auparavant, $T = 5{,}5$ retenait en silence les
 années 3 à 7, $\sigma_{\mathrm{USP}} = 0{,}108587$ au lieu de $0{,}111452$ sur le jeu de
-contrôle). \\
+contrôle). Pour $T < n$, les $n - T$ années les plus anciennes sont écartées~: $n$ est
+consigné dans \code{\$metadata\$n\_fournies}, la troncature restituée par
+\code{engine\_derogations()}, et la durée de crédibilité vaut $T$ (issue~\#104,
+§\ref{sec:segments}). \\
 Nature des données & méthode de primes~: «~brutes~» ou «~nettes~» déclarée, sans défaut~;
 réserve n\textsuperscript{o}~1~: «~brutes~» refusé & Désigne le paramètre remplacé
 (B(2)(c), B(2)(d), §\ref{sec:segments})~; données nettes exigées par C(2)(c). Bloquant. \\
@@ -2083,28 +2228,96 @@ cellule vide, non numérique ou non finie (\code{Inf}, \code{-Inf}, \code{NaN}, 
 lecture depuis l'issue~\#95) au milieu de la série, en donnant sa position, parce que la
 retirer décalerait les années suivantes et désalignerait $x_t$ et $y_t$~; elle lit une série en
 colonne ou en ligne, avec ou sans en-tête, y compris une série en ligne précédée immédiatement
-d'une ligne d'en-têtes sans aucune cellule numérique (par exemple \code{a2017;\ldots;a2024}),
-qui est écartée~; elle refuse tout autre tableau de plusieurs lignes et plusieurs colonnes,
-sans l'aplatir. Dans ce dernier format, en-têtes et valeurs doivent être \emph{alignés colonne
+d'une ligne d'en-têtes, qui est écartée. Quand le fichier compte, après retrait des lignes et
+colonnes vides de bord, plusieurs colonnes, une première et une seconde ligne et aucune autre,
+la première est une ligne d'en-têtes
+(issue~\#103) si (H1) aucune de ses cellules n'est numérique (par exemple
+\code{a2017;\ldots;a2024}), ou si (H2) ses cellules non vides, hors la \emph{cellule d'angle}
+(première colonne), sont des années à quatre chiffres comprises entre 1900 et 2100, au nombre de
+deux au moins, consécutives de 1 en 1, toutes croissantes ou toutes décroissantes
+(\code{.ligne\_annees()}~; mesuré~: \code{2017,2018,2019} au-dessus de \code{1,2,3} est lu $1, 2,
+3$, alors que le code antérieur refusait ce fichier comme «~Format non reconnu~»). Les bornes et
+la consécutivité empêchent de lire comme une série un tableau numérique, qu'il faudrait aplatir~:
+\code{1,2,3} au-dessus de \code{4,5,6}, des années à deux chiffres (\code{17,18,19}), non
+consécutives (\code{2017,2019,2021}) ou hors bornes (\code{1899,1900}) restent refusées. Sous
+(H2), la cellule d'angle est vide, ou un libellé non numérique sans aucun chiffre qui ne relève
+pas du prédicat décrit plus bas (\code{annee}, \code{exercice})~; elle compte alors comme une
+cellule d'en-tête vide, pour l'étiquette de ligne comme pour l'alignement. Toute autre première
+cellule non numérique (\code{2016r}, \code{a2016}, \code{NA}, \code{Segment 1}) fait refuser la
+ligne~: prise pour une cellule d'angle, elle ferait écarter comme étiquette une valeur mal saisie
+au-dessous d'elle, et perdre une année sans message. Le sens des années n'est pas interprété~: la
+série est rendue dans l'ordre du fichier (\code{2019,2018,2017} au-dessus de \code{3,2,1} est lu
+$3, 2, 1$), et c'est l'argument \code{plus\_recent\_en\_dernier} d'\code{usp\_charger()} qui fixe
+l'ordre chronologique (décision du mainteneur du 28~septembre 2026). \code{usp\_lire\_vecteur()}
+refuse tout autre tableau de plusieurs lignes et plusieurs colonnes, sans l'aplatir~; quand le
+tableau n'a pas de troisième ligne, le message «~Format non reconnu~» nomme la cause pour laquelle la
+première ligne n'est pas une ligne d'en-têtes (par exemple «~\code{entiers non consecutifs}~»,
+«~\code{annees hors 1900-2100}~», «~\code{premiere cellule ni vide ni libelle sans chiffre}~»).
+Dans le format avec ligne d'en-têtes, en-têtes et valeurs doivent être \emph{alignés colonne
 par colonne} (issue~\#95)~: hors de l'étiquette de ligne (première cellule non vide de la
-série quand elle n'est pas numérique, admise que l'en-tête au-dessus soit vide ou non), chaque
+série quand elle n'est pas numérique), chaque
 colonne porte un en-tête non vide et une valeur, ou ni l'un ni l'autre~; sinon le fichier est
 refusé avec la liste des colonnes fautives («~en-tête sans valeur~», «~valeur sans en-tête~») et
 les deux décomptes. Sans ce contrôle, une valeur manquante en tête ou en fin de série, ou une
 valeur en surnombre, passait sans message (mesuré sur le code antérieur~: les lignes
-\code{a2017,a2018,a2019} et \code{1,2,} donnaient la série $1, 2$). La première cellule non vide
+\code{a2017,a2018,a2019} et \code{1,2,} donnaient la série $1, 2$). L'étiquette de ligne n'est
+admise que si la cellule d'en-tête au-dessus d'elle est vide (règle stricte, issue~\#102,
+décision du mainteneur du 28~septembre 2026, qui revient sur l'admission décidée le
+26~septembre)~: sous un en-tête non vide, elle est refusée par un message qui nomme la cellule,
+sa colonne et l'en-tête, car une première valeur mal saisie y serait écartée comme étiquette sans
+message (mesuré sur le code antérieur~: \code{abc,102.25,109.34} ou \code{1O4.2,102.25,109.34}
+sous \code{a17,a18,a19} donnaient la série $102{,}25$, $109{,}34$). Ainsi \code{,a18,a19}
+au-dessus de \code{abc,102.25,109.34} est lu $102{,}25$, $109{,}34$, mais \code{serie,a2017,a2018}
+au-dessus de \code{x,1,2} est refusé. La première cellule non vide
 et non numérique, écartée comme en-tête (formats en colonne et en ligne sans en-têtes) ou comme
 étiquette de ligne, est en outre refusée si elle a \emph{l'allure d'une valeur manquante ou d'un
-nombre} (prédicat unique \code{.allure\_manquante\_ou\_nombre()}, avis d'\code{actuary}, décision
-du mainteneur du 26~septembre 2026)~: \code{NA}, \code{NaN}, \code{N/A}, \code{\#N/A},
-\code{N.D.} ou «~\code{-}~», sans égard à la casse, ou cellule faite uniquement de chiffres,
-d'espaces (ordinaire, insécable U+00A0 ou fine insécable U+202F, reconnues sur les octets
-bruts), de points, de virgules, d'apostrophes et de signes, avec au moins un chiffre~; l'écarter
-ferait perdre une année sans message (mesuré sur le code antérieur~: la ligne \code{NA,2,3}
-donnait la série $2, 3$). Une étiquette d'exercice de la forme quatre chiffres, un tiret, puis deux à
-quatre chiffres (\code{2017-18}, \code{2017-2018}) fait exception et reste admise~; un texte comme \code{12a} ou
-\code{TRUE} reste un en-tête. Seuls sont donc écartés la ligne d'en-têtes, un en-tête ou une
-étiquette de ligne qui ne relève pas de ce prédicat, et les cellules vides de tête et de fin.
+nombre} (prédicat unique \code{.allure\_manquante\_ou\_nombre()}, avis d'\code{actuary},
+décisions du mainteneur des 26 et 28~septembre 2026, issues~\#95 et~\#102). Le prédicat est
+évalué, sans égard à la casse, sur une seule forme convertie de la cellule~: espaces insécables
+(U+00A0, fine insécable U+202F) remplacées par une espace, tirets U+2013 et U+2014 et signe
+moins U+2212 par «~\code{-}~», points de suspension U+2026 par «~\code{.}~», ces caractères
+étant reconnus sur les octets bruts, codés en UTF-8 comme en Windows-1252 (octets A0, 96, 97
+et~85), puis espaces de bord retirées, insécables comprises. La cellule a l'allure d'une valeur
+manquante si (a1) elle est l'un des marqueurs de la liste fermée \code{NA}, \code{NAN},
+\code{N/A}, \code{N.A.}, \code{N.A}, \code{N.D.}, \code{N.D}, \code{ND}, \code{N/D}, \code{NR},
+\code{N.R.}, \code{NULL}, \code{NONE}, \code{S.O.}, \code{S.O}, \code{S/O}, \code{NIL},
+\code{N.C.}, \code{N.C}, \code{NC}, \code{N/C}~; (a2) elle commence par \code{\#}, forme des
+codes d'erreur de calcul d'Excel dans toutes les langues (\code{\#N/A}, \code{\#DIV/0!},
+\code{\#VALEUR!}, \code{\#REF!}, \code{\#NOM?}) et de l'affichage \code{\#\#\#\#\#}~; (a3)
+elle est faite uniquement de tirets, de points ou de «~\code{?}~» (\code{-}, \code{-{}-}, \code{.}, \code{?}, \code{\ldots}). Elle a
+l'allure d'un nombre si (b) elle est faite uniquement de chiffres, d'espaces, de points, de
+virgules, d'apostrophes et de signes, avec au moins un chiffre (\code{1 234}, \code{1.234,5})~;
+ou si (b') elle commence par un chiffre, après une apostrophe, un signe et des espaces de tête
+éventuels (\code{1O4.2} écrit avec la lettre O, \code{104.2 EUR}, \code{12a}, \code{2017 primes},
+et \code{-104.2} écrit avec un tiret U+2013 ou le signe moins U+2212). L'écarter ferait perdre
+une année sans message (mesuré sur le code antérieur~: la ligne \code{NA,2,3} donnait la série
+$2, 3$~; la colonne \code{12a}, \code{102.25}, \code{109.34} donnait $102{,}25$, $109{,}34$). Une
+étiquette d'exercice de la forme quatre chiffres, un tiret, puis deux à quatre chiffres
+(\code{2017-18}, \code{2017-2018}, y compris avec un tiret U+2013 ou U+2014) fait exception à (b)
+et (b') et reste admise~; un texte comme \code{x}, \code{a2017}, \code{S1}, \code{LoB12} ou
+\code{TRUE} reste un en-tête. En revanche \code{12a}, \code{.} et \code{-{}-}, admis depuis
+l'issue~\#95, sont refusés depuis l'issue~\#102~: un en-tête qui commence par un chiffre est
+trop proche d'une valeur mal saisie (\code{1O4.2}) pour être écarté sans message, et
+\code{.} ou une suite de tirets sont des marqueurs usuels de valeur manquante. Le message de refus cite la cellule et sa position (en-tête ou étiquette de ligne)
+et rappelle le séparateur décimal attendu. Les cellules de la ligne d'en-têtes elle-même, hors
+la cellule d'angle sous (H2), ne sont pas soumises au prédicat, ce qui est une limite de la
+règle~: elles sont écartées avec la ligne entière, sans décaler la série de la seconde ligne
+(mesuré~: \code{NA,\#N/A} au-dessus de \code{1,2} est lu $1, 2$). Sous (H1), «~non
+numérique~» signifie seulement qu'\code{as.numeric()} ne convertit aucune cellule de la ligne,
+ce qui n'exclut pas une ligne de valeurs mal formées~: une première ligne de nombres écrits avec
+un séparateur de milliers, une lettre \code{O} pour un zéro ou un séparateur décimal autre que
+celui déclaré est écartée comme ligne d'en-têtes, sans message, alors que la même ligne, lue
+seule, serait refusée cellule par cellule (mesuré~: \code{1 000;2 000;3 000} au-dessus de
+\code{104,2;102,5;109,3}, séparateur \code{;} et décimale \code{,}, est lu $104{,}2$,
+$102{,}5$, $109{,}3$~; \code{1O4.2,1O2.5} au-dessus de \code{1,2} est lu $1, 2$~;
+\code{1 000,abc,x} au-dessus de \code{1,2,3} est lu $1, 2, 3$). Ce comportement est celui du
+code antérieur à l'issue~\#103, dont la règle (H1) est reprise sans changement~; l'application
+du prédicat aux cellules de la ligne d'en-têtes fait l'objet de l'issue~\#139. Sont ainsi
+écartés sans message la
+ligne d'en-têtes, un en-tête ou une étiquette de ligne qui ne relève pas de ce prédicat, et les
+cellules vides de tête et de fin. Le prédicat, la ligne d'années, la cellule d'angle et la règle
+stricte de l'étiquette sont vérifiés par \code{tests/unitaires/test\_controles\_entree.R}
+(issues~\#102 et~\#103).
 La marque d'ordre des octets UTF-8 (EF~BB~BF, «~UTF-8 avec BOM~» d'Excel) est retirée de la
 première cellule par comparaison d'octets, quelle que soit la locale (\code{.sans\_bom()},
 issue~\#96)~: hors locale UTF-8, elle restait en tête de la première cellule, qui, n'étant plus
@@ -2118,10 +2331,26 @@ s'appliquait pas, et la colonne \code{i} d'un triangle n'était plus écartée, 
 motif trompeur.
 \code{engine\_lire\_donnees\_csv()} ne refuse pas, elle, une valeur non finie de \code{xt} ou
 \code{yt}~: c'est \code{engine\_valider\_donnees()} qui la refuse (ligne «~Valeurs finies~» du
-tableau ci-dessus). \emph{Limite connue} (issue~\#99, ouverte)~: lu sous une locale UTF-8, un
-fichier encodé en Windows-1252 qui contient un octet non ASCII fait échouer
-\code{usp\_lire\_vecteur()} sur une erreur de R (dans \code{trimws()}), avant tout contrôle, au
-lieu d'un refus motivé. Les fonctions réglementaires refusent explicitement une entrée hors
+tableau ci-dessus). Un fichier encodé en Windows-1252 (ou Latin-1) et lu sous une locale UTF-8
+donne des cellules dont les octets ne forment pas de l'UTF-8 valide (lettre accentuée codée
+E9, espace insécable codée A0)~; sur le code antérieur, \code{trimws()} puis
+\code{as.numeric()} levaient alors une erreur de R avant tout contrôle, au lieu d'un refus
+motivé (issue~\#99~; mesuré sous la locale \code{C.UTF-8}~: erreur «~\code{input string \ldots{} is invalid
+UTF-8}~» pour \code{usp\_lire\_vecteur()}, \code{engine\_lire\_donnees\_csv()} et
+\code{engine\_lire\_triangle()}). Les blancs de bord (espace, tabulation, retour chariot, saut
+de ligne) sont désormais retirés octet par octet (\code{.nettoyer\_cellules()}, dont le
+résultat coïncide avec celui de \code{trimws()} sur une cellule valide)~; en locale UTF-8, une
+cellule non UTF-8 d'encodage non déclaré est déclarée Latin-1, sans que ses octets changent,
+de sorte que les messages qui la citent restent de l'UTF-8 valide, et elle est tenue pour non
+numérique sans appel à \code{as.numeric()} (\code{.cellules\_en\_nombre()}~; le prédicat
+commun \code{.octets\_non\_utf8()} est faux hors locale UTF-8, où rien ne change). Le fichier
+est ainsi lu, ou refusé avec le même motif, sous une locale UTF-8 comme hors d'elle, où ces
+cellules valaient déjà \code{NA}~; l'espace insécable Windows-1252 (octet A0 isolé) est
+reconnue par \code{.allure\_manquante\_ou\_nombre()} sous toute locale. La règle s'applique à
+\code{usp\_lire\_vecteur()}, à \code{engine\_lire\_donnees\_csv()} (par
+\code{.en\_numerique()}) et à \code{engine\_lire\_triangle()}~; elle est vérifiée par
+\code{tests/unitaires/test\_controles\_entree.R} sur des fichiers écrits octet par octet et
+lus dans la locale courante, sous la locale \code{C} et sous une locale UTF-8. Les fonctions réglementaires refusent explicitement une entrée hors
 domaine au lieu de la traiter en silence~: \code{usp\_credibilite()} une durée non entière,
 \code{.annexe\_verifiee()} une annexe autre que \code{"II"} ou \code{"XIV"} (auparavant lue
 comme l'annexe~II), l'une et l'autre par une erreur d'usage (ci-dessus).
@@ -2154,7 +2383,7 @@ motif distinct d'une cellule manquante. \\
 Positivité des cumulés & $C(i,j) > 0$ & Les facteurs $F(i,j)$ et la pondération
 en $C(i,j)$ doivent être définis. \\
 Monotonie des cumulés & $C(i,j+1) \ge C(i,j)$ & Avertissement \emph{actuariel,
-sans fondement réglementaire}~: le paragraphe~2(h)(iii) ne pose qu'une
+sans fondement réglementaire}~: D(2)(h)(iii) ne pose qu'une
 proportionnalité en espérance et ne contraint pas $f_j \ge 1$. Un recul traduit
 un recouvrement ou un boni de liquidation, licite mais à signaler. \textbf{Ce
 n'est pas un motif de refus}, pas plus qu'une réserve négative sur certaines
@@ -2342,7 +2571,10 @@ granularité est bornée par $1/(B+1)$~: avec $B = 999$, la plus petite p-value 
 $0{,}001$ en queue haute ou basse, et $2/(B+1) = 0{,}002$ au bilatéral, du fait du doublement.
 $B = 999$ est la valeur du dossier~; \code{run\_engine()} refuse $B <$ \code{B\_MIN\_USAGE} $= 99$
 (erreur d'usage, section~\ref{sec:controles}), valeur à laquelle le plancher bilatéral,
-$2/(B+1) = 0{,}02$, reste sous $\alpha/2 = 0{,}05$ au seuil par défaut.
+$2/(B+1) = 0{,}02$, reste sous $\alpha/2 = 0{,}05$ au seuil par défaut. Pour $\alpha \le 0{,}04$,
+ce plancher n'est plus sous $\alpha/2$~: \code{run\_engine()} exige en outre $B + 1 > 4/\alpha$
+(erreur d'usage, issue~\#127), soit un $B$ minimal fonction de $\alpha$ (\code{engine\_b\_minimal()}),
+de $100$ à $\alpha = 0{,}04$ et de $400$ à $\alpha = 0{,}01$ (section~\ref{sec:controles}).
 Le moteur restitue ce pas par statistique, sur $B_{\text{eff}}$, dans le champ
 \code{granularite\_stat} de l'objet bootstrap~: $1/(B_{\text{eff}}+1)$ en queue haute ou basse,
 $2/(B_{\text{eff}}+1)$ au bilatéral (issue~\#40)~; le champ \code{granularite}, lu par
@@ -3365,7 +3597,10 @@ Smirnov). Les planchers des p-values de Monte-Carlo et de la loi nulle simulée 
 qui ne dépendent pas de $T$, sont donnés dans les fiches~: $1/(B+1)$ en queue unilatérale,
 $2/(B+1)$ en bilatéral (\code{engine\_p\_mc()}, $B$ compté en réplications finies), soit
 $0{,}001$ et $0{,}002$ à $B = 999$~; $1/20\,001 \approx 5{,}0\cdot 10^{-5}$ pour
-\code{sw\_p\_loi\_nulle()}. Les règles générales d'\code{add()} (loi simulée dégénérée,
+\code{sw\_p\_loi\_nulle()}. Les deux premiers sont sous $\alpha/2$ pour tout $B$ admis par
+\code{run\_engine()}, qui exige $B + 1 > 4/\alpha$ (section~\ref{sec:controles}), tant que
+toutes les réplications sont finies ($B_{\text{eff}} = B$)~; sinon, le moteur ne détecte pas
+qu'ils atteignent $\alpha/2$ (section~\ref{sec:controles}). Les règles générales d'\code{add()} (loi simulée dégénérée,
 statistique observée non finie, section~\ref{sec:nature}) peuvent en outre changer le type d'une
 ligne sur un jeu donné~; les rubriques~7 ne les répètent pas.
 
@@ -3969,19 +4204,19 @@ lit leur espérance) et, pour la méthode du risque de réserve n\textsuperscrip
 de C(1)(a) lui-même, sans le mot «~attendu~»~; il ne l'écrit pas sous forme d'équation~;
 l'outil lit «~linéaire proportionnelle~» comme $\mathbb{E}[Y_t] = \beta x_t$, sans terme
 constant. \emph{Traduction dans le modèle réglementaire} (lecture de
-l'outil~: modèle des paragraphes (5) et (6) des sections~B et~C, section~\ref{sec:notations})~:
+l'outil~: modèle des paragraphes~5 et~6 des sections~B et~C, section~\ref{sec:notations})~:
 l'espérance de $Y_t$ est \emph{linéairement proportionnelle} à $x_t$,
 $\mathbb{E}[Y_t] = \beta x_t$, sans terme constant, avec $\beta$ constant dans le temps.
 
 \smallskip
-Les quatre hypothèses H1 à H4 sont les points (i) à (iv) de B(2)(g) et de C(2)(e). Le champ
-\code{famille} des lignes H1 à H4 de la table des tests cite le seul point de la méthode
+Les quatre hypothèses H1 à H4 sont les subdivisions (i) à (iv) de B(2)(g) et de C(2)(e). Le champ
+\code{famille} des lignes H1 à H4 de la table des tests cite la seule subdivision de la méthode
 appliquée (par exemple «~(annexe XVII B(2)(g)(i))~» pour la méthode de primes, «~(annexe XVII
 C(2)(e)(i))~» pour la méthode de réserve n\textsuperscript{o}~1), et l'application comme le
 rapport figé le reprennent sous chaque groupe (\code{citation\_de()} de
 \code{R/display\_helpers.R}), issue~\#92. Jusqu'à cette issue, les quatre hypothèses étaient
 citées «~B/C(2)(f)~», renvoi erroné~: B(2)(f) porte sur l'inclusion des dépenses dans les pertes
-agrégées, et le paragraphe~C(2) n'a pas de point~f).
+agrégées, et le paragraphe~2 de la section~C n'a pas de point~f).
 \end{encadre}
 
 \begin{fiche}{Test de Student sur la constante}
@@ -4581,13 +4816,13 @@ de réserve n\textsuperscript{o}~1, version consolidée).}
 
 \begin{encadre}
 \textbf{Énoncé réglementaire} (annexe~XVII, B(2)(g)(ii), \emph{Journal officiel}, L~12 du
-17~janvier 2015, p.~273~; C(2)(e)(ii), p.~274). Le point C(2)(e)(ii) est cité dans la version
-consolidée, où il porte le marqueur $\blacktriangleright$\,C4 (rectificatif, \emph{Journal
+17~janvier 2015, p.~273~; C(2)(e)(ii), p.~274). La subdivision C(2)(e)(ii) est citée dans la version
+consolidée, où elle porte le marqueur $\blacktriangleright$\,C4 (rectificatif, \emph{Journal
 officiel}, L~2 du 6~janvier 2022, p.~8)~; la version d'origine écrivait «~le montant visé au
 paragraphe 1, point a), est en relation quadratique avec la provision pour sinistres à payer dans
 ce segment et au cours de cet exercice~», sans les mots «~la variance du~» ni «~la meilleure
 estimation de la~», qu'insère le rectificatif C4. \emph{Traduction dans le modèle réglementaire}
-(lecture de l'outil~: modèle des paragraphes (5) et (6) des sections~B et~C,
+(lecture de l'outil~: modèle des paragraphes~5 et~6 des sections~B et~C,
 section~\ref{sec:notations})~: la variance des pertes agrégées (ou du montant de C(1)(a)) est
 $\operatorname{Var}(Y_t) = \sigma^2\big[(1-\delta)\bar x\, x_t + \delta x_t^2\big]$, mélange
 convexe d'une composante linéaire en volume (risque mutualisable) et d'une composante quadratique
@@ -5502,7 +5737,7 @@ et pour la méthode du risque de réserve n\textsuperscript{o}~1).}
 17~janvier 2015, p.~273~; C(2)(e)(iv), p.~275~; texte identique dans la version consolidée). Le
 texte ne nomme ni l'indépendance ni aucune autre condition~: il pose seulement que l'estimation
 par maximum de vraisemblance est adéquate. \emph{Lecture de l'outil}~: l'estimation visée est
-celle de $(\delta, \gamma)$ par minimisation du critère des paragraphes B(6) et C(6), que
+celle de $(\delta, \gamma)$ par minimisation du critère de B(6) et C(6), que
 \code{usp\_objectif()} calcule exactement (pénalité $10^{12}$ hors de $\delta \in [0,1]$, que B(6)
 exclut, et pour une valeur non finie, de $\delta$, de $\gamma$ ou du critère~;
 section~\ref{sec:inventaire})~; ce critère est $-2\ln L$ du modèle lognormal, profilée en
@@ -7598,8 +7833,9 @@ $f_j$, $\sigma_j^2$ (moindres carrés pondérés) \\
 Estimation de l'écart-type & fonction $\sigma(\delta,\gamma)$ &
 $\sqrt{\mathrm{MSEP}}$ rapportée à la réserve \\
 Correction de taille finie & $\sqrt{(T+1)/(T-1)}$ & aucune \\
-Durée de crédibilité & années de survenance (B) ou exercices (C) &
-années de survenance, section~G(3)(c) \\
+Durée de crédibilité & $T$ années de survenance (B) ou exercices (C) retenus pour l'estimation,
+G(3)(a) ou~(b), §\ref{sec:segments} &
+années de survenance, G(3)(c) \\
 Nature du bootstrap & paramétrique (loi entièrement spécifiée) &
 semi-paramétrique, par rééchantillonnage des résidus \\
 \end{tabular}
@@ -7884,7 +8120,7 @@ donnent lieu qu'à l'avertissement sur les cumulés décroissants
 (section~\ref{sec:controles}).
 
 \begin{encadre}
-\textbf{Restriction d'implémentation.} Le paragraphe~2(e) autorise $I \ge J$, mais
+\textbf{Restriction d'implémentation.} D(2)(e) autorise $I \ge J$, mais
 la formule du paragraphe~4 fait intervenir $C(i, I-i)$, qui n'est définie que si
 $I - i \le J$. Le cas $I > J$ produirait un trapèze dont le texte ne précise pas
 le traitement. Le moteur impose donc $I = J$ (triangle carré) et refuse
@@ -7894,7 +8130,7 @@ implicite non prévue par le règlement.
 
 \subsection{Hypothèses testables et résidus}
 
-Le paragraphe~2(h) énonce quatre hypothèses, qui structurent la batterie de tests
+D(2)(h) énonce quatre hypothèses, qui structurent la batterie de tests
 au même titre que H1 à H4 pour la méthode lognormale~:
 
 \begin{center}
@@ -7927,7 +8163,7 @@ elle, contrainte par construction, la somme des carrés des résidus d'une colon
 valant exactement $n_j - 1$ (fiche~\ref{mw:m2var}).
 
 \begin{encadre}
-\textbf{La normalité n'est pas une hypothèse de la méthode.} Le paragraphe~2(h)
+\textbf{La normalité n'est pas une hypothèse de la méthode.} D(2)(h)
 ne spécifie que les deux premiers moments conditionnels. Les tests de normalité
 figurent donc dans la famille M5 comme \emph{diagnostics}, et non comme
 vérifications d'une hypothèse réglementaire. Ils ne deviennent pertinents que si
@@ -8870,8 +9106,8 @@ section~\ref{sec:notations-mw}.
 \refl{S.\,S. Shapiro, M.\,B. Wilk (1965), \emph{op.\ cit.}~; loi nulle évaluée
 par simulation directe.}
 \Cadre
-Résidus de Mack. \textbf{La normalité n'est pas une hypothèse du modèle}~: le
-paragraphe~D(2)(h) ne spécifie que les deux premiers moments conditionnels. Ce
+Résidus de Mack. \textbf{La normalité n'est pas une hypothèse du modèle}~:
+D(2)(h) ne spécifie que les deux premiers moments conditionnels. Ce
 test est donc un \emph{diagnostic} et non la vérification d'une exigence
 réglementaire.
 \Hzero
@@ -8953,7 +9189,7 @@ section~\ref{sec:notations-mw}.
 
 \begin{fiche}{M6 --- Extrapolation de $\hat\sigma^2_{J-1}$ (diagnostic)}
 \label{mw:m6sig}
-\refl{Annexe XVII, section D, paragraphe~5(d)(ii), seconde ligne.}
+\refl{Annexe XVII, D(5)(d)(ii), seconde ligne.}
 \Cadre
 La variance de la dernière année de développement ne peut être estimée, faute
 d'observations. \textbf{Diagnostic, non test.}
@@ -9203,7 +9439,7 @@ Facteurs de développement $\hat f_j$ & 3,4906 ; 1,7473 ; 1,4574 ; \dots &
 conformes aux valeurs publiées \\
 Réserve chain-ladder totale & 18\,680\,856 & conforme \\
 Erreur type \emph{ultime} de Mack & 2\,447\,095 & conforme à la valeur publiée \\
-MSEP à un an $=$ transcription littérale du paragraphe~D(5), version consolidée & écart relatif nul
+MSEP à un an $=$ transcription littérale de D(5), version consolidée & écart relatif nul
 (précision machine) & conforme au texte \\
 $\sqrt{\mathrm{MSEP}}$ à un an $=$ \code{ChainLadder::CDR} (Merz--Wüthrich
 2008) & 1\,778\,967,66336\newline contre 1\,778\,967,66335758 & écart relatif
@@ -9235,7 +9471,7 @@ tests unitaires du dépôt.
 \begin{encadre}
 \textbf{Sur quoi repose la validation de la MSEP à un an.} Elle repose sur deux
 voies distinctes~: d'une part la confrontation du moteur à une transcription
-littérale du paragraphe~D(5) dans sa version consolidée en vigueur (§\ref{sec:mw}), réécrite depuis le texte et implémentée
+littérale de D(5) dans sa version consolidée en vigueur (§\ref{sec:mw}), réécrite depuis le texte et implémentée
 séparément dans la batterie de tests unitaires~; d'autre part une comparaison
 \emph{externe} avec \code{ChainLadder::CDR} (paquet R \code{ChainLadder}
 0.2.18), implémentation publique de Merz--Wüthrich (2008), reproduite à
@@ -9245,11 +9481,11 @@ sur une implémentation de référence, non sur un nombre publié.
 
 \medskip
 \textbf{Ce que les versions antérieures de ce document affirmaient à tort.}
-Jusqu'à la correction de la transcription du paragraphe~D(5)
+Jusqu'à la correction de la transcription de D(5)
 (section~\ref{sec:mw}), la validation de cette grandeur était présentée comme
 reposant sur une « double implémentation indépendante ». Elle ne l'était
-pas~: les deux implémentations reprenaient la même transcription fautive du
-paragraphe~D(5) --- termes diagonaux $\hat C(i,J)^2\,\Delta_i$ et facteur~2
+pas~: les deux implémentations reprenaient la même transcription fautive de
+D(5) --- termes diagonaux $\hat C(i,J)^2\,\Delta_i$ et facteur~2
 omis --- et ne pouvaient donc rien détecter. La MSEP en était sous-estimée
 (1\,519\,876 au lieu de 1\,778\,968 sur ce triangle), dans le sens favorable à
 l'entreprise. C'est ce défaut que la transcription de la
@@ -9610,15 +9846,16 @@ Calibration et paramètre final & \code{usp\_parametre()}, \code{usp\_credibilit
 Paramètre standard remplacé, barème de crédibilité et dérogations déclarées
 (§\ref{sec:segments}) & \code{usp\_parametre\_standard()}, \code{usp\_bareme\_segment()},
 \code{engine\_parametre\_standard()}, \code{engine\_derogations()} (constante
-\code{TOLERANCE\_CONFORME\_SIGMA})~; drapeaux \code{\$metadata\$sigma\_standard\_saisi} et
-\code{\$metadata\$bareme\_saisi} posés par \code{run\_engine()} \\
+\code{TOLERANCE\_CONFORME\_SIGMA}), \code{.engine\_trace\_profondeur()}~; drapeaux
+\code{\$metadata\$sigma\_standard\_saisi} et \code{\$metadata\$bareme\_saisi}, et nombre d'années
+fournies \code{\$metadata\$n\_fournies}, posés par \code{run\_engine()} \\
 Merz--Wüthrich~: facteurs $\hat f_j$, variances $\hat\sigma_j^2$, cumulés
 projetés $\hat C(i,J)$, réserve (§\ref{sec:mw}) & \code{mw\_ajuster()} \\
 Merz--Wüthrich~: extrapolation de $\hat\sigma^2_{J-1}$ (§\ref{sec:mw},
 fiche~\ref{mw:m6sig}) & \code{mw\_ajuster()}~: valeur retenue (\code{\$sigma2})~;\newline
 \code{mw\_extrapolation\_sigma2()}~: trois arguments du minimum~;\newline
 \code{.mw\_detail\_extrapolation()}~: champ \code{detail} de la ligne M6 \\
-Merz--Wüthrich~: erreur de prédiction à un an, paragraphe~D(5) (§\ref{sec:mw}) &
+Merz--Wüthrich~: erreur de prédiction à un an, D(5) (§\ref{sec:mw}) &
 \code{mw\_msep()} \\
 Merz--Wüthrich~: paramètre propre $\sigma_{(\text{res},s,\mathrm{USP})}$ et
 crédibilité (§\ref{sec:mw}) & \code{mw\_parametre()}, \code{usp\_credibilite()} \\
@@ -9660,7 +9897,8 @@ n\textsuperscript{o}~2 déléguée à\newline \code{.run\_engine\_mw()} \\
 Refus de données, erreur d'usage, défaut de calcul intercepté (§\ref{sec:controles}) &
 \code{engine\_valider\_profondeur()} (profondeur $T$, refus)~;
 \code{.engine\_verifier\_usage()} (arguments d'appel, erreur R~; plancher de $B$~:
-\code{B\_MIN\_USAGE})~;
+\code{B\_MIN\_USAGE}, et $B + 1 > 4/\alpha$ par \code{engine\_motif\_b\_alpha()},
+\code{engine\_b\_minimal()})~;
 \code{.engine\_calcul\_protege()} (\code{validation\$erreur\_r}) \\
 Table auditable des tests & \code{engine\_table\_tests()} \\
 Empreintes md5 d'un résultat pour le rapport figé~: données du calcul
@@ -9690,8 +9928,8 @@ modèle et un mode d'inférence différents.
   p.~213--225.
   \emph{Portée.} Article fondateur du modèle de chaîne d'échelle stochastique~:
   il établit les estimateurs $\hat f_j$ et $\hat\sigma_j^2$, l'erreur type
-  \emph{ultime}, et surtout l'énoncé des trois hypothèses reprises au
-  paragraphe~D(2)(h) du règlement. C'est la valeur publiée de l'erreur ultime sur
+  \emph{ultime}, et surtout l'énoncé des trois hypothèses reprises en
+  D(2)(h) du règlement. C'est la valeur publiée de l'erreur ultime sur
   le triangle de Taylor \& Ashe qui a servi à valider notre implémentation de
   $\hat f_j$, $\hat\sigma_j^2$ et de la règle d'extrapolation.
 
@@ -9707,7 +9945,7 @@ modèle et un mode d'inférence différents.
   for solvency purposes}, \emph{Casualty Actuarial Society E-Forum}, automne
   2008, p.~542--568.
   \emph{Portée.} Article dont dérive la formule d'erreur de prédiction \emph{à un
-  an} du paragraphe~D(5). La distinction entre erreur à un an et erreur ultime
+  an} de D(5). La distinction entre erreur à un an et erreur ultime
   est le fondement même de la méthode~n\textsuperscript{o}~2, et l'ordre
   $\sqrt{\mathrm{MSEP}}_{\text{1 an}} < \sqrt{\mathrm{MSEP}}_{\text{ultime}}$ que
   nous avons vérifié numériquement en découle. C'est également l'implémentation
@@ -9769,7 +10007,7 @@ littérature consultée.
   bootstrap.
   \item \textbf{Aucune valeur publiée de la MSEP à un an} n'a pu être identifiée
   pour le triangle de Taylor \& Ashe. La validation de cette grandeur repose donc
-  sur la transcription littérale du paragraphe~D(5) (version consolidée), sur des propriétés
+  sur la transcription littérale de D(5) (version consolidée), sur des propriétés
   structurelles et sur la comparaison avec une implémentation externe
   (\code{ChainLadder::CDR}), non sur un nombre publié dans la littérature.
   \item \textbf{Le domaine de validité exact de la transformation de Royston}

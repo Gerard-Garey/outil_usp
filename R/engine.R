@@ -192,7 +192,9 @@ SEUIL_ECHEC_SENS_REJETER <- 0.30
 # Nombre minimal de replications bootstrap admis par run_engine() (constat C1
 # de la revue finale d'E1, #44 ; .engine_verifier_usage()), pour les trois
 # methodes. A B = B_MIN_USAGE = 99 : le plancher bilateral de la p-value
-# Monte-Carlo, 2/(B+1) = 0,02, est sous alpha/2 = 0,05 ; la detection de
+# Monte-Carlo, 2/(B+1) = 0,02, est sous alpha/2 = 0,05 au seuil par defaut
+# alpha = 0,10 (pour alpha <= 0,04, la condition B + 1 > 4/alpha de
+# engine_b_minimal() s'y ajoute, #127) ; la detection de
 # degenerescence de engine_p_mc() est armee (B_MIN_DEGENERESCENCE = 50
 # simulations finies, si au moins 50 des 99 sont finies) ; la ligne de largeur
 # de l'IC bootstrap 90 % est presente (IC calcule au-dela de 20 tirages) ;
@@ -250,9 +252,32 @@ usp_bareme_segment <- function(segment, annexe = "II") {
   if (segment %in% c(1, 5, 6)) "long" else "court"
 }
 
+# Numero de segment (issue #105) : nombre scalaire fini entier, sans attribut
+# (noms, dim). Toute autre valeur est une erreur d'usage nommant segment :
+# vecteur (c(1, 2)), vide (integer(0)), NA, Inf, non entier (1.5), logique
+# (TRUE), texte ("1"). Le texte est refuse et non converti (decision du
+# mainteneur du 27/09/2026, Q-E0b-2), comme dans les autres controles de
+# .engine_verifier_usage() : une conversion silencieuse masquerait l'erreur
+# de l'appelant. Avant #105, c(1, 2) et integer(0) levaient une erreur R qui
+# ne nommait pas l'argument, et "1", TRUE, c(a = 1) ou matrix(1) etaient
+# acceptes (la valeur recue etait recopiee telle quelle dans le resultat).
+# Un segment conforme mais absent de l'annexe garde le message d'origine de
+# usp_segment_infos() ("Segment 13 inconnu dans l'annexe II.").
+.segment_verifie <- function(segment) {
+  if (!(is.numeric(segment) && length(segment) == 1L && is.null(attributes(segment)) &&
+        is.finite(segment) && segment == round(segment)))
+    stop(sprintf(paste("segment = %s : un nombre scalaire fini entier, sans attribut,",
+                       "est attendu (numero de segment de l'annexe II ou XIV ; texte",
+                       "refuse, sans conversion)."),
+                 if (!length(segment)) "vide" else paste(deparse(segment), collapse = " ")),
+         call. = FALSE)
+  segment
+}
+
 # Renvoie les caracteristiques reglementaires d'un segment : libelle, ecarts
 # types standard, facteur NP standard et bareme de credibilite applicable.
 usp_segment_infos <- function(segment, annexe = "II") {
+  segment <- .segment_verifie(segment)
   annexe <- .annexe_verifiee(annexe)
   tab <- if (identical(annexe, "XIV")) ANNEXE_XIV else ANNEXE_II
   i <- match(segment, tab$segment)
@@ -269,7 +294,8 @@ usp_segment_infos <- function(segment, annexe = "II") {
 # ajustees de la reassurance) ou "nettes" (ajustees de la reassurance). La
 # declaration est OBLIGATOIRE pour la methode "premium", sans valeur par
 # defaut : c'est elle qui fixe le parametre standard remplace (annexe XVII,
-# section B, point (2), c) et d), dans leur version consolidee, marqueur M1 :
+# section B, paragraphe 2, points c) et d), dans leur version consolidee,
+# marqueur M1 :
 # les renvois de la version d'origine, JOUE L 12/272, y sont inverses).
 NATURES_DONNEES <- c("brutes", "nettes")
 
@@ -309,10 +335,10 @@ NATURES_DONNEES <- c("brutes", "nettes")
         methode %in% c("reserve1", "reserve2"))) return(character(0))
   if (is.null(nature_donnees) || identical(nature_donnees, "nettes")) return(character(0))
   exigence <- if (identical(methode, "reserve1"))
-    paste("annexe XVII, section C, point (2)(c) : donnees ajustees de la reassurance",
+    paste("annexe XVII, section C, paragraphe 2, point c) : donnees ajustees de la reassurance",
           "et des vehicules de titrisation, conformement aux contrats en place pour",
           "les douze mois a venir")
-  else paste("annexe XVII, section D, point (2)(f) : montants de sinistres cumules",
+  else paste("annexe XVII, section D, paragraphe 2, point f) : montants de sinistres cumules",
              "ajustes de la reassurance et des vehicules de titrisation, conformement",
              "aux contrats en place pour les douze mois a venir")
   if (identical(nature_donnees, "brutes"))
@@ -373,13 +399,13 @@ usp_parametre_standard <- function(methode = c("premium", "reserve1", "reserve2"
                     "valeur standard NP x ecart type brut (%s, paragraphe 3)"), article, article)
     else sprintf("ecart type du risque de primes brut (%s, paragraphe 3)", article)
     exigence <- if (nettes)
-      paste("annexe XVII, section B, point (2)(d), chapeau modifie par le reglement",
+      paste("annexe XVII, section B, paragraphe 2, point d), chapeau modifie par le reglement",
             "delegue (UE) 2016/467 (M1) : pertes agregees ajustees des montants",
             "recouvrables au titre de la reassurance et des vehicules de titrisation,",
             "primes acquises ajustees des primes de reassurance, conformement aux",
             "contrats de reassurance et vehicules de titrisation en place pour les",
             "douze mois a venir")
-    else paste("annexe XVII, section B, point (2)(c), remplace par le reglement delegue",
+    else paste("annexe XVII, section B, paragraphe 2, point c), remplace par le reglement delegue",
                "(UE) 2016/467 (M1) : pertes agregees et primes acquises non ajustees",
                "des montants recouvrables au titre de la reassurance et des vehicules",
                "de titrisation ni des primes de reassurance")
@@ -391,10 +417,10 @@ usp_parametre_standard <- function(methode = c("premium", "reserve1", "reserve2"
     point <- paste(lettre, "iv)")
     parametre <- sprintf("ecart type du risque de reserve sigma(res,s) de l'annexe %s", annexe)
     exigence <- if (methode == "reserve1")
-      paste("annexe XVII, section C, point (2)(c) : donnees ajustees de la reassurance",
+      paste("annexe XVII, section C, paragraphe 2, point c) : donnees ajustees de la reassurance",
             "et des vehicules de titrisation, conformement aux contrats en place pour",
             "les douze mois a venir (exigence de la methode)")
-    else paste("annexe XVII, section D, point (2)(f) : montants de sinistres cumules",
+    else paste("annexe XVII, section D, paragraphe 2, point f) : montants de sinistres cumules",
                "ajustes de la reassurance et des vehicules de titrisation, conformement",
                "aux contrats en place pour les douze mois a venir (exigence de la methode)")
     nature <- "nettes"
@@ -421,11 +447,22 @@ usp_parametre_standard <- function(methode = c("premium", "reserve1", "reserve2"
 # retrait des lignes et colonnes entierement vides de bord :
 #  - une seule colonne, avec ou sans en-tete (premiere cellule non numerique) ;
 #  - une seule ligne, avec ou sans en-tete en premiere cellule ;
-#  - deux lignes dont la PREMIERE est entierement non numerique (ligne
-#    d'en-tetes, cellules vides comprises, ex. a2017;...;a2024) : elle est
-#    ecartee et la seconde est lue comme une serie en ligne.
+#  - deux lignes dont la PREMIERE est une ligne d'en-tetes : elle est ecartee
+#    et la seconde est lue comme une serie en ligne. La premiere ligne est une
+#    ligne d'en-tetes (issue #103, regle commune d'actuary du 28/09/2026) si
+#    (H1) aucune de ses cellules n'est numerique (cellules vides comprises,
+#    ex. a2017;...;a2024), ou si (H2) ses cellules non vides, hors la cellule
+#    d'angle (premiere colonne, vide ou libelle sans chiffre hors
+#    .allure_manquante_ou_nombre(), ex. "annee"), sont des annees a quatre
+#    chiffres comprises entre 1900 et 2100, au nombre de deux au moins,
+#    consecutives (de 1 en 1, toutes croissantes ou toutes decroissantes) :
+#    .ligne_annees(). Le sens des annees n'est pas interprete : la serie est
+#    rendue dans l'ordre du fichier, usp_charger(plus_recent_en_dernier)
+#    fixant l'ordre chronologique (decision du mainteneur du 28/09/2026).
 # Tout autre tableau de plusieurs lignes et plusieurs colonnes est refuse
-# (pas d'aplatissement silencieux ; decision du 25/09/2026). Les cellules
+# (pas d'aplatissement silencieux ; decision du 25/09/2026) ; pour un tableau
+# de deux lignes, le message nomme la cause pour laquelle la premiere ligne
+# n'est pas une ligne d'en-tetes. Les cellules
 # sont lues comme du texte, sans retirer les lignes vides, afin que la
 # position de chaque valeur soit conservee : une cellule vide ou non
 # numerique AU MILIEU de la serie est refusee, car la retirer decalerait
@@ -442,15 +479,22 @@ usp_parametre_standard <- function(methode = c("premium", "reserve1", "reserve2"
 # (cellule vide de bord, ecartee ci-dessus) ou une valeur en surnombre
 # passerait sans message. Le fichier est refuse en listant les colonnes
 # fautives, avec les deux decomptes. L'etiquette de ligne (premiere cellule non
-# vide de la serie, non numerique) est admise, que l'en-tete au-dessus soit
-# vide ou non.
+# vide de la serie, non numerique) n'est admise que si la cellule d'en-tete
+# au-dessus d'elle est vide (regle stricte, issue #102, decision du
+# mainteneur du 28/09/2026, qui revient sur l'admission du 26/09) : sous un
+# en-tete non vide, elle est refusee, car une premiere valeur mal saisie
+# ("1O4.2", "abc") y serait ecartee comme etiquette sans message. Sous (H2),
+# la cellule d'angle ("annee", libelle sans chiffre) n'est pas un en-tete d'annee : elle
+# compte comme une cellule d'en-tete vide, pour l'etiquette comme pour
+# l'alignement (une valeur numerique au-dessous est une valeur sans en-tete).
 #
-# En-tete et etiquette (issue #95, avis d'actuary) : dans tous les formats, la
-# premiere cellule non vide et non numerique, ecartee comme en-tete (formats
-# en colonne et en ligne sans en-tetes) ou comme etiquette de ligne (format
-# avec ligne d'en-tetes), est refusee si elle a l'allure d'une valeur
-# manquante ou d'un nombre (.allure_manquante_ou_nombre()) : l'ecarter ferait
-# perdre une annee sans message.
+# En-tete et etiquette (issues #95 et #102, avis d'actuary) : dans tous les
+# formats, la premiere cellule non vide et non numerique, ecartee comme
+# en-tete (formats en colonne et en ligne sans en-tetes) ou comme etiquette
+# de ligne (format avec ligne d'en-tetes, sous une cellule d'en-tete vide),
+# est refusee si elle a l'allure d'une valeur manquante ou d'un nombre
+# (.allure_manquante_ou_nombre()) : l'ecarter ferait perdre une annee sans
+# message.
 usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
   if (!file.exists(chemin)) stop("Fichier introuvable : ", chemin)
   brut <- utils::read.csv(chemin, header = FALSE, sep = sep, dec = dec,
@@ -464,7 +508,9 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
   # valeur perdue sans message, issue #96). Retiree octet par octet, quelle
   # que soit la locale ; une locale UTF-8 l'a deja retiree.
   if (length(m)) m[1, 1] <- .sans_bom(m[1, 1])
-  m <- trimws(m)
+  # Blancs de bord retires octet par octet, cellules non UTF-8 comprises
+  # (issue #99 : trimws() levait une erreur R en locale UTF-8).
+  m <- .nettoyer_cellules(m)
   # Lignes et colonnes entierement vides AVANT la premiere valeur ou APRES
   # la derniere (debut ou fin de fichier, separateur final) ecartees ; une
   # ligne ou une colonne vide intercalee est conservee (cellule vide, refusee
@@ -476,26 +522,47 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
   # vides retirees).
   cols <- bornes(which(colSums(nz) > 0))
   m <- m[bornes(which(rowSums(nz) > 0)), cols, drop = FALSE]
-  en_nombre <- function(v) suppressWarnings(as.numeric(if (dec != ".") gsub(dec, ".", v, fixed = TRUE) else v))
-  # Serie en ligne avec en-tete : 2 lignes dont la premiere n'a aucune cellule
-  # numerique ; la ligne d'en-tetes est ecartee apres controle de l'etiquette
-  # de ligne ; l'alignement colonne par colonne est controle plus bas (#95).
+  en_nombre <- function(v) .cellules_en_nombre(v, dec)
+  # Serie en ligne avec en-tete : 2 lignes dont la premiere est une ligne
+  # d'en-tetes (H1 ou H2 ci-dessus) ; la ligne d'en-tetes est ecartee apres
+  # controle de l'etiquette de ligne ; l'alignement colonne par colonne est
+  # controle plus bas (#95).
   aligne <- NULL
   refus_allure <- function(x, ou)
     stop(sprintf(paste("Lecture de %s : la cellule \"%s\" %s, a l'allure d'une valeur manquante",
-                       "(NA, NaN, N/A, #N/A, n.d., -) ou d'un nombre (chiffres, espaces, points,",
-                       "virgules, apostrophes, signes ; separateur decimal attendu : \"%s\") ;",
+                       "(NA, N/A, N.D., ND, NR, NC, NULL, tirets, ou cellule commencant par #, code",
+                       "d'erreur Excel) ou d'un nombre (cellule qui commence par un chiffre, ou faite",
+                       "de chiffres, espaces, points, virgules, apostrophes, signes ; separateur",
+                       "decimal attendu : \"%s\") ;",
                        "l'ecarter comme en-tete ou etiquette ferait perdre une annee sans message.",
                        "Corriger la valeur ou le separateur decimal, ou renseigner un en-tete ou",
                        "une etiquette textuels."),
                  chemin, x, ou, dec))
-  if (nrow(m) == 2 && ncol(m) > 1 && all(is.na(en_nombre(m[1, ])))) {
+  annees <- NULL
+  if (nrow(m) == 2 && ncol(m) > 1) {
+    h1 <- all(is.na(en_nombre(m[1, ])))
+    if (!h1) annees <- .ligne_annees(m[1, ], m[2, ], dec)
+  }
+  if (nrow(m) == 2 && ncol(m) > 1 && (h1 || annees$ok)) {
     ent <- m[1, ]; val <- m[2, ]
+    # (H2) : cellule d'angle (libelle sans chiffre) traitee comme un en-tete vide.
+    if (!h1 && annees$angle) ent[1] <- ""
     # Etiquette de ligne : premiere cellule non vide de la serie, non
-    # numerique ; admise que l'en-tete au-dessus soit vide ou non, et exclue
-    # du controle d'alignement, sauf allure de valeur manquante ou de nombre.
+    # numerique ; admise seulement sous une cellule d'en-tete vide (regle
+    # stricte, #102) et sauf allure de valeur manquante ou de nombre ; exclue
+    # du controle d'alignement.
     j1 <- which(nzchar(val))[1]
     if (!is.na(j1) && is.na(en_nombre(val[j1]))) {
+      if (nzchar(ent[j1]))
+        stop(sprintf(paste0("Serie en ligne de %s : la cellule \"%s\" (colonne %d) n'est pas numerique ",
+                            "et l'en-tete \"%s\" au-dessus d'elle n'est pas vide. Si c'est une ",
+                            "etiquette de ligne, laisser vide l'en-tete de sa colonne ; sinon corriger ",
+                            "la valeur%s."),
+                     chemin, val[j1], cols[j1], ent[j1],
+                     if (.allure_manquante_ou_nombre(val[j1]))
+                       sprintf(paste0(" (elle a l'allure d'une valeur manquante ou d'un nombre ; ",
+                                      "separateur decimal attendu : \"%s\")"), dec)
+                     else ""))
       if (.allure_manquante_ou_nombre(val[j1]))
         refus_allure(val[j1], sprintf("(colonne %d), en position d'etiquette de ligne", cols[j1]))
       garde <- setdiff(seq_along(val), j1)
@@ -505,7 +572,11 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
   }
   if (nrow(m) > 1 && ncol(m) > 1)
     stop("Format non reconnu dans ", chemin, " : une serie sur une seule ligne ou ",
-         "une seule colonne est attendue (", nrow(m), " lignes x ", ncol(m), " colonnes).")
+         "une seule colonne est attendue (", nrow(m), " lignes x ", ncol(m), " colonnes).",
+         if (!is.null(annees))
+           paste0(" Une premiere ligne d'en-tetes est reconnue si aucune de ses cellules n'est ",
+                  "numerique, ou si ses cellules (hors la premiere) sont des annees a quatre ",
+                  "chiffres consecutives ; ici : ", annees$cause, "."))
   cel <- as.vector(m)
   # Cellules vides de tete ignorees, puis en-tete (premiere cellule non vide
   # et non numerique), puis cellules vides entre l'en-tete et la premiere
@@ -570,45 +641,181 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
   } else s
 }
 
-# Vrai si la cellule (deja passee par trimws) a l'allure d'une valeur
+# Cellules non UTF-8 lues en locale UTF-8 (issue #99). Un CSV encode en
+# Windows-1252 (ou Latin-1) qui contient un octet non ASCII ("ann<E9>e",
+# espace insecable A0) donne, sous une locale UTF-8, des chaines d'encodage
+# "unknown" dont les octets ne sont pas de l'UTF-8 valide : trimws() (via
+# sub(perl = TRUE)) et as.numeric() levaient alors une erreur R brute
+# ("input string 1 is invalid UTF-8", "invalid multibyte string"), avant tout
+# controle. Hors locale UTF-8, ces cellules etaient deja lues sans erreur.
+# .octets_non_utf8() : vrai pour une chaine non NA dont les octets ne sont pas
+# de l'UTF-8 valide, en locale UTF-8 seulement (faux partout ailleurs, pour
+# laisser inchange le comportement hors locale UTF-8).
+.octets_non_utf8 <- function(x) {
+  if (!isTRUE(l10n_info()[["UTF-8"]]) || !length(x)) return(rep(FALSE, length(x)))
+  !is.na(x) & !validUTF8(x)
+}
+
+# Retire les blancs ASCII (espace, tabulation, retour chariot, saut de ligne)
+# en tete et en fin de chaque cellule, comme trimws() avec son jeu de blancs
+# par defaut, mais octet par octet (useBytes, motifs ASCII) : aucune erreur
+# sur une cellule non UTF-8 (issue #99). L'encodage declare de chaque
+# cellule et les attributs (dim) sont conserves. En locale UTF-8, une
+# cellule non UTF-8 d'encodage "unknown" est en outre declaree Latin-1, sans
+# changer ses octets : les messages qui la citent restent de l'UTF-8 valide
+# ("annee" accentue, espace insecable) ; les octets 80-9F de Windows-1252
+# (ex. le symbole euro) y apparaissent comme des caracteres de controle.
+# Les octets etant inchanges, .allure_manquante_ou_nombre() reconnait
+# l'espace insecable Windows-1252 (octet A0 isole) en locale UTF-8 comme
+# ailleurs.
+.nettoyer_cellules <- function(x) {
+  inv <- .octets_non_utf8(x) & Encoding(x) == "unknown"
+  if (any(inv)) Encoding(x)[inv] <- "latin1"
+  y <- sub("[ \t\r\n]+$", "", sub("^[ \t\r\n]+", "", x, useBytes = TRUE), useBytes = TRUE)
+  # Encoding<- refuse une valeur de longueur nulle : entree vide rendue telle
+  # que sub() la rend (attributs, dont dim, conserves).
+  if (length(x)) Encoding(y) <- Encoding(x)
+  y
+}
+
+# Conversion numerique des cellules texte (separateur decimal dec) : une
+# cellule non UTF-8 en locale UTF-8 vaut NA (non numerique) sans appel a
+# as.numeric(), qui leverait une erreur (issue #99) ; hors locale UTF-8, les
+# memes cellules valaient deja NA (mesure du 28/09/2026, R 4.3.1, locale C :
+# "1<A0>", "<A0>1", "1<85>"). Les autres cellules passent par as.numeric()
+# comme auparavant.
+.cellules_en_nombre <- function(v, dec = ".") {
+  out <- rep(NA_real_, length(v))
+  ok <- !.octets_non_utf8(v)
+  w <- v[ok]
+  if (dec != ".") w <- gsub(dec, ".", w, fixed = TRUE)
+  out[ok] <- suppressWarnings(as.numeric(w))
+  out
+}
+
+# Vrai si la cellule (deja passee par .nettoyer_cellules()) a l'allure d'une valeur
 # manquante ou d'un nombre, et ne peut donc servir d'en-tete ni d'etiquette de
-# ligne dans usp_lire_vecteur() (issue #95, avis d'actuary) :
-#  (a) NA, NaN, N/A, #N/A, N.D. ou "-", casse ignoree ;
-#  (b) ou cellule faite uniquement de chiffres, d'espaces (ordinaire ou
-#      insecable U+00A0 ou fine insecable U+202F), de ".", ",", "'", "+",
-#      "-", avec au moins un chiffre (ex. "1,5" avec dec = ".", "1 234",
-#      "1.234,5", "1,234.5", "12.2017", "+1", "'2017") ;
-#  exception (avis d'actuary) : une etiquette d'exercice de la forme
-#  AAAA-AA a AAAA-AAAA ("2017-18", "2017-2018") n'est pas refusee.
-# "12a" ou "TRUE" restent admis. Comparaisons faites octet par octet
-# (useBytes, motifs ASCII), sans conversion d'encodage : le predicat isole ne
-# leve pas d'erreur sur une cellule non UTF-8 lue en locale UTF-8, mais
-# usp_lire_vecteur() echoue plus tot sur une telle cellule, dans trimws()
-# (defaut suivi par l'issue #99). Les espaces insecables sont remplacees par
-# une espace sur les octets bruts, en UTF-8 (C2 A0, E2 80 AF) comme en
-# Windows-1252 (A0) : un litteral "\u00a0" dans gsub() donnait, sous une
-# locale Windows-1252, un resultat qui changeait entre le premier appel et
-# les suivants (mesure du 26/09/2026, R 4.3.1).
+# ligne dans usp_lire_vecteur() (issue #95 ; regle commune d'actuary du
+# 28/09/2026 et decisions du mainteneur du meme jour, issue #102). Espaces de
+# bord retirees (espaces insecables comprises), casse ignoree, apres
+# conversion des tirets et des points de suspension (ci-dessous) :
+#  (a1) marqueur de la liste fermee NA, NAN, N/A, N.A., N.A, N.D., N.D, ND,
+#       N/D, NR, N.R., NULL, NONE, S.O., S.O, S/O, NIL, N.C., N.C, NC, N/C ;
+#  (a2) ou cellule commencant par "#" (codes d'erreur de calcul d'Excel dans
+#       toutes les langues : #N/A, #DIV/0!, #VALEUR!, #REF!, #NOM?, #####...) ;
+#  (a3) ou cellule faite uniquement, avec au moins un caractere, de "-",
+#       tiret demi-cadratin U+2013, tiret cadratin U+2014, ".", points de
+#       suspension U+2026 et "?" ("-", "--", ".", "?"...) ;
+#  (b)  ou cellule faite uniquement de chiffres, d'espaces (ordinaire ou
+#       insecable U+00A0 ou fine insecable U+202F), de ".", ",", "'", "+",
+#       "-", avec au moins un chiffre (ex. "1,5" avec dec = ".", "1 234",
+#       "1.234,5", "1,234.5", "12.2017", "+1", "'2017") ;
+#  (b') ou cellule qui, apres une apostrophe, un signe "+" ou "-" et des
+#       espaces de tete, commence par un chiffre ("1O4.2", "104.2 EUR",
+#       "12a", "2017 primes", "-1O4", et, apres conversion des tirets,
+#       "-104.2" ecrit avec U+2013 ou le signe moins U+2212) ;
+#  exception a (b) et (b') (avis d'actuary, #95) : une etiquette d'exercice de
+#  la forme AAAA-AA a AAAA-AAAA ("2017-18", "2017-2018", et leurs variantes
+#  au tiret U+2013 ou U+2014) n'est pas refusee.
+# "x", "a2017", "S1", "LoB12" ou "TRUE" restent admis. Comparaisons faites
+# octet par octet (useBytes, motifs ASCII), sans conversion d'encodage : aucune
+# erreur sur une cellule non UTF-8 lue en locale UTF-8, que usp_lire_vecteur()
+# lui transmet depuis l'issue #99 (.nettoyer_cellules()). Les espaces
+# insecables sont remplacees par une espace, les tirets U+2013, U+2014 et le
+# signe moins U+2212 par "-", et les points de suspension U+2026 par ".", sur
+# les octets bruts, en UTF-8 (C2 A0, E2 80 AF, E2 80 93, E2 80 94, E2 88 92,
+# E2 80 A6) comme en Windows-1252 (A0, 96, 97, 85 ; ces octets isoles
+# n'apparaissent en UTF-8 valide qu'apres
+# un octet de tete, qui n'est pas remplace et exclut alors (a3)) : un
+# litteral "\u00a0" dans gsub() donnait, sous une locale Windows-1252, un
+# resultat qui changeait entre le premier appel et les suivants (mesure du
+# 26/09/2026, R 4.3.1).
 .allure_manquante_ou_nombre <- function(cel) {
-  a <- grepl("^(NA|NAN|N/A|#N/A|N\\.D\\.|-)$", cel, ignore.case = TRUE, useBytes = TRUE)
-  x <- vapply(cel, function(s) {
+  # Remplace chaque sequence de trois octets b3 par l'octet par.
+  sub3 <- function(r, b3, par) {
+    n <- length(r)
+    if (n < 3) return(r)
+    i <- which(r[1:(n - 2)] == b3[1] & r[2:(n - 1)] == b3[2] & r[3:n] == b3[3])
+    if (length(i)) { r[i] <- par; r <- r[-c(i + 1L, i + 2L)] }
+    r
+  }
+  # Une seule forme convertie x3, sur laquelle toutes les regles sont
+  # evaluees, exception AAAA-AA(AA) comprise.
+  octets <- function(s) {
     if (is.na(s)) return(NA_character_)
     r <- charToRaw(s)
     # U+202F (E2 80 AF) -> une espace
-    n <- length(r)
-    if (n >= 3) {
-      i <- which(r[1:(n - 2)] == as.raw(0xe2) & r[2:(n - 1)] == as.raw(0x80) &
-                 r[3:n] == as.raw(0xaf))
-      if (length(i)) { r[i] <- as.raw(0x20); r <- r[-c(i + 1L, i + 2L)] }
-    }
+    r <- sub3(r, as.raw(c(0xe2, 0x80, 0xaf)), as.raw(0x20))
     suivant <- c(r[-1], as.raw(0))
     r <- r[!(r == as.raw(0xc2) & suivant == as.raw(0xa0))]
     r[r == as.raw(0xa0)] <- as.raw(0x20)
+    # U+2013, U+2014, U+2212 -> "-" ; U+2026 -> "." ; puis Windows-1252 96, 97, 85
+    r <- sub3(r, as.raw(c(0xe2, 0x80, 0x93)), as.raw(0x2d))
+    r <- sub3(r, as.raw(c(0xe2, 0x80, 0x94)), as.raw(0x2d))
+    r <- sub3(r, as.raw(c(0xe2, 0x88, 0x92)), as.raw(0x2d))
+    r <- sub3(r, as.raw(c(0xe2, 0x80, 0xa6)), as.raw(0x2e))
+    r[r == as.raw(0x96) | r == as.raw(0x97)] <- as.raw(0x2d)
+    r[r == as.raw(0x85)] <- as.raw(0x2e)
     rawToChar(r)
-  }, character(1), USE.NAMES = FALSE)
-  b <- grepl("^[0-9 .,'+-]*[0-9][0-9 .,'+-]*$", x, useBytes = TRUE) &
-    !grepl("^[0-9]{4}-[0-9]{2,4}$", x, useBytes = TRUE)
+  }
+  x3 <- vapply(cel, octets, character(1), USE.NAMES = FALSE)
+  x3 <- sub(" +$", "", sub("^ +", "", x3, useBytes = TRUE), useBytes = TRUE)
+  a <- grepl(paste0("^(NA|NAN|N/A|N\\.A\\.|N\\.A|N\\.D\\.|N\\.D|ND|N/D|NR|N\\.R\\.|NULL|NONE|",
+                    "S\\.O\\.|S\\.O|S/O|NIL|N\\.C\\.|N\\.C|NC|N/C)$"),
+             x3, ignore.case = TRUE, useBytes = TRUE) |
+    grepl("^#", x3, useBytes = TRUE) |
+    grepl("^[-.?]+$", x3, useBytes = TRUE)
+  b <- (grepl("^[0-9 .,'+-]*[0-9][0-9 .,'+-]*$", x3, useBytes = TRUE) |
+          grepl("^ *'? *[+-]? *[0-9]", x3, useBytes = TRUE)) &
+    !grepl("^[0-9]{4}-[0-9]{2,4}$", x3, useBytes = TRUE)
   unname(!is.na(cel) & (a | b))
+}
+
+# Premiere de deux lignes lue comme une ligne d'annees (motif H2 de
+# usp_lire_vecteur(), issue #103, regle commune d'actuary du 28/09/2026) :
+# ses cellules non vides, hors la cellule d'angle, sont des entiers a quatre
+# chiffres (ecriture ^[0-9]{4}$) compris entre 1900 et 2100, au nombre de deux
+# au moins, consecutifs (de 1 en 1, tous croissants ou tous decroissants). La
+# cellule d'angle est la premiere cellule quand elle est vide, ou un libelle
+# non numerique sans aucun chiffre et hors .allure_manquante_ou_nombre()
+# ("annee", "exercice") ; une premiere cellule numerique est une annee comme
+# les autres. Une premiere cellule ni angle ni numerique ("2016r", "2016*",
+# "a2016", "NA", "Segment 1") fait refuser la ligne (cause "premiere cellule
+# ni vide ni libelle sans chiffre") : prise pour une cellule d'angle, elle
+# ferait ecarter comme etiquette la valeur au-dessous, et perdre une annee
+# sans message (audit de #103). Les bornes et la consecutivite gardent refuses
+# "1,2,3" / "4,5,6" (tableau numerique, pas d'aplatissement), les annees a
+# deux chiffres et les annees non consecutives. Rend ok, angle (vrai si la
+# premiere cellule est une cellule d'angle) et, si ok est faux, la premiere
+# cause rencontree, reprise dans le message "Format non reconnu". val (seconde
+# ligne) ne sert qu'a nommer le cas de deux lignes numeriques.
+.ligne_annees <- function(ent, val, dec = ".") {
+  en_nombre <- function(v) .cellules_en_nombre(v, dec)
+  angle <- !nzchar(ent[1]) ||
+    (is.na(en_nombre(ent[1])) && !.allure_manquante_ou_nombre(ent[1]) &&
+       !grepl("[0-9]", ent[1], useBytes = TRUE))
+  a <- if (angle) ent[-1] else ent
+  a <- a[nzchar(a)]
+  cause <- if (!angle && is.na(en_nombre(ent[1]))) {
+    "premiere cellule ni vide ni libelle sans chiffre"
+  } else if (!length(a)) {
+    "aucune annee hors la premiere cellule"
+  } else if (anyNA(en_nombre(a))) {
+    "cellules numeriques melees a du texte"
+  } else if (!all(grepl("^[0-9]{4}$", a, useBytes = TRUE))) {
+    v <- val[nzchar(val)]
+    if (length(v) && !anyNA(en_nombre(v)))
+      "deux lignes numeriques, la premiere sans annees a quatre chiffres"
+    else "cellules numeriques qui ne sont pas des annees a quatre chiffres"
+  } else {
+    n <- as.integer(a)
+    d <- diff(n)
+    if (any(n < 1900 | n > 2100)) "annees hors 1900-2100"
+    else if (length(n) < 2) "une seule annee"
+    else if (!(all(d == 1) || all(d == -1))) "entiers non consecutifs"
+    else NA_character_
+  }
+  list(ok = is.na(cause), angle = angle, cause = cause)
 }
 
 # Retire la marque d'ordre des octets UTF-8 du premier nom de colonne d'un
@@ -717,7 +924,9 @@ usp_noyau <- function(delta, gamma, x, y, xbar = mean(x)) {
   T <- length(x)
   p <- usp_pi(delta, gamma, x, xbar)
   r <- log(y / x)
-  # ln(beta) : annexe XVII, sect. B/C par. 4-5 (estimateur MV du niveau)
+  # ln(beta) : fraction de l'exposant de sigma(delta, gamma), annexe XVII,
+  # sections B et C, paragraphe 5 (beta n'est pas nomme par le texte ;
+  # estimateur MV du niveau)
   ln_beta <- (T / 2 + sum(p * r)) / sum(p)
   v <- r + 1 / (2 * p) - ln_beta            # residus bruts (loi normale, var = 1/pi_t)
   list(
@@ -816,7 +1025,8 @@ usp_kkt_satisfaite <- function(cpo, gamma, rep_pas = REP_PAS_KKT, rep_gd = REP_G
     isTRUE(abs(cpo$gradient_projete[["delta"]]) <= rep_gd)
 }
 
-# Minimisation sous contrainte 0 <= delta <= 1 (annexe XVII, par. 6),
+# Minimisation sous contrainte 0 <= delta <= 1 (annexe XVII, sections B et C,
+# paragraphe 6),
 # avec démarrages multiples pour éviter les optima locaux.
 # controle : parametres de stats::optim() ; la valeur par defaut est celle
 # du calcul. Un autre reglage ne sert qu'aux tests (ajustement deliberement
@@ -847,7 +1057,7 @@ usp_ajuster <- function(x, y, n_starts_delta = 9, verbose = FALSE,
     # modifier, decision du mainteneur, issue #22).
     if (is.null(best) || fit$value < best$value - 1e-10) best <- fit
   }
-  if (is.null(best)) stop("Echec de l'optimisation (annexe XVII, par. 6).")
+  if (is.null(best)) stop("Echec de l'optimisation (annexe XVII, sections B et C, paragraphe 6).")
 
   # Controle de convergence multi-demarrages (issue #22), mesure sur la meme
   # grille (aucune reoptimisation redondante) : nombre de demarrages
@@ -880,7 +1090,8 @@ usp_ajuster <- function(x, y, n_starts_delta = 9, verbose = FALSE,
   # aucun point visite (valeur infinie dans x ou y, par exemple). Erreur
   # explicite plutot qu'un sigma = Inf rendu comme un optimum (issue #33).
   if (!is.finite(k$obj))
-    stop("Echec de l'optimisation (annexe XVII, par. 6) : l'objectif n'est fini en aucun ",
+    stop("Echec de l'optimisation (annexe XVII, sections B et C, paragraphe 6) : ",
+         "l'objectif n'est fini en aucun ",
          "point visite ; verifier que x et y sont finis et strictement positifs.")
   # Condition du premier ordre (issue #22) : gradient analytique de l'objectif
   # profile, projete sur les bornes. L'ancienne grandeur
@@ -2969,7 +3180,11 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # varie de 3,0e-7 entre delta = 0 et delta = 1) : le libelle le dit.
   suite_cst <- paste(", qui n'est pas identifie ; la valeur affichee est celle",
                      "ou l'optimiseur s'est arrete")
-  add(fam, "Position de delta dans [0,1]", "Annexe XVII, section B/C par. 6",
+  # Citation par methode (issue #101) : B(6) pour les primes, C(6) pour la
+  # reserve no 1.
+  add(fam, "Position de delta dans [0,1]",
+      sprintf("Annexe XVII, section %s, paragraphe 6",
+              if (methode == "premium") "B" else "C"),
       type = "diagnostic", estim_nom = "delta", estim = fit$delta,
       detail = if (isTRUE(regime$volumes_dans_bande))
         paste0(sprintf(paste("VOLUMES CONSTANTS a la tolerance TOL_DELTA_BORD = %g pres",
@@ -3557,7 +3772,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 #    consecutivite n'est pas verifiable.
 .en_numerique <- function(v) {
   if (is.factor(v)) v <- as.character(v)
-  if (is.character(v)) v <- trimws(v)
+  # Cellule non UTF-8 en locale UTF-8 : non numerique, sans erreur R (#99).
+  if (is.character(v)) return(.cellules_en_nombre(.nettoyer_cellules(v)))
   suppressWarnings(as.numeric(v))
 }
 
@@ -3625,7 +3841,7 @@ engine_lire_triangle <- function(df) {
   if (!ncol(df)) return(refus("Aucune colonne d'annee de developpement."))
   brut <- lapply(df, function(v) {
     if (is.factor(v)) v <- as.character(v)
-    if (is.character(v)) v <- trimws(v)
+    if (is.character(v)) v <- .nettoyer_cellules(v)
     v
   })
   num <- lapply(brut, .en_numerique)
@@ -3974,6 +4190,10 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
 # annees 3 a 7). Retourne les motifs de refus (character(0) si T convient),
 # sans erreur R. T_min = 1 pour un simple chargement (usp_charger()), la
 # duree minimale y etant controlee plus tard par engine_valider_donnees().
+# n est le nombre d'annees FOURNIES : les annees "disponibles" au sens de
+# l'annexe XVII (sections B/C, paragraphe 3, et G, paragraphe 3) sont les T
+# annees retenues (lecture (A) de l'issue #104, decision du mainteneur du
+# 28/09/2026).
 engine_valider_profondeur <- function(T, n, T_min = 5) {
   if (is.null(T)) return(character(0))
   # L'annexe XVII n'est citee que si la borne est la sienne (T_min >= 5) ;
@@ -3983,7 +4203,7 @@ engine_valider_profondeur <- function(T, n, T_min = 5) {
     return(sprintf("Profondeur T = %s : un nombre entier d'annees est attendu%s ; la serie n'est pas tronquee.",
                    if (!length(T)) "vide" else paste(deparse(T), collapse = " "), source_T))
   if (T > n)
-    return(sprintf("Profondeur T = %s superieure au nombre d'annees disponibles (%d).",
+    return(sprintf("Profondeur T = %s superieure au nombre d'annees fournies (%d).",
                    format(T), n))
   if (T < T_min)
     return(if (T_min >= 5)
@@ -5546,6 +5766,80 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
 ## 11. ORCHESTRATEUR PRINCIPAL
 ## =============================================================================
 
+# B minimal en fonction du seuil alpha (#127, note d'actuary et decisions du
+# mainteneur du 28/09/2026). Le plancher de la p-value Monte-Carlo
+# bilaterale (queue "deux" de engine_p_mc(), N = 0 depassement, B_eff = B)
+# vaut 2 * (1 / (B + 1)) ; la regle des verdicts de engine_registre_tests()
+# (sens "ne pas rejeter") rend ECHEC si p < alpha/2. L'ECHEC d'une ligne dont
+# la seule p-value est Monte-Carlo n'est atteignable que si
+# 2 * (1 / (B + 1)) < alpha / 2, soit B + 1 > 4/alpha (inegalite stricte : a
+# egalite, p = alpha/2 donne ALERTE). La condition bilaterale, la plus
+# contraignante, vaut pour toute la table (les deux catalogues ont des
+# statistiques bilaterales ; les lignes unilaterales ont un plancher
+# 1/(B + 1) < alpha/4). Elle est ecrite dans l'arithmetique flottante de la
+# regle des verdicts, et non comme 4/alpha, pour qu'aucune divergence ne soit
+# possible entre le controle d'entree et le verdict (4/0,1 n'est pas
+# exactement 40 en double). Limite : le controle porte sur B nominal ; le
+# plancher reel est 2/(B_eff + 1).
+# engine_b_minimal(alpha) : plus petit entier B >= 1 tel que
+# 2 * (1 / (B + 1)) < alpha / 2 (borne pure d'alpha, sans le max avec
+# B_MIN_USAGE). Ne sert qu'au message de engine_motif_b_alpha() : l'admission
+# de B y est decidee directement par la condition, sans ce calcul. Recherche
+# bornee autour de 4/alpha (au plus quatre essais) ; erreur explicite si
+# 4/alpha n'est pas fini et < 2^52 (au-dela, b + 1 n'est plus exact en
+# double : revue d'audit de #127, boucle sans fin a alpha = 1e-16) ou si
+# aucun essai ne convient. alpha : nombre scalaire fini > 0.
+engine_b_minimal <- function(alpha) {
+  if (!is.numeric(alpha) || length(alpha) != 1L || !is.finite(alpha) || alpha <= 0)
+    stop("engine_b_minimal() : alpha doit etre un nombre scalaire fini > 0.", call. = FALSE)
+  q <- 4 / alpha
+  if (!(is.finite(q) && q < 2^52))
+    stop(sprintf(paste("engine_b_minimal() : 4/alpha = %g, non fini ou >= 2^52 : B minimal",
+                       "non calculable exactement en double (alpha = %g)."),
+                 q, alpha), call. = FALSE)
+  b <- max(1, floor(q) - 1)
+  for (k in 1:4) {
+    if (2 * (1 / (b + 1)) < alpha / 2) return(b)
+    b <- b + 1
+  }
+  stop(sprintf("engine_b_minimal() : B minimal introuvable pour alpha = %g.", alpha),
+       call. = FALSE)
+}
+
+# Motif du refus de B au seuil alpha (#127) : NULL si 2 * (1 / (B + 1)) <
+# alpha / 2 (condition testee directement, dans l'arithmetique de la regle
+# des verdicts d'add(), sans calcul de B minimal ni boucle), sinon le message
+# de l'erreur d'usage, chaine ASCII unique. Seule source du texte :
+# .engine_verifier_usage() le leve par stop() ; app.R l'affiche tel quel
+# avant le clic, sans recalculer la regle. Rend NULL hors du domaine de la
+# regle (B non scalaire fini, alpha hors de ]0, SEUIL_ECHEC_SENS_REJETER[)
+# et pour B < B_MIN_USAGE (decision du mainteneur du 28/09/2026, avis
+# d'actuary) : ces saisies relevent des controles de B et d'alpha, faits
+# avant, et le bandeau de l'application concorde ainsi avec l'erreur levee
+# au clic. Le B minimal cite est formate par %.0f ; s'il n'est pas calculable
+# (engine_b_minimal() en erreur, alpha tres petit), le message ne cite pas
+# de valeur.
+engine_motif_b_alpha <- function(B, alpha) {
+  scalaire_fini <- function(v) is.numeric(v) && length(v) == 1L && is.finite(v)
+  if (!scalaire_fini(B) || !scalaire_fini(alpha) || alpha <= 0 ||
+      alpha >= SEUIL_ECHEC_SENS_REJETER || B < B_MIN_USAGE) return(NULL)
+  if (2 * (1 / (B + 1)) < alpha / 2) return(NULL)
+  b_min <- tryCatch(engine_b_minimal(alpha), error = function(e) NULL)
+  seuil_b <- if (is.null(b_min)) "B trop petit pour ce seuil" else
+    sprintf("soit B >= %.0f a ce seuil", b_min)
+  # Valeurs citees comme par saisie() de .engine_verifier_usage(), en double :
+  # un entier (99L, forme possible d'une saisie numerique transmise par
+  # l'application) est cite 99, comme le double 99.
+  saisie <- function(v) paste(deparse(as.double(v)), collapse = " ")
+  sprintf(paste("B = %s et alpha = %s : B + 1 > 4/alpha est requis, %s",
+                "(en plus de B >= B_MIN_USAGE = %.0f). Le plancher bilateral de la p-value",
+                "Monte-Carlo, 2/(B+1) = %.4g, n'est pas inferieur a alpha/2 = %.4g :",
+                "l'ECHEC des tests dont la seule p-value est Monte-Carlo serait",
+                "inatteignable (regle des verdicts d'engine_registre_tests())."),
+          saisie(B), saisie(alpha), seuil_b, B_MIN_USAGE,
+          2 * (1 / (B + 1)), alpha / 2)
+}
+
 # Arguments d'usage de run_engine() resolus avant le calcul protege (issue
 # #88) : une valeur invalide leve une erreur R explicite, comme avant #88,
 # et n'est jamais rendue en defaut de calcul intercepte. Sont refusees les
@@ -5565,13 +5859,19 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
 #   (deduit du segment) ;
 # - alpha : nombre scalaire fini, 0 < alpha < SEUIL_ECHEC_SENS_REJETER (avis
 #   d'actuary) : au-dela, la zone ALERTE des tests en sens rejeter disparait ;
+# - B et alpha conjointement (#127) : B + 1 > 4/alpha, soit
+#   B >= engine_b_minimal(alpha), en plus de B >= B_MIN_USAGE ; faute de quoi
+#   l'ECHEC des lignes a p-value Monte-Carlo seule est inatteignable
+#   (engine_motif_b_alpha()) ;
 # - sigma_standard : NULL (valeur de l'annexe), ou nombre scalaire fini > 0 ;
 # - segment et annexe (revue finale de #88, constat 4) : un segment fourni
-#   doit exister dans l'annexe (usp_segment_infos()), et il faut segment ou
-#   sigma_standard. Ces deux controles etaient faits apres la validation des
-#   donnees, dans chaque branche : le meme appel levait une erreur R sur des
-#   donnees valides et rendait ok = FALSE sur des donnees refusees. Faits ici,
-#   ils levent une erreur R quelles que soient les donnees.
+#   doit etre un nombre scalaire fini entier sans attribut (#105,
+#   .segment_verifie()) et exister dans l'annexe (usp_segment_infos()), et
+#   il faut segment ou sigma_standard. Ces controles etaient faits apres la
+#   validation des donnees, dans chaque branche : le meme appel levait une
+#   erreur R sur des donnees valides et rendait ok = FALSE sur des donnees
+#   refusees. Faits ici, ils levent une erreur R quelles que soient les
+#   donnees.
 # Aucune de ces valeurs ne doit porter d'attribut (noms, dim...) : refusee
 # plutot que normalisee, car l'attribut etait propage tel quel dans le
 # resultat (mesure sur la tete 743bb75 : B = c(a = 19), alpha = c(a = 0.1),
@@ -5618,11 +5918,17 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                        "la zone ALERTE des tests en sens rejeter disparait et le verdict",
                        "ne suit plus la regle documentee."),
                  saisie(alpha), format(SEUIL_ECHEC_SENS_REJETER)), call. = FALSE)
+  # B minimal fonction d'alpha (#127) : apres les controles de B et d'alpha,
+  # dont les messages restent inchanges pour une valeur invalide isolement.
+  motif_b_alpha <- engine_motif_b_alpha(B, alpha)
+  if (!is.null(motif_b_alpha)) stop(motif_b_alpha, call. = FALSE)
   if (!is.null(sigma_standard) && (!scalaire_fini(sigma_standard) || sigma_standard <= 0))
     stop(sprintf(paste("sigma_standard = %s : NULL ou un nombre scalaire fini,",
                        "sans attribut, sigma_standard > 0, est attendu."),
                  saisie(sigma_standard)), call. = FALSE)
-  # Segment inconnu : erreur de usp_segment_infos() (message inchange).
+  # Segment : usp_segment_infos() leve l'erreur d'usage de .segment_verifie()
+  # (valeur non scalaire, vide, NA, non entiere ou non numerique, #105), puis
+  # celle du segment inconnu de l'annexe (message inchange).
   if (!is.null(segment)) usp_segment_infos(segment, annexe)
   else if (is.null(sigma_standard))
     stop("Fournir soit sigma_standard, soit segment (avec son annexe).")
@@ -5734,7 +6040,10 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
 #   T              profondeur retenue (les T dernieres annees) ; NULL = tout ;
 #                  sinon entier scalaire fini, 5 <= T <= nombre d'annees, et
 #                  toute autre valeur donne ok = FALSE, sans troncature
-#                  (engine_valider_profondeur(), issue #87)
+#                  (engine_valider_profondeur(), issue #87) ; le nombre
+#                  d'annees fournies est restitue par metadata$n_fournies, et
+#                  une troncature (n_fournies > T) par une ligne "profondeur"
+#                  de engine_derogations() (issue #104)
 #   B              nombre de replications bootstrap / Monte-Carlo ; nombre
 #                  scalaire fini entier >= B_MIN_USAGE = 99
 #                  (.engine_verifier_usage())
@@ -5902,6 +6211,10 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                       # l'issue #37, en dernier avant les champs d'execution
                       # (le patch des references ajoute la feuille en fin).
                       bareme_saisi = saisi_bareme,
+                      # Annees d'accident fournies (issue #104) : lignes du
+                      # triangle, jamais tronque (n_fournies = T = I + 1).
+                      # Place apres bareme_saisi, avant les champs d'execution.
+                      n_fournies = nrow(triangle),
                       horodatage = t0,
                       duree_sec = as.numeric(difftime(Sys.time(), t0, units = "secs")),
                       version_R = R.version.string)
@@ -6220,6 +6533,14 @@ run_engine <- function(xt, yt,
         # dernier avant les champs d'execution (le patch des references
         # ajoute la feuille en fin de metadata).
         list(bareme_saisi = saisi_bareme),
+        # Annees fournies avant troncature a la profondeur T (issue #104,
+        # decision du mainteneur du 28/09/2026) : n_fournies > T signale que
+        # les n_fournies - T annees les plus anciennes ont ete ecartees
+        # (ligne "profondeur" de engine_derogations()). La duree de
+        # credibilite reste T (lecture (A) : annexe XVII, section G,
+        # paragraphe 3). Place apres bareme_saisi, en dernier avant les champs
+        # d'execution.
+        list(n_fournies = n),
         list(horodatage = t0,
              duree_sec = as.numeric(difftime(Sys.time(), t0, units = "secs")),
              version_R = R.version.string))
@@ -6299,6 +6620,28 @@ run_engine <- function(xt, yt,
        conforme = if (sans_segment) NA else identical(regl, m$bareme))
 }
 
+# Profondeur retenue et annees fournies (issue #104), lues sur res$metadata :
+# n_fournies (annees fournies avant troncature) et T (annees retenues, duree
+# de credibilite de l'annexe XVII, section G, paragraphe 3, lecture (A),
+# decision du mainteneur du 28/09/2026). Un resultat qui ne porte pas
+# n_fournies (produit avant l'issue #104), ou dont n_fournies n'est pas un
+# entier >= T, est refuse plutot que devine ; pour la methode du risque de
+# reserve no 2, le triangle n'est jamais tronque (n_fournies = T exige).
+.engine_trace_profondeur <- function(res, appelant) {
+  m <- res$metadata
+  n <- m$n_fournies; T <- m$T
+  if (!is.numeric(n) || length(n) != 1L || !is.finite(n) || n != round(n))
+    stop(sprintf("%s : metadata$n_fournies absent ou invalide.", appelant))
+  if (!is.numeric(T) || length(T) != 1L || !is.finite(T) || T != round(T))
+    stop(sprintf("%s : metadata$T absent ou invalide.", appelant))
+  if (n < T)
+    stop(sprintf("%s : metadata$n_fournies inferieur a la profondeur T retenue.", appelant))
+  if (identical(m$methode, "reserve2") && n != T)
+    stop(sprintf("%s : triangle tronque (n_fournies different de T), impossible en reserve no 2.",
+                 appelant))
+  list(n_fournies = as.integer(n), T = as.integer(T), tronque = n > T)
+}
+
 engine_parametre_standard <- function(res) {
   if (!isTRUE(res$ok)) return(NULL)
   m <- res$metadata
@@ -6361,23 +6704,32 @@ engine_parametre_standard <- function(res) {
 # fiche E0) : sigma standard saisi (#55) et bareme de credibilite saisi
 # (#93), lus sur les drapeaux explicites de res$metadata, plus le bareme
 # "court" pose par convention sans segment designe, non determine par la
-# section G (ligne sans drapeau). L'affichage (bandeau de l'onglet
-# Calibration, rapport fige, journal) ne connait que cette table.
+# section G (ligne sans drapeau), plus la troncature de la serie fournie a
+# la profondeur T (#104 : ligne "profondeur" si metadata$n_fournies > T ;
+# choix de perimetre plutot que derogation a un parametre, restitue ici pour
+# etre repris par le bandeau et le rapport fige, decision du mainteneur du
+# 28/09/2026). L'affichage (bandeau de l'onglet Calibration, rapport fige,
+# journal) ne connait que cette table.
 # Valeur : NULL si !isTRUE(res$ok) ; sinon data.frame (0 ligne sans
 # derogation), colonnes :
-#   parametre            "sigma_standard" ou "bareme" ;
-#   valeur_reglementaire valeur du texte (caractere ; NA sans segment) ;
-#   valeur_retenue       valeur du melange (caractere) ;
+#   parametre            "sigma_standard", "bareme" ou "profondeur" ;
+#   valeur_reglementaire valeur du texte (caractere ; NA sans segment, et
+#                        toujours NA pour "profondeur", que le texte ne fixe
+#                        pas) ;
+#   valeur_retenue       valeur du melange (caractere ; "profondeur" : T) ;
 #   conforme             valeur retenue egale a la valeur reglementaire
-#                        (logique ; NA si non determinable, sans segment) ;
-#                        une saisie egale reste une derogation ;
+#                        (logique ; NA si non determinable, sans segment, et
+#                        toujours NA pour "profondeur") ; une saisie egale
+#                        reste une derogation ;
 #   libelle              phrase complete pour bandeau et journal.
-# Erreur si un drapeau manque ou est invalide (pas de deduction), ou si le
-# sigma standard ou le bareme recalcules different du resultat.
+# Erreur si un drapeau manque ou est invalide (pas de deduction), si le
+# sigma standard ou le bareme recalcules different du resultat, ou si
+# metadata$n_fournies manque ou est incoherent (.engine_trace_profondeur()).
 engine_derogations <- function(res) {
   if (!isTRUE(res$ok)) return(NULL)
   ps <- .engine_trace_sigma(res, "engine_derogations()")
   tb <- .engine_trace_bareme(res, "engine_derogations()")
+  tp <- .engine_trace_profondeur(res, "engine_derogations()")
   fmt <- function(x) if (is.na(x)) NA_character_ else format(x, digits = 10)
   d <- data.frame(parametre = character(0), valeur_reglementaire = character(0),
                   valeur_retenue = character(0), conforme = logical(0),
@@ -6412,6 +6764,42 @@ engine_derogations <- function(res) {
     d <- rbind(d, data.frame(parametre = "bareme",
       valeur_reglementaire = tb$reglementaire, valeur_retenue = tb$retenu,
       conforme = tb$conforme, libelle = lib, stringsAsFactors = FALSE))
+  }
+  if (tp$tronque) {
+    # Troncature n_fournies -> T (issue #104) : lecture (A), la duree de
+    # credibilite est T ; l'exclusion des annees les plus anciennes est a
+    # justifier au titre de l'art. 219, paragraphe 1, point a), qui rend
+    # applicable l'art. 19, paragraphe 1, point b), et a documenter au titre
+    # de l'art. 219, paragraphe 1, point e) (lecture de regulatory, issue
+    # #104) ; motif de representativite : annexe XVII, section B (primes) ou
+    # C (reserve no 1), paragraphe 2, point a). Methodes lognormales
+    # seulement (.engine_trace_profondeur() refuse un triangle tronque).
+    # Point de G(3) et vocabulaire du texte selon la methode : point a) et
+    # "annees" pour le risque de primes (section B), point b) et "exercices"
+    # pour le risque de reserve no 1 (section C, paragraphe 3 ; G(3)(b)).
+    r1 <- identical(res$metadata$methode, "reserve1")
+    section <- if (r1) "C" else "B"
+    point_g3 <- if (r1) "b" else "a"
+    nb <- tp$n_fournies - tp$T
+    unite <- if (r1) "exercices fournis" else "annees fournies"
+    ecartes <- if (r1) {
+      if (nb == 1L) "l'exercice le plus ancien est ecarte" else
+        sprintf("les %d exercices les plus anciens sont ecartes", nb)
+    } else {
+      if (nb == 1L) "l'annee la plus ancienne est ecartee" else
+        sprintf("les %d annees les plus anciennes sont ecartees", nb)
+    }
+    lib <- sprintf(paste(
+      "profondeur retenue T = %d sur n = %d %s : %s de l'estimation, la duree de",
+      "credibilite (annexe XVII, section G, paragraphe 3, point %s)) etant",
+      "T = %d ; exclusion a justifier dans le dossier (art. 219, paragraphe 1, point a),",
+      "renvoyant a l'art. 19, paragraphe 1, point b) ; motif de representativite :",
+      "annexe XVII, section %s, paragraphe 2, point a)) et a documenter (art. 219,",
+      "paragraphe 1, point e))"),
+      tp$T, tp$n_fournies, unite, ecartes, point_g3, tp$T, section)
+    d <- rbind(d, data.frame(parametre = "profondeur",
+      valeur_reglementaire = NA_character_, valeur_retenue = as.character(tp$T),
+      conforme = NA, libelle = lib, stringsAsFactors = FALSE))
   }
   rownames(d) <- NULL
   d
