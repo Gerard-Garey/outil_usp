@@ -13,3 +13,9 @@ Les skills raisonnent en termes de cinq rôles de tri canoniques. Ce fichier fai
 Lorsqu'un skill mentionne un rôle (par exemple « appliquer le libellé de tri prêt pour un agent »), utiliser le libellé correspondant de ce tableau.
 
 Modifier la colonne de droite pour l'aligner sur le vocabulaire réellement utilisé.
+
+## Libellé d'origine
+
+| Libellé | Signification |
+| ------- | ------------- |
+| `gpt`   | Issue créée par ChatGPT (Codex), sur accord du mainteneur (`AGENTS.md`, ADR 0012) ; s'ajoute aux libellés de tri ci-dessus, qu'il ne remplace pas. Sert à vérifier la liste des issues créées que GPT fournit dans la PR `main-GPT` → `main`. |
