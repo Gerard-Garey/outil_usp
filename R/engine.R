@@ -446,11 +446,22 @@ usp_parametre_standard <- function(methode = c("premium", "reserve1", "reserve2"
 # retrait des lignes et colonnes entierement vides de bord :
 #  - une seule colonne, avec ou sans en-tete (premiere cellule non numerique) ;
 #  - une seule ligne, avec ou sans en-tete en premiere cellule ;
-#  - deux lignes dont la PREMIERE est entierement non numerique (ligne
-#    d'en-tetes, cellules vides comprises, ex. a2017;...;a2024) : elle est
-#    ecartee et la seconde est lue comme une serie en ligne.
+#  - deux lignes dont la PREMIERE est une ligne d'en-tetes : elle est ecartee
+#    et la seconde est lue comme une serie en ligne. La premiere ligne est une
+#    ligne d'en-tetes (issue #103, regle commune d'actuary du 28/09/2026) si
+#    (H1) aucune de ses cellules n'est numerique (cellules vides comprises,
+#    ex. a2017;...;a2024), ou si (H2) ses cellules non vides, hors la cellule
+#    d'angle (premiere colonne, vide ou libelle sans chiffre hors
+#    .allure_manquante_ou_nombre(), ex. "annee"), sont des annees a quatre
+#    chiffres comprises entre 1900 et 2100, au nombre de deux au moins,
+#    consecutives (de 1 en 1, toutes croissantes ou toutes decroissantes) :
+#    .ligne_annees(). Le sens des annees n'est pas interprete : la serie est
+#    rendue dans l'ordre du fichier, usp_charger(plus_recent_en_dernier)
+#    fixant l'ordre chronologique (decision du mainteneur du 28/09/2026).
 # Tout autre tableau de plusieurs lignes et plusieurs colonnes est refuse
-# (pas d'aplatissement silencieux ; decision du 25/09/2026). Les cellules
+# (pas d'aplatissement silencieux ; decision du 25/09/2026) ; pour un tableau
+# de deux lignes, le message nomme la cause pour laquelle la premiere ligne
+# n'est pas une ligne d'en-tetes. Les cellules
 # sont lues comme du texte, sans retirer les lignes vides, afin que la
 # position de chaque valeur soit conservee : une cellule vide ou non
 # numerique AU MILIEU de la serie est refusee, car la retirer decalerait
@@ -467,15 +478,22 @@ usp_parametre_standard <- function(methode = c("premium", "reserve1", "reserve2"
 # (cellule vide de bord, ecartee ci-dessus) ou une valeur en surnombre
 # passerait sans message. Le fichier est refuse en listant les colonnes
 # fautives, avec les deux decomptes. L'etiquette de ligne (premiere cellule non
-# vide de la serie, non numerique) est admise, que l'en-tete au-dessus soit
-# vide ou non.
+# vide de la serie, non numerique) n'est admise que si la cellule d'en-tete
+# au-dessus d'elle est vide (regle stricte, issue #102, decision du
+# mainteneur du 28/09/2026, qui revient sur l'admission du 26/09) : sous un
+# en-tete non vide, elle est refusee, car une premiere valeur mal saisie
+# ("1O4.2", "abc") y serait ecartee comme etiquette sans message. Sous (H2),
+# la cellule d'angle ("annee", libelle sans chiffre) n'est pas un en-tete d'annee : elle
+# compte comme une cellule d'en-tete vide, pour l'etiquette comme pour
+# l'alignement (une valeur numerique au-dessous est une valeur sans en-tete).
 #
-# En-tete et etiquette (issue #95, avis d'actuary) : dans tous les formats, la
-# premiere cellule non vide et non numerique, ecartee comme en-tete (formats
-# en colonne et en ligne sans en-tetes) ou comme etiquette de ligne (format
-# avec ligne d'en-tetes), est refusee si elle a l'allure d'une valeur
-# manquante ou d'un nombre (.allure_manquante_ou_nombre()) : l'ecarter ferait
-# perdre une annee sans message.
+# En-tete et etiquette (issues #95 et #102, avis d'actuary) : dans tous les
+# formats, la premiere cellule non vide et non numerique, ecartee comme
+# en-tete (formats en colonne et en ligne sans en-tetes) ou comme etiquette
+# de ligne (format avec ligne d'en-tetes, sous une cellule d'en-tete vide),
+# est refusee si elle a l'allure d'une valeur manquante ou d'un nombre
+# (.allure_manquante_ou_nombre()) : l'ecarter ferait perdre une annee sans
+# message.
 usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
   if (!file.exists(chemin)) stop("Fichier introuvable : ", chemin)
   brut <- utils::read.csv(chemin, header = FALSE, sep = sep, dec = dec,
@@ -504,25 +522,46 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
   cols <- bornes(which(colSums(nz) > 0))
   m <- m[bornes(which(rowSums(nz) > 0)), cols, drop = FALSE]
   en_nombre <- function(v) .cellules_en_nombre(v, dec)
-  # Serie en ligne avec en-tete : 2 lignes dont la premiere n'a aucune cellule
-  # numerique ; la ligne d'en-tetes est ecartee apres controle de l'etiquette
-  # de ligne ; l'alignement colonne par colonne est controle plus bas (#95).
+  # Serie en ligne avec en-tete : 2 lignes dont la premiere est une ligne
+  # d'en-tetes (H1 ou H2 ci-dessus) ; la ligne d'en-tetes est ecartee apres
+  # controle de l'etiquette de ligne ; l'alignement colonne par colonne est
+  # controle plus bas (#95).
   aligne <- NULL
   refus_allure <- function(x, ou)
     stop(sprintf(paste("Lecture de %s : la cellule \"%s\" %s, a l'allure d'une valeur manquante",
-                       "(NA, NaN, N/A, #N/A, n.d., -) ou d'un nombre (chiffres, espaces, points,",
-                       "virgules, apostrophes, signes ; separateur decimal attendu : \"%s\") ;",
+                       "(NA, N/A, N.D., ND, NR, NC, NULL, tirets, ou cellule commencant par #, code",
+                       "d'erreur Excel) ou d'un nombre (cellule qui commence par un chiffre, ou faite",
+                       "de chiffres, espaces, points, virgules, apostrophes, signes ; separateur",
+                       "decimal attendu : \"%s\") ;",
                        "l'ecarter comme en-tete ou etiquette ferait perdre une annee sans message.",
                        "Corriger la valeur ou le separateur decimal, ou renseigner un en-tete ou",
                        "une etiquette textuels."),
                  chemin, x, ou, dec))
-  if (nrow(m) == 2 && ncol(m) > 1 && all(is.na(en_nombre(m[1, ])))) {
+  annees <- NULL
+  if (nrow(m) == 2 && ncol(m) > 1) {
+    h1 <- all(is.na(en_nombre(m[1, ])))
+    if (!h1) annees <- .ligne_annees(m[1, ], m[2, ], dec)
+  }
+  if (nrow(m) == 2 && ncol(m) > 1 && (h1 || annees$ok)) {
     ent <- m[1, ]; val <- m[2, ]
+    # (H2) : cellule d'angle (libelle sans chiffre) traitee comme un en-tete vide.
+    if (!h1 && annees$angle) ent[1] <- ""
     # Etiquette de ligne : premiere cellule non vide de la serie, non
-    # numerique ; admise que l'en-tete au-dessus soit vide ou non, et exclue
-    # du controle d'alignement, sauf allure de valeur manquante ou de nombre.
+    # numerique ; admise seulement sous une cellule d'en-tete vide (regle
+    # stricte, #102) et sauf allure de valeur manquante ou de nombre ; exclue
+    # du controle d'alignement.
     j1 <- which(nzchar(val))[1]
     if (!is.na(j1) && is.na(en_nombre(val[j1]))) {
+      if (nzchar(ent[j1]))
+        stop(sprintf(paste0("Serie en ligne de %s : la cellule \"%s\" (colonne %d) n'est pas numerique ",
+                            "et l'en-tete \"%s\" au-dessus d'elle n'est pas vide. Si c'est une ",
+                            "etiquette de ligne, laisser vide l'en-tete de sa colonne ; sinon corriger ",
+                            "la valeur%s."),
+                     chemin, val[j1], cols[j1], ent[j1],
+                     if (.allure_manquante_ou_nombre(val[j1]))
+                       sprintf(paste0(" (elle a l'allure d'une valeur manquante ou d'un nombre ; ",
+                                      "separateur decimal attendu : \"%s\")"), dec)
+                     else ""))
       if (.allure_manquante_ou_nombre(val[j1]))
         refus_allure(val[j1], sprintf("(colonne %d), en position d'etiquette de ligne", cols[j1]))
       garde <- setdiff(seq_along(val), j1)
@@ -532,7 +571,11 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
   }
   if (nrow(m) > 1 && ncol(m) > 1)
     stop("Format non reconnu dans ", chemin, " : une serie sur une seule ligne ou ",
-         "une seule colonne est attendue (", nrow(m), " lignes x ", ncol(m), " colonnes).")
+         "une seule colonne est attendue (", nrow(m), " lignes x ", ncol(m), " colonnes).",
+         if (!is.null(annees))
+           paste0(" Une premiere ligne d'en-tetes est reconnue si aucune de ses cellules n'est ",
+                  "numerique, ou si ses cellules (hors la premiere) sont des annees a quatre ",
+                  "chiffres consecutives ; ici : ", annees$cause, "."))
   cel <- as.vector(m)
   # Cellules vides de tete ignorees, puis en-tete (premiere cellule non vide
   # et non numerique), puis cellules vides entre l'en-tete et la premiere
@@ -651,42 +694,127 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
 
 # Vrai si la cellule (deja passee par .nettoyer_cellules()) a l'allure d'une valeur
 # manquante ou d'un nombre, et ne peut donc servir d'en-tete ni d'etiquette de
-# ligne dans usp_lire_vecteur() (issue #95, avis d'actuary) :
-#  (a) NA, NaN, N/A, #N/A, N.D. ou "-", casse ignoree ;
-#  (b) ou cellule faite uniquement de chiffres, d'espaces (ordinaire ou
-#      insecable U+00A0 ou fine insecable U+202F), de ".", ",", "'", "+",
-#      "-", avec au moins un chiffre (ex. "1,5" avec dec = ".", "1 234",
-#      "1.234,5", "1,234.5", "12.2017", "+1", "'2017") ;
-#  exception (avis d'actuary) : une etiquette d'exercice de la forme
-#  AAAA-AA a AAAA-AAAA ("2017-18", "2017-2018") n'est pas refusee.
-# "12a" ou "TRUE" restent admis. Comparaisons faites octet par octet
-# (useBytes, motifs ASCII), sans conversion d'encodage : aucune erreur sur
-# une cellule non UTF-8 lue en locale UTF-8, que usp_lire_vecteur() lui
-# transmet depuis l'issue #99 (.nettoyer_cellules()). Les espaces insecables sont remplacees par
-# une espace sur les octets bruts, en UTF-8 (C2 A0, E2 80 AF) comme en
-# Windows-1252 (A0) : un litteral "\u00a0" dans gsub() donnait, sous une
-# locale Windows-1252, un resultat qui changeait entre le premier appel et
-# les suivants (mesure du 26/09/2026, R 4.3.1).
+# ligne dans usp_lire_vecteur() (issue #95 ; regle commune d'actuary du
+# 28/09/2026 et decisions du mainteneur du meme jour, issue #102). Espaces de
+# bord retirees (espaces insecables comprises), casse ignoree, apres
+# conversion des tirets et des points de suspension (ci-dessous) :
+#  (a1) marqueur de la liste fermee NA, NAN, N/A, N.A., N.A, N.D., N.D, ND,
+#       N/D, NR, N.R., NULL, NONE, S.O., S.O, S/O, NIL, N.C., N.C, NC, N/C ;
+#  (a2) ou cellule commencant par "#" (codes d'erreur de calcul d'Excel dans
+#       toutes les langues : #N/A, #DIV/0!, #VALEUR!, #REF!, #NOM?, #####...) ;
+#  (a3) ou cellule faite uniquement, avec au moins un caractere, de "-",
+#       tiret demi-cadratin U+2013, tiret cadratin U+2014, ".", points de
+#       suspension U+2026 et "?" ("-", "--", ".", "?"...) ;
+#  (b)  ou cellule faite uniquement de chiffres, d'espaces (ordinaire ou
+#       insecable U+00A0 ou fine insecable U+202F), de ".", ",", "'", "+",
+#       "-", avec au moins un chiffre (ex. "1,5" avec dec = ".", "1 234",
+#       "1.234,5", "1,234.5", "12.2017", "+1", "'2017") ;
+#  (b') ou cellule qui, apres une apostrophe, un signe "+" ou "-" et des
+#       espaces de tete, commence par un chiffre ("1O4.2", "104.2 EUR",
+#       "12a", "2017 primes", "-1O4", et, apres conversion des tirets,
+#       "-104.2" ecrit avec U+2013 ou le signe moins U+2212) ;
+#  exception a (b) et (b') (avis d'actuary, #95) : une etiquette d'exercice de
+#  la forme AAAA-AA a AAAA-AAAA ("2017-18", "2017-2018", et leurs variantes
+#  au tiret U+2013 ou U+2014) n'est pas refusee.
+# "x", "a2017", "S1", "LoB12" ou "TRUE" restent admis. Comparaisons faites
+# octet par octet (useBytes, motifs ASCII), sans conversion d'encodage : aucune
+# erreur sur une cellule non UTF-8 lue en locale UTF-8, que usp_lire_vecteur()
+# lui transmet depuis l'issue #99 (.nettoyer_cellules()). Les espaces
+# insecables sont remplacees par une espace, les tirets U+2013, U+2014 et le
+# signe moins U+2212 par "-", et les points de suspension U+2026 par ".", sur
+# les octets bruts, en UTF-8 (C2 A0, E2 80 AF, E2 80 93, E2 80 94, E2 88 92,
+# E2 80 A6) comme en Windows-1252 (A0, 96, 97, 85 ; ces octets isoles
+# n'apparaissent en UTF-8 valide qu'apres
+# un octet de tete, qui n'est pas remplace et exclut alors (a3)) : un
+# litteral "\u00a0" dans gsub() donnait, sous une locale Windows-1252, un
+# resultat qui changeait entre le premier appel et les suivants (mesure du
+# 26/09/2026, R 4.3.1).
 .allure_manquante_ou_nombre <- function(cel) {
-  a <- grepl("^(NA|NAN|N/A|#N/A|N\\.D\\.|-)$", cel, ignore.case = TRUE, useBytes = TRUE)
-  x <- vapply(cel, function(s) {
+  # Remplace chaque sequence de trois octets b3 par l'octet par.
+  sub3 <- function(r, b3, par) {
+    n <- length(r)
+    if (n < 3) return(r)
+    i <- which(r[1:(n - 2)] == b3[1] & r[2:(n - 1)] == b3[2] & r[3:n] == b3[3])
+    if (length(i)) { r[i] <- par; r <- r[-c(i + 1L, i + 2L)] }
+    r
+  }
+  # Une seule forme convertie x3, sur laquelle toutes les regles sont
+  # evaluees, exception AAAA-AA(AA) comprise.
+  octets <- function(s) {
     if (is.na(s)) return(NA_character_)
     r <- charToRaw(s)
     # U+202F (E2 80 AF) -> une espace
-    n <- length(r)
-    if (n >= 3) {
-      i <- which(r[1:(n - 2)] == as.raw(0xe2) & r[2:(n - 1)] == as.raw(0x80) &
-                 r[3:n] == as.raw(0xaf))
-      if (length(i)) { r[i] <- as.raw(0x20); r <- r[-c(i + 1L, i + 2L)] }
-    }
+    r <- sub3(r, as.raw(c(0xe2, 0x80, 0xaf)), as.raw(0x20))
     suivant <- c(r[-1], as.raw(0))
     r <- r[!(r == as.raw(0xc2) & suivant == as.raw(0xa0))]
     r[r == as.raw(0xa0)] <- as.raw(0x20)
+    # U+2013, U+2014, U+2212 -> "-" ; U+2026 -> "." ; puis Windows-1252 96, 97, 85
+    r <- sub3(r, as.raw(c(0xe2, 0x80, 0x93)), as.raw(0x2d))
+    r <- sub3(r, as.raw(c(0xe2, 0x80, 0x94)), as.raw(0x2d))
+    r <- sub3(r, as.raw(c(0xe2, 0x88, 0x92)), as.raw(0x2d))
+    r <- sub3(r, as.raw(c(0xe2, 0x80, 0xa6)), as.raw(0x2e))
+    r[r == as.raw(0x96) | r == as.raw(0x97)] <- as.raw(0x2d)
+    r[r == as.raw(0x85)] <- as.raw(0x2e)
     rawToChar(r)
-  }, character(1), USE.NAMES = FALSE)
-  b <- grepl("^[0-9 .,'+-]*[0-9][0-9 .,'+-]*$", x, useBytes = TRUE) &
-    !grepl("^[0-9]{4}-[0-9]{2,4}$", x, useBytes = TRUE)
+  }
+  x3 <- vapply(cel, octets, character(1), USE.NAMES = FALSE)
+  x3 <- sub(" +$", "", sub("^ +", "", x3, useBytes = TRUE), useBytes = TRUE)
+  a <- grepl(paste0("^(NA|NAN|N/A|N\\.A\\.|N\\.A|N\\.D\\.|N\\.D|ND|N/D|NR|N\\.R\\.|NULL|NONE|",
+                    "S\\.O\\.|S\\.O|S/O|NIL|N\\.C\\.|N\\.C|NC|N/C)$"),
+             x3, ignore.case = TRUE, useBytes = TRUE) |
+    grepl("^#", x3, useBytes = TRUE) |
+    grepl("^[-.?]+$", x3, useBytes = TRUE)
+  b <- (grepl("^[0-9 .,'+-]*[0-9][0-9 .,'+-]*$", x3, useBytes = TRUE) |
+          grepl("^ *'? *[+-]? *[0-9]", x3, useBytes = TRUE)) &
+    !grepl("^[0-9]{4}-[0-9]{2,4}$", x3, useBytes = TRUE)
   unname(!is.na(cel) & (a | b))
+}
+
+# Premiere de deux lignes lue comme une ligne d'annees (motif H2 de
+# usp_lire_vecteur(), issue #103, regle commune d'actuary du 28/09/2026) :
+# ses cellules non vides, hors la cellule d'angle, sont des entiers a quatre
+# chiffres (ecriture ^[0-9]{4}$) compris entre 1900 et 2100, au nombre de deux
+# au moins, consecutifs (de 1 en 1, tous croissants ou tous decroissants). La
+# cellule d'angle est la premiere cellule quand elle est vide, ou un libelle
+# non numerique sans aucun chiffre et hors .allure_manquante_ou_nombre()
+# ("annee", "exercice") ; une premiere cellule numerique est une annee comme
+# les autres. Une premiere cellule ni angle ni numerique ("2016r", "2016*",
+# "a2016", "NA", "Segment 1") fait refuser la ligne (cause "premiere cellule
+# ni vide ni libelle sans chiffre") : prise pour une cellule d'angle, elle
+# ferait ecarter comme etiquette la valeur au-dessous, et perdre une annee
+# sans message (audit de #103). Les bornes et la consecutivite gardent refuses
+# "1,2,3" / "4,5,6" (tableau numerique, pas d'aplatissement), les annees a
+# deux chiffres et les annees non consecutives. Rend ok, angle (vrai si la
+# premiere cellule est une cellule d'angle) et, si ok est faux, la premiere
+# cause rencontree, reprise dans le message "Format non reconnu". val (seconde
+# ligne) ne sert qu'a nommer le cas de deux lignes numeriques.
+.ligne_annees <- function(ent, val, dec = ".") {
+  en_nombre <- function(v) .cellules_en_nombre(v, dec)
+  angle <- !nzchar(ent[1]) ||
+    (is.na(en_nombre(ent[1])) && !.allure_manquante_ou_nombre(ent[1]) &&
+       !grepl("[0-9]", ent[1], useBytes = TRUE))
+  a <- if (angle) ent[-1] else ent
+  a <- a[nzchar(a)]
+  cause <- if (!angle && is.na(en_nombre(ent[1]))) {
+    "premiere cellule ni vide ni libelle sans chiffre"
+  } else if (!length(a)) {
+    "aucune annee hors la premiere cellule"
+  } else if (anyNA(en_nombre(a))) {
+    "cellules numeriques melees a du texte"
+  } else if (!all(grepl("^[0-9]{4}$", a, useBytes = TRUE))) {
+    v <- val[nzchar(val)]
+    if (length(v) && !anyNA(en_nombre(v)))
+      "deux lignes numeriques, la premiere sans annees a quatre chiffres"
+    else "cellules numeriques qui ne sont pas des annees a quatre chiffres"
+  } else {
+    n <- as.integer(a)
+    d <- diff(n)
+    if (any(n < 1900 | n > 2100)) "annees hors 1900-2100"
+    else if (length(n) < 2) "une seule annee"
+    else if (!(all(d == 1) || all(d == -1))) "entiers non consecutifs"
+    else NA_character_
+  }
+  list(ok = is.na(cause), angle = angle, cause = cause)
 }
 
 # Retire la marque d'ordre des octets UTF-8 du premier nom de colonne d'un
