@@ -903,7 +903,8 @@ an, §\ref{sec:mw}).
 
 \smallskip
 \textbf{Paramètre remplacé par la méthode du risque de primes} (décision M13 du mainteneur,
-issue~\#55). Le paramètre standard qui entre dans le mélange de B(4) est, selon B(4)(e),
+issue~\#55). Le paramètre standard qui entre dans le mélange de B(4) (annexe~XVII, section~B,
+paragraphe~4~; forme abrégée définie en section~\ref{sec:notations}) est, selon B(4)(e),
 «~le paramètre standard à remplacer par le paramètre propre à l'entreprise~», et c'est la
 nature des données qui le désigne (lecture retenue, ci-dessous)~; la nature est donc
 \textbf{déclarée obligatoirement} (\code{nature\_donnees = "brutes"} ou \code{"nettes"}, sans
@@ -970,7 +971,7 @@ barème de crédibilité (annexe~XVII, section~G)~».
 \emph{Anomalies rédactionnelles du texte consolidé}, relevées par la lecture réglementaire de
 l'issue~\#55 et sans incidence sur les calculs~: C(4)(e) nomme $\sigma_{(\text{prem},s)}$ le
 paramètre à remplacer de la méthode de réserve n\textsuperscript{o}~1, alors que la formule du
-point~(4) écrit $\sigma_{(\text{res},s)}$ et que la méthode remplace le point~a)~iv) ou c)~iv)
+paragraphe~4 écrit $\sigma_{(\text{res},s)}$ et que la méthode remplace le point~a)~iv) ou c)~iv)
 (article~220, paragraphe~1, point~b))~:
 le moteur suit la formule~; l'article~117, paragraphe~2, point~a), renvoie au «~paragraphe~2~»,
 lu comme le paragraphe~3 par parallélisme avec l'article~148, paragraphe~2, point~a)~;
@@ -1729,6 +1730,21 @@ section~\ref{sec:notations-mw} la méthode Merz--Wüthrich (section~D). Les
 conventions communes --- lois, fonctions de répartition, convention de
 restitution --- valent pour les deux.
 
+\smallskip
+\emph{Citations de l'annexe~XVII.} L'annexe~XVII nomme \emph{paragraphes} les subdivisions
+numérotées (1), (2)\dots{} de chacune de ses sections, et \emph{points} leurs subdivisions
+lettrées a), b)\dots{}~; certains points sont eux-mêmes subdivisés en i., ii.\dots{} Le document
+cite ces subdivisions sous l'une de deux formes équivalentes~: la forme développée
+«~annexe~XVII, section~X, paragraphe~$n$, point~$y$)~», et la forme abrégée X($n$)($y$)($z$), qui
+désigne l'annexe~XVII, section~X, paragraphe~$n$, point~$y$), subdivision~$z$. Ainsi B(2)(g)(i)
+désigne la subdivision~i. du point~g) du paragraphe~2 de la section~B. La forme abrégée s'arrête
+au niveau cité (D(5)~: paragraphe~5 de la section~D~; C(1)(a)~: point~a) du paragraphe~1 de la
+section~C), et B/C($n$)($y$) désigne la subdivision de même numéro dans chacune des sections~B
+et~C (B/C(2)(b)~: B(2)(b) et C(2)(b)). La forme abrégée est aussi celle du champ \code{famille}
+de la table des tests et de plusieurs messages de validation du moteur. Les citations textuelles
+du règlement conservent sa propre typographie, qui varie d'un passage à l'autre («~paragraphe~1,
+point~a)~», «~paragraphe~(1), point~(a)~»).
+
 \subsection*{Méthodes lognormales : données et modèle}
 
 Pour un segment donné et une profondeur $T$~:
@@ -2281,7 +2297,7 @@ motif distinct d'une cellule manquante. \\
 Positivité des cumulés & $C(i,j) > 0$ & Les facteurs $F(i,j)$ et la pondération
 en $C(i,j)$ doivent être définis. \\
 Monotonie des cumulés & $C(i,j+1) \ge C(i,j)$ & Avertissement \emph{actuariel,
-sans fondement réglementaire}~: le paragraphe~2(h)(iii) ne pose qu'une
+sans fondement réglementaire}~: D(2)(h)(iii) ne pose qu'une
 proportionnalité en espérance et ne contraint pas $f_j \ge 1$. Un recul traduit
 un recouvrement ou un boni de liquidation, licite mais à signaler. \textbf{Ce
 n'est pas un motif de refus}, pas plus qu'une réserve négative sur certaines
@@ -4101,19 +4117,19 @@ lit leur espérance) et, pour la méthode du risque de réserve n\textsuperscrip
 de C(1)(a) lui-même, sans le mot «~attendu~»~; il ne l'écrit pas sous forme d'équation~;
 l'outil lit «~linéaire proportionnelle~» comme $\mathbb{E}[Y_t] = \beta x_t$, sans terme
 constant. \emph{Traduction dans le modèle réglementaire} (lecture de
-l'outil~: modèle des paragraphes (5) et (6) des sections~B et~C, section~\ref{sec:notations})~:
+l'outil~: modèle des paragraphes~5 et~6 des sections~B et~C, section~\ref{sec:notations})~:
 l'espérance de $Y_t$ est \emph{linéairement proportionnelle} à $x_t$,
 $\mathbb{E}[Y_t] = \beta x_t$, sans terme constant, avec $\beta$ constant dans le temps.
 
 \smallskip
-Les quatre hypothèses H1 à H4 sont les points (i) à (iv) de B(2)(g) et de C(2)(e). Le champ
-\code{famille} des lignes H1 à H4 de la table des tests cite le seul point de la méthode
+Les quatre hypothèses H1 à H4 sont les subdivisions (i) à (iv) de B(2)(g) et de C(2)(e). Le champ
+\code{famille} des lignes H1 à H4 de la table des tests cite la seule subdivision de la méthode
 appliquée (par exemple «~(annexe XVII B(2)(g)(i))~» pour la méthode de primes, «~(annexe XVII
 C(2)(e)(i))~» pour la méthode de réserve n\textsuperscript{o}~1), et l'application comme le
 rapport figé le reprennent sous chaque groupe (\code{citation\_de()} de
 \code{R/display\_helpers.R}), issue~\#92. Jusqu'à cette issue, les quatre hypothèses étaient
 citées «~B/C(2)(f)~», renvoi erroné~: B(2)(f) porte sur l'inclusion des dépenses dans les pertes
-agrégées, et le paragraphe~C(2) n'a pas de point~f).
+agrégées, et le paragraphe~2 de la section~C n'a pas de point~f).
 \end{encadre}
 
 \begin{fiche}{Test de Student sur la constante}
@@ -4713,13 +4729,13 @@ de réserve n\textsuperscript{o}~1, version consolidée).}
 
 \begin{encadre}
 \textbf{Énoncé réglementaire} (annexe~XVII, B(2)(g)(ii), \emph{Journal officiel}, L~12 du
-17~janvier 2015, p.~273~; C(2)(e)(ii), p.~274). Le point C(2)(e)(ii) est cité dans la version
-consolidée, où il porte le marqueur $\blacktriangleright$\,C4 (rectificatif, \emph{Journal
+17~janvier 2015, p.~273~; C(2)(e)(ii), p.~274). La subdivision C(2)(e)(ii) est citée dans la version
+consolidée, où elle porte le marqueur $\blacktriangleright$\,C4 (rectificatif, \emph{Journal
 officiel}, L~2 du 6~janvier 2022, p.~8)~; la version d'origine écrivait «~le montant visé au
 paragraphe 1, point a), est en relation quadratique avec la provision pour sinistres à payer dans
 ce segment et au cours de cet exercice~», sans les mots «~la variance du~» ni «~la meilleure
 estimation de la~», qu'insère le rectificatif C4. \emph{Traduction dans le modèle réglementaire}
-(lecture de l'outil~: modèle des paragraphes (5) et (6) des sections~B et~C,
+(lecture de l'outil~: modèle des paragraphes~5 et~6 des sections~B et~C,
 section~\ref{sec:notations})~: la variance des pertes agrégées (ou du montant de C(1)(a)) est
 $\operatorname{Var}(Y_t) = \sigma^2\big[(1-\delta)\bar x\, x_t + \delta x_t^2\big]$, mélange
 convexe d'une composante linéaire en volume (risque mutualisable) et d'une composante quadratique
@@ -5634,7 +5650,7 @@ et pour la méthode du risque de réserve n\textsuperscript{o}~1).}
 17~janvier 2015, p.~273~; C(2)(e)(iv), p.~275~; texte identique dans la version consolidée). Le
 texte ne nomme ni l'indépendance ni aucune autre condition~: il pose seulement que l'estimation
 par maximum de vraisemblance est adéquate. \emph{Lecture de l'outil}~: l'estimation visée est
-celle de $(\delta, \gamma)$ par minimisation du critère des paragraphes B(6) et C(6), que
+celle de $(\delta, \gamma)$ par minimisation du critère de B(6) et C(6), que
 \code{usp\_objectif()} calcule exactement (pénalité $10^{12}$ hors de $\delta \in [0,1]$, que B(6)
 exclut, et pour une valeur non finie, de $\delta$, de $\gamma$ ou du critère~;
 section~\ref{sec:inventaire})~; ce critère est $-2\ln L$ du modèle lognormal, profilée en
@@ -8016,7 +8032,7 @@ donnent lieu qu'à l'avertissement sur les cumulés décroissants
 (section~\ref{sec:controles}).
 
 \begin{encadre}
-\textbf{Restriction d'implémentation.} Le paragraphe~2(e) autorise $I \ge J$, mais
+\textbf{Restriction d'implémentation.} D(2)(e) autorise $I \ge J$, mais
 la formule du paragraphe~4 fait intervenir $C(i, I-i)$, qui n'est définie que si
 $I - i \le J$. Le cas $I > J$ produirait un trapèze dont le texte ne précise pas
 le traitement. Le moteur impose donc $I = J$ (triangle carré) et refuse
@@ -8026,7 +8042,7 @@ implicite non prévue par le règlement.
 
 \subsection{Hypothèses testables et résidus}
 
-Le paragraphe~2(h) énonce quatre hypothèses, qui structurent la batterie de tests
+D(2)(h) énonce quatre hypothèses, qui structurent la batterie de tests
 au même titre que H1 à H4 pour la méthode lognormale~:
 
 \begin{center}
@@ -8059,7 +8075,7 @@ elle, contrainte par construction, la somme des carrés des résidus d'une colon
 valant exactement $n_j - 1$ (fiche~\ref{mw:m2var}).
 
 \begin{encadre}
-\textbf{La normalité n'est pas une hypothèse de la méthode.} Le paragraphe~2(h)
+\textbf{La normalité n'est pas une hypothèse de la méthode.} D(2)(h)
 ne spécifie que les deux premiers moments conditionnels. Les tests de normalité
 figurent donc dans la famille M5 comme \emph{diagnostics}, et non comme
 vérifications d'une hypothèse réglementaire. Ils ne deviennent pertinents que si
@@ -9002,8 +9018,8 @@ section~\ref{sec:notations-mw}.
 \refl{S.\,S. Shapiro, M.\,B. Wilk (1965), \emph{op.\ cit.}~; loi nulle évaluée
 par simulation directe.}
 \Cadre
-Résidus de Mack. \textbf{La normalité n'est pas une hypothèse du modèle}~: le
-paragraphe~D(2)(h) ne spécifie que les deux premiers moments conditionnels. Ce
+Résidus de Mack. \textbf{La normalité n'est pas une hypothèse du modèle}~:
+D(2)(h) ne spécifie que les deux premiers moments conditionnels. Ce
 test est donc un \emph{diagnostic} et non la vérification d'une exigence
 réglementaire.
 \Hzero
@@ -9085,7 +9101,7 @@ section~\ref{sec:notations-mw}.
 
 \begin{fiche}{M6 --- Extrapolation de $\hat\sigma^2_{J-1}$ (diagnostic)}
 \label{mw:m6sig}
-\refl{Annexe XVII, section D, paragraphe~5(d)(ii), seconde ligne.}
+\refl{Annexe XVII, D(5)(d)(ii), seconde ligne.}
 \Cadre
 La variance de la dernière année de développement ne peut être estimée, faute
 d'observations. \textbf{Diagnostic, non test.}
@@ -9335,7 +9351,7 @@ Facteurs de développement $\hat f_j$ & 3,4906 ; 1,7473 ; 1,4574 ; \dots &
 conformes aux valeurs publiées \\
 Réserve chain-ladder totale & 18\,680\,856 & conforme \\
 Erreur type \emph{ultime} de Mack & 2\,447\,095 & conforme à la valeur publiée \\
-MSEP à un an $=$ transcription littérale du paragraphe~D(5), version consolidée & écart relatif nul
+MSEP à un an $=$ transcription littérale de D(5), version consolidée & écart relatif nul
 (précision machine) & conforme au texte \\
 $\sqrt{\mathrm{MSEP}}$ à un an $=$ \code{ChainLadder::CDR} (Merz--Wüthrich
 2008) & 1\,778\,967,66336\newline contre 1\,778\,967,66335758 & écart relatif
@@ -9367,7 +9383,7 @@ tests unitaires du dépôt.
 \begin{encadre}
 \textbf{Sur quoi repose la validation de la MSEP à un an.} Elle repose sur deux
 voies distinctes~: d'une part la confrontation du moteur à une transcription
-littérale du paragraphe~D(5) dans sa version consolidée en vigueur (§\ref{sec:mw}), réécrite depuis le texte et implémentée
+littérale de D(5) dans sa version consolidée en vigueur (§\ref{sec:mw}), réécrite depuis le texte et implémentée
 séparément dans la batterie de tests unitaires~; d'autre part une comparaison
 \emph{externe} avec \code{ChainLadder::CDR} (paquet R \code{ChainLadder}
 0.2.18), implémentation publique de Merz--Wüthrich (2008), reproduite à
@@ -9377,11 +9393,11 @@ sur une implémentation de référence, non sur un nombre publié.
 
 \medskip
 \textbf{Ce que les versions antérieures de ce document affirmaient à tort.}
-Jusqu'à la correction de la transcription du paragraphe~D(5)
+Jusqu'à la correction de la transcription de D(5)
 (section~\ref{sec:mw}), la validation de cette grandeur était présentée comme
 reposant sur une « double implémentation indépendante ». Elle ne l'était
-pas~: les deux implémentations reprenaient la même transcription fautive du
-paragraphe~D(5) --- termes diagonaux $\hat C(i,J)^2\,\Delta_i$ et facteur~2
+pas~: les deux implémentations reprenaient la même transcription fautive de
+D(5) --- termes diagonaux $\hat C(i,J)^2\,\Delta_i$ et facteur~2
 omis --- et ne pouvaient donc rien détecter. La MSEP en était sous-estimée
 (1\,519\,876 au lieu de 1\,778\,968 sur ce triangle), dans le sens favorable à
 l'entreprise. C'est ce défaut que la transcription de la
@@ -9750,7 +9766,7 @@ Merz--Wüthrich~: extrapolation de $\hat\sigma^2_{J-1}$ (§\ref{sec:mw},
 fiche~\ref{mw:m6sig}) & \code{mw\_ajuster()}~: valeur retenue (\code{\$sigma2})~;\newline
 \code{mw\_extrapolation\_sigma2()}~: trois arguments du minimum~;\newline
 \code{.mw\_detail\_extrapolation()}~: champ \code{detail} de la ligne M6 \\
-Merz--Wüthrich~: erreur de prédiction à un an, paragraphe~D(5) (§\ref{sec:mw}) &
+Merz--Wüthrich~: erreur de prédiction à un an, D(5) (§\ref{sec:mw}) &
 \code{mw\_msep()} \\
 Merz--Wüthrich~: paramètre propre $\sigma_{(\text{res},s,\mathrm{USP})}$ et
 crédibilité (§\ref{sec:mw}) & \code{mw\_parametre()}, \code{usp\_credibilite()} \\
@@ -9823,8 +9839,8 @@ modèle et un mode d'inférence différents.
   p.~213--225.
   \emph{Portée.} Article fondateur du modèle de chaîne d'échelle stochastique~:
   il établit les estimateurs $\hat f_j$ et $\hat\sigma_j^2$, l'erreur type
-  \emph{ultime}, et surtout l'énoncé des trois hypothèses reprises au
-  paragraphe~D(2)(h) du règlement. C'est la valeur publiée de l'erreur ultime sur
+  \emph{ultime}, et surtout l'énoncé des trois hypothèses reprises en
+  D(2)(h) du règlement. C'est la valeur publiée de l'erreur ultime sur
   le triangle de Taylor \& Ashe qui a servi à valider notre implémentation de
   $\hat f_j$, $\hat\sigma_j^2$ et de la règle d'extrapolation.
 
@@ -9840,7 +9856,7 @@ modèle et un mode d'inférence différents.
   for solvency purposes}, \emph{Casualty Actuarial Society E-Forum}, automne
   2008, p.~542--568.
   \emph{Portée.} Article dont dérive la formule d'erreur de prédiction \emph{à un
-  an} du paragraphe~D(5). La distinction entre erreur à un an et erreur ultime
+  an} de D(5). La distinction entre erreur à un an et erreur ultime
   est le fondement même de la méthode~n\textsuperscript{o}~2, et l'ordre
   $\sqrt{\mathrm{MSEP}}_{\text{1 an}} < \sqrt{\mathrm{MSEP}}_{\text{ultime}}$ que
   nous avons vérifié numériquement en découle. C'est également l'implémentation
@@ -9902,7 +9918,7 @@ littérature consultée.
   bootstrap.
   \item \textbf{Aucune valeur publiée de la MSEP à un an} n'a pu être identifiée
   pour le triangle de Taylor \& Ashe. La validation de cette grandeur repose donc
-  sur la transcription littérale du paragraphe~D(5) (version consolidée), sur des propriétés
+  sur la transcription littérale de D(5) (version consolidée), sur des propriétés
   structurelles et sur la comparaison avec une implémentation externe
   (\code{ChainLadder::CDR}), non sur un nombre publié dans la littérature.
   \item \textbf{Le domaine de validité exact de la transformation de Royston}
