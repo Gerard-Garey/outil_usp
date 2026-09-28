@@ -5,7 +5,9 @@
 Application R Shiny et moteur de calcul autonome pour le calibrage des USP
 (règlement délégué (UE) 2015/35, articles 218 à 220 et annexe XVII).
 
-> **Confidentiel — usage interne.** Voir [LICENSE](LICENSE).
+> **Dépôt public, tous droits réservés.** Le contenu est consultable, mais
+> aucune licence n'est accordée : voir [LICENSE](LICENSE). Aucune donnée
+> d'exploitation ne doit y être publiée (section « Confidentialité des données »).
 
 ## Méthodes couvertes
 
@@ -116,7 +118,25 @@ après visa et vérification, ils sont commités avec le code qui les motive
 être patchées (`tests/patcher_reference.R`). La CI GitHub Actions lance les tests et compile la
 documentation à chaque push sur `main` et à chaque pull request.
 
+## Confidentialité des données
+
+Le dépôt est public : tout ce qui y est poussé (commits, issues, pull requests,
+artefacts de la CI) est lisible par tous et le reste dans l'historique.
+
+- **Aucune donnée d'exploitation** (primes, sinistres, provisions, triangles
+  d'une entité réelle) n'est versionnée, jointe à une issue ou à une pull
+  request, ni collée dans un message de commit. Les fichiers d'échange de
+  l'application (`usp_*.csv`, `usp_*.xlsx`) sont exclus par `.gitignore` ; ne
+  pas forcer leur ajout (`git add -f`).
+- Les jeux de `tests/donnees/` servent aux tests de non-régression ; un jeu
+  nouveau est fictif ou public, et sa provenance est indiquée dans le commit
+  qui l'ajoute.
+- Aucun secret (jeton, mot de passe, clé) dans le dépôt ni dans les workflows ;
+  un secret poussé par erreur est révoqué aussitôt, sa suppression de
+  l'historique ne suffisant pas.
+
 ## Contribuer
+
 
 - Les demandes passent par les **issues GitHub** (modèles « Anomalie » et
   « Évolution »), triées avec les libellés `needs-triage`, `needs-info`,
@@ -134,3 +154,8 @@ documentation à chaque push sur `main` et à chaque pull request.
   [`docs/latex/CONVENTIONS.md`](docs/latex/CONVENTIONS.md).
 - Toute modification du code s'accompagne de la mise à jour de la documentation
   LaTeX et de la recompilation du PDF.
+- Identité des commits : adresse `noreply` de GitHub pour les commits du
+  mainteneur (réglage « Keep my email addresses private » du compte), et
+  `Claude <noreply@anthropic.com>` pour ceux de Claude (CLAUDE.md).
+- Les pull requests sont fusionnées par le mainteneur seul, manuellement, par
+  commit de fusion, une fois la CI verte ; aucune fusion automatique.
