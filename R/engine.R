@@ -464,7 +464,9 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
   # valeur perdue sans message, issue #96). Retiree octet par octet, quelle
   # que soit la locale ; une locale UTF-8 l'a deja retiree.
   if (length(m)) m[1, 1] <- .sans_bom(m[1, 1])
-  m <- trimws(m)
+  # Blancs de bord retires octet par octet, cellules non UTF-8 comprises
+  # (issue #99 : trimws() levait une erreur R en locale UTF-8).
+  m <- .nettoyer_cellules(m)
   # Lignes et colonnes entierement vides AVANT la premiere valeur ou APRES
   # la derniere (debut ou fin de fichier, separateur final) ecartees ; une
   # ligne ou une colonne vide intercalee est conservee (cellule vide, refusee
@@ -476,7 +478,7 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
   # vides retirees).
   cols <- bornes(which(colSums(nz) > 0))
   m <- m[bornes(which(rowSums(nz) > 0)), cols, drop = FALSE]
-  en_nombre <- function(v) suppressWarnings(as.numeric(if (dec != ".") gsub(dec, ".", v, fixed = TRUE) else v))
+  en_nombre <- function(v) .cellules_en_nombre(v, dec)
   # Serie en ligne avec en-tete : 2 lignes dont la premiere n'a aucune cellule
   # numerique ; la ligne d'en-tetes est ecartee apres controle de l'etiquette
   # de ligne ; l'alignement colonne par colonne est controle plus bas (#95).
@@ -570,7 +572,59 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
   } else s
 }
 
-# Vrai si la cellule (deja passee par trimws) a l'allure d'une valeur
+# Cellules non UTF-8 lues en locale UTF-8 (issue #99). Un CSV encode en
+# Windows-1252 (ou Latin-1) qui contient un octet non ASCII ("ann<E9>e",
+# espace insecable A0) donne, sous une locale UTF-8, des chaines d'encodage
+# "unknown" dont les octets ne sont pas de l'UTF-8 valide : trimws() (via
+# sub(perl = TRUE)) et as.numeric() levaient alors une erreur R brute
+# ("input string 1 is invalid UTF-8", "invalid multibyte string"), avant tout
+# controle. Hors locale UTF-8, ces cellules etaient deja lues sans erreur.
+# .octets_non_utf8() : vrai pour une chaine non NA dont les octets ne sont pas
+# de l'UTF-8 valide, en locale UTF-8 seulement (faux partout ailleurs, pour
+# laisser inchange le comportement hors locale UTF-8).
+.octets_non_utf8 <- function(x) {
+  if (!isTRUE(l10n_info()[["UTF-8"]]) || !length(x)) return(rep(FALSE, length(x)))
+  !is.na(x) & !validUTF8(x)
+}
+
+# Retire les blancs ASCII (espace, tabulation, retour chariot, saut de ligne)
+# en tete et en fin de chaque cellule, comme trimws() avec son jeu de blancs
+# par defaut, mais octet par octet (useBytes, motifs ASCII) : aucune erreur
+# sur une cellule non UTF-8 (issue #99). L'encodage declare de chaque
+# cellule et les attributs (dim) sont conserves. En locale UTF-8, une
+# cellule non UTF-8 d'encodage "unknown" est en outre declaree Latin-1, sans
+# changer ses octets : les messages qui la citent restent de l'UTF-8 valide
+# ("annee" accentue, espace insecable) ; les octets 80-9F de Windows-1252
+# (ex. le symbole euro) y apparaissent comme des caracteres de controle.
+# Les octets etant inchanges, .allure_manquante_ou_nombre() reconnait
+# l'espace insecable Windows-1252 (octet A0 isole) en locale UTF-8 comme
+# ailleurs.
+.nettoyer_cellules <- function(x) {
+  inv <- .octets_non_utf8(x) & Encoding(x) == "unknown"
+  if (any(inv)) Encoding(x)[inv] <- "latin1"
+  y <- sub("[ \t\r\n]+$", "", sub("^[ \t\r\n]+", "", x, useBytes = TRUE), useBytes = TRUE)
+  # Encoding<- refuse une valeur de longueur nulle : entree vide rendue telle
+  # que sub() la rend (attributs, dont dim, conserves).
+  if (length(x)) Encoding(y) <- Encoding(x)
+  y
+}
+
+# Conversion numerique des cellules texte (separateur decimal dec) : une
+# cellule non UTF-8 en locale UTF-8 vaut NA (non numerique) sans appel a
+# as.numeric(), qui leverait une erreur (issue #99) ; hors locale UTF-8, les
+# memes cellules valaient deja NA (mesure du 28/09/2026, R 4.3.1, locale C :
+# "1<A0>", "<A0>1", "1<85>"). Les autres cellules passent par as.numeric()
+# comme auparavant.
+.cellules_en_nombre <- function(v, dec = ".") {
+  out <- rep(NA_real_, length(v))
+  ok <- !.octets_non_utf8(v)
+  w <- v[ok]
+  if (dec != ".") w <- gsub(dec, ".", w, fixed = TRUE)
+  out[ok] <- suppressWarnings(as.numeric(w))
+  out
+}
+
+# Vrai si la cellule (deja passee par .nettoyer_cellules()) a l'allure d'une valeur
 # manquante ou d'un nombre, et ne peut donc servir d'en-tete ni d'etiquette de
 # ligne dans usp_lire_vecteur() (issue #95, avis d'actuary) :
 #  (a) NA, NaN, N/A, #N/A, N.D. ou "-", casse ignoree ;
@@ -581,10 +635,9 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
 #  exception (avis d'actuary) : une etiquette d'exercice de la forme
 #  AAAA-AA a AAAA-AAAA ("2017-18", "2017-2018") n'est pas refusee.
 # "12a" ou "TRUE" restent admis. Comparaisons faites octet par octet
-# (useBytes, motifs ASCII), sans conversion d'encodage : le predicat isole ne
-# leve pas d'erreur sur une cellule non UTF-8 lue en locale UTF-8, mais
-# usp_lire_vecteur() echoue plus tot sur une telle cellule, dans trimws()
-# (defaut suivi par l'issue #99). Les espaces insecables sont remplacees par
+# (useBytes, motifs ASCII), sans conversion d'encodage : aucune erreur sur
+# une cellule non UTF-8 lue en locale UTF-8, que usp_lire_vecteur() lui
+# transmet depuis l'issue #99 (.nettoyer_cellules()). Les espaces insecables sont remplacees par
 # une espace sur les octets bruts, en UTF-8 (C2 A0, E2 80 AF) comme en
 # Windows-1252 (A0) : un litteral "\u00a0" dans gsub() donnait, sous une
 # locale Windows-1252, un resultat qui changeait entre le premier appel et
@@ -3557,7 +3610,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 #    consecutivite n'est pas verifiable.
 .en_numerique <- function(v) {
   if (is.factor(v)) v <- as.character(v)
-  if (is.character(v)) v <- trimws(v)
+  # Cellule non UTF-8 en locale UTF-8 : non numerique, sans erreur R (#99).
+  if (is.character(v)) return(.cellules_en_nombre(.nettoyer_cellules(v)))
   suppressWarnings(as.numeric(v))
 }
 
@@ -3625,7 +3679,7 @@ engine_lire_triangle <- function(df) {
   if (!ncol(df)) return(refus("Aucune colonne d'annee de developpement."))
   brut <- lapply(df, function(v) {
     if (is.factor(v)) v <- as.character(v)
-    if (is.character(v)) v <- trimws(v)
+    if (is.character(v)) v <- .nettoyer_cellules(v)
     v
   })
   num <- lapply(brut, .en_numerique)

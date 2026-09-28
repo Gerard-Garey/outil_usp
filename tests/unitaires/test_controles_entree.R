@@ -925,4 +925,121 @@ verifier("Retrait du BOM : .sans_bom() retire EF BB BF de tete seulement, laisse
                        rawToChar(as.raw(c(0x31, 0xef, 0xbb, 0xbf))))
          })
 
+# Issue #99 : CSV encode en Windows-1252 (octets non UTF-8) lu sous une locale
+# UTF-8. trimws() puis as.numeric() levaient une erreur R brute ("input string
+# 1 is invalid UTF-8") avant tout controle. Fichiers ecrits en binaire, lus
+# dans la locale courante, sous LC_CTYPE = C et sous une locale UTF-8
+# (C.UTF-8, sinon en_US.UTF-8), la locale de l'appelant etant restauree.
+sous_locale_utf8 <- function(f) {
+  avant <- Sys.getlocale("LC_CTYPE")
+  r <- tryCatch({
+    pose <- ""
+    for (loc in c("C.UTF-8", "C.utf8", "en_US.UTF-8", "fr_FR.UTF-8")) {
+      pose <- suppressWarnings(Sys.setlocale("LC_CTYPE", loc))
+      if (nzchar(pose) && isTRUE(l10n_info()[["UTF-8"]])) break
+    }
+    if (!nzchar(pose) || !isTRUE(l10n_info()[["UTF-8"]])) "locale UTF-8 indisponible" else f()
+  }, finally = suppressWarnings(Sys.setlocale("LC_CTYPE", avant)))
+  if (!identical(Sys.getlocale("LC_CTYPE"), avant)) stop("locale LC_CTYPE non restauree")
+  if (identical(r, "locale UTF-8 indisponible"))
+    message("  (information) aucune locale UTF-8 disponible : assertion #99 non exercee")
+  r
+}
+csv_brut <- function(...) {
+  f <- tempfile(fileext = ".csv")
+  writeBin(unlist(lapply(list(...), function(z) if (is.raw(z)) z else charToRaw(z))), f)
+  f
+}
+# Quatre fichiers Windows-1252 : en-tete "ann<E9>e" en colonne (lu 1, 2) ;
+# "1<A0>2,2,3" (espace insecable A0 : en-tete a l'allure d'un nombre,
+# refuse par le predicat, qui voit donc l'octet A0 isole) ; meme cellule en
+# etiquette sous une ligne d'en-tetes ; cellule "<E9>" au milieu d'une serie
+# en colonne (valeur non numerique, position 2). Renvoie, pour chaque fichier,
+# la serie lue ou le message d'erreur, et la validite UTF-8 des messages en
+# locale UTF-8.
+lit_1252 <- function() {
+  lit <- function(f) tryCatch(usp_lire_vecteur(f), error = function(e) conditionMessage(e))
+  r <- list(
+    entete = lit(csv_brut("ann", as.raw(0xe9), "e\n1\n2\n")),
+    nbsp   = lit(csv_brut("1", as.raw(0xa0), "2,2,3\n")),
+    etiq   = lit(csv_brut("a,b,c\n1", as.raw(0xa0), "2,2,3\n")),
+    milieu = lit(csv_brut("x\n1\n", as.raw(0xe9), "\n3\n")))
+  ok <- identical(r$entete, c(1, 2)) &&
+    a_motif(r$nbsp, "en position d'en-tete (premiere cellule non vide)", "l'allure d'une valeur manquante") &&
+    a_motif(r$etiq, "(colonne 1), en position d'etiquette de ligne") &&
+    a_motif(r$milieu, "Valeur(s) non numerique(s) en position 2")
+  if (isTRUE(l10n_info()[["UTF-8"]]))
+    ok <- ok && all(validUTF8(unlist(r[c("nbsp", "etiq", "milieu")])))
+  ok
+}
+verifier("Lecture vecteur : CSV Windows-1252 (ann<E9>e, 1<A0>2, <E9>) ecrit en binaire lu ou refuse avec motif dans la locale courante (#99)",
+         isTRUE(lit_1252()))
+verifier("Lecture vecteur : CSV Windows-1252 lu ou refuse avec motif sous LC_CTYPE = C, locale restauree (#99)",
+         {
+           r <- sous_locale_c(lit_1252)
+           identical(r, "locale C indisponible") || isTRUE(r)
+         })
+verifier("Lecture vecteur : CSV Windows-1252 lu ou refuse avec motif sous une locale UTF-8, sans erreur R, messages UTF-8 valides ; octet A0 isole reconnu par le predicat (#99)",
+         {
+           r <- sous_locale_utf8(lit_1252)
+           identical(r, "locale UTF-8 indisponible") || isTRUE(r)
+         })
+verifier("Lecture vecteur : formats sains inchanges sous une locale UTF-8 (colonne, ligne, en-tetes a2017, dec ',', BOM) (#99)",
+         {
+           r <- sous_locale_utf8(function() {
+             lit <- function(l, sep = ",", dec = ".") { f <- tempfile(); writeLines(l, f); usp_lire_vecteur(f, sep, dec) }
+             identical(lit(c("x", " 1 ", "2", "3")), c(1, 2, 3)) &&
+               identical(lit("x,1,2,3"), c(1, 2, 3)) &&
+               identical(lit(c("serie,a2017,a2018", "x,1,2")), c(1, 2)) &&
+               identical(lit(c("a2017;a2018;a2019", "1,5;2;3"), ";", ","), c(1.5, 2, 3)) &&
+               identical(lit_bom(), attendu_bom)
+           })
+           identical(r, "locale UTF-8 indisponible") || isTRUE(r)
+         })
+# Lecteurs de l'application : une cellule non UTF-8 d'un data.frame (lu par
+# read.csv quand la conversion de type l'admet, ex. "x<E9>" ; construit ici
+# directement) est une cellule non numerique, refusee avec motif, sans
+# erreur R.
+verifier("Lecture t, xt, yt et triangle : cellule non UTF-8 sous une locale UTF-8 -> refus motive, sans erreur R (#99)",
+         {
+           r <- sous_locale_utf8(function() {
+             e9 <- rawToChar(as.raw(c(0x78, 0xe9)))
+             a0 <- rawToChar(as.raw(c(0x31, 0xa0, 0x32)))
+             d <- tryCatch(engine_lire_donnees_csv(data.frame(t = 1:2, xt = c(a0, "2"), yt = c("3", e9),
+                                                              stringsAsFactors = FALSE)),
+                           error = function(e) conditionMessage(e))
+             tri <- tryCatch(engine_lire_triangle(data.frame(i = 1:2, d1 = c(e9, "4"), d2 = c("3", ""),
+                                                             stringsAsFactors = FALSE)),
+                             error = function(e) conditionMessage(e))
+             is.list(d) && !d$ok && contient(d$erreurs, "ne sont pas numeriques") &&
+               is.list(tri) && !tri$ok && contient(tri$erreurs, "Cellule(s) non numerique(s) en (i=0, j=0)")
+           })
+           identical(r, "locale UTF-8 indisponible") || isTRUE(r)
+         })
+verifier(".nettoyer_cellules() : identique a trimws() sur des cellules valides (blancs ASCII, U+00A0 conserve, NA, matrice) ; octets et dim conserves sur une cellule non UTF-8 (#99)",
+         {
+           x <- c(" a ", "\t\r\nb\n", "", NA, paste0(" ", intToUtf8(233), " "),
+                  paste0(intToUtf8(160), "1", intToUtf8(160)), "1 2")
+           m <- matrix(c(" 1", "2 ", " x ", ""), 2)
+           brut <- rawToChar(as.raw(c(0x20, 0x31, 0xa0, 0x32, 0x20)))
+           valides <- function() identical(.nettoyer_cellules(x), trimws(x)) &&
+             identical(.nettoyer_cellules(m), trimws(m)) &&
+             identical(charToRaw(.nettoyer_cellules(brut)), as.raw(c(0x31, 0xa0, 0x32)))
+           r <- sous_locale_utf8(valides)
+           valides() && (identical(r, "locale UTF-8 indisponible") || isTRUE(r))
+         })
+# Audit leger de #99 (constat C1) : Encoding<- refusait une entree de
+# longueur nulle.
+verifier(".nettoyer_cellules() et .en_numerique() : entree vide (character(0), matrice 0 x 3) sans erreur, identique a trimws() / numeric(0) (#99)",
+         {
+           vides <- function() {
+             m0 <- matrix(character(0), 0, 3)
+             identical(.nettoyer_cellules(character(0)), trimws(character(0))) &&
+               identical(.nettoyer_cellules(m0), trimws(m0)) &&
+               identical(.en_numerique(character(0)), numeric(0))
+           }
+           r <- sous_locale_utf8(vides)
+           vides() && (identical(r, "locale UTF-8 indisponible") || isTRUE(r))
+         })
+
 fin_fichier()
