@@ -664,7 +664,9 @@ barème, recalculé et contrôlé contre \code{\$metadata} et \code{\$parametre\
 \code{engine\_derogations()} & \code{res} & \code{NULL} si le calcul n'a pas abouti~; sinon table
 des dérogations (\code{parametre}, \code{valeur\_reglementaire}, \code{valeur\_retenue},
 \code{conforme}, \code{libelle}), zéro ligne sans dérogation~: $\sigma$ standard saisi, barème
-saisi, barème non déterminé faute de segment (§\ref{sec:segments}) \\
+saisi, barème non déterminé faute de segment, troncature des années fournies à la profondeur $T$
+(ligne \code{profondeur}, issue~\#104) (§\ref{sec:segments})~; erreur si un drapeau de saisie ou
+\code{\$metadata\$n\_fournies} manque ou est incohérent (\code{.engine\_trace\_profondeur()}) \\
 \code{TOLERANCE\_CONFORME\_}\newline\code{SIGMA} & constante ($10^{-12}$) & tolérance relative de
 l'égalité entre $\sigma$ standard saisi et $\sigma$ standard réglementaire (colonne
 \code{conforme} d'\code{engine\_derogations()}) \\
@@ -732,7 +734,9 @@ $0{,}02$) & repères de lecture des graphiques d'influence, sans verdict
 \code{engine\_table\_tests()} & \code{res} & \code{data.frame} auditable, dont la colonne
 \code{p\_min} (issue~\#44) \\
 \code{run\_engine()} & entrées utilisateur, dont \code{nature\_donnees} (obligatoire pour
-\code{premium}), $T$ (contrôlé par \code{engine\_valider\_}\newline\code{profondeur()}) et
+\code{premium}), $T$ (contrôlé par \code{engine\_valider\_}\newline\code{profondeur()}~; les $T$
+années les plus récentes des $n$ fournies sont retenues, $n$ étant consigné dans
+\code{\$metadata\$n\_fournies}) et
 \code{bareme} (\code{NULL}~: barème du segment~; valeur saisie~: dérogation déclarée,
 §\ref{sec:segments}) & objet
 \code{usp\_engine}
@@ -877,6 +881,50 @@ segment~2. Ce dernier résultat égale, à $10^{-16}$ près, celui du segment~1 
 nettes ($c = 0{,}59$ et $\sigma_{\text{std}} = 0{,}08$ dans les deux cas)~: seul le drapeau
 distingue alors un calcul conforme d'un calcul dérogatoire.
 
+\noindent
+\emph{Durée de crédibilité et profondeur retenue} (issue~\#104, lecture retenue par le mainteneur
+le 28~septembre 2026 sur l'avis d'\code{actuary} et la lecture de \code{regulatory}).
+\emph{Texte} (version consolidée)~: la durée «~correspond~», pour la méthode du risque de primes,
+«~au nombre d'années d'accident pour lesquelles des données sont disponibles~» (G(3)(a)) et, pour
+la méthode du risque de réserve n\textsuperscript{o}~1, «~au nombre d'exercices pour lesquels des
+données sont disponibles~» (G(3)(b))~; B(3)(a)-(b) et C(3)(a)-(b) numérotent les années
+d'accident (les exercices) de~1 à~$T$ selon le même critère, $T$ représentant «~la dernière année
+d'accident pour laquelle des données sont disponibles~» («~le dernier exercice~» en C(3)(b)). La
+durée de G(3) et le $T$ des sommes de B/C(4) à~(6) sont donc un seul et même nombre~: le texte ne
+prévoit ni une durée de crédibilité distincte de la profondeur d'estimation, ni une fenêtre
+glissante. Il ne définit pas «~disponibles~», et n'interdit pas d'écarter des années~: l'exclusion
+d'une donnée pertinente est admise si elle est justifiée (article~19, paragraphe~1, point~b),
+rendu applicable par l'article~219, paragraphe~1, point~a)), et le choix doit être documenté
+(article~219, paragraphe~1, point~e)). \emph{Lecture retenue par l'outil} (lecture~(A))~: des
+années fournies mais écartées de l'estimation, au motif qu'elles ne sont plus représentatives du
+risque des douze mois à venir (B(2)(a), C(2)(a)~: changement de périmètre, de réassurance, de
+tarification ou de gestion des sinistres), ne sont pas «~disponibles~», et la durée de
+crédibilité est la profondeur $T$ retenue. Est écartée la lecture qui calculerait $c$ sur les $n$
+années fournies tout en estimant $\hat\sigma$ sur les $T$ retenues~: elle donnerait à
+«~disponibles~» deux sens dans la même annexe et, actuariellement, attribuerait à un estimateur
+fondé sur $T$ années le poids de crédibilité prévu pour $n$ années. La lecture qui tient toutes
+les années fournies pour disponibles ne change pas le calcul de $c$, qui porte toujours sur les
+années de l'estimation~: elle ne diffère de~(A) que sur la licéité de la troncature, qui relève
+de la justification propre au dossier. \emph{Mise en \oe uvre}~: \code{run\_engine()} retient les
+$T$ années les plus récentes des $n$ fournies, calcule $c$ sur~$T$ (\code{usp\_credibilite()}),
+consigne $n$ dans \code{\$metadata\$n\_fournies} et, si $n > T$, fait restituer la troncature par
+une ligne \code{parametre = "profondeur"} d'\code{engine\_derogations()}~: \code{valeur\_retenue}
+égale à~$T$, \code{valeur\_reglementaire} et \code{conforme} manquants, le texte ne fixant aucune
+profondeur (choix de périmètre, et non dérogation à un paramètre), et un libellé qui donne $T$,
+$n$ et le nombre d'années écartées («~exercices~» en réserve n\textsuperscript{o}~1), cite
+G(3)(a) (primes) ou G(3)(b) (réserve n\textsuperscript{o}~1) pour la durée égale à~$T$, et
+rappelle que l'exclusion est à justifier (article~219, paragraphe~1, point~a), renvoyant à
+l'article~19, paragraphe~1, point~b)~; motif de représentativité B(2)(a) ou C(2)(a)) et à
+documenter (article~219, paragraphe~1, point~e)). Pour la méthode Merz--Wüthrich, le triangle
+n'est jamais tronqué~: $n$ est son nombre de lignes, égal à la durée $I + 1$ de G(3)(c), et
+aucune ligne \code{profondeur} n'est produite. Mesuré sur le jeu de contrôle (segment~1 de
+l'annexe~II, données déclarées brutes, $B = 99$) précédé de deux années ajoutées en tête ($n =
+10$, $T = 8$)~: $\sigma_{\mathrm{USP}} = 0{,}1114524$, identique au bit près au calcul sur les
+huit années seules, avec $c = 0{,}59$~; calculé sur $n = 10$, $c$ vaudrait $0{,}74$
+(\code{usp\_credibilite(10, "long")}). L'outil rend la troncature visible et quantifiée~; il ne
+distingue pas une troncature justifiée d'une troncature de convenance, dont la justification est
+un élément du dossier.
+
 \begin{encadre}
 \textbf{Portée.} L'outil ne couvre pas les autres paramètres remplaçables
 de l'article~218, paragraphe~1 (version consolidée)~:
@@ -951,10 +999,15 @@ est recalculée et jamais stockée. \code{engine\_derogations()} en est le point
 (issue~\#93)~: pour un résultat abouti, elle rend une table à une ligne par dérogation (aucune
 sans dérogation), qui donne le paramètre (\code{sigma\_standard} ou \code{bareme}), la valeur
 réglementaire (manquante sans segment), la valeur retenue, leur conformité (manquante si elle ne
-peut être établie) et un libellé complet, écrit par le moteur, que l'onglet Calibration, le
-rapport figé et le journal de l'application reprennent tels quels~; elle porte aussi, sans
-drapeau, le barème non déterminé faute de segment, et refuse, par une erreur, un résultat
-dépourvu de l'un des deux drapeaux. L'égalité du $\sigma$ saisi à la valeur réglementaire y est
+peut être établie) et un libellé complet, écrit par le moteur, que l'onglet Calibration et le
+rapport figé reprennent tels quels, et le journal de l'application en entier pour le barème, sous
+une mention abrégée pour le $\sigma$ standard saisi et pour la profondeur~; elle porte aussi, sans
+drapeau, le barème non déterminé faute de segment et, depuis l'issue~\#104, la troncature des
+années fournies à la profondeur~$T$ (ligne \code{profondeur}, paragraphe de la durée de
+crédibilité ci-dessus), et refuse, par une erreur, un résultat dépourvu de l'un des deux drapeaux
+ou dont \code{\$metadata\$n\_fournies} manque ou contredit $T$ (\code{.engine\_trace\_profondeur()}~:
+$n$ non entier, $n < T$, ou triangle tronqué en réserve n\textsuperscript{o}~2), plutôt que de
+deviner. L'égalité du $\sigma$ saisi à la valeur réglementaire y est
 jugée en relatif à $10^{-12}$ près (constante \code{TOLERANCE\_CONFORME\_SIGMA}), parce que le
 produit du facteur NP standard et de $\sigma$ brut n'est pas toujours représentable exactement
 (mesuré~: $0{,}8 \times 0{,}10$ diffère de $0{,}08$ de $1{,}4\cdot 10^{-17}$, et une saisie de
@@ -1381,7 +1434,9 @@ $\sigma_{\text{standard}}$ (\code{sigma\_standard\_saisi}, trois méthodes~: dé
 paramètre réglementaire), le barème de
 crédibilité et le drapeau de sa saisie (\code{bareme\_saisi}, trois méthodes~: dérogation au
 barème de l'annexe~XVII, section~G, issue~\#93, placé après les champs de l'issue~\#37 et avant
-les champs d'exécution), $T$, $B$ (dont se déduit la granularité $1/(B+1)$), le seuil
+les champs d'exécution), le nombre d'années fournies avant troncature (\code{n\_fournies}, trois
+méthodes, issue~\#104, placé après \code{bareme\_saisi} et avant les champs d'exécution~;
+nombre de lignes du triangle, jamais tronqué, en réserve n\textsuperscript{o}~2), $T$, $B$ (dont se déduit la granularité $1/(B+1)$), le seuil
 $\alpha$, la graine du bootstrap (\code{seed}), le générateur posé par le moteur
 (\code{generateur}~: \code{kind}, \code{normal.kind}, \code{sample.kind}, soit
 \code{ENGINE\_RNG\_KIND}), les graines fixes des deux autres simulations
@@ -2101,7 +2156,10 @@ Le $T$ demandé est contrôlé par \code{engine\_valider\_profondeur()} \emph{av
 troncature~: une valeur non entière, manquante, infinie, multiple, textuelle ou vide est
 refusée sans tronquer la série (issue~\#87~; auparavant, $T = 5{,}5$ retenait en silence les
 années 3 à 7, $\sigma_{\mathrm{USP}} = 0{,}108587$ au lieu de $0{,}111452$ sur le jeu de
-contrôle). \\
+contrôle). Pour $T < n$, les $n - T$ années les plus anciennes sont écartées~: $n$ est
+consigné dans \code{\$metadata\$n\_fournies}, la troncature restituée par
+\code{engine\_derogations()}, et la durée de crédibilité vaut $T$ (issue~\#104,
+§\ref{sec:segments}). \\
 Nature des données & méthode de primes~: «~brutes~» ou «~nettes~» déclarée, sans défaut~;
 réserve n\textsuperscript{o}~1~: «~brutes~» refusé & Désigne le paramètre remplacé
 (B(2)(c), B(2)(d), §\ref{sec:segments})~; données nettes exigées par C(2)(c). Bloquant. \\
@@ -7746,7 +7804,8 @@ $f_j$, $\sigma_j^2$ (moindres carrés pondérés) \\
 Estimation de l'écart-type & fonction $\sigma(\delta,\gamma)$ &
 $\sqrt{\mathrm{MSEP}}$ rapportée à la réserve \\
 Correction de taille finie & $\sqrt{(T+1)/(T-1)}$ & aucune \\
-Durée de crédibilité & années de survenance (B) ou exercices (C) &
+Durée de crédibilité & $T$ années de survenance (B) ou exercices (C) retenus pour l'estimation,
+section~G(3)(a) ou~(b), §\ref{sec:segments} &
 années de survenance, section~G(3)(c) \\
 Nature du bootstrap & paramétrique (loi entièrement spécifiée) &
 semi-paramétrique, par rééchantillonnage des résidus \\
@@ -9758,8 +9817,9 @@ Calibration et paramètre final & \code{usp\_parametre()}, \code{usp\_credibilit
 Paramètre standard remplacé, barème de crédibilité et dérogations déclarées
 (§\ref{sec:segments}) & \code{usp\_parametre\_standard()}, \code{usp\_bareme\_segment()},
 \code{engine\_parametre\_standard()}, \code{engine\_derogations()} (constante
-\code{TOLERANCE\_CONFORME\_SIGMA})~; drapeaux \code{\$metadata\$sigma\_standard\_saisi} et
-\code{\$metadata\$bareme\_saisi} posés par \code{run\_engine()} \\
+\code{TOLERANCE\_CONFORME\_SIGMA}), \code{.engine\_trace\_profondeur()}~; drapeaux
+\code{\$metadata\$sigma\_standard\_saisi} et \code{\$metadata\$bareme\_saisi}, et nombre d'années
+fournies \code{\$metadata\$n\_fournies}, posés par \code{run\_engine()} \\
 Merz--Wüthrich~: facteurs $\hat f_j$, variances $\hat\sigma_j^2$, cumulés
 projetés $\hat C(i,J)$, réserve (§\ref{sec:mw}) & \code{mw\_ajuster()} \\
 Merz--Wüthrich~: extrapolation de $\hat\sigma^2_{J-1}$ (§\ref{sec:mw},
