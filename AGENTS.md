@@ -14,7 +14,7 @@ GPT intervient **épisodiquement** ; Claude (Claude Code) reste le contributeur 
 
 1. **Ne jamais toucher `main`** : ni commit, ni push, ni fusion, ni PR depuis une branche de travail.
 2. **`main-GPT`** est le `main` de GPT. Si elle n'existe pas, la créer depuis `main` au début du travail et la pousser. **En début de chaque session**, y intégrer `main` par un commit de fusion (`git merge origin/main`, jamais de rebase ni de force-push) et résoudre les conflits ; `main` prime : un conflit de fond avec une décision déjà prise sur `main` se règle en faveur de `main`, ou se signale au mainteneur.
-3. **Une branche de travail à la fois**, `gpt/<objet>`, créée depuis `main-GPT`, au périmètre fermé d'issues ; PR vers `main-GPT`, **fusionnée par le mainteneur** (commit de fusion), CI verte. GPT ne fusionne jamais une PR et n'active pas l'auto-merge.
+3. **Une branche de travail à la fois**, `gpt/<objet>`, créée depuis `main-GPT`, au périmètre fermé d'issues. Ce périmètre est le lot d'une **période GPT** : un lot d'issues **disjoint par fichier** de la branche de travail courante de Claude (aucun fichier commun, en particulier `R/engine.R`, `tests/reference/`, `docs/latex/doc_tests_usp.tex` et le PDF compilé), proposé par `architect` dans la feuille de route et **fixé par le mainteneur** avant l'ouverture de la période (ADR 0012, annotation du 28/09/2026 au soir, point 3). Une issue qui exigerait un fichier que la branche de Claude modifie attend la fusion de celle-ci. PR vers `main-GPT`, **fusionnée par le mainteneur** (commit de fusion), CI verte. GPT ne fusionne jamais une PR et n'active pas l'auto-merge.
 4. **PR `main-GPT` → `main`** : ouverte par GPT quand son travail est prêt. Son corps contient :
    - la liste des **issues que GPT considère comme résolues**, un `Closes #N` par ligne (GitHub ne lie que le premier numéro d'une liste) ;
    - la liste des **issues créées par GPT** ;
@@ -47,7 +47,12 @@ Les procédures des skills de `.claude/skills/` s'appliquent (`verifier-reproduc
 ## Reproductibilité et références
 
 - Batteries sous `LC_ALL=C.UTF-8` : `Rscript tests/test_unitaires.R`, `Rscript tests/test_reproductibilite.R`, `Rscript tests/concordance_doc_moteur.R --strict`.
-- **Aucune régénération de `tests/reference/*.rds` hors de la CI** (ADR 0011) ; procédure de la skill `verifier-reproductibilite`, branche éphémère `gpt/regeneration-<issue>` depuis la tête de la branche de travail GPT, déclenchement du workflow `references.yml` **sur ordre du mainteneur**. Tout changement de σ_USP ou d'un verdict est soumis au mainteneur.
+- **Aucune régénération de `tests/reference/*.rds` hors de la CI** (ADR 0011) ; procédure M30 de la skill `verifier-reproductibilite`, avec la répartition suivante (ADR 0012, annotation du 28/09/2026 au soir, point 1) :
+  1. GPT prépare la branche éphémère `gpt/regeneration-<issue>` depuis la tête de sa branche de travail (commit de code, plus un par correction après un refus) et rédige les **motifs attendus par cas** (M33) ;
+  2. **le mainteneur déclenche `references.yml`** (mode `regeneration` ou `creation`, `ref = gpt/regeneration-<issue>`) et **dépose l'artefact** à la disposition de GPT ; GPT ne déclenche jamais le workflow, et le mode `bascule` lui reste hors de portée ;
+  3. GPT fait les vérifications (a′), (b) et (c), puis le **commit unique code + `.rds`** sur sa branche de travail, et supprime la branche éphémère.
+
+  Tout changement de σ_USP ou d'un verdict est soumis au mainteneur, les autres changements de p-values à `actuary` ; chaque tableau avant / après est relu par Claude à l'audit.
 
 ## Hors du périmètre de GPT, sauf instruction du mainteneur
 
