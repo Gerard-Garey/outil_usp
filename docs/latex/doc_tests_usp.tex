@@ -2289,12 +2289,13 @@ et (b') et reste admise~; un texte comme \code{x}, \code{a2017}, \code{S1}, \cod
 \code{TRUE} reste un en-tête. En revanche \code{12a}, \code{.} et \code{-{}-}, admis depuis
 l'issue~\#95, sont refusés depuis l'issue~\#102~: un en-tête qui commence par un chiffre est
 trop proche d'une valeur mal saisie (\code{1O4.2}) pour être écarté sans message, et
-\code{.} ou une suite de tirets sont des marqueurs usuels de valeur manquante (\code{.} est
-celui de SAS). Le message de refus cite la cellule et sa position (en-tête ou étiquette de ligne)
+\code{.} ou une suite de tirets sont des marqueurs usuels de valeur manquante. Le message de refus cite la cellule et sa position (en-tête ou étiquette de ligne)
 et rappelle le séparateur décimal attendu. Les cellules de la ligne d'en-têtes elle-même, hors
 la cellule d'angle sous (H2), ne sont pas soumises au prédicat, ce qui est une limite de la
 règle~: elles sont écartées avec la ligne entière, sans décaler la série de la seconde ligne
-(mesuré~: \code{NA,\#N/A} au-dessus de \code{1,2} est lu $1, 2$). Seuls sont donc écartés la
+(mesuré~: \code{NA,\#N/A} au-dessus de \code{1,2} est lu $1, 2$). Cette limite est sans
+conséquence sous (H1)~: une ligne sans cellule numérique ne peut contenir aucune valeur de la
+série~; rien n'en est perdu. Seuls sont donc écartés la
 ligne d'en-têtes, un en-tête ou une étiquette de ligne qui ne relève pas de ce prédicat, et les
 cellules vides de tête et de fin. Le prédicat, la ligne d'années, la cellule d'angle et la règle
 stricte de l'étiquette sont vérifiés par \code{tests/unitaires/test\_controles\_entree.R}
