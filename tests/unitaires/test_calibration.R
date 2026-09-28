@@ -325,13 +325,13 @@ verifier("Donnees brutes II-1 : sigma standard = sigma brut de la table, sans mu
          identical(ps_b$sigma_standard, ANNEXE_II$sigma_prime_brut[1]) &&
            identical(ps_b$sigma_standard, 0.10) &&
            identical(ps_b$point_art218, "art. 218, paragraphe 1, point a) ii)") &&
-           grepl("section B, point (2)(c)", ps_b$exigence_donnees, fixed = TRUE) &&
+           grepl("section B, paragraphe 2, point c)", ps_b$exigence_donnees, fixed = TRUE) &&
            !ps_b$saisie && identical(ps_b$nature_donnees, "brutes"))
 verifier("Donnees nettes II-1 : sigma standard = 0,8 x 10 % = 8 %, point a) i), B(2)(d)",
          isTRUE(proche(ps_n$sigma_standard, 0.08, rel = 1e-15)) &&
            identical(ps_n$np_standard, 0.8) && identical(ps_n$sigma_annexe, 0.10) &&
            identical(ps_n$point_art218, "art. 218, paragraphe 1, point a) i)") &&
-           grepl("section B, point (2)(d)", ps_n$exigence_donnees, fixed = TRUE))
+           grepl("section B, paragraphe 2, point d)", ps_n$exigence_donnees, fixed = TRUE))
 verifier("Donnees nettes : II-4 = 0,8 x 8 %, II-5 = 0,8 x 14 %, II-2 = 8 % (NP 100 %), II-6 = 19 %",
          isTRUE(proche(usp_parametre_standard("premium", 4, "II", "nettes")$sigma_standard, 0.064, rel = 1e-15)) &&
            isTRUE(proche(usp_parametre_standard("premium", 5, "II", "nettes")$sigma_standard, 0.112, rel = 1e-15)) &&
@@ -359,11 +359,11 @@ verifier("Methodes de reserve : sigma(res,s) de la table, point a) iv), NULL = \
            r2 <- usp_parametre_standard("reserve2", 4, "XIV", "nettes")
            identical(r1, r1n) && identical(r1$sigma_standard, 0.09) &&
              identical(r1$point_art218, "art. 218, paragraphe 1, point a) iv)") &&
-             grepl("section C, point (2)(c)", r1$exigence_donnees, fixed = TRUE) &&
+             grepl("section C, paragraphe 2, point c)", r1$exigence_donnees, fixed = TRUE) &&
              identical(r1$nature_donnees, "nettes") && is.na(r1$np_standard) &&
              identical(r2$sigma_standard, 0.17) &&
              identical(r2$point_art218, "art. 218, paragraphe 1, point c) iv)") &&
-             grepl("section D, point (2)(f)", r2$exigence_donnees, fixed = TRUE)
+             grepl("section D, paragraphe 2, point f)", r2$exigence_donnees, fixed = TRUE)
          })
 verifier("Methodes de reserve, appel direct : \"brutes\" (et valeur non reconnue) -> erreur R",
          leve_erreur(usp_parametre_standard("reserve1", 1, "II", "brutes")) &&
@@ -405,12 +405,12 @@ verifier("engine_valider_donnees : nature obligatoire pour premium, \"brutes\" r
              v <- engine_valider_donnees(.ln_m6$xt, .ln_m6$yt, methode = "reserve1",
                                          nature_donnees = "brutes")
              !v$ok && length(v$erreurs) == 1L &&
-               grepl("section C, point (2)(c)", v$erreurs, fixed = TRUE)
+               grepl("section C, paragraphe 2, point c)", v$erreurs, fixed = TRUE)
            } &&
            {
              v <- engine_valider_donnees(.ln_m6$xt, .ln_m6$yt, methode = "reserve2",
                                          nature_donnees = "brutes")
-             !v$ok && grepl("section D, point (2)(f)", v$erreurs[1], fixed = TRUE)
+             !v$ok && grepl("section D, paragraphe 2, point f)", v$erreurs[1], fixed = TRUE)
            } &&
            !engine_valider_donnees(.ln_m6$xt, .ln_m6$yt, methode = "reserve1",
                                    nature_donnees = "net")$ok)
@@ -435,7 +435,7 @@ verifier("engine_parametre_standard : nature, point, exigence, sigma brut, NP, s
            v <- stats::setNames(d$valeur, d$grandeur); t <- stats::setNames(d$texte, d$grandeur)
            grepl("^nettes", t[["Nature declaree des donnees"]]) &&
              grepl("point a) i) :", t[["Parametre standard remplace"]], fixed = TRUE) &&
-             grepl("B, point (2)(d)", t[["Exigence relative aux donnees"]], fixed = TRUE) &&
+             grepl("B, paragraphe 2, point d)", t[["Exigence relative aux donnees"]], fixed = TRUE) &&
              identical(v[["sigma brut (primes) de l'annexe II"]], 0.10) &&
              identical(v[["Facteur NP standard (art. 117, paragraphe 3)"]], 0.8) &&
              identical(v[["sigma standard retenu dans le melange"]], r_n$parametre_final$sigma_standard) &&
@@ -473,9 +473,9 @@ verifier("Methodes de reserve : NULL et \"nettes\" acceptes (resultats identical
            !"nature_donnees" %in% c(names(r1_sans$metadata), names(r2_sans$metadata)))
 verifier("Methodes de reserve : donnees \"brutes\" refusees (ok = FALSE, motif C(2)(c) / D(2)(f), sans erreur R)",
          !inherits(r1_brut, "error") && identical(r1_brut$ok, FALSE) &&
-           any(grepl("section C, point (2)(c)", r1_brut$validation$erreurs, fixed = TRUE)) &&
+           any(grepl("section C, paragraphe 2, point c)", r1_brut$validation$erreurs, fixed = TRUE)) &&
            !inherits(r2_brut, "error") && identical(r2_brut$ok, FALSE) &&
-           any(grepl("section D, point (2)(f)", r2_brut$validation$erreurs, fixed = TRUE)) &&
+           any(grepl("section D, paragraphe 2, point f)", r2_brut$validation$erreurs, fixed = TRUE)) &&
            identical(r2_brut$metadata$methode, "reserve2"))
 # Ordre des champs : sigma_standard_saisi (#55) est suivi des seuls champs
 # ajoutes par l'issue #37 (generateur et graines fixes), puis de
@@ -526,8 +526,8 @@ verifier("engine_parametre_standard, reserve : nettes (exigence), a) iv), deroga
                              B = B_M6, sigma_standard = 0.15)
            d3 <- engine_parametre_standard(r2s)
            grepl("^nettes", d1$texte[1]) && grepl("point a) iv)", d1$texte[2], fixed = TRUE) &&
-             grepl("section C, point (2)(c)", d1$texte[3], fixed = TRUE) &&
-             grepl("section D, point (2)(f)", d2$texte[3], fixed = TRUE) &&
+             grepl("section C, paragraphe 2, point c)", d1$texte[3], fixed = TRUE) &&
+             grepl("section D, paragraphe 2, point f)", d2$texte[3], fixed = TRUE) &&
              identical(d2$texte[d2$grandeur == "Origine du sigma standard retenu"],
                        "parametre reglementaire") &&
              identical(d3$texte[d3$grandeur == "Origine du sigma standard retenu"],

@@ -294,7 +294,8 @@ usp_segment_infos <- function(segment, annexe = "II") {
 # ajustees de la reassurance) ou "nettes" (ajustees de la reassurance). La
 # declaration est OBLIGATOIRE pour la methode "premium", sans valeur par
 # defaut : c'est elle qui fixe le parametre standard remplace (annexe XVII,
-# section B, point (2), c) et d), dans leur version consolidee, marqueur M1 :
+# section B, paragraphe 2, points c) et d), dans leur version consolidee,
+# marqueur M1 :
 # les renvois de la version d'origine, JOUE L 12/272, y sont inverses).
 NATURES_DONNEES <- c("brutes", "nettes")
 
@@ -334,10 +335,10 @@ NATURES_DONNEES <- c("brutes", "nettes")
         methode %in% c("reserve1", "reserve2"))) return(character(0))
   if (is.null(nature_donnees) || identical(nature_donnees, "nettes")) return(character(0))
   exigence <- if (identical(methode, "reserve1"))
-    paste("annexe XVII, section C, point (2)(c) : donnees ajustees de la reassurance",
+    paste("annexe XVII, section C, paragraphe 2, point c) : donnees ajustees de la reassurance",
           "et des vehicules de titrisation, conformement aux contrats en place pour",
           "les douze mois a venir")
-  else paste("annexe XVII, section D, point (2)(f) : montants de sinistres cumules",
+  else paste("annexe XVII, section D, paragraphe 2, point f) : montants de sinistres cumules",
              "ajustes de la reassurance et des vehicules de titrisation, conformement",
              "aux contrats en place pour les douze mois a venir")
   if (identical(nature_donnees, "brutes"))
@@ -398,13 +399,13 @@ usp_parametre_standard <- function(methode = c("premium", "reserve1", "reserve2"
                     "valeur standard NP x ecart type brut (%s, paragraphe 3)"), article, article)
     else sprintf("ecart type du risque de primes brut (%s, paragraphe 3)", article)
     exigence <- if (nettes)
-      paste("annexe XVII, section B, point (2)(d), chapeau modifie par le reglement",
+      paste("annexe XVII, section B, paragraphe 2, point d), chapeau modifie par le reglement",
             "delegue (UE) 2016/467 (M1) : pertes agregees ajustees des montants",
             "recouvrables au titre de la reassurance et des vehicules de titrisation,",
             "primes acquises ajustees des primes de reassurance, conformement aux",
             "contrats de reassurance et vehicules de titrisation en place pour les",
             "douze mois a venir")
-    else paste("annexe XVII, section B, point (2)(c), remplace par le reglement delegue",
+    else paste("annexe XVII, section B, paragraphe 2, point c), remplace par le reglement delegue",
                "(UE) 2016/467 (M1) : pertes agregees et primes acquises non ajustees",
                "des montants recouvrables au titre de la reassurance et des vehicules",
                "de titrisation ni des primes de reassurance")
@@ -416,10 +417,10 @@ usp_parametre_standard <- function(methode = c("premium", "reserve1", "reserve2"
     point <- paste(lettre, "iv)")
     parametre <- sprintf("ecart type du risque de reserve sigma(res,s) de l'annexe %s", annexe)
     exigence <- if (methode == "reserve1")
-      paste("annexe XVII, section C, point (2)(c) : donnees ajustees de la reassurance",
+      paste("annexe XVII, section C, paragraphe 2, point c) : donnees ajustees de la reassurance",
             "et des vehicules de titrisation, conformement aux contrats en place pour",
             "les douze mois a venir (exigence de la methode)")
-    else paste("annexe XVII, section D, point (2)(f) : montants de sinistres cumules",
+    else paste("annexe XVII, section D, paragraphe 2, point f) : montants de sinistres cumules",
                "ajustes de la reassurance et des vehicules de titrisation, conformement",
                "aux contrats en place pour les douze mois a venir (exigence de la methode)")
     nature <- "nettes"
@@ -923,7 +924,9 @@ usp_noyau <- function(delta, gamma, x, y, xbar = mean(x)) {
   T <- length(x)
   p <- usp_pi(delta, gamma, x, xbar)
   r <- log(y / x)
-  # ln(beta) : annexe XVII, sect. B/C par. 4-5 (estimateur MV du niveau)
+  # ln(beta) : fraction de l'exposant de sigma(delta, gamma), annexe XVII,
+  # sections B et C, paragraphe 5 (beta n'est pas nomme par le texte ;
+  # estimateur MV du niveau)
   ln_beta <- (T / 2 + sum(p * r)) / sum(p)
   v <- r + 1 / (2 * p) - ln_beta            # residus bruts (loi normale, var = 1/pi_t)
   list(
@@ -1022,7 +1025,8 @@ usp_kkt_satisfaite <- function(cpo, gamma, rep_pas = REP_PAS_KKT, rep_gd = REP_G
     isTRUE(abs(cpo$gradient_projete[["delta"]]) <= rep_gd)
 }
 
-# Minimisation sous contrainte 0 <= delta <= 1 (annexe XVII, par. 6),
+# Minimisation sous contrainte 0 <= delta <= 1 (annexe XVII, sections B et C,
+# paragraphe 6),
 # avec démarrages multiples pour éviter les optima locaux.
 # controle : parametres de stats::optim() ; la valeur par defaut est celle
 # du calcul. Un autre reglage ne sert qu'aux tests (ajustement deliberement
@@ -1053,7 +1057,7 @@ usp_ajuster <- function(x, y, n_starts_delta = 9, verbose = FALSE,
     # modifier, decision du mainteneur, issue #22).
     if (is.null(best) || fit$value < best$value - 1e-10) best <- fit
   }
-  if (is.null(best)) stop("Echec de l'optimisation (annexe XVII, par. 6).")
+  if (is.null(best)) stop("Echec de l'optimisation (annexe XVII, sections B et C, paragraphe 6).")
 
   # Controle de convergence multi-demarrages (issue #22), mesure sur la meme
   # grille (aucune reoptimisation redondante) : nombre de demarrages
@@ -1086,7 +1090,8 @@ usp_ajuster <- function(x, y, n_starts_delta = 9, verbose = FALSE,
   # aucun point visite (valeur infinie dans x ou y, par exemple). Erreur
   # explicite plutot qu'un sigma = Inf rendu comme un optimum (issue #33).
   if (!is.finite(k$obj))
-    stop("Echec de l'optimisation (annexe XVII, par. 6) : l'objectif n'est fini en aucun ",
+    stop("Echec de l'optimisation (annexe XVII, sections B et C, paragraphe 6) : ",
+         "l'objectif n'est fini en aucun ",
          "point visite ; verifier que x et y sont finis et strictement positifs.")
   # Condition du premier ordre (issue #22) : gradient analytique de l'objectif
   # profile, projete sur les bornes. L'ancienne grandeur
@@ -3175,7 +3180,11 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # varie de 3,0e-7 entre delta = 0 et delta = 1) : le libelle le dit.
   suite_cst <- paste(", qui n'est pas identifie ; la valeur affichee est celle",
                      "ou l'optimiseur s'est arrete")
-  add(fam, "Position de delta dans [0,1]", "Annexe XVII, section B/C par. 6",
+  # Citation par methode (issue #101) : B(6) pour les primes, C(6) pour la
+  # reserve no 1.
+  add(fam, "Position de delta dans [0,1]",
+      sprintf("Annexe XVII, section %s, paragraphe 6",
+              if (methode == "premium") "B" else "C"),
       type = "diagnostic", estim_nom = "delta", estim = fit$delta,
       detail = if (isTRUE(regime$volumes_dans_bande))
         paste0(sprintf(paste("VOLUMES CONSTANTS a la tolerance TOL_DELTA_BORD = %g pres",

@@ -49,11 +49,13 @@ verifier("usp_pi = pi_t du reglement (par. 5(d)), 16 points (delta, gamma)",
          all(vapply(seq_len(nrow(grille)), function(k)
            isTRUE(proche(usp_pi(grille$d[k], grille$g[k], xi), reg_pi(grille$d[k], grille$g[k], xi),
                          rel = 1e-13)), logical(1))))
-verifier("usp_noyau : sigma(delta, gamma) = fonction d'ecart type du reglement (par. 5)",
+verifier(paste("usp_noyau : sigma(delta, gamma) = fonction d'ecart type du reglement",
+               "(annexe XVII, sections B et C, paragraphe 5)"),
          all(vapply(seq_len(nrow(grille)), function(k)
            isTRUE(proche(usp_noyau(grille$d[k], grille$g[k], xi, yi)$sigma,
                          reg_sigma(grille$d[k], grille$g[k], xi, yi), rel = 1e-12)), logical(1))))
-verifier("usp_noyau : objectif = montant a minimiser du reglement (par. 6)",
+verifier(paste("usp_noyau : objectif = montant a minimiser du reglement",
+               "(annexe XVII, sections B et C, paragraphe 6)"),
          all(vapply(seq_len(nrow(grille)), function(k)
            isTRUE(proche(usp_noyau(grille$d[k], grille$g[k], xi, yi)$obj,
                          reg_objectif(grille$d[k], grille$g[k], xi, yi), rel = 1e-11, abs = 1e-11)),
