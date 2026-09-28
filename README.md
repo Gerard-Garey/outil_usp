@@ -5,9 +5,12 @@
 Application R Shiny et moteur de calcul autonome pour le calibrage des USP
 (règlement délégué (UE) 2015/35, articles 218 à 220 et annexe XVII).
 
-> **Dépôt public, tous droits réservés.** Le contenu est consultable, mais
-> aucune licence n'est accordée : voir [LICENSE](LICENSE). Aucune donnée
-> d'exploitation ne doit y être publiée (section « Confidentialité des données »).
+> **Licence : [PolyForm Noncommercial 1.0.0](LICENSE).** Usage, modification et
+> redistribution permis à des fins non commerciales ; tout usage commercial
+> requiert l'accord écrit du titulaire (Gerard-Garey). Les textes réglementaires
+> de l'Union versionnés à la racine sont hors licence (réutilisation libre avec
+> mention de la source). Aucune donnée d'exploitation ne doit être publiée dans
+> le dépôt (section « Confidentialité des données »).
 
 ## Méthodes couvertes
 
