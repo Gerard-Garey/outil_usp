@@ -754,7 +754,7 @@ par \code{.engine\_verifier\_usage()} et affiché par l'application avant le cli
 (§\ref{sec:controles}, issue~\#127) \\
 \code{engine\_b\_minimal()} & \code{alpha} & plus petit entier $B \ge 1$ tel que
 $2/(B+1) < \alpha/2$, cité dans le message d'\code{engine\_motif\_b\_alpha()}~; erreur R si
-$4/\alpha$ n'est pas fini et inférieur à $2^{52}$ \\
+$4/\alpha$ n'est pas fini ou n'est pas inférieur à $2^{52}$ \\
 \code{.engine\_calcul\_}\newline\code{protege()} & \code{methode}, horodatage,
 \code{validation}, calcul & résultat du calcul, ou objet \code{ok = FALSE} portant
 \code{validation\$erreur\_r} si ce calcul, qui suit une validation réussie, lève une erreur R
@@ -2072,7 +2072,16 @@ autres qu'un calcul abouti, à ne pas confondre (issue~\#88, décision du mainte
   $B + 1 > 4/\alpha$, qui lui est équivalente en arithmétique exacte mais peut s'en écarter en
   double (mesuré~: à $\alpha = 0{,}00128$ et $B = 3124$, $B + 1 > 4/\alpha$ est évaluée vraie et
   $2/(B+1) < \alpha/2$ fausse)~: le contrôle d'entrée et le verdict ne peuvent diverger. Le contrôle porte sur $B$ nominal~; le plancher réel,
-  $2/(B_{\text{eff}}+1)$, est plus élevé si des réplications ne sont pas finies. Mesuré~:
+  $2/(B_{\text{eff}}+1)$, est plus élevé si des réplications ne sont pas finies, et ce cas n'est
+  pas détecté par le moteur~: le champ \code{p\_min} n'est renseigné que pour un test à loi de
+  référence discrète (règle~R1, section~\ref{sec:nature}), jamais à partir du plancher de
+  Monte-Carlo, de sorte que la branche «~\code{ECHEC} inatteignable~» de la règle des verdicts
+  d'\code{add()} ne joue pas pour une ligne dont la seule p-value est de Monte-Carlo, et qu'aucun
+  motif n'est écrit dans son commentaire. Le cas se lit sur \code{bootstrap\$B\_effectif} et
+  \code{bootstrap\$granularite\_stat} (issue~\#40). Mesuré par \code{engine\_p\_mc()}~: à
+  $B = 99$ et $\alpha = 0{,}05$, valeurs admises, $60$ réplications finies donnent une p-value de
+  Monte-Carlo bilatérale minimale de $2/61 \approx 0{,}0328 \ge \alpha/2 = 0{,}025$, sans motif.
+  Mesuré aussi~:
   $B = 99$ à $\alpha = 0{,}04$ et $B = 399$ à $\alpha = 0{,}01$ lèvent l'erreur, $B = 400$ à
   $\alpha = 0{,}01$ et $B = 99$ à $\alpha = 0{,}05$ sont admis~; \code{seed}, nombre
   scalaire fini entier,
@@ -3571,7 +3580,8 @@ $2/(B+1)$ en bilatéral (\code{engine\_p\_mc()}, $B$ compté en réplications fi
 $0{,}001$ et $0{,}002$ à $B = 999$~; $1/20\,001 \approx 5{,}0\cdot 10^{-5}$ pour
 \code{sw\_p\_loi\_nulle()}. Les deux premiers sont sous $\alpha/2$ pour tout $B$ admis par
 \code{run\_engine()}, qui exige $B + 1 > 4/\alpha$ (section~\ref{sec:controles}), tant que
-toutes les réplications sont finies ($B_{\text{eff}} = B$). Les règles générales d'\code{add()} (loi simulée dégénérée,
+toutes les réplications sont finies ($B_{\text{eff}} = B$)~; sinon, le moteur ne détecte pas
+qu'ils atteignent $\alpha/2$ (section~\ref{sec:controles}). Les règles générales d'\code{add()} (loi simulée dégénérée,
 statistique observée non finie, section~\ref{sec:nature}) peuvent en outre changer le type d'une
 ligne sur un jeu donné~; les rubriques~7 ne les répètent pas.
 
