@@ -1177,14 +1177,12 @@ server <- function(input, output, session) {
     lib_bareme <- libelle_derogation(R(), "bareme")
     cat("Bareme credibilite   :", m$bareme,
         if (!is.null(lib_bareme)) paste0("(", lib_bareme, ")"), "\n")
-    # Annees fournies (issue #104) : mention rendue seulement si la ligne
-    # "profondeur" de engine_derogations() existe (n_fournies > T). Meme mot
-    # que cette ligne : "exercices" en reserve no 1, "annees" en primes.
+    # Annees fournies (issue #104) : libelle de la ligne "profondeur" de
+    # engine_derogations(), repris tel quel comme pour le bareme (issue #136 :
+    # le journal ne refait plus le choix "exercices" / "annees" du moteur).
+    lib_prof <- libelle_derogation(R(), "profondeur")
     cat("Profondeur T         :", m$T,
-        if (!is.null(libelle_derogation(R(), "profondeur")))
-          sprintf("(sur n = %d %s : troncature)", as.integer(m$n_fournies),
-                  if (identical(m$methode, "reserve1")) "exercices fournis"
-                  else "annees fournies"), "\n")
+        if (!is.null(lib_prof)) paste0("(", lib_prof, ")"), "\n")
     cat("Replications B       :", m$B, "\n")
     cat("Granularite p_mc     :", format(R()$bootstrap$granularite),
         "( = 1/(B+1), B nominal : p-value unilaterale ; bilaterale 2/(B_eff+1),",
