@@ -1,91 +1,142 @@
 # AGENTS.md
 
-Consignes pour ChatGPT travaillant sur ce dépôt via Codex. Décision du mainteneur du 28/09/2026 ; raisons et détail : `docs/adr/0012-flux-gpt-main-gpt.md`.
+Consignes pour ChatGPT travaillant sur ce dépôt, que ce soit par Codex (Codex Cloud, `@codex` en commentaire de PR, Codex en local) ou par ChatGPT avec le connecteur GitHub. Décision du mainteneur du 28/09/2026, et organisation à distance du 29/09/2026. Raisons et détail : `docs/adr/0012-flux-gpt-main-gpt.md`.
 
-GPT intervient **épisodiquement** ; Claude (Claude Code) reste le contributeur principal. Ce fichier ne recopie pas les règles du projet : il dit lesquelles s'appliquent et ce qui change pour GPT.
+GPT intervient **par périodes** ; Claude (Claude Code) reste le contributeur principal. Le présent fichier et le dossier `.codex/` sont **le seul cadre de travail de GPT**. Les règles de fond du projet, elles, sont communes aux deux contributeurs.
 
-## À lire avant tout travail
+## Périmètre de GPT, séparé de celui de Claude
 
-- `README.md` : objet de l'outil, prérequis, structure, commandes (application, moteur seul, tests).
-- `CLAUDE.md` : **toutes ses règles de fond s'appliquent à GPT** — contexte et textes sources (la version consolidée du règlement fait foi ; formules lues en rendu graphique), architecture moteur / affichage (contrainte impérative), flux du moteur, structure d'un résultat de test, reproductibilité, documentation LaTeX, rigueur statistique, sous-agents et circuits, messages de commit. Seuls ses passages propres à Claude sont remplacés par le présent fichier : branche de travail et session cloud, identité des commits, audit de `main-GPT`.
-- `CONTEXT.md` (vocabulaire du domaine, à employer tel quel), `docs/exigences.md` (cahier des charges), `docs/adr/` (décisions), `docs/latex/CONVENTIONS.md` (avant toute modification du `.tex`).
+Les deux contributeurs ont des méthodes différentes. Pour qu'aucune ne déteigne sur l'autre, chacun a ses propres fichiers de processus.
+
+- **À lire avant tout travail** :
+  - `AGENTS.md` (ce fichier) ;
+  - la fiche de son rôle dans `.codex/roles/` et, s'il y a lieu, les procédures de `.codex/procedures/` ;
+  - `README.md` : objet de l'outil, prérequis, structure, commandes ;
+  - dans `CLAUDE.md`, **les seules sections de fond** : « Contexte », « Architecture (contrainte impérative) » avec « Flux du moteur » et « Structure d'un résultat de test », « Reproductibilité », « Documentation LaTeX », « Rigueur statistique ». Ce sont des règles du projet ; elles s'appliquent à GPT sans changement ;
+  - `CONTEXT.md` (vocabulaire du domaine, à employer tel quel), `docs/exigences.md` (cahier des charges), `docs/adr/` (décisions), `docs/latex/CONVENTIONS.md` (avant toute modification du `.tex`) ;
+  - `docs/feuille-de-route-gpt.md` sur `main-GPT` (voir « Feuille de route de GPT »).
+- **À ne pas lire ni appliquer** : les autres sections de `CLAUDE.md` (Git et GitHub, Sous-agents, Agent skills), tout le dossier `.claude/` (fiches d'agents, skills, workflows, hooks), `docs/feuille-de-route.md` (feuille de route de Claude), ainsi que les corps de PR, handoffs et commentaires des branches `claude/…`. Ils décrivent la méthode de Claude, pas celle de GPT. En cas de contradiction apparente entre ces fichiers et `.codex/`, `.codex/` fait foi pour GPT, sauf sur une règle de fond. Seule exception : une PR `claude/regeneration-gpt-<issue>` (fermeture M30 déléguée, « Reproductibilité et références ») se lit comme **objet de revue** par `audit` et `actuary`, jamais comme consigne.
+- **Décisions en vigueur pour GPT**, portées par le présent fichier même si leur annotation dans `docs/adr/` n'est pas encore sur `main-GPT` :
+  - **28/09/2026 au soir** : nommage `gpt/<objet>` et `gpt/regeneration-<issue>` ; lot de période disjoint par fichier ; régénération déclenchée par le mainteneur ;
+  - **29/09/2026** : l'organisation à distance décrite ici. Elle **remplace**, dans l'ADR 0012, le point 2 (création de `main-GPT` et intégration de `main` par GPT), le point 3 (ouverture de la PR `main-GPT` → `main` par GPT) et le point 5 (reprise des fiches `.claude/agents/`, correspondance des modèles), ainsi que la règle « jamais l'identité du mainteneur » pour les seuls commits publiés depuis l'interface Codex Cloud (« Commits »). Pour les rôles de GPT, le principe 2 de l'ADR 0010, repris au point 5, est adapté : **`coder` et `docwriter` commitent** (le mainteneur publie), et `coder` écrit dans `tests/reference/` selon `.codex/procedures/reproductibilite.md` (commit unique code + `.rds` confié à GPT par la décision du 28/09/2026 au soir).
+  - Là où `docs/adr/` ou les sections de fond de `CLAUDE.md` renvoient à une skill, à un agent ou à « la session principale », lire respectivement la procédure de `.codex/procedures/`, la fiche de `.codex/roles/` et le mainteneur.
+- **Ce que GPT ne modifie jamais**, sauf instruction du mainteneur : `CLAUDE.md`, `AGENTS.md`, `.claude/`, `.codex/`, `.github/`, `LICENSE`, `docs/adr/`, `CONTEXT.md`, `docs/feuille-de-route.md` et les réglages du dépôt. Un terme nouveau, une décision d'architecture ou une règle à changer se **propose** dans la PR `main-GPT` → `main` ; Claude les consigne à l'audit.
+
+## Qui exécute quoi : les rôles à distance
+
+Les rôles sont ceux du projet. **Ceux qui écrivent ne vérifient pas, ceux qui vérifient n'écrivent pas.** À distance, **le mainteneur tient le rôle de session principale** : il appelle chaque rôle dans l'ordre du plan d'`architect`, lit les livrables, décide de la suite et fusionne. Aucun rôle n'enchaîne sur un autre.
+
+| Rôle | Exécutant | Écrit dans le dépôt | Livrable |
+|---|---|---|---|
+| `architect` | ChatGPT (work) avec le connecteur GitHub | rien | propositions pour la feuille de route GPT et plan de branche à cases à cocher, **en commentaire de PR** |
+| `actuary` | ChatGPT (work) avec le connecteur GitHub | rien | avis ou validation, en commentaire de PR |
+| `regulatory` | ChatGPT (work) avec le connecteur GitHub | rien | matrice de conformité, en commentaire de PR |
+| `coder` | `@codex` en commentaire de la PR de travail GPT | code R, tests, `docs/feuille-de-route-gpt.md` (pas `docs/latex/`) | commit publié sur la branche de la PR, avec son compte rendu |
+| `audit` | tâche Codex Cloud **distincte**, sur la tête publiée | rien | rapport à constats gradués, collé en commentaire de PR par le mainteneur |
+| `app-review` | tâche Codex Cloud **distincte**, sur la tête publiée | rien | rapport, collé en commentaire de PR par le mainteneur |
+| `docwriter` | tâche Codex Cloud, puis `@codex` sur **sa propre PR** ; écart de concordance : `@codex` sur la PR de travail | `docs/latex/` (`.tex` et PDF) | un commit `docs:` par issue, sur `gpt/doc-<objet>` |
+
+- **Rôles tenus dans ChatGPT (work)** : le connecteur GitHub leur sert à **lire** le dépôt, les issues et les PR, à **poster un commentaire** sur la PR désignée par le mainteneur et à **créer une issue** confirmée par le mainteneur (« Issues »). Ils n'utilisent aucune autre action d'écriture du connecteur : pas de fichier, pas de commit, pas de branche, pas de PR, pas de fusion, pas de libellé sur une issue existante.
+- **Rôles tenus dans Codex** : une tâche joue **un seul rôle**. Un `@codex` dont le texte ressemble à une demande de relecture peut partir en « Codex Review » automatique. Le commentaire commence donc toujours par `Rôle : <rôle>`, et une vérification (`audit`, `app-review`) se lance comme tâche Codex Cloud, jamais par `@codex`. **Une tâche lancée sans `Rôle : …`** (tâche d'office à l'ouverture d'une PR, revue automatique) **ne modifie rien** : elle rend l'en-tête avec le statut `arrete` et la cause, sans proposer de diff (constaté sur la PR #150 le 29/09/2026).
+- **Poste local** (Codex en local, avec sous-agents ou non) : même répartition des rôles et mêmes livrables. Un rôle tenu par la session elle-même suit la règle d'entrée et de sortie de `.codex/roles/README.md`.
+
+## Environnement Codex Cloud
+
+- **R n'est pas installé par défaut.** Le mainteneur déclare une fois `bash .codex/setup.sh` comme script de setup de l'environnement, ou `USP_LATEX=1 bash .codex/setup.sh` pour un environnement qui sert aussi `docwriter` (TeX Live, plusieurs minutes).
+- **En début de chaque tâche Codex** : `command -v Rscript`. S'il est absent, lancer `bash .codex/setup.sh`. Si R reste indisponible, **s'arrêter** avec le statut `arrete` et la cause. Un rôle qui doit exécuter une batterie ne rend jamais « tests non lancés » comme un succès.
+- Les batteries se lancent sous `LC_ALL=C.UTF-8` (faux échec de la concordance sous POSIX, #113).
+- **Pas de remote Git** : une tâche travaille sur une branche locale (`work`). Elle ne pousse pas, ne crée pas de PR et ne peut pas vérifier une publication. La publication est faite par le mainteneur, depuis l'interface (« Publication » ci-dessous).
 
 ## Branches
 
 1. **Ne jamais toucher `main`** : ni commit, ni push, ni fusion, ni PR depuis une branche de travail.
-2. **`main-GPT`** est le `main` de GPT. Si elle n'existe pas, la créer depuis `main` au début du travail et la pousser. **En début de chaque session**, y intégrer `main` par un commit de fusion (`git merge origin/main`, jamais de rebase ni de force-push) et résoudre les conflits ; `main` prime : un conflit de fond avec une décision déjà prise sur `main` se règle en faveur de `main`, ou se signale au mainteneur.
-3. **Une branche de travail à la fois**, `gpt/<objet>`, créée depuis `main-GPT`, au périmètre fermé d'issues. Ce périmètre est le lot d'une **période GPT** : un lot d'issues **disjoint par fichier** de la branche de travail courante de Claude (aucun fichier commun, en particulier `R/engine.R`, `tests/reference/`, `docs/latex/doc_tests_usp.tex` et le PDF compilé), proposé par `architect` dans la feuille de route et **fixé par le mainteneur** avant l'ouverture de la période (ADR 0012, annotation du 28/09/2026 au soir, point 3). Une issue qui exigerait un fichier que la branche de Claude modifie attend la fusion de celle-ci. PR vers `main-GPT`, **fusionnée par le mainteneur** (commit de fusion), CI verte. GPT ne fusionne jamais une PR et n'active pas l'auto-merge.
-   **Publication sous Codex Cloud.** Le terminal d'une tâche peut n'avoir aucun remote Git (branche locale `work`) : ne jamais présumer qu'un `git push` est possible.
-   - **Ouverture de la branche de travail** (aucune PR de travail GPT ouverte) : tâche lancée dans Codex Cloud sur le dépôt, avec `main-GPT` pour base → le mainteneur examine le diff → il crée la PR vers `main-GPT` depuis l'interface Codex Cloud, en nommant la branche `gpt/<objet>` si l'interface le permet. Cette PR est la branche de travail de la période ; les rôles interviennent ensuite selon le circuit (« Sous-agents et rôles »).
-   - **Toute réalisation ultérieure de la période**, correction comprise, se fait **sur cette PR** (`@codex` en commentaire de la PR) et se publie sur sa branche. Ne jamais créer une deuxième PR pour contourner un push impossible.
-   - **Publication impossible ou incertaine** : le livrable le dit explicitement (« publication non faite », avec la cause), finit en statut `arrete` et contient le diff complet, pour que le mainteneur le publie. L'intégration de `main` dans `main-GPT` (point 2) suit la même règle.
-   - **Vérification sur GitHub** : toute publication annoncée (PR créée, commit poussé) est vérifiée sur GitHub (PR existante, base, SHA de tête, liste des commits) avant d'être tenue pour faite, par la tâche si elle y a accès, sinon au point de départ de la tâche suivante. Un livrable ne vaut que pour le SHA effectivement publié.
-4. **PR `main-GPT` → `main`** : ouverte par GPT quand son travail est prêt. Son corps contient :
-   - la liste des **issues que GPT considère comme résolues**, un `Closes #N` par ligne (GitHub ne lie que le premier numéro d'une liste) ;
-   - la liste des **issues créées par GPT** ;
-   - les commits qui changent un résultat, chacun avec son tableau avant / après.
+2. **`main-GPT`** est le `main` de GPT.
+   - **Claude la crée** depuis `main` à l'ouverture d'une période (à défaut, le mainteneur la crée depuis l'interface). Son premier commit est `docs/feuille-de-route-gpt.md`, copie de la feuille de route de Claude **prise à la tête de sa branche de travail** (SHA cité dans le message), qui porte la fiche « période GPT » avec le lot fixé par le mainteneur. Claude ouvre aussi la PR brouillon `main-GPT` → `main` : la **PR de période**.
+   - **Intégration de `main`** : au début de chaque période et de chaque reprise, le mainteneur clique sur « Update branch » de la PR de période, ce qui produit un commit de fusion, jamais un rebase. Si le ruleset de `main-GPT` refuse ce bouton, l'intégration passe par une PR `main` → `main-GPT`, ouverte par Claude et fusionnée par le mainteneur par commit de fusion. En cas de conflit, Claude le résout sur une branche partie de `main-GPT`, avec une PR vers `main-GPT`. `main` prime : un conflit de fond avec une décision déjà prise sur `main` se règle en faveur de `main`.
+   - **Base de toute tâche** : une tâche Codex ne connaît pas le nom de sa branche (branche locale `work`, sans remote). Le brief donne donc le **SHA de base attendu** et, pour les rôles qui comparent à `main-GPT`, le **SHA de `main-GPT`** ; la tâche compare le premier à `git rev-parse HEAD` au départ et s'arrête s'il diffère. Bases admises : `main-GPT`, la branche de travail GPT, `gpt/doc-<objet>` et `gpt/regeneration-<issue>`.
+3. **Une branche de travail à la fois**, `gpt/<objet>`, créée depuis `main-GPT`, au périmètre fermé d'issues. Ce périmètre est le lot de la période : un lot **disjoint par fichier** de la branche de travail courante de Claude. Aucun fichier n'est commun, en particulier `R/engine.R`, `tests/reference/`, `docs/latex/doc_tests_usp.tex` et le PDF compilé. Le lot est proposé par l'`architect` de Claude dans la fiche « période GPT » de sa feuille de route, **fixé par le mainteneur avant l'ouverture** de la période (décision du 28/09/2026 au soir), puis copié dans la feuille de route GPT ; l'`architect` de GPT en vérifie la disjonction et le planifie. La PR de la branche de travail vise `main-GPT` et est créée **en brouillon** ; elle est **fusionnée par le mainteneur**, par commit de fusion, CI verte. GPT ne fusionne jamais et n'active pas l'auto-merge.
+4. **Branche de documentation `gpt/doc-<objet>`** : branche temporaire, créée depuis la **tête de la branche de travail GPT**, après son dernier commit de code (un seul passage de `docwriter` par branche). Sa PR vise la branche de travail GPT et est fusionnée par le mainteneur avant la revue finale. La branche est ensuite supprimée. **Exception : l'écart de concordance.** Si `tests/concordance_doc_moteur.R --strict` signale un écart sur une tête de la branche de travail (étape bloquante de la CI), `docwriter` le corrige aussitôt par `@codex` sur la PR de travail, dans un commit `docs:` minimal limité aux noms et décomptes signalés, sans attendre la fin de branche.
+5. **Branche éphémère de régénération `gpt/regeneration-<issue>`** : voir « Reproductibilité et références ».
 
-   Cette PR est **auditée par Claude sur demande du mainteneur** ; Claude peut modifier le code (branche `claude/audit-main-gpt-<date>`, PR vers `main-GPT`), en particulier pour le simplifier et l'optimiser. La fusion vers `main` appartient au mainteneur ; `main-GPT` est ensuite supprimée.
+### Publication sous Codex Cloud
+
+- **Ouverture de la branche de travail**, quand aucune PR de travail GPT n'est ouverte : une tâche Codex Cloud est lancée **avec `main-GPT` pour base**. Le mainteneur examine le diff, puis crée depuis l'interface la PR vers `main-GPT`, en nommant la branche `gpt/<objet>` si l'interface le permet. Il vérifie ensuite la base de la PR, car l'interface propose `main` par défaut.
+- **Toute réalisation ultérieure**, correction comprise, se fait **sur cette PR** (`@codex` en commentaire) et se publie sur sa branche. Ne jamais créer une deuxième PR pour contourner un push impossible, sauf la PR de documentation (point 4).
+- **Publication impossible ou incertaine** : le livrable le dit explicitement (« publication non faite », avec la cause), finit en statut `arrete` et contient le diff complet, pour que le mainteneur le publie.
+- **Vérification sur GitHub** : une publication annoncée (PR créée, commit publié) n'est tenue pour faite qu'une fois vérifiée sur GitHub : PR existante, base, SHA de tête, liste des commits. Ce contrôle revient à la tâche si elle y a accès, sinon au rôle suivant, au début de sa tâche. Un livrable ne vaut que pour le SHA effectivement publié.
+
+## Feuille de route de GPT
+
+- `docs/feuille-de-route-gpt.md` n'existe que sur `main-GPT`. C'est **la seule feuille de route que lit GPT**.
+- **`architect` ne la modifie pas.** Il propose les changements en commentaire de PR, en texte prêt à appliquer, et `coder` les applique par un commit `docs:` quand le mainteneur le lui demande.
+- **Si le fichier est absent de `main-GPT`**, c'est qu'aucune période n'est ouverte : Claude le supprime quand il reprend la main, à l'audit. GPT s'arrête alors et le signale au mainteneur. Il ne recrée pas le fichier et ne se rabat pas sur `docs/feuille-de-route.md`.
+
+## Le plan de branche d'`architect`
+
+Le mainteneur appelle les rôles un par un. Le plan d'`architect` lui donne donc, **dans l'ordre**, chaque appel avec son exécutant et son texte exact. Chaque ligne commence par une case à cocher, que le mainteneur coche une fois le livrable lu et accepté. `architect` poste le plan en commentaire de la PR de période ; le mainteneur le recopie dans le corps de la PR de travail dès sa création. Forme imposée (le détail est dans `.codex/roles/architect.md`) :
+
+```markdown
+### Plan de la branche gpt/<objet> — issues #A, #B
+
+- [ ] 1. `coder` — tâche Codex Cloud, base `main-GPT` — « Rôle : coder. … »
+- [ ] 2. `audit` — tâche Codex Cloud distincte, audit léger — « Rôle : audit. … »
+- [ ] 3. `actuary` — ChatGPT (work), commentaire sur la PR #N — « Rôle : actuary. … »
+- [ ] …
+- [ ] k. `docwriter` — tâche Codex Cloud, base : tête de gpt/<objet>, PR gpt/doc-<objet> — « Rôle : docwriter. … »
+- [ ] k+1. `audit` — tâche Codex Cloud distincte, revue finale complète — « … »
+- [ ] k+2. `actuary` — ChatGPT (work) — validation du diff du `.tex` — « … »
+- [ ] Mainteneur : sortie du brouillon, puis fusion dans `main-GPT`.
+```
+
+Les points de décision (visa d'un changement de σ_USP ou de verdict, question à `actuary`, arbitrage) sont des lignes du plan, à la place qu'ils occupent dans le circuit. Aucune étape ne les franchit sans décision. Une tâche Codex ne lit pas les commentaires de PR : tout ce qu'elle doit appliquer ou vérifier (texte de la feuille de route, constats d'audit, SHA de base et de `main-GPT`) est **recopié dans son texte**, jamais donné par un lien.
+
+## Rigueur : un livrable se prouve
+
+Le risque d'erreur est plus élevé à distance : les rôles sont séparés dans le temps, et le mainteneur relaie. Chaque livrable se lit donc comme s'il allait être contesté.
+
+- **Toute affirmation sur le comportement du code s'adosse à une commande exécutée**, citée avec sa sortie : code, tests, résultats, performance. Sans mesure, l'affirmation est présentée comme une hypothèse, ou elle est retirée.
+- **Batteries** : `Rscript tests/test_unitaires.R`, `Rscript tests/test_reproductibilite.R` et `Rscript tests/concordance_doc_moteur.R --strict`, sous `LC_ALL=C.UTF-8`, sur l'état exact du SHA rendu, avec le décompte d'assertions et le code de sortie. Un « les tests passent » sans sortie n'est pas recevable.
+- Un rôle tenu dans ChatGPT (work) **n'exécute pas R**. Un chiffre qu'il avance est soit tiré d'un livrable Codex qui le mesure (cité : SHA, commande), soit demandé en mesure au rôle suivant.
+- **Aucune référence, aucun théorème, aucun numéro de page ni aucune vitesse de convergence inventés.** Quand la littérature ne permet pas de conclure à T = 8, l'écrire tel quel.
+- **Chaque livrable commence par l'en-tête** :
+  ```
+  Rôle : <rôle> — Objet : <issue(s), étape du plan> — SHA examiné ou produit : <sha>
+  Exécutant : <ChatGPT work | @codex | tâche Codex Cloud | local> — Statut : termine | termine avec questions | arrete
+  ```
+  - `termine avec questions` : les seules remontées sont des questions pour `actuary` ou le mainteneur.
+  - `arrete` : constat bloquant, batterie en échec, R indisponible, publication non faite, base erronée, ou étape laissée à un autre exécutant (fermeture M30 déléguée à Claude).
 
 ## Issues
 
-- Création **sur accord du mainteneur** seulement : rédiger l'issue proposée (titre, libellés, corps) dans le compte rendu ; une fois approuvée, la créer avec le libellé **`gpt`** en plus des libellés de tri (`docs/agents/triage-labels.md`).
-- Vocabulaire de `CONTEXT.md` ; un problème hors périmètre devient une issue, pas une branche.
+- **Tout rôle peut créer une issue**, comme les agents de Claude, **après confirmation du mainteneur** (décision du 29/09/2026) :
+  1. le rôle rédige l'issue proposée dans son livrable : titre, libellés, corps commençant par `> *Rédigé par le rôle <rôle> (GPT).*`, renvoi aux issues existantes plutôt qu'un doublon ;
+  2. le mainteneur confirme, ou corrige, dans la conversation ChatGPT ou en commentaire de la PR ;
+  3. l'issue est créée **avec le libellé `gpt`** (le libellé GPT du dépôt ; les noms de libellés sont insensibles à la casse sur GitHub), en plus des libellés de tri de `docs/agents/triage-labels.md` : par le rôle lui-même quand son environnement le permet (connecteur GitHub de ChatGPT, `gh` authentifié en local), sinon par le mainteneur, sur le texte exact du livrable.
+- Une issue `gpt` n'est pas présumée fondée : chacune est **revue par Claude à l'audit** de la période, par l'agent de Claude que son objet désigne.
+- Vocabulaire de `CONTEXT.md`. Un problème hors du lot devient une issue proposée, pas une modification.
 
 ## Commits
 
-- Auteur : **`Codex <noreply@openai.com>`** (`git config user.name Codex`, `git config user.email noreply@openai.com` dans le dépôt).
-- Messages en français, avec accents, préfixés par le domaine (`moteur:`, `app:`, `tests:`, `docs:`, `repo:` ; `claude:` est réservé à Claude), renvoi à l'issue (`#N`). Un commit par issue qui change un résultat, avec son tableau avant / après.
+- En local et dans une tâche Codex : auteur **`Codex <noreply@openai.com>`** (`git config user.name Codex`, `git config user.email noreply@openai.com`).
+- Un commit publié depuis l'interface Codex Cloud peut porter l'identité du mainteneur. Le dernier paragraphe de chaque message de commit porte donc la ligne **`Réalisé-par: Codex (rôle <rôle>)`** : c'est elle qui identifie un commit de GPT à l'audit.
+- Messages en français, avec accents, préfixés par le domaine : `moteur:`, `app:`, `tests:`, `docs:` (dont `docs/feuille-de-route-gpt.md`), `repo:`. Le préfixe `claude:` est réservé à Claude. Renvoi à l'issue (`#N`).
+- Un commit par issue qui change un résultat, avec son tableau avant / après.
 - Aucun identifiant de modèle ni lien de session dans les commits, les PR ou le code.
-
-## Sous-agents et rôles
-
-Les sept fiches de `.claude/agents/` (`architect`, `actuary`, `regulatory`, `coder`, `docwriter`, `audit`, `app-review`) définissent des **rôles** : mission, périmètre d'écriture (champ `tools` et consignes), questions à traiter, forme du livrable. Les circuits types, les déclencheurs et la règle « **ceux qui écrivent ne vérifient pas, ceux qui vérifient n'écrivent pas** » de `CLAUDE.md` s'appliquent à GPT, qu'il dispose ou non de sous-agents. Le modèle de chaque rôle suit le champ `model` de sa fiche :
-
-| `model` de la fiche | Modèle GPT |
-|---|---|
-| `fable` | `gpt-6-astra` |
-| `opus`, `sonnet` | `gpt-6-sol` |
-
-### Deux modes d'exécution
-
-1. **Orchestré** (sous-agents disponibles) : la session principale confie chaque rôle à un sous-agent, avec la fiche comme consigne, et reçoit son livrable, comme le fait Claude.
-2. **Incarné** (sous-agents indisponibles, par exemple Codex Cloud) : la session principale **joue elle-même le rôle**, un rôle à la fois, selon les règles ci-dessous. Le circuit, l'ordre des rôles et les livrables sont les mêmes qu'en mode orchestré ; seul change l'exécutant.
-
-### Mode incarné : entrer dans un rôle, en sortir
-
-- **Entrée.** La session principale annonce le rôle (« Rôle : `audit` — objet : diff de `<commit>` pour #N »), relit **intégralement** la fiche de `.claude/agents/<rôle>.md`, puis le brief qu'elle se donne : objet, périmètre, question posée. Ce brief est écrit **avant** d'entrer dans le rôle, dans les termes où il serait donné à un sous-agent.
-- **Pendant le rôle, la fiche fait loi, y compris contre les habitudes de la session principale.** Le rôle :
-  - n'utilise que les outils et n'écrit que dans les fichiers que sa fiche lui ouvre (un vérificateur n'écrit rien ; `actuary` et `regulatory` n'écrivent que des avis) ;
-  - ne fait **aucune action réservée à la session principale** : pas de `git commit`, `git push`, fusion, PR, déclenchement de workflow, régénération ou patch de `tests/reference/`, création d'issue, sauf quand la fiche du rôle l'autorise expressément ;
-  - ne tranche pas ce que sa fiche renvoie à un autre (un doute statistique de `coder` va à `actuary`, une lecture du règlement à `regulatory`, un arbitrage au mainteneur) ;
-  - ne corrige pas ce qu'il constate s'il est vérificateur, et ne s'auto-valide pas s'il est réalisateur ;
-  - ne passe pas à l'étape suivante du circuit et n'enchaîne pas un autre rôle.
-- **Sortie.** Le rôle se termine par son **livrable, dans la forme exacte de sa fiche** (compte rendu, rapport à constats gradués, avis, matrice, issue proposée), titré du nom du rôle. Ce qui, dans la fiche, est adressé à « la session principale » (commiter après audit, porter une question à `actuary`, soumettre au mainteneur) est **laissé à la session principale** et figure dans le livrable comme remontée, non comme action faite.
-- **Retour à la session principale.** Elle annonce la sortie du rôle, lit le livrable comme s'il venait d'un sous-agent, et décide de la suite selon le circuit : commit, reprise par `coder`, question à `actuary`, arrêt pour le mainteneur. Elle ne réécrit pas un livrable après coup ; si elle le conteste, elle le dit dans son propre compte rendu.
-
-### Séparation entre réalisation et vérification en mode incarné
-
-Une même session qui réalise puis vérifie garde en mémoire les intentions du réalisateur : c'est le biais que la séparation des rôles veut écarter.
-
-- **Une vérification (`audit`, `app-review`, validation d'`actuary`, contrôle de `regulatory`) se fait de préférence dans une tâche Codex distincte**, ouverte par le mainteneur, sur la tête poussée de la branche, avec pour seules entrées la fiche, le brief et le diff.
-- À défaut, dans la même session : le vérificateur part **du diff commité ou indexé** (`git diff`, `git show`) et des sorties des batteries qu'il **relance lui-même**, jamais du souvenir de ce que le réalisateur voulait faire ; il traite chaque affirmation du compte rendu de `coder` comme une hypothèse à vérifier.
-- **Traçabilité** : le message de commit, ou la PR, indique pour chaque vérification le mode (« orchestré », « incarné, tâche distincte », « incarné, même session »), pour que le mainteneur et l'audit de Claude sachent quel degré d'indépendance elle a eu.
-
-### Skills
-
-Les procédures des skills de `.claude/skills/` s'appliquent (`verifier-reproductibilite`, `compiler-doc`), quel que soit le mode ; le workflow `circuit-technique` et la skill `audit-main-gpt` sont réservés à Claude.
 
 ## Reproductibilité et références
 
-- Batteries sous `LC_ALL=C.UTF-8` : `Rscript tests/test_unitaires.R`, `Rscript tests/test_reproductibilite.R`, `Rscript tests/concordance_doc_moteur.R --strict`.
-- **Aucune régénération de `tests/reference/*.rds` hors de la CI** (ADR 0011) ; procédure M30 de la skill `verifier-reproductibilite`, avec la répartition suivante (ADR 0012, annotation du 28/09/2026 au soir, point 1) :
-  1. GPT prépare la branche éphémère `gpt/regeneration-<issue>` depuis la tête de sa branche de travail (commit de code, plus un par correction après un refus) et rédige les **motifs attendus par cas** (M33) ;
-  2. **le mainteneur déclenche `references.yml`** (mode `regeneration` ou `creation`, `ref = gpt/regeneration-<issue>`) et **dépose l'artefact** à la disposition de GPT ; GPT ne déclenche jamais le workflow, et le mode `bascule` lui reste hors de portée ;
-  3. GPT fait les vérifications (a′), (b) et (c), puis le **commit unique code + `.rds`** sur sa branche de travail, et supprime la branche éphémère.
+- Procédure : `.codex/procedures/reproductibilite.md`. **Aucune régénération de `tests/reference/*.rds` hors de la CI** (ADR 0011). Pendant une période GPT, **le mainteneur déclenche `references.yml`** et dépose l'artefact ; GPT prépare le commit de code et les motifs (décision du 28/09/2026 au soir). La fermeture (vérifications (a′) à (c) et commit unique code + `.rds`) se fait **par Codex en local** sur le poste du mainteneur ; à défaut, GPT **la délègue à Claude**, qui la fait par une PR vers la branche de travail GPT (décision du mainteneur du 29/09/2026).
+- Seul `coder` écrit dans `tests/reference/`, et seulement par le patch chirurgical ou la fermeture M30 de cette procédure.
+- Tout changement de σ_USP ou d'un verdict est soumis au mainteneur, et les autres changements de p-values à `actuary`. Chaque tableau avant / après est relu par Claude à l'audit.
+- Documentation LaTeX : `.codex/procedures/compilation-doc.md`. Le PDF est recompilé et commité avec le `.tex` (ADR 0008).
 
-  Tout changement de σ_USP ou d'un verdict est soumis au mainteneur, les autres changements de p-values à `actuary` ; chaque tableau avant / après est relu par Claude à l'audit.
+## PR de période `main-GPT` → `main`
 
-## Hors du périmètre de GPT, sauf instruction du mainteneur
+Ouverte par Claude en brouillon ; son corps est tenu à jour par le mainteneur, sur les livrables de GPT. Il contient :
 
-`CLAUDE.md`, `AGENTS.md`, `.claude/`, `.github/`, `LICENSE`, les ADR (`docs/adr/`, rédigés par l'agent `architect`) et les réglages du dépôt.
+- les **issues que GPT considère comme résolues**, un `Closes #N` par ligne (GitHub ne lie que le premier numéro d'une liste) ;
+- les **issues créées pendant la période** (libellé `gpt`), chacune avec le rôle qui l'a rédigée ;
+- les commits qui changent un résultat, chacun avec son tableau avant / après et son visa ;
+- pour chaque vérification, l'exécutant et le SHA examiné.
+
+Cette PR est **auditée par Claude sur ordre du mainteneur**, avec la profondeur d'une revue de dossier. Claude y corrige, simplifie et optimise le code sur une branche `claude/audit-main-gpt-<date>`, et supprime `docs/feuille-de-route-gpt.md`. La fusion vers `main` appartient au mainteneur, puis `main-GPT` est supprimée.
