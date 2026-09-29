@@ -33,13 +33,17 @@
 #          un retour a la ligne ; classer_formulations()) est soit verifiee
 #          (son nombre est a la position d'un nombre capture par une phrase
 #          du registre), soit exemptee nommement (liste EXEMPTES_DECOMPTES :
-#          id, contexte, motif ecrit), soit NON CLASSEE, et c'est alors un
-#          ecart. Une exemption qui n'exempte plus rien est un ecart
-#          (perimee).
+#          id, contexte, motif ecrit) ou par une garde de contexte (liste
+#          GARDES_DECOMPTES : "N lignes" precede de "tableau de", "fichier
+#          de"..., dimension d'un format d'entree), soit NON CLASSEE, et
+#          c'est alors un ecart. Une exemption nominative qui n'exempte plus
+#          rien est un ecart (perimee) ; une garde ne perime pas.
 #
 #       LIMITES : (i) une formulation exemptee n'est pas verifiee (anaphore,
 #       provenance par fonction, lignes d'un tableau du document, constat
-#       de simulation) ; (ii) un decompte ecrit sans les mots "lignes",
+#       de simulation, dimension d'un tableau ou d'un fichier d'entree --
+#       garde de contexte : un vrai decompte ecrit "tableau de N lignes"
+#       serait lui aussi exempte) ; (ii) un decompte ecrit sans les mots "lignes",
 #       "entrees" ou "tests" apres le nombre ("six verdicts", "quinze
 #       p-values", "un test") n'est pas inventorie, pas plus qu'un nombre
 #       separe de ces mots par un qualificatif hors de la liste
@@ -49,8 +53,10 @@
 #       donnees (par ex. une nature de p-value, "restent en Monte-Carlo dans
 #       tous les regimes") n'est verifie que sur ces jeux ; (iv) nombres en
 #       lettres lus jusqu'a cent ("quatre-vingts", "quatre-vingt-dix-neuf",
-#       "cent") : au-dela ("deux cents"), la formulation n'est pas
-#       inventoriee ; (v) les formules mathematiques sont lues sans leurs
+#       "cent") : au-dela ("deux cents"), ou pour une graphie fautive, la
+#       formulation n'est pas inventoriee ou peut etre lue tronquee ("cent
+#       vingt et un" et "quatre-vingt et un" sont inventories entiers et
+#       lus NA, voir MOT_NOMBRE) ; (v) les formules mathematiques sont lues sans leurs
 #       delimiteurs $ : "$6$ lignes" est inventorie, mais un nombre calcule
 #       dans une formule ("$2k/T$ lignes") ne l'est pas ;
 #    3. chaque prefixe de famille produit par le moteur dans res$tests (deux
@@ -79,7 +85,11 @@
 #          fiche du registre ; chaque nom du registre doit etre produit par
 #          une execution ; chaque fiche du registre doit avoir une ligne de
 #          ce type, sauf declaration hors_jeux motivee (qui devient un ecart
-#          si elle ne sert plus) ;
+#          si elle ne sert plus) ; une declaration hors_jeux est verifiee
+#          positivement (issue #121) : la ligne doit etre de type test ou
+#          procedure sur un jeu lognormal synthetique de taille t_positif
+#          (jeu_synthetique(), methode prime, T = 10 pour Cox-Stuart, 20 pour
+#          Anscombe-Glynn) ;
 #       b) dans le .tex, chaque environnement fiche qui porte \Pertinence le
 #          porte une seule fois, apres \Usage ; l'ensemble des fiches (label
 #          nomme de la ligne qui suit \begin{fiche}{...}) qui la portent est
@@ -100,9 +110,12 @@
 #       est rattachee a la BONNE fiche ; (ii) le type d'une ligne depend des
 #       donnees (regle R1, R4, regimes) : l'ensemble attendu n'est mesure
 #       que sur les jeux executes (T = 8) ; une fiche dont la ligne n'est de
-#       type test qu'a d'autres T (Cox-Stuart, T >= 10 ; Anscombe-Glynn,
-#       T >= 20) est declaree hors_jeux avec son motif, verifie seulement en
-#       ce que la ligne existe et n'est pas de type test sur ces jeux ;
+#       type test qu'a d'autres T (Cox-Stuart, au plus tot a T = 10 ;
+#       Anscombe-Glynn, T >= 20) est declaree hors_jeux avec son motif,
+#       verifie en ce que la ligne existe, n'est pas de type test sur ces
+#       jeux, et l'est sur le jeu synthetique de taille t_positif (issue
+#       #121) ; ce jeu est unique (sans ex aequo, methode prime) : le type
+#       n'est pas verifie pour les autres jeux de meme T ;
 #       (iii) le contenu de la rubrique 7 et des cellules du tableau
 #       (valeurs, natures) n'est pas verifie ; un chemin ecrit hors de
 #       \code{}, ou dans \code{} avec un blanc, n'est pas controle.
@@ -128,7 +141,13 @@
 #  est necessaire, pas suffisant si des replications echouent). Les methodes lognormales sont en outre executees
 #  a volumes constants (x_t = 100, pertes de tests/donnees/donnees_ln.csv ;
 #  issue #59) pour les seules phrases du registre qui les nomment, et sur
-#  le jeu J2 pour le seul controle 5 (issue #114).
+#  le jeu J2 pour le seul controle 5 (issue #114) ; la methode prime l'est
+#  sur les jeux synthetiques T = 10 et T = 20 pour la seule verification
+#  positive des declarations hors_jeux (issue #121).
+#
+#  Locale : lecture, traitement et sortie en UTF-8 quelle que soit la
+#  locale du processus (vers_utf8(), ecrire(), ordre_stable() ; issue #113) :
+#  sous LC_ALL=C comme sous LC_ALL=C.UTF-8, la sortie est la meme.
 #
 #  Usage (depuis la racine du depot) :
 #      Rscript tests/concordance_doc_moteur.R              # mode rapport
@@ -144,7 +163,8 @@
 #  exemptee (issue #75), prefixe de famille non declare dans GROUPES, cle
 #  MC hors du catalogue de sa methode, tableau de l'index introuvable, sans
 #  cle ou a rangee non terminee, ecart de la rubrique 7 (registre au
-#  moteur, presence, unicite, position, fiches concernees) ou du tableau de
+#  moteur, verification positive des declarations hors_jeux, presence,
+#  unicite, position, fiches concernees) ou du tableau de
 #  tracabilite (introuvable, rangee manquante, en double, non reconnue ou
 #  pour une fiche sans rubrique 7, chemin cite inexistant ; issue #114).
 #  --tex remplace le document lu (tests du mode strict sur une copie
@@ -160,9 +180,31 @@
 #  Lecture du LaTeX
 # ---------------------------------------------------------------------------
 
+# Chaines lues comme de l'UTF-8, quelle que soit la locale du processus
+# (issue #113). Le document et les sources R sont en UTF-8 ; sous une locale
+# C/POSIX, les chaines non ASCII d'encodage "unknown" -- litteraux d'un source
+# R, "\u00e9" compris, et resultats de paste0() ou de gsub() sur elles --
+# portent des octets UTF-8 que R ne sait pas traduire depuis la locale : une
+# expression reguliere perl sur un vecteur qui mele de telles chaines a des
+# chaines marquees UTF-8 echoue ("input string k is invalid UTF-8").
+# Une chaine "unknown" valide en UTF-8 est donc marquee UTF-8 (ses octets ne
+# changent pas) ; une chaine marquee latin1 est convertie. S'applique aux
+# textes lus (retirer_commentaires()) et aux motifs non ASCII du script, a
+# leur usage. Sous une locale UTF-8, ces chaines sont deja marquees UTF-8.
+vers_utf8 <- function(x) {
+  x <- as.character(x)
+  inconnu <- !is.na(x) & Encoding(x) == "unknown" & validUTF8(x)
+  Encoding(x)[inconnu] <- "UTF-8"
+  latin <- !is.na(x) & Encoding(x) == "latin1"
+  x[latin] <- enc2utf8(x[latin])
+  x
+}
+
 # Retire les commentaires LaTeX (% non precede d'une barre oblique inverse),
-# ligne par ligne : les numeros de ligne restent ceux du fichier.
-retirer_commentaires <- function(lignes) sub("(?<!\\\\)%.*$", "", lignes, perl = TRUE)
+# ligne par ligne : les numeros de ligne restent ceux du fichier. Point
+# d'entree de toutes les lectures du texte LaTeX : les lignes y sont ramenees
+# en UTF-8 (vers_utf8(), issue #113).
+retirer_commentaires <- function(lignes) sub("(?<!\\\\)%.*$", "", vers_utf8(lignes), perl = TRUE)
 
 # Desechappement d'un contenu de \code{} vers le texte R qu'il represente.
 desechapper <- function(x) {
@@ -308,7 +350,7 @@ appliquer_exemptions <- function(cit, statuts, lignes, exemptions = EXEMPTES_COD
     e <- exemptions[[k]]
     for (i in which(introuv$nom == e$nom & !exemptee)) {
       fen <- norm[max(1L, introuv$ligne[i] - e$fenetre):introuv$ligne[i]]
-      if (grepl(e$contexte, paste(fen, collapse = " "), perl = TRUE)) {
+      if (grepl(vers_utf8(e$contexte), paste(fen, collapse = " "), perl = TRUE)) {
         exemptee[i] <- TRUE; motif[i] <- e$motif; utilisee[k] <- TRUE
       }
     }
@@ -365,25 +407,75 @@ NOMBRES_FR <- c(un = 1, une = 1, deux = 2, trois = 3, quatre = 4, cinq = 5, six 
                 quinze = 15, seize = 16, vingt = 20, trente = 30, quarante = 40, cinquante = 50,
                 soixante = 60, "quatre-vingts" = 80, "quatre-vingt" = 80, cent = 100)
 
+# Table des graphies valides de un a cent (issue #113), orthographe
+# traditionnelle ("vingt et un", "soixante et onze", "dix-sept") et
+# rectifiee ("vingt-et-un", "soixante-et-onze") ; "un" et "une" dans toutes
+# les compositions ; "quatre-vingt" (sans s) admis pour 80, comme avant.
+# Nom : graphie en minuscules, blancs reduits a une espace ; valeur : nombre.
+.table_nombres_fr <- function() {
+  u <- NOMBRES_FR[c("un", "une", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf")]
+  t <- c(u, NOMBRES_FR[c("dix", "onze", "douze", "treize", "quatorze", "quinze", "seize")],
+         "dix-sept" = 17, "dix-huit" = 18, "dix-neuf" = 19)
+  for (d in c("vingt", "trente", "quarante", "cinquante", "soixante")) {
+    v <- NOMBRES_FR[[d]]
+    t[d] <- v
+    for (k in c("un", "une")) t[c(paste(d, "et", k), paste0(d, "-et-", k))] <- v + 1
+    for (k in names(u)[-(1:2)]) t[paste0(d, "-", k)] <- v + u[[k]]
+  }
+  # 70 a 79 : soixante-dix, soixante et onze, soixante-douze ... soixante-dix-neuf
+  for (k in names(t)[t >= 10 & t <= 19]) {
+    if (k == "onze") t[c("soixante et onze", "soixante-et-onze")] <- 71
+    else t[paste0("soixante-", k)] <- 60 + t[[k]]
+  }
+  # 80 a 99 : quatre-vingts, quatre-vingt-un ... quatre-vingt-dix-neuf (sans "et")
+  t[c("quatre-vingts", "quatre-vingt")] <- 80
+  for (k in names(t)[t >= 1 & t <= 19 & !grepl(" ", names(t)) & !grepl("^(vingt|trente|quarante|cinquante|soixante)", names(t))])
+    t[paste0("quatre-vingt-", k)] <- 80 + t[[k]]
+  t["cent"] <- 100
+  t
+}
+NOMBRES_FR_VALIDES <- .table_nombres_fr()
+
 # Nombre ecrit en chiffres ou en lettres (jusqu'a cent : dix-neuf,
-# vingt-et-un, soixante-douze, quatre-vingts, quatre-vingt-dix-neuf, cent) ;
-# NA si illisible.
+# vingt et un, vingt-et-un, soixante-douze, quatre-vingts,
+# quatre-vingt-dix-neuf, cent) ; NA si illisible ou si la composition n'est
+# pas une graphie valide ("dix-dix", "cent-cent", "vingts" : issue #113 ;
+# ces compositions etaient additionnees auparavant).
 nombre_fr <- function(x) {
-  x <- tolower(trimws(x))
+  x <- gsub("\\s+", " ", tolower(trimws(vers_utf8(x))))
   if (grepl("^[0-9]+$", x)) return(as.numeric(x))
-  x <- gsub("quatre-vingts?", "quatrevingt", x)
-  parties <- strsplit(gsub("-et-| et ", "-", x), "-")[[1]]
-  parties[parties == "quatrevingt"] <- "quatre-vingt"
-  v <- NOMBRES_FR[parties]
-  if (anyNA(v)) return(NA_real_)
-  sum(v)
+  v <- NOMBRES_FR_VALIDES[x]
+  if (is.na(v)) NA_real_ else unname(v)
 }
 
+# Nombre en chiffres ou en lettres dans les expressions regulieres.
 # Alternatives triees par longueur decroissante : "quatre-vingts" avant
-# "quatre-vingt" avant "quatre", "une" avant "un".
+# "quatre-vingt" avant "quatre", "une" avant "un". La composition par
+# traits d'union reste permissive (tout enchainement de mots-nombres) : une
+# composition invalide ("dix-dix") est inventoriee comme une seule
+# formulation, que nombre_fr() lit NA, donc NON CLASSEE ou ECART, et non
+# lue en partie. La composition par " et " (orthographe traditionnelle,
+# issue #113 : "vingt et une lignes" etait inventorie comme "une lignes", lu
+# 1) est limitee aux seules graphies valides (dizaine de vingt a soixante,
+# puis un, une ou onze) : un "et" de coordination ("deux et trois tests")
+# ne soude pas deux nombres. Le motif reste en ASCII (lettres accentuees de
+# la garde ecrites \x{00c0}-\x{00ff}, syntaxe PCRE) : sous une locale C,
+# paste0() d'une chaine non ASCII d'encodage "unknown" et d'une chaine
+# marquee UTF-8 ecrit les octets de la premiere en toutes lettres
+# ("<c3><80>"), ce qui corromprait les motifs du registre DECOMPTES
+# construits sur MOT_NOMBRE (issue #113). Deux graphies hors table sont
+# aussi consommees en entier, pour ne pas etre lues en partie : "et" apres
+# quatre-vingt(s) ou cent ("quatre-vingt et une lignes" etait inventorie
+# "une lignes", lu 1) et "cent" suivi d'un nombre ("cent vingt et un
+# tests" etait inventorie "vingt et un tests", lu 21) ; nombre_fr() les lit
+# NA, et la formulation est NON CLASSEE (ecart) sous son libelle complet.
+# LIMITE : lecture jusqu'a cent ; au-dela ("deux cents"), ou pour une
+# graphie fautive non prevue ici, la formulation lue peut etre tronquee
+# ou absente de l'inventaire.
 .MOTS_NOMBRES <- names(NOMBRES_FR)[order(-nchar(names(NOMBRES_FR)))]
-MOT_NOMBRE <- paste0("(?:[0-9]+|(?:", paste(.MOTS_NOMBRES, collapse = "|"), ")(?:-(?:et-)?(?:",
-                     paste(.MOTS_NOMBRES, collapse = "|"), "))*)")
+MOT_NOMBRE <- paste0("(?:[0-9]+|(?:cent\\s+)?(?:(?:quatre-vingts?|vingt|trente|quarante|cinquante|soixante|cent)\\s+et\\s+(?:une|un|onze)(?![A-Za-z\\x{00c0}-\\x{00ff}-])|",
+                     "(?:", paste(.MOTS_NOMBRES, collapse = "|"), ")(?:-(?:et-)?(?:",
+                     paste(.MOTS_NOMBRES, collapse = "|"), "))*))")
 
 # Qualificatifs admis entre le nombre et "lignes" / "entrees" / "tests"
 # dans l'inventaire (au plus deux) : "les cinq autres lignes", "les deux
@@ -584,6 +676,26 @@ EXEMPTES_DECOMPTES <- list(
        motif = MOTIF_PROVENANCE)
 )
 
+# Gardes de contexte des decomptes (constat 4 de la fin d'E0b, decision du
+# mainteneur du 28/09/2026) : formulations "N lignes" qui donnent la
+# dimension d'un tableau ou d'un fichier (format d'entree du lecteur,
+# "un tableau de deux lignes", "un fichier de 3 lignes"), pas un decompte de
+# la table des tests. Une garde s'applique a toute formulation "N lignes"
+# (pas "entrees" ni "tests") dont le nombre suit immediatement l'un des mots
+# du motif (texte normalise, casse ignoree), une fois le registre DECOMPTES
+# et les exemptions nominatives appliques. A la difference d'une exemption
+# nominative, une garde n'est pas ancree sur une phrase et ne perime pas :
+# elle ne couvre aucune formulation tant que le document n'en porte pas.
+# Chaque formulation gardee est rapportee (statut "exemptee", par = id).
+# id ; avant : expression reguliere (perl) que doit terminer le texte qui
+# precede le nombre ; motif : raison ecrite.
+GARDES_DECOMPTES <- list(
+  list(id = "garde : dimension d'un tableau ou d'un fichier",
+       avant = "\\b(?:tableaux?|fichiers?|matrices?)\\s+(?:de|\\x{00e0})\\s+$",
+       motif = paste("dimension d'un tableau ou d'un fichier (format d'entree), pas un decompte",
+                     "de la table des tests ni de res$controles"))
+)
+
 # Grandeurs structurelles de la table des tests d'un resultat du moteur
 # (et, si fourni, de res$controles). Un champ absent d'une ligne vaut NA :
 # la ligne n'est alors comptee dans aucune grandeur qui porte sur ce champ.
@@ -657,7 +769,7 @@ verifier_decomptes <- function(lignes, grandeurs, registre = DECOMPTES) {
   debuts <- cumsum(c(1L, nchar(norm) + 1L))[seq_along(norm)]
   out <- list()
   for (a in registre) {
-    rx <- gsub(" ", "\\s+", a$motif, fixed = TRUE)
+    rx <- vers_utf8(gsub(" ", "\\s+", a$motif, fixed = TRUE))
     m <- regexec(rx, texte, perl = TRUE, ignore.case = TRUE)
     cap <- regmatches(texte, m)[[1]]
     if (!length(cap)) {
@@ -705,7 +817,7 @@ inventaire_decomptes <- function(lignes) {
   norm <- normaliser_ligne(lignes)
   texte <- paste(norm, collapse = "\n")
   debuts <- cumsum(c(1L, nchar(norm) + 1L))[seq_along(norm)]
-  m <- gregexpr(RX_FORMULATION, texte, perl = TRUE)[[1]]
+  m <- gregexpr(vers_utf8(RX_FORMULATION), texte, perl = TRUE)[[1]]
   if (m[1L] == -1L)
     return(data.frame(ligne = integer(0), ligne_fin = integer(0), pos = integer(0), formulation = character(0),
                       extrait = character(0), stringsAsFactors = FALSE))
@@ -721,13 +833,14 @@ inventaire_decomptes <- function(lignes) {
 # registre DECOMPTES (v : sortie de verifier_decomptes(), colonne pos_cap) --
 # un nombre non capture situe dans l'etendue d'une phrase du registre n'est
 # pas verifie (audit de #75, C3) --, sinon "exemptee" si elle commence
-# dans l'etendue d'une occurrence du contexte d'une exemption, sinon
+# dans l'etendue d'une occurrence du contexte d'une exemption, ou si une
+# garde de contexte la couvre (GARDES_DECOMPTES, "N lignes" seulement), sinon
 # "NON CLASSEE" (ecart). Renvoie une liste :
 #   formulations  inventaire complete des colonnes statut et par (id de la
 #                 phrase du registre ou de l'exemption) ;
 #   perimees      data.frame (id, contexte) des exemptions qui n'exemptent
 #                 aucune formulation (ecarts).
-classer_formulations <- function(lignes, v, exemptions = EXEMPTES_DECOMPTES) {
+classer_formulations <- function(lignes, v, exemptions = EXEMPTES_DECOMPTES, gardes = GARDES_DECOMPTES) {
   inv <- inventaire_decomptes(lignes)
   texte <- paste(normaliser_ligne(lignes), collapse = "\n")
   statut <- rep("NON CLASSEE", nrow(inv)); par <- rep(NA_character_, nrow(inv))
@@ -740,12 +853,18 @@ classer_formulations <- function(lignes, v, exemptions = EXEMPTES_DECOMPTES) {
   utilisee <- logical(length(exemptions))
   for (j in seq_along(exemptions)) {
     e <- exemptions[[j]]
-    m <- gregexpr(gsub(" ", "\\s+", e$contexte, fixed = TRUE), texte, perl = TRUE, ignore.case = TRUE)[[1]]
+    m <- gregexpr(vers_utf8(gsub(" ", "\\s+", e$contexte, fixed = TRUE)), texte, perl = TRUE, ignore.case = TRUE)[[1]]
     if (m[1L] == -1L) next
     for (d in seq_along(m)) {
       k <- which(statut == "NON CLASSEE" & inv$pos >= m[d] & inv$pos <= m[d] + attr(m, "match.length")[d] - 1L)
       if (length(k)) { statut[k] <- "exemptee"; par[k] <- e$id; utilisee[j] <- TRUE }
     }
+  }
+  for (g in if (nrow(inv)) gardes) {
+    k <- which(statut == "NON CLASSEE" & grepl("lignes$", inv$formulation) &
+                 grepl(vers_utf8(g$avant), substring(texte, pmax(1L, inv$pos - 40L), inv$pos - 1L),
+                       perl = TRUE, ignore.case = TRUE))
+    statut[k] <- "exemptee"; par[k] <- g$id
   }
   inv$statut <- statut; inv$par <- par
   list(formulations = inv,
@@ -772,8 +891,8 @@ familles_produites <- function(o) {
 # Cles de la colonne "Cle MC" (derniere colonne) du longtable dont l'en-tete
 # porte \textbf{Cle MC} (e accent aigu, ecrit par l'echappement unicode 00E9 dans le code pour ne
 # pas dependre de la locale de lecture du script), avec la methode de leur
-# section : "MW" sous un
-# intertitre \multicolumn qui contient "Merz", "USP" sous tout autre
+# section : "MW" sous un intertitre (rangee qui commence par \multicolumn,
+# RX_INTERTITRE, issue #121) qui contient "Merz", "USP" sous tout autre
 # intertitre, NA avant le premier. Seules les lignes apres \endlastfoot sont
 # lues (les en-tetes repetes du longtable ne portent pas de cle). Une ligne
 # du tableau se termine par \\, \\* ou \\[espacement] ; les cellules sont
@@ -787,10 +906,14 @@ familles_produites <- function(o) {
 # methode est verifiee, pas la correspondance cle <-> test de la ligne. Une
 # cle commune aux deux catalogues (DW, Grubbs, BP, Runs) ou une cle du bon
 # catalogue portee par la mauvaise ligne n'est pas detectee.
+# Intertitre d'un longtable : rangee qui COMMENCE par \multicolumn, filets
+# eventuels en tete (issue #121). Une rangee qui porte \multicolumn hors de
+# sa premiere cellule est une rangee de donnees.
+RX_INTERTITRE <- "^\\s*(?:\\\\(?:midrule|toprule|bottomrule|hline)\\s*)*\\\\multicolumn(?![A-Za-z])"
 FIN_RANGEE <- "\\\\\\\\\\*?(\\[[^]]*\\])?\\s*$"
 cles_mc_index <- function(lignes) {
   lignes <- retirer_commentaires(lignes)
-  deb <- grep("\\textbf{Cl\u00e9 MC}", lignes, fixed = TRUE)[1L]
+  deb <- grep(vers_utf8("\\textbf{Cl\u00e9 MC}"), lignes, fixed = TRUE)[1L]
   if (is.na(deb)) return(NULL)
   fin <- grep("\\end{longtable}", lignes, fixed = TRUE)
   fin <- fin[fin > deb][1L]
@@ -806,7 +929,7 @@ cles_mc_index <- function(lignes) {
     tampon <- c(tampon, l)
     if (!grepl(FIN_RANGEE, l, perl = TRUE)) next
     rangee <- paste(tampon, collapse = "\n"); tampon <- character(0)
-    if (grepl("\\multicolumn", rangee, fixed = TRUE)) {
+    if (grepl(RX_INTERTITRE, rangee, perl = TRUE)) {
       methode <- if (grepl("Merz", rangee, fixed = TRUE)) "MW" else "USP"
       next
     }
@@ -853,10 +976,14 @@ verifier_cles_mc <- function(cles, catalogues) {
 # exact des lignes du moteur rattachees a la fiche ; hors_jeux : NULL, ou
 # motif ecrit pour une fiche dont aucune ligne n'est de type test ou
 # procedure sur les jeux executes par le script (le type n'y est atteint
-# qu'a d'autres T). Le registre est confronte au moteur par
-# verifier_registre_rubrique7().
+# qu'a d'autres T) ; t_positif : pour une entree hors_jeux, la taille T du
+# jeu synthetique (jeu_synthetique()) sur lequel la ligne doit etre de type
+# test ou procedure (verification positive, issue #121). Le registre est
+# confronte au moteur par verifier_registre_rubrique7() (jeux a T = 8) et
+# verifier_hors_jeux_positifs() (jeux synthetiques).
 MOTIF_COX_STUART_T8 <- paste("inoperant pour T <= 9 (regle R1, p_min = 0,125 a T = 8) : ligne de type test",
-                             "a partir de T = 10 seulement, hors des jeux executes (T = 8)")
+                             "au plus tot a T = 10 (p_min = 0,0625 < 0,10 sans ex aequo ; avec ex aequo,",
+                             "m < n_p et la ligne peut rester inoperante), hors des jeux executes (T = 8)")
 MOTIF_ANSCOMBE_T8 <- paste("ligne non applicable pour T < 20 : type test a partir de T = 20 seulement,",
                            "hors des jeux executes (T = 8)")
 REGISTRE_RUBRIQUE7 <- list(
@@ -868,7 +995,8 @@ REGISTRE_RUBRIQUE7 <- list(
   list(label = "fiche:reset", tests = "RESET (forme fonctionnelle)"),
   list(label = "fiche:spearman", tests = c("Independance ratio S/P vs volume", "Correlation ratio S/P vs temps")),
   list(label = "fiche:mann-kendall", tests = "Tendance monotone du ratio S/P"),
-  list(label = "fiche:cox-stuart", tests = "Tendance par signes du ratio S/P", hors_jeux = MOTIF_COX_STUART_T8),
+  list(label = "fiche:cox-stuart", tests = "Tendance par signes du ratio S/P", hors_jeux = MOTIF_COX_STUART_T8,
+       t_positif = 10L),
   list(label = "fiche:breusch-pagan-koenker",
        tests = "Heteroscedasticite vs volume - Breusch-Pagan studentise (Koenker)"),
   list(label = "fiche:breusch-pagan-1979",
@@ -888,7 +1016,7 @@ REGISTRE_RUBRIQUE7 <- list(
   list(label = "fiche:jarque-bera", tests = "Jarque-Bera"),
   list(label = "fiche:dagostino-asymetrie", tests = "Asymetrie (D'Agostino, T >= 8)"),
   list(label = "fiche:anscombe-glynn-aplatissement", tests = "Aplatissement (Anscombe-Glynn, T >= 20)",
-       hors_jeux = MOTIF_ANSCOMBE_T8),
+       hors_jeux = MOTIF_ANSCOMBE_T8, t_positif = 20L),
   list(label = "fiche:durbin-watson", tests = "Autocorrelation d'ordre 1 (Durbin-Watson)"),
   list(label = "fiche:ljung-box", tests = c("Ljung-Box (retard 1)", "Ljung-Box (retard 2)", "Box-Pierce (retard 2)")),
   list(label = "fiche:suites-wald-wolfowitz", tests = "Test des suites (aleatoire des signes)"),
@@ -1033,11 +1161,54 @@ verifier_registre_rubrique7 <- function(lignes_moteur, registre = REGISTRE_RUBRI
   do.call(rbind, e)
 }
 
+# Verification positive des declarations hors_jeux (issue #121).
+# lignes_synth : data.frame (T, test, type) des lignes de res$tests des
+# executions sur les jeux synthetiques (jeu_synthetique()). Ecarts : entree
+# hors_jeux sans t_positif ; t_positif sans hors_jeux ; entree hors_jeux
+# dont aucune ligne n'est de type test ou procedure de decision sur le jeu
+# synthetique de taille t_positif (ou dont ce jeu n'a pas ete execute).
+# Renvoie un data.frame (label, test, motif).
+verifier_hors_jeux_positifs <- function(lignes_synth, registre = REGISTRE_RUBRIQUE7) {
+  e <- list()
+  ajoute <- function(label, test, motif)
+    e[[length(e) + 1L]] <<- data.frame(label = label, test = test, motif = motif, stringsAsFactors = FALSE)
+  for (r in registre) {
+    tst <- paste(r$tests, collapse = " ; ")
+    if (is.null(r$hors_jeux)) {
+      if (!is.null(r$t_positif)) ajoute(r$label, tst, "t_positif declare sans hors_jeux")
+      next
+    }
+    if (is.null(r$t_positif)) { ajoute(r$label, tst, "declaration hors_jeux sans t_positif (aucune verification positive)"); next }
+    sur_t <- lignes_synth[lignes_synth$T %in% r$t_positif, , drop = FALSE]
+    if (!nrow(sur_t))
+      ajoute(r$label, tst, sprintf("declaration hors_jeux non verifiee : jeu synthetique T = %d non execute", r$t_positif))
+    else if (!any(sur_t$test %in% r$tests & sur_t$type %in% TYPES_RUBRIQUE7))
+      ajoute(r$label, tst, sprintf(paste("declaration hors_jeux infirmee : aucune ligne de type test ou procedure",
+                                         "de decision sur le jeu synthetique T = %d"), r$t_positif))
+  }
+  if (!length(e)) return(data.frame(label = character(0), test = character(0), motif = character(0),
+                                    stringsAsFactors = FALSE))
+  do.call(rbind, e)
+}
+
+# Jeu lognormal synthetique de taille T (issue #121), deterministe (aucun
+# tirage) : volumes x_t = 100 + 10 (t - 1) croissants, pertes
+# y_t = x_t exp(0,1 sin(1,7 t) - 0,3). Ratios y_t / x_t deux a deux
+# distincts, donc sans difference nulle pour Cox-Stuart (m = n_p). Sert a la
+# seule verification positive des declarations hors_jeux.
+jeu_synthetique <- function(T) {
+  t <- seq_len(T); x <- 100 + 10 * (t - 1)
+  list(x = x, y = x * exp(0.1 * sin(1.7 * t) - 0.3))
+}
+
 # Tableau de tracabilite de la rubrique 7 (\label{tab:tracabilite-puissance},
 # puis premier \end{longtable}) : une rangee par fiche, dont la premiere
 # cellule se termine par (\ref{label}). Seules les rangees apres
-# \endlastfoot sont lues ; les intertitres \multicolumn et les filets sont
-# ignores ; fin de rangee : FIN_RANGEE. Renvoie NULL si le tableau est
+# \endlastfoot sont lues ; les intertitres (rangees qui COMMENCENT par
+# \multicolumn, filets eventuels en tete) et les filets sont ignores ; une
+# rangee qui porte \multicolumn hors de sa premiere cellule est lue comme
+# une rangee ordinaire, et signalee non reconnue si sa premiere cellule n'a
+# pas la forme attendue (issue #121) ; fin de rangee : FIN_RANGEE. Renvoie NULL si le tableau est
 # introuvable, sinon un data.frame (ligne, label), avec les attributs
 # non_reconnues (lignes des rangees dont la premiere cellule n'a pas cette
 # forme) et non_terminee (ligne de debut d'une rangee non terminee, NA sinon).
@@ -1058,7 +1229,7 @@ lignes_tracabilite <- function(lignes) {
     tampon <- c(tampon, x)
     if (!grepl(FIN_RANGEE, x, perl = TRUE)) next
     rangee <- paste(tampon, collapse = "\n"); tampon <- character(0)
-    if (grepl("\\multicolumn", rangee, fixed = TRUE)) next
+    if (grepl(RX_INTERTITRE, rangee, perl = TRUE)) next
     esp <- regexpr("(?<!\\\\)&", rangee, perl = TRUE)
     cell <- if (esp > 0L) substr(rangee, 1L, esp - 1L) else rangee
     m <- regmatches(cell, regexec(RX_PREMIERE_CELLULE, cell, perl = TRUE))[[1]]
@@ -1205,6 +1376,23 @@ valider_B <- function(x) {
 }
 
 # ---------------------------------------------------------------------------
+#  Sortie console
+# ---------------------------------------------------------------------------
+
+# Ecrit sur la sortie standard les octets UTF-8 des chaines, sans traduction
+# vers la locale (issue #113, comme ecrire_console() de
+# tests/regenerer_et_rendre_compte.R, issue #82) : sous une locale C/POSIX,
+# cat() ecrirait "entr<U+00E9>es" pour "entrees" accentue ; la sortie est
+# ainsi la meme sous toute locale. Les arguments sont concatenes sans
+# separateur.
+ecrire <- function(...) writeLines(vers_utf8(paste0(...)), sep = "", useBytes = TRUE)
+
+# Tri independant de la locale (issue #113) : ordre alphabetique sans
+# distinction de casse, puis octets ; sort() et table() suivraient l'ordre de
+# collation de la locale, qui differe entre C et C.UTF-8.
+ordre_stable <- function(x) order(tolower(x), x, method = "radix")
+
+# ---------------------------------------------------------------------------
 #  Programme principal
 # ---------------------------------------------------------------------------
 
@@ -1243,7 +1431,7 @@ if (sys.nframe() == 0L) {
   cit <- citations_fonctions(extraire_codes(tex))
   noms <- unique(cit$nom)
   statuts <- statuts_citations(noms, env = env, paquets = paquets, defs = defs)
-  cat(sprintf("=== 1. Fonctions citees par \\code{nom()} : %d citation(s), %d nom(s) distinct(s)\n",
+  ecrire(sprintf("=== 1. Fonctions citees par \\code{nom()} : %d citation(s), %d nom(s) distinct(s)\n",
               nrow(cit), length(noms)))
   # Recapitulatif par nom distinct, APRES exemptions : un nom introuvable
   # dont toutes les citations sont exemptees est compte comme exempte ; un
@@ -1252,30 +1440,30 @@ if (sys.nframe() == 0L) {
   recap <- sub(" \\(.*$", "", statuts)
   recap[statuts == "INTROUVABLE"] <- "exempte (EXEMPTES_CODE)"
   recap[names(statuts) %in% ex$ecarts$nom] <- "INTROUVABLE non exempte"
-  tab <- table(recap)
-  for (s in names(tab)) cat(sprintf("  %-26s %d\n", s, tab[[s]]))
+  tab <- table(recap); tab <- tab[ordre_stable(names(tab))]
+  for (s in names(tab)) ecrire(sprintf("  %-26s %d\n", s, tab[[s]]))
   autres <- noms[!statuts %in% c("moteur ou affichage", "INTROUVABLE")]
   if (length(autres)) {
-    cat("  Hors moteur et affichage (pour information) :\n")
-    for (n in autres) cat(sprintf("    %-32s %s\n", n, statuts[[n]]))
+    ecrire("  Hors moteur et affichage (pour information) :\n")
+    for (n in autres) ecrire(sprintf("    %-32s %s\n", n, statuts[[n]]))
   }
   if (nrow(ex$exemptees)) {
-    cat(sprintf("  Exemptees nommement (EXEMPTES_CODE, %d citation(s), pas des ecarts) :\n", nrow(ex$exemptees)))
+    ecrire(sprintf("  Exemptees nommement (EXEMPTES_CODE, %d citation(s), pas des ecarts) :\n", nrow(ex$exemptees)))
     for (i in seq_len(nrow(ex$exemptees)))
-      cat(sprintf("    %-32s ligne %-5d %s\n", paste0(ex$exemptees$nom[i], "()"), ex$exemptees$ligne[i],
+      ecrire(sprintf("    %-32s ligne %-5d %s\n", paste0(ex$exemptees$nom[i], "()"), ex$exemptees$ligne[i],
                   ex$exemptees$motif[i]))
   }
   n_ecarts <- n_ecarts + nrow(ex$ecarts) + nrow(ex$perimees)
   if (nrow(ex$ecarts)) {
-    cat(sprintf("  ECART -- %d nom(s) introuvable(s) non exempte(s) :\n", nrow(ex$ecarts)))
+    ecrire(sprintf("  ECART -- %d nom(s) introuvable(s) non exempte(s) :\n", nrow(ex$ecarts)))
     for (i in seq_len(nrow(ex$ecarts)))
-      cat(sprintf("    %-32s ligne(s) %s\n", paste0(ex$ecarts$nom[i], "()"), ex$ecarts$lignes[i]))
+      ecrire(sprintf("    %-32s ligne(s) %s\n", paste0(ex$ecarts$nom[i], "()"), ex$ecarts$lignes[i]))
   }
   if (nrow(ex$perimees)) {
-    cat(sprintf("  ECART -- %d exemption(s) perimee(s) (aucune citation introuvable ne lui correspond) :\n",
+    ecrire(sprintf("  ECART -- %d exemption(s) perimee(s) (aucune citation introuvable ne lui correspond) :\n",
                 nrow(ex$perimees)))
     for (i in seq_len(nrow(ex$perimees)))
-      cat(sprintf("    %-32s contexte \"%s\"\n", paste0(ex$perimees$nom[i], "()"), ex$perimees$contexte[i]))
+      ecrire(sprintf("    %-32s contexte \"%s\"\n", paste0(ex$perimees$nom[i], "()"), ex$perimees$contexte[i]))
   }
 
   # 2. Decomptes
@@ -1315,44 +1503,44 @@ if (sys.nframe() == 0L) {
   grandeurs <- c(lapply(resultats, function(r) grandeurs_moteur(r$tests, r$controles)),
                  lapply(resultats_vc, function(r) grandeurs_moteur(r$tests, r$controles)),
                  list(code = grandeurs_code(env)))
-  cat(sprintf("\n=== 2. Decomptes (moteur execute sur tests/donnees/, B = %d)\n", B))
+  ecrire(sprintf("\n=== 2. Decomptes (moteur execute sur tests/donnees/, B = %d)\n", B))
   for (m in names(resultats))
-    cat(sprintf("  %-9s %d lignes de tests ; familles : %s\n", m, grandeurs[[m]][["lignes (total)"]],
+    ecrire(sprintf("  %-9s %d lignes de tests ; familles : %s\n", m, grandeurs[[m]][["lignes (total)"]],
                 paste(sprintf("%s=%d", sub("famille ", "", grep("^famille [^ ]+$", names(grandeurs[[m]]), value = TRUE)),
                               grandeurs[[m]][grep("^famille [^ ]+$", names(grandeurs[[m]]))]), collapse = " ")))
   v <- verifier_decomptes(tex, grandeurs)
-  cat("  a) Phrases du registre DECOMPTES (verifiees) :\n")
+  ecrire("  a) Phrases du registre DECOMPTES (verifiees) :\n")
   for (i in seq_len(nrow(v)))
-    cat(sprintf("    [%-11s] l.%-5s %-60s %-28s annonce %-4s mesure %s\n", v$statut[i],
+    ecrire(sprintf("    [%-11s] l.%-5s %-60s %-28s annonce %-4s mesure %s\n", v$statut[i],
                 ifelse(is.na(v$ligne[i]), "?", v$ligne[i]), substr(v$assertion[i], 1, 60), v$grandeur[i],
                 ifelse(is.na(v$annonce[i]), "-", format(v$annonce[i])),
                 ifelse(is.na(v$mesure[i]), "-", format(v$mesure[i]))))
   n_ecarts <- n_ecarts + sum(v$statut != "ok")
   cl <- classer_formulations(tex, v)
   fo <- cl$formulations
-  cat(sprintf(paste0("  b) Formulations \"N lignes\" / \"N entrees\" / \"N tests\" du document : %d ",
+  ecrire(sprintf(paste0("  b) Formulations \"N lignes\" / \"N entrees\" / \"N tests\" du document : %d ",
                      "(verifiees par le registre %d, exemptees %d, NON CLASSEES %d)\n"),
               nrow(fo), sum(fo$statut == "verifiee"), sum(fo$statut == "exemptee"), sum(fo$statut == "NON CLASSEE")))
   ex_f <- fo[fo$statut == "exemptee", , drop = FALSE]
   if (nrow(ex_f)) {
-    cat("    Exemptees nommement (EXEMPTES_DECOMPTES, pas des ecarts) :\n")
-    motifs <- setNames(vapply(EXEMPTES_DECOMPTES, `[[`, character(1), "motif"),
-                       vapply(EXEMPTES_DECOMPTES, `[[`, character(1), "id"))
+    ecrire("    Exemptees (nommement : EXEMPTES_DECOMPTES ; par garde de contexte : GARDES_DECOMPTES ; pas des ecarts) :\n")
+    motifs <- setNames(vapply(c(EXEMPTES_DECOMPTES, GARDES_DECOMPTES), `[[`, character(1), "motif"),
+                       vapply(c(EXEMPTES_DECOMPTES, GARDES_DECOMPTES), `[[`, character(1), "id"))
     for (i in seq_len(nrow(ex_f)))
-      cat(sprintf("      l.%-5d %-18s [%s] %s\n", ex_f$ligne[i], ex_f$formulation[i], ex_f$par[i], motifs[[ex_f$par[i]]]))
+      ecrire(sprintf("      l.%-5d %-18s [%s] %s\n", ex_f$ligne[i], ex_f$formulation[i], ex_f$par[i], motifs[[ex_f$par[i]]]))
   }
   nc <- fo[fo$statut == "NON CLASSEE", , drop = FALSE]
   n_ecarts <- n_ecarts + nrow(nc) + nrow(cl$perimees)
   if (nrow(nc)) {
-    cat(sprintf("  ECART -- %d formulation(s) ni verifiee(s) par le registre DECOMPTES ni exemptee(s) (EXEMPTES_DECOMPTES) :\n",
+    ecrire(sprintf("  ECART -- %d formulation(s) ni verifiee(s) par le registre DECOMPTES ni exemptee(s) (EXEMPTES_DECOMPTES) :\n",
                 nrow(nc)))
-    for (i in seq_len(nrow(nc))) cat(sprintf("    l.%-5d %-18s %s\n", nc$ligne[i], nc$formulation[i], nc$extrait[i]))
+    for (i in seq_len(nrow(nc))) ecrire(sprintf("    l.%-5d %-18s %s\n", nc$ligne[i], nc$formulation[i], nc$extrait[i]))
   }
   if (nrow(cl$perimees)) {
-    cat(sprintf("  ECART -- %d exemption(s) de decompte perimee(s) (aucune formulation ne lui correspond) :\n",
+    ecrire(sprintf("  ECART -- %d exemption(s) de decompte perimee(s) (aucune formulation ne lui correspond) :\n",
                 nrow(cl$perimees)))
     for (i in seq_len(nrow(cl$perimees)))
-      cat(sprintf("    %-50s contexte \"%s\"\n", cl$perimees$id[i], cl$perimees$contexte[i]))
+      ecrire(sprintf("    %-50s contexte \"%s\"\n", cl$perimees$id[i], cl$perimees$contexte[i]))
   }
 
   # 3. Familles. GROUPES regroupe les lignes de res$tests (groupe_de() de
@@ -1363,20 +1551,20 @@ if (sys.nframe() == 0L) {
   pref <- unique(substr(fam, 1L, 2L))
   fam_aut <- unique(unlist(lapply(resultats, function(r) familles_produites(r[setdiff(names(r), "tests")]))))
   non_decl <- setdiff(pref, names(env$GROUPES))
-  cat(sprintf("\n=== 3. Prefixes de famille produits dans res$tests : %s ; declares dans GROUPES : %s\n",
-              paste(sort(pref), collapse = " "), paste(names(env$GROUPES), collapse = " ")))
+  ecrire(sprintf("\n=== 3. Prefixes de famille produits dans res$tests : %s ; declares dans GROUPES : %s\n",
+              paste(pref[ordre_stable(pref)], collapse = " "), paste(names(env$GROUPES), collapse = " ")))
   hors <- setdiff(unique(substr(fam_aut, 1L, 2L)), names(env$GROUPES))
   if (length(hors))
-    cat("  (information) famille(s) hors res$tests, non regroupees par GROUPES :",
-        paste(fam_aut[substr(fam_aut, 1L, 2L) %in% hors], collapse = " ; "), "\n")
+    ecrire("  (information) famille(s) hors res$tests, non regroupees par GROUPES : ",
+           paste(fam_aut[substr(fam_aut, 1L, 2L) %in% hors], collapse = " ; "), " \n")
   if (length(non_decl)) {
     n_ecarts <- n_ecarts + length(non_decl)
-    cat("  ECART -- prefixe(s) non declare(s) dans GROUPES :\n")
-    for (p in non_decl) cat(sprintf("    \"%s\" : %s\n", p, paste(fam[substr(fam, 1L, 2L) == p], collapse = " ; ")))
+    ecrire("  ECART -- prefixe(s) non declare(s) dans GROUPES :\n")
+    for (p in non_decl) ecrire(sprintf("    \"%s\" : %s\n", p, paste(fam[substr(fam, 1L, 2L) == p], collapse = " ; ")))
   }
   inutilises <- setdiff(names(env$GROUPES), pref)
-  if (length(inutilises)) cat("  (information) cle(s) de GROUPES non produites sur ces jeux :",
-                              paste(inutilises, collapse = " "), "\n")
+  if (length(inutilises)) ecrire("  (information) cle(s) de GROUPES non produites sur ces jeux : ",
+                                 paste(inutilises, collapse = " "), " \n")
 
   # 4. Colonne "Cle MC" de l'index des fonctions (issue #91) : chaque cle
   # appartient au catalogue de la methode de sa section.
@@ -1384,29 +1572,29 @@ if (sys.nframe() == 0L) {
   cles <- cles_mc_index(tex)
   if (is.null(cles)) {
     n_ecarts <- n_ecarts + 1L
-    cat("\n=== 4. Colonne \"Cle MC\" de l'index des fonctions\n  ECART -- tableau introuvable (en-tete \\textbf{Cl\u00e9 MC} et \\endlastfoot attendus)\n")
+    ecrire("\n=== 4. Colonne \"Cle MC\" de l'index des fonctions\n  ECART -- tableau introuvable (en-tete \\textbf{Cl\u00e9 MC} et \\endlastfoot attendus)\n")
   } else {
     e_mc <- verifier_cles_mc(cles, catalogues)
-    cat(sprintf("\n=== 4. Colonne \"Cle MC\" de l'index des fonctions : %d cle(s) (USP %d, MW %d)\n",
+    ecrire(sprintf("\n=== 4. Colonne \"Cle MC\" de l'index des fonctions : %d cle(s) (USP %d, MW %d)\n",
                 nrow(cles), sum(cles$methode %in% "USP"), sum(cles$methode %in% "MW")))
     if (!nrow(cles)) {
       n_ecarts <- n_ecarts + 1L
-      cat("  ECART -- tableau trouve mais aucune cle lue (colonne vide ou fins de rangee non reconnues)\n")
+      ecrire("  ECART -- tableau trouve mais aucune cle lue (colonne vide ou fins de rangee non reconnues)\n")
     }
     nt <- attr(cles, "non_terminee")
     if (!is.null(nt) && !is.na(nt)) {
       n_ecarts <- n_ecarts + 1L
-      cat(sprintf("  ECART -- rangee commencee l.%d non terminee (\\\\, \\\\* ou \\\\[...]) avant \\end{longtable} : ses cles ne sont pas lues\n", nt))
+      ecrire(sprintf("  ECART -- rangee commencee l.%d non terminee (\\\\, \\\\* ou \\\\[...]) avant \\end{longtable} : ses cles ne sont pas lues\n", nt))
     }
     for (m in names(catalogues)) {
       nc <- setdiff(catalogues[[m]], cles$cle[cles$methode %in% m])
-      if (length(nc)) cat(sprintf("  (information) cle(s) du catalogue %s non citee(s) : %s\n", m, paste(nc, collapse = " ")))
+      if (length(nc)) ecrire(sprintf("  (information) cle(s) du catalogue %s non citee(s) : %s\n", m, paste(nc, collapse = " ")))
     }
     n_ecarts <- n_ecarts + nrow(e_mc)
     if (nrow(e_mc)) {
-      cat(sprintf("  ECART -- %d cle(s) hors du catalogue de leur methode :\n", nrow(e_mc)))
+      ecrire(sprintf("  ECART -- %d cle(s) hors du catalogue de leur methode :\n", nrow(e_mc)))
       for (i in seq_len(nrow(e_mc)))
-        cat(sprintf("    l.%-5d %-12s %s\n", e_mc$ligne[i], e_mc$cle[i], e_mc$motif[i]))
+        ecrire(sprintf("    l.%-5d %-12s %s\n", e_mc$ligne[i], e_mc$cle[i], e_mc$motif[i]))
     }
   }
 
@@ -1425,54 +1613,80 @@ if (sys.nframe() == 0L) {
   attendus <- vapply(REGISTRE_RUBRIQUE7, `[[`, character(1), "label")
   tp7 <- unique(lm7$test[lm7$type %in% TYPES_RUBRIQUE7])
   n_hj <- sum(vapply(REGISTRE_RUBRIQUE7, function(r) !is.null(r$hors_jeux), logical(1)))
-  cat(sprintf(paste0("\n=== 5. Rubrique 7 (issue #114) : registre de %d fiche(s) (dont %d hors jeux) ; ",
+  ecrire(sprintf(paste0("\n=== 5. Rubrique 7 (issue #114) : registre de %d fiche(s) (dont %d hors jeux) ; ",
                      "%d ligne(s) distincte(s) de type test ou procedure de decision sur %d execution(s) du moteur\n"),
               length(attendus), n_hj, length(tp7), length(tous)))
   for (r in REGISTRE_RUBRIQUE7) if (!is.null(r$hors_jeux))
-    cat(sprintf("  (information) %s hors jeux : %s\n", r$label, r$hors_jeux))
+    ecrire(sprintf("  (information) %s hors jeux : %s\n", r$label, r$hors_jeux))
   e_reg <- verifier_registre_rubrique7(lm7)
   n_ecarts <- n_ecarts + nrow(e_reg)
   if (nrow(e_reg)) {
-    cat(sprintf("  ECART -- %d ecart(s) du registre REGISTRE_RUBRIQUE7 au moteur :\n", nrow(e_reg)))
+    ecrire(sprintf("  ECART -- %d ecart(s) du registre REGISTRE_RUBRIQUE7 au moteur :\n", nrow(e_reg)))
     for (i in seq_len(nrow(e_reg)))
-      cat(sprintf("    %-34s %s : %s\n", ifelse(is.na(e_reg$label[i]), "-", e_reg$label[i]), e_reg$test[i], e_reg$motif[i]))
+      ecrire(sprintf("    %-34s %s : %s\n", ifelse(is.na(e_reg$label[i]), "-", e_reg$label[i]), e_reg$test[i], e_reg$motif[i]))
+  }
+  # Verification positive des declarations hors_jeux (issue #121) : methode
+  # prime seule, sur un jeu synthetique par valeur de t_positif. Ces
+  # executions ne servent qu'a ce controle (ni registre a T = 8, ni sections
+  # 2 et 3).
+  t_pos <- sort(unique(unlist(lapply(REGISTRE_RUBRIQUE7, `[[`, "t_positif"))))
+  lsy <- do.call(rbind, c(list(data.frame(T = integer(0), test = character(0), type = character(0),
+                                          stringsAsFactors = FALSE)),
+                          lapply(t_pos, function(Tn) {
+    j <- jeu_synthetique(Tn)
+    r <- outils$run_engine(xt = j$x, yt = j$y, methode = "premium", segment = 1, annexe = "II", B = B,
+                           nature_donnees = "brutes")
+    if (!isTRUE(r$ok)) stop(sprintf("run_engine() sur le jeu synthetique T = %d : resultat ok = FALSE", Tn), call. = FALSE)
+    data.frame(T = Tn, test = vapply(r$tests, function(t) as.character(t$test)[1], character(1)),
+               type = vapply(r$tests, function(t) if (is.null(t$type)) NA_character_ else as.character(t$type)[1],
+                             character(1)), stringsAsFactors = FALSE)
+  })))
+  e_hj <- verifier_hors_jeux_positifs(lsy)
+  labels_hj <- vapply(Filter(function(r) !is.null(r$hors_jeux), REGISTRE_RUBRIQUE7), `[[`, character(1), "label")
+  ecrire(sprintf("  Declarations hors_jeux verifiees positivement (prime, jeux synthetiques T = %s) : %d sur %d\n",
+                 paste(t_pos, collapse = ", "), sum(!labels_hj %in% e_hj$label), n_hj))
+  n_ecarts <- n_ecarts + nrow(e_hj)
+  if (nrow(e_hj)) {
+    ecrire(sprintf("  ECART -- %d ecart(s) des declarations hors_jeux :\n", nrow(e_hj)))
+    for (i in seq_len(nrow(e_hj)))
+      ecrire(sprintf("    %-34s %s : %s\n", e_hj$label[i], e_hj$test[i], e_hj$motif[i]))
   }
   fi7 <- fiches_rubrique7(tex)
   labels_r7 <- fi7$label[fi7$n_pertinence > 0L & !is.na(fi7$label)]
-  cat(sprintf("  Fiches du document : %d ; portant la rubrique 7 : %d\n", nrow(fi7), sum(fi7$n_pertinence > 0L)))
+  ecrire(sprintf("  Fiches du document : %d ; portant la rubrique 7 : %d\n", nrow(fi7), sum(fi7$n_pertinence > 0L)))
   e_r7 <- verifier_rubrique7(fi7, attendus)
   n_ecarts <- n_ecarts + nrow(e_r7)
   if (nrow(e_r7)) {
-    cat(sprintf("  ECART -- %d ecart(s) de la rubrique 7 :\n", nrow(e_r7)))
+    ecrire(sprintf("  ECART -- %d ecart(s) de la rubrique 7 :\n", nrow(e_r7)))
     for (i in seq_len(nrow(e_r7)))
-      cat(sprintf("    l.%-5s %-34s %s\n", ifelse(is.na(e_r7$ligne[i]), "?", e_r7$ligne[i]),
+      ecrire(sprintf("    l.%-5s %-34s %s\n", ifelse(is.na(e_r7$ligne[i]), "?", e_r7$ligne[i]),
                   ifelse(is.na(e_r7$label[i]), "-", e_r7$label[i]), e_r7$motif[i]))
   }
   rg <- lignes_tracabilite(tex)
   if (is.null(rg)) {
     n_ecarts <- n_ecarts + 1L
-    cat("  ECART -- tableau de tracabilite introuvable (\\label{tab:tracabilite-puissance}, \\endlastfoot et \\end{longtable} attendus)\n")
+    ecrire("  ECART -- tableau de tracabilite introuvable (\\label{tab:tracabilite-puissance}, \\endlastfoot et \\end{longtable} attendus)\n")
   } else {
     e_tr <- verifier_tracabilite(rg, labels_r7)
-    cat(sprintf("  Tableau de tracabilite : %d rangee(s) de fiche\n", nrow(rg)))
+    ecrire(sprintf("  Tableau de tracabilite : %d rangee(s) de fiche\n", nrow(rg)))
     n_ecarts <- n_ecarts + nrow(e_tr)
     if (nrow(e_tr)) {
-      cat(sprintf("  ECART -- %d ecart(s) du tableau de tracabilite :\n", nrow(e_tr)))
+      ecrire(sprintf("  ECART -- %d ecart(s) du tableau de tracabilite :\n", nrow(e_tr)))
       for (i in seq_len(nrow(e_tr)))
-        cat(sprintf("    l.%-5s %-34s %s\n", ifelse(is.na(e_tr$ligne[i]), "?", e_tr$ligne[i]),
+        ecrire(sprintf("    l.%-5s %-34s %s\n", ifelse(is.na(e_tr$ligne[i]), "?", e_tr$ligne[i]),
                     ifelse(is.na(e_tr$label[i]), "-", e_tr$label[i]), e_tr$motif[i]))
     }
     ch <- chemins_tracabilite(tex)
     manq <- verifier_chemins(ch, RACINE)
-    cat(sprintf("  Chemins de fichier cites dans la sous-section : %d (%d distinct(s))\n", nrow(ch), length(unique(ch$chemin))))
+    ecrire(sprintf("  Chemins de fichier cites dans la sous-section : %d (%d distinct(s))\n", nrow(ch), length(unique(ch$chemin))))
     n_ecarts <- n_ecarts + nrow(manq)
     if (nrow(manq)) {
-      cat(sprintf("  ECART -- %d chemin(s) cite(s) inexistant(s) dans le depot :\n", nrow(manq)))
-      for (i in seq_len(nrow(manq))) cat(sprintf("    l.%-5d %s\n", manq$ligne[i], manq$chemin[i]))
+      ecrire(sprintf("  ECART -- %d chemin(s) cite(s) inexistant(s) dans le depot :\n", nrow(manq)))
+      for (i in seq_len(nrow(manq))) ecrire(sprintf("    l.%-5d %s\n", manq$ligne[i], manq$chemin[i]))
     }
   }
 
-  cat(sprintf("\nBILAN : %d ecart(s)%s ; formulations de decompte : %d verifiee(s), %d exemptee(s), %d non classee(s)\n",
+  ecrire(sprintf("\nBILAN : %d ecart(s)%s ; formulations de decompte : %d verifiee(s), %d exemptee(s), %d non classee(s)\n",
               n_ecarts, if (strict) " (mode strict)" else " (mode rapport : code de sortie 0)",
               sum(fo$statut == "verifiee"), sum(fo$statut == "exemptee"), sum(fo$statut == "NON CLASSEE")))
   if (strict && n_ecarts) quit(status = 1)
