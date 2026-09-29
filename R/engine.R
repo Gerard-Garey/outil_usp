@@ -209,6 +209,63 @@ B_MIN_USAGE <- 99
 # differente une saisie egale a la table.
 TOLERANCE_CONFORME_SIGMA <- 1e-12
 
+# --- Ex aequo des tests de rang et de signe (issue #112) ---------------------
+# SEULE definition de l'ex aequo du moteur. Deux valeurs a et b sont ex aequo si
+#     |a - b| <= TOL_EX_AEQUO * max(plancher, |a|, |b|),
+# en deux regimes :
+#   - plancher = 1 (defaut, celui de engine_p_mc()) pour r_t, z_t, u_t et les
+#     residus de Mack : absolu a 1e-12 pour ces grandeurs d'ordre 1 (a z_t
+#     voisin de 0, une tolerance purement relative serait denuee de sens) ;
+#   - plancher = 0 pour les volumes x_t (.usp_aplatir_volumes()) : tolerance
+#     purement relative, invariante d'unite (#110).
+# Perimetre : les tests de rang et de signe de la branche lognormale
+# (Cox-Stuart, Spearman ratio / volume et ratio / temps, Mann-Kendall,
+# Smirnov sur z), le test des suites (Runs, Runsr et suites des residus de
+# Mack), a l'observe comme dans les replications des catalogues Monte-Carlo,
+# et .usp_nb_volumes_distincts() (#110).
+# Restent a egalite EXACTE : les correlations de rang de Merz-Wuthrich
+# (mw_test_homogeneite_f(), mw_stat_correlation_dev(),
+# mw_test_exposant_variance()) et le classement L / S par la mediane de
+# mw_test_annees_calendaires() (issue #152) ; sur x brut (un volume est
+# saisi, non calcule) : la partition x > median(x) de Smirnov, de
+# test_brown_forsythe() et de engine_plots_data(), et le tri par volume de
+# test_goldfeld_quandt(). Valeur (note d'actuary
+# du 28/09/2026 sur #112, decision du mainteneur) : le bruit d'arrondi de
+# y_t / x_t est de l'ordre de 1e-16 relatif, celui de z_t de 1e-15 absolu ;
+# deux ratios distincts de saisies a au plus six chiffres significatifs
+# different d'au moins 1e-12 en relatif.
+# Aplatissement INTERNE aux tests de rang et de signe : chaque point d'entree
+# aplatit ses propres arguments ; ni les donnees, ni usp_noyau(), ni les
+# autres statistiques (AD, SW, DW, Grubbs, regressions auxiliaires...) ne
+# sont aplaties. Apres aplatissement, deux valeurs sont ex aequo si et
+# seulement si elles sont egales au bit pres : anyDuplicated(), table(),
+# d != 0, sign(z - median(z)), cor.test() et ks.test() suivent alors tous la
+# meme definition.
+TOL_EX_AEQUO <- 1e-12
+# Aplatit les ex aequo a la tolerance : la relation est fermee par chainage des
+# valeurs triees adjacentes (groupes = plages maximales dont chaque ecart
+# adjacent est sous la tolerance, definition deterministe malgre la
+# non-transitivite d'une tolerance) ; chaque groupe recoit sa plus petite
+# valeur. Ordre d'origine conserve. Entrees non finies : erreur.
+# plancher : 1 par defaut (grandeurs d'ordre 1), 0 pour les volumes
+# (.usp_aplatir_volumes()) ; aucune division, pas de debordement.
+engine_aplatir_ex_aequo <- function(v, tol = TOL_EX_AEQUO, plancher = 1) {
+  if (!all(is.finite(v))) stop("engine_aplatir_ex_aequo() : valeur non finie")
+  o <- order(v); s <- v[o]; n <- length(s)
+  if (n < 2) return(v)
+  saut <- diff(s) > tol * pmax(plancher, abs(s[-1]), abs(s[-n]))
+  g <- cumsum(c(TRUE, saut))                 # numero de groupe dans l'ordre trie
+  rep_g <- s[!duplicated(g)]                  # plus petite valeur de chaque groupe
+  w <- v; w[o] <- rep_g[g]; w
+}
+# TRUE si v contient au moins un ex aequo a la tolerance.
+engine_ex_aequo <- function(v, tol = TOL_EX_AEQUO, plancher = 1)
+  anyDuplicated(engine_aplatir_ex_aequo(v, tol, plancher)) > 0
+# Volumes x_t : tolerance purement relative (plancher 0), seule fonction
+# d'aplatissement des volumes (.usp_nb_volumes_distincts(), Spearman ratio /
+# volume de usp_tests() et du catalogue SpearVol).
+.usp_aplatir_volumes <- function(x) engine_aplatir_ex_aequo(x, plancher = 0)
+
 usp_credibilite <- function(T, bareme = c("court", "long")) {
   bareme <- match.arg(bareme)
   tab <- if (bareme == "long") CRED_LONG else CRED_COURT
@@ -1241,9 +1298,12 @@ usp_volumes_constants <- function(x, tol = TOL_DELTA_BORD)
 # Nombre de volumes distincts k (issue #110) : les regressions auxiliaires
 # polynomiales de degre 2 en x (RESET {x, x^2, x^3}, White {1, x, x^2}) sont
 # de rang min(k, 3) ; a k < 3, test_reset() et test_white() sont non
-# applicables. Egalite EXACTE a dessein : deux volumes voisins mais distincts
-# comptent pour deux (l'issue #112 y branchera la fonction d'ex aequo).
-.usp_nb_volumes_distincts <- function(x) length(unique(x))
+# applicables. Deux volumes sont confondus s'ils sont ex aequo au sens de la
+# definition partagee (engine_aplatir_ex_aequo(), TOL_EX_AEQUO, issue #112) :
+# volumes egaux a 1e-12 relatif pres comptent pour un. Tolerance purement
+# relative (.usp_aplatir_volumes(), plancher 0) : invariance d'unite de
+# test_reset() et test_white() conservee (#110).
+.usp_nb_volumes_distincts <- function(x) length(unique(.usp_aplatir_volumes(x)))
 
 # Regime de l'ajustement lognormal (issue #31), fonction pure de (delta, x).
 # pi_t = 1 / ln(1 + e^{2 gamma} (delta + (1 - delta) xbar / x_t)) est constant
@@ -1607,7 +1667,10 @@ dw_p_exacte <- function(z) {
 }
 
 # Wald & Wolfowitz (1940), Ann. Math. Statist. 11, 147-162 (test des suites).
+# Ex aequo (#112) : z aplati a TOL_EX_AEQUO, une valeur a la tolerance de la
+# mediane est ecartee comme une valeur egale.
 test_runs <- function(z) {
+  z <- engine_aplatir_ex_aequo(z)
   s <- sign(z - stats::median(z)); s <- s[s != 0]
   n <- length(s); n1 <- sum(s > 0); n2 <- sum(s < 0)
   if (n1 == 0 || n2 == 0) return(list(stat = NA_real_, p = NA_real_, runs = NA))
@@ -1622,7 +1685,11 @@ test_runs <- function(z) {
 # n_p = n - ceiling(n / 2) paires (valeur centrale ecartee si n impair). Les
 # differences nulles sont ecartees : m est le nombre de differences non nulles
 # (m <= n_p) et, sous H0, K ~ Binomiale(m, 1/2) conditionnellement a m (#85).
+# Difference nulle a la tolerance TOL_EX_AEQUO (#112) : v est aplati en tete ;
+# la difference de deux flottants distincts n'etant jamais nulle, d != 0 suit
+# alors exactement la definition partagee de l'ex aequo.
 test_cox_stuart <- function(v) {
+  v <- engine_aplatir_ex_aequo(v)
   n <- length(v); c0 <- ceiling(n / 2)
   d <- v[(c0 + 1):n] - v[1:(n - c0)]
   n_p <- length(d)
@@ -1655,7 +1722,9 @@ test_cox_stuart <- function(v) {
 }
 
 # p-value bilaterale exacte du test de Mann-Kendall (sans ex aequo).
+# Ex aequo a la tolerance TOL_EX_AEQUO (#112) : v aplati en tete.
 mk_p_exacte <- function(v) {
+  v <- engine_aplatir_ex_aequo(v)
   n <- length(v)
   if (anyDuplicated(v) > 0) return(NA_real_)   # loi exacte invalide avec ex aequo
   d <- .mk_loi_exacte(n)
@@ -1696,6 +1765,7 @@ mk_p_exacte <- function(v) {
 # (R = 4, 6), 16/70 (R = 3, 7), 4/70 (R = 2, 8) ; a T = 5 (n1 = n2 = 2) :
 # 2/3 (R = 2, 4), 1 (R = 3).
 runs_p_exacte <- function(z) {
+  z <- engine_aplatir_ex_aequo(z)             # ex aequo a la tolerance (#112)
   sg <- sign(z - stats::median(z)); sg <- sg[sg != 0]
   n1 <- sum(sg > 0); n2 <- sum(sg < 0)
   if (n1 < 1 || n2 < 1) return(NA_real_)
@@ -1729,6 +1799,7 @@ runs_p_min <- function(n1, n2) {
 }
 # Effectifs (n1, n2) de part et d'autre de la mediane, ceux de runs_p_exacte().
 .runs_effectifs <- function(z) {
+  z <- engine_aplatir_ex_aequo(z)             # ex aequo a la tolerance (#112)
   sg <- sign(z - stats::median(z)); sg <- sg[sg != 0]
   c(n1 = sum(sg > 0), n2 = sum(sg < 0))
 }
@@ -1781,14 +1852,19 @@ usp_runsr_p_exacte <- function(z, u, pi_constant) {
   if (!isTRUE(pi_constant) || !.signes_mediane_egaux(z, u)) return(NA_real_)
   runs_p_exacte(u)
 }
-# TRUE si les signes de a - med(a) et de b - med(b) coincident terme a terme.
+# TRUE si les signes de a - med(a) et de b - med(b) coincident terme a terme,
+# a et b aplatis a la tolerance TOL_EX_AEQUO (#112), comme dans test_runs().
 .signes_mediane_egaux <- function(a, b) {
+  a <- engine_aplatir_ex_aequo(a); b <- engine_aplatir_ex_aequo(b)
   length(a) == length(b) &&
     isTRUE(all(sign(a - stats::median(a)) == sign(b - stats::median(b))))
 }
 
 # Mann (1945) / Kendall (1975) - test de tendance monotone.
+# Ex aequo a la tolerance TOL_EX_AEQUO (#112) : v aplati en tete (S et
+# correction de variance table(v)).
 test_mann_kendall <- function(v) {
+  v <- engine_aplatir_ex_aequo(v)
   n <- length(v)
   S <- sum(vapply(1:(n - 1), function(i) sum(sign(v[(i + 1):n] - v[i])), numeric(1)))
   ties <- table(v); tt <- sum(ties * (ties - 1) * (2 * ties + 5))
@@ -2329,7 +2405,11 @@ USP_CATALOGUE_MC <- list(
     if (e$T >= 8 && !usp_volumes_constants(e$x)) {
       g <- e$x > stats::median(e$x)
       if (sum(g) >= 3 && sum(!g) >= 3)
-        sm <- unname(suppressWarnings(stats::ks.test(e$z[g], e$z[!g])$statistic))
+        # z aplati a TOL_EX_AEQUO (#112), comme dans usp_tests()
+        sm <- local({
+          za <- engine_aplatir_ex_aequo(e$z)
+          unname(suppressWarnings(stats::ks.test(za[g], za[!g])$statistic))
+        })
     }
     sm
   }, "haut"),
@@ -2346,13 +2426,17 @@ USP_CATALOGUE_MC <- list(
   # fonction affine decroissante de rho_s : la region bilaterale est la meme
   # (mesure du 24/09/2026 sur les trois cas lognormaux de reference : p_mc
   # identiques au bit pres a celles calculees sur rho_s ; issue #41).
+  # r et x aplatis a TOL_EX_AEQUO avant cor.test() (#112), comme dans
+  # usp_tests() ; x en tolerance purement relative (.usp_aplatir_volumes()).
   SpearVol = .mc_entree(function(e)
     if (!usp_volumes_constants(e$x))
-      suppressWarnings(unname(stats::cor.test(e$r, e$x, method = "spearman",
+      suppressWarnings(unname(stats::cor.test(engine_aplatir_ex_aequo(e$r),
+                                              .usp_aplatir_volumes(e$x),
+                                              method = "spearman",
                                               exact = FALSE)$statistic)) else NA_real_,
     "deux"),
   SpearTps = .mc_entree(function(e)
-    suppressWarnings(unname(stats::cor.test(e$r, seq_along(e$r),
+    suppressWarnings(unname(stats::cor.test(engine_aplatir_ex_aequo(e$r), seq_along(e$r),
                                             method = "spearman", exact = FALSE)$statistic)),
     "deux"),
   DAgo   = .mc_entree(function(e) test_dagostino_skew(e$z)$stat, "deux"),
@@ -3092,6 +3176,13 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # conditionnelle n'est pas tabulee : ni p_min ni p exacte (#70, regle 2b ;
   # mk_p_exacte() rend deja NA avec ex aequo), et le motif, porte par
   # effectifs, est restitue dans detail par add() (p_min NA).
+  # Ex aequo a la tolerance TOL_EX_AEQUO, definition partagee (#112) : r et x
+  # sont aplatis une fois (r_ea, x_ea) pour cor.test() ; les autres lignes
+  # (Mann-Kendall, Cox-Stuart, suites) aplatissent dans leurs fonctions. x est
+  # aplati en tolerance purement relative (.usp_aplatir_volumes()). ex_aequo()
+  # ne recoit que des vecteurs deja aplatis : apres aplatissement, ex aequo
+  # equivaut a egalite au bit pres.
+  r_ea <- engine_aplatir_ex_aequo(r); x_ea <- .usp_aplatir_volumes(x)
   ex_aequo <- function(...) any(vapply(list(...), function(v) anyDuplicated(v) > 0, logical(1)))
   pmin_rangs <- function(...) if (ex_aequo(...)) NA_real_ else mk_p_min(T)
   eff_rangs <- function(r, x = NULL) {
@@ -3122,8 +3213,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   detail_spearman <- function(detail, p_ex)
     detail_r7(if (T > 9) joindre(detail, txt_edgeworth) else detail, p_ex)
   if (!vol_cst) {
-    cs <- suppressWarnings(stats::cor.test(r, x, method = "spearman", exact = FALSE))
-    p_sv <- p_spearman_exacte(r, x, r, x)
+    cs <- suppressWarnings(stats::cor.test(r_ea, x_ea, method = "spearman", exact = FALSE))
+    p_sv <- p_spearman_exacte(r_ea, x_ea, r_ea, x_ea)
     add(fam, "Independance ratio S/P vs volume", "Spearman (1904) ; exact : Best & Roberts (1975), AS 89",
         H0 = "independance (aucune association monotone)", H1 = "association monotone",
         stat_nom = "S", stat = unname(cs$statistic),
@@ -3131,7 +3222,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         estim_nom = "rho_s", estim = unname(cs$estimate),
         p_ex = p_sv,
         p_as = cs$p.value, mc_nom = "SpearVol",
-        p_min = pmin_rangs(r, x), effectifs = eff_rangs(r, x),
+        p_min = pmin_rangs(r_ea, x_ea), effectifs = eff_rangs(r_ea, x_ea),
         detail = detail_spearman("Une correlation signale un effet d'echelle non modelise",
                                  p_sv))
   } else {
@@ -3142,8 +3233,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         stat_nom = "S", loi = "permutation exacte (T <= 9, sans ex aequo)",
         estim_nom = "rho_s", mc_nom = "SpearVol", detail = txt_vol_cst)
   }
-  ct <- suppressWarnings(stats::cor.test(r, seq_along(r), method = "spearman", exact = FALSE))
-  p_st <- p_spearman_exacte(r, seq_along(r), r)
+  ct <- suppressWarnings(stats::cor.test(r_ea, seq_along(r), method = "spearman", exact = FALSE))
+  p_st <- p_spearman_exacte(r_ea, seq_along(r), r_ea)
   add(fam, "Correlation ratio S/P vs temps", "Spearman (1904) ; exact : Best & Roberts (1975)",
       H0 = "independance entre le ratio et le rang chronologique",
       H1 = "association monotone avec le temps",
@@ -3152,7 +3243,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       estim_nom = "rho_s", estim = unname(ct$estimate),
       p_ex = p_st,
       p_as = ct$p.value, mc_nom = "SpearTps",
-      p_min = pmin_rangs(r), effectifs = eff_rangs(r),
+      p_min = pmin_rangs(r_ea), effectifs = eff_rangs(r_ea),
       detail = detail_spearman("", p_st))
   mk <- test_mann_kendall(r)
   p_mk <- p_ex_si_pi_constant(mk_p_exacte(r))
@@ -3163,7 +3254,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       loi = "loi exacte de S (distribution mahonienne)",
       estim_nom = "S de Kendall", estim = mk$S,
       p_ex = p_mk, p_as = mk$p, mc_nom = "MK",
-      p_min = pmin_rangs(r), effectifs = eff_rangs(r),
+      p_min = pmin_rangs(r_ea), effectifs = eff_rangs(r_ea),
       detail = detail_r7("Une derive du S/P contredit la constance de beta", p_mk))
   cx <- test_cox_stuart(r)
   p_cx <- p_ex_si_pi_constant(cx$p)
@@ -3249,22 +3340,35 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   if (T >= 8) {
     grp <- if (vol_cst) NULL else x > stats::median(x)
     calculable <- !vol_cst && sum(grp) >= 3 && sum(!grp) >= 3
-    ks2 <- if (calculable) suppressWarnings(stats::ks.test(z[grp], z[!grp]))
-    p_sm <- if (calculable) p_ex_si_pi_constant(ks2$p.value) else NA_real_
+    # Ex aequo (#112, decision du mainteneur du 28/09/2026, option (i)) : z
+    # aplati a TOL_EX_AEQUO avant ks.test() ; avec ex aequo, ks.test() rendrait
+    # une p exacte conditionnelle (Schroer & Trenkler, 1995) dont 2/C(n1+n2,
+    # n1) n'est pas la p minimale : ni p exacte ni p_min, motif dans
+    # effectifs, p Monte-Carlo retenue (regle 2b de #70, comme Spearman et
+    # Mann-Kendall). D et sa p_mc restent calcules.
+    z_ea <- engine_aplatir_ex_aequo(z)
+    ea_sm <- anyDuplicated(z_ea) > 0
+    ks2 <- if (calculable) suppressWarnings(stats::ks.test(z_ea[grp], z_ea[!grp]))
+    p_sm <- if (calculable && !ea_sm) p_ex_si_pi_constant(ks2$p.value) else NA_real_
     add(fam, "Egalite des lois petits vs gros volumes (2 ech.)", "Smirnov (1939)",
         type = if (calculable) "test" else "non applicable",
         H0 = "F1 = F2 (memes lois)", H1 = "lois differentes",
         stat_nom = "D", stat = if (calculable) unname(ks2$statistic) else NA_real_,
         loi = "exacte combinatoire (ks.test, sans ex aequo)",
         p_ex = p_sm, mc_nom = "Smirnov",
-        p_min = if (calculable) smirnov_p_min(sum(grp), sum(!grp)) else NA_real_,
-        effectifs = if (calculable) sprintf("n1 = %d, n2 = %d", sum(grp), sum(!grp))
-                    else NA_character_,
+        p_min = if (calculable && !ea_sm) smirnov_p_min(sum(grp), sum(!grp)) else NA_real_,
+        effectifs = if (!calculable) NA_character_
+                    else if (ea_sm)
+                      sprintf(paste("n1 = %d, n2 = %d ; ex aequo dans z : loi",
+                                    "conditionnelle non attribuee, p_min et p exacte",
+                                    "non attribuees"), sum(grp), sum(!grp))
+                    else sprintf("n1 = %d, n2 = %d", sum(grp), sum(!grp)),
         detail = if (vol_cst) txt_vol_cst
         else if (!calculable)
           sprintf(paste("partition par la mediane des volumes : groupes de %d et %d",
                         "annees (moins de 3 dans un groupe, ex aequo sur la mediane) :",
                         "test non applicable"), sum(grp), sum(!grp))
+        else if (ea_sm) detail_r7("Voir aussi le QQ-plot a deux echantillons", p_sm)
         else detail_r7(sprintf(paste("Voir aussi le QQ-plot a deux echantillons ; p-value",
                                      "minimale atteignable = %.4f, atteinte seulement pour",
                                      "D = 1 (deux groupes totalement separes)"),

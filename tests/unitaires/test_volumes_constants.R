@@ -311,9 +311,22 @@ verifier("k = 3 (100 (1 + 1e-2 (-1, 0, 1, ...))) : RESET et White finies",
            .usp_nb_volumes_distincts(x3) == 3L && is.finite(tr$stat) && is.finite(tr$p) &&
              is.finite(wh$stat) && is.finite(wh$p) && is.na(tr$non_applicable) && is.na(wh$non_applicable)
          })
-verifier("k = 3, troisieme valeur a 1e-13 relatif de la premiere : RESET et White au motif (b) (rang numerique deficient)",
+# Issue #112 : les volumes distincts se comptent a la tolerance TOL_EX_AEQUO
+# (definition partagee de l'ex aequo) ; a 1e-13 relatif, deux volumes sont
+# ex aequo (k = 2, motif (a)) ; le motif (b) s'eprouve a 1e-11 relatif, trois
+# volumes distincts mais regression numeriquement de rang deficient (mesure
+# du 29/09/2026 : motif (b) de 5e-12 a 1e-10, statistiques finies a 1e-9).
+verifier("k = 3 -> 2 (#112), troisieme valeur a 1e-13 relatif de la premiere : ex aequo, RESET et White au motif (a)",
          {
            x3b <- x3; x3b[x3b == max(x3b)] <- min(x3b) * (1 + 1e-13)
+           tr <- test_reset(x3b, y); wh <- test_white(fit_x$z^2, x3b)
+           .usp_nb_volumes_distincts(x3b) == 2L && !usp_volumes_constants(x3b) &&
+             is.na(tr$stat) && startsWith(tr$non_applicable, "moins de trois volumes distincts (k = 2)") &&
+             is.na(wh$stat) && startsWith(wh$non_applicable, "moins de trois volumes distincts (k = 2)")
+         })
+verifier("k = 3, troisieme valeur a 1e-11 relatif de la premiere : RESET et White au motif (b) (rang numerique deficient)",
+         {
+           x3b <- x3; x3b[x3b == max(x3b)] <- min(x3b) * (1 + 1e-11)
            tr <- test_reset(x3b, y); wh <- test_white(fit_x$z^2, x3b)
            .usp_nb_volumes_distincts(x3b) == 3L && !usp_volumes_constants(x3b) &&
              is.na(tr$stat) && is.na(tr$p) && endsWith(tr$non_applicable, MOTIF_B) &&
