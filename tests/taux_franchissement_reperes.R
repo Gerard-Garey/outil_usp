@@ -48,6 +48,13 @@
 #      p-values Monte-Carlo fictives (0,5) : type, estimation, statistique
 #      et inoperance (p_min, lois discretes) n'en dependent pas ; les
 #      verdicts des lignes "test" en dependent et ne sont pas exploites.
+#  Lignes hors perimetre (LIGNES_HORS_PERIMETRE, issue #45) : la largeur de
+#  l'IC bootstrap a delta fixe et les deux rapports de vraisemblance aux
+#  bornes delta = 0 et delta = 1 ne sont pas reconstruites par traiter()
+#  (elles demandent le bootstrap restreint et le bootstrap des LR) ; aucun
+#  repere n'y porte. Le controle d'integrite compare res$tests prive de ces
+#  trois lignes, nommees explicitement (et exige qu'elles y figurent chacune
+#  une fois) ; elles sont absentes de T2 et declarees en T0 et dans CONTEXTE.
 #
 #  Alea : tout tirage passe par engine_sous_graine() avec une graine
 #  explicite. Les R jeux simules sont tires d'un seul flux (graine --graine),
@@ -163,6 +170,13 @@ LIGNE_PENTE <- "Test de Student sur la pente (lm(y~x))"
 LIGNE_FISH  <- "Test de Fisher (significativite globale)"
 LIGNE_JACK  <- "Sensibilite au retrait d'une annee (jackknife)"
 LIGNE_IC    <- "Largeur relative de l'IC bootstrap 90%"
+# Lignes de usp_tests() ajoutees par l'issue #45, non reconstruites par
+# traiter() et hors perimetre (aucun repere n'y porte ; voir l'en-tete) :
+# libelles "test" exacts du moteur.
+LIGNES_HORS_PERIMETRE <- c(
+  "Largeur relative de l'IC bootstrap 90% (delta fixe a delta estime)",
+  "Rapport de vraisemblance : delta = 0 (variance lineaire en volume)",
+  "Rapport de vraisemblance : delta = 1 (variance quadratique en volume)")
 REPERES <- list(
   list(cle = "cook", groupe = "diag", libelle = "Distance de Cook : au moins une observation au-dessus",
        seuil = "4/T", source = "usp_tests() (d\u00e9tail de la ligne)"),
@@ -191,7 +205,8 @@ REPERES <- list(
 LIBELLES_CONTEXTE <- c(
   jeu = "Jeu", modele = "Mod\u00e8le ajust\u00e9 (usp_ajuster())", configuration = "Configuration",
   sigma_usp = "\u03c3_USP observ\u00e9 (run_engine())", graines = "Graines", B_ic = "B de l'IC bootstrap",
-  generateur = "G\u00e9n\u00e9rateur", commit = "Commit", leviers = "Leviers (rep\u00e8re 2k/T, jeu observ\u00e9)")
+  generateur = "G\u00e9n\u00e9rateur", commit = "Commit", leviers = "Leviers (rep\u00e8re 2k/T, jeu observ\u00e9)",
+  hors_perimetre = "Lignes de usp_tests() hors p\u00e9rim\u00e8tre (#45)")
 
 # --- Mode --combiner ---------------------------------------------------------------
 # Refus de la combinaison : message et code de sortie 1, aucun tableau.
@@ -278,7 +293,9 @@ tableaux <- function(cpt, R, lev) {
     L <- c(L, ligne_md(li, n, pct(kt[["test"]], n), pct(kt[["diagnostic"]], n), pct(ki, n),
                        pct(kt[["non applicable"]], n), pct(kt[["procedure de decision"]], n)))
   }
-  c(L, "", "Inop\u00e9rant : ligne de type test dont p_min \u2265 \u03b1, restitu\u00e9e diagnostic INFO (r\u00e8gle R1, #44) ; compt\u00e9e aussi dans la colonne diagnostic.", "")
+  c(L, "", "Inop\u00e9rant : ligne de type test dont p_min \u2265 \u03b1, restitu\u00e9e diagnostic INFO (r\u00e8gle R1, #44) ; compt\u00e9e aussi dans la colonne diagnostic.", "",
+    paste0("Hors p\u00e9rim\u00e8tre, non reconstruites dans les r\u00e9plications et absentes de T2 (aucun rep\u00e8re n'y porte ; #45) : ",
+           paste0("\"", LIGNES_HORS_PERIMETRE, "\"", collapse = ", "), "."), "")
 }
 
 if (length(FICHIERS_COMB)) {
@@ -422,7 +439,9 @@ compter <- function(cpt, r) {
 # --- Controle d'integrite sur le jeu observe -------------------------------------------
 # run_engine() a B = --B-ic, graine --graine-ic, et traiter() a la meme graine
 # doivent donner : le meme sigma_boot (identical) ; les memes lignes, types,
-# statistiques et estimations (identical).
+# statistiques et estimations (identical), res$tests etant prive des lignes
+# LIGNES_HORS_PERIMETRE (#45), qui doivent y figurer chacune exactement une
+# fois (sinon constante perimee : ECHEC).
 integrite <- character(0)
 t0 <- Sys.time()
 res <- run_engine(xt = X, yt = JEU$y, methode = METHODE, segment = SEGMENT, annexe = ANNEXE,
@@ -433,9 +452,15 @@ if (!isTRUE(res$ok)) integrite <- c(integrite, "run_engine() sur le jeu observe 
 if (!identical(obs$sigma_boot, res$bootstrap$sigma_boot))
   integrite <- c(integrite, "sigma_boot reconstruit different de res$bootstrap$sigma_boot")
 champs <- c("test", "type", "stat", "estim")
-if (length(obs$tests) != length(res$tests) ||
-    !identical(lapply(obs$tests, `[`, champs), lapply(res$tests, `[`, champs)))
-  integrite <- c(integrite, "usp_tests() reconstruit : lignes, types, statistiques ou estimations differents de res$tests")
+noms_res <- vapply(res$tests, `[[`, "", "test")
+n_hp <- vapply(LIGNES_HORS_PERIMETRE, function(nm) sum(noms_res == nm), numeric(1))
+if (any(n_hp != 1))
+  integrite <- c(integrite, paste("res$tests : ligne(s) hors perimetre (#45) absente(s) ou multiple(s) :",
+                                  paste0("\"", LIGNES_HORS_PERIMETRE[n_hp != 1], "\"", collapse = ", ")))
+tests_res <- res$tests[!noms_res %in% LIGNES_HORS_PERIMETRE]
+if (length(obs$tests) != length(tests_res) ||
+    !identical(lapply(obs$tests, `[`, champs), lapply(tests_res, `[`, champs)))
+  integrite <- c(integrite, "usp_tests() reconstruit : lignes, types, statistiques ou estimations differents de res$tests (hors LIGNES_HORS_PERIMETRE)")
 t_controle <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
 # Repere des leviers sur le jeu observe (ligne de run_engine()).
 LEV_OBS <- local({
@@ -471,7 +496,9 @@ CTX <- c(
   generateur = paste(ENGINE_RNG_KIND, collapse = ", "),
   commit = commit_depot(),
   leviers = sprintf("max h_t = %.4f ; seuil 2k/T = %.4f : %s", LEV_OBS, 2 / T_,
-                    if (!is.finite(LEV_OBS)) "NA" else if (LEV_OBS > 2 / T_) "franchi" else "non franchi"))
+                    if (!is.finite(LEV_OBS)) "NA" else if (LEV_OBS > 2 / T_) "franchi" else "non franchi"),
+  hors_perimetre = paste0(paste0("\"", LIGNES_HORS_PERIMETRE, "\"", collapse = " ; "),
+                          " : exclues du contr\u00f4le d'int\u00e9grit\u00e9 et de T2, aucun rep\u00e8re n'y porte"))
 stopifnot(identical(names(CTX), names(LIBELLES_CONTEXTE)))
 L0 <- c("## Taux de franchissement des rep\u00e8res des diagnostics sous le mod\u00e8le ajust\u00e9 (issue #72)", "",
         "### T0 -- contexte", "",
