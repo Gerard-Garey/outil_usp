@@ -6419,7 +6419,8 @@ $\hat\sigma$~; c'est un choix numérique, sans référence bibliographique (déc
 $|\Delta\gamma|$). Jusqu'à l'issue~\#63, la précision de l'ajustement avait un plancher,
 $\Delta\gamma \approx -h^2/3 \approx -3{,}3\cdot 10^{-7}$, biais de la différence centrée par
 laquelle \code{optim()} dérivait l'objectif (pas \code{ndeps} $= h = 10^{-3}$ par défaut~;
-dérivation d'\code{actuary}, non tirée de la littérature), et le jeu de contrôle donnait
+dérivation d'\code{actuary}, vérifiée par simulation --- 900 ajustements simulés sous le modèle,
+aucun \code{ECHEC} à tort de ce fait ---, et non tirée de la littérature), et le jeu de contrôle donnait
 $\Delta\gamma = -3{,}4\cdot 10^{-7}$. Depuis l'issue~\#63 (décision du mainteneur du
 28~septembre 2026), \code{usp\_ajuster()} et \code{usp\_ajuster\_rapide()} fournissent à
 \code{optim()} le gradient analytique (\code{usp\_gradient\_optim()}) et emploient un
