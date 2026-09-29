@@ -605,9 +605,9 @@ purement relative) \\
 \code{engine\_sous\_graine()} & \code{seed}, expression & valeur de l'expression évaluée sous
 la graine \code{seed} et le générateur \code{ENGINE\_RNG\_KIND}~; \code{RNGkind()} et
 \code{.Random.seed} de l'appelant restaurés, y compris en cas d'erreur (§\ref{sec:graines}) \\
-\code{ENGINE\_RNG\_KIND},\newline \code{SEED\_LOI\_NULLE\_SW},\newline
-\code{SEED\_ENVELOPPE\_QQ} & constantes & générateur posé par le moteur~; graines fixes de la
-loi nulle de Shapiro--Wilk et de l'enveloppe du QQ-plot, consignées dans \code{\$metadata} \\
+\code{ENGINE\_RNG\_KIND},\newline \code{SEED\_LOI\_NULLE\_SW} & constantes & générateur posé
+par le moteur~; graine fixe de la loi nulle de Shapiro--Wilk, consignés dans \code{\$metadata}
+(la graine fixe propre à l'enveloppe du QQ-plot a été retirée par l'issue~\#47) \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Statistiques et tests}}} \\
 \code{stat\_*()}, \code{test\_*()} & $x$, $y$ ou $z$ & statistique et p-value \\
 \code{test\_tost\_intercept()} & $x$, $y$, $\theta$ ou $\Delta$ &
@@ -673,7 +673,9 @@ $\mathrm{LR}^{*}$ nuls, \code{n\_refit\_pire}, \code{n\_echec}, \code{lr\_boot}~
 \code{stats\_obs}, \code{p\_mc}, \code{err\_mc}, \code{B\_effectif},
 \code{granularite}, \code{sigma\_boot}, \code{delta\_boot}, \code{gamma\_boot}, \code{B},
 \code{granularite\_stat}, \code{motif\_mc}, \code{sigma\_boot\_restreint} et
-\code{n\_echec\_restreint} (réajustement à $\delta = \hat\delta$ fixé, issue~\#45) \\
+\code{n\_echec\_restreint} (réajustement à $\delta = \hat\delta$ fixé, issue~\#45), \code{z\_boot}
+(matrice $B \times T$ des résidus réajustés des réplications retenues, lignes \code{NA} sinon,
+issue~\#47) \\
 \code{mw\_bootstrap()} & \code{aj}, $B$ (999), \code{seed} (20260831) &
 \code{stats\_obs}, \code{p\_mc}, \code{err\_mc},
 \code{B\_effectif}, \code{granularite}, \code{sigma\_boot}, \code{B}, \code{granularite\_stat},
@@ -767,8 +769,18 @@ $\sigma_{\text{std}}$, barème & $\sigma_{\mathrm{USP}}$ et ses composantes \\
 dans le terme de variance de processus \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Sorties}}} \\
 \code{engine\_plots\_data()} & \code{fit}, \code{boot}, \code{profil},\newline
-\code{jackknife}, \code{sigma\_usp} & toutes les quantités tracées (branche
-lognormale) \\
+\code{jackknife}, \code{sigma\_usp}, \code{lr\_delta} & toutes les quantités tracées (branche
+lognormale), sans aucun tirage depuis l'issue~\#47~; dont \code{plots\_data\$lr\_delta} (repères
+du profil, issue~\#45) et \code{plots\_data\$qq\_enveloppe} (description de l'enveloppe du QQ-plot) \\
+\code{engine\_enveloppe\_qq()},\newline \code{ENVELOPPE\_QQ\_NIVEAU},\newline
+\code{ENVELOPPE\_QQ\_PROBS},\newline \code{ENVELOPPE\_QQ\_TAUX\_MAX},\newline
+\code{ENVELOPPE\_QQ\_B\_MIN},\newline \code{ENVELOPPE\_QQ\_B\_MIN\_SIM} & \code{z\_boot}, $T$~;
+constantes ($0{,}90$~; $0{,}05$ et $0{,}95$~; $0{,}10$~; 20~; 500) & bandes ponctuelle et
+simultanée à 90~\% de l'enveloppe du QQ-plot (colonnes \code{env\_bas}, \code{env\_haut},
+\code{env\_sim\_bas}, \code{env\_sim\_haut} de \code{plots\_data\$qqnorm}) et leur
+description (\code{source}, $B_{\text{eff}}$, niveaux, rang $k$, taux in-sample, seuil
+\code{B\_min\_simultane})~; aucune bande sous 20 réplications, pas de bande simultanée sous 500
+(fiche~\ref{fiche:qqnorm}, issue~\#47) \\
 \code{engine\_surface\_objectif()}\newline \code{engine\_influence()}\newline
 \code{engine\_contours\_cook()} & \code{fit}~; \code{fit}, \code{jackknife},
 \code{sigma\_usp}~; $T$ & surface de l'objectif en $(\delta,\gamma)$~; leviers,
@@ -1087,7 +1099,7 @@ texte.
 \subsection{Reproductibilité et gestion des graines}
 \label{sec:graines}
 
-Le moteur comporte cinq sources de tirages aléatoires, et cinq seulement, qui toutes
+Le moteur comporte quatre sources de tirages aléatoires, et quatre seulement, qui toutes
 s'exécutent sous \emph{graine locale} par la fonction unique \code{engine\_sous\_graine(seed,
 expr)} (ADR~0004, issue~\#42)~: celle-ci sauvegarde l'objet \code{.Random.seed} de
 l'environnement global, ou note son absence, et le \code{RNGkind()} de l'appelant, pose la
@@ -1095,7 +1107,7 @@ graine sous le générateur fixé \code{ENGINE\_RNG\_KIND} (issue~\#37), évalue
 restaure le \code{RNGkind()} et l'état initial, ou retire \code{.Random.seed} s'il n'existait
 pas, y compris quand l'évaluation échoue. Une recherche dans \code{R/engine.R} de \code{set.seed()}, \code{RNGkind()},
 \code{.Random.seed}, \code{sample()} et des générateurs \code{r*()} de \code{stats} ne renvoie
-aucun appel qui n'appartienne à \code{engine\_sous\_graine()} ou à l'une des cinq sources.
+aucun appel qui n'appartienne à \code{engine\_sous\_graine()} ou à l'une des quatre sources.
 Pour chacune, on indique la fonction qui tire, la graine, la portée du tirage et le sort de
 l'état du générateur (l'objet \code{.Random.seed} de l'environnement global) après l'appel.
 \begin{itemize}
@@ -1107,7 +1119,8 @@ l'état du générateur (l'objet \code{.Random.seed} de l'environnement global) 
   \code{usp\_simuler()} tire par \code{stats::rnorm()} les logarithmes des $T$
   pertes simulées sous le modèle ajusté. \emph{Portée}~: tous les résultats de Monte-Carlo de la
   branche lognormale (p-values Monte-Carlo, erreurs \code{err\_mc},
-  \code{sigma\_boot} et les grandeurs qui en sont tirées), à l'exception du rapport de
+  \code{sigma\_boot} et les grandeurs qui en sont tirées, dont, depuis l'issue~\#47, l'enveloppe du
+  QQ-plot, lue dans les résidus réajustés \code{z\_boot}), à l'exception du rapport de
   vraisemblance sur $\delta$ (item suivant)~; le réajustement à $\delta$ fixé de chaque
   réplication (\code{sigma\_boot\_restreint}, issue~\#45) se fait sur les mêmes $y^{*}$, sans
   aucun tirage supplémentaire, de sorte que \code{sigma\_boot} et les p-values de Monte-Carlo
@@ -1146,15 +1159,14 @@ l'état du générateur (l'objet \code{.Random.seed} de l'environnement global) 
   (fiche~\ref{mw:m5sw}).
   \emph{État}~: restauré, ou retiré s'il n'existait pas avant l'appel (l'exception qui
   laissait l'état produit dans ce cas a disparu avec l'issue~\#42).
-\item \code{engine\_plots\_data()} (branche lognormale). \emph{Graine}~: la constante fixe
-  \code{SEED\_ENVELOPPE\_QQ}, qui vaut 20260831, indépendante de \code{seed} bien qu'elle en égale la
-  valeur par défaut, et consignée dans \code{\$metadata}, champ \code{seed\_enveloppe\_qq}~; \code{engine\_sous\_graine()} la pose avant 499 échantillons $\mathcal{N}(0,1)$ de
-  taille $T$ tirés par \code{stats::rnorm()}, dont les statistiques d'ordre
-  fournissent, point par point, les quantiles à 5~\% et 95~\% de l'enveloppe du
-  QQ-plot. \emph{Portée}~: ce seul graphique (champs \code{env\_bas} et
-  \code{env\_haut} de \code{plots\_data\$qqnorm})~; aucun test ni aucun
-  paramètre n'en dépend. \emph{État}~: restauré.
 \end{itemize}
+Jusqu'à l'issue~\#47, \code{engine\_plots\_data()} était une cinquième source~: sous une graine
+fixe propre (20260831, indépendante de \code{seed} bien qu'elle en égalât la valeur par défaut,
+consignée dans \code{\$metadata}), elle tirait 499 échantillons $\mathcal{N}(0,1)$ de taille $T$
+pour l'enveloppe du QQ-plot. Depuis, l'enveloppe est lue dans les résidus réajustés
+\code{bootstrap\$z\_boot} du bootstrap principal, sans aucun tirage (fiche~\ref{fiche:qqnorm})~:
+elle dépend de la graine \code{seed}, et la graine propre, sa constante et son champ de
+\code{\$metadata} ont été retirés.
 Jusqu'à l'issue~\#42, \code{engine\_ecrire\_xlsx()} et \code{engine\_lire\_xlsx()}, dans leur
 voie de repli sans le paquet \code{openxlsx}, tiraient une valeur par \code{runif()}, sans
 graine, pour nommer un dossier temporaire qui n'était jamais supprimé. Elles ne tirent plus
@@ -1235,7 +1247,7 @@ des suites). Les écarts maximaux observés, $0{,}043$, $0{,}046$ et $0{,}062$,
 valaient entre $1{,}3$ et $2{,}6$ fois ces écarts-types, ce qui est attendu pour
 le maximum sur 34 et 13 statistiques.
 
-\emph{État laissé à l'appelant}~: les cinq sources restaurant l'état qu'elles ont trouvé,
+\emph{État laissé à l'appelant}~: les quatre sources restaurant l'état qu'elles ont trouvé,
 \code{run\_engine()} laisse l'état du générateur de l'appelant intact (ADR~0004, point~3).
 Mesuré sur les cas de contrôle~: après un \code{set.seed()} quelconque, \code{.Random.seed} est
 identique avant et après l'appel~; sans \code{.Random.seed} avant l'appel, aucun n'est créé,
@@ -1507,11 +1519,13 @@ méthodes, issue~\#104, placé après \code{bareme\_saisi} et avant les champs d
 nombre de lignes du triangle, jamais tronqué, en réserve n\textsuperscript{o}~2), $T$, $B$ (dont se déduit la granularité $1/(B+1)$), le seuil
 $\alpha$, la graine du bootstrap (\code{seed}), le générateur posé par le moteur
 (\code{generateur}~: \code{kind}, \code{normal.kind}, \code{sample.kind}, soit
-\code{ENGINE\_RNG\_KIND}), les graines fixes des deux autres simulations
-(\code{seed\_loi\_nulle\_sw} pour les trois méthodes, \code{seed\_enveloppe\_qq} pour les
-méthodes lognormales~; issue~\#37, ADR~0004, point~2), l'horodatage, la durée et la version de
-R~; le nombre de tirages de la loi nulle (20\,000) et celui de l'enveloppe (499) restent des
-constantes du code. Ce champ suffit, avec les données, à rejouer un calcul à l'identique sur une
+\code{ENGINE\_RNG\_KIND}), la graine fixe de la loi nulle de Shapiro--Wilk
+(\code{seed\_loi\_nulle\_sw}, pour les trois méthodes~; issue~\#37, ADR~0004, point~2),
+l'horodatage, la durée et la version de R~; le nombre de tirages de la loi nulle (20\,000) reste
+une constante du code. Le rapport de vraisemblance sur $\delta$ et l'enveloppe du QQ-plot
+emploient la graine \code{seed} et le $B$ de l'appel (issues~\#45 et~\#47)~; le champ
+\code{seed\_enveloppe\_qq}, qui consignait jusqu'à l'issue~\#47 la graine propre de l'enveloppe,
+n'existe plus. Ce champ suffit, avec les données, à rejouer un calcul à l'identique sur une
 même machine, quel que soit le générateur actif chez l'appelant. Le générateur et les graines
 sont affichés dans le journal d'exécution de l'application et dans l'en-tête du rapport figé
 (\code{valeurs\_generateur()} de \code{R/display\_helpers.R}, en lecture seule).
@@ -4293,8 +4307,8 @@ White & 3 coefficients auxiliaires estimés sur 8 points & p-value de
 Monte-Carlo ajoutée~; Breusch--Pagan à privilégier \\
 Anscombe--Glynn & Non défini pour $T < 20$ & Marqué \emph{non applicable}~;
 l'analyse de queue repose sur $A^2$, dont la p-value de Monte-Carlo est simulée
-sous le modèle réajusté~; le QQ-plot à enveloppe n'est qu'une aide de lecture,
-sa bande $\mathcal{N}(0,1)$ iid étant conservatrice pour des résidus réestimés
+sous le modèle réajusté~; le QQ-plot à enveloppe n'est qu'une aide de lecture, sans p-value
+ni verdict, dont les bandes sont simulées sous le modèle ajusté réestimé
 (fiche~\ref{fiche:qqnorm}) \\
 Rosner (ESD) & Fiabilité des valeurs critiques annoncée pour $T \ge 25$ &
 Conservé comme signal d'attention~; aucune exclusion de donnée ne doit en
@@ -8045,32 +8059,101 @@ Lecture~: un alignement sur la droite conforte la normalité~; une courbure en S
 plus lourdes (points extrêmes au-dessus à droite et en dessous à gauche) ou plus légères~; une
 courbure convexe ou concave traduit une asymétrie. Limite~: sur 8 à 12 points, l'œil surestime
 facilement les écarts -- il est utile de superposer une enveloppe de simulation pour calibrer la
-lecture. Celle que calcule \code{engine\_plots\_data()} est formée, point par point, des quantiles
-à 5~\% et 95~\% des statistiques d'ordre de 499 échantillons $\mathcal{N}(0,1)$ indépendants de
-taille $T$, tirés sous une graine fixe, \code{SEED\_ENVELOPPE\_QQ}, consignée dans
-\code{\$metadata\$seed\_enveloppe\_qq} (§\ref{sec:graines})~: ce n'est pas un bootstrap
-paramétrique sous le modèle ajusté, car les échantillons simulés ne sont pas des résidus d'un
-modèle réestimé, et la bande est ponctuelle, non simultanée.
+lecture.
 
-Ces deux écarts jouent en sens contraires, et le premier l'emporte. Une bande ponctuelle à 90~\%
-est franchie en au moins un point bien plus souvent que dans 10~\% des cas~; mais les résidus
-d'un modèle à trois paramètres estimés sur $T = 8$ observations sont nettement moins dispersés
-que 8 variables $\mathcal{N}(0,1)$ indépendantes~: lorsque $\hat\pi_t$ est constant
-($\hat\delta = 1$, ou volumes $x_t$ constants), $\sum_t z_t^2 = T$ à la tolérance d'arrêt de
-l'optimiseur près (fiche~\ref{fiche:variance-unitaire}), alors que la somme des carrés de 8 variables
-$\mathcal{N}(0,1)$ indépendantes suit une loi $\chi^2(8)$, dont les quantiles à 5~\% et 95~\%
-valent $2{,}73$ et $15{,}51$. La bande est donc trop large pour eux. Constats de simulation sur
-le jeu de contrôle, avec l'enveloppe que calcule le moteur~: un échantillon simulé sous le
-modèle ajusté puis réajusté comme dans \code{usp\_bootstrap()} ne sort de la bande en au moins
-un point que dans 94 cas sur 4\,000 ($2{,}4$~\%, graine 123), contre 4\,269 sur 10\,000
-($42{,}7$~\%, graine 1) pour un échantillon de 8 variables $\mathcal{N}(0,1)$ indépendantes~;
-l'erreur de Monte-Carlo sur ces proportions est de l'ordre de $0{,}2$ et $0{,}5$ point. La bande
-est donc à lire comme une aide conservatrice, non comme un contrôle~: un point hors bande est un
-signal fort, une allure contenue dans la bande n'est pas une validation. L'enveloppe construite
-à partir des résidus des réplications réestimées du bootstrap, conformément à la construction
-d'Atkinson (1981), est prévue (issue~\#5, §~4.3~; ADR~0004, décision~2)~; une bande
-simultanée, au sens d'Aldor-Noiman et al. (2013), serait plus large que la bande ponctuelle
-actuelle (§\ref{sec:biblio}).
+\emph{Construction de l'enveloppe} (issue~\#47, note d'\code{actuary} du 28~septembre 2026,
+décisions du mainteneur du même jour). \code{engine\_enveloppe\_qq()} suit la construction
+d'Atkinson (1981)~: un bootstrap paramétrique sous le modèle ajusté, chaque échantillon simulé
+étant \emph{réestimé}, de sorte que l'enveloppe reproduit la loi des résidus \emph{estimés}, et
+non celle d'un échantillon $\mathcal{N}(0,1)$ indépendant. Elle ne tire rien~: elle lit les
+résidus réajustés $z^{*}$ des réplications retenues du bootstrap principal
+(\code{bootstrap\$z\_boot}, matrice $B \times T$, ligne \code{NA} pour une réplication écartée~;
+graine \code{seed}, §\ref{sec:graines}). Soit $S$ la matrice des statistiques d'ordre des
+$B_{\text{eff}}$ lignes entièrement finies. Deux bandes, de niveau \emph{fixe} de 90~\%, sans lien
+avec le seuil $\alpha$ du calcul~:
+\begin{itemize}[itemsep=2pt]
+\item la \emph{bande ponctuelle}, quantiles à 5~\% et 95~\% (type~7) de chaque colonne de $S$~;
+\item la \emph{bande simultanée}, enveloppe globale de Davison et Hinkley (1997, chap.~4),
+  celle de la fonction \emph{envelope} du paquet \emph{boot}, réécrite dans le moteur~: bande
+  formée, pour chaque statistique d'ordre, des $k$-ièmes plus petite et plus grande valeurs,
+  $k^{\star}$ étant le plus grand $k$ tel que la proportion des lignes de $S$ ayant au moins une
+  valeur strictement hors de la bande ne dépasse pas $0{,}10$ (les bandes étant emboîtées, la
+  proportion croît avec $k$).
+\end{itemize}
+\code{plots\_data\$qq\_enveloppe} décrit l'enveloppe~: source, $B_{\text{eff}}$, niveaux, rang
+$k^{\star}$, taux et seuil de la bande simultanée~; l'affichage les reprend (titre «~enveloppe de
+simulation 90~\%~» ou «~enveloppe indisponible~», sous-titre donnant $k$ et le nombre de
+réplications, ou «~bande simultanée indisponible ($B_{\text{eff}} < 500$)~»).
+\textbf{Seuils}~: sous $B_{\text{eff}} = 20$ réplications, aucune bande~; sous
+$B_{\text{eff}} = 500$ (\code{ENVELOPPE\_QQ\_B\_MIN\_SIM}), bande ponctuelle seule. Le seuil de 500,
+décidé par \code{actuary} le 29~septembre 2026, est fondé sur la \emph{granularité} de $k$, non
+sur une calibration~: en deçà, $k^{\star} \le 4$ et la bande simultanée n'est que celle des une à
+quatre valeurs extrêmes de chaque colonne~; à $B_{\text{eff}} = 100$, $k^{\star} = 1$, la bande est
+$[\min, \max]$ de chaque colonne et son taux auto-évalué est nul par construction.
+Constat de simulation (jeu de contrôle, même algorithme, huit graines par taille, de 1001
+à 1008~; taux hors échantillon évalué sur un bootstrap indépendant de 8\,000 réplications,
+graine 424242~; mesure qui reproduit celle d'\code{actuary} consignée dans le commentaire
+d'\code{engine\_enveloppe\_qq()})~:
+
+\begin{center}
+\small
+\begin{tabular}{@{}rccc@{}}
+\toprule
+$B_{\text{eff}}$ & $k^{\star}$ & taux auto-évalué & taux hors échantillon (min--max, moyenne) \\
+\midrule
+100  & 1   & 0                       & 9 à 18~\%~~(12{,}5~\%) \\
+200  & 2   & 5{,}5 à 7{,}5~\%        & 9 à 15~\%~~(12{,}3~\%) \\
+300  & 3   & 7{,}7 à 9{,}3~\%        & 10 à 15~\%~~(12{,}5~\%) \\
+400  & 3--4 & 7{,}3 à 10~\%          & 11 à 15~\%~~(12{,}4~\%) \\
+500  & 4--5 & 8 à 9{,}8~\%           & 9 à 14~\%~~(11{,}8~\%) \\
+1\,000 & 8--9 & 9 à 9{,}9~\%          & 10 à 12~\%~~(10{,}6~\%) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+Le taux auto-évalué est optimiste, la bande étant calibrée sur les réplications qui la
+construisent~: de $2{,}7$ points en moyenne à $B_{\text{eff}} = 500$ et d'un point à 1\,000. Le
+niveau réel de la bande simultanée est donc voisin de 88~\% à $B_{\text{eff}} = 500$ et de 89~\%
+vers $B = 1\,000$, soit au défaut $B = 999$, pour 90~\% nominal~; la bande ponctuelle n'est pas
+concernée par cette correction. Ces valeurs sont des mesures sur un seul jeu, non un résultat
+général~: \textbf{aucune référence ne donne le niveau de cette enveloppe à $B$ fini}, ni pour des
+résidus d'un modèle à trois paramètres estimés sur $T = 8$ observations. Les taux restitués
+(\code{taux\_global\_ponctuel}, \code{taux\_global\_simultane}) sont évalués sur les réplications
+mêmes qui construisent les bandes (taux \emph{in-sample}). Sous \code{refit = FALSE} (appel direct
+de \code{usp\_bootstrap()}, hors \code{run\_engine()}), \code{z\_boot} contient des résidus à
+paramètres fixes, et l'enveloppe n'est plus celle d'Atkinson.
+
+\emph{Mesures sur le jeu de contrôle} (méthode prime, $B = 999$, graine 20260831)~:
+$B_{\text{eff}} = 999$, $k^{\star} = 8$~; largeur de la bande ponctuelle de $0{,}83$ à $1{,}12$
+selon la statistique d'ordre (de $1{,}40$ à $1{,}97$ pour l'ancienne bande $\mathcal{N}(0,1)$),
+de la bande simultanée de $1{,}13$ à $1{,}53$~; taux in-sample de $9{,}2~\%$ pour la bande
+simultanée et de $47{,}6~\%$ pour la bande ponctuelle~; un résidu observé sort de la bande
+ponctuelle, aucun de la bande simultanée.
+
+\emph{Lecture.} \textbf{Un point hors de la bande ponctuelle n'est pas un signal}~: près de la
+moitié des échantillons simulés sous le modèle ajusté ($47{,}6~\%$ sur le jeu de contrôle) en
+sortent en au moins un point. Seule la bande simultanée se lit globalement~: un point qui en sort
+est un écart que le modèle ajusté produit rarement (environ une fois sur dix, au niveau réel
+mesuré ci-dessus), une allure contenue dans la bande n'est pas une validation, et, à $T = 8$, la
+puissance de cette lecture n'est pas étudiée. L'enveloppe n'a ni p-value ni verdict (aide
+graphique, ADR~0001)~; le test numérique correspondant est Shapiro--Francia (rubrique~2), et les
+p-values de Monte-Carlo de la section~\ref{sec:h3} restent la lecture formelle de H3.
+
+\emph{Avant l'issue~\#47}, \code{engine\_plots\_data()} formait l'enveloppe, point par point, des
+quantiles à 5~\% et 95~\% des statistiques d'ordre de 499 échantillons $\mathcal{N}(0,1)$
+indépendants de taille $T$, tirés sous une graine fixe propre~: ce n'était pas un bootstrap
+paramétrique sous le modèle ajusté, et la bande était ponctuelle. Ces deux écarts jouaient en
+sens contraires, et le premier l'emportait~: les résidus d'un modèle à trois paramètres estimés
+sur $T = 8$ observations sont nettement moins dispersés que 8 variables $\mathcal{N}(0,1)$
+indépendantes (lorsque $\hat\pi_t$ est constant, $\sum_t z_t^2 = T$ à la tolérance d'arrêt près,
+fiche~\ref{fiche:variance-unitaire}, alors que la somme des carrés de 8 variables
+$\mathcal{N}(0,1)$ indépendantes suit une loi $\chi^2(8)$, de quantiles à 5~\% et 95~\% égaux à
+$2{,}73$ et $15{,}51$). Constats de simulation d'alors, sur le jeu de contrôle~: un échantillon
+simulé sous le modèle ajusté puis réajusté ne sortait de cette bande en au moins un point que
+dans 94 cas sur 4\,000 ($2{,}4~\%$, graine 123), contre 4\,269 sur 10\,000 ($42{,}7~\%$,
+graine 1) pour 8 variables $\mathcal{N}(0,1)$ indépendantes~: la bande était une aide
+conservatrice, trop large pour des résidus réestimés, ce que la construction actuelle corrige.
 \end{fiche}
 
 \begin{fiche}{QQ-plot à deux échantillons (faible volume contre fort volume)}
@@ -10249,14 +10332,18 @@ soutient dans le présent document.
   probabilité des résidus par simulation sous le modèle ajusté, chaque
   échantillon simulé étant réajusté~: l'enveloppe reproduit ainsi la loi des
   résidus estimés et non celle d'un échantillon indépendant. C'est la
-  construction qui manque à l'enveloppe actuelle du QQ-plot et qui est prévue
-  (fiche~\ref{fiche:qqnorm}). Aldor-Noiman et al. (2013) construit des bandes
-  \emph{simultanées} pour le QQ-plot normal et soutient la distinction, faite
-  dans la même fiche, entre bande ponctuelle et bande simultanée. Aucune des
-  deux références ne chiffre le comportement de ces bandes pour des résidus
-  d'un modèle à trois paramètres estimés sur $T = 8$ observations~: les
-  proportions de sortie de bande citées dans la fiche sont des constats de
-  simulation propres au jeu de contrôle.
+  construction de l'enveloppe du QQ-plot depuis l'issue~\#47, lue dans les
+  résidus réajustés du bootstrap principal (fiche~\ref{fiche:qqnorm})~; sa bande
+  simultanée suit l'enveloppe globale de Davison et Hinkley (1997, chap.~4).
+  Aldor-Noiman et al. (2013) construit des bandes
+  \emph{simultanées} pour le QQ-plot normal d'un échantillon et soutient la
+  distinction, faite dans la même fiche, entre bande ponctuelle et bande
+  simultanée~; sa construction n'est pas celle du moteur. Aucune de ces
+  références ne chiffre le comportement de ces bandes pour des résidus
+  d'un modèle à trois paramètres estimés sur $T = 8$ observations, ni le niveau
+  réel de l'enveloppe globale à $B$ fini~: les proportions de sortie de bande et
+  les niveaux réels cités dans la fiche sont des constats de simulation propres
+  au jeu de contrôle.
 
   \item C.\,J. Clopper, E.\,S. Pearson, \emph{The use of confidence or fiducial
   limits illustrated in the case of the binomial}, \emph{Biometrika}, 26(4),
@@ -10461,10 +10548,11 @@ d'influence \code{REPERE\_INFLUENCE\_SIGMA} et \code{REPERE\_DFBETA\_MW} \\
 Tirages aléatoires et graines (§\ref{sec:graines}) & \code{engine\_sous\_graine()}, par
 laquelle passent toutes les sources~: \code{usp\_bootstrap()} (tirages de
 \code{usp\_simuler()}), \code{mw\_bootstrap()} (tirages de
-\code{mw\_simuler\_triangle()}),\newline \code{sw\_loi\_nulle()},
-\code{engine\_plots\_data()}~; \code{engine\_ecrire\_xlsx()} et \code{engine\_lire\_xlsx()} ne
-tirent plus rien depuis l'issue~\#42~; générateur fixé \code{ENGINE\_RNG\_KIND} et graines fixes
-\code{SEED\_LOI\_NULLE\_SW}, \code{SEED\_ENVELOPPE\_QQ}, consignés dans \code{\$metadata} par
+\code{mw\_simuler\_triangle()}),\newline \code{sw\_loi\_nulle()}, \code{usp\_lr\_delta()}
+(issue~\#45)~; \code{engine\_plots\_data()} ne tire plus rien depuis l'issue~\#47, ni
+\code{engine\_ecrire\_xlsx()} et \code{engine\_lire\_xlsx()} depuis l'issue~\#42~; générateur
+fixé \code{ENGINE\_RNG\_KIND} et graine fixe \code{SEED\_LOI\_NULLE\_SW}, consignés dans
+\code{\$metadata} par
 \code{run\_engine()}~; clé du cache de la loi nulle, \code{sw\_cle\_cache()} (issue~\#37) \\
 Orchestration complète & \code{run\_engine()}~; méthode de réserve
 n\textsuperscript{o}~2 déléguée à\newline \code{.run\_engine\_mw()} \\
@@ -10938,8 +11026,8 @@ fonction de calibration commune aux deux branches \\
 Monte-Carlo et leurs erreurs, dans les deux méthodes~; évaluation des deux catalogues \\
 \code{engine\_registre\_}\newline\code{tests()} & LN + MW & Enregistrement de toutes les lignes
 des tables de tests~: hiérarchie des p-values et verdicts des deux méthodes \\
-\code{engine\_sous\_graine()} & LN + MW & Toutes les simulations~: les deux bootstraps, la loi
-nulle de Shapiro--Wilk, l'enveloppe du QQ-plot \\
+\code{engine\_sous\_graine()} & LN + MW & Toutes les simulations~: les deux bootstraps, le
+bootstrap restreint du rapport de vraisemblance sur $\delta$, la loi nulle de Shapiro--Wilk \\
 \code{test\_grubbs()} & LN + MW & Grubbs sur $z_t$, sur ratios bruts, et sur
 résidus de Mack \\
 \code{test\_rosner()} & LN + MW & ESD généralisé, dans les deux méthodes \\
