@@ -278,9 +278,20 @@ ui <- fluidPage(
               ),
               uiOutput("statut_demarrage"),
               uiOutput("import_statut"),
-              helpText(paste("Le nombre d'annees T se regle dans le panneau de",
-                             "parametres, a droite. La grille de saisie s'y adapte",
-                             "automatiquement.")),
+              conditionalPanel("input.methode == 'reserve2'",
+                helpText(paste("Le nombre d'annees T se regle dans le panneau de",
+                               "parametres, a droite. Le triangle de saisie s'y adapte",
+                               "automatiquement."))),
+              conditionalPanel("input.methode != 'reserve2'",
+                helpText(paste("La grille porte toutes les annees fournies (t = 1 la plus",
+                               "ancienne). La profondeur T du panneau de droite ne la",
+                               "modifie pas : au clic, le moteur retient les T annees les",
+                               "plus recentes, et une troncature est signalee dans les",
+                               "resultats.")),
+                fluidRow(
+                  column(4, actionButton("ajouter_annee", "Ajouter une annee")),
+                  column(4, actionButton("retirer_annee", "Retirer la derniere ligne"))),
+                br()),
               uiOutput("grille_donnees")),
           div(class = "bloc",
               h4("Controles de validite"),
@@ -424,7 +435,12 @@ ui <- fluidPage(
                                     "signalee dans les resultats et le rapport fige.")),
           numericInput("profondeur", "Profondeur T retenue", value = T_INIT,
                        min = 5, max = 40, step = 1),
-          helpText("T pilote la taille de la grille de saisie de l'onglet Donnees."),
+          conditionalPanel("input.methode == 'reserve2'",
+            helpText("T pilote la taille du triangle de saisie de l'onglet Donnees.")),
+          conditionalPanel("input.methode != 'reserve2'",
+            helpText("Le moteur retient les T annees les plus recentes de la grille",
+                     "de l'onglet Donnees ; les annees plus anciennes sont ecartees",
+                     "et la troncature est signalee.")),
           numericInput("B", "Replications bootstrap B", value = 999, min = B_MIN_USAGE,
                        max = 9999, step = 100),
           helpText("L'erreur de Monte-Carlo decroit en 1/sqrt(B) ; elle est",
@@ -553,7 +569,8 @@ server <- function(input, output, session) {
   output$aide_methode <- renderText({
     if (est_mw())
       "Entree : triangle de paiements cumules (T annees d'accident x T annees de developpement)."
-    else "Entree : deux vecteurs x_t et y_t sur T annees."
+    else paste("Entree : deux vecteurs x_t et y_t sur n annees ; le moteur retient",
+               "les T annees les plus recentes.")
   })
   output$titre_donnees <- renderText({
     if (est_mw()) "Triangle de paiements cumules C(i,j)" else "Series x_t et y_t"
@@ -583,18 +600,21 @@ server <- function(input, output, session) {
   })
 
   # --- Grille de saisie (interface pure) -----------------------------------
-  # Dimension de la grille : pilotee uniquement par le parametre T du panneau
-  # de droite. Les valeurs deja saisies sont conservees, les cases ajoutees
-  # sont vides.
+  # Methodes lognormales (issue #134, piste 3 d'architect, decision du
+  # mainteneur du 28/09/2026) : la grille des series n'est plus alignee sur
+  # T. Elle porte les n annees fournies (import, jeu par defaut, lignes
+  # ajoutees ou retirees par les boutons ci-dessous) ; T n'est qu'un
+  # parametre du calcul : run_engine() retient les T annees les plus
+  # recentes et restitue la troncature (ligne "profondeur" de
+  # engine_derogations(), issue #104). Auparavant, reduire T gardait les
+  # lignes 1..T, soit les annees les plus ANCIENNES, sans avertissement, et
+  # n_fournies valait toujours T.
+  # Triangle (reserve no 2, jamais tronque par le moteur) : sa dimension
+  # reste pilotee par T. Les valeurs deja saisies sont conservees, les cases
+  # ajoutees sont vides.
   observeEvent(input$profondeur, {
     T <- input$profondeur
     if (is.null(T) || !is.finite(T) || T < 1) return()
-    d <- donnees()
-    if (nrow(d) != T) {
-      if (T < nrow(d)) d <- d[seq_len(T), ]
-      else d <- rbind(d, data.frame(t = (nrow(d) + 1):T, xt = NA_real_, yt = NA_real_))
-      d$t <- seq_len(nrow(d)); donnees(d)
-    }
     tri <- triangle()
     if (nrow(tri) != T) {
       nt <- matrix(NA_real_, T, T)
@@ -604,6 +624,29 @@ server <- function(input, output, session) {
       triangle(nt)
     }
   }, ignoreInit = FALSE)
+
+  # Lignes de la grille des series (issue #134) : ajout d'une annee vide en
+  # fin de grille (la plus recente), retrait de la derniere ligne. Les
+  # valeurs saisies sont relues avant le redimensionnement, sans quoi le
+  # nouveau rendu de la grille les remplacerait par celles de donnees().
+  # Le retrait d'une ligne renseignee est notifie avec ses valeurs.
+  saisie_courante <- function() {
+    sa <- lire_saisie()
+    data.frame(t = seq_along(sa$xt), xt = sa$xt, yt = sa$yt)
+  }
+  observeEvent(input$ajouter_annee, {
+    d <- saisie_courante()
+    donnees(rbind(d, data.frame(t = nrow(d) + 1L, xt = NA_real_, yt = NA_real_)))
+  })
+  observeEvent(input$retirer_annee, {
+    d <- saisie_courante(); n <- nrow(d)
+    if (n <= 1L) return()
+    if (!is.na(d$xt[n]) || !is.na(d$yt[n]))
+      showNotification(sprintf("Ligne t = %d retiree (x_t = %s, y_t = %s).", n,
+                               format(d$xt[n]), format(d$yt[n])),
+                       type = "warning", duration = 8)
+    donnees(d[-n, , drop = FALSE])
+  })
 
   output$grille_donnees <- renderUI({
     if (est_mw()) {
@@ -694,14 +737,17 @@ server <- function(input, output, session) {
     )
   })
 
-  # Reinitialisation : jeu par defaut dimensionne a la profondeur T saisie.
-  # Si le champ T est vide ou non recevable (NA, non entier, < 1), la
-  # grille ne peut pas etre dimensionnee sur lui (issue #100) : le jeu par
+  # Reinitialisation. Series (methodes lognormales) : les 8 annees du jeu
+  # par defaut, quelle que soit T (issue #134 : la grille n'est plus alignee
+  # sur T ; le moteur retient les T plus recentes, ou refuse T > 8).
+  # Triangle : jeu par defaut dimensionne a la profondeur T saisie.
+  # Si le champ T est vide ou non recevable (NA, non entier, < 1), le
+  # triangle ne peut pas etre dimensionne sur lui (issue #100) : le jeu par
   # defaut est restaure a sa propre profondeur, que l'on reporte dans le
   # champ T, et le motif du moteur (engine_valider_profondeur(), meme borne
-  # T_min = 1 que le redimensionnement de la grille) est affiche. Aucune
-  # borne superieure (n = Inf) : au-dela de 8 annees, les series sont
-  # completees par des lignes vides, le triangle par defaut est prolonge.
+  # T_min = 1 que le redimensionnement du triangle) est affiche. Aucune
+  # borne superieure (n = Inf) : au-dela de 8 annees, le triangle par
+  # defaut est prolonge (triangle_defaut(), issue #108).
   observeEvent(input$reinit, {
     T <- input$profondeur
     err_T <- if (is.null(T) || is.na(T)) "Profondeur T : champ vide."
@@ -712,16 +758,7 @@ server <- function(input, output, session) {
       showNotification(paste(c(err_T, sprintf("Profondeur par defaut retablie : T = %d.", T)),
                              collapse = " "), type = "warning", duration = 10)
     }
-    if (est_mw()) triangle(triangle_defaut(T))
-    else {
-      d <- DONNEES_DEFAUT
-      if (nrow(d) != T) {
-        if (T < nrow(d)) d <- d[seq_len(T), ]
-        else d <- rbind(d, data.frame(t = (nrow(d)+1):T, xt = NA_real_, yt = NA_real_))
-        d$t <- seq_len(nrow(d))
-      }
-      donnees(d)
-    }
+    if (est_mw()) triangle(triangle_defaut(T)) else donnees(DONNEES_DEFAUT)
     statut_import(NULL); effacer_statut_demarrage()
     showNotification("Donnees reinitialisees.", type = "message")
   })
@@ -762,6 +799,9 @@ server <- function(input, output, session) {
         showNotification("Import refuse.", type = "error", duration = 8); return()
       }
       donnees(data.frame(t = seq_along(r$xt), xt = r$xt, yt = r$yt))
+      # Valeur initiale de T apres import : toutes les annees importees. La
+      # grille n'en depend plus (issue #134) : reduire ensuite T fait ecarter
+      # par le moteur les annees les plus anciennes, troncature restituee.
       updateNumericInput(session, "profondeur", value = r$n)
       effacer_statut_demarrage()
       # Meme politique qu'au demarrage (charger_ln()) : des donnees lisibles
