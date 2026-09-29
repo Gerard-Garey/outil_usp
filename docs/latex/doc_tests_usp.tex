@@ -645,7 +645,9 @@ observé & \code{engine\_p\_mc()} colonne par colonne, sens lu au catalogue, con
 \code{degenere} et \code{non\_definie} évaluées sur le contexte observé~; vecteur
 \code{motif\_mc}~; erreur si une statistique simulée est absente du catalogue \\
 \code{engine\_registre\_}\newline\code{tests()} & \code{boot}, catalogue, \code{alpha},
-libellé de nature Monte-Carlo & fonction \code{add()} d'enregistrement d'une ligne de test,
+libellé de nature Monte-Carlo & fonction \code{add()} d'enregistrement d'une ligne de test
+(arguments \code{p\_mc\_ext} et \code{err\_mc\_ext}~: p-value de Monte-Carlo calculée hors du
+catalogue, refusés avec une clé \code{mc\_nom}, issue~\#45),
 unique et partagée par \code{usp\_tests()} et \code{mw\_tests()}~: hiérarchie des p-values,
 règles de sortie de l'issue~\#44 (test inopérant par \code{p\_min}, motif Monte-Carlo lu dans
 \code{motif\_mc}, repli asymptotique nommé ou interdit par \code{repli\_asymptotique},
@@ -653,18 +655,32 @@ règles de sortie de l'issue~\#44 (test inopérant par \code{p\_min}, motif Mont
 \code{SEUIL\_ECHEC\_SENS\_REJETER} $= 0{,}30$, §\ref{sec:synthese}), refus d'une clé
 Monte-Carlo absente du catalogue ou du bootstrap \\
 \code{usp\_simuler()} & \code{fit} & $T$ pertes $y_t$ simulées sous le modèle
-ajusté \\
+ajusté (ou sous le modèle contraint, pour \code{usp\_lr\_delta()}) \\
+\code{usp\_ajuster\_contraint()},\newline \code{TOL\_GAMMA\_CONTRAINT} & $x$, $y$, $\delta_0$,
+$\gamma$ de départ~; constante ($10^{-8}$) & ajustement à $\delta = \delta_0$ fixé~: $\tilde\gamma$
+par \code{stats::optimize()} sur les bornes numériques de $\gamma$ à la tolérance
+\code{TOL\_GAMMA\_CONTRAINT}, $\ln\tilde\beta$ en forme fermée, point de départ retenu s'il est
+meilleur de plus de \code{TOL\_OPTIMUM}~; même forme de retour que
+\code{usp\_ajuster\_rapide()} (issue~\#45) \\
+\code{usp\_lr\_delta()},\newline \code{.p\_melange\_chernoff()} & \code{fit}, $B$, \code{seed}~;
+$\mathrm{LR}$ & par borne $\delta_0 \in \{0, 1\}$~: paramètres contraints, $\mathrm{LR}$, p-value
+du mélange $\tfrac12\chi^2_0 + \tfrac12\chi^2_1$ pour mémoire ($1$ en $\mathrm{LR} = 0$), p-value de
+Monte-Carlo par bootstrap paramétrique restreint et son erreur, $B_{\text{eff}}$, part des
+$\mathrm{LR}^{*}$ nuls, \code{n\_refit\_pire}, \code{n\_echec}, \code{lr\_boot}~; puis $B$,
+\code{seed}, \code{tol\_nul} (\code{res\$lr\_delta}, fiche~\ref{fiche:rv-delta}) \\
 \code{usp\_bootstrap()} & \code{fit}, $B$ (999), \code{seed} (20260831),
 \code{refit} (vrai), \code{progres} &
 \code{stats\_obs}, \code{p\_mc}, \code{err\_mc}, \code{B\_effectif},
 \code{granularite}, \code{sigma\_boot}, \code{delta\_boot}, \code{gamma\_boot}, \code{B},
-\code{granularite\_stat}, \code{motif\_mc} \\
+\code{granularite\_stat}, \code{motif\_mc}, \code{sigma\_boot\_restreint} et
+\code{n\_echec\_restreint} (réajustement à $\delta = \hat\delta$ fixé, issue~\#45) \\
 \code{mw\_bootstrap()} & \code{aj}, $B$ (999), \code{seed} (20260831) &
 \code{stats\_obs}, \code{p\_mc}, \code{err\_mc},
 \code{B\_effectif}, \code{granularite}, \code{sigma\_boot}, \code{B}, \code{granularite\_stat},
 \code{motif\_mc} \\
 \code{usp\_tests()} & \code{fit}, \code{boot}, \code{alpha} (0,10),
 \code{theta\_equiv} (0,10), \code{delta\_equiv}, \code{robustesse} (\code{NULL}),
+\code{lr\_delta} (\code{NULL}~; sortie d'\code{usp\_lr\_delta()}),
 \code{methode} (obligatoire, sans défaut~: \code{"premium"} ou \code{"reserve1"}~; absence ou
 toute autre valeur refusée par une erreur) &
 liste des tests (H0, H1, statistique, 3 p-values, nature~; citation de l'hypothèse H1 à H4 dans
@@ -677,7 +693,9 @@ celui de la ligne de l'intervalle bootstrap n'en dépend pas (fiche~\ref{fiche:i
 \code{usp\_jackknife()} & \code{fit}, $\sigma_{\text{std}}$, barème &
 table des $\hat\sigma^{(-t)}$, $\sigma_{\mathrm{USP}}^{(-t)}$, $\hat\delta^{(-t)}$,
 $\hat\gamma^{(-t)}$ \\
-\code{usp\_profil()} & \code{fit}, \code{n} (41 points) & profils en $\delta$ et $\gamma$, tests LR \\
+\code{usp\_profil()} & \code{fit}, \code{n} (41 points) & profils en $\delta$ et $\gamma$ (le
+rapport de vraisemblance aux bornes, calculé ici jusqu'à l'issue~\#45 contre une loi
+$\chi^2(1)$ naïve, relève de \code{usp\_lr\_delta()}) \\
 \code{usp\_segment\_infos()}, \code{usp\_bareme\_segment()} & segment, annexe &
 libellé, $\sigma$ standard brut et de réserve, facteur \code{np\_standard}, barème, erreur
 d'usage pour un segment qui n'est pas un nombre scalaire fini entier sans attribut
@@ -1069,7 +1087,7 @@ texte.
 \subsection{Reproductibilité et gestion des graines}
 \label{sec:graines}
 
-Le moteur comporte quatre sources de tirages aléatoires, et quatre seulement, qui toutes
+Le moteur comporte cinq sources de tirages aléatoires, et cinq seulement, qui toutes
 s'exécutent sous \emph{graine locale} par la fonction unique \code{engine\_sous\_graine(seed,
 expr)} (ADR~0004, issue~\#42)~: celle-ci sauvegarde l'objet \code{.Random.seed} de
 l'environnement global, ou note son absence, et le \code{RNGkind()} de l'appelant, pose la
@@ -1077,7 +1095,7 @@ graine sous le générateur fixé \code{ENGINE\_RNG\_KIND} (issue~\#37), évalue
 restaure le \code{RNGkind()} et l'état initial, ou retire \code{.Random.seed} s'il n'existait
 pas, y compris quand l'évaluation échoue. Une recherche dans \code{R/engine.R} de \code{set.seed()}, \code{RNGkind()},
 \code{.Random.seed}, \code{sample()} et des générateurs \code{r*()} de \code{stats} ne renvoie
-aucun appel qui n'appartienne à \code{engine\_sous\_graine()} ou à l'une des quatre sources.
+aucun appel qui n'appartienne à \code{engine\_sous\_graine()} ou à l'une des cinq sources.
 Pour chacune, on indique la fonction qui tire, la graine, la portée du tirage et le sort de
 l'état du générateur (l'objet \code{.Random.seed} de l'environnement global) après l'appel.
 \begin{itemize}
@@ -1089,7 +1107,23 @@ l'état du générateur (l'objet \code{.Random.seed} de l'environnement global) 
   \code{usp\_simuler()} tire par \code{stats::rnorm()} les logarithmes des $T$
   pertes simulées sous le modèle ajusté. \emph{Portée}~: tous les résultats de Monte-Carlo de la
   branche lognormale (p-values Monte-Carlo, erreurs \code{err\_mc},
-  \code{sigma\_boot} et les grandeurs qui en sont tirées). \emph{État}~: restauré.
+  \code{sigma\_boot} et les grandeurs qui en sont tirées), à l'exception du rapport de
+  vraisemblance sur $\delta$ (item suivant)~; le réajustement à $\delta$ fixé de chaque
+  réplication (\code{sigma\_boot\_restreint}, issue~\#45) se fait sur les mêmes $y^{*}$, sans
+  aucun tirage supplémentaire, de sorte que \code{sigma\_boot} et les p-values de Monte-Carlo
+  sont restés identiques au bit près à son introduction (tableau avant / après de la
+  régénération des références de l'issue~\#45). \emph{État}~: restauré.
+\item \code{usp\_lr\_delta()} (méthodes de primes et de réserve n\textsuperscript{o}~1,
+  issue~\#45). \emph{Graine}~: le même paramètre \code{seed} et le même $B$ que l'appel
+  (décision du mainteneur, Q2), posés par \code{engine\_sous\_graine()} \emph{une fois par
+  borne} $\delta_0 \in \{0, 1\}$, avant la boucle des $B$ réplications~; à chaque réplication,
+  \code{usp\_simuler()} tire les pertes sous le modèle contraint ajusté. Les deux bornes
+  partagent ainsi les mêmes nombres aléatoires, et, à la borne où se trouve $\hat\delta$, le
+  modèle contraint étant le modèle ajusté, les $y^{*}$ sont exactement ceux du bootstrap
+  principal. Aucune constante ni aucun champ de \code{\$metadata} n'est ajouté~: $B$ et la
+  graine sont consignés dans \code{res\$lr\_delta}. \emph{Portée}~: le rapport de vraisemblance
+  sur $\delta$ (\code{res\$lr\_delta}, lignes de la fiche~\ref{fiche:rv-delta}, repères du
+  profil). \emph{État}~: restauré.
 \item \code{mw\_bootstrap()} (méthode de réserve n\textsuperscript{o}~2).
   \emph{Graine}~: le même paramètre \code{seed}, posé une seule fois avant la boucle par
   \code{engine\_sous\_graine()}~; à chaque réplication,
@@ -1201,7 +1235,7 @@ des suites). Les écarts maximaux observés, $0{,}043$, $0{,}046$ et $0{,}062$,
 valaient entre $1{,}3$ et $2{,}6$ fois ces écarts-types, ce qui est attendu pour
 le maximum sur 34 et 13 statistiques.
 
-\emph{État laissé à l'appelant}~: les quatre sources restaurant l'état qu'elles ont trouvé,
+\emph{État laissé à l'appelant}~: les cinq sources restaurant l'état qu'elles ont trouvé,
 \code{run\_engine()} laisse l'état du générateur de l'appelant intact (ADR~0004, point~3).
 Mesuré sur les cas de contrôle~: après un \code{set.seed()} quelconque, \code{.Random.seed} est
 identique avant et après l'appel~; sans \code{.Random.seed} avant l'appel, aucun n'est créé,
@@ -1669,8 +1703,9 @@ par bootstrap paramétrique restreint dans \code{p\_mc}~; mélange
 $\tfrac12\chi^2_0 + \tfrac12\chi^2_1$ pour mémoire) & --- \\
 Jackknife & \ref{fiche:jackknife} & \code{usp\_jackknife()} &
 diagnostic, aucune p-value & --- \\
-IC bootstrap & \ref{fiche:ic-bootstrap} & \code{usp\_bootstrap()} (champ
-\code{\$sigma\_boot}) & diagnostic, aucune p-value & --- \\
+IC bootstrap (complet et à $\delta$ fixé) & \ref{fiche:ic-bootstrap} & \code{usp\_bootstrap()}
+(champs \code{\$sigma\_boot} et \code{\$sigma\_boot\_restreint}) & diagnostic, aucune p-value
+& --- \\
 Convergence multi-démarrages (contrôle numérique, hors table des tests) &
 \ref{fiche:multi-demarrages} & \code{usp\_ajuster()} (champs
 \code{\$n\_starts\_optimum}, \code{\$n\_starts\_optimum\_code0}, \code{\$n\_starts\_echec},
@@ -3227,6 +3262,17 @@ Rosner (ESD) & LN & $R_i$ & Valeurs critiques tabulées & --- & --- &
 Procédure de décision & Sans objet (pas de p-value) &
 Indicatif seulement ; fiabilité annoncée pour $T\ge 25$ \\
 
+Rapport de vraisemblance sur $\delta$ ($\delta_0 = 0$ et $1$) & LN & $\mathrm{LR}$ & Non &
+Oui (mélange $\tfrac12\chi^2_0+\tfrac12\chi^2_1$) & Oui (bootstrap restreint) &
+\textbf{Diagnostic}, aucune p-value retenue &
+\textbf{Non}~: mélange contredit par simulation (facteur voisin de 7 sur le jeu de contrôle) &
+Lire \code{p\_mc} comme mesure d'identifiabilité de $\delta$, sans verdict~; une p élevée
+n'établit pas la borne \\
+
+IC bootstrap (complet et à $\delta$ fixé) & LN & $L$ & --- & --- & --- &
+\textbf{Diagnostic} & Sans objet & Présenter les deux intervalles~; le complet n'est pas
+convergent au bord (Andrews, 2000) \\
+
 
 \multicolumn{9}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- M1 : proportionnalité des cumulés}}} \\
 
@@ -3573,10 +3619,27 @@ Modèle correct, identifiabilité, intérieur du domaine &
 $\hat\delta$ souvent \textbf{au bord} : régularité en défaut, normalité
 asymptotique non applicable \\
 
-Test du rapport de vraisemblance sur $\delta$ & $\mathrm{LR}$ &
+Rapport de vraisemblance sur $\delta$ (diagnostic) & (A) loi de $\mathrm{LR}$ en $T$ &
 $\tfrac12\chi^2(0)+\tfrac12\chi^2(1)$ & Convergence en loi &
-Non quantifiée à $T$ petit & Frontière du domaine (résultat de Chernoff) &
-p-value $\chi^2(1)$ conservatrice d'un facteur 2 \\
+Non quantifiée à $T$ petit & Frontière du domaine, nuisance intérieure, observations i.i.d.
+(Chernoff~; Self et Liang) &
+\textbf{Contredite} par simulation à $T = 8$ (p du mélange $0{,}229$ contre $0{,}034$ sur le jeu
+de contrôle, fiche~\ref{fiche:rv-delta})~: pour mémoire, non retenue \\
+
+Rapport de vraisemblance sur $\delta$ (suite) & (B) $\hat p_{\mathrm{MC}}$ du bootstrap restreint &
+p-value sous le modèle contraint ajusté & Convergence en $B$ (Monte-Carlo) et en $T$ (validité du
+plug-in) & $\mathcal{O}(B^{-1/2})$ pour la première~; non établie pour la seconde &
+Quasi-pivotalité de $\mathrm{LR}$ en $(\gamma, \beta)$, non établie &
+Seule p-value calibrée, restituée sans être retenue (diagnostic, ADR~0001) \\
+
+IC bootstrap de $\sigma_{\mathrm{USP}}$, complet et à $\delta$ fixé (diagnostics) & Quantiles
+bootstrap & Quantiles de la loi d'échantillonnage de $\hat\sigma_{\mathrm{USP}}$ &
+Convergence bootstrap en $T$~; erreur de Monte-Carlo en $B$ &
+Non établie à $T$ petit~; $\mathcal{O}(B^{-1/2})$ pour la part Monte-Carlo &
+Paramètre intérieur au domaine pour l'IC complet (Andrews, 2000)~; structure de variance
+retenue pour l'IC restreint &
+IC complet non convergent quand $\delta$ est au bord~; IC restreint conditionnel à
+$\hat\delta$ (fiche~\ref{fiche:ic-bootstrap}) \\
 
 \end{longtable}
 \end{center}
@@ -5287,8 +5350,9 @@ epsilon non echangeable, r\_t non identiquement distribues).}~» Le
 $\hat\delta$ est obtenu par minimisation sous contrainte de bornes de la log-vraisemblance
 négative. \textbf{Il ne s'agit pas d'un test} mais d'un diagnostic d'identifiabilité.
 \Hzero
-Sans objet en tant que diagnostic. Le test formel correspondant est le test du rapport de
-vraisemblance $H_0 : \delta = 0$ ou $\delta = 1$, documenté en section~\ref{sec:robustesse}.
+Sans objet en tant que diagnostic. La comparaison formelle de chaque borne à l'optimum est le
+rapport de vraisemblance $H_0 : \delta = 0$ ou $\delta = 1$ (fiche~\ref{fiche:rv-delta}), lui aussi
+restitué comme diagnostic, sans verdict.
 \Stat
 La valeur $\hat\delta$ elle-même, avec le drapeau
 $\mathds{1}\{\hat\delta \le 10^{-6}\ \text{ou}\ \hat\delta \ge 1 - 10^{-6}\}$
@@ -5324,12 +5388,15 @@ n'étant pas une alerte, mais la mesure de la non-identifiabilité de $\delta$ �
 vrai à $\delta = 1$ produit presque aussi souvent $\hat\delta = 0$ que $\hat\delta = 1$. Sur le
 jeu à $\hat\delta$ intérieur ($\delta = 0{,}664$ dans le modèle simulé), $\hat\delta^{*}$ est au
 bord dans $76{,}8~\%$ $[74{,}9~;~78{,}6]$ des cas ($40{,}7~\%$ au bord~0, $36{,}1~\%$ au bord~1).
-La restitution de cette incertitude relève de l'issue~\#45. \emph{Pourquoi aucun verdict}
+Depuis l'issue~\#45, cette incertitude est restituée par le rapport de vraisemblance aux deux
+bornes, dont la loi est simulée par bootstrap restreint (fiche~\ref{fiche:rv-delta}), et par
+l'intervalle bootstrap à $\delta$ fixé, à côté de l'intervalle complet, qui n'est pas convergent
+au bord (fiche~\ref{fiche:ic-bootstrap}). \emph{Pourquoi aucun verdict}
 (ADR~0001, amendement du 23/09/2026)~: la position de $\hat\delta$ décrit l'identifiabilité de la structure de variance,
 non l'adéquation du modèle, et n'a ni hypothèse nulle ni loi de référence~; un marquage
 \code{ALERTE} au bord, cas le plus fréquent sur ces historiques, ne distinguerait aucun dossier
-d'un autre. La décision formelle sur $\delta = 0$ ou $\delta = 1$ relève du test du rapport de
-vraisemblance (fiche~\ref{fiche:rv-delta}).
+d'un autre. Ce que les données disent de $\delta = 0$ et de $\delta = 1$ se lit dans le rapport de
+vraisemblance (fiche~\ref{fiche:rv-delta}), sans verdict non plus.
 
 \textbf{Volumes constants} (issue~\#58). Si les $x_t$ sont constants (drapeau
 \code{\$volumes\_constants} de \code{usp\_regime()}, tolérance relative
@@ -7355,50 +7422,169 @@ est un constat de simulation (section~\ref{sec:base-residus}).
 \label{sec:robustesse}
 % =============================================================================
 
-\begin{fiche}{Test du rapport de vraisemblance sur les cas limites de $\delta$}
+\begin{fiche}{Rapport de vraisemblance sur les cas limites de $\delta$ (diagnostic)}
 \label{fiche:rv-delta}%
 \refl{S.\,S. Wilks, \emph{The large-sample distribution of the likelihood ratio for testing
 composite hypotheses}, \emph{Annals of Mathematical Statistics}, 9(1), 1938, p.~60--62 ;
 correction de frontière~: H.~Chernoff, \emph{On the distribution of the likelihood ratio},
-\emph{Annals of Mathematical Statistics}, 25(3), 1954, p.~573--578 ; D.\,O. Stram, J.\,W. Lee,
+\emph{Annals of Mathematical Statistics}, 25(3), 1954, p.~573--578 ; S.\,G. Self, K.-Y. Liang,
+\emph{Asymptotic properties of maximum likelihood estimators and likelihood ratio tests under
+nonstandard conditions}, \emph{Journal of the American Statistical Association}, 82(398), 1987,
+p.~605--610 ; D.\,O. Stram, J.\,W. Lee,
 \emph{Variance components testing in the longitudinal mixed effects model}, \emph{Biometrics},
-50(4), 1994, p.~1171--1177.}
+50(4), 1994, p.~1171--1177 ; loi simulée~: A.\,C. Davison, D.\,V. Hinkley, \emph{Bootstrap Methods
+and their Application}, Cambridge University Press, 1997, chap.~4.}
 \Cadre
 On note $\ell(\delta,\gamma)$ la log-vraisemblance et $\mathcal{O}(\delta,\gamma) = -2\ell$ à une
-constante près, soit la fonction objectif minimisée par le script. Hypothèses non testées~:
-régularité du modèle, identifiabilité, échantillon suffisant pour la théorie asymptotique.
+constante près, soit la fonction objectif minimisée par le moteur ($\ln\beta$ profilé en forme
+fermée). \textbf{Diagnostic, non test}~: les lignes de la famille~G de la table des tests
+«~\code{Rapport de vraisemblance~: delta = 0 (variance lineaire en volume)}~» et «~\code{\dots~delta = 1
+(variance quadratique en volume)}~», calculées par \code{usp\_lr\_delta()} (issue~\#45,
+spécification d'\code{actuary} du 28~septembre 2026, décisions du mainteneur Q1 à Q7), restituées
+\code{INFO}, sans p-value retenue (\code{p\_retenue} et \code{nature\_p} à \code{NA}) ni sens du
+test. Les deux bornes appartiennent au modèle réglementaire (annexe~XVII, sections~B et~C,
+paragraphe~6, $0 \le \delta \le 1$)~: rejeter l'une ne met pas le calibrage en défaut. La question
+posée est celle de l'identifiabilité~: les données distinguent-elles la borne de l'optimum, ou
+$\delta$ relève-t-il d'une convention~? Hypothèses non testées~: le modèle lognormal de
+l'annexe~XVII, sous lequel la loi de référence est simulée.
 \Hzero
 $H_0 : \delta = \delta_0$ avec $\delta_0 \in \{0, 1\}$, c'est-à-dire structure de variance purement
-linéaire en volume ($\delta_0 = 0$) ou purement quadratique ($\delta_0 = 1$).
+linéaire en volume ($\delta_0 = 0$) ou purement quadratique ($\delta_0 = 1$), contre $\delta > 0$,
+respectivement $\delta < 1$.
 \Stat
 Statistique du rapport de vraisemblance, obtenue par profilage sur $\gamma$~:
 \[
   \mathrm{LR}(\delta_0) \;=\; \min_{\gamma}\mathcal{O}(\delta_0,\gamma)
-                        \;-\; \min_{\delta\in[0,1],\,\gamma}\mathcal{O}(\delta,\gamma) .
+                        \;-\; \min_{\delta\in[0,1],\,\gamma}\mathcal{O}(\delta,\gamma) ,
 \]
+le premier terme étant calculé par \code{usp\_ajuster\_contraint()} ($\tilde\gamma_0$ par
+\code{stats::optimize()} sur les bornes numériques de $\gamma$, à la tolérance
+\code{TOL\_GAMMA\_CONTRAINT} $= 10^{-8}$~; $\ln\tilde\beta_0$ en forme fermée), le second étant
+l'objectif minimal de \code{usp\_ajuster()}. À la borne où se trouve $\hat\delta$ (à
+\code{TOL\_DELTA\_BORD} près), le modèle contraint est le modèle ajusté et $\mathrm{LR} = 0$ par
+construction. \emph{Convention numérique}~: $\mathrm{LR}$ est ramené à $\max(0, \cdot)$ puis à 0
+s'il est inférieur à \code{tol\_nul} $=$ \code{TOL\_OPTIMUM} $= 10^{-6}$, parce qu'il est la
+différence de deux optimisations, chacune connue à la résolution de l'optimiseur~; ce seuil n'est
+pas une propriété statistique et la même règle s'applique aux réplications. Mesuré sur le jeu de
+contrôle~: la plus petite valeur simulée non nulle est $2{,}0\cdot 10^{-5}$ sous $\delta_0 = 0$
+et $1{,}4\cdot 10^{-6}$ sous $\delta_0 = 1$, au-dessus du seuil. Le champ \code{estim} porte
+$\tilde\sigma(\delta_0) = \tilde\beta_0 e^{\tilde\gamma_0}$, le $\hat\sigma$ que donnerait
+l'estimation sous cette borne. Tous les champs sont dans \code{res\$lr\_delta} (un élément par
+borne, dont les $\mathrm{LR}^{*}$ simulés \code{lr\_boot}, puis $B$, la graine et
+\code{tol\_nul}).
 \Loi
-Sous les conditions de régularité de Wilks,
+\emph{Asymptotique.} Sous les conditions de régularité de Wilks,
 $\mathrm{LR} \xrightarrow{\ \mathcal{L}\ } \chi^2(1)$.
 \textbf{Mais $\delta_0 = 0$ et $\delta_0 = 1$ sont sur la frontière du domaine $[0,1]$}~: la
-condition de régularité est violée et le résultat de Chernoff (1954) s'applique, la loi limite
-devenant le mélange
+condition de régularité est violée et le résultat de Chernoff (1954), généralisé par Self et
+Liang (1987) au cas d'un paramètre à la frontière et de paramètres de nuisance intérieurs pour
+des observations i.i.d., donne pour loi limite le mélange
 \[
   \tfrac12\,\chi^2(0) + \tfrac12\,\chi^2(1),
 \]
-où $\chi^2(0)$ désigne la masse de Dirac en~0.
+où $\chi^2(0)$ désigne la masse de Dirac en~0. C'est une loi limite en $T$, hors de ses
+hypothèses ici~: observations indépendantes mais non identiquement distribuées, $T = 8$ fixe,
+information sur $\delta$ faible quand les volumes varient peu.
+
+\emph{Simulée (loi de référence employée).} La loi de $\mathrm{LR}$ sous $H_0$ est simulée par
+un \emph{bootstrap paramétrique restreint}~: $B$ réplications $y^{*}$ tirées du modèle
+\emph{contraint} ajusté $(\delta_0, \tilde\gamma_0, \tilde\beta_0)$ (\code{usp\_simuler()}),
+chacune réajustée sans contrainte (\code{usp\_ajuster\_rapide()}, trois démarrages) et sous la
+contrainte (\code{usp\_ajuster\_contraint()}), d'où $\mathrm{LR}^{*} = \max(0, \mathcal{O}_c^{*} -
+\mathcal{O}^{*})$, ramené à 0 sous \code{tol\_nul}~; une réplication dont l'un des deux
+réajustements échoue est écartée (\code{n\_echec}), et le nombre de réplications où le
+réajustement libre est plus mauvais que le contraint de plus de \code{TOL\_OPTIMUM}
+(\code{n\_refit\_pire}, attendu nul) est conservé. C'est le test par bootstrap paramétrique sous le
+modèle nul ajusté de Davison et Hinkley (1997, chap.~4). $B$ et la graine sont ceux de l'appel,
+avec une pose de graine par borne (§\ref{sec:graines})~: à la borne où se trouve $\hat\delta$, les
+$y^{*}$ sont ceux du bootstrap principal.
+
+\emph{Constat de simulation à $T = 8$} (\code{usp\_lr\_delta()}, $B = 999$, graine 20260831~;
+J1~: jeu de contrôle, $\hat\delta = 1$~; J2~: jeu à $\hat\delta = 0{,}664$ des tests unitaires,
+volumes de 50 à 300~; mesure, qui reproduit la spécification d'\code{actuary}, commentaire de
+l'issue~\#45)~:
+
+\begin{center}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+ & J1, $\delta_0 = 0$ & J1, $\delta_0 = 1$ & J2, $\delta_0 = 0$ & J2, $\delta_0 = 1$ \\
+\midrule
+$\mathrm{LR}$ observé & $0{,}551$ & $0$ & $0{,}165$ & $0{,}141$ \\
+$\tilde\sigma(\delta_0)$ (écart à $\hat\sigma$) & $0{,}10875$ ($+3{,}3~\%$) & $0{,}10531$ & $0{,}06676$ ($-3{,}2~\%$) & $0{,}07262$ ($+5{,}3~\%$) \\
+p-value de Monte-Carlo (erreur) & $0{,}034$ ($0{,}006$) & $1$ & $0{,}289$ ($0{,}014$) & $0{,}411$ ($0{,}016$) \\
+p-value du mélange & $0{,}229$ & $1$ & $0{,}342$ & $0{,}354$ \\
+$\mathbb{P}(\mathrm{LR}^{*} = 0)$ (mélange~: $0{,}5$) & $0{,}519$ & $0{,}490$ & $0{,}623$ & $0{,}495$ \\
+$\mathbb{P}(\mathrm{LR}^{*} > 1{,}642)$ (mélange~: $0{,}10$) & $0{,}000$ & $0{,}000$ & $0{,}076$ & $0{,}128$ \\
+$\mathbb{P}(\mathrm{LR}^{*} > 2{,}706)$ (mélange~: $0{,}05$) & $0{,}000$ & $0{,}000$ & $0{,}024$ & $0{,}047$ \\
+Quantiles 90/95/99~\% de $\mathrm{LR}^{*}$ & $0{,}40$/$0{,}50$/$0{,}66$ & $0{,}39$/$0{,}51$/$0{,}70$ & $1{,}41$/$2{,}14$/$3{,}33$ & $1{,}91$/$2{,}61$/$3{,}91$ \\
+Maximum de $\mathrm{LR}^{*}$ & $0{,}88$ & $0{,}83$ & $5{,}26$ & $5{,}28$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+Sur les quatre calculs, $B_{\text{eff}} = 999$, \code{n\_echec} et \code{n\_refit\_pire} nuls.
+Lecture~: à $T = 8$, la loi de $\mathrm{LR}$ sous $H_0$ est bornée en pratique par l'amplitude du
+profil en $\delta$, qui dépend de la dispersion des volumes. Sur J1 (volumes de 102 à 132),
+$\mathrm{LR}^{*}$ ne dépasse jamais $0{,}9$, alors que le mélange place 10~\% de sa masse au-delà
+de $1{,}642$~: la p-value du mélange y est trop grande d'un facteur voisin de 7 ($0{,}229$ contre
+$0{,}034$)~; sur J2, l'écart change de sens à la borne $\delta_0 = 1$ ($0{,}354$ contre $0{,}411$).
+Ces chiffres sont des \emph{constats de simulation sur deux jeux}, non des propriétés du modèle.
+Ils rejoignent, pour un composant de variance testé à sa borne dans un modèle linéaire mixte,
+Crainiceanu et Ruppert (2004, section~\ref{sec:biblio})~: la loi à distance finie du rapport de
+vraisemblance s'écarte du mélange asymptotique, et c'est la loi simulée qu'il faut employer.
+Aucune référence ne qualifie l'approximation à $T = 8$ pour le présent modèle.
 \Pval
-p-value naïve rapportée par le script~: $p = 1 - F_{\chi^2_1}(\mathrm{LR})$.
-p-value corrigée pour la frontière~:
-$p_{\text{Chernoff}} = \tfrac12\big(1 - F_{\chi^2_1}(\mathrm{LR})\big) = p/2$.
+\textbf{Aucune p-value retenue} (ADR~0001, amendement M7~; \code{CONTEXT.md}, «~P-value
+retenue~»)~: la ligne est un diagnostic, et aucune des trois voies ne fonde un verdict.
+\begin{itemize}[itemsep=2pt]
+\item \emph{Exacte}~: aucune loi exacte de $\mathrm{LR}$ n'est connue sous le modèle de
+  l'annexe~XVII.
+\item \emph{Asymptotique} (champ \code{p\_asymptotique}, pour mémoire,
+  \code{.p\_melange\_chernoff()})~: $p = 1$ si $\mathrm{LR} = 0$, sinon
+  $p = \tfrac12\big(1 - F_{\chi^2_1}(\mathrm{LR})\big)$. En $\mathrm{LR} = 0$, valeur la moins
+  extrême du mélange, $\mathbb{P}(\mathrm{LR} \ge 0) = 1$~: la formule $p/2$, qui donnerait
+  $0{,}5$, y est fausse. Cette p-value n'est pas retenue, parce que sa loi est hors de ses
+  hypothèses et contredite par la mesure ci-dessus~; la retenir serait le repli sur la loi
+  nominale que la hiérarchie des p-values interdit.
+\item \emph{Monte-Carlo} (champs \code{p\_mc} et \code{err\_mc}, calculés par
+  \code{engine\_p\_mc()} en queue haute, $(1 + \#\{\mathrm{LR}^{*} \ge \mathrm{LR}\})/(B_{\text{eff}} +
+  1)$, passés à \code{add()} par ses arguments \code{p\_mc\_ext} et \code{err\_mc\_ext}, admis
+  seulement sans clé du catalogue)~: c'est la seule p-value calibrée à $T = 8$, au plug-in près des
+  paramètres de nuisance $(\tilde\gamma_0, \tilde\beta_0)$, dont la validité à $T = 8$ repose sur une
+  quasi-pivotalité de $\mathrm{LR}$ non établie (même statut que toutes les p-values de Monte-Carlo
+  du moteur)~; son erreur de Monte-Carlo, en $1/\sqrt{B}$, est distincte de cette erreur
+  d'approximation en $T$. Elle n'est pas retenue pour autant~: (a)~à la borne où se trouve
+  $\hat\delta$, $\mathrm{LR} = 0$ et $p = 1$ par construction, de sorte que la ligne de cette
+  borne «~réussirait~» toujours~; (b)~un \code{OK} sur $\delta_0 = 0$ quand $\hat\delta = 1$ se lirait
+  «~$\delta = 0$ acceptable~», ce qui n'est pas un verdict d'adéquation du modèle~; (c)~la
+  puissance dépend de la dispersion des volumes ($\mathrm{LR}^{*} \le 0{,}9$ sur J1), et un
+  \code{OK} n'apporterait aucune preuve. Elle reste lisible dans son champ. À volumes constants,
+  tous les $\mathrm{LR}^{*}$ sont nuls et \code{p\_mc} vaut \code{NA} avec le motif de dispersion
+  nulle, restitué en tête du commentaire.
+\end{itemize}
 \Usage
-\textbf{Point d'attention majeur.} La p-value affichée est \emph{conservatrice d'un facteur~2}
-lorsque $\hat\delta$ est au bord~: la vraie p-value est la moitié de celle rapportée. Le script
-affiche volontairement la version naïve, plus prudente, mais la note de justification doit
-mentionner la correction. Sur le fond, ce test répond à la question pratique décisive~: la
-structure de mélange imposée par le règlement est-elle réellement identifiée par les données, ou
-un cas limite serait-il statistiquement aussi défendable ? Une $\mathrm{LR}$ faible pour les deux
-bornes signifie que $\delta$ n'est pas identifié et que le paramètre final repose sur une
-convention plutôt que sur l'information contenue dans l'historique.
+Sur le fond, ce diagnostic répond à la question pratique décisive~: la structure de mélange
+imposée par le règlement est-elle réellement identifiée par les données, ou un cas limite
+serait-il aussi défendable~? Lecture, reprise par le commentaire de la ligne~: $\mathrm{LR} = 0$,
+borne atteinte par l'estimation~; \code{p\_mc} faible, borne moins compatible avec les données
+que $\hat\delta$~; \code{p\_mc} élevée, borne aussi défendable que $\hat\delta$ --- ce qui signifie
+que les données ne distinguent pas la borne de l'optimum, \textbf{non que la borne est
+établie}~: à $T = 8$, une p-value élevée n'est pas une preuve. Une $\mathrm{LR}$ faible pour les
+deux bornes signifie que $\delta$ n'est pas identifié et que le paramètre final repose sur une
+convention plutôt que sur l'information contenue dans l'historique~; l'effet sur
+$\hat\sigma$ se lit dans \code{estim} ($\tilde\sigma(\delta_0)$). Sur le jeu de contrôle, $\delta_0 = 0$ donne $\mathrm{LR} = 0{,}551$,
+\code{p\_mc} $= 0{,}034$ et $\tilde\sigma(0)$ supérieur de $3{,}3~\%$ à $\hat\sigma$~: la borne
+$\delta = 0$ y est moins compatible avec les données que $\hat\delta = 1$, sans qu'aucun verdict
+en découle. Le commentaire préfixe, selon le régime, «~\code{SOLUTION AU BORD delta = \dots~: LR = 0
+par construction.}~», «~\code{VOLUMES CONSTANTS~: delta non identifie, LR nul aux deux bornes par
+construction.}~» ou le motif d'absence de p-value de Monte-Carlo~; il ne porte aucun nombre issu du
+bootstrap (décisions M24 et M27). Jusqu'à l'issue~\#45, le moteur calculait, dans
+\code{usp\_profil()}, un $\mathrm{LR}$ comparé à la loi $\chi^2(1)$ naïve (champs
+\code{lr\_delta0} et \code{lr\_delta1}, supprimés), jamais affiché. Coût mesuré~: de trois à
+quatre secondes par jeu à $B = 999$ (J1 et J2, session Linux).
 \end{fiche}
 
 \begin{fiche}{Jackknife (sensibilité au retrait d'une année)}
@@ -7519,11 +7705,24 @@ donc pas, à lui seul, sur l'adéquation~; ces taux ne se transposent pas à d'a
 \begin{fiche}{Intervalle de confiance par bootstrap paramétrique}
 \label{fiche:ic-bootstrap}%
 \refl{Efron (1979), \emph{op.\ cit.} ; B.~Efron, R.\,J. Tibshirani, \emph{An Introduction to the
-Bootstrap}, Chapman \& Hall, 1993.}
+Bootstrap}, Chapman \& Hall, 1993 ; au bord du domaine~: D.\,W.\,K. Andrews, \emph{Inconsistency of
+the bootstrap when a parameter is on the boundary of the parameter space}, \emph{Econometrica},
+68(2), 2000, p.~399--406.}
 \Cadre
 On réutilise les $B$ réplications décrites en section~\ref{sec:mc}, dont on extrait
 $\sigma_{\mathrm{USP}}^{(b)} = c\,\hat\sigma^{(b)}\sqrt{(T+1)/(T-1)} + (1-c)\,\sigma_{\text{std}}$.
-\textbf{Diagnostic, non test.}
+\textbf{Diagnostic, non test.} La famille~G porte l'intervalle \emph{complet}
+(«~\code{Largeur relative de l'IC bootstrap 90\%}~»), dont chaque réplication réajuste $\delta$ et
+$\gamma$, et, depuis l'issue~\#45, l'intervalle \emph{restreint à $\delta$ fixé}
+(«~\code{\dots~(delta fixe a delta estime)}~»)~: sur les \emph{mêmes} réplications $y^{*}$,
+\code{usp\_bootstrap()} réajuste aussi le modèle à $\delta = \hat\delta$, seul $\gamma$ étant
+réestimé (\code{usp\_ajuster\_contraint()}), après la réplication principale et sans aléa
+supplémentaire~; d'où \code{bootstrap\$sigma\_boot\_restreint}, \code{res\$ic\_bootstrap\_restreint}
+et \code{res\$ajustement\$largeur\_ic\_restreint}. Une réplication dont le réajustement contraint
+échoue est écartée du seul bootstrap restreint et comptée dans
+\code{bootstrap\$n\_echec\_restreint}~; le bootstrap principal n'en dépend pas. L'écart entre les
+deux intervalles mesure la part de l'incertitude due à la liberté de $\delta$, sans bruit de
+Monte-Carlo différentiel.
 \Hzero
 Sans objet (procédure d'estimation d'incertitude, non de décision).
 \Stat
@@ -7552,9 +7751,16 @@ retiré pour la même raison et n'est plus restitué par le moteur~: il se recal
 \code{res\$ajustement} ($\hat\sigma$).
 \Loi
 La distribution bootstrap approxime la loi d'échantillonnage de $\hat\sigma_{\mathrm{USP}}$
-conditionnellement au modèle ajusté.
+conditionnellement au modèle ajusté. \textbf{Au bord du domaine, cette approximation n'est pas
+garantie}~: Andrews (2000) montre que le bootstrap de l'estimateur sous contrainte n'est pas
+convergent lorsque le vrai paramètre est sur la frontière, et $\hat\delta$ est au bord dans la
+plupart des cas à $T = 8$ (fiche~\ref{fiche:position-delta}). L'intervalle restreint n'est pas
+concerné par ce résultat, $\delta$ n'y étant pas réestimé~; il décrit l'incertitude
+\emph{conditionnelle} à la structure de variance retenue, et ignore donc celle de $\hat\delta$.
+Les deux intervalles encadrent ainsi la lecture sans qu'aucun ne soit justifié à $T = 8$~; aucune
+référence ne qualifie leur couverture à cette profondeur.
 \Pval
-Aucune. La ligne est restituée \code{INFO}, sans verdict ni sens du test
+Aucune. Les lignes de l'intervalle complet et de l'intervalle restreint sont restituées \code{INFO}, sans verdict ni sens du test
 (\code{sens\_du\_test} à \code{NA}). Le repère conventionnel 50~\% / 80~\% porte sur $L$, sur
 l'échelle de $\sigma_{\mathrm{USP}}$ seulement~; il n'est
 associé à aucune loi de référence ni à aucun niveau et ne produit aucun verdict~; jusqu'à
@@ -7575,11 +7781,18 @@ modèle est mal spécifié.
 
 \emph{Dépendance de $L$ à la table de l'annexe.} À données identiques, $L$ varie avec
 $\sigma_{\text{std}}$ par le dénominateur. Mesuré (méthode prime, jeu de contrôle, segment~6 de
-l'annexe~II, $B = 999$, graine 20260831)~: la largeur $\hat q_{0{,}95} - \hat q_{0{,}05} = 0{,}06173$
-est la même avec l'écart-type standard de 12~\% de la version d'origine de 2015 et avec celui de
-19~\% de la version consolidée, mais $\sigma_{\mathrm{USP}}$ passe de $0{,}11965$ à $0{,}14835$ et
-$L$ de $0{,}5159$ à $0{,}4161$, de part et d'autre du repère de 50~\%~; $L_{\text{est}}$
-vaut $87{,}6~\%$ dans les deux cas. Au segment~1, $L = 55{,}4~\%$ et $L_{\text{est}} = 87{,}6~\%$.
+l'annexe~II, $B = 999$, graine 20260831~; valeurs depuis l'issue~\#109)~: la largeur
+$\hat q_{0{,}95} - \hat q_{0{,}05} = 0{,}06176$ est la même avec l'écart-type standard de 12~\% de la
+version d'origine de 2015 et avec celui de 19~\% de la version consolidée, mais
+$\sigma_{\mathrm{USP}}$ passe de $0{,}11965$ à $0{,}14835$ et $L$ de $0{,}5161$ à $0{,}4163$, de
+part et d'autre du repère de 50~\%~; $L_{\text{est}}$ vaut $87{,}7~\%$ dans les deux cas. Au
+segment~1, $L = 55{,}4~\%$ et $L_{\text{est}} = 87{,}7~\%$ (avant l'issue~\#109~: largeur
+$0{,}06173$, $L$ de $0{,}5159$ à $0{,}4161$, $L_{\text{est}} = 87{,}6~\%$).
+\emph{Intervalle restreint} (même jeu, segment~1)~: $[0{,}0757~;~0{,}1376]$ contre
+$[0{,}0752~;~0{,}1370]$ pour l'intervalle complet, largeur relative $0{,}5555$ contre $0{,}5541$,
+\code{n\_echec\_restreint} nul (mesure)~: sur ce jeu, où $\hat\delta = 1$, fixer $\delta$ ne
+resserre pas l'intervalle~; la part de l'incertitude due à $\hat\delta$ n'y est pas
+perceptible à cette échelle.
 Cette dernière valeur est un constat sur ce jeu~; elle est de l'ordre de grandeur attendu pour un
 paramètre d'échelle estimé sur huit points~: pour un écart-type estimé à $\nu$ degrés de liberté
 sous normalité, la largeur relative de l'intervalle 5~\%--95~\% vaut
@@ -7787,11 +8000,21 @@ Suite du recensement~: diagnostics d'influence, estimation et calibration.
 \code{plot\_mw\_contributions()} & MW & M6 & Fiche dédiée. \\
 \multicolumn{4}{@{}l@{}}{\textit{\textcolor{financeblue}{Estimation et calibration}}} \\
 \code{plot\_profil\_delta()} & LN & --- & Profil de vraisemblance en $\delta$~:
-un plateau signale une structure de variance non identifiée. \\
+un plateau signale une structure de variance non identifiée. Depuis l'issue~\#45, deux repères
+du rapport de vraisemblance (fiche~\ref{fiche:rv-delta}), calculés par
+\code{engine\_plots\_data()} (\code{plots\_data\$lr\_delta})~: une ligne horizontale à
+$\min\mathcal{O} + \chi^2_{0{,}80}(1) = \min\mathcal{O} + 1{,}642$, quantile à 90~\% du mélange
+$\tfrac12\chi^2(0) + \tfrac12\chi^2(1)$, étiquetée «~repère asymptotique \dots, aide de
+lecture~», et deux marques en $\delta = 0$ et $\delta = 1$ à $\min\mathcal{O}$ plus le
+quantile à 90~\% des $\mathrm{LR}^{*}$ simulés sous chaque borne (type~7). Sur le jeu de
+contrôle, les marques sont à $+0{,}40$ et $+0{,}39$, la ligne à $+1{,}64$~: l'écart visible est la
+mesure de l'inadéquation du mélange à $T = 8$. Aucun verdict. \\
 \code{plot\_surface\_objectif()} & LN & --- & Surface $-2\ln L$ sur la grille
 $(\delta,\gamma)$~: montre si l'optimum au bord est un vrai minimum. \\
 \code{plot\_coupe\_delta()} & LN & --- & Coupe de la surface à $\hat\gamma$~:
-lecture bidimensionnelle de la même platitude, avec son amplitude chiffrée. \\
+lecture bidimensionnelle de la même platitude, avec son amplitude chiffrée~; sans les repères
+du rapport de vraisemblance, qui ne portent que sur le profil (décision d'\code{actuary} après
+audit de l'issue~\#45). \\
 \code{plot\_boot\_sigma()} & LN + MW & --- & Distribution bootstrap de
 $\hat\sigma$~: matérialise l'incertitude d'échantillonnage du paramètre. \\
 \code{plot\_calibration()} & LN + MW & --- & Valeurs candidates et paramètre
@@ -9892,6 +10115,21 @@ soutient dans le présent document.
   s'applique pas directement. Cette référence est celle qui couvre exactement le
   cas rencontré. La référence existante (Mann, 1945) établit la statistique,
   pas sa vitesse de convergence.
+
+  \item H.~Chernoff, \emph{On the distribution of the likelihood ratio},
+  \emph{Annals of Mathematical Statistics}, 25(3), 1954, p.~573--578~;
+  S.\,G. Self, K.-Y. Liang, \emph{Asymptotic properties of maximum likelihood
+  estimators and likelihood ratio tests under nonstandard conditions},
+  \emph{Journal of the American Statistical Association}, 82(398), 1987,
+  p.~605--610.
+  \emph{Portée.} Loi limite du rapport de vraisemblance quand le vrai paramètre
+  est sur la frontière du domaine~; Self et Liang (1987) généralisent Chernoff
+  (1954) et donnent le mélange $\tfrac12\chi^2(0) + \tfrac12\chi^2(1)$ pour un
+  paramètre à la frontière, les autres étant intérieurs, sous des observations
+  i.i.d. Elles fondent la p-value du mélange restituée pour mémoire à la
+  fiche~\ref{fiche:rv-delta}~; elles ne donnent aucune vitesse de convergence, et
+  leurs hypothèses (i.i.d., $T \to \infty$) ne sont pas celles du modèle à
+  $T = 8$, où la mesure contredit le mélange.
 \end{itemize}
 
 \subsection*{Lois exactes employées à la place des approximations normales}
@@ -9974,7 +10212,32 @@ soutient dans le présent document.
   raffinements d'ordre supérieur obtenus pour les statistiques pivotales, qui
   explique pourquoi le bootstrap améliore l'approximation sans la rendre exacte.
   Davison \& Hinkley (1997) traite spécifiquement du bootstrap paramétrique et
-  des tests de Monte-Carlo tels qu'employés ici.
+  des tests de Monte-Carlo tels qu'employés ici~; son chapitre~4 (tests par
+  bootstrap paramétrique sous le modèle nul ajusté) fonde le bootstrap restreint
+  du rapport de vraisemblance sur $\delta$ (fiche~\ref{fiche:rv-delta}).
+
+  \item D.\,W.\,K. Andrews, \emph{Inconsistency of the bootstrap when a parameter
+  is on the boundary of the parameter space}, \emph{Econometrica}, 68(2), 2000,
+  p.~399--406.
+  \emph{Portée.} Contre-exemple établissant que le bootstrap de l'estimateur
+  n'est pas convergent lorsque le vrai paramètre est sur la frontière du domaine.
+  Il concerne l'intervalle bootstrap complet de $\sigma_{\mathrm{USP}}$, qui
+  réajuste $\delta$, quand $\delta$ est au bord, et motive l'intervalle
+  restreint à $\delta$ fixé (fiche~\ref{fiche:ic-bootstrap})~; il ne vise pas le
+  bootstrap restreint du rapport de vraisemblance, dont le modèle simulé est
+  entièrement spécifié sous $H_0$. Il ne chiffre rien à $T = 8$.
+
+  \item C.\,M. Crainiceanu, D.~Ruppert, \emph{Likelihood ratio tests in linear
+  mixed models with one variance component}, \emph{Journal of the Royal
+  Statistical Society, Series B}, 66(1), 2004, p.~165--185.
+  \emph{Portée.} Lois à distance finie et asymptotique du rapport de
+  vraisemblance pour un composant de variance testé à sa borne dans un modèle
+  linéaire mixte, simulées à partir de leur représentation spectrale~; elles
+  s'écartent du mélange $\tfrac12\chi^2(0) + \tfrac12\chi^2(1)$. Le modèle
+  n'est pas celui de l'annexe~XVII~: la référence soutient la démarche --- employer
+  la loi simulée plutôt que le mélange --- et non les valeurs mesurées à la
+  fiche~\ref{fiche:rv-delta}, qui sont des constats de simulation propres à deux
+  jeux.
 
   \item A.\,C. Atkinson, \emph{Two graphical displays for outlying and
   influential observations in regression}, \emph{Biometrika}, 68(1), 1981,
@@ -10150,7 +10413,8 @@ Erreur de Monte-Carlo (§\ref{sec:deuxerreurs}) & champ \code{err\_mc} de \code{
 \code{mw\_bootstrap()}, calculé par \code{engine\_p\_mc()}~: $\sqrt{\hat p(1-\hat p)/B_{\text{eff}}}$
 en queue haute ou basse, $\sqrt{\hat p(2-\hat p)/B_{\text{eff}}}$ au bilatéral~; pas élémentaire
 de $\hat p$, par statistique, dans \code{granularite\_stat} \\
-Jackknife, profils, rapport de vraisemblance & \code{usp\_jackknife()}, \code{usp\_profil()} \\
+Jackknife, profils, rapport de vraisemblance & \code{usp\_jackknife()}, \code{usp\_profil()},
+\code{usp\_lr\_delta()} et \code{usp\_ajuster\_contraint()} (issue~\#45) \\
 Calibration et paramètre final & \code{usp\_parametre()}, \code{usp\_credibilite()} \\
 Paramètre standard remplacé, barème de crédibilité et dérogations déclarées
 (§\ref{sec:segments}) & \code{usp\_parametre\_standard()}, \code{usp\_bareme\_segment()},
@@ -10503,8 +10767,11 @@ autre paramétrage, et le script peut être rejoué sur les données d'un dossie
         simple $\bar z$ est, elle, un diagnostic (fiche~\ref{fiche:centrage}).
   \item \textbf{Jackknife et intervalle bootstrap} (section~\ref{sec:robustesse}) -- la mesure la
         plus directe de la solidité du calibrage à $T$ faible.
-  \item \textbf{Position de $\hat\delta$ et test du rapport de vraisemblance}
-        (fiches~\ref{fiche:position-delta} et~\ref{fiche:rv-delta}) -- identifiabilité de la structure de variance.
+  \item \textbf{Position de $\hat\delta$ et rapport de vraisemblance aux bornes}
+        (fiches~\ref{fiche:position-delta} et~\ref{fiche:rv-delta}, diagnostics sans verdict) --
+        identifiabilité de la structure de variance~; la p-value de Monte-Carlo du rapport de
+        vraisemblance se lit comme une mesure de ce que les données distinguent, non comme
+        une preuve.
   \item \textbf{Ruptures et points influents} (section~\ref{sec:stabilite}) -- susceptibles
         d'expliquer tout rejet observé par ailleurs.
   \item \textbf{Tests des hypothèses H1 à H4} (sections~\ref{sec:h1} à~\ref{sec:h4}), en lisant
