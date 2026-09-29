@@ -903,31 +903,31 @@ for (m in names(appels_run)) local({
   }
 })
 # ADR 0004, point 2 (decision du mainteneur du 25/09/2026) : generateur et
-# graines fixes des simulations autres que le bootstrap consignes dans
-# $metadata ; les valeurs consignees sont celles qui ont servi (la loi nulle
-# et l'enveloppe se recalculent a partir de metadata).
+# graine fixe des simulations autres que le bootstrap consignes dans
+# $metadata ; la valeur consignee est celle qui a servi (la loi nulle se
+# recalcule a partir de metadata). Depuis l'issue #47, l'enveloppe du
+# QQ-plot n'a plus de graine propre : seed_enveloppe_qq est absent pour les
+# trois methodes, et l'enveloppe se recalcule a partir de bootstrap$z_boot
+# (tests/unitaires/test_enveloppe_qq.R, test (ii)).
 for (m in names(appels_run)) local({
   r <- appels_run[[m]]()
-  verifier(sprintf("run_engine(%s) : generateur et graines consignes dans $metadata", m),
+  verifier(sprintf("run_engine(%s) : generateur et graine consignes dans $metadata, sans seed_enveloppe_qq (#47)", m),
            {
              md <- r$metadata
-             ok <- identical(md$generateur, as.list(ENGINE_RNG_KIND)) &&
+             identical(md$generateur, as.list(ENGINE_RNG_KIND)) &&
                identical(md$seed, 5) && identical(md$seed_loi_nulle_sw, SEED_LOI_NULLE_SW) &&
-               identical(md$seed_loi_nulle_sw, 20260901)
-             if (m == "reserve2") ok && is.null(md$seed_enveloppe_qq) && !"seed_enveloppe_qq" %in% names(md)
-             else ok && identical(md$seed_enveloppe_qq, SEED_ENVELOPPE_QQ) &&
-               identical(md$seed_enveloppe_qq, 20260831)
+               identical(md$seed_loi_nulle_sw, 20260901) &&
+               !"seed_enveloppe_qq" %in% names(md)
            })
   if (m != "reserve2")
-    verifier(sprintf("run_engine(%s) : enveloppe du QQ-plot recalculee a partir de metadata$seed_enveloppe_qq", m),
+    verifier(sprintf("run_engine(%s) : enveloppe du QQ-plot recalculee a partir de bootstrap$z_boot (#47)", m),
              {
-               T <- r$metadata$T
-               ordres <- engine_sous_graine(r$metadata$seed_enveloppe_qq,
-                                            replicate(499, sort(stats::rnorm(T))))
-               env <- t(apply(ordres, 1, stats::quantile, probs = c(0.05, 0.95)))
+               zb <- r$bootstrap$z_boot
+               S <- t(apply(zb[apply(is.finite(zb), 1, all), , drop = FALSE], 1, sort))
+               env <- t(apply(S, 2, stats::quantile, probs = c(0.05, 0.95), type = 7))
                q <- r$plots_data$qqnorm
                o <- order(order(q$theorique))
-               identical(q$env_bas, env[o, 1]) && identical(q$env_haut, env[o, 2])
+               identical(q$env_bas, unname(env[o, 1])) && identical(q$env_haut, unname(env[o, 2]))
              })
 })
 verifier("sw_loi_nulle() par defaut = loi tiree sous metadata$seed_loi_nulle_sw",

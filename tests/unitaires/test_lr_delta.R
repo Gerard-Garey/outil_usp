@@ -144,13 +144,15 @@ verifier("U8 res$lr_delta : champs dans l'ordre (borne0, borne1, B, seed, tol_nu
            r1$lr_delta$B == B_T && r1$lr_delta$seed == GRAINE && r1$lr_delta$tol_nul == TOL_OPTIMUM)
 verifier("U8 res$profil sans lr_delta0 ni lr_delta1",
          identical(names(r1$profil), c("delta_grid", "delta_obj", "gamma_grid", "gamma_obj")))
-verifier("U8 res : lr_delta apres profil, ic_bootstrap_restreint apres ic_bootstrap, plots_data$lr_delta en dernier",
+# Depuis l'issue #47, plots_data$qq_enveloppe suit lr_delta et
+# bootstrap$z_boot suit n_echec_restreint (champs ajoutes en fin de liste).
+verifier("U8 res : lr_delta apres profil, ic_bootstrap_restreint apres ic_bootstrap, plots_data$lr_delta suivi du seul qq_enveloppe (#47)",
          {
            n <- names(r1)
            match("lr_delta", n) == match("profil", n) + 1L &&
              match("ic_bootstrap_restreint", n) == match("ic_bootstrap", n) + 1L &&
-             tail(names(r1$plots_data), 1) == "lr_delta" &&
-             identical(tail(names(r1$bootstrap), 2), c("sigma_boot_restreint", "n_echec_restreint")) &&
+             identical(tail(names(r1$plots_data), 2), c("lr_delta", "qq_enveloppe")) &&
+             identical(tail(names(r1$bootstrap), 3), c("sigma_boot_restreint", "n_echec_restreint", "z_boot")) &&
              is.integer(r1$bootstrap$n_echec_restreint) &&
              tail(names(r1$ajustement), 1) == "kkt_au_moins_un" &&
              "largeur_ic_restreint" %in% names(r1$ajustement)

@@ -1663,7 +1663,7 @@ lillie_p <- function(D, n) {
 
 # --- Execution sous graine locale (ADR 0004, issue #42) ----------------------
 # Fonction unique par laquelle passe toute simulation du moteur
-# (usp_bootstrap(), mw_bootstrap(), sw_loi_nulle(), engine_plots_data()).
+# (usp_bootstrap(), mw_bootstrap(), sw_loi_nulle()).
 # Sauvegarde .Random.seed de l'environnement global (ou note son absence),
 # pose la graine, evalue expr (evaluation differee : l'expression est evaluee
 # dans l'environnement de l'appelant, apres set.seed()), puis restaure l'etat
@@ -1687,11 +1687,11 @@ lillie_p <- function(D, n) {
 # moteur, qui tire toujours sous Inversion (ENGINE_RNG_KIND).
 ENGINE_RNG_KIND <- c(kind = "Mersenne-Twister", normal.kind = "Inversion",
                      sample.kind = "Rejection")
-# Graines fixes des simulations autres que le bootstrap (ADR 0004, point 2),
-# consignees dans res$metadata : loi nulle de Shapiro-Wilk (sw_loi_nulle())
-# et enveloppe du QQ-plot (engine_plots_data()).
+# Graine fixe des simulations autres que le bootstrap (ADR 0004, point 2),
+# consignee dans res$metadata : loi nulle de Shapiro-Wilk (sw_loi_nulle()).
+# L'enveloppe du QQ-plot n'a plus de graine propre depuis l'issue #47 : elle
+# est lue dans les replications de usp_bootstrap() (graine seed).
 SEED_LOI_NULLE_SW <- 20260901
-SEED_ENVELOPPE_QQ <- 20260831
 engine_sous_graine <- function(seed, expr) {
   genv <- globalenv()
   existait <- exists(".Random.seed", envir = genv, inherits = FALSE)
@@ -3034,6 +3034,9 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
     sim <- matrix(NA_real_, B, length(noms), dimnames = list(NULL, noms))
     sig <- del <- gam <- sig_r <- rep(NA_real_, B)
     n_echec_r <- 0L
+    # Residus reajustes de chaque replication retenue (issue #47), colonnes =
+    # annees t (non triees) ; ligne NA si la replication est ecartee.
+    zb <- matrix(NA_real_, B, length(fit$x))
     for (b in seq_len(B)) {
       yb <- usp_simuler(fit)
       fb <- if (refit) {
@@ -3043,6 +3046,7 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
       sb <- try(.stats_bootstrapables(fit$x, yb, fb$z), silent = TRUE)
       if (inherits(sb, "try-error")) next
       sim[b, ] <- sb[noms]
+      zb[b, ] <- fb$z
       sig[b] <- fb$sigma
       if (!is.null(fb$delta)) { del[b] <- fb$delta; gam[b] <- fb$gamma }
       # Bootstrap restreint (issue #45) : sur les MEMES y*, reajustement a
@@ -3077,7 +3081,12 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
        sigma_boot_restreint = sig_r[is.finite(sig_r)],
        # Replications retenues par le bootstrap principal et ecartees du
        # restreint (echec du reajustement contraint).
-       n_echec_restreint = n_echec_r)
+       n_echec_restreint = n_echec_r,
+       # Residus reajustes z* des replications (issue #47, option A) : matrice
+       # B x T, ligne b remplie si et seulement si la replication b est
+       # retenue (sim[b, ] rempli), NA sinon. Source de l'enveloppe du
+       # QQ-plot (engine_enveloppe_qq()). En fin de liste.
+       z_boot = zb)
 }
 
 # Reajustement rapide des replications bootstrap (usp_bootstrap()), unique
@@ -4899,6 +4908,101 @@ engine_contours_cook <- function(T, k = 1L, niveaux = c(0.5, 1), n = 200) {
   }))
 }
 
+# Enveloppe de simulation du QQ-plot (issue #47 ; note d'actuary du
+# 28/09/2026, par. 2, option A, decisions du mainteneur du 28/09/2026).
+# Construction d'Atkinson (1981) : bootstrap parametrique sous le modele
+# ajuste, chaque echantillon simule etant reestime ; les z* sont les residus
+# reajustes de usp_bootstrap() (champ z_boot, B x T, lignes NA pour les
+# replications ecartees). S = statistiques d'ordre des B_eff lignes
+# entierement finies.
+#  - bande ponctuelle : quantiles 5 % et 95 % (type 7) de chaque colonne de S ;
+#  - bande simultanee (Davison et Hinkley 1997, enveloppe globale de
+#    boot::envelope()) : bande des k-iemes plus petite et plus grande valeurs
+#    de chaque colonne de S ; k* = plus grand k tel que la proportion de
+#    lignes de S ayant au moins une valeur STRICTEMENT hors de la bande soit
+#    <= ENVELOPPE_QQ_TAUX_MAX. Les bandes sont emboitees (celle de k + 1
+#    est dans celle de k), la proportion croit avec k : le balayage s'arrete
+#    au premier k qui depasse le seuil.
+# Niveau fixe de 90 % pour les deux bandes, sans lien avec alpha (decision
+# Q3) ; probabilites et taux ecrits en litteraux (1 - 0.90 n'est pas 0.10 en
+# virgule flottante). B_eff = nombre de lignes entierement finies de z_boot
+# = nombre de replications retenues. Degenerescence : B_eff <
+# ENVELOPPE_QQ_B_MIN -> quatre bandes NA et k NA ; B_eff <
+# ENVELOPPE_QQ_B_MIN_SIM -> bande ponctuelle seule, simultanee NA et k NA.
+# Seuil de 500 (decision d'actuary du 29/09/2026), fonde sur la granularite
+# de k et non sur la calibration : sous 500 replications, k* <= 4 et la bande
+# simultanee n'est que celle des 1 a 4 valeurs extremes de chaque colonne (a
+# B_eff = 100, k* = 1 : bande [min, max], taux auto-evalue nul par
+# construction). Mesures sur J1 (tests/donnees/donnees_ln.csv), 8 graines par
+# taille (1001 a 1008), taux hors echantillon evalue sur un bootstrap
+# independant de B = 8000 (graine 424242), meme algorithme que ci-dessous :
+#   B_eff  k*   taux auto-evalue   taux hors echantillon (min-max, moyenne)
+#   100    1    0                  9 a 18 %   (12,5 %)
+#   200    2    5,5 a 7,5 %        9 a 15 %   (12,3 %)
+#   300    3    7,7 a 9,3 %        10 a 15 %  (12,5 %)
+#   400    3-4  7,3 a 10 %         11 a 15 %  (12,4 %)
+#   500    4-5  8 a 9,8 %          9 a 14 %   (11,8 %)
+#   1000   8-9  9 a 9,9 %          10 a 12 %  (10,6 %)
+# Le taux auto-evalue est optimiste (bande calibree sur les replications qui
+# la construisent) : 2,7 points en moyenne a B_eff = 500, 1 point a 1000. Le
+# niveau reel de la bande simultanee est donc voisin de 88 % a B_eff = 500 et
+# de 89 % au defaut B = 999, pour 90 % nominal ; la bande ponctuelle n'est pas
+# concernee. Ces valeurs sont des mesures par simulation sur un seul jeu,
+# pas un resultat general. Les taux (taux_global_ponctuel,
+# taux_global_simultane) sont evalues sur les
+# replications memes qui construisent les bandes (taux in-sample).
+# Le cas "aucun k >= 1 admissible" est inatteignable : k = 1 toujours
+# admissible, taux 0 par construction (a k = 1 la bande est [min, max] de
+# chaque colonne, dont aucune ligne ne sort strictement) ; le if sur
+# k_etoile ne sert que de garde. Sous refit = FALSE (appel direct de
+# usp_bootstrap(), hors run_engine()), les z* sont des residus a parametres
+# fixes et l'enveloppe n'est pas celle d'Atkinson. Aucune p-value ni verdict
+# (aide graphique, ADR 0001). Rend list(bandes = matrice T x 4 dans l'ordre
+# des statistiques d'ordre (colonnes bas, haut, sim_bas, sim_haut), info =
+# description reprise dans plots_data$qq_enveloppe, dont le seuil
+# B_min_simultane lu par l'affichage).
+ENVELOPPE_QQ_NIVEAU <- 0.90
+ENVELOPPE_QQ_PROBS <- c(0.05, 0.95)
+ENVELOPPE_QQ_TAUX_MAX <- 0.10
+ENVELOPPE_QQ_B_MIN <- 20L
+ENVELOPPE_QQ_B_MIN_SIM <- 500L
+engine_enveloppe_qq <- function(z_boot, T) {
+  bandes <- matrix(NA_real_, T, 4L,
+                   dimnames = list(NULL, c("bas", "haut", "sim_bas", "sim_haut")))
+  garde <- if (is.null(z_boot)) logical(0) else apply(is.finite(z_boot), 1L, all)
+  B_eff <- sum(garde)
+  info <- list(source = "bootstrap", B_eff = B_eff,
+               niveau_ponctuel = ENVELOPPE_QQ_NIVEAU,
+               niveau_simultane = ENVELOPPE_QQ_NIVEAU,
+               k = NA_integer_, taux_global_ponctuel = NA_real_,
+               taux_global_simultane = NA_real_,
+               B_min_simultane = ENVELOPPE_QQ_B_MIN_SIM)
+  if (B_eff < ENVELOPPE_QQ_B_MIN) return(list(bandes = bandes, info = info))
+  S <- t(apply(z_boot[garde, , drop = FALSE], 1L, sort))
+  # Proportion des lignes de S ayant au moins une valeur strictement hors de
+  # la bande [bas, haut] (bornes par colonne).
+  taux_hors <- function(bas, haut)
+    mean(rowSums(S < rep(bas, each = B_eff) | S > rep(haut, each = B_eff)) > 0)
+  q <- apply(S, 2L, stats::quantile, probs = ENVELOPPE_QQ_PROBS, type = 7, names = FALSE)
+  bandes[, "bas"] <- q[1L, ]; bandes[, "haut"] <- q[2L, ]
+  info$taux_global_ponctuel <- taux_hors(q[1L, ], q[2L, ])
+  if (B_eff < ENVELOPPE_QQ_B_MIN_SIM) return(list(bandes = bandes, info = info))
+  Sc <- apply(S, 2L, sort)
+  k_etoile <- NA_integer_; taux_k <- NA_real_
+  for (k in seq_len(B_eff %/% 2L)) {
+    tk <- taux_hors(Sc[k, ], Sc[B_eff + 1L - k, ])
+    if (tk > ENVELOPPE_QQ_TAUX_MAX) break
+    k_etoile <- k; taux_k <- tk
+  }
+  # Garde inatteignable : k = 1 toujours admissible, taux 0 par construction.
+  if (!is.na(k_etoile)) {
+    bandes[, "sim_bas"] <- Sc[k_etoile, ]
+    bandes[, "sim_haut"] <- Sc[B_eff + 1L - k_etoile, ]
+    info$k <- k_etoile; info$taux_global_simultane <- taux_k
+  }
+  list(bandes = bandes, info = info)
+}
+
 engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
                               sigma_usp = NULL, lr_delta = NULL) {
   T <- fit$T; x <- fit$x; z <- fit$z
@@ -4907,14 +5011,10 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
   qy <- stats::quantile(z, c(0.25, 0.75)); qx <- stats::qnorm(c(0.25, 0.75))
   pente_qq <- diff(qy) / diff(qx); ord_qq <- qy[1] - pente_qq * qx[1]
 
-  # Enveloppe de simulation du QQ-plot : quantiles 5 % et 95 % des
-  # statistiques d'ordre de 499 echantillons N(0,1) independants de taille T,
-  # sous graine fixe SEED_ENVELOPPE_QQ (consignee dans metadata, issue #37),
-  # sans reestimation du modele (l'enveloppe ne depend des
-  # donnees que par T). Calibre la lecture visuelle a T faible. Tirages sous
-  # graine locale (ADR 0004, #42) : etat de l'appelant restaure.
-  ordres <- engine_sous_graine(SEED_ENVELOPPE_QQ, replicate(499, sort(stats::rnorm(T))))
-  env <- t(apply(ordres, 1, stats::quantile, probs = c(0.05, 0.95)))
+  # Enveloppe de simulation du QQ-plot (issue #47) : lue dans les residus
+  # reajustes du bootstrap parametrique (boot$z_boot), sans nouveau tirage.
+  env <- engine_enveloppe_qq(boot$z_boot, T)
+  o_qq <- order(order(qq$x))
 
   # QQ-plot a deux echantillons (faible vs fort volume)
   qq2 <- NULL
@@ -4933,8 +5033,10 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
     beta = fit$beta,
     ratio = data.frame(t = seq_len(T), ratio = fit$y / x, niveau = fit$beta),
     qqnorm = data.frame(theorique = qq$x, empirique = qq$y,
-                        env_bas = env[order(order(qq$x)), 1],
-                        env_haut = env[order(order(qq$x)), 2]),
+                        env_bas = env$bandes[o_qq, "bas"],
+                        env_haut = env$bandes[o_qq, "haut"],
+                        env_sim_bas = env$bandes[o_qq, "sim_bas"],
+                        env_sim_haut = env$bandes[o_qq, "sim_haut"]),
     qqline = c(ordonnee = unname(ord_qq), pente = unname(pente_qq)),
     qq2ech = qq2,
     spread = data.frame(x = x, racine_abs_z = sqrt(abs(z))),
@@ -4964,6 +5066,9 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
                         delta1 = fit$obj_min + q90(lr_delta$borne1$lr_boot)),
       lr = c(delta0 = lr_delta$borne0$lr, delta1 = lr_delta$borne1$lr))
   }
+  # Description de l'enveloppe du QQ-plot (issue #47), en fin de liste :
+  # nombres calcules cites par l'aide et le rapport.
+  pd$qq_enveloppe <- env$info
   pd
 }
 
@@ -7142,13 +7247,13 @@ run_engine <- function(xt, yt,
         # tests).
         if (methode == "premium") list(nature_donnees = nature_donnees),
         list(sigma_standard_saisi = saisi),
-        # Generateur pose par engine_sous_graine() et graines fixes des
+        # Generateur pose par engine_sous_graine() et graine fixe des
         # simulations autres que le bootstrap (issue #37, ADR 0004 point 2) :
-        # loi nulle de Shapiro-Wilk, enveloppe du QQ-plot. Places apres les
-        # champs existants, avant les champs d'execution.
+        # loi nulle de Shapiro-Wilk. Places apres les champs existants, avant
+        # les champs d'execution. La graine de l'enveloppe du QQ-plot est
+        # retiree (issue #47) : l'enveloppe depend de seed et de B.
         list(generateur = as.list(ENGINE_RNG_KIND),
-             seed_loi_nulle_sw = SEED_LOI_NULLE_SW,
-             seed_enveloppe_qq = SEED_ENVELOPPE_QQ),
+             seed_loi_nulle_sw = SEED_LOI_NULLE_SW),
         # Bareme saisi (issue #93) : place apres les champs de l'issue #37, en
         # dernier avant les champs d'execution (le patch des references
         # ajoute la feuille en fin de metadata).

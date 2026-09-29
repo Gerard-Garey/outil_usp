@@ -14,7 +14,8 @@
 ###############################################################################
 
 COUL <- list(trait = "#B03A2E", pt = "#00468C", env = "#C8DCFA",
-             ref = "#7F8C8D", vert = "#00B450", fond = "#FFFFFF")
+             ref = "#7F8C8D", vert = "#00B450", fond = "#FFFFFF",
+             env_sim = "#E8F0FC")
 
 # L'option usp.graphiques_base force les branches base R des plot_*() meme si
 # plotly est installe. Elle n'est posee que par rapport_html() (graphiques
@@ -290,32 +291,104 @@ plot_ratio <- function(pd) {
   .mep(p, "Ratio observe dans le temps", "annee t", "y_t / x_t")
 }
 
+# Enveloppe du QQ-plot (issue #47) : bande simultanee (exterieure, plus
+# claire) puis bande ponctuelle, lues dans pd$qqnorm (env_sim_bas,
+# env_sim_haut, env_bas, env_haut) ; libelles et seuil de la bande
+# simultanee (B_min_simultane) tires de pd$qq_enveloppe
+# (engine_enveloppe_qq()). Aucun calcul : une bande dont les bornes sont NA
+# n'est pas tracee, et le sous-titre le dit. Sans pd$qq_enveloppe (objet
+# anterieur a l'issue #47, dont les colonnes env_bas / env_haut portaient une
+# autre enveloppe), aucune bande n'est tracee ni legendee.
+LIB_QQ_SIM <- "bande simultan\u00e9e 90 % (tous les points \u00e0 la fois)"
+LIB_QQ_PONCT <- "bande ponctuelle 90 % (point par point)"
+.qq_bandes <- function(pd) {
+  d <- pd$qqnorm
+  if (is.null(pd$qq_enveloppe)) return(c(sim = FALSE, ponct = FALSE))
+  c(sim = !is.null(d$env_sim_bas) && any(is.finite(d$env_sim_bas)),
+    ponct = !is.null(d$env_bas) && any(is.finite(d$env_bas)))
+}
+.qq_titre <- function(pd) {
+  b <- .qq_bandes(pd)
+  paste0("QQ-plot normal (H3) \u2014 ",
+         if (any(b)) "enveloppe de simulation 90 %" else "enveloppe indisponible")
+}
+.qq_sous_titre <- function(pd) {
+  e <- pd$qq_enveloppe
+  if (is.null(e)) return("")
+  b <- .qq_bandes(pd)
+  seuil <- if (is.null(e$B_min_simultane)) "" else
+    sprintf(" (B_eff < %s)", e$B_min_simultane)
+  quoi <- if (b[["sim"]])
+            sprintf("bande ponctuelle et bande simultan\u00e9e (rang k = %s sur %s r\u00e9plications)",
+                    e$k, e$B_eff)
+          else if (b[["ponct"]])
+            sprintf("bande ponctuelle seule sur %s r\u00e9plications, bande simultan\u00e9e indisponible%s",
+                    e$B_eff, seuil)
+          else sprintf("enveloppe indisponible (%s r\u00e9plications)", e$B_eff)
+  sprintf("bootstrap param\u00e9trique sous le mod\u00e8le ajust\u00e9, %s", quoi)
+}
+.qq_bande_base <- function(x, bas, haut, col) {
+  o <- order(x)
+  if (any(is.finite(bas)))
+    graphics::polygon(c(x[o], rev(x[o])), c(bas[o], rev(haut[o])), col = col, border = NA)
+}
+.qq_bande_plotly <- function(p, x, bas, haut, couleur) {
+  if (!any(is.finite(bas))) return(p)
+  o <- order(x)
+  p <- plotly::add_trace(p, x = x[o], y = haut[o], type = "scatter",
+        mode = "lines", line = list(width = 0), hoverinfo = "skip")
+  plotly::add_trace(p, x = x[o], y = bas[o], type = "scatter",
+        mode = "lines", fill = "tonexty", fillcolor = couleur,
+        line = list(width = 0), hoverinfo = "skip")
+}
+
 plot_qqnorm <- function(pd) {
   if (is.null(pd$qqline)) return(.vide())
-  d <- pd$qqnorm; o <- order(d$theorique)
+  d <- pd$qqnorm
+  b <- .qq_bandes(pd); sim <- b[["sim"]]; ponct <- b[["ponct"]]
+  st <- .qq_sous_titre(pd); ti <- .qq_titre(pd)
   if (!.plotly_dispo()) {
-    .cadre(); plot(d$theorique, d$empirique, pch = 19, col = COUL$pt,
-                   xlab = "quantiles N(0,1)", ylab = "residus", main = "QQ-plot normal")
-    graphics::polygon(c(d$theorique[o], rev(d$theorique[o])),
-                      c(d$env_bas[o], rev(d$env_haut[o])), col = COUL$env, border = NA)
+    yl <- range(c(d$empirique, if (ponct) c(d$env_bas, d$env_haut),
+                  if (sim) c(d$env_sim_bas, d$env_sim_haut)), na.rm = TRUE)
+    .cadre(); plot(d$theorique, d$empirique, pch = 19, col = COUL$pt, ylim = yl,
+                   xlab = "quantiles N(0,1)", ylab = "residus", main = ti)
+    if (nzchar(st)) graphics::mtext(st, side = 3, line = 0.15, cex = 0.7, col = COUL$ref)
+    if (sim) .qq_bande_base(d$theorique, d$env_sim_bas, d$env_sim_haut, COUL$env_sim)
+    if (ponct) .qq_bande_base(d$theorique, d$env_bas, d$env_haut, COUL$env)
     graphics::points(d$theorique, d$empirique, pch = 19, col = COUL$pt)
     graphics::abline(pd$qqline[["ordonnee"]], pd$qqline[["pente"]], col = COUL$trait, lwd = 2)
+    if (sim || ponct)
+      graphics::legend("topleft", bty = "n", cex = 0.75,
+                       legend = c(LIB_QQ_SIM, LIB_QQ_PONCT)[c(sim, ponct)],
+                       fill = c(COUL$env_sim, COUL$env)[c(sim, ponct)],
+                       border = c(COUL$ref, COUL$ref)[c(sim, ponct)])
     return(invisible())
   }
   p <- plotly::plot_ly()
-  p <- plotly::add_trace(p, x = d$theorique[o], y = d$env_haut[o], type = "scatter",
-        mode = "lines", line = list(width = 0), hoverinfo = "skip")
-  p <- plotly::add_trace(p, x = d$theorique[o], y = d$env_bas[o], type = "scatter",
-        mode = "lines", fill = "tonexty", fillcolor = "rgba(200,220,250,0.7)",
-        line = list(width = 0), hoverinfo = "skip")
+  if (sim) p <- .qq_bande_plotly(p, d$theorique, d$env_sim_bas, d$env_sim_haut,
+                                 "rgba(232,240,252,0.9)")
+  if (ponct) p <- .qq_bande_plotly(p, d$theorique, d$env_bas, d$env_haut,
+                                   "rgba(200,220,250,0.7)")
   p <- plotly::add_lines(p, x = range(d$theorique),
         y = pd$qqline[["ordonnee"]] + pd$qqline[["pente"]] * range(d$theorique),
         line = list(color = COUL$trait, width = 2), hoverinfo = "skip")
   p <- plotly::add_markers(p, x = d$theorique, y = d$empirique,
         marker = list(size = 9, color = COUL$pt),
         hovertemplate = "theorique = %{x:.3f}<br>observe = %{y:.3f}<extra></extra>")
-  .mep(p, "QQ-plot normal (H3) \u2014 enveloppe de simulation 90 %",
-       "quantiles theoriques N(0,1)", "residus standardises")
+  titre <- paste0(ti, if (nzchar(st)) paste0("<br><sup>", st, "</sup>"))
+  p <- .mep(p, titre, "quantiles theoriques N(0,1)", "residus standardises")
+  # Legende en annotations fixes (.mep() masque la legende plotly).
+  ann <- list()
+  if (sim) ann[[length(ann) + 1]] <- list(
+    text = LIB_QQ_SIM, x = 0.01, y = 0.99, xref = "paper", yref = "paper",
+    xanchor = "left", yanchor = "top", showarrow = FALSE, bgcolor = COUL$env_sim,
+    font = list(size = 10, color = COUL$pt))
+  if (ponct) ann[[length(ann) + 1]] <- list(
+    text = LIB_QQ_PONCT, x = 0.01, y = if (sim) 0.92 else 0.99, xref = "paper", yref = "paper",
+    xanchor = "left", yanchor = "top", showarrow = FALSE, bgcolor = COUL$env,
+    font = list(size = 10, color = COUL$pt))
+  if (length(ann)) p <- plotly::layout(p, annotations = ann, margin = list(t = 60))
+  p
 }
 
 plot_qq2ech <- function(pd) {
@@ -1057,10 +1130,11 @@ libelle_derogation <- function(res, parametre) {
 # Generateur aleatoire et graines fixes consignes dans res$metadata (issue #37,
 # decision (iii) du mainteneur du 25/09/2026 : ils sont affiches dans l'onglet
 # Donnees et dans l'en-tete du rapport fige). Lecture seule de metadata, aucun
-# calcul : un champ absent (objet anterieur a l'issue #37, ou enveloppe du
-# QQ-plot pour Merz-Wuthrich) ne produit pas d'element. Rend un vecteur de
-# textes bruts nomme par champ de metadata (generateur, seed_loi_nulle_sw,
-# seed_enveloppe_qq) ; chaque appelant choisit ses libelles (ASCII dans
+# calcul : un champ absent (objet anterieur a l'issue #37) ne produit pas
+# d'element. Rend un vecteur de textes bruts nomme par champ de metadata
+# (generateur, seed_loi_nulle_sw ; la graine de l'enveloppe du QQ-plot est
+# retiree par l'issue #47, l'enveloppe etant lue dans le bootstrap) ;
+# chaque appelant choisit ses libelles (ASCII dans
 # l'onglet Donnees, accentues dans le rapport) et echappe s'il ecrit en HTML.
 valeurs_generateur <- function(m) {
   out <- character(0)
@@ -1068,8 +1142,8 @@ valeurs_generateur <- function(m) {
   if (!is.null(g))
     out["generateur"] <- paste0("kind = ", g$kind, ", normal.kind = ", g$normal.kind,
                                 ", sample.kind = ", g$sample.kind)
-  for (ch in c("seed_loi_nulle_sw", "seed_enveloppe_qq"))
-    if (!is.null(m[[ch]])) out[ch] <- format(m[[ch]], scientific = FALSE)
+  if (!is.null(m$seed_loi_nulle_sw))
+    out["seed_loi_nulle_sw"] <- format(m$seed_loi_nulle_sw, scientific = FALSE)
   out
 }
 
@@ -1451,8 +1525,7 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
     # manque dans metadata.
     gen <- valeurs_generateur(m)
     lib_gen <- c(generateur = "G\u00e9n\u00e9rateur al\u00e9atoire",
-                 seed_loi_nulle_sw = "Graine de la loi nulle de Shapiro-Wilk",
-                 seed_enveloppe_qq = "Graine de l'enveloppe du QQ-plot")
+                 seed_loi_nulle_sw = "Graine de la loi nulle de Shapiro-Wilk")
     cles <- c(cles, unname(lib_gen[names(gen)])); vals <- c(vals, .txt(unname(gen)))
     if (!mw) {
       cles <- c(cles, "Test d'\u00e9quivalence de la constante")

@@ -489,9 +489,9 @@ verifier("Drapeau explicite sigma_standard_saisi (FALSE sans saisie) pour les tr
            all(vapply(list(r_b, r1_sans, r2_sans), function(r) {
              nm <- names(r$metadata)
              entre <- nm[seq.int(match("sigma_standard_saisi", nm) + 1L, match("horodatage", nm) - 1L)]
-             attendu <- c("generateur", "seed_loi_nulle_sw",
-                          if (!identical(r$metadata$methode, "reserve2")) "seed_enveloppe_qq",
-                          "bareme_saisi", "n_fournies")
+             # seed_enveloppe_qq retire par l'issue #47 (enveloppe lue dans
+             # le bootstrap), pour les trois methodes.
+             attendu <- c("generateur", "seed_loi_nulle_sw", "bareme_saisi", "n_fournies")
              identical(entre, attendu)
            }, logical(1))))
 verifier("Saisie EGALE a la table : derogation pour les trois methodes (drapeau TRUE, origine \"saisi\")",
