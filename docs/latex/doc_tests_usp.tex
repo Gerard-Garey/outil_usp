@@ -550,8 +550,9 @@ réajustement à un seul démarrage (\code{factr = 1e7}), employé par
 (\code{TOL\_DELTA\_BORD}) & booléen~: étendue des $x_t$ au plus \code{tol} fois leur moyenne~;
 seule définition des volumes constants (issue~\#59, section~\ref{sec:volumes-constants}) \\
 \code{.usp\_nb\_volumes\_}\newline\code{distincts()},\newline \code{.usp\_normaliser\_}\newline\code{echelle()}
-& $x$~; vecteur $v$ & nombre $k$ de volumes distincts, qui décide des lignes RESET et White non
-applicables à $k < 3$~; $v / \max|v|$, rendu inchangé si ce maximum n'est pas fini et
+& $x$~; vecteur $v$ & nombre $k$ de volumes distincts, comptés à la tolérance d'ex \ae quo
+purement relative (\code{.usp\_aplatir\_volumes()}, issue~\#112), qui décide des lignes RESET et
+White non applicables à $k < 3$~; $v / \max|v|$, rendu inchangé si ce maximum n'est pas fini et
 strictement positif, appliqué avant les régressions auxiliaires de RESET et de White
 (issue~\#110, fiches~\ref{fiche:reset} et~\ref{fiche:white}) \\
 \code{usp\_regime()} & $\delta$, $x$, \code{tol} (constante
@@ -573,7 +574,14 @@ sinon \\
 $(n_1, n_2)$~; $T$ & plus petite p-value atteignable de la loi de référence discrète aux effectifs
 observés, convention bilatérale du doublement (règle~R1, issue~\#44~; §\ref{sec:nature}) \\
 \code{.runs\_effectifs()} & $z_t$ ou $u_t$ & effectifs $(n_1, n_2)$ de part et d'autre de la
-médiane \\
+médiane, après aplatissement des ex \ae quo \\
+\code{TOL\_EX\_AEQUO},\newline \code{engine\_aplatir\_}\newline\code{ex\_aequo()},\newline
+\code{engine\_ex\_aequo()},\newline \code{.usp\_aplatir\_}\newline\code{volumes()} & constante
+($10^{-12}$)~; vecteur fini, \code{tol}, \code{plancher} (1)~; idem~; $x$ & seule définition de l'ex
+\ae quo (issue~\#112, section~\ref{sec:ex-aequo})~: vecteur dont chaque plage d'ex \ae quo, formée
+par chaînage des valeurs triées, prend sa plus petite valeur (erreur si une valeur n'est pas
+finie)~; prédicat «~au moins un ex \ae quo~»~; aplatissement des volumes à plancher~0 (tolérance
+purement relative) \\
 \code{sw\_loi\_nulle()},\newline \code{sw\_cle\_cache()} & \code{n}, \code{B\_null}
 (20\,000), \code{seed} (\code{SEED\_LOI\_NULLE\_SW}, 20260901) & loi nulle simulée de $W$
 (Shapiro--Wilk), triée et mise en cache sous une clé qui comporte le générateur \\
@@ -1552,8 +1560,9 @@ Goldfeld--Quandt & \ref{fiche:goldfeld-quandt} & \code{test\_goldfeld\_quandt()}
 Brown--Forsythe & \ref{fiche:brown-forsythe} & \code{test\_brown\_forsythe()} &
 \code{test\_brown\_forsythe()} (p asymptotique, loi $F$ approchée) & \code{BF} \\
 Smirnov (2 éch.) & \ref{fiche:smirnov} & \code{stats::ks.test()} (appel direct) &
-\code{stats::ks.test()} (p exacte combinatoire, sans ex \ae quo)~; \code{smirnov\_p\_min()}
-($p_{\min}$) & \code{Smirnov} \\
+\code{stats::ks.test()} (p exacte combinatoire, sans ex \ae quo, $z_t$ aplatis par
+\code{engine\_aplatir\_ex\_aequo()})~; \code{smirnov\_p\_min()} ($p_{\min}$, \code{NA} avec ex
+\ae quo) & \code{Smirnov} \\
 Position de $\hat\delta$ & \ref{fiche:position-delta} & \code{usp\_ajuster()} (champ
 \code{\$delta})~; drapeau \code{\$delta\_au\_bord} par \code{usp\_regime()},
 tolérance \code{TOL\_DELTA\_BORD} & diagnostic, aucune p-value & --- \\
@@ -1852,6 +1861,55 @@ qui, si le modèle est correctement spécifié, sont \emph{approximativement} in
 $\mathcal{N}(0,1)$. On note $z_{(1)} \le \dots \le z_{(T)}$ la statistique d'ordre associée,
 $\bar z$ la moyenne empirique, $s_z^2 = (T-1)^{-1}\sum_t (z_t - \bar z)^2$ la variance empirique
 corrigée, et $p_{(i)} = \Phi(z_{(i)})$.
+
+\subsection*{Ex \ae quo des tests de rang et de signe}
+\label{sec:ex-aequo}
+
+Le moteur n'a qu'une définition de l'ex \ae quo (issue~\#112)~: deux valeurs $a$ et $b$ sont ex
+\ae quo si
+\[
+  |a - b| \;\le\; \texttt{TOL\_EX\_AEQUO} \cdot \max\big(\text{plancher},\, |a|,\, |b|\big),
+  \qquad \texttt{TOL\_EX\_AEQUO} = 10^{-12},
+\]
+en deux régimes~: plancher~1 (défaut) pour les ratios $r_t$, les ratios centrés $u_t$, les
+résidus standardisés $z_t$ et les résidus de Mack, grandeurs d'ordre~1, pour lesquelles la
+tolérance est absolue ($10^{-12}$) au voisinage de~0, où une tolérance purement relative serait
+dénuée de sens~; plancher~0 pour les volumes $x_t$ (\code{.usp\_aplatir\_volumes()}), tolérance
+purement relative, invariante d'unité et sans division. Une tolérance n'étant pas transitive, la
+relation est fermée par chaînage~: \code{engine\_aplatir\_ex\_aequo()} trie les valeurs, forme
+les plages maximales dont chaque écart entre voisins est sous la tolérance et remplace chaque
+valeur par la plus petite de sa plage, l'ordre d'origine étant conservé~; une valeur non finie y
+est une erreur. Après aplatissement, deux valeurs sont ex \ae quo si et seulement si elles sont
+égales au bit près, de sorte que les comptages d'égalités, les différences nulles, les signes par
+rapport à la médiane, \code{cor.test()} et \code{ks.test()} suivent tous cette définition
+(\code{engine\_ex\_aequo()} en est le prédicat).
+
+\emph{Périmètre.} L'aplatissement est interne aux tests de rang et de signe, à l'observé comme
+dans les réplications des catalogues Monte-Carlo~: Cox--Stuart, Spearman (ratio contre volume et
+ratio contre temps), Mann--Kendall, suites (sur $z_t$, sur ratios bruts et sur résidus de Mack),
+Smirnov sur $z_t$, ainsi que le comptage des volumes distincts de RESET et White
+(\code{.usp\_nb\_volumes\_distincts()}, fiche~\ref{fiche:reset}). Ni les données, ni l'ajustement
+(\code{usp\_noyau()}), ni les autres statistiques (Anderson--Darling, Shapiro--Wilk,
+Durbin--Watson, Grubbs, régressions auxiliaires) ne sont aplatis. Restent à égalité \emph{exacte}~:
+les corrélations de rang de Merz--Wüthrich (\code{mw\_test\_homogeneite\_f()},
+\code{mw\_stat\_correlation\_dev()}, \code{mw\_test\_exposant\_variance()}) et le classement
+par la médiane de \code{mw\_test\_annees\_calendaires()}, dont l'extension relève de
+l'issue~\#152~; et, sur $x_t$ brut, un volume étant saisi et non calculé, la partition
+$x_t > \operatorname{med}(x)$ de Smirnov, de Brown--Forsythe et du QQ-plot à deux échantillons,
+ainsi que le tri par volume de Goldfeld--Quandt.
+
+\emph{Valeur de la tolérance.} Elle est fixée par décision du mainteneur, sur la note
+d'\code{actuary} du 28~septembre 2026~: au-dessus du bruit d'arrondi, qui est de l'ordre de la
+précision machine ($2{,}2\cdot 10^{-16}$ en relatif pour $y_t/x_t$), et en dessous de l'écart
+entre deux valeurs distinctes issues de saisies d'au plus six chiffres significatifs. Cette
+seconde propriété est établie pour $r_t$, $u_t$ et $x_t$~; elle n'est qu'\emph{approchée} pour
+$z_t$, transformation non linéaire de $r_t$ par les paramètres estimés, pour lequel aucune borne
+n'est établie (réserve d'\code{actuary} à la validation de l'issue~\#112). Exemple mesuré~: les
+ratios $472{,}89/611{,}68$ et $3\,310{,}23/4\,281{,}76$, égaux en décimal, diffèrent en
+flottant de $1{,}4\cdot 10^{-16}$ en relatif et sont ex \ae quo à cette tolérance
+(\code{tests/unitaires/test\_ex\_aequo.R}). Conséquence dans le bootstrap~: une réplication dont
+$z^*$, $r^*$ ou $u^*$ comporte une valeur infinie est écartée entière, l'aplatissement refusant
+les valeurs non finies.
 
 \subsection*{Lois et fonctions de répartition}
 
@@ -3031,8 +3089,9 @@ Brown--Forsythe & LN & $W$ & Non & Oui & Oui & Monte-Carlo &
 \textbf{Déconseillée} : loi $F$ approchée, 4 points par groupe &
 Bootstrap recommandé \\
 
-Smirnov 2 éch. & LN & $D$ & Oui (combinatoire) & Oui & Oui & \textbf{Exacte} si
-$\hat\pi_t$ constant ($\hat\delta = 1$), Monte-Carlo sinon &
+Smirnov 2 éch. & LN & $D$ & Oui (combinatoire, sans ex \ae quo) & Oui & Oui & \textbf{Exacte} si
+$\hat\pi_t$ constant ($\hat\delta = 1$) et sans ex \ae quo dans $z$, Monte-Carlo sinon
+(issue~\#112) &
 Inutile & Exacte ; $n_1=n_2=4$ : $p_{\min}=2/70=0{,}029$ (champ \code{p\_min}) \\
 
 Shapiro--Wilk & LN & $W$ & \textbf{Oui} si $\hat\pi_t$ constant, loi de $W$ évaluée par
@@ -3565,9 +3624,10 @@ volumes distincts. (ii)~\emph{Bilatéralité}~: convention du doublement, $p = \
 Cox--Stuart ($p_{\min} = \min(1, 2\cdot 0{,}5^{m})$)~; Smirnov, loi exacte de $D$ de
 \code{stats::ks.test()}, $p_{\min} = 2/\binom{n_1+n_2}{n_1}$, atteinte pour $D = 1$~;
 Mann--Kendall et Spearman, $p_{\min} = 2/T!$, atteinte par les deux permutations extrêmes.
-(iii)~\emph{Ex \ae quo}~: le tableau les exclut. Avec ex \ae quo, Mann--Kendall et Spearman n'ont
+(iii)~\emph{Ex \ae quo} (au sens de la section~\ref{sec:ex-aequo})~: le tableau les exclut. Avec ex \ae quo, Mann--Kendall et Spearman n'ont
 ni $p_{\min}$ ni p-value exacte (\code{p\_min} vaut \code{NA}, loi de permutation conditionnelle
-non tabulée, issue~\#70)~; pour Cox--Stuart, $m$ diminue et $p_{\min}$ augmente ($0{,}25$ à
+non tabulée, issue~\#70), non plus que Smirnov avec ex \ae quo dans $z$ (loi conditionnelle non
+attribuée, issue~\#112)~; pour Cox--Stuart, $m$ diminue et $p_{\min}$ augmente ($0{,}25$ à
 $m = 3$)~; pour les suites, $p_{\min}$ se lit aux effectifs observés. (iv)~\emph{Smirnov
 à $T < 8$}~: les valeurs entre parenthèses sont celles de la seule loi, hors moteur, qui ne calcule
 la ligne qu'à $T \ge 8$. (v)~\emph{Nature}~: ces valeurs sont exactes, par énumération de la loi
@@ -3810,7 +3870,8 @@ ses $\hat\pi_t$, est retenue, et le commentaire de la ligne commence par
 epsilon non echangeable, r\_t non identiquement distribues).}~»~; la ligne de Shapiro--Wilk à loi
 nulle simulée, qui n'a pas de p-value de Monte-Carlo, est alors non applicable
 (fiche~\ref{fiche:shapiro-wilk-sans-royston}). Les lignes de rangs portent deux conditions de plus~:
-pas d'ex \ae quo (Spearman, Mann--Kendall) et $T \le 9$ (Spearman,
+pas d'ex \ae quo, au sens de la section~\ref{sec:ex-aequo} (Spearman, Mann--Kendall et, depuis
+l'issue~\#112, Smirnov) et $T \le 9$ (Spearman,
 fiche~\ref{fiche:spearman}). À $T = 8$ et $\alpha = 0{,}10$, sur le jeu de contrôle
 ($\hat\delta = 1$), sept d'entre elles retiennent leur p-value exacte~; la huitième, Cox--Stuart,
 est inopérante (règle~R1, fiche~\ref{fiche:cox-stuart}) et n'en retient aucune. Mesuré sur le jeu
@@ -4668,7 +4729,10 @@ issue~\#25). Depuis l'issue~\#70, le moteur n'attribue la p-value exacte que sou
 conditions, toutes exigées~: (i)~$\hat\pi_t$ constant (règle~R7), sinon le commentaire commence
 par «~\code{p exacte non attribuee~: loi de reference exacte seulement a pi\_t constant (z = P
 epsilon non echangeable, r\_t non identiquement distribues).}~»~;
-(ii)~aucun ex \ae quo, dans $r_t$ et, pour la variante « ratio contre volume », dans $x_t$~: avec
+(ii)~aucun ex \ae quo, dans $r_t$ et, pour la variante « ratio contre volume », dans $x_t$, au
+sens de la section~\ref{sec:ex-aequo} ($r_t$ et $x_t$ sont aplatis avant \code{cor.test()}, à
+l'observé comme dans le catalogue Monte-Carlo~; $x_t$ en tolérance purement relative,
+\code{.usp\_aplatir\_volumes()}, issue~\#112)~: avec
 ex \ae quo, \code{cor.test(exact = TRUE)} ne rend pas la loi de permutation conditionnelle mais la
 p-value asymptotique, et ni p-value exacte ni $p_{\min}$ ne sont attribuées, le commentaire le
 disant (par exemple \code{T = 8~; ex aequo dans r~: loi de permutation conditionnelle non tabulee,
@@ -4701,7 +4765,10 @@ Londres, 1975.}
 \Cadre
 Série chronologique $r_1,\dots,r_T$. Hypothèses non testées~: sous $H_0$ les $r_t$ sont
 indépendants et identiquement distribués, la variable est continue. On note $g$ le nombre de
-groupes d'ex \ae quo et $t_g$ leurs effectifs.
+groupes d'ex \ae quo et $t_g$ leurs effectifs~; les ex \ae quo s'entendent à la tolérance
+\code{TOL\_EX\_AEQUO} (section~\ref{sec:ex-aequo}, issue~\#112)~: la série est aplatie avant le
+calcul de $S$, de la correction de variance et de la p-value exacte, qui n'est pas attribuée
+avec ex \ae quo.
 \Hzero
 $H_0$ : absence de tendance monotone, les $r_t$ étant i.i.d. (toutes les permutations
 chronologiques sont équiprobables).
@@ -4763,7 +4830,10 @@ beaucoup trop souvent, ce qui impose de le lire conjointement avec les tests de 
 On pose $c = \lceil T/2 \rceil$ et l'on forme les $n_p = T - c$ paires $(r_t, r_{t+c})$,
 $t = 1, \dots, n_p$ (valeur centrale écartée si $T$ est impair). Soit $D_t = r_{t+c} - r_t$ et
 $m \le n_p$ le nombre de différences non nulles, $D_t \neq 0$~; $m = n_p$ en l'absence d'ex \ae quo
-dans une paire. \code{test\_cox\_stuart()} rend $K$, $m$ et $n_p$ (issue~\#85). Hypothèses non
+dans une paire. Une différence est nulle à la tolérance d'ex \ae quo~: la série est aplatie
+avant le calcul des $D_t$ (section~\ref{sec:ex-aequo}, issue~\#112), de sorte que deux ratios égaux
+en décimal mais distincts en flottant donnent $D_t = 0$, question laissée ouverte par
+l'issue~\#85. \code{test\_cox\_stuart()} rend $K$, $m$ et $n_p$ (issue~\#85). Hypothèses non
 testées~: indépendance des observations, continuité.
 \Hzero
 $H_0$ : absence de tendance, formalisée par $\mathbb{P}(D_t > 0) = 1/2$ pour toute paire.
@@ -5140,6 +5210,13 @@ variances.
 \Loi
 Sous $H_0$, pour un vecteur $z$ échangeable, la loi exacte de $D_{n_1,n_2}$ est combinatoire
 (dénombrement de chemins), calculée exactement par \code{ks.test} en l'absence d'ex \ae quo~;
+les $z_t$ sont aplatis à la tolérance d'ex \ae quo avant \code{ks.test()}, à l'observé comme dans
+le catalogue Monte-Carlo (section~\ref{sec:ex-aequo}). Avec ex \ae quo dans $z$,
+\code{ks.test()} rendrait une p-value exacte \emph{conditionnelle}, dont $2/\binom{n_1+n_2}{n_1}$
+n'est pas le minimum~: depuis l'issue~\#112, ni p-value exacte ni $p_{\min}$ ne sont alors
+attribuées, le motif (\code{ex aequo dans z~: loi conditionnelle non attribuee}) est porté par
+les effectifs et restitué dans le commentaire, qui ne cite plus de p-value minimale, et la p-value
+de Monte-Carlo est retenue, comme pour Spearman et Mann--Kendall~;
 les $z_t$ ne sont échangeables sous le modèle ajusté qu'à $\hat\pi_t$ constant (rubrique~6).
 Asymptotiquement, avec
 $\lambda = \sqrt{n_1 n_2/(n_1+n_2)}$~:
@@ -5173,7 +5250,7 @@ commençant par «~\code{p exacte non attribuee~: loi de reference exacte seulem
 epsilon non echangeable, r\_t non identiquement distribues).}~» Le
 \emph{QQ-plot à deux échantillons} associé (section~\ref{sec:graphiques}) reste le diagnostic le plus lisible.
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} $2/\binom{8}{4} = 2/70 = 0{,}0286$ ($n_1 = n_2 = 4$, \code{smirnov\_p\_min()}), atteinte seulement pour $D = 1$~; p-values atteignables $0{,}0286$~; $0{,}2286$~; $0{,}7714$~; $1$. Exacte à $\hat\pi_t$ constant, où la p-value exacte de \code{stats::ks.test()} est retenue~; à $\hat\pi_t$ variable, la p-value retenue est de Monte-Carlo (clé \code{Smirnov}, rejet en queue haute, plancher $1/(B+1)$, soit $0{,}001$ à $B = 999$) et $0{,}0286$ n'en est qu'une approximation.
+\textbf{p-value minimale à $T = 8$.} $2/\binom{8}{4} = 2/70 = 0{,}0286$ ($n_1 = n_2 = 4$, sans ex \ae quo dans $z$, \code{smirnov\_p\_min()}), atteinte seulement pour $D = 1$~; avec ex \ae quo, \code{p\_min} vaut \code{NA} et aucune p-value exacte n'est attribuée (issue~\#112)~; p-values atteignables $0{,}0286$~; $0{,}2286$~; $0{,}7714$~; $1$. Exacte à $\hat\pi_t$ constant, où la p-value exacte de \code{stats::ks.test()} est retenue~; à $\hat\pi_t$ variable, la p-value retenue est de Monte-Carlo (clé \code{Smirnov}, rejet en queue haute, plancher $1/(B+1)$, soit $0{,}001$ à $B = 999$) et $0{,}0286$ n'en est qu'une approximation.
 
 \textbf{Table.} Tableau~\ref{tab:pmin}~: $p_{\min} < \alpha/2$ à tout $T \ge 8$~; les valeurs pour $T < 8$ sont hors moteur.
 
@@ -5942,7 +6019,9 @@ doit être interprété avec prudence~: sur 12 points, il s'agit souvent d'un ar
 \emph{Annals of Mathematical Statistics}, 11(2), 1940, p.~147--162.}
 \Cadre
 On transforme la série en une suite binaire de signes
-$s_t = \operatorname{sign}(z_t - \operatorname{med}(z))$, en écartant les valeurs nulles. Soit
+$s_t = \operatorname{sign}(z_t - \operatorname{med}(z))$, en écartant les valeurs nulles, après
+aplatissement des ex \ae quo (section~\ref{sec:ex-aequo})~: une valeur égale à la médiane à la
+tolérance \code{TOL\_EX\_AEQUO} près est écartée comme une valeur égale (issue~\#112). Soit
 $n_1$ le nombre de signes positifs, $n_2$ le nombre de négatifs, $n = n_1+n_2$, et $R$ le nombre
 de « suites » (séquences maximales de signes identiques). Hypothèse non testée~: continuité de la
 variable.
@@ -6019,7 +6098,12 @@ mathématiquement de (i), $z_t$
 résiduelle de $\hat\pi_t$ peut inverser un signe (cas construit dans les tests unitaires). La
 condition porte sur $u_t$, le vecteur effectivement testé, et non sur $r_t$~: en arithmétique
 flottante, le centrage peut faire basculer le signe d'une valeur égale ou quasi égale à la
-médiane. Si la loi de $R$ n'est pas définie --- un seul côté de la médiane représenté ---, aucune
+médiane. Depuis l'issue~\#112, les signes de (ii) sont comparés après aplatissement de $u_t$ et de
+$z_t$ à la tolérance d'ex \ae quo (\code{.signes\_mediane\_egaux()})~: deux ratios centraux qui ne
+diffèrent que d'un écart d'arrondi (de l'ordre d'une unité du dernier chiffre flottant) sont ex
+\ae quo et écartés à la médiane des deux séries, et la comparaison des signes n'échoue plus sur ce
+bruit~; elle reste un garde-fou pour la bande de tolérance (le cas construit, à ratios centraux
+distants de $10^{-10}$ en relatif, est au-dessus de la tolérance). Si la loi de $R$ n'est pas définie --- un seul côté de la médiane représenté ---, aucune
 p-value exacte n'est attribuée, même lorsque les deux conditions tiennent (cas~2b de
 \code{usp\_tests()}). Si l'une des conditions manque, la p-value retenue est celle de Monte-Carlo, simulée
 sous le modèle ajusté avec ses $\hat\pi_t$~: lorsque $\hat\pi_t$ varie, les $r_t$ sont
@@ -9014,7 +9098,9 @@ développement et calendaire, qui localisent la structure.
 \Cadre
 Suite des signes des résidus de Mack par rapport à leur médiane, dans le même
 ordre de parcours que ci-dessus~; comme pour la méthode lognormale
-(\code{test\_runs()}), un résidu égal à la médiane, de signe nul, est écarté. On
+(\code{test\_runs()}, même fonction), un résidu égal à la médiane, de signe nul, est écarté,
+l'égalité s'entendant à la tolérance d'ex \ae quo (section~\ref{sec:ex-aequo}, plancher~1~;
+issue~\#112). On
 note $n_1$ le nombre de signes positifs, $n_2$ le nombre de négatifs,
 $n = n_1 + n_2$ et $R$ le nombre de suites. Le nombre de résidus étant impair
 sur le triangle de contrôle ($27$), la médiane y est l'un d'eux~: un résidu est
