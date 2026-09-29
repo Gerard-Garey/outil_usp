@@ -37,7 +37,11 @@ Visa, sans lequel rien n'est commité :
   3. **Le mainteneur déclenche** `references.yml` : `ref = gpt/regeneration-<issue>`, `mode = regeneration` (ou `creation` pour un cas nouveau), avec les cas, les motifs et l'issue. Il lit le tableau du résumé et donne le visa.
      - En cas de refus, la correction devient un commit supplémentaire sur la branche éphémère, suivi d'une nouvelle exécution.
      - Le mode `bascule` est hors de portée de GPT.
-  4. **Fermeture, sur le poste local (Codex en local)**, puisque Codex Cloud ne peut ni recevoir l'artefact ni pousser :
+  4. **Fermeture**, que Codex Cloud ne peut pas faire (il ne reçoit pas l'artefact et ne pousse pas) :
+     - **par Codex en local**, sur le poste du mainteneur, quand il le peut : étapes (a′) à (c) et 5 ci-dessous ;
+     - **sinon, déléguée à Claude** : `coder` s'arrête après l'étape 3, avec le statut `termine avec questions` et la remontée « fermeture M30 déléguée à Claude », en citant la branche éphémère, l'exécution et le visa. Le mainteneur confie la fermeture à une session de Claude, qui la fait sur une branche `claude/regeneration-gpt-<issue>` partie de la tête de la branche de travail GPT, avec une PR vers celle-ci. Ce commit porte l'identité de Claude, sans ligne `Réalisé-par`, et l'audit le reconnaît comme tel.
+
+     Étapes de la fermeture :
      - **(a′)** Le commit calculé, lu dans `plateforme.txt`, est la tête de la branche éphémère. Sur la branche de travail : `git cherry-pick -n <tête W>..<commit calculé>`. Copier les `.rds` de l'artefact dans `tests/reference/` et les indexer. `git diff --cached --quiet <commit calculé> -- R tests ':(exclude)tests/reference'` doit rendre 0, puis `git diff --quiet -- R tests` doit rendre 0. Si la branche de travail a reçu entre-temps un commit touchant `R/` ou `tests/`, recréer la branche éphémère et relancer ; l'exécution abandonnée est citée comme **non retenue**.
      - **(b)** Les md5 des `.rds` copiés sont ceux de `md5.txt` du même artefact. On ne compare jamais le md5 d'un `.rds` écrit sur un poste.
      - **(c)** `Rscript tests/comparer_references.R --deux-parts`, avec une part non numérique vide, puis `Rscript tests/test_reproductibilite.R`.

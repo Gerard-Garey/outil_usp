@@ -12,7 +12,7 @@ Une fiche par rôle. Elle fixe la mission, l'exécutant, ce que le rôle peut é
 | `audit.md` | vérification | tâche Codex Cloud distincte | rien |
 | `app-review.md` | vérification | tâche Codex Cloud distincte | rien |
 
-Modèles (ADR 0012, point 5 ; noms à confirmer par le mainteneur) : le modèle le plus fort pour `architect` et `actuary`, le modèle standard pour les autres rôles.
+Modèles : le mainteneur les choisit dans l'interface, à raison du modèle le plus fort pour `architect` et `actuary` et du modèle standard pour les autres rôles. Aucun nom n'est fixé ici (décision du 29/09/2026 ; la correspondance de l'ADR 0012, point 5, n'est pas vérifiée).
 
 ## Règles communes
 

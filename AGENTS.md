@@ -117,7 +117,7 @@ Le risque d'erreur est plus élevé à distance : les rôles sont séparés dans
 
 ## Reproductibilité et références
 
-- Procédure : `.codex/procedures/reproductibilite.md`. **Aucune régénération de `tests/reference/*.rds` hors de la CI** (ADR 0011). Pendant une période GPT, **le mainteneur déclenche `references.yml`** et dépose l'artefact ; GPT prépare la branche éphémère et les motifs, puis fait les vérifications et le commit unique (ADR 0012, annotation du 28/09/2026 au soir, point 1).
+- Procédure : `.codex/procedures/reproductibilite.md`. **Aucune régénération de `tests/reference/*.rds` hors de la CI** (ADR 0011). Pendant une période GPT, **le mainteneur déclenche `references.yml`** et dépose l'artefact ; GPT prépare la branche éphémère et les motifs (ADR 0012, annotation du 28/09/2026 au soir, point 1). La fermeture (vérifications (a′) à (c) et commit unique code + `.rds`) se fait **par Codex en local** sur le poste du mainteneur ; à défaut, GPT **la délègue à Claude**, qui la fait par une PR vers la branche de travail GPT (décision du mainteneur du 29/09/2026).
 - Tout changement de σ_USP ou d'un verdict est soumis au mainteneur, et les autres changements de p-values à `actuary`. Chaque tableau avant / après est relu par Claude à l'audit.
 - Documentation LaTeX : `.codex/procedures/compilation-doc.md`. Le PDF est recompilé et commité avec le `.tex` (ADR 0008).
 
