@@ -549,6 +549,11 @@ réajustement à un seul démarrage (\code{factr = 1e7}), employé par
 \code{usp\_volumes\_}\newline\code{constants()} & $x$, \code{tol}
 (\code{TOL\_DELTA\_BORD}) & booléen~: étendue des $x_t$ au plus \code{tol} fois leur moyenne~;
 seule définition des volumes constants (issue~\#59, section~\ref{sec:volumes-constants}) \\
+\code{.usp\_nb\_volumes\_}\newline\code{distincts()},\newline \code{.usp\_normaliser\_}\newline\code{echelle()}
+& $x$~; vecteur $v$ & nombre $k$ de volumes distincts, qui décide des lignes RESET et White non
+applicables à $k < 3$~; $v / \max|v|$, rendu inchangé si ce maximum n'est pas fini et
+strictement positif, appliqué avant les régressions auxiliaires de RESET et de White
+(issue~\#110, fiches~\ref{fiche:reset} et~\ref{fiche:white}) \\
 \code{usp\_regime()} & $\delta$, $x$, \code{tol} (constante
 \code{TOL\_DELTA\_BORD}, $10^{-6}$) & drapeaux \code{\$delta\_au\_bord},
 \code{\$volumes\_constants}, \code{\$pi\_constant}, \code{\$pi\_constant\_exact},
@@ -2125,10 +2130,12 @@ autres qu'un calcul abouti, à ne pas confondre (issue~\#88, décision du mainte
   l'erreur, appel, pile des fonctions appelées depuis le calcul protégé et \code{origine},
   dernière fonction de cette pile définie dans le moteur. Les données étant valides et l'appel
   aussi, ce n'est ni un refus ni une erreur d'usage, mais un défaut du moteur ou une limite
-  numérique, à rapporter avec sa fonction d'origine. Mesuré sur le jeu de contrôle~: $x_t$
-  multipliés par $10^{298}$ donnent l'origine \code{test\_white()} (erreur de \code{lm.fit()}),
-  $y_t$ multipliés par $10^{-300}$ l'origine \code{usp\_tests()}~; les deux levaient auparavant
-  une erreur R. L'option \code{options(usp.engine.lever\_erreurs = TRUE)}, réservée au
+  numérique, à rapporter avec sa fonction d'origine. Mesuré sur le jeu de contrôle~: $y_t$
+  multipliés par $10^{-300}$ donnent l'origine \code{usp\_tests()}~; les $x_t$ multipliés par
+  $10^{298}$ donnaient l'origine \code{test\_white()} (erreur de \code{lm.fit()}), et, depuis la
+  normalisation d'échelle des régressions auxiliaires de RESET et de White (issue~\#110,
+  fiches~\ref{fiche:reset} et~\ref{fiche:white}), le calcul aboutit (\code{ok = TRUE}, à
+  $10^{298}$ comme à $10^{200}$)~; ces deux cas levaient, avant l'issue~\#88, une erreur R. L'option \code{options(usp.engine.lever\_erreurs = TRUE)}, réservée au
   développement, relève l'erreur telle quelle au lieu de l'intercepter. Les erreurs d'usage
   restent hors de ce filet, limité au calcul par décision du mainteneur.
 \end{itemize}
@@ -2985,8 +2992,9 @@ Sous le modèle auxiliaire MCO (loi $F$)~; \textbf{diagnostic} si $\hat\pi_b < 1
 Sans objet : aucune loi asymptotique employée & Idem ; redondant avec $t_b$ \\
 
 RESET & LN & $F$ & \textbf{Non} & Oui & Oui & Monte-Carlo &
-\textbf{Déconseillée} : $\hat y^2,\hat y^3$ dépendent de $y$, la loi $F$ n'est
-pas exacte & Bootstrap recommandé \\
+\textbf{Déconseillée} : la loi $F$, exacte sous des erreurs additives normales homoscédastiques
+(Milliken et Graybill, 1970), ne l'est pas sous l'erreur lognormale de l'annexe~XVII & Bootstrap
+recommandé~; non applicable à moins de trois volumes distincts (issue~\#110) \\
 
 Spearman ($\times 2$) & LN & $S$ & Oui ($T\le 9$, sans ex \ae quo) & Oui & Oui & \textbf{Exacte} si
 $\hat\pi_t$ constant, $T \le 9$ et sans ex \ae quo, Monte-Carlo sinon &
@@ -4539,11 +4547,28 @@ On part du modèle contraint réglementaire $y_t = \beta x_t + \varepsilon_t$ (s
 d'où $\hat y_t = \hat\beta x_t$, puis l'on estime le modèle augmenté
 $y_t = \beta x_t + \gamma_2 \hat y_t^2 + \gamma_3 \hat y_t^3 + \varepsilon_t$.
 Hypothèses non testées~: erreurs indépendantes, homoscédastiques, normales. Nécessite
-$T > k + q = 3$. À volumes constants au sens de \code{usp\_volumes\_constants()}, la ligne est non applicable
-(section~\ref{sec:volumes-constants}). Défaut connu (issue~\#110)~: lorsque la régression augmentée est de
-rang déficient hors de la bande de tolérance --- deux volumes distincts seulement, ou étendue
-relative des volumes inférieure à $10^{-3}$ environ ---, \code{lm()} écarte $\hat y_t^3$ et la
-comparaison porte sur un degré de liberté de moins que la loi $\mathcal{F}(2, T-3)$ annoncée.
+$T > k + q = 3$. Comme $\hat y_t = \hat\beta x_t$, les régresseurs $x_t$, $\hat y_t^2$, $\hat y_t^3$
+engendrent l'espace fixe $\{x, x^2, x^3\}$~; \code{test\_reset()} l'engendre par la \emph{base
+réduite} $\{x_t,\ x_t s_t,\ x_t s_t^2\}$, avec $s_t = (x_t - \bar x)/(\max_t x_t - \min_t x_t)$,
+changement de base qui laisse la statistique inchangée en arithmétique exacte (issue~\#110). Les
+colonnes étant d'échelle comparable ($|s_t| \le 1$), le pivotage de \code{lm()} n'écarte plus
+un régresseur par colinéarité \emph{numérique}~: sur les pertes du jeu de contrôle et les volumes
+$100\,(1 + e\,\mathrm{scale}(1{:}8))$, la forme standard écarte $\hat y_t^3$ dès l'étendue
+relative $8{,}6\cdot 10^{-4}$ (conservé à $1{,}1\cdot 10^{-3}$), la base réduite reste de plein
+rang jusqu'à $1{,}4\cdot 10^{-6}$, au bord de la bande de tolérance (mesure), et, sur le jeu de
+contrôle lui-même, les deux formes donnent la même statistique ($F = 0{,}005077$). $x_t$ et
+$y_t$ sont divisés par leur plus grande valeur absolue avant toute régression
+(\code{.usp\_normaliser\_echelle()}, $F$ invariant), ce qui garde les sommes de carrés dans le
+domaine flottant aux échelles extrêmes ($s_t$ est calculé sur $x_t$ brut). La ligne est non
+applicable, sans verdict et avec son motif, dans quatre cas examinés dans cet ordre~: (0)
+volumes constants au sens de \code{usp\_volumes\_constants()}
+(section~\ref{sec:volumes-constants})~; (a) moins de trois volumes distincts, comptés à la
+tolérance d'ex \ae quo des volumes (\code{.usp\_nb\_volumes\_distincts()})~: la régression
+augmentée est alors de rang $k < 3$ par construction et ne peut porter les deux restrictions de
+$\mathcal{F}(2, T-3)$~; (b) terme écarté par \code{lm()} pour colinéarité~; (c) statistique $F$
+non finie (par exemple $y_t$ identiquement nul, $F = 0/0$). Jusqu'à l'issue~\#110, les cas (a)
+et (b) restituaient une statistique sur un degré de liberté sous le libellé
+$\mathcal{F}(2, T-3)$.
 \Hzero
 $H_0 : \gamma_2 = \gamma_3 = 0$, soit « la forme linéaire est correctement spécifiée ».
 \Stat
@@ -4553,21 +4578,39 @@ augmenté, $q = 2$ restrictions et $k = 1$ paramètre contraint~:
   F \;=\; \frac{(\mathrm{SCR}_0 - \mathrm{SCR}_1)/q}{\mathrm{SCR}_1/(T-k-q)} .
 \]
 \Loi
-$F \sim \mathcal{F}(q,\,T-k-q)$, soit $\mathcal{F}(2, T-3)$.
+$F \sim \mathcal{F}(q,\,T-k-q)$, soit $\mathcal{F}(2, T-3)$, \emph{exactement} sous des erreurs
+additives indépendantes, normales et homoscédastiques dans $y_t = \beta x_t + \varepsilon_t$~: les
+régresseurs auxiliaires engendrent un espace fixe, et, plus généralement, des régresseurs qui ne
+sont aléatoires que par l'estimateur des moindres carrés du modèle contraint laissent la loi $F$
+exacte (Milliken et Graybill, 1970, section~\ref{sec:biblio})~; la dépendance en $y$ de
+$\hat y_t = \hat\beta x_t$ n'est donc pas en cause. Cette loi n'est \textbf{pas exacte sous le
+modèle de l'annexe~XVII}~: $Y_t$ y est lognormale, de variance $\beta^2 x_t^2
+(e^{1/\pi_t} - 1)$ (erreur multiplicative, asymétrique, et hétéroscédastique dès que les volumes varient). Constat de simulation (\code{usp\_simuler()} sous le
+modèle ajusté du jeu de contrôle, $\hat\delta = 1$, 4\,000 réplications, graine 20260929)~: la
+p-value $\mathcal{F}(2, 5)$ rejette dans $5{,}0~\%$ $[4{,}4~;~5{,}7]$ des réplications au seuil
+$0{,}05$ et dans $10{,}2~\%$ $[9{,}2~;~11{,}1]$ au seuil $0{,}10$ (intervalles de
+Clopper--Pearson, qui ne mesurent que l'incertitude de simulation). Ce constat, propre à ce jeu,
+ne rend pas la loi exacte et ne se transpose pas à d'autres données.
 \Pval
-$p = 1 - F_{\mathcal{F},q,T-k-q}(F)$.
+La p-value asymptotique $p = 1 - F_{\mathcal{F},q,T-k-q}(F)$ est restituée (loi affichée
+«~F(2,5) approx.~» à $T = 8$) sans être retenue. La p-value retenue est de Monte-Carlo, simulée sous le
+modèle ajusté (clé \code{RESET}, rejet en queue haute), les volumes $x_t$ étant fixés dans les
+réplications. Sur le jeu de contrôle (méthode prime, $B = 999$)~: $F = 0{,}005077$, p-value
+asymptotique $0{,}995$, p-value de Monte-Carlo retenue $0{,}996$.
 \Usage
 On souhaite \emph{ne pas} rejeter. Le test est générique~: il détecte une non-linéarité sans en
 indiquer la forme. Limites à $T$ faible~: avec $T = 5$ il ne reste que 2 degrés de liberté au
 dénominateur, ce qui le rend presque inopérant~; et $\hat y^2$, $\hat y^3$ sont fortement
-colinéaires lorsque l'amplitude des volumes est faible, ce qui réduit encore la puissance. À
-utiliser en complément, non en substitution, de l'examen graphique.
+colinéaires lorsque l'amplitude des volumes est faible, ce qui réduit encore la puissance. Cette
+colinéarité est \emph{statistique}~: la base réduite supprime la perte numérique d'un régresseur,
+pas la faible information que des volumes peu dispersés apportent sur les termes de degré 2 et 3.
+À utiliser en complément, non en substitution, de l'examen graphique.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{RESET}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes, sauf à volumes constants, où elle est non applicable (section~\ref{sec:volumes-constants}). Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes, sauf à volumes constants (section~\ref{sec:volumes-constants}), à moins de trois volumes distincts, à régression augmentée de rang déficient ou à statistique non finie, où elle est non applicable avec son motif (rubrique~1). Puissance non étudiée à $T = 8$.
 
 \textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
@@ -4954,10 +4997,22 @@ studentisée qui fait foi, la normalité n'étant jamais acquise à $T = 8$.
 test for heteroskedasticity}, \emph{Econometrica}, 48(4), 1980, p.~817--838.}
 \Cadre
 Régression auxiliaire enrichie $z_t^2 = c_0 + c_1 x_t + c_2 x_t^2 + \eta_t$. Mêmes hypothèses de
-validité que Breusch--Pagan. Nécessite $T > 3$. Volumes constants et garde-fou de colinéarité sur
-$x_t$~: comme pour Breusch--Pagan. Défaut connu (issue~\#110)~: si \code{lm()} écarte le terme
-$x_t^2$ (régression auxiliaire de rang déficient hors de la bande de tolérance), la statistique
-est comparée à une loi $\chi^2(2)$ pour un seul régresseur effectif.
+validité que Breusch--Pagan. Nécessite $T > 3$. \code{test\_white()} engendre l'espace
+$\{1, x, x^2\}$ par la base réduite $\{1, s_t, s_t^2\}$, $s_t = (x_t - \bar x)/(\max_t x_t -
+\min_t x_t)$, changement de base affine qui laisse $R^2_{\text{aux}}$ et $\mathrm{LM}$ inchangés
+en arithmétique exacte, et divise $z_t^2$ par sa plus grande valeur (\code{.usp\_normaliser\_echelle()},
+$R^2$ invariant) (issue~\#110). Mesuré sur les $z_t^2$ du jeu de contrôle et les volumes
+$100\,(1 + e\,\mathrm{scale}(1{:}8))$~: la forme standard écarte $x_t^2$ dès l'étendue relative
+$8{,}6\cdot 10^{-4}$ (conservé à $1{,}1\cdot 10^{-3}$), la base réduite garde la même statistique
+jusqu'à $1{,}4\cdot 10^{-6}$~; sur le jeu de contrôle, les deux formes donnent
+$\mathrm{LM} = 5{,}091$. Comme pour RESET (fiche~\ref{fiche:reset}), la ligne est non applicable,
+avec son motif, dans cet ordre~: volumes constants
+(section~\ref{sec:volumes-constants})~; moins de trois volumes distincts (régression auxiliaire
+de rang $k < 3$, qui ne peut porter les deux degrés de liberté de $\chi^2(2)$)~; tout terme
+écarté par \code{lm()} pour colinéarité (et non plus le seul coefficient de $x_t$, comme le
+garde-fou de Breusch--Pagan)~; statistique $\mathrm{LM}$ non finie ($z_t^2$ identiquement nul,
+$R^2 = 0/0$). Jusqu'à l'issue~\#110, un $x_t^2$ écarté laissait comparer à $\chi^2(2)$ une
+statistique à un seul régresseur effectif.
 \Hzero
 $H_0 : c_1 = c_2 = 0$.
 \Stat
@@ -4978,7 +5033,7 @@ fonctionnelle relevant de H1.
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes, sauf à volumes constants, où elle est non applicable (section~\ref{sec:volumes-constants}). Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes, sauf à volumes constants (section~\ref{sec:volumes-constants}), à moins de trois volumes distincts, à régression auxiliaire de rang déficient ou à statistique non finie, où elle est non applicable avec son motif (rubrique~1). Puissance non étudiée à $T = 8$.
 
 \textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
@@ -9752,13 +9807,34 @@ soutient dans le présent document.
   élevée n'apporte quasiment aucune information à $T$ faible.
 
   \item G.\,S. Maddala, \emph{Introduction to Econometrics}, 3\textsuperscript{e}
-  éd., Wiley, 2001, pour la discussion du caractère non exact du test RESET.
+  éd., Wiley, 2001, pour la présentation du test RESET dans sa forme usuelle.
   \emph{Portée.} Ramsey (1969), seule référence citée jusqu'ici,
   développe le test à partir de résidus BLUS. Dans la forme usuellement
   implémentée --- et retenue ici --- les régresseurs auxiliaires sont des
-  puissances des valeurs ajustées, qui dépendent de $y$~: la statistique n'est
-  alors plus exactement de loi de Fisher. Cette nuance, absente de la version
-  précédente de la documentation, motive le recours au bootstrap.
+  puissances des valeurs ajustées. Les versions antérieures de ce document
+  tiraient de cette entrée que, ces régresseurs dépendant de $y$, la statistique
+  n'est plus exactement de loi de Fisher~; cet argument n'est \textbf{pas
+  retenu}~: sous des erreurs normales i.i.d., des régresseurs qui ne sont
+  aléatoires que par l'estimateur des moindres carrés du modèle contraint
+  laissent la loi $F$ exacte (Milliken et Graybill, 1970, entrée suivante), et,
+  dans le modèle sans constante à un régresseur de l'outil, ils engendrent de
+  toute façon l'espace fixe $\{x, x^2, x^3\}$. Ce qui rend la loi $F$ non exacte
+  ici, et motive le recours au bootstrap, est l'erreur lognormale,
+  multiplicative et hétéroscédastique, du modèle de l'annexe~XVII
+  (fiche~\ref{fiche:reset}).
+
+  \item G.\,A. Milliken, F.\,A. Graybill, \emph{Extensions of the general
+  linear hypothesis model}, \emph{Journal of the American Statistical
+  Association}, 65(330), 1970, p.~797--807.
+  \emph{Portée.} Établit que, dans un modèle linéaire à erreurs normales
+  i.i.d., le test $F$ de nullité des coefficients de régresseurs ajoutés reste
+  de loi exacte lorsque ces régresseurs ne sont aléatoires que comme fonctions
+  de l'estimateur des moindres carrés du modèle initial, ce qui couvre les
+  puissances des valeurs ajustées du test RESET. Elle soutient la rubrique~4 de
+  la fiche~\ref{fiche:reset}~: la loi $\mathcal{F}(2, T-3)$ serait exacte sous
+  des erreurs additives normales homoscédastiques~; elle ne dit rien de la loi
+  sous l'erreur lognormale de l'annexe~XVII, qui n'entre pas dans ses
+  hypothèses.
 
   \item J.\,P. Imhof, \emph{Computing the distribution of quadratic forms in
   normal variables}, \emph{Biometrika}, 48(3/4), 1961, p.~419--426.
@@ -10281,10 +10357,12 @@ d'Anscombe--Glynn, non définie en deçà de $T = 20$. Ces lignes ne sont pas de
 peut produire une p-value inférieure à $\alpha$~; ici, c'est la statistique elle-même qui est sans
 objet. Hors de la bande de tolérance, un garde-fou rend \code{NA} si \code{lm()} écarte malgré tout
 le coefficient du volume pour colinéarité (régressions de $y_t$ sur $x_t$ de la constante, du
-TOST, de la pente, de Fisher, du $R^2$ et de RESET~; régressions auxiliaires de Breusch--Pagan et
-de White). Défaut connu, non corrigé (issue~\#110)~: RESET et White
-peuvent rester calculés sur une régression auxiliaire de rang déficient (fiches~\ref{fiche:reset}
-et~\ref{fiche:white}).
+TOST, de la pente, de Fisher, du $R^2$ et de RESET~; régressions auxiliaires de Breusch--Pagan).
+RESET et White ont, depuis l'issue~\#110, leurs propres gardes (fiches~\ref{fiche:reset}
+et~\ref{fiche:white})~: régression sur une base réduite, qui supprime la perte numérique d'un
+régresseur hors de la bande, puis ligne non applicable, avec son motif, à moins de trois volumes
+distincts, à régression de rang déficient ou à statistique non finie~; elles ne sont plus
+calculées sur une régression auxiliaire de rang déficient.
 
 \vspace{1em}
 \begin{encadre}
