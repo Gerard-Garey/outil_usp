@@ -253,11 +253,17 @@ TOLERANCE_CONFORME_SIGMA <- 1e-12
 # mw_test_annees_calendaires() (issue #152) ; sur x brut (un volume est
 # saisi, non calcule) : la partition x > median(x) de Smirnov, de
 # test_brown_forsythe() et de engine_plots_data(), et le tri par volume de
-# test_goldfeld_quandt(). Valeur (note d'actuary
-# du 28/09/2026 sur #112, decision du mainteneur) : le bruit d'arrondi de
-# y_t / x_t est de l'ordre de 1e-16 relatif, celui de z_t de 1e-15 absolu ;
-# deux ratios distincts de saisies a au plus six chiffres significatifs
-# different d'au moins 1e-12 en relatif.
+# test_goldfeld_quandt().
+# Valeur (note d'actuary du 28/09/2026 sur #112, decision du mainteneur,
+# garantie corrigee a la validation de fin de branche E1b) : le bruit
+# d'arrondi de y_t / x_t est de l'ordre de 1e-16 relatif, celui de z_t de
+# 1e-15 absolu ; deux ratios distincts de saisies a au plus cinq chiffres
+# significatifs different d'au moins 1e-10 en relatif, donc d'au moins
+# 1e-12 en absolu des que les ratios sont d'ordre 1e-2 ou plus (tolerance
+# absolue sous 1 : plancher 1) ; a six chiffres l'ecart relatif minimal,
+# 1e-12, coincide avec la tolerance et deux ratios distincts peuvent etre
+# fusionnes (499999/999999 et 499998/999997). Pour z_t, aucune borne n'est
+# etablie.
 # Aplatissement INTERNE aux tests de rang et de signe : chaque point d'entree
 # aplatit ses propres arguments ; ni les donnees, ni usp_noyau(), ni les
 # autres statistiques (AD, SW, DW, Grubbs, regressions auxiliaires...) ne
