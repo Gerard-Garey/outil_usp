@@ -1980,8 +1980,12 @@ deux ratios distincts est possible (exemple mesuré~: $499\,999/999\,999$ et
 $499\,998/999\,997$, écart exact $1{,}000\,004\cdot 10^{-12}$, calculé $9{,}9998\cdot 10^{-13}$,
 déclarés ex \ae quo par \code{engine\_ex\_aequo()}~; correction, à la validation de fin de
 branche, de la note d'\code{actuary} du 28~septembre 2026, qui annonçait la garantie à six
-chiffres). Une telle fusion exige deux ratios égaux à douze chiffres et n'a d'autre effet que la
-non-attribution de la p-value exacte, la p-value de Monte-Carlo étant retenue. Pour les volumes
+chiffres). Une telle fusion exige deux ratios égaux à $10^{-12}$ près en absolu (douze chiffres
+significatifs pour un ratio d'ordre~1, dix seulement pour un ratio d'ordre $10^{-3}$) et n'a
+d'autre effet que celui d'un ex \ae quo ordinaire, propre à chaque test (fiche
+correspondante)~: pour Spearman, Mann--Kendall et Smirnov, non-attribution de la p-value exacte,
+la p-value de Monte-Carlo étant retenue~; pour Cox--Stuart, statistique de Monte-Carlo non
+définie et p-value exacte binomiale sur les $m$ différences non nulles. Pour les volumes
 $x_t$ (plancher~0), la propriété est établie à six chiffres (écart relatif $\ge 10^{-6}$). Pour
 $z_t$, transformation non linéaire de $r_t$ par les paramètres estimés, aucune borne n'est
 établie (réserve d'\code{actuary} à la validation de l'issue~\#112). Exemple mesuré~: les
@@ -7735,7 +7739,7 @@ donc pas, à lui seul, sur l'adéquation~; ces taux ne se transposent pas à d'a
 \refl{Efron (1979), \emph{op.\ cit.} ; B.~Efron, R.\,J. Tibshirani, \emph{An Introduction to the
 Bootstrap}, Chapman \& Hall, 1993 ; au bord du domaine~: D.\,W.\,K. Andrews, \emph{Inconsistency of
 the bootstrap when a parameter is on the boundary of the parameter space}, \emph{Econometrica},
-68(2), 2000, p.~399--406.}
+68(2), 2000, p.~399--405.}
 \Cadre
 On réutilise les $B$ réplications décrites en section~\ref{sec:mc}, dont on extrait
 $\sigma_{\mathrm{USP}}^{(b)} = c\,\hat\sigma^{(b)}\sqrt{(T+1)/(T-1)} + (1-c)\,\sigma_{\text{std}}$.
@@ -10319,7 +10323,7 @@ soutient dans le présent document.
 
   \item D.\,W.\,K. Andrews, \emph{Inconsistency of the bootstrap when a parameter
   is on the boundary of the parameter space}, \emph{Econometrica}, 68(2), 2000,
-  p.~399--406.
+  p.~399--405.
   \emph{Portée.} Contre-exemple établissant que le bootstrap de l'estimateur
   n'est pas convergent lorsque le vrai paramètre est sur la frontière du domaine.
   Il concerne l'intervalle bootstrap complet de $\sigma_{\mathrm{USP}}$, qui
@@ -10792,7 +10796,8 @@ le jeu de contrôle ($\hat\delta = 1$, $\hat\pi_t$ constant, volumes de $102$ à
 à $\hat\delta$ intérieur de la section~\ref{sec:verif} ($\hat\delta = 0{,}664$, $\hat\pi_t$ variable,
 volumes de $50$ à $300$). Sorties complètes~: \code{docs/tableaux/20260927-issue72-J1.md} et
 \code{docs/tableaux/20260927-issue72-J2.md}, contrôle d'intégrité contre \code{run\_engine()} réussi
-sur chacun. \emph{Statut}~: constat de simulation sous le modèle ajusté à chaque jeu, à $T = 8$~;
+sur chacun. Les lignes de l'issue~\#45 (rapport de vraisemblance à chacune des deux bornes, largeur de
+l'intervalle restreint) ne sont pas reconstruites~; aucun repère n'y porte. \emph{Statut}~: constat de simulation sous le modèle ajusté à chaque jeu, à $T = 8$~;
 les intervalles de Clopper--Pearson à 95~\% ne mesurent que l'incertitude de simulation sur le
 taux, fonction du nombre de jeux simulés, et rien de l'erreur d'approximation en $T$.
 
