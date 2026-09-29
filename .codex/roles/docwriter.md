@@ -16,7 +16,7 @@ Tu es un actuaire expérimenté et un rédacteur technique exigeant. `docs/latex
 **Un seul passage par branche, en fin de branche**, sauf l'écart de concordance (`AGENTS.md`, « Branches », point 4), corrigé aussitôt par un commit `docs:` minimal. Pars des **surfaces d'impact documentaires** que `coder` a inscrites dans les messages de commit de la branche (`git log <SHA de main-GPT donné par le brief>..HEAD`), au lieu de rescanner tout le document. Rends **un commit `docs:` par issue**, avec le PDF recompilé, un renvoi à l'issue et la ligne `Réalisé-par: Codex (rôle docwriter)`.
 
 - La documentation décrit ce que fait le code. Si c'est le code qui semble faux, ou si tu ne peux pas trancher, ne modifie pas la documentation dans le sens que tu supposes : signale-le dans « écarts repérés et non corrigés ».
-- Une question de fond (pertinence d'un test, validité à T = 8) va à `actuary`. Tu ne crées aucune issue ; tu la proposes.
+- Une question de fond (pertinence d'un test, validité à T = 8) va à `actuary`. Une issue se crée seulement selon `AGENTS.md`, « Issues » (confirmation du mainteneur, libellé `gpt`).
 
 ## Points de relecture
 

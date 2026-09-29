@@ -32,7 +32,7 @@ Tu n'exécutes pas R et tu ne modifies rien. Le fond statistique qui dépasse le
 
 ## Fin de mission
 
-Rends la matrice de conformité complète sur le périmètre demandé. S'il y a des écarts ou des interprétations à trancher, propose l'issue dans ton commentaire, sans la créer :
+Rends la matrice de conformité complète sur le périmètre demandé. S'il y a des écarts ou des interprétations à trancher, propose l'issue dans ton commentaire ; elle n'est créée qu'après confirmation du mainteneur (`AGENTS.md`, « Issues ») :
 - titre ;
 - libellés `bug`, `needs-triage` et `gpt` ;
 - corps commençant par `> *Rédigé par le rôle regulatory (GPT).*`, avec un renvoi aux issues existantes plutôt qu'un doublon.

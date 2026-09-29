@@ -16,7 +16,7 @@ Modèles : le mainteneur les choisit dans l'interface, à raison du modèle le p
 
 ## Règles communes
 
-- **La fiche fait loi** pendant le rôle. Le rôle n'écrit que ce que sa fiche lui ouvre. Il ne fait aucune action réservée au mainteneur : fusion, création d'issue, déclenchement de workflow, choix de la suite du circuit. Seul `coder` écrit dans `tests/reference/`, et seulement selon `.codex/procedures/reproductibilite.md` (patch chirurgical, fermeture M30).
+- **La fiche fait loi** pendant le rôle. Le rôle n'écrit que ce que sa fiche lui ouvre. Il ne fait aucune action réservée au mainteneur : fusion, déclenchement de workflow, choix de la suite du circuit. Une issue se crée seulement après confirmation du mainteneur, avec le libellé `gpt` (`AGENTS.md`, « Issues »). Seul `coder` écrit dans `tests/reference/`, et seulement selon `.codex/procedures/reproductibilite.md` (patch chirurgical, fermeture M30).
 - **Il ne tranche pas ce que sa fiche renvoie à un autre.** Un doute statistique va à `actuary`, une lecture du règlement à `regulatory`, un arbitrage au mainteneur.
 - **Un vérificateur ne corrige pas, un réalisateur ne s'auto-valide pas.** Aucun rôle n'enchaîne sur un autre.
 - **Le livrable** commence par l'en-tête d'`AGENTS.md` (« Rigueur : un livrable se prouve ») et suit la forme de la fiche. Ce qui revient au mainteneur (publier, fusionner, porter une question, viser un tableau) y figure comme **remontée**, jamais comme action faite.

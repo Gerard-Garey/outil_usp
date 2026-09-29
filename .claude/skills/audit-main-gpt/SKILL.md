@@ -54,7 +54,15 @@ Périmètres séparés (`CLAUDE.md`) : l'audit est l'un des rares moments (avec 
    - `app.R` ou `R/display_helpers.R` → **`app-review`** ;
    - `docs/latex/` → **`docwriter`**, en dernier (règle 9), après le dernier commit de code de la branche d'audit. Chaque chiffre du diff du `.tex` est remesuré, et chaque référence ajoutée par GPT est retrouvée.
 
-   Pour chaque issue créée par GPT : pertinence, doublon, libellés et rattachement (avis d'`architect`).
+   **Revue de chaque issue de libellé `gpt`** créée pendant la période (tout rôle GPT peut en créer, après confirmation du mainteneur ; `AGENTS.md`, « Issues ») : elle n'est pas présumée fondée. Chacune est confiée à l'agent de Claude que son objet désigne, selon les déclencheurs ci-dessus :
+   - méthode, test statistique, validité à T = 8 → **`actuary`** ;
+   - formule, paramètre, barème ou condition du règlement → **`regulatory`** ;
+   - défaut du moteur ou des tests → **`audit`**, qui reproduit le défaut par une mesure ;
+   - application → **`app-review`** ;
+   - documentation LaTeX → **`docwriter`** ;
+   - et toujours **`architect`** pour le rattachement et les doublons.
+
+   L'agent rend, pour chaque issue : **fondée** (constat reproduit, référence vérifiée), **à reformuler** (texte corrigé proposé), **doublon** (de laquelle) ou **infondée** (mesure ou texte qui la contredit). Il vérifie aussi les libellés et l'en-tête `> *Rédigé par le rôle … (GPT).*`. Toute modification d'une issue (commentaire, libellé, fermeture) reste soumise au mainteneur.
 
 5. **Changements de résultats.** Pour chaque commit à résultats de GPT :
    - l'exécution CI citée existe, porte sur le SHA calculé indiqué, et son tableau est celui du message ;
@@ -82,7 +90,7 @@ Périmètres séparés (`CLAUDE.md`) : l'audit est l'un des rares moments (avec 
 
    Rapport au mainteneur, en commentaire de la PR de période :
    - tableau des issues déclarées résolues : résolue / partiellement / non, avec la **mesure de Claude** qui le prouve ;
-   - issues créées par GPT : pertinence et rattachement proposé ;
+   - issues `gpt` : verdict de l'agent désigné (fondée, à reformuler, doublon, infondée), preuve et rattachement proposé ;
    - écarts entre plans, livrables et commits ;
    - constats par gravité (`fichier:ligne`, mesure), corrections faites (commits de la branche d'audit), simplifications et gains mesurés ;
    - changements de résultats (tableaux avant / après, visas) ;

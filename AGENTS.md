@@ -36,7 +36,7 @@ Les rôles sont ceux du projet. **Ceux qui écrivent ne vérifient pas, ceux qui
 | `app-review` | tâche Codex Cloud **distincte**, sur la tête publiée | rien | rapport, collé en commentaire de PR par le mainteneur |
 | `docwriter` | tâche Codex Cloud, puis `@codex` sur **sa propre PR** ; écart de concordance : `@codex` sur la PR de travail | `docs/latex/` (`.tex` et PDF) | un commit `docs:` par issue, sur `gpt/doc-<objet>` |
 
-- **Rôles tenus dans ChatGPT (work)** : le connecteur GitHub leur sert à **lire** le dépôt, les issues et les PR, et à **poster un commentaire** sur la PR désignée par le mainteneur. Ils n'utilisent aucune autre action d'écriture du connecteur : pas de fichier, pas de commit, pas de branche, pas de PR, pas de libellé, pas de fusion. Une issue se **propose** dans le commentaire ; elle n'est jamais créée.
+- **Rôles tenus dans ChatGPT (work)** : le connecteur GitHub leur sert à **lire** le dépôt, les issues et les PR, à **poster un commentaire** sur la PR désignée par le mainteneur et à **créer une issue** confirmée par le mainteneur (« Issues »). Ils n'utilisent aucune autre action d'écriture du connecteur : pas de fichier, pas de commit, pas de branche, pas de PR, pas de fusion, pas de libellé sur une issue existante.
 - **Rôles tenus dans Codex** : une tâche joue **un seul rôle**. Un `@codex` dont le texte ressemble à une demande de relecture peut partir en « Codex Review » automatique. Le commentaire commence donc toujours par `Rôle : <rôle>`, et une vérification (`audit`, `app-review`) se lance comme tâche Codex Cloud, jamais par `@codex`. **Une tâche lancée sans `Rôle : …`** (tâche d'office à l'ouverture d'une PR, revue automatique) **ne modifie rien** : elle rend l'en-tête avec le statut `arrete` et la cause, sans proposer de diff (constaté sur la PR #150 le 29/09/2026).
 - **Poste local** (Codex en local, avec sous-agents ou non) : même répartition des rôles et mêmes livrables. Un rôle tenu par la session elle-même suit la règle d'entrée et de sortie de `.codex/roles/README.md`.
 
@@ -108,7 +108,11 @@ Le risque d'erreur est plus élevé à distance : les rôles sont séparés dans
 
 ## Issues
 
-- Création **sur accord du mainteneur** seulement. L'issue proposée (titre, libellés, corps) figure dans le livrable. Une fois approuvée, elle est créée par le mainteneur avec le libellé **`gpt`**, en plus des libellés de tri (`docs/agents/triage-labels.md`).
+- **Tout rôle peut créer une issue**, comme les agents de Claude, **après confirmation du mainteneur** (décision du 29/09/2026) :
+  1. le rôle rédige l'issue proposée dans son livrable : titre, libellés, corps commençant par `> *Rédigé par le rôle <rôle> (GPT).*`, renvoi aux issues existantes plutôt qu'un doublon ;
+  2. le mainteneur confirme, ou corrige, dans la conversation ChatGPT ou en commentaire de la PR ;
+  3. l'issue est créée **avec le libellé `gpt`** (le libellé GPT du dépôt ; les noms de libellés sont insensibles à la casse sur GitHub), en plus des libellés de tri de `docs/agents/triage-labels.md` : par le rôle lui-même quand son environnement le permet (connecteur GitHub de ChatGPT, `gh` authentifié en local), sinon par le mainteneur, sur le texte exact du livrable.
+- Une issue `gpt` n'est pas présumée fondée : chacune est **revue par Claude à l'audit** de la période, par l'agent de Claude que son objet désigne.
 - Vocabulaire de `CONTEXT.md`. Un problème hors du lot devient une issue proposée, pas une modification.
 
 ## Commits
@@ -131,7 +135,7 @@ Le risque d'erreur est plus élevé à distance : les rôles sont séparés dans
 Ouverte par Claude en brouillon ; son corps est tenu à jour par le mainteneur, sur les livrables de GPT. Il contient :
 
 - les **issues que GPT considère comme résolues**, un `Closes #N` par ligne (GitHub ne lie que le premier numéro d'une liste) ;
-- les **issues créées pendant la période** (libellé `gpt`) ;
+- les **issues créées pendant la période** (libellé `gpt`), chacune avec le rôle qui l'a rédigée ;
 - les commits qui changent un résultat, chacun avec son tableau avant / après et son visa ;
 - pour chaque vérification, l'exécutant et le SHA examiné.
 
