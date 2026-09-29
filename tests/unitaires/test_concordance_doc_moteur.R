@@ -21,6 +21,10 @@
 #  fiches hors registre, registre confronte a des lignes du moteur
 #  construites en memoire, rangees manquantes, en double ou non reconnues,
 #  chemins cites inexistants, injections dans une copie du .tex),
+#  verification positive des declarations hors_jeux et rangee a
+#  \multicolumn hors de la premiere cellule (issue #121), locale C/POSIX,
+#  "vingt et un" et compositions invalides (issue #113), garde de contexte
+#  des decomptes ("un tableau de deux lignes", constat 4 de la fin d'E0b),
 #  recapitulatif apres exemptions et
 #  mode --strict (script lance sur une copie modifiee du .tex). L'etat reel
 #  du depot n'est pas juge ici : c'est l'etape --strict de la CI qui le fait
@@ -405,7 +409,8 @@ verifier("Issue #91 : --strict echoue (code 1) sur la cle USP Intercept injectee
 writeLines(c(sub("Les cinq autres lignes de la base", "Les six autres lignes de la base",
                  sub("Treize de ces quinze", "Douze de ces quinze", .tex_75, fixed = TRUE), fixed = TRUE),
              "Mutant : on compte 51~lignes de tests pour la prime.",
-             "Mutant : puis $6$ lignes et quatre-vingts lignes."), .tex_mutant, useBytes = TRUE)
+             "Mutant : puis $6$ lignes et quatre-vingts lignes.",
+             "Mutant : le lecteur refuse un tableau de deux lignes."), .tex_mutant, useBytes = TRUE)
 r_75 <- .lancer_concordance("--strict", "--tex", .tex_mutant)
 unlink(.tex_mutant)
 verifier("Issue #75 : --strict echoue (code 1) sur un decompte faux injecte dans une phrase du registre (annonce 12, mesure 13)",
@@ -417,6 +422,10 @@ verifier("Issue #75 : formulations injectees ni verifiees ni exemptees signalees
            any(grepl(sprintf("^    l\\.%-5d 6 lignes ", length(.tex_75) + 2L), r_75$sortie)) &&
            any(grepl(sprintf("^    l\\.%-5d quatre-vingts lignes ", length(.tex_75) + 2L), r_75$sortie)) &&
            any(grepl("^  ECART -- 3 formulation\\(s\\) ni verifiee\\(s\\)", r_75$sortie)))
+verifier("Garde de contexte (constat 4 de la fin d'E0b) : --strict ne compte pas \"un tableau de deux lignes\" injecte comme ecart, et le rapporte exempte par la garde",
+         any(grepl(sprintf("^      l\\.%-5d deux lignes +\\[garde : dimension d'un tableau ou d'un fichier\\]", length(.tex_75) + 3L),
+                   r_75$sortie)) &&
+           !any(grepl(sprintf("^    l\\.%-5d deux lignes ", length(.tex_75) + 3L), r_75$sortie)))
 verifier("Audit de #75, C2 : --strict signale le decompte faux injecte apres un qualificatif intercale (six autres lignes, mesure 5)",
          length(.k75r) == 1L &&
            any(grepl(sprintf("^    \\[ECART +\\] l\\.%-5d prime : lignes de base r hors suites .* base r hors suites +annonce 6 +mesure 5$",
@@ -608,6 +617,168 @@ verifier("Issue #114 : --strict signale le tableau -- rangee en double, rangee m
 verifier("Issue #114 : --strict signale le fichier cite inexistant (issue72-J3.md), et lui seul",
          any(grepl(sprintf("^    l\\.%-5d docs/tableaux/20260927-issue72-J3\\.md$", .k_fi), r_114$sortie)) &&
            any(grepl("^  ECART -- 1 chemin\\(s\\) cite\\(s\\) inexistant\\(s\\)", r_114$sortie)))
+
+## --- Issue #113 : "vingt et un" non compose, compositions invalides ---------
+verifier("Issue #113 : nombre_fr() lit les graphies traditionnelle et rectifiee (vingt et un, vingt et une, soixante et onze, trente-et-un)",
+         identical(unname(vapply(c("vingt et un", "Vingt  et une", "soixante et onze", "trente-et-un", "soixante-dix-sept",
+                                   "quatre-vingt-onze", "quatre-vingt-une"), cc$nombre_fr, numeric(1))),
+                   c(21, 21, 71, 31, 77, 91, 81)))
+verifier("Issue #113 : compositions invalides lues NA (dix-dix, cent-cent, deux-trois, quatre-vingt-et-un, soixante-onze), plus additionnees",
+         all(is.na(vapply(c("dix-dix", "cent-cent", "deux-trois", "quatre-vingt-et-un", "soixante-onze", "vingt et deux"),
+                          cc$nombre_fr, numeric(1)))))
+verifier("Issue #113 : table des graphies valides -- chaque entier de 1 a 100 au moins une fois, aucune graphie en double",
+         all(1:100 %in% cc$NOMBRES_FR_VALIDES) && !anyDuplicated(names(cc$NOMBRES_FR_VALIDES)) &&
+           all(cc$NOMBRES_FR_VALIDES %in% 1:100))
+.doc_113 <- c("On compte vingt et une lignes, puis soixante et onze entr\u00e9es ;",
+              "mais deux et trois tests, et dix-dix lignes.")
+.inv_113 <- cc$inventaire_decomptes(.doc_113)
+verifier("Issue #113 : inventaire -- vingt et une lignes lu 21 (et non une lignes lu 1), soixante et onze entrees lu 71",
+         identical(.inv_113$formulation[1:2], cc$vers_utf8(c("vingt et une lignes", "soixante et onze entr\u00e9es"))) &&
+           identical(unname(vapply(sub(" [^ ]+$", "", .inv_113$formulation[1:2]), cc$nombre_fr, numeric(1))), c(21, 71)))
+verifier("Issue #113 : inventaire -- un et de coordination ne soude pas deux nombres (trois tests) ; composition invalide inventoriee entiere, lue NA",
+         identical(.inv_113$formulation[3:4], c("trois tests", "dix-dix lignes")) &&
+           is.na(cc$nombre_fr("dix-dix")))
+verifier("Issue #113 : MOT_NOMBRE en ASCII (motifs du registre non corrompus sous une locale C)",
+         !grepl("[^ -~]", cc$MOT_NOMBRE, perl = TRUE))
+
+verifier("Issue #113 (reprise, C2) : quatre-vingt et une, cent vingt et un, cent deux inventories entiers et lus NA (plus lus 1, 21, 2) ; cent tests lu 100",
+         {
+           .d <- "quatre-vingt et une lignes ; cent vingt et un tests ; cent deux lignes ; cent tests."
+           .i <- cc$inventaire_decomptes(.d)
+           identical(.i$formulation, c("quatre-vingt et une lignes", "cent vingt et un tests", "cent deux lignes", "cent tests")) &&
+             identical(unname(vapply(sub(" [^ ]+$", "", .i$formulation), cc$nombre_fr, numeric(1))), c(NA, NA, NA, 100))
+         })
+
+## --- Issue #113 : locale C/POSIX ------------------------------------------
+# Les fonctions d'extraction, appliquees au .tex versionne dans un processus
+# lance sous LC_ALL=C, rendent les memes objets qu'ici ; ecrire() y sort les
+# octets UTF-8. Le processus fils ne lance pas le moteur (quelques secondes).
+.extraction_113 <- function(env, tex) {
+  v <- env$verifier_decomptes(tex, list())
+  list(codes = env$extraire_codes(tex), inv = env$inventaire_decomptes(tex), v = v,
+       cl = env$classer_formulations(tex, v), mc = env$cles_mc_index(tex), f7 = env$fiches_rubrique7(tex),
+       tr = env$lignes_tracabilite(tex), ch = env$chemins_tracabilite(tex),
+       n = vapply(c("vingt et un", "quatre-vingt-dix-neuf", "dix-dix"), env$nombre_fr, numeric(1)))
+}
+.tex_113 <- readLines(file.path(.racine, "docs", "latex", "doc_tests_usp.tex"), warn = FALSE, encoding = "UTF-8")
+.ref_113 <- .extraction_113(cc, .tex_113)
+.rds_113 <- tempfile(fileext = ".rds"); .r_113 <- tempfile(fileext = ".R")
+writeLines(c(sprintf("cc <- new.env(); sys.source(%s, envir = cc)", deparse(file.path(.racine, "tests", "concordance_doc_moteur.R"))),
+             sprintf("tex <- readLines(%s, warn = FALSE, encoding = 'UTF-8')",
+                     deparse(file.path(.racine, "docs", "latex", "doc_tests_usp.tex"))),
+             paste(".extraction_113 <-", paste(deparse(.extraction_113), collapse = "\n")),
+             sprintf("saveRDS(.extraction_113(cc, tex), %s)", deparse(.rds_113)),
+             "cc$ecrire('Cl\\u00e9 MC : entr\\u00e9es\\n')"), .r_113)
+.lc_113 <- Sys.getenv("LC_ALL", unset = NA)
+Sys.setenv(LC_ALL = "C")
+.sortie_113 <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"), .r_113, stdout = TRUE, stderr = TRUE))
+if (is.na(.lc_113)) Sys.unsetenv("LC_ALL") else Sys.setenv(LC_ALL = .lc_113)
+.obj_113 <- if (file.exists(.rds_113)) readRDS(.rds_113) else NULL
+unlink(c(.rds_113, .r_113))
+verifier("Issue #113 : sous LC_ALL=C, extraction du .tex versionne sans erreur (citations, decomptes, cles MC, rubrique 7, tracabilite)",
+         is.null(attr(.sortie_113, "status")) && !is.null(.obj_113))
+verifier("Issue #113 : sous LC_ALL=C, memes objets d'extraction que dans ce processus",
+         !is.null(.obj_113) && isTRUE(all.equal(.obj_113, .ref_113)) &&
+           nrow(.obj_113$inv) > 0L && nrow(.obj_113$mc) > 0L && nrow(.obj_113$tr) > 0L)
+verifier("Issue #113 : sous LC_ALL=C, ecrire() sort les octets UTF-8 (pas de <U+00E9>)",
+         identical(charToRaw(.sortie_113[length(.sortie_113)]), charToRaw(cc$vers_utf8("Cl\u00e9 MC : entr\u00e9es"))))
+
+## --- Issue #121 : verification positive des declarations hors_jeux --------
+.reg_121 <- list(list(label = "fiche:a", tests = "A", hors_jeux = "m", t_positif = 10L),
+                 list(label = "fiche:b", tests = "B", hors_jeux = "m", t_positif = 20L),
+                 list(label = "fiche:c", tests = "C", hors_jeux = "m"),
+                 list(label = "fiche:d", tests = "D", t_positif = 10L),
+                 list(label = "fiche:e", tests = "E", hors_jeux = "m", t_positif = 30L),
+                 list(label = "fiche:f", tests = "F"))
+.ls_121 <- data.frame(T = c(10L, 10L, 20L), test = c("A", "B", "B"), type = c("test", "test", "diagnostic"),
+                      stringsAsFactors = FALSE)
+.eh <- cc$verifier_hors_jeux_positifs(.ls_121, .reg_121)
+verifier("Issue #121 : hors_jeux verifie (type test a T = 10) sans ecart ; entree ordinaire sans t_positif sans ecart",
+         !any(.eh$label %in% c("fiche:a", "fiche:f")))
+verifier("Issue #121 : hors_jeux infirme (ligne non de type test sur le jeu T = 20, meme si elle l'est a T = 10) signale",
+         .a_motif(.eh, "fiche:b", "infirmee.*T = 20$"))
+verifier("Issue #121 : hors_jeux sans t_positif, t_positif sans hors_jeux, jeu non execute signales ; 4 ecarts au total",
+         .a_motif(.eh, "fiche:c", "sans t_positif") && .a_motif(.eh, "fiche:d", "sans hors_jeux") &&
+           .a_motif(.eh, "fiche:e", "T = 30 non execute") && nrow(.eh) == 4L)
+.hj <- Filter(function(r) !is.null(r$hors_jeux), cc$REGISTRE_RUBRIQUE7)
+verifier("Issue #121 : registre -- Cox-Stuart t_positif = 10, Anscombe-Glynn t_positif = 20, toute entree hors_jeux a un t_positif",
+         identical(vapply(.hj, `[[`, "", "label"), c("fiche:cox-stuart", "fiche:anscombe-glynn-aplatissement")) &&
+           identical(vapply(.hj, function(r) as.integer(r$t_positif), 1L), c(10L, 20L)) &&
+           grepl("au plus tot a T = 10", cc$MOTIF_COX_STUART_T8, fixed = TRUE))
+verifier("Issue #121 : jeu_synthetique() deterministe, de taille T, ratios deux a deux distincts",
+         identical(cc$jeu_synthetique(10), cc$jeu_synthetique(10)) && length(cc$jeu_synthetique(20)$y) == 20L &&
+           !anyDuplicated(with(cc$jeu_synthetique(20), y / x)))
+# Moteur execute (methode prime, B = B_MIN_USAGE, ~2 s par jeu) : Cox-Stuart
+# de type test sur le jeu synthetique T = 10, pas T = 9 (p_min = 0,125) ; la
+# declaration est confirmee a T = 10 et infirmee si t_positif valait 9.
+.lignes_synth <- do.call(rbind, lapply(c(9L, 10L), function(Tn) {
+  j <- cc$jeu_synthetique(Tn)
+  r <- run_engine(xt = j$x, yt = j$y, methode = "premium", segment = 1, annexe = "II", B = B_MIN_USAGE,
+                  nature_donnees = "brutes")
+  data.frame(T = Tn, test = vapply(r$tests, function(t) t$test, ""), type = vapply(r$tests, function(t) t$type, ""),
+             stringsAsFactors = FALSE)
+}))
+.cox <- Filter(function(r) r$label == "fiche:cox-stuart", cc$REGISTRE_RUBRIQUE7)
+.cox9 <- .cox; .cox9[[1]]$t_positif <- 9L
+verifier("Issue #121 : moteur -- Cox-Stuart de type test sur le jeu synthetique T = 10 (declaration confirmee), pas a T = 9 (infirmee)",
+         !nrow(cc$verifier_hors_jeux_positifs(.lignes_synth, .cox)) &&
+           .a_motif(cc$verifier_hors_jeux_positifs(.lignes_synth, .cox9), "fiche:cox-stuart", "infirmee.*T = 9$"))
+
+# Reprise (audit de R6) : meme regle dans cles_mc_index() -- une rangee de
+# donnees avec \multicolumn intermediaire n'est plus prise pour un
+# intertitre : sa cle est lue (et controlee) et la methode de section ne
+# change pas.
+.doc_mc3 <- append(doc_mc, "\\code{g()} & \\multicolumn{1}{l}{x} & \\code{Bidon} \\\\", after = 9L)
+.cles3 <- cc$cles_mc_index(.doc_mc3)
+verifier("Reprise R6 : cles_mc_index() lit la cle d'une rangee a \\multicolumn intermediaire (Bidon, USP, l.10), signalee hors catalogue ; methodes suivantes inchangees",
+         identical(.cles3$cle, c("Intercept", "Bidon", "SpearVol", "SpearTps", "Intercept")) &&
+           identical(.cles3$methode, c("USP", "USP", "USP", "USP", "MW")) &&
+           identical(.cles3$ligne[2], 10L) &&
+           identical(cc$verifier_cles_mc(.cles3, .cat_mc)$cle, c("Bidon", "Intercept")))
+verifier("Reprise R6 : cles_mc_index() -- intertitre precede d'un filet sur la meme ligne toujours reconnu (methode MW)",
+         {
+           .d <- doc_mc; .d[13] <- paste("\\midrule", .d[13])
+           identical(cc$cles_mc_index(.d)$methode, cles_mc$methode)
+         })
+
+## --- Issue #121 : rangee a \multicolumn hors de la premiere cellule --------
+.tt121 <- c("\\label{tab:tracabilite-puissance}", "\\begin{longtable}{lll}", "\\endlastfoot",   # 1-3
+            "\\multicolumn{3}{l}{\\textbf{M\\'ethode}} \\\\",                                  # 4 intertitre
+            "\\midrule \\multicolumn{3}{l}{\\textbf{Autre}} \\\\",                             # 5 intertitre apres filet
+            "A (\\ref{fiche:a}) & \\multicolumn{2}{l}{fusion} \\\\",                            # 6 rangee valide
+            "Sans renvoi & \\multicolumn{2}{l}{fusion} \\\\",                                  # 7 non reconnue
+            "\\end{longtable}")
+.rg121 <- cc$lignes_tracabilite(.tt121)
+verifier("Issue #121 : rangee a \\multicolumn hors de la premiere cellule lue (fiche:a) ou signalee non reconnue ; intertitres (avec ou sans filet en tete) ignores",
+         identical(.rg121$label, "fiche:a") && identical(.rg121$ligne, 6L) &&
+           identical(attr(.rg121, "non_reconnues"), 7L))
+
+## --- Garde de contexte des decomptes (constat 4 de la fin d'E0b) ----------
+.doc_g <- c("Le lecteur refuse un tableau de deux lignes ; un fichier de 3~lignes ;",
+            "un tableau \u00e0 deux lignes ; la table compte deux lignes ;",
+            "un tableau de deux entr\u00e9es ; des 50 lignes de la table auditable.")
+.reg_g <- list(list(id = "total", methode = "m", motif = paste0("des ", cc$N_, " lignes de la table auditable"),
+                    champs = "lignes (total)"))
+.cl_g <- cc$classer_formulations(.doc_g, cc$verifier_decomptes(.doc_g, list(m = c("lignes (total)" = 50)), .reg_g),
+                                 list())
+.gid <- cc$GARDES_DECOMPTES[[1]]$id
+verifier("Reprise R6 (C1) : garde de contexte a travers un retour a la ligne (un tableau / de deux lignes) et avec blancs multiples",
+         {
+           .d <- c("Le lecteur refuse un tableau", "de deux lignes ; un fichier  de 3 lignes.")
+           .c <- cc$classer_formulations(.d, cc$verifier_decomptes(.d, list(m = c("lignes (total)" = 50)), .reg_g), list())
+           identical(.c$formulations$statut, c("exemptee", "exemptee")) && identical(.c$formulations$par, rep(.gid, 2))
+         })
+verifier("Garde de contexte : tableau de deux lignes, fichier de 3 lignes, tableau a deux lignes exemptes par la garde",
+         identical(.cl_g$formulations$statut[1:3], rep("exemptee", 3)) && identical(.cl_g$formulations$par[1:3], rep(.gid, 3)))
+verifier("Garde de contexte : vrais decomptes conserves -- la table compte deux lignes NON CLASSEE, tableau de deux entrees NON CLASSEE, 50 lignes verifiee",
+         identical(.cl_g$formulations$formulation[4:6], cc$vers_utf8(c("deux lignes", "deux entr\u00e9es", "50 lignes"))) &&
+           identical(.cl_g$formulations$statut[4:6], c("NON CLASSEE", "NON CLASSEE", "verifiee")))
+.reg_g2 <- list(list(id = "dim", methode = "m", motif = paste0("un tableau de ", cc$N_, " lignes"),
+                     champs = "lignes (total)"))
+.cl_g2 <- cc$classer_formulations(.doc_g, cc$verifier_decomptes(.doc_g, list(m = c("lignes (total)" = 2)), .reg_g2), list())
+verifier("Garde de contexte : une formulation verifiee par le registre le reste (la garde ne s'applique qu'aux non classees) ; une garde ne perime pas",
+         identical(.cl_g2$formulations$statut[1], "verifiee") &&
+           !nrow(cc$classer_formulations("Rien ici.", cc$verifier_decomptes("Rien ici.", list(), .reg_g), list())$perimees))
 
 # Aucune assertion sur l'etat reel du depot (--strict sur le .tex versionne,
 # recapitulatif apres exemptions, exemptions perimees) : elle ferait echouer
