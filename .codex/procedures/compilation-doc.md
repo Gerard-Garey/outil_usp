@@ -2,7 +2,7 @@
 
 Le PDF `docs/latex/doc_tests_usp.pdf` est versionné. Il est recompilé et commité **avec** toute modification du `.tex` (ADR 0008).
 
-0. **Si `command -v pdflatex` échoue** : `USP_LATEX=1 bash .codex/setup.sh` (plusieurs minutes). En cas d'échec, le livrable le dit (« PDF non recompilé »), et le mainteneur dépose le PDF de l'artefact « Compilation de la documentation LaTeX » de la CI de la PR.
+0. **Si `command -v pdflatex pdfinfo` échoue** : `USP_LATEX=1 bash .codex/setup.sh` (plusieurs minutes). En cas d'échec, le livrable le dit (« PDF non recompilé »), et le mainteneur dépose le PDF de l'artefact « Compilation de la documentation LaTeX » de la CI de la PR.
 1. **Compiler l'état avant ta modification**, pour avoir une base de comparaison, puis l'état après. Depuis `docs/latex/` :
    ```bash
    pdflatex -interaction=nonstopmode -halt-on-error doc_tests_usp.tex

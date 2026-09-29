@@ -42,9 +42,9 @@ Déclencheurs : `R/engine.R` → `audit` ; `app.R` ou `R/display_helpers.R` → 
 Règles du plan :
 - Après chaque `coder`, un `audit` léger (et `app-review` si l'interface change) sur la tête publiée.
 - Au plus une reprise `coder` → `audit` par étape ; au-delà, arrêt pour le mainteneur.
-- Avant la sortie du brouillon : **revue finale complète** d'`audit` (et d'`app-review` si l'interface a changé) sur tout le diff `main-GPT...gpt/<objet>`.
+- Avant la sortie du brouillon : **revue finale complète** d'`audit` (et d'`app-review` si l'interface a changé) sur tout le diff `<SHA de main-GPT>...<tête de gpt/<objet>>`.
 - Un commit qui change un résultat donne lieu aux lignes de `.codex/procedures/reproductibilite.md`, dans l'ordre : `coder` prépare le commit de code et les motifs ; Mainteneur : publication de `gpt/regeneration-<issue>` ; Mainteneur : déclenchement de `references.yml` et visa ; fermeture M30 par Codex en local, ou déléguée à Claude ; Mainteneur : suppression de la branche éphémère.
-- Si la concordance `--strict` signale un écart sur une tête de la branche, une ligne `docwriter` « commit `docs:` minimal de concordance » est insérée aussitôt.
+- Si la concordance `--strict` signale un écart sur une tête de la branche, le mainteneur insère aussitôt une ligne `docwriter` « commit `docs:` minimal de concordance », par `@codex` sur la PR de travail.
 - Chaque texte d'appel à une tâche Codex contient le **SHA de base attendu** et, pour `audit`, `app-review` et `docwriter`, le **SHA de `main-GPT`** ; tout ce que la tâche doit appliquer y est **recopié** (une tâche Codex ne lit pas les commentaires de PR).
 
 ## Forme du plan de branche
@@ -56,13 +56,13 @@ Une ligne par appel, dans l'ordre, chacune avec : la case à cocher, le numéro 
 
 - [ ] 1. `coder` — tâche Codex Cloud, base `main-GPT` — « Rôle : coder. Base attendue : <sha de main-GPT>. Appliquer à docs/feuille-de-route-gpt.md le texte suivant : <texte recopié>. Puis implémenter #A : … Critères d'acceptation : … »
 - [ ] 2. Mainteneur — créer la PR **en brouillon** vers `main-GPT` depuis l'interface (branche `gpt/<objet>`), vérifier la base, recopier ce plan dans son corps.
-- [ ] 3. `audit` — tâche Codex Cloud distincte, sur la tête de `gpt/<objet>` — « Rôle : audit. Audit léger du commit <sha> (#A)… »
+- [ ] 3. `audit` — tâche Codex Cloud distincte, sur la tête de `gpt/<objet>` — « Rôle : audit. Base attendue : <sha de tête de gpt/<objet>>. Audit léger du commit <sha> (#A)… »
 - [ ] 4. `actuary` — ChatGPT (work), commentaire sur la PR #N — « Rôle : actuary. Valider #A sur le diff <sha> et le rapport d'audit <lien>… »
-- [ ] 5. `coder` — `@codex` sur la PR #N — « Rôle : coder. Implémenter #B… »
+- [ ] 5. `coder` — `@codex` sur la PR #N — « Rôle : coder. Base attendue : <sha de tête de gpt/<objet>>. Implémenter #B… »
 - [ ] …
-- [ ] k. `docwriter` — tâche Codex Cloud, base : tête de `gpt/<objet>` ; PR `gpt/doc-<objet>` → `gpt/<objet>` — « Rôle : docwriter. Un commit docs: par issue, à partir des surfaces d'impact des commits… »
+- [ ] k. `docwriter` — tâche Codex Cloud, base : tête de `gpt/<objet>` ; PR `gpt/doc-<objet>` → `gpt/<objet>` — « Rôle : docwriter. Base attendue : <sha de tête de gpt/<objet>>. SHA de main-GPT : <sha>. Un commit docs: par issue, à partir des surfaces d'impact des commits… »
 - [ ] k+1. Mainteneur — fusionner la PR de documentation.
-- [ ] k+2. `audit` — tâche Codex Cloud distincte — « Rôle : audit. Revue finale complète de main-GPT...gpt/<objet>… »
+- [ ] k+2. `audit` — tâche Codex Cloud distincte — « Rôle : audit. Base attendue : <sha de tête de gpt/<objet>>. SHA de main-GPT : <sha>. Revue finale complète de <sha de main-GPT>...HEAD… »
 - [ ] k+3. `actuary` — ChatGPT (work) — « Rôle : actuary. Valider le diff du .tex de la branche… »
 - [ ] Mainteneur — sortie du brouillon, fusion dans `main-GPT`, mise à jour du corps de la PR de période.
 ```

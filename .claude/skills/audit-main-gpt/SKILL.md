@@ -36,8 +36,8 @@ Périmètres séparés (`CLAUDE.md`) : l'audit est l'un des rares moments (avec 
      - aux commits de `git log origin/main..origin/main-GPT`, identifiés par la ligne `Réalisé-par: Codex (rôle …)` du message, l'auteur pouvant être le mainteneur quand la publication s'est faite depuis l'interface. Sont légitimes sans ligne `Réalisé-par` : les commits de fusion (PR, « Update branch »), et les commits de Claude arrivés par une PR `claude/…` (ouverture de période, résolution de conflit, fermeture M30 déléguée), qui s'auditent comme le reste. Tout autre commit de `main-GPT` sans ligne `Réalisé-par` est un constat ;
      - aux commentaires des PR `gpt/…` : plans à cases à cocher, livrables et, pour chacun, son exécutant et le SHA examiné.
 
-     Tout écart entre la liste et les faits est un constat : case cochée sans livrable, livrable portant sur un autre SHA que celui publié, vérification « même session », statut `arrete` suivi d'une fusion.
-   - Relever la disjonction par fichier avec la branche de travail de Claude (décision du mainteneur du 28/09/2026 au soir, annotation de l'ADR 0012) ; un fichier commun est un constat.
+     Tout écart entre la liste et les faits est un constat : case cochée sans livrable, livrable portant sur un autre SHA que celui publié, vérification « même session », statut `arrete` suivi d'une fusion. Deux suites de `arrete` sont légitimes : « fermeture M30 déléguée à Claude » suivie de la PR `claude/regeneration-gpt-<issue>`, et « publication non faite » suivie de la publication, par le mainteneur, du diff rendu.
+   - Relever la disjonction par fichier avec la branche de travail de Claude (décision du mainteneur du 28/09/2026 au soir ; `AGENTS.md`, « Branches », point 3) ; un fichier commun est un constat.
    - Diff `git diff origin/main...origin/main-GPT`, classé par domaine : `R/engine.R`, `app.R` / `R/display_helpers.R`, `tests/`, `tests/reference/`, `docs/latex/`, autres.
 
 2. **Plan d'audit par `architect`** : lui transmettre la liste des issues, le diff par domaine, les commits à changement de résultats et la carte des livrables GPT. Il dit :
