@@ -449,8 +449,12 @@ for (nj in JEUX_RETENUS) {
         b$granularite_stat <- pm[[a]]$granularite
         b[c("sigma_boot", "delta_boot", "gamma_boot")] <- vX[[a]]
         f$largeur_ic <- larg[[a]]
+        # lr_delta : repris tel quel de run_engine() (res$lr_delta, issue #45)
+        # pour les trois ajusteurs, comme run_engine() le passe a usp_tests() ;
+        # son bootstrap restreint (usp_lr_delta(), flux propre) reajuste par
+        # usp_ajuster_rapide() seul et n'entre pas dans la comparaison.
         usp_tests(f, b, md$alpha, theta_equiv = md$theta_equiv, delta_equiv = md$delta_equiv,
-                  robustesse = rob, methode = md$methode)
+                  robustesse = rob, methode = md$methode, lr_delta = res$lr_delta)
       }
       tR <- tests_de("R")
       if (OPT_B == 999L && OPT_GRAINE == 20260831 && !identical(tR, res$tests))
