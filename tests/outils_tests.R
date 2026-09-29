@@ -107,9 +107,12 @@ INSTABLES <- list()
 # machine. Grandeur dont la valeur attendue est un residu ~0 dependant du
 # demarrage retenu ; mesure : 54 points d'arret a objectif egal (1,88e-12),
 # g_gamma dans [-3,8e-7 ; 1,09e-5] ; issue #22. Les champs restent dans
-# l'objet resultat ; restent compares le pas de Newton (stat du controle et
-# pas_newton_gamma, en absolu), hessien_gamma, les verdicts, les comptes de
-# demarrages, delta et gamma estimes.
+# l'objet resultat ; restent compares l'erreur relative de premier ordre
+# sur sigma et le pas de Newton (stat du controle, erreur_sigma et
+# pas_newton, en absolu de fait, |reference| < 1e-6), hessienne,
+# grad_ln_sigma, pas_ecrete (issue #71, qui remplace hessien_gamma et
+# pas_newton_gamma), les verdicts, les comptes de demarrages, delta et
+# gamma estimes.
 # n_starts_optimum_code0 (ajout du 23/09/2026, decision du mainteneur) :
 # nombre de demarrages a l'optimum rendant le code 0 d'optim(), qui depend
 # du chemin d'optimisation : un demarrage bascule entre les codes 0 et 52

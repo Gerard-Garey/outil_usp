@@ -144,15 +144,22 @@ CRED_COURT <- c(`5` = .34, `6` = .51, `7` = .67, `8` = .81, `9` = .92,
 # Tolerance unique de regime des sections B et C (issue #31) : delta au bord
 # de [0,1] et pi_t constant. Ce n'est PAS une valeur reglementaire mais une
 # resolution numerique. Elle doit depasser la resolution du critere d'arret de
-# L-BFGS-B sur delta : environ 1e-9 pour l'ajustement complet usp_ajuster()
-# (factr = 1e5, reduction relative factr * eps = 2,2e-11) et environ 1e-7
-# pour le reajustement rapide usp_ajuster_rapide() (factr = 1e7, 2,2e-9),
-# l'objectif ne variant que de 2,3e-2 * (1 - delta) en relatif pres du bord
-# sur les donnees de test. Mesure (avis actuary, 23/09/2026) : sur
-# 1 399 ajustements (400 jeux simules ajustes par usp_ajuster(), 999
-# repliques bootstrap par usp_ajuster_rapide()), aucune distance de delta au
+# L-BFGS-B sur delta. Depuis #63 (gradient analytique passe a optim(),
+# factr divise par 1000, decision du mainteneur du 28/09/2026), la reduction
+# relative factr * eps vaut 2,2e-14 pour l'ajustement complet usp_ajuster()
+# (factr = 1e2) et 2,2e-12 pour le reajustement rapide usp_ajuster_rapide()
+# (factr = 1e4) : les resolutions correspondantes sur delta, environ 1e-9 et
+# 1e-7 avec les anciens reglages (1e5 et 1e7), baissent d'autant, l'objectif
+# ne variant que de 2,3e-2 * (1 - delta) en relatif pres du bord sur les
+# donnees de test. La justification tient donc a fortiori. Mesure (avis
+# actuary du 28/09/2026 sur #63, reglage gradient analytique et factr / 1000) :
+# sur 3 049 ajustements (1 051 jeux simules ajustes par usp_ajuster(),
+# graine 20260924, et 2 x 999 reajustements bootstrap a trois demarrages de
+# usp_ajuster_rapide() sur les jeux J1 et J2), aucune distance de delta au
 # bord dans la fenetre (0 ; 1,7e-4) : le seuil 1e-6 ne separe donc aucun
-# optimum interieur observe. Unique source de cette tolerance : usp_ajuster()
+# optimum interieur observe (0 sur 1 399 ajustements dans la mesure du
+# 23/09/2026, anciens reglages). Valeur inchangee (decision du mainteneur du
+# 28/09/2026). Unique source de cette tolerance : usp_ajuster()
 # (delta_au_bord) et usp_regime() (pi_constant).
 TOL_DELTA_BORD <- 1e-6
 
@@ -173,14 +180,24 @@ BORNES_GAMMA <- c(-12, 3)
 # - TOL_OPTIMUM : un demarrage est "a l'optimum" si son objectif est a moins
 #   de TOL_OPTIMUM de l'objectif minimal ; meme ensemble pour la convergence
 #   multi-demarrages (M15) et pour la condition de Kuhn-Tucker (M25).
-# - REP_PAS_KKT : repere sur |pas de Newton en gamma|, ancre sur M9 (erreur
-#   relative sur sigma de l'ordre de Delta gamma, tolerance de
-#   non-regression 1e-6), maintenu par M17.
+# - REP_SIGMA_KKT : repere sur |erreur_sigma|, erreur relative de premier
+#   ordre sur sigma qu'impliquerait le pas de Newton complet sur les
+#   variables libres (issue #71, decision du mainteneur du 28/09/2026, qui
+#   remplace le repere de M17 sur |pas de Newton en gamma|). Ancre sur M9
+#   (tolerance de non-regression 1e-6, relative sur sigma), appliquee a la
+#   grandeur qu'elle vise. Choix numerique, sans reference bibliographique.
+#   Niveau mesure du residu apres #63 (gradient analytique, factr / 1000 ;
+#   mesure de coder du 28/09/2026, 1 051 jeux simules, graine 20260924,
+#   ecart du demarrage retenu a l'optimum de reference en |Delta gamma|) :
+#   mediane 2,4e-13, 99e centile 1,1e-8, maximum 9,1e-8 ; il remplace le
+#   plancher -h^2/3 ~ -3,3e-7 de la difference centree d'optim() (ndeps =
+#   h = 1e-3), sans objet depuis #63.
 # - REP_GD_KKT : repere sur |pg_delta|, regle unique au bord comme a
-#   l'interieur (M16).
-TOL_OPTIMUM <- 1e-6
-REP_PAS_KKT <- 1e-6
-REP_GD_KKT  <- 1e-4
+#   l'interieur (M16), maintenu a l'interieur comme garde de validite du
+#   modele quadratique local (issue #71, Q71-3).
+TOL_OPTIMUM   <- 1e-6
+REP_SIGMA_KKT <- 1e-6
+REP_GD_KKT    <- 1e-4
 
 # Seuil d'ECHEC des tests en sens "rejeter" (engine_registre_tests()) : p <
 # alpha donne OK, alpha <= p < SEUIL_ECHEC_SENS_REJETER donne ALERTE, au-dela
@@ -1028,18 +1045,159 @@ usp_gradient <- function(delta, gamma, x, y, xbar = mean(x)) {
     gamma = sum(-k$pi * 2 * e * a / (1 + e * a) * s))
 }
 
-# Condition du premier ordre (Kuhn-Tucker) au point (delta, gamma), issue #22 :
+# Gradient de l'objectif sous la forme attendue par stats::optim() (argument
+# gr, issue #63, decision du mainteneur du 28/09/2026) : usp_gradient() au
+# point par = c(delta, gamma). Passe a optim() dans usp_ajuster() et
+# usp_ajuster_rapide(), il remplace la difference centree par defaut
+# d'optim() (ndeps = 1e-3), dont le biais ~ -h^2/3 sur gamma fixait le
+# plancher de precision de l'ajustement (~3,4e-7). La ou usp_objectif() rend
+# sa penalite constante 1e12 (objectif non fini), le gradient rendu est nul,
+# celui de cette penalite : le chemin de l'issue #33 (erreur explicite de
+# usp_ajuster() quand l'objectif n'est fini en aucun point visite) est
+# conserve. Un gradient non fini a objectif fini fait echouer optim()
+# (erreur interceptee par try() dans les deux appelants).
+usp_gradient_optim <- function(par, x, y, xbar) {
+  g <- usp_gradient(par[1], par[2], x, y, xbar)
+  if (all(is.finite(g)) || !identical(usp_objectif(par, x, y, xbar), 1e12)) g
+  else c(delta = 0, gamma = 0)
+}
+
+# Gradient analytique de ln(sigma(delta, gamma)), sigma = usp_noyau()$sigma
+# (issue #71, specification d'actuary du 28/09/2026, formule (b)).
+# sigma = exp(gamma + ln(beta)), ln(beta) = (T/2 + somme(pi_t r_t)) /
+# somme(pi_t), r_t = ln(y_t / x_t), d'ou
+#   d ln(beta) / d theta = somme(d pi_t / d theta (r_t - ln(beta))) / somme(pi_t),
+#   d pi_t / d gamma = -pi_t^2 2 e a_t / (1 + e a_t),
+#   d pi_t / d delta = -pi_t^2 e (1 - xbar / x_t) / (1 + e a_t),
+# avec a_t = delta + (1 - delta) xbar / x_t et e = exp(2 gamma) ; puis
+# d ln(sigma) / d delta = d ln(beta) / d delta,
+# d ln(sigma) / d gamma = 1 + d ln(beta) / d gamma.
+# A pi_t constant : d ln(sigma) / d gamma = 1 + e / (1 + e) a delta = 1.
+usp_grad_ln_sigma <- function(delta, gamma, x, y, xbar = mean(x)) {
+  k <- usp_noyau(delta, gamma, x, y, xbar)
+  e <- exp(2 * gamma)
+  a <- delta + (1 - delta) * xbar / x
+  r <- log(y / x)
+  sp <- sum(k$pi)
+  dp_g <- -k$pi^2 * 2 * e * a / (1 + e * a)
+  dp_d <- -k$pi^2 * e * (1 - xbar / x) / (1 + e * a)
+  c(delta = sum(dp_d * (r - k$ln_beta)) / sp,
+    gamma = 1 + sum(dp_g * (r - k$ln_beta)) / sp)
+}
+
+# Hessienne 2 x 2 de l'objectif profile O(delta, gamma) (issue #71,
+# specification d'actuary, formule (a)) : differences centrees du gradient
+# analytique usp_gradient(), pas h dans les deux directions, symetrisee.
+# H_gamma_gamma est identique au bit pres a l'ancien champ hessien_gamma
+# (memes deux evaluations). Evaluer en delta +- h hors de [0, 1] est licite :
+# a_t est affine en delta et reste > 0 tant que max(xbar / x_t, x_t / xbar)
+# < 1 / h ; si un point decale donne un gradient non fini, les elements qui
+# en dependent valent NA (anomalie "courbure non finie" du controle).
+usp_hessienne <- function(delta, gamma, x, y, xbar = mean(x), h = 1e-4) {
+  gp_g <- usp_gradient(delta, gamma + h, x, y, xbar)
+  gm_g <- usp_gradient(delta, gamma - h, x, y, xbar)
+  gp_d <- usp_gradient(delta + h, gamma, x, y, xbar)
+  gm_d <- usp_gradient(delta - h, gamma, x, y, xbar)
+  fini <- function(v) if (is.finite(v)) v else NA_real_
+  h_gg <- fini((gp_g[["gamma"]] - gm_g[["gamma"]]) / (2 * h))
+  h_dd <- fini((gp_d[["delta"]] - gm_d[["delta"]]) / (2 * h))
+  h_dg <- fini(0.5 * ((gp_g[["delta"]] - gm_g[["delta"]]) / (2 * h) +
+                      (gp_d[["gamma"]] - gm_d[["gamma"]]) / (2 * h)))
+  matrix(c(h_dd, h_dg, h_dg, h_gg), 2, 2,
+         dimnames = list(c("delta", "gamma"), c("delta", "gamma")))
+}
+
+# Variables libres et definie positivite de la sous-hessienne H_F (issue
+# #71, specification d'actuary, formule (c) et (d)). gamma est toujours
+# libre ; delta l'est si et seulement si les volumes ne sont pas constants
+# et pg_delta est fini et non nul (a l'interieur toujours ; au bord
+# seulement si le gradient pousse vers l'interieur) : le controle reste
+# continu a la bascule du bord (M16).
+# volumes_constants : usp_volumes_constants(x), predicat unique de
+# usp_regime() (tolerance TOL_DELTA_BORD ; reprise de #71 apres audit, avis
+# d'actuary du 29/09/2026). A volumes constants, delta n'est pas identifie
+# (#58) : g_delta n'y est qu'un bruit d'arrondi et H_delta_delta ~ 1e-25,
+# de sorte que det(H) prenait un signe aleatoire (mesure d'audit : 23 jeux
+# sur 40 d'etendue relative 1e-15 a 1e-13 rendaient "courbure non
+# strictement positive" et stat = NA). delta n'y est donc jamais libre.
+# L'exception ne s'etend pas a pi_t constant a volumes variables (delta = 1),
+# ou delta est identifie.
+# def_pos : NA si un element de H_F n'est pas fini ; sinon H_gamma_gamma > 0
+# (F = {gamma}) ou H_gamma_gamma > 0 et det(H) > 0 (F = {delta, gamma},
+# critere de Sylvester).
+usp_hessienne_libre <- function(H, pg, volumes_constants = FALSE) {
+  libre_delta <- !isTRUE(volumes_constants) &&
+    isTRUE(is.finite(pg[["delta"]]) && pg[["delta"]] != 0)
+  hf <- if (libre_delta) as.vector(H) else H["gamma", "gamma"]
+  def_pos <- if (!all(is.finite(hf))) NA
+    else if (libre_delta) H["gamma", "gamma"] > 0 &&
+      H["delta", "delta"] * H["gamma", "gamma"] - H["delta", "gamma"]^2 > 0
+    else H["gamma", "gamma"] > 0
+  list(libre_delta = libre_delta, def_pos = def_pos)
+}
+
+# Pas de Newton complet sur les variables libres, ecrete aux bornes de delta,
+# et erreur relative de premier ordre sur sigma (issue #71, specification
+# d'actuary, formules (c) a (e)). Fonction pure de H (usp_hessienne()), du
+# gradient projete pg, de delta et de grad_ln_sigma (usp_grad_ln_sigma()).
+#   - F = {gamma} : pas = (0, -pg_gamma / H_gamma_gamma) ;
+#   - F = {delta, gamma} : pas libre -H^{-1} pg ; si delta + pas_delta sort
+#     de [0, 1], ecretage : pas_delta = b - delta (b la borne franchie), puis
+#     pas_gamma = -(pg_gamma + H_gamma_delta pas_delta) / H_gamma_gamma
+#     (minimiseur du modele quadratique convexe sur la face delta = b ;
+#     Nocedal et Wright 2006, chap. 16, projection du gradient) ;
+#   - erreur_sigma = somme sur F de d ln(sigma) / d theta_i * pas_i.
+# Pas, erreur_sigma et pas_ecrete valent NA si pg n'est pas fini ou si H_F
+# n'est pas finie et definie positive. volumes_constants : voir
+# usp_hessienne_libre() (delta jamais libre a volumes constants).
+usp_pas_newton_borne <- function(H, pg, delta, grad_ln_sigma, volumes_constants = FALSE) {
+  lib <- usp_hessienne_libre(H, pg, volumes_constants)
+  na <- list(pas = c(delta = NA_real_, gamma = NA_real_), erreur_sigma = NA_real_,
+             pas_ecrete = NA, libre_delta = lib$libre_delta, def_pos = lib$def_pos)
+  if (!all(is.finite(pg)) || !isTRUE(lib$def_pos)) return(na)
+  ecrete <- FALSE
+  if (!lib$libre_delta) {
+    pas <- c(delta = 0, gamma = -pg[["gamma"]] / H["gamma", "gamma"])
+    err <- grad_ln_sigma[["gamma"]] * pas[["gamma"]]
+  } else {
+    # Inverse 2 x 2 ecrite explicitement (det > 0 par Sylvester) : solve()
+    # levait une erreur ("system is computationally singular") a volumes
+    # quasi constants, ou H_delta_delta ~ 1e-20 (mesure du 29/09/2026 sur
+    # tests/unitaires/test_volumes_constants.R) ; le pas en delta, fini mais
+    # tres grand (~1e10), y est ecrete a la borne ci-dessous.
+    det <- H["delta", "delta"] * H["gamma", "gamma"] - H["delta", "gamma"]^2
+    pas <- c(delta = -(H["gamma", "gamma"] * pg[["delta"]] - H["delta", "gamma"] * pg[["gamma"]]) / det,
+             gamma = -(H["delta", "delta"] * pg[["gamma"]] - H["delta", "gamma"] * pg[["delta"]]) / det)
+    if (delta + pas[["delta"]] < 0 || delta + pas[["delta"]] > 1) {
+      b <- if (delta + pas[["delta"]] < 0) 0 else 1
+      pas[["delta"]] <- b - delta
+      pas[["gamma"]] <- -(pg[["gamma"]] + H["gamma", "delta"] * pas[["delta"]]) /
+        H["gamma", "gamma"]
+      ecrete <- TRUE
+    }
+    err <- grad_ln_sigma[["delta"]] * pas[["delta"]] +
+      grad_ln_sigma[["gamma"]] * pas[["gamma"]]
+  }
+  if (!all(is.finite(c(pas, err)))) return(na)
+  list(pas = pas, erreur_sigma = err, pas_ecrete = ecrete,
+       libre_delta = lib$libre_delta, def_pos = lib$def_pos)
+}
+
+# Condition du premier ordre (Kuhn-Tucker) au point (delta, gamma), issues
+# #22 et #71 :
 #   - gradient : usp_gradient() ;
 #   - gradient_projete : composante annulee si elle pousse hors du domaine au
 #     bord (borne inferieure : min(g, 0) ; borne superieure : max(g, 0)),
 #     inchangee a l'interieur. Bord jugee a TOL_DELTA_BORD pres, pour delta
 #     dans [0, 1] comme pour gamma dans BORNES_GAMMA ;
-#   - hessien_gamma : difference centree (pas h) du gradient analytique en
-#     gamma ;
-#   - pas_newton_gamma : -pg_gamma / H_gamma_gamma, NA si la courbure n'est
-#     pas strictement positive, si le gradient n'est pas fini, ou si gamma
-#     est sur une borne numerique (le pas n'y a pas de sens : le maximum de
-#     vraisemblance n'est pas atteint ; mineur d'audit, issue #22).
+#   - hessienne : usp_hessienne() (pas h) ; H_gamma_gamma est
+#     hessienne["gamma", "gamma"] ;
+#   - grad_ln_sigma : usp_grad_ln_sigma() ;
+#   - pas_newton, erreur_sigma, pas_ecrete : usp_pas_newton_borne() ; le pas
+#     en gamma est pas_newton[["gamma"]]. NA si la sous-hessienne des
+#     variables libres n'est pas finie et definie positive, si le gradient
+#     n'est pas fini, ou si gamma est sur une borne numerique (le pas n'y a
+#     pas de sens : le maximum de vraisemblance n'est pas atteint).
 # Les valeurs sont du bruit d'optimiseur (dependant de la plateforme) : elles
 # ne sont restituees que dans des champs numeriques, jamais dans un libelle.
 usp_condition_premier_ordre <- function(delta, gamma, x, y, xbar = mean(x),
@@ -1053,32 +1211,41 @@ usp_condition_premier_ordre <- function(delta, gamma, x, y, xbar = mean(x),
   }
   pg <- c(delta = projeter(g[["delta"]], delta, 0, 1),
           gamma = projeter(g[["gamma"]], gamma, BORNES_GAMMA[1], BORNES_GAMMA[2]))
-  H <- (usp_gradient(delta, gamma + h, x, y, xbar)[["gamma"]] -
-        usp_gradient(delta, gamma - h, x, y, xbar)[["gamma"]]) / (2 * h)
+  H <- usp_hessienne(delta, gamma, x, y, xbar, h)
+  gls <- usp_grad_ln_sigma(delta, gamma, x, y, xbar)
   gamma_bord <- !is.finite(gamma) || gamma <= BORNES_GAMMA[1] + tol ||
     gamma >= BORNES_GAMMA[2] - tol
-  pas <- if (!gamma_bord && is.finite(H) && H > 0 && is.finite(pg[["gamma"]]))
-    -pg[["gamma"]] / H else NA_real_
-  list(gradient = g, gradient_projete = pg, hessien_gamma = H, pas_newton_gamma = pas)
+  pn <- usp_pas_newton_borne(H, pg, delta, gls, usp_volumes_constants(x))
+  if (gamma_bord) {
+    pn$pas[] <- NA_real_; pn$erreur_sigma <- NA_real_; pn$pas_ecrete <- NA
+  }
+  list(gradient = g, gradient_projete = pg, hessienne = H, grad_ln_sigma = gls,
+       pas_newton = pn$pas, erreur_sigma = pn$erreur_sigma, pas_ecrete = pn$pas_ecrete)
 }
 
 # Decision de Kuhn-Tucker pour UN demarrage (issue #22, decision du mainteneur
-# du 24/09/2026 ; specification d'actuary) : fonction pure de
+# du 24/09/2026 ; issue #71, decision du mainteneur du 28/09/2026 ;
+# specifications d'actuary) : fonction pure de
 # cpo = usp_condition_premier_ordre(delta_s, gamma_s, ...) et de gamma_s.
 # TRUE si et seulement si, sur ce MEME point : gradient et gradient projete
 # finis, gamma_s hors des bornes numeriques BORNES_GAMMA (a TOL_DELTA_BORD
-# pres), H_gamma_gamma finie et > 0, |pas de Newton en gamma| <= rep_pas et
-# |pg_delta| <= rep_gd. Reperes par defaut REP_PAS_KKT (1e-6, ancre sur M9,
-# M17) et REP_GD_KKT (1e-4, regle unique au bord comme a l'interieur, M16),
-# definis en tete du moteur ; le libelle de usp_controles_numeriques() ne
-# les imprime pas (issue #76) : la regle et ses reperes sont dans la fiche
-# du .tex. Point d'accroche de #71 (pas de Newton complet).
-usp_kkt_satisfaite <- function(cpo, gamma, rep_pas = REP_PAS_KKT, rep_gd = REP_GD_KKT) {
+# pres), sous-hessienne des variables libres finie et definie positive
+# (usp_hessienne_libre(), volumes_constants = usp_volumes_constants(x) du
+# jeu ajuste), pas de Newton fini, |erreur_sigma| <= rep_sigma et
+# |pg_delta| <= rep_gd. Reperes par defaut REP_SIGMA_KKT (1e-6, ancre sur
+# M9, #71) et REP_GD_KKT (1e-4, regle unique au bord comme a l'interieur,
+# M16), definis en tete du moteur ; le libelle de usp_controles_numeriques()
+# ne les imprime pas (issue #76) : la regle et ses reperes sont dans la fiche
+# du .tex.
+usp_kkt_satisfaite <- function(cpo, gamma, rep_sigma = REP_SIGMA_KKT, rep_gd = REP_GD_KKT,
+                               volumes_constants = FALSE) {
   gamma_bord <- !is.finite(gamma) || gamma <= BORNES_GAMMA[1] + TOL_DELTA_BORD ||
     gamma >= BORNES_GAMMA[2] - TOL_DELTA_BORD
-  isTRUE(all(is.finite(c(cpo$gradient, cpo$gradient_projete)))) && !gamma_bord &&
-    isTRUE(is.finite(cpo$hessien_gamma) && cpo$hessien_gamma > 0) &&
-    isTRUE(is.finite(cpo$pas_newton_gamma) && abs(cpo$pas_newton_gamma) <= rep_pas) &&
+  grad_fini <- isTRUE(all(is.finite(c(cpo$gradient, cpo$gradient_projete))))
+  grad_fini && !gamma_bord &&
+    isTRUE(usp_hessienne_libre(cpo$hessienne, cpo$gradient_projete, volumes_constants)$def_pos) &&
+    isTRUE(all(is.finite(cpo$pas_newton))) &&
+    isTRUE(is.finite(cpo$erreur_sigma) && abs(cpo$erreur_sigma) <= rep_sigma) &&
     isTRUE(abs(cpo$gradient_projete[["delta"]]) <= rep_gd)
 }
 
@@ -1088,8 +1255,20 @@ usp_kkt_satisfaite <- function(cpo, gamma, rep_pas = REP_PAS_KKT, rep_gd = REP_G
 # controle : parametres de stats::optim() ; la valeur par defaut est celle
 # du calcul. Un autre reglage ne sert qu'aux tests (ajustement deliberement
 # non converge, issue #22).
+# Gradient analytique passe a optim() (usp_gradient_optim(), issue #63) et
+# factr = 1e2 (1e5 avant #63, divise par 1000 ; sans pgtol, inoperant a
+# factr non nul ; decision du mainteneur du 28/09/2026 sur la mesure de coder
+# et l'avis d'actuary, commentaires de #63). Le gradient seul supprime le
+# biais de la difference centree (ndeps = 1e-3) mais laisse une queue de
+# points d'arret limitee par factr au-dessus de 1e-6 en |Delta gamma| ;
+# factr / 1000 la ramene sous 1e-7 (mesure de coder, 1 051 jeux simules,
+# graine 20260924 : maximum 9,1e-8). En contrepartie, davantage de
+# demarrages rendent le code 52 d'optim() au point deja atteint (bruit
+# d'arrondi a factr * eps = 2,2e-14 en relatif) ; la regle "au moins un
+# demarrage a l'optimum au code 0" du controle multi-demarrages est
+# maintenue (decision du mainteneur du 28/09/2026).
 usp_ajuster <- function(x, y, n_starts_delta = 9, verbose = FALSE,
-                        controle = list(factr = 1e5, maxit = 500)) {
+                        controle = list(factr = 1e2, maxit = 500)) {
   xbar <- mean(x)
   grille_d <- seq(0, 1, length.out = n_starts_delta)
   grille_g <- log(c(0.01, 0.03, 0.06, 0.10, 0.20, 0.40))
@@ -1101,7 +1280,7 @@ usp_ajuster <- function(x, y, n_starts_delta = 9, verbose = FALSE,
   for (i in seq_len(nrow(starts))) {
     fit <- try(stats::optim(
       par = c(starts$delta[i], starts$gamma[i]),
-      fn = usp_objectif, x = x, y = y, xbar = xbar,
+      fn = usp_objectif, gr = usp_gradient_optim, x = x, y = y, xbar = xbar,
       method = "L-BFGS-B",
       lower = c(0, BORNES_GAMMA[1]), upper = c(1, BORNES_GAMMA[2]),
       control = controle), silent = TRUE)
@@ -1136,8 +1315,10 @@ usp_ajuster <- function(x, y, n_starts_delta = 9, verbose = FALSE,
   # grille et variable selon la plateforme. Tous les demarrages sont evalues
   # (pas d'arret au premier succes, qui reintroduirait un ordre).
   idx <- which(!is.na(vals) & a_optimum)
+  vol_cst <- usp_volumes_constants(x)
   kkt_ok <- vapply(idx, function(i) usp_kkt_satisfaite(
-    usp_condition_premier_ordre(pars[i, 1], pars[i, 2], x, y, xbar), pars[i, 2]),
+    usp_condition_premier_ordre(pars[i, 1], pars[i, 2], x, y, xbar), pars[i, 2],
+    volumes_constants = vol_cst),
     logical(1))
 
   d <- best$par[1]; g <- best$par[2]
@@ -1158,7 +1339,13 @@ usp_ajuster <- function(x, y, n_starts_delta = 9, verbose = FALSE,
   cpo <- usp_condition_premier_ordre(d, g, x, y, xbar)
   c(k, list(delta = d, gamma = g, T = length(x), x = x, y = y, xbar = xbar,
             gradient = cpo$gradient, gradient_projete = cpo$gradient_projete,
-            hessien_gamma = cpo$hessien_gamma, pas_newton_gamma = cpo$pas_newton_gamma,
+            # Champs de #71 (hessienne, grad_ln_sigma, pas_newton, erreur_sigma,
+            # pas_ecrete), qui remplacent hessien_gamma et pas_newton_gamma
+            # (decision du mainteneur du 28/09/2026, Q71-2) : ceux de
+            # usp_condition_premier_ordre() au demarrage retenu.
+            hessienne = cpo$hessienne, grad_ln_sigma = cpo$grad_ln_sigma,
+            pas_newton = cpo$pas_newton, erreur_sigma = cpo$erreur_sigma,
+            pas_ecrete = cpo$pas_ecrete,
             obj_min = best$value, convergence = best$convergence,
             part_starts_convergents = part_convergents,
             n_starts_optimum = n_optimum, n_starts_optimum_code0 = n_optimum_code0,
@@ -1194,7 +1381,7 @@ usp_controles_numeriques <- function(fit) {
   # Regle (decision du mainteneur du 24/09/2026, issue #22, constat 4 de la
   # revue finale d'audit ; specification d'actuary) : reussi si AU MOINS UN
   # demarrage a l'optimum (objectif a moins de TOL_OPTIMUM du minimum, meme ensemble
-  # que M15) satisfait les deux conditions sur le MEME point
+  # que M15) satisfait les conditions sur le MEME point
   # (usp_kkt_satisfaite()) ; decision calculee dans usp_ajuster()
   # (fit$kkt_au_moins_un). L'ancienne regle jugeait le seul demarrage
   # retenu, departage par l'ordre de la grille : mesure d'actuary (200 jeux
@@ -1202,43 +1389,47 @@ usp_controles_numeriques <- function(fit) {
   # ECHEC sur 200 (|Delta gamma| du retenu 1,24e-6 et 1,39e-6), 0 sur 200
   # avec la nouvelle regle (max sur les jeux de min_s |Delta gamma_s| =
   # 1,96e-7).
-  # Reperes (constantes REP_PAS_KKT et REP_GD_KKT, en tete du moteur, lues
-  # par usp_kkt_satisfaite()) : |pas de Newton en gamma| <= 1e-6, ancre sur
-  # M9 (erreur relative sur sigma ~ Delta gamma, tolerance de
-  # non-regression 1e-6) ; plancher Delta gamma ~ -h^2/3 ~ -3,3e-7 (biais de
-  # la difference centree d'optim(), ndeps = h = 1e-3 ; derivation
-  # d'actuary verifiee par simulation). |pg_delta| <= 1e-4, REGLE UNIQUE au
-  # bord comme a l'interieur (decision du mainteneur apres audit : exiger
-  # pg_delta = 0 au bord creait une discontinuite).
+  # Reperes (constantes REP_SIGMA_KKT et REP_GD_KKT, en tete du moteur, lues
+  # par usp_kkt_satisfaite()) : |erreur_sigma| <= 1e-6, erreur relative de
+  # premier ordre sur sigma qu'impliquerait le pas de Newton complet sur les
+  # variables libres, ecrete aux bornes de delta (issue #71, decision du
+  # mainteneur du 28/09/2026, qui remplace le repere de M17 sur le pas en
+  # gamma a delta fixe, aveugle au terme croise H_delta_gamma) ; ancre sur
+  # M9 (tolerance de non-regression 1e-6). |pg_delta| <= 1e-4, REGLE UNIQUE
+  # au bord comme a l'interieur (decision du mainteneur apres audit : exiger
+  # pg_delta = 0 au bord creait une discontinuite ; maintenue par #71).
   # Libelle concis (issue #76, textes retenus par le mainteneur, retouches
-  # du 24/09/2026) : le respect de la regle (oui / non), puis, s'il y a lieu,
-  # la phrase "Volumes constants : delta non identifie.", puis UNE phrase
-  # "Demarrage retenu : " reunissant, separees par " ; " et dans cet ordre,
-  # les anomalies du demarrage retenu : gradient non fini, courbure (« non
-  # finie » si H_gamma_gamma est NaN ou +-Inf, « non strictement positive »
-  # si H est finie et <= 0), gamma sur une borne. La courbure n'est pas
-  # mentionnee quand gamma est sur une borne (pas de Newton non defini dans
-  # les deux cas). Ni repere, ni valeur
-  # d'optimiseur : la regle, les reperes et leur justification sont dans la
-  # fiche du .tex ; les valeurs du demarrage retenu dans res$ajustement
-  # (gradient, gradient_projete, hessien_gamma, pas_newton_gamma) ; stat
-  # reste le Delta gamma du demarrage retenu.
+  # du 24/09/2026, inchanges par #71) : le respect de la regle (oui / non),
+  # puis, s'il y a lieu, la phrase "Volumes constants : delta non
+  # identifie.", puis UNE phrase "Demarrage retenu : " reunissant, separees
+  # par " ; " et dans cet ordre, les anomalies du demarrage retenu :
+  # gradient non fini, courbure (« non finie » si un element de la
+  # sous-hessienne H_F des variables libres n'est pas fini, « non strictement
+  # positive » si H_F est finie et non definie positive, critere de
+  # Sylvester ; usp_hessienne_libre()), gamma sur une borne. La courbure
+  # n'est pas mentionnee quand gamma est sur une borne (pas de Newton non
+  # defini dans les deux cas). Ni repere, ni valeur d'optimiseur, ni
+  # mention de l'ecretage : la regle, les reperes et leur justification sont
+  # dans la fiche du .tex ; les valeurs du demarrage retenu dans
+  # res$ajustement (gradient, gradient_projete, hessienne, grad_ln_sigma,
+  # pas_newton, erreur_sigma, pas_ecrete) ; stat est l'erreur_sigma du
+  # demarrage retenu (grandeur jugee, relative sur sigma ; NA si gamma est
+  # sur une borne).
   g <- fit$gradient; pg <- fit$gradient_projete
-  H <- fit$hessien_gamma
   grad_fini <- all(is.finite(c(g, pg)))
   gamma_bord <- !is.finite(fit$gamma) ||
     fit$gamma <= BORNES_GAMMA[1] + TOL_DELTA_BORD || fit$gamma >= BORNES_GAMMA[2] - TOL_DELTA_BORD
-  H_finie <- isTRUE(is.finite(H))
+  def_pos <- usp_hessienne_libre(fit$hessienne, pg, usp_volumes_constants(fit$x))$def_pos
   ok <- isTRUE(fit$kkt_au_moins_un)
   # Volumes constants (#58) : pi_t ne depend pas de delta, g_delta = 0 et
   # delta n'est pas identifie ; la valeur rendue par l'optimiseur (souvent 0)
   # est un artefact, que le libelle ne presente pas comme un bord.
   vol_cst <- isTRUE(usp_regime(fit$delta, fit$x)$volumes_constants)
   anomalies <- c(if (!grad_fini) "gradient non fini",
-                 if (!gamma_bord && !H_finie) "courbure non finie",
-                 if (!gamma_bord && H_finie && H <= 0) "courbure non strictement positive",
+                 if (!gamma_bord && is.na(def_pos)) "courbure non finie",
+                 if (!gamma_bord && isFALSE(def_pos)) "courbure non strictement positive",
                  if (gamma_bord) "gamma sur une borne")
-  add("Condition du premier ordre (gradient projete, KKT)", ok, fit$pas_newton_gamma,
+  add("Condition du premier ordre (gradient projete, KKT)", ok, fit$erreur_sigma,
       paste(c(sprintf("Condition KKT verifiee par au moins un demarrage a l'optimum : %s.",
                       if (ok) "oui" else "non"),
               if (vol_cst) "Volumes constants : delta non identifie.",
@@ -2859,15 +3050,34 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
        granularite_stat = mc$granularite, motif_mc = mc$motif_mc)
 }
 
-# Réajustement rapide (un seul démarrage, à partir de l'optimum observé).
+# Reajustement rapide des replications bootstrap (usp_bootstrap()), unique
+# reajusteur de la loi bootstrap. Trois demarrages, dans cet ordre :
+# (d0, g0) (l'optimum observe), (0, g0) et (1, g0) ; objectif minimal
+# retenu, avec la regle du PREMIER demarrage a moins de 1e-10 de l'objectif
+# (celle de usp_ajuster()) (issue #109, correctif R3, decision du mainteneur
+# du 28/09/2026). Motif : demarre a chaud du seul (d0, g0), l'ajusteur
+# restait dans le bassin du bord de depart et manquait l'optimum de
+# usp_ajuster() (ecart d'objectif > 1e-6) dans 0,37 % (J1) et 0,68 % (J2)
+# des replications (mesure de #43, tests/comparer_ajusteurs_bootstrap.R).
+# Gradient analytique et factr = 1e4 (1e7 avant #63, divise par 1000 ;
+# decision du mainteneur du 28/09/2026, voir usp_ajuster()). Un demarrage
+# en erreur ou a objectif non fini est ecarte ; erreur si aucun n'aboutit
+# (replication ecartee par usp_bootstrap()).
 usp_ajuster_rapide <- function(x, y, d0, g0) {
   xbar <- mean(x)
-  f <- stats::optim(c(d0, g0), usp_objectif, x = x, y = y, xbar = xbar,
-                    method = "L-BFGS-B",
-                    lower = c(0, BORNES_GAMMA[1]), upper = c(1, BORNES_GAMMA[2]),
-                    control = list(factr = 1e7, maxit = 200))
-  k <- usp_noyau(f$par[1], f$par[2], x, y, xbar)
-  c(k, list(delta = f$par[1], gamma = f$par[2], T = length(x),
+  best <- NULL
+  for (d_dep in c(d0, 0, 1)) {
+    f <- try(stats::optim(c(d_dep, g0), usp_objectif, gr = usp_gradient_optim,
+                          x = x, y = y, xbar = xbar,
+                          method = "L-BFGS-B",
+                          lower = c(0, BORNES_GAMMA[1]), upper = c(1, BORNES_GAMMA[2]),
+                          control = list(factr = 1e4, maxit = 200)), silent = TRUE)
+    if (inherits(f, "try-error") || !is.finite(f$value)) next
+    if (is.null(best) || f$value < best$value - 1e-10) best <- f
+  }
+  if (is.null(best)) stop("Reajustement rapide : aucun demarrage abouti.")
+  k <- usp_noyau(best$par[1], best$par[2], x, y, xbar)
+  c(k, list(delta = best$par[1], gamma = best$par[2], T = length(x),
             x = x, y = y, xbar = xbar))
 }
 
@@ -3622,9 +3832,12 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # elle s'ecrit somme(k_t (z_t^2 - z_t / sqrt(pi_t) - 1)) = 0, avec
   # k_t = pi_t (1 - exp(-1 / pi_t)) ; a pi_t constant, jointe a la condition
   # en ln(beta), elle donne somme(z_t^2) = T. Mesure (usp_ajuster(), donnees
-  # de test) : cette somme vaut -3,3e-06 a delta = 0, T = 5 (volumes
-  # variables, somme(z_t^2) - T = -1,07e-02), -5,4e-06 a delta = 1 ; elle
-  # est de l'ordre de 1e-07 a delta = 0, T = 5 apres raffinement de gamma
+  # de test, reglage anterieur a #63 : difference centree d'optim(),
+  # factr = 1e5) : cette somme vaut -3,3e-06 a delta = 0, T = 5 (volumes
+  # variables, somme(z_t^2) - T = -1,07e-02), -5,4e-06 a delta = 1 ; depuis
+  # #63 (gradient analytique, factr = 1e2) : 8,5e-09 a delta = 0, T = 5, et
+  # -5,1e-08 a delta = 1. Elle etait de l'ordre de 1e-07 a delta = 0, T = 5
+  # apres raffinement de gamma
   # par optimize(tol = 1e-12) : -2,1e-07 sur l'intervalle [-5 ; 0],
   # +1,2e-07 sur [gamma chapeau - 0,1 ; gamma chapeau + 0,1] (mesures
   # distinctes selon l'intervalle). La formule n'est donnee qu'ici : le
@@ -3647,7 +3860,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # deja affichee). La variance n'est pas davantage exacte : a gamma
   # annulant la derivee en gamma a 1e-14 pres (uniroot), somme(z_t^2) - T =
   # 2,7e-3 * (1 - delta) au lieu de 0 ; cet ecart s'ajoute a celui de la
-  # tolerance d'arret (-5,4e-6 sur l'ajustement des donnees de test). Voir le
+  # tolerance d'arret (-5,4e-6 sur l'ajustement des donnees de test avant
+  # #63, -5,1e-8 depuis). Voir le
   # commentaire de usp_regime() pour le cas des volumes quasi constants.
   # ecart_tol est calcule en tete de la fonction.
   ordre_tol <- paste("d'ordre (1 - delta), ou de l'etendue relative des",

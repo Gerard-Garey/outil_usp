@@ -2,7 +2,9 @@
 #  tests/unitaires/test_controles_numeriques.R  --  CONTROLES NUMERIQUES DE
 #  L'ESTIMATION LOGNORMALE (issue #22, decision M11)
 #
-#  usp_gradient(), usp_condition_premier_ordre(), usp_kkt_satisfaite(),
+#  usp_gradient(), usp_gradient_optim(), usp_hessienne(),
+#  usp_grad_ln_sigma(), usp_hessienne_libre(), usp_pas_newton_borne(),
+#  usp_condition_premier_ordre(), usp_kkt_satisfaite(),
 #  usp_controles_numeriques(), champs d'ajustement de usp_ajuster()
 #  (dont kkt_au_moins_un, regle "au moins un demarrage a l'optimum
 #  satisfait KKT", decision du mainteneur du 24/09/2026) et place des deux
@@ -15,7 +17,13 @@
 #      w = -pi 2 e a / (1 + e a) commun a toutes les annees (somme(z_t) = 0
 #      par la forme fermee de ln(beta)) ;
 #    - conditions de Kuhn-Tucker d'un minimum sous contrainte de bornes ;
-#    - ajustement deliberement non converge (factr = 1e13, maxit = 2).
+#    - ajustement deliberement non converge (factr = 1e13, maxit = 2) ;
+#    - issue #71 (specification d'actuary du 28/09/2026, section 6) :
+#      hessienne par differences centrees ecrites a la main, gradient de
+#      ln(sigma) contre la difference centree de ln(usp_noyau()$sigma),
+#      reduction a pi_t constant, pas de Newton complet ecrete calcule a la
+#      main sur entrees synthetiques (minimiseur d'un modele quadratique
+#      convexe sur la bande [0, 1] x R).
 ###############################################################################
 
 if (!exists("verifier", mode = "function")) {
@@ -74,30 +82,178 @@ verifier("usp_gradient : a pi_t constant (delta = 1, puis x constant), g_gamma =
 
 ## --- Champs d'ajustement ---------------------------------------------------
 f_t <- usp_ajuster(x, y); f_i <- usp_ajuster(xi, yi)
-verifier("usp_ajuster : champs de la condition du premier ordre et du multi-demarrages, sans 'foc'",
+CH_71 <- c("hessienne", "grad_ln_sigma", "pas_newton", "erreur_sigma", "pas_ecrete")
+verifier("usp_ajuster : champs de la condition du premier ordre (#71) et du multi-demarrages, sans 'foc', 'hessien_gamma' ni 'pas_newton_gamma'",
          {
-           ch <- c("gradient", "gradient_projete", "hessien_gamma", "pas_newton_gamma",
-                   "n_starts_optimum", "n_starts_echec")
-           all(ch %in% names(f_t)) && !("foc" %in% names(f_t)) &&
+           ch <- c("gradient", "gradient_projete", CH_71, "n_starts_optimum", "n_starts_echec")
+           all(ch %in% names(f_t)) &&
+             !any(c("foc", "hessien_gamma", "pas_newton_gamma") %in% names(f_t)) &&
              length(f_t$gradient) == 2L && length(f_t$gradient_projete) == 2L &&
-             is.numeric(f_t$hessien_gamma) && is.numeric(f_t$pas_newton_gamma)
+             identical(dim(f_t$hessienne), c(2L, 2L)) &&
+             identical(dimnames(f_t$hessienne), list(c("delta", "gamma"), c("delta", "gamma"))) &&
+             identical(names(f_t$grad_ln_sigma), c("delta", "gamma")) &&
+             identical(names(f_t$pas_newton), c("delta", "gamma")) &&
+             is.double(f_t$erreur_sigma) && length(f_t$erreur_sigma) == 1L &&
+             is.logical(f_t$pas_ecrete) && length(f_t$pas_ecrete) == 1L
          })
 verifier("usp_ajuster : champs = usp_condition_premier_ordre() au point estime",
          {
            cpo <- usp_condition_premier_ordre(f_i$delta, f_i$gamma, xi, yi)
-           identical(cpo$gradient, f_i$gradient) &&
-             identical(cpo$gradient_projete, f_i$gradient_projete) &&
-             identical(cpo$hessien_gamma, f_i$hessien_gamma) &&
-             identical(cpo$pas_newton_gamma, f_i$pas_newton_gamma)
+           all(vapply(c("gradient", "gradient_projete", CH_71),
+                      function(ch) identical(cpo[[ch]], f_i[[ch]]), logical(1)))
          })
-verifier("usp_condition_premier_ordre : H_gamma_gamma = difference centree (h = 1e-4) du gradient analytique, pas de Newton = -pg_gamma / H",
+# Specification d'actuary (#71, section 6, point 1) : differences centrees
+# ecrites a la main (h = 1e-4), H_gamma_gamma identique a l'ancienne formule
+# de hessien_gamma, symetrie exacte.
+verifier("usp_hessienne = differences centrees (h = 1e-4) du gradient analytique ecrites a la main, symetrique ; H_gamma_gamma = ancienne formule (#71)",
+         {
+           h <- 1e-4; ok <- TRUE
+           for (dat in list(list(f_i$delta, f_i$gamma, xi, yi), list(f_t$delta, f_t$gamma, x, y))) {
+             d <- dat[[1]]; g <- dat[[2]]; xx <- dat[[3]]; yy <- dat[[4]]
+             gr <- function(dd, gg) usp_gradient(dd, gg, xx, yy)
+             hgg <- (gr(d, g + h)[["gamma"]] - gr(d, g - h)[["gamma"]]) / (2 * h)
+             hdd <- (gr(d + h, g)[["delta"]] - gr(d - h, g)[["delta"]]) / (2 * h)
+             hdg <- 0.5 * ((gr(d, g + h)[["delta"]] - gr(d, g - h)[["delta"]]) / (2 * h) +
+                           (gr(d + h, g)[["gamma"]] - gr(d - h, g)[["gamma"]]) / (2 * h))
+             H <- usp_hessienne(d, g, xx, yy)
+             ok <- ok && identical(H[["gamma", "gamma"]], hgg) && identical(H[["delta", "delta"]], hdd) &&
+               identical(H[["delta", "gamma"]], hdg) && identical(H[["gamma", "delta"]], hdg) &&
+               identical(usp_condition_premier_ordre(d, g, xx, yy)$hessienne, H)
+           }
+           ok
+         })
+# Au bord delta = 1 avec pg_delta = 0 (jeu de test), seul gamma est libre :
+# le pas est l'ancien pas de Newton en gamma, -pg_gamma / H_gamma_gamma.
+verifier("usp_condition_premier_ordre, delta au bord et contrainte active : pas = (0, -pg_gamma / H_gamma_gamma), erreur_sigma = d ln(sigma) / d gamma * pas_gamma (#71)",
+         {
+           cpo <- usp_condition_premier_ordre(f_t$delta, f_t$gamma, x, y)
+           H <- cpo$hessienne[["gamma", "gamma"]]
+           cpo$gradient_projete[["delta"]] == 0 &&
+             identical(cpo$pas_newton, c(delta = 0, gamma = -cpo$gradient_projete[["gamma"]] / H)) &&
+             identical(cpo$erreur_sigma, cpo$grad_ln_sigma[["gamma"]] * cpo$pas_newton[["gamma"]]) &&
+             identical(cpo$pas_ecrete, FALSE) && abs(cpo$erreur_sigma) <= 1e-6
+         })
+# Specification d'actuary (#71, section 6, point 2) : implementation
+# independante, difference centree de ln(sigma) (h = 1e-5), 16 points x 2 jeux.
+verifier("usp_grad_ln_sigma = difference centree de ln(usp_noyau()$sigma) (16 points, deux jeux, ecart relatif < 1e-8) (#71)",
+         {
+           h <- 1e-5; em <- 0
+           for (dat in list(list(x, y), list(xi, yi)))
+             for (d in c(0.1, 0.37, 0.5, 0.9)) for (g in c(-4, -2, -1, 0.5)) {
+               ls <- function(dd, gg) log(usp_noyau(dd, gg, dat[[1]], dat[[2]])$sigma)
+               num <- c((ls(d + h, g) - ls(d - h, g)) / (2 * h),
+                        (ls(d, g + h) - ls(d, g - h)) / (2 * h))
+               an <- usp_grad_ln_sigma(d, g, dat[[1]], dat[[2]])
+               em <- max(em, abs(an - num) / pmax(1, abs(num)))
+             }
+           identical(names(usp_grad_ln_sigma(0.5, -2, xi, yi)), c("delta", "gamma")) &&
+             (if (em < 1e-8) TRUE else sprintf("ecart relatif max %.3e", em))
+         })
+# Reduction a pi_t constant (specification d'actuary, section 2 (b)) :
+# d ln(sigma) / d gamma = 1 + e / (1 + e), e = exp(2 gamma) (a = 1), et
+# d ln(sigma) / d delta = -pi e / (T (1 + e)) somme((1 - xbar / x_t)(r_t - ln(beta))),
+# ln(beta) = 1 / (2 pi) + r_barre ; a volumes constants, cette derivee est
+# nulle. La specification ecrit r_t - r_barre au lieu de r_t - ln(beta) :
+# les deux ne coincident que si somme(1 - xbar / x_t) = 0, ce qui n'est pas
+# le cas du jeu de test (mesure du 29/09/2026 a delta = 1 : la forme en
+# r_barre s'ecarte de la derivee exacte de 1 % a gamma = -3 et la double a
+# gamma = -1 ; le gradient analytique concorde, lui, avec la difference
+# centree, test precedent). Forme retenue ici : r_t - ln(beta), derivee de
+# la formule (b).
+verifier("usp_grad_ln_sigma : reduction a pi_t constant (delta = 1 ; volumes constants), tolerance 1e-10 (#71)",
+         {
+           ok <- TRUE
+           for (cas in list(list(d = 1, xx = x, yy = y), list(d = 0.37, xx = rep(100, 8), yy = y)))
+             for (g in c(-3, -1.9, -1)) {
+               e <- exp(2 * g); a <- cas$d + (1 - cas$d) * mean(cas$xx) / cas$xx
+               p <- unique(signif(usp_pi(cas$d, g, cas$xx), 12))
+               r <- log(cas$yy / cas$xx)
+               att_g <- 1 + e * a[1] / (1 + e * a[1])
+               att_d <- -p * e / (length(cas$xx) * (1 + e * a[1])) *
+                 sum((1 - mean(cas$xx) / cas$xx) * (r - (1 / (2 * p) + mean(r))))
+               gl <- usp_grad_ln_sigma(cas$d, g, cas$xx, cas$yy)
+               ok <- ok && length(p) == 1L &&
+                 isTRUE(proche(gl[["gamma"]], att_g, rel = 1e-10, abs = 1e-12)) &&
+                 isTRUE(proche(gl[["delta"]], att_d, rel = 1e-10, abs = 1e-12))
+             }
+           ok && usp_grad_ln_sigma(0.37, -2, rep(100, 8), y)[["delta"]] == 0
+         })
+
+## --- Pas de Newton complet ecrete (#71), entrees synthetiques ----------------
+# Specification d'actuary (#71, section 6, point 4) : fonction pure, valeurs
+# calculees a la main.
+HS <- function(dd, dg, gg) matrix(c(dd, dg, dg, gg), 2, 2,
+                                  dimnames = list(c("delta", "gamma"), c("delta", "gamma")))
+GLS1 <- c(delta = 0.01, gamma = 1.02)
+verifier("usp_pas_newton_borne (i) : pg_delta = 0 -> seul gamma libre, pas = (0, -pg_gamma / H_gamma_gamma) (#71)",
+         {
+           pn <- usp_pas_newton_borne(HS(2, -3, 30), c(delta = 0, gamma = 3e-6), 1, GLS1)
+           identical(pn$pas, c(delta = 0, gamma = -3e-6 / 30)) && !pn$libre_delta &&
+             isTRUE(pn$def_pos) && identical(pn$pas_ecrete, FALSE) &&
+             identical(pn$erreur_sigma, 1.02 * (-3e-6 / 30))
+         })
+verifier("usp_pas_newton_borne (ii) : delta interieur sans ecretage, pas = -H^-1 pg (1e-12), erreur_sigma = produit scalaire (#71)",
+         {
+           H <- HS(2, -3, 30); pg <- c(delta = 1e-4, gamma = -2e-5)
+           # -H^-1 pg a la main : det = 2 * 30 - 9 = 51
+           att <- -c((30 * 1e-4 + 3 * -2e-5) / 51, (3 * 1e-4 + 2 * -2e-5) / 51)
+           pn <- usp_pas_newton_borne(H, pg, 0.5, GLS1)
+           pn$libre_delta && isTRUE(pn$def_pos) && identical(pn$pas_ecrete, FALSE) &&
+             isTRUE(all.equal(unname(pn$pas), att, tolerance = 1e-12)) &&
+             isTRUE(all.equal(pn$erreur_sigma, sum(GLS1 * att), tolerance = 1e-12))
+         })
+verifier("usp_pas_newton_borne (iii) : ecretage a delta = 1, pas = (1e-5, 1e-6), pas_ecrete (#71)",
+         {
+           # pas libre 30 * 1e-3 / 51 = 5,88e-4 : franchit 1 depuis 1 - 1e-5 ;
+           # ecrete a 1e-5, puis pas_gamma = -(0 + (-3)(1e-5)) / 30 = 1e-6.
+           pn <- usp_pas_newton_borne(HS(2, -3, 30), c(delta = -1e-3, gamma = 0), 1 - 1e-5, GLS1)
+           isTRUE(pn$pas_ecrete) && pn$libre_delta &&
+             isTRUE(all.equal(unname(pn$pas), c(1e-5, 1e-6), tolerance = 1e-10)) &&
+             isTRUE(all.equal(pn$erreur_sigma, 0.01 * 1e-5 + 1.02 * 1e-6, tolerance = 1e-10))
+         })
+verifier("usp_pas_newton_borne (iii bis) : ecretage a delta = 0 (#71)",
+         {
+           # pas libre -30 * 1e-3 / 51 = -5,88e-4 depuis 1e-5 : ecrete a -1e-5,
+           # puis pas_gamma = -(0 + (-3)(-1e-5)) / 30 = -1e-6.
+           pn <- usp_pas_newton_borne(HS(2, -3, 30), c(delta = 1e-3, gamma = 0), 1e-5, GLS1)
+           isTRUE(pn$pas_ecrete) &&
+             isTRUE(all.equal(unname(pn$pas), c(-1e-5, -1e-6), tolerance = 1e-10))
+         })
+verifier("usp_pas_newton_borne (iv) : H_gamma_gamma > 0, det < 0 -> non definie positive si delta libre, definie positive au bord actif (#71)",
+         {
+           H <- HS(0.1, 3, 30)                 # det = 3 - 9 < 0
+           pl <- usp_pas_newton_borne(H, c(delta = 1e-5, gamma = 1e-7), 0.5, GLS1)
+           pb <- usp_pas_newton_borne(H, c(delta = 0, gamma = 1e-7), 1, GLS1)
+           identical(pl$def_pos, FALSE) && all(is.na(pl$pas)) && is.na(pl$erreur_sigma) &&
+             is.na(pl$pas_ecrete) && isTRUE(pb$def_pos) && identical(pb$pas_ecrete, FALSE) &&
+             identical(pb$pas, c(delta = 0, gamma = -1e-7 / 30))
+         })
+verifier("usp_hessienne_libre : def_pos NA si un element de H_F n'est pas fini ; H_delta_delta non fini ignore si delta n'est pas libre (#71)",
+         {
+           H <- HS(NaN, -3, 30)
+           is.na(usp_hessienne_libre(H, c(delta = 1e-5, gamma = 0))$def_pos) &&
+             isTRUE(usp_hessienne_libre(H, c(delta = 0, gamma = 0))$def_pos) &&
+             is.na(usp_hessienne_libre(HS(2, -3, Inf), c(delta = 0, gamma = 0))$def_pos)
+         })
+# Defaut de l'issue #71 (specification d'actuary, section 6, point 5) : a
+# delta interieur (xi, yi), un residu pg = (1e-4, 0) a un pas en gamma a
+# delta fixe nul et |pg_delta| <= 1e-4, que l'ancienne regle acceptait ; le
+# pas complet -H^-1 (1e-4, 0), avec H mesure (1,987 ; -3,339 ; 31,665),
+# donne une erreur relative sur sigma de -6,4e-6 (reference a la main,
+# tolerance relative 1e-2 pour le bruit de H entre plateformes).
+verifier("Defaut #71 : a delta interieur, pg = (1e-4, 0) -> erreur_sigma ~ -6,4e-6, KKT non satisfaite",
          {
            cpo <- usp_condition_premier_ordre(f_i$delta, f_i$gamma, xi, yi)
-           h <- 1e-4
-           H <- (usp_gradient(f_i$delta, f_i$gamma + h, xi, yi)[["gamma"]] -
-                 usp_gradient(f_i$delta, f_i$gamma - h, xi, yi)[["gamma"]]) / (2 * h)
-           identical(cpo$hessien_gamma, H) &&
-             identical(cpo$pas_newton_gamma, -cpo$gradient_projete[["gamma"]] / H)
+           Hm <- HS(1.987, -3.339, 31.665)
+           pas_att <- -solve(Hm, c(1e-4, 0))
+           err_att <- sum(cpo$grad_ln_sigma * pas_att)
+           pn <- usp_pas_newton_borne(cpo$hessienne, c(delta = 1e-4, gamma = 0), f_i$delta,
+                                      cpo$grad_ln_sigma)
+           cpo$gradient_projete <- c(delta = 1e-4, gamma = 0)
+           cpo$pas_newton <- pn$pas; cpo$erreur_sigma <- pn$erreur_sigma
+           isTRUE(proche(pn$erreur_sigma, err_att, rel = 1e-2)) &&
+             isTRUE(proche(err_att, -6.4e-6, rel = 1e-2)) &&
+             identical(usp_kkt_satisfaite(cpo, f_i$gamma), FALSE)
          })
 verifier("usp_ajuster : n_starts_optimum = nombre de demarrages a 1e-6 de l'optimum, kappa = n_starts_optimum / demarrages aboutis",
          f_t$n_starts_optimum >= 2 && f_t$n_starts_echec == 0 &&
@@ -139,20 +295,24 @@ verifier("KKT : composante projetee en delta = valeurs attendues a la main aux b
            }
            if (length(pb)) paste(pb, collapse = " ; ") else TRUE
          })
-verifier("FOC a delta interieur (jeu simule) : |g_delta| <= 1e-4, |pas de Newton| <= 1e-6, OK",
+verifier("FOC a delta interieur (jeu simule) : |g_delta| <= 1e-4, delta libre, H definie positive, |erreur_sigma| <= 1e-6, OK",
          !f_i$delta_au_bord && abs(f_i$gradient[["delta"]]) <= 1e-4 &&
-           abs(f_i$pas_newton_gamma) <= 1e-6 && f_i$hessien_gamma > 0 &&
+           isTRUE(usp_hessienne_libre(f_i$hessienne, f_i$gradient_projete)$libre_delta) &&
+           isTRUE(usp_hessienne_libre(f_i$hessienne, f_i$gradient_projete)$def_pos) &&
+           abs(f_i$erreur_sigma) <= 1e-6 &&
            identical(ctrl(f_i, NOM_FOC)$verdict, "OK"))
 
 ## --- Echecs deliberes ------------------------------------------------------
-# Critere d'acceptation de l'issue (|pas de Newton| > 1e-3) : ajustement a
-# demarrage UNIQUE (0,5 ; ln 0,1), avec les bornes et l'objectif de
-# usp_ajuster(). Mesure : |pas| de 7,3e-3 a 1,7e-2 sur les quatre cas. Avec
-# la grille de 54 demarrages, le meilleur point non converge est plus proche
-# de l'optimum (|pas| mesure 1,5e-5 a 4,0e-3) : le critere 1e-3 n'y vaut
-# pas, mais les deux controles sortent ECHEC (assertion suivante).
+# Critere d'acceptation de l'issue #22 (ajustement non converge nettement
+# detecte, seuil 1e-3), transpose par #71 sur la grandeur jugee
+# |erreur_sigma| : ajustement a demarrage UNIQUE (0,5 ; ln 0,1), avec les
+# bornes, l'objectif et le gradient analytique de usp_ajuster() (#63).
+# Avec la grille de 54 demarrages, le meilleur point non converge est plus
+# proche de l'optimum : le critere 1e-3 n'y vaut pas, mais les deux
+# controles sortent ECHEC (assertion suivante).
 fit_demarrage_unique <- function(xx, yy, controle) {
-  o <- stats::optim(c(0.5, log(0.1)), usp_objectif, x = xx, y = yy, xbar = mean(xx),
+  o <- stats::optim(c(0.5, log(0.1)), usp_objectif, gr = usp_gradient_optim,
+                    x = xx, y = yy, xbar = mean(xx),
                     method = "L-BFGS-B", lower = c(0, BORNES_GAMMA[1]),
                     upper = c(1, BORNES_GAMMA[2]), control = controle)
   d <- o$par[1]; g <- o$par[2]
@@ -167,24 +327,35 @@ fit_demarrage_unique <- function(xx, yy, controle) {
 }
 for (ct in list(list(factr = 1e13, maxit = 500), list(factr = 1e5, maxit = 2)))
   for (dat in list(list(nom = "jeu de test", x = x, y = y), list(nom = "delta interieur", x = xi, y = yi)))
-    verifier(sprintf("Ajustement non converge (demarrage unique, factr = %g, maxit = %d, %s) : FOC ECHEC, |pas de Newton| > 1e-3",
+    verifier(sprintf("Ajustement non converge (demarrage unique, factr = %g, maxit = %d, %s) : FOC ECHEC, |erreur_sigma| > 1e-3",
                      ct$factr, ct$maxit, dat$nom),
              {
                f <- fit_demarrage_unique(dat$x, dat$y, ct)
                c1 <- ctrl(f, NOM_FOC)
-               if (identical(c1$verdict, "ECHEC") && abs(f$pas_newton_gamma) > 1e-3) TRUE
-               else sprintf("verdict %s, pas %.3e", c1$verdict, f$pas_newton_gamma)
+               if (identical(c1$verdict, "ECHEC") && isTRUE(abs(f$erreur_sigma) > 1e-3)) TRUE
+               else sprintf("verdict %s, erreur_sigma %.3e", c1$verdict, f$erreur_sigma)
              })
-verifier("usp_ajuster non converge (grille complete ; factr = 1e13, puis maxit = 2) : les deux controles ECHEC",
+# Depuis #63 (gradient analytique), sur le jeu de test a factr = 1e13, deux
+# demarrages s'arretent au meme point non converge avec le code 0 (mesure du
+# 29/09/2026, Linux, R 4.3.3) : le controle multi-demarrages y sort OK. Il
+# juge la coherence des points d'arret entre demarrages (au moins deux a
+# l'optimum, au moins un au code 0) ; il n'est pas concu pour detecter une
+# tolerance d'arret relachee quand les demarrages concordent. C'est la
+# condition du premier ordre qui le fait (|erreur_sigma| = 3,9e-4, ECHEC).
+# Proprietes verifiees : FOC ECHEC sur les quatre cas ; multi-demarrages
+# ECHEC a maxit = 2 (aucun demarrage a l'optimum au code 0).
+verifier("usp_ajuster non converge (grille complete ; factr = 1e13, puis maxit = 2) : FOC ECHEC sur les quatre cas, multi-demarrages ECHEC a maxit = 2",
          {
-           ok <- TRUE
+           pb <- character(0)
            for (ct in list(list(factr = 1e13, maxit = 500), list(factr = 1e5, maxit = 2)))
-             for (dat in list(list(x, y), list(xi, yi))) {
-               f <- usp_ajuster(dat[[1]], dat[[2]], controle = ct)
-               cc <- usp_controles_numeriques(f)
-               ok <- ok && all(vapply(cc, function(u) u$verdict, character(1)) == "ECHEC")
+             for (dat in list(list("jeu de test", x, y), list("delta interieur", xi, yi))) {
+               f <- usp_ajuster(dat[[2]], dat[[3]], controle = ct)
+               v <- vapply(usp_controles_numeriques(f), function(u) u$verdict, character(1))
+               if (v[[1]] != "ECHEC" || (ct$maxit == 2 && v[[2]] != "ECHEC"))
+                 pb <- c(pb, sprintf("%s, factr %g, maxit %d : %s", dat[[1]], ct$factr, ct$maxit,
+                                     paste(v, collapse = "/")))
              }
-           ok
+           if (length(pb)) paste(pb, collapse = " ; ") else TRUE
          })
 verifier("gamma force a la borne 3 : FOC ECHEC, detail 'Demarrage retenu : gamma sur une borne.' sans mention de courbure (#76)",
          {
@@ -211,12 +382,12 @@ verifier("gamma force a la borne -12 : FOC ECHEC, detail 'Demarrage retenu : gam
 verifier("FOC : gradient non fini -> ECHEC",
          {
            f <- f_t; f$gradient[["gamma"]] <- NaN; f$gradient_projete[["gamma"]] <- NaN
-           f$pas_newton_gamma <- NaN; f$kkt_au_moins_un <- FALSE
+           f$pas_newton[] <- NaN; f$erreur_sigma <- NaN; f$kkt_au_moins_un <- FALSE
            identical(ctrl(f, NOM_FOC)$verdict, "ECHEC")
          })
 verifier("FOC : courbure H_gamma_gamma <= 0 -> ECHEC",
          {
-           f <- f_t; f$hessien_gamma <- -1; f$kkt_au_moins_un <- FALSE
+           f <- f_t; f$hessienne[["gamma", "gamma"]] <- -1; f$kkt_au_moins_un <- FALSE
            identical(ctrl(f, NOM_FOC)$verdict, "ECHEC")
          })
 # Precision de M11 (decision du mainteneur apres audit) : reussi si AU MOINS
@@ -318,14 +489,22 @@ verifier("KKT en delta, regle unique : a l'interieur, |pg_delta| = 2e-4 -> non s
 # interieur 0,99999809 avec g_delta = 2,3e-6 de l'autre (mesure du
 # 23/09/2026). L'ancienne regle (pg_delta = 0 exige au bord) donnait ECHEC
 # puis OK pour une perturbation de 4,5e-13 de l : discontinuite supprimee.
-verifier("KKT en delta, cas d'audit au basculement du bord : OK des deux cotes",
+# #71 (specification d'actuary, section 6, point 7) : delta libre des deux
+# cotes (au bord, pg_delta pousse vers l'interieur ; a l'interieur, toujours),
+# donc meme ensemble libre : le controle reste continu a la bascule. Le
+# basculement a ete localise avec l'optimiseur anterieur a #63 : le cote
+# effectivement atteint depend de l'optimiseur, la propriete testee (OK et
+# delta libre) vaut des deux cotes.
+verifier("KKT en delta, cas d'audit au basculement du bord : OK des deux cotes, delta libre des deux cotes (#71)",
          {
            xw <- x^3 / 1e4
            vv <- vapply(c(0.89559862669921131, 0.89559862669966606), function(l) {
              yy <- xw * (y / x) * exp(l * (1:8 - 4.5) / 10)
-             ctrl(usp_ajuster(xw, yy), NOM_FOC)$verdict
+             f <- usp_ajuster(xw, yy)
+             paste(ctrl(f, NOM_FOC)$verdict,
+                   usp_hessienne_libre(f$hessienne, f$gradient_projete)$libre_delta)
            }, character(1))
-           if (all(vv == "OK")) TRUE else paste("verdicts :", paste(vv, collapse = ", "))
+           if (all(vv == "OK TRUE")) TRUE else paste("verdicts, delta libre :", paste(vv, collapse = ", "))
          })
 
 ## --- Regle "au moins un demarrage a l'optimum satisfait KKT" (#22) ---------
@@ -336,40 +515,48 @@ verifier("KKT en delta, cas d'audit au basculement du bord : OK des deux cotes",
 verifier("usp_kkt_satisfaite : TRUE au point estime a delta interieur (xi, yi)",
          isTRUE(usp_kkt_satisfaite(usp_condition_premier_ordre(f_i$delta, f_i$gamma, xi, yi),
                                    f_i$gamma)))
-verifier("usp_kkt_satisfaite : FALSE si gamma sur une borne (3, -12), H <= 0 ou NaN, gradient NaN, |pas| = 1,5e-6 ou |pg_delta| = 2e-4",
+verifier("usp_kkt_satisfaite : FALSE si gamma sur une borne (3, -12), H_gamma_gamma <= 0 ou NaN, det(H) <= 0 a delta libre, gradient NaN, pas NaN, |erreur_sigma| = 1,5e-6 ou |pg_delta| = 2e-4 (#71)",
          {
            c0 <- usp_condition_premier_ordre(f_i$delta, f_i$gamma, xi, yi)
            non <- function(cpo, g = f_i$gamma) identical(usp_kkt_satisfaite(cpo, g), FALSE)
            mod <- function(...) utils::modifyList(c0, list(...))
+           mh <- function(i, j, v) { cc <- c0; cc$hessienne[[i, j]] <- v; cc }
            cg <- c0; cg$gradient[["gamma"]] <- NaN; cg$gradient_projete[["gamma"]] <- NaN
            cd <- c0; cd$gradient_projete[["delta"]] <- 2e-4
+           cp <- c0; cp$pas_newton[["delta"]] <- NaN
            r <- c(borne3 = non(usp_condition_premier_ordre(f_i$delta, 3, xi, yi), 3),
                   borne12 = non(usp_condition_premier_ordre(f_i$delta, -12, xi, yi), -12),
                   gamma_borne_seul = non(c0, BORNES_GAMMA[2]),
-                  H_neg = non(mod(hessien_gamma = -1)), H_nul = non(mod(hessien_gamma = 0)),
-                  H_nan = non(mod(hessien_gamma = NaN)), grad_nan = non(cg),
-                  pas_pos = non(mod(pas_newton_gamma = 1.5e-6)),
-                  pas_neg = non(mod(pas_newton_gamma = -1.5e-6)),
+                  H_neg = non(mh("gamma", "gamma", -1)), H_nul = non(mh("gamma", "gamma", 0)),
+                  H_nan = non(mh("gamma", "gamma", NaN)),
+                  H_dd_nan = non(mh("delta", "delta", NaN)),
+                  det_neg = non(mh("delta", "delta", 0.1)), grad_nan = non(cg), pas_nan = non(cp),
+                  err_pos = non(mod(erreur_sigma = 1.5e-6)),
+                  err_neg = non(mod(erreur_sigma = -1.5e-6)),
                   pg_delta = non(cd))
            if (all(r)) TRUE else paste("non FALSE :", paste(names(r)[!r], collapse = ", "))
          })
-verifier("usp_kkt_satisfaite : conditions jugees sur le meme point (pas OK et |pg_delta| = 2e-4 -> FALSE)",
+verifier("usp_kkt_satisfaite : conditions jugees sur le meme point (erreur_sigma OK et |pg_delta| = 2e-4 -> FALSE)",
          {
            c0 <- usp_condition_premier_ordre(f_i$delta, f_i$gamma, xi, yi)
-           c0$pas_newton_gamma <- 1e-8; c0$gradient_projete[["delta"]] <- 2e-4
+           c0$erreur_sigma <- 1e-8; c0$gradient_projete[["delta"]] <- 2e-4
            identical(usp_kkt_satisfaite(c0, f_i$gamma), FALSE)
          })
 verifier("usp_ajuster : kkt_au_moins_un logique de longueur 1, TRUE sur (x, y) et (xi, yi)",
          is.logical(f_t$kkt_au_moins_un) && length(f_t$kkt_au_moins_un) == 1L &&
            isTRUE(f_t$kkt_au_moins_un) && isTRUE(f_i$kkt_au_moins_un))
 # Reference independante : les 54 optim() refaits dans le test (meme grille,
-# meme reglage), la condition ecrite a la main sur les champs de
-# usp_condition_premier_ordre(), sans usp_kkt_satisfaite().
-kkt_reference <- function(xx, yy, controle = list(factr = 1e5, maxit = 500)) {
+# meme reglage, gradient analytique depuis #63), la condition ecrite a la
+# main (#71 : ensemble libre, critere de Sylvester, pas de Newton complet,
+# ecretage, erreur_sigma) sur le gradient projete, la hessienne et le
+# gradient de ln(sigma) de usp_condition_premier_ordre(), sans
+# usp_kkt_satisfaite() ni usp_pas_newton_borne().
+kkt_reference <- function(xx, yy, controle = list(factr = 1e2, maxit = 500)) {
   st <- expand.grid(delta = seq(0, 1, length.out = 9),
                     gamma = log(c(0.01, 0.03, 0.06, 0.10, 0.20, 0.40)))
   fits <- lapply(seq_len(nrow(st)), function(i) try(stats::optim(
-    c(st$delta[i], st$gamma[i]), usp_objectif, x = xx, y = yy, xbar = mean(xx),
+    c(st$delta[i], st$gamma[i]), usp_objectif, gr = usp_gradient_optim,
+    x = xx, y = yy, xbar = mean(xx),
     method = "L-BFGS-B", lower = c(0, BORNES_GAMMA[1]), upper = c(1, BORNES_GAMMA[2]),
     control = controle), silent = TRUE))
   fits <- fits[!vapply(fits, inherits, logical(1), "try-error")]
@@ -378,11 +565,28 @@ kkt_reference <- function(xx, yy, controle = list(factr = 1e5, maxit = 500)) {
   any(vapply(opt, function(o) {
     d <- o$par[1]; g <- o$par[2]
     cp <- usp_condition_premier_ordre(d, g, xx, yy)
-    all(is.finite(c(cp$gradient, cp$gradient_projete))) &&
-      g > BORNES_GAMMA[1] + 1e-6 && g < BORNES_GAMMA[2] - 1e-6 &&
-      is.finite(cp$hessien_gamma) && cp$hessien_gamma > 0 &&
-      is.finite(cp$pas_newton_gamma) && abs(cp$pas_newton_gamma) <= 1e-6 &&
-      abs(cp$gradient_projete[["delta"]]) <= 1e-4
+    pg <- cp$gradient_projete; H <- cp$hessienne; gl <- cp$grad_ln_sigma
+    if (!all(is.finite(c(cp$gradient, pg)))) return(FALSE)
+    if (!(g > BORNES_GAMMA[1] + 1e-6 && g < BORNES_GAMMA[2] - 1e-6)) return(FALSE)
+    hgg <- H[2, 2]; hdd <- H[1, 1]; hdg <- H[1, 2]
+    # delta jamais libre a volumes constants (etendue relative <= 1e-6,
+    # reprise de #71 apres audit)
+    libre <- pg[1] != 0 && diff(range(xx)) > 1e-6 * mean(xx)
+    if (!libre) {
+      if (!(is.finite(hgg) && hgg > 0)) return(FALSE)
+      err <- gl[2] * (-pg[2] / hgg)
+    } else {
+      if (!(all(is.finite(H)) && hgg > 0 && hdd * hgg - hdg^2 > 0)) return(FALSE)
+      det <- hdd * hgg - hdg^2
+      pd <- -(hgg * pg[1] - hdg * pg[2]) / det
+      pgm <- -(-hdg * pg[1] + hdd * pg[2]) / det
+      if (d + pd < 0 || d + pd > 1) {
+        pd <- (if (d + pd < 0) 0 else 1) - d
+        pgm <- -(pg[2] + hdg * pd) / hgg
+      }
+      err <- gl[1] * pd + gl[2] * pgm
+    }
+    is.finite(err) && abs(err) <= 1e-6 && abs(pg[1]) <= 1e-4
   }, logical(1)))
 }
 verifier("usp_ajuster : kkt_au_moins_un = reference independante (optim() refaits, condition a la main), jeux (x, y), (xi, yi) et non converge (factr = 1e13)",
@@ -394,10 +598,10 @@ verifier("usp_ajuster : kkt_au_moins_un = reference independante (optim() refait
                             kkt_reference(xi, yi, ct)))
            if (all(r)) TRUE else paste("desaccord :", paste(which(!r), collapse = ", "))
          })
-verifier("Verdict FOC = kkt_au_moins_un : ECHEC si FALSE bien que le retenu satisfasse ; OK si TRUE bien que le retenu ait |pas| = 1,5e-6",
+verifier("Verdict FOC = kkt_au_moins_un : ECHEC si FALSE bien que le retenu satisfasse ; OK si TRUE bien que le retenu ait |erreur_sigma| = 1,5e-6",
          {
            fa <- f_t; fa$kkt_au_moins_un <- FALSE
-           fb <- f_i; fb$pas_newton_gamma <- 1.5e-6
+           fb <- f_i; fb$erreur_sigma <- 1.5e-6
            isTRUE(usp_kkt_satisfaite(usp_condition_premier_ordre(f_t$delta, f_t$gamma, x, y), f_t$gamma)) &&
              identical(ctrl(fa, NOM_FOC)$verdict, "ECHEC") &&
              isTRUE(fb$kkt_au_moins_un) && identical(ctrl(fb, NOM_FOC)$verdict, "OK")
@@ -427,11 +631,11 @@ for (k in names(sim_kkt))
              if (!f$delta_au_bord && identical(v, "OK")) TRUE
              else sprintf("verdict %s, delta %.6g", v, f$delta)
            })
-verifier("Detail FOC invariant quand le pas de Newton et pg_delta du retenu franchissent les reperes (kkt_au_moins_un constant) ; regle et oui / non imprimes",
+verifier("Detail FOC invariant quand erreur_sigma et pg_delta du retenu franchissent les reperes, ou quand le pas est ecrete (kkt_au_moins_un constant) ; regle et oui / non imprimes",
          {
            d0 <- ctrl(f_i, NOM_FOC)$detail
-           fa <- f_i; fa$pas_newton_gamma <- 1.5e-6
-           fb <- f_i; fb$pas_newton_gamma <- -1.5e-6
+           fa <- f_i; fa$erreur_sigma <- 1.5e-6
+           fb <- f_i; fb$erreur_sigma <- -1.5e-6; fb$pas_ecrete <- TRUE
            fc <- f_i; fc$gradient_projete[["delta"]] <- 2e-4; fc$gradient[["delta"]] <- 2e-4
            fn <- f_i; fn$kkt_au_moins_un <- FALSE
            dt <- ctrl(f_t, NOM_FOC)$detail
@@ -446,13 +650,14 @@ verifier("Detail FOC invariant quand le pas de Newton et pg_delta du retenu fran
          })
 
 ## --- Mineurs d'audit ---------------------------------------------------------
-verifier("gamma sur une borne : pas de Newton et stat du controle NA",
+verifier("gamma sur une borne : pas de Newton, erreur_sigma, pas_ecrete et stat du controle NA",
          {
            ok <- TRUE
            for (gb in BORNES_GAMMA) {
              cpo <- usp_condition_premier_ordre(f_t$delta, gb, x, y)
              f <- utils::modifyList(f_t, cpo); f$gamma <- gb
-             ok <- ok && is.na(cpo$pas_newton_gamma) && is.na(ctrl(f, NOM_FOC)$stat)
+             ok <- ok && all(is.na(cpo$pas_newton)) && is.na(cpo$erreur_sigma) &&
+               is.na(cpo$pas_ecrete) && is.na(ctrl(f, NOM_FOC)$stat)
            }
            ok
          })
@@ -469,13 +674,13 @@ K_NON <- "Condition KKT verifiee par au moins un demarrage a l'optimum : non."
 verifier("Libelle FOC : gradient non fini seul (#76)",
          {
            fg <- f_t; fg$gradient[["gamma"]] <- NaN; fg$gradient_projete[["gamma"]] <- NaN
-           fg$pas_newton_gamma <- NA_real_
+           fg$pas_newton[] <- NA_real_
            identical(ctrl(fg, NOM_FOC)$detail,
                      paste(K_OUI, "Demarrage retenu : gradient non fini."))
          })
 verifier("Libelle FOC : H = +Inf -> 'courbure non finie', ECHEC (#76)",
          {
-           f <- f_t; f$hessien_gamma <- Inf; f$pas_newton_gamma <- NA_real_
+           f <- f_t; f$hessienne[["gamma", "gamma"]] <- Inf; f$pas_newton[] <- NA_real_
            f$kkt_au_moins_un <- FALSE
            identical(ctrl(f, NOM_FOC)$detail,
                      paste(K_NON, "Demarrage retenu : courbure non finie.")) &&
@@ -483,14 +688,14 @@ verifier("Libelle FOC : H = +Inf -> 'courbure non finie', ECHEC (#76)",
          })
 verifier("Libelle FOC : H = -Inf -> 'courbure non finie' (#76)",
          {
-           f <- f_t; f$hessien_gamma <- -Inf; f$pas_newton_gamma <- NA_real_
+           f <- f_t; f$hessienne[["gamma", "gamma"]] <- -Inf; f$pas_newton[] <- NA_real_
            f$kkt_au_moins_un <- FALSE
            identical(ctrl(f, NOM_FOC)$detail,
                      paste(K_NON, "Demarrage retenu : courbure non finie."))
          })
 verifier("Libelle FOC : H = NaN -> 'courbure non finie', ECHEC (#76)",
          {
-           f <- f_t; f$hessien_gamma <- NaN; f$pas_newton_gamma <- NA_real_
+           f <- f_t; f$hessienne[["gamma", "gamma"]] <- NaN; f$pas_newton[] <- NA_real_
            f$kkt_au_moins_un <- FALSE
            identical(ctrl(f, NOM_FOC)$detail,
                      paste(K_NON, "Demarrage retenu : courbure non finie.")) &&
@@ -498,16 +703,34 @@ verifier("Libelle FOC : H = NaN -> 'courbure non finie', ECHEC (#76)",
          })
 verifier("Libelle FOC : H finie <= 0 (-1 et 0) -> 'courbure non strictement positive' (#76)",
          {
-           f <- f_t; f$hessien_gamma <- -1; f$kkt_au_moins_un <- FALSE
-           f0 <- f; f0$hessien_gamma <- 0
+           f <- f_t; f$hessienne[["gamma", "gamma"]] <- -1; f$kkt_au_moins_un <- FALSE
+           f0 <- f; f0$hessienne[["gamma", "gamma"]] <- 0
            att <- paste(K_NON, "Demarrage retenu : courbure non strictement positive.")
            identical(ctrl(f, NOM_FOC)$detail, att) && identical(ctrl(f0, NOM_FOC)$detail, att)
+         })
+# #71 (specification d'actuary, section 6, point 10) : a delta interieur,
+# delta est libre et la courbure est jugee sur la hessienne entiere
+# (Sylvester) ; H_gamma_gamma > 0 mais det(H) < 0 -> meme texte que H_gamma_gamma
+# <= 0. Un element non fini de H_delta_delta n'est une anomalie que si delta
+# est libre. Un pas ecrete n'ajoute aucun texte.
+verifier("Libelle FOC : delta libre, det(H) < 0 -> 'courbure non strictement positive' ; H_delta_delta NaN -> 'courbure non finie' ; au bord actif, H_delta_delta ignoree ; ecretage sans texte (#71)",
+         {
+           f <- f_i; f$hessienne[["delta", "delta"]] <- 0.1; f$kkt_au_moins_un <- FALSE
+           fn <- f_i; fn$hessienne[["delta", "delta"]] <- NaN; fn$kkt_au_moins_un <- FALSE
+           fb <- f_t; fb$hessienne[["delta", "delta"]] <- NaN
+           fe <- f_i; fe$pas_ecrete <- TRUE
+           identical(ctrl(f, NOM_FOC)$detail,
+                     paste(K_NON, "Demarrage retenu : courbure non strictement positive.")) &&
+             identical(ctrl(fn, NOM_FOC)$detail,
+                       paste(K_NON, "Demarrage retenu : courbure non finie.")) &&
+             identical(ctrl(fb, NOM_FOC)$detail, K_OUI) &&
+             identical(ctrl(fe, NOM_FOC)$detail, K_OUI)
          })
 verifier("Libelle FOC : cumul gradient non fini + courbure, un seul prefixe (#76)",
          {
            fa <- f_t; fa$gradient[["gamma"]] <- NaN; fa$gradient_projete[["gamma"]] <- NaN
-           fa$hessien_gamma <- NaN; fa$kkt_au_moins_un <- FALSE
-           fb <- fa; fb$hessien_gamma <- -1
+           fa$hessienne[["gamma", "gamma"]] <- NaN; fa$kkt_au_moins_un <- FALSE
+           fb <- fa; fb$hessienne[["gamma", "gamma"]] <- -1
            identical(ctrl(fa, NOM_FOC)$detail,
                      paste(K_NON, "Demarrage retenu : gradient non fini ; courbure non finie.")) &&
              identical(ctrl(fb, NOM_FOC)$detail,
@@ -516,9 +739,48 @@ verifier("Libelle FOC : cumul gradient non fini + courbure, un seul prefixe (#76
 verifier("Libelle FOC : cumul avec gamma sur une borne, courbure omise (#76)",
          {
            fa <- f_t; fa$gradient[["gamma"]] <- NaN; fa$gradient_projete[["gamma"]] <- NaN
-           fa$hessien_gamma <- NaN; fa$kkt_au_moins_un <- FALSE; fa$gamma <- BORNES_GAMMA[2]
+           fa$hessienne[["gamma", "gamma"]] <- NaN; fa$kkt_au_moins_un <- FALSE; fa$gamma <- BORNES_GAMMA[2]
            identical(ctrl(fa, NOM_FOC)$detail,
                      paste(K_NON, "Demarrage retenu : gradient non fini ; gamma sur une borne."))
+         })
+# Reprise de #71 apres audit (constat C1, avis d'actuary du 29/09/2026) : a
+# volumes constants (usp_volumes_constants(), predicat de usp_regime()),
+# delta n'est pas identifie et n'est jamais libre ; sans cette exception,
+# g_delta (bruit d'arrondi) rendait delta libre et det(H), H_delta_delta ~
+# 1e-25, prenait un signe aleatoire : libelle "courbure non strictement
+# positive" et stat NA sur 23 jeux sur 40 d'etendue 1e-15 a 1e-13 (mesure
+# d'audit). Reference : F = {gamma}, def_pos = (H_gamma_gamma > 0), pas en
+# delta nul.
+verifier("usp_hessienne_libre : a volumes constants, delta jamais libre, def_pos = (H_gamma_gamma > 0) meme si det(H) < 0 (#71, reprise)",
+         {
+           H <- HS(-1e-25, 3e-10, 30)            # det < 0
+           a <- usp_hessienne_libre(H, c(delta = 2e-10, gamma = 1e-9), volumes_constants = TRUE)
+           b <- usp_hessienne_libre(H, c(delta = 2e-10, gamma = 1e-9))
+           pn <- usp_pas_newton_borne(H, c(delta = 2e-10, gamma = 1e-9), 0.5, GLS1, volumes_constants = TRUE)
+           !a$libre_delta && isTRUE(a$def_pos) && b$libre_delta && identical(b$def_pos, FALSE) &&
+             identical(pn$pas, c(delta = 0, gamma = -1e-9 / 30)) &&
+             identical(pn$erreur_sigma, 1.02 * (-1e-9 / 30))
+         })
+# Balayage de l'audit : volumes x = 100 (1 + eps U(-1, 1)), eps de 1e-15 a
+# 1e-7 (etendue relative <= 2e-7, dans la bande TOL_DELTA_BORD), cinq tirages
+# par eps (graine 20260929), et le jeu quasi constant 100 (1 + alt 1e-8) de
+# test_volumes_constants.R perturbe a 1e-13 ; y du jeu de test. Proprietes :
+# aucun libelle "courbure", stat fini, delta non libre, FOC OK.
+verifier("Volumes constants (balayage eps = 1e-15 a 1e-7, x_q perturbe a 1e-13) : aucun libelle 'courbure', stat fini, delta non libre, FOC OK (#71, reprise)",
+         {
+           set.seed(20260929)
+           alt <- rep(c(1, -1), 4)
+           xs <- c(lapply(rep(10^(-15:-7), each = 5), function(e) 100 * (1 + e * runif(8, -1, 1))),
+                   lapply(1:5, function(k) 100 * (1 + alt * 1e-8) * (1 + 1e-13 * runif(8, -1, 1))))
+           pb <- character(0)
+           for (k in seq_along(xs)) {
+             f <- usp_ajuster(xs[[k]], y); c1 <- ctrl(f, NOM_FOC)
+             if (!usp_volumes_constants(xs[[k]]) || grepl("courbure", c1$detail) || !is.finite(c1$stat) ||
+                 isTRUE(usp_hessienne_libre(f$hessienne, f$gradient_projete, TRUE)$libre_delta) ||
+                 f$pas_newton[["delta"]] != 0 || c1$verdict != "OK")
+               pb <- c(pb, sprintf("jeu %d : %s (stat %g)", k, c1$detail, c1$stat))
+           }
+           if (length(pb)) paste(pb, collapse = " ; ") else TRUE
          })
 verifier("Volumes constants : le detail FOC dit delta non identifie (#58, #76)",
          {
@@ -532,10 +794,10 @@ verifier("Libelle FOC : volumes constants + anomalies, phrase a part placee avan
          {
            fa <- f_t; fa$x <- rep(100, 8); fa$gradient[["gamma"]] <- NaN
            fa$gradient_projete[["gamma"]] <- NaN
-           fa$hessien_gamma <- NaN; fa$kkt_au_moins_un <- FALSE
+           fa$hessienne[["gamma", "gamma"]] <- NaN; fa$kkt_au_moins_un <- FALSE
            fb <- fa; fb$gamma <- BORNES_GAMMA[2]
            fc <- fa; fc$gradient <- f_t$gradient; fc$gradient_projete <- f_t$gradient_projete
-           fc$hessien_gamma <- -1
+           fc$hessienne[["gamma", "gamma"]] <- -1
            identical(ctrl(fa, NOM_FOC)$detail,
                      paste(K_NON, "Volumes constants : delta non identifie.",
                            "Demarrage retenu : gradient non fini ; courbure non finie.")) &&
@@ -558,10 +820,10 @@ verifier("usp_controles_numeriques : deux entrees, champs de usp_controle_donnee
              all(vapply(cc, function(u) is.double(u$stat) && is.na(u$p), logical(1))) &&
              identical(vapply(cc, function(u) u$test, character(1)), c(NOM_FOC, NOM_MULTI))
          })
-verifier("usp_controles_numeriques : stat = pas de Newton (FOC) et part kappa (multi-demarrages)",
+verifier("usp_controles_numeriques : stat = erreur_sigma (FOC, #71) et part kappa (multi-demarrages)",
          {
            cc <- usp_controles_numeriques(f_i)
-           identical(cc[[1]]$stat, f_i$pas_newton_gamma) &&
+           identical(cc[[1]]$stat, f_i$erreur_sigma) &&
              identical(cc[[2]]$stat, f_i$part_starts_convergents)
          })
 # Libelle concis (#76) : ni regle, ni repere, ni regime de delta dans le
@@ -574,16 +836,18 @@ verifier("Detail FOC concis : ni repere, ni regle, ni regime de delta ; meme tex
          })
 ## --- Reperes : constantes du moteur et libelles (audit M1, issue #22) -------
 # Les reperes sont definis une seule fois en tete du moteur (TOL_OPTIMUM,
-# REP_PAS_KKT, REP_GD_KKT). Reference : les valeurs des decisions M15/M25
-# (1e-6), M17 (1e-6) et M16 (1e-4) ; puis propriete de liaison : une autre
+# REP_SIGMA_KKT, REP_GD_KKT). Reference : les valeurs des decisions M15/M25
+# (1e-6), #71 (1e-6, 28/09/2026, remplace M17) et M16 (1e-4) ; puis
+# propriete de liaison : une autre
 # valeur des constantes modifie la decision. Depuis #76, les libelles ne
 # les impriment plus : ils ne changent pas avec elles, et ne peuvent donc
 # pas rester perimes.
-verifier("Reperes : TOL_OPTIMUM = 1e-6 (M15, M25), REP_PAS_KKT = 1e-6 (M17), REP_GD_KKT = 1e-4 (M16)",
-         identical(TOL_OPTIMUM, 1e-6) && identical(REP_PAS_KKT, 1e-6) && identical(REP_GD_KKT, 1e-4) &&
-           identical(formals(usp_kkt_satisfaite)$rep_pas, quote(REP_PAS_KKT)) &&
+verifier("Reperes : TOL_OPTIMUM = 1e-6 (M15, M25), REP_SIGMA_KKT = 1e-6 (#71), REP_GD_KKT = 1e-4 (M16) ; REP_PAS_KKT retire",
+         identical(TOL_OPTIMUM, 1e-6) && identical(REP_SIGMA_KKT, 1e-6) && identical(REP_GD_KKT, 1e-4) &&
+           !exists("REP_PAS_KKT") &&
+           identical(formals(usp_kkt_satisfaite)$rep_sigma, quote(REP_SIGMA_KKT)) &&
            identical(formals(usp_kkt_satisfaite)$rep_gd, quote(REP_GD_KKT)))
-verifier("Libelles FOC et multi-demarrages : aucun repere imprime, invariants quand les constantes changent, decision KKT liee a REP_PAS_KKT (#76)",
+verifier("Libelles FOC et multi-demarrages : aucun repere imprime, invariants quand les constantes changent, decision KKT liee a REP_SIGMA_KKT (#76, #71)",
          {
            lib <- function() {
              cc <- usp_controles_numeriques(f_i)
@@ -595,19 +859,19 @@ verifier("Libelles FOC et multi-demarrages : aucun repere imprime, invariants qu
            # Autres valeurs des constantes (environnement de definition du
            # moteur), restaurees a la sortie
            env <- environment(usp_controles_numeriques)
-           sauve <- mget(c("TOL_OPTIMUM", "REP_PAS_KKT", "REP_GD_KKT"), envir = env)
+           sauve <- mget(c("TOL_OPTIMUM", "REP_SIGMA_KKT", "REP_GD_KKT"), envir = env)
            on.exit(list2env(sauve, envir = env), add = TRUE)
            assign("TOL_OPTIMUM", 3e-7, envir = env)
-           assign("REP_PAS_KKT", 2e-6, envir = env)
+           assign("REP_SIGMA_KKT", 2e-6, envir = env)
            assign("REP_GD_KKT", 5e-5, envir = env)
            d1 <- lib()
            cpo <- usp_condition_premier_ordre(f_i$delta, f_i$gamma, xi, yi)
-           cpo$pas_newton_gamma <- 1.5e-6
+           cpo$erreur_sigma <- 1.5e-6
            kkt_suit <- isTRUE(usp_kkt_satisfaite(cpo, f_i$gamma))
            ok1 <- attendu(d1) && identical(d1, d0) && kkt_suit
            list2env(sauve, envir = env)
            if (ok0 && ok1 && identical(lib(), d0)) TRUE
-           else sprintf("libelle initial conforme %s, apres changement %s, KKT suit REP_PAS_KKT %s",
+           else sprintf("libelle initial conforme %s, apres changement %s, KKT suit REP_SIGMA_KKT %s",
                         ok0, attendu(d1), kkt_suit)
          })
 # Libelle concis (#76) : nombre de demarrages a l'optimum, respect de la
@@ -634,13 +898,14 @@ verifier("Detail multi-demarrages : textes du mainteneur et variantes (sans resu
          })
 # Regle de stabilite inter-plateformes : aucune chaine ne restitue une
 # valeur d'optimiseur. Une perturbation de gamma de 1e-9 (au-dela de la derive
-# poste / CI) change g, pg, H et le pas de Newton sans changer le detail.
+# poste / CI) change g, pg, H, le pas de Newton et erreur_sigma sans changer
+# le detail.
 verifier("Details des deux controles invariants a une perturbation de gamma de 1e-9 (aucune mantisse d'optimiseur)",
          {
            f2 <- utils::modifyList(f_i, usp_condition_premier_ordre(f_i$delta, f_i$gamma + 1e-9, xi, yi))
            f2$gamma <- f_i$gamma + 1e-9
            a <- usp_controles_numeriques(f_i); b <- usp_controles_numeriques(f2)
-           f2$pas_newton_gamma != f_i$pas_newton_gamma &&
+           f2$erreur_sigma != f_i$erreur_sigma &&
              f2$gradient_projete[["delta"]] != f_i$gradient_projete[["delta"]] &&
              identical(a[[1]]$detail, b[[1]]$detail) && identical(a[[2]]$detail, b[[2]]$detail)
          })

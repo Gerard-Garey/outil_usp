@@ -115,14 +115,15 @@ for (cas in list(list(nom = "jeu de test (delta au bord)", f = f_t, x = x, y = y
            isTRUE(cas$f$kkt_au_moins_un) && cas$f$n_starts_optimum_code0 >= 1 &&
              cas$f$n_starts_optimum >= 2)
 }
-# Jeu au bord (delta = 1) seulement : le pas de Newton du demarrage retenu
-# reste sous le repere quel que soit le demarrage. Mesure (Linux, R 4.3.3) :
-# 54 demarrages a l'optimum, |Delta gamma| entre 9,3e-9 et 3,47e-7 (mediane
-# 3,40e-7, soit le plancher structurel ~ h^2/3 ~ 3,3e-7 du biais de la
-# difference centree d'optim(), ndeps = h = 1e-3), marge d'un facteur 2,9
-# sous 1e-6.
-verifier("usp_ajuster, jeu de test (delta au bord) : |pas de Newton| du demarrage retenu <= REP_PAS_KKT, H > 0",
-         abs(f_t$pas_newton_gamma) <= REP_PAS_KKT && f_t$hessien_gamma > 0)
+# Jeu au bord (delta = 1) seulement : l'erreur relative de premier ordre sur
+# sigma du demarrage retenu (#71) reste sous le repere quel que soit le
+# demarrage. Avant #63, |Delta gamma| des 54 demarrages a l'optimum etait
+# fixe par le biais ~ h^2/3 ~ 3,3e-7 de la difference centree d'optim()
+# (ndeps = 1e-3 ; mediane 3,40e-7, Linux, R 4.3.3) ; depuis #63 (gradient
+# analytique, factr = 1e2), le demarrage retenu a |erreur_sigma| = 3,3e-9
+# (mesure du 29/09/2026, Linux, R 4.3.3).
+verifier("usp_ajuster, jeu de test (delta au bord) : |erreur_sigma| du demarrage retenu <= REP_SIGMA_KKT, H_gamma_gamma > 0",
+         abs(f_t$erreur_sigma) <= REP_SIGMA_KKT && f_t$hessienne[["gamma", "gamma"]] > 0)
 verifier("usp_ajuster : delta au bord signale (jeu de test, delta = 1), non signale (delta = 0,66)",
          isTRUE(f_t$delta_au_bord) && f_t$delta > 1 - 1e-6 &&
          !isTRUE(f_i$delta_au_bord) && f_i$delta > 0.05 && f_i$delta < 0.95)
@@ -175,6 +176,51 @@ verifier("usp_ajuster_rapide depuis l'optimum : meme solution",
          {
            f <- usp_ajuster_rapide(xi, yi, f_i$delta, f_i$gamma)
            isTRUE(proche(f$sigma, f_i$sigma, rel = 1e-6))
+         })
+# Issue #109 (correctif R3, decision du mainteneur du 28/09/2026) : trois
+# demarrages (d0, g0), (0, g0), (1, g0), objectif minimal, premier a moins de
+# 1e-10. Reference independante : les trois optim() refaits dans le test,
+# memes bornes, gradient et reglage (factr = 1e4, maxit = 200, #63).
+rapide_reference <- function(xx, yy, d0, g0) {
+  best <- NULL
+  for (d in c(d0, 0, 1)) {
+    o <- stats::optim(c(d, g0), usp_objectif, gr = usp_gradient_optim, x = xx, y = yy,
+                      xbar = mean(xx), method = "L-BFGS-B",
+                      lower = c(0, BORNES_GAMMA[1]), upper = c(1, BORNES_GAMMA[2]),
+                      control = list(factr = 1e4, maxit = 200))
+    if (is.null(best) || o$value < best$value - 1e-10) best <- o
+  }
+  best$par
+}
+verifier("usp_ajuster_rapide : meilleur des trois demarrages (d0, g0), (0, g0), (1, g0), premier a 1e-10 (#109)",
+         {
+           ok <- TRUE
+           for (cas in list(list(x, y, 0.5, -2), list(xi, yi, 1, f_i$gamma), list(xi, yi, 0, -1),
+                            list(x, y, f_t$delta, f_t$gamma)))
+             ok <- ok && identical(unname(unlist(usp_ajuster_rapide(cas[[1]], cas[[2]], cas[[3]],
+                                                                   cas[[4]])[c("delta", "gamma")])),
+                                   rapide_reference(cas[[1]], cas[[2]], cas[[3]], cas[[4]]))
+           ok
+         })
+# Piege de bassin de #109 : replication b = 705 du bootstrap de (xi, yi) sous
+# la graine 20260926 (B = 4 999, seconde passe de
+# tests/comparer_ajusteurs_bootstrap.R), yb ecrit a 10 chiffres. Mesure du
+# 29/09/2026 (Linux, R 4.3.3) : le seul demarrage (delta chapeau, gamma
+# chapeau) reste a delta = 1, objectif superieur de 0,11 a celui du
+# demarrage (0, gamma chapeau), qui atteint delta = 0 ; ecart de 6,9 % sur
+# sigma. Reference : usp_ajuster() (54 demarrages).
+verifier("usp_ajuster_rapide, piege de bassin (J2, b = 705) : le demarrage unique reste a delta = 1, R3 atteint l'optimum de usp_ajuster (#109)",
+         {
+           yb <- c(34.13027373, 51.83980428, 75.51020259, 146.8382277, 208.5611643,
+                   103.6686201, 50.74000582, 42.92713369)
+           o1 <- stats::optim(c(f_i$delta, f_i$gamma), usp_objectif, gr = usp_gradient_optim,
+                              x = xi, y = yb, xbar = mean(xi), method = "L-BFGS-B",
+                              lower = c(0, BORNES_GAMMA[1]), upper = c(1, BORNES_GAMMA[2]),
+                              control = list(factr = 1e4, maxit = 200))
+           f3 <- usp_ajuster_rapide(xi, yb, f_i$delta, f_i$gamma)
+           fc <- usp_ajuster(xi, yb)
+           o1$par[1] > 1 - 1e-6 && o1$value - f3$obj > 1e-2 &&
+             abs(f3$obj - fc$obj_min) <= 1e-6 && isTRUE(proche(f3$sigma, fc$sigma, rel = 1e-6))
          })
 
 ## --- usp_simuler : loi simulee = modele ajuste --------------------------------
@@ -247,11 +293,12 @@ verifier("usp_regime : a delta = 1 - tau, etendue relative des pi_t <= 2 tau ete
            p <- usp_pi(1 - tau, f_t$gamma, x)
            diff(range(p)) / mean(p) <= 2 * tau * diff(range(mean(x) / x))
          })
-verifier("usp_ajuster : liste exacte des champs de l'ajustement (structure des references, #22)",
+verifier("usp_ajuster : liste exacte des champs de l'ajustement (structure des references, #22, #71)",
          identical(names(f_t), c("pi", "ln_beta", "beta", "v", "z", "sigma", "obj",
                                  "delta", "gamma", "T", "x", "y", "xbar",
-                                 "gradient", "gradient_projete", "hessien_gamma",
-                                 "pas_newton_gamma",
+                                 "gradient", "gradient_projete", "hessienne",
+                                 "grad_ln_sigma", "pas_newton", "erreur_sigma",
+                                 "pas_ecrete",
                                  "obj_min", "convergence", "part_starts_convergents",
                                  "n_starts_optimum", "n_starts_optimum_code0",
                                  "n_starts_echec",

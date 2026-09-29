@@ -194,10 +194,14 @@ verifier("Reference premium comparee a elle-meme : conforme, 0 feuille different
 
 ## --- Exclusion par conception (issue #22, decision du mainteneur) -----------
 # ajustement$gradient et ajustement$gradient_projete : residus ~0 dependant du
-# demarrage retenu, exclus de la comparaison ; hessien_gamma reste compare.
+# demarrage retenu, exclus de la comparaison ; hessienne reste comparee
+# (champs de #71, qui remplacent hessien_gamma et pas_newton_gamma).
 aj_ref <- list(ajustement = list(gradient = c(delta = -0.53, gamma = 1.0763e-05),
                                  gradient_projete = c(delta = 0, gamma = 1.0763e-05),
-                                 hessien_gamma = 31.3464, pas_newton_gamma = -3.4e-07),
+                                 hessienne = matrix(c(0.0588, 0.9186, 0.9186, 31.3464), 2, 2,
+                                                    dimnames = list(c("delta", "gamma"),
+                                                                    c("delta", "gamma"))),
+                                 pas_newton = c(delta = 0, gamma = -3.4e-07)),
                tests = list(list(test = "t", p_mc = 0.5)))
 neutr <- outils_env$neutraliser_instables
 verifier("neutraliser_instables : une perturbation de gradient et gradient_projete n'est pas signalee",
@@ -209,9 +213,9 @@ verifier("neutraliser_instables : une perturbation de gradient et gradient_proje
            brut <- comparer(aj_ref, b); r <- comparer(neutr(aj_ref), neutr(b))
            !brut$conforme && r$conforme && r$n_ecarts == 0L
          })
-verifier("neutraliser_instables : une perturbation de hessien_gamma reste signalee",
+verifier("neutraliser_instables : une perturbation de hessienne[gamma, gamma] reste signalee",
          {
-           b <- aj_ref; b$ajustement$hessien_gamma <- 31.3464 * (1 + 1e-4)
+           b <- aj_ref; b$ajustement$hessienne[["gamma", "gamma"]] <- 31.3464 * (1 + 1e-4)
            r <- comparer(neutr(aj_ref), neutr(b))
            !r$conforme && r$n_ecarts == 1L
          })

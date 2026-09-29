@@ -19,6 +19,9 @@
 #         (0, gamma_obs), (1, gamma_obs), dans cet ordre, objectif minimal
 #         retenu avec la regle du premier a moins de 1e-10 (celle de
 #         usp_ajuster()).
+#  Depuis #109, usp_ajuster_rapide() porte elle-meme ces trois demarrages :
+#  R est le correctif R3 du moteur, et R3 ci-dessus le rejoue depuis chacun
+#  des trois points (neuf demarrages), comme controle croise.
 #  Le reajustement ne consomme aucun alea (L-BFGS-B deterministe) : la suite
 #  des yb est celle du moteur, verifiee par le controle d'integrite S5
 #  (identical() avec usp_bootstrap() et run_engine()).
