@@ -118,12 +118,16 @@ DONNEES_DEFAUT <- data.frame(
 # point de depart lorsqu'aucun fichier n'est disponible.
 # seq_len(T)[-1] et non 2:T : pour T = 1, 2:1 vaut c(2, 1) et la colonne 2
 # n'existe pas (issue #100) ; triangle identique pour T >= 2.
+# Au-dela des dix facteurs de f (T >= 12), le dernier facteur est prolonge
+# (issue #108) : f[j - 1] valait NA et le NA gagnait la partie observee du
+# triangle, refusee au clic par mw_valider_triangle(). Triangle identique
+# pour T <= 11. Donnees de demonstration synthetiques.
 triangle_defaut <- function(T = 8) {
   f <- c(3.20, 1.65, 1.32, 1.14, 1.08, 1.05, 1.02, 1.01, 1.005, 1.003)
   base <- seq(300, 380, length.out = T)
   tri <- matrix(NA_real_, T, T)
   tri[, 1] <- base
-  for (j in seq_len(T)[-1]) tri[, j] <- round(tri[, j - 1] * f[j - 1] *
+  for (j in seq_len(T)[-1]) tri[, j] <- round(tri[, j - 1] * f[min(j - 1, length(f))] *
                                                 (1 + 0.02 * sin(seq_len(T) + j)), 2)
   for (i in 1:T) if (T - i + 1 < T) tri[i, (T - i + 2):T] <- NA_real_
   tri
