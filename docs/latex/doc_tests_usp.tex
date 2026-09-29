@@ -1969,10 +1969,22 @@ ainsi que le tri par volume de Goldfeld--Quandt.
 \emph{Valeur de la tolérance.} Elle est fixée par décision du mainteneur, sur la note
 d'\code{actuary} du 28~septembre 2026~: au-dessus du bruit d'arrondi, qui est de l'ordre de la
 précision machine ($2{,}2\cdot 10^{-16}$ en relatif pour $y_t/x_t$), et en dessous de l'écart
-entre deux valeurs distinctes issues de saisies d'au plus six chiffres significatifs. Cette
-seconde propriété est établie pour $r_t$, $u_t$ et $x_t$~; elle n'est qu'\emph{approchée} pour
-$z_t$, transformation non linéaire de $r_t$ par les paramètres estimés, pour lequel aucune borne
-n'est établie (réserve d'\code{actuary} à la validation de l'issue~\#112). Exemple mesuré~: les
+entre deux valeurs distinctes issues de saisies d'au plus \emph{cinq} chiffres significatifs.
+Deux ratios distincts de saisies à $d$ chiffres significatifs diffèrent d'au moins $10^{-2d}$ en
+relatif, donc d'au moins $10^{-2d}$ fois le plus petit des deux en absolu (la tolérance est
+absolue sous~1)~: à $d = 5$, l'écart relatif minimal, $10^{-10}$, vaut cent fois la tolérance et
+aucune fusion n'est possible entre ratios supérieurs à $10^{-2}$ (sous ce seuil, exemple
+mesuré~: $99\,999/99\,998\,000$ et $99\,998/99\,997\,000$, écart calculé $1{,}0\cdot 10^{-13}$,
+déclarés ex \ae quo)~; à $d = 6$, il coïncide avec la tolérance, sans marge, et une fusion de
+deux ratios distincts est possible (exemple mesuré~: $499\,999/999\,999$ et
+$499\,998/999\,997$, écart exact $1{,}000\,004\cdot 10^{-12}$, calculé $9{,}9998\cdot 10^{-13}$,
+déclarés ex \ae quo par \code{engine\_ex\_aequo()}~; correction, à la validation de fin de
+branche, de la note d'\code{actuary} du 28~septembre 2026, qui annonçait la garantie à six
+chiffres). Une telle fusion exige deux ratios égaux à douze chiffres et n'a d'autre effet que la
+non-attribution de la p-value exacte, la p-value de Monte-Carlo étant retenue. Pour les volumes
+$x_t$ (plancher~0), la propriété est établie à six chiffres (écart relatif $\ge 10^{-6}$). Pour
+$z_t$, transformation non linéaire de $r_t$ par les paramètres estimés, aucune borne n'est
+établie (réserve d'\code{actuary} à la validation de l'issue~\#112). Exemple mesuré~: les
 ratios $472{,}89/611{,}68$ et $3\,310{,}23/4\,281{,}76$, égaux en décimal, diffèrent en
 flottant de $1{,}4\cdot 10^{-16}$ en relatif et sont ex \ae quo à cette tolérance
 (\code{tests/unitaires/test\_ex\_aequo.R}). Conséquence dans le bootstrap~: une réplication dont
@@ -7808,7 +7820,9 @@ $0{,}06173$, $L$ de $0{,}5159$ à $0{,}4161$, $L_{\text{est}} = 87{,}6~\%$).
 $[0{,}0752~;~0{,}1370]$ pour l'intervalle complet, largeur relative $0{,}5555$ contre $0{,}5541$,
 \code{n\_echec\_restreint} nul (mesure)~: sur ce jeu, où $\hat\delta = 1$, fixer $\delta$ ne
 resserre pas l'intervalle~; la part de l'incertitude due à $\hat\delta$ n'y est pas
-perceptible à cette échelle.
+perceptible à cette échelle. Ce constat rejoint la platitude du profil en $\delta$ sur ce jeu
+($\mathrm{LR}(0) = 0{,}551$, $\mathrm{LR}^{*} \le 0{,}9$, fiche~\ref{fiche:rv-delta})~: la liberté
+de $\delta$ n'y déplace presque pas $\hat\sigma^{*}$.
 Cette dernière valeur est un constat sur ce jeu~; elle est de l'ordre de grandeur attendu pour un
 paramètre d'échelle estimé sur huit points~: pour un écart-type estimé à $\nu$ degrés de liberté
 sous normalité, la largeur relative de l'intervalle 5~\%--95~\% vaut
@@ -8136,8 +8150,8 @@ ponctuelle, aucun de la bande simultanée.
 \emph{Lecture.} \textbf{Un point hors de la bande ponctuelle n'est pas un signal}~: près de la
 moitié des échantillons simulés sous le modèle ajusté ($47{,}6~\%$ sur le jeu de contrôle) en
 sortent en au moins un point. Seule la bande simultanée se lit globalement~: un point qui en sort
-est un écart que le modèle ajusté produit rarement (environ une fois sur dix, au niveau réel
-mesuré ci-dessus), une allure contenue dans la bande n'est pas une validation, et, à $T = 8$, la
+est un écart que le modèle ajusté produit dans environ un cas sur dix (niveau réel de la bande
+mesuré ci-dessus, 10 à 12~\% de sortie à $B = 999$ sur le jeu de contrôle), une allure contenue dans la bande n'est pas une validation, et, à $T = 8$, la
 puissance de cette lecture n'est pas étudiée. L'enveloppe n'a ni p-value ni verdict (aide
 graphique, ADR~0001)~; le test numérique correspondant est Shapiro--Francia (rubrique~2), et les
 p-values de Monte-Carlo de la section~\ref{sec:h3} restent la lecture formelle de H3.
@@ -9950,8 +9964,10 @@ Grubbs                 & 0,090 & 0,085 \\
 
 Toutes les valeurs sont compatibles avec le niveau nominal de 10~\% à l'intérieur de
 l'intervalle de confiance à 95~\% ($\pm 0{,}029$ pour 400 réplications). La procédure de
-bootstrap paramétrique est donc correctement calibrée, y compris à $T = 10$ où aucune des lois
-asymptotiques utilisées par les tests classiques ne l'est.
+bootstrap paramétrique était donc, à la date de cette mesure (antérieure aux issues~\#63, \#109
+et~\#112, réajustement à un seul démarrage), correctement calibrée à $T = 10$ et $T = 20$, où
+aucune des lois asymptotiques utilisées par les tests classiques ne l'est~; cette mesure ne porte
+pas sur $T = 8$ et n'a pas été refaite sur le moteur actuel.
 
 \emph{Réajustement rapide des réplications} (issues~\#43 et~\#109). Chaque réplication du bootstrap
 lognormal est réajustée par \code{usp\_ajuster\_rapide()} --- jusqu'à l'issue~\#109, un seul
@@ -10764,7 +10780,10 @@ Un repère de diagnostic ne porte aucun verdict (ADR~0001, décision M7 du maint
 Pour que le relecteur sache ce que vaut son franchissement, on a mesuré à quelle fréquence le
 \emph{modèle ajusté lui-même}, pris pour vrai, franchit chaque repère à $T = 8$ (issue~\#72).
 \emph{Protocole}~: script hors CI \code{tests/taux\_franchissement\_reperes.R}~; 2\,000 jeux simulés
-sous le modèle ajusté par \code{usp\_simuler()}, volumes $x_t$ fixés, graine 20260927~; chaque jeu
+sous le modèle ajusté par \code{usp\_simuler()}, volumes $x_t$ fixés, graine 20260927~; mesure antérieure aux issues~\#63, \#109 et~\#112 (réajustement des
+réplications à un seul démarrage, \code{factr = 1e7}), dont les régimes de $\hat\delta^{*}$
+diffèrent d'environ un point de ceux du moteur actuel (493 contre 490 réplications au bord~1 sur
+le bootstrap de J1, fiche~\ref{fiche:centrage})~; chaque jeu
 traité comme \code{run\_engine()} traite un jeu observé (méthode prime, segment~1 de l'annexe~II,
 données brutes, $\alpha = 0{,}10$~: \code{usp\_ajuster()}, jackknife, \code{usp\_tests()}), l'intervalle
 bootstrap de la réplication $b$ étant calculé sur $B = 999$ tirages, graine $20260831 + b$~; tous
