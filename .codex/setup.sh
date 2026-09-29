@@ -27,14 +27,35 @@ APT="$SUDO env DEBIAN_FRONTEND=noninteractive apt-get"
 
 installer() {
   # installer <commande attendue> <paquet>...
+  # En cas d'echec, affiche la fin du journal d'apt et la cause probable.
   commande=$1; shift
   if command -v "$commande" >/dev/null 2>&1; then
     echo "$commande deja present."
     return 0
   fi
-  echo "Installation de $* ..."
-  $APT update -qq && $APT install -y -qq --no-install-recommends "$@" &&
-    command -v "$commande" >/dev/null 2>&1
+  if ! command -v apt-get >/dev/null 2>&1; then
+    echo "apt-get absent : installation de $* impossible." >&2
+    return 1
+  fi
+  journal="${TMPDIR:-/tmp}/setup_$commande.log"
+  echo "Installation de $* (journal : $journal) ..."
+  if $APT update -qq >"$journal" 2>&1 &&
+     $APT install -y -qq --no-install-recommends "$@" >>"$journal" 2>&1 &&
+     command -v "$commande" >/dev/null 2>&1; then
+    return 0
+  fi
+  tail -n 15 "$journal" >&2
+  if grep -qi "unable to locate package" "$journal"; then
+    echo "Cause probable : paquet absent des index apt (depots Ubuntu" \
+         "inaccessibles lors de 'apt-get update', ou nom de paquet errone)." >&2
+  elif grep -qiE "could not resolve|temporary failure|failed to fetch|network is unreachable|connection (timed out|refused)" "$journal"; then
+    echo "Cause probable : pas d'acces a Internet. Declarer ce script comme" \
+         "setup script de l'environnement Codex Cloud (phase avec Internet)," \
+         "ou autoriser l'acces Internet de l'agent aux depots apt d'Ubuntu." >&2
+  elif [ "$(id -u)" != "0" ] && [ -z "$SUDO" ]; then
+    echo "Cause probable : ni root ni sudo." >&2
+  fi
+  return 1
 }
 
 statut=0
