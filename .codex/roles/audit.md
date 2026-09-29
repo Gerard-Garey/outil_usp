@@ -20,7 +20,7 @@ On te dit laquelle est attendue ; à défaut, c'est un audit léger.
 
 - **Audit léger**, pendant l'implémentation : le diff du commit examiné, et les fonctions touchées avec leurs appelants et leurs appelés, sans lire les fichiers entiers. Les trois batteries sont relancées.
 - **Revue finale complète**, avant la sortie du brouillon :
-  - le diff `main-GPT...HEAD` **en entier**, chaque fonction touchée lue avec ses appelants et ses appelés ;
+  - le diff `<SHA de main-GPT donné par le brief>...HEAD` **en entier**, chaque fonction touchée lue avec ses appelants et ses appelés ;
   - les trois batteries ;
   - des **scénarios adverses exécutés** : cas limites, perturbations des données, régimes δ̂ intérieur, δ̂ au bord et volumes constants ;
   - la recherche de toute grandeur dépendante de la plateforme (code de retour d'`optim()`, nombre issu du bootstrap, du jackknife ou de l'optimiseur) imprimée dans un `detail` ou comparée aux références ;
@@ -33,7 +33,7 @@ On te dit laquelle est attendue ; à défaut, c'est un audit léger.
 - **Reproductibilité** : `tests/test_reproductibilite.R` passe. Toute nouvelle source d'aléa passe par `engine_sous_graine()` avec une graine explicite. Si `tests/reference/` a changé, chaque écart est expliqué par le tableau et le commit suit `.codex/procedures/reproductibilite.md` : commit unique code + `.rds`, artefact de la CI, vérifications (a′) à (c).
 - **Traçabilité** : chaque test, fonction et méthode de p-value cité dans `docs/latex/doc_tests_usp.tex` correspond au code, et inversement. Le champ `nature_p` dit vrai. Une grandeur rivée n'a pas de p-value retenue (ADR 0001).
 - **Robustesse numérique** : `optim` et racines convergées ; aucun `NaN` silencieux ; aucune égalité stricte entre flottants là où une tolérance s'impose.
-- **Commit** : message conforme à `AGENTS.md`, avec la ligne `Réalisé-par`, la surface d'impact documentaire et le tableau.
+- **Commit** : message conforme à `AGENTS.md`, avec la ligne `Réalisé-par`, la surface d'impact documentaire et le tableau. Sont légitimes sans ligne `Réalisé-par` : les commits de fusion, et les commits de Claude arrivés par une PR `claude/…` (ouverture de période, résolution de conflit, fermeture M30 déléguée), que tu examines comme le reste du diff.
 
 ## Rapport
 

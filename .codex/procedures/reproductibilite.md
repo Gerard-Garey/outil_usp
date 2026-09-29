@@ -1,6 +1,6 @@
 # Procédure : reproductibilité et changement de résultats (GPT)
 
-Toute différence de résultat doit être **identifiée, quantifiée et expliquée** (`docs/exigences.md` § 4.5). Les références de `tests/reference/` sont produites **par la CI seule** (ADR 0011) : ni Codex Cloud, ni Codex local, ni le poste du mainteneur ne les régénèrent. Pendant une période GPT, **le mainteneur déclenche le workflow** (ADR 0012, annotation du 28/09/2026 au soir, point 1).
+Toute différence de résultat doit être **identifiée, quantifiée et expliquée** (`docs/exigences.md` § 4.5). Les références de `tests/reference/` sont produites **par la CI seule** (ADR 0011) : ni Codex Cloud, ni Codex local, ni le poste du mainteneur ne les régénèrent. Pendant une période GPT, **le mainteneur déclenche le workflow** (décision du 28/09/2026 au soir, `AGENTS.md`).
 
 Commandes depuis la racine du dépôt, sous `LC_ALL=C.UTF-8`.
 
@@ -26,7 +26,7 @@ Visa, sans lequel rien n'est commité :
 
 ## 4. Produire les références
 
-- **Changement purement non numérique** (chaînes, booléens, `NA`, suppression d'une entrée) : patch chirurgical `Rscript tests/patcher_reference.R`, dans le même commit que le code, puis retour à l'étape 1 jusqu'au vert.
+- **Changement purement non numérique** (chaînes, booléens, `NA`, suppression d'une entrée) : patch chirurgical par `coder` : `Rscript tests/patcher_reference.R <cas> --motif "<regex>"` à blanc, puis avec `--ecrire`, dans le même commit que le code, puis retour à l'étape 1 jusqu'au vert.
 - **Toute autre régénération**, dans un seul commit final code + `.rds` :
   1. **`coder` prépare** le commit de code de l'issue (`R/`, `tests/` hors `tests/reference/`), depuis la tête de la branche de travail notée `<tête W>`. Il rédige les **motifs attendus par cas**, dans le format des entrées de `references.yml` :
      - `cas` : noms séparés par « , » ;
@@ -39,7 +39,7 @@ Visa, sans lequel rien n'est commité :
      - Le mode `bascule` est hors de portée de GPT.
   4. **Fermeture**, que Codex Cloud ne peut pas faire (il ne reçoit pas l'artefact et ne pousse pas) :
      - **par Codex en local**, sur le poste du mainteneur, quand il le peut : étapes (a′) à (c) et 5 ci-dessous ;
-     - **sinon, déléguée à Claude** : `coder` s'arrête après l'étape 3, avec le statut `termine avec questions` et la remontée « fermeture M30 déléguée à Claude », en citant la branche éphémère, l'exécution et le visa. Le mainteneur confie la fermeture à une session de Claude, qui la fait sur une branche `claude/regeneration-gpt-<issue>` partie de la tête de la branche de travail GPT, avec une PR vers celle-ci. Ce commit porte l'identité de Claude, sans ligne `Réalisé-par`, et l'audit le reconnaît comme tel.
+     - **sinon, déléguée à Claude** : `coder` s'arrête après l'étape 3, avec le statut `arrete` et la cause « fermeture M30 déléguée à Claude », en citant la branche éphémère, l'exécution et le visa. Le mainteneur confie la fermeture à une session de Claude, qui la fait sur une branche `claude/regeneration-gpt-<issue>` partie de la tête de la branche de travail GPT, avec une PR vers celle-ci. Ce commit porte l'identité de Claude, sans ligne `Réalisé-par`, et l'audit le reconnaît comme tel.
 
      Étapes de la fermeture :
      - **(a′)** Le commit calculé, lu dans `plateforme.txt`, est la tête de la branche éphémère. Sur la branche de travail : `git cherry-pick -n <tête W>..<commit calculé>`. Copier les `.rds` de l'artefact dans `tests/reference/` et les indexer. `git diff --cached --quiet <commit calculé> -- R tests ':(exclude)tests/reference'` doit rendre 0, puis `git diff --quiet -- R tests` doit rendre 0. Si la branche de travail a reçu entre-temps un commit touchant `R/` ou `tests/`, recréer la branche éphémère et relancer ; l'exécution abandonnée est citée comme **non retenue**.

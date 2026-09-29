@@ -14,7 +14,7 @@ Tu n'écris rien : aucune modification, aucun commit, aucune issue. `Rscript` te
 ## Profondeur
 
 - **Revue légère**, pendant l'implémentation : le diff de `app.R` et de `R/display_helpers.R` pour le commit examiné, les fonctions d'affichage touchées avec leurs appelants et leurs appelés, et les points de contrôle concernés.
-- **Revue finale complète**, avant la sortie du brouillon dès que ces fichiers sont touchés sur la branche : leur diff `main-GPT...HEAD` en entier, et **tous** les points de contrôle.
+- **Revue finale complète**, avant la sortie du brouillon dès que ces fichiers sont touchés sur la branche : leur diff `<SHA de main-GPT donné par le brief>...HEAD` en entier, et **tous** les points de contrôle.
 
 ## Points de contrôle
 

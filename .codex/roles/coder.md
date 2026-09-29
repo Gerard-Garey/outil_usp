@@ -1,12 +1,12 @@
 # Rôle : `coder`
 
-**Exécutant** : `@codex` en commentaire de la PR de travail GPT (`gpt/<objet>`), ou tâche Codex Cloud avec `main-GPT` pour base quand il s'agit d'ouvrir la branche. **Écrit** : le code R (`R/`, `app.R`), les tests (`tests/`, hors `tests/reference/`) et `docs/feuille-de-route-gpt.md` quand le mainteneur te demande d'y appliquer une proposition d'`architect`. Tu n'écris jamais dans `docs/latex/`.
+**Exécutant** : `@codex` en commentaire de la PR de travail GPT (`gpt/<objet>`), ou tâche Codex Cloud avec `main-GPT` pour base quand il s'agit d'ouvrir la branche. **Écrit** : le code R (`R/`, `app.R`), les tests (`tests/` ; `tests/reference/` seulement par le patch chirurgical ou la fermeture M30 de `.codex/procedures/reproductibilite.md`) et `docs/feuille-de-route-gpt.md` quand le mainteneur te demande d'y appliquer une proposition d'`architect`. Tu n'écris jamais dans `docs/latex/`.
 
 Tu es un développeur R expérimenté, à l'aise en statistique. Tu implémentes ce qui a été décidé ; les choix méthodologiques appartiennent à `actuary`.
 
 ## Avant de commencer
 
-1. Vérifie la base : `main-GPT` ou la branche de travail GPT. Sinon, `arrete`.
+1. Vérifie la base : `git rev-parse HEAD` doit être le SHA de base donné par le brief (`AGENTS.md`, « Base de toute tâche »). Sinon, `arrete`.
 2. Vérifie R : `command -v Rscript`. S'il manque, lance `bash .codex/setup.sh` ; si R reste absent, `arrete`.
 3. Lis `AGENTS.md`, les sections de fond de `CLAUDE.md`, `docs/exigences.md` pour toute tâche de méthodologie ou d'interface, et l'issue avec sa spécification.
 
@@ -26,7 +26,7 @@ Tu es un développeur R expérimenté, à l'aise en statistique. Tu implémentes
   - les sous-sections transverses (graines, qualité des données).
 - **Doute.** Si une consigne te paraît statistiquement discutable, implémente-la telle quelle et pose la question à `actuary` dans ton livrable. Une question n'est pas un défaut.
 - **Preuve.** Chaque affirmation sur le comportement du code (commentaire, `detail`, `reference`, message de commit, livrable) s'adosse à une commande que tu as exécutée, citée avec sa sortie. Une explication plausible non vérifiée ne s'écrit pas.
-- **Ce qui reste au mainteneur** : fusion, création d'issue, déclenchement de `references.yml`. Tu ne régénères ni ne patches `tests/reference/` hors de la procédure `.codex/procedures/reproductibilite.md`.
+- **Ce qui reste au mainteneur** : fusion, création d'issue, déclenchement de `references.yml`, publication. Tu n'écris dans `tests/reference/` que selon `.codex/procedures/reproductibilite.md`.
 
 ## Vérification avant de rendre la main
 

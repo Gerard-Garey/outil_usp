@@ -6,7 +6,8 @@
 #  l'environnement Codex Cloud du depot (reglages de l'environnement) :
 #
 #      bash .codex/setup.sh              # R seul (roles coder, audit, app-review)
-#      USP_LATEX=1 bash .codex/setup.sh  # R et TeX Live (role docwriter)
+#      USP_LATEX=1 bash .codex/setup.sh  # R et TeX Live (role docwriter) ;
+#                                        # un echec de LaTeX n'est qu'un avertissement
 #
 #  Le setup s'execute avec acces a Internet, avant la tache ; l'agent, lui,
 #  peut ne pas en avoir. Une tache qui ne trouve pas Rscript relance ce
@@ -75,13 +76,17 @@ fi
 if [ "${USP_LATEX:-0}" = "1" ]; then
   # Paquets exiges par le preambule de docs/latex/doc_tests_usp.tex ;
   # pdfinfo (poppler-utils) pour la verification du PDF.
+  # Echec de LaTeX : avertissement seulement, pour ne pas rendre
+  # l'environnement inutilisable aux roles qui n'ont besoin que de R.
+  # pdflatex et pdfinfo sont testes separement : l'un peut exister sans
+  # l'autre.
   if installer pdflatex texlive-latex-extra texlive-fonts-recommended \
        texlive-fonts-extra texlive-lang-french texlive-pictures \
-       texlive-plain-generic poppler-utils latexmk; then
+       texlive-plain-generic latexmk &&
+     installer pdfinfo poppler-utils; then
     echo "LaTeX : $(pdflatex --version 2>&1 | head -n 1)"
   else
-    echo "ECHEC : pdflatex indisponible ; le PDF ne peut pas etre compile." >&2
-    statut=1
+    echo "ATTENTION : pdflatex ou pdfinfo indisponible ; le PDF ne peut pas etre compile ici (voir .codex/procedures/compilation-doc.md)." >&2
   fi
 fi
 
