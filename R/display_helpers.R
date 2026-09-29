@@ -371,20 +371,79 @@ plot_residus <- function(pd) {
   .mep(p, "Residus standardises vs volume", "x_t", "z_t")
 }
 
+# Reperes du rapport de vraisemblance sur delta (issue #45), lus dans
+# pd$lr_delta (engine_plots_data()) : ligne pointillee au repere asymptotique
+# (quantile a 90 % du melange 1/2 chi2(0) + 1/2 chi2(1), aide de lecture) et
+# marques en delta = 0 et delta = 1 au quantile a 90 % du LR simule sous
+# chaque borne. Aucun calcul : les hauteurs viennent du moteur.
+LIB_LR_ASYMPT <- "rep\u00e8re asymptotique \u00bd\u03c7\u00b2(0) + \u00bd\u03c7\u00b2(1) \u00e0 90 % (Self & Liang 1987), aide de lecture"
+LIB_LR_Q90 <- c("quantile 90 % du LR simul\u00e9 sous \u03b4 = 0",
+                "quantile 90 % du LR simul\u00e9 sous \u03b4 = 1")
+# Annotations fixes courtes des marques bootstrap (trace plotly, ou .mep()
+# masque la legende) ; le libelle long reste au survol.
+LIB_LR_Q90_COURT <- c("q90 % du LR simul\u00e9 sous \u03b4 = 0",
+                      "q90 % du LR simul\u00e9 sous \u03b4 = 1")
+# Etendue verticale du trace : courbe et reperes ; marge haute de 15 % pour
+# la legende du trace base R quand les reperes sont presents.
+.lr_hauteurs <- function(pd, v) {
+  L <- pd$lr_delta
+  if (is.null(L)) return(range(v, na.rm = TRUE))
+  r <- range(c(v, L$seuil_asymptotique, L$q90_bootstrap), na.rm = TRUE)
+  c(r[1], r[2] + 0.15 * diff(r))
+}
+.lr_reperes_base <- function(pd) {
+  L <- pd$lr_delta
+  if (is.null(L)) return(invisible())
+  graphics::abline(h = L$seuil_asymptotique, col = COUL$ref, lty = 3, lwd = 1.5)
+  q <- unname(L$q90_bootstrap)
+  ok <- is.finite(q)
+  if (any(ok)) graphics::points(c(0, 1)[ok], q[ok], pch = 17, cex = 1.3, col = COUL$trait)
+  graphics::legend("top", bty = "n", cex = 0.75,
+                   legend = c(LIB_LR_ASYMPT, "quantile 90 % du LR simul\u00e9 sous \u03b4 = 0 / \u03b4 = 1"),
+                   lty = c(3, NA), pch = c(NA, 17), col = c(COUL$ref, COUL$trait))
+  invisible()
+}
+.lr_reperes_plotly <- function(p, pd, xlim) {
+  L <- pd$lr_delta
+  if (is.null(L)) return(p)
+  p <- plotly::add_lines(p, x = xlim, y = rep(L$seuil_asymptotique, 2),
+        line = list(color = COUL$ref, dash = "dot", width = 1.5),
+        text = LIB_LR_ASYMPT, hovertemplate = "%{text}<extra></extra>")
+  q <- unname(L$q90_bootstrap)
+  ok <- is.finite(q)
+  if (any(ok))
+    p <- plotly::add_markers(p, x = c(0, 1)[ok], y = q[ok], text = LIB_LR_Q90[ok],
+          marker = list(size = 11, symbol = "triangle-up", color = COUL$trait),
+          hovertemplate = "%{text}<extra></extra>")
+  ann <- list(list(
+    text = LIB_LR_ASYMPT, x = 0.5, y = L$seuil_asymptotique, xref = "x", yref = "y",
+    showarrow = FALSE, yanchor = "bottom", font = list(size = 10, color = COUL$ref)))
+  for (k in which(ok))
+    ann[[length(ann) + 1]] <- list(
+      text = LIB_LR_Q90_COURT[k], x = c(0, 1)[k], y = q[k], xref = "x", yref = "y",
+      showarrow = FALSE, yanchor = "bottom", yshift = 8,
+      xanchor = if (k == 1) "left" else "right",
+      font = list(size = 10, color = COUL$trait))
+  plotly::layout(p, annotations = ann)
+}
+
 plot_profil_delta <- function(pd) {
   if (is.null(pd$profil_delta)) return(.vide())
   d <- pd$profil_delta
+  yl <- .lr_hauteurs(pd, d$objectif)
   if (!.plotly_dispo()) {
-    .cadre(); plot(d$delta, d$objectif, type = "l", lwd = 2, col = COUL$pt,
+    .cadre(); plot(d$delta, d$objectif, type = "l", lwd = 2, col = COUL$pt, ylim = yl,
                    xlab = "delta", ylab = "objectif profile", main = "Profil en delta")
-    graphics::abline(v = pd$delta_estime, col = COUL$trait, lty = 2); return(invisible())
+    graphics::abline(v = pd$delta_estime, col = COUL$trait, lty = 2)
+    .lr_reperes_base(pd); return(invisible())
   }
   p <- plotly::plot_ly()
   p <- plotly::add_lines(p, x = d$delta, y = d$objectif,
         line = list(color = COUL$pt, width = 2),
         hovertemplate = "delta = %{x:.3f}<br>objectif = %{y:.4f}<extra></extra>")
-  p <- plotly::add_lines(p, x = rep(pd$delta_estime, 2), y = range(d$objectif),
+  p <- plotly::add_lines(p, x = rep(pd$delta_estime, 2), y = yl,
         line = list(color = COUL$trait, dash = "dash"), hoverinfo = "skip")
+  p <- .lr_reperes_plotly(p, pd, range(d$delta))
   .mep(p, sprintf("Profil de vraisemblance en delta (estime = %.4f)", pd$delta_estime),
        "delta", "objectif profile")
 }

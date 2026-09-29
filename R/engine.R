@@ -172,6 +172,13 @@ TOL_DELTA_BORD <- 1e-6
 # (issue #22).
 BORNES_GAMMA <- c(-12, 3)
 
+# Tolerance de stats::optimize() sur gamma dans l'ajustement a delta fixe
+# (usp_ajuster_contraint(), issue #45, specification d'actuary du
+# 28/09/2026). Tolerance NUMERIQUE, non reglementaire. Source unique :
+# usp_ajuster_contraint() ; usp_profil() garde la tolerance par defaut
+# d'optimize(), ses valeurs ne bougent pas.
+TOL_GAMMA_CONTRAINT <- 1e-8
+
 # Reperes des controles numeriques de l'estimation lognormale (issue #22).
 # Reperes NUMERIQUES, non reglementaires. Source unique : usp_ajuster()
 # (ensemble des demarrages a l'optimum) et usp_kkt_satisfaite() (valeurs par
@@ -2862,7 +2869,8 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
                   motif_non_mc = NA_character_, nature_forcee = NA_character_,
                   base = "commun", variante = "principale",
                   p_min = NA_real_, effectifs = NA_character_,
-                  repli_asymptotique = TRUE, libelle_p_as = "p asymptotique") {
+                  repli_asymptotique = TRUE, libelle_p_as = "p asymptotique",
+                  p_mc_ext = NA_real_, err_mc_ext = NA_real_) {
     # Refus explicite (ADR 0003, point 3) : une statistique Monte-Carlo
     # inconnue du catalogue, ou absente de l'objet bootstrap, est une erreur
     # de programmation ; le repli silencieux sur l'asymptotique est interdit.
@@ -2872,8 +2880,16 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
       if (!mc_nom %in% names(pmc) || !mc_nom %in% names(emc))
         stop("add() : statistique Monte-Carlo absente du bootstrap : ", mc_nom, " (", nom, ")")
     }
+    # p Monte-Carlo calculee hors du bootstrap principal (issue #45 : bootstrap
+    # restreint du rapport de vraisemblance sur delta, usp_lr_delta()) :
+    # admise seulement sans mc_nom, une ligne ne lisant jamais deux sources.
+    # Le motif d'indisponibilite eventuel est mis dans detail par l'appelant.
+    ext <- !is.na(p_mc_ext) || !is.na(err_mc_ext)
+    if (ext && !is.na(mc_nom))
+      stop("add() : p_mc_ext et mc_nom ne peuvent etre fournis ensemble (", nom, ")")
     p_mc <- if (!is.na(mc_nom)) unname(pmc[[mc_nom]]) else NA_real_
     e_mc <- if (!is.na(mc_nom)) unname(emc[[mc_nom]]) else NA_real_
+    if (ext) { p_mc <- unname(p_mc_ext); e_mc <- unname(err_mc_ext) }
     # Regle R3 (#44) : motif d'indisponibilite lu au bootstrap.
     motif_boot <- if (!is.na(mc_nom) && !is.finite(p_mc) && !is.null(mmc) &&
                       mc_nom %in% names(mmc)) unname(mmc[[mc_nom]]) else NA_character_
@@ -3016,7 +3032,8 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
     stats_obs <- .mc_evaluer(USP_CATALOGUE_MC, e_obs)
     noms <- names(stats_obs)
     sim <- matrix(NA_real_, B, length(noms), dimnames = list(NULL, noms))
-    sig <- del <- gam <- rep(NA_real_, B)
+    sig <- del <- gam <- sig_r <- rep(NA_real_, B)
+    n_echec_r <- 0L
     for (b in seq_len(B)) {
       yb <- usp_simuler(fit)
       fb <- if (refit) {
@@ -3028,6 +3045,14 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
       sim[b, ] <- sb[noms]
       sig[b] <- fb$sigma
       if (!is.null(fb$delta)) { del[b] <- fb$delta; gam[b] <- fb$gamma }
+      # Bootstrap restreint (issue #45) : sur les MEMES y*, reajustement a
+      # delta fixe a sa valeur estimee (seul gamma reajuste), apres le
+      # bootstrap principal. Aucun alea consomme. Un echec laisse sig_r[b] a
+      # NA et n'ecarte la replication que du bootstrap restreint (compte dans
+      # n_echec_restreint) ; le bootstrap principal n'en depend pas.
+      fr <- try(usp_ajuster_contraint(fit$x, yb, fit$delta, fit$gamma), silent = TRUE)
+      if (inherits(fr, "try-error")) n_echec_r <- n_echec_r + 1L
+      else sig_r[b] <- fr$sigma
       if (progres && b %% 100 == 0) cat(".")
     }
     if (progres) cat("\n")
@@ -3047,7 +3072,12 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
        B_effectif = mc$B_effectif, granularite = 1 / (B + 1),
        sigma_boot = sig[is.finite(sig)],
        delta_boot = del[is.finite(del)], gamma_boot = gam[is.finite(gam)], B = B,
-       granularite_stat = mc$granularite, motif_mc = mc$motif_mc)
+       granularite_stat = mc$granularite, motif_mc = mc$motif_mc,
+       # Bootstrap restreint a delta fixe (issue #45), en fin de liste.
+       sigma_boot_restreint = sig_r[is.finite(sig_r)],
+       # Replications retenues par le bootstrap principal et ecartees du
+       # restreint (echec du reajustement contraint).
+       n_echec_restreint = n_echec_r)
 }
 
 # Reajustement rapide des replications bootstrap (usp_bootstrap()), unique
@@ -3079,6 +3109,92 @@ usp_ajuster_rapide <- function(x, y, d0, g0) {
   k <- usp_noyau(best$par[1], best$par[2], x, y, xbar)
   c(k, list(delta = best$par[1], gamma = best$par[2], T = length(x),
             x = x, y = y, xbar = xbar))
+}
+
+# Ajustement du modele a delta FIXE (issue #45, specification d'actuary du
+# 28/09/2026, par. 2.1) : gamma~ = argmin_gamma O(delta0, gamma) sur
+# BORNES_GAMMA par stats::optimize() a la tolerance TOL_GAMMA_CONTRAINT ;
+# ln(beta~) par la forme fermee de usp_noyau(). Regle du point admissible :
+# si O(delta0, gamma_depart) < O(delta0, gamma~) - TOL_OPTIMUM, le point de
+# depart est retenu (garde contre un echec d'optimize()). Retour de meme
+# forme que usp_ajuster_rapide(), donc utilisable par usp_simuler().
+# Erreur si l'objectif retenu n'est pas fini (usp_objectif() rend 1e12 pour
+# un objectif non fini).
+usp_ajuster_contraint <- function(x, y, delta0, gamma_depart) {
+  xbar <- mean(x)
+  f <- function(g) usp_objectif(c(delta0, g), x, y, xbar)
+  o <- stats::optimize(f, interval = BORNES_GAMMA, tol = TOL_GAMMA_CONTRAINT)
+  g <- o$minimum
+  if (is.finite(gamma_depart) && f(gamma_depart) < o$objective - TOL_OPTIMUM)
+    g <- gamma_depart
+  k <- usp_noyau(delta0, g, x, y, xbar)
+  if (!is.finite(k$obj) || !is.finite(k$sigma))
+    stop("Ajustement a delta fixe : objectif non fini.")
+  c(k, list(delta = delta0, gamma = g, T = length(x), x = x, y = y, xbar = xbar))
+}
+
+# p asymptotique du melange 1/2 chi2(0) + 1/2 chi2(1) pour un LR >= 0
+# (issue #45) : 1 si LR = 0 (atome du melange), 0,5 P(chi2(1) > LR) sinon.
+.p_melange_chernoff <- function(lr)
+  if (lr == 0) 1 else 0.5 * stats::pchisq(lr, 1, lower.tail = FALSE)
+
+# Rapport de vraisemblance sur delta aux bornes delta0 = 0 et delta0 = 1
+# (issue #45, specification d'actuary du 28/09/2026, par. 2.2 ; decisions du
+# mainteneur du 28/09/2026, Q1 a Q7). LR(delta0) = O(delta0, gamma~0) -
+# obj_min, O etant -2 log-vraisemblance profilee en beta (usp_noyau()),
+# ramene a 0 sous TOL_OPTIMUM (difference de deux optimisations). Loi sous
+# H0 : delta = delta0 simulee par bootstrap parametrique RESTREINT, sous le
+# modele contraint ajuste (gamma~0, beta~0) ; B et graine de l'appel, une
+# pose de graine par borne (nombres aleatoires communs aux deux bornes ; a la
+# borne ou se trouve delta estime, les y* sont ceux du bootstrap principal).
+# Chaque replication : reajustement libre par usp_ajuster_rapide() (trois
+# demarrages, depuis (fit_c$delta, fit_c$gamma) : a la borne ou se trouve
+# delta estime, fit_c = fit et ce reajustement est celui du bootstrap
+# principal) et reajustement contraint par usp_ajuster_contraint() ;
+# LR* = max(0, O_c - O_libre), ramene a 0 sous TOL_OPTIMUM ; echec de l'un
+# ou de l'autre -> replication ecartee (n_echec). n_refit_pire compte les
+# replications ou le reajustement libre est plus mauvais que le contraint
+# de plus de TOL_OPTIMUM (attendu 0). p_mc par engine_p_mc(), queue haute.
+# p_asymptotique : melange 1/2 chi2(0) + 1/2 chi2(1) (Chernoff, 1954 ; Self
+# et Liang, 1987), POUR MEMOIRE (.p_melange_chernoff()).
+# Aucune p-value retenue ni verdict (lignes de diagnostic de usp_tests()).
+usp_lr_delta <- function(fit, B = 999, seed = 20260831) {
+  x <- fit$x; y <- fit$y
+  une_borne <- function(d0) {
+    au_bord <- abs(fit$delta - d0) <= TOL_DELTA_BORD
+    fit_c <- if (au_bord) fit else usp_ajuster_contraint(x, y, d0, fit$gamma)
+    obj_c <- fit_c$obj
+    lr <- max(0, obj_c - fit$obj_min)
+    if (lr < TOL_OPTIMUM) lr <- 0
+    p_as <- .p_melange_chernoff(lr)
+    lr_b <- rep(NA_real_, B); n_pire <- 0L; n_echec <- 0L
+    engine_sous_graine(seed, {
+      for (b in seq_len(B)) {
+        yb <- usp_simuler(fit_c)
+        fu <- try(usp_ajuster_rapide(x, yb, fit_c$delta, fit_c$gamma), silent = TRUE)
+        fc <- try(usp_ajuster_contraint(x, yb, d0, fit_c$gamma), silent = TRUE)
+        if (inherits(fu, "try-error") || inherits(fc, "try-error")) {
+          n_echec <- n_echec + 1L; next
+        }
+        dif <- fc$obj - fu$obj
+        if (!is.finite(dif)) { n_echec <- n_echec + 1L; next }
+        if (-dif > TOL_OPTIMUM) n_pire <- n_pire + 1L
+        l <- max(0, dif)
+        lr_b[b] <- if (l < TOL_OPTIMUM) 0 else l
+      }
+    })
+    lr_boot <- lr_b[is.finite(lr_b)]
+    mc <- engine_p_mc(lr_boot, lr, "haut")
+    list(delta0 = d0, gamma_contraint = fit_c$gamma, beta_contraint = fit_c$beta,
+         sigma_contraint = fit_c$sigma, obj_contraint = obj_c, lr = lr,
+         p_asymptotique = p_as, p_mc = mc$p_mc, err_mc = mc$err_mc,
+         B_effectif = mc$B_effectif, granularite = mc$granularite,
+         motif_mc = mc$motif,
+         part_lr_nul = if (length(lr_boot)) mean(lr_boot == 0) else NA_real_,
+         n_refit_pire = n_pire, n_echec = n_echec, lr_boot = lr_boot)
+  }
+  list(borne0 = une_borne(0), borne1 = une_borne(1), B = B, seed = seed,
+       tol_nul = TOL_OPTIMUM)
 }
 
 
@@ -3121,15 +3237,10 @@ usp_profil <- function(fit, n = 41) {
                          interval = c(0, 1))
     o$objective
   }, numeric(1))
-  # Tests du rapport de vraisemblance sur les cas limites de delta.
-  lr <- function(d) {
-    o <- stats::optimize(function(g) usp_objectif(c(d, g), fit$x, fit$y, fit$xbar),
-                         interval = BORNES_GAMMA)$objective
-    st <- o - fit$obj_min
-    list(stat = st, p = .p_borne(1 - stats::pchisq(st, 1)))
-  }
-  list(delta_grid = gd, delta_obj = pd, gamma_grid = gg, gamma_obj = pg,
-       lr_delta0 = lr(0), lr_delta1 = lr(1))
+  # Le rapport de vraisemblance aux bornes de delta (anciens champs
+  # lr_delta0 et lr_delta1, p chi2(1) naive jamais affichee) a une seule
+  # definition, usp_lr_delta() (issue #45, decision Q4 du 28/09/2026).
+  list(delta_grid = gd, delta_obj = pd, gamma_grid = gg, gamma_obj = pg)
 }
 
 
@@ -3139,7 +3250,7 @@ usp_profil <- function(fit, n = 41) {
 
 usp_tests <- function(fit, boot, alpha = 0.10,
                       theta_equiv = 0.10, delta_equiv = NULL,
-                      robustesse = NULL, methode) {
+                      robustesse = NULL, methode, lr_delta = NULL) {
   z <- fit$z; x <- fit$x; y <- fit$y; T <- fit$T
   # Citation des hypotheses H1-H4 dans le champ famille (issue #92) : les
   # quatre hypotheses sont au point B(2)(g) i. a iv. de l'annexe XVII pour la
@@ -4166,6 +4277,62 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         type = "diagnostic",
         estim_nom = "largeur / sigma_USP", estim = fit$largeur_ic,
         detail = "Intervalle bootstrap du parametre retenu : res$ic_bootstrap.")
+  # Issue #45 (specification d'actuary du 28/09/2026, par. 2.7 ; decisions
+  # du mainteneur, Q1 et Q6) : IC bootstrap a delta fixe a sa valeur
+  # estimee, puis rapport de vraisemblance aux bornes delta = 0 et delta = 1.
+  # Diagnostics sans verdict ni p-value retenue (ADR 0001) ; la p
+  # Monte-Carlo du bootstrap restreint est restituee dans p_mc (p_mc_ext de
+  # add()), la p du melange de Chernoff dans p_asymptotique, pour memoire.
+  # Aucun nombre issu du bootstrap dans detail (#24, #76).
+  if (!is.null(fit$largeur_ic_restreint))
+    add(fam, "Largeur relative de l'IC bootstrap 90% (delta fixe a delta estime)",
+        "Efron (1979), Ann. Statist. 7 ; Andrews (2000), Econometrica 68",
+        type = "diagnostic",
+        estim_nom = "largeur / sigma_USP", estim = fit$largeur_ic_restreint,
+        detail = paste("Bootstrap parametrique a delta fixe a sa valeur estimee (seul gamma",
+                       "reajuste), memes replications que l'IC complet ; une replication",
+                       "dont le reajustement contraint echoue est ecartee du seul bootstrap",
+                       "restreint (res$bootstrap$n_echec_restreint). Incertitude",
+                       "conditionnelle a la structure de variance retenue. Le bootstrap",
+                       "complet, qui reajuste delta, n'est pas convergent quand delta est",
+                       "au bord (Andrews, 2000). Bornes : res$ic_bootstrap_restreint."))
+  if (!is.null(lr_delta)) {
+    txt_lr <- paste("Aucun verdict (ADR 0001) : le LR mesure si les donnees distinguent",
+                    "cette borne de l'optimum, non l'adequation du modele. Lecture : LR = 0,",
+                    "borne atteinte par l'estimation ; p_mc elevee, borne aussi defendable",
+                    "que delta estime ; p_mc faible, borne moins compatible avec les",
+                    "donnees. La p asymptotique (melange de Chernoff) est rapportee pour",
+                    "memoire et non retenue : ecart a la loi simulee mesure a T = 8 (fiche",
+                    "du .tex).")
+    loi_lr <- paste("sous H0 : loi simulee par bootstrap parametrique restreint (modele",
+                    "contraint delta = delta0, B replications) ; asymptotique : melange",
+                    "1/2 chi2(0) + 1/2 chi2(1), non retenue")
+    libelles <- list(
+      list(nom = "Rapport de vraisemblance : delta = 0 (variance lineaire en volume)",
+           H0 = "delta = 0 (variance proportionnelle au volume)", H1 = "delta > 0",
+           stat_nom = "LR(0)", b = lr_delta$borne0),
+      list(nom = "Rapport de vraisemblance : delta = 1 (variance quadratique en volume)",
+           H0 = "delta = 1 (variance proportionnelle au carre du volume)", H1 = "delta < 1",
+           stat_nom = "LR(1)", b = lr_delta$borne1))
+    for (li in libelles) {
+      b <- li$b
+      pref <- character(0)
+      if (!is.finite(b$p_mc))
+        pref <- c(pref, paste0(b$motif_mc, " : aucune p-value Monte-Carlo."))
+      if (isTRUE(regime$volumes_constants))
+        pref <- c(pref, "VOLUMES CONSTANTS : delta non identifie, LR nul aux deux bornes par construction.")
+      else if (abs(fit$delta - b$delta0) <= TOL_DELTA_BORD)
+        pref <- c(pref, sprintf("SOLUTION AU BORD delta = %d : LR = 0 par construction.",
+                                as.integer(b$delta0)))
+      add(fam, li$nom,
+          "Chernoff (1954) ; Self & Liang (1987), JASA 82 ; Davison & Hinkley (1997), chap. 4",
+          type = "diagnostic", H0 = li$H0, H1 = li$H1,
+          stat_nom = li$stat_nom, stat = b$lr, loi = loi_lr,
+          estim_nom = "sigma(delta0, gamma~)", estim = b$sigma_contraint,
+          p_as = b$p_asymptotique, p_mc_ext = b$p_mc, err_mc_ext = b$err_mc,
+          detail = paste(c(pref, txt_lr), collapse = " "))
+    }
+  }
   reg$lignes()
 }
 
@@ -4733,7 +4900,7 @@ engine_contours_cook <- function(T, k = 1L, niveaux = c(0.5, 1), n = 200) {
 }
 
 engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
-                              sigma_usp = NULL) {
+                              sigma_usp = NULL, lr_delta = NULL) {
   T <- fit$T; x <- fit$x; z <- fit$z
   qq <- stats::qqnorm(z, plot.it = FALSE)
   # Droite de reference du QQ-plot (quartiles), comme stats::qqline
@@ -4761,7 +4928,7 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
     }
   }
   lo <- stats::lowess(x, sqrt(abs(z)))
-  list(
+  pd <- list(
     ajustement = data.frame(x = x, y = fit$y, ajuste = fit$beta * x),
     beta = fit$beta,
     ratio = data.frame(t = seq_len(T), ratio = fit$y / x, niveau = fit$beta),
@@ -4781,6 +4948,23 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
     delta_estime = fit$delta, gamma_estime = fit$gamma,
     sigma_boot = boot$sigma_boot, delta_boot = boot$delta_boot
   )
+  # Reperes du rapport de vraisemblance sur delta (issue #45, decision Q3 du
+  # 28/09/2026), en fin de liste, pour plot_profil_delta() et
+  # plot_coupe_delta() : repere asymptotique obj_min + qchisq(0,80 ; 1), soit
+  # le quantile a 90 % du melange 1/2 chi2(0) + 1/2 chi2(1) (aide de
+  # lecture), et quantile a 90 % (type 7) du LR simule sous chaque borne par
+  # le bootstrap restreint (NA sans replication finie).
+  if (!is.null(lr_delta)) {
+    q90 <- function(v) if (length(v))
+      unname(stats::quantile(v, 0.90, type = 7)) else NA_real_
+    pd$lr_delta <- list(
+      obj_min = fit$obj_min,
+      seuil_asymptotique = fit$obj_min + stats::qchisq(0.80, 1),
+      q90_bootstrap = c(delta0 = fit$obj_min + q90(lr_delta$borne0$lr_boot),
+                        delta1 = fit$obj_min + q90(lr_delta$borne1$lr_boot)),
+      lr = c(delta0 = lr_delta$borne0$lr, delta1 = lr_delta$borne1$lr))
+  }
+  pd
 }
 
 
@@ -6845,11 +7029,19 @@ run_engine <- function(xt, yt,
     param <- usp_parametre(fit, sigma_standard, bareme)
     jack  <- usp_jackknife(fit, sigma_standard, bareme)
     prof  <- usp_profil(fit)
+    # Rapport de vraisemblance aux bornes de delta, bootstrap restreint sous
+    # chaque borne, B et graine de l'appel (issue #45, decision Q2).
+    lrd   <- usp_lr_delta(fit, B = B, seed = seed)
 
     cred <- param$credibilite; corr <- param$correction_taille
     usp_b <- cred * boot$sigma_boot * corr + (1 - cred) * sigma_standard
     ic <- if (length(usp_b) > 20)
       stats::quantile(usp_b, c(.025, .05, .5, .95, .975)) else NULL
+    # IC bootstrap a delta fixe a sa valeur estimee (issue #45, decision Q6 :
+    # calcule aussi a delta interieur), meme regle que l'IC complet.
+    usp_r <- cred * boot$sigma_boot_restreint * corr + (1 - cred) * sigma_standard
+    ic_r <- if (length(usp_r) > 20)
+      stats::quantile(usp_r, c(.025, .05, .5, .95, .975)) else NULL
 
     # Jackknife entierement non calcule (tous les reajustements en echec) : pas
     # de ligne jackknife (fit$ecart_jackknife NULL) plutot qu'un max a -Inf.
@@ -6858,6 +7050,8 @@ run_engine <- function(xt, yt,
     fit$ecart_jackknife <- if (jack_calcule)
       max(abs(jack$sigma_usp - param$sigma_usp), na.rm = TRUE) / param$sigma_usp else NULL
     fit$largeur_ic <- if (!is.null(ic)) unname((ic[4] - ic[2]) / param$sigma_usp) else NULL
+    fit$largeur_ic_restreint <- if (!is.null(ic_r))
+      unname((ic_r[4] - ic_r[2]) / param$sigma_usp) else NULL
     # kkt_au_moins_un (#22) est replace en DERNIERE position de res$ajustement,
     # apres ecart_jackknife et largeur_ic apposes ci-dessus : le patcheur des
     # references (tests/patcher_reference.R) n'ajoute une feuille qu'en fin de
@@ -6876,7 +7070,7 @@ run_engine <- function(xt, yt,
 
     tests <- usp_tests(fit, boot, alpha, theta_equiv = theta_equiv,
                        delta_equiv = delta_equiv, robustesse = robustesse,
-                       methode = methode)
+                       methode = methode, lr_delta = lrd)
 
     # --- 4. Statistiques descriptives -----------------------------------------
     r <- yt / xt
@@ -6922,12 +7116,15 @@ run_engine <- function(xt, yt,
       tests = tests,
       bootstrap = boot,
       ic_bootstrap = ic,
+      ic_bootstrap_restreint = ic_r,
       jackknife = jack,
       profil = prof,
+      lr_delta = lrd,
       calibration = calibration,
       candidats = candidats,
       parametre_final = param,
-      plots_data = engine_plots_data(fit, boot, prof, jack, param$sigma_usp),
+      plots_data = engine_plots_data(fit, boot, prof, jack, param$sigma_usp,
+                                     lr_delta = lrd),
       metadata = c(
         list(methode = methode, segment = segment, annexe = annexe,
              libelle_segment = if (!is.null(infos)) infos$libelle else NA_character_,
