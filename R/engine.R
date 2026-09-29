@@ -5051,8 +5051,9 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
     sigma_boot = boot$sigma_boot, delta_boot = boot$delta_boot
   )
   # Reperes du rapport de vraisemblance sur delta (issue #45, decision Q3 du
-  # 28/09/2026), en fin de liste, pour plot_profil_delta() et
-  # plot_coupe_delta() : repere asymptotique obj_min + qchisq(0,80 ; 1), soit
+  # 28/09/2026), en fin de liste, pour plot_profil_delta() seul (decision
+  # Q5 : aucun repere sur plot_coupe_delta()) : repere asymptotique
+  # obj_min + qchisq(0,80 ; 1), soit
   # le quantile a 90 % du melange 1/2 chi2(0) + 1/2 chi2(1) (aide de
   # lecture), et quantile a 90 % (type 7) du LR simule sous chaque borne par
   # le bootstrap restreint (NA sans replication finie).
