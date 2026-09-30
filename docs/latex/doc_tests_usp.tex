@@ -1586,7 +1586,7 @@ auditable du code de \code{usp\_tests()}.
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Hypothèse H1 --- linéarité et proportionnalité}}} \\
 \midrule
 Student, constante & \ref{fiche:student-constante} & \code{test\_intercept()} &
-\code{test\_intercept()} (p de Student, exacte sous le seul modèle auxiliaire MCO, non
+\code{test\_intercept()} (p de Student, exacte sous le seul modèle auxiliaire MCO (§\ref{sec:modele-auxiliaire}), non
 retenue~; p Monte-Carlo retenue) & \code{Intercept} \\
 Équivalence (TOST) & \ref{fiche:tost-constante} & \code{test\_tost\_intercept()} &
 \code{test\_tost\_intercept()} (p de Student sous le modèle auxiliaire MCO, exacte sous ce modèle
@@ -1839,7 +1839,7 @@ branche lognormale, nombre de résidus de Mack dans la branche Merz--Wüthrich~;
 \begin{encadre}
 \textbf{Lecture de la colonne « Clé MC ».} Un tiret signifie qu'aucune p-value
 de Monte-Carlo n'est calculée pour ce test~: soit parce que l'hypothèse nulle
-n'appartient pas au modèle simulé (Student sur la pente, Fisher)~; soit parce
+n'appartient pas au modèle simulé (Student sur la pente, Fisher, section~\ref{sec:modele-auxiliaire-ecart})~; soit parce
 que le test n'est pas de nature à produire de p-value (diagnostics, procédures
 de décision)~; soit, troisième motif, parce que la
 grandeur est \emph{rivée par l'estimation}~: contrainte par une condition du
@@ -2017,7 +2017,8 @@ $\hat s^2 = \mathrm{SCR}/(T-2)$.
 \begin{encadre}
 \textbf{Attention.} Cette régression auxiliaire n'est \emph{pas} le modèle réglementaire, qui
 impose $\mathbb{E}[Y_t] = \beta x_t$ sans constante. Elle sert uniquement de support aux tests
-de la section~\ref{sec:h1} et à son coefficient $R^2$.
+de la section~\ref{sec:h1} et à son coefficient $R^2$. Le modèle sous lequel les lois de ces tests
+sont exactes, le modèle auxiliaire MCO, est défini à la section~\ref{sec:modele-auxiliaire}.
 \end{encadre}
 
 \subsection*{Méthode Merz--Wüthrich : données et modèle}
@@ -2761,6 +2762,257 @@ Dallal \& Wilkinson pour Lilliefors.
 
 \clearpage
 % =============================================================================
+\section{Le modèle auxiliaire des moindres carrés (MCO)}
+\label{sec:modele-auxiliaire}
+% =============================================================================
+
+Les tests de la constante, de l'équivalence (TOST), de la pente et de Fisher, ainsi que le
+diagnostic du $R^2$, reposent sur la régression de $y_t$ sur $x_t$ avec constante,
+\code{lm(y \textasciitilde\ x)}. Les lois de Student, de Fisher et bêta qui leur sont attachées
+sont exactes sous un modèle précis, le \emph{modèle auxiliaire des moindres carrés} (modèle
+auxiliaire MCO), qui n'est pas le modèle réglementaire. Cette section le définit, dit ce qui y
+est exact, pourquoi il s'écarte du modèle réglementaire, quelles lignes en dépendent et sous
+quelles règles, et le distingue des autres régressions qu'emploie le moteur. Ses notations sont
+celles de la sous-section « Régression auxiliaire » des notations générales
+(section~\ref{sec:notations}).
+
+\subsection{Spécification et lois exactes à $T$ fini}
+\label{sec:modele-auxiliaire-spec}
+
+Le modèle auxiliaire MCO est
+\[
+  y_t = a + b\,x_t + \varepsilon_t, \qquad t = 1, \dots, T,
+\]
+sous les hypothèses suivantes, qu'aucune ligne du moteur ne teste~: (i)~les $x_t$ sont fixés,
+non aléatoires~; (ii)~les $\varepsilon_t$ sont indépendants~; (iii)~ils ont la même variance
+$\sigma_\varepsilon^2$ (homoscédasticité)~; (iv)~ils suivent la loi $\mathcal{N}(0,
+\sigma_\varepsilon^2)$~; (v)~$S_{xx} > 0$ et $T \ge 3$. Seule la condition~(v) est contrôlée par
+le moteur~: à volumes constants au sens d'\code{usp\_volumes\_constants()}, ou quand \code{lm()}
+écarte $x_t$ pour colinéarité, les lignes concernées sont non applicables
+(sous-section~\ref{sec:modele-auxiliaire-regles}). Avec $\hat b = S_{xy}/S_{xx}$,
+$\hat a = \bar y - \hat b\,\bar x$ et $\hat s^2 = \mathrm{SCR}/(T-2)$, on note
+$\widehat{\mathrm{se}}(\hat b) = \hat s/\sqrt{S_{xx}}$ et
+$\widehat{\mathrm{se}}(\hat a) = \hat s\sqrt{1/T + \bar x^{\,2}/S_{xx}}$.
+
+Sous ces hypothèses, la théorie normale du modèle linéaire donne, pour tout $T \ge 3$, les lois
+\emph{exactes} suivantes~:
+\begin{itemize}[itemsep=1pt]
+  \item $\hat b \sim \mathcal{N}(b, \sigma_\varepsilon^2/S_{xx})$,
+  $\hat a \sim \mathcal{N}\big(a, \sigma_\varepsilon^2(1/T + \bar x^{\,2}/S_{xx})\big)$, et
+  $(T-2)\,\hat s^2/\sigma_\varepsilon^2 \sim \chi^2(T-2)$, indépendante de $(\hat a, \hat b)$~;
+  \item sous $a = 0$, $t_a = \hat a/\widehat{\mathrm{se}}(\hat a)$ suit la loi de Student
+  $t(T-2)$~; sous $b = 0$, $t_b = \hat b/\widehat{\mathrm{se}}(\hat b)$ suit $t(T-2)$ et
+  $F = t_b^2$ la loi de Fisher $\mathcal{F}(1, T-2)$ (fiches~\ref{fiche:student-constante},
+  \ref{fiche:student-pente} et~\ref{fiche:fisher-global})~;
+  \item hors de $b = 0$, $t_b$ suit la loi de Student décentrée à $T-2$ degrés de liberté et de
+  paramètre de décentrage $b\sqrt{S_{xx}}/\sigma_\varepsilon$~: c'est la loi qu'approche la
+  règle~R4 (sous-section~\ref{sec:modele-auxiliaire-regles})~;
+  \item pour le TOST, $t_{\text{bas}} = (\hat a + \Delta)/\widehat{\mathrm{se}}(\hat a)$ et
+  $t_{\text{haut}} = (\hat a - \Delta)/\widehat{\mathrm{se}}(\hat a)$ suivent chacune exactement
+  $t(T-2)$ à la frontière correspondante de $H_0$ ($a = -\Delta$ ou $a = +\Delta$) \textbf{si
+  $\Delta$ est fixée a priori}, et le maximum des deux p-values unilatérales est la p-value d'une
+  procédure d'intersection-union de niveau $\alpha$ (fiche~\ref{fiche:tost-constante}). Avec la
+  marge relative $\Delta = \theta\bar y$, la marge dépend des $y_t$ et la loi n'est plus
+  $t(T-2)$, sans borne d'erreur connue~;
+  \item sous $b = 0$, $R^2 = F/(F + T - 2)$ suit la loi bêta $\mathrm{Beta}\big(1/2, (T-2)/2\big)$,
+  d'espérance $1/(T-1)$~; le $R^2$ reste un diagnostic, sans p-value (fiche~\ref{fiche:r2}).
+\end{itemize}
+Aucun résultat asymptotique n'intervient~: ces lois sont exactes à $T$ fini, mais
+\textbf{seulement sous ce modèle}.
+
+\subsection{Écart au modèle réglementaire}
+\label{sec:modele-auxiliaire-ecart}
+
+Sous le modèle réglementaire (section~\ref{sec:notations}), les pertes sont lognormales,
+d'espérance $\mathbb{E}[Y_t] = \beta x_t$ et de variance
+$\sigma^2\big[(1-\delta)\,\bar x\, x_t + \delta\, x_t^2\big]$. Deux hypothèses du modèle
+auxiliaire en sont contredites. (a)~\emph{H2}~: la variance de $Y_t - \beta x_t$ dépend de $x_t$
+pour tout $\delta \in [0, 1]$ dès que les volumes varient~; elle ne serait constante qu'à volumes
+constants, où $S_{xx} = 0$ et où le modèle auxiliaire n'est pas défini. Le modèle auxiliaire MCO
+n'est donc \textbf{jamais un cas particulier du modèle réglementaire} à volumes variables.
+(b)~\emph{H3}~: $Y_t - \beta x_t$ suit une loi lognormale décalée, asymétrique, et l'erreur est
+multiplicative, non additive et normale. En conséquence, les lois $t$, $F$ et bêta de la
+sous-section précédente ne sont pas exactes sous le modèle réglementaire. Aucune borne de
+l'erreur ainsi commise à $T = 8$ n'a été trouvée dans la littérature consultée~: le document
+n'affirme rien sur son ampleur.
+
+\emph{Pourquoi $H_0$ est simulable pour la constante, et non pour la pente, Fisher et le
+TOST.} Le bootstrap paramétrique simule sous le modèle ajusté (section~\ref{sec:mc}), qui
+appartient à la famille réglementaire $\{\beta > 0,\ \delta \in [0, 1]\}$~; toute loi de cette
+famille vérifie $\mathbb{E}[Y_t] = \beta x_t$, soit, dans la paramétrisation du modèle auxiliaire,
+$a = 0$ et $b = \beta > 0$ (la valeur $\beta = 0$ est exclue, des pertes lognormales étant
+strictement positives). D'où~:
+\begin{itemize}[itemsep=1pt]
+  \item constante ($H_0 : a = 0$)~: toute la famille réglementaire est incluse dans $H_0$~; la
+  p-value de Monte-Carlo (clé \code{Intercept}) est fondée et retenue (règle~R5)~;
+  \item pente et Fisher ($H_0 : b = 0$)~: aucune loi de la famille n'appartient à $H_0$~; aucune
+  p-value de Monte-Carlo n'existe~;
+  \item TOST ($H_0 : |a| \ge \Delta$, avec $\Delta > 0$)~: de même, puisque $a = 0$ dans toute la
+  famille.
+\end{itemize}
+Pour le TOST, la pente et Fisher, la p-value de Student ou de Fisher est donc la seule
+disponible. Elle n'est ni exacte au sens de l'ADR~0002 (sa loi n'est exacte que sous le modèle
+auxiliaire), ni asymptotique (c'est une loi à $T$ fini), ni de Monte-Carlo~: \textbf{aucune des
+trois voies de la hiérarchie n'est ouverte}, et elle est retenue hors hiérarchie, sous une nature
+qui nomme le modèle sous lequel elle vaut (sous-section~\ref{sec:modele-auxiliaire-regles}). Pour
+la constante, la p-value de Student est seulement restituée. \emph{Ce que le lecteur ne doit pas
+conclure}~: un \code{OK} de la pente ou de Fisher établit un lien entre volumes et pertes, non la
+proportionnalité exigée par l'hypothèse~H1, qui relève de la constante et du TOST~; un
+\code{ECHEC} du TOST ne contredit pas la proportionnalité~: il traduit une limite d'information
+(fiche~\ref{fiche:tost-constante}, rubrique~6).
+
+\subsection{Lignes de la table des tests qui reposent sur ce modèle}
+\label{sec:modele-auxiliaire-lignes}
+
+Le tableau ci-dessous reprend, pour chacune de ces lignes d'\code{usp\_tests()}, le libellé exact,
+la fonction du moteur, le champ \code{loi} (valeurs à $T = 8$), la colonne où la p-value de
+Student ou de Fisher est rangée et la nature de la p-value retenue (\code{nature\_p}). La colonne
+ne dit pas la nature~: la p-value de la constante, de la pente, de Fisher et du TOST à marge
+relative est rangée dans \code{p\_asymptotique}, celle du TOST à marge fixée a priori dans
+\code{p\_exacte}, alors qu'aucune n'est exacte ni asymptotique au sens de l'ADR~0002~; ce sont les
+champs \code{nature\_p} et \code{loi} qui en portent le sens. Mesuré sur les deux jeux de la
+section~\ref{sec:verif} (méthode prime, $B = 999$, graine 20260831)~: sur le jeu de contrôle, seul
+le TOST retient une p-value sous le modèle auxiliaire MCO, la pente et Fisher y étant des
+diagnostics ($\hat\pi_b = 0{,}47$)~; sur le jeu à $\hat\delta$ intérieur, le TOST, la pente et
+Fisher en retiennent une. La p-value de Fisher égale celle de la pente à l'arrondi près
+($F = t_b^2$~; écart relatif mesuré de $1{,}4\cdot 10^{-15}$ et $1{,}9\cdot 10^{-15}$ sur ces deux
+jeux).
+
+\begin{center}
+\scriptsize
+\setlength{\tabcolsep}{2pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{3.3cm}>{\raggedright\arraybackslash}p{3.5cm}>{\raggedright\arraybackslash}p{2.7cm}>{\raggedright\arraybackslash}p{3.7cm}>{\raggedright\arraybackslash}p{2.0cm}@{}}
+\toprule
+\textbf{Ligne, fonction} & \textbf{Statistique~; champ \code{loi}} & \textbf{Colonne de la p-value} &
+\textbf{p-value retenue~; \code{nature\_p}} & \textbf{Type} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Ligne, fonction} & \textbf{Statistique~; champ \code{loi}} & \textbf{Colonne de la p-value} &
+\textbf{p-value retenue~; \code{nature\_p}} & \textbf{Type} \\
+\midrule
+\endhead
+\multicolumn{5}{@{}l@{}}{\textit{Suite page suivante}} \\
+\endfoot
+\bottomrule
+\endlastfoot
+\code{Nullite de la constante (proportionnalite stricte)}~; \code{test\_intercept()}
+(fiche~\ref{fiche:student-constante}) &
+$t_a$~; \code{t(6) exacte sous le modele auxiliaire MCO seulement (erreurs i.i.d. normales
+homoscedastiques, contredites par H2 et H3) ; non retenue} &
+\code{p\_asymptotique} (restituée) &
+Monte-Carlo, clé \code{Intercept}~: \code{Monte-Carlo (bootstrap parametrique)}~; la p-value de
+Student n'est jamais retenue (règle~R5) &
+Test~; non applicable à volumes constants ou si $x_t$ est écarté \\
+\code{Equivalence de la constante a zero (TOST)}~; \code{test\_tost\_}\allowbreak\code{intercept()}
+(fiche~\ref{fiche:tost-constante}) &
+Maximum des deux statistiques unilatérales~; \code{t(6) exacte sous le modele auxiliaire MCO
+(marge fixee a priori)} ou \code{t(6) sous le modele auxiliaire MCO ; marge estimee sur les
+donnees -> exactitude approchee} &
+\code{p\_exacte} ($\Delta$ a priori) ou \code{p\_asymptotique} ($\Delta = \theta\bar y$) &
+p-value de Student, seule disponible, aucune clé de Monte-Carlo~: \code{sous le modele auxiliaire
+MCO : t(T-2) exacte, marge fixee a priori} ou \code{sous le modele auxiliaire MCO : loi de Student,
+marge estimee sur les donnees} &
+Test~; non applicable à volumes constants, si $x_t$ est écarté ou si la marge est invalide \\
+\code{Test de Student sur la pente (lm(y\textasciitilde x))}~; \code{test\_lm\_complet()}
+(fiche~\ref{fiche:student-pente}) &
+$t_b$~; \code{t(6) exacte sous le modele auxiliaire MCO (erreurs i.i.d. normales
+homoscedastiques)} &
+\code{p\_asymptotique} &
+p-value de Student si la ligne est un test~: \code{sous le modele auxiliaire MCO : t(T-2) exacte
+(H0 non simulable : le modele ajuste appartient a H1)}~; aucune (\code{INFO}) en diagnostic &
+Test si $\hat\pi_b \ge 1/2$, diagnostic sinon (règle~R4) \\
+\code{Test de Fisher (significativite globale)}~; \code{test\_lm\_complet()}
+(fiche~\ref{fiche:fisher-global}) &
+$F = t_b^2$~; \texttt{\small F(1,6) exacte sous le modele auxiliaire MCO} &
+\code{p\_asymptotique} &
+p-value de Fisher si la ligne est un test~: \code{sous le modele auxiliaire MCO : F(1,T-2) exacte
+(H0 non simulable : le modele ajuste appartient a H1)}~; aucune en diagnostic &
+Comme la pente, dont elle change le type avec elle \\
+\code{Coefficient de determination R2}~; \code{test\_lm\_complet()} (fiche~\ref{fiche:r2}) &
+Aucune statistique de test (estimation $R^2$)~; champ vide &
+Aucune &
+Aucune &
+Diagnostic \\
+\end{longtable}
+\end{center}
+
+\subsection{Règles liées}
+\label{sec:modele-auxiliaire-regles}
+
+\begin{itemize}[itemsep=1pt]
+  \item \emph{Règle~R4, identifiabilité de la pente} (\code{usp\_identifiabilite\_}\allowbreak\code{pente()},
+  constante \code{SEUIL\_PUISSANCE\_}\allowbreak\code{PENTE} $= 0{,}5$~; sous-section~\ref{sec:t8})~: la puissance
+  approchée $\hat\pi_b$ remplace, dans la loi de Student décentrée de la
+  sous-section~\ref{sec:modele-auxiliaire-spec}, $b$ par $\hat\beta$ et $\sigma_\varepsilon$ par
+  $\hat\sigma\,\bar x$, d'où le paramètre de décentrage
+  $\hat\lambda = \sqrt{T-1}\,\mathrm{CV}(x)\,\hat\beta/\hat\sigma$~; c'est une approximation au
+  premier ordre, non une puissance exacte. Si $\hat\pi_b < 1/2$, la pente et Fisher sont
+  restituées en diagnostic, et leur commentaire contient \code{PENTE NON IDENTIFIABLE PAR LES
+  DONNEES}~; si $\hat\pi_b$ n'est pas calculable ($T < 3$, $\hat\beta$ ou $\hat\sigma$ non fini,
+  $\hat\sigma \le 0$, volumes constants), la règle ne s'applique pas. Convention de restitution,
+  non seuil statistique~: la ligne est en diagnostic dans $38{,}0~\%$ des jeux simulés sous le
+  modèle ajusté au jeu de contrôle et dans aucun sur le jeu à $\hat\delta$ intérieur
+  (section~\ref{sec:taux-reperes}).
+  \item \emph{Règle~R5, constante}~: la p-value de Student n'est pas retenue (argument
+  \code{repli\_asymptotique = FALSE} d'\code{add()})~; la p-value de Monte-Carlo l'est (sur le jeu
+  de contrôle, $0{,}944$, contre $0{,}938$ pour la p-value de Student,
+  fiche~\ref{fiche:student-constante}). Si la p-value de Monte-Carlo manque pour un motif autre
+  qu'une dégénérescence de la loi simulée ou qu'une statistique observée non finie, la ligne passe
+  en diagnostic, son commentaire commençant
+  par \code{Monte-Carlo indisponible :} suivi du motif et de \code{p de Student sous le modele
+  auxiliaire MCO non retenue (ADR 0001)}.
+  \item \emph{Nature forcée}~: les quatre natures «~sous le modèle auxiliaire MCO~» du tableau
+  sont posées par l'argument \code{nature\_forcee} d'\code{add()}, appliqué \emph{après} la
+  hiérarchie et seulement si la p-value retenue est finie~; il renomme la nature, ne crée aucune
+  p-value, et reste sans effet sur une ligne qui n'est pas un test (diagnostic ou non applicable~:
+  ni p-value retenue ni nature). L'application reconnaît ces natures à leur préfixe
+  \code{sous le modele auxiliaire MCO}.
+  \item \emph{Non applicabilité}~: à volumes constants (section~\ref{sec:volumes-constants}),
+  $S_{xx} = 0$ et le modèle auxiliaire n'est pas défini~; les lignes du tableau figurent parmi les
+  lignes alors restituées «~non applicable~». Hors de la bande de tolérance, si \code{lm()} écarte
+  $x_t$ pour colinéarité, la ligne rend \code{NA} au lieu d'une erreur R et sort non applicable.
+  \item \emph{Condition de conclusion du TOST}~: conclure exige
+  $\widehat{\mathrm{se}}(\hat a) < \Delta/t_{1-\alpha,\,T-2}$~; le levier de l'origine
+  $\bar x^{\,2}/S_{xx}$ peut rendre la conclusion inaccessible (fiche~\ref{fiche:tost-constante},
+  rubriques~6 et~7). Une restitution de cette condition est à l'étude (issue~\#165).
+\end{itemize}
+
+\subsection{Ce qui n'est pas le modèle auxiliaire MCO}
+\label{sec:modele-auxiliaire-autres}
+
+Le moteur emploie d'autres supports de régression ou de comparaison, qu'il ne faut pas confondre
+avec le modèle auxiliaire MCO~; aucune de leurs lignes ne retient une p-value sous une nature
+«~sous le modèle auxiliaire MCO~».
+\begin{itemize}[itemsep=1pt]
+  \item \emph{Régression contrainte, sans constante}, $y_t = \beta x_t + \varepsilon_t$
+  (\code{lm(y \textasciitilde\ x - 1)})~: modèle de départ de RESET, support des distances de Cook,
+  des leviers et d'\code{engine\_influence()}. La loi $\mathcal{F}(2, T-3)$ de RESET est exacte
+  sous ce modèle à erreurs i.i.d. normales (Milliken et Graybill, 1970), non sous le modèle
+  réglementaire~; sa p-value retenue est de Monte-Carlo, et la base réduite et les gardes de
+  l'issue~\#110 sont décrites dans sa fiche (fiche~\ref{fiche:reset}). Cook et les leviers sont des
+  diagnostics (fiches~\ref{fiche:cook} et~\ref{fiche:leviers}).
+  \item \emph{Régressions d'hétéroscédasticité sur $z_t^2$}~: Breusch--Pagan studentisé (Koenker)
+  et original (1979), sur $x_t$~; White, sur la base réduite $\{1, s_t, s_t^2\}$ de
+  l'issue~\#110 (fiche~\ref{fiche:white}). Leurs statistiques $\mathrm{LM}$ n'ont, sous aucun
+  modèle, de loi exacte à $T$ fini~: la loi $\chi^2$ n'est qu'asymptotique (Koenker, 1981,
+  fiche~\ref{fiche:breusch-pagan-koenker}). P-values retenues de Monte-Carlo (clés \code{BP},
+  \code{BP79}, \code{White}).
+  \item \emph{Partitions des résidus par le volume}~: Goldfeld--Quandt (tri par $x_t$, rapport des
+  variances des deux moitiés) et Brown--Forsythe (analyse de la variance des écarts absolus à la
+  médiane de deux groupes de volume). La loi $\mathcal{F}(h, h)$ de Goldfeld--Quandt serait exacte
+  pour deux groupes indépendants de résidus i.i.d. normaux~; or les $z_t$ sont corrélés
+  (section~\ref{sec:base-residus}), et elle n'est qu'une approximation
+  (fiche~\ref{fiche:goldfeld-quandt})~; la loi de Fisher de Brown--Forsythe est approchée par
+  construction (fiche~\ref{fiche:brown-forsythe}). P-values retenues de Monte-Carlo (clés
+  \code{GQ}, \code{BF}).
+\end{itemize}
+Les tableaux~\ref{tab:nature} et~\ref{tab:conv} et la sous-section~\ref{sec:t8} situent ces lignes
+dans la hiérarchie des p-values.
+
+\clearpage
+% =============================================================================
 \section{Nature des p-values et validité à $T = 8$}
 \label{sec:nature}
 % =============================================================================
@@ -2784,7 +3036,7 @@ p-value est alors valide à $T = 8$ comme à $T = 1000$, sous le modèle pour le
 la loi est exacte~: est dite \emph{exacte} au sens de l'outil (ADR~0002) la seule
 p-value exacte sous le modèle réglementaire~; une loi de Student ou de Fisher,
 exacte sous le seul modèle auxiliaire des moindres carrés, est nommée comme telle
-(section~\ref{sec:t8}). \\
+(sections~\ref{sec:modele-auxiliaire} et~\ref{sec:t8}). \\
 \textbf{Asymptotique} & La loi n'est connue qu'à la limite $T \to \infty$.
 L'existence du résultat limite ne dit \emph{rien} de la qualité de
 l'approximation à $T$ fini~: il faut disposer, séparément, d'un résultat sur la
@@ -2843,7 +3095,7 @@ fiches~\ref{fiche:centrage} et~\ref{fiche:variance-unitaire}. Ces lignes sont do
 \emph{diagnostics}, sans p-value retenue et avec le motif. Cette règle de
 sortie ne concerne ni le test de Student sur la pente ni le test de Fisher
 global~: leur statistique est librement observée et leur loi est exacte sous
-le modèle auxiliaire des moindres carrés (erreurs i.i.d. normales
+le modèle auxiliaire des moindres carrés (section~\ref{sec:modele-auxiliaire}~; erreurs i.i.d. normales
 homoscédastiques)~; ils conservent leur p-value, sous une nature qui nomme ce
 modèle, pour la raison exposée à la sous-section~\ref{sec:t8}, sauf lorsque la
 pente n'est pas identifiable par les données (règle~R4, même sous-section).
@@ -2895,12 +3147,12 @@ détecté la loi en mélange, à atome en la valeur observée, du centrage des r
 condition vaut \code{NULL} pour toutes les entrées des deux catalogues, les deux grandeurs rivées
 étant restituées en diagnostic sans clé Monte-Carlo. \emph{(iii) Nullité de la constante}
 (règle~R5)~: la p-value de Monte-Carlo est retenue, $H_0 : a = 0$ étant vraie sous le modèle
-simulé~; la p-value de Student, exacte sous le seul modèle auxiliaire des moindres carrés, que les
+simulé~; la p-value de Student, exacte sous le seul modèle auxiliaire des moindres carrés (section~\ref{sec:modele-auxiliaire}), que les
 hypothèses H2 et H3 contredisent, est restituée sans être retenue (fiche~\ref{fiche:student-constante}).
 \emph{(iv) Nature « sous le modèle auxiliaire MCO »}~: pour le TOST et les tests de Student sur la
 pente et de Fisher, aucune p-value de Monte-Carlo n'est possible (hypothèse nulle composite pour
 le premier, hors du modèle simulé pour les deux autres), et la seule p-value disponible, celle de
-la loi de Student ou de Fisher, n'est exacte que sous le modèle auxiliaire~: elle est retenue sous
+la loi de Student ou de Fisher, n'est exacte que sous le modèle auxiliaire (section~\ref{sec:modele-auxiliaire-ecart})~: elle est retenue sous
 une nature qui le dit (\code{sous le modele auxiliaire MCO~: t(T-2) exacte (H0 non
 simulable~: le modele ajuste appartient a H1)} pour la pente, \code{sous le modele auxiliaire
 MCO~: F(1,T-2) exacte (H0 non simulable~: le modele ajuste appartient a H1)} pour Fisher), en
@@ -2998,7 +3250,7 @@ de l'ordre de la granularité.
   modèle ajusté et à $\hat\pi_t$ constant seulement~: le moteur ne les attribue que dans ce
   régime (issue~\#70, section~\ref{sec:base-residus}). Les
   lois de Student et de Fisher de la régression auxiliaire ne sont exactes que
-  \emph{sous le modèle auxiliaire des moindres carrés} (erreurs i.i.d. normales
+  \emph{sous le modèle auxiliaire des moindres carrés} (section~\ref{sec:modele-auxiliaire}~; erreurs i.i.d. normales
   homoscédastiques), que les hypothèses H2 et H3 du modèle réglementaire
   contredisent~: ce ne sont pas des p-values exactes au sens de l'ADR~0002, et le
   moteur les restitue sous une nature qui nomme ce modèle (issue~\#44).
@@ -3014,7 +3266,7 @@ de l'ordre de la granularité.
   pour lequel $\hat b \neq 0$~: le modèle de simulation appartient à $H_1$ et
   non à $H_0$. Une p-value de Monte-Carlo y serait dépourvue de sens. Ces deux
   tests conservent donc leur loi de Fisher/Student, qui est \emph{exacte} sous le
-  modèle auxiliaire des moindres carrés~: la limitation porte sur ce modèle, que
+  modèle auxiliaire des moindres carrés (section~\ref{sec:modele-auxiliaire-ecart})~: la limitation porte sur ce modèle, que
   H2 et H3 contredisent, non sur la taille d'échantillon. Aucune des trois voies
   de la hiérarchie n'est ouverte au sens strict --- pas de loi exacte sous le modèle
   réglementaire, pas de Monte-Carlo, et aucune loi asymptotique distincte de cette
@@ -3114,25 +3366,25 @@ n'attribue ces p-values exactes qu'à $\hat\pi_t$ constant~; à $\hat\pi_t$ vari
 \bottomrule
 \endlastfoot
 
-Student, constante & LN & $t_a$ & Sous le modèle auxiliaire MCO seulement & --- & Oui &
+Student, constante & LN & $t_a$ & Sous le modèle auxiliaire MCO seulement (§\ref{sec:modele-auxiliaire}) & --- & Oui &
 \textbf{Monte-Carlo} (p de Student restituée, non retenue~; issue~\#44) &
 Sans objet : la loi $t$ n'est exacte que sous le modèle auxiliaire, contredit par H2 et H3 &
 Bootstrap retenu, $H_0 : a = 0$ étant vraie sous le modèle simulé. \emph{Mais} le non-rejet ne
 prouve rien : compléter par le TOST \\
 
 Équivalence (TOST) & LN & $\max$ des 2 unilatéraux & Sous le modèle auxiliaire MCO, si
-$\Delta$ fixée a priori & --- &
+$\Delta$ fixée a priori (§\ref{sec:modele-auxiliaire}) & --- &
 Sans objet & \textbf{Sous le modèle auxiliaire MCO}~: loi $t$ exacte ($\Delta$ a priori) ou
 d'exactitude approchée ($\Delta = \theta\bar y$) &
 Sans objet : aucune loi asymptotique employée & \textbf{Seul test fournissant une preuve positive} de
 proportionnalité ; fixer $\Delta$ a priori. Sa capacité à conclure dépend du plan de volumes (levier de l'origine $\bar x^{\,2}/S_{xx}$) autant que de $T$~: nulle sur le jeu de contrôle, $21~\%$ sur le jeu à $\hat\delta$ intérieur (constat~C3, fiche~\ref{fiche:tost-constante}) \\
 
-Student, pente & LN & $t_b$ & Sous le modèle auxiliaire MCO seulement & --- & Non (voir texte) &
+Student, pente & LN & $t_b$ & Sous le modèle auxiliaire MCO seulement (§\ref{sec:modele-auxiliaire}) & --- & Non (voir texte) &
 Sous le modèle auxiliaire MCO (loi $t$)~; \textbf{diagnostic} si $\hat\pi_b < 1/2$ (règle~R4) &
 Sans objet : aucune loi asymptotique employée & Seule p-value possible~; vérifier la normalité~;
 diagnostic sur le jeu de contrôle ($\hat\pi_b = 0{,}47$) \\
 
-Fisher global & LN & $F$ & Sous le modèle auxiliaire MCO seulement & --- & Non (voir texte) &
+Fisher global & LN & $F$ & Sous le modèle auxiliaire MCO seulement (§\ref{sec:modele-auxiliaire}) & --- & Non (voir texte) &
 Sous le modèle auxiliaire MCO (loi $F$)~; \textbf{diagnostic} si $\hat\pi_b < 1/2$ (règle~R4) &
 Sans objet : aucune loi asymptotique employée & Idem ; redondant avec $t_b$ \\
 
@@ -3455,7 +3707,7 @@ jusqu'à 2 ou 3 sur les dernières années de développement.
 statistique --- non contrôlable, $T$ est une donnée}} \\
 \midrule
 
-Student / Fisher & \emph{Aucune} : loi exacte à $T$ fini sous le modèle auxiliaire MCO & --- & --- & --- &
+Student / Fisher & \emph{Aucune} : loi exacte à $T$ fini sous le modèle auxiliaire MCO (§\ref{sec:modele-auxiliaire}) & --- & --- & --- &
 Erreurs i.i.d. $\mathcal{N}(0,\sigma^2)$, régresseurs fixes (modèle auxiliaire, contredit par H2
 et H3) &
 Valide sous ce seul modèle~; constante~: p de Student non retenue (Monte-Carlo)~; pente et
@@ -4430,7 +4682,7 @@ sup-F, OLS-CUSUM & Convergence fonctionnelle~; 8 points ne forment pas une
 trajectoire limite & p-value de Monte-Carlo seule retenue~; à lire
 conjointement avec la distance de Cook \\
 Student / Fisher (pente) & Loi exacte sous le seul modèle auxiliaire des moindres
-carrés (erreurs i.i.d. normales homoscédastiques), que H2 et H3 contredisent~; puissance
+carrés (§\ref{sec:modele-auxiliaire}~; erreurs i.i.d. normales homoscédastiques), que H2 et H3 contredisent~; puissance
 approchée $\hat\pi_b = 0{,}47$ sur le jeu de contrôle &
 Aucune p-value de Monte-Carlo possible (section~\ref{sec:t8})~; nature «~sous le modèle auxiliaire
 MCO~»~; diagnostic si $\hat\pi_b < 1/2$ (règle~R4)~; la normalité est examinée séparément en
@@ -4505,7 +4757,7 @@ agrégées, et le paragraphe~2 de la section~C n'a pas de point~f).
 \refl{W.\,S. Gosset (« Student »), \emph{The probable error of a mean}, \emph{Biometrika}, 6(1),
 1908, p.~1--25.}
 \Cadre
-Régression auxiliaire $y_t = a + b x_t + \varepsilon_t$. Hypothèses non testées~: les
+Régression auxiliaire $y_t = a + b x_t + \varepsilon_t$ (section~\ref{sec:modele-auxiliaire}). Hypothèses non testées~: les
 $\varepsilon_t$ sont indépendants, de variance constante $\sigma_\varepsilon^2$, de loi
 $\mathcal{N}(0,\sigma_\varepsilon^2)$, et les $x_t$ sont exogènes et non aléatoires. Nécessite
 $T \ge 3$ et $S_{xx} > 0$. À volumes constants au sens de \code{usp\_volumes\_constants()}, la ligne est non applicable
@@ -4521,7 +4773,7 @@ testable de la \emph{proportionnalité stricte} exigée par le règlement.
   \qquad \hat s^2 = \frac{\mathrm{SCR}}{T-2}.
 \]
 \Loi
-$t_a \sim t(T-2)$, loi exacte sous le modèle auxiliaire des moindres carrés (erreurs i.i.d.
+$t_a \sim t(T-2)$, loi exacte sous le modèle auxiliaire des moindres carrés (section~\ref{sec:modele-auxiliaire-spec}~; erreurs i.i.d.
 normales homoscédastiques, rubrique~1). Sous le modèle réglementaire, qui pose une variance
 quadratique en $x_t$ (H2) et des pertes lognormales (H3), cette loi n'est pas exacte, et aucune
 borne d'erreur n'est connue à $T = 8$.
@@ -4564,7 +4816,7 @@ Pharmacokinetics and Biopharmaceutics}, 15(6), 1987, p.~657--680 ; W.\,J. Westla
 \emph{Response to T.\,B.\,L. Kirkwood: bioequivalence testing --- a need to rethink},
 \emph{Biometrics}, 37(3), 1981, p.~589--594.}
 \Cadre
-Même régression auxiliaire et mêmes hypothèses de validité que la fiche précédente. On se donne
+Même régression auxiliaire (section~\ref{sec:modele-auxiliaire}) et mêmes hypothèses de validité que la fiche précédente. On se donne
 en outre une \emph{marge d'équivalence} $\Delta > 0$, qui n'est pas une quantité statistique mais
 un seuil économique~: en deçà de $\Delta$, une composante fixe de sinistralité est jugée sans
 portée pratique. Le moteur propose deux modes~: $\Delta$ fixée a priori
@@ -4600,7 +4852,7 @@ On rejette $H_0$ au niveau $\alpha$ si et seulement si les deux sous-hypothèses
 soit $t_{\text{bas}} > t_{1-\alpha,\,T-2}$ \emph{et} $t_{\text{haut}} < -t_{1-\alpha,\,T-2}$.
 \Loi
 Chaque statistique unilatérale suit \emph{exactement} une loi de Student à $T-2$ degrés de
-liberté sous le modèle auxiliaire des moindres carrés (erreurs i.i.d. normales homoscédastiques),
+liberté sous le modèle auxiliaire des moindres carrés (section~\ref{sec:modele-auxiliaire-spec}~; erreurs i.i.d. normales homoscédastiques),
 que les hypothèses H2 et H3 du modèle réglementaire contredisent. Aucun résultat asymptotique
 n'intervient.
 \Pval
@@ -4667,7 +4919,7 @@ $\Delta > 0$ strictement positive est ce qui rend le problème bien posé.
 \label{fiche:student-pente}%
 \refl{Student (1908), \emph{op.\ cit.}}
 \Cadre
-Identique à la fiche précédente (mêmes hypothèses de validité non testées).
+Identique à la fiche précédente (mêmes hypothèses de validité non testées~; section~\ref{sec:modele-auxiliaire}).
 \Hzero
 $H_0 : b = 0$, absence de tout lien linéaire entre le volume et les pertes.
 \Stat
@@ -4680,7 +4932,7 @@ $H_0 : b = 0$, absence de tout lien linéaire entre le volume et les pertes.
 \]
 \Loi
 $t_b \sim t(T-2)$, loi exacte sous le modèle auxiliaire des moindres carrés seulement (fiche
-précédente, rubrique~4).
+précédente, rubrique~4~; section~\ref{sec:modele-auxiliaire-spec}).
 \Pval
 $p = 2\big(1 - F_{t,T-2}(|t_b|)\big)$, seule p-value de la ligne~: $H_0 : b = 0$ n'appartient pas
 au modèle simulé, dont la pente est $\hat\beta \ne 0$, de sorte qu'aucune p-value de Monte-Carlo
@@ -4729,7 +4981,7 @@ ni l'autre ne se transpose à d'autres volumes.
 \emph{Philosophical Transactions of the Royal Society A}, 222, 1922, p.~309--368 ;
 \emph{Statistical Methods for Research Workers}, Oliver \& Boyd, Édimbourg, 1925.}
 \Cadre
-Identique aux deux fiches précédentes. On note $k$ le nombre de régresseurs hors constante
+Identique aux deux fiches précédentes (section~\ref{sec:modele-auxiliaire}). On note $k$ le nombre de régresseurs hors constante
 (ici $k=1$). À volumes constants au sens de \code{usp\_volumes\_constants()}, la ligne est non applicable
 (section~\ref{sec:volumes-constants}).
 \Hzero
@@ -4741,7 +4993,7 @@ $H_0 : b = 0$ (plus généralement, nullité conjointe de tous les coefficients 
 \]
 \Loi
 $F \sim \mathcal{F}(k,\,T-k-1)$, soit ici $\mathcal{F}(1, T-2)$, loi exacte sous le modèle
-auxiliaire des moindres carrés seulement.
+auxiliaire des moindres carrés seulement (section~\ref{sec:modele-auxiliaire-spec}).
 \Pval
 $p = 1 - F_{\mathcal{F},k,T-k-1}(F)$, seule p-value de la ligne, retenue sous la nature
 \code{sous le modele auxiliaire MCO~: F(1,T-2) exacte (H0 non simulable~: le modele ajuste
@@ -4770,7 +5022,7 @@ régresseurs (indicatrices d'année, variable d'inflation). Même limite de puis
 sampling distribution of the multiple correlation coefficient}, \emph{Proceedings of the Royal
 Society A}, 121, 1928, p.~654--673.}
 \Cadre
-Même régression auxiliaire. \textbf{Il ne s'agit pas d'un test} mais d'un diagnostic descriptif ;
+Même régression auxiliaire (section~\ref{sec:modele-auxiliaire}). \textbf{Il ne s'agit pas d'un test} mais d'un diagnostic descriptif ;
 les rubriques sont renseignées par cohérence de présentation. À volumes constants au sens de \code{usp\_volumes\_constants()}, la ligne est non applicable
 (section~\ref{sec:volumes-constants}).
 \Hzero
@@ -4857,7 +5109,7 @@ augmenté, $q = 2$ restrictions et $k = 1$ paramètre contraint~:
 \]
 \Loi
 $F \sim \mathcal{F}(q,\,T-k-q)$, soit $\mathcal{F}(2, T-3)$, \emph{exactement} sous des erreurs
-additives indépendantes, normales et homoscédastiques dans $y_t = \beta x_t + \varepsilon_t$~: les
+additives indépendantes, normales et homoscédastiques dans $y_t = \beta x_t + \varepsilon_t$ (section~\ref{sec:modele-auxiliaire-autres})~: les
 régresseurs auxiliaires engendrent un espace fixe, et, plus généralement, des régresseurs qui ne
 sont aléatoires que par l'estimateur des moindres carrés du modèle contraint laissent la loi $F$
 exacte (Milliken et Graybill, 1970, section~\ref{sec:biblio})~; la dépendance en $y$ de
@@ -5172,7 +5424,7 @@ coefficient variation}, \emph{Econometrica}, 47(5), 1979, p.~1287--1294 ; versio
 $T R^2$ due à R.~Koenker, \emph{A note on studentizing a test for heteroscedasticity},
 \emph{Journal of Econometrics}, 17(1), 1981, p.~107--112.}
 \Cadre
-Régression auxiliaire $z_t^2 = c_0 + c_1 x_t + \eta_t$, de coefficient de détermination
+Régression auxiliaire $z_t^2 = c_0 + c_1 x_t + \eta_t$ (section~\ref{sec:modele-auxiliaire-autres}), de coefficient de détermination
 $R^2_{\text{aux}}$. Hypothèses non testées~: indépendance des observations et validité de
 l'approximation asymptotique. À volumes constants au sens de \code{usp\_volumes\_constants()}, la ligne est non applicable
 (section~\ref{sec:volumes-constants}). Garde-fou (issue~\#59)~: si \code{lm()} écarte $x_t$
@@ -5283,7 +5535,7 @@ studentisée qui fait foi, la normalité n'étant jamais acquise à $T = 8$.
 \refl{H.~White, \emph{A heteroskedasticity-consistent covariance matrix estimator and a direct
 test for heteroskedasticity}, \emph{Econometrica}, 48(4), 1980, p.~817--838.}
 \Cadre
-Régression auxiliaire enrichie $z_t^2 = c_0 + c_1 x_t + c_2 x_t^2 + \eta_t$. Mêmes hypothèses de
+Régression auxiliaire enrichie $z_t^2 = c_0 + c_1 x_t + c_2 x_t^2 + \eta_t$ (section~\ref{sec:modele-auxiliaire-autres}). Mêmes hypothèses de
 validité que Breusch--Pagan. Nécessite $T > 3$. \code{test\_white()} engendre l'espace
 $\{1, x, x^2\}$ par la base réduite $\{1, s_t, s_t^2\}$, $s_t = (x_t - \bar x)/(\max_t x_t -
 \min_t x_t)$, changement de base affine qui laisse $R^2_{\text{aux}}$ et $\mathrm{LM}$ inchangés
@@ -7350,7 +7602,7 @@ sur une analyse métier (sinistre exceptionnel identifié, erreur de saisie avé
 \emph{Technometrics}, 19(1), 1977, p.~15--18~; seuil $4/(n-k-1)$, dont le repère $4/T$ est la
 simplification usuelle~: K.\,A. Bollen, R.\,W. Jackman (1990, section~\ref{sec:biblio}).}
 \Cadre
-Régression contrainte $y_t = \beta x_t + \varepsilon_t$ à $k$ paramètres ($k=1$), de résidus
+Régression contrainte $y_t = \beta x_t + \varepsilon_t$ (section~\ref{sec:modele-auxiliaire-autres}) à $k$ paramètres ($k=1$), de résidus
 $e_t$, de variance résiduelle estimée $\hat s^2$ et de leviers $h_t$ (fiche suivante).
 \textbf{Diagnostic d'influence, non test.}
 \Hzero
@@ -7401,7 +7653,7 @@ taux ne se transposent pas à d'autres volumes.
 \refl{D.\,C. Hoaglin, R.\,E. Welsch, \emph{The hat matrix in regression and ANOVA},
 \emph{The American Statistician}, 32(1), 1978, p.~17--22.}
 \Cadre
-Matrice de projection $H = X(X'X)^{-1}X'$ de la régression contrainte. \textbf{Diagnostic, non
+Matrice de projection $H = X(X'X)^{-1}X'$ de la régression contrainte (section~\ref{sec:modele-auxiliaire-autres}). \textbf{Diagnostic, non
 test.}
 \Hzero
 Sans objet.
@@ -10610,7 +10862,7 @@ Sortie de la hiérarchie (grandeur rivée par l'estimation) & branche finale de 
 \code{p\_retenue} et \code{nature\_p} à \code{NA}, verdict \code{INFO}, seul admis
 hors des types \code{test} et \code{procedure de decision} \\
 Test inopérant, Monte-Carlo indisponible ou dégénéré, repli nommé, nature «~sous le modèle
-auxiliaire MCO~» (§\ref{sec:nature}, issue~\#44) & \code{add()}~: arguments \code{p\_min},
+auxiliaire MCO~» (§\ref{sec:nature} et~\ref{sec:modele-auxiliaire}, issue~\#44) & \code{add()}~: arguments \code{p\_min},
 \code{effectifs}, \code{repli\_asymptotique}, \code{nature\_forcee}~; \code{runs\_p\_min()},
 \code{cox\_stuart\_p\_min()}, \code{smirnov\_p\_min()}, \code{mk\_p\_min()}~; motif
 \code{motif\_mc} d'\code{engine\_p\_mc()} et de \code{.mc\_p\_values()} (constantes
@@ -11080,7 +11332,7 @@ d'Anscombe--Glynn, non définie en deçà de $T = 20$. Ces lignes ne sont pas de
 peut produire une p-value inférieure à $\alpha$~; ici, c'est la statistique elle-même qui est sans
 objet. Hors de la bande de tolérance, un garde-fou rend \code{NA} si \code{lm()} écarte malgré tout
 le coefficient du volume pour colinéarité (régressions de $y_t$ sur $x_t$ de la constante, du
-TOST, de la pente, de Fisher, du $R^2$ et de RESET~; régressions auxiliaires de Breusch--Pagan).
+TOST, de la pente, de Fisher, du $R^2$ et de RESET, section~\ref{sec:modele-auxiliaire}~; régressions auxiliaires de Breusch--Pagan).
 RESET et White ont, depuis l'issue~\#110, leurs propres gardes (fiches~\ref{fiche:reset}
 et~\ref{fiche:white})~: régression sur une base réduite, qui supprime la perte numérique d'un
 régresseur hors de la bande, puis ligne non applicable, avec son motif, à moins de trois volumes
