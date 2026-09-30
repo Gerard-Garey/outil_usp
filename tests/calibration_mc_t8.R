@@ -385,8 +385,13 @@ motifs_non_versionnable <- function(commit, empreintes, quoi = "des tranches") {
 # --brut doivent viser hors du depot ; --ecrire est le seul chemin qui ecrit
 # dans le depot.
 sous_depot <- function(chemin) {
-  d <- normalizePath(chemin, mustWork = TRUE); r <- normalizePath(RACINE, mustWork = TRUE)
-  identical(d, r) || startsWith(d, paste0(r, .Platform$file.sep))
+  # separateur "/" sur toutes les plateformes (normalizePath() rend des "\\"
+  # sous Windows, ou .Platform$file.sep vaut pourtant "/") ; casse ignoree
+  # sous Windows, dont le systeme de fichiers ne la distingue pas
+  d <- normalizePath(chemin, winslash = "/", mustWork = TRUE)
+  r <- normalizePath(RACINE, winslash = "/", mustWork = TRUE)
+  if (.Platform$OS.type == "windows") { d <- tolower(d); r <- tolower(r) }
+  identical(d, r) || startsWith(d, paste0(r, "/"))
 }
 ecrire_console <- function(x) writeLines(enc2utf8(x), useBytes = TRUE)
 ligne_md <- function(...) paste0("| ", paste(..., sep = " | "), " |")
