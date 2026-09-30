@@ -3822,6 +3822,70 @@ K2 et K3, échantillons $\mathcal{N}(0,1)$ standardisés par la moyenne et l'éc
 référence K0, paramètres connus. Statut~: \emph{constat de simulation} du niveau d'une p-value
 restituée sans être retenue.
 
+\noindent\emph{Puissance sous le modèle ajusté (issue~\#116)} (script \code{tests/puissance\_t8.R},
+commit \code{bee126d}, R~4.3.3 sous Linux, générateur du moteur~; sorties
+\code{docs/tableaux/}\newline \code{20260930-issue116-exact-J1.md} pour le volet~A,
+\code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J1.md} et
+\code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J2.md} pour le volet~B). La mesure couvre, dans
+\code{usp\_tests()}, les suites et Durbin--Watson, chacun sur $z_t$ et sur les ratios bruts,
+Mann--Kendall et Smirnov. \emph{Alternatives}~: le modèle ajusté au jeu par
+\code{usp\_ajuster()} est conservé ($\hat\beta$, $\hat\pi_t$ et $x_t$~; sur J1, $\hat\delta = 1$,
+$\hat\gamma = -1{,}934$, $\hat\beta = 0{,}7287$, $\hat\sigma = 0{,}1053$, $\hat\pi_t$ constant) et
+seul l'aléa est remplacé~: $\ln r_t = \ln\hat\beta - 1/(2\hat\pi_t) + \varepsilon'_t/\sqrt{\hat\pi_t}$,
+où $\varepsilon'$ est construit à partir de $\xi_1, \dots, \xi_8$ i.i.d. $\mathcal{N}(0,1)$~; les
+amplitudes s'expriment donc en écarts-types de $\ln r_t$. Point nul~: $\varepsilon' = \xi$, soit
+exactement \code{usp\_simuler()} (vérifié au bit près). Autocorrélation~: AR(1) stationnaire de
+variance unité, $\varepsilon'_1 = \xi_1$, $\varepsilon'_t = \rho\,\varepsilon'_{t-1} +
+\sqrt{1-\rho^2}\,\xi_t$, pour $\rho = -0{,}5$~; $0{,}3$~; $0{,}5$~; $0{,}7$~; $0{,}9$. Tendance~: $\xi_t$
+augmenté d'une dérive linéaire centrée en $t = 4{,}5$, dont l'amplitude entre la première et la
+huitième année vaut 1, 2 ou 3 écarts-types. Rupture~: $\xi_t$ augmenté de 1, 2 ou 3 écarts-types
+pour $t > 4$, et de 2 écarts-types pour $t > 6$. Volume~: $\xi_t$ multiplié par 2 ou 3 les années
+dont le volume dépasse la médiane des $x_t$, inchangé les autres années. \emph{Volet~A}
+(principal~; J1 seul, régime $\hat\pi_t$ constant~; 20\,000 séries par point, quinze points,
+graine 20260930, nombres aléatoires communs aux quinze points~; $\alpha = 0{,}10$ et $0{,}05$)~:
+p-values exactes des fonctions du moteur (\code{runs\_p\_exacte()}, \code{dw\_p\_exacte()},
+\code{mk\_p\_exacte()}, \code{stats::ks.test()} sur la partition $x_t > \mathrm{méd}(x)$)
+appliquées aux log-ratios centrés, aux ratios centrés et aux ratios simulés, sans
+réajustement~; ces lois étant invariantes par transformation affine croissante, c'est la p-value
+que retiendrait le moteur à $\hat\pi^*_t$ constant, ce que contrôle la transcription contre
+\code{run\_engine()} sur J1 observé. Critère de niveau~: l'intervalle de Clopper--Pearson
+bilatéral à 99,9~\% du taux de rejet sous le point nul contient la taille exacte, vérifié pour chacune des
+lignes mesurées. \emph{Volet~B} (contrôle~; J1 et J2~; cinq points --- nul, AR(1) à $\rho = 0{,}5$ et
+$0{,}9$, tendance de 2 écarts-types, rupture de 2 écarts-types après l'année~4 ---~; 500
+réplications par point, $B = 999$, $\alpha = 0{,}10$)~: chaîne réduite du moteur --- réajustement
+par \code{usp\_ajuster()}, boucle bootstrap d'\code{usp\_bootstrap()} réduite aux six
+statistiques, p-values de Monte-Carlo par \code{engine\_p\_mc()}, p-value retenue et verdict par
+\code{usp\_tests()} lui-même ---, graines 20260931 pour les aléas $\xi$ et $20260831 + 1\,000\,b$
+pour le bootstrap de la réplication~$b$, quatre tranches combinées~; transcription contrôlée
+contre \code{run\_engine()} sur les deux jeux observés (lignes mesurées identiques, écart-type et
+résidus bootstrap identiques au bit près). Critère de niveau~: la borne inférieure unilatérale de
+Clopper--Pearson à 99,9~\% du taux de rejet sous le point nul ne dépasse pas $\alpha$, vérifié
+pour chacune des lignes mesurées, sur les deux jeux. Le volet~B ne reproduit pas le volet~A~: la p-value retenue
+y suit le régime du réajustement (exacte à $\hat\pi^*_t$ constant, de Monte-Carlo sinon, jamais
+exacte pour Durbin--Watson sur ratios bruts). \emph{Puissance de Durbin--Watson par la méthode
+d'Imhof}~: probabilité que la statistique sorte de l'intervalle compris entre les quantiles
+$\alpha/2$ et $1-\alpha/2$ de sa loi nulle, sous un aléa AR(1) stationnaire gaussien, chacune des
+deux probabilités étant calculée par l'intégrale d'Imhof (\code{.imhof\_p\_sup0()}) sur les valeurs
+propres de la forme quadratique correspondante. \emph{Statut}~: les puissances et les niveaux
+des volets~A et~B sont des \emph{constats de simulation sous des alternatives choisies, hors modèle
+réglementaire} (l'annexe~XVII suppose des années indépendantes)~; le niveau du volet~A sous le
+point nul est le contrôle d'un niveau exact connu~; la puissance de Durbin--Watson par Imhof est
+une \emph{approximation numérique} (intégration d'Imhof) d'une quantité exacte, à distinguer des
+constats de simulation~: elle ne dépend d'aucun tirage, seulement de la précision de la
+quadrature. «~Rejet~» signifie $p < \alpha$ (verdict \code{ALERTE} ou \code{ECHEC}). Les
+intervalles de Clopper--Pearson à 95~\% des fichiers (demi-largeur au plus $0{,}007$ au volet~A,
+$0{,}045$ au volet~B) mesurent l'incertitude de simulation, fonction du nombre de réplications, et
+rien de l'erreur d'approximation en $T$. \emph{Non étudié par ce protocole}~: toute autre ligne de \code{usp\_tests()}~; la
+puissance des p-values exactes hors du régime $\hat\pi_t$ constant (J2 n'en a aucune)~; toute
+alternative hors de la grille, sans interpolation en $\rho$ ni en amplitude~; les alternatives
+portant sur $\delta$ (issues~\#45 et~\#125), les alternatives à queues lourdes pour ces
+lignes, le test de Bartels (issue~\#48) et la méthode Merz--Wüthrich (issue~\#119)~;
+l'alternative de volume au volet~B et sur J2~; les taux par régime $\hat\delta^*$ intérieur sur J1
+(12 à 24 réplications par point, trop peu pour être lus comme des taux)~; la calibration fine de
+la p-value de Monte-Carlo par régime. Aucune référence de la littérature vérifiée ne donne ces
+puissances à $n = 8$ sous AR(1), tendance ou rupture~: la mesure de l'issue~\#116 en est la seule
+source.
+
 \begin{landscape}
 \begin{center}
 \scriptsize
@@ -3850,14 +3914,14 @@ Student, pente (\ref{fiche:student-pente}) & Sans objet (loi continue) & $\hat\p
 Fisher global (\ref{fiche:fisher-global}) & Sans objet (loi continue) & $\hat\pi_b = 0{,}47$ (contrôle), $1{,}00$ ($\hat\delta$ intérieur)~; diagnostic dans $38{,}0~\%$ et $0{,}0~\%$ des jeux simulés & \code{usp\_identifiabilite\_pente()},\newline \code{tests/taux\_franchissement\_reperes.R} & \code{docs/tableaux/}\newline \code{20260930-issue122-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue122-J2.md} \\
 RESET (\ref{fiche:reset}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
 Spearman (\ref{fiche:spearman}) & $2/T! = 4{,}96\cdot 10^{-5}$~; plancher Monte-Carlo $0{,}002$ (bilatéral) & Non étudiée & \code{mk\_p\_min()}, \code{engine\_p\_mc()} & --- \\
-Mann--Kendall (\ref{fiche:mann-kendall}) & $2/T! = 4{,}96\cdot 10^{-5}$~; plancher Monte-Carlo $0{,}002$ (bilatéral) & Non étudiée & \code{mk\_p\_min()}, \code{engine\_p\_mc()} & --- \\
+Mann--Kendall (\ref{fiche:mann-kendall}) & $2/T! = 4{,}96\cdot 10^{-5}$~; plancher Monte-Carlo $0{,}002$ (bilatéral) & Volet~A ($\alpha = 0{,}10$)~: niveau $0{,}060$ (taille exacte $0{,}061$)~; AR(1) $\rho = 0{,}5$~; $0{,}9$~: $0{,}187$~; $0{,}389$~; tendance, rupture de 2 écarts-types~: $0{,}352$~; $0{,}410$~; volet~B (p-value retenue, J1 et J2) dans les fichiers & \code{mk\_p\_min()}, \code{mk\_p\_exacte()}, \code{engine\_p\_mc()},\newline \code{tests/puissance\_t8.R} & \code{docs/tableaux/}\newline \code{20260930-issue116-exact-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J2.md} \\
 Cox--Stuart (\ref{fiche:cox-stuart}) & $0{,}125$ ($m = 4$) & Inopérant~: puissance nulle à $\alpha = 0{,}10$ pour $T \le 9$ & \code{cox\_stuart\_p\_min()} & --- \\
 Breusch--Pagan (Koenker) (\ref{fiche:breusch-pagan-koenker}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
 Breusch--Pagan (1979) (\ref{fiche:breusch-pagan-1979}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
 White (\ref{fiche:white}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
 Goldfeld--Quandt (\ref{fiche:goldfeld-quandt}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
 Brown--Forsythe (\ref{fiche:brown-forsythe}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
-Smirnov (\ref{fiche:smirnov}) & $2/70 = 0{,}0286$~; plancher Monte-Carlo $0{,}001$ (unilatéral) & Non étudiée~; verdict binaire à $T = 8$ & \code{smirnov\_p\_min()}, \code{engine\_p\_mc()} & --- \\
+Smirnov (\ref{fiche:smirnov}) & $2/70 = 0{,}0286$~; plancher Monte-Carlo $0{,}001$ (unilatéral) & Verdict binaire à $T = 8$~; volet~A ($\alpha = 0{,}10$)~: niveau $0{,}028$~; AR(1) $\rho = 0{,}5$~; $0{,}9$~: $0{,}108$~; $0{,}245$~; tendance, rupture de 2 écarts-types~: $0{,}151$~; $0{,}491$, décalage entre groupes de volume~; contre la variance par volume, limite $2/16$ & \code{smirnov\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/puissance\_t8.R} & \code{docs/tableaux/}\newline \code{20260930-issue116-exact-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J2.md} \\
 Shapiro--Wilk (\ref{fiche:shapiro-wilk}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
 Shapiro--Wilk sans Royston (\ref{fiche:shapiro-wilk-sans-royston}) & Plancher de la loi nulle simulée $1/20\,001 \approx 5{,}0\cdot 10^{-5}$ & Non étudiée & \code{sw\_p\_loi\_nulle()} & --- \\
 Shapiro--Francia (\ref{fiche:shapiro-francia}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
@@ -3868,16 +3932,16 @@ Lilliefors (\ref{fiche:lilliefors}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (
 Jarque--Bera (\ref{fiche:jarque-bera}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
 D'Agostino (asymétrie) (\ref{fiche:dagostino-asymetrie}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
 Anscombe--Glynn (\ref{fiche:anscombe-glynn-aplatissement}) & Sans objet ($T < 20$) & Non applicable à $T = 8$ & \code{usp\_tests()} & --- \\
-Durbin--Watson (\ref{fiche:durbin-watson}) & Sans objet ($\hat\pi_t$ constant)~; plancher Monte-Carlo $0{,}002$ (bilatéral) sinon & AR(1)~: $0{,}159$~; $0{,}261$~; $0{,}396$~; $0{,}528$ ($\rho = 0{,}3$ à $0{,}9$) & \code{dw\_p\_exacte()}, \code{engine\_p\_mc()},\newline \code{tests/constats\_puissance\_t8.R} & \code{docs/tableaux/}\newline \code{20260927-issue114-constats-puissance.md} \\
+Durbin--Watson (\ref{fiche:durbin-watson}) & Sans objet ($\hat\pi_t$ constant)~; plancher Monte-Carlo $0{,}002$ (bilatéral) sinon & AR(1), par Imhof ($\alpha = 0{,}10$)~: $0{,}2624$~; $0{,}5326$ ($\rho = 0{,}5$~; $0{,}9$), confirmé par le volet~A et par C1~; volet~A, tendance, rupture de 2 écarts-types~: $0{,}266$~; $0{,}369$~; volet~B (p-value retenue, J1 et J2) dans les fichiers & \code{dw\_p\_exacte()}, \code{.imhof\_p\_sup0()}, \code{engine\_p\_mc()},\newline \code{tests/puissance\_t8.R},\newline \code{tests/constats\_puissance\_t8.R} & \code{docs/tableaux/}\newline \code{20260930-issue116-exact-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20260927-issue114-constats-puissance.md} \\
 Ljung--Box, Box--Pierce (\ref{fiche:ljung-box}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
-Suites (Wald--Wolfowitz) (\ref{fiche:suites-wald-wolfowitz}) & $4/70 = 0{,}0571$~; plancher Monte-Carlo $0{,}002$ (bilatéral) & AR(1)~: $0{,}081$~; $0{,}120$~; $0{,}175$~; $0{,}246$ ($\rho = 0{,}3$ à $0{,}9$)~; \code{ECHEC} inatteignable à $\hat\pi_t$ constant & \code{runs\_p\_min()}, \code{runs\_p\_exacte()},\newline \code{tests/constats\_puissance\_t8.R} & \code{docs/tableaux/}\newline \code{20260927-issue114-constats-puissance.md} \\
+Suites (Wald--Wolfowitz) (\ref{fiche:suites-wald-wolfowitz}) & $4/70 = 0{,}0571$~; plancher Monte-Carlo $0{,}002$ (bilatéral) & Volet~A ($\alpha = 0{,}10$, rejet \code{ALERTE})~: niveau $0{,}058$~; AR(1) $\rho = 0{,}5$~; $0{,}9$~: $0{,}116$~; $0{,}249$~; tendance, rupture de 2 écarts-types~: $0{,}164$~; $0{,}494$~; \code{ECHEC} inatteignable à $\hat\pi_t$ constant~; volet~B (p-value retenue, J1 et J2) dans les fichiers & \code{runs\_p\_min()}, \code{runs\_p\_exacte()},\newline \code{tests/puissance\_t8.R},\newline \code{tests/constats\_puissance\_t8.R} & \code{docs/tableaux/}\newline \code{20260930-issue116-exact-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20260927-issue114-constats-puissance.md} \\
 sup-F (\ref{fiche:sup-f}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
 OLS-CUSUM (\ref{fiche:ols-cusum}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
 Grubbs (\ref{fiche:grubbs}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
 ESD de Rosner (\ref{fiche:rosner-esd}) & Sans objet (procédure sans p-value) & Non étudiée & \code{test\_rosner()} & --- \\
-Durbin--Watson, ratios bruts (\ref{fiche:durbin-watson-ratios-bruts}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+Durbin--Watson, ratios bruts (\ref{fiche:durbin-watson-ratios-bruts}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Volet~B seul (p-value retenue, J1~/ J2)~: AR(1) $\rho = 0{,}5$~: $0{,}276$~/ $0{,}232$~; $\rho = 0{,}9$~: $0{,}556$~/ $0{,}520$~; proche de la ligne sur $z_t$ & \code{engine\_p\_mc()},\newline \code{tests/puissance\_t8.R} & \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J2.md} \\
 Ljung--Box, ratios bruts (\ref{fiche:ljung-box-ratios-bruts}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
-Suites, ratios bruts (\ref{fiche:suites-ratios-bruts}) & $4/70 = 0{,}0571$~; plancher Monte-Carlo $0{,}002$ (bilatéral) & Celle des suites sur $z_t$ à $\hat\pi_t$ constant~; non étudiée sinon & \code{runs\_p\_min()},\newline \code{tests/constats\_puissance\_t8.R} & \code{docs/tableaux/}\newline \code{20260927-issue114-constats-puissance.md} \\
+Suites, ratios bruts (\ref{fiche:suites-ratios-bruts}) & $4/70 = 0{,}0571$~; plancher Monte-Carlo $0{,}002$ (bilatéral) & Celle des suites sur $z_t$ à $\hat\pi_t$ constant (identité vérifiée au volet~A)~; volet~B (p-value retenue, J1~/ J2)~: AR(1) $\rho = 0{,}9$~: $0{,}268$~/ $0{,}242$~; rupture de 2 écarts-types~: $0{,}450$~/ $0{,}438$ & \code{runs\_p\_min()}, \code{usp\_runsr\_p\_exacte()},\newline \code{tests/puissance\_t8.R} & \code{docs/tableaux/}\newline \code{20260930-issue116-exact-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J2.md} \\
 sup-F, ratios bruts (\ref{fiche:sup-f-ratios-bruts}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
 OLS-CUSUM, ratios bruts (\ref{fiche:ols-cusum-ratios-bruts}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
 Grubbs, ratios bruts (\ref{fiche:grubbs-ratios-bruts}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
@@ -4932,9 +4996,9 @@ beaucoup trop souvent, ce qui impose de le lire conjointement avec les tests de 
 
 \textbf{Table.} Tableau~\ref{tab:pmin}, dernière colonne~: aucune bascule de $T = 5$ à $T = 12$.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes ($p_{\min} \ll \alpha$). Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes ($p_{\min} \ll \alpha$). \emph{Puissance de la p-value exacte, jeu de contrôle} (volet~A de l'issue~\#116, J1, $\hat\pi_t$ constant, 20\,000 séries par point, $\alpha = 0{,}10$~; protocole au tableau~\ref{tab:tracabilite-puissance})~: niveau $0{,}060$ pour une taille exacte de $0{,}0610$ (et $0{,}0300$ pour $0{,}0312$ à $\alpha = 0{,}05$)~; la loi de $S$ étant discrète, le test est conservateur, de taille effective $0{,}061$ pour un seuil nominal de $0{,}10$. Contre un AR(1) stationnaire, $0{,}014$~; $0{,}121$~; $0{,}187$~; $0{,}280$~; $0{,}389$ pour $\rho = -0{,}5$~; $0{,}3$~; $0{,}5$~; $0{,}7$~; $0{,}9$~: à $\rho = -0{,}5$, le taux est sous le niveau, l'alternance réduisant $|S|$. Contre une tendance de 1~; 2~; 3 écarts-types, $0{,}136$~; $0{,}352$~; $0{,}622$~: des lignes mesurées au volet~A, c'est la plus puissante contre la tendance de 2 et 3 écarts-types, au niveau de Durbin--Watson à 1 écart-type ($0{,}136$ contre $0{,}138$). Contre une rupture de 1~; 2~; 3 écarts-types après l'année~4, $0{,}178$~; $0{,}410$~; $0{,}549$, et de 2 écarts-types après l'année~6, $0{,}221$~; contre un écart-type multiplié par 2~; 3 les années de volume supérieur à la médiane, $0{,}067$~; $0{,}071$, soit à peine plus que le niveau. \emph{P-value retenue après réajustement} (volet~B, J1~/ J2, 500 réplications par point, $B = 999$)~: niveau $0{,}074$~/ $0{,}068$~; AR(1) à $\rho = 0{,}5$~: $0{,}208$~/ $0{,}192$~; à $\rho = 0{,}9$~: $0{,}406$~/ $0{,}384$~; tendance de 2 écarts-types~: $0{,}340$~/ $0{,}298$~; rupture de 2 écarts-types après l'année~4~: $0{,}424$~/ $0{,}464$. Mesures hors modèle réglementaire.
 
-\textbf{Statut des valeurs.} $p_{\min}$~: exacte (énumération de la loi de permutation) à $\hat\pi_t$ constant, approximation à $\hat\pi_t$ variable~; plancher de Monte-Carlo~: exact, fonction de $B$.
+\textbf{Statut des valeurs.} $p_{\min}$~: exacte (énumération de la loi de permutation) à $\hat\pi_t$ constant, approximation à $\hat\pi_t$ variable~; plancher de Monte-Carlo~: exact, fonction de $B$~; tailles exactes~: énumération de la loi de $S$~; puissances et niveaux mesurés~: constats de simulation sous des alternatives choisies, hors modèle réglementaire (intervalles de Clopper--Pearson dans les fichiers de résultats, incertitude de simulation muette sur l'erreur en $T$).
 \end{fiche}
 
 \begin{fiche}{Test de tendance par signes de Cox--Stuart}
@@ -5369,9 +5433,9 @@ epsilon non echangeable, r\_t non identiquement distribues).}~» Le
 
 \textbf{Table.} Tableau~\ref{tab:pmin}~: $p_{\min} < \alpha/2$ à tout $T \ge 8$~; les valeurs pour $T < 8$ sont hors moteur.
 
-\textbf{Pertinence à $T = 8$.} Ligne calculée seulement pour $T \ge 8$~; non applicable à volumes constants (section~\ref{sec:volumes-constants}) ou si un groupe compte moins de trois années. À $T = 8$ et $\hat\pi_t$ constant, le verdict est binaire~: \code{ECHEC} si $D = 1$, \code{OK} sinon, l'\code{ALERTE} étant impossible. Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne calculée seulement pour $T \ge 8$~; non applicable à volumes constants (section~\ref{sec:volumes-constants}) ou si un groupe compte moins de trois années. À $T = 8$ et $\hat\pi_t$ constant, le verdict est binaire~: \code{ECHEC} si $D = 1$, \code{OK} sinon, l'\code{ALERTE} étant impossible. \emph{Puissance de la p-value exacte, jeu de contrôle} (volet~A de l'issue~\#116, J1, $\hat\pi_t$ constant, 20\,000 séries par point, $\alpha = 0{,}10$~; protocole au tableau~\ref{tab:tracabilite-puissance})~: niveau $0{,}028$, soit la taille exacte $2/70$, le même événement ($D = 1$) donnant le rejet aux seuils $0{,}10$ et $0{,}05$. Contre un AR(1) stationnaire, $0{,}005$~; $0{,}065$~; $0{,}108$~; $0{,}169$~; $0{,}245$ pour $\rho = -0{,}5$~; $0{,}3$~; $0{,}5$~; $0{,}7$~; $0{,}9$~; contre une tendance de 1~; 2~; 3 écarts-types, $0{,}058$~; $0{,}151$~; $0{,}275$~; contre une rupture de 1~; 2~; 3 écarts-types après l'année~4, $0{,}142$~; $0{,}491$~; $0{,}833$, et de 2 écarts-types après l'année~6, $0{,}057$~; contre un écart-type multiplié par 2~; 3 les années de volume supérieur à la médiane, $0{,}038$~; $0{,}051$. \emph{Lecture.} (i)~Sur J1, les volumes croissent globalement avec $t$ (de $104{,}2$ en $t = 1$ à $131{,}2$ en $t = 8$) et la partition $x_t > \mathrm{méd}(x)$ est $\{5, 6, 7, 8\}$~: la puissance contre la rupture après l'année~4 et contre la tendance est celle d'un décalage de niveau entre les deux groupes de volume, confondu ici avec le temps. Sur J2, dont la partition est $\{3, 4, 5, 6\}$, la p-value retenue ne rejette presque jamais sous la tendance ($0{,}002$) ni sous la rupture ($0{,}004$), et rejette dans $0{,}066$ des cas sous l'AR(1) à $\rho = 0{,}9$ (volet~B). (ii)~Contre l'hétéroscédasticité liée au volume, objet de la ligne en~H2, la puissance est limitée~: à $\hat\pi_t$ constant, le rejet exige $D = 1$, et quand le facteur multiplicatif de l'écart-type croît sans borne, la probabilité de $D = 1$ tend vers celle que les quatre résidus du groupe à fort volume soient tous du même signe, $2 \times (1/2)^4 = 2/16 = 0{,}125$~; mesurée à $0{,}038$ et $0{,}051$ pour les facteurs 2 et 3, elle montre que la ligne teste une différence de position entre groupes de volume, non une différence de variance. (iii)~\emph{P-value retenue après réajustement} (volet~B, J1~/ J2, 500 réplications par point, $B = 999$)~: niveau $0{,}032$~/ $0{,}026$~; AR(1) à $\rho = 0{,}5$~: $0{,}108$~/ $0{,}058$~; à $\rho = 0{,}9$~: $0{,}260$~/ $0{,}066$~; tendance de 2 écarts-types~: $0{,}130$~/ $0{,}002$~; rupture de 2 écarts-types après l'année~4~: $0{,}448$~/ $0{,}004$~; aucune \code{ALERTE} sur les deux jeux. Mesures hors modèle réglementaire.
 
-\textbf{Statut des valeurs.} $p_{\min}$ et p-values atteignables~: exactes (énumération des 70 partitions) à $\hat\pi_t$ constant, approximation à $\hat\pi_t$ variable~; plancher de Monte-Carlo~: exact, fonction de $B$.
+\textbf{Statut des valeurs.} $p_{\min}$ et p-values atteignables~: exactes (énumération des 70 partitions) à $\hat\pi_t$ constant, approximation à $\hat\pi_t$ variable~; plancher de Monte-Carlo~: exact, fonction de $B$~; limite $2/16$~: calcul exact de la probabilité limite~; puissances et niveaux mesurés~: constats de simulation sous des alternatives choisies, hors modèle réglementaire (intervalles de Clopper--Pearson dans les fichiers de résultats, incertitude de simulation muette sur l'erreur en $T$).
 \end{fiche}
 
 \begin{fiche}{Position de $\hat\delta$ dans son domaine (diagnostic)}
@@ -6086,9 +6150,9 @@ utilisées. Le test ne détecte par ailleurs qu'une dépendance d'ordre~1.
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. Puissance contre un AR(1) stationnaire (constat~C1, 20\,000 séries par valeur de $\rho$, $\alpha = 0{,}10$)~: $0{,}159$~; $0{,}261$~; $0{,}396$~; $0{,}528$ pour $\rho = 0{,}3$~; $0{,}5$~; $0{,}7$~; $0{,}9$, pour un niveau de $0{,}100$ à $\rho = 0$. Mesure sur la série centrée, qui vaut pour la ligne à $\hat\pi_t$ constant~; hors modèle réglementaire.
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. \emph{Puissance contre un AR(1) stationnaire gaussien, par la méthode d'Imhof} (issue~\#116~; protocole au tableau~\ref{tab:tracabilite-puissance})~: à $\hat\pi_t$ constant, sans réajustement, test bilatéral à $\alpha = 0{,}10$, $0{,}2778$~; $0{,}1593$~; $0{,}2624$~; $0{,}3980$~; $0{,}5326$ pour $\rho = -0{,}5$~; $0{,}3$~; $0{,}5$~; $0{,}7$~; $0{,}9$, et $0{,}1000$ à $\rho = 0$. Le volet~A de l'issue~\#116 (J1, 20\,000 séries par point) donne $0{,}283$~; $0{,}161$~; $0{,}262$~; $0{,}398$~; $0{,}535$, chaque valeur d'Imhof étant dans l'intervalle de Clopper--Pearson à 95~\% de la valeur simulée, et le constat~C1 (série centrée, 20\,000 séries par valeur de $\rho$) $0{,}159$~; $0{,}261$~; $0{,}396$~; $0{,}528$ pour $\rho = 0{,}3$~; $0{,}5$~; $0{,}7$~; $0{,}9$. \emph{Autres alternatives} (volet~A)~: niveau $0{,}102$ à $\alpha = 0{,}10$ et $0{,}052$ à $\alpha = 0{,}05$~; contre une tendance de 1~; 2~; 3 écarts-types, $0{,}138$~; $0{,}266$~; $0{,}479$~; contre une rupture de 1~; 2~; 3 écarts-types après l'année~4, $0{,}166$~; $0{,}369$~; $0{,}598$, et de 2 écarts-types après l'année~6, $0{,}251$~; contre un écart-type multiplié par 2~; 3 les années de volume supérieur à la médiane, $0{,}119$~; $0{,}136$. \emph{P-value retenue après réajustement} (volet~B, J1~/ J2, 500 réplications par point, $B = 999$)~: niveau $0{,}114$~/ $0{,}118$ (intervalles de Clopper--Pearson à 95~\% $[0{,}087~;~0{,}145]$ et $[0{,}091~;~0{,}150]$~; sur les deux jeux réunis, 116 rejets sur 1\,000, de borne inférieure unilatérale à 99,9~\% $0{,}087$, sous $\alpha$)~; AR(1) à $\rho = 0{,}5$~: $0{,}284$~/ $0{,}236$~; à $\rho = 0{,}9$~: $0{,}554$~/ $0{,}528$~; tendance de 2 écarts-types~: $0{,}264$~/ $0{,}200$~; rupture de 2 écarts-types après l'année~4~: $0{,}376$~/ $0{,}308$. Mesures hors modèle réglementaire.
 
-\textbf{Statut des valeurs.} Puissances~: constat de simulation, hors modèle réglementaire (intervalles de Clopper--Pearson dans le fichier de résultats)~; elles reproduisent, sous l'hypothèse d'initialisation stationnaire (tableau~\ref{tab:tracabilite-puissance}), à l'erreur de simulation près (écart normalisé $|z| \le 1{,}96$ à chaque $\rho$), le constat du 23~septembre 2026 de l'issue~\#44. Plancher de Monte-Carlo~: exact, fonction de $B$.
+\textbf{Statut des valeurs.} Puissances par Imhof~: approximation numérique (intégration d'Imhof) d'une quantité exacte, qui ne dépend d'aucun tirage, seulement de la précision de la quadrature. Autres puissances et niveaux (volets~A et~B, constat~C1)~: constats de simulation sous des alternatives choisies, hors modèle réglementaire (intervalles de Clopper--Pearson dans les fichiers de résultats, incertitude de simulation muette sur l'erreur en $T$)~; les valeurs de C1 reproduisent, sous l'hypothèse d'initialisation stationnaire (tableau~\ref{tab:tracabilite-puissance}), à l'erreur de simulation près (écart normalisé $|z| \le 1{,}96$ à chaque $\rho$), le constat du 23~septembre 2026 de l'issue~\#44. Plancher de Monte-Carlo~: exact, fonction de $B$.
 \end{fiche}
 
 \begin{fiche}{Tests portemanteau de Ljung--Box et de Box--Pierce}
@@ -6273,9 +6337,9 @@ avec $B = 9\,999$, ce qui réduit la première cause et laisse la seconde inchan
 
 \textbf{Table.} Tableau~\ref{tab:pmin}~: inopérant pour $T \le 7$~; \code{ECHEC} inatteignable à $T = 8$ et $9$ à $\hat\pi_t$ constant.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test, à \code{ECHEC} inatteignable à $\hat\pi_t$ constant ($\alpha/2 \le p_{\min} < \alpha$), possible à $\hat\pi_t$ variable (rubrique~6)~: à $\hat\pi_t$ constant, \code{ALERTE} seulement si $R \in \{2, 8\}$. Puissance contre un AR(1) stationnaire (constat~C1, 20\,000 séries par valeur de $\rho$, $\alpha = 0{,}10$, rejet signifiant ici \code{ALERTE})~: $0{,}081$~; $0{,}120$~; $0{,}175$~; $0{,}246$ pour $\rho = 0{,}3$~; $0{,}5$~; $0{,}7$~; $0{,}9$, pour un niveau de $0{,}057$ ($4/70$) à $\rho = 0$~; de l'ordre de la moitié de celle de Durbin--Watson exact (fiche~\ref{fiche:durbin-watson}) à chaque $\rho$, à niveau effectif plus faible ($0{,}057$ contre $0{,}100$), ce qui explique une partie de l'écart. Mesure valable à $\hat\pi_t$ constant~; hors modèle réglementaire.
+\textbf{Pertinence à $T = 8$.} Ligne de type test, à \code{ECHEC} inatteignable à $\hat\pi_t$ constant ($\alpha/2 \le p_{\min} < \alpha$), possible à $\hat\pi_t$ variable (rubrique~6)~: à $\hat\pi_t$ constant, \code{ALERTE} seulement si $R \in \{2, 8\}$. \emph{Puissance de la p-value exacte, jeu de contrôle} (volet~A de l'issue~\#116, J1, $\hat\pi_t$ constant, 20\,000 séries par point, $\alpha = 0{,}10$, rejet signifiant ici \code{ALERTE}~; protocole au tableau~\ref{tab:tracabilite-puissance})~: niveau $0{,}058$, compatible avec la taille exacte $4/70 = 0{,}0571$. Contre un AR(1) stationnaire, $0{,}148$~; $0{,}078$~; $0{,}116$~; $0{,}174$~; $0{,}249$ pour $\rho = -0{,}5$~; $0{,}3$~; $0{,}5$~; $0{,}7$~; $0{,}9$~; contre une tendance de 1~; 2~; 3 écarts-types entre la première et la huitième année, $0{,}081$~; $0{,}164$~; $0{,}282$~; contre une rupture de 1~; 2~; 3 écarts-types après l'année~4, $0{,}157$~; $0{,}494$~; $0{,}834$, et de 2 écarts-types après l'année~6, $0{,}062$~; contre un écart-type multiplié par 2~; 3 les années de volume supérieur à la médiane, $0{,}066$~; $0{,}077$, soit à peine plus que le niveau~: la ligne ne voit pas cette hétéroscédasticité. À $\alpha = 0{,}05$, la ligne est inopérante (règle~R1) et aucune des 20\,000 séries du point nul n'est rejetée. Contre l'AR(1), ces valeurs sont compatibles avec le constat~C1 (écarts d'au plus $0{,}004$ pour $\rho = 0{,}3$ à $0{,}9$) et avec le constat du 23~septembre 2026 de l'issue~\#44, que C1 reproduit (écart normalisé du volet~A à ce constat~: $|z| \le 0{,}78$)~; elles sont de l'ordre de la moitié de celles de Durbin--Watson exact (fiche~\ref{fiche:durbin-watson}) à chaque $\rho$, à niveau effectif plus faible ($0{,}057$ contre $0{,}100$), ce qui explique une partie de l'écart. \emph{P-value retenue après réajustement} (volet~B, J1~/ J2, 500 réplications par point, $B = 999$)~: niveau $0{,}064$~/ $0{,}066$~; AR(1) à $\rho = 0{,}5$~: $0{,}112$~/ $0{,}116$~; à $\rho = 0{,}9$~: $0{,}268$~/ $0{,}244$~; tendance de 2 écarts-types~: $0{,}140$~/ $0{,}144$~; rupture de 2 écarts-types après l'année~4~: $0{,}448$~/ $0{,}428$. Ce volet ne reproduit pas le volet~A~: la p-value retenue y suit le régime du réajustement, et sur J1 l'écart sous la rupture ($0{,}448$ contre $0{,}494$) tient à cette sélection de régime ($0{,}317$ dans le régime $\hat\delta^* = 1$, $0{,}515$ dans le régime $\hat\delta^* = 0$), non à une erreur. L'\code{ECHEC} n'y est observé que hors du régime $\hat\delta^* = 1$ (J1~: 2 réplications sur 500 sous le point nul, 29 sous la rupture), illustration chiffrée de la rubrique~6. Mesures hors modèle réglementaire.
 
-\textbf{Statut des valeurs.} $p_{\min}$ et p-values atteignables~: exactes (énumération) à $\hat\pi_t$ constant, approximation à $\hat\pi_t$ variable~; puissances~: constat de simulation, hors modèle réglementaire, reproduisant, sous l'hypothèse d'initialisation stationnaire, le constat du 23~septembre 2026 de l'issue~\#44 (écart normalisé $|z| \le 1{,}96$).
+\textbf{Statut des valeurs.} $p_{\min}$ et p-values atteignables~: exactes (énumération) à $\hat\pi_t$ constant, approximation à $\hat\pi_t$ variable~; puissances et niveaux mesurés (volets~A et~B de l'issue~\#116, constat~C1)~: constats de simulation sous des alternatives choisies, hors modèle réglementaire (intervalles de Clopper--Pearson dans les fichiers de résultats, incertitude de simulation muette sur l'erreur en $T$)~; C1 reproduit, sous l'hypothèse d'initialisation stationnaire, le constat du 23~septembre 2026 de l'issue~\#44 (écart normalisé $|z| \le 1{,}96$).
 \end{fiche}
 
 \begin{fiche}{Condition du premier ordre (gradient projeté, KKT)}
@@ -6950,9 +7014,9 @@ bootstrap paramétrique, asymptotique en $T$ et non quantifiable à $T = 8$
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. À $\hat\pi_t$ constant, la p-value retenue reste de Monte-Carlo. Dans ce régime, le commentaire de la ligne signale un contrôle sans objet, quasi-doublon de la ligne sur $z_t$~; la ligne reste un test. Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. À $\hat\pi_t$ constant, la p-value retenue reste de Monte-Carlo. Dans ce régime, le commentaire de la ligne signale un contrôle sans objet, quasi-doublon de la ligne sur $z_t$~; la ligne reste un test. \emph{Puissance de la p-value retenue}, toujours de Monte-Carlo (volet~B de l'issue~\#116, J1~/ J2, 500 réplications par point, $B = 999$, $\alpha = 0{,}10$~; protocole au tableau~\ref{tab:tracabilite-puissance})~: niveau $0{,}108$~/ $0{,}092$~; AR(1) à $\rho = 0{,}5$~: $0{,}276$~/ $0{,}232$~; à $\rho = 0{,}9$~: $0{,}556$~/ $0{,}520$~; tendance de 2 écarts-types~: $0{,}254$~/ $0{,}224$~; rupture de 2 écarts-types après l'année~4~: $0{,}360$~/ $0{,}360$. Ces taux sont proches de ceux de la ligne sur $z_t$ (fiche~\ref{fiche:durbin-watson}) sur J1 (écart d'au plus $0{,}016$), ce qui mesure le quasi-doublon, et s'en écartent davantage sur J2, où $\hat\pi_t$ varie (jusqu'à $0{,}052$ sous la rupture). Le volet~A de l'issue~\#116, fondé sur les p-values exactes, ne couvre pas cette ligne. Mesures hors modèle réglementaire.
 
-\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Puissances et niveau~: constats de simulation sous des alternatives choisies, hors modèle réglementaire (intervalles de Clopper--Pearson dans les fichiers de résultats, incertitude de simulation muette sur l'erreur en $T$).
 \end{fiche}
 
 \begin{fiche}{Ljung--Box au retard 1 sur ratios bruts}
@@ -7045,9 +7109,9 @@ fiche~\ref{fiche:suites-wald-wolfowitz}, rubrique~6~; sur $u_t$, dont les $r_t$ 
 
 \textbf{Table.} Tableau~\ref{tab:pmin}~: \code{ECHEC} inatteignable à $T = 8$ et $9$ à $\hat\pi_t$ constant.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test, à \code{ECHEC} inatteignable à $\hat\pi_t$ constant, possible à $\hat\pi_t$ variable (rubrique~6). À $\hat\pi_t$ constant, la statistique étant identique à celle de la ligne sur $z_t$, la puissance est celle du constat~C1 (fiche~\ref{fiche:suites-wald-wolfowitz})~; à $\hat\pi_t$ variable, puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test, à \code{ECHEC} inatteignable à $\hat\pi_t$ constant, possible à $\hat\pi_t$ variable (rubrique~6). À $\hat\pi_t$ constant, la statistique étant identique à celle de la ligne sur $z_t$ --- identité vérifiée réplication par réplication au volet~A de l'issue~\#116, sans aucune différence sur 300\,000 séries ---, la puissance est celle de la ligne sur $z_t$ (fiche~\ref{fiche:suites-wald-wolfowitz}). \emph{P-value retenue après réajustement} (volet~B de l'issue~\#116, J1~/ J2, 500 réplications par point, $B = 999$, $\alpha = 0{,}10$~; protocole au tableau~\ref{tab:tracabilite-puissance}), exacte dans les réplications où $\hat\pi^*_t$ est constant et de Monte-Carlo dans les autres~: niveau $0{,}062$~/ $0{,}064$~; AR(1) à $\rho = 0{,}5$~: $0{,}112$~/ $0{,}124$~; à $\rho = 0{,}9$~: $0{,}268$~/ $0{,}242$~; tendance de 2 écarts-types~: $0{,}140$~/ $0{,}144$~; rupture de 2 écarts-types après l'année~4~: $0{,}450$~/ $0{,}438$~; les écarts à la ligne sur $z_t$ vont de $0$ à $0{,}010$, sous la demi-largeur des intervalles de Clopper--Pearson. Mesures hors modèle réglementaire.
 
-\textbf{Statut des valeurs.} $p_{\min}$~: exacte à $\hat\pi_t$ constant, approximation à $\hat\pi_t$ variable~; puissance~: constat de simulation (fiche~\ref{fiche:suites-wald-wolfowitz}).
+\textbf{Statut des valeurs.} $p_{\min}$~: exacte à $\hat\pi_t$ constant, approximation à $\hat\pi_t$ variable~; identité avec la ligne sur $z_t$~: contrôle exhaustif sur les séries simulées~; puissances et niveau~: constats de simulation sous des alternatives choisies, hors modèle réglementaire (intervalles de Clopper--Pearson dans les fichiers de résultats, incertitude de simulation muette sur l'erreur en $T$).
 \end{fiche}
 
 \newpage
@@ -10034,7 +10098,7 @@ régimes n'en dépendent pas.
 \textbf{Réserve.} Cette validation est conditionnelle au modèle~: elle établit que, \emph{si} les
 données sont engendrées par le modèle de l'annexe~XVII, les p-values de Monte-Carlo ont le bon
 niveau. Elle ne dit rien de la puissance du dispositif contre des écarts réalistes au modèle,
-laquelle reste faible à ces tailles d'échantillon.
+laquelle reste faible à ces tailles d'échantillon (mesures de puissance à $T = 8$~: tableau~\ref{tab:tracabilite-puissance}).
 \end{encadre}
 
 \newpage
