@@ -169,6 +169,22 @@ _Avoid_ : branche de travail de GPT (c'est son `main`, pas une branche de travai
 La revue du diff `main...main-GPT`, des issues que GPT déclare résolues et de celles qu'il a créées, faite par Claude **sur ordre du mainteneur seul** (jamais d'office, ni par un hook, un workflow ou un agent ; skill `audit-main-gpt`), avec `architect` et `actuary` toujours, et `audit`, `app-review`, `regulatory`, `docwriter` selon les déclencheurs de `CLAUDE.md`, à la profondeur de la revue finale complète (règle 10) plus `/code-review`. Elle s'ajoute à la revue finale que GPT doit à chacune de ses branches et ne la remplace pas. Un de ses objets est de **simplifier et optimiser** le code de GPT sans changer un résultat hors du circuit de reproductibilité (ADR 0011 : tableau, régénération CI, visa). Les corrections de Claude passent par la branche `claude/audit-main-gpt-<date>`, créée depuis `main-GPT`, avec PR vers `main-GPT` fusionnée par le mainteneur ; Claude valide ensuite la PR `main-GPT` → `main`, dont la fusion reste au mainteneur.
 _Avoid_ : audit léger (l'audit de `main-GPT` est à la profondeur de la revue finale) ; revue automatique, audit à chaque PR (lancé sur ordre seulement) ; « audit de GPT » sans l'objet (c'est le diff qui est audité, pas l'agent)
 
+**Consultation** :
+Un appel d'`architect` ou d'`actuary` par la session principale ; se termine par un bloc « Retour » (statut `complet`, `partiel` ou `revue requise`). Voir `docs/agents/routage.md`.
+_Avoid_ : appel, requête
+
+**Routine / jugement** :
+Les deux niveaux d'une consultation : fiche de base (Opus, effort `medium`) ou fiche `-approfondi` (Opus, effort `high`) ; Fable s'obtient sur la fiche `-approfondi` par le paramètre `model` de l'appel, dans les seuls cas prévus (ADR 0013).
+_Avoid_ : mode rapide, mode expert
+
+**Escalade** :
+Passage d'une consultation à un niveau supérieur, hausse d'effort (routine → jugement) ou changement de modèle (Opus → Fable), sur un critère observable. Distincte de la **relance ciblée** (même agent, preuves manquantes) et de la demande d'information.
+_Avoid_ : relance (sans qualificatif), montée en gamme
+
+**Dossier d'escalade** :
+Question résiduelle, contraintes, conclusions établies, sources, tentatives, contradictions et preuve attendue, transmis à la consultation suivante pour éviter une nouvelle revue globale.
+_Avoid_ : contexte, historique
+
 ## Restitution figée
 
 **Rapport figé** :
