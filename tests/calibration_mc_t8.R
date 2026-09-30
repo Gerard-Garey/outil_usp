@@ -140,8 +140,9 @@
 #              au bord 0 et au bord 1 par le code de #72, (e4) effectifs de la
 #              largeur relative de l'IC bootstrap 90 % au-dessus de 0,50 et de
 #              0,80 (ligne "Largeur relative de l'IC bootstrap 90%"), egaux a
-#              ceux du tableau de #72 du meme jeu ; non applicables sinon (dit
-#              dans la sortie) ;
+#              ceux du tableau de #72 du meme jeu ; a R = 2 000, un tableau de
+#              #72 absent, illisible ou d'un autre jeu, R ou graine est un
+#              echec ; non applicables a un autre R (dit dans la sortie) ;
 #    (f)  references ancrees au moteur : sur J1 observe (pi chapeau constant,
 #         p exactes attribuees), la p exacte de chacune des sept lignes a loi
 #         discrete appartient a l'ensemble des p des atomes enumeres par
@@ -593,8 +594,8 @@ effectifs_72 <- function(jeu) {
 }
 # Controles (e3) et (e4) sur des comptes complets (R replications) : rend
 # list(e3 = list(ok, texte), e4 = list(ok, texte)) ; ok = NA si non
-# applicable (autre R, jeu ou graine que le tableau de #72). A R = R_72, un
-# tableau de #72 absent ou illisible est un echec.
+# applicable (R different de R_72). A R = R_72, un tableau de #72 absent,
+# illisible ou d'un autre jeu, R ou graine est un echec.
 controles_72 <- function(cpt, R, jeu) {
   g <- function(k) if (k %in% names(cpt)) cpt[[k]] else 0
   e <- effectifs_72(jeu)
@@ -604,9 +605,13 @@ controles_72 <- function(cpt, R, jeu) {
     return(list(e3 = x, e4 = x))
   }
   if (!identical(e$jeu, jeu) || !identical(e$R, R) || !isTRUE(e$graine == GRAINE_JEUX)) {
-    x <- list(ok = NA, texte = sprintf(paste("non applicable : tableau de #72 \u00e0 jeu=%s, R=%s, graine=%s ;",
-                                             "ici jeu=%s, R=%d, graine=%.0f"),
-                                       e$jeu, e$R, e$graine, jeu, R, GRAINE_JEUX))
+    # A R = R_72, un tableau de #72 d'un autre jeu, R ou graine est un echec
+    # (constat T3 d'audit), comme un tableau absent.
+    x <- list(ok = if (R == R_72) FALSE else NA,
+              texte = sprintf(paste("%s : tableau de #72 \u00e0 jeu=%s, R=%s, graine=%s ;",
+                                    "ici jeu=%s, R=%d, graine=%.0f"),
+                              if (R == R_72) "\u00c9CHEC" else "non applicable",
+                              e$jeu, e$R, e$graine, jeu, R, GRAINE_JEUX))
     return(list(e3 = x, e4 = x))
   }
   ici3 <- c(g("reg72|bord0"), g("reg72|bord1"))
