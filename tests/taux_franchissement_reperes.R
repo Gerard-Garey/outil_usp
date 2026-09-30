@@ -17,12 +17,12 @@
 #  intervalle de Clopper-Pearson a 95 % (incertitude Monte-Carlo sur le taux,
 #  fonction de R ; elle ne dit rien de l'erreur d'approximation en T).
 #  Tableaux : T1, reperes des diagnostics (taux simules) ; T1 bis, regle
-#  d'inoperance R4 (seuil de restitution de la pente et de Fisher, #44) et
-#  position de delta chapeau (au bord, dont bord 0, dont bord 1), taux
-#  simules, qui ne sont pas des reperes de diagnostic ; repere des leviers
-#  2k/T hors des taux simules : les hat values de lm(y ~ x - 1) ne
-#  dependent que de X, fixe dans les replications, et le franchissement est
-#  donc deterministe (le script verifie que la valeur de chaque replication
+#  de restitution R4 (convention, #44 : pente et Fisher restitues en
+#  diagnostic) et position de delta chapeau (au bord, dont bord 0, dont
+#  bord 1), taux simules, qui ne sont pas des reperes de diagnostic ; repere
+#  des leviers 2k/T hors des taux simules : les hat values de lm(y ~ x - 1)
+#  ne dependent que de X, fixe dans les replications, et le franchissement
+#  est donc deterministe (le script verifie que la valeur de chaque replication
 #  est identique a celle du jeu observe, sinon controle d'integrite en
 #  echec) ; T2, classement des lignes de usp_tests().
 #
@@ -156,13 +156,13 @@ ic_cp <- function(k, n) if (n > 0) {
 
 # --- Reperes ---------------------------------------------------------------------
 # cle : identifiant des comptes ; groupe : "diag" (repere d'un diagnostic,
-# tableau T1) ou "regle" (regle d'inoperance ou position de delta chapeau,
-# tableau T1 bis : pas des reperes de diagnostic) ; seuil et source :
+# tableau T1) ou "regle" (regle de restitution R4 ou position de delta
+# chapeau, tableau T1 bis : pas des reperes de diagnostic) ; seuil et source :
 # affiches. Le seuil 4/T est celui que usp_tests() imprime ; 10 % est
 # REPERE_INFLUENCE_SIGMA du moteur ; 20 %, 50 % et 80 % sont les reperes
 # conventionnels des fiches (commentaire de usp_tests(), famille G) ; 1/2 est
-# SEUIL_PUISSANCE_PENTE (regle d'inoperance R4, #44). Le repere 2k/T des
-# leviers est traite a part (deterministe a X fixes, voir l'en-tete).
+# SEUIL_PUISSANCE_PENTE (regle de restitution R4, #44, convention). Le repere
+# 2k/T des leviers est traite a part (deterministe a X fixes, voir l'en-tete).
 LIGNE_COOK  <- "Points influents (distance de Cook)"
 LIGNE_LEV   <- "Leviers (hat values)"
 LIGNE_R2    <- "Coefficient de determination R2"
@@ -183,7 +183,7 @@ REPERES <- list(
   list(cle = "r2", groupe = "diag", libelle = "R\u00b2 de lm(y ~ x) en dessous", seuil = "0,5",
        source = "usp_tests() (d\u00e9tail de la ligne)"),
   list(cle = "pente", groupe = "regle",
-       libelle = "R\u00e8gle d'inop\u00e9rance R4 (seuil de restitution, #44) : Student pente et Fisher restitu\u00e9s en diagnostic",
+       libelle = "R\u00e8gle de restitution R4 (convention, #44) : Student pente et Fisher restitu\u00e9s en diagnostic",
        seuil = "puissance approch\u00e9e < 1/2", source = "SEUIL_PUISSANCE_PENTE (r\u00e8gle R4, #44)"),
   list(cle = "jack10", groupe = "diag", libelle = "Jackknife : \u00e9cart relatif max sur \u03c3_USP au-dessus", seuil = "10 %",
        source = "REPERE_INFLUENCE_SIGMA ; fiche du jackknife"),
@@ -262,7 +262,10 @@ lignes_contexte <- function(ctx) vapply(names(LIBELLES_CONTEXTE), function(k)
 # contexte "leviers".
 tableau_reperes <- function(cpt, groupe) {
   g <- function(n) if (n %in% names(cpt)) cpt[[n]] else 0
-  L <- entete_md(c("Rep\u00e8re", "Seuil", "Source du seuil", "Franchi", "n", "Taux", "IC 95 % (Clopper-Pearson)"))
+  # T1 bis : la regle R4 n'est pas un repere (CONTEXT.md, "Indice
+  # d'identifiabilite de la pente") ; premiere colonne nommee en consequence.
+  L <- entete_md(c(if (identical(groupe, "diag")) "Rep\u00e8re" else "R\u00e8gle ou position",
+                   "Seuil", "Source du seuil", "Franchi", "n", "Taux", "IC 95 % (Clopper-Pearson)"))
   for (r in REPERES) if (identical(r$groupe, groupe)) {
     k <- g(paste0("k|", r$cle)); n <- g(paste0("n|", r$cle))
     L <- c(L, ligne_md(r$libelle, r$seuil, r$source, k, n, pct(k, n), ic_cp(k, n)))
@@ -279,7 +282,7 @@ tableaux <- function(cpt, R, lev) {
          sprintf(paste("Leviers (rep\u00e8re 2k/T, k = 1) : d\u00e9terministe \u00e0 X fix\u00e9s (%s), hors des taux simul\u00e9s ;",
                        "valeur des r\u00e9plications identique \u00e0 celle du jeu observ\u00e9 : %.0f sur %.0f."),
                  lev, g("n|lev_diff") - g("k|lev_diff"), g("n|lev_diff")), "",
-         "### T1 bis -- r\u00e8gle d'inop\u00e9rance R4 et position de \u03b4\u0302 (constat de simulation sous le mod\u00e8le ajust\u00e9 ; pas des rep\u00e8res de diagnostic)", "",
+         "### T1 bis -- r\u00e8gle de restitution R4 et position de \u03b4\u0302 (constat de simulation sous le mod\u00e8le ajust\u00e9 ; pas des rep\u00e8res de diagnostic)", "",
          tableau_reperes(cpt, "regle"), "", note_n, "")
   lignes <- unique(sub("^nl\\|", "", grep("^nl\\|", names(cpt), value = TRUE)))
   types <- c("test", "diagnostic", "non applicable", "procedure de decision")
