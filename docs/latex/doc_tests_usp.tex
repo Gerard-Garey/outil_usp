@@ -3846,8 +3846,8 @@ restituée sans être retenue.
 \midrule
 Student, constante (\ref{fiche:student-constante}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
 TOST, constante (\ref{fiche:tost-constante}) & Sans objet (loi continue) & Non étudiée (valeur de la rubrique~6 sans script versionné) & --- & --- \\
-Student, pente (\ref{fiche:student-pente}) & Sans objet (loi continue) & $\hat\pi_b = 0{,}47$ (contrôle), $1{,}00$ ($\hat\delta$ intérieur)~; diagnostic dans $38{,}0~\%$ et $0{,}0~\%$ des jeux simulés & \code{usp\_identifiabilite\_pente()},\newline \code{tests/taux\_franchissement\_reperes.R} & \code{docs/tableaux/}\newline \code{20260927-issue72-J1.md},\newline \code{docs/tableaux/}\newline \code{20260927-issue72-J2.md} \\
-Fisher global (\ref{fiche:fisher-global}) & Sans objet (loi continue) & $\hat\pi_b = 0{,}47$ (contrôle), $1{,}00$ ($\hat\delta$ intérieur)~; diagnostic dans $38{,}0~\%$ et $0{,}0~\%$ des jeux simulés & \code{usp\_identifiabilite\_pente()},\newline \code{tests/taux\_franchissement\_reperes.R} & \code{docs/tableaux/}\newline \code{20260927-issue72-J1.md},\newline \code{docs/tableaux/}\newline \code{20260927-issue72-J2.md} \\
+Student, pente (\ref{fiche:student-pente}) & Sans objet (loi continue) & $\hat\pi_b = 0{,}47$ (contrôle), $1{,}00$ ($\hat\delta$ intérieur)~; diagnostic dans $38{,}0~\%$ et $0{,}0~\%$ des jeux simulés & \code{usp\_identifiabilite\_pente()},\newline \code{tests/taux\_franchissement\_reperes.R} & \code{docs/tableaux/}\newline \code{20260930-issue122-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue122-J2.md} \\
+Fisher global (\ref{fiche:fisher-global}) & Sans objet (loi continue) & $\hat\pi_b = 0{,}47$ (contrôle), $1{,}00$ ($\hat\delta$ intérieur)~; diagnostic dans $38{,}0~\%$ et $0{,}0~\%$ des jeux simulés & \code{usp\_identifiabilite\_pente()},\newline \code{tests/taux\_franchissement\_reperes.R} & \code{docs/tableaux/}\newline \code{20260930-issue122-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue122-J2.md} \\
 RESET (\ref{fiche:reset}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
 Spearman (\ref{fiche:spearman}) & $2/T! = 4{,}96\cdot 10^{-5}$~; plancher Monte-Carlo $0{,}002$ (bilatéral) & Non étudiée & \code{mk\_p\_min()}, \code{engine\_p\_mc()} & --- \\
 Mann--Kendall (\ref{fiche:mann-kendall}) & $2/T! = 4{,}96\cdot 10^{-5}$~; plancher Monte-Carlo $0{,}002$ (bilatéral) & Non étudiée & \code{mk\_p\_min()}, \code{engine\_p\_mc()} & --- \\
@@ -7837,7 +7837,7 @@ sous le modèle ajusté, mais ne peut pas contredire ce modèle~; aucune loi de 
 niveau n'est attaché aux repères 50~\% / 80~\%, et leur franchissement dépend, sur l'échelle de
 $\sigma_{\mathrm{USP}}$, de la table de l'annexe autant que des données. Ces repères sont des
 conventions propres au projet, sans source. Sous le modèle ajusté (segment~1 de l'annexe~II),
-$L$ dépasse 50~\% dans $49{,}0~\%$ $[46{,}8~;~51{,}2]$ des jeux simulés sur le jeu de contrôle et
+$L$ dépasse 50~\% dans $49{,}0~\%$ $[46{,}8~;~51{,}3]$ des jeux simulés sur le jeu de contrôle et
 $4{,}2~\%$ $[3{,}4~;~5{,}2]$ sur le jeu à $\hat\delta$ intérieur, et 80~\% dans aucun des deux
 ($0{,}0~\%$ $[0{,}0~;~0{,}2]$~; constat de simulation, 2\,000 réplications,
 section~\ref{sec:taux-reperes})~: le repère de 50~\% est franchi une fois sur deux par le modèle
@@ -10784,19 +10784,23 @@ Un repère de diagnostic ne porte aucun verdict (ADR~0001, décision M7 du maint
 Pour que le relecteur sache ce que vaut son franchissement, on a mesuré à quelle fréquence le
 \emph{modèle ajusté lui-même}, pris pour vrai, franchit chaque repère à $T = 8$ (issue~\#72).
 \emph{Protocole}~: script hors CI \code{tests/taux\_franchissement\_reperes.R}~; 2\,000 jeux simulés
-sous le modèle ajusté par \code{usp\_simuler()}, volumes $x_t$ fixés, graine 20260927~; mesure antérieure aux issues~\#63, \#109 et~\#112 (réajustement des
-réplications à un seul démarrage, \code{factr = 1e7}), dont les régimes de $\hat\delta^{*}$
-diffèrent d'environ un point de ceux du moteur actuel (493 contre 490 réplications au bord~1 sur
-le bootstrap de J1, fiche~\ref{fiche:centrage})~; chaque jeu
+sous le modèle ajusté par \code{usp\_simuler()}, volumes $x_t$ fixés, graine 20260927~; mesure
+faite sur le moteur actuel (commit \code{6164237}, 30~septembre 2026, issue~\#122), en quatre
+tranches de 500 réplications combinées, postérieure aux issues~\#63, \#109 et~\#112~; une
+première exécution du 27~septembre 2026 (commit \code{b71c9a8}, antérieure à ces trois issues~:
+réajustement des réplications à un seul démarrage, \code{factr = 1e7}) donnait, sur les mêmes
+2\,000 jeux simulés, des comptes identiques pour tous les repères et toutes les lignes du tableau
+ci-dessous, sauf la largeur de l'intervalle bootstrap au-dessus de 50~\% (980 et 84 réplications
+sur J1 et J2, contre 981 et 85)~; chaque jeu
 traité comme \code{run\_engine()} traite un jeu observé (méthode prime, segment~1 de l'annexe~II,
 données brutes, $\alpha = 0{,}10$~: \code{usp\_ajuster()}, jackknife, \code{usp\_tests()}), l'intervalle
 bootstrap de la réplication $b$ étant calculé sur $B = 999$ tirages, graine $20260831 + b$~; tous
 les tirages sous \code{engine\_sous\_graine()}, générateur \code{ENGINE\_RNG\_KIND}. Deux jeux~: J1,
 le jeu de contrôle ($\hat\delta = 1$, $\hat\pi_t$ constant, volumes de $102$ à $132$), et J2, le jeu
 à $\hat\delta$ intérieur de la section~\ref{sec:verif} ($\hat\delta = 0{,}664$, $\hat\pi_t$ variable,
-volumes de $50$ à $300$). Sorties complètes~: \code{docs/tableaux/20260927-issue72-J1.md} et
-\code{docs/tableaux/20260927-issue72-J2.md}, contrôle d'intégrité contre \code{run\_engine()} réussi
-sur chacun. Les lignes de l'issue~\#45 (rapport de vraisemblance à chacune des deux bornes, largeur de
+volumes de $50$ à $300$). Sorties complètes~: \code{docs/tableaux/20260930-issue122-J1.md} et
+\code{docs/tableaux/20260930-issue122-J2.md}, contrôle d'intégrité contre \code{run\_engine()} réussi
+dans chacune des quatre tranches de chaque jeu. Les lignes de l'issue~\#45 (rapport de vraisemblance à chacune des deux bornes, largeur de
 l'intervalle restreint) ne sont pas reconstruites~; aucun repère n'y porte. \emph{Statut}~: constat de simulation sous le modèle ajusté à chaque jeu, à $T = 8$~;
 les intervalles de Clopper--Pearson à 95~\% ne mesurent que l'incertitude de simulation sur le
 taux, fonction du nombre de jeux simulés, et rien de l'erreur d'approximation en $T$.
@@ -10823,7 +10827,7 @@ source & $70{,}4$ $[68{,}3~;~72{,}4]$ & $56{,}8$ $[54{,}6~;~59{,}0]$ \\
 Jackknife~: $\Delta_{\max} > 20~\%$ & convention du projet, sans source &
 $18{,}1$ $[16{,}5~;~19{,}9]$ & $9{,}2$ $[8{,}0~;~10{,}6]$ \\
 Intervalle bootstrap~: $L > 50~\%$ (fiche~\ref{fiche:ic-bootstrap}) & convention du projet, sans
-source & $49{,}0$ $[46{,}8~;~51{,}2]$ & $4{,}2$ $[3{,}4~;~5{,}2]$ \\
+source & $49{,}0$ $[46{,}8~;~51{,}3]$ & $4{,}2$ $[3{,}4~;~5{,}2]$ \\
 Intervalle bootstrap~: $L > 80~\%$ & convention du projet, sans source &
 $0{,}0$ $[0{,}0~;~0{,}2]$ & $0{,}0$ $[0{,}0~;~0{,}2]$ \\
 \rowcolor{tableheader}
