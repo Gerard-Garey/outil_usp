@@ -6,6 +6,10 @@
 
 <!-- « Aucun », ou un tableau : grandeur / avant / après / explication. -->
 
+## Consultations escaladées
+
+<!-- « Aucune », ou une ligne par escalade (docs/agents/routage.md, § 7) : fiche / modèle / critère déclenché / statut obtenu / suite. -->
+
 ## Contrôles
 
 - [ ] Les tests passent : `Rscript tests/test_reproductibilite.R`
