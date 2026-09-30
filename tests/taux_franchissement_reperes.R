@@ -5,7 +5,8 @@
 #  OUTIL DE MESURE HORS CI : ce script n'est ni une batterie de tests ni un
 #  generateur de references. Il n'est lance ni par la CI, ni par
 #  test_unitaires.R (nom sans prefixe test_), ni par test_reproductibilite.R.
-#  Il n'ecrit aucun fichier : sortie en markdown sur la console (UTF-8).
+#  Sortie en markdown sur la console (UTF-8) ; fichier ecrit SEULEMENT sur
+#  option explicite (--ecrire, --sortie ; #171).
 #  R base + stats (tools::md5sum() pour les empreintes du code, #171 ; tools
 #  est livre avec R).
 #
@@ -93,6 +94,26 @@
 #  Commit : sortie de "git rev-parse HEAD" (suivie de "(arbre de travail
 #  modifie)" si "git status --porcelain --untracked-files=no" n'est pas
 #  vide), "inconnu" si git n'est pas disponible.
+#  --ecrire (--combiner, ou execution d'un seul tenant sans --tranche ; #171,
+#  decision du mainteneur du 30/09/2026) : ecrit la sortie de la console dans
+#  docs/tableaux/<AAAAMMJJ>-issue<N>-<jeu>.md, date du jour, N donne par
+#  --issue N, obligatoire avec --ecrire et --sortie (issue de rattachement :
+#  #122 pour les tableaux regeneres du 30/09/2026, produits par redirection) ;
+#  un fichier cible existant n'est jamais ecrase (refus) ; REFUSE (code 1,
+#  rien d'ecrit) si le commit des tranches, ou celui de la combinaison ou de
+#  l'execution, n'est pas un SHA nu ("(arbre de travail modifie)", "(script
+#  non suivi)" ou "inconnu"), ou si tests/outils_tests.R ou le script
+#  executes sont hors du depot (empreintes). --sortie DOSSIER : meme nom
+#  dans DOSSIER, qui doit etre HORS du depot (refus sous la racine : --ecrire
+#  est le seul chemin qui ecrit dans le depot). T0 : ligne "Versionnable
+#  (--ecrire)" et, pour --combiner, empreintes du combinateur. Aucun fichier
+#  n'est ecrit si le controle d'integrite echoue. La sortie d'une execution
+#  d'un seul tenant porte, comme celle de --combiner, la ligne "Parametres :"
+#  lue par tests/calibration_mc_t8.R (controles (e3) et (e4)).
+#  Fonctions reprises par copie declaree de tests/calibration_mc_t8.R :
+#  plateforme_calcul(), empreintes_code() (copie adaptee),
+#  motifs_non_versionnable(), sous_depot() et ecrire_fichier() (copie
+#  adaptee : nom du fichier, motifs en argument).
 #  Duree mesuree (poste du mainteneur, R 4.3.1, 27/09/2026) : 0,6 a 0,7 s par
 #  replication a --B-ic 999 ; 2 000 replications en 8 tranches : 1 312 s.
 #  Code de sortie : 0 si les controles d'integrite tiennent, 1 sinon ; en
@@ -118,8 +139,26 @@ OPT_B_IC      <- as.integer(lire_option("--B-ic", "999"))
 OPT_JEU       <- lire_option("--jeu", "J1")
 OPT_TRANCHE   <- lire_option("--tranche", NA_character_)
 i_comb <- match("--combiner", ARGS)
-FICHIERS_COMB <- if (is.na(i_comb)) character(0) else ARGS[-seq_len(i_comb)]
+FICHIERS_COMB <- if (is.na(i_comb)) character(0) else {
+  reste <- ARGS[-seq_len(i_comb)]
+  # les options --ecrire, --sortie DOSSIER et --issue N peuvent suivre la liste
+  j <- match(c("--ecrire", "--sortie", "--issue"), reste)
+  fin <- if (all(is.na(j))) length(reste) else min(j, na.rm = TRUE) - 1L
+  reste[seq_len(fin)]
+}
 if (!is.na(i_comb) && !length(FICHIERS_COMB)) stop("--combiner : aucun fichier")
+OPT_ECRIRE <- "--ecrire" %in% ARGS
+OPT_SORTIE <- lire_option("--sortie", NA_character_)
+# --issue N : issue de rattachement du tableau ecrit (nom du fichier),
+# obligatoire avec --ecrire et --sortie, sans valeur par defaut (constat T1
+# d'audit : pas d'ecrasement silencieux des tableaux de #122).
+OPT_ISSUE <- lire_option("--issue", NA_character_)
+if ((OPT_ECRIRE || !is.na(OPT_SORTIE)) && (is.na(OPT_ISSUE) || !grepl("^[1-9][0-9]*$", OPT_ISSUE)))
+  stop("--ecrire et --sortie exigent --issue N (N entier positif, issue de rattachement du tableau)")
+if (OPT_ECRIRE && !is.na(OPT_SORTIE)) stop("--ecrire et --sortie sont exclusifs")
+if ((OPT_ECRIRE || !is.na(OPT_SORTIE)) && !is.na(OPT_TRANCHE))
+  stop("--tranche : sortie partielle, --ecrire et --sortie reserves a --combiner ou a une execution d'un seul tenant")
+if (!is.na(OPT_SORTIE) && !dir.exists(OPT_SORTIE)) stop("--sortie : dossier introuvable : ", OPT_SORTIE)
 if (!OPT_JEU %in% c("J1", "J2")) stop("--jeu : J1 ou J2")
 if (!is.finite(OPT_R) || OPT_R < 1L) stop("--R : entier >= 1")
 
@@ -181,6 +220,57 @@ empreintes_code <- function(script_depot) {
           sprintf("script ex\u00e9cut\u00e9 (%s) %s", lieu(fichier, script_depot), md5(fichier))), collapse = " ; ")
 }
 EMPREINTES <- empreintes_code("tests/taux_franchissement_reperes.R")
+
+# Motifs qui interdisent --ecrire (tableau versionne) : commit non propre ou
+# code hors du depot ; quoi : "des tranches", "de la combinaison" ou "de
+# l'execution" (copie de tests/calibration_mc_t8.R).
+motifs_non_versionnable <- function(commit, empreintes, quoi = "des tranches") {
+  m <- character(0)
+  if (!grepl("^[0-9a-f]{40}$", commit))
+    m <- c(m, sprintf("commit %s \u00ab %s \u00bb (arbre de travail modifi\u00e9, script non suivi ou git indisponible)", quoi, commit))
+  if (grepl("hors d\u00e9p\u00f4t", empreintes, fixed = TRUE))
+    m <- c(m, sprintf("tests/outils_tests.R ou script ex\u00e9cut\u00e9s %s hors du d\u00e9p\u00f4t", quoi))
+  m
+}
+# Chemin (existant) sous la racine du depot (copie de tests/calibration_mc_t8.R) :
+# --sortie doit viser hors du depot ; --ecrire est le seul chemin qui ecrit
+# dans le depot.
+sous_depot <- function(chemin) {
+  d <- normalizePath(chemin, mustWork = TRUE); r <- normalizePath(RACINE, mustWork = TRUE)
+  identical(d, r) || startsWith(d, paste0(r, .Platform$file.sep))
+}
+if (!is.na(OPT_SORTIE) && sous_depot(OPT_SORTIE))
+  stop("--sortie : dossier sous le depot refuse (--ecrire est le seul chemin qui ecrit dans le depot) : ", OPT_SORTIE)
+# Ecriture du tableau (--ecrire ou --sortie) ; nv : motifs de non-versionnement
+# (--ecrire refuse, code 1, rien d'ecrit, s'il y en a).
+DATE_SORTIE <- format(Sys.Date(), "%Y%m%d")
+# Fichier cible ; refus (code 1) s'il existe deja : jamais d'ecrasement
+# (constat T1 d'audit). Verifie des le debut, avant tout calcul, et de
+# nouveau au moment d'ecrire.
+cible_fichier <- function(jeu) {
+  dossier <- if (OPT_ECRIRE) file.path(RACINE, "docs", "tableaux") else OPT_SORTIE
+  f <- file.path(dossier, sprintf("%s-issue%s-%s.md", DATE_SORTIE, OPT_ISSUE, jeu))
+  if (file.exists(f)) {
+    message("--ecrire / --sortie refuse : fichier existant, jamais ecrase : ", f)
+    quit(status = 1L)
+  }
+  f
+}
+ecrire_fichier <- function(jeu, lignes, nv) {
+  if (!OPT_ECRIRE && is.na(OPT_SORTIE)) return(invisible(NULL))
+  if (OPT_ECRIRE && length(nv)) {
+    message("--ecrire refuse (tableau versionne dans docs/tableaux/) : ", paste(nv, collapse = " ; "),
+            " -- aucun fichier ecrit ; relancer sur un arbre propre, ou --sortie DOSSIER hors du depot")
+    quit(status = 1L)
+  }
+  f <- cible_fichier(jeu)
+  con <- file(f, open = "wb")
+  writeLines(enc2utf8(lignes), con, useBytes = TRUE)
+  close(con)
+  message("\u00e9crit : ", f)
+}
+if ((OPT_ECRIRE || !is.na(OPT_SORTIE)) && !length(FICHIERS_COMB)) invisible(cible_fichier(OPT_JEU))
+txt_versionnable <- function(nv) if (length(nv)) paste("non :", paste(nv, collapse = " ; ")) else "oui"
 
 # Console en UTF-8 quelle que soit la locale (meme definition que
 # tests/comparer_ajusteurs_bootstrap.R).
@@ -364,7 +454,14 @@ if (length(FICHIERS_COMB)) {
   cles <- unique(unlist(lapply(parts, function(p) names(p$comptes))))
   cpt <- stats::setNames(vapply(cles, function(k) sum(vapply(parts, function(p)
     if (k %in% names(p$comptes)) p$comptes[[k]] else 0, numeric(1))), numeric(1)), cles)
-  ecrire_console(c(sprintf("## Taux de franchissement des rep\u00e8res -- combinaison de %d tranche(s)", length(parts)), "",
+  if (OPT_ECRIRE || !is.na(OPT_SORTIE)) invisible(cible_fichier(sub("^jeu=(J[12]);.*$", "\\1", par)))
+  commit_comb <- commit_depot()
+  nv <- c(motifs_non_versionnable(ctx[["commit"]], ctx[["empreintes"]]),
+          motifs_non_versionnable(commit_comb, EMPREINTES, "de la combinaison"))
+  if (OPT_ECRIRE && length(nv))
+    refuser("--ecrire refuse (tableau versionne dans docs/tableaux/) : ", paste(nv, collapse = " ; "),
+            " -- relancer sur un arbre propre, ou utiliser --sortie DOSSIER hors du depot")
+  sortie <- c(c(sprintf("## Taux de franchissement des rep\u00e8res -- combinaison de %d tranche(s)", length(parts)), "",
                    sprintf("Param\u00e8tres : %s", par), "",
                    "### T0 -- contexte (identique dans toutes les tranches, v\u00e9rifi\u00e9)", "",
                    entete_md(c("Grandeur", "Valeur")),
@@ -372,9 +469,13 @@ if (length(FICHIERS_COMB)) {
                    ligne_md("R\u00e9plications", sprintf("%d (%d tranche(s) : %s)", R_tot, length(parts),
                                                           paste(vapply(parts, function(p) sprintf("%d-%d", p$debut, p$fin), ""),
                                                                 collapse = ", "))),
-                   ligne_md("Commit de la combinaison", commit_depot()),
-                   ligne_md("Contr\u00f4le d'int\u00e9grit\u00e9", sprintf("OK dans les %d tranche(s) (agr\u00e9g\u00e9 : OK)", length(parts))), ""))
-  ecrire_console(tableaux(cpt, R_tot, ctx[["leviers"]]))
+                   ligne_md("Commit de la combinaison", commit_comb),
+                   ligne_md("Empreintes md5 du combinateur", EMPREINTES),
+                   ligne_md("Versionnable (--ecrire)", txt_versionnable(nv)),
+                   ligne_md("Contr\u00f4le d'int\u00e9grit\u00e9", sprintf("OK dans les %d tranche(s) (agr\u00e9g\u00e9 : OK)", length(parts))), ""),
+              tableaux(cpt, R_tot, ctx[["leviers"]]))
+  ecrire_console(sortie)
+  ecrire_fichier(sub("^jeu=(J[12]);.*$", "\\1", par), sortie, nv)
   quit(status = 0L)
 }
 
@@ -550,19 +651,23 @@ CTX <- c(
   hors_perimetre = paste0(paste0("\"", LIGNES_HORS_PERIMETRE, "\"", collapse = " ; "),
                           " : exclues du contr\u00f4le d'int\u00e9grit\u00e9 et de T2, aucun rep\u00e8re n'y porte"))
 stopifnot(identical(names(CTX), names(LIBELLES_CONTEXTE)))
+NV <- motifs_non_versionnable(CTX[["commit"]], EMPREINTES, "de l'ex\u00e9cution")
 L0 <- c("## Taux de franchissement des rep\u00e8res des diagnostics sous le mod\u00e8le ajust\u00e9 (issue #72)", "",
+        sprintf("Param\u00e8tres : %s", PAR), "",
         "### T0 -- contexte", "",
         entete_md(c("Grandeur", "Valeur")),
         lignes_contexte(CTX),
         ligne_md("R\u00e9plications", sprintf("%d (trait\u00e9es : %d \u00e0 %d)", OPT_R, DEBUT, FIN)),
         ligne_md("Dur\u00e9e (s)", sprintf("contr\u00f4le %.1f ; r\u00e9plications %.1f ; total %.1f", t_controle, t_rep,
                                           as.numeric(difftime(Sys.time(), t_debut, units = "secs")))),
+        ligne_md("Versionnable (--ecrire)", if (!is.na(OPT_TRANCHE)) "non : tranche (tableaux partiels)" else txt_versionnable(NV)),
         ligne_md("Contr\u00f4le d'int\u00e9grit\u00e9", if (length(integrite)) "\u00c9CHEC" else "OK"), "")
-ecrire_console(L0)
-if (!is.na(OPT_TRANCHE))
-  ecrire_console(c("Tableaux PARTIELS (une tranche) : combiner les sorties des K tranches par --combiner.", ""))
-ecrire_console(tableaux(cpt, FIN - DEBUT + 1L, CTX[["leviers"]]))
-if (length(integrite)) ecrire_console(c("Contr\u00f4le d'int\u00e9grit\u00e9 : \u00c9CHEC", paste("-", integrite), ""))
+SORTIE <- c(L0,
+            if (!is.na(OPT_TRANCHE)) c("Tableaux PARTIELS (une tranche) : combiner les sorties des K tranches par --combiner.", ""),
+            tableaux(cpt, FIN - DEBUT + 1L, CTX[["leviers"]]),
+            if (length(integrite)) c("Contr\u00f4le d'int\u00e9grit\u00e9 : \u00c9CHEC", paste("-", integrite), ""))
+ecrire_console(SORTIE)
+if (!length(integrite) && is.na(OPT_TRANCHE)) ecrire_fichier(OPT_JEU, SORTIE, NV)
 if (!is.na(OPT_TRANCHE))
   ecrire_console(c(paste0("PARAMETRES\t", PAR), sprintf("TRANCHE\t%d\t%d", DEBUT, FIN),
                    sprintf("CONTEXTE\t%s\t%s", names(CTX), CTX),
