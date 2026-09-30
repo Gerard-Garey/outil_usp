@@ -183,8 +183,11 @@ verifier("engine_valider_profondeur : annexe XVII citee si T_min >= 5 seulement 
 # Defaut releve par audit (audit leger de #33) : des donnees finies et
 # strictement positives mais a l'echelle extreme passaient la validation et
 # faisaient lever une erreur R en cours de calcul (xt x 1e298 : lm.fit() de
-# test_white(), regresseur x^2 infini ; yt x 1e-300 : test logique sur NA
-# dans le detail de la distance de Cook). Decision du mainteneur (26/09/2026)
+# test_white(), regresseur x^2 infini, jusqu'a l'issue #110 ; yt x 1e-300 :
+# test logique sur NA dans le detail de la distance de Cook). Depuis #110,
+# RESET et White regressent sur la base reduite s = (x - moyenne) / etendue :
+# xt x 1e298 et xt x 1e200 aboutissent (ok = TRUE, residus z egaux a ceux de
+# l'echelle 1). Decision du mainteneur (26/09/2026)
 # : filet limite au calcul qui suit une validation reussie ; l'erreur y est
 # un DEFAUT DE CALCUL INTERCEPTE (ok = FALSE, motif neutre, diagnostic dans
 # validation$erreur_r) ; les erreurs d'usage restent des erreurs R. Aucun
@@ -194,9 +197,8 @@ MOTIF_DEFAUT <- "Defaut de calcul intercepte"
 calcul_extreme <- function(xt, yt) suppressWarnings(
   run_engine(xt = xt, yt = yt, methode = "premium", segment = 1, B = B_MIN_USAGE,
              nature_donnees = "brutes"))
-verifier("run_engine : xt x 1e298, xt x 1e200, yt x 1e-300, xt et yt x 1e-300 -> ok = FALSE, defaut intercepte, sans erreur R (#88)",
-         all(vapply(list(list(x * 1e298, y), list(x * 1e200, y), list(x, y * 1e-300),
-                         list(x * 1e-300, y * 1e-300)), function(d) {
+verifier("run_engine : yt x 1e-300, xt et yt x 1e-300 -> ok = FALSE, defaut intercepte, sans erreur R (#88)",
+         all(vapply(list(list(x, y * 1e-300), list(x * 1e-300, y * 1e-300)), function(d) {
            r <- tryCatch(calcul_extreme(d[[1]], d[[2]]), error = function(e) e)
            er <- r$validation$erreur_r
            !inherits(r, "error") && identical(r$ok, FALSE) && inherits(r, "usp_engine") &&
@@ -206,19 +208,26 @@ verifier("run_engine : xt x 1e298, xt x 1e200, yt x 1e-300, xt et yt x 1e-300 ->
              is.character(er$origine) && length(er$origine) == 1L && er$origine %in% er$pile &&
              identical(r$methode, "premium") && identical(r$metadata$methode, "premium")
          }, logical(1))))
+verifier("run_engine : xt x 1e298 et xt x 1e200 -> ok = TRUE, residus z egaux a ceux de l'echelle 1 (base reduite de RESET et White, #110)",
+         {
+           z1 <- calcul_extreme(x, y)$ajustement$z
+           all(vapply(c(1e298, 1e200), function(cc) {
+             r <- tryCatch(calcul_extreme(x * cc, y), error = function(e) e)
+             !inherits(r, "error") && identical(r$ok, TRUE) &&
+               isTRUE(all.equal(r$ajustement$z, z1))
+           }, logical(1)))
+         })
 # Origine = derniere fonction de la pile definie dans le moteur. yt x 1e-300 :
 # l'erreur nait du if (any(ck > 4 / T)) ecrit dans usp_tests(), passe en
 # argument de sprintf() dans add() et evalue paresseusement dans le cadre de
 # sprintf() ; add() est une fermeture creee par engine_registre_tests(), non
 # une fonction de l'environnement du moteur : l'origine est usp_tests.
-# xt x 1e298 : l'erreur nait dans lm.fit() (stats) appele par test_white().
-verifier("run_engine : origine reelle de l'erreur, fonction du moteur (xt x 1e298 : test_white, pile jusqu'a lm.fit ; yt x 1e-300 : usp_tests, pile usp_tests > add > sprintf)",
+# Plus de scenario connu d'erreur nee dans une fonction de test appelee par
+# le bootstrap (xt x 1e298, lm.fit() dans test_white(), resolu par #110).
+verifier("run_engine : origine reelle de l'erreur, fonction du moteur (yt x 1e-300 : usp_tests, pile usp_tests > add > sprintf)",
          {
-           a <- calcul_extreme(x * 1e298, y)$validation
            b <- calcul_extreme(x, y * 1e-300)$validation
-           a$erreur_r$origine == "test_white" && a$erreur_r$pile[length(a$erreur_r$pile)] == "lm.fit" && all(c("usp_bootstrap", "test_white", "stats::lm") %in% a$erreur_r$pile) &&
-             contient(a$erreurs, "(erreur R dans test_white())") &&
-             identical(b$erreur_r$pile, c("usp_tests", "add", "sprintf")) &&
+           identical(b$erreur_r$pile, c("usp_tests", "add", "sprintf")) &&
              identical(b$erreur_r$origine, "usp_tests") &&
              contient(b$erreurs, "(erreur R dans usp_tests())")
          })
@@ -232,7 +241,7 @@ verifier("run_engine : generateur et graine de l'appelant restaures apres un def
            kind0 <- RNGkind()
            suppressWarnings(RNGkind("Wichmann-Hill", "Box-Muller", "Rounding"))
            set.seed(7); avant <- .Random.seed; k_avant <- RNGkind()
-           r <- calcul_extreme(x * 1e298, y)
+           r <- calcul_extreme(x, y * 1e-300)
            ok <- identical(r$ok, FALSE) && identical(.Random.seed, avant) &&
              identical(RNGkind(), k_avant)
            suppressWarnings(RNGkind(kind0[1], kind0[2], kind0[3]))
@@ -241,9 +250,9 @@ verifier("run_engine : generateur et graine de l'appelant restaures apres un def
 verifier("run_engine : options(usp.engine.lever_erreurs = TRUE) releve l'erreur au lieu de l'intercepter",
          {
            ancien <- options(usp.engine.lever_erreurs = TRUE)
-           leve <- leve_erreur(calcul_extreme(x * 1e298, y))
+           leve <- leve_erreur(calcul_extreme(x, y * 1e-300))
            options(ancien)
-           leve && identical(calcul_extreme(x * 1e298, y)$ok, FALSE)
+           leve && identical(calcul_extreme(x, y * 1e-300)$ok, FALSE)
          })
 verifier("run_engine, Merz-Wuthrich : erreur dans le calcul apres mw_valider_triangle() -> defaut intercepte (reserve2)",
          {

@@ -129,7 +129,9 @@
 #  ou usp_b a la longueur de boot$sigma_boot (replications bootstrap FINIES
 #  seulement, usp_bootstrap()), puis fit$largeur_ic <- NULL si ic est NULL,
 #  et usp_tests() n'ajoute la ligne "Largeur relative de l'IC bootstrap 90%"
-#  (famille G.) que si fit$largeur_ic n'est pas NULL. Mesure sur
+#  (famille G.) que si fit$largeur_ic n'est pas NULL (meme regle, issue #45,
+#  pour la ligne de l'IC restreint, sur boot$sigma_boot_restreint, de
+#  longueur celle de boot$sigma_boot moins boot$n_echec_restreint). Mesure sur
 #  tests/donnees/ : 47 lignes pour premium et reserve1 a B = 19 et 20, 48 a
 #  B = 21 et 22 ; reserve2 : 19 lignes a B = 19, 20, 21, 22 (mesure faite
 #  avant le seuil B_MIN_USAGE). run_engine() refuse desormais tout

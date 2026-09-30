@@ -1238,9 +1238,6 @@ server <- function(input, output, session) {
     if (!is.na(gen["seed_loi_nulle_sw"]))
       cat("Graine loi nulle SW  :", gen[["seed_loi_nulle_sw"]],
           "(loi nulle de Shapiro-Wilk)\n")
-    if (!is.na(gen["seed_enveloppe_qq"]))
-      cat("Graine enveloppe QQ  :", gen[["seed_enveloppe_qq"]],
-          "(enveloppe du QQ-plot)\n")
     cat("Horodatage           :", format(m$horodatage, "%Y-%m-%d %H:%M:%S"), "\n")
     cat("Duree (s)            :", round(m$duree_sec, 2), "\n")
     cat("Version R            :", m$version_R, "\n")

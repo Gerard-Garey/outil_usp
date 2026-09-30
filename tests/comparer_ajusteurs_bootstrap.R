@@ -19,6 +19,9 @@
 #         (0, gamma_obs), (1, gamma_obs), dans cet ordre, objectif minimal
 #         retenu avec la regle du premier a moins de 1e-10 (celle de
 #         usp_ajuster()).
+#  Depuis #109, usp_ajuster_rapide() porte elle-meme ces trois demarrages :
+#  R est le correctif R3 du moteur, et R3 ci-dessus le rejoue depuis chacun
+#  des trois points (neuf demarrages), comme controle croise.
 #  Le reajustement ne consomme aucun alea (L-BFGS-B deterministe) : la suite
 #  des yb est celle du moteur, verifiee par le controle d'integrite S5
 #  (identical() avec usp_bootstrap() et run_engine()).
@@ -446,8 +449,12 @@ for (nj in JEUX_RETENUS) {
         b$granularite_stat <- pm[[a]]$granularite
         b[c("sigma_boot", "delta_boot", "gamma_boot")] <- vX[[a]]
         f$largeur_ic <- larg[[a]]
+        # lr_delta : repris tel quel de run_engine() (res$lr_delta, issue #45)
+        # pour les trois ajusteurs, comme run_engine() le passe a usp_tests() ;
+        # son bootstrap restreint (usp_lr_delta(), flux propre) reajuste par
+        # usp_ajuster_rapide() seul et n'entre pas dans la comparaison.
         usp_tests(f, b, md$alpha, theta_equiv = md$theta_equiv, delta_equiv = md$delta_equiv,
-                  robustesse = rob, methode = md$methode)
+                  robustesse = rob, methode = md$methode, lr_delta = res$lr_delta)
       }
       tR <- tests_de("R")
       if (OPT_B == 999L && OPT_GRAINE == 20260831 && !identical(tR, res$tests))

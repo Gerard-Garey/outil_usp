@@ -329,8 +329,17 @@ verifier("Runsr (#29) : pi_constant vrai mais signes differents (bande de tolera
 # centrales distantes de 1 ulp relatif ; r_5 - med(r) vaut 0 exactement,
 # u_5 - med(u) vaut un negatif apres le centrage par la moyenne. La
 # condition porte sur u, le vecteur teste : avec z = u elle tient, avec
-# z = r (signes de r) elle tombe.
-verifier("Runsr (#29) : condition de signes sur u = r - moyenne(r), non sur r (divergence flottante)",
+# z = r (signes de r) elle tombait avant #112. Depuis #112, les deux valeurs
+# centrales, distantes de 1 ulp, sont ex aequo a TOL_EX_AEQUO : aplaties
+# dans .signes_mediane_egaux() et runs_p_exacte(), elles sont ecartees sur r
+# comme sur u, la divergence flottante disparait et la condition tient
+# (mesure du 29/09/2026 : avant #112, usp_runsr_p_exacte(r, u, TRUE) = NA et
+# runs_p_exacte(u) = 0,743 ; apres, 0,2 et 0,2).
+# A TOL_EX_AEQUO = 1e-12, .signes_mediane_egaux() devient un garde-fou sans
+# exemple flottant connu (la divergence de signes par le centrage n'excede
+# pas quelques ulp) ; il reste exerce par le test "mutation 2" (signes
+# decales, zp) et par le cas construit f29_bande (ecart de 1e-10) ci-dessus.
+verifier("Runsr (#29, #112) : divergence flottante r / u de 1 ulp absorbee par l'aplatissement des ex aequo",
          {
            r <- c(0.53089313523378223, 0.60298728744965047, 0.58827837626449764,
                   0.8435114233288914, 0.69205185910686851, 0.88492070999927819,
@@ -338,7 +347,9 @@ verifier("Runsr (#29) : condition de signes sur u = r - moyenne(r), non sur r (d
            u <- r - mean(r)
            sr <- sign(r - stats::median(r)); su <- sign(u - stats::median(u))
            if (all(sr == su)) "cas non discriminant sur cette plateforme : signes de r et u egaux"
-           else is.na(usp_runsr_p_exacte(r, u, TRUE)) &&
+           else engine_ex_aequo(r) && engine_ex_aequo(u) &&
+             .signes_mediane_egaux(r, u) &&
+             isTRUE(proche(usp_runsr_p_exacte(r, u, TRUE), runs_p_exacte(u), abs = 0)) &&
              isTRUE(proche(usp_runsr_p_exacte(u, u, TRUE), runs_p_exacte(u), abs = 0))
          })
 # Cas de bout en bout a volumes constants (pi_t exactement constant quel que
