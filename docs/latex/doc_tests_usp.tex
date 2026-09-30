@@ -3125,7 +3125,7 @@ $\Delta$ fixée a priori & --- &
 Sans objet & \textbf{Sous le modèle auxiliaire MCO}~: loi $t$ exacte ($\Delta$ a priori) ou
 d'exactitude approchée ($\Delta = \theta\bar y$) &
 Sans objet : aucune loi asymptotique employée & \textbf{Seul test fournissant une preuve positive} de
-proportionnalité ; fixer $\Delta$ a priori. Puissance de 46~\% seulement à $T=8$ \\
+proportionnalité ; fixer $\Delta$ a priori. Sa capacité à conclure dépend du plan de volumes (levier de l'origine $\bar x^{\,2}/S_{xx}$) autant que de $T$~: nulle sur le jeu de contrôle, $21~\%$ sur le jeu à $\hat\delta$ intérieur (constat~C3, fiche~\ref{fiche:tost-constante}) \\
 
 Student, pente & LN & $t_b$ & Sous le modèle auxiliaire MCO seulement & --- & Non (voir texte) &
 Sous le modèle auxiliaire MCO (loi $t$)~; \textbf{diagnostic} si $\hat\pi_b < 1/2$ (règle~R4) &
@@ -3822,6 +3822,38 @@ K2 et K3, échantillons $\mathcal{N}(0,1)$ standardisés par la moyenne et l'éc
 référence K0, paramètres connus. Statut~: \emph{constat de simulation} du niveau d'une p-value
 restituée sans être retenue.
 
+\noindent\emph{Constats de l'issue~\#118} (même script, parties \code{tost} et \code{normalite},
+commit \code{9576bf6}, R~4.3.3 sous Linux, générateur du moteur~; sorties
+\code{docs/tableaux/}\newline \code{20260930-issue118-tost.md} et
+\code{docs/tableaux/}\newline \code{20260930-issue118-normalite.md}). \emph{C3, probabilité de
+conclure de la TOST}~: 20\,000 jeux simulés par \code{usp\_simuler()} au modèle ajusté à chacun des
+jeux J1 et J2 (volumes fixés, sans réajustement), graines 20260930 (J1) et 20260931 (J2)~;
+p-value de \code{test\_tost\_intercept()} avec $\theta = 0{,}10$, la marge relative étant
+recalculée sur chaque jeu simulé (valeur par défaut de \code{run\_engine()})~; conclusion
+d'équivalence si $p < \alpha$, pour $\alpha = 0{,}10$ et $0{,}05$~; contrôles~: p-value égale à celle de
+la ligne TOST de \code{run\_engine()} sur le jeu observé et sur le premier jeu simulé, conclusion
+équivalente, jeu par jeu, à la condition $\Delta - |\hat a| > t_{1-\alpha,\,T-2}\,
+\widehat{\mathrm{se}}(\hat a)$ (fiche~\ref{fiche:tost-constante}). Statut~: \emph{constat de
+simulation sous le modèle réglementaire ajusté}, la constante $a = 0$ étant vraie~; il décrit une
+propriété du plan de volumes du jeu, non du seul $T$. \emph{C4, niveau et puissance de
+Shapiro--Wilk et de l'asymétrie de D'Agostino}~: 20\,000 échantillons i.i.d. de taille~8 par loi
+(et de taille~20 pour D'Agostino), nombres aléatoires communs (une même matrice d'uniformes,
+transformée par la fonction quantile de chaque loi), graines 20260932 ($T = 8$) et 20260933
+($T = 20$)~; lois $\mathcal{N}(0,1)$ (niveau), de Student à 5 et à 3 degrés de liberté,
+exponentielle de paramètre~1 et lognormale de paramètres $(0~;~0{,}5)$~; $W$ par
+\code{.shapiro\_sur()}, p-value par \code{sw\_p\_loi\_nulle()} et par la normalisation de Royston,
+$Z$ et p-value normale approchée par \code{test\_dagostino\_skew()}~; rejet si $p < \alpha$, pour
+$\alpha = 0{,}10$ et $0{,}05$~; contrôles~: invariance de $W$, de $Z$ et de leurs p-values par
+transformation affine croissante, transcription contre \code{run\_engine()} sur J1. Statut~:
+\emph{constat de simulation, hors modèle réglementaire}, sous des alternatives choisies. Portée~:
+$W$ et $Z$ étant invariantes par transformation affine croissante, et les $z_t$ étant une telle
+transformation des log-ratios à $\hat\pi_t$ constant, la mesure vaut exactement pour les p-values
+calculées sur la loi nulle simulée et sur les approximations de Royston et normale, quand les
+log-ratios sont i.i.d. de la loi indiquée et $\hat\pi_t$ constant~; elle n'est qu'approchée pour
+les p-values de Monte-Carlo retenues par le moteur, et ne s'applique pas à $\hat\pi_t$ variable.
+Les intervalles de Clopper--Pearson à 95~\% de C3 et C4 mesurent l'incertitude de simulation,
+fonction du nombre de réplications, et rien de l'erreur d'approximation en $T$.
+
 \noindent\emph{Puissance sous le modèle ajusté (issue~\#116)} (script \code{tests/puissance\_t8.R},
 commit \code{bee126d}, R~4.3.3 sous Linux, générateur du moteur~; sorties
 \code{docs/tableaux/}\newline \code{20260930-issue116-exact-J1.md} pour le volet~A,
@@ -3909,7 +3941,7 @@ source.
 \multicolumn{5}{@{}l@{}}{\textbf{Méthode lognormale}} \\
 \midrule
 Student, constante (\ref{fiche:student-constante}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
-TOST, constante (\ref{fiche:tost-constante}) & Sans objet (loi continue) & Non étudiée (valeur de la rubrique~6 sans script versionné) & --- & --- \\
+TOST, constante (\ref{fiche:tost-constante}) & Sans objet (loi continue) & Probabilité de conclure sous le modèle ajusté ($\alpha = 0{,}10$, C3)~: $0{,}0~\%$ (contrôle), $21{,}1~\%$ ($\hat\delta$ intérieur) & \code{test\_tost\_intercept()},\newline \code{tests/constats\_puissance\_t8.R} & \code{docs/tableaux/}\newline \code{20260930-issue118-tost.md} \\
 Student, pente (\ref{fiche:student-pente}) & Sans objet (loi continue) & $\hat\pi_b = 0{,}47$ (contrôle), $1{,}00$ ($\hat\delta$ intérieur)~; diagnostic dans $38{,}0~\%$ et $0{,}0~\%$ des jeux simulés & \code{usp\_identifiabilite\_pente()},\newline \code{tests/taux\_franchissement\_reperes.R} & \code{docs/tableaux/}\newline \code{20260930-issue122-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue122-J2.md} \\
 Fisher global (\ref{fiche:fisher-global}) & Sans objet (loi continue) & $\hat\pi_b = 0{,}47$ (contrôle), $1{,}00$ ($\hat\delta$ intérieur)~; diagnostic dans $38{,}0~\%$ et $0{,}0~\%$ des jeux simulés & \code{usp\_identifiabilite\_pente()},\newline \code{tests/taux\_franchissement\_reperes.R} & \code{docs/tableaux/}\newline \code{20260930-issue122-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue122-J2.md} \\
 RESET (\ref{fiche:reset}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
@@ -3922,15 +3954,15 @@ White (\ref{fiche:white}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéra
 Goldfeld--Quandt (\ref{fiche:goldfeld-quandt}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
 Brown--Forsythe (\ref{fiche:brown-forsythe}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
 Smirnov (\ref{fiche:smirnov}) & $2/70 = 0{,}0286$~; plancher Monte-Carlo $0{,}001$ (unilatéral) & Verdict binaire à $T = 8$~; volet~A ($\alpha = 0{,}10$)~: niveau $0{,}028$~; AR(1) $\rho = 0{,}5$~; $0{,}9$~: $0{,}108$~; $0{,}245$~; tendance, rupture de 2 écarts-types~: $0{,}151$~; $0{,}491$, décalage entre groupes de volume~; contre la variance par volume, limite $2/16$ & \code{smirnov\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/puissance\_t8.R} & \code{docs/tableaux/}\newline \code{20260930-issue116-exact-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J2.md} \\
-Shapiro--Wilk (\ref{fiche:shapiro-wilk}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
-Shapiro--Wilk sans Royston (\ref{fiche:shapiro-wilk-sans-royston}) & Plancher de la loi nulle simulée $1/20\,001 \approx 5{,}0\cdot 10^{-5}$ & Non étudiée & \code{sw\_p\_loi\_nulle()} & --- \\
+Shapiro--Wilk (\ref{fiche:shapiro-wilk}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & C4, i.i.d., $\alpha = 0{,}10$, p-value de Royston~: niveau $10{,}2~\%$~; Student à 3 degrés de liberté $21{,}7~\%$, exponentielle $45{,}5~\%$, lognormale $27{,}7~\%$ & \code{engine\_p\_mc()}, \code{.shapiro\_sur()},\newline \code{tests/constats\_puissance\_t8.R} & \code{docs/tableaux/}\newline \code{20260930-issue118-normalite.md} \\
+Shapiro--Wilk sans Royston (\ref{fiche:shapiro-wilk-sans-royston}) & Plancher de la loi nulle simulée $1/20\,001 \approx 5{,}0\cdot 10^{-5}$ & C4, i.i.d., $\alpha = 0{,}10$~: niveau $10{,}4~\%$~; Student à 3 degrés de liberté $21{,}8~\%$, exponentielle $45{,}8~\%$, lognormale $27{,}9~\%$ & \code{sw\_p\_loi\_nulle()}, \code{.shapiro\_sur()},\newline \code{tests/constats\_puissance\_t8.R} & \code{docs/tableaux/}\newline \code{20260930-issue118-normalite.md} \\
 Shapiro--Francia (\ref{fiche:shapiro-francia}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
 Anderson--Darling (\ref{fiche:anderson-darling}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
 Cramér--von Mises (\ref{fiche:cramer-von-mises}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
 Kolmogorov--Smirnov (\ref{fiche:kolmogorov-smirnov}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée~; niveau de la formule de Kolmogorov~: 0/3\,000 (paramètres estimés), $3{,}2~\%$ (connus) & \code{engine\_p\_mc()},\newline \code{tests/constats\_puissance\_t8.R} & \code{docs/tableaux/}\newline \code{20260927-issue114-constats-puissance.md} \\
 Lilliefors (\ref{fiche:lilliefors}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
 Jarque--Bera (\ref{fiche:jarque-bera}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
-D'Agostino (asymétrie) (\ref{fiche:dagostino-asymetrie}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+D'Agostino (asymétrie) (\ref{fiche:dagostino-asymetrie}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & C4, i.i.d., $\alpha = 0{,}10$, p-value normale approchée~: niveau $10{,}6~\%$ à $T = 8$ (légèrement libéral)~; exponentielle $39{,}5~\%$ à $T = 8$, $80{,}8~\%$ à $T = 20$ & \code{engine\_p\_mc()}, \code{test\_dagostino\_skew()},\newline \code{tests/constats\_puissance\_t8.R} & \code{docs/tableaux/}\newline \code{20260930-issue118-normalite.md} \\
 Anscombe--Glynn (\ref{fiche:anscombe-glynn-aplatissement}) & Sans objet ($T < 20$) & Non applicable à $T = 8$ & \code{usp\_tests()} & --- \\
 Durbin--Watson (\ref{fiche:durbin-watson}) & Sans objet ($\hat\pi_t$ constant)~; plancher Monte-Carlo $0{,}002$ (bilatéral) sinon & AR(1), par Imhof ($\alpha = 0{,}10$)~: $0{,}2624$~; $0{,}5326$ ($\rho = 0{,}5$~; $0{,}9$), confirmé par le volet~A et par C1~; volet~A, tendance, rupture de 2 écarts-types~: $0{,}266$~; $0{,}369$~; volet~B (p-value retenue, J1 et J2) dans les fichiers & \code{dw\_p\_exacte()}, \code{.imhof\_p\_sup0()}, \code{engine\_p\_mc()},\newline \code{tests/puissance\_t8.R},\newline \code{tests/constats\_puissance\_t8.R} & \code{docs/tableaux/}\newline \code{20260930-issue116-exact-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20260927-issue114-constats-puissance.md} \\
 Ljung--Box, Box--Pierce (\ref{fiche:ljung-box}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
@@ -4345,7 +4377,7 @@ Breusch--Pagan studentisé (Koenker) & Breusch--Pagan original (1979) &
 La forme originale suppose la normalité des erreurs, hypothèse non acquise
 à $T = 8$~; elle sur-rejette fortement sur queues lourdes. \\
 Shapiro--Wilk (Royston) & Shapiro--Wilk à loi nulle simulée &
-Les deux concordent à $T = 8$ (4,95~\% contre 5,05~\%). La forme de Royston est
+Les deux concordent à $T = 8$ (5,08~\% contre 5,04~\% au seuil de 5~\%, constat~C4, fiche~\ref{fiche:shapiro-wilk-sans-royston}). La forme de Royston est
 retenue comme référence parce qu'elle est celle de \code{shapiro.test()}, donc
 la plus immédiatement vérifiable. \\
 Lilliefors & Kolmogorov--Smirnov contre $\mathcal{N}(0,1)$ &
@@ -4599,12 +4631,18 @@ inatteignable depuis \code{run\_engine()}, dont la validation refuse en amont to
 domaine~; elle ne sert plus qu'à un appel direct de la fonction.
 \Usage
 C'est le seul test du dispositif qui puisse fournir une \emph{preuve positive} de la
-proportionnalité exigée par l'annexe~XVII. Sa limite est celle de tous les tests à $T = 8$~: la
-puissance est faible. Une étude de simulation sous $a = 0$ avec $\theta = 10\,\%$ donne une
-probabilité de conclure à l'équivalence de 46~\% à $T = 8$, 80~\% à $T = 15$ et 98~\% à
-$T = 30$. Autrement dit, à $T = 8$, l'échec à démontrer l'équivalence est le résultat le plus
-probable \emph{même lorsque la proportionnalité est parfaitement vérifiée}~: ce résultat ne doit
-donc pas être présenté comme un indice défavorable, mais comme une limite d'information.
+proportionnalité exigée par l'annexe~XVII. Sa limite tient à la précision de $\hat a$~: d'après la
+règle de rejet (rubrique~3), conclure à l'équivalence exige
+$\Delta - |\hat a| > t_{1-\alpha,\,T-2}\,\widehat{\mathrm{se}}(\hat a)$, avec
+$\widehat{\mathrm{se}}(\hat a) = \hat s\sqrt{1/T + \bar x^{\,2}/S_{xx}}$
+(fiche~\ref{fiche:student-constante}), donc au moins
+$\widehat{\mathrm{se}}(\hat a)/\Delta < 1/t_{1-\alpha,\,T-2}$. La probabilité de conclure dépend
+ainsi du levier de l'origine $\bar x^{\,2}/S_{xx}$ et de la dispersion des pertes autour de la
+droite autant que de $T$~: quand les volumes sont concentrés loin de zéro, $\bar x^{\,2}/S_{xx}$ est
+grand et l'équivalence est pratiquement indémontrable, \emph{même lorsque la proportionnalité est
+exacte} (rubrique~7~: probabilité nulle sur le jeu de contrôle, $21~\%$ sur le jeu à $\hat\delta$
+intérieur, au seuil de 10~\%). L'échec à démontrer l'équivalence ne doit donc pas être présenté
+comme un indice défavorable, mais comme une limite d'information.
 
 \medskip
 \begin{encadre}
@@ -4620,9 +4658,9 @@ $\Delta > 0$ strictement positive est ce qui rend le problème bien posé.
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes, sauf à volumes constants, où elle est non applicable (section~\ref{sec:volumes-constants}). Puissance non étudiée à $T = 8$ par un calcul versionné~: la probabilité de conclure à l'équivalence citée en rubrique~6 (46~\% à $T = 8$) provient d'une simulation dont le script n'est pas versionné~; elle n'est pas reprise au tableau~\ref{tab:tracabilite-puissance}.
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes, sauf à volumes constants, où elle est non applicable (section~\ref{sec:volumes-constants}). \emph{Probabilité de conclure à l'équivalence sous le modèle ajusté} (constat~C3, protocole au tableau~\ref{tab:tracabilite-puissance}~; 20\,000 jeux simulés par jeu observé, constante $a = 0$ vraie, marge $\Delta = 0{,}10\,\bar y$ recalculée sur chaque jeu)~: sur le jeu de contrôle, $0{,}0~\%$ $[0{,}0~;~0{,}02]$ au seuil de 10~\% comme à 5~\% --- sur le jeu observé, $\bar x^{\,2}/S_{xx} = 15{,}1$ et $\widehat{\mathrm{se}}(\hat a)/\Delta = 6{,}8$, quand la condition nécessaire de la rubrique~6 exige moins de $1/t_{0{,}90,\,6} = 0{,}69$ ---~; sur le jeu à $\hat\delta$ intérieur, $21{,}1~\%$ $[20{,}6~;~21{,}7]$ au seuil de 10~\% et $9{,}1~\%$ $[8{,}7~;~9{,}5]$ à 5~\% ($\bar x^{\,2}/S_{xx} = 0{,}35$~; le jeu observé lui-même ne remplit pas la condition nécessaire au seuil de 10~\%, avec $\widehat{\mathrm{se}}(\hat a)/\Delta = 0{,}75$). Ces taux valent pour ces plans de volumes et ne se transposent pas à d'autres données.
 
-\textbf{Statut des valeurs.} Aucune valeur chiffrée propre à cette rubrique.
+\textbf{Statut des valeurs.} Probabilités de conclure~: constat de simulation sous le modèle réglementaire ajusté (constante nulle vraie), intervalles de Clopper--Pearson à 95~\%, incertitude de simulation muette sur l'erreur en $T$~; $\bar x^{\,2}/S_{xx}$, $\widehat{\mathrm{se}}(\hat a)/\Delta$ et $1/t_{0{,}90,\,6}$~: valeurs déterministes du jeu observé.
 \end{fiche}
 
 \begin{fiche}{Test de Student sur la pente}
@@ -5576,8 +5614,7 @@ transformation adaptée pour $T \le 11$.
 \Usage
 Test de référence pour les petits échantillons et généralement le plus puissant contre un large
 éventail d'alternatives. Ses limites en régime USP restent néanmoins sévères~: à $T = 8$, sa
-puissance contre une loi à queues lourdes réaliste n'est que de quelques dizaines de pour cent,
-si bien qu'un $p$ élevé n'apporte quasiment aucune information. Il est par ailleurs sensible aux
+puissance est faible (rubrique~7), si bien qu'un $p$ élevé n'apporte quasiment aucune information. Il est par ailleurs sensible aux
 ex \ae quo (fréquents si les montants sont arrondis) et à l'estimation préalable des paramètres.
 \textbf{Lire prioritairement \code{p\_mc}.}
 \Pertinence
@@ -5585,9 +5622,9 @@ ex \ae quo (fréquents si les montants sont arrondis) et à l'estimation préala
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. L'ordre de grandeur de puissance cité en rubrique~6 (« quelques dizaines de pour cent ») n'a pas de calcul versionné et n'est pas repris ici. Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. \emph{Niveau et puissance de la p-value de Royston} (constat~C4, protocole au tableau~\ref{tab:tracabilite-puissance}~; 20\,000 échantillons i.i.d. de taille~8 par loi)~: niveau $10{,}2~\%$ $[9{,}8~;~10{,}6]$ au seuil de 10~\% et $5{,}0~\%$ $[4{,}7~;~5{,}4]$ au seuil de 5~\%~; taux de rejet au seuil de 10~\% (de 5~\%) contre une loi de Student à 5 degrés de liberté, $15{,}7~\%$ ($9{,}6~\%$), à 3 degrés de liberté, $21{,}7~\%$ ($15{,}5~\%$), contre une loi exponentielle, $45{,}5~\%$ ($33{,}7~\%$), et contre une loi lognormale de paramètres $(0~;~0{,}5)$, $27{,}7~\%$ ($18{,}6~\%$). Portée~: la mesure vaut exactement pour la p-value de Royston (colonne \code{p\_asymptotique}) quand les log-ratios sont i.i.d. de la loi indiquée et $\hat\pi_t$ constant~; elle n'est qu'approchée pour la p-value de Monte-Carlo retenue, et ne s'applique pas à $\hat\pi_t$ variable~; la consigne de lire prioritairement \code{p\_mc} (rubrique~6) est inchangée.
 
-\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Niveau et taux de rejet~: constats de simulation hors modèle réglementaire, sous des alternatives choisies (intervalles de Clopper--Pearson dans le fichier de résultats, incertitude de simulation muette sur l'erreur en $T$).
 \end{fiche}
 
 \begin{fiche}{Test de Shapiro--Francia}
@@ -5871,19 +5908,22 @@ tableau~\ref{tab:nature} --- au sens strict de l'ADR~0002, à $\hat\pi_t$ consta
 (rubrique~4)~; le moteur ne l'attribue que dans ce régime, et le commentaire de la ligne, qui la
 dit indépendante du modèle ajusté, n'est plus servi qu'à $\hat\pi_t$ constant (rubrique~5,
 issue~\#70). En pratique,
-les deux versions concordent étroitement~: sur 2\,000
-réplications à $T = 8$, la fréquence de rejet au seuil de 5~\% vaut 4,95~\% pour la loi simulée
-contre 5,05~\% pour la normalisation de Royston, ce qui valide a posteriori l'approximation de
-Royston à cette taille d'échantillon (constat de simulation dont le régime de $\hat\pi_t$ n'est
-pas consigné~; la calibration par régime figure à la section~\ref{sec:base-residus}).
+les deux versions concordent étroitement~: sur 20\,000
+échantillons i.i.d. $\mathcal{N}(0,1)$ de taille~8 (constat~C4, tableau~\ref{tab:tracabilite-puissance}),
+la fréquence de rejet vaut $5{,}08~\%$ pour la loi simulée contre $5{,}04~\%$ pour la normalisation
+de Royston au seuil de 5~\%, et $10{,}35~\%$ contre $10{,}21~\%$ au seuil de 10~\%, les quatre
+intervalles de Clopper--Pearson à 95~\% contenant le niveau nominal, ce qui valide a posteriori
+l'approximation de Royston à cette taille d'échantillon (constat de simulation sur des échantillons
+i.i.d., qui vaut pour la ligne à $\hat\pi_t$ constant~; la calibration par régime figure à la
+section~\ref{sec:base-residus}).
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $W$, continue. La p-value retenue, exacte au sens de l'ADR~0002 à $\hat\pi_t$ constant, est lue sur une loi nulle simulée de 20\,000 tirages (\code{sw\_p\_loi\_nulle()})~: son plancher est $1/20\,001 \approx 5{,}0\cdot 10^{-5}$, fonction du nombre de tirages et non de $T$.
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test à $\hat\pi_t$ constant~; non applicable à $\hat\pi_t$ variable, où la loi nulle i.i.d. est sans objet (section~\ref{sec:base-residus}). Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test à $\hat\pi_t$ constant~; non applicable à $\hat\pi_t$ variable, où la loi nulle i.i.d. est sans objet (section~\ref{sec:base-residus}). \emph{Niveau et puissance} (constat~C4, protocole au tableau~\ref{tab:tracabilite-puissance}~; 20\,000 échantillons i.i.d. de taille~8 par loi)~: niveau $10{,}4~\%$ $[9{,}9~;~10{,}8]$ au seuil de 10~\% et $5{,}1~\%$ $[4{,}8~;~5{,}4]$ au seuil de 5~\%, à titre informatif~: la loi nulle étant figée (20\,000 tirages sous sa graine dédiée), la probabilité de rejet s'écarte du niveau nominal d'une erreur de quantile d'ordre $\sqrt{\alpha(1-\alpha)/20\,000}$, soit $0{,}0021$ au seuil de 10~\% et $0{,}0015$ à 5~\%, qu'aucun nombre de réplications de la mesure ne réduit~; taux de rejet au seuil de 10~\% (de 5~\%) contre une loi de Student à 5 degrés de liberté, $15{,}8~\%$ ($9{,}7~\%$), à 3 degrés de liberté, $21{,}8~\%$ ($15{,}6~\%$), contre une loi exponentielle, $45{,}8~\%$ ($33{,}8~\%$), et contre une loi lognormale de paramètres $(0~;~0{,}5)$, $27{,}9~\%$ ($18{,}7~\%$). La mesure vaut exactement pour la p-value retenue, à $\hat\pi_t$ constant, quand les log-ratios sont i.i.d. de la loi indiquée.
 
-\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété de l'estimateur $(1 + \#\{W^\ast \le W\})/(N + 1)$~; la loi nulle simulée porte une erreur de Monte-Carlo en $1/\sqrt{20\,000}$.
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété de l'estimateur $(1 + \#\{W^\ast \le W\})/(N + 1)$~; la loi nulle simulée porte une erreur de Monte-Carlo en $1/\sqrt{20\,000}$. Niveau et taux de rejet~: constats de simulation hors modèle réglementaire, sous des alternatives choisies (intervalles de Clopper--Pearson dans le fichier de résultats, incertitude de simulation muette sur l'erreur en $T$).
 \end{fiche}
 
 \begin{fiche}{Test de Jarque--Bera}
@@ -5979,16 +6019,17 @@ $p = 2\big(1 - \Phi(|Z|)\big)$.
 Utile pour \emph{localiser} la cause d'un rejet global de normalité~: une asymétrie significative
 oriente vers un mélange de sinistres graves et attritionnels mal séparés, diagnostic actionnable
 au regard de l'exigence de l'annexe~XVII sur le retraitement des événements déjà couverts par les
-sous-modules catastrophe. Limite~: la correction de petit échantillon vaut dès $T \ge 8$, mais la
-puissance ne devient réellement exploitable que vers $T \ge 20$.
+sous-modules catastrophe. Limite~: la transformation $S_U$ est définie dès $T = 8$, et la puissance
+croît avec $T$ sans seuil marqué~: contre une loi exponentielle, elle passe de $39~\%$ à $T = 8$ à
+$81~\%$ à $T = 20$ au seuil de 10~\% (rubrique~7).
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{DAgo}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. Non applicable en deçà de $T = 8$. Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. Non applicable en deçà de $T = 8$. \emph{Niveau et puissance de la p-value normale approchée} (constat~C4, protocole au tableau~\ref{tab:tracabilite-puissance}~; 20\,000 échantillons i.i.d. par loi et par taille)~: à $T = 8$, niveau $10{,}6~\%$ $[10{,}2~;~11{,}0]$ au seuil de 10~\% et $5{,}55~\%$ $[5{,}2~;~5{,}9]$ au seuil de 5~\%, légèrement libéral ($+0{,}58$ et $+0{,}55$~point, intervalles excluant $\alpha$)~; à $T = 20$, $9{,}7~\%$ et $4{,}9~\%$, compatibles avec $\alpha$. Ce niveau est sans effet sur la p-value retenue, de Monte-Carlo. Taux de rejet au seuil de 10~\% (de 5~\%)~: à $T = 8$, contre une loi exponentielle, $39{,}5~\%$ ($28{,}6~\%$), contre une loi lognormale de paramètres $(0~;~0{,}5)$, $27{,}9~\%$ ($19{,}2~\%$)~; à $T = 20$, $80{,}8~\%$ ($70{,}3~\%$) et $61{,}4~\%$ ($49{,}9~\%$). Contre les lois de Student à 5 et à 3 degrés de liberté, symétriques, les taux de $18{,}5~\%$ et $25{,}7~\%$ à $T = 8$ au seuil de 10~\% ne sont pas une puissance contre l'asymétrie, mais une distorsion de niveau sous queues lourdes. Multiplicité~: les niveaux de C4 reposent sur huit intervalles à 95~\% (quatre mesures de niveau, deux seuils), sans correction~; sous des niveaux exacts, $0{,}4$ intervalle excluant $\alpha$ est attendu en moyenne, et la probabilité qu'au moins un l'exclue vaut environ $34~\%$ sous indépendance ($1 - 0{,}95^8 = 0{,}337$), un peu moins sous la dépendance positive entre ces intervalles. Portée~: exacte pour la p-value normale (colonne \code{p\_asymptotique}) quand les log-ratios sont i.i.d. de la loi indiquée et $\hat\pi_t$ constant~; approchée pour la p-value de Monte-Carlo retenue.
 
-\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Niveaux et taux de rejet~: constats de simulation hors modèle réglementaire, sous des alternatives choisies (intervalles de Clopper--Pearson dans le fichier de résultats, incertitude de simulation muette sur l'erreur en $T$)~; $1 - 0{,}95^8$~: calcul exact sous l'hypothèse d'indépendance.
 \end{fiche}
 
 \begin{fiche}{Test d'aplatissement d'Anscombe--Glynn}
@@ -10993,7 +11034,7 @@ pour $m \le 5$ différences non nulles~; au seuil par défaut $\alpha = 0{,}10$,
 $m \le 4$, donc pour $T \le 9$ sans ex \ae quo, et toujours à $T = 8$~: restitué en diagnostic
 (règle~R1)~; \code{ECHEC} atteignable seulement dès $T = 12$ (tableau~\ref{tab:pmin}). \\
 Anscombe--Glynn & $T \ge 20$ & Non défini en-deçà~; marqué \code{INFO}. \\
-D'Agostino (asymétrie) & $T \ge 8$ & Non défini en-deçà~; puissance faible jusqu'à $T \approx 20$. \\
+D'Agostino (asymétrie) & $T \ge 8$ & Non défini en-deçà~; à $T = 8$, niveau de la p-value normale légèrement libéral et puissance contre une loi exponentielle de $39~\%$ au seuil de 10~\%, $81~\%$ à $T = 20$ (constat~C4, fiche~\ref{fiche:dagostino-asymetrie}). \\
 Jarque--Bera & $T \ge 50$ & $b_2$ borné par $\approx T$~; convergence $\chi^2$ très lente. \\
 Ljung--Box / Box--Pierce & $T \ge 30$ & Approximation $\chi^2$ mal calibrée. \\
 Wald--Wolfowitz & $n_1,n_2 \ge 10$ & Approximation normale~; granularité de $R$ (loi exacte
