@@ -6,7 +6,8 @@
 #  generateur de references. Il n'est lance ni par la CI, ni par
 #  test_unitaires.R (nom sans prefixe test_), ni par test_reproductibilite.R.
 #  Il n'ecrit aucun fichier : sortie en markdown sur la console (UTF-8).
-#  R base + stats.
+#  R base + stats (tools::md5sum() pour les empreintes du code, #171 ; tools
+#  est livre avec R).
 #
 #  Objet : la decision M7 (#24) s'appuyait sur 60 replications (+/- 6 points)
 #  pour dire que quatre reperes des diagnostics (Cook 4/T, IC 50 %, jackknife
@@ -71,7 +72,10 @@
 #  consecutives et imprime, en plus des tableaux partiels, des lignes machine :
 #  PARAMETRES, TRANCHE, CONTEXTE (contenu de T0 hors durees et hors bornes de
 #  la tranche : jeu, modele ajuste, configuration, sigma_USP observe,
-#  graines, B, generateur, commit, leviers), INTEGRITE (OK ou ECHEC),
+#  graines, B, generateur, commit, plateforme de calcul -- R, systeme,
+#  machine, BLAS, LAPACK, #171 --, empreintes md5 de R/engine.R, de
+#  tests/outils_tests.R charge et du script execute -- #171, elargie --,
+#  leviers), INTEGRITE (OK ou ECHEC),
 #  NCOMPTES (nombre de lignes COMPTE annoncees), les comptes bruts (COMPTE)
 #  et, en derniere ligne, FIN (nombre de lignes COMPTE ecrites). Rediriger la
 #  sortie de chaque tranche vers un fichier HORS du depot, puis --combiner
@@ -80,8 +84,12 @@
 #  refuse (code de sortie 1, sans tableau) : une tranche sans ligne
 #  INTEGRITE ou en ECHEC ; une sortie incomplete (FIN absente ou pas en
 #  derniere ligne, nombre de lignes COMPTE different de NCOMPTES ou de FIN :
-#  troncature) ; des PARAMETRES ou un CONTEXTE differents entre tranches ;
-#  des tranches qui ne couvrent pas 1..R exactement une fois.
+#  troncature) ; des PARAMETRES ou un CONTEXTE differents entre tranches
+#  (plateforme de calcul et empreintes du code comprises : des tranches
+#  calculees sous des BLAS ou LAPACK differents, ou avec un moteur, un
+#  tests/outils_tests.R ou un script differents au meme commit, ne se
+#  combinent pas, #171) ; des tranches qui ne
+#  couvrent pas 1..R exactement une fois.
 #  Commit : sortie de "git rev-parse HEAD" (suivie de "(arbre de travail
 #  modifie)" si "git status --porcelain --untracked-files=no" n'est pas
 #  vide), "inconnu" si git n'est pas disponible.
@@ -139,6 +147,40 @@ commit_depot <- function() {
   if (length(h) != 1L || !grepl("^[0-9a-f]{40}$", h)) return("inconnu")
   if (length(git("status", "--porcelain", "--untracked-files=no"))) paste(h, "(arbre de travail modifi\u00e9)") else h
 }
+
+# Plateforme de calcul (#171) : R, systeme, machine, BLAS, LAPACK (copie de
+# tests/calibration_mc_t8.R). Champ du contexte : des tranches calculees sur
+# des plateformes differentes ne se combinent pas (certains comptes dependent
+# de l'optimiseur : regime de delta chapeau, reperes proches d'un seuil).
+plateforme_calcul <- function() {
+  txt <- function(v) if (is.null(v) || !length(v) || is.na(v[1]) || !nzchar(v[1])) "non renseign\u00e9" else unname(v[1])
+  si <- Sys.info()
+  sprintf("%s ; %s ; %s, %s ; BLAS : %s ; LAPACK : %s (version %s)",
+          R.version.string, txt(utils::sessionInfo()$running), txt(si[["sysname"]]), txt(si[["machine"]]),
+          txt(extSoftVersion()["BLAS"]), txt(La_library()), txt(La_version()))
+}
+
+# Empreintes md5 du code execute (#171, elargie par le mainteneur le
+# 30/09/2026 ; copie adaptee de empreintes_code() de
+# tests/calibration_mc_t8.R : script lu dans --file=, aucun fichier lu en
+# plus) : moteur du depot, tests/outils_tests.R effectivement charge (celui
+# du dossier du script), script execute ; "depot" ou "hors depot" selon que
+# le fichier charge est celui du depot. Champ du contexte : un code different
+# au meme commit (copie modifiee de outils_tests.R ou du moteur) change le
+# contexte, et --combiner refuse. Lues au debut du calcul.
+empreintes_code <- function(script_depot) {
+  fichier <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE))
+  fichier <- if (length(fichier) == 1L) fichier else NA_character_
+  meme <- function(a, b) !is.na(a) && file.exists(a) && file.exists(b) &&
+    identical(normalizePath(a), normalizePath(b))
+  md5 <- function(f) if (is.na(f) || !file.exists(f)) "absent" else unname(tools::md5sum(f))
+  lieu <- function(f, ref) if (meme(f, file.path(RACINE, ref))) "d\u00e9p\u00f4t" else "hors d\u00e9p\u00f4t"
+  outils <- file.path(DOSSIER_SCRIPT, "outils_tests.R")
+  paste(c(sprintf("R/engine.R %s", md5(file.path(RACINE, "R", "engine.R"))),
+          sprintf("tests/outils_tests.R charg\u00e9 (%s) %s", lieu(outils, "tests/outils_tests.R"), md5(outils)),
+          sprintf("script ex\u00e9cut\u00e9 (%s) %s", lieu(fichier, script_depot), md5(fichier))), collapse = " ; ")
+}
+EMPREINTES <- empreintes_code("tests/taux_franchissement_reperes.R")
 
 # Console en UTF-8 quelle que soit la locale (meme definition que
 # tests/comparer_ajusteurs_bootstrap.R).
@@ -205,7 +247,10 @@ REPERES <- list(
 LIBELLES_CONTEXTE <- c(
   jeu = "Jeu", modele = "Mod\u00e8le ajust\u00e9 (usp_ajuster())", configuration = "Configuration",
   sigma_usp = "\u03c3_USP observ\u00e9 (run_engine())", graines = "Graines", B_ic = "B de l'IC bootstrap",
-  generateur = "G\u00e9n\u00e9rateur", commit = "Commit", leviers = "Leviers (rep\u00e8re 2k/T, jeu observ\u00e9)",
+  generateur = "G\u00e9n\u00e9rateur", commit = "Commit",
+  plateforme = "Plateforme de calcul (R, syst\u00e8me, machine, BLAS, LAPACK)",
+  empreintes = "Empreintes md5 du code ex\u00e9cut\u00e9",
+  leviers = "Leviers (rep\u00e8re 2k/T, jeu observ\u00e9)",
   hors_perimetre = "Lignes de usp_tests() hors p\u00e9rim\u00e8tre (#45)")
 
 # --- Mode --combiner ---------------------------------------------------------------
@@ -498,6 +543,8 @@ CTX <- c(
   B_ic = as.character(OPT_B_IC),
   generateur = paste(ENGINE_RNG_KIND, collapse = ", "),
   commit = commit_depot(),
+  plateforme = plateforme_calcul(),
+  empreintes = EMPREINTES,
   leviers = sprintf("max h_t = %.4f ; seuil 2k/T = %.4f : %s", LEV_OBS, 2 / T_,
                     if (!is.finite(LEV_OBS)) "NA" else if (LEV_OBS > 2 / T_) "franchi" else "non franchi"),
   hors_perimetre = paste0(paste0("\"", LIGNES_HORS_PERIMETRE, "\"", collapse = " ; "),

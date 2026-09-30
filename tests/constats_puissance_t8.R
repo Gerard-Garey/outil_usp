@@ -260,6 +260,16 @@ commit_depot <- function() {
   h
 }
 
+# Plateforme de calcul (#171) : R, systeme, machine, BLAS, LAPACK (copie
+# declaree de plateforme_calcul() de tests/calibration_mc_t8.R), ligne de T0.
+plateforme_calcul <- function() {
+  txt <- function(v) if (is.null(v) || !length(v) || is.na(v[1]) || !nzchar(v[1])) "non renseign\u00e9" else unname(v[1])
+  si <- Sys.info()
+  sprintf("%s ; %s ; %s, %s ; BLAS : %s ; LAPACK : %s (version %s)",
+          R.version.string, txt(utils::sessionInfo()$running), txt(si[["sysname"]]), txt(si[["machine"]]),
+          txt(extSoftVersion()["BLAS"]), txt(La_library()), txt(La_version()))
+}
+
 # Console en UTF-8 quelle que soit la locale (meme definition que
 # tests/taux_franchissement_reperes.R).
 ecrire_console <- function(x) writeLines(enc2utf8(x), useBytes = TRUE)
@@ -308,7 +318,7 @@ sortie <- c(
   sprintf("Param\u00e8tres : R=%d ; R_ks=%d ; graine=%s ; partie=%s ; T=%d", OPT_R, OPT_R_KS,
           format(OPT_GRAINE, scientific = FALSE), OPT_PARTIE, T_), "",
   entete_md(c("Grandeur", "Valeur")),
-  ligne_md("Plateforme", plateforme()),
+  ligne_md("Plateforme de calcul (R, syst\u00e8me, machine, BLAS, LAPACK)", plateforme_calcul()),
   ligne_md("G\u00e9n\u00e9rateur", paste(ENGINE_RNG_KIND, collapse = ", ")),
   ligne_md("Commit", commit_depot()),
   ligne_md("Script", "tests/constats_puissance_t8.R (hors CI ; protocole dans l'en-t\u00eate)"), "")
@@ -735,7 +745,7 @@ if (!is.na(OPT_ECRIRE) && length(FICHIERS_118)) {
       sprintf("Param\u00e8tres : R=%d ; graine=%s ; partie=%s ; T=%s", OPT_R,
               format(OPT_GRAINE, scientific = FALSE), nom, if (nom == "tost") "8" else "8 et 20"), "",
       entete_md(c("Grandeur", "Valeur")),
-      ligne_md("Plateforme", plateforme()),
+      ligne_md("Plateforme de calcul (R, syst\u00e8me, machine, BLAS, LAPACK)", plateforme_calcul()),
       ligne_md("G\u00e9n\u00e9rateur", paste(ENGINE_RNG_KIND, collapse = ", ")),
       ligne_md("Commit", commit_depot()),
       ligne_md("Script", sprintf("tests/constats_puissance_t8.R --partie %s (hors CI ; protocole dans l'en-t\u00eate)", nom)), "",
