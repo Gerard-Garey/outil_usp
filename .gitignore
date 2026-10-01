@@ -65,4 +65,6 @@ desktop.ini
 
 # --- Claude Code : copies isolees des agents (worktrees) ----------------------
 .claude/worktrees/
+
+# --- Claude Code : journal local des sous-agents (ADR 0013) -------------------
 .claude/journal-agents.jsonl
