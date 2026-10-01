@@ -40,8 +40,8 @@
 #          rien est un ecart (perimee) ; une garde ne perime pas.
 #
 #       LIMITES : (i) une formulation exemptee n'est pas verifiee (anaphore,
-#       provenance par fonction, lignes d'un tableau du document, constat
-#       de simulation, dimension d'un tableau ou d'un fichier d'entree --
+#       provenance indirecte par fonction (#111), lignes d'un tableau du
+#       document, constat de simulation, dimension d'un tableau ou d'un fichier d'entree --
 #       garde de contexte : un vrai decompte ecrit "tableau de N lignes"
 #       serait lui aussi exempte) ; (ii) un decompte ecrit sans les mots "lignes",
 #       "entrees" ou "tests" apres le nombre ("six verdicts", "quinze
@@ -619,8 +619,37 @@ DECOMPTES <- list(
   list(id = "lognormale : lignes non applicables a volumes constants (#59)",
        methode = c("premium_vc", "reserve1_vc"),
        motif = paste0(N_, " lignes d'usp_tests\\(\\) sont restitu\u00e9es .{1,3}non applicable"),
-       champs = "non applicable volumes constants")
+       champs = "non applicable volumes constants"),
+  # Issue #111 : provenance directe par fonction, lue dans le champ fonction
+  # de res$tests (grandeur "fonction <nom>" de grandeurs_moteur()). Les cinq
+  # phrases qui nomment une seule fonction sont comparees a son nombre de
+  # lignes ; celle qui en nomme cinq ("2 entrees chacune") a leur compte
+  # commun, NA (donc ECART) s'ils different.
+  list(id = "provenance : test_lm_complet() (index des fonctions)", methode = c("premium", "reserve1"),
+       motif = paste0("test_lm_complet\\(\\) & LN & [^&]{0,160}?", N_, " entr\u00e9es issues d'un seul appel"),
+       champs = "fonction test_lm_complet"),
+  list(id = "provenance : test_lm_complet() (graphe H1)", methode = c("premium", "reserve1"),
+       motif = paste0("test_lm_complet\\(\\) alimente ", N_, " entr\u00e9es de la table des tests"),
+       champs = "fonction test_lm_complet"),
+  list(id = "provenance : .shapiro_sur() (graphe H3-H4)", methode = c("premium", "reserve1"),
+       motif = paste0("\\.shapiro_sur\\(\\) alimente ", N_, " entr\u00e9es"),
+       champs = "fonction .shapiro_sur"),
+  list(id = "provenance : test_lm_complet() (tableau des portees)", methode = c("premium", "reserve1"),
+       motif = paste0("test_lm_complet\\(\\) \\(", N_, " entr\u00e9es\\)"),
+       champs = "fonction test_lm_complet"),
+  list(id = "provenance : .shapiro_sur() (tableau des portees)", methode = c("premium", "reserve1"),
+       motif = paste0("\\.shapiro_sur\\(\\) \\(", N_, " entr\u00e9es\\)"),
+       champs = "fonction .shapiro_sur"),
+  list(id = "provenance : stat_dw() ... test_grubbs() (tableau des portees)", methode = c("premium", "reserve1"),
+       motif = paste0("stat_dw\\(\\), test_runs\\(\\), stat_supF\\(\\), stat_cusum\\(\\) et test_grubbs\\(\\) \\(",
+                      N_, " entr\u00e9es chacune"),
+       champs = "fonctions z et u (compte commun)")
 )
+
+# Fonctions declinees sur z_t et sur u_t (phrase "2 entrees chacune" du
+# tableau des portees) : grandeur derivee "fonctions z et u (compte commun)"
+# de grandeurs_moteur().
+FONCTIONS_Z_ET_U <- c("stat_dw", "test_runs", "stat_supF", "stat_cusum", "test_grubbs")
 
 # ---------------------------------------------------------------------------
 #  Exemptions nominatives des decomptes (issue #75)
@@ -636,10 +665,20 @@ DECOMPTES <- list(
 # exemption qui n'exempte plus aucune formulation est PERIMEE et comptee
 # comme ecart.
 MOTIF_ANAPHORE <- "reprise anaphorique de tests nommes dans le texte qui precede, pas un decompte de la table"
-MOTIF_PROVENANCE <- paste("provenance d'entrees (graphe d'appels du moteur) : la fonction qui produit",
-                          "une ligne n'est pas restituee dans res$tests ; risque residuel : si le code",
-                          "change (la fonction alimente plus ou moins d'entrees) et que le document ne",
-                          "change pas, le decompte devenu faux n'est pas detecte")
+# Provenance par fonction (issue #111) : le champ fonction de chaque ligne de
+# res$tests nomme la fonction du moteur qui en calcule la statistique ; une
+# provenance DIRECTE ("test_lm_complet() alimente N entrees") est donc une
+# phrase verifiee du registre DECOMPTES (grandeur "fonction <nom>" de
+# grandeurs_moteur()). Restent exemptees les provenances INDIRECTES : une
+# fonction appelee par la fonction qui calcule la statistique (profondeur 2,
+# .fisher_combine()) ou un noeud du schema qui regroupe des lignes sans
+# nommer de fonction.
+MOTIF_PROVENANCE_INDIRECTE <- paste("provenance indirecte d'entrees (graphe d'appels du moteur) : le champ",
+                                    "fonction de res$tests ne nomme que la fonction qui calcule la statistique",
+                                    "de la ligne, pas les fonctions qu'elle appelle ni les regroupements du",
+                                    "schema ; risque residuel : si le code change (la fonction alimente plus ou",
+                                    "moins d'entrees) et que le document ne change pas, le decompte devenu faux",
+                                    "n'est pas detecte")
 EXEMPTES_DECOMPTES <- list(
   list(id = "pente et Fisher (cas sans p Monte-Carlo possible)",
        contexte = "Ces deux tests conservent donc leur loi", motif = MOTIF_ANAPHORE),
@@ -660,22 +699,10 @@ EXEMPTES_DECOMPTES <- list(
   list(id = "calibration Merz-Wuthrich : trois tests s'ecartent",
        contexte = "Trois tests s'en \u00e9cartent fortement",
        motif = "constat de simulation de la calibration des lois de reference, pas un decompte de la table"),
-  list(id = "test_lm_complet() (index des fonctions)", contexte = "quatre entr\u00e9es issues d'un seul appel",
-       motif = MOTIF_PROVENANCE),
-  list(id = "test_lm_complet() (graphe H1)", contexte = "alimente quatre entr\u00e9es de la table des tests",
-       motif = MOTIF_PROVENANCE),
-  list(id = ".shapiro_sur() (graphe H3-H4)", contexte = "shapiro_sur\\(\\) alimente deux entr\u00e9es",
-       motif = MOTIF_PROVENANCE),
   list(id = ".fisher_combine() (graphe Merz-Wuthrich)", contexte = "dessert 4 tests M1",
-       motif = MOTIF_PROVENANCE),
+       motif = MOTIF_PROVENANCE_INDIRECTE),
   list(id = "noeud M3 correlations (graphe Merz-Wuthrich)", contexte = "\\(q4\\) M3 \\(2 entr\u00e9es\\)",
-       motif = paste(MOTIF_PROVENANCE, "(sous-ensemble de la famille M3 rattache a un noeud du schema)")),
-  list(id = "test_lm_complet() (tableau des portees)", contexte = "test_lm_complet\\(\\) \\(4 entr\u00e9es\\)",
-       motif = MOTIF_PROVENANCE),
-  list(id = ".shapiro_sur() (tableau des portees)", contexte = "shapiro_sur\\(\\) \\(2 entr\u00e9es\\)",
-       motif = MOTIF_PROVENANCE),
-  list(id = "stat_dw() ... test_grubbs() (tableau des portees)", contexte = "test_grubbs\\(\\) \\(2 entr\u00e9es chacune",
-       motif = MOTIF_PROVENANCE)
+       motif = paste(MOTIF_PROVENANCE_INDIRECTE, "(sous-ensemble de la famille M3 rattache a un noeud du schema)"))
 )
 
 # Gardes de contexte des decomptes (constat 4 de la fin d'E0b, decision du
@@ -736,6 +763,13 @@ grandeurs_moteur <- function(tests, controles = NULL) {
          "detail sans objet ici" = sum(grepl("CONTROLE SANS OBJET ICI", det, fixed = TRUE)),
          "non applicable volumes constants" =
            sum(startsWith(det, "volumes x_t constants a la tolerance relative") %in% TRUE))
+  # Provenance par fonction (#111) : nombre de lignes par valeur du champ
+  # fonction ; compte commun des FONCTIONS_Z_ET_U, NA s'ils different (une
+  # annonce n'est jamais egale a NA : ECART).
+  fon <- champ("fonction")
+  for (f in unique(fon[!is.na(fon)])) g[paste("fonction", f)] <- sum(fon %in% f)
+  n_zu <- vapply(FONCTIONS_Z_ET_U, function(f) sum(fon %in% f), numeric(1))
+  g["fonctions z et u (compte commun)"] <- if (length(unique(n_zu)) == 1L) n_zu[[1]] else NA_real_
   for (f in unique(fam)) g[paste("famille", f)] <- sum(fam == f)
   for (f in unique(fam)) for (ty in unique(typ[fam %in% f]))
     g[paste("famille", f, "type", ty)] <- sum(fam %in% f & typ %in% ty)
@@ -797,7 +831,7 @@ verifier_decomptes <- function(lignes, grandeurs, registre = DECOMPTES) {
                                             pos = pos, pos_fin = pos_fin, pos_cap = pos_cap,
                                             grandeur = if (length(a$methode) > 1L) paste0(meth, " : ", a$champs) else a$champs,
                                             annonce = ann, mesure = mes,
-                                            statut = ifelse(!is.na(ann) & ann == mes, "ok", "ECART"),
+                                            statut = ifelse(!is.na(ann) & !is.na(mes) & ann == mes, "ok", "ECART"),
                                             stringsAsFactors = FALSE)
     }
   }

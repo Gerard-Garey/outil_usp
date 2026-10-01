@@ -3038,6 +3038,18 @@ engine_p_mc <- function(sim, obs, queue) {
 #                 avec p_min ; si p_min est NA, la chaine est restituee telle
 #                 quelle dans detail (elle porte alors le motif de l'absence
 #                 de p_min ; #70)
+#   fonction    : provenance de la ligne (#111), argument obligatoire, dernier
+#                 champ de la ligne : nom de la fonction nommee du moteur qui
+#                 calcule stat (a defaut estim), appelee directement ou par la
+#                 fermeture calc du catalogue (DW -> stat_dw, Grubbsr ->
+#                 test_grubbs) ; a defaut (calcul en ligne par stats:: dans le
+#                 corps, fermeture anonyme du catalogue), "usp_tests" ou
+#                 "mw_tests". usp_bootstrap et .mc_evaluer ne sont jamais une
+#                 provenance. Chaine litterale a chaque appel, independante des
+#                 donnees et du regime (une ligne non applicable garde la
+#                 sienne). Refus : absente, non chaine, vide, ou inconnue de
+#                 l'environnement du moteur (exists(mode = "function",
+#                 inherits = FALSE)).
 # Motif d'indisponibilite Monte-Carlo (#44, regle R3) : si mc_nom est
 # renseigne et p_mc absente, le motif est lu dans boot$motif_mc (produit par
 # engine_p_mc() / .mc_p_values(), jamais devine) quand l'appelant n'en
@@ -3080,7 +3092,20 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
                   base = "commun", variante = "principale",
                   p_min = NA_real_, effectifs = NA_character_,
                   repli_asymptotique = TRUE, libelle_p_as = "p asymptotique",
-                  p_mc_ext = NA_real_, err_mc_ext = NA_real_) {
+                  p_mc_ext = NA_real_, err_mc_ext = NA_real_, fonction) {
+    # Provenance de la ligne (#111, regle A1) : fonction est obligatoire et
+    # doit nommer une fonction definie dans l'environnement du moteur
+    # (inherits = FALSE : une fonction de stats, "cor.test", est refusee ;
+    # mode = "function" : une constante du moteur, "ANNEXE_II", aussi).
+    # Une ligne sans provenance verifiable est une erreur de programmation.
+    if (missing(fonction))
+      stop("add() : argument fonction absent (", nom, ")", call. = FALSE)
+    if (!is.character(fonction) || length(fonction) != 1L || is.na(fonction) ||
+        !nzchar(fonction))
+      stop("add() : fonction doit etre une chaine non vide (", nom, ")", call. = FALSE)
+    if (!exists(fonction, envir = environment(engine_registre_tests), mode = "function",
+                inherits = FALSE))
+      stop("add() : fonction inconnue du moteur : ", fonction, " (", nom, ")", call. = FALSE)
     # Refus explicite (ADR 0003, point 3) : une statistique Monte-Carlo
     # inconnue du catalogue, ou absente de l'objet bootstrap, est une erreur
     # de programmation ; le repli silencieux sur l'asymptotique est interdit.
@@ -3283,7 +3308,9 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
       verdict = v, detail = detail, sens = sens,
       # p_min en fin de ligne (#44, Q1 (a)) : un champ ajoute en fin de
       # conteneur ne deplace aucun champ existant des references.
-      p_min = p_min)
+      p_min = p_min,
+      # fonction apres p_min (#111, regle A4), pour la meme raison.
+      fonction = fonction)
   }
   list(add = add, lignes = function() L)
 }
@@ -3643,6 +3670,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # Intercept, simulee sous le modele de l'annexe XVII, ou a = 0 est vrai)
   # est retenue.
   add(fam, "Nullite de la constante (proportionnalite stricte)",
+      fonction = "test_intercept",
       "Student (1908), Biometrika 6",
       type = si_vol_cst(if (is.finite(ti$stat)) "test" else "non applicable"),
       H0 = "a = 0 (proportionnalite stricte)", H1 = "a != 0",
@@ -3661,6 +3689,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                                 "voir le test d'equivalence ci-dessous.")))
   tost <- test_tost_intercept(x, y, theta = theta_equiv, delta_abs = delta_equiv)
   add(fam, "Equivalence de la constante a zero (TOST)",
+      fonction = "test_tost_intercept",
       "Schuirmann (1987), J. Pharmacokinet. Biopharm. 15",
       type = if (is.finite(tost$p)) "test" else "non applicable",
       H0 = "|a| >= Delta (la constante n'est PAS negligeable)",
@@ -3728,6 +3757,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   type_pente <- function(stat) if (!is.finite(stat)) "non applicable"
                                else if (pente_ident) "test" else "diagnostic"
   add(fam, "Test de Student sur la pente (lm(y~x))",
+      fonction = "test_lm_complet",
       "Student (1908), Biometrika 6",
       type = type_pente(lmc$t_pente),
       H0 = "b = 0 (aucun lien volume / pertes)", H1 = "b != 0",
@@ -3738,6 +3768,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       p_as = lmc$p_pente, sens = "rejeter", nature_forcee = nat_mco,
       detail = detail_vol(trimws(paste("Ici on souhaite REJETER H0.", txt_ident))))
   add(fam, "Test de Fisher (significativite globale)", "Fisher (1922, 1925)",
+      fonction = "test_lm_complet",
       type = type_pente(lmc$F),
       H0 = "b = 0", H1 = "b != 0",
       stat_nom = "F", stat = lmc$F,
@@ -3747,6 +3778,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       p_as = lmc$p_F, sens = "rejeter", nature_forcee = nat_mco_F,
       detail = detail_vol(trimws(paste("Equivaut a t^2 en regression simple.", txt_ident))))
   add(fam, "Coefficient de determination R2", "lm(y ~ x)",
+      fonction = "test_lm_complet",
       type = if (is.finite(lmc$R2)) "diagnostic" else "non applicable",
       estim_nom = "R2", estim = lmc$R2,
       detail = if (is.finite(lmc$R2))
@@ -3759,6 +3791,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # distincts > rang deficient (motif rendu par test_reset()).
   tr <- test_reset(x, y)
   add(fam, "RESET (forme fonctionnelle)", "Ramsey (1969), JRSS B 31",
+      fonction = "test_reset",
       type = if (vol_cst || !is.na(tr$non_applicable)) "non applicable" else "test",
       H0 = "gamma2 = gamma3 = 0 (forme lineaire correcte)",
       H1 = "forme fonctionnelle mal specifiee",
@@ -3824,6 +3857,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     cs <- suppressWarnings(stats::cor.test(r_ea, x_ea, method = "spearman", exact = FALSE))
     p_sv <- p_spearman_exacte(r_ea, x_ea, r_ea, x_ea)
     add(fam, "Independance ratio S/P vs volume", "Spearman (1904) ; exact : Best & Roberts (1975), AS 89",
+        fonction = "usp_tests",
         H0 = "independance (aucune association monotone)", H1 = "association monotone",
         stat_nom = "S", stat = unname(cs$statistic),
         loi = "permutation exacte (T <= 9, sans ex aequo)",
@@ -3836,6 +3870,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   } else {
     # Regle R13 (#59) : meme reference que la branche calculee (I5).
     add(fam, "Independance ratio S/P vs volume", "Spearman (1904) ; exact : Best & Roberts (1975), AS 89",
+        fonction = "usp_tests",
         type = "non applicable",
         H0 = "independance (aucune association monotone)", H1 = "association monotone",
         stat_nom = "S", loi = "permutation exacte (T <= 9, sans ex aequo)",
@@ -3844,6 +3879,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   ct <- suppressWarnings(stats::cor.test(r_ea, seq_along(r), method = "spearman", exact = FALSE))
   p_st <- p_spearman_exacte(r_ea, seq_along(r), r_ea)
   add(fam, "Correlation ratio S/P vs temps", "Spearman (1904) ; exact : Best & Roberts (1975)",
+      fonction = "usp_tests",
       H0 = "independance entre le ratio et le rang chronologique",
       H1 = "association monotone avec le temps",
       stat_nom = "S", stat = unname(ct$statistic),
@@ -3856,6 +3892,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   mk <- test_mann_kendall(r)
   p_mk <- p_ex_si_pi_constant(mk_p_exacte(r))
   add(fam, "Tendance monotone du ratio S/P",
+      fonction = "test_mann_kendall",
       "Mann (1945) ; loi exacte : Kendall & Gibbons (1990), ch. 4-5",
       H0 = "absence de tendance monotone (r_t i.i.d.)", H1 = "tendance monotone",
       stat_nom = "Z", stat = mk$stat,
@@ -3883,6 +3920,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                   "p_mc non calculee (replications sans ex aequo)"),
             cx$m, cx$n_p)
   add(fam, "Tendance par signes du ratio S/P", "Cox & Stuart (1955), Biometrika 42",
+      fonction = "test_cox_stuart",
       H0 = "P(D_t > 0) = 1/2 (absence de tendance)", H1 = "P(D_t > 0) != 1/2",
       stat_nom = "K", stat = cx$stat,
       loi = paste("Binomiale(m, 1/2) EXACTE, m differences non nulles ;",
@@ -3895,6 +3933,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   fam <- paste("C. H2 - structure de variance", cite_hyp("ii"))
   bp <- test_breusch_pagan(z^2, x)
   add(fam, "Heteroscedasticite vs volume - Breusch-Pagan studentise (Koenker)",
+      fonction = "test_breusch_pagan",
       "Breusch & Pagan (1979) ; studentisation de Koenker (1981)",
       type = si_vol_cst("test"),
       H0 = "c1 = 0 : la variance des residus standardises ne depend pas du volume",
@@ -3904,6 +3943,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       detail = detail_vol("Doit etre non significatif si la ponderation pi_t est correcte"))
   bp79 <- test_breusch_pagan_original(z^2, x)
   add(fam, "Heteroscedasticite vs volume - Breusch-Pagan original (non robuste)",
+      fonction = "test_breusch_pagan_original",
       "Breusch & Pagan (1979), Econometrica 47",
       type = si_vol_cst("test"),
       variante = "secondaire",
@@ -3917,6 +3957,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # Issue #110 : meme restitution que RESET (priorite R13 > (a) > (b)).
   wh <- test_white(z^2, x)
   add(fam, "Heteroscedasticite (forme quadratique)", "White (1980), Econometrica 48",
+      fonction = "test_white",
       type = if (vol_cst || !is.na(wh$non_applicable)) "non applicable" else "test",
       H0 = "c1 = c2 = 0", H1 = "heteroscedasticite residuelle de forme quadratique",
       stat_nom = "LM", stat = wh$stat, loi = "chi2(2) asymptotique",
@@ -3926,6 +3967,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       else "")
   gq <- test_goldfeld_quandt(z, x)
   add(fam, "Egalite des variances petits vs gros volumes",
+      fonction = "test_goldfeld_quandt",
       "Goldfeld & Quandt (1965), JASA 60",
       type = si_vol_cst("test"),
       H0 = "sigma1^2 = sigma2^2", H1 = "variances inegales entre les deux blocs",
@@ -3935,6 +3977,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       p_as = gq$p, mc_nom = "GQ", detail = detail_vol(""))
   bf <- test_brown_forsythe(z, x)
   add(fam, "Homogeneite des dispersions (mediane)",
+      fonction = "test_brown_forsythe",
       "Brown & Forsythe (1974), JASA 69",
       type = si_vol_cst("test"),
       H0 = "egalite des dispersions entre les deux groupes",
@@ -3959,6 +4002,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     ks2 <- if (calculable) suppressWarnings(stats::ks.test(z_ea[grp], z_ea[!grp]))
     p_sm <- if (calculable && !ea_sm) p_ex_si_pi_constant(ks2$p.value) else NA_real_
     add(fam, "Egalite des lois petits vs gros volumes (2 ech.)", "Smirnov (1939)",
+        fonction = "usp_tests",
         type = if (calculable) "test" else "non applicable",
         H0 = "F1 = F2 (memes lois)", H1 = "lois differentes",
         stat_nom = "D", stat = if (calculable) unname(ks2$statistic) else NA_real_,
@@ -4000,6 +4044,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # Citation par methode (issue #101) : B(6) pour les primes, C(6) pour la
   # reserve no 1.
   add(fam, "Position de delta dans [0,1]",
+      fonction = "usp_ajuster",
       sprintf("Annexe XVII, section %s, paragraphe 6",
               if (methode == "premium") "B" else "C"),
       type = "diagnostic", estim_nom = "delta", estim = fit$delta,
@@ -4020,11 +4065,13 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   H1n <- "loi non normale"
   sw <- .shapiro_sur(z)
   add(fam, "Shapiro-Wilk sur residus standardises", "Shapiro & Wilk (1965), Biometrika 52",
+      fonction = ".shapiro_sur",
       H0 = H0n, H1 = H1n, stat_nom = "W", stat = sw$stat,
       loi = "aucune forme fermee ; normalisation de Royston (1992)",
       p_as = sw$p, mc_nom = "SW")
   p_sw <- p_ex_si_pi_constant(sw_p_loi_nulle(sw$stat, T))
   add(fam, "Shapiro-Wilk (loi nulle simulee, sans normalisation de Royston)",
+      fonction = ".shapiro_sur",
       "Shapiro & Wilk (1965) ; loi nulle evaluee par simulation directe",
       variante = "secondaire",
       H0 = H0n, H1 = H1n, stat_nom = "W", stat = sw$stat,
@@ -4043,6 +4090,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                  "residus standardises (p Monte-Carlo)"))
   sf <- test_shapiro_francia(z)
   add(fam, "Shapiro-Francia", "Shapiro & Francia (1972), JASA 67 ; Royston (1993)",
+      fonction = "test_shapiro_francia",
       H0 = H0n, H1 = H1n, stat_nom = "W'", stat = sf$stat,
       loi = "aucune forme fermee ; normalisation de Royston (1993)",
       p_as = sf$p, mc_nom = "SF")
@@ -4066,6 +4114,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     "sur estim (statistique re-standardisee), non sur stat ; p_mc sur stat",
     "(statistique du catalogue)"), st)
   add(fam, "Anderson-Darling", "Anderson & Darling (1954), JASA 49",
+      fonction = "stat_ad",
       H0 = H0n, H1 = H1n, stat_nom = "A2", stat = boot$stats_obs$AD,
       loi = loi_stephens("AD"),
       estim_nom = "A2 sur (z - zbar)/s_z", estim = a2_std,
@@ -4074,12 +4123,14 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                       " D'Agostino & Stephens (1986) sur la statistique re-standardisee.",
                       txt_plage))
   add(fam, "Cramer-von Mises", "Cramer (1928) / von Mises (1928) ; Stephens (1974)",
+      fonction = "stat_cvm",
       H0 = H0n, H1 = H1n, stat_nom = "W2", stat = boot$stats_obs$CvM,
       loi = loi_stephens("CvM"),
       estim_nom = "W2 sur (z - zbar)/s_z", estim = w2_std,
       p_as = if (hors_plage) NA_real_ else cvm_p_stephens(w2_std, T), mc_nom = "CvM",
       detail = trimws(txt_plage))
   add(fam, "Kolmogorov-Smirnov contre N(0,1)", "Kolmogorov (1933) ; Smirnov (1948)",
+      fonction = "stat_ks",
       H0 = H0n, H1 = H1n, stat_nom = "D", stat = boot$stats_obs$KS,
       variante = "secondaire",
       loi = "loi de Kolmogorov (valable a parametres CONNUS)",
@@ -4093,6 +4144,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                      "Voir le test de Lilliefors ci-dessus."))
   Dl <- stat_lilliefors(z)
   add(fam, "Lilliefors (KS a parametres estimes)",
+      fonction = "stat_lilliefors",
       "Lilliefors (1967), JASA 62 ; p-value : Dallal & Wilkinson (1986)",
       H0 = H0n, H1 = H1n, stat_nom = "D", stat = Dl,
       loi = "loi de Lilliefors (moyenne et ecart-type estimes)",
@@ -4102,6 +4154,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                      "dans ce cas rend le test extremement conservateur."))
   jb <- test_jarque_bera(z)
   add(fam, "Jarque-Bera", "Jarque & Bera (1980, 1987)",
+      fonction = "test_jarque_bera",
       H0 = "asymetrie nulle ET aplatissement egal a 3",
       H1 = "asymetrie ou aplatissement non normaux",
       stat_nom = "JB", stat = jb$stat, loi = "chi2(2) asymptotique",
@@ -4119,21 +4172,25 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   ds <- test_dagostino_skew(z)
   if (is.finite(ds$stat))
     add(fam, "Asymetrie (D'Agostino, T >= 8)", "D'Agostino (1970), Biometrika 57",
+        fonction = "test_dagostino_skew",
         H0 = "coefficient d'asymetrie de la population nul", H1 = "asymetrie non nulle",
         stat_nom = "Z", stat = ds$stat, loi = "N(0,1) approx. (transformation de Johnson SU)",
         estim_nom = "asymetrie", estim = jb$skew, p_as = ds$p, mc_nom = "DAgo")
   else
     add(fam, "Asymetrie (D'Agostino, T >= 8)", "D'Agostino (1970), Biometrika 57",
+        fonction = "test_dagostino_skew",
         type = "non applicable", estim_nom = "asymetrie", estim = jb$skew,
         detail = sprintf("T = %d < 8 : transformation normalisante non definie", T))
   ak <- test_anscombe_kurt(z)
   if (is.finite(ak$stat))
     add(fam, "Aplatissement (Anscombe-Glynn, T >= 20)", "Anscombe & Glynn (1983), Biometrika 70",
+        fonction = "test_anscombe_kurt",
         H0 = "aplatissement de la population egal a 3", H1 = "aplatissement different de 3",
         stat_nom = "Z", stat = ak$stat, loi = "N(0,1) approx. (Wilson-Hilferty)",
         estim_nom = "aplatissement", estim = jb$kurt, p_as = ak$p)
   else
     add(fam, "Aplatissement (Anscombe-Glynn, T >= 20)", "Anscombe & Glynn (1983), Biometrika 70",
+        fonction = "test_anscombe_kurt",
         type = "non applicable", estim_nom = "aplatissement", estim = jb$kurt,
         detail = sprintf("T = %d < 20 : test non defini", T))
 
@@ -4141,6 +4198,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   fam <- fam_h4
   p_dw <- p_ex_si_pi_constant(dw_p_exacte(z))
   add(fam, "Autocorrelation d'ordre 1 (Durbin-Watson)", "Durbin & Watson (1950, 1951)",
+      fonction = "stat_dw",
       base = "z",
       H0 = "rho = 0 (absence d'autocorrelation d'ordre 1)", H1 = "rho != 0",
       stat_nom = "DW", stat = boot$stats_obs$DW,
@@ -4151,6 +4209,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                                "exacte est obtenue par integration numerique d'Imhof."), p_dw))
   lb1 <- stats::Box.test(z, lag = 1, type = "Ljung-Box")
   add(fam, "Ljung-Box (retard 1)", "Ljung & Box (1978), Biometrika 65",
+      fonction = "usp_tests",
       base = "z",
       H0 = "rho_1 = 0", H1 = "autocorrelation au retard 1",
       stat_nom = "Q", stat = unname(lb1$statistic), loi = "chi2(1) asymptotique",
@@ -4158,11 +4217,13 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   if (T >= 8) {
     lb2 <- stats::Box.test(z, lag = 2, type = "Ljung-Box")
     add(fam, "Ljung-Box (retard 2)", "Ljung & Box (1978), Biometrika 65",
+        fonction = "usp_tests",
         H0 = "rho_1 = rho_2 = 0", H1 = "autocorrelation jusqu'au retard 2",
         stat_nom = "Q", stat = unname(lb2$statistic), loi = "chi2(2) asymptotique",
         p_as = lb2$p.value, mc_nom = "LB2")
     bp2 <- stats::Box.test(z, lag = 2, type = "Box-Pierce")
     add(fam, "Box-Pierce (retard 2)", "Box & Pierce (1970), JASA 65",
+        fonction = "usp_tests",
         H0 = "rho_1 = rho_2 = 0", H1 = "autocorrelation jusqu'au retard 2",
         variante = "secondaire",
         stat_nom = "Q", stat = unname(bp2$statistic), loi = "chi2(2) asymptotique",
@@ -4174,6 +4235,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   ru <- test_runs(z); eff_z <- .runs_effectifs(z)
   p_ru <- p_ex_si_pi_constant(runs_p_exacte(z))
   add(fam, "Test des suites (aleatoire des signes)",
+      fonction = "test_runs",
       base = "z",
       "Wald & Wolfowitz (1940) ; loi exacte : Swed & Eisenhart (1943)",
       type = if (is.finite(ru$stat)) "test" else "non applicable",
@@ -4327,12 +4389,14 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   sans_p <- paste("Aucune p-value retenue : la grandeur est rivee par",
                   "l'estimation, elle est restituee comme diagnostic (ADR 0001).")
   add(fam, "Centrage des residus standardises", "Diagnostic de centrage (ADR 0001)",
+      fonction = "usp_tests",
       type = "diagnostic", estim_nom = "moyenne(z)", estim = mean(z),
       detail = paste("Grandeur rivee par l'estimation :",
                      "somme(sqrt(pi_t) z_t) = 0 par condition du premier ordre,",
                      "d'ou moyenne(z) = 0 lorsque pi_t est constant.",
                      contrainte("centrage"), sans_p))
   add(fam, "Variance unitaire des residus standardises", "Diagnostic d'echelle (ADR 0001)",
+      fonction = "usp_tests",
       type = "diagnostic", estim_nom = "var(z)", estim = stats::var(z),
       detail = paste("Grandeur rivee par l'estimation : la condition du",
                      "premier ordre en gamma, qui ne tient qu'a un optimum",
@@ -4344,12 +4408,14 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   ## --- F. Stabilite, ruptures et points aberrants ----------------------------
   fam <- "F. Stabilite, ruptures et points aberrants"
   add(fam, "Rupture de niveau (sup-F)", "Quandt (1960) / Chow (1960) ; Andrews (1993)",
+      fonction = "stat_supF",
       base = "z",
       H0 = "E[z_t] constant (absence de rupture)", H1 = "rupture de niveau a une date inconnue",
       stat_nom = "supF", stat = boot$stats_obs$supF,
       loi = "supremum de processus (Andrews) -> Monte-Carlo", mc_nom = "supF",
       detail = "La loi de Fisher est inapplicable : le point de rupture est estime")
   add(fam, "Stabilite cumulee (OLS-CUSUM)", "Brown, Durbin & Evans (1975), JRSS B 37",
+      fonction = "stat_cusum",
       base = "z",
       H0 = "constance des parametres sur la periode", H1 = "derive graduelle",
       stat_nom = "CUSUM", stat = boot$stats_obs$CUSUM,
@@ -4364,6 +4430,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                  txt_mc_indispo("p_mc")))
   gr <- test_grubbs(z)
   add(fam, "Valeur aberrante isolee (Grubbs)", "Grubbs (1950, 1969), Technometrics 11",
+      fonction = "test_grubbs",
       base = "z",
       H0 = "aucune valeur aberrante (echantillon normal homogene)",
       H1 = "exactement une valeur aberrante",
@@ -4374,6 +4441,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       detail = sprintf("G est borne par (T-1)/sqrt(T) = %.3f", (T - 1) / sqrt(T)))
   ro <- test_rosner(z, alpha = alpha)
   add(fam, "Valeurs aberrantes multiples (ESD generalise)", "Rosner (1983), Technometrics 25",
+      fonction = "test_rosner",
       type = "procedure de decision",
       H0 = "aucune valeur aberrante", H1 = "il existe i <= k valeurs aberrantes",
       estim_nom = "nb de valeurs aberrantes", estim = ro$nb_outliers,
@@ -4384,6 +4452,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                 else if (ro$nb_outliers == 1) "ALERTE" else "OK")
   mlm <- stats::lm(y ~ x - 1); ck <- stats::cooks.distance(mlm); hv <- stats::hatvalues(mlm)
   add(fam, "Points influents (distance de Cook)", "Cook (1977), Technometrics 19",
+      fonction = "usp_tests",
       type = "diagnostic", estim_nom = "max D_t", estim = max(ck),
       detail = sprintf("repere conventionnel 4/T = %.3f ; %d observation(s) au-dessus%s",
                        4 / T, sum(ck > 4 / T),
@@ -4494,6 +4563,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
           "residus standardises (issue #29).")
   }
   add(fam_h4,
+      fonction = "stat_dw",
       "Autocorrelation d'ordre 1 (Durbin-Watson) sur ratios bruts",
       "Durbin & Watson (1950, 1951)", base = "r",
       H0 = "absence d'autocorrelation d'ordre 1 du ratio S/P",
@@ -4501,11 +4571,13 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       stat_nom = "DW", stat = boot$stats_obs$DWr, loi = loi_ind, mc_nom = "DWr",
       detail = detail_r())
   add(fam_h4,
+      fonction = "usp_tests",
       "Ljung-Box (retard 1) sur ratios bruts", "Ljung & Box (1978), Biometrika 65",
       base = "r", H0 = "rho_1 = 0 pour le ratio S/P", H1 = "autocorrelation au retard 1",
       stat_nom = "Q", stat = boot$stats_obs$LB1r, loi = loi_ind, mc_nom = "LB1r",
       detail = detail_r())
   add(fam_h4,
+      fonction = "test_runs",
       "Test des suites sur ratios bruts", "Wald & Wolfowitz (1940)",
       base = "r", H0 = "arrangement aleatoire des signes du ratio centre",
       H1 = "arrangement non aleatoire",
@@ -4525,18 +4597,21 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         paste("un seul cote de la mediane represente : loi de R non definie,",
               "test non applicable"))
   add(fam, "Rupture de niveau (sup-F) sur ratios bruts",
+      fonction = "stat_supF",
       "Quandt (1960) / Chow (1960) ; Andrews (1993)", base = "r",
       H0 = "niveau du ratio S/P constant", H1 = "rupture de niveau du ratio S/P",
       stat_nom = "supF", stat = boot$stats_obs$supFr,
       loi = "supremum de processus -> Monte-Carlo", mc_nom = "supFr",
       detail = detail_r("Detecte un changement de regime du ratio, independamment du modele."))
   add(fam, "Stabilite cumulee (OLS-CUSUM) sur ratios bruts",
+      fonction = "stat_cusum",
       "Brown, Durbin & Evans (1975), JRSS B 37", base = "r",
       H0 = "constance du niveau du ratio S/P", H1 = "derive graduelle",
       stat_nom = "CUSUM", stat = boot$stats_obs$CUSUMr,
       loi = "sup |pont brownien| -> Monte-Carlo", mc_nom = "CUSUMr",
       detail = detail_r())
   add(fam, "Valeur aberrante isolee (Grubbs) sur ratios bruts",
+      fonction = "test_grubbs",
       "Grubbs (1950, 1969), Technometrics 11", base = "r",
       H0 = "aucun ratio S/P aberrant", H1 = "exactement un ratio aberrant",
       stat_nom = "G", stat = boot$stats_obs$Grubbsr, loi = loi_ind,
@@ -4546,6 +4621,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       detail = detail_r("Identifie l'annee au boni/mali le plus atypique, sans passer par le modele."))
 
   add(fam, "Leviers (hat values)", "Hoaglin & Welsch (1978), Amer. Statist. 32",
+      fonction = "usp_tests",
       type = "diagnostic", estim_nom = "max h_t", estim = max(hv),
       detail = sprintf("repere conventionnel 2k/T = %.3f ; %d observation(s) au-dessus",
                        2 / T, sum(hv > 2 / T)))
@@ -4570,6 +4646,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   rb <- robustesse
   if (!is.null(fit$ecart_jackknife))
     add(fam, "Sensibilite au retrait d'une annee (jackknife)",
+        fonction = "run_engine",
         "Quenouille (1949) / Tukey (1958)", type = "diagnostic",
         estim_nom = "ecart relatif max", estim = fit$ecart_jackknife,
         detail = if (!is.null(rb$jack_annee))
@@ -4579,6 +4656,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         else "Annee la plus influente non determinee.")
   if (!is.null(fit$largeur_ic))
     add(fam, "Largeur relative de l'IC bootstrap 90%", "Efron (1979), Ann. Statist. 7",
+        fonction = "run_engine",
         type = "diagnostic",
         estim_nom = "largeur / sigma_USP", estim = fit$largeur_ic,
         detail = "Intervalle bootstrap du parametre retenu : res$ic_bootstrap.")
@@ -4591,6 +4669,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # Aucun nombre issu du bootstrap dans detail (#24, #76).
   if (!is.null(fit$largeur_ic_restreint))
     add(fam, "Largeur relative de l'IC bootstrap 90% (delta fixe a delta estime)",
+        fonction = "run_engine",
         "Efron (1979), Ann. Statist. 7 ; Andrews (2000), Econometrica 68",
         type = "diagnostic",
         estim_nom = "largeur / sigma_USP", estim = fit$largeur_ic_restreint,
@@ -4631,6 +4710,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         pref <- c(pref, sprintf("SOLUTION AU BORD delta = %d : LR = 0 par construction.",
                                 as.integer(b$delta0)))
       add(fam, li$nom,
+          fonction = "usp_lr_delta",
           "Chernoff (1954) ; Self & Liang (1987), JASA 82 ; Davison & Hinkley (1997), chap. 4",
           type = "diagnostic", H0 = li$H0, H1 = li$H1,
           stat_nom = li$stat_nom, stat = b$lr, loi = loi_lr,
@@ -6621,6 +6701,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   fam <- "M1. proportionnalite des cumules (annexe XVII D(2)(h)(iii))"
   ti <- .mw_lm_intra(res)
   add(fam, "Absence de tendance des facteurs avec le cumul, a colonne donnee",
+      fonction = ".mw_lm_intra",
       "Mack (1993), ASTIN Bulletin 23(2)",
       H0 = "a annee de developpement donnee, le facteur ne depend pas du niveau de C(i,j)",
       H1 = "les facteurs varient avec le volume a l'interieur d'une colonne",
@@ -6635,6 +6716,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   # --- Tests colonne par colonne de l'hypothese (iii) ------------------------
   oo <- mw_test_ordonnee_origine(aj)
   add(fam, "Nullite de l'ordonnee a l'origine, colonne par colonne",
+      fonction = "mw_test_ordonnee_origine",
       "Mack (1993), ASTIN Bulletin 23(2), section 3",
       H0 = "a_j = 0 pour toute annee de developpement j",
       H1 = "au moins une colonne presente une composante fixe",
@@ -6652,6 +6734,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                      "non definie (0/0)"), "de proportionnalite")))
   hf <- mw_test_homogeneite_f(aj)
   add(fam, "Homogeneite de f_j entre annees de survenance",
+      fonction = "mw_test_homogeneite_f",
       "Annexe XVII, D(2)(h)(iii) : 'pour toutes les annees d'accident'",
       H0 = "le facteur f_j est commun a toutes les annees de survenance",
       H1 = "les facteurs individuels derivent avec l'annee de survenance",
@@ -6666,6 +6749,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
           "de l'homogeneite de f_j entre annees de survenance")))
   cb <- mw_test_courbure(aj)
   add(fam, "Absence de courbure de la regression",
+      fonction = "mw_test_courbure",
       "Test du terme quadratique, dans l'esprit de Ramsey (1969)",
       H0 = "le terme en C(i,j)^2 est nul dans chaque colonne",
       H1 = "la relation entre cumules successifs n'est pas lineaire",
@@ -6680,6 +6764,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
           "de linearite")))
   al <- mw_famille_alpha(aj)
   add(fam, "Stabilite du facteur selon la ponderation (famille alpha)",
+      fonction = "mw_famille_alpha",
       "Mack (1994), Insurance: Mathematics and Economics 15",
       H0 = "les estimateurs alpha = 0, 1 et 2 visent le meme f_j",
       H1 = "la valeur du facteur depend de la ponderation retenue",
@@ -6694,6 +6779,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
     m <- stats::lm(I(r^2) ~ res$C); list(stat = n * summary(m)$r.squared,
       p = .p_borne(1 - stats::pchisq(n * summary(m)$r.squared, 1))) } else list(stat = NA_real_, p = NA_real_)
   add(fam, "Heteroscedasticite residuelle vs cumul",
+      fonction = "mw_tests",
       "Breusch & Pagan (1979) / Koenker (1981), applique aux residus de Mack",
       H0 = "les residus de Mack ne dependent plus de C(i,j)",
       H1 = "la ponderation en C(i,j) ne capture pas la variance",
@@ -6702,6 +6788,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       detail = "Si Var(C(i,j+1)|C(i,j)) = sigma_j^2 C(i,j), les residus standardises sont d'echelle constante")
   ev <- mw_test_exposant_variance(aj)
   add(fam, "Adequation de l'exposant de variance, colonne par colonne",
+      fonction = "mw_test_exposant_variance",
       "Annexe XVII, D(2)(h)(iv) ; complement de Breusch-Pagan",
       H0 = "|r(i,j)| ne depend pas de C(i,j) dans chaque colonne",
       H1 = "l'exposant 1 impose par le reglement est inadapte",
@@ -6727,6 +6814,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   k_col <- length(unique(res$j))
   var_attendue <- if (n > 1) (n - k_col) / (n - 1) else NA_real_
   add(fam, "Variance unitaire des residus de Mack", "Diagnostic d'echelle",
+      fonction = "mw_tests",
       type = "diagnostic", estim_nom = "var(residus)", estim = stats::var(r),
       detail = sprintf(paste("Valeur de reference %s, et NON 1 : sigma2_j etant",
                              "l'estimateur de Mack, somme_i r(i,j)^2 = n_j - 1",
@@ -6748,6 +6836,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   fam <- "M3. independance (annexe XVII D(2)(h)(i) et (ii))"
   cal <- mw_test_annees_calendaires(aj)
   add(fam, "Effets d'annee calendaire (test de Mack)",
+      fonction = "mw_test_annees_calendaires",
       "Mack (1994), Insurance: Mathematics and Economics 15, 133-138",
       H0 = "absence d'effet d'annee calendaire (diagonales homogenes)",
       H1 = "une ou plusieurs diagonales atypiques (inflation, changement de cadence)",
@@ -6758,6 +6847,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       detail = "Les diagonales representent les exercices comptables : un effet calendaire viole l'independance des annees d'accident")
   ka <- mw_test_homogeneite_accident(aj)
   add(fam, "Homogeneite des residus entre annees de survenance",
+      fonction = "mw_test_homogeneite_accident",
       "Kruskal & Wallis (1952), JASA 47, 583-621",
       H0 = "les residus de Mack ont la meme distribution dans toutes les lignes",
       H1 = "au moins une annee de survenance se comporte differemment",
@@ -6768,6 +6858,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       detail = "Traduction testable de l'independance des annees de survenance, D(2)(h)(i)")
   cor <- mw_stat_correlation_dev(aj)
   add(fam, "Correlation entre annees de developpement adjacentes",
+      fonction = "mw_stat_correlation_dev",
       "Mack (1993, 1997), ASTIN Bulletin ; correlation de rang de Spearman",
       H0 = "facteurs de developpement successifs non correles",
       H1 = "correlation entre colonnes adjacentes",
@@ -6775,12 +6866,14 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       loi = "depend de la geometrie du triangle -> Monte-Carlo", mc_nom = "CorrDev",
       detail = "Une correlation positive signale une dependance entre cadences successives")
   add(fam, "Autocorrelation des residus (Durbin-Watson)",
+      fonction = "stat_dw",
       "Durbin & Watson (1950, 1951)",
       H0 = "residus de Mack non autocorreles", H1 = "autocorrelation residuelle",
       stat_nom = "DW", stat = stat_dw(r),
       loi = "residus de triangle -> Monte-Carlo", mc_nom = "DW")
   ru <- test_runs(r)
   add(fam, "Test des suites sur les residus de Mack",
+      fonction = "test_runs",
       "Wald & Wolfowitz (1940)",
       H0 = "arrangement aleatoire des signes des residus", H1 = "arrangement non aleatoire",
       stat_nom = "Z", stat = ru$stat, loi = "N(0,1) approx. -> Monte-Carlo",
@@ -6791,6 +6884,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   fam <- "M4. points aberrants et stabilite"
   gr <- test_grubbs(r)
   add(fam, "Cellule aberrante du triangle (Grubbs)",
+      fonction = "test_grubbs",
       "Grubbs (1950, 1969), Technometrics 11",
       H0 = "aucun residu de Mack aberrant", H1 = "exactement un residu aberrant",
       stat_nom = "G", stat = gr$stat, loi = "Student + Bonferroni -> Monte-Carlo",
@@ -6801,6 +6895,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                 res$i[gr$idx], res$j[gr$idx]) else "")
   ro <- test_rosner(r, alpha = alpha)
   add(fam, "Cellules aberrantes multiples (ESD generalise)",
+      fonction = "test_rosner",
       "Rosner (1983), Technometrics 25", type = "procedure de decision",
       H0 = "aucun residu aberrant", H1 = "il existe i <= k residus aberrants",
       estim_nom = "nb de cellules aberrantes", estim = ro$nb_outliers,
@@ -6811,6 +6906,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   fam <- "M5. normalite des residus (diagnostic, NON exige par le modele)"
   sw <- .shapiro_sur(r)
   add(fam, "Shapiro-Wilk sur les residus de Mack",
+      fonction = ".shapiro_sur",
       "Shapiro & Wilk (1965) ; loi nulle evaluee par simulation directe",
       H0 = "les residus de Mack sont normaux", H1 = "loi non normale",
       stat_nom = "W", stat = sw$stat,
@@ -6820,6 +6916,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                      "la normalite n'est pas requise par la methode. Ce test n'est pertinent",
                      "que si l'on souhaite exploiter la MSEP pour un quantile."))
   add(fam, "Lilliefors sur les residus de Mack",
+      fonction = "stat_lilliefors",
       "Lilliefors (1967) ; p-value : Dallal & Wilkinson (1986)",
       variante = "secondaire",
       H0 = "les residus de Mack sont normaux", H1 = "loi non normale",
@@ -6833,6 +6930,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   # retenu : c'est ce qui permet au relecteur de refaire le calcul a la main.
   ex <- mw_extrapolation_sigma2(aj)
   add(fam, "Extrapolation de sigma pour la derniere annee de developpement",
+      fonction = "mw_ajuster",
       "Annexe XVII, D(5)(d)(ii), seconde ligne", type = "diagnostic",
       estim_nom = "sigma2_(J-1)", estim = aj$sigma2[aj$J],
       detail = .mw_detail_extrapolation(ex))
@@ -6845,6 +6943,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   # restent restitues dans le detail, ou leur statut est nomme.
   part_derniere <- aj$reserve_par_annee[aj$I + 1] / aj$reserve
   add(fam, "Part de la reserve portee par la derniere annee d'accident",
+      fonction = "mw_tests",
       "Diagnostic de concentration", type = "diagnostic",
       estim_nom = "part", estim = part_derniere,
       detail = sprintf(paste("part = %.1f %% de la reserve totale. Une part elevee concentre la",
@@ -7931,5 +8030,7 @@ engine_table_tests <- function(res) {
     p_retenue = t$p_retenue, nature_p = t$nature_p,
     sens_du_test = t$sens, verdict = t$verdict,
     commentaire = t$detail, reference = t$reference,
+    # fonction (#111) : NULL sur un objet anterieur au champ, rendu NA.
+    fonction = if (is.null(t$fonction)) NA_character_ else t$fonction,
     stringsAsFactors = FALSE)))
 }

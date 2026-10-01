@@ -184,8 +184,8 @@ verifier("U8 lignes LR sur J1 : stat = LR, estim = sigma contraint, p_mc et err_
 verifier("U8 add() : p_mc_ext et mc_nom ensemble -> erreur",
          {
            reg <- engine_registre_tests(r1$bootstrap, USP_CATALOGUE_MC, 0.10, "Monte-Carlo")
-           leve_erreur(reg$add("G.", "essai", "ref", mc_nom = names(USP_CATALOGUE_MC)[1], p_mc_ext = 0.5)) &&
-             !leve_erreur(reg$add("G.", "essai", "ref", type = "diagnostic", p_mc_ext = 0.5, err_mc_ext = 0.01))
+           leve_erreur(reg$add("G.", "essai", "ref", fonction = "usp_tests", mc_nom = names(USP_CATALOGUE_MC)[1], p_mc_ext = 0.5)) &&
+             !leve_erreur(reg$add("G.", "essai", "ref", fonction = "usp_tests", type = "diagnostic", p_mc_ext = 0.5, err_mc_ext = 0.01))
          })
 # Cas construit (#126, constat C1 d'audit) : tous les LR* nuls et LR observe
 # positif a la borne delta = 0 de J1 -> engine_p_mc() pose

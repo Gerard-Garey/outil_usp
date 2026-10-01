@@ -484,7 +484,7 @@ verifier("engine_motif_b_alpha : NULL a (999 ; 0,01), message identique a l'erre
 verdict_plancher <- function(alpha, B) {
   r <- engine_registre_tests(list(p_mc = c(A = 2 * (1 / (B + 1))), err_mc = c(A = 0)),
                              list(A = .mc_entree(function(e) 1, "deux")), alpha, "Monte-Carlo")
-  r$add("F", "t", "ref", mc_nom = "A")
+  r$add("F", "t", "ref", fonction = "usp_tests", mc_nom = "A")
   l <- r$lignes()[[1]]
   c(l$nature_p, l$verdict)
 }
