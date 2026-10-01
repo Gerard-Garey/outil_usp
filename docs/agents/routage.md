@@ -37,19 +37,22 @@ Le paramètre `model` d'un appel `Agent` l'emporte sur le `model` de la fiche ; 
 | architect | Point d'étape après fusion | lot ≥ 8 issues, plusieurs branches touchées, ou fin de période GPT | routine ; jugement si l'un des signaux | SHA cités, dépendances ajoutées / retirées explicites, décisions M-n | seuil « macro » (§ 4.3) atteint → Fable **proposé** au mainteneur | feuille de route à jour |
 | architect | Plan de la branche suivante | — | jugement | trois à cinq issues, ordre des commits, agent et circuit par tâche, critères d'acceptation | § 4.1 | plan complet |
 | architect | Issue sensible : ADR, invariant de `CLAUDE.md` ou contrat partagé touché | § 4.2 | jugement | ADR et invariants cités, effet sur les contrats, branches touchées | § 4.1 ; sinon Fable **proposé** | avis rendu, ou décision du mainteneur |
+| architect | Relecture d'une PR ou d'un diff de processus | — | jugement | constats par fichier et passage, texte proposé, motif, gravité | § 4.1 | relecture complète |
 | architect | Rédaction d'un ADR **d'architecture** (couches, invariants, contrats) | — | **Fable** (routage initial) | contexte, options écartées, conséquences | décision du mainteneur | ADR proposé |
 | architect | Rédaction d'un ADR d'organisation (Git, processus, outillage) | — | jugement | idem | idem | idem |
 | actuary | Validation après audit, sans changement de résultat | — | routine | diff, rapport d'audit, verdict référencé | relance ciblée si une preuve manque | verdict |
 | actuary | Validation avec tableau avant / après ; conformité à une source ; spécification ou plan | — | jugement | citation précise (texte, article, paragraphe) ou mesure exécutée ; chaque conclusion marquée vérifiée / hypothèse / non vérifiée | § 4.1 ; deux lectures → § 4.4 | verdict, matrice ou plan complet |
+| actuary | Validation du diff du `.tex` en fin de branche (règle 9) | — | jugement | passages relus, renvois au code et aux sources, constats marqués vérifié / hypothèse | § 4.1 | verdict |
+| actuary | Revue périodique des tests | liste des tests notablement changée | jugement | tests revus, pertinence à T = 8 argumentée, constats sourcés | § 4.1 | avis rendu |
 | actuary | Nouvelle approche, méthode ou test nouveau | au moins deux options sans preuve qui départage | jugement | options, apport de chacune, références retrouvées | **arbitrage du mainteneur** ; Fable seulement à sa demande ou par § 4.1 | options décrites |
-| tous | Changement d'un résultat final ou d'un verdict | tableau avant / après | jugement | tableau avant / après, lignes expliquées | Fable **seulement sur décision du mainteneur** | visa |
+| `architect`, `actuary` | Changement d'un résultat final ou d'un verdict | tableau avant / après | jugement | tableau avant / après, lignes expliquées | Fable **seulement sur décision du mainteneur** | visa |
 
 ## 4. Critères
 
 ### 4.1 Fable sans demander au mainteneur (liste fermée)
 
 1. **Échec documenté d'Opus `high`** : après la consultation en jugement (et, s'il y a lieu, la relance ciblée), la preuve attendue manque encore **et** le blocage est de raisonnement — ni une information manquante, ni une exploration interrompue (§ 5.1).
-2. **Désaccord entre agents** : expert contre `audit`, deux experts entre eux, ou un avis contre un ADR accepté. Fable **instruit** le désaccord ; la décision reste au mainteneur quand `CLAUDE.md` la lui réserve.
+2. **Désaccord entre agents** : expert contre `audit`, ou deux experts entre eux. Fable **instruit** le désaccord ; la décision reste au mainteneur quand `CLAUDE.md` la lui réserve. Un avis qui contredit un ADR accepté relève du § 4.2 (issue sensible : jugement, Fable proposé).
 3. **Rédaction d'un ADR d'architecture** (routage initial, § 3).
 
 Tout autre usage de Fable est **proposé** au mainteneur (un message, réponse oui / non), qui peut aussi le demander d'office.
@@ -84,7 +87,7 @@ Sous le seuil : jugement, sans question au mainteneur.
 
 | Blocage constaté dans le retour | Action | Forme |
 |---|---|---|
-| statut `complet` sans les preuves prévues, ou retour sans bloc « Retour » (plafond de tours probable) | **relance ciblée** | reprise du même agent (`SendMessage`), contexte conservé, même fiche ; statut requalifié `partiel` |
+| statut `complet` sans les preuves prévues, sortie marquée partielle par Claude Code (plafond de tours atteint), ou retour sans bloc « Retour » | **relance ciblée** | reprise du même agent (`SendMessage`), contexte conservé, même fiche ; statut requalifié `partiel` |
 | exploration incomplète en routine (lectures non faites, périmètre non couvert) | **hausse d'effort** | consultation neuve de la fiche `-approfondi`, avec le dossier (§ 5.4) |
 | blocage de raisonnement en jugement, ou critère du § 4.1 | **changement de modèle** | consultation neuve de la fiche `-approfondi` avec `model: "fable"`, avec le dossier |
 | information, source ou mesure manquante | **obtenir l'information ou la preuve** | lancer la mesure, retrouver la source, ou demander au mainteneur |
@@ -95,12 +98,12 @@ Ordre selon la nature du blocage : information → preuve ; exploration → effo
 ### 5.2 Plafonds
 
 - **Par question** : au plus une relance ciblée, une hausse d'effort et une consultation Fable ; ensuite arrêt et compte rendu au mainteneur, statut `revue requise`.
-- **Par branche de travail** : au-delà de **3 consultations Fable** (ADR compris), accord du mainteneur avant chaque nouvelle consultation.
-- **Par consultation** : `maxTurns` de la fiche (40 ou 80). Ce plafond borne les tours, **pas les tokens** ; une réponse courte ne borne pas le raisonnement.
+- **Par branche de travail** (hors branche : par période entre deux points d'étape) : au-delà de **3 consultations Fable** (ADR compris), accord du mainteneur avant chaque nouvelle consultation.
+- **Par consultation** : `maxTurns` de la fiche (40 ou 80). Ce plafond borne les tours, **pas les tokens** ; une réponse courte ne borne pas le raisonnement. Une reprise par `SendMessage` repart probablement avec un budget complet (à vérifier).
 
 ### 5.3 Modèle indisponible, plafond atteint
 
-Arrêt et question au mainteneur : attendre, ou accepter une consultation Opus `high` dont l'avis porte la mention « rendu sans Fable, à revoir ». Jamais de remplacement silencieux : le journal (§ 7) compare le modèle servi au modèle demandé.
+Arrêt et question au mainteneur : attendre, ou accepter une consultation Opus `high` dont l'avis porte la mention « rendu sans Fable, à revoir ». Jamais de remplacement silencieux : le journal (§ 7) donne le modèle servi, que la session compare à celui qu'elle a demandé (modèle de la fiche, ou `model` de l'appel noté dans la ligne d'escalade) ; l'entrée du hook ne porte pas le modèle demandé.
 
 ### 5.4 Dossier d'escalade
 
@@ -119,7 +122,7 @@ Preuve attendue pour conclure :
 ### 5.5 Priorité entre règles
 
 1. `CLAUDE.md` (visa, décisions réservées au mainteneur, deux lectures d'une source) ;
-2. indisponibilité d'un modèle ou plafond atteint (§ 5.2, § 5.3) : arrêt ;
+2. indisponibilité d'un modèle ou plafond atteint (§ 5.2, § 5.3) : arrêt ; seul un accord du mainteneur donné après l'arrêt le lève ;
 3. décisions explicites du mainteneur ;
 4. critères du § 4.1 ;
 5. jugement de la session principale, appuyé sur les signaux du § 3.
@@ -132,15 +135,15 @@ Chaque consultation se termine par un bloc « Retour » (fiches `architect`, `ac
 
 ## 7. Traçabilité
 
-- **Journal local** : le hook `SubagentStop` (`.claude/hooks/journal_agents.sh`) ajoute une ligne JSON par consultation à `.claude/journal-agents.jsonl` (non versionné) : date, agent, identifiant, modèles servis, nombre d'appels au modèle, contexte au dernier appel (tokens d'entrée, cache compris), durée. Il ne mesure ni l'effort (non exposé) ni les tokens de sortie (non fiables dans le transcript). En session cloud, il disparaît avec le conteneur.
-- **Bilan** : `bash .claude/outils/bilan_journal.sh` agrège le journal par agent et par modèle.
-- **Trace durable** : chaque escalade (hausse d'effort, Fable, relance, arrêt) est notée par la session principale dans la PR de la branche de travail, une ligne : `fiche / modèle / critère déclenché / statut obtenu / suite`.
-- `/usage` donne, sur abonnement, la part de chaque sous-agent ; aucune autre mesure de consommation n'est disponible.
+- **Journal local** : le hook `SubagentStop` (`.claude/hooks/journal_agents.sh`, corps en Python `journal_agents.py`) ajoute une ligne JSON par consultation à `.claude/journal-agents.jsonl` (non versionné) : date, agent, identifiant, modèles servis, nombre d'appels au modèle, contexte au dernier appel (tokens d'entrée, cache compris), durée. Il ne mesure ni l'effort (non exposé) ni les tokens de sortie (non fiables dans le transcript). En session cloud, il disparaît avec le conteneur.
+- **Bilan** : `bash .claude/outils/bilan_journal.sh` agrège le journal par agent et par modèle (une consultation reprise n'est comptée qu'une fois).
+- **Trace durable** : chaque escalade (hausse d'effort, Fable), relance ciblée ou arrêt est notée par la session principale dans la PR de la branche de travail, une ligne : `fiche / modèle / critère déclenché / statut obtenu / suite`.
+- `/usage` donne, sur abonnement, la part de chaque sous-agent, de façon approximative et calculée sur l'historique local de la machine (une session cloud n'est vue que d'elle-même) ; aucune autre mesure de consommation n'est disponible.
 
 ## 8. Calibration et retour arrière
 
 - **Calibration** : après les dix premières consultations `architect`, `actuary`, puis à chaque point d'étape d'`architect`, relire le bilan du journal et les lignes d'escalade des PR : part des relances ciblées (fiches trop légères ?), escalades vers Fable et leur apport réel, contexte au dernier appel (lectures trop larges ?). Ajuster les seuils et efforts par un commit `claude:` motivé ; une réorientation durable s'annote dans l'ADR 0013.
-- **Retour au comportement antérieur** (Fable pour tout) : remettre `model: fable` dans `architect.md` et `actuary.md`, retirer `effort` et `maxTurns`, relancer le script, ou annuler le commit de fusion de la PR qui a introduit la politique (`git revert -m 1 <sha>`).
+- **Retour au comportement antérieur** (Fable pour tout) : remettre `model: fable` dans `architect.md` et `actuary.md`, retirer `effort`, `maxTurns` et la phrase « Fiche de routine… » des descriptions, vider `ROLES`, supprimer les fiches `-approfondi` (le contrôle des orphelines l'exige) et le job CI « Fiches d'agents » ; ou annuler le commit de fusion de la PR qui a introduit la politique (`git revert -m 1 <sha>`).
 
 ## 9. Adapter la politique à un projet
 
@@ -155,4 +158,4 @@ Emplacements réellement lus :
 
 Ces critères s'articulent avec `CLAUDE.md` sans le remplacer : les décisions qu'il réserve au mainteneur restent les siennes quel que soit le modèle. Vérification : `bash .claude/outils/fiches_jumelles.sh --verifier` (la CI), puis, dans une session neuve, une consultation de chaque fiche suivie de `bash .claude/outils/bilan_journal.sh` pour lire le modèle servi.
 
-Adaptations retenues pour ce projet (30/09/2026) : seuls `architect` et `actuary` sont dédoublés ; `regulatory` reste sur Opus avec l'effort de la session ; est **résultat final** tout changement de σ_USP ou d'un verdict (visa du mainteneur) ; une lecture du règlement à deux sens suit le circuit 2 de `CLAUDE.md` (`regulatory` établit, `actuary` éclaire, le mainteneur tranche) : Fable n'y est pas requis ; une question de validité à T = 8 part en jugement ; l'audit de `main-GPT`, plus exigeant qu'une revue finale, consulte `architect-approfondi` et `actuary-approfondi` (skill `audit-main-gpt`) ; la correspondance de modèles côté GPT (ADR 0012, point 5) n'est pas modifiée par cette politique.
+Adaptations retenues pour ce projet (30/09/2026) : seuls `architect` et `actuary` sont dédoublés ; `regulatory` reste sur Opus avec l'effort de la session ; est **résultat final** tout changement de σ_USP ou d'un verdict (visa du mainteneur) ; une lecture du règlement à deux sens suit le circuit 2 de `CLAUDE.md` (`regulatory` établit, `actuary` éclaire, le mainteneur tranche) : Fable n'y est pas requis ; une question de validité à T = 8 part en jugement ; l'audit de `main-GPT`, plus exigeant qu'une revue finale, consulte `architect-approfondi` et `actuary-approfondi` (skill `audit-main-gpt`) ; les règles de modèle côté GPT (ADR 0012, annotation du 29/09, point 5) ne sont pas modifiées par cette politique.

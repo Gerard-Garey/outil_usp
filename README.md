@@ -42,7 +42,7 @@ Périmètres : annexe II (non-vie, 12 segments) et annexe XIV (santé non-SLT, 4
     docs/exigences.md           cahier des charges
     docs/latex/                 documentation de l'outil (.tex et PDF compilé)
     docs/agents/                configuration des agents (issues, libellés, domaine)
-    .claude/                    Claude Code : sous-agents, skills, hook de session
+    .claude/                    Claude Code : sous-agents, skills, workflows, hooks, outils
     AGENTS.md                   consignes de ChatGPT (Codex), contributeur épisodique
     .codex/                     Codex : fiches de rôle, procédures, script de setup (R, TeX Live)
     .github/                    intégration continue, modèles d'issues et de PR
@@ -146,7 +146,7 @@ artefacts de la CI) est lisible par tous et le reste dans l'historique.
 
 - **Où** : critères (matrice, contrats partagés, seuil « macro », plafonds) dans `docs/agents/routage.md` ; effort et plafond de tours de routine dans le frontmatter des fiches de base ; rôles dédoublés, effort et plafond de jugement dans `.claude/outils/fiches_jumelles.sh` (`ROLES`, `EFFORT_APPROFONDI`, `TOURS_APPROFONDI`), puis `bash .claude/outils/fiches_jumelles.sh` pour régénérer les fiches `-approfondi`.
 - **Articulation** : les règles de `CLAUDE.md` priment (visa, décisions réservées au mainteneur, deux lectures d'une source).
-- **Vérification** : `bash .claude/outils/fiches_jumelles.sh --verifier` (la CI) ; dans une session neuve, une consultation de chaque fiche puis `bash .claude/outils/bilan_journal.sh` (modèle réellement servi, journal local du hook `SubagentStop`) ; les escalades sont notées dans la PR (section « Consultations escaladées »).
+- **Vérification** : `bash .claude/outils/fiches_jumelles.sh --verifier` (la CI) ; dans une session neuve, une consultation de chaque fiche puis `bash .claude/outils/bilan_journal.sh` (modèle réellement servi, journal local du hook `SubagentStop`) ; les escalades sont notées dans la PR (section « Consultations escaladées, relancées ou arrêtées »).
 - **Limites** : un plafond de tours n'est pas un plafond de tokens ; l'effort effectif n'est pas observable dans le journal ; la politique ne supprime pas les angles morts des modèles.
 
 ## Contribuer

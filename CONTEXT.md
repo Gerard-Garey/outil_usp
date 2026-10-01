@@ -170,11 +170,11 @@ La revue du diff `main...main-GPT`, des issues que GPT déclare résolues et de 
 _Avoid_ : audit léger (l'audit de `main-GPT` est à la profondeur de la revue finale) ; revue automatique, audit à chaque PR (lancé sur ordre seulement) ; « audit de GPT » sans l'objet (c'est le diff qui est audité, pas l'agent)
 
 **Consultation** :
-Un appel d'`architect` ou d'`actuary` par la session principale ; se termine par un bloc « Retour » (statut `complet`, `partiel` ou `revue requise`). Voir `docs/agents/routage.md`.
-_Avoid_ : appel, requête
+Une sollicitation d'`architect` ou d'`actuary` par la session principale (un appel de l'outil `Agent`) ; se termine par un bloc « Retour » (statut `complet`, `partiel` ou `revue requise`). Voir `docs/agents/routage.md`.
+_Avoid_ : requête ; « appel » pour la consultation elle-même
 
 **Routine / jugement** :
-Les deux niveaux d'une consultation : fiche de base (Opus, effort `medium`) ou fiche `-approfondi` (Opus, effort `high`) ; Fable s'obtient sur la fiche `-approfondi` par le paramètre `model` de l'appel, dans les seuls cas prévus (ADR 0013).
+Les deux niveaux d'une consultation : fiche de base (effort de routine) ou fiche `-approfondi` (effort de jugement), toutes deux sur Opus ; valeurs : `docs/agents/routage.md`, § 2 ; Fable s'obtient sur la fiche `-approfondi` par le paramètre `model` de l'appel, dans les seuls cas prévus (ADR 0013).
 _Avoid_ : mode rapide, mode expert
 
 **Escalade** :
