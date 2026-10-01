@@ -6,7 +6,7 @@
 
 <!-- « Aucun », ou un tableau : grandeur / avant / après / explication. -->
 
-## Consultations escaladées, relancées ou arrêtées
+## Escalades, relances et arrêts
 
 <!-- « Aucune », ou une ligne par escalade, relance ciblée ou arrêt (docs/agents/routage.md, § 7) : fiche / modèle / critère déclenché / statut obtenu / suite. -->
 
