@@ -822,21 +822,22 @@ verifier("Profondeur, reserve no 2 : n_fournies different de T (triangle tronque
            r_t <- r2_sans; r_t$metadata$n_fournies <- r_t$metadata$T + 1L
            leve_erreur(engine_derogations(r_t))
          })
-# Via engine_derogations(), un metadata$T absent est deja refuse en amont par
-# .engine_trace_bareme() (usp_credibilite() : "la duree T doit etre un nombre
-# entier d'annees") ; le message propre de .engine_trace_profondeur() est donc
-# verifie par appel direct.
-verifier("Profondeur : metadata$T absent ou non fini -> .engine_trace_profondeur() leve \"metadata$T absent ou invalide\", distinct de n_fournies < T (#104)",
+# engine_derogations() appelle .engine_trace_profondeur() avant
+# .engine_trace_bareme() (#135) : un metadata$T absent, non fini ou non
+# entier y est refuse par le message propre de .engine_trace_profondeur(),
+# et non par celui de usp_credibilite().
+verifier("Profondeur : metadata$T absent, non fini ou non entier -> engine_derogations() leve \"metadata$T absent ou invalide\", distinct de n_fournies < T (#104, #135)",
          {
            msg <- function(expr) tryCatch({ expr; NA_character_ },
                                           error = function(e) conditionMessage(e))
            r_u <- r_12; r_u$metadata$T <- NULL
            r_v <- r_12; r_v$metadata$T <- NA_real_
+           r_s <- r_12; r_s$metadata$T <- 10.5
            r_w <- r_12; r_w$metadata$n_fournies <- 7L
            attendu <- "engine_derogations() : metadata$T absent ou invalide."
-           identical(msg(.engine_trace_profondeur(r_u, "engine_derogations()")), attendu) &&
-             identical(msg(.engine_trace_profondeur(r_v, "engine_derogations()")), attendu) &&
-             leve_erreur(engine_derogations(r_u)) &&
+           identical(msg(engine_derogations(r_u)), attendu) &&
+             identical(msg(engine_derogations(r_v)), attendu) &&
+             identical(msg(engine_derogations(r_s)), attendu) &&
              identical(msg(engine_derogations(r_w)),
                        "engine_derogations() : metadata$n_fournies inferieur a la profondeur T retenue.")
          })

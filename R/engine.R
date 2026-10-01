@@ -772,11 +772,13 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
 # cellule et les attributs (dim) sont conserves. En locale UTF-8, une
 # cellule non UTF-8 d'encodage "unknown" est en outre declaree Latin-1, sans
 # changer ses octets : les messages qui la citent restent de l'UTF-8 valide
-# ("annee" accentue, espace insecable) ; les octets 80-9F de Windows-1252
-# (ex. le symbole euro) y apparaissent comme des caracteres de controle.
-# Les octets etant inchanges, .allure_manquante_ou_nombre() reconnait
-# l'espace insecable Windows-1252 (octet A0 isole) en locale UTF-8 comme
-# ailleurs.
+# ("annee" accentue, espace insecable) ; R y convertit les octets 80-9F
+# selon Windows-1252, et non comme des caracteres de controle (mesure du
+# 01/10/2026, R 4.3.3, locale C.UTF-8 : 80 -> U+20AC symbole euro,
+# 85 -> U+2026, 96 -> U+2013, 9F -> U+0178 ; les octets 81, 8D, 8F, 90 et
+# 9D, sans caractere en Windows-1252, restent ecrits "<81>"...). Les octets
+# etant inchanges, .allure_manquante_ou_nombre() reconnait l'espace
+# insecable Windows-1252 (octet A0 isole) en locale UTF-8 comme ailleurs.
 .nettoyer_cellules <- function(x) {
   inv <- .octets_non_utf8(x) & Encoding(x) == "unknown"
   if (any(inv)) Encoding(x)[inv] <- "latin1"
@@ -6519,17 +6521,20 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
 # statistiques bilaterales ; les lignes unilaterales ont un plancher
 # 1/(B + 1) < alpha/4). Elle est ecrite dans l'arithmetique flottante de la
 # regle des verdicts, et non comme 4/alpha, pour qu'aucune divergence ne soit
-# possible entre le controle d'entree et le verdict (4/0,1 n'est pas
-# exactement 40 en double). Limite : le controle porte sur B nominal ; le
-# plancher reel est 2/(B_eff + 1).
+# possible entre le controle d'entree et le verdict (mesure du 01/10/2026 :
+# a alpha = 0,00128 et B = 3124, 4/alpha vaut 3124,9999999999995 en double,
+# B + 1 > 4/alpha est vrai mais 2 * (1 / (B + 1)) < alpha / 2 est faux,
+# 2/3125 etant egal a alpha/2 en double ; engine_b_minimal(0.00128) rend
+# 3125). Limite : le controle porte sur B nominal ; le plancher reel est
+# 2/(B_eff + 1).
 # engine_b_minimal(alpha) : plus petit entier B >= 1 tel que
 # 2 * (1 / (B + 1)) < alpha / 2 (borne pure d'alpha, sans le max avec
 # B_MIN_USAGE). Ne sert qu'au message de engine_motif_b_alpha() : l'admission
 # de B y est decidee directement par la condition, sans ce calcul. Recherche
 # bornee autour de 4/alpha (au plus quatre essais) ; erreur explicite si
-# 4/alpha n'est pas fini et < 2^52 (au-dela, b + 1 n'est plus exact en
-# double : revue d'audit de #127, boucle sans fin a alpha = 1e-16) ou si
-# aucun essai ne convient. alpha : nombre scalaire fini > 0.
+# 4/alpha n'est pas fini ou n'est pas < 2^52 (au-dela, b + 1 n'est plus
+# exact en double : revue d'audit de #127, boucle sans fin a alpha = 1e-16)
+# ou si aucun essai ne convient. alpha : nombre scalaire fini > 0.
 engine_b_minimal <- function(alpha) {
   if (!is.numeric(alpha) || length(alpha) != 1L || !is.finite(alpha) || alpha <= 0)
     stop("engine_b_minimal() : alpha doit etre un nombre scalaire fini > 0.", call. = FALSE)
@@ -7381,6 +7386,8 @@ run_engine <- function(xt, yt,
 # n_fournies (produit avant l'issue #104), ou dont n_fournies n'est pas un
 # entier >= T, est refuse plutot que devine ; pour la methode du risque de
 # reserve no 2, le triangle n'est jamais tronque (n_fournies = T exige).
+# Un T absent ou non entier est refuse ici : engine_derogations() appelle
+# cette fonction avant .engine_trace_bareme() (#135).
 .engine_trace_profondeur <- function(res, appelant) {
   m <- res$metadata
   n <- m$n_fournies; T <- m$T
@@ -7478,12 +7485,16 @@ engine_parametre_standard <- function(res) {
 #   libelle              phrase complete pour bandeau et journal.
 # Erreur si un drapeau manque ou est invalide (pas de deduction), si le
 # sigma standard ou le bareme recalcules different du resultat, ou si
-# metadata$n_fournies manque ou est incoherent (.engine_trace_profondeur()).
+# metadata$n_fournies manque ou est incoherent, ou si metadata$T est absent
+# ou non entier (.engine_trace_profondeur()).
 engine_derogations <- function(res) {
   if (!isTRUE(res$ok)) return(NULL)
   ps <- .engine_trace_sigma(res, "engine_derogations()")
-  tb <- .engine_trace_bareme(res, "engine_derogations()")
+  # Profondeur avant bareme (#135) : un metadata$T invalide est refuse par le
+  # message propre de .engine_trace_profondeur(), et non par celui de
+  # usp_credibilite() appelee dans .engine_trace_bareme().
   tp <- .engine_trace_profondeur(res, "engine_derogations()")
+  tb <- .engine_trace_bareme(res, "engine_derogations()")
   fmt <- function(x) if (is.na(x)) NA_character_ else format(x, digits = 10)
   d <- data.frame(parametre = character(0), valeur_reglementaire = character(0),
                   valeur_retenue = character(0), conforme = logical(0),
