@@ -1352,4 +1352,49 @@ verifier("Lecture vecteur : tableau de deux lignes hors H1 et H2 refuse, message
                msg_ligne(c("a,b,c", "1,2,3", "4,5,6")))
          })
 
+# Issue #139 (constat M1 d'audit, revue finale d'E0b ; specification
+# d'actuary, variante "predicat entier" decidee par le mainteneur le
+# 28/09/2026) : (H1) ne vaut que si la premiere ligne n'a aucune cellule
+# numerique ET aucune cellule non vide relevant de .allure_manquante_ou_nombre().
+# Mesure sur le code anterieur (tete 496b357, LC_ALL=C.UTF-8) : les six
+# fichiers refuses ci-dessous etaient lus sans message, la premiere ligne
+# ecartee comme ligne d'en-tetes ("1 000;2 000;3 000" -> 104.2 102.5 109.3 ;
+# "1O4.2,1O2.5" -> 1 2 ; "1 000,abc,x" -> 1 2 3 ; "NA,#N/A" -> 1 2 ;
+# "2017 primes,2018 primes" -> 1 2 ; "x,2017 primes" -> 1 2).
+verifier("Lecture vecteur : ligne d'en-tetes sans cellule numerique mais a cellule de valeur manquante ou de nombre refusee, cellule et colonne nommees (#139)",
+         {
+           h1 <- function(l, cel, col, sep = ",", dec = ".")
+             a_motif(msg_ligne(l, sep, dec),
+                     sprintf("cellule \"%s\" (colonne %d) dans la ligne d'en-tetes", cel, col),
+                     sprintf("separateur decimal attendu : \"%s\"", dec))
+           h1(c("1 000;2 000;3 000", "104,2;102,5;109,3"), "1 000", 1, ";", ",") &&
+             h1(c("1O4.2,1O2.5", "1,2"), "1O4.2", 1) &&
+             h1(c("1 000,abc,x", "1,2,3"), "1 000", 1) &&
+             h1(c("NA,#N/A", "1,2"), "NA", 1) &&
+             h1(c("a,#N/A", "1,2"), "#N/A", 2) &&
+             # Refus de "2017 primes" : cout assume du predicat entier (#139)
+             h1(c("2017 primes,2018 primes", "1,2"), "2017 primes", 1) &&
+             h1(c("x,2017 primes", "1,2"), "2017 primes", 2) &&
+             # Colonne du fichier, colonne de bord vide retiree comprise
+             h1(c(",a,-,c", ",1,2,3"), "-", 3) &&
+             # Premiere cellule fautive citee quand il y en a plusieurs
+             h1(c("a,12a,N.D.", "1,2,3"), "12a", 2) &&
+             # Consequence propre a la ligne d'en-tetes (avis d'actuary sur #139)
+             a_motif(msg_ligne(c("1O4.2,1O2.5", "1,2")),
+                     paste("ecarter la ligne d'en-tetes qui la contient ferait perdre sans message,",
+                           "si cette ligne est une serie mal saisie, toutes ses valeurs.")) &&
+             # Couts assumes du predicat entier : marqueurs dans une ligne d'en-tetes
+             h1(c("x,-,z", "1,2,3"), "-", 2) &&
+             h1(c("annee,ND", "1,2"), "ND", 2) &&
+             # Refus d'etiquette : libelle d'origine inchange
+             a_motif(msg_ligne(c(",a18,a19", "1O4.2,102.25,109.34")),
+                     "l'ecarter comme en-tete ou etiquette ferait perdre une annee sans message.")
+         })
+verifier("Lecture vecteur : lignes d'en-tetes textuelles, vides de bord et etiquettes d'exercice AAAA-AA toujours admises en (H1) (#139)",
+         identical(msg_ligne(c("a2017,a2018,a2019", "1,2,3")), c(1, 2, 3)) &&
+           identical(msg_ligne(c(",a18,a19", "x,1,2")), c(1, 2)) &&
+           identical(msg_ligne(c("2017-18,2018-19", "1,2")), c(1, 2)) &&
+           identical(msg_ligne(c("2017-2018,2018-2019", "1,2")), c(1, 2)) &&
+           identical(msg_ligne(c("a;b;c", "1,5;2;3"), ";", ","), c(1.5, 2, 3)))
+
 fin_fichier()

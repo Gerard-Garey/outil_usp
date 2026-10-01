@@ -538,7 +538,15 @@ usp_parametre_standard <- function(methode = c("premium", "reserve1", "reserve2"
 #    et la seconde est lue comme une serie en ligne. La premiere ligne est une
 #    ligne d'en-tetes (issue #103, regle commune d'actuary du 28/09/2026) si
 #    (H1) aucune de ses cellules n'est numerique (cellules vides comprises,
-#    ex. a2017;...;a2024), ou si (H2) ses cellules non vides, hors la cellule
+#    ex. a2017;...;a2024) et aucune de ses cellules non vides n'a l'allure
+#    d'une valeur manquante ou d'un nombre au sens de
+#    .allure_manquante_ou_nombre() (predicat entier, issue #139, decision du
+#    mainteneur du 28/09/2026 ; exception AAAA-AA comprise : "2017-18,2018-19"
+#    reste une ligne d'en-tetes) ; une ligne sans cellule numerique mais avec
+#    une telle cellule ("1 000;2 000" avec dec = ",", "1O4.2,1O2.5",
+#    "NA,#N/A", "2017 primes,...") fait refuser le fichier, en citant la
+#    premiere cellule fautive et sa colonne, au lieu d'etre ecartee sans
+#    message comme auparavant ; ou si (H2) ses cellules non vides, hors la cellule
 #    d'angle (premiere colonne, vide ou libelle sans chiffre hors
 #    .allure_manquante_ou_nombre(), ex. "annee"), sont des annees a quatre
 #    chiffres comprises entre 1900 et 2100, au nombre de deux au moins,
@@ -615,20 +623,34 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
   # controle de l'etiquette de ligne ; l'alignement colonne par colonne est
   # controle plus bas (#95).
   aligne <- NULL
-  refus_allure <- function(x, ou)
+  # perte : consequence d'un ecart sans message, citee dans le message ; la
+  # ligne d'en-tetes (H1) passe sa propre formulation (issue #139).
+  refus_allure <- function(x, ou,
+                           perte = "l'ecarter comme en-tete ou etiquette ferait perdre une annee sans message.")
     stop(sprintf(paste("Lecture de %s : la cellule \"%s\" %s, a l'allure d'une valeur manquante",
                        "(NA, N/A, N.D., ND, NR, NC, NULL, tirets, ou cellule commencant par #, code",
                        "d'erreur Excel) ou d'un nombre (cellule qui commence par un chiffre, ou faite",
                        "de chiffres, espaces, points, virgules, apostrophes, signes ; separateur",
-                       "decimal attendu : \"%s\") ;",
-                       "l'ecarter comme en-tete ou etiquette ferait perdre une annee sans message.",
+                       "decimal attendu : \"%s\") ;", "%s",
                        "Corriger la valeur ou le separateur decimal, ou renseigner un en-tete ou",
                        "une etiquette textuels."),
-                 chemin, x, ou, dec))
+                 chemin, x, ou, dec, perte))
   annees <- NULL
   if (nrow(m) == 2 && ncol(m) > 1) {
     h1 <- all(is.na(en_nombre(m[1, ])))
-    if (!h1) annees <- .ligne_annees(m[1, ], m[2, ], dec)
+    if (h1) {
+      # (H1), predicat entier (issue #139) : une cellule non vide de la ligne
+      # d'en-tetes qui a l'allure d'une valeur manquante ou d'un nombre fait
+      # refuser le fichier ; ecarter la ligne ferait perdre sans message
+      # jusqu'a une serie entiere mal saisie ("1 000;2 000", "1O4.2,1O2.5").
+      # La premiere cellule fautive est citee avec sa colonne du fichier.
+      fautive <- which(nzchar(m[1, ]) & .allure_manquante_ou_nombre(m[1, ]))
+      if (length(fautive))
+        refus_allure(m[1, fautive[1]],
+                     sprintf("(colonne %d) dans la ligne d'en-tetes", cols[fautive[1]]),
+                     paste("ecarter la ligne d'en-tetes qui la contient ferait perdre sans message,",
+                           "si cette ligne est une serie mal saisie, toutes ses valeurs."))
+    } else annees <- .ligne_annees(m[1, ], m[2, ], dec)
   }
   if (nrow(m) == 2 && ncol(m) > 1 && (h1 || annees$ok)) {
     ent <- m[1, ]; val <- m[2, ]
