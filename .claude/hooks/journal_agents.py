@@ -37,7 +37,9 @@ if chemin and os.path.exists(chemin):
         if d.get("type") != "assistant":
             continue
         m = d.get("message") or {}
-        if m.get("model") and m["model"] not in modeles and not m["model"].startswith("<"):
+        if (m.get("model") or "").startswith("<"):
+            continue  # message <synthetic> : aucun appel au modele
+        if m.get("model") and m["model"] not in modeles:
             modeles.append(m["model"])
         if m.get("id"):
             ids.add(m["id"])

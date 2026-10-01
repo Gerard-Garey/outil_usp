@@ -2,7 +2,7 @@
 ###############################################################################
 #  .claude/hooks/journal_agents.sh  --  HOOK SubagentStop DE CLAUDE CODE
 #
-#  Ajoute une ligne JSON par consultation de sous-agent a
+#  Ajoute une ligne JSON par sous-agent termine a
 #  .claude/journal-agents.jsonl (non versionne) : date, agent, identifiant,
 #  modeles servis, nombre d'appels au modele, contexte au dernier appel
 #  (tokens d'entree, cache compris) et duree, lus dans le transcript du
@@ -12,7 +12,9 @@
 #  SubagentStop ne porte pas le modele demande).
 #
 #  Ne mesure ni l'effort (non expose dans le transcript) ni les tokens de
-#  sortie (valeurs partielles de streaming dans le transcript).
+#  sortie (valeurs partielles de streaming dans le transcript). Le transcript
+#  est ecrit de facon asynchrone : appels et contexte sont des minorants
+#  possibles.
 #  N'echoue jamais et n'ecrit rien sur la sortie standard : une session sans
 #  Python, ou un transcript illisible, se poursuit sans journal.
 ###############################################################################

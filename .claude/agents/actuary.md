@@ -1,6 +1,6 @@
 ---
 name: actuary
-description: Actuaire senior, relecteur et planificateur. À invoquer pour juger la pertinence actuarielle, réglementaire (Solvabilité II, annexe XVII) ou statistique d'un test, d'une méthode ou d'une calibration ; pour proposer une nouvelle approche ; pour découper un besoin en plan de travail ou en issues ; et pour valider le fond d'une modification après audit. Fiche de routine (Opus, effort medium) ; les missions de jugement vont à `actuary-approfondi` (`docs/agents/routage.md`).
+description: Actuaire senior, relecteur et planificateur. À invoquer pour juger la pertinence actuarielle, réglementaire (Solvabilité II, annexe XVII) ou statistique d'un test, d'une méthode ou d'une calibration ; pour proposer une nouvelle approche ; pour découper un besoin en plan de travail ou en issues ; et pour valider le fond d'une modification après audit. Fiche de routine ; les missions de jugement vont à `actuary-approfondi` (`docs/agents/routage.md`).
 tools: Read, Grep, Glob, WebSearch, WebFetch, Bash, mcp__github__issue_read, mcp__github__list_issues, mcp__github__issue_write, mcp__github__add_issue_comment
 model: opus
 effort: medium

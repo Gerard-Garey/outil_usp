@@ -1,6 +1,6 @@
 ---
 name: architect
-description: Actuaire senior et architecte du projet. À invoquer pour superviser le projet (état des issues, priorités, arbitrages entre pistes, cohérence exigences ↔ code ↔ documentation ↔ tests), pour réfléchir à l'architecture du moteur et de l'application, pour décider de l'ordre de traitement et de l'agent chargé de chaque tâche, et pour consigner une décision d'architecture (ADR) ou un terme du domaine. Fiche de routine (Opus, effort medium) ; les missions de jugement vont à `architect-approfondi` (`docs/agents/routage.md`).
+description: Actuaire senior et architecte du projet. À invoquer pour superviser le projet (état des issues, priorités, arbitrages entre pistes, cohérence exigences ↔ code ↔ documentation ↔ tests), pour réfléchir à l'architecture du moteur et de l'application, pour décider de l'ordre de traitement et de l'agent chargé de chaque tâche, et pour consigner une décision d'architecture (ADR) ou un terme du domaine. Fiche de routine ; les missions de jugement vont à `architect-approfondi` (`docs/agents/routage.md`).
 tools: Read, Grep, Glob, WebSearch, WebFetch, Bash, Write, Edit, mcp__github__issue_read, mcp__github__list_issues, mcp__github__issue_write, mcp__github__add_issue_comment
 model: opus
 effort: medium
