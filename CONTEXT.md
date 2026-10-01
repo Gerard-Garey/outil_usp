@@ -178,8 +178,12 @@ Les deux niveaux d'une consultation : fiche de base (effort de routine) ou fiche
 _Avoid_ : mode rapide, mode expert
 
 **Escalade** :
-Passage d'une consultation à un niveau supérieur, hausse d'effort (routine → jugement) ou changement de modèle (Opus → Fable), sur un critère observable. Distincte de la **relance ciblée** (même agent, preuves manquantes) et de la demande d'information.
+Passage d'une consultation à un niveau supérieur, hausse d'effort (routine → jugement) ou changement de modèle (Opus → Fable), sur un critère observable. Distincte de la **relance ciblée** (même agent, même fiche, retour incomplet) et de la demande d'information.
 _Avoid_ : relance (sans qualificatif), montée en gamme
+
+**Question** (routage) :
+La question résiduelle d'une consultation, rattachée à une issue ou à une mission ; unité des plafonds de `docs/agents/routage.md` (§ 5.2) ; la reformuler ne remet pas ses plafonds à zéro.
+_Avoid_ : demande, sujet
 
 **Dossier d'escalade** :
 Question résiduelle, contraintes, conclusions établies, sources, tentatives, contradictions et preuve attendue, transmis à la consultation suivante pour éviter une nouvelle revue globale.

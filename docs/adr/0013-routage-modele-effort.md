@@ -9,7 +9,7 @@ date: 2026-09-30
 
 `architect` et `actuary` tournaient sur Fable pour toutes leurs missions, sans effort ni plafond de tours fixés (effort hérité de la session). La lecture imposée au démarrage d'`architect` (`CLAUDE.md`, `docs/exigences.md`, `CONTEXT.md`, tous les ADR) représentait environ 415 Ko au 30/09/2026 (`wc -c` : 28 127 + 13 274 + 102 141 + 272 020 octets), sans compter `docs/feuille-de-route.md` (642 492 octets), qu'il tient en pratique ; elle était relue à chaque consultation, y compris pour un simple rattachement d'issues. Le mainteneur travaille sur abonnement : la contrainte est la limite d'usage. Aucune mesure de consommation par agent n'existait.
 
-Le modèle `Modele_vibe_code` (dépôt privé du mainteneur, gabarit commun à ses projets) a adopté le 30/09/2026 une politique de routage (son ADR 0001, PR #1), arrêtée par le mainteneur après entretien ; le présent ADR la reprend et l'adapte. Contraintes techniques (Claude Code 2.1.286) : le paramètre `model` d'un appel `Agent` l'emporte sur la fiche ; l'effort ne se fixe que dans la fiche ; une fiche n'est pas rechargée en cours de session (`docs/agents/issue-tracker.md`, constat 3).
+Le dépôt modèle `Gerard-Garey/Modele_vibe_code` (gabarit commun aux projets du mainteneur) a adopté le 30/09/2026 une politique de routage (ADR 0001 de ce dépôt-là, PR Gerard-Garey/Modele_vibe_code#1), arrêtée par le mainteneur après entretien ; le présent ADR la reprend et l'adapte. Contraintes techniques (Claude Code 2.1.286) : le paramètre `model` d'un appel `Agent` l'emporte sur la fiche ; l'effort ne peut pas être passé à l'appel de l'outil `Agent`, seulement fixé dans la fiche (l'API des workflows l'accepte : `.claude/workflows/circuit-technique.js`, `effort: 'low'`) ; une fiche n'est pas rechargée en cours de session (`docs/agents/issue-tracker.md`, constat 3).
 
 ## Décision
 
@@ -24,11 +24,24 @@ Arrêtée par le mainteneur le 30 septembre 2026 (décision M35, PR #176) :
 
 ## Options écartées
 
-Celles de l'ADR 0001 du modèle : Fable pour tout (état antérieur) ; effort hérité de la session ; fiches jumelles tenues à la main ; Fable en `medium` par défaut ; routage par le nombre d'issues ou la confiance déclarée ; escalade décidée par le sous-agent. En propre : dédoubler aussi `regulatory`, écarté (déjà sur Opus, contrôle paragraphe par paragraphe sans palier de jugement distinct) ; étendre la politique au côté GPT (ADR 0012, annotation du 29/09, point 5), écarté (hors du périmètre de Claude sans instruction du mainteneur).
+Reprises de l'ADR 0001 de `Gerard-Garey/Modele_vibe_code` (branche `claude/routage-modele-effort`, `58bee0e`), avec leurs motifs :
+
+- **Fable pour tout** (état antérieur) : qualité sûre, mais consommation maximale sur des missions routinières.
+- **Une seule fiche par rôle, effort hérité de la session** : l'effort ne peut alors varier qu'avec la session entière, pas par mission.
+- **Fiches jumelles tenues à la main** : dérive certaine entre les deux corps ; remplacée par une génération contrôlée par la CI.
+- **Fable en `medium` par défaut** : Fable n'étant appelé qu'après filtrage des cas faciles, un passage en `medium` risquerait de gâcher l'unique consultation Fable autorisée par question ; `medium` reste possible sur indication du mainteneur.
+- **Routage par le nombre d'issues ou par la confiance déclarée de l'agent** : signaux complémentaires seulement ; une issue unique à fort impact serait sous-évaluée.
+- **Consultation par un workflow fixant l'effort à l'appel** : un workflow ne se lance que sur commande explicite du mainteneur (ADR 0010, principe 1) et sert à des circuits, pas à des consultations isolées.
+- **Escalade décidée par le sous-agent** : impossible techniquement (ni modèle ni effort modifiables en cours de consultation, pas d'outil `Agent`) et contraire à la séparation constats / décision.
+
+Propres à ce dépôt :
+
+- **Dédoubler aussi `regulatory`** : déjà sur Opus, contrôle paragraphe par paragraphe sans palier de jugement distinct.
+- **Étendre la politique au côté GPT** (ADR 0012, annotation du 29/09, point 5) : hors du périmètre de Claude sans instruction du mainteneur.
 
 ## Conséquences
 
 - Fichiers : fiches `architect.md`, `actuary.md` et leurs `-approfondi` ; `.claude/outils/` ; `.claude/hooks/journal_agents.sh` et `journal_agents.py`, `.claude/settings.json` ; skill `audit-main-gpt` (plan d'audit et revues de fond en jugement) ; `.github/workflows/ci.yml` ; `docs/agents/routage.md` ; `CLAUDE.md`, `README.md`, `CONTEXT.md`, modèle de PR, `.gitignore`, `docs/feuille-de-route.md` (M35, et annotation de M28) ; annotation de l'ADR 0010.
 - Branche : `claude/routage-modele-effort` (PR #176), exception ponctuelle au point 1 de l'ADR 0007, sur instruction du mainteneur du 30/09/2026, sans créer de catégorie de branche.
 - Effet sur les résultats : aucun.
-- Non réglé : l'effort de la fiche l'emporte sur celui de la session (documentation Claude Code, sous-agents, champ `effort`), mais il n'est pas observable dans le transcript ; `maxTurns` ne borne pas les tokens ; seuils à calibrer sur les premières consultations (`docs/agents/routage.md`, § 8), qui dit aussi comment revenir en arrière.
+- Non réglé : l'effort de la fiche prime sur celui de la session (documentation Claude Code des sous-agents, champ `effort` : « Overrides the session effort level ») mais n'est pas observable dans le journal ; `maxTurns` ne borne pas les tokens ; seuils à calibrer sur les premières consultations (`docs/agents/routage.md`, § 8), qui dit aussi comment revenir en arrière.
