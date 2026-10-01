@@ -5,8 +5,8 @@
 #  OUTIL DE MESURE HORS CI : ce script n'est ni une batterie de tests ni un
 #  generateur de references. Il n'est lance ni par la CI, ni par
 #  test_unitaires.R (nom sans prefixe test_), ni par test_reproductibilite.R.
-#  R base + stats (tools::md5sum() pour le controle d'integrite du depot ;
-#  tools est livre avec R). Sortie en markdown sur la console (UTF-8) ;
+#  R base + stats (tools::md5sum() pour le controle d'integrite du depot et
+#  les empreintes du code, #171 ; tools est livre avec R). Sortie en markdown sur la console (UTF-8) ;
 #  fichiers ecrits SEULEMENT sur option explicite (--ecrire, --sortie).
 #
 #  Statut des valeurs : CONSTATS DE SIMULATION sous des alternatives choisies,
@@ -159,7 +159,15 @@
 #      Rscript tests/puissance_t8.R --combiner f1 f2 ... [--ecrire | --sortie DOSSIER]
 #  --ecrire : ecrit docs/tableaux/<AAAAMMJJ>-issue116-exact-J1.md (volet A),
 #  -chaine-J1.md et -chaine-J2.md (volet B), date du jour de l'execution, a
-#  faire sur un arbre propre ; --sortie DOSSIER : memes noms dans DOSSIER.
+#  faire sur un arbre propre : --ecrire est REFUSE (code 1, rien d'ecrit) si
+#  le commit (celui des tranches pour --combiner, et celui de la
+#  combinaison elle-meme) porte "(arbre de travail modifie)", "(script non
+#  suivi)" ou "inconnu", ou si tests/outils_tests.R ou le script executes
+#  ne sont pas ceux du depot (empreintes "hors depot" ; empreintes du
+#  combinateur imprimees en T0 ; #171, elargie : le critere 6 ne couvre que
+#  R/ et tests/reference/) ; --sortie DOSSIER : memes noms dans DOSSIER, qui
+#  doit etre HORS du depot (un dossier sous la racine du depot est refuse :
+#  --ecrire est le seul chemin qui ecrit dans le depot).
 #  Aucun fichier n'est ecrit si un critere bloquant echoue.
 #  --tranche i/K (volet B, un seul jeu : --volet B --jeu J1 ou J2) : ne
 #  traite que la i-eme de K tranches de replications consecutives et
@@ -170,8 +178,10 @@
 #  jeu. --combiner refuse (code 1, sans tableau) : une tranche sans ligne
 #  INTEGRITE ou en ECHEC ; une sortie incomplete (FIN absente ou pas en
 #  derniere ligne, nombre de COMPTE different de NCOMPTES ou de FIN) ; des
-#  PARAMETRES ou un CONTEXTE differents ; des tranches qui ne couvrent pas
-#  1..R exactement une fois.
+#  PARAMETRES ou un CONTEXTE differents (plateforme de calcul comprise :
+#  R, systeme, machine, BLAS, LAPACK, #171 ; empreintes md5 de R/engine.R,
+#  de tests/outils_tests.R charge et du script execute, #171 elargie) ; des
+#  tranches qui ne couvrent pas 1..R exactement une fois.
 #  Fonctions reprises par copie declaree (ces scripts executent leur calcul au
 #  chargement et ne peuvent pas etre sources) :
 #    - de tests/taux_franchissement_reperes.R : lire_option(), ligne_md(),
@@ -183,6 +193,9 @@
 #      nom du script, git factorise dans git_depot()), num(), ecart_z(),
 #      compat() et les valeurs publiees de C1 (copies) ; ic_cp() et txt_ic()
 #      (copies adaptees : niveau de confiance en argument, n = 0 admis) ;
+#    - de tests/calibration_mc_t8.R : plateforme_calcul() (copie, #171),
+#      empreintes_code() (copie adaptee : aucun fichier lu en plus) et
+#      motifs_non_versionnable() (copie) ;
 #    - de R/engine.R, dw_p_exacte() : construction des matrices A (differences
 #      de DW) et M (centrage) dans dw_puissance_imhof() (copie).
 #  Duree mesuree (conteneur Linux, R 4.3.3, 30/09/2026, petits R ; les
@@ -287,6 +300,63 @@ commit_depot <- function() {
   if (!identical(as.integer(suivi), 0L)) h <- paste(h, "(script non suivi)")
   h
 }
+# Plateforme de calcul (#171) : R, systeme, machine, BLAS, LAPACK (copie de
+# tests/calibration_mc_t8.R). Ligne de T0 des deux volets ; au volet B, champ
+# du contexte : des tranches calculees sur des plateformes differentes ne se
+# combinent pas (les reajustements dependent de l'optimiseur).
+plateforme_calcul <- function() {
+  txt <- function(v) if (is.null(v) || !length(v) || is.na(v[1]) || !nzchar(v[1])) "non renseign\u00e9" else unname(v[1])
+  si <- Sys.info()
+  sprintf("%s ; %s ; %s, %s ; BLAS : %s ; LAPACK : %s (version %s)",
+          R.version.string, txt(utils::sessionInfo()$running), txt(si[["sysname"]]), txt(si[["machine"]]),
+          txt(extSoftVersion()["BLAS"]), txt(La_library()), txt(La_version()))
+}
+# Empreintes md5 du code execute (#171, elargie par le mainteneur le
+# 30/09/2026 ; copie adaptee de empreintes_code() de
+# tests/calibration_mc_t8.R : script lu dans --file=, aucun fichier lu en
+# plus) : moteur du depot, tests/outils_tests.R effectivement charge (celui
+# du dossier du script), script execute ; "depot" ou "hors depot" selon que
+# le fichier charge est celui du depot. Champ du contexte : un code different
+# au meme commit (copie modifiee de outils_tests.R ou du moteur) change le
+# contexte, et --combiner refuse. Lues au debut du calcul.
+empreintes_code <- function(script_depot) {
+  fichier <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE))
+  fichier <- if (length(fichier) == 1L) fichier else NA_character_
+  meme <- function(a, b) !is.na(a) && file.exists(a) && file.exists(b) &&
+    identical(normalizePath(a), normalizePath(b))
+  md5 <- function(f) if (is.na(f) || !file.exists(f)) "absent" else unname(tools::md5sum(f))
+  lieu <- function(f, ref) if (meme(f, file.path(RACINE, ref))) "d\u00e9p\u00f4t" else "hors d\u00e9p\u00f4t"
+  outils <- file.path(DOSSIER_SCRIPT, "outils_tests.R")
+  paste(c(sprintf("R/engine.R %s", md5(file.path(RACINE, "R", "engine.R"))),
+          sprintf("tests/outils_tests.R charg\u00e9 (%s) %s", lieu(outils, "tests/outils_tests.R"), md5(outils)),
+          sprintf("script ex\u00e9cut\u00e9 (%s) %s", lieu(fichier, script_depot), md5(fichier))), collapse = " ; ")
+}
+EMPREINTES <- empreintes_code("tests/puissance_t8.R")
+
+# Motifs qui interdisent --ecrire (tableau versionne) : commit non propre ou
+# code hors du depot (copie de tests/calibration_mc_t8.R).
+motifs_non_versionnable <- function(commit, empreintes, quoi = "des tranches") {
+  m <- character(0)
+  if (!grepl("^[0-9a-f]{40}$", commit))
+    m <- c(m, sprintf("commit %s \u00ab %s \u00bb (arbre de travail modifi\u00e9, script non suivi ou git indisponible)", quoi, commit))
+  if (grepl("hors d\u00e9p\u00f4t", empreintes, fixed = TRUE))
+    m <- c(m, sprintf("tests/outils_tests.R ou script ex\u00e9cut\u00e9s %s hors du d\u00e9p\u00f4t", quoi))
+  m
+}
+# Chemin (existant) sous la racine du depot (copie de tests/calibration_mc_t8.R,
+# constat R2 d'audit) : --sortie doit viser hors du depot ; --ecrire est le
+# seul chemin qui ecrit dans le depot.
+sous_depot <- function(chemin) {
+  # separateur "/" sur toutes les plateformes (normalizePath() rend des "\\"
+  # sous Windows, ou .Platform$file.sep vaut pourtant "/") ; casse ignoree
+  # sous Windows, dont le systeme de fichiers ne la distingue pas
+  d <- normalizePath(chemin, winslash = "/", mustWork = TRUE)
+  r <- normalizePath(RACINE, winslash = "/", mustWork = TRUE)
+  if (.Platform$OS.type == "windows") { d <- tolower(d); r <- tolower(r) }
+  identical(d, r) || startsWith(d, paste0(r, "/"))
+}
+if (!is.na(OPT_SORTIE) && sous_depot(OPT_SORTIE))
+  stop("--sortie : dossier sous le depot refuse (--ecrire est le seul chemin qui ecrit dans le depot) : ", OPT_SORTIE)
 ecrire_console <- function(x) writeLines(enc2utf8(x), useBytes = TRUE)
 ligne_md <- function(...) paste0("| ", paste(..., sep = " | "), " |")
 entete_md <- function(cols) c(ligne_md(paste(cols, collapse = " | ")),
@@ -447,8 +517,22 @@ if (!length(FICHIERS_COMB)) verifier_depot(NULL, "d\u00e9but")
 
 # --- Ecriture des fichiers (seulement sur option et si tout est OK) ------------------
 DATE_SORTIE <- format(Sys.Date(), "%Y%m%d")
-ecrire_fichier <- function(suffixe, lignes) {
+# commit et empreintes : ceux du code qui a calcule le tableau (des tranches
+# pour --combiner) ; --ecrire refuse s'ils ne sont pas ceux d'un commit propre
+# du depot (#171, elargie) ; combinaison = TRUE : la combinaison elle-meme
+# (commit et empreintes courants) doit l'etre aussi (constat R1 d'audit).
+ecrire_fichier <- function(suffixe, lignes, commit = commit_depot(), empreintes = EMPREINTES,
+                           combinaison = FALSE) {
   if (!OPT_ECRIRE && is.na(OPT_SORTIE)) return(invisible(NULL))
+  if (OPT_ECRIRE) {
+    nv <- c(motifs_non_versionnable(commit, empreintes, if (combinaison) "des tranches" else "de l'ex\u00e9cution"),
+            if (combinaison) motifs_non_versionnable(commit_depot(), EMPREINTES, "de la combinaison"))
+    if (length(nv)) {
+      message("--ecrire refuse (tableau versionne dans docs/tableaux/) : ", paste(nv, collapse = " ; "),
+              " -- aucun fichier ecrit ; relancer sur un arbre propre, ou --sortie DOSSIER hors du depot")
+      quit(status = 1L)
+    }
+  }
   dossier <- if (OPT_ECRIRE) file.path(RACINE, "docs", "tableaux") else OPT_SORTIE
   if (!dir.exists(dossier)) stop("dossier de sortie introuvable : ", dossier)
   f <- file.path(dossier, sprintf("%s-issue116-%s.md", DATE_SORTIE, suffixe))
@@ -634,7 +718,8 @@ statut_b <- function() paste(
 LIBELLES_CONTEXTE <- c(
   jeu = "Jeu", modele = "Mod\u00e8le ajust\u00e9 (usp_ajuster())", configuration = "Configuration",
   points = "Points", graines = "Graines", B = "B du bootstrap", generateur = "G\u00e9n\u00e9rateur",
-  commit = "Commit")
+  commit = "Commit", plateforme = "Plateforme de calcul (R, syst\u00e8me, machine, BLAS, LAPACK)",
+  empreintes = "Empreintes md5 du code ex\u00e9cut\u00e9")
 
 # --- Mode --combiner (lire_comptes(), refuser() : copies adaptees de
 # tests/taux_franchissement_reperes.R) -------------------------------------------------
@@ -710,6 +795,7 @@ if (length(FICHIERS_COMB)) {
                                                              paste(vapply(parts, function(p) sprintf("%d-%d", p$debut, p$fin), ""),
                                                                    collapse = ", "))),
               ligne_md("Commit de la combinaison", commit_depot()),
+              ligne_md("Empreintes md5 du combinateur", EMPREINTES),
               ligne_md("Contr\u00f4les d'int\u00e9grit\u00e9 des tranches (crit\u00e8res 3, 5, 6 ; ligne N = usp_simuler())",
                        sprintf("OK dans les %d tranche(s)", length(parts))), "",
               tb$lignes,
@@ -719,7 +805,8 @@ if (length(FICHIERS_COMB)) {
               sprintf("- Crit\u00e8re 5, aucune p manquante hors motif compt\u00e9 : %s",
                       if (ok5) "OK" else paste("ECHEC :", paste(tb$echecs5, collapse = " ; "))), "")
   ecrire_console(sortie)
-  if (ok4 && ok5) ecrire_fichier(paste0("chaine-", jeu_c), sortie)
+  if (ok4 && ok5) ecrire_fichier(paste0("chaine-", jeu_c), sortie, ctx[["commit"]], ctx[["empreintes"]],
+                                 combinaison = TRUE)
   quit(status = if (ok4 && ok5) 0L else 1L)
 }
 
@@ -941,7 +1028,7 @@ if (OPT_VOLET %in% c("tout", "A")) {
     ligne_md("Jeu", JEU_A$libelle),
     ligne_md("Mod\u00e8le ajust\u00e9 (usp_ajuster())", txt_modele(FIT_A)),
     ligne_md("Partition de Smirnov (x_t > m\u00e9d(x))", paste0("{", paste(which(GRP), collapse = ", "), "}")),
-    ligne_md("Plateforme", plateforme()),
+    ligne_md("Plateforme de calcul (R, syst\u00e8me, machine, BLAS, LAPACK)", plateforme_calcul()),
     ligne_md("G\u00e9n\u00e9rateur", paste(ENGINE_RNG_KIND, collapse = ", ")),
     ligne_md("Graine de la matrice e", format(OPT_GRAINE, scientific = FALSE)),
     ligne_md("Commit", commit_depot()),
@@ -1049,14 +1136,14 @@ if (OPT_VOLET %in% c("tout", "B")) {
                               METHODE, SEGMENT, ANNEXE, NATURE, ALPHA),
       points = paste(vapply(POINTS_B, `[[`, "", "lib"), collapse = " ; "),
       graines = sprintf("matrice e %.0f ; bootstrap de la r\u00e9plication b : %.0f + 1000 b ; observ\u00e9 : %.0f", OPT_GRAINE + 1, OPT_GRAINE_IC, OPT_GRAINE_IC),
-      B = as.character(OPT_B), generateur = paste(ENGINE_RNG_KIND, collapse = ", "), commit = commit_depot())
+      B = as.character(OPT_B), generateur = paste(ENGINE_RNG_KIND, collapse = ", "), commit = commit_depot(),
+      plateforme = plateforme_calcul(), empreintes = EMPREINTES)
     stopifnot(identical(names(CTX), names(LIBELLES_CONTEXTE)))
     ok_jeu <- length(INTEGRITE) == n_int0
     duree_b <- as.numeric(difftime(Sys.time(), t_b, units = "secs"))
     S <- c(sprintf("## Puissance \u00e0 T = 8, volet B (cha\u00eene r\u00e9duite), jeu %s (issue #116)", jn), "",
            sprintf("Param\u00e8tres : %s", PAR), "", statut_b(), "",
            "### T0 -- contexte", "", entete_md(c("Grandeur", "Valeur")), lignes_contexte(CTX),
-           ligne_md("Plateforme", plateforme()),
            ligne_md("R\u00e9plications par point", sprintf("%d (trait\u00e9es : %d \u00e0 %d)", OPT_R_CHAINE, DEBUT, FIN)),
            ligne_md("Dur\u00e9e (s)", sprintf("contr\u00f4les %.1f ; r\u00e9plications %.1f (%.2f s par r\u00e9plication et par point) ; total du jeu %.1f",
                                              t_controle, t_rep, t_rep / n_rep, duree_b)),
