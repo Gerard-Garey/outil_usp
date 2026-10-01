@@ -24,7 +24,7 @@ Arrêtée par le mainteneur le 30 septembre 2026 (décision M35, PR #176) :
 
 ## Options écartées
 
-Reprises de l'ADR 0001 de `Gerard-Garey/Modele_vibe_code` (branche `claude/routage-modele-effort`, `58bee0e`), avec leurs motifs :
+Reprises de l'ADR 0001 de `Gerard-Garey/Modele_vibe_code` (PR Gerard-Garey/Modele_vibe_code#1, tête `58bee0e`, fusionnée en `fac6999`), avec leurs motifs :
 
 - **Fable pour tout** (état antérieur) : qualité sûre, mais consommation maximale sur des missions routinières.
 - **Une seule fiche par rôle, effort hérité de la session** : l'effort ne peut alors varier qu'avec la session entière, pas par mission.
@@ -41,7 +41,9 @@ Propres à ce dépôt :
 
 ## Conséquences
 
-- Fichiers : fiches `architect.md`, `actuary.md` et leurs `-approfondi` ; `.claude/outils/` ; `.claude/hooks/journal_agents.sh` et `journal_agents.py`, `.claude/settings.json` ; skill `audit-main-gpt` (plan d'audit et revues de fond en jugement) ; `.github/workflows/ci.yml` ; `docs/agents/routage.md` ; `CLAUDE.md`, `README.md`, `CONTEXT.md`, modèle de PR, `.gitignore`, `docs/feuille-de-route.md` (M35, et annotation de M28) ; annotation de l'ADR 0010.
+- Fichiers : fiches `architect.md`, `actuary.md` et leurs `-approfondi` ; `.claude/outils/` ; `.claude/hooks/journal_agents.sh` et `journal_agents.py`, `.claude/settings.json` ; skill `audit-main-gpt` (plan d'audit et revues de fond en jugement) ; `.github/workflows/ci.yml` ; `docs/agents/routage.md` ; `CLAUDE.md`, `README.md`, `CONTEXT.md`, modèle de PR, `.gitignore`, `docs/feuille-de-route.md` (M35, annotation de M28, § 7 « Escalades, relances et arrêts hors branche ») ; annotation de l'ADR 0010.
 - Branche : `claude/routage-modele-effort` (PR #176), exception ponctuelle au point 1 de l'ADR 0007, sur instruction du mainteneur du 30/09/2026, sans créer de catégorie de branche.
 - Effet sur les résultats : aucun.
 - Non réglé : l'effort de la fiche prime sur celui de la session (documentation Claude Code des sous-agents, champ `effort` : « Overrides the session effort level ») mais n'est pas observable dans le journal ; `maxTurns` ne borne pas les tokens ; seuils à calibrer sur les premières consultations (`docs/agents/routage.md`, § 8), qui dit aussi comment revenir en arrière.
+
+Issues : aucune (branche ad hoc sur instruction du mainteneur, M35) ; PR #176.
