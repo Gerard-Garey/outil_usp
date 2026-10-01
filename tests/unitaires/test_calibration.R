@@ -664,9 +664,33 @@ verifier("Drapeau bareme_saisi : FALSE sans saisie, TRUE avec saisie (contraire 
            identical(r$metadata$bareme_saisi, FALSE), logical(1))) &&
            all(vapply(list(r_b1c, r_b1l, r1_c, r1_l, r2_c, r2_l), function(r)
              identical(r$metadata$bareme_saisi, TRUE), logical(1))))
-verifier("Saisie EGALE au bareme du segment (II-1 \"long\" : premium, reserve1, reserve2) : resultat identical hors metadata, drapeau TRUE, origine \"saisi, egal\" (#93)",
+# Issue #131 (lecture R1, decision du mainteneur du 01/10/2026) : le detail
+# de la ligne "Credibilite pleine atteinte" et l'avertissement de
+# credibilite partielle nomment la derogation des que le bareme est saisi,
+# meme egal au bareme du segment ; ces deux chaines sont donc retirees de la
+# comparaison, et leur mention de la saisie est verifiee a part.
+sans_cred <- function(r) {
+  r <- sans_meta(r)
+  r$validation$avertissements <- grep("credibilite partielle", r$validation$avertissements,
+                                      value = TRUE, fixed = TRUE, invert = TRUE)
+  r$controles <- lapply(r$controles, function(l) {
+    if (identical(l$test, "Credibilite pleine atteinte")) l$detail <- NULL
+    l
+  })
+  r
+}
+mentions_saisie <- function(r) {
+  txt <- c(grep("credibilite partielle", r$validation$avertissements, value = TRUE, fixed = TRUE),
+           unlist(lapply(r$controles, function(l)
+             if (identical(l$test, "Credibilite pleine atteinte")) l$detail)))
+  length(txt) > 0 && all(grepl(paste("bareme long saisi (valeurs de G(1)) : saisie declaree comme",
+                                     "derogation (#93), egale au bareme reglementaire du segment II-1"),
+                               txt, fixed = TRUE))
+}
+verifier("Saisie EGALE au bareme du segment (II-1 \"long\" : premium, reserve1, reserve2) : resultat identical hors metadata et chaines de credibilite (#131), drapeau TRUE, origine \"saisi, egal\" (#93)",
          all(vapply(list(list(r_b1l, r_b), list(r1_l, r1_sans), list(r2_l, r2_sans)), function(p)
-           identical(sans_meta(p[[1]]), sans_meta(p[[2]])) &&
+           identical(sans_cred(p[[1]]), sans_cred(p[[2]])) &&
+             mentions_saisie(p[[1]]) && !mentions_saisie(p[[2]]) &&
              identical(meta_sans(p[[1]]), meta_sans(p[[2]])) &&
              identical(p[[1]]$metadata$bareme_saisi, TRUE) &&
              identical(origine_bareme(p[[1]]),

@@ -782,6 +782,122 @@ verifier("Controles qualite : jeu de test inchange (details identiques, sans men
          !any(grepl("non etabli", vapply(usp_controle_donnees(x, y), function(l) l$detail, ""),
                     fixed = TRUE)))
 
+## --- Credibilite pleine et credibilite partielle (issue #131) ----------------
+# Lecture R1 de regulatory (commentaire 5927125080 de #131) et decisions du
+# mainteneur du 01/10/2026 : le controle "Credibilite pleine atteinte" et
+# les avertissements de credibilite partielle lisent c(duree, bareme
+# applique), bareme qui entre dans sigma_USP (metadata$bareme) ; la duree est
+# le T de l'estimation (I + 1 en reserve no 2), jamais le nombre d'annees
+# fournies. Les reperes statistiques (T < 10, I + 1 < 10) sont inchanges.
+xc <- 100 * 1.03^(1:20); yc <- 0.7 * xc * (1 + 0.05 * sin(1:20))
+# Un test plus haut affecte une variable c dans l'environnement du fichier ;
+# lance seul par Rscript, cet environnement est l'environnement global, ou
+# le moteur est charge, et do.call(c, vals) de .mc_evaluer() y trouvait cette
+# variable au lieu de base::c (defaut de calcul intercepte, mesure).
+if (exists("c", inherits = FALSE)) rm(c)
+ligne_cred <- function(r) Filter(function(l) l$test == "Credibilite pleine atteinte", r)[[1]]
+verifier("Credibilite pleine : verdict OK ssi usp_credibilite(T, bareme du segment) == 1, 16 segments, T = 5..20 (#131)",
+         all(vapply(seq_len(nrow(SEGMENTS)), function(k) {
+           s <- SEGMENTS$segment[k]; a <- SEGMENTS$annexe[k]
+           b <- usp_bareme_segment(s, a)
+           all(vapply(5:20, function(T) {
+             l <- ligne_cred(usp_controle_donnees(xc[1:T], yc[1:T], segment = s, annexe = a))
+             identical(l$verdict, if (usp_credibilite(T, b) == 1) "OK" else "ECHEC")
+           }, logical(1)))
+         }, logical(1))))
+verifier("Credibilite pleine : grille de regulatory (II-1, II-5, II-6 : T = 10, 14 non, 15 oui ; II-2, XIV-1 : T = 9 non, 10 oui) (#131)",
+         {
+           v <- function(T, s, a = "II")
+             ligne_cred(usp_controle_donnees(xc[1:T], yc[1:T], segment = s, annexe = a))$verdict
+           all(vapply(c(1, 5, 6), function(s)
+             v(10, s) == "ECHEC" && v(14, s) == "ECHEC" && v(15, s) == "OK", logical(1))) &&
+             v(9, 2) == "ECHEC" && v(10, 2) == "OK" &&
+             v(9, 1, "XIV") == "ECHEC" && v(10, 1, "XIV") == "OK"
+         })
+verifier("Credibilite pleine : detail du bareme applique (segment G(1) / G(2), convention sans segment, saisie #93) (#131)",
+         {
+           d <- function(...) ligne_cred(usp_controle_donnees(xc[1:10], yc[1:10], ...))$detail
+           d1 <- d(segment = 1); d2 <- d(segment = 2); d0 <- d(); ds <- d(segment = 2, bareme = "long")
+           grepl("c = 74% ; bareme long du segment II-1 (annexe XVII, G(1))", d1, fixed = TRUE) &&
+             grepl("pleine a partir de T = 15", d1, fixed = TRUE) &&
+             grepl("c = 100% ; bareme court du segment II-2 (annexe XVII, G(2))", d2, fixed = TRUE) &&
+             grepl("court par convention, non determine par la section G", d0, fixed = TRUE) &&
+             grepl(paste("bareme long saisi (valeurs de G(1)) : derogation au bareme de la section G",
+                         "(#93) ; bareme reglementaire du segment II-2 : court (G(2)), c = 100%"),
+                   ds, fixed = TRUE) &&
+             grepl(paste("bareme long saisi (valeurs de G(1)) : saisie declaree comme derogation (#93),",
+                         "egale au bareme reglementaire du segment II-1"),
+                   d(segment = 1, bareme = "long"), fixed = TRUE) &&
+             grepl(paste("bareme long saisi (valeurs de G(1)) : saisie declaree comme derogation,",
+                         "bareme reglementaire non determine"), d(bareme = "long"), fixed = TRUE) &&
+             identical(ligne_cred(usp_controle_donnees(xc[1:10], yc[1:10], segment = 2,
+                                                      bareme = "long"))$verdict, "ECHEC") &&
+             !any(grepl("bareme court) /", c(d1, d2, d0, ds), fixed = TRUE))
+         })
+verifier("Credibilite pleine : duree = T retenu, pas n fourni (run_engine, II-1, n = 16, T = 10 : non atteinte) (#131)",
+         {
+           r <- run_engine(xc[1:16], yc[1:16], methode = "premium", segment = 1, annexe = "II",
+                           T = 10, B = 99, nature_donnees = "brutes")
+           l <- ligne_cred(r$controles)
+           r$metadata$T == 10 && r$metadata$n_fournies == 16 && identical(l$verdict, "ECHEC") &&
+             grepl("T = 10 ; c = 74%", l$detail, fixed = TRUE) &&
+             any(grepl("T = 10 : credibilite partielle, c = 74%", r$validation$avertissements, fixed = TRUE))
+         })
+verifier("engine_valider_donnees : credibilite partielle ssi c(T, bareme applique) < 1 ; repere T < 10 inchange (#131)",
+         {
+           a <- function(T, ...) engine_valider_donnees(xc[1:T], yc[1:T], ...)$avertissements
+           cp <- function(v) any(grepl("credibilite partielle", v, fixed = TRUE))
+           la <- function(v) any(grepl("lois asymptotiques peu fiables", v, fixed = TRUE))
+           cp(a(10, segment = 1)) && cp(a(14, segment = 1)) && !cp(a(15, segment = 1)) &&
+             !cp(a(10, segment = 2)) && cp(a(9, segment = 2)) && !cp(a(10, segment = 1, annexe = "XIV")) &&
+             cp(a(10, segment = 2, bareme = "long")) && !cp(a(10)) && cp(a(8)) &&
+             !la(a(10, segment = 1)) && la(a(9, segment = 2)) && la(a(8))
+         })
+verifier("engine_valider_donnees / mw_valider_triangle : bareme ou segment invalide refuse sans erreur R (#131)",
+         {
+           v1 <- engine_valider_donnees(x, y, bareme = "co")
+           v2 <- engine_valider_donnees(x, y, segment = 7, annexe = "XIV")
+           v3 <- mw_valider_triangle(t5, bareme = "lng")
+           v4 <- engine_valider_donnees(x, y, bareme = c(a = "long"))
+           v5 <- mw_valider_triangle(t5, bareme = structure("court", classe = "x"))
+           !v1$ok && contient(v1$erreurs, "bareme = \"co\"") && !v2$ok &&
+             contient(v2$erreurs, "Segment 7 inconnu dans l'annexe XIV") &&
+             !v3$ok && contient(v3$erreurs, "bareme = \"lng\"") &&
+             !v4$ok && contient(v4$erreurs, "(sans attribut)") &&
+             !v5$ok && contient(v5$erreurs, "(sans attribut)")
+         })
+verifier("engine_valider_serie_retenue : serie tronquee a T comme run_engine() (n = 16, T = 10, II-1 : c = 74%) (#131)",
+         {
+           sr <- engine_valider_serie_retenue(xc[1:16], yc[1:16], T = 10, methode = "premium",
+                                              nature_donnees = "brutes", segment = 1)
+           r <- run_engine(xc[1:16], yc[1:16], methode = "premium", segment = 1, annexe = "II",
+                           T = 10, B = 99, nature_donnees = "brutes")
+           identical(sr$validation, r$validation) && identical(sr$xt, xc[7:16]) &&
+             identical(sr$yt, yc[7:16]) &&
+             contient(sr$validation$avertissements, "T = 10 : credibilite partielle, c = 74%")
+         })
+verifier("engine_valider_serie_retenue : T refuse = meme validation que run_engine() (serie non tronquee, avertissements retires) (#131, #87)",
+         all(vapply(list(NA, 5.5, 20, 4), function(Tr) {
+           sr <- engine_valider_serie_retenue(xc[1:16], yc[1:16], T = Tr, methode = "premium",
+                                              nature_donnees = "brutes", segment = 1)
+           r <- run_engine(xc[1:16], yc[1:16], methode = "premium", segment = 1, annexe = "II",
+                           T = Tr, B = 99, nature_donnees = "brutes")
+           identical(sr$validation, r$validation) && !sr$validation$ok &&
+             length(sr$xt) == 16 && !length(sr$validation$avertissements)
+         }, logical(1))))
+verifier("mw_valider_triangle : credibilite partielle ssi c(I + 1, bareme applique) < 1 ; repere I + 1 < 10 inchange (#131)",
+         {
+           a <- function(n, ...) mw_valider_triangle(triangle(n), ...)$avertissements
+           cp <- function(v) any(grepl("credibilite partielle", v, fixed = TRUE))
+           vb <- function(v) any(grepl("estimateurs de variance tres bruites", v, fixed = TRUE))
+           all(vapply(c(10, 12, 14), function(n) cp(a(n, segment = 1)), logical(1))) &&
+             !cp(a(15, segment = 1)) && cp(a(8, segment = 1)) && vb(a(8, segment = 1)) &&
+             !cp(a(10, segment = 2)) && !vb(a(10, segment = 2)) &&
+             cp(a(10, segment = 2, bareme = "long")) &&
+             any(grepl("I + 1 = 10 annees d'accident (duree, G(3)(c)) : credibilite partielle, c = 74%",
+                       a(10, segment = 1), fixed = TRUE))
+         })
+
 ## --- usp_lire_vecteur / usp_charger ------------------------------------------
 fx <- tempfile(fileext = ".csv"); fy <- tempfile(fileext = ".csv")
 writeLines(c("x", "100", "110", "120", "130", "140"), fx)

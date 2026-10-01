@@ -354,6 +354,67 @@ usp_bareme_segment <- function(segment, annexe = "II") {
   if (segment %in% c(1, 5, 6)) "long" else "court"
 }
 
+# Credibilite d'une duree sous le bareme APPLIQUE (issue #131, lecture R1 de
+# regulatory, decision du mainteneur du 01/10/2026), partagee par le
+# controle "Credibilite pleine atteinte" (usp_controle_donnees()) et les
+# avertissements de credibilite partielle (engine_valider_donnees(),
+# mw_valider_triangle()). Le bareme applique est celui qui entre dans
+# sigma_USP, resolu comme dans run_engine() : bareme saisi s'il est fourni
+# (derogation a la section G, #93, meme egal au bareme du segment), sinon
+# bareme du segment (usp_bareme_segment() : G(1) long pour II-1, II-5,
+# II-6 ; G(2) court pour les autres segments de l'annexe II et tous ceux de
+# l'annexe XIV), sinon "court" par convention, sans segment (bareme non
+# determine par la section G). duree : la duree de G(3), soit le T de
+# l'estimation (premium, reserve1) ou I + 1 (reserve2), jamais le nombre
+# d'annees fournies (lecture (A) de #104) ; entier >= 5 (usp_credibilite()).
+# Retourne c, pleine (c == 1, seule condition de la credibilite pleine), le
+# bareme applique, sa duree de credibilite pleine (15 en G(1), 10 en G(2),
+# lue dans le bareme) et un libelle qui nomme le bareme, le point de la
+# section G et son origine (segment, saisie, convention) ; avec un bareme
+# saisi et un segment, le libelle donne aussi le bareme reglementaire du
+# segment et son c. Libelle d'un bareme saisi aligne sur les etats de
+# engine_parametre_standard() (saisi_egal, saisi_contraire,
+# saisi_sans_segment). Bareme hors de "court" / "long" exactement, ou porteur
+# d'attributs : erreur d'usage, comme dans .engine_verifier_usage()
+# (usp_credibilite() accepterait une abreviation par match.arg()).
+.engine_credibilite_appliquee <- function(duree, bareme = NULL, segment = NULL,
+                                          annexe = "II") {
+  annexe <- .annexe_verifiee(annexe)
+  saisi <- !is.null(bareme)
+  if (saisi && !(is.character(bareme) && length(bareme) == 1L && !is.na(bareme) &&
+                 is.null(attributes(bareme)) && bareme %in% c("court", "long")))
+    stop(sprintf(paste("bareme = %s : NULL, \"court\" ou \"long\" (sans attribut) est attendu",
+                       "(annexe XVII, section G)."),
+                 .engine_saisie(bareme)), call. = FALSE)
+  regl <- if (!is.null(segment)) usp_bareme_segment(segment, annexe) else NULL
+  appl <- if (saisi) bareme else if (!is.null(regl)) regl else "court"
+  point <- function(b) if (b == "long") "G(1)" else "G(2)"
+  pleine_a <- function(b) {
+    tab <- if (b == "long") CRED_LONG else CRED_COURT
+    min(as.integer(names(tab))[tab == 1])
+  }
+  cc <- usp_credibilite(duree, appl)
+  seg <- if (!is.null(segment)) sprintf("%s-%d", annexe, as.integer(segment)) else NULL
+  libelle <- if (saisi) {
+    sprintf("bareme %s saisi (valeurs de %s) : %s", appl, point(appl),
+            if (is.null(seg))
+              "saisie declaree comme derogation, bareme reglementaire non determine"
+            else if (identical(regl, appl))
+              sprintf(paste("saisie declaree comme derogation (#93), egale au bareme",
+                            "reglementaire du segment %s"), seg)
+            else sprintf(paste("derogation au bareme de la section G (#93) ; bareme",
+                               "reglementaire du segment %s : %s (%s), c = %.0f%%"),
+                         seg, regl, point(regl), 100 * usp_credibilite(duree, regl)))
+  } else if (!is.null(seg)) {
+    sprintf("bareme %s du segment %s (annexe XVII, %s)", appl, seg, point(appl))
+  } else {
+    paste("bareme court par convention, non determine par la section G (aucun segment ;",
+          "valeurs de G(2))")
+  }
+  list(c = cc, pleine = isTRUE(cc == 1), bareme = appl, pleine_a = pleine_a(appl),
+       libelle = libelle)
+}
+
 # Valeur refusee citee dans un message d'erreur d'usage (issue #133) :
 # deparse() garde les guillemets d'un texte et la forme c(...) d'un vecteur,
 # mais arrondit un double a 15 chiffres significatifs, de sorte que
@@ -1031,7 +1092,13 @@ usp_charger <- function(fichier_x, fichier_y, T = NULL, plus_recent_en_dernier =
 # credibilite sort ECHEC sans appeler le bareme, qui n'y est pas defini
 # (issue #33, avis d'actuary du 24/09/2026). run_engine() valide en amont :
 # ces cas ne s'y presentent pas.
-usp_controle_donnees <- function(x, y, alpha = 0.10) {
+# bareme / segment / annexe (issue #131) : bareme de credibilite applique,
+# resolu comme dans run_engine() (bareme saisi s'il est fourni, sinon bareme
+# du segment, sinon "court" par convention) ; run_engine() transmet le
+# bareme saisi (NULL sinon), le segment et l'annexe de l'appel. Sans ces
+# arguments, la ligne de credibilite lit le bareme court par convention.
+usp_controle_donnees <- function(x, y, alpha = 0.10, bareme = NULL, segment = NULL,
+                                 annexe = "II") {
   T <- length(x)
   res <- list()
   add <- function(nom, ok, detail) res[[length(res) + 1]] <<-
@@ -1068,10 +1135,17 @@ usp_controle_donnees <- function(x, y, alpha = 0.10) {
     add("Amplitude du volume (stabilite du perimetre)", amp < 10,
         sprintf("max(x)/min(x) = %.2f ; une amplitude elevee signale une rupture de perimetre", amp))
   } else add("Amplitude du volume (stabilite du perimetre)", FALSE, non_etabli)
-  add("Credibilite pleine atteinte", T >= 10,
-      if (T >= 5) sprintf("T = %d ; c = %.0f%% (bareme court) / %.0f%% (bareme long)",
-                          T, 100 * usp_credibilite(T, "court"), 100 * usp_credibilite(T, "long"))
-      else sprintf("T = %d ; bareme non defini sous T = 5 (annexe XVII, section G)", T))
+  # Credibilite pleine (issue #131) : c(T, bareme applique) == 1, sous le
+  # bareme qui entre dans sigma_USP (.engine_credibilite_appliquee()) ;
+  # T >= 10 la donnait atteinte des T = 10 sur les segments du bareme long
+  # G(1), qui ne l'atteignent qu'a T = 15.
+  if (T >= 5) {
+    cr <- .engine_credibilite_appliquee(T, bareme, segment, annexe)
+    add("Credibilite pleine atteinte", cr$pleine,
+        sprintf("T = %d ; c = %.0f%% ; %s ; credibilite pleine a partir de T = %d",
+                T, 100 * cr$c, cr$libelle, cr$pleine_a))
+  } else add("Credibilite pleine atteinte", FALSE,
+             sprintf("T = %d ; bareme non defini sous T = 5 (annexe XVII, section G)", T))
   res
 }
 
@@ -4806,9 +4880,17 @@ engine_empreinte <- function(res) {
 # "brutes" sont refusees (C(2)(c), D(2)(f) : donnees nettes exigees ; NULL ou
 # "nettes" acceptes). Sans methode (controle d'une saisie ou d'un import,
 # hors calcul), la nature n'est pas controlee (.nature_erreurs()).
+# bareme / segment / annexe (issue #131) : bareme de credibilite applique,
+# resolu comme dans run_engine() (.engine_credibilite_appliquee() : bareme
+# saisi, sinon bareme du segment, sinon "court" par convention) ; une valeur
+# invalide est une erreur bloquante, sans erreur R. L'avertissement de
+# credibilite partielle repose sur c(T, bareme applique) < 1 (annexe XVII,
+# section G) ; l'avertissement statistique (lois asymptotiques peu fiables,
+# T < 10) est un repere non reglementaire, distinct et inchange.
 engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
                                    delta_equiv = NULL, methode = NULL,
-                                   nature_donnees = NULL) {
+                                   nature_donnees = NULL, bareme = NULL,
+                                   segment = NULL, annexe = "II") {
   err <- .nature_erreurs(methode, nature_donnees); avt <- character(0)
   if (!is.numeric(xt) || !is.numeric(yt))
     err <- c(err, "xt et yt doivent etre numeriques.")
@@ -4849,6 +4931,11 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
     err <- c(err, sprintf(paste("Marge theta du test d'equivalence (theta_equiv = %s) : un nombre",
                                 "fini, 0 < theta < 1 (fraction de la perte moyenne), est attendu."),
                           saisie(theta_equiv)))
+  # Bareme, segment et annexe (issue #131) : controles avant tout
+  # avertissement ; une valeur invalide est refusee sans erreur R.
+  msg <- tryCatch({ .engine_credibilite_appliquee(5, bareme, segment, annexe); NULL },
+                  error = function(e) conditionMessage(e))
+  if (!is.null(msg)) err <- c(err, msg)
   if (!length(err)) {
     r <- yt / xt
     if (any(r <= 0 | r >= 5))
@@ -4857,9 +4944,19 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
       avt <- c(avt, "Amplitude des volumes >= 10 : rupture de perimetre possible.")
     if (anyDuplicated(data.frame(xt, yt)) > 0)
       avt <- c(avt, "Couples (xt, yt) dupliques detectes.")
+    # Credibilite partielle (issue #131) : c(T, bareme applique) < 1, sous
+    # le bareme qui entre dans sigma_USP ; length(xt) < 10 ne signalait rien
+    # sur les segments du bareme long G(1) de T = 10 a 14.
+    if (length(xt) >= 5) {
+      cr <- .engine_credibilite_appliquee(length(xt), bareme, segment, annexe)
+      if (!cr$pleine)
+        avt <- c(avt, sprintf("T = %d : credibilite partielle, c = %.0f%% (%s ; pleine a partir de T = %d).",
+                              length(xt), 100 * cr$c, cr$libelle, cr$pleine_a))
+    }
+    # Repere statistique, non reglementaire, seuil inchange (T < 10).
     if (length(xt) < 10)
-      avt <- c(avt, sprintf(paste("T = %d : credibilite partielle et lois asymptotiques peu",
-                                  "fiables. Privilegier les p-values exactes ou Monte-Carlo."),
+      avt <- c(avt, sprintf(paste("T = %d : lois asymptotiques peu fiables.",
+                                  "Privilegier les p-values exactes ou Monte-Carlo."),
                             length(xt)))
   }
   list(ok = length(err) == 0, erreurs = err, avertissements = avt, T = length(xt))
@@ -4895,6 +4992,45 @@ engine_valider_profondeur <- function(T, n, T_min = 5) {
               T_min, format(T))
       else sprintf("Profondeur T = %s : T >= %d attendu.", format(T), T_min))
   character(0)
+}
+
+# Serie retenue et sa validation (issue #131) : etape 1 de run_engine()
+# (methodes lognormales), extraite telle quelle pour que l'apercu de
+# l'application valide la meme serie que le calcul, sans refaire la
+# troncature. Profondeur T (issue #87) controlee AVANT toute troncature :
+# une valeur non entiere, NA, non finie, multiple ou hors de [5 ; n] est
+# refusee (ok = FALSE) ; elle etait auparavant ignoree (NA, Inf, texte) ou
+# tronquait la serie en silence ((n - 5.5 + 1):n = 3.5:8 retient 5 annees
+# et ecarte la plus recente). Refusee, la serie n'est pas tronquee et la
+# validation des donnees porte sur la serie entiere. T accepte : les T
+# annees les plus recentes (lecture (A) de #104 : la duree G(3) est le T
+# retenu). Les autres arguments sont ceux de engine_valider_donnees().
+# Retourne list(xt, yt, validation) : la serie retenue et sa validation.
+engine_valider_serie_retenue <- function(xt, yt, T = NULL, theta_equiv = 0.10,
+                                         delta_equiv = NULL, methode = NULL,
+                                         nature_donnees = NULL, bareme = NULL,
+                                         segment = NULL, annexe = "II") {
+  n <- length(xt)
+  err_T <- engine_valider_profondeur(T, n)
+  if (!is.null(T) && !length(err_T)) {
+    idx <- (n - T + 1):n; xt <- xt[idx]; yt <- yt[idx]
+  }
+  # Bareme saisi transmis tel quel (NULL sinon), avec le segment et l'annexe :
+  # l'avertissement de credibilite partielle lit le bareme applique (#131).
+  validation <- engine_valider_donnees(xt, yt, theta_equiv = theta_equiv,
+                                       delta_equiv = delta_equiv, methode = methode,
+                                       nature_donnees = nature_donnees, bareme = bareme,
+                                       segment = segment, annexe = annexe)
+  # T refuse : aucune serie n'est retenue ; les avertissements, qui portent
+  # sur une serie retenue (longueur, ratios, amplitude), sont retires et la
+  # longueur retenue validation$T vaut NA (audit de #87, constat 4).
+  if (length(err_T)) {
+    validation$ok <- FALSE
+    validation$erreurs <- c(err_T, validation$erreurs)
+    validation$avertissements <- character(0)
+    validation$T <- NA_integer_
+  }
+  list(xt = xt, yt = yt, validation = validation)
 }
 
 
@@ -5187,11 +5323,22 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
 ## =============================================================================
 
 # --- Controles de recevabilite : annexe XVII, section D, paragraphe 2 --------
-mw_valider_triangle <- function(tri, T_min = 5) {
+# bareme / segment / annexe (issue #131) : bareme de credibilite applique,
+# resolu comme dans run_engine() (.engine_credibilite_appliquee()) ; une
+# valeur invalide est une erreur bloquante, sans erreur R. L'avertissement de
+# credibilite partielle repose sur c(I + 1, bareme applique) < 1 (annexe
+# XVII, section G ; duree G(3)(c)) ; l'avertissement statistique (variance
+# tres bruitee en fin de triangle, I + 1 < 10) est un repere non
+# reglementaire, distinct et inchange.
+mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
+                                annexe = "II") {
   err <- character(0); avt <- character(0)
   if (!is.matrix(tri) || !is.numeric(tri))
     return(list(ok = FALSE, erreurs = "Le triangle doit etre une matrice numerique.",
                 I = NA, J = NA))
+  msg <- tryCatch({ .engine_credibilite_appliquee(5, bareme, segment, annexe); NULL },
+                  error = function(e) conditionMessage(e))
+  if (!is.null(msg)) err <- c(err, msg)
   I <- nrow(tri) - 1L; J <- ncol(tri) - 1L
   if (nrow(tri) < T_min)
     err <- c(err, sprintf("D(2)(b) : au moins %d annees d'accident consecutives (%d fournies).",
@@ -5234,8 +5381,19 @@ mw_valider_triangle <- function(tri, T_min = 5) {
           avt <- c(avt, sprintf("Annee d'accident %d : cumul decroissant (recouvrement ou boni).", i))
       }
     }
+    # Credibilite partielle (issue #131) : c(I + 1, bareme applique) < 1 ;
+    # nrow(tri) < 10 ne signalait rien sur les segments du bareme long G(1)
+    # de I + 1 = 10 a 14.
+    if (nrow(tri) >= 5) {
+      cr <- .engine_credibilite_appliquee(nrow(tri), bareme, segment, annexe)
+      if (!cr$pleine)
+        avt <- c(avt, sprintf(paste("I + 1 = %d annees d'accident (duree, G(3)(c)) : credibilite",
+                                    "partielle, c = %.0f%% (%s ; pleine a partir de I + 1 = %d)."),
+                              nrow(tri), 100 * cr$c, cr$libelle, cr$pleine_a))
+    }
+    # Repere statistique, non reglementaire, seuil inchange (I + 1 < 10).
     if (nrow(tri) < 10)
-      avt <- c(avt, sprintf("I + 1 = %d annees d'accident : credibilite partielle et estimateurs de variance tres bruites en fin de triangle.",
+      avt <- c(avt, sprintf("I + 1 = %d annees d'accident : estimateurs de variance tres bruites en fin de triangle.",
                             nrow(tri)))
   }
   list(ok = length(err) == 0, erreurs = err, avertissements = avt, I = I, J = J)
@@ -6877,7 +7035,10 @@ engine_motif_b_alpha <- function(B, alpha) {
   if (is.null(triangle))
     stop("La methode du risque de reserve no 2 exige un triangle de paiements cumules.")
   triangle <- as.matrix(triangle)
-  validation <- mw_valider_triangle(triangle)
+  # Bareme saisi transmis tel quel (NULL sinon), avec le segment et l'annexe :
+  # l'avertissement de credibilite partielle lit le bareme applique (#131).
+  validation <- mw_valider_triangle(triangle, bareme = bareme, segment = segment,
+                                    annexe = annexe)
   # Nature declaree (issue #55) : des donnees "brutes" sont refusees, D(2)(f)
   # exigeant des montants ajustes de la reassurance (.nature_erreurs()).
   err_nature <- .nature_erreurs("reserve2", nature_donnees)
@@ -7165,29 +7326,15 @@ run_engine <- function(xt, yt,
 
   # --- 1. Donnees et controles de validite ---------------------------------
   if (!plus_recent_en_dernier) { xt <- rev(xt); yt <- rev(yt) }
-  # Profondeur T (issue #87) : controlee AVANT toute troncature. Une valeur
-  # non entiere, NA, non finie, multiple ou hors de [5 ; n] est refusee
-  # (ok = FALSE) ; elle etait auparavant ignoree (NA, Inf, texte) ou
-  # tronquait la serie en silence ((n - 5.5 + 1):n = 3.5:8 retient 5 annees
-  # et ecarte la plus recente). Refusee, la serie n'est pas tronquee et la
-  # validation des donnees porte sur la serie entiere.
+  # Profondeur T et controles de validite : engine_valider_serie_retenue(),
+  # partagee avec l'apercu de l'application (issue #131). n : nombre
+  # d'annees fournies, restitue par metadata$n_fournies (issue #104).
   n <- length(xt)
-  err_T <- engine_valider_profondeur(T, n)
-  if (!is.null(T) && !length(err_T)) {
-    idx <- (n - T + 1):n; xt <- xt[idx]; yt <- yt[idx]
-  }
-  validation <- engine_valider_donnees(xt, yt, theta_equiv = theta_equiv,
-                                       delta_equiv = delta_equiv, methode = methode,
-                                       nature_donnees = nature_donnees)
-  # T refuse : aucune serie n'est retenue ; les avertissements, qui portent
-  # sur une serie retenue (longueur, ratios, amplitude), sont retires et la
-  # longueur retenue validation$T vaut NA (audit de #87, constat 4).
-  if (length(err_T)) {
-    validation$ok <- FALSE
-    validation$erreurs <- c(err_T, validation$erreurs)
-    validation$avertissements <- character(0)
-    validation$T <- NA_integer_
-  }
+  sr <- engine_valider_serie_retenue(xt, yt, T = T, theta_equiv = theta_equiv,
+                                     delta_equiv = delta_equiv, methode = methode,
+                                     nature_donnees = nature_donnees, bareme = bareme,
+                                     segment = segment, annexe = annexe)
+  xt <- sr$xt; yt <- sr$yt; validation <- sr$validation
   if (!validation$ok)
     return(structure(list(ok = FALSE, validation = validation,
                           metadata = list(horodatage = t0)), class = "usp_engine"))
@@ -7217,7 +7364,11 @@ run_engine <- function(xt, yt,
   # (.engine_calcul_protege()), rendu en ok = FALSE.
   .engine_calcul_protege(methode, t0, validation, {
     # --- 3. Estimation, bootstrap, robustesse ---------------------------------
-    controles <- usp_controle_donnees(xt, yt, alpha)
+    # Bareme saisi (NULL sinon), segment et annexe : la ligne "Credibilite
+    # pleine atteinte" lit le bareme applique, metadata$bareme (#131).
+    controles <- usp_controle_donnees(xt, yt, alpha,
+                                      bareme = if (saisi_bareme) bareme else NULL,
+                                      segment = segment, annexe = annexe)
     fit   <- usp_ajuster(xt, yt)
     # Controles numeriques de l'estimation (famille H, non bloquants, #22)
     controles <- c(controles, usp_controles_numeriques(fit))
