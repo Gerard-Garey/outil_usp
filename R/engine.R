@@ -332,11 +332,55 @@ usp_credibilite <- function(T, bareme = c("court", "long")) {
   annexe
 }
 
+# Bareme de credibilite d'un segment (issue #133, avis d'actuary Q-E1d-4).
+# Ordre des controles : annexe (.annexe_verifiee(), refusee meme sans
+# segment), puis NULL -> "court" (convention des appelants sans segment,
+# tracee "defaut" par .engine_trace_bareme()), puis numero de segment
+# (.segment_verifie() : NA, texte, logique, facteur, nom, non entier,
+# vecteur, vide refuses par une erreur d'usage qui nomme segment), puis
+# existence du segment dans l'annexe (.segment_ligne()). Avant #133, ces
+# valeurs rendaient "long" ("1", TRUE, factor(5), c(a = 1)), "court" (NA,
+# 1.5, 99, et tout numero en annexe XIV, 5 compris) ou une erreur R qui ne
+# nommait pas l'argument (c(1, 2), integer(0)) ; le chemin run_engine() n'est
+# pas concerne, .engine_verifier_usage() validant segment avant cet appel.
+# Un segment absent de l'annexe n'a pas de bareme dans la section G : le
+# rendre "court" fabriquerait une determination reglementaire.
 usp_bareme_segment <- function(segment, annexe = "II") {
   annexe <- .annexe_verifiee(annexe)
-  if (is.null(segment) || is.na(segment)) return("court")
+  if (is.null(segment)) return("court")
+  segment <- .segment_verifie(segment)
+  .segment_ligne(segment, annexe)
   if (identical(annexe, "XIV")) return("court")
   if (segment %in% c(1, 5, 6)) "long" else "court"
+}
+
+# Valeur refusee citee dans un message d'erreur d'usage (issue #133) :
+# deparse() garde les guillemets d'un texte et la forme c(...) d'un vecteur,
+# mais arrondit un double a 15 chiffres significatifs, de sorte que
+# 1 + 1e-15 etait cite 1, valeur que le message refuse en l'affichant comme
+# valide. Un double que l'ecriture a 15 chiffres ne restitue pas exactement
+# est donc cite a 17 chiffres (option digits17 de deparse(), qui restitue
+# tout double) ; les autres gardent l'ecriture a 15 chiffres, afin que 0.3
+# reste cite 0.3 et non 0.29999999999999999. Vide : "vide".
+# La relecture est testee numeriquement, sur les valeurs debarrassees de
+# leurs attributs (sprintf("%.15g") relu par as.double()), sans rien
+# evaluer : relire le texte de deparse() par eval() executait le code d'un
+# attribut de type langage (deparse() retire le quote()), constat C1 de
+# l'audit de #133. NA, NaN, Inf, -Inf et -0 se relisent tels quels.
+# Le passage a 17 chiffres se decide pour tout le vecteur : il suffit d'une
+# valeur non restituee pour que toutes soient citees a 17 chiffres ; sans
+# consequence, un vecteur etant de toute facon refuse par les appelants.
+.engine_saisie <- function(v) {
+  if (!length(v)) return("vide")
+  relue <- TRUE
+  if (is.double(v)) {
+    u <- as.vector(unclass(v))
+    u <- u[!is.na(u)]                 # NA, NaN : relus tels quels, sans conversion
+    relue <- all(as.double(sprintf("%.15g", u)) == u)
+  }
+  ctl <- c("keepNA", "keepInteger", "niceNames", "showAttributes")
+  if (!relue) ctl <- c(ctl, "digits17")
+  paste(deparse(v, control = ctl), collapse = " ")
 }
 
 # Numero de segment (issue #105) : nombre scalaire fini entier, sans attribut
@@ -356,9 +400,21 @@ usp_bareme_segment <- function(segment, annexe = "II") {
     stop(sprintf(paste("segment = %s : un nombre scalaire fini entier, sans attribut,",
                        "est attendu (numero de segment de l'annexe II ou XIV ; texte",
                        "refuse, sans conversion)."),
-                 if (!length(segment)) "vide" else paste(deparse(segment), collapse = " ")),
+                 .engine_saisie(segment)),
          call. = FALSE)
   segment
+}
+
+# Ligne du segment dans le tableau de son annexe (ANNEXE_II ou ANNEXE_XIV),
+# partagee par usp_segment_infos() et usp_bareme_segment() (issue #133) ; un
+# segment absent de l'annexe est refuse avec le message d'origine de
+# usp_segment_infos(). segment et annexe sont deja verifies par l'appelant.
+.segment_ligne <- function(segment, annexe) {
+  tab <- if (identical(annexe, "XIV")) ANNEXE_XIV else ANNEXE_II
+  i <- match(segment, tab$segment)
+  if (is.na(i)) stop(sprintf("Segment %s inconnu dans l'annexe %s.", segment, annexe),
+                     call. = FALSE)
+  i
 }
 
 # Renvoie les caracteristiques reglementaires d'un segment : libelle, ecarts
@@ -367,8 +423,7 @@ usp_segment_infos <- function(segment, annexe = "II") {
   segment <- .segment_verifie(segment)
   annexe <- .annexe_verifiee(annexe)
   tab <- if (identical(annexe, "XIV")) ANNEXE_XIV else ANNEXE_II
-  i <- match(segment, tab$segment)
-  if (is.na(i)) stop(sprintf("Segment %s inconnu dans l'annexe %s.", segment, annexe))
+  i <- .segment_ligne(segment, annexe)
   list(annexe = annexe, segment = segment, libelle = tab$libelle[i],
        sigma_prime_brut = tab$sigma_prime_brut[i],
        sigma_reserve = tab$sigma_reserve[i],
@@ -6573,10 +6628,12 @@ engine_motif_b_alpha <- function(B, alpha) {
   b_min <- tryCatch(engine_b_minimal(alpha), error = function(e) NULL)
   seuil_b <- if (is.null(b_min)) "B trop petit pour ce seuil" else
     sprintf("soit B >= %.0f a ce seuil", b_min)
-  # Valeurs citees comme par saisie() de .engine_verifier_usage(), en double :
-  # un entier (99L, forme possible d'une saisie numerique transmise par
-  # l'application) est cite 99, comme le double 99.
-  saisie <- function(v) paste(deparse(as.double(v)), collapse = " ")
+  # Valeurs citees par .engine_saisie(), comme par saisie() de
+  # .engine_verifier_usage() (15 chiffres, 17 si l'ecriture a 15 chiffres ne
+  # restitue pas la valeur, #133), apres conversion en double : un entier
+  # (99L, forme possible d'une saisie numerique transmise par l'application)
+  # est cite 99, comme le double 99.
+  saisie <- function(v) .engine_saisie(as.double(v))
   sprintf(paste("B = %s et alpha = %s : B + 1 > 4/alpha est requis, %s",
                 "(en plus de B >= B_MIN_USAGE = %.0f). Le plancher bilateral de la p-value",
                 "Monte-Carlo, 2/(B+1) = %.4g, n'est pas inferieur a alpha/2 = %.4g :",
@@ -6640,7 +6697,7 @@ engine_motif_b_alpha <- function(B, alpha) {
 .engine_verifier_usage <- function(B, seed, bareme, alpha = 0.10,
                                    sigma_standard = NULL, segment = NULL,
                                    annexe = "II") {
-  saisie <- function(v) if (!length(v)) "vide" else paste(deparse(v), collapse = " ")
+  saisie <- .engine_saisie
   sans_attribut <- function(v) is.null(attributes(v))
   scalaire_fini <- function(v) is.numeric(v) && length(v) == 1L && is.finite(v) &&
                                  sans_attribut(v)
