@@ -45,7 +45,7 @@ Le paramètre `model` d'un appel `Agent` l'emporte sur le `model` de la fiche ; 
 | actuary | Validation du diff du `.tex` en fin de branche (règle 9) | — | jugement | passages relus, renvois au code et aux sources, constats marqués vérifié / hypothèse | § 4.1 | verdict |
 | actuary | Revue périodique des tests | liste des tests notablement changée | jugement | tests revus, pertinence à T = 8 argumentée, constats sourcés | § 4.1 | avis rendu |
 | actuary | Nouvelle approche, méthode ou test nouveau | au moins deux options sans preuve qui départage | jugement | options, apport de chacune, références retrouvées | **arbitrage du mainteneur** ; Fable seulement à sa demande ou par § 4.1 | options décrites |
-| `architect`, `actuary` | Changement d'un résultat final ou d'un verdict | tableau avant / après | jugement | tableau avant / après, lignes expliquées | Fable **seulement sur décision du mainteneur** | visa |
+| architect, actuary | Changement d'un résultat final ou d'un verdict | tableau avant / après | jugement | tableau avant / après, lignes expliquées | Fable **seulement sur décision du mainteneur** | visa |
 
 ## 4. Critères
 
@@ -143,7 +143,7 @@ Chaque consultation se termine par un bloc « Retour » (fiches `architect`, `ac
 ## 8. Calibration et retour arrière
 
 - **Calibration** : après les dix premières consultations `architect`, `actuary`, puis à chaque point d'étape d'`architect`, relire le bilan du journal et les lignes d'escalade des PR : part des relances ciblées (fiches trop légères ?), escalades vers Fable et leur apport réel, contexte au dernier appel (lectures trop larges ?). Ajuster les seuils et efforts par un commit `claude:` motivé ; une réorientation durable s'annote dans l'ADR 0013.
-- **Retour au comportement antérieur** (Fable pour tout) : remettre `model: fable` dans `architect.md` et `actuary.md`, retirer `effort`, `maxTurns` et la phrase « Fiche de routine… » des descriptions, vider `ROLES`, supprimer les fiches `-approfondi` (le contrôle des orphelines l'exige) et le job CI « Fiches d'agents » ; ou annuler le commit de fusion de la PR qui a introduit la politique (`git revert -m 1 <sha>`).
+- **Retour au comportement antérieur** (Fable pour tout) : remettre `model: fable` dans `architect.md` et `actuary.md`, retirer `effort`, `maxTurns` et la phrase « Fiche de routine… » des descriptions, vider `ROLES`, supprimer les fiches `-approfondi` (le contrôle des orphelines l'exige) et le job CI « Fiches d'agents », puis retirer les renvois aux fiches `-approfondi` (`CLAUDE.md`, skills `audit-main-gpt` et `verifier-reproductibilite`) ; ou annuler le commit de fusion de la PR qui a introduit la politique (`git revert -m 1 <sha>`).
 
 ## 9. Adapter la politique à un projet
 
