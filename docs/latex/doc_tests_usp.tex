@@ -11598,8 +11598,9 @@ résidus de Mack \\
 dans les deux méthodes \\
 \code{stat\_lilliefors()}, \code{lillie\_p()} & LN + MW & Lilliefors, dans les
 deux méthodes \\
-\code{test\_lm\_complet()} & LN & Student sur la constante, Student sur la
-pente, Fisher global, $R^2$~: \textbf{quatre entrées issues d'un seul appel} \\
+\code{test\_lm\_complet()} & LN & Student sur la pente, Fisher global,
+$R^2$~: \textbf{trois entrées issues d'un seul appel}~; le $t$ de la
+constante vient de son propre ajustement, \code{test\_intercept()} \\
 \code{usp\_noyau()}, \code{usp\_pi()} & LN & Tout le noyau lognormal~:
 résidus $z_t$, donc l'intégralité de H2, H3, H4 \\
 \code{usp\_regime()} & LN & Drapeau de la position de $\hat\delta$, libellés du
@@ -11711,6 +11712,7 @@ statistique, dont sept sont mutualisées (en orangé), puis se rejoignent sur
 ]
 \node[ent] (r) {ratios $r_t = y_t/x_t$};
 \node[mut, right=20mm of r] (lm) {\code{test\_lm\_complet()}};
+\node[ded] (ti) at ([yshift=13.5mm]lm) {\code{test\_intercept()}};
 \node[sor, right=20mm of lm, yshift=13.5mm]  (o1) {Student constante};
 \node[sor, right=20mm of lm, yshift=4.5mm]   (o2) {Student pente};
 \node[sor, right=20mm of lm, yshift=-4.5mm]  (o3) {Fisher global};
@@ -11729,18 +11731,25 @@ statistique, dont sept sont mutualisées (en orangé), puis se rejoignent sur
 \node[sor, right=20mm of sp] (o9) {Spearman ($\times2$)};
 
 \draw[fl] (r) -- (lm);
-% Les quatre sorties issues du meme appel sont desservies par un tronc commun
-% puis des coudes, plutot que par quatre diagonales partant d'un meme point.
+% Les trois sorties issues du meme appel sont desservies par un tronc commun
+% puis des coudes, plutot que par trois diagonales partant d'un meme point.
+% La constante a son propre ajustement (test_intercept(), #111).
 \coordinate (bus) at ([xshift=8mm]lm.east);
 \draw[li] (lm.east) -- (bus);
-\foreach \o in {o1,o2,o3,o4} \draw[fl] (bus) |- (\o.west);
+\foreach \o in {o2,o3,o4} \draw[fl] (bus) |- (\o.west);
+\draw[fl] (r) |- (ti);
+\draw[fl] (ti) -- (o1);
 \foreach \a/\b in {tost/o5, reset/o6, mk/o7, cs/o8, sp/o9} \draw[fl] (\a) -- (\b);
 \foreach \b in {tost,reset,mk,cs,sp} \draw[fl] (r) |- (\b);
 \end{tikzpicture}
-\caption{Hypothèse H1. \code{test\_lm\_complet()} alimente \textbf{quatre}
+\caption{Hypothèse H1. \code{test\_lm\_complet()} alimente \textbf{trois}
 entrées de la table des tests à partir d'un unique ajustement~: une anomalie s'y
-propagerait aux quatre. Mann--Kendall illustre la configuration inverse~: un
-seul test, mais quatre fonctions dont deux internes.}
+propagerait aux trois. La nullité de la constante utilise les mêmes données,
+mais tire sa statistique $t$ et ses p-values de son propre ajustement,
+\code{test\_intercept()}~; seule l'estimation $\hat a$ affichée sur sa ligne
+est lue dans l'ajustement de \code{test\_lm\_complet()}. Mann--Kendall
+illustre la configuration inverse~: un seul test, mais quatre fonctions dont
+deux internes.}
 \label{fig:annexe-h1}
 \end{figure}
 
@@ -11999,7 +12008,7 @@ Un test, plusieurs fonctions & Mann--Kendall (\code{test\_mann\_kendall()} +
 \code{dw\_p\_exacte()} + \code{.imhof\_p\_sup0()}) & La statistique et la loi de
 référence sont séparées~: il faut vérifier les deux, et leur cohérence
 d'appariement. \\
-Une fonction, plusieurs tests & \code{test\_lm\_complet()} (4 entrées),
+Une fonction, plusieurs tests & \code{test\_lm\_complet()} (3 entrées),
 \code{.shapiro\_sur()} (2 entrées)~; \code{stat\_dw()}, \code{test\_runs()},
 \code{stat\_supF()}, \code{stat\_cusum()} et \code{test\_grubbs()} (2 entrées
 chacune, sur $z_t$ et sur les ratios bruts $u_t$) & Une anomalie se propage à toutes les
