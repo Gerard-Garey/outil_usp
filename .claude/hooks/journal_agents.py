@@ -9,7 +9,7 @@
 import json, os, sys
 from datetime import datetime, timezone
 
-e = json.loads(sys.stdin.read() or "{}")
+e = json.loads(sys.stdin.buffer.read().decode("utf-8") or "{}")
 aid = e.get("agent_id") or ""
 chemin = e.get("agent_transcript_path") or ""
 if not chemin and aid and e.get("transcript_path"):
