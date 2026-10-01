@@ -40,7 +40,7 @@ Périmètres séparés (`CLAUDE.md`) : l'audit est l'un des rares moments (avec 
    - Relever la disjonction par fichier avec la branche de travail de Claude (décision du mainteneur du 28/09/2026 au soir ; `AGENTS.md`, « Branches », point 3) ; un fichier commun est un constat.
    - Diff `git diff origin/main...origin/main-GPT`, classé par domaine : `R/engine.R`, `app.R` / `R/display_helpers.R`, `tests/`, `tests/reference/`, `docs/latex/`, autres.
 
-2. **Plan d'audit par `architect`** : lui transmettre la liste des issues, le diff par domaine, les commits à changement de résultats et la carte des livrables GPT. Il dit :
+2. **Plan d'audit par `architect`** (fiche `architect-approfondi` ; les revues de fond de l'audit passent aussi par `actuary-approfondi` : l'audit est plus exigeant qu'une revue finale, `docs/agents/routage.md` ; cela vaut pour toutes les consultations d'`architect` et d'`actuary` de la présente skill, rattachement des issues GPT, bilan et validation finale compris) : lui transmettre la liste des issues, le diff par domaine, les commits à changement de résultats et la carte des livrables GPT. Il dit :
    - quels agents interviennent, et dans quel ordre ;
    - si le travail de GPT est cohérent avec la feuille de route de Claude, les ADR et `CONTEXT.md` ;
    - ce que la période a proposé (termes, décisions) et qui doit être consigné.

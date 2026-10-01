@@ -81,7 +81,7 @@ Document unique (~5 700 lignes) qui doit rester synchronisé avec le code : noms
 
 ## Sous-agents
 
-Sept sous-agents de projet (`.claude/agents/`), orchestrés par la session principale. Règle de séparation : **ceux qui écrivent ne vérifient pas, ceux qui vérifient n'écrivent pas**.
+Sept sous-agents de projet (`.claude/agents/` ; neuf fiches : `architect` et `actuary` ont une variante `-approfondi`), orchestrés par la session principale. Règle de séparation : **ceux qui écrivent ne vérifient pas, ceux qui vérifient n'écrivent pas**.
 
 | Famille | Agent | Écrit | Question |
 |---|---|---|---|
@@ -94,6 +94,8 @@ Sept sous-agents de projet (`.claude/agents/`), orchestrés par la session princ
 | Vérification | `app-review` | rien (rapport) | Application conforme à `docs/exigences.md` § 5 ? |
 
 **Déclencheurs** — un agent n'entre dans le circuit que si la modification touche son domaine : plusieurs issues ou forme du moteur → `architect` en amont ; méthode ou test statistique → `actuary` (spécification en amont, validation en aval) ; formule, paramètre ou barème du règlement → `regulatory` (lecture du texte en amont, contrôle de conformité en aval) ; `R/engine.R` → `audit` ; `app.R` ou `R/display_helpers.R` → `app-review` ; fond de `docs/latex/` → `docwriter`, en dernier, une seule fois par branche (règle 9 ci-dessous).
+
+**Routage du modèle et de l'effort** (`docs/agents/routage.md`, ADR 0013) — `architect` et `actuary` existent en deux fiches au même corps : la fiche de base (Opus, effort `medium`, routine) et la fiche `-approfondi` (Opus, effort `high`, jugement), générée par `bash .claude/outils/fiches_jumelles.sh` et contrôlée par la CI ; ne jamais modifier une fiche `-approfondi` à la main. La session principale choisit la fiche selon la matrice de `docs/agents/routage.md` (§ 3) et ne passe `model: "fable"` à l'appel que dans les cas du § 4.1 (échec documenté d'Opus `high`, désaccord entre agents, rédaction d'un ADR d'architecture) ou sur accord du mainteneur ; au plus une relance ciblée, une hausse d'effort et une consultation Fable par question, trois consultations Fable par branche, ADR compris (hors branche : par période entre deux points d'étape), sans nouvel accord ; au-delà d'un plafond, arrêt et compte rendu au mainteneur ; un modèle indisponible arrête le circuit (aucun remplacement silencieux). Les agents signalent les critères rencontrés dans leur bloc « Retour », ils ne décident pas de leur escalade ; la session note chaque escalade, relance ciblée ou arrêt d'une ligne dans la PR (hors branche : `docs/feuille-de-route.md`, § 7).
 
 **Circuits types** (chacun se termine par un ou plusieurs commits sur la branche de travail, voir « Git et GitHub ») :
 
