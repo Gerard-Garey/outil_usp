@@ -2886,9 +2886,19 @@ USP_CATALOGUE_MC <- list(
 #                               d'arrondi ; p_mc = NA, jamais remplacee
 #                               (ADR 0001) ;
 #   MOTIF_MC_ATOME_HORS_OBS   : meme loi ponctuelle, mais l'observee est hors
-#                               de l'atome (a plus de tol) : le modele simule
-#                               ne peut pas produire la valeur observee ;
-#                               p_mc = NA (reprise de #44, constat 1 d'audit).
+#                               de l'atome (a plus de tol) : aucune simulation
+#                               sous le modele ajuste ne reproduit la valeur
+#                               observee ; p_mc = NA (reprise de #44, constat 1
+#                               d'audit). L'INFO qui en resulte n'est pas
+#                               neutre : le detail de la ligne est complete
+#                               par DETAIL_MC_ATOME_HORS_OBS (#126, point 1 ;
+#                               COMPLEMENTS_MOTIF_MC ci-dessous).
+#                               L'ecart entre l'observee et l'atome n'est pas
+#                               imprime (grandeur de bruit, test anti-bruit).
+#                               Aucune tolerance distincte ne requalifie un
+#                               petit ecart en MOTIF_MC_DISPERSION_NULLE (#126,
+#                               point 2 non retenu, avis d'actuary Q-E1d-6,
+#                               commentaire 5927249876 de #126).
 # Sous B_MIN_DEGENERESCENCE simulations finies, une loi simulee constante
 # peut n'etre qu'un effet de petit B : p_mc est calculee comme avant, sans
 # motif (B = 2 : Smirnov et Cox-Stuart gardent leur p exacte). Cette branche
@@ -2904,6 +2914,18 @@ MOTIF_MC_AUCUNE_REPLIC    <- "aucune replication finie (B_effectif = 0)"
 MOTIF_MC_DISPERSION_NULLE <- "loi simulee de dispersion nulle"
 MOTIF_MC_CONDITION        <- "statistique degeneree sur ces donnees (condition du catalogue)"
 MOTIF_MC_ATOME_HORS_OBS   <- "loi simulee ponctuelle, statistique observee hors de l'atome"
+DETAIL_MC_ATOME_HORS_OBS  <- paste(
+  "Aucune simulation sous le modele ajuste ne reproduit la valeur observee :",
+  "incompatibilite du modele avec les donnees ou asymetrie de calcul entre",
+  "observe et simule, a examiner avant toute conclusion.")
+# Complement du detail par motif Monte-Carlo (#126) : table nommee
+# motif -> phrase, lue par .complement_motif_mc() dans add() et dans les
+# lignes du rapport de vraisemblance sur delta de usp_tests() (p_mc_ext).
+COMPLEMENTS_MOTIF_MC <- stats::setNames(DETAIL_MC_ATOME_HORS_OBS, MOTIF_MC_ATOME_HORS_OBS)
+.complement_motif_mc <- function(motif) {
+  if (length(motif) == 1L && !is.na(motif) && motif %in% names(COMPLEMENTS_MOTIF_MC))
+    unname(COMPLEMENTS_MOTIF_MC[[motif]]) else character(0)
+}
 TOL_DISPERSION_MC <- 1e-12
 B_MIN_DEGENERESCENCE <- 50
 engine_p_mc <- function(sim, obs, queue) {
@@ -3001,7 +3023,8 @@ engine_p_mc <- function(sim, obs, queue) {
 # fournit pas, puis, pour une ligne de type "test" :
 #   - motif de degenerescence (motifs_degeneres ci-dessous)
 #     -> diagnostic (INFO), detail prefixe du motif, aucune p retenue, jamais
-#     de repli sur une autre p-value (ADR 0001) ;
+#     de repli sur une autre p-value (ADR 0001) ; le prefixe est suivi du
+#     complement de COMPLEMENTS_MOTIF_MC s'il y en a un (#126) ;
 #   - MOTIF_MC_OBS_NON_FINIE, sans p exacte -> "non applicable", detail
 #     prefixe du motif ;
 #   - autre motif (aucune replication finie, statistique non definie d'apres
@@ -3055,7 +3078,8 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     if (type == "test" && !is.na(motif_boot)) {
       if (motif_boot %in% motifs_degeneres) {
         type <- "diagnostic"
-        detail <- trimws(paste0(motif_boot, " : aucune p-value retenue (ADR 0001). ", detail))
+        detail <- trimws(paste(c(paste0(motif_boot, " : aucune p-value retenue (ADR 0001)."),
+                                 .complement_motif_mc(motif_boot), detail), collapse = " "))
       } else if (!is.finite(p_ex) && identical(motif_boot, MOTIF_MC_OBS_NON_FINIE)) {
         type <- "non applicable"
         detail <- trimws(paste0(motif_boot, " : test non applicable. ", detail))
@@ -4486,7 +4510,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       b <- li$b
       pref <- character(0)
       if (!is.finite(b$p_mc))
-        pref <- c(pref, paste0(b$motif_mc, " : aucune p-value Monte-Carlo."))
+        pref <- c(pref, paste0(b$motif_mc, " : aucune p-value Monte-Carlo."),
+                  .complement_motif_mc(b$motif_mc))
       if (isTRUE(regime$volumes_constants))
         pref <- c(pref, "VOLUMES CONSTANTS : delta non identifie, LR nul aux deux bornes par construction.")
       else if (abs(fit$delta - b$delta0) <= TOL_DELTA_BORD)

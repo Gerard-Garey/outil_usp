@@ -249,6 +249,49 @@ verifier("add() : motif de degenerescence -> diagnostic INFO, aucune p retenue m
            }, logical(1))
            all(ok)
          })
+# Cas construit (#126, point 1) : 60 simulations toutes egales a 2, observee
+# 3 ; le motif est produit par engine_p_mc() via .mc_p_values(), puis lu par
+# add(). Le detail porte le motif, la phrase de DETAIL_MC_ATOME_HORS_OBS et le
+# detail de l'appelant, sans l'ecart observee - atome (grandeur de bruit).
+verifier("add() : loi simulee ponctuelle hors de l'atome -> diagnostic INFO, detail complete (#126)",
+         {
+           cat_at <- list(S = .mc_entree(function(e) e$v, "haut"))
+           mc_at <- .mc_p_values(matrix(2, 60, 1, dimnames = list(NULL, "S")), c(S = 3),
+                                 cat_at, e = list(v = 3))
+           r <- engine_registre_tests(mc_at, cat_at, 0.10, "Monte-Carlo")
+           r$add("F", "t", "ref", p_ex = 0.5, mc_nom = "S", detail = "detail appelant")
+           l <- r$lignes()[[1]]
+           attendu <- paste0(MOTIF_MC_ATOME_HORS_OBS, " : aucune p-value retenue (ADR 0001). ",
+                             DETAIL_MC_ATOME_HORS_OBS, " detail appelant")
+           identical(mc_at$motif_mc[["S"]], MOTIF_MC_ATOME_HORS_OBS) &&
+             identical(l$type, "diagnostic") && identical(l$verdict, "INFO") &&
+             is.na(l$p_retenue) && identical(l$detail, attendu) &&
+             grepl(paste("Aucune simulation sous le modele ajuste ne reproduit la valeur",
+                         "observee : incompatibilite du modele avec les donnees ou asymetrie",
+                         "de calcul entre observe et simule, a examiner avant toute conclusion."),
+                   l$detail, fixed = TRUE) &&
+             !grepl("(loi simulee ponctuelle)", l$detail, fixed = TRUE)
+         })
+# Controle negatif (#126, constat C2 d'audit) : les autres motifs de
+# degenerescence et une ligne sans motif ne recoivent pas la phrase ; detail
+# inchange pour eux (prefixe du motif puis detail de l'appelant).
+verifier("add() : dispersion nulle, condition du catalogue, ligne sans motif -> detail sans la phrase de l'atome hors obs",
+         {
+           ok <- vapply(c(MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_CONDITION), function(m) {
+             r <- reg_motif(m); r$add("F", "t", "ref", mc_nom = "S", detail = "d")
+             identical(r$lignes()[[1]]$detail,
+                       paste0(m, " : aucune p-value retenue (ADR 0001). d"))
+           }, logical(1))
+           r0 <- engine_registre_tests(list(p_mc = c(S = 0.4), err_mc = c(S = 0.01),
+                                            motif_mc = c(S = NA_character_)),
+                                       list(S = .mc_entree(function(e) 1, "haut")),
+                                       0.10, "Monte-Carlo")
+           r0$add("F", "t", "ref", mc_nom = "S", detail = "d")
+           l0 <- r0$lignes()[[1]]
+           all(ok) && identical(l0$detail, "d") && identical(l0$type, "test") &&
+             !grepl(DETAIL_MC_ATOME_HORS_OBS, l0$detail, fixed = TRUE) &&
+             identical(.complement_motif_mc(NA_character_), character(0))
+         })
 verifier("add() : statistique observee non finie sans p exacte -> non applicable avec le motif",
          {
            r <- reg_motif(MOTIF_MC_OBS_NON_FINIE); r$add("F", "t", "ref", p_as = 0.3, mc_nom = "S")
