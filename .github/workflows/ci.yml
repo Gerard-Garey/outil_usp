@@ -158,3 +158,15 @@ jobs:
           if-no-files-found: error
           # Contrôle : le PDF versionné fait foi (ADR 0008).
           retention-days: 30
+
+  fiches-agents:
+    name: Fiches d'agents
+    # ADR 0013 : fiches -approfondi conformes a leur fiche de base.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Fiches -approfondi à jour
+        run: bash .claude/outils/fiches_jumelles.sh --verifier

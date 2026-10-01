@@ -106,6 +106,8 @@ Le commit `8f12559` (`claude:`, #68) a mis en œuvre la liste de travail des « 
 
 Décisions du mainteneur du 24/09/2026 (session principale, après l'audit léger de `8f12559` ; portée du principe 8 restreinte aux workflows et numéro M28 confirmés par le mainteneur le même jour) ; `docs/feuille-de-route.md`, fiche O, étape 2, et § 4 (M28).
 
+*Annotation du 30 septembre 2026 : la liste des modèles des fiches citée au point 1 est remplacée, pour `architect` et `actuary`, par l'ADR 0013 (Opus par défaut, fiches `-approfondi`, Fable sur critères ; décision M35). Le reste du point 1 (aucun `model` dans les workflows) est inchangé.*
+
 ---
 
 ## Annotation du 24 septembre 2026 — règle 9 : un écart de concordance `--strict` pendant une branche se corrige aussitôt (M32)
