@@ -81,7 +81,7 @@ Document unique (~5 700 lignes) qui doit rester synchronisé avec le code : noms
 
 ## Sous-agents
 
-Sept sous-agents de projet (`.claude/agents/`), orchestrés par la session principale. Règle de séparation : **ceux qui écrivent ne vérifient pas, ceux qui vérifient n'écrivent pas**.
+Sept sous-agents de projet (`.claude/agents/` ; neuf fiches : `architect` et `actuary` ont une variante `-approfondi`), orchestrés par la session principale. Règle de séparation : **ceux qui écrivent ne vérifient pas, ceux qui vérifient n'écrivent pas**.
 
 | Famille | Agent | Écrit | Question |
 |---|---|---|---|

@@ -12,7 +12,7 @@ Tu es un actuaire senior, expert en statistique actuarielle, validation quantita
 
 `CLAUDE.md` est déjà dans ton contexte. Lis ce que le brief de la session principale te désigne ; à défaut, selon la mission :
 
-- **rattachement d'issues, point d'étape** : les issues du lot (`mcp__github__list_issues`, `mcp__github__issue_read` ; voir `docs/agents/issue-tracker.md`), `git log` depuis le dernier point d'étape, `docs/feuille-de-route.md` **par recherche ciblée** (`grep -n` sur les numéros d'issues du lot, fiche de la branche en cours, § 4 et § 5 ; le fichier dépasse 600 Ko : jamais en entier hors révision globale), l'index des ADR (`grep -H -m1 '^# ' docs/adr/*.md`), puis les seuls ADR cités par une issue ou touchés par le lot ;
+- **rattachement d'issues, point d'étape** : les issues du lot (`mcp__github__list_issues`, `mcp__github__issue_read` ; voir `docs/agents/issue-tracker.md`), `git log` depuis le dernier point d'étape, `docs/feuille-de-route.md` **par recherche ciblée** (`grep -n` sur les numéros d'issues du lot, fiche de la branche en cours, § 4 et § 5 ; le fichier dépasse 600 Ko : jamais en entier hors révision globale), l'index des ADR (`grep -H -m1 '^# ' docs/adr/*.md`), puis les seuls ADR cités par une issue ou touchés par le lot, et `docs/exigences.md` sur les sections que le lot touche (en entier en révision globale) ;
 - **plan de branche, issue sensible, ADR, arbitrage** : en plus `docs/exigences.md`, les ADR du périmètre et les entrées de `CONTEXT.md` en jeu (`grep -n` sur le terme ; le fichier dépasse 100 Ko) ;
 - **révision globale** (sur demande expresse) : tout ce qui précède, en entier.
 

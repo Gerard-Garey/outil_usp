@@ -6,7 +6,8 @@
 #  modele servi : nombre de consultations, appels au modele, contexte au
 #  dernier appel (moyenne et maximum), duree. Sert a la calibration de
 #  docs/agents/routage.md, § 8. Aucune donnee de consommation n'est estimee :
-#  seules les grandeurs lues dans les transcripts sont restituees.
+#  seules les grandeurs lues dans les transcripts sont restituees. Une
+#  consultation reprise n'est comptee qu'une fois (derniere ligne par id).
 #
 #  Usage : bash .claude/outils/bilan_journal.sh [journal]
 ###############################################################################
@@ -22,12 +23,20 @@ done
 "$py" - "$journal" <<'PY'
 import json, sys
 from collections import defaultdict
-g = defaultdict(list)
+# Une reprise (SendMessage) peut relancer SubagentStop sur le meme transcript
+# cumule : seule la derniere ligne de chaque identifiant est retenue.
+lignes, sans_id = {}, []
 for l in open(sys.argv[1], encoding="utf-8"):
     try:
         d = json.loads(l)
     except Exception:
         continue
+    if d.get("id"):
+        lignes[d["id"]] = d
+    else:
+        sans_id.append(d)
+g = defaultdict(list)
+for d in list(lignes.values()) + sans_id:
     g[(d.get("agent") or "?", ",".join(d.get("modeles") or ["?"]))].append(d)
 print("%-24s %-28s %5s %7s %12s %12s %9s" % ("agent", "modele(s) servi(s)", "n", "appels", "ctx moyen", "ctx max", "duree moy"))
 for (a, m), v in sorted(g.items()):

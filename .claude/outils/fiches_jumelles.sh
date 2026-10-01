@@ -25,6 +25,10 @@ TOURS_APPROFONDI="80"
 racine="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 agents="$racine/.claude/agents"
 mode="${1:-generer}"
+case "$mode" in
+  generer|--verifier) ;;
+  *) echo "usage : $0 [--verifier]" >&2; exit 2 ;;
+esac
 
 # Valeur d'un champ du frontmatter (premiere occurrence, entre les deux ---)
 champ() {
@@ -69,8 +73,13 @@ for role in $ROLES; do
       statut=1
     fi
   else
-    generer "$role" > "$cible.tmp" && mv "$cible.tmp" "$cible"
-    echo "genere : .claude/agents/$role-approfondi.md"
+    if generer "$role" > "$cible.tmp"; then
+      mv "$cible.tmp" "$cible"
+      echo "genere : .claude/agents/$role-approfondi.md"
+    else
+      rm -f "$cible.tmp"
+      statut=1
+    fi
   fi
 done
 
