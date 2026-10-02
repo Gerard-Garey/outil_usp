@@ -675,7 +675,8 @@ libellé de nature Monte-Carlo & fonction \code{add()} d'enregistrement d'une li
 (arguments \code{p\_mc\_ext} et \code{err\_mc\_ext}~: p-value de Monte-Carlo calculée hors du
 catalogue, refusés avec une clé \code{mc\_nom}, issue~\#45~; argument obligatoire
 \code{fonction}, provenance de la ligne, refusé s'il est absent, vide, non textuel ou s'il ne
-désigne pas une fonction de l'environnement du moteur, issue~\#111),
+désigne pas une fonction de l'environnement du moteur, issue~\#111~; champ \code{inoperant}
+posé sur chaque ligne, issue~\#129),
 unique et partagée par \code{usp\_tests()} et \code{mw\_tests()}~: hiérarchie des p-values,
 règles de sortie de l'issue~\#44 (test inopérant par \code{p\_min}, motif Monte-Carlo lu dans
 \code{motif\_mc}, repli asymptotique nommé ou interdit par \code{repli\_asymptotique},
@@ -832,8 +833,10 @@ toutes les quantités tracées (branche Merz--Wüthrich) \\
 $0{,}02$) & repères de lecture des graphiques d'influence, sans verdict
 (fiches~\ref{fiche:jackknife} et~\ref{mw:influence}) \\
 \code{engine\_table\_tests()} & \code{res} & \code{data.frame} auditable, dont la colonne
-\code{p\_min} (issue~\#44) et, en dernière position, la colonne \code{fonction}, provenance
-de la ligne (issue~\#111~; une colonne de plus dans l'export CSV de l'application) \\
+\code{p\_min} (issue~\#44) et, en dernières positions, les colonnes \code{fonction},
+provenance de la ligne (issue~\#111), et \code{inoperant}, indicateur logique de test inopérant
+(issue~\#129~; \code{NA} pour un objet antérieur au champ)~; deux colonnes de plus dans l'export
+CSV de l'application \\
 \code{run\_engine()} & entrées utilisateur, dont \code{nature\_donnees} (obligatoire pour
 \code{premium}), $T$ (contrôlé par \code{engine\_valider\_}\newline\code{profondeur()}~; les $T$
 années les plus récentes des $n$ fournies sont retenues, $n$ étant consigné dans
@@ -2166,8 +2169,8 @@ dit laquelle. \\
 \code{p\_min} & \textbf{p-value minimale atteignable} (issue~\#44)~: plus petite p-value que
 la loi de référence discrète peut produire aux effectifs observés (suites, Cox--Stuart, Smirnov,
 Mann--Kendall, Spearman)~; \code{NA} pour une loi continue. Elle fonde la règle d'inopérance
-(section~\ref{sec:nature}). Champ placé en fin de ligne, avant \code{fonction}~; colonne
-\code{p\_min} de la table auditable, après \code{erreur\_MC}. \\
+(section~\ref{sec:nature}). Champ placé en fin de ligne, avant \code{fonction} et
+\code{inoperant}~; colonne \code{p\_min} de la table auditable, après \code{erreur\_MC}. \\
 \code{fonction} & \textbf{Provenance de la ligne} (issue~\#111)~: nom de la fonction nommée de
 \code{R/engine.R} qui calcule la statistique de la ligne (\code{stat}, à défaut \code{estim}),
 appelée directement ou par la fonction de calcul du catalogue Monte-Carlo (\code{DW} $\to$
@@ -2178,8 +2181,19 @@ refuse par une erreur une valeur absente, non textuelle, vide, ou qui ne désign
 de l'environnement du moteur (mesuré~: \code{"cor.test"} et \code{"ANNEXE\_II"} refusés,
 \code{".shapiro\_sur"} admis). Limite~: le moteur étant chargé par \code{source()} dans
 l'environnement global, le contrôle garantit une fonction existante de cet environnement, non
-une fonction de \code{R/engine.R}. Champ placé après \code{p\_min}, dernier de la ligne~;
-dernière colonne de la table auditable. \\
+une fonction de \code{R/engine.R}. Champ placé après \code{p\_min}, avant \code{inoperant}~;
+colonne \code{fonction} de la table auditable, avant-dernière. \\
+\code{inoperant} & \textbf{Indicateur de test inopérant} (issue~\#129)~: logique posé par
+\code{add()} sur chaque ligne, \code{TRUE} si et seulement si la bascule de la règle~R1 a eu lieu
+(ligne de type test dont $p_{\min} \ge \alpha$, restituée en diagnostic, commentaire préfixé
+«~\code{TEST INOPERANT}~», section~\ref{sec:nature}), \code{FALSE} sinon, jamais \code{NA}~:
+notamment pour une ligne à loi simulée dégénérée (règle~R3), une ligne dont le type a été changé
+en amont d'\code{add()} (règles~R4 et~R13) et une ligne restée de type test sans aucune p-value.
+L'affichage et les tests repèrent le test inopérant par ce champ, non par le préfixe du
+commentaire, qui reste pour le lecteur (mesuré sur les cas de référence~: Cox--Stuart seul à
+\code{TRUE} dans chacun des cas lognormaux, aucun en Merz--Wüthrich, en accord avec le
+préfixe). Dernier champ de la ligne~; dernière colonne de la table auditable (\code{NA}
+seulement pour un objet résultat antérieur au champ). \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -3232,7 +3246,10 @@ quatre règles, chacune en un seul endroit et chacune dite dans le commentaire d
 (\code{runs\_p\_min()}, \code{cox\_stuart\_p\_min()}, \code{smirnov\_p\_min()},
 \code{mk\_p\_min()}~; \code{NA} pour une loi continue)~; si $p_{\min} \ge \alpha$, aucune valeur
 observée ne peut donner $p < \alpha$, et la ligne est restituée en diagnostic, sans verdict, ses
-p-values restant affichées~; si $\alpha/2 \le p_{\min} < \alpha$ pour un test en sens « ne pas
+p-values restant affichées, son commentaire préfixé «~\code{TEST INOPERANT}~» et son champ
+\code{inoperant} à \code{TRUE}, seul repère lu par l'affichage et par les tests, à
+\code{FALSE} sur toute autre ligne, ligne~R3 et ligne sans aucune p-value comprises
+(issue~\#129)~; si $\alpha/2 \le p_{\min} < \alpha$ pour un test en sens « ne pas
 rejeter », la ligne reste un test et son commentaire dit que l'\code{ECHEC} est inatteignable.
 Ces deux conclusions ne valent à la lettre que si la p-value retenue est exacte, donc à
 $\hat\pi_t$ constant~: $p_{\min}$ est alors le minimum de la p-value retenue. Sans p-value exacte
@@ -5591,8 +5608,8 @@ test est \emph{inopérant} pour toute donnée --- propriété exacte de la loi b
 de simulation. Le moteur le restitue en diagnostic, sans verdict ni p-value retenue (règle~R1,
 issue~\#44~; \code{cox\_stuart\_p\_min()}), la p-value minimale figurant dans le champ
 \code{p\_min} et en tête du commentaire (\code{TEST INOPERANT au seuil alpha = 0.1~: p-value
-minimale atteignable = 0.1250 (m = 4 differences non nulles)}), les p-values calculées restant
-affichées~; à $\hat\pi_t$ variable, où la p-value exacte n'est pas attribuée, le commentaire dit
+minimale atteignable = 0.1250 (m = 4 differences non nulles)}), le champ \code{inoperant} valant
+\code{TRUE} (issue~\#129) et les p-values calculées restant affichées~; à $\hat\pi_t$ variable, où la p-value exacte n'est pas attribuée, le commentaire dit
 \code{p-value minimale atteignable sous la loi de reference echangeable = 0.1250}, cette valeur
 n'étant pas une borne de la p-value de Monte-Carlo (section~\ref{sec:nature}). Jusqu'à l'issue~\#44, la ligne sortait \code{OK} sur le jeu de contrôle. Elle ne
 redevient un test qu'à un seuil $\alpha > p_{\min}$, soit $\alpha > 0{,}125$ sans ex \ae quo.
