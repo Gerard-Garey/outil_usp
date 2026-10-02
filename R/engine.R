@@ -3050,6 +3050,12 @@ engine_p_mc <- function(sim, obs, queue) {
 #                 sienne). Refus : absente, non chaine, vide, ou inconnue de
 #                 l'environnement du moteur (exists(mode = "function",
 #                 inherits = FALSE)).
+#   inoperant   : indicateur logique de test inoperant (#129, point 3), pose
+#                 sur chaque ligne apres fonction : TRUE si et seulement si la
+#                 bascule de la regle R1 ci-dessous a eu lieu (p_min >= alpha,
+#                 detail prefixe "TEST INOPERANT"), FALSE sinon, jamais NA
+#                 (ligne R3, ligne sans aucune p-value du point 2' de #128 :
+#                 FALSE). Les affichages lisent ce champ, pas le prefixe.
 # Motif d'indisponibilite Monte-Carlo (#44, regle R3) : si mc_nom est
 # renseigne et p_mc absente, le motif est lu dans boot$motif_mc (produit par
 # engine_p_mc() / .mc_p_values(), jamais devine) quand l'appelant n'en
@@ -3184,8 +3190,10 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     # la bascule garde les libelles de la p exacte ; la phrase "ECHEC
     # inatteignable" n'est pas ajoutee (#128, point 2') : elle laisserait
     # croire OK ou ALERTE possibles, alors qu'aucun verdict ne l'est. Le
-    # prefixe "TEST INOPERANT" reste en tete du detail (type_ligne() de
-    # display_helpers.R, concordance doc-moteur).
+    # prefixe "TEST INOPERANT" reste en tete du detail ; la bascule pose en
+    # outre inoperant = TRUE, que lit type_ligne() de display_helpers.R
+    # (#129, point 3).
+    inoperant <- FALSE
     if (type == "test" && is.finite(p_min)) {
       eff <- if (!is.na(effectifs)) paste0(" (", effectifs, ")") else ""
       # Meme condition que l'ancien suffixe d'approximation : p exacte absente,
@@ -3193,6 +3201,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
       sans_p_ex <- !is.finite(p_ex) && (is.finite(p_mc) || is.finite(p_as))
       if (p_min >= alpha) {
         type <- "diagnostic"
+        inoperant <- TRUE
         lib_pmin <- if (!sans_p_ex) "p-value minimale atteignable" else
           "p-value minimale atteignable sous la loi de reference echangeable"
         detail <- trimws(paste0(sprintf("TEST INOPERANT au seuil alpha = %g : %s = %.4f%s ; aucun verdict (ADR 0001).",
@@ -3310,7 +3319,9 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
       # conteneur ne deplace aucun champ existant des references.
       p_min = p_min,
       # fonction apres p_min (#111, regle A4), pour la meme raison.
-      fonction = fonction)
+      fonction = fonction,
+      # inoperant apres fonction (#129, point 3), pour la meme raison.
+      inoperant = inoperant)
   }
   list(add = add, lignes = function() L)
 }
@@ -8032,5 +8043,7 @@ engine_table_tests <- function(res) {
     commentaire = t$detail, reference = t$reference,
     # fonction (#111) : NULL sur un objet anterieur au champ, rendu NA.
     fonction = if (is.null(t$fonction)) NA_character_ else t$fonction,
+    # inoperant (#129, point 3) : NULL sur un objet anterieur au champ, rendu NA.
+    inoperant = if (is.null(t$inoperant)) NA else t$inoperant,
     stringsAsFactors = FALSE)))
 }

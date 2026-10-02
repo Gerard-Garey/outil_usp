@@ -767,4 +767,85 @@ verifier("run_engine : 51 lignes sur les donnees de test a B = B_MIN_USAGE (lign
            any(vapply(res_ln$tests, function(l) identical(l$test, "Largeur relative de l'IC bootstrap 90%"),
                       logical(1))))
 
+## --- 6. Champ inoperant (#129, point 3) ----------------------------------------
+# add() pose sur chaque ligne un logique inoperant, TRUE si et seulement si la
+# bascule de la regle R1 a eu lieu (detail prefixe "TEST INOPERANT"), FALSE
+# sinon, jamais NA ; dernier champ de la ligne, apres p_min et fonction.
+# Invariant verifie sur les lignes de run_engine() de ce fichier et sur
+# celles des cinq references versionnees (tests/reference/).
+inv_inop <- function(tt) {
+  ok_type <- vapply(tt, function(l) is.logical(l$inoperant) && length(l$inoperant) == 1L &&
+                      !is.na(l$inoperant), logical(1))
+  if (!all(ok_type)) return(paste("inoperant non logique, NA ou de longueur != 1 :",
+                                  sum(!ok_type), "ligne(s)"))
+  inop <- vapply(tt, function(l) l$inoperant, logical(1))
+  pref <- vapply(tt, function(l) startsWith(l$detail, "TEST INOPERANT"), logical(1))
+  noms_ok <- vapply(tt, function(l) identical(tail(names(l), 3L),
+                                              c("p_min", "fonction", "inoperant")), logical(1))
+  diag_ok <- all(vapply(tt[inop], function(l) identical(l$type, "diagnostic") &&
+                          identical(l$verdict, "INFO"), logical(1)))
+  if (!identical(inop, pref)) paste("inoperant != prefixe TEST INOPERANT :", sum(inop != pref), "ligne(s)")
+  else if (!all(noms_ok)) paste("ordre des derniers champs faux :", sum(!noms_ok), "ligne(s)")
+  else if (!diag_ok) "ligne inoperante hors diagnostic INFO"
+  else TRUE
+}
+verifier("add() : bascule R1 -> inoperant TRUE ; p_min < alpha, p_min NA -> FALSE ; derniers champs p_min, fonction, inoperant",
+         {
+           r <- reg_fictif()
+           r$add("F", "t1", "ref", fonction = "usp_tests", p_ex = 0.9, p_min = 0.125)
+           r$add("F", "t2", "ref", fonction = "usp_tests", p_ex = 0.06, p_min = 4 / 70)
+           r$add("F", "t3", "ref", fonction = "usp_tests", p_ex = 0.01)
+           r$add("F", "t4", "ref", fonction = "usp_tests", type = "diagnostic", estim = 1, p_min = 0.5)
+           L <- r$lignes()
+           identical(vapply(L, function(l) l$inoperant, logical(1)), c(TRUE, FALSE, FALSE, FALSE)) &&
+             isTRUE(inv_inop(L))
+         })
+verifier("add() : ligne R3 (statistique observee non finie, degenerescence) -> inoperant FALSE",
+         {
+           r <- reg_motif(MOTIF_MC_OBS_NON_FINIE)
+           r$add("F", "t", "ref", fonction = "usp_tests", p_as = 0.3, mc_nom = "S", p_min = 0.5)
+           r2 <- reg_motif(MOTIF_MC_DISPERSION_NULLE)
+           r2$add("F", "t", "ref", fonction = "usp_tests", p_ex = 0.3, mc_nom = "S", p_min = 0.5)
+           l <- r$lignes()[[1]]; l2 <- r2$lignes()[[1]]
+           identical(l$type, "non applicable") && identical(l$inoperant, FALSE) &&
+             identical(l2$type, "diagnostic") && identical(l2$inoperant, FALSE) &&
+             isTRUE(inv_inop(list(l, l2)))
+         })
+verifier("add() : ligne sans aucune p-value (#128, point 2') -> inoperant FALSE ; avec p_min >= alpha -> TRUE",
+         {
+           r <- reg_fictif()
+           r$add("F", "t", "ref", fonction = "usp_tests", p_min = 4 / 70)
+           r$add("F", "u", "ref", fonction = "usp_tests", p_min = 0.125)
+           L <- r$lignes()
+           startsWith(L[[1]]$detail, "aucune p-value disponible") && identical(L[[1]]$inoperant, FALSE) &&
+             identical(L[[2]]$inoperant, TRUE) && isTRUE(inv_inop(L))
+         })
+verifier("run_engine() : inoperant <=> prefixe TEST INOPERANT sur toutes les lignes (T = 8, volumes constants, T = 10, T = 12)",
+         {
+           v <- lapply(list(T8 = res_ln, vc = res_vc, T10 = res10, T12 = res12), function(r) inv_inop(r$tests))
+           ok <- vapply(v, isTRUE, logical(1))
+           cs10 <- ligne(res10$tests, "Tendance par signes du ratio S/P")
+           cs12 <- ligne(res12$tests, "Tendance par signes du ratio S/P")
+           if (!all(ok)) paste(names(v)[!ok], unlist(v[!ok]), collapse = " ; ")
+           else isTRUE(cs10$inoperant) && identical(cs12$inoperant, FALSE) &&
+             any(vapply(res_ln$tests, function(l) l$inoperant, logical(1)))
+         })
+verifier("References versionnees (5 cas) : inoperant <=> prefixe TEST INOPERANT, jamais NA, derniers champs p_min, fonction, inoperant",
+         {
+           cas <- c("premium", "reserve1", "reserve2", "premium_ii6", "premium_net")
+           v <- lapply(cas, function(k) {
+             f <- file.path(RACINE, "tests", "reference", paste0(k, ".rds"))
+             if (!file.exists(f)) "reference absente" else inv_inop(readRDS(f)$tests)
+           })
+           ok <- vapply(v, isTRUE, logical(1))
+           if (all(ok)) TRUE else paste(cas[!ok], unlist(v[!ok]), collapse = " ; ")
+         })
+verifier("engine_table_tests : colonne logique inoperant, derniere colonne, alignee sur le champ des lignes",
+         {
+           tb <- engine_table_tests(res_ln)
+           identical(tail(names(tb), 2L), c("fonction", "inoperant")) && is.logical(tb$inoperant) &&
+             !anyNA(tb$inoperant) &&
+             identical(tb$inoperant, vapply(res_ln$tests, function(l) l$inoperant, logical(1)))
+         })
+
 fin_fichier()

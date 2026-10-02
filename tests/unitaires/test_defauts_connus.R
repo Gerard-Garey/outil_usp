@@ -542,15 +542,15 @@ verifier("add() (#111) refuse fonction absente, non chaine, vide ou inconnue du 
              grepl("fonction inconnue du moteur : cor.test", m_cor, fixed = TRUE) &&
              grepl("fonction inconnue du moteur : ANNEXE_II", m_cst, fixed = TRUE) &&
              identical(m_ok, "") && length(l) == 1L &&
-             identical(utils::tail(names(l[[1]]), 2), c("p_min", "fonction")) &&
+             identical(utils::tail(names(l[[1]]), 3), c("p_min", "fonction", "inoperant")) &&
              identical(l[[1]]$fonction, ".shapiro_sur")
          })
 # Les cinq cas de tests/outils_tests.R (CAS), a B = 99 pour la duree : la
 # liste des lignes et leur fonction ne dependent pas de B (chaine litterale a
 # chaque appel d'add()). Chaque ligne porte une fonction non vide, definie
-# dans l'environnement du moteur, en dernier champ ; engine_table_tests()
-# l'expose en derniere colonne.
-verifier("Cinq cas (#111) : chaque ligne porte une fonction du moteur, dernier champ ; colonne fonction de engine_table_tests()",
+# dans l'environnement du moteur, suivie du seul champ inoperant (#129,
+# point 3) ; engine_table_tests() l'expose en avant-derniere colonne.
+verifier("Cinq cas (#111) : chaque ligne porte une fonction du moteur, avant-dernier champ (puis inoperant) ; colonne fonction de engine_table_tests()",
          {
            ln <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln.csv"))
            env_moteur <- environment(engine_registre_tests)
@@ -569,8 +569,10 @@ verifier("Cinq cas (#111) : chaque ligne porte une fonction du moteur, dernier c
              tb <- engine_table_tests(r)
              isTRUE(r$ok) && length(f) > 0L && !anyNA(f) && all(nzchar(f)) &&
                all(vapply(f, exists, NA, envir = env_moteur, inherits = FALSE)) &&
-               all(vapply(r$tests, function(t) identical(utils::tail(names(t), 1), "fonction"), NA)) &&
-               identical(utils::tail(names(tb), 1), "fonction") && identical(tb$fonction, unname(f))
+               all(vapply(r$tests, function(t) identical(utils::tail(names(t), 2), c("fonction", "inoperant")),
+                          NA)) &&
+               identical(utils::tail(names(tb), 2), c("fonction", "inoperant")) &&
+               identical(tb$fonction, unname(f))
            }, NA))
          })
 # Branche robustesse = NULL : usp_tests() appele directement avec un fit
