@@ -463,10 +463,17 @@ de calibration commune aux deux branches.}
 \endhead
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Contrôles et données}}} \\
 \code{engine\_valider\_donnees()} & \code{xt}, \code{yt}, \code{T\_min},
-\code{theta\_equiv}, \code{delta\_equiv}, \code{methode}, \code{nature\_donnees} &
+\code{theta\_equiv}, \code{delta\_equiv}, \code{methode}, \code{nature\_donnees},
+\code{bareme}, \code{segment}, \code{annexe} &
 \code{\$ok}, \code{\$erreurs}, \code{\$avertissements}~; refus des valeurs infinies, d'une
-marge du TOST hors domaine et d'une nature des données absente ou non recevable
-(§\ref{sec:controles}) \\
+marge du TOST hors domaine, d'une nature des données absente ou non recevable et d'un barème,
+segment ou annexe invalide (sans erreur R)~; avertissement de crédibilité partielle sur
+$c(T, \text{barème appliqué}) < 1$ (§\ref{sec:controles}, issue~\#131) \\
+\code{engine\_valider\_}\newline\code{serie\_retenue()} & \code{xt}, \code{yt}, $T$ et les
+arguments\newline d'\code{engine\_valider\_}\newline\code{donnees()} & \code{\$xt}, \code{\$yt} (les $T$ années les plus
+récentes si $T$ est accepté), \code{\$validation}~; étape~1 de \code{run\_engine()} (profondeur,
+troncature, validation), qui l'appelle, et que l'application appelle pour valider la même série
+avant le calcul (issue~\#131) \\
 \code{engine\_valider\_}\newline\code{profondeur()} & \code{T}, $n$ (années fournies),
 \code{T\_min} (5) & motifs de refus d'une profondeur $T$ autre que \code{NULL} ou qu'un entier
 scalaire fini, \code{T\_min} $\le T \le n$, contrôlée avant toute troncature~; vide si $T$
@@ -474,13 +481,22 @@ convient (§\ref{sec:controles}) \\
 \code{NATURES\_DONNEES},\newline \code{.nature\_erreurs()} & \code{methode},
 \code{nature\_donnees} & natures recevables (\code{"brutes"}, \code{"nettes"})~; motifs de refus~:
 déclaration obligatoire pour \code{premium}, «~brutes~» refusé pour les méthodes de réserve \\
-\code{usp\_controle\_donnees()} & $x$, $y$, \code{alpha} (0,10) &
-liste de contrôles de recevabilité \\
+\code{usp\_controle\_donnees()} & $x$, $y$, \code{alpha} (0,10), \code{bareme},
+\code{segment}, \code{annexe} (\code{NULL}, \code{NULL}, \code{"II"}) &
+liste de contrôles de recevabilité, dont la crédibilité pleine lue sur le barème appliqué
+(issue~\#131) \\
+\code{.engine\_credibilite\_}\newline\code{appliquee()} & durée, \code{bareme}, \code{segment},
+\code{annexe} & $c$, crédibilité pleine ($c = 1$), barème appliqué (saisi, sinon du segment,
+sinon court par convention), durée de crédibilité pleine lue dans le barème (15 en G(1), 10 en
+G(2)) et libellé~; erreur d'usage pour un barème, un segment ou une annexe invalide~; partagée
+par le contrôle de crédibilité et les deux avertissements (issue~\#131) \\
 \code{usp\_controles\_}\newline\code{numeriques()} & \code{fit} (sortie de \code{usp\_ajuster()}) &
 deux contrôles numériques de l'estimation (famille H, \code{OK} / \code{ECHEC},
 non bloquants), ajoutés à \code{res\$controles} \\
-\code{mw\_valider\_triangle()} & \code{tri}, \code{T\_min} &
-\code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, $I$, $J$ \\
+\code{mw\_valider\_triangle()} & \code{tri}, \code{T\_min}, \code{bareme}, \code{segment},
+\code{annexe} &
+\code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, $I$, $J$~; avertissement de crédibilité
+partielle sur $c(I + 1, \text{barème appliqué}) < 1$ (issue~\#131) \\
 \code{mw\_valider\_ajustement()} & \code{aj} (sortie de \code{mw\_ajuster()}),
 \code{msep} (champ \code{\$msep} de \code{mw\_msep()}) &
 \code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, \code{\$reserve},
@@ -2372,13 +2388,34 @@ Positivité de $y_t$ & $\min_t y_t > 0$ & Support de la loi lognormale. Bloquant
 Doublons & aucun couple $(x_t,y_t)$ répété & Signale une duplication de ligne. \\
 Plausibilité du ratio & $r_t \in\, ]0\,;5[$ & Erreurs d'unité ou de saisie. \\
 Amplitude du volume & $\max_t x_t/\min_t x_t < 10$ & Rupture de périmètre probable. \\
-Crédibilité pleine & $T \ge 10$ (barème court) & Informatif, section~G annexe~XVII. \\
+Crédibilité pleine & $c(T, \text{barème appliqué}) = 1$, durée $T$ retenue (G(3)(a) ou~(b))~:
+$T \ge 15$ au barème long G(1), $T \ge 10$ au barème court G(2) & Informatif, non bloquant,
+annexe~XVII, section~G~; barème appliqué et avertissements sous le tableau (issue~\#131). \\
 Marge du test d'équivalence & $0 < \theta < 1$~; si $\Delta$ est fourni,
 $0 < \Delta < \bar y$, $\theta$ étant alors ignoré & Paramètre du TOST, non une donnée
 (fiche~\ref{fiche:tost-constante})~; contrôlé par \code{engine\_valider\_donnees()} seul.
 Bloquant. \\
 \end{tabular}
 \end{center}
+
+Le barème du contrôle de crédibilité est le \emph{barème appliqué}, celui qui entre dans
+$\sigma_{\mathrm{USP}}$~: barème saisi (dérogation, issue~\#93), sinon barème du segment ---
+G(1) pour les segments 1, 5 et~6 de l'annexe~II, G(2) pour les autres segments de l'annexe~II
+et pour tous ceux de l'annexe~XIV ---, sinon barème court par convention, faute de segment (non
+déterminé par la section~G)~; le commentaire le nomme avec son point de la section~G et la durée
+à partir de laquelle la crédibilité est pleine (\code{.engine\_credibilite\_appliquee()}). La
+ligne «~\code{Credibilite pleine atteinte}~» de la famille~A est \code{OK} si et seulement si
+$c = 1$, et \code{engine\_valider\_donnees()} émet un avertissement de crédibilité partielle si
+$c < 1$ (issue~\#131, lecture du barème appliqué établie par \code{regulatory} et retenue par le
+mainteneur le 1\textsuperscript{er}~octobre 2026~; auparavant, le critère était $T \ge 10$ quel
+que soit le barème, ce qui déclarait pleine la crédibilité des segments II-1, II-5 et II-6 de
+$T = 10$ à~14). Mesuré par \code{usp\_controle\_donnees()} et
+\code{engine\_valider\_donnees()}~: segment II-1 à $T = 10$, \code{ECHEC} et $c = 74~\%$~;
+II-5 à $T = 14$, \code{ECHEC} et $c = 96~\%$~; II-6 à $T = 15$, \code{OK}~; II-2 et XIV-1 à
+$T = 10$, \code{OK}~; à $T = 9$, \code{ECHEC} et $c = 92~\%$~; II-2 avec le barème long saisi
+à $T = 10$, \code{ECHEC} et $c = 74~\%$, le commentaire citant la dérogation et le barème
+réglementaire du segment. L'avertissement «~lois asymptotiques peu fiables~» à $T < 10$ est un
+repère statistique distinct, non réglementaire, inchangé.
 
 Des volumes constants, au sens de \code{usp\_volumes\_constants()}, ne sont pas un motif de refus~:
 le calcul aboutit, mais les vérifications qui régressent sur le volume ou partitionnent par lui
@@ -2616,7 +2653,12 @@ $\hat R > 0$, sans plancher ni plage~; le repère~1 est un repère de lecture, s
 réglementaire ni statistique (aucun $\sigma_{(\text{res},s)}$ des annexes~II et~XIV n'excède
 $22~\%$)~; deux lectures, réserve résiduelle d'un segment en run-off ou triangle anormalement
 volatil (décision du mainteneur du 24~septembre 2026, issue~\#33). \\
-Crédibilité pleine & $I + 1 \ge 10$ (barème court) & Informatif~; à défaut,
+Crédibilité pleine & $c(I + 1, \text{barème appliqué}) = 1$, durée $I + 1$ (G(3)(c))~:
+$I + 1 \ge 15$ au barème long G(1), $I + 1 \ge 10$ au barème court G(2) & \textbf{Avertissement}
+de crédibilité partielle de \code{mw\_valider\_triangle()} si $c < 1$, non bloquant (annexe~XVII,
+section~G~; barème appliqué résolu comme pour les méthodes lognormales, issue~\#131~;
+auparavant $I + 1 \ge 10$ quel que soit le barème). Distinct de ce contrôle, un repère
+statistique non réglementaire, inchangé~: à $I + 1 < 10$, un second avertissement signale que
 $\hat\sigma_j^2$ repose sur deux ou trois observations en fin de triangle. \\
 \end{longtable}
 }
