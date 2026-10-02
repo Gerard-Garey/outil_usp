@@ -655,12 +655,14 @@ qui nomme la statistique si une entrée ne rend pas une valeur de longueur~1 \\
 \code{granularite} d'une statistique (fiche~\ref{fiche:procedure-mc}), et \code{motif}
 d'absence de \code{p\_mc} (constantes \code{MOTIF\_MC\_*}~; loi dégénérée jugée à
 \code{TOL\_DISPERSION\_MC} $= 10^{-12}$ près dès \code{B\_MIN\_DEGENERESCENCE} $= 50$
-réplications finies, issue~\#44, §\ref{sec:nature}~; en deçà, branche que \code{run\_engine()},
+réplications finies, issue~\#44, §\ref{sec:nature}~; en deçà, \code{p\_mc} n'est pas calculée,
+motif \code{MOTIF\_MC\_REPLIC\_INSUFFISANTES}, issue~\#128, branche que \code{run\_engine()},
 qui exige $B \ge$ \code{B\_MIN\_USAGE} $= 99$, n'atteint que si moins de 50 réplications sont
 finies, et que les appels directs atteignent)~; fonction unique des deux méthodes \\
 \code{.mc\_p\_values()} & matrice des simulations, valeurs observées, catalogue, contexte
 observé & \code{engine\_p\_mc()} colonne par colonne, sens lu au catalogue, conditions
-\code{degenere} et \code{non\_definie} évaluées sur le contexte observé~; vecteur
+\code{degenere} (prioritaire sur les motifs de nombre de réplications, issue~\#128) et
+\code{non\_definie} évaluées sur le contexte observé~; vecteur
 \code{motif\_mc}~; erreur si une statistique simulée est absente du catalogue \\
 \code{.complement\_motif\_mc()},\newline \code{COMPLEMENTS\_}\newline\code{MOTIF\_MC},\newline
 \code{DETAIL\_MC\_ATOME\_}\newline\code{HORS\_OBS} & motif Monte-Carlo~; table~; phrase &
@@ -675,7 +677,8 @@ catalogue, refusés avec une clé \code{mc\_nom}, issue~\#45),
 unique et partagée par \code{usp\_tests()} et \code{mw\_tests()}~: hiérarchie des p-values,
 règles de sortie de l'issue~\#44 (test inopérant par \code{p\_min}, motif Monte-Carlo lu dans
 \code{motif\_mc}, repli asymptotique nommé ou interdit par \code{repli\_asymptotique},
-§\ref{sec:nature}), règle de verdict (seuil d'\code{ECHEC} des tests en sens «~rejeter~», constante
+§\ref{sec:nature}), restitution d'une ligne de test sans aucune p-value et mention du plancher
+de Monte-Carlo (issue~\#128), règle de verdict (seuil d'\code{ECHEC} des tests en sens «~rejeter~», constante
 \code{SEUIL\_ECHEC\_SENS\_REJETER} $= 0{,}30$, §\ref{sec:synthese}), refus d'une clé
 Monte-Carlo absente du catalogue ou du bootstrap \\
 \code{usp\_simuler()} & \code{fit} & $T$ pertes $y_t$ simulées sous le modèle
@@ -2276,15 +2279,20 @@ autres qu'un calcul abouti, à ne pas confondre (issue~\#88, décision du mainte
   $B + 1 > 4/\alpha$, qui lui est équivalente en arithmétique exacte mais peut s'en écarter en
   double (mesuré~: à $\alpha = 0{,}00128$ et $B = 3124$, $B + 1 > 4/\alpha$ est évaluée vraie et
   $2/(B+1) < \alpha/2$ fausse)~: le contrôle d'entrée et le verdict ne peuvent diverger. Le contrôle porte sur $B$ nominal~; le plancher réel,
-  $2/(B_{\text{eff}}+1)$, est plus élevé si des réplications ne sont pas finies, et ce cas n'est
-  pas détecté par le moteur~: le champ \code{p\_min} n'est renseigné que pour un test à loi de
-  référence discrète (règle~R1, section~\ref{sec:nature}), jamais à partir du plancher de
-  Monte-Carlo, de sorte que la branche «~\code{ECHEC} inatteignable~» de la règle des verdicts
-  d'\code{add()} ne joue pas pour une ligne dont la seule p-value est de Monte-Carlo, et qu'aucun
-  motif n'est écrit dans son commentaire. Le cas se lit sur \code{bootstrap\$B\_effectif} et
-  \code{bootstrap\$granularite\_stat} (issue~\#40). Mesuré par \code{engine\_p\_mc()}~: à
-  $B = 99$ et $\alpha = 0{,}05$, valeurs admises, $60$ réplications finies donnent une p-value de
-  Monte-Carlo bilatérale minimale de $2/61 \approx 0{,}0328 \ge \alpha/2 = 0{,}025$, sans motif.
+  $2/(B_{\text{eff}}+1)$, est plus élevé si des réplications ne sont pas finies. Le champ
+  \code{p\_min} n'est renseigné que pour un test à loi de référence discrète (règle~R1,
+  section~\ref{sec:nature}), jamais à partir du plancher de Monte-Carlo, qui ne fait donc ni
+  basculer une ligne ni poser un motif~; depuis l'issue~\#128 (point~d), le commentaire d'une
+  ligne dont la p-value retenue est de Monte-Carlo mentionne toutefois le plancher quand il rend
+  un verdict inatteignable (section~\ref{sec:nature}, point~(ii)), et, sous
+  \code{B\_MIN\_DEGENERESCENCE} réplications finies, \code{p\_mc} n'est plus calculée
+  (\code{MOTIF\_MC\_REPLIC\_INSUFFISANTES}). Le plancher se lit sur
+  \code{bootstrap\$B\_effectif} et \code{bootstrap\$granularite\_stat} (issue~\#40). Mesuré par
+  \code{engine\_p\_mc()} et \code{add()}~: à $B = 99$ et $\alpha = 0{,}05$, valeurs admises, $60$
+  réplications finies donnent une p-value de Monte-Carlo bilatérale minimale de
+  $2/61 \approx 0{,}0328 \ge \alpha/2 = 0{,}025$, calculée sans motif ($60 \ge 50$), et le
+  commentaire d'une ligne en sens «~ne pas rejeter~» qui la retient se termine par
+  «~\code{plancher Monte-Carlo >= alpha/2 = 0.025~: ECHEC inatteignable}~».
   Mesuré aussi~:
   $B = 99$ à $\alpha = 0{,}04$ et $B = 399$ à $\alpha = 0{,}01$ lèvent l'erreur, $B = 400$ à
   $\alpha = 0{,}01$ et $B = 99$ à $\alpha = 0{,}05$ sont admis~; \code{seed}, nombre
@@ -3221,19 +3229,37 @@ quand $B$ croît. Le moteur maintient alors la bascule en test inopérant, dont 
 commentaire parle de \code{p-value minimale atteignable sous la loi de reference echangeable}, et,
 pour $\alpha/2 \le p_{\min} < \alpha$, écrit que l'\code{ECHEC} est possible au lieu
 d'inatteignable (issue~\#44~; ordre de grandeur à la fiche~\ref{fiche:suites-wald-wolfowitz},
-rubrique~6).
+rubrique~6), sauf si le plancher de la p-value de Monte-Carlo atteint déjà $\alpha/2$~: la
+suite «~\code{ECHEC possible}~» est alors omise et le commentaire mentionne le plancher
+(point~(ii), issue~\#128~; mesuré à $\alpha = 0{,}06$ et $p_{\min} = 0{,}0571$~: omise à
+$B_{\text{eff}} = 59$, écrite à $B_{\text{eff}} = 99$). Une ligne restée de type test sans
+aucune p-value ne reçoit ni l'une ni l'autre de ces phrases (point~(ii), issue~\#128).
 \emph{(ii) Monte-Carlo indisponible} (règles~R2 et~R3)~: quand \code{p\_mc} manque,
 \code{engine\_p\_mc()} en donne le motif (\code{bootstrap\$motif\_mc}), jamais deviné par
-l'appelant~: statistique observée non finie, aucune réplication finie, ou loi simulée
+l'appelant~: statistique observée non finie, aucune réplication finie, réplications finies
+moins nombreuses que \code{B\_MIN\_DEGENERESCENCE} (issue~\#128), ou loi simulée
 \emph{dégénérée} --- au moins \code{B\_MIN\_DEGENERESCENCE} $= 50$ réplications finies
 d'étendue au plus \code{TOL\_DISPERSION\_MC} $\times \max(1, |S_{\text{obs}}|)$,
 \code{TOL\_DISPERSION\_MC} $= 10^{-12}$, que la valeur observée soit sur l'atome ou hors de lui,
 ou condition \code{degenere} du catalogue vraie sur le contexte observé. Sous
 \code{B\_MIN\_DEGENERESCENCE} réplications finies, une loi simulée constante peut n'être qu'un
-effet de petit $B$~: \code{p\_mc} est alors calculée sans motif. \code{run\_engine()} exigeant
+effet de petit $B$ et la détection de dégénérescence n'est pas armée~: depuis l'issue~\#128,
+\code{p\_mc} n'y est plus calculée, avec le motif «~\code{replications finies insuffisantes
+(B\_effectif < B\_MIN\_DEGENERESCENCE = 50)}~» (\code{MOTIF\_MC\_REPLIC\_INSUFFISANTES}, seuil
+fixe, indépendant de $\alpha$), traité comme l'absence de toute réplication finie~; elle y était
+auparavant calculée sans motif. \code{run\_engine()} exigeant
 $B \ge$ \code{B\_MIN\_USAGE} $= 99$ (section~\ref{sec:controles}), cette branche n'y est plus
-atteinte que si moins de 50 des $B$ réplications sont finies~; elle l'est par les appels directs de
-\code{usp\_bootstrap()}, \code{mw\_bootstrap()} ou \code{engine\_p\_mc()}, que rien ne borne. Une dégénérescence fait
+atteinte que si moins de 50 des $B$ réplications sont finies, donc si plus de la moitié ont
+échoué~; elle l'est par les appels directs de
+\code{usp\_bootstrap()}, \code{mw\_bootstrap()} ou \code{engine\_p\_mc()}, que rien ne borne.
+\code{engine\_p\_mc()} pose les motifs dans cet ordre~: statistique observée non finie, aucune
+réplication finie, réplications finies insuffisantes, dispersion nulle, atome hors de la valeur
+observée. La condition \code{degenere} du catalogue, évaluée par \code{.mc\_p\_values()},
+l'emporte sur les deux motifs qui tiennent au nombre de réplications finies, parce qu'elle porte
+sur les données observées~: une statistique dégénérée sur ces données n'a aucune p-value retenue
+et jamais de repli asymptotique, quel que soit $B_{\text{eff}}$ (ADR~0001)~; elle ne remplace pas
+le motif de la statistique observée non finie, qui n'existe pas (issue~\#128~; sans effet à ce
+jour, aucune entrée des catalogues ne définissant \code{degenere}). Une dégénérescence fait
 sortir la ligne en diagnostic, sans p-value retenue, p-value exacte comprise~: la loi de
 référence y compare du bruit d'arrondi (ADR~0001). Quand la valeur observée est hors de l'atome
 (\code{MOTIF\_MC\_ATOME\_HORS\_OBS}), ce diagnostic \code{INFO} n'est pas neutre~: aucune simulation
@@ -3256,7 +3282,36 @@ mesure ne fonde une tolérance intermédiaire. Une statistique observée non fin
 p-value exacte, rend la ligne non applicable. Dans les autres cas, sans p-value exacte, la
 p-value asymptotique n'est retenue que sous une nature qui nomme le repli, «~asymptotique
 (Monte-Carlo indisponible~: \emph{motif})~», jamais en silence~; ce repli est interdit pour la
-nullité de la constante, dont la ligne passe alors en diagnostic (point (iii)). La détection
+nullité de la constante, dont la ligne passe alors en diagnostic (point (iii)). Une ligne de type
+test qui n'a alors aucune des trois p-values --- p-value de Monte-Carlo seule, absente faute de
+réplications finies en nombre suffisant, sans p-value exacte ni asymptotique, ou cas de
+Cox--Stuart de la fiche~\ref{fiche:cox-stuart} --- reste de type test, sans p-value retenue ni
+verdict (\code{INFO}, sens conservé), état décidé par le mainteneur le 27~septembre 2026~; depuis
+l'issue~\#128 (point~2$'$, restitution précisée le 1\textsuperscript{er}~octobre 2026), son
+commentaire commence par «~\code{aucune p-value disponible sur ces donnees~: aucun verdict (ADR
+0001).}~», précédé de «~\code{Monte-Carlo indisponible~:} \emph{motif}~\code{;}~» quand le motif
+n'y figure pas déjà, et la phrase «~\code{ECHEC inatteignable}~» de la règle~R1 ne lui est plus
+ajoutée, parce qu'elle laissait croire \code{OK} ou \code{ALERTE} possibles alors qu'aucun verdict
+ne l'est~; son champ \code{inoperant} vaut \code{FALSE}. Mesuré par \code{usp\_tests()} sur le
+jeu de contrôle avec \code{usp\_bootstrap(B = 40)} ($B_{\text{eff}} = 40$, méthode prime,
+$\alpha = 0{,}10$)~: sup-F, et Durbin--Watson, Ljung--Box, sup-F, OLS-CUSUM et Grubbs sur ratios
+bruts sont dans cet état, et les autres lignes à clé Monte-Carlo sans p-value exacte qui ont
+une p-value asymptotique la retiennent sous la nature nommée, hors nullité de la constante. \emph{Plancher de Monte-Carlo.} Quand la p-value retenue est la p-value de Monte-Carlo
+du bootstrap, sa plus petite valeur possible, la granularité par statistique $1/(B_{\text{eff}}
++ 1)$, ou $2/(B_{\text{eff}} + 1)$ en bilatéral (\code{bootstrap\$granularite\_stat}), est
+comparée à $\alpha$ dans l'arithmétique de la règle des verdicts~; si elle rend un verdict
+inatteignable, le commentaire le dit en fin de texte~: «~\code{plancher Monte-Carlo >= alpha/2 =}
+\ldots~\code{: ECHEC inatteignable}~» ou «~\code{\ldots{} >= alpha =} \ldots~\code{: seul OK
+atteignable}~» en sens «~ne pas rejeter~», «~\code{\ldots{} >= alpha =} \ldots~\code{: OK
+inatteignable}~» en sens «~rejeter~» (issue~\#128, point~d). C'est une mention seule~: ni motif,
+ni changement de type, ni extension de la règle~R1, le plancher, limite numérique liée à $B$,
+n'étant pas une $p_{\min}$ de loi de référence (décision du mainteneur du
+1\textsuperscript{er}~octobre 2026)~; ni le plancher ni $B_{\text{eff}}$ n'y sont imprimés, aucun
+nombre issu du bootstrap n'entrant dans le commentaire (issue~\#76), et ils se lisent dans
+\code{bootstrap\$granularite\_stat} et \code{bootstrap\$B\_effectif}. Mesuré sur un bootstrap
+forgé passé à \code{add()} (statistique bilatérale \code{DW}, $\alpha = 0{,}05$)~: la mention
+«~\code{ECHEC inatteignable}~» apparaît à $B_{\text{eff}} = 79$ ($2/80 = \alpha/2$) et disparaît à
+$B_{\text{eff}} = 80$. La détection
 générique de dégénérescence ne voit qu'une loi simulée \emph{ponctuelle}~: elle n'aurait pas
 détecté la loi en mélange, à atome en la valeur observée, du centrage des résidus
 (fiche~\ref{fiche:centrage}), qui relève de la condition \code{degenere} du catalogue~; cette
@@ -5261,7 +5316,12 @@ La p-value asymptotique $p = 1 - F_{\mathcal{F},q,T-k-q}(F)$ est restituée (loi
 «~F(2,5) approx.~» à $T = 8$) sans être retenue. La p-value retenue est de Monte-Carlo, simulée sous le
 modèle ajusté (clé \code{RESET}, rejet en queue haute), les volumes $x_t$ étant fixés dans les
 réplications. Sur le jeu de contrôle (méthode prime, $B = 999$)~: $F = 0{,}005077$, p-value
-asymptotique $0{,}995$, p-value de Monte-Carlo retenue $0{,}996$.
+asymptotique $0{,}995$, p-value de Monte-Carlo retenue $0{,}996$. Le commentaire de la ligne ne
+nomme la p-value de Monte-Carlo comme retenue que si elle existe~; sinon, il dit qu'elle est
+indisponible et que la p-value retenue, s'il en est une, est nommée par \code{nature\_p}
+(issue~\#128)~: faute de réplications finies en nombre suffisant, c'est la p-value asymptotique
+sous la nature «~\code{asymptotique (Monte-Carlo indisponible~:} \emph{motif}\code{)}~»
+(section~\ref{sec:nature}, point~(ii)~; mesuré avec \code{usp\_bootstrap(B = 40)}).
 \Usage
 On souhaite \emph{ne pas} rejeter. Le test est générique~: il détecte une non-linéarité sans en
 indiquer la forme. Limites à $T$ faible~: avec $T = 5$ il ne reste que 2 degrés de liberté au
@@ -5476,10 +5536,23 @@ est \code{NA} (\code{USP\_CATALOGUE\_MC\$CoxStuart}), \code{p\_mc} et \code{err\
 \code{bootstrap\$motif\_mc} (champ \code{non\_definie} du catalogue), et la p-value exacte
 binomiale, conditionnelle à $m$, reste la seule calculée, à $\hat\pi_t$ constant~; à $\hat\pi_t$
 variable avec ex \ae quo, aucune des trois p-values n'existe (p exacte non attribuée, règle~R7~;
-statistique Monte-Carlo non définie~; pas de loi asymptotique)~: si $\alpha > p_{\min}$ --- soit
-$\alpha > 0{,}25$ à $m = 3$, seul cas atteignable sous la borne $\alpha < 0{,}30$ ---, la ligne
-reste de type test, sans p-value retenue ni verdict (\code{INFO}), son commentaire portant les
-deux motifs~; au seuil par défaut, la règle~R1 la classe inopérante avant~; le commentaire de la ligne affiche
+statistique Monte-Carlo non définie~; pas de loi asymptotique)~: si $p_{\min} = 2 \cdot 0{,}5^{m}
+< \alpha$, avec $1 \le m \le \lfloor T/2 \rfloor - 1$ différences non nulles (au moins une
+paire de différence nulle) et $\alpha <$ \code{SEUIL\_ECHEC\_SENS\_REJETER} $= 0{,}30$, la ligne
+reste de type test, sans p-value retenue ni verdict (\code{INFO}). Cette condition n'est remplie,
+à $T = 8$ et~9, qu'à $m = 3$ et $0{,}25 < \alpha < 0{,}30$~; à $T = 10$ et~11, à $m = 4$ dès
+$\alpha > 0{,}125$~; au seuil par défaut $\alpha = 0{,}10$, dès $T = 12$ ($m = 5$,
+$p_{\min} = 0{,}0625$)~; à $\alpha = 0{,}05$, dès $T = 14$ ($m = 6$, $p_{\min} = 0{,}03125$)
+(valeurs de \code{cox\_stuart\_p\_min()}~; la rédaction antérieure, «~$\alpha > 0{,}25$ à
+$m = 3$, seul cas atteignable~», ne valait qu'à $T = 8$ et~9). Le commentaire commence alors par
+«~\code{Monte-Carlo indisponible~: statistique observee non definie~: ex aequo~; aucune p-value
+disponible sur ces donnees~: aucun verdict (ADR 0001).}~» et porte les deux motifs, sans la phrase
+«~\code{ECHEC inatteignable}~» de la règle~R1 (issue~\#128, point~2$'$~; section~\ref{sec:nature},
+point~(ii))~; mesuré par \code{run\_engine()} sur des jeux à $\hat\pi_t$ variable dont une paire
+a une différence nulle~: à $T = 8$ et $\alpha = 0{,}29$, et à $T = 12$ et $\alpha = 0{,}10$, ligne
+de type test, \code{INFO}, \code{p\_retenue} manquante, \code{inoperant} faux. Si
+$p_{\min} \ge \alpha$, la règle~R1 la classe inopérante avant (au seuil par défaut, toujours
+pour $T \le 11$)~; le commentaire de la ligne affiche
 alors les deux nombres (\code{m = 3 differences non nulles sur n\_p = 4 paires~; p\_mc non
 calculee (replications sans ex aequo)}), et, à $m = 0$, que $K$ n'est pas défini. Mesuré sur le
 jeu de contrôle modifié pour que $r_5 = r_1$ ($x_5 = 2x_1$, $y_5 = 2y_1$~; méthode prime,
@@ -5508,7 +5581,7 @@ affichées~; à $\hat\pi_t$ variable, où la p-value exacte n'est pas attribuée
 n'étant pas une borne de la p-value de Monte-Carlo (section~\ref{sec:nature}). Jusqu'à l'issue~\#44, la ligne sortait \code{OK} sur le jeu de contrôle. Elle ne
 redevient un test qu'à un seuil $\alpha > p_{\min}$, soit $\alpha > 0{,}125$ sans ex \ae quo.
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} $0{,}125$ ($m = 4$ différences non nulles, \code{cox\_stuart\_p\_min()})~; p-values atteignables $0{,}125$~; $0{,}625$~; $1$. Exacte sur la loi binomiale à $\hat\pi_t$ constant~; approximation à $\hat\pi_t$ variable, où la p-value exacte n'est pas attribuée. Avec ex \ae quo, $m < 4$ et $p_{\min} \ge 0{,}25$. Aucune p-value n'est retenue à $T = 8$, la ligne étant un diagnostic.
+\textbf{p-value minimale à $T = 8$.} $0{,}125$ ($m = 4$ différences non nulles, \code{cox\_stuart\_p\_min()})~; p-values atteignables $0{,}125$~; $0{,}625$~; $1$. Exacte sur la loi binomiale à $\hat\pi_t$ constant~; à $\hat\pi_t$ variable, où la p-value exacte n'est pas attribuée, $p_{\min}$ de la loi de référence échangeable, qui ne borne pas la p-value de Monte-Carlo (section~\ref{sec:nature}). Avec ex \ae quo, $m < 4$ et $p_{\min} \ge 0{,}25$. Aucune p-value n'est retenue à $T = 8$, la ligne étant un diagnostic.
 
 \textbf{Table.} Tableau~\ref{tab:pmin}~: inopérant pour $T \le 9$~; \code{ECHEC} atteignable dès $T = 12$.
 
@@ -7518,7 +7591,16 @@ Sous la double condition de \code{usp\_runsr\_p\_exacte()} --- $\hat\pi_t$ const
 \code{usp\_regime()}, \emph{et} signes de $u_t - \operatorname{med}(u)$ et de
 $z_t - \operatorname{med}(z)$ identiques terme à terme ---, p-value exacte de
 \code{runs\_p\_exacte()}, convention bilatérale du doublement (issue~\#29)~; sinon, p-value de
-Monte-Carlo (clé \code{Runsr}), bilatérale. La condition, ses deux motifs et les deux limites
+Monte-Carlo (clé \code{Runsr}), bilatérale. Le commentaire de la ligne suit ces régimes depuis
+l'issue~\#128~: sous la double condition, il dit la p-value exacte retenue, sauf motif de
+dégénérescence de \code{Runsr}, qui l'écarte (ADR~0001, section~\ref{sec:nature}, point~(ii))~;
+hors de la double condition, il ne nomme la p-value de Monte-Carlo comme retenue que si elle
+existe, et renvoie sinon à \code{nature\_p}. Sous la double condition, la p-value de
+Monte-Carlo, quand elle existe, estime la même quantité que la p-value exacte, à l'erreur de
+Monte-Carlo près~; le commentaire l'affirme sans condition («~\code{La p-value Monte-Carlo de la
+colonne p\_mc estime la meme quantite, a l'erreur Monte-Carlo pres.}~»), y compris quand
+\code{p\_mc} est manquante (mesuré avec \code{usp\_bootstrap(B = 40)})~: cette phrase ne vaut
+que lorsque \code{p\_mc} existe. La condition, ses deux motifs et les deux limites
 (bande de tolérance, régime estimé) sont détaillés à la fiche~\ref{fiche:suites-wald-wolfowitz},
 rubrique~5. Mesuré sur le jeu de contrôle ($\hat\delta = 1$)~: $Z = -0{,}764$ sur $u_t$ comme sur
 $z_t$, p-value exacte $52/70 = 0{,}743$ retenue sur les deux lignes, \code{p\_mc} $= 0{,}768$
@@ -7537,7 +7619,7 @@ inférieure (erreur de Monte-Carlo, non-échangeabilité)~: le commentaire de la
 \code{ECHEC possible} au lieu d'\code{ECHEC inatteignable} (issue~\#44~; ordre de grandeur à la
 fiche~\ref{fiche:suites-wald-wolfowitz}, rubrique~6~; sur $u_t$, dont les $r_t$ ne sont pas identiquement distribués, l'écart mesuré va dans l'autre sens que sur $z_t$~: $\mathbb{P}(R^* = 2)$ jusqu'à $0{,}26$ contre $2/70$, soit une $p_{\min}$ bootstrap au-dessus de $0{,}0571$ (issue~\#125)~; l'\code{ECHEC} n'y reste possible que par l'erreur de Monte-Carlo).
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} $4/70 = 0{,}0571$ ($n_1 = n_2 = 4$, \code{runs\_p\_min()}). Exacte à $\hat\pi_t$ constant, où la statistique et la p-value exacte retenue sont celles de la ligne sur $z_t$ (\code{usp\_runsr\_p\_exacte()})~; à $\hat\pi_t$ variable, la p-value retenue est de Monte-Carlo (clé \code{Runsr}, bilatérale, plancher $2/(B+1)$, soit $0{,}002$ à $B = 999$) et $0{,}0571$, calculée sur la loi de référence échangeable, n'en est qu'une approximation, non une borne (rubrique~6).
+\textbf{p-value minimale à $T = 8$.} $4/70 = 0{,}0571$ ($n_1 = n_2 = 4$, \code{runs\_p\_min()}). Exacte à $\hat\pi_t$ constant, où la statistique et la p-value exacte retenue sont celles de la ligne sur $z_t$ (\code{usp\_runsr\_p\_exacte()})~; à $\hat\pi_t$ variable, la p-value retenue est de Monte-Carlo (clé \code{Runsr}, bilatérale, plancher $2/(B+1)$, soit $0{,}002$ à $B = 999$) et $0{,}0571$, $p_{\min}$ de la loi de référence échangeable, n'en est pas une borne (rubrique~6).
 
 \textbf{Table.} Tableau~\ref{tab:pmin}~: \code{ECHEC} inatteignable à $T = 8$ et $9$ à $\hat\pi_t$ constant.
 
@@ -7630,7 +7712,12 @@ La statistique converge donc vers $\sup_{u\in[0,1]}|B^\circ(u)|$, de loi de Kolm
 Asymptotiquement
 $p = 2\sum_{j=1}^{\infty}(-1)^{j-1}\exp\!\big(-2j^2\,\mathrm{CUSUM}^2\big)$.
 Le script retient la p-value de Monte-Carlo, l'approximation brownienne étant inutilisable à
-$T \le 15$.
+$T \le 15$. Le commentaire («~\code{La formule asymptotique n'a aucune validite a T = 8~: p\_mc
+retenue}~») ne nomme \code{p\_mc} comme retenue que si elle existe~; sinon, il dit qu'elle est
+indisponible et renvoie à \code{nature\_p} (issue~\#128)~: faute de réplications finies en
+nombre suffisant, la règle~(ii) de la section~\ref{sec:nature} retient alors la p-value
+asymptotique sous une nature qui nomme le repli (mesuré avec \code{usp\_bootstrap(B = 40)}),
+alors même que le commentaire dit cette formule sans validité à $T = 8$.
 \Usage
 Complémentaire du sup-F~: le CUSUM détecte plutôt des dérives \emph{graduelles}, là où le sup-F
 détecte des ruptures \emph{brutales}. Sa limite majeure ici est que la convergence vers le pont
