@@ -490,7 +490,8 @@ non bloquants), ajoutés à \code{res\$controles} \\
 par \code{engine\_valider\_}\newline\code{profondeur()}, erreur sinon) et le sens chronologique des
 données &
 vecteur lu, cellule vide, non numérique ou non finie au milieu de la série refusée avec sa
-position, ligne d'en-têtes sans cellule numérique ou d'années consécutives, en-têtes et valeurs
+position, ligne d'en-têtes sans cellule numérique ni cellule à l'allure de valeur manquante ou
+de nombre (refusée sinon, issue~\#139) ou d'années consécutives, en-têtes et valeurs
 d'une série en ligne alignés colonne par colonne, BOM UTF-8 retiré (§\ref{sec:controles})~;
 liste \code{\$x}, \code{\$y}, \code{\$T} (les $T$ années les plus récentes) \\
 \code{.sans\_bom()},\newline \code{.nom\_sans\_bom()},\newline
@@ -498,7 +499,8 @@ liste \code{\$x}, \code{\$y}, \code{\$T} (les $T$ années les plus récentes) \\
 chaîne~; nom de colonne~; cellules~; première et seconde lignes, \code{dec} &
 chaîne sans la marque d'ordre des octets UTF-8 (comparaison d'octets)~; premier nom de colonne
 sans BOM, y compris sous ses formes lues hors locale UTF-8~; prédicat de refus d'un en-tête,
-d'une étiquette de ligne ou d'une cellule d'angle à l'allure de valeur manquante ou de nombre~;
+d'une étiquette de ligne, d'une cellule d'angle ou d'une cellule de la ligne d'en-têtes à
+l'allure de valeur manquante ou de nombre~;
 \code{\$ok}, \code{\$angle}, \code{\$cause}~: première ligne lue comme ligne d'années
 consécutives entre 1900 et 2100, cause du refus sinon (§\ref{sec:controles}, issues~\#102
 et~\#103) \\
@@ -2383,7 +2385,9 @@ d'une ligne d'en-têtes, qui est écartée. Quand le fichier compte, après retr
 colonnes vides de bord, plusieurs colonnes, une première et une seconde ligne et aucune autre,
 la première est une ligne d'en-têtes
 (issue~\#103) si (H1) aucune de ses cellules n'est numérique (par exemple
-\code{a2017;\ldots;a2024}), ou si (H2) ses cellules non vides, hors la \emph{cellule d'angle}
+\code{a2017;\ldots;a2024}) et aucune de ses cellules non vides n'a l'allure d'une valeur
+manquante ou d'un nombre au sens du prédicat décrit plus bas (issue~\#139~; sinon le fichier est
+refusé), ou si (H2) ses cellules non vides, hors la \emph{cellule d'angle}
 (première colonne), sont des années à quatre chiffres comprises entre 1900 et 2100, au nombre de
 deux au moins, consécutives de 1 en 1, toutes croissantes ou toutes décroissantes
 (\code{.ligne\_annees()}~; mesuré~: \code{2017,2018,2019} au-dessus de \code{1,2,3} est lu $1, 2,
@@ -2449,26 +2453,39 @@ et (b') et reste admise~; un texte comme \code{x}, \code{a2017}, \code{S1}, \cod
 \code{TRUE} reste un en-tête. En revanche \code{12a}, \code{.} et \code{-{}-}, admis depuis
 l'issue~\#95, sont refusés depuis l'issue~\#102~: un en-tête qui commence par un chiffre est
 trop proche d'une valeur mal saisie (\code{1O4.2}) pour être écarté sans message, et
-\code{.} ou une suite de tirets sont des marqueurs usuels de valeur manquante. Le message de refus cite la cellule et sa position (en-tête ou étiquette de ligne)
-et rappelle le séparateur décimal attendu. Les cellules de la ligne d'en-têtes elle-même, hors
-la cellule d'angle sous (H2), ne sont pas soumises au prédicat, ce qui est une limite de la
-règle~: elles sont écartées avec la ligne entière, sans décaler la série de la seconde ligne
-(mesuré~: \code{NA,\#N/A} au-dessus de \code{1,2} est lu $1, 2$). Sous (H1), «~non
-numérique~» signifie seulement qu'\code{as.numeric()} ne convertit aucune cellule de la ligne,
-ce qui n'exclut pas une ligne de valeurs mal formées~: une première ligne de nombres écrits avec
-un séparateur de milliers, une lettre \code{O} pour un zéro ou un séparateur décimal autre que
-celui déclaré est écartée comme ligne d'en-têtes, sans message, alors que la même ligne, lue
-seule, serait refusée cellule par cellule (mesuré~: \code{1 000;2 000;3 000} au-dessus de
-\code{104,2;102,5;109,3}, séparateur \code{;} et décimale \code{,}, est lu $104{,}2$,
-$102{,}5$, $109{,}3$~; \code{1O4.2,1O2.5} au-dessus de \code{1,2} est lu $1, 2$~;
-\code{1 000,abc,x} au-dessus de \code{1,2,3} est lu $1, 2, 3$). Ce comportement est celui du
-code antérieur à l'issue~\#103, dont la règle (H1) est reprise sans changement~; l'application
-du prédicat aux cellules de la ligne d'en-têtes fait l'objet de l'issue~\#139. Sont ainsi
-écartés sans message la
-ligne d'en-têtes, un en-tête ou une étiquette de ligne qui ne relève pas de ce prédicat, et les
-cellules vides de tête et de fin. Le prédicat, la ligne d'années, la cellule d'angle et la règle
-stricte de l'étiquette sont vérifiés par \code{tests/unitaires/test\_controles\_entree.R}
-(issues~\#102 et~\#103).
+\code{.} ou une suite de tirets sont des marqueurs usuels de valeur manquante. Le message de refus cite la cellule et sa position (en-tête, étiquette de ligne, ou colonne du
+fichier dans la ligne d'en-têtes), rappelle le séparateur décimal attendu et nomme la
+conséquence d'un écart sans message propre à cette position~: «~\code{perdre une annee sans
+message}~» pour un en-tête ou une étiquette, «~\code{ecarter la ligne d'en-tetes qui la contient
+ferait perdre sans message, si cette ligne est une serie mal saisie, toutes ses valeurs}~» pour
+la ligne d'en-têtes. Depuis l'issue~\#139 (variante «~prédicat entier~», décision du mainteneur
+du 28~septembre 2026), les cellules non vides de la ligne d'en-têtes sous (H1) sont soumises au
+même prédicat, exception des étiquettes d'exercice comprise~: la première qui en relève fait
+refuser le fichier, avec sa colonne. Sous (H2), les cellules hors la cellule d'angle sont des
+années, et la cellule d'angle est soumise au prédicat comme décrit plus haut. La règle (H1)
+seule ne suffisait pas~: «~non numérique~» y signifie seulement qu'\code{as.numeric()} ne
+convertit aucune cellule de la ligne, ce qui n'exclut pas une ligne de valeurs mal formées. Une
+première ligne de nombres écrits avec un séparateur de milliers, une lettre \code{O} pour un
+zéro ou un séparateur décimal autre que celui déclaré, ou faite de marqueurs de valeur
+manquante, que le code antérieur à l'issue~\#139 écartait comme ligne d'en-têtes sans message
+alors que la même ligne, lue seule, serait refusée cellule par cellule, fait désormais refuser
+le fichier (mesuré, avant puis après l'issue~\#139~: \code{1 000;2 000;3 000} au-dessus de
+\code{104,2;102,5;109,3}, séparateur \code{;} et décimale \code{,}, était lu $104{,}2$,
+$102{,}5$, $109{,}3$ et est refusé sur la cellule \code{1 000} (colonne~1)~; \code{1O4.2,1O2.5}
+au-dessus de \code{1,2}, lu $1, 2$, est refusé~; \code{1 000,abc,x} au-dessus de \code{1,2,3},
+lu $1, 2, 3$, est refusé~; \code{NA,\#N/A} au-dessus de \code{1,2}, lu $1, 2$, est refusé sur
+la cellule \code{NA}). Cette règle a un coût assumé~: une ligne d'en-têtes textuelle dont une
+cellule commence par un chiffre ou est un marqueur de valeur manquante fait aussi refuser le
+fichier (mesuré~: \code{2017 primes,2018 primes} et \code{x,2017 primes} au-dessus de
+\code{1,2}, \code{x,-,z} au-dessus de \code{1,2,3} et \code{annee,ND} au-dessus de \code{1,2},
+tous lus auparavant, sont refusés), alors que \code{a2017,a2018,a2019} au-dessus de
+\code{1,2,3}, \code{,a18,a19} au-dessus de \code{abc,102.25,109.34} et
+\code{2017-18,2018-19} au-dessus de \code{1,2} restent lus comme avant. Sont ainsi écartés sans
+message une ligne d'en-têtes dont aucune cellule non vide ne relève de ce prédicat, un en-tête ou
+une étiquette de ligne qui n'en relève pas, et les cellules vides de tête et de fin. Le prédicat,
+la ligne d'années, la cellule d'angle, la règle stricte de l'étiquette et le refus d'une ligne
+d'en-têtes à cellule fautive sont vérifiés par \code{tests/unitaires/test\_controles\_entree.R}
+(issues~\#102, \#103 et~\#139).
 La marque d'ordre des octets UTF-8 (EF~BB~BF, «~UTF-8 avec BOM~» d'Excel) est retirée de la
 première cellule par comparaison d'octets, quelle que soit la locale (\code{.sans\_bom()},
 issue~\#96)~: hors locale UTF-8, elle restait en tête de la première cellule, qui, n'étant plus
