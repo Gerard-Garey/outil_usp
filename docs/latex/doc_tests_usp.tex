@@ -2234,8 +2234,13 @@ loi de référence, et il est \textbf{non bloquant}.
 
 La méthode Merz--Wüthrich en compte donc \textbf{deux}, appelées à deux moments
 distincts de la chaîne. \code{mw\_valider\_triangle()} s'exécute \emph{avant}
-l'ajustement et ne porte que sur les données fournies~: dimensions, complétude de
-la partie observée, positivité des cumulés. \code{mw\_valider\_ajustement()}
+l'ajustement et ne lit aucune grandeur estimée~: elle porte sur les données fournies
+(dimensions, complétude de la partie observée, positivité des cumulés), puis sur le barème, le
+segment et l'annexe transmis, dont une valeur invalide est une erreur bloquante, sans erreur~R
+(issue~\#131). Ce second contrôle vient après celui des cellules, qu'il ne masque pas~: les
+erreurs s'additionnent, comme dans \code{engine\_valider\_donnees()} (mesuré sur le triangle de
+contrôle muni d'une cellule observée manquante, d'un cumul négatif et du segment~99~: trois erreurs
+restituées). \code{mw\_valider\_ajustement()}
 s'exécute \emph{après} \code{mw\_ajuster()} et \code{mw\_msep()}, parce que les
 deux grandeurs dont elle contrôle le domaine --- la réserve chain-ladder totale
 $\hat R = \sum_{i=0}^{I}\big(\hat C(i,J) - C(i,I-i)\big)$ et la MSEP --- ne sont
