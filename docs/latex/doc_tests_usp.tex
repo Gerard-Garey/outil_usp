@@ -673,7 +673,9 @@ motif $\to$ phrase, dont la seule entrée porte sur \code{MOTIF\_MC\_ATOME\_HORS
 \code{engine\_registre\_}\newline\code{tests()} & \code{boot}, catalogue, \code{alpha},
 libellé de nature Monte-Carlo & fonction \code{add()} d'enregistrement d'une ligne de test
 (arguments \code{p\_mc\_ext} et \code{err\_mc\_ext}~: p-value de Monte-Carlo calculée hors du
-catalogue, refusés avec une clé \code{mc\_nom}, issue~\#45),
+catalogue, refusés avec une clé \code{mc\_nom}, issue~\#45~; argument obligatoire
+\code{fonction}, provenance de la ligne, refusé s'il est absent, vide, non textuel ou s'il ne
+désigne pas une fonction de l'environnement du moteur, issue~\#111),
 unique et partagée par \code{usp\_tests()} et \code{mw\_tests()}~: hiérarchie des p-values,
 règles de sortie de l'issue~\#44 (test inopérant par \code{p\_min}, motif Monte-Carlo lu dans
 \code{motif\_mc}, repli asymptotique nommé ou interdit par \code{repli\_asymptotique},
@@ -712,8 +714,8 @@ issue~\#47) \\
 \code{lr\_delta} (\code{NULL}~; sortie d'\code{usp\_lr\_delta()}),
 \code{methode} (obligatoire, sans défaut~: \code{"premium"} ou \code{"reserve1"}~; absence ou
 toute autre valeur refusée par une erreur) &
-liste des tests (H0, H1, statistique, 3 p-values, nature~; citation de l'hypothèse H1 à H4 dans
-le champ \code{famille}, B(2)(g) ou C(2)(e) selon \code{methode}, section~\ref{sec:h1}), enregistrés par l'\code{add()}
+liste des tests (H0, H1, statistique, 3 p-values, nature~; provenance dans le champ
+\code{fonction}, issue~\#111~; citation de l'hypothèse H1 à H4 dans le champ \code{famille}, B(2)(g) ou C(2)(e) selon \code{methode}, section~\ref{sec:h1}), enregistrés par l'\code{add()}
 d'\code{engine\_registre\_tests()}~; \code{robustesse}, calculé par
 \code{run\_engine()} et non stocké, alimente le seul commentaire de la ligne jackknife (année
 d'écart maximal et sens de l'écart sur $\sigma_{\mathrm{USP}}$~; fiche~\ref{fiche:jackknife})~;
@@ -830,7 +832,8 @@ toutes les quantités tracées (branche Merz--Wüthrich) \\
 $0{,}02$) & repères de lecture des graphiques d'influence, sans verdict
 (fiches~\ref{fiche:jackknife} et~\ref{mw:influence}) \\
 \code{engine\_table\_tests()} & \code{res} & \code{data.frame} auditable, dont la colonne
-\code{p\_min} (issue~\#44) \\
+\code{p\_min} (issue~\#44) et, en dernière position, la colonne \code{fonction}, provenance
+de la ligne (issue~\#111~; une colonne de plus dans l'export CSV de l'application) \\
 \code{run\_engine()} & entrées utilisateur, dont \code{nature\_donnees} (obligatoire pour
 \code{premium}), $T$ (contrôlé par \code{engine\_valider\_}\newline\code{profondeur()}~; les $T$
 années les plus récentes des $n$ fournies sont retenues, $n$ étant consigné dans
@@ -2163,7 +2166,20 @@ dit laquelle. \\
 \code{p\_min} & \textbf{p-value minimale atteignable} (issue~\#44)~: plus petite p-value que
 la loi de référence discrète peut produire aux effectifs observés (suites, Cox--Stuart, Smirnov,
 Mann--Kendall, Spearman)~; \code{NA} pour une loi continue. Elle fonde la règle d'inopérance
-(section~\ref{sec:nature}) et figure en dernière colonne de la table auditable. \\
+(section~\ref{sec:nature}). Champ placé en fin de ligne, avant \code{fonction}~; colonne
+\code{p\_min} de la table auditable, après \code{erreur\_MC}. \\
+\code{fonction} & \textbf{Provenance de la ligne} (issue~\#111)~: nom de la fonction nommée de
+\code{R/engine.R} qui calcule la statistique de la ligne (\code{stat}, à défaut \code{estim}),
+appelée directement ou par la fonction de calcul du catalogue Monte-Carlo (\code{DW} $\to$
+\code{stat\_dw}, \code{Grubbsr} $\to$ \code{test\_grubbs})~; à défaut (calcul écrit dans le corps
+de la fonction de tests, fonction anonyme du catalogue), \code{usp\_tests} ou \code{mw\_tests}.
+Chaîne fixe, indépendante des données et du régime. Argument obligatoire d'\code{add()}, qui
+refuse par une erreur une valeur absente, non textuelle, vide, ou qui ne désigne pas une fonction
+de l'environnement du moteur (mesuré~: \code{"cor.test"} et \code{"ANNEXE\_II"} refusés,
+\code{".shapiro\_sur"} admis). Limite~: le moteur étant chargé par \code{source()} dans
+l'environnement global, le contrôle garantit une fonction existante de cet environnement, non
+une fonction de \code{R/engine.R}. Champ placé après \code{p\_min}, dernier de la ligne~;
+dernière colonne de la table auditable. \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -11739,7 +11755,12 @@ objectif précis~: rendre visible, pour chaque test, \emph{combien} de fonctions
 concourent à son résultat et \emph{lesquelles} sont partagées avec d'autres
 tests. Cette information conditionne la portée d'une revue de code~: une
 anomalie dans une fonction mutualisée se propage à plusieurs tests, alors qu'une
-anomalie dans une fonction dédiée reste circonscrite.
+anomalie dans une fonction dédiée reste circonscrite. La fonction qui calcule la statistique de
+chaque ligne est en outre restituée par le moteur lui-même, dans le champ \code{fonction} de la
+ligne (issue~\#111, section~\ref{sec:notations}, convention de restitution)~: les phrases de provenance de la présente annexe
+sont vérifiées contre ce champ par \code{tests/concordance\_doc\_moteur.R}, sauf deux, qui
+portent sur des fonctions appelées par celle qui calcule la statistique (\code{.fisher\_combine()}
+et le n\oe ud des corrélations de M3).
 
 \subsection{Convention graphique}
 
@@ -11914,8 +11935,8 @@ statistique, dont sept sont mutualisées (en orangé), puis se rejoignent sur
   fl/.style  = {-{Latex[length=1.6mm]}, draw=financeblue, line width=0.5pt},
   li/.style  = {draw=financeblue, line width=0.5pt}
 ]
-\node[ent] (r) {ratios $r_t = y_t/x_t$};
-\node[mut, right=20mm of r] (lm) {\code{test\_lm\_complet()}};
+\node[ent] (xy) {volumes $x_t$\\ et pertes $y_t$};
+\node[mut, right=20mm of xy] (lm) {\code{test\_lm\_complet()}};
 \node[ded] (ti) at ([yshift=13.5mm]lm) {\code{test\_intercept()}};
 \node[sor, right=20mm of lm, yshift=13.5mm]  (o1) {Student constante};
 \node[sor, right=20mm of lm, yshift=4.5mm]   (o2) {Student pente};
@@ -11933,25 +11954,33 @@ statistique, dont sept sont mutualisées (en orangé), puis se rejoignent sur
 \node[sor, right=20mm of cs] (o8) {Cox--Stuart};
 \node[ded, below=6mm of cs] (sp) {\code{stats::cor.test()}};
 \node[sor, right=20mm of sp] (o9) {Spearman ($\times2$)};
+% Les quatre fonctions de regression lisent (x_t, y_t) ; Mann-Kendall,
+% Cox-Stuart et Spearman lisent les ratios r_t (#111).
+\node[ent] (r) at (xy |- cs) {ratios $r_t = y_t/x_t$};
 
-\draw[fl] (r) -- (lm);
+\draw[fl] (xy) -- (lm);
 % Les trois sorties issues du meme appel sont desservies par un tronc commun
 % puis des coudes, plutot que par trois diagonales partant d'un meme point.
 % La constante a son propre ajustement (test_intercept(), #111).
 \coordinate (bus) at ([xshift=8mm]lm.east);
 \draw[li] (lm.east) -- (bus);
 \foreach \o in {o2,o3,o4} \draw[fl] (bus) |- (\o.west);
-\draw[fl] (r) |- (ti);
+\draw[fl] (xy) |- (ti);
 \draw[fl] (ti) -- (o1);
 \foreach \a/\b in {tost/o5, reset/o6, mk/o7, cs/o8, sp/o9} \draw[fl] (\a) -- (\b);
-\foreach \b in {tost,reset,mk,cs,sp} \draw[fl] (r) |- (\b);
+\foreach \b in {tost,reset} \draw[fl] (xy) |- (\b);
+\draw[fl] (r) -- (cs);
+\foreach \b in {mk,sp} \draw[fl] (r) |- (\b);
 \end{tikzpicture}
 \caption{Hypothèse H1. \code{test\_lm\_complet()} alimente \textbf{trois}
 entrées de la table des tests à partir d'un unique ajustement~: une anomalie s'y
 propagerait aux trois. La nullité de la constante utilise les mêmes données,
 mais tire sa statistique $t$ et ses p-values de son propre ajustement,
 \code{test\_intercept()}~; seule l'estimation $\hat a$ affichée sur sa ligne
-est lue dans l'ajustement de \code{test\_lm\_complet()}. Mann--Kendall
+est lue dans l'ajustement de \code{test\_lm\_complet()}. Les fonctions de régression
+(constante, \code{test\_lm\_complet()}, TOST, RESET) lisent les volumes et les pertes
+$(x_t, y_t)$~; Mann--Kendall, Cox--Stuart et Spearman lisent les ratios $r_t$, Spearman contre
+le volume lisant aussi $x_t$. Mann--Kendall
 illustre la configuration inverse~: un seul test, mais quatre fonctions dont
 deux internes.}
 \label{fig:annexe-h1}
