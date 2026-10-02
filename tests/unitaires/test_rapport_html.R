@@ -7,7 +7,8 @@
 #  ressource externe), tests retenus dans la section principale et tests
 #  exclus en annexe avec leur verdict, empreintes presentes, stables et
 #  sensibles aux donnees, formule propre a chaque methode, etat global
-#  (.Random.seed, options) inchange.
+#  (.Random.seed, options) inchange ; graphiques d'influence et note sans
+#  erreur ni "NA" quand les distances de Cook sont non finies (issue #153).
 #  References : RFC 4648, section 10 (vecteurs de test base64) ; regle de
 #  selection de l'onglet Tests (filtrer_selection).
 #  La branche PNG est exercee partout ou capabilities("png") est vrai ; la
@@ -415,5 +416,47 @@ lib12 <- .echap_html(engine_derogations(res_12)$libelle)
 verifier("Rapport fige, n = 12, T = 8 : libelle \"profondeur\" du moteur repris deux fois (en-tete, bandeau) ; absent pour n = T (#104)",
          length(lib12) == 1L && compte(h12, lib12) == 2L &&
            !grepl("annees fournies", h, fixed = TRUE))
+
+## --- Graphiques d'influence a distances de Cook non finies (issue #153) -------
+# y exactement proportionnel a x (x = 2^(0:7), y = x / 2) : residus de
+# y = beta x tous nuls, residu_std et D_t = NaN sur les 8 annees. Avant
+# #153, plot_influence_levier() et plot_influence_cook() levaient en base R
+# l'erreur "need finite 'ylim' values", affichee par app.R a la place des
+# graphiques ; ils rendent desormais .vide() avec le motif
+# plots_data$influence_motif pose par le moteur. Branche base R sur un
+# peripherique pdf(NULL) ; branche plotly seulement si le paquet est
+# installe (pas en CI, issue #53).
+xp153 <- 2^(0:7)
+res_p153 <- suppressWarnings(run_engine(xt = xp153, yt = xp153 / 2, methode = "premium",
+                                        segment = 1, B = 99, nature_donnees = "brutes"))
+pd153 <- res_p153$plots_data
+traces153 <- c("plot_influence_levier", "plot_influence_cook", "plot_influence_sigma")
+sans_erreur153 <- function(pd) vapply(traces153, function(f)
+  !inherits(tryCatch(get(f)(pd), error = function(e) e), "error"), logical(1))
+option153 <- options(usp.graphiques_base = TRUE); grDevices::pdf(NULL)
+base153 <- sans_erreur153(pd153)
+pd153_sans_motif <- pd153; pd153_sans_motif$influence_motif <- NULL
+temoin153 <- suppressWarnings(sans_erreur153(pd153_sans_motif))
+grDevices::dev.off(); options(option153)
+verifier("Graphiques d'influence, y proportionnel a x : motif pose par le moteur (residu_std et cook non finis), absent sur les donnees ordinaires (#153)",
+         isTRUE(res_p153$ok) && is.character(pd153$influence_motif) &&
+           length(pd153$influence_motif) == 1L &&
+           !any(is.finite(pd153$influence$cook)) && !any(is.finite(pd153$influence$residu_std)) &&
+           is.null(res_ln$plots_data$influence_motif))
+verifier("Graphiques d'influence, y proportionnel a x, base R : aucun trace en erreur ; sans le motif, residus vs levier et Cook par annee en erreur (temoin de la garde, #153)",
+         all(base153) && identical(unname(temoin153), c(FALSE, FALSE, TRUE)))
+verifier("note_influence(), y proportionnel a x : decompte de Cook remplace (aucun 'NA'), repere de levier conserve (#153)",
+         {
+           n153 <- note_influence(pd153)
+           is.character(n153) && !grepl("NA", n153, fixed = TRUE) &&
+             grepl("sans objet", n153, fixed = TRUE) &&
+             grepl("<b>1</b> au-del&agrave; du rep&egrave;re de levier", n153, fixed = TRUE)
+         })
+if (requireNamespace("plotly", quietly = TRUE)) {
+  verifier("Graphiques d'influence, y proportionnel a x, plotly : aucun trace en erreur (#153)",
+           all(sans_erreur153(pd153)))
+} else {
+  cat("  note : plotly absent ; branche plotly des graphiques d'influence non exercee (attendu en CI, issue #53).\n")
+}
 
 fin_fichier()
