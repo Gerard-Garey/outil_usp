@@ -321,25 +321,26 @@ verifier("Grubbs : p = 0 a la borne (n-1)/sqrt(n) ; NA si ecart-type nul",
          isTRUE(proche(test_grubbs(c(rep(0, 7), 1))$p, 0)) && is.na(test_grubbs(rep(3, 8))$p))
 
 ## --- P-value de Monte-Carlo : engine_p_mc() (issue #41) ----------------------
-# Reference : enumeration directe sur sim = 1..9 (B_eff = 9).
-# obs = 7 : #{sim >= 7} = 3, #{sim <= 7} = 7, d'ou p haut = 4/10, p bas =
-# 8/10, p bilaterale = 2 min(4/10, 8/10) = 8/10.
+# Reference : enumeration directe sur sim = 1..99 (B_eff = 99, au moins
+# B_MIN_DEGENERESCENCE = 50 : sous ce seuil, p_mc n'est plus calculee, #128).
+# obs = 70 : #{sim >= 70} = 30, #{sim <= 70} = 70, d'ou p haut = 31/100, p bas
+# = 71/100, p bilaterale = 2 min(31/100, 71/100) = 62/100.
 # err_mc = sqrt(p (1 - p) / B_eff) en queue haute ou basse, sqrt(p (2 - p) /
 # B_eff) en bilateral (issue #40).
-verifier("engine_p_mc : queues haute, basse, bilaterale par enumeration (sim = 1..9, obs = 7)",
+verifier("engine_p_mc : queues haute, basse, bilaterale par enumeration (sim = 1..99, obs = 70)",
          {
-           h <- engine_p_mc(1:9, 7, "haut"); b <- engine_p_mc(1:9, 7, "bas")
-           d <- engine_p_mc(1:9, 7, "deux")
-           proche(h$p_mc, 0.4) && proche(b$p_mc, 0.8) && proche(d$p_mc, 0.8) &&
-             proche(h$err_mc, sqrt(0.4 * 0.6 / 9)) && proche(b$err_mc, sqrt(0.8 * 0.2 / 9)) &&
-             proche(d$err_mc, sqrt(0.8 * 1.2 / 9)) &&
-             proche(h$granularite, 1 / 10) && proche(d$granularite, 2 / 10) &&
-             identical(h$B_effectif, 9)
+           h <- engine_p_mc(1:99, 70, "haut"); b <- engine_p_mc(1:99, 70, "bas")
+           d <- engine_p_mc(1:99, 70, "deux")
+           proche(h$p_mc, 0.31) && proche(b$p_mc, 0.71) && proche(d$p_mc, 0.62) &&
+             proche(h$err_mc, sqrt(0.31 * 0.69 / 99)) && proche(b$err_mc, sqrt(0.71 * 0.29 / 99)) &&
+             proche(d$err_mc, sqrt(0.62 * 1.38 / 99)) &&
+             proche(h$granularite, 1 / 100) && proche(d$granularite, 2 / 100) &&
+             identical(h$B_effectif, 99)
          })
 verifier("engine_p_mc : bilaterale bornee a 1 (obs = mediane), err_mc = 1 / sqrt(B_eff)",
-         { d <- engine_p_mc(1:9, 5, "deux"); identical(d$p_mc, 1) && proche(d$err_mc, 1 / 3) })
+         { d <- engine_p_mc(1:99, 50, "deux"); identical(d$p_mc, 1) && proche(d$err_mc, 1 / sqrt(99)) })
 verifier("engine_p_mc : simulations non finies ignorees dans p et B_effectif",
-         identical(engine_p_mc(c(1:9, NA, Inf, NaN), 7, "haut"), engine_p_mc(1:9, 7, "haut")))
+         identical(engine_p_mc(c(1:99, NA, Inf, NaN), 70, "haut"), engine_p_mc(1:99, 70, "haut")))
 verifier("engine_p_mc : NA si valeur observee non finie ou aucune simulation finie",
          {
            o <- engine_p_mc(1:9, NA_real_, "haut"); v <- engine_p_mc(c(NA, NA), 1, "bas")
@@ -408,11 +409,11 @@ for (.cas in list(c(0.10, 99), c(0.50, 499))) local({
 })
 # Simulations non finies : B_eff les exclut, le denominateur de p_mc est
 # B_eff + 1, err_mc et granularite sont calculees sur B_eff.
-verifier("engine_p_mc : NA dans sim exclus de B_eff (p = 2 (1+3)/10, err_mc et granularite sur B_eff = 9)",
+verifier("engine_p_mc : NA dans sim exclus de B_eff (p = 2 (1+30)/100, err_mc et granularite sur B_eff = 99)",
          {
-           d <- engine_p_mc(c(NA, 1:4, NA, 5:9, NA), 7, "deux")
-           identical(d$B_effectif, 9) && proche(d$p_mc, 0.8) &&
-             proche(d$err_mc, sqrt(0.8 * 1.2 / 9)) && proche(d$granularite, 0.2)
+           d <- engine_p_mc(c(NA, 1:49, NA, 50:99, NA), 70, "deux")
+           identical(d$B_effectif, 99) && proche(d$p_mc, 0.62) &&
+             proche(d$err_mc, sqrt(0.62 * 1.38 / 99)) && proche(d$granularite, 0.02)
          })
 # Simulation a travers engine_p_mc() : S ~ N(0, 1), B = 999, obs =
 # qnorm(1 - p/2), R = 2 000 repetitions sous graine locale (restauree, ou

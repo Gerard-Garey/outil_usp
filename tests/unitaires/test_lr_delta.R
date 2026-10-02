@@ -184,8 +184,30 @@ verifier("U8 lignes LR sur J1 : stat = LR, estim = sigma contraint, p_mc et err_
 verifier("U8 add() : p_mc_ext et mc_nom ensemble -> erreur",
          {
            reg <- engine_registre_tests(r1$bootstrap, USP_CATALOGUE_MC, 0.10, "Monte-Carlo")
-           leve_erreur(reg$add("G.", "essai", "ref", mc_nom = names(USP_CATALOGUE_MC)[1], p_mc_ext = 0.5)) &&
-             !leve_erreur(reg$add("G.", "essai", "ref", type = "diagnostic", p_mc_ext = 0.5, err_mc_ext = 0.01))
+           leve_erreur(reg$add("G.", "essai", "ref", fonction = "usp_tests", mc_nom = names(USP_CATALOGUE_MC)[1], p_mc_ext = 0.5)) &&
+             !leve_erreur(reg$add("G.", "essai", "ref", fonction = "usp_tests", type = "diagnostic", p_mc_ext = 0.5, err_mc_ext = 0.01))
+         })
+# Cas construit (#126, constat C1 d'audit) : tous les LR* nuls et LR observe
+# positif a la borne delta = 0 de J1 -> engine_p_mc() pose
+# MOTIF_MC_ATOME_HORS_OBS. La borne est forgee a partir de usp_lr_delta()
+# (champs de engine_p_mc() reportes tels quels) et passee a usp_tests(),
+# chemin reel de la ligne (p_mc_ext de add()).
+verifier("U8 ligne LR, loi simulee ponctuelle hors de l'atome : motif puis DETAIL_MC_ATOME_HORS_OBS dans le detail (#126)",
+         {
+           mc0 <- engine_p_mc(rep(0, 60), 1e-3, "haut")
+           lf <- l1
+           lf$borne0$lr <- 1e-3; lf$borne0$lr_boot <- rep(0, 60)
+           lf$borne0$p_mc <- mc0$p_mc; lf$borne0$err_mc <- mc0$err_mc
+           lf$borne0$B_effectif <- mc0$B_effectif; lf$borne0$granularite <- mc0$granularite
+           lf$borne0$motif_mc <- mc0$motif
+           tf <- usp_tests(f1, r1$bootstrap, methode = "premium", lr_delta = lf)
+           t0 <- tf[[which(vapply(tf, `[[`, "", "test") == NOMS_45[2])]]
+           t1 <- tf[[which(vapply(tf, `[[`, "", "test") == NOMS_45[3])]]
+           identical(mc0$motif, MOTIF_MC_ATOME_HORS_OBS) &&
+             t0$verdict == "INFO" && is.na(t0$p_mc) && is.na(t0$p_retenue) &&
+             startsWith(t0$detail, paste(paste0(MOTIF_MC_ATOME_HORS_OBS, " : aucune p-value Monte-Carlo."),
+                                         DETAIL_MC_ATOME_HORS_OBS, "Aucun verdict (ADR 0001)")) &&
+             !grepl(DETAIL_MC_ATOME_HORS_OBS, t1$detail, fixed = TRUE)
          })
 verifier("U8 plots_data$lr_delta : seuil obj_min + qchisq(0,80 ; 1), q90 du LR simule, LR",
          {

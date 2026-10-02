@@ -172,6 +172,31 @@ verifier("Bande : ligne Runsr sans phrase R7/R8 (regime #29 inchange : p exacte 
              !grepl("p exacte non attribuee", l$detail, fixed = TRUE) &&
              !grepl("loi de reference exacte a un ecart", l$detail, fixed = TRUE)
          })
+# #128, point c : la phrase "p-value Monte-Carlo ... est retenue" de la
+# ligne Runsr (regimes 2, bande a signes differents, et 3, pi_t variable)
+# n'est ecrite que si p_mc existe ; sinon la ligne, sans p exacte ni
+# asymptotique, est un test sans p-value (phrase de #128 en tete).
+verifier("Runsr, regimes 2 et 3 : p_mc presente -> 'est retenue' ; absente -> 'indisponible', test sans p-value",
+         {
+           txt_ind <- "est indisponible sur ces donnees ; la p-value retenue, s'il en est une, est nommee par nature_p"
+           m <- c(Runsr = MOTIF_MC_AUCUNE_REPLIC)
+           nm <- "Test des suites sur ratios bruts"
+           a3 <- ligne(t8, nm)
+           b3 <- ligne(usp_tests(f8, boot_fictif(f8, motif = m), methode = "premium"), nm)
+           a2 <- ligne(tb, nm)
+           b2 <- ligne(usp_tests(fb, boot_fictif(fb, motif = m), methode = "premium"), nm)
+           grepl("Seule la p-value Monte-Carlo, simulee sous le modele ajuste avec ses pi_t, est retenue ;",
+                 a3$detail, fixed = TRUE) &&
+             grepl(paste("La p-value Monte-Carlo, simulee sous le modele ajuste avec ses pi_t,", txt_ind),
+                   b3$detail, fixed = TRUE) && !grepl("est retenue", b3$detail, fixed = TRUE) &&
+             grepl("Monte-Carlo, simulee sous le modele ajuste, est retenue.", a2$detail, fixed = TRUE) &&
+             endsWith(b2$detail, paste0("Monte-Carlo, simulee sous le modele ajuste, ", txt_ind, ".")) &&
+             !grepl("est retenue", b2$detail, fixed = TRUE) &&
+             all(vapply(list(b2, b3), function(l)
+               identical(l$type, "test") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
+                 startsWith(l$detail, "Monte-Carlo indisponible : aucune replication finie"),
+               logical(1)))
+         })
 
 # Suffixe de bande seulement si la p exacte de la ligne est finie (#70, Q3).
 # Fit SYNTHETIQUE, construit comme le retour d'usp_ajuster_rapide() (non un
@@ -279,12 +304,12 @@ verifier("T = 10, ex aequo dans r : Spearman x2 -> p_exacte et p_min NA, detail 
 
 ## --- 8. add() seul : restitution du motif de l'absence de p_min -------------
 reg <- engine_registre_tests(boot_fictif(fit), USP_CATALOGUE_MC, 0.10, NAT_MC)
-reg$add("F", "a", "r", detail = "base.", p_as = 0.5, p_min = NA_real_, effectifs = "motif X")
-reg$add("F", "b", "r", detail = "base.", p_as = 0.5, p_min = NA_real_)
-reg$add("F", "c", "r", type = "non applicable", detail = "base.", p_min = NA_real_,
+reg$add("F", "a", "r", fonction = "usp_tests", detail = "base.", p_as = 0.5, p_min = NA_real_, effectifs = "motif X")
+reg$add("F", "b", "r", fonction = "usp_tests", detail = "base.", p_as = 0.5, p_min = NA_real_)
+reg$add("F", "c", "r", fonction = "usp_tests", type = "non applicable", detail = "base.", p_min = NA_real_,
         effectifs = "motif X")
-reg$add("F", "d", "r", detail = "base", p_as = 0.5, p_min = 0.001, effectifs = "motif X")
-reg$add("F", "e", "r", p_as = 0.5, p_min = NA_real_, effectifs = "motif X")
+reg$add("F", "d", "r", fonction = "usp_tests", detail = "base", p_as = 0.5, p_min = 0.001, effectifs = "motif X")
+reg$add("F", "e", "r", fonction = "usp_tests", p_as = 0.5, p_min = NA_real_, effectifs = "motif X")
 L <- reg$lignes()
 verifier("add() : p_min NA et effectifs renseignes -> detail termine par le motif",
          identical(L[[1]]$detail, "base. motif X") && identical(L[[5]]$detail, "motif X"))

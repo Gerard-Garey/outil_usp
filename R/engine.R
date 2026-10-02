@@ -332,11 +332,116 @@ usp_credibilite <- function(T, bareme = c("court", "long")) {
   annexe
 }
 
+# Bareme de credibilite d'un segment (issue #133, avis d'actuary Q-E1d-4).
+# Ordre des controles : annexe (.annexe_verifiee(), refusee meme sans
+# segment), puis NULL -> "court" (convention des appelants sans segment,
+# tracee "defaut" par .engine_trace_bareme()), puis numero de segment
+# (.segment_verifie() : NA, texte, logique, facteur, nom, non entier,
+# vecteur, vide refuses par une erreur d'usage qui nomme segment), puis
+# existence du segment dans l'annexe (.segment_ligne()). Avant #133, ces
+# valeurs rendaient "long" ("1", TRUE, factor(5), c(a = 1)), "court" (NA,
+# 1.5, 99, et tout numero en annexe XIV, 5 compris) ou une erreur R qui ne
+# nommait pas l'argument (c(1, 2), integer(0)) ; le chemin run_engine() n'est
+# pas concerne, .engine_verifier_usage() validant segment avant cet appel.
+# Un segment absent de l'annexe n'a pas de bareme dans la section G : le
+# rendre "court" fabriquerait une determination reglementaire.
 usp_bareme_segment <- function(segment, annexe = "II") {
   annexe <- .annexe_verifiee(annexe)
-  if (is.null(segment) || is.na(segment)) return("court")
+  if (is.null(segment)) return("court")
+  segment <- .segment_verifie(segment)
+  .segment_ligne(segment, annexe)
   if (identical(annexe, "XIV")) return("court")
   if (segment %in% c(1, 5, 6)) "long" else "court"
+}
+
+# Credibilite d'une duree sous le bareme APPLIQUE (issue #131, lecture R1 de
+# regulatory, decision du mainteneur du 01/10/2026), partagee par le
+# controle "Credibilite pleine atteinte" (usp_controle_donnees()) et les
+# avertissements de credibilite partielle (engine_valider_donnees(),
+# mw_valider_triangle()). Le bareme applique est celui qui entre dans
+# sigma_USP, resolu comme dans run_engine() : bareme saisi s'il est fourni
+# (derogation a la section G, #93, meme egal au bareme du segment), sinon
+# bareme du segment (usp_bareme_segment() : G(1) long pour II-1, II-5,
+# II-6 ; G(2) court pour les autres segments de l'annexe II et tous ceux de
+# l'annexe XIV), sinon "court" par convention, sans segment (bareme non
+# determine par la section G). duree : la duree de G(3), soit le T de
+# l'estimation (premium, reserve1) ou I + 1 (reserve2), jamais le nombre
+# d'annees fournies (lecture (A) de #104) ; entier >= 5 (usp_credibilite()).
+# Retourne c, pleine (c == 1, seule condition de la credibilite pleine), le
+# bareme applique, sa duree de credibilite pleine (15 en G(1), 10 en G(2),
+# lue dans le bareme) et un libelle qui nomme le bareme, le point de la
+# section G et son origine (segment, saisie, convention) ; avec un bareme
+# saisi et un segment, le libelle donne aussi le bareme reglementaire du
+# segment et son c. Libelle d'un bareme saisi aligne sur les etats de
+# engine_parametre_standard() (saisi_egal, saisi_contraire,
+# saisi_sans_segment). Bareme hors de "court" / "long" exactement, ou porteur
+# d'attributs : erreur d'usage, comme dans .engine_verifier_usage()
+# (usp_credibilite() accepterait une abreviation par match.arg()).
+.engine_credibilite_appliquee <- function(duree, bareme = NULL, segment = NULL,
+                                          annexe = "II") {
+  annexe <- .annexe_verifiee(annexe)
+  saisi <- !is.null(bareme)
+  if (saisi && !(is.character(bareme) && length(bareme) == 1L && !is.na(bareme) &&
+                 is.null(attributes(bareme)) && bareme %in% c("court", "long")))
+    stop(sprintf(paste("bareme = %s : NULL, \"court\" ou \"long\" (sans attribut) est attendu",
+                       "(annexe XVII, section G)."),
+                 .engine_saisie(bareme)), call. = FALSE)
+  regl <- if (!is.null(segment)) usp_bareme_segment(segment, annexe) else NULL
+  appl <- if (saisi) bareme else if (!is.null(regl)) regl else "court"
+  point <- function(b) if (b == "long") "G(1)" else "G(2)"
+  pleine_a <- function(b) {
+    tab <- if (b == "long") CRED_LONG else CRED_COURT
+    min(as.integer(names(tab))[tab == 1])
+  }
+  cc <- usp_credibilite(duree, appl)
+  seg <- if (!is.null(segment)) sprintf("%s-%d", annexe, as.integer(segment)) else NULL
+  libelle <- if (saisi) {
+    sprintf("bareme %s saisi (valeurs de %s) : %s", appl, point(appl),
+            if (is.null(seg))
+              "saisie declaree comme derogation, bareme reglementaire non determine"
+            else if (identical(regl, appl))
+              sprintf(paste("saisie declaree comme derogation (#93), egale au bareme",
+                            "reglementaire du segment %s"), seg)
+            else sprintf(paste("derogation au bareme de la section G (#93) ; bareme",
+                               "reglementaire du segment %s : %s (%s), c = %.0f%%"),
+                         seg, regl, point(regl), 100 * usp_credibilite(duree, regl)))
+  } else if (!is.null(seg)) {
+    sprintf("bareme %s du segment %s (annexe XVII, %s)", appl, seg, point(appl))
+  } else {
+    paste("bareme court par convention, non determine par la section G (aucun segment ;",
+          "valeurs de G(2))")
+  }
+  list(c = cc, pleine = isTRUE(cc == 1), bareme = appl, pleine_a = pleine_a(appl),
+       libelle = libelle)
+}
+
+# Valeur refusee citee dans un message d'erreur d'usage (issue #133) :
+# deparse() garde les guillemets d'un texte et la forme c(...) d'un vecteur,
+# mais arrondit un double a 15 chiffres significatifs, de sorte que
+# 1 + 1e-15 etait cite 1, valeur que le message refuse en l'affichant comme
+# valide. Un double que l'ecriture a 15 chiffres ne restitue pas exactement
+# est donc cite a 17 chiffres (option digits17 de deparse(), qui restitue
+# tout double) ; les autres gardent l'ecriture a 15 chiffres, afin que 0.3
+# reste cite 0.3 et non 0.29999999999999999. Vide : "vide".
+# La relecture est testee numeriquement, sur les valeurs debarrassees de
+# leurs attributs (sprintf("%.15g") relu par as.double()), sans rien
+# evaluer : relire le texte de deparse() par eval() executait le code d'un
+# attribut de type langage (deparse() retire le quote()), constat C1 de
+# l'audit de #133. NA, NaN, Inf, -Inf et -0 se relisent tels quels.
+# Le passage a 17 chiffres se decide pour tout le vecteur : il suffit d'une
+# valeur non restituee pour que toutes soient citees a 17 chiffres ; sans
+# consequence, un vecteur etant de toute facon refuse par les appelants.
+.engine_saisie <- function(v) {
+  if (!length(v)) return("vide")
+  relue <- TRUE
+  if (is.double(v)) {
+    u <- as.vector(unclass(v))
+    u <- u[!is.na(u)]                 # NA, NaN : relus tels quels, sans conversion
+    relue <- all(as.double(sprintf("%.15g", u)) == u)
+  }
+  ctl <- c("keepNA", "keepInteger", "niceNames", "showAttributes")
+  if (!relue) ctl <- c(ctl, "digits17")
+  paste(deparse(v, control = ctl), collapse = " ")
 }
 
 # Numero de segment (issue #105) : nombre scalaire fini entier, sans attribut
@@ -356,9 +461,21 @@ usp_bareme_segment <- function(segment, annexe = "II") {
     stop(sprintf(paste("segment = %s : un nombre scalaire fini entier, sans attribut,",
                        "est attendu (numero de segment de l'annexe II ou XIV ; texte",
                        "refuse, sans conversion)."),
-                 if (!length(segment)) "vide" else paste(deparse(segment), collapse = " ")),
+                 .engine_saisie(segment)),
          call. = FALSE)
   segment
+}
+
+# Ligne du segment dans le tableau de son annexe (ANNEXE_II ou ANNEXE_XIV),
+# partagee par usp_segment_infos() et usp_bareme_segment() (issue #133) ; un
+# segment absent de l'annexe est refuse avec le message d'origine de
+# usp_segment_infos(). segment et annexe sont deja verifies par l'appelant.
+.segment_ligne <- function(segment, annexe) {
+  tab <- if (identical(annexe, "XIV")) ANNEXE_XIV else ANNEXE_II
+  i <- match(segment, tab$segment)
+  if (is.na(i)) stop(sprintf("Segment %s inconnu dans l'annexe %s.", segment, annexe),
+                     call. = FALSE)
+  i
 }
 
 # Renvoie les caracteristiques reglementaires d'un segment : libelle, ecarts
@@ -367,8 +484,7 @@ usp_segment_infos <- function(segment, annexe = "II") {
   segment <- .segment_verifie(segment)
   annexe <- .annexe_verifiee(annexe)
   tab <- if (identical(annexe, "XIV")) ANNEXE_XIV else ANNEXE_II
-  i <- match(segment, tab$segment)
-  if (is.na(i)) stop(sprintf("Segment %s inconnu dans l'annexe %s.", segment, annexe))
+  i <- .segment_ligne(segment, annexe)
   list(annexe = annexe, segment = segment, libelle = tab$libelle[i],
        sigma_prime_brut = tab$sigma_prime_brut[i],
        sigma_reserve = tab$sigma_reserve[i],
@@ -538,7 +654,15 @@ usp_parametre_standard <- function(methode = c("premium", "reserve1", "reserve2"
 #    et la seconde est lue comme une serie en ligne. La premiere ligne est une
 #    ligne d'en-tetes (issue #103, regle commune d'actuary du 28/09/2026) si
 #    (H1) aucune de ses cellules n'est numerique (cellules vides comprises,
-#    ex. a2017;...;a2024), ou si (H2) ses cellules non vides, hors la cellule
+#    ex. a2017;...;a2024) et aucune de ses cellules non vides n'a l'allure
+#    d'une valeur manquante ou d'un nombre au sens de
+#    .allure_manquante_ou_nombre() (predicat entier, issue #139, decision du
+#    mainteneur du 28/09/2026 ; exception AAAA-AA comprise : "2017-18,2018-19"
+#    reste une ligne d'en-tetes) ; une ligne sans cellule numerique mais avec
+#    une telle cellule ("1 000;2 000" avec dec = ",", "1O4.2,1O2.5",
+#    "NA,#N/A", "2017 primes,...") fait refuser le fichier, en citant la
+#    premiere cellule fautive et sa colonne, au lieu d'etre ecartee sans
+#    message comme auparavant ; ou si (H2) ses cellules non vides, hors la cellule
 #    d'angle (premiere colonne, vide ou libelle sans chiffre hors
 #    .allure_manquante_ou_nombre(), ex. "annee"), sont des annees a quatre
 #    chiffres comprises entre 1900 et 2100, au nombre de deux au moins,
@@ -615,20 +739,34 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
   # controle de l'etiquette de ligne ; l'alignement colonne par colonne est
   # controle plus bas (#95).
   aligne <- NULL
-  refus_allure <- function(x, ou)
+  # perte : consequence d'un ecart sans message, citee dans le message ; la
+  # ligne d'en-tetes (H1) passe sa propre formulation (issue #139).
+  refus_allure <- function(x, ou,
+                           perte = "l'ecarter comme en-tete ou etiquette ferait perdre une annee sans message.")
     stop(sprintf(paste("Lecture de %s : la cellule \"%s\" %s, a l'allure d'une valeur manquante",
                        "(NA, N/A, N.D., ND, NR, NC, NULL, tirets, ou cellule commencant par #, code",
                        "d'erreur Excel) ou d'un nombre (cellule qui commence par un chiffre, ou faite",
                        "de chiffres, espaces, points, virgules, apostrophes, signes ; separateur",
-                       "decimal attendu : \"%s\") ;",
-                       "l'ecarter comme en-tete ou etiquette ferait perdre une annee sans message.",
+                       "decimal attendu : \"%s\") ;", "%s",
                        "Corriger la valeur ou le separateur decimal, ou renseigner un en-tete ou",
                        "une etiquette textuels."),
-                 chemin, x, ou, dec))
+                 chemin, x, ou, dec, perte))
   annees <- NULL
   if (nrow(m) == 2 && ncol(m) > 1) {
     h1 <- all(is.na(en_nombre(m[1, ])))
-    if (!h1) annees <- .ligne_annees(m[1, ], m[2, ], dec)
+    if (h1) {
+      # (H1), predicat entier (issue #139) : une cellule non vide de la ligne
+      # d'en-tetes qui a l'allure d'une valeur manquante ou d'un nombre fait
+      # refuser le fichier ; ecarter la ligne ferait perdre sans message
+      # jusqu'a une serie entiere mal saisie ("1 000;2 000", "1O4.2,1O2.5").
+      # La premiere cellule fautive est citee avec sa colonne du fichier.
+      fautive <- which(nzchar(m[1, ]) & .allure_manquante_ou_nombre(m[1, ]))
+      if (length(fautive))
+        refus_allure(m[1, fautive[1]],
+                     sprintf("(colonne %d) dans la ligne d'en-tetes", cols[fautive[1]]),
+                     paste("ecarter la ligne d'en-tetes qui la contient ferait perdre sans message,",
+                           "si cette ligne est une serie mal saisie, toutes ses valeurs."))
+    } else annees <- .ligne_annees(m[1, ], m[2, ], dec)
   }
   if (nrow(m) == 2 && ncol(m) > 1 && (h1 || annees$ok)) {
     ent <- m[1, ]; val <- m[2, ]
@@ -750,11 +888,13 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
 # cellule et les attributs (dim) sont conserves. En locale UTF-8, une
 # cellule non UTF-8 d'encodage "unknown" est en outre declaree Latin-1, sans
 # changer ses octets : les messages qui la citent restent de l'UTF-8 valide
-# ("annee" accentue, espace insecable) ; les octets 80-9F de Windows-1252
-# (ex. le symbole euro) y apparaissent comme des caracteres de controle.
-# Les octets etant inchanges, .allure_manquante_ou_nombre() reconnait
-# l'espace insecable Windows-1252 (octet A0 isole) en locale UTF-8 comme
-# ailleurs.
+# ("annee" accentue, espace insecable) ; R y convertit les octets 80-9F
+# selon Windows-1252, et non comme des caracteres de controle (mesure du
+# 01/10/2026, R 4.3.3, locale C.UTF-8 : 80 -> U+20AC symbole euro,
+# 85 -> U+2026, 96 -> U+2013, 9F -> U+0178 ; les octets 81, 8D, 8F, 90 et
+# 9D, sans caractere en Windows-1252, restent ecrits "<81>"...). Les octets
+# etant inchanges, .allure_manquante_ou_nombre() reconnait l'espace
+# insecable Windows-1252 (octet A0 isole) en locale UTF-8 comme ailleurs.
 .nettoyer_cellules <- function(x) {
   inv <- .octets_non_utf8(x) & Encoding(x) == "unknown"
   if (any(inv)) Encoding(x)[inv] <- "latin1"
@@ -952,7 +1092,13 @@ usp_charger <- function(fichier_x, fichier_y, T = NULL, plus_recent_en_dernier =
 # credibilite sort ECHEC sans appeler le bareme, qui n'y est pas defini
 # (issue #33, avis d'actuary du 24/09/2026). run_engine() valide en amont :
 # ces cas ne s'y presentent pas.
-usp_controle_donnees <- function(x, y, alpha = 0.10) {
+# bareme / segment / annexe (issue #131) : bareme de credibilite applique,
+# resolu comme dans run_engine() (bareme saisi s'il est fourni, sinon bareme
+# du segment, sinon "court" par convention) ; run_engine() transmet le
+# bareme saisi (NULL sinon), le segment et l'annexe de l'appel. Sans ces
+# arguments, la ligne de credibilite lit le bareme court par convention.
+usp_controle_donnees <- function(x, y, alpha = 0.10, bareme = NULL, segment = NULL,
+                                 annexe = "II") {
   T <- length(x)
   res <- list()
   add <- function(nom, ok, detail) res[[length(res) + 1]] <<-
@@ -989,10 +1135,17 @@ usp_controle_donnees <- function(x, y, alpha = 0.10) {
     add("Amplitude du volume (stabilite du perimetre)", amp < 10,
         sprintf("max(x)/min(x) = %.2f ; une amplitude elevee signale une rupture de perimetre", amp))
   } else add("Amplitude du volume (stabilite du perimetre)", FALSE, non_etabli)
-  add("Credibilite pleine atteinte", T >= 10,
-      if (T >= 5) sprintf("T = %d ; c = %.0f%% (bareme court) / %.0f%% (bareme long)",
-                          T, 100 * usp_credibilite(T, "court"), 100 * usp_credibilite(T, "long"))
-      else sprintf("T = %d ; bareme non defini sous T = 5 (annexe XVII, section G)", T))
+  # Credibilite pleine (issue #131) : c(T, bareme applique) == 1, sous le
+  # bareme qui entre dans sigma_USP (.engine_credibilite_appliquee()) ;
+  # T >= 10 la donnait atteinte des T = 10 sur les segments du bareme long
+  # G(1), qui ne l'atteignent qu'a T = 15.
+  if (T >= 5) {
+    cr <- .engine_credibilite_appliquee(T, bareme, segment, annexe)
+    add("Credibilite pleine atteinte", cr$pleine,
+        sprintf("T = %d ; c = %.0f%% ; %s ; credibilite pleine a partir de T = %d",
+                T, 100 * cr$c, cr$libelle, cr$pleine_a))
+  } else add("Credibilite pleine atteinte", FALSE,
+             sprintf("T = %d ; bareme non defini sous T = 5 (annexe XVII, section G)", T))
   res
 }
 
@@ -2724,6 +2877,15 @@ USP_CATALOGUE_MC <- list(
 # l'appelant, dans cet ordre de priorite :
 #   MOTIF_MC_OBS_NON_FINIE    : statistique observee non finie ;
 #   MOTIF_MC_AUCUNE_REPLIC    : aucune simulation finie (B_effectif = 0) ;
+#   MOTIF_MC_REPLIC_INSUFFISANTES : 0 < B_effectif < B_MIN_DEGENERESCENCE
+#                               (#128, point 1 ; seuil fixe, independant
+#                               d'alpha) : sous ce nombre de simulations
+#                               finies, la detection de degenerescence
+#                               ci-dessous est desarmee et, run_engine()
+#                               imposant B >= B_MIN_USAGE = 99, plus de la
+#                               moitie des simulations ont echoue ; p_mc = NA,
+#                               traitee par add() comme MOTIF_MC_AUCUNE_REPLIC
+#                               (repli nomme, ou test sans p-value) ;
 #   MOTIF_MC_DISPERSION_NULLE : au moins B_MIN_DEGENERESCENCE simulations
 #                               finies, d'etendue <= tol et dont la valeur
 #                               commune coincide avec l'observee a tol pres
@@ -2733,26 +2895,52 @@ USP_CATALOGUE_MC <- list(
 #                               d'arrondi ; p_mc = NA, jamais remplacee
 #                               (ADR 0001) ;
 #   MOTIF_MC_ATOME_HORS_OBS   : meme loi ponctuelle, mais l'observee est hors
-#                               de l'atome (a plus de tol) : le modele simule
-#                               ne peut pas produire la valeur observee ;
-#                               p_mc = NA (reprise de #44, constat 1 d'audit).
+#                               de l'atome (a plus de tol) : aucune simulation
+#                               sous le modele ajuste ne reproduit la valeur
+#                               observee ; p_mc = NA (reprise de #44, constat 1
+#                               d'audit). L'INFO qui en resulte n'est pas
+#                               neutre : le detail de la ligne est complete
+#                               par DETAIL_MC_ATOME_HORS_OBS (#126, point 1 ;
+#                               COMPLEMENTS_MOTIF_MC ci-dessous).
+#                               L'ecart entre l'observee et l'atome n'est pas
+#                               imprime (grandeur de bruit, test anti-bruit).
+#                               Aucune tolerance distincte ne requalifie un
+#                               petit ecart en MOTIF_MC_DISPERSION_NULLE (#126,
+#                               point 2 non retenu, avis d'actuary Q-E1d-6,
+#                               commentaire 5927249876 de #126).
 # Sous B_MIN_DEGENERESCENCE simulations finies, une loi simulee constante
-# peut n'etre qu'un effet de petit B : p_mc est calculee comme avant, sans
-# motif (B = 2 : Smirnov et Cox-Stuart gardent leur p exacte). Cette branche
-# n'est plus atteinte par run_engine() que si moins de 50 des B >= B_MIN_USAGE
-# = 99 simulations sont finies : run_engine() refuse B < B_MIN_USAGE (constat
-# C1 de la revue finale d'E1) ; elle l'est par les appels directs de
-# usp_bootstrap(), mw_bootstrap() ou engine_p_mc().
+# peut n'etre qu'un effet de petit B : la loi ponctuelle n'y est pas testee,
+# et p_mc n'est plus calculee (MOTIF_MC_REPLIC_INSUFFISANTES, #128) ; une
+# ligne a p exacte la garde (B = 2 : Smirnov garde sa p exacte). Cette
+# branche n'est atteinte par run_engine() que si moins de 50 des
+# B >= B_MIN_USAGE = 99 simulations sont finies : run_engine() refuse
+# B < B_MIN_USAGE (constat C1 de la revue finale d'E1) ; elle l'est par les
+# appels directs de usp_bootstrap(), mw_bootstrap() ou engine_p_mc().
 # Limite (a dire dans le .tex) : cette detection generique n'aurait PAS
 # attrape le cas historique de MeanZ (melange a atome en la valeur observee,
 # ADR 0001 amende) ; l'atome releve de la condition `degenere` du catalogue.
 MOTIF_MC_OBS_NON_FINIE    <- "statistique observee non finie"
 MOTIF_MC_AUCUNE_REPLIC    <- "aucune replication finie (B_effectif = 0)"
+B_MIN_DEGENERESCENCE <- 50
+MOTIF_MC_REPLIC_INSUFFISANTES <- sprintf(
+  "replications finies insuffisantes (B_effectif < B_MIN_DEGENERESCENCE = %d)",
+  B_MIN_DEGENERESCENCE)
 MOTIF_MC_DISPERSION_NULLE <- "loi simulee de dispersion nulle"
 MOTIF_MC_CONDITION        <- "statistique degeneree sur ces donnees (condition du catalogue)"
 MOTIF_MC_ATOME_HORS_OBS   <- "loi simulee ponctuelle, statistique observee hors de l'atome"
+DETAIL_MC_ATOME_HORS_OBS  <- paste(
+  "Aucune simulation sous le modele ajuste ne reproduit la valeur observee :",
+  "incompatibilite du modele avec les donnees ou asymetrie de calcul entre",
+  "observe et simule, a examiner avant toute conclusion.")
+# Complement du detail par motif Monte-Carlo (#126) : table nommee
+# motif -> phrase, lue par .complement_motif_mc() dans add() et dans les
+# lignes du rapport de vraisemblance sur delta de usp_tests() (p_mc_ext).
+COMPLEMENTS_MOTIF_MC <- stats::setNames(DETAIL_MC_ATOME_HORS_OBS, MOTIF_MC_ATOME_HORS_OBS)
+.complement_motif_mc <- function(motif) {
+  if (length(motif) == 1L && !is.na(motif) && motif %in% names(COMPLEMENTS_MOTIF_MC))
+    unname(COMPLEMENTS_MOTIF_MC[[motif]]) else character(0)
+}
 TOL_DISPERSION_MC <- 1e-12
-B_MIN_DEGENERESCENCE <- 50
 engine_p_mc <- function(sim, obs, queue) {
   if (length(queue) != 1L || !queue %in% c("haut", "bas", "deux"))
     stop("engine_p_mc() : sens de rejet inconnu : ", paste(queue, collapse = ", "))
@@ -2764,6 +2952,7 @@ engine_p_mc <- function(sim, obs, queue) {
     diff(range(s)) <= tol
   motif <- if (!is.finite(obs)) MOTIF_MC_OBS_NON_FINIE
            else if (!length(s)) MOTIF_MC_AUCUNE_REPLIC
+           else if (length(s) < B_MIN_DEGENERESCENCE) MOTIF_MC_REPLIC_INSUFFISANTES
            else if (ponctuelle && abs(obs - s[1]) <= tol) MOTIF_MC_DISPERSION_NULLE
            else if (ponctuelle) MOTIF_MC_ATOME_HORS_OBS
            else NA_character_
@@ -2786,7 +2975,12 @@ engine_p_mc <- function(sim, obs, queue) {
 # e : contexte OBSERVE (celui qui a produit obs) ; s'il est fourni, les
 # conditions `degenere` et `non_definie` du catalogue y sont evaluees une
 # fois (#44, regle R2) : degenere(e) TRUE -> p_mc et err_mc NA, motif
-# MOTIF_MC_CONDITION (sauf motif d'engine_p_mc() deja pose) ; statistique
+# MOTIF_MC_CONDITION (sauf motif d'engine_p_mc() deja pose, hors
+# MOTIF_MC_REPLIC_INSUFFISANTES et MOTIF_MC_AUCUNE_REPLIC, que la condition
+# remplace : elle porte sur les donnees observees, non sur le nombre de
+# simulations finies, et une statistique degeneree n'a aucune p retenue,
+# jamais de repli asymptotique (ADR 0001 ; #128). MOTIF_MC_OBS_NON_FINIE
+# n'est pas remplace : la statistique observee n'existe pas) ; statistique
 # observee non finie et non_definie(e) renseigne -> ce motif remplace le motif
 # generique. Rend en plus motif_mc, vecteur nomme de chaines (NA si p_mc est
 # calculee).
@@ -2799,7 +2993,9 @@ engine_p_mc <- function(sim, obs, queue) {
   r <- lapply(noms, function(nm) {
     o <- engine_p_mc(sim[, nm], obs[[nm]], catalogue[[nm]]$queue)
     ent <- catalogue[[nm]]
-    if (!is.null(e) && !is.null(ent$degenere) && is.na(o$motif)) {
+    if (!is.null(e) && !is.null(ent$degenere) &&
+        (is.na(o$motif) ||
+         o$motif %in% c(MOTIF_MC_REPLIC_INSUFFISANTES, MOTIF_MC_AUCUNE_REPLIC))) {
       dg <- ent$degenere(e)
       if (!(is.logical(dg) && length(dg) == 1L && !is.na(dg)))
         stop("catalogue Monte-Carlo : degenere(", nm, ") doit rendre TRUE ou FALSE")
@@ -2842,17 +3038,37 @@ engine_p_mc <- function(sim, obs, queue) {
 #                 avec p_min ; si p_min est NA, la chaine est restituee telle
 #                 quelle dans detail (elle porte alors le motif de l'absence
 #                 de p_min ; #70)
+#   fonction    : provenance de la ligne (#111), argument obligatoire, dernier
+#                 champ de la ligne : nom de la fonction nommee du moteur qui
+#                 calcule stat (a defaut estim), appelee directement ou par la
+#                 fermeture calc du catalogue (DW -> stat_dw, Grubbsr ->
+#                 test_grubbs) ; a defaut (calcul en ligne par stats:: dans le
+#                 corps, fermeture anonyme du catalogue), "usp_tests" ou
+#                 "mw_tests". usp_bootstrap et .mc_evaluer ne sont jamais une
+#                 provenance. Chaine litterale a chaque appel, independante des
+#                 donnees et du regime (une ligne non applicable garde la
+#                 sienne). Refus : absente, non chaine, vide, ou inconnue de
+#                 l'environnement du moteur (exists(mode = "function",
+#                 inherits = FALSE)).
+#   inoperant   : indicateur logique de test inoperant (#129, point 3), pose
+#                 sur chaque ligne apres fonction : TRUE si et seulement si la
+#                 bascule de la regle R1 ci-dessous a eu lieu (p_min >= alpha,
+#                 detail prefixe "TEST INOPERANT"), FALSE sinon, jamais NA
+#                 (ligne R3, ligne sans aucune p-value du point 2' de #128 :
+#                 FALSE). Les affichages lisent ce champ, pas le prefixe.
 # Motif d'indisponibilite Monte-Carlo (#44, regle R3) : si mc_nom est
 # renseigne et p_mc absente, le motif est lu dans boot$motif_mc (produit par
 # engine_p_mc() / .mc_p_values(), jamais devine) quand l'appelant n'en
 # fournit pas, puis, pour une ligne de type "test" :
 #   - motif de degenerescence (motifs_degeneres ci-dessous)
 #     -> diagnostic (INFO), detail prefixe du motif, aucune p retenue, jamais
-#     de repli sur une autre p-value (ADR 0001) ;
+#     de repli sur une autre p-value (ADR 0001) ; le prefixe est suivi du
+#     complement de COMPLEMENTS_MOTIF_MC s'il y en a un (#126) ;
 #   - MOTIF_MC_OBS_NON_FINIE, sans p exacte -> "non applicable", detail
 #     prefixe du motif ;
-#   - autre motif (aucune replication finie, statistique non definie d'apres
-#     le catalogue), sans p exacte, avec p asymptotique -> repli NOMME :
+#   - autre motif (aucune replication finie, replications finies
+#     insuffisantes, statistique non definie d'apres le catalogue), sans p
+#     exacte, avec p asymptotique -> repli NOMME :
 #     nature "asymptotique (Monte-Carlo indisponible : <motif>)", si
 #     repli_asymptotique (defaut TRUE) ; sinon (repli_asymptotique = FALSE,
 #     ligne "Nullite de la constante") -> diagnostic, detail prefixe
@@ -2860,8 +3076,14 @@ engine_p_mc <- function(sim, obs, queue) {
 # Une ligne a p exacte finie garde sa p exacte retenue (hierarchie), hors
 # degenerescence (MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_ATOME_HORS_OBS,
 # MOTIF_MC_CONDITION), qui ecarte aussi la p exacte.
+# Une ligne qui reste de type "test" sans aucune p-value garde type, verdict
+# INFO, sens et p_retenue = NA ; son detail le dit en tete (#128, point 2').
+# Une p Monte-Carlo retenue dont le plancher (granularite_stat) rend un
+# verdict inatteignable au seuil alpha est mentionnee en fin de detail (#128,
+# point d).
 engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
   pmc <- boot$p_mc; emc <- boot$err_mc; mmc <- boot$motif_mc
+  gmc <- boot$granularite_stat
   motifs_degeneres <- c(MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_ATOME_HORS_OBS,
                         MOTIF_MC_CONDITION)
   L <- list()
@@ -2876,7 +3098,20 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
                   base = "commun", variante = "principale",
                   p_min = NA_real_, effectifs = NA_character_,
                   repli_asymptotique = TRUE, libelle_p_as = "p asymptotique",
-                  p_mc_ext = NA_real_, err_mc_ext = NA_real_) {
+                  p_mc_ext = NA_real_, err_mc_ext = NA_real_, fonction) {
+    # Provenance de la ligne (#111, regle A1) : fonction est obligatoire et
+    # doit nommer une fonction definie dans l'environnement du moteur
+    # (inherits = FALSE : une fonction de stats, "cor.test", est refusee ;
+    # mode = "function" : une constante du moteur, "ANNEXE_II", aussi).
+    # Une ligne sans provenance verifiable est une erreur de programmation.
+    if (missing(fonction))
+      stop("add() : argument fonction absent (", nom, ")", call. = FALSE)
+    if (!is.character(fonction) || length(fonction) != 1L || is.na(fonction) ||
+        !nzchar(fonction))
+      stop("add() : fonction doit etre une chaine non vide (", nom, ")", call. = FALSE)
+    if (!exists(fonction, envir = environment(engine_registre_tests), mode = "function",
+                inherits = FALSE))
+      stop("add() : fonction inconnue du moteur : ", fonction, " (", nom, ")", call. = FALSE)
     # Refus explicite (ADR 0003, point 3) : une statistique Monte-Carlo
     # inconnue du catalogue, ou absente de l'objet bootstrap, est une erreur
     # de programmation ; le repli silencieux sur l'asymptotique est interdit.
@@ -2902,7 +3137,8 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     if (type == "test" && !is.na(motif_boot)) {
       if (motif_boot %in% motifs_degeneres) {
         type <- "diagnostic"
-        detail <- trimws(paste0(motif_boot, " : aucune p-value retenue (ADR 0001). ", detail))
+        detail <- trimws(paste(c(paste0(motif_boot, " : aucune p-value retenue (ADR 0001)."),
+                                 .complement_motif_mc(motif_boot), detail), collapse = " "))
       } else if (!is.finite(p_ex) && identical(motif_boot, MOTIF_MC_OBS_NON_FINIE)) {
         type <- "non applicable"
         detail <- trimws(paste0(motif_boot, " : test non applicable. ", detail))
@@ -2919,6 +3155,18 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
         }
       }
     }
+    # Ligne sans aucune p-value (p exacte, Monte-Carlo et asymptotique toutes
+    # non finies) : aucun verdict n'est possible (#128, point 2', decision du
+    # mainteneur du 01/10/2026).
+    aucune_p <- !is.finite(p_ex) && !is.finite(p_mc) && !is.finite(p_as)
+    # Plancher de la p Monte-Carlo du bootstrap quand elle sera retenue (pas
+    # de p exacte, p_mc finie, hors p_mc_ext) : g = granularite_stat
+    # (1/(B_eff + 1), 2/(B_eff + 1) en bilateral), plus petite valeur
+    # possible de p_mc ; NA sinon. Lu par la regle R1 et par la mention du
+    # plancher ci-dessous (#128, point d), dans la meme arithmetique.
+    g_mc <- if (!is.finite(p_ex) && is.finite(p_mc) && !ext && !is.na(mc_nom) &&
+                !is.null(gmc) && mc_nom %in% names(gmc)) unname(gmc[[mc_nom]]) else NA_real_
+    plancher_echec <- is.finite(g_mc) && g_mc >= alpha / 2
     # Regle R1 (#44, ADR 0001, CONTEXT.md "Test inoperant") : p_min >= alpha
     # -> aucune valeur observee ne peut donner p < alpha, la ligne est
     # restituee en diagnostic (donc INFO, sans p retenue ni sens), ses
@@ -2934,10 +3182,18 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     # l'ECHEC reste possible et le detail le dit (#44, option 3 d'actuary,
     # decision du 27/09/2026). La bascule en test inoperant (p_min >= alpha)
     # est maintenue dans ce cas ; son libelle precise que p_min est celle de
-    # la loi de reference echangeable. Sans aucune p (ex. Cox-Stuart a m = 0),
-    # aucun verdict n'est rendu et les libelles sont ceux de la p exacte. Le
-    # prefixe "TEST INOPERANT" reste en tete du detail (type_ligne() de
-    # display_helpers.R, concordance doc-moteur).
+    # la loi de reference echangeable. Si le plancher Monte-Carlo g_mc rend
+    # deja l'ECHEC inatteignable (g_mc >= alpha/2), la suite "ECHEC possible"
+    # est omise : seule la comparaison de p_min a alpha/2 est ecrite, la
+    # mention du plancher suit (#128, constat M1 d'audit). Sans aucune p (ex.
+    # Cox-Stuart a m = 0),
+    # la bascule garde les libelles de la p exacte ; la phrase "ECHEC
+    # inatteignable" n'est pas ajoutee (#128, point 2') : elle laisserait
+    # croire OK ou ALERTE possibles, alors qu'aucun verdict ne l'est. Le
+    # prefixe "TEST INOPERANT" reste en tete du detail ; la bascule pose en
+    # outre inoperant = TRUE, que lit type_ligne() de display_helpers.R
+    # (#129, point 3).
+    inoperant <- FALSE
     if (type == "test" && is.finite(p_min)) {
       eff <- if (!is.na(effectifs)) paste0(" (", effectifs, ")") else ""
       # Meme condition que l'ancien suffixe d'approximation : p exacte absente,
@@ -2945,12 +3201,13 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
       sans_p_ex <- !is.finite(p_ex) && (is.finite(p_mc) || is.finite(p_as))
       if (p_min >= alpha) {
         type <- "diagnostic"
+        inoperant <- TRUE
         lib_pmin <- if (!sans_p_ex) "p-value minimale atteignable" else
           "p-value minimale atteignable sous la loi de reference echangeable"
         detail <- trimws(paste0(sprintf("TEST INOPERANT au seuil alpha = %g : %s = %.4f%s ; aucun verdict (ADR 0001).",
                                         alpha, lib_pmin, p_min, eff),
                                 " ", detail))
-      } else if (identical(sens, "ne pas rejeter") && p_min >= alpha / 2) {
+      } else if (identical(sens, "ne pas rejeter") && p_min >= alpha / 2 && !aucune_p) {
         sep <- if (!nzchar(detail)) "" else if (grepl("\\.$", detail)) " " else " ; "
         # Sans p exacte, la suite du texte suit la p qui sera retenue par la
         # hierarchie ci-dessous (Monte-Carlo, sinon asymptotique).
@@ -2958,7 +3215,9 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
           sprintf("ECHEC inatteignable : p_min = %.4f >= alpha/2 = %g%s", p_min, alpha / 2, eff)
         else paste0(
           sprintf("p_min de la loi de reference echangeable = %.4f >= alpha/2 = %g%s", p_min, alpha / 2, eff),
-          if (is.finite(p_mc))
+          if (is.finite(p_mc) && plancher_echec)
+            ""
+          else if (is.finite(p_mc))
             paste(" ; la p-value Monte-Carlo retenue, simulee sous le modele ajuste, peut",
                   "lui etre inferieure (erreur Monte-Carlo, non-echangeabilite) : ECHEC possible")
           else
@@ -2976,6 +3235,16 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
       sep <- if (!nzchar(detail)) "" else if (grepl("\\.$", detail)) " " else " ; "
       detail <- trimws(paste0(detail, sep, effectifs))
     }
+    # Test sans aucune p-value (#128, point 2') : type, verdict INFO, sens et
+    # p_retenue = NA inchanges (decision du 27/09/2026, "Test sans p-value
+    # retenue") ; le detail le dit en tete, precede du motif Monte-Carlo
+    # (motif_boot) s'il existe et n'y figure pas deja.
+    if (type == "test" && aucune_p) {
+      pre_mc <- if (!is.na(motif_boot) && !grepl(motif_boot, detail, fixed = TRUE))
+        paste0("Monte-Carlo indisponible : ", motif_boot, " ; ") else ""
+      detail <- trimws(paste0(pre_mc, "aucune p-value disponible sur ces donnees :",
+                              " aucun verdict (ADR 0001). ", detail))
+    }
     # Hierarchie adaptee a T faible : exacte > Monte-Carlo > asymptotique.
     if (is.finite(p_ex)) {
       p_ret <- p_ex; nature <- "exacte"
@@ -2989,6 +3258,31 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
       p_ret <- NA_real_; nature <- NA_character_
     }
     if (!is.na(nature_forcee) && is.finite(p_ret)) nature <- nature_forcee
+    # Plancher Monte-Carlo relatif a alpha (#128, point d ; residu du constat
+    # C1 de la revue finale d'E1) : quand la p Monte-Carlo du bootstrap est
+    # retenue, sa plus petite valeur possible est g_mc (ci-dessus). Comparee dans
+    # l'arithmetique de la regle des verdicts ci-dessous : en sens "ne pas
+    # rejeter", g >= alpha/2 rend l'ECHEC inatteignable (seul OK si
+    # g >= alpha) ; en sens "rejeter", g >= alpha rend le OK inatteignable.
+    # Mention seule : ni motif, ni changement de type, ni extension de R1
+    # (decision du mainteneur du 01/10/2026). Sans objet pour p_mc_ext
+    # (aucune granularite). Ni g_mc ni B effectif ne sont imprimes (regle
+    # #76 : aucun nombre issu du bootstrap dans detail) ; ils restent lisibles
+    # dans bootstrap$granularite_stat et bootstrap$B_effectif. alpha, qui est
+    # un parametre, l'est.
+    if (type == "test" && is.null(verdict) && is.finite(g_mc)) {
+      txt_g <- if (identical(sens, "rejeter") && g_mc >= alpha)
+        sprintf("plancher Monte-Carlo >= alpha = %g : OK inatteignable", alpha)
+      else if (identical(sens, "ne pas rejeter") && g_mc >= alpha)
+        sprintf("plancher Monte-Carlo >= alpha = %g : seul OK atteignable", alpha)
+      else if (identical(sens, "ne pas rejeter") && g_mc >= alpha / 2)
+        sprintf("plancher Monte-Carlo >= alpha/2 = %g : ECHEC inatteignable", alpha / 2)
+      else NULL
+      if (!is.null(txt_g)) {
+        sep <- if (!nzchar(detail)) "" else if (grepl("\\.$", detail)) " " else " ; "
+        detail <- trimws(paste0(detail, sep, txt_g))
+      }
+    }
     # ADR 0001 (amendement du 23/09/2026, M7) : seule une ligne de type "test"
     # ou "procedure de decision" porte un verdict. Toute autre ligne sort
     # INFO et son sens est NA ; un verdict fourni pour un autre type est une
@@ -3023,7 +3317,11 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
       verdict = v, detail = detail, sens = sens,
       # p_min en fin de ligne (#44, Q1 (a)) : un champ ajoute en fin de
       # conteneur ne deplace aucun champ existant des references.
-      p_min = p_min)
+      p_min = p_min,
+      # fonction apres p_min (#111, regle A4), pour la meme raison.
+      fonction = fonction,
+      # inoperant apres fonction (#129, point 3), pour la meme raison.
+      inoperant = inoperant)
   }
   list(add = add, lignes = function() L)
 }
@@ -3364,6 +3662,15 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     else detail
   }
 
+  # Phrase des lignes dont le detail nomme la p Monte-Carlo comme retenue
+  # (RESET, OLS-CUSUM, suites sur ratios bruts ; #128, point c) : vraie
+  # seulement si la p Monte-Carlo existe. Sinon add() se replie sur une
+  # p-value nommee par nature_p, ou n'en retient aucune (motif de
+  # degenerescence, ligne sans p-value) : le detail ne la nomme pas.
+  mc_dispo <- function(nm) is.finite(boot$p_mc[[nm]])
+  txt_mc_indispo <- function(debut) paste(debut, "est indisponible sur ces donnees ;",
+                                          "la p-value retenue, s'il en est une, est nommee par nature_p")
+
   ## --- B. H1 : E[Y_t] lineaire proportionnelle en X_t ------------------------
   fam <- paste("B. H1 - linearite / proportionnalite", cite_hyp("i"))
   ti <- test_intercept(x, y); lmc <- test_lm_complet(x, y)
@@ -3374,6 +3681,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # Intercept, simulee sous le modele de l'annexe XVII, ou a = 0 est vrai)
   # est retenue.
   add(fam, "Nullite de la constante (proportionnalite stricte)",
+      fonction = "test_intercept",
       "Student (1908), Biometrika 6",
       type = si_vol_cst(if (is.finite(ti$stat)) "test" else "non applicable"),
       H0 = "a = 0 (proportionnalite stricte)", H1 = "a != 0",
@@ -3392,6 +3700,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                                 "voir le test d'equivalence ci-dessous.")))
   tost <- test_tost_intercept(x, y, theta = theta_equiv, delta_abs = delta_equiv)
   add(fam, "Equivalence de la constante a zero (TOST)",
+      fonction = "test_tost_intercept",
       "Schuirmann (1987), J. Pharmacokinet. Biopharm. 15",
       type = if (is.finite(tost$p)) "test" else "non applicable",
       H0 = "|a| >= Delta (la constante n'est PAS negligeable)",
@@ -3459,6 +3768,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   type_pente <- function(stat) if (!is.finite(stat)) "non applicable"
                                else if (pente_ident) "test" else "diagnostic"
   add(fam, "Test de Student sur la pente (lm(y~x))",
+      fonction = "test_lm_complet",
       "Student (1908), Biometrika 6",
       type = type_pente(lmc$t_pente),
       H0 = "b = 0 (aucun lien volume / pertes)", H1 = "b != 0",
@@ -3469,6 +3779,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       p_as = lmc$p_pente, sens = "rejeter", nature_forcee = nat_mco,
       detail = detail_vol(trimws(paste("Ici on souhaite REJETER H0.", txt_ident))))
   add(fam, "Test de Fisher (significativite globale)", "Fisher (1922, 1925)",
+      fonction = "test_lm_complet",
       type = type_pente(lmc$F),
       H0 = "b = 0", H1 = "b != 0",
       stat_nom = "F", stat = lmc$F,
@@ -3478,6 +3789,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       p_as = lmc$p_F, sens = "rejeter", nature_forcee = nat_mco_F,
       detail = detail_vol(trimws(paste("Equivaut a t^2 en regression simple.", txt_ident))))
   add(fam, "Coefficient de determination R2", "lm(y ~ x)",
+      fonction = "test_lm_complet",
       type = if (is.finite(lmc$R2)) "diagnostic" else "non applicable",
       estim_nom = "R2", estim = lmc$R2,
       detail = if (is.finite(lmc$R2))
@@ -3490,6 +3802,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # distincts > rang deficient (motif rendu par test_reset()).
   tr <- test_reset(x, y)
   add(fam, "RESET (forme fonctionnelle)", "Ramsey (1969), JRSS B 31",
+      fonction = "test_reset",
       type = if (vol_cst || !is.na(tr$non_applicable)) "non applicable" else "test",
       H0 = "gamma2 = gamma3 = 0 (forme lineaire correcte)",
       H1 = "forme fonctionnelle mal specifiee",
@@ -3504,8 +3817,11 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                  "multiplicative, asymetrique, heteroscedastique). Les regresseurs",
                  "auxiliaires engendrent {x, x^2, x^3}, espace fixe : la dependance",
                  "en y de f = beta_hat x n'est pas en cause (Milliken et Graybill,",
-                 "1970). La p Monte-Carlo, simulee sous le modele ajuste, est",
-                 "retenue."))
+                 "1970).",
+                 if (mc_dispo("RESET"))
+                   "La p Monte-Carlo, simulee sous le modele ajuste, est retenue."
+                 else
+                   paste0(txt_mc_indispo("La p Monte-Carlo, simulee sous le modele ajuste,"), ".")))
   # p_min des lignes de rangs (Spearman, Mann-Kendall ; #44, reprise, avis
   # d'actuary Q5) : 2/T! n'est la p minimale que sans ex aequo ; avec ex
   # aequo (dans r, ou dans x pour Spearman-volume), la loi de permutation
@@ -3552,6 +3868,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     cs <- suppressWarnings(stats::cor.test(r_ea, x_ea, method = "spearman", exact = FALSE))
     p_sv <- p_spearman_exacte(r_ea, x_ea, r_ea, x_ea)
     add(fam, "Independance ratio S/P vs volume", "Spearman (1904) ; exact : Best & Roberts (1975), AS 89",
+        fonction = "usp_tests",
         H0 = "independance (aucune association monotone)", H1 = "association monotone",
         stat_nom = "S", stat = unname(cs$statistic),
         loi = "permutation exacte (T <= 9, sans ex aequo)",
@@ -3564,6 +3881,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   } else {
     # Regle R13 (#59) : meme reference que la branche calculee (I5).
     add(fam, "Independance ratio S/P vs volume", "Spearman (1904) ; exact : Best & Roberts (1975), AS 89",
+        fonction = "usp_tests",
         type = "non applicable",
         H0 = "independance (aucune association monotone)", H1 = "association monotone",
         stat_nom = "S", loi = "permutation exacte (T <= 9, sans ex aequo)",
@@ -3572,6 +3890,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   ct <- suppressWarnings(stats::cor.test(r_ea, seq_along(r), method = "spearman", exact = FALSE))
   p_st <- p_spearman_exacte(r_ea, seq_along(r), r_ea)
   add(fam, "Correlation ratio S/P vs temps", "Spearman (1904) ; exact : Best & Roberts (1975)",
+      fonction = "usp_tests",
       H0 = "independance entre le ratio et le rang chronologique",
       H1 = "association monotone avec le temps",
       stat_nom = "S", stat = unname(ct$statistic),
@@ -3584,6 +3903,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   mk <- test_mann_kendall(r)
   p_mk <- p_ex_si_pi_constant(mk_p_exacte(r))
   add(fam, "Tendance monotone du ratio S/P",
+      fonction = "test_mann_kendall",
       "Mann (1945) ; loi exacte : Kendall & Gibbons (1990), ch. 4-5",
       H0 = "absence de tendance monotone (r_t i.i.d.)", H1 = "tendance monotone",
       stat_nom = "Z", stat = mk$stat,
@@ -3611,6 +3931,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                   "p_mc non calculee (replications sans ex aequo)"),
             cx$m, cx$n_p)
   add(fam, "Tendance par signes du ratio S/P", "Cox & Stuart (1955), Biometrika 42",
+      fonction = "test_cox_stuart",
       H0 = "P(D_t > 0) = 1/2 (absence de tendance)", H1 = "P(D_t > 0) != 1/2",
       stat_nom = "K", stat = cx$stat,
       loi = paste("Binomiale(m, 1/2) EXACTE, m differences non nulles ;",
@@ -3623,6 +3944,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   fam <- paste("C. H2 - structure de variance", cite_hyp("ii"))
   bp <- test_breusch_pagan(z^2, x)
   add(fam, "Heteroscedasticite vs volume - Breusch-Pagan studentise (Koenker)",
+      fonction = "test_breusch_pagan",
       "Breusch & Pagan (1979) ; studentisation de Koenker (1981)",
       type = si_vol_cst("test"),
       H0 = "c1 = 0 : la variance des residus standardises ne depend pas du volume",
@@ -3632,6 +3954,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       detail = detail_vol("Doit etre non significatif si la ponderation pi_t est correcte"))
   bp79 <- test_breusch_pagan_original(z^2, x)
   add(fam, "Heteroscedasticite vs volume - Breusch-Pagan original (non robuste)",
+      fonction = "test_breusch_pagan_original",
       "Breusch & Pagan (1979), Econometrica 47",
       type = si_vol_cst("test"),
       variante = "secondaire",
@@ -3645,6 +3968,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # Issue #110 : meme restitution que RESET (priorite R13 > (a) > (b)).
   wh <- test_white(z^2, x)
   add(fam, "Heteroscedasticite (forme quadratique)", "White (1980), Econometrica 48",
+      fonction = "test_white",
       type = if (vol_cst || !is.na(wh$non_applicable)) "non applicable" else "test",
       H0 = "c1 = c2 = 0", H1 = "heteroscedasticite residuelle de forme quadratique",
       stat_nom = "LM", stat = wh$stat, loi = "chi2(2) asymptotique",
@@ -3654,6 +3978,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       else "")
   gq <- test_goldfeld_quandt(z, x)
   add(fam, "Egalite des variances petits vs gros volumes",
+      fonction = "test_goldfeld_quandt",
       "Goldfeld & Quandt (1965), JASA 60",
       type = si_vol_cst("test"),
       H0 = "sigma1^2 = sigma2^2", H1 = "variances inegales entre les deux blocs",
@@ -3663,6 +3988,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       p_as = gq$p, mc_nom = "GQ", detail = detail_vol(""))
   bf <- test_brown_forsythe(z, x)
   add(fam, "Homogeneite des dispersions (mediane)",
+      fonction = "test_brown_forsythe",
       "Brown & Forsythe (1974), JASA 69",
       type = si_vol_cst("test"),
       H0 = "egalite des dispersions entre les deux groupes",
@@ -3687,6 +4013,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     ks2 <- if (calculable) suppressWarnings(stats::ks.test(z_ea[grp], z_ea[!grp]))
     p_sm <- if (calculable && !ea_sm) p_ex_si_pi_constant(ks2$p.value) else NA_real_
     add(fam, "Egalite des lois petits vs gros volumes (2 ech.)", "Smirnov (1939)",
+        fonction = "usp_tests",
         type = if (calculable) "test" else "non applicable",
         H0 = "F1 = F2 (memes lois)", H1 = "lois differentes",
         stat_nom = "D", stat = if (calculable) unname(ks2$statistic) else NA_real_,
@@ -3728,6 +4055,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # Citation par methode (issue #101) : B(6) pour les primes, C(6) pour la
   # reserve no 1.
   add(fam, "Position de delta dans [0,1]",
+      fonction = "usp_ajuster",
       sprintf("Annexe XVII, section %s, paragraphe 6",
               if (methode == "premium") "B" else "C"),
       type = "diagnostic", estim_nom = "delta", estim = fit$delta,
@@ -3748,11 +4076,13 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   H1n <- "loi non normale"
   sw <- .shapiro_sur(z)
   add(fam, "Shapiro-Wilk sur residus standardises", "Shapiro & Wilk (1965), Biometrika 52",
+      fonction = ".shapiro_sur",
       H0 = H0n, H1 = H1n, stat_nom = "W", stat = sw$stat,
       loi = "aucune forme fermee ; normalisation de Royston (1992)",
       p_as = sw$p, mc_nom = "SW")
   p_sw <- p_ex_si_pi_constant(sw_p_loi_nulle(sw$stat, T))
   add(fam, "Shapiro-Wilk (loi nulle simulee, sans normalisation de Royston)",
+      fonction = ".shapiro_sur",
       "Shapiro & Wilk (1965) ; loi nulle evaluee par simulation directe",
       variante = "secondaire",
       H0 = H0n, H1 = H1n, stat_nom = "W", stat = sw$stat,
@@ -3771,6 +4101,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                  "residus standardises (p Monte-Carlo)"))
   sf <- test_shapiro_francia(z)
   add(fam, "Shapiro-Francia", "Shapiro & Francia (1972), JASA 67 ; Royston (1993)",
+      fonction = "test_shapiro_francia",
       H0 = H0n, H1 = H1n, stat_nom = "W'", stat = sf$stat,
       loi = "aucune forme fermee ; normalisation de Royston (1993)",
       p_as = sf$p, mc_nom = "SF")
@@ -3794,6 +4125,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     "sur estim (statistique re-standardisee), non sur stat ; p_mc sur stat",
     "(statistique du catalogue)"), st)
   add(fam, "Anderson-Darling", "Anderson & Darling (1954), JASA 49",
+      fonction = "stat_ad",
       H0 = H0n, H1 = H1n, stat_nom = "A2", stat = boot$stats_obs$AD,
       loi = loi_stephens("AD"),
       estim_nom = "A2 sur (z - zbar)/s_z", estim = a2_std,
@@ -3802,12 +4134,14 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                       " D'Agostino & Stephens (1986) sur la statistique re-standardisee.",
                       txt_plage))
   add(fam, "Cramer-von Mises", "Cramer (1928) / von Mises (1928) ; Stephens (1974)",
+      fonction = "stat_cvm",
       H0 = H0n, H1 = H1n, stat_nom = "W2", stat = boot$stats_obs$CvM,
       loi = loi_stephens("CvM"),
       estim_nom = "W2 sur (z - zbar)/s_z", estim = w2_std,
       p_as = if (hors_plage) NA_real_ else cvm_p_stephens(w2_std, T), mc_nom = "CvM",
       detail = trimws(txt_plage))
   add(fam, "Kolmogorov-Smirnov contre N(0,1)", "Kolmogorov (1933) ; Smirnov (1948)",
+      fonction = "stat_ks",
       H0 = H0n, H1 = H1n, stat_nom = "D", stat = boot$stats_obs$KS,
       variante = "secondaire",
       loi = "loi de Kolmogorov (valable a parametres CONNUS)",
@@ -3821,6 +4155,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                      "Voir le test de Lilliefors ci-dessus."))
   Dl <- stat_lilliefors(z)
   add(fam, "Lilliefors (KS a parametres estimes)",
+      fonction = "stat_lilliefors",
       "Lilliefors (1967), JASA 62 ; p-value : Dallal & Wilkinson (1986)",
       H0 = H0n, H1 = H1n, stat_nom = "D", stat = Dl,
       loi = "loi de Lilliefors (moyenne et ecart-type estimes)",
@@ -3830,6 +4165,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                      "dans ce cas rend le test extremement conservateur."))
   jb <- test_jarque_bera(z)
   add(fam, "Jarque-Bera", "Jarque & Bera (1980, 1987)",
+      fonction = "test_jarque_bera",
       H0 = "asymetrie nulle ET aplatissement egal a 3",
       H1 = "asymetrie ou aplatissement non normaux",
       stat_nom = "JB", stat = jb$stat, loi = "chi2(2) asymptotique",
@@ -3847,21 +4183,25 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   ds <- test_dagostino_skew(z)
   if (is.finite(ds$stat))
     add(fam, "Asymetrie (D'Agostino, T >= 8)", "D'Agostino (1970), Biometrika 57",
+        fonction = "test_dagostino_skew",
         H0 = "coefficient d'asymetrie de la population nul", H1 = "asymetrie non nulle",
         stat_nom = "Z", stat = ds$stat, loi = "N(0,1) approx. (transformation de Johnson SU)",
         estim_nom = "asymetrie", estim = jb$skew, p_as = ds$p, mc_nom = "DAgo")
   else
     add(fam, "Asymetrie (D'Agostino, T >= 8)", "D'Agostino (1970), Biometrika 57",
+        fonction = "test_dagostino_skew",
         type = "non applicable", estim_nom = "asymetrie", estim = jb$skew,
         detail = sprintf("T = %d < 8 : transformation normalisante non definie", T))
   ak <- test_anscombe_kurt(z)
   if (is.finite(ak$stat))
     add(fam, "Aplatissement (Anscombe-Glynn, T >= 20)", "Anscombe & Glynn (1983), Biometrika 70",
+        fonction = "test_anscombe_kurt",
         H0 = "aplatissement de la population egal a 3", H1 = "aplatissement different de 3",
         stat_nom = "Z", stat = ak$stat, loi = "N(0,1) approx. (Wilson-Hilferty)",
         estim_nom = "aplatissement", estim = jb$kurt, p_as = ak$p)
   else
     add(fam, "Aplatissement (Anscombe-Glynn, T >= 20)", "Anscombe & Glynn (1983), Biometrika 70",
+        fonction = "test_anscombe_kurt",
         type = "non applicable", estim_nom = "aplatissement", estim = jb$kurt,
         detail = sprintf("T = %d < 20 : test non defini", T))
 
@@ -3869,6 +4209,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   fam <- fam_h4
   p_dw <- p_ex_si_pi_constant(dw_p_exacte(z))
   add(fam, "Autocorrelation d'ordre 1 (Durbin-Watson)", "Durbin & Watson (1950, 1951)",
+      fonction = "stat_dw",
       base = "z",
       H0 = "rho = 0 (absence d'autocorrelation d'ordre 1)", H1 = "rho != 0",
       stat_nom = "DW", stat = boot$stats_obs$DW,
@@ -3879,6 +4220,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                                "exacte est obtenue par integration numerique d'Imhof."), p_dw))
   lb1 <- stats::Box.test(z, lag = 1, type = "Ljung-Box")
   add(fam, "Ljung-Box (retard 1)", "Ljung & Box (1978), Biometrika 65",
+      fonction = "usp_tests",
       base = "z",
       H0 = "rho_1 = 0", H1 = "autocorrelation au retard 1",
       stat_nom = "Q", stat = unname(lb1$statistic), loi = "chi2(1) asymptotique",
@@ -3886,11 +4228,13 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   if (T >= 8) {
     lb2 <- stats::Box.test(z, lag = 2, type = "Ljung-Box")
     add(fam, "Ljung-Box (retard 2)", "Ljung & Box (1978), Biometrika 65",
+        fonction = "usp_tests",
         H0 = "rho_1 = rho_2 = 0", H1 = "autocorrelation jusqu'au retard 2",
         stat_nom = "Q", stat = unname(lb2$statistic), loi = "chi2(2) asymptotique",
         p_as = lb2$p.value, mc_nom = "LB2")
     bp2 <- stats::Box.test(z, lag = 2, type = "Box-Pierce")
     add(fam, "Box-Pierce (retard 2)", "Box & Pierce (1970), JASA 65",
+        fonction = "usp_tests",
         H0 = "rho_1 = rho_2 = 0", H1 = "autocorrelation jusqu'au retard 2",
         variante = "secondaire",
         stat_nom = "Q", stat = unname(bp2$statistic), loi = "chi2(2) asymptotique",
@@ -3902,6 +4246,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   ru <- test_runs(z); eff_z <- .runs_effectifs(z)
   p_ru <- p_ex_si_pi_constant(runs_p_exacte(z))
   add(fam, "Test des suites (aleatoire des signes)",
+      fonction = "test_runs",
       base = "z",
       "Wald & Wolfowitz (1940) ; loi exacte : Swed & Eisenhart (1943)",
       type = if (is.finite(ru$stat)) "test" else "non applicable",
@@ -4055,12 +4400,14 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   sans_p <- paste("Aucune p-value retenue : la grandeur est rivee par",
                   "l'estimation, elle est restituee comme diagnostic (ADR 0001).")
   add(fam, "Centrage des residus standardises", "Diagnostic de centrage (ADR 0001)",
+      fonction = "usp_tests",
       type = "diagnostic", estim_nom = "moyenne(z)", estim = mean(z),
       detail = paste("Grandeur rivee par l'estimation :",
                      "somme(sqrt(pi_t) z_t) = 0 par condition du premier ordre,",
                      "d'ou moyenne(z) = 0 lorsque pi_t est constant.",
                      contrainte("centrage"), sans_p))
   add(fam, "Variance unitaire des residus standardises", "Diagnostic d'echelle (ADR 0001)",
+      fonction = "usp_tests",
       type = "diagnostic", estim_nom = "var(z)", estim = stats::var(z),
       detail = paste("Grandeur rivee par l'estimation : la condition du",
                      "premier ordre en gamma, qui ne tient qu'a un optimum",
@@ -4072,12 +4419,14 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   ## --- F. Stabilite, ruptures et points aberrants ----------------------------
   fam <- "F. Stabilite, ruptures et points aberrants"
   add(fam, "Rupture de niveau (sup-F)", "Quandt (1960) / Chow (1960) ; Andrews (1993)",
+      fonction = "stat_supF",
       base = "z",
       H0 = "E[z_t] constant (absence de rupture)", H1 = "rupture de niveau a une date inconnue",
       stat_nom = "supF", stat = boot$stats_obs$supF,
       loi = "supremum de processus (Andrews) -> Monte-Carlo", mc_nom = "supF",
       detail = "La loi de Fisher est inapplicable : le point de rupture est estime")
   add(fam, "Stabilite cumulee (OLS-CUSUM)", "Brown, Durbin & Evans (1975), JRSS B 37",
+      fonction = "stat_cusum",
       base = "z",
       H0 = "constance des parametres sur la periode", H1 = "derive graduelle",
       stat_nom = "CUSUM", stat = boot$stats_obs$CUSUM,
@@ -4086,9 +4435,13 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                if (is.finite(cc)) .p_borne(2 * sum((-1)^(0:99) *
                  exp(-2 * (1:100)^2 * cc^2))) else NA_real_ },
       mc_nom = "CUSUM",
-      detail = "La formule asymptotique n'a aucune validite a T = 8 : p_mc retenue")
+      detail = if (mc_dispo("CUSUM"))
+        "La formule asymptotique n'a aucune validite a T = 8 : p_mc retenue"
+      else paste("La formule asymptotique n'a aucune validite a T = 8 ;",
+                 txt_mc_indispo("p_mc")))
   gr <- test_grubbs(z)
   add(fam, "Valeur aberrante isolee (Grubbs)", "Grubbs (1950, 1969), Technometrics 11",
+      fonction = "test_grubbs",
       base = "z",
       H0 = "aucune valeur aberrante (echantillon normal homogene)",
       H1 = "exactement une valeur aberrante",
@@ -4099,6 +4452,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       detail = sprintf("G est borne par (T-1)/sqrt(T) = %.3f", (T - 1) / sqrt(T)))
   ro <- test_rosner(z, alpha = alpha)
   add(fam, "Valeurs aberrantes multiples (ESD generalise)", "Rosner (1983), Technometrics 25",
+      fonction = "test_rosner",
       type = "procedure de decision",
       H0 = "aucune valeur aberrante", H1 = "il existe i <= k valeurs aberrantes",
       estim_nom = "nb de valeurs aberrantes", estim = ro$nb_outliers,
@@ -4109,6 +4463,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                 else if (ro$nb_outliers == 1) "ALERTE" else "OK")
   mlm <- stats::lm(y ~ x - 1); ck <- stats::cooks.distance(mlm); hv <- stats::hatvalues(mlm)
   add(fam, "Points influents (distance de Cook)", "Cook (1977), Technometrics 19",
+      fonction = "usp_tests",
       type = "diagnostic", estim_nom = "max D_t", estim = max(ck),
       detail = sprintf("repere conventionnel 4/T = %.3f ; %d observation(s) au-dessus%s",
                        4 / T, sum(ck > 4 / T),
@@ -4156,6 +4511,15 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   #        seul cote de la mediane represente) ;
   #   3  : pi_t variable.
   p_ex_r <- usp_runsr_p_exacte(z, u, pi_constant)
+  # #128 : la phrase "p-value EXACTE ... retenue" du regime 1 n'est vraie que
+  # hors motif de degenerescence de la statistique Runsr, qui ecarte aussi la
+  # p exacte dans add() (motifs_degeneres d'engine_registre_tests()). Runsr
+  # n'a pas de condition degenere au catalogue, mais une loi simulee
+  # ponctuelle (engine_p_mc()) n'est pas exclue par le code.
+  m_runsr <- if (!is.null(boot$motif_mc) && "Runsr" %in% names(boot$motif_mc))
+    unname(boot$motif_mc[["Runsr"]]) else NA_character_
+  runsr_degenere <- !is.na(m_runsr) &&
+    m_runsr %in% c(MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_ATOME_HORS_OBS, MOTIF_MC_CONDITION)
   eff_u <- .runs_effectifs(u)
   detail_runsr <- if (is.finite(p_ex_r)) {
     d1 <- paste("CONTROLE SANS OBJET ICI : pi_t est constant (delta = 1, ou volumes",
@@ -4166,10 +4530,17 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                 "statistique des suites est IDENTIQUE a celle de la ligne sur residus",
                 "standardises. Les r_t etant i.i.d. sous le modele ajuste, la loi",
                 "combinatoire de R s'applique aussi aux ratios bruts : la p-value",
-                "EXACTE est retenue (convention bilaterale du doublement, celle du",
-                "bootstrap), la meme que sur la ligne des suites sur residus",
-                "standardises (issue #29). La p-value Monte-Carlo de la colonne p_mc",
-                "estime la meme quantite, a l'erreur Monte-Carlo pres.")
+                if (runsr_degenere)
+                  "EXACTE est ecartee par le motif de degenerescence en tete (ADR 0001)."
+                else paste("EXACTE est retenue (convention bilaterale du doublement, celle du",
+                           "bootstrap), la meme que sur la ligne des suites sur residus",
+                           # #128, point c : la phrase sur p_mc n'est ecrite que si
+                           # p_mc existe ; absente, rien n'est ajoute (la p retenue,
+                           # exacte, est deja nommee, et nature_p le dit).
+                           if (mc_dispo("Runsr"))
+                             paste("standardises (issue #29). La p-value Monte-Carlo de la colonne p_mc",
+                                   "estime la meme quantite, a l'erreur Monte-Carlo pres.")
+                           else "standardises (issue #29)."))
     if (!isTRUE(regime$pi_constant_exact))
       d1 <- paste(d1, sprintf(paste(
         "Ici pi_t n'est constant qu'a la tolerance TOL_DELTA_BORD = %g pres (%s) :",
@@ -4188,7 +4559,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       "des deux lignes n'est plus garantie (la statistique des suites peut",
       "coincider ou non), la loi combinatoire de R n'est pas attribuee a cette",
       "ligne (issue #29, seconde condition de usp_runsr_p_exacte()) et la p-value",
-      "Monte-Carlo, simulee sous le modele ajuste, est retenue."),
+      if (mc_dispo("Runsr")) "Monte-Carlo, simulee sous le modele ajuste, est retenue."
+      else paste0(txt_mc_indispo("Monte-Carlo, simulee sous le modele ajuste,"), ".")),
       TOL_DELTA_BORD, ecart_tol)
   } else if (isTRUE(pi_constant)) {
     paste(note_r, "La loi combinatoire de R n'est pas definie ici (un seul cote",
@@ -4198,12 +4570,16 @@ usp_tests <- function(fit, boot, alpha = 0.10,
           "mais heteroscedastiques (echelle 1/sqrt(pi_t) et mediane propres a",
           "chaque annee), les arrangements des signes de u_t - med(u) ne sont pas",
           "equiprobables et la loi combinatoire de R n'est qu'une approximation,",
-          "sans borne d'erreur connue a T = 8. Seule la p-value Monte-Carlo,",
-          "simulee sous le modele ajuste avec ses pi_t, est retenue ; la",
-          "statistique differe en general de celle de la ligne des suites sur",
+          "sans borne d'erreur connue a T = 8.",
+          if (mc_dispo("Runsr"))
+            "Seule la p-value Monte-Carlo, simulee sous le modele ajuste avec ses pi_t, est retenue ;"
+          else
+            paste(txt_mc_indispo("La p-value Monte-Carlo, simulee sous le modele ajuste avec ses pi_t,"), ";"),
+          "la statistique differe en general de celle de la ligne des suites sur",
           "residus standardises (issue #29).")
   }
   add(fam_h4,
+      fonction = "stat_dw",
       "Autocorrelation d'ordre 1 (Durbin-Watson) sur ratios bruts",
       "Durbin & Watson (1950, 1951)", base = "r",
       H0 = "absence d'autocorrelation d'ordre 1 du ratio S/P",
@@ -4211,11 +4587,13 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       stat_nom = "DW", stat = boot$stats_obs$DWr, loi = loi_ind, mc_nom = "DWr",
       detail = detail_r())
   add(fam_h4,
+      fonction = "usp_tests",
       "Ljung-Box (retard 1) sur ratios bruts", "Ljung & Box (1978), Biometrika 65",
       base = "r", H0 = "rho_1 = 0 pour le ratio S/P", H1 = "autocorrelation au retard 1",
       stat_nom = "Q", stat = boot$stats_obs$LB1r, loi = loi_ind, mc_nom = "LB1r",
       detail = detail_r())
   add(fam_h4,
+      fonction = "test_runs",
       "Test des suites sur ratios bruts", "Wald & Wolfowitz (1940)",
       base = "r", H0 = "arrangement aleatoire des signes du ratio centre",
       H1 = "arrangement non aleatoire",
@@ -4235,18 +4613,21 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         paste("un seul cote de la mediane represente : loi de R non definie,",
               "test non applicable"))
   add(fam, "Rupture de niveau (sup-F) sur ratios bruts",
+      fonction = "stat_supF",
       "Quandt (1960) / Chow (1960) ; Andrews (1993)", base = "r",
       H0 = "niveau du ratio S/P constant", H1 = "rupture de niveau du ratio S/P",
       stat_nom = "supF", stat = boot$stats_obs$supFr,
       loi = "supremum de processus -> Monte-Carlo", mc_nom = "supFr",
       detail = detail_r("Detecte un changement de regime du ratio, independamment du modele."))
   add(fam, "Stabilite cumulee (OLS-CUSUM) sur ratios bruts",
+      fonction = "stat_cusum",
       "Brown, Durbin & Evans (1975), JRSS B 37", base = "r",
       H0 = "constance du niveau du ratio S/P", H1 = "derive graduelle",
       stat_nom = "CUSUM", stat = boot$stats_obs$CUSUMr,
       loi = "sup |pont brownien| -> Monte-Carlo", mc_nom = "CUSUMr",
       detail = detail_r())
   add(fam, "Valeur aberrante isolee (Grubbs) sur ratios bruts",
+      fonction = "test_grubbs",
       "Grubbs (1950, 1969), Technometrics 11", base = "r",
       H0 = "aucun ratio S/P aberrant", H1 = "exactement un ratio aberrant",
       stat_nom = "G", stat = boot$stats_obs$Grubbsr, loi = loi_ind,
@@ -4256,6 +4637,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       detail = detail_r("Identifie l'annee au boni/mali le plus atypique, sans passer par le modele."))
 
   add(fam, "Leviers (hat values)", "Hoaglin & Welsch (1978), Amer. Statist. 32",
+      fonction = "usp_tests",
       type = "diagnostic", estim_nom = "max h_t", estim = max(hv),
       detail = sprintf("repere conventionnel 2k/T = %.3f ; %d observation(s) au-dessus",
                        2 / T, sum(hv > 2 / T)))
@@ -4280,6 +4662,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   rb <- robustesse
   if (!is.null(fit$ecart_jackknife))
     add(fam, "Sensibilite au retrait d'une annee (jackknife)",
+        fonction = "run_engine",
         "Quenouille (1949) / Tukey (1958)", type = "diagnostic",
         estim_nom = "ecart relatif max", estim = fit$ecart_jackknife,
         detail = if (!is.null(rb$jack_annee))
@@ -4289,6 +4672,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         else "Annee la plus influente non determinee.")
   if (!is.null(fit$largeur_ic))
     add(fam, "Largeur relative de l'IC bootstrap 90%", "Efron (1979), Ann. Statist. 7",
+        fonction = "run_engine",
         type = "diagnostic",
         estim_nom = "largeur / sigma_USP", estim = fit$largeur_ic,
         detail = "Intervalle bootstrap du parametre retenu : res$ic_bootstrap.")
@@ -4301,6 +4685,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # Aucun nombre issu du bootstrap dans detail (#24, #76).
   if (!is.null(fit$largeur_ic_restreint))
     add(fam, "Largeur relative de l'IC bootstrap 90% (delta fixe a delta estime)",
+        fonction = "run_engine",
         "Efron (1979), Ann. Statist. 7 ; Andrews (2000), Econometrica 68",
         type = "diagnostic",
         estim_nom = "largeur / sigma_USP", estim = fit$largeur_ic_restreint,
@@ -4333,13 +4718,15 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       b <- li$b
       pref <- character(0)
       if (!is.finite(b$p_mc))
-        pref <- c(pref, paste0(b$motif_mc, " : aucune p-value Monte-Carlo."))
+        pref <- c(pref, paste0(b$motif_mc, " : aucune p-value Monte-Carlo."),
+                  .complement_motif_mc(b$motif_mc))
       if (isTRUE(regime$volumes_constants))
         pref <- c(pref, "VOLUMES CONSTANTS : delta non identifie, LR nul aux deux bornes par construction.")
       else if (abs(fit$delta - b$delta0) <= TOL_DELTA_BORD)
         pref <- c(pref, sprintf("SOLUTION AU BORD delta = %d : LR = 0 par construction.",
                                 as.integer(b$delta0)))
       add(fam, li$nom,
+          fonction = "usp_lr_delta",
           "Chernoff (1954) ; Self & Liang (1987), JASA 82 ; Davison & Hinkley (1997), chap. 4",
           type = "diagnostic", H0 = li$H0, H1 = li$H1,
           stat_nom = li$stat_nom, stat = b$lr, loi = loi_lr,
@@ -4727,9 +5114,17 @@ engine_empreinte <- function(res) {
 # "brutes" sont refusees (C(2)(c), D(2)(f) : donnees nettes exigees ; NULL ou
 # "nettes" acceptes). Sans methode (controle d'une saisie ou d'un import,
 # hors calcul), la nature n'est pas controlee (.nature_erreurs()).
+# bareme / segment / annexe (issue #131) : bareme de credibilite applique,
+# resolu comme dans run_engine() (.engine_credibilite_appliquee() : bareme
+# saisi, sinon bareme du segment, sinon "court" par convention) ; une valeur
+# invalide est une erreur bloquante, sans erreur R. L'avertissement de
+# credibilite partielle repose sur c(T, bareme applique) < 1 (annexe XVII,
+# section G) ; l'avertissement statistique (lois asymptotiques peu fiables,
+# T < 10) est un repere non reglementaire, distinct et inchange.
 engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
                                    delta_equiv = NULL, methode = NULL,
-                                   nature_donnees = NULL) {
+                                   nature_donnees = NULL, bareme = NULL,
+                                   segment = NULL, annexe = "II") {
   err <- .nature_erreurs(methode, nature_donnees); avt <- character(0)
   if (!is.numeric(xt) || !is.numeric(yt))
     err <- c(err, "xt et yt doivent etre numeriques.")
@@ -4770,6 +5165,11 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
     err <- c(err, sprintf(paste("Marge theta du test d'equivalence (theta_equiv = %s) : un nombre",
                                 "fini, 0 < theta < 1 (fraction de la perte moyenne), est attendu."),
                           saisie(theta_equiv)))
+  # Bareme, segment et annexe (issue #131) : controles avant tout
+  # avertissement ; une valeur invalide est refusee sans erreur R.
+  msg <- tryCatch({ .engine_credibilite_appliquee(5, bareme, segment, annexe); NULL },
+                  error = function(e) conditionMessage(e))
+  if (!is.null(msg)) err <- c(err, msg)
   if (!length(err)) {
     r <- yt / xt
     if (any(r <= 0 | r >= 5))
@@ -4778,9 +5178,19 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
       avt <- c(avt, "Amplitude des volumes >= 10 : rupture de perimetre possible.")
     if (anyDuplicated(data.frame(xt, yt)) > 0)
       avt <- c(avt, "Couples (xt, yt) dupliques detectes.")
+    # Credibilite partielle (issue #131) : c(T, bareme applique) < 1, sous
+    # le bareme qui entre dans sigma_USP ; length(xt) < 10 ne signalait rien
+    # sur les segments du bareme long G(1) de T = 10 a 14.
+    if (length(xt) >= 5) {
+      cr <- .engine_credibilite_appliquee(length(xt), bareme, segment, annexe)
+      if (!cr$pleine)
+        avt <- c(avt, sprintf("T = %d : credibilite partielle, c = %.0f%% (%s ; pleine a partir de T = %d).",
+                              length(xt), 100 * cr$c, cr$libelle, cr$pleine_a))
+    }
+    # Repere statistique, non reglementaire, seuil inchange (T < 10).
     if (length(xt) < 10)
-      avt <- c(avt, sprintf(paste("T = %d : credibilite partielle et lois asymptotiques peu",
-                                  "fiables. Privilegier les p-values exactes ou Monte-Carlo."),
+      avt <- c(avt, sprintf(paste("T = %d : lois asymptotiques peu fiables.",
+                                  "Privilegier les p-values exactes ou Monte-Carlo."),
                             length(xt)))
   }
   list(ok = length(err) == 0, erreurs = err, avertissements = avt, T = length(xt))
@@ -4816,6 +5226,45 @@ engine_valider_profondeur <- function(T, n, T_min = 5) {
               T_min, format(T))
       else sprintf("Profondeur T = %s : T >= %d attendu.", format(T), T_min))
   character(0)
+}
+
+# Serie retenue et sa validation (issue #131) : etape 1 de run_engine()
+# (methodes lognormales), extraite telle quelle pour que l'apercu de
+# l'application valide la meme serie que le calcul, sans refaire la
+# troncature. Profondeur T (issue #87) controlee AVANT toute troncature :
+# une valeur non entiere, NA, non finie, multiple ou hors de [5 ; n] est
+# refusee (ok = FALSE) ; elle etait auparavant ignoree (NA, Inf, texte) ou
+# tronquait la serie en silence ((n - 5.5 + 1):n = 3.5:8 retient 5 annees
+# et ecarte la plus recente). Refusee, la serie n'est pas tronquee et la
+# validation des donnees porte sur la serie entiere. T accepte : les T
+# annees les plus recentes (lecture (A) de #104 : la duree G(3) est le T
+# retenu). Les autres arguments sont ceux de engine_valider_donnees().
+# Retourne list(xt, yt, validation) : la serie retenue et sa validation.
+engine_valider_serie_retenue <- function(xt, yt, T = NULL, theta_equiv = 0.10,
+                                         delta_equiv = NULL, methode = NULL,
+                                         nature_donnees = NULL, bareme = NULL,
+                                         segment = NULL, annexe = "II") {
+  n <- length(xt)
+  err_T <- engine_valider_profondeur(T, n)
+  if (!is.null(T) && !length(err_T)) {
+    idx <- (n - T + 1):n; xt <- xt[idx]; yt <- yt[idx]
+  }
+  # Bareme saisi transmis tel quel (NULL sinon), avec le segment et l'annexe :
+  # l'avertissement de credibilite partielle lit le bareme applique (#131).
+  validation <- engine_valider_donnees(xt, yt, theta_equiv = theta_equiv,
+                                       delta_equiv = delta_equiv, methode = methode,
+                                       nature_donnees = nature_donnees, bareme = bareme,
+                                       segment = segment, annexe = annexe)
+  # T refuse : aucune serie n'est retenue ; les avertissements, qui portent
+  # sur une serie retenue (longueur, ratios, amplitude), sont retires et la
+  # longueur retenue validation$T vaut NA (audit de #87, constat 4).
+  if (length(err_T)) {
+    validation$ok <- FALSE
+    validation$erreurs <- c(err_T, validation$erreurs)
+    validation$avertissements <- character(0)
+    validation$T <- NA_integer_
+  }
+  list(xt = xt, yt = yt, validation = validation)
 }
 
 
@@ -5108,7 +5557,15 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
 ## =============================================================================
 
 # --- Controles de recevabilite : annexe XVII, section D, paragraphe 2 --------
-mw_valider_triangle <- function(tri, T_min = 5) {
+# bareme / segment / annexe (issue #131) : bareme de credibilite applique,
+# resolu comme dans run_engine() (.engine_credibilite_appliquee()) ; une
+# valeur invalide est une erreur bloquante, sans erreur R. L'avertissement de
+# credibilite partielle repose sur c(I + 1, bareme applique) < 1 (annexe
+# XVII, section G ; duree G(3)(c)) ; l'avertissement statistique (variance
+# tres bruitee en fin de triangle, I + 1 < 10) est un repere non
+# reglementaire, distinct et inchange.
+mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
+                                annexe = "II") {
   err <- character(0); avt <- character(0)
   if (!is.matrix(tri) || !is.numeric(tri))
     return(list(ok = FALSE, erreurs = "Le triangle doit etre une matrice numerique.",
@@ -5140,6 +5597,12 @@ mw_valider_triangle <- function(tri, T_min = 5) {
         err <- c(err, sprintf("Cumul non strictement positif en (i=%d, j=%d).", i, j))
     }
   }
+  # Bareme, segment et annexe (issue #131) : controles apres les erreurs de
+  # donnees, qu'ils ne masquent pas (comme dans engine_valider_donnees()), et
+  # avant tout avertissement ; une valeur invalide est refusee sans erreur R.
+  msg <- tryCatch({ .engine_credibilite_appliquee(5, bareme, segment, annexe); NULL },
+                  error = function(e) conditionMessage(e))
+  if (!is.null(msg)) err <- c(err, msg)
   if (!length(err)) {
     # Avertissement de nature ACTUARIELLE, sans fondement reglementaire : le
     # paragraphe 2(h)(iii) pose seulement que l'esperance du cumule d'une annee
@@ -5155,8 +5618,19 @@ mw_valider_triangle <- function(tri, T_min = 5) {
           avt <- c(avt, sprintf("Annee d'accident %d : cumul decroissant (recouvrement ou boni).", i))
       }
     }
+    # Credibilite partielle (issue #131) : c(I + 1, bareme applique) < 1 ;
+    # nrow(tri) < 10 ne signalait rien sur les segments du bareme long G(1)
+    # de I + 1 = 10 a 14.
+    if (nrow(tri) >= 5) {
+      cr <- .engine_credibilite_appliquee(nrow(tri), bareme, segment, annexe)
+      if (!cr$pleine)
+        avt <- c(avt, sprintf(paste("I + 1 = %d annees d'accident (duree, G(3)(c)) : credibilite",
+                                    "partielle, c = %.0f%% (%s ; pleine a partir de I + 1 = %d)."),
+                              nrow(tri), 100 * cr$c, cr$libelle, cr$pleine_a))
+    }
+    # Repere statistique, non reglementaire, seuil inchange (I + 1 < 10).
     if (nrow(tri) < 10)
-      avt <- c(avt, sprintf("I + 1 = %d annees d'accident : credibilite partielle et estimateurs de variance tres bruites en fin de triangle.",
+      avt <- c(avt, sprintf("I + 1 = %d annees d'accident : estimateurs de variance tres bruites en fin de triangle.",
                             nrow(tri)))
   }
   list(ok = length(err) == 0, erreurs = err, avertissements = avt, I = I, J = J)
@@ -6246,6 +6720,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   fam <- "M1. proportionnalite des cumules (annexe XVII D(2)(h)(iii))"
   ti <- .mw_lm_intra(res)
   add(fam, "Absence de tendance des facteurs avec le cumul, a colonne donnee",
+      fonction = ".mw_lm_intra",
       "Mack (1993), ASTIN Bulletin 23(2)",
       H0 = "a annee de developpement donnee, le facteur ne depend pas du niveau de C(i,j)",
       H1 = "les facteurs varient avec le volume a l'interieur d'une colonne",
@@ -6260,6 +6735,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   # --- Tests colonne par colonne de l'hypothese (iii) ------------------------
   oo <- mw_test_ordonnee_origine(aj)
   add(fam, "Nullite de l'ordonnee a l'origine, colonne par colonne",
+      fonction = "mw_test_ordonnee_origine",
       "Mack (1993), ASTIN Bulletin 23(2), section 3",
       H0 = "a_j = 0 pour toute annee de developpement j",
       H1 = "au moins une colonne presente une composante fixe",
@@ -6277,6 +6753,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                      "non definie (0/0)"), "de proportionnalite")))
   hf <- mw_test_homogeneite_f(aj)
   add(fam, "Homogeneite de f_j entre annees de survenance",
+      fonction = "mw_test_homogeneite_f",
       "Annexe XVII, D(2)(h)(iii) : 'pour toutes les annees d'accident'",
       H0 = "le facteur f_j est commun a toutes les annees de survenance",
       H1 = "les facteurs individuels derivent avec l'annee de survenance",
@@ -6291,6 +6768,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
           "de l'homogeneite de f_j entre annees de survenance")))
   cb <- mw_test_courbure(aj)
   add(fam, "Absence de courbure de la regression",
+      fonction = "mw_test_courbure",
       "Test du terme quadratique, dans l'esprit de Ramsey (1969)",
       H0 = "le terme en C(i,j)^2 est nul dans chaque colonne",
       H1 = "la relation entre cumules successifs n'est pas lineaire",
@@ -6305,6 +6783,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
           "de linearite")))
   al <- mw_famille_alpha(aj)
   add(fam, "Stabilite du facteur selon la ponderation (famille alpha)",
+      fonction = "mw_famille_alpha",
       "Mack (1994), Insurance: Mathematics and Economics 15",
       H0 = "les estimateurs alpha = 0, 1 et 2 visent le meme f_j",
       H1 = "la valeur du facteur depend de la ponderation retenue",
@@ -6319,6 +6798,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
     m <- stats::lm(I(r^2) ~ res$C); list(stat = n * summary(m)$r.squared,
       p = .p_borne(1 - stats::pchisq(n * summary(m)$r.squared, 1))) } else list(stat = NA_real_, p = NA_real_)
   add(fam, "Heteroscedasticite residuelle vs cumul",
+      fonction = "mw_tests",
       "Breusch & Pagan (1979) / Koenker (1981), applique aux residus de Mack",
       H0 = "les residus de Mack ne dependent plus de C(i,j)",
       H1 = "la ponderation en C(i,j) ne capture pas la variance",
@@ -6327,6 +6807,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       detail = "Si Var(C(i,j+1)|C(i,j)) = sigma_j^2 C(i,j), les residus standardises sont d'echelle constante")
   ev <- mw_test_exposant_variance(aj)
   add(fam, "Adequation de l'exposant de variance, colonne par colonne",
+      fonction = "mw_test_exposant_variance",
       "Annexe XVII, D(2)(h)(iv) ; complement de Breusch-Pagan",
       H0 = "|r(i,j)| ne depend pas de C(i,j) dans chaque colonne",
       H1 = "l'exposant 1 impose par le reglement est inadapte",
@@ -6352,6 +6833,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   k_col <- length(unique(res$j))
   var_attendue <- if (n > 1) (n - k_col) / (n - 1) else NA_real_
   add(fam, "Variance unitaire des residus de Mack", "Diagnostic d'echelle",
+      fonction = "mw_tests",
       type = "diagnostic", estim_nom = "var(residus)", estim = stats::var(r),
       detail = sprintf(paste("Valeur de reference %s, et NON 1 : sigma2_j etant",
                              "l'estimateur de Mack, somme_i r(i,j)^2 = n_j - 1",
@@ -6373,6 +6855,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   fam <- "M3. independance (annexe XVII D(2)(h)(i) et (ii))"
   cal <- mw_test_annees_calendaires(aj)
   add(fam, "Effets d'annee calendaire (test de Mack)",
+      fonction = "mw_test_annees_calendaires",
       "Mack (1994), Insurance: Mathematics and Economics 15, 133-138",
       H0 = "absence d'effet d'annee calendaire (diagonales homogenes)",
       H1 = "une ou plusieurs diagonales atypiques (inflation, changement de cadence)",
@@ -6383,6 +6866,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       detail = "Les diagonales representent les exercices comptables : un effet calendaire viole l'independance des annees d'accident")
   ka <- mw_test_homogeneite_accident(aj)
   add(fam, "Homogeneite des residus entre annees de survenance",
+      fonction = "mw_test_homogeneite_accident",
       "Kruskal & Wallis (1952), JASA 47, 583-621",
       H0 = "les residus de Mack ont la meme distribution dans toutes les lignes",
       H1 = "au moins une annee de survenance se comporte differemment",
@@ -6393,6 +6877,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       detail = "Traduction testable de l'independance des annees de survenance, D(2)(h)(i)")
   cor <- mw_stat_correlation_dev(aj)
   add(fam, "Correlation entre annees de developpement adjacentes",
+      fonction = "mw_stat_correlation_dev",
       "Mack (1993, 1997), ASTIN Bulletin ; correlation de rang de Spearman",
       H0 = "facteurs de developpement successifs non correles",
       H1 = "correlation entre colonnes adjacentes",
@@ -6400,12 +6885,14 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       loi = "depend de la geometrie du triangle -> Monte-Carlo", mc_nom = "CorrDev",
       detail = "Une correlation positive signale une dependance entre cadences successives")
   add(fam, "Autocorrelation des residus (Durbin-Watson)",
+      fonction = "stat_dw",
       "Durbin & Watson (1950, 1951)",
       H0 = "residus de Mack non autocorreles", H1 = "autocorrelation residuelle",
       stat_nom = "DW", stat = stat_dw(r),
       loi = "residus de triangle -> Monte-Carlo", mc_nom = "DW")
   ru <- test_runs(r)
   add(fam, "Test des suites sur les residus de Mack",
+      fonction = "test_runs",
       "Wald & Wolfowitz (1940)",
       H0 = "arrangement aleatoire des signes des residus", H1 = "arrangement non aleatoire",
       stat_nom = "Z", stat = ru$stat, loi = "N(0,1) approx. -> Monte-Carlo",
@@ -6416,6 +6903,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   fam <- "M4. points aberrants et stabilite"
   gr <- test_grubbs(r)
   add(fam, "Cellule aberrante du triangle (Grubbs)",
+      fonction = "test_grubbs",
       "Grubbs (1950, 1969), Technometrics 11",
       H0 = "aucun residu de Mack aberrant", H1 = "exactement un residu aberrant",
       stat_nom = "G", stat = gr$stat, loi = "Student + Bonferroni -> Monte-Carlo",
@@ -6426,6 +6914,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                 res$i[gr$idx], res$j[gr$idx]) else "")
   ro <- test_rosner(r, alpha = alpha)
   add(fam, "Cellules aberrantes multiples (ESD generalise)",
+      fonction = "test_rosner",
       "Rosner (1983), Technometrics 25", type = "procedure de decision",
       H0 = "aucun residu aberrant", H1 = "il existe i <= k residus aberrants",
       estim_nom = "nb de cellules aberrantes", estim = ro$nb_outliers,
@@ -6436,6 +6925,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   fam <- "M5. normalite des residus (diagnostic, NON exige par le modele)"
   sw <- .shapiro_sur(r)
   add(fam, "Shapiro-Wilk sur les residus de Mack",
+      fonction = ".shapiro_sur",
       "Shapiro & Wilk (1965) ; loi nulle evaluee par simulation directe",
       H0 = "les residus de Mack sont normaux", H1 = "loi non normale",
       stat_nom = "W", stat = sw$stat,
@@ -6445,6 +6935,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                      "la normalite n'est pas requise par la methode. Ce test n'est pertinent",
                      "que si l'on souhaite exploiter la MSEP pour un quantile."))
   add(fam, "Lilliefors sur les residus de Mack",
+      fonction = "stat_lilliefors",
       "Lilliefors (1967) ; p-value : Dallal & Wilkinson (1986)",
       variante = "secondaire",
       H0 = "les residus de Mack sont normaux", H1 = "loi non normale",
@@ -6458,6 +6949,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   # retenu : c'est ce qui permet au relecteur de refaire le calcul a la main.
   ex <- mw_extrapolation_sigma2(aj)
   add(fam, "Extrapolation de sigma pour la derniere annee de developpement",
+      fonction = "mw_ajuster",
       "Annexe XVII, D(5)(d)(ii), seconde ligne", type = "diagnostic",
       estim_nom = "sigma2_(J-1)", estim = aj$sigma2[aj$J],
       detail = .mw_detail_extrapolation(ex))
@@ -6470,6 +6962,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   # restent restitues dans le detail, ou leur statut est nomme.
   part_derniere <- aj$reserve_par_annee[aj$I + 1] / aj$reserve
   add(fam, "Part de la reserve portee par la derniere annee d'accident",
+      fonction = "mw_tests",
       "Diagnostic de concentration", type = "diagnostic",
       estim_nom = "part", estim = part_derniere,
       detail = sprintf(paste("part = %.1f %% de la reserve totale. Une part elevee concentre la",
@@ -6497,17 +6990,20 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
 # statistiques bilaterales ; les lignes unilaterales ont un plancher
 # 1/(B + 1) < alpha/4). Elle est ecrite dans l'arithmetique flottante de la
 # regle des verdicts, et non comme 4/alpha, pour qu'aucune divergence ne soit
-# possible entre le controle d'entree et le verdict (4/0,1 n'est pas
-# exactement 40 en double). Limite : le controle porte sur B nominal ; le
-# plancher reel est 2/(B_eff + 1).
+# possible entre le controle d'entree et le verdict (mesure du 01/10/2026 :
+# a alpha = 0,00128 et B = 3124, 4/alpha vaut 3124,9999999999995 en double,
+# B + 1 > 4/alpha est vrai mais 2 * (1 / (B + 1)) < alpha / 2 est faux,
+# 2/3125 etant egal a alpha/2 en double ; engine_b_minimal(0.00128) rend
+# 3125). Limite : le controle porte sur B nominal ; le plancher reel est
+# 2/(B_eff + 1).
 # engine_b_minimal(alpha) : plus petit entier B >= 1 tel que
 # 2 * (1 / (B + 1)) < alpha / 2 (borne pure d'alpha, sans le max avec
 # B_MIN_USAGE). Ne sert qu'au message de engine_motif_b_alpha() : l'admission
 # de B y est decidee directement par la condition, sans ce calcul. Recherche
 # bornee autour de 4/alpha (au plus quatre essais) ; erreur explicite si
-# 4/alpha n'est pas fini et < 2^52 (au-dela, b + 1 n'est plus exact en
-# double : revue d'audit de #127, boucle sans fin a alpha = 1e-16) ou si
-# aucun essai ne convient. alpha : nombre scalaire fini > 0.
+# 4/alpha n'est pas fini ou n'est pas < 2^52 (au-dela, b + 1 n'est plus
+# exact en double : revue d'audit de #127, boucle sans fin a alpha = 1e-16)
+# ou si aucun essai ne convient. alpha : nombre scalaire fini > 0.
 engine_b_minimal <- function(alpha) {
   if (!is.numeric(alpha) || length(alpha) != 1L || !is.finite(alpha) || alpha <= 0)
     stop("engine_b_minimal() : alpha doit etre un nombre scalaire fini > 0.", call. = FALSE)
@@ -6546,10 +7042,12 @@ engine_motif_b_alpha <- function(B, alpha) {
   b_min <- tryCatch(engine_b_minimal(alpha), error = function(e) NULL)
   seuil_b <- if (is.null(b_min)) "B trop petit pour ce seuil" else
     sprintf("soit B >= %.0f a ce seuil", b_min)
-  # Valeurs citees comme par saisie() de .engine_verifier_usage(), en double :
-  # un entier (99L, forme possible d'une saisie numerique transmise par
-  # l'application) est cite 99, comme le double 99.
-  saisie <- function(v) paste(deparse(as.double(v)), collapse = " ")
+  # Valeurs citees par .engine_saisie(), comme par saisie() de
+  # .engine_verifier_usage() (15 chiffres, 17 si l'ecriture a 15 chiffres ne
+  # restitue pas la valeur, #133), apres conversion en double : un entier
+  # (99L, forme possible d'une saisie numerique transmise par l'application)
+  # est cite 99, comme le double 99.
+  saisie <- function(v) .engine_saisie(as.double(v))
   sprintf(paste("B = %s et alpha = %s : B + 1 > 4/alpha est requis, %s",
                 "(en plus de B >= B_MIN_USAGE = %.0f). Le plancher bilateral de la p-value",
                 "Monte-Carlo, 2/(B+1) = %.4g, n'est pas inferieur a alpha/2 = %.4g :",
@@ -6613,7 +7111,7 @@ engine_motif_b_alpha <- function(B, alpha) {
 .engine_verifier_usage <- function(B, seed, bareme, alpha = 0.10,
                                    sigma_standard = NULL, segment = NULL,
                                    annexe = "II") {
-  saisie <- function(v) if (!length(v)) "vide" else paste(deparse(v), collapse = " ")
+  saisie <- .engine_saisie
   sans_attribut <- function(v) is.null(attributes(v))
   scalaire_fini <- function(v) is.numeric(v) && length(v) == 1L && is.finite(v) &&
                                  sans_attribut(v)
@@ -6793,7 +7291,10 @@ engine_motif_b_alpha <- function(B, alpha) {
   if (is.null(triangle))
     stop("La methode du risque de reserve no 2 exige un triangle de paiements cumules.")
   triangle <- as.matrix(triangle)
-  validation <- mw_valider_triangle(triangle)
+  # Bareme saisi transmis tel quel (NULL sinon), avec le segment et l'annexe :
+  # l'avertissement de credibilite partielle lit le bareme applique (#131).
+  validation <- mw_valider_triangle(triangle, bareme = bareme, segment = segment,
+                                    annexe = annexe)
   # Nature declaree (issue #55) : des donnees "brutes" sont refusees, D(2)(f)
   # exigeant des montants ajustes de la reassurance (.nature_erreurs()).
   err_nature <- .nature_erreurs("reserve2", nature_donnees)
@@ -7081,29 +7582,15 @@ run_engine <- function(xt, yt,
 
   # --- 1. Donnees et controles de validite ---------------------------------
   if (!plus_recent_en_dernier) { xt <- rev(xt); yt <- rev(yt) }
-  # Profondeur T (issue #87) : controlee AVANT toute troncature. Une valeur
-  # non entiere, NA, non finie, multiple ou hors de [5 ; n] est refusee
-  # (ok = FALSE) ; elle etait auparavant ignoree (NA, Inf, texte) ou
-  # tronquait la serie en silence ((n - 5.5 + 1):n = 3.5:8 retient 5 annees
-  # et ecarte la plus recente). Refusee, la serie n'est pas tronquee et la
-  # validation des donnees porte sur la serie entiere.
+  # Profondeur T et controles de validite : engine_valider_serie_retenue(),
+  # partagee avec l'apercu de l'application (issue #131). n : nombre
+  # d'annees fournies, restitue par metadata$n_fournies (issue #104).
   n <- length(xt)
-  err_T <- engine_valider_profondeur(T, n)
-  if (!is.null(T) && !length(err_T)) {
-    idx <- (n - T + 1):n; xt <- xt[idx]; yt <- yt[idx]
-  }
-  validation <- engine_valider_donnees(xt, yt, theta_equiv = theta_equiv,
-                                       delta_equiv = delta_equiv, methode = methode,
-                                       nature_donnees = nature_donnees)
-  # T refuse : aucune serie n'est retenue ; les avertissements, qui portent
-  # sur une serie retenue (longueur, ratios, amplitude), sont retires et la
-  # longueur retenue validation$T vaut NA (audit de #87, constat 4).
-  if (length(err_T)) {
-    validation$ok <- FALSE
-    validation$erreurs <- c(err_T, validation$erreurs)
-    validation$avertissements <- character(0)
-    validation$T <- NA_integer_
-  }
+  sr <- engine_valider_serie_retenue(xt, yt, T = T, theta_equiv = theta_equiv,
+                                     delta_equiv = delta_equiv, methode = methode,
+                                     nature_donnees = nature_donnees, bareme = bareme,
+                                     segment = segment, annexe = annexe)
+  xt <- sr$xt; yt <- sr$yt; validation <- sr$validation
   if (!validation$ok)
     return(structure(list(ok = FALSE, validation = validation,
                           metadata = list(horodatage = t0)), class = "usp_engine"))
@@ -7133,7 +7620,11 @@ run_engine <- function(xt, yt,
   # (.engine_calcul_protege()), rendu en ok = FALSE.
   .engine_calcul_protege(methode, t0, validation, {
     # --- 3. Estimation, bootstrap, robustesse ---------------------------------
-    controles <- usp_controle_donnees(xt, yt, alpha)
+    # Bareme saisi (NULL sinon), segment et annexe : la ligne "Credibilite
+    # pleine atteinte" lit le bareme applique, metadata$bareme (#131).
+    controles <- usp_controle_donnees(xt, yt, alpha,
+                                      bareme = if (saisi_bareme) bareme else NULL,
+                                      segment = segment, annexe = annexe)
     fit   <- usp_ajuster(xt, yt)
     # Controles numeriques de l'estimation (famille H, non bloquants, #22)
     controles <- c(controles, usp_controles_numeriques(fit))
@@ -7359,6 +7850,8 @@ run_engine <- function(xt, yt,
 # n_fournies (produit avant l'issue #104), ou dont n_fournies n'est pas un
 # entier >= T, est refuse plutot que devine ; pour la methode du risque de
 # reserve no 2, le triangle n'est jamais tronque (n_fournies = T exige).
+# Un T absent ou non entier est refuse ici : engine_derogations() appelle
+# cette fonction avant .engine_trace_bareme() (#135).
 .engine_trace_profondeur <- function(res, appelant) {
   m <- res$metadata
   n <- m$n_fournies; T <- m$T
@@ -7456,12 +7949,16 @@ engine_parametre_standard <- function(res) {
 #   libelle              phrase complete pour bandeau et journal.
 # Erreur si un drapeau manque ou est invalide (pas de deduction), si le
 # sigma standard ou le bareme recalcules different du resultat, ou si
-# metadata$n_fournies manque ou est incoherent (.engine_trace_profondeur()).
+# metadata$n_fournies manque ou est incoherent, ou si metadata$T est absent
+# ou non entier (.engine_trace_profondeur()).
 engine_derogations <- function(res) {
   if (!isTRUE(res$ok)) return(NULL)
   ps <- .engine_trace_sigma(res, "engine_derogations()")
-  tb <- .engine_trace_bareme(res, "engine_derogations()")
+  # Profondeur avant bareme (#135) : un metadata$T invalide est refuse par le
+  # message propre de .engine_trace_profondeur(), et non par celui de
+  # usp_credibilite() appelee dans .engine_trace_bareme().
   tp <- .engine_trace_profondeur(res, "engine_derogations()")
+  tb <- .engine_trace_bareme(res, "engine_derogations()")
   fmt <- function(x) if (is.na(x)) NA_character_ else format(x, digits = 10)
   d <- data.frame(parametre = character(0), valeur_reglementaire = character(0),
                   valeur_retenue = character(0), conforme = logical(0),
@@ -7552,5 +8049,9 @@ engine_table_tests <- function(res) {
     p_retenue = t$p_retenue, nature_p = t$nature_p,
     sens_du_test = t$sens, verdict = t$verdict,
     commentaire = t$detail, reference = t$reference,
+    # fonction (#111) : NULL sur un objet anterieur au champ, rendu NA.
+    fonction = if (is.null(t$fonction)) NA_character_ else t$fonction,
+    # inoperant (#129, point 3) : NULL sur un objet anterieur au champ, rendu NA.
+    inoperant = if (is.null(t$inoperant)) NA else t$inoperant,
     stringsAsFactors = FALSE)))
 }

@@ -717,14 +717,36 @@ server <- function(input, output, session) {
   }
 
   # Validation en direct : l'appel est fait au moteur, pas reimplemente ici.
+  # Segment et annexe transmis comme au clic (issue #131) : l'avertissement
+  # de credibilite partielle lit le bareme du segment. Segment non encore
+  # choisi (NULL ou vide au demarrage) ou absent de l'annexe courante (le
+  # temps que la liste des segments suive un changement d'annexe) : aucun
+  # segment n'est transmis, le moteur lit alors le bareme court par
+  # convention et le dit, au lieu d'un refus transitoire. L'annexe n'est
+  # transmise qu'avec un segment (sans segment, elle ne determine rien).
+  segment_apercu <- function() {
+    s <- input$segment; a <- input$annexe
+    if (length(s) != 1L || is.na(s) || !nzchar(s) || length(a) != 1L) return(NULL)
+    s <- as.integer(s)
+    if (s %in% SEGMENTS$segment[SEGMENTS$annexe == a]) s else NULL
+  }
+  annexe_apercu <- function() if (is.null(segment_apercu())) "II" else input$annexe
   output$validation_live <- renderUI({
-    v <- if (est_mw()) mw_valider_triangle(lire_triangle())
+    v <- if (est_mw()) mw_valider_triangle(lire_triangle(), segment = segment_apercu(),
+                                           annexe = annexe_apercu())
          else { sa <- lire_saisie()
                 # Methode et nature declaree transmises comme au clic
                 # (issue #55) : la nature manquante s'affiche des la saisie.
-                engine_valider_donnees(sa$xt, sa$yt, theta_equiv = marge_theta(),
-                                       delta_equiv = marge_delta(), methode = input$methode,
-                                       nature_donnees = nature_saisie()) }
+                # Serie retenue a la profondeur T, comme au calcul (issue
+                # #131, lecture (A) de #104) : troncature et validation par
+                # le moteur (engine_valider_serie_retenue()).
+                engine_valider_serie_retenue(sa$xt, sa$yt, T = input$profondeur,
+                                             theta_equiv = marge_theta(),
+                                             delta_equiv = marge_delta(),
+                                             methode = input$methode,
+                                             nature_donnees = nature_saisie(),
+                                             segment = segment_apercu(),
+                                             annexe = annexe_apercu())$validation }
     tagList(
       if (length(v$erreurs))
         div(class = "err", tags$b("Donnees non exploitables :"),
@@ -836,7 +858,9 @@ server <- function(input, output, session) {
   # --- Declenchement explicite des calculs ---------------------------------
   observeEvent(input$go, {
     if (est_mw()) {
-      m <- lire_triangle(); v <- mw_valider_triangle(m)
+      # Segment et annexe transmis comme a l'apercu (issue #131).
+      m <- lire_triangle()
+      v <- mw_valider_triangle(m, segment = segment_apercu(), annexe = annexe_apercu())
       if (!v$ok) {
         refuser(TITRE_NON_LANCE, utils::head(v$erreurs, 6))
         showNotification(paste("Calcul non lance :", paste(utils::head(v$erreurs, 2), collapse = " ")),
@@ -854,10 +878,22 @@ server <- function(input, output, session) {
       })
     } else {
       sa <- lire_saisie()
-      v <- engine_valider_donnees(sa$xt, sa$yt, theta_equiv = marge_theta(),
-                                  delta_equiv = marge_delta(), methode = input$methode,
-                                  nature_donnees = nature_saisie())
-      if (!v$ok) {
+      # Controle prealable sur la serie RETENUE a la profondeur T, par la
+      # meme fonction du moteur que run_engine() et l'apercu (issue #131) :
+      # une annee ancienne ecartee par la profondeur n'est plus controlee
+      # (lecture (A) de #104). Profondeur T refusee (champ vide, T > n...) :
+      # le moteur le signale par validation$T = NA ; le calcul est alors
+      # transmis a run_engine(), qui refuse avec le meme motif, et
+      # conserver() garde le titre TITRE_REFUSE et l'aide AIDE_T_VIDE,
+      # comme avant (issue #94).
+      v <- engine_valider_serie_retenue(sa$xt, sa$yt, T = input$profondeur,
+                                        theta_equiv = marge_theta(),
+                                        delta_equiv = marge_delta(),
+                                        methode = input$methode,
+                                        nature_donnees = nature_saisie(),
+                                        segment = segment_apercu(),
+                                        annexe = annexe_apercu())$validation
+      if (!v$ok && !is.na(v$T)) {
         refuser(TITRE_NON_LANCE, utils::head(v$erreurs, 6))
         showNotification(paste("Calcul non lance :", paste(v$erreurs, collapse = " ")),
                          type = "error", duration = 10); return()

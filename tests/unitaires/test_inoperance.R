@@ -84,7 +84,7 @@ reg_fictif <- function(alpha = 0.10, p_mc = 0.5) {
 }
 verifier("add() : p_min >= alpha -> diagnostic INFO, p_retenue NA, p_exacte conservee, detail TEST INOPERANT",
          {
-           r <- reg_fictif(); r$add("F", "t", "ref", p_ex = 0.9, p_min = 0.125,
+           r <- reg_fictif(); r$add("F", "t", "ref", fonction = "usp_tests", p_ex = 0.9, p_min = 0.125,
                                     effectifs = "m = 4", detail = "d")
            l <- r$lignes()[[1]]
            identical(l$type, "diagnostic") && identical(l$verdict, "INFO") &&
@@ -94,11 +94,11 @@ verifier("add() : p_min >= alpha -> diagnostic INFO, p_retenue NA, p_exacte cons
              endsWith(l$detail, " d")
          })
 verifier("add() : p_min = alpha (borne incluse) -> inoperant",
-         { r <- reg_fictif(); r$add("F", "t", "ref", p_ex = 0.9, p_min = 0.10)
+         { r <- reg_fictif(); r$add("F", "t", "ref", fonction = "usp_tests", p_ex = 0.9, p_min = 0.10)
            identical(r$lignes()[[1]]$type, "diagnostic") })
 verifier("add() : alpha/2 <= p_min < alpha -> test maintenu, ECHEC inatteignable dans detail",
          {
-           r <- reg_fictif(); r$add("F", "t", "ref", p_ex = 0.06, p_min = 4 / 70, detail = "d.")
+           r <- reg_fictif(); r$add("F", "t", "ref", fonction = "usp_tests", p_ex = 0.06, p_min = 4 / 70, detail = "d.")
            l <- r$lignes()[[1]]
            identical(l$type, "test") && identical(l$verdict, "ALERTE") &&
              grepl("ECHEC inatteignable : p_min = 0.0571 >= alpha/2 = 0.05", l$detail, fixed = TRUE)
@@ -110,7 +110,7 @@ verifier("add() : alpha/2 <= p_min < alpha -> test maintenu, ECHEC inatteignable
 verifier("add() : p_ex NA, p_min = 0,0571, p_mc = 0,048 -> ECHEC, detail 'ECHEC possible' sans 'ECHEC inatteignable'",
          {
            r <- reg_fictif(p_mc = 0.048)
-           r$add("F", "t", "ref", p_min = 4 / 70, mc_nom = "A", effectifs = "n1 = 4, n2 = 4",
+           r$add("F", "t", "ref", fonction = "usp_tests", p_min = 4 / 70, mc_nom = "A", effectifs = "n1 = 4, n2 = 4",
                  detail = "d.")
            l <- r$lignes()[[1]]
            identical(l$type, "test") && identical(l$verdict, "ECHEC") && identical(l$p_retenue, 0.048) &&
@@ -122,7 +122,7 @@ verifier("add() : p_ex NA, p_min = 0,0571, p_mc = 0,048 -> ECHEC, detail 'ECHEC 
          })
 verifier("add() : p_ex NA, alpha/2 <= p_min < alpha, p_mc = 0,5 -> test OK, meme texte 'ECHEC possible'",
          {
-           r <- reg_fictif(); r$add("F", "t", "ref", p_min = 4 / 70, mc_nom = "A")
+           r <- reg_fictif(); r$add("F", "t", "ref", fonction = "usp_tests", p_min = 4 / 70, mc_nom = "A")
            l <- r$lignes()[[1]]
            identical(l$type, "test") && identical(l$verdict, "OK") &&
              startsWith(l$detail, "p_min de la loi de reference echangeable = 0.0571 >= alpha/2 = 0.05 ;") &&
@@ -130,23 +130,27 @@ verifier("add() : p_ex NA, alpha/2 <= p_min < alpha, p_mc = 0,5 -> test OK, meme
          })
 verifier("add() : p_ex NA, p asymptotique seule, alpha/2 <= p_min < alpha -> texte de la p asymptotique",
          {
-           r <- reg_fictif(); r$add("F", "t", "ref", p_as = 0.3, p_min = 4 / 70)
+           r <- reg_fictif(); r$add("F", "t", "ref", fonction = "usp_tests", p_as = 0.3, p_min = 4 / 70)
            l <- r$lignes()[[1]]
            identical(l$type, "test") && identical(l$nature_p, "asymptotique") &&
              grepl("la p-value asymptotique retenue, calculee hors de cette loi", l$detail, fixed = TRUE) &&
              !grepl("inatteignable", l$detail, fixed = TRUE)
          })
-verifier("add() : aucune p (exacte, Monte-Carlo, asymptotique), alpha/2 <= p_min < alpha -> INFO, texte 'ECHEC inatteignable' inchange",
+# #128, point 2' (decision du mainteneur du 01/10/2026) : sans aucune p, la
+# phrase "ECHEC inatteignable" n'est plus ajoutee ; le detail dit qu'aucun
+# verdict n'est possible. Type, verdict, sens et p_retenue inchanges.
+verifier("add() : aucune p (exacte, Monte-Carlo, asymptotique), alpha/2 <= p_min < alpha -> test INFO, phrase 'aucune p-value disponible', sans 'ECHEC inatteignable'",
          {
-           r <- reg_fictif(); r$add("F", "t", "ref", p_min = 4 / 70)
+           r <- reg_fictif(); r$add("F", "t", "ref", fonction = "usp_tests", p_min = 4 / 70)
            l <- r$lignes()[[1]]
            identical(l$type, "test") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
-             identical(l$detail, "ECHEC inatteignable : p_min = 0.0571 >= alpha/2 = 0.05")
+             identical(l$sens, "ne pas rejeter") &&
+             identical(l$detail, "aucune p-value disponible sur ces donnees : aucun verdict (ADR 0001).")
          })
 verifier("add() : p_ex NA, p_min >= alpha -> TEST INOPERANT en tete, p_min 'sous la loi de reference echangeable'",
          {
            r <- reg_fictif(p_mc = 0.048)
-           r$add("F", "t", "ref", p_min = 0.125, mc_nom = "A", effectifs = "m = 4", detail = "d")
+           r$add("F", "t", "ref", fonction = "usp_tests", p_min = 0.125, mc_nom = "A", effectifs = "m = 4", detail = "d")
            l <- r$lignes()[[1]]
            identical(l$type, "diagnostic") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
              identical(l$p_mc, 0.048) &&
@@ -156,36 +160,54 @@ verifier("add() : p_ex NA, p_min >= alpha -> TEST INOPERANT en tete, p_min 'sous
          })
 verifier("add() : p_min NA -> comportement inchange (verdict, detail)",
          {
-           r <- reg_fictif(); r$add("F", "t", "ref", p_ex = 0.01, detail = "d")
+           r <- reg_fictif(); r$add("F", "t", "ref", fonction = "usp_tests", p_ex = 0.01, detail = "d")
            l <- r$lignes()[[1]]
            identical(l$type, "test") && identical(l$verdict, "ECHEC") && identical(l$detail, "d") &&
              is.na(l$p_min)
          })
 verifier("add() : sens = 'rejeter' et p_min >= alpha -> inoperant",
-         { r <- reg_fictif(); r$add("F", "t", "ref", p_ex = 0.01, p_min = 0.2, sens = "rejeter")
+         { r <- reg_fictif(); r$add("F", "t", "ref", fonction = "usp_tests", p_ex = 0.01, p_min = 0.2, sens = "rejeter")
            identical(r$lignes()[[1]]$verdict, "INFO") })
 verifier("add() : p_min < alpha/2 -> test, detail inchange",
-         { r <- reg_fictif(); r$add("F", "t", "ref", p_ex = 0.01, p_min = 0.02, detail = "d")
+         { r <- reg_fictif(); r$add("F", "t", "ref", fonction = "usp_tests", p_ex = 0.01, p_min = 0.02, detail = "d")
            l <- r$lignes()[[1]]; identical(l$verdict, "ECHEC") && identical(l$detail, "d") })
 
 ## --- 3. Motifs d'indisponibilite Monte-Carlo (regles R2, R3) ------------------
-verifier("engine_p_mc : motifs (observee non finie > aucune replication > dispersion nulle), p_mc NA",
+verifier("engine_p_mc : motifs (observee non finie > aucune replication > replications insuffisantes > dispersion nulle), p_mc NA",
          {
            a <- engine_p_mc(1:9, NA_real_, "haut")
            b <- engine_p_mc(c(NA, NaN), 1, "haut")
            c0 <- engine_p_mc(rep(2, 50), 2, "deux")
-           d <- engine_p_mc(1:9, 7, "haut")
+           d <- engine_p_mc(1:99, 70, "haut")
+           e <- engine_p_mc(1:9, 7, "haut")
            identical(a$motif, MOTIF_MC_OBS_NON_FINIE) && identical(b$motif, MOTIF_MC_AUCUNE_REPLIC) &&
              identical(c0$motif, MOTIF_MC_DISPERSION_NULLE) && is.na(c0$p_mc) && is.na(c0$err_mc) &&
-             identical(c0$B_effectif, 50) && is.na(d$motif) && proche(d$p_mc, 0.4)
+             identical(c0$B_effectif, 50) && is.na(d$motif) && proche(d$p_mc, 0.31) &&
+             identical(e$motif, MOTIF_MC_REPLIC_INSUFFISANTES)
          })
 verifier("engine_p_mc : dispersion tout juste au-dessus du seuil relatif (50 simulations) -> p_mc calculee",
          is.na(engine_p_mc(c(rep(1e6, 49), 1e6 + 1e-3), 1e6, "haut")$motif) &&
          identical(engine_p_mc(c(rep(1e6, 49), 1e6 + 1e-7), 1e6, "haut")$motif, MOTIF_MC_DISPERSION_NULLE))
-verifier("engine_p_mc : sous B_MIN_DEGENERESCENCE = 50 simulations finies, loi constante -> p_mc calculee, aucun motif",
+# #128, point 1 : 0 < B_eff < B_MIN_DEGENERESCENCE = 50 -> motif
+# MOTIF_MC_REPLIC_INSUFFISANTES, p_mc et err_mc NA (motif pose si et
+# seulement si p_mc est absente), B_effectif rendu ; B_eff = 50 : p_mc
+# calculee, sans motif ; B_eff = 0 : motif existant MOTIF_MC_AUCUNE_REPLIC.
+# Les simulations non finies ne comptent pas dans B_eff.
+verifier("engine_p_mc : B_eff = 1 et 49 -> motif replications insuffisantes, p_mc NA ; 50 -> p_mc calculee ; 0 -> aucune replication",
          {
-           o <- engine_p_mc(rep(2, 49), 2, "deux")
-           B_MIN_DEGENERESCENCE == 50 && identical(o$p_mc, 1) && is.na(o$motif)
+           insuff <- function(o, b) identical(o$motif, MOTIF_MC_REPLIC_INSUFFISANTES) &&
+             is.na(o$p_mc) && is.na(o$err_mc) && identical(o$B_effectif, b)
+           o1 <- engine_p_mc(c(3, NA, Inf), 2, "haut")
+           o49 <- engine_p_mc(c(1:49, rep(NA, 50)), 20, "deux")
+           o49c <- engine_p_mc(rep(2, 49), 2, "deux")
+           o50 <- engine_p_mc(c(1:50, rep(NaN, 49)), 20, "deux")
+           o0 <- engine_p_mc(rep(NA_real_, 99), 2, "haut")
+           B_MIN_DEGENERESCENCE == 50 &&
+             grepl("B_MIN_DEGENERESCENCE = 50", MOTIF_MC_REPLIC_INSUFFISANTES, fixed = TRUE) &&
+             insuff(o1, 1) && insuff(o49, 49) && insuff(o49c, 49) &&
+             is.na(o50$motif) && identical(o50$B_effectif, 50) &&
+             proche(o50$p_mc, 2 * 21 / 51) && proche(o50$granularite, 2 / 51) &&
+             identical(o0$motif, MOTIF_MC_AUCUNE_REPLIC) && identical(o0$B_effectif, 0)
          })
 verifier("engine_p_mc : loi ponctuelle, observee hors de l'atome -> motif atome hors obs, p_mc NA",
          {
@@ -195,15 +217,26 @@ verifier("engine_p_mc : loi ponctuelle, observee hors de l'atome -> motif atome 
 # run_engine() refuse B < B_MIN_USAGE = 99 (constat C1 de la revue finale
 # d'E1) : la branche "sous B_MIN_DEGENERESCENCE" est exercee par
 # usp_bootstrap() et usp_tests() appeles directement, non bornes.
-verifier("usp_bootstrap(B = 2) + usp_tests() : Smirnov et Cox-Stuart gardent leur p exacte (aucune degenerescence sous 50)",
+# B = 2 (#128) : toutes les p_mc absentes, motif replications insuffisantes ;
+# Smirnov et Cox-Stuart gardent leur p exacte (motif sans degenerescence) ;
+# une ligne sans p exacte avec p asymptotique se replie, nommee (RESET) ;
+# une ligne sans aucune p reste un test INFO avec la phrase de #128 (sup-F).
+verifier("usp_bootstrap(B = 2) + usp_tests() : motif replications insuffisantes ; p exactes gardees, repli nomme, test sans p-value",
          {
            b2 <- usp_bootstrap(fit, B = 2, seed = 20260831)
            t2 <- usp_tests(fit, b2, methode = "premium")
            sm <- ligne(t2, "Egalite des lois petits vs gros volumes (2 ech.)")
            cs <- ligne(t2, "Tendance par signes du ratio S/P")
+           rs <- ligne(t2, "RESET (forme fonctionnelle)")
+           sf <- ligne(t2, "Rupture de niveau (sup-F)")
            identical(sm$nature_p, "exacte") && is.finite(sm$p_retenue) &&
              is.finite(cs$p_exacte) && identical(cs$type, "diagnostic") &&
-             all(is.na(b2$motif_mc)) && all(is.finite(b2$p_mc[c("Smirnov", "CoxStuart")]))
+             all(b2$motif_mc == MOTIF_MC_REPLIC_INSUFFISANTES) && all(is.na(b2$p_mc)) &&
+             identical(rs$nature_p, paste0("asymptotique (Monte-Carlo indisponible : ",
+                                           MOTIF_MC_REPLIC_INSUFFISANTES, ")")) &&
+             identical(sf$type, "test") && identical(sf$verdict, "INFO") && is.na(sf$p_retenue) &&
+             startsWith(sf$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES,
+                                          " ; aucune p-value disponible sur ces donnees : aucun verdict (ADR 0001)."))
          })
 verifier("run_engine(B = 2) refuse : erreur d'usage citant B_MIN_USAGE",
          {
@@ -217,18 +250,18 @@ cat_synth <- list(
   B = .mc_entree(function(e) e$v, "haut", degenere = function(e) FALSE),
   C = .mc_entree(function(e) NA_real_, "haut", non_definie = function(e) "motif du catalogue"),
   D = .mc_entree(function(e) NA_real_, "haut"))
-sim_synth <- matrix(rep(1:9, 4), 9, 4, dimnames = list(NULL, c("A", "B", "C", "D")))
-obs_synth <- c(A = 7, B = 7, C = NA_real_, D = NA_real_)
-mc_synth <- .mc_p_values(sim_synth, obs_synth, cat_synth, e = list(v = 7))
+sim_synth <- matrix(rep(1:99, 4), 99, 4, dimnames = list(NULL, c("A", "B", "C", "D")))
+obs_synth <- c(A = 70, B = 70, C = NA_real_, D = NA_real_)
+mc_synth <- .mc_p_values(sim_synth, obs_synth, cat_synth, e = list(v = 70))
 verifier(".mc_p_values : degenere(e) TRUE -> p_mc NA, motif de la condition du catalogue ; FALSE -> inchange",
          is.na(mc_synth$p_mc[["A"]]) && is.na(mc_synth$err_mc[["A"]]) &&
          identical(mc_synth$motif_mc[["A"]], MOTIF_MC_CONDITION) &&
-         proche(mc_synth$p_mc[["B"]], 0.4) && is.na(mc_synth$motif_mc[["B"]]))
+         proche(mc_synth$p_mc[["B"]], 0.31) && is.na(mc_synth$motif_mc[["B"]]))
 verifier(".mc_p_values : non_definie remplace le motif generique ; sans elle, motif generique",
          identical(mc_synth$motif_mc[["C"]], "motif du catalogue") &&
          identical(mc_synth$motif_mc[["D"]], MOTIF_MC_OBS_NON_FINIE))
 verifier(".mc_p_values : sans contexte, conditions du catalogue non evaluees (compatibilite)",
-         proche(.mc_p_values(sim_synth, obs_synth, cat_synth)$p_mc[["A"]], 0.4))
+         proche(.mc_p_values(sim_synth, obs_synth, cat_synth)$p_mc[["A"]], 0.31))
 verifier(".mc_entree : degenere ou non_definie autre qu'une fonction refuse ; degenere non logique refuse",
          leve_erreur(.mc_entree(function(e) 1, "haut", degenere = TRUE)) &&
          leve_erreur(.mc_entree(function(e) 1, "haut", non_definie = "x")) &&
@@ -242,23 +275,66 @@ verifier("add() : motif de degenerescence -> diagnostic INFO, aucune p retenue m
          {
            ok <- vapply(c(MOTIF_MC_CONDITION, MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_ATOME_HORS_OBS),
                         function(m) {
-             r <- reg_motif(m); r$add("F", "t", "ref", p_ex = 0.5, p_as = 0.3, mc_nom = "S")
+             r <- reg_motif(m); r$add("F", "t", "ref", fonction = "usp_tests", p_ex = 0.5, p_as = 0.3, mc_nom = "S")
              l <- r$lignes()[[1]]
              identical(l$type, "diagnostic") && identical(l$verdict, "INFO") &&
                is.na(l$p_retenue) && startsWith(l$detail, m)
            }, logical(1))
            all(ok)
          })
+# Cas construit (#126, point 1) : 60 simulations toutes egales a 2, observee
+# 3 ; le motif est produit par engine_p_mc() via .mc_p_values(), puis lu par
+# add(). Le detail porte le motif, la phrase de DETAIL_MC_ATOME_HORS_OBS et le
+# detail de l'appelant, sans l'ecart observee - atome (grandeur de bruit).
+verifier("add() : loi simulee ponctuelle hors de l'atome -> diagnostic INFO, detail complete (#126)",
+         {
+           cat_at <- list(S = .mc_entree(function(e) e$v, "haut"))
+           mc_at <- .mc_p_values(matrix(2, 60, 1, dimnames = list(NULL, "S")), c(S = 3),
+                                 cat_at, e = list(v = 3))
+           r <- engine_registre_tests(mc_at, cat_at, 0.10, "Monte-Carlo")
+           r$add("F", "t", "ref", fonction = "usp_tests", p_ex = 0.5, mc_nom = "S", detail = "detail appelant")
+           l <- r$lignes()[[1]]
+           attendu <- paste0(MOTIF_MC_ATOME_HORS_OBS, " : aucune p-value retenue (ADR 0001). ",
+                             DETAIL_MC_ATOME_HORS_OBS, " detail appelant")
+           identical(mc_at$motif_mc[["S"]], MOTIF_MC_ATOME_HORS_OBS) &&
+             identical(l$type, "diagnostic") && identical(l$verdict, "INFO") &&
+             is.na(l$p_retenue) && identical(l$detail, attendu) &&
+             grepl(paste("Aucune simulation sous le modele ajuste ne reproduit la valeur",
+                         "observee : incompatibilite du modele avec les donnees ou asymetrie",
+                         "de calcul entre observe et simule, a examiner avant toute conclusion."),
+                   l$detail, fixed = TRUE) &&
+             !grepl("(loi simulee ponctuelle)", l$detail, fixed = TRUE)
+         })
+# Controle negatif (#126, constat C2 d'audit) : les autres motifs de
+# degenerescence et une ligne sans motif ne recoivent pas la phrase ; detail
+# inchange pour eux (prefixe du motif puis detail de l'appelant).
+verifier("add() : dispersion nulle, condition du catalogue, ligne sans motif -> detail sans la phrase de l'atome hors obs",
+         {
+           ok <- vapply(c(MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_CONDITION), function(m) {
+             r <- reg_motif(m); r$add("F", "t", "ref", fonction = "usp_tests", mc_nom = "S", detail = "d")
+             identical(r$lignes()[[1]]$detail,
+                       paste0(m, " : aucune p-value retenue (ADR 0001). d"))
+           }, logical(1))
+           r0 <- engine_registre_tests(list(p_mc = c(S = 0.4), err_mc = c(S = 0.01),
+                                            motif_mc = c(S = NA_character_)),
+                                       list(S = .mc_entree(function(e) 1, "haut")),
+                                       0.10, "Monte-Carlo")
+           r0$add("F", "t", "ref", fonction = "usp_tests", mc_nom = "S", detail = "d")
+           l0 <- r0$lignes()[[1]]
+           all(ok) && identical(l0$detail, "d") && identical(l0$type, "test") &&
+             !grepl(DETAIL_MC_ATOME_HORS_OBS, l0$detail, fixed = TRUE) &&
+             identical(.complement_motif_mc(NA_character_), character(0))
+         })
 verifier("add() : statistique observee non finie sans p exacte -> non applicable avec le motif",
          {
-           r <- reg_motif(MOTIF_MC_OBS_NON_FINIE); r$add("F", "t", "ref", p_as = 0.3, mc_nom = "S")
+           r <- reg_motif(MOTIF_MC_OBS_NON_FINIE); r$add("F", "t", "ref", fonction = "usp_tests", p_as = 0.3, mc_nom = "S")
            l <- r$lignes()[[1]]
            identical(l$type, "non applicable") && identical(l$verdict, "INFO") &&
              startsWith(l$detail, MOTIF_MC_OBS_NON_FINIE)
          })
 verifier("add() : aucune replication finie avec p asymptotique -> repli NOMME",
          {
-           r <- reg_motif(MOTIF_MC_AUCUNE_REPLIC); r$add("F", "t", "ref", p_as = 0.3, mc_nom = "S")
+           r <- reg_motif(MOTIF_MC_AUCUNE_REPLIC); r$add("F", "t", "ref", fonction = "usp_tests", p_as = 0.3, mc_nom = "S")
            l <- r$lignes()[[1]]
            identical(l$type, "test") && identical(l$p_retenue, 0.3) &&
              identical(l$nature_p, paste0("asymptotique (Monte-Carlo indisponible : ",
@@ -267,7 +343,7 @@ verifier("add() : aucune replication finie avec p asymptotique -> repli NOMME",
 verifier("add() : repli_asymptotique = FALSE, aucune replication finie -> diagnostic, p asymptotique conservee non retenue",
          {
            r <- reg_motif(MOTIF_MC_AUCUNE_REPLIC)
-           r$add("F", "t", "ref", p_as = 0.3, mc_nom = "S", repli_asymptotique = FALSE,
+           r$add("F", "t", "ref", fonction = "usp_tests", p_as = 0.3, mc_nom = "S", repli_asymptotique = FALSE,
                  libelle_p_as = "p de Student sous le modele auxiliaire MCO")
            l <- r$lignes()[[1]]
            identical(l$type, "diagnostic") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
@@ -278,7 +354,7 @@ verifier("add() : repli_asymptotique = FALSE, aucune replication finie -> diagno
 verifier("add() : motif present et p exacte finie (hors degenerescence) -> p exacte retenue",
          {
            r <- reg_motif("statistique observee non definie : ex aequo")
-           r$add("F", "t", "ref", p_ex = 0.5, mc_nom = "S")
+           r$add("F", "t", "ref", fonction = "usp_tests", p_ex = 0.5, mc_nom = "S")
            l <- r$lignes()[[1]]
            identical(l$type, "test") && identical(l$nature_p, "exacte") && identical(l$p_retenue, 0.5)
          })
@@ -286,7 +362,7 @@ verifier("add() : bootstrap sans champ motif_mc (objet anterieur) -> comportemen
          {
            r <- engine_registre_tests(list(p_mc = c(S = NA_real_), err_mc = c(S = NA_real_)),
                                       list(S = .mc_entree(function(e) 1, "haut")), 0.10, "MC")
-           r$add("F", "t", "ref", p_as = 0.3, mc_nom = "S")
+           r$add("F", "t", "ref", fonction = "usp_tests", p_as = 0.3, mc_nom = "S")
            identical(r$lignes()[[1]]$nature_p, "asymptotique")
          })
 
@@ -428,6 +504,256 @@ verifier("Cox-Stuart, suites, Smirnov, Mann-Kendall, Spearman : p_min renseignee
                         logical(1)))
          })
 
+## --- 4 bis. #128 : B effectif insuffisant, test sans p-value, plancher -------
+# Bootstrap construit par .mc_p_values() sur B_eff simulations finies
+# 1..B_eff (et 99 - B_eff non finies), observee au milieu : motif produit par
+# engine_p_mc(), lu par add().
+boot_beff <- function(b_eff, obs = 0.5 * (b_eff + 1), queue = "haut") {
+  cat_q <- list(S = .mc_entree(function(e) e$v, queue))
+  sim <- matrix(c(seq_len(b_eff), rep(NA_real_, max(0, 99 - b_eff))), ncol = 1,
+                dimnames = list(NULL, "S"))
+  mc <- .mc_p_values(sim, c(S = obs), cat_q, e = list(v = obs))
+  list(p_mc = mc$p_mc, err_mc = mc$err_mc, motif_mc = mc$motif_mc,
+       B_effectif = mc$B_effectif, granularite_stat = mc$granularite)
+}
+reg_beff <- function(b_eff, alpha = 0.10, ...) {
+  b <- boot_beff(b_eff, ...)
+  engine_registre_tests(b, list(S = .mc_entree(function(e) 1, "haut")), alpha, "Monte-Carlo")
+}
+verifier("add() : B_eff = 1 et 49, p asymptotique -> repli nomme 'Monte-Carlo indisponible : replications finies insuffisantes'",
+         all(vapply(c(1, 49), function(b) {
+           r <- reg_beff(b); r$add("F", "t", "ref", fonction = "usp_tests", p_as = 0.3, mc_nom = "S")
+           l <- r$lignes()[[1]]
+           identical(l$type, "test") && identical(l$verdict, "OK") && identical(l$p_retenue, 0.3) &&
+             is.na(l$p_mc) &&
+             identical(l$nature_p, paste0("asymptotique (Monte-Carlo indisponible : ",
+                                          MOTIF_MC_REPLIC_INSUFFISANTES, ")"))
+         }, logical(1))))
+verifier("add() : B_eff = 1 et 49, aucune p -> test INFO, sens et p_retenue inchanges, motif puis phrase 'aucune p-value disponible'",
+         all(vapply(c(1, 49), function(b) {
+           r <- reg_beff(b); r$add("F", "t", "ref", fonction = "usp_tests", mc_nom = "S", detail = "d")
+           l <- r$lignes()[[1]]
+           identical(l$type, "test") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
+             is.na(l$nature_p) && identical(l$sens, "ne pas rejeter") &&
+             identical(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES,
+                                        " ; aucune p-value disponible sur ces donnees : aucun verdict",
+                                        " (ADR 0001). d"))
+         }, logical(1))))
+verifier("add() : B_eff = 50 -> p Monte-Carlo retenue, aucun motif ni phrase de #128",
+         {
+           r <- reg_beff(50); r$add("F", "t", "ref", fonction = "usp_tests", p_as = 0.3, mc_nom = "S", detail = "d")
+           l <- r$lignes()[[1]]
+           identical(l$nature_p, "Monte-Carlo") && proche(l$p_retenue, 26 / 51) && identical(l$detail, "d")
+         })
+verifier("add() : B_eff = 0, aucune p -> motif 'aucune replication finie' dans le detail (residu C1)",
+         {
+           r <- reg_beff(0); r$add("F", "t", "ref", fonction = "usp_tests", mc_nom = "S")
+           l <- r$lignes()[[1]]
+           identical(l$type, "test") && identical(l$verdict, "INFO") &&
+             identical(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_AUCUNE_REPLIC,
+                                        " ; aucune p-value disponible sur ces donnees : aucun verdict",
+                                        " (ADR 0001)."))
+         })
+verifier("add() : aucune p, motif deja dans le detail -> motif non repete ; alpha/2 <= p_min < alpha -> sans 'ECHEC inatteignable'",
+         {
+           r <- reg_motif("statistique observee non definie : ex aequo")
+           r$add("F", "t", "ref", fonction = "usp_tests", mc_nom = "S", p_min = 0.0625, effectifs = "m = 5",
+                 detail = "p_mc absente (statistique observee non definie : ex aequo)")
+           l <- r$lignes()[[1]]
+           identical(l$type, "test") && identical(l$verdict, "INFO") &&
+             identical(l$detail, paste("aucune p-value disponible sur ces donnees : aucun verdict (ADR 0001).",
+                                       "p_mc absente (statistique observee non definie : ex aequo)")) &&
+             !grepl("inatteignable", l$detail, fixed = TRUE)
+         })
+verifier("add() : aucune p et p_min >= alpha -> TEST INOPERANT inchange, sans phrase de #128",
+         {
+           r <- reg_fictif(); r$add("F", "t", "ref", fonction = "usp_tests", p_min = 0.125, detail = "d")
+           l <- r$lignes()[[1]]
+           identical(l$type, "diagnostic") && startsWith(l$detail, "TEST INOPERANT") &&
+             !grepl("aucune p-value disponible", l$detail, fixed = TRUE)
+         })
+verifier(".mc_p_values : B_eff < 50 et condition degenere(e) vraie -> motif de la condition (pas de repli)",
+         {
+           cat_d <- list(S = .mc_entree(function(e) e$v, "haut", degenere = function(e) TRUE))
+           mc <- .mc_p_values(matrix(1:9, ncol = 1, dimnames = list(NULL, "S")), c(S = 5), cat_d,
+                              e = list(v = 5))
+           identical(mc$motif_mc[["S"]], MOTIF_MC_CONDITION) && is.na(mc$p_mc[["S"]])
+         })
+# B_eff = 0 (#128, question 1 de coder, avis d'actuary) : la condition
+# degenere l'emporte aussi sur MOTIF_MC_AUCUNE_REPLIC ; la ligne est un
+# diagnostic sans p retenue, meme avec p asymptotique (aucun repli). Une
+# statistique observee non finie garde MOTIF_MC_OBS_NON_FINIE.
+verifier(".mc_p_values + add() : B_eff = 0 et condition degenere(e) vraie -> diagnostic INFO sans p, aucun repli ; observee non finie inchangee",
+         {
+           cat_d <- list(S = .mc_entree(function(e) e$v, "haut", degenere = function(e) TRUE))
+           sim0 <- matrix(NA_real_, 99, 1, dimnames = list(NULL, "S"))
+           mc <- .mc_p_values(sim0, c(S = 5), cat_d, e = list(v = 5))
+           mc_nf <- .mc_p_values(sim0, c(S = NA_real_), cat_d, e = list(v = NA_real_))
+           r <- engine_registre_tests(list(p_mc = mc$p_mc, err_mc = mc$err_mc, motif_mc = mc$motif_mc,
+                                           B_effectif = mc$B_effectif, granularite_stat = mc$granularite),
+                                      cat_d, 0.10, "Monte-Carlo")
+           r$add("F", "t", "ref", fonction = "usp_tests", p_as = 0.3, mc_nom = "S")
+           l <- r$lignes()[[1]]
+           identical(mc$motif_mc[["S"]], MOTIF_MC_CONDITION) && identical(mc$B_effectif[["S"]], 0) &&
+             identical(mc_nf$motif_mc[["S"]], MOTIF_MC_OBS_NON_FINIE) &&
+             identical(l$type, "diagnostic") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
+             is.na(l$nature_p) && identical(l$p_asymptotique, 0.3) && startsWith(l$detail, MOTIF_MC_CONDITION)
+         })
+# Plancher Monte-Carlo (#128, point d) : g = granularite_stat. Bilateral a
+# alpha = 0,05 : B_eff = 79 -> g = 2/80 = 0,025 >= alpha/2 (mention) ;
+# B_eff = 80 -> g = 2/81 < alpha/2 (aucune mention).
+verifier("add() : plancher bilateral, alpha = 0,05 : B_eff = 79 -> mention 'ECHEC inatteignable' ; 80 -> aucune",
+         {
+           r79 <- reg_beff(79, alpha = 0.05, queue = "deux"); r79$add("F", "t", "ref", fonction = "usp_tests", mc_nom = "S", detail = "d")
+           r80 <- reg_beff(80, alpha = 0.05, queue = "deux"); r80$add("F", "t", "ref", fonction = "usp_tests", mc_nom = "S", detail = "d")
+           l79 <- r79$lignes()[[1]]; l80 <- r80$lignes()[[1]]
+           identical(l79$nature_p, "Monte-Carlo") && identical(l79$verdict, "OK") &&
+             identical(l79$detail, "d ; plancher Monte-Carlo >= alpha/2 = 0.025 : ECHEC inatteignable") &&
+             identical(l80$detail, "d")
+         })
+verifier("add() : plancher, sens 'rejeter' : g = 1/100 >= alpha = 0,01 -> 'OK inatteignable' ; g = 1/101 -> aucune",
+         {
+           r1 <- reg_beff(99, alpha = 0.01); r1$add("F", "t", "ref", fonction = "usp_tests", mc_nom = "S", sens = "rejeter")
+           r2 <- reg_beff(100, alpha = 0.01); r2$add("F", "t", "ref", fonction = "usp_tests", mc_nom = "S", sens = "rejeter")
+           identical(r1$lignes()[[1]]$detail,
+                     "plancher Monte-Carlo >= alpha = 0.01 : OK inatteignable") &&
+             identical(r2$lignes()[[1]]$detail, "")
+         })
+verifier("add() : plancher, sens 'ne pas rejeter', g = 2/100 >= alpha = 0,02 -> 'seul OK atteignable' ; p exacte retenue -> aucune",
+         {
+           r1 <- reg_beff(99, alpha = 0.02, queue = "deux"); r1$add("F", "t", "ref", fonction = "usp_tests", mc_nom = "S")
+           r2 <- reg_beff(99, alpha = 0.02, queue = "deux"); r2$add("F", "t", "ref", fonction = "usp_tests", mc_nom = "S", p_ex = 0.5)
+           identical(r1$lignes()[[1]]$detail,
+                     "plancher Monte-Carlo >= alpha = 0.02 : seul OK atteignable") &&
+             identical(r2$lignes()[[1]]$detail, "")
+         })
+# Regle R1 sans p exacte, alpha/2 <= p_min < alpha, p Monte-Carlo retenue
+# (#128, constat M1 d'audit) : si le plancher g >= alpha/2, la suite "ECHEC
+# possible" est omise et la mention du plancher suit ; si g < alpha/2, texte
+# inchange. Cas construit : bilateral, alpha = 0,06 (alpha/2 = 0,03),
+# p_min = 4/70 = 0,0571 ; B_eff = 59 -> g = 2/60 = 0,0333 >= 0,03 ;
+# B_eff = 99 -> g = 2/100 = 0,02 < 0,03.
+verifier("add() : R1 sans p exacte, g >= alpha/2 -> 'ECHEC possible' omis, plancher mentionne ; g < alpha/2 -> 'ECHEC possible' inchange",
+         {
+           r1 <- reg_beff(59, alpha = 0.06, queue = "deux")
+           r1$add("F", "t", "ref", fonction = "usp_tests", mc_nom = "S", p_min = 4 / 70, effectifs = "n1 = 4, n2 = 4")
+           r2 <- reg_beff(99, alpha = 0.06, queue = "deux")
+           r2$add("F", "t", "ref", fonction = "usp_tests", mc_nom = "S", p_min = 4 / 70, effectifs = "n1 = 4, n2 = 4")
+           identical(r1$lignes()[[1]]$detail,
+                     paste("p_min de la loi de reference echangeable = 0.0571 >= alpha/2 = 0.03",
+                           "(n1 = 4, n2 = 4) ; plancher Monte-Carlo >= alpha/2 = 0.03 : ECHEC inatteignable")) &&
+             identical(r2$lignes()[[1]]$detail,
+                       paste("p_min de la loi de reference echangeable = 0.0571 >= alpha/2 = 0.03",
+                             "(n1 = 4, n2 = 4) ; la p-value Monte-Carlo retenue, simulee sous le modele",
+                             "ajuste, peut lui etre inferieure (erreur Monte-Carlo, non-echangeabilite) :",
+                             "ECHEC possible"))
+         })
+# Cas mesure par l'audit (M1) : jeu f8 de test_regimes_p_exactes.R (pi_t
+# variable), usp_bootstrap(B = 59), alpha = 0,06, lignes des suites.
+x8 <- c(50, 200, 80, 150, 60, 180, 100, 120)
+y8 <- c(27.25, 105.90, 57.04, 117.04, 64.50, 152.70, 95.28, 113.69)
+f8 <- usp_ajuster(x8, y8)
+b8_59 <- usp_bootstrap(f8, B = 59, seed = 20260831)
+t8_59 <- usp_tests(f8, b8_59, alpha = 0.06, methode = "premium")
+verifier("f8, B = 59, alpha = 0,06 : lignes des suites (residus, ratios bruts) sans 'ECHEC possible', plancher ECHEC inatteignable",
+         all(vapply(c("Test des suites (aleatoire des signes)", "Test des suites sur ratios bruts"),
+                    function(nm) {
+           l <- ligne(t8_59, nm)
+           identical(l$nature_p, "Monte-Carlo (bootstrap parametrique)") && identical(l$type, "test") &&
+             identical(b8_59$B_effectif[[if (grepl("ratios", nm)) "Runsr" else "Runs"]], 59) &&
+             endsWith(l$detail, paste("p_min de la loi de reference echangeable = 0.0571 >= alpha/2 = 0.03",
+                                      "(n1 = 4, n2 = 4) ; plancher Monte-Carlo >= alpha/2 = 0.03 : ECHEC inatteignable")) &&
+             !grepl("ECHEC possible", l$detail, fixed = TRUE)
+         }, logical(1))))
+# Runsr, regime 1 (pi_t constant, p exacte) : la phrase "p-value EXACTE est
+# retenue" n'est ecrite que hors motif de degenerescence de Runsr (#128).
+verifier("Runsr regime 1 : sans motif -> 'EXACTE est retenue' ; motif de degenerescence -> diagnostic, 'EXACTE est ecartee'",
+         {
+           nm <- "Test des suites sur ratios bruts"
+           a <- ligne(usp_tests(fit, boot_fictif(fit), methode = "premium"), nm)
+           b <- ligne(usp_tests(fit, boot_fictif(fit, motif = c(Runsr = MOTIF_MC_DISPERSION_NULLE)),
+                                methode = "premium"), nm)
+           identical(a$nature_p, "exacte") &&
+             grepl("la p-value EXACTE est retenue (convention bilaterale", a$detail, fixed = TRUE) &&
+             identical(b$type, "diagnostic") && is.na(b$p_retenue) &&
+             startsWith(b$detail, MOTIF_MC_DISPERSION_NULLE) &&
+             grepl("la p-value EXACTE est ecartee par le motif de degenerescence en tete (ADR 0001).",
+                   b$detail, fixed = TRUE) &&
+             !grepl("EXACTE est retenue", b$detail, fixed = TRUE)
+         })
+# Runsr, regime 1 : la phrase "La p-value Monte-Carlo de la colonne p_mc
+# estime la meme quantite" n'est ecrite que si p_mc existe (#128, point c,
+# reserve R1 d'actuary : jeu de controle avec usp_bootstrap(B = 40), sous le
+# seuil de 50 replications, p_mc NA).
+verifier("Runsr regime 1 : p_mc finie -> phrase sur p_mc presente ; p_mc NA (B = 40) -> absente, p exacte retenue",
+         {
+           nm <- "Test des suites sur ratios bruts"
+           phr <- "La p-value Monte-Carlo de la colonne p_mc estime la meme quantite, a l'erreur Monte-Carlo pres."
+           b40 <- usp_bootstrap(fit, B = 40, seed = 20260831)
+           a <- ligne(usp_tests(fit, boot_fictif(fit), methode = "premium"), nm)
+           k <- ligne(usp_tests(fit, b40, methode = "premium"), nm)
+           is.finite(a$p_mc) && grepl(phr, a$detail, fixed = TRUE) &&
+             is.na(b40$p_mc[["Runsr"]]) && is.na(k$p_mc) &&
+             identical(k$nature_p, "exacte") && is.finite(k$p_retenue) &&
+             grepl("standardises (issue #29).", k$detail, fixed = TRUE) &&
+             !grepl("p_mc", k$detail, fixed = TRUE) &&
+             !grepl("estime la meme quantite", k$detail, fixed = TRUE)
+         })
+# Phrases du detail qui nomment la p Monte-Carlo retenue (#128, point c) :
+# conditionnelles a la presence de p_mc.
+verifier("usp_tests() : RESET et OLS-CUSUM, p_mc presente -> 'retenue' ; absente -> 'indisponible', nature_p nomme le repli",
+         {
+           ok <- usp_tests(fit, boot_fictif(fit), methode = "premium")
+           ko <- usp_tests(fit, boot_fictif(fit, motif = c(RESET = MOTIF_MC_AUCUNE_REPLIC,
+                                                           CUSUM = MOTIF_MC_AUCUNE_REPLIC)),
+                           methode = "premium")
+           r1 <- ligne(ok, "RESET (forme fonctionnelle)"); r2 <- ligne(ko, "RESET (forme fonctionnelle)")
+           c1 <- ligne(ok, "Stabilite cumulee (OLS-CUSUM)"); c2 <- ligne(ko, "Stabilite cumulee (OLS-CUSUM)")
+           endsWith(r1$detail, "1970). La p Monte-Carlo, simulee sous le modele ajuste, est retenue.") &&
+             endsWith(r2$detail, paste("1970). La p Monte-Carlo, simulee sous le modele ajuste, est",
+                                       "indisponible sur ces donnees ; la p-value retenue, s'il en est",
+                                       "une, est nommee par nature_p.")) &&
+             startsWith(r2$nature_p, "asymptotique (Monte-Carlo indisponible") &&
+             identical(c1$detail, "La formule asymptotique n'a aucune validite a T = 8 : p_mc retenue") &&
+             identical(c2$detail, paste("La formule asymptotique n'a aucune validite a T = 8 ; p_mc est",
+                                        "indisponible sur ces donnees ; la p-value retenue, s'il en est",
+                                        "une, est nommee par nature_p")) &&
+             startsWith(c2$nature_p, "asymptotique (Monte-Carlo indisponible")
+         })
+# Cas du commentaire 5888798043 de #128 : T = 12, pi_t variable, une paire
+# de Cox-Stuart a difference nulle (r_7 = r_1 : m = 5 sur n_p = 6), alpha =
+# 0,10, p_min = 0,0625 dans [alpha/2, alpha[ : test sans p-value (ni p
+# exacte, R7 ; ni p Monte-Carlo, ex aequo). Restitution 2' ; a T = 10 (m = 4
+# sur n_p = 5, p_min = 0,125), TEST INOPERANT inchange.
+x12 <- c(100, 120, 90, 150, 200, 80, 130, 170, 110, 95, 210, 140)
+y12 <- c(55.5473, 89.7727, 45.4909, 183.251, 182.202, 39.2104, 72.2114,
+         166.748, 90.18, 57.2182, 276.78, 116.692)
+y12[7] <- x12[7] * y12[1] / x12[1]
+res12 <- run_engine(xt = x12, yt = y12, methode = "premium", segment = 1, annexe = "II",
+                    nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831)
+x10 <- x12[1:10]; y10 <- y12[1:10]; y10[6] <- x10[6] * y10[1] / x10[1]
+res10 <- run_engine(xt = x10, yt = y10, methode = "premium", segment = 1, annexe = "II",
+                    nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831)
+verifier("Cox-Stuart T = 12, m = 5 sur n_p = 6, alpha = 0,10 : test INFO sans p-value, phrase de #128, sans 'ECHEC inatteignable'",
+         {
+           cx <- test_cox_stuart(y12 / x12); l <- ligne(res12$tests, "Tendance par signes du ratio S/P")
+           cx$m == 5L && cx$n_p == 6L && proche(l$p_min, 0.0625) &&
+             identical(l$type, "test") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
+             identical(l$sens, "ne pas rejeter") &&
+             startsWith(l$detail, paste("Monte-Carlo indisponible : statistique observee non definie : ex aequo ;",
+                                        "aucune p-value disponible sur ces donnees : aucun verdict (ADR 0001).",
+                                        "p exacte non attribuee")) &&
+             !grepl("inatteignable", l$detail, fixed = TRUE)
+         })
+verifier("Cox-Stuart T = 10, m = 4 sur n_p = 5, alpha = 0,10 : TEST INOPERANT inchange",
+         {
+           cx <- test_cox_stuart(y10 / x10); l <- ligne(res10$tests, "Tendance par signes du ratio S/P")
+           cx$m == 4L && cx$n_p == 5L && identical(l$type, "diagnostic") &&
+             startsWith(l$detail, "TEST INOPERANT") &&
+             !grepl("aucune p-value disponible", l$detail, fixed = TRUE)
+         })
+
+
 ## --- 5. Invariant I2 sur run_engine() ----------------------------------------
 # Aucune ligne dont la p Monte-Carlo manque ne retombe sur une nature
 # "asymptotique" sans motif : a T = 8, la seule ligne a p asymptotique sans
@@ -458,5 +784,86 @@ verifier("run_engine : 51 lignes sur les donnees de test a B = B_MIN_USAGE (lign
          length(res_ln$tests) == 51L && !is.null(res_ln$ic_bootstrap) &&
            any(vapply(res_ln$tests, function(l) identical(l$test, "Largeur relative de l'IC bootstrap 90%"),
                       logical(1))))
+
+## --- 6. Champ inoperant (#129, point 3) ----------------------------------------
+# add() pose sur chaque ligne un logique inoperant, TRUE si et seulement si la
+# bascule de la regle R1 a eu lieu (detail prefixe "TEST INOPERANT"), FALSE
+# sinon, jamais NA ; dernier champ de la ligne, apres p_min et fonction.
+# Invariant verifie sur les lignes de run_engine() de ce fichier et sur
+# celles des cinq references versionnees (tests/reference/).
+inv_inop <- function(tt) {
+  ok_type <- vapply(tt, function(l) is.logical(l$inoperant) && length(l$inoperant) == 1L &&
+                      !is.na(l$inoperant), logical(1))
+  if (!all(ok_type)) return(paste("inoperant non logique, NA ou de longueur != 1 :",
+                                  sum(!ok_type), "ligne(s)"))
+  inop <- vapply(tt, function(l) l$inoperant, logical(1))
+  pref <- vapply(tt, function(l) startsWith(l$detail, "TEST INOPERANT"), logical(1))
+  noms_ok <- vapply(tt, function(l) identical(tail(names(l), 3L),
+                                              c("p_min", "fonction", "inoperant")), logical(1))
+  diag_ok <- all(vapply(tt[inop], function(l) identical(l$type, "diagnostic") &&
+                          identical(l$verdict, "INFO"), logical(1)))
+  if (!identical(inop, pref)) paste("inoperant != prefixe TEST INOPERANT :", sum(inop != pref), "ligne(s)")
+  else if (!all(noms_ok)) paste("ordre des derniers champs faux :", sum(!noms_ok), "ligne(s)")
+  else if (!diag_ok) "ligne inoperante hors diagnostic INFO"
+  else TRUE
+}
+verifier("add() : bascule R1 -> inoperant TRUE ; p_min < alpha, p_min NA -> FALSE ; derniers champs p_min, fonction, inoperant",
+         {
+           r <- reg_fictif()
+           r$add("F", "t1", "ref", fonction = "usp_tests", p_ex = 0.9, p_min = 0.125)
+           r$add("F", "t2", "ref", fonction = "usp_tests", p_ex = 0.06, p_min = 4 / 70)
+           r$add("F", "t3", "ref", fonction = "usp_tests", p_ex = 0.01)
+           r$add("F", "t4", "ref", fonction = "usp_tests", type = "diagnostic", estim = 1, p_min = 0.5)
+           L <- r$lignes()
+           identical(vapply(L, function(l) l$inoperant, logical(1)), c(TRUE, FALSE, FALSE, FALSE)) &&
+             isTRUE(inv_inop(L))
+         })
+verifier("add() : ligne R3 (statistique observee non finie, degenerescence) -> inoperant FALSE",
+         {
+           r <- reg_motif(MOTIF_MC_OBS_NON_FINIE)
+           r$add("F", "t", "ref", fonction = "usp_tests", p_as = 0.3, mc_nom = "S", p_min = 0.5)
+           r2 <- reg_motif(MOTIF_MC_DISPERSION_NULLE)
+           r2$add("F", "t", "ref", fonction = "usp_tests", p_ex = 0.3, mc_nom = "S", p_min = 0.5)
+           l <- r$lignes()[[1]]; l2 <- r2$lignes()[[1]]
+           identical(l$type, "non applicable") && identical(l$inoperant, FALSE) &&
+             identical(l2$type, "diagnostic") && identical(l2$inoperant, FALSE) &&
+             isTRUE(inv_inop(list(l, l2)))
+         })
+verifier("add() : ligne sans aucune p-value (#128, point 2') -> inoperant FALSE ; avec p_min >= alpha -> TRUE",
+         {
+           r <- reg_fictif()
+           r$add("F", "t", "ref", fonction = "usp_tests", p_min = 4 / 70)
+           r$add("F", "u", "ref", fonction = "usp_tests", p_min = 0.125)
+           L <- r$lignes()
+           startsWith(L[[1]]$detail, "aucune p-value disponible") && identical(L[[1]]$inoperant, FALSE) &&
+             identical(L[[2]]$inoperant, TRUE) && isTRUE(inv_inop(L))
+         })
+verifier("run_engine() : inoperant <=> prefixe TEST INOPERANT sur toutes les lignes (T = 8, volumes constants, T = 10, T = 12)",
+         {
+           v <- lapply(list(T8 = res_ln, vc = res_vc, T10 = res10, T12 = res12), function(r) inv_inop(r$tests))
+           ok <- vapply(v, isTRUE, logical(1))
+           cs10 <- ligne(res10$tests, "Tendance par signes du ratio S/P")
+           cs12 <- ligne(res12$tests, "Tendance par signes du ratio S/P")
+           if (!all(ok)) paste(names(v)[!ok], unlist(v[!ok]), collapse = " ; ")
+           else isTRUE(cs10$inoperant) && identical(cs12$inoperant, FALSE) &&
+             any(vapply(res_ln$tests, function(l) l$inoperant, logical(1)))
+         })
+verifier("References versionnees (5 cas) : inoperant <=> prefixe TEST INOPERANT, jamais NA, derniers champs p_min, fonction, inoperant",
+         {
+           cas <- c("premium", "reserve1", "reserve2", "premium_ii6", "premium_net")
+           v <- lapply(cas, function(k) {
+             f <- file.path(RACINE, "tests", "reference", paste0(k, ".rds"))
+             if (!file.exists(f)) "reference absente" else inv_inop(readRDS(f)$tests)
+           })
+           ok <- vapply(v, isTRUE, logical(1))
+           if (all(ok)) TRUE else paste(cas[!ok], unlist(v[!ok]), collapse = " ; ")
+         })
+verifier("engine_table_tests : colonne logique inoperant, derniere colonne, alignee sur le champ des lignes",
+         {
+           tb <- engine_table_tests(res_ln)
+           identical(tail(names(tb), 2L), c("fonction", "inoperant")) && is.logical(tb$inoperant) &&
+             !anyNA(tb$inoperant) &&
+             identical(tb$inoperant, vapply(res_ln$tests, function(l) l$inoperant, logical(1)))
+         })
 
 fin_fichier()

@@ -73,7 +73,7 @@ verifier("add() refuse un mc_nom absent du bootstrap (erreur explicite)",
 verifier("add() refuse un mc_nom inconnu du catalogue (erreur explicite)",
          {
            reg <- engine_registre_tests(boot_fictif(), USP_CATALOGUE_MC, 0.10, "Monte-Carlo")
-           leve_erreur(reg$add("F", "t", "r", mc_nom = "Inconnue"))
+           leve_erreur(reg$add("F", "t", "r", fonction = "usp_tests", mc_nom = "Inconnue"))
          })
 verifier("mw_tests() refuse un mc_nom absent du bootstrap (erreur explicite)",
          {
@@ -517,6 +517,63 @@ verifier("add() (usp_tests) refuse une procedure de decision sans verdict (ESD)"
            m <- message_erreur(f(fit, boot_fictif(), methode = "premium"))
            grepl("une ligne de type 'procedure de decision' doit fournir son verdict", m, fixed = TRUE) &&
              grepl("Valeurs aberrantes multiples (ESD generalise)", m, fixed = TRUE)
+         })
+
+# Provenance des lignes (#111, regles A1, A2, A4) : add() exige fonction,
+# chaine non vide nommant une fonction de l'environnement du moteur
+# (exists(mode = "function", inherits = FALSE) : "cor.test", fonction de
+# stats, et "ANNEXE_II", constante du moteur, sont refusees ; ".shapiro_sur",
+# fonction interne du moteur, est admise).
+verifier("add() (#111) refuse fonction absente, non chaine, vide ou inconnue du moteur ; admet .shapiro_sur",
+         {
+           reg <- engine_registre_tests(boot_fictif(), USP_CATALOGUE_MC, 0.10, "Monte-Carlo")
+           m_abs <- message_erreur(reg$add("F", "t", "r", type = "diagnostic"))
+           m_num <- message_erreur(reg$add("F", "t", "r", type = "diagnostic", fonction = 1))
+           m_vide <- message_erreur(reg$add("F", "t", "r", type = "diagnostic", fonction = ""))
+           m_na <- message_erreur(reg$add("F", "t", "r", type = "diagnostic", fonction = NA_character_))
+           m_cor <- message_erreur(reg$add("F", "t", "r", type = "diagnostic", fonction = "cor.test"))
+           m_cst <- message_erreur(reg$add("F", "t", "r", type = "diagnostic", fonction = "ANNEXE_II"))
+           m_ok <- message_erreur(reg$add("F", "t", "r", type = "diagnostic", fonction = ".shapiro_sur"))
+           l <- reg$lignes()
+           grepl("argument fonction absent", m_abs, fixed = TRUE) &&
+             grepl("chaine non vide", m_num, fixed = TRUE) &&
+             grepl("chaine non vide", m_vide, fixed = TRUE) &&
+             grepl("chaine non vide", m_na, fixed = TRUE) &&
+             grepl("fonction inconnue du moteur : cor.test", m_cor, fixed = TRUE) &&
+             grepl("fonction inconnue du moteur : ANNEXE_II", m_cst, fixed = TRUE) &&
+             identical(m_ok, "") && length(l) == 1L &&
+             identical(utils::tail(names(l[[1]]), 3), c("p_min", "fonction", "inoperant")) &&
+             identical(l[[1]]$fonction, ".shapiro_sur")
+         })
+# Les cinq cas de tests/outils_tests.R (CAS), a B = 99 pour la duree : la
+# liste des lignes et leur fonction ne dependent pas de B (chaine litterale a
+# chaque appel d'add()). Chaque ligne porte une fonction non vide, definie
+# dans l'environnement du moteur, suivie du seul champ inoperant (#129,
+# point 3) ; engine_table_tests() l'expose en avant-derniere colonne.
+verifier("Cinq cas (#111) : chaque ligne porte une fonction du moteur, avant-dernier champ (puis inoperant) ; colonne fonction de engine_table_tests()",
+         {
+           ln <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln.csv"))
+           env_moteur <- environment(engine_registre_tests)
+           cas <- list(
+             premium = run_engine(xt = ln$xt, yt = ln$yt, methode = "premium", segment = 1, annexe = "II",
+                                  nature_donnees = "brutes", B = 99),
+             reserve1 = run_engine(xt = ln$xt, yt = ln$yt, methode = "reserve1", segment = 1, annexe = "II",
+                                   B = 99),
+             reserve2 = run_engine(methode = "reserve2", triangle = tri_mw, segment = 1, annexe = "II", B = 99),
+             premium_ii6 = run_engine(xt = ln$xt, yt = ln$yt, methode = "premium", segment = 6, annexe = "II",
+                                      nature_donnees = "brutes", B = 99),
+             premium_net = run_engine(xt = ln$xt, yt = ln$yt, methode = "premium", segment = 1, annexe = "II",
+                                      nature_donnees = "nettes", B = 99))
+           all(vapply(cas, function(r) {
+             f <- vapply(r$tests, function(t) if (is.character(t$fonction)) t$fonction else NA_character_, "")
+             tb <- engine_table_tests(r)
+             isTRUE(r$ok) && length(f) > 0L && !anyNA(f) && all(nzchar(f)) &&
+               all(vapply(f, exists, NA, envir = env_moteur, inherits = FALSE)) &&
+               all(vapply(r$tests, function(t) identical(utils::tail(names(t), 2), c("fonction", "inoperant")),
+                          NA)) &&
+               identical(utils::tail(names(tb), 2), c("fonction", "inoperant")) &&
+               identical(tb$fonction, unname(f))
+           }, NA))
          })
 # Branche robustesse = NULL : usp_tests() appele directement avec un fit
 # portant ecart_jackknife et largeur_ic, sans les elements du detail.

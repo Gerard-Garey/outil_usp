@@ -147,10 +147,86 @@ verifier("Bareme : annexe II segments 1, 5, 6 -> long",
          all(vapply(c(1, 5, 6), usp_bareme_segment, "", annexe = "II") == "long"))
 verifier("Bareme : annexe II segments 2-4 et 7-12 -> court",
          all(vapply(c(2:4, 7:12), usp_bareme_segment, "", annexe = "II") == "court"))
-verifier("Bareme : annexe XIV, tous segments (y compris les numeros 1, 5, 6) -> court",
-         all(vapply(c(1:4, 5, 6), usp_bareme_segment, "", annexe = "XIV") == "court"))
-verifier("Bareme : segment absent (NULL ou NA) -> court",
-         usp_bareme_segment(NULL) == "court" && usp_bareme_segment(NA) == "court")
+verifier("Bareme : annexe XIV, tous segments (y compris le numero 1) -> court",
+         all(vapply(1:4, usp_bareme_segment, "", annexe = "XIV") == "court"))
+verifier("Bareme : segment absent (NULL) -> court, dans les deux annexes",
+         usp_bareme_segment(NULL) == "court" && usp_bareme_segment(NULL, "XIV") == "court")
+# Issue #133 (avis d'actuary Q-E1d-4) : en appel direct, usp_bareme_segment()
+# controle segment comme run_engine(). Avant #133, "1", TRUE, factor(5),
+# c(a = 1) rendaient "long", NA, 1.5, 99 et 5 en annexe XIV rendaient
+# "court", c(1, 2) et integer(0) levaient une erreur R sans nom d'argument.
+motif_bareme <- function(expr, debut) {
+  m <- tryCatch({ expr; NA_character_ }, error = conditionMessage)
+  !is.na(m) && startsWith(m, debut)
+}
+verifier("Bareme : NA, NA_real_, NA_integer_, \"1\", TRUE, factor(5), c(a = 1), 1.5, c(1, 2), integer(0) -> erreur d'usage nommant segment, annexes II et XIV (#133)",
+         all(vapply(list(NA, NA_real_, NA_integer_, "1", TRUE, factor(5), c(a = 1), 1.5,
+                         c(1, 2), integer(0)),
+                    function(s) motif_bareme(usp_bareme_segment(s, "II"), "segment = ") &&
+                      motif_bareme(usp_bareme_segment(s, "XIV"), "segment = "),
+                    logical(1))))
+verifier("Bareme : segment absent de l'annexe (99 en annexe II, 5 en annexe XIV) -> erreur, message de usp_segment_infos() (#133)",
+         identical(tryCatch(usp_bareme_segment(99, "II"), error = conditionMessage),
+                   "Segment 99 inconnu dans l'annexe II.") &&
+           identical(tryCatch(usp_bareme_segment(5, "XIV"), error = conditionMessage),
+                     "Segment 5 inconnu dans l'annexe XIV.") &&
+           identical(tryCatch(usp_bareme_segment(13, "II"), error = conditionMessage),
+                     "Segment 13 inconnu dans l'annexe II."))
+verifier("Bareme : annexe controlee avant segment (NA en annexe III -> erreur d'annexe ; #133)",
+         motif_bareme(usp_bareme_segment(NA, "III"), "Annexe inconnue (III)"))
+verifier("Bareme : segment entier stocke en integer accepte (5L -> long, 2L -> court ; #133)",
+         identical(usp_bareme_segment(5L), "long") && identical(usp_bareme_segment(2L), "court"))
+# Issue #133, point 2 : une valeur presque entiere est citee a 17 chiffres
+# (1 + 1e-15 etait cite 1, valeur que le message refuse) ; une valeur exacte
+# a 15 chiffres reste citee a 15 chiffres (0.3, et non 0.29999999999999999,
+# ecriture de deparse() avec digits17 seul).
+verifier("Message d'usage : segment 1 + 1e-15 cite a 17 chiffres (#133)",
+         motif_bareme(usp_segment_infos(1 + 1e-15, "II"), "segment = 1.0000000000000011 : ") &&
+           motif_bareme(usp_bareme_segment(1 + 1e-15, "II"), "segment = 1.0000000000000011 : "))
+# Constat C1 de l'audit de #133 : la relecture de la valeur citee ne doit
+# rien evaluer. Un attribut de type langage (deparse() retire le quote())
+# etait execute par eval(str2lang(deparse(v))) ; l'effet de bord teste ici
+# (assign dans l'environnement global) est cherche apres l'appel.
+verifier("Message d'usage : un attribut de type langage n'est pas execute, la valeur est citee a 17 chiffres (#133, audit C1)",
+         {
+           if (exists("trace_c1_133", envir = globalenv(), inherits = FALSE))
+             rm("trace_c1_133", envir = globalenv())
+           effet <- quote(assign("trace_c1_133", TRUE, envir = globalenv()))
+           m1 <- tryCatch(.engine_verifier_usage(B = 999, seed = structure(1 + 1e-15, a = effet),
+                                                 bareme = NULL, segment = 1),
+                          error = conditionMessage)
+           m2 <- tryCatch(usp_bareme_segment(structure(1 + 1e-15, a = effet)),
+                          error = conditionMessage)
+           !exists("trace_c1_133", envir = globalenv(), inherits = FALSE) &&
+             startsWith(m1, "seed = structure(1.0000000000000011, a = assign(") &&
+             startsWith(m2, "segment = structure(1.0000000000000011, a = assign(")
+         })
+verifier("Message d'usage : -0, Inf, -Inf, NaN, NA_real_ cites tels quels, sans avertissement (#133)",
+         {
+           w <- FALSE
+           v <- withCallingHandlers(
+             vapply(list(-0, Inf, -Inf, NaN, NA_real_, c(NA, 1 + 1e-15)), .engine_saisie, ""),
+             warning = function(e) { w <<- TRUE; invokeRestart("muffleWarning") })
+           !w && identical(v, c("0", "Inf", "-Inf", "NaN", "NA_real_", "c(NA, 1.0000000000000011)"))
+         })
+verifier("Message B et alpha (engine_motif_b_alpha) : alpha 0.03 + 4e-18 cite a 17 chiffres, 0.03 et 99L cites a 15 (#133, audit C2)",
+         startsWith(engine_motif_b_alpha(99, 0.03 + 4e-18), "B = 99 et alpha = 0.030000000000000002 : ") &&
+           startsWith(engine_motif_b_alpha(99L, 0.03), "B = 99 et alpha = 0.03 : "))
+verifier("Message d'usage : B, seed, alpha, sigma_standard presque entiers ou presque decimaux cites a 17 chiffres, valeurs exactes a 15 chiffres (#133)",
+         motif_bareme(.engine_verifier_usage(B = 999 + 1e-13, seed = 1, bareme = NULL, segment = 1),
+                      "B = 999.00000000000011 : ") &&
+           motif_bareme(.engine_verifier_usage(B = 999, seed = 1 + 1e-15, bareme = NULL, segment = 1),
+                        "seed = 1.0000000000000011 : ") &&
+           motif_bareme(.engine_verifier_usage(B = 999, seed = 1, bareme = NULL, alpha = 0.3,
+                                               segment = 1), "alpha = 0.3 : ") &&
+           motif_bareme(.engine_verifier_usage(B = 999, seed = 1, bareme = NULL,
+                                               alpha = 0.3 + 1e-16, segment = 1),
+                        "alpha = 0.3000000000000001 : ") &&
+           motif_bareme(.engine_verifier_usage(B = 999, seed = 1, bareme = NULL,
+                                               sigma_standard = -0.1), "sigma_standard = -0.1 : ") &&
+           motif_bareme(.engine_verifier_usage(B = 999, seed = 1, bareme = NULL,
+                                               sigma_standard = -(0.1 + 2e-17)),
+                        "sigma_standard = -0.10000000000000002 : "))
 
 ## --- Parametre final, methodes lognormales (section B(4)) -------------------
 # sigma_USP = c * sigma(delta, gamma) * sqrt((T+1)/(T-1)) + (1 - c) * sigma_std
@@ -588,9 +664,33 @@ verifier("Drapeau bareme_saisi : FALSE sans saisie, TRUE avec saisie (contraire 
            identical(r$metadata$bareme_saisi, FALSE), logical(1))) &&
            all(vapply(list(r_b1c, r_b1l, r1_c, r1_l, r2_c, r2_l), function(r)
              identical(r$metadata$bareme_saisi, TRUE), logical(1))))
-verifier("Saisie EGALE au bareme du segment (II-1 \"long\" : premium, reserve1, reserve2) : resultat identical hors metadata, drapeau TRUE, origine \"saisi, egal\" (#93)",
+# Issue #131 (lecture R1, decision du mainteneur du 01/10/2026) : le detail
+# de la ligne "Credibilite pleine atteinte" et l'avertissement de
+# credibilite partielle nomment la derogation des que le bareme est saisi,
+# meme egal au bareme du segment ; ces deux chaines sont donc retirees de la
+# comparaison, et leur mention de la saisie est verifiee a part.
+sans_cred <- function(r) {
+  r <- sans_meta(r)
+  r$validation$avertissements <- grep("credibilite partielle", r$validation$avertissements,
+                                      value = TRUE, fixed = TRUE, invert = TRUE)
+  r$controles <- lapply(r$controles, function(l) {
+    if (identical(l$test, "Credibilite pleine atteinte")) l$detail <- NULL
+    l
+  })
+  r
+}
+mentions_saisie <- function(r) {
+  txt <- c(grep("credibilite partielle", r$validation$avertissements, value = TRUE, fixed = TRUE),
+           unlist(lapply(r$controles, function(l)
+             if (identical(l$test, "Credibilite pleine atteinte")) l$detail)))
+  length(txt) > 0 && all(grepl(paste("bareme long saisi (valeurs de G(1)) : saisie declaree comme",
+                                     "derogation (#93), egale au bareme reglementaire du segment II-1"),
+                               txt, fixed = TRUE))
+}
+verifier("Saisie EGALE au bareme du segment (II-1 \"long\" : premium, reserve1, reserve2) : resultat identical hors metadata et chaines de credibilite (#131), drapeau TRUE, origine \"saisi, egal\" (#93)",
          all(vapply(list(list(r_b1l, r_b), list(r1_l, r1_sans), list(r2_l, r2_sans)), function(p)
-           identical(sans_meta(p[[1]]), sans_meta(p[[2]])) &&
+           identical(sans_cred(p[[1]]), sans_cred(p[[2]])) &&
+             mentions_saisie(p[[1]]) && !mentions_saisie(p[[2]]) &&
              identical(meta_sans(p[[1]]), meta_sans(p[[2]])) &&
              identical(p[[1]]$metadata$bareme_saisi, TRUE) &&
              identical(origine_bareme(p[[1]]),
@@ -822,21 +922,22 @@ verifier("Profondeur, reserve no 2 : n_fournies different de T (triangle tronque
            r_t <- r2_sans; r_t$metadata$n_fournies <- r_t$metadata$T + 1L
            leve_erreur(engine_derogations(r_t))
          })
-# Via engine_derogations(), un metadata$T absent est deja refuse en amont par
-# .engine_trace_bareme() (usp_credibilite() : "la duree T doit etre un nombre
-# entier d'annees") ; le message propre de .engine_trace_profondeur() est donc
-# verifie par appel direct.
-verifier("Profondeur : metadata$T absent ou non fini -> .engine_trace_profondeur() leve \"metadata$T absent ou invalide\", distinct de n_fournies < T (#104)",
+# engine_derogations() appelle .engine_trace_profondeur() avant
+# .engine_trace_bareme() (#135) : un metadata$T absent, non fini ou non
+# entier y est refuse par le message propre de .engine_trace_profondeur(),
+# et non par celui de usp_credibilite().
+verifier("Profondeur : metadata$T absent, non fini ou non entier -> engine_derogations() leve \"metadata$T absent ou invalide\", distinct de n_fournies < T (#104, #135)",
          {
            msg <- function(expr) tryCatch({ expr; NA_character_ },
                                           error = function(e) conditionMessage(e))
            r_u <- r_12; r_u$metadata$T <- NULL
            r_v <- r_12; r_v$metadata$T <- NA_real_
+           r_s <- r_12; r_s$metadata$T <- 10.5
            r_w <- r_12; r_w$metadata$n_fournies <- 7L
            attendu <- "engine_derogations() : metadata$T absent ou invalide."
-           identical(msg(.engine_trace_profondeur(r_u, "engine_derogations()")), attendu) &&
-             identical(msg(.engine_trace_profondeur(r_v, "engine_derogations()")), attendu) &&
-             leve_erreur(engine_derogations(r_u)) &&
+           identical(msg(engine_derogations(r_u)), attendu) &&
+             identical(msg(engine_derogations(r_v)), attendu) &&
+             identical(msg(engine_derogations(r_s)), attendu) &&
              identical(msg(engine_derogations(r_w)),
                        "engine_derogations() : metadata$n_fournies inferieur a la profondeur T retenue.")
          })
