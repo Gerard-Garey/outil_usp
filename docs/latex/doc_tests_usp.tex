@@ -662,6 +662,12 @@ finies, et que les appels directs atteignent)~; fonction unique des deux méthod
 observé & \code{engine\_p\_mc()} colonne par colonne, sens lu au catalogue, conditions
 \code{degenere} et \code{non\_definie} évaluées sur le contexte observé~; vecteur
 \code{motif\_mc}~; erreur si une statistique simulée est absente du catalogue \\
+\code{.complement\_motif\_mc()},\newline \code{COMPLEMENTS\_}\newline\code{MOTIF\_MC},\newline
+\code{DETAIL\_MC\_ATOME\_}\newline\code{HORS\_OBS} & motif Monte-Carlo~; table~; phrase &
+phrase qui complète le commentaire d'une ligne pour un motif donné (vide sinon)~; table nommée
+motif $\to$ phrase, dont la seule entrée porte sur \code{MOTIF\_MC\_ATOME\_HORS\_OBS}~; lue par
+\code{add()} et par les lignes du rapport de vraisemblance sur $\delta$ d'\code{usp\_tests()}
+(§\ref{sec:nature}, issue~\#126) \\
 \code{engine\_registre\_}\newline\code{tests()} & \code{boot}, catalogue, \code{alpha},
 libellé de nature Monte-Carlo & fonction \code{add()} d'enregistrement d'une ligne de test
 (arguments \code{p\_mc\_ext} et \code{err\_mc\_ext}~: p-value de Monte-Carlo calculée hors du
@@ -3229,7 +3235,24 @@ $B \ge$ \code{B\_MIN\_USAGE} $= 99$ (section~\ref{sec:controles}), cette branche
 atteinte que si moins de 50 des $B$ réplications sont finies~; elle l'est par les appels directs de
 \code{usp\_bootstrap()}, \code{mw\_bootstrap()} ou \code{engine\_p\_mc()}, que rien ne borne. Une dégénérescence fait
 sortir la ligne en diagnostic, sans p-value retenue, p-value exacte comprise~: la loi de
-référence y compare du bruit d'arrondi (ADR~0001). Une statistique observée non finie, sans
+référence y compare du bruit d'arrondi (ADR~0001). Quand la valeur observée est hors de l'atome
+(\code{MOTIF\_MC\_ATOME\_HORS\_OBS}), ce diagnostic \code{INFO} n'est pas neutre~: aucune simulation
+sous le modèle ajusté ne reproduit la valeur observée, et le commentaire est complété, après le
+motif, par la phrase «~\code{Aucune simulation sous le modele ajuste ne reproduit la valeur
+observee~: incompatibilite du modele avec les donnees ou asymetrie de calcul entre observe et
+simule, a examiner avant toute conclusion.}~» (\code{DETAIL\_MC\_ATOME\_HORS\_OBS}, lue dans la
+table motif $\to$ phrase \code{COMPLEMENTS\_MOTIF\_MC} par \code{.complement\_motif\_mc()}),
+pour les lignes à clé Monte-Carlo comme pour celles du rapport de vraisemblance sur
+$\delta$ (fiche~\ref{fiche:rv-delta}~; issue~\#126, formulation d'\code{actuary}). L'écart entre
+la valeur observée et l'atome n'est pas imprimé, grandeur de l'ordre du bruit numérique. Aucune
+tolérance plus large ne requalifie un petit écart à l'atome en dispersion nulle
+(\code{TOL\_DISPERSION\_MC} reste la seule tolérance~; issue~\#126, point~2 non retenu sur l'avis
+d'\code{actuary})~: les deux motifs mènent au même diagnostic, seule change l'explication, et
+celle de la dispersion nulle serait fausse~; les simulations étant reproductibles à
+\code{TOL\_DISPERSION\_MC} près, un écart de l'observée à l'atome qui dépasse cette tolérance
+n'est pas un bruit d'arrondi de ce calcul, mais le signe que la statistique observée et les
+statistiques simulées ne sont pas calculées par le même chemin, défaut à examiner, et aucune
+mesure ne fonde une tolérance intermédiaire. Une statistique observée non finie, sans
 p-value exacte, rend la ligne non applicable. Dans les autres cas, sans p-value exacte, la
 p-value asymptotique n'est retenue que sous une nature qui nomme le repli, «~asymptotique
 (Monte-Carlo indisponible~: \emph{motif})~», jamais en silence~; ce repli est interdit pour la
@@ -8070,7 +8093,11 @@ retenue~»)~: la ligne est un diagnostic, et aucune des trois voies ne fonde un 
   puissance dépend de la dispersion des volumes ($\mathrm{LR}^{*} \le 0{,}9$ sur J1), et un
   \code{OK} n'apporterait aucune preuve. Elle reste lisible dans son champ. À volumes constants,
   tous les $\mathrm{LR}^{*}$ sont nuls et \code{p\_mc} vaut \code{NA} avec le motif de dispersion
-  nulle, restitué en tête du commentaire.
+  nulle, restitué en tête du commentaire. Si tous les $\mathrm{LR}^{*}$ sont nuls alors que le
+  $\mathrm{LR}$ observé est positif, le motif est celui d'une loi simulée ponctuelle hors de la
+  valeur observée, et le commentaire le fait suivre de la phrase qui appelle à examiner le modèle
+  ou le calcul (\code{DETAIL\_MC\_ATOME\_HORS\_OBS}, section~\ref{sec:nature}, point~(ii)~;
+  issue~\#126).
 \end{itemize}
 \Usage
 Sur le fond, ce diagnostic répond à la question pratique décisive~: la structure de mélange
@@ -11125,7 +11152,8 @@ auxiliaire MCO~» (§\ref{sec:nature} et~\ref{sec:modele-auxiliaire}, issue~\#44
 \code{effectifs}, \code{repli\_asymptotique}, \code{nature\_forcee}~; \code{runs\_p\_min()},
 \code{cox\_stuart\_p\_min()}, \code{smirnov\_p\_min()}, \code{mk\_p\_min()}~; motif
 \code{motif\_mc} d'\code{engine\_p\_mc()} et de \code{.mc\_p\_values()} (constantes
-\code{TOL\_DISPERSION\_MC}, \code{B\_MIN\_DEGENERESCENCE}) \\
+\code{TOL\_DISPERSION\_MC}, \code{B\_MIN\_DEGENERESCENCE})~; complément du commentaire par
+\code{.complement\_motif\_mc()} (table \code{COMPLEMENTS\_MOTIF\_MC}, issue~\#126) \\
 Identifiabilité de la pente, règle~R4 (§\ref{sec:t8}) & \code{usp\_identifiabilite\_pente()},
 constante \code{SEUIL\_PUISSANCE\_PENTE}, lue par \code{usp\_tests()} \\
 Volumes constants et lignes non applicables (§\ref{sec:volumes-constants}, issue~\#59) &
