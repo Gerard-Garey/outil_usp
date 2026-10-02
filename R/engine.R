@@ -4534,8 +4534,13 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                   "EXACTE est ecartee par le motif de degenerescence en tete (ADR 0001)."
                 else paste("EXACTE est retenue (convention bilaterale du doublement, celle du",
                            "bootstrap), la meme que sur la ligne des suites sur residus",
-                           "standardises (issue #29). La p-value Monte-Carlo de la colonne p_mc",
-                           "estime la meme quantite, a l'erreur Monte-Carlo pres."))
+                           # #128, point c : la phrase sur p_mc n'est ecrite que si
+                           # p_mc existe ; absente, rien n'est ajoute (la p retenue,
+                           # exacte, est deja nommee, et nature_p le dit).
+                           if (mc_dispo("Runsr"))
+                             paste("standardises (issue #29). La p-value Monte-Carlo de la colonne p_mc",
+                                   "estime la meme quantite, a l'erreur Monte-Carlo pres.")
+                           else "standardises (issue #29)."))
     if (!isTRUE(regime$pi_constant_exact))
       d1 <- paste(d1, sprintf(paste(
         "Ici pi_t n'est constant qu'a la tolerance TOL_DELTA_BORD = %g pres (%s) :",

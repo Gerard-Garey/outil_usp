@@ -681,6 +681,24 @@ verifier("Runsr regime 1 : sans motif -> 'EXACTE est retenue' ; motif de degener
                    b$detail, fixed = TRUE) &&
              !grepl("EXACTE est retenue", b$detail, fixed = TRUE)
          })
+# Runsr, regime 1 : la phrase "La p-value Monte-Carlo de la colonne p_mc
+# estime la meme quantite" n'est ecrite que si p_mc existe (#128, point c,
+# reserve R1 d'actuary : jeu de controle avec usp_bootstrap(B = 40), sous le
+# seuil de 50 replications, p_mc NA).
+verifier("Runsr regime 1 : p_mc finie -> phrase sur p_mc presente ; p_mc NA (B = 40) -> absente, p exacte retenue",
+         {
+           nm <- "Test des suites sur ratios bruts"
+           phr <- "La p-value Monte-Carlo de la colonne p_mc estime la meme quantite, a l'erreur Monte-Carlo pres."
+           b40 <- usp_bootstrap(fit, B = 40, seed = 20260831)
+           a <- ligne(usp_tests(fit, boot_fictif(fit), methode = "premium"), nm)
+           k <- ligne(usp_tests(fit, b40, methode = "premium"), nm)
+           is.finite(a$p_mc) && grepl(phr, a$detail, fixed = TRUE) &&
+             is.na(b40$p_mc[["Runsr"]]) && is.na(k$p_mc) &&
+             identical(k$nature_p, "exacte") && is.finite(k$p_retenue) &&
+             grepl("standardises (issue #29).", k$detail, fixed = TRUE) &&
+             !grepl("p_mc", k$detail, fixed = TRUE) &&
+             !grepl("estime la meme quantite", k$detail, fixed = TRUE)
+         })
 # Phrases du detail qui nomment la p Monte-Carlo retenue (#128, point c) :
 # conditionnelles a la presence de p_mc.
 verifier("usp_tests() : RESET et OLS-CUSUM, p_mc presente -> 'retenue' ; absente -> 'indisponible', nature_p nomme le repli",
