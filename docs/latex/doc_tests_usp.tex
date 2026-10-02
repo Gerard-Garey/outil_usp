@@ -703,8 +703,10 @@ $\chi^2(1)$ naïve, relève de \code{usp\_lr\_delta()}) \\
 \code{usp\_segment\_infos()}, \code{usp\_bareme\_segment()} & segment, annexe &
 libellé, $\sigma$ standard brut et de réserve, facteur \code{np\_standard}, barème, erreur
 d'usage pour un segment qui n'est pas un nombre scalaire fini entier sans attribut
-(\code{.segment\_verifie()}) ou qui est inconnu de l'annexe~; barème seul
-(court par convention sans segment, barème non déterminé par la section~G) \\
+(\code{.segment\_verifie()}) ou qui est inconnu de l'annexe (\code{.segment\_ligne()}), levée
+par les deux fonctions (par \code{usp\_bareme\_segment()} en appel direct depuis
+l'issue~\#133)~; barème seul (court par convention pour \code{segment = NULL}, barème non
+déterminé par la section~G) \\
 \code{usp\_parametre\_}\newline\code{standard()} & \code{methode}, \code{segment}, \code{annexe},
 \code{nature\_donnees}, \code{sigma\_standard} & paramètre standard du mélange selon la
 nature déclarée (décision M13), point de l'article~218 remplacé, exigence relative aux données,
@@ -731,6 +733,13 @@ autre valeur \\
 \code{.segment\_verifie()} & \code{segment} & segment inchangé s'il est un nombre scalaire fini
 entier sans attribut, erreur d'usage nommant \code{segment} pour toute autre valeur, texte
 compris (sans conversion, issue~\#105) \\
+\code{.segment\_ligne()} & \code{segment}, \code{annexe} (déjà vérifiés) & rang du segment
+dans le tableau de son annexe (\code{ANNEXE\_II} ou \code{ANNEXE\_XIV}), erreur d'usage
+«~\code{Segment \ldots{} inconnu dans l'annexe \ldots}~» sinon~; recherche commune à
+\code{usp\_segment\_infos()} et \code{usp\_bareme\_segment()} (issue~\#133) \\
+\code{.engine\_saisie()} & valeur reçue & texte qui cite la valeur refusée dans un message
+d'erreur d'usage~: \code{deparse()} à 15 chiffres significatifs, ou à 17 quand l'écriture à 15
+chiffres ne restitue pas le double reçu, sans rien évaluer (issue~\#133) \\
 \code{usp\_parametre()} & \code{fit}, $\sigma_{\text{std}}$, barème &
 $\sigma_{\mathrm{USP}}$ et ses composantes \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Chaîne Merz--Wüthrich (section~D, §\ref{sec:mw})}}} \\
@@ -932,10 +941,19 @@ l'annexe~XVII, section~G}, par le drapeau \code{\$metadata\$bareme\_saisi}, mêm
 saisie égale le barème du segment (issue~\#93, lecture retenue par le mainteneur le 26~septembre
 2026 sur l'avis d'\code{actuary}). Le facteur $c$ n'est pas un paramètre standard remplaçable au
 sens de l'article~218~: un barème contraire à la section~G est une dérogation, non un
-«~paramètre standard remplacé~». Sans segment désigné ($\sigma$ standard saisi seul),
-\code{usp\_bareme\_segment()} pose le barème court par convention, barème qu'aucun texte ne
+«~paramètre standard remplacé~». Sans segment désigné ($\sigma$ standard saisi seul,
+\code{segment = NULL}), \code{usp\_bareme\_segment()} pose le barème court par convention, barème qu'aucun texte ne
 détermine (l'annexe~XVII, section~A, paragraphe~2, définit toujours le segment~$s$ comme «~l'un
 des segments visés à l'annexe II ou bien l'un de ceux visés à l'annexe XIV~»)~: il est restitué comme «~non déterminé par l'annexe~XVII, section~G~», sans drapeau.
+Cette convention ne vaut que pour \code{NULL}~: depuis l'issue~\#133, toute autre valeur de
+\code{segment} qui n'est pas un nombre scalaire fini entier sans attribut, ou qui est absente de
+l'annexe, est refusée par une erreur d'usage, y compris en appel direct
+d'\code{usp\_bareme\_segment()}, un segment absent de l'annexe n'ayant pas de barème dans la
+section~G (mesuré sur le code antérieur~: \code{"1"}, \code{TRUE}, \code{factor(5)} et
+\code{c(a = 1)} rendaient le barème long~; \code{NA}, $1{,}5$, $99$ et le segment~5 de
+l'annexe~XIV rendaient le barème court~; \code{c(1, 2)} et \code{integer(0)} levaient une
+erreur R qui ne nommait pas l'argument). Le chemin de \code{run\_engine()} n'est pas concerné,
+\code{.engine\_verifier\_usage()} validant le segment avant cet appel.
 Mesuré sur le jeu de contrôle ($T = 8$, données déclarées brutes)~: au segment~1 de
 l'annexe~II, le barème court porte $\sigma_{\mathrm{USP}}$ de $0{,}1114524$ à $0{,}1157228$~; au
 segment~2, le barème long le porte de $0{,}1119228$ à $0{,}1032524$~; l'écart vaut exactement
@@ -2264,10 +2282,18 @@ autres qu'un calcul abouti, à ne pas confondre (issue~\#88, décision du mainte
   se propageait tel quel dans \code{\$metadata} et dans $\sigma_{\mathrm{USP}}$. Le message, écrit
   par le moteur, cite la valeur reçue (mesuré~: $\alpha = 0{,}30$, \code{seed = NULL},
   \code{seed = 1.5}, \code{bareme = "co"} et \code{sigma\_standard = 0} lèvent chacun
-  l'erreur correspondante, $\alpha = 0{,}2999$ est calculé). Relèvent du même régime, en appel
+  l'erreur correspondante, $\alpha = 0{,}2999$ est calculé)~; un double y est cité à
+  15 chiffres significatifs, ou à 17 quand l'écriture à 15 chiffres ne le restitue pas
+  (\code{.engine\_saisie()}, issue~\#133), afin qu'une valeur refusée ne soit pas affichée
+  sous l'aspect d'une valeur valide (mesuré~: \code{segment = 1 + 1e-15}, cité \code{1}
+  auparavant, est cité \code{1.0000000000000011}~; \code{alpha = 0.03 + 4e-18} avec $B = 99$
+  est cité \code{0.030000000000000002} par le message conjoint de $B$ et $\alpha$~;
+  \code{alpha = 0.3} reste cité \code{0.3}). Relèvent du même régime, en appel
   direct, la durée non entière refusée par \code{usp\_credibilite()}, l'annexe refusée par
   \code{.annexe\_verifiee()} et le segment refusé par \code{.segment\_verifie()}, qu'appellent
-  \code{usp\_segment\_infos()} et, par elle, \code{usp\_parametre\_standard()}~; \code{theta\_equiv} n'en relève pas~: hors domaine, c'est un
+  \code{usp\_segment\_infos()} et, par elle, \code{usp\_parametre\_standard()}, ainsi
+  qu'\code{usp\_bareme\_segment()} depuis l'issue~\#133, ou inconnu de l'annexe
+  (\code{.segment\_ligne()})~; \code{theta\_equiv} n'en relève pas~: hors domaine, c'est un
   refus de données~;
 \item le \textbf{défaut de calcul intercepté}~: une erreur R survient dans le calcul qui suit une
   validation réussie (après \code{engine\_valider\_donnees()} dans la branche lognormale, après
