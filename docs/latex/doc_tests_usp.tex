@@ -718,7 +718,9 @@ des dérogations (\code{parametre}, \code{valeur\_reglementaire}, \code{valeur\_
 \code{conforme}, \code{libelle}), zéro ligne sans dérogation~: $\sigma$ standard saisi, barème
 saisi, barème non déterminé faute de segment, troncature des années fournies à la profondeur $T$
 (ligne \code{profondeur}, issue~\#104) (§\ref{sec:segments})~; erreur si un drapeau de saisie ou
-\code{\$metadata\$n\_fournies} manque ou est incohérent (\code{.engine\_trace\_profondeur()}) \\
+\code{\$metadata\$n\_fournies} manque ou est incohérent, ou si \code{\$metadata\$T} est absent,
+non fini ou non entier (\code{.engine\_trace\_profondeur()}, appelée avant la lecture du barème,
+issue~\#135) \\
 \code{TOLERANCE\_CONFORME\_}\newline\code{SIGMA} & constante ($10^{-12}$) & tolérance relative de
 l'égalité entre $\sigma$ standard saisi et $\sigma$ standard réglementaire (colonne
 \code{conforme} d'\code{engine\_derogations()}) \\
@@ -1073,7 +1075,9 @@ années fournies à la profondeur~$T$ (ligne \code{profondeur}, paragraphe de la
 crédibilité ci-dessus), et refuse, par une erreur, un résultat dépourvu de l'un des deux drapeaux
 ou dont \code{\$metadata\$n\_fournies} manque ou contredit $T$ (\code{.engine\_trace\_profondeur()}~:
 $n$ non entier, $n < T$, ou triangle tronqué en réserve n\textsuperscript{o}~2), plutôt que de
-deviner. L'égalité du $\sigma$ saisi à la valeur réglementaire y est
+deviner~; un \code{\$metadata\$T} absent, non fini ou non entier y est refusé par le message
+«~\code{metadata\$T absent ou invalide}~», la profondeur étant contrôlée avant le barème depuis
+l'issue~\#135 (il l'était auparavant par le message de la section~G d'\code{usp\_credibilite()}). L'égalité du $\sigma$ saisi à la valeur réglementaire y est
 jugée en relatif à $10^{-12}$ près (constante \code{TOLERANCE\_CONFORME\_SIGMA}), parce que le
 produit du facteur NP standard et de $\sigma$ brut n'est pas toujours représentable exactement
 (mesuré~: $0{,}8 \times 0{,}10$ diffère de $0{,}08$ de $1{,}4\cdot 10^{-17}$, et une saisie de
