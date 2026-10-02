@@ -1852,7 +1852,7 @@ lillie_p <- function(D, n) {
 
 # --- Execution sous graine locale (ADR 0004, issue #42) ----------------------
 # Fonction unique par laquelle passe toute simulation du moteur
-# (usp_bootstrap(), mw_bootstrap(), sw_loi_nulle()).
+# (usp_bootstrap(), usp_lr_delta(), mw_bootstrap(), sw_loi_nulle()).
 # Sauvegarde .Random.seed de l'environnement global (ou note son absence),
 # pose la graine, evalue expr (evaluation differee : l'expression est evaluee
 # dans l'environnement de l'appelant, apres set.seed()), puis restaure l'etat
@@ -3526,18 +3526,46 @@ usp_ajuster_contraint <- function(x, y, delta0, gamma_depart) {
 # p_asymptotique : melange 1/2 chi2(0) + 1/2 chi2(1) (Chernoff, 1954 ; Self
 # et Liang, 1987), POUR MEMOIRE (.p_melange_chernoff()).
 # Aucune p-value retenue ni verdict (lignes de diagnostic de usp_tests()).
+# Echec sur les donnees OBSERVEES (#161, decision du mainteneur du
+# 30/09/2026) : si l'ajustement contraint de la borne leve une erreur, ou si
+# le LR observe n'est pas fini, la borne est rendue avec la meme liste de
+# champs, valeurs a NA (delta0 conserve), sans bootstrap restreint
+# (lr_boot vide, B_effectif = 0, motif_mc = MOTIF_MC_OBS_NON_FINIE par
+# engine_p_mc(), n_refit_pire et n_echec NA : aucune replication tentee),
+# au lieu d'interrompre run_engine() ; l'autre borne, qui pose sa propre
+# graine, n'en depend pas. La ligne G de usp_tests() lit lr non fini et
+# rend "non applicable" avec MOTIF_LR_DELTA_ECHEC.
+MOTIF_LR_DELTA_ECHEC <- paste(
+  "Rapport de vraisemblance non calculable sur les donnees observees",
+  "(ajustement a delta fixe a la borne en echec) : diagnostic non applicable,",
+  "aucun bootstrap restreint.")
 usp_lr_delta <- function(fit, B = 999, seed = 20260831) {
   x <- fit$x; y <- fit$y
+  borne_en_echec <- function(d0) {
+    mc <- engine_p_mc(numeric(0), NA_real_, "haut")
+    list(delta0 = d0, gamma_contraint = NA_real_, beta_contraint = NA_real_,
+         sigma_contraint = NA_real_, obj_contraint = NA_real_, lr = NA_real_,
+         p_asymptotique = NA_real_, p_mc = mc$p_mc, err_mc = mc$err_mc,
+         B_effectif = mc$B_effectif, granularite = mc$granularite,
+         motif_mc = mc$motif, part_lr_nul = NA_real_,
+         n_refit_pire = NA_integer_, n_echec = NA_integer_, lr_boot = numeric(0))
+  }
   une_borne <- function(d0) {
     au_bord <- abs(fit$delta - d0) <= TOL_DELTA_BORD
-    fit_c <- if (au_bord) fit else usp_ajuster_contraint(x, y, d0, fit$gamma)
+    fit_c <- if (au_bord) fit else
+      try(usp_ajuster_contraint(x, y, d0, fit$gamma), silent = TRUE)
+    if (inherits(fit_c, "try-error")) return(borne_en_echec(d0))
     obj_c <- fit_c$obj
     lr <- max(0, obj_c - fit$obj_min)
+    if (!is.finite(lr)) return(borne_en_echec(d0))
     if (lr < TOL_OPTIMUM) lr <- 0
     p_as <- .p_melange_chernoff(lr)
     lr_b <- rep(NA_real_, B); n_pire <- 0L; n_echec <- 0L
     engine_sous_graine(seed, {
       for (b in seq_len(B)) {
+        # usp_simuler() ne leve pas d'erreur (rnorm rend NaN, avec un
+        # avertissement, si un parametre n'est pas fini) : un tirage non fini
+        # est ecarte par les try() ci-dessous ou par la garde sur dif.
         yb <- usp_simuler(fit_c)
         fu <- try(usp_ajuster_rapide(x, yb, fit_c$delta, fit_c$gamma), silent = TRUE)
         fc <- try(usp_ajuster_contraint(x, yb, d0, fit_c$gamma), silent = TRUE)
@@ -3592,18 +3620,24 @@ usp_jackknife <- function(fit, sigma_standard, bareme) {
   out
 }
 
+# Echec isole (#161, decision du mainteneur du 30/09/2026) : un optimize()
+# en erreur rend NA au point de grille concerne, au lieu d'interrompre
+# run_engine() ; meme liste de champs, grilles inchangees. plots_data
+# (profil_delta, profil_gamma) porte alors NA a ces points.
 usp_profil <- function(fit, n = 41) {
+  objectif_ou_na <- function(o)
+    if (inherits(o, "try-error")) NA_real_ else o$objective
   gd <- seq(0, 1, length.out = n)
   pd <- vapply(gd, function(d) {
-    o <- stats::optimize(function(g) usp_objectif(c(d, g), fit$x, fit$y, fit$xbar),
-                         interval = BORNES_GAMMA)
-    o$objective
+    objectif_ou_na(try(stats::optimize(
+      function(g) usp_objectif(c(d, g), fit$x, fit$y, fit$xbar),
+      interval = BORNES_GAMMA), silent = TRUE))
   }, numeric(1))
   gg <- seq(fit$gamma - 1.5, fit$gamma + 1.5, length.out = n)
   pg <- vapply(gg, function(g) {
-    o <- stats::optimize(function(d) usp_objectif(c(d, g), fit$x, fit$y, fit$xbar),
-                         interval = c(0, 1))
-    o$objective
+    objectif_ou_na(try(stats::optimize(
+      function(d) usp_objectif(c(d, g), fit$x, fit$y, fit$xbar),
+      interval = c(0, 1)), silent = TRUE))
   }, numeric(1))
   # Le rapport de vraisemblance aux bornes de delta (anciens champs
   # lr_delta0 et lr_delta1, p chi2(1) naive jamais affichee) a une seule
@@ -4807,6 +4841,22 @@ usp_tests <- function(fit, boot, alpha = 0.10,
            stat_nom = "LR(1)", b = lr_delta$borne1))
     for (li in libelles) {
       b <- li$b
+      # Borne en echec sur l'observe (#161, usp_lr_delta()) : LR non fini,
+      # ligne non applicable (INFO, aucune p-value) avec le motif fixe,
+      # precede en volumes constants du rappel que le LR y serait nul.
+      if (!is.finite(b$lr)) {
+        add(fam, li$nom,
+            fonction = "usp_lr_delta",
+            "Chernoff (1954) ; Self & Liang (1987), JASA 82 ; Davison & Hinkley (1997), chap. 4",
+            type = "non applicable", H0 = li$H0, H1 = li$H1,
+            stat_nom = li$stat_nom, stat = NA_real_, loi = loi_lr,
+            estim_nom = "sigma(delta0, gamma~)", estim = NA_real_,
+            detail = if (isTRUE(regime$volumes_constants))
+              paste("VOLUMES CONSTANTS : delta non identifie, LR nul par construction attendu",
+                    "a cette borne mais non calcule.", MOTIF_LR_DELTA_ECHEC)
+            else MOTIF_LR_DELTA_ECHEC)
+        next
+      }
       pref <- character(0)
       if (!is.finite(b$p_mc))
         pref <- c(pref, paste0(b$motif_mc, " : aucune p-value Monte-Carlo."),

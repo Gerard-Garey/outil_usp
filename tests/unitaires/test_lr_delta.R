@@ -1,7 +1,8 @@
 ###############################################################################
 #  tests/unitaires/test_lr_delta.R  --  RAPPORT DE VRAISEMBLANCE SUR DELTA ET
 #  BOOTSTRAP RESTREINT (issue #45, specification d'actuary du 28/09/2026,
-#  par. 5, tests U1 a U10 ; decisions du mainteneur du 28/09/2026)
+#  par. 5, tests U1 a U10 ; decisions du mainteneur du 28/09/2026) ; U11 :
+#  echec isole sur l'observe et chemins d'echec du bootstrap restreint (#161)
 #
 #  usp_ajuster_contraint(), .p_melange_chernoff(), usp_lr_delta(),
 #  champ sigma_boot_restreint de usp_bootstrap(), ic_bootstrap_restreint et
@@ -252,6 +253,190 @@ verifier("U10 ic_bootstrap_restreint = quantiles de c sigma*_r sqrt((T+1)/(T-1))
              identical(names(r1$ic_bootstrap_restreint), names(q)) &&
              isTRUE(proche(r1$ajustement$largeur_ic_restreint,
                            (q[["95%"]] - q[["5%"]]) / pf$sigma_usp))
+         })
+
+# --- U11 : echec isole sur l'observe et chemins d'echec du bootstrap restreint (#161) ---
+# Erreur injectee dans l'environnement du moteur (comme #145,
+# test_controles_entree.R), sans argument nouveau de run_engine() :
+# usp_ajuster_contraint() en echec sur les seules donnees OBSERVEES a une
+# borne (J2, delta interieur : les deux bornes appellent l'ajustement
+# contraint sur l'observe) ; usp_objectif() en echec dans usp_profil()
+# seulement (pile d'appel) ; usp_ajuster_contraint() en echec un appel sur
+# cinq sur les y* (m3). Attendu : ok = TRUE, sigma_USP et autres resultats
+# inchanges, ligne concernee "non applicable", INFO, p_retenue NA, motif fixe.
+avec_injection_161 <- function(nom, f, expr) {
+  e <- environment(run_engine)
+  orig <- get(nom, envir = e)
+  assign(nom, f, envir = e)
+  on.exit(assign(nom, orig, envir = e))
+  expr
+}
+contraint_orig <- usp_ajuster_contraint; objectif_orig <- usp_objectif
+calcul_j2 <- function() run_engine(xt = xi, yt = yi, methode = "premium", segment = 1,
+                                   annexe = "II", nature_donnees = "brutes",
+                                   B = B_MIN_USAGE, seed = GRAINE)
+r2_ref <- calcul_j2()
+panne_borne <- function(d_cible) function(x, y, delta0, gamma_depart) {
+  if (identical(y, yi) && delta0 == d_cible) stop("panne simulee")
+  contraint_orig(x, y, delta0, gamma_depart)
+}
+lignes_lr <- function(r) r$tests[vapply(r$tests, function(t)
+  grepl("^Rapport de vraisemblance : delta", t$test), logical(1))]
+for (d_cible in c(0, 1)) {
+  r_p <- avec_injection_161("usp_ajuster_contraint", panne_borne(d_cible), calcul_j2())
+  k <- d_cible + 1L; autre <- 3L - k
+  nb <- c("borne0", "borne1")
+  b <- r_p$lr_delta[[nb[k]]]
+  verifier(sprintf("U11 borne delta = %d en echec sur l'observe : ok = TRUE, borne de meme forme (16 champs), valeurs NA, aucun bootstrap restreint (#161)", d_cible),
+           isTRUE(r2_ref$ok) && isTRUE(r_p$ok) && identical(names(b), CHAMPS_BORNE) &&
+             b$delta0 == d_cible && is.na(b$lr) && is.na(b$sigma_contraint) &&
+             is.na(b$p_asymptotique) && is.na(b$p_mc) && is.na(b$err_mc) &&
+             identical(b$B_effectif, 0) && length(b$lr_boot) == 0L &&
+             identical(b$motif_mc, MOTIF_MC_OBS_NON_FINIE) &&
+             identical(b$n_echec, NA_integer_) && identical(b$n_refit_pire, NA_integer_) &&
+             identical(names(r_p$lr_delta), names(r2_ref$lr_delta)))
+  verifier(sprintf("U11 borne delta = %d en echec : autre borne, sigma_USP, bootstrap, profil et lignes hors LR identiques au calcul sans panne (#161)", d_cible),
+           identical(r_p$lr_delta[[nb[autre]]], r2_ref$lr_delta[[nb[autre]]]) &&
+             identical(r_p$parametre_final, r2_ref$parametre_final) &&
+             identical(r_p$bootstrap, r2_ref$bootstrap) &&
+             identical(r_p$profil, r2_ref$profil) &&
+             identical(r_p$tests[-match(NOMS_45[k + 1L], vapply(r_p$tests, `[[`, "", "test"))],
+                       r2_ref$tests[-match(NOMS_45[k + 1L], vapply(r2_ref$tests, `[[`, "", "test"))]))
+  verifier(sprintf("U11 borne delta = %d en echec : ligne non applicable, INFO, non inoperante, p_retenue NA, detail = MOTIF_LR_DELTA_ECHEC, fonction usp_lr_delta (#161)", d_cible),
+           {
+             t <- lignes_lr(r_p)[[k]]
+             t$test == NOMS_45[k + 1L] && t$type == "non applicable" && t$verdict == "INFO" &&
+               is.na(t$p_retenue) && is.na(t$stat) && is.na(t$estim) &&
+               is.na(t$p_mc) && is.na(t$p_asymptotique) && is.na(t$sens) &&
+               identical(t$detail, MOTIF_LR_DELTA_ECHEC) && t$fonction == "usp_lr_delta" &&
+               identical(t$inoperant, FALSE) &&
+               identical(lignes_lr(r_p)[[autre]], lignes_lr(r2_ref)[[autre]])
+           })
+  verifier(sprintf("U11 borne delta = %d en echec : plots_data de meme forme, lr et q90 a NA pour cette borne seule (#161)", d_cible),
+           {
+             L <- r_p$plots_data$lr_delta; L0 <- r2_ref$plots_data$lr_delta
+             identical(names(r_p$plots_data), names(r2_ref$plots_data)) &&
+               identical(names(L), names(L0)) && is.na(L$lr[[k]]) && is.na(L$q90_bootstrap[[k]]) &&
+               identical(L$lr[[autre]], L0$lr[[autre]]) &&
+               identical(L$q90_bootstrap[[autre]], L0$q90_bootstrap[[autre]]) &&
+               identical(L$seuil_asymptotique, L0$seuil_asymptotique) &&
+               identical(r_p$plots_data[setdiff(names(r2_ref$plots_data), "lr_delta")],
+                         r2_ref$plots_data[setdiff(names(r2_ref$plots_data), "lr_delta")])
+           })
+}
+
+# LR observe non fini sans erreur R (garde !is.finite(lr) de une_borne()) :
+# ajustement contraint de la borne 0 rendu avec un objectif NaN sur l'observe.
+r_nan <- avec_injection_161("usp_ajuster_contraint", function(x, y, delta0, gamma_depart) {
+  f <- contraint_orig(x, y, delta0, gamma_depart)
+  if (identical(y, yi) && delta0 == 0) f$obj <- NaN
+  f
+}, calcul_j2())
+verifier("U11 borne delta = 0 a objectif contraint NaN sur l'observe : ok = TRUE, meme borne en echec et meme ligne non applicable que sur erreur R (#161)",
+         isTRUE(r_nan$ok) && identical(names(r_nan$lr_delta$borne0), CHAMPS_BORNE) &&
+           is.na(r_nan$lr_delta$borne0$lr) && length(r_nan$lr_delta$borne0$lr_boot) == 0L &&
+           identical(r_nan$lr_delta$borne1, r2_ref$lr_delta$borne1) &&
+           identical(lignes_lr(r_nan)[[1]]$detail, MOTIF_LR_DELTA_ECHEC) &&
+           lignes_lr(r_nan)[[1]]$type == "non applicable")
+
+# Volumes constants (avis d'actuary, #161) : x constant, delta non identifie ;
+# la borne delta = 1 en echec sur l'observe rend une ligne non applicable dont
+# le detail rappelle que le LR y serait nul par construction, suivi du motif
+# fixe ; l'autre ligne garde son detail ordinaire (prefixe VOLUMES CONSTANTS
+# "LR nul aux deux bornes", inchange).
+x_cst <- rep(100, length(y))
+calcul_cst <- function() run_engine(xt = x_cst, yt = y, methode = "premium", segment = 1,
+                                    annexe = "II", nature_donnees = "brutes",
+                                    B = B_MIN_USAGE, seed = GRAINE)
+r_cst <- avec_injection_161("usp_ajuster_contraint", function(x, y0, delta0, gamma_depart) {
+  if (identical(y0, y) && delta0 == 1) stop("panne simulee")
+  contraint_orig(x, y0, delta0, gamma_depart)
+}, calcul_cst())
+verifier("U11 volumes constants, borne delta = 1 en echec sur l'observe : ligne non applicable, INFO, detail = rappel VOLUMES CONSTANTS + MOTIF_LR_DELTA_ECHEC ; ligne delta = 0 au prefixe ordinaire (#161)",
+         {
+           l <- lignes_lr(r_cst)
+           isTRUE(r_cst$ok) && is.na(r_cst$lr_delta$borne1$lr) &&
+             l[[2]]$type == "non applicable" && l[[2]]$verdict == "INFO" && is.na(l[[2]]$p_retenue) &&
+             identical(l[[2]]$inoperant, FALSE) &&
+             identical(l[[2]]$detail,
+                       paste("VOLUMES CONSTANTS : delta non identifie, LR nul par construction attendu",
+                             "a cette borne mais non calcule.", MOTIF_LR_DELTA_ECHEC)) &&
+             l[[1]]$type == "diagnostic" &&
+             grepl("VOLUMES CONSTANTS : delta non identifie, LR nul aux deux bornes par construction.",
+                   l[[1]]$detail, fixed = TRUE)
+         })
+
+# Profil : usp_objectif() en echec quand il est appele sous usp_profil()
+# (pile d'appel), partout (toute la grille) ou au seul point delta = 0,5.
+sous_profil <- function() any(vapply(sys.calls(), function(cl)
+  identical(cl[[1]], as.name("usp_profil")), logical(1)))
+panne_profil <- function(par, ...) {
+  if (sous_profil()) stop("panne simulee")
+  objectif_orig(par, ...)
+}
+panne_profil_milieu <- function(par, ...) {
+  if (sous_profil() && par[1] == 0.5) stop("panne simulee")
+  objectif_orig(par, ...)
+}
+r_pr <- avec_injection_161("usp_objectif", panne_profil, calcul_j2())
+verifier("U11 profil en echec partout : ok = TRUE, meme forme, grilles inchangees, objectifs NA ; sigma_USP, tests, LR et bootstrap identiques (#161)",
+         isTRUE(r_pr$ok) && identical(names(r_pr$profil), names(r2_ref$profil)) &&
+           identical(r_pr$profil$delta_grid, r2_ref$profil$delta_grid) &&
+           identical(r_pr$profil$gamma_grid, r2_ref$profil$gamma_grid) &&
+           all(is.na(r_pr$profil$delta_obj)) && all(is.na(r_pr$profil$gamma_obj)) &&
+           length(r_pr$profil$delta_obj) == length(r2_ref$profil$delta_obj) &&
+           identical(r_pr$parametre_final, r2_ref$parametre_final) &&
+           identical(r_pr$tests, r2_ref$tests) && identical(r_pr$lr_delta, r2_ref$lr_delta) &&
+           identical(r_pr$bootstrap, r2_ref$bootstrap))
+verifier("U11 profil en echec partout : plots_data de meme forme, profil_delta et profil_gamma a objectif NA, reste identique (#161)",
+         {
+           pd <- r_pr$plots_data; pd0 <- r2_ref$plots_data
+           hors <- setdiff(names(pd0), c("profil_delta", "profil_gamma"))
+           identical(names(pd), names(pd0)) &&
+             identical(pd$profil_delta$delta, pd0$profil_delta$delta) &&
+             all(is.na(pd$profil_delta$objectif)) && all(is.na(pd$profil_gamma$objectif)) &&
+             identical(pd[hors], pd0[hors])
+         })
+r_pm <- avec_injection_161("usp_objectif", panne_profil_milieu, calcul_j2())
+verifier("U11 profil en echec au seul point delta = 0,5 : NA a ce point, autres points et profil en gamma identiques (#161)",
+         {
+           i <- which(r2_ref$profil$delta_grid == 0.5)
+           isTRUE(r_pm$ok) && length(i) == 1L && is.na(r_pm$profil$delta_obj[i]) &&
+             identical(r_pm$profil$delta_obj[-i], r2_ref$profil$delta_obj[-i]) &&
+             identical(r_pm$profil$gamma_obj, r2_ref$profil$gamma_obj)
+         })
+
+# m3 : chemins d'echec du bootstrap restreint. usp_ajuster_contraint() en
+# echec un appel sur cinq sur les y* (jamais sur l'observe) : replications
+# ecartees de usp_lr_delta() (n_echec) et du bootstrap restreint de
+# usp_bootstrap() (n_echec_restreint), le bootstrap principal intact.
+compteur_161 <- new.env(); compteur_161$n <- 0L
+panne_un_sur_cinq <- function(x, y, delta0, gamma_depart) {
+  if (!identical(y, yi)) {
+    compteur_161$n <- compteur_161$n + 1L
+    if (compteur_161$n %% 5L == 0L) stop("panne simulee")
+  }
+  contraint_orig(x, y, delta0, gamma_depart)
+}
+r_m3 <- avec_injection_161("usp_ajuster_contraint", panne_un_sur_cinq, calcul_j2())
+verifier("U11 (m3) usp_lr_delta, replications en echec : n_echec > 0, B_effectif = B - n_echec = longueur de lr_boot, p_mc recalculee sur les seules replications retenues (#161)",
+         isTRUE(r_m3$ok) &&
+           all(vapply(list(r2_ref$lr_delta$borne0, r2_ref$lr_delta$borne1), function(b)
+             identical(b$n_echec, 0L), logical(1))) &&
+           all(vapply(list(r_m3$lr_delta$borne0, r_m3$lr_delta$borne1), function(b) {
+             Be <- length(b$lr_boot)
+             b$n_echec > 0L && b$B_effectif == B_MIN_USAGE - b$n_echec && Be == b$B_effectif &&
+               isTRUE(proche(b$p_mc, (1 + sum(b$lr_boot >= b$lr)) / (Be + 1))) &&
+               is.finite(b$lr)
+           }, logical(1))) &&
+           all(vapply(lignes_lr(r_m3), function(t) t$type == "diagnostic", logical(1))))
+verifier("U11 (m3) usp_bootstrap, reajustement contraint en echec : n_echec_restreint > 0, sigma_boot_restreint raccourci d'autant, bootstrap principal identique (#161)",
+         {
+           bt <- r_m3$bootstrap; bt0 <- r2_ref$bootstrap
+           identical(bt0$n_echec_restreint, 0L) && bt$n_echec_restreint > 0L &&
+             length(bt$sigma_boot_restreint) == length(bt$sigma_boot) - bt$n_echec_restreint &&
+             identical(bt$sigma_boot, bt0$sigma_boot) && identical(bt$p_mc, bt0$p_mc) &&
+             identical(r_m3$parametre_final$sigma_usp, r2_ref$parametre_final$sigma_usp)
          })
 
 fin_fichier()

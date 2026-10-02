@@ -8,7 +8,8 @@
 #  exclus en annexe avec leur verdict, empreintes presentes, stables et
 #  sensibles aux donnees, formule propre a chaque methode, etat global
 #  (.Random.seed, options) inchange ; graphiques d'influence et note sans
-#  erreur ni "NA" quand les distances de Cook sont non finies (issue #153).
+#  erreur ni "NA" quand les distances de Cook sont non finies (issue #153) ;
+#  profil et reperes du LR sur delta a NA restitues sans erreur (issue #161).
 #  References : RFC 4648, section 10 (vecteurs de test base64) ; regle de
 #  selection de l'onglet Tests (filtrer_selection).
 #  La branche PNG est exercee partout ou capabilities("png") est vrai ; la
@@ -457,6 +458,69 @@ if (requireNamespace("plotly", quietly = TRUE)) {
            all(sans_erreur153(pd153)))
 } else {
   cat("  note : plotly absent ; branche plotly des graphiques d'influence non exercee (attendu en CI, issue #53).\n")
+}
+
+## --- Rapport de vraisemblance sur delta et profil en echec (issue #161) --------
+# Erreur injectee dans l'environnement du moteur : usp_ajuster_contraint() en
+# echec sur les donnees observees aux deux bornes (jeu a delta interieur) et
+# usp_objectif() en echec sous usp_profil(). Le moteur rend ok = TRUE avec
+# plots_data$lr_delta$lr, q90_bootstrap et les objectifs du profil a NA, de
+# meme forme ; l'affichage doit les restituer sans erreur R (trace du profil
+# en base R sur pdf(NULL), tableaux de l'onglet Tests, rapport fige).
+avec_injection161 <- function(nom, f, expr) {
+  e <- environment(run_engine)
+  orig <- get(nom, envir = e)
+  assign(nom, f, envir = e)
+  on.exit(assign(nom, orig, envir = e))
+  expr
+}
+xi161 <- c(50, 80, 120, 200, 300, 150, 90, 60)
+yi161 <- c(29.92, 56.9, 101.25, 123.06, 207.23, 105.91, 68.59, 40.05)
+contraint161 <- usp_ajuster_contraint; objectif161 <- usp_objectif
+res161 <- avec_injection161("usp_ajuster_contraint",
+  function(x, y, delta0, gamma_depart) {
+    if (identical(y, yi161)) stop("panne simulee")
+    contraint161(x, y, delta0, gamma_depart)
+  },
+  avec_injection161("usp_objectif", function(par, ...) {
+    if (any(vapply(sys.calls(), function(cl) identical(cl[[1]], as.name("usp_profil")), logical(1))))
+      stop("panne simulee")
+    objectif161(par, ...)
+  }, run_engine(xt = xi161, yt = yi161, methode = "premium", segment = 1, B = 99,
+                nature_donnees = "brutes")))
+tb161 <- engine_table_tests(res161)
+verifier("LR sur delta et profil en echec : ok = TRUE, lr, q90 et objectifs du profil a NA dans plots_data (#161)",
+         isTRUE(res161$ok) && all(is.na(res161$plots_data$lr_delta$lr)) &&
+           all(is.na(res161$plots_data$lr_delta$q90_bootstrap)) &&
+           all(is.na(res161$plots_data$profil_delta$objectif)) &&
+           sum(tb161$commentaire == MOTIF_LR_DELTA_ECHEC) == 2L)
+option161 <- options(usp.graphiques_base = TRUE); grDevices::pdf(NULL)
+trace161 <- suppressWarnings(tryCatch({ plot_profil_delta(res161$plots_data); TRUE },
+                                      error = function(e) FALSE))
+grDevices::dev.off(); options(option161)
+verifier("LR sur delta et profil en echec, base R : plot_profil_delta() sans erreur (#161)", trace161)
+verifier("LR sur delta et profil en echec : tableaux de synthese et de detail sans erreur, lignes LR non applicables avec leur motif (#161)",
+         {
+           g <- tb161[tb161$commentaire %in% MOTIF_LR_DELTA_ECHEC, ]
+           s <- tryCatch(table_synthese_groupe(tb161), error = function(e) NULL)
+           d <- tryCatch(table_detail_groupe(g), error = function(e) NULL)
+           !is.null(s) && !is.null(d) && nrow(d) == 2L &&
+             all(d$Type == "non applicable") &&
+             all(grepl("non calculable sur les donnees observees", d$`Motif / commentaire`, fixed = TRUE))
+         })
+f161 <- tempfile(fileext = ".html")
+r161 <- tryCatch(suppressWarnings(rapport_html(res161, selection_defaut(tb161), f161,
+                                               interactif = FALSE, identite = idt)),
+                 error = function(e) e)
+verifier("LR sur delta et profil en echec : rapport fige produit sans erreur, motif restitue (#161)",
+         !inherits(r161, "error") && file.exists(f161) &&
+           grepl("non calculable sur les donnees observees",
+                 paste(readLines(f161, warn = FALSE), collapse = "\n"), fixed = TRUE))
+if (requireNamespace("plotly", quietly = TRUE)) {
+  verifier("LR sur delta et profil en echec, plotly : plot_profil_delta() sans erreur (#161)",
+           !inherits(tryCatch(plot_profil_delta(res161$plots_data), error = function(e) e), "error"))
+} else {
+  cat("  note : plotly absent ; branche plotly du profil en echec non exercee (attendu en CI, issue #53).\n")
 }
 
 fin_fichier()
