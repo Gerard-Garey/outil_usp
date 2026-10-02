@@ -179,27 +179,492 @@ verifier("engine_valider_profondeur : annexe XVII citee si T_min >= 5 seulement 
          !contient(engine_valider_profondeur(5.5, 8, T_min = 1), "annexe XVII") &&
          identical(engine_valider_profondeur(0, 8, T_min = 1), "Profondeur T = 0 : T >= 1 attendu."))
 
-## --- Donnees a l'echelle extreme (issue #88) ---------------------------------
+## --- Donnees a l'echelle extreme (issues #88, #145) ---------------------------
 # Defaut releve par audit (audit leger de #33) : des donnees finies et
 # strictement positives mais a l'echelle extreme passaient la validation et
 # faisaient lever une erreur R en cours de calcul (xt x 1e298 : lm.fit() de
 # test_white(), regresseur x^2 infini, jusqu'a l'issue #110 ; yt x 1e-300 :
-# test logique sur NA dans le detail de la distance de Cook). Depuis #110,
-# RESET et White regressent sur la base reduite s = (x - moyenne) / etendue :
-# xt x 1e298 et xt x 1e200 aboutissent (ok = TRUE, residus z egaux a ceux de
-# l'echelle 1). Decision du mainteneur (26/09/2026)
-# : filet limite au calcul qui suit une validation reussie ; l'erreur y est
-# un DEFAUT DE CALCUL INTERCEPTE (ok = FALSE, motif neutre, diagnostic dans
-# validation$erreur_r) ; les erreurs d'usage restent des erreurs R. Aucun
-# seuil d'echelle. Les motifs compares sont les textes fixes du moteur, en
+# test logique sur NA dans le detail de la distance de Cook). Decision du
+# mainteneur (26/09/2026) : filet limite au calcul qui suit une validation
+# reussie ; l'erreur y est un DEFAUT DE CALCUL INTERCEPTE (ok = FALSE, motif
+# neutre, diagnostic dans validation$erreur_r) ; les erreurs d'usage restent
+# des erreurs R. Le choix "aucun seuil d'echelle" de #88 est RENVERSE par
+# #145 (specification du 02/10/2026) : toute valeur de xt ou de yt de la
+# serie retenue hors de [DOMAINE_NUMERIQUE_MIN ; DOMAINE_NUMERIQUE_MAX] =
+# [1e-50 ; 1e50], bornes incluses, est refusee par engine_valider_donnees()
+# avec un motif explicite, avant tout calcul ; hors d'environ [1e-155 ;
+# 1e151], le moteur rendait ok = TRUE avec des verdicts faux (mesure de la
+# specification). Le filet reste en place : ses scenarios sont desormais
+# declenches par une erreur injectee dans l'environnement du moteur (comme
+# le test Merz-Wuthrich ci-dessous), aucune donnee du domaine ne le
+# declenchant plus. Les motifs compares sont les textes fixes du moteur, en
 # ASCII, jamais le message traduit de conditionMessage().
 MOTIF_DEFAUT <- "Defaut de calcul intercepte"
+MOTIF_DOMAINE <- "hors du domaine numerique [1e-50 ; 1e+50]"
 calcul_extreme <- function(xt, yt) suppressWarnings(
   run_engine(xt = xt, yt = yt, methode = "premium", segment = 1, B = B_MIN_USAGE,
              nature_donnees = "brutes"))
-verifier("run_engine : yt x 1e-300, xt et yt x 1e-300 -> ok = FALSE, defaut intercepte, sans erreur R (#88)",
-         all(vapply(list(list(x, y * 1e-300), list(x * 1e-300, y * 1e-300)), function(d) {
+# Evalue expr avec la fonction `nom` du moteur remplacee par f, restauree en
+# sortie (meme en cas d'erreur).
+avec_injection <- function(nom, f, expr) {
+  e <- environment(run_engine)
+  orig <- get(nom, envir = e)
+  assign(nom, f, envir = e)
+  on.exit(assign(nom, orig, envir = e))
+  expr
+}
+panne <- function(...) stop("panne simulee")
+verifier("Domaine numerique : constantes [1e-50 ; 1e50] et plage du ratio [0,1 ; 5[ nommees (#145)",
+         identical(DOMAINE_NUMERIQUE_MIN, 1e-50) && identical(DOMAINE_NUMERIQUE_MAX, 1e50) &&
+         identical(RATIO_PLAUSIBLE_MIN, 0.1) && identical(RATIO_PLAUSIBLE_MAX, 5))
+verifier("run_engine : xt x 1e298, xt x 1e200, yt x 1e-300, xt et yt x 1e-300, xt x 1e-300 -> refus motive (ok = FALSE, sans defaut intercepte ni erreur R) (#145)",
+         all(vapply(list(list(x * 1e298, y), list(x * 1e200, y), list(x, y * 1e-300),
+                         list(x * 1e-300, y * 1e-300), list(x * 1e-300, y)), function(d) {
            r <- tryCatch(calcul_extreme(d[[1]], d[[2]]), error = function(e) e)
+           !inherits(r, "error") && inherits(r, "usp_engine") && identical(r$ok, FALSE) &&
+             contient(r$validation$erreurs, MOTIF_DOMAINE) &&
+             contient(r$validation$erreurs, "invariants par un changement d'unite commun") &&
+             !contient(r$validation$erreurs, MOTIF_DEFAUT) && is.null(r$validation$erreur_r)
+         }, logical(1))))
+verifier("Domaine numerique : le motif cite la serie, la valeur fautive (17 chiffres si necessaire), la borne et le nombre de valeurs hors domaine (#145)",
+         {
+           e1 <- engine_valider_donnees(x * 1e-300, y)$erreurs
+           e2 <- engine_valider_donnees(replace(x, 3, 2e60), y)$erreurs
+           e3 <- engine_valider_donnees(replace(x, 1, 1e50 * (1 + .Machine$double.eps)), y)$erreurs
+           length(e1) == 1L && contient(e1, "xt = 1.042e-298 (< 1e-50, borne inferieure) ; 8 valeurs hors du domaine") &&
+             contient(e1, "delta_equiv") &&
+             length(e2) == 1L && contient(e2, "xt = 2e+60 (> 1e+50, borne superieure).") &&
+             contient(e3, "xt = 1.0000000000000003e+50 (> 1e+50, borne superieure)")
+         })
+verifier("Domaine numerique : bornes 1e-50 et 1e50 acceptees, refus juste au-dela (un ulp), sur xt comme sur yt (#145)",
+         {
+           haut <- 1e50 * (1 + .Machine$double.eps); bas <- 1e-50 * (1 - .Machine$double.eps)
+           ok <- function(xt, yt) engine_valider_donnees(xt, yt)$ok
+           refus <- function(xt, yt, s) {
+             v <- engine_valider_donnees(xt, yt)
+             !v$ok && length(v$erreurs) == 1L && contient(v$erreurs, paste("Valeur de", s, MOTIF_DOMAINE))
+           }
+           haut != 1e50 && bas != 1e-50 &&
+             ok(replace(x, 1, 1e50), replace(y, 1, 6e49)) &&
+             ok(replace(x, 1, 1.5e-50), replace(y, 1, 1e-50)) &&
+             ok(replace(x, 1, 1e-50), replace(y, 1, 1e-50)) &&
+             ok(replace(x, 1, 1e50), replace(y, 1, 1e50)) &&
+             refus(replace(x, 1, haut), replace(y, 1, 6e49), "xt") &&
+             refus(replace(x, 1, 1e50), replace(y, 1, haut), "yt") &&
+             refus(replace(x, 1, 1.5e-50), replace(y, 1, bas), "yt") &&
+             refus(replace(x, 1, bas), replace(y, 1, 1e-50), "xt")
+         })
+verifier("Domaine numerique : seule la serie retenue est controlee (annee hors domaine ecartee par T acceptee, refusee sinon) (#145)",
+         {
+           s8 <- engine_valider_serie_retenue(c(1e-60, x), c(1, y), T = 8)$validation
+           s9 <- engine_valider_serie_retenue(c(1e-60, x), c(1, y))$validation
+           isTRUE(s8$ok) && !s9$ok && contient(s9$erreurs, "xt = 1e-60 (< 1e-50, borne inferieure).")
+         })
+verifier("Domaine numerique : refus avec les autres refus, sans doublon pour une valeur nulle, negative, NA ou infinie (#145)",
+         {
+           pas_domaine <- function(v) !contient(v$erreurs, MOTIF_DOMAINE)
+           pas_domaine(engine_valider_donnees(replace(x, 2, 0), y)) &&
+             pas_domaine(engine_valider_donnees(replace(x, 2, -1e60), y)) &&
+             pas_domaine(engine_valider_donnees(replace(x, 2, NA), y)) &&
+             pas_domaine(engine_valider_donnees(replace(x, 2, Inf), y)) &&
+             identical(engine_valider_donnees(x * 1e60, y)$avertissements, character(0))
+         })
+# Invariance d'unite (specification de #145) : une serie portee pres d'une
+# borne du domaine par un facteur commun 2^k (multiplication exacte en
+# virgule flottante) donne des resultats identiques au bit pres a ceux de
+# l'echelle 1. L'invariance de RESET et de White a une echelle quelconque
+# reste testee au niveau de la fonction (test_volumes_constants.R).
+verifier("Invariance d'unite : xt et yt x 2^k pres des bornes (k = 159 et -172) -> sigma_USP, p-values retenues, verdicts et controles A identical() a l'echelle 1 (#145)",
+         {
+           cle <- function(r) {
+             tt <- engine_table_tests(r)
+             list(sigma = r$parametre_final$sigma_usp, p = tt$p_retenue, verdict = tt$verdict,
+                  controles = vapply(r$controles, function(l) l$verdict, ""))
+           }
+           k_haut <- floor(log2(DOMAINE_NUMERIQUE_MAX / max(x, y)))
+           k_bas <- ceiling(log2(DOMAINE_NUMERIQUE_MIN / min(x, y)))
+           r1 <- calcul_extreme(x, y); a <- cle(r1)
+           k_haut == 159 && k_bas == -172 &&
+             max(x, y) * 2^(k_haut + 1) > DOMAINE_NUMERIQUE_MAX &&
+             min(x, y) * 2^(k_bas - 1) < DOMAINE_NUMERIQUE_MIN &&
+             isTRUE(r1$ok) && length(a$p) > 0L && length(a$controles) > 0L &&
+             all(vapply(c(k_haut, k_bas), function(k) {
+               r <- calcul_extreme(x * 2^k, y * 2^k)
+               isTRUE(r$ok) && identical(cle(r), a)
+             }, logical(1)))
+         })
+verifier("Ratio y/x : avertissement si r < 0,1 (xt x 1e3, ratio 7e-4) ou r >= 5 ; r = 0,1 sans avertissement (#145)",
+         {
+           avt <- function(xt, yt) engine_valider_donnees(xt, yt)$avertissements
+           motif <- "Ratio y/x hors de la plage plausible [0.1 ; 5[ : verifier les unites."
+           contient(avt(x * 1e3, y), motif) && isTRUE(engine_valider_donnees(x * 1e3, y)$ok) &&
+             contient(avt(x * 1e-1, y * 50), motif) &&
+             !contient(avt(c(10, x[-1]), c(1, y[-1])), motif) &&
+             contient(avt(c(10, x[-1]), c(0.99, y[-1])), motif) &&
+             !contient(avt(x, y), motif)
+         })
+verifier("Ligne A 'Plausibilite du ratio y/x' : memes constantes que l'avertissement (r = 0,1 OK ; 0,099 et 5 ECHEC), detail inchange (#145)",
+         {
+           ligne <- function(xt, yt) {
+             r <- usp_controle_donnees(xt, yt)
+             r[[which(vapply(r, function(l) l$test, "") == "Plausibilite du ratio y/x")]]
+           }
+           l1 <- ligne(c(10, x[-1]), c(1, y[-1]))
+           identical(l1$verdict, "OK") &&
+             identical(l1$detail, "min = 0.100 ; median = 0.751 ; max = 0.894") &&
+             identical(ligne(c(10, x[-1]), c(0.99, y[-1]))$verdict, "ECHEC") &&
+             identical(ligne(c(10, x[-1]), c(50, y[-1]))$verdict, "ECHEC") &&
+             identical(ligne(c(10, x[-1]), c(49.9, y[-1]))$verdict, "OK") &&
+             identical(ligne(x * 1e3, y)$verdict, "ECHEC")
+         })
+## --- Distance de Cook a toute echelle (issue #153) ----------------------------
+# Critere amende du 02/10/2026 : (1) run_engine() sans erreur R ni defaut de
+# calcul intercepte pour x et y x 10^e, e de -300 a 300 (plus -165, -160,
+# 152, 160, entrees sous-normales et echelle asymetrique) : refus de #145
+# hors du domaine numerique ; dans le domaine, ok = TRUE, sigma_USP et p
+# retenues egales a celles de l'echelle 1 a TOLERANCE pres
+# (comparer_objets(), tests/outils_tests.R), verdicts identiques ; (2)
+# usp_tests() et engine_influence() en appel direct sans erreur R sur le
+# meme balayage ; (3) ligne Cook a l'echelle exacte (.usp_echelle_exacte(),
+# puissance de 2) ; (4) garde "non applicable" sur une distance non finie
+# (.usp_ligne_cook()) ; (5) motif des graphiques d'influence
+# (plots_data$influence_motif) sur la meme garde. Jeu de l'issue : avant #153, usp_tests() levait une
+# erreur R a x et y x 10^e pour e <= -164 (if (any(ck > 4 / T)) sur NaN) ;
+# sur les entrees sous-normales, deux autres erreurs R : TOST
+# (if (p_bas >= p_haut) sur NaN, garde "statistique non definie" de
+# test_tost_intercept()) et lm.influence() dans engine_influence() (resolue
+# par la meme mise a l'echelle exacte que la ligne Cook).
+# Dans le domaine, run_engine() est lance sur un echantillon d'echelles (le
+# calcul complet prend quelques secondes par echelle) ; hors du domaine, le
+# refus est verifie a chaque echelle. Les appels directs parcourent e par
+# pas de 10, plus les echelles nommees.
+x153 <- c(100, 150, 200, 300, 400, 500, 600, 700)
+y153 <- x153 * c(0.71, 0.64, 0.80, 0.69, 0.75, 0.62, 0.90, 0.66)
+e_sym153 <- c(-300:300, -165, -160, 152, 160)
+ech153 <- c(lapply(e_sym153, function(e) c(10^e, 10^e)),
+            list(c(1e-320, 1e-320), c(5e-324, 5e-324)),
+            lapply(c(-300, -200, -60, 60, 200, 300), function(e) c(10^e, 1)))
+dans_domaine <- function(v) all(v >= DOMAINE_NUMERIQUE_MIN & v <= DOMAINE_NUMERIQUE_MAX)
+.dossier153 <- if (exists("DOSSIER_UNITAIRES", inherits = TRUE)) DOSSIER_UNITAIRES else {
+  .f <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE))
+  if (length(.f)) dirname(.f) else "tests/unitaires"
+}
+outils153 <- new.env(parent = globalenv())
+sys.source(file.path(.dossier153, "..", "outils_tests.R"), envir = outils153)
+verifier(".usp_echelle_exacte() : diviseur puissance de 2 (max dans [1 ; 2[), D_t et h_t de y ~ x - 1 identical() a l'echelle 1 ; v inchange si max(|v|) nul ou non fini (#153)",
+         {
+           d_h <- function(a, b) { m <- stats::lm(b ~ a - 1)
+             list(unname(stats::cooks.distance(m)), unname(stats::hatvalues(m))) }
+           all(vapply(list(list(x, y), list(x153, y153)), function(d) {
+             xe <- .usp_echelle_exacte(d[[1]]); ye <- .usp_echelle_exacte(d[[2]])
+             r <- d[[1]] / xe
+             max(xe) >= 1 && max(xe) < 2 && max(ye) >= 1 && max(ye) < 2 &&
+               length(unique(r)) == 1L && r[1] == 2^round(log2(r[1])) &&
+               identical(d_h(xe, ye), d_h(d[[1]], d[[2]]))
+           }, logical(1))) &&
+             identical(.usp_echelle_exacte(c(0, 0)), c(0, 0)) &&
+             identical(.usp_echelle_exacte(c(1, Inf)), c(1, Inf)) &&
+             identical(.usp_echelle_exacte(c(1, NA)), c(1, NA))
+         })
+verifier(".usp_ligne_cook() : distance non finie (NaN, NA, Inf) -> non applicable, estim NA, motif ; distances finies -> diagnostic, detail du repere 4/T (#153)",
+         {
+           na <- lapply(list(c(0.1, NaN), c(NA, 0.2), c(Inf, 0.1)), .usp_ligne_cook, T = 8)
+           ok <- .usp_ligne_cook(c(0.1, 0.6, 0.2, 0.7, 0, 0, 0, 0), T = 8)
+           ok0 <- .usp_ligne_cook(rep(0.1, 8), T = 8)
+           all(vapply(na, function(l) identical(l$type, "non applicable") && identical(l$estim, NA_real_) &&
+                        identical(l$detail, paste("distance de Cook non finie (par exemple residus de",
+                                                  "y = beta x tous nuls) : diagnostic non applicable")),
+                      logical(1))) &&
+             identical(ok$type, "diagnostic") && identical(ok$estim, 0.7) &&
+             identical(ok$detail, "repere conventionnel 4/T = 0.500 ; 2 observation(s) au-dessus (rangs 2, 4)") &&
+             identical(ok0$detail, "repere conventionnel 4/T = 0.500 ; 0 observation(s) au-dessus")
+         })
+# Issue des regressions sur donnees degenerees : dependante de la
+# plateforme. Sur y exactement proportionnel a x (x = 2^(0:7), y = x / 2)
+# et sur les entrees sous-normales (x et y x 1e-320, 5e-324), lm() rend
+# selon le BLAS, ses routines et la version de R des residus exactement
+# nuls (D_t et residu standardise 0/0 = NaN) ou un bruit d'arrondi (valeurs
+# finies), une constante et une erreur-type NaN ou finies. Mesures (R 4.3.3,
+# OpenBLAS 0.3.20 de la CI charge par LD_PRELOAD) : cas proportionnel,
+# max D_t NaN avec les routines Zen, Haswell et le BLAS de reference, fini
+# (0,0029) avec SkylakeX ; sous-normaux, statistique non definie ici sous
+# les quatre configurations, mais assertion en echec sur la CI (R 4.3.1,
+# OpenBLAS 0.3.20, AMD EPYC 7763). Ces cas ne figent donc aucune des deux
+# issues : ils exigent l'absence d'erreur R et la coherence de l'issue
+# rendue (garde posee avec son motif et des valeurs non finies, ou ligne
+# calculee, finie, sans motif ; pour TOST, tout motif que
+# test_tost_intercept() peut produire, si sa condition est vraie sur ces
+# donnees). Les gardes sont atteintes a coup sur par
+# injection dans l'environnement du moteur : .usp_echelle_exacte() rend
+# y = 0 (residus de y = beta x exactement nuls, 0 x fini = 0 sous tout
+# BLAS) et summary() rend une constante et une erreur-type NaN dans
+# test_tost_intercept().
+LIGNE_COOK153 <- "Points influents (distance de Cook)"
+LIGNE_TOST153 <- "Equivalence de la constante a zero (TOST)"
+MOTIF_INFLUENCE153 <- paste("Residu standardise ou distance de Cook non fini (par exemple",
+                            "residus de y = beta x tous nuls) : graphique non disponible")
+DETAIL_TOST153 <- paste("statistique t non definie (constante ou",
+                        "erreur-type de la regression de y sur x",
+                        "non calculable) : test non applicable")
+ligne153 <- function(tt, nom) tt[[which(vapply(tt, function(l) l$test, "") == nom)]]
+# Ligne Cook : non applicable (INFO, estim NA, motif) ou diagnostic fini.
+cook_garde153 <- function(l) identical(l$type, "non applicable") && identical(l$verdict, "INFO") &&
+  identical(l$estim, NA_real_) && contient(l$detail, "distance de Cook non finie")
+cook_calcule153 <- function(l) identical(l$type, "diagnostic") && is.finite(l$estim) &&
+  startsWith(l$detail, "repere conventionnel 4/T")
+# plots_data : motif pose et residu_std, cook tous non finis ; ou motif
+# absent et tout fini.
+influence_garde153 <- function(pd) !any(is.finite(pd$influence$cook)) &&
+  !any(is.finite(pd$influence$residu_std)) && identical(pd$influence_motif, MOTIF_INFLUENCE153)
+influence_calcule153 <- function(pd) all(is.finite(pd$influence$cook)) &&
+  all(is.finite(pd$influence$residu_std)) && is.null(pd$influence_motif)
+# x ecarte par lm() dans le modele de la ligne Cook et de engine_influence()
+# (lm(ye ~ xe - 1) sur .usp_echelle_exacte(), memes donnees) : le moteur n'a
+# pas de motif propre a ce cas, ses deux gardes ne lisent que la finitude de
+# D_t et du residu standardise ; x ecarte (rang 0, coefficient NA) n'admet
+# que l'issue garde (D_t = 0/0 = NaN, mesure sur une colonne nulle sous les
+# quatre configurations BLAS).
+cook_x_ecarte153 <- function(x, y) {
+  xe <- .usp_echelle_exacte(x); ye <- .usp_echelle_exacte(y)
+  anyNA(stats::coef(stats::lm(ye ~ xe - 1)))
+}
+# TOST : motif attendu, lu dans test_tost_intercept() et recalcule sur les
+# memes donnees par les memes conditions, dans le meme ordre de priorite :
+# (1) "volumes constants" si usp_volumes_constants(x) ; (2) "marge" si la
+# marge est invalide (theta non fini ou <= 0 sans delta_abs ; delta_abs non
+# fini ou <= 0) ; (3) "volumes constants" si lm() a ecarte x (garde-fou R12 :
+# "x" absent de rownames(summary(stats::lm(y ~ x))$coefficients)) ; (4)
+# "statistique non definie" si et seulement si p n'est pas fini ; sinon
+# ligne calculee (NA). p et stat valent NA_real_ sur toute branche non
+# applicable, et sont finis sur la branche calculee.
+tost_motif_attendu153 <- function(x, y, p, theta = 0.10, delta_abs = NULL) {
+  if (usp_volumes_constants(x)) return("volumes constants")
+  if ((is.null(delta_abs) && (!is.finite(theta) || theta <= 0)) ||
+      (!is.null(delta_abs) && (!is.finite(delta_abs) || delta_abs <= 0))) return("marge")
+  m <- summary(stats::lm(y ~ x))
+  if (!"x" %in% rownames(m$coefficients)) return("volumes constants")
+  if (is.finite(p)) NA_character_ else "statistique non definie"
+}
+tost_coherent153 <- function(r, ref, x, y) !inherits(r, "error") && identical(names(r), ref) &&
+  identical(r$non_applicable, tost_motif_attendu153(x, y, r$p)) &&
+  (if (is.na(r$non_applicable)) is.finite(r$p) && is.finite(r$stat)
+   else identical(r$p, NA_real_) && identical(r$stat, NA_real_))
+# Ligne TOST de usp_tests(), en regard de test_tost_intercept() sur les memes
+# donnees (x, y = fit$x, fit$y) : detail du motif, lu dans usp_tests()
+# ("volumes constants" : texte de la regle R13 si usp_volumes_constants(x),
+# texte du garde-fou R12 sinon) ; ligne "test" a p retenue finie si calculee.
+ligne_tost_coherente153 <- function(lt, r, x) {
+  m <- r$non_applicable
+  if (is.na(m)) return(identical(lt$type, "test") && is.finite(lt$p_retenue) &&
+                         startsWith(lt$detail, "Rejeter H0 fournit une preuve POSITIVE"))
+  attendu <- switch(m,
+    "volumes constants" = if (usp_volumes_constants(x)) NA_character_
+      else paste("regression de y sur x : x ecarte par lm() pour colinearite,",
+                 "test non applicable"),
+    "marge" = paste("marge Delta invalide (sans delta_equiv : theta_equiv non",
+                    "fini ou <= 0 ; ou delta_equiv non fini ou <= 0) : test",
+                    "non applicable"),
+    "statistique non definie" = DETAIL_TOST153,
+    return(FALSE))
+  identical(lt$type, "non applicable") && identical(lt$verdict, "INFO") && is.na(lt$p_retenue) &&
+    (if (is.na(attendu)) startsWith(lt$detail, "volumes x_t constants") else identical(lt$detail, attendu))
+}
+# Injections deterministes (voir ci-dessus).
+.echelle_orig153 <- .usp_echelle_exacte
+echelle_y_nul153 <- function(y0) function(v) if (isTRUE(all.equal(v, y0))) 0 * v else .echelle_orig153(v)
+avec_summary_nan153 <- function(expr) {
+  e <- environment(run_engine)
+  existait <- exists("summary", envir = e, inherits = FALSE)
+  if (existait) orig <- get("summary", envir = e, inherits = FALSE)
+  assign("summary", function(object, ...) {
+    s <- base::summary(object, ...)
+    if (inherits(object, "lm")) s$coefficients[1, 1:2] <- NaN
+    s
+  }, envir = e)
+  on.exit(if (existait) assign("summary", orig, envir = e) else rm("summary", envir = e))
+  expr
+}
+.tost_orig153 <- test_tost_intercept
+# Garde Cook atteinte a coup sur (usp_tests(), engine_plots_data()) : avant
+# #153, erreur R dans usp_tests() (if (any(ck > 4 / T)) sur NaN, defaut
+# intercepte par run_engine()) ; plot_influence_levier() et
+# plot_influence_cook() levaient une erreur R sans le motif.
+verifier("run_engine, residus de y = beta x exactement nuls (injection : .usp_echelle_exacte() rend y = 0) -> ok = TRUE, ligne Cook non applicable avec motif, plots_data$influence_motif pose (residu_std et cook non finis, leviers finis), memes noms de plots_data que sans injection a influence_motif pres (#153)",
+         {
+           r1 <- calcul_extreme(x, y)
+           ri <- avec_injection(".usp_echelle_exacte", echelle_y_nul153(y), calcul_extreme(x, y))
+           ti <- engine_table_tests(ri); t1 <- engine_table_tests(r1)
+           ci <- ti[ti$test == LIGNE_COOK153, ]
+           isTRUE(ri$ok) && isTRUE(r1$ok) && is.null(ri$validation$erreur_r) &&
+             identical(ci$type, "non applicable") && identical(ci$verdict, "INFO") &&
+             identical(ci$estimation, NA_real_) && contient(ci$commentaire, "distance de Cook non finie") &&
+             influence_garde153(ri$plots_data) && all(is.finite(ri$plots_data$influence$levier)) &&
+             influence_calcule153(r1$plots_data) &&
+             identical(setdiff(names(ri$plots_data), "influence_motif"), names(r1$plots_data)) &&
+             identical(tail(names(ri$plots_data), 1), "qq_enveloppe") &&
+             identical(names(ti), names(t1)) && identical(ti$test, t1$test)
+         })
+# Garde TOST atteinte a coup sur : avant #153, erreur R de
+# if (p_bas >= p_haut) sur NaN.
+verifier("test_tost_intercept() et usp_tests(), constante et erreur-type NaN (injection de summary()) -> non applicable 'statistique non definie', memes champs que la branche calculee, detail exact de la ligne, sans erreur R (#153)",
+         {
+           ref <- names(test_tost_intercept(x153, y153))
+           r <- tryCatch(avec_summary_nan153(test_tost_intercept(x153, y153)), error = function(e) e)
+           f1 <- usp_ajuster(x153, y153); b1 <- usp_bootstrap(f1, B = B_MIN_USAGE)
+           tt <- tryCatch(avec_injection("test_tost_intercept",
+                                         function(...) avec_summary_nan153(.tost_orig153(...)),
+                                         usp_tests(f1, b1, methode = "premium")),
+                          error = function(e) e)
+           !inherits(r, "error") && identical(r$non_applicable, "statistique non definie") &&
+             identical(r$p, NA_real_) && identical(r$stat, NA_real_) && identical(names(r), ref) &&
+             !exists("summary", envir = environment(run_engine), inherits = FALSE) &&
+             !inherits(tt, "error") && ligne_tost_coherente153(ligne153(tt, LIGNE_TOST153), r, x153) &&
+             identical(ligne153(tt, LIGNE_TOST153)$verdict, "INFO")
+         })
+# Branche R12 des fonctions de coherence (x ecarte par lm(), issue possible
+# sur une autre plateforme) : summary() injectee rend la table des
+# coefficients sans la ligne x. Sous l'injection, la condition R12 est
+# vraie et "volumes constants" est accepte avec le detail du garde-fou ;
+# hors injection, la meme reponse est refusee (condition fausse).
+avec_summary_sans_x153 <- function(expr) {
+  e <- environment(run_engine)
+  existait <- exists("summary", envir = e, inherits = FALSE)
+  if (existait) orig <- get("summary", envir = e, inherits = FALSE)
+  assign("summary", function(object, ...) {
+    s <- base::summary(object, ...)
+    if (inherits(object, "lm")) s$coefficients <- s$coefficients[rownames(s$coefficients) != "x", , drop = FALSE]
+    s
+  }, envir = e)
+  on.exit(if (existait) assign("summary", orig, envir = e) else rm("summary", envir = e))
+  expr
+}
+verifier("Coherence TOST (#153) : x ecarte par lm() (injection de summary() sans la ligne x) -> 'volumes constants' accepte, ligne au detail du garde-fou R12 ; meme reponse refusee quand lm() garde x ; reponse calculee refusee sous la condition R12",
+         {
+           ref <- names(test_tost_intercept(x153, y153))
+           f1 <- usp_ajuster(x153, y153); b1 <- usp_bootstrap(f1, B = B_MIN_USAGE)
+           r12 <- avec_summary_sans_x153(test_tost_intercept(x153, y153))
+           ok12 <- avec_summary_sans_x153(tost_coherent153(r12, ref, x153, y153))
+           tt12 <- avec_injection("test_tost_intercept",
+                                  function(...) avec_summary_sans_x153(.tost_orig153(...)),
+                                  usp_tests(f1, b1, methode = "premium"))
+           r0 <- test_tost_intercept(x153, y153)
+           identical(r12$non_applicable, "volumes constants") && isTRUE(ok12) &&
+             ligne_tost_coherente153(ligne153(tt12, LIGNE_TOST153), r12, x153) &&
+             !tost_coherent153(r12, ref, x153, y153) &&
+             !isTRUE(avec_summary_sans_x153(tost_coherent153(r0, ref, x153, y153))) &&
+             tost_coherent153(r0, ref, x153, y153) &&
+             !exists("summary", envir = environment(run_engine), inherits = FALSE)
+         })
+# Entree construite de l'issue : y exactement proportionnel a x (x
+# puissances de 2, y = x / 2). Issue dependante de la plateforme (voir
+# ci-dessus) : aucune erreur R et issue coherente.
+xp153 <- 2^(0:7)
+verifier("usp_tests() : y exactement proportionnel a x -> sans erreur R ; ligne Cook non applicable avec motif (D_t non fini) ou diagnostic fini (x non ecarte par lm()), selon la plateforme (#153)",
+         {
+           f <- usp_ajuster(xp153, xp153 / 2)
+           b <- suppressWarnings(usp_bootstrap(f, B = B_MIN_USAGE))
+           tt <- tryCatch(suppressWarnings(usp_tests(f, b, methode = "premium")), error = function(e) e)
+           !inherits(tt, "error") &&
+             (cook_garde153(ligne153(tt, LIGNE_COOK153)) ||
+                (cook_calcule153(ligne153(tt, LIGNE_COOK153)) && !cook_x_ecarte153(f$x, f$y)))
+         })
+# Meme entree par run_engine() (decision du mainteneur du 02/10/2026 : la
+# serie exactement proportionnelle n'est pas refusee, issue #188) : ok =
+# TRUE ; ligne Cook non applicable si et seulement si le motif des
+# graphiques d'influence (plots_data$influence_motif) est pose ; motif
+# absent sur les donnees de test, lr_delta et qq_enveloppe restant en fin
+# de liste.
+verifier("run_engine : y exactement proportionnel a x -> ok = TRUE ; ligne Cook non applicable et plots_data$influence_motif pose (residu_std et cook non finis), ou ligne Cook diagnostic finie et motif absent (x non ecarte par lm()) ; motif absent sur les donnees de test (#153)",
+         {
+           rp <- calcul_extreme(xp153, xp153 / 2); r1 <- calcul_extreme(x, y)
+           tp <- engine_table_tests(rp); cp <- tp[tp$test == LIGNE_COOK153, ]
+           garde <- identical(cp$type, "non applicable") && identical(cp$estimation, NA_real_) &&
+             influence_garde153(rp$plots_data)
+           calcule <- identical(cp$type, "diagnostic") && isTRUE(is.finite(cp$estimation)) &&
+             influence_calcule153(rp$plots_data) && !cook_x_ecarte153(xp153, xp153 / 2)
+           isTRUE(rp$ok) && isTRUE(r1$ok) && (garde || calcule) &&
+             identical(tail(names(rp$plots_data), 1), "qq_enveloppe") &&
+             is.null(r1$plots_data$influence_motif)
+         })
+verifier("test_tost_intercept() : entrees sous-normales (x et y x 1e-320, 5e-324) -> sans erreur R, memes champs que la branche calculee ; motif egal a celui que declenchent les conditions de test_tost_intercept() sur ces donnees (volumes constants, marge, x ecarte par lm() (R12), 'statistique non definie' si et seulement si p n'est pas fini), ligne calculee finie sinon (#153)",
+         {
+           ref <- names(test_tost_intercept(x153, y153))
+           all(vapply(c(1e-320, 5e-324), function(f) {
+             r <- tryCatch(test_tost_intercept(x153 * f, y153 * f), error = function(e) e)
+             tost_coherent153(r, ref, x153 * f, y153 * f)
+           }, logical(1)))
+         })
+# Issue observee sur la plateforme courante, pour le journal (CI comprise).
+local({
+  cp <- tryCatch({
+    f <- usp_ajuster(xp153, xp153 / 2)
+    ligne153(suppressWarnings(usp_tests(f, suppressWarnings(usp_bootstrap(f, B = B_MIN_USAGE)),
+                                        methode = "premium")), LIGNE_COOK153)$type
+  }, error = function(e) paste("erreur R :", conditionMessage(e)))
+  ts <- vapply(c(1e-320, 5e-324), function(f) tryCatch({
+    r <- test_tost_intercept(x153 * f, y153 * f)
+    if (is.na(r$non_applicable)) sprintf("calcule (p = %.3g)", r$p) else r$non_applicable
+  }, error = function(e) paste("erreur R :", conditionMessage(e))), "")
+  cat(sprintf("  note : plateforme courante, y = x / 2 : ligne Cook %s ; TOST sous-normal 1e-320 : %s ; 5e-324 : %s (#153).\n",
+              cp, ts[1], ts[2]))
+})
+verifier("usp_tests() et engine_influence() en appel direct : aucune erreur R pour x et y x 10^e (e de -300 a 300 par pas de 10, -165, -164, -160, 152, 160), sous-normaux et x seul ; sous-normaux, ligne TOST coherente avec test_tost_intercept() ; hors sous-normaux, max D_t egal a celui de l'echelle 1 a TOLERANCE pres et D_t de engine_influence() identical() a la ligne Cook (#153)",
+         {
+           f1 <- usp_ajuster(x153, y153); b1 <- usp_bootstrap(f1, B = B_MIN_USAGE)
+           ligne <- function(tt, nom) tt[[which(vapply(tt, function(l) l$test, "") == nom)]]
+           cook <- function(tt) ligne(tt, "Points influents (distance de Cook)")
+           d1 <- cook(usp_tests(f1, b1, methode = "premium"))$estim
+           # Echelles de ech153 hors puissances de 10 symetriques : les
+           # sous-normaux et l'echelle asymetrique, toutes reprises.
+           autres <- ech153[vapply(ech153, function(f) f[1] < .Machine$double.xmin || f[1] != f[2],
+                                   logical(1))]
+           ech <- c(lapply(c(seq(-300, 300, by = 10), -165, -164, -160, 152, 160),
+                           function(e) c(10^e, 10^e)), autres)
+           length(autres) == length(ech153) - length(e_sym153) && all(vapply(ech, function(f) {
+             fe <- tryCatch(suppressWarnings(usp_ajuster(x153 * f[1], y153 * f[2])),
+                            error = function(e) e)
+             if (inherits(fe, "error")) return(FALSE)
+             tt <- tryCatch(suppressWarnings(usp_tests(fe, b1, methode = "premium")),
+                            error = function(e) e)
+             inf <- tryCatch(suppressWarnings(engine_influence(fe)), error = function(e) e)
+             if (inherits(tt, "error") || inherits(inf, "error")) return(FALSE)
+             sous_normal <- f[1] < .Machine$double.xmin
+             if (sous_normal) {
+               r <- tryCatch(test_tost_intercept(fe$x, fe$y), error = function(e) e)
+               return(tost_coherent153(r, names(test_tost_intercept(x153, y153)), fe$x, fe$y) &&
+                        ligne_tost_coherente153(ligne(tt, LIGNE_TOST153), r, fe$x))
+             }
+             isTRUE(outils153$comparer_objets(d1, cook(tt)$estim)$conforme) &&
+               identical(max(inf$cook), cook(tt)$estim)
+           }, logical(1)))
+         })
+verifier("run_engine : x et y x 10^e (e de -300 a 300, -165, -160, 152, 160), sous-normaux, x seul -> refus de #145 hors du domaine ; dans le domaine (echantillon), ok = TRUE, sigma_USP et p retenues a TOLERANCE pres, verdicts identiques a l'echelle 1 ; jamais d'erreur R ni de defaut intercepte (#153)",
+         {
+           cle <- function(r) { tt <- engine_table_tests(r)
+             list(sigma = r$parametre_final$sigma_usp, p = tt$p_retenue) }
+           r1 <- calcul_extreme(x153, y153); a <- cle(r1); v1 <- engine_table_tests(r1)$verdict
+           echantillon <- c(-51, -30, -10, -1, 1, 10, 30, 47)
+           n_dans <- 0L
+           ok <- all(vapply(ech153, function(f) {
+             xx <- x153 * f[1]; yy <- y153 * f[2]
+             dans <- dans_domaine(c(xx, yy))
+             e <- round(log10(f[1]))
+             if (dans && !(f[1] == f[2] && e %in% echantillon)) return(TRUE)
+             r <- tryCatch(calcul_extreme(xx, yy), error = function(e) e)
+             if (inherits(r, "error") || !inherits(r, "usp_engine") ||
+                 contient(r$validation$erreurs, MOTIF_DEFAUT) || !is.null(r$validation$erreur_r))
+               return(FALSE)
+             if (!dans) return(identical(r$ok, FALSE) && contient(r$validation$erreurs, MOTIF_DOMAINE))
+             n_dans <<- n_dans + 1L
+             isTRUE(r$ok) && isTRUE(outils153$comparer_objets(a, cle(r))$conforme) &&
+               identical(engine_table_tests(r)$verdict, v1)
+           }, logical(1)))
+           ok && isTRUE(r1$ok) && n_dans == length(echantillon) &&
+             !dans_domaine(c(x153, y153) * 10^-52) && !dans_domaine(c(x153, y153) * 10^48)
+         })
+verifier("run_engine : erreur injectee dans le calcul (usp_simuler, usp_tests) -> ok = FALSE, defaut intercepte, sans erreur R (#88)",
+         all(vapply(c("usp_simuler", "usp_tests"), function(nom) {
+           r <- tryCatch(avec_injection(nom, panne, calcul_extreme(x, y)), error = function(e) e)
            er <- r$validation$erreur_r
            !inherits(r, "error") && identical(r$ok, FALSE) && inherits(r, "usp_engine") &&
              contient(r$validation$erreurs, MOTIF_DEFAUT) &&
@@ -208,51 +673,57 @@ verifier("run_engine : yt x 1e-300, xt et yt x 1e-300 -> ok = FALSE, defaut inte
              is.character(er$origine) && length(er$origine) == 1L && er$origine %in% er$pile &&
              identical(r$methode, "premium") && identical(r$metadata$methode, "premium")
          }, logical(1))))
-verifier("run_engine : xt x 1e298 et xt x 1e200 -> ok = TRUE, residus z egaux a ceux de l'echelle 1 (base reduite de RESET et White, #110)",
+# Origine = derniere fonction de la pile definie dans le moteur. Trois
+# injections : (1) erreur dans usp_simuler(), appelee par usp_bootstrap()
+# sous engine_sous_graine() : origine usp_simuler ; (2) usp_tests() dont
+# l'erreur nait d'un argument passe a une fermeture locale add() et evalue
+# paresseusement dans le cadre de sprintf() (forme du scenario yt x 1e-300
+# d'avant #145) : add() n'est pas une fonction de l'environnement du
+# moteur, l'origine est usp_tests ; (3) usp_tests() dont l'erreur nait dans
+# une fonction de R (stats::lm.fit) : attribuee a usp_tests.
+verifier("run_engine : origine reelle de l'erreur, fonction du moteur (piles injectees : usp_bootstrap > engine_sous_graine > usp_simuler ; usp_tests > add > sprintf ; usp_tests > stats::lm.fit)",
          {
-           z1 <- calcul_extreme(x, y)$ajustement$z
-           all(vapply(c(1e298, 1e200), function(cc) {
-             r <- tryCatch(calcul_extreme(x * cc, y), error = function(e) e)
-             !inherits(r, "error") && identical(r$ok, TRUE) &&
-               isTRUE(all.equal(r$ajustement$z, z1))
-           }, logical(1)))
+           b1 <- avec_injection("usp_simuler", panne, calcul_extreme(x, y))$validation
+           b2 <- avec_injection("usp_tests", function(...) {
+             add <- function(nom, detail) sprintf("%s : %s", nom, detail)
+             add("ligne", stop("panne simulee"))
+           }, calcul_extreme(x, y))$validation
+           b3 <- avec_injection("usp_tests", function(...) stats::lm.fit(matrix(NA_real_, 2, 1), c(1, 2)),
+                                calcul_extreme(x, y))$validation
+           identical(b1$erreur_r$pile, c("usp_bootstrap", "engine_sous_graine", "usp_simuler")) &&
+             identical(b1$erreur_r$origine, "usp_simuler") &&
+             contient(b1$erreurs, "(erreur R dans usp_simuler())") &&
+             identical(b1$erreur_r$message, "panne simulee") &&
+             identical(b2$erreur_r$pile, c("usp_tests", "add", "sprintf")) &&
+             identical(b2$erreur_r$origine, "usp_tests") &&
+             contient(b2$erreurs, "(erreur R dans usp_tests())") &&
+             identical(b3$erreur_r$pile, c("usp_tests", "stats::lm.fit")) &&
+             identical(b3$erreur_r$origine, "usp_tests")
          })
-# Origine = derniere fonction de la pile definie dans le moteur. yt x 1e-300 :
-# l'erreur nait du if (any(ck > 4 / T)) ecrit dans usp_tests(), passe en
-# argument de sprintf() dans add() et evalue paresseusement dans le cadre de
-# sprintf() ; add() est une fermeture creee par engine_registre_tests(), non
-# une fonction de l'environnement du moteur : l'origine est usp_tests.
-# Plus de scenario connu d'erreur nee dans une fonction de test appelee par
-# le bootstrap (xt x 1e298, lm.fit() dans test_white(), resolu par #110).
-verifier("run_engine : origine reelle de l'erreur, fonction du moteur (yt x 1e-300 : usp_tests, pile usp_tests > add > sprintf)",
+verifier("run_engine : injection restauree, calcul nominal apres un defaut intercepte (ok = TRUE)",
          {
-           b <- calcul_extreme(x, y * 1e-300)$validation
-           identical(b$erreur_r$pile, c("usp_tests", "add", "sprintf")) &&
-             identical(b$erreur_r$origine, "usp_tests") &&
-             contient(b$erreurs, "(erreur R dans usp_tests())")
+           avec_injection("usp_simuler", panne, calcul_extreme(x, y))
+           isTRUE(calcul_extreme(x, y)$ok)
          })
-verifier("run_engine : xt x 1e-300 (cas cite par l'issue) -> aucune erreur R, ok logique",
-         {
-           r <- tryCatch(calcul_extreme(x * 1e-300, y), error = function(e) e)
-           !inherits(r, "error") && is.logical(r$ok) && length(r$ok) == 1L && !is.na(r$ok)
-         })
-verifier("run_engine : generateur et graine de l'appelant restaures apres un defaut intercepte",
+# L'erreur injectee dans usp_simuler() nait sous engine_sous_graine() :
+# la restauration se fait au deroulement de la pile (on.exit).
+verifier("run_engine : generateur et graine de l'appelant restaures apres un defaut intercepte (erreur nee sous engine_sous_graine())",
          {
            kind0 <- RNGkind()
            suppressWarnings(RNGkind("Wichmann-Hill", "Box-Muller", "Rounding"))
            set.seed(7); avant <- .Random.seed; k_avant <- RNGkind()
-           r <- calcul_extreme(x, y * 1e-300)
-           ok <- identical(r$ok, FALSE) && identical(.Random.seed, avant) &&
-             identical(RNGkind(), k_avant)
+           r <- avec_injection("usp_simuler", panne, calcul_extreme(x, y))
+           ok <- identical(r$ok, FALSE) && identical(r$validation$erreur_r$origine, "usp_simuler") &&
+             identical(.Random.seed, avant) && identical(RNGkind(), k_avant)
            suppressWarnings(RNGkind(kind0[1], kind0[2], kind0[3]))
            ok
          })
 verifier("run_engine : options(usp.engine.lever_erreurs = TRUE) releve l'erreur au lieu de l'intercepter",
          {
            ancien <- options(usp.engine.lever_erreurs = TRUE)
-           leve <- leve_erreur(calcul_extreme(x, y * 1e-300))
+           leve <- leve_erreur(avec_injection("usp_simuler", panne, calcul_extreme(x, y)))
            options(ancien)
-           leve && identical(calcul_extreme(x, y * 1e-300)$ok, FALSE)
+           leve && identical(avec_injection("usp_simuler", panne, calcul_extreme(x, y))$ok, FALSE)
          })
 verifier("run_engine, Merz-Wuthrich : erreur dans le calcul apres mw_valider_triangle() -> defaut intercepte (reserve2)",
          {
@@ -894,6 +1365,68 @@ verifier("engine_valider_serie_retenue : T refuse = meme validation que run_engi
            identical(sr$validation, r$validation) && !sr$validation$ok &&
              length(sr$xt) == 16 && !length(sr$validation$avertissements)
          }, logical(1))))
+
+## --- Validation des seules annees retenues (non-regression de #154) ---------
+# Reproduction de l'issue #154 (resolue en code par #131, fcbef03 et
+# 859ac7d) : n = 10 annees fournies, T = 8 retenues (les plus recentes) ; les
+# deux annees ecartees portent des valeurs que engine_valider_donnees()
+# refuserait ou signalerait sur la serie entiere. Le contrat fixe :
+# engine_valider_serie_retenue() et run_engine() ne valident que les T
+# annees retenues (lecture (A) de #104) ; la marge Delta et les
+# avertissements portent sur ces seules annees.
+x154 <- function(a) c(a, 100, x); y154 <- function(a) c(a, 50, y)
+args154 <- list(T = 8, methode = "premium", nature_donnees = "brutes", segment = 1L)
+sr154 <- function(xt, yt, ...)
+  do.call(engine_valider_serie_retenue, c(list(xt, yt), args154, list(...)))
+re154 <- function(xt, yt, ...)
+  do.call(run_engine, c(list(xt, yt), args154, list(annexe = "II", B = 99), list(...)))
+verifier("#154 : annee refusable hors des T retenues (x_1 = NA, n = 10, T = 8) : moteur ok, run_engine() ok, serie entiere refusee",
+         {
+           xn <- x154(NA); yn <- y154(1e6)
+           v <- engine_valider_donnees(xn, yn)
+           sr <- sr154(xn, yn); r <- re154(xn, yn)
+           !v$ok && contient(v$erreurs, "Valeurs manquantes") &&
+             sr$validation$ok && identical(sr$validation$T, 8L) &&
+             identical(sr$xt, x) && identical(sr$yt, y) &&
+             isTRUE(r$ok) && identical(r$validation, sr$validation) &&
+             r$metadata$T == 8 && r$metadata$n_fournies == 10
+         })
+verifier("#154 : toute valeur refusable de l'annee ecartee (NA, NaN, 0, -1, Inf, sur xt ou yt) laisse la serie retenue valide",
+         all(vapply(list(NA_real_, NaN, 0, -1, Inf), function(a) {
+           v1 <- sr154(x154(a), y154(50))$validation
+           v2 <- sr154(x154(100), y154(a))$validation
+           v1$ok && v2$ok && !engine_valider_donnees(x154(a), y154(50))$ok &&
+             !engine_valider_donnees(x154(100), y154(a))$ok
+         }, logical(1))))
+verifier("#154 : marge Delta comparee a la moyenne des T retenues (85.005), dans les deux sens, moteur et run_engine()",
+         {
+           # Annees ecartees elevees : moyenne des n = 100073.0 ; Delta = 90 >=
+           # 85.005 est refusee, alors qu'elle passerait sur les n annees.
+           xh <- x154(100); yh <- y154(1e6)
+           sh <- sr154(xh, yh, delta_equiv = 90); rh <- re154(xh, yh, delta_equiv = 90)
+           # Annees ecartees faibles : moyenne des n = 68.204 ; Delta = 70 <
+           # 85.005 est acceptee, alors qu'elle serait refusee sur les n annees.
+           xb <- c(1, 1, x); yb <- c(1, 1, y)
+           sb <- sr154(xb, yb, delta_equiv = 70); rb <- re154(xb, yb, delta_equiv = 70)
+           proche(mean(y), 85.005) &&
+             engine_valider_donnees(xh, yh, delta_equiv = 90)$ok &&
+             !sh$validation$ok && contient(sh$validation$erreurs,
+                                                   paste0("perte moyenne (", format(mean(y), digits = 6), ")")) &&
+             !isTRUE(rh$ok) && identical(rh$validation, sh$validation) &&
+             !engine_valider_donnees(xb, yb, delta_equiv = 70)$ok &&
+             sb$validation$ok && isTRUE(rb$ok) && identical(rb$validation, sb$validation)
+         })
+verifier("#154 : avertissements calcules sur les T retenues (ratio et amplitude des annees ecartees absents, T = 8 affiche)",
+         {
+           xw <- c(1, 100, x); yw <- c(1e4, 50, y)
+           an <- engine_valider_donnees(xw, yw)$avertissements
+           at <- sr154(xw, yw)$validation$avertissements
+           contient(an, "Ratio y/x hors de la plage") && contient(an, "Amplitude des volumes") &&
+             !contient(an, "T = 8") &&
+             !contient(at, "Ratio y/x hors de la plage") && !contient(at, "Amplitude des volumes") &&
+             contient(at, "T = 8 : credibilite partielle") && contient(at, "T = 8 : lois asymptotiques") &&
+             !contient(at, "T = 10")
+         })
 verifier("mw_valider_triangle : credibilite partielle ssi c(I + 1, bareme applique) < 1 ; repere I + 1 < 10 inchange (#131)",
          {
            a <- function(n, ...) mw_valider_triangle(triangle(n), ...)$avertissements

@@ -7,7 +7,9 @@
 #  ressource externe), tests retenus dans la section principale et tests
 #  exclus en annexe avec leur verdict, empreintes presentes, stables et
 #  sensibles aux donnees, formule propre a chaque methode, etat global
-#  (.Random.seed, options) inchange.
+#  (.Random.seed, options) inchange ; graphiques d'influence et note sans
+#  erreur ni "NA" quand les distances de Cook sont non finies (issue #153) ;
+#  profil et reperes du LR sur delta a NA restitues sans erreur (issue #161).
 #  References : RFC 4648, section 10 (vecteurs de test base64) ; regle de
 #  selection de l'onglet Tests (filtrer_selection).
 #  La branche PNG est exercee partout ou capabilities("png") est vrai ; la
@@ -415,5 +417,172 @@ lib12 <- .echap_html(engine_derogations(res_12)$libelle)
 verifier("Rapport fige, n = 12, T = 8 : libelle \"profondeur\" du moteur repris deux fois (en-tete, bandeau) ; absent pour n = T (#104)",
          length(lib12) == 1L && compte(h12, lib12) == 2L &&
            !grepl("annees fournies", h, fixed = TRUE))
+
+## --- Graphiques d'influence a distances de Cook non finies (issue #153) -------
+# Residus de y = beta x tous nuls : residu_std et D_t = NaN sur les 8
+# annees. Avant #153, plot_influence_levier() et plot_influence_cook()
+# levaient en base R l'erreur "need finite 'ylim' values", affichee par
+# app.R a la place des graphiques ; ils rendent desormais .vide() avec le
+# motif plots_data$influence_motif pose par le moteur. Le cas de l'issue,
+# y exactement proportionnel a x (x = 2^(0:7), y = x / 2), n'atteint pas
+# la garde sur toute plateforme : selon le BLAS, ses routines et la version
+# de R, lm() y rend des residus exactement nuls ou un bruit d'arrondi
+# (mesure, R 4.3.3 et OpenBLAS 0.3.20 de la CI : max D_t NaN avec les
+# routines Zen, Haswell et le BLAS de reference, 0,0029 avec SkylakeX ;
+# voir test_controles_entree.R). La garde est donc atteinte a coup sur par
+# injection dans l'environnement du moteur : .usp_echelle_exacte() rend
+# y = 0 pour les donnees de test (residus exactement nuls sous tout BLAS),
+# et engine_plots_data() pose le motif ; le cas de l'issue est garde pour
+# l'absence d'erreur R et la coherence de son issue. Branche base R sur un
+# peripherique pdf(NULL) ; branche plotly seulement si le paquet est
+# installe (pas en CI, issue #53).
+echelle_orig153 <- .usp_echelle_exacte
+avec_y_nul153 <- function(expr) {
+  e <- environment(run_engine)
+  assign(".usp_echelle_exacte",
+         function(v) if (isTRUE(all.equal(v, yt))) 0 * v else echelle_orig153(v), envir = e)
+  on.exit(assign(".usp_echelle_exacte", echelle_orig153, envir = e))
+  expr
+}
+res_g153 <- suppressWarnings(avec_y_nul153(
+  run_engine(xt = xt, yt = yt, methode = "premium", segment = 1, B = 99, nature_donnees = "brutes")))
+pd153 <- res_g153$plots_data
+xp153 <- 2^(0:7)
+res_p153 <- suppressWarnings(run_engine(xt = xp153, yt = xp153 / 2, methode = "premium",
+                                        segment = 1, B = 99, nature_donnees = "brutes"))
+pdp153 <- res_p153$plots_data
+traces153 <- c("plot_influence_levier", "plot_influence_cook", "plot_influence_sigma")
+sans_erreur153 <- function(pd) vapply(traces153, function(f)
+  !inherits(tryCatch(get(f)(pd), error = function(e) e), "error"), logical(1))
+option153 <- options(usp.graphiques_base = TRUE); grDevices::pdf(NULL)
+base153 <- sans_erreur153(pd153)
+basep153 <- sans_erreur153(pdp153)
+pd153_sans_motif <- pd153; pd153_sans_motif$influence_motif <- NULL
+temoin153 <- suppressWarnings(sans_erreur153(pd153_sans_motif))
+grDevices::dev.off(); options(option153)
+# Repere de levier : les leviers ne dependent que de x (inchanges par
+# l'injection) ; decompte attendu lu dans plots_data.
+lev153 <- sprintf("<b>%d</b> au-del&agrave; du rep&egrave;re de levier", sum(pd153$influence$fort_levier))
+verifier("Graphiques d'influence, residus de y = beta x nuls (injection) : motif pose par le moteur (residu_std et cook non finis), absent sur les donnees ordinaires (#153)",
+         isTRUE(res_g153$ok) && is.character(pd153$influence_motif) &&
+           length(pd153$influence_motif) == 1L &&
+           !any(is.finite(pd153$influence$cook)) && !any(is.finite(pd153$influence$residu_std)) &&
+           is.null(res_ln$plots_data$influence_motif) &&
+           identical(get(".usp_echelle_exacte", envir = environment(run_engine)), echelle_orig153))
+verifier("Graphiques d'influence, residus de y = beta x nuls (injection), base R : aucun trace en erreur ; sans le motif, residus vs levier et Cook par annee en erreur (temoin de la garde, #153)",
+         all(base153) && identical(unname(temoin153), c(FALSE, FALSE, TRUE)))
+verifier("note_influence(), residus de y = beta x nuls (injection) : decompte de Cook remplace (aucun 'NA'), repere de levier conserve (#153)",
+         {
+           n153 <- note_influence(pd153)
+           is.character(n153) && !grepl("NA", n153, fixed = TRUE) &&
+             grepl("sans objet", n153, fixed = TRUE) && grepl(lev153, n153, fixed = TRUE)
+         })
+verifier("Graphiques d'influence, y proportionnel a x (x = 2^(0:7), y = x / 2) : ok = TRUE, motif pose (residu_std et cook non finis) ou absent (tout fini) selon la plateforme ; aucun trace en base R ni note_influence() en erreur, aucun 'NA' dans la note (#153)",
+         {
+           inf <- pdp153$influence
+           np153 <- tryCatch(note_influence(pdp153), error = function(e) e)
+           garde <- !any(is.finite(inf$cook)) && !any(is.finite(inf$residu_std)) &&
+             is.character(pdp153$influence_motif) && length(pdp153$influence_motif) == 1L
+           calcule <- all(is.finite(inf$cook)) && all(is.finite(inf$residu_std)) &&
+             is.null(pdp153$influence_motif)
+           isTRUE(res_p153$ok) && (garde || calcule) && all(basep153) &&
+             is.character(np153) && !grepl("NA", np153, fixed = TRUE)
+         })
+if (requireNamespace("plotly", quietly = TRUE)) {
+  verifier("Graphiques d'influence, residus nuls (injection) et y proportionnel a x, plotly : aucun trace en erreur (#153)",
+           all(sans_erreur153(pd153)) && all(sans_erreur153(pdp153)))
+} else {
+  cat("  note : plotly absent ; branche plotly des graphiques d'influence non exercee (attendu en CI, issue #53).\n")
+}
+
+## --- Rapport de vraisemblance sur delta et profil en echec (issue #161) --------
+# Erreur injectee dans l'environnement du moteur : usp_ajuster_contraint() en
+# echec sur les donnees observees aux deux bornes (jeu a delta interieur) et
+# usp_objectif() en echec sous usp_profil(). Le moteur rend ok = TRUE avec
+# plots_data$lr_delta$lr, q90_bootstrap et les objectifs du profil a NA, de
+# meme forme ; l'affichage doit les restituer sans erreur R (trace du profil
+# en base R sur pdf(NULL), tableaux de l'onglet Tests, rapport fige).
+avec_injection161 <- function(nom, f, expr) {
+  e <- environment(run_engine)
+  orig <- get(nom, envir = e)
+  assign(nom, f, envir = e)
+  on.exit(assign(nom, orig, envir = e))
+  expr
+}
+xi161 <- c(50, 80, 120, 200, 300, 150, 90, 60)
+yi161 <- c(29.92, 56.9, 101.25, 123.06, 207.23, 105.91, 68.59, 40.05)
+contraint161 <- usp_ajuster_contraint; objectif161 <- usp_objectif
+res161 <- avec_injection161("usp_ajuster_contraint",
+  function(x, y, delta0, gamma_depart) {
+    if (identical(y, yi161)) stop("panne simulee")
+    contraint161(x, y, delta0, gamma_depart)
+  },
+  avec_injection161("usp_objectif", function(par, ...) {
+    if (any(vapply(sys.calls(), function(cl) identical(cl[[1]], as.name("usp_profil")), logical(1))))
+      stop("panne simulee")
+    objectif161(par, ...)
+  }, run_engine(xt = xi161, yt = yi161, methode = "premium", segment = 1, B = 99,
+                nature_donnees = "brutes")))
+tb161 <- engine_table_tests(res161)
+verifier("LR sur delta et profil en echec : ok = TRUE, lr, q90 et objectifs du profil a NA dans plots_data (#161)",
+         isTRUE(res161$ok) && all(is.na(res161$plots_data$lr_delta$lr)) &&
+           all(is.na(res161$plots_data$lr_delta$q90_bootstrap)) &&
+           all(is.na(res161$plots_data$profil_delta$objectif)) &&
+           sum(tb161$commentaire == MOTIF_LR_DELTA_ECHEC) == 2L)
+option161 <- options(usp.graphiques_base = TRUE); grDevices::pdf(NULL)
+trace161 <- suppressWarnings(tryCatch({ plot_profil_delta(res161$plots_data); TRUE },
+                                      error = function(e) FALSE))
+grDevices::dev.off(); options(option161)
+verifier("LR sur delta et profil en echec, base R : plot_profil_delta() sans erreur (#161)", trace161)
+# Garde d'affichage (app-review, #161) : profil entierement NA -> .vide() avec
+# le message renvoyant aux lignes G, avant la bifurcation base R / plotly ;
+# profil ordinaire -> aucun appel a .vide(). .vide() est enveloppe dans
+# l'environnement de plot_profil_delta() pour relever son message.
+env161 <- environment(plot_profil_delta); vide161 <- get(".vide", envir = env161)
+msg161 <- new.env()
+releve_vide161 <- function(pdx, base = TRUE) {
+  msg161$m <- NULL
+  assign(".vide", function(message = "Graphique non disponible pour cette methode") {
+    msg161$m <- message; vide161(message)
+  }, envir = env161)
+  on.exit(assign(".vide", vide161, envir = env161))
+  option <- options(usp.graphiques_base = base); grDevices::pdf(NULL)
+  on.exit({ grDevices::dev.off(); options(option) }, add = TRUE)
+  plot_profil_delta(pdx)
+  msg161$m
+}
+MSG_PROFIL_NA <- "Profil non calculable pour ces donnees (voir le motif des lignes G dans l'onglet Tests)"
+res161_ord <- run_engine(xt = xi161, yt = yi161, methode = "premium", segment = 1, B = 99,
+                         nature_donnees = "brutes")
+verifier("Profil entierement NA : plot_profil_delta() aiguille vers .vide() avec le message renvoyant aux lignes G ; profil ordinaire trace sans .vide() (#161)",
+         identical(releve_vide161(res161$plots_data), MSG_PROFIL_NA) &&
+           is.null(releve_vide161(res161_ord$plots_data)))
+verifier("LR sur delta et profil en echec : tableaux de synthese et de detail sans erreur, lignes LR non applicables avec leur motif (#161)",
+         {
+           g <- tb161[tb161$commentaire %in% MOTIF_LR_DELTA_ECHEC, ]
+           s <- tryCatch(table_synthese_groupe(tb161), error = function(e) NULL)
+           d <- tryCatch(table_detail_groupe(g), error = function(e) NULL)
+           !is.null(s) && !is.null(d) && nrow(d) == 2L &&
+             all(d$Type == "non applicable") &&
+             all(grepl("non calculable sur les donnees observees", d$`Motif / commentaire`, fixed = TRUE))
+         })
+f161 <- tempfile(fileext = ".html")
+r161 <- tryCatch(suppressWarnings(rapport_html(res161, selection_defaut(tb161), f161,
+                                               interactif = FALSE, identite = idt)),
+                 error = function(e) e)
+verifier("LR sur delta et profil en echec : rapport fige produit sans erreur, motif restitue (#161)",
+         !inherits(r161, "error") && file.exists(f161) &&
+           grepl("non calculable sur les donnees observees",
+                 paste(readLines(f161, warn = FALSE), collapse = "\n"), fixed = TRUE))
+if (requireNamespace("plotly", quietly = TRUE)) {
+  verifier("LR sur delta et profil en echec, plotly : plot_profil_delta() sans erreur, message du profil non calculable en annotation (#161)",
+           {
+             p <- tryCatch(plot_profil_delta(res161$plots_data), error = function(e) e)
+             !inherits(p, "error") &&
+               identical(releve_vide161(res161$plots_data, base = FALSE), MSG_PROFIL_NA)
+           })
+} else {
+  cat("  note : plotly absent ; branche plotly du profil en echec non exercee (attendu en CI, issue #53).\n")
+}
 
 fin_fichier()

@@ -503,6 +503,10 @@ LIB_LR_Q90_COURT <- c("q90 % du LR simul\u00e9 sous \u03b4 = 0",
 plot_profil_delta <- function(pd) {
   if (is.null(pd$profil_delta)) return(.vide())
   d <- pd$profil_delta
+  # Profil entierement NA (optimize() en echec a chaque point, #161) : aucun
+  # trace de reperes sans courbe, message renvoyant aux lignes G.
+  if (all(is.na(d$objectif)))
+    return(.vide("Profil non calculable pour ces donnees (voir le motif des lignes G dans l'onglet Tests)"))
   yl <- .lr_hauteurs(pd, d$objectif)
   if (!.plotly_dispo()) {
     .cadre(); plot(d$delta, d$objectif, type = "l", lwd = 2, col = COUL$pt, ylim = yl,
@@ -762,6 +766,9 @@ plot_mw_reserve <- function(pd) {
 # iso-distances de Cook, une observation situee au-dela etant influente.
 plot_influence_levier <- function(pd) {
   if (!.influence_ln(pd)) return(.vide())
+  # Residus standardises ou distances de Cook non finis (#153) : motif pose
+  # par le moteur (engine_plots_data()), lu tel quel.
+  if (!is.null(pd$influence_motif)) return(.vide(pd$influence_motif))
   d <- pd$influence; cc <- pd$contours_cook
   lim <- range(c(d$residu_std, -d$residu_std, 2.5, -2.5))
   if (!.plotly_dispo()) {
@@ -806,6 +813,7 @@ plot_influence_levier <- function(pd) {
 # --- Methode lognormale : distance de Cook par annee ------------------------
 plot_influence_cook <- function(pd) {
   if (!.influence_ln(pd)) return(.vide())
+  if (!is.null(pd$influence_motif)) return(.vide(pd$influence_motif))
   d <- pd$influence
   if (!.plotly_dispo()) {
     .cadre()
@@ -1220,14 +1228,21 @@ note_influence <- function(pd) {
   # La table d'influence du triangle n'a pas les colonnes de la regression
   # lognormale.
   if (is.null(d$cook) || is.null(d$ecart_sigma)) return(NULL)
-  ni <- sum(d$influent); nl <- sum(d$fort_levier)
+  # Distances de Cook non finies (#153, motif pose par le moteur) : influent
+  # vaut NA, le decompte est remplace par une phrase qui renvoie au motif.
+  cook <- if (is.null(pd$influence_motif))
+    sprintf("<b>%d</b> observation(s) au-del&agrave; du rep&egrave;re de Cook (4/T = %.3f)",
+            sum(d$influent), d$seuil_cook[1])
+  else sprintf(paste("Distance de Cook non finie : rep&egrave;re de Cook (4/T = %.3f) sans objet",
+                     "(motif dans les graphiques) ;"), d$seuil_cook[1])
+  nl <- sum(d$fort_levier)
   sprintf(paste(
-    "<b>%d</b> observation(s) au-del&agrave; du rep&egrave;re de Cook (4/T = %.3f) et <b>%d</b>",
+    "%s%s <b>%d</b>",
     "au-del&agrave; du rep&egrave;re de levier (2k/T = %.3f). Le retrait de l'ann&eacute;e la plus",
     "influente d&eacute;place sigma_USP de <b>%+.1f %%</b>. Un levier &eacute;lev&eacute;",
     "seul n'est pas probl&eacute;matique : c'est sa combinaison avec un r&eacute;sidu",
     "important, mesur&eacute;e par la distance de Cook, qui l'est."),
-    ni, d$seuil_cook[1], nl, d$seuil_levier[1],
+    cook, if (is.null(pd$influence_motif)) " et" else "", nl, d$seuil_levier[1],
     100 * d$ecart_sigma[which.max(abs(d$ecart_sigma))])
 }
 

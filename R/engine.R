@@ -1085,6 +1085,35 @@ usp_charger <- function(fichier_x, fichier_y, T = NULL, plus_recent_en_dernier =
   list(x = x, y = y, T = length(x))
 }
 
+# Plage plausible du ratio y/x (issue #145) : [RATIO_PLAUSIBLE_MIN ;
+# RATIO_PLAUSIBLE_MAX[. Conventions de l'outil, SANS source reglementaire :
+# un ratio hors de la plage signale une erreur d'unite probable (selon
+# l'issue, facteurs 10 a 1000 dans les deux sens pour des ratios usuels ;
+# seuil bas 0,1 retenu par le mainteneur le 28/09/2026, borne haute 5
+# inchangee). Lues par
+# l'avertissement de engine_valider_donnees() ET par la ligne A
+# "Plausibilite du ratio y/x" de usp_controle_donnees() ; aucun refus n'en
+# depend.
+RATIO_PLAUSIBLE_MIN <- 0.1
+RATIO_PLAUSIBLE_MAX <- 5
+
+# Domaine numerique des montants (issue #145, specification du 02/10/2026) :
+# toute valeur de la serie retenue hors de [DOMAINE_NUMERIQUE_MIN ;
+# DOMAINE_NUMERIQUE_MAX], bornes incluses, est REFUSEE par
+# engine_valider_donnees() (ok = FALSE, motif explicite), afin que le
+# defaut de calcul intercepte (#88) ne soit plus le mode d'arret sur des
+# donnees a l'echelle extreme. Le domaine est tres large devant tout
+# montant monetaire et tres interieur a la plage hors de laquelle le
+# moteur rendait ok = TRUE avec des verdicts faux (environ [1e-155 ;
+# 1e151], mesure de la specification de #145, de l'ordre de
+# sqrt(DBL_MIN) = 1,5e-154 et sqrt(DBL_MAX) = 1,3e154).
+# sigma_USP et les tests etant invariants par un changement d'unite commun
+# a xt et yt (et a delta_equiv s'il est fourni), le refus n'ote rien :
+# il suffit de changer d'unite. Noms neutres vis-a-vis de la methode : les
+# controles du triangle de Merz-Wuthrich les reprendront (#185).
+DOMAINE_NUMERIQUE_MIN <- 1e-50
+DOMAINE_NUMERIQUE_MAX <- 1e50
+
 # Controles de qualite (famille A). Verdict OK / ECHEC sans niveau alpha.
 # Un controle qui ne peut pas etre etabli (valeur manquante, serie vide) vaut
 # ECHEC, jamais un jugement sur les seules valeurs disponibles, et son detail
@@ -1121,7 +1150,8 @@ usp_controle_donnees <- function(x, y, alpha = 0.10, bareme = NULL, segment = NU
     add("Absence de doublons parfaits", dup == 0,
         sprintf("%d couple(s) (x,y) duplique(s)", dup))
     ratio <- y / x
-    add("Plausibilite du ratio y/x", all(ratio > 0 & ratio < 5),
+    add("Plausibilite du ratio y/x",
+        all(ratio >= RATIO_PLAUSIBLE_MIN & ratio < RATIO_PLAUSIBLE_MAX),
         sprintf("min = %.3f ; median = %.3f ; max = %.3f",
                 min(ratio), stats::median(ratio), max(ratio)))
   } else {
@@ -1822,7 +1852,7 @@ lillie_p <- function(D, n) {
 
 # --- Execution sous graine locale (ADR 0004, issue #42) ----------------------
 # Fonction unique par laquelle passe toute simulation du moteur
-# (usp_bootstrap(), mw_bootstrap(), sw_loi_nulle()).
+# (usp_bootstrap(), usp_lr_delta(), mw_bootstrap(), sw_loi_nulle()).
 # Sauvegarde .Random.seed de l'environnement global (ou note son absence),
 # pose la graine, evalue expr (evaluation differee : l'expression est evaluee
 # dans l'environnement de l'appelant, apres set.seed()), puis restaure l'etat
@@ -2310,6 +2340,21 @@ test_breusch_pagan <- function(u2, reg) {
   if (is.finite(m) && m > 0) v / m else v
 }
 
+# Mise a l'echelle exacte (#153) : v / 2^floor(log2(max(|v|))). A la
+# difference de .usp_normaliser_echelle(), le diviseur est une puissance de
+# 2 : la division est exacte en virgule flottante tant que le quotient
+# n'est pas sous-normal, et une grandeur invariante par changement d'echelle
+# calculee apres elle (distance de Cook, levier de y ~ x - 1) est identique
+# au bit pres a celle calculee sur v brut (mesure #153, donnees de test et
+# jeu de l'issue : D_t et h_t identical() ; la division par le maximum
+# decale max D_t de 2e-16 et 4e-16 en relatif, les petits D_t jusqu'a
+# 3e-13).
+# v est rendu inchange si max(|v|) n'est pas fini et strictement positif.
+.usp_echelle_exacte <- function(v) {
+  m <- max(abs(v))
+  if (is.finite(m) && m > 0) v / 2^floor(log2(m)) else v
+}
+
 # White (1980), Econometrica 48, 817-838 (forme auxiliaire quadratique).
 # Issue #110. Base reduite : s = (reg - moyenne) / etendue ; {1, s, s^2}
 # engendre le meme espace que {1, reg, reg^2} (changement de base affine),
@@ -2527,7 +2572,8 @@ test_reset <- function(x, y) {
 # marge. ddl = T - 2 y est renseigne : il ne depend que de T, pas de la
 # regression, et le garder donne aux deux branches les memes noms de champs.
 # theta = Inf donnait Delta = Inf, p = 0 et un verdict OK "preuve positive" :
-# il est traite en marge invalide.
+# il est traite en marge invalide. Troisieme motif, "statistique non definie"
+# (#153) : t_bas ou t_haut vaut NaN (voir la garde ci-dessous).
 test_tost_intercept <- function(x, y, theta = 0.10, delta_abs = NULL) {
   # Volumes constants : critere unique usp_volumes_constants() (issue #59).
   motif <- if (usp_volumes_constants(x)) "volumes constants"
@@ -2552,6 +2598,15 @@ test_tost_intercept <- function(x, y, theta = 0.10, delta_abs = NULL) {
   t_haut <- (a - Delta) / se        # H0_haut : a >= +Delta, rejet si t_haut petit
   p_bas  <- stats::pt(t_bas,  ddl, lower.tail = FALSE)
   p_haut <- stats::pt(t_haut, ddl, lower.tail = TRUE)
+  # Garde (#153), sur le modele de RESET et White (#110) : p_bas ou p_haut
+  # non finie -> non applicable, au lieu de l'erreur R de
+  # if (p_bas >= p_haut) sur NA. pt(+/-Inf) etant fini (0 ou 1), la garde ne
+  # se declenche que si t_bas ou t_haut vaut NaN : statistique non definie.
+  # Cas mesure : entrees sous-normales (x et y x 1e-320, 5e-324), lm() rend
+  # a = se = NaN. Hors du domaine de #145 : run_engine() n'atteint pas cette
+  # branche.
+  if (!is.finite(p_bas) || !is.finite(p_haut))
+    return(non_applicable("statistique non definie"))
   p <- max(p_bas, p_haut)           # regle du maximum (intersection-union)
   list(stat = if (p_bas >= p_haut) t_bas else t_haut,
        p = .p_borne(p), delta = Delta, a = a, se = se,
@@ -3471,18 +3526,46 @@ usp_ajuster_contraint <- function(x, y, delta0, gamma_depart) {
 # p_asymptotique : melange 1/2 chi2(0) + 1/2 chi2(1) (Chernoff, 1954 ; Self
 # et Liang, 1987), POUR MEMOIRE (.p_melange_chernoff()).
 # Aucune p-value retenue ni verdict (lignes de diagnostic de usp_tests()).
+# Echec sur les donnees OBSERVEES (#161, decision du mainteneur du
+# 30/09/2026) : si l'ajustement contraint de la borne leve une erreur, ou si
+# le LR observe n'est pas fini, la borne est rendue avec la meme liste de
+# champs, valeurs a NA (delta0 conserve), sans bootstrap restreint
+# (lr_boot vide, B_effectif = 0, motif_mc = MOTIF_MC_OBS_NON_FINIE par
+# engine_p_mc(), n_refit_pire et n_echec NA : aucune replication tentee),
+# au lieu d'interrompre run_engine() ; l'autre borne, qui pose sa propre
+# graine, n'en depend pas. La ligne G de usp_tests() lit lr non fini et
+# rend "non applicable" avec MOTIF_LR_DELTA_ECHEC.
+MOTIF_LR_DELTA_ECHEC <- paste(
+  "Rapport de vraisemblance non calculable sur les donnees observees",
+  "(ajustement a delta fixe a la borne en echec) : diagnostic non applicable,",
+  "aucun bootstrap restreint.")
 usp_lr_delta <- function(fit, B = 999, seed = 20260831) {
   x <- fit$x; y <- fit$y
+  borne_en_echec <- function(d0) {
+    mc <- engine_p_mc(numeric(0), NA_real_, "haut")
+    list(delta0 = d0, gamma_contraint = NA_real_, beta_contraint = NA_real_,
+         sigma_contraint = NA_real_, obj_contraint = NA_real_, lr = NA_real_,
+         p_asymptotique = NA_real_, p_mc = mc$p_mc, err_mc = mc$err_mc,
+         B_effectif = mc$B_effectif, granularite = mc$granularite,
+         motif_mc = mc$motif, part_lr_nul = NA_real_,
+         n_refit_pire = NA_integer_, n_echec = NA_integer_, lr_boot = numeric(0))
+  }
   une_borne <- function(d0) {
     au_bord <- abs(fit$delta - d0) <= TOL_DELTA_BORD
-    fit_c <- if (au_bord) fit else usp_ajuster_contraint(x, y, d0, fit$gamma)
+    fit_c <- if (au_bord) fit else
+      try(usp_ajuster_contraint(x, y, d0, fit$gamma), silent = TRUE)
+    if (inherits(fit_c, "try-error")) return(borne_en_echec(d0))
     obj_c <- fit_c$obj
     lr <- max(0, obj_c - fit$obj_min)
+    if (!is.finite(lr)) return(borne_en_echec(d0))
     if (lr < TOL_OPTIMUM) lr <- 0
     p_as <- .p_melange_chernoff(lr)
     lr_b <- rep(NA_real_, B); n_pire <- 0L; n_echec <- 0L
     engine_sous_graine(seed, {
       for (b in seq_len(B)) {
+        # usp_simuler() ne leve pas d'erreur (rnorm rend NaN, avec un
+        # avertissement, si un parametre n'est pas fini) : un tirage non fini
+        # est ecarte par les try() ci-dessous ou par la garde sur dif.
         yb <- usp_simuler(fit_c)
         fu <- try(usp_ajuster_rapide(x, yb, fit_c$delta, fit_c$gamma), silent = TRUE)
         fc <- try(usp_ajuster_contraint(x, yb, d0, fit_c$gamma), silent = TRUE)
@@ -3537,18 +3620,24 @@ usp_jackknife <- function(fit, sigma_standard, bareme) {
   out
 }
 
+# Echec isole (#161, decision du mainteneur du 30/09/2026) : un optimize()
+# en erreur rend NA au point de grille concerne, au lieu d'interrompre
+# run_engine() ; meme liste de champs, grilles inchangees. plots_data
+# (profil_delta, profil_gamma) porte alors NA a ces points.
 usp_profil <- function(fit, n = 41) {
+  objectif_ou_na <- function(o)
+    if (inherits(o, "try-error")) NA_real_ else o$objective
   gd <- seq(0, 1, length.out = n)
   pd <- vapply(gd, function(d) {
-    o <- stats::optimize(function(g) usp_objectif(c(d, g), fit$x, fit$y, fit$xbar),
-                         interval = BORNES_GAMMA)
-    o$objective
+    objectif_ou_na(try(stats::optimize(
+      function(g) usp_objectif(c(d, g), fit$x, fit$y, fit$xbar),
+      interval = BORNES_GAMMA), silent = TRUE))
   }, numeric(1))
   gg <- seq(fit$gamma - 1.5, fit$gamma + 1.5, length.out = n)
   pg <- vapply(gg, function(g) {
-    o <- stats::optimize(function(d) usp_objectif(c(d, g), fit$x, fit$y, fit$xbar),
-                         interval = c(0, 1))
-    o$objective
+    objectif_ou_na(try(stats::optimize(
+      function(d) usp_objectif(c(d, g), fit$x, fit$y, fit$xbar),
+      interval = c(0, 1)), silent = TRUE))
   }, numeric(1))
   # Le rapport de vraisemblance aux bornes de delta (anciens champs
   # lr_delta0 et lr_delta1, p chi2(1) naive jamais affichee) a une seule
@@ -3561,6 +3650,32 @@ usp_profil <- function(fit, n = 41) {
 ## 6. BATTERIE DE TESTS COMPLÈTE
 ## =============================================================================
 
+# Ligne "Points influents (distance de Cook)" de usp_tests() (#153) : type,
+# estim et detail a partir des distances ck et de T. Garde "non applicable"
+# sur le modele de RESET et White (#110) : une distance non finie rend la
+# ligne non applicable avec son motif, estim = NA, au lieu de l'erreur R de
+# if (any(ck > 4 / T)) sur NA. Cas mesure : y exactement proportionnel a x
+# (residus de y = beta x tous nuls, D_t = 0/0 = NaN).
+.usp_ligne_cook <- function(ck, T) {
+  if (!all(is.finite(ck)))
+    return(list(type = "non applicable", estim = NA_real_,
+                detail = paste("distance de Cook non finie (par exemple residus de",
+                               "y = beta x tous nuls) : diagnostic non applicable")))
+  list(type = "diagnostic", estim = max(ck),
+       detail = sprintf("repere conventionnel 4/T = %.3f ; %d observation(s) au-dessus%s",
+                        4 / T, sum(ck > 4 / T),
+                        if (any(ck > 4 / T))
+                          paste0(" (rangs ", paste(which(ck > 4 / T), collapse = ", "), ")") else ""))
+}
+
+# Domaine de validite (#153, critere amende du 02/10/2026) : run_engine()
+# n'appelle usp_tests() que sur des series dont chaque valeur est dans
+# [DOMAINE_NUMERIQUE_MIN ; DOMAINE_NUMERIQUE_MAX] (refus de #145 sinon). En
+# appel direct hors de ce domaine, usp_tests() garantit seulement l'absence
+# d'erreur R, pas la justesse des statistiques, des p-values ni des
+# verdicts (mesure de #153, appel direct sur le jeu de l'issue et sur les
+# donnees de test, x et y x 1e-164 et 1e-165 : TOST OK au lieu d'ALERTE ou
+# d'ECHEC a l'echelle 1).
 usp_tests <- function(fit, boot, alpha = 0.10,
                       theta_equiv = 0.10, delta_equiv = NULL,
                       robustesse = NULL, methode, lr_delta = NULL) {
@@ -3740,6 +3855,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                             if (isTRUE(tost$marge_a_priori)) "marge fixee a priori"
                             else sprintf("%.0f %% de la moyenne de y", 100 * theta_equiv),
                             tost$p_bas, tost$p_haut),
+        "statistique non definie" = paste("statistique t non definie (constante ou erreur-type",
+                                          "de la regression de y sur x non calculable) :",
+                                          "test non applicable"),
         stop("usp_tests : motif TOST inconnu : ", tost$non_applicable)))
   # Regle R4 (#44, option E) : identifiabilite de la pente. Si la puissance
   # approchee du test de la pente sous le modele ajuste est inferieure au
@@ -4461,14 +4579,21 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                          paste0(" ; rangs ", paste(ro$positions, collapse = ", ")) else ""),
       verdict = if (ro$nb_outliers >= 2) "ECHEC"
                 else if (ro$nb_outliers == 1) "ALERTE" else "OK")
-  mlm <- stats::lm(y ~ x - 1); ck <- stats::cooks.distance(mlm); hv <- stats::hatvalues(mlm)
+  # Distance de Cook et leviers de y = beta x (#153) : x et y mis a l'echelle
+  # exacte (.usp_echelle_exacte()), D_t et h_t etant invariants par x -> a x,
+  # y -> b y. Sans elle, D_t devenait non fini a petite echelle (x et y x
+  # 10^e, e <= -164 pour le jeu de l'issue, e <= -163 pour les donnees de
+  # test) et if (any(ck > 4 / T)) levait une erreur R. La ligne et sa garde
+  # "non applicable" sont construites par .usp_ligne_cook(). Les leviers hv
+  # de ce meme modele alimentent aussi la ligne "Leviers (hat values)"
+  # (famille F ci-dessous) : h_t ne depend que de x et est invariant par
+  # x -> a x (identical() a l'echelle 1, mesure #153).
+  xe <- .usp_echelle_exacte(x); ye <- .usp_echelle_exacte(y)
+  mlm <- stats::lm(ye ~ xe - 1); ck <- stats::cooks.distance(mlm); hv <- stats::hatvalues(mlm)
+  lc <- .usp_ligne_cook(ck, T)
   add(fam, "Points influents (distance de Cook)", "Cook (1977), Technometrics 19",
       fonction = "usp_tests",
-      type = "diagnostic", estim_nom = "max D_t", estim = max(ck),
-      detail = sprintf("repere conventionnel 4/T = %.3f ; %d observation(s) au-dessus%s",
-                       4 / T, sum(ck > 4 / T),
-                       if (any(ck > 4 / T))
-                         paste0(" (rangs ", paste(which(ck > 4 / T), collapse = ", "), ")") else ""))
+      type = lc$type, estim_nom = "max D_t", estim = lc$estim, detail = lc$detail)
   ## --- Variante "ratios bruts" des tests d'independance et de stabilite -----
   # Memes statistiques appliquees aux ratios centres u_t = r_t - moyenne(r).
   # Interet : ces tests ne dependent d'aucun ajustement, ce qui les rend
@@ -4716,6 +4841,22 @@ usp_tests <- function(fit, boot, alpha = 0.10,
            stat_nom = "LR(1)", b = lr_delta$borne1))
     for (li in libelles) {
       b <- li$b
+      # Borne en echec sur l'observe (#161, usp_lr_delta()) : LR non fini,
+      # ligne non applicable (INFO, aucune p-value) avec le motif fixe,
+      # precede en volumes constants du rappel que le LR y serait nul.
+      if (!is.finite(b$lr)) {
+        add(fam, li$nom,
+            fonction = "usp_lr_delta",
+            "Chernoff (1954) ; Self & Liang (1987), JASA 82 ; Davison & Hinkley (1997), chap. 4",
+            type = "non applicable", H0 = li$H0, H1 = li$H1,
+            stat_nom = li$stat_nom, stat = NA_real_, loi = loi_lr,
+            estim_nom = "sigma(delta0, gamma~)", estim = NA_real_,
+            detail = if (isTRUE(regime$volumes_constants))
+              paste("VOLUMES CONSTANTS : delta non identifie, LR nul par construction attendu",
+                    "a cette borne mais non calcule.", MOTIF_LR_DELTA_ECHEC)
+            else MOTIF_LR_DELTA_ECHEC)
+        next
+      }
       pref <- character(0)
       if (!is.finite(b$p_mc))
         pref <- c(pref, paste0(b$motif_mc, " : aucune p-value Monte-Carlo."),
@@ -5121,6 +5262,12 @@ engine_empreinte <- function(res) {
 # credibilite partielle repose sur c(T, bareme applique) < 1 (annexe XVII,
 # section G) ; l'avertissement statistique (lois asymptotiques peu fiables,
 # T < 10) est un repere non reglementaire, distinct et inchange.
+# Domaine numerique et ratio (issue #145) : une valeur de xt ou de yt hors
+# de [DOMAINE_NUMERIQUE_MIN ; DOMAINE_NUMERIQUE_MAX] est refusee ; un ratio
+# y/x hors de [RATIO_PLAUSIBLE_MIN ; RATIO_PLAUSIBLE_MAX[ est un
+# avertissement. Ce refus renverse le choix "aucun seuil d'echelle" de #88 ;
+# appele par engine_valider_serie_retenue(), il ne porte que sur la serie
+# retenue.
 engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
                                    delta_equiv = NULL, methode = NULL,
                                    nature_donnees = NULL, bareme = NULL,
@@ -5141,6 +5288,29 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
     err <- c(err, "Toutes les valeurs de xt doivent etre strictement positives.")
   if (length(yt) && any(yt <= 0, na.rm = TRUE))
     err <- c(err, "Toutes les valeurs de yt doivent etre strictement positives (loi lognormale).")
+  # Domaine numerique (issue #145) : valeurs finies strictement positives
+  # hors de [DOMAINE_NUMERIQUE_MIN ; DOMAINE_NUMERIQUE_MAX], bornes incluses
+  # (NA, infinies et non positives sont refusees ci-dessus, sans doublon).
+  # Un motif par serie, qui cite la premiere valeur fautive
+  # (.engine_saisie(), 17 chiffres si necessaire) et la borne franchie.
+  for (nm in c("xt", "yt")) {
+    v <- list(xt = xt, yt = yt)[[nm]]
+    if (!is.numeric(v)) next
+    hors <- which(is.finite(v) & v > 0 &
+                  (v < DOMAINE_NUMERIQUE_MIN | v > DOMAINE_NUMERIQUE_MAX))
+    if (!length(hors)) next
+    v1 <- v[hors[1]]
+    borne <- if (v1 < DOMAINE_NUMERIQUE_MIN)
+      sprintf("< %g, borne inferieure", DOMAINE_NUMERIQUE_MIN)
+      else sprintf("> %g, borne superieure", DOMAINE_NUMERIQUE_MAX)
+    err <- c(err, sprintf(paste(
+      "Valeur de %s hors du domaine numerique [%g ; %g] : %s = %s (%s)%s.",
+      "sigma_USP et les tests sont invariants par un changement d'unite commun",
+      "a xt et yt (et a delta_equiv s'il est fourni) : exprimer les montants",
+      "dans une unite qui les ramene dans le domaine."),
+      nm, DOMAINE_NUMERIQUE_MIN, DOMAINE_NUMERIQUE_MAX, nm, .engine_saisie(unname(v1)),
+      borne, if (length(hors) > 1L) sprintf(" ; %d valeurs hors du domaine", length(hors)) else ""))
+  }
   if (length(xt) < T_min)
     err <- c(err, sprintf("Annexe XVII, B/C(2)(b) : au moins %d annees consecutives (T = %d).",
                           T_min, length(xt)))
@@ -5172,8 +5342,11 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
   if (!is.null(msg)) err <- c(err, msg)
   if (!length(err)) {
     r <- yt / xt
-    if (any(r <= 0 | r >= 5))
-      avt <- c(avt, "Ratio y/x hors de la plage plausible ]0 ; 5[ : verifier les unites.")
+    # Plage plausible (issue #145) : conventions RATIO_PLAUSIBLE_MIN et
+    # RATIO_PLAUSIBLE_MAX, communes a la ligne A de usp_controle_donnees().
+    if (any(r < RATIO_PLAUSIBLE_MIN | r >= RATIO_PLAUSIBLE_MAX))
+      avt <- c(avt, sprintf("Ratio y/x hors de la plage plausible [%g ; %g[ : verifier les unites.",
+                            RATIO_PLAUSIBLE_MIN, RATIO_PLAUSIBLE_MAX))
     if (max(xt) / min(xt) >= 10)
       avt <- c(avt, "Amplitude des volumes >= 10 : rupture de perimetre possible.")
     if (anyDuplicated(data.frame(xt, yt)) > 0)
@@ -5323,9 +5496,19 @@ engine_surface_objectif <- function(fit, n_delta = 45, n_gamma = 45,
 # On y ajoute la mesure d'influence la plus parlante pour le dossier :
 # l'effet du retrait de chaque annee sur le parametre final sigma_USP, deja
 # calcule par le jackknife.
+# Le modele est ajuste sur x et y mis a l'echelle exacte
+# (.usp_echelle_exacte(), #153) : levier, residu standardise et distance de
+# Cook sont invariants par x -> a x, y -> b y, identiques au bit pres a ceux
+# du calcul sur x et y bruts dans le domaine (mesure #153 : resultat
+# identical() avant et apres sur les donnees de test et le jeu de l'issue)
+# et egaux a ceux de la ligne Cook de usp_tests() ; sans elle,
+# lm.influence() levait une erreur R sur des entrees sous-normales (x et y
+# x 1e-320, 5e-324) et D_t etait non fini a petite echelle. Les colonnes x
+# et y du resultat restent les donnees brutes.
 engine_influence <- function(fit, jackknife = NULL, sigma_usp = NULL) {
   x <- fit$x; y <- fit$y; T <- fit$T
-  m <- stats::lm(y ~ x - 1)
+  xe <- .usp_echelle_exacte(x); ye <- .usp_echelle_exacte(y)
+  m <- stats::lm(ye ~ xe - 1)
   k <- 1L
   h <- stats::hatvalues(m)
   e <- stats::residuals(m)
@@ -5505,6 +5688,17 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
     delta_estime = fit$delta, gamma_estime = fit$gamma,
     sigma_boot = boot$sigma_boot, delta_boot = boot$delta_boot
   )
+  # Graphiques d'influence (#153), sur le modele de .usp_ligne_cook() : un
+  # residu standardise ou une distance de Cook non fini (cas mesure : y
+  # exactement proportionnel a x, residus de y = beta x tous nuls, s = 0,
+  # residu_std et D_t = 0/0 = NaN sur les T annees) rend les graphiques
+  # residus vs levier et Cook par annee sans objet ; le motif est expose ici,
+  # l'affichage ne fait que le lire. Champ absent si tout est fini (aucun
+  # effet sur les resultats ordinaires), place avant lr_delta et
+  # qq_enveloppe, qui restent en fin de liste.
+  if (!all(is.finite(pd$influence$residu_std)) || !all(is.finite(pd$influence$cook)))
+    pd$influence_motif <- paste("Residu standardise ou distance de Cook non fini (par exemple",
+                                "residus de y = beta x tous nuls) : graphique non disponible")
   # Reperes du rapport de vraisemblance sur delta (issue #45, decision Q3 du
   # 28/09/2026), en fin de liste, pour plot_profil_delta() seul (decision
   # Q5 : aucun repere sur plot_coupe_delta()) : repere asymptotique
