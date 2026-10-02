@@ -894,6 +894,68 @@ verifier("engine_valider_serie_retenue : T refuse = meme validation que run_engi
            identical(sr$validation, r$validation) && !sr$validation$ok &&
              length(sr$xt) == 16 && !length(sr$validation$avertissements)
          }, logical(1))))
+
+## --- Validation des seules annees retenues (non-regression de #154) ---------
+# Reproduction de l'issue #154 (resolue en code par #131, fcbef03 et
+# 859ac7d) : n = 10 annees fournies, T = 8 retenues (les plus recentes) ; les
+# deux annees ecartees portent des valeurs que engine_valider_donnees()
+# refuserait ou signalerait sur la serie entiere. Le contrat fixe :
+# engine_valider_serie_retenue() et run_engine() ne valident que les T
+# annees retenues (lecture (A) de #104) ; la marge Delta et les
+# avertissements portent sur ces seules annees.
+x154 <- function(a) c(a, 100, x); y154 <- function(a) c(a, 50, y)
+args154 <- list(T = 8, methode = "premium", nature_donnees = "brutes", segment = 1L)
+sr154 <- function(xt, yt, ...)
+  do.call(engine_valider_serie_retenue, c(list(xt, yt), args154, list(...)))
+re154 <- function(xt, yt, ...)
+  do.call(run_engine, c(list(xt, yt), args154, list(annexe = "II", B = 99), list(...)))
+verifier("#154 : annee refusable hors des T retenues (x_1 = NA, n = 10, T = 8) : moteur ok, run_engine() ok, serie entiere refusee",
+         {
+           xn <- x154(NA); yn <- y154(1e6)
+           v <- engine_valider_donnees(xn, yn)
+           sr <- sr154(xn, yn); r <- re154(xn, yn)
+           !v$ok && contient(v$erreurs, "Valeurs manquantes") &&
+             sr$validation$ok && identical(sr$validation$T, 8L) &&
+             identical(sr$xt, x) && identical(sr$yt, y) &&
+             isTRUE(r$ok) && identical(r$validation, sr$validation) &&
+             r$metadata$T == 8 && r$metadata$n_fournies == 10
+         })
+verifier("#154 : toute valeur refusable de l'annee ecartee (NA, NaN, 0, -1, Inf, sur xt ou yt) laisse la serie retenue valide",
+         all(vapply(list(NA_real_, NaN, 0, -1, Inf), function(a) {
+           v1 <- sr154(x154(a), y154(50))$validation
+           v2 <- sr154(x154(100), y154(a))$validation
+           v1$ok && v2$ok && !engine_valider_donnees(x154(a), y154(50))$ok &&
+             !engine_valider_donnees(x154(100), y154(a))$ok
+         }, logical(1))))
+verifier("#154 : marge Delta comparee a la moyenne des T retenues (85.005), dans les deux sens, moteur et run_engine()",
+         {
+           # Annees ecartees elevees : moyenne des n = 100073.0 ; Delta = 90 >=
+           # 85.005 est refusee, alors qu'elle passerait sur les n annees.
+           xh <- x154(100); yh <- y154(1e6)
+           sh <- sr154(xh, yh, delta_equiv = 90); rh <- re154(xh, yh, delta_equiv = 90)
+           # Annees ecartees faibles : moyenne des n = 68.204 ; Delta = 70 <
+           # 85.005 est acceptee, alors qu'elle serait refusee sur les n annees.
+           xb <- c(1, 1, x); yb <- c(1, 1, y)
+           sb <- sr154(xb, yb, delta_equiv = 70); rb <- re154(xb, yb, delta_equiv = 70)
+           proche(mean(y), 85.005) &&
+             engine_valider_donnees(xh, yh, delta_equiv = 90)$ok &&
+             !sh$validation$ok && contient(sh$validation$erreurs,
+                                                   paste0("perte moyenne (", format(mean(y), digits = 6), ")")) &&
+             !isTRUE(rh$ok) && identical(rh$validation, sh$validation) &&
+             !engine_valider_donnees(xb, yb, delta_equiv = 70)$ok &&
+             sb$validation$ok && isTRUE(rb$ok) && identical(rb$validation, sb$validation)
+         })
+verifier("#154 : avertissements calcules sur les T retenues (ratio et amplitude des annees ecartees absents, T = 8 affiche)",
+         {
+           xw <- c(1, 100, x); yw <- c(1e4, 50, y)
+           an <- engine_valider_donnees(xw, yw)$avertissements
+           at <- sr154(xw, yw)$validation$avertissements
+           contient(an, "Ratio y/x hors de la plage") && contient(an, "Amplitude des volumes") &&
+             !contient(an, "T = 8") &&
+             !contient(at, "Ratio y/x hors de la plage") && !contient(at, "Amplitude des volumes") &&
+             contient(at, "T = 8 : credibilite partielle") && contient(at, "T = 8 : lois asymptotiques") &&
+             !contient(at, "T = 10")
+         })
 verifier("mw_valider_triangle : credibilite partielle ssi c(I + 1, bareme applique) < 1 ; repere I + 1 < 10 inchange (#131)",
          {
            a <- function(n, ...) mw_valider_triangle(triangle(n), ...)$avertissements
