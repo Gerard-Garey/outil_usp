@@ -2246,6 +2246,14 @@ le tableau ci-dessous~: colonne $J-3$ ou $J-2$ à facteurs individuels tous éga
 \code{engine\_lire\_triangle()} convertit en amont le tableau lu en triangle~: une cellule vide
 vaut « non observée », une cellule non vide et non numérique est refusée avec sa position,
 jamais lue comme manquante~; elle appelle ensuite \code{mw\_valider\_triangle()} (issue~\#33).
+Elle l'appelle sans segment~: l'avertissement de crédibilité éventuel suit alors le barème court
+par convention, la section~G ne déterminant aucun barème sans segment, et il en va de même
+d'\code{engine\_valider\_donnees()} appelée sans segment~; l'avertissement qui vaut pour le
+segment est celui de \code{run\_engine()}, qui transmet segment, annexe et barème saisi, ou de
+ces fonctions appelées avec le segment (issue~\#131). Mesuré sur un triangle à $I + 1 = 9$~:
+$c = 92~\%$ sous la convention, $c = 67~\%$ par \code{mw\_valider\_triangle()} avec le
+segment II-1~; sur une série à $T = 10$, aucun avertissement de crédibilité
+d'\code{engine\_valider\_donnees()} sans segment, $c = 74~\%$ avec le segment II-1.
 
 \textbf{Son fondement n'est pas le même que celui des autres contrôles}, et c'est
 l'exception annoncée ci-dessus. Tous les autres relèvent des exigences de données
@@ -2455,8 +2463,8 @@ mainteneur le 1\textsuperscript{er}~octobre 2026~; auparavant, le critère étai
 que soit le barème, ce qui déclarait pleine la crédibilité des segments II-1, II-5 et II-6 de
 $T = 10$ à~14). Mesuré par \code{usp\_controle\_donnees()} et
 \code{engine\_valider\_donnees()}~: segment II-1 à $T = 10$, \code{ECHEC} et $c = 74~\%$~;
-II-5 à $T = 14$, \code{ECHEC} et $c = 96~\%$~; II-6 à $T = 15$, \code{OK}~; II-2 et XIV-1 à
-$T = 10$, \code{OK}~; à $T = 9$, \code{ECHEC} et $c = 92~\%$~; II-2 avec le barème long saisi
+II-5 à $T = 14$, \code{ECHEC} et $c = 96~\%$~; II-6 à $T = 15$, \code{OK}~; II-2 et XIV-1,
+\code{OK} à $T = 10$, \code{ECHEC} et $c = 92~\%$ à $T = 9$~; II-2 avec le barème long saisi
 à $T = 10$, \code{ECHEC} et $c = 74~\%$, le commentaire citant la dérogation et le barème
 réglementaire du segment. L'avertissement «~lois asymptotiques peu fiables~» à $T < 10$ est un
 repère statistique distinct, non réglementaire, inchangé.
