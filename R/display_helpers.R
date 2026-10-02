@@ -503,6 +503,10 @@ LIB_LR_Q90_COURT <- c("q90 % du LR simul\u00e9 sous \u03b4 = 0",
 plot_profil_delta <- function(pd) {
   if (is.null(pd$profil_delta)) return(.vide())
   d <- pd$profil_delta
+  # Profil entierement NA (optimize() en echec a chaque point, #161) : aucun
+  # trace de reperes sans courbe, message renvoyant aux lignes G.
+  if (all(is.na(d$objectif)))
+    return(.vide("Profil non calculable pour ces donnees (voir le motif des lignes G dans l'onglet Tests)"))
   yl <- .lr_hauteurs(pd, d$objectif)
   if (!.plotly_dispo()) {
     .cadre(); plot(d$delta, d$objectif, type = "l", lwd = 2, col = COUL$pt, ylim = yl,

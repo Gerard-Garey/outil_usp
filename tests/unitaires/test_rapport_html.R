@@ -499,6 +499,29 @@ trace161 <- suppressWarnings(tryCatch({ plot_profil_delta(res161$plots_data); TR
                                       error = function(e) FALSE))
 grDevices::dev.off(); options(option161)
 verifier("LR sur delta et profil en echec, base R : plot_profil_delta() sans erreur (#161)", trace161)
+# Garde d'affichage (app-review, #161) : profil entierement NA -> .vide() avec
+# le message renvoyant aux lignes G, avant la bifurcation base R / plotly ;
+# profil ordinaire -> aucun appel a .vide(). .vide() est enveloppe dans
+# l'environnement de plot_profil_delta() pour relever son message.
+env161 <- environment(plot_profil_delta); vide161 <- get(".vide", envir = env161)
+msg161 <- new.env()
+releve_vide161 <- function(pdx, base = TRUE) {
+  msg161$m <- NULL
+  assign(".vide", function(message = "Graphique non disponible pour cette methode") {
+    msg161$m <- message; vide161(message)
+  }, envir = env161)
+  on.exit(assign(".vide", vide161, envir = env161))
+  option <- options(usp.graphiques_base = base); grDevices::pdf(NULL)
+  on.exit({ grDevices::dev.off(); options(option) }, add = TRUE)
+  plot_profil_delta(pdx)
+  msg161$m
+}
+MSG_PROFIL_NA <- "Profil non calculable pour ces donnees (voir le motif des lignes G dans l'onglet Tests)"
+res161_ord <- run_engine(xt = xi161, yt = yi161, methode = "premium", segment = 1, B = 99,
+                         nature_donnees = "brutes")
+verifier("Profil entierement NA : plot_profil_delta() aiguille vers .vide() avec le message renvoyant aux lignes G ; profil ordinaire trace sans .vide() (#161)",
+         identical(releve_vide161(res161$plots_data), MSG_PROFIL_NA) &&
+           is.null(releve_vide161(res161_ord$plots_data)))
 verifier("LR sur delta et profil en echec : tableaux de synthese et de detail sans erreur, lignes LR non applicables avec leur motif (#161)",
          {
            g <- tb161[tb161$commentaire %in% MOTIF_LR_DELTA_ECHEC, ]
@@ -517,8 +540,12 @@ verifier("LR sur delta et profil en echec : rapport fige produit sans erreur, mo
            grepl("non calculable sur les donnees observees",
                  paste(readLines(f161, warn = FALSE), collapse = "\n"), fixed = TRUE))
 if (requireNamespace("plotly", quietly = TRUE)) {
-  verifier("LR sur delta et profil en echec, plotly : plot_profil_delta() sans erreur (#161)",
-           !inherits(tryCatch(plot_profil_delta(res161$plots_data), error = function(e) e), "error"))
+  verifier("LR sur delta et profil en echec, plotly : plot_profil_delta() sans erreur, message du profil non calculable en annotation (#161)",
+           {
+             p <- tryCatch(plot_profil_delta(res161$plots_data), error = function(e) e)
+             !inherits(p, "error") &&
+               identical(releve_vide161(res161$plots_data, base = FALSE), MSG_PROFIL_NA)
+           })
 } else {
   cat("  note : plotly absent ; branche plotly du profil en echec non exercee (attendu en CI, issue #53).\n")
 }
