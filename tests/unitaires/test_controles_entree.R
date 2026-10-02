@@ -866,6 +866,15 @@ verifier("engine_valider_donnees / mw_valider_triangle : bareme ou segment inval
              !v4$ok && contient(v4$erreurs, "(sans attribut)") &&
              !v5$ok && contient(v5$erreurs, "(sans attribut)")
          })
+verifier("mw_valider_triangle : segment invalide ne masque pas une cellule manquante, les deux erreurs sont rapportees (#131)",
+         {
+           m <- triangle(6); m[1, 1] <- NA
+           r <- mw_valider_triangle(m, segment = 99)
+           !r$ok && length(r$erreurs) == 2L &&
+             contient(r$erreurs, "Cellule observee manquante en (i=0, j=0).") &&
+             contient(r$erreurs, "Segment 99 inconnu dans l'annexe II.") &&
+             !length(r$avertissements)
+         })
 verifier("engine_valider_serie_retenue : serie tronquee a T comme run_engine() (n = 16, T = 10, II-1 : c = 74%) (#131)",
          {
            sr <- engine_valider_serie_retenue(xc[1:16], yc[1:16], T = 10, methode = "premium",

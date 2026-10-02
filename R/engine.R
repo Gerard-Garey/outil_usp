@@ -5570,9 +5570,6 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
   if (!is.matrix(tri) || !is.numeric(tri))
     return(list(ok = FALSE, erreurs = "Le triangle doit etre une matrice numerique.",
                 I = NA, J = NA))
-  msg <- tryCatch({ .engine_credibilite_appliquee(5, bareme, segment, annexe); NULL },
-                  error = function(e) conditionMessage(e))
-  if (!is.null(msg)) err <- c(err, msg)
   I <- nrow(tri) - 1L; J <- ncol(tri) - 1L
   if (nrow(tri) < T_min)
     err <- c(err, sprintf("D(2)(b) : au moins %d annees d'accident consecutives (%d fournies).",
@@ -5600,6 +5597,12 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
         err <- c(err, sprintf("Cumul non strictement positif en (i=%d, j=%d).", i, j))
     }
   }
+  # Bareme, segment et annexe (issue #131) : controles apres les erreurs de
+  # donnees, qu'ils ne masquent pas (comme dans engine_valider_donnees()), et
+  # avant tout avertissement ; une valeur invalide est refusee sans erreur R.
+  msg <- tryCatch({ .engine_credibilite_appliquee(5, bareme, segment, annexe); NULL },
+                  error = function(e) conditionMessage(e))
+  if (!is.null(msg)) err <- c(err, msg)
   if (!length(err)) {
     # Avertissement de nature ACTUARIELLE, sans fondement reglementaire : le
     # paragraphe 2(h)(iii) pose seulement que l'esperance du cumule d'une annee
