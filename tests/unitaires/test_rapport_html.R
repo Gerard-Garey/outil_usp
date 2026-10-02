@@ -419,43 +419,78 @@ verifier("Rapport fige, n = 12, T = 8 : libelle \"profondeur\" du moteur repris 
            !grepl("annees fournies", h, fixed = TRUE))
 
 ## --- Graphiques d'influence a distances de Cook non finies (issue #153) -------
-# y exactement proportionnel a x (x = 2^(0:7), y = x / 2) : residus de
-# y = beta x tous nuls, residu_std et D_t = NaN sur les 8 annees. Avant
-# #153, plot_influence_levier() et plot_influence_cook() levaient en base R
-# l'erreur "need finite 'ylim' values", affichee par app.R a la place des
-# graphiques ; ils rendent desormais .vide() avec le motif
-# plots_data$influence_motif pose par le moteur. Branche base R sur un
+# Residus de y = beta x tous nuls : residu_std et D_t = NaN sur les 8
+# annees. Avant #153, plot_influence_levier() et plot_influence_cook()
+# levaient en base R l'erreur "need finite 'ylim' values", affichee par
+# app.R a la place des graphiques ; ils rendent desormais .vide() avec le
+# motif plots_data$influence_motif pose par le moteur. Le cas de l'issue,
+# y exactement proportionnel a x (x = 2^(0:7), y = x / 2), n'atteint pas
+# la garde sur toute plateforme : selon le BLAS, ses routines et la version
+# de R, lm() y rend des residus exactement nuls ou un bruit d'arrondi
+# (mesure, R 4.3.3 et OpenBLAS 0.3.20 de la CI : max D_t NaN avec les
+# routines Zen, Haswell et le BLAS de reference, 0,0029 avec SkylakeX ;
+# voir test_controles_entree.R). La garde est donc atteinte a coup sur par
+# injection dans l'environnement du moteur : .usp_echelle_exacte() rend
+# y = 0 pour les donnees de test (residus exactement nuls sous tout BLAS),
+# et engine_plots_data() pose le motif ; le cas de l'issue est garde pour
+# l'absence d'erreur R et la coherence de son issue. Branche base R sur un
 # peripherique pdf(NULL) ; branche plotly seulement si le paquet est
 # installe (pas en CI, issue #53).
+echelle_orig153 <- .usp_echelle_exacte
+avec_y_nul153 <- function(expr) {
+  e <- environment(run_engine)
+  assign(".usp_echelle_exacte",
+         function(v) if (isTRUE(all.equal(v, yt))) 0 * v else echelle_orig153(v), envir = e)
+  on.exit(assign(".usp_echelle_exacte", echelle_orig153, envir = e))
+  expr
+}
+res_g153 <- suppressWarnings(avec_y_nul153(
+  run_engine(xt = xt, yt = yt, methode = "premium", segment = 1, B = 99, nature_donnees = "brutes")))
+pd153 <- res_g153$plots_data
 xp153 <- 2^(0:7)
 res_p153 <- suppressWarnings(run_engine(xt = xp153, yt = xp153 / 2, methode = "premium",
                                         segment = 1, B = 99, nature_donnees = "brutes"))
-pd153 <- res_p153$plots_data
+pdp153 <- res_p153$plots_data
 traces153 <- c("plot_influence_levier", "plot_influence_cook", "plot_influence_sigma")
 sans_erreur153 <- function(pd) vapply(traces153, function(f)
   !inherits(tryCatch(get(f)(pd), error = function(e) e), "error"), logical(1))
 option153 <- options(usp.graphiques_base = TRUE); grDevices::pdf(NULL)
 base153 <- sans_erreur153(pd153)
+basep153 <- sans_erreur153(pdp153)
 pd153_sans_motif <- pd153; pd153_sans_motif$influence_motif <- NULL
 temoin153 <- suppressWarnings(sans_erreur153(pd153_sans_motif))
 grDevices::dev.off(); options(option153)
-verifier("Graphiques d'influence, y proportionnel a x : motif pose par le moteur (residu_std et cook non finis), absent sur les donnees ordinaires (#153)",
-         isTRUE(res_p153$ok) && is.character(pd153$influence_motif) &&
+# Repere de levier : les leviers ne dependent que de x (inchanges par
+# l'injection) ; decompte attendu lu dans plots_data.
+lev153 <- sprintf("<b>%d</b> au-del&agrave; du rep&egrave;re de levier", sum(pd153$influence$fort_levier))
+verifier("Graphiques d'influence, residus de y = beta x nuls (injection) : motif pose par le moteur (residu_std et cook non finis), absent sur les donnees ordinaires (#153)",
+         isTRUE(res_g153$ok) && is.character(pd153$influence_motif) &&
            length(pd153$influence_motif) == 1L &&
            !any(is.finite(pd153$influence$cook)) && !any(is.finite(pd153$influence$residu_std)) &&
-           is.null(res_ln$plots_data$influence_motif))
-verifier("Graphiques d'influence, y proportionnel a x, base R : aucun trace en erreur ; sans le motif, residus vs levier et Cook par annee en erreur (temoin de la garde, #153)",
+           is.null(res_ln$plots_data$influence_motif) &&
+           identical(get(".usp_echelle_exacte", envir = environment(run_engine)), echelle_orig153))
+verifier("Graphiques d'influence, residus de y = beta x nuls (injection), base R : aucun trace en erreur ; sans le motif, residus vs levier et Cook par annee en erreur (temoin de la garde, #153)",
          all(base153) && identical(unname(temoin153), c(FALSE, FALSE, TRUE)))
-verifier("note_influence(), y proportionnel a x : decompte de Cook remplace (aucun 'NA'), repere de levier conserve (#153)",
+verifier("note_influence(), residus de y = beta x nuls (injection) : decompte de Cook remplace (aucun 'NA'), repere de levier conserve (#153)",
          {
            n153 <- note_influence(pd153)
            is.character(n153) && !grepl("NA", n153, fixed = TRUE) &&
-             grepl("sans objet", n153, fixed = TRUE) &&
-             grepl("<b>1</b> au-del&agrave; du rep&egrave;re de levier", n153, fixed = TRUE)
+             grepl("sans objet", n153, fixed = TRUE) && grepl(lev153, n153, fixed = TRUE)
+         })
+verifier("Graphiques d'influence, y proportionnel a x (x = 2^(0:7), y = x / 2) : ok = TRUE, motif pose (residu_std et cook non finis) ou absent (tout fini) selon la plateforme ; aucun trace en base R ni note_influence() en erreur, aucun 'NA' dans la note (#153)",
+         {
+           inf <- pdp153$influence
+           np153 <- tryCatch(note_influence(pdp153), error = function(e) e)
+           garde <- !any(is.finite(inf$cook)) && !any(is.finite(inf$residu_std)) &&
+             is.character(pdp153$influence_motif) && length(pdp153$influence_motif) == 1L
+           calcule <- all(is.finite(inf$cook)) && all(is.finite(inf$residu_std)) &&
+             is.null(pdp153$influence_motif)
+           isTRUE(res_p153$ok) && (garde || calcule) && all(basep153) &&
+             is.character(np153) && !grepl("NA", np153, fixed = TRUE)
          })
 if (requireNamespace("plotly", quietly = TRUE)) {
-  verifier("Graphiques d'influence, y proportionnel a x, plotly : aucun trace en erreur (#153)",
-           all(sans_erreur153(pd153)))
+  verifier("Graphiques d'influence, residus nuls (injection) et y proportionnel a x, plotly : aucun trace en erreur (#153)",
+           all(sans_erreur153(pd153)) && all(sans_erreur153(pdp153)))
 } else {
   cat("  note : plotly absent ; branche plotly des graphiques d'influence non exercee (attendu en CI, issue #53).\n")
 }

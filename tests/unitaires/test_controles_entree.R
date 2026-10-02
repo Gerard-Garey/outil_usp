@@ -379,52 +379,236 @@ verifier(".usp_ligne_cook() : distance non finie (NaN, NA, Inf) -> non applicabl
              identical(ok$detail, "repere conventionnel 4/T = 0.500 ; 2 observation(s) au-dessus (rangs 2, 4)") &&
              identical(ok0$detail, "repere conventionnel 4/T = 0.500 ; 0 observation(s) au-dessus")
          })
-# Entree construite atteignant la garde : y exactement proportionnel a x
-# (x puissances de 2, y = x / 2), residus de y = beta x tous nuls, D_t =
-# 0/0 = NaN. Avant #153 : erreur R dans usp_tests() (defaut intercepte par
-# run_engine()).
-verifier("usp_tests() : y exactement proportionnel a x (residus nuls, D_t = NaN) -> ligne Cook non applicable avec motif, sans erreur R (#153)",
+# Issue des regressions sur donnees degenerees : dependante de la
+# plateforme. Sur y exactement proportionnel a x (x = 2^(0:7), y = x / 2)
+# et sur les entrees sous-normales (x et y x 1e-320, 5e-324), lm() rend
+# selon le BLAS, ses routines et la version de R des residus exactement
+# nuls (D_t et residu standardise 0/0 = NaN) ou un bruit d'arrondi (valeurs
+# finies), une constante et une erreur-type NaN ou finies. Mesures (R 4.3.3,
+# OpenBLAS 0.3.20 de la CI charge par LD_PRELOAD) : cas proportionnel,
+# max D_t NaN avec les routines Zen, Haswell et le BLAS de reference, fini
+# (0,0029) avec SkylakeX ; sous-normaux, statistique non definie ici sous
+# les quatre configurations, mais assertion en echec sur la CI (R 4.3.1,
+# OpenBLAS 0.3.20, AMD EPYC 7763). Ces cas ne figent donc aucune des deux
+# issues : ils exigent l'absence d'erreur R et la coherence de l'issue
+# rendue (garde posee avec son motif et des valeurs non finies, ou ligne
+# calculee, finie, sans motif ; pour TOST, tout motif que
+# test_tost_intercept() peut produire, si sa condition est vraie sur ces
+# donnees). Les gardes sont atteintes a coup sur par
+# injection dans l'environnement du moteur : .usp_echelle_exacte() rend
+# y = 0 (residus de y = beta x exactement nuls, 0 x fini = 0 sous tout
+# BLAS) et summary() rend une constante et une erreur-type NaN dans
+# test_tost_intercept().
+LIGNE_COOK153 <- "Points influents (distance de Cook)"
+LIGNE_TOST153 <- "Equivalence de la constante a zero (TOST)"
+MOTIF_INFLUENCE153 <- paste("Residu standardise ou distance de Cook non fini (par exemple",
+                            "residus de y = beta x tous nuls) : graphique non disponible")
+DETAIL_TOST153 <- paste("statistique t non definie (constante ou",
+                        "erreur-type de la regression de y sur x",
+                        "non calculable) : test non applicable")
+ligne153 <- function(tt, nom) tt[[which(vapply(tt, function(l) l$test, "") == nom)]]
+# Ligne Cook : non applicable (INFO, estim NA, motif) ou diagnostic fini.
+cook_garde153 <- function(l) identical(l$type, "non applicable") && identical(l$verdict, "INFO") &&
+  identical(l$estim, NA_real_) && contient(l$detail, "distance de Cook non finie")
+cook_calcule153 <- function(l) identical(l$type, "diagnostic") && is.finite(l$estim) &&
+  startsWith(l$detail, "repere conventionnel 4/T")
+# plots_data : motif pose et residu_std, cook tous non finis ; ou motif
+# absent et tout fini.
+influence_garde153 <- function(pd) !any(is.finite(pd$influence$cook)) &&
+  !any(is.finite(pd$influence$residu_std)) && identical(pd$influence_motif, MOTIF_INFLUENCE153)
+influence_calcule153 <- function(pd) all(is.finite(pd$influence$cook)) &&
+  all(is.finite(pd$influence$residu_std)) && is.null(pd$influence_motif)
+# x ecarte par lm() dans le modele de la ligne Cook et de engine_influence()
+# (lm(ye ~ xe - 1) sur .usp_echelle_exacte(), memes donnees) : le moteur n'a
+# pas de motif propre a ce cas, ses deux gardes ne lisent que la finitude de
+# D_t et du residu standardise ; x ecarte (rang 0, coefficient NA) n'admet
+# que l'issue garde (D_t = 0/0 = NaN, mesure sur une colonne nulle sous les
+# quatre configurations BLAS).
+cook_x_ecarte153 <- function(x, y) {
+  xe <- .usp_echelle_exacte(x); ye <- .usp_echelle_exacte(y)
+  anyNA(stats::coef(stats::lm(ye ~ xe - 1)))
+}
+# TOST : motif attendu, lu dans test_tost_intercept() et recalcule sur les
+# memes donnees par les memes conditions, dans le meme ordre de priorite :
+# (1) "volumes constants" si usp_volumes_constants(x) ; (2) "marge" si la
+# marge est invalide (theta non fini ou <= 0 sans delta_abs ; delta_abs non
+# fini ou <= 0) ; (3) "volumes constants" si lm() a ecarte x (garde-fou R12 :
+# "x" absent de rownames(summary(stats::lm(y ~ x))$coefficients)) ; (4)
+# "statistique non definie" si et seulement si p n'est pas fini ; sinon
+# ligne calculee (NA). p et stat valent NA_real_ sur toute branche non
+# applicable, et sont finis sur la branche calculee.
+tost_motif_attendu153 <- function(x, y, p, theta = 0.10, delta_abs = NULL) {
+  if (usp_volumes_constants(x)) return("volumes constants")
+  if ((is.null(delta_abs) && (!is.finite(theta) || theta <= 0)) ||
+      (!is.null(delta_abs) && (!is.finite(delta_abs) || delta_abs <= 0))) return("marge")
+  m <- summary(stats::lm(y ~ x))
+  if (!"x" %in% rownames(m$coefficients)) return("volumes constants")
+  if (is.finite(p)) NA_character_ else "statistique non definie"
+}
+tost_coherent153 <- function(r, ref, x, y) !inherits(r, "error") && identical(names(r), ref) &&
+  identical(r$non_applicable, tost_motif_attendu153(x, y, r$p)) &&
+  (if (is.na(r$non_applicable)) is.finite(r$p) && is.finite(r$stat)
+   else identical(r$p, NA_real_) && identical(r$stat, NA_real_))
+# Ligne TOST de usp_tests(), en regard de test_tost_intercept() sur les memes
+# donnees (x, y = fit$x, fit$y) : detail du motif, lu dans usp_tests()
+# ("volumes constants" : texte de la regle R13 si usp_volumes_constants(x),
+# texte du garde-fou R12 sinon) ; ligne "test" a p retenue finie si calculee.
+ligne_tost_coherente153 <- function(lt, r, x) {
+  m <- r$non_applicable
+  if (is.na(m)) return(identical(lt$type, "test") && is.finite(lt$p_retenue) &&
+                         startsWith(lt$detail, "Rejeter H0 fournit une preuve POSITIVE"))
+  attendu <- switch(m,
+    "volumes constants" = if (usp_volumes_constants(x)) NA_character_
+      else paste("regression de y sur x : x ecarte par lm() pour colinearite,",
+                 "test non applicable"),
+    "marge" = paste("marge Delta invalide (sans delta_equiv : theta_equiv non",
+                    "fini ou <= 0 ; ou delta_equiv non fini ou <= 0) : test",
+                    "non applicable"),
+    "statistique non definie" = DETAIL_TOST153,
+    return(FALSE))
+  identical(lt$type, "non applicable") && identical(lt$verdict, "INFO") && is.na(lt$p_retenue) &&
+    (if (is.na(attendu)) startsWith(lt$detail, "volumes x_t constants") else identical(lt$detail, attendu))
+}
+# Injections deterministes (voir ci-dessus).
+.echelle_orig153 <- .usp_echelle_exacte
+echelle_y_nul153 <- function(y0) function(v) if (isTRUE(all.equal(v, y0))) 0 * v else .echelle_orig153(v)
+avec_summary_nan153 <- function(expr) {
+  e <- environment(run_engine)
+  existait <- exists("summary", envir = e, inherits = FALSE)
+  if (existait) orig <- get("summary", envir = e, inherits = FALSE)
+  assign("summary", function(object, ...) {
+    s <- base::summary(object, ...)
+    if (inherits(object, "lm")) s$coefficients[1, 1:2] <- NaN
+    s
+  }, envir = e)
+  on.exit(if (existait) assign("summary", orig, envir = e) else rm("summary", envir = e))
+  expr
+}
+.tost_orig153 <- test_tost_intercept
+# Garde Cook atteinte a coup sur (usp_tests(), engine_plots_data()) : avant
+# #153, erreur R dans usp_tests() (if (any(ck > 4 / T)) sur NaN, defaut
+# intercepte par run_engine()) ; plot_influence_levier() et
+# plot_influence_cook() levaient une erreur R sans le motif.
+verifier("run_engine, residus de y = beta x exactement nuls (injection : .usp_echelle_exacte() rend y = 0) -> ok = TRUE, ligne Cook non applicable avec motif, plots_data$influence_motif pose (residu_std et cook non finis, leviers finis), memes noms de plots_data que sans injection a influence_motif pres (#153)",
          {
-           xp <- 2^(0:7); f <- usp_ajuster(xp, xp / 2)
+           r1 <- calcul_extreme(x, y)
+           ri <- avec_injection(".usp_echelle_exacte", echelle_y_nul153(y), calcul_extreme(x, y))
+           ti <- engine_table_tests(ri); t1 <- engine_table_tests(r1)
+           ci <- ti[ti$test == LIGNE_COOK153, ]
+           isTRUE(ri$ok) && isTRUE(r1$ok) && is.null(ri$validation$erreur_r) &&
+             identical(ci$type, "non applicable") && identical(ci$verdict, "INFO") &&
+             identical(ci$estimation, NA_real_) && contient(ci$commentaire, "distance de Cook non finie") &&
+             influence_garde153(ri$plots_data) && all(is.finite(ri$plots_data$influence$levier)) &&
+             influence_calcule153(r1$plots_data) &&
+             identical(setdiff(names(ri$plots_data), "influence_motif"), names(r1$plots_data)) &&
+             identical(tail(names(ri$plots_data), 1), "qq_enveloppe") &&
+             identical(names(ti), names(t1)) && identical(ti$test, t1$test)
+         })
+# Garde TOST atteinte a coup sur : avant #153, erreur R de
+# if (p_bas >= p_haut) sur NaN.
+verifier("test_tost_intercept() et usp_tests(), constante et erreur-type NaN (injection de summary()) -> non applicable 'statistique non definie', memes champs que la branche calculee, detail exact de la ligne, sans erreur R (#153)",
+         {
+           ref <- names(test_tost_intercept(x153, y153))
+           r <- tryCatch(avec_summary_nan153(test_tost_intercept(x153, y153)), error = function(e) e)
+           f1 <- usp_ajuster(x153, y153); b1 <- usp_bootstrap(f1, B = B_MIN_USAGE)
+           tt <- tryCatch(avec_injection("test_tost_intercept",
+                                         function(...) avec_summary_nan153(.tost_orig153(...)),
+                                         usp_tests(f1, b1, methode = "premium")),
+                          error = function(e) e)
+           !inherits(r, "error") && identical(r$non_applicable, "statistique non definie") &&
+             identical(r$p, NA_real_) && identical(r$stat, NA_real_) && identical(names(r), ref) &&
+             !exists("summary", envir = environment(run_engine), inherits = FALSE) &&
+             !inherits(tt, "error") && ligne_tost_coherente153(ligne153(tt, LIGNE_TOST153), r, x153) &&
+             identical(ligne153(tt, LIGNE_TOST153)$verdict, "INFO")
+         })
+# Branche R12 des fonctions de coherence (x ecarte par lm(), issue possible
+# sur une autre plateforme) : summary() injectee rend la table des
+# coefficients sans la ligne x. Sous l'injection, la condition R12 est
+# vraie et "volumes constants" est accepte avec le detail du garde-fou ;
+# hors injection, la meme reponse est refusee (condition fausse).
+avec_summary_sans_x153 <- function(expr) {
+  e <- environment(run_engine)
+  existait <- exists("summary", envir = e, inherits = FALSE)
+  if (existait) orig <- get("summary", envir = e, inherits = FALSE)
+  assign("summary", function(object, ...) {
+    s <- base::summary(object, ...)
+    if (inherits(object, "lm")) s$coefficients <- s$coefficients[rownames(s$coefficients) != "x", , drop = FALSE]
+    s
+  }, envir = e)
+  on.exit(if (existait) assign("summary", orig, envir = e) else rm("summary", envir = e))
+  expr
+}
+verifier("Coherence TOST (#153) : x ecarte par lm() (injection de summary() sans la ligne x) -> 'volumes constants' accepte, ligne au detail du garde-fou R12 ; meme reponse refusee quand lm() garde x ; reponse calculee refusee sous la condition R12",
+         {
+           ref <- names(test_tost_intercept(x153, y153))
+           f1 <- usp_ajuster(x153, y153); b1 <- usp_bootstrap(f1, B = B_MIN_USAGE)
+           r12 <- avec_summary_sans_x153(test_tost_intercept(x153, y153))
+           ok12 <- avec_summary_sans_x153(tost_coherent153(r12, ref, x153, y153))
+           tt12 <- avec_injection("test_tost_intercept",
+                                  function(...) avec_summary_sans_x153(.tost_orig153(...)),
+                                  usp_tests(f1, b1, methode = "premium"))
+           r0 <- test_tost_intercept(x153, y153)
+           identical(r12$non_applicable, "volumes constants") && isTRUE(ok12) &&
+             ligne_tost_coherente153(ligne153(tt12, LIGNE_TOST153), r12, x153) &&
+             !tost_coherent153(r12, ref, x153, y153) &&
+             !isTRUE(avec_summary_sans_x153(tost_coherent153(r0, ref, x153, y153))) &&
+             tost_coherent153(r0, ref, x153, y153) &&
+             !exists("summary", envir = environment(run_engine), inherits = FALSE)
+         })
+# Entree construite de l'issue : y exactement proportionnel a x (x
+# puissances de 2, y = x / 2). Issue dependante de la plateforme (voir
+# ci-dessus) : aucune erreur R et issue coherente.
+xp153 <- 2^(0:7)
+verifier("usp_tests() : y exactement proportionnel a x -> sans erreur R ; ligne Cook non applicable avec motif (D_t non fini) ou diagnostic fini (x non ecarte par lm()), selon la plateforme (#153)",
+         {
+           f <- usp_ajuster(xp153, xp153 / 2)
            b <- suppressWarnings(usp_bootstrap(f, B = B_MIN_USAGE))
            tt <- tryCatch(suppressWarnings(usp_tests(f, b, methode = "premium")), error = function(e) e)
-           ck <- if (!inherits(tt, "error"))
-             tt[[which(vapply(tt, function(l) l$test, "") == "Points influents (distance de Cook)")]]
-           !inherits(tt, "error") && identical(ck$type, "non applicable") &&
-             identical(ck$verdict, "INFO") && is.na(ck$estim) &&
-             contient(ck$detail, "distance de Cook non finie")
+           !inherits(tt, "error") &&
+             (cook_garde153(ligne153(tt, LIGNE_COOK153)) ||
+                (cook_calcule153(ligne153(tt, LIGNE_COOK153)) && !cook_x_ecarte153(f$x, f$y)))
          })
 # Meme entree par run_engine() (decision du mainteneur du 02/10/2026 : la
 # serie exactement proportionnelle n'est pas refusee, issue #188) : ok =
-# TRUE, ligne Cook non applicable, et motif des graphiques d'influence
-# (plots_data$influence_motif) pose par engine_plots_data(), sans lequel
-# plot_influence_levier() et plot_influence_cook() levaient une erreur R ;
-# motif absent sur les donnees de test, lr_delta et qq_enveloppe restant en
-# fin de liste.
-verifier("run_engine : y exactement proportionnel a x -> ok = TRUE, ligne Cook non applicable, plots_data$influence_motif pose (residu_std et cook non finis) ; absent sur les donnees de test (#153)",
+# TRUE ; ligne Cook non applicable si et seulement si le motif des
+# graphiques d'influence (plots_data$influence_motif) est pose ; motif
+# absent sur les donnees de test, lr_delta et qq_enveloppe restant en fin
+# de liste.
+verifier("run_engine : y exactement proportionnel a x -> ok = TRUE ; ligne Cook non applicable et plots_data$influence_motif pose (residu_std et cook non finis), ou ligne Cook diagnostic finie et motif absent (x non ecarte par lm()) ; motif absent sur les donnees de test (#153)",
          {
-           xp <- 2^(0:7); rp <- calcul_extreme(xp, xp / 2); r1 <- calcul_extreme(x, y)
-           tp <- engine_table_tests(rp)
-           isTRUE(rp$ok) && isTRUE(r1$ok) &&
-             identical(tp$type[tp$test == "Points influents (distance de Cook)"], "non applicable") &&
-             !any(is.finite(rp$plots_data$influence$cook)) &&
-             !any(is.finite(rp$plots_data$influence$residu_std)) &&
-             identical(rp$plots_data$influence_motif,
-                       paste("Residu standardise ou distance de Cook non fini (par exemple",
-                             "residus de y = beta x tous nuls) : graphique non disponible")) &&
+           rp <- calcul_extreme(xp153, xp153 / 2); r1 <- calcul_extreme(x, y)
+           tp <- engine_table_tests(rp); cp <- tp[tp$test == LIGNE_COOK153, ]
+           garde <- identical(cp$type, "non applicable") && identical(cp$estimation, NA_real_) &&
+             influence_garde153(rp$plots_data)
+           calcule <- identical(cp$type, "diagnostic") && isTRUE(is.finite(cp$estimation)) &&
+             influence_calcule153(rp$plots_data) && !cook_x_ecarte153(xp153, xp153 / 2)
+           isTRUE(rp$ok) && isTRUE(r1$ok) && (garde || calcule) &&
              identical(tail(names(rp$plots_data), 1), "qq_enveloppe") &&
              is.null(r1$plots_data$influence_motif)
          })
-verifier("test_tost_intercept() : entrees sous-normales (x et y x 1e-320, 5e-324 ; lm() rend a = se = NaN) -> non applicable 'statistique non definie', memes champs que la branche calculee (#153)",
+verifier("test_tost_intercept() : entrees sous-normales (x et y x 1e-320, 5e-324) -> sans erreur R, memes champs que la branche calculee ; motif egal a celui que declenchent les conditions de test_tost_intercept() sur ces donnees (volumes constants, marge, x ecarte par lm() (R12), 'statistique non definie' si et seulement si p n'est pas fini), ligne calculee finie sinon (#153)",
          {
            ref <- names(test_tost_intercept(x153, y153))
            all(vapply(c(1e-320, 5e-324), function(f) {
              r <- tryCatch(test_tost_intercept(x153 * f, y153 * f), error = function(e) e)
-             !inherits(r, "error") && identical(r$non_applicable, "statistique non definie") &&
-               is.na(r$p) && is.na(r$stat) && identical(names(r), ref)
+             tost_coherent153(r, ref, x153 * f, y153 * f)
            }, logical(1)))
          })
-verifier("usp_tests() et engine_influence() en appel direct : aucune erreur R pour x et y x 10^e (e de -300 a 300 par pas de 10, -165, -164, -160, 152, 160), sous-normaux et x seul ; hors sous-normaux, max D_t egal a celui de l'echelle 1 a TOLERANCE pres et D_t de engine_influence() identical() a la ligne Cook (#153)",
+# Issue observee sur la plateforme courante, pour le journal (CI comprise).
+local({
+  cp <- tryCatch({
+    f <- usp_ajuster(xp153, xp153 / 2)
+    ligne153(suppressWarnings(usp_tests(f, suppressWarnings(usp_bootstrap(f, B = B_MIN_USAGE)),
+                                        methode = "premium")), LIGNE_COOK153)$type
+  }, error = function(e) paste("erreur R :", conditionMessage(e)))
+  ts <- vapply(c(1e-320, 5e-324), function(f) tryCatch({
+    r <- test_tost_intercept(x153 * f, y153 * f)
+    if (is.na(r$non_applicable)) sprintf("calcule (p = %.3g)", r$p) else r$non_applicable
+  }, error = function(e) paste("erreur R :", conditionMessage(e))), "")
+  cat(sprintf("  note : plateforme courante, y = x / 2 : ligne Cook %s ; TOST sous-normal 1e-320 : %s ; 5e-324 : %s (#153).\n",
+              cp, ts[1], ts[2]))
+})
+verifier("usp_tests() et engine_influence() en appel direct : aucune erreur R pour x et y x 10^e (e de -300 a 300 par pas de 10, -165, -164, -160, 152, 160), sous-normaux et x seul ; sous-normaux, ligne TOST coherente avec test_tost_intercept() ; hors sous-normaux, max D_t egal a celui de l'echelle 1 a TOLERANCE pres et D_t de engine_influence() identical() a la ligne Cook (#153)",
          {
            f1 <- usp_ajuster(x153, y153); b1 <- usp_bootstrap(f1, B = B_MIN_USAGE)
            ligne <- function(tt, nom) tt[[which(vapply(tt, function(l) l$test, "") == nom)]]
@@ -446,11 +630,9 @@ verifier("usp_tests() et engine_influence() en appel direct : aucune erreur R po
              if (inherits(tt, "error") || inherits(inf, "error")) return(FALSE)
              sous_normal <- f[1] < .Machine$double.xmin
              if (sous_normal) {
-               lt <- ligne(tt, "Equivalence de la constante a zero (TOST)")
-               return(identical(lt$type, "non applicable") &&
-                        identical(lt$detail, paste("statistique t non definie (constante ou",
-                                                   "erreur-type de la regression de y sur x",
-                                                   "non calculable) : test non applicable")))
+               r <- tryCatch(test_tost_intercept(fe$x, fe$y), error = function(e) e)
+               return(tost_coherent153(r, names(test_tost_intercept(x153, y153)), fe$x, fe$y) &&
+                        ligne_tost_coherente153(ligne(tt, LIGNE_TOST153), r, fe$x))
              }
              isTRUE(outils153$comparer_objets(d1, cook(tt)$estim)$conforme) &&
                identical(max(inf$cook), cook(tt)$estim)
