@@ -179,27 +179,147 @@ verifier("engine_valider_profondeur : annexe XVII citee si T_min >= 5 seulement 
          !contient(engine_valider_profondeur(5.5, 8, T_min = 1), "annexe XVII") &&
          identical(engine_valider_profondeur(0, 8, T_min = 1), "Profondeur T = 0 : T >= 1 attendu."))
 
-## --- Donnees a l'echelle extreme (issue #88) ---------------------------------
+## --- Donnees a l'echelle extreme (issues #88, #145) ---------------------------
 # Defaut releve par audit (audit leger de #33) : des donnees finies et
 # strictement positives mais a l'echelle extreme passaient la validation et
 # faisaient lever une erreur R en cours de calcul (xt x 1e298 : lm.fit() de
 # test_white(), regresseur x^2 infini, jusqu'a l'issue #110 ; yt x 1e-300 :
-# test logique sur NA dans le detail de la distance de Cook). Depuis #110,
-# RESET et White regressent sur la base reduite s = (x - moyenne) / etendue :
-# xt x 1e298 et xt x 1e200 aboutissent (ok = TRUE, residus z egaux a ceux de
-# l'echelle 1). Decision du mainteneur (26/09/2026)
-# : filet limite au calcul qui suit une validation reussie ; l'erreur y est
-# un DEFAUT DE CALCUL INTERCEPTE (ok = FALSE, motif neutre, diagnostic dans
-# validation$erreur_r) ; les erreurs d'usage restent des erreurs R. Aucun
-# seuil d'echelle. Les motifs compares sont les textes fixes du moteur, en
+# test logique sur NA dans le detail de la distance de Cook). Decision du
+# mainteneur (26/09/2026) : filet limite au calcul qui suit une validation
+# reussie ; l'erreur y est un DEFAUT DE CALCUL INTERCEPTE (ok = FALSE, motif
+# neutre, diagnostic dans validation$erreur_r) ; les erreurs d'usage restent
+# des erreurs R. Le choix "aucun seuil d'echelle" de #88 est RENVERSE par
+# #145 (specification du 02/10/2026) : toute valeur de xt ou de yt de la
+# serie retenue hors de [DOMAINE_NUMERIQUE_MIN ; DOMAINE_NUMERIQUE_MAX] =
+# [1e-50 ; 1e50], bornes incluses, est refusee par engine_valider_donnees()
+# avec un motif explicite, avant tout calcul ; hors d'environ [1e-155 ;
+# 1e151], le moteur rendait ok = TRUE avec des verdicts faux (mesure de la
+# specification). Le filet reste en place : ses scenarios sont desormais
+# declenches par une erreur injectee dans l'environnement du moteur (comme
+# le test Merz-Wuthrich ci-dessous), aucune donnee du domaine ne le
+# declenchant plus. Les motifs compares sont les textes fixes du moteur, en
 # ASCII, jamais le message traduit de conditionMessage().
 MOTIF_DEFAUT <- "Defaut de calcul intercepte"
+MOTIF_DOMAINE <- "hors du domaine numerique [1e-50 ; 1e+50]"
 calcul_extreme <- function(xt, yt) suppressWarnings(
   run_engine(xt = xt, yt = yt, methode = "premium", segment = 1, B = B_MIN_USAGE,
              nature_donnees = "brutes"))
-verifier("run_engine : yt x 1e-300, xt et yt x 1e-300 -> ok = FALSE, defaut intercepte, sans erreur R (#88)",
-         all(vapply(list(list(x, y * 1e-300), list(x * 1e-300, y * 1e-300)), function(d) {
+# Evalue expr avec la fonction `nom` du moteur remplacee par f, restauree en
+# sortie (meme en cas d'erreur).
+avec_injection <- function(nom, f, expr) {
+  e <- environment(run_engine)
+  orig <- get(nom, envir = e)
+  assign(nom, f, envir = e)
+  on.exit(assign(nom, orig, envir = e))
+  expr
+}
+panne <- function(...) stop("panne simulee")
+verifier("Domaine numerique : constantes [1e-50 ; 1e50] et plage du ratio [0,1 ; 5[ nommees (#145)",
+         identical(DOMAINE_NUMERIQUE_MIN, 1e-50) && identical(DOMAINE_NUMERIQUE_MAX, 1e50) &&
+         identical(RATIO_PLAUSIBLE_MIN, 0.1) && identical(RATIO_PLAUSIBLE_MAX, 5))
+verifier("run_engine : xt x 1e298, xt x 1e200, yt x 1e-300, xt et yt x 1e-300, xt x 1e-300 -> refus motive (ok = FALSE, sans defaut intercepte ni erreur R) (#145)",
+         all(vapply(list(list(x * 1e298, y), list(x * 1e200, y), list(x, y * 1e-300),
+                         list(x * 1e-300, y * 1e-300), list(x * 1e-300, y)), function(d) {
            r <- tryCatch(calcul_extreme(d[[1]], d[[2]]), error = function(e) e)
+           !inherits(r, "error") && inherits(r, "usp_engine") && identical(r$ok, FALSE) &&
+             contient(r$validation$erreurs, MOTIF_DOMAINE) &&
+             contient(r$validation$erreurs, "invariants par un changement d'unite commun") &&
+             !contient(r$validation$erreurs, MOTIF_DEFAUT) && is.null(r$validation$erreur_r)
+         }, logical(1))))
+verifier("Domaine numerique : le motif cite la serie, la valeur fautive (17 chiffres si necessaire), la borne et le nombre de valeurs hors domaine (#145)",
+         {
+           e1 <- engine_valider_donnees(x * 1e-300, y)$erreurs
+           e2 <- engine_valider_donnees(replace(x, 3, 2e60), y)$erreurs
+           e3 <- engine_valider_donnees(replace(x, 1, 1e50 * (1 + .Machine$double.eps)), y)$erreurs
+           length(e1) == 1L && contient(e1, "xt = 1.042e-298 (< 1e-50, borne inferieure) ; 8 valeurs hors du domaine") &&
+             contient(e1, "delta_equiv") &&
+             length(e2) == 1L && contient(e2, "xt = 2e+60 (> 1e+50, borne superieure).") &&
+             contient(e3, "xt = 1.0000000000000003e+50 (> 1e+50, borne superieure)")
+         })
+verifier("Domaine numerique : bornes 1e-50 et 1e50 acceptees, refus juste au-dela (un ulp), sur xt comme sur yt (#145)",
+         {
+           haut <- 1e50 * (1 + .Machine$double.eps); bas <- 1e-50 * (1 - .Machine$double.eps)
+           ok <- function(xt, yt) engine_valider_donnees(xt, yt)$ok
+           refus <- function(xt, yt, s) {
+             v <- engine_valider_donnees(xt, yt)
+             !v$ok && length(v$erreurs) == 1L && contient(v$erreurs, paste("Valeur de", s, MOTIF_DOMAINE))
+           }
+           haut != 1e50 && bas != 1e-50 &&
+             ok(replace(x, 1, 1e50), replace(y, 1, 6e49)) &&
+             ok(replace(x, 1, 1.5e-50), replace(y, 1, 1e-50)) &&
+             ok(replace(x, 1, 1e-50), replace(y, 1, 1e-50)) &&
+             ok(replace(x, 1, 1e50), replace(y, 1, 1e50)) &&
+             refus(replace(x, 1, haut), replace(y, 1, 6e49), "xt") &&
+             refus(replace(x, 1, 1e50), replace(y, 1, haut), "yt") &&
+             refus(replace(x, 1, 1.5e-50), replace(y, 1, bas), "yt") &&
+             refus(replace(x, 1, bas), replace(y, 1, 1e-50), "xt")
+         })
+verifier("Domaine numerique : seule la serie retenue est controlee (annee hors domaine ecartee par T acceptee, refusee sinon) (#145)",
+         {
+           s8 <- engine_valider_serie_retenue(c(1e-60, x), c(1, y), T = 8)$validation
+           s9 <- engine_valider_serie_retenue(c(1e-60, x), c(1, y))$validation
+           isTRUE(s8$ok) && !s9$ok && contient(s9$erreurs, "xt = 1e-60 (< 1e-50, borne inferieure).")
+         })
+verifier("Domaine numerique : refus avec les autres refus, sans doublon pour une valeur nulle, negative, NA ou infinie (#145)",
+         {
+           pas_domaine <- function(v) !contient(v$erreurs, MOTIF_DOMAINE)
+           pas_domaine(engine_valider_donnees(replace(x, 2, 0), y)) &&
+             pas_domaine(engine_valider_donnees(replace(x, 2, -1e60), y)) &&
+             pas_domaine(engine_valider_donnees(replace(x, 2, NA), y)) &&
+             pas_domaine(engine_valider_donnees(replace(x, 2, Inf), y)) &&
+             identical(engine_valider_donnees(x * 1e60, y)$avertissements, character(0))
+         })
+# Invariance d'unite (specification de #145) : une serie portee pres d'une
+# borne du domaine par un facteur commun 2^k (multiplication exacte en
+# virgule flottante) donne des resultats identiques au bit pres a ceux de
+# l'echelle 1. L'invariance de RESET et de White a une echelle quelconque
+# reste testee au niveau de la fonction (test_volumes_constants.R).
+verifier("Invariance d'unite : xt et yt x 2^k pres des bornes (k = 159 et -172) -> sigma_USP, p-values retenues, verdicts et controles A identical() a l'echelle 1 (#145)",
+         {
+           cle <- function(r) {
+             tt <- engine_table_tests(r)
+             list(sigma = r$parametre_final$sigma_usp, p = tt$p_retenue, verdict = tt$verdict,
+                  controles = vapply(r$controles, function(l) l$verdict, ""))
+           }
+           k_haut <- floor(log2(DOMAINE_NUMERIQUE_MAX / max(x, y)))
+           k_bas <- ceiling(log2(DOMAINE_NUMERIQUE_MIN / min(x, y)))
+           r1 <- calcul_extreme(x, y); a <- cle(r1)
+           k_haut == 159 && k_bas == -172 &&
+             max(x, y) * 2^(k_haut + 1) > DOMAINE_NUMERIQUE_MAX &&
+             min(x, y) * 2^(k_bas - 1) < DOMAINE_NUMERIQUE_MIN &&
+             isTRUE(r1$ok) && length(a$p) > 0L && length(a$controles) > 0L &&
+             all(vapply(c(k_haut, k_bas), function(k) {
+               r <- calcul_extreme(x * 2^k, y * 2^k)
+               isTRUE(r$ok) && identical(cle(r), a)
+             }, logical(1)))
+         })
+verifier("Ratio y/x : avertissement si r < 0,1 (xt x 1e3, ratio 7e-4) ou r >= 5 ; r = 0,1 sans avertissement (#145)",
+         {
+           avt <- function(xt, yt) engine_valider_donnees(xt, yt)$avertissements
+           motif <- "Ratio y/x hors de la plage plausible [0.1 ; 5[ : verifier les unites."
+           contient(avt(x * 1e3, y), motif) && isTRUE(engine_valider_donnees(x * 1e3, y)$ok) &&
+             contient(avt(x * 1e-1, y * 50), motif) &&
+             !contient(avt(c(10, x[-1]), c(1, y[-1])), motif) &&
+             contient(avt(c(10, x[-1]), c(0.99, y[-1])), motif) &&
+             !contient(avt(x, y), motif)
+         })
+verifier("Ligne A 'Plausibilite du ratio y/x' : memes constantes que l'avertissement (r = 0,1 OK ; 0,099 et 5 ECHEC), detail inchange (#145)",
+         {
+           ligne <- function(xt, yt) {
+             r <- usp_controle_donnees(xt, yt)
+             r[[which(vapply(r, function(l) l$test, "") == "Plausibilite du ratio y/x")]]
+           }
+           l1 <- ligne(c(10, x[-1]), c(1, y[-1]))
+           identical(l1$verdict, "OK") &&
+             identical(l1$detail, "min = 0.100 ; median = 0.751 ; max = 0.894") &&
+             identical(ligne(c(10, x[-1]), c(0.99, y[-1]))$verdict, "ECHEC") &&
+             identical(ligne(c(10, x[-1]), c(50, y[-1]))$verdict, "ECHEC") &&
+             identical(ligne(c(10, x[-1]), c(49.9, y[-1]))$verdict, "OK") &&
+             identical(ligne(x * 1e3, y)$verdict, "ECHEC")
+         })
+verifier("run_engine : erreur injectee dans le calcul (usp_simuler, usp_tests) -> ok = FALSE, defaut intercepte, sans erreur R (#88)",
+         all(vapply(c("usp_simuler", "usp_tests"), function(nom) {
+           r <- tryCatch(avec_injection(nom, panne, calcul_extreme(x, y)), error = function(e) e)
            er <- r$validation$erreur_r
            !inherits(r, "error") && identical(r$ok, FALSE) && inherits(r, "usp_engine") &&
              contient(r$validation$erreurs, MOTIF_DEFAUT) &&
@@ -208,51 +328,57 @@ verifier("run_engine : yt x 1e-300, xt et yt x 1e-300 -> ok = FALSE, defaut inte
              is.character(er$origine) && length(er$origine) == 1L && er$origine %in% er$pile &&
              identical(r$methode, "premium") && identical(r$metadata$methode, "premium")
          }, logical(1))))
-verifier("run_engine : xt x 1e298 et xt x 1e200 -> ok = TRUE, residus z egaux a ceux de l'echelle 1 (base reduite de RESET et White, #110)",
+# Origine = derniere fonction de la pile definie dans le moteur. Trois
+# injections : (1) erreur dans usp_simuler(), appelee par usp_bootstrap()
+# sous engine_sous_graine() : origine usp_simuler ; (2) usp_tests() dont
+# l'erreur nait d'un argument passe a une fermeture locale add() et evalue
+# paresseusement dans le cadre de sprintf() (forme du scenario yt x 1e-300
+# d'avant #145) : add() n'est pas une fonction de l'environnement du
+# moteur, l'origine est usp_tests ; (3) usp_tests() dont l'erreur nait dans
+# une fonction de R (stats::lm.fit) : attribuee a usp_tests.
+verifier("run_engine : origine reelle de l'erreur, fonction du moteur (piles injectees : usp_bootstrap > engine_sous_graine > usp_simuler ; usp_tests > add > sprintf ; usp_tests > stats::lm.fit)",
          {
-           z1 <- calcul_extreme(x, y)$ajustement$z
-           all(vapply(c(1e298, 1e200), function(cc) {
-             r <- tryCatch(calcul_extreme(x * cc, y), error = function(e) e)
-             !inherits(r, "error") && identical(r$ok, TRUE) &&
-               isTRUE(all.equal(r$ajustement$z, z1))
-           }, logical(1)))
+           b1 <- avec_injection("usp_simuler", panne, calcul_extreme(x, y))$validation
+           b2 <- avec_injection("usp_tests", function(...) {
+             add <- function(nom, detail) sprintf("%s : %s", nom, detail)
+             add("ligne", stop("panne simulee"))
+           }, calcul_extreme(x, y))$validation
+           b3 <- avec_injection("usp_tests", function(...) stats::lm.fit(matrix(NA_real_, 2, 1), c(1, 2)),
+                                calcul_extreme(x, y))$validation
+           identical(b1$erreur_r$pile, c("usp_bootstrap", "engine_sous_graine", "usp_simuler")) &&
+             identical(b1$erreur_r$origine, "usp_simuler") &&
+             contient(b1$erreurs, "(erreur R dans usp_simuler())") &&
+             identical(b1$erreur_r$message, "panne simulee") &&
+             identical(b2$erreur_r$pile, c("usp_tests", "add", "sprintf")) &&
+             identical(b2$erreur_r$origine, "usp_tests") &&
+             contient(b2$erreurs, "(erreur R dans usp_tests())") &&
+             identical(b3$erreur_r$pile, c("usp_tests", "stats::lm.fit")) &&
+             identical(b3$erreur_r$origine, "usp_tests")
          })
-# Origine = derniere fonction de la pile definie dans le moteur. yt x 1e-300 :
-# l'erreur nait du if (any(ck > 4 / T)) ecrit dans usp_tests(), passe en
-# argument de sprintf() dans add() et evalue paresseusement dans le cadre de
-# sprintf() ; add() est une fermeture creee par engine_registre_tests(), non
-# une fonction de l'environnement du moteur : l'origine est usp_tests.
-# Plus de scenario connu d'erreur nee dans une fonction de test appelee par
-# le bootstrap (xt x 1e298, lm.fit() dans test_white(), resolu par #110).
-verifier("run_engine : origine reelle de l'erreur, fonction du moteur (yt x 1e-300 : usp_tests, pile usp_tests > add > sprintf)",
+verifier("run_engine : injection restauree, calcul nominal apres un defaut intercepte (ok = TRUE)",
          {
-           b <- calcul_extreme(x, y * 1e-300)$validation
-           identical(b$erreur_r$pile, c("usp_tests", "add", "sprintf")) &&
-             identical(b$erreur_r$origine, "usp_tests") &&
-             contient(b$erreurs, "(erreur R dans usp_tests())")
+           avec_injection("usp_simuler", panne, calcul_extreme(x, y))
+           isTRUE(calcul_extreme(x, y)$ok)
          })
-verifier("run_engine : xt x 1e-300 (cas cite par l'issue) -> aucune erreur R, ok logique",
-         {
-           r <- tryCatch(calcul_extreme(x * 1e-300, y), error = function(e) e)
-           !inherits(r, "error") && is.logical(r$ok) && length(r$ok) == 1L && !is.na(r$ok)
-         })
-verifier("run_engine : generateur et graine de l'appelant restaures apres un defaut intercepte",
+# L'erreur injectee dans usp_simuler() nait sous engine_sous_graine() :
+# la restauration se fait au deroulement de la pile (on.exit).
+verifier("run_engine : generateur et graine de l'appelant restaures apres un defaut intercepte (erreur nee sous engine_sous_graine())",
          {
            kind0 <- RNGkind()
            suppressWarnings(RNGkind("Wichmann-Hill", "Box-Muller", "Rounding"))
            set.seed(7); avant <- .Random.seed; k_avant <- RNGkind()
-           r <- calcul_extreme(x, y * 1e-300)
-           ok <- identical(r$ok, FALSE) && identical(.Random.seed, avant) &&
-             identical(RNGkind(), k_avant)
+           r <- avec_injection("usp_simuler", panne, calcul_extreme(x, y))
+           ok <- identical(r$ok, FALSE) && identical(r$validation$erreur_r$origine, "usp_simuler") &&
+             identical(.Random.seed, avant) && identical(RNGkind(), k_avant)
            suppressWarnings(RNGkind(kind0[1], kind0[2], kind0[3]))
            ok
          })
 verifier("run_engine : options(usp.engine.lever_erreurs = TRUE) releve l'erreur au lieu de l'intercepter",
          {
            ancien <- options(usp.engine.lever_erreurs = TRUE)
-           leve <- leve_erreur(calcul_extreme(x, y * 1e-300))
+           leve <- leve_erreur(avec_injection("usp_simuler", panne, calcul_extreme(x, y)))
            options(ancien)
-           leve && identical(calcul_extreme(x, y * 1e-300)$ok, FALSE)
+           leve && identical(avec_injection("usp_simuler", panne, calcul_extreme(x, y))$ok, FALSE)
          })
 verifier("run_engine, Merz-Wuthrich : erreur dans le calcul apres mw_valider_triangle() -> defaut intercepte (reserve2)",
          {

@@ -1085,6 +1085,35 @@ usp_charger <- function(fichier_x, fichier_y, T = NULL, plus_recent_en_dernier =
   list(x = x, y = y, T = length(x))
 }
 
+# Plage plausible du ratio y/x (issue #145) : [RATIO_PLAUSIBLE_MIN ;
+# RATIO_PLAUSIBLE_MAX[. Conventions de l'outil, SANS source reglementaire :
+# un ratio hors de la plage signale une erreur d'unite probable (selon
+# l'issue, facteurs 10 a 1000 dans les deux sens pour des ratios usuels ;
+# seuil bas 0,1 retenu par le mainteneur le 28/09/2026, borne haute 5
+# inchangee). Lues par
+# l'avertissement de engine_valider_donnees() ET par la ligne A
+# "Plausibilite du ratio y/x" de usp_controle_donnees() ; aucun refus n'en
+# depend.
+RATIO_PLAUSIBLE_MIN <- 0.1
+RATIO_PLAUSIBLE_MAX <- 5
+
+# Domaine numerique des montants (issue #145, specification du 02/10/2026) :
+# toute valeur de la serie retenue hors de [DOMAINE_NUMERIQUE_MIN ;
+# DOMAINE_NUMERIQUE_MAX], bornes incluses, est REFUSEE par
+# engine_valider_donnees() (ok = FALSE, motif explicite), afin que le
+# defaut de calcul intercepte (#88) ne soit plus le mode d'arret sur des
+# donnees a l'echelle extreme. Le domaine est tres large devant tout
+# montant monetaire et tres interieur a la plage hors de laquelle le
+# moteur rendait ok = TRUE avec des verdicts faux (environ [1e-155 ;
+# 1e151], mesure de la specification de #145, de l'ordre de
+# sqrt(DBL_MIN) = 1,5e-154 et sqrt(DBL_MAX) = 1,3e154).
+# sigma_USP et les tests etant invariants par un changement d'unite commun
+# a xt et yt (et a delta_equiv s'il est fourni), le refus n'ote rien :
+# il suffit de changer d'unite. Noms neutres vis-a-vis de la methode : les
+# controles du triangle de Merz-Wuthrich les reprendront (#185).
+DOMAINE_NUMERIQUE_MIN <- 1e-50
+DOMAINE_NUMERIQUE_MAX <- 1e50
+
 # Controles de qualite (famille A). Verdict OK / ECHEC sans niveau alpha.
 # Un controle qui ne peut pas etre etabli (valeur manquante, serie vide) vaut
 # ECHEC, jamais un jugement sur les seules valeurs disponibles, et son detail
@@ -1121,7 +1150,8 @@ usp_controle_donnees <- function(x, y, alpha = 0.10, bareme = NULL, segment = NU
     add("Absence de doublons parfaits", dup == 0,
         sprintf("%d couple(s) (x,y) duplique(s)", dup))
     ratio <- y / x
-    add("Plausibilite du ratio y/x", all(ratio > 0 & ratio < 5),
+    add("Plausibilite du ratio y/x",
+        all(ratio >= RATIO_PLAUSIBLE_MIN & ratio < RATIO_PLAUSIBLE_MAX),
         sprintf("min = %.3f ; median = %.3f ; max = %.3f",
                 min(ratio), stats::median(ratio), max(ratio)))
   } else {
@@ -5121,6 +5151,12 @@ engine_empreinte <- function(res) {
 # credibilite partielle repose sur c(T, bareme applique) < 1 (annexe XVII,
 # section G) ; l'avertissement statistique (lois asymptotiques peu fiables,
 # T < 10) est un repere non reglementaire, distinct et inchange.
+# Domaine numerique et ratio (issue #145) : une valeur de xt ou de yt hors
+# de [DOMAINE_NUMERIQUE_MIN ; DOMAINE_NUMERIQUE_MAX] est refusee ; un ratio
+# y/x hors de [RATIO_PLAUSIBLE_MIN ; RATIO_PLAUSIBLE_MAX[ est un
+# avertissement. Ce refus renverse le choix "aucun seuil d'echelle" de #88 ;
+# appele par engine_valider_serie_retenue(), il ne porte que sur la serie
+# retenue.
 engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
                                    delta_equiv = NULL, methode = NULL,
                                    nature_donnees = NULL, bareme = NULL,
@@ -5141,6 +5177,29 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
     err <- c(err, "Toutes les valeurs de xt doivent etre strictement positives.")
   if (length(yt) && any(yt <= 0, na.rm = TRUE))
     err <- c(err, "Toutes les valeurs de yt doivent etre strictement positives (loi lognormale).")
+  # Domaine numerique (issue #145) : valeurs finies strictement positives
+  # hors de [DOMAINE_NUMERIQUE_MIN ; DOMAINE_NUMERIQUE_MAX], bornes incluses
+  # (NA, infinies et non positives sont refusees ci-dessus, sans doublon).
+  # Un motif par serie, qui cite la premiere valeur fautive
+  # (.engine_saisie(), 17 chiffres si necessaire) et la borne franchie.
+  for (nm in c("xt", "yt")) {
+    v <- list(xt = xt, yt = yt)[[nm]]
+    if (!is.numeric(v)) next
+    hors <- which(is.finite(v) & v > 0 &
+                  (v < DOMAINE_NUMERIQUE_MIN | v > DOMAINE_NUMERIQUE_MAX))
+    if (!length(hors)) next
+    v1 <- v[hors[1]]
+    borne <- if (v1 < DOMAINE_NUMERIQUE_MIN)
+      sprintf("< %g, borne inferieure", DOMAINE_NUMERIQUE_MIN)
+      else sprintf("> %g, borne superieure", DOMAINE_NUMERIQUE_MAX)
+    err <- c(err, sprintf(paste(
+      "Valeur de %s hors du domaine numerique [%g ; %g] : %s = %s (%s)%s.",
+      "sigma_USP et les tests sont invariants par un changement d'unite commun",
+      "a xt et yt (et a delta_equiv s'il est fourni) : exprimer les montants",
+      "dans une unite qui les ramene dans le domaine."),
+      nm, DOMAINE_NUMERIQUE_MIN, DOMAINE_NUMERIQUE_MAX, nm, .engine_saisie(unname(v1)),
+      borne, if (length(hors) > 1L) sprintf(" ; %d valeurs hors du domaine", length(hors)) else ""))
+  }
   if (length(xt) < T_min)
     err <- c(err, sprintf("Annexe XVII, B/C(2)(b) : au moins %d annees consecutives (T = %d).",
                           T_min, length(xt)))
@@ -5172,8 +5231,11 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
   if (!is.null(msg)) err <- c(err, msg)
   if (!length(err)) {
     r <- yt / xt
-    if (any(r <= 0 | r >= 5))
-      avt <- c(avt, "Ratio y/x hors de la plage plausible ]0 ; 5[ : verifier les unites.")
+    # Plage plausible (issue #145) : conventions RATIO_PLAUSIBLE_MIN et
+    # RATIO_PLAUSIBLE_MAX, communes a la ligne A de usp_controle_donnees().
+    if (any(r < RATIO_PLAUSIBLE_MIN | r >= RATIO_PLAUSIBLE_MAX))
+      avt <- c(avt, sprintf("Ratio y/x hors de la plage plausible [%g ; %g[ : verifier les unites.",
+                            RATIO_PLAUSIBLE_MIN, RATIO_PLAUSIBLE_MAX))
     if (max(xt) / min(xt) >= 10)
       avt <- c(avt, "Amplitude des volumes >= 10 : rupture de perimetre possible.")
     if (anyDuplicated(data.frame(xt, yt)) > 0)
