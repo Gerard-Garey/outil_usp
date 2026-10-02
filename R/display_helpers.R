@@ -154,16 +154,16 @@ avertissement_T <- function(T) {
 
 # --- Type et motif d'une ligne (#124) ----------------------------------------
 # Libelle court du type de la ligne, lu dans tb$type (engine_table_tests()).
-# Un test inoperant (regle R1, #44) est une ligne "diagnostic" dont le
-# commentaire commence par "TEST INOPERANT", prefixe pose par la seule
-# fonction add() de engine_registre_tests() : la distinction est une lecture
-# de ce libelle, sans calcul. Table sans colonne type (objet anterieur) :
-# NA partout, rien n'est affiche.
+# Un test inoperant (regle R1, #44) est repere par la colonne logique
+# inoperant de engine_table_tests(), posee par la seule fonction add() de
+# engine_registre_tests() (#129, point 3) : la distinction est une lecture de
+# ce champ, sans calcul ni lecture du commentaire. Colonne absente ou NA
+# (objet anterieur au champ) : la ligne garde son type. Table sans colonne
+# type (objet anterieur) : NA partout, rien n'est affiche.
 type_ligne <- function(tb) {
   n <- nrow(tb)
   if (is.null(tb$type)) return(rep(NA_character_, n))
-  com <- if (is.null(tb$commentaire)) rep("", n) else tb$commentaire
-  inop <- tb$type %in% "diagnostic" & !is.na(com) & startsWith(com, "TEST INOPERANT")
+  inop <- if (is.null(tb$inoperant)) rep(FALSE, n) else tb$inoperant %in% TRUE
   lib <- c("test" = "test", "diagnostic" = "diagnostic",
            "non applicable" = "non applicable",
            "procedure de decision" = "proc\u00e9dure de d\u00e9cision")

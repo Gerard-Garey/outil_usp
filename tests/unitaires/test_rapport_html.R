@@ -202,13 +202,13 @@ verifier("table_synthese_groupe() : badges non echappes, texte echappe",
 verifier("Rapport : pas de double echappement (&amp;lt; / &amp;gt; absents), H1 du TOST echappe une fois",
          compte(h, "&amp;lt;") == 0 && compte(h, "&amp;gt;") == 0 &&
          grepl("|a| &lt; Delta", h, fixed = TRUE))
-# Type et motif d'une ligne (#124) : lus dans tb$type et tb$commentaire
-# (engine_table_tests()), restitues par table_detail_groupe() (colonnes Type
+# Type et motif d'une ligne (#124) : lus dans tb$type, tb$inoperant (#129,
+# point 3) et tb$commentaire (engine_table_tests()), restitues par table_detail_groupe() (colonnes Type
 # et "Motif / commentaire") et, pour les lignes autres que "test", sous le
 # badge de table_synthese_groupe() ; memes fonctions dans le rapport fige.
 det_all <- table_detail_groupe(tb); sy_all <- table_synthese_groupe(tb)
 i_fis <- grep("^Test de Fisher", tb$test)[1]
-i_inop <- grep("^TEST INOPERANT", tb$commentaire)[1]
+i_inop <- which(tb$inoperant)[1]
 verifier("table_detail_groupe() : colonnes Type et Motif / commentaire, motif echappe (Fisher R4, J1)",
          all(c("Type", "Motif / commentaire") %in% names(det_all)) &&
          !is.na(i_fis) && identical(tb$type[i_fis], "diagnostic") &&
@@ -222,6 +222,16 @@ verifier("Type : test inoperant (R1) distingue du diagnostic, en detail et sous 
          identical(det_all$Type[i_inop], "test inop\u00e9rant") &&
          grepl("test inop\u00e9rant</span>", sy_all$Verdict[i_inop], fixed = TRUE) &&
          all(!grepl("<br>", sy_all$Verdict[tb$type == "test"], fixed = TRUE)))
+# Source du type "test inoperant" (#129, point 3, constat 1 de l'audit) : le
+# champ inoperant, non le prefixe du commentaire. Table alteree pour separer
+# les deux lectures, qui coincident sur des donnees reelles.
+verifier("Type : test inoperant lu dans tb$inoperant, non dans le prefixe TEST INOPERANT",
+         {
+           tb1 <- tb; tb1$commentaire[i_inop] <- "sans prefixe"
+           tb2 <- tb; tb2$inoperant[i_inop] <- FALSE
+           identical(type_ligne(tb1)[i_inop], "test inopérant") &&
+             identical(type_ligne(tb2)[i_inop], "diagnostic")
+         })
 verifier("Rapport : motif de la ligne Fisher restitue dans la section des tests retenus",
          retenu[i_fis] &&
          grepl("PENTE NON IDENTIFIABLE", paste(ligne_de(principal, tb$test[i_fis]), collapse = ""),
