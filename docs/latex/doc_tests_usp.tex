@@ -10613,7 +10613,12 @@ $0{,}05$~; \emph{écart non tranché}, si l'estimation est hors de la bande et l
 recoupe~; \emph{distorsion matérielle}, si l'intervalle est disjoint de la bande, ce qui
 appelle une décision du mainteneur. La bande de Bradley (1978, section~\ref{sec:biblio}) est
 une convention de robustesse, non un théorème~; elle n'est pas appliquée quand la référence
-est inférieure à $2/n$ (Cox--Stuart), la lecture étant alors binaire. Sur 68 intervalles par
+est inférieure à $2/n$ (Cox--Stuart), sa demi-largeur $\mathrm{réf}/2$ étant alors sous la
+résolution $1/n$ du taux~: la lecture est binaire, \emph{compatible} si la référence est dans
+l'intervalle, \emph{écart à examiner} sinon, avec le nombre $k$ de rejets et l'intervalle cités,
+sans échelle entre écart mineur et distorsion matérielle ni décision déclenchée (libellés de
+\code{tests/calibration\_mc\_t8.R}~; une référence nulle n'est pas ramenée à une bande
+$\{0\}$). Sur 68 intervalles par
 jeu (34 statistiques, deux seuils), environ $3{,}4$ exclusions de la référence sont attendues
 par le seul hasard, même si toutes les références sont justes (intervalles corrélés entre
 eux~: ordre de grandeur, non un test).
