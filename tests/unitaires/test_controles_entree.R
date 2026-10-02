@@ -317,6 +317,169 @@ verifier("Ligne A 'Plausibilite du ratio y/x' : memes constantes que l'avertisse
              identical(ligne(c(10, x[-1]), c(49.9, y[-1]))$verdict, "OK") &&
              identical(ligne(x * 1e3, y)$verdict, "ECHEC")
          })
+## --- Distance de Cook a toute echelle (issue #153) ----------------------------
+# Critere amende du 02/10/2026 : (1) run_engine() sans erreur R ni defaut de
+# calcul intercepte pour x et y x 10^e, e de -300 a 300 (plus -165, -160,
+# 152, 160, entrees sous-normales et echelle asymetrique) : refus de #145
+# hors du domaine numerique ; dans le domaine, ok = TRUE, sigma_USP et p
+# retenues egales a celles de l'echelle 1 a TOLERANCE pres
+# (comparer_objets(), tests/outils_tests.R), verdicts identiques ; (2)
+# usp_tests() et engine_influence() en appel direct sans erreur R sur le
+# meme balayage ; (3) ligne Cook a l'echelle exacte (.usp_echelle_exacte(),
+# puissance de 2) ; (4) garde "non applicable" sur une distance non finie
+# (.usp_ligne_cook()) ; (5) motif des graphiques d'influence
+# (plots_data$influence_motif) sur la meme garde. Jeu de l'issue : avant #153, usp_tests() levait une
+# erreur R a x et y x 10^e pour e <= -164 (if (any(ck > 4 / T)) sur NaN) ;
+# sur les entrees sous-normales, deux autres erreurs R : TOST
+# (if (p_bas >= p_haut) sur NaN, garde "statistique non definie" de
+# test_tost_intercept()) et lm.influence() dans engine_influence() (resolue
+# par la meme mise a l'echelle exacte que la ligne Cook).
+# Dans le domaine, run_engine() est lance sur un echantillon d'echelles (le
+# calcul complet prend quelques secondes par echelle) ; hors du domaine, le
+# refus est verifie a chaque echelle. Les appels directs parcourent e par
+# pas de 10, plus les echelles nommees.
+x153 <- c(100, 150, 200, 300, 400, 500, 600, 700)
+y153 <- x153 * c(0.71, 0.64, 0.80, 0.69, 0.75, 0.62, 0.90, 0.66)
+e_sym153 <- c(-300:300, -165, -160, 152, 160)
+ech153 <- c(lapply(e_sym153, function(e) c(10^e, 10^e)),
+            list(c(1e-320, 1e-320), c(5e-324, 5e-324)),
+            lapply(c(-300, -200, -60, 60, 200, 300), function(e) c(10^e, 1)))
+dans_domaine <- function(v) all(v >= DOMAINE_NUMERIQUE_MIN & v <= DOMAINE_NUMERIQUE_MAX)
+.dossier153 <- if (exists("DOSSIER_UNITAIRES", inherits = TRUE)) DOSSIER_UNITAIRES else {
+  .f <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE))
+  if (length(.f)) dirname(.f) else "tests/unitaires"
+}
+outils153 <- new.env(parent = globalenv())
+sys.source(file.path(.dossier153, "..", "outils_tests.R"), envir = outils153)
+verifier(".usp_echelle_exacte() : diviseur puissance de 2 (max dans [1 ; 2[), D_t et h_t de y ~ x - 1 identical() a l'echelle 1 ; v inchange si max(|v|) nul ou non fini (#153)",
+         {
+           d_h <- function(a, b) { m <- stats::lm(b ~ a - 1)
+             list(unname(stats::cooks.distance(m)), unname(stats::hatvalues(m))) }
+           all(vapply(list(list(x, y), list(x153, y153)), function(d) {
+             xe <- .usp_echelle_exacte(d[[1]]); ye <- .usp_echelle_exacte(d[[2]])
+             r <- d[[1]] / xe
+             max(xe) >= 1 && max(xe) < 2 && max(ye) >= 1 && max(ye) < 2 &&
+               length(unique(r)) == 1L && r[1] == 2^round(log2(r[1])) &&
+               identical(d_h(xe, ye), d_h(d[[1]], d[[2]]))
+           }, logical(1))) &&
+             identical(.usp_echelle_exacte(c(0, 0)), c(0, 0)) &&
+             identical(.usp_echelle_exacte(c(1, Inf)), c(1, Inf)) &&
+             identical(.usp_echelle_exacte(c(1, NA)), c(1, NA))
+         })
+verifier(".usp_ligne_cook() : distance non finie (NaN, NA, Inf) -> non applicable, estim NA, motif ; distances finies -> diagnostic, detail du repere 4/T (#153)",
+         {
+           na <- lapply(list(c(0.1, NaN), c(NA, 0.2), c(Inf, 0.1)), .usp_ligne_cook, T = 8)
+           ok <- .usp_ligne_cook(c(0.1, 0.6, 0.2, 0.7, 0, 0, 0, 0), T = 8)
+           ok0 <- .usp_ligne_cook(rep(0.1, 8), T = 8)
+           all(vapply(na, function(l) identical(l$type, "non applicable") && identical(l$estim, NA_real_) &&
+                        identical(l$detail, paste("distance de Cook non finie (par exemple residus de",
+                                                  "y = beta x tous nuls) : diagnostic non applicable")),
+                      logical(1))) &&
+             identical(ok$type, "diagnostic") && identical(ok$estim, 0.7) &&
+             identical(ok$detail, "repere conventionnel 4/T = 0.500 ; 2 observation(s) au-dessus (rangs 2, 4)") &&
+             identical(ok0$detail, "repere conventionnel 4/T = 0.500 ; 0 observation(s) au-dessus")
+         })
+# Entree construite atteignant la garde : y exactement proportionnel a x
+# (x puissances de 2, y = x / 2), residus de y = beta x tous nuls, D_t =
+# 0/0 = NaN. Avant #153 : erreur R dans usp_tests() (defaut intercepte par
+# run_engine()).
+verifier("usp_tests() : y exactement proportionnel a x (residus nuls, D_t = NaN) -> ligne Cook non applicable avec motif, sans erreur R (#153)",
+         {
+           xp <- 2^(0:7); f <- usp_ajuster(xp, xp / 2)
+           b <- suppressWarnings(usp_bootstrap(f, B = B_MIN_USAGE))
+           tt <- tryCatch(suppressWarnings(usp_tests(f, b, methode = "premium")), error = function(e) e)
+           ck <- if (!inherits(tt, "error"))
+             tt[[which(vapply(tt, function(l) l$test, "") == "Points influents (distance de Cook)")]]
+           !inherits(tt, "error") && identical(ck$type, "non applicable") &&
+             identical(ck$verdict, "INFO") && is.na(ck$estim) &&
+             contient(ck$detail, "distance de Cook non finie")
+         })
+# Meme entree par run_engine() (decision du mainteneur du 02/10/2026 : la
+# serie exactement proportionnelle n'est pas refusee, issue #188) : ok =
+# TRUE, ligne Cook non applicable, et motif des graphiques d'influence
+# (plots_data$influence_motif) pose par engine_plots_data(), sans lequel
+# plot_influence_levier() et plot_influence_cook() levaient une erreur R ;
+# motif absent sur les donnees de test, lr_delta et qq_enveloppe restant en
+# fin de liste.
+verifier("run_engine : y exactement proportionnel a x -> ok = TRUE, ligne Cook non applicable, plots_data$influence_motif pose (residu_std et cook non finis) ; absent sur les donnees de test (#153)",
+         {
+           xp <- 2^(0:7); rp <- calcul_extreme(xp, xp / 2); r1 <- calcul_extreme(x, y)
+           tp <- engine_table_tests(rp)
+           isTRUE(rp$ok) && isTRUE(r1$ok) &&
+             identical(tp$type[tp$test == "Points influents (distance de Cook)"], "non applicable") &&
+             !any(is.finite(rp$plots_data$influence$cook)) &&
+             !any(is.finite(rp$plots_data$influence$residu_std)) &&
+             identical(rp$plots_data$influence_motif,
+                       paste("Residu standardise ou distance de Cook non fini (par exemple",
+                             "residus de y = beta x tous nuls) : graphique non disponible")) &&
+             identical(tail(names(rp$plots_data), 1), "qq_enveloppe") &&
+             is.null(r1$plots_data$influence_motif)
+         })
+verifier("test_tost_intercept() : entrees sous-normales (x et y x 1e-320, 5e-324 ; lm() rend a = se = NaN) -> non applicable 'statistique non definie', memes champs que la branche calculee (#153)",
+         {
+           ref <- names(test_tost_intercept(x153, y153))
+           all(vapply(c(1e-320, 5e-324), function(f) {
+             r <- tryCatch(test_tost_intercept(x153 * f, y153 * f), error = function(e) e)
+             !inherits(r, "error") && identical(r$non_applicable, "statistique non definie") &&
+               is.na(r$p) && is.na(r$stat) && identical(names(r), ref)
+           }, logical(1)))
+         })
+verifier("usp_tests() et engine_influence() en appel direct : aucune erreur R pour x et y x 10^e (e de -300 a 300 par pas de 10, -165, -164, -160, 152, 160), sous-normaux et x seul ; hors sous-normaux, max D_t egal a celui de l'echelle 1 a TOLERANCE pres et D_t de engine_influence() identical() a la ligne Cook (#153)",
+         {
+           f1 <- usp_ajuster(x153, y153); b1 <- usp_bootstrap(f1, B = B_MIN_USAGE)
+           ligne <- function(tt, nom) tt[[which(vapply(tt, function(l) l$test, "") == nom)]]
+           cook <- function(tt) ligne(tt, "Points influents (distance de Cook)")
+           d1 <- cook(usp_tests(f1, b1, methode = "premium"))$estim
+           # Echelles de ech153 hors puissances de 10 symetriques : les
+           # sous-normaux et l'echelle asymetrique, toutes reprises.
+           autres <- ech153[vapply(ech153, function(f) f[1] < .Machine$double.xmin || f[1] != f[2],
+                                   logical(1))]
+           ech <- c(lapply(c(seq(-300, 300, by = 10), -165, -164, -160, 152, 160),
+                           function(e) c(10^e, 10^e)), autres)
+           length(autres) == length(ech153) - length(e_sym153) && all(vapply(ech, function(f) {
+             fe <- tryCatch(suppressWarnings(usp_ajuster(x153 * f[1], y153 * f[2])),
+                            error = function(e) e)
+             if (inherits(fe, "error")) return(FALSE)
+             tt <- tryCatch(suppressWarnings(usp_tests(fe, b1, methode = "premium")),
+                            error = function(e) e)
+             inf <- tryCatch(suppressWarnings(engine_influence(fe)), error = function(e) e)
+             if (inherits(tt, "error") || inherits(inf, "error")) return(FALSE)
+             sous_normal <- f[1] < .Machine$double.xmin
+             if (sous_normal) {
+               lt <- ligne(tt, "Equivalence de la constante a zero (TOST)")
+               return(identical(lt$type, "non applicable") &&
+                        identical(lt$detail, paste("statistique t non definie (constante ou",
+                                                   "erreur-type de la regression de y sur x",
+                                                   "non calculable) : test non applicable")))
+             }
+             isTRUE(outils153$comparer_objets(d1, cook(tt)$estim)$conforme) &&
+               identical(max(inf$cook), cook(tt)$estim)
+           }, logical(1)))
+         })
+verifier("run_engine : x et y x 10^e (e de -300 a 300, -165, -160, 152, 160), sous-normaux, x seul -> refus de #145 hors du domaine ; dans le domaine (echantillon), ok = TRUE, sigma_USP et p retenues a TOLERANCE pres, verdicts identiques a l'echelle 1 ; jamais d'erreur R ni de defaut intercepte (#153)",
+         {
+           cle <- function(r) { tt <- engine_table_tests(r)
+             list(sigma = r$parametre_final$sigma_usp, p = tt$p_retenue) }
+           r1 <- calcul_extreme(x153, y153); a <- cle(r1); v1 <- engine_table_tests(r1)$verdict
+           echantillon <- c(-51, -30, -10, -1, 1, 10, 30, 47)
+           n_dans <- 0L
+           ok <- all(vapply(ech153, function(f) {
+             xx <- x153 * f[1]; yy <- y153 * f[2]
+             dans <- dans_domaine(c(xx, yy))
+             e <- round(log10(f[1]))
+             if (dans && !(f[1] == f[2] && e %in% echantillon)) return(TRUE)
+             r <- tryCatch(calcul_extreme(xx, yy), error = function(e) e)
+             if (inherits(r, "error") || !inherits(r, "usp_engine") ||
+                 contient(r$validation$erreurs, MOTIF_DEFAUT) || !is.null(r$validation$erreur_r))
+               return(FALSE)
+             if (!dans) return(identical(r$ok, FALSE) && contient(r$validation$erreurs, MOTIF_DOMAINE))
+             n_dans <<- n_dans + 1L
+             isTRUE(r$ok) && isTRUE(outils153$comparer_objets(a, cle(r))$conforme) &&
+               identical(engine_table_tests(r)$verdict, v1)
+           }, logical(1)))
+           ok && isTRUE(r1$ok) && n_dans == length(echantillon) &&
+             !dans_domaine(c(x153, y153) * 10^-52) && !dans_domaine(c(x153, y153) * 10^48)
+         })
 verifier("run_engine : erreur injectee dans le calcul (usp_simuler, usp_tests) -> ok = FALSE, defaut intercepte, sans erreur R (#88)",
          all(vapply(c("usp_simuler", "usp_tests"), function(nom) {
            r <- tryCatch(avec_injection(nom, panne, calcul_extreme(x, y)), error = function(e) e)
