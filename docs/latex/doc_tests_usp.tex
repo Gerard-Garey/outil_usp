@@ -2484,11 +2484,8 @@ années 3 à 7, $\sigma_{\mathrm{USP}} = 0{,}108587$ au lieu de $0{,}111452$ sur
 contrôle). Pour $T < n$, les $n - T$ années les plus anciennes sont écartées~: $n$ est
 consigné dans \code{\$metadata\$n\_fournies}, la troncature restituée par
 \code{engine\_derogations()}, et la durée de crédibilité vaut $T$ (issue~\#104,
-§\ref{sec:segments}). Les contrôles des lignes suivantes, la marge du TOST et les avertissements
-portent sur les seules $T$ années retenues (\code{engine\_valider\_serie\_retenue()}, issue~\#131)~:
-une année écartée n'est pas contrôlée (mesuré~: jeu de contrôle précédé d'une année à $x_t$
-manquant et d'une année à $x_t = -1$ et $y_t = 0$, $T = 8$~: \code{ok = TRUE}, $n = 10$, alors que
-\code{engine\_valider\_donnees()} refuse la série entière~; non-régression de l'issue~\#154). \\
+§\ref{sec:segments})~; les autres contrôles portent sur les seules $T$ années retenues (texte
+sous le tableau). \\
 Nature des données & méthode de primes~: «~brutes~» ou «~nettes~» déclarée, sans défaut~;
 réserve n\textsuperscript{o}~1~: «~brutes~» refusé & Désigne le paramètre remplacé
 (B(2)(c), B(2)(d), §\ref{sec:segments})~; données nettes exigées par C(2)(c). Bloquant. \\
@@ -2516,6 +2513,13 @@ $0 < \Delta < \bar y$, $\theta$ étant alors ignoré & Paramètre du TOST, non u
 Bloquant. \\
 \end{tabular}
 \end{center}
+
+\emph{Années contrôlées.} Les contrôles du tableau qui suivent la profondeur, la marge du TOST et
+les avertissements portent sur les seules $T$ années retenues
+(\code{engine\_}\allowbreak\code{valider\_serie\_retenue()}, issue~\#131)~: une année écartée par la
+troncature n'est pas contrôlée. Mesuré~: le jeu de contrôle précédé d'une année à $x_t$ manquant et
+d'une année à $x_t = -1$ et $y_t = 0$ donne, à $T = 8$, \code{ok = TRUE} avec $n = 10$, alors que
+\code{engine\_valider\_donnees()} refuse la série entière (non-régression de l'issue~\#154).
 
 \emph{Domaine numérique et plage plausible du ratio (issue~\#145).} Toute valeur de $x_t$ ou
 de $y_t$ de la \emph{série retenue} --- après troncature à la profondeur $T$, une année fournie
