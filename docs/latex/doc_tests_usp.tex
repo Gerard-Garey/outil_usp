@@ -3235,7 +3235,9 @@ Diagnostic \\
   \item \emph{Condition de conclusion du TOST}~: conclure exige
   $\widehat{\mathrm{se}}(\hat a) < \Delta/t_{1-\alpha,\,T-2}$~; le levier de l'origine
   $\bar x^{\,2}/S_{xx}$ peut rendre la conclusion inaccessible (fiche~\ref{fiche:tost-constante},
-  rubriques~6 et~7). Une restitution de cette condition est à l'étude (issue~\#165).
+  rubriques~6 et~7)~; depuis l'issue~\#165, le commentaire de la ligne restitue cette condition,
+  $\rho = t_{1-\alpha,\,T-2}\,\widehat{\mathrm{se}}(\hat a)/\Delta$, et dit quels verdicts sont
+  inatteignables (fiche~\ref{fiche:tost-constante}, rubrique~6).
 \end{itemize}
 
 \subsection{Ce qui n'est pas le modèle auxiliaire MCO}
@@ -5266,6 +5268,39 @@ grand et l'équivalence est pratiquement indémontrable, \emph{même lorsque la 
 exacte} (rubrique~7~: probabilité nulle sur le jeu de contrôle, $21~\%$ sur le jeu à $\hat\delta$
 intérieur, au seuil de 10~\%). L'échec à démontrer l'équivalence ne doit donc pas être présenté
 comme un indice défavorable, mais comme une limite d'information.
+
+\emph{Condition nécessaire de conclusion restituée par le commentaire} (issue~\#165, formulation
+d'\code{actuary} arrêtée par le mainteneur). Par symétrie de la loi de Student,
+$p_{\text{TOST}} = 1 - F_{t,T-2}\big((\Delta - |\hat a|)/\widehat{\mathrm{se}}(\hat a)\big)$, fonction
+croissante de $|\hat a|$~; pour $\Delta$ et $\widehat{\mathrm{se}}(\hat a)$ donnés, elle est donc
+toujours au moins égale à
+\[
+  p_{\text{plancher}} = 1 - F_{t,T-2}\big(\Delta/\widehat{\mathrm{se}}(\hat a)\big),
+\]
+sa valeur en $\hat a = 0$. En arithmétique exacte, $p_{\text{plancher}} < \alpha$ équivaut à
+\[
+  \rho = \frac{t_{1-\alpha,\,T-2}\;\widehat{\mathrm{se}}(\hat a)}{\Delta} < 1 .
+\]
+Sur la branche calculée, le commentaire de la ligne ajoute au texte antérieur une phrase qui
+imprime $\rho$ à deux décimales et dont la branche est choisie en comparant $p_{\text{plancher}}$
+aux seuils de la règle des verdicts (sens «~rejeter~», section~\ref{sec:synthese}), de sorte qu'il
+ne contredit jamais le verdict~: «~\code{Condition necessaire de conclusion remplie}~» si
+$p_{\text{plancher}} < \alpha$~; sinon «~\code{\dots{} non remplie}~», suivie de
+«~\code{OK inatteignable}~» si $p_{\text{plancher}} <$ \code{SEUIL\_ECHEC\_SENS\_REJETER}
+$= 0{,}30$, de «~\code{OK et ALERTE inatteignables}~» au-delà (l'\code{ECHEC} est alors certain,
+quelle que soit la constante estimée), puis de la phrase «~\code{L'equivalence ne peut pas etre
+conclue avec ces donnees (plan de volumes, dispersion residuelle) et cette marge : ce verdict
+traduit une absence de preuve, non un ecart a la proportionnalite.}~». Tout près de $\rho = 1$,
+l'arrondi d'affichage peut montrer $1{,}00$ dans l'une ou l'autre branche. Aucun champ, seuil,
+type ni verdict n'est ajouté (ADR~0001)~; les branches non applicables sont inchangées. Mesuré
+($\alpha = 0{,}10$, $\theta = 0{,}10$)~: sur le jeu de contrôle, $\rho = 9{,}81$,
+$p_{\text{plancher}} = 0{,}444$, condition non remplie, \code{OK} et \code{ALERTE}
+inatteignables, verdict \code{ECHEC} ($p = 0{,}475$)~; sur le jeu à $\hat\delta$ intérieur,
+$\rho = 1{,}09$, $p_{\text{plancher}} = 0{,}116$, condition non remplie, \code{OK} seul
+inatteignable, verdict \code{ALERTE} ($p = 0{,}233$). L'inégalité $p_{\text{TOST}} \ge p_{\text{plancher}}$ est une
+propriété arithmétique exacte de la p-value calculée, conditionnelle à $\widehat{\mathrm{se}}(\hat a)$
+et à $\Delta$ observés, et non une puissance~: elle dit seulement que \emph{ces} données ne
+peuvent pas conclure.
 
 \medskip
 \begin{encadre}
