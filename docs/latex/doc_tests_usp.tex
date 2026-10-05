@@ -2426,8 +2426,9 @@ autres qu'un calcul abouti, à ne pas confondre (issue~\#88, décision du mainte
   retenue et avec un motif fixe, et \code{run\_engine()} reste \code{ok = TRUE}, les autres lignes
   et $\sigma_{\mathrm{USP}}$ inchangés~; c'est le cas, depuis l'issue~\#153, d'une distance de
   Cook non finie (fiche~\ref{fiche:cook}), qui donnait auparavant un défaut intercepté
-  sur une entrée du domaine ($y_t$ exactement proportionnel à $x_t$, mesuré avec le moteur
-  antérieur à l'issue), et, en appel direct seulement, d'une statistique du
+  sur une entrée du domaine ($y_t$ exactement proportionnel à $x_t$, volumes en puissances
+  de~2, mesuré avec le moteur antérieur à l'issue~; pour d'autres volumes, $D_t$ peut rester fini,
+  fiche~\ref{fiche:cook}), et, en appel direct seulement, d'une statistique du
   TOST non définie (fiche~\ref{fiche:tost-constante}), garde inatteignable depuis
   \code{run\_engine()}~; depuis l'issue~\#161, d'un rapport de vraisemblance sur
   $\delta$ non calculable sur les données observées à une borne (fiche~\ref{fiche:rv-delta},
@@ -8124,8 +8125,13 @@ p-value, \code{estim} à \code{NA}, avec le motif «~\code{distance de Cook non 
 residus de y = beta x tous nuls) : diagnostic non applicable}~»~; \code{run\_engine()} reste
 \code{ok = TRUE} et les autres lignes sont inchangées. Cas visé~: $y_t$ exactement proportionnel à
 $x_t$, dont les résidus de $y = \beta x$ sont nuls ($\hat s = 0$, $D_t = 0/0$). L'issue de
-\code{lm()} y dépend de la plateforme (version de R, BLAS, processeur)~: résidus exactement nuls,
-ou bruit d'arrondi qui laisse $D_t$ fini et la ligne calculée. Mesuré sur $x_t = 2^{t-1}$,
+\code{lm()} y dépend de la plateforme (version de R, BLAS, processeur) et des valeurs de $x_t$~:
+résidus exactement nuls, ou bruit d'arrondi qui laisse $D_t$ fini et la ligne calculée. Mesuré
+avec R~4.3.3, BLAS et LAPACK de référence, x86\_64, sur $x_t = 100$, 150, 200, 300, 400, 500, 600,
+700 et $y_t = x_t/2$~: résidus de l'ordre de $10^{-16}$ (au plus $5{,}9\cdot 10^{-16}$ après mise à
+l'échelle exacte), $D_t$ fini ($\max_t D_t = 0{,}2267$), ligne «~diagnostic~» sans motif et sans
+\code{plots\_data\$influence\_motif}~: la garde ne se déclenche pas, et la ligne ne signale pas
+la proportionnalité exacte. Mesuré sur des volumes en puissances de~2, $x_t = 2^{t-1}$,
 $y_t = x_t/2$ ($t = 1, \ldots, 8$), avec R~4.3.3, BLAS et LAPACK de référence, x86\_64~: ligne non
 applicable, \code{ok = TRUE}~; une autre issue a été observée sur une autre plateforme (OpenBLAS~0.3.20, noyau SkylakeX~: $D_t$
 fini, ligne calculée)~; les tests unitaires acceptent toute issue cohérente et atteignent les
@@ -8171,7 +8177,7 @@ Matrice de projection $H = X(X'X)^{-1}X'$ de la régression contrainte (section~
 test.} Les $h_t$ sont lus dans le modèle de la fiche~\ref{fiche:cook}, ajusté après mise à
 l'échelle exacte (\code{.usp\_echelle\_exacte()}, issue~\#153)~; ne dépendant que des $x_t$,
 ils sont invariants par $x_t \mapsto a\,x_t$ et restent finis quand $y_t$ est exactement
-proportionnel à $x_t$, cas où la ligne de Cook est non applicable (mesuré sur $x_t = 2^{t-1}$,
+proportionnel à $x_t$, cas où la ligne de Cook peut être non applicable (mesuré sur $x_t = 2^{t-1}$,
 $y_t = x_t/2$~: $\max_t h_t = 0{,}750$, ligne calculée). Sur une série exactement proportionnelle, la vraisemblance n'a pas de maximum~: $\sigma_{\mathrm{USP}}$ et les autres verdicts ne sont pas fiables (issue~\#188, ouverte).
 \Hzero
 Sans objet.
