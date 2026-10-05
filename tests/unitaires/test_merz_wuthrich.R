@@ -1008,4 +1008,126 @@ verifier("Domaine (#185) : invariance dans le domaine, x 1e-40 et x 1e40 : sigma
            isTRUE(r0$ok) && all(ok)
          })
 
+## --- Triangle totalement degenere refuse (issue #192) -------------------------
+# Decision du mainteneur du 05/10/2026 (Q-E2r-192-1, option A) : toutes les
+# colonnes j = 0..J-2 degenerees au sens de .mw_colonne_degeneree() (#56) ->
+# ok = FALSE, un seul motif (lecture de regulatory), sans avertissement de
+# colonnes (Q-E2r-192-4). Triangles partiellement ou quasi degeneres inchanges
+# (Q-E2r-192-3). Triangles d'essai reconstruits d'apres la specification
+# (docs/specifications/e2-reduite.md, #192), a partir de triangle_mw.csv :
+# - total_exact : C(i,0) de triangle_mw, F(i,j) = f_j de triangle_mw ;
+# - total_f_binaire : facteurs 2, 1,5, 1,25... exactement representables
+#   (sigma2_j = 0 exact ; avant #192 : pool de residus vide, defaut de calcul
+#   intercepte dans engine_aplatir_ex_aequo() et deux avertissements R) ;
+# - col0(eps) : total_exact, colonne 0 seule multipliee par 1 +/- eps (signes
+#   alternes) ; ecart relatif des facteurs F(i,0) ~ 2 eps : degeneree a
+#   1e-13, non degeneree a 1e-11 ;
+# - sauf_une : total_exact dont la seule colonne j = 0 reprend les facteurs
+#   observes de triangle_mw (construction propre a ce test : le prototype de
+#   la specification, sigma_USP = 0,03778838, est perdu et n'est pas
+#   reproduit ; meme classe : colonnes 1..6 degenerees, colonne 0 non) ;
+# - total_arrondi : total_exact arrondi au centime (quasi degenere).
+# sigma_USP des triangles acceptes : valeurs mesurees avant #192 (B = 99,
+# segment II-1 ; sigma_USP ne depend pas de B), inchangees apres.
+f192 <- mw_ajuster(tri_ref)$f
+tri192 <- function(c0, f) {
+  n <- length(c0); t <- matrix(NA_real_, n, n); t[, 1] <- c0
+  for (i in 1:(n - 1)) for (j in 2:(n - i + 1)) t[i, j] <- t[i, j - 1] * f[j - 1]
+  t
+}
+total_exact <- tri192(tri_ref[, 1], f192)
+total_f_binaire <- tri192(c(256, 300, 320, 336, 344, 352, 360, 384),
+                          c(2, 1.5, 1.25, 1.125, 1.0625, 1.03125, 1.015625))
+col0_192 <- function(eps) {
+  t <- total_exact; t[, 1] <- t[, 1] * (1 + rep(c(1, -1), 4) * eps); t
+}
+sauf_une <- total_exact
+sauf_une[, 2] <- tri_ref[, 2]
+for (i in 1:6) for (j in 3:(9 - i)) sauf_une[i, j] <- sauf_une[i, j - 1] * f192[j - 1]
+total_arrondi <- round(total_exact, 2)
+refuses192 <- list(total_exact = total_exact, total_f_binaire = total_f_binaire,
+                   col0_1e13 = col0_192(1e-13))
+acceptes192 <- list(col0_1e11 = col0_192(1e-11), sauf_une = sauf_une,
+                    total_arrondi = total_arrondi)
+sigma192 <- c(col0_1e11 = 0.0369, sauf_une = 0.0404017443, total_arrondi = 0.0369031172)
+fragments192 <- c("Triangle totalement degenere : pour chaque annee de developpement j = 0..J-2",
+                  "(a la tolerance relative 1e-12 de l'outil pres)",
+                  "En arithmetique exacte, sigma2_j = 0 (annexe XVII, D(5)(d)(ii)), MSEP = 0 (valeur calculee : ",
+                  "aucun residu de Mack n'est defini",
+                  "par D(4), sigma(res,s,USP) = (1 - c) * sigma(res,s)",
+                  "(D(2)(h), en particulier iv : variance proportionnelle au cumul precedent)",
+                  "representativite du risque de reserve (D(2)(a))",
+                  "article 219, paragraphe 1, point d)",
+                  "L'outil n'applique donc pas a ce triangle la methode du risque de reserve no 2 (article 220, paragraphe 1, point b)).",
+                  "paiements cumules observes (D(1))")
+motif192 <- function(e) length(e) == 1L &&
+  all(vapply(fragments192, grepl, logical(1), x = e, fixed = TRUE)) &&
+  !grepl("0/0", e, fixed = TRUE)
+# Avertissements de colonnes emis par mw_valider_ajustement() : extrapolation
+# de sigma2_(J-1) et colonnes exclues des residus de Mack.
+av_colonnes192 <- function(av) c(av_extrap(list(validation = list(avertissements = av))),
+                                 av_exclues(av))
+verifier("Predicat #192 sur des ajustements fictifs : vrai ssi j = 0..J-2 degenerees ; FALSE si objet reduit ou J < 2",
+         {
+           fict <- function(tri, f) list(I = nrow(tri) - 1L, J = ncol(tri) - 1L,
+                                         f = f, tri = tri)
+           tt <- matrix(NA_real_, 4, 4)
+           tt[, 1] <- c(100, 200, 400, 800)
+           for (i in 1:3) for (j in 2:(5 - i)) tt[i, j] <- tt[i, j - 1] * c(2, 1.5, 1.25)[j - 1]
+           tp <- tt; tp[2, 3] <- tp[2, 3] * 1.01         # colonne j = 1 non degeneree
+           tq <- tt; tq[1, 4] <- tq[1, 4] * 1.01         # colonne J-1 seule : sans effet
+           f_tq <- c(2, 1.5, tq[1, 4] / tq[1, 3])
+           isTRUE(.mw_triangle_totalement_degenere(fict(tt, c(2, 1.5, 1.25)))) &&
+             isFALSE(.mw_triangle_totalement_degenere(fict(tp, c(2, 1.5, 1.25)))) &&
+             isTRUE(.mw_triangle_totalement_degenere(fict(tq, f_tq))) &&
+             isFALSE(.mw_triangle_totalement_degenere(list(I = 4L, reserve = 10))) &&
+             isFALSE(.mw_triangle_totalement_degenere(list(I = 0L, J = 1L, f = 1.5,
+                                                         tri = matrix(c(100, 150), 1, 2)))) &&
+             isFALSE(.mw_triangle_totalement_degenere(list(I = 0L, J = 0L, f = numeric(0),
+                                                         tri = matrix(100, 1, 1))))
+         })
+verifier("Predicat #192 : faux sur les triangles des tests existants et sur les acceptes, vrai sur les refuses",
+         {
+           faux <- c(lapply(list(tri, tri_deg, tri_sym, tri_2, tri_ach, tri_j1, ta, ta_deg,
+                                 ta_bruit, tri_ref, tri_decroissant), mw_ajuster),
+                     lapply(acceptes192, mw_ajuster))
+           !any(vapply(faux, .mw_triangle_totalement_degenere, logical(1))) &&
+             all(vapply(lapply(refuses192, mw_ajuster), .mw_triangle_totalement_degenere,
+                        logical(1)))
+         })
+verifier("mw_valider_ajustement() : triangle totalement degenere refuse, un seul motif, aucun avertissement de colonnes (#192)",
+         all(vapply(refuses192, function(t) {
+           a <- mw_ajuster(t); v <- mw_valider_ajustement(a, mw_msep(a)$msep)
+           isFALSE(v$ok) && motif192(v$erreurs) && !length(v$avertissements)
+         }, logical(1))))
+verifier("run_engine : total_exact, total_f_binaire, col0_1e13 -> ok = FALSE, motif #192, sans erreur R ni avertissement R",
+         all(vapply(refuses192, function(t) {
+           nw <- 0L
+           r <- withCallingHandlers(run_engine(methode = "reserve2", triangle = t, segment = 1,
+                                               annexe = "II", B = 99),
+                                    warning = function(w) { nw <<- nw + 1L
+                                      invokeRestart("muffleWarning") })
+           inherits(r, "usp_engine") && identical(r$ok, FALSE) && isFALSE(r$validation$ok) &&
+             is.null(r$validation$erreur_r) && motif192(r$validation$erreurs) &&
+             !length(av_colonnes192(r$validation$avertissements)) &&
+             is.null(r$parametre_final) && is.null(r$tests) && nw == 0L
+         }, logical(1))))
+verifier("run_engine : col0_1e11, sauf_une, total_arrondi acceptes, sigma_USP inchange (#192, Q-E2r-192-3)",
+         all(vapply(names(acceptes192), function(nm) {
+           r <- run_engine(methode = "reserve2", triangle = acceptes192[[nm]], segment = 1,
+                           annexe = "II", B = 99)
+           isTRUE(r$ok) && is.null(r$validation$erreur_r) &&
+             !any(grepl("Triangle totalement degenere", r$validation$erreurs, fixed = TRUE)) &&
+             isTRUE(proche(r$parametre_final$sigma_usp, sigma192[[nm]], rel = 1e-8))
+         }, logical(1))))
+verifier("Reserve nulle (tous les f_j = 1, triangle totalement degenere) : seul le motif R = 0 (#192)",
+         {
+           tz <- matrix(NA_real_, 5, 5)
+           for (i in 1:5) for (j in 1:(6 - i)) tz[i, j] <- 100 + 10 * i
+           r <- run_engine(methode = "reserve2", triangle = tz, segment = 1, annexe = "II", B = 99)
+           isTRUE(.mw_triangle_totalement_degenere(mw_ajuster(tz))) && identical(r$ok, FALSE) &&
+             any(grepl("R = 0", r$validation$erreurs, fixed = TRUE)) &&
+             !any(grepl("Triangle totalement degenere", r$validation$erreurs, fixed = TRUE))
+         })
+
 fin_fichier()

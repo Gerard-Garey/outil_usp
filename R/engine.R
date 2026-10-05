@@ -6048,6 +6048,21 @@ mw_ajuster <- function(tri) {
   j <- 0:(aj$J - 1L)
   as.integer(j[vapply(j, function(k) .mw_colonne_degeneree(aj, k, tol), logical(1))])
 }
+# Triangle totalement degenere (issue #192) : toutes les colonnes
+# j = 0..J-2 sont degenerees au sens du predicat unique ci-dessus (#56),
+# sans constante nouvelle : la tolerance 1e-12 est celle de
+# .mw_colonne_degeneree(), convention de l'outil et non du texte. En
+# arithmetique exacte, sigma2_j = 0 pour j = 0..J-2 (D(5)(d)(ii)), donc
+# sigma2_(J-1) = 0, MSEP = 0 et sigma(res,s,USP) = (1 - c) * sigma(res,s) par
+# D(4). La colonne J-1 (un seul facteur si I = J) n'entre pas dans le
+# predicat. FALSE pour un objet d'ajustement reduit (I et reserve seuls,
+# fonction publique) et pour J < 2 (aucune colonne a examiner).
+.mw_triangle_totalement_degenere <- function(aj) {
+  if (!is.list(aj) || !all(c("I", "J", "f", "tri") %in% names(aj))) return(FALSE)
+  J <- aj$J
+  if (length(J) != 1L || is.na(J) || J < 2L) return(FALSE)
+  all(seq.int(0L, J - 2L) %in% .mw_colonnes_degenerees(aj))
+}
 
 # --- Lecture de l'extrapolation de sigma2_{J-1} : par. 5(d)(ii), 2e ligne ----
 # Fonction de RESTITUTION, sans effet sur les calculs : elle recompose, a
@@ -6338,6 +6353,40 @@ mw_valider_ajustement <- function(aj, msep) {
                                  "sigma(res,s,USP) n'est pas calculable ; la methode du risque ",
                                  "de reserve no 2 n'est pas applicable a ce triangle."),
                           format(msep)))
+  # Refus (issue #192, decision du mainteneur du 05/10/2026, Q-E2r-192-1,
+  # option A) : triangle totalement degenere, .mw_triangle_totalement_degenere().
+  # Le refus ne repose PAS sur le 0/0 de D(5)(d)(ii) (doctrine #7 : le texte ne
+  # prevoit aucune clause de degenerescence et sa lettre donne MSEP = 0) ; il
+  # est un choix de mise en oeuvre prudent qui applique des exigences de
+  # donnees existantes, rendues obligatoires par l'article 219, par. 1, d) :
+  # coherence avec les hypotheses sur la nature stochastique des cumules
+  # (D(2)(h), en particulier iv) et representativite du risque de reserve
+  # (D(2)(a)), inverifiables quand aucune variance n'est observee. La
+  # tolerance 1e-12 du predicat est une convention de l'outil. Motif evalue
+  # seulement en l'absence d'autre refus : avec R <= 0 (tous les f_j = 1, par
+  # exemple), sigma(res,s,USP) n'est pas defini et le motif de la reserve
+  # suffit. Un seul motif : les avertissements de colonnes (extrapolation de
+  # sigma2_(J-1), colonnes exclues des residus) ne sont pas emis en plus
+  # (Q-E2r-192-4). Triangles partiellement ou quasi degeneres (arrondi des
+  # cumules) : inchanges, sous la doctrine de l'avertissement (Q-E2r-192-3).
+  complet <- is.list(aj) && all(c("I", "J", "sigma2", "f", "tri") %in% names(aj))
+  degenere <- !length(err) && complet && .mw_triangle_totalement_degenere(aj)
+  if (degenere)
+    err <- c(err, sprintf(paste0(
+      "Triangle totalement degenere : pour chaque annee de developpement j = 0..J-2, ",
+      "les facteurs individuels C(i,j+1)/C(i,j) sont identiques (a la tolerance ",
+      "relative 1e-12 de l'outil pres). En arithmetique exacte, sigma2_j = 0 ",
+      "(annexe XVII, D(5)(d)(ii)), MSEP = 0 (valeur calculee : %s, residu d'arrondi), ",
+      "aucun residu de Mack n'est defini et, par D(4), ",
+      "sigma(res,s,USP) = (1 - c) * sigma(res,s) sans aucune contribution des donnees. ",
+      "Ces donnees ne permettent pas d'etablir leur coherence avec les hypotheses sur la ",
+      "nature stochastique des montants de sinistres cumules (D(2)(h), en particulier iv : ",
+      "variance proportionnelle au cumul precedent), ni leur representativite du risque ",
+      "de reserve (D(2)(a)) ; exigences de donnees rendues obligatoires par l'article 219, ",
+      "paragraphe 1, point d). L'outil n'applique donc pas a ce triangle la methode du ",
+      "risque de reserve no 2 (article 220, paragraphe 1, point b)). Verifier qu'il ",
+      "s'agit de paiements cumules observes (D(1)) et non de montants projetes ou lisses."),
+      format(msep, digits = 3)))
   # Avertissement (et non refus) : sigma2_{J-1} = 0 par application litterale
   # du par. 5(d)(ii), ce qui arrive si et seulement si la colonne J-3 ou la
   # colonne J-2 a des facteurs individuels tous egaux (sigma2_{J-3} = 0 ou
@@ -6349,7 +6398,7 @@ mw_valider_ajustement <- function(aj, msep) {
   # varie (issues #7 et #21).
   avt <- character(0)
   ex <- mw_extrapolation_sigma2(aj)
-  if (isTRUE(ex$degeneree)) {
+  if (!degenere && isTRUE(ex$degeneree)) {
     # Cause : une proposition par colonne degeneree, dans l'ordre J-3, J-2.
     cols <- list()
     if (isTRUE(ex$degeneree_Jm3))
@@ -6402,8 +6451,9 @@ mw_valider_ajustement <- function(aj, msep) {
   # lignes de mw_tests() fondees sur ces residus.
   # Objet d'ajustement reduit (I et reserve seuls, fonction publique) : rien
   # a restituer, comme dans mw_extrapolation_sigma2().
-  complet <- is.list(aj) && all(c("I", "J", "sigma2", "f", "tri") %in% names(aj))
-  rs <- if (complet) mw_residus(aj) else NULL
+  # Triangle totalement degenere refuse : un seul motif, pas d'avertissement
+  # de colonnes (issue #192).
+  rs <- if (complet && !degenere) mw_residus(aj) else NULL
   ex_col <- attr(rs, "colonnes_exclues")
   if (!is.null(ex_col) && nrow(ex_col)) {
     n_ex <- sum(ex_col$n_facteurs)
