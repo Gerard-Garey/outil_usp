@@ -2427,8 +2427,9 @@ autres qu'un calcul abouti, à ne pas confondre (issue~\#88, décision du mainte
   et $\sigma_{\mathrm{USP}}$ inchangés~; c'est le cas, depuis l'issue~\#153, d'une distance de
   Cook non finie (fiche~\ref{fiche:cook}), qui donnait auparavant un défaut intercepté
   sur une entrée du domaine ($y_t$ exactement proportionnel à $x_t$, mesuré avec le moteur
-  antérieur à l'issue), et d'une statistique du TOST non définie
-  (fiche~\ref{fiche:tost-constante})~; depuis l'issue~\#161, d'un rapport de vraisemblance sur
+  antérieur à l'issue~; Sur une série exactement proportionnelle, la vraisemblance n'a pas de maximum~: $\sigma_{\mathrm{USP}}$ et les autres verdicts ne sont pas fiables (issue~\#188, ouverte)), et, en appel direct seulement, d'une statistique du
+  TOST non définie (fiche~\ref{fiche:tost-constante}), garde inatteignable depuis
+  \code{run\_engine()}~; depuis l'issue~\#161, d'un rapport de vraisemblance sur
   $\delta$ non calculable sur les données observées à une borne (fiche~\ref{fiche:rv-delta},
   motif \code{MOTIF\_LR\_DELTA\_ECHEC}~; même panne injectée~: défaut de calcul intercepté
   d'origine \code{usp\_ajuster\_contraint()} avec le moteur antérieur, ligne non applicable
@@ -2534,10 +2535,19 @@ numérique~: les régressions auxiliaires manipulent des grandeurs de degré~2 e
 qui sortent de la plage des doubles hors d'environ $[\sqrt{\mathtt{DBL\_MIN}}\,;
 \sqrt{\mathtt{DBL\_MAX}}] \approx [1{,}5 \cdot 10^{-154}\,; 1{,}3 \cdot 10^{154}]$. Mesuré sur le
 jeu de contrôle multiplié par $10^{e}$, avec le moteur antérieur à l'issue (\code{run\_engine()},
-méthode de primes, segment II-1, $B = 199$), comparé à l'échelle~1~: aucun verdict changé pour
-$e \in \{-160, -158, -156, -155, -150, -100, -51, 100, 150, 151, 152, 153\}$~; à $e = 154$, $155$ et $160$, \code{ok = TRUE} mais deux verdicts faux sans
+méthode de primes, segment II-1, $B = 199$~; R~4.3.3, BLAS et LAPACK de référence, x86\_64),
+comparé à l'échelle~1~: aucun verdict changé pour
+$e \in \{-160, -158, -156, -155, -154, -152, -150, -100, -51, 100, 150, 151, 152, 153\}$~; à $e = 154$, $155$ et $160$, \code{ok = TRUE} mais deux verdicts faux sans
 alerte (nullité de la constante \code{OK} devenue \code{INFO}, pente \code{INFO} devenue
-\code{ECHEC})~; à $e = -165$ et $-170$, un défaut de calcul intercepté. Le domaine est très
+\code{ECHEC})~; à $e = -163$, $-165$ et $-170$, un défaut de calcul intercepté. Sur le jeu à
+$\hat\delta$ intérieur (section~\ref{sec:verif}~; volumes de 50 à 300, pertes de $29{,}9$ à
+$207$), dans les mêmes conditions, les verdicts faux apparaissent plus tôt~: pente \code{OK}
+devenue \code{ECHEC} à $e = -160$ et $-158$~; Fisher \code{OK} devenu \code{INFO} dès
+$e = 152$~; à $e = 153$, TOST \code{ALERTE} devenu \code{ECHEC}, pente \code{OK} devenue
+\code{ECHEC} et Fisher \code{OK} devenu \code{INFO}~; à $e = 154$, en plus, nullité de la
+constante \code{OK} devenue \code{INFO}~; aucun verdict changé pour
+$e \in \{-156, -155, -154, -152, -150, -100, -51, 100, 150, 151\}$~; défaut de calcul intercepté
+à $e = -163$, $-165$ et $-170$. Le domaine est très
 intérieur à cette zone, et un changement d'unité par une puissance de~2 y laisse le résultat
 identique au bit près (mesuré sur le jeu de contrôle multiplié par $2^{159}$ et par $2^{-172}$~:
 \code{\$parametre\_final}, p-values retenues et verdicts \code{identical()} à ceux de
@@ -3239,7 +3249,10 @@ Diagnostic \\
   contrôle, \code{summary()} remplacée dans l'environnement du moteur par une version qui retire la
   ligne de $x_t$ des coefficients de \code{lm(y \textasciitilde\ x)}~: la constante, le TOST, la
   pente, Fisher et $R^2$, et eux seuls, diffèrent du calcul ordinaire, tous non applicables avec
-  ces motifs.
+  ces motifs. \textbf{Cas sans motif connu}~: le motif de $R^2$ est posé pour tout $R^2$ non fini hors volumes
+  constants, et attribue donc à tort au garde-fou~R12 le cas de $y_t$ constant, où la constante, la
+  pente et Fisher sortent non applicables sans motif et où le TOST rend \code{ECHEC} (mesuré sur
+  les volumes du jeu de contrôle et $y_t = 80$)~; correction à décider (issue~\#189).
   \item \emph{Condition de conclusion du TOST}~: conclure exige
   $\widehat{\mathrm{se}}(\hat a) < \Delta/t_{1-\alpha,\,T-2}$~; le levier de l'origine
   $\bar x^{\,2}/S_{xx}$ peut rendre la conclusion inaccessible (fiche~\ref{fiche:tost-constante},
@@ -5259,7 +5272,8 @@ Il en va de même de la garde «~statistique non définie~», qui vise des entr�
 (par exemple $x_t$ et $y_t$ multipliés par $10^{-320}$), hors du domaine numérique
 (§\ref{sec:controles}, issue~\#145)~; l'issue de \code{lm()} y dépend de la plateforme (version
 de R, BLAS, processeur)~: mesuré en appel direct sur le jeu de contrôle multiplié par
-$10^{-320}$, avec R~4.3.3 et le BLAS de référence, la garde se déclenche. En appel direct
+$10^{-320}$, avec R~4.3.3, BLAS et LAPACK de référence, x86\_64, la garde se déclenche~; Une autre issue a été observée sur la CI (R~4.3.1, OpenBLAS~0.3.20, AMD EPYC~7763)~; les tests
+unitaires acceptent toute issue cohérente et atteignent les gardes par injection. En appel direct
 d'\code{usp\_tests()} hors du domaine numérique, seule l'absence d'erreur R est garantie, non la
 justesse des statistiques ni des verdicts (issue~\#153).
 \Usage
@@ -5295,7 +5309,7 @@ aux seuils de la règle des verdicts (sens «~rejeter~», section~\ref{sec:synth
 ne contredit jamais le verdict~: «~\code{Condition necessaire de conclusion remplie}~» si
 $p_{\text{plancher}} < \alpha$~; sinon «~\code{\dots{} non remplie}~», suivie de
 «~\code{OK inatteignable}~» si $p_{\text{plancher}} <$ \code{SEUIL\_ECHEC\_SENS\_REJETER}
-$= 0{,}30$, de «~\code{OK et ALERTE inatteignables}~» au-delà (l'\code{ECHEC} est alors certain,
+$= 0{,}30$, de «~\code{OK et ALERTE inatteignables}~» à partir de $0{,}30$ (l'\code{ECHEC} est alors certain,
 quelle que soit la constante estimée), puis de la phrase «~\code{L'equivalence ne peut pas etre
 conclue avec ces donnees (plan de volumes, dispersion residuelle) et cette marge : ce verdict
 traduit une absence de preuve, non un ecart a la proportionnalite.}~». Tout près de $\rho = 1$,
@@ -5308,7 +5322,10 @@ $\rho = 1{,}09$, $p_{\text{plancher}} = 0{,}116$, condition non remplie, \code{O
 inatteignable, verdict \code{ALERTE} ($p = 0{,}233$). L'inégalité $p_{\text{TOST}} \ge p_{\text{plancher}}$ est une
 propriété arithmétique exacte de la p-value calculée, conditionnelle à $\widehat{\mathrm{se}}(\hat a)$
 et à $\Delta$ observés, et non une puissance~: elle dit seulement que \emph{ces} données ne
-peuvent pas conclure.
+peuvent pas conclure. Elle vaut aussi en marge estimée ($\Delta = \theta\bar y$ aléatoire), sur
+les valeurs réalisées, et quelle que soit la validité de la loi $t(T-2)$~; le «~\code{quelle que
+soit la constante estimee}~» du commentaire s'entend à $\widehat{\mathrm{se}}(\hat a)$ et $\Delta$
+fixés.
 
 \medskip
 \begin{encadre}
@@ -5446,7 +5463,9 @@ Même régression auxiliaire (section~\ref{sec:modele-auxiliaire}). \textbf{Il n
 les rubriques sont renseignées par cohérence de présentation. À volumes constants au sens de \code{usp\_volumes\_constants()}, la ligne est non applicable
 (section~\ref{sec:volumes-constants}). Hors de la bande de tolérance, si \code{lm()} écarte malgré tout $x_t$
 pour colinéarité (garde-fou~R12, section~\ref{sec:modele-auxiliaire}), elle l'est aussi, avec le
-motif «~\code{x ecarte par lm() pour colinearite : R2 non defini}~».
+motif «~\code{x ecarte par lm() pour colinearite : R2 non defini}~». Ce motif est posé pour tout
+$R^2$ non fini hors volumes constants~: à $y_t$ constant, il attribue à tort le cas au garde-fou~R12
+(issue~\#189, section~\ref{sec:modele-auxiliaire}).
 \Hzero
 Aucune en tant que diagnostic. Si l'on souhaite néanmoins tester $R^2$, l'hypothèse pertinente est
 celle du test de Fisher ci-dessus, $H_0 : b = 0$.
@@ -8105,8 +8124,11 @@ residus de y = beta x tous nuls) : diagnostic non applicable}~»~; \code{run\_en
 $x_t$, dont les résidus de $y = \beta x$ sont nuls ($\hat s = 0$, $D_t = 0/0$). L'issue de
 \code{lm()} y dépend de la plateforme (version de R, BLAS, processeur)~: résidus exactement nuls,
 ou bruit d'arrondi qui laisse $D_t$ fini et la ligne calculée. Mesuré sur $x_t = 2^{t-1}$,
-$y_t = x_t/2$ ($t = 1, \ldots, 8$), avec R~4.3.3 et le BLAS de référence~: ligne non
-applicable, \code{ok = TRUE}~; le même jeu donnait, avec le moteur antérieur à l'issue, un
+$y_t = x_t/2$ ($t = 1, \ldots, 8$), avec R~4.3.3, BLAS et LAPACK de référence, x86\_64~: ligne non
+applicable, \code{ok = TRUE}~; Une autre issue a été observée sur une autre plateforme (OpenBLAS~0.3.20, noyau SkylakeX~: $D_t$
+fini, ligne calculée)~; les tests unitaires acceptent toute issue cohérente et atteignent les
+gardes par injection. Sur une série exactement proportionnelle, la vraisemblance n'a pas de maximum~: $\sigma_{\mathrm{USP}}$ et les autres verdicts ne sont pas fiables (issue~\#188, ouverte) --- mesuré sur ce jeu~: nullité de la constante
+\code{ECHEC} et TOST \code{OK}, sans portée~; le même jeu donnait, avec le moteur antérieur à l'issue, un
 défaut de calcul intercepté d'origine \code{usp\_tests()} (\code{if (any(ck > 4/T))} évalué sur
 \code{NaN}), comme le jeu de contrôle multiplié par $10^{-163}$ et $10^{-164}$, échelles
 désormais hors du domaine numérique (§\ref{sec:controles}). Pour les graphiques d'influence,
@@ -8148,7 +8170,7 @@ test.} Les $h_t$ sont lus dans le modèle de la fiche~\ref{fiche:cook}, ajusté 
 l'échelle exacte (\code{.usp\_echelle\_exacte()}, issue~\#153)~; ne dépendant que des $x_t$,
 ils sont invariants par $x_t \mapsto a\,x_t$ et restent finis quand $y_t$ est exactement
 proportionnel à $x_t$, cas où la ligne de Cook est non applicable (mesuré sur $x_t = 2^{t-1}$,
-$y_t = x_t/2$~: $\max_t h_t = 0{,}750$, ligne calculée).
+$y_t = x_t/2$~: $\max_t h_t = 0{,}750$, ligne calculée). Sur une série exactement proportionnelle, la vraisemblance n'a pas de maximum~: $\sigma_{\mathrm{USP}}$ et les autres verdicts ne sont pas fiables (issue~\#188, ouverte).
 \Hzero
 Sans objet.
 \Stat
@@ -10815,15 +10837,18 @@ invariants par un changement d'unité commun à $x_t$ et $y_t$~; le script hors 
 par défaut) sur les 99 échelles $10^{e}$, $e$ entier de $-51$ à $47$, pour lesquelles toutes les
 valeurs restent dans $[10^{-50}\,;10^{50}]$, comparé à l'échelle~1 par \code{comparer\_objets()}
 (tolérance $10^{-6}$, la même que pour les références), sur deux jeux, le jeu de contrôle et le jeu
-de l'issue~\#153 (volumes de 100 à 700). Mesuré (R~4.3.3, BLAS et LAPACK de référence, 476~s)~:
+de l'issue~\#153 (volumes de 100 à 700). Mesuré (R~4.3.3, BLAS et LAPACK de référence, x86\_64, Ubuntu 24.04, 476~s)~:
 99 échelles conformes sur 99 pour chaque jeu, aucun verdict différent~; écart relatif maximal de
 $\sigma_{\mathrm{USP}}$ de $2{,}1\cdot 10^{-9}$ sur le jeu de contrôle et de $3{,}3\cdot 10^{-16}$
 sur l'autre jeu, écart maximal des p-values retenues de $1{,}6\cdot 10^{-15}$ et
 $3{,}3\cdot 10^{-15}$~; les échelles $10^{-52}$ et $10^{48}$, hors du domaine, sont refusées.
 C'est un constat numérique sur deux jeux et sur cette plateforme, non une preuve d'invariance
 pour toute série. L'écart de $\sigma_{\mathrm{USP}}$ sur le jeu de contrôle, très inférieur à la
-tolérance, est de l'ordre de la résolution de l'optimisation numérique~; son
-origine n'est pas mesurée.
+tolérance, est du même ordre que l'erreur relative de premier ordre sur $\sigma$ au point d'arrêt de
+l'optimiseur mesurée sur ce jeu, $|\varepsilon_\sigma| = 3{,}3\cdot 10^{-9}$
+(fiche~\ref{fiche:foc})~; il est nul pour un facteur $2^k$ (§\ref{sec:controles}). Son mécanisme
+(arrondis d'un facteur $10^{e}$, non exact en virgule flottante, qui déplacent le point d'arrêt)
+n'est pas mesuré en propre.
 
 \subsection*{Taille effective et puissance}
 
@@ -12023,7 +12048,9 @@ objet. Hors de la bande de tolérance, un garde-fou (règle~R12) rend \code{NA} 
 le coefficient du volume pour colinéarité (régressions de $y_t$ sur $x_t$ de la constante, du
 TOST, de la pente, de Fisher, du $R^2$ et de RESET, section~\ref{sec:modele-auxiliaire}~; régressions auxiliaires de Breusch--Pagan)~;
 pour les cinq premières, la ligne est non applicable avec un motif propre, distinct de celui des
-volumes constants, qui forme seul son commentaire (issue~\#168, section~\ref{sec:modele-auxiliaire}).
+volumes constants, qui forme seul son commentaire (issue~\#168, section~\ref{sec:modele-auxiliaire})~;
+le cas de $y_t$ constant reste sans motif connu, et le motif de $R^2$ l'attribue à tort à ce
+garde-fou (issue~\#189).
 RESET et White ont, depuis l'issue~\#110, leurs propres gardes (fiches~\ref{fiche:reset}
 et~\ref{fiche:white})~: régression sur une base réduite, qui supprime la perte numérique d'un
 régresseur hors de la bande, puis ligne non applicable, avec son motif, à moins de trois volumes
