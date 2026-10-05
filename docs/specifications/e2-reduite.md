@@ -281,4 +281,263 @@ Nature des p-values : inchangée. Ces lignes n'ont que des p-values Monte-Carlo,
 
 ## Lot B — #115, #46, #90, #89
 
-*En attente de la spécification d'`actuary` (lot B).*
+> *Rédigé par l'agent actuary (IA)*, `actuary-approfondi`, 05/10/2026.
+
+Mesures sur `main` `979ca62`, avec B = 999 et la graine 20260831 sauf mention contraire. Les résultats sont lus sur les sorties console des scripts : aucun journal n'a été conservé.
+
+**Périmètre.** La fiche « Branche E2 réduite » (condition C3) range `.fisher_combine()` dans le périmètre. Le brief de l'agent ne la citait pas. La spécification suit la feuille de route (Q-E2r-90-2).
+
+### #115 — p_min des lignes Merz-Wüthrich à loi discrète
+
+**(a) Constat (re-mesuré).**
+- `mw_tests()` ne passe `p_min` à aucune ligne : les 19 lignes de `reserve2` ont `p_min = NA`.
+- L'`add()` d'`engine_registre_tests()` accepte déjà `p_min` et `effectifs` (`R/engine.R:3166`) et applique R1 sans distinguer la méthode. **La spécification tient donc dans `mw_tests()` et dans de nouvelles fonctions `.mw_*`, sans toucher à `add()`.**
+- **Six lignes** ont une statistique discrète sous une loi combinatoire, et non cinq comme on le croyait. La sixième est « Adéquation de l'exposant de variance » (clé `ExpVar`, M2), construite comme HomogF (un Spearman par colonne, combiné par Fisher).
+- **Aucune de ces lois de référence n'est exacte pour le modèle de Mack**, pour trois raisons :
+  - les résidus ne sont pas échangeables : Var(√C_ij (F_ij − f̂_j)) = σ²_j (1 − h_ij), avec h_ij = C_ij/S_j ; chaque colonne porte la contrainte Σ_i √C_ij r_ij = 0, et Σ_i r²_ij = n_j − 1 est mesuré ;
+  - les F(i,j) d'une colonne n'ont pas tous la même variance ;
+  - les colonnes adjacentes sont dépendantes.
+
+  Aucun régime analogue à π̂ constant n'existe donc : la p_min « sous la loi de référence échangeable » ne borne jamais la p Monte-Carlo retenue.
+
+p_min mesurées (« ref k » : sous-triangle k × k de `triangle_mw.csv` ; « TA » : triangle de Taylor-Ashe) :
+
+| triangle | Suites | Calendaire | CorrDev | HomogF / ExpVar (après #90) | KruskalAcc |
+|---|---|---|---|---|---|
+| ref5 | 0,0571 (4/4) | **0,125** (n_k = 3,3) | **0,333** (3) | non applicable (K < 2) | 4,76e-3 (3,3,2,1) |
+| ref6 | 1,17e-3 | 1,56e-2 | 1,39e-2 | 1,39e-3 | 9,51e-6 |
+| ref7 | 2,17e-5 | 4,88e-4 | 1,16e-4 | 3,86e-6 | 1,23e-9 |
+| **ref8 = reserve2** | 3,85e-7 (13/13) | 7,63e-6 (2,3,4,4,6,5) | 1,61e-7 (6,5,4,3) | 1,53e-9 (7,6,5,4) | 8,29e-15 |
+| TA8 | 3,85e-7 | 1,53e-5 | 1,61e-7 | 1,53e-9 | 8,29e-15 |
+| TA10 | 1,90e-12 | 9,31e-10 | 7,91e-16 | 4,19e-19 | 2,78e-29 |
+
+**(b) Spécification.** p_min est la plus petite p-value atteignable sous la loi de référence discrète, aux effectifs observés, dans le sens du catalogue et avec la convention du doublement pour les lignes bilatérales (M8). Elle est exacte sous la loi de référence, qui n'est pas le modèle réglementaire (ADR 0002).
+
+1. **Suites** (bilatéral) : `runs_p_min(n1, n2)` sur `.runs_effectifs(r)`, appelée sans modification.
+2. **Calendaire** (bilatéral) : sur chaque diagonale retenue (n_k ≥ 2), L_k suit une Binomiale(n_k, 1/2) ; les diagonales sont indépendantes, et Z = Σ min(L_k, n_k − L_k). C'est la loi qu'utilisent déjà les moments exacts de `.mack_moments_Z()`.
+   - La loi de Z s'obtient exactement par convolution, et p_min = min_z 2·min(P(Z ≤ z), P(Z ≥ z)), bornée à 1.
+   - Les n_k sont lus dans `detail[, "n"]`.
+   - Nouvelle fonction `.mw_calendrier_p_min(n_k)`.
+3. **CorrDev** (bilatéral) : p_min = min(1, 2·Π_k 1/n_k!), avec n_k = `poids + 1`. Nouvelle fonction `.mw_corr_p_min(n_k)`.
+4. **HomogF et ExpVar** (queue haute) : p_min = Π_j 2/n_j! sur les K colonnes retenues.
+   - La formule exige que p_j soit strictement décroissante en |ρ_j| et finie en |ρ_j| = 1. **C'est faux avant #90 : dépendance dure.**
+   - Nouvelle fonction `.mw_fisher_rangs_p_min(n_j)`.
+5. **KruskalAcc** (queue haute) : p_min = M / (N!/Π n_i!), où M est le nombre d'affectations qui atteignent H_max.
+   - H_max est atteint par des blocs de rangs contigus (argument d'échange).
+   - M se calcule par programmation dynamique sur les sous-ensembles d'années.
+   - Nouvelle fonction `.mw_kruskal_p_min(tailles)`.
+6. **Ex æquo** : les vecteurs aplatis par #152 font référence.
+   - Pour les lignes de rangs, un ex æquo selon `engine_ex_aequo()` donne `p_min = NA`, avec le motif dans `effectifs`, comme `eff_rangs` en lognormale (#70, 5a).
+   - Suites et Calendaire traitent déjà les ex æquo.
+7. La règle R1 reste inchangée et est appliquée par `add()`.
+
+**Comment #115 évite de préjuger de #125.**
+- #115 remplit le champ existant `p_min` avec sa définition actuelle (`CONTEXT.md`, « Test inopérant » : loi échangeable). Elle laisse `add()` appliquer la doctrine en vigueur.
+- Elle n'ajoute ni champ nouveau, ni p_min bootstrap, ni règle propre à Merz-Wüthrich.
+- Si E2b change R1 pour les lignes à p Monte-Carlo, le changement passera par `add()` et s'appliquera tel quel. #115 laisse seulement en commentaire la liste des clés discrètes : `Runs`, `Calendrier`, `CorrDev`, `HomogF`, `ExpVar`, `KruskalAcc`.
+- Mesure de concordance (une graine, B = 999) : fréquence bootstrap des valeurs extrêmes, comparée à la loi échangeable.
+
+| | Calendaire Z* = 0 | CorrDev \|T*\| = 1 | Suites R* extrême |
+|---|---|---|---|
+| ref5 | 0,114 (loi échangeable : 0,0625) | 0,348 (1/3) | 0,067 (0,057) |
+| TA5 | 0,123 | 0,362 | 0,058 |
+| ref6 | 0,021 | 0,014 (0,0139) | 0,002 (0,00117) |
+| TA6 | 0,023 | 0,023 | 0,006 |
+
+À α = 0,10, les décisions R1 coïncident sur ces quatre triangles. **Une divergence est possible pour le calendaire en 5 × 5**, pour α compris entre environ 0,125 et 0,23 : c'est l'objet de #125.
+
+**(c) Critères d'acceptation.**
+1. Sur `reserve2` (tolérance 1e-6 relative) :
+   - Suites : `runs_p_min(13, 13)` = 3,845932e-7 ;
+   - Calendaire : 2^-17 = 7,629395e-6 ;
+   - CorrDev : 2/12 441 600 = 1,6075e-7 ;
+   - HomogF et ExpVar : 16/(7!·6!·5!·4!) = 1,531e-9 ;
+   - KruskalAcc : 8,29e-15.
+
+   Les 13 autres lignes restent à `NA`, et aucune autre feuille ne change.
+2. Valeurs de contrôle, vérifiées par énumération :
+   - Kruskal-Wallis : (3,3,2,1) → 24/5040 ; (4,3,2,1) → 1,905e-3 ;
+   - calendaire : (3,3) → 0,125 ; (2,3,2,4) → 0,015625 ;
+   - CorrDev : (4,3) → 0,013889.
+3. Sous-triangle 5 × 5 à α = 0,10 :
+   - Calendaire et CorrDev passent `inoperant = TRUE`, avec le préfixe « TEST INOPERANT … sous la loi de reference echangeable » ;
+   - Suites reste un test, avec « … ECHEC possible ».
+4. Triangle avec ex æquo : `p_min = NA`, motif dans `detail`.
+5. `add()`, le catalogue et les fonctions `usp_*` sont intacts. Concordance `--strict` : un écart attendu, corrigé selon M32.
+
+**(d) Effet et visa.**
+- `reserve2` : `p_min` passe de `NA` à une valeur sur 6 lignes (4 si #90 n'est pas encore passée). Aucun verdict, aucune p-value, aucun σ_USP ne change.
+- Une **régénération par la CI** est nécessaire (le patcher refuse une valeur numérique sur un chemin à `NA`), avec visa `actuary`. Pas de M3 pour `reserve2`.
+- Hors références : sur tout triangle 5 × 5, Calendaire et CorrDev passent de OK à INFO (Q-E2r-115-3).
+
+**(e) Circuit.** Circuit 1 : `actuary` → `coder` → `audit` → `docwriter` → `actuary` valide.
+
+**(f) Surface documentaire.**
+- Rubrique 7 de `mw:m3runs`, `mw:m3cal`, `mw:m3cor`, `mw:m3acc`, `mw:m1b` et `mw:m2b`.
+- `tab:pmin`, ou une table compagne.
+- Règle R1 de la section « Nature des p-values ».
+- Index des fonctions.
+- `CONTEXT.md`, entrée « Test inopérant ».
+
+**(g) Questions au mainteneur.**
+- **Q-E2r-115-1 (ordre).** Placer #90 avant #115 ? *Recommandé.*
+- **Q-E2r-115-2.** Étendre #115 à ExpVar ? *Recommandation : oui.*
+- **Q-E2r-115-3 (doctrine).** Accepter, en attendant #125, la bascule R1 sur la loi échangeable pour les lignes Merz-Wüthrich ? Calendaire et CorrDev deviennent alors inopérants sur les triangles 5 × 5 à α = 0,10.
+- **Q-E2r-115-4.** Calculer aussi la p_min de KruskalAcc ? *Recommandation : oui*, par uniformité.
+
+### #46 — Redressement des résidus de Mack dans `mw_bootstrap()`
+
+**(a) Constat (re-mesuré).** Le pool vaut r − moyenne(r), et sa moyenne des carrés est de **0,7775** sur `reserve2` (Σ_i r²_ij = n_j − 1 exactement). Cause exacte : Var(r_ij) = 1 − h_ij, avec h_ij = C_ij/S_j, le levier déjà calculé par `mw_influence()`.
+
+**(b) Spécification.** Seul le pool est redressé, puis recentré. Restent inchangés `mw_residus()`, `stats_obs`, les statistiques répliquées et `mw_simuler_triangle()`. Nouvelle fonction `.mw_pool_residus(aj)` ; `.mc_evaluer()` est appelée sans modification.
+
+Trois variantes ont été mesurées :
+- **A** (texte de l'issue) : r·√(n_j/(n_j−1)).
+- **B (recommandée)** : r/√(1 − h_ij).
+  - Chaque résidu a une variance exactement 1 sous le modèle de Mack à σ_j connu, et ±1 pour n_j = 2.
+  - Σ r̃² par colonne : 7,005 ; 5,987 ; 4,961 ; 3,950 ; 3,036 ; 2,000.
+  - Référence possible : Davison et Hinkley (1997, §6.2.3), **non vérifiée dans le texte**.
+- **C** : correction globale √(N/(N−k)), transposition d'England (2002), *IME* 31(3), 461–466. Le contenu n'a **pas été vérifié** dans le texte, et cette variante ne corrige pas l'hétérogénéité entre colonnes.
+
+Dans tous les cas, c'est une interprétation, pas une formule du règlement. Aucun théorème ne couvre ce test bootstrap, et **aucune calibration Merz-Wüthrich à T = 8 n'existe**.
+
+**(c) Critères d'acceptation.**
+1. `.mw_pool_residus(reserve2)` vaut `r/sqrt(1 − C/S) − moyenne` à 1e-15 près ; |r̃| = 1 pour n_j = 2, avant recentrage ; aucune valeur NaN sur `ta_deg` et `tri_deg`.
+2. `stats_obs`, `residus` et `plots_data$residus` sont `identical()` à leur état d'avant.
+3. Seuls changent les p_mc, `err_mc`, `p_retenue` et verdicts des lignes Monte-Carlo, ainsi que `sigma_boot` et `ic_bootstrap`. σ_USP est identique.
+4. Volet `identical()` de la reproductibilité respecté.
+
+**(d) Effet mesuré** (graine 20260831).
+
+| p_mc | avant | A | **B** | C |
+|---|---|---|---|---|
+| Breusch-Pagan | 0,086 ALERTE | 0,103 OK | **0,103 OK** | 0,089 ALERTE |
+| Alpha | 0,002 ECHEC | 0,005 | 0,005 | 0,007 |
+| Calendaire | 0,002 | 0,004 | 0,004 | 0,002 |
+| Origine | 0,095 | 0,087 | 0,085 | 0,092 |
+| HomogF | 0,075 | 0,070 | 0,069 | 0,076 |
+| Courbure | 0,036 | 0,030 | 0,030 | 0,030 |
+
+- Les autres lignes bougent de 0,01 au plus.
+- Médiane de σ_boot : 0,01636 → 0,01845 (+12,8 %). IC bootstrap : [0,04353 ; 0,05208] → [0,04435 ; 0,05398]. **σ_USP inchangé : 0,04978.**
+- **Un verdict change : Breusch-Pagan passe d'ALERTE à OK, d'où un visa M3.** L'écart de +0,017 vaut environ deux fois l'erreur Monte-Carlo. **Sa stabilité sur d'autres graines n'a pas été mesurée.**
+
+**(e) Circuit.** Circuit 1, plus le mainteneur (M3).
+
+**(f) Surface documentaire.**
+- `sec:boot-mw` : dérivation, choix de la variante, statut d'interprétation.
+- `mw:m2var`, rubrique Pval des lignes Monte-Carlo, fiche de l'IC bootstrap.
+- Tableau 2.
+- Index des fonctions.
+- Case « chantier 5 » de #5.
+
+**(g) Questions au mainteneur.**
+- **Q-E2r-46-1.** Quelle variante : B (recommandée), A ou C ?
+- **Q-E2r-46-2.** Visa M3 du passage de Breusch-Pagan d'ALERTE à OK sur `reserve2`, à confirmer par la régénération de la CI, et après mesure sur plusieurs graines.
+- **Q-E2r-46-3.** Ouvrir une issue de calibration des p-values Monte-Carlo Merz-Wüthrich à T = 8, hors E2 réduite ?
+
+### #90 — Homogénéité de f_j : p-values de Spearman nulles écartées, K variable
+
+**(a) Constat (re-mesuré).**
+- `cor.test(exact = FALSE)` donne p = 0 à |ρ| = 1, et `.fisher_combine()` écarte alors la colonne.
+- `ta_deg` : la colonne j = 5 (n = 4, ρ = −1) est écartée, d'où K = 4 au lieu de 5.
+- `tri_deg` (B = 99) : `B_effectif` vaut 91 pour HomogF et 93 pour ExpVar.
+- **ExpVar a le même défaut.**
+- Sur `reserve2`, les p exactes diffèrent sensiblement des p asymptotiques : 0,139 contre 0,119 ; 0,103 contre 0,072 ; 0,233 contre 0,188 ; 0,75 contre 0,60.
+
+**(b) Spécification.** `.mw_spearman_p(a, b, plancher_b)` donne la p bilatérale par colonne :
+- n ≤ 9 sans ex æquo : `cor.test(exact = TRUE)` ;
+- sinon : `exact = FALSE`, avec un plancher à **2/n!** (valeur exacte de P(|ρ| = 1) sans ex æquo, simple plancher numérique avec ex æquo) ;
+- le résultat est toujours dans [2/n!, 1].
+
+Ces p_j ne sont **pas** des p exactes au sens de l'ADR 0002 : la p retenue reste Monte-Carlo. La règle s'applique à HomogF et à ExpVar.
+
+Correction de `.fisher_combine()` :
+- plus aucune exclusion silencieuse ;
+- p = 0 est relevée au plancher `.Machine$double.xmin` ;
+- une p non finie donne une statistique `NA`, pour garder K constant.
+
+**(c) Critères d'acceptation.**
+- `ta_deg` : K = 5 et p_5 = 0,08333.
+- `tri_deg` : `B_effectif` = 99 pour HomogF et pour ExpVar.
+- `.mw_spearman_p(1:4, 4:1)` = 1/12 ; `.mw_spearman_p(1:10, 10:1)` = 2/10! ; égalité avec `cor.test(exact = TRUE)` pour n ≤ 9 ; jamais 0.
+- `reserve2` (mesuré sur `main`) :
+
+| ligne | statistique | p asymptotique | p_mc | verdict |
+|---|---|---|---|---|
+| HomogF | 13,865 → 11,984 | 0,085 → 0,152 | 0,075 → 0,081 | ALERTE, inchangé |
+| ExpVar | 8,486 → 6,930 | 0,387 → 0,544 | 0,347 → 0,425 | OK, inchangé |
+
+**(d) Effet.** Sur `reserve2`, HomogF et ExpVar changent (statistique, p asymptotique, p_mc, `err_mc`). Aucun verdict ne change à la graine de référence ; la mesure est à refaire après #46. Visa `actuary`, et M3 si la régénération de la CI montre un changement de verdict.
+
+**(e) Circuit.** Circuit 1.
+
+**(f) Surface documentaire.**
+- `mw:m1b` et `mw:m2b` (Stat, Loi, Pval) ;
+- passage de `mw:m1a` sur K ;
+- tableau des natures ;
+- index des fonctions.
+
+**(g) Questions au mainteneur.**
+- **Q-E2r-90-1.** Étendre #90 à ExpVar ? *Recommandation : oui.*
+- **Q-E2r-90-2.** Confirmer que `.fisher_combine()` est dans le périmètre C3.
+
+### #89 — Influence Merz-Wüthrich : DFBETAS à la place du repère 2 % sans source
+
+**(a) Constat (re-mesuré).**
+- Sur `reserve2`, aucune des 27 cellules ne franchit le repère de 2 % : le maximum de |variation relative| est de 0,585 %.
+- Sous le modèle ajusté (2 000 triangles 8 × 8), le taux de franchissement est de 0 % : la coloration ne sert à rien.
+- L'échelle n'est pas homogène d'une colonne à l'autre.
+
+**(b) Spécification recommandée.**
+- **DFBETAS (`stats::dfbetas()`)** sur la régression pondérée C_{.,j+1} ~ 0 + C_{.,j}, de poids 1/C_{.,j}.
+- Forme close, vérifiée contre `stats::dfbetas()` (écart ≤ 9,4e-14) :
+  - e_i = C_{i,j+1} − f̂ C_ij ;
+  - s²_(i) = [(n−1)σ̂²_j − e_i²/(C_ij(1−h_i))]/(n−2) ;
+  - DFBETAS_i = e_i √S_j / (S_j (1−h_i) s_(i)).
+- Pour n_j = 2, la valeur est `NA`, et la cellule n'est pas colorée.
+- **Repère : 2/√n_j** (Belsley, Kuh et Welsch 1980, ch. 2, cité par le `.tex` ; non revérifié). Taux de franchissement mesurés sous le modèle :
+
+| n_j | 7 | 6 | 5 | 4 | 3 | global |
+|---|---|---|---|---|---|---|
+| repère 2/√n_j | 12,3 % | 14,0 % | 17,2 % | 22,3 % | 35,2 % | 18,0 % |
+| repère absolu 2 | 0,4 % | 1,1 % | 2,8 % | 8,0 % | 21,8 % | 4,8 % |
+
+- Sur `reserve2`, trois cellules seraient colorées : (0, 2) à −1,10, (0, 3) à −1,50 et (1, 4) à +1,53.
+- Contrat de `plots_data$influence` :
+  - colonnes existantes conservées ;
+  - ajout de `dfbetas` et `repere_dfbetas` ;
+  - `fort_dfbeta` remplacé par `fort_dfbetas` ;
+  - `REPERE_DFBETAS_MW = 2` remplace `REPERE_DFBETA_MW`.
+- Affichage : y = DFBETAS, repères ±2/√n_j, variation relative dans l'infobulle.
+
+**(c) Critères d'acceptation.**
+- `dfbetas` égal à `stats::dfbetas()` à 1e-10 près pour n_j ≥ 3 ; `NA` pour n_j = 2.
+- `fort_dfbetas == (|dfbetas| > 2/√n_j)`, avec `NA` traité comme FALSE.
+- Colonnes existantes `identical()` ; trois cellules colorées sur `reserve2`.
+- Tracés sans erreur ; aucun verdict ni σ_USP modifié.
+
+**(d) Effet.** Régénération structurelle de `reserve2` par la CI, sans M3.
+
+**(e) Circuit.** Circuit 1, plus `app-review` (après l'intégration de R7) et `architect` (contrat partagé `plots_data`).
+
+**(f) Surface documentaire.**
+- `mw:influence` et `sec:graph-mw` ;
+- `CONTEXT.md`, entrée « Diagnostic » ;
+- index des fonctions.
+
+**(g) Questions au mainteneur.**
+- **Q-E2r-89-1 — POINT D'ARRÊT.** #89 ne tient pas dans C3. Elle impose de toucher :
+  - la constante `REPERE_DFBETA_MW` (`R/engine.R:5526`) ;
+  - `tests/unitaires/test_defauts_connus.R:1021-1035` ;
+  - `note_influence_mw()` (`R/display_helpers.R`) ;
+  - `CONTEXT.md`.
+
+  Il faut soit étendre le périmètre, soit renvoyer #89 en F.
+- **Q-E2r-89-2.** Quel repère : 2/√n_j (recommandé), 2, ou aucune coloration ?
+- **Q-E2r-89-3.** Renommer `fort_dfbeta` en `fort_dfbetas` ? *Recommandation : oui.*
+
+**Non vérifié (lot B)** :
+- texte d'England (2002), de Davison et Hinkley §6.2.3 et de Belsley, Kuh et Welsch (repère 2/√n) ;
+- stabilité, sur plusieurs graines, du verdict de Breusch-Pagan sous #46 ;
+- plateforme CI.
