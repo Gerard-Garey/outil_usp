@@ -246,14 +246,16 @@ TOLERANCE_CONFORME_SIGMA <- 1e-12
 # (Cox-Stuart, Spearman ratio / volume et ratio / temps, Mann-Kendall,
 # Smirnov sur z), le test des suites (Runs, Runsr et suites des residus de
 # Mack), a l'observe comme dans les replications des catalogues Monte-Carlo,
-# et .usp_nb_volumes_distincts() (#110).
-# Restent a egalite EXACTE : les correlations de rang de Merz-Wuthrich
-# (mw_test_homogeneite_f(), mw_stat_correlation_dev(),
-# mw_test_exposant_variance()) et le classement L / S par la mediane de
-# mw_test_annees_calendaires() (issue #152) ; sur x brut (un volume est
-# saisi, non calcule) : la partition x > median(x) de Smirnov, de
-# test_brown_forsythe() et de engine_plots_data(), et le tri par volume de
-# test_goldfeld_quandt().
+# et .usp_nb_volumes_distincts() (#110) ; les statistiques de rang de
+# Merz-Wuthrich (issue #152) : facteurs F(i,j) en plancher 0
+# (mw_stat_correlation_dev(), mw_test_homogeneite_f(), classement L / S / *
+# par la mediane de mw_test_annees_calendaires()), cumuls C(i,j) en
+# plancher 0 et |residus| de Mack en plancher 1
+# (mw_test_exposant_variance()), residus de Mack en plancher 1
+# (mw_test_homogeneite_accident()).
+# Restent a egalite EXACTE, sur x brut (un volume est saisi, non calcule) :
+# la partition x > median(x) de Smirnov, de test_brown_forsythe() et de
+# engine_plots_data(), et le tri par volume de test_goldfeld_quandt().
 # Valeur (note d'actuary du 28/09/2026 sur #112, decision du mainteneur,
 # garantie corrigee a la validation de fin de branche E1b) : le bruit
 # d'arrondi de y_t / x_t est de l'ordre de 1e-16 relatif, celui de z_t de
@@ -263,7 +265,8 @@ TOLERANCE_CONFORME_SIGMA <- 1e-12
 # absolue sous 1 : plancher 1) ; a six chiffres l'ecart relatif minimal,
 # 1e-12, coincide avec la tolerance et deux ratios distincts peuvent etre
 # fusionnes (499999/999999 et 499998/999997). Pour z_t, aucune borne n'est
-# etablie.
+# etablie ; pour les residus de Mack (plancher 1, #152) non plus (marge
+# mesuree d'environ 15 sous la tolerance sur reserve2).
 # Aplatissement INTERNE aux tests de rang et de signe : chaque point d'entree
 # aplatit ses propres arguments ; ni les donnees, ni usp_noyau(), ni les
 # autres statistiques (AD, SW, DW, Grubbs, regressions auxiliaires...) ne
@@ -6582,13 +6585,19 @@ mw_test_annees_calendaires <- function(aj) {
     idx <- 0:(I - j - 1)
     if (length(idx) < 2) next
     F <- tri[idx + 1, j + 2] / tri[idx + 1, j + 1]
+    # Ex aequo a la tolerance TOL_EX_AEQUO (#152) : F aplati AVANT la mediane,
+    # plancher 0 (rapport strictement positif, tolerance relative) ; une
+    # valeur egale a la mediane a la tolerance recoit donc "*".
+    F <- engine_aplatir_ex_aequo(F, plancher = 0)
     md <- stats::median(F)
     lab <- ifelse(F > md, "L", ifelse(F < md, "S", "*"))
     etiq <- rbind(etiq, data.frame(i = idx, j = j, diag = idx + j, lab = lab,
                                    stringsAsFactors = FALSE))
   }
+  etiquettes <- etiq                         # toutes les etiquettes, "*" compris
   etiq <- etiq[etiq$lab != "*", , drop = FALSE]
-  if (!nrow(etiq)) return(list(stat = NA_real_, p = NA_real_, Z = NA_real_))
+  if (!nrow(etiq)) return(list(stat = NA_real_, p = NA_real_, Z = NA_real_,
+                                etiquettes = etiquettes))
   agg <- lapply(split(etiq$lab, etiq$diag), function(v) {
     L <- sum(v == "L"); S <- sum(v == "S"); n <- L + S
     m <- .mack_moments_Z(n)
@@ -6596,12 +6605,14 @@ mw_test_annees_calendaires <- function(aj) {
   })
   A <- do.call(rbind, agg)
   A <- A[A[, "n"] >= 2, , drop = FALSE]
-  if (!nrow(A)) return(list(stat = NA_real_, p = NA_real_, Z = NA_real_))
+  if (!nrow(A)) return(list(stat = NA_real_, p = NA_real_, Z = NA_real_,
+                             etiquettes = etiquettes))
   Z <- sum(A[, "Z"]); EZ <- sum(A[, "E"]); VZ <- sum(A[, "V"])
-  if (!is.finite(VZ) || VZ <= 0) return(list(stat = NA_real_, p = NA_real_, Z = Z))
+  if (!is.finite(VZ) || VZ <= 0) return(list(stat = NA_real_, p = NA_real_, Z = Z,
+                                              etiquettes = etiquettes))
   st <- (Z - EZ) / sqrt(VZ)
   list(stat = st, p = .p_borne(2 * (1 - stats::pnorm(abs(st)))),
-       Z = Z, E = EZ, V = VZ, detail = A)
+       Z = Z, E = EZ, V = VZ, detail = A, etiquettes = etiquettes)
 }
 
 # --- Test de correlation entre annees de developpement adjacentes (Mack) -----
@@ -6618,6 +6629,10 @@ mw_stat_correlation_dev <- function(aj) {
     if (length(idx) < 3) next
     Fk  <- tri[idx + 1, k + 1] / tri[idx + 1, k]        # colonne k-1 -> k
     Fk1 <- tri[idx + 1, k + 2] / tri[idx + 1, k + 1]    # colonne k -> k+1
+    # Ex aequo a la tolerance TOL_EX_AEQUO (#152) : Fk et Fk1 aplatis
+    # separement, plancher 0, avant la garde sd() == 0 et rank().
+    Fk  <- engine_aplatir_ex_aequo(Fk,  plancher = 0)
+    Fk1 <- engine_aplatir_ex_aequo(Fk1, plancher = 0)
     if (stats::sd(Fk) == 0 || stats::sd(Fk1) == 0) next
     rho <- suppressWarnings(stats::cor(rank(Fk), rank(Fk1)))
     if (!is.finite(rho)) next
@@ -6815,7 +6830,8 @@ mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
     if (j %in% jd) { ex <- .mw_exclure(ex, j, length(idx)); next }
     ex$eligibles <- ex$eligibles + 1L
     if (.mw_colonne_degeneree(aj, j)) return(.mw_stat_non_definie(ex))
-    F <- tri[idx + 1, j + 2] / tri[idx + 1, j + 1]
+    # F aplati a TOL_EX_AEQUO avant cor.test() (#152), plancher 0.
+    F <- engine_aplatir_ex_aequo(tri[idx + 1, j + 2] / tri[idx + 1, j + 1], plancher = 0)
     ct <- suppressWarnings(stats::cor.test(F, idx, method = "spearman", exact = FALSE))
     det <- rbind(det, data.frame(j = j, n = length(idx),
       rho = unname(ct$estimate), p = ct$p.value, stringsAsFactors = FALSE))
@@ -6894,8 +6910,13 @@ mw_test_exposant_variance <- function(aj) {
   det <- data.frame()
   for (j in unique(res$j)) {
     d <- res[res$j == j, ]
-    if (nrow(d) < 4 || stats::sd(d$C) == 0) next
-    ct <- suppressWarnings(stats::cor.test(abs(d$residu), d$C,
+    # Ex aequo a la tolerance TOL_EX_AEQUO (#152), avant la garde sd() == 0
+    # et cor.test() : C en plancher 0 (montant, tolerance relative), |r| en
+    # plancher 1 (grandeur d'ordre 1, comme les residus de Mack de #112).
+    Ca <- engine_aplatir_ex_aequo(d$C, plancher = 0)
+    ra <- engine_aplatir_ex_aequo(abs(d$residu))
+    if (nrow(d) < 4 || stats::sd(Ca) == 0) next
+    ct <- suppressWarnings(stats::cor.test(ra, Ca,
                                            method = "spearman", exact = FALSE))
     det <- rbind(det, data.frame(j = j, n = nrow(d),
       rho = unname(ct$estimate), p = ct$p.value, stringsAsFactors = FALSE))
@@ -6914,7 +6935,8 @@ mw_test_homogeneite_accident <- function(aj) {
   g <- factor(res$i)
   if (nlevels(g) < 3 || nrow(res) < 6)
     return(list(stat = NA_real_, p = NA_real_, ddl = NA_integer_))
-  k <- try(stats::kruskal.test(res$residu, g), silent = TRUE)
+  # Residus aplatis a TOL_EX_AEQUO avant kruskal.test() (#152), plancher 1.
+  k <- try(stats::kruskal.test(engine_aplatir_ex_aequo(res$residu), g), silent = TRUE)
   if (inherits(k, "try-error")) return(list(stat = NA_real_, p = NA_real_, ddl = NA_integer_))
   list(stat = unname(k$statistic), p = .p_borne(k$p.value),
        ddl = unname(k$parameter))

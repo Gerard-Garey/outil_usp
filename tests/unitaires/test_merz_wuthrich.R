@@ -1130,4 +1130,145 @@ verifier("Reserve nulle (tous les f_j = 1, triangle totalement degenere) : seul 
              !any(grepl("Triangle totalement degenere", r$validation$erreurs, fixed = TRUE))
          })
 
+## --- Ex aequo des statistiques de rang de Merz-Wuthrich (issue #152) --------
+# Triangle construit : F(0,0) = 7373,22 / 5236,68 et F(1,0) = 1228,87 / 872,78
+# sont egaux en decimal (meme paire a -> b, k a -> k b) mais distincts en
+# flottant. Autres facteurs de la colonne 0 : 1,20, 1,30, 1,50, 1,55, 1,60 ;
+# colonnes suivantes : facteurs choisis ci-dessous (cadence decroissante,
+# distincts dans chaque colonne), cumuls arrondis au centime.
+tri152 <- local({
+  c0 <- c(5236.68, 872.78, 800, 1500, 2200, 950, 1800, 1200)
+  fac <- list(c(NA, NA, 1.20, 1.30, 1.50, 1.55, 1.60),  # j = 0 (lignes 2 a 6)
+              c(1.10, 1.12, 1.08, 1.15, 1.09, 1.11),    # j = 1
+              c(1.05, 1.04, 1.06, 1.03, 1.07),          # j = 2
+              c(1.02, 1.03, 1.01, 1.025),               # j = 3
+              c(1.010, 1.008, 1.012),                   # j = 4
+              c(1.005, 1.003),                          # j = 5
+              c(1.002))                                 # j = 6
+  t <- matrix(NA_real_, 8, 8); t[, 1] <- c0
+  t[1, 2] <- 7373.22; t[2, 2] <- 1228.87
+  for (i in 3:7) t[i, 2] <- round(c0[i] * fac[[1]][i], 2)
+  for (j in 2:7) for (i in 1:(8 - j)) t[i, j + 1] <- round(t[i, j] * fac[[j]][i], 2)
+  t
+})
+# Garde : la paire est bien distincte en flottant (sinon le cas ne teste rien).
+stopifnot(tri152[1, 2] / tri152[1, 1] != tri152[2, 2] / tri152[2, 1])
+aj152 <- mw_ajuster(tri152)
+# Les cinq statistiques concernees, par leurs fonctions du moteur.
+stats152 <- function(a) c(
+  Calendrier = mw_test_annees_calendaires(a)$stat,
+  CorrDev    = mw_stat_correlation_dev(a)$stat,
+  HomogF     = mw_test_homogeneite_f(a)$stat,
+  ExpVar     = mw_test_exposant_variance(a)$stat,
+  KruskalAcc = mw_test_homogeneite_accident(a)$stat)
+# Recomputation independante, sur des valeurs arrondies a 12 chiffres
+# significatifs (signif) au lieu de l'aplatissement du moteur. Seuls
+# .mack_moments_Z() (moments exacts de Z, hors objet du test) et
+# mw_residus() sont repris du moteur.
+recalc152 <- function(t) {
+  I <- nrow(t) - 1; J <- ncol(t) - 1
+  Fcol <- function(j) { i <- 0:(I - j - 1); signif(t[i + 1, j + 2] / t[i + 1, j + 1], 12) }
+  # Calendrier : etiquettes par la mediane de chaque colonne
+  et <- do.call(rbind, lapply(0:(J - 1), function(j) {
+    i <- 0:(I - j - 1); if (length(i) < 2) return(NULL)
+    F <- Fcol(j); md <- median(F)
+    data.frame(d = i + j, lab = ifelse(F > md, "L", ifelse(F < md, "S", "*")))
+  }))
+  et <- et[et$lab != "*", ]
+  A <- t(vapply(split(et$lab, et$d), function(v) {
+    L <- sum(v == "L"); S <- sum(v == "S"); m <- .mack_moments_Z(L + S)
+    c(min(L, S), m[["E"]], m[["V"]], L + S)
+  }, numeric(4)))
+  A <- A[A[, 4] >= 2, , drop = FALSE]
+  cal <- (sum(A[, 1]) - sum(A[, 2])) / sqrt(sum(A[, 3]))
+  # CorrDev : Spearman entre colonnes adjacentes, pondere par n - 1
+  cd <- do.call(rbind, lapply(1:(J - 1), function(k) {
+    i <- 0:(I - k - 1); if (length(i) < 3) return(NULL)
+    a <- signif(t[i + 1, k + 1] / t[i + 1, k], 12); b <- signif(t[i + 1, k + 2] / t[i + 1, k + 1], 12)
+    if (sd(a) == 0 || sd(b) == 0) return(NULL)
+    c(cor(rank(a), rank(b)), length(i) - 1)
+  }))
+  corr <- sum(cd[, 1] * cd[, 2]) / sum(cd[, 2])
+  # HomogF : Fisher sur les p-values de Spearman F ~ i
+  ph <- unlist(lapply(0:(J - 1), function(j) {
+    i <- 0:(I - j - 1); if (length(i) < 4) return(NULL)
+    suppressWarnings(cor.test(Fcol(j), i, method = "spearman", exact = FALSE)$p.value)
+  }))
+  # ExpVar et KruskalAcc : sur les residus de Mack (r et C arrondis)
+  res <- mw_residus(mw_ajuster(t))
+  pe <- unlist(lapply(unique(res$j), function(j) {
+    d <- res[res$j == j, ]; Cs <- signif(d$C, 12)
+    if (nrow(d) < 4 || sd(Cs) == 0) return(NULL)
+    suppressWarnings(cor.test(signif(abs(d$residu), 12), Cs,
+                              method = "spearman", exact = FALSE)$p.value)
+  }))
+  kw <- kruskal.test(signif(res$residu, 12), factor(res$i))$statistic
+  c(Calendrier = cal, CorrDev = corr, HomogF = -2 * sum(log(ph)),
+    ExpVar = -2 * sum(log(pe)), KruskalAcc = unname(kw))
+}
+verifier("Ex aequo F (#152) : rangs (3,5 ; 3,5) de la paire, moteur (aplatissement plancher 0) et recomputation signif(F, 12)",
+         {
+           F0 <- tri152[1:6, 2] / tri152[1:6, 1]
+           identical(rank(engine_aplatir_ex_aequo(F0, plancher = 0))[1:2], c(3.5, 3.5)) &&
+             identical(rank(signif(F0, 12))[1:2], c(3.5, 3.5))
+         })
+verifier("Ex aequo F (#152) : etiquette '*' pour F(0,0) et F(1,0), egaux a la mediane (calendrier)",
+         {
+           e <- mw_test_annees_calendaires(aj152)$etiquettes
+           identical(e$lab[e$j == 0 & e$i %in% 0:1], c("*", "*")) &&
+             sum(e$lab[e$j == 0] == "*") == 2L
+         })
+verifier("Ex aequo F (#152) : cinq statistiques = recomputation independante sur signif(., 12)",
+         proche(stats152(aj152), recalc152(tri152), rel = 1e-12))
+verifier("Ex aequo F (#152) : statistiques du catalogue (bootstrap) = statistiques de mw_tests()",
+         {
+           b <- mw_bootstrap(aj152, B = 19)
+           tt <- mw_tests(aj152, b)
+           f <- c(Calendrier = "mw_test_annees_calendaires", CorrDev = "mw_stat_correlation_dev",
+                  HomogF = "mw_test_homogeneite_f", ExpVar = "mw_test_exposant_variance",
+                  KruskalAcc = "mw_test_homogeneite_accident")
+           st_t <- vapply(f, function(fn)
+             Filter(function(l) identical(l$fonction, fn), tt)[[1]]$stat, numeric(1))
+           identical(unname(unlist(b$stats_obs[names(f)])), unname(st_t)) &&
+             identical(unname(st_t), unname(stats152(aj152)))
+         })
+# Le triangle construit ci-dessus n'a d'ex aequo ni en C, ni en |r|, ni en r :
+# il n'exerce pas l'aplatissement d'ExpVar et de KruskalAcc, que couvre le
+# triangle d'invariance ci-dessous.
+# Invariance : triangle_mw.csv avec C(4,1) = C(3,1) et C(4,2) = C(3,2), d'ou
+# F(4,1) = F(3,1), C(4,1) = C(3,1) et r(4,1) = r(3,1) exactement ; C(4,1)
+# multiplie par (1 + 4 eps) rend ces egalites seulement approchees.
+tri_mw <- local({
+  d <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
+  m <- as.matrix(d[, setdiff(names(d), "i")]); storage.mode(m) <- "double"; unname(m)
+})
+tri_eg <- tri_mw; tri_eg[5, 2] <- tri_eg[4, 2]; tri_eg[5, 3] <- tri_eg[4, 3]
+tri_pert <- tri_eg; tri_pert[5, 2] <- tri_eg[5, 2] * (1 + 4 * .Machine$double.eps)
+verifier("Ex aequo (#152) : C(4,1) x (1 + 4 eps) laisse les cinq statistiques identical()",
+         {
+           a_eg <- mw_ajuster(tri_eg); a_pe <- mw_ajuster(tri_pert)
+           r_eg <- mw_residus(a_eg); r_pe <- mw_residus(a_pe)
+           k <- function(r) which(r$j == 1 & r$i %in% 3:4)
+           # Garde : la perturbation rompt bien l'egalite flottante de C, F et r
+           tri_pert[5, 2] != tri_eg[5, 2] &&
+             tri_pert[5, 3] / tri_pert[5, 2] != tri_pert[4, 3] / tri_pert[4, 2] &&
+             r_pe$residu[k(r_pe)][1] != r_pe$residu[k(r_pe)][2] &&
+             r_eg$residu[k(r_eg)][1] == r_eg$residu[k(r_eg)][2] &&
+             identical(stats152(a_eg), stats152(a_pe))
+         })
+verifier("Ex aequo (#152) : triangle sans ex aequo (triangle_mw.csv), aplatissement sans effet",
+         {
+           a <- mw_ajuster(tri_mw); I <- a$I; J <- a$J; res <- mw_residus(a)
+           Fs <- lapply(0:(J - 1), function(j) {
+             i <- 0:(I - j - 1); tri_mw[i + 1, j + 2] / tri_mw[i + 1, j + 1] })
+           all(vapply(Fs, function(F) identical(engine_aplatir_ex_aequo(F, plancher = 0), F),
+                      logical(1))) &&
+             all(vapply(split(res, res$j), function(d)
+               identical(engine_aplatir_ex_aequo(d$C, plancher = 0), d$C) &&
+                 identical(engine_aplatir_ex_aequo(abs(d$residu)), abs(d$residu)),
+               logical(1))) &&
+             identical(engine_aplatir_ex_aequo(res$residu), res$residu) &&
+             all(is.finite(stats152(a)))
+         })
+
 fin_fichier()
