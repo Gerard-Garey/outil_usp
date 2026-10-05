@@ -1426,11 +1426,6 @@ verifier("Controles qualite : jeu de test inchange (details identiques, sans men
 # le T de l'estimation (I + 1 en reserve no 2), jamais le nombre d'annees
 # fournies. Les reperes statistiques (T < 10, I + 1 < 10) sont inchanges.
 xc <- 100 * 1.03^(1:20); yc <- 0.7 * xc * (1 + 0.05 * sin(1:20))
-# Un test plus haut affecte une variable c dans l'environnement du fichier ;
-# lance seul par Rscript, cet environnement est l'environnement global, ou
-# le moteur est charge, et do.call(c, vals) de .mc_evaluer() y trouvait cette
-# variable au lieu de base::c (defaut de calcul intercepte, mesure).
-if (exists("c", inherits = FALSE)) rm(c)
 ligne_cred <- function(r) Filter(function(l) l$test == "Credibilite pleine atteinte", r)[[1]]
 verifier("Credibilite pleine : verdict OK ssi usp_credibilite(T, bareme du segment) == 1, 16 segments, T = 5..20 (#131)",
          all(vapply(seq_len(nrow(SEGMENTS)), function(k) {
