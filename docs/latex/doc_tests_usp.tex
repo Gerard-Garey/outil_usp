@@ -3220,7 +3220,18 @@ Diagnostic \\
   \item \emph{Non applicabilité}~: à volumes constants (section~\ref{sec:volumes-constants}),
   $S_{xx} = 0$ et le modèle auxiliaire n'est pas défini~; les lignes du tableau figurent parmi les
   lignes alors restituées «~non applicable~». Hors de la bande de tolérance, si \code{lm()} écarte
-  $x_t$ pour colinéarité, la ligne rend \code{NA} au lieu d'une erreur R et sort non applicable.
+  $x_t$ pour colinéarité (garde-fou~R12), la ligne rend \code{NA} au lieu d'une erreur R et sort non
+  applicable, avec un motif nommé qui forme seul son commentaire (issue~\#168, avis
+  d'\code{actuary})~: «~\code{regression de y sur x : x ecarte par lm() pour colinearite, test non
+  applicable}~» pour la constante, le TOST, la pente et Fisher, «~\code{x ecarte par lm() pour
+  colinearite : R2 non defini}~» pour $R^2$. \code{test\_intercept()} et
+  \code{test\_lm\_complet()} signalent cette branche par leur champ \code{x\_ecarte}~; jusqu'à
+  l'issue~\#168, la constante, la pente et Fisher sortaient non applicables avec leur commentaire
+  ordinaire, sans motif. Le motif des volumes constants (règle~R13) prime. Mesuré sur le jeu de
+  contrôle, \code{summary()} remplacée dans l'environnement du moteur par une version qui retire la
+  ligne de $x_t$ des coefficients de \code{lm(y \textasciitilde\ x)}~: la constante, le TOST, la
+  pente, Fisher et $R^2$, et eux seuls, diffèrent du calcul ordinaire, tous non applicables avec
+  ces motifs.
   \item \emph{Condition de conclusion du TOST}~: conclure exige
   $\widehat{\mathrm{se}}(\hat a) < \Delta/t_{1-\alpha,\,T-2}$~; le levier de l'origine
   $\bar x^{\,2}/S_{xx}$ peut rendre la conclusion inaccessible (fiche~\ref{fiche:tost-constante},
@@ -5098,7 +5109,10 @@ Régression auxiliaire $y_t = a + b x_t + \varepsilon_t$ (section~\ref{sec:model
 $\varepsilon_t$ sont indépendants, de variance constante $\sigma_\varepsilon^2$, de loi
 $\mathcal{N}(0,\sigma_\varepsilon^2)$, et les $x_t$ sont exogènes et non aléatoires. Nécessite
 $T \ge 3$ et $S_{xx} > 0$. À volumes constants au sens de \code{usp\_volumes\_constants()}, la ligne est non applicable
-(section~\ref{sec:volumes-constants}).
+(section~\ref{sec:volumes-constants}). Hors de la bande de tolérance, si \code{lm()} écarte malgré tout $x_t$ pour colinéarité
+(garde-fou~R12, section~\ref{sec:modele-auxiliaire}), elle l'est aussi, avec le motif
+«~\code{regression de y sur x : x ecarte par lm() pour colinearite, test non applicable}~»
+(issue~\#168).
 \Hzero
 $H_0 : a = 0$, absence de composante de sinistralité indépendante du volume. C'est la traduction
 testable de la \emph{proportionnalité stricte} exigée par le règlement.
@@ -5140,7 +5154,7 @@ renverse cette charge de la preuve.
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes, sauf à volumes constants, où elle est non applicable (section~\ref{sec:volumes-constants}). La p-value de Student, exacte sous le seul modèle auxiliaire MCO, est restituée sans être retenue. Puissance non étudiée à $T = 8$. Niveau de la p-value de Monte-Carlo sous le modèle ajusté (issue~\#166, $R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc})~: J1, $0{,}106$ à $\alpha = 0{,}10$ et $0{,}059$ à $0{,}05$~; J2, $0{,}100$ et $0{,}0595$~; compatible aux deux seuils sur les deux jeux.
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes, sauf à volumes constants, où elle est non applicable (section~\ref{sec:volumes-constants}). Sous le garde-fou~R12, elle est non applicable de même (section~\ref{sec:modele-auxiliaire}, issue~\#168). La p-value de Student, exacte sous le seul modèle auxiliaire MCO, est restituée sans être retenue. Puissance non étudiée à $T = 8$. Niveau de la p-value de Monte-Carlo sous le modèle ajusté (issue~\#166, $R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc})~: J1, $0{,}106$ à $\alpha = 0{,}10$ et $0{,}059$ à $0{,}05$~; J2, $0{,}100$ et $0{,}0595$~; compatible aux deux seuils sur les deux jeux.
 
 \textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance. Niveau~: constat de simulation sous le modèle ajusté à J1 et à J2 (section~\ref{sec:calibration-mc}), incertitude de Clopper--Pearson liée à $R$, intervalles dans les fichiers de résultats.
 \end{fiche}
@@ -5207,22 +5221,28 @@ donc retenue, sous une nature qui dit sous quel modèle et à quelle condition e
 donnees} (colonne \code{p\_asymptotique}). Ni l'une ni l'autre n'est exacte au sens de l'ADR~0002~;
 jusqu'à l'issue~\#44, le moteur nommait la seconde \emph{quasi-exacte}, catégorie supprimée. Pour
 un dossier ACPR, il est recommandé d'arrêter $\Delta$ à l'avance et de le documenter.
-Trois cas sont restitués «~non applicable~», sans p-value retenue et en \code{INFO}
+Quatre cas sont restitués «~non applicable~», sans p-value retenue et en \code{INFO}
 (issue~\#58)~: les volumes constants, au sens du critère unique
 \code{usp\_volumes\_constants()} (étendue relative des $x_t$ au plus \code{TOL\_DELTA\_BORD},
 issue~\#59, section~\ref{sec:volumes-constants}), où la régression auxiliaire n'est pas définie
 ou porte sur le bruit d'arrondi~; une marge
 invalide (sans \code{delta\_equiv}~: \code{theta\_equiv} non fini ou $\theta \le 0$~; avec
 \code{delta\_equiv}~: $\Delta$ non finie ou non strictement positive, $\theta$ étant alors
-ignoré)~; et, depuis l'issue~\#153, une statistique non définie (motif interne
+ignoré)~; hors de la bande de tolérance, la colinéarité numérique qui fait écarter $x_t$ par
+\code{lm()} (garde-fou~R12, section~\ref{sec:modele-auxiliaire}~; motif interne
+\code{"x ecarte"}, distinct de \code{"volumes constants"} depuis l'issue~\#168, commentaire
+«~\code{regression de y sur x : x ecarte par lm() pour colinearite, test non applicable}~»,
+commun aux lignes de la constante, de la pente et de Fisher)~; et, depuis l'issue~\#153, une
+statistique non définie (motif interne
 \code{"statistique non definie"} de \code{test\_tost\_intercept()})~: $p_{\text{bas}}$ ou
 $p_{\text{haut}}$ n'est pas fini, ce qui, $F_{t,T-2}(\pm\infty)$ étant fini, n'arrive que si
 $t_{\text{bas}}$ ou $t_{\text{haut}}$ vaut \code{NaN}, c'est-à-dire si $\hat a$ ou
 $\widehat{\mathrm{se}}(\hat a)$ n'est pas calculable~; le commentaire est alors
 «~\code{statistique t non definie (constante ou erreur-type de la regression de y sur x non
 calculable) : test non applicable}~», au lieu de l'erreur R que levait la comparaison de
-$p_{\text{bas}}$ et $p_{\text{haut}}$. Les volumes constants priment sur les autres motifs, et le
-commentaire de la ligne nomme le motif. Depuis l'issue~\#33, la garde « marge » de
+$p_{\text{bas}}$ et $p_{\text{haut}}$. Les motifs sont examinés dans cet ordre --- volumes
+constants, marge, $x_t$ écarté, statistique non définie ---, les volumes constants primant donc sur
+les autres, et le commentaire de la ligne se réduit au motif. Depuis l'issue~\#33, la garde « marge » de
 \code{test\_tost\_intercept()} est inatteignable depuis \code{run\_engine()}, dont la validation
 refuse en amont toute marge hors domaine~; elle ne sert plus qu'à un appel direct de la fonction.
 Il en va de même de la garde «~statistique non définie~», qui vise des entrées sous-normales
@@ -5261,7 +5281,7 @@ $\Delta > 0$ strictement positive est ce qui rend le problème bien posé.
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes, sauf à volumes constants, où elle est non applicable (section~\ref{sec:volumes-constants}). \emph{Probabilité de conclure à l'équivalence sous le modèle ajusté} (constat~C3, protocole au tableau~\ref{tab:tracabilite-puissance}~; 20\,000 jeux simulés par jeu observé, constante $a = 0$ vraie, marge $\Delta = 0{,}10\,\bar y$ recalculée sur chaque jeu)~: sur le jeu de contrôle, $0{,}0~\%$ $[0{,}0~;~0{,}02]$ au seuil de 10~\% comme à 5~\% --- sur le jeu observé, $\bar x^{\,2}/S_{xx} = 15{,}1$ et $\widehat{\mathrm{se}}(\hat a)/\Delta = 6{,}8$, quand la condition nécessaire de la rubrique~6 exige moins de $1/t_{0{,}90,\,6} = 0{,}69$ ---~; sur le jeu à $\hat\delta$ intérieur, $21{,}1~\%$ $[20{,}6~;~21{,}7]$ au seuil de 10~\% et $9{,}1~\%$ $[8{,}7~;~9{,}5]$ à 5~\% ($\bar x^{\,2}/S_{xx} = 0{,}35$~; le jeu observé lui-même ne remplit pas la condition nécessaire au seuil de 10~\%, avec $\widehat{\mathrm{se}}(\hat a)/\Delta = 0{,}75$). Ces taux valent pour ces plans de volumes et ne se transposent pas à d'autres données.
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes, sauf à volumes constants, où elle est non applicable (section~\ref{sec:volumes-constants}). Sous le garde-fou~R12, elle est non applicable de même (section~\ref{sec:modele-auxiliaire}, issue~\#168). \emph{Probabilité de conclure à l'équivalence sous le modèle ajusté} (constat~C3, protocole au tableau~\ref{tab:tracabilite-puissance}~; 20\,000 jeux simulés par jeu observé, constante $a = 0$ vraie, marge $\Delta = 0{,}10\,\bar y$ recalculée sur chaque jeu)~: sur le jeu de contrôle, $0{,}0~\%$ $[0{,}0~;~0{,}02]$ au seuil de 10~\% comme à 5~\% --- sur le jeu observé, $\bar x^{\,2}/S_{xx} = 15{,}1$ et $\widehat{\mathrm{se}}(\hat a)/\Delta = 6{,}8$, quand la condition nécessaire de la rubrique~6 exige moins de $1/t_{0{,}90,\,6} = 0{,}69$ ---~; sur le jeu à $\hat\delta$ intérieur, $21{,}1~\%$ $[20{,}6~;~21{,}7]$ au seuil de 10~\% et $9{,}1~\%$ $[8{,}7~;~9{,}5]$ à 5~\% ($\bar x^{\,2}/S_{xx} = 0{,}35$~; le jeu observé lui-même ne remplit pas la condition nécessaire au seuil de 10~\%, avec $\widehat{\mathrm{se}}(\hat a)/\Delta = 0{,}75$). Ces taux valent pour ces plans de volumes et ne se transposent pas à d'autres données.
 
 \textbf{Statut des valeurs.} Probabilités de conclure~: constat de simulation sous le modèle réglementaire ajusté (constante nulle vraie), intervalles de Clopper--Pearson à 95~\%, incertitude de simulation muette sur l'erreur en $T$~; $\bar x^{\,2}/S_{xx}$, $\widehat{\mathrm{se}}(\hat a)/\Delta$ et $1/t_{0{,}90,\,6}$~: valeurs déterministes du jeu observé.
 \end{fiche}
@@ -5294,7 +5314,10 @@ sans être une p-value asymptotique. \textbf{Règle~R4}~: si la puissance approc
 $\hat\pi_b$ du test sous le modèle ajusté est inférieure à $1/2$ (section~\ref{sec:t8}), la ligne
 est restituée en diagnostic, sans verdict ni p-value retenue, et son commentaire donne
 $\hat\pi_b$ et l'indice $\hat\lambda$~; à volumes constants, elle est non applicable
-(section~\ref{sec:volumes-constants}).
+(section~\ref{sec:volumes-constants}), et, sous le garde-fou~R12 (\code{lm()} écartant $x_t$ hors
+de la bande de tolérance), non applicable avec le motif «~\code{regression de y sur x : x ecarte
+par lm() pour colinearite, test non applicable}~», qui forme seul son commentaire (issue~\#168,
+section~\ref{sec:modele-auxiliaire}).
 \Usage
 \textbf{Ce test s'interprète en sens inverse des autres tests de cette section}~: on souhaite ici
 \emph{rejeter} $H_0$. Une pente non significative signifierait que le volume n'explique pas les
@@ -5321,7 +5344,7 @@ ni l'autre ne se transpose à d'autres volumes.
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Le type de la ligne dépend de la puissance approchée $\hat\pi_b$ de la règle~R4 (\code{usp\_identifiabilite\_pente()}, section~\ref{sec:t8})~: test si $\hat\pi_b \ge 1/2$, diagnostic sinon~; non applicable à volumes constants (section~\ref{sec:volumes-constants}). Jeu de contrôle~: $\hat\lambda = 1{,}78$, $\hat\pi_b = 0{,}47$, diagnostic~; jeu à $\hat\delta$ intérieur de la section~\ref{sec:verif}~: $\hat\lambda = 17{,}28$, $\hat\pi_b = 1{,}00$, test. Fréquence de la restitution en diagnostic sous le modèle ajusté, sur 2\,000 jeux simulés (section~\ref{sec:taux-reperes})~: $38{,}0~\%$ $[35{,}8~;~40{,}1]$ sur le jeu de contrôle, $0{,}0~\%$ $[0{,}0~;~0{,}2]$ sur le jeu à $\hat\delta$ intérieur. $\hat\pi_b$ est la seule puissance que le moteur calcule~; elle vaut sous le modèle ajusté, aux volumes observés, et ne se transpose pas à d'autres volumes.
+\textbf{Pertinence à $T = 8$.} Le type de la ligne dépend de la puissance approchée $\hat\pi_b$ de la règle~R4 (\code{usp\_identifiabilite\_pente()}, section~\ref{sec:t8})~: test si $\hat\pi_b \ge 1/2$, diagnostic sinon~; non applicable à volumes constants (section~\ref{sec:volumes-constants}) et sous le garde-fou~R12 (section~\ref{sec:modele-auxiliaire}, issue~\#168). Jeu de contrôle~: $\hat\lambda = 1{,}78$, $\hat\pi_b = 0{,}47$, diagnostic~; jeu à $\hat\delta$ intérieur de la section~\ref{sec:verif}~: $\hat\lambda = 17{,}28$, $\hat\pi_b = 1{,}00$, test. Fréquence de la restitution en diagnostic sous le modèle ajusté, sur 2\,000 jeux simulés (section~\ref{sec:taux-reperes})~: $38{,}0~\%$ $[35{,}8~;~40{,}1]$ sur le jeu de contrôle, $0{,}0~\%$ $[0{,}0~;~0{,}2]$ sur le jeu à $\hat\delta$ intérieur. $\hat\pi_b$ est la seule puissance que le moteur calcule~; elle vaut sous le modèle ajusté, aux volumes observés, et ne se transpose pas à d'autres volumes.
 
 \textbf{Statut des valeurs.} $\hat\lambda$ et $\hat\pi_b$~: approximation analytique au premier ordre (loi de Student décentrée), calcul déterministe~; fréquences~: constat de simulation sous le modèle ajusté, intervalles de Clopper--Pearson à $95~\%$.
 \end{fiche}
@@ -5334,7 +5357,10 @@ ni l'autre ne se transpose à d'autres volumes.
 \Cadre
 Identique aux deux fiches précédentes (section~\ref{sec:modele-auxiliaire}). On note $k$ le nombre de régresseurs hors constante
 (ici $k=1$). À volumes constants au sens de \code{usp\_volumes\_constants()}, la ligne est non applicable
-(section~\ref{sec:volumes-constants}).
+(section~\ref{sec:volumes-constants}). Hors de la bande de tolérance, si \code{lm()} écarte malgré tout $x_t$ pour colinéarité
+(garde-fou~R12, section~\ref{sec:modele-auxiliaire}), elle l'est aussi, avec le motif
+«~\code{regression de y sur x : x ecarte par lm() pour colinearite, test non applicable}~»
+(issue~\#168).
 \Hzero
 $H_0 : b = 0$ (plus généralement, nullité conjointe de tous les coefficients de pente).
 \Stat
@@ -5362,7 +5388,7 @@ régresseurs (indicatrices d'année, variable d'inflation). Même limite de puis
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Mêmes règle et valeurs que la pente ($F = t_b^2$), la pente et Fisher changeant de type ensemble. Le type de la ligne dépend de la puissance approchée $\hat\pi_b$ de la règle~R4 (\code{usp\_identifiabilite\_pente()}, section~\ref{sec:t8})~: test si $\hat\pi_b \ge 1/2$, diagnostic sinon~; non applicable à volumes constants (section~\ref{sec:volumes-constants}). Jeu de contrôle~: $\hat\lambda = 1{,}78$, $\hat\pi_b = 0{,}47$, diagnostic~; jeu à $\hat\delta$ intérieur de la section~\ref{sec:verif}~: $\hat\lambda = 17{,}28$, $\hat\pi_b = 1{,}00$, test. Fréquence de la restitution en diagnostic sous le modèle ajusté, sur 2\,000 jeux simulés (section~\ref{sec:taux-reperes})~: $38{,}0~\%$ $[35{,}8~;~40{,}1]$ sur le jeu de contrôle, $0{,}0~\%$ $[0{,}0~;~0{,}2]$ sur le jeu à $\hat\delta$ intérieur. $\hat\pi_b$ est la seule puissance que le moteur calcule~; elle vaut sous le modèle ajusté, aux volumes observés, et ne se transpose pas à d'autres volumes.
+\textbf{Pertinence à $T = 8$.} Mêmes règle et valeurs que la pente ($F = t_b^2$), la pente et Fisher changeant de type ensemble. Le type de la ligne dépend de la puissance approchée $\hat\pi_b$ de la règle~R4 (\code{usp\_identifiabilite\_pente()}, section~\ref{sec:t8})~: test si $\hat\pi_b \ge 1/2$, diagnostic sinon~; non applicable à volumes constants (section~\ref{sec:volumes-constants}) et sous le garde-fou~R12 (section~\ref{sec:modele-auxiliaire}, issue~\#168). Jeu de contrôle~: $\hat\lambda = 1{,}78$, $\hat\pi_b = 0{,}47$, diagnostic~; jeu à $\hat\delta$ intérieur de la section~\ref{sec:verif}~: $\hat\lambda = 17{,}28$, $\hat\pi_b = 1{,}00$, test. Fréquence de la restitution en diagnostic sous le modèle ajusté, sur 2\,000 jeux simulés (section~\ref{sec:taux-reperes})~: $38{,}0~\%$ $[35{,}8~;~40{,}1]$ sur le jeu de contrôle, $0{,}0~\%$ $[0{,}0~;~0{,}2]$ sur le jeu à $\hat\delta$ intérieur. $\hat\pi_b$ est la seule puissance que le moteur calcule~; elle vaut sous le modèle ajusté, aux volumes observés, et ne se transpose pas à d'autres volumes.
 
 \textbf{Statut des valeurs.} $\hat\lambda$ et $\hat\pi_b$~: approximation analytique au premier ordre (loi de Student décentrée), calcul déterministe~; fréquences~: constat de simulation sous le modèle ajusté, intervalles de Clopper--Pearson à $95~\%$.
 \end{fiche}
@@ -5375,7 +5401,9 @@ Society A}, 121, 1928, p.~654--673.}
 \Cadre
 Même régression auxiliaire (section~\ref{sec:modele-auxiliaire}). \textbf{Il ne s'agit pas d'un test} mais d'un diagnostic descriptif ;
 les rubriques sont renseignées par cohérence de présentation. À volumes constants au sens de \code{usp\_volumes\_constants()}, la ligne est non applicable
-(section~\ref{sec:volumes-constants}).
+(section~\ref{sec:volumes-constants}). Hors de la bande de tolérance, si \code{lm()} écarte malgré tout $x_t$
+pour colinéarité (garde-fou~R12, section~\ref{sec:modele-auxiliaire}), elle l'est aussi, avec le
+motif «~\code{x ecarte par lm() pour colinearite : R2 non defini}~».
 \Hzero
 Aucune en tant que diagnostic. Si l'on souhaite néanmoins tester $R^2$, l'hypothèse pertinente est
 celle du test de Fisher ci-dessus, $H_0 : b = 0$.
@@ -11948,9 +11976,11 @@ et ces lignes sont non applicables avec ce motif, auxquelles s'ajoute, à $T = 8
 d'Anscombe--Glynn, non définie en deçà de $T = 20$. Ces lignes ne sont pas des tests
 \emph{inopérants} au sens de \code{CONTEXT.md}~: l'inopérance tient à la loi de référence, qui ne
 peut produire une p-value inférieure à $\alpha$~; ici, c'est la statistique elle-même qui est sans
-objet. Hors de la bande de tolérance, un garde-fou rend \code{NA} si \code{lm()} écarte malgré tout
+objet. Hors de la bande de tolérance, un garde-fou (règle~R12) rend \code{NA} si \code{lm()} écarte malgré tout
 le coefficient du volume pour colinéarité (régressions de $y_t$ sur $x_t$ de la constante, du
-TOST, de la pente, de Fisher, du $R^2$ et de RESET, section~\ref{sec:modele-auxiliaire}~; régressions auxiliaires de Breusch--Pagan).
+TOST, de la pente, de Fisher, du $R^2$ et de RESET, section~\ref{sec:modele-auxiliaire}~; régressions auxiliaires de Breusch--Pagan)~;
+pour les cinq premières, la ligne est non applicable avec un motif propre, distinct de celui des
+volumes constants, qui forme seul son commentaire (issue~\#168, section~\ref{sec:modele-auxiliaire}).
 RESET et White ont, depuis l'issue~\#110, leurs propres gardes (fiches~\ref{fiche:reset}
 et~\ref{fiche:white})~: régression sur une base réduite, qui supprime la perte numérique d'un
 régresseur hors de la bande, puis ligne non applicable, avec son motif, à moins de trois volumes
