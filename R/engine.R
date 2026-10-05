@@ -2426,15 +2426,18 @@ test_lm_complet <- function(x, y) {
   # renvoie des NA plutot que de laisser une erreur d'indexation remonter.
   # Garde-fou (regle R12) : si lm() ecarte malgre tout x pour colinearite
   # (ligne "x" absente de la matrice des coefficients), meme branche NA.
-  na_lm <- function()
+  # x_ecarte (#168) : TRUE sur cette seule branche du garde-fou, FALSE a
+  # volumes constants et sur la branche calculee ; usp_tests() y lit le
+  # motif du detail des lignes pente et Fisher.
+  na_lm <- function(x_ecarte)
     list(pente = NA_real_, t_pente = NA_real_, p_pente = NA_real_,
          F = NA_real_, ddl1 = NA_integer_, ddl2 = NA_integer_,
          p_F = NA_real_, R2 = NA_real_, R2_ajuste = NA_real_,
-         modele = stats::lm(y ~ 1))
-  if (usp_volumes_constants(x)) return(na_lm())
+         modele = stats::lm(y ~ 1), x_ecarte = x_ecarte)
+  if (usp_volumes_constants(x)) return(na_lm(FALSE))
   m <- stats::lm(y ~ x)
   s <- summary(m)
-  if (!"x" %in% rownames(s$coefficients)) return(na_lm())
+  if (!"x" %in% rownames(s$coefficients)) return(na_lm(TRUE))
   list(
     pente        = s$coefficients["x", "Estimate"],
     t_pente      = s$coefficients["x", "t value"],
@@ -2448,7 +2451,8 @@ test_lm_complet <- function(x, y) {
                              lower.tail = FALSE)),
     R2           = s$r.squared,
     R2_ajuste    = s$adj.r.squared,
-    modele       = m
+    modele       = m,
+    x_ecarte     = FALSE
   )
 }
 
@@ -2573,7 +2577,10 @@ test_reset <- function(x, y) {
 # regression, et le garder donne aux deux branches les memes noms de champs.
 # theta = Inf donnait Delta = Inf, p = 0 et un verdict OK "preuve positive" :
 # il est traite en marge invalide. Troisieme motif, "statistique non definie"
-# (#153) : t_bas ou t_haut vaut NaN (voir la garde ci-dessous).
+# (#153) : t_bas ou t_haut vaut NaN (voir la garde ci-dessous). Quatrieme
+# motif, "x ecarte" (#168) : hors volumes constants, lm() a ecarte x pour
+# colinearite (garde-fou R12) ; il etait auparavant confondu avec "volumes
+# constants".
 test_tost_intercept <- function(x, y, theta = 0.10, delta_abs = NULL) {
   # Volumes constants : critere unique usp_volumes_constants() (issue #59).
   motif <- if (usp_volumes_constants(x)) "volumes constants"
@@ -2589,7 +2596,7 @@ test_tost_intercept <- function(x, y, theta = 0.10, delta_abs = NULL) {
   m <- summary(stats::lm(y ~ x))
   # Garde-fou (regle R12, #59) : si lm() a ecarte x, coefficients[1, ] serait
   # la moyenne de y du modele y ~ 1 ; aucune p-value n'est calculee.
-  if (!"x" %in% rownames(m$coefficients)) return(non_applicable("volumes constants"))
+  if (!"x" %in% rownames(m$coefficients)) return(non_applicable("x ecarte"))
   a  <- m$coefficients[1, 1]; se <- m$coefficients[1, 2]
   ddl <- length(x) - 2
   marge_a_priori <- !is.null(delta_abs)
@@ -2621,12 +2628,14 @@ test_tost_intercept <- function(x, y, theta = 0.10, delta_abs = NULL) {
 test_intercept <- function(x, y) {
   # Volumes constants (usp_volumes_constants(), #59) ; garde-fou R12 : x
   # ecarte par lm() -> NA, jamais le t de la moyenne du modele y ~ 1.
+  # x_ecarte (#168) : TRUE sur la seule branche du garde-fou R12 ; usp_tests()
+  # y lit le motif du detail de la ligne constante.
   if (usp_volumes_constants(x))
-    return(list(stat = NA_real_, p = NA_real_))
+    return(list(stat = NA_real_, p = NA_real_, x_ecarte = FALSE))
   m <- summary(stats::lm(y ~ x))
   if (!"x" %in% rownames(m$coefficients))
-    return(list(stat = NA_real_, p = NA_real_))
-  list(stat = m$coefficients[1, 3], p = .p_borne(m$coefficients[1, 4]))
+    return(list(stat = NA_real_, p = NA_real_, x_ecarte = TRUE))
+  list(stat = m$coefficients[1, 3], p = .p_borne(m$coefficients[1, 4]), x_ecarte = FALSE)
 }
 
 # --- Ruptures et points influents --------------------------------------------
@@ -3735,6 +3744,15 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                          TOL_DELTA_BORD, diff(range(x)) / mean(x))
   si_vol_cst <- function(type) if (vol_cst) "non applicable" else type
   detail_vol <- function(detail) if (vol_cst) txt_vol_cst else detail
+  # Regle R12 (garde-fou, #168) : hors volumes constants, lm(y ~ x) peut
+  # encore ecarter x pour colinearite numerique. Motif commun des lignes
+  # constante, TOST, pente, Fisher (txt_r12_test) et R2 ; la priorite reste
+  # au motif R13. detail_r12() rend txt_r12_test si la fonction de la ligne
+  # signale le garde-fou (champ x_ecarte), detail_vol(detail) sinon.
+  txt_r12 <- "x ecarte par lm() pour colinearite"
+  txt_r12_test <- paste0("regression de y sur x : ", txt_r12, ", test non applicable")
+  detail_r12 <- function(x_ecarte, detail)
+    if (!vol_cst && isTRUE(x_ecarte)) txt_r12_test else detail_vol(detail)
   # Ecart a la constance exacte de pi_t dans la bande de tolerance ; chaine
   # vide hors de la bande. 1 - delta est affiche plutot que delta : "%g"
   # rendrait 1 - 5e-7 par "1".
@@ -3818,7 +3836,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       # vaut que sous le modele auxiliaire MCO (#44, reprise, constat 2).
       repli_asymptotique = FALSE,
       libelle_p_as = "p de Student sous le modele auxiliaire MCO",
-      detail = detail_vol(paste("Le NON-rejet ne prouve pas la proportionnalite :",
+      detail = detail_r12(ti$x_ecarte,
+                          paste("Le NON-rejet ne prouve pas la proportionnalite :",
                                 "voir le test d'equivalence ci-dessous.")))
   tost <- test_tost_intercept(x, y, theta = theta_equiv, delta_abs = delta_equiv)
   add(fam, "Equivalence de la constante a zero (TOST)",
@@ -3843,11 +3862,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       sens = "rejeter",
       # Issue #58 : un detail de longueur 1 sur chaque branche.
       detail = switch(if (is.na(tost$non_applicable)) "calcule" else tost$non_applicable,
-        # Motif unique de la regle R13 (#59) ; hors volumes constants, le
-        # motif ne peut venir que du garde-fou R12 (x ecarte par lm()).
-        "volumes constants" = if (vol_cst) txt_vol_cst
-        else paste("regression de y sur x : x ecarte par lm() pour colinearite,",
-                   "test non applicable"),
+        # Motif unique de la regle R13 (#59) ; garde-fou R12 (x ecarte par
+        # lm(), hors volumes constants) : motif distinct depuis #168.
+        "volumes constants" = txt_vol_cst,
+        "x ecarte" = txt_r12_test,
         "marge" = paste("marge Delta invalide (sans delta_equiv : theta_equiv non",
                         "fini ou <= 0 ; ou delta_equiv non fini ou <= 0) : test",
                         "non applicable"),
@@ -3902,7 +3920,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                           "normales homoscedastiques)"), T - 2),
       estim_nom = "pente b", estim = lmc$pente,
       p_as = lmc$p_pente, sens = "rejeter", nature_forcee = nat_mco,
-      detail = detail_vol(trimws(paste("Ici on souhaite REJETER H0.", txt_ident))))
+      detail = detail_r12(lmc$x_ecarte, trimws(paste("Ici on souhaite REJETER H0.", txt_ident))))
   add(fam, "Test de Fisher (significativite globale)", "Fisher (1922, 1925)",
       fonction = "test_lm_complet",
       type = type_pente(lmc$F),
@@ -3912,7 +3930,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         sprintf("F(%d,%d) exacte sous le modele auxiliaire MCO", lmc$ddl1, lmc$ddl2)
       else NA_character_,
       p_as = lmc$p_F, sens = "rejeter", nature_forcee = nat_mco_F,
-      detail = detail_vol(trimws(paste("Equivaut a t^2 en regression simple.", txt_ident))))
+      detail = detail_r12(lmc$x_ecarte, trimws(paste("Equivaut a t^2 en regression simple.", txt_ident))))
   add(fam, "Coefficient de determination R2", "lm(y ~ x)",
       fonction = "test_lm_complet",
       type = if (is.finite(lmc$R2)) "diagnostic" else "non applicable",
@@ -3921,7 +3939,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         sprintf("R2 ajuste = %.4f ; sous H0 (b=0) E[R2] = 1/(T-1) = %.3f ; repere conventionnel R2 < 0.5 : %s. Diagnostic, pas un test",
                 lmc$R2_ajuste, 1 / (T - 1),
                 if (lmc$R2 < 0.5) "en dessous" else "au-dessus")
-      else detail_vol("x ecarte par lm() pour colinearite : R2 non defini"))
+      else detail_vol(paste(txt_r12, ": R2 non defini")))
   # Issue #110 : branche non applicable sur le modele de la ligne TOST ;
   # priorite volumes constants (R13, txt_vol_cst) > moins de trois volumes
   # distincts > rang deficient (motif rendu par test_reset()).

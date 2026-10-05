@@ -432,7 +432,7 @@ cook_x_ecarte153 <- function(x, y) {
 # memes donnees par les memes conditions, dans le meme ordre de priorite :
 # (1) "volumes constants" si usp_volumes_constants(x) ; (2) "marge" si la
 # marge est invalide (theta non fini ou <= 0 sans delta_abs ; delta_abs non
-# fini ou <= 0) ; (3) "volumes constants" si lm() a ecarte x (garde-fou R12 :
+# fini ou <= 0) ; (3) "x ecarte" (#168) si lm() a ecarte x (garde-fou R12 :
 # "x" absent de rownames(summary(stats::lm(y ~ x))$coefficients)) ; (4)
 # "statistique non definie" si et seulement si p_bas ou p_haut, recalculees
 # ici par les formules de test_tost_intercept() (a, se, Delta = theta *
@@ -450,7 +450,7 @@ tost_motif_attendu153 <- function(x, y, theta = 0.10, delta_abs = NULL) {
       (!is.null(delta_abs) && (!is.finite(delta_abs) || delta_abs <= 0))) return("marge")
   resume <- get("summary", envir = environment(run_engine))
   m <- resume(stats::lm(y ~ x))
-  if (!"x" %in% rownames(m$coefficients)) return("volumes constants")
+  if (!"x" %in% rownames(m$coefficients)) return("x ecarte")
   a <- m$coefficients[1, 1]; se <- m$coefficients[1, 2]
   ddl <- length(x) - 2
   Delta <- if (is.null(delta_abs)) theta * mean(y) else delta_abs
@@ -464,16 +464,16 @@ tost_coherent153 <- function(r, ref, x, y) !inherits(r, "error") && identical(na
    else identical(r$p, NA_real_) && identical(r$stat, NA_real_))
 # Ligne TOST de usp_tests(), en regard de test_tost_intercept() sur les memes
 # donnees (x, y = fit$x, fit$y) : detail du motif, lu dans usp_tests()
-# ("volumes constants" : texte de la regle R13 si usp_volumes_constants(x),
-# texte du garde-fou R12 sinon) ; ligne "test" a p retenue finie si calculee.
+# ("volumes constants" : texte de la regle R13 ; "x ecarte" : texte du
+# garde-fou R12, #168) ; ligne "test" a p retenue finie si calculee.
 ligne_tost_coherente153 <- function(lt, r, x) {
   m <- r$non_applicable
   if (is.na(m)) return(identical(lt$type, "test") && is.finite(lt$p_retenue) &&
                          startsWith(lt$detail, "Rejeter H0 fournit une preuve POSITIVE"))
   attendu <- switch(m,
-    "volumes constants" = if (usp_volumes_constants(x)) NA_character_
-      else paste("regression de y sur x : x ecarte par lm() pour colinearite,",
-                 "test non applicable"),
+    "volumes constants" = NA_character_,
+    "x ecarte" = paste("regression de y sur x : x ecarte par lm() pour colinearite,",
+                       "test non applicable"),
     "marge" = paste("marge Delta invalide (sans delta_equiv : theta_equiv non",
                     "fini ou <= 0 ; ou delta_equiv non fini ou <= 0) : test",
                     "non applicable"),
@@ -544,7 +544,7 @@ verifier("test_tost_intercept() et usp_tests(), constante et erreur-type NaN (in
 # Branche R12 des fonctions de coherence (x ecarte par lm(), issue possible
 # sur une autre plateforme) : summary() injectee rend la table des
 # coefficients sans la ligne x. Sous l'injection, la condition R12 est
-# vraie et "volumes constants" est accepte avec le detail du garde-fou ;
+# vraie et "x ecarte" (#168) est accepte avec le detail du garde-fou ;
 # hors injection, la meme reponse est refusee (condition fausse).
 avec_summary_sans_x153 <- function(expr) {
   e <- environment(run_engine)
@@ -558,7 +558,7 @@ avec_summary_sans_x153 <- function(expr) {
   on.exit(if (existait) assign("summary", orig, envir = e) else rm("summary", envir = e))
   expr
 }
-verifier("Coherence TOST (#153) : x ecarte par lm() (injection de summary() sans la ligne x) -> 'volumes constants' accepte, ligne au detail du garde-fou R12 ; meme reponse refusee quand lm() garde x ; reponse calculee refusee sous la condition R12",
+verifier("Coherence TOST (#153, #168) : x ecarte par lm() (injection de summary() sans la ligne x) -> 'x ecarte' accepte, ligne au detail du garde-fou R12 ; meme reponse refusee quand lm() garde x ; reponse calculee refusee sous la condition R12",
          {
            ref <- names(test_tost_intercept(x153, y153))
            f1 <- usp_ajuster(x153, y153); b1 <- usp_bootstrap(f1, B = B_MIN_USAGE)
@@ -568,12 +568,121 @@ verifier("Coherence TOST (#153) : x ecarte par lm() (injection de summary() sans
                                   function(...) avec_summary_sans_x153(.tost_orig153(...)),
                                   usp_tests(f1, b1, methode = "premium"))
            r0 <- test_tost_intercept(x153, y153)
-           identical(r12$non_applicable, "volumes constants") && isTRUE(ok12) &&
+           identical(r12$non_applicable, "x ecarte") && isTRUE(ok12) &&
              ligne_tost_coherente153(ligne153(tt12, LIGNE_TOST153), r12, x153) &&
              !tost_coherent153(r12, ref, x153, y153) &&
              !isTRUE(avec_summary_sans_x153(tost_coherent153(r0, ref, x153, y153))) &&
              tost_coherent153(r0, ref, x153, y153) &&
              !exists("summary", envir = environment(run_engine), inherits = FALSE)
+         })
+# Issue #168 : motif du garde-fou R12 (x ecarte par lm() pour colinearite,
+# hors volumes constants) dans le detail des lignes constante, pente et
+# Fisher, comme pour les lignes TOST (#153) et R2. Aucun jeu du domaine ne
+# l'atteint de facon stable (issue de lm() dependante de la plateforme) :
+# summary() est injectee sans la ligne x dans les trois fonctions qui
+# regressent y sur x (test_intercept(), test_lm_complet(),
+# test_tost_intercept()), et dans elles seules. Les textes attendus sont
+# ecrits en dur : TOST et R2 gardent leurs chaines d'avant #168.
+DETAIL_R12_168 <- "regression de y sur x : x ecarte par lm() pour colinearite, test non applicable"
+DETAIL_R2_R12_168 <- "x ecarte par lm() pour colinearite : R2 non defini"
+LIGNES_R12_168 <- c("Nullite de la constante (proportionnalite stricte)",
+                    LIGNE_TOST153,
+                    "Test de Student sur la pente (lm(y~x))",
+                    "Test de Fisher (significativite globale)")
+LIGNE_R2_168 <- "Coefficient de determination R2"
+FONCTIONS_R12_168 <- c("test_intercept", "test_lm_complet", "test_tost_intercept")
+# Evalue expr avec les trois fonctions enveloppees dans avec_summary_sans_x153().
+avec_r12_168 <- function(expr) {
+  e <- environment(run_engine)
+  orig <- mget(FONCTIONS_R12_168, envir = e)
+  for (nm in FONCTIONS_R12_168) local({
+    f <- orig[[nm]]
+    assign(nm, function(...) avec_summary_sans_x153(f(...)), envir = e)
+  })
+  on.exit(for (nm in FONCTIONS_R12_168) assign(nm, orig[[nm]], envir = e))
+  expr
+}
+verifier("test_intercept() et test_lm_complet() : champ x_ecarte TRUE sur la seule branche du garde-fou R12 (injection), FALSE sur la branche calculee et a volumes constants, stat et p NA sous R12 ; test_tost_intercept() : motif 'x ecarte' sous R12, 'volumes constants' a volumes constants (#168)",
+         {
+           xq <- 300 * (1 + c(1, -1, 1, -1, 1, -1, 1, -1) * 1e-8)
+           i12 <- avec_r12_168(test_intercept(x153, y153))
+           l12 <- avec_r12_168(test_lm_complet(x153, y153))
+           i0 <- test_intercept(x153, y153); l0 <- test_lm_complet(x153, y153)
+           identical(i12$x_ecarte, TRUE) && identical(l12$x_ecarte, TRUE) &&
+             identical(i0$x_ecarte, FALSE) && identical(l0$x_ecarte, FALSE) &&
+             identical(test_intercept(xq, y153)$x_ecarte, FALSE) &&
+             identical(test_lm_complet(xq, y153)$x_ecarte, FALSE) &&
+             identical(i12$stat, NA_real_) && identical(i12$p, NA_real_) &&
+             identical(l12$t_pente, NA_real_) && identical(l12$F, NA_real_) && identical(l12$R2, NA_real_) &&
+             identical(names(i12), names(i0)) && identical(names(l12), names(l0)) &&
+             identical(avec_r12_168(test_tost_intercept(x153, y153))$non_applicable, "x ecarte") &&
+             identical(test_tost_intercept(xq, y153)$non_applicable, "volumes constants") &&
+             is.na(test_tost_intercept(x153, y153)$non_applicable) &&
+             !exists("summary", envir = environment(run_engine), inherits = FALSE)
+         })
+verifier("usp_tests(), x ecarte par lm() hors volumes constants (injection de summary() dans les trois fonctions qui regressent y sur x) : constante, TOST, pente, Fisher non applicables (INFO, p retenue NA) au detail du garde-fou R12, R2 au sien ; autres lignes et ordre identiques a l'appel sans injection (#168)",
+         {
+           f1 <- usp_ajuster(x153, y153); b1 <- usp_bootstrap(f1, B = B_MIN_USAGE)
+           t12 <- tryCatch(avec_r12_168(usp_tests(f1, b1, methode = "premium")), error = function(e) e)
+           t0 <- usp_tests(f1, b1, methode = "premium")
+           if (inherits(t12, "error")) return(paste("erreur :", conditionMessage(t12)))
+           noms12 <- vapply(t12, function(l) l$test, ""); noms0 <- vapply(t0, function(l) l$test, "")
+           pb <- character(0)
+           for (nm in LIGNES_R12_168) {
+             l <- ligne153(t12, nm)
+             if (!(identical(l$type, "non applicable") && identical(l$verdict, "INFO") &&
+                   is.na(l$p_retenue) && identical(l$detail, DETAIL_R12_168)))
+               pb <- c(pb, nm)
+             if (identical(ligne153(t0, nm)$detail, DETAIL_R12_168)) pb <- c(pb, paste(nm, "(sans injection)"))
+           }
+           r2 <- ligne153(t12, LIGNE_R2_168)
+           if (!(identical(r2$type, "non applicable") && identical(r2$detail, DETAIL_R2_R12_168)))
+             pb <- c(pb, LIGNE_R2_168)
+           autres <- !noms0 %in% c(LIGNES_R12_168, LIGNE_R2_168)
+           if (!identical(noms12, noms0)) pb <- c(pb, "ordre des lignes")
+           else if (!identical(t12[autres], t0[autres])) pb <- c(pb, "autres lignes modifiees")
+           if (exists("summary", envir = environment(run_engine), inherits = FALSE)) pb <- c(pb, "summary non restauree")
+           if (length(pb)) paste(pb, collapse = " ; ") else TRUE
+         })
+# Priorite R13 > R12 dans usp_tests() (garde !vol_cst de detail_r12()) : a
+# volumes constants, test_intercept() et test_lm_complet() sortent avant
+# lm() avec x_ecarte = FALSE ; pour atteindre la garde, leur resultat est
+# rendu avec x_ecarte force a TRUE. TOST : priorite assuree par
+# test_tost_intercept() (motif "volumes constants" teste avant lm()).
+verifier("usp_tests() a volumes constants, x_ecarte force a TRUE dans test_intercept() et test_lm_complet() : le motif R13 prime sur R12 pour constante, pente, Fisher (garde de detail_r12()), TOST et R2 (#168)",
+         {
+           xq <- 300 * (1 + c(1, -1, 1, -1, 1, -1, 1, -1) * 1e-8)
+           fq <- usp_ajuster(xq, y153); bq <- suppressWarnings(usp_bootstrap(fq, B = B_MIN_USAGE))
+           e <- environment(run_engine)
+           orig <- mget(c("test_intercept", "test_lm_complet"), envir = e)
+           force_ecarte <- function(f) function(...) { r <- f(...); r$x_ecarte <- TRUE; r }
+           tq <- tryCatch(suppressWarnings({
+             assign("test_intercept", force_ecarte(orig$test_intercept), envir = e)
+             assign("test_lm_complet", force_ecarte(orig$test_lm_complet), envir = e)
+             usp_tests(fq, bq, methode = "premium")
+           }), error = function(e) e)
+           for (nm in names(orig)) assign(nm, orig[[nm]], envir = e)
+           !inherits(tq, "error") &&
+             identical(get("test_intercept", envir = e), orig$test_intercept) &&
+             all(vapply(c(LIGNES_R12_168, LIGNE_R2_168), function(nm) {
+               l <- ligne153(tq, nm)
+               identical(l$type, "non applicable") && startsWith(l$detail, "volumes x_t constants")
+             }, logical(1)))
+         })
+# Jeu xp153 (y = x / 2, issue de lm() dependante de la plateforme, voir
+# ci-dessous) : le detail des quatre lignes porte le motif R12 si et
+# seulement si lm(y ~ x) ecarte x sur cette machine (condition recalculee
+# sur les donnees ajustees, comme dans le moteur).
+verifier("usp_tests(), y exactement proportionnel a x : constante, TOST, pente et Fisher au detail du garde-fou R12 si et seulement si lm(y ~ x) ecarte x sur cette plateforme (#168)",
+         {
+           f <- usp_ajuster(2^(0:7), 2^(0:7) / 2)
+           b <- suppressWarnings(usp_bootstrap(f, B = B_MIN_USAGE))
+           tt <- tryCatch(suppressWarnings(usp_tests(f, b, methode = "premium")), error = function(e) e)
+           ecarte <- local({ x <- f$x; y <- f$y
+             !"x" %in% rownames(summary(stats::lm(y ~ x))$coefficients) })
+           !inherits(tt, "error") &&
+             all(vapply(LIGNES_R12_168, function(nm)
+               identical(ligne153(tt, nm)$detail, DETAIL_R12_168) == ecarte, logical(1)))
          })
 # Entree construite de l'issue : y exactement proportionnel a x (x
 # puissances de 2, y = x / 2). Issue dependante de la plateforme (voir
