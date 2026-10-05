@@ -707,7 +707,12 @@ $\mathrm{LR}$ & par borne $\delta_0 \in \{0, 1\}$~: paramètres contraints, $\ma
 du mélange $\tfrac12\chi^2_0 + \tfrac12\chi^2_1$ pour mémoire ($1$ en $\mathrm{LR} = 0$), p-value de
 Monte-Carlo par bootstrap paramétrique restreint et son erreur, $B_{\text{eff}}$, part des
 $\mathrm{LR}^{*}$ nuls, \code{n\_refit\_pire}, \code{n\_echec}, \code{lr\_boot}~; puis $B$,
-\code{seed}, \code{tol\_nul} (\code{res\$lr\_delta}, fiche~\ref{fiche:rv-delta}) \\
+\code{seed}, \code{tol\_nul} (\code{res\$lr\_delta}, fiche~\ref{fiche:rv-delta})~; borne dont
+l'ajustement contraint échoue sur les données observées, ou dont le $\mathrm{LR}$ observé n'est
+pas fini~: mêmes champs à \code{NA}, sans bootstrap restreint (issue~\#161) \\
+\code{MOTIF\_LR\_DELTA\_ECHEC} & constante & motif de la ligne «~non applicable~» du rapport de
+vraisemblance à une borne en échec sur les données observées (fiche~\ref{fiche:rv-delta},
+issue~\#161) \\
 \code{usp\_bootstrap()} & \code{fit}, $B$ (999), \code{seed} (20260831),
 \code{refit} (vrai), \code{progres} &
 \code{stats\_obs}, \code{p\_mc}, \code{err\_mc}, \code{B\_effectif},
@@ -737,7 +742,8 @@ table des $\hat\sigma^{(-t)}$, $\sigma_{\mathrm{USP}}^{(-t)}$, $\hat\delta^{(-t)
 $\hat\gamma^{(-t)}$ \\
 \code{usp\_profil()} & \code{fit}, \code{n} (41 points) & profils en $\delta$ et $\gamma$ (le
 rapport de vraisemblance aux bornes, calculé ici jusqu'à l'issue~\#45 contre une loi
-$\chi^2(1)$ naïve, relève de \code{usp\_lr\_delta()}) \\
+$\chi^2(1)$ naïve, relève de \code{usp\_lr\_delta()})~; objectif \code{NA} aux seuls points de
+grille dont l'optimisation lève une erreur R, mêmes champs et mêmes grilles (issue~\#161) \\
 \code{usp\_segment\_infos()}, \code{usp\_bareme\_segment()} & segment, annexe &
 libellé, $\sigma$ standard brut et de réserve, facteur \code{np\_standard}, barème, erreur
 d'usage pour un segment qui n'est pas un nombre scalaire fini entier sans attribut
@@ -1211,7 +1217,9 @@ l'état du générateur (l'objet \code{.Random.seed} de l'environnement global) 
   principal. Aucune constante ni aucun champ de \code{\$metadata} n'est ajouté~: $B$ et la
   graine sont consignés dans \code{res\$lr\_delta}. \emph{Portée}~: le rapport de vraisemblance
   sur $\delta$ (\code{res\$lr\_delta}, lignes de la fiche~\ref{fiche:rv-delta}, repères du
-  profil). \emph{État}~: restauré.
+  profil). Une borne dont l'ajustement contraint échoue sur les données observées ne tire rien
+  et ne pose pas de graine (issue~\#161)~; l'autre borne, qui pose sa propre graine, est
+  inchangée. \emph{État}~: restauré.
 \item \code{mw\_bootstrap()} (méthode de réserve n\textsuperscript{o}~2).
   \emph{Graine}~: le même paramètre \code{seed}, posé une seule fois avant la boucle par
   \code{engine\_sous\_graine()}~; à chaque réplication,
@@ -2420,7 +2428,13 @@ autres qu'un calcul abouti, à ne pas confondre (issue~\#88, décision du mainte
   Cook non finie (fiche~\ref{fiche:cook}), qui donnait auparavant un défaut intercepté
   sur une entrée du domaine ($y_t$ exactement proportionnel à $x_t$, mesuré avec le moteur
   antérieur à l'issue), et d'une statistique du TOST non définie
-  (fiche~\ref{fiche:tost-constante}). L'option \code{options(usp.engine.lever\_erreurs = TRUE)}, réservée au
+  (fiche~\ref{fiche:tost-constante})~; depuis l'issue~\#161, d'un rapport de vraisemblance sur
+  $\delta$ non calculable sur les données observées à une borne (fiche~\ref{fiche:rv-delta},
+  motif \code{MOTIF\_LR\_DELTA\_ECHEC}~; même panne injectée~: défaut de calcul intercepté
+  d'origine \code{usp\_ajuster\_contraint()} avec le moteur antérieur, ligne non applicable
+  depuis), et, pour un graphique et non une ligne, du profil en $\delta$ et en $\gamma$
+  (\code{usp\_profil()}~: objectif \code{NA} aux seuls points de grille en échec, au lieu de
+  l'erreur R qui interrompait le calcul). L'option \code{options(usp.engine.lever\_erreurs = TRUE)}, réservée au
   développement, relève l'erreur telle quelle au lieu de l'intercepter. Les erreurs d'usage
   restent hors de ce filet, limité au calcul par décision du mainteneur.
 \end{itemize}
@@ -3853,7 +3867,8 @@ Oui (mélange $\tfrac12\chi^2_0+\tfrac12\chi^2_1$) & Oui (bootstrap restreint) &
 \textbf{Diagnostic}, aucune p-value retenue &
 \textbf{Non}~: mélange contredit par simulation (facteur voisin de 7 sur le jeu de contrôle) &
 Lire \code{p\_mc} comme mesure d'identifiabilité de $\delta$, sans verdict~; une p élevée
-n'établit pas la borne \\
+n'établit pas la borne~; ligne non applicable, sans aucune p-value, si le $\mathrm{LR}$ observé
+n'est pas calculable (issue~\#161) \\
 
 IC bootstrap (complet et à $\delta$ fixé) & LN & $L$ & --- & --- & --- &
 \textbf{Diagnostic} & Sans objet & Présenter les deux intervalles~; le complet n'est pas
@@ -8366,6 +8381,27 @@ retenue~»)~: la ligne est un diagnostic, et aucune des trois voies ne fonde un 
   ou le calcul (\code{DETAIL\_MC\_ATOME\_HORS\_OBS}, section~\ref{sec:nature}, point~(ii)~;
   issue~\#126).
 \end{itemize}
+\emph{Ligne non applicable} (issue~\#161, décision du mainteneur du 30~septembre 2026)~: si,
+sur les données observées, l'ajustement contraint d'une borne lève une erreur R
+(\code{try()} dans \code{usp\_lr\_delta()}), ou si le $\mathrm{LR}$ observé n'est pas fini, la
+borne est rendue dans \code{res\$lr\_delta} avec les mêmes seize champs, valeurs à \code{NA}
+($\delta_0$ conservé), sans bootstrap restreint~: \code{lr\_boot} vide, $B_{\text{eff}} = 0$, motif
+Monte-Carlo de la statistique observée non finie (posé par \code{engine\_p\_mc()}),
+\code{n\_refit\_pire} et \code{n\_echec} à \code{NA}, aucune réplication n'ayant été tentée. La
+ligne de cette borne sort de type «~non applicable~», \code{INFO}, sans aucune p-value, avec le
+motif fixe \code{MOTIF\_LR\_DELTA\_ECHEC}, «~\code{Rapport de vraisemblance non calculable sur les
+donnees observees (ajustement a delta fixe a la borne en echec) : diagnostic non applicable,
+aucun bootstrap restreint.}~», précédé, à volumes constants, de «~\code{VOLUMES CONSTANTS : delta
+non identifie, LR nul par construction attendu a cette borne mais non calcule.}~». L'autre borne,
+qui pose sa propre graine, n'en dépend pas, et \code{run\_engine()} reste \code{ok = TRUE}
+(§\ref{sec:controles}, ligne isolée). Mesuré sur le jeu de contrôle ($B = 99$), panne injectée
+dans l'ajustement contraint à $\delta_0 = 0$ sur les données observées~: ligne $\delta_0 = 0$ non
+applicable avec ce motif~; borne $\delta_0 = 1$, autres lignes et \code{\$parametre\_final}
+\code{identical()} à ceux du calcul sans panne. Auparavant, la même panne interrompait le calcul
+(défaut de calcul intercepté, \code{ok = FALSE}). Dans le bootstrap restreint, une réplication
+dont un réajustement échoue reste écartée et comptée dans \code{n\_echec} (rubrique~4)~; une
+réplication à paramètre non fini est écartée de même, \code{usp\_simuler()} ne levant pas
+d'erreur.
 \Usage
 Sur le fond, ce diagnostic répond à la question pratique décisive~: la structure de mélange
 imposée par le règlement est-elle réellement identifiée par les données, ou un cas limite
@@ -8811,7 +8847,9 @@ $\tfrac12\chi^2(0) + \tfrac12\chi^2(1)$, étiquetée «~repère asymptotique \do
 lecture~», et deux marques en $\delta = 0$ et $\delta = 1$ à $\min\mathcal{O}$ plus le
 quantile à 90~\% des $\mathrm{LR}^{*}$ simulés sous chaque borne (type~7). Sur le jeu de
 contrôle, les marques sont à $+0{,}40$ et $+0{,}39$, la ligne à $+1{,}64$~: l'écart visible est la
-mesure de l'inadéquation du mélange à $T = 8$. Aucun verdict. \\
+mesure de l'inadéquation du mélange à $T = 8$. Aucun verdict. Un point de grille dont
+l'optimisation échoue vaut \code{NA} (\code{usp\_profil()}, issue~\#161)~; si tous le valent,
+l'affichage remplace le graphique par un message qui renvoie au motif des lignes~G. \\
 \code{plot\_surface\_objectif()} & LN & --- & Surface $-2\ln L$ sur la grille
 $(\delta,\gamma)$~: montre si l'optimum au bord est un vrai minimum. \\
 \code{plot\_coupe\_delta()} & LN & --- & Coupe de la surface à $\hat\gamma$~:
