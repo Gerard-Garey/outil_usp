@@ -822,7 +822,10 @@ dans le terme de variance de processus \\
 \code{engine\_plots\_data()} & \code{fit}, \code{boot}, \code{profil},\newline
 \code{jackknife}, \code{sigma\_usp}, \code{lr\_delta} & toutes les quantités tracées (branche
 lognormale), sans aucun tirage depuis l'issue~\#47~; dont \code{plots\_data\$lr\_delta} (repères
-du profil, issue~\#45) et \code{plots\_data\$qq\_enveloppe} (description de l'enveloppe du QQ-plot) \\
+du profil, issue~\#45), \code{plots\_data\$qq\_enveloppe} (description de l'enveloppe du QQ-plot)
+et, seulement quand un résidu standardisé ou une distance de Cook n'est pas fini,
+\code{plots\_data\$influence\_motif} (motif des graphiques d'influence sans objet, issue~\#153,
+fiche~\ref{fiche:graph-influence-levier}) \\
 \code{engine\_enveloppe\_qq()},\newline \code{ENVELOPPE\_QQ\_NIVEAU},\newline
 \code{ENVELOPPE\_QQ\_PROBS},\newline \code{ENVELOPPE\_QQ\_TAUX\_MAX},\newline
 \code{ENVELOPPE\_QQ\_B\_MIN},\newline \code{ENVELOPPE\_QQ\_B\_MIN\_SIM} & \code{z\_boot}, $T$~;
@@ -835,8 +838,14 @@ description (\code{source}, $B_{\text{eff}}$, niveaux, rang $k$, taux in-sample,
 \code{engine\_surface\_objectif()}\newline \code{engine\_influence()}\newline
 \code{engine\_contours\_cook()} & \code{fit}~; \code{fit}, \code{jackknife},
 \code{sigma\_usp}~; $T$ & surface de l'objectif en $(\delta,\gamma)$~; leviers,
-distances de Cook, écarts du jackknife et booléen de coloration \code{fort\_ecart\_sigma}~;
+distances de Cook (modèle ajusté après \code{.usp\_echelle\_exacte()}, issue~\#153), écarts du
+jackknife et booléen de coloration \code{fort\_ecart\_sigma}~;
 courbes d'iso-Cook (appelées par \code{engine\_plots\_data()}) \\
+\code{.usp\_echelle\_exacte()},\newline \code{.usp\_ligne\_cook()} & vecteur $v$~; distances
+$D_t$, $T$ & $v / 2^{\lfloor \log_2 \max|v| \rfloor}$, rendu inchangé si ce maximum n'est pas fini
+et strictement positif (division exacte~; distances de Cook et leviers identiques au bit près au
+calcul brut sur le jeu de contrôle)~; type, \code{estim} et commentaire de la ligne de Cook, non applicable si une
+distance n'est pas finie (fiche~\ref{fiche:cook}, issue~\#153) \\
 \code{mw\_plots\_data()} & \code{aj}, résidus, \code{boot}, \code{msep} &
 toutes les quantités tracées (branche Merz--Wüthrich) \\
 \code{REPERE\_INFLUENCE\_SIGMA},\newline \code{REPERE\_DFBETA\_MW} & constantes ($0{,}10$ et
@@ -1765,8 +1774,10 @@ Grubbs & \ref{fiche:grubbs} & \code{test\_grubbs()} &
 Rosner (ESD) & \ref{fiche:rosner-esd} & \code{test\_rosner()} &
 procédure de décision, aucune p-value & --- \\
 Distance de Cook & \ref{fiche:cook} & \code{stats::cooks.distance()} (appel
-direct) & diagnostic, aucune p-value & --- \\
-Leviers & \ref{fiche:leviers} & \code{stats::hatvalues()} (appel direct) &
+direct, sur $x_t$ et $y_t$ mis à l'échelle exacte par \code{.usp\_echelle\_exacte()}~; ligne
+construite par \code{.usp\_ligne\_cook()}, issue~\#153) & diagnostic, aucune p-value~; non
+applicable si une distance n'est pas finie & --- \\
+Leviers & \ref{fiche:leviers} & \code{stats::hatvalues()} (appel direct, même modèle) &
 diagnostic, aucune p-value & --- \\
 Rupture sup-F sur ratios bruts & \ref{fiche:sup-f-ratios-bruts} & \code{stat\_supF()} sur $u_t$ &
 aucune hors Monte-Carlo & \code{supFr} \\
@@ -2401,7 +2412,15 @@ autres qu'un calcul abouti, à ne pas confondre (issue~\#88, décision du mainte
   intercepté n'est plus le mode d'arrêt sur des données à l'échelle extrême, et les scénarios
   des tests unitaires qui l'exercent le déclenchent par une erreur injectée dans
   l'environnement du moteur. Le filet demeure pour toute autre erreur R après validation~: sa
-  survenue sur une entrée du domaine est un défaut à rapporter en issue. L'option \code{options(usp.engine.lever\_erreurs = TRUE)}, réservée au
+  survenue sur une entrée du domaine est un défaut à rapporter en issue. \textbf{Ligne isolée}
+  (décision du mainteneur du 30~septembre 2026)~: quand le calcul propre à une seule ligne
+  échoue sur des données valides, cette ligne sort «~non applicable~», \code{INFO}, sans p-value
+  retenue et avec un motif fixe, et \code{run\_engine()} reste \code{ok = TRUE}, les autres lignes
+  et $\sigma_{\mathrm{USP}}$ inchangés~; c'est le cas, depuis l'issue~\#153, d'une distance de
+  Cook non finie (fiche~\ref{fiche:cook}), qui donnait auparavant un défaut intercepté
+  sur une entrée du domaine ($y_t$ exactement proportionnel à $x_t$, mesuré avec le moteur
+  antérieur à l'issue), et d'une statistique du TOST non définie
+  (fiche~\ref{fiche:tost-constante}). L'option \code{options(usp.engine.lever\_erreurs = TRUE)}, réservée au
   développement, relève l'erreur telle quelle au lieu de l'intercepter. Les erreurs d'usage
   restent hors de ce filet, limité au calcul par décision du mainteneur.
 \end{itemize}
@@ -3203,7 +3222,9 @@ avec le modèle auxiliaire MCO~; aucune de leurs lignes ne retient une p-value s
 \begin{itemize}[itemsep=1pt]
   \item \emph{Régression contrainte, sans constante}, $y_t = \beta x_t + \varepsilon_t$
   (\code{lm(y \textasciitilde\ x - 1)})~: modèle de départ de RESET, support des distances de Cook,
-  des leviers et d'\code{engine\_influence()}. La loi $\mathcal{F}(2, T-3)$ de RESET est exacte
+  des leviers et d'\code{engine\_influence()}~; pour ces trois derniers, l'ajustement porte sur
+  $x_t$ et $y_t$ mis à l'échelle exacte par une puissance de~2 (\code{.usp\_echelle\_exacte()},
+  issue~\#153, fiche~\ref{fiche:cook}). La loi $\mathcal{F}(2, T-3)$ de RESET est exacte
   sous ce modèle à erreurs i.i.d. normales (Milliken et Graybill, 1970), non sous le modèle
   réglementaire~; sa p-value retenue est de Monte-Carlo, et la base réduite et les gardes de
   l'issue~\#110 sont décrites dans sa fiche (fiche~\ref{fiche:reset}). Cook et les leviers sont des
@@ -5171,17 +5192,31 @@ donc retenue, sous une nature qui dit sous quel modèle et à quelle condition e
 donnees} (colonne \code{p\_asymptotique}). Ni l'une ni l'autre n'est exacte au sens de l'ADR~0002~;
 jusqu'à l'issue~\#44, le moteur nommait la seconde \emph{quasi-exacte}, catégorie supprimée. Pour
 un dossier ACPR, il est recommandé d'arrêter $\Delta$ à l'avance et de le documenter.
-Deux cas sont restitués «~non applicable~», sans p-value retenue et en \code{INFO}
+Trois cas sont restitués «~non applicable~», sans p-value retenue et en \code{INFO}
 (issue~\#58)~: les volumes constants, au sens du critère unique
 \code{usp\_volumes\_constants()} (étendue relative des $x_t$ au plus \code{TOL\_DELTA\_BORD},
 issue~\#59, section~\ref{sec:volumes-constants}), où la régression auxiliaire n'est pas définie
-ou porte sur le bruit d'arrondi, et une marge
+ou porte sur le bruit d'arrondi~; une marge
 invalide (sans \code{delta\_equiv}~: \code{theta\_equiv} non fini ou $\theta \le 0$~; avec
 \code{delta\_equiv}~: $\Delta$ non finie ou non strictement positive, $\theta$ étant alors
-ignoré)~; les volumes constants priment sur la marge, et le commentaire de la ligne nomme le
-motif. Depuis l'issue~\#33, la garde « marge » de \code{test\_tost\_intercept()} est
-inatteignable depuis \code{run\_engine()}, dont la validation refuse en amont toute marge hors
-domaine~; elle ne sert plus qu'à un appel direct de la fonction.
+ignoré)~; et, depuis l'issue~\#153, une statistique non définie (motif interne
+\code{"statistique non definie"} de \code{test\_tost\_intercept()})~: $p_{\text{bas}}$ ou
+$p_{\text{haut}}$ n'est pas fini, ce qui, $F_{t,T-2}(\pm\infty)$ étant fini, n'arrive que si
+$t_{\text{bas}}$ ou $t_{\text{haut}}$ vaut \code{NaN}, c'est-à-dire si $\hat a$ ou
+$\widehat{\mathrm{se}}(\hat a)$ n'est pas calculable~; le commentaire est alors
+«~\code{statistique t non definie (constante ou erreur-type de la regression de y sur x non
+calculable) : test non applicable}~», au lieu de l'erreur R que levait la comparaison de
+$p_{\text{bas}}$ et $p_{\text{haut}}$. Les volumes constants priment sur les autres motifs, et le
+commentaire de la ligne nomme le motif. Depuis l'issue~\#33, la garde « marge » de
+\code{test\_tost\_intercept()} est inatteignable depuis \code{run\_engine()}, dont la validation
+refuse en amont toute marge hors domaine~; elle ne sert plus qu'à un appel direct de la fonction.
+Il en va de même de la garde «~statistique non définie~», qui vise des entrées sous-normales
+(par exemple $x_t$ et $y_t$ multipliés par $10^{-320}$), hors du domaine numérique
+(§\ref{sec:controles}, issue~\#145)~; l'issue de \code{lm()} y dépend de la plateforme (version
+de R, BLAS, processeur)~: mesuré en appel direct sur le jeu de contrôle multiplié par
+$10^{-320}$, avec R~4.3.3 et le BLAS de référence, la garde se déclenche. En appel direct
+d'\code{usp\_tests()} hors du domaine numérique, seule l'absence d'erreur R est garantie, non la
+justesse des statistiques ni des verdicts (issue~\#153).
 \Usage
 C'est le seul test du dispositif qui puisse fournir une \emph{preuve positive} de la
 proportionnalité exigée par l'annexe~XVII. Sa limite tient à la précision de $\hat a$~: d'après la
@@ -7946,7 +7981,18 @@ simplification usuelle~: K.\,A. Bollen, R.\,W. Jackman (1990, section~\ref{sec:b
 \Cadre
 Régression contrainte $y_t = \beta x_t + \varepsilon_t$ (section~\ref{sec:modele-auxiliaire-autres}) à $k$ paramètres ($k=1$), de résidus
 $e_t$, de variance résiduelle estimée $\hat s^2$ et de leviers $h_t$ (fiche suivante).
-\textbf{Diagnostic d'influence, non test.}
+\textbf{Diagnostic d'influence, non test.} Calcul (issue~\#153)~: $x_t$ et $y_t$ sont divisés
+chacun par la puissance de~2 $2^{\lfloor \log_2 \max_t |v_t| \rfloor}$ de leur plus grande valeur
+absolue (\code{.usp\_echelle\_exacte()}) avant l'ajustement par \code{lm()}. $D_t$ et $h_t$ étant
+invariants par $x_t \mapsto a\,x_t$, $y_t \mapsto b\,y_t$, et la division par une puissance de~2
+exacte en virgule flottante tant que le quotient n'est pas sous-normal, les valeurs sont celles
+du calcul sur les données brutes (mesuré sur le jeu de contrôle~: $D_t$ et $h_t$
+\code{identical()} aux valeurs de \code{lm(y \textasciitilde\ x - 1)} sur $x_t$ et $y_t$ bruts),
+alors qu'une division par le maximum lui-même les décale de quelques unités d'arrondi (mesuré sur
+le jeu de contrôle~: écart relatif de $2{,}2\cdot 10^{-16}$ sur $\max_t D_t$, au plus
+$5{,}1\cdot 10^{-15}$ sur un $D_t$). Le même
+modèle fournit les leviers de la fiche suivante et les grandeurs d'\code{engine\_influence()}
+(graphiques d'influence).
 \Hzero
 Sans objet.
 \Stat
@@ -7964,7 +8010,23 @@ Aucune. La ligne est restituée \code{INFO}, sans verdict ni sens du test
 le repère conventionnel $4/T$ ($0{,}500$ à $T = 8$), le nombre d'observations au-dessus et leurs
 rangs~; ce repère n'est associé à aucune loi de référence ni à aucun niveau, et ne produit aucun
 verdict. Jusqu'à l'issue~\#24, le script marquait \code{ALERTE} une observation au-dessus de
-$4/T$ et \code{ECHEC} deux ou plus.
+$4/T$ et \code{ECHEC} deux ou plus. \emph{Ligne non applicable} (issue~\#153,
+\code{.usp\_ligne\_cook()}, sur le modèle des gardes de RESET et de White)~: si une distance
+$D_t$ n'est pas finie, la ligne est de type «~non applicable~», toujours \code{INFO} et sans
+p-value, \code{estim} à \code{NA}, avec le motif «~\code{distance de Cook non finie (par exemple
+residus de y = beta x tous nuls) : diagnostic non applicable}~»~; \code{run\_engine()} reste
+\code{ok = TRUE} et les autres lignes sont inchangées. Cas visé~: $y_t$ exactement proportionnel à
+$x_t$, dont les résidus de $y = \beta x$ sont nuls ($\hat s = 0$, $D_t = 0/0$). L'issue de
+\code{lm()} y dépend de la plateforme (version de R, BLAS, processeur)~: résidus exactement nuls,
+ou bruit d'arrondi qui laisse $D_t$ fini et la ligne calculée. Mesuré sur $x_t = 2^{t-1}$,
+$y_t = x_t/2$ ($t = 1, \ldots, 8$), avec R~4.3.3 et le BLAS de référence~: ligne non
+applicable, \code{ok = TRUE}~; le même jeu donnait, avec le moteur antérieur à l'issue, un
+défaut de calcul intercepté d'origine \code{usp\_tests()} (\code{if (any(ck > 4/T))} évalué sur
+\code{NaN}), comme le jeu de contrôle multiplié par $10^{-163}$ et $10^{-164}$, échelles
+désormais hors du domaine numérique (§\ref{sec:controles}). Pour les graphiques d'influence,
+\code{engine\_plots\_data()} pose alors le champ \code{plots\_data\$influence\_motif} (absent si
+résidus standardisés et distances sont tous finis), que l'affichage restitue à la place des
+tracés.
 \Usage
 Mesure combinée du levier et de l'ampleur du résidu~: elle répond à la question « de combien le
 modèle changerait-il si je retirais cette année ? ». C'est le diagnostic le plus directement utile
@@ -7996,7 +8058,11 @@ taux ne se transposent pas à d'autres volumes.
 \emph{The American Statistician}, 32(1), 1978, p.~17--22.}
 \Cadre
 Matrice de projection $H = X(X'X)^{-1}X'$ de la régression contrainte (section~\ref{sec:modele-auxiliaire-autres}). \textbf{Diagnostic, non
-test.}
+test.} Les $h_t$ sont lus dans le modèle de la fiche~\ref{fiche:cook}, ajusté après mise à
+l'échelle exacte (\code{.usp\_echelle\_exacte()}, issue~\#153)~; ne dépendant que des $x_t$,
+ils sont invariants par $x_t \mapsto a\,x_t$ et restent finis quand $y_t$ est exactement
+proportionnel à $x_t$, cas où la ligne de Cook est non applicable (mesuré sur $x_t = 2^{t-1}$,
+$y_t = x_t/2$~: $\max_t h_t = 0{,}750$, ligne calculée).
 \Hzero
 Sans objet.
 \Stat
@@ -8953,7 +9019,11 @@ de même les cellules au-delà de $2~\%$ (\code{REPERE\_DFBETA\_MW}, repère san
 fiche~\ref{mw:influence}). Les booléens de coloration, \code{fort\_ecart\_sigma} et
 \code{fort\_dfbeta}, sont calculés par le moteur (\code{engine\_influence()},
 \code{mw\_influence()}) et rangés dans \code{res\$plots\_data\$influence}~; l'affichage les
-lit sans comparaison (issue~\#37).
+lit sans comparaison (issue~\#37). Quand un résidu standardisé ou une distance de Cook n'est pas
+fini (par exemple $y_t$ exactement proportionnel à $x_t$, fiche~\ref{fiche:cook}), les deux
+premiers graphiques sont sans objet~: \code{engine\_plots\_data()} pose le motif
+\code{plots\_data\$influence\_motif}, absent sinon, et l'affichage le restitue à la place des
+tracés, sans calcul (issue~\#153).
 
 \medskip
 \textbf{Transposition à la méthode Merz--Wüthrich.} Le facteur $\hat f_j$ étant
@@ -10628,6 +10698,23 @@ Le gradient analytique de l'objectif profilé (\code{usp\_gradient()}, fiche~\re
 $(\delta,\gamma)$ sur chacun de deux jeux (le jeu de contrôle et un jeu à $\hat\delta$
 intérieur)~: l'écart maximal, rapporté à $\max(1, |\text{dérivée numérique}|)$, vaut
 $2{,}8\cdot 10^{-9}$ (mesure).
+
+\emph{Invariance par changement d'échelle} (issue~\#153). $\sigma_{\mathrm{USP}}$ et les tests sont
+invariants par un changement d'unité commun à $x_t$ et $y_t$~; le script hors CI
+\code{tests/balayage\_echelles.R} le vérifie numériquement sur tout le domaine numérique
+(§\ref{sec:controles})~: \code{run\_engine()} (méthode de primes, segment II-1, $B = 99$, graine
+par défaut) sur les 99 échelles $10^{e}$, $e$ entier de $-51$ à $47$, pour lesquelles toutes les
+valeurs restent dans $[10^{-50}\,;10^{50}]$, comparé à l'échelle~1 par \code{comparer\_objets()}
+(tolérance $10^{-6}$, la même que pour les références), sur deux jeux, le jeu de contrôle et le jeu
+de l'issue~\#153 (volumes de 100 à 700). Mesuré (R~4.3.3, BLAS et LAPACK de référence, 476~s)~:
+99 échelles conformes sur 99 pour chaque jeu, aucun verdict différent~; écart relatif maximal de
+$\sigma_{\mathrm{USP}}$ de $2{,}1\cdot 10^{-9}$ sur le jeu de contrôle et de $3{,}3\cdot 10^{-16}$
+sur l'autre jeu, écart maximal des p-values retenues de $1{,}6\cdot 10^{-15}$ et
+$3{,}3\cdot 10^{-15}$~; les échelles $10^{-52}$ et $10^{48}$, hors du domaine, sont refusées.
+C'est un constat numérique sur deux jeux et sur cette plateforme, non une preuve d'invariance
+pour toute série. L'écart de $\sigma_{\mathrm{USP}}$ sur le jeu de contrôle, très inférieur à la
+tolérance, est de l'ordre de la résolution de l'optimisation numérique~; son
+origine n'est pas mesurée.
 
 \subsection*{Taille effective et puissance}
 
