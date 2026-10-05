@@ -434,19 +434,32 @@ cook_x_ecarte153 <- function(x, y) {
 # marge est invalide (theta non fini ou <= 0 sans delta_abs ; delta_abs non
 # fini ou <= 0) ; (3) "volumes constants" si lm() a ecarte x (garde-fou R12 :
 # "x" absent de rownames(summary(stats::lm(y ~ x))$coefficients)) ; (4)
-# "statistique non definie" si et seulement si p n'est pas fini ; sinon
-# ligne calculee (NA). p et stat valent NA_real_ sur toute branche non
-# applicable, et sont finis sur la branche calculee.
-tost_motif_attendu153 <- function(x, y, p, theta = 0.10, delta_abs = NULL) {
+# "statistique non definie" si et seulement si p_bas ou p_haut, recalculees
+# ici par les formules de test_tost_intercept() (a, se, Delta = theta *
+# mean(y) sans delta_abs, delta_abs sinon, t_bas, t_haut, pt() a T - 2
+# ddl), n'est pas finie ; sinon ligne calculee (NA). Le motif ne lit rien du
+# resultat teste : un resultat forge avec ce motif sur des donnees
+# ordinaires est refuse (#153). summary() est celle de l'environnement du
+# moteur, pour que le motif attendu reflete ce que le moteur a vu sous les
+# injections de summary() (avec_summary_nan153(), avec_summary_sans_x153()).
+# p et stat valent NA_real_ sur toute branche non applicable, et sont finis
+# sur la branche calculee.
+tost_motif_attendu153 <- function(x, y, theta = 0.10, delta_abs = NULL) {
   if (usp_volumes_constants(x)) return("volumes constants")
   if ((is.null(delta_abs) && (!is.finite(theta) || theta <= 0)) ||
       (!is.null(delta_abs) && (!is.finite(delta_abs) || delta_abs <= 0))) return("marge")
-  m <- summary(stats::lm(y ~ x))
+  resume <- get("summary", envir = environment(run_engine))
+  m <- resume(stats::lm(y ~ x))
   if (!"x" %in% rownames(m$coefficients)) return("volumes constants")
-  if (is.finite(p)) NA_character_ else "statistique non definie"
+  a <- m$coefficients[1, 1]; se <- m$coefficients[1, 2]
+  ddl <- length(x) - 2
+  Delta <- if (is.null(delta_abs)) theta * mean(y) else delta_abs
+  p_bas <- stats::pt((a + Delta) / se, ddl, lower.tail = FALSE)
+  p_haut <- stats::pt((a - Delta) / se, ddl, lower.tail = TRUE)
+  if (is.finite(p_bas) && is.finite(p_haut)) NA_character_ else "statistique non definie"
 }
 tost_coherent153 <- function(r, ref, x, y) !inherits(r, "error") && identical(names(r), ref) &&
-  identical(r$non_applicable, tost_motif_attendu153(x, y, r$p)) &&
+  identical(r$non_applicable, tost_motif_attendu153(x, y)) &&
   (if (is.na(r$non_applicable)) is.finite(r$p) && is.finite(r$stat)
    else identical(r$p, NA_real_) && identical(r$stat, NA_real_))
 # Ligne TOST de usp_tests(), en regard de test_tost_intercept() sur les memes
@@ -506,10 +519,14 @@ verifier("run_engine, residus de y = beta x exactement nuls (injection : .usp_ec
          })
 # Garde TOST atteinte a coup sur : avant #153, erreur R de
 # if (p_bas >= p_haut) sur NaN.
-verifier("test_tost_intercept() et usp_tests(), constante et erreur-type NaN (injection de summary()) -> non applicable 'statistique non definie', memes champs que la branche calculee, detail exact de la ligne, sans erreur R (#153)",
+verifier("test_tost_intercept() et usp_tests(), constante et erreur-type NaN (injection de summary()) -> non applicable 'statistique non definie', memes champs que la branche calculee, detail exact de la ligne, sans erreur R ; motif accepte par tost_coherent153() sous l'injection, refuse hors injection et resultat forge (motif, p = stat = NA sur les donnees de test) refuse (#153)",
          {
            ref <- names(test_tost_intercept(x153, y153))
            r <- tryCatch(avec_summary_nan153(test_tost_intercept(x153, y153)), error = function(e) e)
+           # Resultat forge : branche calculee relabellisee, sans injection.
+           forge <- modifyList(test_tost_intercept(x153, y153),
+                               list(stat = NA_real_, p = NA_real_,
+                                    non_applicable = "statistique non definie"))
            f1 <- usp_ajuster(x153, y153); b1 <- usp_bootstrap(f1, B = B_MIN_USAGE)
            tt <- tryCatch(avec_injection("test_tost_intercept",
                                          function(...) avec_summary_nan153(.tost_orig153(...)),
@@ -519,7 +536,10 @@ verifier("test_tost_intercept() et usp_tests(), constante et erreur-type NaN (in
              identical(r$p, NA_real_) && identical(r$stat, NA_real_) && identical(names(r), ref) &&
              !exists("summary", envir = environment(run_engine), inherits = FALSE) &&
              !inherits(tt, "error") && ligne_tost_coherente153(ligne153(tt, LIGNE_TOST153), r, x153) &&
-             identical(ligne153(tt, LIGNE_TOST153)$verdict, "INFO")
+             identical(ligne153(tt, LIGNE_TOST153)$verdict, "INFO") &&
+             isTRUE(avec_summary_nan153(tost_coherent153(r, ref, x153, y153))) &&
+             !tost_coherent153(r, ref, x153, y153) && !tost_coherent153(forge, ref, x153, y153) &&
+             tost_coherent153(test_tost_intercept(x153, y153), ref, x153, y153)
          })
 # Branche R12 des fonctions de coherence (x ecarte par lm(), issue possible
 # sur une autre plateforme) : summary() injectee rend la table des
@@ -586,7 +606,7 @@ verifier("run_engine : y exactement proportionnel a x -> ok = TRUE ; ligne Cook 
              identical(tail(names(rp$plots_data), 1), "qq_enveloppe") &&
              is.null(r1$plots_data$influence_motif)
          })
-verifier("test_tost_intercept() : entrees sous-normales (x et y x 1e-320, 5e-324) -> sans erreur R, memes champs que la branche calculee ; motif egal a celui que declenchent les conditions de test_tost_intercept() sur ces donnees (volumes constants, marge, x ecarte par lm() (R12), 'statistique non definie' si et seulement si p n'est pas fini), ligne calculee finie sinon (#153)",
+verifier("test_tost_intercept() : entrees sous-normales (x et y x 1e-320, 5e-324) -> sans erreur R, memes champs que la branche calculee ; motif egal a celui que declenchent les conditions de test_tost_intercept() sur ces donnees (volumes constants, marge, x ecarte par lm() (R12), 'statistique non definie' si et seulement si p_bas ou p_haut, recalculees depuis summary(lm(y ~ x)), n'est pas finie), ligne calculee finie sinon (#153)",
          {
            ref <- names(test_tost_intercept(x153, y153))
            all(vapply(c(1e-320, 5e-324), function(f) {
