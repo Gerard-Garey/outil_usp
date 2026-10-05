@@ -2602,8 +2602,11 @@ test_tost_intercept <- function(x, y, theta = 0.10, delta_abs = NULL) {
   # non finie -> non applicable, au lieu de l'erreur R de
   # if (p_bas >= p_haut) sur NA. pt(+/-Inf) etant fini (0 ou 1), la garde ne
   # se declenche que si t_bas ou t_haut vaut NaN : statistique non definie.
-  # Cas mesure : entrees sous-normales (x et y x 1e-320, 5e-324), lm() rend
-  # a = se = NaN. Hors du domaine de #145 : run_engine() n'atteint pas cette
+  # Cas vise : entrees sous-normales (x et y x 1e-320, 5e-324). L'issue de
+  # lm() y depend de la plateforme (BLAS, processeur, version de R). Mesure :
+  # a = se = NaN sous le BLAS de reference et OpenBLAS 0.3.20 (noyaux Zen,
+  # Haswell, SkylakeX) ; autre issue sur la CI (R 4.3.1, OpenBLAS 0.3.20,
+  # EPYC 7763). Hors du domaine de #145 : run_engine() n'atteint pas cette
   # branche.
   if (!is.finite(p_bas) || !is.finite(p_haut))
     return(non_applicable("statistique non definie"))
@@ -3654,8 +3657,12 @@ usp_profil <- function(fit, n = 41) {
 # estim et detail a partir des distances ck et de T. Garde "non applicable"
 # sur le modele de RESET et White (#110) : une distance non finie rend la
 # ligne non applicable avec son motif, estim = NA, au lieu de l'erreur R de
-# if (any(ck > 4 / T)) sur NA. Cas mesure : y exactement proportionnel a x
-# (residus de y = beta x tous nuls, D_t = 0/0 = NaN).
+# if (any(ck > 4 / T)) sur NA. Cas vise : y exactement proportionnel a x
+# (y = x/2). L'issue de lm() depend de la plateforme (BLAS, processeur,
+# version de R). Mesure : residus exactement nuls, D_t = 0/0 = NaN, sous le
+# BLAS de reference et OpenBLAS 0.3.20 (noyaux Zen, Haswell) ; D_t fini
+# sous OpenBLAS 0.3.20 (noyau SkylakeX). x ecarte par lm() : jamais
+# observe, issue possible.
 .usp_ligne_cook <- function(ck, T) {
   if (!all(is.finite(ck)))
     return(list(type = "non applicable", estim = NA_real_,
@@ -5689,12 +5696,13 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
     sigma_boot = boot$sigma_boot, delta_boot = boot$delta_boot
   )
   # Graphiques d'influence (#153), sur le modele de .usp_ligne_cook() : un
-  # residu standardise ou une distance de Cook non fini (cas mesure : y
+  # residu standardise ou une distance de Cook non fini (cas vise : y
   # exactement proportionnel a x, residus de y = beta x tous nuls, s = 0,
-  # residu_std et D_t = 0/0 = NaN sur les T annees) rend les graphiques
-  # residus vs levier et Cook par annee sans objet ; le motif est expose ici,
-  # l'affichage ne fait que le lire. Champ absent si tout est fini (aucun
-  # effet sur les resultats ordinaires), place avant lr_delta et
+  # residu_std et D_t = 0/0 = NaN sur les T annees ; issue dependant de la
+  # plateforme, mesures et issues possibles : voir .usp_ligne_cook()) rend
+  # les graphiques residus vs levier et Cook par annee sans objet ; le motif
+  # est expose ici, l'affichage ne fait que le lire. Champ absent si tout est
+  # fini (aucun effet sur les resultats ordinaires), place avant lr_delta et
   # qq_enveloppe, qui restent en fin de liste.
   if (!all(is.finite(pd$influence$residu_std)) || !all(is.finite(pd$influence$cook)))
     pd$influence_motif <- paste("Residu standardise ou distance de Cook non fini (par exemple",
