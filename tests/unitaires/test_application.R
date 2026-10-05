@@ -21,7 +21,17 @@
 #   - vue Detail de l'onglet Tests (issue #178) : table_detail_groupe()
 #     appelee avec replier = TRUE, regle CSS du repli presente et, avec
 #     shiny, commentaire long replie et colonne Fonction dans le rendu de la
-#     vue Detail, absents de la vue Synthese.
+#     vue Detail, absents de la vue Synthese ;
+#   - dimension du triangle et reinitialisation (issue #155, decision
+#     Q-R7-2 (A)) : profondeur_reinitialisation(), jeu_reinitialise(),
+#     message_reinitialisation() hors Shiny ; aucun observateur du champ T
+#     n'ecrit le triangle, "Reinitialiser" incremente version_grille,
+#     l'import d'un triangle ne touche plus le champ T (lecture du code) ;
+#     avec shiny : un triangle lu au demarrage (10 x 10, T = 8) garde sa
+#     dimension, de meme apres l'import d'une serie et au changement de T ;
+#     seule "Reinitialiser" la change ; grille redessinee par une seconde
+#     reinitialisation sur des donnees deja par defaut (series et triangle)
+#     et par un second import du meme fichier.
 #  La partie Shiny tourne dans un processus R distinct : app.R attache shiny
 #  et recharge le moteur dans l'environnement global, ce qui ne doit pas
 #  toucher les fichiers de tests suivants.
@@ -174,8 +184,133 @@ verifier("app.R : regles CSS du commentaire replie (details.com) (#178)",
          any(grepl("details.com > summary", .src_app, fixed = TRUE)) &&
            any(grepl("details.com:not([open]) > summary::after", .src_app, fixed = TRUE)))
 
+## --- Dimension du triangle et reinitialisation (issue #155) --------------------
+# Fonctions de premier niveau d'app.R, evaluees seules comme triangle_defaut().
+.noms_155 <- c("DONNEES_DEFAUT", "profondeur_reinitialisation", "jeu_reinitialise",
+               "message_reinitialisation")
+for (.x in parse(.app, keep.source = FALSE))
+  if (is.call(.x) && identical(.x[[1]], as.name("<-")) &&
+      as.character(.x[[2]]) %in% .noms_155) eval(.x, .env)
+verifier("app.R definit profondeur_reinitialisation(), jeu_reinitialise(), message_reinitialisation() (#155)",
+         is.function(.env$profondeur_reinitialisation) && is.function(.env$jeu_reinitialise) &&
+           is.function(.env$message_reinitialisation) && is.data.frame(.env$DONNEES_DEFAUT))
+.pr <- lapply(list(5, 10, 12, 41), .env$profondeur_reinitialisation)
+verifier("profondeur_reinitialisation() : T = 5, 10, 12, 41 retenus tels quels, sans motif (aucune borne superieure, #108)",
+         identical(vapply(.pr, function(r) as.numeric(r$T), numeric(1)), c(5, 10, 12, 41)) &&
+           all(lengths(lapply(.pr, `[[`, "erreurs")) == 0L))
+.pr <- lapply(list(NULL, NA_real_, 12.5, 0, -3, Inf), .env$profondeur_reinitialisation)
+verifier("profondeur_reinitialisation() : champ vide, NA, 12.5, 0, -3, Inf -> T = 8 du jeu par defaut, avec motif (#100)",
+         all(vapply(.pr, function(r) identical(r$T, 8L) && length(r$erreurs) == 1L &&
+                      nzchar(r$erreurs), logical(1))))
+verifier("profondeur_reinitialisation() : motif du champ vide, motif du moteur pour T = 0",
+         identical(.env$profondeur_reinitialisation(NULL)$erreurs, "Profondeur T : champ vide.") &&
+           identical(.env$profondeur_reinitialisation(0)$erreurs,
+                     engine_valider_profondeur(0, n = Inf, T_min = 1)))
+verifier("jeu_reinitialise() : triangle par defaut de T annees (reserve no 2), series par defaut sinon, quelle que soit T",
+         identical(.env$jeu_reinitialise(TRUE, 10), .env$triangle_defaut(10)) &&
+           identical(.env$jeu_reinitialise(TRUE, 5), .env$triangle_defaut(5)) &&
+           identical(.env$jeu_reinitialise(FALSE, 5), .env$DONNEES_DEFAUT) &&
+           identical(.env$jeu_reinitialise(FALSE, 12), .env$DONNEES_DEFAUT))
+verifier("message_reinitialisation() : dimension du triangle nommee (reserve no 2) (#155)",
+         identical(.env$message_reinitialisation(TRUE, 10),
+                   "Donnees reinitialisees : triangle par defaut 10 x 10.") &&
+           identical(.env$message_reinitialisation(FALSE, 10), "Donnees reinitialisees."))
+# Lecture du code : aucun observateur du champ T n'ecrit le triangle (appel
+# triangle(x), avec argument) ; l'observateur de "Reinitialiser" incremente
+# le compteur version_grille ; celui de l'import n'appelle plus
+# updateNumericInput() qu'une fois (branche des series).
+.obs <- .appels(parse(.app, keep.source = FALSE), "observeEvent")
+.sur <- function(o, champ) identical(o[[2]], call("$", as.name("input"), as.name(champ)))
+.ecrit <- function(o, nom) any(vapply(.appels(o, nom), function(e) length(e) > 1L, logical(1)))
+.obs_T <- Filter(function(o) .sur(o, "profondeur"), .obs)
+verifier("app.R : aucun observateur de input$profondeur n'ecrit le triangle (#155 a, b)",
+         length(.obs_T) >= 1L && !any(vapply(.obs_T, .ecrit, logical(1), "triangle")))
+.obs_R <- Filter(function(o) .sur(o, "reinit"), .obs)
+verifier("app.R : \"Reinitialiser\" incremente version_grille (#155 c)",
+         length(.obs_R) == 1L && .ecrit(.obs_R[[1]], "version_grille"))
+.obs_I <- Filter(function(o) .sur(o, "fichier_import"), .obs)
+verifier("app.R : l'import d'un triangle ne modifie plus le champ T (#155)",
+         length(.obs_I) == 1L && length(.appels(.obs_I[[1]], "updateNumericInput")) == 1L)
+
 ## --- Grille des series et journal (issues #134, #136) -------------------------
 if (requireNamespace("shiny", quietly = TRUE)) {
+  # Scenarios de l'issue #155 (dimension du triangle, reinitialisation),
+  # ajoutes au script du processus fils ; chaine brute, sans echappement.
+  .bloc_155 <- r"---(
+## Dimension du triangle et reinitialisation (issue #155, Q-R7-2 (A))
+grille_html <- function(output) as.character(output$grille_donnees$html)
+a_id <- function(h, id) grepl(sprintf('id="%s"', id), h, fixed = TRUE)
+a_val <- function(h, id, v) grepl(sprintf('id="%s" type="number" class="shiny-input-number form-control" value="%s"',
+                                         id, v), h, fixed = TRUE)
+# Fichier de triangle n x n au format de l'import (colonnes i, j0, j1...).
+fichier_tri <- function(tri) {
+  f <- tempfile(fileext = ".csv"); n <- nrow(tri)
+  utils::write.csv(data.frame(i = seq_len(n) - 1L,
+                              setNames(as.data.frame(tri), paste0("j", seq_len(n) - 1L))),
+                   f, row.names = FALSE, na = "")
+  data.frame(name = basename(f), size = file.size(f), type = "text/csv", datapath = f,
+             stringsAsFactors = FALSE)
+}
+tri10 <- round(ea$triangle_defaut(10) * 1.1, 2)
+meme_tri <- function(x, y) identical(dim(x), dim(y)) && isTRUE(all.equal(x, y, tolerance = 0))
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  g1 <- grille_html(output)
+  session$setInputs(x_1 = 999)
+  session$setInputs(reinit = 2)
+  g2 <- grille_html(output)
+  a("series deja par defaut, seconde reinitialisation : grille redessinee, valeur par defaut (#155 c)",
+    identical(donnees(), ea$DONNEES_DEFAUT) && identical(version_grille(), 2L) &&
+      !identical(g1, g2) && grepl('data-version="2"', g2, fixed = TRUE) && a_val(g2, "x_1", "104.2"))
+  t0 <- triangle()
+  session$setInputs(fichier_import = fichier(6)); session$setInputs(profondeur = 6)
+  a("import d'une serie de 6 annees, puis T = 6 : triangle 8 x 8 garde (#155 a)",
+    nrow(donnees()) == 6L && nrow(t0) == 8L && identical(triangle(), t0))
+  g3 <- grille_html(output)
+  session$setInputs(fichier_import = fichier(6))
+  a("second import du meme fichier de series : grille redessinee (#155 c)",
+    !identical(g3, grille_html(output)))
+  session$setInputs(methode = "reserve2")
+  a("passage en reserve no 2 apres l'import : triangle 8 x 8 garde (#155 a)",
+    identical(triangle(), t0) && a_id(grille_html(output), "c_7_0") &&
+      !a_id(grille_html(output), "c_8_0"))
+  session$setInputs(profondeur = 5)
+  a("reserve no 2, T = 5 : triangle 8 x 8 inchange, aucune troncature (#155 b)",
+    identical(triangle(), t0))
+  session$setInputs(profondeur = 12)
+  a("reserve no 2, T = 12 : triangle 8 x 8 inchange, aucun prolongement (#155 b)",
+    identical(triangle(), t0))
+  session$setInputs(reinit = 3)
+  a("Reinitialiser avec T = 12 : triangle par defaut 12 x 12, seul changement de dimension (#155)",
+    identical(triangle(), ea$triangle_defaut(12)) && a_id(grille_html(output), "c_11_0"))
+  g4 <- grille_html(output)
+  session$setInputs(c_0_0 = 1)
+  session$setInputs(reinit = 4)
+  a("triangle deja par defaut, seconde reinitialisation : grille redessinee, valeur par defaut (#155 c)",
+    identical(triangle(), ea$triangle_defaut(12)) && !identical(g4, grille_html(output)) &&
+      a_val(grille_html(output), "c_0_0", "300"))
+  session$setInputs(fichier_import = fichier_tri(tri10))
+  a("import d'un triangle 10 x 10 avec T = 12 : dimension 10 gardee (#155)",
+    meme_tri(triangle(), tri10) && a_id(grille_html(output), "c_9_0") &&
+      !a_id(grille_html(output), "c_10_0"))
+  session$setInputs(profondeur = 8)
+  a("triangle importe 10 x 10, puis T = 8 : dimension gardee (#155 b)", meme_tri(triangle(), tri10))
+})
+# Demarrage sur un fichier de triangle 10 x 10, sans fichier de series
+# (T_INIT = 8, jeu par defaut) : app.R est relu dans un dossier temporaire
+# qui porte usp_donnees_MW.csv ; le depot n'est pas touche.
+tmp <- tempfile("app155_"); dir.create(file.path(tmp, "R"), recursive = TRUE)
+invisible(file.copy(c("app.R", "DESCRIPTION"), tmp))
+invisible(file.copy(file.path("R", c("engine.R", "display_helpers.R")), file.path(tmp, "R")))
+invisible(file.copy(fichier_tri(tri10)$datapath, file.path(tmp, "usp_donnees_MW.csv")))
+ici <- setwd(tmp); eb <- new.env(); app_b <- source("app.R", local = eb)$value; setwd(ici)
+testServer(app_b, {
+  do.call(session$setInputs, modifyList(base, list(methode = "reserve2", profondeur = eb$T_INIT)))
+  a("demarrage : triangle 10 x 10 lu, T = 8 (series par defaut) : dimension gardee (#155 a)",
+    identical(eb$T_INIT, 8L) && isTRUE(eb$CHARGE_MW$statut$ok) && meme_tri(triangle(), tri10) &&
+      a_id(grille_html(output), "c_9_0"))
+})
+)---"
   .script <- tempfile(fileext = ".R")
   writeLines(c(
     'suppressMessages(library(shiny))',
@@ -288,7 +423,7 @@ if (requireNamespace("shiny", quietly = TRUE)) {
     '  a("import n = 41 (hors [5 ; 40]) : garde non posee, apercu evalue avec T = 8 (#183)",',
     '    is.null(profondeur_import()) && is.character(ap) &&',
     '      !grepl("superieure", ap, fixed = TRUE))',
-    '})'), .script)
+    '})', .bloc_155), .script)
   # Processus fils lance depuis la racine du depot : app.R y source
   # R/engine.R par chemin relatif.
   .ici <- setwd(.racine)
@@ -297,12 +432,12 @@ if (requireNamespace("shiny", quietly = TRUE)) {
                                       stdout = TRUE, stderr = TRUE))
   setwd(.ici)
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 19 assertions rendues", length(.lignes) == 19L)
-  if (length(.lignes) != 19L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 30 assertions rendues", length(.lignes) == 30L)
+  if (length(.lignes) != 30L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {
-  cat("  note : shiny absent ; grille, journal, apercu et vue Detail non exerces (attendu en CI, comme plotly, issue #53).\n")
+  cat("  note : shiny absent ; grille, journal, apercu, vue Detail et dimension du triangle non exerces (attendu en CI, comme plotly, issue #53).\n")
 }
 
 fin_fichier()
