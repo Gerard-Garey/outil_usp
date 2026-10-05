@@ -5821,6 +5821,12 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
 # XVII, section G ; duree G(3)(c)) ; l'avertissement statistique (variance
 # tres bruitee en fin de triangle, I + 1 < 10) est un repere non
 # reglementaire, distinct et inchange.
+# Domaine numerique (issue #185) : une cellule observee hors de
+# [DOMAINE_NUMERIQUE_MIN ; DOMAINE_NUMERIQUE_MAX], bornes incluses, est
+# refusee (constantes de #145). Sans ce refus, run_engine() rendait ok = TRUE
+# sans alerte avec un sigma_USP faux sous une echelle d'environ 1e-105
+# (mesures de l'issue #185 ; bornes de l'ordre de DBL_MIN^(1/3) et
+# DBL_MAX^(1/3), grandeurs de degre 3).
 mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
                                 annexe = "II") {
   err <- character(0); avt <- character(0)
@@ -5839,6 +5845,9 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
   if (I != J)
     err <- c(err, sprintf("Triangle non carre (I = %d, J = %d) : cas non couvert par la formule du paragraphe 4 (voir la note d'implementation).", I, J))
   if (!length(err)) {
+    # Cellules observees finies strictement positives hors du domaine
+    # numerique (issue #185), relevees dans la boucle, signalees apres elle.
+    hors_i <- integer(0); hors_j <- integer(0)
     # Structure attendue : partie superieure gauche observee, reste manquant.
     for (i in 0:I) for (j in 0:J) {
       obs <- (i + j <= I)
@@ -5852,6 +5861,34 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
         err <- c(err, sprintf("Valeur non finie en (i=%d, j=%d) : %s.", i, j, format(v)))
       if (obs && is.finite(v) && v <= 0)
         err <- c(err, sprintf("Cumul non strictement positif en (i=%d, j=%d).", i, j))
+      # Domaine numerique (issue #185) : memes constantes et memes bornes
+      # incluses que engine_valider_donnees() (#145). NA, non finies et non
+      # positives sont refusees ci-dessus, sans doublon.
+      if (obs && is.finite(v) && v > 0 &&
+          (v < DOMAINE_NUMERIQUE_MIN || v > DOMAINE_NUMERIQUE_MAX)) {
+        hors_i <- c(hors_i, i); hors_j <- c(hors_j, j)
+      }
+    }
+    # Un seul motif par triangle, qui cite la premiere cellule fautive (ordre
+    # i puis j), sa valeur (.engine_saisie(), 17 chiffres si necessaire), la
+    # borne franchie et le nombre de cellules hors du domaine : un triangle a
+    # une echelle extreme a toutes ses cellules hors du domaine, et un motif
+    # par cellule repeterait le meme refus (comme engine_valider_donnees(),
+    # un motif par serie).
+    if (length(hors_i)) {
+      v1 <- tri[hors_i[1] + 1, hors_j[1] + 1]
+      borne <- if (v1 < DOMAINE_NUMERIQUE_MIN)
+        sprintf("< %g, borne inferieure", DOMAINE_NUMERIQUE_MIN)
+        else sprintf("> %g, borne superieure", DOMAINE_NUMERIQUE_MAX)
+      err <- c(err, sprintf(paste(
+        "Cumul hors du domaine numerique [%g ; %g] en (i=%d, j=%d) : %s (%s)%s.",
+        "sigma_USP et les tests sont invariants par un changement d'unite commun",
+        "a toutes les cellules du triangle : exprimer les cumuls dans une unite",
+        "qui les ramene dans le domaine."),
+        DOMAINE_NUMERIQUE_MIN, DOMAINE_NUMERIQUE_MAX, hors_i[1], hors_j[1],
+        .engine_saisie(unname(v1)), borne,
+        if (length(hors_i) > 1L)
+          sprintf(" ; %d cellules observees hors du domaine", length(hors_i)) else ""))
     }
   }
   # Bareme, segment et annexe (issue #131) : controles apres les erreurs de

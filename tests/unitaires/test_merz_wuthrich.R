@@ -921,4 +921,91 @@ verifier("Restitution : la colonne exclue est nommee dans le commentaire, estima
                        "Une courbure invalide la linearite meme si la constante est nulle")
          })
 
+## --- Domaine numerique des cumuls (issue #185) ------------------------------
+# Toute cellule observee finie strictement positive hors de
+# [DOMAINE_NUMERIQUE_MIN ; DOMAINE_NUMERIQUE_MAX] (bornes incluses) est
+# refusee par mw_valider_triangle(), un seul motif par triangle. Avant #185,
+# triangle_mw.csv x 1e-110 rendait ok = TRUE avec un sigma_USP faux de 0,5 %
+# (mesure de l'issue). Dans le domaine, sigma_USP, p-values retenues et
+# verdicts sont invariants par changement d'unite.
+d185 <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
+m185 <- unname(as.matrix(d185[, setdiff(names(d185), "i")])); storage.mode(m185) <- "double"
+motif185 <- "hors du domaine numerique"
+refus185 <- function(t) {
+  v <- mw_valider_triangle(t)
+  isFALSE(v$ok) && sum(grepl(motif185, v$erreurs, fixed = TRUE)) == 1L
+}
+verifier("Domaine (#185) : triangle_mw x 10^e, e = -110, -60, -53, 47, 60, 101 -> refus, un seul motif, borne citee",
+         {
+           ok <- vapply(c(-110, -60, -53, 47, 60, 101), function(e) {
+             v <- mw_valider_triangle(m185 * 10^e)
+             msg <- grep(motif185, v$erreurs, fixed = TRUE, value = TRUE)
+             borne <- if (e < 0) "borne inferieure" else "borne superieure"
+             isFALSE(v$ok) && length(v$erreurs) == 1L && length(msg) == 1L &&
+               grepl("en (i=0, j=", msg, fixed = TRUE) &&
+               grepl(borne, msg, fixed = TRUE) &&
+               # |e| >= 60 : les 36 cellules observees sont hors du domaine ;
+               # e = -53, 47 : une partie seulement (10 et 26 cellules)
+               grepl(sprintf("; %d cellules observees hors du domaine",
+                             if (abs(e) >= 60) 36L else if (e == -53) 10L else 26L),
+                     msg, fixed = TRUE) &&
+               grepl("changement d'unite", msg, fixed = TRUE)
+           }, logical(1))
+           all(ok)
+         })
+verifier("Domaine (#185) : bornes exactes et juste a l'interieur acceptees, juste a l'exterieur refusees",
+         {
+           bas <- m185 / min(m185, na.rm = TRUE)       # plus petite cellule = 1
+           haut <- m185 / max(m185, na.rm = TRUE)      # plus grande cellule = 1
+           acc <- list(bas * DOMAINE_NUMERIQUE_MIN, haut * DOMAINE_NUMERIQUE_MAX,
+                       bas * DOMAINE_NUMERIQUE_MIN * (1 + 1e-15),
+                       haut * DOMAINE_NUMERIQUE_MAX * (1 - 1e-15), m185 * 1e-52, m185 * 1e46)
+           ref <- list(bas * DOMAINE_NUMERIQUE_MIN * (1 - 1e-15),
+                       haut * DOMAINE_NUMERIQUE_MAX * (1 + 1e-15))
+           min(bas, na.rm = TRUE) == 1 && max(haut, na.rm = TRUE) == 1 &&
+             all(vapply(acc, function(t) isTRUE(mw_valider_triangle(t)$ok), logical(1))) &&
+             all(vapply(ref, refus185, logical(1)))
+         })
+verifier("Domaine (#185) : une seule cellule hors du domaine -> refus qui la cite, sans decompte ; autres motifs non masques",
+         {
+           t1 <- m185; t1[3, 2] <- 1e51                # (i=2, j=1)
+           v1 <- mw_valider_triangle(t1)
+           t2 <- m185; t2[3, 2] <- 1e-51; t2[1, 1] <- NA; t2[2, 3] <- -5
+           v2 <- mw_valider_triangle(t2)
+           l <- engine_lire_triangle(t1)
+           isFALSE(v1$ok) && identical(v1$erreurs, sprintf(paste(
+             "Cumul hors du domaine numerique [%g ; %g] en (i=2, j=1) : 1e+51 (> %g, borne superieure).",
+             "sigma_USP et les tests sont invariants par un changement d'unite commun",
+             "a toutes les cellules du triangle : exprimer les cumuls dans une unite",
+             "qui les ramene dans le domaine."),
+             DOMAINE_NUMERIQUE_MIN, DOMAINE_NUMERIQUE_MAX, DOMAINE_NUMERIQUE_MAX)) &&
+             isFALSE(v2$ok) && length(v2$erreurs) == 3L &&
+             any(grepl("Cellule observee manquante en (i=0, j=0)", v2$erreurs, fixed = TRUE)) &&
+             any(grepl("Cumul non strictement positif en (i=1, j=2)", v2$erreurs, fixed = TRUE)) &&
+             any(grepl("en (i=2, j=1) : 1e-51 (< 1e-50, borne inferieure).", v2$erreurs, fixed = TRUE)) &&
+             isFALSE(l$ok) && is.null(l$triangle) && identical(l$erreurs, v1$erreurs)
+         })
+verifier("Domaine (#185) : run_engine reserve2, triangle_mw x 1e-110 et x 1e60 -> ok = FALSE, motif hors domaine, sans erreur R",
+         all(vapply(c(-110, 60), function(e) {
+           r <- run_engine(methode = "reserve2", triangle = m185 * 10^e,
+                           segment = 1, annexe = "II", B = 99)
+           isFALSE(r$ok) && inherits(r, "usp_engine") &&
+             any(grepl(motif185, r$validation$erreurs, fixed = TRUE))
+         }, logical(1))))
+verifier("Domaine (#185) : invariance dans le domaine, x 1e-40 et x 1e40 : sigma_USP et p retenues = echelle 1 (rel 1e-6), verdicts identiques",
+         {
+           lancer <- function(e) run_engine(methode = "reserve2", triangle = m185 * 10^e,
+                                            segment = 1, annexe = "II", B = 99)
+           r0 <- lancer(0); d0 <- engine_table_tests(r0)
+           ok <- vapply(c(-40, 40), function(e) {
+             r <- lancer(e); d <- engine_table_tests(r)
+             isTRUE(r$ok) &&
+               isTRUE(proche(r$parametre_final$sigma_usp, r0$parametre_final$sigma_usp,
+                             rel = 1e-6)) &&
+               identical(d$test, d0$test) && identical(d$verdict, d0$verdict) &&
+               isTRUE(proche(d$p_retenue, d0$p_retenue, rel = 1e-6, abs = 1e-12))
+           }, logical(1))
+           isTRUE(r0$ok) && all(ok)
+         })
+
 fin_fichier()
