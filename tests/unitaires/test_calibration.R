@@ -942,6 +942,41 @@ verifier("Profondeur : metadata$T absent, non fini ou non entier -> engine_derog
                        "engine_derogations() : metadata$n_fournies inferieur a la profondeur T retenue.")
          })
 rm(r_12, .x12, .y12)
-rm(r_sans, r_b, r_n, r_d, r1_sans, r1_net, r1_brut, r2_sans, r2_net, r2_brut)
+
+## --- Objets c, cbind, rbind de l'environnement global (issue #179) ---------
+# do.call() evalue son premier argument comme une valeur : un objet non
+# fonction c, cbind ou rbind de l'environnement global (ou sont sourcees les
+# fonctions du moteur) masquait base::c / cbind / rbind dans les do.call() du
+# moteur, alors qu'un appel c(...) ordinaire l'ignore. Mordant : contre le
+# moteur anterieur a #179 (816db34), c <- 5 rend ok = FALSE pour les deux
+# methodes (erreur dans .mc_evaluer()), rbind <- 5 aussi (erreurs dans
+# engine_contours_cook() et mw_test_annees_calendaires()) et fait echouer
+# engine_table_tests(), cbind <- 5 fait echouer engine_lire_triangle().
+verifier("Objets non fonctions c, cbind, rbind dans l'environnement global : run_engine() (lognormale, Merz-Wuthrich), engine_table_tests() et engine_lire_triangle() identical a ceux calcules sans eux (#179)",
+         {
+           .df_m6 <- utils::read.csv(file.path(.racine, "tests", "donnees", "triangle_mw.csv"))
+           lt_ref <- engine_lire_triangle(.df_m6)
+           genv <- globalenv()
+           masques <- c("c", "cbind", "rbind")
+           deja <- vapply(masques, exists, logical(1), envir = genv, inherits = FALSE)
+           stopifnot(!any(deja))
+           on.exit(rm(list = masques[vapply(masques, exists, logical(1), envir = genv,
+                                            inherits = FALSE)], envir = genv), add = TRUE)
+           assign("c", 5, envir = genv)
+           assign("cbind", 5, envir = genv)
+           assign("rbind", 5, envir = genv)
+           r1_m <- run_engine(xt = .ln_m6$xt, yt = .ln_m6$yt, methode = "reserve1", segment = 1,
+                              annexe = "II", B = B_M6)
+           r2_m <- run_engine(methode = "reserve2", triangle = .tri_m6, segment = 1, annexe = "II",
+                              B = B_M6)
+           isTRUE(r1_m$ok) && isTRUE(r2_m$ok) &&
+             identical(sans_exec(r1_m), sans_exec(r1_sans)) &&
+             identical(sans_exec(r2_m), sans_exec(r2_sans)) &&
+             identical(engine_table_tests(r1_m), engine_table_tests(r1_sans)) &&
+             identical(engine_table_tests(r2_m), engine_table_tests(r2_sans)) &&
+             identical(engine_lire_triangle(.df_m6), lt_ref)
+         })
+rm(r_sans, r_b, r_n, r_d, r1_sans, r1_net, r1_brut, r2_sans, r2_net, r2_brut,
+   .df_m6, lt_ref, genv, masques, deja, r1_m, r2_m)
 
 fin_fichier()
