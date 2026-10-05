@@ -223,6 +223,12 @@ CHARGE_MW <- charger_mw()
 DONNEES_INIT  <- CHARGE_LN$valeur
 TRIANGLE_INIT <- CHARGE_MW$valeur
 T_INIT        <- nrow(DONNEES_INIT)
+# Bornes du champ T (numericInput "profondeur"), partagees avec la garde de
+# l'apercu apres import (profondeur_attendue_import(), issue #183) : une
+# seule source, pour que la garde ne puisse pas attendre une valeur que le
+# champ refuse.
+PROFONDEUR_MIN <- 5L
+PROFONDEUR_MAX <- 40L
 
 # ---------------------------------------------------------------------------
 # UI : zone principale a gauche, panneau de parametres a DROITE
@@ -434,7 +440,7 @@ ui <- fluidPage(
                            helpText("Saisie libre : derogation au parametre reglementaire,",
                                     "signalee dans les resultats et le rapport fige.")),
           numericInput("profondeur", "Profondeur T retenue", value = T_INIT,
-                       min = 5, max = 40, step = 1),
+                       min = PROFONDEUR_MIN, max = PROFONDEUR_MAX, step = 1),
           conditionalPanel("input.methode == 'reserve2'",
             helpText("T pilote la taille du triangle de saisie de l'onglet Donnees.")),
           conditionalPanel("input.methode != 'reserve2'",
@@ -473,6 +479,62 @@ ui <- fluidPage(
     )
   )
 )
+
+# ---------------------------------------------------------------------------
+# APERCU DE VALIDATION : fonctions de premier niveau (issue #183), evaluees
+# hors Shiny par tests/unitaires/test_application.R. Aucun calcul : elles
+# choisissent ce qui est transmis au moteur et quand l'apercu s'affiche.
+# ---------------------------------------------------------------------------
+
+# Segment transmis a l'apercu : numero entier si la valeur saisie designe un
+# segment de l'annexe a du catalogue SEGMENTS, NULL sinon (segment non encore
+# choisi, absent de l'annexe courante, valeur inattendue). La valeur est
+# comparee comme chaine aux numeros du catalogue AVANT toute conversion :
+# as.integer() sur une chaine non numerique, ou hors de l'intervalle des
+# entiers, emettait un avertissement R (issue #183, constat 1).
+# Changement de comportement assume : les ecritures non canoniques d'un
+# numero du catalogue ("01", "1.0", "1e3"...), que as.integer() convertissait
+# auparavant, ne designent plus de segment (NULL). Elles sont inatteignables
+# depuis l'interface : selectInput("segment") ne renvoie que les choix
+# as.character(SEGMENTS$segment).
+segment_recevable <- function(s, a) {
+  if (!is.atomic(s) || length(s) != 1L || is.na(s) ||
+      !is.atomic(a) || length(a) != 1L || is.na(a)) return(NULL)
+  num <- SEGMENTS$segment[SEGMENTS$annexe == a]
+  i <- match(as.character(s), as.character(num))
+  if (is.na(i)) NULL else as.integer(num[i])
+}
+
+# Titre du bloc des erreurs de l'apercu (issue #183, constat 2) : le moteur
+# y renvoie aussi bien les refus de la profondeur T que ceux des donnees ;
+# le titre ne nomme donc pas les donnees. Le texte des erreurs, lui, est
+# celui du moteur, inchange.
+TITRE_APERCU_REFUS <- "Saisie non exploitable :"
+
+# Profondeur coherente avec la grille (issue #183, constat 3) : apres un
+# import de n annees, le champ T n'est mis a jour par updateNumericInput()
+# qu'a la fin de l'observateur ; pendant un cycle, l'apercu verrait la
+# nouvelle grille avec l'ancien T. T_attendu vaut n tant que le champ n'a
+# pas ete relu apres l'import, NULL sinon. Retourne FALSE si l'apercu ne
+# doit pas etre evalue (champ T pas encore aligne sur l'import).
+profondeur_coherente <- function(T_saisi, T_attendu) {
+  if (is.null(T_attendu)) return(TRUE)
+  is.numeric(T_saisi) && length(T_saisi) == 1L && !is.na(T_saisi) &&
+    T_saisi == T_attendu
+}
+
+# Profondeur attendue apres un import de n annees (issue #183, reprise) :
+# n si le champ T peut prendre cette valeur (entier dans [PROFONDEUR_MIN ;
+# PROFONDEUR_MAX], bornes du numericInput), NULL sinon. Hors des bornes,
+# rien ne garantit que le navigateur transmette n apres
+# updateNumericInput() : une garde posee a n pourrait ne jamais etre levee
+# et figer l'apercu. Elle n'est donc pas posee ; l'apercu s'evalue alors
+# avec la valeur courante du champ, comme avant #183.
+profondeur_attendue_import <- function(n, T_min = PROFONDEUR_MIN, T_max = PROFONDEUR_MAX) {
+  if (!is.numeric(n) || length(n) != 1L || !is.finite(n) || n != round(n) ||
+      n < T_min || n > T_max) return(NULL)
+  as.integer(n)
+}
 
 # ---------------------------------------------------------------------------
 # SERVEUR : collecte des entrees, appel du moteur, affichage
@@ -724,14 +786,22 @@ server <- function(input, output, session) {
   # segment n'est transmis, le moteur lit alors le bareme court par
   # convention et le dit, au lieu d'un refus transitoire. L'annexe n'est
   # transmise qu'avec un segment (sans segment, elle ne determine rien).
-  segment_apercu <- function() {
-    s <- input$segment; a <- input$annexe
-    if (length(s) != 1L || is.na(s) || !nzchar(s) || length(a) != 1L) return(NULL)
-    s <- as.integer(s)
-    if (s %in% SEGMENTS$segment[SEGMENTS$annexe == a]) s else NULL
-  }
+  # Garde de la conversion : segment_recevable() (issue #183, constat 1).
+  segment_apercu <- function() segment_recevable(input$segment, input$annexe)
   annexe_apercu <- function() if (is.null(segment_apercu())) "II" else input$annexe
+  # Profondeur attendue apres un import de series (issue #183, constat 3) :
+  # posee par l'import a n si n est dans les bornes du champ T
+  # (profondeur_attendue_import()), levee au premier evenement du champ T,
+  # quelle qu'en soit la valeur. Tant que le champ n'est pas aligne,
+  # l'apercu garde son rendu precedent (req(cancelOutput = TRUE)) au lieu de
+  # s'evaluer avec l'ancien T. Si T vaut deja n, profondeur_coherente() est
+  # vraie d'emblee, qu'un evenement du champ T suive l'import ou non.
+  profondeur_import <- reactiveVal(NULL)
+  observeEvent(input$profondeur, profondeur_import(NULL), ignoreInit = TRUE,
+               ignoreNULL = FALSE)
   output$validation_live <- renderUI({
+    if (!est_mw())
+      req(profondeur_coherente(input$profondeur, profondeur_import()), cancelOutput = TRUE)
     v <- if (est_mw()) mw_valider_triangle(lire_triangle(), segment = segment_apercu(),
                                            annexe = annexe_apercu())
          else { sa <- lire_saisie()
@@ -749,7 +819,7 @@ server <- function(input, output, session) {
                                              annexe = annexe_apercu())$validation }
     tagList(
       if (length(v$erreurs))
-        div(class = "err", tags$b("Donnees non exploitables :"),
+        div(class = "err", tags$b(TITRE_APERCU_REFUS),
             tags$ul(lapply(utils::head(v$erreurs, 6), tags$li))),
       if (length(v$avertissements))
         div(class = "avert", tags$b("Avertissements :"),
@@ -824,6 +894,7 @@ server <- function(input, output, session) {
       # Valeur initiale de T apres import : toutes les annees importees. La
       # grille n'en depend plus (issue #134) : reduire ensuite T fait ecarter
       # par le moteur les annees les plus anciennes, troncature restituee.
+      profondeur_import(profondeur_attendue_import(r$n))
       updateNumericInput(session, "profondeur", value = r$n)
       effacer_statut_demarrage()
       # Meme politique qu'au demarrage (charger_ln()) : des donnees lisibles
