@@ -17,7 +17,11 @@
 #     avertissement R, titre des refus, garde de la profondeur apres import
 #     (profondeur_coherente(), profondeur_attendue_import(), n = 4 et 41
 #     hors des bornes du champ T) et, avec shiny, sequence reactive de
-#     l'apercu apres import (n different de T, n = T, n hors [5 ; 40]).
+#     l'apercu apres import (n different de T, n = T, n hors [5 ; 40]) ;
+#   - vue Detail de l'onglet Tests (issue #178) : table_detail_groupe()
+#     appelee avec replier = TRUE, regle CSS du repli presente et, avec
+#     shiny, commentaire long replie et colonne Fonction dans le rendu de la
+#     vue Detail, absents de la vue Synthese.
 #  La partie Shiny tourne dans un processus R distinct : app.R attache shiny
 #  et recharge le moteur dans l'environnement global, ce qui ne doit pas
 #  toucher les fichiers de tests suivants.
@@ -151,6 +155,25 @@ verifier("profondeur_coherente() : n = 4 ou 41 sans garde -> l'apercu s'evalue (
          isTRUE(.env$profondeur_coherente(8, .env$profondeur_attendue_import(4L))) &&
            isTRUE(.env$profondeur_coherente(8, .env$profondeur_attendue_import(41L))))
 
+## --- Vue Detail de l'onglet Tests (issue #178) -------------------------------
+# Lecture de l'arbre syntaxique d'app.R, sans le charger : tout appel a
+# table_detail_groupe() demande le repli du commentaire (le rapport fige, qui
+# l'appelle sans repli, est dans R/display_helpers.R).
+.appels <- function(e, nom) {
+  if (is.call(e)) {
+    ici <- if (identical(e[[1]], as.name(nom))) list(e) else list()
+    c(ici, unlist(lapply(as.list(e)[-1], .appels, nom), recursive = FALSE))
+  } else if (is.expression(e) || is.list(e)) unlist(lapply(e, .appels, nom), recursive = FALSE)
+  else list()
+}
+.tdg <- .appels(parse(.app, keep.source = FALSE), "table_detail_groupe")
+verifier("app.R : vue Detail, un appel a table_detail_groupe() avec replier = TRUE (#178)",
+         length(.tdg) == 1L && isTRUE(.tdg[[1]]$replier))
+.src_app <- readLines(.app, encoding = "UTF-8")
+verifier("app.R : regles CSS du commentaire replie (details.com) (#178)",
+         any(grepl("details.com > summary", .src_app, fixed = TRUE)) &&
+           any(grepl("details.com:not([open]) > summary::after", .src_app, fixed = TRUE)))
+
 ## --- Grille des series et journal (issues #134, #136) -------------------------
 if (requireNamespace("shiny", quietly = TRUE)) {
   .script <- tempfile(fileext = ".R")
@@ -181,6 +204,15 @@ if (requireNamespace("shiny", quietly = TRUE)) {
     '      identical(as.integer(r$metadata$T), 8L))',
     '  a("n = 10, T = 8 : le moteur retient les 8 annees les plus recentes",',
     '    identical(r$donnees$xt, xt[3:10]) && identical(r$donnees$yt, yt[3:10]))',
+    '  session$setInputs(vue_tests = "detail")',
+    '  dt <- as.character(output$tests_par_hypothese$html)',
+    '  a("vue Detail : commentaire long replie et colonne Fonction (#178)",',
+    '    grepl("<details class=\'com\'><summary>", dt, fixed = TRUE) &&',
+    '      grepl("<th>Fonction</th>", dt, fixed = TRUE) && grepl("<code>test_intercept</code>", dt, fixed = TRUE))',
+    '  session$setInputs(vue_tests = "synth")',
+    '  sy <- as.character(output$tests_par_hypothese$html)',
+    '  a("vue Synthese : ni repli ni colonne Fonction (#178)",',
+    '    !grepl("<details", sy, fixed = TRUE) && !grepl("<th>Fonction</th>", sy, fixed = TRUE))',
     '  lib <- libelle_derogation(r, "profondeur")',
     '  a("ligne profondeur restituee, 2 annees ecartees", length(lib) == 1L &&',
     '    grepl("sur n = 10 annees fournies : les 2 annees les plus anciennes", lib, fixed = TRUE))',
@@ -265,12 +297,12 @@ if (requireNamespace("shiny", quietly = TRUE)) {
                                       stdout = TRUE, stderr = TRUE))
   setwd(.ici)
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 17 assertions rendues", length(.lignes) == 17L)
-  if (length(.lignes) != 17L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 19 assertions rendues", length(.lignes) == 19L)
+  if (length(.lignes) != 19L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {
-  cat("  note : shiny absent ; grille et journal non exerces (attendu en CI, comme plotly, issue #53).\n")
+  cat("  note : shiny absent ; grille, journal, apercu et vue Detail non exerces (attendu en CI, comme plotly, issue #53).\n")
 }
 
 fin_fichier()

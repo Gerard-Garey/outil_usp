@@ -13,7 +13,10 @@
 #  niveau des bandes du QQ-plot lu dans plots_data$qq_enveloppe, repere
 #  asymptotique du profil de delta hors de la legende et dans le cadre,
 #  legende et libelle du repere hors de la ligne en delta estime, libelle
-#  contraste (issue #162).
+#  contraste (issue #162) ; vue Detail : commentaire du moteur long replie
+#  sans texte retire, colonne Fonction (champ fonction, #111), commentaire du
+#  moteur dans l'annexe des tests exclus, texte entier dans le rapport fige
+#  (issue #178).
 #  References : RFC 4648, section 10 (vecteurs de test base64) ; regle de
 #  selection de l'onglet Tests (filtrer_selection).
 #  La branche PNG est exercee partout ou capabilities("png") est vrai ; la
@@ -756,5 +759,77 @@ if (requireNamespace("plotly", quietly = TRUE)) {
 } else {
   cat("  note : plotly absent ; annotations plotly du profil de delta et du QQ-plot non exercees (#162).\n")
 }
+
+## --- Vue Detail et annexe des tests exclus (issue #178) -----------------------
+# Inverse de .echap_html() (trois entites), pour relire le texte d'une cellule.
+desechap <- function(x) gsub("&amp;", "&", gsub("&gt;", ">", gsub("&lt;", "<", x, fixed = TRUE),
+                                                   fixed = TRUE), fixed = TRUE)
+# Texte rendu par une cellule de .commentaire_replie() : debut (summary) et
+# suite (corps du details), rejoints par l'espace de coupure ; tiret : NA.
+relire_com <- function(cel) vapply(cel, function(x) {
+  if (identical(x, "–")) return(NA_character_)
+  m <- regmatches(x, regexec("^<details class='com'><summary>(.*)</summary>(.*)</details>$", x))[[1]]
+  if (!length(m)) return(desechap(x))
+  d <- desechap(m[2]); r <- desechap(m[3])
+  # Coupure au seuil sans espace : rien entre les deux parties.
+  if (nchar(d) == 200L) paste0(d, r) else paste(d, r)
+}, character(1), USE.NAMES = FALSE)
+
+for (cas in list(list(nom = "lognormale", tb = tb), list(nom = "MW", tb = tbm))) {
+  t1 <- cas$tb
+  com1 <- t1$commentaire; com1[!is.na(com1) & !nzchar(trimws(com1))] <- NA_character_
+  dr <- table_detail_groupe(t1, replier = TRUE); dp <- table_detail_groupe(t1)
+  cel <- dr[["Motif / commentaire"]]
+  long <- !is.na(com1) & nchar(com1) > 200L
+  verifier(sprintf("Vue Detail (%s) : commentaire long replie (<details>), court en clair, aucun texte retire (#178)", cas$nom),
+           any(long) && all(startsWith(cel[long], "<details class='com'><summary>")) &&
+           !any(grepl("<details", cel[!long], fixed = TRUE)) &&
+           identical(relire_com(cel), unname(com1)) &&
+           all(nchar(vapply(regmatches(cel[long], regexec("<summary>(.*)</summary>", cel[long])),
+                            function(m) desechap(m[2]), "")) <= 200L))
+  verifier(sprintf("Vue Detail (%s) : replier = FALSE (rapport fige) rend le texte entier, sans <details> (#178)", cas$nom),
+           identical(dp[["Motif / commentaire"]], unname(.txt(com1))) &&
+           identical(dp[names(dp) != "Motif / commentaire"], dr[names(dr) != "Motif / commentaire"]))
+  verifier(sprintf("Vue Detail (%s) : colonne Fonction = champ fonction de chaque ligne, en <code> (#178, #111)", cas$nom),
+           identical(names(dr)[ncol(dr)], "Fonction") && !anyNA(t1$fonction) &&
+           identical(dr$Fonction, paste0("<code>", t1$fonction, "</code>")))
+}
+verifier(".commentaire_replie() : coupure au dernier espace avant le seuil, au seuil sans espace, echappement par partie (#178)",
+         {
+           x1 <- paste(c(rep("mot", 60), "a < b"), collapse = " ")   # 245 caracteres
+           x2 <- strrep("x", 450)
+           x3 <- strrep("y", 200)
+           cr <- .commentaire_replie(c(x1, x2, x3, NA))
+           identical(relire_com(cr[1:3]), c(x1, x2, x3)) && identical(cr[3], x3) &&
+             identical(cr[4], "–") && grepl("a &lt; b</details>$", cr[1]) &&
+             identical(cr[2], paste0("<details class='com'><summary>", strrep("x", 200),
+                                     "</summary>", strrep("x", 250), "</details>"))
+         })
+verifier("Garde : table sans colonne fonction -> tiret dans la colonne Fonction (#178)",
+         { tbf <- tb; tbf$fonction <- NULL; all(table_detail_groupe(tbf)$Fonction == "–") })
+verifier("Rapport : colonne Fonction dans le detail des tests retenus, commentaire en entier, aucun <details> (#178)",
+         all(vapply(which(retenu), function(k)
+           any(grepl(paste0("<td><code>", tb$fonction[k], "</code></td></tr>"),
+                     ligne_de(principal, tb$test[k]), fixed = TRUE)), logical(1))) &&
+         compte(h, "<details") == 0)
+# Annexe des tests exclus : commentaire du moteur, comme dans l'onglet Tests.
+com_attendu <- function(t1, k) {
+  x <- t1$commentaire[k]; if (is.na(x) || !nzchar(trimws(x))) "–" else .echap_html(x)
+}
+verifier("Rapport : annexe des tests exclus avec la colonne Commentaire du moteur, texte entier echappe (#178)",
+         grepl("<th>Motif</th><th>Commentaire du moteur</th></tr>", annexe, fixed = TRUE) &&
+         all(vapply(which(!retenu), function(k)
+           endsWith(ligne_de(annexe, tb$test[k]),
+                    paste0("<td>", com_attendu(tb, k), "</td></tr>")), logical(1))) &&
+         any(nchar(tb$commentaire[!retenu]) > 200L, na.rm = TRUE))
+verifier("Rapport MW : annexe des tests exclus avec le commentaire du moteur (#178)",
+         {
+           ax <- entre(hm, "<section id='section-annexe-exclus'>", "</section>")
+           all(vapply(which(!rm), function(k)
+             endsWith(ligne_de(ax, tbm$test[k]),
+                      paste0("<td>", com_attendu(tbm, k), "</td></tr>")), logical(1)))
+         })
+verifier("Rapport : encadre de personnalisation annonce le commentaire du moteur en annexe (#178)",
+         grepl("verdict, le commentaire du moteur et le motif de leur exclusion", principal, fixed = TRUE))
 
 fin_fichier()
