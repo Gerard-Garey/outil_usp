@@ -9,7 +9,11 @@
 #  sensibles aux donnees, formule propre a chaque methode, etat global
 #  (.Random.seed, options) inchange ; graphiques d'influence et note sans
 #  erreur ni "NA" quand les distances de Cook sont non finies (issue #153) ;
-#  profil et reperes du LR sur delta a NA restitues sans erreur (issue #161).
+#  profil et reperes du LR sur delta a NA restitues sans erreur (issue #161) ;
+#  niveau des bandes du QQ-plot lu dans plots_data$qq_enveloppe, repere
+#  asymptotique du profil de delta hors de la legende et dans le cadre,
+#  legende et libelle du repere hors de la ligne en delta estime, libelle
+#  contraste (issue #162).
 #  References : RFC 4648, section 10 (vecteurs de test base64) ; regle de
 #  selection de l'onglet Tests (filtrer_selection).
 #  La branche PNG est exercee partout ou capabilities("png") est vrai ; la
@@ -583,6 +587,174 @@ if (requireNamespace("plotly", quietly = TRUE)) {
            })
 } else {
   cat("  note : plotly absent ; branche plotly du profil en echec non exercee (attendu en CI, issue #53).\n")
+}
+
+# --- Issue #162 : niveau des bandes du QQ-plot lu dans le moteur ; repere
+# asymptotique du profil de delta hors de la legende (base R) et dans le
+# cadre (plotly) ---------------------------------------------------------------
+pd162 <- res_ln$plots_data
+e162 <- pd162$qq_enveloppe
+# Au niveau du moteur (0,90), chaines identiques a celles que cite la
+# documentation (doc_tests_usp.tex, « enveloppe de simulation 90 % »).
+verifier("QQ-plot au niveau du moteur (0,90) : titre, libelles des bandes simultanee et ponctuelle inchanges (#162)",
+         identical(e162$niveau_ponctuel, 0.90) && identical(e162$niveau_simultane, 0.90) &&
+           identical(.qq_titre(pd162), "QQ-plot normal (H3) — enveloppe de simulation 90 %") &&
+           identical(.qq_lib_sim(e162), "bande simultanée 90 % (tous les points à la fois)") &&
+           identical(.qq_lib_ponct(e162), "bande ponctuelle 90 % (point par point)"))
+# Niveau reecrit dans un qq_enveloppe forge : l'affichage le suit, aucun
+# « 90 % » ne subsiste.
+forge162 <- function(np, ns) {
+  p <- pd162; p$qq_enveloppe$niveau_ponctuel <- np; p$qq_enveloppe$niveau_simultane <- ns; p
+}
+p80 <- forge162(0.80, 0.80)
+verifier("QQ-plot, qq_enveloppe forge a 0,80 : titre et libelles rendent 80 %, aucun 90 % (#162)",
+         identical(.qq_titre(p80), "QQ-plot normal (H3) — enveloppe de simulation 80 %") &&
+           identical(.qq_lib_sim(p80$qq_enveloppe), "bande simultanée 80 % (tous les points à la fois)") &&
+           identical(.qq_lib_ponct(p80$qq_enveloppe), "bande ponctuelle 80 % (point par point)"))
+p_mix <- forge162(0.80, 0.95); p_mix$qqnorm$env_sim_bas <- p_mix$qqnorm$env_bas
+p_mix$qqnorm$env_sim_haut <- p_mix$qqnorm$env_haut
+verifier("QQ-plot, niveaux distincts (0,80 ponctuel, 0,95 simultane) : chaque libelle porte le sien, titre sans niveau ; niveau NA omis (#162)",
+         identical(.qq_titre(p_mix), "QQ-plot normal (H3) — enveloppe de simulation") &&
+           identical(.qq_lib_sim(p_mix$qq_enveloppe), "bande simultanée 95 % (tous les points à la fois)") &&
+           identical(.qq_lib_ponct(p_mix$qq_enveloppe), "bande ponctuelle 80 % (point par point)") &&
+           identical(.qq_lib_ponct(list(niveau_ponctuel = NA_real_)), "bande ponctuelle (point par point)") &&
+           identical(.qq_lib_sim(list(niveau_simultane = 0.975)),
+                     "bande simultanée 97,5 % (tous les points à la fois)"))
+
+# Releve des appels a graphics::legend() et graphics::text() d'un trace base
+# R (trace() pose puis retire dans l'environnement de graphics).
+releve_base162 <- function(f, largeur = 560 / 72, hauteur = 250 / 72) {
+  r <- new.env(); r$leg <- list(); r$txt <- list()
+  ns <- asNamespace("graphics")
+  suppressMessages({
+    # legend(plot = FALSE), appele pour mesurer, n'est pas releve.
+    trace("legend", exit = bquote(if (isTRUE(plot)) assign("leg", c(get("leg", envir = .(r)),
+            list(list(texte = legend, rect = returnValue()$rect))), envir = .(r))),
+          where = ns, print = FALSE)
+    # largeur : strwidth() d'un texte sur plusieurs lignes rend celle de la
+    # plus longue.
+    trace("text.default", exit = bquote(assign("txt", c(get("txt", envir = .(r)),
+            list(list(labels = labels, x = if (is.list(x)) x$x else x, col = col,
+                      largeur = graphics::strwidth(labels, cex = cex)))), envir = .(r))),
+          where = ns, print = FALSE)
+  })
+  on.exit(suppressMessages({ untrace("legend", where = ns); untrace("text.default", where = ns) }))
+  option <- options(usp.graphiques_base = TRUE)
+  grDevices::pdf(NULL, width = largeur, height = hauteur)
+  on.exit({ grDevices::dev.off(); options(option) }, add = TRUE)
+  # pdf(NULL) convertit mal le tiret cadratin des titres : avertissements
+  # sans objet ici.
+  suppressWarnings(f())
+  r$usr <- graphics::par("usr")
+  as.list(r)
+}
+rb162 <- releve_base162(function() plot_profil_delta(pd162))
+seuil162 <- pd162$lr_delta$seuil_asymptotique
+leg162 <- rb162$leg[[length(rb162$leg)]]
+# Libelle du repere asymptotique, sur une ou deux lignes.
+filtre_lib162 <- function(txt)
+  Filter(function(t) identical(gsub("\n", " ", t$labels, fixed = TRUE), LIB_LR_ASYMPT_COURT), txt)
+lib162 <- filtre_lib162(rb162$txt)
+verifier("Profil de delta, base R (560 x 250 px, rapport fige) : repere asymptotique absent de la legende, libelle dans le cadre, ligne hors de la legende (#162)",
+         length(rb162$leg) == 1L &&
+           !any(grepl("repère asymptotique", unlist(lapply(rb162$leg, `[[`, "texte")), fixed = TRUE)) &&
+           length(lib162) == 1L &&
+           lib162[[1]]$x - lib162[[1]]$largeur / 2 >= rb162$usr[1] &&
+           lib162[[1]]$x + lib162[[1]]$largeur / 2 <= rb162$usr[2] &&
+           seuil162 < leg162$rect$top - leg162$rect$h)
+# Ligne verticale en delta estime hors de la legende et du libelle du repere
+# asymptotique, delta estime a l'interieur de [0 ; 1] : J2 (delta estime
+# 0,594) et J3 (0,522), donnees arrondies a 0,01, au format du rapport fige
+# (560 x 250 px) et a 550 x 330 et 700 x 450 px (#162).
+x_int162 <- c(100, 150, 80, 300, 120, 60, 250, 90)
+pd_j2 <- run_engine(xt = x_int162, yt = c(58.82, 90.47, 46.68, 187.03, 72.72, 34.95, 151.85, 55.31),
+                    methode = "premium", segment = 1, B = 99, nature_donnees = "brutes")$plots_data
+pd_j3 <- run_engine(xt = x_int162, yt = c(58.1, 89.8, 47.63, 176.5, 73.7, 35.79, 153.72, 57.09),
+                    methode = "premium", segment = 1, B = 99, nature_donnees = "brutes")$plots_data
+delta_hors_cadres162 <- function(pd, l, h) {
+  r <- releve_base162(function() plot_profil_delta(pd), l / 72, h / 72)
+  leg <- r$leg[[length(r$leg)]]$rect
+  lib <- filtre_lib162(r$txt)
+  d0 <- pd$delta_estime
+  length(r$leg) == 1L && length(lib) == 1L &&
+    (d0 < leg$left || d0 > leg$left + leg$w) &&
+    (d0 < lib[[1]]$x - lib[[1]]$largeur / 2 || d0 > lib[[1]]$x + lib[[1]]$largeur / 2) &&
+    lib[[1]]$x - lib[[1]]$largeur / 2 >= r$usr[1] && lib[[1]]$x + lib[[1]]$largeur / 2 <= r$usr[2]
+}
+tailles162 <- list(c(560, 250), c(550, 330), c(700, 450))
+verifier(sprintf("Profil de delta, base R, delta estime interieur (J2 %s, J3 %s) : ligne en delta estime hors de la legende et du libelle, libelle dans le cadre, a 560 x 250, 550 x 330 et 700 x 450 px (#162)",
+                 format(round(pd_j2$delta_estime, 3), decimal.mark = ","),
+                 format(round(pd_j3$delta_estime, 3), decimal.mark = ",")),
+         pd_j2$delta_estime > 0.5 && pd_j2$delta_estime < 0.65 &&
+           pd_j3$delta_estime > 0.45 && pd_j3$delta_estime < 0.55 &&
+           all(vapply(tailles162, function(d) delta_hors_cadres162(pd_j2, d[1], d[2]), TRUE)) &&
+           all(vapply(tailles162, function(d) delta_hors_cadres162(pd_j3, d[1], d[2]), TRUE)))
+# Meme controle de part et d'autre de 0,5 : delta estime force dans
+# plots_data (le placement ne lit que delta_estime) ; a 0,45 legende et
+# libelle passent a droite.
+pd_j3f <- function(d0) { p <- pd_j3; p$delta_estime <- d0; p }
+verifier("Profil de delta, base R, delta estime force a 0,45 / 0,50 / 0,55 : ligne hors de la legende et du libelle, aux trois tailles (#162)",
+         all(vapply(c(0.45, 0.50, 0.55), function(d0)
+           all(vapply(tailles162, function(d) delta_hors_cadres162(pd_j3f(d0), d[1], d[2]), TRUE)), TRUE)))
+# C3 : libelle du repere en gris fonce, contraste d'au moins 4,5:1 sur le
+# fond (WCAG 2.1, critere 1.4.3) ; la ligne garde le gris de reference.
+contraste162 <- function(a, b) {
+  lum <- function(h) {
+    v <- grDevices::col2rgb(h)[, 1] / 255
+    v <- ifelse(v <= 0.03928, v / 12.92, ((v + 0.055) / 1.055)^2.4)
+    sum(c(0.2126, 0.7152, 0.0722) * v)
+  }
+  l <- sort(c(lum(a), lum(b)), decreasing = TRUE)
+  (l[1] + 0.05) / (l[2] + 0.05)
+}
+verifier(sprintf("Libelle du repere asymptotique (base R) en COUL$ref_texte, contraste %s:1 sur le fond >= 4,5:1 (gris de reference %s:1) (#162)",
+                 format(round(contraste162(COUL$ref_texte, COUL$fond), 2), decimal.mark = ","),
+                 format(round(contraste162(COUL$ref, COUL$fond), 2), decimal.mark = ",")),
+         identical(lib162[[1]]$col, COUL$ref_texte) &&
+           contraste162(COUL$ref_texte, COUL$fond) >= 4.5)
+verifier("Libelle court du repere asymptotique : debut et fin cites par la documentation, libelle long au survol (#162)",
+         startsWith(LIB_LR_ASYMPT_COURT, "repère asymptotique") &&
+           endsWith(LIB_LR_ASYMPT_COURT, "aide de lecture") &&
+           startsWith(LIB_LR_ASYMPT, "repère asymptotique") &&
+           endsWith(LIB_LR_ASYMPT, "aide de lecture"))
+rq162 <- releve_base162(function() plot_qqnorm(p80), largeur = 1000 / 72, hauteur = 420 / 72)
+verifier("QQ-plot base R, qq_enveloppe forge a 0,80 : legende des bandes a 80 % (#162)",
+         length(rq162$leg) == 1L &&
+           identical(rq162$leg[[1]]$texte, "bande ponctuelle 80 % (point par point)"))
+if (requireNamespace("plotly", quietly = TRUE)) {
+  # Libelle du repere : cale sur le bord du cote libre, s'etendant vers
+  # l'interieur (xanchor du cote du bord), fond opaque, dernier des
+  # annotations ; annotation q90 du meme cote de l'autre cote de la ligne.
+  plotly_lib162 <- function(pd) {
+    b <- plotly::plotly_build(plot_profil_delta(pd))
+    an <- b$x$layout$annotations
+    est_lib <- vapply(an, function(a) identical(gsub("<br>", " ", a$text, fixed = TRUE),
+                                                LIB_LR_ASYMPT_COURT), TRUE)
+    survol <- unlist(lapply(b$x$data, function(t) t$text))
+    if (sum(est_lib) != 1L || !est_lib[length(an)] || !(LIB_LR_ASYMPT %in% survol)) return(NA_character_)
+    a <- an[[length(an)]]
+    cote <- if (identical(a$x, 0) && identical(a$xanchor, "left") && a$xshift > 0) "gauche"
+            else if (identical(a$x, 1) && identical(a$xanchor, "right") && a$xshift < 0) "droite"
+            else "?"
+    q <- Filter(function(x) identical(x$text, LIB_LR_Q90_COURT[if (cote == "droite") 2 else 1]), an)
+    ok <- identical(a$xref, "x") && identical(a$bgcolor, COUL$fond) &&
+      identical(a$font$color, COUL$ref_texte) && length(q) == 1L &&
+      !identical(q[[1]]$yanchor, a$yanchor)
+    if (ok) cote else NA_character_
+  }
+  verifier("Profil de delta, plotly : libelle du repere du cote libre (J1 au bord et J2 : gauche ; delta estime 0,45 : droite), fond opaque, annotation q90 du meme cote de l'autre cote de la ligne, libelle long au survol (#162)",
+           identical(plotly_lib162(pd162), "gauche") && identical(plotly_lib162(pd_j2), "gauche") &&
+             identical(plotly_lib162(pd_j3f(0.45)), "droite"))
+  verifier("QQ-plot plotly, qq_enveloppe forge a 0,80 : annotation et titre a 80 % (#162)",
+           {
+             b <- plotly::plotly_build(plot_qqnorm(p80))
+             txt <- vapply(b$x$layout$annotations, `[[`, "", "text")
+             ti <- b$x$layout$title; ti <- if (is.list(ti)) ti$text else ti
+             identical(txt, "bande ponctuelle 80 % (point par point)") &&
+               startsWith(ti, "QQ-plot normal (H3) — enveloppe de simulation 80 %<br>")
+           })
+} else {
+  cat("  note : plotly absent ; annotations plotly du profil de delta et du QQ-plot non exercees (#162).\n")
 }
 
 fin_fichier()
