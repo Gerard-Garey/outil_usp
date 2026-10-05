@@ -223,6 +223,12 @@ CHARGE_MW <- charger_mw()
 DONNEES_INIT  <- CHARGE_LN$valeur
 TRIANGLE_INIT <- CHARGE_MW$valeur
 T_INIT        <- nrow(DONNEES_INIT)
+# Bornes du champ T (numericInput "profondeur"), partagees avec la garde de
+# l'apercu apres import (profondeur_attendue_import(), issue #183) : une
+# seule source, pour que la garde ne puisse pas attendre une valeur que le
+# champ refuse.
+PROFONDEUR_MIN <- 5L
+PROFONDEUR_MAX <- 40L
 
 # ---------------------------------------------------------------------------
 # UI : zone principale a gauche, panneau de parametres a DROITE
@@ -240,6 +246,9 @@ ui <- fluidPage(
     .err { background:#FDEDEC; border-left:4px solid #922B21;
            padding:9px 12px; margin-bottom:10px; font-size:13px; }
     table.data { font-size:12.5px; }
+    /* Vue Detail (#178) : commentaire du moteur long replie, deplie au clic. */
+    details.com > summary { cursor:pointer; }
+    details.com:not([open]) > summary::after { content:' [\\2026]'; color:#00468C; }
     /* Grille de saisie du triangle : cellules larges, en-tetes figes. */
     table.triangle { border-collapse:separate; border-spacing:3px 2px; }
     table.triangle th { font-weight:600; color:#00468C; font-size:12px;
@@ -279,9 +288,11 @@ ui <- fluidPage(
               uiOutput("statut_demarrage"),
               uiOutput("import_statut"),
               conditionalPanel("input.methode == 'reserve2'",
-                helpText(paste("Le nombre d'annees T se regle dans le panneau de",
-                               "parametres, a droite. Le triangle de saisie s'y adapte",
-                               "automatiquement."))),
+                helpText(paste("Le triangle garde la dimension lue, importee ou saisie :",
+                               "la profondeur T du panneau de droite ne le modifie pas.",
+                               "Pour changer sa dimension, regler T puis cliquer sur",
+                               "\"Reinitialiser les donnees\", qui remplace le triangle",
+                               "par le triangle par defaut de T annees d'accident."))),
               conditionalPanel("input.methode != 'reserve2'",
                 helpText(paste("La grille porte toutes les annees fournies (t = 1 la plus",
                                "ancienne). La profondeur T du panneau de droite ne la",
@@ -434,9 +445,11 @@ ui <- fluidPage(
                            helpText("Saisie libre : derogation au parametre reglementaire,",
                                     "signalee dans les resultats et le rapport fige.")),
           numericInput("profondeur", "Profondeur T retenue", value = T_INIT,
-                       min = 5, max = 40, step = 1),
+                       min = PROFONDEUR_MIN, max = PROFONDEUR_MAX, step = 1),
           conditionalPanel("input.methode == 'reserve2'",
-            helpText("T pilote la taille du triangle de saisie de l'onglet Donnees.")),
+            helpText("Le triangle de l'onglet Donnees garde sa dimension ; T ne fixe",
+                     "que celle du triangle par defaut charge par \"Reinitialiser les",
+                     "donnees\".")),
           conditionalPanel("input.methode != 'reserve2'",
             helpText("Le moteur retient les T annees les plus recentes de la grille",
                      "de l'onglet Donnees ; les annees plus anciennes sont ecartees",
@@ -475,6 +488,98 @@ ui <- fluidPage(
 )
 
 # ---------------------------------------------------------------------------
+# APERCU DE VALIDATION : fonctions de premier niveau (issue #183), evaluees
+# hors Shiny par tests/unitaires/test_application.R. Aucun calcul : elles
+# choisissent ce qui est transmis au moteur et quand l'apercu s'affiche.
+# ---------------------------------------------------------------------------
+
+# Segment transmis a l'apercu : numero entier si la valeur saisie designe un
+# segment de l'annexe a du catalogue SEGMENTS, NULL sinon (segment non encore
+# choisi, absent de l'annexe courante, valeur inattendue). La valeur est
+# comparee comme chaine aux numeros du catalogue AVANT toute conversion :
+# as.integer() sur une chaine non numerique, ou hors de l'intervalle des
+# entiers, emettait un avertissement R (issue #183, constat 1).
+# Changement de comportement assume : les ecritures non canoniques d'un
+# numero du catalogue ("01", "1.0", "1e3"...), que as.integer() convertissait
+# auparavant, ne designent plus de segment (NULL). Elles sont inatteignables
+# depuis l'interface : selectInput("segment") ne renvoie que les choix
+# as.character(SEGMENTS$segment).
+segment_recevable <- function(s, a) {
+  if (!is.atomic(s) || length(s) != 1L || is.na(s) ||
+      !is.atomic(a) || length(a) != 1L || is.na(a)) return(NULL)
+  num <- SEGMENTS$segment[SEGMENTS$annexe == a]
+  i <- match(as.character(s), as.character(num))
+  if (is.na(i)) NULL else as.integer(num[i])
+}
+
+# Titre du bloc des erreurs de l'apercu (issue #183, constat 2) : le moteur
+# y renvoie aussi bien les refus de la profondeur T que ceux des donnees ;
+# le titre ne nomme donc pas les donnees. Le texte des erreurs, lui, est
+# celui du moteur, inchange.
+TITRE_APERCU_REFUS <- "Saisie non exploitable :"
+
+# Profondeur coherente avec la grille (issue #183, constat 3) : apres un
+# import de n annees, le champ T n'est mis a jour par updateNumericInput()
+# qu'a la fin de l'observateur ; pendant un cycle, l'apercu verrait la
+# nouvelle grille avec l'ancien T. T_attendu vaut n tant que le champ n'a
+# pas ete relu apres l'import, NULL sinon. Retourne FALSE si l'apercu ne
+# doit pas etre evalue (champ T pas encore aligne sur l'import).
+profondeur_coherente <- function(T_saisi, T_attendu) {
+  if (is.null(T_attendu)) return(TRUE)
+  is.numeric(T_saisi) && length(T_saisi) == 1L && !is.na(T_saisi) &&
+    T_saisi == T_attendu
+}
+
+# Profondeur attendue apres un import de n annees (issue #183, reprise) :
+# n si le champ T peut prendre cette valeur (entier dans [PROFONDEUR_MIN ;
+# PROFONDEUR_MAX], bornes du numericInput), NULL sinon. Hors des bornes,
+# rien ne garantit que le navigateur transmette n apres
+# updateNumericInput() : une garde posee a n pourrait ne jamais etre levee
+# et figer l'apercu. Elle n'est donc pas posee ; l'apercu s'evalue alors
+# avec la valeur courante du champ, comme avant #183.
+profondeur_attendue_import <- function(n, T_min = PROFONDEUR_MIN, T_max = PROFONDEUR_MAX) {
+  if (!is.numeric(n) || length(n) != 1L || !is.finite(n) || n != round(n) ||
+      n < T_min || n > T_max) return(NULL)
+  as.integer(n)
+}
+
+# ---------------------------------------------------------------------------
+# REINITIALISATION ET DIMENSION DU TRIANGLE : fonctions de premier niveau
+# (issue #155), evaluees hors Shiny par tests/unitaires/test_application.R.
+# Decision du mainteneur Q-R7-2, option (A) : le triangle n'est jamais
+# redimensionne implicitement (ni au demarrage, ni a l'import d'une serie,
+# ni au changement de T) ; seule "Reinitialiser les donnees" change sa
+# dimension, en chargeant le triangle par defaut de T annees d'accident.
+# ---------------------------------------------------------------------------
+
+# Profondeur du jeu par defaut charge par "Reinitialiser les donnees" : T
+# saisi s'il est recevable pour un simple chargement (motif du moteur,
+# engine_valider_profondeur(), borne T_min = 1, aucune borne superieure :
+# au-dela de 8 annees, le triangle par defaut est prolonge, issue #108) ;
+# sinon (champ vide, NA, non entier, < 1 ; issue #100), la profondeur du
+# jeu par defaut des series, T_defaut. Retourne list(T, erreurs) : erreurs
+# est vide si le T saisi est retenu, porte le motif sinon.
+profondeur_reinitialisation <- function(T, T_defaut = nrow(DONNEES_DEFAUT)) {
+  err <- if (is.null(T) || (length(T) == 1L && is.na(T))) "Profondeur T : champ vide."
+         else engine_valider_profondeur(T, n = Inf, T_min = 1)
+  list(T = if (length(err)) T_defaut else T, erreurs = err)
+}
+
+# Jeu charge par "Reinitialiser les donnees" : triangle par defaut de T
+# annees d'accident (reserve no 2), jeu par defaut des series sinon (ses 8
+# annees, quelle que soit T : la grille des series n'est pas alignee sur T,
+# issue #134).
+jeu_reinitialise <- function(mw, T) if (isTRUE(mw)) triangle_defaut(T) else DONNEES_DEFAUT
+
+# Message de "Reinitialiser les donnees" : la dimension du triangle charge
+# est nommee, seul changement de dimension du triangle (Q-R7-2 (A)).
+message_reinitialisation <- function(mw, T) {
+  if (isTRUE(mw)) sprintf("Donnees reinitialisees : triangle par defaut %d x %d.",
+                          as.integer(T), as.integer(T))
+  else "Donnees reinitialisees."
+}
+
+# ---------------------------------------------------------------------------
 # SERVEUR : collecte des entrees, appel du moteur, affichage
 # ---------------------------------------------------------------------------
 server <- function(input, output, session) {
@@ -482,6 +587,13 @@ server <- function(input, output, session) {
   donnees   <- reactiveVal(DONNEES_INIT)     # methodes lognormales
   triangle  <- reactiveVal(TRIANGLE_INIT)    # methode Merz-Wuthrich
   resultat  <- reactiveVal(NULL)
+  # Version de la grille de saisie (issue #155, constat c) : incrementee par
+  # "Reinitialiser les donnees" et par un import abouti. Une reactiveVal ne
+  # se reinvalide pas si la nouvelle valeur est identical() a l'ancienne :
+  # sans ce compteur, reinitialiser des donnees qui valent deja le jeu par
+  # defaut ne relancait pas le rendu de la grille (mesure par testServer),
+  # et les champs du navigateur pouvaient garder la saisie.
+  version_grille <- reactiveVal(0L)
   selection <- reactiveVal(NULL)             # personnalisation des tests
   # Motif du dernier calcul non abouti, remis a NULL des qu'un calcul aboutit.
   dernier_refus <- reactiveVal(NULL)
@@ -568,7 +680,8 @@ server <- function(input, output, session) {
 
   output$aide_methode <- renderText({
     if (est_mw())
-      "Entree : triangle de paiements cumules (T annees d'accident x T annees de developpement)."
+      paste("Entree : triangle de paiements cumules (n annees d'accident x n annees de",
+            "developpement), de la dimension lue, importee ou saisie.")
     else paste("Entree : deux vecteurs x_t et y_t sur n annees ; le moteur retient",
                "les T annees les plus recentes.")
   })
@@ -609,21 +722,14 @@ server <- function(input, output, session) {
   # engine_derogations(), issue #104). Auparavant, reduire T gardait les
   # lignes 1..T, soit les annees les plus ANCIENNES, sans avertissement, et
   # n_fournies valait toujours T.
-  # Triangle (reserve no 2, jamais tronque par le moteur) : sa dimension
-  # reste pilotee par T. Les valeurs deja saisies sont conservees, les cases
-  # ajoutees sont vides.
-  observeEvent(input$profondeur, {
-    T <- input$profondeur
-    if (is.null(T) || !is.finite(T) || T < 1) return()
-    tri <- triangle()
-    if (nrow(tri) != T) {
-      nt <- matrix(NA_real_, T, T)
-      k <- min(nrow(tri), T)
-      nt[seq_len(k), seq_len(k)] <- tri[seq_len(k), seq_len(k)]
-      for (ii in seq_len(T)) if (T - ii + 1 < T) nt[ii, (T - ii + 2):T] <- NA_real_
-      triangle(nt)
-    }
-  }, ignoreInit = FALSE)
+  # Triangle (reserve no 2, jamais tronque par le moteur ; issue #155,
+  # decision Q-R7-2 (A)) : il garde la dimension lue, importee ou saisie.
+  # T ne le redimensionne plus : auparavant, un observateur de
+  # input$profondeur (ignoreInit = FALSE) le ramenait a T x T au demarrage
+  # (T de la serie lognormale), a l'import d'une serie et a chaque
+  # changement de T, en gardant le coin [1:k, 1:k] (annees d'accident les
+  # plus anciennes) sans avertissement. Seule "Reinitialiser les donnees"
+  # change sa dimension (jeu_reinitialise()).
 
   # Lignes de la grille des series (issue #134) : ajout d'une annee vide en
   # fin de grille (la plus recente), retrait de la derniere ligne. Les
@@ -649,6 +755,11 @@ server <- function(input, output, session) {
   })
 
   output$grille_donnees <- renderUI({
+    # Dependance au compteur (issue #155, constat c), reportee dans le rendu
+    # (attribut data-version) : chaque reinitialisation ou import produit un
+    # rendu distinct du precedent, dont les champs portent les valeurs de
+    # donnees() ou de triangle().
+    version <- version_grille()
     if (est_mw()) {
       tri <- triangle(); T <- nrow(tri)
       # Tableau HTML plutot que la grille Bootstrap : column(1, ...) alloue un
@@ -664,7 +775,7 @@ server <- function(input, output, session) {
         max(nchar(format(round(vals), scientific = FALSE, trim = TRUE))) else 6
       largeur <- paste0(max(95, min(150, 55 + 7 * nchif)), "px")
       tags$div(
-        style = "overflow-x:auto; padding-bottom:6px",
+        style = "overflow-x:auto; padding-bottom:6px", `data-version` = version,
         tags$table(
           class = "triangle",
           tags$thead(tags$tr(
@@ -682,7 +793,7 @@ server <- function(input, output, session) {
               })))))) 
     } else {
       d <- donnees()
-      do.call(tagList, lapply(seq_len(nrow(d)), function(i) {
+      tags$div(`data-version` = version, lapply(seq_len(nrow(d)), function(i) {
         fluidRow(
           column(2, div(style = "padding-top:26px;font-weight:600", paste0("t = ", d$t[i]))),
           column(5, numericInput(paste0("x_", i), if (i == 1) "x_t" else NULL,
@@ -724,14 +835,22 @@ server <- function(input, output, session) {
   # segment n'est transmis, le moteur lit alors le bareme court par
   # convention et le dit, au lieu d'un refus transitoire. L'annexe n'est
   # transmise qu'avec un segment (sans segment, elle ne determine rien).
-  segment_apercu <- function() {
-    s <- input$segment; a <- input$annexe
-    if (length(s) != 1L || is.na(s) || !nzchar(s) || length(a) != 1L) return(NULL)
-    s <- as.integer(s)
-    if (s %in% SEGMENTS$segment[SEGMENTS$annexe == a]) s else NULL
-  }
+  # Garde de la conversion : segment_recevable() (issue #183, constat 1).
+  segment_apercu <- function() segment_recevable(input$segment, input$annexe)
   annexe_apercu <- function() if (is.null(segment_apercu())) "II" else input$annexe
+  # Profondeur attendue apres un import de series (issue #183, constat 3) :
+  # posee par l'import a n si n est dans les bornes du champ T
+  # (profondeur_attendue_import()), levee au premier evenement du champ T,
+  # quelle qu'en soit la valeur. Tant que le champ n'est pas aligne,
+  # l'apercu garde son rendu precedent (req(cancelOutput = TRUE)) au lieu de
+  # s'evaluer avec l'ancien T. Si T vaut deja n, profondeur_coherente() est
+  # vraie d'emblee, qu'un evenement du champ T suive l'import ou non.
+  profondeur_import <- reactiveVal(NULL)
+  observeEvent(input$profondeur, profondeur_import(NULL), ignoreInit = TRUE,
+               ignoreNULL = FALSE)
   output$validation_live <- renderUI({
+    if (!est_mw())
+      req(profondeur_coherente(input$profondeur, profondeur_import()), cancelOutput = TRUE)
     v <- if (est_mw()) mw_valider_triangle(lire_triangle(), segment = segment_apercu(),
                                            annexe = annexe_apercu())
          else { sa <- lire_saisie()
@@ -749,7 +868,7 @@ server <- function(input, output, session) {
                                              annexe = annexe_apercu())$validation }
     tagList(
       if (length(v$erreurs))
-        div(class = "err", tags$b("Donnees non exploitables :"),
+        div(class = "err", tags$b(TITRE_APERCU_REFUS),
             tags$ul(lapply(utils::head(v$erreurs, 6), tags$li))),
       if (length(v$avertissements))
         div(class = "avert", tags$b("Avertissements :"),
@@ -759,30 +878,28 @@ server <- function(input, output, session) {
     )
   })
 
-  # Reinitialisation. Series (methodes lognormales) : les 8 annees du jeu
-  # par defaut, quelle que soit T (issue #134 : la grille n'est plus alignee
-  # sur T ; le moteur retient les T plus recentes, ou refuse T > 8).
-  # Triangle : jeu par defaut dimensionne a la profondeur T saisie.
-  # Si le champ T est vide ou non recevable (NA, non entier, < 1), le
-  # triangle ne peut pas etre dimensionne sur lui (issue #100) : le jeu par
-  # defaut est restaure a sa propre profondeur, que l'on reporte dans le
-  # champ T, et le motif du moteur (engine_valider_profondeur(), meme borne
-  # T_min = 1 que le redimensionnement du triangle) est affiche. Aucune
-  # borne superieure (n = Inf) : au-dela de 8 annees, le triangle par
-  # defaut est prolonge (triangle_defaut(), issue #108).
+  # Reinitialisation (jeu_reinitialise()). Series (methodes lognormales) :
+  # les 8 annees du jeu par defaut, quelle que soit T (issue #134 : la
+  # grille n'est plus alignee sur T ; le moteur retient les T plus
+  # recentes, ou refuse T > 8). Triangle : jeu par defaut de T annees
+  # d'accident, seule action qui change sa dimension (issue #155, Q-R7-2
+  # (A)) ; le message nomme la dimension chargee. Champ T vide ou non
+  # recevable (issue #100) : profondeur_reinitialisation() retient la
+  # profondeur du jeu par defaut, reportee dans le champ T, et le motif du
+  # moteur est affiche. Le compteur version_grille force le redessin de la
+  # grille, meme si les donnees valent deja le jeu par defaut (issue #155).
   observeEvent(input$reinit, {
-    T <- input$profondeur
-    err_T <- if (is.null(T) || is.na(T)) "Profondeur T : champ vide."
-             else engine_valider_profondeur(T, n = Inf, T_min = 1)
-    if (length(err_T)) {
-      T <- nrow(DONNEES_DEFAUT)
+    pr <- profondeur_reinitialisation(input$profondeur)
+    T <- pr$T
+    if (length(pr$erreurs)) {
       updateNumericInput(session, "profondeur", value = T)
-      showNotification(paste(c(err_T, sprintf("Profondeur par defaut retablie : T = %d.", T)),
+      showNotification(paste(c(pr$erreurs, sprintf("Profondeur par defaut retablie : T = %d.", T)),
                              collapse = " "), type = "warning", duration = 10)
     }
-    if (est_mw()) triangle(triangle_defaut(T)) else donnees(DONNEES_DEFAUT)
+    if (est_mw()) triangle(jeu_reinitialise(TRUE, T)) else donnees(jeu_reinitialise(FALSE, T))
+    version_grille(version_grille() + 1L)
     statut_import(NULL); effacer_statut_demarrage()
-    showNotification("Donnees reinitialisees.", type = "message")
+    showNotification(message_reinitialisation(est_mw(), T), type = "message")
   })
 
   # Import. La lecture disque est faite ici (couche interface) ; la validation
@@ -809,8 +926,12 @@ server <- function(input, output, session) {
         statut_import(list(ok = FALSE, msg = paste(utils::head(v$erreurs, 3), collapse = " ")))
         showNotification("Import refuse.", type = "error", duration = 8); return()
       }
+      # Le triangle importe garde sa dimension ; le champ T n'est plus aligne
+      # sur elle (issue #155, Q-R7-2 (A)) : T ne pilote pas le triangle, et
+      # le meme champ porte la profondeur retenue pour les series (methodes
+      # lognormales), qu'un import de triangle n'a pas a modifier.
       m <- v$triangle
-      triangle(m); updateNumericInput(session, "profondeur", value = nrow(m))
+      triangle(m); version_grille(version_grille() + 1L)
       effacer_statut_demarrage()
       statut_import(list(ok = TRUE, msg = sprintf("Triangle %d x %d importe depuis %s (%s).",
                                                   nrow(m), ncol(m), fi$name, toupper(ext))))
@@ -821,9 +942,12 @@ server <- function(input, output, session) {
         showNotification("Import refuse.", type = "error", duration = 8); return()
       }
       donnees(data.frame(t = seq_along(r$xt), xt = r$xt, yt = r$yt))
+      version_grille(version_grille() + 1L)
+      # Le triangle n'est pas touche (issue #155) : T ne le dimensionne plus.
       # Valeur initiale de T apres import : toutes les annees importees. La
       # grille n'en depend plus (issue #134) : reduire ensuite T fait ecarter
       # par le moteur les annees les plus anciennes, troncature restituee.
+      profondeur_import(profondeur_attendue_import(r$n))
       updateNumericInput(session, "profondeur", value = r$n)
       effacer_statut_demarrage()
       # Meme politique qu'au demarrage (charger_ln()) : des donnees lisibles
@@ -1045,7 +1169,7 @@ server <- function(input, output, session) {
       if (!nrow(sub)) return(NULL)
       g <- groupe_de(sub$famille[1])
       nb <- table(factor(sub$verdict, levels = c("OK", "ALERTE", "ECHEC", "INFO")))
-      d <- if (identical(input$vue_tests, "detail")) table_detail_groupe(sub)
+      d <- if (identical(input$vue_tests, "detail")) table_detail_groupe(sub, replier = TRUE)
            else table_synthese_groupe(sub)
       div(class = "bloc",
           div(style = "border-left:4px solid #00468C;padding-left:10px;margin-bottom:8px",
