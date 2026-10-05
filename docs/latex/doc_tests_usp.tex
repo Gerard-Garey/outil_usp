@@ -466,9 +466,19 @@ de calibration commune aux deux branches.}
 \code{theta\_equiv}, \code{delta\_equiv}, \code{methode}, \code{nature\_donnees},
 \code{bareme}, \code{segment}, \code{annexe} &
 \code{\$ok}, \code{\$erreurs}, \code{\$avertissements}~; refus des valeurs infinies, d'une
+valeur hors du domaine numérique (issue~\#145), d'une
 marge du TOST hors domaine, d'une nature des données absente ou non recevable et d'un barème,
 segment ou annexe invalide (sans erreur R)~; avertissement de crédibilité partielle sur
-$c(T, \text{barème appliqué}) < 1$ (§\ref{sec:controles}, issue~\#131) \\
+$c(T, \text{barème appliqué}) < 1$ (§\ref{sec:controles}, issue~\#131) et d'un ratio $y_t/x_t$
+hors de la plage plausible \\
+\code{DOMAINE\_NUMERIQUE\_MIN},\newline \code{DOMAINE\_NUMERIQUE\_MAX},\newline
+\code{RATIO\_PLAUSIBLE\_MIN},\newline \code{RATIO\_PLAUSIBLE\_MAX} & constantes ($10^{-50}$~;
+$10^{50}$~; $0{,}1$~; $5$) & domaine numérique $[10^{-50}\,;10^{50}]$ de chaque valeur de $x_t$
+et de $y_t$ de la série retenue, hors duquel \code{engine\_valider\_donnees()} refuse~; plage
+plausible $[0{,}1\,;5[$ du ratio $y_t/x_t$, lue par l'avertissement
+d'\code{engine\_valider\_donnees()} et par la ligne «~\code{Plausibilite du ratio y/x}~»
+d'\code{usp\_controle\_donnees()}~; conventions de l'outil, sans source réglementaire
+(§\ref{sec:controles}, issue~\#145) \\
 \code{engine\_valider\_}\newline\code{serie\_retenue()} & \code{xt}, \code{yt}, $T$ et les
 arguments\newline d'\code{engine\_valider\_}\newline\code{donnees()} & \code{\$xt}, \code{\$yt} (les $T$ années les plus
 récentes si $T$ est accepté), \code{\$validation}~; étape~1 de \code{run\_engine()} (profondeur,
@@ -2378,12 +2388,20 @@ autres qu'un calcul abouti, à ne pas confondre (issue~\#88, décision du mainte
   l'erreur, appel, pile des fonctions appelées depuis le calcul protégé et \code{origine},
   dernière fonction de cette pile définie dans le moteur. Les données étant valides et l'appel
   aussi, ce n'est ni un refus ni une erreur d'usage, mais un défaut du moteur ou une limite
-  numérique, à rapporter avec sa fonction d'origine. Mesuré sur le jeu de contrôle~: $y_t$
-  multipliés par $10^{-300}$ donnent l'origine \code{usp\_tests()}~; les $x_t$ multipliés par
-  $10^{298}$ donnaient l'origine \code{test\_white()} (erreur de \code{lm.fit()}), et, depuis la
-  normalisation d'échelle des régressions auxiliaires de RESET et de White (issue~\#110,
-  fiches~\ref{fiche:reset} et~\ref{fiche:white}), le calcul aboutit (\code{ok = TRUE}, à
-  $10^{298}$ comme à $10^{200}$)~; ces deux cas levaient, avant l'issue~\#88, une erreur R. L'option \code{options(usp.engine.lever\_erreurs = TRUE)}, réservée au
+  numérique, à rapporter avec sa fonction d'origine. Historique des deux échelles extrêmes du
+  jeu de contrôle~: les $y_t$ multipliés par $10^{-300}$ donnaient l'origine \code{usp\_tests()}~;
+  les $x_t$ multipliés par $10^{298}$ donnaient l'origine \code{test\_white()} (erreur de
+  \code{lm.fit()}), puis, depuis la normalisation d'échelle des régressions auxiliaires de RESET
+  et de White (issue~\#110, fiches~\ref{fiche:reset} et~\ref{fiche:white}), un calcul abouti
+  (\code{ok = TRUE}, à $10^{298}$ comme à $10^{200}$)~; ces deux cas levaient, avant
+  l'issue~\#88, une erreur R. \textbf{Depuis l'issue~\#145}, toutes ces échelles sont hors du
+  domaine numérique et refusées avant tout calcul (\code{ok = FALSE}, motif de domaine dans
+  \code{validation\$erreurs}, sans \code{validation\$erreur\_r}~; mesuré à $y_t \times 10^{-300}$,
+  $x_t \times 10^{298}$, $x_t \times 10^{200}$ et $x_t \times 10^{-200}$)~: le défaut de calcul
+  intercepté n'est plus le mode d'arrêt sur des données à l'échelle extrême, et les scénarios
+  des tests unitaires qui l'exercent le déclenchent par une erreur injectée dans
+  l'environnement du moteur. Le filet demeure pour toute autre erreur R après validation~: sa
+  survenue sur une entrée du domaine est un défaut à rapporter en issue. L'option \code{options(usp.engine.lever\_erreurs = TRUE)}, réservée au
   développement, relève l'erreur telle quelle au lieu de l'intercepter. Les erreurs d'usage
   restent hors de ce filet, limité au calcul par décision du mainteneur.
 \end{itemize}
@@ -2443,7 +2461,14 @@ d'une erreur R en cours de calcul (issue~\#33). Bloquant. \\
 Positivité de $x_t$ & $\min_t x_t > 0$ & $r_t = y_t/x_t$ doit être défini. Bloquant. \\
 Positivité de $y_t$ & $\min_t y_t > 0$ & Support de la loi lognormale. Bloquant. \\
 Doublons & aucun couple $(x_t,y_t)$ répété & Signale une duplication de ligne. \\
-Plausibilité du ratio & $r_t \in\, ]0\,;5[$ & Erreurs d'unité ou de saisie. \\
+Domaine numérique & chaque $x_t$ et chaque $y_t$ de la série retenue dans $[10^{-50}\,;10^{50}]$,
+bornes incluses (\code{DOMAINE\_NUMERIQUE\_MIN}, \code{DOMAINE\_NUMERIQUE\_MAX}) & Convention de
+l'outil, sans source réglementaire (issue~\#145)~: protège le calcul contre les échelles
+extrêmes (justification sous le tableau). Bloquant. \\
+Plausibilité du ratio & $r_t \in [0{,}1\,;5[$ (\code{RATIO\_PLAUSIBLE\_MIN},
+\code{RATIO\_PLAUSIBLE\_MAX}) & Convention de l'outil, sans source réglementaire
+(issue~\#145)~: signale une erreur d'unité ou de saisie probable. Non bloquant~; un
+\code{ECHEC} de la ligne~A est un signal à examiner, non le constat d'une norme. \\
 Amplitude du volume & $\max_t x_t/\min_t x_t < 10$ & Rupture de périmètre probable. \\
 Crédibilité pleine & $c(T, \text{barème appliqué}) = 1$, durée $T$ retenue (G(3)(a) ou~(b))~:
 $T \ge 15$ au barème long G(1), $T \ge 10$ au barème court G(2) & Informatif, non bloquant,
@@ -2454,6 +2479,44 @@ $0 < \Delta < \bar y$, $\theta$ étant alors ignoré & Paramètre du TOST, non u
 Bloquant. \\
 \end{tabular}
 \end{center}
+
+\emph{Domaine numérique et plage plausible du ratio (issue~\#145).} Toute valeur de $x_t$ ou
+de $y_t$ de la \emph{série retenue} --- après troncature à la profondeur $T$, une année fournie
+mais non retenue n'étant pas contrôlée --- hors de $[10^{-50}\,;10^{50}]$, bornes incluses, est
+refusée (\code{ok = FALSE}, sans erreur R)~; le motif, un par série, cite la première valeur
+fautive (\code{.engine\_saisie()}), la borne franchie et le nombre de valeurs hors du domaine,
+et rappelle que $\sigma_{\mathrm{USP}}$ et les tests sont invariants par un changement d'unité
+commun à $x_t$, $y_t$ et, s'il est fourni, $\Delta$~: le refus n'ôte rien, il suffit
+d'exprimer les montants dans une autre unité. Le domaine est une convention de l'outil, sans
+source réglementaire, très large devant tout montant monétaire. Il est fondé sur une limite
+numérique~: les régressions auxiliaires manipulent des grandeurs de degré~2 en $x_t$ et $y_t$,
+qui sortent de la plage des doubles hors d'environ $[\sqrt{\mathtt{DBL\_MIN}}\,;
+\sqrt{\mathtt{DBL\_MAX}}] \approx [1{,}5 \cdot 10^{-154}\,; 1{,}3 \cdot 10^{154}]$. Mesuré sur le
+jeu de contrôle multiplié par $10^{e}$, avec le moteur antérieur à l'issue (\code{run\_engine()},
+méthode de primes, segment II-1, $B = 199$), comparé à l'échelle~1~: aucun verdict changé pour
+$e \in \{-160, -158, -156, -155, -150, -100, -51, 100, 150, 151, 152, 153\}$~; à $e = 154$, $155$ et $160$, \code{ok = TRUE} mais deux verdicts faux sans
+alerte (nullité de la constante \code{OK} devenue \code{INFO}, pente \code{INFO} devenue
+\code{ECHEC})~; à $e = -165$ et $-170$, un défaut de calcul intercepté. Le domaine est très
+intérieur à cette zone, et un changement d'unité par une puissance de~2 y laisse le résultat
+identique au bit près (mesuré sur le jeu de contrôle multiplié par $2^{159}$ et par $2^{-172}$~:
+\code{\$parametre\_final}, p-values retenues et verdicts \code{identical()} à ceux de
+l'échelle~1). Ce refus \textbf{renverse le choix de l'issue~\#88}, qui avait préféré des calculs
+protégés à tout seuil d'échelle~: entre la zone d'invariance et le défaut de calcul intercepté
+existaient des verdicts faux avec \code{ok = TRUE}, que le filet de \code{.engine\_calcul\_protege()}
+ne voit pas. Le triangle de la méthode Merz--Wüthrich n'a pas encore de domaine numérique
+(issue~\#185). La plage plausible du ratio, $[0{,}1\,;5[$, est elle aussi une convention de
+l'outil sans source réglementaire (borne basse $0{,}1$ retenue par le mainteneur le
+28~septembre 2026, borne haute~5 inchangée)~; elle signale une erreur d'unité probable et ne
+refuse jamais~: hors de la plage, \code{engine\_valider\_donnees()} émet l'avertissement
+«~\code{Ratio y/x hors de la plage plausible [0.1 ; 5[ : verifier les unites.}~», et
+$\sigma_{\mathrm{USP}}$ est calculé. La ligne «~\code{Plausibilite du ratio y/x}~» de la
+famille~A lit les mêmes constantes (elle codait $]0\,;5[$ en dur)~; son \code{OK} /
+\code{ECHEC} peut donc changer sur des données dont un ratio est dans $]0\,;0{,}1[$, sans effet
+sur le jeu de contrôle, dont les ratios vont de $0{,}579$ à $0{,}894$. Mesuré par
+\code{usp\_controle\_donnees()} et \code{engine\_valider\_donnees()} sur le jeu de contrôle dont
+on modifie la première année~: ratio $0{,}09$, \code{ECHEC} et avertissement~; ratio $0{,}1$,
+\code{OK}~; ratio~$5$, \code{ECHEC} et avertissement. Un \code{ECHEC} de cette ligne est un
+signal à examiner (unités de $x_t$ et de $y_t$), non le constat d'une norme.
 
 Le barème du contrôle de crédibilité est le \emph{barème appliqué}, celui qui entre dans
 $\sigma_{\mathrm{USP}}$~: barème saisi (dérogation, issue~\#93), sinon barème du segment ---
@@ -2481,10 +2544,11 @@ sont restituées «~non applicable~» (section~\ref{sec:volumes-constants}, issu
 Les contrôles non bloquants ci-dessus sont restitués dans \code{res\$controles}
 (famille « A. Qualite des donnees ») et signalés par \code{engine\_valider\_donnees()}
 comme avertissements~: \code{run\_engine()} produit le calcul (vérifié par exécution~:
-un ratio hors de $]0\,;5[$, une amplitude de volume de~10 ou plus, un couple dupliqué ou
+un ratio hors de $[0{,}1\,;5[$, une amplitude de volume de~10 ou plus, un couple dupliqué ou
 $T = 5$ laissent \code{ok = TRUE}~; une valeur manquante, un $y_t$ négatif ou $T = 4$
 donnent \code{ok = FALSE}~; de même une valeur infinie, $\theta = 1$ ou
-$\Delta = \bar y$, mesuré sur le jeu de contrôle~; de même encore $T = 5{,}5$, $T = 9$ pour
+$\Delta = \bar y$, ou des $y_t$ multipliés par $10^{-300}$ ou des $x_t$ multipliés par $10^{298}$
+(domaine numérique), mesuré sur le jeu de contrôle~; de même encore $T = 5{,}5$, $T = 9$ pour
 huit années fournies, $T$ égal à \code{NA} ou textuel, sans troncature de la série, avec
 \code{validation\$T} manquant et sans avertissement, les avertissements portant sur une série
 retenue). Un contrôle de la famille~A qui ne peut pas
@@ -2724,7 +2788,8 @@ $\hat\sigma_j^2$ repose sur deux ou trois observations en fin de triangle. \\
 \begin{encadre}
 \textbf{Différence de nature.} Les contrôles lognormaux portent sur la
 \emph{plausibilité économique} des séries (ratio dans une plage admissible,
-amplitude des volumes). Ceux de la méthode Merz--Wüthrich portent d'abord sur la
+amplitude des volumes), et, par le domaine numérique, sur la seule capacité du calcul en
+virgule flottante à traiter les montants, sans jugement économique (issue~\#145). Ceux de la méthode Merz--Wüthrich portent d'abord sur la
 \emph{géométrie} du triangle, dont dépend la simple définition des estimateurs~:
 un triangle non carré ou incomplet ne permet pas d'appliquer la formule du
 paragraphe~4. C'est pourquoi la plupart sont bloquants et non de simples
