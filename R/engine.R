@@ -6026,23 +6026,37 @@ mw_ajuster <- function(tri) {
 # restitution, pas un seuil statistique (avis d'actuary sur #56) : environ
 # 1e4 fois l'epsilon machine, plusieurs ordres de grandeur sous la dispersion
 # d'une colonne reelle.
+# Second volet du predicat (issue #60, constat C1 de l'audit de #152,
+# decision du mainteneur du 05/10/2026) : la colonne est aussi degeneree
+# quand ses facteurs, aplatis a tol par engine_aplatir_ex_aequo() en
+# plancher 0 (tolerance relative, chainage des valeurs triees adjacentes),
+# sont tous egaux. Les statistiques de rang de M1 et M3 aplatissent les
+# F(i,j) a la meme tolerance (#152) : une colonne de facteurs chaines par
+# pas de moins de tol en relatif, dont l'ecart a f_j peut atteindre
+# (n - 1) * tol, y devient constante (correlation de rang non definie) ; elle
+# est donc traitee comme degeneree partout, et non seulement dans ces
+# statistiques.
 # UNE SEULE DEFINITION dans le moteur : mw_extrapolation_sigma2() (colonnes
-# J-3 et J-2) et les trois verifications colonne par colonne de M1
-# (mw_test_ordonnee_origine(), mw_test_homogeneite_f(), mw_test_courbure())
-# appellent ce predicat. L'exclusion des residus de Mack par mw_residus()
-# garde, elle, le critere sigma2_j = 0 exact (alignement renvoye a #60).
-# .mw_ecart_facteurs() rend le nombre de facteurs n, f_j et l'ecart relatif
-# maximal (NA si la colonne n'a aucun facteur).
+# J-3 et J-2), les trois verifications colonne par colonne de M1
+# (mw_test_ordonnee_origine(), mw_test_homogeneite_f(), mw_test_courbure()),
+# le refus du triangle totalement degenere (#192) et l'exclusion des residus
+# de Mack par mw_residus() (#60) appellent ce predicat.
+# .mw_ecart_facteurs() rend le nombre de facteurs n, f_j, l'ecart relatif
+# maximal (NA si la colonne n'a aucun facteur) et les facteurs F(i,j).
 .mw_ecart_facteurs <- function(aj, j) {
-  if (aj$I - j - 1 < 0) return(list(n = 0L, f = aj$f[j + 1], ecart = NA_real_))
+  if (aj$I - j - 1 < 0) return(list(n = 0L, f = aj$f[j + 1], ecart = NA_real_,
+                                    F = numeric(0)))
   idx <- 0:(aj$I - j - 1)
   Fij <- aj$tri[idx + 1, j + 2] / aj$tri[idx + 1, j + 1]
   list(n = length(idx), f = aj$f[j + 1],
-       ecart = max(abs(Fij - aj$f[j + 1])) / abs(aj$f[j + 1]))
+       ecart = max(abs(Fij - aj$f[j + 1])) / abs(aj$f[j + 1]), F = Fij)
 }
 .mw_colonne_degeneree <- function(aj, j, tol = 1e-12) {
-  e <- .mw_ecart_facteurs(aj, j)$ecart
-  is.finite(e) && e <= tol
+  e <- .mw_ecart_facteurs(aj, j)
+  if (!is.finite(e$ecart)) return(FALSE)
+  if (e$ecart <= tol) return(TRUE)
+  # ecart fini : tous les F(i,j) sont finis (condition de l'aplatissement)
+  length(unique(engine_aplatir_ex_aequo(e$F, tol = tol, plancher = 0))) == 1L
 }
 # Ensemble des colonnes j = 0..J-1 degenerees au sens du predicat ci-dessus
 # (vecteur d'entiers, eventuellement vide). mw_bootstrap() le calcule UNE FOIS
@@ -6420,7 +6434,7 @@ mw_valider_ajustement <- function(aj, msep) {
       k$n, k$j, k$j, format(k$f, digits = 8), k$ecart), ""))
     nuls <- et(vapply(cols, function(k) sprintf("sigma2_(%s) = %s", k$nom,
                                                  format(k$s2, digits = 3)), ""))
-    # L'absence de residus de Mack des colonnes a sigma2_j = 0 n'est plus dite
+    # L'absence de residus de Mack des colonnes degenerees n'est plus dite
     # ici mais dans l'avertissement general sur les colonnes exclues (ci-
     # dessous), qui couvre toute colonne, J-3 et J-2 comprises, sans doublon
     # (issue #33).
@@ -6446,8 +6460,11 @@ mw_valider_ajustement <- function(aj, msep) {
     avt <- c(avt, msg)
   }
   # Avertissement (et non refus) : colonnes sans residu de Mack (issue #33,
-  # avis d'actuary du 24/09/2026). mw_residus() ecarte toute colonne a
-  # sigma2_j = 0 (residu 0/0, non defini) ; sous le modele D(2)(h), une
+  # avis d'actuary du 24/09/2026). mw_residus() ecarte toute colonne
+  # degeneree (facteurs tous egaux a f_j a 1e-12 pres en relatif, sigma2_j
+  # nul ou numeriquement nul, residu 0/0 en arithmetique exacte ; issue #60,
+  # formulation decidee par le mainteneur le 05/10/2026, Q-E2r-60-2, avec la
+  # phrase sur le pool du bootstrap) ; sous le modele D(2)(h), une
   # colonne a facteurs tous egaux n'est pas un motif de refus (developpement
   # acheve, par exemple). UN SEUL avertissement par triangle, qui nomme
   # chaque colonne exclue, compte les residus exclus et retenus et cite les
@@ -6461,10 +6478,14 @@ mw_valider_ajustement <- function(aj, msep) {
   if (!is.null(ex_col) && nrow(ex_col)) {
     n_ex <- sum(ex_col$n_facteurs)
     avt <- c(avt, sprintf(paste0(
-      "%s a sigma2_j = 0 (facteurs individuels tous egaux a f_j) : %s. ",
-      "Le residu de Mack y vaut 0/0 et n'est pas defini : ces %d facteurs individuels ",
-      "n'ont pas de residu de Mack et sont exclus ; %d residu(s) de Mack sont retenus ",
-      "pour les lignes fondees sur ces residus, soit %s. ",
+      "%s a facteurs individuels tous egaux a f_j a 1e-12 pres en relatif ",
+      "(sigma2_j nul ou numeriquement nul) : %s. ",
+      "Le residu de Mack y vaut 0/0 en arithmetique exacte et n'est pas defini : ces %d ",
+      "facteurs individuels n'ont pas de residu de Mack et sont exclus ; %d residu(s) de ",
+      "Mack sont retenus pour les lignes fondees sur ces residus, soit %s. ",
+      "Le pool de reechantillonnage du bootstrap ne contient que les residus retenus ; ",
+      "il sert aux p-values Monte-Carlo des lignes M1 a M4 et a l'intervalle de confiance ",
+      "bootstrap de sigma. ",
       "Une colonne a facteurs tous egaux n'est pas un motif de refus (developpement ",
       "acheve, par exemple) ; verifier l'origine des donnees si ce n'est pas le cas."),
       if (nrow(ex_col) > 1) "Colonnes de developpement" else "Colonne de developpement",
@@ -6526,25 +6547,46 @@ mw_parametre <- function(aj, msep, sigma_standard, bareme = "court") {
 # Sous les hypotheses D(2)(h)(iii) et (iv), ces residus sont centres, de
 # variance approximativement unitaire et mutuellement non correles. Ce sont eux
 # qui servent de support aux tests des sections H1, H2 et H4 adaptees.
-# Colonnes exclues (issue #33, avis d'actuary du 24/09/2026) : une colonne
-# j a au moins deux facteurs dont sigma2_j n'est pas strictement positif (une
-# somme ponderee de carres : "<= 0" se lit "= 0", facteurs individuels tous
-# egaux a f_j) n'a pas de residu defini (0/0) ; elle est ecartee, et
-# l'exclusion n'est plus silencieuse : l'attribut "colonnes_exclues"
+# Colonnes exclues (issue #33, avis d'actuary du 24/09/2026 ; issue #60,
+# decision du mainteneur du 05/10/2026, variante (b)) : une colonne j a au
+# moins deux facteurs est ecartee si sigma2_j n'est pas fini ou n'est pas
+# strictement positif (une somme ponderee de carres : "<= 0" se lit "= 0"),
+# OU si elle appartient a l'ensemble des colonnes degenerees : facteurs
+# individuels tous egaux a f_j a 1e-12 pres en relatif, ou rendus tous egaux
+# par l'aplatissement des ex aequo, predicat unique .mw_colonne_degeneree()
+# (#56, #60). Le residu y vaut 0/0 en arithmetique exacte ; l'arrondi rend
+# sigma2_j en general strictement positif (mesures : 4,9e-22 sur ta_bruit,
+# 2,1e-28 sur t5, 9,7e-21 sur le triangle du constat C1, triangles des tests)
+# et le residu calcule n'est alors qu'un bruit d'arrondi norme, que le
+# critere sigma2_j = 0 exact laissait entrer dans les lignes fondees sur les
+# residus et dans le pool du bootstrap.
+# Ensemble des colonnes degenerees : j_degeneres s'il est fourni (ensemble
+# FIGE au triangle observe par mw_bootstrap() et transmis aux statistiques
+# de chaque replication, comme pour M1, #56 : la colonne exclue a l'observe
+# l'est dans chaque replication, ou le facteur simule C * f_j / C peut
+# differer de f_j au bit pres et donner un sigma2_j de bruit strictement
+# positif -- mesure sur ta_deg des tests, colonne j = 4 : 18 replications sur
+# 50, sigma2_4 au plus 2,6e-25 ; le nombre de residus est ainsi le meme a
+# l'observe et dans les replications), sinon calcule sur aj lui-meme
+# (.mw_colonnes_degenerees(), appel sur le triangle observe). Une colonne
+# hors de l'ensemble fige reste ecartee dans une replication si son sigma2_j
+# simule n'est pas strictement positif (residu non defini).
+# L'exclusion n'est pas silencieuse : l'attribut "colonnes_exclues"
 # (data.frame j, n_facteurs) la consigne, et mw_valider_ajustement() en fait
 # un avertissement. .run_engine_mw() retire l'attribut avant de stocker les
 # residus (aucun champ nouveau dans le resultat). La colonne J-1 (un seul
-# facteur) n'a jamais de residu et n'est pas comptee comme exclue. Le seuil
-# reste l'egalite exacte a 0 : l'alignement sur la detection a 1e-12 des
-# colonnes degenerees releve de l'issue #60.
-mw_residus <- function(aj) {
+# facteur si I = J) n'a jamais de residu et n'est pas comptee comme exclue :
+# le test du nombre de facteurs precede celui de la degenerescence, que la
+# colonne J-1 verifie trivialement.
+mw_residus <- function(aj, j_degeneres = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
+  jd <- .mw_j_exclues(aj, j_degeneres)
   out <- data.frame()
   exclues <- data.frame(j = integer(0), n_facteurs = integer(0))
   for (j in 0:(J - 1)) {
     idx <- 0:(I - j - 1)
     if (length(idx) < 2) next
-    if (!is.finite(aj$sigma2[j + 1]) || aj$sigma2[j + 1] <= 0) {
+    if (!is.finite(aj$sigma2[j + 1]) || aj$sigma2[j + 1] <= 0 || j %in% jd) {
       exclues[nrow(exclues) + 1L, ] <- list(as.integer(j), length(idx))
       next
     }
@@ -6904,8 +6946,8 @@ mw_famille_alpha <- function(aj) {
 # Si Var[C(i,j+1)|C(i,j)] = sigma_j^2 C(i,j), alors les residus standardises de
 # Mack sont d'echelle constante DANS CHAQUE COLONNE : |r(i,j)| ne doit pas
 # dependre de C(i,j). Correlation de rang colonne par colonne, combinee.
-mw_test_exposant_variance <- function(aj) {
-  res <- mw_residus(aj)
+mw_test_exposant_variance <- function(aj, j_degeneres = NULL) {
+  res <- mw_residus(aj, j_degeneres)
   if (!nrow(res)) return(list(stat = NA_real_, p = NA_real_, detail = data.frame()))
   det <- data.frame()
   for (j in unique(res$j)) {
@@ -6913,9 +6955,13 @@ mw_test_exposant_variance <- function(aj) {
     # Ex aequo a la tolerance TOL_EX_AEQUO (#152), avant la garde sd() == 0
     # et cor.test() : C en plancher 0 (montant, tolerance relative), |r| en
     # plancher 1 (grandeur d'ordre 1, comme les residus de Mack de #112).
+    # Colonne a C constants ou a |r| constants apres aplatissement :
+    # correlation de rang non definie (ecart-type nul), colonne ecartee de la
+    # combinaison de Fisher, comme une colonne trop courte (garde |r| ajoutee
+    # par l'issue #60 : cor.test() rendait sinon rho = NA sans trace).
     Ca <- engine_aplatir_ex_aequo(d$C, plancher = 0)
     ra <- engine_aplatir_ex_aequo(abs(d$residu))
-    if (nrow(d) < 4 || stats::sd(Ca) == 0) next
+    if (nrow(d) < 4 || stats::sd(Ca) == 0 || stats::sd(ra) == 0) next
     ct <- suppressWarnings(stats::cor.test(ra, Ca,
                                            method = "spearman", exact = FALSE))
     det <- rbind(det, data.frame(j = j, n = nrow(d),
@@ -6930,8 +6976,8 @@ mw_test_exposant_variance <- function(aj) {
 # Si les annees d'accident sont stochastiquement independantes et suivent le
 # meme modele, les residus de Mack ne doivent pas differer systematiquement
 # d'une ligne a l'autre. Test de Kruskal-Wallis (1952), non parametrique.
-mw_test_homogeneite_accident <- function(aj) {
-  res <- mw_residus(aj)
+mw_test_homogeneite_accident <- function(aj, j_degeneres = NULL) {
+  res <- mw_residus(aj, j_degeneres)
   g <- factor(res$i)
   if (nlevels(g) < 3 || nrow(res) < 6)
     return(list(stat = NA_real_, p = NA_real_, ddl = NA_integer_))
@@ -6970,12 +7016,16 @@ mw_simuler_triangle <- function(aj, res_pool) {
 mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
   # Tirages sous graine locale (ADR 0004, #42) : etat de l'appelant restaure.
   engine_sous_graine(seed, {
-    res <- mw_residus(aj)
+    # Colonnes degenerees determinees UNE FOIS sur le triangle observe et
+    # figees pour la statistique observee et chaque replication : M1 (issue
+    # #56) et residus de Mack de toutes les lignes qui en dependent (issue
+    # #60, via le contexte de .mw_contexte_mc()).
+    jd <- .mw_colonnes_degenerees(aj)
+    # Pool : residus de Mack retenus du triangle observe, colonnes degenerees
+    # exclues (#60).
+    res <- mw_residus(aj, jd)
     pool <- res$residu
     pool <- pool - mean(pool)                     # recentrage usuel
-    # Colonnes degenerees de M1 determinees UNE FOIS sur le triangle observe et
-    # figees pour la statistique observee et chaque replication (issue #56).
-    jd <- .mw_colonnes_degenerees(aj)
     # Contexte observe conserve pour les conditions du catalogue (#44).
     e_obs <- .mw_contexte_mc(aj, jd)
     obs <- .mc_evaluer(MW_CATALOGUE_MC, e_obs)
@@ -7020,14 +7070,15 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
 # --- Catalogue Monte-Carlo de la methode Merz-Wuthrich (ADR 0003) -------------
 # Meme structure que USP_CATALOGUE_MC (voir .mc_entree()) ; contexte construit
 # par .mw_contexte_mc(). `degenere` : NULL pour toutes les entrees.
-# Contexte : ajustement aj, residus de Mack (mw_residus(), calcules une fois),
-# leur vecteur r et l'ensemble j_degeneres des colonnes degenerees exclues des
-# verifications colonne par colonne de M1 (issue #56) : fige a l'observe par
-# mw_bootstrap(), calcule sur aj s'il n'est pas fourni.
+# Contexte : ajustement aj, ensemble j_degeneres des colonnes degenerees
+# exclues des verifications colonne par colonne de M1 (issue #56) et des
+# residus de Mack (issue #60) : fige a l'observe par mw_bootstrap(), calcule
+# sur aj s'il n'est pas fourni ; residus de Mack (mw_residus(), calcules une
+# fois avec cet ensemble) et leur vecteur r.
 .mw_contexte_mc <- function(aj, j_degeneres = NULL) {
-  res <- mw_residus(aj)
-  list(aj = aj, res = res, r = res$residu,
-       j_degeneres = .mw_j_exclues(aj, j_degeneres))
+  jd <- .mw_j_exclues(aj, j_degeneres)
+  res <- mw_residus(aj, jd)
+  list(aj = aj, res = res, r = res$residu, j_degeneres = jd)
 }
 
 MW_CATALOGUE_MC <- list(
@@ -7060,8 +7111,10 @@ MW_CATALOGUE_MC <- list(
   HomogF     = .mc_entree(function(e) mw_test_homogeneite_f(e$aj, e$j_degeneres)$stat, "haut"),
   Courbure   = .mc_entree(function(e) mw_test_courbure(e$aj, e$j_degeneres)$stat, "haut"),
   Alpha      = .mc_entree(function(e) mw_famille_alpha(e$aj)$stat, "haut"),
-  ExpVar     = .mc_entree(function(e) mw_test_exposant_variance(e$aj)$stat, "haut"),
-  KruskalAcc = .mc_entree(function(e) mw_test_homogeneite_accident(e$aj)$stat, "haut")
+  # Residus de Mack recalcules avec l'ensemble fige des colonnes degenerees
+  # (issue #60), comme e$res.
+  ExpVar     = .mc_entree(function(e) mw_test_exposant_variance(e$aj, e$j_degeneres)$stat, "haut"),
+  KruskalAcc = .mc_entree(function(e) mw_test_homogeneite_accident(e$aj, e$j_degeneres)$stat, "haut")
 )
 
 # Statistiques bootstrapables de la methode Merz-Wuthrich (catalogue

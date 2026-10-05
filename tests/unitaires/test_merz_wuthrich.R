@@ -241,6 +241,11 @@ tri_ach[2, 5] <- 2150
 # sigma_USP de reference (segment 1 de l'annexe II) : mesures sur le moteur
 # le 23/09/2026 ; l'issue #21 ne change aucun calcul (valeurs identiques avant
 # et apres), elles fixent le fait que l'avertissement ne touche pas au calcul.
+# Avertissement des colonnes exclues des residus de Mack (#33 ; formulation
+# de l'issue #60, Q-E2r-60-2).
+av_exclues <- function(av) grep(paste0("a facteurs individuels tous egaux a f_j a 1e-12 pres ",
+                                       "en relatif (sigma2_j nul ou numeriquement nul)"), av,
+                                fixed = TRUE, value = TRUE)
 run_mw <- function(t) run_engine(methode = "reserve2", triangle = t,
                                  segment = 1, annexe = "II", B = 99)
 av_extrap <- function(r) grep("sigma2_(J-1) = min", r$validation$avertissements,
@@ -352,11 +357,14 @@ verifier("Colonne J-2 constante a 1e-14 pres : argmin litteral = quotient, cause
              length(av) == 1 && grepl("j = J-2 = 3", av, fixed = TRUE)
          })
 # Colonne J-2 detectee (facteurs egaux a l'arrondi pres) mais sigma2_(J-2) > 0
-# (2,1e-28) : mw_residus() n'ecarte que sigma2_j <= 0 exactement, les residus
-# de la colonne sont donc presents et l'avertissement ne doit PAS les dire
-# absents. Triangle trouve par le balayage d'audit (graine 1, 7e tirage :
-# cumuls 1760,07 et 2554,89 multiplies par 1,187), ecrit ici en dur.
-verifier("Colonne detectee avec sigma2 > 0 : pas d'affirmation 'absents' dans l'avertissement",
+# (2,1e-28). Triangle trouve par le balayage d'audit (graine 1, 7e tirage :
+# cumuls 1760,07 et 2554,89 multiplies par 1,187), ecrit ici en dur. Depuis
+# l'issue #60 (test inverse), mw_residus() ecarte la colonne sur le predicat
+# .mw_colonne_degeneree() et non plus sur sigma2_j = 0 exact : ses residus de
+# bruit d'arrondi sont absents, et l'avertissement des colonnes exclues est
+# emis ; celui de l'extrapolation ne dit toujours pas les residus absents
+# (issue #33 : dit une seule fois, par l'avertissement des colonnes exclues).
+verifier("Colonne detectee avec sigma2 > 0 : residus exclus, avertissement des colonnes exclues (#60)",
          {
            t5 <- tri_sym
            t5[1, 4] <- 1760.07; t5[2, 4] <- 2554.89
@@ -368,10 +376,13 @@ verifier("Colonne detectee avec sigma2 > 0 : pas d'affirmation 'absents' dans l'
            av <- av_extrap(r)
            isTRUE(mw_valider_triangle(t5)$ok) && isTRUE(r$ok) &&
              isTRUE(ex$degeneree_Jm2) && a$sigma2[a$J - 1] > 0 &&
-             sum(mw_residus(a)$j == 3) == 2 &&
+             sum(mw_residus(a)$j == 3) == 0 &&
+             identical(attr(mw_residus(a), "colonnes_exclues")$j, 3L) &&
              length(av) == 1 &&
              !grepl("absents", av, fixed = TRUE) &&
-             !grepl("n'ont pas de residu de Mack", av, fixed = TRUE)
+             !grepl("n'ont pas de residu de Mack", av, fixed = TRUE) &&
+             length(av_exclues(r$validation$avertissements)) == 1 &&
+             grepl("j = 3 (2 facteurs)", av_exclues(r$validation$avertissements), fixed = TRUE)
          })
 # Les residus de Mack d'une colonne a sigma2_j = 0 sont absents de
 # mw_residus() : c'est ce qu'affirme l'avertissement.
@@ -395,8 +406,7 @@ tri_j1[2, 5] <- 2195
 for (i in 1:4) tri_j1[i, 3] <- 1.25 * tri_j1[i, 2]
 for (i in 1:3) tri_j1[i, 4:(7 - i)] <- tri_sym[i, 4:(7 - i)] / tri_sym[i, 3] * tri_j1[i, 3]
 tri_j1[2, 5] <- 2195 / 2000 * tri_j1[2, 3]
-av_exclues <- function(av) grep("a sigma2_j = 0 (facteurs individuels tous egaux a f_j)", av,
-                                fixed = TRUE, value = TRUE)
+
 verifier("Colonne j = 1 a sigma2 = 0 (hors J-3, J-2) : exclue, attribut renseigne, un avertissement (#33)",
          {
            a <- mw_ajuster(tri_j1)
@@ -410,7 +420,7 @@ verifier("Colonne j = 1 a sigma2 = 0 (hors J-3, J-2) : exclue, attribut renseign
              identical(ce$j, 1L) && identical(ce$n_facteurs, 4L) && !any(rs$j == 1) &&
              nrow(rs) == sum(pmax(a$I - (0:(a$J - 1)), 0)[-c(2, a$J)]) &&
              length(av) == 1 &&
-             grepl("Colonne de developpement a sigma2_j = 0", av, fixed = TRUE) &&
+             grepl("Colonne de developpement a facteurs individuels tous egaux", av, fixed = TRUE) &&
              grepl("j = 1 (4 facteurs)", av, fixed = TRUE) &&
              grepl(sprintf("ces 4 facteurs individuels n'ont pas de residu de Mack et sont exclus ; %d residu(s)",
                            nrow(rs)), av, fixed = TRUE) &&
@@ -423,7 +433,7 @@ verifier("Colonnes exclues : une seule phrase par triangle, J-3 / J-2 compris (t
            length(av_exclues(av)) == 1 &&
              sum(grepl("n'ont pas de residu de Mack", av, fixed = TRUE)) == 1
          }, logical(1))) &&
-         grepl("Colonnes de developpement a sigma2_j = 0", av_exclues(run_mw(tri_2)$validation$avertissements),
+         grepl("Colonnes de developpement a facteurs individuels tous egaux", av_exclues(run_mw(tri_2)$validation$avertissements),
                fixed = TRUE))
 verifier("Colonnes exclues : l'attribut n'est pas stocke dans le resultat (res$residus, plots_data)",
          {
@@ -498,7 +508,8 @@ verifier("Lignes citees comme fondees sur les residus = lignes qui consomment mw
            })
            mesurer <- function(nom, perturb) {
              aj <- prep[[nom]]$aj; boot <- prep[[nom]]$boot; L0 <- prep[[nom]]$L0
-             assign("mw_residus", function(aj) perturb(orig(aj)), envir = globalenv())
+             assign("mw_residus", function(aj, j_degeneres = NULL) perturb(orig(aj, j_degeneres)),
+                    envir = globalenv())
              L1 <- tryCatch(mw_tests(aj, boot),
                             finally = assign("mw_residus", orig, envir = globalenv()))
              stats::setNames(sig(L0) != sig(L1), vapply(L0, `[[`, "", "test"))
@@ -1269,6 +1280,169 @@ verifier("Ex aequo (#152) : triangle sans ex aequo (triangle_mw.csv), aplatissem
                logical(1))) &&
              identical(engine_aplatir_ex_aequo(res$residu), res$residu) &&
              all(is.finite(stats152(a)))
+         })
+
+## --- Colonnes degenerees exclues des residus de Mack (issue #60) ------------
+# Decision du mainteneur du 05/10/2026 (Q-E2r-60-1, variante (b)) :
+# mw_residus() ecarte une colonne sur le predicat .mw_colonne_degeneree()
+# (#56) et non plus sur sigma2_j = 0 exact ; l'ensemble des colonnes
+# degenerees est fige au triangle observe par mw_bootstrap() et transmis aux
+# residus de chaque replication (contexte .mw_contexte_mc(), ExpVar,
+# KruskalAcc). Predicat etendu (constat C1 de l'audit de #152) : colonne
+# rendue constante par l'aplatissement des ex aequo en plancher 0.
+verifier("ta_bruit : colonne j = 4 exclue des residus (39 retenus, comme ta_deg), avertissement emis (#60)",
+         {
+           ok <- vapply(list(ta_deg, ta_bruit), function(t) {
+             a <- mw_ajuster(t); rs <- mw_residus(a)
+             av <- av_exclues(mw_valider_ajustement(a, mw_msep(a)$msep)$avertissements)
+             nrow(rs) == 39L && !any(rs$j == 4) &&
+               identical(attr(rs, "colonnes_exclues")$j, 4L) &&
+               length(av) == 1 && grepl("j = 4 (5 facteurs)", av, fixed = TRUE) &&
+               grepl("Le pool de reechantillonnage du bootstrap ne contient que les residus retenus",
+                     av, fixed = TRUE)
+           }, logical(1))
+           # garde : sigma2_4 de ta_bruit est strictement positif (bruit d'arrondi)
+           mw_ajuster(ta_bruit)$sigma2[5] > 0 && all(ok)
+         })
+verifier("mw_residus(aj, j_degeneres) : ensemble fourni prioritaire, NULL = ensemble calcule sur aj (#60)",
+         {
+           a <- mw_ajuster(ta); ad <- mw_ajuster(ta_deg)
+           r1 <- mw_residus(a, j_degeneres = 4L)            # colonne non degeneree, figee
+           r2 <- mw_residus(ad, j_degeneres = integer(0))   # sigma2_4 = 0 : exclue quand meme
+           identical(mw_residus(ad), mw_residus(ad, .mw_colonnes_degenerees(ad))) &&
+             identical(mw_residus(a), mw_residus(a, .mw_colonnes_degenerees(a))) &&
+             !any(r1$j == 4) && identical(attr(r1, "colonnes_exclues")$j, 4L) &&
+             !any(r2$j == 4) && identical(attr(r2, "colonnes_exclues")$j, 4L)
+         })
+# Rejeu de la boucle de mw_bootstrap() : nombre de residus du contexte de
+# chaque replication (ensemble fige), a comparer a l'observe.
+n_res_replications <- function(t, B = 99, seed = 20260831) {
+  aj <- mw_ajuster(t); jd <- .mw_colonnes_degenerees(aj); n <- rep(NA_integer_, B)
+  engine_sous_graine(seed, {
+    res <- mw_residus(aj, jd); pool <- res$residu - mean(res$residu)
+    for (b in seq_len(B)) {
+      tb <- mw_simuler_triangle(aj, pool)
+      if (anyNA(tb[upper.tri(tb, diag = TRUE)[, rev(seq_len(ncol(tb)))]])) next
+      ab <- try(mw_ajuster(tb), silent = TRUE)
+      if (inherits(ab, "try-error")) next
+      n[b] <- nrow(.mw_contexte_mc(ab, jd)$res)
+    }
+  })
+  list(obs = nrow(mw_residus(aj)), n = n)
+}
+verifier("Bootstrap : meme nombre de residus a l'observe et dans chaque replication (ta_deg, tri_sym ; #60)",
+         all(vapply(list(ta_deg, tri_sym), function(t) {
+           m <- n_res_replications(t)
+           any(!is.na(m$n)) && all(is.na(m$n) | m$n == m$obs)
+         }, logical(1))))
+# Critere conjoint #60 + #152 (specification (c) 3 et 4), B = 99 ici ; mesure
+# aussi a B = 999 (compte rendu de #60). Tolerance 1e-6 (TOLERANCE des
+# references).
+tables_mw60 <- local({
+  cache <- list()
+  function(nm, t) {
+    if (is.null(cache[[nm]])) cache[[nm]] <<- engine_table_tests(run_mw(t))
+    cache[[nm]]
+  }
+})
+memes_p <- function(d1, d2) {
+  p1 <- d1$p_retenue; p2 <- d2$p_retenue
+  identical(d1$test, d2$test) && identical(d1$verdict, d2$verdict) &&
+    identical(is.na(p1), is.na(p2)) &&
+    isTRUE(all(abs(p1 - p2)[!is.na(p1)] <= 1e-6 * pmax(1, abs(p1[!is.na(p1)]))))
+}
+verifier("run_engine : ta_deg et ta_bruit, memes verdicts et memes p retenues (#60 avec #152)",
+         memes_p(tables_mw60("ta_deg", ta_deg), tables_mw60("ta_bruit", ta_bruit)))
+verifier("run_engine : ta_deg perturbe a 4e-13 (colonne j = 4 degeneree), p-values de ta_deg (#60, gel)",
+         {
+           t4 <- ta_pert(4e-13); a4 <- mw_ajuster(t4)
+           d0 <- tables_mw60("ta_deg", ta_deg); d4 <- tables_mw60("ta_4e13", t4)
+           .mw_ecart_facteurs(a4, 4L)$ecart > 0 && 4L %in% .mw_colonnes_degenerees(a4) &&
+             memes_p(d0, d4) &&
+             identical(d0$p_monte_carlo, d4$p_monte_carlo)
+         })
+# Triangle a facteurs binaires (#192) dont seule la colonne j = 5 est rendue
+# non degeneree (C(0,6) x 1,01, ligne 0 repropagee) : accepte, pool de deux
+# residus (cas bin_pert_j5 d'actuary, specification de #192, Q3).
+bin_pert_j5 <- local({
+  m <- total_f_binaire; m[1, 7] <- m[1, 7] * 1.01
+  m[1, 8] <- m[1, 7] * (total_f_binaire[1, 8] / total_f_binaire[1, 7]); m
+})
+verifier("bin_pert_j5 : accepte, mw_residus() non vide (2 residus, colonne j = 5), aucun avertissement R (#60)",
+         {
+           a <- mw_ajuster(bin_pert_j5); rs <- mw_residus(a)
+           nw <- 0L
+           r <- withCallingHandlers(run_mw(bin_pert_j5),
+                                    warning = function(w) { nw <<- nw + 1L
+                                      invokeRestart("muffleWarning") })
+           identical(.mw_colonnes_degenerees(a), c(0:4, 6L)) &&
+             nrow(rs) == 2L && all(rs$j == 5L) &&
+             isTRUE(r$ok) && is.null(r$validation$erreur_r) && nw == 0L
+         })
+# Constat C1 de l'audit de #152 : colonne 0 a facteurs 1,5 (1 + 0,9e-12 k),
+# k = 0..6 : ecart relatif a f_0 superieur a 1e-12, mais facteurs aplatis
+# tous egaux (pas adjacent 0,9e-12 < 1e-12). Avant #60 : non degeneree,
+# rho = NA silencieux dans HomogF et K variable entre observe et
+# replications ; residus de bruit d'arrondi gardes.
+tri_c1 <- local({
+  t <- matrix(NA_real_, 8, 8)
+  t[, 1] <- c(1000, 1200, 900, 1500, 1100, 1300, 1250, 950)
+  fac0 <- 1.5 * (1 + (0:6) * 0.9e-12)
+  for (i in 1:7) t[i, 2] <- t[i, 1] * fac0[i]
+  fac <- list(NULL, c(1.10, 1.12, 1.08, 1.15, 1.09, 1.11), c(1.05, 1.04, 1.06, 1.03, 1.07),
+              c(1.02, 1.03, 1.01, 1.025), c(1.010, 1.008, 1.012), c(1.005, 1.003), 1.002)
+  for (j in 2:7) for (i in 1:(8 - j)) t[i, j + 1] <- round(t[i, j] * fac[[j]][i], 2)
+  t
+})
+verifier("Colonne aplatie constante (C1) : degeneree, exclue de HomogF et des residus, sans rho = NA (#60)",
+         {
+           a <- mw_ajuster(tri_c1); jd <- .mw_colonnes_degenerees(a)
+           h <- mw_test_homogeneite_f(a); rs <- mw_residus(a)
+           # replications : K + nombre de p nulles ecartees par .fisher_combine()
+           # (Spearman asymptotique a rho = +-1 pour n = 4, issue #90) = 3,
+           # aucun rho = NA
+           kk <- integer(0); nna <- 0L
+           engine_sous_graine(20260831, {
+             pool <- rs$residu - mean(rs$residu)
+             for (b in 1:99) {
+               tb <- mw_simuler_triangle(a, pool)
+               if (anyNA(tb[upper.tri(tb, diag = TRUE)[, rev(seq_len(ncol(tb)))]])) next
+               ab <- try(mw_ajuster(tb), silent = TRUE)
+               if (inherits(ab, "try-error")) next
+               hb <- mw_test_homogeneite_f(ab, jd)
+               if (is.null(hb$K)) next
+               kk <- c(kk, hb$K + sum(hb$detail$p == 0)); nna <- nna + sum(is.na(hb$detail$rho))
+             }
+           })
+           .mw_ecart_facteurs(a, 0L)$ecart > 1e-12 && .mw_colonne_degeneree(a, 0L) &&
+             identical(jd, c(0L, a$J - 1L)) &&
+             identical(h$exclues$j, 0L) && h$K == 3 && !anyNA(h$detail$rho) &&
+             !any(rs$j == 0) && length(kk) > 0 && all(kk == 3L) && nna == 0L
+         })
+verifier("Exposant de variance : colonne a |r| constants ecartee (aucun rho = NA) (#60)",
+         {
+           # colonne j = 0 : F = 1,5 + s / racine(C), signes s = (+, -, -, +),
+           # racines 10, 20, 30, 40 : somme s racine(C) = 0, donc f_0 = 1,5 et
+           # |r(i,0)| tous egaux
+           tr <- matrix(NA_real_, 5, 5)
+           tr[, 1] <- c(100, 400, 900, 1600, 2500)
+           tr[1:4, 2] <- tr[1:4, 1] * (1.5 + c(1, -1, -1, 1) / sqrt(tr[1:4, 1]))
+           fs <- list(c(1.20, 1.25, 1.22), c(1.05, 1.08), 1.02)
+           for (j in 2:4) for (i in 1:(5 - j)) tr[i, j + 1] <- tr[i, j] * fs[[j - 1]][i]
+           a <- mw_ajuster(tr); rs <- mw_residus(a); ev <- mw_test_exposant_variance(a)
+           r0 <- abs(rs$residu[rs$j == 0])
+           length(r0) == 4L && length(unique(engine_aplatir_ex_aequo(r0))) == 1L &&
+             !(0 %in% ev$detail$j) && !anyNA(ev$detail$rho)
+         })
+verifier("Aucun avertissement R de run_engine(reserve2) : ta_bruit, tri_c1, t5 (#60)",
+         {
+           t5 <- tri_sym
+           t5[1, 4] <- 1760.07; t5[2, 4] <- 2554.89
+           t5[1, 5] <- 1760.07 * 1.187; t5[2, 5] <- 2554.89 * 1.187
+           t5[1, 6] <- t5[1, 5] * 1.003
+           n <- vapply(list(ta_bruit = ta_bruit, tri_c1 = tri_c1, t5 = t5), nb_warnings_mw, integer(1))
+           if (all(n == 0L)) TRUE
+           else paste("avertissements R :", paste(names(n), n, sep = " = ", collapse = ", "))
          })
 
 fin_fichier()
