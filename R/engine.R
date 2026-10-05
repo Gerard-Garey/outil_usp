@@ -3668,9 +3668,14 @@ usp_profil <- function(fit, n = 41) {
 # ligne non applicable avec son motif, estim = NA, au lieu de l'erreur R de
 # if (any(ck > 4 / T)) sur NA. Cas vise : y exactement proportionnel a x
 # (y = x/2). L'issue de lm() depend de la plateforme (BLAS, processeur,
-# version de R). Mesure : residus exactement nuls, D_t = 0/0 = NaN, sous le
-# BLAS de reference et OpenBLAS 0.3.20 (noyaux Zen, Haswell) ; D_t fini
-# sous OpenBLAS 0.3.20 (noyau SkylakeX). x ecarte par lm() : jamais
+# version de R) et des valeurs de x. Mesure pour x en puissances de 2
+# (x = 2^(0:7), jeu des tests) : residus exactement nuls, D_t = 0/0 = NaN,
+# sous le BLAS de reference et OpenBLAS 0.3.20 (noyaux Zen, Haswell) ; D_t
+# fini sous OpenBLAS 0.3.20 (noyau SkylakeX). Pour un x quelconque, D_t
+# fini issu du bruit d'arrondi (mesure, BLAS de reference, R 4.3.3,
+# x = c(100, 150, 200, 300, 400, 500, 600, 700) : residus de l'ordre de
+# 1e-16, max D_t = 0,2267, ligne "diagnostic" sans motif ; serie
+# exactement proportionnelle : voir #188). x ecarte par lm() : jamais
 # observe, issue possible.
 .usp_ligne_cook <- function(ck, T) {
   if (!all(is.finite(ck)))
@@ -5745,8 +5750,11 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
   # Graphiques d'influence (#153), sur le modele de .usp_ligne_cook() : un
   # residu standardise ou une distance de Cook non fini (cas vise : y
   # exactement proportionnel a x, residus de y = beta x tous nuls, s = 0,
-  # residu_std et D_t = 0/0 = NaN sur les T annees ; issue dependant de la
-  # plateforme, mesures et issues possibles : voir .usp_ligne_cook()) rend
+  # residu_std et D_t = 0/0 = NaN sur les T annees, mesure pour x en
+  # puissances de 2, jeu des tests ; pour un x quelconque, D_t fini issu du
+  # bruit d'arrondi, serie exactement proportionnelle : voir #188 ; issue
+  # dependant de la plateforme et de x, mesures et issues possibles : voir
+  # .usp_ligne_cook()) rend
   # les graphiques residus vs levier et Cook par annee sans objet ; le motif
   # est expose ici, l'affichage ne fait que le lire. Champ absent si tout est
   # fini (aucun effet sur les resultats ordinaires), place avant lr_delta et
