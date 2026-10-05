@@ -246,6 +246,9 @@ ui <- fluidPage(
     .err { background:#FDEDEC; border-left:4px solid #922B21;
            padding:9px 12px; margin-bottom:10px; font-size:13px; }
     table.data { font-size:12.5px; }
+    /* Vue Detail (#178) : commentaire du moteur long replie, deplie au clic. */
+    details.com > summary { cursor:pointer; }
+    details.com:not([open]) > summary::after { content:' [\\2026]'; color:#00468C; }
     /* Grille de saisie du triangle : cellules larges, en-tetes figes. */
     table.triangle { border-collapse:separate; border-spacing:3px 2px; }
     table.triangle th { font-weight:600; color:#00468C; font-size:12px;
@@ -1116,7 +1119,7 @@ server <- function(input, output, session) {
       if (!nrow(sub)) return(NULL)
       g <- groupe_de(sub$famille[1])
       nb <- table(factor(sub$verdict, levels = c("OK", "ALERTE", "ECHEC", "INFO")))
-      d <- if (identical(input$vue_tests, "detail")) table_detail_groupe(sub)
+      d <- if (identical(input$vue_tests, "detail")) table_detail_groupe(sub, replier = TRUE)
            else table_synthese_groupe(sub)
       div(class = "bloc",
           div(style = "border-left:4px solid #00468C;padding-left:10px;margin-bottom:8px",

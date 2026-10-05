@@ -209,15 +209,43 @@ table_synthese_groupe <- function(tb) {
     check.names = FALSE, stringsAsFactors = FALSE, row.names = NULL)
 }
 
+# Commentaire du moteur replie (#178, point 1) : les commentaires longs (600 a
+# 842 caracteres) donnaient des cellules tres hautes dans la vue Detail. Au-dela
+# de `seuil` caracteres, le texte est coupe au dernier espace avant le seuil (a
+# defaut, au seuil) : le debut va dans le <summary> d'un <details>, la suite
+# dans son corps, deplie au clic. Aucun texte n'est retire : debut et suite,
+# rejoints par l'espace de coupure, rendent le commentaire entier (cet espace
+# est remplace par la frontiere entre le <summary> et le corps). Mise en forme
+# seule, chaque partie echappee ; NA : tiret, comme .txt().
+.commentaire_replie <- function(com, seuil = 200L) {
+  vapply(com, function(x) {
+    if (is.na(x)) return("\u2013")
+    if (nchar(x) <= seuil) return(.echap_html(x))
+    tete <- substr(x, 1L, seuil)
+    esp <- gregexpr(" ", tete, fixed = TRUE)[[1]]
+    k <- if (any(esp > 1L)) max(esp) else seuil + 1L
+    debut <- substr(x, 1L, k - 1L)
+    suite <- substr(x, if (k <= seuil) k + 1L else k, nchar(x))
+    paste0("<details class='com'><summary>", .echap_html(debut), "</summary>",
+           .echap_html(suite), "</details>")
+  }, character(1), USE.NAMES = FALSE)
+}
+
 # Colonnes Type et "Motif / commentaire" (#124) : le commentaire du moteur est
 # restitue pour TOUTES les lignes, pas seulement les INFO : sur une ligne de
 # type "test", il porte aussi des elements de lecture du verdict (ECHEC
 # inatteignable, ECHEC possible - regle R1 sans p exacte -, controle sans
 # objet, loi de reference non exacte). Vide :
 # tiret. Colonne commentaire absente (objet anterieur) : tiret.
-table_detail_groupe <- function(tb) {
+# replier = TRUE (vue Detail de l'onglet Tests, #178) : commentaire long replie
+# par .commentaire_replie() ; FALSE (defaut, rapport fige) : texte entier
+# affiche, le document fige ne dependant pas d'un clic pour etre lu ou imprime.
+# Colonne Fonction (#178, point 3) : champ fonction pose par add() (#111),
+# provenance de la ligne ; colonne absente ou NA (objet anterieur) : tiret.
+table_detail_groupe <- function(tb, replier = FALSE) {
   com <- if (is.null(tb$commentaire)) rep(NA_character_, nrow(tb)) else tb$commentaire
   com[!is.na(com) & !nzchar(trimws(com))] <- NA_character_
+  fon <- if (is.null(tb$fonction)) rep(NA_character_, nrow(tb)) else tb$fonction
   data.frame(
     Test = paste0("<span style='font-weight:600;color:#1B2631'>", .txt(tb$test), "</span>"),
     Type = .txt(type_ligne(tb)),
@@ -233,8 +261,9 @@ table_detail_groupe <- function(tb) {
     `p min` = if (is.null(tb$p_min)) rep("\u2013", nrow(tb))
               else ifelse(is.finite(tb$p_min), formatC(tb$p_min, format = "g", digits = 3), "\u2013"),
     Sens = .txt(tb$sens_du_test),
-    `Motif / commentaire` = .txt(com),
+    `Motif / commentaire` = if (replier) .commentaire_replie(com) else .txt(com),
     Reference = .txt(tb$reference),
+    Fonction = ifelse(is.na(fon), "\u2013", paste0("<code>", .txt(fon), "</code>")),
     check.names = FALSE, stringsAsFactors = FALSE, row.names = NULL)
 }
 
@@ -1784,7 +1813,8 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
             "<div class='gel'><b>Personnalisation de la restitution, sans effet sur le calcul.</b>",
             "Le moteur a calcul\u00e9 %d lignes (tests et diagnostics) ; la s\u00e9lection de",
             "l'application en restitue %d ci-dessous, les %d autres figurent en annexe avec leur",
-            "verdict et le motif de leur exclusion.</div>"), nrow(tb), sum(retenu), sum(!retenu)),
+            "verdict, le commentaire du moteur et le motif de leur exclusion.</div>"),
+            nrow(tb), sum(retenu), sum(!retenu)),
           paste("<div class='gris'>Nature de la p-value retenue :",
                 "<b style='color:#1E8449'>exacte</b> &gt; <b style='color:#00468C'>Monte-Carlo</b>",
                 "&gt; <b style='color:#B9770E'>asymptotique</b>.",
@@ -1824,14 +1854,19 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
              "test non conserv\u00e9 dans la s\u00e9lection"),
       paste0("calcul\u00e9 sur les ", nom_base[ex$base], " ; base retenue pour ce test : ",
              nom_base[sx$base]))
+    # Commentaire du moteur (#178, point 2), comme dans la vue Detail de
+    # l'onglet Tests ; vide ou colonne absente (objet anterieur) : tiret.
+    com_ex <- if (is.null(ex$commentaire)) rep(NA_character_, nrow(ex)) else ex$commentaire
+    com_ex[!is.na(com_ex) & !nzchar(trimws(com_ex))] <- NA_character_
     tab_ex <- if (nrow(ex)) {
       d <- data.frame(ex$cle, paste0("<span style='font-weight:600'>", .txt(ex$test), "</span>"),
                       unname(nom_base[ex$base]), .txt(ex$variante),
                       unname(vapply(ex$verdict, badge_verdict, character(1))),
                       fmt_p(ex$p_retenue),
                       unname(vapply(ex$nature_p, badge_nature, character(1))),
-                      unname(motif), stringsAsFactors = FALSE, row.names = NULL)
-      names(d) <- c("Groupe", "Test", "Base", "Variante", "Verdict", "p retenue", "Nature", "Motif")
+                      unname(motif), .txt(com_ex), stringsAsFactors = FALSE, row.names = NULL)
+      names(d) <- c("Groupe", "Test", "Base", "Variante", "Verdict", "p retenue", "Nature", "Motif",
+                    "Commentaire du moteur")
       html_table(d, classe = "data")
     }
     ajout("<h2 id='annexe-exclus'>6. Annexe \u2014 tests exclus de la restitution</h2>",
