@@ -3874,12 +3874,41 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         # de bascule de %.4g, et une perturbation relative de 1e-12 des
         # donnees faisait passer le texte de "8.501" a "8.5" (issue #22,
         # test anti-bruit).
-        "calcule" = sprintf(paste("Rejeter H0 fournit une preuve POSITIVE de proportionnalite.",
-                                  "Delta = %s (valeur : estimation \"marge Delta\") ;",
-                                  "p_bas = %.4f, p_haut = %.4f."),
-                            if (isTRUE(tost$marge_a_priori)) "marge fixee a priori"
-                            else sprintf("%.0f %% de la moyenne de y", 100 * theta_equiv),
-                            tost$p_bas, tost$p_haut),
+        # Condition necessaire de conclusion (#165, formulation d'actuary
+        # arretee par le mainteneur) : p = 1 - F_t((Delta - |a|)/se) >=
+        # p_plancher = 1 - F_t(Delta/se), egalite en a = 0. La branche se
+        # decide en comparant p_plancher a alpha et a SEUIL_ECHEC_SENS_REJETER,
+        # seuils de la regle des verdicts (sens "rejeter") : le detail ne
+        # contredit jamais le verdict. rho = t(1-alpha, T-2) x se / Delta,
+        # imprime a %.2f, exprime la meme condition (rho < 1 <=> p_plancher <
+        # alpha en arithmetique exacte) ; tout pres de 1, l'arrondi
+        # d'affichage peut montrer 1.00 dans l'une ou l'autre branche.
+        "calcule" = local({
+          p_plancher <- stats::pt(tost$delta / tost$se, tost$ddl, lower.tail = FALSE)
+          rho <- stats::qt(1 - alpha, tost$ddl) * tost$se / tost$delta
+          txt_condition <- if (p_plancher < alpha)
+            sprintf("Condition necessaire de conclusion remplie : t(1-alpha, T-2) x se(a) / Delta = %.2f < 1.",
+                    rho)
+          else paste0(sprintf(paste("Condition necessaire de conclusion non remplie :",
+                                    "t(1-alpha, T-2) x se(a) / Delta = %.2f >= 1, soit",
+                                    "se(a) >= Delta / t(1-alpha, T-2) : quelle que soit",
+                                    "la constante estimee, p >= alpha"), rho),
+                      if (p_plancher >= SEUIL_ECHEC_SENS_REJETER)
+                        sprintf(" et meme p >= %g : OK et ALERTE inatteignables",
+                                SEUIL_ECHEC_SENS_REJETER)
+                      else " : OK inatteignable",
+                      paste(". L'equivalence ne peut pas etre conclue avec ces donnees",
+                            "(plan de volumes, dispersion residuelle) et cette marge :",
+                            "ce verdict traduit une absence de preuve, non un ecart a",
+                            "la proportionnalite."))
+          paste(sprintf(paste("Rejeter H0 fournit une preuve POSITIVE de proportionnalite.",
+                              "Delta = %s (valeur : estimation \"marge Delta\") ;",
+                              "p_bas = %.4f, p_haut = %.4f."),
+                        if (isTRUE(tost$marge_a_priori)) "marge fixee a priori"
+                        else sprintf("%.0f %% de la moyenne de y", 100 * theta_equiv),
+                        tost$p_bas, tost$p_haut),
+                txt_condition)
+        }),
         "statistique non definie" = paste("statistique t non definie (constante ou erreur-type",
                                           "de la regression de y sur x non calculable) :",
                                           "test non applicable"),
