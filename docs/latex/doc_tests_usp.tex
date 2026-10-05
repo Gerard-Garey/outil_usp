@@ -12547,8 +12547,10 @@ Une fonction, plusieurs tests & \code{test\_lm\_complet()} (3 entrées),
 \code{stat\_supF()}, \code{stat\_cusum()} et \code{test\_grubbs()} (2 entrées
 chacune, sur $z_t$ et sur les ratios bruts $u_t$) & Une anomalie se propage à toutes les
 entrées issues de l'appel~; de même, sans calculer de statistique, pour
-\code{usp\_identifiabilite\_pente()} (type des lignes de la pente et de Fisher) et
-\code{usp\_volumes\_constants()} (régime de $\hat\pi_t$, lignes non applicables). \\
+\code{usp\_identifiabilite\_pente()} (type des lignes de la pente et de Fisher),
+\code{usp\_volumes\_constants()} (régime de $\hat\pi_t$, lignes non applicables) et
+\code{.usp\_echelle\_exacte()} (modèle commun des lignes de Cook et des leviers et des
+graphiques d'influence, issue~\#153). \\
 Base « ratios bruts » & six lignes sur $u_t$, construit par
 \code{.usp\_contexte\_}\newline\code{mc()}, statistiques calculées dans
 \code{.stats\_}\newline\code{bootstrapables()}\newline suites~: \code{usp\_runsr\_}\newline
