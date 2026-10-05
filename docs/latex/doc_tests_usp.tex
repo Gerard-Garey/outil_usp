@@ -2427,7 +2427,7 @@ autres qu'un calcul abouti, à ne pas confondre (issue~\#88, décision du mainte
   et $\sigma_{\mathrm{USP}}$ inchangés~; c'est le cas, depuis l'issue~\#153, d'une distance de
   Cook non finie (fiche~\ref{fiche:cook}), qui donnait auparavant un défaut intercepté
   sur une entrée du domaine ($y_t$ exactement proportionnel à $x_t$, mesuré avec le moteur
-  antérieur à l'issue~; Sur une série exactement proportionnelle, la vraisemblance n'a pas de maximum~: $\sigma_{\mathrm{USP}}$ et les autres verdicts ne sont pas fiables (issue~\#188, ouverte)), et, en appel direct seulement, d'une statistique du
+  antérieur à l'issue), et, en appel direct seulement, d'une statistique du
   TOST non définie (fiche~\ref{fiche:tost-constante}), garde inatteignable depuis
   \code{run\_engine()}~; depuis l'issue~\#161, d'un rapport de vraisemblance sur
   $\delta$ non calculable sur les données observées à une borne (fiche~\ref{fiche:rv-delta},
@@ -2435,7 +2435,9 @@ autres qu'un calcul abouti, à ne pas confondre (issue~\#88, décision du mainte
   d'origine \code{usp\_ajuster\_contraint()} avec le moteur antérieur, ligne non applicable
   depuis), et, pour un graphique et non une ligne, du profil en $\delta$ et en $\gamma$
   (\code{usp\_profil()}~: objectif \code{NA} aux seuls points de grille en échec, au lieu de
-  l'erreur R qui interrompait le calcul). L'option \code{options(usp.engine.lever\_erreurs = TRUE)}, réservée au
+  l'erreur R qui interrompait le calcul). Sur une série exactement proportionnelle, la vraisemblance
+  n'a pas de maximum~: $\sigma_{\mathrm{USP}}$ et les autres verdicts ne sont pas fiables
+  (issue~\#188, ouverte). L'option \code{options(usp.engine.lever\_erreurs = TRUE)}, réservée au
   développement, relève l'erreur telle quelle au lieu de l'intercepter. Les erreurs d'usage
   restent hors de ce filet, limité au calcul par décision du mainteneur.
 \end{itemize}
@@ -5272,7 +5274,7 @@ Il en va de même de la garde «~statistique non définie~», qui vise des entr�
 (par exemple $x_t$ et $y_t$ multipliés par $10^{-320}$), hors du domaine numérique
 (§\ref{sec:controles}, issue~\#145)~; l'issue de \code{lm()} y dépend de la plateforme (version
 de R, BLAS, processeur)~: mesuré en appel direct sur le jeu de contrôle multiplié par
-$10^{-320}$, avec R~4.3.3, BLAS et LAPACK de référence, x86\_64, la garde se déclenche~; Une autre issue a été observée sur la CI (R~4.3.1, OpenBLAS~0.3.20, AMD EPYC~7763)~; les tests
+$10^{-320}$, avec R~4.3.3, BLAS et LAPACK de référence, x86\_64, la garde se déclenche~; une autre issue a été observée sur la CI (R~4.3.1, OpenBLAS~0.3.20, AMD EPYC~7763)~; les tests
 unitaires acceptent toute issue cohérente et atteignent les gardes par injection. En appel direct
 d'\code{usp\_tests()} hors du domaine numérique, seule l'absence d'erreur R est garantie, non la
 justesse des statistiques ni des verdicts (issue~\#153).
@@ -8125,7 +8127,7 @@ $x_t$, dont les résidus de $y = \beta x$ sont nuls ($\hat s = 0$, $D_t = 0/0$).
 \code{lm()} y dépend de la plateforme (version de R, BLAS, processeur)~: résidus exactement nuls,
 ou bruit d'arrondi qui laisse $D_t$ fini et la ligne calculée. Mesuré sur $x_t = 2^{t-1}$,
 $y_t = x_t/2$ ($t = 1, \ldots, 8$), avec R~4.3.3, BLAS et LAPACK de référence, x86\_64~: ligne non
-applicable, \code{ok = TRUE}~; Une autre issue a été observée sur une autre plateforme (OpenBLAS~0.3.20, noyau SkylakeX~: $D_t$
+applicable, \code{ok = TRUE}~; une autre issue a été observée sur une autre plateforme (OpenBLAS~0.3.20, noyau SkylakeX~: $D_t$
 fini, ligne calculée)~; les tests unitaires acceptent toute issue cohérente et atteignent les
 gardes par injection. Sur une série exactement proportionnelle, la vraisemblance n'a pas de maximum~: $\sigma_{\mathrm{USP}}$ et les autres verdicts ne sont pas fiables (issue~\#188, ouverte) --- mesuré sur ce jeu~: nullité de la constante
 \code{ECHEC} et TOST \code{OK}, sans portée~; le même jeu donnait, avec le moteur antérieur à l'issue, un
