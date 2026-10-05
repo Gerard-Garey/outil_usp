@@ -12,7 +12,12 @@
 #     run_engine() recoit les n annees, retient les T plus recentes et
 #     restitue la ligne "profondeur" (metadata$n_fournies = n) dans le
 #     bandeau de l'onglet Calibration et dans le journal de session, qui
-#     reprend le libelle du moteur tel quel (primes et reserve no 1).
+#     reprend le libelle du moteur tel quel (primes et reserve no 1) ;
+#   - apercu de validation (issue #183) : segment_recevable() sans
+#     avertissement R, titre des refus, garde de la profondeur apres import
+#     (profondeur_coherente(), profondeur_attendue_import(), n = 4 et 41
+#     hors des bornes du champ T) et, avec shiny, sequence reactive de
+#     l'apercu apres import (n different de T, n = T, n hors [5 ; 40]).
 #  La partie Shiny tourne dans un processus R distinct : app.R attache shiny
 #  et recharge le moteur dans l'environnement global, ce qui ne doit pas
 #  toucher les fichiers de tests suivants.
@@ -58,6 +63,93 @@ verifier("triangle_defaut(8), premiere ligne inchangee (valeurs avant #108)",
 verifier("triangle_defaut(11), cellules (1, 11) et (2, 10) inchangees (valeurs avant #108)",
          isTRUE(all.equal(c(.env$triangle_defaut(11)[1, 11], .env$triangle_defaut(11)[2, 10]),
                           c(2701.01, 2756.95), tolerance = 1e-12)))
+
+## --- Apercu de validation (issue #183) ----------------------------------------
+# Fonctions de premier niveau d'app.R, evaluees seules comme triangle_defaut().
+.noms_183 <- c("segment_recevable", "TITRE_APERCU_REFUS", "profondeur_coherente",
+               "PROFONDEUR_MIN", "PROFONDEUR_MAX", "profondeur_attendue_import")
+for (.x in parse(.app, keep.source = FALSE))
+  if (is.call(.x) && identical(.x[[1]], as.name("<-")) &&
+      as.character(.x[[2]]) %in% .noms_183) eval(.x, .env)
+verifier("app.R definit segment_recevable(), TITRE_APERCU_REFUS, profondeur_coherente(), profondeur_attendue_import() et les bornes du champ T",
+         is.function(.env$segment_recevable) && is.character(.env$TITRE_APERCU_REFUS) &&
+           is.function(.env$profondeur_coherente) && is.function(.env$profondeur_attendue_import) &&
+           identical(c(.env$PROFONDEUR_MIN, .env$PROFONDEUR_MAX), c(5L, 40L)))
+
+# Constat 1 : aucun avertissement R, quelle que soit la valeur de
+# input$segment (et de input$annexe).
+.sans_avert <- function(expr) {
+  w <- FALSE
+  v <- withCallingHandlers(expr, warning = function(c) { w <<- TRUE; invokeRestart("muffleWarning") })
+  list(valeur = v, avertissement = w)
+}
+.entrees <- list("abc", "1a", " 1", "", "99999999999", "1e3", "-1", "1.5", NA, NA_character_,
+                 NA_integer_, NULL, character(0), c("1", "2"), list("1"), TRUE, 1.5, Inf, "Inf")
+.r <- lapply(.entrees, function(s) .sans_avert(.env$segment_recevable(s, "II")))
+verifier("segment_recevable() : aucun avertissement R sur 19 valeurs inattendues de input$segment (#183)",
+         !any(vapply(.r, `[[`, logical(1), "avertissement")))
+verifier("segment_recevable() : valeurs inattendues -> NULL (aucun segment transmis)",
+         all(vapply(.r, function(x) is.null(x$valeur), logical(1))))
+.r_annexe <- lapply(list(NA, NULL, "XX", c("II", "XIV"), list("II")),
+                    function(a) .sans_avert(.env$segment_recevable("1", a)))
+verifier("segment_recevable() : annexe inattendue -> NULL, sans avertissement",
+         all(vapply(.r_annexe, function(x) is.null(x$valeur) && !x$avertissement, logical(1))))
+# Valeurs atteignables par l'interface : choix de selectInput("segment"),
+# as.character(SEGMENTS$segment) de l'annexe courante.
+.ok_catalogue <- all(vapply(seq_len(nrow(SEGMENTS)), function(i)
+  identical(.env$segment_recevable(as.character(SEGMENTS$segment[i]), SEGMENTS$annexe[i]),
+            as.integer(SEGMENTS$segment[i])), logical(1)))
+verifier("segment_recevable() : chaque segment du catalogue rendu en entier dans son annexe",
+         .ok_catalogue)
+verifier("segment_recevable() : segment absent de l'annexe courante -> NULL (\"12\" en annexe XIV)",
+         !12 %in% SEGMENTS$segment[SEGMENTS$annexe == "XIV"] &&
+           is.null(.env$segment_recevable("12", "XIV")))
+verifier("segment_recevable() : numerique 1 accepte comme \"1\" (annexe II)",
+         identical(.env$segment_recevable(1, "II"), 1L))
+
+# Constat 2 : T refuse par le moteur, titre qui ne parle pas des donnees ;
+# le texte de l'erreur reste celui du moteur.
+.v_T <- engine_valider_serie_retenue(c(98.1, 101.3, 104.2, 102.25, 109.34, 114.64),
+                                     c(71.05, 66.4, 68.97, 76.76, 83.49, 95.38), T = 8,
+                                     methode = "premium", nature_donnees = "brutes")$validation
+verifier("apercu, T = 8 sur 6 annees : refus du moteur sur la profondeur",
+         !.v_T$ok && identical(.v_T$erreurs[1],
+                               "Profondeur T = 8 superieure au nombre d'annees fournies (6)."))
+verifier("apercu : titre des erreurs sans le mot \"donnees\" (#183)",
+         !grepl("donn", .env$TITRE_APERCU_REFUS, ignore.case = TRUE))
+.src_app <- readLines(.app, warn = FALSE)
+verifier("app.R : l'apercu affiche TITRE_APERCU_REFUS, plus \"Donnees non exploitables\"",
+         any(grepl("tags$b(TITRE_APERCU_REFUS)", .src_app, fixed = TRUE)) &&
+           !any(grepl("Donnees non exploitables", .src_app, fixed = TRUE)))
+
+# Constat 3 : apres un import de n annees, l'apercu n'est pas evalue avec un
+# T incoherent avec la grille.
+verifier("profondeur_coherente() : sans import en attente, toujours TRUE",
+         isTRUE(.env$profondeur_coherente(8, NULL)) && isTRUE(.env$profondeur_coherente(NA, NULL)) &&
+           isTRUE(.env$profondeur_coherente(NULL, NULL)))
+verifier("profondeur_coherente() : import de 6 annees, ancien T = 8 -> FALSE ; T = 6 -> TRUE",
+         identical(.env$profondeur_coherente(8, 6L), FALSE) &&
+           identical(.env$profondeur_coherente(6, 6L), TRUE))
+verifier("profondeur_coherente() : champ T vide ou NULL pendant l'import -> FALSE",
+         identical(.env$profondeur_coherente(NA_real_, 10L), FALSE) &&
+           identical(.env$profondeur_coherente(NULL, 10L), FALSE))
+# Reprise (revue app-review) : la garde n'est posee que pour un n que le
+# champ T peut prendre, sans quoi l'apercu pourrait rester fige.
+verifier("app.R : le champ T lit ses bornes dans PROFONDEUR_MIN et PROFONDEUR_MAX",
+         any(grepl("min = PROFONDEUR_MIN, max = PROFONDEUR_MAX", .src_app, fixed = TRUE)))
+verifier("profondeur_attendue_import() : n = 5, 10, 40 (bornes comprises) -> n",
+         identical(.env$profondeur_attendue_import(5L), 5L) &&
+           identical(.env$profondeur_attendue_import(10L), 10L) &&
+           identical(.env$profondeur_attendue_import(40), 40L))
+verifier("profondeur_attendue_import() : n = 4 et n = 41 (hors bornes du champ T) -> NULL, garde non posee",
+         is.null(.env$profondeur_attendue_import(4L)) && is.null(.env$profondeur_attendue_import(41L)))
+verifier("profondeur_attendue_import() : n non entier, NA, NULL -> NULL",
+         is.null(.env$profondeur_attendue_import(6.5)) &&
+           is.null(.env$profondeur_attendue_import(NA_integer_)) &&
+           is.null(.env$profondeur_attendue_import(NULL)))
+verifier("profondeur_coherente() : n = 4 ou 41 sans garde -> l'apercu s'evalue (TRUE)",
+         isTRUE(.env$profondeur_coherente(8, .env$profondeur_attendue_import(4L))) &&
+           isTRUE(.env$profondeur_coherente(8, .env$profondeur_attendue_import(41L))))
 
 ## --- Grille des series et journal (issues #134, #136) -------------------------
 if (requireNamespace("shiny", quietly = TRUE)) {
@@ -106,6 +198,64 @@ if (requireNamespace("shiny", quietly = TRUE)) {
     '      grepl("Profondeur T         : 10 \\n", output$tab_meta, fixed = TRUE))',
     '  session$setInputs(retirer_annee = 1)',
     '  a("retrait : 9 lignes, saisies conservees", identical(donnees()$xt, xt[1:9]))',
+    '})',
+    '## Apercu de validation apres un import de series (issue #183, constat 3)',
+    '# Fichier CSV de n annees, au format de l\'import (colonnes t, xt, yt).',
+    'fichier <- function(n) {',
+    '  f <- tempfile(fileext = ".csv")',
+    '  utils::write.csv(data.frame(t = seq_len(n), xt = round(100 * 1.03^seq_len(n), 2),',
+    '                              yt = round(70 * 1.03^seq_len(n) + 5 * (-1)^seq_len(n), 2)),',
+    '                   f, row.names = FALSE)',
+    '  data.frame(name = basename(f), size = file.size(f), type = "text/csv", datapath = f,',
+    '             stringsAsFactors = FALSE)',
+    '}',
+    '# Le navigateur rend la grille de n lignes apres l\'import : ses champs',
+    '# x_i, y_i sont relus, sans evenement du champ T.',
+    'grille <- function(session, n) { d <- read.csv(fichier(n)$datapath)',
+    '  do.call(session$setInputs, c(setNames(as.list(d$xt), paste0("x_", seq_len(n))),',
+    '                               setNames(as.list(d$yt), paste0("y_", seq_len(n))))) }',
+    '# Rendu de l\'apercu ; condition si le rendu est annule (req(cancelOutput)).',
+    'apercu <- function(output) tryCatch(as.character(output$validation_live$html),',
+    '                                    error = function(e) e)',
+    'garde <- function(avant, apres) inherits(apres, "shiny.output.cancel") || identical(apres, avant)',
+    'base <- list(annexe = "II", segment = "1", sigma_manuel = FALSE, B = 99, alpha = 0.10,',
+    '             seed = 20260831, delta_apriori = FALSE, theta_equiv = 0.10,',
+    '             methode = "premium", nature_donnees = "brutes", profondeur = 8)',
+    'testServer(app, {',
+    '  do.call(session$setInputs, base)',
+    '  av <- apercu(output)',
+    '  session$setInputs(fichier_import = fichier(6)); grille(session, 6)',
+    '  ap <- apercu(output)',
+    '  a("import n = 6, T = 8 : garde posee a 6 (#183)", identical(profondeur_import(), 6L))',
+    '  a("import n = 6, T = 8 : apercu non reevalue, rendu precedent garde (#183)",',
+    '    garde(av, ap) && !grepl("superieure", paste(ap, collapse = ""), fixed = TRUE))',
+    '  session$setInputs(profondeur = 6)',
+    '  ap <- apercu(output)',
+    '  a("import n = 6, puis T = 6 : garde levee, apercu reevalue sur 6 annees (#183)",',
+    '    is.null(profondeur_import()) && is.character(ap) && grepl("T = 6 :", ap, fixed = TRUE) &&',
+    '      !grepl("class=\\"err\\"", ap, fixed = TRUE))',
+    '})',
+    'testServer(app, {',
+    '  do.call(session$setInputs, base)',
+    '  av <- apercu(output)',
+    '  session$setInputs(fichier_import = fichier(8)); grille(session, 8)',
+    '  ap <- apercu(output)',
+    '  a("import n = T = 8 : apercu reevalue sans evenement du champ T (#183)",',
+    '    identical(profondeur_import(), 8L) && is.character(ap) && !identical(ap, av) &&',
+    '      grepl("T = 8 :", ap, fixed = TRUE) && !grepl("class=\\"err\\"", ap, fixed = TRUE))',
+    '})',
+    'testServer(app, {',
+    '  do.call(session$setInputs, base)',
+    '  session$setInputs(fichier_import = fichier(4)); grille(session, 4)',
+    '  ap <- apercu(output)',
+    '  a("import n = 4 (hors [5 ; 40]) : garde non posee, apercu evalue avec T = 8 (#183)",',
+    '    is.null(profondeur_import()) && is.character(ap) &&',
+    '      grepl("Profondeur T = 8 superieure au nombre d\'annees fournies (4).", ap, fixed = TRUE))',
+    '  session$setInputs(fichier_import = fichier(41)); grille(session, 41)',
+    '  ap <- apercu(output)',
+    '  a("import n = 41 (hors [5 ; 40]) : garde non posee, apercu evalue avec T = 8 (#183)",',
+    '    is.null(profondeur_import()) && is.character(ap) &&',
+    '      !grepl("superieure", ap, fixed = TRUE))',
     '})'), .script)
   # Processus fils lance depuis la racine du depot : app.R y source
   # R/engine.R par chemin relatif.
@@ -115,8 +265,8 @@ if (requireNamespace("shiny", quietly = TRUE)) {
                                       stdout = TRUE, stderr = TRUE))
   setwd(.ici)
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 11 assertions rendues", length(.lignes) == 11L)
-  if (length(.lignes) != 11L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 17 assertions rendues", length(.lignes) == 17L)
+  if (length(.lignes) != 17L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {
