@@ -5383,14 +5383,16 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
   # Marge du TOST. Un scalaire numerique fini est exige avant toute
   # comparaison (NA, vide, vecteur, texte : refuses, sans erreur R).
   scalaire_fini <- function(v) is.numeric(v) && length(v) == 1L && is.finite(v)
-  # Valeur refusee restituee par deparse() : un texte garde ses guillemets
-  # ("0.1"), un vecteur sa forme c(...), afin que le motif du refus se voie.
-  saisie <- function(v) if (is.null(v) || !length(v)) "vide" else paste(deparse(v), collapse = " ")
+  # Valeur refusee restituee par .engine_saisie() (issue #180) : un texte
+  # garde ses guillemets ("0.1"), un vecteur sa forme c(...), NULL ou vide
+  # est cite "vide", et un double que 15 chiffres ne restituent pas est cite
+  # a 17 chiffres (1 + 2^-52 etait cite 1 par l'ancienne saisie() locale,
+  # deparse() a 15 chiffres).
   if (!is.null(delta_equiv)) {
     if (!scalaire_fini(delta_equiv) || delta_equiv <= 0)
       err <- c(err, sprintf(paste("Marge Delta du test d'equivalence (delta_equiv = %s) : un nombre",
                                   "fini strictement positif est attendu."),
-                            saisie(delta_equiv)))
+                            .engine_saisie(delta_equiv)))
     else if (is.numeric(yt) && length(yt) && all(is.finite(yt)) &&
              delta_equiv >= mean(yt))
       err <- c(err, sprintf(paste("Marge Delta du test d'equivalence (delta_equiv = %s) superieure",
@@ -5400,7 +5402,7 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
   } else if (!scalaire_fini(theta_equiv) || theta_equiv <= 0 || theta_equiv >= 1)
     err <- c(err, sprintf(paste("Marge theta du test d'equivalence (theta_equiv = %s) : un nombre",
                                 "fini, 0 < theta < 1 (fraction de la perte moyenne), est attendu."),
-                          saisie(theta_equiv)))
+                          .engine_saisie(theta_equiv)))
   # Bareme, segment et annexe (issue #131) : controles avant tout
   # avertissement ; une valeur invalide est refusee sans erreur R.
   msg <- tryCatch({ .engine_credibilite_appliquee(5, bareme, segment, annexe); NULL },
@@ -5453,9 +5455,11 @@ engine_valider_profondeur <- function(T, n, T_min = 5) {
   # L'annexe XVII n'est citee que si la borne est la sienne (T_min >= 5) ;
   # pour un simple chargement (T_min = 1), les motifs sont neutres.
   source_T <- if (T_min >= 5) " (annexe XVII, B/C(2)(b))" else ""
+  # T refuse cite par .engine_saisie() (issue #180) : deparse() a 15
+  # chiffres citait 8 + 1.8e-15, refuse comme non entier, "T = 8".
   if (!is.numeric(T) || length(T) != 1L || !is.finite(T) || T != round(T))
     return(sprintf("Profondeur T = %s : un nombre entier d'annees est attendu%s ; la serie n'est pas tronquee.",
-                   if (!length(T)) "vide" else paste(deparse(T), collapse = " "), source_T))
+                   .engine_saisie(T), source_T))
   if (T > n)
     return(sprintf("Profondeur T = %s superieure au nombre d'annees fournies (%d).",
                    format(T), n))
