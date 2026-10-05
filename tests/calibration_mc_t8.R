@@ -55,7 +55,12 @@
 #    T3     : effectifs par regime (run_engine() et code de #72),
 #             replications ecartees et leur motif, motif_mc, controles de la
 #             famille H, p_mc des deux lignes du rapport de vraisemblance
-#             (#45, hors objet de T1 et T2 : elles ne figurent qu'ici),
+#             (#45, hors objet de T1 et T2 : elles ne figurent qu'ici) ; une
+#             replication dont le rapport de vraisemblance n'est pas
+#             calculable sur ses donnees observees (y*) a une borne est
+#             traitee, LR non applicable, et non plus ecartee (#161) : comptee
+#             a part par borne (cle lrnc|borne), hors motifs Monte-Carlo du
+#             LR et hors replications internes ecartees,
 #             largeur de l'IC bootstrap (controle (e4)), replications internes
 #             du bootstrap ecartees.
 #  Incertitude : intervalle de Clopper-Pearson a 95 % (stats::binom.test()),
@@ -643,7 +648,8 @@ controles_72 <- function(cpt, R, jeu) {
 #   erreur) ; mc|s|r|n, mc|s|r|k1, mc|s|r|k2 ; mmc|s|motif ;
 #   l|ligne|n, np, k1, k2, t|type, inop, nat|classe, v|verdict ;
 #   h|controle|verdict ; lr|borne|r|n, k1, k2 ; lrm|borne|motif ;
-#   ic|n, ic|k50, ic|k80 ; bperdu, bperdu_rep, rechec, lrechec|borne.
+#   ic|n, ic|k50, ic|k80 ; bperdu, bperdu_rep, rechec, lrechec|borne ;
+#   lrnc|borne (LR non calculable sur l'observe, #161).
 tableaux <- function(cpt, stats, lignes) {
   g <- function(k) if (k %in% names(cpt)) cpt[[k]] else 0
   n_ok <- g("ok")
@@ -812,8 +818,10 @@ tableaux <- function(cpt, stats, lignes) {
          sprintf(paste("Bootstrap interne : %.0f r\u00e9plication(s) \u00e9cart\u00e9e(s) par usp_bootstrap() sur %.0f (B = %d par",
                        "r\u00e9plication trait\u00e9e), dans %.0f r\u00e9plication(s) ; bootstrap restreint (#45) : %.0f \u00e9chec(s) du",
                        "r\u00e9ajustement contraint ; rapport de vraisemblance : %.0f (\u03b4 = 0) et %.0f (\u03b4 = 1) r\u00e9plication(s)",
-                       "\u00e9cart\u00e9e(s)."),
-                 g("bperdu"), n_ok * B_BOOT, B_BOOT, g("bperdu_rep"), g("rechec"), g("lrechec|borne0"), g("lrechec|borne1")), "")
+                       "\u00e9cart\u00e9e(s) ; rapport de vraisemblance non calculable sur l'observ\u00e9 (r\u00e9plication trait\u00e9e,",
+                       "ligne non applicable, #161) : %.0f (\u03b4 = 0), %.0f (\u03b4 = 1)."),
+                 g("bperdu"), n_ok * B_BOOT, B_BOOT, g("bperdu_rep"), g("rechec"), g("lrechec|borne0"), g("lrechec|borne1"),
+                 g("lrnc|borne0"), g("lrnc|borne1")), "")
   list(lignes = L, excl_t1 = excl_t1)
 }
 
@@ -1303,6 +1311,12 @@ for (b in seq.int(DEBUT, FIN)) {
     ajoute(sprintf("h|%s|%s", nettoyer_cle(ct$test), nettoyer_cle(ct$verdict)))
   for (bn in names(LIGNES_LR)) {
     lr <- res$lr_delta[[bn]]
+    # LR non calculable sur les donnees observees de la replication (#161) :
+    # replication traitee, ligne LR non applicable (avant #161, erreur de
+    # run_engine() et replication ecartee). Comptee sous lrnc|borne, ni dans
+    # lrm| (motifs Monte-Carlo) ni dans lrechec| (n_echec NA, aucune
+    # replication interne tentee ; une cle COMPTE doit rester finie).
+    if (!is.finite(lr$lr)) { ajoute(paste0("lrnc|", bn)); next }
     if (is.finite(lr$p_mc)) {
       ajoute(sprintf("lr|%s|%s|n", bn, reg))
       if (lr$p_mc < ALPHA) ajoute(sprintf("lr|%s|%s|k1", bn, reg))

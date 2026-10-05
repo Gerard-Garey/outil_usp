@@ -753,6 +753,159 @@ verifier("Cox-Stuart T = 10, m = 4 sur n_p = 5, alpha = 0,10 : TEST INOPERANT in
              !grepl("aucune p-value disponible", l$detail, fixed = TRUE)
          })
 
+## --- 4 ter. #165 : condition necessaire de conclusion du TOST --------------
+# Formulation d'actuary arretee par le mainteneur (commentaire 5927254443 de
+# #165) : apres le texte d'avant #165, une phrase decidee par p_plancher =
+# 1 - F_t(Delta/se) (p du TOST en a = 0) compare a alpha et a
+# SEUIL_ECHEC_SENS_REJETER ; rho = t(1-alpha, T-2) x se / Delta a %.2f.
+# Valeurs construites loin des points de bascule de %.2f (mesure sur ces
+# donnees : rho = 9.8114 ; 0.5560 ; 1.6680 ; 0.8313 ; 0.6541), donc
+# independantes de la plateforme.
+NOM_TOST165 <- "Equivalence de la constante a zero (TOST)"
+TXT_FIN165 <- paste(". L'equivalence ne peut pas etre conclue avec ces donnees (plan de volumes,",
+                    "dispersion residuelle) et cette marge : ce verdict traduit une absence de",
+                    "preuve, non un ecart a la proportionnalite.")
+TXT_NON165 <- paste("Condition necessaire de conclusion non remplie : t(1-alpha, T-2) x se(a) /",
+                    "Delta = %s >= 1, soit se(a) >= Delta / t(1-alpha, T-2) : quelle que soit la",
+                    "constante estimee, p >= alpha")
+# Texte d'avant #165, recalcule depuis test_tost_intercept().
+avant165 <- function(x, y, theta = 0.10, delta_abs = NULL) {
+  t0 <- test_tost_intercept(x, y, theta = theta, delta_abs = delta_abs)
+  sprintf(paste("Rejeter H0 fournit une preuve POSITIVE de proportionnalite.",
+                "Delta = %s (valeur : estimation \"marge Delta\") ;",
+                "p_bas = %.4f, p_haut = %.4f."),
+          if (is.null(delta_abs)) sprintf("%.0f %% de la moyenne de y", 100 * theta)
+          else "marge fixee a priori", t0$p_bas, t0$p_haut)
+}
+tost165 <- function(f, ...) ligne(usp_tests(f, boot_fictif(f), methode = "premium", ...), NOM_TOST165)
+verifier("TOST (#165), donnees des quatre cas lognormaux (alpha = 0,10, theta = 0,10), premium et reserve1 : texte d'avant + 'non remplie ... = 9.81 >= 1 ... et meme p >= 0.3 : OK et ALERTE inatteignables. L'equivalence ...' ; p retenue et verdict ECHEC inchanges",
+         {
+           att <- paste(avant165(x, y),
+                        paste0(sprintf(TXT_NON165, "9.81"),
+                               " et meme p >= 0.3 : OK et ALERTE inatteignables", TXT_FIN165))
+           ok <- vapply(c("premium", "reserve1"), function(m) {
+             l <- ligne(usp_tests(fit, boot_fictif(fit), methode = m), NOM_TOST165)
+             identical(l$detail, att) && identical(l$verdict, "ECHEC") &&
+               identical(l$p_retenue, test_tost_intercept(x, y)$p)
+           }, logical(1))
+           if (all(ok)) TRUE else paste("en defaut :", paste(names(ok)[!ok], collapse = ", "))
+         })
+verifier("TOST (#165), marge fixee a priori delta_equiv = 150 (rho = 0.56 < 1) : texte d'avant + 'remplie', verdict OK",
+         {
+           l <- tost165(fit, delta_equiv = 150)
+           identical(l$detail, paste(avant165(x, y, delta_abs = 150),
+                                     paste("Condition necessaire de conclusion remplie :",
+                                           "t(1-alpha, T-2) x se(a) / Delta = 0.56 < 1."))) &&
+             identical(l$verdict, "OK")
+         })
+verifier("TOST (#165), marge estimee theta_equiv = 1,5 (rho = 0.65 < 1) : 'remplie', verdict OK",
+         {
+           l <- tost165(fit, theta_equiv = 1.5)
+           identical(l$detail, paste(avant165(x, y, theta = 1.5),
+                                     paste("Condition necessaire de conclusion remplie :",
+                                           "t(1-alpha, T-2) x se(a) / Delta = 0.65 < 1."))) &&
+             identical(l$verdict, "OK")
+         })
+verifier("TOST (#165), marge fixee a priori delta_equiv = 50 (alpha <= p_plancher < 0,30, rho = 1.67) : 'OK inatteignable' seul, verdict ALERTE",
+         {
+           l <- tost165(fit, delta_equiv = 50)
+           t0 <- test_tost_intercept(x, y, delta_abs = 50)
+           pp <- stats::pt(50 / t0$se, 6, lower.tail = FALSE)
+           pp >= 0.10 && pp < SEUIL_ECHEC_SENS_REJETER &&
+             identical(l$detail, paste(avant165(x, y, delta_abs = 50),
+                                       paste0(sprintf(TXT_NON165, "1.67"), " : OK inatteignable",
+                                              TXT_FIN165))) &&
+             !grepl("ALERTE inatteignables", l$detail, fixed = TRUE) &&
+             identical(l$verdict, "ALERTE")
+         })
+verifier("TOST (#165), alpha de la regle des verdicts : delta_equiv = 50 a alpha = 0,25 -> 'remplie' avec t(0,75 ; 6) (rho = 0.83), verdict OK",
+         {
+           l <- ligne(usp_tests(fit, boot_fictif(fit), alpha = 0.25, methode = "premium",
+                                delta_equiv = 50), NOM_TOST165)
+           identical(l$detail, paste(avant165(x, y, delta_abs = 50),
+                                     paste("Condition necessaire de conclusion remplie :",
+                                           "t(1-alpha, T-2) x se(a) / Delta = 0.83 < 1."))) &&
+             identical(l$verdict, "OK")
+         })
+# Cas construits a la frontiere (reprise de l'audit de #165) : Delta =
+# se(a) x t(q ; 6) x k, k = 1,005 ou 1/1,005, q = 0,90 (bascule alpha = 0,10)
+# ou 0,70 (bascule SEUIL_ECHEC_SENS_REJETER = 0,30), alpha = 0,10. Mesure sur
+# ces donnees (p_plancher a 6 ddl ; a 7 ddl entre parentheses) :
+#   q = 0,90, k = 1,005 : 0,099029 (0,095581), p = 0,1105 -> remplie, ALERTE
+#   q = 0,90, k = 1/1,005 : 0,100975 (0,097540), p = 0,1127 -> OK inatteignable, ALERTE
+#   q = 0,70, k = 1,005 : 0,299111 (0,297716), p = 0,3259 -> OK inatteignable, ECHEC
+#   q = 0,70, k = 1/1,005 : 0,300886 (0,299506), p = 0,3277 -> OK et ALERTE inatteignables, ECHEC
+# Ecarts aux seuils de l'ordre de 1e-3 : sans rapport avec la derive de
+# plateforme ; les cas k = 1/1,005 distinguent T - 2 de T - 1 ddl. rho
+# (0,995 a q = 0,90, k = 1,005) n'est pas compare : l'arrondi %.2f y montre
+# 1.00 (limite admise, commentaire 5927254443 de #165).
+verifier("TOST (#165), cas a la frontiere (marge 0,5 % autour de t(0,90 ; 6) et t(0,70 ; 6), delta_equiv, alpha = 0,10) : branche decidee par p_plancher a T - 2 ddl contre alpha et SEUIL_ECHEC_SENS_REJETER, verdict coherent",
+         {
+           se0 <- test_tost_intercept(x, y)$se
+           cas <- list(list(q = 0.90, k = 1.005,     br = "remplie", v = "ALERTE"),
+                       list(q = 0.90, k = 1 / 1.005, br = "ok",      v = "ALERTE"),
+                       list(q = 0.70, k = 1.005,     br = "ok",      v = "ECHEC"),
+                       list(q = 0.70, k = 1 / 1.005, br = "deux",    v = "ECHEC"))
+           ok <- vapply(cas, function(cc) {
+             d <- se0 * stats::qt(cc$q, 6) * cc$k
+             l <- tost165(fit, delta_equiv = d)
+             br <- if (grepl("conclusion remplie", l$detail, fixed = TRUE)) "remplie"
+                   else if (grepl("OK et ALERTE inatteignables", l$detail, fixed = TRUE)) "deux"
+                   else if (grepl(" : OK inatteignable. L'equivalence", l$detail, fixed = TRUE)) "ok"
+                   else "?"
+             identical(br, cc$br) && identical(l$verdict, cc$v) &&
+               startsWith(l$detail, avant165(x, y, delta_abs = d))
+           }, logical(1))
+           if (all(ok)) TRUE else paste("cas en defaut :", paste(which(!ok), collapse = ", "))
+         })
+verifier("TOST (#165), branches non calculees inchangees : marge invalide et volumes constants sans phrase de condition",
+         {
+           a <- tost165(fit, delta_equiv = -1)
+           b <- tost165(usp_ajuster(rep(100, 8), y))
+           identical(a$type, "non applicable") && identical(b$type, "non applicable") &&
+             !grepl("Condition necessaire", a$detail, fixed = TRUE) &&
+             !grepl("Condition necessaire", b$detail, fixed = TRUE)
+         })
+# Propriete (graine explicite, engine_sous_graine()) : 30 series simulees,
+# marge fixee a priori Delta = se(a) x k, k log-uniforme sur [0,2 ; 4], alpha
+# tire dans {0,05 ; 0,10 ; 0,20}. Le detail ne contredit jamais le verdict et
+# chaque branche est rencontree.
+verifier("TOST (#165), propriete sur 30 series simulees (graine 165) : jamais 'non remplie' avec OK, jamais 'OK et ALERTE inatteignables' hors ECHEC, 'remplie' si et seulement si p_plancher < alpha, 'OK et ALERTE inatteignables' si et seulement si p_plancher >= SEUIL_ECHEC_SENS_REJETER ; les trois branches rencontrees",
+         {
+           sim <- engine_sous_graine(165L, lapply(1:30, function(i) {
+             xs <- 100 * exp(cumsum(stats::rnorm(8, 0.03, 0.08)))
+             ys <- 0.7 * xs * exp(stats::rnorm(8, 0, 0.15)) + stats::rnorm(1, 0, 10)
+             list(x = xs, y = ys, k = exp(stats::runif(1, log(0.2), log(4))),
+                  alpha = sample(c(0.05, 0.10, 0.20), 1))
+           }))
+           pb <- character(0); vu <- c(remplie = 0L, ok_inat = 0L, ok_alerte_inat = 0L)
+           for (i in seq_along(sim)) {
+             s <- sim[[i]]
+             se <- test_tost_intercept(s$x, s$y)$se
+             d <- se * s$k
+             f <- usp_ajuster(s$x, s$y)
+             l <- ligne(usp_tests(f, boot_fictif(f), alpha = s$alpha, methode = "premium",
+                                  delta_equiv = d), NOM_TOST165)
+             pp <- stats::pt(d / se, 6, lower.tail = FALSE)
+             rem <- grepl("conclusion remplie", l$detail, fixed = TRUE)
+             non <- grepl("conclusion non remplie", l$detail, fixed = TRUE)
+             deux <- grepl("OK et ALERTE inatteignables", l$detail, fixed = TRUE)
+             if (rem) vu["remplie"] <- vu["remplie"] + 1L
+             else if (deux) vu["ok_alerte_inat"] <- vu["ok_alerte_inat"] + 1L
+             else if (non) vu["ok_inat"] <- vu["ok_inat"] + 1L
+             if (!identical(l$type, "test") || rem == non ||
+                 (non && identical(l$verdict, "OK")) ||
+                 (deux && !identical(l$verdict, "ECHEC")) ||
+                 rem != (pp < s$alpha) ||
+                 deux != (pp >= SEUIL_ECHEC_SENS_REJETER) ||
+                 !startsWith(l$detail, avant165(s$x, s$y, delta_abs = d)))
+               pb <- c(pb, sprintf("serie %d (verdict %s)", i, l$verdict))
+           }
+           if (length(pb)) paste(pb, collapse = " ; ")
+           else if (any(vu == 0L)) paste("branche non rencontree :", paste(names(vu)[vu == 0L], collapse = ", "))
+           else TRUE
+         })
+
 
 ## --- 5. Invariant I2 sur run_engine() ----------------------------------------
 # Aucune ligne dont la p Monte-Carlo manque ne retombe sur une nature
