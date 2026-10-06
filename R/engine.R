@@ -1699,6 +1699,20 @@ usp_controles_numeriques <- function(fit) {
 usp_volumes_constants <- function(x, tol = TOL_DELTA_BORD)
   diff(range(x)) <= tol * mean(x)
 
+# Pertes constantes (#189) : predicat jumeau de usp_volumes_constants(),
+# SEULE definition du moteur, en relatif a la moyenne, a la meme tolerance
+# TOL_DELTA_BORD (convention de restitution, pas un seuil statistique). A
+# pertes constantes, la variance de y est nulle a cette tolerance pres : la
+# regression de y sur x est sans objet (convention de restitution, comme
+# R13 ; a y exactement constant, la loi de reference du modele auxiliaire
+# MCO n'est pas definie). Entrees : series completes et positives, comme
+# pour usp_volumes_constants() (garanti par engine_valider_donnees()). Lu par test_intercept(), test_lm_complet(),
+# test_tost_intercept(), usp_tests() et engine_valider_donnees().
+# Priorite des motifs : volumes constants (R13) > pertes constantes > marge
+# invalide (TOST) > x ecarte (R12) > statistique non definie.
+usp_pertes_constantes <- function(y, tol = TOL_DELTA_BORD)
+  diff(range(y)) <= tol * mean(y)
+
 # Nombre de volumes distincts k (issue #110) : les regressions auxiliaires
 # polynomiales de degre 2 en x (RESET {x, x^2, x^3}, White {1, x, x^2}) sont
 # de rang min(k, 3) ; a k < 3, test_reset() et test_white() sont non
@@ -2446,12 +2460,17 @@ test_lm_complet <- function(x, y) {
   # x_ecarte (#168) : TRUE sur cette seule branche du garde-fou, FALSE a
   # volumes constants et sur la branche calculee ; usp_tests() y lit le
   # motif du detail des lignes pente et Fisher.
-  na_lm <- function(x_ecarte)
+  # pertes_constantes (#189) : TRUE sur la seule branche des pertes
+  # constantes (usp_pertes_constantes()), testee apres les volumes
+  # constants et avant lm() ; FALSE ailleurs.
+  na_lm <- function(x_ecarte, pertes_constantes = FALSE)
     list(pente = NA_real_, t_pente = NA_real_, p_pente = NA_real_,
          F = NA_real_, ddl1 = NA_integer_, ddl2 = NA_integer_,
          p_F = NA_real_, R2 = NA_real_, R2_ajuste = NA_real_,
-         modele = stats::lm(y ~ 1), x_ecarte = x_ecarte)
+         modele = stats::lm(y ~ 1), x_ecarte = x_ecarte,
+         pertes_constantes = pertes_constantes)
   if (usp_volumes_constants(x)) return(na_lm(FALSE))
+  if (usp_pertes_constantes(y)) return(na_lm(FALSE, pertes_constantes = TRUE))
   m <- stats::lm(y ~ x)
   s <- summary(m)
   if (!"x" %in% rownames(s$coefficients)) return(na_lm(TRUE))
@@ -2469,7 +2488,8 @@ test_lm_complet <- function(x, y) {
     R2           = s$r.squared,
     R2_ajuste    = s$adj.r.squared,
     modele       = m,
-    x_ecarte     = FALSE
+    x_ecarte     = FALSE,
+    pertes_constantes = FALSE
   )
 }
 
@@ -2597,10 +2617,15 @@ test_reset <- function(x, y) {
 # (#153) : t_bas ou t_haut vaut NaN (voir la garde ci-dessous). Quatrieme
 # motif, "x ecarte" (#168) : hors volumes constants, lm() a ecarte x pour
 # colinearite (garde-fou R12) ; il etait auparavant confondu avec "volumes
-# constants".
+# constants". Cinquieme motif, "pertes constantes" (#189) : y constant a la
+# tolerance TOL_DELTA_BORD pres (usp_pertes_constantes()), prioritaire sur
+# la marge et sur x ecarte, apres les volumes constants.
 test_tost_intercept <- function(x, y, theta = 0.10, delta_abs = NULL) {
   # Volumes constants : critere unique usp_volumes_constants() (issue #59).
+  # Pertes constantes (usp_pertes_constantes(), #189) : apres les volumes
+  # constants, avant la marge.
   motif <- if (usp_volumes_constants(x)) "volumes constants"
+  else if (usp_pertes_constantes(y)) "pertes constantes"
   else if ((is.null(delta_abs) && (!is.finite(theta) || theta <= 0)) ||
            (!is.null(delta_abs) && (!is.finite(delta_abs) || delta_abs <= 0))) "marge"
   else NA_character_
@@ -2647,12 +2672,22 @@ test_intercept <- function(x, y) {
   # ecarte par lm() -> NA, jamais le t de la moyenne du modele y ~ 1.
   # x_ecarte (#168) : TRUE sur la seule branche du garde-fou R12 ; usp_tests()
   # y lit le motif du detail de la ligne constante.
+  # pertes_constantes (#189) : TRUE sur la seule branche des pertes
+  # constantes (usp_pertes_constantes()), testee apres les volumes constants
+  # et avant lm() ; FALSE ailleurs. La statistique Intercept du catalogue
+  # Monte-Carlo vaut alors NA a l'observe.
   if (usp_volumes_constants(x))
-    return(list(stat = NA_real_, p = NA_real_, x_ecarte = FALSE))
+    return(list(stat = NA_real_, p = NA_real_, x_ecarte = FALSE,
+                pertes_constantes = FALSE))
+  if (usp_pertes_constantes(y))
+    return(list(stat = NA_real_, p = NA_real_, x_ecarte = FALSE,
+                pertes_constantes = TRUE))
   m <- summary(stats::lm(y ~ x))
   if (!"x" %in% rownames(m$coefficients))
-    return(list(stat = NA_real_, p = NA_real_, x_ecarte = TRUE))
-  list(stat = m$coefficients[1, 3], p = .p_borne(m$coefficients[1, 4]), x_ecarte = FALSE)
+    return(list(stat = NA_real_, p = NA_real_, x_ecarte = TRUE,
+                pertes_constantes = FALSE))
+  list(stat = m$coefficients[1, 3], p = .p_borne(m$coefficients[1, 4]), x_ecarte = FALSE,
+       pertes_constantes = FALSE)
 }
 
 # --- Ruptures et points influents --------------------------------------------
@@ -3776,12 +3811,35 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # Regle R12 (garde-fou, #168) : hors volumes constants, lm(y ~ x) peut
   # encore ecarter x pour colinearite numerique. Motif commun des lignes
   # constante, TOST, pente, Fisher (txt_r12_test) et R2 ; la priorite reste
-  # au motif R13. detail_r12() rend txt_r12_test si la fonction de la ligne
-  # signale le garde-fou (champ x_ecarte), detail_vol(detail) sinon.
+  # au motif R13, puis aux pertes constantes (#189) : voir detail_motif()
+  # ci-dessous.
   txt_r12 <- "x ecarte par lm() pour colinearite"
   txt_r12_test <- paste0("regression de y sur x : ", txt_r12, ", test non applicable")
-  detail_r12 <- function(x_ecarte, detail)
-    if (!vol_cst && isTRUE(x_ecarte)) txt_r12_test else detail_vol(detail)
+  # Pertes constantes (#189, usp_pertes_constantes(), tolerance
+  # TOL_DELTA_BORD, seule definition) : hors volumes constants, les cinq
+  # lignes de la regression de y sur x (constante, TOST, pente, Fisher, R2)
+  # sont restituees "non applicable" avec un motif propre, la variance de y
+  # etant nulle a cette tolerance pres. Calcule une fois, a cote de vol_cst.
+  pertes_cst <- !vol_cst && usp_pertes_constantes(y)
+  ery <- diff(range(y)) / mean(y)
+  txt_pertes_cst_test <- sprintf(paste(
+    "regression de y sur x : pertes y_t constantes a la tolerance relative",
+    "TOL_DELTA_BORD = %g pres (etendue relative = %.2g) : variance de y nulle",
+    "a cette tolerance pres, regression de y sur x sans objet (convention de",
+    "restitution), test non applicable"), TOL_DELTA_BORD, ery)
+  txt_pertes_cst_r2 <- sprintf(paste(
+    "pertes y_t constantes a la tolerance relative TOL_DELTA_BORD = %g pres",
+    "(etendue relative = %.2g) : variance totale nulle a cette tolerance pres,",
+    "R2 sans objet"), TOL_DELTA_BORD, ery)
+  # Priorite des motifs des lignes constante, pente et Fisher : volumes
+  # constants (txt_vol_cst) > pertes constantes > x ecarte (txt_r12_test,
+  # champ x_ecarte de la fonction de la ligne) > detail de la ligne. Sous
+  # pertes constantes et R12, le detail se reduit au motif.
+  detail_motif <- function(x_ecarte, detail)
+    if (vol_cst) txt_vol_cst
+    else if (pertes_cst) txt_pertes_cst_test
+    else if (isTRUE(x_ecarte)) txt_r12_test
+    else detail
   # Ecart a la constance exacte de pi_t dans la bande de tolerance ; chaine
   # vide hors de la bande. 1 - delta est affiche plutot que delta : "%g"
   # rendrait 1 - 5e-7 par "1".
@@ -3852,7 +3910,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   add(fam, "Nullite de la constante (proportionnalite stricte)",
       fonction = "test_intercept",
       "Student (1908), Biometrika 6",
-      type = si_vol_cst(if (is.finite(ti$stat)) "test" else "non applicable"),
+      type = si_vol_cst(if (pertes_cst || !is.finite(ti$stat)) "non applicable" else "test"),
       H0 = "a = 0 (proportionnalite stricte)", H1 = "a != 0",
       stat_nom = "t", stat = ti$stat,
       loi = sprintf(paste("t(%d) exacte sous le modele auxiliaire MCO seulement (erreurs",
@@ -3865,9 +3923,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       # vaut que sous le modele auxiliaire MCO (#44, reprise, constat 2).
       repli_asymptotique = FALSE,
       libelle_p_as = "p de Student sous le modele auxiliaire MCO",
-      detail = detail_r12(ti$x_ecarte,
-                          paste("Le NON-rejet ne prouve pas la proportionnalite :",
-                                "voir le test d'equivalence ci-dessous.")))
+      detail = detail_motif(ti$x_ecarte,
+                            paste("Le NON-rejet ne prouve pas la proportionnalite :",
+                                  "voir le test d'equivalence ci-dessous.")))
   tost <- test_tost_intercept(x, y, theta = theta_equiv, delta_abs = delta_equiv)
   add(fam, "Equivalence de la constante a zero (TOST)",
       fonction = "test_tost_intercept",
@@ -3895,6 +3953,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         # lm(), hors volumes constants) : motif distinct depuis #168.
         "volumes constants" = txt_vol_cst,
         "x ecarte" = txt_r12_test,
+        # Pertes constantes (#189) : motif commun aux lignes constante,
+        # pente et Fisher.
+        "pertes constantes" = txt_pertes_cst_test,
         "marge" = paste("marge Delta invalide (sans delta_equiv : theta_equiv non",
                         "fini ou <= 0 ; ou delta_equiv non fini ou <= 0) : test",
                         "non applicable"),
@@ -3966,7 +4027,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # Ligne Fisher : sa loi de reference est F(1,T-2), non t(T-2) (#117) ;
   # meme p-value a l'arrondi pres (F = t^2 en regression simple).
   nat_mco_F <- "sous le modele auxiliaire MCO : F(1,T-2) exacte (H0 non simulable : le modele ajuste appartient a H1)"
-  type_pente <- function(stat) if (!is.finite(stat)) "non applicable"
+  type_pente <- function(stat) if (pertes_cst || !is.finite(stat)) "non applicable"
                                else if (pente_ident) "test" else "diagnostic"
   add(fam, "Test de Student sur la pente (lm(y~x))",
       fonction = "test_lm_complet",
@@ -3978,7 +4039,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                           "normales homoscedastiques)"), T - 2),
       estim_nom = "pente b", estim = lmc$pente,
       p_as = lmc$p_pente, sens = "rejeter", nature_forcee = nat_mco,
-      detail = detail_r12(lmc$x_ecarte, trimws(paste("Ici on souhaite REJETER H0.", txt_ident))))
+      detail = detail_motif(lmc$x_ecarte, trimws(paste("Ici on souhaite REJETER H0.", txt_ident))))
   add(fam, "Test de Fisher (significativite globale)", "Fisher (1922, 1925)",
       fonction = "test_lm_complet",
       type = type_pente(lmc$F),
@@ -3988,16 +4049,21 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         sprintf("F(%d,%d) exacte sous le modele auxiliaire MCO", lmc$ddl1, lmc$ddl2)
       else NA_character_,
       p_as = lmc$p_F, sens = "rejeter", nature_forcee = nat_mco_F,
-      detail = detail_r12(lmc$x_ecarte, trimws(paste("Equivaut a t^2 en regression simple.", txt_ident))))
+      detail = detail_motif(lmc$x_ecarte, trimws(paste("Equivaut a t^2 en regression simple.", txt_ident))))
   add(fam, "Coefficient de determination R2", "lm(y ~ x)",
       fonction = "test_lm_complet",
-      type = if (is.finite(lmc$R2)) "diagnostic" else "non applicable",
+      # Motif choisi par les drapeaux (volumes constants, puis pertes
+      # constantes, #189), avant la finitude de R2.
+      type = if (!vol_cst && !pertes_cst && is.finite(lmc$R2)) "diagnostic"
+             else "non applicable",
       estim_nom = "R2", estim = lmc$R2,
-      detail = if (is.finite(lmc$R2))
+      detail = if (vol_cst) txt_vol_cst
+      else if (pertes_cst) txt_pertes_cst_r2
+      else if (is.finite(lmc$R2))
         sprintf("R2 ajuste = %.4f ; sous H0 (b=0) E[R2] = 1/(T-1) = %.3f ; repere conventionnel R2 < 0.5 : %s. Diagnostic, pas un test",
                 lmc$R2_ajuste, 1 / (T - 1),
                 if (lmc$R2 < 0.5) "en dessous" else "au-dessus")
-      else detail_vol(paste(txt_r12, ": R2 non defini")))
+      else paste(txt_r12, ": R2 non defini"))
   # Issue #110 : branche non applicable sur le modele de la ligne TOST ;
   # priorite volumes constants (R13, txt_vol_cst) > moins de trois volumes
   # distincts > rang deficient (motif rendu par test_reset()).
@@ -5442,6 +5508,15 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
       avt <- c(avt, "Amplitude des volumes >= 10 : rupture de perimetre possible.")
     if (anyDuplicated(data.frame(xt, yt)) > 0)
       avt <- c(avt, "Couples (xt, yt) dupliques detectes.")
+    # Pertes constantes (#189) : predicat unique usp_pertes_constantes(),
+    # sur la serie recue (serie retenue pour run_engine() et
+    # engine_valider_serie_retenue()) ; avertissement, sans refus.
+    if (usp_pertes_constantes(yt))
+      avt <- c(avt, sprintf(paste("Pertes y_t constantes a la tolerance relative TOL_DELTA_BORD",
+                                  "= %g pres (etendue relative = %.2g) : regression de y sur x",
+                                  "sans objet (constante, TOST, pente, Fisher et R2 non",
+                                  "applicables) ; verifier la saisie."),
+                            TOL_DELTA_BORD, diff(range(yt)) / mean(yt)))
     # Credibilite partielle (issue #131) : c(T, bareme applique) < 1, sous
     # le bareme qui entre dans sigma_USP ; length(xt) < 10 ne signalait rien
     # sur les segments du bareme long G(1) de T = 10 a 14.

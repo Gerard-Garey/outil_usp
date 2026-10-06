@@ -521,6 +521,8 @@ cook_x_ecarte153 <- function(x, y) {
 # sur la branche calculee.
 tost_motif_attendu153 <- function(x, y, theta = 0.10, delta_abs = NULL) {
   if (usp_volumes_constants(x)) return("volumes constants")
+  # Pertes constantes (#189) : apres les volumes constants, avant la marge.
+  if (usp_pertes_constantes(y)) return("pertes constantes")
   if ((is.null(delta_abs) && (!is.finite(theta) || theta <= 0)) ||
       (!is.null(delta_abs) && (!is.finite(delta_abs) || delta_abs <= 0))) return("marge")
   resume <- get("summary", envir = environment(run_engine))
@@ -540,13 +542,17 @@ tost_coherent153 <- function(r, ref, x, y) !inherits(r, "error") && identical(na
 # Ligne TOST de usp_tests(), en regard de test_tost_intercept() sur les memes
 # donnees (x, y = fit$x, fit$y) : detail du motif, lu dans usp_tests()
 # ("volumes constants" : texte de la regle R13 ; "x ecarte" : texte du
-# garde-fou R12, #168) ; ligne "test" a p retenue finie si calculee.
+# garde-fou R12, #168 ; "pertes constantes" : texte de #189) ; ligne
+# "test" a p retenue finie si calculee.
+PREFIXE_PERTES_CST189 <- paste("regression de y sur x : pertes y_t constantes a la tolerance",
+                               "relative TOL_DELTA_BORD = 1e-06 pres")
 ligne_tost_coherente153 <- function(lt, r, x) {
   m <- r$non_applicable
   if (is.na(m)) return(identical(lt$type, "test") && is.finite(lt$p_retenue) &&
                          startsWith(lt$detail, "Rejeter H0 fournit une preuve POSITIVE"))
   attendu <- switch(m,
     "volumes constants" = NA_character_,
+    "pertes constantes" = NA_character_,
     "x ecarte" = paste("regression de y sur x : x ecarte par lm() pour colinearite,",
                        "test non applicable"),
     "marge" = paste("marge Delta invalide (sans delta_equiv : theta_equiv non",
@@ -555,7 +561,10 @@ ligne_tost_coherente153 <- function(lt, r, x) {
     "statistique non definie" = DETAIL_TOST153,
     return(FALSE))
   identical(lt$type, "non applicable") && identical(lt$verdict, "INFO") && is.na(lt$p_retenue) &&
-    (if (is.na(attendu)) startsWith(lt$detail, "volumes x_t constants") else identical(lt$detail, attendu))
+    (if (identical(m, "pertes constantes"))
+       startsWith(lt$detail, PREFIXE_PERTES_CST189)
+     else if (is.na(attendu)) startsWith(lt$detail, "volumes x_t constants")
+     else identical(lt$detail, attendu))
 }
 # Injections deterministes (voir ci-dessus).
 .echelle_orig153 <- .usp_echelle_exacte
@@ -719,12 +728,13 @@ verifier("usp_tests(), x ecarte par lm() hors volumes constants (injection de su
            if (exists("summary", envir = environment(run_engine), inherits = FALSE)) pb <- c(pb, "summary non restauree")
            if (length(pb)) paste(pb, collapse = " ; ") else TRUE
          })
-# Priorite R13 > R12 dans usp_tests() (garde !vol_cst de detail_r12()) : a
+# Priorite R13 > R12 dans usp_tests() (detail_motif(), #189 ; garde
+# !vol_cst de detail_r12() avant #189) : a
 # volumes constants, test_intercept() et test_lm_complet() sortent avant
 # lm() avec x_ecarte = FALSE ; pour atteindre la garde, leur resultat est
 # rendu avec x_ecarte force a TRUE. TOST : priorite assuree par
 # test_tost_intercept() (motif "volumes constants" teste avant lm()).
-verifier("usp_tests() a volumes constants, x_ecarte force a TRUE dans test_intercept() et test_lm_complet() : le motif R13 prime sur R12 pour constante, pente, Fisher (garde de detail_r12()), TOST et R2 (#168)",
+verifier("usp_tests() a volumes constants, x_ecarte force a TRUE dans test_intercept() et test_lm_complet() : le motif R13 prime sur R12 pour constante, pente, Fisher (detail_motif()), TOST et R2 (#168)",
          {
            xq <- 300 * (1 + c(1, -1, 1, -1, 1, -1, 1, -1) * 1e-8)
            fq <- usp_ajuster(xq, y153); bq <- suppressWarnings(usp_bootstrap(fq, B = B_MIN_USAGE))
@@ -2253,5 +2263,147 @@ verifier("Lecture vecteur : lignes d'en-tetes textuelles, vides de bord et etiqu
            identical(msg_ligne(c("2017-18,2018-19", "1,2")), c(1, 2)) &&
            identical(msg_ligne(c("2017-2018,2018-2019", "1,2")), c(1, 2)) &&
            identical(msg_ligne(c("a;b;c", "1,5;2;3"), ";", ","), c(1.5, 2, 3)))
+
+## --- Pertes constantes (#189) ----------------------------------------------
+# Jeu de l'issue : x = (100, ..., 700), y = 70 x 8. Avant #189 : constante
+# stat Inf (INFO sans motif), TOST stat Inf, p = 1, ECHEC, pente et Fisher
+# NaN avec "Pente identifiable", R2 NaN au motif R12. Predicat unique
+# usp_pertes_constantes() (tolerance TOL_DELTA_BORD) ; les cinq lignes de
+# la regression de y sur x sont non applicables au motif propre ; les 46
+# autres lignes et sigma_USP sont inchanges (comparaison a l'execution ou
+# le predicat est neutralise). Libelles ecrits en dur (specification
+# d'actuary).
+x189 <- c(100, 150, 200, 300, 400, 500, 600, 700)
+y189 <- rep(70, 8)
+LIGNES_REG189 <- c(LIGNES_R12_168, LIGNE_R2_168)
+detail_pc189 <- function(y) sprintf(paste(
+  "regression de y sur x : pertes y_t constantes a la tolerance relative",
+  "TOL_DELTA_BORD = %g pres (etendue relative = %.2g) : variance de y nulle",
+  "a cette tolerance pres, regression de y sur x sans objet (convention de",
+  "restitution), test non applicable"), 1e-6, diff(range(y)) / mean(y))
+detail_r2_pc189 <- function(y) sprintf(paste(
+  "pertes y_t constantes a la tolerance relative TOL_DELTA_BORD = %g pres",
+  "(etendue relative = %.2g) : variance totale nulle a cette tolerance pres,",
+  "R2 sans objet"), 1e-6, diff(range(y)) / mean(y))
+avt_pc189 <- function(y) sprintf(paste(
+  "Pertes y_t constantes a la tolerance relative TOL_DELTA_BORD = %g pres",
+  "(etendue relative = %.2g) : regression de y sur x sans objet (constante,",
+  "TOST, pente, Fisher et R2 non applicables) ; verifier la saisie."),
+  1e-6, diff(range(y)) / mean(y))
+lancer189 <- function(xx, yy, methode = "premium") suppressWarnings(
+  run_engine(xt = xx, yt = yy, methode = methode, segment = 1, annexe = "II",
+             nature_donnees = if (methode == "premium") "brutes",
+             B = B_MIN_USAGE, seed = 20260831))
+# Les cinq lignes au motif pertes constantes : non applicables, INFO, sans
+# p ni statistique ni estimation, inoperant FALSE, detail exact ; chaine
+# vide si conforme, sinon la liste des lignes fautives.
+lignes_pc189 <- function(tt, y) {
+  pb <- character(0)
+  for (nm in LIGNES_REG189) {
+    l <- ligne153(tt, nm)
+    att <- if (nm == LIGNE_R2_168) detail_r2_pc189(y) else detail_pc189(y)
+    if (!(identical(l$type, "non applicable") && identical(l$verdict, "INFO") &&
+          is.na(l$p_retenue) && is.na(l$nature_p) && identical(l$inoperant, FALSE) &&
+          is.na(l$stat) && is.na(l$estim) && is.na(l$p_asymptotique) &&
+          identical(l$detail, att) && !grepl("identifiable", l$detail, ignore.case = TRUE)))
+      pb <- c(pb, nm)
+  }
+  pb
+}
+verifier("usp_pertes_constantes() : rep(70, 8) TRUE, etendue relative 1e-6 TRUE, 1,0001e-6 FALSE, y153 FALSE ; meme reponse a x 1e-50 et x 1e50 (#189, U1)",
+         {
+           cas <- list(y189, 70 * (1 + c(0, 1e-6, rep(0, 6))) / (1 + 1e-6 / 8),
+                       70 * (1 + c(0, 1.0001e-6, rep(0, 6))), y153)
+           # Second cas : la division par 1 + 1e-6 / 8 ramene la moyenne a 70,
+           # etendue relative 1e-6 / (1 + 1,25e-7), juste sous le bord, sans
+           # dependre de l'arrondi d'une etendue egale a 1e-6.
+           att <- c(TRUE, TRUE, FALSE, FALSE)
+           obt <- vapply(cas, usp_pertes_constantes, logical(1))
+           ech <- all(vapply(c(1e-50, 1e50), function(k)
+             identical(vapply(cas, function(v) usp_pertes_constantes(v * k), logical(1)), att),
+             logical(1)))
+           ref <- vapply(cas, function(v) diff(range(v)) <= 1e-6 * mean(v), logical(1))
+           identical(obt, att) && identical(ref, att) && ech
+         })
+res189 <- list(premium = lancer189(x189, y189, "premium"),
+               reserve1 = lancer189(x189, y189, "reserve1"))
+neutre189 <- avec_injection("usp_pertes_constantes", function(...) FALSE,
+                            list(premium = lancer189(x189, y189, "premium"),
+                                 reserve1 = lancer189(x189, y189, "reserve1")))
+verifier("run_engine, jeu de l'issue (y = 70 x 8), premium et reserve1 : constante, TOST, pente, Fisher et R2 non applicables au motif pertes constantes (INFO, p, stat, estim NA, inoperant FALSE) ; 46 autres lignes, parametre_final et sigma_USP identical a l'execution au predicat neutralise (#189, U2)",
+         {
+           pb <- character(0)
+           for (m in names(res189)) {
+             r <- res189[[m]]; r0 <- neutre189[[m]]
+             if (!isTRUE(r$ok) || !isTRUE(r0$ok)) { pb <- c(pb, paste(m, "ok")); next }
+             p <- lignes_pc189(r$tests, y189)
+             if (length(p)) pb <- c(pb, paste(m, p))
+             noms <- vapply(r$tests, function(l) l$test, ""); noms0 <- vapply(r0$tests, function(l) l$test, "")
+             autres <- !noms %in% LIGNES_REG189
+             if (!identical(noms, noms0) || sum(autres) != 46L) pb <- c(pb, paste(m, "liste des lignes"))
+             else if (!identical(r$tests[autres], r0$tests[autres])) pb <- c(pb, paste(m, "autres lignes"))
+             if (!identical(r$parametre_final, r0$parametre_final)) pb <- c(pb, paste(m, "parametre_final"))
+           }
+           if (length(pb)) paste(pb, collapse = " ; ") else TRUE
+         })
+verifier("Volumes et pertes constants : les cinq lignes portent le motif R13 (priorite volumes constants) ; avertissement pertes constantes present (#189, U3)",
+         {
+           r <- lancer189(rep(110, 8), y189)
+           isTRUE(r$ok) &&
+             all(vapply(LIGNES_REG189, function(nm) {
+               l <- ligne153(r$tests, nm)
+               identical(l$type, "non applicable") && startsWith(l$detail, "volumes x_t constants")
+             }, logical(1))) &&
+             avt_pc189(y189) %in% r$validation$avertissements
+         })
+verifier("Priorite pertes constantes > marge et > x ecarte (R12) : y constant sous injection de summary() sans x -> TOST 'pertes constantes', cinq lignes au motif pertes constantes ; appel direct a marge invalide et y constant -> 'pertes constantes' (#189, U4)",
+         {
+           f <- usp_ajuster(x153, y189); b <- suppressWarnings(usp_bootstrap(f, B = B_MIN_USAGE))
+           ref <- names(test_tost_intercept(x153, y153))
+           r12 <- avec_r12_168(test_tost_intercept(x153, y189))
+           tt <- tryCatch(suppressWarnings(avec_r12_168(usp_tests(f, b, methode = "premium"))),
+                          error = function(e) e)
+           !inherits(tt, "error") && identical(r12$non_applicable, "pertes constantes") &&
+             isTRUE(avec_summary_sans_x153(tost_coherent153(r12, ref, x153, y189))) &&
+             ligne_tost_coherente153(ligne153(tt, LIGNE_TOST153), r12, x153) &&
+             !length(lignes_pc189(tt, y189)) &&
+             identical(test_tost_intercept(x153, y189, theta = -1)$non_applicable, "pertes constantes") &&
+             identical(test_tost_intercept(x153, y189, delta_abs = -1)$non_applicable, "pertes constantes") &&
+             identical(names(test_tost_intercept(x153, y189)), ref) &&
+             identical(test_tost_intercept(x153, y153, theta = -1)$non_applicable, "marge") &&
+             !exists("summary", envir = environment(run_engine), inherits = FALSE)
+         })
+verifier("Bord de la tolerance : etendue relative 1e-7 -> cinq lignes au motif pertes constantes ; 2e-6 -> lignes calculees, constante et TOST de type test (#189, U5)",
+         {
+           y7 <- 70 * (1 + c(0, 1e-7, rep(0, 6))); y6 <- 70 * (1 + c(0, 2e-6, rep(0, 6)))
+           r7 <- lancer189(x189, y7); r6 <- lancer189(x189, y6)
+           c7 <- diff(range(y7)) / mean(y7) <= 1e-6; c6 <- diff(range(y6)) / mean(y6) > 1e-6
+           l6 <- lapply(LIGNES_REG189, function(nm) ligne153(r6$tests, nm))
+           c7 && c6 && isTRUE(r7$ok) && isTRUE(r6$ok) && !length(lignes_pc189(r7$tests, y7)) &&
+             identical(l6[[1]]$type, "test") && identical(l6[[2]]$type, "test") &&
+             !any(vapply(l6, function(l) grepl("pertes y_t constantes", l$detail, fixed = TRUE), logical(1))) &&
+             !any(grepl("Pertes y_t constantes", r6$validation$avertissements, fixed = TRUE))
+         })
+verifier("engine_valider_donnees() : avertissement pertes constantes (texte exact) present a y = 70 x 8 avec ok = TRUE, absent pour y153 ; porte par run_engine()$validation ; identique dans engine_valider_serie_retenue() (#189, U6)",
+         {
+           v <- engine_valider_donnees(x189, y189)
+           v0 <- engine_valider_donnees(x153, y153)
+           s <- engine_valider_serie_retenue(c(50, x189), c(90, y189), T = 8)$validation
+           isTRUE(v$ok) && avt_pc189(y189) %in% v$avertissements &&
+             !any(grepl("Pertes y_t constantes", v0$avertissements, fixed = TRUE)) &&
+             all(vapply(res189, function(r) avt_pc189(y189) %in% r$validation$avertissements, logical(1))) &&
+             identical(s$avertissements, v$avertissements) &&
+             !any(grepl("Pertes y_t constantes",
+                        engine_valider_serie_retenue(c(50, x189), c(90, y189))$validation$avertissements,
+                        fixed = TRUE))
+         })
+verifier("Catalogue Monte-Carlo, y constant : statistique Intercept NA a l'observe sans erreur, p Monte-Carlo de la ligne constante NA (#189, U7)",
+         {
+           st <- tryCatch(USP_CATALOGUE_MC$Intercept$calc(list(x = x189, y = y189)), error = function(e) e)
+           !inherits(st, "error") && identical(st, NA_real_) &&
+             all(vapply(res189, function(r)
+               is.na(ligne153(r$tests, "Nullite de la constante (proportionnalite stricte)")$p_mc),
+               logical(1)))
+         })
 
 fin_fichier()
