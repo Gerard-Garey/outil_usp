@@ -760,6 +760,78 @@ if (requireNamespace("plotly", quietly = TRUE)) {
   cat("  note : plotly absent ; annotations plotly du profil de delta et du QQ-plot non exercees (#162).\n")
 }
 
+## --- Issue #195 : annotation q90 du bord oppose au cote libre (plotly) -------
+# Logique de placement lue sur .lr_annotations_q90(), qui construit les
+# annotations q90 sans plotly : elle tourne donc sans plotly. Bord oppose =
+# l'autre que .lr_cote_libre(), du cote de delta estime. Pas traversee par le
+# repere asymptotique : la bande verticale du texte (yanchor, yshift) est du
+# cote de la marque oppose a la ligne. Pas traversee par la ligne en delta
+# estime : fond opaque (le texte la masque). Cas de l'issue : J2 (delta estime
+# 0,594, annotation de delta = 1) et J3 force a 0,45 (annotation de delta = 0).
+ann195 <- function(pd) {
+  libre <- if (.lr_cote_libre(pd) == "gauche") 1L else 2L
+  list(libre = libre, s = pd$lr_delta$seuil_asymptotique, q = unname(pd$lr_delta$q90_bootstrap),
+       ann = .lr_annotations_q90(unname(pd$lr_delta$q90_bootstrap), pd$lr_delta$seuil_asymptotique, libre))
+}
+# Annotation de l'indice k (1 : delta = 0, 2 : delta = 1), NULL si absente.
+ann_k195 <- function(a, k) {
+  r <- Filter(function(x) identical(x$text, LIB_LR_Q90_COURT[k]), a$ann)
+  if (length(r) == 1L) r[[1]] else NULL
+}
+# Bande verticale hors du repere : au-dessus (bottom, decalage > 0) si la
+# marque est sur la ligne ou au-dessus, au-dessous (top, decalage < 0) sinon.
+hors_repere195 <- function(x, q, s)
+  if (q >= s) identical(x$yanchor, "bottom") && x$yshift > 0 else identical(x$yanchor, "top") && x$yshift < 0
+oppose_ok195 <- function(pd) {
+  a <- ann195(pd); k <- 3L - a$libre; x <- ann_k195(a, k)
+  !is.null(x) && identical(x$x, c(0, 1)[k]) && identical(x$y, a$q[k]) &&
+    identical(x$xanchor, c("left", "right")[k]) && identical(x$bgcolor, COUL$fond) &&
+    hors_repere195(x, a$q[k], a$s)
+}
+a_j2 <- ann195(pd_j2); a_j3 <- ann195(pd_j3f(0.45))
+verifier(sprintf("Profil de delta, plotly : annotation q90 du bord oppose, cas de l'issue (J2 delta estime %s, annotation de delta = 1 au-dessus de sa marque, sur le repere ; J3 force a 0,45, annotation de delta = 0 sous sa marque, sous le repere) : hors du repere asymptotique, fond opaque (#195)",
+                 format(round(pd_j2$delta_estime, 3), decimal.mark = ",")),
+         a_j2$libre == 1L && a_j2$q[2] >= a_j2$s && oppose_ok195(pd_j2) &&
+           identical(ann_k195(a_j2, 2)$yanchor, "bottom") &&
+           a_j3$libre == 2L && a_j3$q[1] < a_j3$s && oppose_ok195(pd_j3f(0.45)) &&
+           identical(ann_k195(a_j3, 1)$yanchor, "top"))
+verifier("Profil de delta, plotly : annotation q90 du bord oppose hors du repere et a fond opaque, delta estime proche de chaque bord et autour de 0,5 (0 ; 0,02 ; 0,45 ; 0,50 ; 0,55 ; 0,98 ; 1 ; NA) (#195)",
+         all(vapply(c(0, 0.02, 0.45, 0.50, 0.55, 0.98, 1, NA), function(d0) oppose_ok195(pd_j3f(d0)), TRUE)))
+# Toutes les positions de marque par rapport au repere, de chaque cote libre :
+# les deux annotations sont hors du repere ; seule celle du bord oppose a un
+# fond (celle du cote libre garde son rendu de #162) ; seuil non fini : les
+# deux au-dessus de leur marque, comme avant ; quantile non fini : pas
+# d'annotation ; textes inchanges.
+verifier("Placement des annotations q90 (.lr_annotations_q90()) : hors du repere asymptotique pour toute position des marques, fond opaque au seul bord oppose, seuil non fini ou quantile NA traites, textes LIB_LR_Q90_COURT inchanges (#195)",
+         all(vapply(list(c(1, 3), c(3, 1), c(1, 1), c(3, 3), c(2, 2)), function(q)
+           all(vapply(1:2, function(libre) {
+             an <- .lr_annotations_q90(q, 2, libre)
+             length(an) == 2L &&
+               all(vapply(1:2, function(k) hors_repere195(an[[k]], q[k], 2) &&
+                            identical(an[[k]]$text, LIB_LR_Q90_COURT[k]) &&
+                            identical(an[[k]]$bgcolor, if (k == libre) NULL else COUL$fond), TRUE))
+           }, TRUE)), TRUE)) &&
+           all(vapply(.lr_annotations_q90(c(1, 3), NA_real_, 1L), function(x) identical(x$yanchor, "bottom"), TRUE)) &&
+           length(.lr_annotations_q90(c(NA, 3), 2, 1L)) == 1L &&
+           identical(.lr_annotations_q90(c(NA, 3), 2, 1L)[[1]]$text, LIB_LR_Q90_COURT[2]) &&
+           identical(LIB_LR_Q90_COURT, c("q90 % du LR simulé sous δ = 0", "q90 % du LR simulé sous δ = 1")))
+if (requireNamespace("plotly", quietly = TRUE)) {
+  # Objet plotly_build() : les annotations q90 sont celles de
+  # .lr_annotations_q90(), le libelle du repere en dernier.
+  verifier("Profil de delta, plotly_build() : annotations q90 = .lr_annotations_q90() (J2, J3 force a 0,45 et 0,98), libelle du repere en dernier (#195)",
+           all(vapply(list(pd_j2, pd_j3f(0.45), pd_j3f(0.98)), function(pd) {
+             an <- plotly::plotly_build(plot_profil_delta(pd))$x$layout$annotations
+             attendu <- ann195(pd)$ann
+             n <- length(attendu)
+             length(an) == n + 1L &&
+               all(vapply(seq_len(n), function(i) all(vapply(names(attendu[[i]]), function(nm)
+                 isTRUE(all.equal(an[[i]][[nm]], attendu[[i]][[nm]])), TRUE)), TRUE)) &&
+               identical(gsub("<br>", " ", an[[n + 1L]]$text, fixed = TRUE), LIB_LR_ASYMPT_COURT)
+           }, TRUE)))
+} else {
+  cat("  note : plotly absent ; annotations q90 de l'objet plotly_build() non exercees (#195).\n")
+}
+
 ## --- Vue Detail et annexe des tests exclus (issue #178) -----------------------
 # Inverse de .echap_html() (trois entites), pour relire le texte d'une cellule.
 desechap <- function(x) gsub("&amp;", "&", gsub("&gt;", ">", gsub("&lt;", "<", x, fixed = TRUE),
@@ -831,5 +903,28 @@ verifier("Rapport MW : annexe des tests exclus avec le commentaire du moteur (#1
          })
 verifier("Rapport : encadre de personnalisation annonce le commentaire du moteur en annexe (#178)",
          grepl("verdict, le commentaire du moteur et le motif de leur exclusion", principal, fixed = TRUE))
+
+## --- Objet rbind de l'environnement global (issue #199) ---------------------
+# do.call() evalue son premier argument comme une valeur : un objet non
+# fonction rbind de l'environnement global (ou display_helpers.R est source)
+# masquait base::rbind dans la table des controles de rapport_html(), alors
+# qu'un appel rbind(...) ordinaire l'ignore (meme defaut que #179 dans le
+# moteur). Mordant : avant le passage en base::rbind, rapport_html() echoue
+# ("'what' must be a function or character string"). La section 3 est
+# comparee seule, l'horodatage du rapport changeant d'un appel a l'autre.
+verifier("Objet non fonction rbind dans l'environnement global : section Controles du rapport identical a celle calculee sans lui (#199)",
+         {
+           genv <- globalenv()
+           stopifnot(!exists("rbind", envir = genv, inherits = FALSE))
+           sect <- function(f) entre(lire(f), "<h2 id='controles'>", "</table>")
+           f0 <- tempfile(fileext = ".html"); f5 <- tempfile(fileext = ".html")
+           rapport_html(res_ln, NULL, f0, interactif = FALSE, identite = idt)
+           assign("rbind", 5, envir = genv)
+           r5 <- tryCatch(rapport_html(res_ln, NULL, f5, interactif = FALSE, identite = idt),
+                          error = function(e) e,
+                          finally = rm(list = "rbind", envir = genv))
+           !inherits(r5, "error") && grepl("<table", sect(f0), fixed = TRUE) &&
+             identical(sect(f5), sect(f0))
+         })
 
 fin_fichier()

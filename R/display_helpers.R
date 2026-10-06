@@ -576,6 +576,33 @@ LIB_LR_Q90_COURT <- c("q90 % du LR simul\u00e9 sous \u03b4 = 0",
   }
   invisible()
 }
+# Annotations q90 des marques bootstrap du trace plotly (listes de layout,
+# sans plotly : la logique de placement se teste hors navigateur). Chaque
+# annotation est du cote de sa marque oppose a la ligne du repere
+# asymptotique : au-dessus si la marque est sur la ligne ou au-dessus, au-dessous
+# sinon ; la ligne horizontale du repere ne la traverse donc jamais (#162 pour
+# le cote libre, #195 pour le bord oppose). L'annotation du bord oppose au
+# cote libre s'etend vers l'interieur du cadre, du cote de delta estime :
+# la largeur du texte n'etant connue que du navigateur, elle a un fond
+# opaque, et masque la ligne verticale en delta estime au lieu d'etre
+# traversee (#195). q : quantiles en delta = 0 et 1 ; s : seuil du repere ;
+# libre : 1 (delta = 0, gauche) ou 2 (delta = 1, droite).
+.lr_annotations_q90 <- function(q, s, libre) {
+  s_ok <- length(s) == 1L && is.finite(s)
+  ann <- list()
+  for (k in which(is.finite(q))) {
+    haut <- !(s_ok && q[k] < s)
+    a <- list(
+      text = LIB_LR_Q90_COURT[k], x = c(0, 1)[k], y = q[k], xref = "x", yref = "y",
+      showarrow = FALSE, yanchor = if (haut) "bottom" else "top",
+      yshift = if (haut) 8 else -8,
+      xanchor = if (k == 1) "left" else "right",
+      font = list(size = 10, color = COUL$trait))
+    if (k != libre) a$bgcolor <- COUL$fond
+    ann[[length(ann) + 1]] <- a
+  }
+  ann
+}
 .lr_reperes_plotly <- function(p, pd, xlim) {
   L <- pd$lr_delta
   if (is.null(L)) return(p)
@@ -590,21 +617,8 @@ LIB_LR_Q90_COURT <- c("q90 % du LR simul\u00e9 sous \u03b4 = 0",
     p <- plotly::add_markers(p, x = c(0, 1)[ok], y = q[ok], text = LIB_LR_Q90[ok],
           marker = list(size = 11, symbol = "triangle-up", color = COUL$trait),
           hovertemplate = "%{text}<extra></extra>")
-  # Annotations q90 au-dessus de leur marque ; celle du cote libre
-  # (.lr_cote_libre()), ou se loge le libelle du repere asymptotique, passe
-  # sous sa marque quand celle-ci est sous la ligne du repere, pour s'en
-  # eloigner (#162).
   libre <- if (.lr_cote_libre(pd) == "gauche") 1L else 2L
-  ann <- list()
-  for (k in which(ok)) {
-    haut <- !(s_ok && k == libre && q[k] < s)
-    ann[[length(ann) + 1]] <- list(
-      text = LIB_LR_Q90_COURT[k], x = c(0, 1)[k], y = q[k], xref = "x", yref = "y",
-      showarrow = FALSE, yanchor = if (haut) "bottom" else "top",
-      yshift = if (haut) 8 else -8,
-      xanchor = if (k == 1) "left" else "right",
-      font = list(size = 10, color = COUL$trait))
-  }
+  ann <- .lr_annotations_q90(q, s, libre)
   # Libelle court du cote libre (.lr_cote_libre()), cale contre la marque du
   # bord (decalage de 10 px) ; du cote de la ligne oppose a cette marque, donc
   # a son annotation q90. La largeur du texte n'etant connue que du navigateur,
@@ -1793,7 +1807,7 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
 
     # --- 3. Controles et validation -------------------------------------------
     v <- res$validation
-    ctr <- do.call(rbind, lapply(res$controles, function(t)
+    ctr <- do.call(base::rbind, lapply(res$controles, function(t)
       data.frame(a = .txt(t$test), b = badge_verdict(t$verdict), c = .txt(t$detail),
                  stringsAsFactors = FALSE)))
     if (!is.null(ctr)) names(ctr) <- c("Contr\u00f4le", "Verdict", "D\u00e9tail")
