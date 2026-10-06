@@ -125,6 +125,29 @@ verifier("Marge : vide, texte entre guillemets, vecteur en c(...) et valeurs a 1
              contient(cite(th = TRUE), "(theta_equiv = TRUE)") &&
              contient(cite(th = NA_real_), "(theta_equiv = NA_real_)")
          })
+# Issue #198 : le refus Delta >= moyenne(yt) citait Delta par format()
+# (7 chiffres) et la moyenne par format(digits = 6) : Delta = moyenne =
+# 80.999951 etait cite "80.99995" et "81", Delta < moyenne en apparence.
+# Les deux valeurs sont desormais citees par .engine_saisie(), a 17
+# chiffres quand 15 ne les restituent pas (u = 2^-46, ecart entre 81 et
+# le double suivant : 81 + u et 81 + 2u sont cites "81" a 15 chiffres) ;
+# une valeur que 15 chiffres restituent reste citee a 15 (170.01, 85.005).
+verifier("Marge Delta >= moyenne(y) : Delta et moyenne cites par .engine_saisie(), 17 chiffres si necessaire (#198)",
+         {
+           u <- 2^-46
+           cite <- function(yy, de) engine_valider_donnees(x, yy, delta_equiv = de)$erreurs
+           e1 <- cite(rep(81 + u, 8), 81 + 2 * u)
+           e2 <- cite(rep(81 + u, 8), 81 + u)
+           e3 <- cite(rep(81, 8), 81 + u)
+           e4 <- cite(rep(80.999951, 8), 80.999951)
+           e5 <- cite(y, 2 * mean(y))
+           identical(mean(rep(81 + u, 8)), 81 + u) &&
+             contient(e1, "(delta_equiv = 81.000000000000028) superieure ou egale a la perte moyenne (81.000000000000014)") &&
+             contient(e2, "(delta_equiv = 81.000000000000014) superieure ou egale a la perte moyenne (81.000000000000014)") &&
+             contient(e3, "(delta_equiv = 81.000000000000014) superieure ou egale a la perte moyenne (81)") &&
+             contient(e4, "(delta_equiv = 80.999951) superieure ou egale a la perte moyenne (80.999951)") &&
+             contient(e5, "(delta_equiv = 170.01) superieure ou egale a la perte moyenne (85.005)")
+         })
 verifier("Marge Delta : NA, vide, multiple, Inf, 0, negative, >= moyenne(y) refuses",
          all(vapply(list(NA, numeric(0), c(1, 2), Inf, 0, -1, mean(y), 2 * mean(y)),
                     function(de) marge_refusee(de = de, motif = "delta_equiv"), logical(1))))
@@ -1571,7 +1594,7 @@ verifier("#154 : marge Delta comparee a la moyenne des T retenues (85.005), dans
            proche(mean(y), 85.005) &&
              engine_valider_donnees(xh, yh, delta_equiv = 90)$ok &&
              !sh$validation$ok && contient(sh$validation$erreurs,
-                                                   paste0("perte moyenne (", format(mean(y), digits = 6), ")")) &&
+                                                   "perte moyenne (85.005)") &&
              !isTRUE(rh$ok) && identical(rh$validation, sh$validation) &&
              !engine_valider_donnees(xb, yb, delta_equiv = 70)$ok &&
              sb$validation$ok && isTRUE(rb$ok) && identical(rb$validation, sb$validation)

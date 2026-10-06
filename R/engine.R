@@ -5393,12 +5393,18 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
       err <- c(err, sprintf(paste("Marge Delta du test d'equivalence (delta_equiv = %s) : un nombre",
                                   "fini strictement positif est attendu."),
                             .engine_saisie(delta_equiv)))
+    # Delta et la moyenne comparee (le meme double mean(yt)) sont cites
+    # tous deux par .engine_saisie() (issue #198) : format() a 7 et 6
+    # chiffres citait Delta = 80.999951 >= moyenne 80.999951 comme
+    # "80.99995" et "81". Chaque texte se relit en la valeur citee et
+    # l'arrondi au double le plus proche est croissant : l'ordre des deux
+    # textes est celui des deux valeurs, egalite comprise.
     else if (is.numeric(yt) && length(yt) && all(is.finite(yt)) &&
-             delta_equiv >= mean(yt))
+             delta_equiv >= (moy_yt <- mean(yt)))
       err <- c(err, sprintf(paste("Marge Delta du test d'equivalence (delta_equiv = %s) superieure",
                                   "ou egale a la perte moyenne (%s) : l'equivalence ne se lirait plus",
                                   "comme une proportionnalite ; 0 < Delta < moyenne(yt) est attendu."),
-                            format(delta_equiv), format(mean(yt), digits = 6)))
+                            .engine_saisie(delta_equiv), .engine_saisie(moy_yt)))
   } else if (!scalaire_fini(theta_equiv) || theta_equiv <= 0 || theta_equiv >= 1)
     err <- c(err, sprintf(paste("Marge theta du test d'equivalence (theta_equiv = %s) : un nombre",
                                 "fini, 0 < theta < 1 (fraction de la perte moyenne), est attendu."),
