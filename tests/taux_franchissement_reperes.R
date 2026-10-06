@@ -28,6 +28,41 @@
 #  est identique a celle du jeu observe, sinon controle d'integrite en
 #  echec) ; T2, classement des lignes de usp_tests().
 #
+#  Volet Merz-Wuthrich (issue #89, decision du mainteneur ; option
+#  --seulement mw, qui ne lance QUE ce volet ; sans elle, seul le volet
+#  lognormal ci-dessous est lance, inchange) : taux de franchissement du
+#  repere de lecture |DFBETAS| > REPERE_DFBETAS_MW / sqrt(n_j) = 2/sqrt(n_j)
+#  de mw_influence() (champ fort_dfbetas) et, pour comparaison, du repere
+#  absolu |DFBETAS| > 2, sous le modele ajuste au triangle du cas reserve2
+#  (.tri de tests/outils_tests.R). Plan de simulation :
+#    - modele de Mack ajuste par mw_ajuster() (f chapeau, sigma2 chapeau,
+#      sigma2_{J-1} extrapole par le moteur) ;
+#    - C(i,j+1) = f_j C(i,j) + sigma_j sqrt(C(i,j)) eps(i,j), eps ~ N(0,1)
+#      iid, sur les cellules observees du triangle (j + 1 <= I - i) ; premiere
+#      colonne observee fixee ; R replications (defaut 2 000) ;
+#    - 28 eps tires par essai (ordre : ligne i croissante, puis colonne) ;
+#      un essai ou une cellule simulee est <= 0 (ou non finie) est rejete,
+#      compte et redessine (nouvel essai, meme flux) ;
+#    - tous les triangles sont tires d'un seul flux, sous engine_sous_graine()
+#      avec la graine --graine (defaut 20260927), avant tout calcul ;
+#    - par replication : mw_ajuster() puis mw_influence() (fonctions du
+#      moteur, aucune reimplementation) ; lecture de fort_dfbetas, dfbetas et
+#      repere_dfbetas ; controle par replication : fort_dfbetas ==
+#      (!is.na(dfbetas) & |dfbetas| > repere_dfbetas) et repere_dfbetas ==
+#      REPERE_DFBETAS_MW / sqrt(n_j).
+#  Sorties M1 (taux par cellule regroupes par n_j = 7..3, n_j = 2 : DFBETAS
+#  NA par construction, et global n_j >= 3, pour les deux reperes, avec IC de
+#  Clopper-Pearson 95 % : incertitude Monte-Carlo seulement, et qui suppose
+#  des cellules independantes, ce que ne sont pas les cellules d'une meme
+#  colonne ni d'un meme triangle : IC indicatif), M2 (nombre de cellules
+#  colorees par triangle : moyenne, IC asymptotique de la moyenne sur les R
+#  triangles iid, quantiles, distribution), proportion de DFBETAS NA hors
+#  n_j = 2. Controle d'integrite : sur le triangle observe, mw_influence()
+#  colore exactement les cellules (0,2), (0,3) et (1,4) (spec. E2 reduite,
+#  #89) ; sigma2 chapeau fini et >= 0 ; controle par replication ci-dessus.
+#  --tranche et --combiner : volet lognormal seulement (refus avec
+#  --seulement mw) ; --ecrire / --sortie : fichier <AAAAMMJJ>-issue<N>-MW.md.
+#
 #  Chaque replication est traitee comme run_engine() traite un jeu observe
 #  (methode prime, segment 1 de l'annexe II, donnees brutes, alpha = 0,10) :
 #    usp_ajuster() (54 demarrages), usp_parametre(), usp_jackknife() et
@@ -68,6 +103,9 @@
 #      Rscript tests/taux_franchissement_reperes.R [--R 2000]
 #          [--graine 20260927] [--graine-ic 20260831] [--B-ic 999]
 #          [--jeu J1|J2] [--tranche i/K]
+#          [--ecrire [--remplacer] | --sortie DOSSIER] [--issue N]
+#      Rscript tests/taux_franchissement_reperes.R --seulement mw [--R 2000]
+#          [--graine 20260927]
 #          [--ecrire [--remplacer] | --sortie DOSSIER] [--issue N]
 #      Rscript tests/taux_franchissement_reperes.R --combiner f1 f2 ...
 #          [--ecrire [--remplacer] | --sortie DOSSIER] [--issue N]
@@ -170,6 +208,18 @@ if ((OPT_ECRIRE || !is.na(OPT_SORTIE)) && !is.na(OPT_TRANCHE))
   stop("--tranche : sortie partielle, --ecrire et --sortie reserves a --combiner ou a une execution d'un seul tenant")
 if (!is.na(OPT_SORTIE) && !dir.exists(OPT_SORTIE)) stop("--sortie : dossier introuvable : ", OPT_SORTIE)
 if (!OPT_JEU %in% c("J1", "J2")) stop("--jeu : J1 ou J2")
+# --seulement mw : volet Merz-Wuthrich seul (#89) ; "ln" : volet lognormal
+# seul (comportement par defaut, inchange).
+OPT_SEULEMENT <- lire_option("--seulement", "ln")
+if (!OPT_SEULEMENT %in% c("ln", "mw")) stop("--seulement : ln ou mw")
+VOLET_MW <- identical(OPT_SEULEMENT, "mw")
+if (VOLET_MW) {
+  if (!is.na(OPT_TRANCHE) || !is.na(i_comb)) stop("--seulement mw : --tranche et --combiner reserves au volet lognormal")
+  hors_mw <- intersect(c("--jeu", "--graine-ic", "--B-ic"), ARGS)
+  if (length(hors_mw)) stop("--seulement mw : option(s) du volet lognormal sans objet : ", paste(hors_mw, collapse = ", "))
+}
+# Nom du volet dans le fichier ecrit (--ecrire, --sortie).
+NOM_FICHIER <- if (VOLET_MW) "MW" else OPT_JEU
 if (!is.finite(OPT_R) || OPT_R < 1L) stop("--R : entier >= 1")
 
 # Configuration de run_engine() reproduite (cas de reference "premium").
@@ -291,7 +341,7 @@ ecrire_fichier <- function(jeu, lignes, nv) {
   close(con)
   message("\u00e9crit : ", f)
 }
-if ((OPT_ECRIRE || !is.na(OPT_SORTIE)) && !length(FICHIERS_COMB)) invisible(cible_fichier(OPT_JEU))
+if ((OPT_ECRIRE || !is.na(OPT_SORTIE)) && !length(FICHIERS_COMB)) invisible(cible_fichier(NOM_FICHIER))
 txt_versionnable <- function(nv) if (length(nv)) paste("non :", paste(nv, collapse = " ; ")) else "oui"
 
 # Console en UTF-8 quelle que soit la locale (meme definition que
@@ -457,6 +507,147 @@ tableaux <- function(cpt, R, lev) {
     paste0("Hors p\u00e9rim\u00e8tre, non reconstruites dans les r\u00e9plications et absentes de T2 (aucun rep\u00e8re n'y porte ; #45) : ",
            paste0("\"", LIGNES_HORS_PERIMETRE, "\"", collapse = ", "), "."), "")
 }
+
+# --- Volet Merz-Wuthrich (issue #89 ; --seulement mw) -----------------------------
+# Plan de simulation : voir l'en-tete. Le volet s'execute ici et termine le
+# script (quit) ; le volet lognormal qui suit n'est pas lance.
+# Triangle simule sous le modele de Mack ajuste aj, a partir d'un vecteur eps
+# de longueur sum_{i=0}^{I-1} (I - i) ; NULL si une cellule simulee est <= 0
+# ou non finie (essai rejete).
+mw_simuler_triangle <- function(aj, eps) {
+  I <- aj$I; tri <- aj$tri; s <- sqrt(aj$sigma2); k <- 0L
+  for (i in 0:(I - 1L)) for (j in 0:(I - i - 1L)) {
+    k <- k + 1L
+    v <- aj$f[j + 1] * tri[i + 1, j + 1] + s[j + 1] * sqrt(tri[i + 1, j + 1]) * eps[k]
+    if (!is.finite(v) || v <= 0) return(NULL)
+    tri[i + 1, j + 2] <- v
+  }
+  tri
+}
+ligne_md_v <- function(v) ligne_md(paste(v, collapse = " | "))
+volet_mw <- function() {
+  integ <- character(0)
+  t0 <- Sys.time()
+  TRI <- .tri
+  AJ0 <- mw_ajuster(TRI)
+  I <- AJ0$I
+  if (!all(is.finite(AJ0$f)) || !all(is.finite(AJ0$sigma2)) || any(AJ0$sigma2 < 0))
+    integ <- c(integ, "triangle observe : f chapeau ou sigma2 chapeau non fini ou negatif")
+  INF0 <- mw_influence(AJ0)
+  colorees0 <- sprintf("(%d,%d)", INF0$i[INF0$fort_dfbetas], INF0$j[INF0$fort_dfbetas])
+  ATTENDUES <- c("(0,2)", "(0,3)", "(1,4)")
+  if (!identical(sort(colorees0), sort(ATTENDUES)))
+    integ <- c(integ, sprintf("triangle observe : cellules colorees %s, attendues %s",
+                              paste(colorees0, collapse = " "), paste(ATTENDUES, collapse = " ")))
+  CELL <- paste(INF0$i, INF0$j)
+  N_J <- vapply(INF0$j, function(j) I - j, numeric(1))
+  n_eps <- as.integer(I * (I + 1) / 2)
+  # Tirages : un seul flux, avant tout calcul.
+  sim <- engine_sous_graine(OPT_GRAINE, {
+    tris <- vector("list", OPT_R); rejets <- 0L
+    for (b in seq_len(OPT_R)) repeat {
+      tb <- mw_simuler_triangle(AJ0, stats::rnorm(n_eps))
+      if (!is.null(tb)) { tris[[b]] <- tb; break }
+      rejets <- rejets + 1L
+    }
+    list(tris = tris, rejets = rejets)
+  })
+  t_tirage <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
+  t0 <- Sys.time()
+  DFB <- matrix(NA_real_, OPT_R, length(CELL)); FORT <- matrix(FALSE, OPT_R, length(CELL))
+  NB <- matrix(FALSE, OPT_R, length(CELL))
+  n_contrat <- 0L; n_cellules <- 0L
+  for (b in seq_len(OPT_R)) {
+    inf <- mw_influence(mw_ajuster(sim$tris[[b]]))
+    if (!identical(paste(inf$i, inf$j), CELL)) { n_cellules <- n_cellules + 1L; next }
+    if (!identical(inf$fort_dfbetas, !is.na(inf$dfbetas) & abs(inf$dfbetas) > inf$repere_dfbetas) ||
+        !isTRUE(all.equal(inf$repere_dfbetas, REPERE_DFBETAS_MW / sqrt(N_J), tolerance = 0)) ||
+        !is.logical(inf$dfbetas_non_borne) || anyNA(inf$dfbetas_non_borne) ||
+        any(inf$dfbetas_non_borne & !is.na(inf$dfbetas)))
+      n_contrat <- n_contrat + 1L
+    DFB[b, ] <- inf$dfbetas; FORT[b, ] <- inf$fort_dfbetas; NB[b, ] <- inf$dfbetas_non_borne
+  }
+  t_rep <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
+  if (n_cellules) integ <- c(integ, sprintf("%d replication(s) : cellules de mw_influence() differentes de celles du triangle observe", n_cellules))
+  if (n_contrat) integ <- c(integ, sprintf("%d replication(s) : fort_dfbetas, repere_dfbetas ou dfbetas_non_borne hors contrat (|DFBETAS| > %g/sqrt(n_j), NA = FALSE ; non borne logique, sans NA, DFBETAS NA)",
+                                           n_contrat, REPERE_DFBETAS_MW))
+  ABS2 <- !is.na(DFB) & abs(DFB) > 2
+  # M1 : taux par n_j et global (n_j >= 3).
+  ligne_taux <- function(lib, cols) {
+    n_cel <- OPT_R * length(cols); d <- DFB[, cols, drop = FALSE]
+    n_def <- sum(!is.na(d)); k1 <- sum(FORT[, cols]); k2 <- sum(ABS2[, cols])
+    ligne_md(lib, length(cols), n_cel, sprintf("%d (%s)", n_cel - n_def, pct(n_cel - n_def, n_cel)),
+             k1, pct(k1, n_def), ic_cp(k1, n_def), k2, pct(k2, n_def), ic_cp(k2, n_def))
+  }
+  L1 <- entete_md(c("n_j", "Cellules par triangle", "Cellules (R × cellules)", "DFBETAS NA",
+                    "Franchi 2/√n_j", "Taux 2/√n_j", "IC 95 % (Clopper-Pearson)",
+                    "Franchi |DFBETAS| > 2", "Taux absolu 2", "IC 95 % (Clopper-Pearson)"))
+  for (n in sort(unique(N_J[N_J >= 3]), decreasing = TRUE)) L1 <- c(L1, ligne_taux(as.character(n), which(N_J == n)))
+  L1 <- c(L1, ligne_taux("global (n_j ≥ 3)", which(N_J >= 3)))
+  c2 <- which(N_J == 2)
+  na2 <- sum(is.na(DFB[, c2])); fort2 <- sum(FORT[, c2])
+  c3 <- which(N_J >= 3)
+  na3 <- sum(is.na(DFB[, c3])); nb3 <- sum(NB[, c3]); nb3_tri <- sum(rowSums(NB) > 0)
+  # M2 : cellules colorees par triangle.
+  nb <- rowSums(FORT); nb2 <- rowSums(ABS2)
+  resume <- function(v) {
+    q <- stats::quantile(v, c(0, .05, .25, .5, .75, .95, 1), names = FALSE, type = 7)
+    m <- mean(v); e <- stats::sd(v) / sqrt(length(v))
+    c(sprintf("%.3f", m), sprintf("[%.3f ; %.3f]", m - 1.96 * e, m + 1.96 * e), sprintf("%.3f", stats::sd(v)),
+      paste(sprintf("%g", q), collapse = " / "))
+  }
+  L2 <- c(entete_md(c("Repère", "Moyenne", "IC 95 % de la moyenne (asymptotique, R triangles iid)", "Écart-type",
+                      "min / 5 % / 25 % / médiane / 75 % / 95 % / max")),
+          ligne_md_v(c("2/√n_j (fort_dfbetas)", resume(nb))),
+          ligne_md_v(c("absolu 2", resume(nb2))))
+  dist <- table(factor(nb, levels = 0:max(nb)))
+  L3 <- c(entete_md(c("Cellules colorées (2/√n_j)", names(dist))),
+          ligne_md_v(c("Triangles", as.vector(dist))),
+          ligne_md_v(c("Part", vapply(as.vector(dist), function(k) pct(k, OPT_R), ""))))
+  PAR <- sprintf("volet=mw;triangle=reserve2;R=%d;graine=%.0f;repere=%g/sqrt(n_j)", OPT_R, OPT_GRAINE, REPERE_DFBETAS_MW)
+  NV <- motifs_non_versionnable(commit_depot(), EMPREINTES, "de l'exécution")
+  t_tot <- as.numeric(difftime(Sys.time(), t_debut, units = "secs"))
+  sortie <- c(
+    "## Taux de franchissement du repère DFBETAS de mw_influence() sous le modèle de Mack ajusté (issue #89)", "",
+    sprintf("Paramètres : %s", PAR), "",
+    "### T0 -- contexte", "",
+    entete_md(c("Grandeur", "Valeur")),
+    ligne_md("Triangle", sprintf("reserve2 : tests/donnees/triangle_mw.csv (.tri de tests/outils_tests.R), I = J = %d", I)),
+    ligne_md("Modèle ajusté (mw_ajuster())", sprintf("f̂_j = %s ; σ̂²_j = %s",
+                                                              paste(sprintf("%.6g", AJ0$f), collapse = ", "),
+                                                              paste(sprintf("%.6g", AJ0$sigma2), collapse = ", "))),
+    ligne_md("Simulation", paste("C(i,j+1) = f̂_j C(i,j) + σ̂_j √C(i,j) ε, ε ~ N(0,1) iid ;",
+                                 "première colonne observée fixée ; essai rejeté et redessiné si une cellule simulée est ≤ 0")),
+    ligne_md("Repère de lecture", sprintf("|DFBETAS| > REPERE_DFBETAS_MW / √n_j, REPERE_DFBETAS_MW = %g", REPERE_DFBETAS_MW)),
+    ligne_md("Cellules colorées sur le triangle observé", paste(colorees0, collapse = " ")),
+    ligne_md("Graine (jeux simulés)", sprintf("%.0f, sous engine_sous_graine()", OPT_GRAINE)),
+    ligne_md("Générateur", paste(ENGINE_RNG_KIND, collapse = ", ")),
+    ligne_md("Réplications", sprintf("%d", OPT_R)),
+    ligne_md("Essais rejetés et redessinés (cellule ≤ 0)", sprintf("%d", sim$rejets)),
+    ligne_md("Commit", commit_depot()),
+    ligne_md("Plateforme de calcul (R, système, machine, BLAS, LAPACK)", plateforme_calcul()),
+    ligne_md("Empreintes md5 du code exécuté", EMPREINTES),
+    ligne_md("Durée (s)", sprintf("tirages %.1f ; réplications %.1f ; total %.1f", t_tirage, t_rep, t_tot)),
+    ligne_md("Versionnable (--ecrire)", txt_versionnable(NV)),
+    ligne_md("Contrôle d'intégrité", if (length(integ)) "ÉCHEC" else "OK"), "",
+    "### M1 -- taux de franchissement par cellule, par n_j (constat de simulation sous le modèle ajusté)", "",
+    L1, "",
+    sprintf(paste("n_j = 2 : %d cellule(s) par triangle, DFBETAS NA par construction (s²_(i) sans degré de liberté) :",
+                  "NA %d sur %d, colorées %d. DFBETAS NA hors n_j = 2 : voir la colonne « DFBETAS NA » (ligne globale)."),
+            length(c2), na2, OPT_R * length(c2), fort2),
+    sprintf(paste("n_j ≥ 3 : DFBETAS NA %d sur %d ; dont DFBETAS non borné (dfbetas_non_borne) %d,",
+                  "dans %d triangle(s)."), na3, OPT_R * length(c3), nb3, nb3_tri),
+    paste("Taux : sur les cellules où DFBETAS est défini. IC : incertitude Monte-Carlo sur le taux (fonction de R),",
+          "pas l'erreur d'approximation en T ; Clopper-Pearson suppose des cellules indépendantes, ce que ne sont",
+          "pas les cellules d'une même colonne ni d'un même triangle : IC indicatif."), "",
+    "### M2 -- nombre de cellules colorées par triangle (sur les cellules n_j ≥ 3)", "",
+    L2, "", L3, "",
+    if (length(integ)) c("Contrôle d'intégrité : ÉCHEC", paste("-", integ), ""))
+  ecrire_console(sortie)
+  if (!length(integ)) ecrire_fichier(NOM_FICHIER, sortie, NV)
+  quit(status = if (length(integ)) 1L else 0L)
+}
+if (VOLET_MW) volet_mw()
 
 if (length(FICHIERS_COMB)) {
   parts <- lapply(FICHIERS_COMB, lire_comptes)
