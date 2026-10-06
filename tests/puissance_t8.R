@@ -169,12 +169,18 @@
 #  doit etre HORS du depot (un dossier sous la racine du depot est refuse :
 #  --ecrire est le seul chemin qui ecrit dans le depot).
 #  Garde d'ecrasement (#173, garde_ecrasement() de tests/outils_tests.R,
-#  evaluee apres les refus precedents) : --ecrire est REFUSE (code 1, aucun
-#  des fichiers de l'execution ecrit) si l'un des fichiers cibles est suivi
-#  par git, ou existe sans que git puisse dire s'il l'est ; --remplacer
-#  (avec --ecrire seulement, refus d'usage sinon) autorise le remplacement
-#  d'un fichier suivi, et le T0 du fichier ecrit cite alors le fichier
-#  remplace et son md5 d'avant.
+#  evaluee au moment d'ecrire apres les refus precedents) : --ecrire est
+#  REFUSE (code 1, aucun des fichiers de l'execution ecrit) si l'un des
+#  fichiers cibles est suivi par git, ou existe sans que git puisse dire
+#  s'il l'est ; --remplacer (avec --ecrire seulement, refus d'usage sinon)
+#  autorise le remplacement d'un fichier suivi, et le T0 du fichier ecrit
+#  cite alors le fichier remplace et son md5 d'avant. Hors --combiner, la
+#  meme garde est aussi appelee des l'analyse des options, sur les memes
+#  chemins (date du debut de l'execution), avant tout calcul : un tableau
+#  suivi est refuse en quelques secondes et non apres le calcul (constat m2
+#  d'audit de #173) ; la garde finale reste (le depot peut changer pendant
+#  le calcul). --combiner n'a que la garde finale (lecture et somme des
+#  comptes des tranches, sans simulation).
 #  Aucun fichier n'est ecrit si un critere bloquant echoue.
 #  --tranche i/K (volet B, un seul jeu : --volet B --jeu J1 ou J2) : ne
 #  traite que la i-eme de K tranches de replications consecutives et
@@ -366,6 +372,26 @@ sous_depot <- function(chemin) {
 }
 if (!is.na(OPT_SORTIE) && sous_depot(OPT_SORTIE))
   stop("--sortie : dossier sous le depot refuse (--ecrire est le seul chemin qui ecrit dans le depot) : ", OPT_SORTIE)
+
+# --- Chemins des tableaux ecrits (seule source : ecrire_fichiers() et controle
+# anticipe) ------------------------------------------------------------------------
+# Date du debut de l'execution, dans le nom des fichiers ecrits.
+DATE_SORTIE <- format(Sys.Date(), "%Y%m%d")
+# Jeux du volet B d'une execution directe.
+JEUX_B <- if (OPT_JEU == "tous") c("J1", "J2") else OPT_JEU
+# Suffixes des fichiers d'une execution directe (hors --combiner), dans
+# l'ordre de a_ecrire en fin d'execution (controle par stopifnot() a
+# l'ecriture).
+SUFFIXES_EXECUTION <- c(if (OPT_VOLET %in% c("tout", "A")) "exact-J1",
+                        if (OPT_VOLET %in% c("tout", "B")) paste0("chaine-", JEUX_B))
+dossier_sortie <- function() if (OPT_ECRIRE) file.path(RACINE, "docs", "tableaux") else OPT_SORTIE
+chemins_sortie <- function(suffixes) file.path(dossier_sortie(), sprintf("%s-issue116-%s.md", DATE_SORTIE, suffixes))
+# Garde d'ecrasement anticipee (#173, constat m2 d'audit) : hors --combiner,
+# avant tout calcul ; sans --remplacer, un fichier cible suivi par git est
+# refuse ici (code 1, rien d'ecrit). Avec --remplacer, rien n'est imprime
+# ni retenu : la garde finale de ecrire_fichiers() releve les md5 d'avant.
+if (OPT_ECRIRE && !length(FICHIERS_COMB))
+  garde_ecrasement(chemins_sortie(SUFFIXES_EXECUTION), OPT_REMPLACER, RACINE)
 ecrire_console <- function(x) writeLines(enc2utf8(x), useBytes = TRUE)
 ligne_md <- function(...) paste0("| ", paste(..., sep = " | "), " |")
 entete_md <- function(cols) c(ligne_md(paste(cols, collapse = " | ")),
@@ -525,15 +551,15 @@ MD5_DEBUT <- if (!length(FICHIERS_COMB)) empreintes_depot() else NULL
 if (!length(FICHIERS_COMB)) verifier_depot(NULL, "d\u00e9but")
 
 # --- Ecriture des fichiers (seulement sur option et si tout est OK) ------------------
-DATE_SORTIE <- format(Sys.Date(), "%Y%m%d")
 # commit et empreintes : ceux du code qui a calcule le tableau (des tranches
 # pour --combiner) ; --ecrire refuse s'ils ne sont pas ceux d'un commit propre
 # du depot (#171, elargie) ; combinaison = TRUE : la combinaison elle-meme
 # (commit et empreintes courants) doit l'etre aussi (constat R1 d'audit).
 # fichiers : liste nommee suffixe -> lignes, tous les fichiers de
 # l'execution ; avec --ecrire, la garde d'ecrasement (#173) controle tous
-# leurs chemins avant d'en ecrire un seul, et le T0 de chaque fichier
-# remplace (--remplacer) le cite.
+# leurs chemins avant d'en ecrire un seul (de nouveau : le controle
+# anticipe a precede le calcul), et le T0 de chaque fichier remplace
+# (--remplacer) le cite.
 ecrire_fichiers <- function(fichiers, commit = commit_depot(), empreintes = EMPREINTES,
                             combinaison = FALSE) {
   if (!OPT_ECRIRE && is.na(OPT_SORTIE)) return(invisible(NULL))
@@ -546,9 +572,9 @@ ecrire_fichiers <- function(fichiers, commit = commit_depot(), empreintes = EMPR
       quit(status = 1L)
     }
   }
-  dossier <- if (OPT_ECRIRE) file.path(RACINE, "docs", "tableaux") else OPT_SORTIE
+  dossier <- dossier_sortie()
   if (!dir.exists(dossier)) stop("dossier de sortie introuvable : ", dossier)
-  chemins <- file.path(dossier, sprintf("%s-issue116-%s.md", DATE_SORTIE, names(fichiers)))
+  chemins <- chemins_sortie(names(fichiers))
   remplaces <- if (OPT_ECRIRE) garde_ecrasement(chemins, OPT_REMPLACER, RACINE) else NULL
   for (i in seq_along(fichiers)) {
     lignes <- fichiers[[i]]
@@ -1083,9 +1109,8 @@ if (OPT_VOLET %in% c("tout", "A")) {
 ###############################################################################
 SORTIES_B <- list()
 if (OPT_VOLET %in% c("tout", "B")) {
-  jeux_b <- if (OPT_JEU == "tous") c("J1", "J2") else OPT_JEU
   E_B <- tirer_e(OPT_GRAINE + 1, OPT_R_CHAINE)
-  for (jn in jeux_b) {
+  for (jn in JEUX_B) {
     t_b <- Sys.time()
     JEU <- charger_jeu(jn)
     X <- JEU$x
@@ -1190,6 +1215,8 @@ if (is.na(OPT_TRANCHE)) {
     a_ecrire <- list()
     if (!is.null(SORTIE_A)) a_ecrire[["exact-J1"]] <- c(SORTIE_A, BILAN)
     for (jn in names(SORTIES_B)) a_ecrire[[paste0("chaine-", jn)]] <- c(SORTIES_B[[jn]], BILAN)
+    # chemins ecrits = chemins du controle anticipe
+    stopifnot(identical(names(a_ecrire), SUFFIXES_EXECUTION))
     ecrire_fichiers(a_ecrire)
   }
 } else {

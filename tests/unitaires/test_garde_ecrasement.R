@@ -15,7 +15,10 @@
 #      tout chargement du moteur) ;
 #  git indisponible (commande introuvable) ou racine hors d'un depot, et
 #  fichier existant : refus, meme avec --remplacer ; test statique : chacun
-#  des quatre scripts appelle la garde avant toute ecriture.
+#  des quatre scripts appelle la garde avant toute ecriture ; puissance_t8.R
+#  --ecrire (hors --combiner) dans un depot git temporaire ou le tableau du
+#  jour est suivi : refus des l'analyse des options, avant tout calcul
+#  (constat m2 d'audit de #173).
 #  Les tests qui demandent git sont sautes, avec message, si git manque.
 ###############################################################################
 
@@ -202,6 +205,76 @@ for (sc in SCRIPTS_ECRIRE) {
            { o <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"),
                                            c(shQuote(file.path(.tests, sc)), "--remplacer"), stdout = TRUE, stderr = TRUE))
              identical(attr(o, "status"), 1L) && any(grepl("--remplacer : reserve a --ecrire", o, fixed = TRUE)) })
+}
+
+## --- puissance_t8.R : garde anticipee, avant tout calcul (constat m2) ----------
+# Depot git temporaire (racine avec espace) qui porte le moteur, les outils,
+# les donnees et le script ; les tableaux du jour (et du lendemain : passage
+# de minuit pendant le test) y sont suivis. Le script est lance depuis cette
+# racine (RACINE de outils_tests.R). Preuve qu'aucun calcul n'a commence :
+# aucun titre "## Puissance" (imprime a la fin de chaque volet) dans la
+# sortie, et duree mesuree.
+if (GIT_OK) {
+  dp <- file.path(tempfile("garde_m2_"), "depot avec espace")
+  for (d in c("R", "tests/donnees", "docs/tableaux")) dir.create(file.path(dp, d), recursive = TRUE)
+  copies <- c("R/engine.R", "tests/outils_tests.R", "tests/puissance_t8.R",
+              "tests/donnees/donnees_ln.csv", "tests/donnees/triangle_mw.csv")
+  file.copy(file.path(RACINE_DEPOT, copies), file.path(dp, copies))
+  dates <- format(Sys.Date() + 0:1, "%Y%m%d")
+  suivis <- c(sprintf("docs/tableaux/%s-issue116-exact-J1.md", dates),
+              sprintf("docs/tableaux/%s-issue116-chaine-J2.md", dates))
+  for (f in suivis) writeLines("tableau publie", file.path(dp, f))
+  gp <- function(...) suppressWarnings(system2("git", c("-C", shQuote(dp), ...), stdout = FALSE, stderr = FALSE))
+  init_p <- identical(gp("init", "-q"), 0L) && identical(gp("add", "-A"), 0L) &&
+    identical(gp("-c", "user.name=test", "-c", "user.email=test@example.invalid", "-c", "commit.gpgsign=false",
+                 "commit", "-q", "-m", "init"), 0L)
+  verifier("puissance_t8.R, garde anticipee : depot git temporaire (racine avec espace), tableaux du jour suivis",
+           init_p)
+  md5_p <- tools::md5sum(file.path(dp, suivis))
+  lancer_p <- function(args) {
+    ancien <- setwd(dp)
+    on.exit(setwd(ancien))
+    t0 <- Sys.time()
+    o <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"), c(shQuote("tests/puissance_t8.R"), args),
+                                  stdout = TRUE, stderr = TRUE))
+    list(o = o, duree = as.numeric(difftime(Sys.time(), t0, units = "secs")))
+  }
+  inchange <- function() identical(tools::md5sum(file.path(dp, suivis)), md5_p) &&
+    setequal(list.files(file.path(dp, "docs/tableaux")), basename(suivis))
+  for (cas in list(list(args = c("--ecrire", "--volet", "A", "--R", "20"), cible = "exact-J1", autre = "chaine-J"),
+                   list(args = c("--ecrire", "--volet", "B", "--R-chaine", "1"), cible = "chaine-J2",
+                        autre = "exact-J1"),
+                   # --jeu J2 : chaine-J2 seul controle (chaine-J1 non suivi)
+                   list(args = c("--ecrire", "--volet", "B", "--jeu", "J2", "--R-chaine", "1"), cible = "chaine-J2",
+                        autre = "exact-J1"))) {
+    r <- lancer_p(cas$args)
+    cat(sprintf("  puissance_t8.R %s : code %s en %.1f s\n", paste(cas$args, collapse = " "),
+                format(if (is.null(attr(r$o, "status"))) 0L else attr(r$o, "status")), r$duree))
+    verifier(sprintf("puissance_t8.R %s, %s suivi : refus (code 1) qui le nomme, avant tout calcul (aucun titre de volet)",
+                     paste(cas$args, collapse = " "), cas$cible),
+             identical(attr(r$o, "status"), 1L) &&
+               any(grepl(paste0("--ecrire refuse : fichier(s) suivi(s)"), r$o, fixed = TRUE)) &&
+               any(grepl(paste0("-issue116-", cas$cible, ".md"), r$o, fixed = TRUE)) &&
+               !any(grepl(paste0("-issue116-", cas$autre), r$o, fixed = TRUE)) &&
+               !any(grepl("## Puissance", r$o, fixed = TRUE)))
+    verifier(sprintf("puissance_t8.R %s : rien d'ecrit (tableaux suivis inchanges, aucun fichier cree)",
+                     paste(cas$args, collapse = " ")), inchange())
+  }
+  # --jeu J1 : chaine-J2 (suivi) n'est pas une cible, aucun refus anticipe ;
+  # l'execution va a son terme (B = B_MIN_USAGE = 99, R-chaine 1 : ~ 8 s)
+  # et ecrit chaine-J1, non suivi. Un controle qui ignorerait --jeu
+  # (chaine-J1 et chaine-J2 figes) refuserait ici avant tout calcul.
+  r <- lancer_p(c("--ecrire", "--volet", "B", "--jeu", "J1", "--R-chaine", "1", "--B", "99"))
+  cat(sprintf("  puissance_t8.R --ecrire --volet B --jeu J1 --R-chaine 1 --B 99 : code %s en %.1f s\n",
+              format(if (is.null(attr(r$o, "status"))) 0L else attr(r$o, "status")), r$duree))
+  nouveaux <- setdiff(list.files(file.path(dp, "docs/tableaux")), basename(suivis))
+  verifier("puissance_t8.R --ecrire --volet B --jeu J1, chaine-J2 suivi : aucun refus (chaine-J2 hors cible), chaine-J1 ecrit",
+           is.null(attr(r$o, "status")) && !any(grepl("--ecrire refuse", r$o, fixed = TRUE)) &&
+             any(grepl("## Puissance", r$o, fixed = TRUE)) && length(nouveaux) == 1L &&
+             grepl("-issue116-chaine-J1.md$", nouveaux) &&
+             identical(tools::md5sum(file.path(dp, suivis)), md5_p))
+} else {
+  cat("  [saute] puissance_t8.R, garde anticipee : git introuvable\n")
 }
 
 fin_fichier()
