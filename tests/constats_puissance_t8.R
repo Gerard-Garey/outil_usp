@@ -187,7 +187,7 @@
 #  Usage (depuis la racine du depot) :
 #      Rscript tests/constats_puissance_t8.R [--R 20000] [--R-ks 3000]
 #          [--graine 20260927] [--partie tout|ar1|ks|tost|normalite]
-#          [--ecrire DOSSIER]
+#          [--ecrire DOSSIER [--remplacer]]
 #  --R vaut pour C1 (par rho), C3 (par jeu) et C4 (par loi et par T).
 #  --ecrire DOSSIER : ecrit en plus, si les controles d'integrite tiennent,
 #  DOSSIER/<AAAAMMJJ>-issue118-tost.md et/ou -normalite.md (date du jour),
@@ -195,7 +195,14 @@
 #  n'est ecrit. Les fichiers versionnes de docs/tableaux/ se produisent sur
 #  un arbre de travail propre (commit cite resoluble), par
 #  --partie tost --ecrire docs/tableaux et --partie normalite --ecrire
-#  docs/tableaux.
+#  docs/tableaux. Garde d'ecrasement (#173, garde_ecrasement() de
+#  tests/outils_tests.R, avant toute ecriture) : --ecrire est REFUSE (code
+#  1, aucun des fichiers de l'execution ecrit) si l'un des fichiers cibles
+#  est suivi par git, ou existe sans que git puisse dire s'il l'est (un
+#  fichier hors du depot n'est pas suivi : comportement inchange) ;
+#  --remplacer (avec --ecrire seulement, refus d'usage sinon) autorise le
+#  remplacement d'un fichier suivi, et le tableau de contexte du fichier
+#  ecrit cite alors le fichier remplace et son md5 d'avant.
 #  Duree mesuree : voir la ligne "Duree" de la sortie (C1 et C2 : 72 s et
 #  124 s le 27/09/2026 ; a R = 20 000, C3 : 44 s et C4 : 28 s le 30/09/2026,
 #  soit 44 s et 33 s d'execution pour --partie tost et --partie normalite ;
@@ -218,8 +225,10 @@ OPT_R_KS   <- as.integer(lire_option("--R-ks", "3000"))
 OPT_GRAINE <- as.numeric(lire_option("--graine", "20260927"))
 OPT_PARTIE <- lire_option("--partie", "tout")
 OPT_ECRIRE <- lire_option("--ecrire", NA_character_)
+OPT_REMPLACER <- "--remplacer" %in% ARGS
 if (!OPT_PARTIE %in% c("tout", "ar1", "ks", "tost", "normalite"))
   stop("--partie : tout, ar1, ks, tost ou normalite")
+if (OPT_REMPLACER && is.na(OPT_ECRIRE)) stop("--remplacer : reserve a --ecrire (remplacement d'un tableau suivi par git, #173)")
 if (!is.na(OPT_ECRIRE) && !dir.exists(OPT_ECRIRE)) stop("--ecrire : dossier inexistant : ", OPT_ECRIRE)
 if (!is.finite(OPT_R) || OPT_R < 1L) stop("--R : entier >= 1")
 if (!is.finite(OPT_R_KS) || OPT_R_KS < 1L) stop("--R-ks : entier >= 1")
@@ -735,25 +744,33 @@ ecrire_console(sortie)
 if (!is.na(OPT_ECRIRE) && !length(FICHIERS_118))
   message("--ecrire ignore : aucun fichier pour --partie ", OPT_PARTIE, " (seules tost et normalite en ecrivent)")
 if (!is.na(OPT_ECRIRE) && length(FICHIERS_118)) {
+  # tous les chemins controles par la garde d'ecrasement (#173) avant toute
+  # ecriture
+  CHEMINS_118 <- stats::setNames(file.path(OPT_ECRIRE, sprintf("%s-issue118-%s.md", format(Sys.Date(), "%Y%m%d"),
+                                                               names(FICHIERS_118))), names(FICHIERS_118))
   if (!INTEGRITE) {
     message("--ecrire : controles d'integrite en echec, aucun fichier ecrit")
-  } else for (nom in names(FICHIERS_118)) {
-    f <- FICHIERS_118[[nom]]
-    chemin <- file.path(OPT_ECRIRE, sprintf("%s-issue118-%s.md", format(Sys.Date(), "%Y%m%d"), nom))
-    lignes <- c(
-      "## Constats de niveau et de puissance \u00e0 T = 8 (issue #118)", "",
-      sprintf("Param\u00e8tres : R=%d ; graine=%s ; partie=%s ; T=%s", OPT_R,
-              format(OPT_GRAINE, scientific = FALSE), nom, if (nom == "tost") "8" else "8 et 20"), "",
-      entete_md(c("Grandeur", "Valeur")),
-      ligne_md("Plateforme de calcul (R, syst\u00e8me, machine, BLAS, LAPACK)", plateforme_calcul()),
-      ligne_md("G\u00e9n\u00e9rateur", paste(ENGINE_RNG_KIND, collapse = ", ")),
-      ligne_md("Commit", commit_depot()),
-      ligne_md("Script", sprintf("tests/constats_puissance_t8.R --partie %s (hors CI ; protocole dans l'en-t\u00eate)", nom)), "",
-      f$section, "### Contr\u00f4les d'int\u00e9grit\u00e9", "", paste("-", f$controles), "")
-    con <- file(chemin, open = "wb")
-    writeLines(enc2utf8(lignes), con, useBytes = TRUE)
-    close(con)
-    message("ecrit : ", chemin)
+  } else {
+    REMPLACES <- garde_ecrasement(CHEMINS_118, OPT_REMPLACER, RACINE)
+    for (nom in names(FICHIERS_118)) {
+      f <- FICHIERS_118[[nom]]
+      chemin <- CHEMINS_118[[nom]]
+      lignes <- c(
+        "## Constats de niveau et de puissance \u00e0 T = 8 (issue #118)", "",
+        sprintf("Param\u00e8tres : R=%d ; graine=%s ; partie=%s ; T=%s", OPT_R,
+                format(OPT_GRAINE, scientific = FALSE), nom, if (nom == "tost") "8" else "8 et 20"), "",
+        entete_md(c("Grandeur", "Valeur")),
+        ligne_md("Plateforme de calcul (R, syst\u00e8me, machine, BLAS, LAPACK)", plateforme_calcul()),
+        ligne_md("G\u00e9n\u00e9rateur", paste(ENGINE_RNG_KIND, collapse = ", ")),
+        ligne_md("Commit", commit_depot()),
+        ligne_md("Script", sprintf("tests/constats_puissance_t8.R --partie %s (hors CI ; protocole dans l'en-t\u00eate)", nom)),
+        ligne_remplacement(REMPLACES, chemin), "",
+        f$section, "### Contr\u00f4les d'int\u00e9grit\u00e9", "", paste("-", f$controles), "")
+      con <- file(chemin, open = "wb")
+      writeLines(enc2utf8(lignes), con, useBytes = TRUE)
+      close(con)
+      message("ecrit : ", chemin)
+    }
   }
 }
 quit(status = if (INTEGRITE) 0L else 1L)
