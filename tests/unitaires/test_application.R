@@ -339,20 +339,26 @@ testServer(app_b, {
 )---"
   # Objet rbind non fonction de l'environnement global (issue #199) : la
   # table des controles (output$tab_controles) est rendue dans deux sessions,
-  # sans puis avec rbind <- 5 pose avant le calcul. Le caractere mordant est
-  # mesure sur rapport_html() (test_rapport_html.R, meme schema do.call), pas
-  # ici : shiny etait absent de la session de #199.
+  # sans puis avec rbind <- 5 pose avant le calcul, sur la grille du jeu par
+  # defaut renseignee (sans elle, R() reste vide et la table n'est pas rendue).
+  # Mordant : avec do.call(rbind, ...), la seconde session leve "'what' must
+  # be a function or character string" (mesure du 06/10/2026, shiny 1.8.0).
   .bloc_199 <- r"---(
 ## Objet rbind de l'environnement global (issue #199)
 r199 <- new.env()
+d199 <- ea$DONNEES_DEFAUT
+saisie199 <- c(setNames(as.list(d199$xt), paste0("x_", seq_len(nrow(d199)))),
+               setNames(as.list(d199$yt), paste0("y_", seq_len(nrow(d199)))))
 testServer(app, {
   do.call(session$setInputs, c(base, list(reinit = 1)))
+  do.call(session$setInputs, saisie199)
   session$setInputs(go = 1)
   r199$sans <- tryCatch(output$tab_controles, error = function(e) e)
 })
 assign("rbind", 5, envir = globalenv())
 testServer(app, {
   do.call(session$setInputs, c(base, list(reinit = 1)))
+  do.call(session$setInputs, saisie199)
   session$setInputs(go = 1)
   r199$avec <- tryCatch(output$tab_controles, error = function(e) e)
 })
@@ -475,12 +481,20 @@ a("objet non fonction rbind global : table des controles identical a celle rendu
     '      !grepl("superieure", ap, fixed = TRUE))',
     '})', .bloc_155, .bloc_199), .script)
   # Processus fils lance depuis la racine du depot : app.R y source
-  # R/engine.R par chemin relatif.
+  # R/engine.R par chemin relatif. --vanilla ignore .Renviron et .Rprofile :
+  # les bibliotheques de ce processus (.libPaths()) lui sont transmises par
+  # R_LIBS, sans quoi un shiny installe dans une bibliotheque declaree par
+  # .Renviron n'y est pas trouve (poste du mainteneur, R 4.3.3, PR #208).
   .ici <- setwd(.racine)
-  .sortie <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"),
-                                      c("--vanilla", shQuote(.script)),
-                                      stdout = TRUE, stderr = TRUE))
-  setwd(.ici)
+  .r_libs <- Sys.getenv("R_LIBS", unset = NA)
+  Sys.setenv(R_LIBS = paste(.libPaths(), collapse = .Platform$path.sep))
+  .sortie <- tryCatch(suppressWarnings(system2(file.path(R.home("bin"), "Rscript"),
+                                               c("--vanilla", shQuote(.script)),
+                                               stdout = TRUE, stderr = TRUE)),
+                      finally = {
+                        if (is.na(.r_libs)) Sys.unsetenv("R_LIBS") else Sys.setenv(R_LIBS = .r_libs)
+                        setwd(.ici)
+                      })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
   verifier("processus Shiny : 31 assertions rendues", length(.lignes) == 31L)
   if (length(.lignes) != 31L) cat(utils::tail(.sortie, 10), sep = "\n")
