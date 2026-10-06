@@ -98,6 +98,33 @@ verifier("Marge : valeur refusee restituee par deparse() (texte entre guillemets
            contient(e1, "theta_equiv = \"0.1\"") && contient(e2, "theta_equiv = c(0.1, 0.2)") &&
              contient(e3, "delta_equiv = \"8\"") && contient(e4, "theta_equiv = vide")
          })
+# Issue #180 : la saisie() locale citait la marge refusee par deparse() a 15
+# chiffres (1 + 2^-52 cite 1, -(1 + 2^-52) cite -1) ; .engine_saisie() la
+# cite a 17 chiffres quand 15 ne la restituent pas, et garde "vide", les
+# guillemets d'un texte et la forme c(...) d'un vecteur.
+verifier("Marge : valeur refusee qui exige 17 chiffres citee a 17 chiffres (theta = 1 + 2^-52, Delta = -(1 + 2^-52)) (#180)",
+         {
+           e1 <- engine_valider_donnees(x, y, theta_equiv = 1 + 2^-52)$erreurs
+           e2 <- engine_valider_donnees(x, y, delta_equiv = -(1 + 2^-52))$erreurs
+           contient(e1, "(theta_equiv = 1.0000000000000002)") &&
+             contient(e2, "(delta_equiv = -1.0000000000000002)")
+         })
+verifier("Marge : vide, texte entre guillemets, vecteur en c(...) et valeurs a 15 chiffres conserves (#180)",
+         {
+           cite <- function(th = 0.10, de = NULL)
+             engine_valider_donnees(x, y, theta_equiv = th, delta_equiv = de)$erreurs
+           contient(cite(th = NULL), "(theta_equiv = vide)") &&
+             contient(cite(th = numeric(0)), "(theta_equiv = vide)") &&
+             contient(cite(de = numeric(0)), "(delta_equiv = vide)") &&
+             contient(cite(th = "0.1"), "(theta_equiv = \"0.1\")") &&
+             contient(cite(th = c(0.1, 0.2)), "(theta_equiv = c(0.1, 0.2))") &&
+             contient(cite(de = c(1, 2)), "(delta_equiv = c(1, 2))") &&
+             contient(cite(th = 1.5), "(theta_equiv = 1.5)") &&
+             contient(cite(de = -0.3), "(delta_equiv = -0.3)") &&
+             contient(cite(th = 5L), "(theta_equiv = 5L)") &&
+             contient(cite(th = TRUE), "(theta_equiv = TRUE)") &&
+             contient(cite(th = NA_real_), "(theta_equiv = NA_real_)")
+         })
 verifier("Marge Delta : NA, vide, multiple, Inf, 0, negative, >= moyenne(y) refuses",
          all(vapply(list(NA, numeric(0), c(1, 2), Inf, 0, -1, mean(y), 2 * mean(y)),
                     function(de) marge_refusee(de = de, motif = "delta_equiv"), logical(1))))
@@ -133,6 +160,15 @@ verifier("engine_valider_profondeur : non entier, NA, infini, multiple, texte, v
            e <- engine_valider_profondeur(t, 8)
            length(e) == 1L && contient(e, "nombre entier d'annees")
          }, logical(1))))
+# Issue #180 (extension Q-R9-2 (A)) : T = 8 + 1.8e-15, refuse comme non
+# entier, etait cite "T = 8" par deparse() a 15 chiffres ; .engine_saisie()
+# le cite a 17 chiffres, et garde "vide", "6" et c(5, 6).
+verifier("engine_valider_profondeur : T refuse qui exige 17 chiffres cite a 17 chiffres ; vide, texte, vecteur conserves (#180)",
+         contient(engine_valider_profondeur(8 + 1.8e-15, 10), "Profondeur T = 8.0000000000000018 :") &&
+         contient(engine_valider_profondeur(5.5, 8), "Profondeur T = 5.5 :") &&
+         contient(engine_valider_profondeur(numeric(0), 8), "Profondeur T = vide :") &&
+         contient(engine_valider_profondeur("6", 8), "Profondeur T = \"6\" :") &&
+         contient(engine_valider_profondeur(c(5, 6), 8), "Profondeur T = c(5, 6) :"))
 verifier("engine_valider_profondeur : T > n et T < 5 refuses ; T_min parametrable",
          contient(engine_valider_profondeur(9, 8), "superieure au nombre d'annees fournies (8)") &&
          all(vapply(c(4, 0, -1), function(t)
@@ -1390,11 +1426,6 @@ verifier("Controles qualite : jeu de test inchange (details identiques, sans men
 # le T de l'estimation (I + 1 en reserve no 2), jamais le nombre d'annees
 # fournies. Les reperes statistiques (T < 10, I + 1 < 10) sont inchanges.
 xc <- 100 * 1.03^(1:20); yc <- 0.7 * xc * (1 + 0.05 * sin(1:20))
-# Un test plus haut affecte une variable c dans l'environnement du fichier ;
-# lance seul par Rscript, cet environnement est l'environnement global, ou
-# le moteur est charge, et do.call(c, vals) de .mc_evaluer() y trouvait cette
-# variable au lieu de base::c (defaut de calcul intercepte, mesure).
-if (exists("c", inherits = FALSE)) rm(c)
 ligne_cred <- function(r) Filter(function(l) l$test == "Credibilite pleine atteinte", r)[[1]]
 verifier("Credibilite pleine : verdict OK ssi usp_credibilite(T, bareme du segment) == 1, 16 segments, T = 5..20 (#131)",
          all(vapply(seq_len(nrow(SEGMENTS)), function(k) {

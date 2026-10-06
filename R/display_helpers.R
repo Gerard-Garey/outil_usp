@@ -13,9 +13,11 @@
 #  tracees. Le moteur graphique est un choix de presentation, pas de methode.
 ###############################################################################
 
+# ref : lignes de reference (gris moyen) ; ref_texte : texte qui les libelle,
+# gris fonce plus contraste sur fond blanc (#162).
 COUL <- list(trait = "#B03A2E", pt = "#00468C", env = "#C8DCFA",
              ref = "#7F8C8D", vert = "#00B450", fond = "#FFFFFF",
-             env_sim = "#E8F0FC")
+             env_sim = "#E8F0FC", ref_texte = "#4D5656")
 
 # L'option usp.graphiques_base force les branches base R des plot_*() meme si
 # plotly est installe. Elle n'est posee que par rapport_html() (graphiques
@@ -207,15 +209,43 @@ table_synthese_groupe <- function(tb) {
     check.names = FALSE, stringsAsFactors = FALSE, row.names = NULL)
 }
 
+# Commentaire du moteur replie (#178, point 1) : les commentaires longs (600 a
+# 842 caracteres) donnaient des cellules tres hautes dans la vue Detail. Au-dela
+# de `seuil` caracteres, le texte est coupe au dernier espace avant le seuil (a
+# defaut, au seuil) : le debut va dans le <summary> d'un <details>, la suite
+# dans son corps, deplie au clic. Aucun texte n'est retire : debut et suite,
+# rejoints par l'espace de coupure, rendent le commentaire entier (cet espace
+# est remplace par la frontiere entre le <summary> et le corps). Mise en forme
+# seule, chaque partie echappee ; NA : tiret, comme .txt().
+.commentaire_replie <- function(com, seuil = 200L) {
+  vapply(com, function(x) {
+    if (is.na(x)) return("\u2013")
+    if (nchar(x) <= seuil) return(.echap_html(x))
+    tete <- substr(x, 1L, seuil)
+    esp <- gregexpr(" ", tete, fixed = TRUE)[[1]]
+    k <- if (any(esp > 1L)) max(esp) else seuil + 1L
+    debut <- substr(x, 1L, k - 1L)
+    suite <- substr(x, if (k <= seuil) k + 1L else k, nchar(x))
+    paste0("<details class='com'><summary>", .echap_html(debut), "</summary>",
+           .echap_html(suite), "</details>")
+  }, character(1), USE.NAMES = FALSE)
+}
+
 # Colonnes Type et "Motif / commentaire" (#124) : le commentaire du moteur est
 # restitue pour TOUTES les lignes, pas seulement les INFO : sur une ligne de
 # type "test", il porte aussi des elements de lecture du verdict (ECHEC
 # inatteignable, ECHEC possible - regle R1 sans p exacte -, controle sans
 # objet, loi de reference non exacte). Vide :
 # tiret. Colonne commentaire absente (objet anterieur) : tiret.
-table_detail_groupe <- function(tb) {
+# replier = TRUE (vue Detail de l'onglet Tests, #178) : commentaire long replie
+# par .commentaire_replie() ; FALSE (defaut, rapport fige) : texte entier
+# affiche, le document fige ne dependant pas d'un clic pour etre lu ou imprime.
+# Colonne Fonction (#178, point 3) : champ fonction pose par add() (#111),
+# provenance de la ligne ; colonne absente ou NA (objet anterieur) : tiret.
+table_detail_groupe <- function(tb, replier = FALSE) {
   com <- if (is.null(tb$commentaire)) rep(NA_character_, nrow(tb)) else tb$commentaire
   com[!is.na(com) & !nzchar(trimws(com))] <- NA_character_
+  fon <- if (is.null(tb$fonction)) rep(NA_character_, nrow(tb)) else tb$fonction
   data.frame(
     Test = paste0("<span style='font-weight:600;color:#1B2631'>", .txt(tb$test), "</span>"),
     Type = .txt(type_ligne(tb)),
@@ -231,8 +261,9 @@ table_detail_groupe <- function(tb) {
     `p min` = if (is.null(tb$p_min)) rep("\u2013", nrow(tb))
               else ifelse(is.finite(tb$p_min), formatC(tb$p_min, format = "g", digits = 3), "\u2013"),
     Sens = .txt(tb$sens_du_test),
-    `Motif / commentaire` = .txt(com),
+    `Motif / commentaire` = if (replier) .commentaire_replie(com) else .txt(com),
     Reference = .txt(tb$reference),
+    Fonction = ifelse(is.na(fon), "\u2013", paste0("<code>", .txt(fon), "</code>")),
     check.names = FALSE, stringsAsFactors = FALSE, row.names = NULL)
 }
 
@@ -299,18 +330,34 @@ plot_ratio <- function(pd) {
 # n'est pas tracee, et le sous-titre le dit. Sans pd$qq_enveloppe (objet
 # anterieur a l'issue #47, dont les colonnes env_bas / env_haut portaient une
 # autre enveloppe), aucune bande n'est tracee ni legendee.
-LIB_QQ_SIM <- "bande simultan\u00e9e 90 % (tous les points \u00e0 la fois)"
-LIB_QQ_PONCT <- "bande ponctuelle 90 % (point par point)"
+# Niveaux des bandes lus dans pd$qq_enveloppe (niveau_ponctuel,
+# niveau_simultane), jamais ecrits ici (#162) : " 90 %" pour 0,90, chaine
+# vide si le niveau n'est pas un nombre fini (le libelle omet alors le niveau).
+.qq_niveau_txt <- function(niveau) {
+  if (length(niveau) != 1L || !is.numeric(niveau) || !is.finite(niveau)) return("")
+  paste0(" ", format(100 * niveau, digits = 4, decimal.mark = ",", trim = TRUE), " %")
+}
+.qq_lib_sim <- function(e)
+  paste0("bande simultan\u00e9e", .qq_niveau_txt(e$niveau_simultane),
+         " (tous les points \u00e0 la fois)")
+.qq_lib_ponct <- function(e)
+  paste0("bande ponctuelle", .qq_niveau_txt(e$niveau_ponctuel), " (point par point)")
 .qq_bandes <- function(pd) {
   d <- pd$qqnorm
   if (is.null(pd$qq_enveloppe)) return(c(sim = FALSE, ponct = FALSE))
   c(sim = !is.null(d$env_sim_bas) && any(is.finite(d$env_sim_bas)),
     ponct = !is.null(d$env_bas) && any(is.finite(d$env_bas)))
 }
+# Titre : niveau des bandes tracees s'il leur est commun, aucun niveau sinon
+# (la legende donne alors celui de chaque bande).
 .qq_titre <- function(pd) {
   b <- .qq_bandes(pd)
-  paste0("QQ-plot normal (H3) \u2014 ",
-         if (any(b)) "enveloppe de simulation 90 %" else "enveloppe indisponible")
+  if (!any(b)) return("QQ-plot normal (H3) \u2014 enveloppe indisponible")
+  e <- pd$qq_enveloppe
+  niv <- unique(c(if (b[["sim"]]) .qq_niveau_txt(e$niveau_simultane),
+                  if (b[["ponct"]]) .qq_niveau_txt(e$niveau_ponctuel)))
+  paste0("QQ-plot normal (H3) \u2014 enveloppe de simulation",
+         if (length(niv) == 1L) niv else "")
 }
 .qq_sous_titre <- function(pd) {
   e <- pd$qq_enveloppe
@@ -359,7 +406,8 @@ plot_qqnorm <- function(pd) {
     graphics::abline(pd$qqline[["ordonnee"]], pd$qqline[["pente"]], col = COUL$trait, lwd = 2)
     if (sim || ponct)
       graphics::legend("topleft", bty = "n", cex = 0.75,
-                       legend = c(LIB_QQ_SIM, LIB_QQ_PONCT)[c(sim, ponct)],
+                       legend = c(.qq_lib_sim(pd$qq_enveloppe),
+                                  .qq_lib_ponct(pd$qq_enveloppe))[c(sim, ponct)],
                        fill = c(COUL$env_sim, COUL$env)[c(sim, ponct)],
                        border = c(COUL$ref, COUL$ref)[c(sim, ponct)])
     return(invisible())
@@ -380,11 +428,11 @@ plot_qqnorm <- function(pd) {
   # Legende en annotations fixes (.mep() masque la legende plotly).
   ann <- list()
   if (sim) ann[[length(ann) + 1]] <- list(
-    text = LIB_QQ_SIM, x = 0.01, y = 0.99, xref = "paper", yref = "paper",
+    text = .qq_lib_sim(pd$qq_enveloppe), x = 0.01, y = 0.99, xref = "paper", yref = "paper",
     xanchor = "left", yanchor = "top", showarrow = FALSE, bgcolor = COUL$env_sim,
     font = list(size = 10, color = COUL$pt))
   if (ponct) ann[[length(ann) + 1]] <- list(
-    text = LIB_QQ_PONCT, x = 0.01, y = if (sim) 0.92 else 0.99, xref = "paper", yref = "paper",
+    text = .qq_lib_ponct(pd$qq_enveloppe), x = 0.01, y = if (sim) 0.92 else 0.99, xref = "paper", yref = "paper",
     xanchor = "left", yanchor = "top", showarrow = FALSE, bgcolor = COUL$env,
     font = list(size = 10, color = COUL$pt))
   if (length(ann)) p <- plotly::layout(p, annotations = ann, margin = list(t = 60))
@@ -450,36 +498,90 @@ plot_residus <- function(pd) {
 # marques en delta = 0 et delta = 1 au quantile a 90 % du LR simule sous
 # chaque borne. Aucun calcul : les hauteurs viennent du moteur.
 LIB_LR_ASYMPT <- "rep\u00e8re asymptotique \u00bd\u03c7\u00b2(0) + \u00bd\u03c7\u00b2(1) \u00e0 90 % (Self & Liang 1987), aide de lecture"
+# Libelle court du repere asymptotique, ecrit dans le cadre le long de la
+# ligne pointillee, hors de toute legende (trace base R et plotly, #162) ; le
+# libelle long, avec sa reference, reste au survol (plotly). Debut et fin
+# repris par la documentation (doc_tests_usp.tex, index des graphiques).
+LIB_LR_ASYMPT_COURT <- "rep\u00e8re asymptotique \u00bd\u03c7\u00b2(0) + \u00bd\u03c7\u00b2(1) \u00e0 90 %, aide de lecture"
 LIB_LR_Q90 <- c("quantile 90 % du LR simul\u00e9 sous \u03b4 = 0",
                 "quantile 90 % du LR simul\u00e9 sous \u03b4 = 1")
 # Annotations fixes courtes des marques bootstrap (trace plotly, ou .mep()
 # masque la legende) ; le libelle long reste au survol.
 LIB_LR_Q90_COURT <- c("q90 % du LR simul\u00e9 sous \u03b4 = 0",
                       "q90 % du LR simul\u00e9 sous \u03b4 = 1")
-# Etendue verticale du trace : courbe et reperes ; marge haute de 15 % pour
-# la legende du trace base R quand les reperes sont presents.
+# Etendue verticale du trace : courbe et reperes ; marge haute de 30 % quand
+# les reperes sont presents, pour loger au-dessus de la ligne du repere
+# asymptotique son libelle puis la legende des marques (#162).
 .lr_hauteurs <- function(pd, v) {
   L <- pd$lr_delta
   if (is.null(L)) return(range(v, na.rm = TRUE))
   r <- range(c(v, L$seuil_asymptotique, L$q90_bootstrap), na.rm = TRUE)
-  c(r[1], r[2] + 0.15 * diff(r))
+  c(r[1], r[2] + 0.30 * diff(r))
 }
+# Cote du cadre ou loger legende et libelle du repere asymptotique : la
+# moitie de [0 ; 1] qui ne contient pas delta estime, pour que la ligne
+# verticale en delta estime ne traverse ni l'une ni l'autre (#162) ; gauche
+# si delta estime n'est pas un nombre fini.
+.lr_cote_libre <- function(pd) {
+  d0 <- pd$delta_estime
+  if (length(d0) == 1L && is.finite(d0) && d0 < 0.5) "droite" else "gauche"
+}
+# Trace base R : la legende ne porte que les marques ; le repere asymptotique
+# est libelle sur sa ligne. Legende et libelle sont loges du cote libre
+# (.lr_cote_libre()), entre le bord du cadre (le libelle, au-dela de la marque
+# en delta = 0 ou 1) et la ligne verticale en delta estime, avec un ecart
+# d'une lettre ; leur taille de police est reduite au besoin pour y tenir (le
+# libelle passe d'abord sur deux lignes). Le libelle est au-dessus de la ligne
+# si la place libre sous la legende le permet, au-dessous sinon (#162).
 .lr_reperes_base <- function(pd) {
   L <- pd$lr_delta
   if (is.null(L)) return(invisible())
-  graphics::abline(h = L$seuil_asymptotique, col = COUL$ref, lty = 3, lwd = 1.5)
+  s <- L$seuil_asymptotique
+  graphics::abline(h = s, col = COUL$ref, lty = 3, lwd = 1.5)
   q <- unname(L$q90_bootstrap)
   ok <- is.finite(q)
   if (any(ok)) graphics::points(c(0, 1)[ok], q[ok], pch = 17, cex = 1.3, col = COUL$trait)
-  graphics::legend("top", bty = "n", cex = 0.75,
-                   legend = c(LIB_LR_ASYMPT, "quantile 90 % du LR simul\u00e9 sous \u03b4 = 0 / \u03b4 = 1"),
-                   lty = c(3, NA), pch = c(NA, 17), col = c(COUL$ref, COUL$trait))
+  u <- graphics::par("usr")
+  gauche <- .lr_cote_libre(pd) == "gauche"
+  d0 <- pd$delta_estime
+  if (length(d0) != 1L || !is.finite(d0)) d0 <- if (gauche) u[2] else u[1]
+  ecart <- graphics::strwidth("m", cex = 0.75)
+  # Legende : du bord du cadre a la ligne en delta estime, ecart deduit.
+  lib_leg <- "quantile 90 % du LR simul\u00e9 sous \u03b4 = 0 / \u03b4 = 1"
+  place_leg <- if (gauche) d0 - ecart - u[1] else u[2] - d0 - ecart
+  pos_leg <- if (gauche) "topleft" else "topright"
+  cex_leg <- 0.75
+  for (k in 1:2) {
+    w <- graphics::legend(pos_leg, bty = "n", cex = cex_leg, legend = lib_leg,
+                          pch = 17, plot = FALSE)$rect$w
+    if (w > place_leg) cex_leg <- cex_leg * place_leg / w
+  }
+  leg <- graphics::legend(pos_leg, bty = "n", cex = cex_leg, legend = lib_leg,
+                          pch = 17, col = COUL$trait)
+  if (length(s) == 1L && is.finite(s)) {
+    # Libelle : au-dela de la marque bootstrap du bord (largeur d'un triangle
+    # de cex 1,3) et en deca de la ligne en delta estime.
+    # Sur une ligne si la police reste d'au moins 0,65 ; sinon coupe en deux
+    # lignes avant « aide de lecture ».
+    marque <- graphics::strwidth("M", cex = 1.3)
+    zone <- if (gauche) c(max(u[1], 0 + marque), d0 - ecart) else c(d0 + ecart, min(u[2], 1 - marque))
+    taille <- function(lib) min(0.7, 0.98 * diff(zone) / graphics::strwidth(lib, cex = 1))
+    lib <- LIB_LR_ASYMPT_COURT
+    if (taille(lib) < 0.65) lib <- sub(", aide de lecture", ",\naide de lecture", lib, fixed = TRUE)
+    cex <- taille(lib)
+    h <- graphics::strheight(lib, cex = cex) + graphics::strheight("M", cex = cex)
+    dessus <- s + h <= leg$rect$top - leg$rect$h
+    graphics::text(mean(zone), s, lib, pos = if (dessus) 3 else 1,
+                   offset = 0.3, cex = cex, col = COUL$ref_texte)
+  }
   invisible()
 }
 .lr_reperes_plotly <- function(p, pd, xlim) {
   L <- pd$lr_delta
   if (is.null(L)) return(p)
-  p <- plotly::add_lines(p, x = xlim, y = rep(L$seuil_asymptotique, 2),
+  s <- L$seuil_asymptotique
+  s_ok <- length(s) == 1L && is.finite(s)
+  p <- plotly::add_lines(p, x = xlim, y = rep(s, 2),
         line = list(color = COUL$ref, dash = "dot", width = 1.5),
         text = LIB_LR_ASYMPT, hovertemplate = "%{text}<extra></extra>")
   q <- unname(L$q90_bootstrap)
@@ -488,15 +590,48 @@ LIB_LR_Q90_COURT <- c("q90 % du LR simul\u00e9 sous \u03b4 = 0",
     p <- plotly::add_markers(p, x = c(0, 1)[ok], y = q[ok], text = LIB_LR_Q90[ok],
           marker = list(size = 11, symbol = "triangle-up", color = COUL$trait),
           hovertemplate = "%{text}<extra></extra>")
-  ann <- list(list(
-    text = LIB_LR_ASYMPT, x = 0.5, y = L$seuil_asymptotique, xref = "x", yref = "y",
-    showarrow = FALSE, yanchor = "bottom", font = list(size = 10, color = COUL$ref)))
-  for (k in which(ok))
+  # Annotations q90 au-dessus de leur marque ; celle du cote libre
+  # (.lr_cote_libre()), ou se loge le libelle du repere asymptotique, passe
+  # sous sa marque quand celle-ci est sous la ligne du repere, pour s'en
+  # eloigner (#162).
+  libre <- if (.lr_cote_libre(pd) == "gauche") 1L else 2L
+  ann <- list()
+  for (k in which(ok)) {
+    haut <- !(s_ok && k == libre && q[k] < s)
     ann[[length(ann) + 1]] <- list(
       text = LIB_LR_Q90_COURT[k], x = c(0, 1)[k], y = q[k], xref = "x", yref = "y",
-      showarrow = FALSE, yanchor = "bottom", yshift = 8,
+      showarrow = FALSE, yanchor = if (haut) "bottom" else "top",
+      yshift = if (haut) 8 else -8,
       xanchor = if (k == 1) "left" else "right",
       font = list(size = 10, color = COUL$trait))
+  }
+  # Libelle court du cote libre (.lr_cote_libre()), cale contre la marque du
+  # bord (decalage de 10 px) ; du cote de la ligne oppose a cette marque, donc
+  # a son annotation q90. La largeur du texte n'etant connue que du navigateur,
+  # le libelle a un fond opaque et vient en dernier : dans un cadre trop etroit,
+  # il masque la ligne en delta estime ou une annotation q90 au lieu d'etre
+  # traverse ou recouvert. Le libelle long reste au survol de la ligne (#162).
+  # Le libelle tient sur une ligne (environ 270 px) si le cadre libre fait au
+  # moins 95 % de [0 ; 1] (delta estime au bord ou presque), sur trois
+  # (environ 110 px) sinon : dans le cadre le plus etroit, celui de
+  # l'application (environ 320 px de large), il reste alors en deca de la ligne
+  # en delta estime et de l'annotation q90 de l'autre bord (environ 150 px).
+  if (s_ok) {
+    gauche <- libre == 1L
+    dessous <- is.finite(q[libre]) && q[libre] >= s
+    d0 <- pd$delta_estime
+    part <- if (length(d0) != 1L || !is.finite(d0)) 1 else if (gauche) d0 else 1 - d0
+    lib <- LIB_LR_ASYMPT_COURT
+    if (part < 0.95)
+      lib <- sub("asymptotique ", "asymptotique<br>",
+                 sub(", aide de lecture", ",<br>aide de lecture", lib, fixed = TRUE), fixed = TRUE)
+    ann[[length(ann) + 1]] <- list(
+      text = lib, x = if (gauche) 0 else 1, y = s,
+      xref = "x", yref = "y", xanchor = if (gauche) "left" else "right",
+      align = if (gauche) "left" else "right", xshift = if (gauche) 10 else -10,
+      yanchor = if (dessous) "top" else "bottom", showarrow = FALSE,
+      bgcolor = COUL$fond, font = list(size = 10, color = COUL$ref_texte))
+  }
   plotly::layout(p, annotations = ann)
 }
 
@@ -1678,7 +1813,8 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
             "<div class='gel'><b>Personnalisation de la restitution, sans effet sur le calcul.</b>",
             "Le moteur a calcul\u00e9 %d lignes (tests et diagnostics) ; la s\u00e9lection de",
             "l'application en restitue %d ci-dessous, les %d autres figurent en annexe avec leur",
-            "verdict et le motif de leur exclusion.</div>"), nrow(tb), sum(retenu), sum(!retenu)),
+            "verdict, le commentaire du moteur et le motif de leur exclusion.</div>"),
+            nrow(tb), sum(retenu), sum(!retenu)),
           paste("<div class='gris'>Nature de la p-value retenue :",
                 "<b style='color:#1E8449'>exacte</b> &gt; <b style='color:#00468C'>Monte-Carlo</b>",
                 "&gt; <b style='color:#B9770E'>asymptotique</b>.",
@@ -1718,14 +1854,19 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
              "test non conserv\u00e9 dans la s\u00e9lection"),
       paste0("calcul\u00e9 sur les ", nom_base[ex$base], " ; base retenue pour ce test : ",
              nom_base[sx$base]))
+    # Commentaire du moteur (#178, point 2), comme dans la vue Detail de
+    # l'onglet Tests ; vide ou colonne absente (objet anterieur) : tiret.
+    com_ex <- if (is.null(ex$commentaire)) rep(NA_character_, nrow(ex)) else ex$commentaire
+    com_ex[!is.na(com_ex) & !nzchar(trimws(com_ex))] <- NA_character_
     tab_ex <- if (nrow(ex)) {
       d <- data.frame(ex$cle, paste0("<span style='font-weight:600'>", .txt(ex$test), "</span>"),
                       unname(nom_base[ex$base]), .txt(ex$variante),
                       unname(vapply(ex$verdict, badge_verdict, character(1))),
                       fmt_p(ex$p_retenue),
                       unname(vapply(ex$nature_p, badge_nature, character(1))),
-                      unname(motif), stringsAsFactors = FALSE, row.names = NULL)
-      names(d) <- c("Groupe", "Test", "Base", "Variante", "Verdict", "p retenue", "Nature", "Motif")
+                      unname(motif), .txt(com_ex), stringsAsFactors = FALSE, row.names = NULL)
+      names(d) <- c("Groupe", "Test", "Base", "Variante", "Verdict", "p retenue", "Nature", "Motif",
+                    "Commentaire du moteur")
       html_table(d, classe = "data")
     }
     ajout("<h2 id='annexe-exclus'>6. Annexe \u2014 tests exclus de la restitution</h2>",

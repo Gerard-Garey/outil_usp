@@ -65,7 +65,7 @@ Au démarrage, l'application charge les fichiers d'échange s'ils existent
     usp_donnees_LN.csv        colonnes t, xt, yt          (méthodes lognormales)
     usp_donnees_MW.csv        colonnes i, j0, j1, ...     (triangle Merz-Wüthrich)
 
-La profondeur T est déduite du fichier.
+La profondeur T est déduite du fichier des séries (méthodes lognormales) ; le triangle garde la dimension de son propre fichier, et seule « Réinitialiser les données » la change (triangle par défaut de T années).
 
 ## Usage sans Shiny (revue indépendante)
 
