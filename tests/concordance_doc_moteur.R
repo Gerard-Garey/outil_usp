@@ -119,6 +119,57 @@
 #       (iii) le contenu de la rubrique 7 et des cellules du tableau
 #       (valeurs, natures) n'est pas verifie ; un chemin ecrit hors de
 #       \code{}, ou dans \code{} avec un blanc, n'est pas controle.
+#    6. les constantes et les champs cites (issue #160) :
+#       a) chaque \code{} dont le texte desechappe est un identifiant en
+#          majuscules, ou un identifiant sans souligne commencant par une
+#          majuscule (casse mixte : CoxStuart, Inf), eventuellement suivi de
+#          $champ ou de [...] (noms coupes en deux \code{} recolles par
+#          extraire_codes()), est classe (classer_majuscules()) : constante
+#          (au moins un souligne, MOTIF_CONSTANTE, ou nom de
+#          CONSTANTES_SANS_SOULIGNE ; joker MOTIF_MC_* admis), qui doit etre
+#          definie par affectation de premier niveau dans R/engine.R,
+#          R/display_helpers.R, app.R ou tests/*.R (definitions_constantes(),
+#          lues sans execution ; le rapport dit ou chaque nom est defini) ;
+#          cle d'un catalogue Monte-Carlo (DW, BP, CoxStuart...) ou argument
+#          de run_engine() (B, T), verifies ; hors controle par liste fermee
+#          (MAJUSCULES_HORS_CONTROLE : verdicts, litteraux R, marqueurs de
+#          valeur manquante, notations du texte) ; sinon NON CLASSE, et c'est
+#          un ecart, comme un fragment termine par _ reste seul ;
+#       b) chaque chemin de champ (\code{} contenant $, desechappe ;
+#          chemins_champs()) est decoupe en segments ; racine .Machine
+#          exemptee (RACINES_EXEMPTEES) ; une racine constante chargee
+#          (USP_CATALOGUE_MC$CoxStuart) impose que le segment soit un nom de
+#          la constante ; une autre racine commencant par une majuscule n'est
+#          pas jugee sur ses segments (elle l'est en a) ; sinon le segment
+#          doit etre le nom d'un element, a toute profondeur, d'au moins un
+#          des objets run_engine() deja construits pour les sections 2 a 5
+#          (aucun appel supplementaire), ou, par liste fermee et commentee
+#          (CHAMPS_HORS_OBJETS : champs d'objets intermediaires comme
+#          usp_regime(), chemin de refus validation$erreur_r, chemin non
+#          exerce plots_data$influence_motif), un nom encore pose par
+#          R/engine.R (champs_poses(), analyse syntaxique : arguments nommes
+#          de list(), c(), data.frame(), structure(), membre gauche
+#          x$nom <- ...) ;
+#       c) un nom introuvable (constante ou champ) peut etre exempte
+#          nommement dans EXEMPTES_CODE (objet "constante" ou "champ") s'il
+#          s'agit d'une mention historique que son contexte dit retiree ;
+#          une exemption perimee est un ecart, de meme qu'une entree perimee
+#          des listes fermees (perimees_listes()).
+#
+#       LIMITES : (i) le controle porte sur les noms, pas sur les chemins
+#       complets : un champ retire d'un objet mais present sous le meme nom
+#       dans un autre objet construit n'est pas detecte, et un champ de
+#       CHAMPS_HORS_OBJETS reste admis tant qu'un nom identique est pose
+#       quelque part dans R/engine.R ; (ii) un identifiant ecrit hors de
+#       \code{}, ou dans \code{} avec un blanc, ou a racine en minuscules
+#       non suivie de $, n'est pas controle ; (iii) les noms hors controle de
+#       MAJUSCULES_HORS_CONTROLE sont admis partout, sans contexte ; (iv) une
+#       constante est cherchee par affectation en debut de ligne : une
+#       definition indentee ou par assign() n'est pas vue ; (v) les segments
+#       d'une racine constante definie hors du moteur (CAS$x) ne sont pas
+#       juges ; (vi) une cle Monte-Carlo est verifiee contre l'union des deux
+#       catalogues, pas contre celui de la methode de la section (ce que fait
+#       le controle 4, pour l'index seulement).
 #
 #  Le moteur est execute sur les jeux de tests/donnees/ avec B petit
 #  (defaut 99) : seule la STRUCTURE de la table des tests sert ici (nombre de
@@ -168,7 +219,10 @@
 #  moteur, verification positive des declarations hors_jeux, presence,
 #  unicite, position, fiches concernees) ou du tableau de
 #  tracabilite (introuvable, rangee manquante, en double, non reconnue ou
-#  pour une fiche sans rubrique 7, chemin cite inexistant ; issue #114).
+#  pour une fiche sans rubrique 7, chemin cite inexistant ; issue #114),
+#  constante ou champ cite introuvable non exempte, identifiant en
+#  majuscules non classe, exemption de constante ou de champ perimee
+#  (issue #160).
 #  --tex remplace le document lu (tests du mode strict sur une copie
 #  modifiee ; les chemins cites restent cherches depuis la racine du depot).
 #
@@ -330,12 +384,41 @@ statut_fonction <- function(nom, env, paquets = character(0), defs = NULL) {
 # citation INTROUVABLE dont le contexte correspond est exemptee ; une
 # exemption qui n'exempte plus aucune citation est PERIMEE et comptee comme
 # ecart, pour que la liste ne perime pas en silence.
+#
+# Issue #160 : la liste est etendue, avec la meme semantique (un nom absent du
+# code, cite a juste titre, ancre sur son contexte), aux constantes et aux
+# champs cites par le document (controle 6) ; le champ objet ("fonction",
+# "constante" ou "champ" ; "fonction" si absent) dit a quel controle
+# l'exemption s'applique, et chaque controle ne lit que les siennes
+# (exemptions_objet()) : une exemption de constante n'est jamais jugee
+# perimee par le controle des fonctions. Pour un champ, nom est le segment
+# precede de $ ("$foc"). Les constantes et les champs exemptes sont des
+# MENTIONS HISTORIQUES, que le texte de leur contexte dit retirees
+# ("remplace", "supprime", "jusqu'a l'issue") : jamais une citation qui
+# presente le nom comme existant.
 MOTIF_INTERDIT_SHINY <- paste0("primitive Shiny citée dans la colonne « Interdit » du tableau ",
                                "d'architecture, pour être exclue")
 EXEMPTES_CODE <- list(
-  list(nom = "reactive", contexte = "Toute primitive Shiny", fenetre = 2L, motif = MOTIF_INTERDIT_SHINY),
-  list(nom = "render*", contexte = "Toute primitive Shiny", fenetre = 2L, motif = MOTIF_INTERDIT_SHINY)
+  list(nom = "reactive", objet = "fonction", contexte = "Toute primitive Shiny", fenetre = 2L,
+       motif = MOTIF_INTERDIT_SHINY),
+  list(nom = "render*", objet = "fonction", contexte = "Toute primitive Shiny", fenetre = 2L,
+       motif = MOTIF_INTERDIT_SHINY),
+  list(nom = "REP_PAS_KKT", objet = "constante",
+       contexte = "qui remplace le rep\u00e8re REP_PAS_KKT de la d\u00e9cision M17", fenetre = 0L,
+       motif = "mention historique : repere de la decision M17 remplace par REP_SIGMA_KKT (issue #71)"),
+  list(nom = "$hessien_gamma", objet = "champ", contexte = "qui remplacent depuis l'issue", fenetre = 1L,
+       motif = "mention historique : champ de res$ajustement remplace depuis l'issue #71"),
+  list(nom = "$pas_newton_gamma", objet = "champ", contexte = "qui remplacent depuis l'issue", fenetre = 1L,
+       motif = "mention historique : champ de res$ajustement remplace depuis l'issue #71"),
+  list(nom = "$foc", objet = "champ", contexte = "champ .?foc de l'ajustement, supprim\u00e9", fenetre = 1L,
+       motif = "mention historique : champ de l'ajustement supprime (ligne de diagnostic retiree a l'issue #22)")
 )
+
+# Exemptions de EXEMPTES_CODE qui s'appliquent a un controle (objet :
+# "fonction", "constante" ou "champ" ; une exemption sans champ objet est une
+# exemption de fonction).
+exemptions_objet <- function(objet, exemptions = EXEMPTES_CODE)
+  Filter(function(e) identical(if (is.null(e$objet)) "fonction" else e$objet, objet), exemptions)
 
 # Applique les exemptions aux citations. cit : sortie de
 # citations_fonctions() ; statuts : vecteur nomme (par nom) de
@@ -343,7 +426,7 @@ EXEMPTES_CODE <- list(
 #   ecarts    data.frame (nom, lignes) des noms introuvables non exemptes ;
 #   exemptees data.frame (nom, ligne, motif) des citations exemptees ;
 #   perimees  data.frame (nom, contexte) des exemptions sans effet.
-appliquer_exemptions <- function(cit, statuts, lignes, exemptions = EXEMPTES_CODE) {
+appliquer_exemptions <- function(cit, statuts, lignes, exemptions = exemptions_objet("fonction")) {
   norm <- normaliser_ligne(lignes)
   introuv <- cit[unname(statuts[cit$nom]) %in% "INTROUVABLE", , drop = FALSE]
   exemptee <- logical(nrow(introuv)); motif <- rep(NA_character_, nrow(introuv))
@@ -377,7 +460,8 @@ appliquer_exemptions <- function(cit, statuts, lignes, exemptions = EXEMPTES_COD
 # peremption ne doivent pas dependre des paquets installes (issue #86 :
 # reactive() et render*() trouves dans shiny quand il est installe,
 # introuvables sinon).
-statuts_citations <- function(noms, env, paquets = character(0), defs = NULL, exemptions = EXEMPTES_CODE) {
+statuts_citations <- function(noms, env, paquets = character(0), defs = NULL,
+                              exemptions = exemptions_objet("fonction")) {
   exemptes <- vapply(exemptions, `[[`, character(1), "nom")
   vapply(noms, function(n)
     statut_fonction(n, env, paquets = if (n %in% exemptes) character(0) else paquets, defs = defs),
@@ -1369,6 +1453,295 @@ lire_jeu_j2 <- function(racine) {
 }
 
 # ---------------------------------------------------------------------------
+#  Constantes et champs cites (issue #160)
+# ---------------------------------------------------------------------------
+
+# Nom de constante : majuscules et chiffres, au moins un souligne
+# (TOL_DELTA_BORD, B_MIN_USAGE), point initial admis pour une constante
+# interne (.MW_LIGNES_RESIDUS). Un \code{} dont le texte desechappe est un
+# tel nom, eventuellement suivi d'un chemin $champ ou d'un indice [...], cite
+# la constante. Un nom coupe en deux \code{} est recolle par
+# extraire_codes() ; un fragment termine par _ qui reste seul n'est pas juge
+# comme constante (NON CLASSE, voir classer_majuscules()).
+MOTIF_CONSTANTE <- "^\\.?[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$"
+
+# Objets en majuscules SANS souligne controles comme des constantes (objets
+# nommes par le document : table reglementaire SEGMENTS de R/engine.R, cas et
+# liste des cas instables de tests/outils_tests.R).
+CONSTANTES_SANS_SOULIGNE <- c("SEGMENTS", "CAS", "INSTABLES")
+
+# Identifiants sans souligne commencant par une majuscule (en majuscules :
+# OK, DW ; ou en casse mixte : CoxStuart, Inf) HORS du controle, par liste
+# fermee : chaque categorie porte ses noms et son motif. Tout autre
+# identifiant sans souligne commencant par une majuscule, qui n'est ni dans
+# CONSTANTES_SANS_SOULIGNE, ni une cle d'un catalogue Monte-Carlo
+# (USP_CATALOGUE_MC, MW_CATALOGUE_MC : DW, BP, CoxStuart, Grubbs...), ni un
+# argument de run_engine() (B, T), est NON CLASSE, et c'est un ecart. Un nom
+# de la liste qui n'est plus cite par le document est une entree PERIMEE
+# (ecart), pour que la liste ne perime pas en silence.
+MAJUSCULES_HORS_CONTROLE <- list(
+  list(categorie = "valeur de verdict", noms = c("OK", "ALERTE", "ECHEC", "INFO"),
+       motif = "valeur du champ verdict d'une ligne de la table des tests, pas un objet du code"),
+  list(categorie = "litteral R", noms = c("NA", "NULL", "TRUE", "FALSE", "Inf", "NaN"),
+       motif = "constante du langage R"),
+  list(categorie = "marqueur de valeur manquante", noms = c("NAN", "ND", "NR", "NONE", "NIL", "NC"),
+       motif = paste("marqueur de la liste fermee des valeurs manquantes du lecteur, ecrite dans une",
+                     "expression reguliere de R/engine.R, pas une constante")),
+  list(categorie = "notation ou exemple du texte", noms = c("DESCRIPTION", "S1", "O", "C", "LoB12", "ChainLadder"),
+       motif = paste("fichier DESCRIPTION, exemple de saisie (S1, LoB12, lettre O), locale C ou paquet R",
+                     "(ChainLadder), pas un objet du code"))
+)
+
+# Racines de chemin de champ hors du controle : objets qui ne sont pas des
+# resultats du moteur. Une racine de la liste qui n'est plus citee est une
+# entree PERIMEE (ecart).
+RACINES_EXEMPTEES <- c(.Machine = "objet de R de base")
+
+# Champs cites par le document et ABSENTS des objets run_engine() construits
+# par le script (J1, volumes constants, J2, triangle ; absence mesuree), par
+# liste fermee : chacun n'est admis que s'il reste pose par R/engine.R
+# (champs_poses()). Hors de cette liste, un segment absent des objets
+# construits est INTROUVABLE (ecart), meme s'il est pose ailleurs dans le
+# moteur sous le meme nom (audit de #160, mutant A : erreur_sigma retire de
+# res$ajustement, encore pose par usp_condition_premier_ordre()). Une entree
+# est PERIMEE (ecart) si elle n'est plus citee, si elle est retrouvee dans
+# les objets construits ou si R/engine.R ne la pose plus.
+MOTIF_REGIME <- "champ de la liste rendue par usp_regime(), drapeaux de regime non restitues sous ce nom dans res"
+MOTIF_DEGENERESCENCE_MW <- paste("champ de la liste rendue par mw_extrapolation_sigma2() (degenerescence des",
+                                 "colonnes J-3 et J-2), non restitue sous ce nom dans les objets construits")
+CHAMPS_HORS_OBJETS <- c(
+  angle = "champ de la liste rendue par .ligne_annees() (premiere ligne lue comme ligne d'annees), objet intermediaire du lecteur",
+  cause = "champ de la liste rendue par .ligne_annees() (premiere ligne lue comme ligne d'annees), objet intermediaire du lecteur",
+  volumes_constants = MOTIF_REGIME, pi_constant = MOTIF_REGIME, pi_constant_exact = MOTIF_REGIME,
+  delta_dans_bande = MOTIF_REGIME, volumes_dans_bande = MOTIF_REGIME,
+  colonne = MOTIF_DEGENERESCENCE_MW, nb_facteurs = MOTIF_DEGENERESCENCE_MW, ecart_relatif = MOTIF_DEGENERESCENCE_MW,
+  f_colonne = MOTIF_DEGENERESCENCE_MW, degeneree = MOTIF_DEGENERESCENCE_MW, degeneree_Jm3 = MOTIF_DEGENERESCENCE_MW,
+  degeneree_Jm2 = MOTIF_DEGENERESCENCE_MW, nb_facteurs_Jm2 = MOTIF_DEGENERESCENCE_MW,
+  ecart_relatif_Jm2 = MOTIF_DEGENERESCENCE_MW, f_colonne_Jm2 = MOTIF_DEGENERESCENCE_MW,
+  erreur_r = paste("chemin de refus : validation$erreur_r, pose par .engine_calcul_protege() quand un calcul",
+                   "leve une erreur R, absent d'un resultat ok = TRUE"),
+  influence_motif = paste("chemin non exerce par les jeux : plots_data$influence_motif, pose par",
+                          "engine_plots_data() seulement si un residu standardise ou une distance de Cook",
+                          "n'est pas fini")
+)
+
+# Citations d'identifiants en majuscules : contenus de \code{} dont le texte
+# desechappe est un identifiant en majuscules (chiffres et soulignes admis,
+# point initial admis, joker * final admis : MOTIF_MC_*) ou un identifiant
+# SANS souligne commencant par une majuscule, en casse mixte (CoxStuart,
+# Inf ; audit de #160, C4 : cles Monte-Carlo citees hors de l'index),
+# eventuellement suivi d'un chemin $champ ou d'un indice [...]. Les \code{}
+# qui contiennent un blanc, un point, une barre oblique (N/A, C.UTF-8,
+# R/engine.R), ou une minuscule et un souligne (B_effectif, champ) ne sont pas
+# des identifiants en majuscules.
+citations_majuscules <- function(codes) {
+  txt <- desechapper(codes$brut)
+  m <- regmatches(txt, regexec("^(\\.?[A-Z][A-Z0-9_]*\\*?|[A-Z][A-Za-z0-9]*)(?:\\$.*|\\[.*)?$", txt, perl = TRUE))
+  ok <- lengths(m) == 2L
+  data.frame(ligne = codes$ligne[ok], citation = txt[ok], nom = vapply(m[ok], `[`, character(1), 2L),
+             stringsAsFactors = FALSE)
+}
+
+# Constantes definies dans des sources R, par lecture du texte (sans les
+# executer) : affectations de premier niveau (debut de ligne) d'un nom en
+# majuscules, point initial admis. fichier : chemin relatif a la racine du depot.
+definitions_constantes <- function(fichiers) {
+  res <- data.frame(nom = character(0), fichier = character(0), stringsAsFactors = FALSE)
+  for (f in fichiers) {
+    l <- readLines(f, warn = FALSE, encoding = "UTF-8")
+    m <- regmatches(l, regexec("^(\\.?[A-Z][A-Z0-9_]*)\\s*(?:<-|=)", l, perl = TRUE))
+    m <- m[lengths(m) == 2L]
+    if (length(m))
+      res <- rbind(res, data.frame(nom = vapply(m, `[`, character(1), 2L),
+                                   fichier = sub("^(\\.\\.?/)+", "", f), stringsAsFactors = FALSE))
+  }
+  unique(res)
+}
+
+# Classe les citations de citations_majuscules(). constantes : sortie de
+# definitions_constantes() ; cles : cles des catalogues Monte-Carlo ;
+# arguments : noms des arguments de run_engine(). Ajoute categorie, statut
+# ("verifie", "hors controle", "INTROUVABLE", "NON CLASSE") et ou (fichier
+# de definition, catalogue, ou motif de la liste fermee).
+classer_majuscules <- function(cit, constantes, cles = character(0), arguments = character(0),
+                               hors = MAJUSCULES_HORS_CONTROLE, sans_souligne = CONSTANTES_SANS_SOULIGNE) {
+  hors_noms <- unlist(lapply(hors, `[[`, "noms"))
+  hors_cat <- rep(vapply(hors, `[[`, character(1), "categorie"), lengths(lapply(hors, `[[`, "noms")))
+  fichiers_de <- function(n) paste(unique(constantes$fichier[constantes$nom %in% n]), collapse = ", ")
+  un <- function(n) {
+    if (grepl("\\*$", n)) {
+      t <- grep(utils::glob2rx(n), constantes$nom, value = TRUE)
+      return(c("constante (joker)", if (length(t)) "verifie" else "INTROUVABLE", fichiers_de(t)))
+    }
+    if (grepl("_$", n)) return(c("fragment non recolle", "NON CLASSE", ""))
+    if (grepl(MOTIF_CONSTANTE, n, perl = TRUE) || n %in% sans_souligne)
+      return(c("constante", if (n %in% constantes$nom) "verifie" else "INTROUVABLE", fichiers_de(n)))
+    if (n %in% hors_noms) return(c(hors_cat[match(n, hors_noms)], "hors controle", ""))
+    if (n %in% cles) return(c("cle de catalogue Monte-Carlo", "verifie", ""))
+    if (n %in% arguments) return(c("argument de run_engine()", "verifie", ""))
+    c("identifiant sans souligne", "NON CLASSE", "")
+  }
+  r <- if (nrow(cit)) do.call(rbind, lapply(cit$nom, un)) else matrix(character(0), 0L, 3L)
+  cit$categorie <- r[, 1L]; cit$statut <- r[, 2L]; cit$ou <- r[, 3L]
+  cit
+}
+
+# Noms de tous les elements nommes d'un objet, a toute profondeur (listes,
+# data.frames : noms de colonnes ; classes retirees).
+noms_recursifs <- function(x) {
+  if (!is.list(x)) return(character(0))
+  n <- names(x)
+  unique(c(n[!is.na(n) & nzchar(n)], unlist(lapply(unclass(x), noms_recursifs), use.names = FALSE)))
+}
+
+# Noms de champs poses par un source R (par analyse syntaxique, sans
+# l'executer) : noms des arguments de list(), c(), data.frame() et
+# structure(), et champs affectes par x$nom <- ... ou x[["nom"]] <- ...
+# (a toute profondeur du membre gauche). Les arguments formels des fonctions
+# (volumes_constants = FALSE) n'en sont pas.
+champs_poses <- function(fichier) {
+  acc <- character(0)
+  # Argument vide (x[, 1]) : compare a quote(expr = ) sans etre affecte, une
+  # variable qui le contiendrait etant lue comme un argument manquant.
+  gauche <- function(e) {
+    if (!is.call(e)) return(invisible())
+    f <- if (is.name(e[[1L]])) as.character(e[[1L]]) else ""
+    if (f == "$" && length(e) == 3L) acc <<- c(acc, as.character(e[[3L]]))
+    if (f == "[[" && length(e) >= 3L && is.character(e[[3L]])) acc <<- c(acc, e[[3L]])
+    if (length(e) >= 2L && !identical(e[[2L]], quote(expr = ))) gauche(e[[2L]])
+  }
+  marcher <- function(e) {
+    if (is.call(e)) {
+      f <- if (is.name(e[[1L]])) as.character(e[[1L]]) else ""
+      if (f %in% c("list", "c", "data.frame", "structure") && !is.null(names(e)))
+        acc <<- c(acc, names(e)[-1L])
+      if (f %in% c("<-", "=", "<<-") && length(e) == 3L) gauche(e[[2L]])
+      for (i in seq_along(e)) if (!identical(e[[i]], quote(expr = ))) marcher(e[[i]])
+    } else if (is.pairlist(e)) {
+      for (i in seq_along(e)) if (!identical(e[[i]], quote(expr = ))) marcher(e[[i]])
+    }
+  }
+  for (e in parse(fichier, keep.source = FALSE, encoding = "UTF-8")) marcher(e)
+  unique(acc[!is.na(acc) & nzchar(acc)])
+}
+
+# Chemins de champs cites : dans chaque \code{} qui contient $ (texte
+# desechappe), chaque chemin racine$a$b (racine facultative : \code{\$ok},
+# \code{\$metadata\$T} ; racine appel de fonction admise : usp_noyau()$obj) ;
+# une enumeration "$a \ $b \ $c" donne un chemin par champ. Une ligne par
+# segment : ligne, chemin, racine ("" si absente), segment.
+chemins_champs <- function(codes) {
+  txt <- desechapper(codes$brut)
+  rx <- "((?:[A-Za-z.][A-Za-z0-9._]*(?:\\(\\))?)?)((?:\\$[A-Za-z.][A-Za-z0-9._]*)+)"
+  res <- list()
+  for (i in which(grepl("$", txt, fixed = TRUE))) {
+    for (ch in regmatches(txt[i], gregexpr(rx, txt[i], perl = TRUE))[[1]]) {
+      racine <- sub("\\$.*$", "", ch)
+      segs <- strsplit(substring(ch, nchar(racine) + 2L), "$", fixed = TRUE)[[1]]
+      res[[length(res) + 1L]] <- data.frame(ligne = codes$ligne[i], chemin = ch, racine = racine,
+                                            segment = segs, stringsAsFactors = FALSE)
+    }
+  }
+  if (!length(res)) return(data.frame(ligne = integer(0), chemin = character(0), racine = character(0),
+                                      segment = character(0), stringsAsFactors = FALSE))
+  do.call(rbind, res)
+}
+
+# Classe les segments de chemins_champs(). noms_objets : noms_recursifs() des
+# objets run_engine() construits par le script ; poses : champs_poses() de
+# R/engine.R ; objets_constantes : liste nommee des constantes du moteur
+# (environnement charge). Statut par segment :
+#   "racine exemptee"         racine de RACINES_EXEMPTEES ;
+#   "cle d'une constante"     racine constante chargee (USP_CATALOGUE_MC$CoxStuart) :
+#                             le segment doit etre un nom de la constante
+#                             (sinon INTROUVABLE) ; la racine est jugee par le
+#                             controle des constantes ;
+#   "racine non jugee"        autre racine commencant par une majuscule
+#                             (COUL$trait, CAS$x hors du moteur) : le segment
+#                             n'est pas juge, la racine l'est par le controle
+#                             des identifiants (NON CLASSE, ou constante
+#                             definie hors du moteur) ;
+#   "objet run_engine()"      nom d'un element d'au moins un objet construit ;
+#   "hors objets (liste fermee)"  absent des objets construits, nom de
+#                             CHAMPS_HORS_OBJETS encore pose par R/engine.R ;
+#   "INTROUVABLE"             sinon (absent des objets construits et hors de
+#                             la liste, ou de la liste mais plus pose).
+classer_champs <- function(ch, noms_objets, poses, objets_constantes = list(),
+                           racines = RACINES_EXEMPTEES, hors_objets = CHAMPS_HORS_OBJETS) {
+  statut <- vapply(seq_len(nrow(ch)), function(i) {
+    r <- ch$racine[i]; s <- ch$segment[i]
+    if (r %in% names(racines)) return("racine exemptee")
+    if (r %in% names(objets_constantes))
+      return(if (s %in% noms_recursifs(objets_constantes[[r]])) "cle d'une constante" else "INTROUVABLE")
+    if (grepl("^\\.?[A-Z]", r)) return("racine non jugee")
+    if (s %in% noms_objets) return("objet run_engine()")
+    if (s %in% names(hors_objets) && s %in% poses) return("hors objets (liste fermee)")
+    "INTROUVABLE"
+  }, character(1))
+  ch$statut <- statut
+  ch
+}
+
+# Juge les constantes et les champs cites par le document (controle 6).
+# tex : lignes du document ; constantes : definitions_constantes() ;
+# objets : liste des resultats run_engine() ; poses : champs_poses() de
+# R/engine.R ; env : moteur charge (catalogues, run_engine(), constantes).
+# Renvoie une liste : maj (citations classees), champs (segments classes),
+# ex_const et ex_champs (sorties d'appliquer_exemptions() sur les citations
+# INTROUVABLE), non_classes (citations NON CLASSE), perimees_listes
+# (entrees perimees des listes fermees, perimees_listes()).
+verifier_constantes_champs <- function(tex, constantes, objets, poses, env, exemptions = EXEMPTES_CODE,
+                                       hors = MAJUSCULES_HORS_CONTROLE, sans_souligne = CONSTANTES_SANS_SOULIGNE,
+                                       racines = RACINES_EXEMPTEES, hors_objets = CHAMPS_HORS_OBJETS) {
+  codes <- extraire_codes(tex)
+  cles <- c(names(env$USP_CATALOGUE_MC), names(env$MW_CATALOGUE_MC))
+  args <- if (is.function(env$run_engine)) names(formals(env$run_engine)) else character(0)
+  maj <- classer_majuscules(citations_majuscules(codes), constantes, cles, args, hors, sans_souligne)
+  noms_const <- intersect(unique(constantes$nom), ls(env, all.names = TRUE))
+  noms_objets <- unique(unlist(lapply(objets, noms_recursifs)))
+  ch <- classer_champs(chemins_champs(codes), noms_objets, poses, mget(noms_const, envir = env),
+                       racines, hors_objets)
+  ic <- maj[maj$statut == "INTROUVABLE", c("ligne", "nom"), drop = FALSE]
+  ex_const <- appliquer_exemptions(ic, setNames(rep("INTROUVABLE", nrow(ic)), ic$nom), tex,
+                                   exemptions_objet("constante", exemptions))
+  # sprintf() et non paste0() : paste0("$", character(0)) rend "$" (audit de
+  # #160, C1 : plantage quand aucun champ n'est introuvable).
+  ich <- ch[ch$statut == "INTROUVABLE", , drop = FALSE]
+  ich <- data.frame(ligne = ich$ligne, nom = sprintf("$%s", ich$segment), stringsAsFactors = FALSE)
+  ex_champs <- appliquer_exemptions(ich, setNames(rep("INTROUVABLE", nrow(ich)), ich$nom), tex,
+                                    exemptions_objet("champ", exemptions))
+  list(maj = maj, champs = ch, ex_const = ex_const, ex_champs = ex_champs,
+       non_classes = maj[maj$statut == "NON CLASSE", , drop = FALSE],
+       perimees_listes = perimees_listes(maj, ch, noms_objets, poses, hors, sans_souligne, racines, hors_objets))
+}
+
+# Entrees perimees des listes fermees du controle 6 (audit de #160, C5), sur
+# le modele des exemptions perimees : data.frame (liste, nom, motif).
+#   MAJUSCULES_HORS_CONTROLE, CONSTANTES_SANS_SOULIGNE : nom plus cite ;
+#   RACINES_EXEMPTEES : racine plus citee ;
+#   CHAMPS_HORS_OBJETS : champ plus cite, retrouve dans les objets construits
+#   (l'entree ne sert plus), ou plus pose par R/engine.R.
+perimees_listes <- function(maj, ch, noms_objets, poses, hors = MAJUSCULES_HORS_CONTROLE,
+                            sans_souligne = CONSTANTES_SANS_SOULIGNE, racines = RACINES_EXEMPTEES,
+                            hors_objets = CHAMPS_HORS_OBJETS) {
+  res <- list()
+  ajouter <- function(liste, noms, motif)
+    if (length(noms)) res[[length(res) + 1L]] <<- data.frame(liste = liste, nom = noms, motif = motif,
+                                                             stringsAsFactors = FALSE)
+  ajouter("MAJUSCULES_HORS_CONTROLE", setdiff(unlist(lapply(hors, `[[`, "noms")), maj$nom), "plus cite")
+  ajouter("CONSTANTES_SANS_SOULIGNE", setdiff(sans_souligne, maj$nom), "plus cite")
+  ajouter("RACINES_EXEMPTEES", setdiff(names(racines), ch$racine), "plus citee")
+  cites <- ch$segment[!ch$statut %in% c("racine exemptee", "cle d'une constante", "racine non jugee")]
+  ho <- names(hors_objets)
+  ajouter("CHAMPS_HORS_OBJETS", setdiff(ho, cites), "plus cite")
+  ajouter("CHAMPS_HORS_OBJETS", intersect(ho, noms_objets), "retrouve dans les objets run_engine() construits")
+  ajouter("CHAMPS_HORS_OBJETS", setdiff(ho, poses), "plus pose par R/engine.R")
+  if (!length(res)) return(data.frame(liste = character(0), nom = character(0), motif = character(0),
+                                      stringsAsFactors = FALSE))
+  do.call(rbind, res)
+}
+
+# ---------------------------------------------------------------------------
 #  Nombre de replications bootstrap
 # ---------------------------------------------------------------------------
 
@@ -1720,6 +2093,84 @@ if (sys.nframe() == 0L) {
       ecrire(sprintf("  ECART -- %d chemin(s) cite(s) inexistant(s) dans le depot :\n", nrow(manq)))
       for (i in seq_len(nrow(manq))) ecrire(sprintf("    l.%-5d %s\n", manq$ligne[i], manq$chemin[i]))
     }
+  }
+
+  # 6. Constantes et champs cites (issue #160) : sur les objets run_engine()
+  # deja construits pour les sections 2 a 5 (J1, volumes constants, J2,
+  # triangle), sans nouvel appel au moteur.
+  constantes <- definitions_constantes(c(file.path(RACINE, c("R/engine.R", "R/display_helpers.R", "app.R")),
+                                         list.files(file.path(RACINE, "tests"), pattern = "[.]R$", full.names = TRUE)))
+  cc6 <- verifier_constantes_champs(tex, constantes, tous, champs_poses(file.path(RACINE, "R", "engine.R")), env)
+  mj <- cc6$maj
+  ecrire(sprintf("\n=== 6. Constantes et champs cites (issue #160)\n  a) Identifiants en majuscules : %d citation(s), %d nom(s) distinct(s)\n",
+                 nrow(mj), length(unique(mj$nom))))
+  rec6 <- sprintf("%s : %s", mj$categorie, mj$statut)
+  rec6[mj$statut == "INTROUVABLE" & !paste(mj$ligne, mj$nom) %in% paste(cc6$ex_const$exemptees$ligne, cc6$ex_const$exemptees$nom)] <-
+    "constante : INTROUVABLE non exemptee"
+  rec6[mj$statut == "INTROUVABLE" & paste(mj$ligne, mj$nom) %in% paste(cc6$ex_const$exemptees$ligne, cc6$ex_const$exemptees$nom)] <-
+    "constante : exemptee (EXEMPTES_CODE)"
+  t6 <- vapply(split(mj$nom, rec6), function(x) sprintf("%d citation(s), %d nom(s)", length(x), length(unique(x))), character(1))
+  for (s in names(t6)[ordre_stable(names(t6))]) ecrire(sprintf("    %-58s %s\n", s, t6[[s]]))
+  cv <- unique(mj[mj$categorie %in% c("constante", "constante (joker)") & mj$statut == "verifie", c("nom", "ou")])
+  for (f in unique(cv$ou)[ordre_stable(unique(cv$ou))]) {
+    n_f <- sort(cv$nom[cv$ou == f], method = "radix")
+    ecrire(sprintf("    definies dans %s (%d) : %s\n", f, length(n_f), paste(n_f, collapse = " ")))
+  }
+  if (nrow(cc6$ex_const$exemptees)) {
+    ecrire(sprintf("    Exemptees nommement (EXEMPTES_CODE, objet constante, %d citation(s), pas des ecarts) :\n",
+                   nrow(cc6$ex_const$exemptees)))
+    for (i in seq_len(nrow(cc6$ex_const$exemptees)))
+      ecrire(sprintf("      %-30s ligne %-5d %s\n", cc6$ex_const$exemptees$nom[i], cc6$ex_const$exemptees$ligne[i],
+                     cc6$ex_const$exemptees$motif[i]))
+  }
+  ch6 <- cc6$champs
+  ecrire(sprintf("  b) Chemins de champs ($) : %d segment(s) cite(s), %d champ(s) distinct(s)\n",
+                 nrow(ch6), length(unique(ch6$segment))))
+  st6 <- ch6$statut
+  ex_ch <- paste(cc6$ex_champs$exemptees$ligne, cc6$ex_champs$exemptees$nom)
+  st6[st6 == "INTROUVABLE"] <- ifelse(paste(ch6$ligne, sprintf("$%s", ch6$segment))[st6 == "INTROUVABLE"] %in% ex_ch,
+                                      "exempte (EXEMPTES_CODE)", "INTROUVABLE non exempte")
+  t6c <- vapply(split(ch6$segment, st6), function(x) sprintf("%d segment(s), %d champ(s)", length(x), length(unique(x))),
+                character(1))
+  for (s in names(t6c)[ordre_stable(names(t6c))]) ecrire(sprintf("    %-58s %s\n", s, t6c[[s]]))
+  pz <- unique(ch6$segment[ch6$statut == "hors objets (liste fermee)"])
+  if (length(pz))
+    ecrire(sprintf("    (information) absents des objets construits, admis par CHAMPS_HORS_OBJETS et poses par R/engine.R : %s\n",
+                   paste(pz[ordre_stable(pz)], collapse = " ")))
+  if (nrow(cc6$ex_champs$exemptees)) {
+    ecrire(sprintf("    Exemptes nommement (EXEMPTES_CODE, objet champ, %d citation(s), pas des ecarts) :\n",
+                   nrow(cc6$ex_champs$exemptees)))
+    for (i in seq_len(nrow(cc6$ex_champs$exemptees)))
+      ecrire(sprintf("      %-30s ligne %-5d %s\n", cc6$ex_champs$exemptees$nom[i], cc6$ex_champs$exemptees$ligne[i],
+                     cc6$ex_champs$exemptees$motif[i]))
+  }
+  n6 <- nrow(cc6$ex_const$ecarts) + nrow(cc6$ex_const$perimees) + nrow(cc6$ex_champs$ecarts) +
+    nrow(cc6$ex_champs$perimees) + nrow(cc6$non_classes) + nrow(cc6$perimees_listes)
+  n_ecarts <- n_ecarts + n6
+  if (nrow(cc6$ex_const$ecarts)) {
+    ecrire(sprintf("  ECART -- %d constante(s) citee(s) introuvable(s) non exemptee(s) :\n", nrow(cc6$ex_const$ecarts)))
+    for (i in seq_len(nrow(cc6$ex_const$ecarts)))
+      ecrire(sprintf("    %-32s ligne(s) %s\n", cc6$ex_const$ecarts$nom[i], cc6$ex_const$ecarts$lignes[i]))
+  }
+  if (nrow(cc6$ex_champs$ecarts)) {
+    ecrire(sprintf("  ECART -- %d champ(s) cite(s) introuvable(s) non exempte(s) :\n", nrow(cc6$ex_champs$ecarts)))
+    for (i in seq_len(nrow(cc6$ex_champs$ecarts)))
+      ecrire(sprintf("    %-32s ligne(s) %s\n", cc6$ex_champs$ecarts$nom[i], cc6$ex_champs$ecarts$lignes[i]))
+  }
+  if (nrow(cc6$non_classes)) {
+    ecrire(sprintf("  ECART -- %d identifiant(s) en majuscules non classe(s) :\n", nrow(cc6$non_classes)))
+    for (i in seq_len(nrow(cc6$non_classes)))
+      ecrire(sprintf("    l.%-5d %-32s %s\n", cc6$non_classes$ligne[i], cc6$non_classes$nom[i], cc6$non_classes$categorie[i]))
+  }
+  pe6 <- rbind(cc6$ex_const$perimees, cc6$ex_champs$perimees)
+  if (nrow(pe6)) {
+    ecrire(sprintf("  ECART -- %d exemption(s) de constante ou de champ perimee(s) :\n", nrow(pe6)))
+    for (i in seq_len(nrow(pe6))) ecrire(sprintf("    %-32s contexte \"%s\"\n", pe6$nom[i], pe6$contexte[i]))
+  }
+  pl6 <- cc6$perimees_listes
+  if (nrow(pl6)) {
+    ecrire(sprintf("  ECART -- %d entree(s) perimee(s) des listes fermees du controle 6 :\n", nrow(pl6)))
+    for (i in seq_len(nrow(pl6))) ecrire(sprintf("    %-26s %-24s %s\n", pl6$liste[i], pl6$nom[i], pl6$motif[i]))
   }
 
   ecrire(sprintf("\nBILAN : %d ecart(s)%s ; formulations de decompte : %d verifiee(s), %d exemptee(s), %d non classee(s)\n",
