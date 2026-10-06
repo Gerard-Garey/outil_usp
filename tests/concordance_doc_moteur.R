@@ -169,7 +169,11 @@
 #       d'une racine constante definie hors du moteur (CAS$x) ne sont pas
 #       juges ; (vi) une cle Monte-Carlo est verifiee contre l'union des deux
 #       catalogues, pas contre celui de la methode de la section (ce que fait
-#       le controle 4, pour l'index seulement).
+#       le controle 4, pour l'index seulement) ; (vii) une constante citee est
+#       jugee definie si elle est affectee au premier niveau de n'importe quel
+#       tests/*.R : une constante retiree de R/engine.R mais encore copiee
+#       dans un script de mesure passerait (aucune redefinition de ce type a
+#       ce jour).
 #
 #  Le moteur est execute sur les jeux de tests/donnees/ avec B petit
 #  (defaut 99) : seule la STRUCTURE de la table des tests sert ici (nombre de

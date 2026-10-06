@@ -53,13 +53,24 @@ t0 <- c("## Titre", "", "Paramètres : x", "", "### T0 -- contexte", "",
 rp <- data.frame(cible = "/d/x.md", chemin = "docs/tableaux/x.md", md5_avant = "0123abcd", stringsAsFactors = FALSE)
 verifier("ligne_remplacement() : ligne de T0 qui cite le chemin et le md5 d'avant",
          identical(ligne_r(rp, "/d/x.md"),
-                   "| Fichier remplacé (--remplacer) | docs/tableaux/x.md, md5 d'avant 0123abcd |"))
+                   "| Fichier remplac\u00e9 (--remplacer) | docs/tableaux/x.md, md5 d'avant 0123abcd |"))
+# Ligne de T0 ecrite sous toute locale (LC_ALL=C compris) : le e accentue de
+# "remplace" est une sequence \u00e9 (chaine marquee UTF-8), jamais un octet
+# brut de outils_tests.R, qui reste entierement ASCII (revue finale de R8).
+verifier("ligne_remplacement() : e accentue en \\u00e9, chaine marquee UTF-8",
+         { l <- ligne_r(rp, "/d/x.md")
+           identical(Encoding(l), "UTF-8") &&
+             identical(charToRaw(enc2utf8(substr(l, 3, 18))), charToRaw("Fichier remplac\u00e9")) })
+verifier("outils_tests.R : aucun octet non ASCII",
+         { o <- readBin(file.path(.dossier, "..", "outils_tests.R"), "raw",
+                        file.size(file.path(.dossier, "..", "outils_tests.R")))
+           !any(as.integer(o) > 127L) })
 verifier("ligne_remplacement() : aucune ligne pour une cible non remplacee, pour NULL et pour zero ligne",
          identical(ligne_r(rp, "/d/y.md"), character(0)) && identical(ligne_r(NULL, "/d/x.md"), character(0)) &&
            identical(ligne_r(rp[0, ], "/d/x.md"), character(0)))
 verifier("inserer_t0() : ligne ajoutee a la fin du tableau de T0, avant la ligne vide, le reste inchange",
-         { o <- inserer(t0, "| Fichier remplacé (--remplacer) | z |")
-           identical(o[11], "| Fichier remplacé (--remplacer) | z |") && identical(o[-11], t0) })
+         { o <- inserer(t0, "| Fichier remplac\u00e9 (--remplacer) | z |")
+           identical(o[11], "| Fichier remplac\u00e9 (--remplacer) | z |") && identical(o[-11], t0) })
 verifier("inserer_t0() : aucun ajout, sortie identique",
          identical(inserer(t0, character(0)), t0))
 verifier("inserer_t0() : erreur si la sortie n'a pas de titre ### T0",
@@ -144,7 +155,7 @@ if (GIT_OK) {
   verifier("(c) --remplacer : la ligne de T0 cite le fichier remplace et son md5 d'avant",
            { r <- garde(f_suivi, TRUE, depot, quitter = FALSE)
              identical(ligne_r(r, f_suivi),
-                       sprintf("| Fichier remplacé (--remplacer) | docs/tableaux/suivi.md, md5 d'avant %s |", md5_suivi)) })
+                       sprintf("| Fichier remplac\u00e9 (--remplacer) | docs/tableaux/suivi.md, md5 d'avant %s |", md5_suivi)) })
   verifier("(c) --remplacer : fichier suivi supprime de l'arbre cite comme absent",
            { r <- garde(f_supp, TRUE, depot, quitter = FALSE)
              nrow(r) == 1L && is.na(r$md5_avant) && grepl("absent de l'arbre", ligne_r(r, f_supp), fixed = TRUE) })

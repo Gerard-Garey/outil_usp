@@ -452,7 +452,9 @@ resumer_comparaison <- function(r, n_max = 10L) {
 #  tests/calibration_mc_t8.R, tests/taux_franchissement_reperes.R), APRES
 #  leurs gardes propres (arbre propre, motifs_non_versionnable()) et AVANT
 #  toute ecriture : tous les chemins cibles d'une execution sont controles
-#  d'abord, puis seulement ecrits.
+#  d'abord, puis seulement ecrits. tests/puissance_t8.R l'appelle en outre
+#  des l'analyse des options, avant tout calcul (hors --combiner ; controle
+#  anticipe, constat m2 d'audit de #173), puis de nouveau avant d'ecrire.
 # ---------------------------------------------------------------------------
 
 # Controle les chemins cibles de --ecrire. Statut de chaque chemin, lu par
@@ -531,7 +533,7 @@ ligne_remplacement <- function(remplaces, cible) {
   if (is.null(remplaces) || !nrow(remplaces)) return(character(0))
   r <- remplaces[remplaces$cible == cible, , drop = FALSE]
   if (!nrow(r)) return(character(0))
-  sprintf("| Fichier remplacé (--remplacer) | %s, md5 d'avant %s |", r$chemin,
+  sprintf("| Fichier remplac\u00e9 (--remplacer) | %s, md5 d'avant %s |", r$chemin,
           ifelse(is.na(r$md5_avant), "(absent de l'arbre de travail)", r$md5_avant))
 }
 
