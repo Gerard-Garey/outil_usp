@@ -1089,7 +1089,7 @@ server <- function(input, output, session) {
 
   # --- Donnees --------------------------------------------------------------
   output$tab_controles <- renderTable({
-    do.call(rbind, lapply(R()$controles, function(t)
+    do.call(base::rbind, lapply(R()$controles, function(t)
       data.frame(Controle = t$test, Verdict = t$verdict, Detail = t$detail,
                  stringsAsFactors = FALSE)))
   }, striped = TRUE, width = "100%")

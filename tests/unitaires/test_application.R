@@ -31,7 +31,10 @@
 #     dimension, de meme apres l'import d'une serie et au changement de T ;
 #     seule "Reinitialiser" la change ; grille redessinee par une seconde
 #     reinitialisation sur des donnees deja par defaut (series et triangle)
-#     et par un second import du meme fichier.
+#     et par un second import du meme fichier ;
+#   - objet non fonction rbind de l'environnement global (issue #199) : avec
+#     shiny, table des controles (output$tab_controles) identique a celle
+#     rendue sans lui ; rapport_html() : voir test_rapport_html.R.
 #  La partie Shiny tourne dans un processus R distinct : app.R attache shiny
 #  et recharge le moteur dans l'environnement global, ce qui ne doit pas
 #  toucher les fichiers de tests suivants.
@@ -311,6 +314,30 @@ testServer(app_b, {
       a_id(grille_html(output), "c_9_0"))
 })
 )---"
+  # Objet rbind non fonction de l'environnement global (issue #199) : la
+  # table des controles (output$tab_controles) est rendue dans deux sessions,
+  # sans puis avec rbind <- 5 pose avant le calcul. Le caractere mordant est
+  # mesure sur rapport_html() (test_rapport_html.R, meme schema do.call), pas
+  # ici : shiny etait absent de la session de #199.
+  .bloc_199 <- r"---(
+## Objet rbind de l'environnement global (issue #199)
+r199 <- new.env()
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  session$setInputs(go = 1)
+  r199$sans <- tryCatch(output$tab_controles, error = function(e) e)
+})
+assign("rbind", 5, envir = globalenv())
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  session$setInputs(go = 1)
+  r199$avec <- tryCatch(output$tab_controles, error = function(e) e)
+})
+rm(list = "rbind", envir = globalenv())
+a("objet non fonction rbind global : table des controles identical a celle rendue sans lui (#199)",
+  is.character(r199$sans) && grepl("<table", r199$sans, fixed = TRUE) &&
+    identical(r199$avec, r199$sans))
+)---"
   .script <- tempfile(fileext = ".R")
   writeLines(c(
     'suppressMessages(library(shiny))',
@@ -423,7 +450,7 @@ testServer(app_b, {
     '  a("import n = 41 (hors [5 ; 40]) : garde non posee, apercu evalue avec T = 8 (#183)",',
     '    is.null(profondeur_import()) && is.character(ap) &&',
     '      !grepl("superieure", ap, fixed = TRUE))',
-    '})', .bloc_155), .script)
+    '})', .bloc_155, .bloc_199), .script)
   # Processus fils lance depuis la racine du depot : app.R y source
   # R/engine.R par chemin relatif.
   .ici <- setwd(.racine)
@@ -432,12 +459,12 @@ testServer(app_b, {
                                       stdout = TRUE, stderr = TRUE))
   setwd(.ici)
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 30 assertions rendues", length(.lignes) == 30L)
-  if (length(.lignes) != 30L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 31 assertions rendues", length(.lignes) == 31L)
+  if (length(.lignes) != 31L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {
-  cat("  note : shiny absent ; grille, journal, apercu, vue Detail et dimension du triangle non exerces (attendu en CI, comme plotly, issue #53).\n")
+  cat("  note : shiny absent ; grille, journal, apercu, vue Detail, dimension du triangle et table des controles (#199) non exerces (attendu en CI, comme plotly, issue #53).\n")
 }
 
 fin_fichier()

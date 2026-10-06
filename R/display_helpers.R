@@ -1735,7 +1735,7 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
 
     # --- 3. Controles et validation -------------------------------------------
     v <- res$validation
-    ctr <- do.call(rbind, lapply(res$controles, function(t)
+    ctr <- do.call(base::rbind, lapply(res$controles, function(t)
       data.frame(a = .txt(t$test), b = badge_verdict(t$verdict), c = .txt(t$detail),
                  stringsAsFactors = FALSE)))
     if (!is.null(ctr)) names(ctr) <- c("Contr\u00f4le", "Verdict", "D\u00e9tail")

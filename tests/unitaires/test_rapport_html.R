@@ -832,4 +832,27 @@ verifier("Rapport MW : annexe des tests exclus avec le commentaire du moteur (#1
 verifier("Rapport : encadre de personnalisation annonce le commentaire du moteur en annexe (#178)",
          grepl("verdict, le commentaire du moteur et le motif de leur exclusion", principal, fixed = TRUE))
 
+## --- Objet rbind de l'environnement global (issue #199) ---------------------
+# do.call() evalue son premier argument comme une valeur : un objet non
+# fonction rbind de l'environnement global (ou display_helpers.R est source)
+# masquait base::rbind dans la table des controles de rapport_html(), alors
+# qu'un appel rbind(...) ordinaire l'ignore (meme defaut que #179 dans le
+# moteur). Mordant : avant le passage en base::rbind, rapport_html() echoue
+# ("'what' must be a function or character string"). La section 3 est
+# comparee seule, l'horodatage du rapport changeant d'un appel a l'autre.
+verifier("Objet non fonction rbind dans l'environnement global : section Controles du rapport identical a celle calculee sans lui (#199)",
+         {
+           genv <- globalenv()
+           stopifnot(!exists("rbind", envir = genv, inherits = FALSE))
+           sect <- function(f) entre(lire(f), "<h2 id='controles'>", "</table>")
+           f0 <- tempfile(fileext = ".html"); f5 <- tempfile(fileext = ".html")
+           rapport_html(res_ln, NULL, f0, interactif = FALSE, identite = idt)
+           assign("rbind", 5, envir = genv)
+           r5 <- tryCatch(rapport_html(res_ln, NULL, f5, interactif = FALSE, identite = idt),
+                          error = function(e) e,
+                          finally = rm(list = "rbind", envir = genv))
+           !inherits(r5, "error") && grepl("<table", sect(f0), fixed = TRUE) &&
+             identical(sect(f5), sect(f0))
+         })
+
 fin_fichier()
