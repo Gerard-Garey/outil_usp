@@ -362,7 +362,7 @@ verifier("Ratio y/x : avertissement si r < 0,1 (xt x 1e3, ratio 7e-4) ou r >= 5 
              contient(avt(c(10, x[-1]), c(0.99, y[-1])), motif) &&
              !contient(avt(x, y), motif)
          })
-verifier("Ligne A 'Plausibilite du ratio y/x' : memes constantes que l'avertissement (r = 0,1 OK ; 0,099 et 5 ECHEC), detail inchange (#145)",
+verifier("Ligne A 'Plausibilite du ratio y/x' : memes constantes que l'avertissement (r = 0,1 OK ; 0,099 et 5 ECHEC), detail avec plage (#145, #186)",
          {
            ligne <- function(xt, yt) {
              r <- usp_controle_donnees(xt, yt)
@@ -370,11 +370,27 @@ verifier("Ligne A 'Plausibilite du ratio y/x' : memes constantes que l'avertisse
            }
            l1 <- ligne(c(10, x[-1]), c(1, y[-1]))
            identical(l1$verdict, "OK") &&
-             identical(l1$detail, "min = 0.100 ; median = 0.751 ; max = 0.894") &&
+             identical(l1$detail, "min = 0.100 ; median = 0.751 ; max = 0.894 ; plage plausible [0.1 ; 5[") &&
              identical(ligne(c(10, x[-1]), c(0.99, y[-1]))$verdict, "ECHEC") &&
              identical(ligne(c(10, x[-1]), c(50, y[-1]))$verdict, "ECHEC") &&
              identical(ligne(c(10, x[-1]), c(49.9, y[-1]))$verdict, "OK") &&
              identical(ligne(x * 1e3, y)$verdict, "ECHEC")
+         })
+verifier("Ligne A 'Plausibilite du ratio y/x' : aux bornes, le detail ne contredit plus le verdict (0,0996 -> 0.0996 ECHEC ; 4,9996 -> 4.9996 OK ; 5 -> 5.000 ECHEC) (#186)",
+         {
+           ligne <- function(xt, yt) {
+             r <- usp_controle_donnees(xt, yt)
+             r[[which(vapply(r, function(l) l$test, "") == "Plausibilite du ratio y/x")]]
+           }
+           xx <- rep(100, 8)
+           yy <- function(r1) c(r1 * 100, rep(70, 7))
+           lb <- ligne(xx, yy(0.0996)); lh <- ligne(xx, yy(4.9996)); l5 <- ligne(xx, yy(5))
+           identical(lb$verdict, "ECHEC") &&
+             identical(lb$detail, "min = 0.0996 ; median = 0.700 ; max = 0.700 ; plage plausible [0.1 ; 5[") &&
+             identical(lh$verdict, "OK") &&
+             identical(lh$detail, "min = 0.700 ; median = 0.700 ; max = 4.9996 ; plage plausible [0.1 ; 5[") &&
+             identical(l5$verdict, "ECHEC") &&
+             identical(l5$detail, "min = 0.700 ; median = 0.700 ; max = 5.000 ; plage plausible [0.1 ; 5[")
          })
 ## --- Distance de Cook a toute echelle (issue #153) ----------------------------
 # Critere amende du 02/10/2026 : (1) run_engine() sans erreur R ni defaut de

@@ -1150,10 +1150,27 @@ usp_controle_donnees <- function(x, y, alpha = 0.10, bareme = NULL, segment = NU
     add("Absence de doublons parfaits", dup == 0,
         sprintf("%d couple(s) (x,y) duplique(s)", dup))
     ratio <- y / x
+    # Affichage du detail (issue #186) : 3 decimales par defaut ; s'il fait
+    # passer une valeur de l'autre cote d'une borne de la plage
+    # [RATIO_PLAUSIBLE_MIN ; RATIO_PLAUSIBLE_MAX[ (0,0996 lu "0.100",
+    # 4,9996 lu "5.000"), on ajoute des decimales jusqu'a ce que la valeur
+    # affichee soit du meme cote de chaque borne que la valeur calculee. Le
+    # detail rappelle la plage, demi-ouverte, que lit le verdict.
+    cote <- function(v) c(v >= RATIO_PLAUSIBLE_MIN, v < RATIO_PLAUSIBLE_MAX)
+    fmt_ratio <- function(v) {
+      if (!is.finite(v)) return(sprintf("%.3f", v))
+      for (d in 3:20) {
+        ch <- sprintf("%.*f", d, v)
+        if (identical(cote(as.numeric(ch)), cote(v))) return(ch)
+      }
+      ch
+    }
     add("Plausibilite du ratio y/x",
         all(ratio >= RATIO_PLAUSIBLE_MIN & ratio < RATIO_PLAUSIBLE_MAX),
-        sprintf("min = %.3f ; median = %.3f ; max = %.3f",
-                min(ratio), stats::median(ratio), max(ratio)))
+        sprintf("min = %s ; median = %s ; max = %s ; plage plausible [%s ; %s[",
+                fmt_ratio(min(ratio)), fmt_ratio(stats::median(ratio)),
+                fmt_ratio(max(ratio)), sprintf("%g", RATIO_PLAUSIBLE_MIN),
+                sprintf("%g", RATIO_PLAUSIBLE_MAX)))
   } else {
     motif <- if (etabli(x, y)) "controle non etabli : x et y de longueurs differentes"
              else non_etabli
