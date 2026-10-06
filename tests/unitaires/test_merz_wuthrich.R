@@ -651,6 +651,137 @@ verifier("Decoupage restitue : terme_variance = variance de processus seule, som
                            msep_reglement(at), rel = 1e-10))
          })
 
+## --- MSEP a un an : verification independante par matrice de coefficients (#50)
+# Contre-implementation ecrite a partir du TRIANGLE BRUT, sans aucun appel au
+# moteur (ni mw_*, ni objet d'ajustement aj$...), et sans les crochets Delta_i
+# de mw_msep() / msep_reglement(). Forme (avis d'actuary sur #7, point 1.1 ;
+# docs/specifications/e2-reduite.md, #50) :
+#   a_ij = d ln C^{I+1}(i,J) / d ln F(I-j,j), au point F = f^, i = 1..I, j = 0..J-1 :
+#          1 si j = I-i ; C(I-j,j)/S'_j si j > I-i ; 0 sinon ;
+#   D_j  = Q_j * (1/C(I-j,j) + 1/S_j),  Q_j = sigma2_j / f_j^2 ;  u = (C^(i,J))_i ;
+#   MSEP = somme_j D_j * (A' u)_j^2.
+# Derivation elementaire (linearisation), pas une citation de Merz et
+# Wuthrich (2008). Statut : verification NUMERIQUE d'une meme definition (la
+# MSEP du texte consolide), pas une validation statistique de la MSEP a T = 8 :
+# approximation lineaire dont la qualite a T = 8 n'est etablie par aucun
+# resultat identifie.
+msep_matrice <- function(tri) {
+  tri <- unname(as.matrix(tri)); storage.mode(tri) <- "double"
+  I <- nrow(tri) - 1L; J <- ncol(tri) - 1L
+  # Facteurs individuels F(i,j) = C(i,j+1)/C(i,j), definis pour i + j + 1 <= I
+  Fi <- tri[, -1L, drop = FALSE] / tri[, -(J + 1L), drop = FALSE]
+  W <- tri[, -(J + 1L), drop = FALSE]          # poids C(i,j), colonnes j = 0..J-1
+  W[is.na(Fi)] <- 0; Fi[is.na(Fi)] <- 0
+  S  <- colSums(W)                             # S_j  = somme_{i=0}^{I-j-1} C(i,j)
+  Sp <- colSums(tri[, -(J + 1L), drop = FALSE], na.rm = TRUE)  # S'_j = somme_{i=0}^{I-j}
+  f  <- colSums(W * Fi) / S                    # moyenne des F(i,j) ponderee par C(i,j)
+  n  <- colSums(W > 0)                         # nombre de facteurs de la colonne j
+  # sigma2_j, j = 0..J-2 : somme_i C(i,j) (F(i,j) - f_j)^2 / (n_j - 1)
+  s2 <- colSums(W * (Fi - rep(f, each = I + 1L))^2) / (n - 1)
+  # Derniere colonne (un seul facteur) : regle min du par. D(5)(d)(ii), le
+  # quotient s2_{J-2}^2 / s2_{J-3} etant pris infini si s2_{J-3} = 0 (le
+  # minimum vaut alors s2_{J-3} = 0 quelle que soit sa valeur).
+  a2 <- s2[J - 1L]; a3 <- s2[J - 2L]
+  s2[J] <- min(a2, a3, if (a3 > 0) a2^2 / a3 else Inf)
+  Q <- s2 / f^2
+  diag_C <- tri[cbind(I + 1L - (0:(J - 1L)), 1:J)]   # C(I-j, j), j = 0..J-1
+  # Ultimes : C^(i,J) = C(i,I-i) * produit_{j >= I-i} f_j, i = 1..I
+  u <- vapply(1:I, function(i) tri[i + 1L, I - i + 1L] * prod(f[(I - i + 1L):J]), numeric(1))
+  A <- matrix(0, I, J)
+  for (i in 1:I) for (j in 0:(J - 1L)) {
+    if (j == I - i) A[i, j + 1L] <- 1
+    else if (j > I - i) A[i, j + 1L] <- diag_C[j + 1L] / Sp[j + 1L]
+  }
+  D <- Q * (1 / diag_C + 1 / S)
+  list(msep = sum(D * as.vector(crossprod(A, u))^2), A = A, D = D, u = u,
+       f = f, sigma2 = s2, Q = Q, S = S, Sp = Sp, C_diag = diag_C)
+}
+
+# Chain-ladder elementaire a un an : log des ultimes C^{I+1}(i,J), i = 1..I,
+# quand la diagonale I+1 est F(I-j,j) = exp(lnF[j+1]) et que les facteurs sont
+# re-estimes sur le triangle augmente. Sert a obtenir A par differences
+# centrees, sans supposer la forme fermee des coefficients.
+cl_ln_ultimes_un_an <- function(tri, lnF) {
+  tri <- unname(as.matrix(tri)); I <- nrow(tri) - 1L; J <- ncol(tri) - 1L
+  ext <- tri
+  for (j in 0:(J - 1L)) ext[I - j + 1L, j + 2L] <- tri[I - j + 1L, j + 1L] * exp(lnF[j + 1L])
+  f1 <- vapply(0:(J - 1L), function(j)
+    sum(ext[1:(I - j + 1L), j + 2L]) / sum(ext[1:(I - j + 1L), j + 1L]), numeric(1))
+  vapply(1:I, function(i)
+    log(ext[i + 1L, I - i + 2L]) + sum(log(f1[(0:(J - 1L)) >= I - i + 1L])), numeric(1))
+}
+A_differences <- function(tri, f, h) {
+  J <- length(f)
+  vapply(1:J, function(j) {
+    e <- replace(numeric(J), j, h)
+    (cl_ln_ultimes_un_an(tri, log(f) + e) - cl_ln_ultimes_un_an(tri, log(f) - e)) / (2 * h)
+  }, numeric(nrow(tri) - 1L))
+}
+msep_differences <- function(tri, h) {
+  m <- msep_matrice(tri)
+  sum(m$D * as.vector(crossprod(A_differences(tri, m$f, h), m$u))^2)
+}
+
+# Formules fautives historiques, recalculees localement a partir des memes
+# grandeurs (issue #7, ADR 0005) : libelle publie en 2015 (double somme
+# k = 1..I, crochet indexe par i, ni termes diagonaux du crochet dans la
+# premiere somme ni facteur 2), et formule de mw_msep() avant cb7f497
+# (k = i+1..I, sans termes diagonaux ni facteur 2).
+msep_fautives <- function(tri) {
+  m <- msep_matrice(tri); I <- length(m$u); J <- length(m$f)
+  dl <- vapply(1:I, function(i) {
+    j <- I - i; v <- m$Q[j + 1L] / m$S[j + 1L]
+    if (j + 1L <= J - 1L) for (l in (j + 1L):(J - 1L))
+      v <- v + m$C_diag[l + 1L] / m$Sp[l + 1L] * m$Q[l + 1L] / m$S[l + 1L]
+    v
+  }, numeric(1))
+  proc <- sum(m$u^2 * m$Q[I - (1:I) + 1L] / m$C_diag[I - (1:I) + 1L])
+  c(libelle_2015 = proc + sum(m$u * sum(m$u) * dl),
+    moteur_avant_cb7f497 = proc + sum(vapply(1:I, function(i)
+      m$u[i] * sum(m$u[seq_len(I) > i]) * dl[i], numeric(1))))
+}
+triangles_50 <- list(ta = ta, triangle_mw = local({
+  d <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
+  m <- as.matrix(d[, setdiff(names(d), "i")]); storage.mode(m) <- "double"; unname(m)
+}), tri_deg = tri_deg)
+msep_moteur_50 <- vapply(triangles_50, function(t) mw_msep(mw_ajuster(t))$msep, numeric(1))
+verifier("msep_matrice = mw_msep()$msep a 1e-12 (Taylor & Ashe, triangle_mw.csv, tri_deg ; #50)",
+         all(vapply(names(triangles_50), function(n)
+           isTRUE(proche(msep_matrice(triangles_50[[n]])$msep, msep_moteur_50[[n]], rel = 1e-12)),
+           logical(1))))
+verifier("racine(msep_matrice(Taylor & Ashe)) = ChainLadder::CDR 1 778 967,66335758 a 1e-12 (#50)",
+         proche(sqrt(msep_matrice(ta)$msep), 1778967.66335758, rel = 1e-12))
+# Critere 3 rendu mecanique : evaluee dans un environnement qui ne voit que
+# R base, la fonction rend le meme objet ; aucun nom du moteur n'y figure.
+verifier("msep_matrice independante du moteur : identique evaluee sous baseenv(), aucun nom mw_/aj (#50)",
+         {
+           m0 <- msep_matrice; environment(m0) <- baseenv()
+           noms <- all.names(body(msep_matrice))
+           all(vapply(triangles_50, function(t) identical(m0(t), msep_matrice(t)), logical(1))) &&
+             !any(grepl("^\\.?mw_|^engine_|^usp_|^run_engine$|^aj$", noms))
+         })
+# Mesure : ecart relatif du libelle 2015 a la MSEP +49 % / +15 % / +55 %, de
+# l'ancien mw_msep() -27 % / -44 % / -22 % (ta / triangle_mw / tri_deg) ;
+# sur Taylor & Ashe, racines 2 171 772 et 1 519 876 (valeurs de l'issue #7,
+# arrondies a l'unite : d'ou la tolerance relative 1e-6).
+verifier("msep_matrice s'ecarte d'au moins 1e-3 des formules fautives historiques (libelle 2015, ancien moteur ; #50)",
+         all(vapply(triangles_50, function(t)
+           all(abs(msep_fautives(t) / msep_matrice(t)$msep - 1) >= 1e-3), logical(1))) &&
+           isTRUE(proche(sqrt(msep_fautives(ta)), c(2171772, 1519876), rel = 1e-6)))
+# Ecarts mesures a h = 1e-4 : 3,0e-10 (ta), 2,6e-10 (triangle_mw), 1,1e-10
+# (tri_deg). Ordre h^2 : rapport e(2e-3)/e(1e-3) = 4,000 a 3e-4 pres sur les
+# trois triangles. En dessous de h ~ 2,5e-4, l'arrondi en eps/h pese autant
+# que la troncature et fausse le rapport : il n'est donc pas mesure a 1e-4.
+verifier("A par differences centrees (h = 1e-4) : MSEP a 1e-8 de mw_msep(), A a 1e-8, convergence en h^2 (#50)",
+         all(vapply(names(triangles_50), function(n) {
+           t <- triangles_50[[n]]; m <- msep_matrice(t); ref <- msep_moteur_50[[n]]
+           e1 <- abs(msep_differences(t, 1e-4) / ref - 1)
+           r <- abs(msep_differences(t, 2e-3) / ref - 1) /
+             abs(msep_differences(t, 1e-3) / ref - 1)
+           e1 <= 1e-8 && max(abs(A_differences(t, m$f, 1e-4) - m$A)) <= 1e-8 &&
+             r >= 3.9 && r <= 4.1
+         }, logical(1))))
+
 ## --- Restitution : ADR 0001, un diagnostic n'a pas de verdict ---------------
 # CONTEXT.md : "Un diagnostic n'a pas de verdict (affiche INFO)." add() applique
 # deja cette regle de lui-meme des que type != "test" ; le defaut ne peut donc
