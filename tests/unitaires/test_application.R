@@ -31,7 +31,10 @@
 #     dimension, de meme apres l'import d'une serie et au changement de T ;
 #     seule "Reinitialiser" la change ; grille redessinee par une seconde
 #     reinitialisation sur des donnees deja par defaut (series et triangle)
-#     et par un second import du meme fichier.
+#     et par un second import du meme fichier ;
+#   - objet non fonction rbind de l'environnement global (issue #199) : avec
+#     shiny, table des controles (output$tab_controles) identique a celle
+#     rendue sans lui ; rapport_html() : voir test_rapport_html.R.
 #  La partie Shiny tourne dans un processus R distinct : app.R attache shiny
 #  et recharge le moteur dans l'environnement global, ce qui ne doit pas
 #  toucher les fichiers de tests suivants.
@@ -194,10 +197,33 @@ for (.x in parse(.app, keep.source = FALSE))
 verifier("app.R definit profondeur_reinitialisation(), jeu_reinitialise(), message_reinitialisation() (#155)",
          is.function(.env$profondeur_reinitialisation) && is.function(.env$jeu_reinitialise) &&
            is.function(.env$message_reinitialisation) && is.data.frame(.env$DONNEES_DEFAUT))
-.pr <- lapply(list(5, 10, 12, 41), .env$profondeur_reinitialisation)
-verifier("profondeur_reinitialisation() : T = 5, 10, 12, 41 retenus tels quels, sans motif (aucune borne superieure, #108)",
-         identical(vapply(.pr, function(r) as.numeric(r$T), numeric(1)), c(5, 10, 12, 41)) &&
-           all(lengths(lapply(.pr, `[[`, "erreurs")) == 0L))
+# Assertion modifiee par #194, qui revient sur #108 (decision du mainteneur
+# Q-R10-1 (A), 06/10/2026) : #108 ne posait aucune borne superieure et
+# retenait T = 41 tel quel ; la reinitialisation plafonne desormais T a
+# PROFONDEUR_MAX (40), borne du champ T, pour ne pas figer l'application
+# sur le rendu d'une grille de 100 x 100 ou plus (12,6 s a T = 100, 91,5 s
+# a T = 200, mesures de l'issue). T = 41 sort donc de cette assertion et
+# passe dans celle du plafonnement, juste apres.
+.pr <- lapply(list(5, 10, 12, 40), .env$profondeur_reinitialisation)
+verifier("profondeur_reinitialisation() : T = 5, 10, 12, 40 retenus tels quels, sans motif ni plafonnement (#108, #194)",
+         identical(vapply(.pr, function(r) as.numeric(r$T), numeric(1)), c(5, 10, 12, 40)) &&
+           all(lengths(lapply(.pr, `[[`, "erreurs")) == 0L) &&
+           all(lengths(lapply(.pr, `[[`, "plafonnement")) == 0L))
+.pr <- lapply(list(41, 200, 1e6), .env$profondeur_reinitialisation)
+verifier("profondeur_reinitialisation() : T = 41, 200, 1e6 plafonnes a PROFONDEUR_MAX = 40, sans motif d'erreur (#194, Q-R10-1 (A))",
+         all(vapply(.pr, function(r) identical(r$T, 40L) && length(r$erreurs) == 0L &&
+                      length(r$plafonnement) == 1L, logical(1))))
+verifier("profondeur_reinitialisation() : le message de plafonnement nomme la valeur saisie et la valeur retenue (#194)",
+         identical(.env$profondeur_reinitialisation(200)$plafonnement,
+                   "Profondeur T = 200 au-dela du maximum de 40 : T = 40 retenu.") &&
+           identical(.env$profondeur_reinitialisation(41)$plafonnement,
+                     "Profondeur T = 41 au-dela du maximum de 40 : T = 40 retenu."))
+verifier("profondeur_reinitialisation() : saisies irrecevables (#100) sans plafonnement",
+         all(vapply(list(NULL, NA_real_, 12.5, 0, -3, Inf), function(t)
+           length(.env$profondeur_reinitialisation(t)$plafonnement) == 0L, logical(1))))
+verifier("message_reinitialisation() : triangle plafonne nomme 40 x 40 (#194)",
+         identical(.env$message_reinitialisation(TRUE, .env$profondeur_reinitialisation(200)$T),
+                   "Donnees reinitialisees : triangle par defaut 40 x 40."))
 .pr <- lapply(list(NULL, NA_real_, 12.5, 0, -3, Inf), .env$profondeur_reinitialisation)
 verifier("profondeur_reinitialisation() : champ vide, NA, 12.5, 0, -3, Inf -> T = 8 du jeu par defaut, avec motif (#100)",
          all(vapply(.pr, function(r) identical(r$T, 8L) && length(r$erreurs) == 1L &&
@@ -311,6 +337,36 @@ testServer(app_b, {
       a_id(grille_html(output), "c_9_0"))
 })
 )---"
+  # Objet rbind non fonction de l'environnement global (issue #199) : la
+  # table des controles (output$tab_controles) est rendue dans deux sessions,
+  # sans puis avec rbind <- 5 pose avant le calcul, sur la grille du jeu par
+  # defaut renseignee (sans elle, R() reste vide et la table n'est pas rendue).
+  # Mordant : avec do.call(rbind, ...), la seconde session leve "'what' must
+  # be a function or character string" (mesure du 06/10/2026, shiny 1.8.0).
+  .bloc_199 <- r"---(
+## Objet rbind de l'environnement global (issue #199)
+r199 <- new.env()
+d199 <- ea$DONNEES_DEFAUT
+saisie199 <- c(setNames(as.list(d199$xt), paste0("x_", seq_len(nrow(d199)))),
+               setNames(as.list(d199$yt), paste0("y_", seq_len(nrow(d199)))))
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  do.call(session$setInputs, saisie199)
+  session$setInputs(go = 1)
+  r199$sans <- tryCatch(output$tab_controles, error = function(e) e)
+})
+assign("rbind", 5, envir = globalenv())
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  do.call(session$setInputs, saisie199)
+  session$setInputs(go = 1)
+  r199$avec <- tryCatch(output$tab_controles, error = function(e) e)
+})
+rm(list = "rbind", envir = globalenv())
+a("objet non fonction rbind global : table des controles identical a celle rendue sans lui (#199)",
+  is.character(r199$sans) && grepl("<table", r199$sans, fixed = TRUE) &&
+    identical(r199$avec, r199$sans))
+)---"
   .script <- tempfile(fileext = ".R")
   writeLines(c(
     'suppressMessages(library(shiny))',
@@ -423,21 +479,29 @@ testServer(app_b, {
     '  a("import n = 41 (hors [5 ; 40]) : garde non posee, apercu evalue avec T = 8 (#183)",',
     '    is.null(profondeur_import()) && is.character(ap) &&',
     '      !grepl("superieure", ap, fixed = TRUE))',
-    '})', .bloc_155), .script)
+    '})', .bloc_155, .bloc_199), .script)
   # Processus fils lance depuis la racine du depot : app.R y source
-  # R/engine.R par chemin relatif.
+  # R/engine.R par chemin relatif. --vanilla ignore .Renviron et .Rprofile :
+  # les bibliotheques de ce processus (.libPaths()) lui sont transmises par
+  # R_LIBS, sans quoi un shiny installe dans une bibliotheque declaree par
+  # .Renviron n'y est pas trouve (poste du mainteneur, R 4.3.3, PR #208).
   .ici <- setwd(.racine)
-  .sortie <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"),
-                                      c("--vanilla", shQuote(.script)),
-                                      stdout = TRUE, stderr = TRUE))
-  setwd(.ici)
+  .r_libs <- Sys.getenv("R_LIBS", unset = NA)
+  Sys.setenv(R_LIBS = paste(.libPaths(), collapse = .Platform$path.sep))
+  .sortie <- tryCatch(suppressWarnings(system2(file.path(R.home("bin"), "Rscript"),
+                                               c("--vanilla", shQuote(.script)),
+                                               stdout = TRUE, stderr = TRUE)),
+                      finally = {
+                        if (is.na(.r_libs)) Sys.unsetenv("R_LIBS") else Sys.setenv(R_LIBS = .r_libs)
+                        setwd(.ici)
+                      })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 30 assertions rendues", length(.lignes) == 30L)
-  if (length(.lignes) != 30L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 31 assertions rendues", length(.lignes) == 31L)
+  if (length(.lignes) != 31L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {
-  cat("  note : shiny absent ; grille, journal, apercu, vue Detail et dimension du triangle non exerces (attendu en CI, comme plotly, issue #53).\n")
+  cat("  note : shiny absent ; grille, journal, apercu, vue Detail, dimension du triangle et table des controles (#199) non exerces (attendu en CI, comme plotly, issue #53).\n")
 }
 
 fin_fichier()

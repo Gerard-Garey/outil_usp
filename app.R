@@ -554,15 +554,26 @@ profondeur_attendue_import <- function(n, T_min = PROFONDEUR_MIN, T_max = PROFON
 
 # Profondeur du jeu par defaut charge par "Reinitialiser les donnees" : T
 # saisi s'il est recevable pour un simple chargement (motif du moteur,
-# engine_valider_profondeur(), borne T_min = 1, aucune borne superieure :
-# au-dela de 8 annees, le triangle par defaut est prolonge, issue #108) ;
-# sinon (champ vide, NA, non entier, < 1 ; issue #100), la profondeur du
-# jeu par defaut des series, T_defaut. Retourne list(T, erreurs) : erreurs
-# est vide si le T saisi est retenu, porte le motif sinon.
-profondeur_reinitialisation <- function(T, T_defaut = nrow(DONNEES_DEFAUT)) {
+# engine_valider_profondeur(), borne T_min = 1 ; au-dela de 8 annees, le
+# triangle par defaut est prolonge, issue #108) ; sinon (champ vide, NA,
+# non entier, < 1 ; issue #100), la profondeur du jeu par defaut des
+# series, T_defaut. Un T recevable superieur a T_max (PROFONDEUR_MAX, borne
+# du champ T) est plafonne a T_max (issue #194, decision du mainteneur
+# Q-R10-1 (A), qui revient sur l'absence de borne superieure de #108) :
+# borne d'interface, non metier (le moteur accepte tout triangle fourni de
+# T >= 1), qui evite de figer l'application sur le rendu de la grille.
+# Retourne list(T, erreurs, plafonnement) : erreurs est vide si le T saisi
+# est recevable, porte le motif sinon ; plafonnement est vide sauf si T a
+# ete plafonne, et porte alors le message qui nomme T saisi et T retenu.
+profondeur_reinitialisation <- function(T, T_defaut = nrow(DONNEES_DEFAUT),
+                                        T_max = PROFONDEUR_MAX) {
   err <- if (is.null(T) || (length(T) == 1L && is.na(T))) "Profondeur T : champ vide."
          else engine_valider_profondeur(T, n = Inf, T_min = 1)
-  list(T = if (length(err)) T_defaut else T, erreurs = err)
+  if (length(err)) return(list(T = T_defaut, erreurs = err, plafonnement = character(0)))
+  if (T <= T_max) return(list(T = T, erreurs = err, plafonnement = character(0)))
+  list(T = as.integer(T_max), erreurs = err,
+       plafonnement = sprintf("Profondeur T = %s au-dela du maximum de %d : T = %d retenu.",
+                              format(T, scientific = FALSE), as.integer(T_max), as.integer(T_max)))
 }
 
 # Jeu charge par "Reinitialiser les donnees" : triangle par defaut de T
@@ -886,8 +897,11 @@ server <- function(input, output, session) {
   # (A)) ; le message nomme la dimension chargee. Champ T vide ou non
   # recevable (issue #100) : profondeur_reinitialisation() retient la
   # profondeur du jeu par defaut, reportee dans le champ T, et le motif du
-  # moteur est affiche. Le compteur version_grille force le redessin de la
-  # grille, meme si les donnees valent deja le jeu par defaut (issue #155).
+  # moteur est affiche. T saisi au-dela de PROFONDEUR_MAX (issue #194,
+  # Q-R10-1 (A)) : profondeur_reinitialisation() le plafonne a 40, reporte
+  # dans le champ T, et le message nomme T saisi et T retenu. Le compteur
+  # version_grille force le redessin de la grille, meme si les donnees
+  # valent deja le jeu par defaut (issue #155).
   observeEvent(input$reinit, {
     pr <- profondeur_reinitialisation(input$profondeur)
     T <- pr$T
@@ -895,6 +909,10 @@ server <- function(input, output, session) {
       updateNumericInput(session, "profondeur", value = T)
       showNotification(paste(c(pr$erreurs, sprintf("Profondeur par defaut retablie : T = %d.", T)),
                              collapse = " "), type = "warning", duration = 10)
+    }
+    if (length(pr$plafonnement)) {
+      updateNumericInput(session, "profondeur", value = T)
+      showNotification(pr$plafonnement, type = "warning", duration = 10)
     }
     if (est_mw()) triangle(jeu_reinitialise(TRUE, T)) else donnees(jeu_reinitialise(FALSE, T))
     version_grille(version_grille() + 1L)
@@ -1089,7 +1107,7 @@ server <- function(input, output, session) {
 
   # --- Donnees --------------------------------------------------------------
   output$tab_controles <- renderTable({
-    do.call(rbind, lapply(R()$controles, function(t)
+    do.call(base::rbind, lapply(R()$controles, function(t)
       data.frame(Controle = t$test, Verdict = t$verdict, Detail = t$detail,
                  stringsAsFactors = FALSE)))
   }, striped = TRUE, width = "100%")
