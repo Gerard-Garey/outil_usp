@@ -197,10 +197,33 @@ for (.x in parse(.app, keep.source = FALSE))
 verifier("app.R definit profondeur_reinitialisation(), jeu_reinitialise(), message_reinitialisation() (#155)",
          is.function(.env$profondeur_reinitialisation) && is.function(.env$jeu_reinitialise) &&
            is.function(.env$message_reinitialisation) && is.data.frame(.env$DONNEES_DEFAUT))
-.pr <- lapply(list(5, 10, 12, 41), .env$profondeur_reinitialisation)
-verifier("profondeur_reinitialisation() : T = 5, 10, 12, 41 retenus tels quels, sans motif (aucune borne superieure, #108)",
-         identical(vapply(.pr, function(r) as.numeric(r$T), numeric(1)), c(5, 10, 12, 41)) &&
-           all(lengths(lapply(.pr, `[[`, "erreurs")) == 0L))
+# Assertion modifiee par #194, qui revient sur #108 (decision du mainteneur
+# Q-R10-1 (A), 06/10/2026) : #108 ne posait aucune borne superieure et
+# retenait T = 41 tel quel ; la reinitialisation plafonne desormais T a
+# PROFONDEUR_MAX (40), borne du champ T, pour ne pas figer l'application
+# sur le rendu d'une grille de 100 x 100 ou plus (12,6 s a T = 100, 91,5 s
+# a T = 200, mesures de l'issue). T = 41 sort donc de cette assertion et
+# passe dans celle du plafonnement, juste apres.
+.pr <- lapply(list(5, 10, 12, 40), .env$profondeur_reinitialisation)
+verifier("profondeur_reinitialisation() : T = 5, 10, 12, 40 retenus tels quels, sans motif ni plafonnement (#108, #194)",
+         identical(vapply(.pr, function(r) as.numeric(r$T), numeric(1)), c(5, 10, 12, 40)) &&
+           all(lengths(lapply(.pr, `[[`, "erreurs")) == 0L) &&
+           all(lengths(lapply(.pr, `[[`, "plafonnement")) == 0L))
+.pr <- lapply(list(41, 200, 1e6), .env$profondeur_reinitialisation)
+verifier("profondeur_reinitialisation() : T = 41, 200, 1e6 plafonnes a PROFONDEUR_MAX = 40, sans motif d'erreur (#194, Q-R10-1 (A))",
+         all(vapply(.pr, function(r) identical(r$T, 40L) && length(r$erreurs) == 0L &&
+                      length(r$plafonnement) == 1L, logical(1))))
+verifier("profondeur_reinitialisation() : le message de plafonnement nomme la valeur saisie et la valeur retenue (#194)",
+         identical(.env$profondeur_reinitialisation(200)$plafonnement,
+                   "Profondeur T = 200 au-dela du maximum de 40 : T = 40 retenu.") &&
+           identical(.env$profondeur_reinitialisation(41)$plafonnement,
+                     "Profondeur T = 41 au-dela du maximum de 40 : T = 40 retenu."))
+verifier("profondeur_reinitialisation() : saisies irrecevables (#100) sans plafonnement",
+         all(vapply(list(NULL, NA_real_, 12.5, 0, -3, Inf), function(t)
+           length(.env$profondeur_reinitialisation(t)$plafonnement) == 0L, logical(1))))
+verifier("message_reinitialisation() : triangle plafonne nomme 40 x 40 (#194)",
+         identical(.env$message_reinitialisation(TRUE, .env$profondeur_reinitialisation(200)$T),
+                   "Donnees reinitialisees : triangle par defaut 40 x 40."))
 .pr <- lapply(list(NULL, NA_real_, 12.5, 0, -3, Inf), .env$profondeur_reinitialisation)
 verifier("profondeur_reinitialisation() : champ vide, NA, 12.5, 0, -3, Inf -> T = 8 du jeu par defaut, avec motif (#100)",
          all(vapply(.pr, function(r) identical(r$T, 8L) && length(r$erreurs) == 1L &&
