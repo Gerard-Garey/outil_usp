@@ -935,7 +935,7 @@ Question au mainteneur : **Q-R8-6** (§ 5), report de cette consigne dans `docs/
 
 Hors périmètre : #190 (F ; même tracé que #195, après la fusion de R10), #200 (F, `needs-info`), #205 (F), #203, #204, #206, #207 (§ 5) ; toute modification de `R/engine.R`, dont `engine_valider_profondeur()` ; toute régénération ou patch des références ; le `.tex`.
 
-- [x] branche créée (`claude/r10-application` depuis `23fa979`) — [x] ce point en premier commit `docs:` (`9a6fdbf`) — [x] PR brouillon #208 (trois `Closes`, un par ligne : #199, #194, #195) — [x] Q-R10-1 tranchée ((A), 06/10) — [ ] étape 1 (#199) — [ ] étape 2 (#194) — [ ] étape 3 (#195) — [ ] revue finale — [ ] vérification sur le poste local (#195, #194) — [ ] sortie du brouillon, fusion, fermetures des trois issues vérifiées cinq minutes après — *(rédigée le 06/10/2026, vingt-troisième point)*
+- [x] branche créée (`claude/r10-application` depuis `23fa979`) — [x] ce point en premier commit `docs:` (`9a6fdbf`) — [x] PR brouillon #208 (trois `Closes`, un par ligne : #199, #194, #195) — [x] Q-R10-1 tranchée ((A), 06/10) — [x] étape 1 (#199, `a37b12f` ; `app-review` conforme avec réserves non bloquantes ; les trois `do.call(tagList, …)` d'`app.R` restent non qualifiés, risque non matériel, pas d'issue, décision du mainteneur du 06/10) — [x] étape 2 (#194, `cfae062` ; `app-review` conforme avec réserves non bloquantes ; README.md:68 précisé) — [ ] étape 3 (#195) — [ ] revue finale — [ ] vérification sur le poste local (#195, #194) — [ ] sortie du brouillon, fusion, fermetures des trois issues vérifiées cinq minutes après — *(rédigée le 06/10/2026, vingt-troisième point)*
 
 
 ---
