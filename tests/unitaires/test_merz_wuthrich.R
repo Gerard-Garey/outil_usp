@@ -925,7 +925,9 @@ verifier("ta_deg : colonne j = 4 exclue des trois verifications de M1, K = 6 / 5
            a <- mw_ajuster(ta_deg)
            oo <- mw_test_ordonnee_origine(a); cb <- mw_test_courbure(a)
            hf <- mw_test_homogeneite_f(a)
-           oo$K == 6 && cb$K == 5 && hf$K == 4 &&
+           # HomogF : K = 5 depuis #90 (la colonne j = 5, n = 4, rho = -1, p = 0
+           # en Student, etait ecartee par .fisher_combine() : K = 4 avant)
+           oo$K == 6 && cb$K == 5 && hf$K == 5 &&
              identical(oo$exclues$j, 4L) && identical(cb$exclues$j, 4L) &&
              identical(hf$exclues$j, 4L) &&
              !(4 %in% oo$detail$j) && !(4 %in% cb$detail$j) && !(4 %in% hf$detail$j)
@@ -1339,18 +1341,24 @@ recalc152 <- function(t) {
     c(cor(rank(a), rank(b)), length(i) - 1)
   }))
   corr <- sum(cd[, 1] * cd[, 2]) / sum(cd[, 2])
+  # p de Spearman par colonne (#90) : loi de permutation a n <= 9 sans ex
+  # aequo (au bit pres apres signif()), sinon Student relevee a 2/n!
+  p_sp <- function(a, b) {
+    n <- length(a); ex <- n <= 9 && !anyDuplicated(a) && !anyDuplicated(b)
+    min(1, max(2 / factorial(n),
+               suppressWarnings(cor.test(a, b, method = "spearman", exact = ex)$p.value)))
+  }
   # HomogF : Fisher sur les p-values de Spearman F ~ i
   ph <- unlist(lapply(0:(J - 1), function(j) {
     i <- 0:(I - j - 1); if (length(i) < 4) return(NULL)
-    suppressWarnings(cor.test(Fcol(j), i, method = "spearman", exact = FALSE)$p.value)
+    p_sp(Fcol(j), i)
   }))
   # ExpVar et KruskalAcc : sur les residus de Mack (r et C arrondis)
   res <- mw_residus(mw_ajuster(t))
   pe <- unlist(lapply(unique(res$j), function(j) {
     d <- res[res$j == j, ]; Cs <- signif(d$C, 12)
     if (nrow(d) < 4 || sd(Cs) == 0) return(NULL)
-    suppressWarnings(cor.test(signif(abs(d$residu), 12), Cs,
-                              method = "spearman", exact = FALSE)$p.value)
+    p_sp(signif(abs(d$residu), 12), Cs)
   }))
   kw <- kruskal.test(signif(res$residu, 12), factor(res$i))$statistic
   c(Calendrier = cal, CorrDev = corr, HomogF = -2 * sum(log(ph)),
@@ -1537,10 +1545,11 @@ verifier("Colonne aplatie constante (C1) : degeneree, exclue de HomogF et des re
          {
            a <- mw_ajuster(tri_c1); jd <- .mw_colonnes_degenerees(a)
            h <- mw_test_homogeneite_f(a); rs <- mw_residus(a)
-           # replications : K + nombre de p nulles ecartees par .fisher_combine()
-           # (Spearman asymptotique a rho = +-1 pour n = 4, issue #90) = 3,
+           # replications : K = 3 dans chacune, aucune p nulle (avant #90 :
+           # Spearman asymptotique a rho = +-1 pour n = 4 rendait p = 0, ecartee
+           # par .fisher_combine(), d'ou K = 2 dans 5 replications sur 99),
            # aucun rho = NA
-           kk <- integer(0); nna <- 0L
+           kk <- integer(0); nna <- 0L; np0 <- 0L
            engine_sous_graine(20260831, {
              pool <- rs$residu - mean(rs$residu)
              for (b in 1:99) {
@@ -1550,13 +1559,14 @@ verifier("Colonne aplatie constante (C1) : degeneree, exclue de HomogF et des re
                if (inherits(ab, "try-error")) next
                hb <- mw_test_homogeneite_f(ab, jd)
                if (is.null(hb$K)) next
-               kk <- c(kk, hb$K + sum(hb$detail$p == 0)); nna <- nna + sum(is.na(hb$detail$rho))
+               kk <- c(kk, hb$K); nna <- nna + sum(is.na(hb$detail$rho))
+               np0 <- np0 + sum(hb$detail$p == 0)
              }
            })
            .mw_ecart_facteurs(a, 0L)$ecart > 1e-12 && .mw_colonne_degeneree(a, 0L) &&
              identical(jd, c(0L, a$J - 1L)) &&
              identical(h$exclues$j, 0L) && h$K == 3 && !anyNA(h$detail$rho) &&
-             !any(rs$j == 0) && length(kk) > 0 && all(kk == 3L) && nna == 0L
+             !any(rs$j == 0) && length(kk) > 0 && all(kk == 3L) && nna == 0L && np0 == 0L
          })
 verifier("Exposant de variance : colonne a |r| constants ecartee (aucun rho = NA) (#60)",
          {
@@ -1693,6 +1703,61 @@ verifier("Messages M6 en fenetre C1 : predicat enonce une fois, plus de 'tous eg
              grepl("Colonnes J-3 et J-2 a facteurs individuels egaux a f_j a la tolerance relative 1e-12 de l'outil",
                    l, fixed = TRUE) &&
              !any(grepl("tous egaux", hors(c(r$validation$avertissements, l)), fixed = TRUE))
+         })
+
+## --- p-values de Spearman de HomogF et d'ExpVar, combinaison de Fisher (#90) ---
+# Avant #90 : cor.test(exact = FALSE) rendait p = 0 a |rho| = 1 (n = 4) et
+# .fisher_combine() ecartait la colonne sans le dire ; K variait entre
+# l'observe et les replications. Decisions du mainteneur du 06/10/2026 :
+# HomogF et ExpVar, .fisher_combine() compris.
+verifier(".mw_spearman_p : 1/12 a n = 4, 2/10! a n = 10, |rho| = 1 (#90)",
+         {
+           identical(.mw_spearman_p(1:4, 4:1), 1 / 12) &&
+             identical(.mw_spearman_p(1:10, 10:1), 2 / factorial(10)) &&
+             identical(.mw_spearman_p(1:10, 1:10), 2 / factorial(10))
+         })
+verifier(".mw_spearman_p = cor.test(exact = TRUE) a n <= 9 sans ex aequo (#90)",
+         {
+           ok <- engine_sous_graine(20261006, vapply(1:500, function(k) {
+             n <- sample(4:9, 1); a <- stats::rnorm(n); b <- sample(n)
+             identical(.mw_spearman_p(a, b),
+                       stats::cor.test(a, b, method = "spearman", exact = TRUE)$p.value)
+           }, logical(1)))
+           all(ok)
+         })
+verifier(".mw_spearman_p jamais nulle, dans [2/n!, 1], avec ex aequo ou n > 9 (#90)",
+         {
+           ok <- engine_sous_graine(20261006, vapply(1:500, function(k) {
+             n <- sample(4:30, 1); a <- round(stats::rnorm(n), 1); b <- sample(n)
+             a[1:2] <- a[1]                       # au moins un ex aequo dans a
+             p <- .mw_spearman_p(a, b); p >= 2 / factorial(n) && p <= 1
+           }, logical(1)))
+           # ex aequo a la tolerance dans b (plancher 0) : b aplati, pas de loi
+           # exacte (cor.test() sur b brut, sans ex aequo au bit pres, l'enumere)
+           b <- c(1, 1 * (1 + 1e-14), 2, 3, 4, 5); a <- c(2, 1, 4, 3, 5, 6)
+           p <- .mw_spearman_p(a, b, plancher_b = 0)
+           all(ok) && identical(p, min(1, max(2 / factorial(6), suppressWarnings(stats::cor.test(
+             a, c(1, 1, 2, 3, 4, 5), method = "spearman", exact = FALSE))$p.value))) &&
+             !identical(p, stats::cor.test(a, b, method = "spearman", exact = TRUE)$p.value)
+         })
+verifier(".fisher_combine : aucune exclusion, p = 0 au plancher, p non finie -> NA, K constant (#90)",
+         {
+           f0 <- .fisher_combine(c(0, 0.5)); fn <- .fisher_combine(c(0.2, NA, 0.5))
+           f1 <- .fisher_combine(c(0.2, 0.5))
+           f0$K == 2L && proche(f0$stat, -2 * (log(.Machine$double.xmin) + log(0.5)), 1e-12) &&
+             fn$K == 3L && is.na(fn$stat) && is.na(fn$p) &&
+             f1$K == 2L && proche(f1$stat, -2 * log(0.1), 1e-12)
+         })
+verifier("ta_deg : HomogF a K = 5, p de la colonne j = 5 (n = 4, rho = -1) = 1/12 (#90)",
+         {
+           h <- mw_test_homogeneite_f(mw_ajuster(ta_deg)); d5 <- h$detail[h$detail$j == 5, ]
+           h$K == 5L && nrow(d5) == 1L && d5$n == 4L && d5$rho == -1 && identical(d5$p, 1 / 12)
+         })
+verifier("tri_deg : B_effectif = 99 pour HomogF et ExpVar, B = 99 (#90)",
+         {
+           b <- run_engine(methode = "reserve2", triangle = tri_deg, segment = 1, annexe = "II",
+                           B = 99)$bootstrap
+           b$B_effectif[["HomogF"]] == 99 && b$B_effectif[["ExpVar"]] == 99
          })
 
 fin_fichier()

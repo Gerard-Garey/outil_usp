@@ -6784,11 +6784,45 @@ mw_stat_correlation_dev <- function(aj) {
 # que l'independance n'est qu'approchee. La p-value combinee est donc rapportee
 # comme NON simulee et indicative ; la p-value de reference reste celle du
 # bootstrap de residus.
+# Aucune exclusion silencieuse (issue #90) : K est le nombre de p-values
+# recues ; il ne varie plus que si l'appelant ecarte une colonne (lm() en
+# echec, garde sd() == 0, colonne trop courte). Une p-value nulle
+# (debordement de la loi de reference) est relevee au plancher
+# .Machine$double.xmin (terme -2 ln p fini, environ 1416), au lieu d'ecarter
+# la colonne qui porte la preuve la plus forte contre H0 ; une p-value non
+# finie ou hors de [0, 1] rend la statistique NA (K inchange), que le
+# bootstrap ecarte de B_effectif.
 .fisher_combine <- function(p) {
-  p <- p[is.finite(p) & p > 0 & p <= 1]
-  if (length(p) < 2) return(list(stat = NA_real_, p = NA_real_, K = length(p)))
-  X <- -2 * sum(log(p))
-  list(stat = X, p = .p_borne(1 - stats::pchisq(X, 2 * length(p))), K = length(p))
+  K <- length(p)
+  if (K < 2 || any(!is.finite(p) | p < 0 | p > 1))
+    return(list(stat = NA_real_, p = NA_real_, K = K))
+  X <- -2 * sum(log(pmax(p, .Machine$double.xmin)))
+  list(stat = X, p = .p_borne(1 - stats::pchisq(X, 2 * K)), K = K)
+}
+
+# P-value bilaterale de Spearman d'une colonne, pour les combinaisons de Fisher
+# de HomogF (mw_test_homogeneite_f()) et d'ExpVar (mw_test_exposant_variance())
+# (issue #90, decisions du mainteneur du 06/10/2026). a : deja aplati par
+# l'appelant a TOL_EX_AEQUO, avec le plancher de sa grandeur (#152) ; b :
+# aplati ici, plancher plancher_b (sans effet sur des entiers distincts).
+# Apres aplatissement, un ex aequo est une egalite au bit pres (en-tete de
+# TOL_EX_AEQUO), comme dans les statistiques de rang de #152.
+#   - n <= 9 sans ex aequo : cor.test(exact = TRUE), loi de permutation
+#     enumeree (prho.c, n_small = 9) ;
+#   - sinon (n > 9, ou ex aequo) : cor.test(exact = FALSE), approximation de
+#     Student, relevee au plancher 2/n!, valeur exacte de P(|rho| = 1) sans
+#     ex aequo et simple plancher numerique avec ex aequo ; a |rho| = 1,
+#     l'approximation rend p = 0 (n = 4) ou 1,7e-61 (n = 10), sous 2/n!.
+# Resultat dans [2/n!, 1] (NA si cor.test() ne rend pas de p-value finie).
+# Ces p_j ne sont PAS des p exactes au sens de l'ADR 0002 : elles n'entrent
+# que dans la statistique X de Fisher, dont la p retenue reste Monte-Carlo.
+.mw_spearman_p <- function(a, b, plancher_b = 1) {
+  b <- engine_aplatir_ex_aequo(b, plancher = plancher_b)
+  n <- length(a)
+  exact <- n <= 9 && !anyDuplicated(a) && !anyDuplicated(b)
+  p <- suppressWarnings(stats::cor.test(a, b, method = "spearman", exact = exact))$p.value
+  if (!is.finite(p)) return(NA_real_)
+  min(1, max(2 / factorial(n), p))
 }
 
 # Colonnes degenerees des verifications colonne par colonne de M1 (issue #56,
@@ -6802,9 +6836,9 @@ mw_stat_correlation_dev <- function(aj) {
 #      le contexte de .mw_contexte_mc()) ; chaque replication exclut
 #      exactement ces colonnes, degenerees ou non dans le triangle simule :
 #      au regard des colonnes degenerees, K est identique entre statistique
-#      observee et simulee (K peut encore varier pour une autre cause :
-#      .fisher_combine() ecarte les p-values nulles, par exemple Spearman
-#      asymptotique a rho = +-1 pour n = 4 ; defaut anterieur, issue #90) ;
+#      observee et simulee ; .fisher_combine() n'ecarte plus aucune p-value
+#      (issue #90) : K ne varie plus que si l'appelant ecarte une colonne
+#      (lm() en echec, garde sd() == 0) ;
 #   2. une colonne retenue a l'observe mais degeneree dans la replication
 #      n'est ni exclue (K changerait) ni soumise a lm() / cor.test() : la
 #      statistique de la replication vaut NA et sort de B_effectif.
@@ -6926,9 +6960,11 @@ mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
     if (.mw_colonne_degeneree(aj, j)) return(.mw_stat_non_definie(ex))
     # F aplati a TOL_EX_AEQUO avant cor.test() (#152), plancher 0.
     F <- engine_aplatir_ex_aequo(tri[idx + 1, j + 2] / tri[idx + 1, j + 1], plancher = 0)
+    # p de la colonne par .mw_spearman_p() (issue #90) : loi de permutation a n <= 9 sans
+    # ex aequo, jamais nulle ; rho reste celui de cor.test().
     ct <- suppressWarnings(stats::cor.test(F, idx, method = "spearman", exact = FALSE))
     det <- rbind(det, data.frame(j = j, n = length(idx),
-      rho = unname(ct$estimate), p = ct$p.value, stringsAsFactors = FALSE))
+      rho = unname(ct$estimate), p = .mw_spearman_p(F, idx), stringsAsFactors = FALSE))
   }
   if (!nrow(det)) return(list(stat = NA_real_, p = NA_real_, detail = det,
                               exclues = ex$colonnes, eligibles = ex$eligibles))
@@ -7014,10 +7050,13 @@ mw_test_exposant_variance <- function(aj, j_degeneres = NULL) {
     Ca <- engine_aplatir_ex_aequo(d$C, plancher = 0)
     ra <- engine_aplatir_ex_aequo(abs(d$residu))
     if (nrow(d) < 4 || stats::sd(Ca) == 0 || stats::sd(ra) == 0) next
+    # p de la colonne par .mw_spearman_p() (issue #90), comme HomogF ; Ca y
+    # est aplati une seconde fois (plancher_b = 0), sans effet.
     ct <- suppressWarnings(stats::cor.test(ra, Ca,
                                            method = "spearman", exact = FALSE))
     det <- rbind(det, data.frame(j = j, n = nrow(d),
-      rho = unname(ct$estimate), p = ct$p.value, stringsAsFactors = FALSE))
+      rho = unname(ct$estimate), p = .mw_spearman_p(ra, Ca, plancher_b = 0),
+      stringsAsFactors = FALSE))
   }
   if (!nrow(det)) return(list(stat = NA_real_, p = NA_real_, detail = det))
   fc <- .fisher_combine(det$p)
