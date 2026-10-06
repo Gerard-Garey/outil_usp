@@ -6716,7 +6716,7 @@ mw_test_annees_calendaires <- function(aj) {
 # est obtenue par permutation (voir mw_bootstrap).
 mw_stat_correlation_dev <- function(aj) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
-  Ts <- w <- numeric(0)
+  Ts <- w <- numeric(0); ea <- FALSE
   for (k in 1:(J - 1)) {
     idx <- 0:(I - k - 1)
     if (length(idx) < 3) next
@@ -6730,9 +6730,12 @@ mw_stat_correlation_dev <- function(aj) {
     rho <- suppressWarnings(stats::cor(rank(Fk), rank(Fk1)))
     if (!is.finite(rho)) next
     Ts <- c(Ts, rho); w <- c(w, length(idx) - 1)
+    # Ex aequo apres aplatissement dans une paire retenue (#115) : rangs
+    # moyens, loi de permutation conditionnelle non tabulee (p_min NA).
+    ea <- ea || anyDuplicated(Fk) > 0 || anyDuplicated(Fk1) > 0
   }
   if (!length(Ts)) return(list(stat = NA_real_, T = NA_real_))
-  list(stat = sum(w * Ts) / sum(w), T = Ts, poids = w)
+  list(stat = sum(w * Ts) / sum(w), T = Ts, poids = w, ex_aequo = ea)
 }
 
 
@@ -6963,8 +6966,11 @@ mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
     # p de la colonne par .mw_spearman_p() (issue #90) : loi de permutation a n <= 9 sans
     # ex aequo, jamais nulle ; rho reste celui de cor.test().
     ct <- suppressWarnings(stats::cor.test(F, idx, method = "spearman", exact = FALSE))
+    # ex_aequo (#115) : ex aequo de F apres aplatissement (idx est sans ex
+    # aequo), p_j hors loi de permutation, p_min NA (.mw_fisher_rangs_p_min()).
     det <- rbind(det, data.frame(j = j, n = length(idx),
-      rho = unname(ct$estimate), p = .mw_spearman_p(F, idx), stringsAsFactors = FALSE))
+      rho = unname(ct$estimate), p = .mw_spearman_p(F, idx),
+      ex_aequo = anyDuplicated(F) > 0, stringsAsFactors = FALSE))
   }
   if (!nrow(det)) return(list(stat = NA_real_, p = NA_real_, detail = det,
                               exclues = ex$colonnes, eligibles = ex$eligibles))
@@ -7054,8 +7060,10 @@ mw_test_exposant_variance <- function(aj, j_degeneres = NULL) {
     # est aplati une seconde fois (plancher_b = 0), sans effet.
     ct <- suppressWarnings(stats::cor.test(ra, Ca,
                                            method = "spearman", exact = FALSE))
+    # ex_aequo (#115) : comme dans mw_test_homogeneite_f().
     det <- rbind(det, data.frame(j = j, n = nrow(d),
       rho = unname(ct$estimate), p = .mw_spearman_p(ra, Ca, plancher_b = 0),
+      ex_aequo = anyDuplicated(ra) > 0 || anyDuplicated(Ca) > 0,
       stringsAsFactors = FALSE))
   }
   if (!nrow(det)) return(list(stat = NA_real_, p = NA_real_, detail = det))
@@ -7079,12 +7087,151 @@ mw_test_homogeneite_accident <- function(aj, j_degeneres = NULL) {
   if (nlevels(g) < 3 || nrow(res) < 6)
     return(list(stat = NA_real_, p = NA_real_, ddl = NA_integer_, un_par_annee = FALSE))
   # Residus aplatis a TOL_EX_AEQUO avant kruskal.test() (#152), plancher 1.
-  k <- try(stats::kruskal.test(engine_aplatir_ex_aequo(res$residu), g), silent = TRUE)
+  ra <- engine_aplatir_ex_aequo(res$residu)
+  k <- try(stats::kruskal.test(ra, g), silent = TRUE)
   if (inherits(k, "try-error"))
     return(list(stat = NA_real_, p = NA_real_, ddl = NA_integer_, un_par_annee = FALSE))
   un <- nlevels(g) == nrow(res)
   p <- if (un) NA_real_ else .p_borne(k$p.value)
-  list(stat = unname(k$statistic), p = p, ddl = unname(k$parameter), un_par_annee = un)
+  # tailles des groupes et ex aequo des residus aplatis : p_min de la ligne
+  # (#115, .mw_kruskal_p_min()), lues par mw_tests() seulement.
+  list(stat = unname(k$statistic), p = p, ddl = unname(k$parameter), un_par_annee = un,
+       tailles = as.vector(table(g)), ex_aequo = anyDuplicated(ra) > 0)
+}
+
+# --- p_min des lignes Merz-Wuthrich a loi de reference discrete (#115) --------
+# Specification d'actuary (docs/specifications/e2-reduite.md, #115 (b)) ;
+# decisions du mainteneur du 06/10/2026 (Q-E2r-115-2 a 4). Meme definition
+# que pour la methode lognormale (CONTEXT.md, "Test inoperant") : plus petite
+# p-value atteignable sous la loi de reference discrete (loi echangeable),
+# aux effectifs observes, dans le sens du catalogue MW_CATALOGUE_MC, avec le
+# doublement des lignes bilaterales (M8). AUCUNE de ces lois n'est exacte
+# pour le modele de Mack (residus non echangeables, variances inegales,
+# colonnes adjacentes dependantes) : p_min ne borne pas la p Monte-Carlo
+# retenue, et add() le dit ("sous la loi de reference echangeable"). La
+# regle R1 reste celle d'add(), sans regle propre a Merz-Wuthrich.
+# Cles du catalogue a statistique discrete, seules a recevoir une p_min :
+# Runs, Calendrier, CorrDev, HomogF, ExpVar, KruskalAcc (liste a reprendre
+# si R1 change pour les lignes a p Monte-Carlo, #125).
+
+# Effet calendaire (bilateral) : sur chaque diagonale retenue (n_k >= 2),
+# L_k ~ Binomiale(n_k, 1/2), diagonales independantes, Z = somme min(L_k,
+# n_k - L_k). C'est la loi binomiale independante de Mack (1994), celle des
+# moments de .mack_moments_Z(), et NON la loi de permutation intra-colonne
+# (dans une colonne, le nombre de L est fixe par la mediane, ce qui lie les
+# diagonales) : choix de la specification (#115 (b)2), question Q1 de
+# l'audit renvoyee a #125. Loi de Z par convolution exacte ; p_min = min sur
+# le support de 2 min(P(Z <= z), P(Z >= z)), bornee a 1. NA si aucune
+# diagonale.
+.mw_calendrier_p_min <- function(n_k) {
+  n_k <- n_k[is.finite(n_k) & n_k >= 2]
+  if (!length(n_k)) return(NA_real_)
+  d <- 1
+  for (n in n_k) {
+    z <- 0:floor(n / 2)
+    pz <- ifelse(2 * z == n, choose(n, z), 2 * choose(n, z)) / 2^n
+    # Convolution directe (sans FFT : aucune masse parasite hors du support).
+    e <- numeric(length(d) + length(pz) - 1L)
+    for (a in seq_along(pz)) {
+      ix <- seq_along(d) + a - 1L
+      e[ix] <- e[ix] + d * pz[a]
+    }
+    d <- e
+  }
+  sup <- which(d > 0)
+  p <- vapply(sup, function(i) 2 * min(sum(d[seq_len(i)]), sum(d[i:length(d)])), numeric(1))
+  .p_borne(min(p))
+}
+
+# Correlation entre colonnes adjacentes (bilateral) : statistique moyenne
+# ponderee des rho_k de Spearman ; |T| maximal si et seulement si chaque
+# rho_k vaut +1 (ou chacun -1). Loi de reference : permutations
+# independantes des facteurs de chaque colonne. Les paires partagent une
+# colonne et ne sont PAS independantes : la formule tient par
+# conditionnement le long de la chaine. La paire k compare la colonne k
+# restreinte a ses n_k premieres lignes a la colonne k+1, qui a exactement
+# n_k facteurs ; quel que soit l'ordre des colonnes precedentes, rho_k = +1
+# (resp. -1) exige que la colonne k+1 reproduise (resp. renverse) cet ordre
+# restreint, avec probabilite 1/n_k!. D'ou p_min = min(1, 2 prod 1/n_k!),
+# n_k = poids + 1 facteurs par paire (mw_stat_correlation_dev()). Sans ex
+# aequo seulement.
+.mw_corr_p_min <- function(n_k) {
+  if (!length(n_k) || any(!is.finite(n_k) | n_k < 1)) return(NA_real_)
+  .p_borne(2 * exp(-sum(lfactorial(n_k))))
+}
+
+# HomogF et ExpVar (queue haute) : X = -2 somme ln p_j, p_j de Spearman par
+# .mw_spearman_p(), loi de permutation enumeree (n_j <= 9 sans ex aequo) :
+# p_j = 2/n_j! a |rho_j| = 1 exactement et p_j > 2/n_j! sinon (strictement
+# decroissante en |rho_j|, issue #90), colonnes permutees independamment.
+# X maximal si et seulement si toutes les colonnes ont |rho_j| = 1, de
+# probabilite 2/n_j! chacune : p_min = prod 2/n_j!. Au-dela de n_j = 9,
+# p_j est l'approximation de Student relevee au plancher 2/n_j!, atteint par
+# d'autres permutations que les deux extremes : p_min n'est pas attribuee.
+.mw_fisher_rangs_p_min <- function(n_j) {
+  if (length(n_j) < 2 || any(!is.finite(n_j) | n_j < 2 | n_j > 9)) return(NA_real_)
+  .p_borne(exp(sum(log(2) - lfactorial(n_j))))
+}
+
+# Kruskal-Wallis entre annees de survenance (queue haute), sans ex aequo :
+# forme close p_min = k! prod n_i! / N!, k groupes de tailles n_i, N = somme
+# n_i. Demonstration. H est une fonction croissante de somme R_i^2 / n_i (R_i
+# somme des rangs du groupe i). Avec r les rangs 1..N et W_i la somme des
+# carres intra-groupe des rangs du groupe i (ecarts a leur moyenne),
+# somme R_i^2 / n_i = somme r^2 - somme W_i, ou somme r^2 ne depend pas de
+# l'affectation. Or W_i >= n_i (n_i^2 - 1) / 12 (variance minimale de n_i
+# entiers distincts), avec egalite si et seulement si les rangs du groupe
+# sont des entiers consecutifs. H est donc maximal exactement sur les
+# affectations en blocs de rangs contigus, et les k! ordres des blocs le
+# realisent tous (les bornes sont atteintes simultanement). Sur les
+# N! / prod n_i! affectations equiprobables : p_min = k! prod n_i! / N!.
+# Verifiee par enumeration exhaustive dans les tests unitaires
+# (test_merz_wuthrich.R, issue #115). Calcul
+# en logarithmes ; sous-depassement (N de l'ordre de 200) : NA, motif dans
+# l'attribut "motif", repris par .mw_p_min_ligne().
+.mw_kruskal_p_min <- function(tailles) {
+  if (length(tailles) < 2 || any(!is.finite(tailles) | tailles < 1)) return(NA_real_)
+  N <- sum(tailles)
+  p <- exp(lfactorial(length(tailles)) + sum(lfactorial(tailles)) - lfactorial(N))
+  if (!is.finite(p) || p <= 0)
+    return(structure(NA_real_, motif = sprintf(paste(
+      "p_min = k! prod n_i! / N! hors de la precision de la machine (N = %d) :",
+      "p_min non calculable"), as.integer(N))))
+  .p_borne(p)
+}
+
+# Arguments p_min et effectifs d'une ligne de mw_tests() (#115). defini :
+# statistique observee finie (sinon p_min et effectifs NA : aucune p_min a
+# motiver, detail inchange). n : effectifs de la loi de reference, passes a
+# f_p_min ; libelle : leur nom dans effectifs (NULL : n nomme, "n1 = 13, n2 = 13",
+# format des suites de usp_tests()). ex_aequo (lignes de rangs) :
+# loi de permutation conditionnelle non tabulee, p_min NA ; n_max : au-dela,
+# loi de reference non tabulee (p_j de Spearman a n_j > 9), p_min NA. Le
+# motif est porte par effectifs, qu'add() ajoute au detail d'un test sans
+# p_min (#70, 5a), comme eff_rangs dans usp_tests().
+.mw_p_min_ligne <- function(defini, n, libelle, f_p_min, ex_aequo = FALSE, n_max = Inf) {
+  if (!isTRUE(defini) || !length(n)) return(list(p_min = NA_real_, effectifs = NA_character_))
+  eff <- if (is.null(libelle)) paste(sprintf("%s = %d", names(n), as.integer(n)), collapse = ", ")
+         else sprintf("%s = %s", libelle, paste(n, collapse = ", "))
+  if (isTRUE(ex_aequo))
+    return(list(p_min = NA_real_, effectifs = paste(eff, "; ex aequo : loi de permutation",
+                                                    "conditionnelle non tabulee, p_min non attribuee")))
+  if (any(n > n_max))
+    return(list(p_min = NA_real_, effectifs = sprintf(paste(
+      "%s ; colonne de plus de %d facteurs : p_j de Spearman par approximation de",
+      "Student relevee au plancher 2/n!, loi de reference non tabulee, p_min non attribuee"),
+      eff, n_max)))
+  # Valeur non finie rendue par f_p_min hors des cas motives ci-dessus
+  # (constat C2 de l'audit) : motif explicite, celui de f_p_min s'il en
+  # porte un (attribut "motif"), sinon motif generique.
+  p <- f_p_min(n)
+  if (!is.finite(p)) {
+    mot <- attr(p, "motif")
+    return(list(p_min = NA_real_, effectifs = paste(eff, " ; ",
+      if (is.character(mot) && length(mot) == 1L) mot else
+        "p_min non calculable sur ces effectifs, p_min non attribuee", sep = "")))
+  }
+  list(p_min = p, effectifs = eff)
 }
 
 # --- Bootstrap de Mack par reechantillonnage des residus ---------------------
@@ -7272,6 +7419,9 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                      "tolerance de l'outil"),
                      "de proportionnalite")))
   hf <- mw_test_homogeneite_f(aj)
+  # p_min (#115) : .mw_fisher_rangs_p_min() sur les n_j des K colonnes combinees.
+  pm_hf <- .mw_p_min_ligne(is.finite(hf$stat), hf$detail$n, "colonnes n_j",
+                           .mw_fisher_rangs_p_min, any(hf$detail$ex_aequo), n_max = 9)
   add(fam, "Homogeneite de f_j entre annees de survenance",
       fonction = "mw_test_homogeneite_f",
       "Annexe XVII, D(2)(h)(iii) : 'pour toutes les annees d'accident'",
@@ -7281,6 +7431,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       loi = "chi2(2K) approx. -> Monte-Carlo",
       estim_nom = "colonnes testees", estim = if (is.null(hf$K)) NA_real_ else hf$K,
       p_as = hf$p, mc_nom = "HomogF",
+      p_min = pm_hf$p_min, effectifs = pm_hf$effectifs,
       detail = .mw_avec_exclusion(
         "Correlation de rang entre F(i,j) et i, colonne par colonne, combinee par Fisher",
         .mw_phrase_exclusion(hf,
@@ -7327,6 +7478,8 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       p_as = bp$p, mc_nom = "BP",
       detail = "Si Var(C(i,j+1)|C(i,j)) = sigma_j^2 C(i,j), les residus standardises sont d'echelle constante")
   ev <- mw_test_exposant_variance(aj)
+  pm_ev <- .mw_p_min_ligne(is.finite(ev$stat), ev$detail$n, "colonnes n_j",
+                           .mw_fisher_rangs_p_min, any(ev$detail$ex_aequo), n_max = 9)
   add(fam, "Adequation de l'exposant de variance, colonne par colonne",
       fonction = "mw_test_exposant_variance",
       "Annexe XVII, D(2)(h)(iv) ; complement de Breusch-Pagan",
@@ -7336,6 +7489,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       loi = "chi2(2K) approx. -> Monte-Carlo",
       estim_nom = "colonnes testees", estim = if (is.null(ev$K)) NA_real_ else ev$K,
       p_as = ev$p, mc_nom = "ExpVar",
+      p_min = pm_ev$p_min, effectifs = pm_ev$effectifs,
       detail = paste("Si la variance est bien proportionnelle a C(i,j), les residus",
                      "standardises sont d'echelle constante a l'interieur de chaque colonne."))
   # La variance des residus de Mack est CONTRAINTE par construction, et sa
@@ -7377,6 +7531,11 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   ## --- M3 : independance des annees d'accident et de developpement ----------
   fam <- "M3. independance (annexe XVII D(2)(h)(i) et (ii))"
   cal <- mw_test_annees_calendaires(aj)
+  # p_min (#115) : n_k des diagonales retenues (n_k >= 2) ; les etiquettes "*"
+  # (ex aequo a la mediane) sont deja ecartees des n_k.
+  pm_cal <- .mw_p_min_ligne(is.finite(cal$stat),
+                            if (is.null(cal$detail)) numeric(0) else unname(cal$detail[, "n"]),
+                            "diagonales n_k", .mw_calendrier_p_min)
   add(fam, "Effets d'annee calendaire (test de Mack)",
       fonction = "mw_test_annees_calendaires",
       "Mack (1994), Insurance: Mathematics and Economics 15, 133-138",
@@ -7386,8 +7545,11 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       loi = "N(0,1) approx. ; moments EXACTS de Z = min(L, n-L)",
       estim_nom = "Z observe", estim = cal$Z,
       p_as = cal$p, mc_nom = "Calendrier",
+      p_min = pm_cal$p_min, effectifs = pm_cal$effectifs,
       detail = "Les diagonales representent les exercices comptables : un effet calendaire viole l'independance des annees d'accident")
   ka <- mw_test_homogeneite_accident(aj)
+  pm_ka <- .mw_p_min_ligne(is.finite(ka$stat), ka$tailles, "residus par annee de survenance",
+                           .mw_kruskal_p_min, isTRUE(ka$ex_aequo))
   add(fam, "Homogeneite des residus entre annees de survenance",
       fonction = "mw_test_homogeneite_accident",
       "Kruskal & Wallis (1952), JASA 47, 583-621",
@@ -7398,6 +7560,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
         sprintf("chi2(%s) approx. -> Monte-Carlo",
                 ifelse(is.na(ka$ddl), "k-1", as.character(ka$ddl))),
       p_as = ka$p, mc_nom = "KruskalAcc",
+      p_min = pm_ka$p_min, effectifs = pm_ka$effectifs,
       # Un residu par annee de survenance (#60, decision du mainteneur du
       # 06/10/2026) : la phrase precede le detail ; le motif R1 eventuel
       # reste en tete, pose par add().
@@ -7407,6 +7570,8 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
         "H ne mesure rien ici. ") else "",
         "Traduction testable de l'independance des annees de survenance, D(2)(h)(i)"))
   cor <- mw_stat_correlation_dev(aj)
+  pm_cor <- .mw_p_min_ligne(is.finite(cor$stat), cor$poids + 1, "paires de colonnes n_k",
+                            .mw_corr_p_min, isTRUE(cor$ex_aequo))
   add(fam, "Correlation entre annees de developpement adjacentes",
       fonction = "mw_stat_correlation_dev",
       "Mack (1993, 1997), ASTIN Bulletin ; correlation de rang de Spearman",
@@ -7414,6 +7579,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       H1 = "correlation entre colonnes adjacentes",
       stat_nom = "rho agrege", stat = cor$stat,
       loi = "depend de la geometrie du triangle -> Monte-Carlo", mc_nom = "CorrDev",
+      p_min = pm_cor$p_min, effectifs = pm_cor$effectifs,
       detail = "Une correlation positive signale une dependance entre cadences successives")
   add(fam, "Autocorrelation des residus (Durbin-Watson)",
       fonction = "stat_dw",
@@ -7422,13 +7588,18 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       stat_nom = "DW", stat = stat_dw(r),
       loi = "residus de triangle -> Monte-Carlo", mc_nom = "DW")
   ru <- test_runs(r)
+  # p_min (#115) : runs_p_min() aux effectifs de part et d'autre de la mediane.
+  eff_ru <- .runs_effectifs(r)
+  pm_ru <- .mw_p_min_ligne(is.finite(ru$stat), eff_ru, NULL,
+                           function(n) runs_p_min(n[[1]], n[[2]]))
   add(fam, "Test des suites sur les residus de Mack",
       fonction = "test_runs",
       "Wald & Wolfowitz (1940)",
       H0 = "arrangement aleatoire des signes des residus", H1 = "arrangement non aleatoire",
       stat_nom = "Z", stat = ru$stat, loi = "N(0,1) approx. -> Monte-Carlo",
       estim_nom = "nb de suites", estim = ru$runs,
-      p_as = ru$p, mc_nom = "Runs")
+      p_as = ru$p, mc_nom = "Runs",
+      p_min = pm_ru$p_min, effectifs = pm_ru$effectifs)
 
   ## --- M4 : points aberrants ------------------------------------------------
   fam <- "M4. points aberrants et stabilite"

@@ -1760,4 +1760,144 @@ verifier("tri_deg : B_effectif = 99 pour HomogF et ExpVar, B = 99 (#90)",
            b$B_effectif[["HomogF"]] == 99 && b$B_effectif[["ExpVar"]] == 99
          })
 
+## --- p_min des lignes a loi de reference discrete et regle R1 (#115) ---------
+# Specification d'actuary (docs/specifications/e2-reduite.md, #115 (c)) ;
+# decisions du mainteneur du 06/10/2026 (Q-E2r-115-2 a 4). Valeurs de
+# controle par enumeration exhaustive, independante des fonctions du moteur.
+kw_enum <- function(t) {
+  N <- sum(t); g <- rep(seq_along(t), t)
+  perms <- function(v) {
+    if (length(v) <= 1) return(list(v))
+    out <- list()
+    for (x in unique(v)) { i <- match(x, v); for (q in perms(v[-i])) out[[length(out) + 1]] <- c(x, q) }
+    out
+  }
+  h <- vapply(perms(g), function(gg) sum(tapply(seq_len(N), gg, sum)^2 / t), numeric(1))
+  sum(abs(h - max(h)) < 1e-9) / length(h)
+}
+cal_enum <- function(nk) {
+  gr <- as.matrix(expand.grid(lapply(nk, function(n) 0:n)))
+  pr <- apply(gr, 1, function(l) prod(stats::dbinom(l, nk, 0.5)))
+  Z <- apply(gr, 1, function(l) sum(pmin(l, nk - l)))
+  min(vapply(sort(unique(Z)), function(z) min(1, 2 * min(sum(pr[Z <= z]), sum(pr[Z >= z]))), numeric(1)))
+}
+verifier("p_min Kruskal-Wallis par enumeration : (3,3,2,1) -> 24/5040, (4,3,2,1) -> 24/12600 (#115)",
+         isTRUE(proche(.mw_kruskal_p_min(c(3, 3, 2, 1)), 24 / 5040, 1e-12)) &&
+           isTRUE(proche(.mw_kruskal_p_min(c(4, 3, 2, 1)), 1.904762e-3, 1e-6)) &&
+           all(vapply(list(c(3, 3, 2, 1), c(4, 3, 2, 1), c(2, 2, 2), c(3, 2, 2, 1)), function(t)
+             isTRUE(proche(.mw_kruskal_p_min(t), kw_enum(t), 1e-12)), logical(1))) &&
+           .mw_kruskal_p_min(rep(1, 5)) == 1 && is.na(.mw_kruskal_p_min(4)))
+verifier("p_min calendaire par enumeration : (3,3) -> 0,125, (2,3,2,4) -> 0,015625 (#115)",
+         identical(.mw_calendrier_p_min(c(3, 3)), 0.125) &&
+           identical(.mw_calendrier_p_min(c(2, 3, 2, 4)), 0.015625) &&
+           all(vapply(list(c(3, 3), c(2, 3, 2, 4), c(2, 2), c(5, 2, 3), c(2, 3, 4, 4, 6, 5)), function(n)
+             isTRUE(proche(.mw_calendrier_p_min(n), cal_enum(n), 1e-12)), logical(1))) &&
+           is.na(.mw_calendrier_p_min(1)))
+verifier("p_min CorrDev (4,3) -> 2/(4! 3!) = 0,013889 ; Fisher de rangs prod 2/n_j!, NA a n_j > 9 ou K < 2 (#115)",
+         isTRUE(proche(.mw_corr_p_min(c(4, 3)), 2 / 144, 1e-12)) &&
+           isTRUE(proche(.mw_corr_p_min(3), 1 / 3, 1e-12)) &&
+           isTRUE(proche(.mw_fisher_rangs_p_min(c(7, 6, 5, 4)),
+                         16 / prod(factorial(c(7, 6, 5, 4))), 1e-12)) &&
+           is.na(.mw_fisher_rangs_p_min(c(10, 4))) && is.na(.mw_fisher_rangs_p_min(5)))
+# Enumeration independante (constat C4 de l'audit) : toutes les permutations
+# des facteurs de chaque colonne, statistique recalculee hors du moteur.
+perms_n <- function(n) {
+  if (n == 1) return(matrix(1L, 1, 1))
+  q <- perms_n(n - 1)
+  do.call(rbind, lapply(seq_len(n), function(k) cbind(k, ifelse(q >= k, q + 1L, q))))
+}
+p_min_enum <- function(v, pr, queue) {
+  u <- sort(unique(round(v, 10))); v <- round(v, 10)
+  min(vapply(u, function(x) if (queue == "haut") sum(pr[v >= x]) else
+    min(1, 2 * min(sum(pr[v <= x]), sum(pr[v >= x]))), numeric(1)))
+}
+# CorrDev, colonnes chainees de longueurs (a, b, c) : paire 1 = colonne A
+# restreinte a ses b premieres lignes contre B ; paire 2 = B restreinte a
+# ses c premieres lignes contre C ; poids n - 1 (mw_stat_correlation_dev()).
+corr_enum <- function(a, b, c, fixer_A = FALSE) {
+  PA <- if (fixer_A) matrix(seq_len(a), 1) else perms_n(a); PB <- perms_n(b); PC <- perms_n(c)
+  v <- numeric(0)
+  for (i in seq_len(nrow(PA))) for (j in seq_len(nrow(PB))) for (k in seq_len(nrow(PC))) {
+    r1 <- stats::cor(rank(PA[i, seq_len(b)]), PB[j, ])
+    r2 <- stats::cor(rank(PB[j, seq_len(c)]), PC[k, ])
+    v <- c(v, ((b - 1) * r1 + (c - 1) * r2) / (b + c - 2))
+  }
+  p_min_enum(v, rep(1 / length(v), length(v)), "deux")
+}
+# Fisher de rangs, colonnes de tailles (n1, n2) : p_j par cor.test(exact = TRUE).
+fisher_enum <- function(n1, n2) {
+  pj <- function(n) apply(perms_n(n), 1, function(x)
+    stats::cor.test(seq_len(n), x, method = "spearman", exact = TRUE)$p.value)
+  X <- as.vector(outer(-2 * log(pj(n1)), -2 * log(pj(n2)), "+"))
+  p_min_enum(X, rep(1 / length(X), length(X)), "haut")
+}
+verifier("Enumeration independante : CorrDev (4,4,3) et (5,4,3), Fisher de rangs (4,3) (#115, C4)",
+         isTRUE(proche(corr_enum(4, 4, 3), 2 / 144, 1e-9)) &&
+           isTRUE(proche(corr_enum(4, 4, 3), .mw_corr_p_min(c(4, 3)), 1e-9)) &&
+           isTRUE(proche(corr_enum(5, 4, 3, fixer_A = TRUE), .mw_corr_p_min(c(4, 3)), 1e-9)) &&
+           isTRUE(proche(corr_enum(6, 5, 4, fixer_A = TRUE), .mw_corr_p_min(c(5, 4)), 1e-9)) &&
+           isTRUE(proche(fisher_enum(4, 3), .mw_fisher_rangs_p_min(c(4, 3)), 1e-9)) &&
+           isTRUE(proche(fisher_enum(4, 3), 1 / 36, 1e-9)))
+verifier("Kruskal-Wallis : forme close k! prod n_i! / N!, 18 groupes en moins d'une seconde (#115, C1)",
+         {
+           t0 <- proc.time()[["elapsed"]]; p18 <- .mw_kruskal_p_min(18:1)
+           duree <- proc.time()[["elapsed"]] - t0
+           duree < 1 && isTRUE(proche(p18, exp(lfactorial(18) + sum(lfactorial(18:1)) - lfactorial(171)),
+                                      1e-12)) &&
+             isTRUE(proche(.mw_kruskal_p_min(c(6, 6, 5, 4, 3, 2, 1)), 8.292518941e-15, 1e-9))
+         })
+verifier("p_min non finie : NA et motif explicite dans effectifs (#115, C2)",
+         {
+           s0 <- .mw_p_min_ligne(TRUE, rep(10, 30), "t", .mw_kruskal_p_min)
+           s1 <- .mw_p_min_ligne(TRUE, c(3, 2), "t", function(n) NA_real_)
+           is.na(s0$p_min) && grepl("hors de la precision de la machine (N = 300) : p_min non calculable",
+                                    s0$effectifs, fixed = TRUE) &&
+             is.na(s1$p_min) && identical(s1$effectifs,
+               "t = 3, 2 ; p_min non calculable sur ces effectifs, p_min non attribuee")
+         })
+verifier("reserve2 : p_min des six lignes discretes, les 13 autres NA (#115, critere 1)",
+         {
+           d <- engine_table_tests(run_mw(tri_ref))
+           att <- c("Homogeneite de f_j entre annees de survenance" = 16 / prod(factorial(7:4)),
+                    "Adequation de l'exposant de variance, colonne par colonne" = 16 / prod(factorial(7:4)),
+                    "Effets d'annee calendaire (test de Mack)" = 2^-17,
+                    "Homogeneite des residus entre annees de survenance" = 8.292518941e-15,
+                    "Correlation entre annees de developpement adjacentes" = 2 / 12441600,
+                    "Test des suites sur les residus de Mack" = runs_p_min(13, 13))
+           nrow(d) == 19L && all(is.na(d$p_min[!d$test %in% names(att)])) &&
+             all(vapply(names(att), function(k)
+               isTRUE(proche(d$p_min[d$test == k], att[[k]], 1e-6)), logical(1))) &&
+             isTRUE(proche(runs_p_min(13, 13), 3.845932e-7, 1e-6)) &&
+             !any(d$inoperant)
+         })
+verifier("Sous-triangle 5 x 5, alpha = 0,10 : Calendaire et CorrDev inoperants, Suites reste un test (#115)",
+         {
+           t5 <- tri_ref[1:5, 1:5]; t5[row(t5) + col(t5) > 6] <- NA
+           d <- engine_table_tests(run_mw(t5))
+           l <- function(k) d[d$test == k, ]
+           pre <- paste("TEST INOPERANT au seuil alpha = 0.1 : p-value minimale atteignable",
+                        "sous la loi de reference echangeable")
+           ca <- l("Effets d'annee calendaire (test de Mack)")
+           co <- l("Correlation entre annees de developpement adjacentes")
+           su <- l("Test des suites sur les residus de Mack")
+           all(vapply(list(ca, co), function(x) isTRUE(x$inoperant) && x$type == "diagnostic" &&
+                        identical(x$verdict, "INFO") && startsWith(x$commentaire, pre), logical(1))) &&
+             identical(ca$p_min, 0.125) && isTRUE(proche(co$p_min, 1 / 3, 1e-12)) &&
+             su$type == "test" && !su$inoperant && isTRUE(proche(su$p_min, 4 / 70, 1e-12)) &&
+             grepl("ECHEC possible", su$commentaire, fixed = TRUE)
+         })
+verifier("Ex aequo de F : p_min NA de HomogF et CorrDev, motif dans le commentaire (#115, critere 4)",
+         {
+           t <- tri_ref
+           t[2, 2] <- t[2, 1] * t[1, 2] / t[1, 1]          # F(1,0) = F(0,0)
+           t[3, 3] <- t[3, 2] * t[1, 3] / t[1, 2]          # F(2,1) = F(0,1)
+           d <- engine_table_tests(run_mw(t))
+           mot <- "ex aequo : loi de permutation conditionnelle non tabulee, p_min non attribuee"
+           all(vapply(c("Homogeneite de f_j entre annees de survenance",
+                        "Correlation entre annees de developpement adjacentes"), function(k) {
+             x <- d[d$test == k, ]
+             is.na(x$p_min) && x$type == "test" && grepl(mot, x$commentaire, fixed = TRUE)
+           }, logical(1)))
+         })
+
 fin_fichier()
