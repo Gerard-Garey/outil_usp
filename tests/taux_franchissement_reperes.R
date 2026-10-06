@@ -68,7 +68,9 @@
 #      Rscript tests/taux_franchissement_reperes.R [--R 2000]
 #          [--graine 20260927] [--graine-ic 20260831] [--B-ic 999]
 #          [--jeu J1|J2] [--tranche i/K]
+#          [--ecrire [--remplacer] | --sortie DOSSIER] [--issue N]
 #      Rscript tests/taux_franchissement_reperes.R --combiner f1 f2 ...
+#          [--ecrire [--remplacer] | --sortie DOSSIER] [--issue N]
 #  --tranche i/K : ne traite que la i-eme de K tranches de replications
 #  consecutives et imprime, en plus des tableaux partiels, des lignes machine :
 #  PARAMETRES, TRANCHE, CONTEXTE (contenu de T0 hors durees et hors bornes de
@@ -99,7 +101,13 @@
 #  docs/tableaux/<AAAAMMJJ>-issue<N>-<jeu>.md, date du jour, N donne par
 #  --issue N, obligatoire avec --ecrire et --sortie (issue de rattachement :
 #  #122 pour les tableaux regeneres du 30/09/2026, produits par redirection) ;
-#  un fichier cible existant n'est jamais ecrase (refus) ; REFUSE (code 1,
+#  un fichier cible existant n'est jamais ecrase (refus), sauf un fichier
+#  suivi par git avec --remplacer (garde d'ecrasement, #173,
+#  garde_ecrasement() de tests/outils_tests.R : sans --remplacer, refus qui
+#  nomme le fichier suivi ; refus aussi d'un fichier existant dont git ne
+#  peut dire s'il est suivi ; --remplacer avec --ecrire seulement, refus
+#  d'usage sinon ; le T0 du fichier ecrit cite alors le fichier remplace et
+#  son md5 d'avant) ; REFUSE (code 1,
 #  rien d'ecrit) si le commit des tranches, ou celui de la combinaison ou de
 #  l'execution, n'est pas un SHA nu ("(arbre de travail modifie)", "(script
 #  non suivi)" ou "inconnu"), ou si tests/outils_tests.R ou le script
@@ -141,13 +149,14 @@ OPT_TRANCHE   <- lire_option("--tranche", NA_character_)
 i_comb <- match("--combiner", ARGS)
 FICHIERS_COMB <- if (is.na(i_comb)) character(0) else {
   reste <- ARGS[-seq_len(i_comb)]
-  # les options --ecrire, --sortie DOSSIER et --issue N peuvent suivre la liste
-  j <- match(c("--ecrire", "--sortie", "--issue"), reste)
+  # les options --ecrire, --remplacer, --sortie DOSSIER et --issue N peuvent suivre la liste
+  j <- match(c("--ecrire", "--remplacer", "--sortie", "--issue"), reste)
   fin <- if (all(is.na(j))) length(reste) else min(j, na.rm = TRUE) - 1L
   reste[seq_len(fin)]
 }
 if (!is.na(i_comb) && !length(FICHIERS_COMB)) stop("--combiner : aucun fichier")
 OPT_ECRIRE <- "--ecrire" %in% ARGS
+OPT_REMPLACER <- "--remplacer" %in% ARGS
 OPT_SORTIE <- lire_option("--sortie", NA_character_)
 # --issue N : issue de rattachement du tableau ecrit (nom du fichier),
 # obligatoire avec --ecrire et --sortie, sans valeur par defaut (constat T1
@@ -156,6 +165,7 @@ OPT_ISSUE <- lire_option("--issue", NA_character_)
 if ((OPT_ECRIRE || !is.na(OPT_SORTIE)) && (is.na(OPT_ISSUE) || !grepl("^[1-9][0-9]*$", OPT_ISSUE)))
   stop("--ecrire et --sortie exigent --issue N (N entier positif, issue de rattachement du tableau)")
 if (OPT_ECRIRE && !is.na(OPT_SORTIE)) stop("--ecrire et --sortie sont exclusifs")
+if (OPT_REMPLACER && !OPT_ECRIRE) stop("--remplacer : reserve a --ecrire (remplacement d'un tableau suivi par git, #173)")
 if ((OPT_ECRIRE || !is.na(OPT_SORTIE)) && !is.na(OPT_TRANCHE))
   stop("--tranche : sortie partielle, --ecrire et --sortie reserves a --combiner ou a une execution d'un seul tenant")
 if (!is.na(OPT_SORTIE) && !dir.exists(OPT_SORTIE)) stop("--sortie : dossier introuvable : ", OPT_SORTIE)
@@ -251,15 +261,20 @@ if (!is.na(OPT_SORTIE) && sous_depot(OPT_SORTIE))
 DATE_SORTIE <- format(Sys.Date(), "%Y%m%d")
 # Fichier cible ; refus (code 1) s'il existe deja : jamais d'ecrasement
 # (constat T1 d'audit). Verifie des le debut, avant tout calcul, et de
-# nouveau au moment d'ecrire.
+# nouveau au moment d'ecrire. Avec --ecrire, garde d'ecrasement d'abord
+# (#173) : refus d'un fichier suivi par git sans --remplacer ; avec
+# --remplacer, seul un fichier suivi est remplace (un fichier existant non
+# suivi reste refuse) ; attribut "remplaces" : fichier remplace et md5
+# d'avant, cites par le T0.
 cible_fichier <- function(jeu) {
   dossier <- if (OPT_ECRIRE) file.path(RACINE, "docs", "tableaux") else OPT_SORTIE
   f <- file.path(dossier, sprintf("%s-issue%s-%s.md", DATE_SORTIE, OPT_ISSUE, jeu))
-  if (file.exists(f)) {
+  remplaces <- if (OPT_ECRIRE) garde_ecrasement(f, OPT_REMPLACER, RACINE) else NULL
+  if (file.exists(f) && !length(ligne_remplacement(remplaces, f))) {
     message("--ecrire / --sortie refuse : fichier existant, jamais ecrase : ", f)
     quit(status = 1L)
   }
-  f
+  structure(f, remplaces = remplaces)
 }
 ecrire_fichier <- function(jeu, lignes, nv) {
   if (!OPT_ECRIRE && is.na(OPT_SORTIE)) return(invisible(NULL))
@@ -269,6 +284,8 @@ ecrire_fichier <- function(jeu, lignes, nv) {
     quit(status = 1L)
   }
   f <- cible_fichier(jeu)
+  if (OPT_ECRIRE) lignes <- inserer_t0(lignes, ligne_remplacement(attr(f, "remplaces"), f))
+  f <- as.vector(f)
   con <- file(f, open = "wb")
   writeLines(enc2utf8(lignes), con, useBytes = TRUE)
   close(con)
@@ -459,13 +476,14 @@ if (length(FICHIERS_COMB)) {
   cles <- unique(unlist(lapply(parts, function(p) names(p$comptes))))
   cpt <- stats::setNames(vapply(cles, function(k) sum(vapply(parts, function(p)
     if (k %in% names(p$comptes)) p$comptes[[k]] else 0, numeric(1))), numeric(1)), cles)
-  if (OPT_ECRIRE || !is.na(OPT_SORTIE)) invisible(cible_fichier(sub("^jeu=(J[12]);.*$", "\\1", par)))
   commit_comb <- commit_depot()
   nv <- c(motifs_non_versionnable(ctx[["commit"]], ctx[["empreintes"]]),
           motifs_non_versionnable(commit_comb, EMPREINTES, "de la combinaison"))
   if (OPT_ECRIRE && length(nv))
     refuser("--ecrire refuse (tableau versionne dans docs/tableaux/) : ", paste(nv, collapse = " ; "),
             " -- relancer sur un arbre propre, ou utiliser --sortie DOSSIER hors du depot")
+  # fichier cible (et garde d'ecrasement, #173) apres le refus precedent
+  if (OPT_ECRIRE || !is.na(OPT_SORTIE)) invisible(cible_fichier(sub("^jeu=(J[12]);.*$", "\\1", par)))
   sortie <- c(c(sprintf("## Taux de franchissement des rep\u00e8res -- combinaison de %d tranche(s)", length(parts)), "",
                    sprintf("Param\u00e8tres : %s", par), "",
                    "### T0 -- contexte (identique dans toutes les tranches, v\u00e9rifi\u00e9)", "",

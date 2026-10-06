@@ -25,7 +25,10 @@
 #  \multicolumn hors de la premiere cellule (issue #121), locale C/POSIX,
 #  "vingt et un" et compositions invalides (issue #113), garde de contexte
 #  des decomptes ("un tableau de deux lignes", constat 4 de la fin d'E0b),
-#  recapitulatif apres exemptions et
+#  constantes et champs cites (issue #160 : noms recolles, classement des
+#  identifiants en majuscules, definitions, champs poses, chemins de
+#  champs, mentions historiques exemptees ; copie mutante du .tex et copie
+#  du depot a moteur mutant), recapitulatif apres exemptions et
 #  mode --strict (script lance sur une copie modifiee du .tex). L'etat reel
 #  du depot n'est pas juge ici : c'est l'etape --strict de la CI qui le fait
 #  (decision (a) du mainteneur sur l'audit de #65).
@@ -333,9 +336,15 @@ verifier("Issue #86 (temoin) : sans exemption, file_ext() et file_*() sont trouv
          identical(.st86_sans[["file_ext"]], "paquet tools") && startsWith(.st86_sans[["file_*"]], "joker ("))
 verifier("Issue #86 : nom et joker exemptes juges sans paquet (INTROUVABLE), nom non exempte trouve dans le paquet",
          identical(unname(.st86), c("INTROUVABLE", "INTROUVABLE", "paquet tools")))
-verifier("Liste EXEMPTES_CODE du script : reactive et render*, motif de la colonne Interdit",
-         identical(vapply(cc$EXEMPTES_CODE, `[[`, "", "nom"), c("reactive", "render*")) &&
-           all(grepl("Interdit", vapply(cc$EXEMPTES_CODE, `[[`, "", "motif"))))
+verifier("Liste EXEMPTES_CODE du script, objet fonction : reactive et render*, motif de la colonne Interdit",
+         identical(vapply(cc$exemptions_objet("fonction"), `[[`, "", "nom"), c("reactive", "render*")) &&
+           all(grepl("Interdit", vapply(cc$exemptions_objet("fonction"), `[[`, "", "motif"))))
+verifier("Issue #160 : chaque exemption de EXEMPTES_CODE a un objet fonction, constante ou champ ; celles de constante et de champ sont des mentions historiques",
+         all(vapply(cc$EXEMPTES_CODE, function(e) e$objet %in% c("fonction", "constante", "champ"), NA)) &&
+           all(grepl("^mention historique", vapply(c(cc$exemptions_objet("constante"), cc$exemptions_objet("champ")),
+                                                   `[[`, "", "motif"))))
+verifier("Issue #160 : exemptions_objet() -- une exemption sans champ objet est une exemption de fonction",
+         identical(length(cc$exemptions_objet("fonction", list(list(nom = "f"), list(nom = "K", objet = "constante")))), 1L))
 
 ## --- Colonne "Cle MC" de l'index des fonctions (issue #91) ----------------
 doc_mc <- c("\\code{A} & x \\\\",
@@ -697,6 +706,7 @@ verifier("Issue #113 (reprise, C2) : quatre-vingt et une, cent vingt et un, cent
   list(codes = env$extraire_codes(tex), inv = env$inventaire_decomptes(tex), v = v,
        cl = env$classer_formulations(tex, v), mc = env$cles_mc_index(tex), f7 = env$fiches_rubrique7(tex),
        tr = env$lignes_tracabilite(tex), ch = env$chemins_tracabilite(tex),
+       cm = env$citations_majuscules(env$extraire_codes(tex)), chc = env$chemins_champs(env$extraire_codes(tex)),
        n = vapply(c("vingt et un", "quatre-vingt-dix-neuf", "dix-dix"), env$nombre_fr, numeric(1)))
 }
 .tex_113 <- readLines(file.path(.racine, "docs", "latex", "doc_tests_usp.tex"), warn = FALSE, encoding = "UTF-8")
@@ -818,6 +828,219 @@ verifier("Garde de contexte : vrais decomptes conserves -- la table compte deux 
 verifier("Garde de contexte : une formulation verifiee par le registre le reste (la garde ne s'applique qu'aux non classees) ; une garde ne perime pas",
          identical(.cl_g2$formulations$statut[1], "verifiee") &&
            !nrow(cc$classer_formulations("Rien ici.", cc$verifier_decomptes("Rien ici.", list(), .reg_g), list())$perimees))
+
+## --- Issue #160 : constantes et champs cites -------------------------------
+.doc160 <- c("Seuil \\code{TOLERANCE\\_CONFORME\\_}\\newline\\code{SIGMA} et",                       # 1
+             "\\code{SEUIL\\_PUISSANCE\\_}\\allowbreak\\code{PENTE} ; \\code{OK}, \\code{NA},",         # 2
+             "\\code{USP\\_CATALOGUE\\_MC\\$CoxStuart}, \\code{MOTIF\\_MC\\_*}, \\code{N/A}, \\code{R/engine.R},",
+             "\\code{DW}, \\code{B}, \\code{XYZQ}, \\code{FRAG\\_} seul, \\code{CONSTANTE\\_INVENTEE\\_XYZ},",
+             "\\code{ANNEXE\\_II[1, ]} et \\code{SEGMENTS}.",                                            # 5
+             "Champs \\code{\\$a \\ \\$b} et \\code{res\\$x\\$y}, \\code{usp\\_noyau()\\$obj},",         # 6
+             "\\code{input\\$}, \\code{input\\$x}, \\code{.Machine\\$integer.max}, \\code{metadata\\$champ\\_invente}.")
+.cm160 <- cc$citations_majuscules(cc$extraire_codes(.doc160))
+verifier("Issue #160 : citations_majuscules() -- noms coupes par \\newline (l.770 du .tex) et \\allowbreak (l.3215) recolles, chemin et indice retires, joker garde, N/A et R/engine.R ignores",
+         identical(.cm160$nom, c("TOLERANCE_CONFORME_SIGMA", "SEUIL_PUISSANCE_PENTE", "OK", "NA", "USP_CATALOGUE_MC",
+                                 "MOTIF_MC_*", "DW", "B", "XYZQ", "FRAG_", "CONSTANTE_INVENTEE_XYZ", "ANNEXE_II",
+                                 "SEGMENTS")) &&
+           identical(.cm160$ligne, c(1L, 2L, 2L, 2L, 3L, 3L, 4L, 4L, 4L, 4L, 4L, 5L, 5L)))
+.const160 <- data.frame(nom = c("TOLERANCE_CONFORME_SIGMA", "SEUIL_PUISSANCE_PENTE", "USP_CATALOGUE_MC", "MOTIF_MC_A",
+                                "ANNEXE_II", "SEGMENTS"),
+                        fichier = c(rep("R/engine.R", 5), "tests/outils_tests.R"), stringsAsFactors = FALSE)
+.cl160 <- cc$classer_majuscules(.cm160, .const160, cles = "DW", arguments = "B")
+verifier("Issue #160 : classer_majuscules() -- constantes definies verifiees (avec leur fichier), verdict et litteral hors controle, cle MC et argument verifies, nom invente INTROUVABLE, identifiant sans souligne inconnu et fragment seul NON CLASSE",
+         identical(.cl160$statut, c("verifie", "verifie", "hors controle", "hors controle", "verifie", "verifie", "verifie",
+                                    "verifie", "NON CLASSE", "NON CLASSE", "INTROUVABLE", "verifie", "verifie")) &&
+           identical(.cl160$categorie[c(6, 7, 8, 10)], c("constante (joker)", "cle de catalogue Monte-Carlo",
+                                                         "argument de run_engine()", "fragment non recolle")) &&
+           identical(.cl160$ou[c(1, 13)], c("R/engine.R", "tests/outils_tests.R")))
+.cm160p <- cc$citations_majuscules(cc$extraire_codes("\\code{.MW\\_LIGNES\\_RESIDUS}, \\code{.Random.seed}, \\code{.Machine\\$integer.max}."))
+verifier("Issue #160 : constante interne a point initial (.MW_LIGNES_RESIDUS, l.9461 du .tex) citee et jugee ; .Random.seed et .Machine ne sont pas des identifiants en majuscules",
+         identical(.cm160p$nom, ".MW_LIGNES_RESIDUS") &&
+           identical(cc$classer_majuscules(.cm160p, data.frame(nom = ".MW_LIGNES_RESIDUS", fichier = "R/engine.R",
+                                                                stringsAsFactors = FALSE))$statut, "verifie") &&
+           identical(cc$classer_majuscules(.cm160p, .const160)$statut, "INTROUVABLE"))
+verifier("Issue #160 : classer_majuscules() -- mutant : constante retiree des definitions (ANNEXE_II) et joker sans correspondant INTROUVABLES",
+         identical(cc$classer_majuscules(.cm160, .const160[-(4:5), ], "DW", "B")$statut[c(6, 12)],
+                   c("INTROUVABLE", "INTROUVABLE")))
+.f160 <- tempfile(fileext = ".R")
+writeLines(c("A_B <- 1", "  C_D <- 2", "E_F = 3", "minus <- 4", "G_H<-function() 1",
+             "f <- function(x, arg_formel = 1) {",
+             "  out <- list(champ_liste = 1, b = x[, 1])",
+             "  out$champ_dollar <- 2",
+             "  out[[\"champ_crochets\"]] <- 3",
+             "  out$niv1$niv2 <- 4",
+             "  structure(out, class = \"k\")",
+             "}"), .f160)
+verifier("Issue #160 : definitions_constantes() -- affectations de premier niveau en majuscules seulement (pas d'indentation, pas de minuscules)",
+         identical(cc$definitions_constantes(.f160)$nom, c("A_B", "E_F", "G_H")))
+.po160 <- cc$champs_poses(.f160)
+verifier("Issue #160 : champs_poses() -- noms de list() et structure(), x$nom <-, x[[\"nom\"]] <-, chemin x$a$b <- ; arguments formels et argument vide exclus",
+         all(c("champ_liste", "b", "champ_dollar", "champ_crochets", "niv1", "niv2", "class") %in% .po160) &&
+           !any(c("arg_formel", "x", "out") %in% .po160))
+unlink(.f160)
+verifier("Issue #160 : noms_recursifs() -- noms a toute profondeur, colonnes de data.frame comprises, sans doublon",
+         identical(cc$noms_recursifs(list(a = 1, b = list(c = 2, a = data.frame(e = 1)), 3)), c("a", "b", "c", "e")))
+.ch160 <- cc$chemins_champs(cc$extraire_codes(.doc160))
+verifier("Issue #160 : chemins_champs() -- enumeration $a \\ $b decoupee, chemin a deux segments, racine appel de fonction, racine constante, input$ seul ignore",
+         identical(.ch160$segment, c("CoxStuart", "a", "b", "x", "y", "obj", "x", "integer.max", "champ_invente")) &&
+           identical(.ch160$racine, c("USP_CATALOGUE_MC", "", "", "res", "res", "usp_noyau()", "input", ".Machine", "metadata")) &&
+           identical(.ch160$ligne, c(3L, 6L, 6L, 6L, 6L, 6L, 7L, 7L, 7L)))
+.oc160 <- list(USP_CATALOGUE_MC = list(CoxStuart = 1))
+.ra160 <- c(input = "r", .Machine = "r"); .ho160 <- c(b = "r", obj = "r")
+verifier("Issue #160 : classer_champs() -- cle d'une constante, objet run_engine(), hors objets admis par la liste fermee et pose, racines exemptees, champ invente INTROUVABLE",
+         identical(cc$classer_champs(.ch160, c("a", "x", "y"), c("b", "obj"), .oc160, .ra160, .ho160)$statut,
+                   c("cle d'une constante", "objet run_engine()", "hors objets (liste fermee)", "objet run_engine()",
+                     "objet run_engine()", "hors objets (liste fermee)", "racine exemptee", "racine exemptee", "INTROUVABLE")))
+verifier("Issue #160 : classer_champs() -- mutants : champ y retire de l'objet et du moteur, cle CoxStuart retiree de la constante : INTROUVABLES",
+         identical(cc$classer_champs(.ch160, c("a", "x"), c("b", "obj"), list(USP_CATALOGUE_MC = list(Autre = 1)),
+                                     .ra160, .ho160)$statut[c(1, 5)],
+                   c("INTROUVABLE", "INTROUVABLE")))
+# Audit de #160, C2 (mutant A) : un champ absent des objets construits mais
+# encore pose ailleurs dans le moteur n'est admis que s'il est dans la liste
+# fermee ; un nom de la liste qui n'est plus pose est INTROUVABLE.
+verifier("Audit de #160, C2 : champ absent des objets, pose dans R/engine.R mais hors de CHAMPS_HORS_OBJETS (b) INTROUVABLE ; nom de la liste plus pose (obj) INTROUVABLE",
+         identical(cc$classer_champs(.ch160, c("a", "x", "y"), c("b", "obj"), .oc160, .ra160, c(obj = "r"))$statut[3],
+                   "INTROUVABLE") &&
+           identical(cc$classer_champs(.ch160, c("a", "x", "y"), "b", .oc160, .ra160, .ho160)$statut[6], "INTROUVABLE"))
+verifier("Audit de #160, C2 : liste CHAMPS_HORS_OBJETS du script -- 19 champs, chacun avec sa raison ; erreur_sigma n'y est pas",
+         length(cc$CHAMPS_HORS_OBJETS) == 19L && all(nzchar(cc$CHAMPS_HORS_OBJETS)) && !anyDuplicated(names(cc$CHAMPS_HORS_OBJETS)) &&
+           !"erreur_sigma" %in% names(cc$CHAMPS_HORS_OBJETS))
+# Audit de #160, C3 : racine commencant par une majuscule et non constante
+# chargee -- segments non juges, la racine l'est par le controle a).
+.ch_c3 <- cc$chemins_champs(cc$extraire_codes("\\code{COUL\\$trait} et \\code{CAS\\$x}."))
+verifier("Audit de #160, C3 : COUL$trait et CAS$x (racines non chargees) -- segments non juges, pas de faux $trait INTROUVABLE",
+         identical(cc$classer_champs(.ch_c3, character(0), character(0), .oc160, .ra160, .ho160)$statut,
+                   c("racine non jugee", "racine non jugee")))
+.tex160 <- c("Le rep\u00e8re \\code{VIEUX\\_REPERE} retir\u00e9 \u00e0 l'issue~\\#1.",
+             "Ailleurs \\code{VIEUX\\_REPERE} cite comme existant.",
+             "Champ \\code{\\$vieux\\_champ} supprim\u00e9.",
+             "\\code{metadata\\$vieux\\_champ} actuel.",
+             "\\code{K\\_OK} et \\code{res\\$present} ; \\code{ZZQ}.")
+.env160 <- new.env()
+.env160$K_OK <- 1; .env160$USP_CATALOGUE_MC <- list(); .env160$MW_CATALOGUE_MC <- list()
+.env160$run_engine <- function(B, T) NULL
+.ex160 <- list(list(nom = "VIEUX_REPERE", objet = "constante", contexte = "retir\u00e9 \u00e0 l'issue", fenetre = 0L, motif = "m"),
+               list(nom = "$vieux_champ", objet = "champ", contexte = "supprim\u00e9", fenetre = 0L, motif = "m"),
+               list(nom = "$jamais", objet = "champ", contexte = "x", fenetre = 0L, motif = "m"),
+               list(nom = "reactive", objet = "fonction", contexte = "x", fenetre = 0L, motif = "m"))
+.v160 <- cc$verifier_constantes_champs(.tex160, data.frame(nom = "K_OK", fichier = "R/engine.R", stringsAsFactors = FALSE),
+                                       list(list(present = 1)), character(0), .env160, .ex160)
+verifier("Issue #160 : mention historique exemptee dans son contexte (constante l.1, champ l.3), la meme hors de son contexte reste un ecart (l.2, l.4)",
+         identical(.v160$ex_const$exemptees$ligne, 1L) && identical(.v160$ex_const$ecarts$nom, "VIEUX_REPERE") &&
+           identical(.v160$ex_const$ecarts$lignes, "2") && identical(.v160$ex_champs$exemptees$ligne, 3L) &&
+           identical(.v160$ex_champs$ecarts$nom, "$vieux_champ") && identical(.v160$ex_champs$ecarts$lignes, "4"))
+verifier("Issue #160 : exemption de champ sans effet perimee ; exemption de fonction jamais jugee par le controle 6 ; identifiant inconnu ZZQ non classe",
+         identical(.v160$ex_champs$perimees$nom, "$jamais") && !nrow(.v160$ex_const$perimees) &&
+           identical(.v160$non_classes$nom, "ZZQ"))
+# Audit de #160, C1 : aucun champ introuvable (les mentions historiques
+# disparues du document) -- pas de plantage, exemption de champ perimee.
+.v160c1 <- tryCatch(cc$verifier_constantes_champs("\\code{K\\_OK} et \\code{res\\$present}.",
+                                                  data.frame(nom = "K_OK", fichier = "R/engine.R", stringsAsFactors = FALSE),
+                                                  list(list(present = 1)), character(0), .env160, .ex160),
+                    error = function(e) conditionMessage(e))
+verifier("Audit de #160, C1 : aucun champ introuvable -- verifier_constantes_champs() ne plante pas, aucun ecart de champ",
+         is.list(.v160c1) && !nrow(.v160c1$ex_champs$ecarts) && !nrow(.v160c1$ex_champs$exemptees))
+verifier("Audit de #160, C1 : aucun champ introuvable -- les exemptions de champ en deviennent perimees ($vieux_champ, $jamais)",
+         is.list(.v160c1) && identical(.v160c1$ex_champs$perimees$nom, c("$vieux_champ", "$jamais")))
+# Audit de #160, C4 : identifiants en casse mixte sans souligne.
+.cm_c4 <- cc$citations_majuscules(cc$extraire_codes(
+  "\\code{CoxStuart}, \\code{Inf}, \\code{CleInventeeMixte}, \\code{B\\_effectif}, \\code{Rmd}."))
+verifier("Audit de #160, C4 : casse mixte -- cle MC (CoxStuart) verifiee, litteral (Inf) hors controle, nom inconnu NON CLASSE ; B_effectif (champ) non capture",
+         identical(.cm_c4$nom, c("CoxStuart", "Inf", "CleInventeeMixte", "Rmd")) &&
+           identical(cc$classer_majuscules(.cm_c4, .const160, cles = "CoxStuart")$statut,
+                     c("verifie", "hors controle", "NON CLASSE", "NON CLASSE")))
+# Audit de #160, C5 : entrees perimees des listes fermees.
+.ch_c5 <- cc$classer_champs(cc$chemins_champs(cc$extraire_codes("\\code{\\$h1} \\code{\\$h2} \\code{\\$h3}")),
+                            noms_objets = "h2", poses = c("h1", "h2"), racines = c(.Machine = "r"),
+                            hors_objets = c(h1 = "r", h2 = "r", h3 = "r", h4 = "r"))
+.pl_c5 <- cc$perimees_listes(data.frame(nom = c("OK", "SEGMENTS"), stringsAsFactors = FALSE), .ch_c5,
+                             noms_objets = "h2", poses = c("h1", "h2"),
+                             hors = list(list(categorie = "v", noms = c("OK", "ALERTE"), motif = "m")),
+                             sans_souligne = c("SEGMENTS", "CAS"), racines = c(.Machine = "r"),
+                             hors_objets = c(h1 = "r", h2 = "r", h3 = "r", h4 = "r"))
+verifier("Audit de #160, C5 : perimees -- nom hors controle et constante sans souligne plus cites, racine exemptee plus citee, champ de la liste plus cite, retrouve dans les objets, plus pose",
+         identical(paste(.pl_c5$liste, .pl_c5$nom, .pl_c5$motif),
+                   c("MAJUSCULES_HORS_CONTROLE ALERTE plus cite", "CONSTANTES_SANS_SOULIGNE CAS plus cite",
+                     "RACINES_EXEMPTEES .Machine plus citee", "CHAMPS_HORS_OBJETS h4 plus cite",
+                     "CHAMPS_HORS_OBJETS h2 retrouve dans les objets run_engine() construits",
+                     "CHAMPS_HORS_OBJETS h3 plus pose par R/engine.R", "CHAMPS_HORS_OBJETS h4 plus pose par R/engine.R")) &&
+           identical(.ch_c5$statut, c("hors objets (liste fermee)", "objet run_engine()", "INTROUVABLE")))
+
+# --strict sur une copie mutante du .tex (un appel du script) : constante et
+# champ inventes signales ; nom existant coupe par \newline admis ; mention
+# historique exemptee (REP_PAS_KKT) cite hors de son contexte signalee, son
+# occurrence historique restant exemptee.
+.tex_160 <- readLines(file.path(.racine, "docs", "latex", "doc_tests_usp.tex"), warn = FALSE, encoding = "UTF-8")
+.k160 <- grep("\\code{REP\\_PAS\\_KKT}", .tex_160, fixed = TRUE)
+.n160 <- length(.tex_160)
+.tex_mutant <- tempfile(fileext = ".tex")
+writeLines(c(.tex_160,
+             "Mutant : \\code{CONSTANTE\\_INVENTEE\\_XYZ} et \\code{metadata\\$champ\\_invente}.",
+             "Mutant : \\code{TOL\\_DELTA\\_}\\newline\\code{BORD} existe.",
+             "Mutant : \\code{REP\\_PAS\\_KKT} cite comme existant.",
+             "Mutant : \\code{COUL\\$trait} et \\code{CleInventeeMixte}."), .tex_mutant, useBytes = TRUE)
+r_160 <- .lancer_concordance("--strict", "--tex", .tex_mutant)
+unlink(.tex_mutant)
+verifier("Issue #160 : --strict echoue (code 1) sur une copie du .tex citant CONSTANTE_INVENTEE_XYZ et metadata$champ_invente, nommes avec leur ligne",
+         r_160$code == 1L &&
+           any(grepl(sprintf("^    CONSTANTE_INVENTEE_XYZ +ligne\\(s\\) %d$", .n160 + 1L), r_160$sortie)) &&
+           any(grepl(sprintf("^    \\$champ_invente +ligne\\(s\\) %d$", .n160 + 1L), r_160$sortie)))
+verifier("Issue #160 : --strict -- REP_PAS_KKT hors de son contexte signale (seule ligne injectee), exempte a sa ligne historique ; TOL_DELTA_BORD coupe par \\newline admis",
+         length(.k160) == 1L &&
+           any(grepl(sprintf("^    REP_PAS_KKT +ligne\\(s\\) %d$", .n160 + 3L), r_160$sortie)) &&
+           any(grepl(sprintf("^      REP_PAS_KKT +ligne %d +mention historique", .k160), r_160$sortie)) &&
+           !any(grepl("^    TOL_DELTA_(BORD)? +ligne\\(s\\)|non recolle", r_160$sortie)))
+verifier("Audit de #160, C3 et C4 : --strict -- COUL et CleInventeeMixte non classes, sans faux $trait introuvable",
+         any(grepl(sprintf("^    l\\.%-5d COUL +identifiant sans souligne$", .n160 + 4L), r_160$sortie)) &&
+           any(grepl(sprintf("^    l\\.%-5d CleInventeeMixte +identifiant sans souligne$", .n160 + 4L), r_160$sortie)) &&
+           !any(grepl("^    \\$trait ", r_160$sortie)))
+
+# --strict sur une copie mutante du depot (moteur modifie) : la constante
+# TOL_EX_AEQUO et le champ kkt_au_moins_un de res$ajustement renommes dans
+# R/engine.R (le moteur reste executable) ; le .tex versionne, qui les cite,
+# doit faire echouer la concordance et les nommer.
+.depot160 <- tempfile("depot160_")
+dir.create(file.path(.depot160, "R"), recursive = TRUE)
+dir.create(file.path(.depot160, "tests", "unitaires"), recursive = TRUE)
+dir.create(file.path(.depot160, "docs", "latex"), recursive = TRUE)
+invisible(file.copy(file.path(.racine, c("app.R", "DESCRIPTION")), .depot160))
+invisible(file.copy(file.path(.racine, "R", c("engine.R", "display_helpers.R")), file.path(.depot160, "R")))
+invisible(file.copy(list.files(file.path(.racine, "tests"), pattern = "[.]R$", full.names = TRUE), file.path(.depot160, "tests")))
+invisible(file.copy(file.path(.racine, "tests", "donnees"), file.path(.depot160, "tests"), recursive = TRUE))
+invisible(file.copy(file.path(.racine, "tests", "unitaires", "test_controles_numeriques.R"), file.path(.depot160, "tests", "unitaires")))
+invisible(file.copy(file.path(.racine, "docs", "tableaux"), file.path(.depot160, "docs"), recursive = TRUE))
+invisible(file.copy(file.path(.racine, "docs", "latex", "doc_tests_usp.tex"), file.path(.depot160, "docs", "latex")))
+.moteur160 <- readLines(file.path(.racine, "R", "engine.R"), warn = FALSE, encoding = "UTF-8")
+.moteur160 <- gsub("\\bkkt_au_moins_un\\b", "kkt_au_moins_un_mutant", gsub("\\bTOL_EX_AEQUO\\b", "TOL_EX_AEQUO_MUTANT", .moteur160))
+# Mutant A de l'audit (C2) : erreur_sigma retire de res$ajustement (encore pose
+# par usp_condition_premier_ordre()) ; influence_motif (CHAMPS_HORS_OBJETS)
+# n'est plus pose par engine_plots_data().
+.k_a <- grep("erreur_sigma = cpo$erreur_sigma", .moteur160, fixed = TRUE)
+.k_f <- grep("fit$erreur_sigma,", .moteur160, fixed = TRUE)
+.k_i <- grep("pd$influence_motif <-", .moteur160, fixed = TRUE)
+.moteur160 <- sub("erreur_sigma = cpo$erreur_sigma", "erreur_sigma_retire = cpo$erreur_sigma", .moteur160, fixed = TRUE)
+.moteur160 <- sub("fit$erreur_sigma,", "fit$erreur_sigma_retire,", .moteur160, fixed = TRUE)
+.moteur160 <- sub("pd$influence_motif <-", "pd$influence_motif_retire <-", .moteur160, fixed = TRUE)
+writeLines(.moteur160, file.path(.depot160, "R", "engine.R"), useBytes = TRUE)
+.r_moteur160 <- local({
+  ancien <- setwd(.depot160); on.exit(setwd(ancien))
+  s <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"), c("tests/concordance_doc_moteur.R", "--strict"),
+                                stdout = TRUE, stderr = TRUE))
+  list(code = if (is.null(attr(s, "status"))) 0L else attr(s, "status"), sortie = s)
+})
+unlink(.depot160, recursive = TRUE)
+verifier("Issue #160 : --strict echoue (code 1) sur une copie du depot dont le moteur a perdu la constante TOL_EX_AEQUO et le champ kkt_au_moins_un, tous deux nommes",
+         .r_moteur160$code == 1L &&
+           any(grepl("^    TOL_EX_AEQUO +ligne\\(s\\) [0-9]", .r_moteur160$sortie)) &&
+           any(grepl("^    \\$kkt_au_moins_un +ligne\\(s\\) [0-9]", .r_moteur160$sortie)) &&
+           any(grepl("^BILAN : [0-9]+ ecart\\(s\\) \\(mode strict\\)", .r_moteur160$sortie)))
+verifier("Audit de #160, C2 (mutant A) : --strict -- erreur_sigma retire de res$ajustement (encore pose ailleurs dans le moteur) signale INTROUVABLE",
+         length(.k_a) == 1L && length(.k_f) == 1L && .r_moteur160$code == 1L &&
+           any(grepl("^    \\$erreur_sigma +ligne\\(s\\) [0-9]", .r_moteur160$sortie)))
+verifier("Audit de #160, C5 : --strict -- influence_motif plus pose par le moteur : INTROUVABLE et entree de CHAMPS_HORS_OBJETS perimee",
+         length(.k_i) == 1L &&
+           any(grepl("^    \\$influence_motif +ligne\\(s\\) [0-9]", .r_moteur160$sortie)) &&
+           any(grepl("^    CHAMPS_HORS_OBJETS +influence_motif +plus pose par R/engine.R$", .r_moteur160$sortie)))
 
 # Aucune assertion sur l'etat reel du depot (--strict sur le .tex versionne,
 # recapitulatif apres exemptions, exemptions perimees) : elle ferait echouer
