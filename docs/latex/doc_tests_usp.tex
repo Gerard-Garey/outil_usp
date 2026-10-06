@@ -854,8 +854,8 @@ calcul brut sur le jeu de contrôle)~; type, \code{estim} et commentaire de la l
 distance n'est pas finie (fiche~\ref{fiche:cook}, issue~\#153) \\
 \code{mw\_plots\_data()} & \code{aj}, résidus, \code{boot}, \code{msep} &
 toutes les quantités tracées (branche Merz--Wüthrich) \\
-\code{REPERE\_INFLUENCE\_SIGMA},\newline \code{REPERE\_DFBETA\_MW} & constantes ($0{,}10$ et
-$0{,}02$) & repères de lecture des graphiques d'influence, sans verdict
+\code{REPERE\_INFLUENCE\_SIGMA},\newline \code{REPERE\_DFBETAS\_MW} & constantes ($0{,}10$ et
+$2$, numérateur de $2/\sqrt{n_j}$) & repères de lecture des graphiques d'influence, sans verdict
 (fiches~\ref{fiche:jackknife} et~\ref{mw:influence}) \\
 \code{engine\_table\_tests()} & \code{res} & \code{data.frame} auditable, dont la colonne
 \code{p\_min} (issue~\#44) et, en dernières positions, les colonnes \code{fonction},
@@ -9154,7 +9154,7 @@ rare qu'une seule année déplace le paramètre de plus de 10~\%, ce que la seul
 lecture des distances de Cook ne montre pas. Les années dont l'écart dépasse ce repère de
 10~\% sont colorées (constante \code{REPERE\_INFLUENCE\_SIGMA} du moteur~; repère de lecture sans
 verdict, fiche~\ref{fiche:jackknife})~; le graphique DFBETA de la méthode Merz--Wüthrich colore
-de même les cellules au-delà de $2~\%$ (\code{REPERE\_DFBETA\_MW}, repère sans source,
+de même les cellules au-delà de $2~\%$ (\code{REPERE\_DFBETAS\_MW}, repère sans source,
 fiche~\ref{mw:influence}). Les booléens de coloration, \code{fort\_ecart\_sigma} et
 \code{fort\_dfbeta}, sont calculés par le moteur (\code{engine\_influence()},
 \code{mw\_influence()}) et rangés dans \code{res\$plots\_data\$influence}~; l'affichage les
@@ -9283,7 +9283,7 @@ atypiques par leur \emph{poids} de celles qui sont réellement influentes. Le
 deuxième donne le DFBETA cellule par cellule, directement interprétable~: de
 combien le facteur de développement bougerait si cette cellule était retirée. Il colore les
 cellules dont la variation relative dépasse $2~\%$ en valeur absolue (constante
-\code{REPERE\_DFBETA\_MW} du moteur, issue~\#33~; booléen \code{fort\_dfbeta} calculé par
+\code{REPERE\_DFBETAS\_MW} du moteur, issue~\#33~; booléen \code{fort\_dfbeta} calculé par
 \code{mw\_influence()}, issue~\#37). Ce repère de lecture est propre à l'outil,
 hérité de l'affichage~: il n'a \textbf{aucune source}, ni statistique ni réglementaire, et ne
 produit aucun verdict~; il n'est pas non plus le repère $2/\sqrt{n}$ de D.\,A. Belsley, E.~Kuh et R.\,E. Welsch
@@ -11645,7 +11645,7 @@ champ \code{\$kkt\_au\_moins\_un}~; convergence multi-démarrages~: champs
 \code{\$part\_starts\_convergents}~; gradient analytique \code{usp\_gradient()} \\
 Quantités des graphiques & \code{engine\_plots\_data()} (branche lognormale),\newline
 \code{mw\_plots\_data()} (branche Merz--Wüthrich)~; repères de lecture des graphiques
-d'influence \code{REPERE\_INFLUENCE\_SIGMA} et \code{REPERE\_DFBETA\_MW} \\
+d'influence \code{REPERE\_INFLUENCE\_SIGMA} et \code{REPERE\_DFBETAS\_MW} \\
 Tirages aléatoires et graines (§\ref{sec:graines}) & \code{engine\_sous\_graine()}, par
 laquelle passent toutes les sources~: \code{usp\_bootstrap()} (tirages de
 \code{usp\_simuler()}), \code{mw\_bootstrap()} (tirages de
