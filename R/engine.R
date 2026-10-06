@@ -7282,6 +7282,45 @@ mw_simuler_triangle <- function(aj, res_pool) {
   tri
 }
 
+# Pool de reechantillonnage du bootstrap de Mack (issue #46, decision du
+# mainteneur du 06/10/2026, Q-E2r-46-1, variante B). Sous le modele de Mack a
+# sigma_j connu, conditionnellement a C_{.,j}, le residu
+#     r_ij = sqrt(C_ij) (F_ij - f^_j) / sigma_j
+# a pour variance 1 - h_ij, ou h_ij = C_ij / S_j est le levier de la cellule
+# dans l'estimation de f^_j (S_j = somme des C_ij de la colonne ; colonne
+# "levier" de mw_influence()). Chaque residu est redresse :
+#     r~_ij = r_ij / sqrt(1 - h_ij),
+# 1 - h_ij etant calcule comme (S_j - C_ij) / S_j, somme des AUTRES cellules
+# de la colonne divisee par S_j, et non comme 1 - C_ij / S_j : pour une
+# cellule qui domine sa colonne (volumes de l'ordre de 1e16 fois les autres),
+# 1 - C_ij / S_j vaut 0 en flottant et le pool deviendrait NaN (C2 de l'audit
+# de #46). Avec n_j >= 2 et C_ij > 0 finis (validation), 1 - h_ij > 0 pour
+# toute cellule retenue. Limite, anterieure a #46 et hors de cette fonction :
+# pour une telle cellule, r_ij lui-meme perd ses chiffres par annulation dans
+# F_ij - f^_j (mw_residus()), et le redressement agrandit cette erreur.
+# Le pool est ensuite recentre : la contrainte d'estimation de f^_j est
+# sum_i sqrt(C_ij) r_ij = 0, et non sum_i r_ij = 0, de sorte que la moyenne
+# du pool redresse n'est pas nulle. Pour n_j = 2, |r~_ij| = 1 exactement avant
+# recentrage (|r_ij| = sqrt(1 - h_ij) dans ce cas).
+# Interpretation de l'outil (redressement par le levier des modeles lineaires
+# ponderes), non formule du reglement. Seul le pool change : mw_residus(), les
+# statistiques observees et repliquees et mw_simuler_triangle() ne sont pas
+# modifies. Le pool ne contient que les residus retenus par mw_residus() avec
+# l'ensemble j_degeneres des colonnes degenerees (fige a l'observe par
+# mw_bootstrap(), calcule sur aj s'il n'est pas fourni ; #60).
+.mw_pool_residus <- function(aj, j_degeneres = NULL) {
+  res <- mw_residus(aj, j_degeneres)
+  if (!nrow(res)) return(numeric(0))
+  # 1 - h_ij = (S_j - C_ij) / S_j, sur les lignes 0..I-j-1 de la colonne j
+  # (memes cellules que mw_residus() et mw_influence()).
+  un_moins_h <- vapply(seq_len(nrow(res)), function(k) {
+    col <- aj$tri[seq_len(aj$I - res$j[k]), res$j[k] + 1]
+    sum(col[-(res$i[k] + 1)]) / sum(col)
+  }, numeric(1))
+  pool <- res$residu / sqrt(un_moins_h)
+  pool - mean(pool)                               # recentrage
+}
+
 mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
   # Tirages sous graine locale (ADR 0004, #42) : etat de l'appelant restaure.
   engine_sous_graine(seed, {
@@ -7291,10 +7330,8 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
     # #60, via le contexte de .mw_contexte_mc()).
     jd <- .mw_colonnes_degenerees(aj)
     # Pool : residus de Mack retenus du triangle observe, colonnes degenerees
-    # exclues (#60).
-    res <- mw_residus(aj, jd)
-    pool <- res$residu
-    pool <- pool - mean(pool)                     # recentrage usuel
+    # exclues (#60), redresses par le levier puis recentres (#46).
+    pool <- .mw_pool_residus(aj, jd)
     # Contexte observe conserve pour les conditions du catalogue (#44).
     e_obs <- .mw_contexte_mc(aj, jd)
     obs <- .mc_evaluer(MW_CATALOGUE_MC, e_obs)

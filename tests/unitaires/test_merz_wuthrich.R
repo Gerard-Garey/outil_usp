@@ -966,7 +966,7 @@ k_replications <- function(t, B = 99, seed = 20260831) {
   aj <- mw_ajuster(t); jd <- .mw_colonnes_degenerees(aj)
   Ko <- Kc <- rep(NA_integer_, B); nw <- 0L
   engine_sous_graine(seed, {
-    res <- mw_residus(aj); pool <- res$residu - mean(res$residu)
+    pool <- .mw_pool_residus(aj, jd)   # pool de mw_bootstrap() (#46)
     for (b in seq_len(B)) {
       tb <- mw_simuler_triangle(aj, pool)
       if (anyNA(tb[upper.tri(tb, diag = TRUE)[, rev(seq_len(ncol(tb)))]])) next
@@ -1466,7 +1466,7 @@ verifier("mw_residus(aj, j_degeneres) : ensemble fourni prioritaire, NULL = ense
 n_res_replications <- function(t, B = 99, seed = 20260831) {
   aj <- mw_ajuster(t); jd <- .mw_colonnes_degenerees(aj); n <- rep(NA_integer_, B)
   engine_sous_graine(seed, {
-    res <- mw_residus(aj, jd); pool <- res$residu - mean(res$residu)
+    pool <- .mw_pool_residus(aj, jd)   # pool de mw_bootstrap() (#46)
     for (b in seq_len(B)) {
       tb <- mw_simuler_triangle(aj, pool)
       if (anyNA(tb[upper.tri(tb, diag = TRUE)[, rev(seq_len(ncol(tb)))]])) next
@@ -1529,13 +1529,13 @@ verifier("CorrDev, Calendrier : j_degeneres NULL = ensemble de aj ; colonne fige
 # Avant le gel (2a3e3f0), elles different aux replications b = 28, 63, 83
 # (CorrDev) et b = 83 (Calendrier) ; a B = 999, 30 et 8 replications, sans
 # changer les p_mc (mesure du compte rendu de #60, extension du 06/10/2026).
-# A SYNCHRONISER avec mw_bootstrap() : le pool ci-dessous recopie le sien
-# (toute modification du pool, par exemple #46, doit y etre reportee).
+# Pool tire dans .mw_pool_residus(aj, jd), comme mw_bootstrap() (#46) : le
+# rejeu suit le pool du moteur sans copie a synchroniser.
 stats_cal_cor <- function(t, B = 99, seed = 20260831) {
   aj <- mw_ajuster(t); jd <- .mw_colonnes_degenerees(aj)
   S <- matrix(NA_real_, B, 2, dimnames = list(NULL, c("Calendrier", "CorrDev")))
   engine_sous_graine(seed, {
-    res <- mw_residus(aj, jd); pool <- res$residu - mean(res$residu)
+    pool <- .mw_pool_residus(aj, jd)
     for (b in seq_len(B)) {
       tb <- mw_simuler_triangle(aj, pool)
       if (anyNA(tb[upper.tri(tb, diag = TRUE)[, rev(seq_len(ncol(tb)))]])) next
@@ -1595,7 +1595,7 @@ verifier("Colonne aplatie constante (C1) : degeneree, exclue de HomogF et des re
            # aucun rho = NA
            kk <- integer(0); nna <- 0L; np0 <- 0L
            engine_sous_graine(20260831, {
-             pool <- rs$residu - mean(rs$residu)
+             pool <- .mw_pool_residus(a, jd)   # pool de mw_bootstrap() (#46)
              for (b in 1:99) {
                tb <- mw_simuler_triangle(a, pool)
                if (anyNA(tb[upper.tri(tb, diag = TRUE)[, rev(seq_len(ncol(tb)))]])) next
@@ -1942,6 +1942,80 @@ verifier("Ex aequo de F : p_min NA de HomogF et CorrDev, motif dans le commentai
              x <- d[d$test == k, ]
              is.na(x$p_min) && x$type == "test" && grepl(mot, x$commentaire, fixed = TRUE)
            }, logical(1)))
+         })
+
+## --- Pool du bootstrap redresse par le levier (#46, variante B) ---------------
+# Decision du mainteneur du 06/10/2026 (Q-E2r-46-1) : r~_ij = r_ij / sqrt(1 - h_ij),
+# h_ij = C_ij / S_j, puis recentrage. Reference recalculee ici a partir du
+# triangle, sans mw_influence() : S_j = somme des C_ij de la colonne.
+pool_attendu46 <- function(t) {
+  a <- mw_ajuster(t); rs <- mw_residus(a)
+  S <- vapply(seq_len(nrow(rs)), function(k) {
+    j <- rs$j[k]; sum(t[seq_len(nrow(t) - j - 1), j + 1])
+  }, numeric(1))
+  rr <- rs$residu / sqrt(1 - rs$C / S)
+  list(rs = rs, brut = rr, pool = rr - mean(rr))
+}
+verifier("Pool redresse (#46) : r / sqrt(1 - C/S) - moyenne a 1e-15 pres sur reserve2",
+         {
+           p <- .mw_pool_residus(mw_ajuster(tri_ref)); att <- pool_attendu46(tri_ref)
+           length(p) == nrow(att$rs) && max(abs(p - att$pool)) <= 1e-15
+         })
+verifier("Pool redresse (#46) : |r~| = 1 pour n_j = 2 avant recentrage ; somme r^2 = n_j - 1 par colonne",
+         {
+           att <- pool_attendu46(tri_ref); nj <- table(att$rs$j)
+           j2 <- as.integer(names(nj)[nj == 2])
+           length(j2) == 1 && isTRUE(proche(abs(att$brut[att$rs$j == j2]), c(1, 1), rel = 1e-14)) &&
+             all(vapply(names(nj), function(j)
+               isTRUE(proche(sum(att$rs$residu[att$rs$j == as.integer(j)]^2), nj[[j]] - 1, rel = 1e-12)),
+               logical(1)))
+         })
+verifier("Pool redresse (#46) : aucun NaN, longueur = residus retenus (ta_deg, tri_deg, tri_c1, col0_1e11, sauf_une)",
+         all(vapply(list(ta_deg, tri_deg, tri_c1, acceptes192$col0_1e11, acceptes192$sauf_une), function(t) {
+           a <- mw_ajuster(t); jd <- .mw_colonnes_degenerees(a); p <- .mw_pool_residus(a, jd)
+           length(p) == nrow(mw_residus(a, jd)) && length(p) > 0 && all(is.finite(p)) &&
+             abs(mean(p)) < 1e-15 && identical(p, .mw_pool_residus(a))
+         }, logical(1))))
+verifier("mw_bootstrap() tire dans .mw_pool_residus() ; statistiques observees inchangees (#46)",
+         {
+           a <- mw_ajuster(tri_ref); jd <- .mw_colonnes_degenerees(a)
+           b <- mw_bootstrap(a, B = 19)
+           sig <- rep(NA_real_, 19)
+           engine_sous_graine(20260831, {
+             pool <- .mw_pool_residus(a, jd)
+             # boucle alignee sur celle de mw_bootstrap() (sauts compris)
+             for (k in 1:19) {
+               tb <- mw_simuler_triangle(a, pool)
+               if (anyNA(tb[upper.tri(tb, diag = TRUE)[, rev(seq_len(ncol(tb)))]])) next
+               ab <- try(mw_ajuster(tb), silent = TRUE)
+               if (inherits(ab, "try-error")) next
+               sb <- try(.mw_stats(ab, jd), silent = TRUE)
+               if (inherits(sb, "try-error")) next
+               m <- try(mw_msep(ab), silent = TRUE)
+               if (!inherits(m, "try-error") && is.finite(m$msep) && ab$reserve > 0)
+                 sig[k] <- sqrt(m$msep) / ab$reserve
+             }
+           })
+           identical(b$sigma_boot, sig[is.finite(sig)]) &&
+             identical(b$stats_obs, as.list(.mc_evaluer(MW_CATALOGUE_MC, .mw_contexte_mc(a, jd))))
+         })
+# C2 de l'audit de #46 : ligne 0 de reserve2 multipliee par 1e17. 1 - C/S vaut
+# 0 en flottant pour les cellules de la ligne 0 ; 1 - h est calcule comme la
+# somme des autres cellules divisee par S_j, d'ou un pool fini et un bootstrap
+# qui tourne (B_eff > 0) ou, a defaut, un motif.
+verifier("Pool redresse (#46, C2) : ligne 0 x 1e17, pool fini, B_eff > 0 ou motif",
+         {
+           t17 <- tri_ref; t17[1, ] <- t17[1, ] * 1e17
+           a <- mw_ajuster(t17); jd <- .mw_colonnes_degenerees(a)
+           p <- .mw_pool_residus(a, jd)
+           r <- suppressWarnings(run_engine(methode = "reserve2", triangle = t17, segment = 1,
+                                                annexe = "II", B = 99))
+           tb <- engine_table_tests(r)
+           be <- unlist(r$bootstrap$B_effectif); mo <- unlist(r$bootstrap$motif_mc)
+           isTRUE(r$ok) && length(p) > 0 && all(is.finite(p)) &&
+             all(is.finite(r$bootstrap$sigma_boot)) && length(r$bootstrap$sigma_boot) > 0 &&
+             all(be > 0 | (!is.na(mo[names(be)]) & nzchar(mo[names(be)]))) &&
+             !any(is.nan(tb$p_retenue))
          })
 
 fin_fichier()
