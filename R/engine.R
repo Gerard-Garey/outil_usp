@@ -5530,20 +5530,29 @@ engine_valider_serie_retenue <- function(xt, yt, T = NULL, theta_equiv = 0.10,
 # Reperes de LECTURE des graphiques d'influence (issue #4, piste 3 ; valeurs
 # jusqu'ici ecrites en dur dans l'affichage, conservees telles quelles). Le
 # moteur en tire les booleens de coloration fort_ecart_sigma
-# (engine_influence()) et fort_dfbeta (mw_influence()), que display_helpers.R
+# (engine_influence()) et fort_dfbetas (mw_influence()), que display_helpers.R
 # lit sans comparaison (issue #33, constat C1 d'app-review). Ce ne sont ni des seuils
 # reglementaires ni des niveaux de test ; aucun verdict n'en depend.
 # - REPERE_INFLUENCE_SIGMA : |ecart relatif de sigma_USP| au retrait d'une
 #   annee (jackknife) ; renvoie au repere conventionnel de 10 % de la fiche
 #   jackknife, qui cite 10 % et 20 % : seul 10 % sert ici, a la couleur.
-# - REPERE_DFBETA_MW : |variation relative de f_j| au retrait d'une cellule
-#   du triangle (DFBETA de mw_influence()). Repere de lecture propre a
-#   l'outil, herite de l'affichage, sans source, sans fondement statistique
-#   ni reglementaire ; il ne produit aucun verdict et n'est pas le repere
-#   2/sqrt(n) de Belsley-Kuh-Welsch, qui porte sur un DFBETAS standardise et
-#   non sur une variation relative (issue #89).
+# - REPERE_DFBETAS_MW : numerateur c du repere c / sqrt(n_j) applique au
+#   DFBETAS standardise de chaque cellule du triangle dans la regression
+#   ponderee de sa colonne (mw_influence(), issue #89). Repere de LECTURE,
+#   sans verdict (ADR 0001, M7) : |DFBETAS| > 2/sqrt(n), repere dit
+#   size-adjusted attribue a Belsley, Kuh et Welsch (1980) par des sources
+#   secondaires (SAS/STAT PROC REG "Influence Diagnostics" ; manuel Stata
+#   regress postestimation, qui cite la p. 28) ; ouvrage non relu.
+#   Mise en garde : sous le modele de Mack a erreurs conditionnelles
+#   gaussiennes, a C(.,j) donne, DFBETAS_i = t_i sqrt(h_i / (1 - h_i)), t_i
+#   residu studentise externe de loi t_{n_j - 2} (resultat classique, source
+#   secondaire) ; a levier egal (h_i = 1/n), P(|DFBETAS| > 2/sqrt(n)) =
+#   P(|t_{n-2}| > 2 sqrt((n - 1)/n)) : 12,3 % (n_j = 7) a 35,0 % (n_j = 3),
+#   esperance 4,5 cellules sur 25 dans un triangle T = 8 sans anomalie,
+#   confirmee par simulation (tests/taux_franchissement_reperes.R
+#   --seulement mw). C'est un repere de lecture, pas un test.
 REPERE_INFLUENCE_SIGMA <- 0.10
-REPERE_DFBETA_MW <- 0.02
+REPERE_DFBETAS_MW <- 2
 # Surface de la fonction objectif sur une grille (delta, gamma). Elle sert a
 # visualiser la geometrie de l'optimisation, notamment lorsque delta est au
 # bord : un plateau plat en delta signifie que la structure de variance n'est
@@ -8221,8 +8230,37 @@ engine_motif_b_alpha <- function(B, alpha) {
 # L'INFLUENCE exacte se mesure par le DFBETA obtenu en retirant la cellule :
 #     f_j^(-i) = (somme C(.,j+1) - C(i,j+1)) / (somme C(.,j) - C(i,j))
 # Ces deux quantites sont calculees exactement, sans reajustement iteratif.
+# DFBETAS (issue #89) : meme retrait, standardise, dans la regression ponderee
+# C(.,j+1) ~ 0 + C(.,j) de poids 1/C(.,j) (valeur de stats::dfbetas() sur
+# cette regression), avec n = n_j, S_j = somme C(.,j), 1 - h_i = (S_j - C(i,j))
+# / S_j (calcule ainsi, comme pour #46, pour ne pas tomber a 0 en flottant) :
+#     e_i = C(i,j+1) - f_j C(i,j),  sigma2_j = somme e_i^2 / C(i,j) / (n - 1),
+#     s2_(i) = somme_{k != i} (C(k,j+1) - f_j^(-i) C(k,j))^2 / C(k,j) / (n - 2),
+#     DFBETAS_i = e_i sqrt(S_j) / (S_j (1 - h_i) s_(i)).
+# s2_(i) est calcule DIRECTEMENT par retrait de la cellule, avec f_j^(-i)
+# (f_sans_cellule) : la forme close equivalente
+#     s2_(i) = [(n - 1) sigma2_j - e_i^2 / (C(i,j) (1 - h_i))] / (n - 2)
+# est une difference de deux termes d'ordre (n - 1) sigma2_j, qui perd toute
+# precision quand les cellules restantes sont presque proportionnelles (#89,
+# constat C2 de l'audit) ; c'est la forme employee par stats::dfbetas(),
+# reference du test sur les triangles bien conditionnes seulement (le cas
+# presque proportionnel est teste contre le reajustement direct).
+# sigma2_j est recalcule ici (non lu dans aj$sigma2).
+# Gardes (NA, jamais NaN ni Inf ; residu recoit la meme garde de colonne) :
+# - colonne exclue au sens du predicat unique des colonnes degenerees
+#   (.mw_j_exclues(aj, NULL), comme mw_residus() et M1-M6, #60), ou
+#   sigma2_j (aj$sigma2) non fini ou nul : dfbetas et residu NA ;
+# - n_j = 2 (s2_(i) sans degre de liberte) : dfbetas NA ;
+# - s2_(i) <= 1e2 eps (n - 1) sigma2_j : les cellules restantes sont
+#   proportionnelles a environ 1e-7 pres de la dispersion de la colonne
+#   (rapport des ecarts-types) ; le DFBETAS depasse alors 1e6 environ en
+#   valeur absolue et n'a plus de sens a la lecture (influence pratiquement
+#   non bornee) : dfbetas NA et dfbetas_non_borne = TRUE (FALSE dans tous
+#   les autres cas, jamais NA).
+# repere_dfbetas = REPERE_DFBETAS_MW / sqrt(n_j), repere de lecture.
 mw_influence <- function(aj) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
+  jd <- .mw_j_exclues(aj, NULL)
   out <- data.frame()
   for (j in 0:(J - 1)) {
     idx <- 0:(I - j - 1)
@@ -8231,20 +8269,48 @@ mw_influence <- function(aj) {
     Sj <- sum(Cij); Sj1 <- sum(Cij1)
     h <- Cij / Sj
     f_sans <- (Sj1 - Cij1) / (Sj - Cij)
-    resid <- if (is.finite(aj$sigma2[j + 1]) && aj$sigma2[j + 1] > 0)
-      sqrt(Cij) * (Cij1 / Cij - aj$f[j + 1]) / sqrt(aj$sigma2[j + 1]) else rep(NA_real_, length(idx))
+    retenue <- is.finite(aj$sigma2[j + 1]) && aj$sigma2[j + 1] > 0 && !(j %in% jd)
+    resid <- if (retenue)
+      sqrt(Cij) * (Cij1 / Cij - aj$f[j + 1]) / sqrt(aj$sigma2[j + 1])
+    else rep(NA_real_, length(idx))
+    n <- length(idx)
+    dfbetas <- rep(NA_real_, n)
+    non_borne <- rep(FALSE, n)
+    if (retenue && n >= 3) {
+      e <- Cij1 - aj$f[j + 1] * Cij
+      un_moins_h <- (Sj - Cij) / Sj
+      s2 <- sum(e^2 / Cij) / (n - 1)
+      if (is.finite(s2) && s2 > 0) {
+        s2_i <- vapply(seq_len(n), function(k)
+          sum(((Cij1 - f_sans[k] * Cij)^2 / Cij)[-k]) / (n - 2), numeric(1))
+        garde <- 1e2 * .Machine$double.eps * (n - 1) * s2
+        ok <- is.finite(s2_i) & s2_i > garde
+        non_borne <- is.finite(s2_i) & s2_i <= garde
+        dfbetas[ok] <- e[ok] * sqrt(Sj) / (Sj * un_moins_h[ok] * sqrt(s2_i[ok]))
+        dfbetas[!is.finite(dfbetas)] <- NA_real_
+      }
+    }
     out <- rbind(out, data.frame(
       i = idx, j = j, C = Cij, F = Cij1 / Cij,
       levier = h, seuil_levier = 2 / length(idx),
       f_chapeau = aj$f[j + 1], f_sans_cellule = f_sans,
       dfbeta_relatif = (f_sans - aj$f[j + 1]) / aj$f[j + 1],
-      residu = resid, stringsAsFactors = FALSE))
+      residu = resid,
+      dfbetas = dfbetas, repere_dfbetas = REPERE_DFBETAS_MW / sqrt(n),
+      dfbetas_non_borne = non_borne,
+      stringsAsFactors = FALSE))
   }
+  # Colonnes ajoutees en fin (#89), apres fort_levier : l'ordre des onze
+  # premieres colonnes est inchange ; dfbetas_non_borne en derniere position.
+  dfb <- out$dfbetas; rep_dfb <- out$repere_dfbetas; nb <- out$dfbetas_non_borne
+  out$dfbetas <- NULL; out$repere_dfbetas <- NULL; out$dfbetas_non_borne <- NULL
   out$fort_levier <- out$levier > out$seuil_levier
-  # Coloration du graphique DFBETA (plot_mw_dfbeta()) : |variation relative
-  # de f_j| au-dela du repere de lecture REPERE_DFBETA_MW (issue #33,
-  # constat C1 d'app-review).
-  out$fort_dfbeta <- abs(out$dfbeta_relatif) > REPERE_DFBETA_MW
+  out$dfbetas <- dfb
+  out$repere_dfbetas <- rep_dfb
+  # Coloration du graphique d'influence (plot_mw_dfbeta()) : |DFBETAS| au-dela
+  # du repere de lecture REPERE_DFBETAS_MW / sqrt(n_j) ; NA vaut FALSE.
+  out$fort_dfbetas <- !is.na(out$dfbetas) & abs(out$dfbetas) > out$repere_dfbetas
+  out$dfbetas_non_borne <- nb
   out
 }
 

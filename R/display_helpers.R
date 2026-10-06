@@ -1022,34 +1022,66 @@ plot_mw_levier <- function(pd) {
        "levier h(i,j) = C(i,j) / S_j", "residu standardise")
 }
 
-# --- Merz-Wuthrich : DFBETA sur les facteurs de developpement ---------------
-# Couleur de repere : booleen fort_dfbeta, calcule par le moteur
-# (mw_influence(), repere REPERE_DFBETA_MW ; issue #33).
+# --- Merz-Wuthrich : DFBETAS sur les facteurs de developpement -------------
+# Valeurs (dfbetas), reperes de lecture (repere_dfbetas = c/sqrt(n_j)) et
+# couleur (fort_dfbetas) calcules par le moteur (mw_influence(), repere
+# REPERE_DFBETAS_MW ; issues #33, #89). Les reperes sont traces par colonne j
+# (escalier), pour les seules colonnes ayant au moins un DFBETAS defini ; les
+# cellules sans DFBETAS (NA : n_j = 2, colonne degeneree ou sigma2_j nul,
+# DFBETAS non borne) ne sont pas tracees.
+# Libelle du repere c/sqrt(n_j) : c est lu dans la constante du moteur
+# REPERE_DFBETAS_MW (engine.R est source avant ce fichier) ; a defaut, le
+# libelle reste litteral (c/sqrt(n_j)), sans aucun calcul.
+.libelle_repere_dfbetas <- function(d) {
+  c0 <- get0("REPERE_DFBETAS_MW", mode = "numeric", ifnotfound = NULL)
+  paste0(if (is.null(c0)) "c" else format(signif(c0, 6)), "/&radic;n_j")
+}
 plot_mw_dfbeta <- function(pd) {
-  if (!.influence_mw(pd) || is.null(pd$influence$fort_dfbeta)) return(.vide())
-  d <- pd$influence; v <- 100 * d$dfbeta_relatif
+  if (!.influence_mw(pd) || is.null(pd$influence$fort_dfbetas)) return(.vide())
+  d <- pd$influence
+  if (all(is.na(d$dfbetas))) return(.vide("DFBETAS non definis pour ce triangle"))
+  x <- seq_len(nrow(d)); v <- d$dfbetas; ok <- !is.na(v)
   etiq <- paste0("(", d$i, ",", d$j, ")")
+  lib <- sub("&radic;n_j", "sqrt(n_j)", .libelle_repere_dfbetas(d), fixed = TRUE)
+  # Escalier des reperes : un palier par colonne j ayant au moins un DFBETAS
+  # defini, de la premiere a la derniere cellule de la colonne (+/- 0,5),
+  # interrompu entre colonnes.
+  jr <- unique(d$j[ok])
+  pal <- lapply(split(x, d$j)[as.character(jr)], function(k)
+    c(min(k) - 0.5, max(k) + 0.5, NA))
+  xr <- unlist(pal, use.names = FALSE)
+  rr <- unlist(lapply(split(d$repere_dfbetas, d$j)[as.character(jr)],
+                      function(r) c(r[1], r[1], NA)), use.names = FALSE)
   if (!.plotly_dispo()) {
     .cadre()
-    plot(seq_along(v), v, type = "h", col = ifelse(d$fort_dfbeta, COUL$trait, COUL$pt),
-         lwd = 2, xlab = "cellule (i, j)", ylab = "variation de f_j (%)",
-         main = "Influence de chaque cellule sur f_j")
+    plot(x[ok], v[ok], type = "h", col = ifelse(d$fort_dfbetas[ok], COUL$trait, COUL$pt),
+         lwd = 2, xlab = "cellule (i, j)", ylab = "DFBETAS",
+         xlim = range(xr, na.rm = TRUE),
+         ylim = range(c(v[ok], rr, -rr), na.rm = TRUE),
+         main = "Influence de chaque cellule sur f_j (DFBETAS)")
     graphics::abline(h = 0, col = COUL$ref)
+    graphics::lines(xr, rr, col = COUL$ref, lty = 2)
+    graphics::lines(xr, -rr, col = COUL$ref, lty = 2)
     return(invisible())
   }
-  p <- plotly::plot_ly(x = seq_along(v), y = v, type = "bar",
-        text = etiq,
-        marker = list(color = ifelse(d$fort_dfbeta, COUL$trait, COUL$env),
+  info <- sprintf("cellule %s<br>DFBETAS = %+.3f (repere +/- %.3f)<br>variation de f_j = %+.3f %%",
+                  etiq, v, d$repere_dfbetas, 100 * d$dfbeta_relatif)
+  p <- plotly::plot_ly(x = x[ok], y = v[ok], type = "bar",
+        text = info[ok], textposition = "none",
+        marker = list(color = ifelse(d$fort_dfbetas[ok], COUL$trait, COUL$env),
                       line = list(color = COUL$pt, width = 1)),
-        hovertemplate = paste0("cellule %{text}<br>variation de f_j = ",
-                               "%{y:+.3f} %<extra></extra>"))
-  # inherit = FALSE : sans cela, la trace herite de l'attribut `text` du trace
-  # barre (une etiquette par cellule) alors qu'elle n'a que deux points, ce que
-  # plotly refuse de recycler.
-  p <- plotly::add_lines(p, x = range(seq_along(v)), y = c(0, 0),
+        hovertemplate = "%{text}<extra></extra>")
+  # inherit = FALSE : sans cela, les traces de repere heriteraient de
+  # l'attribut `text` du trace barre (une etiquette par cellule), de longueur
+  # differente, ce que plotly refuse de recycler.
+  p <- plotly::add_lines(p, x = range(xr, na.rm = TRUE), y = c(0, 0),
         line = list(color = COUL$pt), hoverinfo = "skip", inherit = FALSE)
-  .mep(p, "Influence de chaque cellule sur son facteur f_j (DFBETA)",
-       "cellule du triangle", "variation relative de f_j (%)")
+  p <- plotly::add_lines(p, x = xr, y = rr, line = list(color = COUL$ref, dash = "dash"),
+        connectgaps = FALSE, hoverinfo = "skip", inherit = FALSE)
+  p <- plotly::add_lines(p, x = xr, y = -rr, line = list(color = COUL$ref, dash = "dash"),
+        connectgaps = FALSE, hoverinfo = "skip", inherit = FALSE)
+  .mep(p, sprintf("Influence de chaque cellule sur son facteur f_j (DFBETAS, reperes +/- %s)", lib),
+       "cellule du triangle", "DFBETAS")
 }
 
 # --- Merz-Wuthrich : contribution des annees de survenance -----------------
@@ -1348,14 +1380,40 @@ note_m1 <- function(pd, alpha) {
 
 note_influence_mw <- function(pd) {
   d <- pd$influence
-  if (is.null(d$dfbeta_relatif)) return(NULL)
+  if (is.null(d$dfbeta_relatif) || is.null(d$fort_dfbetas)) return(NULL)
   nf <- sum(d$fort_levier, na.rm = TRUE)
-  mx <- d[which.max(abs(d$dfbeta_relatif)), ]
-  sprintf(paste(
+  txt <- sprintf(paste(
     "Le levier d'une cellule dans son facteur f_j vaut C(i,j) / S_j ; il somme &agrave; 1",
-    "par colonne. <b>%d cellule(s)</b> d&eacute;passent le rep&egrave;re 2/n_j. La cellule la plus",
-    "influente est <b>(i = %d, j = %d)</b>, dont le retrait d&eacute;placerait f_%d de",
-    "<b>%+.2f %%</b>."), nf, mx$i, mx$j, mx$j, 100 * mx$dfbeta_relatif)
+    "par colonne. <b>%d cellule(s)</b> d&eacute;passent le rep&egrave;re de levier 2/n_j."), nf)
+  nb <- if (is.null(d$dfbetas_non_borne)) integer(0) else which(d$dfbetas_non_borne)
+  # dfbetas_non_borne (moteur) : le retrait de la cellule laisse dans sa
+  # colonne des cellules proportionnelles ou presque ; restitue sans verdict.
+  txt_nb <- if (length(nb)) sprintf(paste(
+    "DFBETAS non born&eacute; : %s ; le retrait de %s laisse dans sa colonne des",
+    "cellules proportionnelles ou presque (C(k,j+1) &asymp; f C(k,j)) : son DFBETAS",
+    "est trop grand pour &ecirc;tre restitu&eacute; (influence pratiquement illimit&eacute;e)."),
+    paste0("(i = ", d$i[nb], ", j = ", d$j[nb], ")", collapse = ", "),
+    if (length(nb) > 1) "chacune de ces cellules" else "cette cellule") else NULL
+  if (all(is.na(d$dfbetas)))
+    return(paste(c(txt, "Le DFBETAS n'est d&eacute;fini pour aucune cellule de ce triangle.",
+                   txt_nb), collapse = " "))
+  lib <- .libelle_repere_dfbetas(d)
+  nd <- sum(d$fort_dfbetas)
+  mx <- d[which.max(abs(d$dfbetas)), ]
+  paste(c(txt, sprintf(paste(
+    "Le DFBETAS d'une cellule est la variation de f_j au retrait de cette cellule,",
+    "exprim&eacute;e en &eacute;carts-types estim&eacute;s de f_j.",
+    "<b>%d cellule(s)</b> ont un DFBETAS au-del&agrave; du rep&egrave;re de lecture",
+    "%s (sans verdict). Sous le mod&egrave;le (erreurs gaussiennes, leviers &eacute;gaux),",
+    "une cellule sans anomalie franchit ce rep&egrave;re avec une probabilit&eacute; qui d&eacute;pend",
+    "du nombre n_j de cellules de sa colonne : 35 %% pour n_j = 3, 17 %% pour n_j = 5,",
+    "12 %% pour n_j = 7, 9 %% pour n_j = 10, en d&eacute;croissant vers 4,6 %% quand n_j cro&icirc;t.",
+    "Plusieurs cellules color&eacute;es sont donc attendues sans anomalie, surtout dans",
+    "les colonnes courtes.",
+    "La cellule la plus influente est",
+    "<b>(i = %d, j = %d)</b> (DFBETAS = %+.2f), dont le retrait d&eacute;placerait f_%d de",
+    "<b>%+.2f %%</b>."), nd, lib, mx$i, mx$j, mx$dfbetas, mx$j, 100 * mx$dfbeta_relatif),
+    txt_nb), collapse = " ")
 }
 
 note_influence <- function(pd) {
