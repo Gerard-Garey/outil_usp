@@ -155,8 +155,8 @@
 #      Rscript tests/puissance_t8.R [--volet tout|A|B] [--R 20000]
 #          [--R-chaine 500] [--B 999] [--graine 20260930]
 #          [--graine-ic 20260831] [--jeu tous|J1|J2] [--tranche i/K]
-#          [--ecrire | --sortie DOSSIER]
-#      Rscript tests/puissance_t8.R --combiner f1 f2 ... [--ecrire | --sortie DOSSIER]
+#          [--ecrire [--remplacer] | --sortie DOSSIER]
+#      Rscript tests/puissance_t8.R --combiner f1 f2 ... [--ecrire [--remplacer] | --sortie DOSSIER]
 #  --ecrire : ecrit docs/tableaux/<AAAAMMJJ>-issue116-exact-J1.md (volet A),
 #  -chaine-J1.md et -chaine-J2.md (volet B), date du jour de l'execution, a
 #  faire sur un arbre propre : --ecrire est REFUSE (code 1, rien d'ecrit) si
@@ -168,6 +168,13 @@
 #  R/ et tests/reference/) ; --sortie DOSSIER : memes noms dans DOSSIER, qui
 #  doit etre HORS du depot (un dossier sous la racine du depot est refuse :
 #  --ecrire est le seul chemin qui ecrit dans le depot).
+#  Garde d'ecrasement (#173, garde_ecrasement() de tests/outils_tests.R,
+#  evaluee apres les refus precedents) : --ecrire est REFUSE (code 1, aucun
+#  des fichiers de l'execution ecrit) si l'un des fichiers cibles est suivi
+#  par git, ou existe sans que git puisse dire s'il l'est ; --remplacer
+#  (avec --ecrire seulement, refus d'usage sinon) autorise le remplacement
+#  d'un fichier suivi, et le T0 du fichier ecrit cite alors le fichier
+#  remplace et son md5 d'avant.
 #  Aucun fichier n'est ecrit si un critere bloquant echoue.
 #  --tranche i/K (volet B, un seul jeu : --volet B --jeu J1 ou J2) : ne
 #  traite que la i-eme de K tranches de replications consecutives et
@@ -219,8 +226,8 @@ ARGS <- commandArgs(trailingOnly = TRUE)
 i_comb <- match("--combiner", ARGS)
 FICHIERS_COMB <- if (is.na(i_comb)) character(0) else {
   reste <- ARGS[-seq_len(i_comb)]
-  # les options --ecrire et --sortie DOSSIER peuvent suivre la liste
-  j <- match(c("--ecrire", "--sortie"), reste)
+  # les options --ecrire, --remplacer et --sortie DOSSIER peuvent suivre la liste
+  j <- match(c("--ecrire", "--remplacer", "--sortie"), reste)
   fin <- if (all(is.na(j))) length(reste) else min(j, na.rm = TRUE) - 1L
   reste[seq_len(fin)]
 }
@@ -240,6 +247,7 @@ OPT_GRAINE_IC <- as.numeric(lire_option("--graine-ic", "20260831"))
 OPT_JEU       <- lire_option("--jeu", "tous")
 OPT_TRANCHE   <- lire_option("--tranche", NA_character_)
 OPT_ECRIRE    <- "--ecrire" %in% ARGS
+OPT_REMPLACER <- "--remplacer" %in% ARGS
 OPT_SORTIE    <- lire_option("--sortie", NA_character_)
 if (!OPT_VOLET %in% c("tout", "A", "B")) stop("--volet : tout, A ou B")
 if (!OPT_JEU %in% c("tous", "J1", "J2")) stop("--jeu : tous, J1 ou J2")
@@ -247,6 +255,7 @@ if (!is.finite(OPT_R) || OPT_R < 1L) stop("--R : entier >= 1")
 if (!is.finite(OPT_R_CHAINE) || OPT_R_CHAINE < 1L) stop("--R-chaine : entier >= 1")
 if (!is.finite(OPT_GRAINE) || !is.finite(OPT_GRAINE_IC)) stop("--graine, --graine-ic : nombres")
 if (OPT_ECRIRE && !is.na(OPT_SORTIE)) stop("--ecrire et --sortie sont exclusifs")
+if (OPT_REMPLACER && !OPT_ECRIRE) stop("--remplacer : reserve a --ecrire (remplacement d'un tableau suivi par git, #173)")
 if (!is.na(OPT_SORTIE) && !dir.exists(OPT_SORTIE)) stop("--sortie : dossier introuvable : ", OPT_SORTIE)
 # Garde de graines (voir l'en-tete) : les flux des matrices e ne doivent pas
 # etre ceux d'une boucle bootstrap (graine_ic + 1000 b, b = 0 pour
@@ -521,8 +530,12 @@ DATE_SORTIE <- format(Sys.Date(), "%Y%m%d")
 # pour --combiner) ; --ecrire refuse s'ils ne sont pas ceux d'un commit propre
 # du depot (#171, elargie) ; combinaison = TRUE : la combinaison elle-meme
 # (commit et empreintes courants) doit l'etre aussi (constat R1 d'audit).
-ecrire_fichier <- function(suffixe, lignes, commit = commit_depot(), empreintes = EMPREINTES,
-                           combinaison = FALSE) {
+# fichiers : liste nommee suffixe -> lignes, tous les fichiers de
+# l'execution ; avec --ecrire, la garde d'ecrasement (#173) controle tous
+# leurs chemins avant d'en ecrire un seul, et le T0 de chaque fichier
+# remplace (--remplacer) le cite.
+ecrire_fichiers <- function(fichiers, commit = commit_depot(), empreintes = EMPREINTES,
+                            combinaison = FALSE) {
   if (!OPT_ECRIRE && is.na(OPT_SORTIE)) return(invisible(NULL))
   if (OPT_ECRIRE) {
     nv <- c(motifs_non_versionnable(commit, empreintes, if (combinaison) "des tranches" else "de l'ex\u00e9cution"),
@@ -535,11 +548,16 @@ ecrire_fichier <- function(suffixe, lignes, commit = commit_depot(), empreintes 
   }
   dossier <- if (OPT_ECRIRE) file.path(RACINE, "docs", "tableaux") else OPT_SORTIE
   if (!dir.exists(dossier)) stop("dossier de sortie introuvable : ", dossier)
-  f <- file.path(dossier, sprintf("%s-issue116-%s.md", DATE_SORTIE, suffixe))
-  con <- file(f, open = "wb")
-  writeLines(enc2utf8(lignes), con, useBytes = TRUE)
-  close(con)
-  message("\u00e9crit : ", f)
+  chemins <- file.path(dossier, sprintf("%s-issue116-%s.md", DATE_SORTIE, names(fichiers)))
+  remplaces <- if (OPT_ECRIRE) garde_ecrasement(chemins, OPT_REMPLACER, RACINE) else NULL
+  for (i in seq_along(fichiers)) {
+    lignes <- fichiers[[i]]
+    if (OPT_ECRIRE) lignes <- inserer_t0(lignes, ligne_remplacement(remplaces, chemins[i]))
+    con <- file(chemins[i], open = "wb")
+    writeLines(enc2utf8(lignes), con, useBytes = TRUE)
+    close(con)
+    message("\u00e9crit : ", chemins[i])
+  }
 }
 
 ###############################################################################
@@ -805,8 +823,8 @@ if (length(FICHIERS_COMB)) {
               sprintf("- Crit\u00e8re 5, aucune p manquante hors motif compt\u00e9 : %s",
                       if (ok5) "OK" else paste("ECHEC :", paste(tb$echecs5, collapse = " ; "))), "")
   ecrire_console(sortie)
-  if (ok4 && ok5) ecrire_fichier(paste0("chaine-", jeu_c), sortie, ctx[["commit"]], ctx[["empreintes"]],
-                                 combinaison = TRUE)
+  if (ok4 && ok5) ecrire_fichiers(stats::setNames(list(sortie), paste0("chaine-", jeu_c)), ctx[["commit"]],
+                                  ctx[["empreintes"]], combinaison = TRUE)
   quit(status = if (ok4 && ok5) 0L else 1L)
 }
 
@@ -1169,8 +1187,10 @@ BILAN <- c("### Contr\u00f4les d'int\u00e9grit\u00e9 et crit\u00e8res bloquants 
 if (is.na(OPT_TRANCHE)) {
   ecrire_console(BILAN)
   if (!length(INTEGRITE)) {
-    if (!is.null(SORTIE_A)) ecrire_fichier("exact-J1", c(SORTIE_A, BILAN))
-    for (jn in names(SORTIES_B)) ecrire_fichier(paste0("chaine-", jn), c(SORTIES_B[[jn]], BILAN))
+    a_ecrire <- list()
+    if (!is.null(SORTIE_A)) a_ecrire[["exact-J1"]] <- c(SORTIE_A, BILAN)
+    for (jn in names(SORTIES_B)) a_ecrire[[paste0("chaine-", jn)]] <- c(SORTIES_B[[jn]], BILAN)
+    ecrire_fichiers(a_ecrire)
   }
 } else {
   # Tranche : bilan, puis lignes machine (FIN en derniere ligne).

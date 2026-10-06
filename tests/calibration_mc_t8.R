@@ -179,7 +179,7 @@
 #
 #  Usage (depuis la racine du depot) :
 #      Rscript tests/calibration_mc_t8.R [--jeu J1|J2] [--R 2000] [--tranche i/K]
-#      Rscript tests/calibration_mc_t8.R --combiner f1 f2 ... [--ecrire | --sortie DOSSIER]
+#      Rscript tests/calibration_mc_t8.R --combiner f1 f2 ... [--ecrire [--remplacer] | --sortie DOSSIER]
 #          [--brut FICHIER]
 #  Pas d'option de B ni de graine : B = 999 et les graines sont celles du
 #  protocole (decision Q1 : aucun levier).
@@ -223,7 +223,13 @@
 #  (un dossier sous la racine du depot est refuse : --ecrire est le seul
 #  chemin qui ecrit dans le depot) ; la ligne "Versionnable" de T0 dit si
 #  --ecrire l'aurait accepte. Les fichiers de docs/tableaux/ sont regeneres,
-#  jamais patches.
+#  jamais patches. Garde d'ecrasement (#173, garde_ecrasement() de
+#  tests/outils_tests.R, evaluee apres les refus precedents et avant toute
+#  ecriture, --brut compris) : --ecrire est REFUSE (code 1, rien d'ecrit) si
+#  le fichier cible est suivi par git, ou existe sans que git puisse dire
+#  s'il l'est ; --remplacer (avec --ecrire seulement, refus d'usage sinon)
+#  autorise le remplacement d'un fichier suivi, et le T0 du fichier ecrit
+#  cite alors le fichier remplace et son md5 d'avant.
 #  --brut FICHIER (--combiner seulement) : ecrit les lignes REP combinees,
 #  triees par b, sous l'en-tete REPCOLS (valeurs separees par des
 #  tabulations), HORS du depot : un chemin sous la racine du depot est refuse
@@ -258,7 +264,8 @@
 #    - de tests/puissance_t8.R : git_depot() et commit_depot() (copies
 #      adaptees : nom du script), num(), txt_ic() (copies), ic_cp() (copie,
 #      niveau fixe a 95 %), analyse de --combiner suivie d'options et
-#      ecrire_fichier() (copies adaptees : nom du fichier, refus de --ecrire),
+#      ecrire_fichier() (copies adaptees : nom du fichier, refus de --ecrire ;
+#      ecrire_fichier() est devenue ecrire_fichiers() dans tests/puissance_t8.R, #173),
 #      tailles des suites, de Smirnov et de Mann-Kendall par enumeration
 #      (reprises dans lois_discretes()).
 #  plateforme_calcul() et empreintes_code() sont copiees (#171) dans
@@ -272,11 +279,11 @@ t_debut <- Sys.time()
 
 # --- Options (lire_option() : copie de tests/taux_franchissement_reperes.R) ---
 ARGS <- commandArgs(trailingOnly = TRUE)
-OPTIONS_APRES_COMBINER <- c("--ecrire", "--sortie", "--brut")
+OPTIONS_APRES_COMBINER <- c("--ecrire", "--remplacer", "--sortie", "--brut")
 i_comb <- match("--combiner", ARGS)
 FICHIERS_COMB <- if (is.na(i_comb)) character(0) else {
   reste <- ARGS[-seq_len(i_comb)]
-  # les options --ecrire, --sortie DOSSIER et --brut FICHIER peuvent suivre la liste
+  # les options --ecrire, --remplacer, --sortie DOSSIER et --brut FICHIER peuvent suivre la liste
   j <- match(OPTIONS_APRES_COMBINER, reste)
   fin <- if (all(is.na(j))) length(reste) else min(j, na.rm = TRUE) - 1L
   reste[seq_len(fin)]
@@ -292,11 +299,13 @@ OPT_JEU     <- lire_option("--jeu", "J1")
 OPT_R       <- suppressWarnings(as.integer(lire_option("--R", "2000")))
 OPT_TRANCHE <- lire_option("--tranche", NA_character_)
 OPT_ECRIRE  <- "--ecrire" %in% ARGS
+OPT_REMPLACER <- "--remplacer" %in% ARGS
 OPT_SORTIE  <- lire_option("--sortie", NA_character_)
 OPT_BRUT    <- lire_option("--brut", NA_character_)
 if (!OPT_JEU %in% c("J1", "J2")) stop("--jeu : J1 ou J2")
 if (!is.finite(OPT_R) || OPT_R < 1L) stop("--R : entier >= 1")
 if (OPT_ECRIRE && !is.na(OPT_SORTIE)) stop("--ecrire et --sortie sont exclusifs")
+if (OPT_REMPLACER && !OPT_ECRIRE) stop("--remplacer : reserve a --ecrire (remplacement d'un tableau suivi par git, #173)")
 if ((OPT_ECRIRE || !is.na(OPT_SORTIE) || !is.na(OPT_BRUT)) && is.na(i_comb))
   stop("--ecrire, --sortie et --brut sont reserves a --combiner (tableaux produits par --combiner)")
 if (!is.na(OPT_SORTIE) && !dir.exists(OPT_SORTIE)) stop("--sortie : dossier introuvable : ", OPT_SORTIE)
@@ -865,11 +874,14 @@ lignes_contexte <- function(ctx) vapply(names(LIBELLES_CONTEXTE), function(k)
   ligne_md(LIBELLES_CONTEXTE[[k]], ctx[[k]]), "")
 
 DATE_SORTIE <- format(Sys.Date(), "%Y%m%d")
+# Avec --ecrire, garde d'ecrasement (#173) avant l'ecriture ; le T0 d'un
+# fichier remplace (--remplacer) le cite.
 ecrire_fichier <- function(jeu, lignes) {
   if (!OPT_ECRIRE && is.na(OPT_SORTIE)) return(invisible(NULL))
   dossier <- if (OPT_ECRIRE) file.path(RACINE, "docs", "tableaux") else OPT_SORTIE
   if (!dir.exists(dossier)) stop("dossier de sortie introuvable : ", dossier)
   f <- file.path(dossier, sprintf("%s-issue166-calibration-%s.md", DATE_SORTIE, jeu))
+  if (OPT_ECRIRE) lignes <- inserer_t0(lignes, ligne_remplacement(garde_ecrasement(f, OPT_REMPLACER, RACINE), f))
   con <- file(f, open = "wb")
   writeLines(enc2utf8(lignes), con, useBytes = TRUE)
   close(con)

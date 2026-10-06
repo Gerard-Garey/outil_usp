@@ -5,8 +5,11 @@
 #  la maniere d'executer le moteur pour chacun, et le comparateur unique de
 #  non-regression (comparer_objets). Source par test_reproductibilite.R,
 #  generer_references.R, comparer_references.R, patcher_reference.R et
-#  regenerer_et_rendre_compte.R ;
-#  R base uniquement.
+#  regenerer_et_rendre_compte.R ; source aussi par les quatre scripts de
+#  mesure hors CI qui ont --ecrire (puissance_t8.R, constats_puissance_t8.R,
+#  calibration_mc_t8.R, taux_franchissement_reperes.R), qui y trouvent la
+#  garde d'ecrasement des tableaux versionnes (garde_ecrasement(), #173) ;
+#  R base uniquement (tools::md5sum() pour la garde).
 ###############################################################################
 
 # Repertoire racine du depot : les scripts peuvent etre lances depuis la
@@ -440,4 +443,107 @@ resumer_comparaison <- function(r, n_max = 10L) {
     det <- c(det, paste("structure (type ou attributs) differente :",
                         paste(utils::head(r$structure, n_max), collapse = ", ")))
   c(tete, det)
+}
+
+# ---------------------------------------------------------------------------
+#  Garde d'ecrasement des tableaux versionnes (issue #173). Seul lieu de la
+#  regle, appelee par les quatre scripts de mesure hors CI qui ont --ecrire
+#  (tests/puissance_t8.R, tests/constats_puissance_t8.R,
+#  tests/calibration_mc_t8.R, tests/taux_franchissement_reperes.R), APRES
+#  leurs gardes propres (arbre propre, motifs_non_versionnable()) et AVANT
+#  toute ecriture : tous les chemins cibles d'une execution sont controles
+#  d'abord, puis seulement ecrits.
+# ---------------------------------------------------------------------------
+
+# Controle les chemins cibles de --ecrire. Statut de chaque chemin, lu par
+# "git --literal-pathspecs -C racine ls-files --error-unmatch" (code 0 :
+# suivi, y compris un fichier suivi supprime de l'arbre de travail ; code
+# 1 : non suivi ; autre code ou git introuvable : indetermine) ; un chemin
+# hors de racine est non suivi par ce depot (git n'est pas interroge).
+# Refus (rien d'ecrit) :
+#   - un chemin suivi, sans remplacer = TRUE ;
+#   - un chemin existant au statut indetermine (git indisponible, racine hors
+#     d'un depot git) : prudence, meme avec remplacer = TRUE.
+# Un chemin absent ou non suivi passe (comportement inchange).
+# Renvoie (invisible) un data.frame des fichiers suivis qui seront remplaces
+# (remplacer = TRUE) : cible (chemin tel que passe), chemin (relatif a
+# racine, separateur "/") et md5_avant (NA si le fichier suivi est absent de
+# l'arbre de travail) ; zero ligne sinon. Le T0 du tableau ecrit les cite
+# (ligne_remplacement()).
+# quitter = TRUE (scripts) : refus par message() et quit(status = 1) ;
+# quitter = FALSE (tests unitaires) : erreur de classe
+# "garde_ecrasement_refus", message identique. git : commande git (argument
+# des tests, pour simuler git indisponible).
+garde_ecrasement <- function(chemins, remplacer = FALSE, racine = RACINE, quitter = TRUE, git = "git") {
+  # separateur "/" et casse ignoree sous Windows (meme convention que
+  # sous_depot() des scripts)
+  norm <- function(x) {
+    x <- suppressWarnings(normalizePath(x, winslash = "/", mustWork = FALSE))
+    if (.Platform$OS.type == "windows") tolower(x) else x
+  }
+  r <- norm(racine)
+  absolu <- vapply(chemins, function(f)
+    paste0(suppressWarnings(normalizePath(dirname(f), winslash = "/", mustWork = FALSE)), "/", basename(f)), "")
+  d <- norm(dirname(chemins))
+  dans <- d == r | startsWith(d, paste0(r, "/"))
+  relatif <- ifelse(dans, substring(absolu, nchar(r) + 2L), absolu)
+  statut <- vapply(seq_along(chemins), function(i) {
+    if (!dans[i]) return("non suivi")
+    # system2() passe ses arguments au shell sans les proteger : shQuote()
+    # sur la racine et le chemin (espaces, metacaracteres) ;
+    # --literal-pathspecs : le chemin n'est pas lu comme un motif glob
+    code <- tryCatch(suppressWarnings(system2(git, c("--literal-pathspecs", "-C", shQuote(racine), "ls-files",
+                                                     "--error-unmatch", "--", shQuote(relatif[i])),
+                                              stdout = FALSE, stderr = FALSE)),
+                     error = function(e) NA_integer_)
+    if (identical(as.integer(code), 0L)) "suivi" else if (identical(as.integer(code), 1L)) "non suivi" else "indetermine"
+  }, "")
+  existe <- file.exists(chemins)
+  motifs <- character(0)
+  if (!remplacer && any(statut == "suivi"))
+    motifs <- c(motifs, paste0("fichier(s) suivi(s) par git, remplacement non demande (--remplacer) : ",
+                               paste(relatif[statut == "suivi"], collapse = ", ")))
+  if (any(statut == "indetermine" & existe))
+    motifs <- c(motifs, paste0("fichier(s) existant(s) dont le suivi par git ne peut etre verifie ",
+                               "(git indisponible ou hors d'un depot) : ",
+                               paste(relatif[statut == "indetermine" & existe], collapse = ", ")))
+  if (length(motifs)) {
+    msg <- paste0("--ecrire refuse : ", paste(motifs, collapse = " ; "),
+                  " -- aucun fichier ecrit ; --remplacer remplace un tableau suivi par git (le T0 cite le fichier",
+                  " remplace et son md5 d'avant)")
+    if (quitter) {
+      message(msg)
+      quit(status = 1L)
+    }
+    stop(structure(class = c("garde_ecrasement_refus", "error", "condition"),
+                   list(message = msg, call = NULL)))
+  }
+  k <- statut == "suivi"
+  invisible(data.frame(cible = chemins[k], chemin = relatif[k],
+                       md5_avant = unname(ifelse(existe[k], tools::md5sum(chemins[k]), NA_character_)),
+                       stringsAsFactors = FALSE))
+}
+
+# Ligne de T0 (tableau markdown "Grandeur | Valeur") qui cite le fichier
+# remplace par --remplacer ; character(0) si cible n'est pas remplacee
+# (remplaces NULL ou sans ligne compris).
+ligne_remplacement <- function(remplaces, cible) {
+  if (is.null(remplaces) || !nrow(remplaces)) return(character(0))
+  r <- remplaces[remplaces$cible == cible, , drop = FALSE]
+  if (!nrow(r)) return(character(0))
+  sprintf("| Fichier remplacé (--remplacer) | %s, md5 d'avant %s |", r$chemin,
+          ifelse(is.na(r$md5_avant), "(absent de l'arbre de travail)", r$md5_avant))
+}
+
+# Insere des lignes a la fin du premier tableau qui suit le titre "### T0"
+# d'une sortie markdown deja construite (tableaux des scripts de mesure).
+inserer_t0 <- function(lignes, ajout) {
+  if (!length(ajout)) return(lignes)
+  i <- grep("^### T0", lignes)[1]
+  if (is.na(i)) stop("inserer_t0 : titre \"### T0\" introuvable")
+  t <- which(seq_along(lignes) > i & startsWith(lignes, "|"))
+  if (!length(t)) stop("inserer_t0 : tableau T0 introuvable")
+  fin <- t[1]
+  while (fin < length(lignes) && startsWith(lignes[fin + 1L], "|")) fin <- fin + 1L
+  append(lignes, ajout, after = fin)
 }
