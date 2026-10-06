@@ -6671,8 +6671,18 @@ mw_residus <- function(aj, j_degeneres = NULL) {
   c(E = E, V = max(V, 0))
 }
 
-mw_test_annees_calendaires <- function(aj) {
+# Colonnes degenerees (#60, extension de la decision Q-E2r-60-1 (b) du
+# mainteneur, 06/10/2026) : une colonne de l'ensemble j_degeneres (fige a
+# l'observe par mw_bootstrap(), calcule sur aj s'il n'est pas fourni,
+# .mw_j_exclues()) ne recoit aucune etiquette L / S : toutes ses etiquettes
+# valent "*". Le gel vaut aussi a l'observe : il peut y retirer une colonne
+# que l'aplatissement seul n'aurait pas rendue constante (ecart relatif a
+# f_j au plus 1e-12 sans fusion des ex aequo). Sans ce gel, une colonne
+# degeneree a l'observe peut, dans une replication, recevoir des etiquettes
+# L / S tirees du bruit d'arrondi de ses facteurs simules.
+mw_test_annees_calendaires <- function(aj, j_degeneres = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
+  jd <- .mw_j_exclues(aj, j_degeneres)
   etiq <- data.frame()
   for (j in 0:(J - 1)) {
     idx <- 0:(I - j - 1)
@@ -6683,7 +6693,8 @@ mw_test_annees_calendaires <- function(aj) {
     # valeur egale a la mediane a la tolerance recoit donc "*".
     F <- engine_aplatir_ex_aequo(F, plancher = 0)
     md <- stats::median(F)
-    lab <- ifelse(F > md, "L", ifelse(F < md, "S", "*"))
+    lab <- if (j %in% jd) rep("*", length(F)) else
+      ifelse(F > md, "L", ifelse(F < md, "S", "*"))
     etiq <- rbind(etiq, data.frame(i = idx, j = j, diag = idx + j, lab = lab,
                                    stringsAsFactors = FALSE))
   }
@@ -6714,12 +6725,24 @@ mw_test_annees_calendaires <- function(aj) {
 # correlation de rang de Spearman entre colonnes adjacentes, agregee sur le
 # triangle. La loi sous H0 dependant de la geometrie du triangle, la p-value
 # est obtenue par permutation (voir mw_bootstrap).
-mw_stat_correlation_dev <- function(aj) {
+# Colonnes degenerees (#60, extension de la decision Q-E2r-60-1 (b) du
+# mainteneur, 06/10/2026) : la paire (k - 1, k) est exclue si l'une de ses
+# deux colonnes de facteurs appartient a l'ensemble j_degeneres (fige a
+# l'observe par mw_bootstrap(), calcule sur aj s'il n'est pas fourni,
+# .mw_j_exclues()), et non plus seulement si l'aplatissement des ex aequo la
+# rend constante dans le triangle courant : les paires retenues sont ainsi
+# les memes a l'observe et dans chaque replication au regard des colonnes
+# degenerees. Le gel vaut aussi a l'observe, ou il peut retirer une paire
+# que l'aplatissement seul aurait gardee (ecart au plus 1e-12 sans fusion). Une colonne hors de l'ensemble reste ecartee par la garde
+# sd() == 0 si elle est constante apres aplatissement.
+mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
+  jd <- .mw_j_exclues(aj, j_degeneres)
   Ts <- w <- numeric(0); ea <- FALSE
   for (k in 1:(J - 1)) {
     idx <- 0:(I - k - 1)
     if (length(idx) < 3) next
+    if ((k - 1L) %in% jd || k %in% jd) next
     Fk  <- tri[idx + 1, k + 1] / tri[idx + 1, k]        # colonne k-1 -> k
     Fk1 <- tri[idx + 1, k + 2] / tri[idx + 1, k + 1]    # colonne k -> k+1
     # Ex aequo a la tolerance TOL_EX_AEQUO (#152) : Fk et Fk1 aplatis
@@ -7328,8 +7351,10 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
 }
 
 MW_CATALOGUE_MC <- list(
-  Calendrier = .mc_entree(function(e) mw_test_annees_calendaires(e$aj)$stat, "deux"),
-  CorrDev    = .mc_entree(function(e) mw_stat_correlation_dev(e$aj)$stat, "deux"),
+  # Ensemble fige des colonnes degenerees transmis (#60, extension de
+  # Q-E2r-60-1 (b) du 06/10/2026), comme pour M1, ExpVar et KruskalAcc.
+  Calendrier = .mc_entree(function(e) mw_test_annees_calendaires(e$aj, e$j_degeneres)$stat, "deux"),
+  CorrDev    = .mc_entree(function(e) mw_stat_correlation_dev(e$aj, e$j_degeneres)$stat, "deux"),
   # Heteroscedasticite residuelle : les residus de Mack ne doivent plus
   # dependre de C(i,j) si la variance est bien proportionnelle a C(i,j).
   BP         = .mc_entree(function(e) {

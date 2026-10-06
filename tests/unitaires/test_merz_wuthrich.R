@@ -1508,6 +1508,50 @@ verifier("run_engine : ta_deg perturbe a 4e-13 (colonne j = 4 degeneree), p-valu
              memes_p(d0, d4) &&
              identical(d0$p_monte_carlo, d4$p_monte_carlo)
          })
+# Extension du gel a CorrDev et Calendrier (#60, decision Q-E2r-60-1 (b)
+# etendue par le mainteneur le 06/10/2026) : mw_stat_correlation_dev() et
+# mw_test_annees_calendaires() recoivent l'ensemble fige j_degeneres.
+verifier("CorrDev, Calendrier : j_degeneres NULL = ensemble de aj ; colonne figee hors statistique (#60)",
+         {
+           a <- mw_ajuster(ta); ad <- mw_ajuster(ta_deg)
+           cd <- mw_stat_correlation_dev(a, j_degeneres = 4L)
+           ca <- mw_test_annees_calendaires(a, j_degeneres = 4L)
+           identical(mw_stat_correlation_dev(ad), mw_stat_correlation_dev(ad, .mw_colonnes_degenerees(ad))) &&
+             identical(mw_test_annees_calendaires(ad),
+                       mw_test_annees_calendaires(ad, .mw_colonnes_degenerees(ad))) &&
+             # paires (3, 4) et (4, 5) exclues : deux paires de moins que sans gel
+             length(cd$T) == length(mw_stat_correlation_dev(a, integer(0))$T) - 2L &&
+             all(ca$etiquettes$lab[ca$etiquettes$j == 4] == "*") &&
+             any(mw_test_annees_calendaires(a, integer(0))$etiquettes$lab[ca$etiquettes$j == 4] != "*")
+         })
+# Rejeu de la boucle de mw_bootstrap() (B = 99, graine 20260831) : statistiques
+# Calendrier et CorrDev repliquees, ta_deg contre sa perturbation a 4e-13.
+# Avant le gel (2a3e3f0), elles different aux replications b = 28, 63, 83
+# (CorrDev) et b = 83 (Calendrier) ; a B = 999, 30 et 8 replications, sans
+# changer les p_mc (mesure du compte rendu de #60, extension du 06/10/2026).
+# A SYNCHRONISER avec mw_bootstrap() : le pool ci-dessous recopie le sien
+# (toute modification du pool, par exemple #46, doit y etre reportee).
+stats_cal_cor <- function(t, B = 99, seed = 20260831) {
+  aj <- mw_ajuster(t); jd <- .mw_colonnes_degenerees(aj)
+  S <- matrix(NA_real_, B, 2, dimnames = list(NULL, c("Calendrier", "CorrDev")))
+  engine_sous_graine(seed, {
+    res <- mw_residus(aj, jd); pool <- res$residu - mean(res$residu)
+    for (b in seq_len(B)) {
+      tb <- mw_simuler_triangle(aj, pool)
+      if (anyNA(tb[upper.tri(tb, diag = TRUE)[, rev(seq_len(ncol(tb)))]])) next
+      ab <- try(mw_ajuster(tb), silent = TRUE)
+      if (inherits(ab, "try-error")) next
+      S[b, ] <- .mw_stats(ab, jd)[colnames(S)]
+    }
+  })
+  S
+}
+verifier("Bootstrap : Calendrier et CorrDev repliquees identiques, ta_deg contre perturbation a 4e-13 (#60, gel)",
+         {
+           s0 <- stats_cal_cor(ta_deg); s4 <- stats_cal_cor(ta_pert(4e-13))
+           sum(!is.na(s0)) > 150 && identical(is.na(s0), is.na(s4)) &&
+             isTRUE(all(abs(s0 - s4) <= 1e-9 * pmax(1, abs(s0)), na.rm = TRUE))
+         })
 # Triangle a facteurs binaires (#192) dont seule la colonne j = 5 est rendue
 # non degeneree (C(0,6) x 1,01, ligne 0 repropagee) : accepte, pool de deux
 # residus (cas bin_pert_j5 d'actuary, specification de #192, Q3).
