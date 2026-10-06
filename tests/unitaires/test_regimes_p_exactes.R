@@ -173,10 +173,12 @@ verifier("Bande : ligne Runsr sans phrase R7/R8 (regime #29 inchange : p exacte 
              !grepl("loi de reference exacte a un ecart", l$detail, fixed = TRUE)
          })
 # #128, point c : la phrase "p-value Monte-Carlo ... est retenue" de la
-# ligne Runsr (regimes 2, bande a signes differents, et 3, pi_t variable)
-# n'est ecrite que si p_mc existe ; sinon la ligne, sans p exacte ni
-# asymptotique, est un test sans p-value (phrase de #128 en tete).
-verifier("Runsr, regimes 2 et 3 : p_mc presente -> 'est retenue' ; absente -> 'indisponible', test sans p-value",
+# ligne Runsr (regime 3, pi_t variable) n'est ecrite que si p_mc existe ;
+# sinon la ligne, sans p exacte ni asymptotique, est un test sans p-value
+# (phrase de #128 en tete). Regime 2 (bande a signes differents) depuis
+# #187 : p_mc presente, la phrase dit la p Monte-Carlo calculee et renvoie a
+# nature_p, add() pouvant encore l'ecarter (regle R1, degenerescence).
+verifier("Runsr, regimes 2 et 3 : p_mc presente -> 'est retenue' (3) ou 'est calculee' (2, #187) ; absente -> 'indisponible', test sans p-value",
          {
            txt_ind <- "est indisponible sur ces donnees ; la p-value retenue, s'il en est une, est nommee par nature_p"
            m <- c(Runsr = MOTIF_MC_AUCUNE_REPLIC)
@@ -189,7 +191,9 @@ verifier("Runsr, regimes 2 et 3 : p_mc presente -> 'est retenue' ; absente -> 'i
                  a3$detail, fixed = TRUE) &&
              grepl(paste("La p-value Monte-Carlo, simulee sous le modele ajuste avec ses pi_t,", txt_ind),
                    b3$detail, fixed = TRUE) && !grepl("est retenue", b3$detail, fixed = TRUE) &&
-             grepl("Monte-Carlo, simulee sous le modele ajuste, est retenue.", a2$detail, fixed = TRUE) &&
+             grepl(paste("La p-value Monte-Carlo, simulee sous le modele ajuste, est calculee ;",
+                         "la p-value retenue, s'il en est une, est nommee par nature_p."),
+                   a2$detail, fixed = TRUE) && !grepl("est retenue", a2$detail, fixed = TRUE) &&
              endsWith(b2$detail, paste0("Monte-Carlo, simulee sous le modele ajuste, ", txt_ind, ".")) &&
              !grepl("est retenue", b2$detail, fixed = TRUE) &&
              all(vapply(list(b2, b3), function(l)

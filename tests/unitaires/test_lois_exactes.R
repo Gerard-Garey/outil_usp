@@ -285,22 +285,22 @@ verifier("Runsr (#29) : les trois cas couvrent les trois combinaisons des deux c
          !signes_egaux(f29_bande))
 verifier("Runsr (#29) : usp_runsr_p_exacte() = runs_p_exacte(u) si les deux conditions tiennent",
          {
-           u <- u_de(f29)
-           isTRUE(proche(usp_runsr_p_exacte(f29$z, u, TRUE), runs_p_exacte(u), abs = 0)) &&
-           isTRUE(proche(usp_runsr_p_exacte(f29$z, u, TRUE), 52 / 70, rel = 1e-12))
+           u <- u_de(f29); pu <- .usp_plancher_u(f29$y / f29$x)
+           isTRUE(proche(usp_runsr_p_exacte(f29$z, u, TRUE, pu), runs_p_exacte(u), abs = 0)) &&
+           isTRUE(proche(usp_runsr_p_exacte(f29$z, u, TRUE, pu), 52 / 70, rel = 1e-12))
          })
 verifier("Runsr (#29) : mutation 1, pi_constant FALSE a signes identiques -> NA",
          {
-           u <- u_de(f29)
-           is.na(usp_runsr_p_exacte(f29$z, u, FALSE)) &&
-           is.na(usp_runsr_p_exacte(f29$z, u, NA))
+           u <- u_de(f29); pu <- .usp_plancher_u(f29$y / f29$x)
+           is.na(usp_runsr_p_exacte(f29$z, u, FALSE, pu)) &&
+           is.na(usp_runsr_p_exacte(f29$z, u, NA, pu))
          })
 verifier("Runsr (#29) : mutation 2, pi_constant TRUE a signes differents -> NA",
          {
-           u <- u_de(f29)
+           u <- u_de(f29); pu <- .usp_plancher_u(f29$y / f29$x)
            zp <- f29$z[c(2:8, 1)]                    # memes valeurs, signes decales
            !all(sign(zp - stats::median(zp)) == sign(u - stats::median(u))) &&
-           is.na(usp_runsr_p_exacte(zp, u, TRUE))
+           is.na(usp_runsr_p_exacte(zp, u, TRUE, pu))
          })
 verifier("Runsr (#29) : pi_t constant (delta = 1), Runs et Runsr portent la meme p_retenue exacte",
          {
@@ -349,8 +349,8 @@ verifier("Runsr (#29, #112) : divergence flottante r / u de 1 ulp absorbee par l
            if (all(sr == su)) "cas non discriminant sur cette plateforme : signes de r et u egaux"
            else engine_ex_aequo(r) && engine_ex_aequo(u) &&
              .signes_mediane_egaux(r, u) &&
-             isTRUE(proche(usp_runsr_p_exacte(r, u, TRUE), runs_p_exacte(u), abs = 0)) &&
-             isTRUE(proche(usp_runsr_p_exacte(u, u, TRUE), runs_p_exacte(u), abs = 0))
+             isTRUE(proche(usp_runsr_p_exacte(r, u, TRUE, .usp_plancher_u(r)), runs_p_exacte(u), abs = 0)) &&
+             isTRUE(proche(usp_runsr_p_exacte(u, u, TRUE, .usp_plancher_u(r)), runs_p_exacte(u), abs = 0))
          })
 # Cas de bout en bout a volumes constants (pi_t exactement constant quel que
 # soit delta) : T = 5 (T impair, valeur mediane ecartee, n1 = n2 = 2) et

@@ -236,12 +236,16 @@ TOLERANCE_CONFORME_SIGMA <- 1e-12
 # --- Ex aequo des tests de rang et de signe (issue #112) ---------------------
 # SEULE definition de l'ex aequo du moteur. Deux valeurs a et b sont ex aequo si
 #     |a - b| <= TOL_EX_AEQUO * max(plancher, |a|, |b|),
-# en deux regimes :
-#   - plancher = 1 (defaut, celui de engine_p_mc()) pour r_t, z_t, u_t et les
-#     residus de Mack : absolu a 1e-12 pour ces grandeurs d'ordre 1 (a z_t
-#     voisin de 0, une tolerance purement relative serait denuee de sens) ;
-#   - plancher = 0 pour les volumes x_t (.usp_aplatir_volumes()) : tolerance
-#     purement relative, invariante d'unite (#110).
+# en trois regimes :
+#   - plancher = 1 (defaut, celui de engine_p_mc()) pour z_t et les residus
+#     de Mack : absolu a 1e-12 pour ces grandeurs d'ordre 1 (a z_t voisin de
+#     0, une tolerance purement relative serait denuee de sens) ;
+#   - plancher = 0 pour les volumes x_t (.usp_aplatir_volumes(), #110) et les
+#     ratios r_t (.usp_aplatir_ratios(), #187) : tolerance purement relative,
+#     invariante d'unite ;
+#   - plancher = max|r| pour les ratios centres u_t = r_t - moyenne(r)
+#     (.usp_plancher_u(), #187, decision Q-187-1 b) : tolerance relative a
+#     l'echelle des operandes avant centrage, invariante d'unite.
 # Perimetre : les tests de rang et de signe de la branche lognormale
 # (Cox-Stuart, Spearman ratio / volume et ratio / temps, Mann-Kendall,
 # Smirnov sur z), le test des suites (Runs, Runsr et suites des residus de
@@ -255,15 +259,30 @@ TOLERANCE_CONFORME_SIGMA <- 1e-12
 # test_brown_forsythe() et de engine_plots_data(), et le tri par volume de
 # test_goldfeld_quandt().
 # Valeur (note d'actuary du 28/09/2026 sur #112, decision du mainteneur,
-# garantie corrigee a la validation de fin de branche E1b) : le bruit
-# d'arrondi de y_t / x_t est de l'ordre de 1e-16 relatif, celui de z_t de
-# 1e-15 absolu ; deux ratios distincts de saisies a au plus cinq chiffres
-# significatifs different d'au moins 1e-10 en relatif, donc d'au moins
-# 1e-12 en absolu des que les ratios sont d'ordre 1e-2 ou plus (tolerance
-# absolue sous 1 : plancher 1) ; a six chiffres l'ecart relatif minimal,
-# 1e-12, coincide avec la tolerance et deux ratios distincts peuvent etre
-# fusionnes (499999/999999 et 499998/999997). Pour z_t, aucune borne n'est
-# etablie.
+# garantie corrigee a la validation de fin de branche E1b, puis a #187) : le
+# bruit d'arrondi de y_t / x_t est de l'ordre de 1e-16 relatif, celui de z_t
+# de 1e-15 absolu.
+# r_t (plancher 0 depuis #187 ; plancher 1, tolerance absolue sous 1,
+# auparavant) : la tolerance est relative a toute echelle, deux ratios
+# adjacents dans l'ordre trie n'etant fusionnes que si leur ecart relatif est
+# au plus 1e-12 (chainage ci-dessous). Deux ratios distincts de saisies a au
+# plus cinq chiffres significatifs different d'au moins 1e-10 en relatif,
+# cent fois la tolerance : aucune fusion, quel que soit leur ordre de
+# grandeur (garantie ; mesure du 06/10/2026 : 99999/10000 et 99998/10000
+# restent distincts a r x 1e-30, 1 et 1e30). A six chiffres l'ecart relatif
+# minimal, 1e-12, coincide avec la tolerance, sans marge : deux ratios
+# distincts peuvent encore etre fusionnes (999999/999998 et 999998/999997,
+# ecart relatif calcule 9,9987e-13, fusionnes aux planchers 0 et 1 ;
+# 499999/999999 et 499998/999997, ecart relatif 2e-12, fusionnes au
+# plancher 1 seulement).
+# u_t (plancher max|r|, .usp_plancher_u()) : deux ratios distincts r_i, r_j
+# ne sont fusionnes sur u que si |r_i - r_j| <= 1e-12 max r (a environ
+# 2 ulp de max r pres, arrondi du centrage) ; a cinq chiffres,
+# |r_i - r_j| >= 1e-10 max(r_i, r_j), donc aucune fusion tant que
+# max(r_i, r_j) > 1e-2 max r (S/P des annees dans un facteur inferieur a
+# 100). Mesures du 06/10/2026 dans ce domaine : 0 fusion sur 100 000 paires
+# (actuary), 0 sur 54 837 paires tirees et 0 sur 22 103 paires voisines
+# (m+1)/m, (m+2)/(m+1) (coder). Pour z_t, aucune borne n'est etablie.
 # Aplatissement INTERNE aux tests de rang et de signe : chaque point d'entree
 # aplatit ses propres arguments ; ni les donnees, ni usp_noyau(), ni les
 # autres statistiques (AD, SW, DW, Grubbs, regressions auxiliaires...) ne
@@ -278,7 +297,8 @@ TOL_EX_AEQUO <- 1e-12
 # non-transitivite d'une tolerance) ; chaque groupe recoit sa plus petite
 # valeur. Ordre d'origine conserve. Entrees non finies : erreur.
 # plancher : 1 par defaut (grandeurs d'ordre 1), 0 pour les volumes
-# (.usp_aplatir_volumes()) ; aucune division, pas de debordement.
+# (.usp_aplatir_volumes()) et les ratios r_t, max|r| (.usp_plancher_u())
+# pour les ratios centres u_t (#187) ; aucune division, pas de debordement.
 engine_aplatir_ex_aequo <- function(v, tol = TOL_EX_AEQUO, plancher = 1) {
   if (!all(is.finite(v))) stop("engine_aplatir_ex_aequo() : valeur non finie")
   o <- order(v); s <- v[o]; n <- length(s)
@@ -2087,8 +2107,15 @@ dw_p_exacte <- function(z) {
 # Wald & Wolfowitz (1940), Ann. Math. Statist. 11, 147-162 (test des suites).
 # Ex aequo (#112) : z aplati a TOL_EX_AEQUO, une valeur a la tolerance de la
 # mediane est ecartee comme une valeur egale.
-test_runs <- function(z) {
-  z <- engine_aplatir_ex_aequo(z)
+# plancher (#187) : celui de engine_aplatir_ex_aequo() ; 1 par defaut (z_t,
+# residus de Mack), 0 pour les ratios r_t (tolerance purement relative),
+# max|r| pour les ratios centres u_t = r_t - moyenne(r) (.usp_plancher_u(),
+# decision Q-187-1 b) : dans les deux cas, invariante d'unite de y par
+# rapport a x.
+# Meme argument, meme sens, dans test_cox_stuart(), mk_p_exacte(),
+# runs_p_exacte(), .runs_effectifs() et test_mann_kendall().
+test_runs <- function(z, plancher = 1) {
+  z <- engine_aplatir_ex_aequo(z, plancher = plancher)
   s <- sign(z - stats::median(z)); s <- s[s != 0]
   n <- length(s); n1 <- sum(s > 0); n2 <- sum(s < 0)
   if (n1 == 0 || n2 == 0) return(list(stat = NA_real_, p = NA_real_, runs = NA))
@@ -2106,8 +2133,8 @@ test_runs <- function(z) {
 # Difference nulle a la tolerance TOL_EX_AEQUO (#112) : v est aplati en tete ;
 # la difference de deux flottants distincts n'etant jamais nulle, d != 0 suit
 # alors exactement la definition partagee de l'ex aequo.
-test_cox_stuart <- function(v) {
-  v <- engine_aplatir_ex_aequo(v)
+test_cox_stuart <- function(v, plancher = 1) {
+  v <- engine_aplatir_ex_aequo(v, plancher = plancher)
   n <- length(v); c0 <- ceiling(n / 2)
   d <- v[(c0 + 1):n] - v[1:(n - c0)]
   n_p <- length(d)
@@ -2141,8 +2168,8 @@ test_cox_stuart <- function(v) {
 
 # p-value bilaterale exacte du test de Mann-Kendall (sans ex aequo).
 # Ex aequo a la tolerance TOL_EX_AEQUO (#112) : v aplati en tete.
-mk_p_exacte <- function(v) {
-  v <- engine_aplatir_ex_aequo(v)
+mk_p_exacte <- function(v, plancher = 1) {
+  v <- engine_aplatir_ex_aequo(v, plancher = plancher)
   n <- length(v)
   if (anyDuplicated(v) > 0) return(NA_real_)   # loi exacte invalide avec ex aequo
   d <- .mk_loi_exacte(n)
@@ -2182,8 +2209,8 @@ mk_p_exacte <- function(v) {
 # modal. A T = 8 (n1 = n2 = 4), valeurs atteignables : 1 (R = 5), 52/70
 # (R = 4, 6), 16/70 (R = 3, 7), 4/70 (R = 2, 8) ; a T = 5 (n1 = n2 = 2) :
 # 2/3 (R = 2, 4), 1 (R = 3).
-runs_p_exacte <- function(z) {
-  z <- engine_aplatir_ex_aequo(z)             # ex aequo a la tolerance (#112)
+runs_p_exacte <- function(z, plancher = 1) {
+  z <- engine_aplatir_ex_aequo(z, plancher = plancher)  # ex aequo a la tolerance (#112)
   sg <- sign(z - stats::median(z)); sg <- sg[sg != 0]
   n1 <- sum(sg > 0); n2 <- sum(sg < 0)
   if (n1 < 1 || n2 < 1) return(NA_real_)
@@ -2216,8 +2243,8 @@ runs_p_min <- function(n1, n2) {
   .p_borne(min(p))
 }
 # Effectifs (n1, n2) de part et d'autre de la mediane, ceux de runs_p_exacte().
-.runs_effectifs <- function(z) {
-  z <- engine_aplatir_ex_aequo(z)             # ex aequo a la tolerance (#112)
+.runs_effectifs <- function(z, plancher = 1) {
+  z <- engine_aplatir_ex_aequo(z, plancher = plancher)  # ex aequo a la tolerance (#112)
   sg <- sign(z - stats::median(z)); sg <- sg[sg != 0]
   c(n1 = sum(sg > 0), n2 = sum(sg < 0))
 }
@@ -2266,23 +2293,30 @@ mk_p_min <- function(n) {
 # signe d'une valeur egale ou quasi egale a la mediane (exemple dans les
 # tests unitaires : 0 sur r, -1 sur u).
 # Sinon NA : la ligne retombe sur la p Monte-Carlo par la hierarchie de add().
-usp_runsr_p_exacte <- function(z, u, pi_constant) {
-  if (!isTRUE(pi_constant) || !.signes_mediane_egaux(z, u)) return(NA_real_)
-  runs_p_exacte(u)
+# Ex aequo (#187) : z a la tolerance des residus (plancher 1), u a celle des
+# ratios centres, plancher_u = .usp_plancher_u(r) = max|r| (decision Q-187-1
+# b), comme a l'observe et dans le catalogue (Runs, Runsr). plancher_u est
+# obligatoire : u seul ne porte pas l'echelle de r.
+usp_runsr_p_exacte <- function(z, u, pi_constant, plancher_u) {
+  if (!isTRUE(pi_constant) ||
+      !.signes_mediane_egaux(z, u, plancher_b = plancher_u)) return(NA_real_)
+  runs_p_exacte(u, plancher = plancher_u)
 }
 # TRUE si les signes de a - med(a) et de b - med(b) coincident terme a terme,
-# a et b aplatis a la tolerance TOL_EX_AEQUO (#112), comme dans test_runs().
-.signes_mediane_egaux <- function(a, b) {
-  a <- engine_aplatir_ex_aequo(a); b <- engine_aplatir_ex_aequo(b)
+# a et b aplatis a la tolerance TOL_EX_AEQUO (#112), comme dans test_runs(),
+# chacun avec son plancher (#187 : max|r| pour u, 1 pour z).
+.signes_mediane_egaux <- function(a, b, plancher_a = 1, plancher_b = 1) {
+  a <- engine_aplatir_ex_aequo(a, plancher = plancher_a)
+  b <- engine_aplatir_ex_aequo(b, plancher = plancher_b)
   length(a) == length(b) &&
     isTRUE(all(sign(a - stats::median(a)) == sign(b - stats::median(b))))
 }
 
 # Mann (1945) / Kendall (1975) - test de tendance monotone.
 # Ex aequo a la tolerance TOL_EX_AEQUO (#112) : v aplati en tete (S et
-# correction de variance table(v)).
-test_mann_kendall <- function(v) {
-  v <- engine_aplatir_ex_aequo(v)
+# correction de variance table(v)) ; plancher : voir test_runs() (#187).
+test_mann_kendall <- function(v, plancher = 1) {
+  v <- engine_aplatir_ex_aequo(v, plancher = plancher)
   n <- length(v)
   S <- sum(vapply(1:(n - 1), function(i) sum(sign(v[(i + 1):n] - v[i])), numeric(1)))
   ties <- table(v); tt <- sum(ties * (ties - 1) * (2 * ties + 5))
@@ -2853,6 +2887,17 @@ usp_simuler <- function(fit) {
   r <- y / x
   list(x = x, y = y, z = z, r = r, u = r - mean(r), T = length(x))
 }
+# Ratios r_t (#187) : ex aequo a tolerance purement relative (plancher 0 de
+# engine_aplatir_ex_aequo(), comme les volumes). Ratios centres u_t = r_t -
+# moyenne(r) : plancher max|r|, l'echelle des operandes avant centrage
+# (.usp_plancher_u(), decision du mainteneur Q-187-1 b du 06/10/2026 ;
+# egale au plancher 1 de main quand max|r| vaut 1). Dans les deux cas, les
+# tests de rang et de signe sur ratios (suites, Mann-Kendall, Cox-Stuart,
+# Spearman) ne dependent pas de l'unite de y par rapport a x.
+# Meme plancher a l'observe (usp_tests()) et dans les replications
+# (catalogue ci-dessous). Les residus z_t gardent le plancher 1.
+.usp_aplatir_ratios <- function(r) engine_aplatir_ex_aequo(r, plancher = 0)
+.usp_plancher_u <- function(r) max(abs(r))
 
 USP_CATALOGUE_MC <- list(
   AD     = .mc_entree(function(e) stat_ad(e$z), "haut"),
@@ -2896,23 +2941,24 @@ USP_CATALOGUE_MC <- list(
     if (e$T >= 8) unname(stats::Box.test(e$z, lag = 2, type = "Box-Pierce")$statistic)
     else NA_real_, "haut"),
   Runs   = .mc_entree(function(e) test_runs(e$z)$stat, "deux"),
-  MK     = .mc_entree(function(e) test_mann_kendall(e$r)$stat, "deux"),
+  MK     = .mc_entree(function(e) test_mann_kendall(e$r, plancher = 0)$stat, "deux"),
   # Spearman : la statistique simulee est S (statistique de test affichee par
   # usp_tests()), S = (T^3 - T) (1 - rho_s) / 6 dans stats::cor.test(),
   # fonction affine decroissante de rho_s : la region bilaterale est la meme
   # (mesure du 24/09/2026 sur les trois cas lognormaux de reference : p_mc
   # identiques au bit pres a celles calculees sur rho_s ; issue #41).
   # r et x aplatis a TOL_EX_AEQUO avant cor.test() (#112), comme dans
-  # usp_tests() ; x en tolerance purement relative (.usp_aplatir_volumes()).
+  # usp_tests() ; r et x en tolerance purement relative
+  # (.usp_aplatir_ratios(), #187 ; .usp_aplatir_volumes()).
   SpearVol = .mc_entree(function(e)
     if (!usp_volumes_constants(e$x))
-      suppressWarnings(unname(stats::cor.test(engine_aplatir_ex_aequo(e$r),
+      suppressWarnings(unname(stats::cor.test(.usp_aplatir_ratios(e$r),
                                               .usp_aplatir_volumes(e$x),
                                               method = "spearman",
                                               exact = FALSE)$statistic)) else NA_real_,
     "deux"),
   SpearTps = .mc_entree(function(e)
-    suppressWarnings(unname(stats::cor.test(engine_aplatir_ex_aequo(e$r), seq_along(e$r),
+    suppressWarnings(unname(stats::cor.test(.usp_aplatir_ratios(e$r), seq_along(e$r),
                                             method = "spearman", exact = FALSE)$statistic)),
     "deux"),
   DAgo   = .mc_entree(function(e) test_dagostino_skew(e$z)$stat, "deux"),
@@ -2929,17 +2975,18 @@ USP_CATALOGUE_MC <- list(
   # finie ; la p exacte binomiale de la ligne reste retenue (a pi_t constant,
   # regle R7 de #70).
   CoxStuart = .mc_entree(function(e) {
-    cx <- test_cox_stuart(e$r)
+    cx <- test_cox_stuart(e$r, plancher = 0)
     if (is.finite(cx$stat) && cx$m == cx$n_p) abs(cx$stat - cx$n_p / 2) else NA_real_
   }, "haut", non_definie = function(e) {
-    cx <- test_cox_stuart(e$r)
+    cx <- test_cox_stuart(e$r, plancher = 0)
     if (cx$m < cx$n_p) "statistique observee non definie : ex aequo" else NA_character_
   }),
   # --- memes statistiques sur les ratios bruts centres (base "r") -----------
   DWr    = .mc_entree(function(e) stat_dw(e$u), "deux"),
   LB1r   = .mc_entree(function(e)
     unname(stats::Box.test(e$u, lag = 1, type = "Ljung-Box")$statistic), "haut"),
-  Runsr  = .mc_entree(function(e) test_runs(e$u)$stat, "deux"),
+  Runsr  = .mc_entree(function(e)
+    test_runs(e$u, plancher = .usp_plancher_u(e$r))$stat, "deux"),
   supFr  = .mc_entree(function(e) stat_supF(e$u), "haut"),
   CUSUMr = .mc_entree(function(e) stat_cusum(e$u), "haut"),
   Grubbsr = .mc_entree(function(e) test_grubbs(e$u)$stat, "haut")
@@ -4097,11 +4144,14 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # effectifs, est restitue dans detail par add() (p_min NA).
   # Ex aequo a la tolerance TOL_EX_AEQUO, definition partagee (#112) : r et x
   # sont aplatis une fois (r_ea, x_ea) pour cor.test() ; les autres lignes
-  # (Mann-Kendall, Cox-Stuart, suites) aplatissent dans leurs fonctions. x est
-  # aplati en tolerance purement relative (.usp_aplatir_volumes()). ex_aequo()
+  # (Mann-Kendall, Cox-Stuart, suites) aplatissent dans leurs fonctions. r et
+  # x sont aplatis en tolerance purement relative (.usp_aplatir_ratios(),
+  # #187 ; .usp_aplatir_volumes()), r par plancher = 0 dans les fonctions
+  # de Mann-Kendall et de Cox-Stuart ; u, dans les suites sur ratios bruts,
+  # par plancher max|r| (.usp_plancher_u(), Q-187-1 b). ex_aequo()
   # ne recoit que des vecteurs deja aplatis : apres aplatissement, ex aequo
   # equivaut a egalite au bit pres.
-  r_ea <- engine_aplatir_ex_aequo(r); x_ea <- .usp_aplatir_volumes(x)
+  r_ea <- .usp_aplatir_ratios(r); x_ea <- .usp_aplatir_volumes(x)
   ex_aequo <- function(...) any(vapply(list(...), function(v) anyDuplicated(v) > 0, logical(1)))
   pmin_rangs <- function(...) if (ex_aequo(...)) NA_real_ else mk_p_min(T)
   eff_rangs <- function(r, x = NULL) {
@@ -4167,8 +4217,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       p_as = ct$p.value, mc_nom = "SpearTps",
       p_min = pmin_rangs(r_ea), effectifs = eff_rangs(r_ea),
       detail = detail_spearman("", p_st))
-  mk <- test_mann_kendall(r)
-  p_mk <- p_ex_si_pi_constant(mk_p_exacte(r))
+  mk <- test_mann_kendall(r, plancher = 0)
+  p_mk <- p_ex_si_pi_constant(mk_p_exacte(r, plancher = 0))
   add(fam, "Tendance monotone du ratio S/P",
       fonction = "test_mann_kendall",
       "Mann (1945) ; loi exacte : Kendall & Gibbons (1990), ch. 4-5",
@@ -4179,7 +4229,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       p_ex = p_mk, p_as = mk$p, mc_nom = "MK",
       p_min = pmin_rangs(r_ea), effectifs = eff_rangs(r_ea),
       detail = detail_r7("Une derive du S/P contredit la constance de beta", p_mk))
-  cx <- test_cox_stuart(r)
+  cx <- test_cox_stuart(r, plancher = 0)
   p_cx <- p_ex_si_pi_constant(cx$p)
   # m : differences non nulles, n_p : paires. Sans ex aequo (m = n_p), le
   # libelle est inchange ; avec ex aequo, les deux nombres sont affiches et
@@ -4784,7 +4834,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   #   2b : pi_t constant, signes identiques, mais p exacte non definie (un
   #        seul cote de la mediane represente) ;
   #   3  : pi_t variable.
-  p_ex_r <- usp_runsr_p_exacte(z, u, pi_constant)
+  # u a plancher max|r| (#187, Q-187-1 b), comme Runsr au catalogue.
+  plancher_u <- .usp_plancher_u(r)
+  p_ex_r <- usp_runsr_p_exacte(z, u, pi_constant, plancher_u)
   # #128 : la phrase "p-value EXACTE ... retenue" du regime 1 n'est vraie que
   # hors motif de degenerescence de la statistique Runsr, qui ecarte aussi la
   # p exacte dans add() (motifs_degeneres d'engine_registre_tests()). Runsr
@@ -4794,7 +4846,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     unname(boot$motif_mc[["Runsr"]]) else NA_character_
   runsr_degenere <- !is.na(m_runsr) &&
     m_runsr %in% c(MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_ATOME_HORS_OBS, MOTIF_MC_CONDITION)
-  eff_u <- .runs_effectifs(u)
+  eff_u <- .runs_effectifs(u, plancher = plancher_u)
   detail_runsr <- if (is.finite(p_ex_r)) {
     d1 <- paste("CONTROLE SANS OBJET ICI : pi_t est constant (delta = 1, ou volumes",
                 "x_t constants), il n'y a donc aucun artefact de ponderation a",
@@ -4823,19 +4875,42 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         "la precision d'affichage ; la p-value est exacte a cet ordre pres."),
         TOL_DELTA_BORD, ecart_tol))
     d1
-  } else if (isTRUE(pi_constant) && !.signes_mediane_egaux(z, u)) {
-    sprintf(paste(
-      "CONTROLE SANS OBJET ICI : pi_t n'est constant qu'a la tolerance",
-      "TOL_DELTA_BORD = %g pres (%s), il n'y a donc aucun artefact de ponderation",
-      "a detecter, et cette ligne est un quasi-doublon de son homologue sur",
-      "residus standardises. Toutefois la variation residuelle de pi_t suffit ici",
-      "a inverser au moins un signe entre u_t - med(u) et z_t - med(z) : l'identite",
-      "des deux lignes n'est plus garantie (la statistique des suites peut",
-      "coincider ou non), la loi combinatoire de R n'est pas attribuee a cette",
-      "ligne (issue #29, seconde condition de usp_runsr_p_exacte()) et la p-value",
-      if (mc_dispo("Runsr")) "Monte-Carlo, simulee sous le modele ajuste, est retenue."
-      else paste0(txt_mc_indispo("Monte-Carlo, simulee sous le modele ajuste,"), ".")),
-      TOL_DELTA_BORD, ecart_tol)
+  } else if (isTRUE(pi_constant) && !.signes_mediane_egaux(z, u, plancher_b = plancher_u)) {
+    # #187 : deux sous-cas. pi_t EXACTEMENT constant (pi_constant_exact,
+    # ecart_tol vide) : z_t est une transformation croissante de r_t, et
+    # l'inversion de signe ne peut venir que du traitement numerique de u et
+    # de z (centrage de u par la moyenne, aplatissement des ex aequo a
+    # TOL_EX_AEQUO, plancher max|r| sur u et 1 sur z), non de pi_t. pi_t constant
+    # a la tolerance pres : la variation residuelle de pi_t est nommee, avec
+    # ecart_tol. La phrase finale ne dit pas la p Monte-Carlo retenue : add()
+    # peut encore l'ecarter (motif de degenerescence, regle R1) ; nature_p
+    # nomme la p-value retenue, s'il en est une.
+    debut <- if (isTRUE(regime$pi_constant_exact))
+      paste("CONTROLE SANS OBJET ICI : pi_t est exactement constant (delta = 1, ou",
+            "volumes x_t constants), il n'y a donc aucun artefact de ponderation a",
+            "detecter, et cette ligne est un quasi-doublon de son homologue sur",
+            "residus standardises. Toutefois au moins un signe differe entre",
+            "u_t - med(u) et z_t - med(z) : z_t etant une transformation croissante",
+            "de r_t, l'ecart vient du traitement numerique (centrage de u par la",
+            "moyenne, aplatissement des ex aequo a la tolerance TOL_EX_AEQUO,",
+            "relative a max|r| sur u, absolue sous 1 sur z), non d'une variation",
+            "de pi_t :")
+    else
+      sprintf(paste(
+        "CONTROLE SANS OBJET ICI : pi_t n'est constant qu'a la tolerance",
+        "TOL_DELTA_BORD = %g pres (%s), il n'y a donc aucun artefact de ponderation",
+        "a detecter, et cette ligne est un quasi-doublon de son homologue sur",
+        "residus standardises. Toutefois la variation residuelle de pi_t suffit ici",
+        "a inverser au moins un signe entre u_t - med(u) et z_t - med(z) :"),
+        TOL_DELTA_BORD, ecart_tol)
+    paste(debut,
+      "l'identite des deux lignes n'est plus garantie (la statistique des suites",
+      "peut coincider ou non) et la loi combinatoire de R n'est pas attribuee a",
+      "cette ligne (issue #29, seconde condition de la fonction usp_runsr_p_exacte).",
+      if (mc_dispo("Runsr"))
+        paste("La p-value Monte-Carlo, simulee sous le modele ajuste, est calculee ;",
+              "la p-value retenue, s'il en est une, est nommee par nature_p.")
+      else paste0(txt_mc_indispo("La p-value Monte-Carlo, simulee sous le modele ajuste,"), "."))
   } else if (isTRUE(pi_constant)) {
     paste(note_r, "La loi combinatoire de R n'est pas definie ici (un seul cote",
           "de la mediane represente) : aucune p-value exacte (issue #29).")

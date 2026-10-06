@@ -736,7 +736,7 @@ res10 <- run_engine(xt = x10, yt = y10, methode = "premium", segment = 1, annexe
                     nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831)
 verifier("Cox-Stuart T = 12, m = 5 sur n_p = 6, alpha = 0,10 : test INFO sans p-value, phrase de #128, sans 'ECHEC inatteignable'",
          {
-           cx <- test_cox_stuart(y12 / x12); l <- ligne(res12$tests, "Tendance par signes du ratio S/P")
+           cx <- test_cox_stuart(y12 / x12, plancher = 0); l <- ligne(res12$tests, "Tendance par signes du ratio S/P")
            cx$m == 5L && cx$n_p == 6L && proche(l$p_min, 0.0625) &&
              identical(l$type, "test") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
              identical(l$sens, "ne pas rejeter") &&
@@ -747,7 +747,7 @@ verifier("Cox-Stuart T = 12, m = 5 sur n_p = 6, alpha = 0,10 : test INFO sans p-
          })
 verifier("Cox-Stuart T = 10, m = 4 sur n_p = 5, alpha = 0,10 : TEST INOPERANT inchange",
          {
-           cx <- test_cox_stuart(y10 / x10); l <- ligne(res10$tests, "Tendance par signes du ratio S/P")
+           cx <- test_cox_stuart(y10 / x10, plancher = 0); l <- ligne(res10$tests, "Tendance par signes du ratio S/P")
            cx$m == 4L && cx$n_p == 5L && identical(l$type, "diagnostic") &&
              startsWith(l$detail, "TEST INOPERANT") &&
              !grepl("aucune p-value disponible", l$detail, fixed = TRUE)
