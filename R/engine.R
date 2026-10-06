@@ -2893,10 +2893,17 @@ USP_CATALOGUE_MC <- list(
   Grubbsr = .mc_entree(function(e) test_grubbs(e$u)$stat, "haut")
 )
 
-# Evalue toutes les statistiques d'un catalogue sur un contexte. do.call(c, .)
+# Evalue toutes les statistiques d'un catalogue sur un contexte. do.call(base::c, .)
 # garde la semantique de c(AD = ..., CvM = ...) : vecteur numerique nomme dans
-# l'ordre du catalogue. Une erreur de calcul se propage a l'appelant (dans le
-# bootstrap, la replication est alors ecartee).
+# l'ordre du catalogue. base:: est necessaire (#179) : do.call() evalue son
+# premier argument comme une valeur, sans ecarter les objets qui ne sont pas des
+# fonctions comme le fait un appel c(...) ; un objet c <- 5 de l'environnement
+# global faisait echouer chaque evaluation, et run_engine() rendait ok = FALSE
+# ("erreur R dans .mc_evaluer()") pour les deux methodes. Meme protection pour
+# les autres do.call(base::cbind / base::rbind, .) du moteur ; les passages par
+# match.fun() (apply, tapply, sapply, outer...) ne sont pas exposes. Une erreur
+# de calcul se propage a l'appelant (dans le bootstrap, la replication est
+# alors ecartee).
 # Chaque entree doit rendre une valeur de longueur 1 (eventuellement NA) : une
 # valeur NULL disparaitrait du vecteur et decalerait les noms, une valeur de
 # longueur 2 en ajouterait. Toute autre longueur leve une erreur qui nomme la
@@ -2910,7 +2917,7 @@ USP_CATALOGUE_MC <- list(
     v
   })
   names(vals) <- names(catalogue)
-  do.call(c, vals)
+  do.call(base::c, vals)
 }
 
 # Statistiques simulables de la methode lognormale (catalogue USP_CATALOGUE_MC).
@@ -5038,14 +5045,14 @@ engine_lire_triangle <- function(df) {
   })
   num <- lapply(brut, .en_numerique)
   vide <- lapply(brut, function(v) is.na(v) | (is.character(v) & !nzchar(v)))
-  illisible <- which(!do.call(cbind, vide) & is.na(do.call(cbind, num)), arr.ind = TRUE)
+  illisible <- which(!do.call(base::cbind, vide) & is.na(do.call(base::cbind, num)), arr.ind = TRUE)
   if (length(illisible)) {
     k <- utils::head(illisible, 5)
     return(refus(sprintf("Cellule(s) non numerique(s) en %s%s.",
                          paste0("(i=", k[, 1] - 1L, ", j=", k[, 2] - 1L, ")", collapse = ", "),
                          if (nrow(illisible) > 5) sprintf(" et %d autre(s)", nrow(illisible) - 5) else "")))
   }
-  m <- unname(do.call(cbind, num))
+  m <- unname(do.call(base::cbind, num))
   storage.mode(m) <- "double"
   v <- mw_valider_triangle(m)
   list(ok = v$ok, erreurs = v$erreurs, avertissements = v$avertissements,
@@ -5376,14 +5383,16 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
   # Marge du TOST. Un scalaire numerique fini est exige avant toute
   # comparaison (NA, vide, vecteur, texte : refuses, sans erreur R).
   scalaire_fini <- function(v) is.numeric(v) && length(v) == 1L && is.finite(v)
-  # Valeur refusee restituee par deparse() : un texte garde ses guillemets
-  # ("0.1"), un vecteur sa forme c(...), afin que le motif du refus se voie.
-  saisie <- function(v) if (is.null(v) || !length(v)) "vide" else paste(deparse(v), collapse = " ")
+  # Valeur refusee restituee par .engine_saisie() (issue #180) : un texte
+  # garde ses guillemets ("0.1"), un vecteur sa forme c(...), NULL ou vide
+  # est cite "vide", et un double que 15 chiffres ne restituent pas est cite
+  # a 17 chiffres (1 + 2^-52 etait cite 1 par l'ancienne saisie() locale,
+  # deparse() a 15 chiffres).
   if (!is.null(delta_equiv)) {
     if (!scalaire_fini(delta_equiv) || delta_equiv <= 0)
       err <- c(err, sprintf(paste("Marge Delta du test d'equivalence (delta_equiv = %s) : un nombre",
                                   "fini strictement positif est attendu."),
-                            saisie(delta_equiv)))
+                            .engine_saisie(delta_equiv)))
     else if (is.numeric(yt) && length(yt) && all(is.finite(yt)) &&
              delta_equiv >= mean(yt))
       err <- c(err, sprintf(paste("Marge Delta du test d'equivalence (delta_equiv = %s) superieure",
@@ -5393,7 +5402,7 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
   } else if (!scalaire_fini(theta_equiv) || theta_equiv <= 0 || theta_equiv >= 1)
     err <- c(err, sprintf(paste("Marge theta du test d'equivalence (theta_equiv = %s) : un nombre",
                                 "fini, 0 < theta < 1 (fraction de la perte moyenne), est attendu."),
-                          saisie(theta_equiv)))
+                          .engine_saisie(theta_equiv)))
   # Bareme, segment et annexe (issue #131) : controles avant tout
   # avertissement ; une valeur invalide est refusee sans erreur R.
   msg <- tryCatch({ .engine_credibilite_appliquee(5, bareme, segment, annexe); NULL },
@@ -5446,9 +5455,11 @@ engine_valider_profondeur <- function(T, n, T_min = 5) {
   # L'annexe XVII n'est citee que si la borne est la sienne (T_min >= 5) ;
   # pour un simple chargement (T_min = 1), les motifs sont neutres.
   source_T <- if (T_min >= 5) " (annexe XVII, B/C(2)(b))" else ""
+  # T refuse cite par .engine_saisie() (issue #180) : deparse() a 15
+  # chiffres citait 8 + 1.8e-15, refuse comme non entier, "T = 8".
   if (!is.numeric(T) || length(T) != 1L || !is.finite(T) || T != round(T))
     return(sprintf("Profondeur T = %s : un nombre entier d'annees est attendu%s ; la serie n'est pas tronquee.",
-                   if (!length(T)) "vide" else paste(deparse(T), collapse = " "), source_T))
+                   .engine_saisie(T), source_T))
   if (T > n)
     return(sprintf("Profondeur T = %s superieure au nombre d'annees fournies (%d).",
                    format(T), n))
@@ -5598,7 +5609,7 @@ engine_influence <- function(fit, jackknife = NULL, sigma_usp = NULL) {
 engine_contours_cook <- function(T, k = 1L, niveaux = c(0.5, 1), n = 200) {
   hmax <- 0.99
   h <- seq(0.005, hmax, length.out = n)
-  do.call(rbind, lapply(niveaux, function(D) {
+  do.call(base::rbind, lapply(niveaux, function(D) {
     r <- sqrt(D * k * (1 - h) / h)
     rbind(data.frame(niveau = D, signe = "+", levier = h, residu = r),
           data.frame(niveau = D, signe = "-", levier = h, residu = -r))
@@ -6507,7 +6518,7 @@ mw_test_annees_calendaires <- function(aj) {
     m <- .mack_moments_Z(n)
     c(Z = min(L, S), E = unname(m["E"]), V = unname(m["V"]), n = n)
   })
-  A <- do.call(rbind, agg)
+  A <- do.call(base::rbind, agg)
   A <- A[A[, "n"] >= 2, , drop = FALSE]
   if (!nrow(A)) return(list(stat = NA_real_, p = NA_real_, Z = NA_real_))
   Z <- sum(A[, "Z"]); EZ <- sum(A[, "E"]); VZ <- sum(A[, "V"])
@@ -8293,7 +8304,7 @@ engine_derogations <- function(res) {
 
 # Table des tests sous forme de data.frame auditable (donnees, pas affichage).
 engine_table_tests <- function(res) {
-  do.call(rbind, lapply(res$tests, function(t) data.frame(
+  do.call(base::rbind, lapply(res$tests, function(t) data.frame(
     famille = t$famille, test = t$test, type = t$type,
     base = t$base, variante = t$variante,
     H0 = t$H0, H1 = t$H1,
