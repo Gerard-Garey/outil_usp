@@ -4569,7 +4569,6 @@ source.
 Student, constante (\ref{fiche:student-constante}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}106$~; $0{,}059$, J2 $0{,}100$~; $0{,}0595$, compatible & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_t8.R} & \code{docs/tableaux/}\newline \code{20260930-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue166-calibration-J2.md} \\
 TOST, constante (\ref{fiche:tost-constante}) & Sans objet (loi continue) & Probabilité de conclure sous le modèle ajusté ($\alpha = 0{,}10$, C3)~: $0{,}0~\%$ (contrôle), $21{,}1~\%$ ($\hat\delta$ intérieur) & \code{test\_tost\_intercept()},\newline \code{tests/constats\_puissance\_t8.R} & \code{docs/tableaux/}\newline \code{20260930-issue118-tost.md} \\
 Student, pente (\ref{fiche:student-pente}) & Sans objet (loi continue) & $\hat\pi_b = 0{,}47$ (contrôle), $1{,}00$ ($\hat\delta$ intérieur)~; diagnostic dans $38{,}0~\%$ et $0{,}0~\%$ des jeux simulés & \code{usp\_identifiabilite\_pente()},\newline \code{tests/taux\_franchissement\_reperes.R} & \code{docs/tableaux/}\newline \code{20260930-issue122-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue122-J2.md} \\
-Fisher global (\ref{fiche:fisher-global}) & Sans objet (loi continue) & $\hat\pi_b = 0{,}47$ (contrôle), $1{,}00$ ($\hat\delta$ intérieur)~; diagnostic dans $38{,}0~\%$ et $0{,}0~\%$ des jeux simulés & \code{usp\_identifiabilite\_pente()},\newline \code{tests/taux\_franchissement\_reperes.R} & \code{docs/tableaux/}\newline \code{20260930-issue122-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue122-J2.md} \\
 RESET (\ref{fiche:reset}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}111$~; $0{,}056$, J2 $0{,}083$~; $0{,}0325$, écart mineur conservateur sur J2 (bord~0) & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_t8.R} & \code{docs/tableaux/}\newline \code{20260930-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue166-calibration-J2.md} \\
 Spearman (\ref{fiche:spearman}) & $2/T! = 4{,}96\cdot 10^{-5}$~; plancher Monte-Carlo $0{,}002$ (bilatéral) & Non étudiée~; niveau de la p-value retenue sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: volume, J1 $0{,}093$~; $0{,}0525$, J2 $0{,}100$~; $0{,}0495$~; temps, J1 $0{,}093$~; $0{,}0485$, J2 $0{,}0895$~; $0{,}039$, compatible & \code{mk\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_t8.R} & \code{docs/tableaux/}\newline \code{20260930-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue166-calibration-J2.md} \\
 Mann--Kendall (\ref{fiche:mann-kendall}) & $2/T! = 4{,}96\cdot 10^{-5}$~; plancher Monte-Carlo $0{,}002$ (bilatéral) & Volet~A ($\alpha = 0{,}10$)~: niveau $0{,}060$ (taille exacte $0{,}061$)~; AR(1) $\rho = 0{,}5$~; $0{,}9$~: $0{,}187$~; $0{,}389$~; tendance, rupture de 2 écarts-types~: $0{,}352$~; $0{,}410$~; volet~B (p-value retenue, J1 et J2) dans les fichiers~; niveau de la p-value retenue sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}0695$~; $0{,}0375$, J2 $0{,}062$~; $0{,}029$, compatible & \code{mk\_p\_min()}, \code{mk\_p\_exacte()}, \code{engine\_p\_mc()},\newline \code{tests/puissance\_t8.R},\newline \code{tests/calibration\_mc\_t8.R} & \code{docs/tableaux/}\newline \code{20260930-issue116-exact-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue166-calibration-J2.md} \\
@@ -5446,14 +5445,6 @@ On souhaite, comme pour la pente, \emph{rejeter} $H_0$. En régression simple ce
 strictement équivalent au test de Student sur la pente ($F = t_b^2$, p-values identiques)~: il est
 conservé pour la lisibilité du rapport et redeviendrait informatif si l'on ajoutait des
 régresseurs (indicatrices d'année, variable d'inflation). Même limite de puissance à $T$ faible.
-\Pertinence
-\textbf{p-value minimale à $T = 8$.} Sans objet (loi $\mathcal{F}(1, T-2)$, continue)~; aucune p-value de Monte-Carlo n'est possible (section~\ref{sec:t8}).
-
-\textbf{Table.} Sans objet (loi continue).
-
-\textbf{Pertinence à $T = 8$.} Mêmes règle et valeurs que la pente ($F = t_b^2$), la pente et Fisher changeant de type ensemble. Le type de la ligne dépend de la puissance approchée $\hat\pi_b$ de la règle~R4 (\code{usp\_identifiabilite\_pente()}, section~\ref{sec:t8})~: test si $\hat\pi_b \ge 1/2$, diagnostic sinon~; non applicable à volumes constants (section~\ref{sec:volumes-constants}) et sous le garde-fou~R12 (section~\ref{sec:modele-auxiliaire}, issue~\#168). Jeu de contrôle~: $\hat\lambda = 1{,}78$, $\hat\pi_b = 0{,}47$, diagnostic~; jeu à $\hat\delta$ intérieur de la section~\ref{sec:verif}~: $\hat\lambda = 17{,}28$, $\hat\pi_b = 1{,}00$, test. Fréquence de la restitution en diagnostic sous le modèle ajusté, sur 2\,000 jeux simulés (section~\ref{sec:taux-reperes})~: $38{,}0~\%$ $[35{,}8~;~40{,}1]$ sur le jeu de contrôle, $0{,}0~\%$ $[0{,}0~;~0{,}2]$ sur le jeu à $\hat\delta$ intérieur. $\hat\pi_b$ est la seule puissance que le moteur calcule~; elle vaut sous le modèle ajusté, aux volumes observés, et ne se transpose pas à d'autres volumes.
-
-\textbf{Statut des valeurs.} $\hat\lambda$ et $\hat\pi_b$~: approximation analytique au premier ordre (loi de Student décentrée), calcul déterministe~; fréquences~: constat de simulation sous le modèle ajusté, intervalles de Clopper--Pearson à $95~\%$.
 \end{fiche}
 
 \begin{fiche}{Coefficient de détermination $R^2$}
@@ -10872,9 +10863,9 @@ dans 92,5~\% des cas.
 
 C'est le point le plus important, puisque ces p-values sont celles retenues pour la majorité des
 tests --- mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$), 26 des 51 lignes de
-la table auditable retiennent une p-value de Monte-Carlo, contre 8 une p-value exacte, 1 une
-p-value sous le modèle auxiliaire MCO et 0 une p-value asymptotique, les 16 dernières n'ayant
-aucune p-value retenue (14 diagnostics, 1 procédure de décision et 1 ligne non applicable).
+la table auditable retiennent une p-value de Monte-Carlo, contre 9 une p-value exacte, 1 une
+p-value sous le modèle auxiliaire MCO et 0 une p-value asymptotique, les 15 dernières n'ayant
+aucune p-value retenue (13 diagnostics, 1 procédure de décision et 1 ligne non applicable).
 
 Le niveau réel de ces p-values a été mesuré à $T = 8$ sur le moteur dans son état final
 (issue~\#166~; script hors CI \code{tests/calibration\_mc\_t8.R}, huit tranches de 250
@@ -11977,7 +11968,7 @@ autre paramétrage, et le script peut être rejoué sur les données d'un dossie
         $\succ$ asymptotique} (section~\ref{sec:nature})~: la p-value de Monte-Carlo n'est
         pas la première servie, elle vient \emph{après} la p-value exacte lorsque celle-ci
         existe. Mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$)~: des 51
-        lignes de la table auditable, 8 retiennent une p-value exacte, et 7 d'entre
+        lignes de la table auditable, 9 retiennent une p-value exacte, et 7 d'entre
         elles disposent pourtant d'une \code{p\_mc} qui n'est pas retenue~: lire
         systématiquement \code{p\_mc} reviendrait à écarter sept p-values exactes au profit
         d'estimations entachées d'une erreur de Monte-Carlo (section~\ref{sec:deuxerreurs}).
@@ -12159,8 +12150,10 @@ résidus de Mack \\
 dans les deux méthodes \\
 \code{stat\_lilliefors()}, \code{lillie\_p()} & LN + MW & Lilliefors, dans les
 deux méthodes \\
-\code{test\_lm\_complet()} & LN & Student sur la pente, Fisher global,
-$R^2$~: \textbf{trois entrées issues d'un seul appel}~; le $t$ de la
+\code{test\_lm\_complet()} & LN & Fisher global,
+$R^2$~: \textbf{deux entrées issues d'un seul appel}, qui fournit aussi la
+statistique $t$ de la ligne du test de Pitman sur la pente, dont la p-value
+vient de \code{usp\_permutation\_pente()}~; le $t$ de la
 constante vient de son propre ajustement, \code{test\_intercept()} \\
 \code{usp\_noyau()}, \code{usp\_pi()} & LN & Tout le noyau lognormal~:
 résidus $z_t$, donc l'intégralité de H2, H3, H4 \\
@@ -12275,7 +12268,7 @@ statistique, dont sept sont mutualisées (en orangé), puis se rejoignent sur
 \node[mut, right=20mm of xy] (lm) {\code{test\_lm\_complet()}};
 \node[ded] (ti) at ([yshift=13.5mm]lm) {\code{test\_intercept()}};
 \node[sor, right=20mm of lm, yshift=13.5mm]  (o1) {Student constante};
-\node[sor, right=20mm of lm, yshift=4.5mm]   (o2) {Student pente};
+\node[sor, right=20mm of lm, yshift=4.5mm]   (o2) {Pitman pente (statistique $t$)};
 \node[sor, right=20mm of lm, yshift=-4.5mm]  (o3) {Fisher global};
 \node[sor, right=20mm of lm, yshift=-13.5mm] (o4) {$R^2$ (diagnostic)};
 
@@ -12308,9 +12301,11 @@ statistique, dont sept sont mutualisées (en orangé), puis se rejoignent sur
 \draw[fl] (r) -- (cs);
 \foreach \b in {mk,sp} \draw[fl] (r) |- (\b);
 \end{tikzpicture}
-\caption{Hypothèse H1. \code{test\_lm\_complet()} alimente \textbf{trois}
-entrées de la table des tests à partir d'un unique ajustement~: une anomalie s'y
-propagerait aux trois. La nullité de la constante utilise les mêmes données,
+\caption{Hypothèse H1. \code{test\_lm\_complet()} alimente \textbf{deux}
+entrées de la table des tests à partir d'un unique ajustement (Fisher global et $R^2$)
+et fournit la statistique $t$ de la ligne du test de Pitman sur la pente, dont la
+p-value vient de \code{usp\_permutation\_pente()}~: une anomalie de cet
+ajustement fausserait à la fois Fisher, $R^2$ et la pente. La nullité de la constante utilise les mêmes données,
 mais tire sa statistique $t$ et ses p-values de son propre ajustement,
 \code{test\_intercept()}~; seule l'estimation $\hat a$ affichée sur sa ligne
 est lue dans l'ajustement de \code{test\_lm\_complet()}. Les fonctions de régression
@@ -12577,7 +12572,7 @@ Un test, plusieurs fonctions & Mann--Kendall (\code{test\_mann\_kendall()} +
 \code{dw\_p\_exacte()} + \code{.imhof\_p\_sup0()}) & La statistique et la loi de
 référence sont séparées~: il faut vérifier les deux, et leur cohérence
 d'appariement. \\
-Une fonction, plusieurs tests & \code{test\_lm\_complet()} (3 entrées),
+Une fonction, plusieurs tests & \code{test\_lm\_complet()} (2 entrées),
 \code{.shapiro\_sur()} (2 entrées)~; \code{stat\_dw()}, \code{test\_runs()},
 \code{stat\_supF()}, \code{stat\_cusum()} et \code{test\_grubbs()} (2 entrées
 chacune, sur $z_t$ et sur les ratios bruts $u_t$) & Une anomalie se propage à toutes les
