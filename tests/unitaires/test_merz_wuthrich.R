@@ -242,9 +242,11 @@ tri_ach[2, 5] <- 2150
 # le 23/09/2026 ; l'issue #21 ne change aucun calcul (valeurs identiques avant
 # et apres), elles fixent le fait que l'avertissement ne touche pas au calcul.
 # Avertissement des colonnes exclues des residus de Mack (#33 ; formulation
-# de l'issue #60, Q-E2r-60-2).
-av_exclues <- function(av) grep(paste0("a facteurs individuels tous egaux a f_j a 1e-12 pres ",
-                                       "en relatif (sigma2_j nul ou numeriquement nul)"), av,
+# de l'issue #60, Q-E2r-60-2, et enonce du predicat decide le 06/10/2026).
+av_exclues <- function(av) grep(paste0("a facteurs individuels egaux a f_j a la tolerance ",
+                                       "relative 1e-12 de l'outil (",
+                                       .MW_PREDICAT_DEGENERE_TEXTE,
+                                       " ; sigma2_j nul ou numeriquement nul)"), av,
                                 fixed = TRUE, value = TRUE)
 run_mw <- function(t) run_engine(methode = "reserve2", triangle = t,
                                  segment = 1, annexe = "II", B = 99)
@@ -272,12 +274,13 @@ verifier("sigma2_(J-2) = 0 avec sigma2_(J-3) > 0 : sigma2_(J-1) = 0, avertisseme
              grepl("AUCUNE variance", av, fixed = TRUE) &&
              grepl("n'est pourtant PAS acheve", av, fixed = TRUE) &&
              !grepl("sigma2_(J-3) = 0", av, fixed = TRUE) &&
-             grepl("facteurs individuels tous egaux", detail_m6(r), fixed = TRUE) &&
+             grepl("Colonne J-2 a facteurs individuels egaux a f_j a la tolerance relative 1e-12 de l'outil", detail_m6(r), fixed = TRUE) &&
              grepl("nul par voie de consequence", detail_m6(r), fixed = TRUE) &&
              # Depuis #33, l'absence de residus est dite par l'avertissement
              # general sur les colonnes exclues, et non plus par celui-ci.
-             !grepl("n'ont pas de residu de Mack", av, fixed = TRUE) &&
-             any(grepl("j = 3 (2 facteurs). Le residu de Mack y vaut 0/0",
+             !grepl("sont exclus des residus de Mack", av, fixed = TRUE) &&
+             any(grepl(paste0("j = 3 (2 facteurs). Le residu de Mack n'y est pas defini (0/0) ",
+                              "si les facteurs sont exactement egaux"),
                        r$validation$avertissements, fixed = TRUE)) &&
              isTRUE(proche(r$parametre_final$sigma_usp, 0.0769833895, rel = 1e-8))
          })
@@ -307,8 +310,11 @@ verifier("Colonnes J-3 et J-2 degenerees (tri_2) : un seul avertissement, ex aeq
              length(l) == 1 &&
              grepl("minimum atteint par sigma2_(J-2) et sigma2_(J-3) (ex aequo)", l,
                    fixed = TRUE) &&
-             grepl("Colonnes J-3 et J-2 a facteurs individuels tous egaux", l,
+             grepl("Colonnes J-3 et J-2 a facteurs individuels egaux a f_j a la tolerance relative 1e-12 de l'outil", l,
                    fixed = TRUE) &&
+             # enonce du predicat une seule fois, J-3 et J-2 degenerees (#60)
+             lengths(regmatches(av, gregexpr(.MW_PREDICAT_DEGENERE_TEXTE, av,
+                                             fixed = TRUE))) == 1L &&
              isTRUE(proche(r$parametre_final$sigma_usp, 0.0764092721, rel = 1e-8))
          })
 verifier("Colonne J-2 degeneree, developpement acheve (tri_ach) : avertissement sans 'PAS acheve'",
@@ -329,7 +335,7 @@ verifier("Homogeneite : un avertissement de meme squelette par triangle degenere
              sum(grepl("sigma2_(J-1) = min", av, fixed = TRUE)) == 1 &&
                sum(grepl("AUCUNE variance sur la derniere annee de developpement",
                          av, fixed = TRUE)) == 1 &&
-               sum(grepl("n'ont pas de residu de Mack", av, fixed = TRUE)) == 1 &&
+               sum(grepl("sont exclus des residus de Mack", av, fixed = TRUE)) == 1 &&
                sum(grepl("Verifier l'origine des donnees", av, fixed = TRUE)) == 1
            }, logical(1))
            tp <- matrix(NA_real_, 5, 5)
@@ -380,7 +386,7 @@ verifier("Colonne detectee avec sigma2 > 0 : residus exclus, avertissement des c
              identical(attr(mw_residus(a), "colonnes_exclues")$j, 3L) &&
              length(av) == 1 &&
              !grepl("absents", av, fixed = TRUE) &&
-             !grepl("n'ont pas de residu de Mack", av, fixed = TRUE) &&
+             !grepl("sont exclus des residus de Mack", av, fixed = TRUE) &&
              length(av_exclues(r$validation$avertissements)) == 1 &&
              grepl("j = 3 (2 facteurs)", av_exclues(r$validation$avertissements), fixed = TRUE)
          })
@@ -420,9 +426,9 @@ verifier("Colonne j = 1 a sigma2 = 0 (hors J-3, J-2) : exclue, attribut renseign
              identical(ce$j, 1L) && identical(ce$n_facteurs, 4L) && !any(rs$j == 1) &&
              nrow(rs) == sum(pmax(a$I - (0:(a$J - 1)), 0)[-c(2, a$J)]) &&
              length(av) == 1 &&
-             grepl("Colonne de developpement a facteurs individuels tous egaux", av, fixed = TRUE) &&
+             grepl("Colonne de developpement a facteurs individuels egaux a f_j", av, fixed = TRUE) &&
              grepl("j = 1 (4 facteurs)", av, fixed = TRUE) &&
-             grepl(sprintf("ces 4 facteurs individuels n'ont pas de residu de Mack et sont exclus ; %d residu(s)",
+             grepl(sprintf("ces 4 facteurs individuels sont exclus des residus de Mack ; %d residu(s)",
                            nrow(rs)), av, fixed = TRUE) &&
              grepl(.MW_LIGNES_RESIDUS_TEXTE, av, fixed = TRUE) &&
              !any(grepl("sigma2_(J-1) = min", r$validation$avertissements, fixed = TRUE))
@@ -431,10 +437,10 @@ verifier("Colonnes exclues : une seule phrase par triangle, J-3 / J-2 compris (t
          all(vapply(list(tri_deg, tri_sym, tri_2), function(t) {
            av <- run_mw(t)$validation$avertissements
            length(av_exclues(av)) == 1 &&
-             sum(grepl("n'ont pas de residu de Mack", av, fixed = TRUE)) == 1
+             sum(grepl("sont exclus des residus de Mack", av, fixed = TRUE)) == 1
          }, logical(1))) &&
-         grepl("Colonnes de developpement a facteurs individuels tous egaux", av_exclues(run_mw(tri_2)$validation$avertissements),
-               fixed = TRUE))
+         grepl("Colonnes de developpement a facteurs individuels egaux a f_j",
+               av_exclues(run_mw(tri_2)$validation$avertissements), fixed = TRUE))
 verifier("Colonnes exclues : l'attribut n'est pas stocke dans le resultat (res$residus, plots_data)",
          {
            r <- run_mw(tri_j1)
@@ -734,9 +740,10 @@ verifier("residus de Mack : somme_i r(i,j)^2 = n_j - 1 dans chaque colonne",
 
 ## --- Colonnes degenerees dans les verifications colonne par colonne de M1 ----
 # Issue #56 (avis d'actuary du 24/09/2026). Une colonne eligible dont les
-# facteurs individuels sont tous egaux a f_j (a 1e-12 pres en relatif,
-# predicat unique .mw_colonne_degeneree()) n'a pas de statistique definie
-# (0/0) : elle est exclue de la combinaison de Fisher, avant tout appel a
+# facteurs individuels sont egaux a f_j a la tolerance relative 1e-12 de
+# l'outil (ecart relatif au plus 1e-12, ou facteurs que l'aplatissement des
+# ex aequo rend tous egaux ; predicat unique .mw_colonne_degeneree()) n'a pas
+# de statistique definie (0/0), ou seulement un bruit d'arrondi : elle est exclue de la combinaison de Fisher, avant tout appel a
 # lm(), dans l'observe comme dans chaque replication du bootstrap. Aucun
 # avertissement R ne doit sortir de run_engine() (ni capture, ni masquage).
 # ta_deg : Taylor & Ashe dont la colonne j = 4 est rendue degeneree (5
@@ -1062,10 +1069,11 @@ acceptes192 <- list(col0_1e11 = col0_192(1e-11), sauf_une = sauf_une,
                     total_arrondi = total_arrondi)
 sigma192 <- c(col0_1e11 = 0.0369, sauf_une = 0.0404017443, total_arrondi = 0.0369031172)
 fragments192 <- c("Triangle totalement degenere : pour chaque annee de developpement j = 0..J-2",
-                  "(a la tolerance relative 1e-12 de l'outil pres)",
-                  "En arithmetique exacte, sigma2_j = 0 (annexe XVII, D(5)(d)(ii)), MSEP = 0 (valeur calculee : ",
-                  "aucun residu de Mack n'est defini",
-                  "par D(4), sigma(res,s,USP) = (1 - c) * sigma(res,s)",
+                  paste0("(a la tolerance relative 1e-12 de l'outil pres : ",
+                         .MW_PREDICAT_DEGENERE_TEXTE, ")"),
+                  "Pour des facteurs exactement egaux, en arithmetique exacte, sigma2_j = 0 (annexe XVII, D(5)(d)(ii)) et MSEP = 0 ; ici sigma2_j et la MSEP (valeur calculee : ",
+                  ") sont nuls ou negligeables a la tolerance de l'outil (residus d'arrondi ou ecarts relatifs entre facteurs de l'ordre de 1e-12), aucun residu de Mack n'est retenu",
+                  "par D(4), sigma(res,s,USP) = (1 - c) * sigma(res,s) a un ecart negligeable pres, sans contribution significative des donnees.",
                   "(D(2)(h), en particulier iv : variance proportionnelle au cumul precedent)",
                   "representativite du risque de reserve (D(2)(a))",
                   "article 219, paragraphe 1, point d)",
@@ -1443,6 +1451,117 @@ verifier("Aucun avertissement R de run_engine(reserve2) : ta_bruit, tri_c1, t5 (
            n <- vapply(list(ta_bruit = ta_bruit, tri_c1 = tri_c1, t5 = t5), nb_warnings_mw, integer(1))
            if (all(n == 0L)) TRUE
            else paste("avertissements R :", paste(names(n), n, sep = " = ", collapse = ", "))
+         })
+
+## --- Enonce du predicat, frontiere de la fenetre C1, KruskalAcc, variance
+## unitaire (issue #60, decisions du mainteneur du 06/10/2026) ---------------
+# R1 (constat C1-a) : une seule chaine .MW_PREDICAT_DEGENERE_TEXTE, nommant
+# les deux volets du predicat, reprise par l'avertissement des colonnes
+# exclues, le motif de #192 et la phrase d'exclusion de M1.
+# R2 (constat C1-b, refus garde) : total_exact dont la colonne 0 est chainee
+# par pas relatif de 9e-13 (ecart a f_0 ~ 2,8e-12 > 1e-12, mais facteurs que
+# l'aplatissement rend tous egaux) est refuse ; par pas de 1,5e-12 (ecart
+# ~ 4,7e-12, chaine rompue), il est accepte.
+c1b <- function(pas) {
+  t <- total_exact; n <- nrow(t); fac <- f192[1] * (1 + (0:(n - 2)) * pas)
+  for (i in 1:(n - 1)) {
+    t[i, 2] <- t[i, 1] * fac[i]
+    if (n - i + 1 >= 3) for (j in 3:(n - i + 1)) t[i, j] <- t[i, j - 1] * f192[j - 1]
+  }
+  t
+}
+verifier("Enonce unique du predicat dans l'avertissement, le motif #192 et la phrase de M1 (#60, C1-a)",
+         {
+           a <- mw_ajuster(ta_bruit)
+           av <- av_exclues(mw_valider_ajustement(a, mw_msep(a)$msep)$avertissements)
+           ar <- mw_ajuster(total_exact)
+           er <- mw_valider_ajustement(ar, mw_msep(ar)$msep)$erreurs
+           d <- engine_table_tests(run_mw(ta_bruit))$commentaire
+           ph <- d[grepl("Colonne degeneree", d, fixed = TRUE)]
+           length(av) == 1L && motif192(er) && length(ph) >= 3L &&
+             all(grepl(.MW_PREDICAT_DEGENERE_TEXTE, ph, fixed = TRUE)) &&
+             any(grepl("ordonnee a l'origine nulle pour des facteurs exactement egaux", ph,
+                       fixed = TRUE)) &&
+             any(grepl("terme quadratique nul pour des facteurs exactement egaux", ph,
+                       fixed = TRUE)) &&
+             !any(grepl("1e-12 pres en relatif", c(av, er, ph), fixed = TRUE))
+         })
+verifier("Frontiere C1-b : colonne 0 chainee par 9e-13 refusee (#192), par 1,5e-12 acceptee (#60)",
+         {
+           t9 <- c1b(0.9e-12); t15 <- c1b(1.5e-12)
+           a9 <- mw_ajuster(t9); a15 <- mw_ajuster(t15)
+           e9 <- .mw_ecart_facteurs(a9, 0L)$ecart; e15 <- .mw_ecart_facteurs(a15, 0L)$ecart
+           r9 <- run_mw(t9); r15 <- run_mw(t15)
+           e9 > 1e-12 && e9 < 6e-12 && e15 > 1e-12 &&
+             isTRUE(.mw_colonne_degeneree(a9, 0L)) && isFALSE(.mw_colonne_degeneree(a15, 0L)) &&
+             identical(r9$ok, FALSE) && motif192(r9$validation$erreurs) &&
+             isTRUE(r15$ok) &&
+             !any(grepl("Triangle totalement degenere", r15$validation$erreurs, fixed = TRUE))
+         })
+# R3 (Q3) et R5 : col0_1e11 et sauf_une ne gardent de residus que dans la
+# colonne j = 0, un par annee de survenance i = 0..6.
+verifier("KruskalAcc : un residu par annee de survenance -> H = N - 1, p asymptotique NA (#60, Q3)",
+         all(vapply(list(col0_192(1e-11), sauf_une), function(t) {
+           a <- mw_ajuster(t); rs <- mw_residus(a); k <- mw_test_homogeneite_accident(a)
+           l <- engine_table_tests(run_mw(t))
+           l <- l[l$test == "Homogeneite des residus entre annees de survenance", ]
+           nrow(rs) == 7L && length(unique(rs$i)) == 7L &&
+             isTRUE(proche(k$stat, nrow(rs) - 1, rel = 1e-12)) && is.na(k$p) &&
+             nrow(l) == 1L && is.na(l$p_asymptotique) && is.na(l$p_retenue) &&
+             identical(l$verdict, "INFO") && isTRUE(k$un_par_annee) &&
+             l$type == "diagnostic" &&
+             identical(l$loi_sous_H0, "degeneree : H = N - 1 par construction") &&
+             grepl("H = N - 1 par construction", l$commentaire, fixed = TRUE) &&
+             grepl("loi simulee de dispersion nulle", l$commentaire, fixed = TRUE)
+         }, logical(1))) &&
+           # temoin : plusieurs residus par annee, p asymptotique definie
+           local({ k <- mw_test_homogeneite_accident(mw_ajuster(tri_ref))
+                   is.finite(k$p) && identical(k$un_par_annee, FALSE) }))
+verifier("Variance unitaire : 'et NON 1' omis si une seule colonne garde des residus (k = 1) (#60, R5)",
+         {
+           com <- function(t) {
+             d <- engine_table_tests(run_mw(t))
+             d$commentaire[d$test == "Variance unitaire des residus de Mack"]
+           }
+           c1 <- vapply(list(col0_192(1e-11), sauf_une), com, character(1))
+           cr <- com(tri_ref)
+           all(startsWith(c1, "Valeur de reference 1 : sigma2_j etant")) &&
+             all(grepl("N - k = 7 - 1 = 6", c1, fixed = TRUE)) &&
+             !any(grepl("NON 1", c1, fixed = TRUE)) &&
+             grepl("^Valeur de reference [0-9.]+, et NON 1 : ", cr)
+         })
+
+# Messages M6 dans la fenetre C1 (#60, decision du mainteneur du 06/10/2026,
+# constat C1 de l'audit) : tri_ref, ligne 0 multipliee par 1000 (poids
+# concentre), colonne J-3 chainee par pas relatif de 0,95e-12 autour de
+# 1,05 (ecart a f_j mesure 1,9e-12 > 1e-12, colonne degeneree par le second
+# volet du predicat), colonnes suivantes a 1,01 (la colonne J-2 est donc
+# aussi degeneree, a ecart nul : l'enonce du predicat doit figurer une seule
+# fois pour les deux colonnes). Construction de l'audit.
+tri_m6c1 <- local({
+  t <- tri_ref; n <- nrow(t); a0 <- mw_ajuster(t); j <- a0$J - 3L; nf <- a0$I - j
+  t[1, ] <- t[1, ] * 1000
+  fac <- 1.05 * (1 + (0:(nf - 1)) * 0.95e-12)
+  for (i in 1:nf) {
+    t[i, j + 2] <- t[i, j + 1] * fac[i]
+    if (j + 3 <= n - i + 1) for (k in (j + 3):(n - i + 1)) t[i, k] <- t[i, k - 1] * 1.01
+  }
+  t
+})
+verifier("Messages M6 en fenetre C1 : predicat enonce une fois, plus de 'tous egaux' (#60)",
+         {
+           a <- mw_ajuster(tri_m6c1); j <- a$J - 3L
+           r <- run_mw(tri_m6c1); av <- av_extrap(r); l <- detail_m6(r)
+           # "tous egaux" hors de l'enonce du predicat lui-meme ("rend tous egaux")
+           hors <- function(x) gsub(.MW_PREDICAT_DEGENERE_TEXTE, "", x, fixed = TRUE)
+           .mw_ecart_facteurs(a, j)$ecart > 1e-12 && isTRUE(.mw_colonne_degeneree(a, j)) &&
+             isTRUE(r$ok) && length(av) == 1L &&
+             lengths(regmatches(av, gregexpr(.MW_PREDICAT_DEGENERE_TEXTE, av,
+                                             fixed = TRUE))) == 1L &&
+             grepl("au sens de ce predicat (ecart relatif maximal", av, fixed = TRUE) &&
+             grepl("Colonnes J-3 et J-2 a facteurs individuels egaux a f_j a la tolerance relative 1e-12 de l'outil",
+                   l, fixed = TRUE) &&
+             !any(grepl("tous egaux", hors(c(r$validation$avertissements, l)), fixed = TRUE))
          })
 
 fin_fichier()
