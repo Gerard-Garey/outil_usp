@@ -325,10 +325,10 @@ verifier("#187 : jeu a delta interieur, y x 1e-12, x x 1e12 et echelles opposees
                      echelles = 1e-12))
 verifier("#187 : catalogue Monte-Carlo, MK, SpearVol, SpearTps, CoxStuart et Runsr invariants par r x c (c = 1e-30, 1e-12, 1e12)",
          {
-           xr <- d187$xt; yr <- d187$yt; zr <- usp_ajuster(xr, yr)$z
+           xr <- d187$xt; yr <- d187$yt; fr <- usp_ajuster(xr, yr); zr <- fr$z
            noms <- c("MK", "SpearVol", "SpearTps", "CoxStuart", "Runsr")
            st <- function(cc) vapply(noms, function(n)
-             USP_CATALOGUE_MC[[n]]$calc(.usp_contexte_mc(xr, yr * cc, zr)), numeric(1))
+             USP_CATALOGUE_MC[[n]]$calc(.usp_contexte_mc(xr, yr * cc, zr, fr$pi)), numeric(1))
            s1 <- st(1)
            all(is.finite(s1)) &&
              all(vapply(c(1e-30, 1e-12, 1e12), function(cc)

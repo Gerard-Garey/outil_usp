@@ -151,7 +151,7 @@ verifier("Cox-Stuart : NA si toutes les differences sont nulles",
 cs_a <- c(1, 2, 3, 4, 1, 5, 6, 7)   # differences (0, 3, 3, 3) : K = 3, m = 3
 cs_b <- c(1, 2, 3, 4, 1, 1, 1, 1)   # differences (0, -1, -2, -3) : K = 0, m = 3
 cs_mc <- function(v) USP_CATALOGUE_MC$CoxStuart$calc(.usp_contexte_mc(rep(1, length(v)), v,
-                                                                       rep(0, length(v))))
+                                                                       rep(0, length(v)), rep(1, length(v))))
 cs_ligne <- function(res) {
   t <- Filter(function(t) identical(t$test, "Tendance par signes du ratio S/P"), res$tests)
   if (length(t) == 1L) t[[1]] else NULL
@@ -270,25 +270,29 @@ verifier("RESET = lmtest::resettest (statistique et p)",
          isTRUE(proche(test_reset(x_ln, y_ln)$p, 0.99494110930386626, rel = 1e-10)))
 # Propriete du TOST (Schuirmann 1987) : rejet a alpha des deux tests
 # unilateraux <=> intervalle de confiance a 1 - 2 alpha inclus dans ]-D, D[.
-verifier("TOST : p < 0,05 <=> IC a 90 % de la constante inclus dans ]-Delta, Delta[",
+# Depuis #215 : IC de la constante du modele auxiliaire pondere (poids
+# usp_poids_gls() au pi de l'ajustement), meme regression que le TOST.
+pi_ln <- usp_ajuster(x_ln, y_ln)$pi
+verifier("TOST : p < 0,05 <=> IC a 90 % de la constante ponderee inclus dans ]-Delta, Delta[",
          {
-           ic <- stats::confint(stats::lm(y_ln ~ x_ln), level = 0.90)[1, ]
+           w_ln <- usp_poids_gls(x_ln, pi_ln)
+           ic <- stats::confint(stats::lm(y_ln ~ x_ln, weights = w_ln), level = 0.90)[1, ]
            ok <- TRUE
            for (D in c(10, 50, 100, 150, 200, 400)) {
-             p <- test_tost_intercept(x_ln, y_ln, delta_abs = D)$p
+             p <- test_tost_intercept(x_ln, y_ln, pi_ln, delta_abs = D)$p
              ok <- ok && ((p < 0.05) == (ic[1] > -D && ic[2] < D))
            }
            ok
          })
 verifier("TOST : p = max des deux p unilaterales ; marge a priori signalee",
          {
-           r <- test_tost_intercept(x_ln, y_ln, delta_abs = 100)
+           r <- test_tost_intercept(x_ln, y_ln, pi_ln, delta_abs = 100)
            isTRUE(proche(r$p, max(r$p_bas, r$p_haut))) && isTRUE(r$marge_a_priori)
          })
 verifier("TOST : non applicable si x constant ou marge non positive",
-         is.na(test_tost_intercept(rep(100, 8), y_ln)$p) &&
-         is.na(test_tost_intercept(x_ln, y_ln, delta_abs = -1)$p) &&
-         is.na(test_tost_intercept(x_ln, y_ln, theta = 0)$p))
+         is.na(test_tost_intercept(rep(100, 8), y_ln, pi_ln)$p) &&
+         is.na(test_tost_intercept(x_ln, y_ln, pi_ln, delta_abs = -1)$p) &&
+         is.na(test_tost_intercept(x_ln, y_ln, pi_ln, theta = 0)$p))
 
 ## --- Rupture de niveau (sup-F), CUSUM ----------------------------------------
 # Pour chaque date k autorisee (2 <= k <= 6 a T = 8, rognage 15 %), F de Chow =

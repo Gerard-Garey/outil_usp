@@ -272,7 +272,7 @@ signes_egaux <- function(f) {
   all(sign(f$z - stats::median(f$z)) == sign(u - stats::median(u)))
 }
 boot29 <- function(f) {
-  s <- .stats_bootstrapables(f$x, f$y, f$z)
+  s <- .stats_bootstrapables(f$x, f$y, f$z, f$pi)
   p <- stats::setNames(rep(0.5, length(s)), names(s))
   list(stats_obs = as.list(s), p_mc = p, err_mc = p * 0 + 0.01)
 }

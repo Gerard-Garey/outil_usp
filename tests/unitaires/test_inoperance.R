@@ -27,7 +27,7 @@ fit <- usp_ajuster(x, y)                       # delta = 1, pi_t constant
 # Objet bootstrap fictif (aucune simulation) : p Monte-Carlo a 0,5, aucun
 # motif ; `motif` permet d'en poser un sur une statistique.
 boot_fictif <- function(f, p = 0.5, motif = NULL) {
-  s <- .stats_bootstrapables(f$x, f$y, f$z)
+  s <- .stats_bootstrapables(f$x, f$y, f$z, f$pi)
   pm <- stats::setNames(rep(p, length(s)), names(s))
   mm <- stats::setNames(rep(NA_character_, length(s)), names(s))
   if (!is.null(motif)) { pm[names(motif)] <- NA_real_; mm[names(motif)] <- motif }
@@ -378,7 +378,7 @@ verifier("usp_tests : chaque ligne porte un champ p_min (NA pour une loi continu
 verifier("Constante (R5) : p_exacte NA, p_asymptotique = p de Student de test_intercept(), p Monte-Carlo retenue",
          {
            l <- ligne(tt, "Nullite de la constante (proportionnalite stricte)")
-           is.na(l$p_exacte) && identical(l$p_asymptotique, test_intercept(x, y)$p) &&
+           is.na(l$p_exacte) && identical(l$p_asymptotique, test_intercept(x, y, fit$pi)$p) &&
              identical(l$p_retenue, 0.5) && identical(l$nature_p, "Monte-Carlo (bootstrap parametrique)")
          })
 verifier("Constante sans p Monte-Carlo (motif aucune replication finie) : INFO, p_retenue NA, p_asymptotique conservee",
@@ -387,7 +387,7 @@ verifier("Constante sans p Monte-Carlo (motif aucune replication finie) : INFO, 
                            methode = "premium")
            l <- ligne(t0, "Nullite de la constante (proportionnalite stricte)")
            identical(l$type, "diagnostic") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
-             identical(l$p_asymptotique, test_intercept(x, y)$p) && grepl("non retenue", l$loi, fixed = TRUE)
+             identical(l$p_asymptotique, test_intercept(x, y, fit$pi)$p) && grepl("non retenue", l$loi, fixed = TRUE)
          })
 verifier("Spearman et Mann-Kendall : un ex aequo dans r -> p_min NA ; Spearman-volume : ex aequo dans x -> NA",
          {
@@ -402,14 +402,21 @@ verifier("Spearman et Mann-Kendall : un ex aequo dans r -> p_min NA ; Spearman-v
              is.na(ligne(t3, "Independance ratio S/P vs volume")$p_min) &&
              isTRUE(proche(ligne(t3, "Correlation ratio S/P vs temps")$p_min, 2 / factorial(8), rel = 1e-12))
          })
-verifier("TOST (R5) : nature 'modele auxiliaire MCO' dans les deux branches de marge",
+# #215 (decision P3 du mainteneur du 07/10/2026) : modele auxiliaire pondere,
+# poids estimes ; p exacte NA dans les deux branches de marge, p rangee dans
+# p_asymptotique et retenue hors hierarchie.
+verifier("TOST (R5, #215) : nature 'modele auxiliaire pondere' dans les deux branches de marge, p_exacte NA, p retenue = p_asymptotique",
          {
            a <- ligne(tt, "Equivalence de la constante a zero (TOST)")
            t2 <- usp_tests(fit, boot_fictif(fit), delta_equiv = 5, methode = "premium")
            b <- ligne(t2, "Equivalence de la constante a zero (TOST)")
-           identical(a$nature_p, "sous le modele auxiliaire MCO : loi de Student, marge estimee sur les donnees") &&
-             identical(b$nature_p, "sous le modele auxiliaire MCO : t(T-2) exacte, marge fixee a priori") &&
-             is.finite(b$p_exacte) && identical(b$p_retenue, b$p_exacte)
+           identical(a$nature_p, paste("sous le modele auxiliaire pondere : loi de Student (poids estimes),",
+                                       "marge estimee sur les donnees")) &&
+             identical(b$nature_p, paste("sous le modele auxiliaire pondere : loi de Student (poids estimes),",
+                                         "marge fixee a priori")) &&
+             is.na(a$p_exacte) && is.na(b$p_exacte) &&
+             is.finite(a$p_asymptotique) && identical(a$p_retenue, a$p_asymptotique) &&
+             is.finite(b$p_asymptotique) && identical(b$p_retenue, b$p_asymptotique)
          })
 verifier("usp_identifiabilite_pente : lambda = sqrt(T-1) CV(x) beta / sigma et puissance = pt(, ncp) recalcules",
          {
@@ -906,8 +913,10 @@ verifier("Cox-Stuart T = 10, m = 4 sur n_p = 5, alpha = 0,10 : TEST INOPERANT in
 # 1 - F_t(Delta/se) (p du TOST en a = 0) compare a alpha et a
 # SEUIL_ECHEC_SENS_REJETER ; rho = t(1-alpha, T-2) x se / Delta a %.2f.
 # Valeurs construites loin des points de bascule de %.2f (mesure sur ces
-# donnees : rho = 9.8114 ; 0.5560 ; 1.6680 ; 0.8313 ; 0.6541), donc
-# independantes de la plateforme.
+# donnees : rho = 9.8114 ; 0.5560 ; 1.6680 ; 0.8313 ; 0.6541 avant #215,
+# se(a) MCO ; depuis #215, se(a) du modele auxiliaire pondere, 53,7545 au
+# lieu de 57,9278 : rho = 9.1046 ; 0.5160 ; 1.5479 ; 0.7714 ; 0.6070, memes
+# branches et memes verdicts), donc independantes de la plateforme.
 NOM_TOST165 <- "Equivalence de la constante a zero (TOST)"
 TXT_FIN165 <- paste(". L'equivalence ne peut pas etre conclue avec ces donnees (plan de volumes,",
                     "dispersion residuelle) et cette marge : ce verdict traduit une absence de",
@@ -916,8 +925,9 @@ TXT_NON165 <- paste("Condition necessaire de conclusion non remplie : t(1-alpha,
                     "Delta = %s >= 1, soit se(a) >= Delta / t(1-alpha, T-2) : quelle que soit la",
                     "constante estimee, p >= alpha")
 # Texte d'avant #165, recalcule depuis test_tost_intercept().
-avant165 <- function(x, y, theta = 0.10, delta_abs = NULL) {
-  t0 <- test_tost_intercept(x, y, theta = theta, delta_abs = delta_abs)
+# pi : pi_t de l'ajustement de (x, y) (#215), par defaut celui des donnees de test.
+avant165 <- function(x, y, theta = 0.10, delta_abs = NULL, pi = fit$pi) {
+  t0 <- test_tost_intercept(x, y, pi, theta = theta, delta_abs = delta_abs)
   sprintf(paste("Rejeter H0 fournit une preuve POSITIVE de proportionnalite.",
                 "Delta = %s (valeur : estimation \"marge Delta\") ;",
                 "p_bas = %.4f, p_haut = %.4f."),
@@ -925,70 +935,72 @@ avant165 <- function(x, y, theta = 0.10, delta_abs = NULL) {
           else "marge fixee a priori", t0$p_bas, t0$p_haut)
 }
 tost165 <- function(f, ...) ligne(usp_tests(f, boot_fictif(f), methode = "premium", ...), NOM_TOST165)
-verifier("TOST (#165), donnees des quatre cas lognormaux (alpha = 0,10, theta = 0,10), premium et reserve1 : texte d'avant + 'non remplie ... = 9.81 >= 1 ... et meme p >= 0.3 : OK et ALERTE inatteignables. L'equivalence ...' ; p retenue et verdict ECHEC inchanges",
+verifier("TOST (#165), donnees des quatre cas lognormaux (alpha = 0,10, theta = 0,10), premium et reserve1 : texte d'avant + 'non remplie ... = 9.10 >= 1 ... et meme p >= 0.3 : OK et ALERTE inatteignables. L'equivalence ...' ; p retenue et verdict ECHEC inchanges",
          {
            att <- paste(avant165(x, y),
-                        paste0(sprintf(TXT_NON165, "9.81"),
+                        paste0(sprintf(TXT_NON165, "9.10"),
                                " et meme p >= 0.3 : OK et ALERTE inatteignables", TXT_FIN165))
            ok <- vapply(c("premium", "reserve1"), function(m) {
              l <- ligne(usp_tests(fit, boot_fictif(fit), methode = m), NOM_TOST165)
              identical(l$detail, att) && identical(l$verdict, "ECHEC") &&
-               identical(l$p_retenue, test_tost_intercept(x, y)$p)
+               identical(l$p_retenue, test_tost_intercept(x, y, fit$pi)$p)
            }, logical(1))
            if (all(ok)) TRUE else paste("en defaut :", paste(names(ok)[!ok], collapse = ", "))
          })
-verifier("TOST (#165), marge fixee a priori delta_equiv = 150 (rho = 0.56 < 1) : texte d'avant + 'remplie', verdict OK",
+verifier("TOST (#165), marge fixee a priori delta_equiv = 150 (rho = 0.52 < 1) : texte d'avant + 'remplie', verdict OK",
          {
            l <- tost165(fit, delta_equiv = 150)
            identical(l$detail, paste(avant165(x, y, delta_abs = 150),
                                      paste("Condition necessaire de conclusion remplie :",
-                                           "t(1-alpha, T-2) x se(a) / Delta = 0.56 < 1."))) &&
+                                           "t(1-alpha, T-2) x se(a) / Delta = 0.52 < 1."))) &&
              identical(l$verdict, "OK")
          })
-verifier("TOST (#165), marge estimee theta_equiv = 1,5 (rho = 0.65 < 1) : 'remplie', verdict OK",
+verifier("TOST (#165), marge estimee theta_equiv = 1,5 (rho = 0.61 < 1) : 'remplie', verdict OK",
          {
            l <- tost165(fit, theta_equiv = 1.5)
            identical(l$detail, paste(avant165(x, y, theta = 1.5),
                                      paste("Condition necessaire de conclusion remplie :",
-                                           "t(1-alpha, T-2) x se(a) / Delta = 0.65 < 1."))) &&
+                                           "t(1-alpha, T-2) x se(a) / Delta = 0.61 < 1."))) &&
              identical(l$verdict, "OK")
          })
-verifier("TOST (#165), marge fixee a priori delta_equiv = 50 (alpha <= p_plancher < 0,30, rho = 1.67) : 'OK inatteignable' seul, verdict ALERTE",
+verifier("TOST (#165), marge fixee a priori delta_equiv = 50 (alpha <= p_plancher < 0,30, rho = 1.55) : 'OK inatteignable' seul, verdict ALERTE",
          {
            l <- tost165(fit, delta_equiv = 50)
-           t0 <- test_tost_intercept(x, y, delta_abs = 50)
+           t0 <- test_tost_intercept(x, y, fit$pi, delta_abs = 50)
            pp <- stats::pt(50 / t0$se, 6, lower.tail = FALSE)
            pp >= 0.10 && pp < SEUIL_ECHEC_SENS_REJETER &&
              identical(l$detail, paste(avant165(x, y, delta_abs = 50),
-                                       paste0(sprintf(TXT_NON165, "1.67"), " : OK inatteignable",
+                                       paste0(sprintf(TXT_NON165, "1.55"), " : OK inatteignable",
                                               TXT_FIN165))) &&
              !grepl("ALERTE inatteignables", l$detail, fixed = TRUE) &&
              identical(l$verdict, "ALERTE")
          })
-verifier("TOST (#165), alpha de la regle des verdicts : delta_equiv = 50 a alpha = 0,25 -> 'remplie' avec t(0,75 ; 6) (rho = 0.83), verdict OK",
+verifier("TOST (#165), alpha de la regle des verdicts : delta_equiv = 50 a alpha = 0,25 -> 'remplie' avec t(0,75 ; 6) (rho = 0.77), verdict OK",
          {
            l <- ligne(usp_tests(fit, boot_fictif(fit), alpha = 0.25, methode = "premium",
                                 delta_equiv = 50), NOM_TOST165)
            identical(l$detail, paste(avant165(x, y, delta_abs = 50),
                                      paste("Condition necessaire de conclusion remplie :",
-                                           "t(1-alpha, T-2) x se(a) / Delta = 0.83 < 1."))) &&
+                                           "t(1-alpha, T-2) x se(a) / Delta = 0.77 < 1."))) &&
              identical(l$verdict, "OK")
          })
 # Cas construits a la frontiere (reprise de l'audit de #165) : Delta =
 # se(a) x t(q ; 6) x k, k = 1,005 ou 1/1,005, q = 0,90 (bascule alpha = 0,10)
 # ou 0,70 (bascule SEUIL_ECHEC_SENS_REJETER = 0,30), alpha = 0,10. Mesure sur
 # ces donnees (p_plancher a 6 ddl ; a 7 ddl entre parentheses) :
-#   q = 0,90, k = 1,005 : 0,099029 (0,095581), p = 0,1105 -> remplie, ALERTE
-#   q = 0,90, k = 1/1,005 : 0,100975 (0,097540), p = 0,1127 -> OK inatteignable, ALERTE
-#   q = 0,70, k = 1,005 : 0,299111 (0,297716), p = 0,3259 -> OK inatteignable, ECHEC
-#   q = 0,70, k = 1/1,005 : 0,300886 (0,299506), p = 0,3277 -> OK et ALERTE inatteignables, ECHEC
+#   q = 0,90, k = 1,005 : 0,099029 (0,095581), p = 0,1084 -> remplie, ALERTE
+#   q = 0,90, k = 1/1,005 : 0,100975 (0,097540), p = 0,1105 -> OK inatteignable, ALERTE
+#   q = 0,70, k = 1,005 : 0,299111 (0,297716), p = 0,3210 -> OK inatteignable, ECHEC
+#   q = 0,70, k = 1/1,005 : 0,300886 (0,299506), p = 0,3228 -> OK et ALERTE inatteignables, ECHEC
+# (p mesurees depuis #215, se(a) et a du modele auxiliaire pondere ;
+# p_plancher, fonction de q et k seuls, inchangees.)
 # Ecarts aux seuils de l'ordre de 1e-3 : sans rapport avec la derive de
 # plateforme ; les cas k = 1/1,005 distinguent T - 2 de T - 1 ddl. rho
 # (0,995 a q = 0,90, k = 1,005) n'est pas compare : l'arrondi %.2f y montre
 # 1.00 (limite admise, commentaire 5927254443 de #165).
 verifier("TOST (#165), cas a la frontiere (marge 0,5 % autour de t(0,90 ; 6) et t(0,70 ; 6), delta_equiv, alpha = 0,10) : branche decidee par p_plancher a T - 2 ddl contre alpha et SEUIL_ECHEC_SENS_REJETER, verdict coherent",
          {
-           se0 <- test_tost_intercept(x, y)$se
+           se0 <- test_tost_intercept(x, y, fit$pi)$se
            cas <- list(list(q = 0.90, k = 1.005,     br = "remplie", v = "ALERTE"),
                        list(q = 0.90, k = 1 / 1.005, br = "ok",      v = "ALERTE"),
                        list(q = 0.70, k = 1.005,     br = "ok",      v = "ECHEC"),
@@ -1028,9 +1040,9 @@ verifier("TOST (#165), propriete sur 30 series simulees (graine 165) : jamais 'n
            pb <- character(0); vu <- c(remplie = 0L, ok_inat = 0L, ok_alerte_inat = 0L)
            for (i in seq_along(sim)) {
              s <- sim[[i]]
-             se <- test_tost_intercept(s$x, s$y)$se
-             d <- se * s$k
              f <- usp_ajuster(s$x, s$y)
+             se <- test_tost_intercept(s$x, s$y, f$pi)$se
+             d <- se * s$k
              l <- ligne(usp_tests(f, boot_fictif(f), alpha = s$alpha, methode = "premium",
                                   delta_equiv = d), NOM_TOST165)
              pp <- stats::pt(d / se, 6, lower.tail = FALSE)
@@ -1045,7 +1057,7 @@ verifier("TOST (#165), propriete sur 30 series simulees (graine 165) : jamais 'n
                  (deux && !identical(l$verdict, "ECHEC")) ||
                  rem != (pp < s$alpha) ||
                  deux != (pp >= SEUIL_ECHEC_SENS_REJETER) ||
-                 !startsWith(l$detail, avant165(s$x, s$y, delta_abs = d)))
+                 !startsWith(l$detail, avant165(s$x, s$y, delta_abs = d, pi = f$pi)))
                pb <- c(pb, sprintf("serie %d (verdict %s)", i, l$verdict))
            }
            if (length(pb)) paste(pb, collapse = " ; ")

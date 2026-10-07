@@ -330,7 +330,7 @@ ui <- fluidPage(
                     "<b style='color:#1E8449'>exacte</b> &gt;",
                     "<b style='color:#00468C'>Monte-Carlo</b> &gt;",
                     "<b style='color:#B9770E'>asymptotique</b>.",
-                    "Les p-values <b style='color:#7D3C98'>sous le mod&egrave;le auxiliaire MCO</b>",
+                    "Les p-values <b style='color:#7D3C98'>sous le mod&egrave;le auxiliaire pond&eacute;r&eacute;</b>",
                     "(TOST) sont hors hi&eacute;rarchie : elles ne sont retenues",
                     "que faute de p exacte ou Monte-Carlo sous le mod&egrave;le r&eacute;glementaire,",
                     "et ne sont pas exactes au sens de l'outil.",

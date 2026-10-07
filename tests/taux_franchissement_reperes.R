@@ -570,7 +570,7 @@ traiter <- function(x, y, graine_ic) {
   fb$largeur_ic <- icb$largeur
   i_jack <- if (jack_calcule) which.max(abs(d_jack)) else NULL
   rob <- list(jack_annee = i_jack, jack_usp = if (jack_calcule) d_jack[i_jack] / param$sigma_usp else NULL)
-  so <- .mc_evaluer(USP_CATALOGUE_MC, .usp_contexte_mc(fb$x, fb$y, fb$z))
+  so <- .mc_evaluer(USP_CATALOGUE_MC, .usp_contexte_mc(fb$x, fb$y, fb$z, fb$pi))
   boot <- list(stats_obs = as.list(so), p_mc = so * 0 + 0.5, err_mc = so * 0 + 0.01,
                motif_mc = stats::setNames(rep(NA_character_, length(so)), names(so)))
   tt <- usp_tests(fb, boot, ALPHA, theta_equiv = THETA_EQUIV, delta_equiv = NULL,

@@ -610,7 +610,7 @@ boucle_reduite <- function(fit, graine, B, catalogue) {
       yb <- usp_simuler(fit)
       fb <- try(usp_ajuster_rapide(fit$x, yb, fit$delta, fit$gamma), silent = TRUE)
       if (inherits(fb, "try-error")) next
-      sb <- try(.mc_evaluer(catalogue, .usp_contexte_mc(fit$x, yb, fb$z)), silent = TRUE)
+      sb <- try(.mc_evaluer(catalogue, .usp_contexte_mc(fit$x, yb, fb$z, fb$pi)), silent = TRUE)
       if (inherits(sb, "try-error")) next
       sim[b, ] <- sb
       zb[b, ] <- fb$z
@@ -625,7 +625,7 @@ boucle_reduite <- function(fit, graine, B, catalogue) {
 chaine <- function(x, y, graine, B) {
   fb <- tryCatch(usp_ajuster(x, y), error = function(e) e)
   if (inherits(fb, "error")) return(list(ecart = "usp_ajuster() en erreur"))
-  e_obs <- .usp_contexte_mc(fb$x, fb$y, fb$z)
+  e_obs <- .usp_contexte_mc(fb$x, fb$y, fb$z, fb$pi)
   so <- tryCatch(.mc_evaluer(USP_CATALOGUE_MC, e_obs), error = function(e) e)
   if (inherits(so, "error")) return(list(ecart = "statistiques observ\u00e9es en erreur"))
   bt <- boucle_reduite(fb, graine, B, USP_CATALOGUE_MC[SIX])

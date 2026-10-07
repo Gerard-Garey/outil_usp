@@ -82,8 +82,8 @@ verifier("Fonctions de R11 a volumes quasi constants : stat et p NA, memes noms 
            appels <- list(
              lm_complet = function(v) test_lm_complet(v, y),
              reset      = function(v) test_reset(v, y),
-             tost       = function(v) test_tost_intercept(v, y),
-             intercept  = function(v) test_intercept(v, y),
+             tost       = function(v) test_tost_intercept(v, y, fit_q$pi),
+             intercept  = function(v) test_intercept(v, y, fit_q$pi),
              bp79       = function(v) test_breusch_pagan_original(fit_q$z^2, v),
              bp         = function(v) test_breusch_pagan(fit_q$z^2, v),
              white      = function(v) test_white(fit_q$z^2, v),
@@ -112,7 +112,7 @@ verifier("Goldfeld-Quandt a volumes constants : NA, et non la comparaison des de
          })
 verifier("Catalogue Monte-Carlo a volumes quasi constants : Intercept, RESET, BP, BP79, White, GQ, BF, Smirnov, SpearVol NA, sans erreur",
          {
-           s <- tryCatch(.stats_bootstrapables(x_q, y, fit_q$z), error = function(e) e)
+           s <- tryCatch(.stats_bootstrapables(x_q, y, fit_q$z, fit_q$pi), error = function(e) e)
            nm <- c("Intercept", "RESET", "BP", "BP79", "White", "GQ", "BF", "Smirnov", "SpearVol")
            if (inherits(s, "error")) paste("erreur :", conditionMessage(s))
            else if (all(is.na(s[nm]))) TRUE
@@ -381,8 +381,8 @@ verifier("Garde (c) : test_reset(x, 0) et test_white(0, x) -> stat et p NA (et n
 verifier(".stats_bootstrapables() : RESET et White NA a k = 2 hors bande, finies a k = 3",
          {
            x2 <- 100 * (1 + alt * 1e-5)
-           s2 <- .stats_bootstrapables(x2, y, usp_ajuster(x2, y)$z)
-           s3 <- .stats_bootstrapables(x3, y, usp_ajuster(x3, y)$z)
+           f2 <- usp_ajuster(x2, y); s2 <- .stats_bootstrapables(x2, y, f2$z, f2$pi)
+           f3 <- usp_ajuster(x3, y); s3 <- .stats_bootstrapables(x3, y, f3$z, f3$pi)
            all(is.na(s2[c("RESET", "White")])) && all(is.finite(s3[c("RESET", "White")]))
          })
 
@@ -415,7 +415,7 @@ verifier("Garde-fou R12 via usp_tests() (T = 200, reg ecarte) : lignes Koenker, 
            xa <- rep(110, 200); xa[2] <- 110 * (1 + 1.1e-6)
            ya <- xa * 0.8 * exp(stats::rnorm(200, 0, 0.1))
            fa <- usp_ajuster(xa, ya)
-           s <- .stats_bootstrapables(fa$x, fa$y, fa$z)
+           s <- .stats_bootstrapables(fa$x, fa$y, fa$z, fa$pi)
            pm <- stats::setNames(rep(0.5, length(s)), names(s))
            pm[is.na(s)] <- NA_real_
            mm <- stats::setNames(rep(NA_character_, length(s)), names(s))
@@ -434,7 +434,7 @@ verifier("Invariant I5 : usp_tests() rend les memes 46 lignes, dans le meme ordr
          {
            # Objet bootstrap fictif de test_inoperance.R (aucune simulation).
            bf <- function(f) {
-             s <- .stats_bootstrapables(f$x, f$y, f$z)
+             s <- .stats_bootstrapables(f$x, f$y, f$z, f$pi)
              pm <- stats::setNames(rep(0.5, length(s)), names(s))
              list(stats_obs = as.list(s), p_mc = pm, err_mc = pm * 0 + 0.01,
                   motif_mc = stats::setNames(rep(NA_character_, length(s)), names(s)))

@@ -26,7 +26,7 @@ debut_fichier("test_regimes_p_exactes.R")
 # motif ; `motif` en pose un sur une statistique (meme outil que
 # test_inoperance.R).
 boot_fictif <- function(f, p = 0.5, motif = NULL) {
-  s <- .stats_bootstrapables(f$x, f$y, f$z)
+  s <- .stats_bootstrapables(f$x, f$y, f$z, f$pi)
   pm <- stats::setNames(rep(p, length(s)), names(s))
   mm <- stats::setNames(rep(NA_character_, length(s)), names(s))
   if (!is.null(motif)) { pm[names(motif)] <- NA_real_; mm[names(motif)] <- motif }

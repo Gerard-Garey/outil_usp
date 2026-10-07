@@ -483,25 +483,25 @@ verifier("--B 98 refuse par le script lance (code 1, erreur explicite, moteur no
          r_b98$code == 1L && any(grepl("--B = 98 refuse", r_b98$sortie, fixed = TRUE)) &&
            !any(grepl("^=== 2", r_b98$sortie)))
 # Natures des p retenues (#44, reprise) : exacte, sous le modele auxiliaire
-# MCO, Monte-Carlo, asymptotique et sans p retenue partitionnent les lignes.
+# pondere (MCO avant #215), Monte-Carlo, asymptotique et sans p retenue partitionnent les lignes.
 # Lignes construites en memoire (une par nature), et table du moteur sur les
 # donnees de test (usp_tests() a bootstrap fictif, sans run_engine()).
 verifier("grandeurs_moteur : les cinq categories de nature partitionnent les lignes (somme = total)",
          {
-           cinq <- c("nature exacte", "nature modele auxiliaire MCO", "nature Monte-Carlo",
+           cinq <- c("nature exacte", "nature modele auxiliaire pondere", "nature Monte-Carlo",
                      "nature asymptotique", "sans p-value retenue")
-           lg <- lapply(c("exacte", "sous le modele auxiliaire MCO : t(T-2) exacte, marge fixee a priori",
+           lg <- lapply(c("exacte", "sous le modele auxiliaire pondere : loi de Student (poids estimes), marge fixee a priori",
                           "Monte-Carlo (bootstrap parametrique)", "asymptotique (motif)", NA),
                         function(n) list(nature_p = n, type = "test", famille = "B."))
            g <- cc$grandeurs_moteur(lg)
            xs <- c(104.20, 102.25, 109.34, 114.64, 118.41, 121.28, 132.40, 131.22)
            ys <- c(68.97, 76.76, 83.49, 95.38, 88.96, 70.22, 78.89, 117.37)
-           fx <- usp_ajuster(xs, ys); so <- .stats_bootstrapables(fx$x, fx$y, fx$z)
+           fx <- usp_ajuster(xs, ys); so <- .stats_bootstrapables(fx$x, fx$y, fx$z, fx$pi)
            tt <- usp_tests(fx, list(stats_obs = as.list(so), p_mc = so * 0 + 0.5,
                                     err_mc = so * 0 + 0.01), methode = "premium")
            g2 <- cc$grandeurs_moteur(tt)
            all(g[cinq] == 1) && sum(g[cinq]) == g[["lignes (total)"]] &&
-             sum(g2[cinq]) == g2[["lignes (total)"]] && g2[["nature modele auxiliaire MCO"]] >= 1
+             sum(g2[cinq]) == g2[["lignes (total)"]] && g2[["nature modele auxiliaire pondere"]] >= 1
          })
 # Issue #114 : rubrique 7 "Pertinence et puissance a faible T" et tableau de
 # tracabilite, sur des chaines LaTeX en memoire.
