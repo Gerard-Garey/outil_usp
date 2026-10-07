@@ -677,16 +677,20 @@ constants)~; en dessous du seuil, la ligne de la pente est restituée en diagnos
 §\ref{sec:t8}) \\
 \code{usp\_permutation\_}\newline\code{pente()} & $x$, $y$, $B$ (999), \code{seed}
 (20260831), \code{unilateral} (\code{TRUE}) & test de Pitman sur la pente (issue~\#169,
-fiche~\ref{fiche:student-pente})~: $r$ observé et $t_b$, p-value de permutation dans le sens
+fiche~\ref{fiche:student-pente})~: $r$ observé et $t_b$ (champ \code{t}, calculé sur $r$ borné
+à $[-1, 1]$, donc $\pm\infty$ à $|r| = 1$, et lu par aucune fonction du moteur~: la ligne
+restitue le $t_b$ de \code{test\_lm\_complet()}), p-value de permutation dans le sens
 demandé, p-value bilatérale pour information, $p_{\min}$, méthode (\code{enumeration} à
 $T \le$ \code{T\_MAX\_ENUM\_PERMUTATION}, \code{aleatoire} au-delà, $B$ permutations sous
 \code{engine\_sous\_graine()}), erreur de Monte-Carlo~; appelée par \code{run\_engine()} avec le
 $B$ et la graine de l'exécution, ou par \code{usp\_tests()} aux valeurs par défaut en appel
 direct \\
-\code{engine\_permutations()},\newline \code{.usp\_nb\_appariements()} & $T$~; volumes et pertes
+\code{engine\_permutations()},\newline \code{.usp\_nb\_appariements()},\newline
+\code{.usp\_log\_nb\_}\newline\code{appariements()} & $T$~; volumes et pertes
 aplatis & matrice des $T!$ permutations de $1{:}T$ (une par ligne, première ligne identité), mise
-en cache par $T$~; nombre d'appariements reproduisant un appariement donné ($p_{\min}$ à
-$T \ge 10$) \\
+en cache par $T$~; nombre d'appariements reproduisant un appariement donné, arrondi, et son
+logarithme (\code{lfactorial()}), lu pour $p_{\min}$ à $T \ge 10$ (division par $T!$ jusqu'à
+$T = 170$, échelle logarithmique au-delà) \\
 \code{T\_MAX\_ENUM\_}\newline\code{PERMUTATION},\newline \code{SENS\_PITMAN\_PENTE},\newline
 \code{.pitman\_unilateral()} & constantes ($9$~; \code{"unilateral"})~; sens & plus grand $T$
 de l'énumération complète~; sens du test de Pitman, seule valeur admise, verrou refusant toute
@@ -913,8 +917,8 @@ commentaire~; non posé par \code{add()}, absent des références~; \code{NA} po
 méthode Merz--Wüthrich, fiche~\ref{fiche:student-constante}, rubrique~6) et, en dernières
 positions, après \code{renvoi}, les colonnes \code{fonction},
 provenance de la ligne (issue~\#111), et \code{inoperant}, indicateur logique de test inopérant
-(issue~\#129~; \code{NA} pour un objet antérieur au champ)~; deux colonnes de plus dans l'export
-CSV de l'application \\
+(issue~\#129~; \code{NA} pour un objet antérieur au champ)~; l'export CSV de l'application
+reprend ces 26 colonnes telles quelles \\
 \code{run\_engine()} & entrées utilisateur, dont \code{nature\_donnees} (obligatoire pour
 \code{premium}), $T$ (contrôlé par \code{engine\_valider\_}\newline\code{profondeur()}~; les $T$
 années les plus récentes des $n$ fournies sont retenues, $n$ étant consigné dans
@@ -3412,9 +3416,13 @@ Diagnostic \\
   s'applique pas. $\hat\pi_b$, approximation de la puissance du test de Student, est employée pour
   la ligne du test de Pitman~: sous le modèle ajusté au jeu de contrôle, la spécification
   d'\code{actuary} du 6~octobre 2026 l'a trouvée voisine des puissances simulées du test de Student et du test de permutation
-  ($0{,}646$ approchée, contre $0{,}644$ pour le test de Student et $0{,}641$ pour le test de
-  permutation~; constat de simulation, script non versionné, rapporté par l'ADR~0002, amendement
-  du 6~octobre 2026, point~4, $R = 4\,000$, test brut sans la règle~R4~; il ne concorde pas
+  ($0{,}646$ approchée, valeur de $\hat\pi_b$ unilatérale calculée par
+  \code{usp\_identifiabilite\_pente()} sur le jeu de contrôle, $0{,}6461$ dans les conséquences de l'amendement du 6~octobre 2026
+  de l'ADR~0002~; contre $0{,}644$ pour le test de Student, constat de
+  simulation de cette spécification seule, script non versionné, issue~\#220~; et $0{,}641$ pour
+  le test de permutation, fréquence d'\code{OK} sous le modèle ajusté au jeu de contrôle, constat
+  de simulation rapporté par l'ADR~0002, amendement du 6~octobre 2026, point~4, $R = 4\,000$, graine 20261006, test brut
+  sans la règle~R4, script non versionné~; ce dernier constat ne concorde pas
   exactement avec la fréquence d'\code{OK} d'environ $63~\%$ citée à la
   fiche~\ref{fiche:student-pente}, rubrique~6, d'une autre source~: écart non résolu, versionnement des scripts
   à l'issue~\#220). Convention de restitution, non seuil statistique~: avec la puissance
@@ -5810,7 +5818,11 @@ garde-fou~R12 (\code{lm()} écartant $x_t$ hors de la bande de tolérance), non 
 motif «~\code{regression de y sur x : x ecarte par lm() pour colinearite, test non applicable}~»,
 qui forme seul son commentaire (issue~\#168, section~\ref{sec:modele-auxiliaire})~; à pertes
 constantes, non applicable avec le motif des pertes constantes (issue~\#189,
-sous-section~\ref{sec:modele-auxiliaire-regles})~; de même si $t_b$ n'est pas fini. Dans ces cas,
+sous-section~\ref{sec:modele-auxiliaire-regles})~; si $t_b$ n'est pas fini hors de ces trois
+cas (ajustement exact de $y$ sur $x$, erreur-type de la pente nulle, ou erreur-type non
+calculable), non applicable avec le motif «~\code{statistique t non finie (erreur-type de la
+pente de la regression de y sur x nulle : ajustement exact, ou non calculable) : test non
+applicable}~», qui forme seul son commentaire (mesuré~: $x = (1, \dots, 8)$, $y = 2x$). Dans ces cas,
 \code{usp\_permutation\_pente()} n'est pas appelée par \code{usp\_tests()}.
 \Hzero
 \begin{center}
@@ -5918,7 +5930,9 @@ $\sqrt{p(1-p)/B}$~; elle est restituée par les arguments \code{p\_mc\_ext} et \
 d'\code{add()}, \emph{hors} du catalogue \code{USP\_CATALOGUE\_MC}, qui ne déclare que des
 statistiques simulées sous le modèle ajusté (ADR~0003, annotation du 6~octobre 2026), et retenue
 sous la nature \code{Monte-Carlo (permutations aleatoires ; H0 : y independant de x)}~: elle n'est
-pas exacte. Si $1/(B+1) \ge \alpha$, le commentaire ajoute «~\code{Plancher 1/(B + 1) >= alpha =}
+pas exacte. Si $1/(B+1) \ge \alpha$ et que la ligne reste un test (ni diagnostic par la
+règle~R4, ni test inopérant par la règle~R1, même garde que la mention du plancher posée par
+\code{add()}), le commentaire ajoute «~\code{Plancher 1/(B + 1) >= alpha =}
 \ldots~\code{: OK inatteignable.}~». Mesuré sur un jeu synthétique à $T = 10$ (méthode prime,
 $B = 199$, graine par défaut)~: méthode \code{aleatoire}, p-value de Monte-Carlo $0{,}020$, égale à
 celle d'un appel direct d'\code{usp\_permutation\_pente()} avec les mêmes $B$ et graine, deux
@@ -5953,9 +5967,15 @@ unilatérale de «~retenue~»~: les règles~R1 et~R4 peuvent retirer à la ligne
 \emph{p-value minimale et règle~R1.} Le champ \code{p\_min} porte la plus petite p-value
 unilatérale atteignable aux valeurs observées~: le nombre d'appariements qui atteignent le
 maximum de $r$, divisé par $T!$, soit $1/T!$ sans ex \ae quo~; lue sur l'énumération à $T \le 9$,
-calculée à $T \ge 10$ par le dénombrement des appariements comonotones
-(\code{.usp\_nb\_appariements()}, ex \ae quo de $x_t$ et de $y_t$ jugés au plancher~0), où elle ne
-borne pas la p-value de Monte-Carlo retenue. La règle~R1 s'y applique~: avec de nombreux ex
+calculée à $T \ge 10$ par le dénombrement des appariements comonotones (ex \ae quo de $x_t$ et
+de $y_t$ jugés au plancher~0), où elle ne borne pas la p-value de Monte-Carlo retenue. Jusqu'à
+$T = 170$, ce nombre, arrondi à l'entier, est divisé par $T!$~; au-delà, où \code{factorial()}
+déborde ($170! \approx 7{,}26 \times 10^{306}$, $171!$ infini en double précision), le calcul
+passe en échelle logarithmique (\code{lfactorial()}, \code{.usp\_log\_nb\_appariements()}, dont
+\code{.usp\_nb\_appariements()} donne le nombre arrondi). La valeur y est exacte à l'arrondi du
+logarithme près, approximation numérique (écart relatif mesuré de $1{,}1 \times 10^{-13}$ à
+$T = 200$, contre $1/\binom{200}{100}$)~: une égalité $p_{\min} = \alpha$ peut alors manquer la
+règle~R1, qui s'applique sinon à toute profondeur~: avec de nombreux ex
 \ae quo, la ligne peut être inopérante (mesuré~: $x = (10, 20, 30, 40, 50)$,
 $y = (1, 1, 1, 1, 2)$, $p_{\min} = 0{,}2$). \emph{Règle~R4}~: si la puissance approchée
 \emph{unilatérale} $\hat\pi_b$ du test sous le modèle ajusté est inférieure à $1/2$
@@ -6084,7 +6104,10 @@ révise la suppression d'abord décidée~; ADR~0002 amendé, point~4)~: elle ne 
 «~\code{regression de y sur x : x ecarte par lm() pour colinearite, test non applicable}~»
 (issue~\#168). À pertes constantes au sens d'\code{usp\_pertes\_constantes()}, elle est non applicable avec le
 motif des pertes constantes, qui prime sur celui du garde-fou~R12 (issue~\#189,
-sous-section~\ref{sec:modele-auxiliaire-regles})~; de même si $F$ n'est pas fini.
+sous-section~\ref{sec:modele-auxiliaire-regles})~; de même si $F$ n'est pas fini, hors de ces
+cas, avec le motif «~\code{statistique F non finie (somme des carres residuelle de la regression
+de y sur x nulle : ajustement exact, ou non calculable) : non applicable}~», qui remplace alors
+le commentaire de diagnostic cité en rubrique~5 (mesuré~: $x = (1, \dots, 8)$, $y = 2x$).
 \Hzero
 $H_0 : b = 0$ (plus généralement, nullité conjointe de tous les coefficients de pente), contre
 $H_1 : b \neq 0$ (hypothèses restituées par la ligne). C'est l'hypothèse sous laquelle la
@@ -12377,7 +12400,8 @@ constante \code{SEUIL\_PUISSANCE\_PENTE}, lue par \code{usp\_tests()} (puissance
 depuis l'issue~\#169) \\
 Test de Pitman sur la pente, sens unilatéral verrouillé (fiche~\ref{fiche:student-pente},
 issue~\#169) & \code{usp\_permutation\_pente()}, \code{engine\_permutations()},
-\code{.usp\_nb\_appariements()}, \code{.pitman\_unilateral()}, constantes
+\code{.usp\_nb\_appariements()}, \code{.usp\_log\_nb\_appariements()},
+\code{.pitman\_unilateral()}, constantes
 \code{T\_MAX\_ENUM\_PERMUTATION} et \code{SENS\_PITMAN\_PENTE}~; arguments \code{nature\_forcee},
 \code{p\_mc\_ext} et \code{err\_mc\_ext} d'\code{add()}~; \code{res\$metadata\$permutation\_pente}
 posé par \code{run\_engine()} \\
