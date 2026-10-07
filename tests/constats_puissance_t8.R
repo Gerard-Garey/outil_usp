@@ -81,28 +81,40 @@
 #      valeur par defaut de run_engine()) sous le modele reglementaire
 #      ajuste (constante a = 0 vraie). Statut : CONSTAT DE SIMULATION SOUS LE
 #      MODELE AJUSTE (propriete du plan de volumes du jeu, non du seul T).
-#      Protocole (note d'actuary, section 4) :
+#      Depuis #215 (modele auxiliaire pondere, protocole d'actuary du
+#      07/10/2026) : chaque jeu y* est REAJUSTE par usp_ajuster(x, y*), comme
+#      dans run_engine(), et le TOST est calcule aux poids GLS de ce
+#      reajustement (test_tost_intercept(x, y*, fit*$pi, theta)) ; avant
+#      #215, sans reajustement (TOST MCO, ne dependant que de x et y*),
+#      tableau docs/tableaux/20260930-issue118-tost.md.
+#      Protocole (note d'actuary, section 4 ; reajustement : #215) :
 #        - jeux J1 (tests/donnees/donnees_ln.csv, delta chapeau = 1) et J2
 #          (xi, yi de tests/unitaires/test_controles_numeriques.R, delta
 #          chapeau interieur), T = 8 ; modele ajuste par usp_ajuster() sur
 #          le jeu observe ;
 #        - R jeux y* par usp_simuler(fit) (generateur du bootstrap
 #          parametrique), x fixe, tires en un seul flux par jeu (graine
-#          --graine + 3 pour J1, --graine + 4 pour J2), SANS reajustement
-#          (le TOST ne depend que de x et y*) ;
-#        - p = test_tost_intercept(x, y*, theta = 0.10)$p ; conclusion
-#          d'equivalence si p < alpha, alpha = 0,10 et 0,05 ; IC de
-#          Clopper-Pearson ; plus petite p observee ;
+#          --graine + 3 pour J1, --graine + 4 pour J2), tous tires avant
+#          toute evaluation (flux inchange par #215) ;
+#        - chaque y* reajuste par usp_ajuster(x, y*) ; un reajustement en
+#          erreur est ECARTE, compte et restitue (le taux porte sur les
+#          reajustements reussis) ;
+#        - p = test_tost_intercept(x, y*, fit*$pi, theta = 0.10)$p ;
+#          conclusion d'equivalence si p < alpha, alpha = 0,10 et 0,05 ; IC
+#          de Clopper-Pearson ; plus petite p observee ;
 #        - descripteurs deterministes du jeu observe : CV(x) (ecart-type en
-#          T - 1 sur moyenne), levier de l'origine xbar^2 / S_xx, se(a)/Delta
-#          du jeu observe contre 1/t_{1-alpha, T-2}. Conclure exige
+#          T - 1 sur moyenne), levier pondere de l'origine xbar_w^2 / S_xx,w
+#          aux poids GLS du jeu observe (usp_poids_gls(x, fit$pi) ramenes a
+#          une moyenne de 1, ce qui redonne xbar^2 / S_xx a poids constants),
+#          se(a)/Delta pondere du jeu observe contre 1/t_{1-alpha, T-2}. Conclure exige
 #          Delta - |a| > t_{1-alpha, T-2} se(a) (regle du maximum), donc
 #          se(a)/Delta < 1/t_{1-alpha, T-2} (condition necessaire) ; la
 #          proportion de jeux simules qui la remplissent est donnee a titre
 #          descriptif ;
 #        - controles d'integrite : p egale a la p_asymptotique de la ligne
 #          TOST de engine_table_tests(run_engine(...)) sur le jeu observe et
-#          sur le premier jeu simule (J1 et J2) ; aucune p manquante ;
+#          sur le premier jeu simule (J1 et J2) ; aucune p manquante parmi
+#          les reajustements reussis ;
 #          equivalence exacte, jeu par jeu, entre p < alpha et
 #          Delta - |a| > t se(a) ; coherence du generateur (premier jeu du
 #          flux identique a un tirage isole sous la meme graine, RNGkind() et
@@ -190,7 +202,8 @@
 #          [--ecrire DOSSIER [--remplacer]]
 #  --R vaut pour C1 (par rho), C3 (par jeu) et C4 (par loi et par T).
 #  --ecrire DOSSIER : ecrit en plus, si les controles d'integrite tiennent,
-#  DOSSIER/<AAAAMMJJ>-issue118-tost.md et/ou -normalite.md (date du jour),
+#  DOSSIER/<AAAAMMJJ>-issue215-tost.md (issue118 avant #215) et/ou
+#  <AAAAMMJJ>-issue118-normalite.md (date du jour),
 #  pour les parties tost et normalite executees ; sans cette option, rien
 #  n'est ecrit. Les fichiers versionnes de docs/tableaux/ se produisent sur
 #  un arbre de travail propre (commit cite resoluble), par
@@ -507,12 +520,17 @@ if (OPT_PARTIE %in% c("tout", "tost")) {
   MES_TOST <- lapply(JEUX_TOST, function(J) {
     x <- J$x; Tj <- length(x)
     fit <- usp_ajuster(x, J$y)
+    # Tirages d'abord (flux inchange par #215), evaluation ensuite.
     Y <- engine_sous_graine(J$graine, lapply(seq_len(OPT_R), function(b) usp_simuler(fit)))
+    # #215 : reajustement de chaque y* (comme run_engine()), TOST aux poids
+    # GLS du reajustement ; echec du reajustement -> colonne NA, comptee.
     M <- vapply(Y, function(y) {
-      r <- test_tost_intercept(x, y, theta = THETA_TOST)
-      c(p = r$p, a = r$a, se = r$se, delta = r$delta)
-    }, numeric(4))
-    obs <- test_tost_intercept(x, J$y, theta = THETA_TOST)
+      fs <- tryCatch(usp_ajuster(x, y), error = function(e) NULL)
+      if (is.null(fs)) return(c(p = NA_real_, a = NA_real_, se = NA_real_, delta = NA_real_, ok = 0))
+      r <- test_tost_intercept(x, y, fs$pi, theta = THETA_TOST)
+      c(p = r$p, a = r$a, se = r$se, delta = r$delta, ok = 1)
+    }, numeric(5))
+    obs <- test_tost_intercept(x, J$y, fit$pi, theta = THETA_TOST)
     # Controle de transcription : ligne TOST de run_engine() (theta_equiv par
     # defaut, 0,10) sur le jeu observe et sur le premier jeu simule.
     p_moteur <- vapply(list(J$y, Y[[1]]), function(y) {
@@ -529,15 +547,17 @@ if (OPT_PARTIE %in% c("tout", "tost")) {
   duree_tost <- as.numeric(difftime(Sys.time(), t3, units = "secs"))
 
   for (m in MES_TOST) {
-    cj <- m$J$code; p <- m$M["p", ]
+    cj <- m$J$code; reussi <- m$M["ok", ] == 1; p <- m$M["p", reussi]
     ctrl_tost <- c(ctrl_tost, controle(
-      isTRUE(all.equal(m$p_moteur, c(m$obs$p, p[1]), tolerance = 1e-10)),
+      isTRUE(all.equal(m$p_moteur, unname(c(m$obs$p, m$M["p", 1])), tolerance = 1e-10)),
       sprintf("C3 %s, p de test_tost_intercept() = p_asymptotique de la ligne TOST de run_engine() (jeu observ\u00e9 et premier jeu simul\u00e9)", cj)))
-    ctrl_tost <- c(ctrl_tost, controle(all(is.finite(p)), sprintf("C3 %s, aucune p-value manquante", cj)))
+    ctrl_tost <- c(ctrl_tost, controle(all(is.finite(p)),
+      sprintf("C3 %s, aucune p-value manquante parmi les r\u00e9ajustements r\u00e9ussis (%d \u00e9chec(s) de r\u00e9ajustement sur %d)",
+              cj, sum(!reussi), length(reussi))))
     # p < alpha <=> Delta - |a| > t_{1-alpha, T-2} se (regle du maximum).
     ok_eq <- all(vapply(ALPHAS_118, function(al) {
       tq <- stats::qt(1 - al, m$T - 2)
-      identical(p < al, m$M["delta", ] - abs(m$M["a", ]) > tq * m$M["se", ])
+      identical(p < al, m$M["delta", reussi] - abs(m$M["a", reussi]) > tq * m$M["se", reussi])
     }, logical(1)))
     ctrl_tost <- c(ctrl_tost, controle(ok_eq,
       sprintf("C3 %s, conclusion (p < \u03b1) \u00e9quivalente \u00e0 \u0394 \u2212 |\u00e2| > t(1 \u2212 \u03b1, T \u2212 2) se(\u00e2), jeu par jeu", cj)))
@@ -548,15 +568,20 @@ if (OPT_PARTIE %in% c("tout", "tost")) {
     "C3, RNGkind() et .Random.seed de l'appelant restaur\u00e9s apr\u00e8s les tirages"))
 
   lignes_conclusion <- unlist(lapply(MES_TOST, function(m) {
-    p <- m$M["p", ]
+    reussi <- m$M["ok", ] == 1; p <- m$M["p", reussi]
     vapply(ALPHAS_118, function(al) ligne_md(m$J$code, num(al, 2), paste(cellules_taux(p, al), collapse = " | "),
-                                             num_p(min(p))), "")
+                                             num_p(min(p)), sum(!reussi)), "")
   }))
   lignes_descr <- vapply(MES_TOST, function(m) {
-    x <- m$J$x; r_sim <- m$M["se", ] / m$M["delta", ]
+    x <- m$J$x; reussi <- m$M["ok", ] == 1
+    r_sim <- m$M["se", reussi] / m$M["delta", reussi]
     seuils <- 1 / stats::qt(1 - ALPHAS_118, m$T - 2)
+    # Levier pondere de l'origine (#215) aux poids GLS du jeu observe,
+    # ramenes a une moyenne de 1 (a poids constants : xbar^2 / S_xx).
+    w <- usp_poids_gls(x, m$fit$pi); w <- w / mean(w)
+    xw <- sum(w * x) / sum(w)
     ligne_md(m$J$code, m$T, num(m$fit$delta, 4), num(stats::sd(x) / mean(x), 4),
-             num(mean(x)^2 / sum((x - mean(x))^2), 3), num(m$obs$se / m$obs$delta, 4),
+             num(xw^2 / sum(w * (x - xw)^2), 3), num(m$obs$se / m$obs$delta, 4),
              num(seuils[1], 4), num(seuils[2], 4),
              num(mean(r_sim < seuils[1]), 4), num(mean(r_sim < seuils[2]), 4),
              num(stats::median(r_sim), 4))
@@ -565,19 +590,24 @@ if (OPT_PARTIE %in% c("tout", "tost")) {
     "### C3 -- TOST de la constante : probabilit\u00e9 de conclure \u00e0 l'\u00e9quivalence sous le mod\u00e8le ajust\u00e9, T = 8", "",
     paste("Statut : **constat de simulation sous le mod\u00e8le r\u00e9glementaire ajust\u00e9** (constante a = 0 vraie ;",
           "propri\u00e9t\u00e9 du plan de volumes du jeu, non du seul T). Jeux y* simul\u00e9s par usp_simuler() au mod\u00e8le",
-          "ajust\u00e9 au jeu observ\u00e9 (x fixe), sans r\u00e9ajustement ; p = test_tost_intercept(x, y*, theta = 0,10)$p",
-          "(marge \u0394 = 0,10 \u00d7 moyenne de y*, valeur par d\u00e9faut de run_engine()) ; conclusion d'\u00e9quivalence si",
-          "p < \u03b1. Conclure exige \u0394 \u2212 |\u00e2| > t(1 \u2212 \u03b1, T \u2212 2) se(\u00e2), donc se(\u00e2)/\u0394 < 1/t(1 \u2212 \u03b1, T \u2212 2)",
-          "(condition n\u00e9cessaire) ; se(\u00e2) cro\u00eet avec le levier de l'origine x\u0304\u00b2/S_xx."), "",
+          "ajust\u00e9 au jeu observ\u00e9 (x fixe), chacun r\u00e9ajust\u00e9 par usp_ajuster(x, y*) comme dans run_engine() ;",
+          "p = test_tost_intercept(x, y*, fit*$pi, theta = 0,10)$p, mod\u00e8le auxiliaire pond\u00e9r\u00e9 aux poids GLS du",
+          "r\u00e9ajustement (#215) (marge \u0394 = 0,10 \u00d7 moyenne de y*, valeur par d\u00e9faut de run_engine()) ;",
+          "conclusion d'\u00e9quivalence si p < \u03b1 ; taux sur les r\u00e9ajustements r\u00e9ussis, \u00e9checs compt\u00e9s.",
+          "Conclure exige \u0394 \u2212 |\u00e2| > t(1 \u2212 \u03b1, T \u2212 2) se(\u00e2), donc se(\u00e2)/\u0394 < 1/t(1 \u2212 \u03b1, T \u2212 2)",
+          "(condition n\u00e9cessaire) ; se(\u00e2) cro\u00eet avec le levier pond\u00e9r\u00e9 de l'origine x\u0304_w\u00b2/S_xx,w.",
+          "Avant #215 (TOST MCO, sans r\u00e9ajustement) : docs/tableaux/20260930-issue118-tost.md."), "",
     sprintf("R\u00e9plications : %d par jeu. Graines : J1 %s ; J2 %s.", OPT_R,
             format(OPT_GRAINE + 3, scientific = FALSE), format(OPT_GRAINE + 4, scientific = FALSE)), "",
     "**C3.a -- Taux de conclusion d'\u00e9quivalence (p < \u03b1)**", "",
-    entete_md(c("Jeu", "\u03b1", "Conclusions / R", "Taux", "IC 95 % (C-P)", "p minimale")),
+    entete_md(c("Jeu", "\u03b1", "Conclusions / r\u00e9ajustements r\u00e9ussis", "Taux", "IC 95 % (C-P)", "p minimale",
+                "\u00c9checs de r\u00e9ajustement")),
     lignes_conclusion, "",
     paste("**C3.b -- Descripteurs du plan de volumes** (d\u00e9terministes sur le jeu observ\u00e9 ; trois derni\u00e8res",
           "colonnes : sur les jeux simul\u00e9s, descriptives ; se*/\u0394* < 1/t est une condition n\u00e9cessaire,",
           "non suffisante, de conclusion)"), "",
-    entete_md(c("Jeu", "T", "\u03b4\u0302", "CV(x) (\u00e9cart-type en T \u2212 1)", "x\u0304\u00b2/S_xx",
+    entete_md(c("Jeu", "T", "\u03b4\u0302", "CV(x) (\u00e9cart-type en T \u2212 1)",
+                "x\u0304_w\u00b2/S_xx,w (poids GLS de l'observ\u00e9, moyenne 1)",
                 "se(\u00e2)/\u0394 observ\u00e9", "1/t(0,90 ; T \u2212 2)", "1/t(0,95 ; T \u2212 2)",
                 "Part se*/\u0394* < 1/t(0,90) (condition n\u00e9cessaire, non suffisante)",
                 "Part se*/\u0394* < 1/t(0,95) (condition n\u00e9cessaire, non suffisante)", "M\u00e9diane se*/\u0394*")),
@@ -746,8 +776,11 @@ if (!is.na(OPT_ECRIRE) && !length(FICHIERS_118))
 if (!is.na(OPT_ECRIRE) && length(FICHIERS_118)) {
   # tous les chemins controles par la garde d'ecrasement (#173) avant toute
   # ecriture
-  CHEMINS_118 <- stats::setNames(file.path(OPT_ECRIRE, sprintf("%s-issue118-%s.md", format(Sys.Date(), "%Y%m%d"),
-                                                               names(FICHIERS_118))), names(FICHIERS_118))
+  # Issue du fichier : #215 pour la partie tost depuis le modele auxiliaire
+  # pondere (l'ancien tableau 20260930-issue118-tost.md est garde), #118 sinon.
+  ISSUE_118 <- c(tost = "215", normalite = "118")[names(FICHIERS_118)]
+  CHEMINS_118 <- stats::setNames(file.path(OPT_ECRIRE, sprintf("%s-issue%s-%s.md", format(Sys.Date(), "%Y%m%d"),
+                                                               ISSUE_118, names(FICHIERS_118))), names(FICHIERS_118))
   if (!INTEGRITE) {
     message("--ecrire : controles d'integrite en echec, aucun fichier ecrit")
   } else {
@@ -756,7 +789,7 @@ if (!is.na(OPT_ECRIRE) && length(FICHIERS_118)) {
       f <- FICHIERS_118[[nom]]
       chemin <- CHEMINS_118[[nom]]
       lignes <- c(
-        "## Constats de niveau et de puissance \u00e0 T = 8 (issue #118)", "",
+        sprintf("## Constats de niveau et de puissance \u00e0 T = 8 (issue #%s)", ISSUE_118[[nom]]), "",
         sprintf("Param\u00e8tres : R=%d ; graine=%s ; partie=%s ; T=%s", OPT_R,
                 format(OPT_GRAINE, scientific = FALSE), nom, if (nom == "tost") "8" else "8 et 20"), "",
         entete_md(c("Grandeur", "Valeur")),
