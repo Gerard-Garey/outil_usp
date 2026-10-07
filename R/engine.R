@@ -2693,7 +2693,10 @@ usp_permutation_pente <- function(x, y, B = 999, seed = 20260831,
     # x = (100 x 9, 200), p_min = 9!/10! = 0,1 au bit pres, la ou l'echelle
     # log rend 0,0999999999999995 et ferait manquer R1 a alpha = 0,1). Au-dela,
     # factorial(T) deborde (p_min NaN et avertissement de gammafn) : echelle
-    # log, exp(log n_max - lfactorial(T)), a l'arrondi du logarithme pres.
+    # log, exp(log n_max - lfactorial(T)), a l'arrondi du logarithme pres
+    # (~1e-13 relatif mesure a T = 200 contre 1/C(200, 100)) : sans garde
+    # (avis d'actuary du 07/10/2026), une egalite p_min = alpha peut alors
+    # manquer la regle R1 (p_min calcule d'un ulp sous alpha).
     l_co <- .usp_log_nb_appariements(xa[o], sort(ya))
     l_max <- l_co; quel <- "co"
     if (!unilateral) {
@@ -4416,14 +4419,18 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     !(is.finite(perm$p_min) && perm$p_min >= alpha)
   txt_plancher_perm <- if (perm_alea && pente_reste_test && 1 / (perm$B + 1) >= alpha)
     sprintf("Plancher 1/(B + 1) >= alpha = %g : OK inatteignable.", alpha) else ""
-  # Motif de la ligne non applicable a t non fini (erreur-type de la pente
-  # nulle, ajustement exact de y sur x : mesure, x = 1:8, y = 2 x, t = Inf),
-  # hors R13, pertes constantes (#189) et R12, qui gardent la priorite par
-  # detail_motif(). Variante de txt_stat_non_def sans les poids (regression
-  # MCO non ponderee).
-  txt_t_pente_non_def <- paste("statistique t non definie (erreur-type de la pente de la",
-                               "regression de y sur x nulle ou non calculable) : test non",
-                               "applicable")
+  # Motifs des lignes pente et Fisher non applicables a statistique non
+  # finie (somme des carres residuelle nulle, ajustement exact de y sur x :
+  # mesure, x = 1:8, y = 2 x, t = F = Inf), hors R13, pertes constantes
+  # (#189) et R12, qui gardent la priorite par detail_motif(). Libelles de
+  # l'avis d'actuary du 07/10/2026 (regression MCO non ponderee, sans les
+  # poids de txt_stat_non_def).
+  txt_t_pente_non_def <- paste("statistique t non finie (erreur-type de la pente de la",
+                               "regression de y sur x nulle : ajustement exact, ou non",
+                               "calculable) : test non applicable")
+  txt_f_non_def <- paste("statistique F non finie (somme des carres residuelle de la",
+                         "regression de y sur x nulle : ajustement exact, ou non",
+                         "calculable) : non applicable")
   add(fam, "Test de Pitman sur la pente (lien positif pertes / volume)",
       fonction = "usp_permutation_pente",
       "Pitman (1937), Suppl. JRSS 4",
@@ -4450,7 +4457,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # le modele auxiliaire MCO restitues pour information (p_asymptotique,
   # emplacement non retenu). Redondante avec le test de Pitman (F = t^2) :
   # aucun second verdict sur b = 0. R13, pertes constantes et R12 gardent
-  # leurs motifs (detail_motif()) ; R4 et R1 ne la concernent pas.
+  # leurs motifs (detail_motif()) ; a F non fini hors de ces cas, motif
+  # txt_f_non_def. R4 et R1 ne la concernent pas.
   add(fam, "Test de Fisher (significativite globale)", "Fisher (1922, 1925)",
       fonction = "test_lm_complet",
       type = if (pertes_cst || !is.finite(lmc$F)) "non applicable" else "diagnostic",
@@ -4460,7 +4468,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         sprintf("F(%d,%d) exacte sous le modele auxiliaire MCO", lmc$ddl1, lmc$ddl2)
       else NA_character_,
       p_as = lmc$p_F,
-      detail = detail_motif(lmc$x_ecarte, paste(
+      detail = detail_motif(lmc$x_ecarte, if (!is.finite(lmc$F)) txt_f_non_def else paste(
         "Diagnostic, redondante avec le test de Pitman (F = t^2) : aucun verdict.",
         "p de Fisher F(1,T-2) bilaterale sous le modele auxiliaire MCO, pour information,",
         "non retenue.")))

@@ -653,14 +653,19 @@ verifier("usp_permutation_pente : p_min a T <= 170 = nombre arrondi / factorial(
            identical(usp_permutation_pente(x10, y10, B = 9)$p_min, 0.1) &&
              identical(usp_permutation_pente(x170, y170, B = 9)$p_min, n170 / factorial(170))
          })
-verifier("Pente : ajustement exact (x = 1:8, y = 2 x, t = Inf) -> non applicable, motif 'statistique t non definie' seul",
+verifier("Pente et Fisher : ajustement exact (x = 1:8, y = 2 x, t = F = Inf) -> non applicables, motifs 'statistique t non finie' et 'statistique F non finie' seuls",
          {
            f_ex <- usp_ajuster(1:8, 2 * (1:8))
-           l <- ligne(usp_tests(f_ex, boot_fictif(f_ex), methode = "premium"), pente)
+           t_ex <- usp_tests(f_ex, boot_fictif(f_ex), methode = "premium")
+           l <- ligne(t_ex, pente); fi <- ligne(t_ex, fisher)
            identical(l$type, "non applicable") && !is.finite(l$stat) && is.na(l$p_retenue) &&
-             identical(l$detail, paste("statistique t non definie (erreur-type de la pente de la",
-                                       "regression de y sur x nulle ou non calculable) : test non",
-                                       "applicable"))
+             identical(l$detail, paste("statistique t non finie (erreur-type de la pente de la",
+                                       "regression de y sur x nulle : ajustement exact, ou non",
+                                       "calculable) : test non applicable")) &&
+             identical(fi$type, "non applicable") && !is.finite(fi$stat) && is.na(fi$p_retenue) &&
+             identical(fi$detail, paste("statistique F non finie (somme des carres residuelle de la",
+                                        "regression de y sur x nulle : ajustement exact, ou non",
+                                        "calculable) : non applicable"))
          })
 verifier("Pente T = 10, B = 9 : pas de mention 'OK inatteignable' sous R4 (diagnostic) ni sous R1 (p_min = 0,1 >= alpha)",
          {
