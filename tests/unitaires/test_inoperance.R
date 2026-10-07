@@ -618,6 +618,68 @@ verifier("Pente : y = (1,1,1,1,2) a T = 5 -> p_min = 0,2 >= alpha, test inoperan
            identical(l$type, "diagnostic") && isTRUE(l$inoperant) && proche(l$p_min, 0.2, rel = 1e-12) &&
              identical(l$verdict, "INFO") && startsWith(l$detail, "TEST INOPERANT")
          })
+# Reprise de la revue finale (#169, decisions du mainteneur du 07/10/2026).
+# avec_avert() rend la valeur et les avertissements emis (verifier() les
+# neutralise sans les compter).
+avec_avert <- function(expr) {
+  w <- character(0)
+  v <- withCallingHandlers(expr, warning = function(e) {
+    w <<- c(w, conditionMessage(e)); invokeRestart("muffleWarning")
+  })
+  list(v = v, w = w)
+}
+verifier("usp_permutation_pente : y = 0,5 x (|r_obs| > 1 a l'arrondi) -> t = Inf, sans NaN ni avertissement ; p = 1/8!",
+         {
+           a <- avec_avert(usp_permutation_pente(seq(100, 170, 10), 0.5 * seq(100, 170, 10)))
+           length(a$w) == 0L && identical(a$v$t, Inf) && identical(a$v$p, 1 / 40320) &&
+             identical(a$v$p_min, 1 / 40320)
+         })
+verifier("usp_permutation_pente : p_min a T = 200 (factorial() deborde) fini dans ]0, 1], sans avertissement, = 1/C(200,100) et 2/C(200,100) en bilateral",
+         {
+           x200 <- rep(c(100, 150), each = 100); y200 <- rep(c(50, 80, 60, 70), 50)
+           u <- avec_avert(usp_permutation_pente(x200, y200, B = 9))
+           b <- avec_avert(usp_permutation_pente(x200, y200, B = 9, unilateral = FALSE))
+           length(u$w) == 0L && length(b$w) == 0L &&
+             is.finite(u$v$p_min) && u$v$p_min > 0 && u$v$p_min <= 1 &&
+             isTRUE(proche(u$v$p_min, 1 / choose(200, 100), rel = 1e-10)) &&
+             isTRUE(proche(b$v$p_min, 2 / choose(200, 100), rel = 1e-10))
+         })
+verifier("usp_permutation_pente : p_min a T <= 170 = nombre arrondi / factorial(T) au bit pres (9!/10! = 0,1 exactement ; T = 170)",
+         {
+           x10 <- c(rep(100, 9), 200); y10 <- c(50, 55, 60, 52, 58, 62, 54, 57, 61, 120)
+           x170 <- rep(c(100, 150), each = 85); y170 <- rep(c(50, 80), 85)
+           xa <- engine_aplatir_ex_aequo(x170, plancher = 0); o <- order(xa)
+           n170 <- .usp_nb_appariements(xa[o], sort(engine_aplatir_ex_aequo(y170, plancher = 0)))
+           identical(usp_permutation_pente(x10, y10, B = 9)$p_min, 0.1) &&
+             identical(usp_permutation_pente(x170, y170, B = 9)$p_min, n170 / factorial(170))
+         })
+verifier("Pente : ajustement exact (x = 1:8, y = 2 x, t = Inf) -> non applicable, motif 'statistique t non definie' seul",
+         {
+           f_ex <- usp_ajuster(1:8, 2 * (1:8))
+           l <- ligne(usp_tests(f_ex, boot_fictif(f_ex), methode = "premium"), pente)
+           identical(l$type, "non applicable") && !is.finite(l$stat) && is.na(l$p_retenue) &&
+             identical(l$detail, paste("statistique t non definie (erreur-type de la pente de la",
+                                       "regression de y sur x nulle ou non calculable) : test non",
+                                       "applicable"))
+         })
+verifier("Pente T = 10, B = 9 : pas de mention 'OK inatteignable' sous R4 (diagnostic) ni sous R1 (p_min = 0,1 >= alpha)",
+         {
+           xs <- 100 + 7 * (1:10) + ((1:10) %% 3) * 5; ys <- xs * (1 + ((1:10) %% 4) / 10)
+           xc <- mean(xs) * (1 + 0.03 * as.numeric(scale(xs))); yc <- xc * ys / xs
+           f4 <- usp_ajuster(xc, yc)
+           l4 <- ligne(usp_tests(f4, boot_fictif(f4), methode = "premium",
+                                 permutation_pente = usp_permutation_pente(xc, yc, B = 9)), pente)
+           x1 <- c(rep(100, 9), 200); y1 <- c(50, 55, 60, 52, 58, 62, 54, 57, 61, 120)
+           f1 <- usp_ajuster(x1, y1)
+           l1 <- ligne(usp_tests(f1, boot_fictif(f1), methode = "premium",
+                                 permutation_pente = usp_permutation_pente(x1, y1, B = 9)), pente)
+           identical(l4$type, "diagnostic") && !isTRUE(l4$inoperant) &&
+             grepl("PENTE NON IDENTIFIABLE", l4$detail, fixed = TRUE) &&
+             !grepl("OK inatteignable", l4$detail, fixed = TRUE) &&
+             identical(l1$type, "diagnostic") && isTRUE(l1$inoperant) &&
+             startsWith(l1$detail, "TEST INOPERANT") &&
+             !grepl("OK inatteignable", l1$detail, fixed = TRUE)
+         })
 verifier("AD, CvM (R6) : estim = statistique sur (z - zbar)/s_z, p_asymptotique = Stephens sur estim",
          {
            zs <- (fit$z - mean(fit$z)) / stats::sd(fit$z)

@@ -2586,7 +2586,12 @@ usp_identifiabilite_pente <- function(x, beta, sigma, alpha, unilateral = FALSE)
 # prod_b m_b(y)! prod_a m_a(x)! / prod_{a,b} n_ab! divise par T! (m : effectifs
 # des valeurs egales de x et de y, ex aequo a TOL_EX_AEQUO en relatif,
 # plancher 0 ; n_ab : effectifs des couples de l'appariement trie), et, en
-# bilateral, ajout des appariements antitones de meme |r|.
+# bilateral, ajout des appariements antitones de meme |r| ; division par
+# factorial(T) a T <= 170, en echelle log (lfactorial) au-dela, ou factorial()
+# deborde (voir le corps).
+# t : r * sqrt((T - 2) / (1 - r^2)), r borne a [-1, 1] (t = +-Inf a |r| = 1) ;
+# champ restitue, lu par aucune fonction du moteur (la statistique de la
+# ligne est le t de test_lm_complet()).
 # p_bilateral : p de permutation bilaterale (|r|), calculee sur les memes
 # appariements quel que soit unilateral ; restituee pour information dans le
 # detail de la ligne (enumeration seulement) et dans
@@ -2634,12 +2639,15 @@ engine_permutations <- function(T) {
 }
 # Nombre d'appariements de y avec x qui reproduisent l'appariement des
 # valeurs aplaties xa (dans l'ordre) avec ya : prod m_a(x)! prod m_b(y)! /
-# prod n_ab!, calcule en logarithme (lfactorial) puis arrondi.
-.usp_nb_appariements <- function(xa, ya) {
+# prod n_ab!. .usp_log_nb_appariements() en rend le logarithme (lfactorial),
+# lu par usp_permutation_pente() pour p_min en echelle log ;
+# .usp_nb_appariements() le nombre arrondi (tests unitaires).
+.usp_log_nb_appariements <- function(xa, ya) {
   lf <- function(v) sum(lfactorial(as.vector(table(v))))
   cpl <- paste(match(xa, unique(xa)), match(ya, unique(ya)))
-  round(exp(lf(xa) + lf(ya) - lf(cpl)))
+  lf(xa) + lf(ya) - lf(cpl)
 }
+.usp_nb_appariements <- function(xa, ya) round(exp(.usp_log_nb_appariements(xa, ya)))
 usp_permutation_pente <- function(x, y, B = 999, seed = 20260831,
                                   unilateral = TRUE) {
   T <- length(x)
@@ -2680,18 +2688,36 @@ usp_permutation_pente <- function(x, y, B = 999, seed = 20260831,
     xa <- engine_aplatir_ex_aequo(x, plancher = 0)
     ya <- engine_aplatir_ex_aequo(y, plancher = 0)
     o <- order(xa)
-    n_co <- .usp_nb_appariements(xa[o], sort(ya))
-    n_max <- n_co
+    # p_min = n_max / T!. A T <= 170, nombres arrondis divises par
+    # factorial(T), fini : valeur inchangee, exacte aux frontieres (mesure :
+    # x = (100 x 9, 200), p_min = 9!/10! = 0,1 au bit pres, la ou l'echelle
+    # log rend 0,0999999999999995 et ferait manquer R1 a alpha = 0,1). Au-dela,
+    # factorial(T) deborde (p_min NaN et avertissement de gammafn) : echelle
+    # log, exp(log n_max - lfactorial(T)), a l'arrondi du logarithme pres.
+    l_co <- .usp_log_nb_appariements(xa[o], sort(ya))
+    l_max <- l_co; quel <- "co"
     if (!unilateral) {
       r_co <- sum(sort(yc) * xc[o])
       r_anti <- sum(sort(yc, decreasing = TRUE) * xc[o])
-      n_anti <- .usp_nb_appariements(xa[o], sort(ya, decreasing = TRUE))
-      n_max <- if (abs(abs(r_anti) - r_co) <= TOL_EX_AEQUO) n_co + n_anti
-               else if (abs(r_anti) > r_co) n_anti else n_co
+      l_anti <- .usp_log_nb_appariements(xa[o], sort(ya, decreasing = TRUE))
+      quel <- if (abs(abs(r_anti) - r_co) <= TOL_EX_AEQUO) "deux"
+              else if (abs(r_anti) > r_co) "anti" else "co"
+      # log(n_co + n_anti) = max + log1p(exp(min - max))
+      l_max <- switch(quel, co = l_co, anti = l_anti,
+                      deux = max(l_co, l_anti) + log1p(exp(-abs(l_co - l_anti))))
     }
-    p_min <- n_max / factorial(T)
+    p_min <- if (T <= 170L) {
+      n_max <- switch(quel, co = round(exp(l_co)), anti = round(exp(l_anti)),
+                      deux = round(exp(l_co)) + round(exp(l_anti)))
+      n_max / factorial(T)
+    } else exp(l_max - lfactorial(T))
   }
-  t <- r_obs * sqrt((T - 2) / (1 - r_obs^2))
+  # r_obs peut depasser 1 en valeur absolue d'un ulp (y exactement
+  # proportionnel a x) : borne a [-1, 1] pour t seulement (t = +-Inf a
+  # |r| = 1, sans NaN ni avertissement) ; p et p_bilateral restent calculees
+  # sur r_obs non borne, comme les r des autres appariements.
+  r_t <- max(-1, min(1, r_obs))
+  t <- r_t * sqrt((T - 2) / (1 - r_t^2))
   list(r = r_obs, t = t, p = p, p_min = p_min, n_perm = n_perm,
        methode = methode, err_mc = err, B = Bp, unilateral = unilateral,
        p_bilateral = p_bi)
@@ -4383,8 +4409,21 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                  perm$p_bilateral))
   # T >= 10 et 1/(B + 1) >= alpha : la plus petite p Monte-Carlo possible
   # atteint alpha, aucun OK n'est atteignable (avis d'actuary, #169).
-  txt_plancher_perm <- if (perm_alea && 1 / (perm$B + 1) >= alpha)
+  # Mention sur une ligne qui reste un test seulement, meme garde que la
+  # mention du plancher de add() (type "test" apres la regle R1) : ni sous
+  # R4 (diagnostic, type_pente) ni sous R1 (p_min >= alpha, bascule de add()).
+  pente_reste_test <- identical(type_pente, "test") &&
+    !(is.finite(perm$p_min) && perm$p_min >= alpha)
+  txt_plancher_perm <- if (perm_alea && pente_reste_test && 1 / (perm$B + 1) >= alpha)
     sprintf("Plancher 1/(B + 1) >= alpha = %g : OK inatteignable.", alpha) else ""
+  # Motif de la ligne non applicable a t non fini (erreur-type de la pente
+  # nulle, ajustement exact de y sur x : mesure, x = 1:8, y = 2 x, t = Inf),
+  # hors R13, pertes constantes (#189) et R12, qui gardent la priorite par
+  # detail_motif(). Variante de txt_stat_non_def sans les poids (regression
+  # MCO non ponderee).
+  txt_t_pente_non_def <- paste("statistique t non definie (erreur-type de la pente de la",
+                               "regression de y sur x nulle ou non calculable) : test non",
+                               "applicable")
   add(fam, "Test de Pitman sur la pente (lien positif pertes / volume)",
       fonction = "usp_permutation_pente",
       "Pitman (1937), Suppl. JRSS 4",
@@ -4403,7 +4442,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       nature_forcee = if (perm_alea)
         "Monte-Carlo (permutations aleatoires ; H0 : y independant de x)"
       else "exacte par permutation (H0 : y independant de x, hors modele reglementaire)",
-      detail = detail_motif(lmc$x_ecarte, trimws(paste(txt_pitman, txt_ident, txt_plancher_perm))))
+      detail = detail_motif(lmc$x_ecarte,
+                            if (!is.finite(lmc$t_pente)) txt_t_pente_non_def
+                            else trimws(paste(txt_pitman, txt_ident, txt_plancher_perm))))
   # Ligne Fisher (#169, decision Q-B revisee du 06/10/2026) : diagnostic,
   # sans verdict ni p retenue ; F et la p de Fisher F(1,T-2) bilaterale sous
   # le modele auxiliaire MCO restitues pour information (p_asymptotique,
