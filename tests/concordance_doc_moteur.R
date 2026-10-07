@@ -597,7 +597,7 @@ DECOMPTES <- list(
        methode = "premium",
        motif = paste0("m\u00e9thode prime.{0,40}?(\\d+) des (\\d+) lignes de la table auditable retiennent ",
                       "une p-value de Monte-Carlo, contre (\\d+) une p-value exacte, (\\d+) une p-value ",
-                      "sous le mod\u00e8le auxiliaire (?:MCO|pond\u00e9r\u00e9) et (\\d+) une p-value asymptotique, les (\\d+) derni\u00e8res n'ayant aucune ",
+                      "sous le mod\u00e8le auxiliaire pond\u00e9r\u00e9 et (\\d+) une p-value asymptotique, les (\\d+) derni\u00e8res n'ayant aucune ",
                       "p-value retenue \\((\\d+) diagnostics, (\\d+) proc\u00e9dure de d\u00e9cision et (\\d+) ",
                       "ligne non applicable\\)"),
        champs = c("nature Monte-Carlo", "lignes (total)", "nature exacte", "nature modele auxiliaire pondere",
@@ -827,9 +827,9 @@ grandeurs_moteur <- function(tests, controles = NULL) {
          "nature exacte" = sum(grepl("^exacte", nat)),
          # TOST sous le modele auxiliaire pondere depuis #215 (decision P3 du
          # 07/10/2026) ; la nature "sous le modele auxiliaire MCO" n'est plus
-         # posee par le moteur. La phrase du .tex est reconnue sous les deux
-         # libelles (MCO, pondere) : le decompte est verifie, le libelle
-         # revient au passage de docwriter (regle 9).
+         # posee par le moteur. La phrase du .tex dit "pondere" depuis le
+         # passage de docwriter de #215 ; le motif ne reconnait plus que ce
+         # libelle (reserve d'actuary).
          "nature modele auxiliaire pondere" = sum(grepl("^sous le modele auxiliaire pondere", nat)),
          "nature Monte-Carlo" = sum(grepl("^Monte-Carlo", nat)),
          "nature asymptotique" = sum(grepl("^asymptotique", nat)),
