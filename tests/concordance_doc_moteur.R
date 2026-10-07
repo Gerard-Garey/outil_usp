@@ -840,8 +840,13 @@ grandeurs_moteur <- function(tests, controles = NULL) {
          # test present sous deux formes.
          "base z" = sum(base %in% "z"),
          "base r" = sum(base %in% "r"),
-         "p exacte hors base r" = sum(pex & !base %in% "r"),
-         "p exacte hors base r retenue" = sum(pex & !base %in% "r" & grepl("^exacte", nat)),
+         # #169 : la ligne du test de Pitman (p exacte par permutation, sous une
+         # H0 d'echangeabilite hors modele reglementaire, attribuee quel que
+         # soit pi_t) n'entre pas dans ces decomptes de la regle R7.
+         "p exacte hors base r" = sum(pex & !base %in% "r" &
+                                        !champ("fonction") %in% "usp_permutation_pente"),
+         "p exacte hors base r retenue" = sum(pex & !base %in% "r" & grepl("^exacte", nat) &
+                                                !champ("fonction") %in% "usp_permutation_pente"),
          "variante secondaire" = sum(champ("variante") %in% "secondaire"),
          "lignes du test des suites" = sum(startsWith(nom, "Test des suites") %in% TRUE),
          "base r hors suites" = sum(base %in% "r" & !startsWith(nom, "Test des suites") %in% TRUE),
@@ -1114,8 +1119,8 @@ REGISTRE_RUBRIQUE7 <- list(
   # Methode lognormale
   list(label = "fiche:student-constante", tests = "Nullite de la constante (proportionnalite stricte)"),
   list(label = "fiche:tost-constante", tests = "Equivalence de la constante a zero (TOST)"),
-  list(label = "fiche:student-pente", tests = "Test de Student sur la pente (lm(y~x))"),
-  list(label = "fiche:fisher-global", tests = "Test de Fisher (significativite globale)"),
+  list(label = "fiche:student-pente", tests = "Test de Pitman sur la pente (lien positif pertes / volume)"),
+  # fiche:fisher-global retiree (#169) : la ligne Fisher est un diagnostic permanent.
   list(label = "fiche:reset", tests = "RESET (forme fonctionnelle)"),
   list(label = "fiche:spearman", tests = c("Independance ratio S/P vs volume", "Correlation ratio S/P vs temps")),
   list(label = "fiche:mann-kendall", tests = "Tendance monotone du ratio S/P"),

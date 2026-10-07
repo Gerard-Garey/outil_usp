@@ -2542,19 +2542,159 @@ test_lm_complet <- function(x, y) {
 # 0,48 simule sur les donnees de test ; 0,136 contre 0,133 a CV = 3 %).
 # SEUIL_PUISSANCE_PENTE = 1/2 est une CONVENTION (repere : "le test a moins
 # d'une chance sur deux de rejeter quand le modele est vrai"), non un seuil
-# statistique : en dessous, les lignes "Student sur la pente" et "Fisher" sont
-# restituees en diagnostic (usp_tests()).
+# statistique : en dessous, la ligne du test de Pitman sur la pente est
+# restituee en diagnostic (usp_tests()).
+# unilateral (#169, decision du mainteneur du 06/10/2026) : puissance du test
+# unilateral (H1 lien positif), P(t > t_{1 - alpha, T - 2} | ncp = lambda),
+# lue par usp_tests() pour la ligne de la pente ; FALSE par defaut (formule
+# bilaterale ci-dessus) pour les autres appelants.
 SEUIL_PUISSANCE_PENTE <- 0.5
-usp_identifiabilite_pente <- function(x, beta, sigma, alpha) {
+usp_identifiabilite_pente <- function(x, beta, sigma, alpha, unilateral = FALSE) {
   T <- length(x)
   if (T < 3 || !is.finite(beta) || !is.finite(sigma) || sigma <= 0 ||
       !is.finite(stats::sd(x)) || usp_volumes_constants(x))
     return(list(lambda = NA_real_, puissance = NA_real_))
   lambda <- sqrt(T - 1) * stats::sd(x) / mean(x) * beta / sigma
-  q <- stats::qt(1 - alpha / 2, T - 2)
-  puissance <- stats::pt(-q, T - 2, ncp = lambda) +
-    stats::pt(q, T - 2, ncp = lambda, lower.tail = FALSE)
+  puissance <- if (unilateral)
+    stats::pt(stats::qt(1 - alpha, T - 2), T - 2, ncp = lambda, lower.tail = FALSE)
+  else {
+    q <- stats::qt(1 - alpha / 2, T - 2)
+    stats::pt(-q, T - 2, ncp = lambda) +
+      stats::pt(q, T - 2, ncp = lambda, lower.tail = FALSE)
+  }
   list(lambda = lambda, puissance = puissance)
+}
+
+# --- Test de Pitman sur la pente (#169, ADR 0002 amende le 06/10/2026) -------
+# Test de permutation de Pitman (1937) : sous H0 "Y_1..Y_T independants de x
+# (echangeables)", conditionnellement aux valeurs observees de y et a x fixe,
+# les T! appariements de y avec x sont equiprobables. La statistique est la
+# correlation r (fonction croissante de t_b et de b_hat a x et {y_t} fixes :
+# meme ordre des appariements). Echelle brute (x, y), sans logarithme.
+# Calcul : x et y centres reduits ; r de chaque appariement par un produit
+# matriciel unique (lignes = permutations) ; r_obs lu sur la ligne identite
+# de ce meme calcul (pas de formule separee, pas de lm()), d'ou p >= 1/T!.
+# Comptage des permutations au moins aussi extremes a TOL_EX_AEQUO pres, en
+# tolerance absolue (|r| <= 1, regime plancher 1 de engine_aplatir_ex_aequo()).
+#   T <= T_MAX_ENUM_PERMUTATION (9, comme n_small de prho.c) : enumeration des
+#     T! appariements, sans alea ; p = k / T! exacte sous H0.
+#   T >= 10 : B permutations uniformes sous engine_sous_graine(seed) (ADR
+#     0004), p = (1 + k) / (B + 1), l'identite comptee ; err_mc =
+#     sqrt(p (1 - p) / B). Restituee par p_mc_ext, hors USP_CATALOGUE_MC.
+# p_min (sens unilateral : plus grande correlation atteignable) : T <= 9, lue
+# sur l'enumeration ; T >= 10, nombre d'appariements comonotones
+# prod_b m_b(y)! prod_a m_a(x)! / prod_{a,b} n_ab! divise par T! (m : effectifs
+# des valeurs egales de x et de y, ex aequo a TOL_EX_AEQUO en relatif,
+# plancher 0 ; n_ab : effectifs des couples de l'appariement trie), et, en
+# bilateral, ajout des appariements antitones de meme |r|.
+# p_bilateral : p de permutation bilaterale (|r|), calculee sur les memes
+# appariements quel que soit unilateral ; restituee pour information dans le
+# detail de la ligne (enumeration seulement) et dans
+# metadata$permutation_pente de run_engine() (decision du mainteneur du
+# 06/10/2026), jamais retenue.
+# x ou y exactement constant apres centrage (S_xx = 0 ou S_yy = 0) : p, r,
+# t et p_min NA. usp_tests()
+# n'appelle pas cette fonction sur une ligne non applicable (volumes
+# constants R13, pertes constantes #189, R12).
+T_MAX_ENUM_PERMUTATION <- 9L
+# Sens du test de Pitman sur la pente (#169), seule definition, lue par
+# usp_tests() (p de permutation, p de Student restituee, R4 par
+# usp_identifiabilite_pente(unilateral = )) et par run_engine() : unilateral,
+# H1 lien positif (decision Q-A du mainteneur du 06/10/2026, maintenue apres
+# reexamen par actuary). Verrou (meme decision) : seule valeur admise,
+# jamais argument de run_engine() ni reglage de l'interface ; toute autre
+# valeur est refusee par .pitman_unilateral().
+SENS_PITMAN_PENTE <- "unilateral"
+.pitman_unilateral <- function(sens = SENS_PITMAN_PENTE) {
+  if (!identical(sens, "unilateral"))
+    stop("SENS_PITMAN_PENTE n'admet que \"unilateral\" (#169) : ", format(sens))
+  TRUE
+}
+.cache_permutations <- new.env(parent = emptyenv())
+# Matrice des T! permutations de 1:T (une par ligne), ligne 1 = identite, par
+# insertion de k en toutes positions (position k d'abord). Mise en cache par T.
+engine_permutations <- function(T) {
+  cle <- paste0("T", T)
+  if (!is.null(.cache_permutations[[cle]])) return(.cache_permutations[[cle]])
+  P <- matrix(1L, 1L, 1L)
+  if (T >= 2L) for (k in 2:T) {
+    n <- nrow(P)
+    Q <- matrix(0L, n * k, k)
+    for (j in k:1) {
+      i <- (k - j) * n + seq_len(n)
+      Q[i, j] <- k
+      Q[i, -j] <- P
+    }
+    P <- Q
+  }
+  if (!identical(P[1, ], seq_len(T)))
+    stop("engine_permutations() : la premiere ligne n'est pas l'identite")
+  .cache_permutations[[cle]] <- P
+  P
+}
+# Nombre d'appariements de y avec x qui reproduisent l'appariement des
+# valeurs aplaties xa (dans l'ordre) avec ya : prod m_a(x)! prod m_b(y)! /
+# prod n_ab!, calcule en logarithme (lfactorial) puis arrondi.
+.usp_nb_appariements <- function(xa, ya) {
+  lf <- function(v) sum(lfactorial(as.vector(table(v))))
+  cpl <- paste(match(xa, unique(xa)), match(ya, unique(ya)))
+  round(exp(lf(xa) + lf(ya) - lf(cpl)))
+}
+usp_permutation_pente <- function(x, y, B = 999, seed = 20260831,
+                                  unilateral = TRUE) {
+  T <- length(x)
+  methode <- if (T <= T_MAX_ENUM_PERMUTATION) "enumeration" else "aleatoire"
+  na <- list(r = NA_real_, t = NA_real_, p = NA_real_, p_min = NA_real_,
+             n_perm = NA_real_, methode = methode, err_mc = NA_real_,
+             B = if (methode == "aleatoire") B else NA_real_,
+             unilateral = unilateral, p_bilateral = NA_real_)
+  # Centrage puis division par max|.| avant les carres : pas de
+  # sous-depassement de S_xx ou S_yy aux echelles extremes (x et y x 1e-300,
+  # appel direct de usp_tests(), test_controles_entree.R) ; NA seulement si
+  # x ou y est exactement constant apres centrage.
+  xc <- x - mean(x); yc <- y - mean(y)
+  if (T < 3 || all(xc == 0) || all(yc == 0)) return(na)
+  xc <- xc / max(abs(xc)); yc <- yc / max(abs(yc))
+  xc <- xc / sqrt(sum(xc^2)); yc <- yc / sqrt(sum(yc^2))
+  extreme <- function(r, r0) if (unilateral) r >= r0 - TOL_EX_AEQUO
+                             else abs(r) >= abs(r0) - TOL_EX_AEQUO
+  if (methode == "enumeration") {
+    P <- engine_permutations(T)
+    rp <- as.vector(matrix(yc[P], nrow(P)) %*% xc)
+    r_obs <- rp[1]
+    n_perm <- as.numeric(length(rp))
+    p <- sum(extreme(rp, r_obs)) / n_perm
+    p_bi <- sum(abs(rp) >= abs(r_obs) - TOL_EX_AEQUO) / n_perm
+    r_max <- if (unilateral) max(rp) else max(abs(rp))
+    p_min <- sum(extreme(rp, r_max)) / n_perm
+    err <- NA_real_; Bp <- NA_real_
+  } else {
+    r_obs <- sum(yc * xc)
+    rp <- engine_sous_graine(seed, vapply(seq_len(B), function(b)
+      sum(yc[sample.int(T)] * xc), numeric(1)))
+    k <- sum(extreme(rp, r_obs))
+    p <- (1 + k) / (B + 1)
+    p_bi <- (1 + sum(abs(rp) >= abs(r_obs) - TOL_EX_AEQUO)) / (B + 1)
+    err <- sqrt(p * (1 - p) / B)
+    n_perm <- B; Bp <- B
+    xa <- engine_aplatir_ex_aequo(x, plancher = 0)
+    ya <- engine_aplatir_ex_aequo(y, plancher = 0)
+    o <- order(xa)
+    n_co <- .usp_nb_appariements(xa[o], sort(ya))
+    n_max <- n_co
+    if (!unilateral) {
+      r_co <- sum(sort(yc) * xc[o])
+      r_anti <- sum(sort(yc, decreasing = TRUE) * xc[o])
+      n_anti <- .usp_nb_appariements(xa[o], sort(ya, decreasing = TRUE))
+      n_max <- if (abs(abs(r_anti) - r_co) <= TOL_EX_AEQUO) n_co + n_anti
+               else if (abs(r_anti) > r_co) n_anti else n_co
+    }
+    p_min <- n_max / factorial(T)
+  }
+  t <- r_obs * sqrt((T - 2) / (1 - r_obs^2))
+  list(r = r_obs, t = t, p = p, p_min = p_min, n_perm = n_perm,
+       methode = methode, err_mc = err, B = Bp, unilateral = unilateral,
+       p_bilateral = p_bi)
 }
 
 # RESET (Ramsey, 1969) sur le modele sans constante E[Y] = beta X.
@@ -2803,9 +2943,10 @@ usp_simuler <- function(fit) {
 # Toutes les statistiques dont la loi sous H0 "le modele de l'annexe XVII est
 # correct" peut etre simulee. IMPORTANT : le bootstrap parametrique simule sous
 # le MODELE AJUSTE. Sont donc exclues les statistiques dont l'hypothese nulle
-# n'est pas "le modele est correct" mais "beta = 0" (Student sur la pente,
-# Fisher global) : pour celles-la, le modele ajuste appartient a H1 et une
-# p-value de Monte-Carlo n'aurait aucun sens.
+# n'est pas "le modele est correct" mais "beta = 0" (pente, Fisher global) :
+# pour celles-la, le modele ajuste appartient a H1 et une p-value de
+# Monte-Carlo n'aurait aucun sens. La pente recoit depuis #169 une p de
+# permutation (usp_permutation_pente(), test de Pitman), hors de ce catalogue.
 # Sont exclues egalement :
 #   - MeanZ = moyenne(z) et VarZ = var(z), grandeurs rivees par l'estimation.
 #     Les conditions du premier ordre de usp_ajuster() imposent toujours
@@ -3805,7 +3946,8 @@ usp_profil <- function(fit, n = 41) {
 # d'ECHEC a l'echelle 1).
 usp_tests <- function(fit, boot, alpha = 0.10,
                       theta_equiv = 0.10, delta_equiv = NULL,
-                      robustesse = NULL, methode, lr_delta = NULL) {
+                      robustesse = NULL, methode, lr_delta = NULL,
+                      permutation_pente = NULL) {
   z <- fit$z; x <- fit$x; y <- fit$y; T <- fit$T
   # Citation des hypotheses H1-H4 dans le champ famille (issue #92) : les
   # quatre hypotheses sont au point B(2)(g) i. a iv. de l'annexe XVII pour la
@@ -4050,53 +4192,122 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                                           "de la regression de y sur x non calculable) :",
                                           "test non applicable"),
         stop("usp_tests : motif TOST inconnu : ", tost$non_applicable)))
+  # Ligne de la pente (#169, ADR 0002 amende le 06/10/2026, point 4) : test de
+  # Pitman (permutation de r, usp_permutation_pente()), unilateral (H1 lien
+  # positif, decision Q-A du mainteneur). p exacte par enumeration a
+  # T <= T_MAX_ENUM_PERMUTATION ; au-dela, p Monte-Carlo de B permutations
+  # aleatoires (p_mc_ext, hors USP_CATALOGUE_MC). La p de Student unilaterale
+  # (t(T-2), exacte sous le modele auxiliaire MCO seulement) est restituee
+  # dans p_asymptotique, non retenue (la hierarchie retient la p de
+  # permutation, toujours presente sur une ligne applicable).
   # Regle R4 (#44, option E) : identifiabilite de la pente. Si la puissance
-  # approchee du test de la pente sous le modele ajuste est inferieure au
+  # approchee du test unilateral sous le modele ajuste est inferieure au
   # repere SEUIL_PUISSANCE_PENTE, un ECHEC decrit le plan d'experience (volumes
-  # peu disperses), non un ecart au modele : les lignes pente et Fisher
-  # (F = t^2, meme puissance) sont restituees en diagnostic. lambda et la
-  # puissance approchee sont rappeles dans le detail dans les deux cas.
-  # Quand elles restent des tests, la nature de leur p est celle du modele
-  # auxiliaire MCO (la loi t n'est pas asymptotique ; H0 n'est pas simulable,
-  # le modele ajuste appartenant a H1).
-  idp <- usp_identifiabilite_pente(x, fit$beta, fit$sigma, alpha)
+  # peu disperses), non un ecart au modele : la ligne de la pente est
+  # restituee en diagnostic. lambda et la puissance approchee sont rappeles
+  # dans le detail dans les deux cas.
+  # Sens du test : SENS_PITMAN_PENTE, seule definition (#169).
+  pitman_uni <- .pitman_unilateral()
+  txt_sens <- "unilateral"
+  idp <- usp_identifiabilite_pente(x, fit$beta, fit$sigma, alpha, unilateral = pitman_uni)
   pente_ident <- !is.finite(idp$puissance) || idp$puissance >= SEUIL_PUISSANCE_PENTE
   txt_ident <- if (!is.finite(idp$puissance)) "" else
-    sprintf(paste("%s puissance approchee sous le modele ajuste = %.2f %s %.1f (repere",
-                  "conventionnel), indice d'identifiabilite lambda = sqrt(T-1) CV(x)",
+    sprintf(paste("%s puissance approchee du test", txt_sens, "sous le modele ajuste = %.2f %s %.1f",
+                  "(repere conventionnel), indice d'identifiabilite lambda = sqrt(T-1) CV(x)",
                   "beta / sigma = %.2f (approximation au premier ordre, loi de",
                   "Student decentree)."),
             if (pente_ident) "Pente identifiable par les donnees :"
             else "PENTE NON IDENTIFIABLE PAR LES DONNEES :",
             idp$puissance, if (pente_ident) ">=" else "<", SEUIL_PUISSANCE_PENTE,
             idp$lambda)
-  nat_mco <- "sous le modele auxiliaire MCO : t(T-2) exacte (H0 non simulable : le modele ajuste appartient a H1)"
-  # Ligne Fisher : sa loi de reference est F(1,T-2), non t(T-2) (#117) ;
-  # meme p-value a l'arrondi pres (F = t^2 en regression simple).
-  nat_mco_F <- "sous le modele auxiliaire MCO : F(1,T-2) exacte (H0 non simulable : le modele ajuste appartient a H1)"
-  type_pente <- function(stat) if (pertes_cst || !is.finite(stat)) "non applicable"
-                               else if (pente_ident) "test" else "diagnostic"
-  add(fam, "Test de Student sur la pente (lm(y~x))",
-      fonction = "test_lm_complet",
-      "Student (1908), Biometrika 6",
-      type = type_pente(lmc$t_pente),
-      H0 = "b = 0 (aucun lien volume / pertes)", H1 = "b != 0",
+  # Ligne applicable : ni volumes constants (R13), ni pertes constantes
+  # (#189), ni x ecarte par lm() (R12), t fini. usp_permutation_pente() n'est
+  # appelee que sur une ligne applicable ; run_engine() la calcule avec le B
+  # et la graine de l'execution (permutation_pente), un appel direct sans
+  # elle la calcule aux valeurs par defaut.
+  pente_appl <- !vol_cst && !pertes_cst && !isTRUE(lmc$x_ecarte) && is.finite(lmc$t_pente)
+  perm <- if (!pente_appl) NULL
+          else if (!is.null(permutation_pente)) permutation_pente
+          else usp_permutation_pente(x, y, unilateral = pitman_uni)
+  # Garde-fou (ADR 0002, point 4 de l'amendement du 06/10/2026) : add()
+  # applique nature_forcee a toute p retenue finie ; sans p de permutation,
+  # une ligne applicable retiendrait la p de Student sous le libelle de la
+  # permutation. Erreur de programmation, jamais de repli sur Student.
+  if (pente_appl && !(is.list(perm) && is.numeric(perm$p) && length(perm$p) == 1L &&
+                      is.finite(perm$p)))
+    stop("usp_tests() : p de permutation de la pente absente sur une ligne applicable ",
+         "(repli sur la p de Student interdit, ADR 0002)")
+  if (pente_appl && !identical(perm$unilateral, pitman_uni))
+    stop("usp_tests() : sens de la p de permutation de la pente different de SENS_PITMAN_PENTE")
+  perm_alea <- pente_appl && identical(perm$methode, "aleatoire")
+  type_pente <- if (!pente_appl) "non applicable"
+                else if (pente_ident) "test" else "diagnostic"
+  # p de Student du meme sens que la p de permutation (restituee, non retenue).
+  p_student <- if (!is.finite(lmc$t_pente)) NA_real_
+               else stats::pt(lmc$t_pente, T - 2, lower.tail = FALSE)
+  txt_pitman <- paste(
+    "Ici on souhaite REJETER H0. Test de Pitman : loi de permutation de t (meme ordre",
+    "que r a x et {y_t} fixes),",
+    if (perm_alea) "B permutations aleatoires, p = (1 + k)/(B + 1) ;"
+    else "enumeration des T! appariements, exacte sous H0 seule, hors modele reglementaire ;",
+    "un rejet peut aussi traduire une dispersion liee au volume ou une tendance commune a x et y.",
+    "p de Student unilaterale (t(T-2) exacte sous le modele auxiliaire MCO seulement)",
+    "restituee dans p asymptotique, non retenue.",
+    # p bilaterale de permutation, pour information (decision du mainteneur
+    # du 06/10/2026, point 3) : imprimee a l'enumeration seulement (sans
+    # alea) ; au-dela, nombre issu des tirages, non imprime (regle #76), lu
+    # dans metadata$permutation_pente$p_bilateral. Libelle neutre : la p
+    # unilaterale n'est pas toujours retenue (bascule en diagnostic par R4
+    # ci-dessous, ou par R1 dans add()).
+    if (!pente_appl) NULL
+    else if (perm_alea) paste("p de permutation unilaterale (sens du test) ; p bilaterale de",
+                              "permutation (|r|), pour information, non retenue : non imprimee",
+                              "(tirages aleatoires).")
+    else sprintf(paste("p de permutation unilaterale (sens du test) ; p bilaterale de",
+                       "permutation (|r|), pour information, non retenue = %.4f."),
+                 perm$p_bilateral))
+  # T >= 10 et 1/(B + 1) >= alpha : la plus petite p Monte-Carlo possible
+  # atteint alpha, aucun OK n'est atteignable (avis d'actuary, #169).
+  txt_plancher_perm <- if (perm_alea && 1 / (perm$B + 1) >= alpha)
+    sprintf("Plancher 1/(B + 1) >= alpha = %g : OK inatteignable.", alpha) else ""
+  add(fam, "Test de Pitman sur la pente (lien positif pertes / volume)",
+      fonction = "usp_permutation_pente",
+      "Pitman (1937), Suppl. JRSS 4",
+      type = type_pente,
+      H0 = "Y_1..Y_T independants de x (echangeables) : aucun lien pertes / volume",
+      H1 = "lien positif pertes / volume (dont E[Y] = beta x, beta > 0)",
       stat_nom = "t", stat = lmc$t_pente,
-      loi = sprintf(paste("t(%d) exacte sous le modele auxiliaire MCO (erreurs i.i.d.",
-                          "normales homoscedastiques)"), T - 2),
+      loi = if (perm_alea) "loi de permutation de t (permutations aleatoires)"
+            else "loi de permutation de t (enumeration des T! appariements)",
       estim_nom = "pente b", estim = lmc$pente,
-      p_as = lmc$p_pente, sens = "rejeter", nature_forcee = nat_mco,
-      detail = detail_motif(lmc$x_ecarte, trimws(paste("Ici on souhaite REJETER H0.", txt_ident))))
+      p_ex = if (pente_appl && !perm_alea) perm$p else NA_real_,
+      p_mc_ext = if (perm_alea) perm$p else NA_real_,
+      err_mc_ext = if (perm_alea) perm$err_mc else NA_real_,
+      p_as = p_student, sens = "rejeter",
+      p_min = if (pente_appl) perm$p_min else NA_real_,
+      nature_forcee = if (perm_alea)
+        "Monte-Carlo (permutations aleatoires ; H0 : y independant de x)"
+      else "exacte par permutation (H0 : y independant de x, hors modele reglementaire)",
+      detail = detail_motif(lmc$x_ecarte, trimws(paste(txt_pitman, txt_ident, txt_plancher_perm))))
+  # Ligne Fisher (#169, decision Q-B revisee du 06/10/2026) : diagnostic,
+  # sans verdict ni p retenue ; F et la p de Fisher F(1,T-2) bilaterale sous
+  # le modele auxiliaire MCO restitues pour information (p_asymptotique,
+  # emplacement non retenu). Redondante avec le test de Pitman (F = t^2) :
+  # aucun second verdict sur b = 0. R13, pertes constantes et R12 gardent
+  # leurs motifs (detail_motif()) ; R4 et R1 ne la concernent pas.
   add(fam, "Test de Fisher (significativite globale)", "Fisher (1922, 1925)",
       fonction = "test_lm_complet",
-      type = type_pente(lmc$F),
+      type = if (pertes_cst || !is.finite(lmc$F)) "non applicable" else "diagnostic",
       H0 = "b = 0", H1 = "b != 0",
       stat_nom = "F", stat = lmc$F,
       loi = if (is.finite(lmc$F))
         sprintf("F(%d,%d) exacte sous le modele auxiliaire MCO", lmc$ddl1, lmc$ddl2)
       else NA_character_,
-      p_as = lmc$p_F, sens = "rejeter", nature_forcee = nat_mco_F,
-      detail = detail_motif(lmc$x_ecarte, trimws(paste("Equivaut a t^2 en regression simple.", txt_ident))))
+      p_as = lmc$p_F,
+      detail = detail_motif(lmc$x_ecarte, paste(
+        "Diagnostic, redondante avec le test de Pitman (F = t^2) : aucun verdict.",
+        "p de Fisher F(1,T-2) bilaterale sous le modele auxiliaire MCO, pour information,",
+        "non retenue.")))
   add(fam, "Coefficient de determination R2", "lm(y ~ x)",
       fonction = "test_lm_complet",
       # Motif choisi par les drapeaux (volumes constants, puis pertes
@@ -8112,9 +8323,20 @@ run_engine <- function(xt, yt,
       jack_annee = i_jack,
       jack_usp   = if (jack_calcule) d_jack[i_jack] / param$sigma_usp else NULL)
 
+    # Test de Pitman sur la pente (#169) : B et graine de l'execution (tirages
+    # a T > T_MAX_ENUM_PERMUTATION seulement, sous engine_sous_graine()) ;
+    # non calcule a volumes constants (R13) ni a pertes constantes (#189),
+    # ou la ligne est non applicable. Limite connue : sous R12 (x ecarte par
+    # lm()) ou t non fini, la ligne est aussi non applicable mais la
+    # permutation est calculee ici (usp_tests() ne l'utilise pas) ;
+    # metadata$permutation_pente decrit alors ce calcul non utilise.
+    perm_pente <- if (!usp_volumes_constants(xt) && !usp_pertes_constantes(yt))
+      usp_permutation_pente(xt, yt, B = B, seed = seed,
+                            unilateral = .pitman_unilateral()) else NULL
     tests <- usp_tests(fit, boot, alpha, theta_equiv = theta_equiv,
                        delta_equiv = delta_equiv, robustesse = robustesse,
-                       methode = methode, lr_delta = lrd)
+                       methode = methode, lr_delta = lrd,
+                       permutation_pente = perm_pente)
 
     # --- 4. Statistiques descriptives -----------------------------------------
     r <- yt / xt
@@ -8205,6 +8427,20 @@ run_engine <- function(xt, yt,
         # paragraphe 3). Place apres bareme_saisi, en dernier avant les champs
         # d'execution.
         list(n_fournies = n),
+        # Test de Pitman sur la pente (#169) : methode de calcul de la loi de
+        # permutation ("enumeration" a T <= T_MAX_ENUM_PERMUTATION, sans
+        # alea ; "aleatoire" au-dela, B permutations sous la graine seed,
+        # cinquieme source de tirage ; "non calcule" a volumes constants (R13)
+        # et a pertes constantes (#189) ; calcule mais non utilise sous R12
+        # ou t non fini, voir plus haut), nombre de permutations aleatoires
+        # (NA sinon) et p bilaterale de permutation (|r|), pour information,
+        # non retenue (decision du mainteneur du 06/10/2026) : sa valeur dans
+        # les deux methodes (aussi imprimee dans le detail a l'enumeration),
+        # NA si non calcule.
+        list(permutation_pente = list(
+          methode = if (is.null(perm_pente)) "non calcule" else perm_pente$methode,
+          B = if (is.null(perm_pente)) NA_real_ else perm_pente$B,
+          p_bilateral = if (is.null(perm_pente)) NA_real_ else perm_pente$p_bilateral)),
         list(horodatage = t0,
              duree_sec = as.numeric(difftime(Sys.time(), t0, units = "secs")),
              version_R = R.version.string))

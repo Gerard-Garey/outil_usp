@@ -608,8 +608,8 @@ verifier("Issue #114 : registre au moteur -- declaration hors_jeux perimee et li
          .a_motif(.er2, "fiche:b", "hors_jeux perimee") && .a_motif(.er2, "fiche:a, fiche:d", "plusieurs fiches"))
 .labs <- vapply(cc$REGISTRE_RUBRIQUE7, `[[`, character(1), "label")
 .noms <- unlist(lapply(cc$REGISTRE_RUBRIQUE7, `[[`, "tests"))
-verifier("Issue #114 : registre REGISTRE_RUBRIQUE7 -- 53 fiches (decision du mainteneur du 27/09/2026), labels et noms uniques",
-         length(.labs) == 53L && !anyDuplicated(.labs) && !anyDuplicated(.noms) &&
+verifier("Issue #114 : registre REGISTRE_RUBRIQUE7 -- 52 fiches (53 decidees le 27/09/2026, moins fiche:fisher-global, diagnostic depuis #169), labels et noms uniques",
+         length(.labs) == 52L && !anyDuplicated(.labs) && !anyDuplicated(.noms) &&
            all(grepl("^(fiche|mw):[a-z0-9-]+$", .labs)) && sum(startsWith(.labs, "mw:")) == 16L)
 verifier("Issue #114 : jeu J2 lu dans test_controles_numeriques.R (T = 8)",
          { j <- cc$lire_jeu_j2(.racine); length(j$x) == 8L && length(j$y) == 8L })
@@ -619,7 +619,8 @@ verifier("Issue #114 : jeu J2 lu dans test_controles_numeriques.R (T = 8)",
 # rubrique 7 retiree d'une fiche de test (RESET), ajoutee a un diagnostic
 # (R2), deplacee avant \Usage (White), doublee (Goldfeld-Quandt) ; rangee
 # Lilliefors remplacee par un double de la rangee Jarque-Bera ; fichier cite
-# inexistant (issue122-J2.md -> issue122-J3.md sur la rangee Fisher).
+# inexistant (issue122-J2.md -> issue122-J3.md sur la rangee de la pente ;
+# rangee Fisher retiree par #169).
 .tex_114 <- readLines(file.path(.racine, "docs", "latex", "doc_tests_usp.tex"), warn = FALSE, encoding = "UTF-8")
 .bornes <- function(lab) {
   d <- grep(sprintf("\\label{%s}", lab), .tex_114, fixed = TRUE)
@@ -635,7 +636,7 @@ verifier("Issue #114 : jeu J2 lu dans test_controles_numeriques.R (T = 8)",
 .k_li <- grep("(\\ref{fiche:lilliefors}) &", .tex_114, fixed = TRUE)
 .k_jb <- grep("(\\ref{fiche:jarque-bera}) &", .tex_114, fixed = TRUE)
 .m[.k_li] <- .tex_114[.k_jb]
-.k_fi <- grep("(\\ref{fiche:fisher-global}) &", .tex_114, fixed = TRUE)
+.k_fi <- grep("(\\ref{fiche:student-pente}) &", .tex_114, fixed = TRUE)
 .m[.k_fi] <- sub("issue122-J2.md", "issue122-J3.md", .m[.k_fi], fixed = TRUE)
 .tex_mutant <- tempfile(fileext = ".tex")
 writeLines(.m, .tex_mutant, useBytes = TRUE)

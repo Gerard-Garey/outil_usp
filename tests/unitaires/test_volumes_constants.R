@@ -33,7 +33,7 @@ alt <- rep(c(1, -1), 4)
 # Les treize lignes de la regle R13.
 NOMS_R13 <- c("Nullite de la constante (proportionnalite stricte)",
               "Equivalence de la constante a zero (TOST)",
-              "Test de Student sur la pente (lm(y~x))",
+              "Test de Pitman sur la pente (lien positif pertes / volume)",
               "Test de Fisher (significativite globale)",
               "Coefficient de determination R2",
               "RESET (forme fonctionnelle)",

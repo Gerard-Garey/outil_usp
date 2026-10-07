@@ -428,41 +428,188 @@ fit_cv <- function(cv) {
 f03 <- fit_cv(0.03); f30 <- fit_cv(0.30)
 t03 <- usp_tests(f03, boot_fictif(f03), methode = "premium")
 t30 <- usp_tests(f30, boot_fictif(f30), methode = "premium")
-pente <- "Test de Student sur la pente (lm(y~x))"
+pente <- "Test de Pitman sur la pente (lien positif pertes / volume)"
 fisher <- "Test de Fisher (significativite globale)"
-verifier("Pente et Fisher (R4) : CV(x) = 3 % -> diagnostic ; CV(x) = 30 % -> test ; meme type pour les deux",
+NAT_PITMAN <- "exacte par permutation (H0 : y independant de x, hors modele reglementaire)"
+NAT_PITMAN_MC <- "Monte-Carlo (permutations aleatoires ; H0 : y independant de x)"
+verifier("usp_identifiabilite_pente(unilateral = TRUE) : puissance = P(t > t(1-alpha, T-2) | ncp) ; J1 0,6461 (#169)",
          {
-           identical(ligne(t03, pente)$type, "diagnostic") && identical(ligne(t03, fisher)$type, "diagnostic") &&
-             identical(ligne(t30, pente)$type, "test") && identical(ligne(t30, fisher)$type, "test") &&
+           ip <- usp_identifiabilite_pente(x, fit$beta, fit$sigma, 0.10, unilateral = TRUE)
+           lam <- sqrt(7) * stats::sd(x) / mean(x) * fit$beta / fit$sigma
+           proche(ip$puissance, stats::pt(stats::qt(0.90, 6), 6, ncp = lam, lower.tail = FALSE),
+                  rel = 1e-12) && round(ip$puissance, 4) == 0.6461
+         })
+verifier("Pente (R4 unilaterale) et Fisher : CV(x) = 3 % -> pente diagnostic ; CV(x) = 30 % et J1 -> pente test ; Fisher toujours diagnostic (#169)",
+         {
+           identical(ligne(t03, pente)$type, "diagnostic") &&
+             identical(ligne(t30, pente)$type, "test") && identical(ligne(tt, pente)$type, "test") &&
              all(vapply(list(tt, t03, t30), function(t)
-               identical(ligne(t, pente)$type, ligne(t, fisher)$type), logical(1)))
+               identical(ligne(t, fisher)$type, "diagnostic") &&
+                 identical(ligne(t, fisher)$verdict, "INFO") && is.na(ligne(t, fisher)$p_retenue) &&
+                 is.na(ligne(t, fisher)$nature_p) && is.finite(ligne(t, fisher)$p_asymptotique) &&
+                 grepl("redondante avec le test de Pitman (F = t^2)", ligne(t, fisher)$detail, fixed = TRUE),
+               logical(1)))
          })
-verifier("Pente et Fisher (R4) : donnees de test -> diagnostic, lambda et puissance rappeles ; test -> nature MCO",
+verifier("Pente (J1) : p exacte 4462/40320, nature de la permutation, p de Student unilaterale restituee non retenue, ALERTE, lambda et puissance rappeles (#169)",
          {
-           l <- ligne(tt, pente); m <- ligne(t30, pente)
-           identical(l$type, "diagnostic") &&
-             grepl("PENTE NON IDENTIFIABLE", l$detail, fixed = TRUE) &&
-             grepl("lambda", m$detail, fixed = TRUE) && grepl("Pente identifiable", m$detail, fixed = TRUE) &&
-             identical(m$nature_p, paste("sous le modele auxiliaire MCO : t(T-2) exacte (H0 non simulable :",
-                                         "le modele ajuste appartient a H1)")) &&
-             is.finite(l$p_asymptotique)
+           l <- ligne(tt, pente); d <- ligne(t03, pente)
+           identical(l$p_exacte, 4462 / 40320) && identical(l$p_retenue, l$p_exacte) &&
+             identical(l$nature_p, NAT_PITMAN) && identical(l$verdict, "ALERTE") &&
+             identical(l$fonction, "usp_permutation_pente") && identical(l$p_min, 1 / 40320) &&
+             proche(l$p_asymptotique, stats::pt(l$stat, 6, lower.tail = FALSE), rel = 1e-12) &&
+             grepl("Pente identifiable", l$detail, fixed = TRUE) && grepl("lambda", l$detail, fixed = TRUE) &&
+             identical(d$type, "diagnostic") && grepl("PENTE NON IDENTIFIABLE", d$detail, fixed = TRUE)
          })
-# Nature propre a la ligne Fisher (#117) : sa loi de reference est F(1,T-2),
-# non t(T-2). Jeu (xi, yi) de test_controles_numeriques.R (J2, delta
-# interieur), ou pente et Fisher sont de type test.
+# Jeu (xi, yi) de test_controles_numeriques.R (J2, delta interieur).
 xi <- c(50, 80, 120, 200, 300, 150, 90, 60)
 yi <- c(29.92, 56.9, 101.25, 123.06, 207.23, 105.91, 68.59, 40.05)
 f_i <- usp_ajuster(xi, yi)
 t_i <- usp_tests(f_i, boot_fictif(f_i), methode = "premium")
-verifier("Pente et Fisher (#117) : jeu J2 (xi, yi), deux tests ; nature de Fisher F(1,T-2), de la pente t(T-2), loi de Fisher F(1,6)",
+verifier("Pente et Fisher (#169) : jeu J2, p = p_min = 1/40320, OK ; Fisher diagnostic, loi F(1,6), p F bilaterale restituee",
          {
            m <- ligne(t_i, pente); f <- ligne(t_i, fisher)
-           identical(m$type, "test") && identical(f$type, "test") &&
-             identical(m$nature_p, paste("sous le modele auxiliaire MCO : t(T-2) exacte (H0 non simulable :",
-                                         "le modele ajuste appartient a H1)")) &&
-             identical(f$nature_p, paste("sous le modele auxiliaire MCO : F(1,T-2) exacte (H0 non simulable :",
-                                         "le modele ajuste appartient a H1)")) &&
-             grepl("^F\\(1,6\\)", f$loi) && !grepl("t(T-2)", f$nature_p, fixed = TRUE)
+           identical(m$type, "test") && identical(m$p_exacte, 1 / 40320) && identical(m$p_min, 1 / 40320) &&
+             identical(m$verdict, "OK") && identical(m$nature_p, NAT_PITMAN) &&
+             identical(f$type, "diagnostic") && grepl("^F\\(1,6\\)", f$loi) &&
+             proche(f$p_asymptotique, stats::pf(f$stat, 1, 6, lower.tail = FALSE), rel = 1e-10)
+         })
+## --- 4 bis. Test de Pitman : usp_permutation_pente() (#169) ------------------
+# Enumeration independante : boucle naive sur les T! appariements (stats::cor).
+naive_perm <- function(x, y, uni) {
+  P <- as.matrix(expand.grid(rep(list(seq_along(x)), length(x))))
+  P <- P[apply(P, 1, function(v) !anyDuplicated(v)), , drop = FALSE]
+  r0 <- stats::cor(x, y); r <- apply(P, 1, function(p) stats::cor(x, y[p]))
+  (if (uni) sum(r >= r0 - 1e-12) else sum(abs(r) >= abs(r0) - 1e-12)) / nrow(P)
+}
+verifier("usp_permutation_pente : enumeration = boucle naive (T = 4, 5 ; unilateral et bilateral ; ex aequo compris)",
+         {
+           ok <- TRUE
+           for (T_ in 4:5) for (i in 1:12) {
+             xs <- 50 + 30 * ((i * seq_len(T_) * 7) %% 11); ys <- round(xs * (1 + ((i + seq_len(T_)) %% 5) / 7) / 20)
+             if (stats::sd(xs) == 0 || stats::sd(ys) == 0) next
+             for (u in c(TRUE, FALSE))
+               ok <- ok && proche(usp_permutation_pente(xs, ys, unilateral = u)$p, naive_perm(xs, ys, u), rel = 1e-12)
+           }
+           ok
+         })
+verifier("usp_permutation_pente : J1 4462/40320 unilateral, 8515/40320 bilateral ; p >= 1/T! ; invariances d'echelle et de translation",
+         {
+           u <- usp_permutation_pente(x, y); b <- usp_permutation_pente(x, y, unilateral = FALSE)
+           identical(u$p, 4462 / 40320) && identical(b$p, 8515 / 40320) && u$p >= 1 / 40320 &&
+             identical(u$methode, "enumeration") && identical(u$n_perm, 40320) &&
+             all(vapply(list(usp_permutation_pente(x, 1e3 * y), usp_permutation_pente(x, 1e-3 * y),
+                             usp_permutation_pente(x, y + 50), usp_permutation_pente(1e3 * x, y)),
+                        function(v) identical(v$p, u$p), logical(1)))
+         })
+verifier("usp_permutation_pente : p_min avec ex aequo, formule (T >= 10) = enumeration (T = 5) ; y = (1,1,1,1,2) -> 0,2",
+         {
+           ok <- TRUE
+           for (i in 1:40) {
+             xs <- 10 * (1 + (i * c(1, 3, 5, 7, 9)) %% 4); ys <- 1 + (i * c(2, 3, 5, 7, 11)) %% 3
+             if (stats::sd(xs) == 0 || stats::sd(ys) == 0) next
+             xa <- engine_aplatir_ex_aequo(xs, plancher = 0); o <- order(xa)
+             f <- .usp_nb_appariements(xa[o], sort(engine_aplatir_ex_aequo(ys, plancher = 0))) / 120
+             ok <- ok && proche(usp_permutation_pente(xs, ys)$p_min, f, rel = 1e-12)
+           }
+           ok && proche(usp_permutation_pente(c(10, 20, 30, 40, 50), c(1, 1, 1, 1, 2))$p_min, 0.2, rel = 1e-12)
+         })
+verifier("usp_permutation_pente : T = 9 enumeration (362880) ; T = 10 et 12 permutations aleatoires reproductibles, etat RNG restaure, p sur la grille (1+k)/(B+1)",
+         {
+           x9 <- 100 + 10 * (1:9) + (1:9)^2; y9 <- x9 * (1 + ((1:9) %% 4) / 10)
+           p9 <- usp_permutation_pente(x9, y9)
+           ok <- identical(p9$methode, "enumeration") && identical(p9$n_perm, 362880)
+           for (T_ in c(10, 12)) {
+             xs <- 100 + 7 * seq_len(T_) + (seq_len(T_) %% 3) * 5; ys <- xs * (1 + (seq_len(T_) %% 4) / 10)
+             set.seed(7); s0 <- .Random.seed; k0 <- RNGkind()
+             a <- usp_permutation_pente(xs, ys, B = 199, seed = 3); b <- usp_permutation_pente(xs, ys, B = 199, seed = 3)
+             ok <- ok && identical(a, b) && identical(s0, .Random.seed) && identical(k0, RNGkind()) &&
+               identical(a$methode, "aleatoire") && identical(a$B, 199) &&
+               proche(a$p * 200, round(a$p * 200), rel = 1e-12) && a$p >= 1 / 200 &&
+               proche(a$err_mc, sqrt(a$p * (1 - a$p) / 199), rel = 1e-12)
+           }
+           ok
+         })
+verifier("Pente T = 10 : nature Monte-Carlo des permutations (p_mc_ext), p exacte NA ; B <= 9 -> OK inatteignable dans le detail (#169)",
+         {
+           xs <- 100 + 7 * (1:10) + ((1:10) %% 3) * 5; ys <- xs * (1 + ((1:10) %% 4) / 10)
+           f10 <- usp_ajuster(xs, ys)
+           l <- ligne(usp_tests(f10, boot_fictif(f10), methode = "premium",
+                                permutation_pente = usp_permutation_pente(xs, ys, B = 199)), pente)
+           l9 <- ligne(usp_tests(f10, boot_fictif(f10), methode = "premium",
+                                 permutation_pente = usp_permutation_pente(xs, ys, B = 9)), pente)
+           identical(l$nature_p, NAT_PITMAN_MC) && is.na(l$p_exacte) && identical(l$p_retenue, l$p_mc) &&
+             is.finite(l$err_mc) && !grepl("OK inatteignable", l$detail, fixed = TRUE) &&
+             grepl("OK inatteignable", l9$detail, fixed = TRUE) && !identical(l9$verdict, "OK")
+         })
+verifier("Garde-fou (ADR 0002, point 4) : p de permutation absente sur une ligne applicable -> erreur, jamais la p de Student sous la nature de la permutation",
+         {
+           pp <- usp_permutation_pente(x, y); pp$p <- NA_real_
+           e <- tryCatch(usp_tests(fit, boot_fictif(fit), methode = "premium", permutation_pente = pp),
+                         error = function(e) conditionMessage(e))
+           is.character(e) && grepl("repli sur la p de Student interdit", e, fixed = TRUE)
+         })
+verifier("Garde-fou de sens : permutation_pente bilaterale passee a usp_tests() -> erreur (SENS_PITMAN_PENTE)",
+         {
+           e <- tryCatch(usp_tests(fit, boot_fictif(fit), methode = "premium",
+                                   permutation_pente = usp_permutation_pente(x, y, unilateral = FALSE)),
+                         error = function(e) conditionMessage(e))
+           is.character(e) &&
+             grepl("sens de la p de permutation de la pente different de SENS_PITMAN_PENTE", e, fixed = TRUE)
+         })
+# Sens du test (SENS_PITMAN_PENTE, seule definition, #169) : verrou sur
+# "unilateral" (decision du mainteneur du 06/10/2026) ; p bilaterale de
+# permutation restituee pour information dans le detail (libelle neutre :
+# la p unilaterale n'est pas toujours retenue, R4 et R1).
+verifier("SENS_PITMAN_PENTE : verrou unilateral (toute autre valeur refusee) ; p bilaterale J1 8515/40320 = 0,2112 dans le detail, libelle neutre, p de Student unilaterale",
+         {
+           e <- tryCatch(.pitman_unilateral("bilateral"), error = function(e) conditionMessage(e))
+           l <- ligne(tt, pente); pp <- usp_permutation_pente(x, y)
+           identical(SENS_PITMAN_PENTE, "unilateral") && isTRUE(.pitman_unilateral()) &&
+             is.character(e) && grepl("n'admet que", e, fixed = TRUE) &&
+             !"SENS_PITMAN_PENTE" %in% names(formals(run_engine)) &&
+             identical(pp$p_bilateral, 8515 / 40320) &&
+             identical(usp_permutation_pente(x, y, unilateral = FALSE)$p, pp$p_bilateral) &&
+             grepl(paste("p de permutation unilaterale (sens du test) ; p bilaterale de permutation (|r|),",
+                         "pour information, non retenue = 0.2112."), l$detail, fixed = TRUE) &&
+             !grepl("unilaterale retenue", l$detail, fixed = TRUE) &&
+             grepl("p de Student unilaterale (t(T-2)", l$detail, fixed = TRUE)
+         })
+# run_engine() a T = 10 (#169, constat C1 d'audit) : la ligne recoit la
+# permutation calculee avec le B et la graine de l'execution. Donnees choisies
+# pour que p depende de B et de la graine (p = 0,16 a B = 199, graine 11 ;
+# 0,146 a B = 999 ; 0,135 a la graine par defaut).
+x10p <- 100 + 7 * (1:10) + ((1:10) %% 3) * 5
+y10p <- c(80, 95, 70, 110, 90, 85, 120, 75, 100, 105)
+res10p <- run_engine(xt = x10p, yt = y10p, methode = "premium", segment = 1, annexe = "II",
+                     nature_donnees = "brutes", B = 199, seed = 11)
+verifier("run_engine(T = 10, B = 199, seed = 11) : p_mc de la pente = usp_permutation_pente(B = 199, seed = 11)$p ; metadata$permutation_pente (aleatoire, 199, p_bilateral)",
+         {
+           pp <- usp_permutation_pente(x10p, y10p, B = 199, seed = 11)
+           l <- ligne(res10p$tests, pente); m <- res10p$metadata$permutation_pente
+           isTRUE(res10p$ok) && identical(l$p_mc, pp$p) && identical(l$p_retenue, pp$p) &&
+             identical(l$err_mc, pp$err_mc) && is.na(l$p_exacte) &&
+             !identical(pp$p, usp_permutation_pente(x10p, y10p)$p) &&
+             identical(m, list(methode = "aleatoire", B = 199, p_bilateral = pp$p_bilateral)) &&
+             grepl("pour information, non retenue : non imprimee (tirages aleatoires).", l$detail, fixed = TRUE)
+         })
+verifier("run_engine(T = 8) : metadata$permutation_pente = enumeration, B NA, p_bilateral = celle du detail ; volumes constants -> non calcule",
+         {
+           r8 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
+                            nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831)
+           rc <- run_engine(xt = rep(100, 8), yt = y, methode = "premium", segment = 1, annexe = "II",
+                            nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831)
+           identical(r8$metadata$permutation_pente,
+                     list(methode = "enumeration", B = NA_real_, p_bilateral = 8515 / 40320)) &&
+             identical(rc$metadata$permutation_pente,
+                       list(methode = "non calcule", B = NA_real_, p_bilateral = NA_real_))
+         })
+verifier("Pente : y = (1,1,1,1,2) a T = 5 -> p_min = 0,2 >= alpha, test inoperant (R1)",
+         {
+           x5 <- c(10, 20, 30, 40, 50); y5 <- c(1, 1, 1, 1, 2)
+           f5 <- usp_ajuster(x5, y5)
+           l <- ligne(usp_tests(f5, boot_fictif(f5), methode = "premium"), pente)
+           identical(l$type, "diagnostic") && isTRUE(l$inoperant) && proche(l$p_min, 0.2, rel = 1e-12) &&
+             identical(l$verdict, "INFO") && startsWith(l$detail, "TEST INOPERANT")
          })
 verifier("AD, CvM (R6) : estim = statistique sur (z - zbar)/s_z, p_asymptotique = Stephens sur estim",
          {

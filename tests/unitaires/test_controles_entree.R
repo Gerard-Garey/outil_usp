@@ -671,7 +671,7 @@ DETAIL_R12_168 <- "regression de y sur x : x ecarte par lm() pour colinearite, t
 DETAIL_R2_R12_168 <- "x ecarte par lm() pour colinearite : R2 non defini"
 LIGNES_R12_168 <- c("Nullite de la constante (proportionnalite stricte)",
                     LIGNE_TOST153,
-                    "Test de Student sur la pente (lm(y~x))",
+                    "Test de Pitman sur la pente (lien positif pertes / volume)",
                     "Test de Fisher (significativite globale)")
 LIGNE_R2_168 <- "Coefficient de determination R2"
 FONCTIONS_R12_168 <- c("test_intercept", "test_lm_complet", "test_tost_intercept")
