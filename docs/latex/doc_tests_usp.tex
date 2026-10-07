@@ -5973,8 +5973,8 @@ $T = 170$, ce nombre, arrondi à l'entier, est divisé par $T!$~; au-delà, où 
 déborde ($170! \approx 7{,}26 \times 10^{306}$, $171!$ infini en double précision), le calcul
 passe en échelle logarithmique (\code{lfactorial()}, \code{.usp\_log\_nb\_appariements()}, dont
 \code{.usp\_nb\_appariements()} donne le nombre arrondi). La valeur y est exacte à l'arrondi du
-logarithme près, approximation numérique (écart relatif mesuré de $1{,}1 \times 10^{-13}$ à
-$T = 200$, contre $1/\binom{200}{100}$)~: une égalité $p_{\min} = \alpha$ peut alors manquer la
+logarithme près, approximation numérique (écart relatif de l'ordre de $10^{-14}$ à $10^{-13}$ selon les
+données, mesuré à $T = 200$ contre la valeur rationnelle exacte $1/\binom{200}{100}$)~: une égalité $p_{\min} = \alpha$ peut alors manquer la
 règle~R1, qui s'applique sinon à toute profondeur~: avec de nombreux ex
 \ae quo, la ligne peut être inopérante (mesuré~: $x = (10, 20, 30, 40, 50)$,
 $y = (1, 1, 1, 1, 2)$, $p_{\min} = 0{,}2$). \emph{Règle~R4}~: si la puissance approchée
