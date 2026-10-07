@@ -114,15 +114,18 @@ CAS_LN <- c("premium", "reserve1", "premium_ii6", "premium_net")
 AJ <- c("R", "C", "R3")
 
 # --- Ajusteurs -----------------------------------------------------------------
-# Chacun rend list(delta, gamma, sigma, obj, z) (plus n_starts_optimum et
-# kkt_au_moins_un pour C) ou leve une erreur (replication ecartee et comptee).
+# Chacun rend list(delta, gamma, sigma, obj, z, pi) (pi : poids pi_t de
+# l'ajustement, lus par .stats_bootstrapables() depuis #215 ; plus
+# n_starts_optimum et kkt_au_moins_un pour C) ou leve une erreur (replication ecartee et comptee).
 ajuster_R <- function(fit, yb) {
   f <- usp_ajuster_rapide(fit$x, yb, fit$delta, fit$gamma)
-  list(delta = f$delta, gamma = f$gamma, sigma = f$sigma, obj = f$obj, z = f$z)
+  list(delta = f$delta, gamma = f$gamma, sigma = f$sigma, obj = f$obj, z = f$z,
+       pi = f$pi)
 }
 ajuster_C <- function(fit, yb) {
   f <- usp_ajuster(fit$x, yb)
   list(delta = f$delta, gamma = f$gamma, sigma = f$sigma, obj = f$obj_min, z = f$z,
+       pi = f$pi,
        n_starts_optimum = f$n_starts_optimum, kkt = f$kkt_au_moins_un)
 }
 # R3 : fonction locale du script (candidat de correction), pas du moteur.
@@ -135,7 +138,8 @@ ajuster_R3 <- function(fit, yb) {
     if (is.null(best) || f$obj < best$obj - 1e-10) best <- f
   }
   if (is.null(best)) stop("R3 : aucun demarrage abouti")
-  list(delta = best$delta, gamma = best$gamma, sigma = best$sigma, obj = best$obj, z = best$z)
+  list(delta = best$delta, gamma = best$gamma, sigma = best$sigma, obj = best$obj, z = best$z,
+       pi = best$pi)
 }
 AJUSTEURS <- list(R = ajuster_R, C = ajuster_C, R3 = ajuster_R3)
 

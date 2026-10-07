@@ -780,7 +780,7 @@ tableaux <- function(cpt, stats, lignes) {
                        k("nat|aucune"), k("v|OK"), k("v|ALERTE"), k("v|ECHEC"), k("v|INFO")))
   }
   L <- c(L, "", paste("Nature : champ nature_p de la ligne (exacte ; Monte-Carlo ; asymptotique, repli nomm\u00e9",
-                      "compris ; autre : p sous le mod\u00e8le auxiliaire MCO du TOST, exacte par permutation de Pitman sur la pente).",
+                      "compris ; autre : p sous le mod\u00e8le auxiliaire pond\u00e9r\u00e9 du TOST, exacte par permutation de Pitman sur la pente).",
                       "Inop\u00e9rant : d\u00e9tail pr\u00e9fix\u00e9 \u00ab TEST INOPERANT \u00bb (r\u00e8gle R1), compt\u00e9 aussi en diagnostic."), "")
   # --- T3
   L <- c(L, "### T3 -- r\u00e9gimes, r\u00e9plications \u00e9cart\u00e9es, motifs, contr\u00f4les de la famille H, rapport de vraisemblance, IC bootstrap", "",
