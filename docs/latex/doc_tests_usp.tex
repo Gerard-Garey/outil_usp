@@ -613,27 +613,34 @@ strictement positif, appliqué avant les régressions auxiliaires de RESET et de
 \code{\$delta\_dans\_bande}, \code{\$volumes\_dans\_bande} (fiche~\ref{fiche:position-delta},
 fiche~\ref{fiche:centrage}) \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Lois exactes}}} \\
-\code{mk\_p\_exacte()} & série $r_t$ & p-value exacte (loi mahonienne) \\
-\code{runs\_p\_exacte()} & résidus $z_t$ ou ratios centrés $u_t$ & p-value exacte
-(Swed \& Eisenhart), bilatérale par doublement (fiche~\ref{fiche:suites-wald-wolfowitz}) \\
-\code{usp\_runsr\_p\_exacte()} & $z_t$, $u_t$, drapeau \code{pi\_constant} &
+\code{mk\_p\_exacte()} & série $r_t$, \code{plancher} (1) & p-value exacte (loi mahonienne)~;
+\code{plancher} est celui de l'aplatissement des ex \ae quo (section~\ref{sec:ex-aequo})~: 0
+pour les ratios $r_t$ depuis l'issue~\#187 \\
+\code{runs\_p\_exacte()} & résidus $z_t$ ou ratios centrés $u_t$, \code{plancher} (1) & p-value exacte
+(Swed \& Eisenhart), bilatérale par doublement (fiche~\ref{fiche:suites-wald-wolfowitz})~;
+\code{plancher}~: 1 pour $z_t$, $\max_t|r_t|$ pour $u_t$ (issue~\#187) \\
+\code{usp\_runsr\_p\_exacte()} & $z_t$, $u_t$, drapeau \code{pi\_constant}, \code{plancher\_u}
+(obligatoire) &
 p-value exacte de \code{runs\_p\_exacte()} sur $u_t$ si $\hat\pi_t$ est constant
 \emph{et} si les signes de $u_t - \operatorname{med}(u)$ et de $z_t -
-\operatorname{med}(z)$ coïncident (\code{.signes\_mediane\_egaux()}), \code{NA}
+\operatorname{med}(z)$ coïncident (\code{.signes\_mediane\_egaux()}, planchers
+\code{plancher\_a} et \code{plancher\_b}~: $\max_t|r_t|$ pour $u_t$, 1 pour $z_t$), \code{NA}
 sinon \\
 \code{runs\_p\_min()},\newline \code{cox\_stuart\_p\_min()},\newline
 \code{smirnov\_p\_min()},\newline \code{mk\_p\_min()} & effectifs $(n_1, n_2)$~; $m$~;
 $(n_1, n_2)$~; $T$ & plus petite p-value atteignable de la loi de référence discrète aux effectifs
 observés, convention bilatérale du doublement (règle~R1, issue~\#44~; §\ref{sec:nature}) \\
-\code{.runs\_effectifs()} & $z_t$ ou $u_t$ & effectifs $(n_1, n_2)$ de part et d'autre de la
-médiane, après aplatissement des ex \ae quo \\
+\code{.runs\_effectifs()} & $z_t$ ou $u_t$, \code{plancher} (1) & effectifs $(n_1, n_2)$ de part et d'autre de la
+médiane, après aplatissement des ex \ae quo au plancher donné \\
 \code{TOL\_EX\_AEQUO},\newline \code{engine\_aplatir\_}\newline\code{ex\_aequo()},\newline
-\code{engine\_ex\_aequo()},\newline \code{.usp\_aplatir\_}\newline\code{volumes()} & constante
-($10^{-12}$)~; vecteur fini, \code{tol}, \code{plancher} (1)~; idem~; $x$ & seule définition de l'ex
+\code{engine\_ex\_aequo()},\newline \code{.usp\_aplatir\_}\newline\code{volumes()},\newline
+\code{.usp\_aplatir\_}\newline\code{ratios()},\newline \code{.usp\_plancher\_u()} & constante
+($10^{-12}$)~; vecteur fini, \code{tol}, \code{plancher} (1)~; idem~; $x$~; $r$~; $r$ & seule définition de l'ex
 \ae quo (issue~\#112, section~\ref{sec:ex-aequo})~: vecteur dont chaque plage d'ex \ae quo, formée
 par chaînage des valeurs triées, prend sa plus petite valeur (erreur si une valeur n'est pas
 finie)~; prédicat «~au moins un ex \ae quo~»~; aplatissement des volumes à plancher~0 (tolérance
-purement relative) \\
+purement relative)~; aplatissement des ratios $r_t$ à plancher~0 (issue~\#187)~; plancher
+$\max_t|r_t|$ des ratios centrés $u_t$ (issue~\#187) \\
 \code{sw\_loi\_nulle()},\newline \code{sw\_cle\_cache()} & \code{n}, \code{B\_null}
 (20\,000), \code{seed} (\code{SEED\_LOI\_NULLE\_SW}, 20260901) & loi nulle simulée de $W$
 (Shapiro--Wilk), triée et mise en cache sous une clé qui comporte le générateur \\
@@ -2030,11 +2037,33 @@ Le moteur n'a qu'une définition de l'ex \ae quo (issue~\#112)~: deux valeurs $a
   |a - b| \;\le\; \texttt{TOL\_EX\_AEQUO} \cdot \max\big(\text{plancher},\, |a|,\, |b|\big),
   \qquad \texttt{TOL\_EX\_AEQUO} = 10^{-12},
 \]
-en deux régimes~: plancher~1 (défaut) pour les ratios $r_t$, les ratios centrés $u_t$, les
-résidus standardisés $z_t$ et les résidus de Mack, grandeurs d'ordre~1, pour lesquelles la
-tolérance est absolue ($10^{-12}$) au voisinage de~0, où une tolérance purement relative serait
-dénuée de sens~; plancher~0 pour les volumes $x_t$ (\code{.usp\_aplatir\_volumes()}), tolérance
-purement relative, invariante d'unité et sans division. Une tolérance n'étant pas transitive, la
+en trois régimes de plancher (le plancher~0 des ratios $r_t$ et le troisième régime datent de
+l'issue~\#187)~: plancher~1 (défaut) pour les résidus standardisés $z_t$ et les résidus de Mack,
+grandeurs d'ordre~1, pour lesquelles la tolérance est absolue ($10^{-12}$) au voisinage de~0, où
+une tolérance purement relative serait dénuée de sens~; plancher~0 pour les volumes $x_t$
+(\code{.usp\_aplatir\_volumes()}) et pour les ratios $r_t$ (\code{.usp\_aplatir\_ratios()}),
+tolérance purement relative, invariante d'unité et sans division~; plancher $\max_t|r_t|$
+(\code{.usp\_plancher\_u()}) pour les ratios centrés $u_t = r_t - \bar r$ du test des suites sur
+ratios bruts, tolérance relative à l'échelle des ratios avant centrage, invariante d'unité elle
+aussi (décision du mainteneur du 6~octobre 2026~: un plancher~0 sur $u_t$ séparait dans $u$ deux
+ratios fusionnés dans $r$ et dans $z$). L'argument \code{plancher} de \code{test\_runs()},
+\code{test\_cox\_stuart()}, \code{test\_mann\_kendall()}, \code{mk\_p\_exacte()},
+\code{runs\_p\_exacte()} et \code{.runs\_effectifs()} (défaut~1), les arguments
+\code{plancher\_a} et \code{plancher\_b} de \code{.signes\_mediane\_egaux()} et l'argument
+obligatoire \code{plancher\_u} d'\code{usp\_runsr\_p\_exacte()} transmettent ce régime, à
+l'observé comme dans le catalogue Monte-Carlo (entrées \code{MK}, \code{SpearVol},
+\code{SpearTps}, \code{CoxStuart} au plancher~0, \code{Runsr} au plancher $\max_t|r_t|$)~; aucune
+fonction de la méthode Merz--Wüthrich n'est modifiée. \emph{Motif de l'issue~\#187}~: jusqu'à
+elle, les ratios $r_t$ et $u_t$ étaient aplatis au plancher~1, en tolérance absolue sous~1, et les
+résultats des tests de rang et de signe sur les ratios dépendaient de l'unité de $y_t$ rapportée à
+celle de $x_t$. Mesuré par \code{engine\_aplatir\_ex\_aequo()} sur les ratios du jeu de contrôle,
+dont l'écart relatif minimal entre voisins vaut $7{,}7\cdot 10^{-4}$~: huit valeurs distinctes au
+plancher~0 à toute échelle~; au plancher~1, huit à l'échelle~1, sept quand les $y_t$ sont
+multipliés par $10^{-10}$, une seule à $10^{-20}$. Mesuré depuis l'issue sur le même jeu
+(\code{run\_engine()}, méthode prime, $B = 199$, graine 20260831)~: type, p-value retenue, nature et
+verdict des lignes Spearman (volume et temps), Mann--Kendall, Cox--Stuart et suites sur ratios
+bruts sont identiques à l'échelle~1 et pour des $y_t$ multipliés par $10^{-10}$, $10^{-20}$ et
+$10^{-40}$. Une tolérance n'étant pas transitive, la
 relation est fermée par chaînage~: \code{engine\_aplatir\_ex\_aequo()} trie les valeurs, forme
 les plages maximales dont chaque écart entre voisins est sous la tolérance et remplace chaque
 valeur par la plus petite de sa plage, l'ordre d'origine étant conservé~; une valeur non finie y
@@ -2062,22 +2091,32 @@ d'\code{actuary} du 28~septembre 2026~: au-dessus du bruit d'arrondi, qui est de
 précision machine ($2{,}2\cdot 10^{-16}$ en relatif pour $y_t/x_t$), et en dessous de l'écart
 entre deux valeurs distinctes issues de saisies d'au plus \emph{cinq} chiffres significatifs.
 Deux ratios distincts de saisies à $d$ chiffres significatifs diffèrent d'au moins $10^{-2d}$ en
-relatif, donc d'au moins $10^{-2d}$ fois le plus petit des deux en absolu (la tolérance est
-absolue sous~1)~: à $d = 5$, l'écart relatif minimal, $10^{-10}$, vaut cent fois la tolérance et
-aucune fusion n'est possible entre ratios supérieurs à $10^{-2}$ (sous ce seuil, exemple
-mesuré~: $99\,999/99\,998\,000$ et $99\,998/99\,997\,000$, écart calculé $1{,}0\cdot 10^{-13}$,
-déclarés ex \ae quo)~; à $d = 6$, il coïncide avec la tolérance, sans marge, et une fusion de
-deux ratios distincts est possible (exemple mesuré~: $499\,999/999\,999$ et
-$499\,998/999\,997$, écart exact $1{,}000\,004\cdot 10^{-12}$, calculé $9{,}9998\cdot 10^{-13}$,
-déclarés ex \ae quo par \code{engine\_ex\_aequo()}~; correction, à la validation de fin de
-branche, de la note d'\code{actuary} du 28~septembre 2026, qui annonçait la garantie à six
-chiffres). Une telle fusion exige deux ratios égaux à $10^{-12}$ près en absolu (douze chiffres
-significatifs pour un ratio d'ordre~1, dix seulement pour un ratio d'ordre $10^{-3}$) et n'a
+relatif. Depuis l'issue~\#187, la tolérance est purement relative pour les ratios $r_t$
+(plancher~0)~: à $d = 5$, l'écart relatif minimal, $10^{-10}$, vaut cent fois la tolérance et
+aucune fusion n'est possible, \emph{quel que soit l'ordre de grandeur des ratios} (mesuré par
+\code{engine\_ex\_aequo()}~: $99\,999/10\,000$ et $99\,998/10\,000$ restent distincts multipliés
+par $10^{-30}$, $1$ et $10^{30}$~; $99\,999/99\,998\,000$ et $99\,998/99\,997\,000$, d'écart relatif
+$1{,}0\cdot 10^{-10}$, restent distincts au plancher~0, alors qu'ils étaient déclarés ex \ae quo au
+plancher~1 qui s'appliquait aux ratios avant l'issue~\#187, la garantie cessant alors sous
+$10^{-2}$)~; à $d = 6$, l'écart relatif minimal coïncide avec la tolérance, sans marge, et une
+fusion de deux ratios distincts est possible (exemple mesuré~: $999\,999/999\,998$ et
+$999\,998/999\,997$, écart relatif calculé $9{,}9987\cdot 10^{-13}$, déclarés ex \ae quo aux
+planchers~0 et~1~; l'exemple $499\,999/999\,999$ et $499\,998/999\,997$, d'écart relatif
+$2{,}0\cdot 10^{-12}$, n'est déclaré ex \ae quo qu'au plancher~1, et ne l'est donc plus pour les
+ratios depuis l'issue~\#187~; la garantie à cinq chiffres corrige, à la validation de fin de la
+branche de l'issue~\#112, la note d'\code{actuary} du 28~septembre 2026, qui l'annonçait à six
+chiffres). Une telle fusion exige deux ratios égaux à $10^{-12}$ près en relatif, soit douze
+chiffres significatifs à tout ordre de grandeur, et n'a
 d'autre effet que celui d'un ex \ae quo ordinaire, propre à chaque test (fiche
 correspondante)~: pour Spearman, Mann--Kendall et Smirnov, non-attribution de la p-value exacte,
 la p-value de Monte-Carlo étant retenue~; pour Cox--Stuart, statistique de Monte-Carlo non
 définie et p-value exacte binomiale sur les $m$ différences non nulles. Pour les volumes
 $x_t$ (plancher~0), la propriété est établie à six chiffres (écart relatif $\ge 10^{-6}$). Pour
+les ratios centrés $u_t$ (plancher $\max_t|r_t|$), deux ratios distincts $r_i$ et $r_j$ ne sont
+fusionnés dans $u$ que si $|r_i - r_j| \le 10^{-12}\max_t|r_t|$, à l'arrondi du centrage près~; à
+cinq chiffres, $|r_i - r_j| \ge 10^{-10}\max(r_i, r_j)$, si bien qu'aucune fusion n'est possible
+tant que $\max(r_i, r_j) > 10^{-2}\max_t r_t$, c'est-à-dire tant que les ratios S/P des années
+restent dans un facteur~100 les uns des autres (borne déduite de ces deux inégalités). Pour
 $z_t$, transformation non linéaire de $r_t$ par les paramètres estimés, aucune borne n'est
 établie (réserve d'\code{actuary} à la validation de l'issue~\#112). Exemple mesuré~: les
 ratios $472{,}89/611{,}68$ et $3\,310{,}23/4\,281{,}76$, égaux en décimal, diffèrent en
@@ -5701,7 +5740,9 @@ epsilon non echangeable, r\_t non identiquement distribues).}~»~;
 (ii)~aucun ex \ae quo, dans $r_t$ et, pour la variante « ratio contre volume », dans $x_t$, au
 sens de la section~\ref{sec:ex-aequo} ($r_t$ et $x_t$ sont aplatis avant \code{cor.test()}, à
 l'observé comme dans le catalogue Monte-Carlo~; $x_t$ en tolérance purement relative,
-\code{.usp\_aplatir\_volumes()}, issue~\#112)~: avec
+\code{.usp\_aplatir\_volumes()}, issue~\#112, et $r_t$ de même depuis l'issue~\#187,
+\code{.usp\_aplatir\_ratios()}, si bien que la détection des ex \ae quo ne dépend pas de l'unité
+des pertes rapportée à celle des volumes)~: avec
 ex \ae quo, \code{cor.test(exact = TRUE)} ne rend pas la loi de permutation conditionnelle mais la
 p-value asymptotique, et ni p-value exacte ni $p_{\min}$ ne sont attribuées, le commentaire le
 disant (par exemple \code{T = 8~; ex aequo dans r~: loi de permutation conditionnelle non tabulee,
@@ -5737,7 +5778,9 @@ indépendants et identiquement distribués, la variable est continue. On note $g
 groupes d'ex \ae quo et $t_g$ leurs effectifs~; les ex \ae quo s'entendent à la tolérance
 \code{TOL\_EX\_AEQUO} (section~\ref{sec:ex-aequo}, issue~\#112)~: la série est aplatie avant le
 calcul de $S$, de la correction de variance et de la p-value exacte, qui n'est pas attribuée
-avec ex \ae quo.
+avec ex \ae quo. Depuis l'issue~\#187, l'aplatissement des $r_t$ est purement relatif
+(plancher~0), à l'observé comme dans le catalogue Monte-Carlo~: la détection des ex \ae quo ne
+dépend plus de l'unité des pertes rapportée à celle des volumes.
 \Hzero
 $H_0$ : absence de tendance monotone, les $r_t$ étant i.i.d. (toutes les permutations
 chronologiques sont équiprobables).
@@ -5800,7 +5843,9 @@ On pose $c = \lceil T/2 \rceil$ et l'on forme les $n_p = T - c$ paires $(r_t, r_
 $t = 1, \dots, n_p$ (valeur centrale écartée si $T$ est impair). Soit $D_t = r_{t+c} - r_t$ et
 $m \le n_p$ le nombre de différences non nulles, $D_t \neq 0$~; $m = n_p$ en l'absence d'ex \ae quo
 dans une paire. Une différence est nulle à la tolérance d'ex \ae quo~: la série est aplatie
-avant le calcul des $D_t$ (section~\ref{sec:ex-aequo}, issue~\#112), de sorte que deux ratios égaux
+avant le calcul des $D_t$ (section~\ref{sec:ex-aequo}, issue~\#112~; tolérance purement relative,
+plancher~0, à l'observé comme dans le catalogue Monte-Carlo depuis l'issue~\#187, donc
+indépendante de l'unité des pertes rapportée à celle des volumes), de sorte que deux ratios égaux
 en décimal mais distincts en flottant donnent $D_t = 0$, question laissée ouverte par
 l'issue~\#85. \code{test\_cox\_stuart()} rend $K$, $m$ et $n_p$ (issue~\#85). Hypothèses non
 testées~: indépendance des observations, continuité.
@@ -7094,7 +7139,17 @@ $z_t$ à la tolérance d'ex \ae quo (\code{.signes\_mediane\_egaux()})~: deux ra
 diffèrent que d'un écart d'arrondi (de l'ordre d'une unité du dernier chiffre flottant) sont ex
 \ae quo et écartés à la médiane des deux séries, et la comparaison des signes n'échoue plus sur ce
 bruit~; elle reste un garde-fou pour la bande de tolérance (le cas construit, à ratios centraux
-distants de $10^{-10}$ en relatif, est au-dessus de la tolérance). Si la loi de $R$ n'est pas définie --- un seul côté de la médiane représenté ---, aucune
+distants de $10^{-10}$ en relatif, est au-dessus de la tolérance). Depuis l'issue~\#187, $u_t$ est
+aplati au plancher $\max_t|r_t|$ et $z_t$ au plancher~1 (section~\ref{sec:ex-aequo})~: même à
+$\hat\pi_t$ exactement constant, le traitement numérique (centrage de $u$ par la moyenne,
+aplatissement à deux planchers différents) peut encore séparer un signe de $u$ de celui de $z$.
+Mesuré par \code{run\_engine()} (méthode prime, $B = 99$) sur des volumes constants et les ratios
+$(0{,}6~;~0{,}65~;~0{,}7~;~0{,}75 - d~;~0{,}75 + d~;~0{,}8~;~0{,}85~;~0{,}9)$, cas repris de
+\code{tests/unitaires/test\_ex\_aequo.R}~: à $d = 10^{-13}$, les deux ratios centraux sont ex
+\ae quo sur $u$ mais distincts sur $z$, et la statistique $Z$ vaut $-1{,}826$ sur $u_t$ contre
+$-2{,}291$ sur $z_t$~; à $d = 10^{-14}$, ils sont ex \ae quo sur les deux séries, et la ligne sur
+$u_t$ a la même statistique, $-1{,}826$, que celle sur $z_t$. Dans les deux cas, la ligne sur
+ratios bruts est inopérante ($p_{\min} = 0{,}2$ à $n_1 = n_2 = 3$, règle~R1). Si la loi de $R$ n'est pas définie --- un seul côté de la médiane représenté ---, aucune
 p-value exacte n'est attribuée, même lorsque les deux conditions tiennent (cas~2b de
 \code{usp\_tests()}). Si l'une des conditions manque, la p-value retenue est celle de Monte-Carlo, simulée
 sous le modèle ajusté avec ses $\hat\pi_t$~: lorsque $\hat\pi_t$ varie, les $r_t$ sont
@@ -7902,7 +7957,17 @@ Monte-Carlo (clé \code{Runsr}), bilatérale. Le commentaire de la ligne suit ce
 l'issue~\#128~: sous la double condition, il dit la p-value exacte retenue, sauf motif de
 dégénérescence de \code{Runsr}, qui l'écarte (ADR~0001, section~\ref{sec:nature}, point~(ii))~;
 hors de la double condition, il ne nomme la p-value de Monte-Carlo comme retenue que si elle
-existe, et renvoie sinon à \code{nature\_p}. Sous la double condition, la p-value de
+existe, et renvoie sinon à \code{nature\_p}. Quand $\hat\pi_t$ est constant mais qu'un signe
+diffère entre $u_t - \operatorname{med}(u)$ et $z_t - \operatorname{med}(z)$, le commentaire
+distingue depuis l'issue~\#187 deux sous-cas~: $\hat\pi_t$ \emph{exactement} constant,
+où l'écart est attribué au traitement numérique (centrage de $u$ par la moyenne, aplatissement des
+ex \ae quo à une tolérance relative à $\max_t|r_t|$ sur $u$ et absolue sous~1 sur $z$,
+section~\ref{sec:ex-aequo}), non à une variation de $\hat\pi_t$~; $\hat\pi_t$ constant à la
+tolérance \code{TOL\_DELTA\_BORD} près seulement, où la variation résiduelle de $\hat\pi_t$ est
+nommée. Dans les deux sous-cas, il se termine par «~\code{La p-value Monte-Carlo, simulee sous le
+modele ajuste, est calculee ; la p-value retenue, s'il en est une, est nommee par nature\_p.}~»,
+sans dire la p-value de Monte-Carlo retenue, une règle de restitution pouvant encore l'écarter
+(cas mesuré à la fiche~\ref{fiche:suites-wald-wolfowitz}, rubrique~5). Sous la double condition, la p-value de
 Monte-Carlo, quand elle existe, estime la même quantité que la p-value exacte, à l'erreur de
 Monte-Carlo près~; le commentaire ne cite cette p-value de Monte-Carlo que si elle existe
 («~\code{La p-value Monte-Carlo de la colonne p\_mc estime la meme quantite, a l'erreur
