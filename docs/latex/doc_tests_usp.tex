@@ -2570,7 +2570,16 @@ sur le jeu de contrôle, dont les ratios vont de $0{,}579$ à $0{,}894$. Mesuré
 \code{usp\_controle\_donnees()} et \code{engine\_valider\_donnees()} sur le jeu de contrôle dont
 on modifie la première année~: ratio $0{,}09$, \code{ECHEC} et avertissement~; ratio $0{,}1$,
 \code{OK}~; ratio~$5$, \code{ECHEC} et avertissement. Un \code{ECHEC} de cette ligne est un
-signal à examiner (unités de $x_t$ et de $y_t$), non le constat d'une norme.
+signal à examiner (unités de $x_t$ et de $y_t$), non le constat d'une norme. Depuis
+l'issue~\#186, le commentaire de la ligne (ratios minimal, médian et maximal) ne peut plus
+paraître contredire son verdict aux bornes~: chaque ratio y est écrit avec trois décimales, sauf
+si l'arrondi le ferait passer de l'autre côté d'une borne de la plage, auquel cas
+\code{usp\_controle\_donnees()} ajoute des décimales, jusqu'à vingt~; le commentaire se termine
+par le rappel de la plage, construit à partir des deux constantes
+(«~\code{plage plausible [0.1 ; 5[}~»). Mesuré sur le jeu de contrôle dont on modifie la
+première année~: ratio $0{,}0996$, écrit «~\code{0.0996}~», \code{ECHEC} (il était écrit
+«~\code{0.100}~» auparavant)~; ratio $4{,}9996$, écrit «~\code{4.9996}~», \code{OK}~; ratio~$5$,
+écrit «~\code{5.000}~», \code{ECHEC}. Le verdict de la ligne n'est pas modifié.
 
 Le barème du contrôle de crédibilité est le \emph{barème appliqué}, celui qui entre dans
 $\sigma_{\mathrm{USP}}$~: barème saisi (dérogation, issue~\#93), sinon barème du segment ---
