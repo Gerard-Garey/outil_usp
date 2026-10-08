@@ -16,9 +16,11 @@ ajouter_au_path() {
 
 # Session cloud derriere le proxy sortant ($HTTPS_PROXY) : apt n'y passe pas
 # en HTTP simple (depots Ubuntu declares en http://, nom non resolu). On bascule
-# les depots Ubuntu en https:// et on declare le proxy a apt, sans CaInfo :
-# apt telecharge sous l'utilisateur _apt, qui ne lit pas le certificat du proxy
-# dans /root ; les certificats systeme suffisent. Idempotent. Couvre aussi
+# les depots Ubuntu en https:// et on declare le proxy a apt. Le proxy
+# re-signe TLS : apt doit faire confiance a son certificat ($SSL_CERT_FILE),
+# que l'utilisateur _apt ne lit pas dans /root ; on en pose une copie lisible
+# sous /etc/ssl/certs, declaree par CaInfo (constat du 08/10/2026 apres E1g :
+# sans elle, echec de verification du certificat). Idempotent. Couvre aussi
 # les miroirs regionaux (xx[.yy].archive.ubuntu.com) et ports.ubuntu.com. Sans
 # proxy, retire le fichier d'une session precedente. Les domaines Ubuntu
 # utilises doivent etre autorises par la politique reseau de l'environnement
@@ -34,8 +36,15 @@ preparer_apt_proxy() {
     [ -f "$f" ] && grep -Eq "$motif" "$f" &&
       ${SUDO:-} sed -i -E "s#$motif#https://\1.ubuntu.com#g" "$f" 2>/dev/null
   done
-  printf 'Acquire::https::Proxy "%s";\n' "$HTTPS_PROXY" |
-    ${SUDO:-} tee "$conf" >/dev/null 2>&1
+  ca=/etc/ssl/certs/proxy-session.crt
+  if [ -r "${SSL_CERT_FILE:-}" ] &&
+     ${SUDO:-} install -m 644 "$SSL_CERT_FILE" "$ca" 2>/dev/null; then
+    printf 'Acquire::https::Proxy "%s";\nAcquire::https::CAInfo "%s";\n' \
+      "$HTTPS_PROXY" "$ca" | ${SUDO:-} tee "$conf" >/dev/null 2>&1
+  else
+    printf 'Acquire::https::Proxy "%s";\n' "$HTTPS_PROXY" |
+      ${SUDO:-} tee "$conf" >/dev/null 2>&1
+  fi
   return 0
 }
 
