@@ -2511,7 +2511,9 @@ verifier("run_engine, premium et reserve1 : series proportionnelles, quasi propo
 # Frontiere en forme fermee : a ratios y_t/x_t = 0,7 exp(eps w_t), w centre
 # reduit, delta = 1 et gamma = log(sqrt(expm1(eps^2 var(w)))) (variance de
 # population) ; gamma atteint la borne basse en eps0 ci-dessous. Mesure :
-# eps0 = 6,5684393e-6 sur les donnees de test.
+# eps0 = 6,5684393e-6 sur les donnees de test. delta = 1 est verifie a
+# TOL_DELTA_BORD pres, non au bit pres (sortie d'optimiseur ; revue finale
+# d'E1g, /code-review).
 wf188 <- as.numeric(scale(log(ys188 / xs188)))
 eps0_188 <- sqrt(log1p(exp(2 * BORNES_GAMMA[1]))) / sqrt(mean((wf188 - mean(wf188))^2))
 verifier("Frontiere en forme fermee (eps0 = 6,568e-6) : y = 0,7 x exp(eps w) accepte a eps0 (1 + 1e-3) (delta = 1), refuse au motif borne basse a eps0 (1 - 1e-3), premium et reserve1 (#188)",
@@ -2519,7 +2521,7 @@ verifier("Frontiere en forme fermee (eps0 = 6,568e-6) : y = 0,7 x exp(eps w) acc
            y_in <- 0.7 * xs188 * exp(eps0_188 * (1 + 1e-3) * wf188)
            y_out <- 0.7 * xs188 * exp(eps0_188 * (1 - 1e-3) * wf188)
            f_in <- usp_ajuster(xs188, y_in)
-           proche(eps0_188, 6.5684393e-6, rel = 1e-7) && identical(f_in$delta, 1) &&
+           proche(eps0_188, 6.5684393e-6, rel = 1e-7) && isTRUE(abs(f_in$delta - 1) <= TOL_DELTA_BORD) &&
              all(vapply(c("premium", "reserve1"), function(m)
                isTRUE(lancer188(xs188, y_in, m)$ok) && refus188(lancer188(xs188, y_out, m), "basse", m),
                logical(1)))
