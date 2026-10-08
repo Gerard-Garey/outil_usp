@@ -5,9 +5,10 @@
 #  la maniere d'executer le moteur pour chacun, et le comparateur unique de
 #  non-regression (comparer_objets). Source par test_reproductibilite.R,
 #  generer_references.R, comparer_references.R, patcher_reference.R et
-#  regenerer_et_rendre_compte.R ; source aussi par les quatre scripts de
+#  regenerer_et_rendre_compte.R ; source aussi par les cinq scripts de
 #  mesure hors CI qui ont --ecrire (puissance_t8.R, constats_puissance_t8.R,
-#  calibration_mc_t8.R, taux_franchissement_reperes.R), qui y trouvent la
+#  calibration_mc_t8.R, taux_franchissement_reperes.R,
+#  conservatisme_interieur_t8.R), qui y trouvent la
 #  garde d'ecrasement des tableaux versionnes (garde_ecrasement(), #173),
 #  le commit du depot et les motifs de non-versionnement (commit_depot(),
 #  motifs_non_versionnable(), #205 ; commit_depot() sert aussi a
@@ -454,7 +455,8 @@ resumer_comparaison <- function(r, n_max = 10L) {
 #  tests/calibration_mc_t8.R, tests/taux_franchissement_reperes.R et
 #  tests/balayage_echelles.R. Les scripts dont --ecrire refuse un commit non
 #  propre (tests/puissance_t8.R, tests/calibration_mc_t8.R,
-#  tests/taux_franchissement_reperes.R) evaluent motifs_non_versionnable()
+#  tests/taux_franchissement_reperes.R, tests/conservatisme_interieur_t8.R)
+#  evaluent motifs_non_versionnable()
 #  des l'analyse des options, avant tout calcul (commit et empreintes
 #  courants), puis de nouveau avant d'ecrire (l'etat du depot peut changer
 #  pendant le calcul).
@@ -504,16 +506,19 @@ motifs_non_versionnable <- function(commit, empreintes, quoi = "des tranches") {
 
 # ---------------------------------------------------------------------------
 #  Garde d'ecrasement des tableaux versionnes (issue #173). Seul lieu de la
-#  regle, appelee par les quatre scripts de mesure hors CI qui ont --ecrire
+#  regle, appelee par les cinq scripts de mesure hors CI qui ont --ecrire
 #  (tests/puissance_t8.R, tests/constats_puissance_t8.R,
-#  tests/calibration_mc_t8.R, tests/taux_franchissement_reperes.R), APRES
+#  tests/calibration_mc_t8.R, tests/taux_franchissement_reperes.R,
+#  tests/conservatisme_interieur_t8.R), APRES
 #  leurs gardes propres (arbre propre, motifs_non_versionnable()) et AVANT
 #  toute ecriture : tous les chemins cibles d'une execution sont controles
 #  d'abord, puis seulement ecrits. tests/puissance_t8.R (constat m2 d'audit
 #  de #173), tests/taux_franchissement_reperes.R (cible_fichier()) et
 #  tests/constats_puissance_t8.R (#205) l'appellent en outre des l'analyse
 #  des options, avant tout calcul (hors --combiner : les chemins cibles y
-#  sont connus), puis de nouveau avant d'ecrire.
+#  sont connus), puis de nouveau avant d'ecrire ;
+#  tests/conservatisme_interieur_t8.R aussi, --combiner compris (#175 : un
+#  seul tableau, de nom fixe par la date du jour).
 # ---------------------------------------------------------------------------
 
 # Controle les chemins cibles de --ecrire. Statut de chaque chemin, lu par
