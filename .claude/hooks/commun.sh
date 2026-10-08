@@ -19,7 +19,7 @@ ajouter_au_path() {
 # les depots Ubuntu en https:// et on declare le proxy a apt, sans CaInfo :
 # apt telecharge sous l'utilisateur _apt, qui ne lit pas le certificat du proxy
 # dans /root ; les certificats systeme suffisent. Idempotent. Couvre aussi
-# les miroirs regionaux (xx.archive.ubuntu.com) et ports.ubuntu.com. Sans
+# les miroirs regionaux (xx[.yy].archive.ubuntu.com) et ports.ubuntu.com. Sans
 # proxy, retire le fichier d'une session precedente. Les domaines Ubuntu
 # utilises doivent etre autorises par la politique reseau de l'environnement
 # (constat et decision du 08/10/2026 ; revue finale d'E1g).
@@ -29,7 +29,7 @@ preparer_apt_proxy() {
     [ -f "$conf" ] && ${SUDO:-} rm -f "$conf" 2>/dev/null
     return 0
   fi
-  motif='http://(([a-z0-9-]+\.)?archive|security|ports)\.ubuntu\.com'
+  motif='http://(([a-z0-9-]+\.)*archive|security|ports)\.ubuntu\.com'
   for f in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
     [ -f "$f" ] && grep -Eq "$motif" "$f" &&
       ${SUDO:-} sed -i -E "s#$motif#https://\1.ubuntu.com#g" "$f" 2>/dev/null
