@@ -1,13 +1,13 @@
 ###############################################################################
 #  tests/constats_puissance_t8.R  --  CONSTATS DE NIVEAU ET DE PUISSANCE A
-#  T = 8 (issues #114 et #118)
+#  T = 8 (issues #114, #118 et #219)
 #
 #  OUTIL DE MESURE HORS CI : ce script n'est ni une batterie de tests ni un
 #  generateur de references. Il n'est lance ni par la CI, ni par
 #  test_unitaires.R (nom sans prefixe test_), ni par test_reproductibilite.R.
 #  Sortie en markdown sur la console (UTF-8). Il n'ecrit aucun fichier, sauf
-#  sur demande explicite (option --ecrire DOSSIER, parties tost et normalite
-#  seulement, voir "Usage"). R base + stats.
+#  sur demande explicite (option --ecrire DOSSIER, parties tost, normalite et
+#  tost-frontiere seulement, voir "Usage"). R base + stats.
 #
 #  Objet : deux constats cites dans le projet sans que leur script ait ete
 #  versionne (C1, C2 : decision du mainteneur du 27/09/2026, issue #114), et
@@ -166,6 +166,76 @@
 #          distorsion de niveau sous queues lourdes : les tableaux parlent de
 #          "taux de rejet".
 #
+#  C5. Niveau du TOST de la constante a la frontiere a = +/- Delta (issue
+#      #219 ; specification d'actuary, issue #175, commentaire 6058041254,
+#      section "#219" ; decisions du mainteneur, PR #228, commentaire
+#      6058031276, Q-4). Statut : CONSTAT DE SIMULATION du taux de conclusion
+#      A TORT a l'equivalence, sous un generateur a constante (le modele de
+#      l'annexe XVII n'en a pas). Partie executee seule (--partie
+#      tost-frontiere), hors de --partie tout (duree).
+#      Protocole :
+#        - jeux J1 et J2 de C3 ; FIT0 = usp_ajuster() sur le jeu observe ;
+#          L* = usp_simuler(FIT0), R jeux par jeu, x fixe, dans les FLUX DE C3
+#          (graine --graine + 3 pour J1, + 4 pour J2, meme expression), tires
+#          avant toute evaluation, communs aux trois valeurs de a ;
+#        - Y*_t = a + L*_t : E[Y_t] = a + beta x_t, variance reglementaire
+#          exacte (celle de L*) ; Delta = theta E[Ybar], theta = 0,10 ;
+#          a+ = theta beta xbar / (1 - theta), a- = -theta beta xbar /
+#          (1 + theta) (a = +/- theta E[Ybar]) ; a = 0 en colonne de
+#          reference (memes y* que C3 : probabilite de conclure, non niveau) ;
+#        - y* <= 0 (possible a a-) : ecarte et compte ; sinon reajustement
+#          par usp_ajuster(x, y*) : erreur ecartee et comptee ; refus de #188
+#          (usp_valider_ajustement(fit*, "premium")$ok FALSE, comme
+#          run_engine()) ecarte et compte ; les taux portent sur les
+#          replications retenues communes aux six cellules ; dans chaque
+#          cellule, cas non applicables et erreurs du test retires du
+#          denominateur et comptes ;
+#        - regle de lecture du denominateur (decision du mainteneur, PR
+#          #228, commentaire 6062485163) : le taux est conditionnel au rendu
+#          d'un resultat par l'outil (denominateur commun = replications
+#          retenues ; comparaisons W0/W1/W2 appariees) ; pour un couple
+#          (jeu, a) avec e > 0 replications ecartees (y* <= 0, erreurs,
+#          refus de #188), la lecture verifie que la classe reste la meme
+#          avec le taux majorant (k + e) / (n + e) (colonne "Classe avec le
+#          majorant" de C5.a : "classe stable" ou "change") ;
+#        - six cellules, toutes par test_tost_intercept() : poids W1 (outil,
+#          fit*$pi), W2 (oracle, FIT0$pi), W0 (MCO d'avant #215 : pi0 =
+#          1 / log1p((xbar / x)^2), d'ou des poids usp_poids_gls() constants,
+#          controle max|w/w_1 - 1| < 1e-12) ; marge estimee Delta* = theta
+#          moyenne(y*) (celle de l'outil) ou fixee a priori, delta_abs =
+#          theta E[Ybar] = theta (a + beta xbar) (= |a| aux frontieres) ;
+#          resultat "non applicable" ou erreur du test compte par cellule ;
+#        - conclusion si p < alpha, alpha = 0,10 et 0,05 ; IC de
+#          Clopper-Pearson ; lecture : tenu si la borne basse de l'IC <=
+#          alpha ; depassement mineur si l'IC est au-dessus de alpha et
+#          l'estimation <= 1,5 alpha ; distorsion materielle si la borne
+#          basse > 1,5 alpha ; depassement non tranche (classe ajoutee par
+#          le mainteneur, PR #228, commentaire 6062485163) si la borne basse
+#          est dans ]alpha ; 1,5 alpha] et l'estimation > 1,5 alpha
+#          (depassement significatif, materialite non etablie a R donne).
+#          Suites : tenu et depassement mineur, aucune ; distorsion
+#          materielle et depassement non tranche, mainteneur, renvoi a #216
+#          et #217 ;
+#        - ligne de rapprochement avec C3 : a = 0, W1, marge estimee, taux sur
+#          les reajustements reussis refus de #188 compris (C3 n'applique pas
+#          usp_valider_ajustement()) : egal au tableau C3.a de --partie tost
+#          a R et graine egaux ; a R = 20 000 et --graine 20260927, une ligne
+#          compare C5.c au tableau versionne
+#          docs/tableaux/20261007-issue215-tost.md (commit a7724d4) :
+#          "identique" ou l'ecart, non bloquant (hors controles) ;
+#        - controles d'integrite : premiere p de chaque cellule (premiere
+#          replication retenue, par jeu et valeur de a) egale a la
+#          p_asymptotique de la ligne TOST de run_engine() pour W1 (marge
+#          estimee : theta_equiv par defaut ; marge a priori : delta_equiv =
+#          delta_abs), et a un TOST transcrit par lm() (poids
+#          1 / (x^2 expm1(1/pi)), ou sans poids pour W0) pour W2 et W0,
+#          run_engine() ne calculant pas ces poids ; equivalence exacte, jeu
+#          par jeu, entre p < alpha et Delta - |a| > t se(a) ; poids W0
+#          constants ; marge a priori restituee egale a theta (a + beta xbar)
+#          (et a |a| aux frontieres) ; premier L* identique a un tirage isole
+#          sous la meme graine ; RNGkind() et .Random.seed de l'appelant
+#          restaures.
+#
 #  Incertitude : intervalle de Clopper-Pearson a 95 % sur chaque taux
 #  (erreur Monte-Carlo, fonction de R ; elle ne dit rien de l'erreur
 #  d'approximation en T). Compatibilite avec la valeur publiee :
@@ -180,13 +250,14 @@
 #      reproduction et du constat publie, compatible si p >= 0,05 (les deux
 #      echantillons sont traites comme independants ; lectures K0 a K3 non
 #      corrigees pour la multiplicite).
-#    C3, C4 : mesures nouvelles, sans valeur publiee a comparer ; IC seul.
+#    C3, C4, C5 : mesures nouvelles, sans valeur publiee a comparer ; IC seul.
 #
 #  Alea : tout tirage passe par engine_sous_graine() avec une graine
 #  explicite : innovations AR(1) sous --graine ; echantillons K0, K2, K3 sous
 #  --graine + 1 ; jeux simules de K1 sous --graine + 2 ; jeux y* de C3 sous
 #  --graine + 3 (J1) et --graine + 4 (J2) ; uniformes de C4 sous --graine + 5
-#  (T = 8) et --graine + 6 (T = 20) ; chaque flux tire en une fois avant tout
+#  (T = 8) et --graine + 6 (T = 20) ; C5 reprend les flux de C3 (--graine + 3
+#  et + 4), sans flux propre ; chaque flux tire en une fois avant tout
 #  calcul. Les parties sont independantes : ajouter C3 et C4 ne change ni les
 #  tirages ni la sortie de --partie ar1 et de --partie ks a graine egale
 #  (hors lignes de duree ; sous --partie tout, seul le titre change et les
@@ -198,17 +269,20 @@
 #
 #  Usage (depuis la racine du depot) :
 #      Rscript tests/constats_puissance_t8.R [--R 20000] [--R-ks 3000]
-#          [--graine 20260927] [--partie tout|ar1|ks|tost|normalite]
+#          [--graine 20260927] [--partie tout|ar1|ks|tost|normalite|tost-frontiere]
 #          [--ecrire DOSSIER [--remplacer]]
-#  --R vaut pour C1 (par rho), C3 (par jeu) et C4 (par loi et par T).
+#  --partie tout : C1 a C4 ; C5 seulement par --partie tost-frontiere.
+#  --R vaut pour C1 (par rho), C3 (par jeu), C4 (par loi et par T) et C5
+#  (par jeu et par valeur de a).
 #  --ecrire DOSSIER : ecrit en plus, si les controles d'integrite tiennent,
-#  DOSSIER/<AAAAMMJJ>-issue215-tost.md (issue118 avant #215) et/ou
-#  <AAAAMMJJ>-issue118-normalite.md (date du jour),
-#  pour les parties tost et normalite executees ; sans cette option, rien
-#  n'est ecrit. Les fichiers versionnes de docs/tableaux/ se produisent sur
-#  un arbre de travail propre (commit cite resoluble), par
-#  --partie tost --ecrire docs/tableaux et --partie normalite --ecrire
-#  docs/tableaux. Garde d'ecrasement (#173, garde_ecrasement() de
+#  DOSSIER/<AAAAMMJJ>-issue215-tost.md (issue118 avant #215),
+#  <AAAAMMJJ>-issue118-normalite.md et/ou
+#  <AAAAMMJJ>-issue219-tost-frontiere.md (date du jour),
+#  pour les parties tost, normalite et tost-frontiere executees ; sans cette
+#  option, rien n'est ecrit. Les fichiers versionnes de docs/tableaux/ se
+#  produisent sur un arbre de travail propre (commit cite resoluble), par
+#  --partie tost --ecrire docs/tableaux, --partie normalite --ecrire
+#  docs/tableaux et --partie tost-frontiere --ecrire docs/tableaux. Garde d'ecrasement (#173, garde_ecrasement() de
 #  tests/outils_tests.R, avant toute ecriture) : --ecrire est REFUSE (code
 #  1, aucun des fichiers de l'execution ecrit) si l'un des fichiers cibles
 #  est suivi par git, ou existe sans que git puisse dire s'il l'est (un
@@ -222,7 +296,9 @@
 #  Duree mesuree : voir la ligne "Duree" de la sortie (C1 et C2 : 72 s et
 #  124 s le 27/09/2026 ; a R = 20 000, C3 : 44 s et C4 : 28 s le 30/09/2026,
 #  soit 44 s et 33 s d'execution pour --partie tost et --partie normalite ;
-#  Linux, R 4.3.3).
+#  C5 : 0,068 s par replication, par jeu et par valeur de a, plus environ
+#  50 s de controles, mesure a R = 200 le 08/10/2026, soit environ 2,3 h
+#  sur un coeur a R = 20 000 ; Linux, R 4.3.3).
 #  Code de sortie : 0 si les controles d'integrite tiennent, 1 sinon.
 ###############################################################################
 
@@ -242,8 +318,8 @@ OPT_GRAINE <- as.numeric(lire_option("--graine", "20260927"))
 OPT_PARTIE <- lire_option("--partie", "tout")
 OPT_ECRIRE <- lire_option("--ecrire", NA_character_)
 OPT_REMPLACER <- "--remplacer" %in% ARGS
-if (!OPT_PARTIE %in% c("tout", "ar1", "ks", "tost", "normalite"))
-  stop("--partie : tout, ar1, ks, tost ou normalite")
+if (!OPT_PARTIE %in% c("tout", "ar1", "ks", "tost", "normalite", "tost-frontiere"))
+  stop("--partie : tout, ar1, ks, tost, normalite ou tost-frontiere")
 if (OPT_REMPLACER && is.na(OPT_ECRIRE)) stop("--remplacer : reserve a --ecrire (remplacement d'un tableau suivi par git, #173)")
 if (!is.na(OPT_ECRIRE) && !dir.exists(OPT_ECRIRE)) stop("--ecrire : dossier inexistant : ", OPT_ECRIRE)
 if (!is.finite(OPT_R) || OPT_R < 1L) stop("--R : entier >= 1")
@@ -277,11 +353,12 @@ source(file.path(DOSSIER_SCRIPT, "outils_tests.R"))
 # changer pendant le calcul ; date de l'ecriture, qui peut differer de
 # celle-ci si l'execution passe minuit). Seule source des chemins :
 # chemins_118().
-ISSUE_118 <- c(tost = "215", normalite = "118")
+ISSUE_118 <- c(tost = "215", normalite = "118", "tost-frontiere" = "219")
 chemins_118 <- function(parties) stats::setNames(
   file.path(OPT_ECRIRE, sprintf("%s-issue%s-%s.md", format(Sys.Date(), "%Y%m%d"), ISSUE_118[parties], parties)),
   parties)
-PARTIES_118 <- c(if (OPT_PARTIE %in% c("tout", "tost")) "tost", if (OPT_PARTIE %in% c("tout", "normalite")) "normalite")
+PARTIES_118 <- c(if (OPT_PARTIE %in% c("tout", "tost")) "tost", if (OPT_PARTIE %in% c("tout", "normalite")) "normalite",
+                 if (OPT_PARTIE == "tost-frontiere") "tost-frontiere")
 if (!is.na(OPT_ECRIRE) && length(PARTIES_118)) garde_ecrasement(chemins_118(PARTIES_118), OPT_REMPLACER, RACINE)
 
 # Plateforme de calcul (#171) : R, systeme, machine, BLAS, LAPACK (copie
@@ -336,7 +413,7 @@ p_kolmogorov <- function(dd, T) {
 # Titre : inchange pour les parties de #114 (sortie de ar1 et ks identique a
 # graine egale a celle du script avant #118).
 TITRE_ISSUES <- switch(OPT_PARTIE, ar1 = , ks = "issue #114", tost = , normalite = "issue #118",
-                       "issues #114 et #118")
+                       "tost-frontiere" = "issue #219", "issues #114 et #118")
 sortie <- c(
   sprintf("## Constats de niveau et de puissance \u00e0 T = 8 (%s)", TITRE_ISSUES), "",
   sprintf("Param\u00e8tres : R=%d ; R_ks=%d ; graine=%s ; partie=%s ; T=%d", OPT_R, OPT_R_KS,
@@ -493,28 +570,43 @@ cellules_taux <- function(p, alpha) {
 # controles propres (la duree est dans la section).
 FICHIERS_118 <- list()
 
-# --- C3 : TOST de la constante, probabilite de conclure (issue #118) ----------
-if (OPT_PARTIE %in% c("tout", "tost")) {
-  THETA_TOST <- 0.10
-  # Jeu J2 : copie declaree de lire_j2() de tests/taux_franchissement_reperes.R
-  # (memes lignes xi, yi de tests/unitaires/test_controles_numeriques.R).
-  lire_j2 <- function() {
-    f <- file.path(RACINE, "tests", "unitaires", "test_controles_numeriques.R")
-    l <- readLines(f)
-    env <- new.env()
-    for (v in c("xi", "yi")) {
-      li <- grep(sprintf("^%s <- c\\(", v), l, value = TRUE)
-      if (length(li) != 1L) stop("J2 : ligne '", v, " <- c(' introuvable ou multiple dans ", f)
-      eval(parse(text = li), envir = env)
-    }
-    list(x = env$xi, y = env$yi)
+# --- Outils communs a C3 et C5 (TOST de la constante, #118, #215, #219) -------
+THETA_TOST <- 0.10
+# Jeu J2 : copie declaree de lire_j2() de tests/taux_franchissement_reperes.R
+# (memes lignes xi, yi de tests/unitaires/test_controles_numeriques.R).
+lire_j2 <- function() {
+  f <- file.path(RACINE, "tests", "unitaires", "test_controles_numeriques.R")
+  l <- readLines(f)
+  env <- new.env()
+  for (v in c("xi", "yi")) {
+    li <- grep(sprintf("^%s <- c\\(", v), l, value = TRUE)
+    if (length(li) != 1L) stop("J2 : ligne '", v, " <- c(' introuvable ou multiple dans ", f)
+    eval(parse(text = li), envir = env)
   }
+  list(x = env$xi, y = env$yi)
+}
+# Jeux J1 et J2 et leurs graines (flux de C3, repris tels quels par C5).
+jeux_tost <- function() {
   j2 <- lire_j2()
-  JEUX_TOST <- list(
+  list(
     list(code = "J1", x = .ln$xt, y = .ln$yt, graine = OPT_GRAINE + 3,
          libelle = "tests/donnees/donnees_ln.csv (jeu des cas de r\u00e9f\u00e9rence)"),
     list(code = "J2", x = j2$x, y = j2$y, graine = OPT_GRAINE + 4,
          libelle = "xi, yi de tests/unitaires/test_controles_numeriques.R"))
+}
+# p_asymptotique de la ligne TOST de run_engine() (B = 99, graine 20260831 ;
+# la p du TOST ne depend ni de B ni de la graine) ; NA si la ligne manque.
+p_tost_moteur <- function(x, y, delta_equiv = NULL) {
+  tb <- engine_table_tests(run_engine(xt = x, yt = y, methode = "premium", segment = 1,
+                                      annexe = "II", nature_donnees = "brutes",
+                                      B = 99, seed = 20260831, delta_equiv = delta_equiv))
+  l <- tb[tb$test == "Equivalence de la constante a zero (TOST)", ]
+  if (nrow(l) == 1L) l$p_asymptotique else NA_real_
+}
+
+# --- C3 : TOST de la constante, probabilite de conclure (issue #118) ----------
+if (OPT_PARTIE %in% c("tout", "tost")) {
+  JEUX_TOST <- jeux_tost()
   ctrl_tost <- character(0)
   t3 <- Sys.time()
   # Etat du generateur de l'appelant, pour le controle de restauration.
@@ -535,13 +627,7 @@ if (OPT_PARTIE %in% c("tout", "tost")) {
     obs <- test_tost_intercept(x, J$y, fit$pi, theta = THETA_TOST)
     # Controle de transcription : ligne TOST de run_engine() (theta_equiv par
     # defaut, 0,10) sur le jeu observe et sur le premier jeu simule.
-    p_moteur <- vapply(list(J$y, Y[[1]]), function(y) {
-      tb <- engine_table_tests(run_engine(xt = x, yt = y, methode = "premium", segment = 1,
-                                          annexe = "II", nature_donnees = "brutes",
-                                          B = 99, seed = 20260831))
-      l <- tb[tb$test == "Equivalence de la constante a zero (TOST)", ]
-      if (nrow(l) == 1L) l$p_asymptotique else NA_real_
-    }, numeric(1))
+    p_moteur <- vapply(list(J$y, Y[[1]]), function(y) p_tost_moteur(x, y), numeric(1))
     list(J = J, T = Tj, fit = fit, M = M, obs = obs, p_moteur = p_moteur,
          y1 = Y[[1]], y1_isole = engine_sous_graine(J$graine, usp_simuler(fit)))
   })
@@ -767,6 +853,265 @@ if (OPT_PARTIE %in% c("tout", "normalite")) {
   FICHIERS_118$normalite <- list(section = section_norm, controles = ctrl_norm)
 }
 
+# --- C5 : niveau du TOST de la constante a la frontiere a = +/- Delta (#219) --
+# Protocole dans l'en-tete (C5). Partie executee seule (--partie
+# tost-frontiere), hors de --partie tout.
+if (OPT_PARTIE == "tost-frontiere") {
+  JEUX_FR <- jeux_tost()
+  POIDS_FR <- c(W1 = "outil, fit*$pi", W2 = "oracle, FIT0$pi", W0 = "MCO d'avant #215, poids constants")
+  MARGES_FR <- c(estimee = "\u0394* = \u03b8 \u00b7 \u0233*", a_priori = "delta_abs = \u03b8 \u00b7 E[\u0232]")
+  FRONT_FR <- c(moins = "a\u208b = \u2212\u03b8\u03b2x\u0304/(1+\u03b8)", zero = "a = 0",
+                plus = "a\u208a = \u03b8\u03b2x\u0304/(1\u2212\u03b8)")
+  # Cellules (poids x marge), dans l'ordre de stockage.
+  CELL_FR <- expand.grid(marge = names(MARGES_FR), poids = names(POIDS_FR), stringsAsFactors = FALSE)
+  CELL_FR <- CELL_FR[, c("poids", "marge")]
+  ctrl_fr <- character(0)
+  t5 <- Sys.time()
+  rng_avant_fr <- list(RNGkind(), get0(".Random.seed", envir = globalenv(), inherits = FALSE))
+  MES_FR <- lapply(JEUX_FR, function(J) {
+    x <- J$x; Tj <- length(x)
+    FIT0 <- usp_ajuster(x, J$y)
+    # Flux de C3 (meme graine, meme expression) : L* = usp_simuler(FIT0),
+    # tous tires avant toute evaluation ; communs aux trois valeurs de a.
+    L <- engine_sous_graine(J$graine, lapply(seq_len(OPT_R), function(b) usp_simuler(FIT0)))
+    # W0 : pi0 tel que (x/xbar)^2 expm1(1/pi0) = 1, d'ou des poids
+    # usp_poids_gls() constants (TOST MCO d'avant #215).
+    pi0 <- 1 / log1p((mean(x) / x)^2)
+    w0 <- usp_poids_gls(x, pi0)
+    bx <- FIT0$beta * mean(x)
+    A <- c(moins = -THETA_TOST * bx / (1 + THETA_TOST), zero = 0, plus = THETA_TOST * bx / (1 - THETA_TOST))
+    par_a <- lapply(names(A), function(na) {
+      a <- A[[na]]
+      dabs <- THETA_TOST * (a + bx)        # theta E[Ybar] ; = |a| aux frontieres
+      # statut : ok, refus (#188), erreur (usp_ajuster()), ynonpos (y* <= 0)
+      statut <- character(OPT_R)
+      # V[cellule, grandeur, b] ; code : 0 calcule, 1 non applicable, 2 erreur
+      V <- array(NA_real_, c(nrow(CELL_FR), 5L, OPT_R),
+                 dimnames = list(paste(CELL_FR$poids, CELL_FR$marge), c("p", "a", "se", "delta", "code"), NULL))
+      for (b in seq_len(OPT_R)) {
+        y <- a + L[[b]]
+        if (any(!is.finite(y)) || any(y <= 0)) { statut[b] <- "ynonpos"; next }
+        fs <- tryCatch(usp_ajuster(x, y), error = function(e) NULL)
+        if (is.null(fs)) { statut[b] <- "erreur"; next }
+        statut[b] <- if (isTRUE(usp_valider_ajustement(fs, "premium")$ok)) "ok" else "refus"
+        pis <- list(W1 = fs$pi, W2 = FIT0$pi, W0 = pi0)
+        for (k in seq_len(nrow(CELL_FR))) {
+          r <- tryCatch(test_tost_intercept(x, y, pis[[CELL_FR$poids[k]]], theta = THETA_TOST,
+                                            delta_abs = if (CELL_FR$marge[k] == "a_priori") dabs),
+                        error = function(e) NULL)
+          V[k, , b] <- if (is.null(r)) c(NA, NA, NA, NA, 2)
+                       else if (!is.na(r$non_applicable)) c(NA, NA, NA, NA, 1)
+                       else c(r$p, r$a, r$se, r$delta, 0)
+        }
+      }
+      list(a = a, dabs = dabs, statut = statut, V = V,
+           b1 = match("ok", statut), y1 = if (!is.na(match("ok", statut))) a + L[[match("ok", statut)]])
+    })
+    names(par_a) <- names(A)
+    list(J = J, T = Tj, FIT0 = FIT0, pi0 = pi0, w0 = w0, bx = bx, par_a = par_a,
+         L1 = L[[1]], L1_isole = engine_sous_graine(J$graine, usp_simuler(FIT0)))
+  })
+  duree_fr <- as.numeric(difftime(Sys.time(), t5, units = "secs"))
+
+  # TOST transcrit independamment de test_tost_intercept() (controle des
+  # cellules W0 et W2, que run_engine() ne calcule pas) : lm() pondere aux
+  # poids w (constants pour W0), regle du maximum, t(T - 2).
+  tost_transcrit <- function(x, y, w, Delta) {
+    co <- summary(stats::lm(y ~ x, weights = w))$coefficients
+    a <- co[1, 1]; se <- co[1, 2]
+    max(stats::pt((a + Delta) / se, length(x) - 2, lower.tail = FALSE),
+        stats::pt((a - Delta) / se, length(x) - 2, lower.tail = TRUE))
+  }
+  NOM_A <- c(moins = "a\u208b", zero = "a = 0", plus = "a\u208a")
+  for (m in MES_FR) {
+    cj <- m$J$code; x <- m$J$x
+    ctrl_fr <- c(ctrl_fr, controle(!is.null(m$w0) && max(abs(m$w0 / m$w0[1] - 1)) < 1e-12,
+      sprintf("C5 %s, W0 : poids usp_poids_gls(x, pi0) constants, max|w/w\u2081 \u2212 1| < 1e-12 (mesur\u00e9 : %s)",
+              cj, if (is.null(m$w0)) "poids invalides" else format(max(abs(m$w0 / m$w0[1] - 1)), digits = 3))))
+    ctrl_fr <- c(ctrl_fr, controle(identical(m$L1, m$L1_isole),
+      sprintf("C5 %s, premier L* du flux identique \u00e0 un tirage isol\u00e9 sous la m\u00eame graine (flux de C3)", cj)))
+    for (na in names(m$par_a)) {
+      pa <- m$par_a[[na]]; b1 <- pa$b1
+      # Premiere p de chaque cellule (premiere replication retenue) : W1
+      # contre la ligne TOST de run_engine() (marge estimee : theta_equiv par
+      # defaut ; marge a priori : delta_equiv = dabs) ; W0 et W2 contre la
+      # transcription independante.
+      ok_prem <- !is.na(b1) && all(vapply(seq_len(nrow(CELL_FR)), function(k) {
+        p1 <- pa$V[k, "p", b1]
+        Dk <- if (CELL_FR$marge[k] == "a_priori") pa$dabs else THETA_TOST * mean(pa$y1)
+        ref <- switch(CELL_FR$poids[k],
+          W1 = tryCatch(p_tost_moteur(x, pa$y1, if (CELL_FR$marge[k] == "a_priori") pa$dabs),
+                        error = function(e) NA_real_),
+          W2 = tost_transcrit(x, pa$y1, 1 / (x^2 * expm1(1 / m$FIT0$pi)), Dk),
+          W0 = tost_transcrit(x, pa$y1, NULL, Dk))
+        isTRUE(all.equal(p1, ref, tolerance = 1e-10))
+      }, logical(1)))
+      ctrl_fr <- c(ctrl_fr, controle(ok_prem,
+        sprintf(paste("C5 %s, %s, premi\u00e8re p de chaque cellule (r\u00e9plication %s) = p_asymptotique de la",
+                      "ligne TOST de run_engine() (W1, deux marges) ou TOST transcrit par lm() (W0, W2)"),
+                cj, NOM_A[[na]], format(b1))))
+      # p < alpha <=> Delta - |a| > t_{1-alpha, T-2} se, cellule par cellule.
+      ok_eq <- all(vapply(seq_len(nrow(CELL_FR)), function(k) {
+        f <- is.finite(pa$V[k, "p", ])
+        all(vapply(ALPHAS_118, function(al) identical(
+          pa$V[k, "p", f] < al,
+          pa$V[k, "delta", f] - abs(pa$V[k, "a", f]) > stats::qt(1 - al, m$T - 2) * pa$V[k, "se", f]), logical(1)))
+      }, logical(1)))
+      ctrl_fr <- c(ctrl_fr, controle(ok_eq,
+        sprintf("C5 %s, %s, conclusion (p < \u03b1) \u00e9quivalente \u00e0 \u0394 \u2212 |\u00e2| > t(1 \u2212 \u03b1, T \u2212 2) se(\u00e2), r\u00e9plication par r\u00e9plication", cj, NOM_A[[na]])))
+      # Marge a priori : delta restitue = theta E[Ybar] ; aux frontieres, |a|.
+      dm <- pa$V[CELL_FR$marge == "a_priori", "delta", ]
+      ok_marge <- all(dm[is.finite(dm)] == pa$dabs) &&
+        (na == "zero" || isTRUE(all.equal(pa$dabs, abs(pa$a), tolerance = 1e-12)))
+      ctrl_fr <- c(ctrl_fr, controle(ok_marge,
+        sprintf("C5 %s, %s, marge fix\u00e9e a priori = \u03b8(a + \u03b2x\u0304)%s", cj, NOM_A[[na]],
+                if (na == "zero") "" else " = |a|")))
+    }
+  }
+  # Releve apres la boucle de controles (appels de run_engine() compris).
+  rng_apres_fr <- list(RNGkind(), get0(".Random.seed", envir = globalenv(), inherits = FALSE))
+  duree_ctrl_fr <- as.numeric(difftime(Sys.time(), t5, units = "secs")) - duree_fr
+  ctrl_fr <- c(ctrl_fr, controle(identical(rng_avant_fr, rng_apres_fr),
+    "C5, RNGkind() et .Random.seed de l'appelant restaur\u00e9s apr\u00e8s les tirages et les contr\u00f4les (run_engine() compris)"))
+
+  # Lecture d'un taux a la frontiere (specification d'actuary, #175,
+  # commentaire 6058041254) : tenu si la borne basse de l'IC <= alpha ;
+  # depassement mineur si l'IC est au-dessus de alpha et l'estimation
+  # <= 1,5 alpha ; distorsion materielle si la borne basse > 1,5 alpha ;
+  # depassement non tranche (classe ajoutee par le mainteneur, PR #228,
+  # commentaire 6062485163) si la borne basse est dans ]alpha ; 1,5 alpha] et
+  # l'estimation > 1,5 alpha.
+  lecture_fr <- function(k, n, al) {
+    if (n == 0L) return("\u2014")
+    ci <- ic_cp(k, n)
+    if (ci[1] <= al) "tenu"
+    else if (ci[1] > 1.5 * al) "**distorsion mat\u00e9rielle**"
+    else if (k / n <= 1.5 * al) "d\u00e9passement mineur"
+    else "**d\u00e9passement non tranch\u00e9**"
+  }
+  # Regle du majorant (meme commentaire) : e replications ecartees pour le
+  # couple (jeu, a) ; si e > 0, classe recalculee au taux (k + e) / (n + e).
+  majorant_fr <- function(k, n, e, al) {
+    if (e == 0L) return("e = 0")
+    c0 <- lecture_fr(k, n, al); c1 <- lecture_fr(k + e, n + e, al)
+    if (identical(c0, c1)) sprintf("classe stable (e = %d)", e)
+    else sprintf("**change avec le majorant** (e = %d : %s)", e, gsub("**", "", c1, fixed = TRUE))
+  }
+  cell_txt <- function(p, al) {
+    k <- sum(p < al); n <- length(p)
+    if (n == 0L) return(c("0 / 0", "\u2014", "\u2014"))
+    ci <- ic_cp(k, n)
+    c(sprintf("%d / %d", k, n), num(k / n, 4), sprintf("[%s ; %s]", num(ci[1], 4), num(ci[2], 4)))
+  }
+  ORDRE_A <- c("moins", "plus", "zero")
+  lignes_fr <- unlist(lapply(MES_FR, function(m) unlist(lapply(ORDRE_A, function(na) {
+    pa <- m$par_a[[na]]; ok <- pa$statut == "ok"; e <- sum(!ok)
+    vapply(seq_len(nrow(CELL_FR)), function(k) {
+      p <- pa$V[k, "p", ok]; f <- is.finite(p)
+      lect <- function(al) if (na == "zero") "puissance (a = 0)" else lecture_fr(sum(p[f] < al), sum(f), al)
+      maj <- function(al) if (na == "zero") "—" else majorant_fr(sum(p[f] < al), sum(f), e, al)
+      ligne_md(m$J$code, FRONT_FR[[na]], num(pa$a, 4), CELL_FR$poids[k], MARGES_FR[[CELL_FR$marge[k]]],
+               paste(cell_txt(p[f], 0.10), collapse = " | "), lect(0.10), maj(0.10),
+               paste(cell_txt(p[f], 0.05), collapse = " | "), lect(0.05), maj(0.05),
+               sum(pa$V[k, "code", ok] == 1), sum(pa$V[k, "code", ok] == 2))
+    }, "")
+  }))))
+  lignes_statut <- unlist(lapply(MES_FR, function(m) vapply(ORDRE_A, function(na) {
+    s <- m$par_a[[na]]$statut
+    ligne_md(m$J$code, FRONT_FR[[na]], num(m$par_a[[na]]$a, 4), num(m$par_a[[na]]$dabs, 4), length(s),
+             sum(s == "ynonpos"), sum(s == "erreur"), sum(s == "refus"), sum(s == "ok"))
+  }, "")))
+  # a = 0, W1, marge estimee, a la maniere de C3 : denominateur des
+  # reajustements reussis, refus de #188 compris (C3 n'applique pas
+  # usp_valider_ajustement()) ; meme flux, meme calcul : egal au tableau C3.a
+  # de --partie tost a R et graine egaux.
+  lignes_c3 <- unlist(lapply(MES_FR, function(m) {
+    pa <- m$par_a[["zero"]]; reussi <- pa$statut %in% c("ok", "refus")
+    p <- pa$V["W1 estimee", "p", reussi]
+    vapply(ALPHAS_118, function(al) ligne_md(m$J$code, num(al, 2), paste(cellules_taux(p, al), collapse = " | "),
+                                             num_p(min(p)), sum(!reussi)), "")
+  }))
+  # Rapprochement de C5.c avec le tableau versionne de C3 (avis d'actuary) :
+  # a R = 20 000 et --graine 20260927 seulement ; non bloquant (hors
+  # controles). Comptes du tableau C3.a de
+  # docs/tableaux/20261007-issue215-tost.md (commit a7724d4).
+  REF_C3_215 <- data.frame(jeu = c("J1", "J1", "J2", "J2"), alpha = c(0.10, 0.05, 0.10, 0.05),
+                           k = c(0L, 0L, 8708L, 4098L), n = 20000L, stringsAsFactors = FALSE)
+  rapprochement_c5c <- function(comptes, R, graine) {
+    if (R != 20000L || graine != 20260927) return(character(0))
+    ecarts <- unlist(lapply(seq_len(nrow(REF_C3_215)), function(i) {
+      r <- REF_C3_215[i, ]
+      j <- which(comptes$jeu == r$jeu & abs(comptes$alpha - r$alpha) < 1e-12)
+      if (length(j) != 1L) return(sprintf("%s, \u03b1 = %s : absent de C5.c", r$jeu, num(r$alpha, 2)))
+      if (isTRUE(comptes$k[j] == r$k && comptes$n[j] == r$n)) return(NULL)
+      sprintf("%s, \u03b1 = %s : C5.c %s / %s, tableau %d / %d", r$jeu, num(r$alpha, 2),
+              format(comptes$k[j]), format(comptes$n[j]), r$k, r$n)
+    }))
+    c(paste("Rapprochement de C5.c avec le tableau C3.a de docs/tableaux/20261007-issue215-tost.md (commit a7724d4 ;",
+            "J1 0 / 20000 \u00e0 \u03b1 = 0,10 et 0,05 ; J2 8708 / 20000 \u00e0 0,10 et 4098 / 20000 \u00e0 0,05 ;",
+            "non bloquant) :",
+            if (length(ecarts)) paste0("**\u00e9cart** : ", paste(ecarts, collapse = " ; "), ".") else "identique."), "")
+  }
+  comptes_c5c <- do.call(rbind, lapply(MES_FR, function(m) {
+    pa <- m$par_a[["zero"]]; reussi <- pa$statut %in% c("ok", "refus")
+    p <- pa$V["W1 estimee", "p", reussi]
+    data.frame(jeu = m$J$code, alpha = ALPHAS_118, k = vapply(ALPHAS_118, function(al) sum(p < al), integer(1)),
+               n = sum(reussi), stringsAsFactors = FALSE)
+  }))
+  ligne_rappr_fr <- rapprochement_c5c(comptes_c5c, OPT_R, OPT_GRAINE)
+  section_fr <- c(
+    "### C5 -- TOST de la constante : niveau \u00e0 la fronti\u00e8re a = \u00b1\u0394, T = 8 (issue #219)", "",
+    paste("Statut : **constat de simulation** du taux de conclusion **\u00e0 tort** \u00e0 l'\u00e9quivalence quand la",
+          "constante vraie vaut \u00b1\u0394, \u0394 = \u03b8 E[\u0232], \u03b8 = 0,10. G\u00e9n\u00e9rateur : Y*_t = a + L*_t, L* =",
+          "usp_simuler(FIT0), FIT0 = usp_ajuster() sur le jeu observ\u00e9 (x fixe) : E[Y_t] = a + \u03b2x_t et",
+          "variance r\u00e9glementaire exacte. a\u208a = \u03b8\u03b2x\u0304/(1 \u2212 \u03b8) et a\u208b = \u2212\u03b8\u03b2x\u0304/(1 + \u03b8) placent a sur",
+          "\u00b1\u03b8 E[\u0232]. Chaque y* est r\u00e9ajust\u00e9 par usp_ajuster() ; refus de #188 (usp_valider_ajustement()),",
+          "erreurs et y* \u2264 0 \u00e9cart\u00e9s et compt\u00e9s ; le taux porte sur les r\u00e9plications retenues",
+          "communes aux six cellules ; dans chaque cellule, cas non applicables et erreurs du test retir\u00e9s du",
+          "d\u00e9nominateur et compt\u00e9s. p = test_tost_intercept(x, y*, \u03c0, \u03b8 = 0,10[, delta_abs]) : poids W1 (outil,",
+          "fit*$pi), W2 (oracle, FIT0$pi), W0 (poids constants : TOST MCO d'avant #215) ; marge estim\u00e9e",
+          "\u0394* = \u03b8\u0233* (celle de l'outil) ou fix\u00e9e a priori, delta_abs = \u03b8 E[\u0232] = \u03b8(a + \u03b2x\u0304).",
+          "Conclusion si p < \u03b1. Lecture (sp\u00e9cification d'actuary, #175, commentaire 6058041254) : tenu si",
+          "la borne basse de l'IC \u2264 \u03b1 ; d\u00e9passement mineur si l'IC est au-dessus de \u03b1 et l'estimation",
+          "\u2264 1,5\u03b1 ; distorsion mat\u00e9rielle si la borne basse > 1,5\u03b1 ; d\u00e9passement non tranch\u00e9",
+          "(classe ajout\u00e9e par le mainteneur, PR #228, commentaire 6062485163) si la borne basse est dans",
+          "]\u03b1 ; 1,5\u03b1] et l'estimation > 1,5\u03b1 : d\u00e9passement significatif, mat\u00e9rialit\u00e9 non \u00e9tablie \u00e0 R",
+          "donn\u00e9. Suites : tenu et d\u00e9passement mineur, aucune ; distorsion mat\u00e9rielle et d\u00e9passement non",
+          "tranch\u00e9, d\u00e9cision du mainteneur, renvoi \u00e0 #216 et #217. Colonne a = 0 : probabilit\u00e9 de",
+          "conclure (puissance), non un niveau."), "",
+    paste("R\u00e8gle de lecture du d\u00e9nominateur (m\u00eame commentaire) : le taux est conditionnel au rendu d'un",
+          "r\u00e9sultat par l'outil (d\u00e9nominateur commun = r\u00e9plications retenues ; comparaisons W0/W1/W2",
+          "appari\u00e9es). Pour un couple (jeu, a) avec e > 0 r\u00e9plications \u00e9cart\u00e9es (y* \u2264 0, erreurs, refus",
+          "de #188 ; C5.b), la colonne \u00ab Classe avec le majorant \u00bb v\u00e9rifie que la classe reste la m\u00eame",
+          "avec le taux majorant (k + e)/(n + e) : \u00ab classe stable \u00bb, ou \u00ab change avec le majorant \u00bb et",
+          "la classe obtenue ; \u00ab e = 0 \u00bb sans r\u00e9plication \u00e9cart\u00e9e."), "",
+    sprintf("R\u00e9plications : %d par jeu et par valeur de a (L* communs aux trois valeurs). Graines : flux de C3, J1 %s ; J2 %s.",
+            OPT_R, format(OPT_GRAINE + 3, scientific = FALSE), format(OPT_GRAINE + 4, scientific = FALSE)), "",
+    "**C5.a -- Taux de conclusion d'\u00e9quivalence (p < \u03b1), par jeu, valeur de a, poids et marge**", "",
+    entete_md(c("Jeu", "a", "Valeur de a", "Poids", "Marge",
+                "Conclusions (\u03b1 = 0,10)", "Taux", "IC 95 % (C-P)", "Lecture", "Classe avec le majorant",
+                "Conclusions (\u03b1 = 0,05)", "Taux", "IC 95 % (C-P)", "Lecture", "Classe avec le majorant",
+                "Non applicables", "Erreurs du test")),
+    lignes_fr, "",
+    "**C5.b -- R\u00e9plications \u00e9cart\u00e9es, par jeu et valeur de a**", "",
+    entete_md(c("Jeu", "a", "Valeur de a", "Marge a priori \u03b8 E[\u0232]", "R", "y* \u2264 0",
+                "Erreurs de r\u00e9ajustement", "Refus de #188", "Retenues")),
+    lignes_statut, "",
+    paste("**C5.c -- a = 0, W1, marge estim\u00e9e, \u00e0 la mani\u00e8re de C3** (r\u00e9ajustements r\u00e9ussis, refus de #188",
+          "compris ; m\u00eame flux et m\u00eame calcul que C3 : \u00e9gal au tableau C3.a de --partie tost \u00e0 R et graine \u00e9gaux)"), "",
+    entete_md(c("Jeu", "\u03b1", "Conclusions / r\u00e9ajustements r\u00e9ussis", "Taux", "IC 95 % (C-P)", "p minimale",
+                "\u00c9checs de r\u00e9ajustement ou y* \u2264 0")),
+    lignes_c3, "", ligne_rappr_fr,
+    paste0("Jeux : ", paste(vapply(MES_FR, function(m) sprintf("%s : %s ; \u03b2x\u0304 = %s", m$J$code, m$J$libelle,
+                                                                num(m$bx, 4)), ""), collapse = " ; "), "."),
+    sprintf(paste("Dur\u00e9e de C5 : %.0f s de simulation (%s s par r\u00e9plication, par jeu et par valeur de a)",
+                  "et %.0f s de contr\u00f4les (dont run_engine())."), duree_fr,
+            num(duree_fr / (OPT_R * length(MES_FR) * 3), 4), duree_ctrl_fr), "")
+  sortie <- c(sortie, section_fr)
+  controles <- c(controles, ctrl_fr)
+  FICHIERS_118[["tost-frontiere"]] <- list(section = section_fr, controles = ctrl_fr)
+}
+
 duree <- as.numeric(difftime(Sys.time(), t_debut, units = "secs"))
 sortie <- c(sortie, "### Contr\u00f4les d'int\u00e9grit\u00e9", "", paste("-", controles), "",
             sprintf("Dur\u00e9e totale : %.0f s.", duree))
@@ -774,12 +1119,13 @@ ecrire_console(sortie)
 
 # --- Fichiers de docs/tableaux/ (seulement sur --ecrire, issue #118) ----------
 if (!is.na(OPT_ECRIRE) && !length(FICHIERS_118))
-  message("--ecrire ignore : aucun fichier pour --partie ", OPT_PARTIE, " (seules tost et normalite en ecrivent)")
+  message("--ecrire ignore : aucun fichier pour --partie ", OPT_PARTIE, " (seules tost, normalite et tost-frontiere en ecrivent)")
 if (!is.na(OPT_ECRIRE) && length(FICHIERS_118)) {
   # tous les chemins controles par la garde d'ecrasement (#173) avant toute
   # ecriture
   # Issue du fichier : #215 pour la partie tost depuis le modele auxiliaire
-  # pondere (l'ancien tableau 20260930-issue118-tost.md est garde), #118 sinon.
+  # pondere (l'ancien tableau 20260930-issue118-tost.md est garde), #219 pour
+  # la partie tost-frontiere, #118 sinon.
   CHEMINS_118 <- chemins_118(names(FICHIERS_118))
   if (!INTEGRITE) {
     message("--ecrire : controles d'integrite en echec, aucun fichier ecrit")
@@ -791,7 +1137,7 @@ if (!is.na(OPT_ECRIRE) && length(FICHIERS_118)) {
       lignes <- c(
         sprintf("## Constats de niveau et de puissance \u00e0 T = 8 (issue #%s)", ISSUE_118[[nom]]), "",
         sprintf("Param\u00e8tres : R=%d ; graine=%s ; partie=%s ; T=%s", OPT_R,
-                format(OPT_GRAINE, scientific = FALSE), nom, if (nom == "tost") "8" else "8 et 20"), "",
+                format(OPT_GRAINE, scientific = FALSE), nom, if (nom == "normalite") "8 et 20" else "8"), "",
         entete_md(c("Grandeur", "Valeur")),
         ligne_md("Plateforme de calcul (R, syst\u00e8me, machine, BLAS, LAPACK)", plateforme_calcul()),
         ligne_md("G\u00e9n\u00e9rateur", paste(ENGINE_RNG_KIND, collapse = ", ")),
