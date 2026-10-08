@@ -19,7 +19,7 @@
 #  intervalle de Clopper-Pearson a 95 % (incertitude Monte-Carlo sur le taux,
 #  fonction de R ; elle ne dit rien de l'erreur d'approximation en T).
 #  Tableaux : T1, reperes des diagnostics (taux simules) ; T1 bis, regle
-#  de restitution R4 (convention, #44 : pente et Fisher restitues en
+#  de restitution R4 (convention, #44 : pente (test de Pitman, #169) restituee en
 #  diagnostic) et position de delta chapeau (au bord, dont bord 0, dont
 #  bord 1), taux simules, qui ne sont pas des reperes de diagnostic ; repere
 #  des leviers 2k/T hors des taux simules : les hat values de lm(y ~ x - 1)
@@ -34,7 +34,7 @@
 #    l'ecart relatif max sur sigma_USP, l'IC bootstrap 90 % de sigma_USP et
 #    sa largeur relative, puis usp_tests() avec robustesse : les reperes sont
 #    lus sur les lignes de la table produite par le moteur ACTUEL (lignes
-#    Cook, leviers, R2, jackknife, IC ; pente et Fisher restitues en
+#    Cook, leviers, R2, jackknife, IC ; pente (test de Pitman) restituee en
 #    diagnostic quand la pente n'est pas identifiable, regle R4 de #44 ;
 #    lignes non applicables, #59 ; tests inoperants restitues INFO, regle R1
 #    de #44).
@@ -320,7 +320,7 @@ ic_cp <- function(k, n) if (n > 0) {
 LIGNE_COOK  <- "Points influents (distance de Cook)"
 LIGNE_LEV   <- "Leviers (hat values)"
 LIGNE_R2    <- "Coefficient de determination R2"
-LIGNE_PENTE <- "Test de Student sur la pente (lm(y~x))"
+LIGNE_PENTE <- "Test de Pitman sur la pente (lien positif pertes / volume)"
 LIGNE_FISH  <- "Test de Fisher (significativite globale)"
 LIGNE_JACK  <- "Sensibilite au retrait d'une annee (jackknife)"
 LIGNE_IC    <- "Largeur relative de l'IC bootstrap 90%"
@@ -337,7 +337,7 @@ REPERES <- list(
   list(cle = "r2", groupe = "diag", libelle = "R\u00b2 de lm(y ~ x) en dessous", seuil = "0,5",
        source = "usp_tests() (d\u00e9tail de la ligne)"),
   list(cle = "pente", groupe = "regle",
-       libelle = "R\u00e8gle de restitution R4 (convention, #44) : Student pente et Fisher restitu\u00e9s en diagnostic",
+       libelle = "R\u00e8gle de restitution R4 (convention, #44) : test de Pitman sur la pente restitu\u00e9 en diagnostic (puissance unilat\u00e9rale, #169)",
        seuil = "puissance approch\u00e9e < 1/2", source = "SEUIL_PUISSANCE_PENTE (r\u00e8gle R4, #44)"),
   list(cle = "jack10", groupe = "diag", libelle = "Jackknife : \u00e9cart relatif max sur \u03c3_USP au-dessus", seuil = "10 %",
        source = "REPERE_INFLUENCE_SIGMA ; fiche du jackknife"),
@@ -570,7 +570,7 @@ traiter <- function(x, y, graine_ic) {
   fb$largeur_ic <- icb$largeur
   i_jack <- if (jack_calcule) which.max(abs(d_jack)) else NULL
   rob <- list(jack_annee = i_jack, jack_usp = if (jack_calcule) d_jack[i_jack] / param$sigma_usp else NULL)
-  so <- .mc_evaluer(USP_CATALOGUE_MC, .usp_contexte_mc(fb$x, fb$y, fb$z))
+  so <- .mc_evaluer(USP_CATALOGUE_MC, .usp_contexte_mc(fb$x, fb$y, fb$z, fb$pi))
   boot <- list(stats_obs = as.list(so), p_mc = so * 0 + 0.5, err_mc = so * 0 + 0.01,
                motif_mc = stats::setNames(rep(NA_character_, length(so)), names(so)))
   tt <- usp_tests(fb, boot, ALPHA, theta_equiv = THETA_EQUIV, delta_equiv = NULL,

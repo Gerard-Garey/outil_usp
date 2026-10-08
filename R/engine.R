@@ -236,12 +236,16 @@ TOLERANCE_CONFORME_SIGMA <- 1e-12
 # --- Ex aequo des tests de rang et de signe (issue #112) ---------------------
 # SEULE definition de l'ex aequo du moteur. Deux valeurs a et b sont ex aequo si
 #     |a - b| <= TOL_EX_AEQUO * max(plancher, |a|, |b|),
-# en deux regimes :
-#   - plancher = 1 (defaut, celui de engine_p_mc()) pour r_t, z_t, u_t et les
-#     residus de Mack : absolu a 1e-12 pour ces grandeurs d'ordre 1 (a z_t
-#     voisin de 0, une tolerance purement relative serait denuee de sens) ;
-#   - plancher = 0 pour les volumes x_t (.usp_aplatir_volumes()) : tolerance
-#     purement relative, invariante d'unite (#110).
+# en trois regimes :
+#   - plancher = 1 (defaut, celui de engine_p_mc()) pour z_t et les residus
+#     de Mack : absolu a 1e-12 pour ces grandeurs d'ordre 1 (a z_t voisin de
+#     0, une tolerance purement relative serait denuee de sens) ;
+#   - plancher = 0 pour les volumes x_t (.usp_aplatir_volumes(), #110) et les
+#     ratios r_t (.usp_aplatir_ratios(), #187) : tolerance purement relative,
+#     invariante d'unite ;
+#   - plancher = max|r| pour les ratios centres u_t = r_t - moyenne(r)
+#     (.usp_plancher_u(), #187, decision Q-187-1 b) : tolerance relative a
+#     l'echelle des operandes avant centrage, invariante d'unite.
 # Perimetre : les tests de rang et de signe de la branche lognormale
 # (Cox-Stuart, Spearman ratio / volume et ratio / temps, Mann-Kendall,
 # Smirnov sur z), le test des suites (Runs, Runsr et suites des residus de
@@ -255,15 +259,30 @@ TOLERANCE_CONFORME_SIGMA <- 1e-12
 # test_brown_forsythe() et de engine_plots_data(), et le tri par volume de
 # test_goldfeld_quandt().
 # Valeur (note d'actuary du 28/09/2026 sur #112, decision du mainteneur,
-# garantie corrigee a la validation de fin de branche E1b) : le bruit
-# d'arrondi de y_t / x_t est de l'ordre de 1e-16 relatif, celui de z_t de
-# 1e-15 absolu ; deux ratios distincts de saisies a au plus cinq chiffres
-# significatifs different d'au moins 1e-10 en relatif, donc d'au moins
-# 1e-12 en absolu des que les ratios sont d'ordre 1e-2 ou plus (tolerance
-# absolue sous 1 : plancher 1) ; a six chiffres l'ecart relatif minimal,
-# 1e-12, coincide avec la tolerance et deux ratios distincts peuvent etre
-# fusionnes (499999/999999 et 499998/999997). Pour z_t, aucune borne n'est
-# etablie.
+# garantie corrigee a la validation de fin de branche E1b, puis a #187) : le
+# bruit d'arrondi de y_t / x_t est de l'ordre de 1e-16 relatif, celui de z_t
+# de 1e-15 absolu.
+# r_t (plancher 0 depuis #187 ; plancher 1, tolerance absolue sous 1,
+# auparavant) : la tolerance est relative a toute echelle, deux ratios
+# adjacents dans l'ordre trie n'etant fusionnes que si leur ecart relatif est
+# au plus 1e-12 (chainage ci-dessous). Deux ratios distincts de saisies a au
+# plus cinq chiffres significatifs different d'au moins 1e-10 en relatif,
+# cent fois la tolerance : aucune fusion, quel que soit leur ordre de
+# grandeur (garantie ; mesure du 06/10/2026 : 99999/10000 et 99998/10000
+# restent distincts a r x 1e-30, 1 et 1e30). A six chiffres l'ecart relatif
+# minimal, 1e-12, coincide avec la tolerance, sans marge : deux ratios
+# distincts peuvent encore etre fusionnes (999999/999998 et 999998/999997,
+# ecart relatif calcule 9,9987e-13, fusionnes aux planchers 0 et 1 ;
+# 499999/999999 et 499998/999997, ecart relatif 2e-12, fusionnes au
+# plancher 1 seulement).
+# u_t (plancher max|r|, .usp_plancher_u()) : deux ratios distincts r_i, r_j
+# ne sont fusionnes sur u que si |r_i - r_j| <= 1e-12 max r (a environ
+# 2 ulp de max r pres, arrondi du centrage) ; a cinq chiffres,
+# |r_i - r_j| >= 1e-10 max(r_i, r_j), donc aucune fusion tant que
+# max(r_i, r_j) > 1e-2 max r (S/P des annees dans un facteur inferieur a
+# 100). Mesures du 06/10/2026 dans ce domaine : 0 fusion sur 100 000 paires
+# (actuary), 0 sur 54 837 paires tirees et 0 sur 22 103 paires voisines
+# (m+1)/m, (m+2)/(m+1) (coder). Pour z_t, aucune borne n'est etablie.
 # Aplatissement INTERNE aux tests de rang et de signe : chaque point d'entree
 # aplatit ses propres arguments ; ni les donnees, ni usp_noyau(), ni les
 # autres statistiques (AD, SW, DW, Grubbs, regressions auxiliaires...) ne
@@ -278,7 +297,8 @@ TOL_EX_AEQUO <- 1e-12
 # non-transitivite d'une tolerance) ; chaque groupe recoit sa plus petite
 # valeur. Ordre d'origine conserve. Entrees non finies : erreur.
 # plancher : 1 par defaut (grandeurs d'ordre 1), 0 pour les volumes
-# (.usp_aplatir_volumes()) ; aucune division, pas de debordement.
+# (.usp_aplatir_volumes()) et les ratios r_t, max|r| (.usp_plancher_u())
+# pour les ratios centres u_t (#187) ; aucune division, pas de debordement.
 engine_aplatir_ex_aequo <- function(v, tol = TOL_EX_AEQUO, plancher = 1) {
   if (!all(is.finite(v))) stop("engine_aplatir_ex_aequo() : valeur non finie")
   o <- order(v); s <- v[o]; n <- length(s)
@@ -1150,10 +1170,27 @@ usp_controle_donnees <- function(x, y, alpha = 0.10, bareme = NULL, segment = NU
     add("Absence de doublons parfaits", dup == 0,
         sprintf("%d couple(s) (x,y) duplique(s)", dup))
     ratio <- y / x
+    # Affichage du detail (issue #186) : 3 decimales par defaut ; s'il fait
+    # passer une valeur de l'autre cote d'une borne de la plage
+    # [RATIO_PLAUSIBLE_MIN ; RATIO_PLAUSIBLE_MAX[ (0,0996 lu "0.100",
+    # 4,9996 lu "5.000"), on ajoute des decimales jusqu'a ce que la valeur
+    # affichee soit du meme cote de chaque borne que la valeur calculee. Le
+    # detail rappelle la plage, demi-ouverte, que lit le verdict.
+    cote <- function(v) c(v >= RATIO_PLAUSIBLE_MIN, v < RATIO_PLAUSIBLE_MAX)
+    fmt_ratio <- function(v) {
+      if (!is.finite(v)) return(sprintf("%.3f", v))
+      for (d in 3:20) {
+        ch <- sprintf("%.*f", d, v)
+        if (identical(cote(as.numeric(ch)), cote(v))) return(ch)
+      }
+      ch
+    }
     add("Plausibilite du ratio y/x",
         all(ratio >= RATIO_PLAUSIBLE_MIN & ratio < RATIO_PLAUSIBLE_MAX),
-        sprintf("min = %.3f ; median = %.3f ; max = %.3f",
-                min(ratio), stats::median(ratio), max(ratio)))
+        sprintf("min = %s ; median = %s ; max = %s ; plage plausible [%s ; %s[",
+                fmt_ratio(min(ratio)), fmt_ratio(stats::median(ratio)),
+                fmt_ratio(max(ratio)), sprintf("%g", RATIO_PLAUSIBLE_MIN),
+                sprintf("%g", RATIO_PLAUSIBLE_MAX)))
   } else {
     motif <- if (etabli(x, y)) "controle non etabli : x et y de longueurs differentes"
              else non_etabli
@@ -1682,6 +1719,20 @@ usp_controles_numeriques <- function(fit) {
 usp_volumes_constants <- function(x, tol = TOL_DELTA_BORD)
   diff(range(x)) <= tol * mean(x)
 
+# Pertes constantes (#189) : predicat jumeau de usp_volumes_constants(),
+# SEULE definition du moteur, en relatif a la moyenne, a la meme tolerance
+# TOL_DELTA_BORD (convention de restitution, pas un seuil statistique). A
+# pertes constantes, la variance de y est nulle a cette tolerance pres : la
+# regression de y sur x est sans objet (convention de restitution, comme
+# R13 ; a y exactement constant, la loi de reference du modele auxiliaire
+# MCO n'est pas definie). Entrees : series completes et positives, comme
+# pour usp_volumes_constants() (garanti par engine_valider_donnees()). Lu par test_intercept(), test_lm_complet(),
+# test_tost_intercept(), usp_tests() et engine_valider_donnees().
+# Priorite des motifs : volumes constants (R13) > pertes constantes > marge
+# invalide (TOST) > x ecarte (R12) > statistique non definie.
+usp_pertes_constantes <- function(y, tol = TOL_DELTA_BORD)
+  diff(range(y)) <= tol * mean(y)
+
 # Nombre de volumes distincts k (issue #110) : les regressions auxiliaires
 # polynomiales de degre 2 en x (RESET {x, x^2, x^3}, White {1, x, x^2}) sont
 # de rang min(k, 3) ; a k < 3, test_reset() et test_white() sont non
@@ -2056,8 +2107,15 @@ dw_p_exacte <- function(z) {
 # Wald & Wolfowitz (1940), Ann. Math. Statist. 11, 147-162 (test des suites).
 # Ex aequo (#112) : z aplati a TOL_EX_AEQUO, une valeur a la tolerance de la
 # mediane est ecartee comme une valeur egale.
-test_runs <- function(z) {
-  z <- engine_aplatir_ex_aequo(z)
+# plancher (#187) : celui de engine_aplatir_ex_aequo() ; 1 par defaut (z_t,
+# residus de Mack), 0 pour les ratios r_t (tolerance purement relative),
+# max|r| pour les ratios centres u_t = r_t - moyenne(r) (.usp_plancher_u(),
+# decision Q-187-1 b) : dans les deux cas, invariante d'unite de y par
+# rapport a x.
+# Meme argument, meme sens, dans test_cox_stuart(), mk_p_exacte(),
+# runs_p_exacte(), .runs_effectifs() et test_mann_kendall().
+test_runs <- function(z, plancher = 1) {
+  z <- engine_aplatir_ex_aequo(z, plancher = plancher)
   s <- sign(z - stats::median(z)); s <- s[s != 0]
   n <- length(s); n1 <- sum(s > 0); n2 <- sum(s < 0)
   if (n1 == 0 || n2 == 0) return(list(stat = NA_real_, p = NA_real_, runs = NA))
@@ -2075,8 +2133,8 @@ test_runs <- function(z) {
 # Difference nulle a la tolerance TOL_EX_AEQUO (#112) : v est aplati en tete ;
 # la difference de deux flottants distincts n'etant jamais nulle, d != 0 suit
 # alors exactement la definition partagee de l'ex aequo.
-test_cox_stuart <- function(v) {
-  v <- engine_aplatir_ex_aequo(v)
+test_cox_stuart <- function(v, plancher = 1) {
+  v <- engine_aplatir_ex_aequo(v, plancher = plancher)
   n <- length(v); c0 <- ceiling(n / 2)
   d <- v[(c0 + 1):n] - v[1:(n - c0)]
   n_p <- length(d)
@@ -2110,8 +2168,8 @@ test_cox_stuart <- function(v) {
 
 # p-value bilaterale exacte du test de Mann-Kendall (sans ex aequo).
 # Ex aequo a la tolerance TOL_EX_AEQUO (#112) : v aplati en tete.
-mk_p_exacte <- function(v) {
-  v <- engine_aplatir_ex_aequo(v)
+mk_p_exacte <- function(v, plancher = 1) {
+  v <- engine_aplatir_ex_aequo(v, plancher = plancher)
   n <- length(v)
   if (anyDuplicated(v) > 0) return(NA_real_)   # loi exacte invalide avec ex aequo
   d <- .mk_loi_exacte(n)
@@ -2151,8 +2209,8 @@ mk_p_exacte <- function(v) {
 # modal. A T = 8 (n1 = n2 = 4), valeurs atteignables : 1 (R = 5), 52/70
 # (R = 4, 6), 16/70 (R = 3, 7), 4/70 (R = 2, 8) ; a T = 5 (n1 = n2 = 2) :
 # 2/3 (R = 2, 4), 1 (R = 3).
-runs_p_exacte <- function(z) {
-  z <- engine_aplatir_ex_aequo(z)             # ex aequo a la tolerance (#112)
+runs_p_exacte <- function(z, plancher = 1) {
+  z <- engine_aplatir_ex_aequo(z, plancher = plancher)  # ex aequo a la tolerance (#112)
   sg <- sign(z - stats::median(z)); sg <- sg[sg != 0]
   n1 <- sum(sg > 0); n2 <- sum(sg < 0)
   if (n1 < 1 || n2 < 1) return(NA_real_)
@@ -2185,8 +2243,8 @@ runs_p_min <- function(n1, n2) {
   .p_borne(min(p))
 }
 # Effectifs (n1, n2) de part et d'autre de la mediane, ceux de runs_p_exacte().
-.runs_effectifs <- function(z) {
-  z <- engine_aplatir_ex_aequo(z)             # ex aequo a la tolerance (#112)
+.runs_effectifs <- function(z, plancher = 1) {
+  z <- engine_aplatir_ex_aequo(z, plancher = plancher)  # ex aequo a la tolerance (#112)
   sg <- sign(z - stats::median(z)); sg <- sg[sg != 0]
   c(n1 = sum(sg > 0), n2 = sum(sg < 0))
 }
@@ -2235,23 +2293,30 @@ mk_p_min <- function(n) {
 # signe d'une valeur egale ou quasi egale a la mediane (exemple dans les
 # tests unitaires : 0 sur r, -1 sur u).
 # Sinon NA : la ligne retombe sur la p Monte-Carlo par la hierarchie de add().
-usp_runsr_p_exacte <- function(z, u, pi_constant) {
-  if (!isTRUE(pi_constant) || !.signes_mediane_egaux(z, u)) return(NA_real_)
-  runs_p_exacte(u)
+# Ex aequo (#187) : z a la tolerance des residus (plancher 1), u a celle des
+# ratios centres, plancher_u = .usp_plancher_u(r) = max|r| (decision Q-187-1
+# b), comme a l'observe et dans le catalogue (Runs, Runsr). plancher_u est
+# obligatoire : u seul ne porte pas l'echelle de r.
+usp_runsr_p_exacte <- function(z, u, pi_constant, plancher_u) {
+  if (!isTRUE(pi_constant) ||
+      !.signes_mediane_egaux(z, u, plancher_b = plancher_u)) return(NA_real_)
+  runs_p_exacte(u, plancher = plancher_u)
 }
 # TRUE si les signes de a - med(a) et de b - med(b) coincident terme a terme,
-# a et b aplatis a la tolerance TOL_EX_AEQUO (#112), comme dans test_runs().
-.signes_mediane_egaux <- function(a, b) {
-  a <- engine_aplatir_ex_aequo(a); b <- engine_aplatir_ex_aequo(b)
+# a et b aplatis a la tolerance TOL_EX_AEQUO (#112), comme dans test_runs(),
+# chacun avec son plancher (#187 : max|r| pour u, 1 pour z).
+.signes_mediane_egaux <- function(a, b, plancher_a = 1, plancher_b = 1) {
+  a <- engine_aplatir_ex_aequo(a, plancher = plancher_a)
+  b <- engine_aplatir_ex_aequo(b, plancher = plancher_b)
   length(a) == length(b) &&
     isTRUE(all(sign(a - stats::median(a)) == sign(b - stats::median(b))))
 }
 
 # Mann (1945) / Kendall (1975) - test de tendance monotone.
 # Ex aequo a la tolerance TOL_EX_AEQUO (#112) : v aplati en tete (S et
-# correction de variance table(v)).
-test_mann_kendall <- function(v) {
-  v <- engine_aplatir_ex_aequo(v)
+# correction de variance table(v)) ; plancher : voir test_runs() (#187).
+test_mann_kendall <- function(v, plancher = 1) {
+  v <- engine_aplatir_ex_aequo(v, plancher = plancher)
   n <- length(v)
   S <- sum(vapply(1:(n - 1), function(i) sum(sign(v[(i + 1):n] - v[i])), numeric(1)))
   ties <- table(v); tt <- sum(ties * (ties - 1) * (2 * ties + 5))
@@ -2429,12 +2494,17 @@ test_lm_complet <- function(x, y) {
   # x_ecarte (#168) : TRUE sur cette seule branche du garde-fou, FALSE a
   # volumes constants et sur la branche calculee ; usp_tests() y lit le
   # motif du detail des lignes pente et Fisher.
-  na_lm <- function(x_ecarte)
+  # pertes_constantes (#189) : TRUE sur la seule branche des pertes
+  # constantes (usp_pertes_constantes()), testee apres les volumes
+  # constants et avant lm() ; FALSE ailleurs.
+  na_lm <- function(x_ecarte, pertes_constantes = FALSE)
     list(pente = NA_real_, t_pente = NA_real_, p_pente = NA_real_,
          F = NA_real_, ddl1 = NA_integer_, ddl2 = NA_integer_,
          p_F = NA_real_, R2 = NA_real_, R2_ajuste = NA_real_,
-         modele = stats::lm(y ~ 1), x_ecarte = x_ecarte)
+         modele = stats::lm(y ~ 1), x_ecarte = x_ecarte,
+         pertes_constantes = pertes_constantes)
   if (usp_volumes_constants(x)) return(na_lm(FALSE))
+  if (usp_pertes_constantes(y)) return(na_lm(FALSE, pertes_constantes = TRUE))
   m <- stats::lm(y ~ x)
   s <- summary(m)
   if (!"x" %in% rownames(s$coefficients)) return(na_lm(TRUE))
@@ -2452,7 +2522,8 @@ test_lm_complet <- function(x, y) {
     R2           = s$r.squared,
     R2_ajuste    = s$adj.r.squared,
     modele       = m,
-    x_ecarte     = FALSE
+    x_ecarte     = FALSE,
+    pertes_constantes = FALSE
   )
 }
 
@@ -2471,19 +2542,188 @@ test_lm_complet <- function(x, y) {
 # 0,48 simule sur les donnees de test ; 0,136 contre 0,133 a CV = 3 %).
 # SEUIL_PUISSANCE_PENTE = 1/2 est une CONVENTION (repere : "le test a moins
 # d'une chance sur deux de rejeter quand le modele est vrai"), non un seuil
-# statistique : en dessous, les lignes "Student sur la pente" et "Fisher" sont
-# restituees en diagnostic (usp_tests()).
+# statistique : en dessous, la ligne du test de Pitman sur la pente est
+# restituee en diagnostic (usp_tests()).
+# unilateral (#169, decision du mainteneur du 06/10/2026) : puissance du test
+# unilateral (H1 lien positif), P(t > t_{1 - alpha, T - 2} | ncp = lambda),
+# lue par usp_tests() pour la ligne de la pente ; FALSE par defaut (formule
+# bilaterale ci-dessus) pour les autres appelants.
 SEUIL_PUISSANCE_PENTE <- 0.5
-usp_identifiabilite_pente <- function(x, beta, sigma, alpha) {
+usp_identifiabilite_pente <- function(x, beta, sigma, alpha, unilateral = FALSE) {
   T <- length(x)
   if (T < 3 || !is.finite(beta) || !is.finite(sigma) || sigma <= 0 ||
       !is.finite(stats::sd(x)) || usp_volumes_constants(x))
     return(list(lambda = NA_real_, puissance = NA_real_))
   lambda <- sqrt(T - 1) * stats::sd(x) / mean(x) * beta / sigma
-  q <- stats::qt(1 - alpha / 2, T - 2)
-  puissance <- stats::pt(-q, T - 2, ncp = lambda) +
-    stats::pt(q, T - 2, ncp = lambda, lower.tail = FALSE)
+  puissance <- if (unilateral)
+    stats::pt(stats::qt(1 - alpha, T - 2), T - 2, ncp = lambda, lower.tail = FALSE)
+  else {
+    q <- stats::qt(1 - alpha / 2, T - 2)
+    stats::pt(-q, T - 2, ncp = lambda) +
+      stats::pt(q, T - 2, ncp = lambda, lower.tail = FALSE)
+  }
   list(lambda = lambda, puissance = puissance)
+}
+
+# --- Test de Pitman sur la pente (#169, ADR 0002 amende le 06/10/2026) -------
+# Test de permutation de Pitman (1937) : sous H0 "Y_1..Y_T independants de x
+# (echangeables)", conditionnellement aux valeurs observees de y et a x fixe,
+# les T! appariements de y avec x sont equiprobables. La statistique est la
+# correlation r (fonction croissante de t_b et de b_hat a x et {y_t} fixes :
+# meme ordre des appariements). Echelle brute (x, y), sans logarithme.
+# Calcul : x et y centres reduits ; r de chaque appariement par un produit
+# matriciel unique (lignes = permutations) ; r_obs lu sur la ligne identite
+# de ce meme calcul (pas de formule separee, pas de lm()), d'ou p >= 1/T!.
+# Comptage des permutations au moins aussi extremes a TOL_EX_AEQUO pres, en
+# tolerance absolue (|r| <= 1, regime plancher 1 de engine_aplatir_ex_aequo()).
+#   T <= T_MAX_ENUM_PERMUTATION (9, comme n_small de prho.c) : enumeration des
+#     T! appariements, sans alea ; p = k / T! exacte sous H0.
+#   T >= 10 : B permutations uniformes sous engine_sous_graine(seed) (ADR
+#     0004), p = (1 + k) / (B + 1), l'identite comptee ; err_mc =
+#     sqrt(p (1 - p) / B). Restituee par p_mc_ext, hors USP_CATALOGUE_MC.
+# p_min (sens unilateral : plus grande correlation atteignable) : T <= 9, lue
+# sur l'enumeration ; T >= 10, nombre d'appariements comonotones
+# prod_b m_b(y)! prod_a m_a(x)! / prod_{a,b} n_ab! divise par T! (m : effectifs
+# des valeurs egales de x et de y, ex aequo a TOL_EX_AEQUO en relatif,
+# plancher 0 ; n_ab : effectifs des couples de l'appariement trie), et, en
+# bilateral, ajout des appariements antitones de meme |r| ; division par
+# factorial(T) a T <= 170, en echelle log (lfactorial) au-dela, ou factorial()
+# deborde (voir le corps).
+# t : r * sqrt((T - 2) / (1 - r^2)), r borne a [-1, 1] (t = +-Inf a |r| = 1) ;
+# champ restitue, lu par aucune fonction du moteur (la statistique de la
+# ligne est le t de test_lm_complet()).
+# p_bilateral : p de permutation bilaterale (|r|), calculee sur les memes
+# appariements quel que soit unilateral ; restituee pour information dans le
+# detail de la ligne (enumeration seulement) et dans
+# metadata$permutation_pente de run_engine() (decision du mainteneur du
+# 06/10/2026), jamais retenue.
+# x ou y exactement constant apres centrage (S_xx = 0 ou S_yy = 0) : p, r,
+# t et p_min NA. usp_tests()
+# n'appelle pas cette fonction sur une ligne non applicable (volumes
+# constants R13, pertes constantes #189, R12).
+T_MAX_ENUM_PERMUTATION <- 9L
+# Sens du test de Pitman sur la pente (#169), seule definition, lue par
+# usp_tests() (p de permutation, p de Student restituee, R4 par
+# usp_identifiabilite_pente(unilateral = )) et par run_engine() : unilateral,
+# H1 lien positif (decision Q-A du mainteneur du 06/10/2026, maintenue apres
+# reexamen par actuary). Verrou (meme decision) : seule valeur admise,
+# jamais argument de run_engine() ni reglage de l'interface ; toute autre
+# valeur est refusee par .pitman_unilateral().
+SENS_PITMAN_PENTE <- "unilateral"
+.pitman_unilateral <- function(sens = SENS_PITMAN_PENTE) {
+  if (!identical(sens, "unilateral"))
+    stop("SENS_PITMAN_PENTE n'admet que \"unilateral\" (#169) : ", format(sens))
+  TRUE
+}
+.cache_permutations <- new.env(parent = emptyenv())
+# Matrice des T! permutations de 1:T (une par ligne), ligne 1 = identite, par
+# insertion de k en toutes positions (position k d'abord). Mise en cache par T.
+engine_permutations <- function(T) {
+  cle <- paste0("T", T)
+  if (!is.null(.cache_permutations[[cle]])) return(.cache_permutations[[cle]])
+  P <- matrix(1L, 1L, 1L)
+  if (T >= 2L) for (k in 2:T) {
+    n <- nrow(P)
+    Q <- matrix(0L, n * k, k)
+    for (j in k:1) {
+      i <- (k - j) * n + seq_len(n)
+      Q[i, j] <- k
+      Q[i, -j] <- P
+    }
+    P <- Q
+  }
+  if (!identical(P[1, ], seq_len(T)))
+    stop("engine_permutations() : la premiere ligne n'est pas l'identite")
+  .cache_permutations[[cle]] <- P
+  P
+}
+# Nombre d'appariements de y avec x qui reproduisent l'appariement des
+# valeurs aplaties xa (dans l'ordre) avec ya : prod m_a(x)! prod m_b(y)! /
+# prod n_ab!. .usp_log_nb_appariements() en rend le logarithme (lfactorial),
+# lu par usp_permutation_pente() pour p_min en echelle log ;
+# .usp_nb_appariements() le nombre arrondi (tests unitaires).
+.usp_log_nb_appariements <- function(xa, ya) {
+  lf <- function(v) sum(lfactorial(as.vector(table(v))))
+  cpl <- paste(match(xa, unique(xa)), match(ya, unique(ya)))
+  lf(xa) + lf(ya) - lf(cpl)
+}
+.usp_nb_appariements <- function(xa, ya) round(exp(.usp_log_nb_appariements(xa, ya)))
+usp_permutation_pente <- function(x, y, B = 999, seed = 20260831,
+                                  unilateral = TRUE) {
+  T <- length(x)
+  methode <- if (T <= T_MAX_ENUM_PERMUTATION) "enumeration" else "aleatoire"
+  na <- list(r = NA_real_, t = NA_real_, p = NA_real_, p_min = NA_real_,
+             n_perm = NA_real_, methode = methode, err_mc = NA_real_,
+             B = if (methode == "aleatoire") B else NA_real_,
+             unilateral = unilateral, p_bilateral = NA_real_)
+  # Centrage puis division par max|.| avant les carres : pas de
+  # sous-depassement de S_xx ou S_yy aux echelles extremes (x et y x 1e-300,
+  # appel direct de usp_tests(), test_controles_entree.R) ; NA seulement si
+  # x ou y est exactement constant apres centrage.
+  xc <- x - mean(x); yc <- y - mean(y)
+  if (T < 3 || all(xc == 0) || all(yc == 0)) return(na)
+  xc <- xc / max(abs(xc)); yc <- yc / max(abs(yc))
+  xc <- xc / sqrt(sum(xc^2)); yc <- yc / sqrt(sum(yc^2))
+  extreme <- function(r, r0) if (unilateral) r >= r0 - TOL_EX_AEQUO
+                             else abs(r) >= abs(r0) - TOL_EX_AEQUO
+  if (methode == "enumeration") {
+    P <- engine_permutations(T)
+    rp <- as.vector(matrix(yc[P], nrow(P)) %*% xc)
+    r_obs <- rp[1]
+    n_perm <- as.numeric(length(rp))
+    p <- sum(extreme(rp, r_obs)) / n_perm
+    p_bi <- sum(abs(rp) >= abs(r_obs) - TOL_EX_AEQUO) / n_perm
+    r_max <- if (unilateral) max(rp) else max(abs(rp))
+    p_min <- sum(extreme(rp, r_max)) / n_perm
+    err <- NA_real_; Bp <- NA_real_
+  } else {
+    r_obs <- sum(yc * xc)
+    rp <- engine_sous_graine(seed, vapply(seq_len(B), function(b)
+      sum(yc[sample.int(T)] * xc), numeric(1)))
+    k <- sum(extreme(rp, r_obs))
+    p <- (1 + k) / (B + 1)
+    p_bi <- (1 + sum(abs(rp) >= abs(r_obs) - TOL_EX_AEQUO)) / (B + 1)
+    err <- sqrt(p * (1 - p) / B)
+    n_perm <- B; Bp <- B
+    xa <- engine_aplatir_ex_aequo(x, plancher = 0)
+    ya <- engine_aplatir_ex_aequo(y, plancher = 0)
+    o <- order(xa)
+    # p_min = n_max / T!. A T <= 170, nombres arrondis divises par
+    # factorial(T), fini : valeur inchangee, exacte aux frontieres (mesure :
+    # x = (100 x 9, 200), p_min = 9!/10! = 0,1 au bit pres, la ou l'echelle
+    # log rend 0,0999999999999995 et ferait manquer R1 a alpha = 0,1). Au-dela,
+    # factorial(T) deborde (p_min NaN et avertissement de gammafn) : echelle
+    # log, exp(log n_max - lfactorial(T)), a l'arrondi du logarithme pres
+    # (~1e-13 relatif mesure a T = 200 contre 1/C(200, 100)) : sans garde
+    # (avis d'actuary du 07/10/2026), une egalite p_min = alpha peut alors
+    # manquer la regle R1 (p_min calcule d'un ulp sous alpha).
+    l_co <- .usp_log_nb_appariements(xa[o], sort(ya))
+    l_max <- l_co; quel <- "co"
+    if (!unilateral) {
+      r_co <- sum(sort(yc) * xc[o])
+      r_anti <- sum(sort(yc, decreasing = TRUE) * xc[o])
+      l_anti <- .usp_log_nb_appariements(xa[o], sort(ya, decreasing = TRUE))
+      quel <- if (abs(abs(r_anti) - r_co) <= TOL_EX_AEQUO) "deux"
+              else if (abs(r_anti) > r_co) "anti" else "co"
+      # log(n_co + n_anti) = max + log1p(exp(min - max))
+      l_max <- switch(quel, co = l_co, anti = l_anti,
+                      deux = max(l_co, l_anti) + log1p(exp(-abs(l_co - l_anti))))
+    }
+    p_min <- if (T <= 170L) {
+      n_max <- switch(quel, co = round(exp(l_co)), anti = round(exp(l_anti)),
+                      deux = round(exp(l_co)) + round(exp(l_anti)))
+      n_max / factorial(T)
+    } else exp(l_max - lfactorial(T))
+  }
+  # r_obs peut depasser 1 en valeur absolue d'un ulp (y exactement
+  # proportionnel a x) : borne a [-1, 1] pour t seulement (t = +-Inf a
+  # |r| = 1, sans NaN ni avertissement) ; p et p_bilateral restent calculees
+  # sur r_obs non borne, comme les r des autres appariements.
+  r_t <- max(-1, min(1, r_obs))
+  t <- r_t * sqrt((T - 2) / (1 - r_t^2))
+  list(r = r_obs, t = t, p = p, p_min = p_min, n_perm = n_perm,
+       methode = methode, err_mc = err, B = Bp, unilateral = unilateral,
+       p_bilateral = p_bi)
 }
 
 # RESET (Ramsey, 1969) sur le modele sans constante E[Y] = beta X.
@@ -2540,6 +2780,37 @@ test_reset <- function(x, y) {
   list(stat = stat, p = .p_borne(a[["Pr(>F)"]][2]), non_applicable = NA_character_)
 }
 
+# --- Modele auxiliaire pondere de la constante et du TOST (#215) ------------
+# Poids GLS a delta estime : w_t = 1 / (x_t^2 expm1(1 / pi_t)), inverse de la
+# variance reglementaire de Y_t a delta estime, a un facteur commun pres :
+# Var(Y_t) = beta^2 x_t^2 (exp(1/pi_t) - 1) et expm1(1/pi_t) =
+# e^{2 gamma} (delta + (1 - delta) xbar / x_t) (usp_pi()), d'ou
+# w_t proportionnel a 1 / [x_t (delta x_t + (1 - delta) xbar)]. pi est celui
+# de l'ajustement sous H0 (a = 0) : fit$pi a l'observe, fb$pi dans chaque
+# replication du bootstrap (.usp_contexte_mc()). Les estimateurs de moindres
+# carres ponderes (a, se(a), t) ne dependent pas d'un facteur commun des
+# poids : x_t est rapporte a sa moyenne et les poids a leur maximum, ce qui
+# garde w dans (0 ; 1] pour toute unite de x (memes t que la formule brute,
+# a l'arrondi pres ; invariance verifiee par tests/unitaires/). Garde : pi
+# de longueur differente de x, poids non finis ou <= 0 -> NULL (statistique
+# NA chez les appelants).
+usp_poids_gls <- function(x, pi) {
+  if (length(pi) != length(x)) return(NULL)
+  w <- 1 / ((x / mean(x))^2 * expm1(1 / pi))
+  if (!all(is.finite(w)) || any(w <= 0)) return(NULL)
+  w <- w / max(w)
+  if (!all(is.finite(w)) || any(w <= 0)) return(NULL)
+  w
+}
+
+# Regression ponderee de y sur x, poids usp_poids_gls(x, pi) (#215) :
+# summary() de lm(y ~ x, weights = w), ou NULL si les poids sont invalides.
+.usp_lm_pondere <- function(x, y, pi) {
+  w <- usp_poids_gls(x, pi)
+  if (is.null(w)) return(NULL)
+  summary(stats::lm(y ~ x, weights = w))
+}
+
 # --- Test d'equivalence sur la constante (TOST) ------------------------------
 # Le test de Student usuel sur la constante a pour hypothese nulle a = 0 : son
 # NON-rejet ne prouve rien (absence de preuve n'est pas preuve d'absence), ce
@@ -2553,20 +2824,23 @@ test_reset <- function(x, y) {
 # Mise en oeuvre par deux tests unilateraux (Schuirmann, 1987) :
 #     H0_bas : a <= -Delta   et   H0_haut : a >= +Delta
 # la p-value du test d'equivalence etant le MAXIMUM des deux p-values
-# unilaterales. Sous normalite des erreurs, chacune est EXACTE (loi de Student
-# a T-2 degres de liberte) : aucune approximation asymptotique n'intervient.
+# unilaterales, chacune lue dans la loi de Student a T-2 degres de liberte.
+# Depuis #215, a et se(a) sont ceux du modele auxiliaire pondere
+# (lm(y ~ x, weights = w), w = usp_poids_gls(x, pi), pi de l'ajustement
+# sous H0) : les poids etant estimes, la loi t(T-2) n'est exacte sous aucun
+# modele, meme a marge fixee a priori (decision P3 du mainteneur du
+# 07/10/2026) ; avant #215, a et se(a) etaient ceux de lm(y ~ x) (MCO), ou
+# la loi t(T-2) est exacte sous erreurs i.i.d. normales homoscedastiques.
 #
 # La marge Delta n'est pas statistique mais economique : elle doit etre fixee
 # a priori. On la parametre en proportion theta de la perte annuelle moyenne,
 # Delta = theta * mean(y), afin qu'elle soit invariante a l'unite monetaire.
 # theta = 0.10 signifie : "une composante fixe inferieure a 10 % de la
 # sinistralite annuelle moyenne est jugee negligeable".
-# ATTENTION a l'exactitude : le test n'est EXACT (loi de Student) que si Delta
-# est fixe A PRIORI, independamment des donnees. La marge par defaut
-# Delta = theta*mean(y) est commode et invariante d'echelle, mais elle est
-# aleatoire : l'exactitude devient alors approchee (la simulation montre que le
-# niveau reste tenu, mais ce n'est plus un resultat exact). Pour un dossier
-# ACPR, fixer `delta_abs` a une valeur arretee a priori et documentee.
+# Marge : la marge par defaut Delta = theta*mean(y) est commode et invariante
+# d'echelle, mais elle est aleatoire ; `delta_abs` fixe une marge arretee a
+# priori et documentee. Dans les deux cas la loi est approchee (poids
+# estimes, #215) ; la nature de la p-value le dit (usp_tests()).
 # Branche non applicable (issue #58) : la liste porte les memes champs que la
 # branche calculee (p_bas, p_haut a NA, et non absents : sprintf() sur NULL
 # rendait un detail character(0) qui faisait planter engine_table_tests()) et
@@ -2580,10 +2854,18 @@ test_reset <- function(x, y) {
 # (#153) : t_bas ou t_haut vaut NaN (voir la garde ci-dessous). Quatrieme
 # motif, "x ecarte" (#168) : hors volumes constants, lm() a ecarte x pour
 # colinearite (garde-fou R12) ; il etait auparavant confondu avec "volumes
-# constants".
-test_tost_intercept <- function(x, y, theta = 0.10, delta_abs = NULL) {
+# constants". Cinquieme motif, "pertes constantes" (#189) : y constant a la
+# tolerance TOL_DELTA_BORD pres (usp_pertes_constantes()), prioritaire sur
+# la marge et sur x ecarte, apres les volumes constants. Poids invalides
+# (usp_poids_gls() rend NULL, #215) : motif "statistique non definie", apres
+# la marge.
+# pi : vecteur pi_t de l'ajustement sous H0 (fit$pi), obligatoire (#215).
+test_tost_intercept <- function(x, y, pi, theta = 0.10, delta_abs = NULL) {
   # Volumes constants : critere unique usp_volumes_constants() (issue #59).
+  # Pertes constantes (usp_pertes_constantes(), #189) : apres les volumes
+  # constants, avant la marge.
   motif <- if (usp_volumes_constants(x)) "volumes constants"
+  else if (usp_pertes_constantes(y)) "pertes constantes"
   else if ((is.null(delta_abs) && (!is.finite(theta) || theta <= 0)) ||
            (!is.null(delta_abs) && (!is.finite(delta_abs) || delta_abs <= 0))) "marge"
   else NA_character_
@@ -2593,7 +2875,10 @@ test_tost_intercept <- function(x, y, theta = 0.10, delta_abs = NULL) {
          p_bas = NA_real_, p_haut = NA_real_, ddl = length(x) - 2,
          marge_a_priori = FALSE, non_applicable = motif)
   if (!is.na(motif)) return(non_applicable(motif))
-  m <- summary(stats::lm(y ~ x))
+  # Modele auxiliaire pondere (#215) ; poids invalides -> statistique non
+  # definie (meme motif que la garde #153 ci-dessous).
+  m <- .usp_lm_pondere(x, y, pi)
+  if (is.null(m)) return(non_applicable("statistique non definie"))
   # Garde-fou (regle R12, #59) : si lm() a ecarte x, coefficients[1, ] serait
   # la moyenne de y du modele y ~ 1 ; aucune p-value n'est calculee.
   if (!"x" %in% rownames(m$coefficients)) return(non_applicable("x ecarte"))
@@ -2625,17 +2910,36 @@ test_tost_intercept <- function(x, y, theta = 0.10, delta_abs = NULL) {
 }
 
 # Significativité de la constante : rejette la proportionnalité stricte.
-test_intercept <- function(x, y) {
+# Depuis #215 : t de la constante du modele auxiliaire pondere,
+# lm(y ~ x, weights = w), w = usp_poids_gls(x, pi), pi de l'ajustement sous
+# H0 (fit$pi a l'observe, fb$pi dans les replications, entree Intercept du
+# catalogue Monte-Carlo) ; a poids constants, c'est le t de lm(y ~ x). p :
+# p de Student t(T-2) du t pondere, approchee (poids estimes), non retenue
+# par usp_tests() (regle R5). a : constante estimee ponderee (estimation de
+# la ligne). pi est obligatoire.
+test_intercept <- function(x, y, pi) {
   # Volumes constants (usp_volumes_constants(), #59) ; garde-fou R12 : x
   # ecarte par lm() -> NA, jamais le t de la moyenne du modele y ~ 1.
   # x_ecarte (#168) : TRUE sur la seule branche du garde-fou R12 ; usp_tests()
   # y lit le motif du detail de la ligne constante.
-  if (usp_volumes_constants(x))
-    return(list(stat = NA_real_, p = NA_real_, x_ecarte = FALSE))
-  m <- summary(stats::lm(y ~ x))
-  if (!"x" %in% rownames(m$coefficients))
-    return(list(stat = NA_real_, p = NA_real_, x_ecarte = TRUE))
-  list(stat = m$coefficients[1, 3], p = .p_borne(m$coefficients[1, 4]), x_ecarte = FALSE)
+  # pertes_constantes (#189) : TRUE sur la seule branche des pertes
+  # constantes (usp_pertes_constantes()), testee apres les volumes constants
+  # et avant lm() ; FALSE ailleurs. La statistique Intercept du catalogue
+  # Monte-Carlo vaut alors NA a l'observe.
+  # Poids invalides (usp_poids_gls() rend NULL, #215) : stat NA, apres les
+  # pertes constantes ; a l'observe, la ligne est non applicable comme pour
+  # tout t non fini (usp_tests()), dans une replication la statistique NA
+  # est ignoree par engine_p_mc().
+  na <- function(x_ecarte = FALSE, pertes_constantes = FALSE)
+    list(stat = NA_real_, p = NA_real_, x_ecarte = x_ecarte,
+         pertes_constantes = pertes_constantes, a = NA_real_)
+  if (usp_volumes_constants(x)) return(na())
+  if (usp_pertes_constantes(y)) return(na(pertes_constantes = TRUE))
+  m <- .usp_lm_pondere(x, y, pi)
+  if (is.null(m)) return(na())
+  if (!"x" %in% rownames(m$coefficients)) return(na(x_ecarte = TRUE))
+  list(stat = m$coefficients[1, 3], p = .p_borne(m$coefficients[1, 4]), x_ecarte = FALSE,
+       pertes_constantes = FALSE, a = m$coefficients[1, 1])
 }
 
 # --- Ruptures et points influents --------------------------------------------
@@ -2717,9 +3021,10 @@ usp_simuler <- function(fit) {
 # Toutes les statistiques dont la loi sous H0 "le modele de l'annexe XVII est
 # correct" peut etre simulee. IMPORTANT : le bootstrap parametrique simule sous
 # le MODELE AJUSTE. Sont donc exclues les statistiques dont l'hypothese nulle
-# n'est pas "le modele est correct" mais "beta = 0" (Student sur la pente,
-# Fisher global) : pour celles-la, le modele ajuste appartient a H1 et une
-# p-value de Monte-Carlo n'aurait aucun sens.
+# n'est pas "le modele est correct" mais "beta = 0" (pente, Fisher global) :
+# pour celles-la, le modele ajuste appartient a H1 et une p-value de
+# Monte-Carlo n'aurait aucun sens. La pente recoit depuis #169 une p de
+# permutation (usp_permutation_pente(), test de Pitman), hors de ce catalogue.
 # Sont exclues egalement :
 #   - MeanZ = moyenne(z) et VarZ = var(z), grandeurs rivees par l'estimation.
 #     Les conditions du premier ordre de usp_ajuster() imposent toujours
@@ -2797,10 +3102,24 @@ usp_simuler <- function(fit) {
 # statistiques qui regressent sur x ou partitionnent par x (Intercept, RESET,
 # BP, BP79, White, GQ, BF, Smirnov, SpearVol) y valent NA, sans erreur, et
 # leurs lignes sont "non applicable" par la regle R13 de usp_tests().
-.usp_contexte_mc <- function(x, y, z) {
+# pi (#215) : pi_t de l'ajustement sous H0 (fit$pi a l'observe, fb$pi dans
+# une replication), lu par l'entree Intercept (poids de usp_poids_gls()) ;
+# obligatoire.
+.usp_contexte_mc <- function(x, y, z, pi) {
   r <- y / x
-  list(x = x, y = y, z = z, r = r, u = r - mean(r), T = length(x))
+  list(x = x, y = y, z = z, r = r, u = r - mean(r), T = length(x), pi = pi)
 }
+# Ratios r_t (#187) : ex aequo a tolerance purement relative (plancher 0 de
+# engine_aplatir_ex_aequo(), comme les volumes). Ratios centres u_t = r_t -
+# moyenne(r) : plancher max|r|, l'echelle des operandes avant centrage
+# (.usp_plancher_u(), decision du mainteneur Q-187-1 b du 06/10/2026 ;
+# egale au plancher 1 de main quand max|r| vaut 1). Dans les deux cas, les
+# tests de rang et de signe sur ratios (suites, Mann-Kendall, Cox-Stuart,
+# Spearman) ne dependent pas de l'unite de y par rapport a x.
+# Meme plancher a l'observe (usp_tests()) et dans les replications
+# (catalogue ci-dessous). Les residus z_t gardent le plancher 1.
+.usp_aplatir_ratios <- function(r) engine_aplatir_ex_aequo(r, plancher = 0)
+.usp_plancher_u <- function(r) max(abs(r))
 
 USP_CATALOGUE_MC <- list(
   AD     = .mc_entree(function(e) stat_ad(e$z), "haut"),
@@ -2817,7 +3136,9 @@ USP_CATALOGUE_MC <- list(
   Grubbs = .mc_entree(function(e) test_grubbs(e$z)$stat, "haut"),
   Lillie = .mc_entree(function(e) stat_lilliefors(e$z), "haut"),
   # statistiques ajoutees : loi de reference seulement asymptotique
-  Intercept = .mc_entree(function(e) test_intercept(e$x, e$y)$stat, "deux"),
+  # Intercept (#215) : t pondere de test_intercept(), poids GLS au pi de
+  # l'ajustement de la replication (e$pi).
+  Intercept = .mc_entree(function(e) test_intercept(e$x, e$y, e$pi)$stat, "deux"),
   RESET  = .mc_entree(function(e) test_reset(e$x, e$y)$stat, "haut"),
   BP     = .mc_entree(function(e) test_breusch_pagan(e$z^2, e$x)$stat, "haut"),
   BP79   = .mc_entree(function(e) test_breusch_pagan_original(e$z^2, e$x)$stat, "haut"),
@@ -2844,23 +3165,24 @@ USP_CATALOGUE_MC <- list(
     if (e$T >= 8) unname(stats::Box.test(e$z, lag = 2, type = "Box-Pierce")$statistic)
     else NA_real_, "haut"),
   Runs   = .mc_entree(function(e) test_runs(e$z)$stat, "deux"),
-  MK     = .mc_entree(function(e) test_mann_kendall(e$r)$stat, "deux"),
+  MK     = .mc_entree(function(e) test_mann_kendall(e$r, plancher = 0)$stat, "deux"),
   # Spearman : la statistique simulee est S (statistique de test affichee par
   # usp_tests()), S = (T^3 - T) (1 - rho_s) / 6 dans stats::cor.test(),
   # fonction affine decroissante de rho_s : la region bilaterale est la meme
   # (mesure du 24/09/2026 sur les trois cas lognormaux de reference : p_mc
   # identiques au bit pres a celles calculees sur rho_s ; issue #41).
   # r et x aplatis a TOL_EX_AEQUO avant cor.test() (#112), comme dans
-  # usp_tests() ; x en tolerance purement relative (.usp_aplatir_volumes()).
+  # usp_tests() ; r et x en tolerance purement relative
+  # (.usp_aplatir_ratios(), #187 ; .usp_aplatir_volumes()).
   SpearVol = .mc_entree(function(e)
     if (!usp_volumes_constants(e$x))
-      suppressWarnings(unname(stats::cor.test(engine_aplatir_ex_aequo(e$r),
+      suppressWarnings(unname(stats::cor.test(.usp_aplatir_ratios(e$r),
                                               .usp_aplatir_volumes(e$x),
                                               method = "spearman",
                                               exact = FALSE)$statistic)) else NA_real_,
     "deux"),
   SpearTps = .mc_entree(function(e)
-    suppressWarnings(unname(stats::cor.test(engine_aplatir_ex_aequo(e$r), seq_along(e$r),
+    suppressWarnings(unname(stats::cor.test(.usp_aplatir_ratios(e$r), seq_along(e$r),
                                             method = "spearman", exact = FALSE)$statistic)),
     "deux"),
   DAgo   = .mc_entree(function(e) test_dagostino_skew(e$z)$stat, "deux"),
@@ -2877,17 +3199,18 @@ USP_CATALOGUE_MC <- list(
   # finie ; la p exacte binomiale de la ligne reste retenue (a pi_t constant,
   # regle R7 de #70).
   CoxStuart = .mc_entree(function(e) {
-    cx <- test_cox_stuart(e$r)
+    cx <- test_cox_stuart(e$r, plancher = 0)
     if (is.finite(cx$stat) && cx$m == cx$n_p) abs(cx$stat - cx$n_p / 2) else NA_real_
   }, "haut", non_definie = function(e) {
-    cx <- test_cox_stuart(e$r)
+    cx <- test_cox_stuart(e$r, plancher = 0)
     if (cx$m < cx$n_p) "statistique observee non definie : ex aequo" else NA_character_
   }),
   # --- memes statistiques sur les ratios bruts centres (base "r") -----------
   DWr    = .mc_entree(function(e) stat_dw(e$u), "deux"),
   LB1r   = .mc_entree(function(e)
     unname(stats::Box.test(e$u, lag = 1, type = "Ljung-Box")$statistic), "haut"),
-  Runsr  = .mc_entree(function(e) test_runs(e$u)$stat, "deux"),
+  Runsr  = .mc_entree(function(e)
+    test_runs(e$u, plancher = .usp_plancher_u(e$r))$stat, "deux"),
   supFr  = .mc_entree(function(e) stat_supF(e$u), "haut"),
   CUSUMr = .mc_entree(function(e) stat_cusum(e$u), "haut"),
   Grubbsr = .mc_entree(function(e) test_grubbs(e$u)$stat, "haut")
@@ -2921,8 +3244,8 @@ USP_CATALOGUE_MC <- list(
 }
 
 # Statistiques simulables de la methode lognormale (catalogue USP_CATALOGUE_MC).
-.stats_bootstrapables <- function(x, y, z)
-  .mc_evaluer(USP_CATALOGUE_MC, .usp_contexte_mc(x, y, z))
+.stats_bootstrapables <- function(x, y, z, pi)
+  .mc_evaluer(USP_CATALOGUE_MC, .usp_contexte_mc(x, y, z, pi))
 
 # --- P-value de Monte-Carlo d'une statistique ---------------------------------
 # Fonction unique, partagee par usp_bootstrap() et mw_bootstrap().
@@ -3405,7 +3728,7 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
   # Tirages sous graine locale (ADR 0004, #42) : etat de l'appelant restaure.
   # Contexte observe, conserve pour l'evaluation des conditions du catalogue
   # (degenere, non_definie) par .mc_p_values() (#44).
-  e_obs <- .usp_contexte_mc(fit$x, fit$y, fit$z)
+  e_obs <- .usp_contexte_mc(fit$x, fit$y, fit$z, fit$pi)
   engine_sous_graine(seed, {
     stats_obs <- .mc_evaluer(USP_CATALOGUE_MC, e_obs)
     noms <- names(stats_obs)
@@ -3421,7 +3744,7 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
         f <- try(usp_ajuster_rapide(fit$x, yb, fit$delta, fit$gamma), silent = TRUE)
         if (inherits(f, "try-error")) next else f
       } else usp_noyau(fit$delta, fit$gamma, fit$x, yb, fit$xbar)
-      sb <- try(.stats_bootstrapables(fit$x, yb, fb$z), silent = TRUE)
+      sb <- try(.stats_bootstrapables(fit$x, yb, fb$z, fb$pi), silent = TRUE)
       if (inherits(sb, "try-error")) next
       sim[b, ] <- sb[noms]
       zb[b, ] <- fb$z
@@ -3706,7 +4029,8 @@ usp_profil <- function(fit, n = 41) {
 # d'ECHEC a l'echelle 1).
 usp_tests <- function(fit, boot, alpha = 0.10,
                       theta_equiv = 0.10, delta_equiv = NULL,
-                      robustesse = NULL, methode, lr_delta = NULL) {
+                      robustesse = NULL, methode, lr_delta = NULL,
+                      permutation_pente = NULL) {
   z <- fit$z; x <- fit$x; y <- fit$y; T <- fit$T
   # Citation des hypotheses H1-H4 dans le champ famille (issue #92) : les
   # quatre hypotheses sont au point B(2)(g) i. a iv. de l'annexe XVII pour la
@@ -3759,12 +4083,35 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # Regle R12 (garde-fou, #168) : hors volumes constants, lm(y ~ x) peut
   # encore ecarter x pour colinearite numerique. Motif commun des lignes
   # constante, TOST, pente, Fisher (txt_r12_test) et R2 ; la priorite reste
-  # au motif R13. detail_r12() rend txt_r12_test si la fonction de la ligne
-  # signale le garde-fou (champ x_ecarte), detail_vol(detail) sinon.
+  # au motif R13, puis aux pertes constantes (#189) : voir detail_motif()
+  # ci-dessous.
   txt_r12 <- "x ecarte par lm() pour colinearite"
   txt_r12_test <- paste0("regression de y sur x : ", txt_r12, ", test non applicable")
-  detail_r12 <- function(x_ecarte, detail)
-    if (!vol_cst && isTRUE(x_ecarte)) txt_r12_test else detail_vol(detail)
+  # Pertes constantes (#189, usp_pertes_constantes(), tolerance
+  # TOL_DELTA_BORD, seule definition) : hors volumes constants, les cinq
+  # lignes de la regression de y sur x (constante, TOST, pente, Fisher, R2)
+  # sont restituees "non applicable" avec un motif propre, la variance de y
+  # etant nulle a cette tolerance pres. Calcule une fois, a cote de vol_cst.
+  pertes_cst <- !vol_cst && usp_pertes_constantes(y)
+  ery <- diff(range(y)) / mean(y)
+  txt_pertes_cst_test <- sprintf(paste(
+    "regression de y sur x : pertes y_t constantes a la tolerance relative",
+    "TOL_DELTA_BORD = %g pres (etendue relative = %.2g) : variance de y nulle",
+    "a cette tolerance pres, regression de y sur x sans objet (convention de",
+    "restitution), test non applicable"), TOL_DELTA_BORD, ery)
+  txt_pertes_cst_r2 <- sprintf(paste(
+    "pertes y_t constantes a la tolerance relative TOL_DELTA_BORD = %g pres",
+    "(etendue relative = %.2g) : variance totale nulle a cette tolerance pres,",
+    "R2 sans objet"), TOL_DELTA_BORD, ery)
+  # Priorite des motifs des lignes constante, pente et Fisher : volumes
+  # constants (txt_vol_cst) > pertes constantes > x ecarte (txt_r12_test,
+  # champ x_ecarte de la fonction de la ligne) > detail de la ligne. Sous
+  # pertes constantes et R12, le detail se reduit au motif.
+  detail_motif <- function(x_ecarte, detail)
+    if (vol_cst) txt_vol_cst
+    else if (pertes_cst) txt_pertes_cst_test
+    else if (isTRUE(x_ecarte)) txt_r12_test
+    else detail
   # Ecart a la constance exacte de pi_t dans la bande de tolerance ; chaine
   # vide hors de la bande. 1 - delta est affiche plutot que delta : "%g"
   # rendrait 1 - 5e-7 par "1".
@@ -3790,11 +4137,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # Regle R8 (#70) : libelles des huit lignes selon le regime. Jonction de
   # deux textes selon la regle de la branche "ECHEC inatteignable" de add() :
   # " " apres un point final, " ; " sinon, rien si l'un des deux est vide.
-  joindre <- function(a, b) {
-    if (!nzchar(b)) return(a)
-    if (!nzchar(a)) return(b)
-    paste0(a, if (grepl("\\.$", a)) " " else " ; ", b)
-  }
+  joindre <- .usp_joindre
   txt_pi_variable <- paste("p exacte non attribuee : loi de reference exacte seulement",
                            "a pi_t constant (z = P epsilon non echangeable, r_t non",
                            "identiquement distribues).")
@@ -3823,35 +4166,95 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   txt_mc_indispo <- function(debut) paste(debut, "est indisponible sur ces donnees ;",
                                           "la p-value retenue, s'il en est une, est nommee par nature_p")
 
+  # p_min des lignes de rangs (Spearman, Mann-Kendall ; #44, reprise, avis
+  # d'actuary Q5) : 2/T! n'est la p minimale que sans ex aequo ; avec ex
+  # aequo (dans r, ou dans x pour Spearman-volume), la loi de permutation
+  # conditionnelle n'est pas tabulee : ni p_min ni p exacte (#70, regle 2b ;
+  # mk_p_exacte() rend deja NA avec ex aequo), et le motif, porte par
+  # effectifs, est restitue dans detail par add() (p_min NA).
+  # Ex aequo a la tolerance TOL_EX_AEQUO, definition partagee (#112) : r et x
+  # sont aplatis une fois (r_ea, x_ea) pour cor.test() ; les autres lignes
+  # (Mann-Kendall, Cox-Stuart, suites) aplatissent dans leurs fonctions. r et
+  # x sont aplatis en tolerance purement relative (.usp_aplatir_ratios(),
+  # #187 ; .usp_aplatir_volumes()), r par plancher = 0 dans les fonctions
+  # de Mann-Kendall et de Cox-Stuart ; u, dans les suites sur ratios bruts,
+  # par plancher max|r| (.usp_plancher_u(), Q-187-1 b). ex_aequo()
+  # ne recoit que des vecteurs deja aplatis : apres aplatissement, ex aequo
+  # equivaut a egalite au bit pres.
+  r_ea <- .usp_aplatir_ratios(r); x_ea <- .usp_aplatir_volumes(x)
+  ex_aequo <- function(...) any(vapply(list(...), function(v) anyDuplicated(v) > 0, logical(1)))
+  pmin_rangs <- function(...) if (ex_aequo(...)) NA_real_ else mk_p_min(T)
+  eff_rangs <- function(r, x = NULL) {
+    er <- ex_aequo(r); ex <- !is.null(x) && ex_aequo(x)
+    if (er || ex)
+      sprintf(paste("T = %d ; ex aequo %s : loi de permutation conditionnelle non",
+                    "tabulee, p_min et p exacte non attribuees"),
+              T, if (er && ex) "dans r et x" else if (er) "dans r" else "dans x")
+    else sprintf("T = %d, sans ex aequo", T)
+  }
+  # Regle 2c (#70) : cor.test(exact = TRUE) n'enumere la loi de permutation
+  # que pour T <= 9 (prho.c, n_small = 9) ; au-dela il rend un developpement
+  # d'Edgeworth (AS 89) : aucune p exacte. Avec ex aequo, cor.test(exact =
+  # TRUE) rend la p asymptotique sous un avertissement : aucune p exacte non
+  # plus, sans se fier a try() ni a l'avertissement. Le motif Edgeworth est
+  # ecrit a T > 9 quel que soit l'etat des ex aequo (le motif ex aequo, porte
+  # par effectifs, s'y ajoute alors).
+  txt_edgeworth <- paste("T > 9 : cor.test(exact = TRUE) rend un developpement",
+                         "d'Edgeworth (AS 89, prho.c, n_small = 9), non une loi exacte")
+  p_spearman_exacte <- function(a, b, ...) {
+    if (T > 9 || ex_aequo(...)) return(NA_real_)
+    p_ex_si_pi_constant({
+      o <- suppressWarnings(try(stats::cor.test(a, b, method = "spearman", exact = TRUE),
+                                silent = TRUE))
+      if (!inherits(o, "try-error")) o$p.value else NA_real_
+    })
+  }
+  detail_spearman <- function(detail, p_ex)
+    detail_r7(if (T > 9) joindre(detail, txt_edgeworth) else detail, p_ex)
   ## --- B. H1 : E[Y_t] lineaire proportionnelle en X_t ------------------------
   fam <- paste("B. H1 - linearite / proportionnalite", cite_hyp("i"))
-  ti <- test_intercept(x, y); lmc <- test_lm_complet(x, y)
-  # Regle R5 (#44, ADR 0002) : la loi t(T-2) du t de la constante n'est
-  # exacte que sous le modele auxiliaire MCO (erreurs i.i.d. normales
-  # homoscedastiques), que H2 et H3 contredisent : sa p-value est rangee dans
-  # p_asymptotique, non retenue ; la p-value Monte-Carlo (statistique
-  # Intercept, simulee sous le modele de l'annexe XVII, ou a = 0 est vrai)
-  # est retenue.
+  # Constante (#215) : modele auxiliaire pondere, poids GLS au pi de
+  # l'ajustement sous H0 (fit$pi), comme l'entree Intercept du catalogue.
+  ti <- test_intercept(x, y, fit$pi); lmc <- test_lm_complet(x, y)
+  # p exacte de Spearman ratio / volume (p_sv), calculee une seule fois et
+  # lue par la ligne Spearman ci-dessous. NA a volumes constants (ligne
+  # Spearman non applicable, R13).
+  p_sv <- if (!vol_cst) p_spearman_exacte(r_ea, x_ea, r_ea, x_ea) else NA_real_
+  # Motif "statistique non definie" (#215, constat 3 d'audit), commun a la
+  # constante et au TOST : t non fini hors volumes constants, pertes
+  # constantes et R12, notamment poids GLS invalides (usp_poids_gls()).
+  txt_stat_non_def <- paste("statistique t non definie (poids de la regression ponderee non",
+                            "valides, ou constante ou erreur-type de la regression de y sur x",
+                            "non calculable) : test non applicable")
+  # Regle R5 (#44, ADR 0002) : la loi t(T-2) du t de la constante n'est pas
+  # celle du modele reglementaire (H2, H3) ; depuis #215, le t est celui du
+  # modele auxiliaire pondere, dont les poids sont estimes : t(T-2) n'y est
+  # qu'approchee. Sa p-value est rangee dans p_asymptotique, non retenue ; la
+  # p-value Monte-Carlo (statistique Intercept, simulee sous le modele de
+  # l'annexe XVII, ou a = 0 est vrai) est retenue. Estimation : constante
+  # ponderee (ti$a, #215, decision P1).
   add(fam, "Nullite de la constante (proportionnalite stricte)",
       fonction = "test_intercept",
       "Student (1908), Biometrika 6",
-      type = si_vol_cst(if (is.finite(ti$stat)) "test" else "non applicable"),
+      type = si_vol_cst(if (pertes_cst || !is.finite(ti$stat)) "non applicable" else "test"),
       H0 = "a = 0 (proportionnalite stricte)", H1 = "a != 0",
       stat_nom = "t", stat = ti$stat,
-      loi = sprintf(paste("t(%d) exacte sous le modele auxiliaire MCO seulement (erreurs",
-                          "i.i.d. normales homoscedastiques, contredites par H2 et H3) ;",
-                          "non retenue"), T - 2),
+      loi = sprintf(paste("t(%d) sous le modele auxiliaire pondere (poids estimes :",
+                          "loi approchee meme sous ce modele) ; non retenue"), T - 2),
       estim_nom = "constante a",
-      estim = if (is.finite(ti$stat)) unname(stats::coef(lmc$modele)[1]) else NA_real_,
+      estim = if (is.finite(ti$stat)) unname(ti$a) else NA_real_,
       p_as = ti$p, mc_nom = "Intercept",
       # Sans p Monte-Carlo (B_eff = 0), aucune p retenue : la p de Student ne
-      # vaut que sous le modele auxiliaire MCO (#44, reprise, constat 2).
+      # vaut pas sous le modele reglementaire (#44, reprise, constat 2).
       repli_asymptotique = FALSE,
-      libelle_p_as = "p de Student sous le modele auxiliaire MCO",
-      detail = detail_r12(ti$x_ecarte,
-                          paste("Le NON-rejet ne prouve pas la proportionnalite :",
-                                "voir le test d'equivalence ci-dessous.")))
-  tost <- test_tost_intercept(x, y, theta = theta_equiv, delta_abs = delta_equiv)
+      libelle_p_as = "p de Student sous le modele auxiliaire pondere",
+      # Renvoi croise a Spearman ratio / volume : pose apres coup par
+      # .usp_poser_renvois() (#215, option (ii) d'actuary).
+      detail = detail_motif(ti$x_ecarte,
+                            if (!is.finite(ti$stat)) txt_stat_non_def
+                            else paste("Le NON-rejet ne prouve pas la proportionnalite :",
+                                       "voir le test d'equivalence ci-dessous.")))
+  tost <- test_tost_intercept(x, y, fit$pi, theta = theta_equiv, delta_abs = delta_equiv)
   add(fam, "Equivalence de la constante a zero (TOST)",
       fonction = "test_tost_intercept",
       "Schuirmann (1987), J. Pharmacokinet. Biopharm. 15",
@@ -3861,16 +4264,21 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       stat_nom = "t (max des 2 unilateraux)", stat = tost$stat,
       # #44 (regle R5, TOST) : aucune p Monte-Carlo possible (H0 composite) ;
       # la p reste retenue, et nature et loi disent sous quel modele elle vaut.
+      # #215 (decision P3 du mainteneur du 07/10/2026) : modele auxiliaire
+      # pondere, poids estimes : t(T-2) approchee dans les deux branches de
+      # marge, p exacte NA, p rangee dans p_asymptotique et retenue hors
+      # hierarchie par nature_forcee.
       loi = if (isTRUE(tost$marge_a_priori))
-        sprintf("t(%d) exacte sous le modele auxiliaire MCO (marge fixee a priori)", T - 2)
-      else sprintf(paste("t(%d) sous le modele auxiliaire MCO ; marge estimee sur les",
-                         "donnees -> exactitude approchee"), T - 2),
+        sprintf(paste("t(%d) sous le modele auxiliaire pondere (poids estimes :",
+                      "loi approchee) ; marge fixee a priori"), T - 2)
+      else sprintf(paste("t(%d) sous le modele auxiliaire pondere (poids estimes :",
+                         "loi approchee) ; marge estimee sur les donnees"), T - 2),
       estim_nom = "marge Delta", estim = tost$delta,
-      p_ex = if (isTRUE(tost$marge_a_priori)) tost$p else NA_real_,
-      p_as = if (isTRUE(tost$marge_a_priori)) NA_real_ else tost$p,
+      p_ex = NA_real_,
+      p_as = tost$p,
       nature_forcee = if (isTRUE(tost$marge_a_priori))
-        "sous le modele auxiliaire MCO : t(T-2) exacte, marge fixee a priori"
-      else "sous le modele auxiliaire MCO : loi de Student, marge estimee sur les donnees",
+        "sous le modele auxiliaire pondere : loi de Student (poids estimes), marge fixee a priori"
+      else "sous le modele auxiliaire pondere : loi de Student (poids estimes), marge estimee sur les donnees",
       sens = "rejeter",
       # Issue #58 : un detail de longueur 1 sur chaque branche.
       detail = switch(if (is.na(tost$non_applicable)) "calcule" else tost$non_applicable,
@@ -3878,6 +4286,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         # lm(), hors volumes constants) : motif distinct depuis #168.
         "volumes constants" = txt_vol_cst,
         "x ecarte" = txt_r12_test,
+        # Pertes constantes (#189) : motif commun aux lignes constante,
+        # pente et Fisher.
+        "pertes constantes" = txt_pertes_cst_test,
         "marge" = paste("marge Delta invalide (sans delta_equiv : theta_equiv non",
                         "fini ou <= 0 ; ou delta_equiv non fini ou <= 0) : test",
                         "non applicable"),
@@ -3921,66 +4332,160 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                         tost$p_bas, tost$p_haut),
                 txt_condition)
         }),
-        "statistique non definie" = paste("statistique t non definie (constante ou erreur-type",
-                                          "de la regression de y sur x non calculable) :",
-                                          "test non applicable"),
+        # Depuis #215 : poids GLS invalides inclus (texte commun avec la
+        # constante, txt_stat_non_def).
+        "statistique non definie" = txt_stat_non_def,
         stop("usp_tests : motif TOST inconnu : ", tost$non_applicable)))
+  # Ligne de la pente (#169, ADR 0002 amende le 06/10/2026, point 4) : test de
+  # Pitman (permutation de r, usp_permutation_pente()), unilateral (H1 lien
+  # positif, decision Q-A du mainteneur). p exacte par enumeration a
+  # T <= T_MAX_ENUM_PERMUTATION ; au-dela, p Monte-Carlo de B permutations
+  # aleatoires (p_mc_ext, hors USP_CATALOGUE_MC). La p de Student unilaterale
+  # (t(T-2), exacte sous le modele auxiliaire MCO seulement) est restituee
+  # dans p_asymptotique, non retenue (la hierarchie retient la p de
+  # permutation, toujours presente sur une ligne applicable).
   # Regle R4 (#44, option E) : identifiabilite de la pente. Si la puissance
-  # approchee du test de la pente sous le modele ajuste est inferieure au
+  # approchee du test unilateral sous le modele ajuste est inferieure au
   # repere SEUIL_PUISSANCE_PENTE, un ECHEC decrit le plan d'experience (volumes
-  # peu disperses), non un ecart au modele : les lignes pente et Fisher
-  # (F = t^2, meme puissance) sont restituees en diagnostic. lambda et la
-  # puissance approchee sont rappeles dans le detail dans les deux cas.
-  # Quand elles restent des tests, la nature de leur p est celle du modele
-  # auxiliaire MCO (la loi t n'est pas asymptotique ; H0 n'est pas simulable,
-  # le modele ajuste appartenant a H1).
-  idp <- usp_identifiabilite_pente(x, fit$beta, fit$sigma, alpha)
+  # peu disperses), non un ecart au modele : la ligne de la pente est
+  # restituee en diagnostic. lambda et la puissance approchee sont rappeles
+  # dans le detail dans les deux cas.
+  # Sens du test : SENS_PITMAN_PENTE, seule definition (#169).
+  pitman_uni <- .pitman_unilateral()
+  txt_sens <- "unilateral"
+  idp <- usp_identifiabilite_pente(x, fit$beta, fit$sigma, alpha, unilateral = pitman_uni)
   pente_ident <- !is.finite(idp$puissance) || idp$puissance >= SEUIL_PUISSANCE_PENTE
   txt_ident <- if (!is.finite(idp$puissance)) "" else
-    sprintf(paste("%s puissance approchee sous le modele ajuste = %.2f %s %.1f (repere",
-                  "conventionnel), indice d'identifiabilite lambda = sqrt(T-1) CV(x)",
+    sprintf(paste("%s puissance approchee du test", txt_sens, "sous le modele ajuste = %.2f %s %.1f",
+                  "(repere conventionnel), indice d'identifiabilite lambda = sqrt(T-1) CV(x)",
                   "beta / sigma = %.2f (approximation au premier ordre, loi de",
                   "Student decentree)."),
             if (pente_ident) "Pente identifiable par les donnees :"
             else "PENTE NON IDENTIFIABLE PAR LES DONNEES :",
             idp$puissance, if (pente_ident) ">=" else "<", SEUIL_PUISSANCE_PENTE,
             idp$lambda)
-  nat_mco <- "sous le modele auxiliaire MCO : t(T-2) exacte (H0 non simulable : le modele ajuste appartient a H1)"
-  # Ligne Fisher : sa loi de reference est F(1,T-2), non t(T-2) (#117) ;
-  # meme p-value a l'arrondi pres (F = t^2 en regression simple).
-  nat_mco_F <- "sous le modele auxiliaire MCO : F(1,T-2) exacte (H0 non simulable : le modele ajuste appartient a H1)"
-  type_pente <- function(stat) if (!is.finite(stat)) "non applicable"
-                               else if (pente_ident) "test" else "diagnostic"
-  add(fam, "Test de Student sur la pente (lm(y~x))",
-      fonction = "test_lm_complet",
-      "Student (1908), Biometrika 6",
-      type = type_pente(lmc$t_pente),
-      H0 = "b = 0 (aucun lien volume / pertes)", H1 = "b != 0",
+  # Ligne applicable : ni volumes constants (R13), ni pertes constantes
+  # (#189), ni x ecarte par lm() (R12), t fini. usp_permutation_pente() n'est
+  # appelee que sur une ligne applicable ; run_engine() la calcule avec le B
+  # et la graine de l'execution (permutation_pente), un appel direct sans
+  # elle la calcule aux valeurs par defaut.
+  pente_appl <- !vol_cst && !pertes_cst && !isTRUE(lmc$x_ecarte) && is.finite(lmc$t_pente)
+  perm <- if (!pente_appl) NULL
+          else if (!is.null(permutation_pente)) permutation_pente
+          else usp_permutation_pente(x, y, unilateral = pitman_uni)
+  # Garde-fou (ADR 0002, point 4 de l'amendement du 06/10/2026) : add()
+  # applique nature_forcee a toute p retenue finie ; sans p de permutation,
+  # une ligne applicable retiendrait la p de Student sous le libelle de la
+  # permutation. Erreur de programmation, jamais de repli sur Student.
+  if (pente_appl && !(is.list(perm) && is.numeric(perm$p) && length(perm$p) == 1L &&
+                      is.finite(perm$p)))
+    stop("usp_tests() : p de permutation de la pente absente sur une ligne applicable ",
+         "(repli sur la p de Student interdit, ADR 0002)")
+  if (pente_appl && !identical(perm$unilateral, pitman_uni))
+    stop("usp_tests() : sens de la p de permutation de la pente different de SENS_PITMAN_PENTE")
+  perm_alea <- pente_appl && identical(perm$methode, "aleatoire")
+  type_pente <- if (!pente_appl) "non applicable"
+                else if (pente_ident) "test" else "diagnostic"
+  # p de Student du meme sens que la p de permutation (restituee, non retenue).
+  p_student <- if (!is.finite(lmc$t_pente)) NA_real_
+               else stats::pt(lmc$t_pente, T - 2, lower.tail = FALSE)
+  txt_pitman <- paste(
+    "Ici on souhaite REJETER H0. Test de Pitman : loi de permutation de t (meme ordre",
+    "que r a x et {y_t} fixes),",
+    if (perm_alea) "B permutations aleatoires, p = (1 + k)/(B + 1) ;"
+    else "enumeration des T! appariements, exacte sous H0 seule, hors modele reglementaire ;",
+    "un rejet peut aussi traduire une dispersion liee au volume ou une tendance commune a x et y.",
+    "p de Student unilaterale (t(T-2) exacte sous le modele auxiliaire MCO seulement)",
+    "restituee dans p asymptotique, non retenue.",
+    # p bilaterale de permutation, pour information (decision du mainteneur
+    # du 06/10/2026, point 3) : imprimee a l'enumeration seulement (sans
+    # alea) ; au-dela, nombre issu des tirages, non imprime (regle #76), lu
+    # dans metadata$permutation_pente$p_bilateral. Libelle neutre : la p
+    # unilaterale n'est pas toujours retenue (bascule en diagnostic par R4
+    # ci-dessous, ou par R1 dans add()).
+    if (!pente_appl) NULL
+    else if (perm_alea) paste("p de permutation unilaterale (sens du test) ; p bilaterale de",
+                              "permutation (|r|), pour information, non retenue : non imprimee",
+                              "(tirages aleatoires).")
+    else sprintf(paste("p de permutation unilaterale (sens du test) ; p bilaterale de",
+                       "permutation (|r|), pour information, non retenue = %.4f."),
+                 perm$p_bilateral))
+  # T >= 10 et 1/(B + 1) >= alpha : la plus petite p Monte-Carlo possible
+  # atteint alpha, aucun OK n'est atteignable (avis d'actuary, #169).
+  # Mention sur une ligne qui reste un test seulement, meme garde que la
+  # mention du plancher de add() (type "test" apres la regle R1) : ni sous
+  # R4 (diagnostic, type_pente) ni sous R1 (p_min >= alpha, bascule de add()).
+  pente_reste_test <- identical(type_pente, "test") &&
+    !(is.finite(perm$p_min) && perm$p_min >= alpha)
+  txt_plancher_perm <- if (perm_alea && pente_reste_test && 1 / (perm$B + 1) >= alpha)
+    sprintf("Plancher 1/(B + 1) >= alpha = %g : OK inatteignable.", alpha) else ""
+  # Motifs des lignes pente et Fisher non applicables a statistique non
+  # finie (somme des carres residuelle nulle, ajustement exact de y sur x :
+  # mesure, x = 1:8, y = 2 x, t = F = Inf), hors R13, pertes constantes
+  # (#189) et R12, qui gardent la priorite par detail_motif(). Libelles de
+  # l'avis d'actuary du 07/10/2026 (regression MCO non ponderee, sans les
+  # poids de txt_stat_non_def).
+  txt_t_pente_non_def <- paste("statistique t non finie (erreur-type de la pente de la",
+                               "regression de y sur x nulle : ajustement exact, ou non",
+                               "calculable) : test non applicable")
+  txt_f_non_def <- paste("statistique F non finie (somme des carres residuelle de la",
+                         "regression de y sur x nulle : ajustement exact, ou non",
+                         "calculable) : non applicable")
+  add(fam, "Test de Pitman sur la pente (lien positif pertes / volume)",
+      fonction = "usp_permutation_pente",
+      "Pitman (1937), Suppl. JRSS 4",
+      type = type_pente,
+      H0 = "Y_1..Y_T independants de x (echangeables) : aucun lien pertes / volume",
+      H1 = "lien positif pertes / volume (dont E[Y] = beta x, beta > 0)",
       stat_nom = "t", stat = lmc$t_pente,
-      loi = sprintf(paste("t(%d) exacte sous le modele auxiliaire MCO (erreurs i.i.d.",
-                          "normales homoscedastiques)"), T - 2),
+      loi = if (perm_alea) "loi de permutation de t (permutations aleatoires)"
+            else "loi de permutation de t (enumeration des T! appariements)",
       estim_nom = "pente b", estim = lmc$pente,
-      p_as = lmc$p_pente, sens = "rejeter", nature_forcee = nat_mco,
-      detail = detail_r12(lmc$x_ecarte, trimws(paste("Ici on souhaite REJETER H0.", txt_ident))))
+      p_ex = if (pente_appl && !perm_alea) perm$p else NA_real_,
+      p_mc_ext = if (perm_alea) perm$p else NA_real_,
+      err_mc_ext = if (perm_alea) perm$err_mc else NA_real_,
+      p_as = p_student, sens = "rejeter",
+      p_min = if (pente_appl) perm$p_min else NA_real_,
+      nature_forcee = if (perm_alea)
+        "Monte-Carlo (permutations aleatoires ; H0 : y independant de x)"
+      else "exacte par permutation (H0 : y independant de x, hors modele reglementaire)",
+      detail = detail_motif(lmc$x_ecarte,
+                            if (!is.finite(lmc$t_pente)) txt_t_pente_non_def
+                            else trimws(paste(txt_pitman, txt_ident, txt_plancher_perm))))
+  # Ligne Fisher (#169, decision Q-B revisee du 06/10/2026) : diagnostic,
+  # sans verdict ni p retenue ; F et la p de Fisher F(1,T-2) bilaterale sous
+  # le modele auxiliaire MCO restitues pour information (p_asymptotique,
+  # emplacement non retenu). Redondante avec le test de Pitman (F = t^2) :
+  # aucun second verdict sur b = 0. R13, pertes constantes et R12 gardent
+  # leurs motifs (detail_motif()) ; a F non fini hors de ces cas, motif
+  # txt_f_non_def. R4 et R1 ne la concernent pas.
   add(fam, "Test de Fisher (significativite globale)", "Fisher (1922, 1925)",
       fonction = "test_lm_complet",
-      type = type_pente(lmc$F),
+      type = if (pertes_cst || !is.finite(lmc$F)) "non applicable" else "diagnostic",
       H0 = "b = 0", H1 = "b != 0",
       stat_nom = "F", stat = lmc$F,
       loi = if (is.finite(lmc$F))
         sprintf("F(%d,%d) exacte sous le modele auxiliaire MCO", lmc$ddl1, lmc$ddl2)
       else NA_character_,
-      p_as = lmc$p_F, sens = "rejeter", nature_forcee = nat_mco_F,
-      detail = detail_r12(lmc$x_ecarte, trimws(paste("Equivaut a t^2 en regression simple.", txt_ident))))
+      p_as = lmc$p_F,
+      detail = detail_motif(lmc$x_ecarte, if (!is.finite(lmc$F)) txt_f_non_def else paste(
+        "Diagnostic, redondante avec le test de Pitman (F = t^2) : aucun verdict.",
+        "p de Fisher F(1,T-2) bilaterale sous le modele auxiliaire MCO, pour information,",
+        "non retenue.")))
   add(fam, "Coefficient de determination R2", "lm(y ~ x)",
       fonction = "test_lm_complet",
-      type = if (is.finite(lmc$R2)) "diagnostic" else "non applicable",
+      # Motif choisi par les drapeaux (volumes constants, puis pertes
+      # constantes, #189), avant la finitude de R2.
+      type = if (!vol_cst && !pertes_cst && is.finite(lmc$R2)) "diagnostic"
+             else "non applicable",
       estim_nom = "R2", estim = lmc$R2,
-      detail = if (is.finite(lmc$R2))
+      detail = if (vol_cst) txt_vol_cst
+      else if (pertes_cst) txt_pertes_cst_r2
+      else if (is.finite(lmc$R2))
         sprintf("R2 ajuste = %.4f ; sous H0 (b=0) E[R2] = 1/(T-1) = %.3f ; repere conventionnel R2 < 0.5 : %s. Diagnostic, pas un test",
                 lmc$R2_ajuste, 1 / (T - 1),
                 if (lmc$R2 < 0.5) "en dessous" else "au-dessus")
-      else detail_vol(paste(txt_r12, ": R2 non defini")))
+      else paste(txt_r12, ": R2 non defini"))
   # Issue #110 : branche non applicable sur le modele de la ligne TOST ;
   # priorite volumes constants (R13, txt_vol_cst) > moins de trois volumes
   # distincts > rang deficient (motif rendu par test_reset()).
@@ -4006,51 +4511,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                    "La p Monte-Carlo, simulee sous le modele ajuste, est retenue."
                  else
                    paste0(txt_mc_indispo("La p Monte-Carlo, simulee sous le modele ajuste,"), ".")))
-  # p_min des lignes de rangs (Spearman, Mann-Kendall ; #44, reprise, avis
-  # d'actuary Q5) : 2/T! n'est la p minimale que sans ex aequo ; avec ex
-  # aequo (dans r, ou dans x pour Spearman-volume), la loi de permutation
-  # conditionnelle n'est pas tabulee : ni p_min ni p exacte (#70, regle 2b ;
-  # mk_p_exacte() rend deja NA avec ex aequo), et le motif, porte par
-  # effectifs, est restitue dans detail par add() (p_min NA).
-  # Ex aequo a la tolerance TOL_EX_AEQUO, definition partagee (#112) : r et x
-  # sont aplatis une fois (r_ea, x_ea) pour cor.test() ; les autres lignes
-  # (Mann-Kendall, Cox-Stuart, suites) aplatissent dans leurs fonctions. x est
-  # aplati en tolerance purement relative (.usp_aplatir_volumes()). ex_aequo()
-  # ne recoit que des vecteurs deja aplatis : apres aplatissement, ex aequo
-  # equivaut a egalite au bit pres.
-  r_ea <- engine_aplatir_ex_aequo(r); x_ea <- .usp_aplatir_volumes(x)
-  ex_aequo <- function(...) any(vapply(list(...), function(v) anyDuplicated(v) > 0, logical(1)))
-  pmin_rangs <- function(...) if (ex_aequo(...)) NA_real_ else mk_p_min(T)
-  eff_rangs <- function(r, x = NULL) {
-    er <- ex_aequo(r); ex <- !is.null(x) && ex_aequo(x)
-    if (er || ex)
-      sprintf(paste("T = %d ; ex aequo %s : loi de permutation conditionnelle non",
-                    "tabulee, p_min et p exacte non attribuees"),
-              T, if (er && ex) "dans r et x" else if (er) "dans r" else "dans x")
-    else sprintf("T = %d, sans ex aequo", T)
-  }
-  # Regle 2c (#70) : cor.test(exact = TRUE) n'enumere la loi de permutation
-  # que pour T <= 9 (prho.c, n_small = 9) ; au-dela il rend un developpement
-  # d'Edgeworth (AS 89) : aucune p exacte. Avec ex aequo, cor.test(exact =
-  # TRUE) rend la p asymptotique sous un avertissement : aucune p exacte non
-  # plus, sans se fier a try() ni a l'avertissement. Le motif Edgeworth est
-  # ecrit a T > 9 quel que soit l'etat des ex aequo (le motif ex aequo, porte
-  # par effectifs, s'y ajoute alors).
-  txt_edgeworth <- paste("T > 9 : cor.test(exact = TRUE) rend un developpement",
-                         "d'Edgeworth (AS 89, prho.c, n_small = 9), non une loi exacte")
-  p_spearman_exacte <- function(a, b, ...) {
-    if (T > 9 || ex_aequo(...)) return(NA_real_)
-    p_ex_si_pi_constant({
-      o <- suppressWarnings(try(stats::cor.test(a, b, method = "spearman", exact = TRUE),
-                                silent = TRUE))
-      if (!inherits(o, "try-error")) o$p.value else NA_real_
-    })
-  }
-  detail_spearman <- function(detail, p_ex)
-    detail_r7(if (T > 9) joindre(detail, txt_edgeworth) else detail, p_ex)
   if (!vol_cst) {
     cs <- suppressWarnings(stats::cor.test(r_ea, x_ea, method = "spearman", exact = FALSE))
-    p_sv <- p_spearman_exacte(r_ea, x_ea, r_ea, x_ea)
     add(fam, "Independance ratio S/P vs volume", "Spearman (1904) ; exact : Best & Roberts (1975), AS 89",
         fonction = "usp_tests",
         H0 = "independance (aucune association monotone)", H1 = "association monotone",
@@ -4060,6 +4522,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         p_ex = p_sv,
         p_as = cs$p.value, mc_nom = "SpearVol",
         p_min = pmin_rangs(r_ea, x_ea), effectifs = eff_rangs(r_ea, x_ea),
+        # Renvoi croise a la constante : pose apres coup par
+        # .usp_poser_renvois() (#215).
         detail = detail_spearman("Une correlation signale un effet d'echelle non modelise",
                                  p_sv))
   } else {
@@ -4084,8 +4548,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       p_as = ct$p.value, mc_nom = "SpearTps",
       p_min = pmin_rangs(r_ea), effectifs = eff_rangs(r_ea),
       detail = detail_spearman("", p_st))
-  mk <- test_mann_kendall(r)
-  p_mk <- p_ex_si_pi_constant(mk_p_exacte(r))
+  mk <- test_mann_kendall(r, plancher = 0)
+  p_mk <- p_ex_si_pi_constant(mk_p_exacte(r, plancher = 0))
   add(fam, "Tendance monotone du ratio S/P",
       fonction = "test_mann_kendall",
       "Mann (1945) ; loi exacte : Kendall & Gibbons (1990), ch. 4-5",
@@ -4096,7 +4560,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       p_ex = p_mk, p_as = mk$p, mc_nom = "MK",
       p_min = pmin_rangs(r_ea), effectifs = eff_rangs(r_ea),
       detail = detail_r7("Une derive du S/P contredit la constance de beta", p_mk))
-  cx <- test_cox_stuart(r)
+  cx <- test_cox_stuart(r, plancher = 0)
   p_cx <- p_ex_si_pi_constant(cx$p)
   # m : differences non nulles, n_p : paires. Sans ex aequo (m = n_p), le
   # libelle est inchange ; avec ex aequo, les deux nombres sont affiches et
@@ -4701,7 +5165,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   #   2b : pi_t constant, signes identiques, mais p exacte non definie (un
   #        seul cote de la mediane represente) ;
   #   3  : pi_t variable.
-  p_ex_r <- usp_runsr_p_exacte(z, u, pi_constant)
+  # u a plancher max|r| (#187, Q-187-1 b), comme Runsr au catalogue.
+  plancher_u <- .usp_plancher_u(r)
+  p_ex_r <- usp_runsr_p_exacte(z, u, pi_constant, plancher_u)
   # #128 : la phrase "p-value EXACTE ... retenue" du regime 1 n'est vraie que
   # hors motif de degenerescence de la statistique Runsr, qui ecarte aussi la
   # p exacte dans add() (motifs_degeneres d'engine_registre_tests()). Runsr
@@ -4711,7 +5177,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     unname(boot$motif_mc[["Runsr"]]) else NA_character_
   runsr_degenere <- !is.na(m_runsr) &&
     m_runsr %in% c(MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_ATOME_HORS_OBS, MOTIF_MC_CONDITION)
-  eff_u <- .runs_effectifs(u)
+  eff_u <- .runs_effectifs(u, plancher = plancher_u)
   detail_runsr <- if (is.finite(p_ex_r)) {
     d1 <- paste("CONTROLE SANS OBJET ICI : pi_t est constant (delta = 1, ou volumes",
                 "x_t constants), il n'y a donc aucun artefact de ponderation a",
@@ -4740,19 +5206,42 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         "la precision d'affichage ; la p-value est exacte a cet ordre pres."),
         TOL_DELTA_BORD, ecart_tol))
     d1
-  } else if (isTRUE(pi_constant) && !.signes_mediane_egaux(z, u)) {
-    sprintf(paste(
-      "CONTROLE SANS OBJET ICI : pi_t n'est constant qu'a la tolerance",
-      "TOL_DELTA_BORD = %g pres (%s), il n'y a donc aucun artefact de ponderation",
-      "a detecter, et cette ligne est un quasi-doublon de son homologue sur",
-      "residus standardises. Toutefois la variation residuelle de pi_t suffit ici",
-      "a inverser au moins un signe entre u_t - med(u) et z_t - med(z) : l'identite",
-      "des deux lignes n'est plus garantie (la statistique des suites peut",
-      "coincider ou non), la loi combinatoire de R n'est pas attribuee a cette",
-      "ligne (issue #29, seconde condition de usp_runsr_p_exacte()) et la p-value",
-      if (mc_dispo("Runsr")) "Monte-Carlo, simulee sous le modele ajuste, est retenue."
-      else paste0(txt_mc_indispo("Monte-Carlo, simulee sous le modele ajuste,"), ".")),
-      TOL_DELTA_BORD, ecart_tol)
+  } else if (isTRUE(pi_constant) && !.signes_mediane_egaux(z, u, plancher_b = plancher_u)) {
+    # #187 : deux sous-cas. pi_t EXACTEMENT constant (pi_constant_exact,
+    # ecart_tol vide) : z_t est une transformation croissante de r_t, et
+    # l'inversion de signe ne peut venir que du traitement numerique de u et
+    # de z (centrage de u par la moyenne, aplatissement des ex aequo a
+    # TOL_EX_AEQUO, plancher max|r| sur u et 1 sur z), non de pi_t. pi_t constant
+    # a la tolerance pres : la variation residuelle de pi_t est nommee, avec
+    # ecart_tol. La phrase finale ne dit pas la p Monte-Carlo retenue : add()
+    # peut encore l'ecarter (motif de degenerescence, regle R1) ; nature_p
+    # nomme la p-value retenue, s'il en est une.
+    debut <- if (isTRUE(regime$pi_constant_exact))
+      paste("CONTROLE SANS OBJET ICI : pi_t est exactement constant (delta = 1, ou",
+            "volumes x_t constants), il n'y a donc aucun artefact de ponderation a",
+            "detecter, et cette ligne est un quasi-doublon de son homologue sur",
+            "residus standardises. Toutefois au moins un signe differe entre",
+            "u_t - med(u) et z_t - med(z) : z_t etant une transformation croissante",
+            "de r_t, l'ecart vient du traitement numerique (centrage de u par la",
+            "moyenne, aplatissement des ex aequo a la tolerance TOL_EX_AEQUO,",
+            "relative a max|r| sur u, absolue sous 1 sur z), non d'une variation",
+            "de pi_t :")
+    else
+      sprintf(paste(
+        "CONTROLE SANS OBJET ICI : pi_t n'est constant qu'a la tolerance",
+        "TOL_DELTA_BORD = %g pres (%s), il n'y a donc aucun artefact de ponderation",
+        "a detecter, et cette ligne est un quasi-doublon de son homologue sur",
+        "residus standardises. Toutefois la variation residuelle de pi_t suffit ici",
+        "a inverser au moins un signe entre u_t - med(u) et z_t - med(z) :"),
+        TOL_DELTA_BORD, ecart_tol)
+    paste(debut,
+      "l'identite des deux lignes n'est plus garantie (la statistique des suites",
+      "peut coincider ou non) et la loi combinatoire de R n'est pas attribuee a",
+      "cette ligne (issue #29, seconde condition de la fonction usp_runsr_p_exacte).",
+      if (mc_dispo("Runsr"))
+        paste("La p-value Monte-Carlo, simulee sous le modele ajuste, est calculee ;",
+              "la p-value retenue, s'il en est une, est nommee par nature_p.")
+      else paste0(txt_mc_indispo("La p-value Monte-Carlo, simulee sous le modele ajuste,"), "."))
   } else if (isTRUE(pi_constant)) {
     paste(note_r, "La loi combinatoire de R n'est pas definie ici (un seul cote",
           "de la mediane represente) : aucune p-value exacte (issue #29).")
@@ -4942,7 +5431,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
           detail = paste(c(pref, txt_lr), collapse = " "))
     }
   }
-  reg$lignes()
+  # Renvoi croise constante <-> Spearman ratio / volume (#215, option (ii)
+  # d'actuary, decision du mainteneur du 07/10/2026) : pose sur les lignes
+  # finales, par la regle unique de usp_renvois().
+  .usp_poser_renvois(reg$lignes())
 }
 
 
@@ -5425,6 +5917,15 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
       avt <- c(avt, "Amplitude des volumes >= 10 : rupture de perimetre possible.")
     if (anyDuplicated(data.frame(xt, yt)) > 0)
       avt <- c(avt, "Couples (xt, yt) dupliques detectes.")
+    # Pertes constantes (#189) : predicat unique usp_pertes_constantes(),
+    # sur la serie recue (serie retenue pour run_engine() et
+    # engine_valider_serie_retenue()) ; avertissement, sans refus.
+    if (usp_pertes_constantes(yt))
+      avt <- c(avt, sprintf(paste("Pertes y_t constantes a la tolerance relative TOL_DELTA_BORD",
+                                  "= %g pres (etendue relative = %.2g) : regression de y sur x",
+                                  "sans objet (constante, TOST, pente, Fisher et R2 non",
+                                  "applicables) ; verifier la saisie."),
+                            TOL_DELTA_BORD, diff(range(yt)) / mean(yt)))
     # Credibilite partielle (issue #131) : c(T, bareme applique) < 1, sous
     # le bareme qui entre dans sigma_USP ; length(xt) < 10 ne signalait rien
     # sur les segments du bareme long G(1) de T = 10 a 14.
@@ -7945,9 +8446,20 @@ run_engine <- function(xt, yt,
       jack_annee = i_jack,
       jack_usp   = if (jack_calcule) d_jack[i_jack] / param$sigma_usp else NULL)
 
+    # Test de Pitman sur la pente (#169) : B et graine de l'execution (tirages
+    # a T > T_MAX_ENUM_PERMUTATION seulement, sous engine_sous_graine()) ;
+    # non calcule a volumes constants (R13) ni a pertes constantes (#189),
+    # ou la ligne est non applicable. Limite connue : sous R12 (x ecarte par
+    # lm()) ou t non fini, la ligne est aussi non applicable mais la
+    # permutation est calculee ici (usp_tests() ne l'utilise pas) ;
+    # metadata$permutation_pente decrit alors ce calcul non utilise.
+    perm_pente <- if (!usp_volumes_constants(xt) && !usp_pertes_constantes(yt))
+      usp_permutation_pente(xt, yt, B = B, seed = seed,
+                            unilateral = .pitman_unilateral()) else NULL
     tests <- usp_tests(fit, boot, alpha, theta_equiv = theta_equiv,
                        delta_equiv = delta_equiv, robustesse = robustesse,
-                       methode = methode, lr_delta = lrd)
+                       methode = methode, lr_delta = lrd,
+                       permutation_pente = perm_pente)
 
     # --- 4. Statistiques descriptives -----------------------------------------
     r <- yt / xt
@@ -8038,6 +8550,20 @@ run_engine <- function(xt, yt,
         # paragraphe 3). Place apres bareme_saisi, en dernier avant les champs
         # d'execution.
         list(n_fournies = n),
+        # Test de Pitman sur la pente (#169) : methode de calcul de la loi de
+        # permutation ("enumeration" a T <= T_MAX_ENUM_PERMUTATION, sans
+        # alea ; "aleatoire" au-dela, B permutations sous la graine seed,
+        # cinquieme source de tirage ; "non calcule" a volumes constants (R13)
+        # et a pertes constantes (#189) ; calcule mais non utilise sous R12
+        # ou t non fini, voir plus haut), nombre de permutations aleatoires
+        # (NA sinon) et p bilaterale de permutation (|r|), pour information,
+        # non retenue (decision du mainteneur du 06/10/2026) : sa valeur dans
+        # les deux methodes (aussi imprimee dans le detail a l'enumeration),
+        # NA si non calcule.
+        list(permutation_pente = list(
+          methode = if (is.null(perm_pente)) "non calcule" else perm_pente$methode,
+          B = if (is.null(perm_pente)) NA_real_ else perm_pente$B,
+          p_bilateral = if (is.null(perm_pente)) NA_real_ else perm_pente$p_bilateral)),
         list(horodatage = t0,
              duree_sec = as.numeric(difftime(Sys.time(), t0, units = "secs")),
              version_R = R.version.string))
@@ -8308,9 +8834,96 @@ engine_derogations <- function(res) {
   d
 }
 
+# Repere de renvoi (#215, ADR 0003 annotation du 07/10/2026, option C ;
+# CONTEXT.md "Repere de renvoi") : pour chaque ligne de tests (res$tests),
+# libelle de la ligne a voir aussi, ou NA_character_. Regle unique : la
+# ligne "Nullite de la constante (proportionnalite stricte)" renvoie a
+# "Independance ratio S/P vs volume" quand la ligne Spearman de meme
+# variante est de type "test" avec une p exacte finie (regime de pi_t
+# constant, regle R7) et que la constante elle-meme n'est pas "non
+# applicable" ; NA partout ailleurs, et pour toute ligne sans ligne
+# Spearman (reserve2). Ne lit que les champs test, variante, type et
+# p_exacte, jamais detail (principe de #129). Le detail des deux lignes porte
+# le renvoi croise, pose par .usp_poser_renvois() selon cette meme regle ;
+# un test unitaire verrouille la coherence. La constante est "non
+# applicable" a volumes constants, a pertes constantes et a t non fini
+# (usp_tests()) : elle ne recoit alors pas de repere (condition validee
+# par actuary le 07/10/2026).
+usp_renvois <- function(tests) {
+  nom_cst <- "Nullite de la constante (proportionnalite stricte)"
+  nom_sv  <- "Independance ratio S/P vs volume"
+  champ <- function(t, nm) if (is.null(t[[nm]])) NA else t[[nm]]
+  vapply(tests, function(t) {
+    if (!identical(champ(t, "test"), nom_cst) ||
+        identical(champ(t, "type"), "non applicable")) return(NA_character_)
+    sv <- Filter(function(u) identical(champ(u, "test"), nom_sv) &&
+                   identical(champ(u, "variante"), champ(t, "variante")), tests)
+    ok <- length(sv) == 1L && identical(champ(sv[[1]], "type"), "test") &&
+      is.numeric(sv[[1]]$p_exacte) && length(sv[[1]]$p_exacte) == 1L &&
+      is.finite(sv[[1]]$p_exacte)
+    if (ok) nom_sv else NA_character_
+  }, character(1), USE.NAMES = FALSE)
+}
+
+# Jonction de deux textes de detail (regle de la branche "ECHEC
+# inatteignable" de add()) : " " apres un point final, " ; " sinon, rien si
+# l'un des deux est vide. Partagee par usp_tests() (joindre) et
+# .usp_poser_renvois().
+.usp_joindre <- function(a, b) {
+  if (!nzchar(b)) return(a)
+  if (!nzchar(a)) return(b)
+  paste0(a, if (grepl("\\.$", a)) " " else " ; ", b)
+}
+
+# Textes du renvoi croise (#215, libelle d'actuary) : (a) sur la ligne
+# constante, (b) sur la ligne Spearman ratio / volume.
+USP_TXT_RENVOI_CST <- paste(
+  "pi_t constant (delta estime a 1) : sous y_t = a + b x_t, E[r_t] = b + a / x_t,",
+  "si bien qu'une constante non nulle rend le ratio S/P monotone en x_t ; voir",
+  "aussi la ligne \"Independance ratio S/P vs volume\" (Spearman), dont la p",
+  "exacte vaut sous le modele restreint delta = 1, retenu par l'outil, et non",
+  "sous le modele complet ; son alternative (toute association monotone) est",
+  "plus large que a != 0 et elle n'estime pas a.")
+USP_TXT_RENVOI_SV <- paste(
+  "pi_t constant (delta estime a 1) : une constante a non nulle dans",
+  "y_t = a + b x_t est l'une des alternatives de ce test (E[r_t] = b + a / x_t),",
+  "sans lui etre specifique et sans l'estimer ; l'estimation de a et son test",
+  "sont a la ligne \"Nullite de la constante (proportionnalite stricte)\". P",
+  "exacte sous le modele restreint delta = 1 seulement.")
+
+# Post-traitement des lignes de usp_tests() (#215, option (ii) d'actuary,
+# decision du mainteneur du 07/10/2026) : la ligne constante a laquelle
+# usp_renvois() attribue un repere recoit en fin de detail le texte (a), et
+# la ligne Spearman ratio / volume de meme variante le texte (b). Le detail
+# porte donc le renvoi si et seulement si la colonne renvoi d'
+# engine_table_tests() est non NA (coherence par construction, y compris
+# sous R1 et R3 sur Spearman). Seul le champ detail est complete, apres
+# toutes les mentions posees par add() ; add() et engine_registre_tests()
+# sont inchanges. Idempotent (point de vigilance (c) de l'ADR 0003) : un
+# texte deja present en fin de detail n'est pas ajoute une seconde fois.
+.usp_poser_renvois <- function(L) {
+  ajouter <- function(d, txt)
+    if (is.character(d) && length(d) == 1L && !is.na(d) && endsWith(d, txt)) d
+    else .usp_joindre(d, txt)
+  rv <- usp_renvois(L)
+  for (i in which(!is.na(rv))) {
+    L[[i]]$detail <- ajouter(L[[i]]$detail, USP_TXT_RENVOI_CST)
+    for (j in seq_along(L))
+      if (identical(L[[j]]$test, rv[i]) && identical(L[[j]]$variante, L[[i]]$variante))
+        L[[j]]$detail <- ajouter(L[[j]]$detail, USP_TXT_RENVOI_SV)
+  }
+  L
+}
+
 # Table des tests sous forme de data.frame auditable (donnees, pas affichage).
+# renvoi (#215) : colonne derivee, calculee ici par usp_renvois() (NA pour
+# reserve2), placee avant fonction : la table se termine par fonction,
+# inoperant (ordre fixe par l'annotation du 02/10/2026 de l'ADR 0003).
 engine_table_tests <- function(res) {
-  do.call(base::rbind, lapply(res$tests, function(t) data.frame(
+  rv <- if (identical(res$methode, "reserve2") ||
+            identical(res$metadata$methode, "reserve2"))
+    rep(NA_character_, length(res$tests)) else usp_renvois(res$tests)
+  do.call(base::rbind, lapply(seq_along(res$tests), function(i) { t <- res$tests[[i]]; data.frame(
     famille = t$famille, test = t$test, type = t$type,
     base = t$base, variante = t$variante,
     H0 = t$H0, H1 = t$H1,
@@ -8323,9 +8936,10 @@ engine_table_tests <- function(res) {
     p_retenue = t$p_retenue, nature_p = t$nature_p,
     sens_du_test = t$sens, verdict = t$verdict,
     commentaire = t$detail, reference = t$reference,
+    renvoi = rv[i],
     # fonction (#111) : NULL sur un objet anterieur au champ, rendu NA.
     fonction = if (is.null(t$fonction)) NA_character_ else t$fonction,
     # inoperant (#129, point 3) : NULL sur un objet anterieur au champ, rendu NA.
     inoperant = if (is.null(t$inoperant)) NA else t$inoperant,
-    stringsAsFactors = FALSE)))
+    stringsAsFactors = FALSE) }))
 }

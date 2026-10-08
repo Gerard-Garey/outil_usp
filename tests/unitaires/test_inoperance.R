@@ -27,7 +27,7 @@ fit <- usp_ajuster(x, y)                       # delta = 1, pi_t constant
 # Objet bootstrap fictif (aucune simulation) : p Monte-Carlo a 0,5, aucun
 # motif ; `motif` permet d'en poser un sur une statistique.
 boot_fictif <- function(f, p = 0.5, motif = NULL) {
-  s <- .stats_bootstrapables(f$x, f$y, f$z)
+  s <- .stats_bootstrapables(f$x, f$y, f$z, f$pi)
   pm <- stats::setNames(rep(p, length(s)), names(s))
   mm <- stats::setNames(rep(NA_character_, length(s)), names(s))
   if (!is.null(motif)) { pm[names(motif)] <- NA_real_; mm[names(motif)] <- motif }
@@ -378,7 +378,7 @@ verifier("usp_tests : chaque ligne porte un champ p_min (NA pour une loi continu
 verifier("Constante (R5) : p_exacte NA, p_asymptotique = p de Student de test_intercept(), p Monte-Carlo retenue",
          {
            l <- ligne(tt, "Nullite de la constante (proportionnalite stricte)")
-           is.na(l$p_exacte) && identical(l$p_asymptotique, test_intercept(x, y)$p) &&
+           is.na(l$p_exacte) && identical(l$p_asymptotique, test_intercept(x, y, fit$pi)$p) &&
              identical(l$p_retenue, 0.5) && identical(l$nature_p, "Monte-Carlo (bootstrap parametrique)")
          })
 verifier("Constante sans p Monte-Carlo (motif aucune replication finie) : INFO, p_retenue NA, p_asymptotique conservee",
@@ -387,7 +387,7 @@ verifier("Constante sans p Monte-Carlo (motif aucune replication finie) : INFO, 
                            methode = "premium")
            l <- ligne(t0, "Nullite de la constante (proportionnalite stricte)")
            identical(l$type, "diagnostic") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
-             identical(l$p_asymptotique, test_intercept(x, y)$p) && grepl("non retenue", l$loi, fixed = TRUE)
+             identical(l$p_asymptotique, test_intercept(x, y, fit$pi)$p) && grepl("non retenue", l$loi, fixed = TRUE)
          })
 verifier("Spearman et Mann-Kendall : un ex aequo dans r -> p_min NA ; Spearman-volume : ex aequo dans x -> NA",
          {
@@ -402,14 +402,21 @@ verifier("Spearman et Mann-Kendall : un ex aequo dans r -> p_min NA ; Spearman-v
              is.na(ligne(t3, "Independance ratio S/P vs volume")$p_min) &&
              isTRUE(proche(ligne(t3, "Correlation ratio S/P vs temps")$p_min, 2 / factorial(8), rel = 1e-12))
          })
-verifier("TOST (R5) : nature 'modele auxiliaire MCO' dans les deux branches de marge",
+# #215 (decision P3 du mainteneur du 07/10/2026) : modele auxiliaire pondere,
+# poids estimes ; p exacte NA dans les deux branches de marge, p rangee dans
+# p_asymptotique et retenue hors hierarchie.
+verifier("TOST (R5, #215) : nature 'modele auxiliaire pondere' dans les deux branches de marge, p_exacte NA, p retenue = p_asymptotique",
          {
            a <- ligne(tt, "Equivalence de la constante a zero (TOST)")
            t2 <- usp_tests(fit, boot_fictif(fit), delta_equiv = 5, methode = "premium")
            b <- ligne(t2, "Equivalence de la constante a zero (TOST)")
-           identical(a$nature_p, "sous le modele auxiliaire MCO : loi de Student, marge estimee sur les donnees") &&
-             identical(b$nature_p, "sous le modele auxiliaire MCO : t(T-2) exacte, marge fixee a priori") &&
-             is.finite(b$p_exacte) && identical(b$p_retenue, b$p_exacte)
+           identical(a$nature_p, paste("sous le modele auxiliaire pondere : loi de Student (poids estimes),",
+                                       "marge estimee sur les donnees")) &&
+             identical(b$nature_p, paste("sous le modele auxiliaire pondere : loi de Student (poids estimes),",
+                                         "marge fixee a priori")) &&
+             is.na(a$p_exacte) && is.na(b$p_exacte) &&
+             is.finite(a$p_asymptotique) && identical(a$p_retenue, a$p_asymptotique) &&
+             is.finite(b$p_asymptotique) && identical(b$p_retenue, b$p_asymptotique)
          })
 verifier("usp_identifiabilite_pente : lambda = sqrt(T-1) CV(x) beta / sigma et puissance = pt(, ncp) recalcules",
          {
@@ -428,41 +435,255 @@ fit_cv <- function(cv) {
 f03 <- fit_cv(0.03); f30 <- fit_cv(0.30)
 t03 <- usp_tests(f03, boot_fictif(f03), methode = "premium")
 t30 <- usp_tests(f30, boot_fictif(f30), methode = "premium")
-pente <- "Test de Student sur la pente (lm(y~x))"
+pente <- "Test de Pitman sur la pente (lien positif pertes / volume)"
 fisher <- "Test de Fisher (significativite globale)"
-verifier("Pente et Fisher (R4) : CV(x) = 3 % -> diagnostic ; CV(x) = 30 % -> test ; meme type pour les deux",
+NAT_PITMAN <- "exacte par permutation (H0 : y independant de x, hors modele reglementaire)"
+NAT_PITMAN_MC <- "Monte-Carlo (permutations aleatoires ; H0 : y independant de x)"
+verifier("usp_identifiabilite_pente(unilateral = TRUE) : puissance = P(t > t(1-alpha, T-2) | ncp) ; J1 0,6461 (#169)",
          {
-           identical(ligne(t03, pente)$type, "diagnostic") && identical(ligne(t03, fisher)$type, "diagnostic") &&
-             identical(ligne(t30, pente)$type, "test") && identical(ligne(t30, fisher)$type, "test") &&
+           ip <- usp_identifiabilite_pente(x, fit$beta, fit$sigma, 0.10, unilateral = TRUE)
+           lam <- sqrt(7) * stats::sd(x) / mean(x) * fit$beta / fit$sigma
+           proche(ip$puissance, stats::pt(stats::qt(0.90, 6), 6, ncp = lam, lower.tail = FALSE),
+                  rel = 1e-12) && round(ip$puissance, 4) == 0.6461
+         })
+verifier("Pente (R4 unilaterale) et Fisher : CV(x) = 3 % -> pente diagnostic ; CV(x) = 30 % et J1 -> pente test ; Fisher toujours diagnostic (#169)",
+         {
+           identical(ligne(t03, pente)$type, "diagnostic") &&
+             identical(ligne(t30, pente)$type, "test") && identical(ligne(tt, pente)$type, "test") &&
              all(vapply(list(tt, t03, t30), function(t)
-               identical(ligne(t, pente)$type, ligne(t, fisher)$type), logical(1)))
+               identical(ligne(t, fisher)$type, "diagnostic") &&
+                 identical(ligne(t, fisher)$verdict, "INFO") && is.na(ligne(t, fisher)$p_retenue) &&
+                 is.na(ligne(t, fisher)$nature_p) && is.finite(ligne(t, fisher)$p_asymptotique) &&
+                 grepl("redondante avec le test de Pitman (F = t^2)", ligne(t, fisher)$detail, fixed = TRUE),
+               logical(1)))
          })
-verifier("Pente et Fisher (R4) : donnees de test -> diagnostic, lambda et puissance rappeles ; test -> nature MCO",
+verifier("Pente (J1) : p exacte 4462/40320, nature de la permutation, p de Student unilaterale restituee non retenue, ALERTE, lambda et puissance rappeles (#169)",
          {
-           l <- ligne(tt, pente); m <- ligne(t30, pente)
-           identical(l$type, "diagnostic") &&
-             grepl("PENTE NON IDENTIFIABLE", l$detail, fixed = TRUE) &&
-             grepl("lambda", m$detail, fixed = TRUE) && grepl("Pente identifiable", m$detail, fixed = TRUE) &&
-             identical(m$nature_p, paste("sous le modele auxiliaire MCO : t(T-2) exacte (H0 non simulable :",
-                                         "le modele ajuste appartient a H1)")) &&
-             is.finite(l$p_asymptotique)
+           l <- ligne(tt, pente); d <- ligne(t03, pente)
+           identical(l$p_exacte, 4462 / 40320) && identical(l$p_retenue, l$p_exacte) &&
+             identical(l$nature_p, NAT_PITMAN) && identical(l$verdict, "ALERTE") &&
+             identical(l$fonction, "usp_permutation_pente") && identical(l$p_min, 1 / 40320) &&
+             proche(l$p_asymptotique, stats::pt(l$stat, 6, lower.tail = FALSE), rel = 1e-12) &&
+             grepl("Pente identifiable", l$detail, fixed = TRUE) && grepl("lambda", l$detail, fixed = TRUE) &&
+             identical(d$type, "diagnostic") && grepl("PENTE NON IDENTIFIABLE", d$detail, fixed = TRUE)
          })
-# Nature propre a la ligne Fisher (#117) : sa loi de reference est F(1,T-2),
-# non t(T-2). Jeu (xi, yi) de test_controles_numeriques.R (J2, delta
-# interieur), ou pente et Fisher sont de type test.
+# Jeu (xi, yi) de test_controles_numeriques.R (J2, delta interieur).
 xi <- c(50, 80, 120, 200, 300, 150, 90, 60)
 yi <- c(29.92, 56.9, 101.25, 123.06, 207.23, 105.91, 68.59, 40.05)
 f_i <- usp_ajuster(xi, yi)
 t_i <- usp_tests(f_i, boot_fictif(f_i), methode = "premium")
-verifier("Pente et Fisher (#117) : jeu J2 (xi, yi), deux tests ; nature de Fisher F(1,T-2), de la pente t(T-2), loi de Fisher F(1,6)",
+verifier("Pente et Fisher (#169) : jeu J2, p = p_min = 1/40320, OK ; Fisher diagnostic, loi F(1,6), p F bilaterale restituee",
          {
            m <- ligne(t_i, pente); f <- ligne(t_i, fisher)
-           identical(m$type, "test") && identical(f$type, "test") &&
-             identical(m$nature_p, paste("sous le modele auxiliaire MCO : t(T-2) exacte (H0 non simulable :",
-                                         "le modele ajuste appartient a H1)")) &&
-             identical(f$nature_p, paste("sous le modele auxiliaire MCO : F(1,T-2) exacte (H0 non simulable :",
-                                         "le modele ajuste appartient a H1)")) &&
-             grepl("^F\\(1,6\\)", f$loi) && !grepl("t(T-2)", f$nature_p, fixed = TRUE)
+           identical(m$type, "test") && identical(m$p_exacte, 1 / 40320) && identical(m$p_min, 1 / 40320) &&
+             identical(m$verdict, "OK") && identical(m$nature_p, NAT_PITMAN) &&
+             identical(f$type, "diagnostic") && grepl("^F\\(1,6\\)", f$loi) &&
+             proche(f$p_asymptotique, stats::pf(f$stat, 1, 6, lower.tail = FALSE), rel = 1e-10)
+         })
+## --- 4 bis. Test de Pitman : usp_permutation_pente() (#169) ------------------
+# Enumeration independante : boucle naive sur les T! appariements (stats::cor).
+naive_perm <- function(x, y, uni) {
+  P <- as.matrix(expand.grid(rep(list(seq_along(x)), length(x))))
+  P <- P[apply(P, 1, function(v) !anyDuplicated(v)), , drop = FALSE]
+  r0 <- stats::cor(x, y); r <- apply(P, 1, function(p) stats::cor(x, y[p]))
+  (if (uni) sum(r >= r0 - 1e-12) else sum(abs(r) >= abs(r0) - 1e-12)) / nrow(P)
+}
+verifier("usp_permutation_pente : enumeration = boucle naive (T = 4, 5 ; unilateral et bilateral ; ex aequo compris)",
+         {
+           ok <- TRUE
+           for (T_ in 4:5) for (i in 1:12) {
+             xs <- 50 + 30 * ((i * seq_len(T_) * 7) %% 11); ys <- round(xs * (1 + ((i + seq_len(T_)) %% 5) / 7) / 20)
+             if (stats::sd(xs) == 0 || stats::sd(ys) == 0) next
+             for (u in c(TRUE, FALSE))
+               ok <- ok && proche(usp_permutation_pente(xs, ys, unilateral = u)$p, naive_perm(xs, ys, u), rel = 1e-12)
+           }
+           ok
+         })
+verifier("usp_permutation_pente : J1 4462/40320 unilateral, 8515/40320 bilateral ; p >= 1/T! ; invariances d'echelle et de translation",
+         {
+           u <- usp_permutation_pente(x, y); b <- usp_permutation_pente(x, y, unilateral = FALSE)
+           identical(u$p, 4462 / 40320) && identical(b$p, 8515 / 40320) && u$p >= 1 / 40320 &&
+             identical(u$methode, "enumeration") && identical(u$n_perm, 40320) &&
+             all(vapply(list(usp_permutation_pente(x, 1e3 * y), usp_permutation_pente(x, 1e-3 * y),
+                             usp_permutation_pente(x, y + 50), usp_permutation_pente(1e3 * x, y)),
+                        function(v) identical(v$p, u$p), logical(1)))
+         })
+verifier("usp_permutation_pente : p_min avec ex aequo, formule (T >= 10) = enumeration (T = 5) ; y = (1,1,1,1,2) -> 0,2",
+         {
+           ok <- TRUE
+           for (i in 1:40) {
+             xs <- 10 * (1 + (i * c(1, 3, 5, 7, 9)) %% 4); ys <- 1 + (i * c(2, 3, 5, 7, 11)) %% 3
+             if (stats::sd(xs) == 0 || stats::sd(ys) == 0) next
+             xa <- engine_aplatir_ex_aequo(xs, plancher = 0); o <- order(xa)
+             f <- .usp_nb_appariements(xa[o], sort(engine_aplatir_ex_aequo(ys, plancher = 0))) / 120
+             ok <- ok && proche(usp_permutation_pente(xs, ys)$p_min, f, rel = 1e-12)
+           }
+           ok && proche(usp_permutation_pente(c(10, 20, 30, 40, 50), c(1, 1, 1, 1, 2))$p_min, 0.2, rel = 1e-12)
+         })
+verifier("usp_permutation_pente : T = 9 enumeration (362880) ; T = 10 et 12 permutations aleatoires reproductibles, etat RNG restaure, p sur la grille (1+k)/(B+1)",
+         {
+           x9 <- 100 + 10 * (1:9) + (1:9)^2; y9 <- x9 * (1 + ((1:9) %% 4) / 10)
+           p9 <- usp_permutation_pente(x9, y9)
+           ok <- identical(p9$methode, "enumeration") && identical(p9$n_perm, 362880)
+           for (T_ in c(10, 12)) {
+             xs <- 100 + 7 * seq_len(T_) + (seq_len(T_) %% 3) * 5; ys <- xs * (1 + (seq_len(T_) %% 4) / 10)
+             set.seed(7); s0 <- .Random.seed; k0 <- RNGkind()
+             a <- usp_permutation_pente(xs, ys, B = 199, seed = 3); b <- usp_permutation_pente(xs, ys, B = 199, seed = 3)
+             ok <- ok && identical(a, b) && identical(s0, .Random.seed) && identical(k0, RNGkind()) &&
+               identical(a$methode, "aleatoire") && identical(a$B, 199) &&
+               proche(a$p * 200, round(a$p * 200), rel = 1e-12) && a$p >= 1 / 200 &&
+               proche(a$err_mc, sqrt(a$p * (1 - a$p) / 199), rel = 1e-12)
+           }
+           ok
+         })
+verifier("Pente T = 10 : nature Monte-Carlo des permutations (p_mc_ext), p exacte NA ; B <= 9 -> OK inatteignable dans le detail (#169)",
+         {
+           xs <- 100 + 7 * (1:10) + ((1:10) %% 3) * 5; ys <- xs * (1 + ((1:10) %% 4) / 10)
+           f10 <- usp_ajuster(xs, ys)
+           l <- ligne(usp_tests(f10, boot_fictif(f10), methode = "premium",
+                                permutation_pente = usp_permutation_pente(xs, ys, B = 199)), pente)
+           l9 <- ligne(usp_tests(f10, boot_fictif(f10), methode = "premium",
+                                 permutation_pente = usp_permutation_pente(xs, ys, B = 9)), pente)
+           identical(l$nature_p, NAT_PITMAN_MC) && is.na(l$p_exacte) && identical(l$p_retenue, l$p_mc) &&
+             is.finite(l$err_mc) && !grepl("OK inatteignable", l$detail, fixed = TRUE) &&
+             grepl("OK inatteignable", l9$detail, fixed = TRUE) && !identical(l9$verdict, "OK")
+         })
+verifier("Garde-fou (ADR 0002, point 4) : p de permutation absente sur une ligne applicable -> erreur, jamais la p de Student sous la nature de la permutation",
+         {
+           pp <- usp_permutation_pente(x, y); pp$p <- NA_real_
+           e <- tryCatch(usp_tests(fit, boot_fictif(fit), methode = "premium", permutation_pente = pp),
+                         error = function(e) conditionMessage(e))
+           is.character(e) && grepl("repli sur la p de Student interdit", e, fixed = TRUE)
+         })
+verifier("Garde-fou de sens : permutation_pente bilaterale passee a usp_tests() -> erreur (SENS_PITMAN_PENTE)",
+         {
+           e <- tryCatch(usp_tests(fit, boot_fictif(fit), methode = "premium",
+                                   permutation_pente = usp_permutation_pente(x, y, unilateral = FALSE)),
+                         error = function(e) conditionMessage(e))
+           is.character(e) &&
+             grepl("sens de la p de permutation de la pente different de SENS_PITMAN_PENTE", e, fixed = TRUE)
+         })
+# Sens du test (SENS_PITMAN_PENTE, seule definition, #169) : verrou sur
+# "unilateral" (decision du mainteneur du 06/10/2026) ; p bilaterale de
+# permutation restituee pour information dans le detail (libelle neutre :
+# la p unilaterale n'est pas toujours retenue, R4 et R1).
+verifier("SENS_PITMAN_PENTE : verrou unilateral (toute autre valeur refusee) ; p bilaterale J1 8515/40320 = 0,2112 dans le detail, libelle neutre, p de Student unilaterale",
+         {
+           e <- tryCatch(.pitman_unilateral("bilateral"), error = function(e) conditionMessage(e))
+           l <- ligne(tt, pente); pp <- usp_permutation_pente(x, y)
+           identical(SENS_PITMAN_PENTE, "unilateral") && isTRUE(.pitman_unilateral()) &&
+             is.character(e) && grepl("n'admet que", e, fixed = TRUE) &&
+             !"SENS_PITMAN_PENTE" %in% names(formals(run_engine)) &&
+             identical(pp$p_bilateral, 8515 / 40320) &&
+             identical(usp_permutation_pente(x, y, unilateral = FALSE)$p, pp$p_bilateral) &&
+             grepl(paste("p de permutation unilaterale (sens du test) ; p bilaterale de permutation (|r|),",
+                         "pour information, non retenue = 0.2112."), l$detail, fixed = TRUE) &&
+             !grepl("unilaterale retenue", l$detail, fixed = TRUE) &&
+             grepl("p de Student unilaterale (t(T-2)", l$detail, fixed = TRUE)
+         })
+# run_engine() a T = 10 (#169, constat C1 d'audit) : la ligne recoit la
+# permutation calculee avec le B et la graine de l'execution. Donnees choisies
+# pour que p depende de B et de la graine (p = 0,16 a B = 199, graine 11 ;
+# 0,146 a B = 999 ; 0,135 a la graine par defaut).
+x10p <- 100 + 7 * (1:10) + ((1:10) %% 3) * 5
+y10p <- c(80, 95, 70, 110, 90, 85, 120, 75, 100, 105)
+res10p <- run_engine(xt = x10p, yt = y10p, methode = "premium", segment = 1, annexe = "II",
+                     nature_donnees = "brutes", B = 199, seed = 11)
+verifier("run_engine(T = 10, B = 199, seed = 11) : p_mc de la pente = usp_permutation_pente(B = 199, seed = 11)$p ; metadata$permutation_pente (aleatoire, 199, p_bilateral)",
+         {
+           pp <- usp_permutation_pente(x10p, y10p, B = 199, seed = 11)
+           l <- ligne(res10p$tests, pente); m <- res10p$metadata$permutation_pente
+           isTRUE(res10p$ok) && identical(l$p_mc, pp$p) && identical(l$p_retenue, pp$p) &&
+             identical(l$err_mc, pp$err_mc) && is.na(l$p_exacte) &&
+             !identical(pp$p, usp_permutation_pente(x10p, y10p)$p) &&
+             identical(m, list(methode = "aleatoire", B = 199, p_bilateral = pp$p_bilateral)) &&
+             grepl("pour information, non retenue : non imprimee (tirages aleatoires).", l$detail, fixed = TRUE)
+         })
+verifier("run_engine(T = 8) : metadata$permutation_pente = enumeration, B NA, p_bilateral = celle du detail ; volumes constants -> non calcule",
+         {
+           r8 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
+                            nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831)
+           rc <- run_engine(xt = rep(100, 8), yt = y, methode = "premium", segment = 1, annexe = "II",
+                            nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831)
+           identical(r8$metadata$permutation_pente,
+                     list(methode = "enumeration", B = NA_real_, p_bilateral = 8515 / 40320)) &&
+             identical(rc$metadata$permutation_pente,
+                       list(methode = "non calcule", B = NA_real_, p_bilateral = NA_real_))
+         })
+verifier("Pente : y = (1,1,1,1,2) a T = 5 -> p_min = 0,2 >= alpha, test inoperant (R1)",
+         {
+           x5 <- c(10, 20, 30, 40, 50); y5 <- c(1, 1, 1, 1, 2)
+           f5 <- usp_ajuster(x5, y5)
+           l <- ligne(usp_tests(f5, boot_fictif(f5), methode = "premium"), pente)
+           identical(l$type, "diagnostic") && isTRUE(l$inoperant) && proche(l$p_min, 0.2, rel = 1e-12) &&
+             identical(l$verdict, "INFO") && startsWith(l$detail, "TEST INOPERANT")
+         })
+# Reprise de la revue finale (#169, decisions du mainteneur du 07/10/2026).
+# avec_avert() rend la valeur et les avertissements emis (verifier() les
+# neutralise sans les compter).
+avec_avert <- function(expr) {
+  w <- character(0)
+  v <- withCallingHandlers(expr, warning = function(e) {
+    w <<- c(w, conditionMessage(e)); invokeRestart("muffleWarning")
+  })
+  list(v = v, w = w)
+}
+verifier("usp_permutation_pente : y = 0,5 x (|r_obs| > 1 a l'arrondi) -> t = Inf, sans NaN ni avertissement ; p = 1/8!",
+         {
+           a <- avec_avert(usp_permutation_pente(seq(100, 170, 10), 0.5 * seq(100, 170, 10)))
+           length(a$w) == 0L && identical(a$v$t, Inf) && identical(a$v$p, 1 / 40320) &&
+             identical(a$v$p_min, 1 / 40320)
+         })
+verifier("usp_permutation_pente : p_min a T = 200 (factorial() deborde) fini dans ]0, 1], sans avertissement, = 1/C(200,100) et 2/C(200,100) en bilateral",
+         {
+           x200 <- rep(c(100, 150), each = 100); y200 <- rep(c(50, 80, 60, 70), 50)
+           u <- avec_avert(usp_permutation_pente(x200, y200, B = 9))
+           b <- avec_avert(usp_permutation_pente(x200, y200, B = 9, unilateral = FALSE))
+           length(u$w) == 0L && length(b$w) == 0L &&
+             is.finite(u$v$p_min) && u$v$p_min > 0 && u$v$p_min <= 1 &&
+             isTRUE(proche(u$v$p_min, 1 / choose(200, 100), rel = 1e-10)) &&
+             isTRUE(proche(b$v$p_min, 2 / choose(200, 100), rel = 1e-10))
+         })
+verifier("usp_permutation_pente : p_min a T <= 170 = nombre arrondi / factorial(T) au bit pres (9!/10! = 0,1 exactement ; T = 170)",
+         {
+           x10 <- c(rep(100, 9), 200); y10 <- c(50, 55, 60, 52, 58, 62, 54, 57, 61, 120)
+           x170 <- rep(c(100, 150), each = 85); y170 <- rep(c(50, 80), 85)
+           xa <- engine_aplatir_ex_aequo(x170, plancher = 0); o <- order(xa)
+           n170 <- .usp_nb_appariements(xa[o], sort(engine_aplatir_ex_aequo(y170, plancher = 0)))
+           identical(usp_permutation_pente(x10, y10, B = 9)$p_min, 0.1) &&
+             identical(usp_permutation_pente(x170, y170, B = 9)$p_min, n170 / factorial(170))
+         })
+verifier("Pente et Fisher : ajustement exact (x = 1:8, y = 2 x, t = F = Inf) -> non applicables, motifs 'statistique t non finie' et 'statistique F non finie' seuls",
+         {
+           f_ex <- usp_ajuster(1:8, 2 * (1:8))
+           t_ex <- usp_tests(f_ex, boot_fictif(f_ex), methode = "premium")
+           l <- ligne(t_ex, pente); fi <- ligne(t_ex, fisher)
+           identical(l$type, "non applicable") && !is.finite(l$stat) && is.na(l$p_retenue) &&
+             identical(l$detail, paste("statistique t non finie (erreur-type de la pente de la",
+                                       "regression de y sur x nulle : ajustement exact, ou non",
+                                       "calculable) : test non applicable")) &&
+             identical(fi$type, "non applicable") && !is.finite(fi$stat) && is.na(fi$p_retenue) &&
+             identical(fi$detail, paste("statistique F non finie (somme des carres residuelle de la",
+                                        "regression de y sur x nulle : ajustement exact, ou non",
+                                        "calculable) : non applicable"))
+         })
+verifier("Pente T = 10, B = 9 : pas de mention 'OK inatteignable' sous R4 (diagnostic) ni sous R1 (p_min = 0,1 >= alpha)",
+         {
+           xs <- 100 + 7 * (1:10) + ((1:10) %% 3) * 5; ys <- xs * (1 + ((1:10) %% 4) / 10)
+           xc <- mean(xs) * (1 + 0.03 * as.numeric(scale(xs))); yc <- xc * ys / xs
+           f4 <- usp_ajuster(xc, yc)
+           l4 <- ligne(usp_tests(f4, boot_fictif(f4), methode = "premium",
+                                 permutation_pente = usp_permutation_pente(xc, yc, B = 9)), pente)
+           x1 <- c(rep(100, 9), 200); y1 <- c(50, 55, 60, 52, 58, 62, 54, 57, 61, 120)
+           f1 <- usp_ajuster(x1, y1)
+           l1 <- ligne(usp_tests(f1, boot_fictif(f1), methode = "premium",
+                                 permutation_pente = usp_permutation_pente(x1, y1, B = 9)), pente)
+           identical(l4$type, "diagnostic") && !isTRUE(l4$inoperant) &&
+             grepl("PENTE NON IDENTIFIABLE", l4$detail, fixed = TRUE) &&
+             !grepl("OK inatteignable", l4$detail, fixed = TRUE) &&
+             identical(l1$type, "diagnostic") && isTRUE(l1$inoperant) &&
+             startsWith(l1$detail, "TEST INOPERANT") &&
+             !grepl("OK inatteignable", l1$detail, fixed = TRUE)
          })
 verifier("AD, CvM (R6) : estim = statistique sur (z - zbar)/s_z, p_asymptotique = Stephens sur estim",
          {
@@ -736,7 +957,7 @@ res10 <- run_engine(xt = x10, yt = y10, methode = "premium", segment = 1, annexe
                     nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831)
 verifier("Cox-Stuart T = 12, m = 5 sur n_p = 6, alpha = 0,10 : test INFO sans p-value, phrase de #128, sans 'ECHEC inatteignable'",
          {
-           cx <- test_cox_stuart(y12 / x12); l <- ligne(res12$tests, "Tendance par signes du ratio S/P")
+           cx <- test_cox_stuart(y12 / x12, plancher = 0); l <- ligne(res12$tests, "Tendance par signes du ratio S/P")
            cx$m == 5L && cx$n_p == 6L && proche(l$p_min, 0.0625) &&
              identical(l$type, "test") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
              identical(l$sens, "ne pas rejeter") &&
@@ -747,7 +968,7 @@ verifier("Cox-Stuart T = 12, m = 5 sur n_p = 6, alpha = 0,10 : test INFO sans p-
          })
 verifier("Cox-Stuart T = 10, m = 4 sur n_p = 5, alpha = 0,10 : TEST INOPERANT inchange",
          {
-           cx <- test_cox_stuart(y10 / x10); l <- ligne(res10$tests, "Tendance par signes du ratio S/P")
+           cx <- test_cox_stuart(y10 / x10, plancher = 0); l <- ligne(res10$tests, "Tendance par signes du ratio S/P")
            cx$m == 4L && cx$n_p == 5L && identical(l$type, "diagnostic") &&
              startsWith(l$detail, "TEST INOPERANT") &&
              !grepl("aucune p-value disponible", l$detail, fixed = TRUE)
@@ -759,8 +980,10 @@ verifier("Cox-Stuart T = 10, m = 4 sur n_p = 5, alpha = 0,10 : TEST INOPERANT in
 # 1 - F_t(Delta/se) (p du TOST en a = 0) compare a alpha et a
 # SEUIL_ECHEC_SENS_REJETER ; rho = t(1-alpha, T-2) x se / Delta a %.2f.
 # Valeurs construites loin des points de bascule de %.2f (mesure sur ces
-# donnees : rho = 9.8114 ; 0.5560 ; 1.6680 ; 0.8313 ; 0.6541), donc
-# independantes de la plateforme.
+# donnees : rho = 9.8114 ; 0.5560 ; 1.6680 ; 0.8313 ; 0.6541 avant #215,
+# se(a) MCO ; depuis #215, se(a) du modele auxiliaire pondere, 53,7545 au
+# lieu de 57,9278 : rho = 9.1046 ; 0.5160 ; 1.5479 ; 0.7714 ; 0.6070, memes
+# branches et memes verdicts), donc independantes de la plateforme.
 NOM_TOST165 <- "Equivalence de la constante a zero (TOST)"
 TXT_FIN165 <- paste(". L'equivalence ne peut pas etre conclue avec ces donnees (plan de volumes,",
                     "dispersion residuelle) et cette marge : ce verdict traduit une absence de",
@@ -769,8 +992,9 @@ TXT_NON165 <- paste("Condition necessaire de conclusion non remplie : t(1-alpha,
                     "Delta = %s >= 1, soit se(a) >= Delta / t(1-alpha, T-2) : quelle que soit la",
                     "constante estimee, p >= alpha")
 # Texte d'avant #165, recalcule depuis test_tost_intercept().
-avant165 <- function(x, y, theta = 0.10, delta_abs = NULL) {
-  t0 <- test_tost_intercept(x, y, theta = theta, delta_abs = delta_abs)
+# pi : pi_t de l'ajustement de (x, y) (#215), par defaut celui des donnees de test.
+avant165 <- function(x, y, theta = 0.10, delta_abs = NULL, pi = fit$pi) {
+  t0 <- test_tost_intercept(x, y, pi, theta = theta, delta_abs = delta_abs)
   sprintf(paste("Rejeter H0 fournit une preuve POSITIVE de proportionnalite.",
                 "Delta = %s (valeur : estimation \"marge Delta\") ;",
                 "p_bas = %.4f, p_haut = %.4f."),
@@ -778,70 +1002,72 @@ avant165 <- function(x, y, theta = 0.10, delta_abs = NULL) {
           else "marge fixee a priori", t0$p_bas, t0$p_haut)
 }
 tost165 <- function(f, ...) ligne(usp_tests(f, boot_fictif(f), methode = "premium", ...), NOM_TOST165)
-verifier("TOST (#165), donnees des quatre cas lognormaux (alpha = 0,10, theta = 0,10), premium et reserve1 : texte d'avant + 'non remplie ... = 9.81 >= 1 ... et meme p >= 0.3 : OK et ALERTE inatteignables. L'equivalence ...' ; p retenue et verdict ECHEC inchanges",
+verifier("TOST (#165), donnees des quatre cas lognormaux (alpha = 0,10, theta = 0,10), premium et reserve1 : texte d'avant + 'non remplie ... = 9.10 >= 1 ... et meme p >= 0.3 : OK et ALERTE inatteignables. L'equivalence ...' ; p retenue et verdict ECHEC inchanges",
          {
            att <- paste(avant165(x, y),
-                        paste0(sprintf(TXT_NON165, "9.81"),
+                        paste0(sprintf(TXT_NON165, "9.10"),
                                " et meme p >= 0.3 : OK et ALERTE inatteignables", TXT_FIN165))
            ok <- vapply(c("premium", "reserve1"), function(m) {
              l <- ligne(usp_tests(fit, boot_fictif(fit), methode = m), NOM_TOST165)
              identical(l$detail, att) && identical(l$verdict, "ECHEC") &&
-               identical(l$p_retenue, test_tost_intercept(x, y)$p)
+               identical(l$p_retenue, test_tost_intercept(x, y, fit$pi)$p)
            }, logical(1))
            if (all(ok)) TRUE else paste("en defaut :", paste(names(ok)[!ok], collapse = ", "))
          })
-verifier("TOST (#165), marge fixee a priori delta_equiv = 150 (rho = 0.56 < 1) : texte d'avant + 'remplie', verdict OK",
+verifier("TOST (#165), marge fixee a priori delta_equiv = 150 (rho = 0.52 < 1) : texte d'avant + 'remplie', verdict OK",
          {
            l <- tost165(fit, delta_equiv = 150)
            identical(l$detail, paste(avant165(x, y, delta_abs = 150),
                                      paste("Condition necessaire de conclusion remplie :",
-                                           "t(1-alpha, T-2) x se(a) / Delta = 0.56 < 1."))) &&
+                                           "t(1-alpha, T-2) x se(a) / Delta = 0.52 < 1."))) &&
              identical(l$verdict, "OK")
          })
-verifier("TOST (#165), marge estimee theta_equiv = 1,5 (rho = 0.65 < 1) : 'remplie', verdict OK",
+verifier("TOST (#165), marge estimee theta_equiv = 1,5 (rho = 0.61 < 1) : 'remplie', verdict OK",
          {
            l <- tost165(fit, theta_equiv = 1.5)
            identical(l$detail, paste(avant165(x, y, theta = 1.5),
                                      paste("Condition necessaire de conclusion remplie :",
-                                           "t(1-alpha, T-2) x se(a) / Delta = 0.65 < 1."))) &&
+                                           "t(1-alpha, T-2) x se(a) / Delta = 0.61 < 1."))) &&
              identical(l$verdict, "OK")
          })
-verifier("TOST (#165), marge fixee a priori delta_equiv = 50 (alpha <= p_plancher < 0,30, rho = 1.67) : 'OK inatteignable' seul, verdict ALERTE",
+verifier("TOST (#165), marge fixee a priori delta_equiv = 50 (alpha <= p_plancher < 0,30, rho = 1.55) : 'OK inatteignable' seul, verdict ALERTE",
          {
            l <- tost165(fit, delta_equiv = 50)
-           t0 <- test_tost_intercept(x, y, delta_abs = 50)
+           t0 <- test_tost_intercept(x, y, fit$pi, delta_abs = 50)
            pp <- stats::pt(50 / t0$se, 6, lower.tail = FALSE)
            pp >= 0.10 && pp < SEUIL_ECHEC_SENS_REJETER &&
              identical(l$detail, paste(avant165(x, y, delta_abs = 50),
-                                       paste0(sprintf(TXT_NON165, "1.67"), " : OK inatteignable",
+                                       paste0(sprintf(TXT_NON165, "1.55"), " : OK inatteignable",
                                               TXT_FIN165))) &&
              !grepl("ALERTE inatteignables", l$detail, fixed = TRUE) &&
              identical(l$verdict, "ALERTE")
          })
-verifier("TOST (#165), alpha de la regle des verdicts : delta_equiv = 50 a alpha = 0,25 -> 'remplie' avec t(0,75 ; 6) (rho = 0.83), verdict OK",
+verifier("TOST (#165), alpha de la regle des verdicts : delta_equiv = 50 a alpha = 0,25 -> 'remplie' avec t(0,75 ; 6) (rho = 0.77), verdict OK",
          {
            l <- ligne(usp_tests(fit, boot_fictif(fit), alpha = 0.25, methode = "premium",
                                 delta_equiv = 50), NOM_TOST165)
            identical(l$detail, paste(avant165(x, y, delta_abs = 50),
                                      paste("Condition necessaire de conclusion remplie :",
-                                           "t(1-alpha, T-2) x se(a) / Delta = 0.83 < 1."))) &&
+                                           "t(1-alpha, T-2) x se(a) / Delta = 0.77 < 1."))) &&
              identical(l$verdict, "OK")
          })
 # Cas construits a la frontiere (reprise de l'audit de #165) : Delta =
 # se(a) x t(q ; 6) x k, k = 1,005 ou 1/1,005, q = 0,90 (bascule alpha = 0,10)
 # ou 0,70 (bascule SEUIL_ECHEC_SENS_REJETER = 0,30), alpha = 0,10. Mesure sur
 # ces donnees (p_plancher a 6 ddl ; a 7 ddl entre parentheses) :
-#   q = 0,90, k = 1,005 : 0,099029 (0,095581), p = 0,1105 -> remplie, ALERTE
-#   q = 0,90, k = 1/1,005 : 0,100975 (0,097540), p = 0,1127 -> OK inatteignable, ALERTE
-#   q = 0,70, k = 1,005 : 0,299111 (0,297716), p = 0,3259 -> OK inatteignable, ECHEC
-#   q = 0,70, k = 1/1,005 : 0,300886 (0,299506), p = 0,3277 -> OK et ALERTE inatteignables, ECHEC
+#   q = 0,90, k = 1,005 : 0,099029 (0,095581), p = 0,1084 -> remplie, ALERTE
+#   q = 0,90, k = 1/1,005 : 0,100975 (0,097540), p = 0,1105 -> OK inatteignable, ALERTE
+#   q = 0,70, k = 1,005 : 0,299111 (0,297716), p = 0,3210 -> OK inatteignable, ECHEC
+#   q = 0,70, k = 1/1,005 : 0,300886 (0,299506), p = 0,3228 -> OK et ALERTE inatteignables, ECHEC
+# (p mesurees depuis #215, se(a) et a du modele auxiliaire pondere ;
+# p_plancher, fonction de q et k seuls, inchangees.)
 # Ecarts aux seuils de l'ordre de 1e-3 : sans rapport avec la derive de
 # plateforme ; les cas k = 1/1,005 distinguent T - 2 de T - 1 ddl. rho
 # (0,995 a q = 0,90, k = 1,005) n'est pas compare : l'arrondi %.2f y montre
 # 1.00 (limite admise, commentaire 5927254443 de #165).
 verifier("TOST (#165), cas a la frontiere (marge 0,5 % autour de t(0,90 ; 6) et t(0,70 ; 6), delta_equiv, alpha = 0,10) : branche decidee par p_plancher a T - 2 ddl contre alpha et SEUIL_ECHEC_SENS_REJETER, verdict coherent",
          {
-           se0 <- test_tost_intercept(x, y)$se
+           se0 <- test_tost_intercept(x, y, fit$pi)$se
            cas <- list(list(q = 0.90, k = 1.005,     br = "remplie", v = "ALERTE"),
                        list(q = 0.90, k = 1 / 1.005, br = "ok",      v = "ALERTE"),
                        list(q = 0.70, k = 1.005,     br = "ok",      v = "ECHEC"),
@@ -881,9 +1107,9 @@ verifier("TOST (#165), propriete sur 30 series simulees (graine 165) : jamais 'n
            pb <- character(0); vu <- c(remplie = 0L, ok_inat = 0L, ok_alerte_inat = 0L)
            for (i in seq_along(sim)) {
              s <- sim[[i]]
-             se <- test_tost_intercept(s$x, s$y)$se
-             d <- se * s$k
              f <- usp_ajuster(s$x, s$y)
+             se <- test_tost_intercept(s$x, s$y, f$pi)$se
+             d <- se * s$k
              l <- ligne(usp_tests(f, boot_fictif(f), alpha = s$alpha, methode = "premium",
                                   delta_equiv = d), NOM_TOST165)
              pp <- stats::pt(d / se, 6, lower.tail = FALSE)
@@ -898,7 +1124,7 @@ verifier("TOST (#165), propriete sur 30 series simulees (graine 165) : jamais 'n
                  (deux && !identical(l$verdict, "ECHEC")) ||
                  rem != (pp < s$alpha) ||
                  deux != (pp >= SEUIL_ECHEC_SENS_REJETER) ||
-                 !startsWith(l$detail, avant165(s$x, s$y, delta_abs = d)))
+                 !startsWith(l$detail, avant165(s$x, s$y, delta_abs = d, pi = f$pi)))
                pb <- c(pb, sprintf("serie %d (verdict %s)", i, l$verdict))
            }
            if (length(pb)) paste(pb, collapse = " ; ")

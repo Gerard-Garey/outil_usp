@@ -218,12 +218,11 @@ verifier("Rapport : pas de double echappement (&amp;lt; / &amp;gt; absents), H1 
 det_all <- table_detail_groupe(tb); sy_all <- table_synthese_groupe(tb)
 i_fis <- grep("^Test de Fisher", tb$test)[1]
 i_inop <- which(tb$inoperant)[1]
-verifier("table_detail_groupe() : colonnes Type et Motif / commentaire, motif echappe (Fisher R4, J1)",
+verifier("table_detail_groupe() : colonnes Type et Motif / commentaire, motif echappe (Fisher diagnostic, J1, #169)",
          all(c("Type", "Motif / commentaire") %in% names(det_all)) &&
          !is.na(i_fis) && identical(tb$type[i_fis], "diagnostic") &&
          identical(det_all$Type[i_fis], "diagnostic") &&
-         grepl("PENTE NON IDENTIFIABLE", det_all[["Motif / commentaire"]][i_fis], fixed = TRUE) &&
-         grepl("0.47 &lt; 0.5", det_all[["Motif / commentaire"]][i_fis], fixed = TRUE))
+         grepl("redondante avec le test de Pitman (F = t^2)", det_all[["Motif / commentaire"]][i_fis], fixed = TRUE))
 verifier("table_detail_groupe() : toute ligne INFO a un motif (aucun tiret)",
          all(det_all[["Motif / commentaire"]][tb$verdict == "INFO"] != "\u2013"))
 verifier("Type : test inoperant (R1) distingue du diagnostic, en detail et sous le badge de synthese",
@@ -243,8 +242,8 @@ verifier("Type : test inoperant lu dans tb$inoperant, non dans le prefixe TEST I
          })
 verifier("Rapport : motif de la ligne Fisher restitue dans la section des tests retenus",
          retenu[i_fis] &&
-         grepl("PENTE NON IDENTIFIABLE", paste(ligne_de(principal, tb$test[i_fis]), collapse = ""),
-               fixed = TRUE))
+         grepl("redondante avec le test de Pitman (F = t^2)",
+               paste(ligne_de(principal, tb$test[i_fis]), collapse = ""), fixed = TRUE))
 verifier("Garde : table sans colonnes type ni commentaire -> tirets, aucun libelle sous le badge",
          {
            tb0 <- tb; tb0$type <- NULL; tb0$commentaire <- NULL

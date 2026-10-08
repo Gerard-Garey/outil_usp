@@ -135,10 +135,15 @@ badge_verdict <- function(v) {
 
 badge_nature <- function(n) {
   if (is.na(n)) return("\u2013")
-  # Natures du modele auxiliaire MCO (#44, regle R5 : TOST, pente, Fisher) :
-  # la loi de reference (t(T-2) pour le TOST et la pente, F(1, T-2) pour
-  # Fisher, #117) n'y vaut que sous ce modele auxiliaire, hors hierarchie ;
-  # badge distinct de "exacte", par sa couleur comme par son libelle.
+  # Natures du modele auxiliaire pondere (#215, decision P3 du mainteneur du
+  # 07/10/2026 : TOST, poids estimes, loi de Student approchee) : p retenue
+  # hors hierarchie ; badge distinct de "exacte", par sa couleur comme par
+  # son libelle. Les natures "sous le modele auxiliaire MCO" (TOST avant
+  # #215 ; pente et Fisher avant #169) ne sont plus posees par le moteur :
+  # leur badge est garde pour un objet anterieur relu. La nature "exacte par
+  # permutation" du test de Pitman (#169) recoit le badge "exacte".
+  if (grepl("^sous le modele auxiliaire pondere", n))
+    return("<span style='color:#7D3C98;font-weight:600'>mod\u00e8le pond\u00e9r\u00e9</span>")
   if (grepl("^sous le modele auxiliaire MCO", n))
     return("<span style='color:#7D3C98;font-weight:600'>mod\u00e8le MCO</span>")
   if (grepl("^exacte", n))      return("<span style='color:#1E8449;font-weight:600'>exacte</span>")
@@ -185,6 +190,20 @@ type_ligne <- function(tb) {
                 .txt(ty), "</span>"))
 }
 
+# Repere de renvoi (#215, ADR 0003 annotation du 07/10/2026) : lu dans la
+# colonne renvoi de engine_table_tests(), calculee par usp_renvois() du
+# moteur ; aucun calcul ici. Colonne absente (objet anterieur) ou NA : rien.
+# Texte fixe sous le nom du test, dans la colonne Test des vues Synthese et
+# Detail ; gris neutre #5D6D7E (celui de .sous_badge_type()), 11 px, pour ne
+# pas se confondre avec le violet du badge "modele pondere".
+.repere_renvoi <- function(tb) {
+  if (is.null(tb$renvoi)) return(rep("", nrow(tb)))
+  ifelse(is.na(tb$renvoi), "",
+         paste0("<br><span style='color:#5D6D7E;font-size:11px;font-style:italic'>",
+                .txt("voir aussi Spearman ratio / volume (p exacte si delta = 1)"),
+                "</span>"))
+}
+
 # --- Tableaux (mise en forme seule) -----------------------------------------
 # Les colonnes textuelles venant du moteur (test, noms de statistique et
 # d'estimation, H0, H1, loi, sens, reference) sont echappees ICI, source unique
@@ -199,7 +218,8 @@ table_synthese_groupe <- function(tb) {
   data.frame(
     Verdict = paste0(unname(vapply(tb$verdict, badge_verdict, character(1))),
                      .sous_badge_type(tb)),
-    Test    = paste0("<span style='font-weight:600;color:#1B2631'>", .txt(tb$test), "</span>"),
+    Test    = paste0("<span style='font-weight:600;color:#1B2631'>", .txt(tb$test), "</span>",
+                     .repere_renvoi(tb)),
     `Statistique` = ifelse(is.finite(tb$statistique),
         paste0("<code>", .txt(tb$nom_statistique), "</code> = ", fmt_nb(tb$statistique)), "\u2013"),
     Estimation = ifelse(is.finite(tb$estimation),
@@ -247,7 +267,8 @@ table_detail_groupe <- function(tb, replier = FALSE) {
   com[!is.na(com) & !nzchar(trimws(com))] <- NA_character_
   fon <- if (is.null(tb$fonction)) rep(NA_character_, nrow(tb)) else tb$fonction
   data.frame(
-    Test = paste0("<span style='font-weight:600;color:#1B2631'>", .txt(tb$test), "</span>"),
+    Test = paste0("<span style='font-weight:600;color:#1B2631'>", .txt(tb$test), "</span>",
+                  .repere_renvoi(tb)),
     Type = .txt(type_ligne(tb)),
     H0 = .txt(tb$H0), H1 = .txt(tb$H1),
     `Loi sous H0` = .txt(tb$loi_sous_H0),
@@ -1832,10 +1853,13 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
           paste("<div class='gris'>Nature de la p-value retenue :",
                 "<b style='color:#1E8449'>exacte</b> &gt; <b style='color:#00468C'>Monte-Carlo</b>",
                 "&gt; <b style='color:#B9770E'>asymptotique</b>.",
-                "Les p-values <b style='color:#7D3C98'>sous le mod\u00e8le auxiliaire MCO</b>",
-                "(TOST, pente, Fisher) sont hors hi\u00e9rarchie : elles ne sont retenues que",
+                "Les p-values <b style='color:#7D3C98'>sous le mod\u00e8le auxiliaire pond\u00e9r\u00e9</b>",
+                "(TOST) sont hors hi\u00e9rarchie : elles ne sont retenues que",
                 "faute de p exacte ou Monte-Carlo sous le mod\u00e8le r\u00e9glementaire, et ne",
-                "sont pas exactes au sens de l'outil.</div>"))
+                "sont pas exactes au sens de l'outil. La p du test de Pitman est exacte par",
+                sprintf("permutation lorsque l'\u00e9num\u00e9ration est compl\u00e8te (T &lt;= %d),",
+                        T_MAX_ENUM_PERMUTATION),
+                "Monte-Carlo sinon.</div>"))
     sel <- te[retenu, , drop = FALSE]
     if (!nrow(sel)) ajout(.bandeau_html("Aucun test s\u00e9lectionn\u00e9."))
     for (k in cles_groupes()) {

@@ -89,9 +89,12 @@
 #      regime) ; une p retenue d'une autre nature (repli asymptotique nomme,
 #      regle R3 : attendu 0 a T = 8 sans ex aequo) compte dans np et dans les
 #      rejets, non dans la reference, alors suivie de "(n hors ref. = k)" ;
-#    - lignes sans niveau : Student sur la pente et Fisher (H0 beta = 0
-#      fausse), TOST (H0 |a| >= Delta fausse sous le modele ajuste, a = 0) :
-#      sens "rejeter", pas de reference ;
+#    - lignes sans niveau : test de Pitman sur la pente (H0
+#      d'echangeabilite, y independant de x, fausse sous le modele
+#      reglementaire a volumes variables, #169), TOST (H0 |a| >= Delta fausse
+#      sous le modele ajuste, a = 0) : sens "rejeter", pas de reference ; la
+#      ligne Fisher, diagnostic sans p retenue depuis #169, tombe dans
+#      "sans objet (aucune p retenue)" ;
 #    - ligne ESD : ALERTE ou ECHEC (k chapeau >= 1) contre 0,10, niveau
 #      nominal de la procedure de Rosner (valeurs critiques a 1 - alpha/(2
 #      n_i)), exactitude non etablie a T = 8 ; ECHEC (k chapeau = 2) sans
@@ -450,10 +453,12 @@ LOI_LIGNE <- stats::setNames(unname(LOI_STAT), unname(STAT_LIGNE[names(LOI_STAT)
 LIB_LOI <- c(suites = "suites (Swed-Eisenhart, 4 et 4)", mk = "Mann-Kendall (loi mahonienne)",
              smirnov = "Smirnov (4 et 4)", spearman = "Spearman (loi de permutation)",
              coxstuart = "Cox-Stuart (Binomiale(4, 1/2))")
-# Lignes sans niveau (sens "rejeter", H0 fausse sous le modele ajuste).
+# Lignes sans niveau (sens "rejeter", H0 fausse sous le modele ajuste). La
+# ligne Fisher, diagnostic sans sens ni p retenue depuis #169, n'y figure
+# plus.
 LIGNES_SANS_NIVEAU <- c(
-  "Test de Student sur la pente (lm(y~x))" = "sans objet (H0 \u03b2 = 0 fausse ; sens \u00ab rejeter \u00bb)",
-  "Test de Fisher (significativite globale)" = "sans objet (H0 \u03b2 = 0 fausse ; sens \u00ab rejeter \u00bb)",
+  "Test de Pitman sur la pente (lien positif pertes / volume)" =
+    "sans objet (H0 d'\u00e9changeabilit\u00e9, y ind\u00e9pendant de x, fausse sous le mod\u00e8le r\u00e9glementaire \u00e0 volumes variables ; sens \u00ab rejeter \u00bb)",
   "Equivalence de la constante a zero (TOST)" =
     "sans objet (H0 \\|a\\| \u2265 \u0394 fausse sous le mod\u00e8le ajust\u00e9, a = 0 ; sens \u00ab rejeter \u00bb)")
 LIGNE_ESD <- "Valeurs aberrantes multiples (ESD generalise)"
@@ -750,8 +755,8 @@ tableaux <- function(cpt, stats, lignes) {
   L <- c(L, "", paste("n : r\u00e9plications trait\u00e9es ; p retenue : r\u00e9plications o\u00f9 la ligne a une p retenue. Taux =",
                       "rejets / p retenues (niveau conditionnel \u00e0 l'existence d'une p retenue) ; la fr\u00e9quence",
                       "inconditionnelle du verdict, rejets / n, se lit dans T2 (suite), colonnes ALERTE et ECHEC.",
-                      "Sens \u00ab ne pas rejeter \u00bb : p < \u03b1 donne ALERTE ou ECHEC, p < \u03b1/2 ECHEC. Pour les trois lignes",
-                      "en sens \u00ab rejeter \u00bb (pente, Fisher, TOST), p < \u03b1 est un OK : les colonnes donnent une",
+                      "Sens \u00ab ne pas rejeter \u00bb : p < \u03b1 donne ALERTE ou ECHEC, p < \u03b1/2 ECHEC. Pour les deux lignes",
+                      "en sens \u00ab rejeter \u00bb (pente, TOST), p < \u03b1 est un OK : les colonnes donnent une",
                       "puissance conditionnelle, sans r\u00e9f\u00e9rence."), "",
          paste("\u2020 Loi de r\u00e9f\u00e9rence discr\u00e8te : r\u00e9f\u00e9rence = (n_exacte \u00d7 taille atteignable + n_MC \u00d7 taille liss\u00e9e)",
                "/ (n_exacte + n_MC), sur les natures de la p retenue compt\u00e9es en T2 (suite) ; r\u00e9f\u00e9rence",
@@ -775,7 +780,7 @@ tableaux <- function(cpt, stats, lignes) {
                        k("nat|aucune"), k("v|OK"), k("v|ALERTE"), k("v|ECHEC"), k("v|INFO")))
   }
   L <- c(L, "", paste("Nature : champ nature_p de la ligne (exacte ; Monte-Carlo ; asymptotique, repli nomm\u00e9",
-                      "compris ; autre : p sous le mod\u00e8le auxiliaire MCO, TOST, Student sur la pente et Fisher).",
+                      "compris ; autre : p sous le mod\u00e8le auxiliaire pond\u00e9r\u00e9 du TOST, exacte par permutation de Pitman sur la pente).",
                       "Inop\u00e9rant : d\u00e9tail pr\u00e9fix\u00e9 \u00ab TEST INOPERANT \u00bb (r\u00e8gle R1), compt\u00e9 aussi en diagnostic."), "")
   # --- T3
   L <- c(L, "### T3 -- r\u00e9gimes, r\u00e9plications \u00e9cart\u00e9es, motifs, contr\u00f4les de la famille H, rapport de vraisemblance, IC bootstrap", "",

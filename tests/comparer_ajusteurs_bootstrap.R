@@ -114,15 +114,18 @@ CAS_LN <- c("premium", "reserve1", "premium_ii6", "premium_net")
 AJ <- c("R", "C", "R3")
 
 # --- Ajusteurs -----------------------------------------------------------------
-# Chacun rend list(delta, gamma, sigma, obj, z) (plus n_starts_optimum et
-# kkt_au_moins_un pour C) ou leve une erreur (replication ecartee et comptee).
+# Chacun rend list(delta, gamma, sigma, obj, z, pi) (pi : poids pi_t de
+# l'ajustement, lus par .stats_bootstrapables() depuis #215 ; plus
+# n_starts_optimum et kkt_au_moins_un pour C) ou leve une erreur (replication ecartee et comptee).
 ajuster_R <- function(fit, yb) {
   f <- usp_ajuster_rapide(fit$x, yb, fit$delta, fit$gamma)
-  list(delta = f$delta, gamma = f$gamma, sigma = f$sigma, obj = f$obj, z = f$z)
+  list(delta = f$delta, gamma = f$gamma, sigma = f$sigma, obj = f$obj, z = f$z,
+       pi = f$pi)
 }
 ajuster_C <- function(fit, yb) {
   f <- usp_ajuster(fit$x, yb)
   list(delta = f$delta, gamma = f$gamma, sigma = f$sigma, obj = f$obj_min, z = f$z,
+       pi = f$pi,
        n_starts_optimum = f$n_starts_optimum, kkt = f$kkt_au_moins_un)
 }
 # R3 : fonction locale du script (candidat de correction), pas du moteur.
@@ -135,7 +138,8 @@ ajuster_R3 <- function(fit, yb) {
     if (is.null(best) || f$obj < best$obj - 1e-10) best <- f
   }
   if (is.null(best)) stop("R3 : aucun demarrage abouti")
-  list(delta = best$delta, gamma = best$gamma, sigma = best$sigma, obj = best$obj, z = best$z)
+  list(delta = best$delta, gamma = best$gamma, sigma = best$sigma, obj = best$obj, z = best$z,
+       pi = best$pi)
 }
 AJUSTEURS <- list(R = ajuster_R, C = ajuster_C, R3 = ajuster_R3)
 
@@ -145,7 +149,7 @@ AJUSTEURS <- list(R = ajuster_R, C = ajuster_C, R3 = ajuster_R3)
 # .stats_bootstrapables() dans un try() ; une replication dont le
 # reajustement ou les statistiques echouent est ecartee (comptee).
 rejouer <- function(fit, B, graine) {
-  noms <- names(.stats_bootstrapables(fit$x, fit$y, fit$z))
+  noms <- names(.stats_bootstrapables(fit$x, fit$y, fit$z, fit$pi))
   vide <- function() rep(NA_real_, B)
   out <- lapply(stats::setNames(AJ, AJ), function(a)
     list(delta = vide(), gamma = vide(), sigma = vide(), obj = vide(),
@@ -162,7 +166,7 @@ rejouer <- function(fit, B, graine) {
         out[[a]]$sigma[b] <- f$sigma; out[[a]]$obj[b] <- f$obj
         out[[a]]$ok_ajust[b] <- TRUE
         if (a == "C") { n_opt_C[b] <- f$n_starts_optimum; kkt_C[b] <- f$kkt }
-        sb <- try(.stats_bootstrapables(fit$x, yb, f$z), silent = TRUE)
+        sb <- try(.stats_bootstrapables(fit$x, yb, f$z, f$pi), silent = TRUE)
         if (inherits(sb, "try-error")) next
         out[[a]]$sim[b, ] <- sb[noms]
         out[[a]]$ok_stats[b] <- TRUE
@@ -278,7 +282,7 @@ analyser <- function(o, nom_jeu, passe) {
 
 # --- p_mc (agregat 6) --------------------------------------------------------------
 p_mc_ajusteurs <- function(fit, o) {
-  stats_obs <- .stats_bootstrapables(fit$x, fit$y, fit$z)
+  stats_obs <- .stats_bootstrapables(fit$x, fit$y, fit$z, fit$pi)
   lapply(stats::setNames(AJ, AJ), function(a) .mc_p_values(o[[a]]$sim, stats_obs, USP_CATALOGUE_MC))
 }
 classer_s2 <- function(d, gran) {
@@ -356,7 +360,7 @@ for (nj in JEUX_RETENUS) {
   s5 <- character(0)
   ref_boot <- chrono(sprintf("%s : usp_bootstrap() du moteur", nj), usp_bootstrap(fit, B = OPT_B, seed = OPT_GRAINE))
   vR <- vecteurs_boot(o$R)
-  pR <- .mc_p_values(o$R$sim, .stats_bootstrapables(fit$x, fit$y, fit$z), USP_CATALOGUE_MC)
+  pR <- .mc_p_values(o$R$sim, .stats_bootstrapables(fit$x, fit$y, fit$z, fit$pi), USP_CATALOGUE_MC)
   controler <- function(nom, a, b) if (!identical(a, b)) s5 <<- c(s5, nom)
   for (ch in c("sigma_boot", "delta_boot", "gamma_boot"))
     controler(paste0("usp_bootstrap()$", ch), vR[[ch]], ref_boot[[ch]])

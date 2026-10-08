@@ -1,0 +1,49 @@
+# Tableau avant / après — référence `premium` (issue #215)
+
+- Date : 2026-10-07
+- Plateforme : R version 4.3.1 (2023-06-16), Linux
+- Commande : `Rscript tests/regenerer_et_rendre_compte.R premium --attendu '^tests\[\[1\]\]\$(stat|estim|p_asymptotique|p_mc|p_retenue|err_mc|loi|detail)$' --attendu '^tests\[\[2\]\]\$(stat|loi|p_asymptotique|p_retenue|nature_p|detail)$' --attendu '^tests\[\[7\]\]\$detail$' --attendu 'Intercept' reserve1 --attendu '^tests\[\[1\]\]\$(stat|estim|p_asymptotique|p_mc|p_retenue|err_mc|loi|detail)$' --attendu '^tests\[\[2\]\]\$(stat|loi|p_asymptotique|p_retenue|nature_p|detail)$' --attendu '^tests\[\[7\]\]\$detail… (1032 car.)`
+- Motifs attendus : `^tests\[\[1\]\]\$(stat|estim|p_asymptotique|p_mc|p_retenue|err_mc|loi|detail)$`, `^tests\[\[2\]\]\$(stat|loi|p_asymptotique|p_retenue|nature_p|detail)$`, `^tests\[\[7\]\]\$detail$`, `Intercept`
+- Exécution à plusieurs cas (M33) : `premium`, `reserve1`, `premium_ii6`, `premium_net`, chacun avec ses motifs ; tout ou rien ; batteries relancées une seule fois, après le dernier cas
+- Comparateur : `comparer_objets()` (tests/outils_tests.R), seuil 0 pour lister, seuil 1e-06 pour juger ; `INSTABLES` non neutralisé
+
+**Synthèse** : 23740 feuille(s) dans l'ancienne référence, 23740 dans le résultat recalculé ; 18 non strictement identique(s) (dont 18 en écart au seuil 1e-06, 0 ajoutée(s), 0 supprimée(s)), toutes désignées par les motifs attendus ; 23722 feuille(s) identique(s) au bit près ; écart numérique maximal 3.984e-01 (relatif, `tests[[2]]$stat`).
+
+| Feuille | Avant | Après | Écart | Mesure |
+|---|---|---|---|---|
+| `tests[[1]]$stat` | 0.0813827445 | 0.06673270576 | 1.800e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[1]]$loi` | t(6) exacte sous le modele auxiliaire MCO seulement (erreur… (134 car.) | t(6) sous le modele auxiliaire pondere (poids estimes : loi… (104 car.) |  | non numerique |
+| `tests[[1]]$estim` | 4.714325625 | 3.58718608 | 2.391e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[1]]$p_asymptotique` | 0.9377844203 | 0.9489626008 | 1.192e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[1]]$p_mc` | 0.944 | 0.964 | 2.119e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[1]]$err_mc` | 0.03158895158 | 0.0316180914 | 9.225e-04 | relatif, au-delà du seuil 1e-06 |
+| `tests[[1]]$p_retenue` | 0.944 | 0.964 | 2.119e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[1]]$detail` | …ivalence ci-dessous. (87 car., 1re différence au car. 88) | …ivalence ci-dessous. pi_t constant (delta estime a 1) : sous… (509 car., 1re différence au car. 88) |  | non numerique |
+| `tests[[2]]$stat` | -0.06536019917 | -0.09140276663 | 3.984e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[2]]$loi` | t(6) sous le modele auxiliaire MCO ; marge estimee sur les … (90 car.) | t(6) sous le modele auxiliaire pondere (poids estimes : loi… (102 car.) |  | non numerique |
+| `tests[[2]]$p_asymptotique` | 0.4750052691 | 0.465073888 | 2.091e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[2]]$p_retenue` | 0.4750052691 | 0.465073888 | 2.091e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[2]]$nature_p` | sous le modele auxiliaire MCO : loi de Student, marge estim… (77 car.) | sous le modele auxiliaire pondere : loi de Student (poids e… (97 car.) |  | non numerique |
+| `tests[[2]]$detail` | …lta") ; p_bas = 0.4136, p_haut = 0.4750. Condition necessair… (585 car., 1re différence au car. 143) | …lta") ; p_bas = 0.4148, p_haut = 0.4651. Condition necessair… (585 car., 1re différence au car. 143) |  | non numerique |
+| `tests[[7]]$detail` | Une correlation signale un effet d'echelle non modelise | Une correlation signale un effet d'echelle non modelise ; p… (401 car.) |  | non numerique |
+| `bootstrap$stats_obs$Intercept` | 0.0813827445 | 0.06673270576 | 1.800e-01 | relatif, au-delà du seuil 1e-06 |
+| `bootstrap$p_mc["Intercept"]` | 0.944 | 0.964 | 2.119e-02 | relatif, au-delà du seuil 1e-06 |
+| `bootstrap$err_mc["Intercept"]` | 0.03158895158 | 0.0316180914 | 9.225e-04 | relatif, au-delà du seuil 1e-06 |
+
+## Batteries
+
+- `Rscript tests/test_reproductibilite.R` : code de sortie 0
+  - `premium     sigma_USP = 0.1114524114  (34 s)`
+  - `CONFORME : 23740 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00`
+  - `reserve1    sigma_USP = 0.1073524114  (30 s)`
+  - `CONFORME : 23739 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00`
+  - `reserve2    sigma_USP = 0.0497764613  (78 s)`
+  - `CONFORME : 4329 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00`
+  - `premium_ii6 sigma_USP = 0.1483524114  (30 s)`
+  - `CONFORME : 23740 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00`
+  - `premium_net sigma_USP = 0.1032524114  (29 s)`
+  - `CONFORME : 23740 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00`
+  - `OK : reproductibilite et non-regression verifiees pour 5 cas.`
+- `Rscript tests/test_unitaires.R` : code de sortie 0
+  - `TOTAL : 1523 assertions, 1523 ok, 0 echec(s), 0 echec(s) attendu(s) (defauts connus), 0 succes inattendu(s)`
+  - `OK`
