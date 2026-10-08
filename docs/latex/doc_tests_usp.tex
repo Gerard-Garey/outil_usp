@@ -2843,9 +2843,15 @@ appui complémentaire~: des pertes déduites des volumes par un coefficient fixe
 pas le risque. Les bornes \code{BORNES\_GAMMA} sont des bornes \textbf{numériques} de l'outil,
 non réglementaires (le texte ne borne que $\delta$, au dernier alinéa de B(6) et de C(6))~; la
 conjonction avec la condition de Kuhn et Tucker est un choix numérique de l'outil, qui fait
-porter la décision sur l'ensemble des démarrages à l'optimum et non sur le seul démarrage retenu
-(doctrine de la décision M23 du mainteneur)~: un $\hat\gamma$ retenu sur une borne alors qu'un
-autre démarrage à l'optimum satisfait la condition reste accepté.
+porter le volet «~condition~» de la décision sur l'ensemble des démarrages à l'optimum (doctrine
+de la décision M23 du mainteneur)~: un $\hat\gamma$ retenu sur une borne alors qu'un autre
+démarrage à l'optimum satisfait la condition reste accepté. Le volet «~borne~», lui, est jugé sur
+le seul démarrage retenu (\code{\$gamma} d'\code{usp\_ajuster()})~: si, parmi les démarrages à
+l'optimum, les uns étaient sur une borne et les autres de $\gamma$ intérieur sans qu'aucun ne
+satisfasse la condition, l'issue (refus ou calcul) dépendrait du démarrage retenu, donc
+possiblement de la plateforme. Ce cas n'a pas été rencontré~: aucun ensemble mixte sur 96 jeux de
+la zone de transition et 5 jeux de la borne haute (revue finale d'\code{audit} d'E1g, constat,
+non résultat général).
 
 \emph{Frontière et continuité.} Pour une série $y_t = c\,x_t\exp(\varepsilon\,w_t)$, de motif
 de perturbation $w$ fixé, quand $\hat\delta = 1$ (propriété mesurée sur le motif ci-dessous, non
