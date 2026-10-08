@@ -111,7 +111,10 @@
 #  rien d'ecrit) si le commit des tranches, ou celui de la combinaison ou de
 #  l'execution, n'est pas un SHA nu ("(arbre de travail modifie)", "(script
 #  non suivi)" ou "inconnu"), ou si tests/outils_tests.R ou le script
-#  executes sont hors du depot (empreintes). --sortie DOSSIER : meme nom
+#  executes sont hors du depot (empreintes) ; ce refus, pour le commit et
+#  les empreintes courants, et l'absence de docs/tableaux/ sont evalues des
+#  l'analyse des options, avant tout calcul, puis de nouveau au moment
+#  d'ecrire (#205). --sortie DOSSIER : meme nom
 #  dans DOSSIER, qui doit etre HORS du depot (refus sous la racine : --ecrire
 #  est le seul chemin qui ecrit dans le depot). T0 : ligne "Versionnable
 #  (--ecrire)" et, pour --combiner, empreintes du combinateur. Aucun fichier
@@ -119,9 +122,10 @@
 #  d'un seul tenant porte, comme celle de --combiner, la ligne "Parametres :"
 #  lue par tests/calibration_mc_t8.R (controles (e3) et (e4)).
 #  Fonctions reprises par copie declaree de tests/calibration_mc_t8.R :
-#  plateforme_calcul(), empreintes_code() (copie adaptee),
-#  motifs_non_versionnable(), sous_depot() et ecrire_fichier() (copie
-#  adaptee : nom du fichier, motifs en argument).
+#  plateforme_calcul(), empreintes_code() (copie adaptee), sous_depot() et
+#  ecrire_fichier() (copie adaptee : nom du fichier, motifs en argument) ;
+#  commit_depot() et motifs_non_versionnable() : definition unique dans
+#  tests/outils_tests.R (#205).
 #  Duree mesuree (poste du mainteneur, R 4.3.1, 27/09/2026) : 0,6 a 0,7 s par
 #  replication a --B-ic 999 ; 2 000 replications en 8 tranches : 1 312 s.
 #  Code de sortie : 0 si les controles d'integrite tiennent, 1 sinon ; en
@@ -188,14 +192,8 @@ source(file.path(DOSSIER_SCRIPT, "outils_tests.R"))
 if (!is.finite(OPT_B_IC) || OPT_B_IC < B_MIN_USAGE)
   stop(sprintf("--B-ic : entier >= B_MIN_USAGE = %d (minimum admis par run_engine())", B_MIN_USAGE))
 
-# Commit du depot (voir l'en-tete) ; "inconnu" si git est indisponible.
-commit_depot <- function() {
-  git <- function(...) tryCatch(suppressWarnings(system2("git", c("-C", RACINE, ...), stdout = TRUE, stderr = FALSE)),
-                                error = function(e) character(0))
-  h <- git("rev-parse", "HEAD")
-  if (length(h) != 1L || !grepl("^[0-9a-f]{40}$", h)) return("inconnu")
-  if (length(git("status", "--porcelain", "--untracked-files=no"))) paste(h, "(arbre de travail modifi\u00e9)") else h
-}
+# commit_depot() (sans mention du suivi du script) et
+# motifs_non_versionnable() : tests/outils_tests.R (#205).
 
 # Plateforme de calcul (#171) : R, systeme, machine, BLAS, LAPACK (copie de
 # tests/calibration_mc_t8.R). Champ du contexte : des tranches calculees sur
@@ -231,16 +229,21 @@ empreintes_code <- function(script_depot) {
 }
 EMPREINTES <- empreintes_code("tests/taux_franchissement_reperes.R")
 
-# Motifs qui interdisent --ecrire (tableau versionne) : commit non propre ou
-# code hors du depot ; quoi : "des tranches", "de la combinaison" ou "de
-# l'execution" (copie de tests/calibration_mc_t8.R).
-motifs_non_versionnable <- function(commit, empreintes, quoi = "des tranches") {
-  m <- character(0)
-  if (!grepl("^[0-9a-f]{40}$", commit))
-    m <- c(m, sprintf("commit %s \u00ab %s \u00bb (arbre de travail modifi\u00e9, script non suivi ou git indisponible)", quoi, commit))
-  if (grepl("hors d\u00e9p\u00f4t", empreintes, fixed = TRUE))
-    m <- c(m, sprintf("tests/outils_tests.R ou script ex\u00e9cut\u00e9s %s hors du d\u00e9p\u00f4t", quoi))
-  m
+# Gardes anticipees de --ecrire (#205), avant tout calcul : commit et
+# empreintes courants (de l'execution, ou de la combinaison ; ceux des
+# tranches, lus dans leurs fichiers, restent controles a l'ecriture) et
+# dossier docs/tableaux/ ; memes refus qu'au moment d'ecrire, ou ils sont
+# repris (l'etat du depot peut changer pendant le calcul).
+if (OPT_ECRIRE) {
+  nv0 <- motifs_non_versionnable(commit_depot(), EMPREINTES,
+                                 if (length(FICHIERS_COMB)) "de la combinaison" else "de l'ex\u00e9cution")
+  if (length(nv0)) {
+    message("--ecrire refuse (tableau versionne dans docs/tableaux/) : ", paste(nv0, collapse = " ; "),
+            " -- aucun fichier ecrit ; relancer sur un arbre propre, ou --sortie DOSSIER hors du depot")
+    quit(status = 1L)
+  }
+  if (!dir.exists(file.path(RACINE, "docs", "tableaux")))
+    stop("dossier de sortie introuvable : ", file.path(RACINE, "docs", "tableaux"))
 }
 # Chemin (existant) sous la racine du depot (copie de tests/calibration_mc_t8.R) :
 # --sortie doit viser hors du depot ; --ecrire est le seul chemin qui ecrit

@@ -215,7 +215,10 @@
 #  fichier hors du depot n'est pas suivi : comportement inchange) ;
 #  --remplacer (avec --ecrire seulement, refus d'usage sinon) autorise le
 #  remplacement d'un fichier suivi, et le tableau de contexte du fichier
-#  ecrit cite alors le fichier remplace et son md5 d'avant.
+#  ecrit cite alors le fichier remplace et son md5 d'avant. La garde est
+#  evaluee une premiere fois des l'analyse des options, avant tout calcul
+#  (chemins connus par la partie, le dossier et la date), puis de nouveau
+#  avant l'ecriture (#205).
 #  Duree mesuree : voir la ligne "Duree" de la sortie (C1 et C2 : 72 s et
 #  124 s le 27/09/2026 ; a R = 20 000, C3 : 44 s et C4 : 28 s le 30/09/2026,
 #  soit 44 s et 33 s d'execution pour --partie tost et --partie normalite ;
@@ -265,22 +268,21 @@ DOSSIER_SCRIPT <- local({
 })
 source(file.path(DOSSIER_SCRIPT, "outils_tests.R"))
 
-# Commit du depot (meme definition que tests/taux_franchissement_reperes.R),
-# complete de la mention "(script non suivi)" quand ce script n'est pas
-# versionne (git ls-files --error-unmatch en echec).
-commit_depot <- function() {
-  git <- function(...) tryCatch(suppressWarnings(system2("git", c("-C", RACINE, ...), stdout = TRUE, stderr = FALSE)),
-                                error = function(e) character(0))
-  h <- git("rev-parse", "HEAD")
-  if (length(h) != 1L || !grepl("^[0-9a-f]{40}$", h)) return("inconnu")
-  if (length(git("status", "--porcelain", "--untracked-files=no"))) h <- paste(h, "(arbre de travail modifi\u00e9)")
-  suivi <- tryCatch(suppressWarnings(system2("git", c("-C", RACINE, "ls-files", "--error-unmatch",
-                                                      "tests/constats_puissance_t8.R"),
-                                             stdout = FALSE, stderr = FALSE)),
-                    error = function(e) 1L)
-  if (!identical(as.integer(suivi), 0L)) h <- paste(h, "(script non suivi)")
-  h
-}
+# commit_depot() : tests/outils_tests.R (#205).
+
+# Garde d'ecrasement anticipee (#205) : les chemins cibles de --ecrire ne
+# dependent que des options (partie, dossier) et de la date ; controles ici,
+# avant tout calcul (code 1, rien d'ecrit, si un fichier cible suivi par git
+# n'est pas a remplacer), puis de nouveau avant l'ecriture (le depot peut
+# changer pendant le calcul ; date de l'ecriture, qui peut differer de
+# celle-ci si l'execution passe minuit). Seule source des chemins :
+# chemins_118().
+ISSUE_118 <- c(tost = "215", normalite = "118")
+chemins_118 <- function(parties) stats::setNames(
+  file.path(OPT_ECRIRE, sprintf("%s-issue%s-%s.md", format(Sys.Date(), "%Y%m%d"), ISSUE_118[parties], parties)),
+  parties)
+PARTIES_118 <- c(if (OPT_PARTIE %in% c("tout", "tost")) "tost", if (OPT_PARTIE %in% c("tout", "normalite")) "normalite")
+if (!is.na(OPT_ECRIRE) && length(PARTIES_118)) garde_ecrasement(chemins_118(PARTIES_118), OPT_REMPLACER, RACINE)
 
 # Plateforme de calcul (#171) : R, systeme, machine, BLAS, LAPACK (copie
 # declaree de plateforme_calcul() de tests/calibration_mc_t8.R), ligne de T0.
@@ -342,7 +344,7 @@ sortie <- c(
   entete_md(c("Grandeur", "Valeur")),
   ligne_md("Plateforme de calcul (R, syst\u00e8me, machine, BLAS, LAPACK)", plateforme_calcul()),
   ligne_md("G\u00e9n\u00e9rateur", paste(ENGINE_RNG_KIND, collapse = ", ")),
-  ligne_md("Commit", commit_depot()),
+  ligne_md("Commit", commit_depot("tests/constats_puissance_t8.R")),
   ligne_md("Script", "tests/constats_puissance_t8.R (hors CI ; protocole dans l'en-t\u00eate)"), "")
 controles <- character(0)
 
@@ -778,9 +780,7 @@ if (!is.na(OPT_ECRIRE) && length(FICHIERS_118)) {
   # ecriture
   # Issue du fichier : #215 pour la partie tost depuis le modele auxiliaire
   # pondere (l'ancien tableau 20260930-issue118-tost.md est garde), #118 sinon.
-  ISSUE_118 <- c(tost = "215", normalite = "118")[names(FICHIERS_118)]
-  CHEMINS_118 <- stats::setNames(file.path(OPT_ECRIRE, sprintf("%s-issue%s-%s.md", format(Sys.Date(), "%Y%m%d"),
-                                                               ISSUE_118, names(FICHIERS_118))), names(FICHIERS_118))
+  CHEMINS_118 <- chemins_118(names(FICHIERS_118))
   if (!INTEGRITE) {
     message("--ecrire : controles d'integrite en echec, aucun fichier ecrit")
   } else {
@@ -795,7 +795,7 @@ if (!is.na(OPT_ECRIRE) && length(FICHIERS_118)) {
         entete_md(c("Grandeur", "Valeur")),
         ligne_md("Plateforme de calcul (R, syst\u00e8me, machine, BLAS, LAPACK)", plateforme_calcul()),
         ligne_md("G\u00e9n\u00e9rateur", paste(ENGINE_RNG_KIND, collapse = ", ")),
-        ligne_md("Commit", commit_depot()),
+        ligne_md("Commit", commit_depot("tests/constats_puissance_t8.R")),
         ligne_md("Script", sprintf("tests/constats_puissance_t8.R --partie %s (hors CI ; protocole dans l'en-t\u00eate)", nom)),
         ligne_remplacement(REMPLACES, chemin), "",
         f$section, "### Contr\u00f4les d'int\u00e9grit\u00e9", "", paste("-", f$controles), "")

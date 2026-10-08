@@ -80,15 +80,9 @@ cle <- function(r) list(sigma = r$parametre_final$sigma_usp,
 dans_domaine <- function(v) all(v >= DOMAINE_NUMERIQUE_MIN & v <= DOMAINE_NUMERIQUE_MAX)
 
 # Contexte d'execution (#171, sur le modele de
-# tests/taux_franchissement_reperes.R) : commit du depot et plateforme de
-# calcul (R, systeme, machine, BLAS, LAPACK).
-commit_depot <- function() {
-  git <- function(...) tryCatch(suppressWarnings(system2("git", c("-C", .racine, ...), stdout = TRUE, stderr = FALSE)),
-                                error = function(e) character(0))
-  h <- git("rev-parse", "HEAD")
-  if (length(h) != 1L || !grepl("^[0-9a-f]{40}$", h)) return("inconnu")
-  if (length(git("status", "--porcelain", "--untracked-files=no"))) paste(h, "(arbre de travail modifié)") else h
-}
+# tests/taux_franchissement_reperes.R) : commit du depot (commit_depot() de
+# tests/outils_tests.R, definition unique, #205) et plateforme de calcul (R,
+# systeme, machine, BLAS, LAPACK).
 plateforme_calcul <- function() {
   txt <- function(v) if (is.null(v) || !length(v) || is.na(v[1]) || !nzchar(v[1])) "non renseigné" else unname(v[1])
   si <- Sys.info()
@@ -99,7 +93,7 @@ plateforme_calcul <- function() {
 
 debut <- proc.time()[["elapsed"]]
 cat("# Balayage des echelles du domaine numerique (#153)\n\n")
-cat(sprintf("- Commit : %s\n- Plateforme : %s\n", commit_depot(), plateforme_calcul()))
+cat(sprintf("- Commit : %s\n- Plateforme : %s\n", outils$commit_depot(racine = .racine), plateforme_calcul()))
 cat(sprintf("- B = %d ; domaine [%g ; %g] ; TOLERANCE = %g\n\n",
             B, DOMAINE_NUMERIQUE_MIN, DOMAINE_NUMERIQUE_MAX, outils$TOLERANCE))
 cat("| Jeu | e min | e max | echelles | conformes | ecart relatif max sigma_USP |",
