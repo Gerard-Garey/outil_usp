@@ -1706,6 +1706,61 @@ usp_controles_numeriques <- function(fit) {
   res
 }
 
+# Existence de l'estimateur du maximum de vraisemblance lognormal dans le
+# domaine de recherche de gamma (issue #188, option A, decisions du
+# mainteneur du 08/10/2026). Annexe XVII, B(6) / C(6) : delta et gamma sont
+# les valeurs qui minimisent le montant de B(6) / C(6), dont depend le
+# parametre de B(4) / C(4). Si gamma estime est sur une borne de
+# BORNES_GAMMA (a TOL_DELTA_BORD pres ; gamma non fini classe "borne
+# basse") et qu'AUCUN demarrage a l'optimum ne satisfait la condition KKT
+# (fit$kkt_au_moins_un, usp_ajuster()), ce minimum n'est pas determine dans
+# le domaine : les donnees ne permettent d'etablir ni la distribution
+# log-normale ni l'adequation de l'estimation de la vraisemblance maximum
+# (B(2)(g) / C(2)(e), iii et iv ; art. 219(1)(d)), et l'outil ne calcule
+# pas de parametre (art. 220(1)(a) primes / (b) reserve no 1). Decisions de
+# l'OUTIL, non reglementaires : les bornes de gamma (BORNES_GAMMA, numeriques)
+# et la conjonction avec la condition KKT (un gamma sur une borne avec KKT
+# satisfaite reste accepte). Borne basse : ratios y_t/x_t egaux ou quasi
+# egaux (a ratios exactement egaux, le minimum n'existe pas) ;
+# la classe quasi proportionnelle est refusee, et le refus l'emporte aussi a
+# volumes et pertes constants. Borne haute : dispersion extreme des ratios.
+# Argument methode (ajout a la signature de la specification) : seul le
+# motif en depend (section B ou C, point a) ou b) de l'article 220(1),
+# renvoi a la methode de reserve no 2 pour reserve1), jamais le predicat.
+# Aucune constante nouvelle. Resultat : list(ok, erreurs), au format de
+# validation ; appele par run_engine() juste apres usp_ajuster(), un refus
+# y rend ok = FALSE comme un refus des donnees.
+usp_valider_ajustement <- function(fit, methode = c("premium", "reserve1")) {
+  methode <- match.arg(methode)
+  bas  <- !is.finite(fit$gamma) || fit$gamma <= BORNES_GAMMA[1] + TOL_DELTA_BORD
+  haut <- is.finite(fit$gamma) && fit$gamma >= BORNES_GAMMA[2] - TOL_DELTA_BORD
+  refus <- (bas || haut) && !isTRUE(fit$kkt_au_moins_un)
+  if (!refus) return(list(ok = TRUE, erreurs = character(0)))
+  prem <- methode == "premium"
+  sec <- if (prem) "B" else "C"
+  motif <- paste(c(
+    sprintf(paste0("Maximum de vraisemblance non atteint (annexe XVII, %s(6)) : ",
+                   "gamma estime sur la borne %s du domaine de recherche [%s ; %s] ",
+                   "(BORNES_GAMMA, bornes de l'outil, non reglementaires) ; les valeurs ",
+                   "delta et gamma qui minimisent le montant de %s(6), dont depend le ",
+                   "parametre de %s(4), ne sont pas determinees dans ce domaine."),
+            sec, if (bas) "basse" else "haute", format(BORNES_GAMMA[1]),
+            format(BORNES_GAMMA[2]), sec, sec),
+    if (bas) "Cause : ratios y_t/x_t egaux ou quasi egaux ; s'ils sont exactement egaux, ce minimum n'existe pas."
+    else "Cause : dispersion des ratios y_t/x_t extreme ; le minimum, s'il existe, est au-dela de la borne.",
+    sprintf(paste0("L'outil ne calcule pas de parametre sur ces donnees (article 220, ",
+                   "paragraphe 1, point %s), qui ne permettent d'etablir ni la ",
+                   "distribution log-normale ni l'adequation de l'estimation de la ",
+                   "vraisemblance maximum (%s, iii et iv ; article 219, paragraphe 1, ",
+                   "point d))."),
+            if (prem) "a)" else "b)", if (prem) "B(2)(g)" else "C(2)(e)"),
+    if (!prem) "La methode du risque de reserve no 2 reste ouverte (meme point).",
+    if (bas) sprintf("Verifier que y_t est observe (%s(1)(a)) et non deduit de x_t par un coefficient fixe.", sec)
+    else sprintf("Verifier les unites, la correspondance des annees et les valeurs aberrantes (%s(1) et %s(2)(a)).",
+                 sec, sec)), collapse = " ")
+  list(ok = FALSE, erreurs = motif)
+}
+
 # Volumes constants (issue #59, regle R11 de la specification commune #44 /
 # #70 / #59) : SEULE definition du moteur, en relatif a la moyenne, a la
 # tolerance de bord TOL_DELTA_BORD (CONTEXT.md "Volumes constants"). Lue par
@@ -8401,6 +8456,18 @@ run_engine <- function(xt, yt,
                                       bareme = if (saisi_bareme) bareme else NULL,
                                       segment = segment, annexe = annexe)
     fit   <- usp_ajuster(xt, yt)
+    # Maximum de vraisemblance non atteint dans le domaine de gamma (#188,
+    # usp_valider_ajustement()) : refus au format du refus des donnees
+    # ci-dessus, avertissements conserves. Le return() est evalue dans le
+    # cadre de run_engine() (argument paresseux de .engine_calcul_protege()) :
+    # il sort de run_engine(), sans resultat partiel.
+    va <- usp_valider_ajustement(fit, methode)
+    if (!va$ok) {
+      validation$ok <- FALSE
+      validation$erreurs <- c(validation$erreurs, va$erreurs)
+      return(structure(list(ok = FALSE, validation = validation,
+                            metadata = list(horodatage = t0)), class = "usp_engine"))
+    }
     # Controles numeriques de l'estimation (famille H, non bloquants, #22)
     controles <- c(controles, usp_controles_numeriques(fit))
     boot  <- usp_bootstrap(fit, B = B, seed = seed, progres = FALSE)
