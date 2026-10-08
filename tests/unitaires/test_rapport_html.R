@@ -453,10 +453,30 @@ avec_y_nul153 <- function(expr) {
 res_g153 <- suppressWarnings(avec_y_nul153(
   run_engine(xt = xt, yt = yt, methode = "premium", segment = 1, B = 99, nature_donnees = "brutes")))
 pd153 <- res_g153$plots_data
+# Decision du mainteneur du 08/10/2026, #188 : run_engine() refuse
+# desormais la serie exactement proportionnelle (maximum de vraisemblance
+# non atteint, gamma sur la borne basse de BORNES_GAMMA). Les graphiques
+# d'influence de ce cas sont construits sans run_engine(), par
+# engine_plots_data() sur l'ajustement, le bootstrap, le profil, le
+# jackknife et sigma_USP directs, avec les arguments dont depend la table
+# d'influence (segment II-1, donnees brutes ; sans lr_delta, sans objet
+# pour l'influence) : sans jackknife ni sigma_USP, la table d'influence
+# n'a pas ecart_sigma et note_influence() rend NULL. Ce cas n'est plus
+# produit par run_engine() : le test garde la robustesse de la fonction
+# publique engine_plots_data() et de note_influence() en appel direct, seule
+# couverture sans injection de residus exactement nuls (avis d'actuary du
+# 08/10/2026).
 xp153 <- 2^(0:7)
 res_p153 <- suppressWarnings(run_engine(xt = xp153, yt = xp153 / 2, methode = "premium",
                                         segment = 1, B = 99, nature_donnees = "brutes"))
-pdp153 <- res_p153$plots_data
+pdp153 <- suppressWarnings(local({
+  f <- usp_ajuster(xp153, xp153 / 2)
+  b <- usp_bootstrap(f, B = B_MIN_USAGE)
+  s0 <- usp_parametre_standard("premium", 1, "II", "brutes")$sigma_standard
+  bar <- usp_bareme_segment(1, "II")
+  engine_plots_data(f, b, usp_profil(f), usp_jackknife(f, s0, bar),
+                    usp_parametre(f, s0, bar)$sigma_usp)
+}))
 traces153 <- c("plot_influence_levier", "plot_influence_cook", "plot_influence_sigma")
 sans_erreur153 <- function(pd) vapply(traces153, function(f)
   !inherits(tryCatch(get(f)(pd), error = function(e) e), "error"), logical(1))
@@ -483,7 +503,11 @@ verifier("note_influence(), residus de y = beta x nuls (injection) : decompte de
            is.character(n153) && !grepl("NA", n153, fixed = TRUE) &&
              grepl("sans objet", n153, fixed = TRUE) && grepl(lev153, n153, fixed = TRUE)
          })
-verifier("Graphiques d'influence, y proportionnel a x (x = 2^(0:7), y = x / 2) : ok = TRUE, motif pose (residu_std et cook non finis) ou absent (tout fini) selon la plateforme ; aucun trace en base R ni note_influence() en erreur, aucun 'NA' dans la note (#153)",
+verifier("run_engine, y proportionnel a x (x = 2^(0:7), y = x / 2) : ok = FALSE, refus 'maximum de vraisemblance non atteint', sans plots_data (decision du mainteneur du 08/10/2026, #188)",
+         identical(res_p153$ok, FALSE) && identical(names(res_p153), c("ok", "validation", "metadata")) &&
+           is.null(res_p153$validation$erreur_r) &&
+           any(startsWith(res_p153$validation$erreurs, "Maximum de vraisemblance non atteint")))
+verifier("Graphiques d'influence, y proportionnel a x (x = 2^(0:7), y = x / 2), ajustement refuse par run_engine() (#188), robustesse de engine_plots_data() / note_influence() en appel direct : motif pose (residu_std et cook non finis) ou absent (tout fini) selon la plateforme ; aucun trace en base R ni note_influence() en erreur, aucun 'NA' dans la note (#153 ; #188)",
          {
            inf <- pdp153$influence
            np153 <- tryCatch(note_influence(pdp153), error = function(e) e)
@@ -491,7 +515,7 @@ verifier("Graphiques d'influence, y proportionnel a x (x = 2^(0:7), y = x / 2) :
              is.character(pdp153$influence_motif) && length(pdp153$influence_motif) == 1L
            calcule <- all(is.finite(inf$cook)) && all(is.finite(inf$residu_std)) &&
              is.null(pdp153$influence_motif)
-           isTRUE(res_p153$ok) && (garde || calcule) && all(basep153) &&
+           (garde || calcule) && all(basep153) &&
              is.character(np153) && !grepl("NA", np153, fixed = TRUE)
          })
 if (requireNamespace("plotly", quietly = TRUE)) {

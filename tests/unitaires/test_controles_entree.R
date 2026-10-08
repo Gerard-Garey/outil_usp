@@ -805,23 +805,48 @@ verifier("usp_tests() : y exactement proportionnel a x -> sans erreur R ; ligne 
              (cook_garde153(ligne153(tt, LIGNE_COOK153)) ||
                 (cook_calcule153(ligne153(tt, LIGNE_COOK153)) && !cook_x_ecarte153(f$x, f$y)))
          })
-# Meme entree par run_engine() (decision du mainteneur du 02/10/2026 : la
-# serie exactement proportionnelle n'est pas refusee, issue #188) : ok =
-# TRUE ; ligne Cook non applicable si et seulement si le motif des
-# graphiques d'influence (plots_data$influence_motif) est pose ; motif
-# absent sur les donnees de test, lr_delta et qq_enveloppe restant en fin
-# de liste.
-verifier("run_engine : y exactement proportionnel a x -> ok = TRUE ; ligne Cook non applicable et plots_data$influence_motif pose (residu_std et cook non finis), ou ligne Cook diagnostic finie et motif absent (x non ecarte par lm()) ; motif absent sur les donnees de test (#153)",
+# Motif du refus "maximum de vraisemblance non atteint" (#188, texte arbitre
+# par regulatory, decision du mainteneur du 08/10/2026), reconstruit ici
+# morceau par morceau, independamment de usp_valider_ajustement().
+motif188 <- function(borne = c("basse", "haute"), methode = c("premium", "reserve1")) {
+  borne <- match.arg(borne); methode <- match.arg(methode)
+  prem <- methode == "premium"; sec <- if (prem) "B" else "C"
+  tt <- sprintf(paste("Maximum de vraisemblance non atteint (annexe XVII, %s(6)) :",
+                      "gamma estime sur la borne %s du domaine de recherche [%s ; %s]",
+                      "(BORNES_GAMMA, bornes de l'outil, non reglementaires) ; les valeurs",
+                      "delta et gamma qui minimisent le montant de %s(6), dont depend le",
+                      "parametre de %s(4), ne sont pas determinees dans ce domaine."),
+                sec, borne, "-12", "3", sec, sec)
+  c1 <- "Cause : ratios y_t/x_t egaux ou quasi egaux ; s'ils sont exactement egaux, ce minimum n'existe pas."
+  c2 <- "Cause : dispersion des ratios y_t/x_t extreme ; le minimum, s'il existe, est au-dela de la borne."
+  ff <- sprintf(paste("L'outil ne calcule pas de parametre sur ces donnees (article 220,",
+                      "paragraphe 1, point %s), qui ne permettent d'etablir ni la",
+                      "distribution log-normale ni l'adequation de l'estimation de la",
+                      "vraisemblance maximum (%s, iii et iv ; article 219, paragraphe 1,",
+                      "point d))."),
+                if (prem) "a)" else "b)", if (prem) "B(2)(g)" else "C(2)(e)")
+  rr <- "La methode du risque de reserve no 2 reste ouverte (meme point)."
+  v1 <- sprintf("Verifier que y_t est observe (%s(1)(a)) et non deduit de x_t par un coefficient fixe.", sec)
+  v2 <- sprintf("Verifier les unites, la correspondance des annees et les valeurs aberrantes (%s(1) et %s(2)(a)).",
+                sec, sec)
+  paste(c(tt, if (borne == "basse") c1 else c2, ff, if (!prem) rr,
+          if (borne == "basse") v1 else v2), collapse = " ")
+}
+# Meme entree par run_engine() : la decision du mainteneur du 02/10/2026
+# (serie exactement proportionnelle non refusee) est remplacee par la
+# decision du mainteneur du 08/10/2026, #188 : maximum de vraisemblance non
+# atteint (gamma sur la borne basse de BORNES_GAMMA, condition KKT non
+# satisfaite), ok = FALSE au motif de usp_valider_ajustement(), sans defaut
+# intercepte. Donnees de test : ok = TRUE, motif des graphiques d'influence
+# absent, qq_enveloppe restant en fin de liste.
+verifier("run_engine : y exactement proportionnel a x -> ok = FALSE au motif borne basse, sans erreur_r (decision du mainteneur du 08/10/2026, #188) ; donnees de test : ok = TRUE, plots_data$influence_motif absent, qq_enveloppe en fin de liste (#153)",
          {
            rp <- calcul_extreme(xp153, xp153 / 2); r1 <- calcul_extreme(x, y)
-           tp <- engine_table_tests(rp); cp <- tp[tp$test == LIGNE_COOK153, ]
-           garde <- identical(cp$type, "non applicable") && identical(cp$estimation, NA_real_) &&
-             influence_garde153(rp$plots_data)
-           calcule <- identical(cp$type, "diagnostic") && isTRUE(is.finite(cp$estimation)) &&
-             influence_calcule153(rp$plots_data) && !cook_x_ecarte153(xp153, xp153 / 2)
-           isTRUE(rp$ok) && isTRUE(r1$ok) && (garde || calcule) &&
-             identical(tail(names(rp$plots_data), 1), "qq_enveloppe") &&
-             is.null(r1$plots_data$influence_motif)
+           identical(rp$ok, FALSE) && identical(names(rp), c("ok", "validation", "metadata")) &&
+             is.null(rp$validation$erreur_r) &&
+             identical(tail(rp$validation$erreurs, 1), motif188("basse", "premium")) &&
+             isTRUE(r1$ok) && is.null(r1$plots_data$influence_motif) &&
+             identical(tail(names(r1$plots_data), 1), "qq_enveloppe")
          })
 verifier("test_tost_intercept() : entrees sous-normales (x et y x 1e-320, 5e-324) -> sans erreur R, memes champs que la branche calculee ; motif egal a celui que declenchent les conditions de test_tost_intercept() sur ces donnees (volumes constants, marge, x ecarte par lm() (R12), 'statistique non definie' si et seulement si p_bas ou p_haut, recalculees depuis summary(lm(y ~ x)), n'est pas finie), ligne calculee finie sinon (#153)",
          {
@@ -2371,14 +2396,27 @@ verifier("run_engine, jeu de l'issue (y = 70 x 8), premium et reserve1 : constan
            }
            if (length(pb)) paste(pb, collapse = " ; ") else TRUE
          })
-verifier("Volumes et pertes constants : les cinq lignes portent le motif R13 (priorite volumes constants) ; avertissement pertes constantes present (#189, U3)",
+# Volumes et pertes constants : decision du mainteneur du 08/10/2026, #188 :
+# le refus "maximum de vraisemblance non atteint" l'emporte dans
+# run_engine() (ratios egaux, gamma sur la borne basse). La priorite R13 des
+# cinq lignes est verifiee par appel direct a usp_tests() ; l'avertissement
+# pertes constantes reste porte par le refus (U3 bis).
+verifier("Volumes et pertes constants, usp_tests() en appel direct : les cinq lignes portent le motif R13 (priorite volumes constants) (#189, U3 ; #188)",
+         {
+           f <- usp_ajuster(rep(110, 8), y189)
+           b <- suppressWarnings(usp_bootstrap(f, B = B_MIN_USAGE))
+           tt <- tryCatch(suppressWarnings(usp_tests(f, b, methode = "premium")), error = function(e) e)
+           !inherits(tt, "error") &&
+             all(vapply(LIGNES_REG189, function(nm) {
+               l <- ligne153(tt, nm)
+               identical(l$type, "non applicable") && startsWith(l$detail, "volumes x_t constants")
+             }, logical(1)))
+         })
+verifier("Volumes et pertes constants, run_engine() : ok = FALSE au motif borne basse, avertissement pertes constantes conserve (decision du mainteneur du 08/10/2026, #188 ; #189, U3 bis)",
          {
            r <- lancer189(rep(110, 8), y189)
-           isTRUE(r$ok) &&
-             all(vapply(LIGNES_REG189, function(nm) {
-               l <- ligne153(r$tests, nm)
-               identical(l$type, "non applicable") && startsWith(l$detail, "volumes x_t constants")
-             }, logical(1))) &&
+           identical(r$ok, FALSE) && is.null(r$validation$erreur_r) &&
+             identical(tail(r$validation$erreurs, 1), motif188("basse", "premium")) &&
              avt_pc189(y189) %in% r$validation$avertissements
          })
 verifier("Priorite pertes constantes > marge et > x ecarte (R12) : y constant sous injection de summary() sans x -> TOST 'pertes constantes', cinq lignes au motif pertes constantes ; appel direct a marge invalide et y constant -> 'pertes constantes' (#189, U4)",
@@ -2429,6 +2467,106 @@ verifier("Catalogue Monte-Carlo, y constant : statistique Intercept NA a l'obser
              all(vapply(res189, function(r)
                is.na(ligne153(r$tests, "Nullite de la constante (proportionnalite stricte)")$p_mc),
                logical(1)))
+         })
+
+## --- Maximum de vraisemblance non atteint (E1g, #188) -------------------------
+# Decisions du mainteneur du 08/10/2026 (option A) : run_engine() refuse
+# (ok = FALSE, motif de usp_valider_ajustement()) quand gamma estime est sur
+# une borne de BORNES_GAMMA (a TOL_DELTA_BORD pres ; gamma non fini classe
+# borne basse) et qu'aucun demarrage a l'optimum ne satisfait la condition
+# KKT ; classe quasi proportionnelle refusee ; le refus l'emporte a volumes
+# et pertes constants. Refus au format du refus des donnees : ok,
+# validation, metadata (horodatage seul), sans erreur_r ni resultat partiel.
+# Volumes et pertes de test usuels du fichier, recopies : x est reaffecte
+# plus haut dans le fichier (bloc de engine_lire_donnees_csv()).
+xs188 <- c(104.20, 102.25, 109.34, 114.64, 118.41, 121.28, 132.40, 131.22)
+ys188 <- c(68.97, 76.76, 83.49, 95.38, 88.96, 70.22, 78.89, 117.37)
+w188 <- engine_sous_graine(15520, stats::rnorm(8))
+lancer188 <- function(xx, yy, methode) suppressWarnings(
+  run_engine(xt = xx, yt = yy, methode = methode, segment = 1, annexe = "II",
+             nature_donnees = if (methode == "premium") "brutes",
+             B = B_MIN_USAGE, seed = 20260831))
+refus188 <- function(r, borne, methode)
+  identical(r$ok, FALSE) && identical(names(r), c("ok", "validation", "metadata")) &&
+    is.null(r$validation$erreur_r) && identical(names(r$metadata), "horodatage") &&
+    is.null(r$metadata$permutation_pente) &&
+    identical(tail(r$validation$erreurs, 1), motif188(borne, methode))
+jeux188 <- list(
+  "0,7 x"                    = list(xs188, 0.7 * xs188, "basse"),
+  "0,7 x exp(1e-9 w)"        = list(xs188, 0.7 * xs188 * exp(1e-9 * w188), "basse"),
+  "x = 2^(0:7), y = x / 2"   = list(2^(0:7), 2^(0:7) / 2, "basse"),
+  "x153, y = 0,7 x153"       = list(x153, 0.7 * x153, "basse"),
+  "rep(100, 8) / rep(70, 8)" = list(rep(100, 8), rep(70, 8), "basse"),
+  "x exp(3 w)"               = list(xs188, xs188 * exp(3 * w188), "haute"))
+verifier("run_engine, premium et reserve1 : series proportionnelles, quasi proportionnelle, constantes (borne basse) et dispersion extreme (borne haute) -> ok = FALSE, sans erreur R ni erreur_r, names ok / validation / metadata, metadata sans permutation_pente, motif exact (#188)",
+         {
+           pb <- character(0)
+           for (nm in names(jeux188)) for (m in c("premium", "reserve1")) {
+             j <- jeux188[[nm]]
+             r <- tryCatch(lancer188(j[[1]], j[[2]], m), error = function(e) e)
+             if (inherits(r, "error") || !refus188(r, j[[3]], m)) pb <- c(pb, paste(nm, m))
+           }
+           if (length(pb)) paste(pb, collapse = " ; ") else TRUE
+         })
+# Frontiere en forme fermee : a ratios y_t/x_t = 0,7 exp(eps w_t), w centre
+# reduit, delta = 1 et gamma = log(sqrt(expm1(eps^2 var(w)))) (variance de
+# population) ; gamma atteint la borne basse en eps0 ci-dessous. Mesure :
+# eps0 = 6,5684393e-6 sur les donnees de test. delta = 1 est verifie a
+# TOL_DELTA_BORD pres, non au bit pres (sortie d'optimiseur ; revue finale
+# d'E1g, /code-review).
+wf188 <- as.numeric(scale(log(ys188 / xs188)))
+eps0_188 <- sqrt(log1p(exp(2 * BORNES_GAMMA[1]))) / sqrt(mean((wf188 - mean(wf188))^2))
+verifier("Frontiere en forme fermee (eps0 = 6,568e-6) : y = 0,7 x exp(eps w) accepte a eps0 (1 + 1e-3) (delta = 1), refuse au motif borne basse a eps0 (1 - 1e-3), premium et reserve1 (#188)",
+         {
+           y_in <- 0.7 * xs188 * exp(eps0_188 * (1 + 1e-3) * wf188)
+           y_out <- 0.7 * xs188 * exp(eps0_188 * (1 - 1e-3) * wf188)
+           f_in <- usp_ajuster(xs188, y_in)
+           proche(eps0_188, 6.5684393e-6, rel = 1e-7) && isTRUE(abs(f_in$delta - 1) <= TOL_DELTA_BORD) &&
+             all(vapply(c("premium", "reserve1"), function(m)
+               isTRUE(lancer188(xs188, y_in, m)$ok) && refus188(lancer188(xs188, y_out, m), "basse", m),
+               logical(1)))
+         })
+# Ajustements fictifs : seuls gamma et kkt_au_moins_un sont lus. Le cas
+# (-12, KKT oui) n'est couvert que par cette voie : usp_kkt_satisfaite() rend
+# FALSE des que gamma est sur une borne, et la conjonction n'agit que si un
+# autre demarrage a l'optimum a un gamma interieur (audit du 08/10/2026).
+verifier("usp_valider_ajustement(), ajustements fictifs : (-12, KKT non) refus ; (-12, KKT oui) accepte ; (-5, non) accepte ; (3, non) refus ; (NaN, non) refus borne basse ; (-12 + 2e-6, non) accepte (#188)",
+         {
+           v <- function(g, k, m = "premium") usp_valider_ajustement(list(gamma = g, kkt_au_moins_un = k), m)
+           r1 <- v(-12, FALSE); r6 <- v(NaN, FALSE, "reserve1"); r4 <- v(3, FALSE)
+           identical(r1, list(ok = FALSE, erreurs = motif188("basse", "premium"))) &&
+             identical(v(-12, TRUE), list(ok = TRUE, erreurs = character(0))) &&
+             isTRUE(v(-5, FALSE)$ok) &&
+             identical(r4, list(ok = FALSE, erreurs = motif188("haute", "premium"))) &&
+             identical(r6, list(ok = FALSE, erreurs = motif188("basse", "reserve1"))) &&
+             isTRUE(v(-12 + 2e-6, FALSE)$ok)
+         })
+verifier("Volumes constants, pertes variables (x = 100 x 8, y des donnees de test) : run_engine ok = TRUE ; usp_valider_ajustement() ok, premium et reserve1 (#188)",
+         {
+           f <- usp_ajuster(rep(100, 8), ys188)
+           isTRUE(lancer188(rep(100, 8), ys188, "premium")$ok) &&
+             isTRUE(usp_valider_ajustement(f, "premium")$ok) &&
+             isTRUE(usp_valider_ajustement(f, "reserve1")$ok)
+         })
+verifier("Pertes constantes et refus : x153, y = 70 x 8 accepte (ratios disperses) ; volumes et pertes constants refuses, avertissement pertes constantes conserve, premium et reserve1 (#188 ; #189)",
+         {
+           rr <- lapply(c("premium", "reserve1"), function(m) lancer188(rep(110, 8), y189, m))
+           isTRUE(lancer188(x153, y189, "premium")$ok) &&
+             refus188(rr[[1]], "basse", "premium") && refus188(rr[[2]], "basse", "reserve1") &&
+             all(vapply(rr, function(r) avt_pc189(y189) %in% r$validation$avertissements, logical(1)))
+         })
+# Cas de non-regression (tests/outils_tests.R, CAS) : les quatre cas
+# lognormaux (premium, reserve1, premium_ii6, premium_net) partagent
+# tests/donnees/donnees_ln.csv ; reserve2 (Merz-Wuthrich) n'a pas
+# d'ajustement lognormal et n'est pas concerne.
+verifier("usp_valider_ajustement() : ok sur les donnees des cas de non-regression lognormaux (premium, reserve1, premium_ii6, premium_net) et sur les donnees de test (#188)",
+         {
+           ln <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln.csv"))
+           fl <- usp_ajuster(ln$xt, ln$yt); ft <- usp_ajuster(xs188, ys188)
+           all(vapply(list(fl, ft), function(f)
+             identical(usp_valider_ajustement(f, "premium"), list(ok = TRUE, erreurs = character(0))) &&
+               identical(usp_valider_ajustement(f, "reserve1"), list(ok = TRUE, erreurs = character(0))),
+             logical(1)))
          })
 
 fin_fichier()
