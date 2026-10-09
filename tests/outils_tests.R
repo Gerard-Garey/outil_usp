@@ -5,16 +5,16 @@
 #  la maniere d'executer le moteur pour chacun, et le comparateur unique de
 #  non-regression (comparer_objets). Source par test_reproductibilite.R,
 #  generer_references.R, comparer_references.R, patcher_reference.R et
-#  regenerer_et_rendre_compte.R ; source aussi par les cinq scripts de
+#  regenerer_et_rendre_compte.R ; source aussi par les six scripts de
 #  mesure hors CI qui ont --ecrire (puissance_t8.R, constats_puissance_t8.R,
 #  calibration_mc_t8.R, taux_franchissement_reperes.R,
-#  conservatisme_interieur_t8.R), qui y trouvent la
+#  conservatisme_interieur_t8.R, grille_regime_t8.R), qui y trouvent la
 #  garde d'ecrasement des tableaux versionnes (garde_ecrasement(), #173),
 #  le commit du depot et les motifs de non-versionnement (commit_depot(),
 #  motifs_non_versionnable(), #205 ; commit_depot() sert aussi a
 #  balayage_echelles.R) et l'empreinte de R/engine.R sans commentaires
 #  (empreinte_sans_commentaires(), #231, controle (i3) de
-#  conservatisme_interieur_t8.R) ; R base uniquement (tools::md5sum() pour
+#  conservatisme_interieur_t8.R, controle (g5) de grille_regime_t8.R) ; R base uniquement (tools::md5sum() pour
 #  la garde et l'empreinte).
 #  Porte aussi la contre-implementation par lm() / anova() des six
 #  regressions auxiliaires calculees par QR depuis #237 (contre_*(), en fin
@@ -462,10 +462,10 @@ resumer_comparaison <- function(r, n_max = 10L) {
 #  tests/balayage_echelles.R. Les scripts dont --ecrire refuse un commit non
 #  propre (tests/puissance_t8.R, tests/constats_puissance_t8.R,
 #  tests/calibration_mc_t8.R, tests/taux_franchissement_reperes.R,
-#  tests/conservatisme_interieur_t8.R) evaluent motifs_non_versionnable()
-#  des l'analyse des options, avant tout calcul (commit et empreintes
-#  courants), puis de nouveau avant d'ecrire (l'etat du depot peut changer
-#  pendant le calcul).
+#  tests/conservatisme_interieur_t8.R, tests/grille_regime_t8.R) evaluent
+#  motifs_non_versionnable() des l'analyse des options, avant tout calcul
+#  (commit et empreintes courants), puis de nouveau avant d'ecrire (l'etat
+#  du depot peut changer pendant le calcul).
 # ---------------------------------------------------------------------------
 
 # Commit du depot : SHA de HEAD, complete de "(arbre de travail modifie)" si
@@ -597,10 +597,10 @@ empreinte_sans_commentaires <- function(fichier = file.path(RACINE, "R", "engine
 
 # ---------------------------------------------------------------------------
 #  Garde d'ecrasement des tableaux versionnes (issue #173). Seul lieu de la
-#  regle, appelee par les cinq scripts de mesure hors CI qui ont --ecrire
+#  regle, appelee par les six scripts de mesure hors CI qui ont --ecrire
 #  (tests/puissance_t8.R, tests/constats_puissance_t8.R,
 #  tests/calibration_mc_t8.R, tests/taux_franchissement_reperes.R,
-#  tests/conservatisme_interieur_t8.R), APRES
+#  tests/conservatisme_interieur_t8.R, tests/grille_regime_t8.R), APRES
 #  leurs gardes propres (arbre propre, motifs_non_versionnable()) et AVANT
 #  toute ecriture : tous les chemins cibles d'une execution sont controles
 #  d'abord, puis seulement ecrits. tests/puissance_t8.R (constat m2 d'audit
@@ -609,7 +609,9 @@ empreinte_sans_commentaires <- function(fichier = file.path(RACINE, "R", "engine
 #  des options, avant tout calcul (hors --combiner : les chemins cibles y
 #  sont connus), puis de nouveau avant d'ecrire ;
 #  tests/conservatisme_interieur_t8.R aussi, --combiner compris (#175 : un
-#  seul tableau, de nom fixe par la date du jour).
+#  seul tableau, de nom fixe par la date du jour), et
+#  tests/grille_regime_t8.R (#229 : un seul tableau, de nom fixe par la date
+#  du jour).
 # ---------------------------------------------------------------------------
 
 # Controle les chemins cibles de --ecrire. Statut de chaque chemin, lu par
