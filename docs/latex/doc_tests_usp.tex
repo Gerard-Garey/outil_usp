@@ -896,6 +896,12 @@ vérifications colonne par colonne de M1 et, depuis l'issue~\#60, de
 \code{mw\_test\_annees\_}\allowbreak\code{calendaires()} et
 \code{mw\_stat\_correlation\_}\allowbreak\code{dev()} (\code{NULL}~:
 ensemble calculé sur \code{aj}) & statistiques des tests M1 à M6 (détail~: §\ref{sec:index-fonctions}) \\
+\code{.mw\_spearman\_p()},\newline \code{.fisher\_combine()} & deux vecteurs (le premier déjà
+aplati), \code{plancher\_b} (1)~; p-values de colonne & p-value bilatérale de Spearman d'une
+colonne, dans $[2/n!, 1]$ (loi de permutation à $n \le 9$ sans ex \ae quo, sinon approximation
+de Student relevée à $2/n!$, fiche~\ref{mw:m1b})~; statistique $X$ de Fisher, p-value
+$\chi^2(2K)$ et $K$, sans exclusion (p-value nulle relevée à \code{.Machine\$double.xmin},
+p-value non finie~: statistique \code{NA}, issue~\#90, fiche~\ref{mw:m1a}) \\
 \code{mw\_tests()} & \code{aj}, \code{boot}, \code{alpha} (0,10) &
 liste des tests M1 à M6 (même structure que \code{usp\_tests()}, même fonction
 d'enregistrement \code{engine\_registre\_tests()}) \\
@@ -1935,7 +1941,8 @@ Ordonnée à l'origine par colonne & \ref{mw:m1a} &
 \code{mw\_test\_ordonnee\_origine()}~; colonnes dégénérées par \code{.mw\_colonne\_degeneree()} &
 idem (p de Fisher, via \code{.fisher\_combine()}) & \code{Origine} \\
 Homogénéité de $f_j$ & \ref{mw:m1b} & \code{mw\_test\_homogeneite\_f()}, même exclusion &
-idem (p de Fisher) & \code{HomogF} \\
+idem (p de Fisher, via \code{.fisher\_combine()}, sur les $p_j$ de \code{.mw\_spearman\_p()},
+issue~\#90) & \code{HomogF} \\
 Absence de courbure & \ref{mw:m1c} & \code{mw\_test\_courbure()}, même exclusion &
 idem (p de Fisher) & \code{Courbure} \\
 Famille $\alpha$ & \ref{mw:m1d} & \code{mw\_famille\_alpha()} &
@@ -1947,7 +1954,8 @@ Breusch--Pagan sur résidus de Mack & \ref{mw:m2bp} &
 \code{stats::lm(r\textasciicircum2 \textasciitilde\ C)} dans \code{mw\_tests()} &
 \code{stats::pchisq()} (p asymptotique) & \code{BP} \\
 Exposant de variance par colonne & \ref{mw:m2b} &
-\code{mw\_test\_exposant\_variance()} & idem (p de Fisher) & \code{ExpVar} \\
+\code{mw\_test\_exposant\_variance()} & idem (p de Fisher, via \code{.fisher\_combine()}, sur
+les $p_j$ de \code{.mw\_spearman\_p()}, issue~\#90) & \code{ExpVar} \\
 Variance unitaire des résidus & \ref{mw:m2var} & \code{stats::var()} sur
 \code{mw\_residus()} & diagnostic, aucune p-value & --- \\
 
@@ -2191,7 +2199,10 @@ paire aplatis séparément, fiche~\ref{mw:m3cor}), \code{mw\_test\_homogeneite\_
 qu'un facteur égal à la médiane à la tolérance près est étiqueté «~*~», fiche~\ref{mw:m3cal})~;
 cumuls $C(i,j)$ au plancher~0 et valeurs absolues des résidus de Mack au plancher~1 dans
 \code{mw\_test\_exposant\_variance()} (fiche~\ref{mw:m2b})~; résidus de Mack au plancher~1 dans
-\code{mw\_test\_homogeneite\_accident()} (fiche~\ref{mw:m3acc}). Les mêmes fonctions servant à
+\code{mw\_test\_homogeneite\_accident()} (fiche~\ref{mw:m3acc}). Depuis l'issue~\#90, un ex
+\ae quo ainsi défini dans une colonne de l'homogénéité de $f_j$ ou de l'exposant de variance fait
+calculer la p-value de cette colonne par l'approximation de Student relevée à $2/n_j!$, et non
+par la loi de permutation (\code{.mw\_spearman\_p()}, fiche~\ref{mw:m1b}). Les mêmes fonctions servant à
 l'observé et dans les réplications, le catalogue \code{MW\_CATALOGUE\_MC} n'a pas été modifié par
 cette issue. Ni les données, ni l'ajustement
 (\code{usp\_noyau()}, \code{mw\_ajuster()}), ni les autres statistiques (Anderson--Darling, Shapiro--Wilk,
@@ -4580,7 +4591,8 @@ Oui, $\chi^2(2K)$ & Oui & Monte-Carlo &
 
 Homogénéité de $f_j$ entre années de survenance & \textbf{MW} & $X$ de Fisher &
 Non & Oui, $\chi^2(2K)$ & Oui & Monte-Carlo & Idem &
-Seconde exigence du texte : « pour toutes les années d'accident » \\
+Seconde exigence du texte : « pour toutes les années d'accident » ; $p_j$ de colonne sur la
+loi de permutation à $n_j \le 9$, jamais nulle (issue~\#90) \\
 
 Absence de courbure & \textbf{MW} & $X$ de Fisher & Non & Oui, $\chi^2(2K)$ &
 Oui & Monte-Carlo & Idem &
@@ -4601,7 +4613,7 @@ Exposant de variance par colonne & \textbf{MW} & $X$ de Fisher & Non &
 Oui, $\chi^2(2K)$ & Oui & Monte-Carlo &
 \textbf{Déconseillée} : colonnes non indépendantes &
 Localise ce que Breusch--Pagan agrège ; un rejet est une limite du modèle, pas
-un motif de changement de méthode \\
+un motif de changement de méthode ; $p_j$ comme pour l'homogénéité de $f_j$ (issue~\#90) \\
 
 Variance unitaire des résidus de Mack & \textbf{MW} & --- & --- & --- & --- &
 Diagnostic & Sans objet & Valeur \textbf{contrainte par construction} à
@@ -4895,7 +4907,9 @@ Combinaisons de Fisher (ordonnée à l'origine, homogénéité, courbure,
 exposant de variance) & $X = -2\sum\ln p_k$ & $\chi^2(2K)$ &
 Convergence en loi & \textbf{Sans objet en toute rigueur} : la loi $\chi^2(2K)$
 suppose l'indépendance des $K$ p-values, mise en défaut car les colonnes $j$ et
-$j+1$ partagent $C(\cdot,j+1)$ & Indépendance des colonnes &
+$j+1$ partagent $C(\cdot,j+1)$~; pour l'homogénéité et l'exposant de variance, les $p_j$ de
+rang suivent en outre, depuis l'issue~\#90, une loi de permutation discrète à $n_j \le 9$, et
+$-2\ln p_j$ n'est pas $\chi^2(2)$ & Indépendance des colonnes~; $p_k$ de loi continue &
 p-value du $\chi^2$ indicative seulement ; bootstrap retenu \\
 
 Corrélation entre colonnes & $\hat\rho$ agrégé & \emph{aucune limite tabulable} &
@@ -11268,9 +11282,19 @@ l'observé qui devient dégénérée dans une réplication, M1 rend une statisti
 écarte la réplication de \code{B\_effectif}~; le test calendaire et la corrélation entre années
 adjacentes gardent la réplication, la colonne n'en étant écartée que si l'aplatissement des ex
 \ae quo rend ses facteurs constants (étiquettes «~*~» pour le premier, garde $\mathrm{sd} = 0$
-pour le second). Un éventuel alignement relève du mainteneur. $K$ peut
-encore varier d'une réplication à l'autre pour une autre cause~: \code{.fisher\_combine()}
-écarte les p-values nulles, défaut antérieur à l'issue~\#56, suivi par l'issue~\#90. Limite
+pour le second). Un éventuel alignement relève du mainteneur.
+\emph{Aucune exclusion par la combinaison} (issue~\#90, décisions du mainteneur du 6~octobre
+2026). \code{.fisher\_combine()}, commune aux quatre combinaisons de Fisher (ordonnée à
+l'origine, homogénéité de $f_j$, courbure, exposant de variance), n'écarte plus aucune
+p-value~: une p-value nulle, débordement de la loi de référence, est relevée au plancher
+\code{.Machine\$double.xmin}, de sorte que son terme $-2\ln p$ reste fini ($1\,416{,}8$), au
+lieu d'écarter la colonne qui porte la preuve la plus forte contre $H_0$~; une p-value non finie
+ou hors de $[0, 1]$ rend la statistique \code{NA} sans changer $K$, et la réplication sort de
+\code{B\_effectif}. $K$ est ainsi le nombre de p-values transmises, et ne varie plus que si la
+fonction de la ligne écarte elle-même une colonne (colonne trop courte, \code{lm()} en échec,
+garde $\mathrm{sd} = 0$ de la courbure et de l'exposant de variance). Auparavant, une p-value
+nulle faisait écarter sa colonne sans trace, et $K$ pouvait différer entre la statistique
+observée et ses réplications (effet mesuré, fiche~\ref{mw:m1b}). Limite
 mesurée et acceptée~: une colonne dont l'écart relatif dépasse à peine $10^{-12}$ reste soumise
 à \code{lm()}, dont le critère d'ajustement parfait (\code{summary.lm()}~: variance résiduelle
 \emph{pondérée} inférieure à $10^{-30}$ fois le carré de l'échelle des valeurs ajustées) n'est
@@ -11318,14 +11342,45 @@ plancher~0 avant \code{cor.test()} (issue~\#152, §\ref{sec:ex-aequo}).
 $H_0$ : le facteur $f_j$ est \emph{commun à toutes les années de survenance}~;
 les facteurs individuels ne présentent aucune tendance en $i$.
 \Stat
-$\hat\rho_{s,j}$ par colonne, p-values combinées par la méthode de Fisher. Colonnes
+$\hat\rho_{s,j}$ par colonne (celui de \code{cor.test()}), de p-value bilatérale $p_j$
+calculée par \code{.mw\_spearman\_p()} (issue~\#90, décisions du mainteneur du 6~octobre
+2026)~: à $n_j \le 9$ sans ex \ae quo, loi de permutation de $\hat\rho_{s,j}$ énumérée par
+\code{cor.test(exact = TRUE)}~; sinon ($n_j > 9$, ou ex \ae quo, au sens de la
+section~\ref{sec:ex-aequo}~: égalité au bit près après aplatissement), approximation de Student
+de \code{cor.test(exact = FALSE)}, relevée au plancher $2/n_j!$, valeur exacte de
+$\mathbb{P}(|\hat\rho_{s,j}| = 1)$ sous la loi de permutation sans ex \ae quo et simple plancher
+numérique avec ex \ae quo. $p_j$ est ainsi dans $[2/n_j!, 1]$ et n'est jamais nulle. Les $K$
+p-values sont combinées par la méthode de Fisher, $X = -2\sum_j \ln p_j$
+(\code{.fisher\_combine()}, sans exclusion, fiche~\ref{mw:m1a}). Colonnes
 dégénérées exclues, dans l'observé comme dans le bootstrap, selon la règle de la
-fiche~\ref{mw:m1a}.
+fiche~\ref{mw:m1a}. \emph{Avant l'issue~\#90}, $p_j$ était l'approximation de Student, qui
+vaut~$0$ à $|\hat\rho_{s,j}| = 1$ pour $n_j = 4$, et la colonne était alors écartée de la
+combinaison sans trace. Mesuré sur le triangle de Taylor \& Ashe dont la colonne $j = 4$ est
+rendue dégénérée (fiche~\ref{mw:m1a})~: la colonne $j = 5$ ($n_j = 4$,
+$\hat\rho_{s,5} = -1$) était écartée et $K$ valait~$4$~; elle est désormais retenue avec
+$p_5 = 2/4! = 1/12$, et $K = 5$. Sur le triangle \code{tri\_deg} des tests unitaires ($B = 99$),
+\code{B\_effectif} passe de $91$ à $99$ (de $93$ à $99$ pour l'exposant de variance,
+fiche~\ref{mw:m2b})~: sur ce triangle de deux colonnes combinées, une p-value de colonne nulle
+dans une réplication laissait une seule colonne, et la statistique de la réplication n'était
+pas définie.
 \Loi
 $\chi^2(2K)$ approchée, avec la même réserve d'indépendance que la fiche
-précédente. Loi de référence~: bootstrap de résidus.
+précédente, et une seconde, propre aux p-values de rang~: à $n_j \le 9$, $p_j$ suit une loi de
+permutation discrète, et $-2\ln p_j$ n'a pas la loi $\chi^2(2)$, même pour une colonne prise
+isolément. Propriété élémentaire~: une p-value bilatérale par doublement est sur-uniforme sous sa
+loi de référence ($\mathbb{P}(p_j \le u) \le u$), de sorte que $-2\ln p_j$ y est
+stochastiquement dominé par une loi $\chi^2(2)$, et la p-value $\chi^2(2K)$ serait conservatrice
+si les colonnes étaient indépendantes et la loi de permutation celle du modèle de Mack~; ni
+l'un ni l'autre n'est acquis (résidus d'une colonne non échangeables, colonnes adjacentes
+dépendantes). Constat sur le triangle de contrôle ($B = 999$, graine 20260831)~: p-value
+$\chi^2(2K)$ $0{,}152$ (elle valait $0{,}085$ avec les p-values de Student, avant
+l'issue~\#90), p-value de Monte-Carlo $0{,}080$. Loi de référence~: bootstrap de résidus.
 \Pval
-p-value de Monte-Carlo retenue.
+p-value de Monte-Carlo retenue (clé \code{HomogF}, rejet en queue haute). Les $p_j$ ne sont que
+des ingrédients de la statistique~: calculées sur la loi de permutation d'une colonne prise
+isolément, qui n'est pas celle des facteurs sous le modèle de Mack, elles ne sont pas des
+p-values exactes au sens de l'ADR~0002, et la p-value $\chi^2(2K)$ qui les combine reste un
+complément non simulé.
 \Usage
 Ce test répond à la \emph{seconde} exigence du texte, distincte de la première~:
 même si la proportionnalité vaut dans chaque colonne, un facteur qui dériverait
@@ -11509,11 +11564,20 @@ $H_0$ : l'amplitude des résidus standardisés ne dépend pas de $C(i,j)$ à
 l'intérieur d'une colonne, ce qui est la traduction directe de
 $\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$.
 \Stat
-$\hat\rho_{s,j}$ par colonne, p-values combinées par Fisher.
+$\hat\rho_{s,j}$ par colonne, de p-value bilatérale $p_j$ calculée par
+\code{.mw\_spearman\_p()} selon la règle de la fiche~\ref{mw:m1b} (issue~\#90, étendue à cette
+ligne par décision du mainteneur du 6~octobre 2026~; les cumuls, déjà aplatis, le sont une
+seconde fois au plancher~0, sans effet), puis combinaison des $K$ p-values par Fisher,
+$X = -2\sum_j \ln p_j$ (\code{.fisher\_combine()}, sans exclusion, fiche~\ref{mw:m1a}). Effet
+mesuré de l'issue~: fiche~\ref{mw:m1b}.
 \Loi
-$\chi^2(2K)$ approchée. Loi de référence~: bootstrap de résidus.
+$\chi^2(2K)$ approchée, sous les deux réserves de la fiche~\ref{mw:m1b}~: colonnes non
+indépendantes, et loi de permutation discrète de chaque $p_j$ à $n_j \le 9$. Constat sur le
+triangle de contrôle ($B = 999$, graine 20260831)~: p-value $\chi^2(2K)$ $0{,}544$ ($0{,}387$
+avant l'issue~\#90), p-value de Monte-Carlo $0{,}428$. Loi de référence~: bootstrap de résidus.
 \Pval
-p-value de Monte-Carlo retenue.
+p-value de Monte-Carlo retenue (clé \code{ExpVar}, rejet en queue haute)~; les $p_j$ ne sont pas
+des p-values exactes au sens de l'ADR~0002 (fiche~\ref{mw:m1b}).
 \Usage
 Le test de Breusch--Pagan de la fiche précédente agrège toutes les colonnes~; ce
 test-ci localise. Un rejet signale que l'exposant~1 imposé par le règlement est
@@ -12744,6 +12808,13 @@ une dispersion réduite, donc un $R^2$ auxiliaire trop faible \\
 \end{tabular}
 \end{center}
 
+\noindent
+Les lignes de l'homogénéité de $f_j$ et de l'exposant de variance ont été mesurées avant
+l'issue~\#90, quand la p-value de chaque colonne était l'approximation de Student~; depuis, elle
+suit la loi de permutation à $n_j \le 9$ (fiche~\ref{mw:m1b}), et ces deux fréquences, non
+remesurées, ne décrivent plus la p-value $\chi^2(2K)$ que restitue le moteur. Aucun script
+versionné ne produit ce tableau.
+
 \begin{encadre}
 \textbf{Conséquence pratique.} Les écarts observés entre p-value asymptotique et
 p-value de Monte-Carlo ne traduisent pas une erreur de calcul mais la
@@ -12872,7 +12943,10 @@ soutient dans le présent document.
   \emph{Portée.} La référence Spearman (1904) établit le
   coefficient. Best \& Roberts documente le calcul des probabilités exactes en
   petit échantillon, qui est ce que \code{cor.test(..., exact = TRUE)} met en
-  \oe uvre et que le moteur retient à $T = 8$.
+  \oe uvre et que le moteur retient à $T = 8$. Le même calcul fournit, depuis l'issue~\#90, la
+  p-value de chaque colonne de l'homogénéité de $f_j$ et de l'exposant de variance à
+  $n_j \le 9$ (fiche~\ref{mw:m1b})~; ces p-values ne sont pas retenues, elles entrent dans la
+  statistique de Fisher dont la p-value retenue est de Monte-Carlo.
 
   \item E.\,J.\,G. Pitman, \emph{Significance tests which may be applied to samples from any
   populations. II. The correlation coefficient test}, \emph{Supplement to the Journal of the
@@ -13752,7 +13826,7 @@ Bloc gris & Fonction \textbf{interne} de support, appelée par une autre
 fonction du moteur et jamais directement par \code{usp\_tests()} ou
 \code{mw\_tests()}~:\newline
 \code{sw\_loi\_nulle()}, \code{.imhof\_p\_sup0()}, \code{.runs\_dens()},\newline
-\code{.fisher\_combine()}, \code{.mack\_moments\_Z()},\newline
+\code{.fisher\_combine()}, \code{.mw\_spearman\_p()}, \code{.mack\_moments\_Z()},\newline
 \code{mw\_simuler\_triangle()}, \code{.mw\_stats()}.\newline
 Le préfixe d'un point ne définit pas cette catégorie~: \code{.shapiro\_sur()},
 \code{.mw\_lm\_intra()} et \code{.mw\_detail\_extrapolation()}, préfixées d'un
@@ -14255,6 +14329,12 @@ Portée maximale~: une anomalie affecterait les deux dispositifs, donc les deux
 dossiers. Priorité de revue. \\
 \end{tabular}
 \end{center}
+
+\noindent
+Les fonctions internes de la méthode Merz--Wüthrich relèvent de la même lecture~: une anomalie
+de \code{.fisher\_combine()} atteindrait les quatre combinaisons de Fisher de M1 et M2 (ordonnée
+à l'origine, homogénéité de $f_j$, courbure, exposant de variance), et une anomalie de
+\code{.mw\_spearman\_p()} les deux dernières (issue~\#90).
 
 \noindent
 Cette hiérarchie explique l'ordre de vérification retenu lors du développement~:
