@@ -114,10 +114,17 @@
 #         interieure de la tranche, comme tests/comparer_ajusteurs_bootstrap.R
 #         (S5) ; sur J1 observe, p_mc aussi identiques a celles de
 #         run_engine() du controle (a) ;
-#    (i3) md5 de R/engine.R egal a celui du T0 du tableau de #221 (ligne
-#         "Empreintes md5 du code execute") ; parametres de ce tableau (jeu,
-#         graines, B, alpha, theta_equiv) egaux a ceux du script, R egal au
-#         nombre de lignes des valeurs brutes ;
+#    (i3) moteur de #221 : md5 de R/engine.R egal a celui du T0 du tableau
+#         de #221 (ligne "Empreintes md5 du code execute") ou, a defaut
+#         (#231), empreinte sans commentaires de R/engine.R
+#         (empreinte_sans_commentaires() de tests/outils_tests.R) egale a
+#         celle de R/engine.R au commit cite par ce T0 (ligne "Commit", lu par
+#         git show, retenu si son md5 est celui du T0) : un commentaire ou une
+#         ligne vide modifies depuis #221 ne font pas echouer (i3), une
+#         modification du code si ; les deux md5 restent cites dans le texte
+#         du controle ; parametres de ce tableau (jeu, graines, B, alpha,
+#         theta_equiv) egaux a ceux du script, R egal au nombre de lignes des
+#         valeurs brutes ;
 #    (d)  les echecs des deux reajustements (et des statistiques qui les
 #         suivent) sont comptes a chaque replication ; invariants : retenues
 #         de la variante 1 = B - echecs (rapide, statistiques (1)), retenues
@@ -151,8 +158,8 @@
 #  Pas d'option de B, de graine ni de perimetre (aucun levier).
 #  --brut-221, --tableau-221 : valeurs brutes de #221 (sortie --brut de
 #  tests/calibration_mc_t8.R --combiner) et tableau de #221 (son T0 donne le
-#  md5 du moteur, (i3)) du jeu de la tranche. Par defaut : le plus recent
-#  docs/tableaux/<AAAAMMJJ>-issue166-brut-<jeu>.tsv et le tableau
+#  md5 du moteur et le commit d'execution, (i3)) du jeu de la tranche. Par
+#  defaut : le plus recent docs/tableaux/<AAAAMMJJ>-issue166-brut-<jeu>.tsv et le tableau
 #  docs/tableaux/<AAAAMMJJ>-issue166-calibration-<jeu>.md de meme date (avant
 #  le commit de #221 : ceux du 30/09/2026, calcules sur un autre moteur, ou
 #  (i3) echoue).
@@ -225,11 +232,18 @@
 #  worktree au commit 139031d, commit d'execution cite en T0 (md5 de
 #  R/engine.R 344a4e03751e97b14e5ca1b733b856c6, celui du T0 du tableau de
 #  #221). A partir du commit 8ae7bc9 (commentaire du bloc 4 de R/engine.R,
-#  aucun calcul modifie), le md5 de R/engine.R ne correspond plus a ce T0 :
-#  (i3) echoue par construction (ligne INTEGRITE a ECHEC), sans que le calcul
-#  change. Une nouvelle mesure a un commit ulterieur suppose une nouvelle
-#  mesure de #221 sur ce moteur (ou une evolution du controle (i3),
-#  decision du mainteneur).
+#  aucun calcul modifie), le md5 de R/engine.R ne correspond plus a ce T0 ;
+#  depuis #231, (i3) compare alors l'empreinte sans commentaires
+#  (empreinte_sans_commentaires()), b2d4f34874cf1618e0c4fb9536dac4bb de
+#  26e7496 (commit cite par le T0 des tableaux de #221 du 08/10/2026) a
+#  8ae7bc9 et a la fusion 44d32f8 (PR #228) ; 8ae7bc9 est le seul commit
+#  de R/engine.R entre-temps. La fusion 3950693 (PR #196, Merz-Wuthrich,
+#  code du moteur modifie) puis bb1a801 (#237, regressions auxiliaires par
+#  QR) la changent (2e2841078e6688e46833737bf16e0764, puis
+#  46fe1025c2c4a6f241822a89e74b4c06) : a partir de 3950693, (i3) echoue a
+#  bon droit, et une nouvelle mesure suppose une nouvelle mesure de #221 sur
+#  ce moteur. Les commits 86a3079 et anterieurs portent l'ancien controle
+#  (md5 seul) : la reexecution au commit 139031d est inchangee.
 #  Fonctions reprises par copie declaree (ces scripts executent leur calcul
 #  au chargement et ne peuvent pas etre sources) : de
 #  tests/calibration_mc_t8.R : lire_option(), plateforme_calcul(),
@@ -239,7 +253,8 @@
 #  controle (a) ; de tests/comparer_ajusteurs_bootstrap.R : structure du
 #  rejeu du bootstrap (rejouer(), adaptee aux trois variantes) et controle S5
 #  (devenu (i2)). commit_depot(), motifs_non_versionnable(),
-#  garde_ecrasement(), ligne_remplacement(), inserer_t0() : tests/outils_tests.R.
+#  garde_ecrasement(), ligne_remplacement(), inserer_t0(),
+#  empreinte_sans_commentaires() (#231) : tests/outils_tests.R.
 #  Code de sortie : 0 si les controles d'integrite tiennent, 1 sinon ; en
 #  mode --combiner, 0 si la combinaison est acceptee, 1 si elle est refusee.
 ###############################################################################
@@ -1009,11 +1024,35 @@ BRUT221 <- local({
   M
 })
 if (OPT_R > nrow(BRUT221)) stop(sprintf("--R = %d au-dela des %d replications des valeurs brutes de #221", OPT_R, nrow(BRUT221)))
-# (i3) : md5 du moteur et parametres du tableau de #221.
+# (i3) : empreinte sans commentaires du moteur (#231) et parametres du
+# tableau de #221. Le T0 de #221 ne cite que le md5 du fichier entier et le
+# commit d'execution. Si ce md5 est celui de R/engine.R, le moteur est le
+# meme fichier (texte de sortie d'avant #231, inchange). Sinon, l'empreinte
+# de reference est celle de R/engine.R au commit cite par ce T0 (git show),
+# retenue seulement si le md5 de ce fichier est celui que cite le T0 ; elle
+# est comparee a empreinte_sans_commentaires() (tests/outils_tests.R) du
+# moteur courant. Un commit absent, git indisponible ou un md5 different
+# rendent l'empreinte de reference indisponible : (i3) echoue.
+empreinte_au_commit <- function(commit, md5_attendu) {
+  if (is.na(commit)) return(list(emp = NA_character_, motif = "commit du T0 de #221 illisible"))
+  f <- tempfile("engine_221_", fileext = ".R")
+  on.exit(unlink(f), add = TRUE)
+  code <- tryCatch(suppressWarnings(system2("git", c("-C", shQuote(RACINE), "show", paste0(commit, ":R/engine.R")),
+                                            stdout = f, stderr = FALSE)),
+                   error = function(e) NA_integer_)
+  if (!identical(as.integer(code), 0L) || !file.exists(f))
+    return(list(emp = NA_character_, motif = sprintf("R/engine.R du commit %s illisible par git show", commit)))
+  md5_c <- md5_fichier(f)
+  if (!identical(md5_c, md5_attendu))
+    return(list(emp = NA_character_, motif = sprintf("md5 de R/engine.R au commit %s : %s, diff\u00e9rent du T0", commit, md5_c)))
+  list(emp = tryCatch(empreinte_sans_commentaires(f), error = function(e) NA_character_), motif = NULL)
+}
 I3 <- local({
   l <- enc2utf8(readLines(F_TAB221, warn = FALSE, encoding = "UTF-8"))
   emp <- l[startsWith(l, "| Empreintes md5 du code ex\u00e9cut\u00e9 |")]
   md5_t <- if (length(emp) == 1L) regmatches(emp, regexec("R/engine\\.R ([0-9a-f]{32})", emp))[[1]][2] else NA_character_
+  com <- l[startsWith(l, "| Commit | ")]
+  commit_t <- if (length(com) == 1L) regmatches(com, regexec("^\\| Commit \\| ([0-9a-f]{40}) \\|$", com))[[1]][2] else NA_character_
   par <- l[startsWith(l, "Param\u00e8tres : ")]
   val <- function(cle) {
     if (length(par) != 1L) return(NA_character_)
@@ -1025,11 +1064,25 @@ I3 <- local({
                graine_boot = sprintf("%.0f", GRAINE_BOOT), B = as.character(B_BOOT), alpha = format(ALPHA),
                theta_equiv = format(THETA_EQUIV))
   lu <- vapply(names(attendu), val, "")
-  ok_md5 <- identical(md5_t, md5_e); ok_par <- identical(unname(lu), unname(attendu))
-  list(ok = ok_md5 && ok_par,
-       texte = sprintf("%s : md5 de R/engine.R %s, T0 du tableau de #221 %s ; param\u00e8tres du tableau %s",
-                       if (ok_md5 && ok_par) "OK" else "\u00c9CHEC", md5_e, md5_t,
-                       if (ok_par) "conformes" else paste("diff\u00e9rents :", paste(sprintf("%s=%s (attendu %s)", names(lu), lu, attendu)[lu != attendu | is.na(lu)], collapse = ", "))))
+  ok_md5 <- !is.na(md5_t) && identical(md5_t, md5_e); ok_par <- identical(unname(lu), unname(attendu))
+  txt_par <- if (ok_par) "conformes" else paste("diff\u00e9rents :", paste(sprintf("%s=%s (attendu %s)", names(lu), lu, attendu)[lu != attendu | is.na(lu)], collapse = ", "))
+  if (ok_md5) {
+    # meme fichier : texte d'avant #231
+    ok <- ok_par
+    txt_code <- sprintf("md5 de R/engine.R %s, T0 du tableau de #221 %s", md5_e, md5_t)
+  } else {
+    emp_e <- empreinte_sans_commentaires(file.path(RACINE, "R", "engine.R"))
+    ref <- if (is.na(md5_t)) list(emp = NA_character_, motif = "md5 du T0 de #221 illisible") else
+      empreinte_au_commit(commit_t, md5_t)
+    ok_emp <- !is.na(ref$emp) && identical(ref$emp, emp_e)
+    ok <- ok_emp && ok_par
+    txt_code <- sprintf(paste0("md5 de R/engine.R %s, T0 du tableau de #221 %s (diff\u00e9rents) ; empreinte sans ",
+                               "commentaires de R/engine.R %s, %s"), md5_e, md5_t, emp_e,
+                        if (is.null(ref$motif)) sprintf("au commit %s du T0 de #221 %s", commit_t, ref$emp) else
+                          paste("de r\u00e9f\u00e9rence indisponible :", ref$motif))
+  }
+  list(ok = ok,
+       texte = sprintf("%s : %s ; param\u00e8tres du tableau %s", if (ok) "OK" else "\u00c9CHEC", txt_code, txt_par))
 })
 controle(I3$ok, paste("(i3)", I3$texte))
 

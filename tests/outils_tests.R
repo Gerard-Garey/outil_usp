@@ -12,7 +12,10 @@
 #  garde d'ecrasement des tableaux versionnes (garde_ecrasement(), #173),
 #  le commit du depot et les motifs de non-versionnement (commit_depot(),
 #  motifs_non_versionnable(), #205 ; commit_depot() sert aussi a
-#  balayage_echelles.R) ; R base uniquement (tools::md5sum() pour la garde).
+#  balayage_echelles.R) et l'empreinte de R/engine.R sans commentaires
+#  (empreinte_sans_commentaires(), #231, controle (i3) de
+#  conservatisme_interieur_t8.R) ; R base uniquement (tools::md5sum() pour
+#  la garde et l'empreinte).
 #  Porte aussi la contre-implementation par lm() / anova() des six
 #  regressions auxiliaires calculees par QR depuis #237 (contre_*(), en fin
 #  de fichier), lue par tests/unitaires/test_regressions_qr.R.
@@ -505,6 +508,91 @@ motifs_non_versionnable <- function(commit, empreintes, quoi = "des tranches") {
   if (grepl("hors d\u00e9p\u00f4t", empreintes, fixed = TRUE))
     m <- c(m, sprintf("tests/outils_tests.R ou script ex\u00e9cut\u00e9s %s hors du d\u00e9p\u00f4t", quoi))
   m
+}
+
+# ---------------------------------------------------------------------------
+#  Empreinte de R/engine.R sans commentaires (issue #231). Complement du md5
+#  du fichier entier des empreintes_code() des scripts de mesure (copies
+#  declarees dans ces scripts), qui reste cite en T0 pour la tracabilite au
+#  commit : un commentaire ou une ligne vide modifies changent ce md5 sans
+#  changer aucun calcul. Lue par le controle (i3) de
+#  tests/conservatisme_interieur_t8.R ; testee par
+#  tests/unitaires/test_empreinte_moteur.R.
+#
+#  Methode : md5 d'un codage canonique de l'arbre syntaxique rendu par
+#  parse(fichier, keep.source = FALSE, encoding = "UTF-8"), expression de
+#  premier niveau par expression de premier niveau. L'analyseur de R ecarte
+#  lui-meme les commentaires, les lignes vides, l'indentation et les fins de
+#  ligne (LF ou CRLF) ; l'arbre garde tout ce qui s'execute : noms (symboles),
+#  appels et noms de leurs arguments, listes d'arguments formels et valeurs
+#  par defaut, corps des fonctions, constantes. Le codage est ecrit ici, sans
+#  deparse(), dont le texte depend de la locale (chaine "\u00e9" rendue
+#  "<U+00E9>" sous LC_ALL=C, le caractere lui-meme sous C.UTF-8), ni
+#  getParseData(), dont le texte remplace une chaine longue par
+#  "[2000 chars quoted with ...]" (mesure sous R 4.3.3) :
+#    - symbole : "s" et octets UTF-8 en hexadecimal (enc2utf8()) ;
+#    - appel ("c") ou liste d'arguments formels ("p") : longueur, puis chaque
+#      element sous la forme nom=code, nom en hexadecimal UTF-8, argument
+#      vide (argument formel sans defaut, x[, 1]) code "m" ;
+#    - constante : type, longueur, puis chaque valeur : double par ses huit
+#      octets IEEE 754 (writeBin(), petit-boutiste impose, sans format
+#      decimal), entier en
+#      decimal, logique T/F, chaine par ses octets UTF-8 en hexadecimal
+#      precedes de "x", NA code "NA" ; complexe : deux doubles ;
+#    - NULL : "N".
+#  Le codage n'emploie que des caracteres ASCII ; le md5 est celui de ses
+#  octets (fichier temporaire ecrit par writeBin(), tools::md5sum()).
+#  Consequences : une modification du code (constante, corps, nom, argument
+#  par defaut, ordre des expressions) change l'empreinte ; deux ecritures
+#  que l'analyseur rend identiques la laissent inchangee (1e-6 et 0.000001,
+#  "\u00e9" et le caractere lui-meme dans une chaine) : c'est le code
+#  analyse qui est compare, non son texte. Une constante de type inattendu
+#  ou portant des attributs leve une erreur (codage incomplet refuse).
+#  Locale : les chaines analysees avec encoding = "UTF-8" sont marquees
+#  UTF-8 sous LC_ALL=C comme sous C.UTF-8 (meme empreinte de R/engine.R et
+#  des chaines non ASCII sous les deux, mesure sous R 4.3.3) ; un nom
+#  (symbole) non ASCII ne s'analyse pas sous LC_ALL=C (erreur de parse()) :
+#  R/engine.R n'en a pas, ses caracteres non ASCII sont tous en commentaire.
+#  Version de R : le codage ne lit que l'arbre de parse() ; mesure sous
+#  R 4.3.3 seulement.
+# ---------------------------------------------------------------------------
+
+# fichier : chemin du source R (par defaut R/engine.R du depot). Renvoie le
+# md5 (32 caracteres hexadecimaux) ; erreur si le fichier ne s'analyse pas.
+empreinte_sans_commentaires <- function(fichier = file.path(RACINE, "R", "engine.R")) {
+  hex <- function(s) paste(as.character(charToRaw(enc2utf8(s))), collapse = "")
+  dbl <- function(x) vapply(x, function(v) paste(as.character(writeBin(v, raw(), size = 8L, endian = "little")),
+                                                 collapse = ""), "")
+  coder <- function(e) {
+    if (is.null(e)) return("N")
+    if (is.symbol(e)) return(paste0("s", hex(as.character(e))))
+    if (is.call(e) || is.pairlist(e)) {
+      l <- as.list(e)
+      nm <- names(l)
+      if (is.null(nm)) nm <- rep("", length(l))
+      el <- vapply(seq_along(l), function(i)
+        if (identical(l[[i]], quote(expr = ))) "m" else coder(l[[i]]), "")
+      return(paste0(if (is.call(e)) "c" else "p", length(l), "(",
+                    paste0(vapply(nm, hex, ""), "=", el, collapse = ","), ")"))
+    }
+    if (is.atomic(e) && is.null(attributes(e))) {
+      v <- switch(typeof(e),
+                  double = dbl(e),
+                  integer = ifelse(is.na(e), "NA", as.character(e)),
+                  logical = ifelse(is.na(e), "NA", ifelse(e, "T", "F")),
+                  character = ifelse(is.na(e), "NA", paste0("x", vapply(e, hex, ""))),
+                  complex = paste0(dbl(Re(e)), "i", dbl(Im(e))),
+                  stop("empreinte_sans_commentaires : constante de type ", typeof(e), " non codee"))
+      return(paste0(typeof(e), length(e), "(", paste(v, collapse = ","), ")"))
+    }
+    stop("empreinte_sans_commentaires : objet de type ", typeof(e), " non code")
+  }
+  ex <- parse(fichier, keep.source = FALSE, encoding = "UTF-8")
+  code <- paste(vapply(ex, coder, ""), collapse = ";")
+  f <- tempfile("empreinte_")
+  on.exit(unlink(f), add = TRUE)
+  writeBin(charToRaw(code), f)
+  unname(tools::md5sum(f))
 }
 
 # ---------------------------------------------------------------------------
