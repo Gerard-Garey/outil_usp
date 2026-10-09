@@ -2514,14 +2514,17 @@ $c = 92~\%$ sous la convention, $c = 67~\%$ par \code{mw\_valider\_triangle()} a
 segment II-1~; sur une série à $T = 10$, aucun avertissement de crédibilité
 d'\code{engine\_valider\_donnees()} sans segment, $c = 74~\%$ avec le segment II-1.
 
-\textbf{Son fondement n'est pas le même que celui des autres contrôles}, et c'est
+\textbf{Le fondement du refus $\hat R \le 0$ n'est pas le même que celui des autres
+contrôles}, et c'est
 l'exception annoncée ci-dessus. Tous les autres relèvent des exigences de données
 des articles~19 et~219 --- exhaustivité, exactitude, caractère approprié. Une
 réserve chain-ladder totale $\hat R \le 0$ n'est pas un défaut de données~: le
 triangle peut satisfaire intégralement le paragraphe~2 de la section~D, et c'est
 l'\emph{estimation} qui place le paramètre hors de ce que la méthode peut
-produire. Le refus se fonde donc sur l'article~220, dont la justification
-détaillée figure au §\ref{sec:mw}.
+produire. Le refus se fonde donc sur l'annexe~XVII, section~D,
+paragraphe~4, qui définit un écart type (interprétation déclarée)~; l'article~220,
+paragraphe~1, point~b), qui laisse ouverte la méthode du risque de réserve n\textsuperscript{o}~1,
+en garantit l'admissibilité. La justification détaillée figure au §\ref{sec:mw}.
 
 Dans les deux cas, un refus conduit \code{run\_engine()} à
 retourner un objet portant \code{ok = FALSE} et le champ \code{validation}
@@ -3229,8 +3232,8 @@ $0 \le \mathrm{MSEP} < \infty$ & Le paragraphe~4 définit \emph{l'écart type}
 $\sigma_{(\text{res},s,\mathrm{USP})}$ à partir de $\sqrt{\mathrm{MSEP}}/\hat R$
 (MSEP~: paragraphe~5), coefficient de variation \emph{à horizon un an} de la
 réserve --- le paragraphe ne le nomme pas ainsi. Non défini pour $\hat R = 0$~;
-négatif, donc pas un écart type, pour $\hat R < 0$ (article~220,
-§\ref{sec:mw}). Bloquant. \\
+négatif, donc pas un écart type, pour $\hat R < 0$ (interprétation de D(4), méthode n\textsuperscript{o}~1 ouverte par
+l'article~220, paragraphe~1, point~b)~; §\ref{sec:mw}). Bloquant. \\
 Triangle totalement dégénéré \emph{(post-ajustement)} & toutes les colonnes $j = 0, \ldots, J-2$
 dégénérées au sens du prédicat unique \code{.mw\_colonne\_}\allowbreak\code{degeneree()}
 (\code{.mw\_triangle\_}\allowbreak\code{totalement\_degenere()}) & \textbf{Décision de l'outil} (issue~\#192),
@@ -3600,7 +3603,7 @@ colonnes ni celle des leviers. Le redressement retenu est une \emph{interprétat
 --- le redressement par le levier des modèles linéaires pondérés, appliqué à la régression de
 Mack ---, non une formule du règlement, qui ne prescrit pas de bootstrap~; aucune référence
 bibliographique n'est citée à son appui, aucune n'ayant été vérifiée dans le texte. Les résidus
-redressés ont la variance du modèle, mais ne sont ni indépendants ni échangeables (contrainte de
+redressés ont, à $\sigma_j$ connu, la variance unitaire du modèle, mais ne sont ni indépendants ni échangeables (contrainte de
 colonne, leviers inégaux)~: l'échangeabilité que suppose le rééchantillonnage reste une
 approximation, qu'aucun théorème ne couvre pour ce test bootstrap et qu'aucune calibration des
 p-values de Monte-Carlo de la méthode à $T = 8$ ne mesure (issue~\#206~; les mesures de
@@ -5029,7 +5032,7 @@ Bootstrap de résidus & $\hat p_{\mathrm{MC}}$ & p-value semi-paramétrique &
 Convergence en $B$ (Monte-Carlo) et en $I$ (validité bootstrap) &
 $\mathcal{O}(B^{-1/2})$ pour la première ; non établie pour la seconde &
 Échangeabilité des résidus redressés par le levier (issue~\#46, §\ref{sec:boot-mw}), de variance
-unitaire sous le modèle mais ni indépendants ni échangeables &
+unitaire sous le modèle à $\sigma_j$ connu mais ni indépendants ni échangeables &
 \textbf{Ne permet pas de tester la normalité} : la loi nulle simulée est la loi
 empirique des résidus~; calibration à $T = 8$ non établie (issue~\#206) \\
 
@@ -5224,7 +5227,8 @@ de \code{.runs\_effectifs()}, la même fonction que pour la méthode lognormale~
 diagonale retenue ($n_k \ge 2$ étiquettes $L$ ou $S$), $L_k \sim \mathcal{B}(n_k, 1/2)$, diagonales
 indépendantes, $Z = \sum_k \min(L_k, n_k - L_k)$~; loi de $Z$ par convolution exacte, et
 $p_{\min} = \min_z 2\min\big(\mathbb{P}(Z \le z), \mathbb{P}(Z \ge z)\big)$, bornée à~1
-(\code{.mw\_calendrier\_p\_min()}). C'est la loi binomiale indépendante de Mack (1994), celle des
+(\code{.mw\_calendrier\_p\_min()}). C'est la loi du schéma binomial de Mack (1994), appelée ici loi
+binomiale indépendante de Mack (fiche~\ref{mw:m3cal}), celle des
 moments exacts de la fiche~\ref{mw:m3cal}, et \textbf{non} la loi de permutation des facteurs à
 l'intérieur de chaque colonne~: dans une colonne, le nombre de $L$ est fixé par la médiane, ce
 qui lie les diagonales (choix de la spécification, question renvoyée à l'issue~\#125). Les $n_k$
@@ -10833,8 +10837,11 @@ $t(i,j)$ est le résidu studentisé externe de la cellule (vérifiée numérique
 $7\cdot 10^{-14}$ près sur le triangle de contrôle contre \code{stats::rstudent()} et
 \code{stats::hatvalues()}). Si, de plus, les erreurs sont gaussiennes, $t(i,j)$ suit
 conditionnellement à $C(\cdot,j)$ une loi de Student à $n_j - 2$ degrés de liberté~: résultat
-classique de la régression linéaire gaussienne, retenu ici d'après des sources secondaires et non
-relu dans une source primaire. Le modèle de Mack ne spécifiant aucune loi, cette loi n'est
+classique de la régression linéaire gaussienne, qui se vérifie directement~:
+conditionnellement à $C(\cdot,j)$, l'erreur de prévision $C(i,j+1) - \hat f_j^{(-i)}C(i,j)$ est
+gaussienne, centrée, de variance $\sigma_j^2 C(i,j)/(1-h(i,j))$, et indépendante de
+$(n_j-2)\,s_{(i)}^2/\sigma_j^2 \sim \chi^2(n_j-2)$, qui ne dépend que des résidus des autres
+cellules~; leur rapport normé est $t(i,j)$. Le modèle de Mack ne spécifiant aucune loi, cette loi n'est
 qu'une loi de référence \emph{sous une hypothèse supplémentaire}, qui sert à chiffrer le
 franchissement attendu du repère, jamais à porter un verdict.
 \Pval
@@ -10862,7 +10869,8 @@ $(0,3)$, $-1{,}498$ (repère $1{,}000$), et $(1,4)$, $+1{,}527$ (repère $1{,}15
 \medskip
 \textbf{Source et portée du repère.} Le repère $2/\sqrt{n}$ du DFBETAS, dit ajusté à la taille,
 est attribué à D.\,A. Belsley, E.~Kuh et R.\,E. Welsch (1980) par des sources secondaires
-(documentation SAS/STAT~; manuel de Stata, qui cite la p.~28)~; l'ouvrage n'a pas été relu
+(documentation SAS/STAT~; manuel de Stata)~; l'ouvrage n'a pas été relu et aucune page n'en
+est citée
 (section~\ref{sec:biblio}). C'est un repère de lecture, qui ne produit \textbf{aucun verdict}
 (ADR~0001, décision M7 du mainteneur)~: à $T = 8$, son franchissement est fréquent sans aucune
 anomalie. Par l'identité de la rubrique~4, à levier égal ($h(i,j) = 1/n_j$) et sous erreurs
@@ -11181,7 +11189,8 @@ arithmétique du paragraphe~4 est ici \textbf{parfaitement définie et rend un
 nombre}~: sur un triangle à cumulés décroissants de réserve totale
 $\hat R = -372{,}397$, elle rend $0{,}034877$. Le refus n'est donc
 \textbf{pas} imposé par l'arithmétique~: c'est une interprétation du texte,
-retenue par l'outil, et fondée sur trois appuis.
+retenue par l'outil, fondée sur deux appuis et confortée par une orientation du
+règlement.
 
 \begin{itemize}[itemsep=2pt]
 \item \textbf{La grandeur que le paragraphe~4 annonce est « l'écart type »}
@@ -11208,9 +11217,10 @@ retenue par l'outil, et fondée sur trois appuis.
   l'entreprise qui ne peut pas \emph{démontrer} l'exactitude relative d'une méthode, non celle
   qui ne peut pas \emph{utiliser} une méthode~: le paragraphe ne traite pas du cas
   $\hat R < 0$ et n'est pas le fondement du refus, il n'en donne que l'orientation. Quand
-  l'exactitude relative ne peut être démontrée, le texte oriente vers le résultat le plus
-  prudent~; un paramètre propre \emph{inférieur} au paramètre standard, obtenu par une
-  division par un nombre négatif, va à l'encontre de cette orientation.
+  l'exactitude relative ne peut être démontrée, le texte oriente, entre méthodes standard,
+  vers le résultat le plus prudent~; un paramètre propre obtenu par une division par un
+  nombre négatif, \emph{inférieur} au paramètre standard et dont l'exactitude ne peut par
+  construction être démontrée, va à l'encontre de cette orientation.
 \end{itemize}
 
 Un quatrième appui, hors annexe~XVII, va dans le même sens~: le règlement refuse
@@ -11248,7 +11258,7 @@ $0/0$ du quotient de D(5)(d)(ii), sans effet sur le minimum (ci-dessus), mais de
 données de D(2)(h) et D(2)(a), que ces données ne permettent pas d'établir (prédicat, motif,
 lectures du texte et frontière~: section~\ref{sec:controles}).
 
-Le refus porte sur le \textbf{total} $\hat R$, et sur lui seul. \textbf{Le texte
+Le refus de $\hat R \le 0$ porte sur le \textbf{total} $\hat R$, et sur lui seul. \textbf{Le texte
 ne se prononce ni sur l'un ni sur l'autre}~: aucun paragraphe de la section~D ne
 traite le cas d'une réserve négative, au total comme par année de survenance. La
 distinction est donc une \textbf{décision de l'outil}, et non une lecture du
@@ -12227,9 +12237,9 @@ atteignable est $p_{\min} = \min\big(1, 2\prod_k 1/n_k!\big)$ (\code{.mw\_corr\_
 facteurs de la paire~$k$, soit son poids plus un). Les paires partagent une colonne et ne sont pas
 indépendantes~; la formule tient par conditionnement le long de la chaîne des colonnes. $|\hat\rho|$
 est maximal si et seulement si chaque $\hat\rho_{s,k}$ vaut $+1$, ou chacun $-1$~; la paire~$k$
-compare la colonne~$k$, restreinte à ses $n_k$ premières lignes, à la colonne $k+1$, qui a
-exactement $n_k$ facteurs~; quel que soit l'ordre des colonnes précédentes, $\hat\rho_{s,k} = +1$
-(resp.~$-1$) exige que la colonne $k+1$ reproduise (resp.~renverse) cet ordre restreint, ce qui a
+compare les facteurs $F(\cdot,k-1)$, restreints à leurs $n_k$ premières lignes, aux $n_k$
+facteurs $F(\cdot,k)$~; quel que soit l'ordre des colonnes précédentes, $\hat\rho_{s,k} = +1$
+(resp.~$-1$) exige que $F(\cdot,k)$ reproduise (resp.~renverse) cet ordre restreint, ce qui a
 la probabilité $1/n_k!$. Le doublement donne la formule. Vérifiée par énumération exhaustive dans
 la batterie de tests unitaires ($0{,}013889$ pour $n_k = 4, 3$). Cette loi de référence n'est pas
 celle des facteurs sous le modèle de Mack, où les colonnes adjacentes sont dépendantes et les
@@ -12242,8 +12252,8 @@ Un rejet signale que la cadence de liquidation d'une année de survenance est
 persistante~: une année qui se développe vite sur une colonne continue de le
 faire sur la suivante. Cela contredit l'indépendance des incréments et biaise la
 MSEP, qui suppose que les erreurs de projection ne se cumulent pas. Limite~: sur
-un triangle $8\times8$, seules cinq ou six paires de colonnes comptent au moins
-trois observations, ce qui rend le test très peu puissant.
+un triangle $8\times8$, seules quatre paires de colonnes comptent au moins
+trois facteurs (rubrique~7), ce qui rend le test très peu puissant.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} $2/(6!\,5!\,4!\,3!) = 2/12\,441\,600 = 1{,}61\cdot 10^{-7}$ sur le triangle de contrôle (quatre paires de $n_k = 6, 5, 4, 3$ facteurs~; \code{.mw\_corr\_p\_min()}, issue~\#115), par l'argument de chaîne de la rubrique~4. Valeur exacte sous la loi de référence échangeable, qui n'est pas celle du modèle de Mack~: elle ne borne pas la p-value retenue. Non attribuée (\code{NA}, motif dans le commentaire) avec un ex \ae quo dans une paire retenue. La p-value retenue est de Monte-Carlo (clé \code{CorrDev}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est le seul plancher établi de la p-value retenue.
 
@@ -13517,7 +13527,7 @@ soutient dans le présent document.
   Influential Data and Sources of Collinearity}, Wiley, New York, 1980.
   \emph{Portée.} Ouvrage non relu~: le DFBETAS et le repère $2/\sqrt{n}$, dit ajusté à la
   taille, lui sont attribués par des sources secondaires (documentation SAS/STAT~; manuel de
-  Stata, qui cite la p.~28), d'après lesquelles la fiche~\ref{mw:influence} retient ce repère
+  Stata), d'après lesquelles la fiche~\ref{mw:influence} retient ce repère
   de lecture, sans verdict (issue~\#89).
 
   \item K.\,A. Bollen, R.\,W. Jackman, \emph{Regression diagnostics: an expository treatment of
@@ -14709,7 +14719,8 @@ dossiers. Priorité de revue. \\
 Les fonctions internes de la méthode Merz--Wüthrich relèvent de la même lecture~: une anomalie
 de \code{.fisher\_combine()} atteindrait les quatre combinaisons de Fisher de M1 et M2 (ordonnée
 à l'origine, homogénéité de $f_j$, courbure, exposant de variance), et une anomalie de
-\code{.mw\_spearman\_p()} les deux dernières (issue~\#90)~; \code{runs\_p\_min()}, qui fournit la
+\code{.mw\_spearman\_p()} la deuxième et la quatrième (homogénéité de $f_j$, exposant de
+variance~; issue~\#90)~; \code{runs\_p\_min()}, qui fournit la
 $p_{\min}$ des suites dans les deux méthodes depuis l'issue~\#115, relève des fonctions communes
 aux deux dispositifs.
 
