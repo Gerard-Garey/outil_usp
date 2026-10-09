@@ -14,6 +14,40 @@ ajouter_au_path() {
   fi
 }
 
+# Session cloud derriere le proxy sortant ($HTTPS_PROXY) : apt n'y passe pas
+# en HTTP simple (depots Ubuntu declares en http://, nom non resolu). On bascule
+# les depots Ubuntu en https:// et on declare le proxy a apt. Le proxy
+# re-signe TLS : apt doit faire confiance a son certificat ($SSL_CERT_FILE),
+# que l'utilisateur _apt ne lit pas dans /root ; on en pose une copie lisible
+# sous /etc/ssl/certs, declaree par CaInfo (constat du 08/10/2026 apres E1g :
+# sans elle, echec de verification du certificat). Idempotent. Couvre aussi
+# les miroirs regionaux (xx[.yy].archive.ubuntu.com) et ports.ubuntu.com. Sans
+# proxy, retire le fichier d'une session precedente. Les domaines Ubuntu
+# utilises doivent etre autorises par la politique reseau de l'environnement
+# (constat et decision du 08/10/2026 ; revue finale d'E1g).
+preparer_apt_proxy() {
+  conf=/etc/apt/apt.conf.d/99proxy-session
+  if [ -z "${HTTPS_PROXY:-}" ]; then
+    [ -f "$conf" ] && ${SUDO:-} rm -f "$conf" 2>/dev/null
+    return 0
+  fi
+  motif='http://(([a-z0-9-]+\.)*archive|security|ports)\.ubuntu\.com'
+  for f in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
+    [ -f "$f" ] && grep -Eq "$motif" "$f" &&
+      ${SUDO:-} sed -i -E "s#$motif#https://\1.ubuntu.com#g" "$f" 2>/dev/null
+  done
+  ca=/etc/ssl/certs/proxy-session.crt
+  if [ -r "${SSL_CERT_FILE:-}" ] &&
+     ${SUDO:-} install -m 644 "$SSL_CERT_FILE" "$ca" 2>/dev/null; then
+    printf 'Acquire::https::Proxy "%s";\nAcquire::https::CAInfo "%s";\n' \
+      "$HTTPS_PROXY" "$ca" | ${SUDO:-} tee "$conf" >/dev/null 2>&1
+  else
+    printf 'Acquire::https::Proxy "%s";\n' "$HTTPS_PROXY" |
+      ${SUDO:-} tee "$conf" >/dev/null 2>&1
+  fi
+  return 0
+}
+
 # installer_apt <commande attendue> <paquet>... : installe par apt (session
 # cloud Linux) et reussit si la commande est ensuite disponible. La sortie
 # d'apt va dans un journal, dont la fin est affichee en cas d'echec.
@@ -22,6 +56,7 @@ installer_apt() {
   command -v apt-get >/dev/null 2>&1 || return 1
   SUDO=""
   if [ "$(id -u)" != "0" ] && command -v sudo >/dev/null 2>&1; then SUDO="sudo -n"; fi
+  preparer_apt_proxy
   journal="${TMPDIR:-/tmp}/apt_$commande.log"
   apt="$SUDO env DEBIAN_FRONTEND=noninteractive apt-get"
   if $apt update -qq >"$journal" 2>&1 &&

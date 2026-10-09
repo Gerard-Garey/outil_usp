@@ -362,7 +362,7 @@ verifier("Ratio y/x : avertissement si r < 0,1 (xt x 1e3, ratio 7e-4) ou r >= 5 
              contient(avt(c(10, x[-1]), c(0.99, y[-1])), motif) &&
              !contient(avt(x, y), motif)
          })
-verifier("Ligne A 'Plausibilite du ratio y/x' : memes constantes que l'avertissement (r = 0,1 OK ; 0,099 et 5 ECHEC), detail inchange (#145)",
+verifier("Ligne A 'Plausibilite du ratio y/x' : memes constantes que l'avertissement (r = 0,1 OK ; 0,099 et 5 ECHEC), detail avec plage (#145, #186)",
          {
            ligne <- function(xt, yt) {
              r <- usp_controle_donnees(xt, yt)
@@ -370,11 +370,27 @@ verifier("Ligne A 'Plausibilite du ratio y/x' : memes constantes que l'avertisse
            }
            l1 <- ligne(c(10, x[-1]), c(1, y[-1]))
            identical(l1$verdict, "OK") &&
-             identical(l1$detail, "min = 0.100 ; median = 0.751 ; max = 0.894") &&
+             identical(l1$detail, "min = 0.100 ; median = 0.751 ; max = 0.894 ; plage plausible [0.1 ; 5[") &&
              identical(ligne(c(10, x[-1]), c(0.99, y[-1]))$verdict, "ECHEC") &&
              identical(ligne(c(10, x[-1]), c(50, y[-1]))$verdict, "ECHEC") &&
              identical(ligne(c(10, x[-1]), c(49.9, y[-1]))$verdict, "OK") &&
              identical(ligne(x * 1e3, y)$verdict, "ECHEC")
+         })
+verifier("Ligne A 'Plausibilite du ratio y/x' : aux bornes, le detail ne contredit plus le verdict (0,0996 -> 0.0996 ECHEC ; 4,9996 -> 4.9996 OK ; 5 -> 5.000 ECHEC) (#186)",
+         {
+           ligne <- function(xt, yt) {
+             r <- usp_controle_donnees(xt, yt)
+             r[[which(vapply(r, function(l) l$test, "") == "Plausibilite du ratio y/x")]]
+           }
+           xx <- rep(100, 8)
+           yy <- function(r1) c(r1 * 100, rep(70, 7))
+           lb <- ligne(xx, yy(0.0996)); lh <- ligne(xx, yy(4.9996)); l5 <- ligne(xx, yy(5))
+           identical(lb$verdict, "ECHEC") &&
+             identical(lb$detail, "min = 0.0996 ; median = 0.700 ; max = 0.700 ; plage plausible [0.1 ; 5[") &&
+             identical(lh$verdict, "OK") &&
+             identical(lh$detail, "min = 0.700 ; median = 0.700 ; max = 4.9996 ; plage plausible [0.1 ; 5[") &&
+             identical(l5$verdict, "ECHEC") &&
+             identical(l5$detail, "min = 0.700 ; median = 0.700 ; max = 5.000 ; plage plausible [0.1 ; 5[")
          })
 ## --- Distance de Cook a toute echelle (issue #153) ----------------------------
 # Critere amende du 02/10/2026 : (1) run_engine() sans erreur R ni defaut de
@@ -399,6 +415,9 @@ verifier("Ligne A 'Plausibilite du ratio y/x' : memes constantes que l'avertisse
 # pas de 10, plus les echelles nommees.
 x153 <- c(100, 150, 200, 300, 400, 500, 600, 700)
 y153 <- x153 * c(0.71, 0.64, 0.80, 0.69, 0.75, 0.62, 0.90, 0.66)
+# pi_t de l'ajustement (#215 : poids du modele auxiliaire pondere de la
+# constante et du TOST) ; invariant par x, y -> c x, c y.
+pi153 <- usp_ajuster(x153, y153)$pi
 e_sym153 <- c(-300:300, -165, -160, 152, 160)
 ech153 <- c(lapply(e_sym153, function(e) c(10^e, 10^e)),
             list(c(1e-320, 1e-320), c(5e-324, 5e-324)),
@@ -462,8 +481,9 @@ LIGNE_COOK153 <- "Points influents (distance de Cook)"
 LIGNE_TOST153 <- "Equivalence de la constante a zero (TOST)"
 MOTIF_INFLUENCE153 <- paste("Residu standardise ou distance de Cook non fini (par exemple",
                             "residus de y = beta x tous nuls) : graphique non disponible")
-DETAIL_TOST153 <- paste("statistique t non definie (constante ou",
-                        "erreur-type de la regression de y sur x",
+# Texte etendu par #215 (constat 3 d'audit) : mention des poids invalides.
+DETAIL_TOST153 <- paste("statistique t non definie (poids de la regression ponderee non",
+                        "valides, ou constante ou erreur-type de la regression de y sur x",
                         "non calculable) : test non applicable")
 ligne153 <- function(tt, nom) tt[[which(vapply(tt, function(l) l$test, "") == nom)]]
 # Ligne Cook : non applicable (INFO, estim NA, motif) ou diagnostic fini.
@@ -491,8 +511,11 @@ cook_x_ecarte153 <- function(x, y) {
 # memes donnees par les memes conditions, dans le meme ordre de priorite :
 # (1) "volumes constants" si usp_volumes_constants(x) ; (2) "marge" si la
 # marge est invalide (theta non fini ou <= 0 sans delta_abs ; delta_abs non
-# fini ou <= 0) ; (3) "x ecarte" (#168) si lm() a ecarte x (garde-fou R12 :
-# "x" absent de rownames(summary(stats::lm(y ~ x))$coefficients)) ; (4)
+# fini ou <= 0) ; (2 bis, #215) "statistique non definie" si les poids
+# w_t = 1 / ((x_t / moyenne(x))^2 expm1(1 / pi_t)), rapportes a leur
+# maximum, ne sont pas tous finis et > 0 ; (3) "x ecarte" (#168) si lm() a
+# ecarte x (garde-fou R12 : "x" absent de rownames(summary(stats::lm(y ~ x,
+# weights = w))$coefficients)) ; (4)
 # "statistique non definie" si et seulement si p_bas ou p_haut, recalculees
 # ici par les formules de test_tost_intercept() (a, se, Delta = theta *
 # mean(y) sans delta_abs, delta_abs sinon, t_bas, t_haut, pt() a T - 2
@@ -503,12 +526,18 @@ cook_x_ecarte153 <- function(x, y) {
 # injections de summary() (avec_summary_nan153(), avec_summary_sans_x153()).
 # p et stat valent NA_real_ sur toute branche non applicable, et sont finis
 # sur la branche calculee.
-tost_motif_attendu153 <- function(x, y, theta = 0.10, delta_abs = NULL) {
+tost_motif_attendu153 <- function(x, y, pi, theta = 0.10, delta_abs = NULL) {
   if (usp_volumes_constants(x)) return("volumes constants")
+  # Pertes constantes (#189) : apres les volumes constants, avant la marge.
+  if (usp_pertes_constantes(y)) return("pertes constantes")
   if ((is.null(delta_abs) && (!is.finite(theta) || theta <= 0)) ||
       (!is.null(delta_abs) && (!is.finite(delta_abs) || delta_abs <= 0))) return("marge")
+  w <- 1 / ((x / mean(x))^2 * expm1(1 / pi))
+  if (!all(is.finite(w)) || any(w <= 0)) return("statistique non definie")
+  w <- w / max(w)
+  if (!all(is.finite(w)) || any(w <= 0)) return("statistique non definie")
   resume <- get("summary", envir = environment(run_engine))
-  m <- resume(stats::lm(y ~ x))
+  m <- resume(stats::lm(y ~ x, weights = w))
   if (!"x" %in% rownames(m$coefficients)) return("x ecarte")
   a <- m$coefficients[1, 1]; se <- m$coefficients[1, 2]
   ddl <- length(x) - 2
@@ -517,20 +546,24 @@ tost_motif_attendu153 <- function(x, y, theta = 0.10, delta_abs = NULL) {
   p_haut <- stats::pt((a - Delta) / se, ddl, lower.tail = TRUE)
   if (is.finite(p_bas) && is.finite(p_haut)) NA_character_ else "statistique non definie"
 }
-tost_coherent153 <- function(r, ref, x, y) !inherits(r, "error") && identical(names(r), ref) &&
-  identical(r$non_applicable, tost_motif_attendu153(x, y)) &&
+tost_coherent153 <- function(r, ref, x, y, pi) !inherits(r, "error") && identical(names(r), ref) &&
+  identical(r$non_applicable, tost_motif_attendu153(x, y, pi)) &&
   (if (is.na(r$non_applicable)) is.finite(r$p) && is.finite(r$stat)
    else identical(r$p, NA_real_) && identical(r$stat, NA_real_))
 # Ligne TOST de usp_tests(), en regard de test_tost_intercept() sur les memes
 # donnees (x, y = fit$x, fit$y) : detail du motif, lu dans usp_tests()
 # ("volumes constants" : texte de la regle R13 ; "x ecarte" : texte du
-# garde-fou R12, #168) ; ligne "test" a p retenue finie si calculee.
+# garde-fou R12, #168 ; "pertes constantes" : texte de #189) ; ligne
+# "test" a p retenue finie si calculee.
+PREFIXE_PERTES_CST189 <- paste("regression de y sur x : pertes y_t constantes a la tolerance",
+                               "relative TOL_DELTA_BORD = 1e-06 pres")
 ligne_tost_coherente153 <- function(lt, r, x) {
   m <- r$non_applicable
   if (is.na(m)) return(identical(lt$type, "test") && is.finite(lt$p_retenue) &&
                          startsWith(lt$detail, "Rejeter H0 fournit une preuve POSITIVE"))
   attendu <- switch(m,
     "volumes constants" = NA_character_,
+    "pertes constantes" = NA_character_,
     "x ecarte" = paste("regression de y sur x : x ecarte par lm() pour colinearite,",
                        "test non applicable"),
     "marge" = paste("marge Delta invalide (sans delta_equiv : theta_equiv non",
@@ -539,7 +572,10 @@ ligne_tost_coherente153 <- function(lt, r, x) {
     "statistique non definie" = DETAIL_TOST153,
     return(FALSE))
   identical(lt$type, "non applicable") && identical(lt$verdict, "INFO") && is.na(lt$p_retenue) &&
-    (if (is.na(attendu)) startsWith(lt$detail, "volumes x_t constants") else identical(lt$detail, attendu))
+    (if (identical(m, "pertes constantes"))
+       startsWith(lt$detail, PREFIXE_PERTES_CST189)
+     else if (is.na(attendu)) startsWith(lt$detail, "volumes x_t constants")
+     else identical(lt$detail, attendu))
 }
 # Injections deterministes (voir ci-dessus).
 .echelle_orig153 <- .usp_echelle_exacte
@@ -580,10 +616,10 @@ verifier("run_engine, residus de y = beta x exactement nuls (injection : .usp_ec
 # if (p_bas >= p_haut) sur NaN.
 verifier("test_tost_intercept() et usp_tests(), constante et erreur-type NaN (injection de summary()) -> non applicable 'statistique non definie', memes champs que la branche calculee, detail exact de la ligne, sans erreur R ; motif accepte par tost_coherent153() sous l'injection, refuse hors injection et resultat forge (motif, p = stat = NA sur les donnees de test) refuse (#153)",
          {
-           ref <- names(test_tost_intercept(x153, y153))
-           r <- tryCatch(avec_summary_nan153(test_tost_intercept(x153, y153)), error = function(e) e)
+           ref <- names(test_tost_intercept(x153, y153, pi153))
+           r <- tryCatch(avec_summary_nan153(test_tost_intercept(x153, y153, pi153)), error = function(e) e)
            # Resultat forge : branche calculee relabellisee, sans injection.
-           forge <- modifyList(test_tost_intercept(x153, y153),
+           forge <- modifyList(test_tost_intercept(x153, y153, pi153),
                                list(stat = NA_real_, p = NA_real_,
                                     non_applicable = "statistique non definie"))
            f1 <- usp_ajuster(x153, y153); b1 <- usp_bootstrap(f1, B = B_MIN_USAGE)
@@ -596,9 +632,9 @@ verifier("test_tost_intercept() et usp_tests(), constante et erreur-type NaN (in
              !exists("summary", envir = environment(run_engine), inherits = FALSE) &&
              !inherits(tt, "error") && ligne_tost_coherente153(ligne153(tt, LIGNE_TOST153), r, x153) &&
              identical(ligne153(tt, LIGNE_TOST153)$verdict, "INFO") &&
-             isTRUE(avec_summary_nan153(tost_coherent153(r, ref, x153, y153))) &&
-             !tost_coherent153(r, ref, x153, y153) && !tost_coherent153(forge, ref, x153, y153) &&
-             tost_coherent153(test_tost_intercept(x153, y153), ref, x153, y153)
+             isTRUE(avec_summary_nan153(tost_coherent153(r, ref, x153, y153, pi153))) &&
+             !tost_coherent153(r, ref, x153, y153, pi153) && !tost_coherent153(forge, ref, x153, y153, pi153) &&
+             tost_coherent153(test_tost_intercept(x153, y153, pi153), ref, x153, y153, pi153)
          })
 # Branche R12 des fonctions de coherence (x ecarte par lm(), issue possible
 # sur une autre plateforme) : summary() injectee rend la table des
@@ -619,19 +655,19 @@ avec_summary_sans_x153 <- function(expr) {
 }
 verifier("Coherence TOST (#153, #168) : x ecarte par lm() (injection de summary() sans la ligne x) -> 'x ecarte' accepte, ligne au detail du garde-fou R12 ; meme reponse refusee quand lm() garde x ; reponse calculee refusee sous la condition R12",
          {
-           ref <- names(test_tost_intercept(x153, y153))
+           ref <- names(test_tost_intercept(x153, y153, pi153))
            f1 <- usp_ajuster(x153, y153); b1 <- usp_bootstrap(f1, B = B_MIN_USAGE)
-           r12 <- avec_summary_sans_x153(test_tost_intercept(x153, y153))
-           ok12 <- avec_summary_sans_x153(tost_coherent153(r12, ref, x153, y153))
+           r12 <- avec_summary_sans_x153(test_tost_intercept(x153, y153, pi153))
+           ok12 <- avec_summary_sans_x153(tost_coherent153(r12, ref, x153, y153, pi153))
            tt12 <- avec_injection("test_tost_intercept",
                                   function(...) avec_summary_sans_x153(.tost_orig153(...)),
                                   usp_tests(f1, b1, methode = "premium"))
-           r0 <- test_tost_intercept(x153, y153)
+           r0 <- test_tost_intercept(x153, y153, pi153)
            identical(r12$non_applicable, "x ecarte") && isTRUE(ok12) &&
              ligne_tost_coherente153(ligne153(tt12, LIGNE_TOST153), r12, x153) &&
-             !tost_coherent153(r12, ref, x153, y153) &&
-             !isTRUE(avec_summary_sans_x153(tost_coherent153(r0, ref, x153, y153))) &&
-             tost_coherent153(r0, ref, x153, y153) &&
+             !tost_coherent153(r12, ref, x153, y153, pi153) &&
+             !isTRUE(avec_summary_sans_x153(tost_coherent153(r0, ref, x153, y153, pi153))) &&
+             tost_coherent153(r0, ref, x153, y153, pi153) &&
              !exists("summary", envir = environment(run_engine), inherits = FALSE)
          })
 # Issue #168 : motif du garde-fou R12 (x ecarte par lm() pour colinearite,
@@ -646,10 +682,20 @@ DETAIL_R12_168 <- "regression de y sur x : x ecarte par lm() pour colinearite, t
 DETAIL_R2_R12_168 <- "x ecarte par lm() pour colinearite : R2 non defini"
 LIGNES_R12_168 <- c("Nullite de la constante (proportionnalite stricte)",
                     LIGNE_TOST153,
-                    "Test de Student sur la pente (lm(y~x))",
+                    "Test de Pitman sur la pente (lien positif pertes / volume)",
                     "Test de Fisher (significativite globale)")
 LIGNE_R2_168 <- "Coefficient de determination R2"
 FONCTIONS_R12_168 <- c("test_intercept", "test_lm_complet", "test_tost_intercept")
+# Ligne Spearman ratio / volume (#215) : a pi_t constant, son detail porte le
+# renvoi croise a la constante si et seulement si celle-ci est calculee ; une
+# constante rendue non applicable (R12, pertes constantes) le retire. Elle
+# est comparee hors detail, et son detail ne doit pas porter le renvoi.
+NOM_SV215 <- "Independance ratio S/P vs volume"
+TXT_RENVOI_SV215 <- "pi_t constant (delta estime a 1) : une constante a non nulle dans"
+sv_sans_renvoi215 <- function(l, l0) {
+  sans_detail <- function(u) { u$detail <- NULL; u }
+  identical(sans_detail(l), sans_detail(l0)) && !grepl(TXT_RENVOI_SV215, l$detail, fixed = TRUE)
+}
 # Evalue expr avec les trois fonctions enveloppees dans avec_summary_sans_x153().
 avec_r12_168 <- function(expr) {
   e <- environment(run_engine)
@@ -664,22 +710,22 @@ avec_r12_168 <- function(expr) {
 verifier("test_intercept() et test_lm_complet() : champ x_ecarte TRUE sur la seule branche du garde-fou R12 (injection), FALSE sur la branche calculee et a volumes constants, stat et p NA sous R12 ; test_tost_intercept() : motif 'x ecarte' sous R12, 'volumes constants' a volumes constants (#168)",
          {
            xq <- 300 * (1 + c(1, -1, 1, -1, 1, -1, 1, -1) * 1e-8)
-           i12 <- avec_r12_168(test_intercept(x153, y153))
+           i12 <- avec_r12_168(test_intercept(x153, y153, pi153))
            l12 <- avec_r12_168(test_lm_complet(x153, y153))
-           i0 <- test_intercept(x153, y153); l0 <- test_lm_complet(x153, y153)
+           i0 <- test_intercept(x153, y153, pi153); l0 <- test_lm_complet(x153, y153)
            identical(i12$x_ecarte, TRUE) && identical(l12$x_ecarte, TRUE) &&
              identical(i0$x_ecarte, FALSE) && identical(l0$x_ecarte, FALSE) &&
-             identical(test_intercept(xq, y153)$x_ecarte, FALSE) &&
+             identical(test_intercept(xq, y153, pi153)$x_ecarte, FALSE) &&
              identical(test_lm_complet(xq, y153)$x_ecarte, FALSE) &&
              identical(i12$stat, NA_real_) && identical(i12$p, NA_real_) &&
              identical(l12$t_pente, NA_real_) && identical(l12$F, NA_real_) && identical(l12$R2, NA_real_) &&
              identical(names(i12), names(i0)) && identical(names(l12), names(l0)) &&
-             identical(avec_r12_168(test_tost_intercept(x153, y153))$non_applicable, "x ecarte") &&
-             identical(test_tost_intercept(xq, y153)$non_applicable, "volumes constants") &&
-             is.na(test_tost_intercept(x153, y153)$non_applicable) &&
+             identical(avec_r12_168(test_tost_intercept(x153, y153, pi153))$non_applicable, "x ecarte") &&
+             identical(test_tost_intercept(xq, y153, pi153)$non_applicable, "volumes constants") &&
+             is.na(test_tost_intercept(x153, y153, pi153)$non_applicable) &&
              !exists("summary", envir = environment(run_engine), inherits = FALSE)
          })
-verifier("usp_tests(), x ecarte par lm() hors volumes constants (injection de summary() dans les trois fonctions qui regressent y sur x) : constante, TOST, pente, Fisher non applicables (INFO, p retenue NA) au detail du garde-fou R12, R2 au sien ; autres lignes et ordre identiques a l'appel sans injection (#168)",
+verifier("usp_tests(), x ecarte par lm() hors volumes constants (injection de summary() dans les trois fonctions qui regressent y sur x) : constante, TOST, pente, Fisher non applicables (INFO, p retenue NA) au detail du garde-fou R12, R2 au sien ; autres lignes et ordre identiques a l'appel sans injection, Spearman ratio / volume hors detail et sans renvoi (#168 ; #215)",
          {
            f1 <- usp_ajuster(x153, y153); b1 <- usp_bootstrap(f1, B = B_MIN_USAGE)
            t12 <- tryCatch(avec_r12_168(usp_tests(f1, b1, methode = "premium")), error = function(e) e)
@@ -697,18 +743,21 @@ verifier("usp_tests(), x ecarte par lm() hors volumes constants (injection de su
            r2 <- ligne153(t12, LIGNE_R2_168)
            if (!(identical(r2$type, "non applicable") && identical(r2$detail, DETAIL_R2_R12_168)))
              pb <- c(pb, LIGNE_R2_168)
-           autres <- !noms0 %in% c(LIGNES_R12_168, LIGNE_R2_168)
+           autres <- !noms0 %in% c(LIGNES_R12_168, LIGNE_R2_168, NOM_SV215)
            if (!identical(noms12, noms0)) pb <- c(pb, "ordre des lignes")
            else if (!identical(t12[autres], t0[autres])) pb <- c(pb, "autres lignes modifiees")
+           else if (!sv_sans_renvoi215(ligne153(t12, NOM_SV215), ligne153(t0, NOM_SV215)))
+             pb <- c(pb, "ligne Spearman ratio / volume")
            if (exists("summary", envir = environment(run_engine), inherits = FALSE)) pb <- c(pb, "summary non restauree")
            if (length(pb)) paste(pb, collapse = " ; ") else TRUE
          })
-# Priorite R13 > R12 dans usp_tests() (garde !vol_cst de detail_r12()) : a
+# Priorite R13 > R12 dans usp_tests() (detail_motif(), #189 ; garde
+# !vol_cst de detail_r12() avant #189) : a
 # volumes constants, test_intercept() et test_lm_complet() sortent avant
 # lm() avec x_ecarte = FALSE ; pour atteindre la garde, leur resultat est
 # rendu avec x_ecarte force a TRUE. TOST : priorite assuree par
 # test_tost_intercept() (motif "volumes constants" teste avant lm()).
-verifier("usp_tests() a volumes constants, x_ecarte force a TRUE dans test_intercept() et test_lm_complet() : le motif R13 prime sur R12 pour constante, pente, Fisher (garde de detail_r12()), TOST et R2 (#168)",
+verifier("usp_tests() a volumes constants, x_ecarte force a TRUE dans test_intercept() et test_lm_complet() : le motif R13 prime sur R12 pour constante, pente, Fisher (detail_motif()), TOST et R2 (#168)",
          {
            xq <- 300 * (1 + c(1, -1, 1, -1, 1, -1, 1, -1) * 1e-8)
            fq <- usp_ajuster(xq, y153); bq <- suppressWarnings(usp_bootstrap(fq, B = B_MIN_USAGE))
@@ -756,30 +805,55 @@ verifier("usp_tests() : y exactement proportionnel a x -> sans erreur R ; ligne 
              (cook_garde153(ligne153(tt, LIGNE_COOK153)) ||
                 (cook_calcule153(ligne153(tt, LIGNE_COOK153)) && !cook_x_ecarte153(f$x, f$y)))
          })
-# Meme entree par run_engine() (decision du mainteneur du 02/10/2026 : la
-# serie exactement proportionnelle n'est pas refusee, issue #188) : ok =
-# TRUE ; ligne Cook non applicable si et seulement si le motif des
-# graphiques d'influence (plots_data$influence_motif) est pose ; motif
-# absent sur les donnees de test, lr_delta et qq_enveloppe restant en fin
-# de liste.
-verifier("run_engine : y exactement proportionnel a x -> ok = TRUE ; ligne Cook non applicable et plots_data$influence_motif pose (residu_std et cook non finis), ou ligne Cook diagnostic finie et motif absent (x non ecarte par lm()) ; motif absent sur les donnees de test (#153)",
+# Motif du refus "maximum de vraisemblance non atteint" (#188, texte arbitre
+# par regulatory, decision du mainteneur du 08/10/2026), reconstruit ici
+# morceau par morceau, independamment de usp_valider_ajustement().
+motif188 <- function(borne = c("basse", "haute"), methode = c("premium", "reserve1")) {
+  borne <- match.arg(borne); methode <- match.arg(methode)
+  prem <- methode == "premium"; sec <- if (prem) "B" else "C"
+  tt <- sprintf(paste("Maximum de vraisemblance non atteint (annexe XVII, %s(6)) :",
+                      "gamma estime sur la borne %s du domaine de recherche [%s ; %s]",
+                      "(BORNES_GAMMA, bornes de l'outil, non reglementaires) ; les valeurs",
+                      "delta et gamma qui minimisent le montant de %s(6), dont depend le",
+                      "parametre de %s(4), ne sont pas determinees dans ce domaine."),
+                sec, borne, "-12", "3", sec, sec)
+  c1 <- "Cause : ratios y_t/x_t egaux ou quasi egaux ; s'ils sont exactement egaux, ce minimum n'existe pas."
+  c2 <- "Cause : dispersion des ratios y_t/x_t extreme ; le minimum, s'il existe, est au-dela de la borne."
+  ff <- sprintf(paste("L'outil ne calcule pas de parametre sur ces donnees (article 220,",
+                      "paragraphe 1, point %s), qui ne permettent d'etablir ni la",
+                      "distribution log-normale ni l'adequation de l'estimation de la",
+                      "vraisemblance maximum (%s, iii et iv ; article 219, paragraphe 1,",
+                      "point d))."),
+                if (prem) "a)" else "b)", if (prem) "B(2)(g)" else "C(2)(e)")
+  rr <- "La methode du risque de reserve no 2 reste ouverte (meme point)."
+  v1 <- sprintf("Verifier que y_t est observe (%s(1)(a)) et non deduit de x_t par un coefficient fixe.", sec)
+  v2 <- sprintf("Verifier les unites, la correspondance des annees et les valeurs aberrantes (%s(1) et %s(2)(a)).",
+                sec, sec)
+  paste(c(tt, if (borne == "basse") c1 else c2, ff, if (!prem) rr,
+          if (borne == "basse") v1 else v2), collapse = " ")
+}
+# Meme entree par run_engine() : la decision du mainteneur du 02/10/2026
+# (serie exactement proportionnelle non refusee) est remplacee par la
+# decision du mainteneur du 08/10/2026, #188 : maximum de vraisemblance non
+# atteint (gamma sur la borne basse de BORNES_GAMMA, condition KKT non
+# satisfaite), ok = FALSE au motif de usp_valider_ajustement(), sans defaut
+# intercepte. Donnees de test : ok = TRUE, motif des graphiques d'influence
+# absent, qq_enveloppe restant en fin de liste.
+verifier("run_engine : y exactement proportionnel a x -> ok = FALSE au motif borne basse, sans erreur_r (decision du mainteneur du 08/10/2026, #188) ; donnees de test : ok = TRUE, plots_data$influence_motif absent, qq_enveloppe en fin de liste (#153)",
          {
            rp <- calcul_extreme(xp153, xp153 / 2); r1 <- calcul_extreme(x, y)
-           tp <- engine_table_tests(rp); cp <- tp[tp$test == LIGNE_COOK153, ]
-           garde <- identical(cp$type, "non applicable") && identical(cp$estimation, NA_real_) &&
-             influence_garde153(rp$plots_data)
-           calcule <- identical(cp$type, "diagnostic") && isTRUE(is.finite(cp$estimation)) &&
-             influence_calcule153(rp$plots_data) && !cook_x_ecarte153(xp153, xp153 / 2)
-           isTRUE(rp$ok) && isTRUE(r1$ok) && (garde || calcule) &&
-             identical(tail(names(rp$plots_data), 1), "qq_enveloppe") &&
-             is.null(r1$plots_data$influence_motif)
+           identical(rp$ok, FALSE) && identical(names(rp), c("ok", "validation", "metadata")) &&
+             is.null(rp$validation$erreur_r) &&
+             identical(tail(rp$validation$erreurs, 1), motif188("basse", "premium")) &&
+             isTRUE(r1$ok) && is.null(r1$plots_data$influence_motif) &&
+             identical(tail(names(r1$plots_data), 1), "qq_enveloppe")
          })
 verifier("test_tost_intercept() : entrees sous-normales (x et y x 1e-320, 5e-324) -> sans erreur R, memes champs que la branche calculee ; motif egal a celui que declenchent les conditions de test_tost_intercept() sur ces donnees (volumes constants, marge, x ecarte par lm() (R12), 'statistique non definie' si et seulement si p_bas ou p_haut, recalculees depuis summary(lm(y ~ x)), n'est pas finie), ligne calculee finie sinon (#153)",
          {
-           ref <- names(test_tost_intercept(x153, y153))
+           ref <- names(test_tost_intercept(x153, y153, pi153))
            all(vapply(c(1e-320, 5e-324), function(f) {
-             r <- tryCatch(test_tost_intercept(x153 * f, y153 * f), error = function(e) e)
-             tost_coherent153(r, ref, x153 * f, y153 * f)
+             r <- tryCatch(test_tost_intercept(x153 * f, y153 * f, pi153), error = function(e) e)
+             tost_coherent153(r, ref, x153 * f, y153 * f, pi153)
            }, logical(1)))
          })
 # Issue observee sur la plateforme courante, pour le journal (CI comprise).
@@ -790,7 +864,7 @@ local({
                                         methode = "premium")), LIGNE_COOK153)$type
   }, error = function(e) paste("erreur R :", conditionMessage(e)))
   ts <- vapply(c(1e-320, 5e-324), function(f) tryCatch({
-    r <- test_tost_intercept(x153 * f, y153 * f)
+    r <- test_tost_intercept(x153 * f, y153 * f, pi153)
     if (is.na(r$non_applicable)) sprintf("calcule (p = %.3g)", r$p) else r$non_applicable
   }, error = function(e) paste("erreur R :", conditionMessage(e))), "")
   cat(sprintf("  note : plateforme courante, y = x / 2 : ligne Cook %s ; TOST sous-normal 1e-320 : %s ; 5e-324 : %s (#153).\n",
@@ -818,8 +892,8 @@ verifier("usp_tests() et engine_influence() en appel direct : aucune erreur R po
              if (inherits(tt, "error") || inherits(inf, "error")) return(FALSE)
              sous_normal <- f[1] < .Machine$double.xmin
              if (sous_normal) {
-               r <- tryCatch(test_tost_intercept(fe$x, fe$y), error = function(e) e)
-               return(tost_coherent153(r, names(test_tost_intercept(x153, y153)), fe$x, fe$y) &&
+               r <- tryCatch(test_tost_intercept(fe$x, fe$y, fe$pi), error = function(e) e)
+               return(tost_coherent153(r, names(test_tost_intercept(x153, y153, pi153)), fe$x, fe$y, fe$pi) &&
                         ligne_tost_coherente153(ligne(tt, LIGNE_TOST153), r, fe$x))
              }
              isTRUE(outils153$comparer_objets(d1, cook(tt)$estim)$conforme) &&
@@ -2237,5 +2311,262 @@ verifier("Lecture vecteur : lignes d'en-tetes textuelles, vides de bord et etiqu
            identical(msg_ligne(c("2017-18,2018-19", "1,2")), c(1, 2)) &&
            identical(msg_ligne(c("2017-2018,2018-2019", "1,2")), c(1, 2)) &&
            identical(msg_ligne(c("a;b;c", "1,5;2;3"), ";", ","), c(1.5, 2, 3)))
+
+## --- Pertes constantes (#189) ----------------------------------------------
+# Jeu de l'issue : x = (100, ..., 700), y = 70 x 8. Avant #189 : constante
+# stat Inf (INFO sans motif), TOST stat Inf, p = 1, ECHEC, pente et Fisher
+# NaN avec "Pente identifiable", R2 NaN au motif R12. Predicat unique
+# usp_pertes_constantes() (tolerance TOL_DELTA_BORD) ; les cinq lignes de
+# la regression de y sur x sont non applicables au motif propre ; les 46
+# autres lignes et sigma_USP sont inchanges (comparaison a l'execution ou
+# le predicat est neutralise). Libelles ecrits en dur (specification
+# d'actuary).
+x189 <- c(100, 150, 200, 300, 400, 500, 600, 700)
+y189 <- rep(70, 8)
+LIGNES_REG189 <- c(LIGNES_R12_168, LIGNE_R2_168)
+detail_pc189 <- function(y) sprintf(paste(
+  "regression de y sur x : pertes y_t constantes a la tolerance relative",
+  "TOL_DELTA_BORD = %g pres (etendue relative = %.2g) : variance de y nulle",
+  "a cette tolerance pres, regression de y sur x sans objet (convention de",
+  "restitution), test non applicable"), 1e-6, diff(range(y)) / mean(y))
+detail_r2_pc189 <- function(y) sprintf(paste(
+  "pertes y_t constantes a la tolerance relative TOL_DELTA_BORD = %g pres",
+  "(etendue relative = %.2g) : variance totale nulle a cette tolerance pres,",
+  "R2 sans objet"), 1e-6, diff(range(y)) / mean(y))
+avt_pc189 <- function(y) sprintf(paste(
+  "Pertes y_t constantes a la tolerance relative TOL_DELTA_BORD = %g pres",
+  "(etendue relative = %.2g) : regression de y sur x sans objet (constante,",
+  "TOST, pente, Fisher et R2 non applicables) ; verifier la saisie."),
+  1e-6, diff(range(y)) / mean(y))
+lancer189 <- function(xx, yy, methode = "premium") suppressWarnings(
+  run_engine(xt = xx, yt = yy, methode = methode, segment = 1, annexe = "II",
+             nature_donnees = if (methode == "premium") "brutes",
+             B = B_MIN_USAGE, seed = 20260831))
+# Les cinq lignes au motif pertes constantes : non applicables, INFO, sans
+# p ni statistique ni estimation, inoperant FALSE, detail exact ; chaine
+# vide si conforme, sinon la liste des lignes fautives.
+lignes_pc189 <- function(tt, y) {
+  pb <- character(0)
+  for (nm in LIGNES_REG189) {
+    l <- ligne153(tt, nm)
+    att <- if (nm == LIGNE_R2_168) detail_r2_pc189(y) else detail_pc189(y)
+    if (!(identical(l$type, "non applicable") && identical(l$verdict, "INFO") &&
+          is.na(l$p_retenue) && is.na(l$nature_p) && identical(l$inoperant, FALSE) &&
+          is.na(l$stat) && is.na(l$estim) && is.na(l$p_asymptotique) &&
+          identical(l$detail, att) && !grepl("identifiable", l$detail, ignore.case = TRUE)))
+      pb <- c(pb, nm)
+  }
+  pb
+}
+verifier("usp_pertes_constantes() : rep(70, 8) TRUE, etendue relative 1e-6 TRUE, 1,0001e-6 FALSE, y153 FALSE ; meme reponse a x 1e-50 et x 1e50 (#189, U1)",
+         {
+           cas <- list(y189, 70 * (1 + c(0, 1e-6, rep(0, 6))) / (1 + 1e-6 / 8),
+                       70 * (1 + c(0, 1.0001e-6, rep(0, 6))), y153)
+           # Second cas : la division par 1 + 1e-6 / 8 ramene la moyenne a 70,
+           # etendue relative 1e-6 / (1 + 1,25e-7), juste sous le bord, sans
+           # dependre de l'arrondi d'une etendue egale a 1e-6.
+           att <- c(TRUE, TRUE, FALSE, FALSE)
+           obt <- vapply(cas, usp_pertes_constantes, logical(1))
+           ech <- all(vapply(c(1e-50, 1e50), function(k)
+             identical(vapply(cas, function(v) usp_pertes_constantes(v * k), logical(1)), att),
+             logical(1)))
+           ref <- vapply(cas, function(v) diff(range(v)) <= 1e-6 * mean(v), logical(1))
+           identical(obt, att) && identical(ref, att) && ech
+         })
+res189 <- list(premium = lancer189(x189, y189, "premium"),
+               reserve1 = lancer189(x189, y189, "reserve1"))
+neutre189 <- avec_injection("usp_pertes_constantes", function(...) FALSE,
+                            list(premium = lancer189(x189, y189, "premium"),
+                                 reserve1 = lancer189(x189, y189, "reserve1")))
+verifier("run_engine, jeu de l'issue (y = 70 x 8), premium et reserve1 : constante, TOST, pente, Fisher et R2 non applicables au motif pertes constantes (INFO, p, stat, estim NA, inoperant FALSE) ; 45 autres lignes, parametre_final et sigma_USP identical a l'execution au predicat neutralise, Spearman ratio / volume identique hors detail et sans renvoi (#189, U2 ; #215)",
+         {
+           pb <- character(0)
+           for (m in names(res189)) {
+             r <- res189[[m]]; r0 <- neutre189[[m]]
+             if (!isTRUE(r$ok) || !isTRUE(r0$ok)) { pb <- c(pb, paste(m, "ok")); next }
+             p <- lignes_pc189(r$tests, y189)
+             if (length(p)) pb <- c(pb, paste(m, p))
+             noms <- vapply(r$tests, function(l) l$test, ""); noms0 <- vapply(r0$tests, function(l) l$test, "")
+             autres <- !noms %in% c(LIGNES_REG189, NOM_SV215)
+             if (!identical(noms, noms0) || sum(autres) != 45L) pb <- c(pb, paste(m, "liste des lignes"))
+             else if (!identical(r$tests[autres], r0$tests[autres])) pb <- c(pb, paste(m, "autres lignes"))
+             else if (!sv_sans_renvoi215(ligne153(r$tests, NOM_SV215), ligne153(r0$tests, NOM_SV215)))
+               pb <- c(pb, paste(m, "ligne Spearman ratio / volume"))
+             if (!identical(r$parametre_final, r0$parametre_final)) pb <- c(pb, paste(m, "parametre_final"))
+           }
+           if (length(pb)) paste(pb, collapse = " ; ") else TRUE
+         })
+# Volumes et pertes constants : decision du mainteneur du 08/10/2026, #188 :
+# le refus "maximum de vraisemblance non atteint" l'emporte dans
+# run_engine() (ratios egaux, gamma sur la borne basse). La priorite R13 des
+# cinq lignes est verifiee par appel direct a usp_tests() ; l'avertissement
+# pertes constantes reste porte par le refus (U3 bis).
+verifier("Volumes et pertes constants, usp_tests() en appel direct : les cinq lignes portent le motif R13 (priorite volumes constants) (#189, U3 ; #188)",
+         {
+           f <- usp_ajuster(rep(110, 8), y189)
+           b <- suppressWarnings(usp_bootstrap(f, B = B_MIN_USAGE))
+           tt <- tryCatch(suppressWarnings(usp_tests(f, b, methode = "premium")), error = function(e) e)
+           !inherits(tt, "error") &&
+             all(vapply(LIGNES_REG189, function(nm) {
+               l <- ligne153(tt, nm)
+               identical(l$type, "non applicable") && startsWith(l$detail, "volumes x_t constants")
+             }, logical(1)))
+         })
+verifier("Volumes et pertes constants, run_engine() : ok = FALSE au motif borne basse, avertissement pertes constantes conserve (decision du mainteneur du 08/10/2026, #188 ; #189, U3 bis)",
+         {
+           r <- lancer189(rep(110, 8), y189)
+           identical(r$ok, FALSE) && is.null(r$validation$erreur_r) &&
+             identical(tail(r$validation$erreurs, 1), motif188("basse", "premium")) &&
+             avt_pc189(y189) %in% r$validation$avertissements
+         })
+verifier("Priorite pertes constantes > marge et > x ecarte (R12) : y constant sous injection de summary() sans x -> TOST 'pertes constantes', cinq lignes au motif pertes constantes ; appel direct a marge invalide et y constant -> 'pertes constantes' (#189, U4)",
+         {
+           f <- usp_ajuster(x153, y189); b <- suppressWarnings(usp_bootstrap(f, B = B_MIN_USAGE))
+           ref <- names(test_tost_intercept(x153, y153, pi153))
+           r12 <- avec_r12_168(test_tost_intercept(x153, y189, f$pi))
+           tt <- tryCatch(suppressWarnings(avec_r12_168(usp_tests(f, b, methode = "premium"))),
+                          error = function(e) e)
+           !inherits(tt, "error") && identical(r12$non_applicable, "pertes constantes") &&
+             isTRUE(avec_summary_sans_x153(tost_coherent153(r12, ref, x153, y189, f$pi))) &&
+             ligne_tost_coherente153(ligne153(tt, LIGNE_TOST153), r12, x153) &&
+             !length(lignes_pc189(tt, y189)) &&
+             identical(test_tost_intercept(x153, y189, f$pi, theta = -1)$non_applicable, "pertes constantes") &&
+             identical(test_tost_intercept(x153, y189, f$pi, delta_abs = -1)$non_applicable, "pertes constantes") &&
+             identical(names(test_tost_intercept(x153, y189, f$pi)), ref) &&
+             identical(test_tost_intercept(x153, y153, pi153, theta = -1)$non_applicable, "marge") &&
+             !exists("summary", envir = environment(run_engine), inherits = FALSE)
+         })
+verifier("Bord de la tolerance : etendue relative 1e-7 -> cinq lignes au motif pertes constantes ; 2e-6 -> lignes calculees, constante et TOST de type test (#189, U5)",
+         {
+           y7 <- 70 * (1 + c(0, 1e-7, rep(0, 6))); y6 <- 70 * (1 + c(0, 2e-6, rep(0, 6)))
+           r7 <- lancer189(x189, y7); r6 <- lancer189(x189, y6)
+           c7 <- diff(range(y7)) / mean(y7) <= 1e-6; c6 <- diff(range(y6)) / mean(y6) > 1e-6
+           l6 <- lapply(LIGNES_REG189, function(nm) ligne153(r6$tests, nm))
+           c7 && c6 && isTRUE(r7$ok) && isTRUE(r6$ok) && !length(lignes_pc189(r7$tests, y7)) &&
+             identical(l6[[1]]$type, "test") && identical(l6[[2]]$type, "test") &&
+             !any(vapply(l6, function(l) grepl("pertes y_t constantes", l$detail, fixed = TRUE), logical(1))) &&
+             !any(grepl("Pertes y_t constantes", r6$validation$avertissements, fixed = TRUE))
+         })
+verifier("engine_valider_donnees() : avertissement pertes constantes (texte exact) present a y = 70 x 8 avec ok = TRUE, absent pour y153 ; porte par run_engine()$validation ; identique dans engine_valider_serie_retenue() (#189, U6)",
+         {
+           v <- engine_valider_donnees(x189, y189)
+           v0 <- engine_valider_donnees(x153, y153)
+           s <- engine_valider_serie_retenue(c(50, x189), c(90, y189), T = 8)$validation
+           isTRUE(v$ok) && avt_pc189(y189) %in% v$avertissements &&
+             !any(grepl("Pertes y_t constantes", v0$avertissements, fixed = TRUE)) &&
+             all(vapply(res189, function(r) avt_pc189(y189) %in% r$validation$avertissements, logical(1))) &&
+             identical(s$avertissements, v$avertissements) &&
+             !any(grepl("Pertes y_t constantes",
+                        engine_valider_serie_retenue(c(50, x189), c(90, y189))$validation$avertissements,
+                        fixed = TRUE))
+         })
+verifier("Catalogue Monte-Carlo, y constant : statistique Intercept NA a l'observe sans erreur, p Monte-Carlo de la ligne constante NA (#189, U7)",
+         {
+           st <- tryCatch(USP_CATALOGUE_MC$Intercept$calc(list(x = x189, y = y189)), error = function(e) e)
+           !inherits(st, "error") && identical(st, NA_real_) &&
+             all(vapply(res189, function(r)
+               is.na(ligne153(r$tests, "Nullite de la constante (proportionnalite stricte)")$p_mc),
+               logical(1)))
+         })
+
+## --- Maximum de vraisemblance non atteint (E1g, #188) -------------------------
+# Decisions du mainteneur du 08/10/2026 (option A) : run_engine() refuse
+# (ok = FALSE, motif de usp_valider_ajustement()) quand gamma estime est sur
+# une borne de BORNES_GAMMA (a TOL_DELTA_BORD pres ; gamma non fini classe
+# borne basse) et qu'aucun demarrage a l'optimum ne satisfait la condition
+# KKT ; classe quasi proportionnelle refusee ; le refus l'emporte a volumes
+# et pertes constants. Refus au format du refus des donnees : ok,
+# validation, metadata (horodatage seul), sans erreur_r ni resultat partiel.
+# Volumes et pertes de test usuels du fichier, recopies : x est reaffecte
+# plus haut dans le fichier (bloc de engine_lire_donnees_csv()).
+xs188 <- c(104.20, 102.25, 109.34, 114.64, 118.41, 121.28, 132.40, 131.22)
+ys188 <- c(68.97, 76.76, 83.49, 95.38, 88.96, 70.22, 78.89, 117.37)
+w188 <- engine_sous_graine(15520, stats::rnorm(8))
+lancer188 <- function(xx, yy, methode) suppressWarnings(
+  run_engine(xt = xx, yt = yy, methode = methode, segment = 1, annexe = "II",
+             nature_donnees = if (methode == "premium") "brutes",
+             B = B_MIN_USAGE, seed = 20260831))
+refus188 <- function(r, borne, methode)
+  identical(r$ok, FALSE) && identical(names(r), c("ok", "validation", "metadata")) &&
+    is.null(r$validation$erreur_r) && identical(names(r$metadata), "horodatage") &&
+    is.null(r$metadata$permutation_pente) &&
+    identical(tail(r$validation$erreurs, 1), motif188(borne, methode))
+jeux188 <- list(
+  "0,7 x"                    = list(xs188, 0.7 * xs188, "basse"),
+  "0,7 x exp(1e-9 w)"        = list(xs188, 0.7 * xs188 * exp(1e-9 * w188), "basse"),
+  "x = 2^(0:7), y = x / 2"   = list(2^(0:7), 2^(0:7) / 2, "basse"),
+  "x153, y = 0,7 x153"       = list(x153, 0.7 * x153, "basse"),
+  "rep(100, 8) / rep(70, 8)" = list(rep(100, 8), rep(70, 8), "basse"),
+  "x exp(3 w)"               = list(xs188, xs188 * exp(3 * w188), "haute"))
+verifier("run_engine, premium et reserve1 : series proportionnelles, quasi proportionnelle, constantes (borne basse) et dispersion extreme (borne haute) -> ok = FALSE, sans erreur R ni erreur_r, names ok / validation / metadata, metadata sans permutation_pente, motif exact (#188)",
+         {
+           pb <- character(0)
+           for (nm in names(jeux188)) for (m in c("premium", "reserve1")) {
+             j <- jeux188[[nm]]
+             r <- tryCatch(lancer188(j[[1]], j[[2]], m), error = function(e) e)
+             if (inherits(r, "error") || !refus188(r, j[[3]], m)) pb <- c(pb, paste(nm, m))
+           }
+           if (length(pb)) paste(pb, collapse = " ; ") else TRUE
+         })
+# Frontiere en forme fermee : a ratios y_t/x_t = 0,7 exp(eps w_t), w centre
+# reduit, delta = 1 et gamma = log(sqrt(expm1(eps^2 var(w)))) (variance de
+# population) ; gamma atteint la borne basse en eps0 ci-dessous. Mesure :
+# eps0 = 6,5684393e-6 sur les donnees de test. delta = 1 est verifie a
+# TOL_DELTA_BORD pres, non au bit pres (sortie d'optimiseur ; revue finale
+# d'E1g, /code-review).
+wf188 <- as.numeric(scale(log(ys188 / xs188)))
+eps0_188 <- sqrt(log1p(exp(2 * BORNES_GAMMA[1]))) / sqrt(mean((wf188 - mean(wf188))^2))
+verifier("Frontiere en forme fermee (eps0 = 6,568e-6) : y = 0,7 x exp(eps w) accepte a eps0 (1 + 1e-3) (delta = 1), refuse au motif borne basse a eps0 (1 - 1e-3), premium et reserve1 (#188)",
+         {
+           y_in <- 0.7 * xs188 * exp(eps0_188 * (1 + 1e-3) * wf188)
+           y_out <- 0.7 * xs188 * exp(eps0_188 * (1 - 1e-3) * wf188)
+           f_in <- usp_ajuster(xs188, y_in)
+           proche(eps0_188, 6.5684393e-6, rel = 1e-7) && isTRUE(abs(f_in$delta - 1) <= TOL_DELTA_BORD) &&
+             all(vapply(c("premium", "reserve1"), function(m)
+               isTRUE(lancer188(xs188, y_in, m)$ok) && refus188(lancer188(xs188, y_out, m), "basse", m),
+               logical(1)))
+         })
+# Ajustements fictifs : seuls gamma et kkt_au_moins_un sont lus. Le cas
+# (-12, KKT oui) n'est couvert que par cette voie : usp_kkt_satisfaite() rend
+# FALSE des que gamma est sur une borne, et la conjonction n'agit que si un
+# autre demarrage a l'optimum a un gamma interieur (audit du 08/10/2026).
+verifier("usp_valider_ajustement(), ajustements fictifs : (-12, KKT non) refus ; (-12, KKT oui) accepte ; (-5, non) accepte ; (3, non) refus ; (NaN, non) refus borne basse ; (-12 + 2e-6, non) accepte (#188)",
+         {
+           v <- function(g, k, m = "premium") usp_valider_ajustement(list(gamma = g, kkt_au_moins_un = k), m)
+           r1 <- v(-12, FALSE); r6 <- v(NaN, FALSE, "reserve1"); r4 <- v(3, FALSE)
+           identical(r1, list(ok = FALSE, erreurs = motif188("basse", "premium"))) &&
+             identical(v(-12, TRUE), list(ok = TRUE, erreurs = character(0))) &&
+             isTRUE(v(-5, FALSE)$ok) &&
+             identical(r4, list(ok = FALSE, erreurs = motif188("haute", "premium"))) &&
+             identical(r6, list(ok = FALSE, erreurs = motif188("basse", "reserve1"))) &&
+             isTRUE(v(-12 + 2e-6, FALSE)$ok)
+         })
+verifier("Volumes constants, pertes variables (x = 100 x 8, y des donnees de test) : run_engine ok = TRUE ; usp_valider_ajustement() ok, premium et reserve1 (#188)",
+         {
+           f <- usp_ajuster(rep(100, 8), ys188)
+           isTRUE(lancer188(rep(100, 8), ys188, "premium")$ok) &&
+             isTRUE(usp_valider_ajustement(f, "premium")$ok) &&
+             isTRUE(usp_valider_ajustement(f, "reserve1")$ok)
+         })
+verifier("Pertes constantes et refus : x153, y = 70 x 8 accepte (ratios disperses) ; volumes et pertes constants refuses, avertissement pertes constantes conserve, premium et reserve1 (#188 ; #189)",
+         {
+           rr <- lapply(c("premium", "reserve1"), function(m) lancer188(rep(110, 8), y189, m))
+           isTRUE(lancer188(x153, y189, "premium")$ok) &&
+             refus188(rr[[1]], "basse", "premium") && refus188(rr[[2]], "basse", "reserve1") &&
+             all(vapply(rr, function(r) avt_pc189(y189) %in% r$validation$avertissements, logical(1)))
+         })
+# Cas de non-regression (tests/outils_tests.R, CAS) : les quatre cas
+# lognormaux (premium, reserve1, premium_ii6, premium_net) partagent
+# tests/donnees/donnees_ln.csv ; reserve2 (Merz-Wuthrich) n'a pas
+# d'ajustement lognormal et n'est pas concerne.
+verifier("usp_valider_ajustement() : ok sur les donnees des cas de non-regression lognormaux (premium, reserve1, premium_ii6, premium_net) et sur les donnees de test (#188)",
+         {
+           ln <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln.csv"))
+           fl <- usp_ajuster(ln$xt, ln$yt); ft <- usp_ajuster(xs188, ys188)
+           all(vapply(list(fl, ft), function(f)
+             identical(usp_valider_ajustement(f, "premium"), list(ok = TRUE, erreurs = character(0))) &&
+               identical(usp_valider_ajustement(f, "reserve1"), list(ok = TRUE, erreurs = character(0))),
+             logical(1)))
+         })
 
 fin_fichier()

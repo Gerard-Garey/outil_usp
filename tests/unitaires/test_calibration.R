@@ -558,7 +558,7 @@ verifier("Methodes de reserve : donnees \"brutes\" refusees (ok = FALSE, motif C
 # bareme_saisi (#93), puis de n_fournies (#104), dernier avant les champs
 # d'execution ; les champs ajoutes le sont en fin de metadata (patch des
 # references, feuille ajoutee en fin de conteneur).
-verifier("Drapeau explicite sigma_standard_saisi (FALSE sans saisie) pour les trois methodes, suivi des seuls champs de #37, de bareme_saisi (#93), de n_fournies (#104) puis de horodatage",
+verifier("Drapeau explicite sigma_standard_saisi (FALSE sans saisie) pour les trois methodes, suivi des seuls champs de #37, de bareme_saisi (#93), de n_fournies (#104), de permutation_pente (#169, lognormale) puis de horodatage",
          identical(r_b$metadata$sigma_standard_saisi, FALSE) &&
            identical(r1_sans$metadata$sigma_standard_saisi, FALSE) &&
            identical(r2_sans$metadata$sigma_standard_saisi, FALSE) &&
@@ -567,7 +567,9 @@ verifier("Drapeau explicite sigma_standard_saisi (FALSE sans saisie) pour les tr
              entre <- nm[seq.int(match("sigma_standard_saisi", nm) + 1L, match("horodatage", nm) - 1L)]
              # seed_enveloppe_qq retire par l'issue #47 (enveloppe lue dans
              # le bootstrap), pour les trois methodes.
-             attendu <- c("generateur", "seed_loi_nulle_sw", "bareme_saisi", "n_fournies")
+             # permutation_pente (#169) : methodes lognormales seulement.
+             attendu <- c("generateur", "seed_loi_nulle_sw", "bareme_saisi", "n_fournies",
+                          if (!identical(r$metadata$methode, "reserve2")) "permutation_pente")
              identical(entre, attendu)
            }, logical(1))))
 verifier("Saisie EGALE a la table : derogation pour les trois methodes (drapeau TRUE, origine \"saisi\")",

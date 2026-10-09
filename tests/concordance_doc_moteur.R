@@ -597,10 +597,10 @@ DECOMPTES <- list(
        methode = "premium",
        motif = paste0("m\u00e9thode prime.{0,40}?(\\d+) des (\\d+) lignes de la table auditable retiennent ",
                       "une p-value de Monte-Carlo, contre (\\d+) une p-value exacte, (\\d+) une p-value ",
-                      "sous le mod\u00e8le auxiliaire MCO et (\\d+) une p-value asymptotique, les (\\d+) derni\u00e8res n'ayant aucune ",
+                      "sous le mod\u00e8le auxiliaire pond\u00e9r\u00e9 et (\\d+) une p-value asymptotique, les (\\d+) derni\u00e8res n'ayant aucune ",
                       "p-value retenue \\((\\d+) diagnostics, (\\d+) proc\u00e9dure de d\u00e9cision et (\\d+) ",
                       "ligne non applicable\\)"),
-       champs = c("nature Monte-Carlo", "lignes (total)", "nature exacte", "nature modele auxiliaire MCO",
+       champs = c("nature Monte-Carlo", "lignes (total)", "nature exacte", "nature modele auxiliaire pondere",
                   "nature asymptotique", "sans p-value retenue", "type diagnostic",
                   "type procedure de decision", "type non applicable")),
   list(id = "prime : p-values exactes disposant d'une p_mc",
@@ -825,7 +825,12 @@ grandeurs_moteur <- function(tests, controles = NULL) {
   pex <- vapply(tests, function(t) !is.null(t$p_exacte) && length(t$p_exacte) && is.finite(t$p_exacte[1]), logical(1))
   g <- c("lignes (total)" = length(tests),
          "nature exacte" = sum(grepl("^exacte", nat)),
-         "nature modele auxiliaire MCO" = sum(grepl("^sous le modele auxiliaire MCO", nat)),
+         # TOST sous le modele auxiliaire pondere depuis #215 (decision P3 du
+         # 07/10/2026) ; la nature "sous le modele auxiliaire MCO" n'est plus
+         # posee par le moteur. La phrase du .tex dit "pondere" depuis le
+         # passage de docwriter de #215 ; le motif ne reconnait plus que ce
+         # libelle (reserve d'actuary).
+         "nature modele auxiliaire pondere" = sum(grepl("^sous le modele auxiliaire pondere", nat)),
          "nature Monte-Carlo" = sum(grepl("^Monte-Carlo", nat)),
          "nature asymptotique" = sum(grepl("^asymptotique", nat)),
          "sans p-value retenue" = sum(is.na(nat)),
@@ -840,8 +845,13 @@ grandeurs_moteur <- function(tests, controles = NULL) {
          # test present sous deux formes.
          "base z" = sum(base %in% "z"),
          "base r" = sum(base %in% "r"),
-         "p exacte hors base r" = sum(pex & !base %in% "r"),
-         "p exacte hors base r retenue" = sum(pex & !base %in% "r" & grepl("^exacte", nat)),
+         # #169 : la ligne du test de Pitman (p exacte par permutation, sous une
+         # H0 d'echangeabilite hors modele reglementaire, attribuee quel que
+         # soit pi_t) n'entre pas dans ces decomptes de la regle R7.
+         "p exacte hors base r" = sum(pex & !base %in% "r" &
+                                        !champ("fonction") %in% "usp_permutation_pente"),
+         "p exacte hors base r retenue" = sum(pex & !base %in% "r" & grepl("^exacte", nat) &
+                                                !champ("fonction") %in% "usp_permutation_pente"),
          "variante secondaire" = sum(champ("variante") %in% "secondaire"),
          "lignes du test des suites" = sum(startsWith(nom, "Test des suites") %in% TRUE),
          "base r hors suites" = sum(base %in% "r" & !startsWith(nom, "Test des suites") %in% TRUE),
@@ -1114,8 +1124,8 @@ REGISTRE_RUBRIQUE7 <- list(
   # Methode lognormale
   list(label = "fiche:student-constante", tests = "Nullite de la constante (proportionnalite stricte)"),
   list(label = "fiche:tost-constante", tests = "Equivalence de la constante a zero (TOST)"),
-  list(label = "fiche:student-pente", tests = "Test de Student sur la pente (lm(y~x))"),
-  list(label = "fiche:fisher-global", tests = "Test de Fisher (significativite globale)"),
+  list(label = "fiche:student-pente", tests = "Test de Pitman sur la pente (lien positif pertes / volume)"),
+  # fiche:fisher-global retiree (#169) : la ligne Fisher est un diagnostic permanent.
   list(label = "fiche:reset", tests = "RESET (forme fonctionnelle)"),
   list(label = "fiche:spearman", tests = c("Independance ratio S/P vs volume", "Correlation ratio S/P vs temps")),
   list(label = "fiche:mann-kendall", tests = "Tendance monotone du ratio S/P"),

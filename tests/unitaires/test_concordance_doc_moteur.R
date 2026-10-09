@@ -483,25 +483,25 @@ verifier("--B 98 refuse par le script lance (code 1, erreur explicite, moteur no
          r_b98$code == 1L && any(grepl("--B = 98 refuse", r_b98$sortie, fixed = TRUE)) &&
            !any(grepl("^=== 2", r_b98$sortie)))
 # Natures des p retenues (#44, reprise) : exacte, sous le modele auxiliaire
-# MCO, Monte-Carlo, asymptotique et sans p retenue partitionnent les lignes.
+# pondere (MCO avant #215), Monte-Carlo, asymptotique et sans p retenue partitionnent les lignes.
 # Lignes construites en memoire (une par nature), et table du moteur sur les
 # donnees de test (usp_tests() a bootstrap fictif, sans run_engine()).
 verifier("grandeurs_moteur : les cinq categories de nature partitionnent les lignes (somme = total)",
          {
-           cinq <- c("nature exacte", "nature modele auxiliaire MCO", "nature Monte-Carlo",
+           cinq <- c("nature exacte", "nature modele auxiliaire pondere", "nature Monte-Carlo",
                      "nature asymptotique", "sans p-value retenue")
-           lg <- lapply(c("exacte", "sous le modele auxiliaire MCO : t(T-2) exacte, marge fixee a priori",
+           lg <- lapply(c("exacte", "sous le modele auxiliaire pondere : loi de Student (poids estimes), marge fixee a priori",
                           "Monte-Carlo (bootstrap parametrique)", "asymptotique (motif)", NA),
                         function(n) list(nature_p = n, type = "test", famille = "B."))
            g <- cc$grandeurs_moteur(lg)
            xs <- c(104.20, 102.25, 109.34, 114.64, 118.41, 121.28, 132.40, 131.22)
            ys <- c(68.97, 76.76, 83.49, 95.38, 88.96, 70.22, 78.89, 117.37)
-           fx <- usp_ajuster(xs, ys); so <- .stats_bootstrapables(fx$x, fx$y, fx$z)
+           fx <- usp_ajuster(xs, ys); so <- .stats_bootstrapables(fx$x, fx$y, fx$z, fx$pi)
            tt <- usp_tests(fx, list(stats_obs = as.list(so), p_mc = so * 0 + 0.5,
                                     err_mc = so * 0 + 0.01), methode = "premium")
            g2 <- cc$grandeurs_moteur(tt)
            all(g[cinq] == 1) && sum(g[cinq]) == g[["lignes (total)"]] &&
-             sum(g2[cinq]) == g2[["lignes (total)"]] && g2[["nature modele auxiliaire MCO"]] >= 1
+             sum(g2[cinq]) == g2[["lignes (total)"]] && g2[["nature modele auxiliaire pondere"]] >= 1
          })
 # Issue #114 : rubrique 7 "Pertinence et puissance a faible T" et tableau de
 # tracabilite, sur des chaines LaTeX en memoire.
@@ -608,8 +608,8 @@ verifier("Issue #114 : registre au moteur -- declaration hors_jeux perimee et li
          .a_motif(.er2, "fiche:b", "hors_jeux perimee") && .a_motif(.er2, "fiche:a, fiche:d", "plusieurs fiches"))
 .labs <- vapply(cc$REGISTRE_RUBRIQUE7, `[[`, character(1), "label")
 .noms <- unlist(lapply(cc$REGISTRE_RUBRIQUE7, `[[`, "tests"))
-verifier("Issue #114 : registre REGISTRE_RUBRIQUE7 -- 53 fiches (decision du mainteneur du 27/09/2026), labels et noms uniques",
-         length(.labs) == 53L && !anyDuplicated(.labs) && !anyDuplicated(.noms) &&
+verifier("Issue #114 : registre REGISTRE_RUBRIQUE7 -- 52 fiches (53 decidees le 27/09/2026, moins fiche:fisher-global, diagnostic depuis #169), labels et noms uniques",
+         length(.labs) == 52L && !anyDuplicated(.labs) && !anyDuplicated(.noms) &&
            all(grepl("^(fiche|mw):[a-z0-9-]+$", .labs)) && sum(startsWith(.labs, "mw:")) == 16L)
 verifier("Issue #114 : jeu J2 lu dans test_controles_numeriques.R (T = 8)",
          { j <- cc$lire_jeu_j2(.racine); length(j$x) == 8L && length(j$y) == 8L })
@@ -619,7 +619,8 @@ verifier("Issue #114 : jeu J2 lu dans test_controles_numeriques.R (T = 8)",
 # rubrique 7 retiree d'une fiche de test (RESET), ajoutee a un diagnostic
 # (R2), deplacee avant \Usage (White), doublee (Goldfeld-Quandt) ; rangee
 # Lilliefors remplacee par un double de la rangee Jarque-Bera ; fichier cite
-# inexistant (issue122-J2.md -> issue122-J3.md sur la rangee Fisher).
+# inexistant (issue122-J2.md -> issue122-J3.md sur la rangee de la pente ;
+# rangee Fisher retiree par #169).
 .tex_114 <- readLines(file.path(.racine, "docs", "latex", "doc_tests_usp.tex"), warn = FALSE, encoding = "UTF-8")
 .bornes <- function(lab) {
   d <- grep(sprintf("\\label{%s}", lab), .tex_114, fixed = TRUE)
@@ -635,7 +636,7 @@ verifier("Issue #114 : jeu J2 lu dans test_controles_numeriques.R (T = 8)",
 .k_li <- grep("(\\ref{fiche:lilliefors}) &", .tex_114, fixed = TRUE)
 .k_jb <- grep("(\\ref{fiche:jarque-bera}) &", .tex_114, fixed = TRUE)
 .m[.k_li] <- .tex_114[.k_jb]
-.k_fi <- grep("(\\ref{fiche:fisher-global}) &", .tex_114, fixed = TRUE)
+.k_fi <- grep("(\\ref{fiche:student-pente}) &", .tex_114, fixed = TRUE)
 .m[.k_fi] <- sub("issue122-J2.md", "issue122-J3.md", .m[.k_fi], fixed = TRUE)
 .tex_mutant <- tempfile(fileext = ".tex")
 writeLines(.m, .tex_mutant, useBytes = TRUE)

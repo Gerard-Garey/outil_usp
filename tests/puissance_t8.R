@@ -167,7 +167,11 @@
 #  combinateur imprimees en T0 ; #171, elargie : le critere 6 ne couvre que
 #  R/ et tests/reference/) ; --sortie DOSSIER : memes noms dans DOSSIER, qui
 #  doit etre HORS du depot (un dossier sous la racine du depot est refuse :
-#  --ecrire est le seul chemin qui ecrit dans le depot).
+#  --ecrire est le seul chemin qui ecrit dans le depot). Le refus qui tient
+#  au commit et aux empreintes courants (de l'execution, ou de la
+#  combinaison) et l'absence du dossier cible sont evalues des l'analyse
+#  des options, avant tout calcul, puis de nouveau au moment d'ecrire
+#  (#205).
 #  Garde d'ecrasement (#173, garde_ecrasement() de tests/outils_tests.R,
 #  evaluee au moment d'ecrire apres les refus precedents) : --ecrire est
 #  REFUSE (code 1, aucun des fichiers de l'execution ecrit) si l'un des
@@ -202,13 +206,13 @@
 #      refuser() (copies adaptees : cles de CONTEXTE propres a ce script) ;
 #      l'analyse de --combiner (copie adaptee : la liste des fichiers peut
 #      etre suivie de --ecrire ou --sortie DOSSIER) ;
-#    - de tests/constats_puissance_t8.R : commit_depot() (copie adaptee :
-#      nom du script, git factorise dans git_depot()), num(), ecart_z(),
+#    - de tests/constats_puissance_t8.R : num(), ecart_z(),
 #      compat() et les valeurs publiees de C1 (copies) ; ic_cp() et txt_ic()
 #      (copies adaptees : niveau de confiance en argument, n = 0 admis) ;
 #    - de tests/calibration_mc_t8.R : plateforme_calcul() (copie, #171),
-#      empreintes_code() (copie adaptee : aucun fichier lu en plus) et
-#      motifs_non_versionnable() (copie) ;
+#      empreintes_code() (copie adaptee : aucun fichier lu en plus) ;
+#    - de tests/outils_tests.R (definition unique, #205) : commit_depot()
+#      et motifs_non_versionnable() ;
 #    - de R/engine.R, dw_p_exacte() : construction des matrices A (differences
 #      de DW) et M (centrage) dans dw_puissance_imhof() (copie).
 #  Duree mesuree (conteneur Linux, R 4.3.3, 30/09/2026, petits R ; les
@@ -302,19 +306,7 @@ if (!is.finite(OPT_B) || OPT_B < B_MIN_USAGE)
 git_depot <- function(...) tryCatch(suppressWarnings(system2("git", c("-C", RACINE, ...), stdout = TRUE,
                                                              stderr = FALSE)),
                                     error = function(e) NULL)
-# Commit du depot, complete de "(arbre de travail modifie)" et de "(script non
-# suivi)" (definition de tests/constats_puissance_t8.R).
-commit_depot <- function() {
-  h <- git_depot("rev-parse", "HEAD")
-  if (length(h) != 1L || !grepl("^[0-9a-f]{40}$", h)) return("inconnu")
-  if (length(git_depot("status", "--porcelain", "--untracked-files=no"))) h <- paste(h, "(arbre de travail modifi\u00e9)")
-  suivi <- tryCatch(suppressWarnings(system2("git", c("-C", RACINE, "ls-files", "--error-unmatch",
-                                                      "tests/puissance_t8.R"),
-                                             stdout = FALSE, stderr = FALSE)),
-                    error = function(e) 1L)
-  if (!identical(as.integer(suivi), 0L)) h <- paste(h, "(script non suivi)")
-  h
-}
+# commit_depot() et motifs_non_versionnable() : tests/outils_tests.R (#205).
 # Plateforme de calcul (#171) : R, systeme, machine, BLAS, LAPACK (copie de
 # tests/calibration_mc_t8.R). Ligne de T0 des deux volets ; au volet B, champ
 # du contexte : des tranches calculees sur des plateformes differentes ne se
@@ -348,16 +340,6 @@ empreintes_code <- function(script_depot) {
 }
 EMPREINTES <- empreintes_code("tests/puissance_t8.R")
 
-# Motifs qui interdisent --ecrire (tableau versionne) : commit non propre ou
-# code hors du depot (copie de tests/calibration_mc_t8.R).
-motifs_non_versionnable <- function(commit, empreintes, quoi = "des tranches") {
-  m <- character(0)
-  if (!grepl("^[0-9a-f]{40}$", commit))
-    m <- c(m, sprintf("commit %s \u00ab %s \u00bb (arbre de travail modifi\u00e9, script non suivi ou git indisponible)", quoi, commit))
-  if (grepl("hors d\u00e9p\u00f4t", empreintes, fixed = TRUE))
-    m <- c(m, sprintf("tests/outils_tests.R ou script ex\u00e9cut\u00e9s %s hors du d\u00e9p\u00f4t", quoi))
-  m
-}
 # Chemin (existant) sous la racine du depot (copie de tests/calibration_mc_t8.R,
 # constat R2 d'audit) : --sortie doit viser hors du depot ; --ecrire est le
 # seul chemin qui ecrit dans le depot.
@@ -386,6 +368,22 @@ SUFFIXES_EXECUTION <- c(if (OPT_VOLET %in% c("tout", "A")) "exact-J1",
                         if (OPT_VOLET %in% c("tout", "B")) paste0("chaine-", JEUX_B))
 dossier_sortie <- function() if (OPT_ECRIRE) file.path(RACINE, "docs", "tableaux") else OPT_SORTIE
 chemins_sortie <- function(suffixes) file.path(dossier_sortie(), sprintf("%s-issue116-%s.md", DATE_SORTIE, suffixes))
+# Gardes anticipees de l'arbre propre et du dossier cible (#205) : avant tout
+# calcul, memes refus que ecrire_fichiers(), qui les reprend (l'etat du
+# depot peut changer pendant le calcul) ; commit et empreintes courants,
+# ceux de l'execution ou, pour --combiner, de la combinaison (ceux des
+# tranches, lus dans leurs fichiers, restent controles a l'ecriture).
+if (OPT_ECRIRE) {
+  nv0 <- motifs_non_versionnable(commit_depot("tests/puissance_t8.R"), EMPREINTES,
+                                 if (length(FICHIERS_COMB)) "de la combinaison" else "de l'ex\u00e9cution")
+  if (length(nv0)) {
+    message("--ecrire refuse (tableau versionne dans docs/tableaux/) : ", paste(nv0, collapse = " ; "),
+            " -- aucun fichier ecrit ; relancer sur un arbre propre, ou --sortie DOSSIER hors du depot")
+    quit(status = 1L)
+  }
+}
+if ((OPT_ECRIRE || !is.na(OPT_SORTIE)) && !dir.exists(dossier_sortie()))
+  stop("dossier de sortie introuvable : ", dossier_sortie())
 # Garde d'ecrasement anticipee (#173, constat m2 d'audit) : hors --combiner,
 # avant tout calcul ; sans --remplacer, un fichier cible suivi par git est
 # refuse ici (code 1, rien d'ecrit). Avec --remplacer, rien n'est imprime
@@ -560,12 +558,12 @@ if (!length(FICHIERS_COMB)) verifier_depot(NULL, "d\u00e9but")
 # leurs chemins avant d'en ecrire un seul (de nouveau : le controle
 # anticipe a precede le calcul), et le T0 de chaque fichier remplace
 # (--remplacer) le cite.
-ecrire_fichiers <- function(fichiers, commit = commit_depot(), empreintes = EMPREINTES,
+ecrire_fichiers <- function(fichiers, commit = commit_depot("tests/puissance_t8.R"), empreintes = EMPREINTES,
                             combinaison = FALSE) {
   if (!OPT_ECRIRE && is.na(OPT_SORTIE)) return(invisible(NULL))
   if (OPT_ECRIRE) {
     nv <- c(motifs_non_versionnable(commit, empreintes, if (combinaison) "des tranches" else "de l'ex\u00e9cution"),
-            if (combinaison) motifs_non_versionnable(commit_depot(), EMPREINTES, "de la combinaison"))
+            if (combinaison) motifs_non_versionnable(commit_depot("tests/puissance_t8.R"), EMPREINTES, "de la combinaison"))
     if (length(nv)) {
       message("--ecrire refuse (tableau versionne dans docs/tableaux/) : ", paste(nv, collapse = " ; "),
               " -- aucun fichier ecrit ; relancer sur un arbre propre, ou --sortie DOSSIER hors du depot")
@@ -610,7 +608,7 @@ boucle_reduite <- function(fit, graine, B, catalogue) {
       yb <- usp_simuler(fit)
       fb <- try(usp_ajuster_rapide(fit$x, yb, fit$delta, fit$gamma), silent = TRUE)
       if (inherits(fb, "try-error")) next
-      sb <- try(.mc_evaluer(catalogue, .usp_contexte_mc(fit$x, yb, fb$z)), silent = TRUE)
+      sb <- try(.mc_evaluer(catalogue, .usp_contexte_mc(fit$x, yb, fb$z, fb$pi)), silent = TRUE)
       if (inherits(sb, "try-error")) next
       sim[b, ] <- sb
       zb[b, ] <- fb$z
@@ -625,7 +623,7 @@ boucle_reduite <- function(fit, graine, B, catalogue) {
 chaine <- function(x, y, graine, B) {
   fb <- tryCatch(usp_ajuster(x, y), error = function(e) e)
   if (inherits(fb, "error")) return(list(ecart = "usp_ajuster() en erreur"))
-  e_obs <- .usp_contexte_mc(fb$x, fb$y, fb$z)
+  e_obs <- .usp_contexte_mc(fb$x, fb$y, fb$z, fb$pi)
   so <- tryCatch(.mc_evaluer(USP_CATALOGUE_MC, e_obs), error = function(e) e)
   if (inherits(so, "error")) return(list(ecart = "statistiques observ\u00e9es en erreur"))
   bt <- boucle_reduite(fb, graine, B, USP_CATALOGUE_MC[SIX])
@@ -838,7 +836,7 @@ if (length(FICHIERS_COMB)) {
               ligne_md("R\u00e9plications par point", sprintf("%d (%d tranche(s) : %s)", R_tot, length(parts),
                                                              paste(vapply(parts, function(p) sprintf("%d-%d", p$debut, p$fin), ""),
                                                                    collapse = ", "))),
-              ligne_md("Commit de la combinaison", commit_depot()),
+              ligne_md("Commit de la combinaison", commit_depot("tests/puissance_t8.R")),
               ligne_md("Empreintes md5 du combinateur", EMPREINTES),
               ligne_md("Contr\u00f4les d'int\u00e9grit\u00e9 des tranches (crit\u00e8res 3, 5, 6 ; ligne N = usp_simuler())",
                        sprintf("OK dans les %d tranche(s)", length(parts))), "",
@@ -1075,7 +1073,7 @@ if (OPT_VOLET %in% c("tout", "A")) {
     ligne_md("Plateforme de calcul (R, syst\u00e8me, machine, BLAS, LAPACK)", plateforme_calcul()),
     ligne_md("G\u00e9n\u00e9rateur", paste(ENGINE_RNG_KIND, collapse = ", ")),
     ligne_md("Graine de la matrice e", format(OPT_GRAINE, scientific = FALSE)),
-    ligne_md("Commit", commit_depot()),
+    ligne_md("Commit", commit_depot("tests/puissance_t8.R")),
     ligne_md("R\u00e9plications par point", as.character(OPT_R)),
     ligne_md("Dur\u00e9e (s)", sprintf("r\u00e9plications %.1f (%.2f ms par s\u00e9rie et par point) ; volet A total %.1f",
                                       duree_rep_a, 1000 * duree_rep_a / (OPT_R * length(POINTS_A)), duree_a)), "",
@@ -1179,7 +1177,8 @@ if (OPT_VOLET %in% c("tout", "B")) {
                               METHODE, SEGMENT, ANNEXE, NATURE, ALPHA),
       points = paste(vapply(POINTS_B, `[[`, "", "lib"), collapse = " ; "),
       graines = sprintf("matrice e %.0f ; bootstrap de la r\u00e9plication b : %.0f + 1000 b ; observ\u00e9 : %.0f", OPT_GRAINE + 1, OPT_GRAINE_IC, OPT_GRAINE_IC),
-      B = as.character(OPT_B), generateur = paste(ENGINE_RNG_KIND, collapse = ", "), commit = commit_depot(),
+      B = as.character(OPT_B), generateur = paste(ENGINE_RNG_KIND, collapse = ", "),
+      commit = commit_depot("tests/puissance_t8.R"),
       plateforme = plateforme_calcul(), empreintes = EMPREINTES)
     stopifnot(identical(names(CTX), names(LIBELLES_CONTEXTE)))
     ok_jeu <- length(INTEGRITE) == n_int0

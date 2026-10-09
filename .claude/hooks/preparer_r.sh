@@ -23,15 +23,22 @@ if command -v Rscript >/dev/null 2>&1; then
 fi
 
 # --- Poste Windows (Git Bash) : R installe hors du PATH ---------------------
-for base in "/c/Program Files/R" "$LOCALAPPDATA/Programs/R"; do
-  [ -d "$base" ] || continue
-  bin=$(ls -d "$base"/R-*/bin 2>/dev/null | sort -V | tail -n 1)
-  if [ -n "$bin" ] && [ -x "$bin/Rscript.exe" ]; then
-    ajouter_au_path "$bin"
-    rapport "ajoute au PATH depuis $bin"
-    exit 0
-  fi
-done
+# Emplacements cherches : installation par defaut (Program Files), installation
+# utilisateur, et dossier R a la racine du disque (\R\R-4.3.3 sur le poste du
+# mainteneur, decision Q-E1f-8 du 06/10/2026). Une R 4.3.x, serie de la CI
+# (R 4.3.1, ADR 0011), est preferee ; a defaut, la version la plus recente.
+candidats=$(for base in "/c/Program Files/R" "$LOCALAPPDATA/Programs/R" "/c/R"; do
+  [ -d "$base" ] && ls -d "$base"/R-*/bin 2>/dev/null
+done | while IFS= read -r b; do
+  [ -x "$b/Rscript.exe" ] && printf '%s\t%s\n' "$(basename "$(dirname "$b")")" "$b"
+done | sort -t "$(printf '\t')" -k1,1V)
+bin=$(printf '%s\n' "$candidats" | grep '^R-4\.3\.' | tail -n 1 | cut -f2)
+[ -n "$bin" ] || bin=$(printf '%s\n' "$candidats" | tail -n 1 | cut -f2)
+if [ -n "$bin" ]; then
+  ajouter_au_path "$bin"
+  rapport "ajoute au PATH depuis $bin"
+  exit 0
+fi
 
 # --- Linux (session cloud) : installation par apt ---------------------------
 if command -v apt-get >/dev/null 2>&1; then

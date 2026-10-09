@@ -19,7 +19,7 @@ debut_fichier("test_defauts_connus.R")
 x <- c(104.20, 102.25, 109.34, 114.64, 118.41, 121.28, 132.40, 131.22)
 y <- c(68.97, 76.76, 83.49, 95.38, 88.96, 70.22, 78.89, 117.37)
 fit <- usp_ajuster(x, y)                       # delta = 1 (au bord)
-s_obs <- .stats_bootstrapables(fit$x, fit$y, fit$z)
+s_obs <- .stats_bootstrapables(fit$x, fit$y, fit$z, fit$pi)
 # Objet bootstrap fictif (aucune simulation) : toutes les p Monte-Carlo a 0,5.
 boot_fictif <- function(sans = character(0)) {
   p <- stats::setNames(rep(0.5, length(s_obs)), names(s_obs))
@@ -742,11 +742,11 @@ verifier("TOST a marge invalide : non applicable, detail nommant la marge (#58)"
          })
 verifier("TOST : branches non applicable et calculee ont les memes noms de champs, ddl = T - 2 (#58)",
          {
-           n_ok <- names(test_tost_intercept(x, y))
-           n_cst <- names(test_tost_intercept(x_cst, y))
-           n_mg <- names(test_tost_intercept(x, y, theta = 0))
+           n_ok <- names(test_tost_intercept(x, y, fit$pi))
+           n_cst <- names(test_tost_intercept(x_cst, y, fit$pi))
+           n_mg <- names(test_tost_intercept(x, y, fit$pi, theta = 0))
            identical(n_cst, n_ok) && identical(n_mg, n_ok) &&
-             test_tost_intercept(x_cst, y)$ddl == length(x_cst) - 2
+             test_tost_intercept(x_cst, y, fit$pi)$ddl == length(x_cst) - 2
          })
 verifier("TOST : volumes constants priment sur la marge invalide (theta_equiv = 0 a x constant) (#58)",
          {
@@ -757,8 +757,8 @@ verifier("TOST : volumes constants priment sur la marge invalide (theta_equiv = 
          })
 verifier("TOST : theta_equiv <= 0 avec delta_equiv fixe -> test calcule, theta ignore (#58)",
          {
-           a <- test_tost_intercept(x, y, theta = 0, delta_abs = 5)
-           b <- test_tost_intercept(x, y, theta = 0.10, delta_abs = 5)
+           a <- test_tost_intercept(x, y, fit$pi, theta = 0, delta_abs = 5)
+           b <- test_tost_intercept(x, y, fit$pi, theta = 0.10, delta_abs = 5)
            is.finite(a$p) && is.na(a$non_applicable) && identical(a, b)
          })
 verifier("Volumes constants a la tolerance pres (etendue relative 5e-7) : libelle 'presque pas', tolerance nommee (#58)",

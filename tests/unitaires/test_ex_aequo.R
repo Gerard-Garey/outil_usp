@@ -247,4 +247,150 @@ verifier("Volume nul ou quasi nul, plancher 0 : ni division par zero ni boucle",
              .usp_nb_volumes_distincts(c(0, 1e-320, 5)) == 3L
          })
 
+## --- Ex aequo des ratios a tolerance relative (issue #187) -------------------
+# Les tests de rang et de signe sur ratios (Mann-Kendall, Cox-Stuart,
+# Spearman ratio / volume et ratio / temps) aplatissent r_t a plancher 0
+# (tolerance purement relative), et les suites sur ratios bruts aplatissent
+# u_t = r_t - moyenne(r) a plancher max|r| (.usp_plancher_u(), decision
+# Q-187-1 b), a l'observe comme dans le catalogue USP_CATALOGUE_MC : leurs
+# resultats ne dependent plus de l'unite de y par rapport a x. Avant #187 (plancher 1, tolerance absolue 1e-12 sous 1),
+# donnees_ln.csv a y x 1e-10 fusionnait deux ratios distants de 7,7e-4 en
+# relatif (suites INFO, p exactes perdues), et a y x 1e-20, x x 1e40 les
+# quatre lignes passaient en INFO (mesures de l'issue).
+LIGNES_RATIOS <- c("Independance ratio S/P vs volume", "Correlation ratio S/P vs temps",
+                   "Tendance monotone du ratio S/P", "Tendance par signes du ratio S/P",
+                   "Test des suites sur ratios bruts")
+.dossier187 <- if (exists("DOSSIER_UNITAIRES", inherits = TRUE)) DOSSIER_UNITAIRES else {
+  .f <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE))
+  if (length(.f)) dirname(.f) else "tests/unitaires"
+}
+outils187 <- new.env(parent = globalenv())
+sys.source(file.path(.dossier187, "..", "outils_tests.R"), envir = outils187)
+d187 <- utils::read.csv(file.path(.dossier187, "..", "donnees", "donnees_ln.csv"))
+calcul187 <- function(x, y) suppressWarnings(
+  run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = B_MIN_USAGE,
+             nature_donnees = "brutes"))
+# Cle de comparaison des lignes sur ratios : verdict, nature, p retenue et
+# nombre d'INFO, mais aussi statistique, p exacte et p_min (statistiques de
+# rang, invariantes d'echelle), et le commentaire de chaque ligne, qui porte
+# les effectifs de la loi discrete (m, n1, n2) : verdict et p retenue seuls
+# laissaient survivre un retour de test_cox_stuart() au plancher 1 dans
+# usp_tests() (ligne INFO a c = 1 comme a c = 1e-20 ; audit de #187, C1).
+cle187 <- function(res) {
+  tt <- engine_table_tests(res); l <- tt[match(LIGNES_RATIOS, tt$test), ]
+  list(verdict = l$verdict, nature = l$nature_p, p = l$p_retenue,
+       n_info = sum(l$verdict == "INFO"),
+       num = c(l$statistique, l$p_exacte, l$p_min), detail = l$commentaire,
+       commentaire = tt$commentaire)
+}
+# Mises a l'echelle : c applique a y puis a x, c dans {1e-40, 1e-20, 1e-10,
+# 1e10, 1e40}, et mises a l'echelle opposees de y et de x jusqu'aux bornes du
+# domaine de #145 (commentaire d'actuary du 05/10/2026 sur #187 : ratios
+# d'environ 1e-100 a 1e100). Renvoie les ecarts a c = 1 (vide si conforme).
+balayage187 <- function(x, y, echelles = c(1e-40, 1e-20, 1e-10, 1e10, 1e40)) {
+  a <- cle187(calcul187(x, y))
+  sc <- list()
+  for (cc in echelles) {
+    sc[[sprintf("y x %g", cc)]] <- c(1, cc); sc[[sprintf("x x %g", cc)]] <- c(cc, 1)
+  }
+  sc[["y -> 1e-50, x -> 1e50"]] <- c(DOMAINE_NUMERIQUE_MAX / max(x), DOMAINE_NUMERIQUE_MIN / min(y))
+  sc[["y -> 1e50, x -> 1e-50"]] <- c(DOMAINE_NUMERIQUE_MIN / min(x), DOMAINE_NUMERIQUE_MAX / max(y))
+  ecarts <- character(0)
+  for (nm in names(sc)) {
+    res <- calcul187(x * sc[[nm]][1], y * sc[[nm]][2])
+    if (!isTRUE(res$ok)) { ecarts <- c(ecarts, paste(nm, ": refus")); next }
+    b <- cle187(res)
+    if (!identical(b$verdict, a$verdict) || !identical(b$nature, a$nature) ||
+        !identical(b$n_info, a$n_info) ||
+        !isTRUE(outils187$comparer_objets(a$p, b$p)$conforme))
+      ecarts <- c(ecarts, sprintf("%s : verdicts %s", nm, paste(b$verdict, collapse = "/")))
+    if (!isTRUE(outils187$comparer_objets(a$num, b$num)$conforme))
+      ecarts <- c(ecarts, sprintf("%s : statistique, p exacte ou p_min differente", nm))
+    if (!identical(b$detail, a$detail))
+      ecarts <- c(ecarts, sprintf("%s : commentaire (effectifs) different", nm))
+    if (any(grepl("()", b$commentaire, fixed = TRUE)))
+      ecarts <- c(ecarts, paste(nm, ": commentaire avec \"()\""))
+  }
+  if (length(ecarts)) paste(ecarts, collapse = " ; ") else TRUE
+}
+verifier("#187 : donnees_ln.csv, y puis x x c (c = 1e-40 a 1e40) et echelles opposees aux bornes du domaine -> verdicts, natures, p retenues, statistiques, p exactes, p_min (TOLERANCE), commentaires (effectifs) et nombre d'INFO des lignes sur ratios egaux a c = 1, aucun commentaire avec \"()\"",
+         balayage187(d187$xt, d187$yt))
+# Jeu a delta interieur (tests/unitaires/test_controles_numeriques.R) : le
+# commentaire d'actuary sur #187 y mesurait 14 lignes INFO a y x 1e-6, 17 a
+# y x 1e-11, 18 a y x 1e-12 et 1e-13 avant #187. Echantillon d'echelles
+# (cout : un run_engine() par echelle).
+verifier("#187 : jeu a delta interieur, y x 1e-12, x x 1e12 et echelles opposees aux bornes du domaine -> lignes sur ratios egales a c = 1",
+         balayage187(c(50, 80, 120, 200, 300, 150, 90, 60),
+                     c(29.92, 56.9, 101.25, 123.06, 207.23, 105.91, 68.59, 40.05),
+                     echelles = 1e-12))
+verifier("#187 : catalogue Monte-Carlo, MK, SpearVol, SpearTps, CoxStuart et Runsr invariants par r x c (c = 1e-30, 1e-12, 1e12)",
+         {
+           xr <- d187$xt; yr <- d187$yt; fr <- usp_ajuster(xr, yr); zr <- fr$z
+           noms <- c("MK", "SpearVol", "SpearTps", "CoxStuart", "Runsr")
+           st <- function(cc) vapply(noms, function(n)
+             USP_CATALOGUE_MC[[n]]$calc(.usp_contexte_mc(xr, yr * cc, zr, fr$pi)), numeric(1))
+           s1 <- st(1)
+           all(is.finite(s1)) &&
+             all(vapply(c(1e-30, 1e-12, 1e12), function(cc)
+               isTRUE(outils187$comparer_objets(s1, st(cc))$conforme), logical(1)))
+         })
+verifier("#187 : fonctions de rang a plancher 0 (r) et max|r| (u) invariantes d'echelle, plancher 1 par defaut inchange (z_t, residus de Mack)",
+         {
+           r <- d187$yt / d187$xt; u <- r - mean(r)
+           rs <- r * 1e-20; us <- rs - mean(rs); pu <- .usp_plancher_u(rs)
+           identical(test_mann_kendall(r * 1e-20, plancher = 0)$S, test_mann_kendall(r)$S) &&
+             identical(test_cox_stuart(r * 1e-20, plancher = 0)$m, 4L) &&
+             identical(test_cox_stuart(r * 1e-20)$m, 0L) &&
+             identical(mk_p_exacte(r * 1e-20, plancher = 0), mk_p_exacte(r)) &&
+             is.na(mk_p_exacte(r * 1e-20)) &&
+             identical(runs_p_exacte(us, plancher = pu), runs_p_exacte(u)) &&
+             identical(.runs_effectifs(us, plancher = pu), .runs_effectifs(u)) &&
+             identical(test_runs(us, plancher = pu)$runs, test_runs(u)$runs) &&
+             is.na(test_runs(us)$stat)
+         })
+# Libelle de la ligne des suites sur ratios bruts quand pi_t est EXACTEMENT
+# constant mais qu'un signe differe entre u_t - med(u) et z_t - med(z) (#187,
+# troisieme constat) : volumes constants (pi_t exactement constant), deux
+# ratios centraux 0,75 -/+ d. A d = 1e-13 (mesure du 06/10/2026) : ex aequo
+# sur u (plancher max|r| = 0,9, tolerance 9e-13 > ecart 2e-13 : n1 = n2 = 3)
+# mais distincts sur z (plancher 1 ; Runs : n1 = n2 = 4, statistique
+# -2,291 contre -1,826 sur Runsr), d'ou le regime 2. Le libelle ne contient
+# ni "()" ni "tolerance TOL_DELTA_BORD", nomme la constance exacte, decrit la
+# tolerance relative a max|r| sur u et ne dit pas la p Monte-Carlo retenue.
+runsr187 <- function(d) {
+  xc <- rep(100, 8)
+  rc <- c(0.6, 0.65, 0.7, 0.75 - d, 0.75 + d, 0.8, 0.85, 0.9)
+  res <- calcul187(xc, rc * xc)
+  tt <- engine_table_tests(res)
+  list(ok = res$ok, pi_exact = usp_regime(res$ajustement$delta, xc)$pi_constant_exact,
+       runs = tt[tt$test == "Test des suites (aleatoire des signes)", ],
+       runsr = tt[tt$test == "Test des suites sur ratios bruts", ])
+}
+verifier("#187 : Runsr a pi_t exactement constant et signes differents (d = 1e-13) -> libelle sans \"()\", constance exacte nommee, tolerance relative a max|r| sur u, p Monte-Carlo non dite retenue",
+         {
+           a <- runsr187(1e-13); cm <- a$runsr$commentaire
+           isTRUE(a$ok) && isTRUE(a$pi_exact) && length(cm) == 1L &&
+             !identical(a$runs$statistique, a$runsr$statistique) &&
+             grepl("pi_t est exactement constant", cm, fixed = TRUE) &&
+             grepl("relative a max|r| sur u, absolue sous 1 sur z", cm, fixed = TRUE) &&
+             grepl("seconde condition de la fonction usp_runsr_p_exacte", cm, fixed = TRUE) &&
+             !grepl("TOL_DELTA_BORD", cm, fixed = TRUE) &&
+             !grepl("()", cm, fixed = TRUE) &&
+             !grepl("Monte-Carlo, simulee sous le modele ajuste, est retenue", cm, fixed = TRUE)
+         })
+# A d = 1e-14, les deux ratios centraux sont ex aequo sur u ET sur z : signes
+# identiques, Runs et Runsr coherents (mesure du 06/10/2026 : tous deux INFO,
+# inoperants, statistique -1,826 des deux cotes) ; le regime 2 n'est pas
+# atteint (sous le plancher 0 sur u de la premiere version de #187, il
+# l'etait).
+verifier("#187 : d = 1e-14, Runs et Runsr coherents (tous deux INFO, meme statistique), hors regime 2",
+         {
+           a <- runsr187(1e-14); cm <- a$runsr$commentaire
+           isTRUE(a$ok) && isTRUE(a$pi_exact) &&
+             identical(a$runs$verdict, "INFO") && identical(a$runsr$verdict, "INFO") &&
+             identical(a$runs$statistique, a$runsr$statistique) &&
+             is.finite(a$runsr$statistique) &&
+             !grepl("Toutefois au moins un signe differe", cm, fixed = TRUE)
+         })
+
 fin_fichier()

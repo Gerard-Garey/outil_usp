@@ -5,11 +5,14 @@
 #  la maniere d'executer le moteur pour chacun, et le comparateur unique de
 #  non-regression (comparer_objets). Source par test_reproductibilite.R,
 #  generer_references.R, comparer_references.R, patcher_reference.R et
-#  regenerer_et_rendre_compte.R ; source aussi par les quatre scripts de
+#  regenerer_et_rendre_compte.R ; source aussi par les cinq scripts de
 #  mesure hors CI qui ont --ecrire (puissance_t8.R, constats_puissance_t8.R,
-#  calibration_mc_t8.R, taux_franchissement_reperes.R), qui y trouvent la
-#  garde d'ecrasement des tableaux versionnes (garde_ecrasement(), #173) ;
-#  R base uniquement (tools::md5sum() pour la garde).
+#  calibration_mc_t8.R, taux_franchissement_reperes.R,
+#  conservatisme_interieur_t8.R), qui y trouvent la
+#  garde d'ecrasement des tableaux versionnes (garde_ecrasement(), #173),
+#  le commit du depot et les motifs de non-versionnement (commit_depot(),
+#  motifs_non_versionnable(), #205 ; commit_depot() sert aussi a
+#  balayage_echelles.R) ; R base uniquement (tools::md5sum() pour la garde).
 ###############################################################################
 
 # Repertoire racine du depot : les scripts peuvent etre lances depuis la
@@ -446,15 +449,76 @@ resumer_comparaison <- function(r, n_max = 10L) {
 }
 
 # ---------------------------------------------------------------------------
+#  Commit du depot et motifs de non-versionnement des scripts de mesure hors
+#  CI (issue #205). Seule definition, reprise des copies de
+#  tests/puissance_t8.R, tests/constats_puissance_t8.R,
+#  tests/calibration_mc_t8.R, tests/taux_franchissement_reperes.R et
+#  tests/balayage_echelles.R. Les scripts dont --ecrire refuse un commit non
+#  propre (tests/puissance_t8.R, tests/constats_puissance_t8.R,
+#  tests/calibration_mc_t8.R, tests/taux_franchissement_reperes.R,
+#  tests/conservatisme_interieur_t8.R) evaluent motifs_non_versionnable()
+#  des l'analyse des options, avant tout calcul (commit et empreintes
+#  courants), puis de nouveau avant d'ecrire (l'etat du depot peut changer
+#  pendant le calcul).
+# ---------------------------------------------------------------------------
+
+# Commit du depot : SHA de HEAD, complete de "(arbre de travail modifie)" si
+# un fichier suivi est modifie (git status --porcelain
+# --untracked-files=no) et, si script est donne (chemin relatif a racine),
+# de "(script non suivi)" quand "git ls-files --error-unmatch" echoue ;
+# "inconnu" si git est indisponible ou si racine n'est pas dans un depot.
+# script = NULL : aucune mention du suivi du script
+# (tests/taux_franchissement_reperes.R, tests/balayage_echelles.R, comme
+# leurs copies d'avant #205). racine et script proteges par shQuote()
+# (espaces ; les copies d'avant #205 rendaient "inconnu" pour une racine
+# avec espace). git : commande git (argument des tests, pour simuler git
+# indisponible).
+commit_depot <- function(script = NULL, racine = RACINE, git = "git") {
+  g <- function(...) tryCatch(suppressWarnings(system2(git, c("-C", shQuote(racine), ...), stdout = TRUE,
+                                                       stderr = FALSE)),
+                              error = function(e) character(0))
+  h <- g("rev-parse", "HEAD")
+  if (length(h) != 1L || !grepl("^[0-9a-f]{40}$", h)) return("inconnu")
+  if (length(g("status", "--porcelain", "--untracked-files=no"))) h <- paste(h, "(arbre de travail modifi\u00e9)")
+  if (!is.null(script)) {
+    suivi <- tryCatch(suppressWarnings(system2(git, c("--literal-pathspecs", "-C", shQuote(racine), "ls-files",
+                                                      "--error-unmatch", "--", shQuote(script)),
+                                               stdout = FALSE, stderr = FALSE)),
+                      error = function(e) 1L)
+    if (!identical(as.integer(suivi), 0L)) h <- paste(h, "(script non suivi)")
+  }
+  h
+}
+
+# Motifs qui interdisent --ecrire (tableau versionne) : commit non propre
+# (resultat de commit_depot() qui n'est pas un SHA nu) ou code hors du depot
+# (empreintes de empreintes_code() des scripts : "hors depot") ; quoi :
+# "des tranches", "de la combinaison" ou "de l'execution". character(0) si
+# rien ne s'y oppose.
+motifs_non_versionnable <- function(commit, empreintes, quoi = "des tranches") {
+  m <- character(0)
+  if (!grepl("^[0-9a-f]{40}$", commit))
+    m <- c(m, sprintf("commit %s \u00ab %s \u00bb (arbre de travail modifi\u00e9, script non suivi ou git indisponible)", quoi, commit))
+  if (grepl("hors d\u00e9p\u00f4t", empreintes, fixed = TRUE))
+    m <- c(m, sprintf("tests/outils_tests.R ou script ex\u00e9cut\u00e9s %s hors du d\u00e9p\u00f4t", quoi))
+  m
+}
+
+# ---------------------------------------------------------------------------
 #  Garde d'ecrasement des tableaux versionnes (issue #173). Seul lieu de la
-#  regle, appelee par les quatre scripts de mesure hors CI qui ont --ecrire
+#  regle, appelee par les cinq scripts de mesure hors CI qui ont --ecrire
 #  (tests/puissance_t8.R, tests/constats_puissance_t8.R,
-#  tests/calibration_mc_t8.R, tests/taux_franchissement_reperes.R), APRES
+#  tests/calibration_mc_t8.R, tests/taux_franchissement_reperes.R,
+#  tests/conservatisme_interieur_t8.R), APRES
 #  leurs gardes propres (arbre propre, motifs_non_versionnable()) et AVANT
 #  toute ecriture : tous les chemins cibles d'une execution sont controles
-#  d'abord, puis seulement ecrits. tests/puissance_t8.R l'appelle en outre
-#  des l'analyse des options, avant tout calcul (hors --combiner ; controle
-#  anticipe, constat m2 d'audit de #173), puis de nouveau avant d'ecrire.
+#  d'abord, puis seulement ecrits. tests/puissance_t8.R (constat m2 d'audit
+#  de #173), tests/taux_franchissement_reperes.R (cible_fichier()) et
+#  tests/constats_puissance_t8.R (#205) l'appellent en outre des l'analyse
+#  des options, avant tout calcul (hors --combiner : les chemins cibles y
+#  sont connus), puis de nouveau avant d'ecrire ;
+#  tests/conservatisme_interieur_t8.R aussi, --combiner compris (#175 : un
+#  seul tableau, de nom fixe par la date du jour).
 # ---------------------------------------------------------------------------
 
 # Controle les chemins cibles de --ecrire. Statut de chaque chemin, lu par

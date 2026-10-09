@@ -89,9 +89,12 @@
 #      regime) ; une p retenue d'une autre nature (repli asymptotique nomme,
 #      regle R3 : attendu 0 a T = 8 sans ex aequo) compte dans np et dans les
 #      rejets, non dans la reference, alors suivie de "(n hors ref. = k)" ;
-#    - lignes sans niveau : Student sur la pente et Fisher (H0 beta = 0
-#      fausse), TOST (H0 |a| >= Delta fausse sous le modele ajuste, a = 0) :
-#      sens "rejeter", pas de reference ;
+#    - lignes sans niveau : test de Pitman sur la pente (H0
+#      d'echangeabilite, y independant de x, fausse sous le modele
+#      reglementaire a volumes variables, #169), TOST (H0 |a| >= Delta fausse
+#      sous le modele ajuste, a = 0) : sens "rejeter", pas de reference ; la
+#      ligne Fisher, diagnostic sans p retenue depuis #169, tombe dans
+#      "sans objet (aucune p retenue)" ;
 #    - ligne ESD : ALERTE ou ECHEC (k chapeau >= 1) contre 0,10, niveau
 #      nominal de la procedure de Rosner (valeurs critiques a 1 - alpha/(2
 #      n_i)), exactitude non etablie a T = 8 ; ECHEC (k chapeau = 2) sans
@@ -219,8 +222,11 @@
 #  "(script non suivi)" ou "inconnu", ou si tests/outils_tests.R ou le script
 #  executes (par les tranches ou par la combinaison) n'etaient pas ceux du
 #  depot (empreintes : "hors depot" ; empreintes du combinateur imprimees en
-#  T0). --sortie DOSSIER : meme nom dans DOSSIER, qui doit etre HORS du depot
-#  (un dossier sous la racine du depot est refuse : --ecrire est le seul
+#  T0) ; le refus qui tient a la combinaison elle-meme (commit, empreintes)
+#  et l'absence de docs/tableaux/ sont evalues des l'analyse des options,
+#  avant tout calcul, puis de nouveau avant d'ecrire (#205). --sortie
+#  DOSSIER : meme nom dans DOSSIER, qui doit etre HORS du depot (un dossier
+#  sous la racine du depot est refuse : --ecrire est le seul
 #  chemin qui ecrit dans le depot) ; la ligne "Versionnable" de T0 dit si
 #  --ecrire l'aurait accepte. Les fichiers de docs/tableaux/ sont regeneres,
 #  jamais patches. Garde d'ecrasement (#173, garde_ecrasement() de
@@ -261,8 +267,7 @@
 #      entete_md(), ecrire_console(), lire_j2() (copies) ; lire_comptes() et
 #      refuser() (copies adaptees : lignes STATS, LIGNES, REPCOLS, DUREE, REP) ;
 #      bornes d'une tranche et combinaison des comptes (copies) ;
-#    - de tests/puissance_t8.R : git_depot() et commit_depot() (copies
-#      adaptees : nom du script), num(), txt_ic() (copies), ic_cp() (copie,
+#    - de tests/puissance_t8.R : num(), txt_ic() (copies), ic_cp() (copie,
 #      niveau fixe a 95 %), analyse de --combiner suivie d'options et
 #      ecrire_fichier() (copies adaptees : nom du fichier, refus de --ecrire ;
 #      ecrire_fichier() est devenue ecrire_fichiers() dans tests/puissance_t8.R, #173),
@@ -271,6 +276,8 @@
 #  plateforme_calcul() et empreintes_code() sont copiees (#171) dans
 #  tests/taux_franchissement_reperes.R et tests/puissance_t8.R
 #  (plateforme_calcul() aussi dans tests/constats_puissance_t8.R).
+#  commit_depot() et motifs_non_versionnable() : definition unique dans
+#  tests/outils_tests.R (#205).
 #  Code de sortie : 0 si les controles d'integrite tiennent, 1 sinon ; en
 #  mode --combiner, 0 si la combinaison est acceptee, 1 si elle est refusee.
 ###############################################################################
@@ -340,22 +347,7 @@ DOSSIER_SCRIPT <- if (!is.na(FICHIER_SCRIPT)) dirname(FICHIER_SCRIPT) else
 source(file.path(DOSSIER_SCRIPT, "outils_tests.R"))
 
 # --- Outils (copies declarees, voir l'en-tete) -----------------------------------
-git_depot <- function(...) tryCatch(suppressWarnings(system2("git", c("-C", RACINE, ...), stdout = TRUE,
-                                                             stderr = FALSE)),
-                                    error = function(e) NULL)
-# Commit du depot, complete de "(arbre de travail modifie)" et de "(script non
-# suivi)" (definition de tests/puissance_t8.R).
-commit_depot <- function() {
-  h <- git_depot("rev-parse", "HEAD")
-  if (length(h) != 1L || !grepl("^[0-9a-f]{40}$", h)) return("inconnu")
-  if (length(git_depot("status", "--porcelain", "--untracked-files=no"))) h <- paste(h, "(arbre de travail modifi\u00e9)")
-  suivi <- tryCatch(suppressWarnings(system2("git", c("-C", RACINE, "ls-files", "--error-unmatch",
-                                                      "tests/calibration_mc_t8.R"),
-                                             stdout = FALSE, stderr = FALSE)),
-                    error = function(e) 1L)
-  if (!identical(as.integer(suivi), 0L)) h <- paste(h, "(script non suivi)")
-  h
-}
+# commit_depot() et motifs_non_versionnable() : tests/outils_tests.R (#205).
 # Plateforme de calcul (#171) : R, systeme, machine, BLAS, LAPACK. Champ du
 # contexte : des tranches calculees sur des plateformes differentes ne se
 # combinent pas (certains comptes dependent de l'optimiseur : regime de
@@ -385,16 +377,6 @@ empreintes_code <- function(script_depot, lus = character(0)) {
           sprintf("script ex\u00e9cut\u00e9 (%s) %s", lieu(FICHIER_SCRIPT, script_depot), md5(FICHIER_SCRIPT)),
           vapply(lus, function(f) sprintf("%s %s", f, md5(file.path(RACINE, f))), "")), collapse = " ; ")
 }
-# Motifs qui interdisent --ecrire (tableau versionne) : commit non propre ou
-# code hors du depot ; quoi : "des tranches" ou "de la combinaison".
-motifs_non_versionnable <- function(commit, empreintes, quoi = "des tranches") {
-  m <- character(0)
-  if (!grepl("^[0-9a-f]{40}$", commit))
-    m <- c(m, sprintf("commit %s \u00ab %s \u00bb (arbre de travail modifi\u00e9, script non suivi ou git indisponible)", quoi, commit))
-  if (grepl("hors d\u00e9p\u00f4t", empreintes, fixed = TRUE))
-    m <- c(m, sprintf("tests/outils_tests.R ou script ex\u00e9cut\u00e9s %s hors du d\u00e9p\u00f4t", quoi))
-  m
-}
 # Chemin (existant) sous la racine du depot (constat R2 d'audit) : --sortie et
 # --brut doivent viser hors du depot ; --ecrire est le seul chemin qui ecrit
 # dans le depot.
@@ -406,6 +388,23 @@ sous_depot <- function(chemin) {
   r <- normalizePath(RACINE, winslash = "/", mustWork = TRUE)
   if (.Platform$OS.type == "windows") { d <- tolower(d); r <- tolower(r) }
   identical(d, r) || startsWith(d, paste0(r, "/"))
+}
+# Gardes anticipees de --ecrire (#205), des l'analyse des options, avant les
+# lois discretes et la lecture des tranches : commit et code de la
+# combinaison (commit courant propre, code du depot) et dossier
+# docs/tableaux/ ; memes refus qu'au moment d'ecrire, ou ils sont repris
+# (l'etat du depot peut changer entre-temps), avec ceux des tranches, lus
+# dans leurs fichiers.
+if (OPT_ECRIRE) {
+  nv0 <- motifs_non_versionnable(commit_depot("tests/calibration_mc_t8.R"),
+                                 empreintes_code("tests/calibration_mc_t8.R", SCRIPT_72), "de la combinaison")
+  if (length(nv0)) {
+    message("--combiner : REFUS -- --ecrire refuse (tableau versionne dans docs/tableaux/) : ", paste(nv0, collapse = " ; "),
+            " -- relancer sur un arbre propre, ou utiliser --sortie DOSSIER hors du depot")
+    quit(status = 1L)
+  }
+  if (!dir.exists(file.path(RACINE, "docs", "tableaux")))
+    stop("dossier de sortie introuvable : ", file.path(RACINE, "docs", "tableaux"))
 }
 ecrire_console <- function(x) writeLines(enc2utf8(x), useBytes = TRUE)
 ligne_md <- function(...) paste0("| ", paste(..., sep = " | "), " |")
@@ -450,10 +449,12 @@ LOI_LIGNE <- stats::setNames(unname(LOI_STAT), unname(STAT_LIGNE[names(LOI_STAT)
 LIB_LOI <- c(suites = "suites (Swed-Eisenhart, 4 et 4)", mk = "Mann-Kendall (loi mahonienne)",
              smirnov = "Smirnov (4 et 4)", spearman = "Spearman (loi de permutation)",
              coxstuart = "Cox-Stuart (Binomiale(4, 1/2))")
-# Lignes sans niveau (sens "rejeter", H0 fausse sous le modele ajuste).
+# Lignes sans niveau (sens "rejeter", H0 fausse sous le modele ajuste). La
+# ligne Fisher, diagnostic sans sens ni p retenue depuis #169, n'y figure
+# plus.
 LIGNES_SANS_NIVEAU <- c(
-  "Test de Student sur la pente (lm(y~x))" = "sans objet (H0 \u03b2 = 0 fausse ; sens \u00ab rejeter \u00bb)",
-  "Test de Fisher (significativite globale)" = "sans objet (H0 \u03b2 = 0 fausse ; sens \u00ab rejeter \u00bb)",
+  "Test de Pitman sur la pente (lien positif pertes / volume)" =
+    "sans objet (H0 d'\u00e9changeabilit\u00e9, y ind\u00e9pendant de x, fausse sous le mod\u00e8le r\u00e9glementaire \u00e0 volumes variables ; sens \u00ab rejeter \u00bb)",
   "Equivalence de la constante a zero (TOST)" =
     "sans objet (H0 \\|a\\| \u2265 \u0394 fausse sous le mod\u00e8le ajust\u00e9, a = 0 ; sens \u00ab rejeter \u00bb)")
 LIGNE_ESD <- "Valeurs aberrantes multiples (ESD generalise)"
@@ -750,8 +751,8 @@ tableaux <- function(cpt, stats, lignes) {
   L <- c(L, "", paste("n : r\u00e9plications trait\u00e9es ; p retenue : r\u00e9plications o\u00f9 la ligne a une p retenue. Taux =",
                       "rejets / p retenues (niveau conditionnel \u00e0 l'existence d'une p retenue) ; la fr\u00e9quence",
                       "inconditionnelle du verdict, rejets / n, se lit dans T2 (suite), colonnes ALERTE et ECHEC.",
-                      "Sens \u00ab ne pas rejeter \u00bb : p < \u03b1 donne ALERTE ou ECHEC, p < \u03b1/2 ECHEC. Pour les trois lignes",
-                      "en sens \u00ab rejeter \u00bb (pente, Fisher, TOST), p < \u03b1 est un OK : les colonnes donnent une",
+                      "Sens \u00ab ne pas rejeter \u00bb : p < \u03b1 donne ALERTE ou ECHEC, p < \u03b1/2 ECHEC. Pour les deux lignes",
+                      "en sens \u00ab rejeter \u00bb (pente, TOST), p < \u03b1 est un OK : les colonnes donnent une",
                       "puissance conditionnelle, sans r\u00e9f\u00e9rence."), "",
          paste("\u2020 Loi de r\u00e9f\u00e9rence discr\u00e8te : r\u00e9f\u00e9rence = (n_exacte \u00d7 taille atteignable + n_MC \u00d7 taille liss\u00e9e)",
                "/ (n_exacte + n_MC), sur les natures de la p retenue compt\u00e9es en T2 (suite) ; r\u00e9f\u00e9rence",
@@ -775,7 +776,7 @@ tableaux <- function(cpt, stats, lignes) {
                        k("nat|aucune"), k("v|OK"), k("v|ALERTE"), k("v|ECHEC"), k("v|INFO")))
   }
   L <- c(L, "", paste("Nature : champ nature_p de la ligne (exacte ; Monte-Carlo ; asymptotique, repli nomm\u00e9",
-                      "compris ; autre : p sous le mod\u00e8le auxiliaire MCO, TOST, Student sur la pente et Fisher).",
+                      "compris ; autre : p sous le mod\u00e8le auxiliaire pond\u00e9r\u00e9 du TOST, exacte par permutation de Pitman sur la pente).",
                       "Inop\u00e9rant : d\u00e9tail pr\u00e9fix\u00e9 \u00ab TEST INOPERANT \u00bb (r\u00e8gle R1), compt\u00e9 aussi en diagnostic."), "")
   # --- T3
   L <- c(L, "### T3 -- r\u00e9gimes, r\u00e9plications \u00e9cart\u00e9es, motifs, contr\u00f4les de la famille H, rapport de vraisemblance, IC bootstrap", "",
@@ -1044,7 +1045,7 @@ if (length(FICHIERS_COMB)) {
   if (isFALSE(c72$e4$ok)) refuser("controle (e4) en ECHEC -- ", c72$e4$texte)
   # --ecrire exige un commit propre et le code du depot pour les tranches ET
   # pour la combinaison elle-meme (constat R1 d'audit).
-  COMMIT_COMB <- commit_depot()
+  COMMIT_COMB <- commit_depot("tests/calibration_mc_t8.R")
   EMPREINTES_COMB <- empreintes_code("tests/calibration_mc_t8.R", SCRIPT_72)
   nv <- c(motifs_non_versionnable(ctx[["commit"]], ctx[["empreintes"]]),
           motifs_non_versionnable(COMMIT_COMB, EMPREINTES_COMB, "de la combinaison"))
@@ -1095,7 +1096,7 @@ if (length(FICHIERS_COMB)) {
 ###############################################################################
 # Commit lu au debut du calcul (moteur et script charges), et non a la fin :
 # une tranche longue ne doit pas consigner un commit fait pendant son calcul.
-COMMIT <- commit_depot()
+COMMIT <- commit_depot("tests/calibration_mc_t8.R")
 EMPREINTES <- empreintes_code("tests/calibration_mc_t8.R", SCRIPT_72)
 INTEGRITE <- character(0)          # libelles des controles en echec
 CONTROLES <- character(0)          # lignes "libelle : OK / ECHEC"
