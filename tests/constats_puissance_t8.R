@@ -390,7 +390,15 @@
 #  produisent sur un arbre de travail propre (commit cite resoluble), par
 #  --partie tost --ecrire docs/tableaux, --partie normalite --ecrire
 #  docs/tableaux, --partie tost-frontiere --ecrire docs/tableaux et --partie
-#  pitman --ecrire docs/tableaux. Garde d'ecrasement (#173, garde_ecrasement() de
+#  pitman --ecrire docs/tableaux. Garde de l'arbre propre (#205,
+#  motifs_non_versionnable() de tests/outils_tests.R) : pour les parties qui
+#  ecrivent et un DOSSIER sous la racine du depot (ecrit versionnable ; un
+#  DOSSIER hors du depot n'est pas garde), --ecrire est REFUSE (code 1, rien
+#  d'ecrit) si le commit lu au debut du calcul (commit_depot(), cite par le
+#  T0 de la console et des fichiers) n'est pas un SHA nu (arbre de travail
+#  modifie, script non suivi ou git indisponible) ; evaluee des l'analyse
+#  des options, avant tout calcul, puis de nouveau avant l'ecriture, sur ce
+#  commit et sur le commit courant. Garde d'ecrasement (#173, garde_ecrasement() de
 #  tests/outils_tests.R, avant toute ecriture) : --ecrire est REFUSE (code
 #  1, aucun des fichiers de l'execution ecrit) si l'un des fichiers cibles
 #  est suivi par git, ou existe sans que git puisse dire s'il l'est (un
@@ -468,7 +476,37 @@ DOSSIER_SCRIPT <- local({
 })
 source(file.path(DOSSIER_SCRIPT, "outils_tests.R"))
 
-# commit_depot() : tests/outils_tests.R (#205).
+# commit_depot() et motifs_non_versionnable() : tests/outils_tests.R (#205).
+
+# Commit lu une fois, au debut du calcul (#205) : cite par le T0 de la
+# console et par celui de chaque fichier ecrit ; une execution longue ne
+# consigne pas un commit fait pendant son calcul.
+COMMIT <- commit_depot("tests/constats_puissance_t8.R")
+# Garde anticipee de l'arbre propre (#205) : avec --ecrire vers un DOSSIER
+# sous la racine du depot (ecrit versionnable ; hors du depot, aucune garde,
+# comme --sortie des autres scripts) et une partie qui ecrit, avant tout
+# calcul, refus (code 1, rien d'ecrit) si le commit n'est pas un SHA nu
+# (arbre de travail modifie, script non suivi ou git indisponible) ; reprise
+# avant l'ecriture, sur ce commit et sur le commit courant (l'etat du depot
+# peut changer pendant le calcul). Aucune ligne d'empreintes dans ce script
+# (empreintes = "" : seul le motif du commit s'applique).
+# sous_depot() : copie de tests/taux_franchissement_reperes.R (chemin
+# existant sous la racine du depot).
+sous_depot <- function(chemin) {
+  # separateur "/" sur toutes les plateformes (normalizePath() rend des "\\"
+  # sous Windows, ou .Platform$file.sep vaut pourtant "/") ; casse ignoree
+  # sous Windows, dont le systeme de fichiers ne la distingue pas
+  d <- normalizePath(chemin, winslash = "/", mustWork = TRUE)
+  r <- normalizePath(RACINE, winslash = "/", mustWork = TRUE)
+  if (.Platform$OS.type == "windows") { d <- tolower(d); r <- tolower(r) }
+  identical(d, r) || startsWith(d, paste0(r, "/"))
+}
+refus_non_versionnable <- function(nv) {
+  message("--ecrire refuse (tableau versionne) : ", paste(nv, collapse = " ; "),
+          " -- aucun fichier ecrit ; relancer sur un arbre propre")
+  quit(status = 1L)
+}
+ECRIRE_VERSIONNABLE <- !is.na(OPT_ECRIRE) && sous_depot(OPT_ECRIRE)
 
 # Garde d'ecrasement anticipee (#205) : les chemins cibles de --ecrire ne
 # dependent que des options (partie, dossier) et de la date ; controles ici,
@@ -483,6 +521,10 @@ chemins_118 <- function(parties) stats::setNames(
   parties)
 PARTIES_118 <- c(if (OPT_PARTIE %in% c("tout", "tost")) "tost", if (OPT_PARTIE %in% c("tout", "normalite")) "normalite",
                  if (OPT_PARTIE == "tost-frontiere") "tost-frontiere", if (OPT_PARTIE == "pitman") "pitman")
+if (ECRIRE_VERSIONNABLE && length(PARTIES_118)) {
+  nv0 <- motifs_non_versionnable(COMMIT, "", "de l'ex\u00e9cution")
+  if (length(nv0)) refus_non_versionnable(nv0)
+}
 if (!is.na(OPT_ECRIRE) && length(PARTIES_118)) garde_ecrasement(chemins_118(PARTIES_118), OPT_REMPLACER, RACINE)
 
 # Plateforme de calcul (#171) : R, systeme, machine, BLAS, LAPACK (copie
@@ -546,7 +588,7 @@ sortie <- c(
   entete_md(c("Grandeur", "Valeur")),
   ligne_md("Plateforme de calcul (R, syst\u00e8me, machine, BLAS, LAPACK)", plateforme_calcul()),
   ligne_md("G\u00e9n\u00e9rateur", paste(ENGINE_RNG_KIND, collapse = ", ")),
-  ligne_md("Commit", commit_depot("tests/constats_puissance_t8.R")),
+  ligne_md("Commit", COMMIT),
   ligne_md("Script", "tests/constats_puissance_t8.R (hors CI ; protocole dans l'en-t\u00eate)"), "")
 controles <- character(0)
 
@@ -1826,6 +1868,13 @@ if (!is.na(OPT_ECRIRE) && length(FICHIERS_118)) {
   if (!INTEGRITE) {
     message("--ecrire : controles d'integrite en echec, aucun fichier ecrit")
   } else {
+    # Gardes reprises avant d'ecrire (#205) : commit du debut du calcul, et
+    # commit courant (l'etat du depot a pu changer pendant le calcul).
+    if (ECRIRE_VERSIONNABLE) {
+      nv1 <- c(motifs_non_versionnable(COMMIT, "", "de l'ex\u00e9cution"),
+               motifs_non_versionnable(commit_depot("tests/constats_puissance_t8.R"), "", "\u00e0 l'\u00e9criture"))
+      if (length(nv1)) refus_non_versionnable(nv1)
+    }
     REMPLACES <- garde_ecrasement(CHEMINS_118, OPT_REMPLACER, RACINE)
     for (nom in names(FICHIERS_118)) {
       f <- FICHIERS_118[[nom]]
@@ -1838,7 +1887,7 @@ if (!is.na(OPT_ECRIRE) && length(FICHIERS_118)) {
         entete_md(c("Grandeur", "Valeur")),
         ligne_md("Plateforme de calcul (R, syst\u00e8me, machine, BLAS, LAPACK)", plateforme_calcul()),
         ligne_md("G\u00e9n\u00e9rateur", paste(ENGINE_RNG_KIND, collapse = ", ")),
-        ligne_md("Commit", commit_depot("tests/constats_puissance_t8.R")),
+        ligne_md("Commit", COMMIT),
         ligne_md("Script", sprintf("tests/constats_puissance_t8.R --partie %s (hors CI ; protocole dans l'en-t\u00eate)", nom)),
         ligne_remplacement(REMPLACES, chemin), "",
         f$section, "### Contr\u00f4les d'int\u00e9grit\u00e9", "", paste("-", f$controles), "")

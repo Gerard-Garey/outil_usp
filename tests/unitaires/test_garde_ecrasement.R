@@ -25,8 +25,10 @@
 #  scripts qui ont --ecrire evalue ses gardes (arbre propre, ecrasement,
 #  dossier cible) avant le premier appel couteux (calcul, ou lecture des
 #  tranches de --combiner) ; execution sur un depot git temporaire : refus
-#  avant tout calcul si docs/tableaux/ manque, si l'arbre de travail est
-#  modifie, ou si un tableau du jour est suivi (constats_puissance_t8.R).
+#  avant tout calcul des cinq scripts si docs/tableaux/ manque ou si l'arbre
+#  de travail est modifie, et de constats_puissance_t8.R si un tableau du
+#  jour est suivi ; constats_puissance_t8.R --ecrire hors du depot, arbre
+#  modifie : aucun refus (seul l'ecrit versionnable est garde).
 #  Les tests qui demandent git sont sautes, avec message, si git manque.
 ###############################################################################
 
@@ -434,7 +436,7 @@ ordre_appels <- function(f) {
 }
 GARDES_ANTICIPEES <- list(
   puissance_t8.R = c("motifs_non_versionnable", "garde_ecrasement"),
-  constats_puissance_t8.R = "garde_ecrasement",
+  constats_puissance_t8.R = c("motifs_non_versionnable", "garde_ecrasement"),
   calibration_mc_t8.R = "motifs_non_versionnable",
   taux_franchissement_reperes.R = c("motifs_non_versionnable", "garde_ecrasement"),
   conservatisme_interieur_t8.R = c("motifs_non_versionnable", "garde_ecrasement"))
@@ -497,12 +499,17 @@ if (GIT_OK) {
   CAS_A <- list(puissance_t8.R = c("--ecrire", "--volet", "A", "--R", "20"),
                 calibration_mc_t8.R = c("--combiner", "tranche-absente.txt", "--ecrire"),
                 taux_franchissement_reperes.R = c("--ecrire", "--issue", "999", "--R", "1"),
-                conservatisme_interieur_t8.R = c("--combiner", "tranche-absente.txt", "--ecrire"))
+                conservatisme_interieur_t8.R = c("--combiner", "tranche-absente.txt", "--ecrire"),
+                constats_puissance_t8.R = c("--partie", "tost", "--ecrire", "docs/tableaux", "--R", "1"))
   # (1) arbre propre, docs/tableaux/ absent : refus avant tout calcul
+  # (constats_puissance_t8.R : --ecrire DOSSIER, refus d'usage du dossier
+  # inexistant)
   for (sc in names(CAS_A))
     verifier(sprintf("%s %s, docs/tableaux/ absent : refus (code 1) avant tout calcul (#205)", sc,
                      paste(CAS_A[[sc]], collapse = " ")),
-             refus_avant_calcul(lancer_a(sc, CAS_A[[sc]]), "dossier de sortie introuvable"))
+             refus_avant_calcul(lancer_a(sc, CAS_A[[sc]]),
+                                if (sc == "constats_puissance_t8.R") "--ecrire : dossier inexistant"
+                                else "dossier de sortie introuvable"))
   # (2) garde d'ecrasement anticipee de constats_puissance_t8.R
   md5_a <- tools::md5sum(file.path(da, suivis_a))
   o <- lancer_a("constats_puissance_t8.R", c("--partie", "tost", "--ecrire", "docs/autres", "--R", "1"))
@@ -518,9 +525,19 @@ if (GIT_OK) {
     verifier(sprintf("%s %s, arbre de travail modifie : refus (code 1) avant tout calcul, rien d'ecrit (#205)", sc,
                      paste(CAS_A[[sc]], collapse = " ")),
              { o <- lancer_a(sc, CAS_A[[sc]])
-               refus_avant_calcul(o, "--ecrire refuse (tableau versionne dans docs/tableaux/)") &&
+               refus_avant_calcul(o, "--ecrire refuse (tableau versionne") &&
                  any(grepl("arbre de travail modifi", o, fixed = TRUE)) &&
                  !length(list.files(file.path(da, "docs", "tableaux"))) })
+  # (4) constats_puissance_t8.R --ecrire vers un dossier HORS du depot, arbre
+  # de travail modifie : ecrit non versionnable, la garde de l'arbre propre
+  # ne s'applique pas (calcul mene a terme, fichier ecrit ; partie normalite,
+  # sans donnees, environ 8 s a R = 1)
+  hors_a <- tempfile("hors_depot_")
+  dir.create(hors_a)
+  o <- lancer_a("constats_puissance_t8.R", c("--partie", "normalite", "--ecrire", shQuote(hors_a), "--R", "1"))
+  verifier("constats_puissance_t8.R --partie normalite --ecrire DOSSIER hors du depot, arbre modifie : aucun refus, fichier ecrit (#205)",
+           is.null(attr(o, "status")) && !any(grepl("--ecrire refuse", o, fixed = TRUE)) &&
+             length(list.files(hors_a, pattern = "-issue118-normalite\\.md$")) == 1L)
 } else {
   cat("  [saute] gardes anticipees sur depot git temporaire : git introuvable\n")
 }

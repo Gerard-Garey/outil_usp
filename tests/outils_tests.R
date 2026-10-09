@@ -454,9 +454,9 @@ resumer_comparaison <- function(r, n_max = 10L) {
 #  tests/puissance_t8.R, tests/constats_puissance_t8.R,
 #  tests/calibration_mc_t8.R, tests/taux_franchissement_reperes.R et
 #  tests/balayage_echelles.R. Les scripts dont --ecrire refuse un commit non
-#  propre (tests/puissance_t8.R, tests/calibration_mc_t8.R,
-#  tests/taux_franchissement_reperes.R, tests/conservatisme_interieur_t8.R)
-#  evaluent motifs_non_versionnable()
+#  propre (tests/puissance_t8.R, tests/constats_puissance_t8.R,
+#  tests/calibration_mc_t8.R, tests/taux_franchissement_reperes.R,
+#  tests/conservatisme_interieur_t8.R) evaluent motifs_non_versionnable()
 #  des l'analyse des options, avant tout calcul (commit et empreintes
 #  courants), puis de nouveau avant d'ecrire (l'etat du depot peut changer
 #  pendant le calcul).
