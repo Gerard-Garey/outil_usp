@@ -2387,6 +2387,57 @@ test_mann_kendall <- function(v, plancher = 1) {
 
 # --- Hétéroscédasticité / structure de variance ------------------------------
 
+# --- Moindres carres par QR (#237) ------------------------------------------
+# Regressions auxiliaires de BP79, BP, White, Brown-Forsythe, RESET et du
+# modele pondere de la constante et du TOST (#237, forme A, decision Q-229-3
+# du mainteneur) : le corps de ces six fonctions appelait lm(), summary.lm()
+# et anova(), dont la surcharge (model.frame(), terms, objets) faisait
+# l'essentiel de la duree d'une replication du bootstrap. Elles calculent
+# desormais les memes grandeurs par .usp_mco_qr() : qr(X, tol = 1e-7) (sans
+# LAPACK, par defaut) appelle la routine LINPACK dqrdc2 (pivotage limite des
+# colonnes de norme negligeable), celle qu'appelle lm.fit() (dqrls), avec
+# la meme tolerance, donc meme rang et memes
+# coefficients ecartes ; qr.coef(), qr.resid() et qr.qty() appliquent les
+# memes transformations de Householder (dqrsl) que lm.fit() pour les
+# coefficients, les residus et les effets. Les formules fermees des appelants
+# reprennent pas a pas celles de summary.lm() (R^2 = mss / (mss + rss),
+# mss = somme des (f - moyenne(f))^2, f = y - residus ; erreurs-types par
+# chol2inv() du facteur R), d'anova.lm() (F d'un facteur : effet^2 /
+# (ssr / ddl)) et d'anova() a deux modeles (F de RESET, mis a NA s'il est
+# negatif), et chaque p-value est lue sous la meme loi de reference qu'avant.
+# Mesure (#237, 1 000 jeux tires sous graine, T = 8) : resultats identiques
+# au bit pres a ceux de lm() / anova() ; tests/unitaires/test_regressions_qr.R
+# confronte les six fonctions a une contre-implementation par lm() / anova().
+# Ecarts de comportement, hors des donnees que run_engine() accepte :
+# (i) les avertissements de summary.lm() et d'anova.lm() sur un ajustement
+# quasi parfait ne sont plus emis ; (ii) une entree non finie leve une
+# erreur, au texte de lm.fit() (NA/NaN/Inf in 'x' ou in 'y'), mais l'appel
+# en cause est .usp_mco_qr() et non lm.fit().
+# Valeurs manquantes : lm() ecarte les lignes ou la reponse est NA (na.omit) ;
+# BP, White et RESET reproduisent cette exclusion avant .usp_mco_qr(). BP79
+# et .usp_lm_pondere() ne la reproduisent pas : une reponse NA ou non finie y
+# leve l'erreur de .usp_mco_qr(), la ou lm() rendait un ajustement sur les
+# lignes restantes (.usp_lm_pondere()) ou une statistique NaN (BP79, u2 = Inf).
+# Ces entrees sont hors d'atteinte de run_engine() : z est fini, et les
+# appelants d'.usp_lm_pondere() passent d'abord par usp_pertes_constantes().
+#
+# .usp_mco_qr(X, y, effets = FALSE) : list(qr, coefficients, residuals,
+# effects) ; coefficients NA pour les colonnes ecartees par le pivotage (comme
+# coef(lm())) ; effects (Q'y) seulement si effets = TRUE, NULL sinon. Entrees
+# non finies : erreur, comme lm.fit(). Decomposition non finie a entrees
+# finies (mesure : x et y x 1e-320, sous-normaux) : lm.fit() rend des residus
+# NaN sans erreur, alors que qr.resid() et qr.qty() levent une erreur ; les
+# residus et les effets valent alors NaN, comme ceux de lm.fit() sur ce cas.
+.usp_mco_qr <- function(X, y, effets = FALSE) {
+  if (!all(is.finite(X))) stop("NA/NaN/Inf in 'x'")
+  if (!all(is.finite(y))) stop("NA/NaN/Inf in 'y'")
+  q <- qr(X, tol = 1e-7)
+  fini <- all(is.finite(q$qr)) && all(is.finite(q$qraux))
+  list(qr = q, coefficients = qr.coef(q, y),
+       residuals = if (fini) qr.resid(q, y) else rep(NaN, length(y)),
+       effects = if (!effets) NULL else if (fini) qr.qty(q, y) else rep(NaN, length(y)))
+}
+
 # --- Breusch-Pagan, VERSION ORIGINALE de 1979 (non robuste) ------------------
 # Breusch & Pagan (1979), Econometrica 47, 1287-1294, statistique du
 # multiplicateur de Lagrange telle que publiee :
@@ -2401,6 +2452,8 @@ test_mann_kendall <- function(v, plancher = 1) {
 # defaut que la version studentisee de Koenker (1981) corrige, en remplacant le
 # facteur 1/2 par une estimation empirique de la variance de u^2, ce qui conduit
 # a LM = T R^2 (fonction test_breusch_pagan ci-dessous).
+# Calcul (#237) : regression auxiliaire par .usp_mco_qr() ; valeurs ajustees
+# g - residus, comme lm.fit().
 #
 # Les deux versions sont conservees : l'originale parce qu'elle est celle qui
 # est citee dans la litterature et attendue dans un dossier, la robuste parce
@@ -2411,11 +2464,12 @@ test_breusch_pagan_original <- function(u2, reg) {
   if (usp_volumes_constants(reg) || mean(u2) <= 0)
     return(list(stat = NA_real_, p = NA_real_, ddl = NA_integer_))
   g <- u2 / mean(u2)
-  aux <- stats::lm(g ~ reg)
-  # Garde-fou R12 (#59, audit C2) : reg ecarte par lm() -> NA.
-  if (is.na(stats::coef(aux)["reg"]))
+  m <- .usp_mco_qr(cbind(1, reg), g)
+  # Garde-fou R12 (#59, audit C2) : reg ecarte par le pivotage -> NA.
+  if (is.na(m$coefficients[2L]))
     return(list(stat = NA_real_, p = NA_real_, ddl = NA_integer_))
-  sce <- sum((stats::fitted(aux) - mean(g))^2)   # somme des carres expliques
+  ajuste <- g - m$residuals
+  sce <- sum((ajuste - mean(g))^2)   # somme des carres expliques
   LM <- 0.5 * sce
   q <- 1
   list(stat = LM, p = .p_borne(1 - stats::pchisq(LM, q)), ddl = q)
@@ -2436,16 +2490,23 @@ test_breusch_pagan_original <- function(u2, reg) {
 # propres gardes (issue #110, voir test_white()) : moins de trois volumes
 # distincts, puis regression auxiliaire de rang deficient (tout coefficient
 # ecarte par lm(), et non plus le seul coefficient de reg).
+# Depuis #237, "ecarte par lm()" se lit : ecarte par le pivotage de lm.fit(),
+# que .usp_mco_qr() reproduit (meme routine, meme tolerance) ; les motifs
+# non_applicable gardent leur texte.
 
 # Breusch & Pagan (1979), Econometrica 47, 1287-1294 ; version studentisee
-# (robuste a la non-normalite) de Koenker (1981) : LM = n R^2.
+# (robuste a la non-normalite) de Koenker (1981) : LM = n R^2. n est la
+# longueur de u2, lignes NA comprises (comme avant #237).
 test_breusch_pagan <- function(u2, reg) {
   if (usp_volumes_constants(reg)) return(list(stat = NA_real_, p = NA_real_))
-  d <- data.frame(u2 = u2, reg = reg)
-  m <- stats::lm(u2 ~ reg, data = d)
-  if (is.na(stats::coef(m)["reg"])) return(list(stat = NA_real_, p = NA_real_))
-  R2 <- summary(m)$r.squared
-  LM <- length(u2) * R2
+  n <- length(u2)
+  if (anyNA(u2)) { garde <- !is.na(u2); u2 <- u2[garde]; reg <- reg[garde] }
+  m <- .usp_mco_qr(cbind(1, reg), u2)
+  if (is.na(m$coefficients[2L])) return(list(stat = NA_real_, p = NA_real_))
+  r <- m$residuals; f <- u2 - r
+  mss <- sum((f - mean(f))^2)
+  R2 <- mss / (mss + sum(r^2))
+  LM <- n * R2
   list(stat = LM, p = .p_borne(1 - stats::pchisq(LM, 1)))
 }
 
@@ -2511,11 +2572,17 @@ test_white <- function(u2, reg) {
                             "applicable"), k, k)))
   s <- (reg - mean(reg)) / diff(range(reg))
   u2 <- .usp_normaliser_echelle(u2)
-  m <- stats::lm(u2 ~ s + I(s^2))
-  if (anyNA(stats::coef(m)))
+  n <- length(u2)
+  if (anyNA(u2)) { garde <- !is.na(u2); u2 <- u2[garde]; s <- s[garde] }
+  # Regression auxiliaire par .usp_mco_qr() (#237) : base {1, s, s^2},
+  # coefficient ecarte par le pivotage de lm.fit() -> garde (b).
+  m <- .usp_mco_qr(cbind(1, s, s^2), u2)
+  if (anyNA(m$coefficients))
     return(na(paste("regression auxiliaire de White de rang deficient : terme ecarte",
                     "par lm() pour colinearite, test non applicable")))
-  LM <- length(u2) * summary(m)$r.squared
+  r <- m$residuals; f <- u2 - r
+  mss <- sum((f - mean(f))^2)
+  LM <- n * (mss / (mss + sum(r^2)))
   if (!is.finite(LM)) return(na("statistique LM non finie : test non applicable"))
   list(stat = LM, p = .p_borne(1 - stats::pchisq(LM, 2)), non_applicable = NA_character_)
 }
@@ -2532,14 +2599,23 @@ test_goldfeld_quandt <- function(u, reg) {
 }
 
 # Brown & Forsythe (1974), JASA 69, 364-367 (variante robuste de Levene).
+# Calcul par .usp_mco_qr() (#237) : F de l'ANOVA a un
+# facteur a deux groupes (x <= mediane, x > mediane) des ecarts absolus a la
+# mediane du groupe, F = effet^2 / (ssr / (n - 2)), effet = deuxieme
+# composante de Q'dev, comme anova(lm(dev ~ groupe)) ; lignes rangees groupe
+# bas puis groupe haut, ordre de tapply() avant #237 ; loi F(1, n - 2).
 test_brown_forsythe <- function(u, reg) {
   if (usp_volumes_constants(reg)) return(list(stat = NA_real_, p = NA_real_))
-  g <- factor(reg > stats::median(reg))
-  if (nlevels(g) < 2) return(list(stat = NA_real_, p = NA_real_))
-  dev <- unlist(tapply(u, g, function(v) abs(v - stats::median(v))))
-  gg <- rep(levels(g), tapply(u, g, length))
-  a <- stats::anova(stats::lm(dev ~ gg))
-  list(stat = a[["F value"]][1], p = .p_borne(a[["Pr(>F)"]][1]))
+  haut <- reg > stats::median(reg)
+  if (all(haut) || !any(haut)) return(list(stat = NA_real_, p = NA_real_))
+  u0 <- u[!haut]; u1 <- u[haut]
+  dev <- c(abs(u0 - stats::median(u0)), abs(u1 - stats::median(u1)))
+  m <- .usp_mco_qr(cbind(1, rep(c(0, 1), c(length(u0), length(u1)))), dev, effets = TRUE)
+  # Rang < 2 : anova() ne rendait que la ligne des residus (F NA).
+  if (m$qr$rank < 2L) return(list(stat = NA_real_, p = NA_real_))
+  ddl <- length(dev) - m$qr$rank
+  F <- (m$effects[[2L]]^2 / 1) / (sum(m$residuals^2) / ddl)
+  list(stat = F, p = .p_borne(stats::pf(F, 1, ddl, lower.tail = FALSE)))
 }
 
 # Regression simple non contrainte y = a + b*x + e (Student & Fisher, 1908/1922/1925)
@@ -2801,18 +2877,19 @@ usp_permutation_pente <- function(x, y, B = 999, seed = 20260831,
 # non_applicable (NA_character_ sur la branche calculee) :
 #   (0) volumes constants (R11, #59) ;
 #   (a) moins de trois volumes distincts : rang structurel k < 3, anova()
-#       comparerait sur k - 1 ddl sous le libelle F(2, T-3) ;
+#       (formule de F reprise depuis #237) comparerait sur k - 1 ddl sous
+#       le libelle F(2, T-3) ;
 #   (b) coefficient ecarte par lm() (rang deficient, colinearite exacte ou
 #       numerique) ;
-#   (c) statistique F non finie apres anova() (mesure : y identiquement nul,
+#   (c) statistique F non finie (mesure : y identiquement nul,
 #       F = 0/0 = NaN ; cause historique, avant .usp_normaliser_echelle() :
 #       sous-depassement des sommes de carres a x et y x 1e-163 et au-dela,
 #       voir ci-dessus) : non_applicable est NA si et seulement si la
 #       statistique est finie. Motif generique, comme la garde (c) de White.
 # x et y sont normalises par .usp_normaliser_echelle() (F invariant) avant
 # toute regression. Le garde-fou R12 sur le coefficient de x dans m0 est
-# couvert par anyNA(coef(m1)) (m1 contient x) ; il est conserve par regle
-# (#59).
+# couvert par anyNA(m1$coefficients) (m1 contient x) ; il est conserve par
+# regle (#59).
 test_reset <- function(x, y) {
   na <- function(motif) list(stat = NA_real_, p = NA_real_, non_applicable = motif)
   if (usp_volumes_constants(x)) return(na("volumes constants"))
@@ -2828,16 +2905,23 @@ test_reset <- function(x, y) {
   s <- (x - mean(x)) / diff(range(x))
   x <- .usp_normaliser_echelle(x)
   y <- .usp_normaliser_echelle(y)
-  m0 <- stats::lm(y ~ x - 1)                 # E[Y] = beta * X, sans constante
-  m1 <- stats::lm(y ~ x + I(x * s) + I(x * s^2) - 1)
-  if (is.na(stats::coef(m0)["x"]) || anyNA(stats::coef(m1)))
+  if (anyNA(y)) { garde <- !is.na(y); y <- y[garde]; x <- x[garde]; s <- s[garde] }
+  # Regressions par .usp_mco_qr() (#237).
+  m0 <- .usp_mco_qr(matrix(x, ncol = 1L), y)          # E[Y] = beta * X, sans constante
+  m1 <- .usp_mco_qr(cbind(x, x * s, x * s^2), y)
+  if (is.na(m0$coefficients[1L]) || anyNA(m1$coefficients))
     return(na(paste("regression auxiliaire RESET de rang deficient : terme ecarte",
                     "par lm() pour colinearite, test non applicable")))
-  a <- stats::anova(m0, m1)
-  stat <- a[["F"]][2]
+  # F d'anova(m0, m1) : ((rss0 - rss1) / (ddl0 - ddl1)) / (rss1 / ddl1), mis a
+  # NA s'il est negatif (stat.anova()), loi F(ddl0 - ddl1, ddl1).
+  ddl0 <- length(y) - m0$qr$rank; ddl1 <- length(y) - m1$qr$rank
+  rss0 <- sum(m0$residuals^2); rss1 <- sum(m1$residuals^2)
+  stat <- ((rss0 - rss1) / (ddl0 - ddl1)) / (rss1 / ddl1)
+  if (!is.na(stat) && stat < 0) stat <- NA_real_
   if (!is.finite(stat))
     return(na("statistique F non finie : test non applicable"))
-  list(stat = stat, p = .p_borne(a[["Pr(>F)"]][2]), non_applicable = NA_character_)
+  list(stat = stat, p = .p_borne(stats::pf(stat, ddl0 - ddl1, ddl1, lower.tail = FALSE)),
+       non_applicable = NA_character_)
 }
 
 # --- Modele auxiliaire pondere de la constante et du TOST (#215) ------------
@@ -2863,12 +2947,29 @@ usp_poids_gls <- function(x, pi) {
   w
 }
 
-# Regression ponderee de y sur x, poids usp_poids_gls(x, pi) (#215) :
-# summary() de lm(y ~ x, weights = w), ou NULL si les poids sont invalides.
+# Regression ponderee de y sur x, poids usp_poids_gls(x, pi) (#215), ou NULL
+# si les poids sont invalides. Rend list(coefficients = .), la matrice des
+# coefficients de summary(lm(y ~ x, weights = w)) : colonnes Estimate,
+# Std. Error, t value, Pr(>|t|), lignes "(Intercept)" et "x", la ligne "x"
+# absente si le pivotage l'a ecartee (garde-fou R12 des appelants). Calcul
+# par .usp_mco_qr() (#237), pas a pas comme lm.wfit()
+# et summary.lm() : QR de X sqrt(w), residus ramenes a l'echelle de y,
+# variance residuelle sum(w r^2) / (n - rang), erreurs-types par chol2inv()
+# du facteur R, t et p de Student a n - rang ddl.
 .usp_lm_pondere <- function(x, y, pi) {
   w <- usp_poids_gls(x, pi)
   if (is.null(w)) return(NULL)
-  summary(stats::lm(y ~ x, weights = w))
+  rw <- sqrt(w)
+  m <- .usp_mco_qr(cbind(`(Intercept)` = 1, x = x) * rw, y * rw)
+  q <- m$qr
+  r <- m$residuals / rw
+  p1 <- seq_len(q$rank)
+  ddl <- length(y) - q$rank
+  se <- sqrt(diag(chol2inv(q$qr[p1, p1, drop = FALSE])) * (sum(w * r^2) / ddl))
+  est <- m$coefficients[q$pivot[p1]]
+  t <- est / se
+  list(coefficients = cbind(Estimate = est, `Std. Error` = se, `t value` = t,
+                            `Pr(>|t|)` = 2 * stats::pt(abs(t), ddl, lower.tail = FALSE)))
 }
 
 # --- Test d'equivalence sur la constante (TOST) ------------------------------
@@ -2958,8 +3059,10 @@ test_tost_intercept <- function(x, y, pi, theta = 0.10, delta_abs = NULL) {
   # lm() y depend de la plateforme (BLAS, processeur, version de R). Mesure :
   # a = se = NaN sous le BLAS de reference et OpenBLAS 0.3.20 (noyaux Zen,
   # Haswell, SkylakeX) ; autre issue sur la CI (R 4.3.1, OpenBLAS 0.3.20,
-  # EPYC 7763). Hors du domaine de #145 : run_engine() n'atteint pas cette
-  # branche.
+  # EPYC 7763). Mesures faites avec lm(), avant #237 ; depuis, le calcul par
+  # .usp_mco_qr() rend le meme resultat que lm() sur la machine de #237
+  # (motif "statistique non definie" aux deux facteurs, sans erreur R). Hors
+  # du domaine de #145 : run_engine() n'atteint pas cette branche.
   if (!is.finite(p_bas) || !is.finite(p_haut))
     return(non_applicable("statistique non definie"))
   p <- max(p_bas, p_haut)           # regle du maximum (intersection-union)

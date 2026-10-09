@@ -13,6 +13,9 @@
 #  le commit du depot et les motifs de non-versionnement (commit_depot(),
 #  motifs_non_versionnable(), #205 ; commit_depot() sert aussi a
 #  balayage_echelles.R) ; R base uniquement (tools::md5sum() pour la garde).
+#  Porte aussi la contre-implementation par lm() / anova() des six
+#  regressions auxiliaires calculees par QR depuis #237 (contre_*(), en fin
+#  de fichier), lue par tests/unitaires/test_regressions_qr.R.
 ###############################################################################
 
 # Repertoire racine du depot : les scripts peuvent etre lances depuis la
@@ -612,4 +615,97 @@ inserer_t0 <- function(lignes, ajout) {
   fin <- t[1]
   while (fin < length(lignes) && startsWith(lignes[fin + 1L], "|")) fin <- fin + 1L
   append(lignes, ajout, after = fin)
+}
+
+# --- Contre-implementation par lm() / anova() des six regressions de #237 ----
+# Corps des six fonctions du moteur avant #237 (commit 1c244f7), gardes et
+# motifs compris, recopies a l'identique sous un nom propre : le moteur les
+# calcule depuis #237 par QR et formes fermees (.usp_mco_qr()). Servent de
+# reference independante a tests/unitaires/test_regressions_qr.R et aux
+# controles du script de mesure de #229 (recommandation d'actuary Q-A1-8) ;
+# a evaluer dans un environnement ou le moteur est charge (usp_volumes_constants(),
+# .usp_nb_volumes_distincts(), .usp_normaliser_echelle(), usp_poids_gls(),
+# .p_borne()), ce que fait ce fichier. Les avertissements de summary.lm() et
+# anova.lm() (ajustement quasi parfait) y sont emis comme avant #237.
+#   contre_bp79()  : test_breusch_pagan_original()
+#   contre_bp()    : test_breusch_pagan()
+#   contre_white() : test_white()
+#   contre_bf()    : test_brown_forsythe()
+#   contre_reset() : test_reset()
+#   contre_lm_pondere() : .usp_lm_pondere() (summary() de lm(y ~ x, weights = w))
+contre_bp79 <- function(u2, reg) {
+  n <- length(u2)
+  if (usp_volumes_constants(reg) || mean(u2) <= 0)
+    return(list(stat = NA_real_, p = NA_real_, ddl = NA_integer_))
+  g <- u2 / mean(u2)
+  aux <- stats::lm(g ~ reg)
+  if (is.na(stats::coef(aux)["reg"]))
+    return(list(stat = NA_real_, p = NA_real_, ddl = NA_integer_))
+  sce <- sum((stats::fitted(aux) - mean(g))^2)
+  LM <- 0.5 * sce
+  q <- 1
+  list(stat = LM, p = .p_borne(1 - stats::pchisq(LM, q)), ddl = q)
+}
+contre_bp <- function(u2, reg) {
+  if (usp_volumes_constants(reg)) return(list(stat = NA_real_, p = NA_real_))
+  d <- data.frame(u2 = u2, reg = reg)
+  m <- stats::lm(u2 ~ reg, data = d)
+  if (is.na(stats::coef(m)["reg"])) return(list(stat = NA_real_, p = NA_real_))
+  R2 <- summary(m)$r.squared
+  LM <- length(u2) * R2
+  list(stat = LM, p = .p_borne(1 - stats::pchisq(LM, 1)))
+}
+contre_white <- function(u2, reg) {
+  na <- function(motif) list(stat = NA_real_, p = NA_real_, non_applicable = motif)
+  if (usp_volumes_constants(reg)) return(na("volumes constants"))
+  k <- .usp_nb_volumes_distincts(reg)
+  if (k < 3)
+    return(na(sprintf(paste("moins de trois volumes distincts (k = %d) : regression",
+                            "auxiliaire de White {1, x, x^2} de rang %d, test non",
+                            "applicable"), k, k)))
+  s <- (reg - mean(reg)) / diff(range(reg))
+  u2 <- .usp_normaliser_echelle(u2)
+  m <- stats::lm(u2 ~ s + I(s^2))
+  if (anyNA(stats::coef(m)))
+    return(na(paste("regression auxiliaire de White de rang deficient : terme ecarte",
+                    "par lm() pour colinearite, test non applicable")))
+  LM <- length(u2) * summary(m)$r.squared
+  if (!is.finite(LM)) return(na("statistique LM non finie : test non applicable"))
+  list(stat = LM, p = .p_borne(1 - stats::pchisq(LM, 2)), non_applicable = NA_character_)
+}
+contre_bf <- function(u, reg) {
+  if (usp_volumes_constants(reg)) return(list(stat = NA_real_, p = NA_real_))
+  g <- factor(reg > stats::median(reg))
+  if (nlevels(g) < 2) return(list(stat = NA_real_, p = NA_real_))
+  dev <- unlist(tapply(u, g, function(v) abs(v - stats::median(v))))
+  gg <- rep(levels(g), tapply(u, g, length))
+  a <- stats::anova(stats::lm(dev ~ gg))
+  list(stat = a[["F value"]][1], p = .p_borne(a[["Pr(>F)"]][1]))
+}
+contre_reset <- function(x, y) {
+  na <- function(motif) list(stat = NA_real_, p = NA_real_, non_applicable = motif)
+  if (usp_volumes_constants(x)) return(na("volumes constants"))
+  k <- .usp_nb_volumes_distincts(x)
+  if (k < 3)
+    return(na(sprintf(paste("moins de trois volumes distincts (k = %d) : regression",
+                            "auxiliaire RESET {x, x^2, x^3} de rang %d, test non",
+                            "applicable"), k, k)))
+  s <- (x - mean(x)) / diff(range(x))
+  x <- .usp_normaliser_echelle(x)
+  y <- .usp_normaliser_echelle(y)
+  m0 <- stats::lm(y ~ x - 1)
+  m1 <- stats::lm(y ~ x + I(x * s) + I(x * s^2) - 1)
+  if (is.na(stats::coef(m0)["x"]) || anyNA(stats::coef(m1)))
+    return(na(paste("regression auxiliaire RESET de rang deficient : terme ecarte",
+                    "par lm() pour colinearite, test non applicable")))
+  a <- stats::anova(m0, m1)
+  stat <- a[["F"]][2]
+  if (!is.finite(stat))
+    return(na("statistique F non finie : test non applicable"))
+  list(stat = stat, p = .p_borne(a[["Pr(>F)"]][2]), non_applicable = NA_character_)
+}
+contre_lm_pondere <- function(x, y, pi) {
+  w <- usp_poids_gls(x, pi)
+  if (is.null(w)) return(NULL)
+  summary(stats::lm(y ~ x, weights = w))
 }

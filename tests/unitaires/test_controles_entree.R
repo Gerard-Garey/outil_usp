@@ -580,17 +580,33 @@ ligne_tost_coherente153 <- function(lt, r, x) {
 # Injections deterministes (voir ci-dessus).
 .echelle_orig153 <- .usp_echelle_exacte
 echelle_y_nul153 <- function(y0) function(v) if (isTRUE(all.equal(v, y0))) 0 * v else .echelle_orig153(v)
+# Depuis #237, la constante et le TOST ne passent plus par summary() mais
+# par .usp_lm_pondere() (QR) : la meme alteration de la matrice des
+# coefficients y est injectee (avec_pondere237()), summary() restant injectee
+# pour test_lm_complet() et pour le motif attendu (tost_motif_attendu153()).
+avec_pondere237 <- function(alterer, expr) {
+  e <- environment(run_engine)
+  orig <- get(".usp_lm_pondere", envir = e, inherits = FALSE)
+  assign(".usp_lm_pondere", function(...) {
+    m <- orig(...)
+    if (!is.null(m)) m$coefficients <- alterer(m$coefficients)
+    m
+  }, envir = e)
+  on.exit(assign(".usp_lm_pondere", orig, envir = e))
+  expr
+}
 avec_summary_nan153 <- function(expr) {
   e <- environment(run_engine)
   existait <- exists("summary", envir = e, inherits = FALSE)
   if (existait) orig <- get("summary", envir = e, inherits = FALSE)
+  alterer <- function(cf) { cf[1, 1:2] <- NaN; cf }
   assign("summary", function(object, ...) {
     s <- base::summary(object, ...)
-    if (inherits(object, "lm")) s$coefficients[1, 1:2] <- NaN
+    if (inherits(object, "lm")) s$coefficients <- alterer(s$coefficients)
     s
   }, envir = e)
   on.exit(if (existait) assign("summary", orig, envir = e) else rm("summary", envir = e))
-  expr
+  avec_pondere237(alterer, expr)
 }
 .tost_orig153 <- test_tost_intercept
 # Garde Cook atteinte a coup sur (usp_tests(), engine_plots_data()) : avant
@@ -645,13 +661,14 @@ avec_summary_sans_x153 <- function(expr) {
   e <- environment(run_engine)
   existait <- exists("summary", envir = e, inherits = FALSE)
   if (existait) orig <- get("summary", envir = e, inherits = FALSE)
+  alterer <- function(cf) cf[rownames(cf) != "x", , drop = FALSE]
   assign("summary", function(object, ...) {
     s <- base::summary(object, ...)
-    if (inherits(object, "lm")) s$coefficients <- s$coefficients[rownames(s$coefficients) != "x", , drop = FALSE]
+    if (inherits(object, "lm")) s$coefficients <- alterer(s$coefficients)
     s
   }, envir = e)
   on.exit(if (existait) assign("summary", orig, envir = e) else rm("summary", envir = e))
-  expr
+  avec_pondere237(alterer, expr)
 }
 verifier("Coherence TOST (#153, #168) : x ecarte par lm() (injection de summary() sans la ligne x) -> 'x ecarte' accepte, ligne au detail du garde-fou R12 ; meme reponse refusee quand lm() garde x ; reponse calculee refusee sous la condition R12",
          {
