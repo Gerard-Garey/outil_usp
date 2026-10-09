@@ -476,7 +476,9 @@ issue~\#189) \\
 \code{DOMAINE\_NUMERIQUE\_MIN},\newline \code{DOMAINE\_NUMERIQUE\_MAX},\newline
 \code{RATIO\_PLAUSIBLE\_MIN},\newline \code{RATIO\_PLAUSIBLE\_MAX} & constantes ($10^{-50}$~;
 $10^{50}$~; $0{,}1$~; $5$) & domaine numérique $[10^{-50}\,;10^{50}]$ de chaque valeur de $x_t$
-et de $y_t$ de la série retenue, hors duquel \code{engine\_valider\_donnees()} refuse~; plage
+et de $y_t$ de la série retenue, hors duquel \code{engine\_valider\_donnees()} refuse, et de
+chaque cellule observée du triangle Merz--Wüthrich, hors duquel \code{mw\_valider\_triangle()}
+refuse (issue~\#185)~; plage
 plausible $[0{,}1\,;5[$ du ratio $y_t/x_t$, lue par l'avertissement
 d'\code{engine\_valider\_donnees()} et par la ligne «~\code{Plausibilite du ratio y/x}~»
 d'\code{usp\_controle\_donnees()}~; conventions de l'outil, sans source réglementaire
@@ -512,7 +514,8 @@ $\hat\gamma$ est sur une borne de \code{BORNES\_GAMMA} sans démarrage à l'opti
 la condition de Kuhn et Tucker (issue~\#188, §\ref{sec:controles}) \\
 \code{mw\_valider\_triangle()} & \code{tri}, \code{T\_min}, \code{bareme}, \code{segment},
 \code{annexe} &
-\code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, $I$, $J$~; avertissement de crédibilité
+\code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, $I$, $J$~; refus d'une cellule observée
+hors du domaine numérique, un seul motif par triangle (issue~\#185)~; avertissement de crédibilité
 partielle sur $c(I + 1, \text{barème appliqué}) < 1$ (issue~\#131) \\
 \code{mw\_valider\_ajustement()} & \code{aj} (sortie de \code{mw\_ajuster()}),
 \code{msep} (champ \code{\$msep} de \code{mw\_msep()}) &
@@ -2396,7 +2399,8 @@ recherche.
 La méthode Merz--Wüthrich en compte donc \textbf{deux}, appelées à deux moments
 distincts de la chaîne. \code{mw\_valider\_triangle()} s'exécute \emph{avant}
 l'ajustement et ne lit aucune grandeur estimée~: elle porte sur les données fournies
-(dimensions, complétude de la partie observée, positivité des cumulés), puis sur le barème, le
+(dimensions, complétude de la partie observée, positivité des cumulés, domaine numérique des
+cellules observées depuis l'issue~\#185), puis sur le barème, le
 segment et l'annexe transmis, dont une valeur invalide est une erreur bloquante, sans erreur~R
 (issue~\#131). Ce second contrôle vient après celui des cellules, qu'il ne masque pas~: les
 erreurs s'additionnent, comme dans \code{engine\_valider\_donnees()} (mesuré sur le triangle de
@@ -2693,8 +2697,24 @@ identique au bit près (mesuré sur le jeu de contrôle multiplié par $2^{159}$
 l'échelle~1). Ce refus \textbf{renverse le choix de l'issue~\#88}, qui avait préféré des calculs
 protégés à tout seuil d'échelle~: entre la zone d'invariance et le défaut de calcul intercepté
 existaient des verdicts faux avec \code{ok = TRUE}, que le filet de \code{.engine\_calcul\_protege()}
-ne voit pas. Le triangle de la méthode Merz--Wüthrich n'a pas encore de domaine numérique
-(issue~\#185). La plage plausible du ratio, $[0{,}1\,;5[$, est elle aussi une convention de
+ne voit pas. Depuis l'issue~\#185, le même domaine, avec les mêmes constantes et les mêmes
+bornes incluses, s'applique à chaque cellule observée ($i + j \le I$) du triangle de la méthode
+Merz--Wüthrich~: \code{mw\_valider\_triangle()} la refuse (\code{ok = FALSE}, sans erreur R,
+tableau Merz--Wüthrich ci-dessous), par un seul motif par triangle, qui cite la première cellule
+fautive $(i, j)$, sa valeur, la borne franchie et le nombre de cellules observées hors du
+domaine, et rappelle que $\sigma_{\mathrm{USP}}$ et les tests sont invariants par un changement
+d'unité commun à toutes les cellules du triangle. Les motifs de cellule manquante, non finie ou
+non strictement positive restent émis, sans doublon. Le même défaut y existait~: mesuré sur le
+triangle de contrôle \code{tests/donnees/triangle\_mw.csv} multiplié par $10^{e}$, avec le
+moteur antérieur à l'issue (\code{run\_engine()}, méthode de réserve n\textsuperscript{o}~2,
+segment II-1, $B = 99$), $\sigma_{\mathrm{USP}}$ est égal à celui de l'échelle~1 à $10^{-12}$
+près en relatif à $e = -100$ et $-105$, mais \code{ok = TRUE} sans alerte avec un
+$\sigma_{\mathrm{USP}}$ faux de $-0{,}50~\%$ à $e = -110$ et de $-3{,}56~\%$ à $e = -120$
+(verdicts inchangés). Avec le moteur actuel, ces deux échelles sont refusées, et sur les
+99~échelles $e$ entier de $-52$ à $46$, pour lesquelles toutes les cellules observées restent
+dans le domaine, le triangle est accepté, avec un $\sigma_{\mathrm{USP}}$ égal à celui de
+l'échelle~1 à $2{,}9\cdot 10^{-15}$ près en relatif et aucun verdict différent (R~4.3.3, BLAS et
+LAPACK de référence, x86\_64). La plage plausible du ratio, $[0{,}1\,;5[$, est elle aussi une convention de
 l'outil sans source réglementaire (borne basse $0{,}1$ retenue par le mainteneur le
 28~septembre 2026, borne haute~5 inchangée)~; elle signale une erreur d'unité probable et ne
 refuse jamais~: hors de la plage, \code{engine\_valider\_donnees()} émet l'avertissement
@@ -3098,6 +3118,11 @@ chain-ladder exige la partie supérieure gauche complète~; une valeur non finie
 motif distinct d'une cellule manquante. \\
 Positivité des cumulés & $C(i,j) > 0$ & Les facteurs $F(i,j)$ et la pondération
 en $C(i,j)$ doivent être définis. \\
+Domaine numérique & chaque cellule observée ($i + j \le I$) dans $[10^{-50}\,;10^{50}]$, bornes
+incluses (\code{DOMAINE\_NUMERIQUE\_MIN}, \code{DOMAINE\_NUMERIQUE\_MAX}) & Convention de
+l'outil, sans source réglementaire (issue~\#185), mêmes constantes que pour les méthodes
+lognormales~: protège le calcul contre les échelles extrêmes (justification sous le tableau des
+méthodes lognormales). Un seul motif par triangle. Bloquant. \\
 Monotonie des cumulés & $C(i,j+1) \ge C(i,j)$ & Avertissement \emph{actuariel,
 sans fondement réglementaire}~: D(2)(h)(iii) ne pose qu'une
 proportionnalité en espérance et ne contraint pas $f_j \ge 1$. Un recul traduit
@@ -3149,7 +3174,8 @@ $\hat\sigma_j^2$ repose sur deux ou trois observations en fin de triangle. \\
 \textbf{Différence de nature.} Les contrôles lognormaux portent sur la
 \emph{plausibilité économique} des séries (ratio dans une plage admissible,
 amplitude des volumes), et, par le domaine numérique, sur la seule capacité du calcul en
-virgule flottante à traiter les montants, sans jugement économique (issue~\#145). Ceux de la méthode Merz--Wüthrich portent d'abord sur la
+virgule flottante à traiter les montants, sans jugement économique (issue~\#145)~; ce domaine
+vaut aussi, depuis l'issue~\#185, pour les cellules du triangle. Ceux de la méthode Merz--Wüthrich portent d'abord sur la
 \emph{géométrie} du triangle, dont dépend la simple définition des estimateurs~:
 un triangle non carré ou incomplet ne permet pas d'appliquer la formule du
 paragraphe~4. C'est pourquoi la plupart sont bloquants et non de simples
