@@ -888,6 +888,9 @@ $r(i,j)$, colonnes dégénérées exclues et consignées dans l'attribut \code{c
 (issue~\#60) \\
 \code{mw\_simuler\_triangle()}, \code{.mw\_stats()} & \code{aj}, vivier de
 résidus~; \code{aj} & triangle simulé~; vecteur de 13 statistiques \\
+\code{.mw\_pool\_residus()} & \code{aj}, \code{j\_degeneres} & vivier du bootstrap de Mack~:
+résidus retenus par \code{mw\_residus()}, redressés par $\sqrt{1 - h_{ij}}$, $1 - h_{ij}$ calculé
+comme $(S_j - C(i,j))/S_j$, puis recentrés (issue~\#46, section~\ref{sec:boot-mw}) \\
 \code{mw\_test\_*()}, \code{mw\_famille\_alpha()},
 \code{mw\_stat\_correlation\_dev()} & \code{aj}~; argument \code{j\_degeneres} des trois
 vérifications colonne par colonne de M1 et, depuis l'issue~\#60, de
@@ -1331,7 +1334,8 @@ l'état du générateur (l'objet \code{.Random.seed} de l'environnement global) 
   \emph{Graine}~: le même paramètre \code{seed}, posé une seule fois avant la boucle par
   \code{engine\_sous\_graine()}~; à chaque réplication,
   \code{mw\_simuler\_triangle()} tire avec remise, par \code{sample()}, les
-  résidus du vivier recentré. \emph{Portée}~: tous les résultats de Monte-Carlo
+  résidus du vivier, redressés par le levier puis recentrés (\code{.mw\_pool\_residus()},
+  issue~\#46, section~\ref{sec:boot-mw}), calculé une fois, sans tirage, avant la boucle. \emph{Portée}~: tous les résultats de Monte-Carlo
   de la branche Merz--Wüthrich (p-values Monte-Carlo, \code{sigma\_boot} et
   l'intervalle qui en est tiré). \emph{État}~: restauré.
 \item \code{sw\_loi\_nulle()}, appelée par \code{sw\_p\_loi\_nulle()} dans les
@@ -2030,8 +2034,8 @@ Paramètre propre $\sigma_{(\text{res},s,\mathrm{USP})}$ & \S\ref{sec:mw} &
 \code{mw\_parametre()} $\times$ \code{usp\_credibilite()} & sans objet & --- \\
 Résidus standardisés de Mack & \S\ref{sec:mw} & \code{mw\_residus()} &
 sans objet & --- \\
-Bootstrap semi-paramétrique & \S\ref{sec:mw} & \code{mw\_bootstrap()}
-(via \code{mw\_simuler\_triangle()} et \code{.mw\_stats()}) &
+Bootstrap semi-paramétrique & \S\ref{sec:boot-mw} & \code{mw\_bootstrap()}
+(via \code{.mw\_pool\_residus()}, \code{mw\_simuler\_triangle()} et \code{.mw\_stats()}) &
 sans objet & toutes les clés ci-dessus \\
 Leviers et DFBETA du triangle & \ref{mw:influence} & \code{mw\_influence()} &
 diagnostic, aucune p-value & --- \\
@@ -3550,6 +3554,68 @@ ne suppose que leur échangeabilité~: les p-values correspondantes sont donc
 \code{mw\_residus()}~: ceux des colonnes dégénérées, au sens du prédicat unique et selon
 l'ensemble figé à l'observé, en sont exclus (issue~\#60, §\ref{sec:mw}).
 
+\emph{Redressement du vivier par le levier} (issue~\#46, décision du mainteneur du 6~octobre
+2026, Q-E2r-46-1). Les résidus de Mack ne sont pas d'échelle unitaire. Sous le modèle de Mack à
+$\sigma_j$ connu, conditionnellement aux cumuls $C(\cdot,j)$ de la colonne, avec
+$S_j = \sum_i C(i,j)$ sur les $n_j$ cellules de la colonne et
+$\hat f_j = \sum_i C(i,j)\,F(i,j)/S_j$, on a $\operatorname{Var}\big(F(i,j)\big) =
+\sigma_j^2/C(i,j)$, $\operatorname{Cov}\big(F(i,j), \hat f_j\big) = \operatorname{Var}(\hat f_j) =
+\sigma_j^2/S_j$, d'où
+\[
+  \operatorname{Var}\big(F(i,j) - \hat f_j\big) = \sigma_j^2\Big(\frac{1}{C(i,j)} - \frac{1}{S_j}\Big),
+  \qquad\text{donc}\qquad
+  \operatorname{Var}\Big(\frac{\sqrt{C(i,j)}}{\sigma_j}\big(F(i,j) - \hat f_j\big)\Big) = 1 - h_{ij},
+\]
+avec $h_{ij} = C(i,j)/S_j$ le levier de la cellule dans l'estimation de $\hat f_j$ (colonne \code{levier} de
+\code{mw\_influence()}). Le vivier est donc formé des résidus redressés
+\[
+  \tilde r(i,j) = \frac{r(i,j)}{\sqrt{1 - h_{ij}}},
+\]
+de variance exactement~1 sous le modèle de Mack à $\sigma_j$ connu, puis recentré
+(\code{.mw\_pool\_residus()}). Le recentrage est nécessaire parce que la contrainte d'estimation de
+$\hat f_j$ est $\sum_i \sqrt{C(i,j)}\,r(i,j) = 0$, et non $\sum_i r(i,j) = 0$~: la moyenne du
+vivier redressé n'est pas nulle. Pour $n_j = 2$, $|r(i,j)| = \sqrt{1 - h_{ij}}$ et
+$|\tilde r(i,j)| = 1$ exactement avant recentrage. $1 - h_{ij}$ est calculé comme
+$\big(S_j - C(i,j)\big)/S_j$, somme des autres cellules de la colonne divisée par $S_j$, et non
+comme $1 - C(i,j)/S_j$, qui vaut~$0$ en virgule flottante dès qu'une cellule domine sa colonne
+d'un facteur de l'ordre de $10^{16}$ (mesuré sur le triangle de contrôle dont la première ligne
+est multipliée par $10^{17}$~: $1 - C/S = 0$, $(S - C)/S = 6{,}8\cdot 10^{-17}$, vivier fini)~;
+pour une telle cellule, le résidu $r(i,j)$ lui-même perd ses chiffres par annulation dans
+$F(i,j) - \hat f_j$, et le redressement agrandit cette erreur, limite antérieure à l'issue. Seul le
+vivier change~: \code{mw\_residus()}, les statistiques observées et répliquées et
+\code{mw\_simuler\_triangle()} sont inchangés. Avant l'issue, le vivier était
+$r(i,j) - \bar r$, de moyenne des carrés $0{,}7775$ sur le triangle de contrôle (la somme des
+carrés valant exactement $n_j - 1$ par colonne, fiche~\ref{mw:m2var})~: les triangles simulés
+étaient d'une dispersion réduite. Mesuré sur ce triangle~: sommes des $\tilde r^2$ par colonne
+$7{,}005$~; $5{,}987$~; $4{,}961$~; $3{,}950$~; $3{,}036$~; $2{,}000$ pour $n_j = 7, \ldots, 2$
+(contre $n_j - 1$ pour les $r^2$), moyenne des carrés du vivier recentré $0{,}9976$.
+
+\emph{Choix et statut.} Deux autres redressements ont été examinés à la spécification et non
+retenus~: une correction par colonne, $r(i,j)\sqrt{n_j/(n_j-1)}$, qui rend unitaire la moyenne
+des carrés de chaque colonne sans tenir compte de l'hétérogénéité des leviers à l'intérieur de
+la colonne, et une correction globale $\sqrt{N/(N-k)}$, qui ne corrige ni l'hétérogénéité entre
+colonnes ni celle des leviers. Le redressement retenu est une \emph{interprétation de l'outil}
+--- le redressement par le levier des modèles linéaires pondérés, appliqué à la régression de
+Mack ---, non une formule du règlement, qui ne prescrit pas de bootstrap~; aucune référence
+bibliographique n'est citée à son appui, aucune n'ayant été vérifiée dans le texte. Les résidus
+redressés ont la variance du modèle, mais ne sont ni indépendants ni échangeables (contrainte de
+colonne, leviers inégaux)~: l'échangeabilité que suppose le rééchantillonnage reste une
+approximation, qu'aucun théorème ne couvre pour ce test bootstrap et qu'aucune calibration des
+p-values de Monte-Carlo de la méthode à $T = 8$ ne mesure (issue~\#206~; les mesures de
+calibration de la section~\ref{sec:calib-asympt-mw} et de la suivante sont antérieures à
+l'issue).
+
+\emph{Effet mesuré} (triangle de contrôle, $B = 999$, graine 20260831, régénération de la
+référence par la CI, tableau \code{docs/tableaux/20261006-issue46-reserve2.md}).
+$\sigma_{\mathrm{USP}}$ est inchangé ($0{,}0497764613$), le bootstrap n'entrant pas dans son
+calcul. La médiane de \code{sigma\_boot} passe de $0{,}01636$ à $0{,}01845$, et les quantiles à
+$2{,}5~\%$ et $97{,}5~\%$ de \code{res\$ic\_bootstrap} de $[0{,}04353~;~0{,}05208]$ à
+$[0{,}04435~;~0{,}05398]$. Les p-values de Monte-Carlo de douze des treize vérifications qui en
+ont une changent~; un verdict change,
+celui de l'hétéroscédasticité résiduelle (Breusch--Pagan), dont la p-value passe de $0{,}086$
+(\code{ALERTE}) à $0{,}103$ (\code{OK}), ligne présentée comme \emph{à la frontière du seuil}
+(fiche~\ref{mw:m2bp}, visa du mainteneur du 6~octobre 2026).
+
 \begin{encadre}
 \textbf{Limite structurelle du rééchantillonnage de résidus.} Cette procédure
 tire dans la loi \emph{empirique} des résidus observés. Son hypothèse nulle est
@@ -4960,9 +5026,10 @@ Non établie : les résidus d'une colonne partagent $\hat f_j$ et $\hat\sigma_j$
 Bootstrap de résidus & $\hat p_{\mathrm{MC}}$ & p-value semi-paramétrique &
 Convergence en $B$ (Monte-Carlo) et en $I$ (validité bootstrap) &
 $\mathcal{O}(B^{-1/2})$ pour la première ; non établie pour la seconde &
-Échangeabilité des résidus standardisés &
+Échangeabilité des résidus redressés par le levier (issue~\#46, §\ref{sec:boot-mw}), de variance
+unitaire sous le modèle mais ni indépendants ni échangeables &
 \textbf{Ne permet pas de tester la normalité} : la loi nulle simulée est la loi
-empirique des résidus \\
+empirique des résidus~; calibration à $T = 8$ non établie (issue~\#206) \\
 
 \midrule
 \multicolumn{7}{@{}l@{}}{\textbf{(D) Convergence de l'estimateur du paramètre (méthode lognormale)}} \\
@@ -11370,7 +11437,13 @@ résidus.
 \Pval
 p-value de Monte-Carlo retenue. Calibration vérifiée par simulation sous $H_0$
 (1\,500 triangles $10\times10$)~: 10,7~\% de rejets au seuil nominal de 10~\% et
-4,7~\% au seuil de 5~\%.
+4,7~\% au seuil de 5~\%~; constat antérieur au redressement du vivier par le levier
+(issue~\#46, section~\ref{sec:boot-mw}), sans script versionné, non refait depuis, et qui ne porte
+pas sur $T = 8$ (issue~\#206). Sur le triangle de contrôle, la p-value de Monte-Carlo vaut
+$0{,}085$ ($B = 999$, graine 20260831, \code{ALERTE}), $0{,}095$ avant le redressement du vivier~;
+sur les vingt graines 20260831 à 20260850, de $0{,}078$ à $0{,}105$, \code{ALERTE} sur 15 graines
+(16 avant l'issue~\#46)~: ligne voisine du seuil, dont le verdict dépend de la graine
+indépendamment de l'issue (constat de simulation sur un seul triangle).
 
 \emph{Colonnes dégénérées dans le bootstrap.} L'ensemble des colonnes dégénérées (tolérance
 $10^{-12}$ relative, deux volets du prédicat) est déterminé sur le triangle observé et conservé dans chaque réplication,
@@ -11496,7 +11569,9 @@ p-value de Monte-Carlo retenue (clé \code{HomogF}, rejet en queue haute). Les $
 des ingrédients de la statistique~: calculées sur la loi de permutation d'une colonne prise
 isolément, qui n'est pas celle des facteurs sous le modèle de Mack, elles ne sont pas des
 p-values exactes au sens de l'ADR~0002, et la p-value $\chi^2(2K)$ qui les combine reste un
-complément non simulé.
+complément non simulé. Sur le triangle de contrôle, le verdict est \code{ALERTE} sur chacune des vingt graines
+20260831 à 20260850 ($B = 999$, p-value de Monte-Carlo de $0{,}062$ à $0{,}093$), avant comme après
+le redressement du vivier par le levier (issue~\#46, section~\ref{sec:boot-mw}).
 \Usage
 Ce test répond à la \emph{seconde} exigence du texte, distincte de la première~:
 même si la proportionnalité vaut dans chaque colonne, un facteur qui dériverait
@@ -11642,6 +11717,21 @@ rejets mesurés au seuil nominal de $10~\%$ (section~\ref{sec:calib-asympt-mw}),
 car $\hat\sigma_j^2$ est estimé sur la colonne même, ce qui réduit la dispersion
 des résidus standardisés et donc le $R^2$ de la régression auxiliaire~; c'est la
 contrainte exacte $\sum_i r(i,j)^2 = n_j - 1$ établie à la fiche~\ref{mw:m2var}.
+
+\emph{Sur le triangle de contrôle, une ligne à la frontière du seuil.} Depuis le redressement du
+vivier par le levier (issue~\#46, section~\ref{sec:boot-mw}), la p-value de Monte-Carlo y vaut
+$0{,}103$ ($B = 999$, graine 20260831), d'erreur de Monte-Carlo $0{,}0096$, et le verdict est
+\code{OK}~; elle valait $0{,}086$ (\code{ALERTE}) avant l'issue. La marge au seuil
+$\alpha = 0{,}10$, $0{,}003$, est inférieure à l'erreur de Monte-Carlo~: le passage d'\code{ALERTE}
+à \code{OK} n'est pas un constat sur les données mais l'effet, au voisinage du seuil, du changement
+de loi de référence et de l'aléa de simulation (visa du mainteneur du 6~octobre 2026, qui demande
+de présenter la ligne ainsi au dossier). Mesuré sur les vingt graines 20260831 à 20260850
+($B = 999$, \code{run\_engine()} avec le moteur avant et après l'issue)~: p-value de Monte-Carlo
+moyenne $0{,}094$ avant, $0{,}108$ après (de $0{,}094$ à $0{,}129$)~; \code{ALERTE} sur 14 graines
+avant, 3 après, le verdict passant d'\code{ALERTE} à \code{OK} sur 11 graines et ne passant
+d'\code{OK} à \code{ALERTE} sur aucune. Constat de simulation
+sur un seul triangle~: le verdict de cette ligne dépend de la graine, avant comme après l'issue.
+La calibration de cette p-value de Monte-Carlo à $T = 8$ n'est pas établie (issue~\#206).
 \Usage
 Ce test porte spécifiquement sur \emph{l'exposant~1} de la structure de variance
 $\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$. Un rejet suggère
@@ -11782,10 +11872,11 @@ p-value asymptotique~; et la voie de Monte-Carlo serait vide de sens, puisque
 tout triangle rééchantillonné de même géométrie vérifie la même identité, avec
 les mêmes $N$ et $k$. Constat de simulation à l'appui~: en rejouant hors moteur
 le bootstrap de résidus du triangle de contrôle (999 triangles produits par
-\code{mw\_simuler\_triangle()} sur le vivier de résidus recentré, graine
-20260831) et en recalculant $\operatorname{Var}(r)$ sur chacun, la valeur reste
-comprise entre $0{,}80741$ et $0{,}80769$, soit une étendue de
-$2{,}8\times10^{-4}$ autour de la référence $0{,}80769$.
+\code{mw\_simuler\_triangle()} sur le vivier de résidus redressés par le levier puis recentrés,
+section~\ref{sec:boot-mw}, graine 20260831) et en recalculant $\operatorname{Var}(r)$ sur chacun,
+la valeur reste comprise entre $0{,}80740$ et $0{,}80769$, soit une étendue de
+$2{,}9\times10^{-4}$ autour de la référence $0{,}80769$ (avant l'issue~\#46, vivier non redressé~:
+entre $0{,}80741$ et $0{,}80769$, étendue $2{,}8\times10^{-4}$).
 \Usage
 La contrainte change ce que ce diagnostic peut apporter, et il faut l'énoncer
 nettement~: \textbf{il ne détecte pas une mauvaise spécification de
@@ -13003,7 +13094,11 @@ Proportionnalité (pente) & 0,069 & 0,044 \\
 
 \noindent
 Toutes les valeurs sont compatibles avec les niveaux nominaux à l'intérieur de
-l'intervalle de confiance.
+l'intervalle de confiance. Ces fréquences ont été mesurées avant le redressement du vivier par le
+levier (issue~\#46, section~\ref{sec:boot-mw}), qui change la loi de référence de toutes les
+p-values de Monte-Carlo de la méthode, et avant les issues~\#60 et~\#90~; elles n'ont pas été
+refaites, ne portent pas sur $T = 8$, et aucun script versionné ne les produit. La calibration des
+p-values de Monte-Carlo de la méthode à $T = 8$ relève de l'issue~\#206.
 
 
 
@@ -13454,8 +13549,8 @@ crédibilité (§\ref{sec:mw}) & \code{mw\_parametre()}, \code{usp\_credibilite(
 Merz--Wüthrich~: résidus standardisés de Mack (§\ref{sec:mw}) &
 \code{mw\_residus()} \\
 Merz--Wüthrich~: bootstrap semi-paramétrique et p-values de Monte-Carlo
-(§\ref{sec:boot-mw}) & \code{mw\_bootstrap()}, \code{mw\_simuler\_triangle()},
-\code{.mw\_stats()} \\
+(§\ref{sec:boot-mw}) & \code{mw\_bootstrap()}, \code{.mw\_pool\_residus()} (vivier redressé
+par le levier, issue~\#46), \code{mw\_simuler\_triangle()}, \code{.mw\_stats()} \\
 Merz--Wüthrich~: tests et diagnostics M1 à M6 (sections~\ref{sec:mwm1}
 à~\ref{sec:mwm6}) & \code{mw\_tests()} \\
 Merz--Wüthrich~: leviers, DFBETA et contributions par année de survenance
@@ -13559,7 +13654,9 @@ modèle et un mode d'inférence différents.
   \emph{Portée.} Référence du bootstrap par rééchantillonnage des résidus, seul
   possible ici puisque le modèle de Mack ne spécifie aucune loi. Elle fonde la
   nature \emph{semi-paramétrique} des p-values de Monte-Carlo de cette méthode,
-  et donc la réserve exposée en section~\ref{sec:boot-mw}.
+  et donc la réserve exposée en section~\ref{sec:boot-mw}. Le redressement du vivier par le
+  levier (issue~\#46) ne lui est pas attribué~: c'est une interprétation de l'outil, présentée
+  comme telle dans cette section.
 
   \item G.\,C. Taylor, F.\,R. Ashe, \emph{Second moments of estimates of
   outstanding claims}, \emph{Journal of Econometrics}, 23(1), 1983, p.~37--61.
@@ -13628,6 +13725,12 @@ littérature consultée.
   mesuré, la loi $t(T-2)$ reste une approximation sans borne d'erreur connue, et les
   taux de C3 de la fiche~\ref{fiche:tost-constante} sont des puissances au point
   $a = 0$, non des niveaux.
+  \item \textbf{La validité du bootstrap de résidus de Mack à $T = 8$}, vivier redressé par le
+  levier (issue~\#46, section~\ref{sec:boot-mw}), n'est établie par aucune référence consultée~:
+  les résidus redressés ont la variance unitaire du modèle à $\sigma_j$ connu, mais ne sont ni
+  indépendants ni échangeables, et aucun théorème identifié ne couvre le test de Monte-Carlo qui
+  en résulte~; aucune référence n'a été vérifiée pour le redressement lui-même, et la calibration
+  des p-values de Monte-Carlo de la méthode à $T = 8$ n'est pas faite (issue~\#206).
 \end{enumerate}
 
 \medskip
@@ -13988,7 +14091,7 @@ fonction du moteur et jamais directement par \code{usp\_tests()} ou
 \code{mw\_tests()}~:\newline
 \code{sw\_loi\_nulle()}, \code{.imhof\_p\_sup0()}, \code{.runs\_dens()},\newline
 \code{.fisher\_combine()}, \code{.mw\_spearman\_p()}, \code{.mack\_moments\_Z()},\newline
-\code{mw\_simuler\_triangle()}, \code{.mw\_stats()}.\newline
+\code{mw\_simuler\_triangle()}, \code{.mw\_stats()}, \code{.mw\_pool\_residus()}.\newline
 Le préfixe d'un point ne définit pas cette catégorie~: \code{.shapiro\_sur()},
 \code{.mw\_lm\_intra()} et \code{.mw\_detail\_extrapolation()}, préfixées d'un
 point, sont appelées directement par \code{usp\_tests()} ou \code{mw\_tests()}
