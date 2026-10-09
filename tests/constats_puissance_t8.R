@@ -1176,7 +1176,7 @@ if (OPT_PARTIE == "tost-frontiere") {
     vapply(seq_len(nrow(CELL_FR)), function(k) {
       p <- pa$V[k, "p", ok]; f <- is.finite(p)
       lect <- function(al) if (na == "zero") "puissance (a = 0)" else lecture_fr(sum(p[f] < al), sum(f), al)
-      maj <- function(al) if (na == "zero") "—" else majorant_fr(sum(p[f] < al), sum(f), e, al)
+      maj <- function(al) if (na == "zero") "\u2014" else majorant_fr(sum(p[f] < al), sum(f), e, al)
       ligne_md(m$J$code, FRONT_FR[[na]], num(pa$a, 4), CELL_FR$poids[k], MARGES_FR[[CELL_FR$marge[k]]],
                paste(cell_txt(p[f], 0.10), collapse = " | "), lect(0.10), maj(0.10),
                paste(cell_txt(p[f], 0.05), collapse = " | "), lect(0.05), maj(0.05),
