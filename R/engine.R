@@ -7748,10 +7748,10 @@ mw_test_homogeneite_accident <- function(aj, j_degeneres = NULL) {
 # rho_k vaut +1 (ou chacun -1). Loi de reference : permutations
 # independantes des facteurs de chaque colonne. Les paires partagent une
 # colonne et ne sont PAS independantes : la formule tient par
-# conditionnement le long de la chaine. La paire k compare la colonne k
-# restreinte a ses n_k premieres lignes a la colonne k+1, qui a exactement
-# n_k facteurs ; quel que soit l'ordre des colonnes precedentes, rho_k = +1
-# (resp. -1) exige que la colonne k+1 reproduise (resp. renverse) cet ordre
+# conditionnement le long de la chaine. La paire k compare les facteurs
+# F(.,k-1), restreints a leurs n_k premieres lignes, aux n_k facteurs
+# F(.,k) ; quel que soit l'ordre des colonnes precedentes, rho_k = +1
+# (resp. -1) exige que F(.,k) reproduise (resp. renverse) cet ordre
 # restreint, avec probabilite 1/n_k!. D'ou p_min = min(1, 2 prod 1/n_k!),
 # n_k = poids + 1 facteurs par paire (mw_stat_correlation_dev()). Sans ex
 # aequo seulement.
