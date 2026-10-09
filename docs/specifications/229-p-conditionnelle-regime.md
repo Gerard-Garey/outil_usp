@@ -477,3 +477,16 @@ Les matrices sont toujours tirées à R_P = 1 000 complet, et une tranche y pren
 - « C1 seule » s'entend sans autre échec franc pour la même variante.
 - La ligne des intensités se lit par scénario, à α = 0,10, sur toutes les réplications, avec π de V1 (L4).
 - Une recommandation d'arrêt est consignée comme décision provisoire, révisable par le mainteneur.
+
+---
+
+## Annotation du 10 octobre 2026 : décision au point d'arrêt A2 (sous délégation)
+
+Consignée par la session principale, sur la lecture de la grille par `actuary` (tableau `docs/tableaux/20261009-issue229-grille.md`, `ba630a0` ; brut sur `claude/sauvegarde-229`, md5 `160d4591…`), en application de la délégation du mainteneur (PR #238, commentaires 6088971428 et 6088991201). Détail et chiffres : commentaire « Point d'arrêt A2 » de #229.
+
+- **Validation de la grille** : e* (cellules n ≥ 100) J1 0,0136 / 0,0182, J2 0,0169 / 0,0172 ; la ligne (g1) n'est pas déclenchée, la grille prédit.
+- **Lignes de la table** : arrêt (C2 franc) non ; C3 non ; C1 seule non ; **C4 en échec franc pour V3b et V3a** (perte maximale 0,083), non pour V3h (0,007), C4b décelable sur J2 ; marge > 2 e* non ; **intensités : oui pour A8** (π de V1 entre 0,13 et 0,17 sur toute la cible).
+- **Décision** : poursuite complète ; V3h retenue (déjà décidé à A1) ; **option P-J3 : non** (C4b décelable sur J2) ; B_max et jeux inchangés.
+- **Scénario A8 remplacé par A4** (ν = 4, rang s = 5, graine 20810005 inchangée). Critère fixé avant lecture : le plus grand ν de {6, 5, 4, 3} tel qu'au moins 3 cibles sur 5 aient π de V1 dans [0,2 ; 0,8] et au moins une π ≥ 0,2 + e*. π prédits de V1 à α = 0,10 pour ν = 4 : DAgo 0,217, JB 0,220, SF 0,232, Grubbs 0,189, Grubbsr 0,235 (ν = 5 rejeté, maximum 0,213). md5 (méthode L8) : ε `24b220ddef224d38e19eb4bb2a947b18`, Y `04c46e144ac2e23ea5959a28ad0d761d`. Le tableau du § 6 se lit avec A4 à la place de A8 ; la grille est relancée vers un nouveau tableau daté, sans remplacer celui du 09/10, qui est la pièce de A2.
+- **L15, lecture de C5 (ambiguïté tranchée par `actuary`, délégation)** : la grille prédit que des témoins de F_T dépendent du régime sur J3 (Intercept, AD, KS). Un témoin de C5 significatif compte comme « expliqué » si sa différence V3b − V1 mesurée a le signe prédit par la grille et reste à moins de e* de la prédiction ; sinon il suspend la lecture (§ 2.3).
+- **Pour A3** (relevé, non tranché) : la combinaison « C1 et C4 toutes deux en défaut » n'a pas de profil dans la table D1 à D5 ; si elle se présente, elle est décrite telle quelle et soumise au mainteneur.

@@ -349,11 +349,14 @@ GAMMA_SPEC <- c(J1 = -1.93433, J2 = -2.31999)
 # F_R = catalogue moins F_T.
 F_T <- c("AD", "CvM", "KS", "SW", "Lillie", "Intercept", "CUSUM", "LB1", "Runs", "Runsr", "Smirnov", "CoxStuart")
 F_8 <- c("BP", "BP79", "GQ", "BF", "Grubbs", "Grubbsr", "DAgo", "JB")
-# Scenarios de P (par. 6) : code, rang s, famille, parametre.
-SCENARIOS <- data.frame(code = c("H0", "H3", "C3", "C4", "A8", "A2"), s = 1:6,
-                        famille = c("H", "H", "C", "C", "A", "A"), par = c(0, 3, 3, 4, 8, 2),
+# Scenarios de P (par. 6) : code, rang s, famille, parametre. Decision A2
+# (09/10/2026, sous delegation, annotation de la specification) : A8 (nu = 8)
+# remplace par A4 (nu = 4), meme rang s = 5 et meme graine 20810005, la
+# puissance predite de V1 sur toute la cible de A8 etant sous 0,2.
+SCENARIOS <- data.frame(code = c("H0", "H3", "C3", "C4", "A4", "A2"), s = 1:6,
+                        famille = c("H", "H", "C", "C", "A", "A"), par = c(0, 3, 3, 4, 4, 2),
                         stringsAsFactors = FALSE)
-LIB_SCEN <- c(H0 = "H, k = 0", H3 = "H, k = 3", C3 = "C, \u03bb = 3", C4 = "C, \u03bb = 4", A8 = "A, \u03bd = 8", A2 = "A, \u03bd = 2")
+LIB_SCEN <- c(H0 = "H, k = 0", H3 = "H, k = 3", C3 = "C, \u03bb = 3", C4 = "C, \u03bb = 4", A4 = "A, \u03bd = 4", A2 = "A, \u03bd = 2")
 CIBLES <- list(H = c("BP", "BP79", "White", "GQ", "BF"), C = c("Grubbs", "Grubbsr", "DAgo", "JB", "SF"),
                A = c("DAgo", "JB", "SF", "Grubbs", "Grubbsr"))
 NIVEAU_HOLM <- 0.05
@@ -760,7 +763,10 @@ non_declarees <- Filter(function(cl) !any(vapply(DECLAREES, function(d) setequal
 LITTERAUX <- local({
   fs <- c(file.path(RACINE, "R", "engine.R"), list.files(file.path(RACINE, "tests"), pattern = "\\.R$", full.names = TRUE),
           list.files(file.path(RACINE, "tests", "unitaires"), pattern = "\\.R$", full.names = TRUE))
+  # Les deux scripts de #229 (grille et mesure emboitee) portent par
+  # construction les graines de #229 : ils sont exclus de la recherche.
   fs <- fs[!vapply(fs, meme_fichier, logical(1), b = file.path(RACINE, SCRIPT))]
+  fs <- fs[!vapply(fs, meme_fichier, logical(1), b = file.path(RACINE, "tests", "p_conditionnelle_regime_t8.R"))]
   v <- unlist(lapply(fs, function(f) {
     l <- readLines(f, warn = FALSE)
     as.numeric(unlist(regmatches(l, gregexpr("\\b20[0-9]{6}\\b", l, perl = TRUE))))
@@ -769,7 +775,7 @@ LITTERAUX <- local({
        n_fichiers = length(fs))
 })
 controle(!length(non_declarees) && !length(LITTERAUX$dans),
-         sprintf("(graines) %d graines list\u00e9es (script et mesure) : collisions d\u00e9clar\u00e9es (h\u00e9rit\u00e9es de #166) : %s ; non d\u00e9clar\u00e9es : %s ; litt\u00e9raux 20xxxxxx de %d fichiers (R/engine.R, tests/*.R, tests/unitaires/*.R, hors ce script) : maximum %.0f (dates comprises), dans les plages de #229 [%.0f ; %.0f[ : %s",
+         sprintf("(graines) %d graines list\u00e9es (script et mesure) : collisions d\u00e9clar\u00e9es (h\u00e9rit\u00e9es de #166) : %s ; non d\u00e9clar\u00e9es : %s ; litt\u00e9raux 20xxxxxx de %d fichiers (R/engine.R, tests/*.R, tests/unitaires/*.R, hors les deux scripts de #229) : maximum %.0f (dates comprises), dans les plages de #229 [%.0f ; %.0f[ : %s",
                  nrow(GRAINES), paste(vapply(COLLISIONS[!COLLISIONS %in% non_declarees], paste, "", collapse = " = "), collapse = " ; "),
                  if (length(non_declarees)) paste(vapply(non_declarees, paste, "", collapse = " = "), collapse = " ; ") else "aucune",
                  LITTERAUX$n_fichiers, LITTERAUX$max, GRAINE_V3B, GRAINE_GRILLE + 1000,
