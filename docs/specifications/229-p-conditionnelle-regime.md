@@ -403,3 +403,77 @@ Consignées par la session principale.
 - **Q-229-4, Q-A1-8, Q-A1-9, Q-A1-11** : lecture de (i1) après P2, contre-implémentation dans `tests/outils_tests.R`, brut complet (≈ 15 à 20 Mo), coût et ordre J2 → J3 → J1 puis P. **Approuvés.** La durée exacte est mesurée en P4 et annoncée avant le lancement.
 
 Prochain point d'arrêt : **A2**, après la grille (étape 4), qui tourne sur le moteur issu de #237 et #231.
+
+---
+
+## Annotation du 9 octobre 2026 : lecture des points ouverts de la grille
+
+Rédigée par l'agent actuary (IA) sur délégation du mainteneur (« les ambiguïtés de la spécification sont tranchées par `actuary` et consignées en annotation datée »), à la lecture de `tests/grille_regime_t8.R` (étape 4, avant toute exécution complète). Elle fixe la lecture des points que les § 2 et 4 laissent ouverts. Elle ne modifie ni le texte du critère (§ 2.1, 2.2), ni la règle A2 (§ 4.4), ni leurs seuils. Elle vaut pour la grille et, quand elle le dit, pour l'étape 6.
+
+**L0, lecture d'une condition prédite.**
+- *Au point* : le texte du § 2.2 appliqué aux taux prédits, intervalles compris (comptes prédits k = arrondi(n τ̂), IC de Clopper-Pearson sur (k, n)).
+- *Échec franc* (§ 4.4) : la condition est en défaut au point, et le reste quand chaque grandeur prédite est déplacée de e* dans le sens favorable à la variante, sans IC, comme l'exemple du § 4.4.
+- Une grandeur est un taux prédit, ou une différence de taux appariés (perte V1 − V3, gain, aggravation par rapport à V1). Une différence est une seule grandeur, déplacée de e*, comme dans l'exemple « différence de puissance prédite V1 − V3 > e* ».
+- Un état de V1 (sans distorsion, conservateur, libéral) est plausible si son taux prédit, déplacé d'au plus e*, y conduit. L'échec est franc s'il l'est pour tout état plausible de V1.
+
+**L1, échec franc par condition.**
+- C1a, C2b : selon L0, règles (a) et (b) de #175 ; l'aggravation est franche si l'écart à V1 du côté de la distorsion dépasse e*.
+- C1b : au point, McNemar significatif après Holm, n01 > n10 et borne basse de l'IC de τ_v > α. Franc si, de plus, τ_v − α > e*, τ_v − τ_V1 > e*, et si le McNemar est significatif sous les deux lectures de L10.
+- C2a, J2 : franc si moins de 5 statistiques de F_8 ont à la fois V1 peut-être hors bande (τ_V1 < réf/2 + e* ou > 3 réf/2 − e*) et la variante peut-être dans la bande (à moins de e* de la bande).
+- C2a, J3 : notons R les statistiques de F_8 dont V1 est hors bande de plus de e*, P celles dont V1 est peut-être hors bande, V celles dont la variante est peut-être dans la bande. Franc si |P ∩ V| < min(5, |R ∪ (P ∩ V)|), choix de m₃ le plus favorable à la variante. Si R ∪ (P ∩ V) est vide, la condition est vide et ne peut être en échec franc.
+- C3 : franc si la part prédite dépasse 1 % + e*, e* étant le plus grand des deux seuils du jeu (convention, C3 ne dépendant pas de α).
+- C4a : franc si le McNemar est significatif sous les deux lectures de L10, avec n10 > n01 et une perte V1 − V3 > e*.
+- C4b : franc si le gain prédit V3 − V1 est inférieur à −e* pour toutes les statistiques cibles de tous les scénarios.
+
+**L2, « C4 remplie avec une marge > 2 e* ».** Lecture littérale :
+- C4a et C4b remplies au point, et C4b décelable sous L10 ;
+- perte prédite V1 − V3 < −2 e* pour toute statistique de F_R, tout scénario et tout seuil ;
+- gain prédit > 2 e* à l'intérieur pour au moins une cible.
+
+Cette ligne ne se déclenchera presque jamais : la partie P reste à six scénarios, comme approuvé à A1. La grille rapporte la perte maximale et le gain maximal prédits.
+
+**L3, « C2 en échec franc (J2 ou J3 intérieur) ».**
+- La ligne porte sur C2a, ou C2b aux cellules intérieures de J2 et de J3.
+- Elle recommande l'arrêt si elle est déclenchée pour V3b, et donc pour V3h, qui lui est égale à l'intérieur.
+- Déclenchée pour V3a seule : profil D4 prédit pour V3a, la mesure se poursuit.
+- Un échec franc de C2b aux bords (J1, J2, J3) est rapporté comme « profil D4 prédit pour V3a ou V3b ; V3h non concernée » (V3h vaut V1 aux bords). Il ne déclenche pas la ligne d'arrêt.
+
+**L4, valeur de B des prédictions.** Les p̃ restent à B infini (§ 4.1), et T1 et T1 bis à B infini sont tabulés (§ 4.3). La grandeur prédite du critère est τ_v de la procédure, à son B. Toute comparaison à une mesure ou à une référence ((g1), (g3), C1 à C4, ligne des intensités de A2) porte donc sur la probabilité de rejet prédite π = P(p_mc < α | queues hi, lo) :
+- K suit une loi Binomiale(B, queue) ;
+- B vaut 999 pour V1, arrondi(999 q̂) pour V3a, min(999, arrondi(25 000 q̂)) pour V3b ; V3h comme V3b à l'intérieur, comme V1 aux bords ;
+- sens « haut » : π = P(K_hi ≤ k₁) ; sens « bas » : π = P(K_lo ≤ k₁) ; sens « deux » : π = P(K_hi ≤ k₂) + P(K_lo ≤ k₂), exact puisque K_hi + K_lo ≥ B > 2 k₂ ;
+- k₁ et k₂ sont les plus grands k tels que (1 + k)/(B + 1) < α et 2(1 + k)/(B + 1) < α, évalués comme dans `engine_p_mc()`.
+
+C'est la formule des tailles lissées du T0 de #221. Sous la loi mahonienne exacte (T = 8), elle redonne 0,07107 et 0,03355 à B = 999, et 0,06101 et 0,03115 à B infini **[V]**. L'effet de B sort ainsi de e*.
+
+**L5, e*.** Pour A2, e*_{j,α} est l'écart absolu maximal de (g1) sur les cellules évaluables (n ≥ 100). Les cellules de T1 bis à n < 100 sont descriptives (§ 2.4), comme l'intérieur de J1 dans les cellules de #175 (§ 4.2). Le maximum sur les 102 cellules est rapporté. Sur J2, les deux définitions coïncident (toutes les cellules ont n ≥ 464).
+
+**L6, bande non applicable.** La règle de #166 (bande non applicable si la référence est inférieure à 2/n : lecture binaire, compatible ou écart à examiner, sans distorsion matérielle) fait partie des « classes de #166 » du § 2.1. Elle s'applique à C1a et C2b, dans la grille et à l'étape 6. Les cellules concernées sont listées.
+
+**L7, interpolation.** p̃3 est la queue de la loi conditionnelle de l'interpolée linéaire en δ de la loi jointe de (S, r) : H̃_r = Σ_k w_k q_k(r) H_{k|r} / Σ_k w_k q_k(r). Ainsi p̃1 = Σ_r q̂(r) p̃3,r exactement. Si le dénominateur est nul, p̃3 est absente.
+
+**L8, scénarios de P.** Sous `engine_sous_graine(20810000 + s)` :
+- d'abord la matrice ε de R_P × 8, en un appel (`rnorm` pour H et C, `rchisq(·, ν)` pour A), remplie par lignes (la réplication b reçoit les tirages 8(b − 1) + 1 à 8b) ;
+- puis, pour C seulement, `sample.int(8, R_P, replace = TRUE)`.
+
+Les matrices sont toujours tirées à R_P = 1 000 complet, et une tranche y prend ses lignes. Base : l'ajustement de J2, avec μ_t = ln(β̂ x_t) − 1/(2 π̂_t) et s_t = π̂_t^(−1/2) pour C et A ; pour H, s_t² = ln(1 + CV_t²) et μ_t = ln(β̂ x_t) − s_t²/2. La grille cite le md5 des matrices et des t*, et l'étape 5 vérifie qu'elle les retrouve à l'identique.
+
+**L9, C1b.** Le seuil est α à la lettre, y compris pour les lois discrètes.
+
+**L10, McNemar prédit.**
+- Au point : décisions à B infini.
+- Lecture robuste : comptes attendus sous indépendance des erreurs Monte-Carlo de V1 et de la variante, n01 = arrondi Σ π_v(1 − π_V1) et n10 = arrondi Σ π_V1(1 − π_v). La dépendance réelle est positive, les tirages étant partagés **[H]** ; l'indépendance donne donc la lecture la moins significative.
+- Un McNemar qui fait échouer une condition (C1b, C4a) ou réussir C4b (« prédite décelable » dans les lignes de A2) ne compte que s'il est significatif sous les deux lectures.
+
+**L11, contrôle (a).** Il relève des étapes 5 et 6 (§ 7), non de la grille.
+
+**L12, brut de la grille.** L'approbation d'A1 sur le volume porte sur les bruts du § 8. Le brut de la grille (≈ 9,8 Mo) attend l'accord du mainteneur avant d'être versionné sur la branche de travail. D'ici là, il est conservé dans `sauvegarde/issue229/` (branche de sauvegarde), et son md5 est cité dans le T0 du tableau.
+
+**L13, V3a et lois discrètes.** Pour V3a, les statistiques à loi discrète sont descriptives dans C1a et C2b (§ 2.1).
+
+**L14, application de A2 sous délégation.**
+- La ligne (g1) hors tolérance prime : la grille ne prédit plus.
+- Viennent ensuite la ligne d'arrêt (L3), puis les autres lignes, qui se cumulent.
+- « C1 seule » s'entend sans autre échec franc pour la même variante.
+- La ligne des intensités se lit par scénario, à α = 0,10, sur toutes les réplications, avec π de V1 (L4).
+- Une recommandation d'arrêt est consignée comme décision provisoire, révisable par le mainteneur.
