@@ -2128,8 +2128,9 @@ en trois régimes de plancher (le plancher~0 des ratios $r_t$ et le troisième r
 l'issue~\#187)~: plancher~1 (défaut) pour les résidus standardisés $z_t$ et les résidus de Mack,
 grandeurs d'ordre~1, pour lesquelles la tolérance est absolue ($10^{-12}$) au voisinage de~0, où
 une tolérance purement relative serait dénuée de sens~; plancher~0 pour les volumes $x_t$
-(\code{.usp\_aplatir\_volumes()}) et pour les ratios $r_t$ (\code{.usp\_aplatir\_ratios()}),
-tolérance purement relative, invariante d'unité et sans division~; plancher $\max_t|r_t|$
+(\code{.usp\_aplatir\_volumes()}), pour les ratios $r_t$ (\code{.usp\_aplatir\_ratios()}) et,
+depuis l'issue~\#152, pour les facteurs individuels $F(i,j)$ et les cumuls $C(i,j)$ de la méthode
+Merz--Wüthrich, tolérance purement relative, invariante d'unité et sans division~; plancher $\max_t|r_t|$
 (\code{.usp\_plancher\_u()}) pour les ratios centrés $u_t = r_t - \bar r$ du test des suites sur
 ratios bruts, tolérance relative à l'échelle des ratios avant centrage, invariante d'unité elle
 aussi (décision du mainteneur du 6~octobre 2026~: un plancher~0 sur $u_t$ séparait dans $u$ deux
@@ -2140,7 +2141,8 @@ ratios fusionnés dans $r$ et dans $z$). L'argument \code{plancher} de \code{tes
 obligatoire \code{plancher\_u} d'\code{usp\_runsr\_p\_exacte()} transmettent ce régime, à
 l'observé comme dans le catalogue Monte-Carlo (entrées \code{MK}, \code{SpearVol},
 \code{SpearTps}, \code{CoxStuart} au plancher~0, \code{Runsr} au plancher $\max_t|r_t|$)~; aucune
-fonction de la méthode Merz--Wüthrich n'est modifiée. \emph{Motif de l'issue~\#187}~: jusqu'à
+fonction de la méthode Merz--Wüthrich n'est modifiée par l'issue~\#187 (leurs sites relèvent de
+l'issue~\#152, paragraphe «~Périmètre~» ci-dessous). \emph{Motif de l'issue~\#187}~: jusqu'à
 elle, les ratios $r_t$ et $u_t$ étaient aplatis au plancher~1, en tolérance absolue sous~1, et les
 résultats des tests de rang et de signe sur les ratios dépendaient de l'unité de $y_t$ rapportée à
 celle de $x_t$. Mesuré par \code{engine\_aplatir\_ex\_aequo()} sur les ratios du jeu de contrôle,
@@ -2163,15 +2165,37 @@ rapport à la médiane, \code{cor.test()} et \code{ks.test()} suivent tous cette
 dans les réplications des catalogues Monte-Carlo~: Cox--Stuart, Spearman (ratio contre volume et
 ratio contre temps), Mann--Kendall, suites (sur $z_t$, sur ratios bruts et sur résidus de Mack),
 Smirnov sur $z_t$, ainsi que le comptage des volumes distincts de RESET et White
-(\code{.usp\_nb\_volumes\_distincts()}, fiche~\ref{fiche:reset}). Ni les données, ni l'ajustement
-(\code{usp\_noyau()}), ni les autres statistiques (Anderson--Darling, Shapiro--Wilk,
-Durbin--Watson, Grubbs, régressions auxiliaires) ne sont aplatis. Restent à égalité \emph{exacte}~:
-les corrélations de rang de Merz--Wüthrich (\code{mw\_test\_homogeneite\_f()},
-\code{mw\_stat\_correlation\_dev()}, \code{mw\_test\_exposant\_variance()}) et le classement
-par la médiane de \code{mw\_test\_annees\_calendaires()}, dont l'extension relève de
-l'issue~\#152~; et, sur $x_t$ brut, un volume étant saisi et non calculé, la partition
+(\code{.usp\_nb\_volumes\_distincts()}, fiche~\ref{fiche:reset}). Depuis l'issue~\#152 (décisions
+du mainteneur du 5~octobre 2026), il couvre aussi les cinq statistiques de rang de la méthode
+Merz--Wüthrich, qui aplatissent par \code{engine\_aplatir\_ex\_aequo()} avant \code{rank()},
+\code{cor.test()}, \code{kruskal.test()}, la médiane et la garde $\mathrm{sd} = 0$~: facteurs
+$F(i,j)$ au plancher~0 dans \code{mw\_stat\_correlation\_dev()} (facteurs des deux colonnes d'une
+paire aplatis séparément, fiche~\ref{mw:m3cor}), \code{mw\_test\_homogeneite\_f()}
+(fiche~\ref{mw:m1b}) et \code{mw\_test\_annees\_calendaires()} (aplatis avant la médiane, de sorte
+qu'un facteur égal à la médiane à la tolérance près est étiqueté «~*~», fiche~\ref{mw:m3cal})~;
+cumuls $C(i,j)$ au plancher~0 et valeurs absolues des résidus de Mack au plancher~1 dans
+\code{mw\_test\_exposant\_variance()} (fiche~\ref{mw:m2b})~; résidus de Mack au plancher~1 dans
+\code{mw\_test\_homogeneite\_accident()} (fiche~\ref{mw:m3acc}). Les mêmes fonctions servant à
+l'observé et dans les réplications, le catalogue \code{MW\_CATALOGUE\_MC} n'a pas été modifié par
+cette issue. Ni les données, ni l'ajustement
+(\code{usp\_noyau()}, \code{mw\_ajuster()}), ni les autres statistiques (Anderson--Darling, Shapiro--Wilk,
+Durbin--Watson, Grubbs, régressions auxiliaires) ne sont aplatis. Restent à égalité \emph{exacte},
+sur $x_t$ brut, un volume étant saisi et non calculé~: la partition
 $x_t > \operatorname{med}(x)$ de Smirnov, de Brown--Forsythe et du QQ-plot à deux échantillons,
-ainsi que le tri par volume de Goldfeld--Quandt.
+ainsi que le tri par volume de Goldfeld--Quandt. \emph{Motif de l'issue~\#152}~: des facteurs
+égaux en décimal sont souvent distincts en flottant. Sur le triangle construit de
+\code{tests/unitaires/test\_merz\_wuthrich.R}, $F(0,0) = 7\,373{,}22/5\,236{,}68$ et
+$F(1,0) = 1\,228{,}87/872{,}78$, égaux en décimal, diffèrent de $1{,}6\cdot 10^{-16}$ en relatif~;
+leurs rangs flottants distincts deviennent le rang moyen $(3{,}5\,;3{,}5)$, et les deux facteurs,
+égaux à la médiane de leur colonne, sont étiquetés «~*~» dans le test calendaire. Mesuré avec le
+moteur antérieur puis postérieur à l'issue (\code{run\_engine()}, méthode de réserve
+n\textsuperscript{o}~2, segment II-1, $B = 99$)~: statistique du test calendaire de $-2{,}2407$ à
+$-2{,}0311$, p-value de Monte-Carlo de $0{,}06$ à $0{,}14$, verdict \code{ALERTE} devenu
+\code{OK}~; corrélation entre années adjacentes de $-0{,}5612$ à $-0{,}5404$~;
+$\sigma_{\mathrm{USP}}$ inchangé. Ces deux statistiques sont inchangées depuis~; avec le moteur
+actuel, leurs p-values de Monte-Carlo valent $0{,}12$ et $0{,}10$ sur ce triangle à $B = 99$, les
+écarts aux valeurs précédentes venant des issues ultérieures de la branche, qui modifient la loi
+simulée, et non de l'aplatissement.
 
 \emph{Valeur de la tolérance.} Elle est fixée par décision du mainteneur, sur la note
 d'\code{actuary} du 28~septembre 2026~: au-dessus du bruit d'arrondi, qui est de l'ordre de la
@@ -2205,7 +2229,12 @@ cinq chiffres, $|r_i - r_j| \ge 10^{-10}\max(r_i, r_j)$, si bien qu'aucune fusio
 tant que $\max(r_i, r_j) > 10^{-2}\max_t r_t$, c'est-à-dire tant que les ratios S/P des années
 restent dans un facteur~100 les uns des autres (borne déduite de ces deux inégalités). Pour
 $z_t$, transformation non linéaire de $r_t$ par les paramètres estimés, aucune borne n'est
-établie (réserve d'\code{actuary} à la validation de l'issue~\#112). Exemple mesuré~: les
+établie (réserve d'\code{actuary} à la validation de l'issue~\#112)~; pour les résidus de Mack
+(plancher~1, issue~\#152) non plus~: sur le triangle de contrôle
+\code{tests/donnees/triangle\_mw.csv}, multiplier une cellule observée par $1 + 4 \times 2^{-52}$
+(quatre fois la précision machine) déplace les résidus de Mack d'au plus $1{,}0\cdot 10^{-13}$
+(pire cellule, $(i, j) = (0, 4)$), soit une marge d'environ~10 seulement sous la tolérance (mesure
+par \code{mw\_residus()}). Exemple mesuré~: les
 ratios $472{,}89/611{,}68$ et $3\,310{,}23/4\,281{,}76$, égaux en décimal, diffèrent en
 flottant de $1{,}4\cdot 10^{-16}$ en relatif et sont ex \ae quo à cette tolérance
 (\code{tests/unitaires/test\_ex\_aequo.R}). Conséquence dans le bootstrap~: une réplication dont
@@ -11209,7 +11238,8 @@ d'accident » constitue la seconde exigence ; C.~Spearman (1904),
 Dans chaque colonne $j$ comptant au moins quatre observations, on mesure la
 corrélation de rang entre les facteurs individuels $F(i,j)$ et l'indice $i$ de
 l'année de survenance. Hypothèses non testées~: continuité, absence d'ex
-\ae quo.
+\ae quo~; des facteurs égaux à \code{TOL\_EX\_AEQUO} près sont traités en ex \ae quo, aplatis au
+plancher~0 avant \code{cor.test()} (issue~\#152, §\ref{sec:ex-aequo}).
 \Hzero
 $H_0$ : le facteur $f_j$ est \emph{commun à toutes les années de survenance}~;
 les facteurs individuels ne présentent aucune tendance en $i$.
@@ -11392,7 +11422,9 @@ changement de méthode.
 Breusch--Pagan de la fiche précédente.}
 \Cadre
 Dans chaque colonne $j$ comptant au moins quatre résidus, on mesure la
-corrélation de rang entre $|r(i,j)|$ et $C(i,j)$.
+corrélation de rang entre $|r(i,j)|$ et $C(i,j)$, après aplatissement des ex \ae quo à
+\code{TOL\_EX\_AEQUO} (cumuls au plancher~0, valeurs absolues des résidus au plancher~1, avant la
+garde $\mathrm{sd}(C) = 0$~; issue~\#152, §\ref{sec:ex-aequo}).
 \Hzero
 $H_0$ : l'amplitude des résidus standardisés ne dépend pas de $C(i,j)$ à
 l'intérieur d'une colonne, ce qui est la traduction directe de
@@ -11560,7 +11592,9 @@ p.~133--138~; T.~Mack (1993), \emph{op.\ cit.}, section~5.}
 \Cadre
 Dans chaque colonne $j$, les facteurs observés $F(i,j)$ sont classés en
 « grands » ($L$) et « petits » ($S$) par rapport à leur médiane, les valeurs
-égales à la médiane étant écartées. Les diagonales $k = i+j$ correspondent aux
+égales à la médiane étant étiquetées «~*~» et écartées~; les facteurs sont aplatis à
+\code{TOL\_EX\_AEQUO} au plancher~0 avant le calcul de la médiane, de sorte qu'un facteur égal à
+la médiane à la tolérance près est écarté (issue~\#152, §\ref{sec:ex-aequo}). Les diagonales $k = i+j$ correspondent aux
 exercices comptables. Hypothèses non testées~: continuité des facteurs,
 indépendance des colonnes.
 \Hzero
@@ -11614,7 +11648,9 @@ analysis}, \emph{Journal of the American Statistical Association}, 47(260),
 1952, p.~583--621.}
 \Cadre
 Les résidus de Mack sont groupés par année de survenance $i$. Le test compare
-les rangs entre groupes, sans hypothèse de loi. Hypothèses non testées~:
+les rangs entre groupes, sans hypothèse de loi~; les résidus sont aplatis à
+\code{TOL\_EX\_AEQUO} au plancher~1 avant \code{kruskal.test()} (issue~\#152,
+§\ref{sec:ex-aequo}). Hypothèses non testées~:
 indépendance des résidus, continuité.
 \Hzero
 $H_0$ : les résidus ont la même distribution dans toutes les années de
@@ -11655,7 +11691,10 @@ un seul.
 Pour chaque paire de colonnes adjacentes $(k-1 \to k)$ et $(k \to k+1)$, on
 calcule la corrélation de rang de Spearman entre les facteurs individuels
 observés sur les mêmes années de survenance. L'agrégation est pondérée par
-$n_k - 1$. Hypothèses non testées~: continuité, absence d'ex \ae quo.
+$n_k - 1$. Hypothèses non testées~: continuité, absence d'ex \ae quo~; les facteurs de chacune
+des deux colonnes sont aplatis séparément à \code{TOL\_EX\_AEQUO} au plancher~0 avant la garde
+$\mathrm{sd} = 0$ et \code{rank()}, des facteurs égaux à la tolérance près recevant le même rang
+(issue~\#152, §\ref{sec:ex-aequo}).
 \Hzero
 $H_0$ : les facteurs de développement successifs ne sont pas corrélés, ce qui
 est la traduction testable de D(2)(h)(ii), l'indépendance des montants
