@@ -3592,7 +3592,7 @@ Diagnostic \\
   constat~C6, issue~\#220, $R = 20\,000$~: $0{,}644$ $[0{,}638~;~0{,}651]$ pour le test de Student
   unilatéral et $0{,}641$ $[0{,}634~;~0{,}648]$ pour le test de permutation~; sur le jeu à
   $\hat\delta$ intérieur, $\hat\pi_b = 1{,}00$ et les deux puissances valent~$1$. L'approximation
-  est juste au point ajusté~; cela ne fait pas de $\hat\pi_b$ un estimateur de la puissance).
+  concorde, au point ajusté du jeu de contrôle, avec les puissances simulées~; cela ne fait pas de $\hat\pi_b$ un estimateur de la puissance).
   Les valeurs antérieures, non versionnées ($0{,}644$ et $0{,}641$, spécification
   d'\code{actuary} et ADR~0002, amendement du 6~octobre 2026), concordent avec ces mesures.
   Sous une pente négative simulée, la règle classe la ligne en diagnostic dans $77{,}5~\%$ et
@@ -3942,8 +3942,8 @@ auxiliaire MCO à marge fixée a priori), et elle est retenue sous une nature qu
 \code{sous le modele auxiliaire pondere : loi de Student (poids estimes), marge \dots}, en dehors
 des trois catégories de la hiérarchie, sans jamais être présentée comme exacte au sens de
 l'ADR~0002~; sa colonne \code{p\_exacte} vaut toujours \code{NA}, et son taux de conclusion à
-tort à la frontière de $H_0$, mesuré à $T = 8$ sur deux jeux, dépasse le seuil nominal sans
-atteindre 1,5~fois ce seuil (dépassement mineur, fiche~\ref{fiche:tost-constante}, issue~\#219). Jusqu'à l'issue~\#169, la pente et Fisher retenaient de même
+tort à la frontière de $H_0$, mesuré à $T = 8$ sur deux jeux, dépasse le seuil nominal sur le
+jeu à $\hat\delta$ intérieur ($a = +\Delta$), sans atteindre 1,5~fois ce seuil (dépassement mineur, fiche~\ref{fiche:tost-constante}, issue~\#219). Jusqu'à l'issue~\#169, la pente et Fisher retenaient de même
 leur p-value de Student ou de Fisher, sous les natures \code{sous le modele auxiliaire MCO~:
 t(T-2) exacte (H0 non simulable~: le modele ajuste appartient a H1)} et \code{sous le modele
 auxiliaire MCO~: F(1,T-2) exacte (H0 non simulable~: le modele ajuste appartient a H1)}, que le
@@ -4528,8 +4528,9 @@ Student pondérée (constante, TOST) & \emph{Aucune} : loi $t(T-2)$ qui ne serai
 connus (§\ref{sec:modele-auxiliaire}, issue~\#215) & --- & Approchée (poids estimés) & --- &
 Erreurs normales de variance $\sigma^2/w_t$, poids $w_t$ connus~; ici estimés à $\hat\delta$ &
 Exacte sous aucun modèle~; constante~: p de Student non retenue (Monte-Carlo)~; TOST~: p retenue
-hors hiérarchie, nature «~sous le modèle auxiliaire pondéré~», dépassement mineur du niveau à
-la frontière, mesuré sur un jeu (issue~\#219) \\
+hors hiérarchie, nature «~sous le modèle auxiliaire pondéré~», taux de conclusion à tort à la
+frontière en dépassement mineur sur le jeu à $\hat\delta$ intérieur, jeu de contrôle non
+informatif~; minorant du niveau (issue~\#219) \\
 
 Pitman (pente) & \emph{Aucune} : loi de permutation exacte à $T$ fini ($T \le 9$), par
 énumération des $T!$ appariements & --- & Exacte (second fondement, ADR~0002) & --- &
@@ -6124,7 +6125,7 @@ assorti d'une règle de signe (\code{ECHEC} si $r < 0$) corrige ce défaut, mais
 ajusté au jeu de contrôle il rend \code{OK} dans $47{,}4~\%$ $[46{,}7~;~48{,}1]$ des jeux contre
 $64{,}1~\%$ $[63{,}4~;~64{,}8]$ en unilatéral, et \code{ECHEC} à tort dans $25{,}8~\%$
 $[25{,}2~;~26{,}4]$ contre $10{,}9~\%$ $[10{,}5~;~11{,}3]$ (constat de simulation, issue~\#220,
-sans R4, $R = 20\,000$).. Limite~: un contre-exemple construit avec un volume aberrant donne \code{ALERTE} et non
+sans R4, $R = 20\,000$). Limite~: un contre-exemple construit avec un volume aberrant donne \code{ALERTE} et non
 \code{ECHEC} (spécification d'\code{actuary} du 6~octobre 2026, script non versionné)~; le test de Pitman n'est pas un détecteur de points aberrants
 (section~\ref{sec:stabilite}).
 \Stat
@@ -6304,8 +6305,8 @@ estimations sur les données mêmes qu'elle sert à classer~: ce n'est pas la pu
 elle ne sert jamais à interpréter un non-rejet comme une absence d'effet (sur les limites de la
 puissance calculée a posteriori~: J.\,M. Hoenig et D.\,M. Heisey, 2001, section~\ref{sec:biblio}).
 \emph{Limite sous un lien négatif}~: $\hat\pi_b$ est calculée au réajustement du modèle
-réglementaire, où $\beta > 0$. Quand $r < 0$, ce réajustement ne peut pas suivre la pente et
-$\hat\pi_b$ passe sous $1/2$~: la ligne devient un diagnostic, avec le commentaire «~\code{PENTE
+réglementaire, où $\beta > 0$. Quand $r < 0$, ce réajustement ne peut pas suivre la pente, et
+$\hat\pi_b$ passe le plus souvent sous $1/2$~: la ligne devient alors un diagnostic, avec le commentaire «~\code{PENTE
 NON IDENTIFIABLE PAR LES DONNEES}~», alors que les données identifient une pente de signe
 contraire au modèle ($77{,}5~\%$ et $99{,}93~\%$ des jeux sous la pente négative simulée,
 constat~C6). L'argument «~un \code{ECHEC} décrirait l'étroitesse de la plage des volumes~» ne
@@ -6601,7 +6602,7 @@ pas la faible information que des volumes peu dispersés apportent sur les terme
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes, sauf à volumes constants (section~\ref{sec:volumes-constants}), à moins de trois volumes distincts, à régression augmentée de rang déficient ou à statistique non finie, où elle est non applicable avec son motif (rubrique~1). Puissance non étudiée à $T = 8$. Niveau de la p-value de Monte-Carlo sous le modèle ajusté (issue~\#166, $R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc})~: J1, $0{,}111$ à $\alpha = 0{,}10$ et $0{,}056$ à $0{,}05$~; J2, $0{,}083$ et $0{,}0325$~; compatible sur J1~; écart mineur, du côté conservateur, aux deux seuils sur J2, qui vient du bord~0~: taux à $0{,}10$ de $0{,}028$ au bord~0 (814 réplications), $0{,}125$ au bord~1 (722) et $0{,}114$ à l'intérieur (464), taux conditionnels sans référence exacte. Mesure diagnostique (issue~\#175, section~\ref{sec:calibration-mc})~: au bord~0 de J2, la p-value de Monte-Carlo restreinte aux réplications du bootstrap dont le $\hat\delta^{**}$ est au bord~0 rejette à $0{,}10$ dans $0{,}103$ $[0{,}083~;~0{,}126]$ des 814 réplications, contre $0{,}028$ pour le moteur~; au bord~0 de J1, $0{,}125$ $[0{,}104~;~0{,}148]$ contre $0{,}106$, écart du côté libéral, l'estimation restant dans la bande. La statistique ne dépend pas de l'ajustement, mais sa loi dépend du régime de $\hat\delta$ (constat). Variante non implémentée dans le moteur.
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes, sauf à volumes constants (section~\ref{sec:volumes-constants}), à moins de trois volumes distincts, à régression augmentée de rang déficient ou à statistique non finie, où elle est non applicable avec son motif (rubrique~1). Puissance non étudiée à $T = 8$. Niveau de la p-value de Monte-Carlo sous le modèle ajusté (issue~\#166, $R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc})~: J1, $0{,}111$ à $\alpha = 0{,}10$ et $0{,}056$ à $0{,}05$~; J2, $0{,}083$ et $0{,}0325$~; compatible sur J1~; écart mineur, du côté conservateur, aux deux seuils sur J2, qui vient du bord~0~: taux à $0{,}10$ de $0{,}028$ au bord~0 (814 réplications), $0{,}125$ au bord~1 (722) et $0{,}114$ à l'intérieur (464), taux conditionnels sans référence exacte. Mesure diagnostique (issue~\#175, section~\ref{sec:calibration-mc})~: au bord~0 de J2, la p-value de Monte-Carlo restreinte aux réplications du bootstrap dont le $\hat\delta^{**}$ est au bord~0 rejette à $0{,}10$ dans $0{,}103$ $[0{,}083~;~0{,}126]$ des 814 réplications, contre $0{,}028$ pour le moteur~; au bord~0 de J1, $0{,}125$ $[0{,}104~;~0{,}148]$ contre $0{,}106$, écart du côté libéral, l'estimation restant dans la bande. La statistique ne dépend pas de l'ajustement, mais sa loi conditionnelle au régime de $\hat\delta$ varie d'un régime à l'autre (constat). Variante non implémentée dans le moteur.
 
 \textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance. Niveau~: constat de simulation sous le modèle ajusté à J1 et à J2 (section~\ref{sec:calibration-mc}), incertitude de Clopper--Pearson liée à $R$, intervalles dans les fichiers de résultats~; mesure diagnostique de l'issue~\#175~: constat de simulation sous le modèle ajusté, taux conditionnels au régime sans référence exacte, variante non implémentée dans le moteur.
 \end{fiche}
@@ -12170,8 +12171,8 @@ mélange des régimes de $\hat\delta^{**}$ que contient la loi de référence du
 pas une démonstration~: le taux mesuré est conditionnel au même événement que la variante, et le
 niveau inconditionnel de celle-ci n'est mesuré que pour Goldfeld--Quandt ($0{,}102$ sur J2,
 contre $0{,}0545$ pour le moteur). Sur J1, la variante n'a pas de p-value dans 69 des 75
-réplications intérieures (de 25 à 58 réplications effectives, sous le minimum
-\code{B\_MIN\_DEGENERESCENCE} $= 50$), et RESET y passe au bord~0 à $0{,}125$, écart du côté
+réplications intérieures (réplications effectives du bootstrap de 25 à 58 sur les 75, sous le minimum
+\code{B\_MIN\_DEGENERESCENCE} $= 50$ dans ces 69), et RESET y passe au bord~0 à $0{,}125$, écart du côté
 libéral, l'estimation restant dans la bande. Sur J2 intérieur, au moins une des huit statistiques
 rejette à $0{,}10$ dans $45{,}7~\%$ des réplications avec la variante, contre $7{,}3~\%$ avec le
 moteur. Statut~: constat de simulation sous le modèle ajusté à deux jeux, taux conditionnels au
@@ -12192,8 +12193,8 @@ et $0{,}0535$ $[0{,}044~;~0{,}064]$. Comparée, sur les mêmes jeux simulés et 
 graines, à la statistique non pondérée mesurée le 30~septembre 2026, elle ne montre aucun
 changement de niveau détectable~: rejets à $0{,}10$ et à $0{,}05$, J1, 217 et 115 (pondérée)
 contre 212 et 118 (non pondérée), avec 29 et 13 décisions discordantes~; J2, 195 et 107 contre
-200 et 119, avec 143 et 76 décisions discordantes~; test de McNemar exact sur les paires
-discordantes, p-values de $0{,}21$ à $0{,}74$. Sur J2, dont les volumes sont dispersés
+200 et 119, avec 143 et 76 décisions discordantes~; test de McNemar exact (test binomial bilatéral de
+paramètre $1/2$ sur les paires discordantes), p-values de $0{,}21$ à $0{,}74$. Sur J2, dont les volumes sont dispersés
 (coefficient de variation $0{,}64$), les deux statistiques diffèrent pourtant nettement d'une
 réplication à l'autre (corrélation linéaire des p-values de Monte-Carlo $0{,}53$, contre $0{,}97$
 sur J1)~: un même niveau ne signifie pas les mêmes verdicts. Les décomptes appariés, les tests
@@ -13148,7 +13149,7 @@ tranches de 500 réplications combinées, postérieure aux issues~\#63, \#109 et
 première exécution du 27~septembre 2026 (commit \code{b71c9a8}, antérieure à ces trois issues~:
 réajustement des réplications à un seul démarrage, \code{factr = 1e7}) donnait, sur les mêmes
 2\,000 jeux simulés, des comptes identiques pour tous les repères et toutes les lignes du tableau
-ci-dessous, hors celle de la règle~R4 unilatérale, postérieure, sauf la largeur de l'intervalle bootstrap au-dessus de 50~\% (980 et 84 réplications
+ci-dessous (la ligne de la règle~R4 unilatérale, postérieure, mise à part), sauf la largeur de l'intervalle bootstrap au-dessus de 50~\% (980 et 84 réplications
 sur J1 et J2, contre 981 et 85)~; chaque jeu
 traité comme \code{run\_engine()} traite un jeu observé (méthode prime, segment~1 de l'annexe~II,
 données brutes, $\alpha = 0{,}10$~: \code{usp\_ajuster()}, jackknife, \code{usp\_tests()}), l'intervalle
