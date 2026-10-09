@@ -12624,6 +12624,14 @@ Réserve chain-ladder totale & 18\,680\,856 & conforme \\
 Erreur type \emph{ultime} de Mack & 2\,447\,095 & conforme à la valeur publiée \\
 MSEP à un an $=$ transcription littérale de D(5), version consolidée & écart relatif nul
 (précision machine) & conforme au texte \\
+MSEP à un an $=$ contre-implémentation par matrice de coefficients (\code{msep\_matrice},
+sans appel au moteur, issue~\#50) & écart relatif $2{,}2\times10^{-16}$ (Taylor \& Ashe), $0$
+(triangle de contrôle et \code{tri\_deg})~; $\sqrt{\mathrm{MSEP}}$ à
+$-2{,}4\times10^{-15}$ de \code{ChainLadder::CDR} & vérification numérique d'une même définition \\
+Coefficients de la matrice par différences centrées ($h = 10^{-4}$) & MSEP à
+$3{,}0$~; $2{,}6$~; $1{,}1\times10^{-10}$ de \code{mw\_msep()}, coefficients à
+$1{,}6\times10^{-10}$ au plus~; rapport d'écarts $4{,}000$ entre $h = 2\times10^{-3}$ et
+$10^{-3}$ & ordre $h^2$ vérifié \\
 $\sqrt{\mathrm{MSEP}}$ à un an $=$ \code{ChainLadder::CDR} (Merz--Wüthrich
 2008) & 1\,778\,967,66336\newline contre 1\,778\,967,66335758 & écart relatif
 $-2{,}6\times10^{-15}$ \\
@@ -12654,13 +12662,35 @@ tests unitaires du dépôt.
 
 \medskip
 \begin{encadre}
-\textbf{Sur quoi repose la validation de la MSEP à un an.} Elle repose sur deux
-voies distinctes~: d'une part la confrontation du moteur à une transcription
+\textbf{Sur quoi repose la validation de la MSEP à un an.} Elle repose sur trois
+voies distinctes~: d'abord la confrontation du moteur à une transcription
 littérale de D(5) dans sa version consolidée en vigueur (§\ref{sec:mw}), réécrite depuis le texte et implémentée
-séparément dans la batterie de tests unitaires~; d'autre part une comparaison
+séparément dans la batterie de tests unitaires (\code{msep\_reglement})~; ensuite une comparaison
 \emph{externe} avec \code{ChainLadder::CDR} (paquet R \code{ChainLadder}
 0.2.18), implémentation publique de Merz--Wüthrich (2008), reproduite à
-$-2{,}6\times10^{-15}$ en écart relatif. Nous n'avons pas identifié de valeur
+$-2{,}6\times10^{-15}$ en écart relatif~; enfin, depuis l'issue~\#50, une
+contre-implémentation sous une \emph{autre forme}, \code{msep\_matrice}
+(\code{tests/unitaires/test\_merz\_wuthrich.R}), calculée à partir du triangle brut sans aucun
+appel au moteur (indépendance vérifiée mécaniquement~: la fonction, évaluée dans un environnement
+qui ne voit que R de base, rend le même objet), et sans les crochets $\Delta_i$~: elle recalcule
+$\hat f_j$, $\hat\sigma^2_j$ (règle du minimum de D(5)(d)(ii) réécrite), $\hat Q_j$, $S_j$,
+$S'_j$, $C(I-j,j)$ et les ultimes $\hat C(i,J)$, puis
+$\mathrm{MSEP} = \sum_j D_j\,\big((A^{\top}u)_j\big)^2$, avec
+$D_j = \hat Q_j\big(1/C(I-j,j) + 1/S_j\big)$, $u = \big(\hat C(i,J)\big)_{i = 1, \ldots, I}$ et la
+matrice $A$ de taille $I \times J$ de coefficients $a_{ij} = 1$ si $j = I - i$,
+$a_{ij} = C(I-j,j)/S'_j$ si $j > I - i$, $0$ sinon. $a_{ij}$ est la dérivée de
+$\ln \hat C^{I+1}(i,J)$ par rapport à $\ln F(I-j,j)$ au point $F = \hat f$~: dérivation
+élémentaire par linéarisation, établie dans l'avis d'\code{actuary} sur l'issue~\#7, et
+\textbf{non} une citation de Merz et Wüthrich (2008). Cette forme fermée est elle-même contrôlée
+par différences centrées sur un chain-ladder élémentaire à un an, qui ne la suppose pas
+(tableau ci-dessus~; sous $h \approx 2{,}5\times10^{-4}$, l'erreur d'arrondi, de l'ordre de la précision machine
+divisée par $h$, pèse autant que l'erreur de troncature et fausse le rapport des écarts, qui n'est donc pas mesuré à $h = 10^{-4}$). Sur
+les trois triangles, \code{msep\_matrice} s'écarte de $+49$, $+15$ et $+55~\%$ du libellé
+publié en 2015 et de $-27$, $-44$ et $-22~\%$ de l'ancienne formule du moteur, recalculés
+localement~: la vérification détecte ces deux erreurs. Ces trois voies sont des
+\emph{vérifications numériques} d'une même définition, la MSEP du texte consolidé~; aucune n'est
+une validation statistique de la MSEP à $T = 8$, approximation linéaire dont la qualité à
+$T = 8$ n'est établie par aucun résultat identifié. Nous n'avons pas identifié de valeur
 \emph{publiée} de la MSEP à un an sur ce triangle~: la comparaison externe porte
 sur une implémentation de référence, non sur un nombre publié.
 
@@ -13346,7 +13376,8 @@ littérature consultée.
   bootstrap.
   \item \textbf{Aucune valeur publiée de la MSEP à un an} n'a pu être identifiée
   pour le triangle de Taylor \& Ashe. La validation de cette grandeur repose donc
-  sur la transcription littérale de D(5) (version consolidée), sur des propriétés
+  sur la transcription littérale de D(5) (version consolidée), sur une
+  contre-implémentation par matrice de coefficients (issue~\#50), sur des propriétés
   structurelles et sur la comparaison avec une implémentation externe
   (\code{ChainLadder::CDR}), non sur un nombre publié dans la littérature.
   \item \textbf{Le domaine de validité exact de la transformation de Royston}
