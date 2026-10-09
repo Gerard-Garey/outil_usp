@@ -902,6 +902,18 @@ colonne, dans $[2/n!, 1]$ (loi de permutation à $n \le 9$ sans ex \ae quo, sino
 de Student relevée à $2/n!$, fiche~\ref{mw:m1b})~; statistique $X$ de Fisher, p-value
 $\chi^2(2K)$ et $K$, sans exclusion (p-value nulle relevée à \code{.Machine\$double.xmin},
 p-value non finie~: statistique \code{NA}, issue~\#90, fiche~\ref{mw:m1a}) \\
+\code{.mw\_calendrier\_p\_min()},\newline \code{.mw\_corr\_p\_min()},\newline
+\code{.mw\_fisher\_rangs\_p\_min()},\newline \code{.mw\_kruskal\_p\_min()},\newline
+\code{.mw\_p\_min\_ligne()} & $n_k$ des diagonales~; $n_k$ des paires~; $n_j$ des colonnes~;
+tailles des groupes~; statistique définie, effectifs, libellé, fonction, ex \ae quo,
+\code{n\_max} & plus petite p-value atteignable sous la loi de référence discrète des lignes
+calendaire, de corrélation entre années adjacentes, d'homogénéité de $f_j$ et d'exposant de
+variance, et de Kruskal--Wallis (\code{NA} hors domaine, motif en attribut \code{motif} pour la
+dernière)~; arguments \code{p\_min} et \code{effectifs} d'une ligne de \code{mw\_tests()}, motif
+de l'absence de $p_{\min}$ (ex \ae quo, $n_j > 9$, valeur non calculable) porté par
+\code{effectifs} (issue~\#115, tableau~\ref{tab:pmin}). Champs de sortie ajoutés à cette fin~:
+\code{ex\_aequo} (corrélation entre années adjacentes, et par colonne pour l'homogénéité de
+$f_j$ et l'exposant de variance), \code{tailles} et \code{ex\_aequo} (Kruskal--Wallis) \\
 \code{mw\_tests()} & \code{aj}, \code{boot}, \code{alpha} (0,10) &
 liste des tests M1 à M6 (même structure que \code{usp\_tests()}, même fonction
 d'enregistrement \code{engine\_registre\_tests()}) \\
@@ -1942,7 +1954,7 @@ Ordonnée à l'origine par colonne & \ref{mw:m1a} &
 idem (p de Fisher, via \code{.fisher\_combine()}) & \code{Origine} \\
 Homogénéité de $f_j$ & \ref{mw:m1b} & \code{mw\_test\_homogeneite\_f()}, même exclusion &
 idem (p de Fisher, via \code{.fisher\_combine()}, sur les $p_j$ de \code{.mw\_spearman\_p()},
-issue~\#90) & \code{HomogF} \\
+issue~\#90)~; \code{.mw\_fisher\_rangs\_p\_min()} ($p_{\min}$, issue~\#115) & \code{HomogF} \\
 Absence de courbure & \ref{mw:m1c} & \code{mw\_test\_courbure()}, même exclusion &
 idem (p de Fisher) & \code{Courbure} \\
 Famille $\alpha$ & \ref{mw:m1d} & \code{mw\_famille\_alpha()} &
@@ -1955,7 +1967,8 @@ Breusch--Pagan sur résidus de Mack & \ref{mw:m2bp} &
 \code{stats::pchisq()} (p asymptotique) & \code{BP} \\
 Exposant de variance par colonne & \ref{mw:m2b} &
 \code{mw\_test\_exposant\_variance()} & idem (p de Fisher, via \code{.fisher\_combine()}, sur
-les $p_j$ de \code{.mw\_spearman\_p()}, issue~\#90) & \code{ExpVar} \\
+les $p_j$ de \code{.mw\_spearman\_p()}, issue~\#90)~; \code{.mw\_fisher\_rangs\_p\_min()}
+($p_{\min}$, issue~\#115) & \code{ExpVar} \\
 Variance unitaire des résidus & \ref{mw:m2var} & \code{stats::var()} sur
 \code{mw\_residus()} & diagnostic, aucune p-value & --- \\
 
@@ -1964,17 +1977,19 @@ Variance unitaire des résidus & \ref{mw:m2var} & \code{stats::var()} sur
 Homogénéité entre années de survenance & \ref{mw:m3acc} &
 \code{mw\_test\_homogeneite\_accident()} &
 \code{stats::kruskal.test()} (p asymptotique~; \code{NA} si chaque année n'a qu'un résidu,
-issue~\#60) & \code{KruskalAcc} \\
+issue~\#60)~; \code{.mw\_kruskal\_p\_min()} ($p_{\min}$, issue~\#115) & \code{KruskalAcc} \\
 Effets d'année calendaire & \ref{mw:m3cal} &
 \code{mw\_test\_annees\_calendaires()} (via \code{.mack\_moments\_Z()}) &
-idem (p asymptotique ; moments \emph{exacts}) & \code{Calendrier} \\
+idem (p asymptotique ; moments \emph{exacts})~; \code{.mw\_calendrier\_p\_min()} ($p_{\min}$,
+issue~\#115) & \code{Calendrier} \\
 Corrélation entre années de développement & \ref{mw:m3cor} &
-\code{mw\_stat\_correlation\_dev()} & \textbf{aucune} (pas de loi analytique) &
-\code{CorrDev} \\
+\code{mw\_stat\_correlation\_dev()} & \textbf{aucune} (pas de loi analytique)~;
+\code{.mw\_corr\_p\_min()} ($p_{\min}$, issue~\#115) & \code{CorrDev} \\
 Autocorrélation (Durbin--Watson) & \ref{mw:m3dw} & \code{stat\_dw()} &
 \textbf{aucune} (loi d'Imhof inapplicable aux résidus de Mack) & \code{DW} \\
 Test des suites & \ref{mw:m3runs} & \code{test\_runs()} &
-\code{test\_runs()} (approximation normale) & \code{Runs} \\
+\code{test\_runs()} (approximation normale)~; \code{runs\_p\_min()} ($p_{\min}$, effectifs par
+\code{.runs\_effectifs()}, issue~\#115) & \code{Runs} \\
 
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- M4 : points aberrants}}} \\
 \midrule
@@ -2202,7 +2217,10 @@ cumuls $C(i,j)$ au plancher~0 et valeurs absolues des résidus de Mack au planch
 \code{mw\_test\_homogeneite\_accident()} (fiche~\ref{mw:m3acc}). Depuis l'issue~\#90, un ex
 \ae quo ainsi défini dans une colonne de l'homogénéité de $f_j$ ou de l'exposant de variance fait
 calculer la p-value de cette colonne par l'approximation de Student relevée à $2/n_j!$, et non
-par la loi de permutation (\code{.mw\_spearman\_p()}, fiche~\ref{mw:m1b}). Les mêmes fonctions servant à
+par la loi de permutation (\code{.mw\_spearman\_p()}, fiche~\ref{mw:m1b})~; depuis l'issue~\#115, il
+rend aussi \code{p\_min} non attribuée (\code{NA}, motif dans le commentaire) pour les lignes de
+rang de cette méthode (corrélation entre années adjacentes, homogénéité de $f_j$, exposant de
+variance, Kruskal--Wallis~; tableau~\ref{tab:pmin}). Les mêmes fonctions servant à
 l'observé et dans les réplications, le catalogue \code{MW\_CATALOGUE\_MC} n'a pas été modifié par
 cette issue. Ni les données, ni l'ajustement
 (\code{usp\_noyau()}, \code{mw\_ajuster()}), ni les autres statistiques (Anderson--Darling, Shapiro--Wilk,
@@ -4018,6 +4036,7 @@ quatre règles, chacune en un seul endroit et chacune dite dans le commentaire d
 \code{p\_min} porte la plus petite p-value atteignable aux effectifs observés
 (\code{runs\_p\_min()}, \code{cox\_stuart\_p\_min()}, \code{smirnov\_p\_min()},
 \code{mk\_p\_min()}, et, depuis l'issue~\#169, \code{usp\_permutation\_pente()} pour la pente~;
+depuis l'issue~\#115, six vérifications de la méthode Merz--Wüthrich, tableau~\ref{tab:pmin}~;
 \code{NA} pour une loi continue)~; si $p_{\min} \ge \alpha$, aucune valeur
 observée ne peut donner $p < \alpha$, et la ligne est restituée en diagnostic, sans verdict, ses
 p-values restant affichées, son commentaire préfixé «~\code{TEST INOPERANT}~» et son champ
@@ -4041,6 +4060,22 @@ suite «~\code{ECHEC possible}~» est alors omise et le commentaire mentionne le
 (point~(ii), issue~\#128~; mesuré à $\alpha = 0{,}06$ et $p_{\min} = 0{,}0571$~: omise à
 $B_{\text{eff}} = 59$, écrite à $B_{\text{eff}} = 99$). Une ligne restée de type test sans
 aucune p-value ne reçoit ni l'une ni l'autre de ces phrases (point~(ii), issue~\#128).
+\emph{Méthode Merz--Wüthrich} (issue~\#115, décisions du mainteneur du 6~octobre 2026,
+Q-E2r-115-2 à~4). Six vérifications ont une statistique discrète sous une loi de référence
+combinatoire et reçoivent une $p_{\min}$~: suites, effet calendaire, corrélation entre années
+adjacentes, homogénéité de $f_j$, exposant de variance et Kruskal--Wallis entre années de
+survenance (valeurs et formules au tableau~\ref{tab:pmin}). Aucune p-value exacte n'y est
+attribuée, la p-value retenue est de Monte-Carlo, et aucune de ces lois de référence n'est
+exacte pour le modèle de Mack, sous aucun régime~: les résidus d'une colonne ne sont pas
+échangeables (variance $1 - h_{ij}$, contrainte $\sum_i \sqrt{C(i,j)}\,r(i,j) = 0$,
+section~\ref{sec:boot-mw}), les facteurs d'une colonne n'ont pas la même variance, et les colonnes
+adjacentes sont dépendantes. Ces $p_{\min}$ ne bornent donc jamais la p-value retenue~; la règle
+leur est appliquée telle quelle, sans règle propre à la méthode, en attendant l'issue~\#125
+(décision Q-E2r-115-3)~: sur un triangle $5 \times 5$ à $\alpha = 0{,}10$, l'effet calendaire
+($p_{\min} = 0{,}125$) et la corrélation entre années adjacentes ($1/3$) sont restitués en test
+inopérant, et la ligne des suites ($4/70 = 0{,}0571$) reste un test dont l'\code{ECHEC} est
+possible (mesuré par \code{run\_engine()} sur le sous-triangle $5 \times 5$ du triangle de
+contrôle)~; sur le triangle de contrôle $8 \times 8$, aucune de ces vérifications n'est inopérante.
 \emph{(ii) Monte-Carlo indisponible} (règles~R2 et~R3)~: quand \code{p\_mc} manque,
 \code{engine\_p\_mc()} en donne le motif (\code{bootstrap\$motif\_mc}), jamais deviné par
 l'appelant~: statistique observée non finie, aucune réplication finie, réplications finies
@@ -4625,7 +4660,7 @@ pouvoir de détection sur $\sigma_j$ \\
 
 Homogénéité des résidus entre années de survenance & \textbf{MW} & $H$ de
 Kruskal--Wallis & Non & Oui, $\chi^2(k-1)$ & Oui & Monte-Carlo &
-\textbf{Déconseillée} : groupes très déséquilibrés (de $J$ à 1 résidu) &
+\textbf{Déconseillée} : groupes très déséquilibrés (de $J - 1$ à 1 résidu) &
 Traduction testable de D(2)(h)(i) ; complète le test calendaire~; un seul résidu par année~:
 $H = N - 1$ par construction, aucune p-value, diagnostic (fiche~\ref{mw:m3acc}) \\
 
@@ -5078,6 +5113,83 @@ qu'ils atteignent $\alpha/2$ (section~\ref{sec:controles}). Les règles généra
 statistique observée non finie, section~\ref{sec:nature}) peuvent en outre changer le type d'une
 ligne sur un jeu donné~; les rubriques~7 ne les répètent pas.
 
+\noindent\emph{Méthode Merz--Wüthrich} (issue~\#115). Six vérifications de \code{mw\_tests()} reçoivent
+une $p_{\min}$, calculée par la règle ci-dessus sur une loi de référence combinatoire, aux
+effectifs observés, dans le sens du catalogue \code{MW\_CATALOGUE\_MC} et avec le doublement des
+lignes bilatérales. Le tableau ci-dessous en donne les valeurs pour un triangle complet de
+$T = I + 1$ années de survenance, sans colonne dégénérée ni ex \ae quo~: les effectifs ne
+dépendent alors que de la géométrie, sauf pour l'effet calendaire, dont la colonne est mesurée
+sur les sous-triangles $T \times T$ du triangle de contrôle (\code{tests/donnees/triangle\_mw.csv},
+qui n'en compte que huit). La rubrique~7 des fiches correspondantes y renvoie.
+
+\begin{center}
+\small
+\rowcolors{2}{tablerow}{white}
+\begin{tabular}{@{}cccccccc@{}}
+\rowcolor{tableheader}
+\textcolor{financeblue}{\textbf{$T$}} &
+\textcolor{financeblue}{\textbf{\shortstack{Résidus\\$N$}}} &
+\textcolor{financeblue}{\textbf{\shortstack{Suites\\$n_1/n_2$}}} &
+\textcolor{financeblue}{\textbf{\shortstack{$p_{\min}$\\suites}}} &
+\textcolor{financeblue}{\textbf{\shortstack{$p_{\min}$\\corrélation}}} &
+\textcolor{financeblue}{\textbf{\shortstack{$p_{\min}$ homogé-\\néité, exposant}}} &
+\textcolor{financeblue}{\textbf{\shortstack{$p_{\min}$\\Kruskal--Wallis}}} &
+\textcolor{financeblue}{\textbf{\shortstack{$p_{\min}$ calen-\\daire (contrôle)}}} \\
+5  & 9  & 4/4   & $0{,}0571$             & $0{,}333$              & ---                    & $4{,}76\cdot 10^{-3}$  & $0{,}125$ \\
+6  & 14 & 7/7   & $1{,}17\cdot 10^{-3}$  & $1{,}39\cdot 10^{-2}$  & $1{,}39\cdot 10^{-3}$  & $9{,}51\cdot 10^{-6}$  & $1{,}56\cdot 10^{-2}$ \\
+7  & 20 & 10/10 & $2{,}17\cdot 10^{-5}$  & $1{,}16\cdot 10^{-4}$  & $3{,}86\cdot 10^{-6}$  & $1{,}23\cdot 10^{-9}$  & $4{,}88\cdot 10^{-4}$ \\
+\textbf{8} & \textbf{27} & \textbf{13/13} & $\mathbf{3{,}85\cdot 10^{-7}}$ & $\mathbf{1{,}61\cdot 10^{-7}}$ &
+$\mathbf{1{,}53\cdot 10^{-9}}$ & $\mathbf{8{,}29\cdot 10^{-15}}$ & $\mathbf{7{,}63\cdot 10^{-6}}$ \\
+9  & 35 & 17/17 & $1{,}71\cdot 10^{-9}$  & $3{,}19\cdot 10^{-11}$ & $7{,}59\cdot 10^{-14}$ & $2{,}47\cdot 10^{-21}$ & --- \\
+10 & 44 & 22/22 & $1{,}90\cdot 10^{-12}$ & $7{,}91\cdot 10^{-16}$ & $4{,}19\cdot 10^{-19}$ & $2{,}78\cdot 10^{-29}$ & --- \\
+11 & 54 & 27/27 & $2{,}05\cdot 10^{-15}$ & $2{,}18\cdot 10^{-21}$ & \code{NA}             & $1{,}05\cdot 10^{-38}$ & --- \\
+12 & 65 & 32/32 & $2{,}18\cdot 10^{-18}$ & $6{,}01\cdot 10^{-28}$ & \code{NA}             & $1{,}17\cdot 10^{-49}$ & --- \\
+\end{tabular}
+\end{center}
+
+\noindent\emph{Lois de référence, effectifs et formules} (colonne $j$ de $n_j = I - j$ facteurs,
+$j = 0, \ldots, I - 2$, soit $N = \sum_j n_j = I(I+1)/2 - 1$ résidus de Mack). (i)~\emph{Suites}
+(bilatéral)~: loi combinatoire de Swed et Eisenhart, \code{runs\_p\_min(n1, n2)} aux effectifs
+de \code{.runs\_effectifs()}, la même fonction que pour la méthode lognormale~; $n_1 = n_2 =
+\lfloor N/2 \rfloor$ sans ex \ae quo. (ii)~\emph{Effet calendaire} (bilatéral)~: sur chaque
+diagonale retenue ($n_k \ge 2$ étiquettes $L$ ou $S$), $L_k \sim \mathcal{B}(n_k, 1/2)$, diagonales
+indépendantes, $Z = \sum_k \min(L_k, n_k - L_k)$~; loi de $Z$ par convolution exacte, et
+$p_{\min} = \min_z 2\min\big(\mathbb{P}(Z \le z), \mathbb{P}(Z \ge z)\big)$, bornée à~1
+(\code{.mw\_calendrier\_p\_min()}). C'est la loi binomiale indépendante de Mack (1994), celle des
+moments exacts de la fiche~\ref{mw:m3cal}, et \textbf{non} la loi de permutation des facteurs à
+l'intérieur de chaque colonne~: dans une colonne, le nombre de $L$ est fixé par la médiane, ce
+qui lie les diagonales (choix de la spécification, question renvoyée à l'issue~\#125). Les $n_k$
+dépendent des données (une colonne de $n_j$ impair a un facteur égal à sa médiane, étiqueté
+«~*~»)~: sur le triangle de contrôle, $n_k = 2, 3, 4, 4, 6, 5$ et $p_{\min} = 2^{-17}$, sur le
+triangle de Taylor \& Ashe ($T = 10$), $9{,}31\cdot 10^{-10}$. (iii)~\emph{Corrélation entre
+années adjacentes} (bilatéral)~: permutations indépendantes des facteurs de chaque colonne~;
+$p_{\min} = \min\big(1, 2\prod_k 1/n_k!\big)$ sur les paires retenues, de $n_k = I - k \ge 3$
+facteurs ($k = 1, \ldots, I - 3$~; \code{.mw\_corr\_p\_min()}, démonstration à la
+fiche~\ref{mw:m3cor}). (iv)~\emph{Homogénéité de $f_j$ et exposant de variance} (queue haute)~:
+permutations indépendantes de chaque colonne, $p_j$ de la loi de permutation de Spearman
+(fiche~\ref{mw:m1b})~; $p_{\min} = \prod_j 2/n_j!$ sur les colonnes de $n_j \ge 4$ facteurs
+(\code{.mw\_fisher\_rangs\_p\_min()})~; non attribuée (\code{NA}, motif dans le commentaire) dès
+qu'une colonne compte plus de neuf facteurs, $p_j$ n'y suivant plus la loi de permutation, donc dès
+$T = 11$~; sans objet à $T = 5$, une seule colonne n'ayant que quatre facteurs (ligne non
+applicable). (v)~\emph{Kruskal--Wallis entre années de survenance} (queue haute)~: affectations
+équiprobables des rangs aux groupes~; forme close $p_{\min} = k!\prod_i n_i!/N!$ pour $k$ groupes
+de tailles $n_i$ (\code{.mw\_kruskal\_p\_min()}, démonstration à la fiche~\ref{mw:m3acc})~; ici
+$k = I$ et $n_i = \min(I - i, I - 1)$~; \code{NA} avec motif si la valeur sort de la précision de
+la machine. (vi)~\emph{Ex \ae quo}~: pour les lignes de rangs (corrélation, homogénéité, exposant,
+Kruskal--Wallis), un ex \ae quo au sens de la section~\ref{sec:ex-aequo} donne $p_{\min}$ =
+\code{NA}, la loi de permutation conditionnelle n'étant pas tabulée, avec le motif dans le
+commentaire~; les suites et l'effet calendaire écartent déjà les valeurs égales à la médiane.
+(vii)~\emph{Nature}~: valeurs exactes sous la loi de référence, qui n'est pas celle du modèle de
+Mack~; la p-value retenue de ces lignes est toujours de Monte-Carlo, et ces valeurs n'en sont pas
+une borne (section~\ref{sec:nature}). Les colonnes $T \le 8$ ont été vérifiées contre le champ
+\code{p\_min} de \code{run\_engine()} sur les sous-triangles du triangle de contrôle, la colonne
+$T = 10$ sur le triangle de Taylor \& Ashe~; les autres sont calculées par les mêmes fonctions aux
+effectifs de la géométrie. \emph{Bascules à $\alpha = 0{,}10$}~: à $T = 5$, la corrélation est
+inopérante pour tout triangle complet ($p_{\min} = 1/3$), l'effet calendaire l'est sur le
+sous-triangle de contrôle ($n_k = 3, 3$, $p_{\min} = 0{,}125$), et la ligne des suites reste un test
+dont l'\code{ECHEC} est possible ($\alpha/2 \le 0{,}0571 < \alpha$, p-value retenue de Monte-Carlo,
+section~\ref{sec:nature})~; dès $T = 6$, toutes les valeurs du tableau sont sous $\alpha/2$.
+
 % -----------------------------------------------------------------------------
 \subsection{Tableau de traçabilité de la rubrique 7}
 \label{tab:tracabilite-puissance}
@@ -5375,16 +5487,16 @@ Grubbs, ratios bruts (\ref{fiche:grubbs-ratios-bruts}) & Plancher Monte-Carlo $1
 \midrule
 M1, tendance avec le cumulé (\ref{mw:m1}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée (valeur de la rubrique~6 sans script versionné) & \code{engine\_p\_mc()} & --- \\
 M1, ordonnée à l'origine (\ref{mw:m1a}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
-M1, homogénéité de $f_j$ (\ref{mw:m1b}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral)~; $p_{\min}$ non calculée & Non étudiée & \code{engine\_p\_mc()} & --- \\
+M1, homogénéité de $f_j$ (\ref{mw:m1b}) & $p_{\min} = 1{,}53\cdot 10^{-9}$ (loi de référence échangeable)~; plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{.mw\_fisher\_rangs\_p\_min()}, \code{engine\_p\_mc()} & --- \\
 M1, courbure (\ref{mw:m1c}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
 M1, famille $\alpha$ (\ref{mw:m1d}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
 M2, hétéroscédasticité (\ref{mw:m2bp}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
-M2, exposant de variance (\ref{mw:m2b}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
-M3, effets calendaires (\ref{mw:m3cal}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral)~; $p_{\min}$ non calculée & Non étudiée & \code{engine\_p\_mc()} & --- \\
-M3, homogénéité entre années (\ref{mw:m3acc}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral)~; $p_{\min}$ non calculée & Non étudiée & \code{engine\_p\_mc()} & --- \\
-M3, corrélation entre colonnes (\ref{mw:m3cor}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral)~; $p_{\min}$ non calculée & Non étudiée & \code{engine\_p\_mc()} & --- \\
+M2, exposant de variance (\ref{mw:m2b}) & $p_{\min} = 1{,}53\cdot 10^{-9}$ (loi de référence échangeable)~; plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{.mw\_fisher\_rangs\_p\_min()}, \code{engine\_p\_mc()} & --- \\
+M3, effets calendaires (\ref{mw:m3cal}) & $p_{\min} = 2^{-17} = 7{,}63\cdot 10^{-6}$ (loi binomiale indépendante de Mack)~; plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée & \code{.mw\_calendrier\_p\_min()}, \code{engine\_p\_mc()} & --- \\
+M3, homogénéité entre années (\ref{mw:m3acc}) & $p_{\min} = 8{,}29\cdot 10^{-15}$ (loi de référence échangeable)~; plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{.mw\_kruskal\_p\_min()}, \code{engine\_p\_mc()} & --- \\
+M3, corrélation entre colonnes (\ref{mw:m3cor}) & $p_{\min} = 1{,}61\cdot 10^{-7}$ (loi de référence échangeable)~; plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée & \code{.mw\_corr\_p\_min()}, \code{engine\_p\_mc()} & --- \\
 M3, Durbin--Watson (\ref{mw:m3dw}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
-M3, suites (\ref{mw:m3runs}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral)~; $p_{\min}$ non calculée~; $3{,}85\cdot 10^{-7}$ indicative & Non étudiée & \code{engine\_p\_mc()}, \code{runs\_p\_min()} & --- \\
+M3, suites (\ref{mw:m3runs}) & $p_{\min} = 3{,}85\cdot 10^{-7}$ (loi de référence échangeable)~; plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée & \code{runs\_p\_min()}, \code{engine\_p\_mc()} & --- \\
 M4, Grubbs (\ref{mw:m4gr}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
 M4, ESD de Rosner (\ref{mw:m4ros}) & Sans objet (procédure sans p-value) & Non étudiée & \code{test\_rosner()} & --- \\
 M5, Shapiro--Wilk (\ref{mw:m5sw}) & Plancher de la loi nulle simulée $1/20\,001 \approx 5{,}0\cdot 10^{-5}$ & Non étudiée & \code{sw\_p\_loi\_nulle()} & --- \\
@@ -11101,7 +11213,11 @@ nulle, une statistique, une p-value et un verdict. Inversement, la variance
 unitaire des résidus (M2) est un diagnostic~: elle n'a ni hypothèse nulle ni loi
 de référence, et sa valeur est de surcroît \emph{contrainte par construction}
 (fiche~\ref{mw:m2var}). Aucun des trois diagnostics ne porte de verdict~: tous
-sont restitués \code{INFO}, conformément à l'ADR~0001. Treize de ces quinze
+sont restitués \code{INFO}, conformément à l'ADR~0001. Ces types sont ceux du triangle de contrôle $8 \times 8$~:
+sur son sous-triangle $5 \times 5$, à $\alpha = 0{,}10$, l'effet calendaire et la corrélation entre
+années adjacentes sont restitués en test inopérant (règle~R1, issue~\#115,
+tableau~\ref{tab:pmin}), l'homogénéité de $f_j$ et l'exposant de variance sont non applicables
+(mesuré par \code{run\_engine()}). Treize de ces quinze
 tests reposent sur le bootstrap de résidus~; Shapiro--Wilk dispose d'une loi nulle propre, pour la raison exposée
 dans sa fiche, et Lilliefors de l'approximation analytique de Dallal et Wilkinson, restituée
 sous la nature \code{asymptotique} faute de catégorie propre (fiche~\ref{mw:m5li}). Les six entrées en gras ci-dessus sont celles qui
@@ -11389,13 +11505,13 @@ telle dérive traduit un changement de politique de règlement ou de mix de
 portefeuille. Elle n'est pas détectable par le test d'ordonnée à l'origine, qui
 porte sur le niveau et non sur la pente.
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} Non calculée par le moteur~: la statistique, combinaison de corrélations de rang calculées colonne par colonne sur de petits effectifs, est discrète, mais \code{mw\_tests()} ne calcule pas sa $p_{\min}$. La p-value retenue est de Monte-Carlo (clé \code{HomogF}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est le seul plancher établi de la p-value retenue.
+\textbf{p-value minimale à $T = 8$.} $\prod_j 2/n_j! = 16/(7!\,6!\,5!\,4!) = 1{,}53\cdot 10^{-9}$ sur le triangle de contrôle ($K = 4$ colonnes de $n_j = 7, 6, 5, 4$ facteurs, \code{.mw\_fisher\_rangs\_p\_min()}, issue~\#115)~: $X$ est maximal si et seulement si toutes les colonnes ont $|\hat\rho_{s,j}| = 1$, chacune avec la probabilité $2/n_j!$ sous des permutations indépendantes des colonnes, $p_j$ étant strictement décroissante en $|\hat\rho_{s,j}|$ et finie en $|\hat\rho_{s,j}| = 1$ depuis l'issue~\#90. Valeur exacte sous cette loi de référence échangeable, qui n'est pas celle du modèle de Mack~: elle ne borne pas la p-value retenue. Non attribuée (\code{NA}, motif dans le commentaire) avec un ex \ae quo ou si une colonne compte plus de neuf facteurs. La p-value retenue est de Monte-Carlo (clé \code{HomogF}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est le seul plancher établi de la p-value retenue.
 
-\textbf{Table.} Sans objet (aucune $p_{\min}$ calculée par le moteur).
+\textbf{Table.} Tableau~\ref{tab:pmin}, partie Merz--Wüthrich.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ ($p_{\min} \ll \alpha/2$, aucune bascule par la règle~R1). Non applicable à $T = 5$ (une seule colonne de quatre facteurs, statistique non définie)~; $p_{\min}$ non attribuée dès $T = 11$. Puissance non étudiée à $T = 8$.
 
-\textbf{Statut des valeurs.} Plancher~: exact, fonction de $B$~; aucune $p_{\min}$ établie par le moteur.
+\textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi de référence échangeable, non sous le modèle de Mack~; plancher~: exact, fonction de $B$.
 \end{fiche}
 
 \begin{fiche}{M1 --- Absence de courbure de la régression}
@@ -11586,13 +11702,13 @@ inadapté --- l'alternative étant un exposant~0 (variance constante) ou~2
 ouvert}, un rejet doit être documenté comme une limite du modèle réglementaire
 et non comme un motif de changement de méthode.
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $X$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{ExpVar}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+\textbf{p-value minimale à $T = 8$.} $\prod_j 2/n_j! = 1{,}53\cdot 10^{-9}$ sur le triangle de contrôle ($K = 4$ colonnes de $n_j = 7, 6, 5, 4$ résidus, \code{.mw\_fisher\_rangs\_p\_min()}, issue~\#115, étendue à cette ligne par décision du mainteneur du 6~octobre 2026), par le même argument qu'à la fiche~\ref{mw:m1b}~: $X$, discrète sous la loi de permutation de chaque colonne depuis l'issue~\#90, n'est maximale que si toutes les colonnes ont $|\hat\rho_{s,j}| = 1$. Valeur exacte sous cette loi de référence échangeable, qui n'est pas celle du modèle de Mack~: elle ne borne pas la p-value retenue. Non attribuée (\code{NA}, motif dans le commentaire) avec un ex \ae quo des $|r(i,j)|$ ou des $C(i,j)$, ou si une colonne compte plus de neuf résidus. La p-value retenue est de Monte-Carlo (clé \code{ExpVar}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est le seul plancher établi de la p-value retenue.
 
-\textbf{Table.} Sans objet (loi continue).
+\textbf{Table.} Tableau~\ref{tab:pmin}, partie Merz--Wüthrich.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ ($p_{\min} \ll \alpha/2$, aucune bascule par la règle~R1). Non applicable à $T = 5$~; $p_{\min}$ non attribuée dès $T = 11$. Puissance non étudiée à $T = 8$.
 
-\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
+\textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi de référence échangeable, non sous le modèle de Mack~; plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
 \end{fiche}
 
 \begin{fiche}{M2 --- Variance unitaire des résidus de Mack (diagnostic)}
@@ -11772,7 +11888,13 @@ avec $m_k = \lfloor (n_k-1)/2 \rfloor$~:
 \]
 Ces deux expressions ont été vérifiées par énumération exhaustive de la loi de
 $\min(L, n-L)$ pour $n = 2,\dots,12$~: concordance à $10^{-10}$ près. En
-revanche, la normalité de la \emph{somme} $Z$ n'est qu'approchée.
+revanche, la normalité de la \emph{somme} $Z$ n'est qu'approchée. La loi exacte de $Z$ sous ce
+schéma --- $L_k$ binomiales indépendantes, que nous appelons loi binomiale indépendante de Mack ---
+s'obtient par convolution~; le moteur ne s'en sert que pour la $p_{\min}$ de la ligne
+(rubrique~7, issue~\#115), non pour une p-value. Elle n'est pas la loi de permutation des
+facteurs à l'intérieur de chaque colonne~: dans une colonne, le nombre d'étiquettes $L$ est fixé
+par la médiane, ce qui lie les diagonales, que le schéma binomial suppose indépendantes~; aucune
+des deux n'est la loi des étiquettes sous le modèle de Mack.
 \Pval
 $p = 2\big(1 - \Phi(|Z^\star|)\big)$ pour la version asymptotique~; la p-value de
 Monte-Carlo est celle retenue.
@@ -11785,13 +11907,13 @@ posée par D(2)(h)(i). Limite à $T = 8$~: la somme ne porte que sur $I-1$
 diagonales exploitables, dont plusieurs ne comptent que deux ou trois
 étiquettes, d'où le recours au bootstrap plutôt qu'à l'approximation normale.
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} Non calculée par le moteur~: la statistique $Z$, somme de minima de comptages binomiaux, est discrète, mais \code{mw\_tests()} ne calcule pas sa $p_{\min}$. La p-value retenue est de Monte-Carlo (clé \code{Calendrier}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est le seul plancher établi de la p-value retenue.
+\textbf{p-value minimale à $T = 8$.} $2^{-17} = 7{,}63\cdot 10^{-6}$ sur le triangle de contrôle (diagonales retenues de $n_k = 2, 3, 4, 4, 6, 5$ étiquettes, les étiquettes «~*~» étant écartées~; \code{.mw\_calendrier\_p\_min()}, issue~\#115)~: $\min_z 2\min\big(\mathbb{P}(Z \le z), \mathbb{P}(Z \ge z)\big)$, bornée à~1, sous la loi binomiale indépendante de Mack, dont la loi de $Z$ est obtenue par convolution exacte (rubrique~4). Valeur exacte sous cette loi de référence, qui n'est pas celle du modèle de Mack~: elle ne borne pas la p-value retenue. Les $n_k$ dépendent des données. La p-value retenue est de Monte-Carlo (clé \code{Calendrier}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est le seul plancher établi de la p-value retenue.
 
-\textbf{Table.} Sans objet (aucune $p_{\min}$ calculée par le moteur).
+\textbf{Table.} Tableau~\ref{tab:pmin}, partie Merz--Wüthrich.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Test inopérant au seuil $\alpha = 0{,}10$ sur le sous-triangle $5 \times 5$ du triangle de contrôle ($n_k = 3, 3$, $p_{\min} = 0{,}125$)~: ligne restituée en diagnostic, sans verdict (règle~R1 appliquée telle quelle aux lignes Merz--Wüthrich, décision du mainteneur du 6~octobre 2026, en attendant l'issue~\#125, section~\ref{sec:nature}). Puissance non étudiée à $T = 8$.
 
-\textbf{Statut des valeurs.} Plancher~: exact, fonction de $B$~; aucune $p_{\min}$ établie par le moteur.
+\textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi binomiale indépendante de Mack, non sous le modèle de Mack~; plancher~: exact, fonction de $B$.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -11825,6 +11947,22 @@ Chaque réplication de même géométrie donnant la même valeur, la loi simulé
 nulle~: la ligne est un diagnostic \code{INFO}, sans p-value retenue (ADR~0001). Mesuré sur le
 triangle \code{col0\_1e11} de la section~\ref{sec:controles} ($N = 7$)~: $H = 6$, type
 diagnostic, \code{INFO}.
+
+\emph{Loi de référence combinatoire et p-value minimale} (issue~\#115). Sous les affectations
+équiprobables des rangs $1, \ldots, N$ aux $k$ groupes de tailles $n_i$ (loi de référence de
+Kruskal et Wallis, sans ex \ae quo), la plus petite p-value atteignable a la forme close
+$p_{\min} = k!\prod_i n_i!/N!$ (\code{.mw\_kruskal\_p\_min()}). Démonstration~: sans ex \ae quo,
+$H$ est une fonction croissante de $\sum_i R_i^2/n_i$, où $R_i$ est la somme des rangs du
+groupe~$i$~; en notant $W_i$ la somme des carrés des écarts des rangs du groupe~$i$ à leur moyenne,
+$\sum_i R_i^2/n_i = \sum_{r=1}^{N} r^2 - \sum_i W_i$, dont le premier terme ne dépend pas de
+l'affectation~; or $W_i \ge n_i(n_i^2 - 1)/12$, variance minimale de $n_i$ entiers distincts,
+avec égalité si et seulement si les rangs du groupe sont consécutifs. $H$ est donc maximal
+exactement sur les affectations en blocs de rangs contigus, et les $k!$ ordres des blocs le
+réalisent tous, les bornes étant atteintes simultanément~; parmi les $N!/\prod_i n_i!$
+affectations équiprobables, d'où la formule. Elle est vérifiée par énumération exhaustive dans la
+batterie de tests unitaires (\code{tests/unitaires/test\_merz\_wuthrich.R})~: $24/5040$ pour les
+tailles $(3, 3, 2, 1)$, $1{,}905\cdot 10^{-3}$ pour $(4, 3, 2, 1)$. Cette loi de référence suppose
+les résidus échangeables, ce qu'ils ne sont pas sous le modèle de Mack (section~\ref{sec:nature}).
 \Pval
 p-value de Monte-Carlo retenue~; le khi-deux est fourni comme complément non
 simulé.
@@ -11833,16 +11971,16 @@ Complète le test des effets d'année calendaire, qui porte sur les diagonales~:
 celui-ci porte sur les \emph{lignes}. Un rejet signale qu'une année de
 survenance se comporte différemment des autres, ce qui viole l'hypothèse
 d'indépendance et d'identité de distribution. Limite structurelle~: les groupes
-sont très déséquilibrés, la première ligne comptant $J$ résidus et la dernière
-un seul.
+sont très déséquilibrés, la première ligne comptant $J - 1$ résidus (six sur le triangle de
+contrôle, $J = 7$) et la dernière un seul.
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} Non calculée par le moteur~: la statistique $H$ de Kruskal--Wallis, fonction des rangs, est discrète, mais \code{mw\_tests()} ne calcule pas sa $p_{\min}$. La p-value retenue est de Monte-Carlo (clé \code{KruskalAcc}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est le seul plancher établi de la p-value retenue.
+\textbf{p-value minimale à $T = 8$.} $7!\prod_i n_i!/27! = 8{,}29\cdot 10^{-15}$ sur le triangle de contrôle ($k = 7$ années de survenance de $n_i = 6, 6, 5, 4, 3, 2, 1$ résidus, $N = 27$~; \code{.mw\_kruskal\_p\_min()}, issue~\#115, décision du mainteneur du 6~octobre 2026), par la forme close de la rubrique~4. Valeur exacte sous la loi de référence échangeable, qui n'est pas celle du modèle de Mack~: elle ne borne pas la p-value retenue. Non attribuée (\code{NA}, motif dans le commentaire) avec un ex \ae quo des résidus aplatis, ou si la valeur sort de la précision de la machine. La p-value retenue est de Monte-Carlo (clé \code{KruskalAcc}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est le seul plancher établi de la p-value retenue.
 
-\textbf{Table.} Sans objet (aucune $p_{\min}$ calculée par le moteur).
+\textbf{Table.} Tableau~\ref{tab:pmin}, partie Merz--Wüthrich.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ ($p_{\min} \ll \alpha/2$, aucune bascule par la règle~R1, de $T = 5$, $p_{\min} = 4{,}76\cdot 10^{-3}$, à $T = 12$). Diagnostic quand chaque année n'a qu'un résidu (rubrique~4). Puissance non étudiée à $T = 8$.
 
-\textbf{Statut des valeurs.} Plancher~: exact, fonction de $B$~; aucune $p_{\min}$ établie par le moteur.
+\textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi de référence échangeable (forme close démontrée et vérifiée par énumération), non sous le modèle de Mack~; plancher~: exact, fonction de $B$.
 \end{fiche}
 
 \begin{fiche}{M3 --- Corrélation entre années de développement adjacentes}
@@ -11884,6 +12022,20 @@ moyenne pondérée des corrélations de rang par paire de colonnes.
 \textbf{Aucune loi analytique}~: la géométrie du triangle fait que les paires de
 colonnes se recouvrent partiellement et reposent sur des effectifs décroissants.
 Aucune approximation asymptotique n'est mobilisable.
+
+\emph{Loi de référence combinatoire et p-value minimale} (issue~\#115). Sous des permutations
+indépendantes des facteurs de chaque colonne, sans ex \ae quo, la plus petite p-value
+atteignable est $p_{\min} = \min\big(1, 2\prod_k 1/n_k!\big)$ (\code{.mw\_corr\_p\_min()}, $n_k$
+facteurs de la paire~$k$, soit son poids plus un). Les paires partagent une colonne et ne sont pas
+indépendantes~; la formule tient par conditionnement le long de la chaîne des colonnes. $|\hat\rho|$
+est maximal si et seulement si chaque $\hat\rho_{s,k}$ vaut $+1$, ou chacun $-1$~; la paire~$k$
+compare la colonne~$k$, restreinte à ses $n_k$ premières lignes, à la colonne $k+1$, qui a
+exactement $n_k$ facteurs~; quel que soit l'ordre des colonnes précédentes, $\hat\rho_{s,k} = +1$
+(resp.~$-1$) exige que la colonne $k+1$ reproduise (resp.~renverse) cet ordre restreint, ce qui a
+la probabilité $1/n_k!$. Le doublement donne la formule. Vérifiée par énumération exhaustive dans
+la batterie de tests unitaires ($0{,}013889$ pour $n_k = 4, 3$). Cette loi de référence n'est pas
+celle des facteurs sous le modèle de Mack, où les colonnes adjacentes sont dépendantes et les
+facteurs d'une colonne de variances inégales~; elle ne sert qu'à la $p_{\min}$ (rubrique~7).
 \Pval
 p-value de Monte-Carlo exclusivement. C'est, avec la corrélation, le seul test
 du dispositif pour lequel aucune p-value non simulée n'existe.
@@ -11895,13 +12047,13 @@ MSEP, qui suppose que les erreurs de projection ne se cumulent pas. Limite~: sur
 un triangle $8\times8$, seules cinq ou six paires de colonnes comptent au moins
 trois observations, ce qui rend le test très peu puissant.
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} Non calculée par le moteur~: la statistique, moyenne de corrélations de rang, est discrète, mais \code{mw\_tests()} ne calcule pas sa $p_{\min}$. La p-value retenue est de Monte-Carlo (clé \code{CorrDev}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est le seul plancher établi de la p-value retenue.
+\textbf{p-value minimale à $T = 8$.} $2/(6!\,5!\,4!\,3!) = 2/12\,441\,600 = 1{,}61\cdot 10^{-7}$ sur le triangle de contrôle (quatre paires de $n_k = 6, 5, 4, 3$ facteurs~; \code{.mw\_corr\_p\_min()}, issue~\#115), par l'argument de chaîne de la rubrique~4. Valeur exacte sous la loi de référence échangeable, qui n'est pas celle du modèle de Mack~: elle ne borne pas la p-value retenue. Non attribuée (\code{NA}, motif dans le commentaire) avec un ex \ae quo dans une paire retenue. La p-value retenue est de Monte-Carlo (clé \code{CorrDev}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est le seul plancher établi de la p-value retenue.
 
-\textbf{Table.} Sans objet (aucune $p_{\min}$ calculée par le moteur).
+\textbf{Table.} Tableau~\ref{tab:pmin}, partie Merz--Wüthrich.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Test inopérant au seuil $\alpha = 0{,}10$ sur tout triangle complet $5 \times 5$ (une paire de trois facteurs, $p_{\min} = 1/3$)~: ligne restituée en diagnostic, sans verdict (règle~R1 appliquée telle quelle aux lignes Merz--Wüthrich, décision du mainteneur du 6~octobre 2026, en attendant l'issue~\#125, section~\ref{sec:nature}). Puissance non étudiée à $T = 8$.
 
-\textbf{Statut des valeurs.} Plancher~: exact, fonction de $B$~; aucune $p_{\min}$ établie par le moteur.
+\textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi de référence échangeable, non sous le modèle de Mack~; plancher~: exact, fonction de $B$.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -11977,13 +12129,13 @@ Test non paramétrique robuste, sensible aussi bien au regroupement qu'à
 l'alternance excessive des signes. Sa lecture souffre, comme celle de
 Durbin--Watson, du caractère conventionnel de l'ordre de parcours.
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} Non calculée par le moteur~: la statistique, fonction du nombre de suites $R$, est discrète, mais \code{mw\_tests()} ne calcule pas sa $p_{\min}$. La p-value retenue est de Monte-Carlo (clé \code{Runs}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est le seul plancher établi de la p-value retenue. À titre indicatif, la loi combinatoire aux effectifs du triangle de contrôle ($n_1 = n_2 = 13$) donne \code{runs\_p\_min(13, 13)} $= 3{,}85\cdot 10^{-7}$, très en deçà du plancher de Monte-Carlo.
+\textbf{p-value minimale à $T = 8$.} \code{runs\_p\_min(13, 13)} $= 3{,}85\cdot 10^{-7}$ sur le triangle de contrôle ($n_1 = n_2 = 13$, effectifs de \code{.runs\_effectifs()}~; champ \code{p\_min} de la ligne depuis l'issue~\#115, auparavant valeur indicative non portée par le moteur), sous la loi combinatoire de Swed et Eisenhart, avec le doublement. Valeur exacte sous cette loi de référence échangeable, qui n'est pas celle des résidus de Mack (rubrique~4)~: elle ne borne pas la p-value retenue. La p-value retenue est de Monte-Carlo (clé \code{Runs}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est le seul plancher établi de la p-value retenue.
 
-\textbf{Table.} Sans objet (aucune $p_{\min}$ calculée par le moteur).
+\textbf{Table.} Tableau~\ref{tab:pmin}, partie Merz--Wüthrich.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Sur le sous-triangle $5 \times 5$ du triangle de contrôle ($n_1 = n_2 = 4$, $p_{\min} = 4/70 = 0{,}0571$), la ligne reste un test à $\alpha = 0{,}10$, et son commentaire dit que l'\code{ECHEC} est possible, la p-value retenue de Monte-Carlo pouvant être inférieure à $p_{\min}$ (règle~R1, section~\ref{sec:nature}). Puissance non étudiée à $T = 8$.
 
-\textbf{Statut des valeurs.} Plancher~: exact, fonction de $B$~; aucune $p_{\min}$ établie par le moteur~; valeur indicative~: exacte pour la loi combinatoire, qui n'est pas celle des résidus de Mack.
+\textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi combinatoire, qui n'est pas celle des résidus de Mack~; plancher~: exact, fonction de $B$.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -13537,7 +13689,9 @@ et~\ref{fiche:multi-demarrages}).
 Une ligne de type \code{test} sans p-value retenue sort aussi \code{INFO}.
 Relèvent notamment de ce verdict~: test \emph{inopérant}, dont la plus petite p-value
 atteignable $p_{\min}$ atteint ou dépasse $\alpha$ (règle~R1, issue~\#44~; Cox--Stuart à $T = 8$,
-fiche~\ref{fiche:cox-stuart}), restitué en diagnostic~; test de Pitman sur la pente lorsque la
+fiche~\ref{fiche:cox-stuart}~; effet calendaire et corrélation entre années adjacentes de la
+méthode Merz--Wüthrich sur un triangle $5 \times 5$, issue~\#115, fiches~\ref{mw:m3cal}
+et~\ref{mw:m3cor}), restitué en diagnostic~; test de Pitman sur la pente lorsque la
 pente n'est pas identifiable par les données, $\hat\pi_b < 1/2$ (règle~R4,
 section~\ref{sec:t8})~; ligne de Fisher, diagnostic dans tous les régimes depuis
 l'issue~\#169~; ligne dont la loi simulée est dégénérée (section~\ref{sec:nature})~;
@@ -13702,7 +13856,9 @@ Spearman), et, depuis l'issue~\#169, pour la loi de permutation unilatérale de 
 (\code{usp\_permutation\_pente()}, $1/T!$ sans ex \ae quo, fiche~\ref{fiche:student-pente}), et
 restitue en diagnostic, sans verdict, toute ligne inopérante (règle~R1,
 section~\ref{sec:nature})~; à $T = 8$ et $\alpha = 0{,}10$, sans ex \ae quo, seul Cox--Stuart
-l'est, et il l'est pour toute donnée. Les valeurs de $p_{\min}$ de $T = 5$ à $T = 12$ et les seuils
+l'est, et il l'est pour toute donnée. Depuis l'issue~\#115, la même règle s'applique à six vérifications
+de la méthode Merz--Wüthrich, sur une $p_{\min}$ qui ne borne jamais leur p-value retenue, de
+Monte-Carlo~; aucune n'est inopérante sur un triangle $8 \times 8$. Les valeurs de $p_{\min}$ de $T = 5$ à $T = 12$ et les seuils
 de bascule à $\alpha = 0{,}10$ sont au tableau~\ref{tab:pmin}~; la rubrique~7 de chaque fiche de
 test en donne la lecture propre au test. Les autres entrées du tableau relèvent d'une approximation mal calibrée ou d'une
 définition impossible à faible $T$, non de l'inopérance.
@@ -13717,6 +13873,11 @@ Cox--Stuart & $T \ge 10$ ($\alpha = 0{,}10$)~; $T \ge 12$ à 5~\% & Rejet à 5~\
 pour $m \le 5$ différences non nulles~; au seuil par défaut $\alpha = 0{,}10$, impossible pour
 $m \le 4$, donc pour $T \le 9$ sans ex \ae quo, et toujours à $T = 8$~: restitué en diagnostic
 (règle~R1)~; \code{ECHEC} atteignable seulement dès $T = 12$ (tableau~\ref{tab:pmin}). \\
+Corrélation entre années adjacentes et effet calendaire (Merz--Wüthrich) & $T \ge 6$ ($\alpha = 0{,}10$) &
+Sur un triangle $5 \times 5$, $p_{\min} = 1/3$ pour la corrélation (tout triangle complet) et
+$0{,}125$ pour l'effet calendaire (sous-triangle de contrôle)~: restitués en diagnostic (règle~R1,
+issue~\#115), alors que la p-value retenue, de Monte-Carlo, n'est pas bornée par $p_{\min}$
+(issue~\#125, tableau~\ref{tab:pmin}). \\
 Anscombe--Glynn & $T \ge 20$ & Non défini en-deçà~; marqué \code{INFO}. \\
 D'Agostino (asymétrie) & $T \ge 8$ & Non défini en-deçà~; à $T = 8$, niveau de la p-value normale légèrement libéral et puissance contre une loi exponentielle de $39~\%$ au seuil de 10~\%, $81~\%$ à $T = 20$ (constat~C4, fiche~\ref{fiche:dagostino-asymetrie}). \\
 Jarque--Bera & $T \ge 50$ & $b_2$ borné par $\approx T$~; convergence $\chi^2$ très lente. \\
@@ -14334,7 +14495,9 @@ dossiers. Priorité de revue. \\
 Les fonctions internes de la méthode Merz--Wüthrich relèvent de la même lecture~: une anomalie
 de \code{.fisher\_combine()} atteindrait les quatre combinaisons de Fisher de M1 et M2 (ordonnée
 à l'origine, homogénéité de $f_j$, courbure, exposant de variance), et une anomalie de
-\code{.mw\_spearman\_p()} les deux dernières (issue~\#90).
+\code{.mw\_spearman\_p()} les deux dernières (issue~\#90)~; \code{runs\_p\_min()}, qui fournit la
+$p_{\min}$ des suites dans les deux méthodes depuis l'issue~\#115, relève des fonctions communes
+aux deux dispositifs.
 
 \noindent
 Cette hiérarchie explique l'ordre de vérification retenu lors du développement~:
