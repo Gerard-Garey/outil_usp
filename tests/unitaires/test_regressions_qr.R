@@ -179,13 +179,27 @@ verifier("Echelles extremes : x, y, u x 1e-160 et 1e160 (J1 et J2), six regressi
            }
            rapporter(ko)
          })
-verifier("Entrees sous-normales (x et y x 1e-320, 5e-324, J2) : .usp_lm_pondere(), constante et TOST identiques au calcul par lm(), sans erreur R",
+# L'issue de lm() sur ces entrees depend de la plateforme (commentaire de
+# test_tost_intercept(), #153) : le motif du TOST n'est pas fige ici. Sa
+# coherence avec lm() est controlee, independamment de la plateforme, par
+# test_controles_entree.R (#153) ; ce test exige l'identite au calcul par
+# lm() et l'absence d'erreur R, et note le motif obtenu.
+MOTIFS_SN <- character(0)
+verifier("Entrees sous-normales (x et y x 1e-320, 5e-324, J2) : .usp_lm_pondere() identique au calcul par lm(), constante et TOST sans erreur R",
          all(vapply(c(1e-320, 5e-324), function(cc) {
            a <- .usp_lm_pondere(cc * x2, cc * y2, f2$pi)
            b <- suppressWarnings(outils_env$contre_lm_pondere(cc * x2, cc * y2, f2$pi))
-           isTRUE(concorde("Pond", a, b)) &&
-             identical(test_tost_intercept(cc * x2, cc * y2, f2$pi)$non_applicable, "statistique non definie")
+           tt <- tryCatch(test_tost_intercept(cc * x2, cc * y2, f2$pi), error = function(e) e)
+           ti <- tryCatch(test_intercept(cc * x2, cc * y2, f2$pi), error = function(e) e)
+           ok_lm <- isTRUE(concorde("Pond", a, b))
+           MOTIFS_SN <<- c(MOTIFS_SN, sprintf("%g : %s, ponderee %s lm()", cc,
+             if (inherits(tt, "error")) paste("erreur", conditionMessage(tt))
+             else if (is.na(tt$non_applicable)) "calculee" else tt$non_applicable,
+             if (ok_lm) "=" else "!="))
+           ok_lm && !inherits(tt, "error") && !inherits(ti, "error")
          }, logical(1))))
+cat(sprintf("  note : plateforme courante, TOST sous-normal %s (#237).\n",
+            paste(MOTIFS_SN, collapse = " ; ")))
 
 ## --- 4. Etendues relatives (mesures de #110) ---------------------------------
 verifier("Etendues relatives 8,6e-4, 2,9e-3 et 2,9e-6 (x = 100 (1 + cv scale(1:8))) : six regressions = lm() / anova()",
