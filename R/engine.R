@@ -1134,7 +1134,8 @@ RATIO_PLAUSIBLE_MAX <- 5
 # sigma_USP et les tests etant invariants par un changement d'unite commun
 # a xt et yt (et a delta_equiv s'il est fourni), le refus n'ote rien :
 # il suffit de changer d'unite. Noms neutres vis-a-vis de la methode : les
-# controles du triangle de Merz-Wuthrich les reprendront (#185).
+# controles du triangle de Merz-Wuthrich les reprennent (mw_valider_triangle(),
+# #185).
 DOMAINE_NUMERIQUE_MIN <- 1e-50
 DOMAINE_NUMERIQUE_MAX <- 1e50
 
