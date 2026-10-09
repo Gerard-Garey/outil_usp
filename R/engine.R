@@ -3064,7 +3064,11 @@ test_rosner <- function(v, k = NULL, alpha = 0.05) {
 
 ## =============================================================================
 ## 4. P-VALUES PAR BOOTSTRAP PARAMÉTRIQUE SOUS LE MODÈLE AJUSTÉ
-##    (seules p-values réellement calibrées pour T de l'ordre de 5 à 15)
+##    (niveau mesure a T = 8 sur deux jeux, sous le modele ajuste a chacun,
+##    issues #166 et #221 : compatible ou conservateur en taux
+##    inconditionnel ; conservateur au regime delta* interieur pour huit
+##    statistiques, ecart localise par la mesure de #175 ; constat de
+##    simulation, sans portee generale : section sec:calibration-mc du .tex)
 ## =============================================================================
 
 usp_simuler <- function(fit) {
