@@ -220,6 +220,16 @@
 #  tiennent) ; avec les valeurs du 30/09/2026 par defaut, (i3) echoue (autre
 #  moteur) et (i1) echoue sur la replication rejouee sur le catalogue
 #  complet.
+#  Reexecution du tableau du 09/10/2026
+#  (docs/tableaux/20261009-issue175-conservatisme-interieur.md) : dans un git
+#  worktree au commit 139031d, commit d'execution cite en T0 (md5 de
+#  R/engine.R 344a4e03751e97b14e5ca1b733b856c6, celui du T0 du tableau de
+#  #221). A partir du commit 8ae7bc9 (commentaire du bloc 4 de R/engine.R,
+#  aucun calcul modifie), le md5 de R/engine.R ne correspond plus a ce T0 :
+#  (i3) echoue par construction (ligne INTEGRITE a ECHEC), sans que le calcul
+#  change. Une nouvelle mesure a un commit ulterieur suppose une nouvelle
+#  mesure de #221 sur ce moteur (ou une evolution du controle (i3),
+#  decision du mainteneur).
 #  Fonctions reprises par copie declaree (ces scripts executent leur calcul
 #  au chargement et ne peuvent pas etre sources) : de
 #  tests/calibration_mc_t8.R : lire_option(), plateforme_calcul(),
