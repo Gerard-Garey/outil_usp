@@ -720,7 +720,8 @@ de la p-value de Monte-Carlo (ADR~0003) \\
 contexte des fonctions de calcul du catalogue~: ratios $r_t$ et ratios centrés $u_t$, et, depuis
 l'issue~\#215, vecteur $\hat\pi_t$ de l'ajustement (de l'observé, ou de la réplication), lu par
 l'entrée \code{Intercept} pour les poids de la régression pondérée~;
-résidus de Mack \\
+ensemble des colonnes dégénérées (figé à l'observé par \code{mw\_bootstrap()}, calculé sur
+\code{aj} s'il n'est pas fourni) et résidus de Mack calculés avec cet ensemble (issue~\#60) \\
 \code{.mc\_evaluer()} & catalogue, contexte & vecteur nommé dans l'ordre du catalogue~; erreur
 qui nomme la statistique si une entrée ne rend pas une valeur de longueur~1 \\
 \code{engine\_p\_mc()} & valeurs simulées, valeur observée, sens du rejet & \code{p\_mc},
@@ -863,24 +864,38 @@ colonne, \code{\$degeneree\_Jm3} (champs historiques \code{\$colonne},
 \code{\$degeneree} \\
 \code{.mw\_ecart\_facteurs()},\newline \code{.mw\_colonne\_degeneree()},\newline
 \code{.mw\_colonnes\_degenerees()} & \code{aj}, $j$, \code{tol} ($10^{-12}$) & écart relatif
-maximal des facteurs individuels à $\hat f_j$~; prédicat unique de colonne dégénérée~; ensemble
-des colonnes dégénérées, figé à l'observé par \code{mw\_bootstrap()} (fiche~\ref{mw:m1a}) \\
+maximal des facteurs individuels à $\hat f_j$~; prédicat unique de colonne dégénérée, à deux
+volets (écart relatif au plus \code{tol}, ou facteurs que l'aplatissement des ex \ae quo à
+\code{tol} rend tous égaux, issue~\#60)~; ensemble des colonnes dégénérées, figé à l'observé par
+\code{mw\_bootstrap()} (fiche~\ref{mw:m1a}) \\
+\code{.MW\_PREDICAT\_}\newline\code{DEGENERE\_TEXTE} & constante (chaîne) & énoncé unique des deux
+volets du prédicat, repris par l'avertissement des colonnes exclues, l'avertissement
+d'extrapolation de $\hat\sigma^2_{J-1}$, le motif de refus de l'issue~\#192 et la phrase
+d'exclusion de M1 (issue~\#60) \\
 \code{.mw\_triangle\_}\newline\code{totalement\_degenere()} & \code{aj} & \code{TRUE} si toutes les
 colonnes $j = 0, \ldots, J-2$ sont dégénérées au sens du prédicat unique, \code{FALSE} sinon, pour
 un objet d'ajustement réduit et pour $J < 2$~; prédicat du refus de
 \code{mw\_valider\_ajustement()} (issue~\#192, §\ref{sec:controles}) \\
 \code{.mw\_j\_exclues()},\newline \code{.mw\_stat\_non\_definie()} & \code{aj},
-\code{j\_degeneres} & colonnes exclues d'une vérification de M1~; résultat \code{NA} d'une
-réplication où une colonne retenue devient dégénérée \\
+\code{j\_degeneres} & colonnes exclues d'une vérification de M1, des résidus de Mack et des
+lignes de M2 et M3 qui reçoivent l'ensemble figé (issue~\#60)~; résultat \code{NA} d'une
+réplication de M1 où une colonne retenue devient dégénérée \\
 \code{mw\_msep()} & \code{aj} & \code{\$msep}, \code{\$terme\_variance},
 \code{\$terme\_covariance} \\
-\code{mw\_residus()} & \code{aj} & \code{data.frame} des résidus de Mack
-$r(i,j)$ \\
+\code{mw\_residus()} & \code{aj}, \code{j\_degeneres} (\code{NULL}~: ensemble calculé sur
+\code{aj}) & \code{data.frame} des résidus de Mack
+$r(i,j)$, colonnes dégénérées exclues et consignées dans l'attribut \code{colonnes\_exclues}
+(issue~\#60) \\
 \code{mw\_simuler\_triangle()}, \code{.mw\_stats()} & \code{aj}, vivier de
 résidus~; \code{aj} & triangle simulé~; vecteur de 13 statistiques \\
 \code{mw\_test\_*()}, \code{mw\_famille\_alpha()},
 \code{mw\_stat\_correlation\_dev()} & \code{aj}~; argument \code{j\_degeneres} des trois
-vérifications colonne par colonne de M1 (\code{NULL}~: ensemble calculé sur \code{aj}) & statistiques des tests M1 à M6 (détail~: §\ref{sec:index-fonctions}) \\
+vérifications colonne par colonne de M1 et, depuis l'issue~\#60, de
+\code{mw\_test\_exposant\_}\allowbreak\code{variance()},
+\code{mw\_test\_homogeneite\_}\allowbreak\code{accident()},
+\code{mw\_test\_annees\_}\allowbreak\code{calendaires()} et
+\code{mw\_stat\_correlation\_}\allowbreak\code{dev()} (\code{NULL}~:
+ensemble calculé sur \code{aj}) & statistiques des tests M1 à M6 (détail~: §\ref{sec:index-fonctions}) \\
 \code{mw\_tests()} & \code{aj}, \code{boot}, \code{alpha} (0,10) &
 liste des tests M1 à M6 (même structure que \code{usp\_tests()}, même fonction
 d'enregistrement \code{engine\_registre\_tests()}) \\
@@ -1940,7 +1955,8 @@ Variance unitaire des résidus & \ref{mw:m2var} & \code{stats::var()} sur
 \midrule
 Homogénéité entre années de survenance & \ref{mw:m3acc} &
 \code{mw\_test\_homogeneite\_accident()} &
-\code{stats::kruskal.test()} (p asymptotique) & \code{KruskalAcc} \\
+\code{stats::kruskal.test()} (p asymptotique~; \code{NA} si chaque année n'a qu'un résidu,
+issue~\#60) & \code{KruskalAcc} \\
 Effets d'année calendaire & \ref{mw:m3cal} &
 \code{mw\_test\_annees\_calendaires()} (via \code{.mack\_moments\_Z()}) &
 idem (p asymptotique ; moments \emph{exacts}) & \code{Calendrier} \\
@@ -3187,23 +3203,28 @@ fondée sur D(2)(h) et D(2)(a), exigences rendues obligatoires par l'article~219
 point~d)~; tolérance $10^{-12}$, convention de l'outil (texte sous le tableau). Un seul motif,
 sans avertissement de colonnes. Bloquant. \\
 Colonne $J-3$ ou $J-2$ dégénérée \emph{(post-ajustement)} &
-$\max_i \big|F(i,j)/\hat f_{j} - 1\big| \le 10^{-12}$ pour $j = J-3$ ou
+$\max_i \big|F(i,j)/\hat f_{j} - 1\big| \le 10^{-12}$, ou facteurs que l'aplatissement des ex
+\ae quo à cette tolérance rend tous égaux (prédicat unique, issue~\#60), pour $j = J-3$ ou
 $j = J-2$ &
 \textbf{Avertissement}, non bloquant, jamais un refus à lui seul (un triangle dont toutes
 les colonnes sont dégénérées est refusé, ligne précédente, sans cet avertissement)~: les facteurs
-individuels de la colonne sont tous égaux, donc $\hat\sigma^2_{J-3} = 0$ ou
-$\hat\sigma^2_{J-2} = 0$ et, par application littérale de D(5)(d)(ii),
-$\hat\sigma^2_{J-1} = 0$ --- la MSEP ne porte alors aucune variance sur la
+individuels de la colonne sont égaux à $\hat f_j$ à la tolérance de l'outil, donc
+$\hat\sigma^2_{J-3}$ ou $\hat\sigma^2_{J-2}$ est nul ou numériquement nul et, par application
+littérale de D(5)(d)(ii), $\hat\sigma^2_{J-1}$ aussi --- la MSEP ne porte alors aucune variance sur la
 dernière année de développement (§\ref{sec:mw}). Un seul avertissement par
 triangle, de même structure pour les trois chemins (colonne $J-3$, colonne
 $J-2$, les deux), seule la cause nommée variant. Le critère porte sur les
 facteurs, non sur une égalité à zéro en virgule flottante, que l'arrondi rend
 inopérante. \\
-Colonnes sans résidu de Mack \emph{(post-ajustement)} & $\hat\sigma^2_j = 0$ (facteurs
-individuels tous égaux à $\hat f_j$, égalité exacte) & \textbf{Avertissement}, non
-bloquant~: le résidu de Mack y vaut $0/0$ et n'est pas défini~; ces facteurs sont exclus des
+Colonnes sans résidu de Mack \emph{(post-ajustement)} & colonne dégénérée au sens du prédicat
+unique (\code{.mw\_colonne\_degeneree()}, deux volets), ou $\hat\sigma^2_j$ non fini ou $\le 0$
+(issue~\#60~; auparavant $\hat\sigma^2_j = 0$ exact) & \textbf{Avertissement}, non
+bloquant~: le résidu de Mack y vaut $0/0$ si les facteurs sont exactement égaux, et n'est sinon
+que le rapport d'écarts négligeables à la tolérance de l'outil~; ces facteurs sont exclus des
 onze lignes de M1 à M5 fondées sur les résidus. Un seul avertissement par triangle, qui nomme
-les colonnes, compte les résidus exclus et retenus et cite ces lignes (issue~\#33). \\
+les colonnes, compte les résidus exclus et retenus, cite ces lignes (issue~\#33) et précise que le
+vivier du bootstrap ne contient que les résidus retenus (décision du mainteneur du 5~octobre
+2026). \\
 Réserve faible devant son incertitude \emph{(post-ajustement)} & $\sqrt{\mathrm{MSEP}}/\hat R
 \ge 1$ & \textbf{Avertissement}, non bloquant~: D(4) définit le paramètre pour tout
 $\hat R > 0$, sans plancher ni plage~; le repère~1 est un repère de lecture, sans fondement
@@ -3496,7 +3517,9 @@ Le modèle de Mack ne spécifiant aucune loi, aucun bootstrap \emph{paramétriqu
 n'est possible. Le moteur emploie un rééchantillonnage des résidus standardisés
 (England \& Verrall, 2002, \emph{British Actuarial Journal} 8(3), 443--518), qui
 ne suppose que leur échangeabilité~: les p-values correspondantes sont donc
-\emph{semi-paramétriques} et non paramétriques.
+\emph{semi-paramétriques} et non paramétriques. Le vivier ne contient que les résidus retenus par
+\code{mw\_residus()}~: ceux des colonnes dégénérées, au sens du prédicat unique et selon
+l'ensemble figé à l'observé, en sont exclus (issue~\#60, §\ref{sec:mw}).
 
 \begin{encadre}
 \textbf{Limite structurelle du rééchantillonnage de résidus.} Cette procédure
@@ -4582,8 +4605,8 @@ un motif de changement de méthode \\
 
 Variance unitaire des résidus de Mack & \textbf{MW} & --- & --- & --- & --- &
 Diagnostic & Sans objet & Valeur \textbf{contrainte par construction} à
-$(N-k)/(N-1)$ --- $N$ résidus, $k$ colonnes retenues ---, et non à~1~: identité
-exacte, fiche~\ref{mw:m2var}. Contrôle de cohérence de la standardisation, sans
+$(N-k)/(N-1)$ --- $N$ résidus, $k$ colonnes retenues ---, et non à~1 (sauf pour $k = 1$)~:
+identité exacte, fiche~\ref{mw:m2var}. Contrôle de cohérence de la standardisation, sans
 pouvoir de détection sur $\sigma_j$ \\
 
 \multicolumn{9}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- M3 : indépendance}}} \\
@@ -4591,7 +4614,8 @@ pouvoir de détection sur $\sigma_j$ \\
 Homogénéité des résidus entre années de survenance & \textbf{MW} & $H$ de
 Kruskal--Wallis & Non & Oui, $\chi^2(k-1)$ & Oui & Monte-Carlo &
 \textbf{Déconseillée} : groupes très déséquilibrés (de $J$ à 1 résidu) &
-Traduction testable de D(2)(h)(i) ; complète le test calendaire \\
+Traduction testable de D(2)(h)(i) ; complète le test calendaire~; un seul résidu par année~:
+$H = N - 1$ par construction, aucune p-value, diagnostic (fiche~\ref{mw:m3acc}) \\
 
 Effets d'année calendaire & \textbf{MW} & $Z$ & Non & Oui (moments \emph{exacts} de $Z$) & Oui &
 Monte-Carlo & \textbf{Sous conditions} : les moments sont exacts, l'approximation
@@ -10737,10 +10761,29 @@ refus, le cas étant licite au regard du texte~; seul le triangle totalement dé
 refusé, sans cet avertissement (issue~\#192, point~(iv) ci-dessous) --- nommant la ou les colonnes
 dégénérées, le nombre de facteurs individuels concernés, leur valeur commune,
 l'écart relatif maximal mesuré, les trois arguments du minimum et la valeur
-retenue. Que des facteurs individuels n'aient pas de résidu de Mack
-($\hat\sigma_j^2$ exactement nul) n'y est plus dit depuis l'issue~\#33~: un avertissement
+retenue. Que des facteurs individuels n'aient pas de résidu de Mack (colonne dégénérée au sens
+du prédicat unique depuis l'issue~\#60, $\hat\sigma_j^2$ exactement nul auparavant) n'y est plus
+dit depuis l'issue~\#33~: un avertissement
 général, unique par triangle, couvre toute colonne exclue, $J-3$ et $J-2$ comprises, sans
-doublon. \code{mw\_residus()} consigne ces colonnes dans l'attribut \code{colonnes\_exclues}
+doublon. \emph{Exclusion des résidus (issue~\#60, décision du mainteneur du 5~octobre 2026).}
+\code{mw\_residus()} exclut une colonne d'au moins deux facteurs individuels si
+$\hat\sigma^2_j$ n'est pas fini ou est $\le 0$, \emph{ou} si elle appartient à l'ensemble des
+colonnes dégénérées au sens du prédicat unique \code{.mw\_colonne\_degeneree()} (deux volets~:
+écart relatif maximal à $\hat f_j$ au plus $10^{-12}$, ou facteurs que l'aplatissement des ex
+\ae quo à cette tolérance rend tous égaux, l'écart pouvant alors atteindre
+$(n-1) \cdot 10^{-12}$ pour $n$ facteurs~; fiche~\ref{mw:m1a}). Jusqu'à l'issue, le seul critère
+était $\hat\sigma^2_j = 0$ exact, que l'arrondi rend en général inopérant~: une colonne
+constante à $10^{-14}$ près gardait ses résidus, simple bruit d'arrondi normé, dans les lignes
+fondées sur les résidus et dans le vivier du bootstrap, sans avertissement (mesuré sur le
+triangle de Taylor \& Ashe dont la colonne $j = 4$ est rendue constante, perturbée de
+$\pm 10^{-14}$ en relatif, $\hat\sigma^2_4 = 4{,}9\cdot 10^{-22}$~: 44~résidus et aucun
+avertissement avant l'issue, 39~résidus et l'avertissement depuis, comme pour la même colonne
+exactement constante). Le résidu d'une
+colonne dégénérée vaut $0/0$ si les facteurs sont exactement égaux~; sinon, il n'est que le
+rapport d'écarts négligeables à la tolérance de l'outil. L'ensemble est calculé une fois sur le
+triangle observé par \code{mw\_bootstrap()} et figé pour les résidus de chaque réplication,
+comme pour M1 (fiche~\ref{mw:m1a})~: le nombre de résidus est ainsi le même à l'observé et dans
+les réplications, et le vivier du bootstrap ne contient que les résidus retenus. \code{mw\_residus()} consigne ces colonnes dans l'attribut \code{colonnes\_exclues}
 (retiré avant le stockage des résidus dans le résultat, dont la structure est inchangée), et
 \code{mw\_valider\_ajustement()} nomme chacune, compte les résidus exclus et retenus et cite les
 onze lignes de M1 à M5 qui consomment ces résidus (constante \code{.MW\_LIGNES\_RESIDUS})~: M1, absence de
@@ -11166,15 +11209,24 @@ $X = -2\sum_{k} \ln p_k$.
 colonne de M1, fiches~\ref{mw:m1a} à~\ref{mw:m1c}). Une colonne éligible dont les facteurs
 individuels sont tous égaux à $\hat f_j$, à $10^{-12}$ près en relatif
 ($\max_i |F(i,j) - \hat f_j| \le 10^{-12}\,\hat f_j$, prédicat unique
-\code{.mw\_colonne\_degeneree()}, celui de la détection des colonnes $J-3$ et $J-2$, fiche~\ref{mw:m6sig}), n'a
+\code{.mw\_colonne\_degeneree()}, celui de la détection des colonnes $J-3$ et $J-2$, fiche~\ref{mw:m6sig}),
+ou, second volet ajouté par l'issue~\#60 (décision du mainteneur du 5~octobre 2026), dont les
+facteurs sont rendus tous égaux par l'aplatissement des ex \ae quo à la même tolérance
+(\code{engine\_aplatir\_ex\_aequo()}, plancher~0, §\ref{sec:ex-aequo}) --- facteurs chaînés par
+pas de moins de $10^{-12}$ en relatif, dont l'écart à $\hat f_j$ peut atteindre
+$(n-1)\cdot 10^{-12}$ pour $n$ facteurs, et que les statistiques de rang de M1 et M3, qui
+aplatissent à cette tolérance depuis l'issue~\#152, verraient constants ---, n'a
 pas de statistique définie~: $t_j$, la corrélation de rang ou le terme quadratique y valent
-$0/0$. Elle est exclue de la combinaison de Fisher avant tout appel à \code{lm()} ou
+$0/0$ si les facteurs sont exactement égaux, et ne sont sinon que le rapport d'écarts
+négligeables à la tolérance de l'outil. Le même prédicat, énoncé dans les messages par une
+chaîne unique (\code{.MW\_PREDICAT\_DEGENERE\_TEXTE}), sert partout~: détection des colonnes
+$J-3$ et $J-2$, trois vérifications de M1, refus du triangle totalement dégénéré
+(issue~\#192, §\ref{sec:controles}) et exclusion des résidus de Mack (issue~\#60,
+§\ref{sec:mw}). Elle est exclue de la combinaison de Fisher avant tout appel à \code{lm()} ou
 \code{cor.test()}, comme une colonne trop courte, et nommée dans le libellé de la ligne
 («~$K$ colonne(s) testée(s) sur $n$ éligible(s)~»), sans champ nouveau~; l'exclusion ne vaut
 pas preuve de proportionnalité. Le seuil $10^{-12}$ est une convention de restitution, environ
-$4\,500$ fois l'epsilon machine ($2{,}2\cdot 10^{-16}$), et non un seuil statistique~; l'exclusion des résidus de
-Mack par \code{mw\_residus()} garde, elle, le critère $\hat\sigma^2_j = 0$ exact, divergence
-transitoire dont l'alignement est suivi par l'issue~\#60. La dernière colonne, qui n'a
+$4\,500$ fois l'epsilon machine ($2{,}2\cdot 10^{-16}$), et non un seuil statistique. La dernière colonne, qui n'a
 qu'un facteur individuel, appartient trivialement à l'ensemble, sans effet puisqu'elle n'est
 jamais éligible. Mesuré sur le triangle de contrôle rendu dégénéré en $j = 4$ (trois facteurs
 égaux)~: la colonne est exclue de la seule ligne d'ordonnée à l'origine, où elle est éligible
@@ -11191,10 +11243,32 @@ p-value de Monte-Carlo retenue. Calibration vérifiée par simulation sous $H_0$
 4,7~\% au seuil de 5~\%.
 
 \emph{Colonnes dégénérées dans le bootstrap.} L'ensemble des colonnes dégénérées (tolérance
-$10^{-12}$ relative) est déterminé sur le triangle observé et conservé dans chaque réplication,
+$10^{-12}$ relative, deux volets du prédicat) est déterminé sur le triangle observé et conservé dans chaque réplication,
 de sorte que $K$ est identique entre statistique observée et simulée~; une réplication dans
 laquelle une colonne retenue devient dégénérée n'a pas de statistique et est comptée hors de
-\code{B\_effectif} (\code{.mw\_colonnes\_degenerees()}, argument \code{j\_degeneres}). $K$ peut
+\code{B\_effectif} (\code{.mw\_colonnes\_degenerees()}, argument \code{j\_degeneres}). Depuis
+l'issue~\#60, le même ensemble figé est transmis aux résidus de Mack de chaque réplication
+(contexte de \code{.mw\_contexte\_mc()}, entrées \code{ExpVar} et \code{KruskalAcc} du
+catalogue \code{MW\_CATALOGUE\_MC}) et, par extension décidée par le mainteneur le
+6~octobre 2026, au test calendaire et à la corrélation entre années adjacentes (entrées
+\code{Calendrier} et \code{CorrDev}, fiches~\ref{mw:m3cal} et~\ref{mw:m3cor}).
+\emph{Effectif conditionnel au voisinage du seuil.} Quand une colonne retenue à l'observé est
+juste au-dessus de la tolérance, une part des réplications la rend dégénérée, et la p-value de
+Monte-Carlo des trois vérifications colonne par colonne est calculée sur les seules réplications où la statistique est
+définie~: elle est \emph{conditionnelle} à cet événement (réserve d'\code{actuary} à la validation
+de l'issue~\#60~; issue~\#204, $B$ effectif inférieur à $B$ en M1). Le second volet du prédicat
+accroît cette part. Mesuré (\code{mw\_bootstrap()}, $B = 999$, graine 20260831) sur le
+triangle de Taylor \& Ashe dont la colonne $j = 4$ est rendue constante puis perturbée de
+$\pm 9 \cdot 10^{-13}$ en relatif (écart relatif observé $1{,}02\cdot 10^{-12}$, colonne
+retenue)~: \code{B\_effectif} de \code{Origine}, \code{Courbure} et \code{HomogF} égal à $749$
+avec le moteur antérieur à l'issue, $537$ avec le moteur de l'issue, $649$ avec le moteur
+actuel, les issues ultérieures de la branche modifiant les réplications.
+\emph{Asymétrie avec M3, documentée sans décision d'alignement.} Pour une colonne \emph{retenue} à
+l'observé qui devient dégénérée dans une réplication, M1 rend une statistique non définie et
+écarte la réplication de \code{B\_effectif}~; le test calendaire et la corrélation entre années
+adjacentes gardent la réplication, la colonne n'en étant écartée que si l'aplatissement des ex
+\ae quo rend ses facteurs constants (étiquettes «~*~» pour le premier, garde $\mathrm{sd} = 0$
+pour le second). Un éventuel alignement relève du mainteneur. $K$ peut
 encore varier d'une réplication à l'autre pour une autre cause~: \code{.fisher\_combine()}
 écarte les p-values nulles, défaut antérieur à l'issue~\#56, suivi par l'issue~\#90. Limite
 mesurée et acceptée~: une colonne dont l'écart relatif dépasse à peine $10^{-12}$ reste soumise
@@ -11424,7 +11498,12 @@ Breusch--Pagan de la fiche précédente.}
 Dans chaque colonne $j$ comptant au moins quatre résidus, on mesure la
 corrélation de rang entre $|r(i,j)|$ et $C(i,j)$, après aplatissement des ex \ae quo à
 \code{TOL\_EX\_AEQUO} (cumuls au plancher~0, valeurs absolues des résidus au plancher~1, avant la
-garde $\mathrm{sd}(C) = 0$~; issue~\#152, §\ref{sec:ex-aequo}).
+garde $\mathrm{sd}(C) = 0$~; issue~\#152, §\ref{sec:ex-aequo}). Une colonne dont les cumuls
+\emph{ou}, depuis l'issue~\#60, les valeurs absolues des résidus sont constants après
+aplatissement n'a pas de corrélation de rang définie et est écartée de la combinaison, comme une
+colonne trop courte (sans cette garde, \code{cor.test()} rendait une corrélation \code{NA} sans
+trace)~; les résidus sont ceux de \code{mw\_residus()}, colonnes dégénérées exclues selon
+l'ensemble figé (fiche~\ref{mw:m1a}).
 \Hzero
 $H_0$ : l'amplitude des résidus standardisés ne dépend pas de $C(i,j)$ à
 l'intérieur d'une colonne, ce qui est la traduction directe de
@@ -11460,7 +11539,8 @@ $\hat\sigma_j^2$.}
 Résidus standardisés $r(i,j)$ (section~\ref{sec:notations-mw}), tels que
 \code{mw\_residus()} les restitue~: seules entrent les colonnes dont
 $\hat\sigma_j^2$ est estimé, strictement positif, sur au moins deux facteurs
-individuels. On note $k$ le nombre de ces colonnes et $N = \sum_j n_j$ le nombre
+individuels, et qui ne sont pas dégénérées au sens du prédicat unique (issue~\#60,
+fiche~\ref{mw:m1a}). On note $k$ le nombre de ces colonnes et $N = \sum_j n_j$ le nombre
 total de résidus. \textbf{Diagnostic, non test}~: la rubrique est renseignée par
 cohérence de présentation.
 
@@ -11497,7 +11577,9 @@ $\operatorname{Var}\big(r(i,j)\big)$ sur l'ensemble du triangle, calculée par
 \[
   \frac{N-k}{N-1},
 \]
-conséquence immédiate de l'identité ci-dessus. Plus précisément, en notant
+conséquence immédiate de l'identité ci-dessus~; elle vaut~1 dans le seul cas $k = 1$, une seule
+colonne retenue (par exemple quand toutes les autres sont dégénérées), et le champ \code{detail}
+omet alors la mention «~et NON 1~» (issue~\#60). Plus précisément, en notant
 $\bar r$ la moyenne des résidus,
 \[
   \operatorname{Var}(r) = \frac{N-k}{N-1}
@@ -11594,7 +11676,15 @@ Dans chaque colonne $j$, les facteurs observés $F(i,j)$ sont classés en
 « grands » ($L$) et « petits » ($S$) par rapport à leur médiane, les valeurs
 égales à la médiane étant étiquetées «~*~» et écartées~; les facteurs sont aplatis à
 \code{TOL\_EX\_AEQUO} au plancher~0 avant le calcul de la médiane, de sorte qu'un facteur égal à
-la médiane à la tolérance près est écarté (issue~\#152, §\ref{sec:ex-aequo}). Les diagonales $k = i+j$ correspondent aux
+la médiane à la tolérance près est écarté (issue~\#152, §\ref{sec:ex-aequo}). Une colonne de
+l'ensemble des colonnes dégénérées, figé à l'observé (fiche~\ref{mw:m1a}), ne reçoit aucune
+étiquette $L$ ou $S$~: toutes ses étiquettes valent «~*~» et sont retirées avant le comptage, les
+moments exacts portant sur $n_k = L_k + S_k$ (issue~\#60, extension décidée par le mainteneur le
+6~octobre 2026~; sans ce gel, une colonne dégénérée à l'observé pouvait recevoir, dans une
+réplication, des étiquettes tirées du bruit d'arrondi de ses facteurs simulés). Le gel vaut aussi
+à l'observé, où il peut retirer une colonne dont l'écart relatif à $\hat f_j$ est au plus
+$10^{-12}$ sans que l'aplatissement la rende constante (cas absent des triangles d'essai
+mesurés). Effet mesuré~: fiche~\ref{mw:m3cor}. Les diagonales $k = i+j$ correspondent aux
 exercices comptables. Hypothèses non testées~: continuité des facteurs,
 indépendance des colonnes.
 \Hzero
@@ -11662,7 +11752,15 @@ d'années de survenance comportant au moins un résidu.
 \Loi
 $\chi^2(k-1)$ asymptotique, approximation médiocre lorsque les groupes comptent
 une ou deux observations --- ce qui est le cas des dernières lignes du triangle.
-Loi de référence~: bootstrap de résidus.
+Loi de référence~: bootstrap de résidus. \emph{Un résidu par année de survenance} (une seule
+colonne garde des résidus, par exemple après exclusion des colonnes dégénérées, issue~\#60)~:
+tous les groupes sont de taille~1 et $H = N - 1$ par construction, quelle que soit la donnée~;
+la statistique est restituée, la p-value asymptotique ne l'est pas (\code{NA}), la loi est
+libellée «~\code{degeneree : H = N - 1 par construction}~», et le champ \code{detail} le dit.
+Chaque réplication de même géométrie donnant la même valeur, la loi simulée est de dispersion
+nulle~: la ligne est un diagnostic \code{INFO}, sans p-value retenue (ADR~0001). Mesuré sur le
+triangle \code{col0\_1e11} de la section~\ref{sec:controles} ($N = 7$)~: $H = 6$, type
+diagnostic, \code{INFO}.
 \Pval
 p-value de Monte-Carlo retenue~; le khi-deux est fourni comme complément non
 simulé.
@@ -11694,7 +11792,23 @@ observés sur les mêmes années de survenance. L'agrégation est pondérée par
 $n_k - 1$. Hypothèses non testées~: continuité, absence d'ex \ae quo~; les facteurs de chacune
 des deux colonnes sont aplatis séparément à \code{TOL\_EX\_AEQUO} au plancher~0 avant la garde
 $\mathrm{sd} = 0$ et \code{rank()}, des facteurs égaux à la tolérance près recevant le même rang
-(issue~\#152, §\ref{sec:ex-aequo}).
+(issue~\#152, §\ref{sec:ex-aequo}). La paire $(k-1, k)$ est exclue si l'une de ses deux colonnes
+de facteurs appartient à l'ensemble des colonnes dégénérées, figé à l'observé
+(fiche~\ref{mw:m1a}~; issue~\#60, extension décidée par le mainteneur le 6~octobre 2026), et non
+plus seulement si l'aplatissement la rend constante dans le triangle courant~: les paires
+retenues sont ainsi les mêmes à l'observé et dans chaque réplication au regard des colonnes
+dégénérées. Le gel vaut aussi à l'observé, comme pour le test calendaire
+(fiche~\ref{mw:m3cal})~; une colonne hors de l'ensemble reste écartée par la garde
+$\mathrm{sd} = 0$ si elle est constante après aplatissement. Mesuré par rejeu de la boucle de
+\code{mw\_bootstrap()} ($B = 999$, graine 20260831), sur le triangle de Taylor \& Ashe dont la
+colonne $j = 4$ est rendue constante et sur sa perturbation de $\pm 4\cdot 10^{-13}$ en relatif
+(écart observé $4{,}5\cdot 10^{-13}$, colonne dégénérée dans les deux cas)~: avant
+l'extension, les statistiques répliquées des deux triangles différaient dans 8~réplications
+pour le test calendaire et 30 pour la corrélation entre années adjacentes~; depuis, dans
+aucune. Les p-values de Monte-Carlo étaient déjà égales avant~: une réplication modifiée ne
+déplace la p-value que si elle franchit la statistique observée du côté de la queue retenue~;
+le critère d'acceptation de l'issue porte donc sur l'égalité des statistiques répliquées, et
+non sur celle des p-values (avis d'\code{actuary}).
 \Hzero
 $H_0$ : les facteurs de développement successifs ne sont pas corrélés, ce qui
 est la traduction testable de D(2)(h)(ii), l'indépendance des montants
@@ -12050,9 +12164,12 @@ extrapolée hérite de cette imprécision, qu'aucune p-value ne mesure ici.
 \textbf{Diagnostic, sans verdict.} La ligne est restituée \code{INFO}~: elle
 n'oppose aucune hypothèse nulle à une alternative et ne dispose d'aucune loi de
 référence, de sorte qu'aucun seuil ne pourrait fonder un verdict. Les cas
-dégénérés $\hat\sigma^2_{J-3} = 0$ et $\hat\sigma^2_{J-2} = 0$ ne modifient pas
+dégénérés $\hat\sigma^2_{J-3} = 0$ et $\hat\sigma^2_{J-2} = 0$ --- colonne dégénérée au sens du
+prédicat unique, à deux volets (fiche~\ref{mw:m1a}), la variance étant alors nulle ou
+numériquement nulle --- ne modifient pas
 ce statut~: ils sont portés par l'avertissement unique de
-\code{mw\_valider\_ajustement()} (section~\ref{sec:controles}), non par un
+\code{mw\_valider\_ajustement()} (section~\ref{sec:controles}), qui énonce le prédicat une fois
+même si les deux colonnes sont dégénérées, non par un
 verdict, et le calcul n'est refusé que si le triangle est totalement dégénéré (issue~\#192,
 section~\ref{sec:controles}). Sur un tel triangle, et si le
 développement n'est pas achevé, la MSEP ne porte aucune variance sur la dernière
