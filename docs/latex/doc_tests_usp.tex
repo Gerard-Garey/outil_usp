@@ -923,7 +923,9 @@ d'enregistrement \code{engine\_registre\_tests()}) \\
 \code{mw\_parametre()} & \code{aj}, \code{msep} (champ \code{\$msep}),
 $\sigma_{\text{std}}$, barème & $\sigma_{\mathrm{USP}}$ et ses composantes \\
 \code{mw\_influence()} & \code{aj} & levier, facteur sans la cellule,
-écart relatif de $\hat f_j$, par cellule, et booléen de coloration \code{fort\_dfbeta} \\
+écart relatif de $\hat f_j$, résidu de Mack (\code{NA} sur une colonne dégénérée), DFBETAS
+et son repère de lecture $2/\sqrt{n_j}$, par cellule, booléen de coloration
+\code{fort\_dfbetas} et booléen \code{dfbetas\_non\_borne} (issue~\#89) \\
 \code{mw\_contributions()} & \code{aj}, \code{msep} (sortie de
 \code{mw\_msep()}) & parts de chaque année de survenance dans la réserve et
 dans le terme de variance de processus \\
@@ -2037,7 +2039,7 @@ sans objet & --- \\
 Bootstrap semi-paramétrique & \S\ref{sec:boot-mw} & \code{mw\_bootstrap()}
 (via \code{.mw\_pool\_residus()}, \code{mw\_simuler\_triangle()} et \code{.mw\_stats()}) &
 sans objet & toutes les clés ci-dessus \\
-Leviers et DFBETA du triangle & \ref{mw:influence} & \code{mw\_influence()} &
+Leviers, DFBETA et DFBETAS du triangle & \ref{mw:influence} & \code{mw\_influence()} &
 diagnostic, aucune p-value & --- \\
 Contributions par année de survenance & \ref{mw:influence} &
 \code{mw\_contributions()} & diagnostic, aucune p-value & --- \\
@@ -10652,10 +10654,11 @@ induit par le retrait de chaque année, issu du jackknife. À $T = 8$, il n'est 
 rare qu'une seule année déplace le paramètre de plus de 10~\%, ce que la seule
 lecture des distances de Cook ne montre pas. Les années dont l'écart dépasse ce repère de
 10~\% sont colorées (constante \code{REPERE\_INFLUENCE\_SIGMA} du moteur~; repère de lecture sans
-verdict, fiche~\ref{fiche:jackknife})~; le graphique DFBETA de la méthode Merz--Wüthrich colore
-de même les cellules au-delà de $2~\%$ (\code{REPERE\_DFBETAS\_MW}, repère sans source,
-fiche~\ref{mw:influence}). Les booléens de coloration, \code{fort\_ecart\_sigma} et
-\code{fort\_dfbeta}, sont calculés par le moteur (\code{engine\_influence()},
+verdict, fiche~\ref{fiche:jackknife})~; le graphique DFBETAS de la méthode Merz--Wüthrich colore
+de même les cellules dont le DFBETAS dépasse en valeur absolue le repère de lecture $2/\sqrt{n_j}$
+(\code{REPERE\_DFBETAS\_MW}, repère attribué à Belsley, Kuh et Welsch par des sources
+secondaires, issue~\#89, fiche~\ref{mw:influence}). Les booléens de coloration, \code{fort\_ecart\_sigma} et
+\code{fort\_dfbetas}, sont calculés par le moteur (\code{engine\_influence()},
 \code{mw\_influence()}) et rangés dans \code{res\$plots\_data\$influence}~; l'affichage les
 lit sans comparaison (issue~\#37). Quand un résidu standardisé ou une distance de Cook n'est pas
 fini (par exemple $y_t$ exactement proportionnel à $x_t$, fiche~\ref{fiche:cook}, série que
@@ -10673,7 +10676,8 @@ de la cellule $(i,j)$ vaut $h(i,j) = C(i,j)/S_j$, de somme~1 par colonne
 \[
   \hat f_j^{(-i)} = \frac{\sum_{i'} C(i',j+1) - C(i,j+1)}{\sum_{i'} C(i',j) - C(i,j)},
 \]
-obtenu sans réajustement itératif. S'y ajoute la décomposition de la réserve et de
+obtenu sans réajustement itératif, et standardisé en DFBETAS dans la régression pondérée de
+Mack (fiche~\ref{mw:influence}, issue~\#89). S'y ajoute la décomposition de la réserve et de
 la variance de processus de la MSEP par année de survenance. Cette dernière est une
 \emph{décomposition} et non un leave-one-out~: le terme d'erreur d'estimation de la
 MSEP comporte des termes croisés, partagés entre paires d'années, qui ne sont pas
@@ -10766,31 +10770,125 @@ $(i,j)$ dans son estimation vaut $h(i,j) = C(i,j)/S_j$, de somme~1 par colonne
 \[
   \hat f_j^{(-i)} = \frac{\sum_{i'} C(i',j+1) - C(i,j+1)}{\sum_{i'} C(i',j) - C(i,j)},
 \]
-obtenu sans réajustement itératif. \textbf{Diagnostics, non tests.}
+obtenu sans réajustement itératif. Le \emph{DFBETAS} standardise ce retrait (issue~\#89).
+$\hat f_j$ est l'estimateur des moindres carrés pondérés de la régression sans constante de
+$C(\cdot,j+1)$ sur $C(\cdot,j)$, de poids $1/C(i,j)$, sur les $n_j$ cellules de la colonne~:
+c'est la forme exacte du modèle de Mack, de variance conditionnelle $\sigma_j^2\,C(i,j)$, et
+$h(i,j)$ est le levier de cette régression. Avec $e(i,j) = C(i,j+1) - \hat f_j\,C(i,j)$ et
+\[
+  s_{(i)}^2 = \frac{1}{n_j - 2} \sum_{k \neq i}
+  \frac{\big(C(k,j+1) - \hat f_j^{(-i)}\,C(k,j)\big)^2}{C(k,j)},
+\]
+estimateur de $\sigma_j^2$ sans la cellule, le moteur calcule
+\[
+  \mathrm{DFBETAS}(i,j) = \frac{\hat f_j - \hat f_j^{(-i)}}{s_{(i)}/\sqrt{S_j}}
+  = \frac{e(i,j)}{\sqrt{S_j}\,\big(1 - h(i,j)\big)\,s_{(i)}}.
+\]
+C'est la valeur que donne \code{stats::dfbetas()} sur cette régression (écart maximal mesuré
+$7\cdot 10^{-14}$ sur le triangle de contrôle \code{tests/donnees/triangle\_mw.csv}), avec sa
+convention de signe~: un DFBETAS négatif désigne une cellule dont le retrait \emph{augmente}
+$\hat f_j$, de signe opposé à la variation relative de la rubrique~3. Le moteur calcule
+$s_{(i)}^2$ directement par retrait de la cellule, à partir de $\hat f_j^{(-i)}$, et non par la
+forme close $\big[(n_j-1)\,\hat\sigma_j^2 - e(i,j)^2/\big(C(i,j)(1-h(i,j))\big)\big]/(n_j-2)$
+qu'emploie \code{stats::dfbetas()}~: cette forme est la différence de deux termes de l'ordre de
+$(n_j-1)\,\hat\sigma_j^2$, qui perd sa précision quand les cellules restantes de la colonne sont
+presque proportionnelles~; le test unitaire compare le moteur à \code{stats::dfbetas()} sur un
+triangle bien conditionné et au réajustement direct dans le cas presque proportionnel.
+\textbf{Diagnostics, non tests.}
 \Hzero
 Sans objet.
 \Stat
-Sans objet (représentations graphiques). Les quantités tracées sont $h(i,j)$, la
-variation relative $\big(\hat f_j^{(-i)} - \hat f_j\big)/\hat f_j$, et la
-décomposition de la réserve et de la variance de processus par année de
-survenance (champ \code{\$terme\_variance} de \code{mw\_msep()}).
+Sans objet (représentations graphiques). Les quantités tracées sont $h(i,j)$, le résidu de
+Mack de la cellule, la variation relative $\big(\hat f_j^{(-i)} - \hat f_j\big)/\hat f_j$, le
+DFBETAS avec son repère de lecture, et la décomposition de la réserve et de la variance de
+processus par année de survenance (champ \code{\$terme\_variance} de \code{mw\_msep()}).
+\code{mw\_influence()} les range, par cellule, dans \code{res\$plots\_data\$influence}
+(colonnes \code{dfbetas}, \code{repere\_dfbetas}, \code{fort\_dfbetas} et
+\code{dfbetas\_non\_borne}, ajoutées en fin de table par l'issue~\#89). Gardes, qui posent
+\code{NA} et jamais une valeur non finie~:
+\begin{itemize}[itemsep=1pt]
+  \item colonne dégénérée au sens du prédicat unique (fiche~\ref{mw:m1a}, issue~\#60), ou
+        $\hat\sigma_j^2$ non fini ou nul~: DFBETAS \emph{et} résidu de Mack \code{NA} pour
+        toutes les cellules de la colonne, par le même critère que \code{mw\_residus()}
+        (décision du mainteneur du 6~octobre 2026)~;
+  \item $n_j = 2$~: DFBETAS \code{NA}, $s_{(i)}^2$ n'ayant aucun degré de liberté~;
+  \item $s_{(i)}^2 \le 100\,\varepsilon\,(n_j-1)\,\hat\sigma_j^2$, où
+        $\varepsilon = 2{,}2\cdot 10^{-16}$ est l'epsilon machine~: le retrait de la cellule
+        laisse des cellules proportionnelles à la précision près ($s_{(i)}/\hat\sigma_j$ au
+        plus $10\sqrt{(n_j-1)\,\varepsilon}$, soit environ $1{,}5\cdot 10^{-7}\sqrt{n_j-1}$),
+        et le DFBETAS, inversement proportionnel à $s_{(i)}$, n'a plus de valeur lisible~:
+        DFBETAS \code{NA} et booléen \code{dfbetas\_non\_borne} à \code{TRUE} (influence
+        pratiquement illimitée~; \code{FALSE} dans tous les autres cas, jamais \code{NA}).
+\end{itemize}
+Ces trois gardes ont été vérifiées sur des triangles construits à partir du triangle de
+contrôle~: une colonne aux facteurs individuels rendus égaux reçoit DFBETAS et résidu
+\code{NA}~; une colonne dont toutes les cellules sauf une sont rendues proportionnelles marque
+celle-ci \code{dfbetas\_non\_borne}. Sur le triangle de contrôle lui-même, aucune cellule n'est
+non bornée, et seules les deux cellules de la colonne $n_j = 2$ ont un DFBETAS \code{NA}.
 \Loi
-Sans objet.
+Sans objet pour un verdict~: aucune loi de référence n'est comparée au DFBETAS. Pour la lecture
+du repère (rubrique~6), on use d'une identité algébrique exacte de la régression à un seul
+coefficient~: $\mathrm{DFBETAS}(i,j) = t(i,j)\,\sqrt{h(i,j)/\big(1-h(i,j)\big)}$, où
+$t(i,j)$ est le résidu studentisé externe de la cellule (vérifiée numériquement à
+$7\cdot 10^{-14}$ près sur le triangle de contrôle contre \code{stats::rstudent()} et
+\code{stats::hatvalues()}). Si, de plus, les erreurs sont gaussiennes, $t(i,j)$ suit
+conditionnellement à $C(\cdot,j)$ une loi de Student à $n_j - 2$ degrés de liberté~: résultat
+classique de la régression linéaire gaussienne, retenu ici d'après des sources secondaires et non
+relu dans une source primaire. Le modèle de Mack ne spécifiant aucune loi, cette loi n'est
+qu'une loi de référence \emph{sous une hypothèse supplémentaire}, qui sert à chiffrer le
+franchissement attendu du repère, jamais à porter un verdict.
 \Pval
 Sans objet.
 \Usage
 Le premier graphique croise levier et résidu de Mack~: il sépare les cellules
-atypiques par leur \emph{poids} de celles qui sont réellement influentes. Le
-deuxième donne le DFBETA cellule par cellule, directement interprétable~: de
-combien le facteur de développement bougerait si cette cellule était retirée. Il colore les
-cellules dont la variation relative dépasse $2~\%$ en valeur absolue (constante
-\code{REPERE\_DFBETAS\_MW} du moteur, issue~\#33~; booléen \code{fort\_dfbeta} calculé par
-\code{mw\_influence()}, issue~\#37). Ce repère de lecture est propre à l'outil,
-hérité de l'affichage~: il n'a \textbf{aucune source}, ni statistique ni réglementaire, et ne
-produit aucun verdict~; il n'est pas non plus le repère $2/\sqrt{n}$ de D.\,A. Belsley, E.~Kuh et R.\,E. Welsch
-(\emph{Regression Diagnostics: Identifying Influential Data and Sources of Collinearity}, Wiley,
-1980, chapitre~2~; section~\ref{sec:biblio}), qui porte sur un DFBETAS standardisé et non sur une variation relative non standardisée
-(issue~\#89). Le troisième compare, année de survenance par année de survenance, la part de la
+atypiques par leur \emph{poids} de celles qui sont réellement influentes~; les cellules d'une
+colonne dégénérée, sans résidu de Mack, n'y figurent pas. Le
+deuxième donne le DFBETAS cellule par cellule~: de combien d'écarts-types estimés le facteur
+de développement bougerait si cette cellule était retirée~; la variation relative de
+$\hat f_j$, directement interprétable en pourcentage, est donnée en infobulle. Les repères
+$\pm\,c/\sqrt{n_j}$ sont tracés en escalier, un palier par colonne $j$, pour les seules colonnes
+ayant au moins un DFBETAS défini~; une cellule sans DFBETAS (\code{NA}) n'est pas tracée. Le
+graphique colore les cellules dont $|\mathrm{DFBETAS}(i,j)| > c/\sqrt{n_j}$, avec
+$c = 2$ (constante \code{REPERE\_DFBETAS\_MW} du moteur~; repère \code{repere\_dfbetas} et
+booléen \code{fort\_dfbetas} calculés par \code{mw\_influence()}, que l'affichage lit sans
+comparaison, issues~\#37 et~\#89). Une cellule \code{dfbetas\_non\_borne} n'est ni colorée ni
+tracée~: seule la note du graphique la nomme, sans verdict (décision du mainteneur du
+6~octobre 2026). Ce repère remplace, depuis l'issue~\#89, un repère de $2~\%$ sur la variation
+relative de $\hat f_j$, propre à l'outil et sans source, qui ne colorait aucune cellule du
+triangle de contrôle (variation relative maximale $0{,}585~\%$). Sur ce triangle, le repère
+$2/\sqrt{n_j}$ colore trois cellules~: $(0,2)$, de DFBETAS $-1{,}102$ (repère $0{,}894$),
+$(0,3)$, $-1{,}498$ (repère $1{,}000$), et $(1,4)$, $+1{,}527$ (repère $1{,}155$).
+
+\medskip
+\textbf{Source et portée du repère.} Le repère $2/\sqrt{n}$ du DFBETAS, dit ajusté à la taille,
+est attribué à D.\,A. Belsley, E.~Kuh et R.\,E. Welsch (1980) par des sources secondaires
+(documentation SAS/STAT~; manuel de Stata, qui cite la p.~28)~; l'ouvrage n'a pas été relu
+(section~\ref{sec:biblio}). C'est un repère de lecture, qui ne produit \textbf{aucun verdict}
+(ADR~0001, décision M7 du mainteneur)~: à $T = 8$, son franchissement est fréquent sans aucune
+anomalie. Par l'identité de la rubrique~4, à levier égal ($h(i,j) = 1/n_j$) et sous erreurs
+gaussiennes, une cellule conforme au modèle le franchit avec la probabilité exacte
+$\mathbb{P}\big(|t_{n_j-2}| > 2\sqrt{(n_j-1)/n_j}\big)$, soit $12{,}3~\%$ pour $n_j = 7$,
+$14{,}2~\%$ pour $n_j = 6$, $17{,}2~\%$ pour $n_j = 5$, $22{,}5~\%$ pour $n_j = 4$ et $35{,}0~\%$
+pour $n_j = 3$, et l'on attend $4{,}5$ cellules colorées sur les 25 cellules de DFBETAS défini
+d'un triangle à $T = 8$. Sous le modèle de Mack ajusté au triangle de contrôle, à ses leviers
+réels (script hors CI \code{tests/taux\_franchissement\_reperes.R}, option
+\code{--seulement mw}~; $2\,000$ triangles simulés, erreurs gaussiennes, première colonne fixée,
+graine 20260927, tirages sous \code{engine\_sous\_graine()}~; sortie
+\code{docs/tableaux/20261006-issue89-MW.md}), les taux mesurés sont $12{,}5~\%$, $14{,}1~\%$,
+$17{,}5~\%$, $22{,}9~\%$ et $34{,}8~\%$ pour $n_j = 7$ à~3, $18{,}2~\%$ $[17{,}9~;~18{,}6]$ sur
+l'ensemble des cellules, et $4{,}55$ $[4{,}51~;~4{,}60]$ cellules colorées par triangle~; aucun
+triangle simulé ne compte de DFBETAS non borné. Statuts~: les premiers taux sont exacts sous
+l'hypothèse gaussienne et à levier égal~; les seconds sont un constat de simulation sous le
+modèle ajusté, dont les intervalles (Clopper--Pearson pour le taux, indicatif, les cellules d'un
+même triangle n'étant pas indépendantes~; asymptotique pour la moyenne) ne mesurent que
+l'incertitude de simulation, fonction du nombre de triangles simulés, et rien de l'erreur
+d'approximation en~$T$. Ces taux valent pour ce triangle et sous l'hypothèse gaussienne, que le
+modèle de Mack ne pose pas. Plusieurs cellules colorées sont donc attendues sans anomalie,
+surtout dans les colonnes courtes~: une cellule colorée désigne une cellule à examiner, non un
+défaut du triangle.
+
+\medskip
+Le troisième graphique compare, année de survenance par année de survenance, la part de la
 réserve et la part de la variance de processus de la MSEP.
 
 \medskip
@@ -13407,10 +13505,11 @@ soutient dans le présent document.
   le document mentionnait le nom sans la référencer.
 
   \item D.\,A. Belsley, E.~Kuh, R.\,E. Welsch, \emph{Regression Diagnostics: Identifying
-  Influential Data and Sources of Collinearity}, Wiley, New York, 1980, chapitre~2 (DFBETAS et
-  repère $2/\sqrt{n}$).
-  \emph{Portée.} Cité à la fiche~\ref{mw:influence} pour distinguer ce repère du repère de
-  2~\% de l'outil (issue~\#89).
+  Influential Data and Sources of Collinearity}, Wiley, New York, 1980.
+  \emph{Portée.} Ouvrage non relu~: le DFBETAS et le repère $2/\sqrt{n}$, dit ajusté à la
+  taille, lui sont attribués par des sources secondaires (documentation SAS/STAT~; manuel de
+  Stata, qui cite la p.~28), d'après lesquelles la fiche~\ref{mw:influence} retient ce repère
+  de lecture, sans verdict (issue~\#89).
 
   \item K.\,A. Bollen, R.\,W. Jackman, \emph{Regression diagnostics: an expository treatment of
   outliers and influential cases}, in J.~Fox, J.\,S. Long (dir.), \emph{Modern Methods of Data
@@ -13553,7 +13652,7 @@ Merz--Wüthrich~: bootstrap semi-paramétrique et p-values de Monte-Carlo
 par le levier, issue~\#46), \code{mw\_simuler\_triangle()}, \code{.mw\_stats()} \\
 Merz--Wüthrich~: tests et diagnostics M1 à M6 (sections~\ref{sec:mwm1}
 à~\ref{sec:mwm6}) & \code{mw\_tests()} \\
-Merz--Wüthrich~: leviers, DFBETA et contributions par année de survenance
+Merz--Wüthrich~: leviers, DFBETA, DFBETAS et contributions par année de survenance
 (fiche~\ref{mw:influence}) & \code{mw\_influence()}, \code{mw\_contributions()} \\
 Contrôles de validité (§\ref{sec:controles}) & \code{engine\_valider\_donnees()}, \code{usp\_controle\_donnees()},
 \code{usp\_valider\_ajustement()} (après l'ajustement lognormal, issue~\#188),
@@ -13907,7 +14006,10 @@ de l'intervalle rarement au-dessus de 50~\% sur J2, dont les volumes sont bien p
 (coefficient de variation $0{,}64$ contre $0{,}097$), mais Cook plus souvent franchi --- montre que ces taux dépendent des volumes et du régime de
 $\hat\pi_t$. \emph{Portée}~: ces taux valent pour ces deux jeux, sous leur modèle ajusté et à
 $T = 8$~; ils ne se transposent ni à un autre portefeuille, ni à une autre profondeur, ni à un
-autre paramétrage, et le script peut être rejoué sur les données d'un dossier.
+autre paramétrage, et le script peut être rejoué sur les données d'un dossier. Le repère de
+lecture du DFBETAS de la méthode Merz--Wüthrich, $2/\sqrt{n_j}$, a été mesuré de même, sous le
+modèle de Mack ajusté au triangle de contrôle (option \code{--seulement mw} du même script,
+issue~\#89)~: protocole, taux et statuts à la fiche~\ref{mw:influence}.
 
 \subsection*{Hiérarchie de lecture recommandée}
 
