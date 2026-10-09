@@ -390,3 +390,16 @@ Argument élémentaire rédigé ici, sans référence **[V]** pour la logique. I
 9. **Q-A1-9, taille du brut** versionné (≈ 10 à 15 Mo, plus 3 à 5 Mo) : l'accepter, ou réduire les colonnes (p1 de J1 et J2 omise si égale à #221).
 10. **Q-A1-10, règle A2** (§ 4.4) : l'approuver, en particulier la poursuite complète si seule C1 est prédite en échec (arbitrage de cible à chiffrer).
 11. **Q-A1-11, coût et ordre.** Total de 33 à 60 h CPU, soit 11 à 27 h d'horloge selon la machine (profil mesuré à P4 avant le lancement) ; ordre J2 → J3 → J1, puis P ; graines 20800000 + b, 20810000 + s, 20820000 + 100 p + i.
+
+---
+
+## Annotation du 9 octobre 2026 : décisions du mainteneur au point d'arrêt A1
+
+Consignées par la session principale.
+
+- **Q-A1-1, Q-A1-5, Q-A1-10** : critère C1 à C5, profils D1 à D5, Holm par famille et règle A2 **approuvés tels quels**.
+- **Q-A1-2, Q-A1-3** : J1 aux bords, ses 75 réplications intérieures calculées à titre descriptif, V3b compris ; J3 tel que défini au § 3.2. **Approuvés.**
+- **Q-A1-4, Q-A1-6** : V3h **retenue**, soumise au même critère ; partie P à six scénarios sur J2, option P-J3 à décider à A2. **Approuvés.**
+- **Q-229-4, Q-A1-8, Q-A1-9, Q-A1-11** : lecture de (i1) après P2, contre-implémentation dans `tests/outils_tests.R`, brut complet (≈ 15 à 20 Mo), coût et ordre J2 → J3 → J1 puis P. **Approuvés.** La durée exacte est mesurée en P4 et annoncée avant le lancement.
+
+Prochain point d'arrêt : **A2**, après la grille (étape 4), qui tourne sur le moteur issu de #237 et #231.
