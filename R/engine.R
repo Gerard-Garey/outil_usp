@@ -250,14 +250,16 @@ TOLERANCE_CONFORME_SIGMA <- 1e-12
 # (Cox-Stuart, Spearman ratio / volume et ratio / temps, Mann-Kendall,
 # Smirnov sur z), le test des suites (Runs, Runsr et suites des residus de
 # Mack), a l'observe comme dans les replications des catalogues Monte-Carlo,
-# et .usp_nb_volumes_distincts() (#110).
-# Restent a egalite EXACTE : les correlations de rang de Merz-Wuthrich
-# (mw_test_homogeneite_f(), mw_stat_correlation_dev(),
-# mw_test_exposant_variance()) et le classement L / S par la mediane de
-# mw_test_annees_calendaires() (issue #152) ; sur x brut (un volume est
-# saisi, non calcule) : la partition x > median(x) de Smirnov, de
-# test_brown_forsythe() et de engine_plots_data(), et le tri par volume de
-# test_goldfeld_quandt().
+# et .usp_nb_volumes_distincts() (#110) ; les statistiques de rang de
+# Merz-Wuthrich (issue #152) : facteurs F(i,j) en plancher 0
+# (mw_stat_correlation_dev(), mw_test_homogeneite_f(), classement L / S / *
+# par la mediane de mw_test_annees_calendaires()), cumuls C(i,j) en
+# plancher 0 et |residus| de Mack en plancher 1
+# (mw_test_exposant_variance()), residus de Mack en plancher 1
+# (mw_test_homogeneite_accident()).
+# Restent a egalite EXACTE, sur x brut (un volume est saisi, non calcule) :
+# la partition x > median(x) de Smirnov, de test_brown_forsythe() et de
+# engine_plots_data(), et le tri par volume de test_goldfeld_quandt().
 # Valeur (note d'actuary du 28/09/2026 sur #112, decision du mainteneur,
 # garantie corrigee a la validation de fin de branche E1b, puis a #187) : le
 # bruit d'arrondi de y_t / x_t est de l'ordre de 1e-16 relatif, celui de z_t
@@ -282,7 +284,9 @@ TOLERANCE_CONFORME_SIGMA <- 1e-12
 # max(r_i, r_j) > 1e-2 max r (S/P des annees dans un facteur inferieur a
 # 100). Mesures du 06/10/2026 dans ce domaine : 0 fusion sur 100 000 paires
 # (actuary), 0 sur 54 837 paires tirees et 0 sur 22 103 paires voisines
-# (m+1)/m, (m+2)/(m+1) (coder). Pour z_t, aucune borne n'est etablie.
+# (m+1)/m, (m+2)/(m+1) (coder). Pour z_t, aucune borne n'est etablie ; pour
+# les residus de Mack (plancher 1, #152) non plus (marge mesuree d'environ 15
+# sous la tolerance sur reserve2).
 # Aplatissement INTERNE aux tests de rang et de signe : chaque point d'entree
 # aplatit ses propres arguments ; ni les donnees, ni usp_noyau(), ni les
 # autres statistiques (AD, SW, DW, Grubbs, regressions auxiliaires...) ne
@@ -1130,7 +1134,8 @@ RATIO_PLAUSIBLE_MAX <- 5
 # sigma_USP et les tests etant invariants par un changement d'unite commun
 # a xt et yt (et a delta_equiv s'il est fourni), le refus n'ote rien :
 # il suffit de changer d'unite. Noms neutres vis-a-vis de la methode : les
-# controles du triangle de Merz-Wuthrich les reprendront (#185).
+# controles du triangle de Merz-Wuthrich les reprennent (mw_valider_triangle(),
+# #185).
 DOMAINE_NUMERIQUE_MIN <- 1e-50
 DOMAINE_NUMERIQUE_MAX <- 1e50
 
@@ -6087,20 +6092,29 @@ engine_valider_serie_retenue <- function(xt, yt, T = NULL, theta_equiv = 0.10,
 # Reperes de LECTURE des graphiques d'influence (issue #4, piste 3 ; valeurs
 # jusqu'ici ecrites en dur dans l'affichage, conservees telles quelles). Le
 # moteur en tire les booleens de coloration fort_ecart_sigma
-# (engine_influence()) et fort_dfbeta (mw_influence()), que display_helpers.R
+# (engine_influence()) et fort_dfbetas (mw_influence()), que display_helpers.R
 # lit sans comparaison (issue #33, constat C1 d'app-review). Ce ne sont ni des seuils
 # reglementaires ni des niveaux de test ; aucun verdict n'en depend.
 # - REPERE_INFLUENCE_SIGMA : |ecart relatif de sigma_USP| au retrait d'une
 #   annee (jackknife) ; renvoie au repere conventionnel de 10 % de la fiche
 #   jackknife, qui cite 10 % et 20 % : seul 10 % sert ici, a la couleur.
-# - REPERE_DFBETA_MW : |variation relative de f_j| au retrait d'une cellule
-#   du triangle (DFBETA de mw_influence()). Repere de lecture propre a
-#   l'outil, herite de l'affichage, sans source, sans fondement statistique
-#   ni reglementaire ; il ne produit aucun verdict et n'est pas le repere
-#   2/sqrt(n) de Belsley-Kuh-Welsch, qui porte sur un DFBETAS standardise et
-#   non sur une variation relative (issue #89).
+# - REPERE_DFBETAS_MW : numerateur c du repere c / sqrt(n_j) applique au
+#   DFBETAS standardise de chaque cellule du triangle dans la regression
+#   ponderee de sa colonne (mw_influence(), issue #89). Repere de LECTURE,
+#   sans verdict (ADR 0001, M7) : |DFBETAS| > 2/sqrt(n), repere dit
+#   size-adjusted attribue a Belsley, Kuh et Welsch (1980) par des sources
+#   secondaires (SAS/STAT PROC REG "Influence Diagnostics" ; manuel Stata
+#   regress postestimation, qui cite la p. 28) ; ouvrage non relu.
+#   Mise en garde : sous le modele de Mack a erreurs conditionnelles
+#   gaussiennes, a C(.,j) donne, DFBETAS_i = t_i sqrt(h_i / (1 - h_i)), t_i
+#   residu studentise externe de loi t_{n_j - 2} (resultat classique, source
+#   secondaire) ; a levier egal (h_i = 1/n), P(|DFBETAS| > 2/sqrt(n)) =
+#   P(|t_{n-2}| > 2 sqrt((n - 1)/n)) : 12,3 % (n_j = 7) a 35,0 % (n_j = 3),
+#   esperance 4,5 cellules sur 25 dans un triangle T = 8 sans anomalie,
+#   confirmee par simulation (tests/taux_franchissement_reperes.R
+#   --seulement mw). C'est un repere de lecture, pas un test.
 REPERE_INFLUENCE_SIGMA <- 0.10
-REPERE_DFBETA_MW <- 0.02
+REPERE_DFBETAS_MW <- 2
 # Surface de la fonction objectif sur une grille (delta, gamma). Elle sert a
 # visualiser la geometrie de l'optimisation, notamment lorsque delta est au
 # bord : un plateau plat en delta signifie que la structure de variance n'est
@@ -6398,6 +6412,12 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
 # XVII, section G ; duree G(3)(c)) ; l'avertissement statistique (variance
 # tres bruitee en fin de triangle, I + 1 < 10) est un repere non
 # reglementaire, distinct et inchange.
+# Domaine numerique (issue #185) : une cellule observee hors de
+# [DOMAINE_NUMERIQUE_MIN ; DOMAINE_NUMERIQUE_MAX], bornes incluses, est
+# refusee (constantes de #145). Sans ce refus, run_engine() rendait ok = TRUE
+# sans alerte avec un sigma_USP faux sous une echelle d'environ 1e-105
+# (mesures de l'issue #185 ; bornes de l'ordre de DBL_MIN^(1/3) et
+# DBL_MAX^(1/3), grandeurs de degre 3).
 mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
                                 annexe = "II") {
   err <- character(0); avt <- character(0)
@@ -6416,6 +6436,9 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
   if (I != J)
     err <- c(err, sprintf("Triangle non carre (I = %d, J = %d) : cas non couvert par la formule du paragraphe 4 (voir la note d'implementation).", I, J))
   if (!length(err)) {
+    # Cellules observees finies strictement positives hors du domaine
+    # numerique (issue #185), relevees dans la boucle, signalees apres elle.
+    hors_i <- integer(0); hors_j <- integer(0)
     # Structure attendue : partie superieure gauche observee, reste manquant.
     for (i in 0:I) for (j in 0:J) {
       obs <- (i + j <= I)
@@ -6429,6 +6452,34 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
         err <- c(err, sprintf("Valeur non finie en (i=%d, j=%d) : %s.", i, j, format(v)))
       if (obs && is.finite(v) && v <= 0)
         err <- c(err, sprintf("Cumul non strictement positif en (i=%d, j=%d).", i, j))
+      # Domaine numerique (issue #185) : memes constantes et memes bornes
+      # incluses que engine_valider_donnees() (#145). NA, non finies et non
+      # positives sont refusees ci-dessus, sans doublon.
+      if (obs && is.finite(v) && v > 0 &&
+          (v < DOMAINE_NUMERIQUE_MIN || v > DOMAINE_NUMERIQUE_MAX)) {
+        hors_i <- c(hors_i, i); hors_j <- c(hors_j, j)
+      }
+    }
+    # Un seul motif par triangle, qui cite la premiere cellule fautive (ordre
+    # i puis j), sa valeur (.engine_saisie(), 17 chiffres si necessaire), la
+    # borne franchie et le nombre de cellules hors du domaine : un triangle a
+    # une echelle extreme a toutes ses cellules hors du domaine, et un motif
+    # par cellule repeterait le meme refus (comme engine_valider_donnees(),
+    # un motif par serie).
+    if (length(hors_i)) {
+      v1 <- tri[hors_i[1] + 1, hors_j[1] + 1]
+      borne <- if (v1 < DOMAINE_NUMERIQUE_MIN)
+        sprintf("< %g, borne inferieure", DOMAINE_NUMERIQUE_MIN)
+        else sprintf("> %g, borne superieure", DOMAINE_NUMERIQUE_MAX)
+      err <- c(err, sprintf(paste(
+        "Cumul hors du domaine numerique [%g ; %g] en (i=%d, j=%d) : %s (%s)%s.",
+        "sigma_USP et les tests sont invariants par un changement d'unite commun",
+        "a toutes les cellules du triangle : exprimer les cumuls dans une unite",
+        "qui les ramene dans le domaine."),
+        DOMAINE_NUMERIQUE_MIN, DOMAINE_NUMERIQUE_MAX, hors_i[1], hors_j[1],
+        .engine_saisie(unname(v1)), borne,
+        if (length(hors_i) > 1L)
+          sprintf(" ; %d cellules observees hors du domaine", length(hors_i)) else ""))
     }
   }
   # Bareme, segment et annexe (issue #131) : controles apres les erreurs de
@@ -6495,7 +6546,9 @@ mw_ajuster <- function(tri) {
   # [par. 5(d)(ii), seconde ligne]. Le sigma^4 du texte designe le carre de
   # sigma2_{J-2}, la formule etant l'extrapolation geometrique usuelle.
   #
-  # CAS sigma2_{J-3} = 0 (colonne J-3 a facteurs individuels tous egaux). Le
+  # CAS sigma2_{J-3} = 0 (colonne J-3 a facteurs individuels exactement egaux ;
+  # une colonne degeneree au sens de .mw_colonne_degeneree() donne un
+  # sigma2_{J-3} nul ou negligeable a la tolerance de l'outil). Le
   # troisieme argument divise alors par zero, mais la regle du texte reste
   # DETERMINEE et vaut 0 : par la premiere ligne de (d)(ii), sigma2_j est une
   # somme de carres ponderee par des C(i,j) > 0, donc les trois arguments sont
@@ -6554,32 +6607,48 @@ mw_ajuster <- function(tri) {
 
 # --- Colonne de developpement degeneree : predicat unique (issue #56) --------
 # Une colonne j est DEGENEREE lorsque ses facteurs individuels
-# F(i,j) = C(i,j+1) / C(i,j), i = 0..I-j-1, sont tous egaux a leur moyenne
-# ponderee f_j a tol pres en relatif :
-#     max_i |F(i,j) - f_j| / |f_j| <= tol   (tol = 1e-12 par defaut).
+# F(i,j) = C(i,j+1) / C(i,j), i = 0..I-j-1, sont egaux a leur moyenne
+# ponderee f_j a la tolerance relative tol de l'outil. Premier volet :
+#     max_i |F(i,j) - f_j| / |f_j| <= tol   (tol = 1e-12 par defaut) ;
+# second volet ci-dessous (aplatissement des ex aequo).
 # C'est la propriete qui annule sigma2_j ; elle est testee sur les facteurs et
 # non sur sigma2_j == 0, que l'arrondi rend en general strictement positif
 # (voir mw_extrapolation_sigma2()). Le seuil est une convention de
 # restitution, pas un seuil statistique (avis d'actuary sur #56) : environ
 # 1e4 fois l'epsilon machine, plusieurs ordres de grandeur sous la dispersion
 # d'une colonne reelle.
+# Second volet du predicat (issue #60, constat C1 de l'audit de #152,
+# decision du mainteneur du 05/10/2026) : la colonne est aussi degeneree
+# quand ses facteurs, aplatis a tol par engine_aplatir_ex_aequo() en
+# plancher 0 (tolerance relative, chainage des valeurs triees adjacentes),
+# sont rendus tous egaux, avec un ecart a f_j qui peut depasser tol. Les
+# statistiques de rang de M1 et M3 aplatissent les
+# F(i,j) a la meme tolerance (#152) : une colonne de facteurs chaines par
+# pas de moins de tol en relatif, dont l'ecart a f_j peut atteindre
+# (n - 1) * tol, y devient constante (correlation de rang non definie) ; elle
+# est donc traitee comme degeneree partout, et non seulement dans ces
+# statistiques.
 # UNE SEULE DEFINITION dans le moteur : mw_extrapolation_sigma2() (colonnes
-# J-3 et J-2) et les trois verifications colonne par colonne de M1
-# (mw_test_ordonnee_origine(), mw_test_homogeneite_f(), mw_test_courbure())
-# appellent ce predicat. L'exclusion des residus de Mack par mw_residus()
-# garde, elle, le critere sigma2_j = 0 exact (alignement renvoye a #60).
-# .mw_ecart_facteurs() rend le nombre de facteurs n, f_j et l'ecart relatif
-# maximal (NA si la colonne n'a aucun facteur).
+# J-3 et J-2), les trois verifications colonne par colonne de M1
+# (mw_test_ordonnee_origine(), mw_test_homogeneite_f(), mw_test_courbure()),
+# le refus du triangle totalement degenere (#192) et l'exclusion des residus
+# de Mack par mw_residus() (#60) appellent ce predicat.
+# .mw_ecart_facteurs() rend le nombre de facteurs n, f_j, l'ecart relatif
+# maximal (NA si la colonne n'a aucun facteur) et les facteurs F(i,j).
 .mw_ecart_facteurs <- function(aj, j) {
-  if (aj$I - j - 1 < 0) return(list(n = 0L, f = aj$f[j + 1], ecart = NA_real_))
+  if (aj$I - j - 1 < 0) return(list(n = 0L, f = aj$f[j + 1], ecart = NA_real_,
+                                    F = numeric(0)))
   idx <- 0:(aj$I - j - 1)
   Fij <- aj$tri[idx + 1, j + 2] / aj$tri[idx + 1, j + 1]
   list(n = length(idx), f = aj$f[j + 1],
-       ecart = max(abs(Fij - aj$f[j + 1])) / abs(aj$f[j + 1]))
+       ecart = max(abs(Fij - aj$f[j + 1])) / abs(aj$f[j + 1]), F = Fij)
 }
 .mw_colonne_degeneree <- function(aj, j, tol = 1e-12) {
-  e <- .mw_ecart_facteurs(aj, j)$ecart
-  is.finite(e) && e <= tol
+  e <- .mw_ecart_facteurs(aj, j)
+  if (!is.finite(e$ecart)) return(FALSE)
+  if (e$ecart <= tol) return(TRUE)
+  # ecart fini : tous les F(i,j) sont finis (condition de l'aplatissement)
+  length(unique(engine_aplatir_ex_aequo(e$F, tol = tol, plancher = 0))) == 1L
 }
 # Ensemble des colonnes j = 0..J-1 degenerees au sens du predicat ci-dessus
 # (vecteur d'entiers, eventuellement vide). mw_bootstrap() le calcule UNE FOIS
@@ -6587,6 +6656,38 @@ mw_ajuster <- function(tri) {
 .mw_colonnes_degenerees <- function(aj, tol = 1e-12) {
   j <- 0:(aj$J - 1L)
   as.integer(j[vapply(j, function(k) .mw_colonne_degeneree(aj, k, tol), logical(1))])
+}
+# Enonce du predicat dans les messages (issue #60, decision du mainteneur du
+# 06/10/2026, constat C1-a de l'audit) : UNE SEULE chaine, reutilisee par
+# l'avertissement des colonnes exclues (mw_valider_ajustement()), le motif de
+# refus du triangle totalement degenere (#192) et .mw_phrase_exclusion() (M1).
+# Elle nomme les deux volets du predicat : un ecart relatif a f_j d'au plus
+# 1e-12 ne couvre pas une colonne de facteurs chaines par pas de moins de
+# 1e-12, dont l'ecart peut atteindre (n - 1) * 1e-12 et que l'aplatissement
+# rend tous egaux.
+.MW_PREDICAT_DEGENERE_TEXTE <- paste0(
+  "ecart relatif a f_j au plus 1e-12, ou facteurs que l'aplatissement des ",
+  "ex aequo a cette tolerance rend tous egaux")
+# Triangle totalement degenere (issue #192) : toutes les colonnes
+# j = 0..J-2 sont degenerees au sens du predicat unique ci-dessus (#56),
+# sans constante nouvelle : la tolerance 1e-12 est celle de
+# .mw_colonne_degeneree(), convention de l'outil et non du texte : ecart
+# relatif a f_j au plus 1e-12, ou facteurs que l'aplatissement des ex aequo a
+# cette tolerance rend tous egaux (ecart jusqu'a (n - 1) * 1e-12). Pour des
+# facteurs exactement egaux, en arithmetique exacte, sigma2_j = 0 pour
+# j = 0..J-2 (D(5)(d)(ii)), donc sigma2_(J-1) = 0, MSEP = 0 et
+# sigma(res,s,USP) = (1 - c) * sigma(res,s) par D(4) ; sinon sigma2_j et la
+# MSEP sont nuls ou negligeables a la tolerance de l'outil (residus d'arrondi
+# ou ecarts relatifs entre facteurs de l'ordre de 1e-12) et cette egalite tient
+# a un ecart negligeable pres. La colonne J-1 (un seul facteur si I = J)
+# n'entre pas dans le predicat. FALSE pour un objet d'ajustement reduit
+# (I et reserve seuls, fonction publique) et pour J < 2 (aucune colonne a
+# examiner).
+.mw_triangle_totalement_degenere <- function(aj) {
+  if (!is.list(aj) || !all(c("I", "J", "f", "tri") %in% names(aj))) return(FALSE)
+  J <- aj$J
+  if (length(J) != 1L || is.na(J) || J < 2L) return(FALSE)
+  all(seq.int(0L, J - 2L) %in% .mw_colonnes_degenerees(aj))
 }
 
 # --- Lecture de l'extrapolation de sigma2_{J-1} : par. 5(d)(ii), 2e ligne ----
@@ -6727,8 +6828,9 @@ mw_extrapolation_sigma2 <- function(aj, tol = 1e-12) {
                     base,
                     format(ex$sigma2_Jm2, digits = 6), format(ex$sigma2_Jm3, digits = 6),
                     q, format(ex$valeur, digits = 6), retenus)
-  # "numeriquement nul" et non "= 0" : la detection porte sur l'ecart relatif
-  # des facteurs individuels a 1e-12 pres, si bien qu'une colonne constante a
+  # "numeriquement nul" et non "= 0" : la detection porte sur les facteurs
+  # individuels a la tolerance relative 1e-12 de l'outil (predicat
+  # .mw_colonne_degeneree(), deux volets), si bien qu'une colonne constante a
   # 1e-14 pres donne un sigma2 de l'ordre de 1e-21, non nul. La valeur exacte
   # est imprimee quelques mots plus haut dans la meme chaine. Cette phrase
   # finale ne figure que dans les branches degenerees. Hors degenerescence, le
@@ -6738,14 +6840,17 @@ mw_extrapolation_sigma2 <- function(aj, tol = 1e-12) {
   d3 <- isTRUE(ex$degeneree_Jm3)
   d2 <- isTRUE(ex$degeneree_Jm2)
   if (d3 && d2)
-    detail <- paste0(detail, ". Colonnes J-3 et J-2 a facteurs individuels tous egaux ",
+    detail <- paste0(detail, ". Colonnes J-3 et J-2 a facteurs individuels egaux a f_j ",
+                     "a la tolerance relative 1e-12 de l'outil ",
                      "(sigma2_(J-3) et sigma2_(J-2) numeriquement nuls) : ",
                      "voir l'avertissement sur les donnees")
   else if (d3)
-    detail <- paste0(detail, ". Colonne J-3 a facteurs individuels tous egaux ",
+    detail <- paste0(detail, ". Colonne J-3 a facteurs individuels egaux a f_j ",
+                     "a la tolerance relative 1e-12 de l'outil ",
                      "(sigma2_(J-3) numeriquement nul) : voir l'avertissement sur les donnees")
   else if (d2)
-    detail <- paste0(detail, ". Colonne J-2 a facteurs individuels tous egaux ",
+    detail <- paste0(detail, ". Colonne J-2 a facteurs individuels egaux a f_j ",
+                     "a la tolerance relative 1e-12 de l'outil ",
                      "(sigma2_(J-2) numeriquement nul) : voir l'avertissement sur les donnees")
   detail
 }
@@ -6878,10 +6983,48 @@ mw_valider_ajustement <- function(aj, msep) {
                                  "sigma(res,s,USP) n'est pas calculable ; la methode du risque ",
                                  "de reserve no 2 n'est pas applicable a ce triangle."),
                           format(msep)))
+  # Refus (issue #192, decision du mainteneur du 05/10/2026, Q-E2r-192-1,
+  # option A) : triangle totalement degenere, .mw_triangle_totalement_degenere().
+  # Le refus ne repose PAS sur le 0/0 de D(5)(d)(ii) (doctrine #7 : le texte ne
+  # prevoit aucune clause de degenerescence et sa lettre donne MSEP = 0) ; il
+  # est un choix de mise en oeuvre prudent qui applique des exigences de
+  # donnees existantes, rendues obligatoires par l'article 219, par. 1, d) :
+  # coherence avec les hypotheses sur la nature stochastique des cumules
+  # (D(2)(h), en particulier iv) et representativite du risque de reserve
+  # (D(2)(a)), inverifiables quand aucune variance n'est observee. La
+  # tolerance 1e-12 du predicat est une convention de l'outil. Motif evalue
+  # seulement en l'absence d'autre refus : avec R <= 0 (tous les f_j = 1, par
+  # exemple), sigma(res,s,USP) n'est pas defini et le motif de la reserve
+  # suffit. Un seul motif : les avertissements de colonnes (extrapolation de
+  # sigma2_(J-1), colonnes exclues des residus) ne sont pas emis en plus
+  # (Q-E2r-192-4). Triangles partiellement ou quasi degeneres (arrondi des
+  # cumules) : inchanges, sous la doctrine de l'avertissement (Q-E2r-192-3).
+  complet <- is.list(aj) && all(c("I", "J", "sigma2", "f", "tri") %in% names(aj))
+  degenere <- !length(err) && complet && .mw_triangle_totalement_degenere(aj)
+  if (degenere)
+    err <- c(err, sprintf(paste0(
+      "Triangle totalement degenere : pour chaque annee de developpement j = 0..J-2, ",
+      "les facteurs individuels C(i,j+1)/C(i,j) sont identiques (a la tolerance ",
+      "relative 1e-12 de l'outil pres : ", .MW_PREDICAT_DEGENERE_TEXTE, "). ",
+      "Pour des facteurs exactement egaux, en arithmetique exacte, sigma2_j = 0 ",
+      "(annexe XVII, D(5)(d)(ii)) et MSEP = 0 ; ici sigma2_j et la MSEP (valeur ",
+      "calculee : %s) sont nuls ou negligeables a la tolerance de l'outil (residus ",
+      "d'arrondi ou ecarts relatifs entre facteurs de l'ordre de 1e-12), aucun residu ",
+      "de Mack n'est retenu et, par D(4), sigma(res,s,USP) = (1 - c) * sigma(res,s) a ",
+      "un ecart negligeable pres, sans contribution significative des donnees. ",
+      "Ces donnees ne permettent pas d'etablir leur coherence avec les hypotheses sur la ",
+      "nature stochastique des montants de sinistres cumules (D(2)(h), en particulier iv : ",
+      "variance proportionnelle au cumul precedent), ni leur representativite du risque ",
+      "de reserve (D(2)(a)) ; exigences de donnees rendues obligatoires par l'article 219, ",
+      "paragraphe 1, point d). L'outil n'applique donc pas a ce triangle la methode du ",
+      "risque de reserve no 2 (article 220, paragraphe 1, point b)). Verifier qu'il ",
+      "s'agit de paiements cumules observes (D(1)) et non de montants projetes ou lisses."),
+      format(msep, digits = 3)))
   # Avertissement (et non refus) : sigma2_{J-1} = 0 par application litterale
   # du par. 5(d)(ii), ce qui arrive si et seulement si la colonne J-3 ou la
-  # colonne J-2 a des facteurs individuels tous egaux (sigma2_{J-3} = 0 ou
-  # sigma2_{J-2} = 0 ; voir mw_extrapolation_sigma2). Le cas est licite au
+  # colonne J-2 est degeneree, facteurs individuels egaux a f_j a la tolerance
+  # relative 1e-12 de l'outil (sigma2_{J-3} ou sigma2_{J-2} nul ou
+  # numeriquement nul ; voir mw_extrapolation_sigma2). Le cas est licite au
   # regard du texte, qui ne prevoit aucune clause de degenerescence, mais il
   # doit etre VISIBLE : la MSEP ne porte alors aucune variance sur la derniere
   # annee de developpement. UN SEUL avertissement par triangle, de meme
@@ -6889,7 +7032,7 @@ mw_valider_ajustement <- function(aj, msep) {
   # varie (issues #7 et #21).
   avt <- character(0)
   ex <- mw_extrapolation_sigma2(aj)
-  if (isTRUE(ex$degeneree)) {
+  if (!degenere && isTRUE(ex$degeneree)) {
     # Cause : une proposition par colonne degeneree, dans l'ordre J-3, J-2.
     cols <- list()
     if (isTRUE(ex$degeneree_Jm3))
@@ -6903,18 +7046,21 @@ mw_valider_ajustement <- function(aj, msep) {
     et <- function(x) paste(x, collapse = " et ")
     entete <- et(vapply(cols, function(k) sprintf("j = %s = %d", k$nom, k$j), ""))
     facteurs <- et(vapply(cols, function(k) sprintf(paste0(
-      "les %d facteurs individuels F(i,%d) sont tous egaux a f_%d = %s ",
+      "les %d facteurs individuels F(i,%d) valent f_%d = %s au sens de ce predicat ",
       "(ecart relatif maximal %.1e)"),
       k$n, k$j, k$j, format(k$f, digits = 8), k$ecart), ""))
     nuls <- et(vapply(cols, function(k) sprintf("sigma2_(%s) = %s", k$nom,
                                                  format(k$s2, digits = 3)), ""))
-    # L'absence de residus de Mack des colonnes a sigma2_j = 0 n'est plus dite
+    # L'absence de residus de Mack des colonnes degenerees n'est plus dite
     # ici mais dans l'avertissement general sur les colonnes exclues (ci-
     # dessous), qui couvre toute colonne, J-3 et J-2 comprises, sans doublon
     # (issue #33).
     q <- if (is.na(ex$quotient)) "non defini" else format(ex$quotient, digits = 3)
+    # Enonce du predicat UNE FOIS par message, meme si J-3 et J-2 sont toutes
+    # deux degenerees (issue #60, decision du mainteneur du 06/10/2026).
     msg <- sprintf(paste0(
-      "%s %s : %s, donc %s. ",
+      "%s %s, a facteurs individuels egaux a f_j a la tolerance relative 1e-12 ",
+      "de l'outil (", .MW_PREDICAT_DEGENERE_TEXTE, ") : %s, donc %s. ",
       "Par application litterale de l'annexe XVII, D(5)(d)(ii), seconde ligne, ",
       "sigma2_(J-1) = min(sigma2_(J-2), sigma2_(J-3), sigma2_(J-2)^2/sigma2_(J-3)) ",
       "= min(%s ; %s ; %s) = %s : ",
@@ -6934,25 +7080,39 @@ mw_valider_ajustement <- function(aj, msep) {
     avt <- c(avt, msg)
   }
   # Avertissement (et non refus) : colonnes sans residu de Mack (issue #33,
-  # avis d'actuary du 24/09/2026). mw_residus() ecarte toute colonne a
-  # sigma2_j = 0 (residu 0/0, non defini) ; sous le modele D(2)(h), une
-  # colonne a facteurs tous egaux n'est pas un motif de refus (developpement
-  # acheve, par exemple). UN SEUL avertissement par triangle, qui nomme
+  # avis d'actuary du 24/09/2026). mw_residus() ecarte toute colonne
+  # degeneree (facteurs egaux a f_j a la tolerance relative 1e-12 de l'outil :
+  # ecart relatif a f_j au plus 1e-12, ou facteurs que l'aplatissement des ex
+  # aequo a cette tolerance rend tous egaux ; sigma2_j nul ou numeriquement
+  # nul ; residu 0/0 si les facteurs sont exactement egaux, rapport d'ecarts
+  # negligeables a la tolerance de l'outil sinon ; issue #60, formulation
+  # decidee par le mainteneur le 05/10/2026, Q-E2r-60-2, avec la phrase sur le
+  # pool du bootstrap, et le 06/10/2026, constat C1-a, pour l'enonce du
+  # predicat) ; sous le modele D(2)(h), une colonne degeneree n'est pas un
+  # motif de refus (developpement acheve, par exemple). UN SEUL
+  # avertissement par triangle, qui nomme
   # chaque colonne exclue, compte les residus exclus et retenus et cite les
   # lignes de mw_tests() fondees sur ces residus.
   # Objet d'ajustement reduit (I et reserve seuls, fonction publique) : rien
   # a restituer, comme dans mw_extrapolation_sigma2().
-  complet <- is.list(aj) && all(c("I", "J", "sigma2", "f", "tri") %in% names(aj))
-  rs <- if (complet) mw_residus(aj) else NULL
+  # Triangle totalement degenere refuse : un seul motif, pas d'avertissement
+  # de colonnes (issue #192).
+  rs <- if (complet && !degenere) mw_residus(aj) else NULL
   ex_col <- attr(rs, "colonnes_exclues")
   if (!is.null(ex_col) && nrow(ex_col)) {
     n_ex <- sum(ex_col$n_facteurs)
     avt <- c(avt, sprintf(paste0(
-      "%s a sigma2_j = 0 (facteurs individuels tous egaux a f_j) : %s. ",
-      "Le residu de Mack y vaut 0/0 et n'est pas defini : ces %d facteurs individuels ",
-      "n'ont pas de residu de Mack et sont exclus ; %d residu(s) de Mack sont retenus ",
-      "pour les lignes fondees sur ces residus, soit %s. ",
-      "Une colonne a facteurs tous egaux n'est pas un motif de refus (developpement ",
+      "%s a facteurs individuels egaux a f_j a la tolerance relative 1e-12 de l'outil (",
+      .MW_PREDICAT_DEGENERE_TEXTE, " ; sigma2_j nul ou numeriquement nul) : %s. ",
+      "Le residu de Mack n'y est pas defini (0/0) si les facteurs sont exactement egaux ",
+      "et n'est sinon que le rapport d'ecarts negligeables a la tolerance de l'outil ",
+      "(residus d'arrondi ou ecarts relatifs de l'ordre de 1e-12) : ",
+      "ces %d facteurs individuels sont exclus des residus de Mack ; %d residu(s) de ",
+      "Mack sont retenus pour les lignes fondees sur ces residus, soit %s. ",
+      "Le pool de reechantillonnage du bootstrap ne contient que les residus retenus ; ",
+      "il sert aux p-values Monte-Carlo des lignes M1 a M4 et a l'intervalle de confiance ",
+      "bootstrap de sigma. ",
+      "Une colonne degeneree n'est pas un motif de refus (developpement ",
       "acheve, par exemple) ; verifier l'origine des donnees si ce n'est pas le cas."),
       if (nrow(ex_col) > 1) "Colonnes de developpement" else "Colonne de developpement",
       paste(sprintf("j = %d (%d facteurs)", ex_col$j, ex_col$n_facteurs), collapse = ", "),
@@ -7013,25 +7173,48 @@ mw_parametre <- function(aj, msep, sigma_standard, bareme = "court") {
 # Sous les hypotheses D(2)(h)(iii) et (iv), ces residus sont centres, de
 # variance approximativement unitaire et mutuellement non correles. Ce sont eux
 # qui servent de support aux tests des sections H1, H2 et H4 adaptees.
-# Colonnes exclues (issue #33, avis d'actuary du 24/09/2026) : une colonne
-# j a au moins deux facteurs dont sigma2_j n'est pas strictement positif (une
-# somme ponderee de carres : "<= 0" se lit "= 0", facteurs individuels tous
-# egaux a f_j) n'a pas de residu defini (0/0) ; elle est ecartee, et
-# l'exclusion n'est plus silencieuse : l'attribut "colonnes_exclues"
+# Colonnes exclues (issue #33, avis d'actuary du 24/09/2026 ; issue #60,
+# decision du mainteneur du 05/10/2026, variante (b)) : une colonne j a au
+# moins deux facteurs est ecartee si sigma2_j n'est pas fini ou n'est pas
+# strictement positif (une somme ponderee de carres : "<= 0" se lit "= 0"),
+# OU si elle appartient a l'ensemble des colonnes degenerees : facteurs
+# individuels egaux a f_j a la tolerance relative 1e-12 de l'outil (ecart
+# relatif a f_j au plus 1e-12, ou facteurs que l'aplatissement des ex aequo a
+# cette tolerance rend tous egaux, ecart jusqu'a (n - 1) * 1e-12), predicat
+# unique .mw_colonne_degeneree() (#56, #60). Le residu y vaut 0/0 si les
+# facteurs sont exactement egaux ; sinon, et en general par l'arrondi,
+# sigma2_j est strictement positif (mesures : 4,9e-22 sur ta_bruit,
+# 2,1e-28 sur t5, 9,7e-21 sur le triangle du constat C1, triangles des tests)
+# et le residu calcule n'est alors qu'un bruit d'arrondi norme, que le
+# critere sigma2_j = 0 exact laissait entrer dans les lignes fondees sur les
+# residus et dans le pool du bootstrap.
+# Ensemble des colonnes degenerees : j_degeneres s'il est fourni (ensemble
+# FIGE au triangle observe par mw_bootstrap() et transmis aux statistiques
+# de chaque replication, comme pour M1, #56 : la colonne exclue a l'observe
+# l'est dans chaque replication, ou le facteur simule C * f_j / C peut
+# differer de f_j au bit pres et donner un sigma2_j de bruit strictement
+# positif -- mesure sur ta_deg des tests, colonne j = 4 : 18 replications sur
+# 50, sigma2_4 au plus 2,6e-25 ; le nombre de residus est ainsi le meme a
+# l'observe et dans les replications), sinon calcule sur aj lui-meme
+# (.mw_colonnes_degenerees(), appel sur le triangle observe). Une colonne
+# hors de l'ensemble fige reste ecartee dans une replication si son sigma2_j
+# simule n'est pas strictement positif (residu non defini).
+# L'exclusion n'est pas silencieuse : l'attribut "colonnes_exclues"
 # (data.frame j, n_facteurs) la consigne, et mw_valider_ajustement() en fait
 # un avertissement. .run_engine_mw() retire l'attribut avant de stocker les
 # residus (aucun champ nouveau dans le resultat). La colonne J-1 (un seul
-# facteur) n'a jamais de residu et n'est pas comptee comme exclue. Le seuil
-# reste l'egalite exacte a 0 : l'alignement sur la detection a 1e-12 des
-# colonnes degenerees releve de l'issue #60.
-mw_residus <- function(aj) {
+# facteur si I = J) n'a jamais de residu et n'est pas comptee comme exclue :
+# le test du nombre de facteurs precede celui de la degenerescence, que la
+# colonne J-1 verifie trivialement.
+mw_residus <- function(aj, j_degeneres = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
+  jd <- .mw_j_exclues(aj, j_degeneres)
   out <- data.frame()
   exclues <- data.frame(j = integer(0), n_facteurs = integer(0))
   for (j in 0:(J - 1)) {
     idx <- 0:(I - j - 1)
     if (length(idx) < 2) next
-    if (!is.finite(aj$sigma2[j + 1]) || aj$sigma2[j + 1] <= 0) {
+    if (!is.finite(aj$sigma2[j + 1]) || aj$sigma2[j + 1] <= 0 || j %in% jd) {
       exclues[nrow(exclues) + 1L, ] <- list(as.integer(j), length(idx))
       next
     }
@@ -7065,20 +7248,39 @@ mw_residus <- function(aj) {
   c(E = E, V = max(V, 0))
 }
 
-mw_test_annees_calendaires <- function(aj) {
+# Colonnes degenerees (#60, extension de la decision Q-E2r-60-1 (b) du
+# mainteneur, 06/10/2026) : une colonne de l'ensemble j_degeneres (fige a
+# l'observe par mw_bootstrap(), calcule sur aj s'il n'est pas fourni,
+# .mw_j_exclues()) ne recoit aucune etiquette L / S : toutes ses etiquettes
+# valent "*". Le gel vaut aussi a l'observe : il peut y retirer une colonne
+# que l'aplatissement seul n'aurait pas rendue constante (ecart relatif a
+# f_j au plus 1e-12 sans fusion des ex aequo). Sans ce gel, une colonne
+# degeneree a l'observe peut, dans une replication, recevoir des etiquettes
+# L / S tirees du bruit d'arrondi de ses facteurs simules.
+mw_test_annees_calendaires <- function(aj, j_degeneres = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
+  jd <- .mw_j_exclues(aj, j_degeneres)
   etiq <- data.frame()
   for (j in 0:(J - 1)) {
     idx <- 0:(I - j - 1)
     if (length(idx) < 2) next
     F <- tri[idx + 1, j + 2] / tri[idx + 1, j + 1]
+    # Ex aequo a la tolerance TOL_EX_AEQUO (#152) : F aplati AVANT la mediane,
+    # plancher 0 (rapport strictement positif, tolerance relative) ; une
+    # valeur egale a la mediane apres aplatissement recoit donc "*" (a n pair,
+    # une valeur proche de la mediane a la tolerance sans lui etre egale apres
+    # aplatissement garde son etiquette S ou L).
+    F <- engine_aplatir_ex_aequo(F, plancher = 0)
     md <- stats::median(F)
-    lab <- ifelse(F > md, "L", ifelse(F < md, "S", "*"))
+    lab <- if (j %in% jd) rep("*", length(F)) else
+      ifelse(F > md, "L", ifelse(F < md, "S", "*"))
     etiq <- rbind(etiq, data.frame(i = idx, j = j, diag = idx + j, lab = lab,
                                    stringsAsFactors = FALSE))
   }
+  etiquettes <- etiq                         # toutes les etiquettes, "*" compris
   etiq <- etiq[etiq$lab != "*", , drop = FALSE]
-  if (!nrow(etiq)) return(list(stat = NA_real_, p = NA_real_, Z = NA_real_))
+  if (!nrow(etiq)) return(list(stat = NA_real_, p = NA_real_, Z = NA_real_,
+                                etiquettes = etiquettes))
   agg <- lapply(split(etiq$lab, etiq$diag), function(v) {
     L <- sum(v == "L"); S <- sum(v == "S"); n <- L + S
     m <- .mack_moments_Z(n)
@@ -7086,12 +7288,14 @@ mw_test_annees_calendaires <- function(aj) {
   })
   A <- do.call(base::rbind, agg)
   A <- A[A[, "n"] >= 2, , drop = FALSE]
-  if (!nrow(A)) return(list(stat = NA_real_, p = NA_real_, Z = NA_real_))
+  if (!nrow(A)) return(list(stat = NA_real_, p = NA_real_, Z = NA_real_,
+                             etiquettes = etiquettes))
   Z <- sum(A[, "Z"]); EZ <- sum(A[, "E"]); VZ <- sum(A[, "V"])
-  if (!is.finite(VZ) || VZ <= 0) return(list(stat = NA_real_, p = NA_real_, Z = Z))
+  if (!is.finite(VZ) || VZ <= 0) return(list(stat = NA_real_, p = NA_real_, Z = Z,
+                                              etiquettes = etiquettes))
   st <- (Z - EZ) / sqrt(VZ)
   list(stat = st, p = .p_borne(2 * (1 - stats::pnorm(abs(st)))),
-       Z = Z, E = EZ, V = VZ, detail = A)
+       Z = Z, E = EZ, V = VZ, detail = A, etiquettes = etiquettes)
 }
 
 # --- Test de correlation entre annees de developpement adjacentes (Mack) -----
@@ -7100,21 +7304,40 @@ mw_test_annees_calendaires <- function(aj) {
 # correlation de rang de Spearman entre colonnes adjacentes, agregee sur le
 # triangle. La loi sous H0 dependant de la geometrie du triangle, la p-value
 # est obtenue par permutation (voir mw_bootstrap).
-mw_stat_correlation_dev <- function(aj) {
+# Colonnes degenerees (#60, extension de la decision Q-E2r-60-1 (b) du
+# mainteneur, 06/10/2026) : la paire (k - 1, k) est exclue si l'une de ses
+# deux colonnes de facteurs appartient a l'ensemble j_degeneres (fige a
+# l'observe par mw_bootstrap(), calcule sur aj s'il n'est pas fourni,
+# .mw_j_exclues()), et non plus seulement si l'aplatissement des ex aequo la
+# rend constante dans le triangle courant : les paires retenues sont ainsi
+# les memes a l'observe et dans chaque replication au regard des colonnes
+# degenerees. Le gel vaut aussi a l'observe, ou il peut retirer une paire
+# que l'aplatissement seul aurait gardee (ecart au plus 1e-12 sans fusion). Une colonne hors de l'ensemble reste ecartee par la garde
+# sd() == 0 si elle est constante apres aplatissement.
+mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
-  Ts <- w <- numeric(0)
+  jd <- .mw_j_exclues(aj, j_degeneres)
+  Ts <- w <- numeric(0); ea <- FALSE
   for (k in 1:(J - 1)) {
     idx <- 0:(I - k - 1)
     if (length(idx) < 3) next
+    if ((k - 1L) %in% jd || k %in% jd) next
     Fk  <- tri[idx + 1, k + 1] / tri[idx + 1, k]        # colonne k-1 -> k
     Fk1 <- tri[idx + 1, k + 2] / tri[idx + 1, k + 1]    # colonne k -> k+1
+    # Ex aequo a la tolerance TOL_EX_AEQUO (#152) : Fk et Fk1 aplatis
+    # separement, plancher 0, avant la garde sd() == 0 et rank().
+    Fk  <- engine_aplatir_ex_aequo(Fk,  plancher = 0)
+    Fk1 <- engine_aplatir_ex_aequo(Fk1, plancher = 0)
     if (stats::sd(Fk) == 0 || stats::sd(Fk1) == 0) next
     rho <- suppressWarnings(stats::cor(rank(Fk), rank(Fk1)))
     if (!is.finite(rho)) next
     Ts <- c(Ts, rho); w <- c(w, length(idx) - 1)
+    # Ex aequo apres aplatissement dans une paire retenue (#115) : rangs
+    # moyens, loi de permutation conditionnelle non tabulee (p_min NA).
+    ea <- ea || anyDuplicated(Fk) > 0 || anyDuplicated(Fk1) > 0
   }
   if (!length(Ts)) return(list(stat = NA_real_, T = NA_real_))
-  list(stat = sum(w * Ts) / sum(w), T = Ts, poids = w)
+  list(stat = sum(w * Ts) / sum(w), T = Ts, poids = w, ex_aequo = ea)
 }
 
 
@@ -7166,11 +7389,45 @@ mw_stat_correlation_dev <- function(aj) {
 # que l'independance n'est qu'approchee. La p-value combinee est donc rapportee
 # comme NON simulee et indicative ; la p-value de reference reste celle du
 # bootstrap de residus.
+# Aucune exclusion silencieuse (issue #90) : K est le nombre de p-values
+# recues ; il ne varie plus que si l'appelant ecarte une colonne (lm() en
+# echec, garde sd() == 0, colonne trop courte). Une p-value nulle
+# (debordement de la loi de reference) est relevee au plancher
+# .Machine$double.xmin (terme -2 ln p fini, environ 1416), au lieu d'ecarter
+# la colonne qui porte la preuve la plus forte contre H0 ; une p-value non
+# finie ou hors de [0, 1] rend la statistique NA (K inchange), que le
+# bootstrap ecarte de B_effectif.
 .fisher_combine <- function(p) {
-  p <- p[is.finite(p) & p > 0 & p <= 1]
-  if (length(p) < 2) return(list(stat = NA_real_, p = NA_real_, K = length(p)))
-  X <- -2 * sum(log(p))
-  list(stat = X, p = .p_borne(1 - stats::pchisq(X, 2 * length(p))), K = length(p))
+  K <- length(p)
+  if (K < 2 || any(!is.finite(p) | p < 0 | p > 1))
+    return(list(stat = NA_real_, p = NA_real_, K = K))
+  X <- -2 * sum(log(pmax(p, .Machine$double.xmin)))
+  list(stat = X, p = .p_borne(1 - stats::pchisq(X, 2 * K)), K = K)
+}
+
+# P-value bilaterale de Spearman d'une colonne, pour les combinaisons de Fisher
+# de HomogF (mw_test_homogeneite_f()) et d'ExpVar (mw_test_exposant_variance())
+# (issue #90, decisions du mainteneur du 06/10/2026). a : deja aplati par
+# l'appelant a TOL_EX_AEQUO, avec le plancher de sa grandeur (#152) ; b :
+# aplati ici, plancher plancher_b (sans effet sur des entiers distincts).
+# Apres aplatissement, un ex aequo est une egalite au bit pres (en-tete de
+# TOL_EX_AEQUO), comme dans les statistiques de rang de #152.
+#   - n <= 9 sans ex aequo : cor.test(exact = TRUE), loi de permutation
+#     enumeree (prho.c, n_small = 9) ;
+#   - sinon (n > 9, ou ex aequo) : cor.test(exact = FALSE), approximation de
+#     Student, relevee au plancher 2/n!, valeur exacte de P(|rho| = 1) sans
+#     ex aequo et simple plancher numerique avec ex aequo ; a |rho| = 1,
+#     l'approximation rend p = 0 (n = 4) ou 1,7e-61 (n = 10), sous 2/n!.
+# Resultat dans [2/n!, 1] (NA si cor.test() ne rend pas de p-value finie).
+# Ces p_j ne sont PAS des p exactes au sens de l'ADR 0002 : elles n'entrent
+# que dans la statistique X de Fisher, dont la p retenue reste Monte-Carlo.
+.mw_spearman_p <- function(a, b, plancher_b = 1) {
+  b <- engine_aplatir_ex_aequo(b, plancher = plancher_b)
+  n <- length(a)
+  exact <- n <= 9 && !anyDuplicated(a) && !anyDuplicated(b)
+  p <- suppressWarnings(stats::cor.test(a, b, method = "spearman", exact = exact))$p.value
+  if (!is.finite(p)) return(NA_real_)
+  min(1, max(2 / factorial(n), p))
 }
 
 # Colonnes degenerees des verifications colonne par colonne de M1 (issue #56,
@@ -7184,9 +7441,9 @@ mw_stat_correlation_dev <- function(aj) {
 #      le contexte de .mw_contexte_mc()) ; chaque replication exclut
 #      exactement ces colonnes, degenerees ou non dans le triangle simule :
 #      au regard des colonnes degenerees, K est identique entre statistique
-#      observee et simulee (K peut encore varier pour une autre cause :
-#      .fisher_combine() ecarte les p-values nulles, par exemple Spearman
-#      asymptotique a rho = +-1 pour n = 4 ; defaut anterieur, issue #90) ;
+#      observee et simulee ; .fisher_combine() n'ecarte plus aucune p-value
+#      (issue #90) : K ne varie plus que si l'appelant ecarte une colonne
+#      (lm() en echec, garde sd() == 0) ;
 #   2. une colonne retenue a l'observe mais degeneree dans la replication
 #      n'est ni exclue (K changerait) ni soumise a lm() / cor.test() : la
 #      statistique de la replication vaut NA et sort de B_effectif.
@@ -7224,8 +7481,9 @@ mw_stat_correlation_dev <- function(aj) {
   K <- if (is.null(r$K)) 0L else r$K
   plur <- nrow(ex) > 1
   sprintf(paste0(
-    "%s (facteurs individuels tous egaux a f_j a 1e-12 pres en relatif, ",
-    "sigma2_j nul ou numeriquement nul) : %s ; %s, %s hors de la combinaison ",
+    "%s (facteurs individuels egaux a f_j a la tolerance relative 1e-12 de l'outil : ",
+    .MW_PREDICAT_DEGENERE_TEXTE, " ; sigma2_j nul ou numeriquement nul) : %s ; %s, ",
+    "%s hors de la combinaison ",
     "de Fisher ; K = %d colonne(s) testee(s) sur %d eligible(s). ",
     "L'exclusion ne vaut pas preuve %s."),
     if (plur) "Colonnes degenerees" else "Colonne degeneree",
@@ -7305,10 +7563,16 @@ mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
     if (j %in% jd) { ex <- .mw_exclure(ex, j, length(idx)); next }
     ex$eligibles <- ex$eligibles + 1L
     if (.mw_colonne_degeneree(aj, j)) return(.mw_stat_non_definie(ex))
-    F <- tri[idx + 1, j + 2] / tri[idx + 1, j + 1]
+    # F aplati a TOL_EX_AEQUO avant cor.test() (#152), plancher 0.
+    F <- engine_aplatir_ex_aequo(tri[idx + 1, j + 2] / tri[idx + 1, j + 1], plancher = 0)
+    # p de la colonne par .mw_spearman_p() (issue #90) : loi de permutation a n <= 9 sans
+    # ex aequo, jamais nulle ; rho reste celui de cor.test().
     ct <- suppressWarnings(stats::cor.test(F, idx, method = "spearman", exact = FALSE))
+    # ex_aequo (#115) : ex aequo de F apres aplatissement (idx est sans ex
+    # aequo), p_j hors loi de permutation, p_min NA (.mw_fisher_rangs_p_min()).
     det <- rbind(det, data.frame(j = j, n = length(idx),
-      rho = unname(ct$estimate), p = ct$p.value, stringsAsFactors = FALSE))
+      rho = unname(ct$estimate), p = .mw_spearman_p(F, idx),
+      ex_aequo = anyDuplicated(F) > 0, stringsAsFactors = FALSE))
   }
   if (!nrow(det)) return(list(stat = NA_real_, p = NA_real_, detail = det,
                               exclues = ex$colonnes, eligibles = ex$eligibles))
@@ -7378,17 +7642,31 @@ mw_famille_alpha <- function(aj) {
 # Si Var[C(i,j+1)|C(i,j)] = sigma_j^2 C(i,j), alors les residus standardises de
 # Mack sont d'echelle constante DANS CHAQUE COLONNE : |r(i,j)| ne doit pas
 # dependre de C(i,j). Correlation de rang colonne par colonne, combinee.
-mw_test_exposant_variance <- function(aj) {
-  res <- mw_residus(aj)
+mw_test_exposant_variance <- function(aj, j_degeneres = NULL) {
+  res <- mw_residus(aj, j_degeneres)
   if (!nrow(res)) return(list(stat = NA_real_, p = NA_real_, detail = data.frame()))
   det <- data.frame()
   for (j in unique(res$j)) {
     d <- res[res$j == j, ]
-    if (nrow(d) < 4 || stats::sd(d$C) == 0) next
-    ct <- suppressWarnings(stats::cor.test(abs(d$residu), d$C,
+    # Ex aequo a la tolerance TOL_EX_AEQUO (#152), avant la garde sd() == 0
+    # et cor.test() : C en plancher 0 (montant, tolerance relative), |r| en
+    # plancher 1 (grandeur d'ordre 1, comme les residus de Mack de #112).
+    # Colonne a C constants ou a |r| constants apres aplatissement :
+    # correlation de rang non definie (ecart-type nul), colonne ecartee de la
+    # combinaison de Fisher, comme une colonne trop courte (garde |r| ajoutee
+    # par l'issue #60 : cor.test() rendait sinon rho = NA sans trace).
+    Ca <- engine_aplatir_ex_aequo(d$C, plancher = 0)
+    ra <- engine_aplatir_ex_aequo(abs(d$residu))
+    if (nrow(d) < 4 || stats::sd(Ca) == 0 || stats::sd(ra) == 0) next
+    # p de la colonne par .mw_spearman_p() (issue #90), comme HomogF ; Ca y
+    # est aplati une seconde fois (plancher_b = 0), sans effet.
+    ct <- suppressWarnings(stats::cor.test(ra, Ca,
                                            method = "spearman", exact = FALSE))
+    # ex_aequo (#115) : comme dans mw_test_homogeneite_f().
     det <- rbind(det, data.frame(j = j, n = nrow(d),
-      rho = unname(ct$estimate), p = ct$p.value, stringsAsFactors = FALSE))
+      rho = unname(ct$estimate), p = .mw_spearman_p(ra, Ca, plancher_b = 0),
+      ex_aequo = anyDuplicated(ra) > 0 || anyDuplicated(Ca) > 0,
+      stringsAsFactors = FALSE))
   }
   if (!nrow(det)) return(list(stat = NA_real_, p = NA_real_, detail = det))
   fc <- .fisher_combine(det$p)
@@ -7399,15 +7677,163 @@ mw_test_exposant_variance <- function(aj) {
 # Si les annees d'accident sont stochastiquement independantes et suivent le
 # meme modele, les residus de Mack ne doivent pas differer systematiquement
 # d'une ligne a l'autre. Test de Kruskal-Wallis (1952), non parametrique.
-mw_test_homogeneite_accident <- function(aj) {
-  res <- mw_residus(aj)
+# Un residu par annee de survenance (une seule colonne garde des residus, par
+# exemple ; issue #60, decision du mainteneur du 06/10/2026, Q3) :
+# H = N - 1 par construction (un residu par annee de survenance) : aucune
+# p-value. La statistique est restituee (decision du mainteneur du
+# 06/10/2026, Q2 d'actuary), p asymptotique NA, et le champ logique
+# un_par_annee le signale a mw_tests() (libelle et loi).
+mw_test_homogeneite_accident <- function(aj, j_degeneres = NULL) {
+  res <- mw_residus(aj, j_degeneres)
   g <- factor(res$i)
   if (nlevels(g) < 3 || nrow(res) < 6)
-    return(list(stat = NA_real_, p = NA_real_, ddl = NA_integer_))
-  k <- try(stats::kruskal.test(res$residu, g), silent = TRUE)
-  if (inherits(k, "try-error")) return(list(stat = NA_real_, p = NA_real_, ddl = NA_integer_))
-  list(stat = unname(k$statistic), p = .p_borne(k$p.value),
-       ddl = unname(k$parameter))
+    return(list(stat = NA_real_, p = NA_real_, ddl = NA_integer_, un_par_annee = FALSE))
+  # Residus aplatis a TOL_EX_AEQUO avant kruskal.test() (#152), plancher 1.
+  ra <- engine_aplatir_ex_aequo(res$residu)
+  k <- try(stats::kruskal.test(ra, g), silent = TRUE)
+  if (inherits(k, "try-error"))
+    return(list(stat = NA_real_, p = NA_real_, ddl = NA_integer_, un_par_annee = FALSE))
+  un <- nlevels(g) == nrow(res)
+  p <- if (un) NA_real_ else .p_borne(k$p.value)
+  # tailles des groupes et ex aequo des residus aplatis : p_min de la ligne
+  # (#115, .mw_kruskal_p_min()), lues par mw_tests() seulement.
+  list(stat = unname(k$statistic), p = p, ddl = unname(k$parameter), un_par_annee = un,
+       tailles = as.vector(table(g)), ex_aequo = anyDuplicated(ra) > 0)
+}
+
+# --- p_min des lignes Merz-Wuthrich a loi de reference discrete (#115) --------
+# Specification d'actuary (docs/specifications/e2-reduite.md, #115 (b)) ;
+# decisions du mainteneur du 06/10/2026 (Q-E2r-115-2 a 4). Meme definition
+# que pour la methode lognormale (CONTEXT.md, "Test inoperant") : plus petite
+# p-value atteignable sous la loi de reference discrete (loi echangeable),
+# aux effectifs observes, dans le sens du catalogue MW_CATALOGUE_MC, avec le
+# doublement des lignes bilaterales (M8). AUCUNE de ces lois n'est exacte
+# pour le modele de Mack (residus non echangeables, variances inegales,
+# colonnes adjacentes dependantes) : p_min ne borne pas la p Monte-Carlo
+# retenue, et add() le dit ("sous la loi de reference echangeable"). La
+# regle R1 reste celle d'add(), sans regle propre a Merz-Wuthrich.
+# Cles du catalogue a statistique discrete, seules a recevoir une p_min :
+# Runs, Calendrier, CorrDev, HomogF, ExpVar, KruskalAcc (liste a reprendre
+# si R1 change pour les lignes a p Monte-Carlo, #125).
+
+# Effet calendaire (bilateral) : sur chaque diagonale retenue (n_k >= 2),
+# L_k ~ Binomiale(n_k, 1/2), diagonales independantes, Z = somme min(L_k,
+# n_k - L_k). C'est la loi binomiale independante de Mack (1994), celle des
+# moments de .mack_moments_Z(), et NON la loi de permutation intra-colonne
+# (dans une colonne, le nombre de L est fixe par la mediane, ce qui lie les
+# diagonales) : choix de la specification (#115 (b)2), question Q1 de
+# l'audit renvoyee a #125. Loi de Z par convolution exacte ; p_min = min sur
+# le support de 2 min(P(Z <= z), P(Z >= z)), bornee a 1. NA si aucune
+# diagonale.
+.mw_calendrier_p_min <- function(n_k) {
+  n_k <- n_k[is.finite(n_k) & n_k >= 2]
+  if (!length(n_k)) return(NA_real_)
+  d <- 1
+  for (n in n_k) {
+    z <- 0:floor(n / 2)
+    pz <- ifelse(2 * z == n, choose(n, z), 2 * choose(n, z)) / 2^n
+    # Convolution directe (sans FFT : aucune masse parasite hors du support).
+    e <- numeric(length(d) + length(pz) - 1L)
+    for (a in seq_along(pz)) {
+      ix <- seq_along(d) + a - 1L
+      e[ix] <- e[ix] + d * pz[a]
+    }
+    d <- e
+  }
+  sup <- which(d > 0)
+  p <- vapply(sup, function(i) 2 * min(sum(d[seq_len(i)]), sum(d[i:length(d)])), numeric(1))
+  .p_borne(min(p))
+}
+
+# Correlation entre colonnes adjacentes (bilateral) : statistique moyenne
+# ponderee des rho_k de Spearman ; |T| maximal si et seulement si chaque
+# rho_k vaut +1 (ou chacun -1). Loi de reference : permutations
+# independantes des facteurs de chaque colonne. Les paires partagent une
+# colonne et ne sont PAS independantes : la formule tient par
+# conditionnement le long de la chaine. La paire k compare les facteurs
+# F(.,k-1), restreints a leurs n_k premieres lignes, aux n_k facteurs
+# F(.,k) ; quel que soit l'ordre des colonnes precedentes, rho_k = +1
+# (resp. -1) exige que F(.,k) reproduise (resp. renverse) cet ordre
+# restreint, avec probabilite 1/n_k!. D'ou p_min = min(1, 2 prod 1/n_k!),
+# n_k = poids + 1 facteurs par paire (mw_stat_correlation_dev()). Sans ex
+# aequo seulement.
+.mw_corr_p_min <- function(n_k) {
+  if (!length(n_k) || any(!is.finite(n_k) | n_k < 1)) return(NA_real_)
+  .p_borne(2 * exp(-sum(lfactorial(n_k))))
+}
+
+# HomogF et ExpVar (queue haute) : X = -2 somme ln p_j, p_j de Spearman par
+# .mw_spearman_p(), loi de permutation enumeree (n_j <= 9 sans ex aequo) :
+# p_j = 2/n_j! a |rho_j| = 1 exactement et p_j > 2/n_j! sinon (strictement
+# decroissante en |rho_j|, issue #90), colonnes permutees independamment.
+# X maximal si et seulement si toutes les colonnes ont |rho_j| = 1, de
+# probabilite 2/n_j! chacune : p_min = prod 2/n_j!. Au-dela de n_j = 9,
+# p_j est l'approximation de Student relevee au plancher 2/n_j!, atteint par
+# d'autres permutations que les deux extremes : p_min n'est pas attribuee.
+.mw_fisher_rangs_p_min <- function(n_j) {
+  if (length(n_j) < 2 || any(!is.finite(n_j) | n_j < 2 | n_j > 9)) return(NA_real_)
+  .p_borne(exp(sum(log(2) - lfactorial(n_j))))
+}
+
+# Kruskal-Wallis entre annees de survenance (queue haute), sans ex aequo :
+# forme close p_min = k! prod n_i! / N!, k groupes de tailles n_i, N = somme
+# n_i. Demonstration. H est une fonction croissante de somme R_i^2 / n_i (R_i
+# somme des rangs du groupe i). Avec r les rangs 1..N et W_i la somme des
+# carres intra-groupe des rangs du groupe i (ecarts a leur moyenne),
+# somme R_i^2 / n_i = somme r^2 - somme W_i, ou somme r^2 ne depend pas de
+# l'affectation. Or W_i >= n_i (n_i^2 - 1) / 12 (variance minimale de n_i
+# entiers distincts), avec egalite si et seulement si les rangs du groupe
+# sont des entiers consecutifs. H est donc maximal exactement sur les
+# affectations en blocs de rangs contigus, et les k! ordres des blocs le
+# realisent tous (les bornes sont atteintes simultanement). Sur les
+# N! / prod n_i! affectations equiprobables : p_min = k! prod n_i! / N!.
+# Verifiee par enumeration exhaustive dans les tests unitaires
+# (test_merz_wuthrich.R, issue #115). Calcul
+# en logarithmes ; sous-depassement (N de l'ordre de 200) : NA, motif dans
+# l'attribut "motif", repris par .mw_p_min_ligne().
+.mw_kruskal_p_min <- function(tailles) {
+  if (length(tailles) < 2 || any(!is.finite(tailles) | tailles < 1)) return(NA_real_)
+  N <- sum(tailles)
+  p <- exp(lfactorial(length(tailles)) + sum(lfactorial(tailles)) - lfactorial(N))
+  if (!is.finite(p) || p <= 0)
+    return(structure(NA_real_, motif = sprintf(paste(
+      "p_min = k! prod n_i! / N! hors de la precision de la machine (N = %d) :",
+      "p_min non calculable"), as.integer(N))))
+  .p_borne(p)
+}
+
+# Arguments p_min et effectifs d'une ligne de mw_tests() (#115). defini :
+# statistique observee finie (sinon p_min et effectifs NA : aucune p_min a
+# motiver, detail inchange). n : effectifs de la loi de reference, passes a
+# f_p_min ; libelle : leur nom dans effectifs (NULL : n nomme, "n1 = 13, n2 = 13",
+# format des suites de usp_tests()). ex_aequo (lignes de rangs) :
+# loi de permutation conditionnelle non tabulee, p_min NA ; n_max : au-dela,
+# loi de reference non tabulee (p_j de Spearman a n_j > 9), p_min NA. Le
+# motif est porte par effectifs, qu'add() ajoute au detail d'un test sans
+# p_min (#70, 5a), comme eff_rangs dans usp_tests().
+.mw_p_min_ligne <- function(defini, n, libelle, f_p_min, ex_aequo = FALSE, n_max = Inf) {
+  if (!isTRUE(defini) || !length(n)) return(list(p_min = NA_real_, effectifs = NA_character_))
+  eff <- if (is.null(libelle)) paste(sprintf("%s = %d", names(n), as.integer(n)), collapse = ", ")
+         else sprintf("%s = %s", libelle, paste(n, collapse = ", "))
+  if (isTRUE(ex_aequo))
+    return(list(p_min = NA_real_, effectifs = paste(eff, "; ex aequo : loi de permutation",
+                                                    "conditionnelle non tabulee, p_min non attribuee")))
+  if (any(n > n_max))
+    return(list(p_min = NA_real_, effectifs = sprintf(paste(
+      "%s ; colonne de plus de %d facteurs : p_j de Spearman par approximation de",
+      "Student relevee au plancher 2/n!, loi de reference non tabulee, p_min non attribuee"),
+      eff, n_max)))
+  # Valeur non finie rendue par f_p_min hors des cas motives ci-dessus
+  # (constat C2 de l'audit) : motif explicite, celui de f_p_min s'il en
+  # porte un (attribut "motif"), sinon motif generique.
+  p <- f_p_min(n)
+  if (!is.finite(p)) {
+    mot <- attr(p, "motif")
+    return(list(p_min = NA_real_, effectifs = paste(eff, " ; ",
+      if (is.character(mot) && length(mot) == 1L) mot else
+        "p_min non calculable sur ces effectifs, p_min non attribuee", sep = "")))
+  }
+  list(p_min = p, effectifs = eff)
 }
 
 # --- Bootstrap de Mack par reechantillonnage des residus ---------------------
@@ -7435,15 +7861,56 @@ mw_simuler_triangle <- function(aj, res_pool) {
   tri
 }
 
+# Pool de reechantillonnage du bootstrap de Mack (issue #46, decision du
+# mainteneur du 06/10/2026, Q-E2r-46-1, variante B). Sous le modele de Mack a
+# sigma_j connu, conditionnellement a C_{.,j}, le residu
+#     r_ij = sqrt(C_ij) (F_ij - f^_j) / sigma_j
+# a pour variance 1 - h_ij, ou h_ij = C_ij / S_j est le levier de la cellule
+# dans l'estimation de f^_j (S_j = somme des C_ij de la colonne ; colonne
+# "levier" de mw_influence()). Chaque residu est redresse :
+#     r~_ij = r_ij / sqrt(1 - h_ij),
+# 1 - h_ij etant calcule comme (S_j - C_ij) / S_j, somme des AUTRES cellules
+# de la colonne divisee par S_j, et non comme 1 - C_ij / S_j : pour une
+# cellule qui domine sa colonne (volumes de l'ordre de 1e16 fois les autres),
+# 1 - C_ij / S_j vaut 0 en flottant et le pool deviendrait NaN (C2 de l'audit
+# de #46). Avec n_j >= 2 et C_ij > 0 finis (validation), 1 - h_ij > 0 pour
+# toute cellule retenue. Limite, anterieure a #46 et hors de cette fonction :
+# pour une telle cellule, r_ij lui-meme perd ses chiffres par annulation dans
+# F_ij - f^_j (mw_residus()), et le redressement agrandit cette erreur.
+# Le pool est ensuite recentre : la contrainte d'estimation de f^_j est
+# sum_i sqrt(C_ij) r_ij = 0, et non sum_i r_ij = 0, de sorte que la moyenne
+# du pool redresse n'est pas nulle. Pour n_j = 2, |r~_ij| = 1 exactement avant
+# recentrage (|r_ij| = sqrt(1 - h_ij) dans ce cas).
+# Interpretation de l'outil (redressement par le levier des modeles lineaires
+# ponderes), non formule du reglement. Seul le pool change : mw_residus(), les
+# statistiques observees et repliquees et mw_simuler_triangle() ne sont pas
+# modifies. Le pool ne contient que les residus retenus par mw_residus() avec
+# l'ensemble j_degeneres des colonnes degenerees (fige a l'observe par
+# mw_bootstrap(), calcule sur aj s'il n'est pas fourni ; #60).
+.mw_pool_residus <- function(aj, j_degeneres = NULL) {
+  res <- mw_residus(aj, j_degeneres)
+  if (!nrow(res)) return(numeric(0))
+  # 1 - h_ij = (S_j - C_ij) / S_j, sur les lignes 0..I-j-1 de la colonne j
+  # (memes cellules que mw_residus() et mw_influence()).
+  un_moins_h <- vapply(seq_len(nrow(res)), function(k) {
+    col <- aj$tri[seq_len(aj$I - res$j[k]), res$j[k] + 1]
+    sum(col[-(res$i[k] + 1)]) / sum(col)
+  }, numeric(1))
+  pool <- res$residu / sqrt(un_moins_h)
+  pool - mean(pool)                               # recentrage
+}
+
 mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
   # Tirages sous graine locale (ADR 0004, #42) : etat de l'appelant restaure.
   engine_sous_graine(seed, {
-    res <- mw_residus(aj)
-    pool <- res$residu
-    pool <- pool - mean(pool)                     # recentrage usuel
-    # Colonnes degenerees de M1 determinees UNE FOIS sur le triangle observe et
-    # figees pour la statistique observee et chaque replication (issue #56).
+    # Colonnes degenerees determinees UNE FOIS sur le triangle observe et
+    # figees pour la statistique observee et chaque replication : M1 (issue
+    # #56) et residus de Mack de toutes les lignes qui en dependent (issue
+    # #60, via le contexte de .mw_contexte_mc()).
     jd <- .mw_colonnes_degenerees(aj)
+    # Pool : residus de Mack retenus du triangle observe, colonnes degenerees
+    # exclues (#60), redresses par le levier puis recentres (#46).
+    pool <- .mw_pool_residus(aj, jd)
     # Contexte observe conserve pour les conditions du catalogue (#44).
     e_obs <- .mw_contexte_mc(aj, jd)
     obs <- .mc_evaluer(MW_CATALOGUE_MC, e_obs)
@@ -7488,19 +7955,22 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
 # --- Catalogue Monte-Carlo de la methode Merz-Wuthrich (ADR 0003) -------------
 # Meme structure que USP_CATALOGUE_MC (voir .mc_entree()) ; contexte construit
 # par .mw_contexte_mc(). `degenere` : NULL pour toutes les entrees.
-# Contexte : ajustement aj, residus de Mack (mw_residus(), calcules une fois),
-# leur vecteur r et l'ensemble j_degeneres des colonnes degenerees exclues des
-# verifications colonne par colonne de M1 (issue #56) : fige a l'observe par
-# mw_bootstrap(), calcule sur aj s'il n'est pas fourni.
+# Contexte : ajustement aj, ensemble j_degeneres des colonnes degenerees
+# exclues des verifications colonne par colonne de M1 (issue #56) et des
+# residus de Mack (issue #60) : fige a l'observe par mw_bootstrap(), calcule
+# sur aj s'il n'est pas fourni ; residus de Mack (mw_residus(), calcules une
+# fois avec cet ensemble) et leur vecteur r.
 .mw_contexte_mc <- function(aj, j_degeneres = NULL) {
-  res <- mw_residus(aj)
-  list(aj = aj, res = res, r = res$residu,
-       j_degeneres = .mw_j_exclues(aj, j_degeneres))
+  jd <- .mw_j_exclues(aj, j_degeneres)
+  res <- mw_residus(aj, jd)
+  list(aj = aj, res = res, r = res$residu, j_degeneres = jd)
 }
 
 MW_CATALOGUE_MC <- list(
-  Calendrier = .mc_entree(function(e) mw_test_annees_calendaires(e$aj)$stat, "deux"),
-  CorrDev    = .mc_entree(function(e) mw_stat_correlation_dev(e$aj)$stat, "deux"),
+  # Ensemble fige des colonnes degenerees transmis (#60, extension de
+  # Q-E2r-60-1 (b) du 06/10/2026), comme pour M1, ExpVar et KruskalAcc.
+  Calendrier = .mc_entree(function(e) mw_test_annees_calendaires(e$aj, e$j_degeneres)$stat, "deux"),
+  CorrDev    = .mc_entree(function(e) mw_stat_correlation_dev(e$aj, e$j_degeneres)$stat, "deux"),
   # Heteroscedasticite residuelle : les residus de Mack ne doivent plus
   # dependre de C(i,j) si la variance est bien proportionnelle a C(i,j).
   BP         = .mc_entree(function(e) {
@@ -7528,8 +7998,10 @@ MW_CATALOGUE_MC <- list(
   HomogF     = .mc_entree(function(e) mw_test_homogeneite_f(e$aj, e$j_degeneres)$stat, "haut"),
   Courbure   = .mc_entree(function(e) mw_test_courbure(e$aj, e$j_degeneres)$stat, "haut"),
   Alpha      = .mc_entree(function(e) mw_famille_alpha(e$aj)$stat, "haut"),
-  ExpVar     = .mc_entree(function(e) mw_test_exposant_variance(e$aj)$stat, "haut"),
-  KruskalAcc = .mc_entree(function(e) mw_test_homogeneite_accident(e$aj)$stat, "haut")
+  # Residus de Mack recalcules avec l'ensemble fige des colonnes degenerees
+  # (issue #60), comme e$res.
+  ExpVar     = .mc_entree(function(e) mw_test_exposant_variance(e$aj, e$j_degeneres)$stat, "haut"),
+  KruskalAcc = .mc_entree(function(e) mw_test_homogeneite_accident(e$aj, e$j_degeneres)$stat, "haut")
 )
 
 # Statistiques bootstrapables de la methode Merz-Wuthrich (catalogue
@@ -7583,9 +8055,14 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                      "Ajouter une constante fournit donc le test naturel de la",
                      "proportionnalite, colonne par colonne."),
                    .mw_phrase_exclusion(oo, paste0(
-                     "ordonnee a l'origine nulle en arithmetique exacte, statistique de Student ",
-                     "non definie (0/0)"), "de proportionnalite")))
+                     "ordonnee a l'origine nulle pour des facteurs exactement egaux, statistique ",
+                     "de Student non definie (0/0) ou reduite a des ecarts negligeables a la ",
+                     "tolerance de l'outil"),
+                     "de proportionnalite")))
   hf <- mw_test_homogeneite_f(aj)
+  # p_min (#115) : .mw_fisher_rangs_p_min() sur les n_j des K colonnes combinees.
+  pm_hf <- .mw_p_min_ligne(is.finite(hf$stat), hf$detail$n, "colonnes n_j",
+                           .mw_fisher_rangs_p_min, any(hf$detail$ex_aequo), n_max = 9)
   add(fam, "Homogeneite de f_j entre annees de survenance",
       fonction = "mw_test_homogeneite_f",
       "Annexe XVII, D(2)(h)(iii) : 'pour toutes les annees d'accident'",
@@ -7595,6 +8072,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       loi = "chi2(2K) approx. -> Monte-Carlo",
       estim_nom = "colonnes testees", estim = if (is.null(hf$K)) NA_real_ else hf$K,
       p_as = hf$p, mc_nom = "HomogF",
+      p_min = pm_hf$p_min, effectifs = pm_hf$effectifs,
       detail = .mw_avec_exclusion(
         "Correlation de rang entre F(i,j) et i, colonne par colonne, combinee par Fisher",
         .mw_phrase_exclusion(hf,
@@ -7613,7 +8091,8 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       detail = .mw_avec_exclusion(
         "Une courbure invalide la linearite meme si la constante est nulle",
         .mw_phrase_exclusion(cb,
-          "terme quadratique nul en arithmetique exacte, statistique de Student non definie (0/0)",
+          paste0("terme quadratique nul pour des facteurs exactement egaux, statistique de Student ",
+                 "non definie (0/0) ou reduite a des ecarts negligeables a la tolerance de l'outil"),
           "de linearite")))
   al <- mw_famille_alpha(aj)
   add(fam, "Stabilite du facteur selon la ponderation (famille alpha)",
@@ -7640,6 +8119,8 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       p_as = bp$p, mc_nom = "BP",
       detail = "Si Var(C(i,j+1)|C(i,j)) = sigma_j^2 C(i,j), les residus standardises sont d'echelle constante")
   ev <- mw_test_exposant_variance(aj)
+  pm_ev <- .mw_p_min_ligne(is.finite(ev$stat), ev$detail$n, "colonnes n_j",
+                           .mw_fisher_rangs_p_min, any(ev$detail$ex_aequo), n_max = 9)
   add(fam, "Adequation de l'exposant de variance, colonne par colonne",
       fonction = "mw_test_exposant_variance",
       "Annexe XVII, D(2)(h)(iv) ; complement de Breusch-Pagan",
@@ -7649,6 +8130,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       loi = "chi2(2K) approx. -> Monte-Carlo",
       estim_nom = "colonnes testees", estim = if (is.null(ev$K)) NA_real_ else ev$K,
       p_as = ev$p, mc_nom = "ExpVar",
+      p_min = pm_ev$p_min, effectifs = pm_ev$effectifs,
       detail = paste("Si la variance est bien proportionnelle a C(i,j), les residus",
                      "standardises sont d'echelle constante a l'interieur de chaque colonne."))
   # La variance des residus de Mack est CONTRAINTE par construction, et sa
@@ -7669,7 +8151,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   add(fam, "Variance unitaire des residus de Mack", "Diagnostic d'echelle",
       fonction = "mw_tests",
       type = "diagnostic", estim_nom = "var(residus)", estim = stats::var(r),
-      detail = sprintf(paste("Valeur de reference %s, et NON 1 : sigma2_j etant",
+      detail = sprintf(paste("Valeur de reference %s%s : sigma2_j etant",
                              "l'estimateur de Mack, somme_i r(i,j)^2 = n_j - 1",
                              "exactement dans chaque colonne, la somme des carres",
                              "vaut N - k = %d - %d = %d et var(r) est contrainte par",
@@ -7682,12 +8164,19 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                              "coherence interne de la standardisation. La structure de",
                              "variance est testee par Breusch-Pagan et par l'exposant",
                              "de variance par colonne."),
-                       format(var_attendue, digits = 6), n, k_col, n - k_col,
+                       format(var_attendue, digits = 6),
+                       # k = 1 : (N - k)/(N - 1) = 1, "et NON 1" serait faux (#60, R5)
+                       if (k_col == 1L) "" else ", et NON 1", n, k_col, n - k_col,
                        format(mean(r), digits = 3)))
 
   ## --- M3 : independance des annees d'accident et de developpement ----------
   fam <- "M3. independance (annexe XVII D(2)(h)(i) et (ii))"
   cal <- mw_test_annees_calendaires(aj)
+  # p_min (#115) : n_k des diagonales retenues (n_k >= 2) ; les etiquettes "*"
+  # (ex aequo a la mediane) sont deja ecartees des n_k.
+  pm_cal <- .mw_p_min_ligne(is.finite(cal$stat),
+                            if (is.null(cal$detail)) numeric(0) else unname(cal$detail[, "n"]),
+                            "diagonales n_k", .mw_calendrier_p_min)
   add(fam, "Effets d'annee calendaire (test de Mack)",
       fonction = "mw_test_annees_calendaires",
       "Mack (1994), Insurance: Mathematics and Economics 15, 133-138",
@@ -7697,19 +8186,33 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       loi = "N(0,1) approx. ; moments EXACTS de Z = min(L, n-L)",
       estim_nom = "Z observe", estim = cal$Z,
       p_as = cal$p, mc_nom = "Calendrier",
+      p_min = pm_cal$p_min, effectifs = pm_cal$effectifs,
       detail = "Les diagonales representent les exercices comptables : un effet calendaire viole l'independance des annees d'accident")
   ka <- mw_test_homogeneite_accident(aj)
+  pm_ka <- .mw_p_min_ligne(is.finite(ka$stat), ka$tailles, "residus par annee de survenance",
+                           .mw_kruskal_p_min, isTRUE(ka$ex_aequo))
   add(fam, "Homogeneite des residus entre annees de survenance",
       fonction = "mw_test_homogeneite_accident",
       "Kruskal & Wallis (1952), JASA 47, 583-621",
       H0 = "les residus de Mack ont la meme distribution dans toutes les lignes",
       H1 = "au moins une annee de survenance se comporte differemment",
       stat_nom = "H", stat = ka$stat,
-      loi = sprintf("chi2(%s) approx. -> Monte-Carlo",
-                    ifelse(is.na(ka$ddl), "k-1", as.character(ka$ddl))),
+      loi = if (isTRUE(ka$un_par_annee)) "degeneree : H = N - 1 par construction" else
+        sprintf("chi2(%s) approx. -> Monte-Carlo",
+                ifelse(is.na(ka$ddl), "k-1", as.character(ka$ddl))),
       p_as = ka$p, mc_nom = "KruskalAcc",
-      detail = "Traduction testable de l'independance des annees de survenance, D(2)(h)(i)")
+      p_min = pm_ka$p_min, effectifs = pm_ka$effectifs,
+      # Un residu par annee de survenance (#60, decision du mainteneur du
+      # 06/10/2026) : la phrase precede le detail ; le motif R1 eventuel
+      # reste en tete, pose par add().
+      detail = paste0(if (isTRUE(ka$un_par_annee)) paste0(
+        "Un residu de Mack par annee de survenance : H = N - 1 par construction ",
+        "(groupes de taille 1), quelle que soit la donnee ; ",
+        "H ne mesure rien ici. ") else "",
+        "Traduction testable de l'independance des annees de survenance, D(2)(h)(i)"))
   cor <- mw_stat_correlation_dev(aj)
+  pm_cor <- .mw_p_min_ligne(is.finite(cor$stat), cor$poids + 1, "paires de colonnes n_k",
+                            .mw_corr_p_min, isTRUE(cor$ex_aequo))
   add(fam, "Correlation entre annees de developpement adjacentes",
       fonction = "mw_stat_correlation_dev",
       "Mack (1993, 1997), ASTIN Bulletin ; correlation de rang de Spearman",
@@ -7717,6 +8220,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       H1 = "correlation entre colonnes adjacentes",
       stat_nom = "rho agrege", stat = cor$stat,
       loi = "depend de la geometrie du triangle -> Monte-Carlo", mc_nom = "CorrDev",
+      p_min = pm_cor$p_min, effectifs = pm_cor$effectifs,
       detail = "Une correlation positive signale une dependance entre cadences successives")
   add(fam, "Autocorrelation des residus (Durbin-Watson)",
       fonction = "stat_dw",
@@ -7725,13 +8229,18 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       stat_nom = "DW", stat = stat_dw(r),
       loi = "residus de triangle -> Monte-Carlo", mc_nom = "DW")
   ru <- test_runs(r)
+  # p_min (#115) : runs_p_min() aux effectifs de part et d'autre de la mediane.
+  eff_ru <- .runs_effectifs(r)
+  pm_ru <- .mw_p_min_ligne(is.finite(ru$stat), eff_ru, NULL,
+                           function(n) runs_p_min(n[[1]], n[[2]]))
   add(fam, "Test des suites sur les residus de Mack",
       fonction = "test_runs",
       "Wald & Wolfowitz (1940)",
       H0 = "arrangement aleatoire des signes des residus", H1 = "arrangement non aleatoire",
       stat_nom = "Z", stat = ru$stat, loi = "N(0,1) approx. -> Monte-Carlo",
       estim_nom = "nb de suites", estim = ru$runs,
-      p_as = ru$p, mc_nom = "Runs")
+      p_as = ru$p, mc_nom = "Runs",
+      p_min = pm_ru$p_min, effectifs = pm_ru$effectifs)
 
   ## --- M4 : points aberrants ------------------------------------------------
   fam <- "M4. points aberrants et stabilite"
@@ -8285,8 +8794,37 @@ engine_motif_b_alpha <- function(B, alpha) {
 # L'INFLUENCE exacte se mesure par le DFBETA obtenu en retirant la cellule :
 #     f_j^(-i) = (somme C(.,j+1) - C(i,j+1)) / (somme C(.,j) - C(i,j))
 # Ces deux quantites sont calculees exactement, sans reajustement iteratif.
+# DFBETAS (issue #89) : meme retrait, standardise, dans la regression ponderee
+# C(.,j+1) ~ 0 + C(.,j) de poids 1/C(.,j) (valeur de stats::dfbetas() sur
+# cette regression), avec n = n_j, S_j = somme C(.,j), 1 - h_i = (S_j - C(i,j))
+# / S_j (calcule ainsi, comme pour #46, pour ne pas tomber a 0 en flottant) :
+#     e_i = C(i,j+1) - f_j C(i,j),  sigma2_j = somme e_i^2 / C(i,j) / (n - 1),
+#     s2_(i) = somme_{k != i} (C(k,j+1) - f_j^(-i) C(k,j))^2 / C(k,j) / (n - 2),
+#     DFBETAS_i = e_i sqrt(S_j) / (S_j (1 - h_i) s_(i)).
+# s2_(i) est calcule DIRECTEMENT par retrait de la cellule, avec f_j^(-i)
+# (f_sans_cellule) : la forme close equivalente
+#     s2_(i) = [(n - 1) sigma2_j - e_i^2 / (C(i,j) (1 - h_i))] / (n - 2)
+# est une difference de deux termes d'ordre (n - 1) sigma2_j, qui perd toute
+# precision quand les cellules restantes sont presque proportionnelles (#89,
+# constat C2 de l'audit) ; c'est la forme employee par stats::dfbetas(),
+# reference du test sur les triangles bien conditionnes seulement (le cas
+# presque proportionnel est teste contre le reajustement direct).
+# sigma2_j est recalcule ici (non lu dans aj$sigma2).
+# Gardes (NA, jamais NaN ni Inf ; residu recoit la meme garde de colonne) :
+# - colonne exclue au sens du predicat unique des colonnes degenerees
+#   (.mw_j_exclues(aj, NULL), comme mw_residus() et M1-M6, #60), ou
+#   sigma2_j (aj$sigma2) non fini ou nul : dfbetas et residu NA ;
+# - n_j = 2 (s2_(i) sans degre de liberte) : dfbetas NA ;
+# - s2_(i) <= 1e2 eps (n - 1) sigma2_j : les cellules restantes sont
+#   proportionnelles a environ 1e-7 pres de la dispersion de la colonne
+#   (rapport des ecarts-types) ; le DFBETAS depasse alors 1e6 environ en
+#   valeur absolue et n'a plus de sens a la lecture (influence pratiquement
+#   non bornee) : dfbetas NA et dfbetas_non_borne = TRUE (FALSE dans tous
+#   les autres cas, jamais NA).
+# repere_dfbetas = REPERE_DFBETAS_MW / sqrt(n_j), repere de lecture.
 mw_influence <- function(aj) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
+  jd <- .mw_j_exclues(aj, NULL)
   out <- data.frame()
   for (j in 0:(J - 1)) {
     idx <- 0:(I - j - 1)
@@ -8295,20 +8833,48 @@ mw_influence <- function(aj) {
     Sj <- sum(Cij); Sj1 <- sum(Cij1)
     h <- Cij / Sj
     f_sans <- (Sj1 - Cij1) / (Sj - Cij)
-    resid <- if (is.finite(aj$sigma2[j + 1]) && aj$sigma2[j + 1] > 0)
-      sqrt(Cij) * (Cij1 / Cij - aj$f[j + 1]) / sqrt(aj$sigma2[j + 1]) else rep(NA_real_, length(idx))
+    retenue <- is.finite(aj$sigma2[j + 1]) && aj$sigma2[j + 1] > 0 && !(j %in% jd)
+    resid <- if (retenue)
+      sqrt(Cij) * (Cij1 / Cij - aj$f[j + 1]) / sqrt(aj$sigma2[j + 1])
+    else rep(NA_real_, length(idx))
+    n <- length(idx)
+    dfbetas <- rep(NA_real_, n)
+    non_borne <- rep(FALSE, n)
+    if (retenue && n >= 3) {
+      e <- Cij1 - aj$f[j + 1] * Cij
+      un_moins_h <- (Sj - Cij) / Sj
+      s2 <- sum(e^2 / Cij) / (n - 1)
+      if (is.finite(s2) && s2 > 0) {
+        s2_i <- vapply(seq_len(n), function(k)
+          sum(((Cij1 - f_sans[k] * Cij)^2 / Cij)[-k]) / (n - 2), numeric(1))
+        garde <- 1e2 * .Machine$double.eps * (n - 1) * s2
+        ok <- is.finite(s2_i) & s2_i > garde
+        non_borne <- is.finite(s2_i) & s2_i <= garde
+        dfbetas[ok] <- e[ok] * sqrt(Sj) / (Sj * un_moins_h[ok] * sqrt(s2_i[ok]))
+        dfbetas[!is.finite(dfbetas)] <- NA_real_
+      }
+    }
     out <- rbind(out, data.frame(
       i = idx, j = j, C = Cij, F = Cij1 / Cij,
       levier = h, seuil_levier = 2 / length(idx),
       f_chapeau = aj$f[j + 1], f_sans_cellule = f_sans,
       dfbeta_relatif = (f_sans - aj$f[j + 1]) / aj$f[j + 1],
-      residu = resid, stringsAsFactors = FALSE))
+      residu = resid,
+      dfbetas = dfbetas, repere_dfbetas = REPERE_DFBETAS_MW / sqrt(n),
+      dfbetas_non_borne = non_borne,
+      stringsAsFactors = FALSE))
   }
+  # Colonnes ajoutees en fin (#89), apres fort_levier : l'ordre des onze
+  # premieres colonnes est inchange ; dfbetas_non_borne en derniere position.
+  dfb <- out$dfbetas; rep_dfb <- out$repere_dfbetas; nb <- out$dfbetas_non_borne
+  out$dfbetas <- NULL; out$repere_dfbetas <- NULL; out$dfbetas_non_borne <- NULL
   out$fort_levier <- out$levier > out$seuil_levier
-  # Coloration du graphique DFBETA (plot_mw_dfbeta()) : |variation relative
-  # de f_j| au-dela du repere de lecture REPERE_DFBETA_MW (issue #33,
-  # constat C1 d'app-review).
-  out$fort_dfbeta <- abs(out$dfbeta_relatif) > REPERE_DFBETA_MW
+  out$dfbetas <- dfb
+  out$repere_dfbetas <- rep_dfb
+  # Coloration du graphique d'influence (plot_mw_dfbeta()) : |DFBETAS| au-dela
+  # du repere de lecture REPERE_DFBETAS_MW / sqrt(n_j) ; NA vaut FALSE.
+  out$fort_dfbetas <- !is.na(out$dfbetas) & abs(out$dfbetas) > out$repere_dfbetas
+  out$dfbetas_non_borne <- nb
   out
 }
 

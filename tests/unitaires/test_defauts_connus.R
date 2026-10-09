@@ -1018,21 +1018,124 @@ verifier("engine_influence() sans jackknife : ni ecart_sigma ni fort_ecart_sigma
            d <- engine_influence(usp_ajuster(x, y))
            is.null(d$ecart_sigma) && is.null(d$fort_ecart_sigma)
          })
-verifier("mw_influence() : fort_dfbeta = |dfbeta_relatif| > REPERE_DFBETA_MW (et = ancienne comparaison en %)",
+# Issue #89 : DFBETAS de chaque cellule dans la regression ponderee de sa
+# colonne, repere de lecture REPERE_DFBETAS_MW / sqrt(n_j). Tests ordinaires.
+verifier("mw_influence() : dfbetas = stats::dfbetas() (1e-10) pour n_j >= 3, NA pour n_j = 2",
+         {
+           aj <- mw_ajuster(tri_mw); d <- mw_influence(aj); ok <- TRUE
+           for (j in unique(d$j)) {
+             k <- d$j == j; idx <- d$i[k] + 1
+             C <- tri_mw[idx, j + 1]; C1 <- tri_mw[idx, j + 2]
+             ok <- ok && if (sum(k) >= 3)
+               isTRUE(all(abs(unname(stats::dfbetas(lm(C1 ~ 0 + C, weights = 1 / C))[, 1]) -
+                                d$dfbetas[k]) < 1e-10))
+             else all(is.na(d$dfbetas[k]))
+           }
+           ok && any(d$j == max(d$j) & is.na(d$dfbetas))
+         })
+verifier("mw_influence() : colonnes, repere_dfbetas = REPERE_DFBETAS_MW / sqrt(n_j), fort_dfbetas sans NA",
          {
            d <- appels_run$reserve2()$plots_data$influence
            d2 <- mw_influence(mw_ajuster(tri_mw))
-           is.logical(d$fort_dfbeta) &&
-             identical(d$fort_dfbeta, abs(d$dfbeta_relatif) > REPERE_DFBETA_MW) &&
-             identical(d$fort_dfbeta, abs(100 * d$dfbeta_relatif) > 100 * REPERE_DFBETA_MW) &&
+           nj <- as.vector(table(d$j)[as.character(d$j)])
+           identical(names(d), c("i", "j", "C", "F", "levier", "seuil_levier", "f_chapeau",
+                                 "f_sans_cellule", "dfbeta_relatif", "residu", "fort_levier",
+                                 "dfbetas", "repere_dfbetas", "fort_dfbetas",
+                                 "dfbetas_non_borne")) &&
+             !("fort_dfbeta" %in% names(d)) &&
+             identical(d$repere_dfbetas, REPERE_DFBETAS_MW / sqrt(nj)) &&
+             is.logical(d$fort_dfbetas) && !anyNA(d$fort_dfbetas) &&
+             identical(d$fort_dfbetas, !is.na(d$dfbetas) & abs(d$dfbetas) > d$repere_dfbetas) &&
+             is.logical(d$dfbetas_non_borne) && !any(d$dfbetas_non_borne) &&
              identical(d2, d)
          })
-verifier("mw_influence() : fort_dfbeta discrimine de part et d'autre du repere (triangle perturbe)",
+verifier("mw_influence() : sur reserve2, trois cellules colorees (0,2), (0,3), (1,4)",
+         {
+           d <- mw_influence(mw_ajuster(tri_mw)); f <- d[d$fort_dfbetas, ]
+           identical(paste(f$i, f$j), c("0 2", "0 3", "1 4")) &&
+             isTRUE(all(abs(f$dfbetas - c(-1.10, -1.50, 1.53)) < 0.01))
+         })
+verifier("mw_influence() : fort_dfbetas discrimine de part et d'autre du repere (triangle perturbe)",
          {
            t2 <- tri_mw; t2[1, 2] <- t2[1, 2] * 1.5
            d <- mw_influence(mw_ajuster(t2))
-           any(d$fort_dfbeta) && !all(d$fort_dfbeta) &&
-             identical(d$fort_dfbeta, abs(d$dfbeta_relatif) > REPERE_DFBETA_MW)
+           any(d$fort_dfbetas) && !all(d$fort_dfbetas) &&
+             isTRUE(d$fort_dfbetas[d$i == 0 & d$j == 0]) &&
+             identical(d$fort_dfbetas, !is.na(d$dfbetas) & abs(d$dfbetas) > d$repere_dfbetas)
+         })
+verifier("mw_influence() : garde s2_(i) nul (n_j = 3, deux cellules restantes proportionnelles) -> NA, non borne",
+         {
+           t3 <- tri_mw; j <- nrow(t3) - 4          # colonne j (base 0) avec n_j = 3
+           t3[1:2, j + 2] <- t3[1:2, j + 1] * 1.05; t3[3, j + 2] <- t3[3, j + 1] * 1.10
+           d <- mw_influence(mw_ajuster(t3)); k <- d$j == j
+           sum(k) == 3 && is.na(d$dfbetas[k][3]) && !anyNA(d$dfbetas[k][1:2]) &&
+             !any(is.nan(d$dfbetas) | is.infinite(d$dfbetas)) && !d$fort_dfbetas[k][3] &&
+             identical(d$dfbetas_non_borne[k], c(FALSE, FALSE, TRUE)) &&
+             sum(d$dfbetas_non_borne) == 1L
+         })
+# Constat C2 de l'audit (#89) : s2_(i) calcule par retrait, sans soustraction ;
+# deux cellules restantes presque proportionnelles (ecart relatif eps) gardent
+# un DFBETAS fini et colore. Reference : DFBETAS par reajustement direct
+# (lm() sur les deux cellules restantes, summary()$sigma), a 1e-8 relatif ;
+# stats::dfbetas() (forme close, soustractive) a 1e-6 relatif pour eps = 1e-6
+# seulement : a eps = 1e-7 c'est lui qui perd la precision (ecart 3,0e-6 a la
+# valeur exacte en rationnels, quand le moteur l'egale a 1e-9 ; mesure #89).
+verifier("mw_influence() : cellules restantes presque proportionnelles (eps = 1e-6, 1e-7) -> DFBETAS fini, colore",
+         {
+           ok <- TRUE
+           for (eps in c(1e-6, 1e-7)) {
+             t3 <- tri_mw; j <- nrow(t3) - 4
+             t3[1, j + 2] <- t3[1, j + 1] * 1.05 * (1 + eps)
+             t3[2, j + 2] <- t3[2, j + 1] * 1.05 * (1 - eps)
+             t3[3, j + 2] <- t3[3, j + 1] * 1.10
+             d <- mw_influence(mw_ajuster(t3)); k <- d$j == j
+             C <- t3[1:3, j + 1]; C1 <- t3[1:3, j + 2]
+             ajus <- lm(C1 ~ 0 + C, weights = 1 / C)
+             sans <- lm(C1[-3] ~ 0 + C[-3], weights = 1 / C[-3])
+             direct <- unname((coef(ajus) - coef(sans)) / (summary(sans)$sigma / sqrt(sum(C))))
+             ref <- unname(stats::dfbetas(ajus)[, 1])
+             ok <- ok && !anyNA(d$dfbetas[k]) && abs(d$dfbetas[k][3] / direct - 1) < 1e-8 &&
+               (eps < 1e-6 || isTRUE(all(abs(d$dfbetas[k] / ref - 1) < 1e-6))) &&
+               isTRUE(d$fort_dfbetas[k][3]) && !any(d$dfbetas_non_borne[k])
+           }
+           ok
+         })
+verifier("mw_influence() : facteurs 1,088976 / 1,088977 / 1,091601 (n_j = 3, replication 483) -> fini et colore",
+         {
+           t4 <- tri_mw; j <- nrow(t4) - 4
+           t4[1:3, j + 2] <- t4[1:3, j + 1] * c(1.088976, 1.088977, 1.091601)
+           d <- mw_influence(mw_ajuster(t4)); k <- d$j == j
+           C <- t4[1:3, j + 1]; C1 <- t4[1:3, j + 2]
+           ref <- unname(stats::dfbetas(lm(C1 ~ 0 + C, weights = 1 / C))[, 1])
+           !anyNA(d$dfbetas[k]) && isTRUE(all(abs(d$dfbetas[k] / ref - 1) < 1e-6)) &&
+             isTRUE(d$fort_dfbetas[k][3]) && !any(d$dfbetas_non_borne[k])
+         })
+# Constat C1 de l'audit (#89) : une colonne degeneree au sens du predicat
+# unique de #60 (.mw_j_exclues(aj, NULL)) n'a ni DFBETAS ni residu, comme
+# dans mw_residus() ; sur les cellules communes, residu = mw_residus().
+verifier("mw_influence() : colonne de facteurs identiques -> dfbetas et residu NA, non coloree",
+         {
+           ok <- TRUE; I <- nrow(tri_mw) - 1
+           for (j in 0:3) {
+             t2 <- tri_mw; n <- I - j; t2[1:n, j + 2] <- t2[1:n, j + 1] * 1.137
+             aj <- mw_ajuster(t2); d <- mw_influence(aj); k <- d$j == j
+             ok <- ok && j %in% .mw_j_exclues(aj, NULL) && all(is.na(d$dfbetas[k])) &&
+               all(is.na(d$residu[k])) && !any(d$fort_dfbetas[k]) && !any(d$dfbetas_non_borne[k])
+           }
+           ok
+         })
+verifier("mw_influence() : residu identique a mw_residus() sur les cellules communes, NA ailleurs",
+         {
+           ok <- TRUE; I <- nrow(tri_mw) - 1
+           t2 <- tri_mw; t2[1:(I - 1), 3] <- t2[1:(I - 1), 2] * 1.137
+           for (t in list(tri_mw, t2)) {
+             aj <- mw_ajuster(t); d <- mw_influence(aj); r <- mw_residus(aj)
+             cle_d <- paste(d$i, d$j); cle_r <- paste(r$i, r$j)
+             ok <- ok && all(cle_r %in% cle_d) &&
+               identical(d$residu[match(cle_r, cle_d)], r$residu) &&
+               all(is.na(d$residu[!cle_d %in% cle_r]))
+           }
+           ok
          })
 # ADR 0004, point 4 : aucun alea hors calcul. Les dossiers temporaires de
 # engine_ecrire_xlsx() / engine_lire_xlsx() viennent de tempfile() et sont

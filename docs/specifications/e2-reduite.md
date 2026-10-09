@@ -246,6 +246,8 @@ Nature des p-values : inchangée. Ces lignes n'ont que des p-values Monte-Carlo,
    - `col0_1e11` ;
    - `sauf_une`, σ_USP = 0,03778838, inchangé ;
    - `total_arrondi`, inchangé.
+
+   *Annotation du 09/10/2026 (reprise, passage de `docwriter`).* La valeur 0,03778838 de `sauf_une` est celle du prototype et ne se reproduit pas sur le moteur de la branche : σ_USP mesuré par `docwriter` le 09/10 : 0,0404017443 (`total_arrondi` : 0,0369031172) ; les deux triangles restent acceptés (`ok = TRUE`). Les valeurs mesurées font foi et sont celles du `.tex` (commit `docs:` de #192).
 3. La fonction est testée sur des ajustements fictifs, et le motif est conforme à (b). Les triangles `tri_deg`, `tri_sym`, `tri_2`, `tri_ach` et `ta_deg` sont inchangés.
 4. Avec #60 : `mw_residus()` est non vide pour tout triangle accepté (`sauf_une` : 7 résidus).
 5. **Point ouvert.** Le passage combiné #192 + #60 a émis deux avertissements R `mean.default(z) : argument is not numeric`, de source non identifiée. Le test « aucun avertissement R » doit rester vert : c'est à instruire par `coder` et `audit`.
@@ -325,6 +327,8 @@ p_min mesurées (« ref k » : sous-triangle k × k de `triangle_mw.csv` ; « TA
 5. **KruskalAcc** (queue haute) : p_min = M / (N!/Π n_i!), où M est le nombre d'affectations qui atteignent H_max.
    - H_max est atteint par des blocs de rangs contigus (argument d'échange).
    - M se calcule par programmation dynamique sur les sous-ensembles d'années.
+
+     *Annotation du 09/10/2026.* Implémenté autrement (`2a3e3f0`) : les affectations qui atteignent H_max sont les blocs de rangs contigus dans les k! ordres des blocs, d'où la forme close M = k! et p_min = k!·Π n_i!/N!, sans programmation dynamique.
    - Nouvelle fonction `.mw_kruskal_p_min(tailles)`.
 6. **Ex æquo** : les vecteurs aplatis par #152 font référence.
    - Pour les lignes de rangs, un ex æquo selon `engine_ex_aequo()` donne `p_min = NA`, avec le motif dans `effectifs`, comme `eff_rangs` en lognormale (#70, 5a).
