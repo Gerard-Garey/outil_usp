@@ -7267,7 +7267,9 @@ mw_test_annees_calendaires <- function(aj, j_degeneres = NULL) {
     F <- tri[idx + 1, j + 2] / tri[idx + 1, j + 1]
     # Ex aequo a la tolerance TOL_EX_AEQUO (#152) : F aplati AVANT la mediane,
     # plancher 0 (rapport strictement positif, tolerance relative) ; une
-    # valeur egale a la mediane a la tolerance recoit donc "*".
+    # valeur egale a la mediane apres aplatissement recoit donc "*" (a n pair,
+    # une valeur proche de la mediane a la tolerance sans lui etre egale apres
+    # aplatissement garde son etiquette S ou L).
     F <- engine_aplatir_ex_aequo(F, plancher = 0)
     md <- stats::median(F)
     lab <- if (j %in% jd) rep("*", length(F)) else
