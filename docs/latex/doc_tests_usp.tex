@@ -3586,18 +3586,17 @@ Diagnostic \\
   \code{PENTE NON IDENTIFIABLE PAR LES DONNEES}~; si $\hat\pi_b$ n'est pas calculable ($T < 3$,
   $\hat\beta$ ou $\hat\sigma$ non fini, $\hat\sigma \le 0$, volumes constants), la règle ne
   s'applique pas. $\hat\pi_b$, approximation de la puissance du test de Student, est employée pour
-  la ligne du test de Pitman~: sous le modèle ajusté au jeu de contrôle, la spécification
-  d'\code{actuary} du 6~octobre 2026 l'a trouvée voisine des puissances simulées du test de Student et du test de permutation
-  ($0{,}646$ approchée, valeur de $\hat\pi_b$ unilatérale calculée par
-  \code{usp\_identifiabilite\_pente()} sur le jeu de contrôle, $0{,}6461$ dans les conséquences de l'amendement du 6~octobre 2026
-  de l'ADR~0002~; contre $0{,}644$ pour le test de Student, constat de
-  simulation de cette spécification seule, script non versionné, issue~\#220~; et $0{,}641$ pour
-  le test de permutation, fréquence d'\code{OK} sous le modèle ajusté au jeu de contrôle, constat
-  de simulation rapporté par l'ADR~0002, amendement du 6~octobre 2026, point~4, $R = 4\,000$, graine 20261006, test brut
-  sans la règle~R4, script non versionné~; ce dernier constat ne concorde pas
-  exactement avec la fréquence d'\code{OK} d'environ $63~\%$ citée à la
-  fiche~\ref{fiche:student-pente}, rubrique~6, d'une autre source~: écart non résolu, versionnement des scripts
-  à l'issue~\#220). Convention de restitution, non seuil statistique~: avec la puissance
+  la ligne du test de Pitman~: sous le modèle ajusté au jeu de contrôle, elle est voisine des
+  puissances simulées du test de Student et du test de permutation ($\hat\pi_b = 0{,}6461$,
+  calculée par \code{usp\_identifiabilite\_pente()}~; puissances simulées sans la règle~R4,
+  constat~C6, issue~\#220, $R = 20\,000$~: $0{,}644$ $[0{,}638~;~0{,}651]$ pour le test de Student
+  unilatéral et $0{,}641$ $[0{,}634~;~0{,}648]$ pour le test de permutation~; sur le jeu à
+  $\hat\delta$ intérieur, $\hat\pi_b = 1{,}00$ et les deux puissances valent~$1$. L'approximation
+  est juste au point ajusté~; cela ne fait pas de $\hat\pi_b$ un estimateur de la puissance).
+  Les valeurs antérieures, non versionnées ($0{,}644$ et $0{,}641$, spécification
+  d'\code{actuary} et ADR~0002, amendement du 6~octobre 2026), concordent avec ces mesures.
+  Sous une pente négative simulée, la règle classe la ligne en diagnostic dans $77{,}5~\%$ et
+  $99{,}93~\%$ des jeux (fiche~\ref{fiche:student-pente}, rubrique~6~; issue~\#230). Convention de restitution, non seuil statistique~: avec la puissance
   unilatérale, la ligne est en diagnostic dans $6{,}0~\%$ des jeux simulés sous le modèle ajusté
   au jeu de contrôle et dans aucun sur le jeu à $\hat\delta$ intérieur (issue~\#221,
   section~\ref{sec:taux-reperes})~; avec la puissance bilatérale d'avant l'issue~\#169, elle
@@ -4982,6 +4981,31 @@ l'appelant restauré~; à $a = 0$, la ligne de rapprochement avec C3 est identiq
 hors de la famille réglementaire, en un seul point des paramètres de nuisance~: le taux mesuré
 n'est qu'un minorant du niveau du test, qui porte sur toute l'hypothèse nulle composite.
 
+\noindent\emph{C6, test de Pitman sur la pente} (issue~\#220~; même script, partie
+\code{pitman}, introduite au commit \code{fce81c1} et exécutée au commit \code{139031d}, R~4.3.3
+sous Ubuntu~24.04, BLAS et LAPACK de référence, générateur du moteur~; sortie
+\code{docs/tableaux/}\newline \code{20261008-issue220-pitman.md}, durée $5\,341$~s). J1 et J2,
+volumes fixés. Verdicts (G1), puissances (G2) et variantes de sens (G4)~: $R = 20\,000$ jeux
+simulés par \code{usp\_simuler()} au modèle ajusté, un flux sous la graine 20260927, la même
+pour les deux jeux, dont les $2\,000$ premiers jeux sont ceux de l'issue~\#221. La p-value est
+la p-value unilatérale de \code{usp\_permutation\_pente()}, par énumération~; verdicts du sens
+«~rejeter~» à $\alpha = 0{,}10$, sans la règle~R4 et avec elle, sur le réajustement de chaque
+jeu par \code{usp\_ajuster()} (aucun échec, aucun refus de l'issue~\#188)~; p-value de Student
+unilatérale en regard. Hypothèses nulles faibles (G3)~: $R = 10\,000$ par scénario et par jeu~;
+$Y_t = (x_t/\bar x)^k\varepsilon_t$, $\varepsilon_t$ i.i.d. $\mathcal{N}(0,1)$, $k \in
+\{0~;~0{,}5~;~1~;~2~;~3\}$ (graine 20260938), marche aléatoire (20260939), AR(1) stationnaire
+$\rho = 0{,}7$ (20260940). Pente négative (G4)~: modèle ajusté déplacé aux volumes réfléchis
+$x'_t = \min_s x_s + \max_s x_s - x_t$, testé contre $x$ (graine 20260941). Contrôles (26, tous
+réussis)~: p-value, type et verdict égaux à ceux de \code{run\_engine()} sur la première
+réplication de G1 et de la pente négative des deux jeux et, sur J1, sur la première réplication
+en diagnostic R4 et les deux plus proches du seuil~; même compte R4 que l'issue~\#221 sur les
+$2\,000$ premiers jeux (121 et 0)~; invariance affine~; énumération recopiée égale à la
+fonction~; premier jeu des flux du modèle ajusté et de la pente négative identique à un tirage
+isolé~; état du générateur de
+l'appelant restauré. Statut~: \emph{constat de simulation} sous le modèle ajusté, sous ce modèle
+déplacé (pente négative) ou hors modèle réglementaire (G3)~; intervalles de Clopper--Pearson à
+95~\%, incertitude fonction de $R$, muette sur l'erreur en $T$.
+
 \noindent\emph{Calibration des p-values de Monte-Carlo (issues~\#166 et~\#221)} (script
 \code{tests/calibration\_mc\_t8.R}, commit \code{26e7496}, issue~\#221~; sorties
 \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md} et
@@ -5092,7 +5116,7 @@ source.
 \midrule
 Student, constante (\ref{fiche:student-constante}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ pondérée sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}1085$~; $0{,}0575$, J2 $0{,}0975$~; $0{,}0535$, compatible (non pondérée, avant l'issue~\#215~: J1 $0{,}106$~; $0{,}059$, J2 $0{,}100$~; $0{,}0595$) & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_t8.R} & \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md}~; avant~: \code{docs/tableaux/}\newline \code{20260930-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue166-calibration-J2.md} \\
 TOST, constante (\ref{fiche:tost-constante}) & Sans objet (loi continue) & Puissance au point $a = 0$ sous le modèle ajusté ($\alpha = 0{,}10$, C3, TOST pondéré, réplications réajustées)~: $0{,}0~\%$ (contrôle), $43{,}5~\%$ ($\hat\delta$ intérieur)~; $21{,}1~\%$ avant l'issue~\#215~; recoupement par la calibration de la section~\ref{sec:calibration-mc} (\code{run\_engine()} complet, 2\,000 jeux)~: $43{,}65~\%$ ($\hat\delta$ intérieur), $0{,}0~\%$ (contrôle)~; taux de conclusion à tort à la frontière (C5, $\alpha = 0{,}10$, poids estimés, marge recalculée)~: $13{,}3~\%$ à $a = +\Delta$ et $8{,}8~\%$ à $a = -\Delta$ ($\hat\delta$ intérieur, dépassement mineur), $0{,}0~\%$ (contrôle, procédure qui n'y conclut jamais) & \code{test\_tost\_intercept()},\newline \code{usp\_ajuster()},\newline \code{tests/constats\_puissance\_t8.R} & \code{docs/tableaux/}\newline \code{20261007-issue215-tost.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue219-tost-frontiere.md}~; avant~: \code{docs/tableaux/}\newline \code{20260930-issue118-tost.md} \\
-Pitman, pente (\ref{fiche:student-pente}) & $1/8! = 2{,}48\cdot 10^{-5}$ (unilatéral, sans ex \ae quo), exacte par énumération de la loi de permutation~; à $T \ge 10$, plancher Monte-Carlo $1/(B+1) = 0{,}001$ & $\hat\pi_b$ unilatérale $= 0{,}65$ (contrôle), $1{,}00$ ($\hat\delta$ intérieur), approximation~; diagnostic (règle~R4 unilatérale, issue~\#221) dans $6{,}0~\%$ et $0{,}0~\%$ des jeux simulés ($38{,}0~\%$ et $0{,}0~\%$ avec la règle bilatérale d'avant l'issue~\#169)~; puissance du test de permutation non étudiée par un script versionné & \code{usp\_permutation\_pente()},\newline \code{usp\_identifiabilite\_pente()},\newline \code{tests/taux\_franchissement\_reperes.R} & \code{p\_min} de la ligne~; \code{docs/tableaux/}\newline \code{20261008-issue221-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue221-J2.md}~; avant~: \code{docs/tableaux/}\newline \code{20260930-issue122-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue122-J2.md} (taux R4 bilatéraux) \\
+Pitman, pente (\ref{fiche:student-pente}) & $1/8! = 2{,}48\cdot 10^{-5}$ (unilatéral, sans ex \ae quo), exacte par énumération de la loi de permutation~; à $T \ge 10$, plancher Monte-Carlo $1/(B+1) = 0{,}001$ & $\hat\pi_b$ unilatérale $= 0{,}65$ (contrôle), $1{,}00$ ($\hat\delta$ intérieur), approximation~; diagnostic (règle~R4 unilatérale, issue~\#221) dans $6{,}0~\%$ et $0{,}0~\%$ des jeux simulés ($38{,}0~\%$ et $0{,}0~\%$ avec la règle bilatérale d'avant l'issue~\#169)~; puissance simulée sans R4 (C6)~: permutation $0{,}641$, Student $0{,}644$ (contrôle), $1{,}000$ ($\hat\delta$ intérieur)~; ligne restituée, R4 comprise~: \code{OK} / \code{ALERTE} / \code{ECHEC} / diagnostic $= 61{,}8$ / $22{,}9$ / $9{,}1$ / $6{,}1~\%$ (contrôle), \code{OK} $100~\%$ ($\hat\delta$ intérieur)~; fréquences sous des hypothèses nulles faibles et variantes de sens~: C6 & \code{usp\_permutation\_pente()},\newline \code{usp\_identifiabilite\_pente()},\newline \code{tests/taux\_franchissement\_reperes.R},\newline \code{tests/constats\_puissance\_t8.R} & \code{p\_min} de la ligne~; \code{docs/tableaux/}\newline \code{20261008-issue220-pitman.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue221-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue221-J2.md}~; avant~: \code{docs/tableaux/}\newline \code{20260930-issue122-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue122-J2.md} (taux R4 bilatéraux) \\
 RESET (\ref{fiche:reset}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}111$~; $0{,}056$, J2 $0{,}083$~; $0{,}0325$, écart mineur conservateur sur J2 (bord~0) & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_t8.R} & \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md} \\
 Spearman (\ref{fiche:spearman}) & $2/T! = 4{,}96\cdot 10^{-5}$~; plancher Monte-Carlo $0{,}002$ (bilatéral) & Non étudiée~; niveau de la p-value retenue sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: volume, J1 $0{,}093$~; $0{,}0525$, J2 $0{,}100$~; $0{,}0495$~; temps, J1 $0{,}093$~; $0{,}0485$, J2 $0{,}0895$~; $0{,}039$, compatible & \code{mk\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_t8.R} & \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md} \\
 Mann--Kendall (\ref{fiche:mann-kendall}) & $2/T! = 4{,}96\cdot 10^{-5}$~; plancher Monte-Carlo $0{,}002$ (bilatéral) & Volet~A ($\alpha = 0{,}10$)~: niveau $0{,}060$ (taille exacte $0{,}061$)~; AR(1) $\rho = 0{,}5$~; $0{,}9$~: $0{,}187$~; $0{,}389$~; tendance, rupture de 2 écarts-types~: $0{,}352$~; $0{,}410$~; volet~B (p-value retenue, J1 et J2) dans les fichiers~; niveau de la p-value retenue sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}0695$~; $0{,}0375$, J2 $0{,}062$~; $0{,}029$, compatible & \code{mk\_p\_min()}, \code{mk\_p\_exacte()}, \code{engine\_p\_mc()},\newline \code{tests/puissance\_t8.R},\newline \code{tests/calibration\_mc\_t8.R} & \code{docs/tableaux/}\newline \code{20260930-issue116-exact-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md} \\
@@ -6071,19 +6095,30 @@ l'application, et le changer serait une décision méthodologique soumise au vis
 Il suit la règle de l'outil sur le sens~: une ligne qui \emph{établit} une propriété requise par
 le modèle (TOST, rapport de vraisemblance sur $\delta$, test de Pitman) est unilatérale dans le
 sens de cette propriété~; une ligne qui \emph{vérifie} le modèle contre des écarts de direction
-quelconque est bilatérale ou omnibus. \emph{Un lien négatif donne \code{ECHEC}, non \code{OK}}~:
-quand $r_{\text{obs}} < 0$, la p-value unilatérale est au moins $\mathbb{P}(r^* \ge 0)$ sous la
-loi de permutation, soit $0{,}487$ sur le jeu de contrôle et $0{,}450$ sur le jeu à $\hat\delta$
-intérieur de la section~\ref{sec:verif} (proportion des $8!$ appariements de corrélation
-positive ou nulle, mesurée par énumération), au-dessus du seuil $0{,}30$ du verdict \code{ECHEC}
-en sens «~rejeter~». Deux variantes ont été écartées~: le test bilatéral pur, sous lequel un lien
-négatif fort rend \code{OK}, ce que l'outil ne peut pas restituer comme une association
-compatible avec $\beta > 0$~; le test bilatéral assorti d'une règle de signe (\code{ECHEC} si
-$r < 0$), qui corrige ce défaut mais, sous le modèle ajusté au jeu de contrôle, rend moins souvent
-\code{OK} et deux fois plus souvent \code{ECHEC} à tort que le test unilatéral (constat de
-simulation de la spécification d'\code{actuary} du 6~octobre 2026, script non versionné, ADR~0002
-amendé). Limite~: un contre-exemple construit avec un volume aberrant donne \code{ALERTE} et non
-\code{ECHEC} (même spécification)~; le test de Pitman n'est pas un détecteur de points aberrants
+quelconque est bilatérale ou omnibus. \emph{Un lien négatif n'est jamais lu comme une confirmation}~: quand $r_{\text{obs}} < 0$, la
+p-value unilatérale est au moins $\mathbb{P}(r^* \ge 0)$ sous la loi de permutation, soit
+$0{,}487$ sur le jeu de contrôle et $0{,}450$ sur le jeu à $\hat\delta$ intérieur de la
+section~\ref{sec:verif} (énumération des $8!$ appariements), au-dessus du seuil $0{,}30$ du
+verdict \code{ECHEC} en sens «~rejeter~»~; cette borne dépend des données et n'est pas garantie
+pour tout jeu. Dans les simulations de l'issue~\#220 (constat~C6,
+tableau~\ref{tab:tracabilite-puissance}), aucune réplication où $r < 0$ n'a une p-value
+inférieure à $0{,}30$ ($0$ sur $717$ sous le modèle ajusté au jeu de contrôle~; $0$ sur
+$19\,268$ et sur $20\,000$ sous une pente négative simulée sur les deux jeux)~: le \emph{test} y
+rend \code{ECHEC}. La \emph{ligne restituée} rend \code{ECHEC} ou, si la règle~R4 la classe en
+diagnostic, \code{INFO}~: sous la pente négative simulée, \code{OK} dans $0{,}18~\%$ des jeux du
+jeu de contrôle (jeux où $r > 0$), \code{ALERTE} dans $0{,}96~\%$, \code{ECHEC} dans $21{,}3~\%$
+et diagnostic dans $77{,}5~\%$~; sur le jeu à $\hat\delta$ intérieur, \code{ECHEC} dans
+$0{,}07~\%$ et diagnostic dans $99{,}93~\%$ (rubrique~6, «~Pourquoi un diagnostic~»). Deux
+variantes ont été écartées. Le test bilatéral pur rend \code{OK} sous un lien négatif fort
+($47{,}2~\%$ des jeux du jeu de contrôle et $100~\%$ de ceux du jeu à $\hat\delta$ intérieur sous
+la pente négative simulée, contre $0{,}18~\%$ et $0~\%$ en unilatéral, sans R4), ce que l'outil
+ne peut pas restituer comme une association compatible avec $\beta > 0$. Le test bilatéral
+assorti d'une règle de signe (\code{ECHEC} si $r < 0$) corrige ce défaut, mais sous le modèle
+ajusté au jeu de contrôle il rend \code{OK} dans $47{,}4~\%$ $[46{,}7~;~48{,}1]$ des jeux contre
+$64{,}1~\%$ $[63{,}4~;~64{,}8]$ en unilatéral, et \code{ECHEC} à tort dans $25{,}8~\%$
+$[25{,}2~;~26{,}4]$ contre $10{,}9~\%$ $[10{,}5~;~11{,}3]$ (constat de simulation, issue~\#220,
+sans R4, $R = 20\,000$).. Limite~: un contre-exemple construit avec un volume aberrant donne \code{ALERTE} et non
+\code{ECHEC} (spécification d'\code{actuary} du 6~octobre 2026, script non versionné)~; le test de Pitman n'est pas un détecteur de points aberrants
 (section~\ref{sec:stabilite}).
 \Stat
 Coefficient de corrélation de Pearson sur l'échelle brute, sans logarithme,
@@ -6221,25 +6256,34 @@ $\mathbb{E}[Y_t] = \beta x_t$, qui relève de la fiche~\ref{fiche:student-consta
 de RESET, ni l'absence de tendance, qui relève de Mann--Kendall et de Spearman ratio contre temps.
 \emph{Ce qu'un \code{OK} peut aussi
 traduire} (réserve d'échangeabilité, rubrique~4)~: une dispersion liée au volume ou une tendance
-commune aux volumes et aux pertes, sans lien de moyenne. Sous des hypothèses nulles faibles
-simulées (moyenne indépendante du volume, échangeabilité rompue), la fréquence de rejet du test
-unilatéral au seuil $\alpha = 0{,}10$ va de $0{,}095$ à $0{,}106$ avec des volumes peu dispersés
-($\mathrm{CV}(x) \approx 10~\%$) et de $0{,}20$ à $0{,}27$ avec des volumes très dispersés
-($\mathrm{CV}(x) \approx 64~\%$)~: constat de simulation de la spécification d'\code{actuary} du
-6~octobre 2026, \textbf{script non versionné}, non reproductible à partir du dépôt.
+commune aux volumes et aux pertes, sans lien de moyenne. Sous des hypothèses nulles faibles simulées (moyenne indépendante du volume, échangeabilité
+rompue~; constat~C6, issue~\#220, $R = 10\,000$ par scénario, $\alpha = 0{,}10$), la fréquence de
+rejet du test unilatéral, donc d'un \code{OK} sans lien de moyenne, est la suivante. Pour un
+écart-type proportionnel à $(x_t/\bar x)^k$, $k$ de $0{,}5$ à $3$~: de $0{,}096$ à $0{,}115$ avec
+les volumes du jeu de contrôle ($\mathrm{CV}(x) = 9{,}7~\%$), et de $0{,}150$ à $0{,}268$ avec
+ceux du jeu à $\hat\delta$ intérieur ($\mathrm{CV}(x) = 64{,}2~\%$). Pour une dépendance
+temporelle~: $0{,}332$ (marche aléatoire) et $0{,}260$ (AR(1), $\rho = 0{,}7$) avec les volumes
+du jeu de contrôle, à tendance croissante en $t$~; $0{,}143$ et $0{,}163$ avec ceux du jeu à
+$\hat\delta$ intérieur, non monotones en $t$. Sous l'hypothèse nulle i.i.d., $0{,}096$
+$[0{,}090~;~0{,}102]$ et $0{,}100$ $[0{,}094~;~0{,}106]$, compatibles avec la taille exacte
+$4\,031/40\,320 = 0{,}09998$. La p-value de Student restituée est plus distordue encore sous
+hétéroscédasticité (jusqu'à $0{,}401$). Constat de simulation hors modèle réglementaire, valable
+pour ces deux plans de volumes~; sur le défaut de niveau du test de permutation de la
+corrélation quand la seule hypothèse nulle est l'absence de corrélation~: C.\,J. DiCiccio et
+J.\,P. Romano, 2017 (section~\ref{sec:biblio}), dans un cadre asymptotique de couples i.i.d.,
+sans résultat à $T = 8$. Les valeurs non versionnées citées auparavant (de $0{,}095$ à $0{,}106$
+et de $0{,}20$ à $0{,}27$, spécification d'\code{actuary} du 6~octobre 2026) sont remplacées~;
+leur protocole n'est pas conservé.
 \emph{Ce qu'un non-rejet ne prouve pas}~: une \code{ALERTE} ou un \code{ECHEC} ne démontrent pas
-que le volume n'explique pas les pertes. À $T = 8$, la puissance est limitée~: sous le modèle
-ajusté au jeu de contrôle, la ligne sort \code{OK} dans environ $63~\%$ des jeux simulés,
-\code{ALERTE} dans $25~\%$ et \code{ECHEC} dans $12~\%$, alors que le modèle réglementaire y est
-vrai par construction. \emph{Source et statut}~: constat de simulation d'\code{actuary}, rapporté
-dans le commentaire 6021758543 de la PR~\#211 (6~octobre 2026), \textbf{script non versionné},
-protocole (nombre de réplications, application ou non de la règle~R4) non consigné. Il ne
-concorde pas exactement avec un autre constat de la même spécification, rapporté par l'ADR~0002
-(amendement du 6~octobre 2026, point~4~: $R = 4\,000$, graine 20261006, test brut sans la
-règle~R4), qui donne, pour le test unilatéral sous le même modèle, une fréquence d'\code{OK} de
-$0{,}641$ et d'\code{ECHEC} à tort de $0{,}116$~: les deux viennent vraisemblablement
-d'exécutions ou de protocoles différents (avec ou sans R4, $R$), et \textbf{cet écart n'est pas
-résolu}~; le versionnement de ces scripts relève de l'issue~\#220. Une \code{ALERTE} traduit d'abord un manque d'information~; un \code{ECHEC} doit être
+que le volume n'explique pas les pertes. À $T = 8$, la puissance est limitée~: sous le modèle ajusté au jeu de contrôle (constat~C6,
+$R = 20\,000$), le test sans la règle~R4 rejette dans $64{,}1~\%$ $[63{,}4~;~64{,}8]$ des jeux
+simulés. La ligne restituée, règle~R4 comprise, est \code{OK} dans $61{,}8~\%$, \code{ALERTE}
+dans $22{,}9~\%$, \code{ECHEC} dans $9{,}1~\%$ $[8{,}7~;~9{,}5]$ et diagnostic dans $6{,}1~\%$
+$[5{,}8~;~6{,}4]$, alors que le modèle réglementaire y est vrai par construction (sans R4~:
+$64{,}1$, $25{,}0$ et $10{,}9~\%$). Sur le jeu à $\hat\delta$ intérieur, elle est \code{OK} dans
+tous les jeux simulés. Ces fréquences remplacent les valeurs non versionnées citées auparavant
+(environ $63$, $25$ et $12~\%$, commentaire 6021758543 de la PR~\#211~; $0{,}641$ et $0{,}116$,
+ADR~0002, point~4), dont le protocole n'est pas conservé et qui ne se reproduisent pas toutes. Une \code{ALERTE} traduit d'abord un manque d'information~; un \code{ECHEC} doit être
 rapproché du signe de $r$ et du plan de volumes avant toute conclusion. La significativité de la
 pente ne dit rien sur la \emph{proportionnalité} (absence de constante), qui relève de la
 fiche~\ref{fiche:student-constante}. Les deux tests sont complémentaires et non substituables.
@@ -6252,6 +6296,13 @@ repère de diagnostic~: il fixe le type de la ligne. $\hat\pi_b$ est calculée �
 estimations sur les données mêmes qu'elle sert à classer~: ce n'est pas la puissance du test, et
 elle ne sert jamais à interpréter un non-rejet comme une absence d'effet (sur les limites de la
 puissance calculée a posteriori~: J.\,M. Hoenig et D.\,M. Heisey, 2001, section~\ref{sec:biblio}).
+\emph{Limite sous un lien négatif}~: $\hat\pi_b$ est calculée au réajustement du modèle
+réglementaire, où $\beta > 0$. Quand $r < 0$, ce réajustement ne peut pas suivre la pente et
+$\hat\pi_b$ passe sous $1/2$~: la ligne devient un diagnostic, avec le commentaire «~\code{PENTE
+NON IDENTIFIABLE PAR LES DONNEES}~», alors que les données identifient une pente de signe
+contraire au modèle ($77{,}5~\%$ et $99{,}93~\%$ des jeux sous la pente négative simulée,
+constat~C6). L'argument «~un \code{ECHEC} décrirait l'étroitesse de la plage des volumes~» ne
+vaut pas dans ce cas~; la correction de ce comportement relève de l'issue~\#230.
 Depuis l'issue~\#169, $\hat\pi_b$ est la puissance approchée du test \emph{unilatéral},
 $\mathbb{P}(t > t_{1-\alpha,\,T-2})$ sous la loi de Student décentrée de paramètre $\hat\lambda$.
 Mesuré sur le jeu de contrôle~: $\hat\lambda = 1{,}783$, $\hat\pi_b = 0{,}646$ en unilatéral, la
@@ -6305,15 +6356,23 @@ fréquence de la restitution en diagnostic sous le modèle ajusté, sur la puiss
 simulés (section~\ref{sec:taux-reperes})~; avec la puissance \emph{bilatérale} d'avant
 l'issue~\#169, elle était de $38{,}0~\%$ et $0{,}0~\%$ sur les mêmes jeux.
 $\hat\pi_b$ est la seule puissance que le moteur calcule~; elle vaut sous le modèle ajusté, aux
-volumes observés, et ne se transpose pas à d'autres volumes. Puissance du test de permutation par
-simulation~: non étudiée à $T = 8$ par un script versionné (les fréquences de verdicts citées à la
-rubrique~6 viennent d'un script non versionné).
+volumes observés, et ne se transpose pas à d'autres volumes. Puissance simulée sans la
+règle~R4 (constat~C6, issue~\#220, $R = 20\,000$, $\alpha = 0{,}10$, protocole au
+tableau~\ref{tab:tracabilite-puissance})~: test de permutation $0{,}641$ $[0{,}634~;~0{,}648]$,
+test de Student unilatéral $0{,}644$ $[0{,}638~;~0{,}651]$, pour $\hat\pi_b = 0{,}646$, sur le jeu
+de contrôle~; $1$ sur le jeu à $\hat\delta$ intérieur. Ligne restituée, règle~R4 comprise, sur le
+jeu de contrôle~: \code{OK} $61{,}8~\%$, \code{ALERTE} $22{,}9~\%$, \code{ECHEC} $9{,}1~\%$,
+diagnostic $6{,}1~\%$~; \code{OK} dans tous les jeux sur le jeu à $\hat\delta$ intérieur.
+Fréquences de rejet sous des hypothèses nulles faibles et variantes de sens~: rubriques~2 et~6.
 
 \textbf{Statut des valeurs.} $p_{\min}$~: exacte (énumération de la loi de permutation)~;
 $\hat\lambda$ et $\hat\pi_b$~: approximation analytique au premier ordre (loi de Student
 décentrée), calcul déterministe~; fréquences de la règle~R4~: constat de simulation sous le modèle
 ajusté, sur la règle unilatérale (issue~\#221) et, pour mémoire, sur la règle bilatérale antérieure,
-intervalles de Clopper--Pearson à $95~\%$.
+intervalles de Clopper--Pearson à $95~\%$~; puissances, verdicts et fréquences de rejet du
+constat~C6~: constats de simulation sous le modèle ajusté, sous ce modèle déplacé (pente
+négative) ou hors modèle réglementaire (hypothèses nulles faibles), intervalles de
+Clopper--Pearson à $95~\%$, incertitude fonction de $R$, muette sur l'erreur en $T$.
 \end{fiche}
 
 \begin{fiche}{Test de Fisher de significativité globale}
@@ -12440,6 +12499,22 @@ soutient dans le présent document.
   ni aucune propriété de puissance n'en est tiré au-delà. Elle ne dit rien de la puissance à
   $T = 8$ ni du comportement du test sous les hypothèses nulles faibles de la fiche, mesuré par
   simulation et non tiré de la littérature.
+
+  \item C.\,J. DiCiccio, J.\,P. Romano, \emph{Robust permutation tests for correlation and
+  regression coefficients}, \emph{Journal of the American Statistical Association}, 112(519),
+  2017, p.~1211--1220.
+  \emph{Portée.} Citée à la fiche~\ref{fiche:student-pente} (issue~\#220) pour le défaut de
+  niveau du test de permutation fondé sur la corrélation empirique quand l'hypothèse nulle est
+  seulement l'absence de corrélation, et non l'indépendance~: d'après le résumé, ce test est
+  exact sous l'indépendance, mais sa probabilité de rejet peut alors s'écarter nettement du niveau
+  nominal~; les auteurs proposent de studentiser la corrélation, ce qui donne un test exact sous
+  l'indépendance et asymptotiquement valide sous la corrélation nulle, et étendent la construction
+  aux coefficients de régression. \textbf{Seul le résumé a été lu} par le projet (notice
+  IDEAS/RePEc)~; le texte intégral ne l'a pas été, et aucune page, aucun théorème ni aucune
+  vitesse n'en est tiré. Cadre asymptotique de couples i.i.d.~: la référence ne dit rien du
+  comportement du test à $T = 8$, ni sous les hypothèses nulles faibles de la fiche (dispersion
+  liée au volume, dépendance temporelle), mesuré par simulation (constat~C6). Le moteur
+  n'emploie pas la version studentisée.
 \end{itemize}
 
 \subsection*{Théorie du bootstrap et des tests de Monte-Carlo}
@@ -12926,9 +13001,12 @@ littérature consultée.
   taille sous des hypothèses nulles faibles (moyenne indépendante du volume,
   échangeabilité rompue par une dispersion liée au volume ou une tendance commune),
   ne sont tirées d'aucune référence consultée~: les valeurs citées à la
-  fiche~\ref{fiche:student-pente} sont des constats de simulation, issus d'un script
-  non versionné, et la seule grandeur calculée par le moteur est l'approximation
-  $\hat\pi_b$ de la règle~R4.
+  fiche~\ref{fiche:student-pente} sont des constats de simulation (constat~C6,
+  issue~\#220, script versionné), valables pour deux plans de volumes, et la seule
+  grandeur calculée par le moteur est l'approximation $\hat\pi_b$ de la règle~R4.
+  C.\,J. DiCiccio et J.\,P. Romano (2017) décrivent le défaut de niveau du test de
+  permutation de la corrélation sous la seule hypothèse de corrélation nulle, dans un
+  cadre asymptotique, sans résultat à $T = 8$.
   \item \textbf{Le niveau du TOST pondéré à la frontière} $a = \pm\Delta$, à
   $T = 8$ et poids estimés, n'est donné par aucune référence consultée~; il est
   mesuré par simulation en un seul point des paramètres de nuisance par jeu
