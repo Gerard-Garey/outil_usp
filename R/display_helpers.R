@@ -1067,7 +1067,7 @@ plot_mw_levier <- function(pd) {
 # Libelle du repere c/sqrt(n_j) : c est lu dans la constante du moteur
 # REPERE_DFBETAS_MW (engine.R est source avant ce fichier) ; a defaut, le
 # libelle reste litteral (c/sqrt(n_j)), sans aucun calcul.
-.libelle_repere_dfbetas <- function(d) {
+.libelle_repere_dfbetas <- function() {
   c0 <- get0("REPERE_DFBETAS_MW", mode = "numeric", ifnotfound = NULL)
   paste0(if (is.null(c0)) "c" else format(signif(c0, 6)), "/&radic;n_j")
 }
@@ -1077,7 +1077,7 @@ plot_mw_dfbeta <- function(pd) {
   if (all(is.na(d$dfbetas))) return(.vide("DFBETAS non definis pour ce triangle"))
   x <- seq_len(nrow(d)); v <- d$dfbetas; ok <- !is.na(v)
   etiq <- paste0("(", d$i, ",", d$j, ")")
-  lib <- sub("&radic;n_j", "sqrt(n_j)", .libelle_repere_dfbetas(d), fixed = TRUE)
+  lib <- sub("&radic;n_j", "sqrt(n_j)", .libelle_repere_dfbetas(), fixed = TRUE)
   # Escalier des reperes : un palier par colonne j ayant au moins un DFBETAS
   # defini, de la premiere a la derniere cellule de la colonne (+/- 0,5),
   # interrompu entre colonnes.
@@ -1099,7 +1099,7 @@ plot_mw_dfbeta <- function(pd) {
     graphics::lines(xr, -rr, col = COUL$ref, lty = 2)
     return(invisible())
   }
-  info <- sprintf("cellule %s<br>DFBETAS = %+.3f (repere +/- %.3f)<br>variation de f_j = %+.3f %%",
+  info <- sprintf("cellule %s<br>DFBETAS = %+.3f (repere +/- %.3f ; f_j - f_j sans la cellule)<br>variation de f_j au retrait de la cellule = %+.3f %%",
                   etiq, v, d$repere_dfbetas, 100 * d$dfbeta_relatif)
   p <- plotly::plot_ly(x = x[ok], y = v[ok], type = "bar",
         text = info[ok], textposition = "none",
@@ -1432,12 +1432,13 @@ note_influence_mw <- function(pd) {
   if (all(is.na(d$dfbetas)))
     return(paste(c(txt, "Le DFBETAS n'est d&eacute;fini pour aucune cellule de ce triangle.",
                    txt_nb), collapse = " "))
-  lib <- .libelle_repere_dfbetas(d)
+  lib <- .libelle_repere_dfbetas()
   nd <- sum(d$fort_dfbetas)
   mx <- d[which.max(abs(d$dfbetas)), ]
   paste(c(txt, sprintf(paste(
-    "Le DFBETAS d'une cellule est la variation de f_j au retrait de cette cellule,",
-    "exprim&eacute;e en &eacute;carts-types estim&eacute;s de f_j.",
+    "Le DFBETAS d'une cellule est l'&eacute;cart f_j - f_j(sans la cellule) entre le facteur",
+    "estim&eacute; avec et sans cette cellule, exprim&eacute; en &eacute;carts-types estim&eacute;s de f_j :",
+    "positif si la cellule tire f_j vers le haut, son retrait faisant alors baisser f_j.",
     "<b>%d cellule(s)</b> ont un DFBETAS au-del&agrave; du rep&egrave;re de lecture",
     "%s (sans verdict). Sous le mod&egrave;le (erreurs gaussiennes, leviers &eacute;gaux),",
     "une cellule sans anomalie franchit ce rep&egrave;re avec une probabilit&eacute; qui d&eacute;pend",
