@@ -400,7 +400,7 @@ fonction.
 \node[fonc, below=4mm of amw] (mmw) {\code{mw\_msep()}\\[1pt]
   \scriptsize erreur de prédiction à un an};
 \node[fonc, below=4mm of mmw] (kmw) {\code{mw\_valider\_ajustement()}\\[1pt]
-  \scriptsize $\hat R > 0$, MSEP finie et $\ge 0$};
+  \scriptsize $\hat R > 0$, MSEP finie $\ge 0$~; refus \#192};
 \node[fonc, below=4mm of kmw] (bmw) {\code{mw\_bootstrap()}\\[1pt]
   \scriptsize \code{mw\_simuler\_triangle()}, \code{.mw\_stats()}};
 \node[fonc, below=4mm of bmw] (tmw) {\code{mw\_tests()}\\[1pt]
@@ -520,7 +520,9 @@ partielle sur $c(I + 1, \text{barème appliqué}) < 1$ (issue~\#131) \\
 \code{mw\_valider\_ajustement()} & \code{aj} (sortie de \code{mw\_ajuster()}),
 \code{msep} (champ \code{\$msep} de \code{mw\_msep()}) &
 \code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, \code{\$reserve},
-\code{\$msep} \\
+\code{\$msep}~; refus si $\hat R \le 0$, si la MSEP n'est pas finie ou est négative, ou si le
+triangle est totalement dégénéré (\code{.mw\_triangle\_}\allowbreak\code{totalement\_degenere()}, issue~\#192, un
+seul motif, sans avertissement de colonnes) \\
 \code{usp\_lire\_vecteur()},\newline \code{usp\_charger()} & chemins de fichiers CSV,
 \code{sep}, \code{dec}~; pour la seconde, $T$ (\code{NULL} ou entier, $1 \le T \le n$, contrôlé
 par \code{engine\_valider\_}\newline\code{profondeur()}, erreur sinon) et le sens chronologique des
@@ -863,6 +865,10 @@ colonne, \code{\$degeneree\_Jm3} (champs historiques \code{\$colonne},
 \code{.mw\_colonnes\_degenerees()} & \code{aj}, $j$, \code{tol} ($10^{-12}$) & écart relatif
 maximal des facteurs individuels à $\hat f_j$~; prédicat unique de colonne dégénérée~; ensemble
 des colonnes dégénérées, figé à l'observé par \code{mw\_bootstrap()} (fiche~\ref{mw:m1a}) \\
+\code{.mw\_triangle\_}\newline\code{totalement\_degenere()} & \code{aj} & \code{TRUE} si toutes les
+colonnes $j = 0, \ldots, J-2$ sont dégénérées au sens du prédicat unique, \code{FALSE} sinon, pour
+un objet d'ajustement réduit et pour $J < 2$~; prédicat du refus de
+\code{mw\_valider\_ajustement()} (issue~\#192, §\ref{sec:controles}) \\
 \code{.mw\_j\_exclues()},\newline \code{.mw\_stat\_non\_definie()} & \code{aj},
 \code{j\_degeneres} & colonnes exclues d'une vérification de M1~; résultat \code{NA} d'une
 réplication où une colonne retenue devient dégénérée \\
@@ -1974,7 +1980,8 @@ diagnostic, aucune p-value & --- \\
 \midrule
 Recevabilité du triangle (avant ajustement) & \S\ref{sec:controles} &
 \code{mw\_valider\_triangle()} & sans objet & --- \\
-Applicabilité de D(4) --- réserve $\hat R$ et MSEP (après ajustement) &
+Applicabilité de D(4) --- réserve $\hat R$ et MSEP~; triangle totalement dégénéré (après
+ajustement) &
 \S\ref{sec:controles} & \code{mw\_valider\_ajustement()} & sans objet & --- \\
 Facteurs et variances de développement & \S\ref{sec:mw} &
 \code{mw\_ajuster()} & sans objet & --- \\
@@ -2410,7 +2417,9 @@ s'exécute \emph{après} \code{mw\_ajuster()} et \code{mw\_msep()}, parce que le
 deux grandeurs dont elle contrôle le domaine --- la réserve chain-ladder totale
 $\hat R = \sum_{i=0}^{I}\big(\hat C(i,J) - C(i,I-i)\big)$ et la MSEP --- ne sont
 pas connues avant lui~; elle précède en revanche le calcul du paramètre propre et
-le bootstrap. Elle émet en outre, sans refuser le calcul, trois avertissements décrits dans
+le bootstrap. Depuis l'issue~\#192, elle refuse aussi un triangle \emph{totalement dégénéré},
+dont toutes les colonnes de développement ont des facteurs individuels identiques (texte sous le
+tableau Merz--Wüthrich). Elle émet en outre, sans refuser le calcul, trois avertissements décrits dans
 le tableau ci-dessous~: colonne $J-3$ ou $J-2$ à facteurs individuels tous égaux (justifié au
 §\ref{sec:mw}), colonnes sans résidu de Mack, réserve faible devant son incertitude.
 \code{engine\_lire\_triangle()} convertit en amont le tableau lu en triangle~: une cellule vide
@@ -2437,9 +2446,11 @@ détaillée figure au §\ref{sec:mw}.
 Dans les deux cas, un refus conduit \code{run\_engine()} à
 retourner un objet portant \code{ok = FALSE} et le champ \code{validation}
 détaillant les motifs, sans lever d'erreur R.
-\code{mw\_parametre()} porte en outre une garde défensive sur le même
-diagnostic, destinée à un appel direct de la fonction hors de la chaîne~; elle
-est inatteignable depuis \code{run\_engine()}.
+\code{mw\_parametre()} porte en outre une garde défensive sur les mêmes
+refus~: elle appelle \code{mw\_valider\_ajustement()} et lève une erreur R portant ses motifs,
+triangle totalement dégénéré compris depuis l'issue~\#192 (mesuré sur le triangle
+\code{total\_exact} ci-dessous)~; destinée à un appel direct de la fonction hors de la chaîne,
+elle est inatteignable depuis \code{run\_engine()}.
 
 Ce \emph{refus de données} n'est que l'un des trois régimes de sortie de \code{run\_engine()}
 autres qu'un calcul abouti, à ne pas confondre (issue~\#88, décision du mainteneur du
@@ -2912,14 +2923,18 @@ contrôle~: $-0{,}066$ et $+0{,}063$), de sorte qu'une tolérance sur la dispers
 des ratios laisserait passer des estimations sur la borne ou refuserait des maxima intérieurs,
 et serait de surcroît une règle métier sans source.
 
-\emph{Asymétrie avec la méthode Merz--Wüthrich.} Un triangle dégénéré ou quasi dégénéré, dont
-une colonne a ses facteurs individuels tous égaux ou quasi égaux, reste accepté, avec un
-avertissement si $\hat\sigma^2_j = 0$ exactement (issue~\#33~;
-tableau Merz--Wüthrich ci-dessous, §\ref{sec:mw}), alors qu'une série lognormale quasi
+\emph{Asymétrie avec la méthode Merz--Wüthrich.} Un triangle partiellement dégénéré, dont
+une colonne a ses facteurs individuels tous égaux, reste accepté, avec un
+avertissement (issue~\#33~;
+tableau Merz--Wüthrich ci-dessous, §\ref{sec:mw}), et un triangle quasi dégénéré, dont les
+facteurs de chaque colonne sont presque égaux sans l'être à la tolérance de l'outil, reste
+accepté (issue~\#192, statu quo), alors qu'une série lognormale quasi
 proportionnelle est refusée. L'asymétrie est fondée~: $\hat\sigma^2_j = 0$ y est une estimation
 de Mack \emph{atteinte}, donnée par une formule fermée, alors que $\hat\gamma$ sur une borne
 sans condition de Kuhn et Tucker satisfaite est un artefact de l'optimiseur, sans estimateur
-derrière.
+derrière. Seul le triangle \emph{totalement} dégénéré est refusé depuis l'issue~\#192, et pour un
+autre motif que l'existence de l'estimateur~: les données ne permettent plus d'établir les
+exigences de D(2)(h) et D(2)(a) (texte sous le tableau Merz--Wüthrich).
 
 Les contrôles non bloquants ci-dessus sont restitués dans \code{res\$controles}
 (famille « A. Qualite des donnees ») et signalés par \code{engine\_valider\_donnees()}
@@ -3136,10 +3151,17 @@ $\sigma_{(\text{res},s,\mathrm{USP})}$ à partir de $\sqrt{\mathrm{MSEP}}/\hat R
 réserve --- le paragraphe ne le nomme pas ainsi. Non défini pour $\hat R = 0$~;
 négatif, donc pas un écart type, pour $\hat R < 0$ (article~220,
 §\ref{sec:mw}). Bloquant. \\
+Triangle totalement dégénéré \emph{(post-ajustement)} & toutes les colonnes $j = 0, \ldots, J-2$
+dégénérées au sens du prédicat unique \code{.mw\_colonne\_}\allowbreak\code{degeneree()}
+(\code{.mw\_triangle\_}\allowbreak\code{totalement\_degenere()}) & \textbf{Décision de l'outil} (issue~\#192),
+fondée sur D(2)(h) et D(2)(a), exigences rendues obligatoires par l'article~219, paragraphe~1,
+point~d)~; tolérance $10^{-12}$, convention de l'outil (texte sous le tableau). Un seul motif,
+sans avertissement de colonnes. Bloquant. \\
 Colonne $J-3$ ou $J-2$ dégénérée \emph{(post-ajustement)} &
 $\max_i \big|F(i,j)/\hat f_{j} - 1\big| \le 10^{-12}$ pour $j = J-3$ ou
 $j = J-2$ &
-\textbf{Avertissement}, non bloquant, jamais un refus~: les facteurs
+\textbf{Avertissement}, non bloquant, jamais un refus à lui seul (un triangle dont toutes
+les colonnes sont dégénérées est refusé, ligne précédente, sans cet avertissement)~: les facteurs
 individuels de la colonne sont tous égaux, donc $\hat\sigma^2_{J-3} = 0$ ou
 $\hat\sigma^2_{J-2} = 0$ et, par application littérale de D(5)(d)(ii),
 $\hat\sigma^2_{J-1} = 0$ --- la MSEP ne porte alors aucune variance sur la
@@ -3168,6 +3190,103 @@ statistique non réglementaire, inchangé~: à $I + 1 < 10$, un second avertisse
 $\hat\sigma_j^2$ repose sur deux ou trois observations en fin de triangle. \\
 \end{longtable}
 }
+
+\emph{Triangle totalement dégénéré (issue~\#192).} Après \code{mw\_msep()}, avant le paramètre
+et le bootstrap, \code{mw\_valider\_ajustement()} refuse le triangle quand toutes les colonnes
+$j = 0, \ldots, J-2$ sont dégénérées au sens du prédicat unique de colonne dégénérée
+(\code{.mw\_colonne\_degeneree()}, issue~\#56, fiche~\ref{mw:m1a})~; la colonne $J-1$, qui n'a
+qu'un facteur individuel pour $I = J$, n'entre pas dans le prédicat. Le refus a la forme d'un
+refus de données~: \code{ok = FALSE}, motif ajouté à \code{validation\$erreurs}, \textbf{sans}
+\code{validation\$erreur\_r}, objet réduit aux champs \code{ok}, \code{validation},
+\code{methode} et \code{metadata}, aucun résultat partiel. Un seul motif (décision du mainteneur
+du 5~octobre 2026)~: les avertissements de colonnes de \code{mw\_valider\_ajustement()}
+(extrapolation de $\hat\sigma^2_{J-1}$, colonnes sans résidu de Mack) ne sont pas émis en plus~;
+ceux de \code{mw\_valider\_triangle()} (crédibilité, $I + 1 < 10$) demeurent. Le motif n'est
+évalué qu'en l'absence d'autre refus~: avec $\hat R \le 0$, seul le motif de la réserve est émis
+(mesuré sur un triangle à facteurs tous égaux à~1, $\hat R = 0$). Le motif enchaîne un constat
+(facteurs individuels identiques dans chaque colonne $j = 0, \ldots, J-2$, à la tolérance relative
+$10^{-12}$ de l'outil, avec l'énoncé du prédicat), sa conséquence en arithmétique exacte (pour des
+facteurs exactement égaux, $\hat\sigma^2_j = 0$ par D(5)(d)(ii) et $\mathrm{MSEP} = 0$~; sinon,
+$\hat\sigma^2_j$ et la MSEP, dont la valeur calculée est citée, sont nuls ou négligeables à la
+tolérance de l'outil~; aucun résidu de Mack n'est retenu, et D(4) donne
+$\sigma_{(\text{res},s,\mathrm{USP})} = (1-c)\,\sigma_{(\text{res},s)}$ à un écart négligeable près,
+sans contribution significative des données), le fondement (D(2)(h), en particulier~iv, et
+D(2)(a), exigences rendues obligatoires par l'article~219, paragraphe~1, point~d)~; l'outil
+n'applique donc pas la méthode du risque de réserve n\textsuperscript{o}~2 à ce triangle,
+article~220, paragraphe~1, point~b)) et une vérification à faire (paiements cumulés observés,
+D(1), et non montants projetés ou lissés)~; son texte exact est vérifié par
+\code{tests/unitaires/test\_merz\_wuthrich.R}.
+
+\emph{Fondement.} Le texte n'impose ni n'interdit ce refus, et deux lectures en sont possibles.
+Lecture~L1~: une constante de proportionnalité nulle, $\sigma_j^2 = 0$, est formellement admise
+par D(2)(h)(iv), qui ne l'exclut pas~; la lettre de D(4) et de D(5) donne alors un paramètre.
+Lecture~L2~: des données dont aucune colonne ne présente de variance ne permettent d'établir ni
+qu'elles «~sont cohérentes avec les hypothèses suivantes concernant la nature stochastique des
+montants de sinistres cumulés~» (D(2)(h)), ni qu'elles «~sont représentatives du risque de
+réserve auquel l'entreprise d'assurance ou de réassurance est exposée pour les douze mois à
+venir~» (D(2)(a))~; ce sont des exigences de données, que l'article~219, paragraphe~1, point~d)
+rend obligatoires (citations de la version consolidée du 14~novembre 2024, qui fait foi). Le refus
+est une \textbf{décision de l'outil} (décision du mainteneur du 5~octobre 2026) qui retient la
+lecture~L2~: il applique une exigence de données existante, il n'ajoute pas de condition
+mathématique, et il n'affirme pas que le calcul est interdit par le texte. Il a la même structure
+que le refus de l'issue~\#188 pour les méthodes lognormales (exigence de données de l'annexe~XVII
+rattachée à l'article~219, paragraphe~1, point~d), décision de l'outil, vérification à faire),
+mais une cause différente~: ici l'estimateur de Mack est \emph{atteint}, par une formule fermée,
+et la valeur restituée n'est pas numériquement fausse~; ce qui manque est l'information~:
+$\sigma_{\mathrm{USP}}$ ne dépend plus des données qu'à un écart négligeable près, aucune
+hypothèse de D(2)(h) n'est vérifiable, la batterie de tests porterait sur des résidus d'arrondi,
+et le régime de sortie dépendait de l'arithmétique (mesures ci-dessous). Le refus ne s'appuie
+\textbf{pas} sur l'indétermination $0/0$ du quotient de D(5)(d)(ii)~: le texte ne prévoit aucune
+clause de dégénérescence et sa lettre donne $\hat\sigma^2_{J-1} = 0$, le quotient étant sans effet
+sur le minimum (§\ref{sec:mw})~; cet argument contredirait cette lecture et ne coïncide pas avec
+le prédicat. La tolérance relative $10^{-12}$ est celle du prédicat unique, convention de l'outil
+et non du texte~; aucune constante nouvelle n'est introduite.
+
+\emph{Frontière de l'outil (décision du mainteneur du 5~octobre 2026~: statu quo).} Seuls les
+triangles \emph{totalement} dégénérés sont refusés~; un triangle partiellement dégénéré reste
+sous la doctrine de l'avertissement, et un triangle \emph{quasi} dégénéré, dont les facteurs
+individuels de chaque colonne sont presque égaux sans l'être à $10^{-12}$ près, est accepté sans
+avertissement propre, faute de seuil fondé. Le paramètre y est alors proche de
+$(1-c)\,\sigma_{(\text{res},s)}$, et c'est au relecteur de lire un $\sigma$ estimé très petit
+comme un signal sur l'origine des données. Mesuré (\code{run\_engine()}, méthode de réserve
+n\textsuperscript{o}~2, segment II-1, $c = 0{,}59$, $\sigma_{(\text{res},s)} = 0{,}09$, $B = 99$~;
+R~4.3.3, BLAS et LAPACK de référence, x86\_64), sur des triangles construits à partir de
+\code{tests/donnees/triangle\_mw.csv} et repris par les tests unitaires, avec le moteur
+antérieur à l'issue et le moteur actuel~:
+
+\begin{center}
+\small
+\rowcolors{2}{tablerow}{white}
+\begin{tabular}{@{}p{6.6cm}p{3.6cm}p{4.6cm}@{}}
+\rowcolor{tableheader}
+\textcolor{financeblue}{\textbf{Triangle}} &
+\textcolor{financeblue}{\textbf{Avant l'issue~\#192}} &
+\textcolor{financeblue}{\textbf{Moteur actuel}} \\
+\code{total\_exact}~: $C(i,0)$ du triangle de contrôle, $F(i,j) = \hat f_j$ de ce triangle &
+\code{ok = TRUE}, $\sigma_{\mathrm{USP}} = 0{,}0369$ & refus, MSEP calculée
+$3{,}8\cdot 10^{-23}$ \\
+\code{total\_f\_binaire}~: facteurs exactement représentables ($2$~; $1{,}5$~; \ldots) &
+défaut de calcul intercepté & refus, MSEP $= 0$ \\
+\code{col0\_1e13}~: \code{total\_exact}, cumuls de la colonne~0 multipliés par
+$1 \pm 10^{-13}$ & \code{ok = TRUE}, $\sigma_{\mathrm{USP}} = 0{,}0369$ & refus, MSEP
+$1{,}6\cdot 10^{-19}$ \\
+\code{col0\_1e11}~: idem à $1 \pm 10^{-11}$ & $\sigma_{\mathrm{USP}} = 0{,}0369000000$ &
+inchangé, $\sigma$ estimé $4{,}4\cdot 10^{-12}$ \\
+\code{sauf\_une}~: \code{total\_exact} dont les cumuls $C(i,1)$ reprennent ceux du triangle de
+contrôle (colonne~0 seule non dégénérée) & $\sigma_{\mathrm{USP}} = 0{,}0404017443$ & inchangé \\
+\code{total\_arrondi}~: \code{total\_exact} arrondi au centime (écart relatif maximal des
+facteurs de $8{,}4\cdot 10^{-7}$ à $1{,}3\cdot 10^{-5}$ selon la colonne) &
+$\sigma_{\mathrm{USP}} = 0{,}0369031172$ & inchangé, $\sigma$ estimé $5{,}3\cdot 10^{-6}$,
+sans avertissement de colonne \\
+\end{tabular}
+\end{center}
+
+\noindent
+$(1-c)\,\sigma_{(\text{res},s)} = 0{,}41 \times 0{,}09 = 0{,}0369$. Les trois triangles refusés
+sortaient donc sous deux régimes différents selon l'arrondi des cumuls~; ils sortent désormais
+sous le même. Le refus ne prive l'entreprise d'aucun droit~: comme pour une réserve négative
+(§\ref{sec:mw}), l'article~220, paragraphe~1, point~b) laisse ouverte la méthode du risque de
+réserve n\textsuperscript{o}~1.
 
 \medskip
 \begin{encadre}
@@ -10585,7 +10704,8 @@ alors deux lois simulées différentes.
 
 Parce que la variance ainsi annulée n'est, en général, pas nulle en réalité,
 \code{mw\_valider\_ajustement()} émet un \emph{avertissement} --- et non un
-refus, le cas étant licite au regard du texte --- nommant la ou les colonnes
+refus, le cas étant licite au regard du texte~; seul le triangle totalement dégénéré est
+refusé, sans cet avertissement (issue~\#192, point~(iv) ci-dessous) --- nommant la ou les colonnes
 dégénérées, le nombre de facteurs individuels concernés, leur valeur commune,
 l'écart relatif maximal mesuré, les trois arguments du minimum et la valeur
 retenue. Que des facteurs individuels n'aient pas de résidu de Mack
@@ -10682,8 +10802,9 @@ prédiction à un an de l'engagement réévalué, dont $\hat R$ est l'espérance
 conditionnelle estimée. \textbf{Le paragraphe ne le nomme pas ainsi}~: c'est une
 caractérisation de la grandeur, pas une citation du texte.
 
-Le moteur refuse le calcul lorsque $\hat R \le 0$, et lorsque la MSEP n'est pas
-finie ou est négative~; il retourne alors \code{ok = FALSE} et le champ
+Le moteur refuse le calcul lorsque $\hat R \le 0$, lorsque la MSEP n'est pas
+finie ou est négative, et, depuis l'issue~\#192, lorsque le triangle est totalement dégénéré
+(point~(iv) ci-dessous)~; il retourne alors \code{ok = FALSE} et le champ
 \code{validation} (\code{mw\_valider\_ajustement()},
 section~\ref{sec:controles}). \textbf{Ces refus n'ont pas tous le même statut},
 et le document les distingue.
@@ -10746,6 +10867,15 @@ est inatteignable depuis \code{run\_engine()}. Le contrôle est une garde
 défensive, qui préserve le domaine de $\sqrt{\mathrm{MSEP}}$ si
 \code{mw\_valider\_ajustement()} est appelée hors de la chaîne. Ce n'est pas une
 lecture du texte.
+
+\emph{(iv) Triangle totalement dégénéré~: décision de l'outil fondée sur une exigence de
+données.} Quand les facteurs individuels de chaque colonne $j = 0, \ldots, J-2$ sont identiques,
+la MSEP est nulle en arithmétique exacte et D(4) donne
+$\sigma_{(\text{res},s,\mathrm{USP})} = (1-c)\,\sigma_{(\text{res},s)}$~: l'expression est définie,
+mais elle ne tire aucune information des données. Le refus ne procède ni de l'arithmétique ni du
+$0/0$ du quotient de D(5)(d)(ii), sans effet sur le minimum (ci-dessus), mais des exigences de
+données de D(2)(h) et D(2)(a), que ces données ne permettent pas d'établir (prédicat, motif,
+lectures du texte et frontière~: section~\ref{sec:controles}).
 
 Le refus porte sur le \textbf{total} $\hat R$, et sur lui seul. \textbf{Le texte
 ne se prononce ni sur l'un ni sur l'autre}~: aucun paragraphe de la section~D ne
@@ -11884,7 +12014,8 @@ référence, de sorte qu'aucun seuil ne pourrait fonder un verdict. Les cas
 dégénérés $\hat\sigma^2_{J-3} = 0$ et $\hat\sigma^2_{J-2} = 0$ ne modifient pas
 ce statut~: ils sont portés par l'avertissement unique de
 \code{mw\_valider\_ajustement()} (section~\ref{sec:controles}), non par un
-verdict, et le calcul n'est jamais refusé. Sur un tel triangle, et si le
+verdict, et le calcul n'est refusé que si le triangle est totalement dégénéré (issue~\#192,
+section~\ref{sec:controles}). Sur un tel triangle, et si le
 développement n'est pas achevé, la MSEP ne porte aucune variance sur la dernière
 année de développement et $\sigma_{(\text{res},s,\mathrm{USP})}$ est sous-estimé,
 que la colonne dégénérée soit $J-3$, $J-2$ ou les deux (§\ref{sec:mw}).
@@ -12344,8 +12475,10 @@ Erreur à un an $<$ erreur ultime & 1\,778\,968 $<$ 2\,447\,095 &
 conforme à la théorie \\
 Homogénéité~: $\lambda\!\cdot\!C \Rightarrow$ CV invariant & vérifié à
 $10^{-10}$ & \\
-Triangle déterministe $\Rightarrow \mathrm{MSEP} = 0$ &
-$2{,}7\times10^{-18}$ & \\
+Triangle déterministe $\Rightarrow \mathrm{MSEP} = 0$ (\code{mw\_msep()} appelée
+directement~; \code{run\_engine()} refuse ce triangle, totalement dégénéré, depuis
+l'issue~\#192) &
+$|\mathrm{MSEP}| < 10^{-10}$ exigé, $0$ mesuré & \\
 Moments de $Z$ (test calendaire) par énumération exhaustive & $n = 2,\dots,12$ &
 exacts \\
 Identité $\sum_i r(i,j)^2 = n_j - 1$ sur les résidus de Mack, colonne par
