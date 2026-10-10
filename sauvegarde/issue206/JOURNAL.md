@@ -58,3 +58,6 @@ sm-0251-0500.txt	--sous-mesure-N --b 251:500
 - Sortie tranche-E-0126-0250.txt : md5 8310f4656346c72c485364249224d01f, terminee, INTEGRITE OK, synchronisee 2026-10-10T19:51:52Z
 - Sortie tranche-N-0126-0250.txt : md5 81b06f446989f8b941e7663377db644a, terminee, INTEGRITE OK, synchronisee 2026-10-10T19:51:52Z
 - Sortie tranche-N-0251-0375.txt : md5 265986ad710c25e1b0e1536c4c8f7c14, terminee, INTEGRITE OK, synchronisee 2026-10-10T21:12:17Z
+- Sortie tranche-E-0251-0375.txt : md5 a104b899ea3083a9d9f61a3cf1f5f929, terminee, INTEGRITE OK, synchronisee 2026-10-10T21:22:20Z
+- Sortie tranche-E-0376-0500.txt : md5 8d8f0a62e98cd70f8af1cb153eb2d7be, terminee, INTEGRITE OK, synchronisee 2026-10-10T21:22:20Z
+- Sortie tranche-N-0376-0500.txt : md5 0eb0f8de32377ac75a02a8585698c053, terminee, INTEGRITE OK, synchronisee 2026-10-10T21:22:20Z
