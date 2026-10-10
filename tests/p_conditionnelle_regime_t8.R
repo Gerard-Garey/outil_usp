@@ -817,7 +817,10 @@ lignes_pop <- function(j, MX, quoi = "critere") {
   if (quoi == "critere") { if (j == "J1") tr & MX$regime != "interieur" else tr }
   else if (quoi == "toutes") tr else tr & MX$regime == quoi
 }
-lib_pop <- function(j) if (j == "J1") "J1 (bords)" else if (j %in% names(LIB_SCEN)) sprintf("%s (%s)", j, LIB_SCEN[[j]]) else j
+# Vectorisee : appelee sur une colonne (McNemar significatifs, C5) comme sur
+# un jeu seul.
+lib_pop <- function(j) vapply(j, function(x) if (x == "J1") "J1 (bords)" else
+  if (x %in% names(LIB_SCEN)) sprintf("%s (%s)", x, LIB_SCEN[[x]]) else x, "", USE.NAMES = FALSE)
 lib_ia <- function(ia) c(a10 = "0,10", a05 = "0,05")[[ia]]
 # p-value (McNemar apres Holm) a trois chiffres significatifs, sans remplissage.
 fmt_p <- function(p) sub(".", ",", sprintf("%.3g", p), fixed = TRUE)
