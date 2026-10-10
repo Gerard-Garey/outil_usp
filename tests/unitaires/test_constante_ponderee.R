@@ -225,17 +225,27 @@ verifier("Renvoi, t de la constante non fini (poids invalides : pi injecte non f
            tt <- usp_tests(f, boot_fictif(f1), methode = "premium")
            identical(ligne(tt, NOM_CST)$type, "non applicable") && isTRUE(coherence(tt, FALSE))
          })
-verifier("Renvoi, x ecarte par lm() (R12, injection de summary() sans la ligne x) : ni repere ni detail",
+# Depuis #237, la constante et le TOST lisent .usp_lm_pondere() (QR) et
+# test_lm_complet() summary() : la ligne x est retiree des deux.
+verifier("Renvoi, x ecarte par lm() (R12, injection de summary() et de .usp_lm_pondere() sans la ligne x) : ni repere ni detail",
          {
            e <- environment(run_engine)
+           sans_x <- function(cf) cf[rownames(cf) != "x", , drop = FALSE]
+           pond_orig <- get(".usp_lm_pondere", envir = e, inherits = FALSE)
            assign("summary", function(object, ...) {
              s <- base::summary(object, ...)
-             if (inherits(object, "lm"))
-               s$coefficients <- s$coefficients[rownames(s$coefficients) != "x", , drop = FALSE]
+             if (inherits(object, "lm")) s$coefficients <- sans_x(s$coefficients)
              s
            }, envir = e)
-           tt <- tryCatch(usp_tests(f1, boot_fictif(f1), methode = "premium"), error = function(e) e)
-           rm("summary", envir = e)
+           assign(".usp_lm_pondere", function(...) {
+             m <- pond_orig(...); if (!is.null(m)) m$coefficients <- sans_x(m$coefficients); m
+           }, envir = e)
+           tt <- tryCatch(usp_tests(f1, boot_fictif(f1), methode = "premium"),
+                          error = function(e) e,
+                          finally = {
+                            rm("summary", envir = e)
+                            assign(".usp_lm_pondere", pond_orig, envir = e)
+                          })
            !inherits(tt, "error") && identical(ligne(tt, NOM_CST)$type, "non applicable") &&
              isTRUE(coherence(tt, FALSE))
          })

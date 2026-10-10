@@ -5,14 +5,23 @@
 #  la maniere d'executer le moteur pour chacun, et le comparateur unique de
 #  non-regression (comparer_objets). Source par test_reproductibilite.R,
 #  generer_references.R, comparer_references.R, patcher_reference.R et
-#  regenerer_et_rendre_compte.R ; source aussi par les cinq scripts de
+#  regenerer_et_rendre_compte.R ; source aussi par les sept scripts de
 #  mesure hors CI qui ont --ecrire (puissance_t8.R, constats_puissance_t8.R,
 #  calibration_mc_t8.R, taux_franchissement_reperes.R,
-#  conservatisme_interieur_t8.R), qui y trouvent la
+#  conservatisme_interieur_t8.R, grille_regime_t8.R,
+#  p_conditionnelle_regime_t8.R), qui y trouvent la
 #  garde d'ecrasement des tableaux versionnes (garde_ecrasement(), #173),
 #  le commit du depot et les motifs de non-versionnement (commit_depot(),
 #  motifs_non_versionnable(), #205 ; commit_depot() sert aussi a
-#  balayage_echelles.R) ; R base uniquement (tools::md5sum() pour la garde).
+#  balayage_echelles.R) et l'empreinte de R/engine.R sans commentaires
+#  (empreinte_sans_commentaires(), #231, controle (i3) de
+#  conservatisme_interieur_t8.R, controle (g5) de grille_regime_t8.R,
+#  controle (i3) de p_conditionnelle_regime_t8.R) ; R base uniquement
+#  (tools::md5sum() pour la garde et l'empreinte).
+#  Porte aussi la contre-implementation par lm() / anova() des six
+#  regressions auxiliaires calculees par QR depuis #237 (contre_*(), en fin
+#  de fichier), lue par tests/unitaires/test_regressions_qr.R et par les
+#  controles (h1), (i1) et (v3a) de p_conditionnelle_regime_t8.R.
 ###############################################################################
 
 # Repertoire racine du depot : les scripts peuvent etre lances depuis la
@@ -456,10 +465,11 @@ resumer_comparaison <- function(r, n_max = 10L) {
 #  tests/balayage_echelles.R. Les scripts dont --ecrire refuse un commit non
 #  propre (tests/puissance_t8.R, tests/constats_puissance_t8.R,
 #  tests/calibration_mc_t8.R, tests/taux_franchissement_reperes.R,
-#  tests/conservatisme_interieur_t8.R) evaluent motifs_non_versionnable()
-#  des l'analyse des options, avant tout calcul (commit et empreintes
-#  courants), puis de nouveau avant d'ecrire (l'etat du depot peut changer
-#  pendant le calcul).
+#  tests/conservatisme_interieur_t8.R, tests/grille_regime_t8.R,
+#  tests/p_conditionnelle_regime_t8.R) evaluent
+#  motifs_non_versionnable() des l'analyse des options, avant tout calcul
+#  (commit et empreintes courants), puis de nouveau avant d'ecrire (l'etat
+#  du depot peut changer pendant le calcul).
 # ---------------------------------------------------------------------------
 
 # Commit du depot : SHA de HEAD, complete de "(arbre de travail modifie)" si
@@ -505,11 +515,97 @@ motifs_non_versionnable <- function(commit, empreintes, quoi = "des tranches") {
 }
 
 # ---------------------------------------------------------------------------
+#  Empreinte de R/engine.R sans commentaires (issue #231). Complement du md5
+#  du fichier entier des empreintes_code() des scripts de mesure (copies
+#  declarees dans ces scripts), qui reste cite en T0 pour la tracabilite au
+#  commit : un commentaire ou une ligne vide modifies changent ce md5 sans
+#  changer aucun calcul. Lue par le controle (i3) de
+#  tests/conservatisme_interieur_t8.R ; testee par
+#  tests/unitaires/test_empreinte_moteur.R.
+#
+#  Methode : md5 d'un codage canonique de l'arbre syntaxique rendu par
+#  parse(fichier, keep.source = FALSE, encoding = "UTF-8"), expression de
+#  premier niveau par expression de premier niveau. L'analyseur de R ecarte
+#  lui-meme les commentaires, les lignes vides, l'indentation et les fins de
+#  ligne (LF ou CRLF) ; l'arbre garde tout ce qui s'execute : noms (symboles),
+#  appels et noms de leurs arguments, listes d'arguments formels et valeurs
+#  par defaut, corps des fonctions, constantes. Le codage est ecrit ici, sans
+#  deparse(), dont le texte depend de la locale (chaine "\u00e9" rendue
+#  "<U+00E9>" sous LC_ALL=C, le caractere lui-meme sous C.UTF-8), ni
+#  getParseData(), dont le texte remplace une chaine longue par
+#  "[2000 chars quoted with ...]" (mesure sous R 4.3.3) :
+#    - symbole : "s" et octets UTF-8 en hexadecimal (enc2utf8()) ;
+#    - appel ("c") ou liste d'arguments formels ("p") : longueur, puis chaque
+#      element sous la forme nom=code, nom en hexadecimal UTF-8, argument
+#      vide (argument formel sans defaut, x[, 1]) code "m" ;
+#    - constante : type, longueur, puis chaque valeur : double par ses huit
+#      octets IEEE 754 (writeBin(), petit-boutiste impose, sans format
+#      decimal), entier en
+#      decimal, logique T/F, chaine par ses octets UTF-8 en hexadecimal
+#      precedes de "x", NA code "NA" ; complexe : deux doubles ;
+#    - NULL : "N".
+#  Le codage n'emploie que des caracteres ASCII ; le md5 est celui de ses
+#  octets (fichier temporaire ecrit par writeBin(), tools::md5sum()).
+#  Consequences : une modification du code (constante, corps, nom, argument
+#  par defaut, ordre des expressions) change l'empreinte ; deux ecritures
+#  que l'analyseur rend identiques la laissent inchangee (1e-6 et 0.000001,
+#  "\u00e9" et le caractere lui-meme dans une chaine) : c'est le code
+#  analyse qui est compare, non son texte. Une constante de type inattendu
+#  ou portant des attributs leve une erreur (codage incomplet refuse).
+#  Locale : les chaines analysees avec encoding = "UTF-8" sont marquees
+#  UTF-8 sous LC_ALL=C comme sous C.UTF-8 (meme empreinte de R/engine.R et
+#  des chaines non ASCII sous les deux, mesure sous R 4.3.3) ; un nom
+#  (symbole) non ASCII ne s'analyse pas sous LC_ALL=C (erreur de parse()) :
+#  R/engine.R n'en a pas, ses caracteres non ASCII sont tous en commentaire.
+#  Version de R : le codage ne lit que l'arbre de parse() ; mesure sous
+#  R 4.3.3 seulement.
+# ---------------------------------------------------------------------------
+
+# fichier : chemin du source R (par defaut R/engine.R du depot). Renvoie le
+# md5 (32 caracteres hexadecimaux) ; erreur si le fichier ne s'analyse pas.
+empreinte_sans_commentaires <- function(fichier = file.path(RACINE, "R", "engine.R")) {
+  hex <- function(s) paste(as.character(charToRaw(enc2utf8(s))), collapse = "")
+  dbl <- function(x) vapply(x, function(v) paste(as.character(writeBin(v, raw(), size = 8L, endian = "little")),
+                                                 collapse = ""), "")
+  coder <- function(e) {
+    if (is.null(e)) return("N")
+    if (is.symbol(e)) return(paste0("s", hex(as.character(e))))
+    if (is.call(e) || is.pairlist(e)) {
+      l <- as.list(e)
+      nm <- names(l)
+      if (is.null(nm)) nm <- rep("", length(l))
+      el <- vapply(seq_along(l), function(i)
+        if (identical(l[[i]], quote(expr = ))) "m" else coder(l[[i]]), "")
+      return(paste0(if (is.call(e)) "c" else "p", length(l), "(",
+                    paste0(vapply(nm, hex, ""), "=", el, collapse = ","), ")"))
+    }
+    if (is.atomic(e) && is.null(attributes(e))) {
+      v <- switch(typeof(e),
+                  double = dbl(e),
+                  integer = ifelse(is.na(e), "NA", as.character(e)),
+                  logical = ifelse(is.na(e), "NA", ifelse(e, "T", "F")),
+                  character = ifelse(is.na(e), "NA", paste0("x", vapply(e, hex, ""))),
+                  complex = paste0(dbl(Re(e)), "i", dbl(Im(e))),
+                  stop("empreinte_sans_commentaires : constante de type ", typeof(e), " non codee"))
+      return(paste0(typeof(e), length(e), "(", paste(v, collapse = ","), ")"))
+    }
+    stop("empreinte_sans_commentaires : objet de type ", typeof(e), " non code")
+  }
+  ex <- parse(fichier, keep.source = FALSE, encoding = "UTF-8")
+  code <- paste(vapply(ex, coder, ""), collapse = ";")
+  f <- tempfile("empreinte_")
+  on.exit(unlink(f), add = TRUE)
+  writeBin(charToRaw(code), f)
+  unname(tools::md5sum(f))
+}
+
+# ---------------------------------------------------------------------------
 #  Garde d'ecrasement des tableaux versionnes (issue #173). Seul lieu de la
-#  regle, appelee par les cinq scripts de mesure hors CI qui ont --ecrire
+#  regle, appelee par les sept scripts de mesure hors CI qui ont --ecrire
 #  (tests/puissance_t8.R, tests/constats_puissance_t8.R,
 #  tests/calibration_mc_t8.R, tests/taux_franchissement_reperes.R,
-#  tests/conservatisme_interieur_t8.R), APRES
+#  tests/conservatisme_interieur_t8.R, tests/grille_regime_t8.R,
+#  tests/p_conditionnelle_regime_t8.R), APRES
 #  leurs gardes propres (arbre propre, motifs_non_versionnable()) et AVANT
 #  toute ecriture : tous les chemins cibles d'une execution sont controles
 #  d'abord, puis seulement ecrits. tests/puissance_t8.R (constat m2 d'audit
@@ -518,7 +614,11 @@ motifs_non_versionnable <- function(commit, empreintes, quoi = "des tranches") {
 #  des options, avant tout calcul (hors --combiner : les chemins cibles y
 #  sont connus), puis de nouveau avant d'ecrire ;
 #  tests/conservatisme_interieur_t8.R aussi, --combiner compris (#175 : un
-#  seul tableau, de nom fixe par la date du jour).
+#  seul tableau, de nom fixe par la date du jour), et
+#  tests/grille_regime_t8.R (#229 : un seul tableau, de nom fixe par la date
+#  du jour), et tests/p_conditionnelle_regime_t8.R (#229 : --combiner
+#  --partie regime|puissance, tableau et valeurs brutes de noms fixes par la
+#  partie et la date du jour).
 # ---------------------------------------------------------------------------
 
 # Controle les chemins cibles de --ecrire. Statut de chaque chemin, lu par
@@ -612,4 +712,97 @@ inserer_t0 <- function(lignes, ajout) {
   fin <- t[1]
   while (fin < length(lignes) && startsWith(lignes[fin + 1L], "|")) fin <- fin + 1L
   append(lignes, ajout, after = fin)
+}
+
+# --- Contre-implementation par lm() / anova() des six regressions de #237 ----
+# Corps des six fonctions du moteur avant #237 (commit 1c244f7), gardes et
+# motifs compris, recopies a l'identique sous un nom propre : le moteur les
+# calcule depuis #237 par QR et formes fermees (.usp_mco_qr()). Servent de
+# reference independante a tests/unitaires/test_regressions_qr.R et aux
+# controles du script de mesure de #229 (recommandation d'actuary Q-A1-8) ;
+# a evaluer dans un environnement ou le moteur est charge (usp_volumes_constants(),
+# .usp_nb_volumes_distincts(), .usp_normaliser_echelle(), usp_poids_gls(),
+# .p_borne()), ce que fait ce fichier. Les avertissements de summary.lm() et
+# anova.lm() (ajustement quasi parfait) y sont emis comme avant #237.
+#   contre_bp79()  : test_breusch_pagan_original()
+#   contre_bp()    : test_breusch_pagan()
+#   contre_white() : test_white()
+#   contre_bf()    : test_brown_forsythe()
+#   contre_reset() : test_reset()
+#   contre_lm_pondere() : .usp_lm_pondere() (summary() de lm(y ~ x, weights = w))
+contre_bp79 <- function(u2, reg) {
+  n <- length(u2)
+  if (usp_volumes_constants(reg) || mean(u2) <= 0)
+    return(list(stat = NA_real_, p = NA_real_, ddl = NA_integer_))
+  g <- u2 / mean(u2)
+  aux <- stats::lm(g ~ reg)
+  if (is.na(stats::coef(aux)["reg"]))
+    return(list(stat = NA_real_, p = NA_real_, ddl = NA_integer_))
+  sce <- sum((stats::fitted(aux) - mean(g))^2)
+  LM <- 0.5 * sce
+  q <- 1
+  list(stat = LM, p = .p_borne(1 - stats::pchisq(LM, q)), ddl = q)
+}
+contre_bp <- function(u2, reg) {
+  if (usp_volumes_constants(reg)) return(list(stat = NA_real_, p = NA_real_))
+  d <- data.frame(u2 = u2, reg = reg)
+  m <- stats::lm(u2 ~ reg, data = d)
+  if (is.na(stats::coef(m)["reg"])) return(list(stat = NA_real_, p = NA_real_))
+  R2 <- summary(m)$r.squared
+  LM <- length(u2) * R2
+  list(stat = LM, p = .p_borne(1 - stats::pchisq(LM, 1)))
+}
+contre_white <- function(u2, reg) {
+  na <- function(motif) list(stat = NA_real_, p = NA_real_, non_applicable = motif)
+  if (usp_volumes_constants(reg)) return(na("volumes constants"))
+  k <- .usp_nb_volumes_distincts(reg)
+  if (k < 3)
+    return(na(sprintf(paste("moins de trois volumes distincts (k = %d) : regression",
+                            "auxiliaire de White {1, x, x^2} de rang %d, test non",
+                            "applicable"), k, k)))
+  s <- (reg - mean(reg)) / diff(range(reg))
+  u2 <- .usp_normaliser_echelle(u2)
+  m <- stats::lm(u2 ~ s + I(s^2))
+  if (anyNA(stats::coef(m)))
+    return(na(paste("regression auxiliaire de White de rang deficient : terme ecarte",
+                    "par lm() pour colinearite, test non applicable")))
+  LM <- length(u2) * summary(m)$r.squared
+  if (!is.finite(LM)) return(na("statistique LM non finie : test non applicable"))
+  list(stat = LM, p = .p_borne(1 - stats::pchisq(LM, 2)), non_applicable = NA_character_)
+}
+contre_bf <- function(u, reg) {
+  if (usp_volumes_constants(reg)) return(list(stat = NA_real_, p = NA_real_))
+  g <- factor(reg > stats::median(reg))
+  if (nlevels(g) < 2) return(list(stat = NA_real_, p = NA_real_))
+  dev <- unlist(tapply(u, g, function(v) abs(v - stats::median(v))))
+  gg <- rep(levels(g), tapply(u, g, length))
+  a <- stats::anova(stats::lm(dev ~ gg))
+  list(stat = a[["F value"]][1], p = .p_borne(a[["Pr(>F)"]][1]))
+}
+contre_reset <- function(x, y) {
+  na <- function(motif) list(stat = NA_real_, p = NA_real_, non_applicable = motif)
+  if (usp_volumes_constants(x)) return(na("volumes constants"))
+  k <- .usp_nb_volumes_distincts(x)
+  if (k < 3)
+    return(na(sprintf(paste("moins de trois volumes distincts (k = %d) : regression",
+                            "auxiliaire RESET {x, x^2, x^3} de rang %d, test non",
+                            "applicable"), k, k)))
+  s <- (x - mean(x)) / diff(range(x))
+  x <- .usp_normaliser_echelle(x)
+  y <- .usp_normaliser_echelle(y)
+  m0 <- stats::lm(y ~ x - 1)
+  m1 <- stats::lm(y ~ x + I(x * s) + I(x * s^2) - 1)
+  if (is.na(stats::coef(m0)["x"]) || anyNA(stats::coef(m1)))
+    return(na(paste("regression auxiliaire RESET de rang deficient : terme ecarte",
+                    "par lm() pour colinearite, test non applicable")))
+  a <- stats::anova(m0, m1)
+  stat <- a[["F"]][2]
+  if (!is.finite(stat))
+    return(na("statistique F non finie : test non applicable"))
+  list(stat = stat, p = .p_borne(a[["Pr(>F)"]][2]), non_applicable = NA_character_)
+}
+contre_lm_pondere <- function(x, y, pi) {
+  w <- usp_poids_gls(x, pi)
+  if (is.null(w)) return(NULL)
+  summary(stats::lm(y ~ x, weights = w))
 }

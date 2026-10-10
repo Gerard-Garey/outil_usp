@@ -113,3 +113,22 @@ Ce que l'annotation ne change pas : le point 3 (correctif rapide depuis `main`) 
 - **C10 — Fin de l'exception.** À la fusion d'E2 réduite, ou **immédiatement** si C3 ou C4 est violée (la branche s'arrête et le mainteneur décide de sa suite). Le bilan de l'exception va au § 6 de la feuille de route, au point d'étape qui suit la fusion.
 
 **Ce que l'annotation ne change pas.** Les points 2 à 6 ; la définition du correctif rapide (point 3), la branche éphémère (M30) et les branches de la période GPT ; la règle « un `Closes #N` par ligne » et la vérification à cinq minutes (annotation du 30/09). Le motif de l'ADR — éviter piles de PR, conflits de PDF et décisions citées avant d'exister — reste entier : la branche parallèle n'est **jamais empilée** (elle part de `main` et y retourne), ses fichiers sont fermés (C3), et le conflit de PDF, attendu à chaque intégration, est **accepté et borné** par C5 et C6.
+
+---
+
+## Annotation du 9 octobre 2026 — la branche de sauvegarde d'une mesure longue n'est pas une branche de travail (#229)
+
+**Fait.** La mesure de #229 (p-value Monte-Carlo conditionnelle au régime de δ̂, hors CI) dure plusieurs heures d'horloge dans le conteneur d'une session cloud, qui peut être perdu en cours d'exécution. Le mainteneur a demandé que les résultats bruts soient versionnés au fil de l'eau, mais **pas sur une seconde branche de travail** : décision expresse du 09/10/2026, **branche de sauvegarde** (feuille de route, § 4, ligne E-09/10 ; fiche « Branche #229 » du § 3).
+
+**Décision.** Sur le modèle de la branche éphémère de régénération (annotation du 24/09, M30), une **branche de sauvegarde** `claude/sauvegarde-<issue>` est une **exception au point 1**, bornée par six traits :
+
+1. **Base.** Créée par la session principale au lancement d'une exécution longue hors CI, depuis le **commit mesuré**, qui est sur la branche de travail et déjà poussé.
+2. **Contenu fermé.** Sorties brutes des tranches, journaux d'erreur et journal d'exécution (commandes, horodatages, commit mesuré, empreintes, md5 des fichiers de tranche), sous un dossier dédié ; ni code, ni `docs/tableaux/`, ni `.rds`, ni `.tex`.
+3. **Aucune PR ; jamais fusionnée** ; jamais base d'une autre branche ni branche de session.
+4. **Écriture** par la session principale seule (commit et push à chaque tranche terminée ; aucun agent ni workflow ne commite, ADR 0010).
+5. **Sortie.** Les sorties définitives sont produites une fois, par la combinaison des tranches sauvegardées, au commit mesuré, et versionnées par **un commit unique** sur la branche de travail, qui cite le commit mesuré et la tête de la branche de sauvegarde. Les tableaux versionnés ne sont jamais patchés ; la garde d'écrasement (#173) s'applique à ce seul commit.
+6. **Suppression** dès ce commit poussé et la CI verte ; la suppression est notée dans la PR de la branche de travail.
+
+**Portée.** Première application : #229. Toute autre mesure longue l'emploie **sur décision du mainteneur**, consignée dans la fiche de sa branche ; une généralisation sans décision au cas par cas demanderait une nouvelle annotation. `CLAUDE.md`, § « Git et GitHub », puce « Une seule branche de travail à la fois », liste les branches de Claude hors de la branche de travail : la branche de sauvegarde y est à ajouter par un commit `claude:`, sur instruction du mainteneur.
+
+**Ce que l'annotation ne change pas.** Les points 2 à 6, la branche éphémère de régénération (M30), les branches de la période GPT et la règle (b) de l'annotation du 05/10 : aucune session, aucun agent ni aucun workflow ne crée de sa propre initiative une branche de sauvegarde hors d'une décision du mainteneur.
