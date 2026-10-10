@@ -2415,9 +2415,12 @@ test_mann_kendall <- function(v, plancher = 1) {
 # en cause est .usp_mco_qr() et non lm.fit().
 # Valeurs manquantes : lm() ecarte les lignes ou la reponse est NA (na.omit) ;
 # BP, White et RESET reproduisent cette exclusion avant .usp_mco_qr(). BP79
-# et .usp_lm_pondere() ne la reproduisent pas : une reponse NA ou non finie y
-# leve l'erreur de .usp_mco_qr(), la ou lm() rendait un ajustement sur les
-# lignes restantes (.usp_lm_pondere()) ou une statistique NaN (BP79, u2 = Inf).
+# et .usp_lm_pondere() ne la reproduisent pas. Dans .usp_lm_pondere(), une
+# reponse NA ou non finie leve l'erreur de .usp_mco_qr(), la ou lm() rendait
+# un ajustement sur les lignes restantes. Dans BP79, une reponse NA leve,
+# comme avant #237, l'erreur du controle mean(u2) <= 0 ; seule une reponse
+# non finie (u2 = Inf) leve celle de .usp_mco_qr(), la ou lm() rendait une
+# statistique NaN.
 # Ces entrees sont hors d'atteinte de run_engine() : z est fini, et les
 # appelants d'.usp_lm_pondere() passent d'abord par usp_pertes_constantes().
 #
