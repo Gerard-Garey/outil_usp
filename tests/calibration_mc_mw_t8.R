@@ -82,10 +82,13 @@
 #  loi, b) et de ses graines (L-229-4).
 #  --reprendre PARTIELLE (avec --sortie-tranche NOUVEAU) : relit une sortie
 #  sans FIN (jamais modifiee), exige un en-tete identique, reprend ses
-#  lignes de donnees completes et ne calcule que les manquantes ; le premier
-#  triangle admis (echantillon des controles (i1), (i2), (s)) est toujours
-#  recalcule et doit redonner la ligne reprise hors durees (controle
-#  (reprise)).
+#  lignes de donnees completes et ne calcule que les manquantes ; une
+#  derniere ligne non terminee par un saut de ligne (ecriture interrompue)
+#  est ecartee et recalculee ; sont toujours recalcules, et doivent redonner
+#  la ligne reprise hors durees (controle (reprise), INTEGRITE ECHEC sinon) :
+#  le premier triangle admis (echantillon des controles (i1), (i2), (s)), la
+#  derniere ligne reprise et, en mode oracle (aucun controle par triangle),
+#  un echantillon regulier de N_ECH_REPRISE_ORACLE lignes reprises.
 #  --prevol (par. 8) : sans rien ecrire, mesure c_b (mw_bootstrap() a
 #  B = 999 et mw_tests(), cache de la loi nulle de Shapiro-Wilk chaud), le
 #  debit agrege a 1, 2, 3 et 4 processus concurrents (sous-processus
@@ -606,7 +609,7 @@ COLS_TRANCHE <- c("b", "statut", "motif", "jd", "brut", "dur_R", "dur_B", "duree
                   as.vector(t(outer(CLES, c("pR", "eR", "BR", "mR", "pB", "eB", "BB", "mB"), function(s, c) paste0(c, ":", s)))),
                   paste0("pas:", sprintf("%02d", seq_len(NL_MAX))), paste0("pex:", sprintf("%02d", seq_len(NL_MAX))))
 COLS_ORACLE <- c("k", "statut", "motif", "jd", paste0("obs:", CLES))
-COLS_SM <- c("b", "statut", "motif", "jd", "nW", "nD", "W_obs", "D_obs", "pW_bas", "pW_haut", "pD_bas", "pD_haut", "duree")
+COLS_SM <- c("b", "statut", "motif", "jd", "nW", "nD", "n_jd_diff", "W_obs", "D_obs", "pW_bas", "pW_haut", "pD_bas", "pD_haut", "duree")
 COLS <- list(tranche = COLS_TRANCHE, oracle = COLS_ORACLE, sm = COLS_SM)
 ETQ <- c(tranche = "REP", oracle = "ORA", sm = "SM")
 CARACTERE <- c("statut", "motif", "jd", "brut", "verd_R", "verd_B", "nat_R", "nat_B", paste0(c("mR:", "mB:"), rep(CLES, each = 2)))
@@ -715,12 +718,23 @@ resume_oracle <- function(O) {
     list(n_adm = n_adm, n_fin = length(S), n_nonfini = n_adm - length(S), distinctes = length(tab),
          atome = if (length(S)) max(tab) / length(S) else NA_real_,
          rho = vapply(SEUILS, function(a) taille_lissee(S, QUEUE[[s]], B_BOOT, a, n_adm), 1),
-         taille_or = vapply(SEUILS, function(a) taille_lissee(S, QUEUE[[s]], length(S), a, length(S)), 1),
+         # Taille du temoin (K3, annotation 2 (b)) : meme regle qu'a rho, a
+         # B = nombre de statistiques finies ; meme denominateur n_adm
+         # (statistique non finie comptee comme non-rejet, comme pour rho).
+         taille_or = vapply(SEUILS, function(a) taille_lissee(S, QUEUE[[s]], length(S), a, n_adm), 1),
          nominal_or = vapply(SEUILS, function(a) if (QUEUE[[s]] == "deux") 2 * (ceiling(round(a * (length(S) + 1) / 2, 9)) - 1) / (length(S) + 1) else
            (ceiling(round(a * (length(S) + 1), 9)) - 1) / (length(S) + 1), 1),
          S0 = adm[[paste0("obs:", s)]])
   })
 }
+# rho approche (annotation 2 (a)) : au-dela de 1 % de statistiques oracle
+# non finies pour une cle, rho suppose B = 999 repliques finies et n'est
+# qu'approche (le B effectif d'engine_p_mc() serait plus petit).
+SEUIL_RHO_APPROCHE <- 0.01
+rho_approche <- function(o) o$n_adm > 0 && o$n_nonfini / o$n_adm > SEUIL_RHO_APPROCHE
+cles_rho_approche <- function(OR) unlist(lapply(intersect(LOIS, names(OR)), function(loi)
+  vapply(Filter(function(s) rho_approche(OR[[loi]][[s]]), CLES), function(s)
+    sprintf("%s %s (%d / %d non finies)", loi, s, OR[[loi]][[s]]$n_nonfini, OR[[loi]][[s]]$n_adm), "")))
 REF_RHO <- function(OR, loi) {
   M <- matrix(NA_real_, NS, 2, dimnames = list(CLES, IA))
   if (!is.null(OR[[loi]])) for (s in CLES) M[s, ] <- OR[[loi]][[s]]$rho
@@ -742,13 +756,16 @@ tableau_rho <- function(OR, DS) {
          paste("\u03c1 : taille liss\u00e9e \u00e0 B = 999 du test de Monte-Carlo id\u00e9al tirant ses r\u00e9pliques dans F0 (r\u00e8gle \u00ab \u2265 \u00bb",
                "d'engine_p_mc(), une r\u00e8gle unique pour toutes les statistiques, aucune classification a priori) ; statistique",
                "oracle non finie compt\u00e9e comme non-rejet. Erreur de \u03c1 due \u00e0 N0 : de l'ordre de 0,002 \u00e0 \u03b1 = 0,10 [H], distincte",
-               "de l'IC sur \u03c4 (fonction de R) et de err_mc (fonction de B). Taille du t\u00e9moin : m\u00eame r\u00e8gle \u00e0 B = N0 fini",
-               "(nominale continue entre parenth\u00e8ses)."), "",
+               "de l'IC sur \u03c4 (fonction de R) et de err_mc (fonction de B). Taille du t\u00e9moin : m\u00eame r\u00e8gle \u00e0 B = N0 fini,",
+               "m\u00eame d\u00e9nominateur (oracle admis ; statistique non finie compt\u00e9e comme non-rejet, comme pour \u03c1) ; nominale continue",
+               "entre parenth\u00e8ses. \u03c1 marqu\u00e9 \u00ab approch\u00e9 \u00bb au-del\u00e0 de 1 % de statistiques oracle non finies pour la cl\u00e9",
+               "(\u03c1 suppose alors B = 999 r\u00e9pliques finies ; annotation du 10/10/2026 de la sp\u00e9cification, point 2 (a))."), "",
          entete_md(c("Loi", "Cl\u00e9 (sens)", "oracle admis", "non finies", "valeurs distinctes", "masse du plus gros atome",
                      "\u03c1 0,10", "\u03c1 0,05", "taille t\u00e9moin 0,10 (nominale)", "taille t\u00e9moin 0,05 (nominale)")))
   for (loi in intersect(LOIS, names(OR))) for (s in CLES) {
     o <- OR[[loi]][[s]]
-    L <- c(L, ligne_md(loi, lib_cle(s), o$n_adm, o$n_nonfini, o$distinctes, num(o$atome, 5), num(o$rho[1], 5), num(o$rho[2], 5),
+    ap <- if (rho_approche(o)) " (**approch\u00e9**)" else ""
+    L <- c(L, ligne_md(loi, lib_cle(s), o$n_adm, o$n_nonfini, o$distinctes, num(o$atome, 5), paste0(num(o$rho[1], 5), ap), paste0(num(o$rho[2], 5), ap),
                        sprintf("%s (%s)", num(o$taille_or[1], 5), num(o$nominal_or[1], 5)),
                        sprintf("%s (%s)", num(o$taille_or[2], 5), num(o$nominal_or[2], 5))))
   }
@@ -841,7 +858,12 @@ tableau_t3 <- function(TM) {
   L <- c("### T3 \u2014 t\u00e9moins oracle (K3)", "",
          paste("p_or = engine_p_mc(S0, s_obs, sens) contre l'\u00e9chantillon oracle de la loi (N0 triangles i.i.d. du m\u00eame DGP) ;",
                "test binomial exact bilat\u00e9ral du taux \u03c4_or contre la taille du t\u00e9moin (tableau de \u03c1), Holm sur les 13 cl\u00e9s par",
-               "(loi, \u03b1). Un t\u00e9moin significatif suspend la lecture jusqu'\u00e0 explication (par. 5)."), "")
+               "(loi, \u03b1). Un t\u00e9moin significatif suspend la lecture jusqu'\u00e0 explication (par. 5).",
+               "Limite d\u00e9clar\u00e9e (annotation du 10/10/2026 de la sp\u00e9cification, point 2) : un seul \u00e9chantillon oracle sert \u00e0 tous",
+               "les triangles mesur\u00e9s ; Var(\u03c4_or) vaut donc environ \u03b1(1 \u2212 \u03b1)(1/n + 1/N0), et non \u03b1(1 \u2212 \u03b1)/n. \u00c0 n = 2 000",
+               "et N0 = 20 000, l'\u00e9cart-type est multipli\u00e9 par environ 1,05 et le binomial nominal \u00e0 5 % rejette environ 6 % du temps",
+               "quand la mesure est correcte [calcul d'ordre de grandeur, non simul\u00e9]. Ce l\u00e9ger exc\u00e8s de signalement n'est pas",
+               "corrig\u00e9 ; il entre dans le jugement \u00ab non expliqu\u00e9 \u00bb de \u03a00."), "")
   if (is.null(TM)) return(c(L, "Oracle absent de cette sortie : t\u00e9moins non calcul\u00e9s.", ""))
   L <- c(L, entete_md(c("Loi", "\u03b1", "Cl\u00e9 (sens)", "n", "p_or absentes", "k", "\u03c4_or [IC]", "taille", "p binomiale", "p Holm", "significatif")))
   for (i in seq_len(nrow(TM))) {
@@ -965,8 +987,14 @@ tableau_t7 <- function(DS) {
   S <- DS$sm
   if (is.null(S) || !nrow(S)) return(c(L, "Sous-mesure N absente de cette sortie.", ""))
   A <- S[S$statut == "admis", , drop = FALSE]
+  # Repliques dont l'ensemble des colonnes degenerees recalcule differe de
+  # l'ensemble fige (annotation 4 de la specification) : attendu 0.
+  nj <- A$n_jd_diff; tj <- sum(nj > 0, na.rm = TRUE)
   L <- c(L, sprintf("Triangles : %d, admis %d, refus\u00e9s %d ; B effectif W : min %.0f, m\u00e9diane %.0f ; D : min %.0f, m\u00e9diane %.0f.",
                     nrow(S), nrow(A), sum(S$statut == "refuse"), min(A$nW), stats::median(A$nW), min(A$nD), stats::median(A$nD)), "",
+         sprintf("R\u00e9pliques dont l'ensemble des colonnes d\u00e9g\u00e9n\u00e9r\u00e9es recalcul\u00e9 diff\u00e8re de l'ensemble fig\u00e9 \u00e0 l'observ\u00e9 (annotation du 10/10/2026 de la sp\u00e9cification, point 4 ; attendu 0) : %s r\u00e9plique(s) sur les %d triangle(s) admis, dont %d triangle(s) \u00e0 compte non nul%s.",
+                 if (anyNA(nj)) "illisible" else sprintf("%.0f", sum(nj)), nrow(A), tj,
+                 if (anyNA(nj) || tj > 0) " \u2014 **compte non nul : point de d\u00e9cision (actuary)**" else ""), "",
          entete_md(c("Statistique", "queue", "n", "p absentes", "taux 0,10 [IC]", "taux 0,05 [IC]")))
   for (x in list(c("W (Shapiro-Wilk)", "bas", "pW_bas"), c("W (Shapiro-Wilk)", "haut", "pW_haut"),
                  c("D (Lilliefors)", "bas", "pD_bas"), c("D (Lilliefors)", "haut", "pD_haut"))) {
@@ -1037,9 +1065,11 @@ evaluation <- function(DS, OR, CEL_R, MC, TM) {
   dist <- classe == CLASSES[4]
   cons <- CEL_R[dist & cote == "conservateur"]; lib <- CEL_R[dist & cote %in% "lib\u00e9ral"]
   # Pi5 : pour une meme cle et un meme seuil, des lois de cotes opposes.
-  # Lecture stricte : distorsions materielles de cotes opposes ; lecture
-  # large (question a actuary) : classes non compatibles dont le taux est de
-  # part et d'autre de rho.
+  # Lecture STRICTE retenue au profil (annotation du 10/10/2026 de la
+  # specification, point 3) : distorsions materielles de cotes opposes
+  # entre deux lois. Lecture large (classes non compatibles dont le taux
+  # est de part et d'autre de rho) : indication descriptive, hors profil,
+  # rapportee sous le tableau des profils.
   sens_cel <- vapply(CEL_R, function(x) if (!x$c$evaluable || x$c$classe == CLASSES[1]) NA_character_ else
     if (x$c$taux > x$ref) "lib\u00e9ral" else "conservateur", "")
   cle_ia <- vapply(CEL_R, function(x) paste(x$s, x$ia), "")
@@ -1062,10 +1092,10 @@ evaluation <- function(DS, OR, CEL_R, MC, TM) {
          ligne_md("\u03a03", "distorsion mat\u00e9rielle conservatrice (IC sous \u03c1/2)", if (length(cons)) "**oui**" else "non",
                   liste_cel(vapply(cons, cel_txt, ""), 30)),
          ligne_md("\u03a04", "distorsion mat\u00e9rielle lib\u00e9rale", if (length(lib)) "**oui**" else "non", liste_cel(vapply(lib, cel_txt, ""), 30)),
-         ligne_md("\u03a05 (lecture stricte)", "m\u00eame cl\u00e9 et m\u00eame seuil : distorsions mat\u00e9rielles de c\u00f4t\u00e9s oppos\u00e9s entre lois",
-                  if (length(p5s)) "**oui**" else "non", liste_cel(fmt_u(p5s), 30)),
-         ligne_md("\u03a05 (lecture large)", "m\u00eame cl\u00e9 et m\u00eame seuil : classes non compatibles de part et d'autre de \u03c1 entre lois",
-                  if (length(p5l)) "**oui**" else "non", liste_cel(fmt_u(p5l), 30)), "")
+         ligne_md("\u03a05", "m\u00eame cl\u00e9 et m\u00eame seuil : distorsions mat\u00e9rielles de c\u00f4t\u00e9s oppos\u00e9s (lib\u00e9ral et conservateur) entre deux lois",
+                  if (length(p5s)) "**oui**" else "non", liste_cel(fmt_u(p5s), 30)), "",
+         sprintf("Indication descriptive, hors profil (lecture large de \u03a05, annotation du 10/10/2026 de la sp\u00e9cification, point 3) : m\u00eame cl\u00e9 et m\u00eame seuil, classes non compatibles de part et d'autre de \u03c1 entre lois : %s.",
+                 if (length(p5l)) liste_cel(fmt_u(p5l), 30) else "aucune"), "")
   # R1 a R3
   L <- c(L, entete_md(c("Effet de #46 (K2)", "Pr\u00e9sent", "Cellules")),
          ligne_md("R1 : aucun McNemar significatif apr\u00e8s Holm", if (is.null(MC)) "non \u00e9valuable" else if (!nrow(sig2)) "**oui**" else "non", "\u2014"),
@@ -1321,6 +1351,8 @@ if (MODE == "combiner") {
                      vapply(names(DS$ora), function(l) { r <- mean(DS$ora[[l]]$statut == "refuse")
                      sprintf("oracle %s %d / %d (%s)%s", l, sum(DS$ora[[l]]$statut == "refuse"), nrow(DS$ora[[l]]), num(r, 5), if (r > SEUIL_REFUS) " **SIGNAL\u00c9**" else "") }, "")),
                          collapse = " ; ")),
+          ligne_md("\u03c1 approch\u00e9 (plus de 1 % de statistiques oracle non finies pour la cl\u00e9 ; annotation du 10/10/2026, point 2 (a))",
+                   if (!length(DS$ora)) "\u2014 (oracle absent)" else liste_cel(cles_rho_approche(OR), 39)),
           ligne_md("Sorties combin\u00e9es (nom, md5, plage, \u00e9chantillon des contr\u00f4les)",
                    paste(vapply(parts, function(p) sprintf("%s %s (%s %s, %d-%d%s%s)", p$nom, p$md5, p$mode, p$loi, p$debut, p$fin,
                                                            if (nzchar(p$echantillon)) sprintf(", \u00e9chantillon %s", p$echantillon) else "",
@@ -1505,7 +1537,10 @@ champs_tranche <- function(b, r) {
 # triangles bootstrap de mw_bootstrap() (seul sample() consomme de l'alea ;
 # les triangles sont tous tires d'abord, sous la graine du bootstrap),
 # reajustement, W et D sur les residus de Mack (colonnes degenerees figees a
-# l'observe). ctl : controle (s).
+# l'observe). n_jd_diff : nombre de repliques reajustees dont l'ensemble des
+# colonnes degenerees recalcule differe de l'ensemble fige (annotation du
+# 10/10/2026 de la specification, point 4 ; attendu 0, un compte non nul
+# est un point de decision). ctl : controle (s).
 traiter_sm <- function(b, ctl = FALSE) {
   t0 <- Sys.time()
   tri <- engine_sous_graine(graine_tri("N", b), gen_triangle_h0(AJ0, tireur("N")))
@@ -1528,8 +1563,9 @@ traiter_sm <- function(b, ctl = FALSE) {
   obs <- wd(aj)
   pw <- c(engine_p_mc(sim[, 1], obs[1], "bas")$p_mc, engine_p_mc(sim[, 1], obs[1], "haut")$p_mc)
   pd <- c(engine_p_mc(sim[, 2], obs[2], "bas")$p_mc, engine_p_mc(sim[, 2], obs[2], "haut")$p_mc)
+  n_jd_diff <- sum(vapply(ajs, function(a) !is.null(a) && !identical(.mw_colonnes_degenerees(a), jd), logical(1)))
   out <- list(statut = "admis", motif = NA_character_, jd = jd, nW = sum(is.finite(sim[, 1])), nD = sum(is.finite(sim[, 2])),
-              obs = obs, pw = pw, pd = pd)
+              n_jd_diff = n_jd_diff, obs = obs, pw = pw, pd = pd)
   if (ctl) {
     # (s) : statistiques du catalogue sur les triangles regeneres (memes
     # rejets que mw_bootstrap()) -> p_mc identiques a celles du moteur.
@@ -1548,8 +1584,9 @@ traiter_sm <- function(b, ctl = FALSE) {
   out
 }
 champs_sm <- function(b, r) {
-  if (r$statut != "admis") return(unname(c(b, r$statut, nettoyer_champ(if (is.na(r$motif)) "-" else r$motif), "-", rep("NA", 8), sprintf("%.3f", r$duree))))
-  unname(c(b, "admis", "-", if (length(r$jd)) paste(r$jd, collapse = ",") else "-", r$nW, r$nD, f17(r$obs), f17(r$pw), f17(r$pd), sprintf("%.3f", r$duree)))
+  if (r$statut != "admis") return(unname(c(b, r$statut, nettoyer_champ(if (is.na(r$motif)) "-" else r$motif), "-", rep("NA", 9), sprintf("%.3f", r$duree))))
+  unname(c(b, "admis", "-", if (length(r$jd)) paste(r$jd, collapse = ",") else "-", r$nW, r$nD, r$n_jd_diff, f17(r$obs), f17(r$pw), f17(r$pd),
+           sprintf("%.3f", r$duree)))
 }
 traiter_oracle <- function(loi, k) {
   tri <- engine_sous_graine(graine_ora(loi, k), gen_triangle_h0(AJ0, tireur(loi)))
@@ -1599,14 +1636,15 @@ controle <- function(ok, libelle) {
   invisible(ok)
 }
 # (graines) : plages du script disjointes entre elles ; litteraux de graine du
-# depot (nombres de huit chiffres commencant par 2 dans R/engine.R,
-# tests/*.R hors ce script et tests/unitaires/*.R) : pour chaque litteral L,
-# l'intervalle [L ; L + 20 000] (graines calculees par decalage : b <= 2 000,
-# reseaux de #229) disjoint des plages ; SEED_LOI_NULLE_SW, graine de
-# reserve2 et reseau 20260831 + 1000 k <= 20760831 de tests/puissance_t8.R
-# hors des plages. Les litteraux AU-DESSUS des plages sont listes : la
-# specification (par. 7) les dit tous en dessous, ce qui est faux a da30df0
-# (23700237, tests/unitaires/test_regressions_qr.R, #237) sans collision.
+# depot (nombres de huit chiffres commencant par 2, suffixe L compris, dans
+# R/engine.R, tests/*.R hors ce script et tests/unitaires/*.R ; l'ecriture
+# scientifique n'est pas recherchee) : pour chaque litteral L, l'intervalle
+# [L ; L + 20 000] (graines calculees par decalage : b <= 2 000, reseaux de
+# #229) disjoint des plages ; SEED_LOI_NULLE_SW, graine de reserve2 et
+# reseau 20260831 + 1000 k <= 20760831 de tests/puissance_t8.R hors des
+# plages. Les litteraux AU-DESSUS des plages sont listes au T0 (annotation
+# du 10/10/2026 de la specification, point 1, qui remplace le critere
+# "plus grand litteral + marge" du par. 7 par ce controle).
 PLAGES <- rbind(triangles = c(graine_tri("N", 1), graine_tri("A", B_MAX_SPEC)),
                 bootstrap = c(graine_boot("N", 1), graine_boot("A", B_MAX_SPEC)),
                 oracle = c(graine_ora("N", 1), graine_ora("A", N0_SPEC)))
@@ -1617,7 +1655,7 @@ controle_graines <- function() {
   fs <- fs[basename(fs) != basename(SCRIPT)]
   lit <- sort(unique(as.numeric(unlist(lapply(fs, function(f) {
     l <- readLines(f, warn = FALSE)
-    regmatches(l, gregexpr("(?<![0-9A-Za-z.])2[0-9]{7}(?![0-9A-Za-z.])", l, perl = TRUE))
+    regmatches(l, gregexpr("(?<![0-9A-Za-z.])2[0-9]{7}(?=L?(?![0-9A-Za-z.]))", l, perl = TRUE))
   })))))
   touche <- function(a, b) any(a <= PLAGES[, 2] & b >= PLAGES[, 1])
   coll <- lit[vapply(lit, function(v) touche(v, v + DECALAGE_MAX), logical(1))]
@@ -1626,7 +1664,7 @@ controle_graines <- function() {
   ext <- c(SEED_LOI_NULLE_SW, GRAINE_R2, 20260831 + 1000 * 500)
   hors_ext <- !any(vapply(ext, function(v) touche(v, v), logical(1)))
   list(ok = disj && !length(coll) && hors_ext,
-       txt = sprintf("plages triangles %.0f-%.0f, bootstrap %.0f-%.0f, oracle %.0f-%.0f (disjointes : %s) ; %d litt\u00e9raux de graine dans %d fichiers (R/engine.R, tests/*.R, tests/unitaires/*.R), de %.0f \u00e0 %.0f ; litt\u00e9raux L dont [L ; L + %.0f] touche une plage : %s ; litt\u00e9raux au-dessus des plages (sans collision ; la sp\u00e9cification, par. 7, les dit tous en dessous) : %s ; SEED_LOI_NULLE_SW %.0f, graine de reserve2 %.0f et r\u00e9seau 20260831 + 1000 k \u2264 20760831 de tests/puissance_t8.R hors des plages : %s",
+       txt = sprintf("plages triangles %.0f-%.0f, bootstrap %.0f-%.0f, oracle %.0f-%.0f (disjointes : %s) ; %d litt\u00e9raux de graine dans %d fichiers (R/engine.R, tests/*.R, tests/unitaires/*.R), de %.0f \u00e0 %.0f ; litt\u00e9raux L dont [L ; L + %.0f] touche une plage : %s ; litt\u00e9raux au-dessus des plages (sans collision ; annotation du 10/10/2026 de la sp\u00e9cification, point 1) : %s ; litt\u00e9raux en \u00e9criture scientifique non recherch\u00e9s ; SEED_LOI_NULLE_SW %.0f, graine de reserve2 %.0f et r\u00e9seau 20260831 + 1000 k \u2264 20760831 de tests/puissance_t8.R hors des plages : %s",
                      PLAGES[1, 1], PLAGES[1, 2], PLAGES[2, 1], PLAGES[2, 2], PLAGES[3, 1], PLAGES[3, 2], if (disj) "oui" else "NON",
                      length(lit), length(fs), min(lit), max(lit), DECALAGE_MAX, if (length(coll)) paste(sprintf("%.0f", coll), collapse = ", ") else "aucun",
                      if (length(dessus)) paste(sprintf("%.0f", dessus), collapse = ", ") else "aucun", SEED_LOI_NULLE_SW, GRAINE_R2, if (hors_ext) "oui" else "NON"))
@@ -1855,9 +1893,18 @@ ENTETE <- utf8(c(paste0("PARAMETRES\t", PAR), sprintf("TRANCHE\t%d\t%d\t%s", DEB
                  paste0("COLS\t", paste(COLS[[MODE]], collapse = "\t"))))
 
 # --- Reprise d'une sortie partielle (--reprendre) ------------------------------
-REPRIS <- list(); N_IGNOREES <- 0L; TXT_REPRISE <- NULL
+# Lignes reprises recalculees d'office (M1 de l'audit de #206) : une ligne
+# tronquee au milieu d'un champ garde le bon nombre de champs ; elle est
+# ecartee si le fichier ne finit pas par un saut de ligne, et la derniere
+# ligne reprise (plus, en mode oracle, un echantillon regulier) est
+# recalculee et comparee hors durees.
+N_ECH_REPRISE_ORACLE <- 50L
+REPRIS <- list(); N_IGNOREES <- 0L; N_NON_TERMINEE <- 0L; TXT_REPRISE <- NULL; B_RECALC_FORCE <- integer(0)
 if (!is.na(OPT_REPRENDRE)) {
   la <- readLines(OPT_REPRENDRE, warn = FALSE, encoding = "UTF-8")
+  taille_a <- file.size(OPT_REPRENDRE)
+  octet_fin <- if (taille_a > 0) readBin(OPT_REPRENDRE, "raw", n = taille_a)[taille_a] else raw(0)
+  if (length(la) && !identical(octet_fin, as.raw(10L))) { la <- la[-length(la)]; N_NON_TERMINEE <- 1L }
   en_a <- la[grepl("^(PARAMETRES|TRANCHE|CONTEXTE|CLES|COLS)\t", la)]
   if (!identical(en_a, ENTETE)) {
     diff_c <- unique(sub("^CONTEXTE\t([^\t]*)\t.*$", "\\1", grep("^CONTEXTE\t", c(setdiff(en_a, ENTETE), setdiff(ENTETE, en_a)), value = TRUE)))
@@ -1871,7 +1918,15 @@ if (!is.na(OPT_REPRENDRE)) {
   ok <- lengths(rp) == length(COLS[[MODE]]) & !is.na(bs) & bs >= DEBUT & bs <= FIN &
     vapply(rp, function(x) length(x) >= 2L && x[2] %in% c("admis", "refuse"), logical(1))
   if (anyDuplicated(bs[ok])) { message("--reprendre : REFUS -- lignes en double"); quit(status = 1L) }
-  REPRIS <- stats::setNames(rp[ok], bs[ok]); N_IGNOREES <- sum(!ok)
+  REPRIS <- stats::setNames(rp[ok], bs[ok]); N_IGNOREES <- sum(!ok) + N_NON_TERMINEE
+  b_ok <- bs[ok]
+  if (length(b_ok)) {
+    B_RECALC_FORCE <- b_ok[length(b_ok)]
+    if (MODE == "oracle") {
+      bo <- sort(b_ok)
+      B_RECALC_FORCE <- unique(c(B_RECALC_FORCE, bo[unique(round(seq(1, length(bo), length.out = min(N_ECH_REPRISE_ORACLE, length(bo)))))]))
+    }
+  }
   TXT_REPRISE <- c(basename(OPT_REPRENDRE), md5_fichier(OPT_REPRENDRE))
 }
 
@@ -1886,7 +1941,7 @@ hors_duree <- function(mode) !grepl("^dur", COLS[[mode]]) & COLS[[mode]] != "dur
 for (b in seq.int(DEBUT, FIN)) {
   ch_old <- REPRIS[[as.character(b)]]
   echant <- MODE != "oracle" && is.na(ECH)
-  if (!is.null(ch_old) && !(echant && identical(ch_old[2], "admis"))) {
+  if (!is.null(ch_old) && !(echant && identical(ch_old[2], "admis")) && !(b %in% B_RECALC_FORCE)) {
     ch <- ch_old; N_REPRIS <- N_REPRIS + 1L
   } else {
     t_r <- Sys.time()
@@ -1952,9 +2007,14 @@ if (MODE == "oracle") {
   controle(!length(e_inv[!grepl("statut inconnu", e_inv)]), sprintf("(d) lignes ORA : k = 1..%d, une fois chacune%s", N0, if (length(e_inv)) paste0(" : ", paste(e_inv, collapse = " ; ")) else ""))
 }
 if (!is.null(TXT_REPRISE))
-  controle(!length(ECH_REPRISE), sprintf("(reprise) %s (md5 %s) : en-t\u00eate identique ; %d ligne(s) reprise(s) telle(s) quelle(s), %d recalcul\u00e9e(s) (\u00e9chantillon des contr\u00f4les) et identique(s) hors dur\u00e9es, %d ligne(s) illisible(s), tronqu\u00e9e(s) ou en erreur ignor\u00e9e(s)%s",
-                                         TXT_REPRISE[1], TXT_REPRISE[2], N_REPRIS, N_RECALC - length(ECH_REPRISE), N_IGNOREES,
+  controle(!length(ECH_REPRISE), sprintf("(reprise) %s (md5 %s) : en-t\u00eate identique ; %d ligne(s) reprise(s) telle(s) quelle(s), %d recalcul\u00e9e(s) (\u00e9chantillon des contr\u00f4les, derni\u00e8re ligne reprise%s) et identique(s) hors dur\u00e9es, %d ligne(s) illisible(s), tronqu\u00e9e(s) ou en erreur ignor\u00e9e(s), dont %d derni\u00e8re ligne non termin\u00e9e par un saut de ligne \u00e9cart\u00e9e%s",
+                                         TXT_REPRISE[1], TXT_REPRISE[2], N_REPRIS, N_RECALC - length(ECH_REPRISE),
+                                         if (MODE == "oracle") sprintf(", \u00e9chantillon r\u00e9gulier d'au plus %d lignes", N_ECH_REPRISE_ORACLE) else "",
+                                         N_IGNOREES, N_NON_TERMINEE,
                                          if (length(ECH_REPRISE)) paste0(" ; diff\u00e9rentes : ", paste(ECH_REPRISE, collapse = ", ")) else ""))
+if (length(ECH_REPRISE))
+  message("--reprendre : ECHEC -- ligne(s) reprise(s) differente(s) de leur recalcul hors durees (b = ", paste(ECH_REPRISE, collapse = ", "),
+          ") : sortie partielle corrompue, INTEGRITE ECHEC")
 CONTROLES <- c(CONTROLES, sprintf("(erreurs) %d ligne(s) au statut erreur (non bloquant pour la sortie ; --combiner la refuse)%s", n_err,
                                   if (length(ERREURS)) paste0(" : ", paste(ERREURS, collapse = " ; ")) else ""))
 

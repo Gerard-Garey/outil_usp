@@ -92,13 +92,13 @@ passage() {
   # 3. Commit et push (sauf essai a blanc).
   if [ "$BLANC" -eq 1 ]; then echo "$(utc) : essai a blanc, $n_new nouvelle(s) sortie(s) terminee(s) au JOURNAL, copies conformes (aucune commande git)"; return 0; fi
   git -C "$WT" add -- "$SOUS" || return 1
-  if git -C "$WT" diff --cached --quiet; then echo "$(utc) : rien a synchroniser"; return 0; fi
+  if git -C "$WT" diff --cached --quiet -- "$SOUS"; then echo "$(utc) : rien a synchroniser"; return 0; fi
   local msg
   msg="sauvegarde: $n_new sortie(s) terminee(s) ajoutee(s) au JOURNAL, $(utc)"
   [ -n "${PIED_COMMIT:-}" ] && msg="$msg
 
 $PIED_COMMIT"
-  git -C "$WT" commit -q -m "$msg" || return 1
+  git -C "$WT" commit -q -m "$msg" -- "$SOUS" || return 1
   local essai attente=2
   for essai in 1 2 3 4 5; do
     if git -C "$WT" push -q -u origin "$BRANCHE"; then echo "$(utc) : synchronise ($n_new nouvelle(s) sortie(s) terminee(s))"; return 0; fi
