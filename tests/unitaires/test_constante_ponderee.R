@@ -240,8 +240,12 @@ verifier("Renvoi, x ecarte par lm() (R12, injection de summary() et de .usp_lm_p
            assign(".usp_lm_pondere", function(...) {
              m <- pond_orig(...); if (!is.null(m)) m$coefficients <- sans_x(m$coefficients); m
            }, envir = e)
-           tt <- tryCatch(usp_tests(f1, boot_fictif(f1), methode = "premium"), error = function(e) e)
-           rm("summary", envir = e); assign(".usp_lm_pondere", pond_orig, envir = e)
+           tt <- tryCatch(usp_tests(f1, boot_fictif(f1), methode = "premium"),
+                          error = function(e) e,
+                          finally = {
+                            rm("summary", envir = e)
+                            assign(".usp_lm_pondere", pond_orig, envir = e)
+                          })
            !inherits(tt, "error") && identical(ligne(tt, NOM_CST)$type, "non applicable") &&
              isTRUE(coherence(tt, FALSE))
          })
