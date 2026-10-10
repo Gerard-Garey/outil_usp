@@ -335,3 +335,28 @@ Le mainteneur approuve la spécification **telle quelle**, avec toutes les recom
 - **Q-206-B1-9** : B2 est délégable aux conditions du § 8.
 
 Aucune exécution n'a eu lieu avant cette approbation.
+
+---
+
+## Annotation du 10/10/2026 : points d'interprétation de la mise en œuvre (actuary, par délégation)
+
+> *Rédigé par l'agent actuary (IA), versionné par la session principale.*
+
+`coder` a relevé quatre ambiguïtés en écrivant `tests/calibration_mc_mw_t8.R`. Elles sont tranchées ci-dessous, avant toute exécution de mesure. Le critère du § 5 reste celui approuvé en B1, précisé sur les points qui suivent.
+
+1. **§ 7, graines.** Une phrase est corrigée. Il est faux que les plages soient « au-dessus de toute graine littérale » : 23700237 (`tests/unitaires/test_regressions_qr.R:134`, #237) est au-dessus. Cette graine est utilisée seule, sans décalage, et n'entre en collision avec aucune plage **[V]**, grep.
+   - Le critère « plus grand littéral + marge » est remplacé par le contrôle suivant : pour chaque littéral de graine L de `R/engine.R`, `tests/*.R` et `tests/unitaires/*.R`, suffixe `L` compris, l'intervalle [L ; L + 20 000] est disjoint des trois plages.
+   - La marge de 20 000 couvre les graines calculées par décalage (b ≤ 2 000, réseaux de #229). Le réseau 20260831 + 1000 k ≤ 20760831 de `tests/puissance_t8.R`, `SEED_LOI_NULLE_SW` et la graine de `reserve2` sont contrôlés à part.
+   - Le T0 liste les littéraux situés au-dessus des plages. Il déclare que les littéraux en écriture scientifique ne sont pas recherchés.
+2. **ρ et témoin K3.**
+   - (a) Une statistique oracle non finie compte comme un non-rejet dans ρ, comme une p absente dans le critère. q⁺ et q⁻ sont lues sur les seules valeurs finies, comme le B effectif d'`engine_p_mc()`. Le dénominateur est le nombre de triangles oracle admis. Au-delà de 1 % de valeurs non finies pour une clé, ρ de cette clé est signalé au T0 comme approché, car il suppose B = 999.
+   - (b) « Sa taille » (K3) est la taille lissée du test de Monte-Carlo à B = N0, par la même règle que ρ appliquée à l'échantillon oracle. Le dénominateur est le même que pour ρ : les triangles oracle admis, une statistique non finie comptant comme un non-rejet. La taille nominale continue est rapportée à côté. Le test reste le binomial exact bilatéral, avec Holm sur 13.
+   - Limite déclarée en T3. Un seul échantillon oracle sert à tous les triangles mesurés. La variance de τ_or vaut donc environ α(1 − α)(1/n + 1/N0), et non α(1 − α)/n. À n = 2 000 et N0 = 20 000, son écart-type est multiplié par environ 1,05, et un binomial nominal à 5 % rejette environ 6 % du temps quand la mesure est correcte **[calcul d'ordre de grandeur, non simulé]**. Ce léger excès de signalement n'est pas corrigé ; il entre dans le jugement « non expliqué » de Π0.
+3. **Π5.** Le profil Π5 se lit au sens **strict** : pour une même clé et un même seuil, il faut des distorsions matérielles de côtés opposés (libéral et conservateur) entre deux lois.
+   - Raisons : seule la distorsion matérielle porte un côté dans les classes du § 5, et la lecture de Π5, qui porte sur une correction calibrée, n'a d'objet que là où Π3 ou Π4 ouvrirait une issue B4.
+   - La lecture large (classes non compatibles de part et d'autre de ρ) est rapportée comme indication descriptive, hors profil.
+4. **Sous-mesure N (T7, #119).** W de Shapiro-Wilk et D de Lilliefors sont calculés comme suit :
+   - sur le triangle observé, par le chemin des lignes M5 de `mw_tests()` ;
+   - sur les 999 répliques, avec l'ensemble des colonnes dégénérées figé à l'observé.
+
+   Cette convention est celle du contexte de `mw_bootstrap()` (#56), donc celle que suivrait la p de Monte-Carlo hypothétique visée par le commentaire de `mw_bootstrap()`. Le script compte et rapporte en T7 les répliques dont l'ensemble recalculé diffère de l'ensemble figé (attendu : 0 **[H]**). Un compte non nul est un point de décision.
