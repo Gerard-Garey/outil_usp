@@ -7274,6 +7274,72 @@ mw_parametre <- function(aj, msep, sigma_standard, bareme = "court") {
        duree_credibilite = T_cred)
 }
 
+# --- Tables empilees par colonne de developpement (#239) ---------------------
+# Les tables de mw_residus() et de mw_test_annees_calendaires() etaient
+# baties par rbind(table, data.frame(bloc)) a chaque colonne, comme les
+# tables detail de M1 et M2 ; elles le sont desormais par colonnes
+# prealloues assemblees une fois par .mw_table(). Valeurs et types
+# sont ceux de rbind() : chaque colonne est preallouee en NA logique, que
+# l'affectation promeut au type le plus haut des blocs, comme
+# rbind.data.frame() promeut la colonne du premier bloc. Seuls les noms de
+# lignes demandent un calcul : automatiques si aucun bloc n'est nomme (cas
+# des triangles sans noms de lignes, dont tous les triangles simules du
+# bootstrap), sinon ceux de rbind() itere, que reproduisent les deux
+# fonctions ci-dessous (verifie par identical(attrib.as.set = FALSE) contre
+# l'ancienne forme, tests/unitaires/test_tables_mw.R : noms ordinaires,
+# numeriques, vides, en doublon, manquants ou en collision avec
+# make.unique()).
+#
+# Table rendue sous la forme exacte du resultat de rbind.data.frame() :
+# structure(colonnes, row.names = ..., class = "data.frame"), attributs
+# names, row.names, class dans cet ordre. data.frame() les rend dans l'ordre
+# names, class, row.names : identical() ne voit pas cet ordre (attrib.as.set
+# = TRUE par defaut), la comparaison aux references le voit (comparer_objets(),
+# structure_arbre() ; mesure a #239 avec data.frame() : residus,
+# plots_data$residus, plots_data$alpha et plots_data$origine du cas reserve2
+# en ecart de structure). colonnes : liste nommee de vecteurs de meme
+# longueur, au moins un ; noms_lignes : NULL (noms automatiques) ou noms de
+# .mw_noms_lignes_empilees().
+.mw_table <- function(colonnes, noms_lignes = NULL)
+  structure(colonnes,
+            row.names = if (is.null(noms_lignes)) .set_row_names(length(colonnes[[1L]])) else noms_lignes,
+            class = "data.frame")
+# Noms de lignes que data.frame() tire du vecteur x, seul vecteur nomme du
+# bloc : NULL s'il n'a pas de noms ou si data.frame() ne les retient pas
+# (noms automatiques). Ils sont lus sur data.frame() lui-meme, qui seul fixe
+# la regle (doublons ecartes, noms manquants refuses par une erreur, comme
+# dans l'ancienne forme) ; ce data.frame() n'est appele que pour un triangle
+# a noms de lignes, jamais dans le bootstrap.
+.mw_noms_bloc <- function(x) {
+  if (is.null(names(x))) return(NULL)
+  d <- data.frame(x = x)
+  if (.row_names_info(d) > 0L) attr(d, "row.names") else NULL
+}
+# Noms de lignes de rbind() itere sur des blocs de noms `noms` (liste, NULL
+# pour un bloc a noms automatiques) et de tailles `tailles` : NULL si aucun
+# bloc n'est nomme ; sinon, un bloc automatique avant le premier bloc nomme
+# garde ses positions, un bloc automatique apres lui ses numeros locaux
+# 1..n (Make.row.names() de rbind.data.frame()), et les doublons sont
+# rendus uniques par make.unique(sep = "") a chaque empilement, comme dans
+# rbind() itere : un seul make.unique() sur la concatenation peut donner
+# d'autres noms (mesure : triangle du cas reserve2 a noms de lignes
+# c("", "b", ..., "h"), colonne j = 4 figee, etiquettes du test calendaire ;
+# tests/unitaires/test_tables_mw.R).
+.mw_noms_lignes_empilees <- function(noms, tailles) {
+  nommes <- !vapply(noms, is.null, logical(1))
+  if (!any(nommes)) return(NULL)
+  premier <- which(nommes)[1]
+  fin <- cumsum(tailles)
+  x <- NULL
+  for (k in seq_along(noms)) {
+    x <- c(x, if (nommes[k]) noms[[k]] else
+      if (k < premier) seq.int(fin[k] - tailles[k] + 1L, length.out = tailles[k]) else
+        seq_len(tailles[k]))
+    if (k >= premier && anyDuplicated(x)) x <- make.unique(as.character(x), sep = "")
+  }
+  x
+}
+
 # --- Residus standardises de Mack --------------------------------------------
 # r(i,j) = sqrt(C(i,j)) * ( C(i,j+1)/C(i,j) - f_j ) / sigma_j
 # Sous les hypotheses D(2)(h)(iii) et (iv), ces residus sont centres, de
@@ -7315,8 +7381,15 @@ mw_parametre <- function(aj, msep, sigma_standard, bareme = "court") {
 mw_residus <- function(aj, j_degeneres = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
   jd <- .mw_j_exclues(aj, j_degeneres)
-  out <- data.frame()
   exclues <- data.frame(j = integer(0), n_facteurs = integer(0))
+  # Table batie par colonnes prealloues puis assemblee une fois (#239), au
+  # lieu d'un rbind() par colonne de developpement : memes valeurs, memes
+  # types, memes attributs (.mw_table(), .mw_noms_lignes_empilees()).
+  # Capacite : nombre de facteurs individuels d'un triangle carre (I = J,
+  # impose par mw_valider_triangle()) ; un depassement allongerait les vecteurs.
+  n_max <- sum(pmax(I - seq_len(J) + 1L, 0L))
+  v_i <- v_j <- v_cal <- v_C <- v_F <- v_f <- v_s <- v_r <- rep(NA, n_max)
+  noms <- list(); tailles <- integer(0); n <- 0L
   for (j in 0:(J - 1)) {
     idx <- 0:(I - j - 1)
     if (length(idx) < 2) next
@@ -7325,12 +7398,20 @@ mw_residus <- function(aj, j_degeneres = NULL) {
       next
     }
     Cij <- tri[idx + 1, j + 1]; Cij1 <- tri[idx + 1, j + 2]
-    out <- rbind(out, data.frame(
-      i = idx, j = j, calendrier = idx + j,
-      C = Cij, F = Cij1 / Cij, f_chapeau = aj$f[j + 1],
-      sigma_j = sqrt(aj$sigma2[j + 1]),
-      residu = sqrt(Cij) * (Cij1 / Cij - aj$f[j + 1]) / sqrt(aj$sigma2[j + 1]),
-      stringsAsFactors = FALSE))
+    pos <- n + seq_along(idx)
+    v_i[pos] <- idx; v_j[pos] <- j; v_cal[pos] <- idx + j
+    v_C[pos] <- Cij; v_F[pos] <- Cij1 / Cij; v_f[pos] <- aj$f[j + 1]
+    v_s[pos] <- sqrt(aj$sigma2[j + 1])
+    v_r[pos] <- sqrt(Cij) * (Cij1 / Cij - aj$f[j + 1]) / sqrt(aj$sigma2[j + 1])
+    noms[length(noms) + 1L] <- list(.mw_noms_bloc(Cij))
+    tailles <- c(tailles, length(idx))
+    n <- n + length(idx)
+  }
+  out <- if (!n) data.frame() else {
+    s <- seq_len(n)
+    .mw_table(list(i = v_i[s], j = v_j[s], calendrier = v_cal[s], C = v_C[s],
+                   F = v_F[s], f_chapeau = v_f[s], sigma_j = v_s[s], residu = v_r[s]),
+              .mw_noms_lignes_empilees(noms, tailles))
   }
   attr(out, "colonnes_exclues") <- exclues
   out
@@ -7366,7 +7447,11 @@ mw_residus <- function(aj, j_degeneres = NULL) {
 mw_test_annees_calendaires <- function(aj, j_degeneres = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
   jd <- .mw_j_exclues(aj, j_degeneres)
-  etiq <- data.frame()
+  # Table des etiquettes par colonnes prealloues, assemblee une fois
+  # (.mw_table(), .mw_noms_lignes_empilees(), #239).
+  n_max <- sum(pmax(I - seq_len(J) + 1L, 0L))
+  v_i <- v_j <- v_d <- v_lab <- rep(NA, n_max)
+  noms <- list(); tailles <- integer(0); n <- 0L
   for (j in 0:(J - 1)) {
     idx <- 0:(I - j - 1)
     if (length(idx) < 2) next
@@ -7380,14 +7465,21 @@ mw_test_annees_calendaires <- function(aj, j_degeneres = NULL) {
     md <- stats::median(F)
     lab <- if (j %in% jd) rep("*", length(F)) else
       ifelse(F > md, "L", ifelse(F < md, "S", "*"))
-    etiq <- rbind(etiq, data.frame(i = idx, j = j, diag = idx + j, lab = lab,
-                                   stringsAsFactors = FALSE))
+    pos <- n + seq_along(idx)
+    v_i[pos] <- idx; v_j[pos] <- j; v_d[pos] <- idx + j; v_lab[pos] <- lab
+    noms[length(noms) + 1L] <- list(.mw_noms_bloc(lab))
+    tailles <- c(tailles, length(idx))
+    n <- n + length(idx)
   }
-  etiquettes <- etiq                         # toutes les etiquettes, "*" compris
-  etiq <- etiq[etiq$lab != "*", , drop = FALSE]
-  if (!nrow(etiq)) return(list(stat = NA_real_, p = NA_real_, Z = NA_real_,
-                                etiquettes = etiquettes))
-  agg <- lapply(split(etiq$lab, etiq$diag), function(v) {
+  s <- seq_len(n)
+  # toutes les etiquettes, "*" compris
+  etiquettes <- if (!n) data.frame() else
+    .mw_table(list(i = v_i[s], j = v_j[s], diag = v_d[s], lab = v_lab[s]),
+              .mw_noms_lignes_empilees(noms, tailles))
+  garde <- v_lab[s] != "*"
+  if (!any(garde)) return(list(stat = NA_real_, p = NA_real_, Z = NA_real_,
+                               etiquettes = etiquettes))
+  agg <- lapply(split(v_lab[s][garde], v_d[s][garde]), function(v) {
     L <- sum(v == "L"); S <- sum(v == "S"); n <- L + S
     m <- .mack_moments_Z(n)
     c(Z = min(L, S), E = unname(m["E"]), V = unname(m["V"]), n = n)
@@ -7527,13 +7619,18 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
 # Resultat dans [2/n!, 1] (NA si cor.test() ne rend pas de p-value finie).
 # Ces p_j ne sont PAS des p exactes au sens de l'ADR 0002 : elles n'entrent
 # que dans la statistique X de Fisher, dont la p retenue reste Monte-Carlo.
-.mw_spearman_p <- function(a, b, plancher_b = 1) {
+.mw_spearman_p <- function(a, b, plancher_b = 1) .mw_spearman(a, b, plancher_b)$p
+# rho et p du meme appel de cor.test() (#239) : rho = estimation de
+# cor.test(), cor(rank(a), rank(b)) apres aplatissement de b, qui ne depend
+# pas de l'argument exact ; p = .mw_spearman_p().
+.mw_spearman <- function(a, b, plancher_b = 1) {
   b <- engine_aplatir_ex_aequo(b, plancher = plancher_b)
   n <- length(a)
   exact <- n <= 9 && !anyDuplicated(a) && !anyDuplicated(b)
-  p <- suppressWarnings(stats::cor.test(a, b, method = "spearman", exact = exact))$p.value
-  if (!is.finite(p)) return(NA_real_)
-  min(1, max(2 / factorial(n), p))
+  ct <- suppressWarnings(stats::cor.test(a, b, method = "spearman", exact = exact))
+  p <- ct$p.value
+  list(rho = unname(ct$estimate),
+       p = if (!is.finite(p)) NA_real_ else min(1, max(2 / factorial(n), p)))
 }
 
 # Colonnes degenerees des verifications colonne par colonne de M1 (issue #56,
@@ -7621,7 +7718,8 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
 # Regression ponderee C(i,j+1) = a_j + b_j C(i,j), poids 1/C(i,j).
 mw_test_ordonnee_origine <- function(aj, j_degeneres = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
-  det <- data.frame()
+  # Table par colonnes prealloues, assemblee une fois (.mw_table(), #239).
+  v_j <- v_n <- v_a <- v_se <- v_t <- v_p <- v_b <- v_f <- rep(NA, J); k <- 0L
   ex <- .mw_exclues_vide()
   jd <- .mw_j_exclues(aj, j_degeneres)
   for (j in 0:(J - 1)) {
@@ -7636,12 +7734,16 @@ mw_test_ordonnee_origine <- function(aj, j_degeneres = NULL) {
     C0 <- tri[idx + 1, j + 1]; C1 <- tri[idx + 1, j + 2]
     m <- try(summary(stats::lm(C1 ~ C0, weights = 1 / C0)), silent = TRUE)
     if (inherits(m, "try-error") || nrow(m$coefficients) < 2) next
-    det <- rbind(det, data.frame(
-      j = j, n = length(idx),
-      a = m$coefficients[1, 1], se_a = m$coefficients[1, 2],
-      t = m$coefficients[1, 3], p = m$coefficients[1, 4],
-      b = m$coefficients[2, 1], f_cl = aj$f[j + 1], stringsAsFactors = FALSE))
+    k <- k + 1L
+    v_j[k] <- j; v_n[k] <- length(idx)
+    v_a[k] <- m$coefficients[1, 1]; v_se[k] <- m$coefficients[1, 2]
+    v_t[k] <- m$coefficients[1, 3]; v_p[k] <- m$coefficients[1, 4]
+    v_b[k] <- m$coefficients[2, 1]; v_f[k] <- aj$f[j + 1]
   }
+  s <- seq_len(k)
+  det <- if (!k) data.frame() else
+    .mw_table(list(j = v_j[s], n = v_n[s], a = v_a[s], se_a = v_se[s], t = v_t[s],
+                   p = v_p[s], b = v_b[s], f_cl = v_f[s]))
   if (!nrow(det)) return(list(stat = NA_real_, p = NA_real_, detail = det,
                               exclues = ex$colonnes, eligibles = ex$eligibles))
   fc <- .fisher_combine(det$p)
@@ -7656,7 +7758,8 @@ mw_test_ordonnee_origine <- function(aj, j_degeneres = NULL) {
 # Correlation de rang de Spearman entre F(i,j) et i, colonne par colonne.
 mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
-  det <- data.frame()
+  # Table par colonnes prealloues, assemblee une fois (.mw_table(), #239).
+  v_j <- v_n <- v_rho <- v_p <- v_ea <- rep(NA, J); k <- 0L
   ex <- .mw_exclues_vide()
   jd <- .mw_j_exclues(aj, j_degeneres)
   for (j in 0:(J - 1)) {
@@ -7671,15 +7774,22 @@ mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
     if (.mw_colonne_degeneree(aj, j)) return(.mw_stat_non_definie(ex))
     # F aplati a TOL_EX_AEQUO avant cor.test() (#152), plancher 0.
     F <- engine_aplatir_ex_aequo(tri[idx + 1, j + 2] / tri[idx + 1, j + 1], plancher = 0)
-    # p de la colonne par .mw_spearman_p() (issue #90) : loi de permutation a n <= 9 sans
-    # ex aequo, jamais nulle ; rho reste celui de cor.test().
-    ct <- suppressWarnings(stats::cor.test(F, idx, method = "spearman", exact = FALSE))
+    # rho et p de la colonne par un seul cor.test() (.mw_spearman(), #239) :
+    # p de .mw_spearman_p() (issue #90), loi de permutation a n <= 9 sans ex
+    # aequo, jamais nulle ; rho = cor(rank(F), rank(idx)), comme le rho de
+    # cor.test(exact = FALSE) qu'il remplace (l'estimation ne depend pas de
+    # exact, et idx, entiers distincts, est inchange par l'aplatissement).
+    sp <- .mw_spearman(F, idx)
     # ex_aequo (#115) : ex aequo de F apres aplatissement (idx est sans ex
     # aequo), p_j hors loi de permutation, p_min NA (.mw_fisher_rangs_p_min()).
-    det <- rbind(det, data.frame(j = j, n = length(idx),
-      rho = unname(ct$estimate), p = .mw_spearman_p(F, idx),
-      ex_aequo = anyDuplicated(F) > 0, stringsAsFactors = FALSE))
+    k <- k + 1L
+    v_j[k] <- j; v_n[k] <- length(idx); v_rho[k] <- sp$rho; v_p[k] <- sp$p
+    v_ea[k] <- anyDuplicated(F) > 0
   }
+  s <- seq_len(k)
+  det <- if (!k) data.frame() else
+    .mw_table(list(j = v_j[s], n = v_n[s], rho = v_rho[s], p = v_p[s],
+                   ex_aequo = v_ea[s]))
   if (!nrow(det)) return(list(stat = NA_real_, p = NA_real_, detail = det,
                               exclues = ex$colonnes, eligibles = ex$eligibles))
   fc <- .fisher_combine(det$p)
@@ -7692,7 +7802,8 @@ mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
 # nulle : E[C(i,j+1)|C(i,j)] ne serait alors pas proportionnelle a C(i,j).
 mw_test_courbure <- function(aj, j_degeneres = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
-  det <- data.frame()
+  # Table par colonnes prealloues, assemblee une fois (.mw_table(), #239).
+  v_j <- v_n <- v_c2 <- v_t <- v_p <- rep(NA, J); k <- 0L
   ex <- .mw_exclues_vide()
   jd <- .mw_j_exclues(aj, j_degeneres)
   for (j in 0:(J - 1)) {
@@ -7708,10 +7819,13 @@ mw_test_courbure <- function(aj, j_degeneres = NULL) {
     if (stats::sd(C0) == 0) next
     m <- try(summary(stats::lm(C1 ~ C0 + I(C0^2), weights = 1 / C0)), silent = TRUE)
     if (inherits(m, "try-error") || nrow(m$coefficients) < 3) next
-    det <- rbind(det, data.frame(j = j, n = length(idx),
-      c2 = m$coefficients[3, 1], t = m$coefficients[3, 3],
-      p = m$coefficients[3, 4], stringsAsFactors = FALSE))
+    k <- k + 1L
+    v_j[k] <- j; v_n[k] <- length(idx); v_c2[k] <- m$coefficients[3, 1]
+    v_t[k] <- m$coefficients[3, 3]; v_p[k] <- m$coefficients[3, 4]
   }
+  s <- seq_len(k)
+  det <- if (!k) data.frame() else
+    .mw_table(list(j = v_j[s], n = v_n[s], c2 = v_c2[s], t = v_t[s], p = v_p[s]))
   if (!nrow(det)) return(list(stat = NA_real_, p = NA_real_, detail = det,
                               exclues = ex$colonnes, eligibles = ex$eligibles))
   fc <- .fisher_combine(det$p)
@@ -7730,16 +7844,21 @@ mw_test_courbure <- function(aj, j_degeneres = NULL) {
 # La statistique est l'amplitude relative moyenne, ponderee par les effectifs.
 mw_famille_alpha <- function(aj) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
-  det <- data.frame()
+  # Table par colonnes prealloues, assemblee une fois (.mw_table(), #239).
+  v_j <- v_n <- v_f0 <- v_f1 <- v_f2 <- v_amp <- rep(NA, J); k <- 0L
   for (j in 0:(J - 1)) {
     idx <- 0:(I - j - 1)
     if (length(idx) < 3) next
     C0 <- tri[idx + 1, j + 1]; F <- tri[idx + 1, j + 2] / C0
     f <- vapply(c(0, 1, 2), function(a) sum(C0^a * F) / sum(C0^a), numeric(1))
-    det <- rbind(det, data.frame(j = j, n = length(idx),
-      f0 = f[1], f1 = f[2], f2 = f[3],
-      amplitude = (max(f) - min(f)) / f[2], stringsAsFactors = FALSE))
+    k <- k + 1L
+    v_j[k] <- j; v_n[k] <- length(idx); v_f0[k] <- f[1]; v_f1[k] <- f[2]
+    v_f2[k] <- f[3]; v_amp[k] <- (max(f) - min(f)) / f[2]
   }
+  s <- seq_len(k)
+  det <- if (!k) data.frame() else
+    .mw_table(list(j = v_j[s], n = v_n[s], f0 = v_f0[s], f1 = v_f1[s], f2 = v_f2[s],
+                   amplitude = v_amp[s]))
   if (!nrow(det)) return(list(stat = NA_real_, detail = det))
   list(stat = sum(det$n * det$amplitude) / sum(det$n), detail = det)
 }
@@ -7748,12 +7867,17 @@ mw_famille_alpha <- function(aj) {
 # Si Var[C(i,j+1)|C(i,j)] = sigma_j^2 C(i,j), alors les residus standardises de
 # Mack sont d'echelle constante DANS CHAQUE COLONNE : |r(i,j)| ne doit pas
 # dependre de C(i,j). Correlation de rang colonne par colonne, combinee.
-mw_test_exposant_variance <- function(aj, j_degeneres = NULL) {
-  res <- mw_residus(aj, j_degeneres)
+# res (#239) : residus de Mack deja calcules par mw_residus(aj, j_degeneres)
+# (contexte .mw_contexte_mc() du catalogue MW_CATALOGUE_MC) ; NULL : calcules
+# ici, avec j_degeneres (j_degeneres n'est lu que dans ce cas).
+mw_test_exposant_variance <- function(aj, j_degeneres = NULL, res = NULL) {
+  if (is.null(res)) res <- mw_residus(aj, j_degeneres)
   if (!nrow(res)) return(list(stat = NA_real_, p = NA_real_, detail = data.frame()))
-  det <- data.frame()
-  for (j in unique(res$j)) {
-    d <- res[res$j == j, ]
+  # Table par colonnes prealloues, assemblee une fois (.mw_table(), #239).
+  colonnes <- unique(res$j)
+  v_j <- v_n <- v_rho <- v_p <- v_ea <- rep(NA, length(colonnes)); k <- 0L
+  for (j in colonnes) {
+    sel <- res$j == j; nd <- sum(sel)
     # Ex aequo a la tolerance TOL_EX_AEQUO (#152), avant la garde sd() == 0
     # et cor.test() : C en plancher 0 (montant, tolerance relative), |r| en
     # plancher 1 (grandeur d'ordre 1, comme les residus de Mack de #112).
@@ -7761,19 +7885,22 @@ mw_test_exposant_variance <- function(aj, j_degeneres = NULL) {
     # correlation de rang non definie (ecart-type nul), colonne ecartee de la
     # combinaison de Fisher, comme une colonne trop courte (garde |r| ajoutee
     # par l'issue #60 : cor.test() rendait sinon rho = NA sans trace).
-    Ca <- engine_aplatir_ex_aequo(d$C, plancher = 0)
-    ra <- engine_aplatir_ex_aequo(abs(d$residu))
-    if (nrow(d) < 4 || stats::sd(Ca) == 0 || stats::sd(ra) == 0) next
-    # p de la colonne par .mw_spearman_p() (issue #90), comme HomogF ; Ca y
-    # est aplati une seconde fois (plancher_b = 0), sans effet.
-    ct <- suppressWarnings(stats::cor.test(ra, Ca,
-                                           method = "spearman", exact = FALSE))
+    Ca <- engine_aplatir_ex_aequo(res$C[sel], plancher = 0)
+    ra <- engine_aplatir_ex_aequo(abs(res$residu[sel]))
+    if (nd < 4 || stats::sd(Ca) == 0 || stats::sd(ra) == 0) next
+    # rho et p de la colonne par un seul cor.test() (.mw_spearman(), #239),
+    # comme HomogF ; Ca y est aplati une seconde fois (plancher_b = 0), sans
+    # effet, de sorte que rho est celui de cor.test(ra, Ca) qu'il remplace.
+    sp <- .mw_spearman(ra, Ca, plancher_b = 0)
     # ex_aequo (#115) : comme dans mw_test_homogeneite_f().
-    det <- rbind(det, data.frame(j = j, n = nrow(d),
-      rho = unname(ct$estimate), p = .mw_spearman_p(ra, Ca, plancher_b = 0),
-      ex_aequo = anyDuplicated(ra) > 0 || anyDuplicated(Ca) > 0,
-      stringsAsFactors = FALSE))
+    k <- k + 1L
+    v_j[k] <- j; v_n[k] <- nd; v_rho[k] <- sp$rho; v_p[k] <- sp$p
+    v_ea[k] <- anyDuplicated(ra) > 0 || anyDuplicated(Ca) > 0
   }
+  s <- seq_len(k)
+  det <- if (!k) data.frame() else
+    .mw_table(list(j = v_j[s], n = v_n[s], rho = v_rho[s], p = v_p[s],
+                   ex_aequo = v_ea[s]))
   if (!nrow(det)) return(list(stat = NA_real_, p = NA_real_, detail = det))
   fc <- .fisher_combine(det$p)
   list(stat = fc$stat, p = fc$p, K = fc$K, detail = det)
@@ -7789,8 +7916,9 @@ mw_test_exposant_variance <- function(aj, j_degeneres = NULL) {
 # p-value. La statistique est restituee (decision du mainteneur du
 # 06/10/2026, Q2 d'actuary), p asymptotique NA, et le champ logique
 # un_par_annee le signale a mw_tests() (libelle et loi).
-mw_test_homogeneite_accident <- function(aj, j_degeneres = NULL) {
-  res <- mw_residus(aj, j_degeneres)
+# res : comme pour mw_test_exposant_variance() (#239).
+mw_test_homogeneite_accident <- function(aj, j_degeneres = NULL, res = NULL) {
+  if (is.null(res)) res <- mw_residus(aj, j_degeneres)
   g <- factor(res$i)
   if (nlevels(g) < 3 || nrow(res) < 6)
     return(list(stat = NA_real_, p = NA_real_, ddl = NA_integer_, un_par_annee = FALSE))
@@ -8104,10 +8232,11 @@ MW_CATALOGUE_MC <- list(
   HomogF     = .mc_entree(function(e) mw_test_homogeneite_f(e$aj, e$j_degeneres)$stat, "haut"),
   Courbure   = .mc_entree(function(e) mw_test_courbure(e$aj, e$j_degeneres)$stat, "haut"),
   Alpha      = .mc_entree(function(e) mw_famille_alpha(e$aj)$stat, "haut"),
-  # Residus de Mack recalcules avec l'ensemble fige des colonnes degenerees
-  # (issue #60), comme e$res.
-  ExpVar     = .mc_entree(function(e) mw_test_exposant_variance(e$aj, e$j_degeneres)$stat, "haut"),
-  KruskalAcc = .mc_entree(function(e) mw_test_homogeneite_accident(e$aj, e$j_degeneres)$stat, "haut")
+  # Residus de Mack du contexte, e$res, calcules une seule fois par
+  # .mw_contexte_mc() avec l'ensemble fige des colonnes degenerees (issue
+  # #60) et transmis tels quels (#239), au lieu d'un recalcul par statistique.
+  ExpVar     = .mc_entree(function(e) mw_test_exposant_variance(e$aj, e$j_degeneres, e$res)$stat, "haut"),
+  KruskalAcc = .mc_entree(function(e) mw_test_homogeneite_accident(e$aj, e$j_degeneres, e$res)$stat, "haut")
 )
 
 # Statistiques bootstrapables de la methode Merz-Wuthrich (catalogue
