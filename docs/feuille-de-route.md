@@ -1960,9 +1960,9 @@ Ce qui bloque le démarrage d'E0 : Q-E1 seule (et la PR brouillon). Ce qui bloqu
 
 
 **État au 10/10/2026 (branche #229, A3 tranché).** **Quarante-deux issues ouvertes** (*vérifié*, `list_issues state=OPEN`, `totalCount` 42 = 41 du vingt-septième point + #237 + #239 − #235). **#237** (P2) : `ready-for-agent`, faite sur la branche, fermée par la PR #238. **#239** (performance Merz-Wüthrich, créée le 09/10 sur Q-229-8) : `needs-triage` → `ready-for-agent` proposé ; **en tête de la branche #206**. **#235** fermée en doublon de #201 le 09/10 à 17:32 UTC (`duplicate`, *vérifié*), point reporté dans #201 (commentaire `6085972344`). **Issue A4** (implémentation de V3h, ADR 0014) : proposée par `architect`, à créer sur accord ; rattachement : Q-A4-1. Ordre proposé : **#229** → **#206** (+ #239 en tête) → **A4** → **E2b** → **E2c** → **F** → JF ; alternative : A4 avant #206.
-- **Q-A4-1** — place d'A4 : branche dédiée après #206 et avant E2b (*recommandation* : oui ; ordre #206 décidé le 06/10 non rouvert ; A4 précède E2b, dont #181 fixe la politique quand une p Monte-Carlo manque, cas que V3h peut créer à B_max) ; alternative : avant #206.
-- **Q-A4-2** — création de l'issue A4 avec le texte proposé (*recommandation* : oui, `enhancement`, `needs-triage`).
-- **Q-A4-3** — `CONTEXT.md` : terme « p-value Monte-Carlo conditionnelle au régime de δ̂ » ajouté à A4 seulement, quand le moteur l'emploie (*recommandation* : oui ; d'ici là, l'ADR 0014 et la spécification font foi).
+- **Q-A4-1** — place d'A4 : branche dédiée après #206 et avant E2b (*recommandation* : oui ; ordre #206 décidé le 06/10 non rouvert ; A4 précède E2b, dont #181 fixe la politique quand une p Monte-Carlo manque, cas que V3h peut créer à B_max) ; alternative : avant #206. **Décidé le 10/10/2026 par le mainteneur : oui** (après #206, avant E2b).
+- **Q-A4-2** — création de l'issue A4 avec le texte proposé (*recommandation* : oui, `enhancement`, `needs-triage`). **Décidé le 10/10/2026 : oui ; créée, #240.**
+- **Q-A4-3** — `CONTEXT.md` : terme « p-value Monte-Carlo conditionnelle au régime de δ̂ » ajouté à A4 seulement, quand le moteur l'emploie (*recommandation* : oui ; d'ici là, l'ADR 0014 et la spécification font foi). **Décidé le 10/10/2026 : oui.**
 
 ## 6. Historique des jalons terminés
 
