@@ -758,7 +758,8 @@ tableau_rho <- function(OR, DS) {
                "oracle non finie compt\u00e9e comme non-rejet. Erreur de \u03c1 due \u00e0 N0 : de l'ordre de 0,002 \u00e0 \u03b1 = 0,10 [H], distincte",
                "de l'IC sur \u03c4 (fonction de R) et de err_mc (fonction de B). Taille du t\u00e9moin : m\u00eame r\u00e8gle \u00e0 B = N0 fini,",
                "m\u00eame d\u00e9nominateur (oracle admis ; statistique non finie compt\u00e9e comme non-rejet, comme pour \u03c1) ; nominale continue",
-               "entre parenth\u00e8ses. \u03c1 marqu\u00e9 \u00ab approch\u00e9 \u00bb au-del\u00e0 de 1 % de statistiques oracle non finies pour la cl\u00e9",
+               "\u00e0 B = nombre de statistiques finies entre parenth\u00e8ses (un \u00e9cart taille < nominale peut venir des",
+               "non finies ou des atomes). \u03c1 marqu\u00e9 \u00ab approch\u00e9 \u00bb au-del\u00e0 de 1 % de statistiques oracle non finies pour la cl\u00e9",
                "(\u03c1 suppose alors B = 999 r\u00e9pliques finies ; annotation du 10/10/2026 de la sp\u00e9cification, point 2 (a))."), "",
          entete_md(c("Loi", "Cl\u00e9 (sens)", "oracle admis", "non finies", "valeurs distinctes", "masse du plus gros atome",
                      "\u03c1 0,10", "\u03c1 0,05", "taille t\u00e9moin 0,10 (nominale)", "taille t\u00e9moin 0,05 (nominale)")))
