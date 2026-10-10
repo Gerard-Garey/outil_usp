@@ -490,3 +490,14 @@ Consignée par la session principale, sur la lecture de la grille par `actuary` 
 - **Scénario A8 remplacé par A4** (ν = 4, rang s = 5, graine 20810005 inchangée). Critère fixé avant lecture : le plus grand ν de {6, 5, 4, 3} tel qu'au moins 3 cibles sur 5 aient π de V1 dans [0,2 ; 0,8] et au moins une π ≥ 0,2 + e*. π prédits de V1 à α = 0,10 pour ν = 4 : DAgo 0,217, JB 0,220, SF 0,232, Grubbs 0,189, Grubbsr 0,235 (ν = 5 rejeté, maximum 0,213). md5 (méthode L8) : ε `24b220ddef224d38e19eb4bb2a947b18`, Y `04c46e144ac2e23ea5959a28ad0d761d`. Le tableau du § 6 se lit avec A4 à la place de A8 ; la grille est relancée vers un nouveau tableau daté, sans remplacer celui du 09/10, qui est la pièce de A2.
 - **L15, lecture de C5 (ambiguïté tranchée par `actuary`, délégation)** : la grille prédit que des témoins de F_T dépendent du régime sur J3 (Intercept, AD, KS). Un témoin de C5 significatif compte comme « expliqué » si sa différence V3b − V1 mesurée a le signe prédit par la grille et reste à moins de e* de la prédiction ; sinon il suspend la lecture (§ 2.3).
 - **Pour A3** (relevé, non tranché) : la combinaison « C1 et C4 toutes deux en défaut » n'a pas de profil dans la table D1 à D5 ; si elle se présente, elle est décrite telle quelle et soumise au mainteneur.
+
+---
+
+## Annotation du 10 octobre 2026 : points ouverts du script de mesure
+
+Rédigée par l'agent actuary (IA) sur délégation du mainteneur, à la lecture de `tests/p_conditionnelle_regime_t8.R`, avant toute exécution de l'étape 6. Elle ne modifie ni le critère (§ 2), ni L15, ni leurs seuils.
+
+- **L16, portée et grandeur de L15.** L15 s'applique à C5 pour chaque jeu, J1 (population des bords), J2 et J3, et pour chaque seuil. La différence prédite est π(V3b) − π(V1) à B fini (L4), lue dans le T1 prédit du tableau de la grille sur la même population. Elle compte comme une seule grandeur (L0). e* est celui du jeu et du seuil (cellules évaluables, L5) ; J3 reprend celui de J2 (g3). Une différence prédite absente ou nulle ne prédit aucun signe : un témoin significatif y est « non expliqué ».
+- **L17, (h1) et V3b.** Les « ajouts » de (h1) sont les tirages ajoutés de la région de régime r_b (§ 5, point 2). Sous P1, les tirages hors régime ne calculent aucune statistique et n'entrent dans aucune p ; la couverture des trois régimes est assurée par les tirages de V1, tous confrontés.
+- **L18, profil hors table.** La combinaison « C1 et C4 en défaut, C2 et C3 remplies » est signalée par le script comme hors de la table du § 2.3, sans profil ni conclusion, conformément au relevé de l'annotation du 10/10 (A2) ; elle est soumise au mainteneur à A3.
+- **Tableau de la grille de référence de l'étape 6** (décision de la session, technique) : `docs/tableaux/20261010-issue229-grille.md` (grille relancée avec A4) ; celui du 09/10 reste la pièce de A2.
