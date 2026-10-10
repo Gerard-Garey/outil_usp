@@ -50,3 +50,6 @@ sm-0251-0500.txt	--sous-mesure-N --b 251:500
 
 ## Sorties et incidents
 
+- Sortie oracle-A.txt : md5 d614980dbe8988f6a79adb45330021c8, terminee, INTEGRITE OK, synchronisee 2026-10-10T18:21:25Z
+- Sortie oracle-E.txt : md5 3243e66efd3f8981b047aea4ba52b19c, terminee, INTEGRITE OK, synchronisee 2026-10-10T18:21:25Z
+- Sortie oracle-N.txt : md5 21c8a42f84657d7e3d05b29dc04b5628, terminee, INTEGRITE OK, synchronisee 2026-10-10T18:21:25Z
