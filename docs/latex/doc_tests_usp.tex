@@ -1799,10 +1799,10 @@ auditable du code de \code{usp\_tests()}.
 
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Hypothèse H1 --- linéarité et proportionnalité}}} \\
 \midrule
-Student, constante & \ref{fiche:student-constante} & \code{test\_intercept()} (régression pondérée, \code{usp\_poids\_gls()}) &
+Student, constante & \ref{fiche:student-constante} & \code{test\_intercept()} (régression pondérée, \code{usp\_poids\_gls()}, calculée par \code{.usp\_lm\_pondere()} et \code{.usp\_mco\_qr()}) &
 \code{test\_intercept()} (p de Student sous le modèle auxiliaire pondéré, approchée, poids estimés (§\ref{sec:modele-auxiliaire}), non
 retenue~; p Monte-Carlo retenue) & \code{Intercept} \\
-Équivalence (TOST) & \ref{fiche:tost-constante} & \code{test\_tost\_intercept()} (régression pondérée) &
+Équivalence (TOST) & \ref{fiche:tost-constante} & \code{test\_tost\_intercept()} (régression pondérée, \code{.usp\_lm\_pondere()}) &
 \code{test\_tost\_intercept()} (p de Student sous le modèle auxiliaire pondéré, approchée même
 si $\Delta$ a priori, retenue hors hiérarchie) & --- \\
 Pitman, pente & \ref{fiche:student-pente} & \code{test\_lm\_complet()} ($t_b$, restituée) &
@@ -1815,7 +1815,7 @@ Fisher global & \ref{fiche:fisher-global} & \code{test\_lm\_complet()} &
 information)~; diagnostic dans tous les régimes depuis l'issue~\#169 & --- \\
 Coefficient $R^2$ & \ref{fiche:r2} & \code{test\_lm\_complet()} &
 diagnostic, aucune p-value & --- \\
-RESET & \ref{fiche:reset} & \code{test\_reset()} &
+RESET & \ref{fiche:reset} & \code{test\_reset()} (régressions par \code{.usp\_mco\_qr()}) &
 \code{test\_reset()} (p asymptotique, loi $F$ approchée) & \code{RESET} \\
 Spearman ($\times 2$) & \ref{fiche:spearman} & \code{stats::cor.test()} (appel direct) &
 \code{stats::cor.test(..., exact = TRUE)} (p exacte, permutation)~; \code{mk\_p\_min()}
@@ -1832,16 +1832,16 @@ différences non nulles, $n_p$ paires) &
 
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Hypothèse H2 --- structure de variance quadratique}}} \\
 \midrule
-Breusch--Pagan (Koenker) & \ref{fiche:breusch-pagan-koenker} & \code{test\_breusch\_pagan()} &
+Breusch--Pagan (Koenker) & \ref{fiche:breusch-pagan-koenker} & \code{test\_breusch\_pagan()} (régression auxiliaire par \code{.usp\_mco\_qr()}) &
 \code{test\_breusch\_pagan()} (p asymptotique, $\chi^2$) & \code{BP} \\
-Breusch--Pagan (1979) & \ref{fiche:breusch-pagan-1979} & \code{test\_breusch\_pagan\_original()} &
+Breusch--Pagan (1979) & \ref{fiche:breusch-pagan-1979} & \code{test\_breusch\_pagan\_original()} (idem) &
 idem (p asymptotique, $\chi^2$ sous normalité) &
 \code{BP79} \\
-White & \ref{fiche:white} & \code{test\_white()} &
+White & \ref{fiche:white} & \code{test\_white()} (idem) &
 \code{test\_white()} (p asymptotique, $\chi^2$) & \code{White} \\
 Goldfeld--Quandt & \ref{fiche:goldfeld-quandt} & \code{test\_goldfeld\_quandt()} &
 \code{test\_goldfeld\_quandt()} (p asymptotique, loi $F$ approchée) & \code{GQ} \\
-Brown--Forsythe & \ref{fiche:brown-forsythe} & \code{test\_brown\_forsythe()} &
+Brown--Forsythe & \ref{fiche:brown-forsythe} & \code{test\_brown\_forsythe()} (ANOVA à un facteur par \code{.usp\_mco\_qr()}) &
 \code{test\_brown\_forsythe()} (p asymptotique, loi $F$ approchée) & \code{BF} \\
 Smirnov (2 éch.) & \ref{fiche:smirnov} & \code{stats::ks.test()} (appel direct) &
 \code{stats::ks.test()} (p exacte combinatoire, sans ex \ae quo, $z_t$ aplatis par
@@ -3653,7 +3653,18 @@ les lignes de la constante et du TOST reposent sur la régression \emph{pondér�
 $\hat\delta$~: le \emph{modèle auxiliaire pondéré}, défini à la
 sous-section~\ref{sec:modele-auxiliaire-spec}~; parmi les lignes qui relèvent de cette section,
 seules la constante et le TOST relèvent ainsi du modèle pondéré, la pente, Fisher et $R^2$ restant
-sur la régression non pondérée. Cette section le définit, dit ce qui y
+sur la régression non pondérée. Les écritures \code{lm(\dots)} de cette section désignent la
+régression, non son moyen de calcul~: depuis l'issue~\#237, la régression pondérée de la constante
+et du TOST est calculée par \code{.usp\_lm\_pondere()}, qui décompose la matrice des régresseurs
+par \code{.usp\_mco\_qr()} --- décomposition QR de \code{qr()}, même routine (LINPACK) et même
+tolérance de pivotage ($10^{-7}$) que \code{lm.fit()} --- puis reprend pas à pas les formules de
+\code{summary.lm()}~; la pente, Fisher et $R^2$ restent calculés par \code{lm()}
+(\code{test\_lm\_complet()}). Le résultat est inchangé~: objets de \code{run\_engine()} identiques
+(\code{identical()}) avant et après l'issue sur les cinq cas de référence, et coefficients,
+erreurs-types, statistiques $t$ et p-values identiques au bit près à ceux de
+\code{summary(lm(y \textasciitilde\ x, weights = w))} sur 1\,000 jeux simulés à $T = 8$ (mesure
+sous R~4.3.3, BLAS et LAPACK de référence~; les tests unitaires le contrôlent à $10^{-12}$ près
+en relatif). Cette section le définit, dit ce qui y
 est exact, pourquoi il s'écarte du modèle réglementaire, quelles lignes en dépendent et sous
 quelles règles, et le distingue des autres régressions qu'emploie le moteur. Ses notations sont
 celles de la sous-section « Régression auxiliaire » des notations générales
@@ -3935,11 +3946,17 @@ Diagnostic \\
   colinearite : R2 non defini}~» pour $R^2$. \code{test\_intercept()} et
   \code{test\_lm\_complet()} signalent cette branche par leur champ \code{x\_ecarte}~; jusqu'à
   l'issue~\#168, la constante, la pente et Fisher sortaient non applicables avec leur commentaire
-  ordinaire, sans motif. Le motif des volumes constants (règle~R13) prime. Mesuré sur le jeu de
-  contrôle, \code{summary()} remplacée dans l'environnement du moteur par une version qui retire la
-  ligne de $x_t$ des coefficients de \code{lm(y \textasciitilde\ x)}~: la constante, le TOST, la
-  pente, Fisher et $R^2$, et eux seuls, diffèrent du calcul ordinaire, tous non applicables avec
-  ces motifs. \emph{Pertes constantes} (issue~\#189, décisions du mainteneur du 6~octobre
+  ordinaire, sans motif. Le motif des volumes constants (règle~R13) prime. Pour la constante et
+  le TOST, «~écarté par \code{lm()}~» se lit, depuis l'issue~\#237, «~écarté par le pivotage de la
+  décomposition QR de \code{.usp\_mco\_qr()}~», qui reproduit celui de \code{lm.fit()} (même
+  routine, même tolérance)~; le libellé du motif est inchangé. Mesuré sur le jeu de contrôle
+  (méthode prime, $B = 99$), \code{summary()} remplacée dans l'environnement du moteur par une
+  version qui retire la ligne de $x_t$ des coefficients de \code{lm(y \textasciitilde\ x)}, et,
+  depuis l'issue~\#237, \code{.usp\_lm\_pondere()} remplacée de même pour la régression
+  pondérée~: la constante, le TOST, la pente, Fisher et $R^2$, et eux seuls, changent de type et
+  sortent non applicables avec ces motifs~; ailleurs, seul le commentaire de la ligne de Spearman
+  contre le volume change, privé de son renvoi à la ligne de la constante. La seule
+  \code{summary()} remplacée n'atteint plus que la pente, Fisher et $R^2$. \emph{Pertes constantes} (issue~\#189, décisions du mainteneur du 6~octobre
   2026)~: à pertes constantes au sens de \code{usp\_pertes\_constantes()} (étendue des $y_t$ au
   plus \code{TOL\_DELTA\_BORD} fois leur moyenne, même tolérance que les volumes constants), la
   variance de $y_t$ est nulle à cette tolérance près et la régression de $y_t$ sur $x_t$ est sans
@@ -3981,8 +3998,10 @@ avec le modèle auxiliaire MCO ni avec le modèle auxiliaire pondéré~; aucune 
 retient une p-value sous une nature «~sous le modèle auxiliaire~».
 \begin{itemize}[itemsep=1pt]
   \item \emph{Régression contrainte, sans constante}, $y_t = \beta x_t + \varepsilon_t$
-  (\code{lm(y \textasciitilde\ x - 1)})~: modèle de départ de RESET, support des distances de Cook,
-  des leviers et d'\code{engine\_influence()}~; pour ces trois derniers, l'ajustement porte sur
+  (\code{lm(y \textasciitilde\ x - 1)})~: modèle de départ de RESET (calculé, comme le modèle
+  augmenté, par \code{.usp\_mco\_qr()} depuis l'issue~\#237, avec les mêmes valeurs que
+  \code{lm()} et \code{anova()}), support des distances de Cook,
+  des leviers et d'\code{engine\_influence()}, qui restent calculés par \code{lm()}~; pour ces trois derniers, l'ajustement porte sur
   $x_t$ et $y_t$ mis à l'échelle exacte par une puissance de~2 (\code{.usp\_echelle\_exacte()},
   issue~\#153, fiche~\ref{fiche:cook}). La loi $\mathcal{F}(2, T-3)$ de RESET est exacte
   sous ce modèle à erreurs i.i.d. normales (Milliken et Graybill, 1970), non sous le modèle
@@ -3994,7 +4013,10 @@ retient une p-value sous une nature «~sous le modèle auxiliaire~».
   l'issue~\#110 (fiche~\ref{fiche:white}). Leurs statistiques $\mathrm{LM}$ n'ont, sous aucun
   modèle, de loi exacte à $T$ fini~: la loi $\chi^2$ n'est qu'asymptotique (Koenker, 1981,
   fiche~\ref{fiche:breusch-pagan-koenker}). P-values retenues de Monte-Carlo (clés \code{BP},
-  \code{BP79}, \code{White}).
+  \code{BP79}, \code{White}). Depuis l'issue~\#237, ces régressions, comme l'analyse de la variance
+  de Brown--Forsythe ci-dessous, sont calculées par \code{.usp\_mco\_qr()}, avec les mêmes valeurs
+  que \code{lm()} et \code{anova()}~; «~écarté par \code{lm()}~» s'y lit comme pour la constante
+  (sous-section~\ref{sec:modele-auxiliaire-regles}).
   \item \emph{Partitions des résidus par le volume}~: Goldfeld--Quandt (tri par $x_t$, rapport des
   variances des deux moitiés) et Brown--Forsythe (analyse de la variance des écarts absolus à la
   médiane de deux groupes de volume). La loi $\mathcal{F}(h, h)$ de Goldfeld--Quandt serait exacte
@@ -6087,7 +6109,9 @@ agrégées, et le paragraphe~2 de la section~C n'a pas de point~f).
 \Cadre
 Régression auxiliaire $y_t = a + b x_t + \varepsilon_t$, estimée depuis l'issue~\#215 par
 \emph{moindres carrés pondérés} (\code{lm(y \textasciitilde\ x, weights = w)}, modèle auxiliaire
-pondéré, section~\ref{sec:modele-auxiliaire}), avec les poids de \code{usp\_poids\_gls()}
+pondéré, section~\ref{sec:modele-auxiliaire}~; calculée depuis l'issue~\#237 par
+\code{.usp\_lm\_pondere()}, décomposition QR de \code{.usp\_mco\_qr()}, aux mêmes valeurs que
+\code{lm()}), avec les poids de \code{usp\_poids\_gls()}
 \[
   w_t \;\propto\; \frac{1}{x_t^2\,\big(\exp(1/\hat\pi_t) - 1\big)},
 \]
@@ -6354,7 +6378,9 @@ Il en va de même de la garde «~statistique non définie~», qui vise des entr�
 (§\ref{sec:controles}, issue~\#145)~; l'issue de \code{lm()} y dépend de la plateforme (version
 de R, BLAS, processeur)~: mesuré en appel direct sur le jeu de contrôle multiplié par
 $10^{-320}$, avec R~4.3.3, BLAS et LAPACK de référence, x86\_64, la garde se déclenche (mesure
-refaite sur la régression pondérée de l'issue~\#215, même plateforme)~; une autre issue a été observée sur la CI (R~4.3.1, OpenBLAS~0.3.20, AMD EPYC~7763)~; les tests
+refaite sur la régression pondérée de l'issue~\#215, même plateforme, puis sur son calcul par
+\code{.usp\_mco\_qr()} de l'issue~\#237, même plateforme, aux facteurs $10^{-320}$ et
+$5\cdot 10^{-324}$, sans erreur R)~; une autre issue a été observée sur la CI (R~4.3.1, OpenBLAS~0.3.20, AMD EPYC~7763)~; les tests
 unitaires acceptent toute issue cohérente et atteignent les gardes par injection. En appel direct
 d'\code{usp\_tests()} hors du domaine numérique, seule l'absence d'erreur R est garantie, non la
 justesse des statistiques ni des verdicts (issue~\#153).
@@ -6935,7 +6961,9 @@ $T > k + q = 3$. Comme $\hat y_t = \hat\beta x_t$, les régresseurs $x_t$, $\hat
 engendrent l'espace fixe $\{x, x^2, x^3\}$~; \code{test\_reset()} l'engendre par la \emph{base
 réduite} $\{x_t,\ x_t s_t,\ x_t s_t^2\}$, avec $s_t = (x_t - \bar x)/(\max_t x_t - \min_t x_t)$,
 changement de base qui laisse la statistique inchangée en arithmétique exacte (issue~\#110). Les
-colonnes étant d'échelle comparable ($|s_t| \le 1$), le pivotage de \code{lm()} n'écarte plus
+colonnes étant d'échelle comparable ($|s_t| \le 1$), le pivotage de \code{lm()} (celui de
+\code{lm.fit()}, que reproduit \code{.usp\_mco\_qr()}, par lequel les deux régressions et le $F$
+d'\code{anova()} sont calculés depuis l'issue~\#237, aux mêmes valeurs) n'écarte plus
 un régresseur par colinéarité \emph{numérique}~: sur les pertes du jeu de contrôle et les volumes
 $100\,(1 + e\,\mathrm{scale}(1{:}8))$, la forme standard écarte $\hat y_t^3$ dès l'étendue
 relative $8{,}6\cdot 10^{-4}$ (conservé à $1{,}1\cdot 10^{-3}$), la base réduite reste de plein
@@ -7319,7 +7347,8 @@ $T R^2$ due à R.~Koenker, \emph{A note on studentizing a test for heteroscedast
 \emph{Journal of Econometrics}, 17(1), 1981, p.~107--112.}
 \Cadre
 Régression auxiliaire $z_t^2 = c_0 + c_1 x_t + \eta_t$ (section~\ref{sec:modele-auxiliaire-autres}), de coefficient de détermination
-$R^2_{\text{aux}}$. Hypothèses non testées~: indépendance des observations et validité de
+$R^2_{\text{aux}}$, calculée depuis l'issue~\#237 par \code{.usp\_mco\_qr()}, aux mêmes valeurs
+que \code{lm()} (de même pour Breusch--Pagan original, White et Brown--Forsythe). Hypothèses non testées~: indépendance des observations et validité de
 l'approximation asymptotique. À volumes constants au sens de \code{usp\_volumes\_constants()}, la ligne est non applicable
 (section~\ref{sec:volumes-constants}). Garde-fou (issue~\#59)~: si \code{lm()} écarte $x_t$
 de la régression auxiliaire pour colinéarité hors de la bande de tolérance, la statistique vaut
@@ -14680,7 +14709,7 @@ anomalie éventuelle.}
 \textcolor{financeblue}{\textbf{Configuration}} &
 \textcolor{financeblue}{\textbf{Exemples}} &
 \textcolor{financeblue}{\textbf{Conséquence pour la revue}} \\
-Un test, une fonction dédiée & White, Goldfeld--Quandt, Brown--Forsythe,
+Un test, une fonction dédiée & Goldfeld--Quandt,
 Jarque--Bera, corrélation entre colonnes & Revue circonscrite~: une anomalie
 n'affecte que ce test. \\
 Un test, plusieurs fonctions & Mann--Kendall (\code{test\_mann\_kendall()} +
@@ -14692,7 +14721,8 @@ d'appariement. \\
 Une fonction, plusieurs tests & \code{test\_lm\_complet()} (2 entrées),
 \code{.shapiro\_sur()} (2 entrées)~; \code{stat\_dw()}, \code{test\_runs()},
 \code{stat\_supF()}, \code{stat\_cusum()} et \code{test\_grubbs()} (2 entrées
-chacune, sur $z_t$ et sur les ratios bruts $u_t$) & Une anomalie se propage à toutes les
+chacune, sur $z_t$ et sur les ratios bruts $u_t$)~; \code{.usp\_mco\_qr()} (régressions
+de H1 et H2, issue~\#237, index des fonctions) & Une anomalie se propage à toutes les
 entrées issues de l'appel~; de même, sans calculer de statistique, pour
 \code{usp\_identifiabilite\_pente()} (type de la ligne de la pente),
 \code{usp\_volumes\_constants()} (régime de $\hat\pi_t$, lignes non applicables) et
