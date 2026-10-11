@@ -7541,8 +7541,8 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
 
 # Pente commune de F(i,j) sur C(i,j) A EFFET DE COLONNE FIXE, ponderee par
 # C(i,j) / sigma_j^2 (moindres carres generalises, hypothese de variance M2).
-# Renvoie la statistique de Student de la pente, ou NA si le modele n'est pas
-# estimable.
+# Renvoie la ligne "C" des coefficients (estimation, ecart-type, t, p), ou
+# NULL si le modele n'est pas estimable ; .mw_pente_intra() en tire t, ou NA.
 .mw_lm_intra <- function(res) {
   if (nrow(res) < 4 || stats::sd(res$C) == 0) return(NULL)
   # Ponderation des MOINDRES CARRES GENERALISES : Var(F(i,j)) = sigma_j^2 /
