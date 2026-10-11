@@ -809,7 +809,7 @@ tirages dont $\hat\delta^{**}$ est intérieur, complétés sur le flux
 d'\code{usp\_graine\_flux\_regime()} jusqu'à $B$ retenus ou $25\,(B+1)$ tirages
 (\code{FACTEUR\_B\_MAX\_REGIME}), et \code{MOTIF\_MC\_REGIME\_RARE} remplace les motifs de nombre de
 réplications quand ce plafond est atteint avec moins de \code{B\_MIN\_DEGENERESCENCE} tirages
-retenus (fiche~\ref{fiche:procedure-mc}) \\
+retenus, à $B \ge$ \code{B\_MIN\_DEGENERESCENCE} seulement (fiche~\ref{fiche:procedure-mc}) \\
 \code{mw\_bootstrap()} & \code{aj}, $B$ (999), \code{seed} (20260831) &
 \code{stats\_obs}, \code{p\_mc}, \code{err\_mc},
 \code{B\_effectif}, \code{granularite}, \code{sigma\_boot}, \code{B}, \code{granularite\_stat},
@@ -3637,10 +3637,14 @@ estime)} (constante \code{NATURE\_MC\_REGIME\_INTERIEUR}), au lieu de \code{Mont
 (bootstrap parametrique)}~: le conditionnement porte sur le régime de l'\emph{estimateur},
 $\hat\delta^{**}$ comme $\hat\delta$, non sur $\delta$~; le préfixe, donc le rang dans la
 hiérarchie des p-values, est inchangé. Quand $B_{\max}$ est atteint avec moins de
-\code{B\_MIN\_DEGENERESCENCE} $= 50$ tirages retenus, \code{p\_mc} manque sous le motif
+\code{B\_MIN\_DEGENERESCENCE} $= 50$ tirages retenus et que $B \ge 50$, \code{p\_mc} manque sous le motif
 \code{MOTIF\_MC\_REGIME\_RARE} («~\code{regime interieur de delta estime rare~: B\_max = 25 (B +
 1) tirages atteints avec moins de B\_MIN\_DEGENERESCENCE = 50 tirages retenus}~»), motif non
-dégénéré traité par la règle générale (section~\ref{sec:nature}, point~(ii))~; aucun repli sur
+dégénéré traité par la règle générale (section~\ref{sec:nature}, point~(ii))~; à $B < 50$, appel
+direct seulement (\code{run\_engine()} exige $B \ge$ \code{B\_MIN\_USAGE} $= 99$), la cible
+elle-même ne permettrait pas de calculer la p-value, la cause tient à $B$ et non à la rareté du
+régime, et le motif générique (\code{MOTIF\_MC\_REPLIC\_INSUFFISANTES} ou
+\code{MOTIF\_MC\_AUCUNE\_REPLIC}) est conservé (décision du mainteneur du 11~octobre 2026)~; aucun repli sur
 la p-value marginale n'est prévu (ADR~0014, point~2). Le déroulement est restitué dans
 \code{bootstrap\$p\_mc\_regime}~: régime observé (bord~0, intérieur, bord~1), variante,
 motif de la variante marginale, graine du flux, $B_{\text{cible}}$ et $B_{\max}$, nombre de
@@ -3654,10 +3658,14 @@ jeu de contrôle, de J2 et d'un jeu synthétique)~; pour des volumes $100\,(1 \p
 alternés que la tolérance déclare constants, $\hat\delta \le 3\cdot 10^{-12}$ à
 $\varepsilon = 10^{-12}$, et $\hat\delta = 0$ ou $1$ à $\varepsilon = 10^{-9}$ et $10^{-7}$ selon le
 sens de l'alternance, sur les pertes du jeu de contrôle comme sur celles de J2 (constat,
-\code{usp\_ajuster()}, sans portée générale)~; c'est donc le motif du bord qui s'applique, et
-l'application affiche «~au bord~0~» ou «~au bord~1~», bord qui ne renseigne pas sur $\delta$, non
-identifié~; le motif propre aux volumes constants
-n'est atteint qu'en appel direct avec un $\hat\delta$ intérieur. \emph{Statut}~: p-value de
+\code{usp\_ajuster()}, sans portée générale). Le régime observé est donc un bord
+(\code{regime\_obs} vaut \code{bord0} ou \code{bord1}), mais ce bord ne renseigne pas sur
+$\delta$, non identifié~: le motif de la variante marginale teste les volumes constants
+\emph{avant} le bord (décision du mainteneur du 11~octobre 2026, même ordre que la ligne de la
+position de $\hat\delta$ et que les lignes du rapport de vraisemblance sur $\delta$), et
+l'application affiche «~volumes constants~: régime de delta non identifié~», sans mention du bord
+(mesuré~: \code{run\_engine()} sur les pertes du jeu de contrôle et des volumes égaux à 100,
+$\hat\delta = 0$, \code{regime\_obs} \code{bord0}, motif des volumes constants). \emph{Statut}~: p-value de
 Monte-Carlo de bootstrap paramétrique à paramètres estimés, \textbf{non exacte} (ADR~0002).
 Conditionnellement au nombre de tirages retenus, ceux-ci sont indépendants et de même loi, la
 loi conditionnelle au régime, de sorte que l'arrêt adaptatif n'introduit pas de biais par rapport
@@ -4364,8 +4372,9 @@ effet de petit $B$ et la détection de dégénérescence n'est pas armée~: depu
 fixe, indépendant de $\alpha$), traité comme l'absence de toute réplication finie~; elle y était
 auparavant calculée sans motif. Depuis l'issue~\#240, à $\hat\delta$ intérieur, quand le plafond
 de $25\,(B+1)$ tirages de la p-value conditionnelle au régime est atteint avec moins de
-\code{B\_MIN\_DEGENERESCENCE} tirages retenus (fiche~\ref{fiche:procedure-mc}),
-\code{usp\_bootstrap()} remplace ces deux motifs, «~aucune réplication finie~» et «~réplications
+\code{B\_MIN\_DEGENERESCENCE} tirages retenus (fiche~\ref{fiche:procedure-mc}), et à
+$B \ge$ \code{B\_MIN\_DEGENERESCENCE} seulement (à $B$ plus petit, la cause tient à $B$ et le
+motif générique reste), \code{usp\_bootstrap()} remplace ces deux motifs, «~aucune réplication finie~» et «~réplications
 finies insuffisantes~», par \code{MOTIF\_MC\_REGIME\_RARE}, qui en nomme la cause~; les valeurs
 de \code{p\_mc}, \code{err\_mc}, \code{B\_effectif} et \code{granularite\_stat} ne changent pas,
 les motifs qui portent sur les données observées (statistique observée non finie, non définie,
@@ -13407,7 +13416,7 @@ $\hat\delta$ observé intérieur, volumes non constants~; V1, calcul inchangé a
 \code{usp\_bootstrap()} leur passe la matrice des seuls tirages retenus. La composition est
 étendue à tout $B$~: $B_{\text{cible}} = B$ et $B_{\max} = 25\,(B+1)$, soit 999 et $25\,000$ à
 $B = 999$, la composition mesurée~; à $B \ne 999$, c'est la même règle, dont la mesure ne dit rien
-(constat de simulation fait à $B = 999$ seulement)~; la règle n'est pas invariante d'échelle~: \code{B\_MIN\_DEGENERESCENCE} $= 50$ étant fixe, \code{MOTIF\_MC\_REGIME\_RARE} apparaît dès que la probabilité du régime intérieur sous le modèle ajusté est de l'ordre de $50/(25\,(B+1))$, soit $2~\%$ à $B = 99$ contre $0{,}2~\%$ à $B = 999$, et le plafond est atteint avec $50 \le B_{\text{eff}} < B$ dans la plage intermédiaire. La graine du flux complémentaire,
+(constat de simulation fait à $B = 999$ seulement)~; la règle n'est pas invariante d'échelle~: \code{B\_MIN\_DEGENERESCENCE} $= 50$ étant fixe, \code{MOTIF\_MC\_REGIME\_RARE} apparaît, à $B \ge 50$ seulement, dès que la probabilité du régime intérieur sous le modèle ajusté est de l'ordre de $50/(25\,(B+1))$, soit $2~\%$ à $B = 99$ contre $0{,}2~\%$ à $B = 999$, et le plafond est atteint avec $50 \le B_{\text{eff}} < B$ dans la plage intermédiaire. La graine du flux complémentaire,
 \code{seed} $+\,539\,169$, vaut $20\,800\,000$ à la graine par défaut, celle du flux de V3b du jeu
 observé J2 dans la mesure, et $20\,800\,000 + b$ pour la graine $20\,260\,831 + b$ de la
 réplication~$b$~: l'identité avec la mesure vient par construction (section~\ref{sec:graines}).
