@@ -20,7 +20,7 @@
 #  avertissements emis, sur les jeux ci-dessous. Chaque cas y figure AU MOINS
 #  UNE FOIS, au plus petit nombre de triangles et de replications qui le
 #  couvre (allegement de #239, decision du mainteneur du 10/10/2026 : environ
-#  27 s -> 6 s sur le poste de session ; aucun appel a run_engine()) :
+#  27 s -> environ 7 s sur le poste de session ; aucun appel a run_engine()) :
 #    - le triangle du cas reserve2 (tests/donnees/triangle_mw.csv), sans noms
 #      de lignes (colonnes exclues : calculees, aucune, j = 4) ;
 #    - le meme a dix jeux de noms de lignes (lettres, numeros, numeros
@@ -45,8 +45,9 @@
 #      tri_deg (graine 20261010) et de ta_deg (graine 20261021, choisie pour
 #      couvrir en deux replications les deux cas de la colonne figee j = 4 :
 #      sigma2_4 bruit d'arrondi strictement positif, 2,0e-25, colonne exclue
-#      par l'ensemble fige seulement, puis sigma2_4 = 0 exactement ; sous la
-#      graine 20261010, le premier cas n'apparaissait qu'a la 7e replication),
+#      par l'ensemble fige, et non par le critere sigma2 <= 0, puis
+#      sigma2_4 = 0 exactement ; sous la graine 20261010, le premier cas
+#      n'apparaissait qu'a la 7e replication),
 #      ensemble j_degeneres fige a l'observe ;
 #    - douze triangles tires sous graine (PLAN_TIRAGES : 3 a 12 annees ;
 #      continus ; ex aequo, effectifs au tirage 9, 8 annees ; colonnes
@@ -339,6 +340,7 @@ ecarts <- function(t, jds = list(NULL), etiquette = "", fonctions = FONCTIONS_JD
   vus <- list()
   for (jd in jds) {
     r <- .mw_j_exclues(aj, jd)
+    # Filet de securite, inactif sur les jeux actuels (0 saut sur 76 ensembles).
     if (any(vapply(vus, identical, logical(1), r))) next
     vus[[length(vus) + 1L]] <- r
     nouv <- lapply(stats::setNames(nm = fonctions), function(f) capturer(get(f), list(aj, jd)))
