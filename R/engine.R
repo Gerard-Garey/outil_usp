@@ -7340,8 +7340,29 @@ mw_parametre <- function(aj, msep, sigma_standard, bareme = "court") {
     .mw_noms_lignes_empilees(lapply(blocs, .subset2, source_noms)))
 }
 
+# --- Ecart F(i,j) - f_j sous forme stable (issue #233) ----------------------
+# Rend, pour les cellules C0 = C(.,j) et C1 = C(.,j+1) d'une colonne (lignes
+# 0..I-j-1), le vecteur des F(i,j) - f_j, f_j = somme C1 / somme C0, par
+# l'identite exacte (somme_k C0_k F_k = somme C1) :
+#     F(i,j) - f_j = somme_{k != i} C0_k (F(i,j) - F(k,j)) / S_j,
+# S_j = somme C0. La difference directe C1_i / C0_i - f_j perd ses chiffres
+# par annulation quand une cellule domine sa colonne (f_j est alors egal a
+# son facteur a l'arrondi pres, et l'ecart vrai, d'ordre 1/D, est noye dans
+# l'arrondi de f_j) ; ici chaque terme est une difference de facteurs
+# individuels d'ordre 1, sans annulation entre grandeurs d'ordre D. Aucune
+# definition ne change : en arithmetique exacte les deux ecritures sont
+# egales (le terme k = i est nul). f_j de mw_ajuster() n'est pas modifie.
+# Sommes par sum(), sans produit matriciel (independance du BLAS).
+.mw_ecart_facteur_stable <- function(C0, C1) {
+  Fij <- C1 / C0
+  S <- sum(C0)
+  vapply(seq_along(Fij), function(k) sum(C0[-k] * (Fij[k] - Fij[-k])) / S,
+         numeric(1))
+}
+
 # --- Residus standardises de Mack --------------------------------------------
 # r(i,j) = sqrt(C(i,j)) * ( C(i,j+1)/C(i,j) - f_j ) / sigma_j
+# (ecart C(i,j+1)/C(i,j) - f_j calcule par .mw_ecart_facteur_stable(), #233)
 # Sous les hypotheses D(2)(h)(iii) et (iv), ces residus sont centres, de
 # variance approximativement unitaire et mutuellement non correles. Ce sont eux
 # qui servent de support aux tests des sections H1, H2 et H4 adaptees.
@@ -7398,7 +7419,8 @@ mw_residus <- function(aj, j_degeneres = NULL) {
     blocs[[length(blocs) + 1L]] <- list(
       i = idx, j = rep(j, n), calendrier = idx + j, C = Cij, F = Cij1 / Cij,
       f_chapeau = rep(aj$f[j + 1], n), sigma_j = rep(sqrt(aj$sigma2[j + 1]), n),
-      residu = sqrt(Cij) * (Cij1 / Cij - aj$f[j + 1]) / sqrt(aj$sigma2[j + 1]))
+      residu = sqrt(Cij) * .mw_ecart_facteur_stable(Cij, Cij1) /
+        sqrt(aj$sigma2[j + 1]))
   }
   out <- .mw_empiler(blocs, source_noms = "C")
   attr(out, "colonnes_exclues") <- exclues
@@ -8110,9 +8132,15 @@ mw_simuler_triangle <- function(aj, res_pool) {
 # cellule qui domine sa colonne (volumes de l'ordre de 1e16 fois les autres),
 # 1 - C_ij / S_j vaut 0 en flottant et le pool deviendrait NaN (C2 de l'audit
 # de #46). Avec n_j >= 2 et C_ij > 0 finis (validation), 1 - h_ij > 0 pour
-# toute cellule retenue. Limite, anterieure a #46 et hors de cette fonction :
-# pour une telle cellule, r_ij lui-meme perd ses chiffres par annulation dans
-# F_ij - f^_j (mw_residus()), et le redressement agrandit cette erreur.
+# toute cellule retenue. r_ij lui-meme est calcule par mw_residus() sous
+# forme stable depuis #233 (.mw_ecart_facteur_stable()) : la difference
+# directe F_ij - f^_j perdait ses chiffres par annulation pour une telle
+# cellule, et le redressement agrandissait cette erreur. Mesure
+# (tests/mesure_precision_residus_mw.R, tableau date
+# issue233-precision-residus-mw sous docs/tableaux/ ; reserve2 et TA8,
+# ligne 0, 3 ou 6 multipliee par 10^e ou 10^-e, e de 10 a 30, reference
+# Rmpfr a 256 bits) : erreur absolue maximale du pool 7,8e-13 (1,1e2 avant
+# #233), erreur relative maximale des r_ij 7,0e-13.
 # Le pool est ensuite recentre : la contrainte d'estimation de f^_j est
 # sum_i sqrt(C_ij) r_ij = 0, et non sum_i r_ij = 0, de sorte que la moyenne
 # du pool redresse n'est pas nulle. Pour n_j = 2, |r~_ij| = 1 exactement avant
@@ -9043,9 +9071,18 @@ engine_motif_b_alpha <- function(B, alpha) {
 # DFBETAS (issue #89) : meme retrait, standardise, dans la regression ponderee
 # C(.,j+1) ~ 0 + C(.,j) de poids 1/C(.,j) (valeur de stats::dfbetas() sur
 # cette regression), avec n = n_j, S_j = somme C(.,j), 1 - h_i = (S_j - C(i,j))
-# / S_j (calcule ainsi, comme pour #46, pour ne pas tomber a 0 en flottant) :
+# / S_j, calcule comme somme des AUTRES cellules de la colonne divisee par S_j
+# (#233, comme .mw_pool_residus() depuis #46) : la difference S_j - C(i,j)
+# s'annule en flottant pour une cellule dominante (mesure : 0 sur reserve2,
+# ligne 0 x 1e17, avant #233) ; f_j^(-i) est de meme le quotient des sommes
+# des autres cellules :
 #     e_i = C(i,j+1) - f_j C(i,j),  sigma2_j = somme e_i^2 / C(i,j) / (n - 1),
+# e_i et le residu sont calcules a partir de C(i,j) (F(i,j) - f_j), ecart
+# rendu sous forme stable par .mw_ecart_facteur_stable() (#233), comme dans
+# mw_residus() ;
 #     s2_(i) = somme_{k != i} (C(k,j+1) - f_j^(-i) C(k,j))^2 / C(k,j) / (n - 2),
+#     (C(k,j+1) - f_j^(-i) C(k,j) = C(k,j) (F(k,j) - f_j^(-i)), ecart stable
+#     de .mw_ecart_facteur_stable() sur la colonne privee de la cellule i)
 #     DFBETAS_i = e_i sqrt(S_j) / (S_j (1 - h_i) s_(i)).
 # s2_(i) est calcule DIRECTEMENT par retrait de la cellule, avec f_j^(-i)
 # (f_sans_cellule) : la forme close equivalente
@@ -9078,21 +9115,35 @@ mw_influence <- function(aj) {
     Cij <- tri[idx + 1, j + 1]; Cij1 <- tri[idx + 1, j + 2]
     Sj <- sum(Cij); Sj1 <- sum(Cij1)
     h <- Cij / Sj
-    f_sans <- (Sj1 - Cij1) / (Sj - Cij)
+    # Sommes des AUTRES cellules (#233) : S_j - C(i,j) et S'_j - C(i,j+1)
+    # perdent leurs chiffres par annulation quand C(i,j) domine sa colonne
+    # (S_j - C(i,j) vaut 0 en flottant a partir d'un rapport de l'ordre de
+    # 1e17 sur reserve2) ; la somme directe des n - 1 autres cellules est
+    # exacte a l'arrondi pres.
+    S_sans <- vapply(seq_along(Cij), function(k) sum(Cij[-k]), numeric(1))
+    S1_sans <- vapply(seq_along(Cij1), function(k) sum(Cij1[-k]), numeric(1))
+    f_sans <- S1_sans / S_sans
     retenue <- is.finite(aj$sigma2[j + 1]) && aj$sigma2[j + 1] > 0 && !(j %in% jd)
+    # F(i,j) - f_j sous forme stable (#233), commune au residu et a e_i.
+    ecart_f <- .mw_ecart_facteur_stable(Cij, Cij1)
     resid <- if (retenue)
-      sqrt(Cij) * (Cij1 / Cij - aj$f[j + 1]) / sqrt(aj$sigma2[j + 1])
+      sqrt(Cij) * ecart_f / sqrt(aj$sigma2[j + 1])
     else rep(NA_real_, length(idx))
     n <- length(idx)
     dfbetas <- rep(NA_real_, n)
     non_borne <- rep(FALSE, n)
     if (retenue && n >= 3) {
-      e <- Cij1 - aj$f[j + 1] * Cij
-      un_moins_h <- (Sj - Cij) / Sj
+      e <- Cij * ecart_f                     # = C(i,j+1) - f_j C(i,j)
+      un_moins_h <- S_sans / Sj
       s2 <- sum(e^2 / Cij) / (n - 1)
       if (is.finite(s2) && s2 > 0) {
+        # C(m,j+1) - f_j^(-k) C(m,j) = C(m,j) (F(m,j) - f_j^(-k)), m != k,
+        # ecart rendu sous forme stable sur la colonne privee de la cellule k
+        # (#233) : la difference directe annule deux grandeurs d'ordre D pour
+        # une cellule dominante restante.
         s2_i <- vapply(seq_len(n), function(k)
-          sum(((Cij1 - f_sans[k] * Cij)^2 / Cij)[-k]) / (n - 2), numeric(1))
+          sum(Cij[-k] * .mw_ecart_facteur_stable(Cij[-k], Cij1[-k])^2) / (n - 2),
+          numeric(1))
         garde <- 1e2 * .Machine$double.eps * (n - 1) * s2
         ok <- is.finite(s2_i) & s2_i > garde
         non_borne <- is.finite(s2_i) & s2_i <= garde
@@ -9104,7 +9155,10 @@ mw_influence <- function(aj) {
       i = idx, j = j, C = Cij, F = Cij1 / Cij,
       levier = h, seuil_levier = 2 / length(idx),
       f_chapeau = aj$f[j + 1], f_sans_cellule = f_sans,
-      dfbeta_relatif = (f_sans - aj$f[j + 1]) / aj$f[j + 1],
+      # f_j^(-i) - f_j = -C(i,j) (F(i,j) - f_j) / (S_j - C(i,j)), identite
+      # exacte, sans la difference f_sans - f_j de deux grandeurs presque
+      # egales (#233)
+      dfbeta_relatif = -Cij * ecart_f / S_sans / aj$f[j + 1],
       residu = resid,
       dfbetas = dfbetas, repere_dfbetas = REPERE_DFBETAS_MW / sqrt(n),
       dfbetas_non_borne = non_borne,

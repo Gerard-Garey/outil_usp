@@ -2055,4 +2055,63 @@ verifier("Pool redresse (#46, C2) : ligne 0 x 1e17, pool fini, B_eff > 0 ou moti
              !any(is.nan(tb$p_retenue))
          })
 
+## --- Residus de Mack sous forme stable (#233) -------------------------------
+# F(i,j) - f_j calcule par .mw_ecart_facteur_stable() (somme des ecarts aux
+# autres facteurs ponderee par les C(k,j)) et non par difference : une ligne
+# qui domine ses colonnes d'un facteur 1e15 ou 1e16 ne doit plus noyer les
+# residus dans l'arrondi de f_j. Deux proprietes exactes, sans reference
+# externe :
+#  - colonne a n_j = 2 cellules (j = 5 de reserve2) : |r_ij| = sqrt(1 - h_ij),
+#    1 - h_ij = C(autre,j) / S_j ;
+#  - contrainte d'estimation de f_j : somme_i sqrt(C_ij) r_ij = 0, verifiee
+#    en relatif a 1e-12 de somme_i |sqrt(C_ij) r_ij| pour j = 0..6 ; la
+#    colonne j = 6 (n_j = 1) n'a pas de residu, j = 0..5 doivent en avoir.
+# Moteur d'avant #233 (7613e8a) : ligne 0 x 1e16, |r / sqrt(1 - h)| = 0 sur
+# la cellule dominante de j = 5 et rapports de contrainte jusqu'a 1 ; ligne
+# 3 x 1e15, rapports jusqu'a 1 (colonne j = 2).
+.verifier_residus_stables <- function(ligne, e) {
+  t <- tri_ref; t[ligne + 1, ] <- t[ligne + 1, ] * 10^e
+  a <- mw_ajuster(t); r <- mw_residus(a)
+  c5 <- r[r$j == 5, ]
+  omh <- vapply(seq_len(nrow(c5)), function(k) {
+    col <- a$tri[1:2, 6]; sum(col[-(c5$i[k] + 1)]) / sum(col)
+  }, numeric(1))
+  n2 <- nrow(c5) == 2L && all(abs(abs(c5$residu) / sqrt(omh) - 1) <= 1e-12)
+  contrainte <- vapply(0:6, function(j) {
+    x <- r[r$j == j, ]
+    if (!nrow(x)) return(NA_real_)
+    v <- sqrt(x$C) * x$residu
+    abs(sum(v)) / sum(abs(v))
+  }, numeric(1))
+  n2 && all(!is.na(contrainte[1:6])) && is.na(contrainte[7]) &&
+    all(contrainte[1:6] <= 1e-12)
+}
+verifier("Residus stables (#233) : reserve2, ligne 0 x 1e16 : |r / sqrt(1 - h)| = 1 a 1e-12 en j = 5 (n = 2) ; contrainte somme sqrt(C) r = 0 a 1e-12 pres, j = 0..6",
+         .verifier_residus_stables(0L, 16))
+verifier("Residus stables (#233) : reserve2, ligne 3 x 1e15 : memes controles",
+         .verifier_residus_stables(3L, 15))
+
+# mw_influence() (#233, suite) : f_j^(-i), 1 - h_i, s2_(i) et dfbeta_relatif
+# par sommes des AUTRES cellules et ecarts stables. Moteur d'avant (7613e8a),
+# reserve2 ligne 0 : x 1e16, f_sans_cellule de la cellule dominante 3,0 /
+# 1,333 / 1,333 / 1,0 / 1,0 au lieu de 3,203 / 1,657 / 1,332 / 1,156 /
+# 1,095 (j = 0..4) ; x 1e17, 1 - h = 0, f_sans_cellule NaN, dfbetas NA.
+.verifier_influence_dominante <- function(e) {
+  t <- tri_ref; t[1, ] <- t[1, ] * 10^e
+  inf <- mw_influence(mw_ajuster(t))
+  d <- inf[inf$i == 0, ]
+  # f_j recalcule sur la colonne privee de la ligne 0 (lignes 1..I-j-1)
+  f_ref <- vapply(d$j, function(j) {
+    k <- 2:(nrow(t) - j - 1)
+    sum(t[k, j + 2]) / sum(t[k, j + 1])
+  }, numeric(1))
+  dfb <- d$dfbetas[d$j <= 4]                      # n_j >= 3 : j = 0..4
+  nrow(d) == 6L && all(abs(d$f_sans_cellule / f_ref - 1) <= 1e-12) &&
+    length(dfb) == 5L && all(is.finite(dfb))
+}
+verifier("mw_influence() stable (#233) : reserve2, ligne 0 x 1e16 : f_sans_cellule dominante = f_j sans la ligne 0 a 1e-12 ; DFBETAS finis (j = 0..4)",
+         .verifier_influence_dominante(16))
+verifier("mw_influence() stable (#233) : reserve2, ligne 0 x 1e17 : memes controles",
+         .verifier_influence_dominante(17))
+
 fin_fichier()

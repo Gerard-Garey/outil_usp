@@ -16,7 +16,9 @@
 #  synthetiques (fin du fichier, #250). Critere de #239 : resultats IDENTIQUES au bit pres, ordre des
 #  attributs compris (identical(attrib.as.set = FALSE)). La contre-implementation
 #  ci-dessous est l'ancienne forme, copiee du moteur au commit daabd7a
-#  (commentaires retires), evaluee dans un environnement dedie dont le parent
+#  (commentaires retires ; residu de mw_residus() reporte sous la forme
+#  stable de #233, .mw_ecart_facteur_stable()), evaluee dans un
+#  environnement dedie dont le parent
 #  est celui du moteur : les fonctions non modifiees (mw_stat_correlation_dev(),
 #  .mw_pente_intra(), .mc_evaluer()...) sont communes. Chaque fonction est
 #  comparee par meme() (valeur, ou message d'erreur) et par la liste des
@@ -90,7 +92,10 @@ local({
         i = idx, j = j, calendrier = idx + j,
         C = Cij, F = Cij1 / Cij, f_chapeau = aj$f[j + 1],
         sigma_j = sqrt(aj$sigma2[j + 1]),
-        residu = sqrt(Cij) * (Cij1 / Cij - aj$f[j + 1]) / sqrt(aj$sigma2[j + 1]),
+        # #233 : ecart F - f sous forme stable, reporte dans l'ancienne forme
+        # (seule la valeur du residu change ; l'assemblage compare par #239
+        # est inchange)
+        residu = sqrt(Cij) * .mw_ecart_facteur_stable(Cij, Cij1) / sqrt(aj$sigma2[j + 1]),
         stringsAsFactors = FALSE))
     }
     attr(out, "colonnes_exclues") <- exclues
