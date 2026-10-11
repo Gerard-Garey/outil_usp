@@ -11944,10 +11944,12 @@ $\hat f_j$ et $\hat\sigma_j$.
 p-value de Monte-Carlo retenue~; la p-value du khi-deux est fournie comme
 complément non simulé. \textbf{Celle-ci sous-rejette massivement}~: aucun rejet, aux seuils
 $0{,}10$ et $0{,}05$, sur les 2\,000 triangles $8\times 8$ simulés sous $H_0$ sous chacune des lois
-d'erreurs N et E, ni sur les 1\,000 sous A (section~\ref{sec:calib-asympt-mw}),
-car $\hat\sigma_j^2$ est estimé sur la colonne même, ce qui réduit la dispersion
-des résidus standardisés et donc le $R^2$ de la régression auxiliaire~; c'est la
-contrainte exacte $\sum_i r(i,j)^2 = n_j - 1$ établie à la fiche~\ref{mw:m2var}.
+d'erreurs N et E, ni sur les 1\,000 sous A (section~\ref{sec:calib-asympt-mw}).
+Cause non établie~: la statistique $nR^2$ ne dépend pas de l'échelle des résidus, et la
+dispersion réduite des résidus standardisés, qui découle de la contrainte exacte
+$\sum_i r(i,j)^2 = n_j - 1$ établie à la fiche~\ref{mw:m2var}, ne l'explique pas à elle seule
+(les versions antérieures l'attribuaient à cette seule dispersion réduite, par un $R^2$
+auxiliaire trop faible).
 
 \emph{Sur le triangle de contrôle, une ligne à la frontière du seuil.} Depuis le redressement du
 vivier par le levier (issue~\#46, section~\ref{sec:boot-mw}), la p-value de Monte-Carlo y vaut
@@ -12449,10 +12451,7 @@ complément non simulé. \textbf{Celle-ci sur-rejette nettement}~: $13{,}5~\%$ d
 rejets au seuil nominal de $10~\%$ sur les triangles $8\times 8$ simulés sous $H_0$ avec des
 erreurs gaussiennes ($12{,}85~\%$ et $12{,}2~\%$ sous les lois E et A), et les mêmes taux au seuil
 de $5~\%$ (section~\ref{sec:calib-asympt-mw}).
-La cause est identifiée~: la contrainte
-$\sum_i \sqrt{C(i,j)}\,r(i,j) = 0$ rend les résidus d'une même colonne
-négativement corrélés, donc leurs signes plus alternés que sous l'échangeabilité
-supposée.
+Cause proposée, non mesurée~: la contrainte $\sum_i \sqrt{C(i,j)}\,r(i,j) = 0$ rend les résidus d'une même colonne négativement corrélés, ce qui rendrait leurs signes plus alternés que sous l'échangeabilité supposée~; la mesure, bilatérale, ne distingue pas les deux sens de rejet et n'établit pas ce mécanisme.
 \Usage
 Test non paramétrique robuste, sensible aussi bien au regroupement qu'à
 l'alternance excessive des signes. Sa lecture souffre, comme celle de
@@ -13418,7 +13417,7 @@ Lilliefors (au plus $0{,}023$ sous N et E et $0{,}032$ sous A).
 \multicolumn{2}{c}{\textcolor{financeblue}{\textbf{N}}} &
 \multicolumn{2}{c}{\textcolor{financeblue}{\textbf{E}}} &
 \multicolumn{2}{c}{\textcolor{financeblue}{\textbf{A}}} &
-\textcolor{financeblue}{\textbf{Interprétation}} \\
+\textcolor{financeblue}{\textbf{Interprétation (cause proposée)}} \\
 \rowcolor{tableheader}
  & 0,10 & 0,05 & 0,10 & 0,05 & 0,10 & 0,05 & \\
 Tendance avec le cumulé (Student) & 0,081 & 0,0335 & 0,076 & 0,026 & 0,083 & 0,040 &
@@ -13430,12 +13429,11 @@ Homogénéité de $f_j$ (Fisher) & 0,033 & 0,0125 & 0,038 & 0,0185 & 0,035 & 0,0
 Courbure (Fisher) & 0,100 & 0,051 & 0,0965 & 0,0435 & 0,104 & 0,053 &
 Intervalles contenant le seuil nominal \\
 Breusch--Pagan ($\chi^2$) & \textbf{0} & \textbf{0} & \textbf{0} & \textbf{0} & \textbf{0} &
-\textbf{0} & \textbf{Très conservatrice.} $\hat\sigma_j^2$ est estimé sur la colonne même~; les
-résidus standardisés ont une dispersion réduite, donc un $R^2$ auxiliaire trop faible \\
+\textbf{0} & \textbf{Très conservatrice.} Cause non établie~: la statistique $nR^2$ ne dépend pas de l'échelle des résidus, et la dispersion réduite des résidus standardisés ne l'explique pas à elle seule \\
 Exposant de variance (Fisher) & 0,040 & 0,011 & 0,043 & 0,0165 & 0,039 & 0,015 &
 \textbf{Conservatrice} \\
 Effets d'année calendaire & 0,1125 & 0,089 & 0,116 & 0,0945 & 0,114 & 0,087 &
-Sur-rejet, net à $0{,}05$~: approximation normale d'une somme portant sur peu de diagonales \\
+Sur-rejet net à $0{,}05$~; à $0{,}10$, intervalle excluant le seuil sous E seulement. Cause proposée~: approximation normale d'une somme portant sur peu de diagonales \\
 Kruskal--Wallis & 0,125 & 0,050 & 0,1265 & 0,0525 & 0,100 & 0,037 &
 Sur-rejet à $0{,}10$ sous N et E~: groupes très déséquilibrés \\
 Test des suites & \textbf{0,135} & \textbf{0,135} & \textbf{0,1285} & \textbf{0,1285} &
@@ -13461,8 +13459,7 @@ confirme le sens~; elles proposent une cause sans la mesurer. Le test des suites
 taux aux deux seuils~: aucune de ses p-values normales ne tombe dans $[0{,}05~;~0{,}10[$ sur ces
 triangles. Les combinaisons de Fisher de l'homogénéité de $f_j$ et de l'exposant de variance, dont
 les p-values de colonne suivent la loi de permutation depuis l'issue~\#90 (fiche~\ref{mw:m1b}),
-sont conservatrices, dans le sens qu'annonce la sur-uniformité de ces p-values (même fiche),
-sans que la mesure l'établisse hors de ce plan. Deux autres régressions, hors moteur, éclairent la
+sont conservatrices~; c'est le sens qu'annoncerait la sur-uniformité de ces p-values si les colonnes étaient indépendantes et la loi de permutation celle du modèle de Mack, hypothèses non acquises (même fiche)~: la mesure établit le sens de l'écart sous ce plan, non sa cause. Deux autres régressions, hors moteur, éclairent la
 construction de la fiche~\ref{mw:m1}~: la régression agrégée sans effet de colonne rejette dans
 $98{,}35~\%$, $96{,}8~\%$ et $98{,}8~\%$ des cas au seuil $0{,}10$ (N, E, A), et la régression à
 effet de colonne pondérée par $C(i,j)$ seul dans $6{,}0~\%$, $4{,}75~\%$ et $5{,}8~\%$.
