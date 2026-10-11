@@ -17,16 +17,44 @@
 #  est celui du moteur : les fonctions non modifiees (mw_stat_correlation_dev(),
 #  .mw_pente_intra(), .mc_evaluer()...) sont communes. Chaque fonction est
 #  comparee par meme() (valeur, ou message d'erreur) et par la liste des
-#  avertissements emis, sur :
-#    - le triangle du cas reserve2 (tests/donnees/triangle_mw.csv), avec et
-#      sans noms de lignes ;
-#    - des replications du bootstrap de ce triangle et de triangles a
-#      colonne degeneree, ensemble j_degeneres fige a l'observe ;
-#    - Taylor & Ashe, a colonne degeneree (ta_deg) et bruitee (ta_bruit) ;
+#  avertissements emis, sur les jeux ci-dessous. Chaque cas y figure AU MOINS
+#  UNE FOIS, au plus petit nombre de triangles et de replications qui le
+#  couvre (allegement de #239, decision du mainteneur du 10/10/2026 : environ
+#  27 s -> 6 s sur le poste de session ; aucun appel a run_engine()) :
+#    - le triangle du cas reserve2 (tests/donnees/triangle_mw.csv), sans noms
+#      de lignes (colonnes exclues : calculees, aucune, j = 4) ;
+#    - le meme a dix jeux de noms de lignes (lettres, numeros, numeros
+#      commencant a 0, collisions avec make.unique(), doublons, vides,
+#      partiellement vides, manquant), colonnes exclues calculees, j = 4 et
+#      j = 0 et 4. Seules y sont comparees les fonctions dont la sortie depend
+#      des noms : mw_residus(), mw_test_annees_calendaires(),
+#      mw_test_exposant_variance(), mw_test_homogeneite_accident() et
+#      .mw_contexte_mc(). Les autres (mw_famille_alpha(),
+#      mw_test_ordonnee_origine(), mw_test_homogeneite_f(), mw_test_courbure(),
+#      .mw_stats()) rendent, dans les deux formes et pour ces trente
+#      combinaisons, la valeur du triangle sans noms, sauf .mw_stats() aux
+#      noms manquants, qui rend l'erreur de .mw_contexte_mc(), comparee
+#      (mesure du 11/10/2026). L'ensemble complet des fonctions est compare
+#      sur un jeu, le 4e (collisions avec make.unique()), sous j = 0 et 4
+#      exclues ;
+#    - Taylor & Ashe a colonne j = 4 degeneree (ta_deg) et bruitee a 1e-14
+#      (ta_bruit), le triangle tri_deg (colonne j = 2 degeneree), colonnes
+#      exclues calculees et aucune (chemin .mw_stat_non_definie()) ;
 #    - les triangles minimaux 2 x 2 a 4 x 4 ;
-#    - des triangles tires sous graine (3 a 12 annees, ex aequo, colonnes
-#      degenerees, colonnes nulles (facteurs egaux a 1), noms de lignes
-#      ordinaires, numeriques, en collision avec make.unique(), doublons).
+#    - les deux premieres replications du bootstrap du cas reserve2 et de
+#      tri_deg (graine 20261010) et de ta_deg (graine 20261021, choisie pour
+#      couvrir en deux replications les deux cas de la colonne figee j = 4 :
+#      sigma2_4 bruit d'arrondi strictement positif, 2,0e-25, colonne exclue
+#      par l'ensemble fige seulement, puis sigma2_4 = 0 exactement ; sous la
+#      graine 20261010, le premier cas n'apparaissait qu'a la 7e replication),
+#      ensemble j_degeneres fige a l'observe ;
+#    - douze triangles tires sous graine (PLAN_TIRAGES : 3 a 12 annees ;
+#      continus ; ex aequo, effectifs au tirage 9, 8 annees ; colonnes
+#      degenerees interieures, tirages 3, 4, 7, 9 a 12 ; colonnes nulles
+#      (facteurs egaux a 1), tirages 4, 7, 9 et 11 ; noms de lignes ordinaires,
+#      tirages 5, 6 et 10, colonnes exclues calculees, j = 0 et j = 1).
+#  Un ensemble de colonnes exclues qui se resout au meme ensemble qu'un
+#  ensemble deja compare sur le meme triangle n'est pas recalcule (ecarts()).
 #  Les identites des objets run_engine() des cinq cas avant / apres #239
 #  (identical(attrib.as.set = FALSE)) sont mesurees hors batterie, dans le
 #  compte rendu de #239 ; test_reproductibilite.R les compare aux references.
@@ -291,23 +319,39 @@ FONCTIONS_JD <- c("mw_residus", "mw_test_annees_calendaires", "mw_test_ordonnee_
                   "mw_test_homogeneite_accident", ".mw_contexte_mc", ".mw_stats")
 # Ecarts entre les deux formes sur un triangle t, pour chaque ensemble de
 # colonnes exclues de jds (NULL : calcule sur aj) : vecteur des fonctions en
-# ecart, vide si tout est identique.
-ecarts <- function(t, jds = list(NULL), etiquette = "") {
+# ecart, vide si tout est identique. fonctions : sous-ensemble de FONCTIONS_JD
+# compare (toutes par defaut) ; alpha : comparer aussi mw_famille_alpha().
+# Allegement (#239, decision du 10/10/2026) : (i) un element de jds qui se
+# resout (.mw_j_exclues()) au meme ensemble qu'un element deja traite est
+# saute : toutes les fonctions comparees, dans les deux formes, ne lisent
+# j_degeneres qu'au travers de .mw_j_exclues(), commune aux deux formes, ou
+# le transmettent a mw_residus() ; (ii) les valeurs capturees sont reutilisees :
+# residus transmis = valeur capturee de mw_residus(), ancienne forme de
+# mw_test_exposant_variance() et mw_test_homogeneite_accident() calculee une
+# fois.
+ecarts <- function(t, jds = list(NULL), etiquette = "", fonctions = FONCTIONS_JD,
+                   alpha = TRUE) {
   aj <- tryCatch(mw_ajuster(t), error = function(e) NULL)
   if (is.null(aj)) return(character(0))
   out <- character(0)
-  if (!meme(capturer(mw_famille_alpha, list(aj)), capturer(ANCIEN$mw_famille_alpha, list(aj))))
+  if (alpha && !meme(capturer(mw_famille_alpha, list(aj)), capturer(ANCIEN$mw_famille_alpha, list(aj))))
     out <- c(out, paste(etiquette, "mw_famille_alpha"))
+  vus <- list()
   for (jd in jds) {
-    for (f in FONCTIONS_JD)
-      if (!meme(capturer(get(f), list(aj, jd)), capturer(ANCIEN[[f]], list(aj, jd))))
-        out <- c(out, paste(etiquette, f, "jd =", deparse(jd)))
+    r <- .mw_j_exclues(aj, jd)
+    if (any(vapply(vus, identical, logical(1), r))) next
+    vus[[length(vus) + 1L]] <- r
+    nouv <- lapply(stats::setNames(nm = fonctions), function(f) capturer(get(f), list(aj, jd)))
+    anc  <- lapply(stats::setNames(nm = fonctions), function(f) capturer(ANCIEN[[f]], list(aj, jd)))
+    for (f in fonctions)
+      if (!meme(nouv[[f]], anc[[f]])) out <- c(out, paste(etiquette, f, "jd =", deparse(jd)))
     # Residus transmis (argument res, #239) = residus recalcules (sauf si
     # mw_residus() echoue : noms de lignes manquants, erreur deja comparee).
-    res <- tryCatch(mw_residus(aj, jd), error = function(e) NULL)
-    if (!is.null(res)) for (f in c("mw_test_exposant_variance", "mw_test_homogeneite_accident"))
-      if (!meme(capturer(get(f), list(aj, jd, res)), capturer(ANCIEN[[f]], list(aj, jd))))
-        out <- c(out, paste(etiquette, f, "(res fourni) jd =", deparse(jd)))
+    res <- nouv[["mw_residus"]]$valeur
+    if (is.data.frame(res))
+      for (f in intersect(c("mw_test_exposant_variance", "mw_test_homogeneite_accident"), fonctions))
+        if (!meme(capturer(get(f), list(aj, jd, res)), anc[[f]]))
+          out <- c(out, paste(etiquette, f, "(res fourni) jd =", deparse(jd)))
   }
   out
 }
@@ -380,14 +424,24 @@ verifier("Cas reserve2, noms de lignes (lettres, numeros, collisions, doublons) 
                         c("", "", "", "", "", "", "", ""), c("", "b", "c", "d", "e", "f", "g", "h"),
                         c("", "1", "2", "11", "21", "3", "4", "5"), c("1", "11", "12", "111", "2", "21", "3", "31"),
                         c(NA, "b", "c", "d", "e", "f", "g", "h"))
+           # Fonctions dont la sortie depend des noms de lignes seulement (en-tete).
+           sensibles <- c("mw_residus", "mw_test_annees_calendaires", "mw_test_exposant_variance",
+                          "mw_test_homogeneite_accident", ".mw_contexte_mc")
+           # Jeu 4 (collisions avec make.unique()) : ensemble complet des
+           # fonctions, mw_famille_alpha() comprise, sous j = 0 et 4 exclues.
+           complet <- 4L
            resultat(unlist(lapply(seq_along(noms), function(k) {
              t <- tri_ref; rownames(t) <- noms[[k]]
-             ecarts(t, list(NULL, 4L, c(0L, 4L)), paste("noms", k))
+             if (k == complet)
+               c(ecarts(t, list(NULL, 4L), paste("noms", k), fonctions = sensibles, alpha = FALSE),
+                 ecarts(t, list(c(0L, 4L)), paste("noms", k, "(complet)")))
+             else ecarts(t, list(NULL, 4L, c(0L, 4L)), paste("noms", k), fonctions = sensibles,
+                         alpha = FALSE)
            })))
          })
 
 verifier("Triangles a colonne degeneree et minimaux : identiques a l'ancienne forme (#239)",
-         resultat(c(ecarts(ta, list(NULL), "ta"), ecarts(ta_deg, list(NULL, integer(0)), "ta_deg"),
+         resultat(c(ecarts(ta_deg, list(NULL, integer(0)), "ta_deg"),
                     ecarts(ta_bruit, list(NULL, integer(0), 4L), "ta_bruit"),
                     ecarts(tri_deg, list(NULL, integer(0)), "tri_deg"),
                     ecarts(tri_ref[1:2, 1:2], list(NULL), "2 x 2"),
@@ -397,29 +451,39 @@ verifier("Triangles a colonne degeneree et minimaux : identiques a l'ancienne fo
 # Replications du bootstrap (mw_simuler_triangle() sur le pool redresse de
 # mw_bootstrap()), ensemble j_degeneres fige a l'observe, comme dans
 # mw_bootstrap() : .mw_stats() et les tables de chaque replication.
+# Graine et nombre de replications par triangle (en-tete) : premieres
+# replications de la sequence tiree sous la graine du cas.
 verifier("Replications du bootstrap (reserve2, ta_deg, tri_deg) : identiques a l'ancienne forme (#239)",
          {
-           e <- unlist(lapply(list(reserve2 = tri_ref, ta_deg = ta_deg, tri_deg = tri_deg), function(t) {
-             aj <- mw_ajuster(t); jd <- .mw_colonnes_degenerees(aj)
+           cas <- list(reserve2 = list(tri_ref, 20261010, 2L), ta_deg = list(ta_deg, 20261021, 2L),
+                       tri_deg = list(tri_deg, 20261010, 2L))
+           e <- unlist(lapply(names(cas), function(nm) {
+             aj <- mw_ajuster(cas[[nm]][[1]]); jd <- .mw_colonnes_degenerees(aj)
              pool <- .mw_pool_residus(aj, jd)
-             tb <- engine_sous_graine(20261010, lapply(1:15, function(b) mw_simuler_triangle(aj, pool)))
-             unlist(lapply(seq_along(tb), function(b) ecarts(tb[[b]], list(jd), paste("replication", b))))
+             tb <- engine_sous_graine(cas[[nm]][[2]], lapply(seq_len(cas[[nm]][[3]]),
+                                                       function(b) mw_simuler_triangle(aj, pool)))
+             unlist(lapply(seq_along(tb), function(b)
+               ecarts(tb[[b]], list(jd), paste(nm, "replication", b))))
            }))
            resultat(e)
          })
 
+# Plan des triangles tires (en-tete) : taille, variante, noms de lignes.
+PLAN_TIRAGES <- data.frame(
+  n        = c(3L, 3L, 4L, 4L, 5L, 6L, 7L, 8L, 8L, 8L, 10L, 12L),
+  variante = c("continu", "ex_aequo", "degeneree", "nulle", "ex_aequo", "continu",
+               "nulle", "continu", "ex_aequo", "degeneree", "nulle", "degeneree"),
+  noms     = c(FALSE, FALSE, FALSE, FALSE, TRUE, TRUE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE),
+  stringsAsFactors = FALSE)
+TIRAGES <- engine_sous_graine(20261011, lapply(seq_len(nrow(PLAN_TIRAGES)), function(k) {
+  t <- tirer_triangle(PLAN_TIRAGES$n[k], PLAN_TIRAGES$variante[k])
+  if (PLAN_TIRAGES$noms[k]) rownames(t) <- sample(c(letters, paste0("a", 1:9)), nrow(t))
+  t
+}))
 verifier("Triangles tires sous graine (3 a 12 annees, ex aequo, colonnes degenerees et nulles, noms) : identiques (#239)",
-         {
-           variantes <- c("continu", "ex_aequo", "degeneree", "nulle")
-           tris <- engine_sous_graine(20261011, lapply(1:48, function(k) {
-             t <- tirer_triangle(3L + (k %% 10L), variantes[(k %% 4L) + 1L])
-             if (k %% 5L == 0L) rownames(t) <- sample(c(letters, paste0("a", 1:9)), nrow(t))
-             t
-           }))
-           resultat(unlist(lapply(seq_along(tris), function(k)
-             ecarts(tris[[k]], if (k %% 5L) list(NULL, integer(0)) else list(NULL, 0L, 1L),
-                    paste("tirage", k)))))
-         })
+         resultat(unlist(lapply(seq_along(TIRAGES), function(k)
+           ecarts(TIRAGES[[k]], if (PLAN_TIRAGES$noms[k]) list(NULL, 0L, 1L) else list(NULL, integer(0)),
+                  paste("tirage", k))))))
 
 verifier(".mw_spearman_p() et .mw_spearman() : p identique a l'ancienne forme, rho = estimation de cor.test(exact = FALSE) (#239)",
          {
