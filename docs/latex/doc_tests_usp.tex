@@ -11965,8 +11965,7 @@ sur un seul triangle~: le verdict de cette ligne dépend de la graine, avant com
 \textbf{Cette p-value de Monte-Carlo est elle-même conservatrice} sous le plan du triangle de
 contrôle (issue~\#206, section~\ref{sec:calib-mc-mw}, rubrique~7)~: distorsion matérielle sous
 les lois d'erreurs N et A ($0{,}016$ et $0{,}004$ de rejets au seuil $0{,}10$, pour une référence
-de $0{,}099$), écart mineur sous E ($0{,}0695$). Sous ce plan, un verdict \code{OK} de la ligne
-est donc une preuve faible d'absence d'hétéroscédasticité, et une p-value voisine du seuil, comme
+de $0{,}099$), écart mineur sous E ($0{,}0695$). Sous ce plan, la ligne rejette sous $H_0$ bien moins souvent que son seuil~: un verdict \code{OK} n'y établit pas l'absence d'hétéroscédasticité, la puissance n'étant pas étudiée à $T = 8$, et une p-value voisine du seuil, comme
 celle du triangle de contrôle, ne se lit pas comme une absence de signal (constat de simulation
 sous ce plan~; issue~\#243, ouverte, moteur inchangé).
 \Usage
@@ -12553,9 +12552,9 @@ limite de son domaine. À traiter comme un signal d'attention.
 
 \textbf{Table.} Sans objet.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type procédure de décision~; limites des valeurs critiques en rubrique~6. Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type procédure de décision~; limites des valeurs critiques en rubrique~6. Puissance non étudiée à $T = 8$. Sous le plan du triangle de contrôle (issue~\#206, section~\ref{sec:calib-mc-mw}), la procédure au niveau $\alpha = 0{,}10$ ne déclare aucune cellule aberrante dans les 2\,000 triangles à erreurs gaussiennes (intervalle de Clopper--Pearson à 95~\% $[0~;~0{,}0018]$), seule loi du plan sous laquelle sa normalité est vraie~: une absence de cellule déclarée n'y établit pas l'absence de cellule aberrante.
 
-\textbf{Statut des valeurs.} Aucune valeur chiffrée.
+\textbf{Statut des valeurs.} Taux sous $H_0$~: constat de simulation sous un plan, intervalle de Clopper--Pearson fonction du nombre de triangles simulés.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -13407,7 +13406,7 @@ d'erreurs N, E et A, 2\,000, 2\,000 et 1\,000 triangles~; tableau T6 de
 \code{tests/}\allowbreak\code{calibration\_mc\_mw\_t8.R}, commit \code{3a95e11})~; constat de
 simulation sous ce plan. Demi-largeur des intervalles de Clopper--Pearson à 95~\% (dans le
 fichier)~: au plus $0{,}016$ sous N et E et $0{,}022$ sous A, sauf pour Shapiro--Wilk et
-Lilliefors (au plus $0{,}023$ et $0{,}032$).
+Lilliefors (au plus $0{,}023$ sous N et E et $0{,}032$ sous A).
 
 \begin{center}
 \footnotesize
@@ -13622,8 +13621,7 @@ test). Lecture, ligne par ligne, dans la rubrique~7 de chaque fiche~; trois stat
 distinguent.
 \begin{itemize}[itemsep=2pt]
   \item \emph{Breusch--Pagan} (\code{BP}, fiche~\ref{mw:m2bp})~: distorsion matérielle du côté
-  conservateur sous N et A aux deux seuils, écart mineur du même côté sous E. Sous ce plan, un
-  verdict \code{OK} de la ligne est une preuve faible d'absence d'hétéroscédasticité, et une
+  conservateur sous N et A aux deux seuils, écart mineur du même côté sous E. Sous ce plan, la ligne rejette sous $H_0$ bien moins souvent que son seuil~: un verdict \code{OK} n'y établit pas l'absence d'hétéroscédasticité, la puissance n'étant pas étudiée à $T = 8$, et une
   p-value voisine du seuil, comme celle du triangle de contrôle ($0{,}103$), ne se lit pas comme une
   absence de signal. Constat documenté, moteur inchangé~; issue~\#243, ouverte (décision du
   mainteneur du 11~octobre 2026).
@@ -13642,9 +13640,7 @@ homogénéité entre années de survenance sous A à $0{,}10$~; Durbin--Watson s
 Les trois p-values voisines du seuil sur le triangle de contrôle s'y lisent ainsi~: ordonnée à
 l'origine ($0{,}085$), compatible partout~; homogénéité de $f_j$ ($0{,}080$), compatible sauf un
 écart mineur du côté conservateur sous N à $0{,}05$~; Breusch--Pagan ($0{,}103$), conservatrice
-(ci-dessus). Pour les deux premières, le verdict \code{ALERTE} du triangle de contrôle est rendu
-par une p-value dont le niveau, sous ce plan, ne présente pas de distorsion détectée, à l'erreur
-de Monte-Carlo près de la p-value elle-même.
+(ci-dessus). Pour les deux premières, le verdict \code{ALERTE} du triangle de contrôle est rendu par une p-value dont le niveau au seuil $0{,}10$ ne présente, sous ce plan, aucune distorsion détectée~; cette mesure du niveau ne dit rien de l'erreur de Monte-Carlo de la p-value du triangle lui-même (\code{err\_mc}, fonction de $B$), qui reste à lire ligne par ligne.
 
 \emph{Effet du redressement du vivier} (issue~\#46~; tableaux T1~bis et T2). Sur les 1\,000
 premiers triangles sous N et sous E, mêmes graines, les décisions des deux viviers sont comparées
@@ -13686,12 +13682,11 @@ verdicts des 13 statistiques de Monte-Carlo~: $0{,}6355$ (N), $0{,}6415$ (E), $0
 et lignes M5 comprises~: $0{,}734$, $0{,}887$, $0{,}849$, et $0{,}482$, $0{,}6975$, $0{,}649$ pour
 au moins un \code{ECHEC}~; sous E et A, les lignes M5 rejettent la normalité, fausse par
 construction (section~\ref{sec:calib-asympt-mw}). Sous ce plan, un triangle conforme au modèle de
-Mack reçoit donc le plus souvent au moins une \code{ALERTE}~: le nombre de verdicts
+Mack reçoit donc, dans près de deux cas sur trois, au moins une \code{ALERTE} ou un \code{ECHEC} sur les verdicts de ses 13 statistiques de Monte-Carlo~: le nombre de verdicts
 \code{ALERTE} ou \code{ECHEC} d'un triangle se lit avec cette multiplicité. Le repère
 $1 - 0{,}9^{13} = 0{,}746$ suppose treize décisions indépendantes au niveau $0{,}10$~: c'est un ordre
 de grandeur, non une référence. La procédure ESD de Rosner (fiche~\ref{mw:m4ros}) détecte au
-moins une cellule aberrante dans 0 triangle sur 2\,000 sous N, $0{,}0025$ sous E et $0{,}023$
-sous A, au niveau $\alpha = 0{,}10$.
+moins une cellule aberrante dans 0 triangle sur 2\,000 sous N, 5 sur 2\,000 ($0{,}0025$) sous E et 23 sur 1\,000 ($0{,}023$) sous A, au niveau $\alpha = 0{,}10$.
 
 \emph{Voisinage du seuil} (tableau T4). La fréquence sous $H_0$ d'un écart
 $|p_{\mathrm{mc}} - \alpha|$ inférieur à deux fois \code{err\_mc} va, selon la statistique et la loi, de
@@ -13951,6 +13946,15 @@ soutient dans le présent document.
   la multiplicité des comparaisons appariées (McNemar) de la mesure de
   l'issue~\#229, et, à la section~\ref{sec:calib-mc-mw}, celle des comparaisons appariées et des
   témoins de la mesure de l'issue~\#206. Elle ne dit rien du niveau des tests du moteur.
+
+  \item Q.~McNemar, \emph{Note on the sampling error of the difference between correlated
+  proportions or percentages}, \emph{Psychometrika}, 12(2), 1947, p.~153--157.
+  \emph{Portée.} Comparaison de deux proportions mesurées sur les mêmes unités, fondée sur les
+  seules paires discordantes~; l'article en donne une forme normale et signale son équivalent
+  $\chi^2$. Les comparaisons appariées des sections~\ref{sec:calibration-mc}
+  et~\ref{sec:calib-mc-mw} en emploient la version exacte, test binomial bilatéral de
+  paramètre $1/2$ sur le nombre de paires discordantes, que l'article ne développe pas. Elle ne
+  dit rien du niveau des tests du moteur.
 
   \item D.\,R. Cox, \emph{Some problems connected with statistical inference},
   \emph{The Annals of Mathematical Statistics}, 29(2), 1958, p.~357--372~;
@@ -14452,6 +14456,8 @@ repère indicatif de 40~\% du second n'emporte aucun verdict (ADR~0001). \\
 \bottomrule
 \end{tabular}
 \end{center}
+
+\noindent Sous le plan du triangle de contrôle de la méthode Merz--Wüthrich, un triangle conforme au modèle de Mack reçoit au moins une \code{ALERTE} ou un \code{ECHEC} sur les verdicts de ses 13 statistiques de Monte-Carlo dans $63{,}6$ à $65{,}5~\%$ des cas (section~\ref{sec:calib-mc-mw}, constat de simulation sous ce plan)~: le nombre de tels verdicts d'un triangle ne se lit pas sans cette multiplicité.
 
 \subsection*{Taux de franchissement des repères sous le modèle ajusté}
 \label{sec:taux-reperes}
