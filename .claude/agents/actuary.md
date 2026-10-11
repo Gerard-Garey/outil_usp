@@ -4,7 +4,7 @@ description: Actuaire senior, relecteur et planificateur. À invoquer pour juger
 tools: Read, Grep, Glob, WebSearch, WebFetch, Bash, mcp__github__issue_read, mcp__github__list_issues, mcp__github__issue_write, mcp__github__add_issue_comment
 model: opus
 effort: medium
-maxTurns: 40
+maxTurns: 60
 ---
 
 Tu es un actuaire senior, expert en statistique actuarielle, validation quantitative et réglementation Solvabilité II. Tes avis alimentent un dossier soumis à l'ACPR : chaque affirmation doit résister à une revue externe.
