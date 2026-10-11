@@ -360,3 +360,36 @@ Aucune exécution n'a eu lieu avant cette approbation.
    - sur les 999 répliques, avec l'ensemble des colonnes dégénérées figé à l'observé.
 
    Cette convention est celle du contexte de `mw_bootstrap()` (#56), donc celle que suivrait la p de Monte-Carlo hypothétique visée par le commentaire de `mw_bootstrap()`. Le script compte et rapporte en T7 les répliques dont l'ensemble recalculé diffère de l'ensemble figé (attendu : 0 **[H]**). Un compte non nul est un point de décision.
+
+---
+
+## Annotation du 11/10/2026 : point d'arrêt B3 franchi, règle du témoin K3 corrigée pour les statistiques à atomes
+
+> *Rédigé par l'agent actuary (IA), versionné par la session principale. Décisions du mainteneur du 11/10/2026, prises sur les tableaux combinés au commit mesuré `3a95e11` (`docs/tableaux/20261011-issue206-calibration-mw.md`, `…-brut.tsv`, `20261011-issue119-mw.md`). Les sorties ne sont pas modifiées et restent celles de ce commit.*
+
+**1. Correction de la règle du témoin K3 (§ 5 et annotation du 10/10/2026, point 2 (b)).**
+- *Erreur de la spécification.* La « taille » du témoin est la taille lissée P(Bin(N0, q) ≤ ⌈N0 α⌉ − 2), moyennée sur F0 : elle accorde un crédit fractionnaire à chaque atome de F0 dont la probabilité de queue q est voisine du seuil. Or les 2 000 triangles mesurés sont tous confrontés au **même** échantillon oracle réalisé. Pour un tel atome, la décision du témoin est donc déterministe : l'atome entier est rejeté, ou aucune de ses valeurs ne l'est. Le test binomial de τ_or contre la taille lissée n'est alors pas un contrôle valide de la mesure : il signale un écart attendu.
+- *Règle corrigée pour la lecture de K3.*
+  - (i) **Statistique sans atome à cheval sur le seuil.** Le binomial exact reste la référence. Son signal se lit avec la variance déclarée de l'oracle partagé, α(1 − α)(1/n + 1/N0) (annotation 2 (b)). Un signal qui disparaît avec cette variance n'est pas un défaut de la mesure.
+  - (ii) **Statistique dont un atome est à cheval sur le seuil**, c'est-à-dire dont la probabilité de queue dans l'oracle réalisé, avant et avec l'atome, encadre α (α/2 en bilatéral). K3 y est rapporté à titre descriptif, avec la valeur de l'atome, sa masse et la décision qu'en prend l'oracle réalisé. Il ne suspend pas la lecture si l'écart τ_or − taille est au plus de l'ordre de la masse de l'atome.
+- La référence ρ du critère K1 n'est pas touchée : elle porte sur le test de Monte-Carlo idéal à B = 999, dont les répliques sont tirées pour chaque triangle, et le lissage y est exact.
+
+**2. D1 : Π0 levé.** Les deux signaux de K3 (T3) sont expliqués.
+- **E, Runs, 0,05.** k = 44 / 2 000, τ_or = 0,02200, taille 0,03639, p Holm 0,00422. Runs n'a que 17 valeurs distinctes.
+  - Dans les triangles mesurés sous E, l'atome −1,2010 pèse 0,0175, et la queue basse cumulée jusqu'à lui vaut 0,0235 (brut).
+  - Dans l'oracle E réalisé (régénéré le 11/10/2026 par `--oracle --loi E` sous les graines du § 7, N0 = 20 000, hors dépôt, md5 de la sortie `ffc4d0c26dd7486c98c01ee9fa0a7a83`), l'atome pèse 0,01755. La queue basse vaut 0,0077 avant l'atome et 0,02525 avec lui, de part et d'autre du seuil de 0,025 par queue : l'atome est **à cheval sur le seuil**.
+  - L'écart taille − τ_or, 0,0144, est inférieur à la masse de l'atome. C'est le cas (ii).
+- **N, HomogF, 0,05.** k = 71 / 2 000, taille 0,04996, p binomiale 0,00241, p Holm 0,0314.
+  - Avec la variance déclarée de l'oracle partagé (écart-type multiplié par 1,049), l'approximation normale donne p ≈ 0,0047, soit ≈ 0,060 après Holm sur 13.
+  - Ce n'est plus significatif à 0,05 : cas (i).
+- K4 est rempli : 0 p absente dans les cinq couples (loi, pool).
+
+**3. Décisions B3 du mainteneur (11/10/2026), toutes selon la recommandation d'actuary.**
+- **D1 (a)** : Π0 levé, avec le présent amendement.
+- **D2 (a)** : constat documenté seul pour les 12 lignes Π1/Π2, dont PenteIntra (écart mineur ou non tranché, côté libéral) et Grubbs sous A (0,159 [0,137 ; 0,183] à 0,10, écart non tranché).
+- **D3 (b)** : BP (Π3, distorsion matérielle conservatrice sous N et A) documenté ; issue #243 ouverte.
+- **D4 (a)** : R3 sur BP (E, 0,10 ; 0/18, p Holm 9,16e-05 ; τ 0,081 → 0,063) rattaché à #243 ; la variante B de #46 n'est pas rouverte.
+- **D5 (b)** : Q-206-9 tranchée, issue #244 (E2b). Une phrase dans le `detail` quand |p_mc − α| < 2 err_mc, sans changer ni p ni verdict.
+- **D6 (a)** : les commentaires de `R/engine.R` visés par #119 sont corrigés sur cette branche, par un commit `moteur:` limité aux commentaires (empreinte #231 inchangée).
+- **D7** : issue #245 (M5), option (a) par défaut : lignes M5 en diagnostic. Le Shapiro-Wilk de `reserve2` passerait d'ALERTE à INFO, sous réserve du visa du mainteneur sur ce changement de verdict.
+- **D8** : issue #246 (outil hors CI de double bootstrap), priorité basse.
