@@ -3620,8 +3620,8 @@ $\pi_t$ ne dépend pas de $\delta$ et où le régime de $\hat\delta$ n'est qu'un
 l'optimiseur, et, en appel direct seulement, sous \code{refit = FALSE}, où $\hat\delta^{**}$
 n'existe pas, la p-value est celle qui précède, calculée sur les $B$ réplications (p-value
 \emph{marginale}, notée V1, inchangée au bit près par l'issue~\#240). \emph{À $\hat\delta$
-intérieur}, volumes non constants et réajustement demandé (cas de toute exécution de
-\code{run\_engine()}), la formule et la fonction \code{engine\_p\_mc()} sont les mêmes, mais
+intérieur}, volumes non constants et réajustement demandé (\code{run\_engine()} demande
+toujours le réajustement), la formule et la fonction \code{engine\_p\_mc()} sont les mêmes, mais
 appliquées aux seuls tirages dont le réajustement aboutit avec un $\hat\delta^{**}$ lui aussi
 intérieur~: d'abord ceux des $B$ réplications, par rang croissant, puis, s'ils sont moins de $B$,
 des tirages supplémentaires sur un flux aléatoire distinct (sixième source de tirage,
@@ -3649,20 +3649,24 @@ cause (réajustement, hors régime, statistiques) et cause de l'arrêt (cible ou
 sur le cas \code{premium\_interieur} ($\hat\delta = 0{,}664$, $B = 999$)~: $4\,490$ tirages,
 dont 203 retenus parmi les 999 réplications, $2\,695$ tirages du flux écartés hors régime, aucun
 échec, arrêt à la cible de 999 tirages retenus. À volumes constants, l'ajustement rend en
-pratique $\hat\delta = 0$ (constat sur six jeux~: pertes du jeu de contrôle avec des volumes
-$100\,(1 \pm \varepsilon)$ alternés, $\varepsilon = 0$, $10^{-12}$, $10^{-9}$ et $10^{-7}$, pertes
-de J2 avec des volumes égaux, et un jeu synthétique), de sorte que c'est le motif du bord qui
-s'applique et que l'application affiche «~au bord~0~»~; le motif propre aux volumes constants
+pratique un $\hat\delta$ au bord~: $\hat\delta = 0$ pour des volumes exactement égaux (pertes du
+jeu de contrôle, de J2 et d'un jeu synthétique)~; pour des volumes $100\,(1 \pm \varepsilon)$
+alternés que la tolérance déclare constants, $\hat\delta \le 3\cdot 10^{-12}$ à
+$\varepsilon = 10^{-12}$, et $\hat\delta = 0$ ou $1$ à $\varepsilon = 10^{-9}$ et $10^{-7}$ selon le
+sens de l'alternance, sur les pertes du jeu de contrôle comme sur celles de J2 (constat,
+\code{usp\_ajuster()}, sans portée générale)~; c'est donc le motif du bord qui s'applique, et
+l'application affiche «~au bord~0~» ou «~au bord~1~», bord qui ne renseigne pas sur $\delta$, non
+identifié~; le motif propre aux volumes constants
 n'est atteint qu'en appel direct avec un $\hat\delta$ intérieur. \emph{Statut}~: p-value de
 Monte-Carlo de bootstrap paramétrique à paramètres estimés, \textbf{non exacte} (ADR~0002).
 Conditionnellement au nombre de tirages retenus, ceux-ci sont indépendants et de même loi, la
 loi conditionnelle au régime, de sorte que l'arrêt adaptatif n'introduit pas de biais par rapport
 à un test de Monte-Carlo à $B_{\text{eff}}$ fixé (argument élémentaire, sans référence)~; le
 régime de $\hat\delta$ n'est pas une statistique ancillaire, et aucun théorème ne fonde ce
-conditionnement à $T = 8$ (Cox, 1958, et Buehler, 1959, n'en fondent que le principe,
-section~\ref{sec:biblio})~; que cette p-value soit calibrée conditionnellement au régime
-intérieur est un \emph{constat de simulation} sur trois jeux à $T = 8$
-(section~\ref{sec:calibration-mc}), non un résultat, et son extension à la méthode de réserve
+conditionnement à $T = 8$ (Cox, 1958, et Buehler, 1959, ne fondent que le principe général
+de l'inférence conditionnelle, sur une statistique ancillaire, section~\ref{sec:biblio})~; que cette p-value soit calibrée conditionnellement au régime
+intérieur est un \emph{constat de simulation} sur deux jeux à $T = 8$, J2 et J3 (les 75
+réplications intérieures de J1 sont descriptives~; section~\ref{sec:calibration-mc}), non un résultat, et son extension à la méthode de réserve
 n\textsuperscript{o}~1, que la mesure ne couvre pas, est une hypothèse.
 
 \medskip
@@ -3696,8 +3700,9 @@ intérieur, ce niveau est nettement inférieur au nominal pour Breusch--Pagan (d
 Goldfeld--Quandt et Brown--Forsythe sur les trois jeux mesurés, et pour Grubbs, D'Agostino
 et Jarque--Bera sur J2 et sur les 75 réplications intérieures de J1 (descriptives), pour la
 p-value marginale~; c'est pourquoi, depuis l'issue~\#240, le moteur retient à $\hat\delta$
-intérieur la p-value conditionnelle au régime (rubrique~5), dont la même section montre qu'elle
-y rétablit le niveau sur les jeux mesurés (issue~\#229, constat de simulation). Sa
+intérieur la p-value conditionnelle au régime (rubrique~5), dont la même section constate qu'elle
+y ramène le taux de rejet au voisinage du niveau nominal sur J2 et J3 (écart mineur pour trois des
+huit statistiques sur J3~; issue~\#229, constat de simulation). Sa
 granularité est bornée par $1/(B+1)$~: avec $B = 999$, la plus petite p-value atteignable vaut
 $0{,}001$ en queue haute ou basse, et $2/(B+1) = 0{,}002$ au bilatéral, du fait du doublement.
 $B = 999$ est la valeur du dossier~; \code{run\_engine()} refuse $B <$ \code{B\_MIN\_USAGE} $= 99$
@@ -4689,7 +4694,7 @@ p-value retenue dépend, depuis l'issue~\#240, du régime de $\hat\delta$ observ
 de delta estime)}, p-value \emph{conditionnelle au régime intérieur de $\hat\delta$}, à
 $\hat\delta$ intérieur, calculée sur $B_{\text{eff}} \le B$ tirages retenus parmi au plus
 $25\,(B+1)$. Les deux natures ont le même rang dans la hiérarchie, aucune n'est exacte, et leur
-validité à $T = 8$ n'est établie que par simulation (section~\ref{sec:calibration-mc}). Les
+validité à $T = 8$ n'est étayée que par des constats de simulation (section~\ref{sec:calibration-mc}). Les
 p-values de Monte-Carlo calculées hors du catalogue --- permutations aléatoires de la pente,
 bootstrap restreint du rapport de vraisemblance sur $\delta$ --- gardent leur nature. Mesuré sur
 le cas \code{premium\_interieur} ($\hat\delta = 0{,}664$)~: les 33 p-values retenues de
@@ -5191,8 +5196,8 @@ $\sqrt{p(1-p)/B_{\text{eff}}}$, $\sqrt{p(2-p)/B_{\text{eff}}}$ au bilatéral, so
 $\mathcal{O}(B_{\text{eff}}^{-1/2})$~; granularité $1/(B_{\text{eff}}+1)$, $2/(B_{\text{eff}}+1)$ au
 bilatéral & Tirages retenus i.i.d. sous la loi conditionnelle, sachant leur nombre (argument
 élémentaire, sans référence) & Erreur de Monte-Carlo seule contrôlée~; l'erreur d'approximation à
-$T = 8$ n'est bornée par aucune théorie (régime non ancillaire)~; niveau intérieur rétabli sur
-trois jeux, constat de simulation (section~\ref{sec:calibration-mc}, fiche~\ref{fiche:procedure-mc}) \\
+$T = 8$ n'est bornée par aucune théorie (régime non ancillaire)~; niveau intérieur ramené au voisinage du nominal sur J2 et J3 (J1~: 75 réplications
+intérieures, descriptives), constat de simulation (section~\ref{sec:calibration-mc}, fiche~\ref{fiche:procedure-mc}) \\
 
 Durbin--Watson sur ratios bruts & $\hat p_{\text{MC}}$ (loi limite de DW non employée) &
 $p_{\text{MC}}(\hat\theta)$, p-value sous le modèle ajusté de paramètres
@@ -5664,7 +5669,9 @@ issues~\#169 et~\#215, commits \code{51ae1ab} et \code{808b448}, sorties
 \code{docs/tableaux/}\newline \code{20260930-issue166-calibration-J2.md}, citées en «~avant~»
 pour les lignes que ces issues ont changées). Niveau réel, sous le
 modèle ajusté à J1 et à J2, de la chaîne complète du dossier (\code{run\_engine()}, $B = 999$,
-$R = 2\,000$ jeux simulés par jeu), pour chacune des 34 statistiques d'\code{USP\_CATALOGUE\_MC}
+$R = 2\,000$ jeux simulés par jeu, au commit cité, antérieur à l'issue~\#240~: p-value marginale V1
+dans tous les régimes~; depuis, à $\hat\delta^{*}$ intérieur, la chaîne retient la p-value
+conditionnelle au régime, dont les niveaux sont ceux de l'issue~\#229), pour chacune des 34 statistiques d'\code{USP\_CATALOGUE\_MC}
 et pour chaque ligne de la table auditable~; protocole, références, lecture en quatre états et
 résultats à la section~\ref{sec:calibration-mc}. Statut~: \emph{constat de simulation sous le
 modèle ajusté}, sans portée générale~; les intervalles de Clopper--Pearson à 95~\% des fichiers
@@ -5707,7 +5714,7 @@ intérieur, à $\alpha = 0{,}10$, pour les statistiques visées par chaque famil
 d'alternatives. Le fichier de puissance donne aussi les taux de rejet des autres statistiques du
 catalogue sous les six scénarios~; ils ne sont pas repris dans les fiches, ces statistiques
 n'étant pas la cible de la famille d'alternatives, et la mention «~puissance non étudiée~» de
-leurs fiches se lit «~non étudiée comme cible~» (reprise avec l'issue~\#240). Statut~:
+leurs fiches se lit «~non étudiée comme cible~». Statut~:
 \emph{constat de simulation}, sans portée générale~; des variantes
 conditionnelles mesurées, seule la variante hybride V3h est implémentée dans le moteur, par
 l'issue~\#240 (V3b à $\hat\delta$ intérieur, V1 au bord), V3a et V3b autonomes étant écartées
@@ -7638,7 +7645,7 @@ $T < 30$. De plus, la forme testée est \emph{linéaire} en $x_t$~: une hétéro
 résiduelle de forme différente peut échapper au test, d'où la variante de White. Enfin, la
 version originale de Breusch--Pagan exige la normalité des erreurs~; la forme $T R^2$ retenue ici
 (Koenker) s'en affranchit et est donc préférable dans ce contexte.
-À $\hat\delta$ intérieur, la p-value retenue est, depuis l'issue~\#240, la p-value de Monte-Carlo conditionnelle au régime intérieur de $\hat\delta$ (fiche~\ref{fiche:procedure-mc}, nature suffixée)~: la p-value marginale, seule calculée auparavant, y avait pour ce test un niveau inférieur au nominal, et la p-value conditionnelle ramène le taux de rejet intérieur sous le modèle ajusté, pour les huit statistiques concernées, à $0{,}091$--$0{,}119$ sur J2 et à $0{,}080$--$0{,}123$ sur J3 au seuil de $0{,}10$ (constat de simulation à $T = 8$, sans portée générale, section~\ref{sec:calibration-mc}). Sous les alternatives d'hétéroscédasticité mesurées, c'est un retour au niveau, non un gain de puissance établi (rubrique~7).
+À $\hat\delta$ intérieur, la p-value retenue est, depuis l'issue~\#240, la p-value de Monte-Carlo conditionnelle au régime intérieur de $\hat\delta$ (fiche~\ref{fiche:procedure-mc}, nature suffixée)~: la p-value marginale, seule calculée auparavant, y avait pour ce test un niveau inférieur au nominal, et la p-value conditionnelle ramène le taux de rejet intérieur sous le modèle ajusté, pour les huit statistiques concernées, à $0{,}091$--$0{,}119$ sur J2 et à $0{,}080$--$0{,}123$ sur J3 au seuil de $0{,}10$ (compatible avec le niveau nominal pour les huit sur J2~; sur J3, écart mineur pour trois d'entre elles~: Breusch--Pagan studentisé, $0{,}120$, et Goldfeld--Quandt, $0{,}123$, du côté libéral, Grubbs sur ratios bruts, $0{,}080$, du côté conservateur~; constat de simulation à $T = 8$, sans portée générale, section~\ref{sec:calibration-mc}). Sous les alternatives d'hétéroscédasticité mesurées, c'est un retour au niveau, non un gain de puissance établi (rubrique~7).
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{BP}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
@@ -7710,7 +7717,7 @@ marquée entre elles ne signale pas une hétéroscédasticité, mais un écart �
 renvoie à H3 et non à H2. Pour conclure sur la structure de variance, c'est la version
 studentisée qui fait foi, la normalité n'étant jamais acquise à $T = 8$.
 \end{encadre}
-À $\hat\delta$ intérieur, la p-value retenue est, depuis l'issue~\#240, la p-value de Monte-Carlo conditionnelle au régime intérieur de $\hat\delta$ (fiche~\ref{fiche:procedure-mc}, nature suffixée)~: la p-value marginale, seule calculée auparavant, y avait pour ce test un niveau inférieur au nominal, et la p-value conditionnelle ramène le taux de rejet intérieur sous le modèle ajusté, pour les huit statistiques concernées, à $0{,}091$--$0{,}119$ sur J2 et à $0{,}080$--$0{,}123$ sur J3 au seuil de $0{,}10$ (constat de simulation à $T = 8$, sans portée générale, section~\ref{sec:calibration-mc}). Sous les alternatives d'hétéroscédasticité mesurées, c'est un retour au niveau, non un gain de puissance établi (rubrique~7).
+À $\hat\delta$ intérieur, la p-value retenue est, depuis l'issue~\#240, la p-value de Monte-Carlo conditionnelle au régime intérieur de $\hat\delta$ (fiche~\ref{fiche:procedure-mc}, nature suffixée)~: la p-value marginale, seule calculée auparavant, y avait pour ce test un niveau inférieur au nominal, et la p-value conditionnelle ramène le taux de rejet intérieur sous le modèle ajusté, pour les huit statistiques concernées, à $0{,}091$--$0{,}119$ sur J2 et à $0{,}080$--$0{,}123$ sur J3 au seuil de $0{,}10$ (compatible avec le niveau nominal pour les huit sur J2~; sur J3, écart mineur pour trois d'entre elles~: Breusch--Pagan studentisé, $0{,}120$, et Goldfeld--Quandt, $0{,}123$, du côté libéral, Grubbs sur ratios bruts, $0{,}080$, du côté conservateur~; constat de simulation à $T = 8$, sans portée générale, section~\ref{sec:calibration-mc}). Sous les alternatives d'hétéroscédasticité mesurées, c'est un retour au niveau, non un gain de puissance établi (rubrique~7).
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{BP79}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
@@ -7798,13 +7805,13 @@ Test simple et lisible dont le principal défaut est de \emph{jeter la moitié d
 utile~: il ne compare que deux blocs et ignore la structure interne à chacun. Avec $T = 10$, on
 compare deux blocs de 5 observations~: un rapport de variances de 2 ou 3 ne sera pas détecté.
 Sensible à la non-normalité, contrairement à Brown--Forsythe.
-À $\hat\delta$ intérieur, la p-value retenue est, depuis l'issue~\#240, la p-value de Monte-Carlo conditionnelle au régime intérieur de $\hat\delta$ (fiche~\ref{fiche:procedure-mc}, nature suffixée)~: la p-value marginale, seule calculée auparavant, y avait pour ce test un niveau inférieur au nominal, et la p-value conditionnelle ramène le taux de rejet intérieur sous le modèle ajusté, pour les huit statistiques concernées, à $0{,}091$--$0{,}119$ sur J2 et à $0{,}080$--$0{,}123$ sur J3 au seuil de $0{,}10$ (constat de simulation à $T = 8$, sans portée générale, section~\ref{sec:calibration-mc}). Sous les alternatives d'hétéroscédasticité mesurées, c'est un retour au niveau, non un gain de puissance établi (rubrique~7). Sur le cas \code{premium\_interieur} (jeu J2, $\hat\delta = 0{,}664$, $B = 999$), la p-value retenue passe ainsi de $0{,}268$ (marginale) à $0{,}018$, et le verdict de \code{OK} à \code{ECHEC} (changement approuvé par le mainteneur le 11~octobre 2026)~: c'est l'effet attendu du conditionnement, qui ne dit pas à lui seul que l'écart est réel, l'ensemble du dispositif rendant, avec cette p-value, au moins un \code{ECHEC} dans $42{,}7~\%$ (lignes retenues par la calibration) à $50{,}5~\%$ (toutes les lignes) des jeux simulés sous le modèle ajusté à J2 (section~\ref{sec:calibration-mc}, point~(d)).
+À $\hat\delta$ intérieur, la p-value retenue est, depuis l'issue~\#240, la p-value de Monte-Carlo conditionnelle au régime intérieur de $\hat\delta$ (fiche~\ref{fiche:procedure-mc}, nature suffixée)~: la p-value marginale, seule calculée auparavant, y avait pour ce test un niveau inférieur au nominal, et la p-value conditionnelle ramène le taux de rejet intérieur sous le modèle ajusté, pour les huit statistiques concernées, à $0{,}091$--$0{,}119$ sur J2 et à $0{,}080$--$0{,}123$ sur J3 au seuil de $0{,}10$ (compatible avec le niveau nominal pour les huit sur J2~; sur J3, écart mineur pour trois d'entre elles~: Breusch--Pagan studentisé, $0{,}120$, et Goldfeld--Quandt, $0{,}123$, du côté libéral, Grubbs sur ratios bruts, $0{,}080$, du côté conservateur~; constat de simulation à $T = 8$, sans portée générale, section~\ref{sec:calibration-mc}). Sous les alternatives d'hétéroscédasticité mesurées, c'est un retour au niveau, non un gain de puissance établi (rubrique~7). Sur le cas \code{premium\_interieur} (jeu J2, $\hat\delta = 0{,}664$, $B = 999$), la p-value retenue passe ainsi de $0{,}268$ (marginale) à $0{,}018$, et le verdict de \code{OK} à \code{ECHEC} (changement approuvé par le mainteneur le 11~octobre 2026)~: c'est l'effet attendu du conditionnement, qui ne dit pas à lui seul que l'écart est réel, l'ensemble du dispositif rendant, avec cette p-value, au moins un \code{ECHEC} dans $42{,}7~\%$ des jeux simulés sous le modèle ajusté à J2 sur les lignes retenues par la calibration, et dans $50{,}5~\%$ sur toutes les lignes, TOST compris, contre $39{,}95~\%$ et $48{,}35~\%$ avec la p-value marginale (section~\ref{sec:calibration-mc}, point~(d))~; l'\code{ECHEC} est acquis à la précision de la p-value ($0{,}018$, erreur de Monte-Carlo $0{,}0060$, à plus de cinq erreurs du seuil $\alpha/2 = 0{,}05$), non à celle de l'approximation à $T = 8$.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{GQ}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes, sauf à volumes constants, où elle est non applicable (section~\ref{sec:volumes-constants}). Puissance de la p-value de Monte-Carlo marginale (V1, celle du moteur au bord depuis l'issue~\#240) à $\alpha = 0{,}10$ sous des alternatives au modèle ajusté de J2 (issue~\#229, $R = 1\,000$ jeux par scénario, section~\ref{sec:calibration-mc}), sur l'ensemble des jeux et au régime $\hat\delta^{*}$ intérieur~: hétéroscédasticité hors famille réglementaire, $k = 0$, $0{,}165$ et $0$ (67 jeux intérieurs)~; $k = 3$, $0{,}165$ et $0$ (76 jeux intérieurs). Constat de simulation, à rapprocher du niveau sur J2 ci-dessous. Niveau de la p-value de Monte-Carlo sous le modèle ajusté (issue~\#166, $R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc})~: J1, $0{,}087$ à $\alpha = 0{,}10$ et $0{,}035$ à $0{,}05$~; J2, $0{,}0545$ et $0{,}029$~; écart mineur, du côté conservateur, à $0{,}05$ sur J1 et aux deux seuils sur J2. Conservateur dans les trois régimes de J2 (taux à $0{,}10$ de $0{,}072$ au bord~1, $0{,}069$ au bord~0, $0{,}002$ à l'intérieur) et au bord~0 de J1 ($0{,}076$), aucun rejet à $0{,}10$ parmi les 75 réplications intérieures de J1~; moyenne de la p-value de Monte-Carlo $0{,}53$ sur J1 et $0{,}57$ sur J2, contre $1/2$ pour une p-value uniforme (valeurs brutes). Mesure diagnostique (issue~\#175, section~\ref{sec:calibration-mc})~: la p-value de Monte-Carlo calculée sur les seules réplications du bootstrap dont le $\hat\delta^{**}$ est dans le régime de $\hat\delta^{*}$ rejette à $0{,}10$ dans $0{,}103$ $[0{,}077~;~0{,}135]$ (intérieur), $0{,}092$ (bord~0) et $0{,}112$ (bord~1) des réplications de J2, et dans $0{,}094$ de celles du bord~0 de J1, contre $0{,}002$, $0{,}069$, $0{,}072$ et $0{,}076$ pour la p-value marginale V1~; à $\delta$ fixé à $\hat\delta^{*}$, $0$, $0{,}061$, $0{,}072$ et $0{,}076$. L'écart se localise donc dans le mélange des régimes de $\hat\delta^{**}$ que contient la loi de référence du bootstrap (constat, mécanisme non démontré)~; il persiste sous les alternatives d'hétéroscédasticité mesurées ci-dessus (taux de rejet intérieurs de la p-value marginale V1 inférieurs à $\alpha$)~; la p-value conditionnelle au régime, celle du moteur à $\hat\delta$ intérieur depuis l'issue~\#240 (V3h, ADR~0014), y donne des taux intérieurs de $0{,}075$ et $0{,}079$ ($k = 0$ et $k = 3$), compatibles avec le niveau nominal aux effectifs mesurés (intervalles de Clopper--Pearson à 95~\% contenant $\alpha$)~: retour au niveau, non gain de puissance établi (section~\ref{sec:calibration-mc}). Variante non implémentée dans le moteur, qu'aucune référence ne fonde à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes, sauf à volumes constants, où elle est non applicable (section~\ref{sec:volumes-constants}). Puissance de la p-value de Monte-Carlo marginale (V1, celle du moteur au bord depuis l'issue~\#240) à $\alpha = 0{,}10$ sous des alternatives au modèle ajusté de J2 (issue~\#229, $R = 1\,000$ jeux par scénario, section~\ref{sec:calibration-mc}), sur l'ensemble des jeux et au régime $\hat\delta^{*}$ intérieur~: hétéroscédasticité hors famille réglementaire, $k = 0$, $0{,}165$ et $0$ (67 jeux intérieurs)~; $k = 3$, $0{,}165$ et $0$ (76 jeux intérieurs). Constat de simulation, à rapprocher du niveau sur J2 ci-dessous. Niveau de la p-value de Monte-Carlo sous le modèle ajusté (issue~\#166, $R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc})~: J1, $0{,}087$ à $\alpha = 0{,}10$ et $0{,}035$ à $0{,}05$~; J2, $0{,}0545$ et $0{,}029$~; écart mineur, du côté conservateur, à $0{,}05$ sur J1 et aux deux seuils sur J2. Conservateur dans les trois régimes de J2 (taux à $0{,}10$ de $0{,}072$ au bord~1, $0{,}069$ au bord~0, $0{,}002$ à l'intérieur) et au bord~0 de J1 ($0{,}076$), aucun rejet à $0{,}10$ parmi les 75 réplications intérieures de J1~; moyenne de la p-value de Monte-Carlo $0{,}53$ sur J1 et $0{,}57$ sur J2, contre $1/2$ pour une p-value uniforme (valeurs brutes). Mesure diagnostique (issue~\#175, section~\ref{sec:calibration-mc})~: la p-value de Monte-Carlo calculée sur les seules réplications du bootstrap dont le $\hat\delta^{**}$ est dans le régime de $\hat\delta^{*}$ rejette à $0{,}10$ dans $0{,}103$ $[0{,}077~;~0{,}135]$ (intérieur), $0{,}092$ (bord~0) et $0{,}112$ (bord~1) des réplications de J2, et dans $0{,}094$ de celles du bord~0 de J1, contre $0{,}002$, $0{,}069$, $0{,}072$ et $0{,}076$ pour la p-value marginale V1~; à $\delta$ fixé à $\hat\delta^{*}$, $0$, $0{,}061$, $0{,}072$ et $0{,}076$. L'écart se localise donc dans le mélange des régimes de $\hat\delta^{**}$ que contient la loi de référence du bootstrap (constat, mécanisme non démontré)~; il persiste sous les alternatives d'hétéroscédasticité mesurées ci-dessus (taux de rejet intérieurs de la p-value marginale V1 inférieurs à $\alpha$)~; la p-value conditionnelle au régime, celle du moteur à $\hat\delta$ intérieur depuis l'issue~\#240 (V3h, ADR~0014), y donne des taux intérieurs de $0{,}075$ et $0{,}079$ ($k = 0$ et $k = 3$), compatibles avec le niveau nominal aux effectifs mesurés (intervalles de Clopper--Pearson à 95~\% contenant $\alpha$)~: retour au niveau, non gain de puissance établi (section~\ref{sec:calibration-mc}). La variante de l'issue~\#175, restreinte aux $B$ réplications sans tirages complémentaires, n'est pas implémentée dans le moteur~; aucune référence ne fonde à $T = 8$ ni elle, ni la p-value conditionnelle retenue.
 
 \textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Puissance~: constat de simulation sous des alternatives au modèle ajusté de J2 (issue~\#229), incertitude de Clopper--Pearson liée à $R$, intervalles dans le fichier de résultats. Niveau~: constat de simulation sous le modèle ajusté à J1 et à J2 (section~\ref{sec:calibration-mc}), incertitude de Clopper--Pearson liée à $R$, intervalles dans les fichiers de résultats~; mesure diagnostique de l'issue~\#175~: constat de simulation sous le modèle ajusté, taux conditionnels au régime sans référence exacte, variante non implémentée dans le moteur.
 \end{fiche}
@@ -7838,7 +7845,7 @@ L'usage de la médiane (plutôt que de la moyenne, comme chez Levene) confère u
 aux distributions asymétriques ou à queues lourdes, ce qui est précieux en assurance non-vie.
 Limite~: comme Goldfeld--Quandt, il ne compare que deux blocs et la loi de Fisher n'est
 qu'approximative. À $T \le 10$, à considérer comme un simple indicateur.
-À $\hat\delta$ intérieur, la p-value retenue est, depuis l'issue~\#240, la p-value de Monte-Carlo conditionnelle au régime intérieur de $\hat\delta$ (fiche~\ref{fiche:procedure-mc}, nature suffixée)~: la p-value marginale, seule calculée auparavant, y avait pour ce test un niveau inférieur au nominal, et la p-value conditionnelle ramène le taux de rejet intérieur sous le modèle ajusté, pour les huit statistiques concernées, à $0{,}091$--$0{,}119$ sur J2 et à $0{,}080$--$0{,}123$ sur J3 au seuil de $0{,}10$ (constat de simulation à $T = 8$, sans portée générale, section~\ref{sec:calibration-mc}). Sous les alternatives d'hétéroscédasticité mesurées, c'est un retour au niveau, non un gain de puissance établi (rubrique~7).
+À $\hat\delta$ intérieur, la p-value retenue est, depuis l'issue~\#240, la p-value de Monte-Carlo conditionnelle au régime intérieur de $\hat\delta$ (fiche~\ref{fiche:procedure-mc}, nature suffixée)~: la p-value marginale, seule calculée auparavant, y avait pour ce test un niveau inférieur au nominal, et la p-value conditionnelle ramène le taux de rejet intérieur sous le modèle ajusté, pour les huit statistiques concernées, à $0{,}091$--$0{,}119$ sur J2 et à $0{,}080$--$0{,}123$ sur J3 au seuil de $0{,}10$ (compatible avec le niveau nominal pour les huit sur J2~; sur J3, écart mineur pour trois d'entre elles~: Breusch--Pagan studentisé, $0{,}120$, et Goldfeld--Quandt, $0{,}123$, du côté libéral, Grubbs sur ratios bruts, $0{,}080$, du côté conservateur~; constat de simulation à $T = 8$, sans portée générale, section~\ref{sec:calibration-mc}). Sous les alternatives d'hétéroscédasticité mesurées, c'est un retour au niveau, non un gain de puissance établi (rubrique~7).
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{BF}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
@@ -8420,7 +8427,7 @@ quantité de l'ordre de $T$~: avec $T = 8$, l'échantillon est structurellement 
 manifester une queue lourde et le test ne peut pratiquement pas rejeter pour excès
 d'aplatissement. La p-value \code{p\_mc} est ici indispensable~; en son absence, ce test n'apporte
 à peu près rien sur un historique réglementaire minimal.
-À $\hat\delta$ intérieur, la p-value retenue est, depuis l'issue~\#240, la p-value de Monte-Carlo conditionnelle au régime intérieur de $\hat\delta$ (fiche~\ref{fiche:procedure-mc}, nature suffixée)~: la p-value marginale, seule calculée auparavant, y avait pour ce test un niveau inférieur au nominal, et la p-value conditionnelle ramène le taux de rejet intérieur sous le modèle ajusté, pour les huit statistiques concernées, à $0{,}091$--$0{,}119$ sur J2 et à $0{,}080$--$0{,}123$ sur J3 au seuil de $0{,}10$ (constat de simulation à $T = 8$, sans portée générale, section~\ref{sec:calibration-mc}). Sous les alternatives de contamination et d'asymétrie mesurées, c'est un gain de puissance au régime intérieur (rubrique~7).
+À $\hat\delta$ intérieur, la p-value retenue est, depuis l'issue~\#240, la p-value de Monte-Carlo conditionnelle au régime intérieur de $\hat\delta$ (fiche~\ref{fiche:procedure-mc}, nature suffixée)~: la p-value marginale, seule calculée auparavant, y avait pour ce test un niveau inférieur au nominal, et la p-value conditionnelle ramène le taux de rejet intérieur sous le modèle ajusté, pour les huit statistiques concernées, à $0{,}091$--$0{,}119$ sur J2 et à $0{,}080$--$0{,}123$ sur J3 au seuil de $0{,}10$ (compatible avec le niveau nominal pour les huit sur J2~; sur J3, écart mineur pour trois d'entre elles~: Breusch--Pagan studentisé, $0{,}120$, et Goldfeld--Quandt, $0{,}123$, du côté libéral, Grubbs sur ratios bruts, $0{,}080$, du côté conservateur~; constat de simulation à $T = 8$, sans portée générale, section~\ref{sec:calibration-mc}). Sous les alternatives de contamination et d'asymétrie mesurées, c'est un gain de puissance au régime intérieur (rubrique~7).
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{JB}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
@@ -8468,7 +8475,7 @@ au regard de l'exigence de l'annexe~XVII sur le retraitement des événements d�
 sous-modules catastrophe. Limite~: la transformation $S_U$ est définie dès $T = 8$, et la puissance
 croît avec $T$ sans seuil marqué~: contre une loi exponentielle, elle passe de $39~\%$ à $T = 8$ à
 $81~\%$ à $T = 20$ au seuil de 10~\% (rubrique~7).
-À $\hat\delta$ intérieur, la p-value retenue est, depuis l'issue~\#240, la p-value de Monte-Carlo conditionnelle au régime intérieur de $\hat\delta$ (fiche~\ref{fiche:procedure-mc}, nature suffixée)~: la p-value marginale, seule calculée auparavant, y avait pour ce test un niveau inférieur au nominal, et la p-value conditionnelle ramène le taux de rejet intérieur sous le modèle ajusté, pour les huit statistiques concernées, à $0{,}091$--$0{,}119$ sur J2 et à $0{,}080$--$0{,}123$ sur J3 au seuil de $0{,}10$ (constat de simulation à $T = 8$, sans portée générale, section~\ref{sec:calibration-mc}). Sous les alternatives de contamination et d'asymétrie mesurées, c'est un gain de puissance au régime intérieur (rubrique~7).
+À $\hat\delta$ intérieur, la p-value retenue est, depuis l'issue~\#240, la p-value de Monte-Carlo conditionnelle au régime intérieur de $\hat\delta$ (fiche~\ref{fiche:procedure-mc}, nature suffixée)~: la p-value marginale, seule calculée auparavant, y avait pour ce test un niveau inférieur au nominal, et la p-value conditionnelle ramène le taux de rejet intérieur sous le modèle ajusté, pour les huit statistiques concernées, à $0{,}091$--$0{,}119$ sur J2 et à $0{,}080$--$0{,}123$ sur J3 au seuil de $0{,}10$ (compatible avec le niveau nominal pour les huit sur J2~; sur J3, écart mineur pour trois d'entre elles~: Breusch--Pagan studentisé, $0{,}120$, et Goldfeld--Quandt, $0{,}123$, du côté libéral, Grubbs sur ratios bruts, $0{,}080$, du côté conservateur~; constat de simulation à $T = 8$, sans portée générale, section~\ref{sec:calibration-mc}). Sous les alternatives de contamination et d'asymétrie mesurées, c'est un gain de puissance au régime intérieur (rubrique~7).
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{DAgo}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
@@ -9824,7 +9831,7 @@ celles-ci gonflent $s_z$ et le test ne détecte plus rien, d'où la nécessité 
 petits échantillons, aucune observation ne peut être « suffisamment » extrême. Enfin, la
 sensibilité à l'hypothèse de normalité est totale~: sur une vraie loi à queue lourde, le test
 signale des aberrations qui n'en sont pas.
-À $\hat\delta$ intérieur, la p-value retenue est, depuis l'issue~\#240, la p-value de Monte-Carlo conditionnelle au régime intérieur de $\hat\delta$ (fiche~\ref{fiche:procedure-mc}, nature suffixée)~: la p-value marginale, seule calculée auparavant, y avait pour ce test un niveau inférieur au nominal, et la p-value conditionnelle ramène le taux de rejet intérieur sous le modèle ajusté, pour les huit statistiques concernées, à $0{,}091$--$0{,}119$ sur J2 et à $0{,}080$--$0{,}123$ sur J3 au seuil de $0{,}10$ (constat de simulation à $T = 8$, sans portée générale, section~\ref{sec:calibration-mc}). Sous les alternatives de contamination et d'asymétrie mesurées, c'est un gain de puissance au régime intérieur (rubrique~7). Sur le cas \code{premium\_interieur}, la p-value retenue vaut $0{,}105$ (marginale~: $0{,}273$), d'erreur de Monte-Carlo $0{,}0097$~: l'écart au seuil $\alpha = 0{,}10$, $0{,}005$, vaut environ une demi-erreur de Monte-Carlo, de sorte que le verdict \code{OK} n'est pas acquis à la précision de la p-value (verdict fragile, réserve d'\code{actuary}).
+À $\hat\delta$ intérieur, la p-value retenue est, depuis l'issue~\#240, la p-value de Monte-Carlo conditionnelle au régime intérieur de $\hat\delta$ (fiche~\ref{fiche:procedure-mc}, nature suffixée)~: la p-value marginale, seule calculée auparavant, y avait pour ce test un niveau inférieur au nominal, et la p-value conditionnelle ramène le taux de rejet intérieur sous le modèle ajusté, pour les huit statistiques concernées, à $0{,}091$--$0{,}119$ sur J2 et à $0{,}080$--$0{,}123$ sur J3 au seuil de $0{,}10$ (compatible avec le niveau nominal pour les huit sur J2~; sur J3, écart mineur pour trois d'entre elles~: Breusch--Pagan studentisé, $0{,}120$, et Goldfeld--Quandt, $0{,}123$, du côté libéral, Grubbs sur ratios bruts, $0{,}080$, du côté conservateur~; constat de simulation à $T = 8$, sans portée générale, section~\ref{sec:calibration-mc}). Sous les alternatives de contamination mesurées, c'est un gain de puissance au régime intérieur~; sous les alternatives d'asymétrie, un retour au niveau ($0{,}115$ et $0{,}097$ pour $\nu = 4$ et $\nu = 2$, pour un taux intérieur sous le modèle de $0{,}093$ sur J2~; rubrique~7). Sur le cas \code{premium\_interieur}, la p-value retenue vaut $0{,}105$ (marginale~: $0{,}273$), d'erreur de Monte-Carlo $0{,}0097$~: l'écart au seuil $\alpha = 0{,}10$, $0{,}005$, vaut environ une demi-erreur de Monte-Carlo, de sorte que le verdict \code{OK} n'est pas acquis à la précision de la p-value, au regard de l'erreur de Monte-Carlo seule (verdict fragile, réserve d'\code{actuary})~: une bascule vers \code{ALERTE} est possible, non vers \code{ECHEC} ($p < \alpha/2 = 0{,}05$ est à plus de cinq erreurs).
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $G$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{Grubbs}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
@@ -10125,7 +10132,7 @@ borne $G \le (T-1)/\sqrt{T} = 2{,}47$ à $T = 8$. À $\hat\pi_t$ constant, quasi
 homologue sur $z_t$ (« \code{CONTROLE SANS OBJET ICI} »). À $T = 8$, la p-value de Monte-Carlo a
 la portée du bootstrap paramétrique (section~\ref{sec:mc})~; la calibration mesurée sur cette base
 est un constat de simulation (section~\ref{sec:base-residus}).
-À $\hat\delta$ intérieur, la p-value retenue est, depuis l'issue~\#240, la p-value de Monte-Carlo conditionnelle au régime intérieur de $\hat\delta$ (fiche~\ref{fiche:procedure-mc}, nature suffixée)~: la p-value marginale, seule calculée auparavant, y avait pour ce test un niveau inférieur au nominal, et la p-value conditionnelle ramène le taux de rejet intérieur sous le modèle ajusté, pour les huit statistiques concernées, à $0{,}091$--$0{,}119$ sur J2 et à $0{,}080$--$0{,}123$ sur J3 au seuil de $0{,}10$ (constat de simulation à $T = 8$, sans portée générale, section~\ref{sec:calibration-mc}). Sous les alternatives de contamination et d'asymétrie mesurées, c'est un gain de puissance au régime intérieur (rubrique~7).
+À $\hat\delta$ intérieur, la p-value retenue est, depuis l'issue~\#240, la p-value de Monte-Carlo conditionnelle au régime intérieur de $\hat\delta$ (fiche~\ref{fiche:procedure-mc}, nature suffixée)~: la p-value marginale, seule calculée auparavant, y avait pour ce test un niveau inférieur au nominal, et la p-value conditionnelle ramène le taux de rejet intérieur sous le modèle ajusté, pour les huit statistiques concernées, à $0{,}091$--$0{,}119$ sur J2 et à $0{,}080$--$0{,}123$ sur J3 au seuil de $0{,}10$ (compatible avec le niveau nominal pour les huit sur J2~; sur J3, écart mineur pour trois d'entre elles~: Breusch--Pagan studentisé, $0{,}120$, et Goldfeld--Quandt, $0{,}123$, du côté libéral, Grubbs sur ratios bruts, $0{,}080$, du côté conservateur~; constat de simulation à $T = 8$, sans portée générale, section~\ref{sec:calibration-mc}). Sous les alternatives de contamination et d'asymétrie mesurées, c'est un gain de puissance au régime intérieur (rubrique~7).
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $G$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{Grubbsr}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
@@ -13400,7 +13407,7 @@ $\hat\delta$ observé intérieur, volumes non constants~; V1, calcul inchangé a
 \code{usp\_bootstrap()} leur passe la matrice des seuls tirages retenus. La composition est
 étendue à tout $B$~: $B_{\text{cible}} = B$ et $B_{\max} = 25\,(B+1)$, soit 999 et $25\,000$ à
 $B = 999$, la composition mesurée~; à $B \ne 999$, c'est la même règle, dont la mesure ne dit rien
-(constat de simulation fait à $B = 999$ seulement). La graine du flux complémentaire,
+(constat de simulation fait à $B = 999$ seulement)~; la règle n'est pas invariante d'échelle~: \code{B\_MIN\_DEGENERESCENCE} $= 50$ étant fixe, \code{MOTIF\_MC\_REGIME\_RARE} apparaît dès que la probabilité du régime intérieur sous le modèle ajusté est de l'ordre de $50/(25\,(B+1))$, soit $2~\%$ à $B = 99$ contre $0{,}2~\%$ à $B = 999$, et le plafond est atteint avec $50 \le B_{\text{eff}} < B$ dans la plage intermédiaire. La graine du flux complémentaire,
 \code{seed} $+\,539\,169$, vaut $20\,800\,000$ à la graine par défaut, celle du flux de V3b du jeu
 observé J2 dans la mesure, et $20\,800\,000 + b$ pour la graine $20\,260\,831 + b$ de la
 réplication~$b$~: l'identité avec la mesure vient par construction (section~\ref{sec:graines}).
@@ -13438,7 +13445,8 @@ sur tout jeu à $\hat\delta$ intérieur --- contrôle~(i2) de
 \code{tests/p\_conditionnelle\_}\allowbreak\code{regime\_t8.R} et de
 \code{tests/conservatisme\_}\allowbreak\code{interieur\_t8.R}, contrôle~S5 de
 \code{tests/comparer\_}\allowbreak\code{ajusteurs\_bootstrap.R} sur J2, contrôle de transcription de
-\code{tests/puissance\_t8.R} sur J2 (sur J2 observé, la p-value de Monte-Carlo de Durbin--Watson
+\code{tests/puissance\_t8.R} sur J2 (par lecture du code~: les lignes comparées par
+\code{identical()}, au nombre de six, comprennent des p-values de Monte-Carlo~; script non exécuté~; sur J2 observé, la p-value de Monte-Carlo de Durbin--Watson
 passe de $0{,}496$ à $0{,}390$, celle de Mann--Kendall de $0{,}784$ à $0{,}830$) ---, et
 \code{tests/calibration\_mc\_t8.R}, qui exécute \code{run\_engine()} complet, calculerait
 désormais V3h sur les réplications intérieures, de sorte que ses tableaux ne se reproduisent qu'au
@@ -14878,8 +14886,9 @@ issue~\#89)~: protocole, taux et statuts à la fiche~\ref{mw:influence}.
         point~(i) de la section~\ref{sec:calibration-mc} (Breusch--Pagan sous ses deux formes,
         Goldfeld--Quandt, Brown--Forsythe, Grubbs sur $z_t$ et sur ratios bruts, D'Agostino,
         Jarque--Bera), un verdict \code{OK} y était peu informatif avec la p-value marginale,
-        conservatrice dans ce régime, et la p-value conditionnelle y rétablit le niveau sur les
-        jeux mesurés (constat de simulation à $T = 8$, issues~\#175 et~\#229), au prix d'une
+        conservatrice dans ce régime, et la p-value conditionnelle y ramène le taux de rejet au
+        voisinage du niveau nominal sur J2 et J3 (écart mineur pour trois des huit statistiques
+        sur J3~; constat de simulation à $T = 8$, issues~\#175 et~\#229), au prix d'une
         multiplicité d'\code{ECHEC} accrue sous le modèle (même section, point~(d)). Le champ
         \code{bootstrap\$p\_mc\_regime}, et la ligne «~P-values Monte-Carlo~» de l'application
         et du rapport figé, disent laquelle des deux p-values a été calculée.
