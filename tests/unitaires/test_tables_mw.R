@@ -8,9 +8,12 @@
 #  (b) HomogF et ExpVar tirent rho et p d'un seul cor.test() (.mw_spearman()) ;
 #  (c) les tables de mw_residus(), mw_test_annees_calendaires(),
 #  mw_test_ordonnee_origine(), mw_test_homogeneite_f(), mw_test_courbure(),
-#  mw_famille_alpha() et mw_test_exposant_variance() sont baties par colonnes
-#  prealloues assemblees une fois (.mw_table()), au lieu d'un rbind() par
-#  colonne. Critere de #239 : resultats IDENTIQUES au bit pres, ordre des
+#  mw_famille_alpha() et mw_test_exposant_variance() sont assemblees une
+#  fois (#239 : colonnes prealloues et .mw_table() ; #250 : blocs empiles par
+#  l'utilitaire unique .mw_empiler(), noms de lignes par rbind() itere dans
+#  .mw_noms_lignes_empilees()), au lieu d'un rbind() par colonne. Les deux
+#  utilitaires sont aussi compares directement a rbind() itere, sur des blocs
+#  synthetiques (fin du fichier, #250). Critere de #239 : resultats IDENTIQUES au bit pres, ordre des
 #  attributs compris (identical(attrib.as.set = FALSE)). La contre-implementation
 #  ci-dessous est l'ancienne forme, copiee du moteur au commit daabd7a
 #  (commentaires retires), evaluee dans un environnement dedie dont le parent
@@ -516,6 +519,63 @@ verifier("Une evaluation de .mw_stats() appelle mw_residus() une seule fois (#23
            tryCatch(.mw_stats(mw_ajuster(tri_ref), 4L),
                     finally = assign("mw_residus", orig, envir = env))
            if (identical(n, 1L) && identical(mw_residus, orig)) TRUE else paste("appels :", n)
+         })
+
+# --- .mw_empiler() et .mw_noms_lignes_empilees() contre rbind() (#250) -------
+# Blocs synthetiques de tailles 1 a 4, a la forme de ceux de mw_residus()
+# (colonnes entieres i et j, colonne C qui porte les noms de
+# lignes) : sans noms, noms tires d'un vivier a collisions avec make.unique()
+# ("a", "a1", "a11"...), doublons, vides, numeros, ou noms manquants (NA).
+# Reference : l'ancienne forme, rbind() ITERE depuis data.frame() sur des
+# data.frame() a trois colonnes, comparee par meme() (valeur, ou message
+# d'erreur) ; .mw_noms_lignes_empilees() seule est comparee aux noms de
+# lignes de cette reference.
+VIVIER_NOMS <- c("a", "a1", "a2", "a11", "a12", "a21", "b", "b1", "1", "2", "11", "")
+tirer_blocs <- function(k) {
+  nb <- 1L + (k %% 5L)
+  lapply(seq_len(nb), function(b) {
+    n <- 1L + ((k + b) %% 4L)
+    C <- round(stats::rlnorm(n), 3)
+    type <- (k * 7L + b) %% 6L
+    if (type >= 3L) names(C) <- sample(VIVIER_NOMS, n, replace = TRUE)
+    if (type == 5L && k %% 11L == 0L) names(C)[1L] <- NA
+    list(i = seq_len(n) - 1L, j = rep(as.integer(b), n), C = C)
+  })
+}
+rbind_itere <- function(blocs)
+  Reduce(function(table, b) rbind(table, data.frame(i = b$i, j = b$j, C = b$C,
+                                                     stringsAsFactors = FALSE)),
+         blocs, data.frame())
+JEUX_BLOCS <- engine_sous_graine(20261111, lapply(1:400, tirer_blocs))
+verifier(".mw_empiler() : table identique a rbind() itere, noms de lignes compris (#250)",
+         {
+           e <- which(!vapply(JEUX_BLOCS, function(bl)
+             meme(capturer(.mw_empiler, list(bl, "C")), capturer(rbind_itere, list(bl))),
+             logical(1)))
+           if (!length(e)) TRUE else paste("jeux en ecart :", paste(head(e, 10), collapse = " "))
+         })
+verifier(".mw_noms_lignes_empilees() : noms de lignes de rbind() itere, NULL si automatiques (#250)",
+         {
+           e <- which(!vapply(JEUX_BLOCS, function(bl) {
+             ref <- tryCatch(rbind_itere(bl), error = function(err) NULL)
+             if (is.null(ref)) return(TRUE)   # noms manquants : erreur, comparee ci-dessus
+             attendu <- if (.row_names_info(ref) > 0L) attr(ref, "row.names") else NULL
+             identical(.mw_noms_lignes_empilees(lapply(bl, `[[`, "C")), attendu)
+           }, logical(1)))
+           if (!length(e)) TRUE else paste("jeux en ecart :", paste(head(e, 10), collapse = " "))
+         })
+# Pourquoi rbind() ITERE et non do.call(rbind, blocs) : make.unique() a chaque
+# empilement ou une seule fois donnent des noms differents sur certains jeux
+# de collisions (en-tete de .mw_noms_lignes_empilees(), moteur).
+verifier("do.call(rbind, blocs) rend d'autres noms que rbind() itere sur au moins un jeu (#250)",
+         {
+           n <- sum(vapply(JEUX_BLOCS, function(bl) {
+             a <- tryCatch(rbind_itere(bl), error = function(err) NULL)
+             if (is.null(a)) return(FALSE)
+             b <- do.call(rbind, lapply(bl, function(x) data.frame(i = x$i, j = x$j, C = x$C)))
+             !identical(attr(a, "row.names"), attr(b, "row.names"))
+           }, logical(1)))
+           if (n > 0L) TRUE else "aucun ecart entre les deux formes"
          })
 
 fin_fichier()
