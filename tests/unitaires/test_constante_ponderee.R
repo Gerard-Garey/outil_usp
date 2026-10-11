@@ -164,8 +164,14 @@ valeurs_215 <- function(tb, t, p_mc, p_tost, v_tost) {
 }
 verifier("Valeurs de #215, J1 : t = 0,0667 ; p_mc = 0,964 ; TOST 0,4651 ECHEC",
          valeurs_215(tb1, 0.0667, 0.964, 0.4651, "ECHEC"))
-verifier("Valeurs de #215, J2 : t = -0,3745 ; p_mc = 0,692 ; TOST 0,1313 ALERTE",
-         valeurs_215(tb2, -0.3745, 0.692, 0.1313, "ALERTE"))
+# J2 (delta estime interieur) : depuis #240, la p Monte-Carlo est
+# conditionnelle au regime interieur de delta estime (variante V3b) ; la
+# valeur de #215, 0,692, etait la p marginale (V1). 0,670 = p_V3b:Intercept
+# du jeu observe J2 dans la mesure de #229
+# (docs/tableaux/20261010-issue229-p-conditionnelle-regime-brut.tsv) ; t et
+# le TOST ne dependent pas du bootstrap.
+verifier("Valeurs de #215, J2 : t = -0,3745 ; p_mc = 0,670 (conditionnelle au regime, #240 ; 0,692 avant) ; TOST 0,1313 ALERTE",
+         valeurs_215(tb2, -0.3745, 0.670, 0.1313, "ALERTE"))
 
 ## --- 4. Repere de renvoi : coherence colonne <-> detail ---------------------
 # Coherence (ADR 0003, annotation du 07/10/2026, point 4) : repere non NA sur

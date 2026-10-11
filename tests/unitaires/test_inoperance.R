@@ -880,7 +880,10 @@ verifier("f8, B = 59, alpha = 0,06 : lignes des suites (residus, ratios bruts) s
          all(vapply(c("Test des suites (aleatoire des signes)", "Test des suites sur ratios bruts"),
                     function(nm) {
            l <- ligne(t8_59, nm)
-           identical(l$nature_p, "Monte-Carlo (bootstrap parametrique)") && identical(l$type, "test") &&
+           # f8 : delta estime interieur (0,683), p Monte-Carlo conditionnelle
+           # au regime depuis #240 (variante V3b, B_effectif <= B = 59).
+           identical(l$nature_p, NATURE_MC_REGIME_INTERIEUR) && identical(l$type, "test") &&
+             identical(b8_59$p_mc_regime$variante, "V3b") &&
              identical(b8_59$B_effectif[[if (grepl("ratios", nm)) "Runsr" else "Runs"]], 59) &&
              endsWith(l$detail, paste("p_min de la loi de reference echangeable = 0.0571 >= alpha/2 = 0.03",
                                       "(n1 = 4, n2 = 4) ; plancher Monte-Carlo >= alpha/2 = 0.03 : ECHEC inatteignable")) &&

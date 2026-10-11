@@ -1992,6 +1992,40 @@ ENGINE_RNG_KIND <- c(kind = "Mersenne-Twister", normal.kind = "Inversion",
 # L'enveloppe du QQ-plot n'a plus de graine propre depuis l'issue #47 : elle
 # est lue dans les replications de usp_bootstrap() (graine seed).
 SEED_LOI_NULLE_SW <- 20260901
+
+# Flux complementaire de la p-value Monte-Carlo conditionnelle au regime de
+# delta estime (issue #240, ADR 0014 annote le 11/10/2026, variante V3h ;
+# specification docs/specifications/240-p-mc-conditionnelle-regime.md,
+# par. 2.4 et 5). Sixieme source de tirage du moteur : posee par
+# usp_bootstrap() apres les B tirages de V1, a delta estime interieur
+# seulement, sous la graine usp_graine_flux_regime(seed), jamais seed (le
+# flux rejouerait sinon les premiers y* de V1).
+# - DECALAGE_GRAINE_FLUX_REGIME : decalage de la graine du flux (Q-A4-7 (A)) ;
+#   a la graine par defaut, 20260831 + 539169 = 20800000, graine du flux de
+#   V3b du jeu observe dans la mesure de #229.
+# - FACTEUR_B_MAX_REGIME : nombre maximal de tirages, V1 compris,
+#   B_max = FACTEUR_B_MAX_REGIME * (B + 1) (Q-A4-8 (A)).
+DECALAGE_GRAINE_FLUX_REGIME <- 539169
+FACTEUR_B_MAX_REGIME <- 25
+
+# Graine du flux complementaire (issue #240, specification par. 5) :
+# g = seed + D si seed + D <= M, sinon seed + D - (2M + 1), avec
+# M = .Machine$integer.max et D = DECALAGE_GRAINE_FLUX_REGIME. Bijection de
+# [-M, M] sur lui-meme, sans point fixe (D non multiple de 2M + 1) ; la
+# valeur -2^31, qui n'est pas un entier R, n'est jamais atteinte. Refuse une
+# graine non scalaire, non finie, non entiere ou de valeur absolue > M (meme
+# domaine que .engine_verifier_usage()). Rend un double.
+usp_graine_flux_regime <- function(seed) {
+  M <- .Machine$integer.max
+  if (!(is.numeric(seed) && length(seed) == 1L && is.finite(seed) &&
+        seed == round(seed) && abs(seed) <= M))
+    stop("usp_graine_flux_regime() : seed doit etre un nombre scalaire fini entier, |seed| <= ",
+         M, ".")
+  g <- as.numeric(seed) + DECALAGE_GRAINE_FLUX_REGIME
+  if (g > M) g <- g - (2 * M + 1)
+  g
+}
+
 engine_sous_graine <- function(seed, expr) {
   genv <- globalenv()
   existait <- exists(".Random.seed", envir = genv, inherits = FALSE)
@@ -3495,6 +3529,18 @@ MOTIF_MC_REPLIC_INSUFFISANTES <- sprintf(
 MOTIF_MC_DISPERSION_NULLE <- "loi simulee de dispersion nulle"
 MOTIF_MC_CONDITION        <- "statistique degeneree sur ces donnees (condition du catalogue)"
 MOTIF_MC_ATOME_HORS_OBS   <- "loi simulee ponctuelle, statistique observee hors de l'atome"
+# Regime interieur de delta estime rare (issue #240, Q-A4-9 (A) ; ADR 0003
+# annote le 11/10/2026) : sous la variante conditionnelle (V3b) de
+# usp_bootstrap(), B_max tirages atteints avec moins de B_MIN_DEGENERESCENCE
+# tirages retenus ; remplace alors MOTIF_MC_REPLIC_INSUFFISANTES et
+# MOTIF_MC_AUCUNE_REPLIC (substitution faite dans usp_bootstrap() seule).
+# Motif non degenere (hors de motifs_degeneres d'add()) : la regle actuelle
+# s'applique (repli nomme, diagnostic, ou test sans p-value ; politique de
+# repli a #181). Aucun nombre issu du bootstrap dans le texte (#76).
+MOTIF_MC_REGIME_RARE <- sprintf(paste(
+  "regime interieur de delta estime rare : B_max = %d (B + 1) tirages atteints",
+  "avec moins de B_MIN_DEGENERESCENCE = %d tirages retenus"),
+  FACTEUR_B_MAX_REGIME, B_MIN_DEGENERESCENCE)
 DETAIL_MC_ATOME_HORS_OBS  <- paste(
   "Aucune simulation sous le modele ajuste ne reproduit la valeur observee :",
   "incompatibilite du modele avec les donnees ou asymetrie de calcul entre",
@@ -3893,12 +3939,24 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
   list(add = add, lignes = function() L)
 }
 
+# Nature d'une p-value Monte-Carlo de la methode lognormale conditionnelle
+# au regime interieur de delta estime (issue #240, Q-A4-10 (B), Q-240-2 ;
+# ADR 0003 annote le 11/10/2026), passee par usp_tests() a
+# engine_registre_tests() quand bootstrap$p_mc_regime$variante vaut "V3b".
+# Le prefixe "Monte-Carlo" est conserve (badge, decomptes, hierarchie).
+NATURE_MC_REGIME_INTERIEUR <-
+  "Monte-Carlo (bootstrap parametrique, conditionnel au regime interieur de delta estime)"
+
 usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
                           progres = FALSE) {
   # Tirages sous graine locale (ADR 0004, #42) : etat de l'appelant restaure.
   # Contexte observe, conserve pour l'evaluation des conditions du catalogue
   # (degenere, non_definie) par .mc_p_values() (#44).
   e_obs <- .usp_contexte_mc(fit$x, fit$y, fit$z, fit$pi)
+  # Graine du flux complementaire de la p-value conditionnelle au regime
+  # (issue #240), calculee et consignee meme quand le flux n'est pas pose
+  # (Q-240-5).
+  graine_flux <- usp_graine_flux_regime(seed)
   engine_sous_graine(seed, {
     stats_obs <- .mc_evaluer(USP_CATALOGUE_MC, e_obs)
     noms <- names(stats_obs)
@@ -3908,6 +3966,9 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
     # Residus reajustes de chaque replication retenue (issue #47), colonnes =
     # annees t (non triees) ; ligne NA si la replication est ecartee.
     zb <- matrix(NA_real_, B, length(fit$x))
+    # Tirages retenus par V1 (reajustement abouti et statistiques sans
+    # erreur, sim[b, ] rempli), lus par la variante conditionnelle (#240).
+    retenu_v1 <- rep(FALSE, B)
     for (b in seq_len(B)) {
       yb <- usp_simuler(fit)
       fb <- if (refit) {
@@ -3917,6 +3978,7 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
       sb <- try(.stats_bootstrapables(fit$x, yb, fb$z, fb$pi), silent = TRUE)
       if (inherits(sb, "try-error")) next
       sim[b, ] <- sb[noms]
+      retenu_v1[b] <- TRUE
       zb[b, ] <- fb$z
       sig[b] <- fb$sigma
       if (!is.null(fb$delta)) { del[b] <- fb$delta; gam[b] <- fb$gamma }
@@ -3933,9 +3995,89 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
     if (progres) cat("\n")
   })
 
-  # P-values de Monte-Carlo, erreur de Monte-Carlo et B effectif, le sens du
-  # rejet etant lu au catalogue USP_CATALOGUE_MC.
-  mc <- .mc_p_values(sim, stats_obs, USP_CATALOGUE_MC, e_obs)
+  # Choix de la variante de la p-value Monte-Carlo (issue #240, ADR 0014,
+  # variante V3h ; specification par. 2.1 et 2.2). Seul critere du regime :
+  # usp_regime() (TOL_DELTA_BORD). A delta estime interieur, volumes non
+  # constants et reajustement, V3b : p-value calculee sur les seuls tirages
+  # dont delta** est interieur, ceux de V1 d'abord, completes sur un flux
+  # distinct. Sinon V1 : p-value sur les B tirages, calcul inchange.
+  # A volumes constants, pi_t ne depend pas de delta et le regime de delta
+  # estime est un artefact de l'optimiseur ; sous refit = FALSE (appel direct
+  # seulement), delta** n'existe pas (Q-240-1).
+  reg <- usp_regime(fit$delta, fit$x)
+  interieur <- function(d) is.finite(d) && !usp_regime(d, fit$x)$delta_au_bord
+  regime_obs <- if (!reg$delta_au_bord) "interieur"
+                else if (fit$delta >= 0.5) "bord1" else "bord0"
+  v3b <- !reg$delta_au_bord && !reg$volumes_constants && isTRUE(refit)
+
+  if (!v3b) {
+    # V1 : p-values de Monte-Carlo, erreur de Monte-Carlo et B effectif, le
+    # sens du rejet etant lu au catalogue USP_CATALOGUE_MC.
+    mc <- .mc_p_values(sim, stats_obs, USP_CATALOGUE_MC, e_obs)
+    motif_v1 <- if (reg$delta_au_bord) "delta estime au bord"
+                else if (reg$volumes_constants) "volumes constants : regime de delta non identifie"
+                else "refit = FALSE : delta** non reestime"
+    p_mc_regime <- list(
+      regime_obs = regime_obs, variante = "V1", motif_v1 = motif_v1,
+      graine_flux = graine_flux, B_cible = NA_real_, B_max = NA_real_,
+      tirages = as.numeric(B), retenus_v1 = NA_real_, retenus = NA_real_,
+      rejets_flux = c(reajustement = NA_real_, hors_regime = NA_real_,
+                      statistiques = NA_real_),
+      arret = NA_character_)
+  } else {
+    # V3b. Tirages de V1 retenus dans le regime interieur, par b croissant.
+    int_v1 <- retenu_v1 & vapply(del, interieur, logical(1))
+    B_cible <- as.numeric(B)
+    B_max <- FACTEUR_B_MAX_REGIME * (as.numeric(B) + 1)
+    S <- matrix(NA_real_, B_cible, length(noms), dimnames = list(NULL, noms))
+    a <- sum(int_v1)
+    if (a > 0) S[seq_len(a), ] <- sim[int_v1, , drop = FALSE]
+    n <- a; tir <- as.numeric(B)
+    rej <- c(reajustement = 0, hors_regime = 0, statistiques = 0)
+    # Complement sur le flux distinct, apres la sortie de la graine de V1,
+    # sans imbrication ; non pose si la cible est deja atteinte. tir compte
+    # tous les appels de usp_simuler(), les B de V1 compris : arret a la
+    # cible (n = B) ou a B_max tirages. Levier P1 : un tirage dont le
+    # reajustement echoue ou dont delta** n'est pas interieur ne donne lieu a
+    # aucun calcul de statistique. Le flux ne calcule que les statistiques
+    # du catalogue (ni bootstrap restreint, ni sigma*, ni z*) et n'imprime
+    # rien.
+    if (n < B_cible) engine_sous_graine(graine_flux, {
+      while (n < B_cible && tir < B_max) {
+        tir <- tir + 1
+        yb <- usp_simuler(fit)
+        f <- try(usp_ajuster_rapide(fit$x, yb, fit$delta, fit$gamma), silent = TRUE)
+        if (inherits(f, "try-error") || !is.finite(f$delta)) {
+          rej[["reajustement"]] <- rej[["reajustement"]] + 1; next
+        }
+        if (usp_regime(f$delta, fit$x)$delta_au_bord) {
+          rej[["hors_regime"]] <- rej[["hors_regime"]] + 1; next
+        }
+        sb <- try(.stats_bootstrapables(fit$x, yb, f$z, f$pi), silent = TRUE)
+        if (inherits(sb, "try-error")) {
+          rej[["statistiques"]] <- rej[["statistiques"]] + 1; next
+        }
+        n <- n + 1
+        S[n, ] <- sb[noms]
+      }
+    })
+    mc <- .mc_p_values(S[seq_len(n), , drop = FALSE], stats_obs, USP_CATALOGUE_MC, e_obs)
+    arret <- if (n == B_cible) "cible" else "B_max"
+    # Regime interieur rare (specification par. 4.1) : B_max atteint avec
+    # moins de B_MIN_DEGENERESCENCE tirages retenus. Seuls les motifs de
+    # nombre de tirages sont remplaces ; p_mc, err_mc, B_effectif et
+    # granularite_stat restent tels que rendus par .mc_p_values().
+    if (arret == "B_max" && n < B_MIN_DEGENERESCENCE) {
+      k <- !is.na(mc$motif_mc) &
+        mc$motif_mc %in% c(MOTIF_MC_REPLIC_INSUFFISANTES, MOTIF_MC_AUCUNE_REPLIC)
+      mc$motif_mc[k] <- MOTIF_MC_REGIME_RARE
+    }
+    p_mc_regime <- list(
+      regime_obs = regime_obs, variante = "V3b", motif_v1 = NA_character_,
+      graine_flux = graine_flux, B_cible = B_cible, B_max = B_max,
+      tirages = tir, retenus_v1 = as.numeric(a), retenus = as.numeric(n),
+      rejets_flux = rej, arret = arret)
+  }
 
   # granularite : 1 / (B + 1) sur B nominal, pas elementaire unilateral (champ
   # affiche par app.R et display_helpers.R). granularite_stat : pas par
@@ -3957,7 +4099,14 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
        # B x T, ligne b remplie si et seulement si la replication b est
        # retenue (sim[b, ] rempli), NA sinon. Source de l'enveloppe du
        # QQ-plot (engine_enveloppe_qq()). En fin de liste.
-       z_boot = zb)
+       z_boot = zb,
+       # Variante de la p-value Monte-Carlo (issue #240, specification
+       # par. 3.2), onze elements, en fin de liste : regime de delta estime,
+       # variante ("V1" ou "V3b"), motif de V1, graine du flux (toujours
+       # renseignee), B_cible et B_max, tirages (appels de usp_simuler(), V1
+       # compris), retenus de V1 et au total, rejets du flux par cause,
+       # arret ("cible" ou "B_max") ; NA hors de V3b.
+       p_mc_regime = p_mc_regime)
 }
 
 # Reajustement rapide des replications bootstrap (usp_bootstrap()), unique
@@ -4225,8 +4374,13 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # Enregistrement des lignes de resultat : fonction partagee avec mw_tests()
   # (engine_registre_tests(), ADR 0003) ; une statistique Monte-Carlo absente
   # du catalogue ou du bootstrap leve une erreur.
-  reg <- engine_registre_tests(boot, USP_CATALOGUE_MC, alpha,
-                               nature_mc = "Monte-Carlo (bootstrap parametrique)")
+  # Nature de la p-value Monte-Carlo (issue #240, Q-A4-10 (B)) : suffixee
+  # quand le bootstrap a rendu la p-value conditionnelle au regime interieur
+  # de delta estime (variante V3b) ; libelle actuel sinon, y compris pour une
+  # liste boot sans p_mc_regime (scripts hors CI).
+  nature_mc <- if (identical(boot$p_mc_regime$variante, "V3b")) NATURE_MC_REGIME_INTERIEUR
+               else "Monte-Carlo (bootstrap parametrique)"
+  reg <- engine_registre_tests(boot, USP_CATALOGUE_MC, alpha, nature_mc = nature_mc)
   add <- reg$add
   # Regime de l'ajustement (usp_regime(), issue #31), calcule une seule fois
   # (#70) : il conditionne l'attribution des p exactes (regle R7 ci-dessous),
@@ -9448,6 +9602,12 @@ run_engine <- function(xt, yt,
           methode = if (is.null(perm_pente)) "non calcule" else perm_pente$methode,
           B = if (is.null(perm_pente)) NA_real_ else perm_pente$B,
           p_bilateral = if (is.null(perm_pente)) NA_real_ else perm_pente$p_bilateral)),
+        # Graine du flux complementaire de la p-value Monte-Carlo
+        # conditionnelle au regime de delta estime (issue #240, sixieme source
+        # de tirage, usp_graine_flux_regime()), consignee meme quand le flux
+        # n'est pas pose (delta estime au bord) ; apres permutation_pente,
+        # avant les champs d'execution.
+        list(seed_flux_regime = boot$p_mc_regime$graine_flux),
         list(horodatage = t0,
              duree_sec = as.numeric(difftime(Sys.time(), t0, units = "secs")),
              version_R = R.version.string))

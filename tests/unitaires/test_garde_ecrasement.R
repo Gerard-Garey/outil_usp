@@ -288,8 +288,10 @@ verifier("(d) calibration_mc_mw_t8.R --combiner --ecrire --brut sans --journal :
 if (GIT_OK) {
   dp <- file.path(tempfile("garde_m2_"), "depot avec espace")
   for (d in c("R", "tests/donnees", "docs/tableaux")) dir.create(file.path(dp, d), recursive = TRUE)
+  # donnees_ln_interieur.csv : lu par tests/outils_tests.R depuis #240.
   copies <- c("R/engine.R", "tests/outils_tests.R", "tests/puissance_t8.R",
-              "tests/donnees/donnees_ln.csv", "tests/donnees/triangle_mw.csv")
+              "tests/donnees/donnees_ln.csv", "tests/donnees/triangle_mw.csv",
+              "tests/donnees/donnees_ln_interieur.csv")
   file.copy(file.path(RACINE_DEPOT, copies), file.path(dp, copies))
   dates <- format(Sys.Date() + 0:1, "%Y%m%d")
   suivis <- c(sprintf("docs/tableaux/%s-issue116-exact-J1.md", dates),
@@ -526,7 +528,8 @@ if (GIT_OK) {
   da <- file.path(tempfile("gardes_205_"), "depot avec espace")
   for (d in c("R", "tests/donnees", "docs/autres")) dir.create(file.path(da, d), recursive = TRUE)
   copies_a <- c("R/engine.R", "tests/outils_tests.R", file.path("tests", SCRIPTS_ECRIRE),
-                "tests/donnees/donnees_ln.csv", "tests/donnees/triangle_mw.csv")
+                "tests/donnees/donnees_ln.csv", "tests/donnees/triangle_mw.csv",
+                "tests/donnees/donnees_ln_interieur.csv")
   file.copy(file.path(RACINE_DEPOT, copies_a), file.path(da, copies_a))
   writeLines("suivi", file.path(da, "suivi.txt"))
   suivis_a <- sprintf("docs/autres/%s-issue215-tost.md", format(Sys.Date() + 0:1, "%Y%m%d"))
