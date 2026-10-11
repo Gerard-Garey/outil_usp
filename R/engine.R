@@ -7641,18 +7641,50 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
 # donnees proportionnelles a 12 chiffres pres ne se rencontrent pas sur
 # donnees reelles : ces cas sont des garde-fous numeriques. Le moteur detecte
 # la degenerescence lui-meme avant tout appel a lm() : une colonne degeneree
-# ne produit aucun avertissement R, et aucun n'est ni capture ni masque.
-# Limite mesuree, acceptee par actuary (#56) : une colonne a peine
-# au-dessus du seuil reste soumise a lm(), dont le critere "essentially
-# perfect fit" de summary.lm() n'est pas relatif (variance residuelle
-# ponderee, rss/ddl, comparee a 1e-30 fois le carre des valeurs ajustees non
-# ponderees) ; sur Taylor & Ashe, colonne j = 4, cet avertissement sort a
-# l'ecart relatif 1,02e-12 (observe et replications) et a 2,26e-12
-# (replications seulement), plus a 1,13e-11. Les colonnes exclues
+# n'est jamais soumise a lm() ni a summary.lm().
+# Une colonne a peine au-dessus du seuil reste soumise a lm(), dont le critere
+# "essentially perfect fit" de summary.lm() n'est pas relatif (variance
+# residuelle ponderee, rss/ddl, comparee a 1e-30 fois le carre des valeurs
+# ajustees non ponderees) : avec la ponderation 1/C(i,j) de l'ordonnee a
+# l'origine et de la courbure, il depend de l'unite des cumules. Cet
+# avertissement, et lui seul, est intercepte par .mw_summary_lm() (#203,
+# ci-dessous) ; le calcul est inchange. Les colonnes exclues
 # sont rendues a part (element "exclues", data.frame j, n_facteurs ; element
 # "eligibles", nombre de colonnes eligibles), sans ligne ni colonne nouvelle
 # dans le tableau "detail" ; mw_tests() les restitue dans le libelle de la
 # ligne, sans champ nouveau dans le resultat.
+
+# summary() d'un ajustement lm() de M1, sans l'avertissement "essentially
+# perfect fit: summary may be unreliable" de summary.lm() (#203). Avec la
+# ponderation 1/C(i,j) de mw_test_ordonnee_origine() et de
+# mw_test_courbure(), le critere de cet avertissement (variance residuelle
+# ponderee < 1e-30 fois le carre des valeurs ajustees) depend de l'unite des
+# cumules : mesure sur le triangle reserve2 multiplie par 10^e, B = 999,
+# aucun avertissement a e = 0, 93 a e = 20, 9 014 a e = 46, sigma_USP et
+# verdicts inchanges (#185). Il ne signale donc pas un defaut du calcul.
+# Choix de l'interception plutot que d'un recalcul sans summary.lm() (lm.fit()
+# ou qr()) : summary.lm() est appele tel quel, sur le meme objet, et ses
+# valeurs sont celles d'avant au bit pres par construction (objets
+# run_engine() identical() avant / apres, mesure #203) ; un recalcul ne
+# l'aurait garanti que par mesure. Interception ciblee : withCallingHandlers()
+# n'etouffe (muffleWarning) que l'avertissement emis par summary.lm() avec ce
+# message, en anglais ou traduit dans la langue de la session (gettext(),
+# domaine R-stats du paquet stats ; la forme traduite n'a pas ete mesuree,
+# aucune locale traduite n'etant disponible dans la session de #203) ; tout
+# autre avertissement, y compris un autre avertissement de summary.lm(),
+# remonte (tests/unitaires/test_merz_wuthrich.R).
+# L'ajustement m est force avant l'installation du gestionnaire : les
+# avertissements de lm() ne transitent pas par lui.
+.mw_summary_lm <- function(m) {
+  force(m)
+  msg <- "essentially perfect fit: summary may be unreliable"
+  withCallingHandlers(summary(m), warning = function(w) {
+    appel <- conditionCall(w)
+    if (is.call(appel) && identical(appel[[1]], as.name("summary.lm")) &&
+        conditionMessage(w) %in% c(msg, gettext(msg, domain = "R-stats")))
+      invokeRestart("muffleWarning")
+  })
+}
 .mw_exclues_vide <- function()
   list(colonnes = data.frame(j = integer(0), n_facteurs = integer(0)), eligibles = 0L)
 .mw_exclure <- function(ex, j, n) {
@@ -7718,7 +7750,7 @@ mw_test_ordonnee_origine <- function(aj, j_degeneres = NULL) {
     ex$eligibles <- ex$eligibles + 1L
     if (.mw_colonne_degeneree(aj, j)) return(.mw_stat_non_definie(ex))
     C0 <- tri[idx + 1, j + 1]; C1 <- tri[idx + 1, j + 2]
-    m <- try(summary(stats::lm(C1 ~ C0, weights = 1 / C0)), silent = TRUE)
+    m <- try(.mw_summary_lm(stats::lm(C1 ~ C0, weights = 1 / C0)), silent = TRUE)
     if (inherits(m, "try-error") || nrow(m$coefficients) < 2) next
     blocs[[length(blocs) + 1L]] <- list(
       j = j, n = length(idx), a = m$coefficients[1, 1], se_a = m$coefficients[1, 2],
@@ -7797,7 +7829,7 @@ mw_test_courbure <- function(aj, j_degeneres = NULL) {
     if (.mw_colonne_degeneree(aj, j)) return(.mw_stat_non_definie(ex))
     C0 <- tri[idx + 1, j + 1]; C1 <- tri[idx + 1, j + 2]
     if (stats::sd(C0) == 0) next
-    m <- try(summary(stats::lm(C1 ~ C0 + I(C0^2), weights = 1 / C0)), silent = TRUE)
+    m <- try(.mw_summary_lm(stats::lm(C1 ~ C0 + I(C0^2), weights = 1 / C0)), silent = TRUE)
     if (inherits(m, "try-error") || nrow(m$coefficients) < 3) next
     blocs[[length(blocs) + 1L]] <- list(j = j, n = length(idx), c2 = m$coefficients[3, 1],
                                         t = m$coefficients[3, 3], p = m$coefficients[3, 4])

@@ -961,7 +961,7 @@ ta_pert <- function(eps) {
 # par replication, le K des verifications Origine et Courbure calcule avec
 # l'ensemble fige a l'observe. Sert au test seulement : K par replication
 # n'est pas expose dans le resultat. Les avertissements R eventuels sont
-# comptes (element nw), non asserts ici (voir plus bas).
+# comptes (element nw) ; nuls depuis #203 (assertion plus bas).
 k_replications <- function(t, B = 99, seed = 20260831) {
   aj <- mw_ajuster(t); jd <- .mw_colonnes_degenerees(aj)
   Ko <- Kc <- rep(NA_integer_, B); nw <- 0L
@@ -1014,12 +1014,12 @@ verifier("K identique entre observe et replications, colonne retenue a l'observe
          {
            ok <- vapply(c(9e-13, 2e-12), function(e) {
              p <- pert_calc(e); a <- p$a; kr <- p$kr; b <- p$b
-             oo <- suppressWarnings(mw_test_ordonnee_origine(a))
-             cb <- suppressWarnings(mw_test_courbure(a))
+             oo <- mw_test_ordonnee_origine(a)
+             cb <- mw_test_courbure(a)
              # une replication ou la colonne j = 4 devient degeneree n'a pas de
              # statistique (NA), jamais un K different de l'observe ; le
              # nombre de NA du rejeu est celui que B_effectif ecarte.
-             identical(kr$jd, a$J - 1L) && oo$K == 7 && cb$K == 6 &&
+             identical(kr$jd, a$J - 1L) && oo$K == 7 && cb$K == 6 && kr$nw == 0L &&
                all(is.na(kr$Ko) | kr$Ko == 7) && all(is.na(kr$Kc) | kr$Kc == 6) &&
                b$B_effectif[["Origine"]] <= 99 &&
                b$B_effectif[["Origine"]] == sum(!is.na(kr$Ko)) &&
@@ -1157,6 +1157,43 @@ verifier("Domaine (#185) : invariance dans le domaine, x 1e-40 et x 1e40 : sigma
                isTRUE(proche(d$p_retenue, d0$p_retenue, rel = 1e-6, abs = 1e-12))
            }, logical(1))
            isTRUE(r0$ok) && all(ok)
+         })
+
+## --- Avertissement "essentially perfect fit" de summary.lm() en M1 (#203) ---
+# Le critere de cet avertissement depend de l'unite des cumules (ponderation
+# 1/C(i,j) de l'ordonnee a l'origine et de la courbure) ; .mw_summary_lm()
+# l'intercepte, lui seul, sans changer aucun resultat (objets run_engine()
+# identical() avant / apres, mesure #203). Mesure avant #203, B = 199 :
+# ta_pert(9e-13) 258 avertissements, triangle_mw x 1e20 : 20, x 1e46 : 1 814,
+# tous de mw_test_ordonnee_origine() et mw_test_courbure().
+avert203 <- function(expr) {
+  w <- character(0)
+  withCallingHandlers(expr, warning = function(x) {
+    w <<- c(w, conditionMessage(x)); invokeRestart("muffleWarning") })
+  w
+}
+verifier("summary.lm() en M1 (#203) : run_engine reserve2 sans aucun avertissement R, ta_pert(9e-13), triangle_mw x 1e20 et x 1e46 (B = 199)",
+         {
+           n <- vapply(list(ta_pert(9e-13), m185 * 1e20, m185 * 1e46), function(t)
+             length(avert203(run_engine(methode = "reserve2", triangle = t,
+                                        segment = 1, annexe = "II", B = 199))), integer(1))
+           if (all(n == 0L)) TRUE else paste("avertissements :", paste(n, collapse = ", "))
+         })
+verifier(".mw_summary_lm() (#203) : resultat = summary() ; seul l'avertissement 'essentially perfect fit' de summary.lm() est intercepte",
+         {
+           x <- c(1, 2, 3, 4, 5); m <- stats::lm(I(2 * x) ~ x)    # ajustement parfait
+           m2 <- m; m2$df.residual <- m2$df.residual + 1L       # autre avertissement de summary.lm()
+           .S3method("summary", "faux203", function(object, ...) {
+             warning("essentially perfect fit: summary may be unreliable"); "faux" })
+           w0 <- avert203(summary(m)); w1 <- avert203(s1 <- .mw_summary_lm(m))
+           w2 <- avert203(.mw_summary_lm(m2))
+           w3 <- avert203(.mw_summary_lm({ warning("autre 203"); m }))
+           w4 <- avert203(.mw_summary_lm(structure(list(), class = "faux203")))
+           length(w0) == 1L && grepl("essentially perfect fit", w0) && length(w1) == 0L &&
+             identical(s1, suppressWarnings(summary(m))) &&
+             identical(w2, "residual degrees of freedom in object suggest this is not an \"lm\" fit") &&
+             identical(w3, "autre 203") &&
+             identical(w4, "essentially perfect fit: summary may be unreliable")
          })
 
 ## --- Triangle totalement degenere refuse (issue #192) -------------------------
