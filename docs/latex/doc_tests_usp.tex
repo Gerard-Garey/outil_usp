@@ -721,7 +721,9 @@ contexte des fonctions de calcul du catalogue~: ratios $r_t$ et ratios centrés 
 l'issue~\#215, vecteur $\hat\pi_t$ de l'ajustement (de l'observé, ou de la réplication), lu par
 l'entrée \code{Intercept} pour les poids de la régression pondérée~;
 ensemble des colonnes dégénérées (figé à l'observé par \code{mw\_bootstrap()}, calculé sur
-\code{aj} s'il n'est pas fourni) et résidus de Mack calculés avec cet ensemble (issue~\#60) \\
+\code{aj} s'il n'est pas fourni) et résidus de Mack calculés avec cet ensemble (issue~\#60), lus
+depuis l'issue~\#239 par les entrées \code{ExpVar} et \code{KruskalAcc}, qui ne les recalculent
+plus \\
 \code{.mc\_evaluer()} & catalogue, contexte & vecteur nommé dans l'ordre du catalogue~; erreur
 qui nomme la statistique si une entrée ne rend pas une valeur de longueur~1 \\
 \code{engine\_p\_mc()} & valeurs simulées, valeur observée, sens du rejet & \code{p\_mc},
@@ -898,10 +900,27 @@ vérifications colonne par colonne de M1 et, depuis l'issue~\#60, de
 \code{mw\_test\_homogeneite\_}\allowbreak\code{accident()},
 \code{mw\_test\_annees\_}\allowbreak\code{calendaires()} et
 \code{mw\_stat\_correlation\_}\allowbreak\code{dev()} (\code{NULL}~:
-ensemble calculé sur \code{aj}) & statistiques des tests M1 à M6 (détail~: §\ref{sec:index-fonctions}) \\
-\code{.mw\_spearman\_p()},\newline \code{.fisher\_combine()} & deux vecteurs (le premier déjà
-aplati), \code{plancher\_b} (1)~; p-values de colonne & p-value bilatérale de Spearman d'une
-colonne, dans $[2/n!, 1]$ (loi de permutation à $n \le 9$ sans ex \ae quo, sinon approximation
+ensemble calculé sur \code{aj})~; argument facultatif \code{res} (résidus de Mack déjà calculés,
+ceux du contexte dans le bootstrap~; \code{NULL}~: calculés par \code{mw\_residus()}, issue~\#239)
+de \code{mw\_test\_exposant\_}\allowbreak\code{variance()} et
+\code{mw\_test\_homogeneite\_}\allowbreak\code{accident()} & statistiques des tests M1 à M6 (détail~: §\ref{sec:index-fonctions}) \\
+\code{.mw\_table()},\newline \code{.mw\_noms\_bloc()},\newline
+\code{.mw\_noms\_lignes\_}\newline\code{empilees()} & colonnes préallouées, noms de lignes~;
+vecteur d'un bloc~; noms et tailles des blocs & table \code{data.frame} assemblée en une fois, sous
+la forme exacte du résultat de \code{rbind.data.frame()} itéré, ordre des attributs compris, pour
+les tables de \code{mw\_residus()}, \code{mw\_test\_annees\_}\allowbreak\code{calendaires()},
+\code{mw\_test\_ordonnee\_}\allowbreak\code{origine()}, \code{mw\_test\_homogeneite\_}\allowbreak\code{f()},
+\code{mw\_test\_courbure()}, \code{mw\_famille\_alpha()} et
+\code{mw\_test\_exposant\_}\allowbreak\code{variance()}, auparavant bâties par \code{rbind()} à chaque
+colonne~; noms de lignes que \code{data.frame()} et \code{rbind()} itéré donneraient à un triangle à
+noms de lignes (issue~\#239~: objets de \code{run\_engine()} des cinq cas de référence
+identiques avant et après, au sens d'\code{identical()}) \\
+\code{.mw\_spearman()},\newline \code{.mw\_spearman\_p()},\newline \code{.fisher\_combine()} & deux vecteurs (le premier déjà
+aplati), \code{plancher\_b} (1)~; p-values de colonne & corrélation de rang $\hat\rho_s$ et p-value
+bilatérale de Spearman d'une colonne, tirées d'un seul appel à \code{cor.test()}
+(\code{.mw\_spearman()}, issue~\#239~; \code{.mw\_spearman\_p()}, qui en rend la seule p-value,
+n'est plus appelée que par les tests unitaires), celle-ci
+dans $[2/n!, 1]$ (loi de permutation à $n \le 9$ sans ex \ae quo, sinon approximation
 de Student relevée à $2/n!$, fiche~\ref{mw:m1b})~; statistique $X$ de Fisher, p-value
 $\chi^2(2K)$ et $K$, sans exclusion (p-value nulle relevée à \code{.Machine\$double.xmin},
 p-value non finie~: statistique \code{NA}, issue~\#90, fiche~\ref{mw:m1a}) \\
@@ -1959,7 +1978,7 @@ Ordonnée à l'origine par colonne & \ref{mw:m1a} &
 \code{mw\_test\_ordonnee\_origine()}~; colonnes dégénérées par \code{.mw\_colonne\_degeneree()} &
 idem (p de Fisher, via \code{.fisher\_combine()}) & \code{Origine} \\
 Homogénéité de $f_j$ & \ref{mw:m1b} & \code{mw\_test\_homogeneite\_f()}, même exclusion &
-idem (p de Fisher, via \code{.fisher\_combine()}, sur les $p_j$ de \code{.mw\_spearman\_p()},
+idem (p de Fisher, via \code{.fisher\_combine()}, sur les $p_j$ de \code{.mw\_spearman()},
 issue~\#90)~; \code{.mw\_fisher\_rangs\_p\_min()} ($p_{\min}$, issue~\#115) & \code{HomogF} \\
 Absence de courbure & \ref{mw:m1c} & \code{mw\_test\_courbure()}, même exclusion &
 idem (p de Fisher) & \code{Courbure} \\
@@ -1973,7 +1992,7 @@ Breusch--Pagan sur résidus de Mack & \ref{mw:m2bp} &
 \code{stats::pchisq()} (p asymptotique) & \code{BP} \\
 Exposant de variance par colonne & \ref{mw:m2b} &
 \code{mw\_test\_exposant\_variance()} & idem (p de Fisher, via \code{.fisher\_combine()}, sur
-les $p_j$ de \code{.mw\_spearman\_p()}, issue~\#90)~; \code{.mw\_fisher\_rangs\_p\_min()}
+les $p_j$ de \code{.mw\_spearman()}, issues~\#90 et~\#239)~; \code{.mw\_fisher\_rangs\_p\_min()}
 ($p_{\min}$, issue~\#115) & \code{ExpVar} \\
 Variance unitaire des résidus & \ref{mw:m2var} & \code{stats::var()} sur
 \code{mw\_residus()} & diagnostic, aucune p-value & --- \\
@@ -2223,7 +2242,7 @@ cumuls $C(i,j)$ au plancher~0 et valeurs absolues des résidus de Mack au planch
 \code{mw\_test\_homogeneite\_accident()} (fiche~\ref{mw:m3acc}). Depuis l'issue~\#90, un ex
 \ae quo ainsi défini dans une colonne de l'homogénéité de $f_j$ ou de l'exposant de variance fait
 calculer la p-value de cette colonne par l'approximation de Student relevée à $2/n_j!$, et non
-par la loi de permutation (\code{.mw\_spearman\_p()}, fiche~\ref{mw:m1b})~; depuis l'issue~\#115, il
+par la loi de permutation (\code{.mw\_spearman()} depuis l'issue~\#239, fiche~\ref{mw:m1b})~; depuis l'issue~\#115, il
 rend aussi \code{p\_min} non attribuée (\code{NA}, motif dans le commentaire) pour les lignes de
 rang de cette méthode (corrélation entre années adjacentes, homogénéité de $f_j$, exposant de
 variance, Kruskal--Wallis~; tableau~\ref{tab:pmin}). Les mêmes fonctions servant à
@@ -11703,8 +11722,8 @@ $H_0$ : le facteur $f_j$ est \emph{commun à toutes les années de survenance}~;
 les facteurs individuels ne présentent aucune tendance en $i$.
 \Stat
 $\hat\rho_{s,j}$ par colonne (celui de \code{cor.test()}), de p-value bilatérale $p_j$
-calculée par \code{.mw\_spearman\_p()} (issue~\#90, décisions du mainteneur du 6~octobre
-2026)~: à $n_j \le 9$ sans ex \ae quo, loi de permutation de $\hat\rho_{s,j}$ énumérée par
+(issue~\#90, décisions du mainteneur du 6~octobre 2026), $\hat\rho_{s,j}$ et $p_j$ étant tirés
+d'un seul appel à \code{cor.test()} (\code{.mw\_spearman()}, issue~\#239)~: à $n_j \le 9$ sans ex \ae quo, loi de permutation de $\hat\rho_{s,j}$ énumérée par
 \code{cor.test(exact = TRUE)}~; sinon ($n_j > 9$, ou ex \ae quo, au sens de la
 section~\ref{sec:ex-aequo}~: égalité au bit près après aplatissement), approximation de Student
 de \code{cor.test(exact = FALSE)}, relevée au plancher $2/n_j!$, valeur exacte de
@@ -11941,8 +11960,8 @@ $H_0$ : l'amplitude des résidus standardisés ne dépend pas de $C(i,j)$ à
 l'intérieur d'une colonne, ce qui est la traduction directe de
 $\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$.
 \Stat
-$\hat\rho_{s,j}$ par colonne, de p-value bilatérale $p_j$ calculée par
-\code{.mw\_spearman\_p()} selon la règle de la fiche~\ref{mw:m1b} (issue~\#90, étendue à cette
+$\hat\rho_{s,j}$ par colonne, de p-value bilatérale $p_j$, tirés d'un seul appel à \code{cor.test()}
+(\code{.mw\_spearman()}, issue~\#239), $p_j$ selon la règle de la fiche~\ref{mw:m1b} (issue~\#90, étendue à cette
 ligne par décision du mainteneur du 6~octobre 2026~; les cumuls, déjà aplatis, le sont une
 seconde fois au plancher~0, sans effet), puis combinaison des $K$ p-values par Fisher,
 $X = -2\sum_j \ln p_j$ (\code{.fisher\_combine()}, sans exclusion, fiche~\ref{mw:m1a}). Effet
@@ -14430,7 +14449,7 @@ Bloc gris & Fonction \textbf{interne} de support, appelée par une autre
 fonction du moteur et jamais directement par \code{usp\_tests()} ou
 \code{mw\_tests()}~:\newline
 \code{sw\_loi\_nulle()}, \code{.imhof\_p\_sup0()}, \code{.runs\_dens()},\newline
-\code{.fisher\_combine()}, \code{.mw\_spearman\_p()}, \code{.mack\_moments\_Z()},\newline
+\code{.fisher\_combine()}, \code{.mw\_spearman()}, \code{.mack\_moments\_Z()},\newline
 \code{mw\_simuler\_triangle()}, \code{.mw\_stats()}, \code{.mw\_pool\_residus()}.\newline
 Le préfixe d'un point ne définit pas cette catégorie~: \code{.shapiro\_sur()},
 \code{.mw\_lm\_intra()} et \code{.mw\_detail\_extrapolation()}, préfixées d'un
@@ -14939,7 +14958,8 @@ dossiers. Priorité de revue. \\
 Les fonctions internes de la méthode Merz--Wüthrich relèvent de la même lecture~: une anomalie
 de \code{.fisher\_combine()} atteindrait les quatre combinaisons de Fisher de M1 et M2 (ordonnée
 à l'origine, homogénéité de $f_j$, courbure, exposant de variance), et une anomalie de
-\code{.mw\_spearman\_p()} la deuxième et la quatrième (homogénéité de $f_j$, exposant de
+\code{.mw\_spearman()}, qui calcule depuis l'issue~\#239 la corrélation de rang et la p-value de
+chaque colonne, la deuxième et la quatrième (homogénéité de $f_j$, exposant de
 variance~; issue~\#90)~; \code{runs\_p\_min()}, qui fournit la
 $p_{\min}$ des suites dans les deux méthodes depuis l'issue~\#115, relève des fonctions communes
 aux deux dispositifs.
