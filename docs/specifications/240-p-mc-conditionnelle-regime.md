@@ -78,6 +78,8 @@
   1. `"delta estime au bord"` si `reg$delta_au_bord` ;
   2. sinon `"volumes constants : regime de delta non identifie"` si `reg$volumes_constants` ;
   3. sinon `"refit = FALSE : delta** non reestime"`.
+
+  > *Ordre des points 1 et 2 inversé par la décision Q1 du mainteneur du 11/10/2026 : voir l'annotation du 11/10/2026 (revue finale) en fin de document.*
 - Motifs (Q-240-1, recommandation) :
   - à volumes constants, π_t ne dépend pas de δ. Le régime de δ̂ y est un artefact de l'optimiseur, et conditionner dessus n'a pas d'objet statistique ;
   - sous `refit = FALSE` (appel direct seulement ; `run_engine()` réajuste toujours, l. 9290 **[V]**), δ̂** n'existe pas.
@@ -206,7 +208,7 @@ MOTIF_MC_REGIME_RARE <- sprintf(paste(
 ```
 
 **Règle de substitution.** Elle est appliquée dans `usp_bootstrap()`, après `.mc_p_values()`, sous V3b seulement :
-- **condition** : `arret == "B_max"` et `retenus < B_MIN_DEGENERESCENCE` ;
+- **condition** : `arret == "B_max"` et `retenus < B_MIN_DEGENERESCENCE` *(complétée par `B_cible >= B_MIN_DEGENERESCENCE`, décision Q2 du mainteneur du 11/10/2026 : voir l'annotation du 11/10/2026 (revue finale) en fin de document)* ;
 - **effet** : pour chaque statistique dont `motif_mc` vaut `MOTIF_MC_REPLIC_INSUFFISANTES` ou `MOTIF_MC_AUCUNE_REPLIC`, ce motif est remplacé par `MOTIF_MC_REGIME_RARE`. `p_mc`, `err_mc`, `B_effectif` et `granularite_stat` restent tels que rendus.
 - **Motifs non remplacés.** `MOTIF_MC_OBS_NON_FINIE`, le motif de `non_definie` et `MOTIF_MC_CONDITION` gardent la priorité : ils portent sur les données observées, non sur le nombre de tirages.
 - **B_max atteint avec `retenus ≥ 50`.** Aucune substitution : la p est calculée sur B_eff < B. Une statistique finie dans moins de 50 tirages garde le motif générique, sa cause étant la non-finitude et non le régime.
@@ -387,3 +389,8 @@ Aucun seuil d'acceptation. Un dépassement de trois fois ces estimations est sig
 > - **Q-240-4** : la limite de la garantie de #127 à B_eff < B est acceptée et documentée ; toute règle nouvelle relève de #181 ;
 > - **Q-240-5** : la graine du flux est toujours consignée, au bord compris ;
 > - **Q-240-6** : les collisions de graines sont documentées seulement.
+
+> **Annotation du 11/10/2026 : revue finale (règle 10), décisions Q1 et Q2 du mainteneur.** Mises en œuvre par le commit `670e449`. Elles modifient deux passages de la spécification approuvée, dont le texte est conservé ci-dessus ; en cas de divergence, cette annotation l'emporte.
+> - **Q1 — ordre de `motif_v1` (§ 2.2, points 1 et 2).** `usp_bootstrap()` teste les **volumes constants avant le bord** : (1) `"volumes constants : regime de delta non identifie"` si `reg$volumes_constants` ; (2) sinon `"delta estime au bord"` si `reg$delta_au_bord` ; (3) sinon `"refit = FALSE : delta** non reestime"` (`R/engine.R:4022`). Raison : à volumes constants, l'optimiseur rend δ̂ = 0 ou 1 (mesuré au commit `670e449` : `usp_ajuster(rep(100, 8), yt)$delta` = 0), si bien que, dans l'ordre initial, le motif voulu par Q-240-1 n'était jamais atteint. L'ordre retenu est celui de la ligne « Position de delta » et des lignes LR d'`usp_tests()`. Recommandation d'`actuary`. La variante (V1) et `regime_obs` (`"bord0"` ou `"bord1"`, qui décrit δ̂ estimé, § 2.1) sont inchangés. Test : U9 (c) (volumes constants, δ̂ estimé au bord 0) de `tests/unitaires/test_p_mc_regime.R`.
+> - **Q2 — condition de substitution par `MOTIF_MC_REGIME_RARE` (§ 4.1).** La condition devient `arret == "B_max"`, `retenus < B_MIN_DEGENERESCENCE` **et `B_cible >= B_MIN_DEGENERESCENCE`** (`R/engine.R:4078-4079`). C'est une précision de Q-A4-9 : à B < 50, la cible elle-même donnerait `MOTIF_MC_REPLIC_INSUFFISANTES`, la cause du manque est B et non la rareté du régime intérieur ; le motif générique reste. L'effet et les motifs non remplacés du § 4.1 sont inchangés ; le dernier point du § 4.1 (`arret = "cible"` avec `retenus < 50`, motif générique) vaut désormais aussi pour `arret = "B_max"` à B < 50. Test : U5 bis (B = 30, B_max = 775 atteint, 12 tirages retenus, 34 motifs `MOTIF_MC_REPLIC_INSUFFISANTES`).
+> - **Résultats.** Références identiques (6 cas, écart maximal 0) : aucun cas de référence n'est à volumes constants ni à B < 50. Aucun changement de σ_USP, de p-value ni de verdict.
