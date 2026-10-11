@@ -174,6 +174,14 @@ verifier("U1 graine du flux : refus de 2^31, 1,5, NA, Inf (et non scalaire, non 
            leve_erreur(usp_graine_flux_regime(1.5)) && leve_erreur(usp_graine_flux_regime(NA)) &&
            leve_erreur(usp_graine_flux_regime(NA_real_)) && leve_erreur(usp_graine_flux_regime(Inf)) &&
            leve_erreur(usp_graine_flux_regime(c(1, 2))) && leve_erreur(usp_graine_flux_regime("1")))
+# Suggestion d'actuary (etape 4 de la branche A4) : seed non entier refuse par
+# usp_bootstrap() lui-meme, et non seulement par usp_graine_flux_regime() ;
+# appel court (B = 3, J2 observe).
+verifier("U1 usp_bootstrap() sur J2 observe, B = 3 : seed = 1,5 refuse (erreur de usp_graine_flux_regime())",
+         {
+           e <- tryCatch(usp_bootstrap(f2, B = 3, seed = 1.5), error = function(e) e)
+           inherits(e, "error") && grepl("^usp_graine_flux_regime\\(\\) : seed doit etre", conditionMessage(e))
+         })
 verifier("U1 usp_bootstrap() sur J2 observe a seed = M, B = 99 : sans erreur, graine du flux D - M - 1, flux pose",
          {
            bm <- usp_bootstrap(f2, B = 99, seed = M)
