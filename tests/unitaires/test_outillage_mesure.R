@@ -10,11 +10,13 @@
 #  (m1) reprise en mode tranche : echantillon regulier de lignes reprises
 #       recalculees (lignes_recalcul_reprise()), une ligne interieure y
 #       entre ; mode oracle inchange ;
-#  (m2) --combiner refuse une p de #119 hors de [0, 1] (invariants_sortie()) ;
+#  (m2) --combiner refuse une p de #119 hors de [0, 1] ou illisible, lue sur
+#       le champ brut (invariants_sortie()) ;
 #  (j)  --combiner --journal exige une ligne unique "- Sortie <nom> : md5
 #       <md5>" de md5 egal a celui du fichier ; controler_md5.sh, meme regle ;
-#  (s)  synchroniser_sauvegarde.sh signale un md5 du JOURNAL perime et ne
-#       copie pas la sortie regeneree ;
+#  (s)  synchroniser_sauvegarde.sh signale un md5 du JOURNAL perime (sortie
+#       regeneree ou partielle) ou des lignes multiples, et ne copie pas la
+#       sortie ;
 #  (l)  lancer_tranches.sh : verrou par sortie, une relance en parallele ne
 #       renomme pas une sortie en ecriture ; verrou perime repris ;
 #  (o)  --combiner --sortie : ecriture par lot, une erreur en cours
@@ -159,14 +161,20 @@ tryCatch({
   ## --- (m2) p de #119 hors de [0, 1] --------------------------------------------
   for (cas in list(list(nom = "p_agr = 1.5", p_agr = c("0.5", "1.5", "0.5"), col = "p_agr"),
                    list(nom = "p_ceff = -0.25", p_ceff = c("0.5", "0.5", "-0.25"), col = "p_ceff"),
-                   list(nom = "p_agr = Inf", p_agr = c("Inf", "0.5", "0.5"), col = "p_agr"))) {
+                   list(nom = "p_agr = Inf", p_agr = c("Inf", "0.5", "0.5"), col = "p_agr"),
+                   # valeurs corrompues non numeriques : as.numeric() en
+                   # ferait NA, lues avant toute conversion (revue finale)
+                   list(nom = "p_agr = 0,7", p_agr = c("0.5", "0,7", "0.5"), col = "p_agr"),
+                   list(nom = "p_ceff = 1.5x", p_ceff = c("0.5", "1.5x", "0.5"), col = "p_ceff"),
+                   list(nom = "p_agr = abc", p_agr = c("0.5", "0.5", "abc"), col = "p_agr"),
+                   list(nom = "p_agr = NaN", p_agr = c("0.5", "NaN", "0.5"), col = "p_agr"))) {
     Fm <- do.call(dossier_factice, c(list(nom = paste0("m2_", make.names(cas$nom))), cas[intersect(names(cas), c("p_agr", "p_ceff"))]))
     o <- combiner(c(shQuote(Fm$d), "--reduit"))
     verifier(sprintf("(m2) ligne interieure a %s : --combiner refuse (code 1), invariant qui nomme la colonne", cas$nom),
-             code_de(o) == 1L && any(grepl(sprintf("p hors de [0, 1] (%s)", cas$col), o, fixed = TRUE)))
+             code_de(o) == 1L && any(grepl(sprintf("p hors de [0, 1] ou illisible (%s)", cas$col), o, fixed = TRUE)))
   }
-  verifier("(m2) p_agr = 0 et 1 (bornes) et NA : admises",
-           { Fb <- dossier_factice("m2_bornes", p_agr = c("0", "1", "NA"))
+  verifier("(m2) p_agr = 0 et 1 (bornes), NA (marqueur d'absence) ; p_ceff 1e-05 et 7.0041235189596963e-10 (forme %.17g) : admises",
+           { Fb <- dossier_factice("m2_bornes", p_agr = c("0", "1", "NA"), p_ceff = c("1e-05", "7.0041235189596963e-10", "0.5"))
              code_de(combiner(c(shQuote(Fb$d), "--reduit"))) == 0L })
 
   ## --- (j) ligne du JOURNAL d'une sortie ------------------------------------------
@@ -184,11 +192,16 @@ tryCatch({
              grepl("^0 ligne", ej(sprintf("- Sortie %s : md5 %s0", F0$nom, F0$md5), F0$nom, F0$md5)))
   verifier("(j) ecart_journal_sortie() : une sortie au nom prefixe d'une autre n'est pas confondue",
            grepl("^0 ligne", ej(sprintf("- Sortie %s.bak : md5 %s", F0$nom, F0$md5), F0$nom, F0$md5)))
-  verifier("(j) JOURNAL de la mesure L0 versionne (docs/tableaux) : une ligne conforme par sortie citee",
+  # Chaque JOURNAL de mesure #206 versionne (tous, sans dependre de leur
+  # ordre ni de leur nombre de sorties) : au moins une ligne "- Sortie", et
+  # chacune conforme (une seule ligne par sortie).
+  verifier("(j) JOURNAL(aux) de mesure #206 versionne(s) (docs/tableaux) : au moins une ligne \"- Sortie\", toutes conformes",
            { fj <- list.files(file.path(RACINE_DEPOT, "docs", "tableaux"), pattern = "issue206-journal-mesure\\.md$", full.names = TRUE)
-             jl <- readLines(fj[1], warn = FALSE, encoding = "UTF-8")
-             m <- regmatches(jl, regexec("^- Sortie (\\S+) : md5 ([0-9a-f]{32})", jl)); m <- Filter(length, m)
-             length(fj) >= 1L && length(m) == 33L && all(vapply(m, function(x) is.null(ej(jl, x[2], x[3])), logical(1))) })
+             length(fj) >= 1L && all(vapply(fj, function(f) {
+               jl <- readLines(f, warn = FALSE, encoding = "UTF-8")
+               m <- Filter(length, regmatches(jl, regexec("^- Sortie (\\S+) : md5 ([0-9a-f]{32})", jl)))
+               length(m) >= 1L && all(vapply(m, function(x) is.null(ej(jl, x[2], x[3])), logical(1)))
+             }, logical(1))) })
   J_OK <- journal(file.path(TMP, "J_ok.md"), L_OK)
   J_AILLEURS <- journal(file.path(TMP, "J_ailleurs.md"), c(sprintf("- Sortie %s : md5 %s", F0$nom, FAUX), sprintf("note : %s %s", F0$nom, F0$md5)))
   J_DOUBLE <- journal(file.path(TMP, "J_double.md"), c(L_OK, L_OK))
@@ -275,6 +288,15 @@ tryCatch({
     verifier("(s) sortie partielle : la copie terminee de la sauvegarde n'est pas ecrasee, JOURNAL inchange",
              identical(unname(tools::md5sum(file.path(WS, "s", "tranche-N-0001-0001.txt"))), m_av) &&
                sum(grepl("^- Sortie tranche-N-0001-0001.txt", readLines(file.path(DS, "JOURNAL.md")))) == 1L)
+    # Deux lignes identiques pour une sortie : meme regle que controler_md5.sh
+    # et --combiner --journal (une ligne et une seule).
+    DS2 <- file.path(TMP, "sync2"); WS2 <- file.path(TMP, "sync2_wt"); dir.create(DS2); dir.create(WS2)
+    fs2 <- file.path(DS2, "a.txt"); ecrire_sortie(fs2, "REP\t1"); m2s <- unname(tools::md5sum(fs2))
+    writeLines(c("# JOURNAL", rep(sprintf("- Sortie a.txt : md5 %s", m2s), 2)), file.path(DS2, "JOURNAL.md"))
+    r4s <- sh("synchroniser_sauvegarde.sh", c("-d", shQuote(DS2), "-w", shQuote(WS2), "-b", "claude/sauvegarde-test", "-c", "s", "-n"))
+    verifier("(s) deux lignes identiques \"- Sortie a.txt : md5 <md5>\" au JOURNAL : LIGNES MULTIPLES signale, sortie non copiee, code 1",
+             r4s$code == 1L && any(grepl("LIGNES MULTIPLES a.txt : 2 lignes", r4s$o, fixed = TRUE)) &&
+               !file.exists(file.path(WS2, "s", "a.txt")))
 
     ## (j) controler_md5.sh, meme regle que --combiner --journal
     DC <- file.path(TMP, "cmd5"); dir.create(DC)

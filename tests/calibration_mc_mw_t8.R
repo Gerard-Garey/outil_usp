@@ -112,12 +112,12 @@
 #  correspondance ligne <-> cle differents ; couverture de 1..R_(loi, pool)
 #  (et 1..500 pour la sous-mesure) qui n'est pas exactement une fois ; loi
 #  du niveau sans oracle, ou oracle de taille differente ; invariant (d)
-#  faux (dont une p de #119 hors de [0, 1], #248) ; md5 des valeurs de
-#  l'oracle different de MD5_VALEURS ; avec --journal : pour une sortie,
-#  ligne "- Sortie <nom> : md5 <md5>" (en debut de ligne) absente, multiple
-#  ou de md5 different de celui du fichier (#248 : un md5 cite ailleurs ne
-#  suffit plus), ligne
-#  "- Empreinte sans commentaires : <md5>" absente, multiple ou differente,
+#  faux (dont une p de #119 hors de [0, 1] ou illisible, #248) ; md5 des
+#  valeurs de l'oracle different de MD5_VALEURS ; avec --journal : pour une
+#  sortie, ligne "- Sortie <nom> : md5 <md5>" (en debut de ligne) absente,
+#  multiple ou de md5 different de celui du fichier (#248 : un md5 cite
+#  ailleurs ne suffit plus), ligne "- Empreinte sans commentaires : <md5>"
+#  absente, multiple ou differente,
 #  ligne "- Niveau : Lk" differente de --niveau. Lignes attendues au
 #  JOURNAL (une chacune) : "- Debit : <texte>" (avec ou sans accent),
 #  "- Niveau : Lk", "- Empreinte sans commentaires : <md5>", et une par
@@ -1191,19 +1191,34 @@ lire_sortie <- function(f) {
 # p sur la grille ; statut connu ; p hors catalogue Monte-Carlo dans [0, 1]
 # (#248, constat m2) : p des regressions de #119 (p_agr, p_ceff), p
 # asymptotiques et exactes des lignes (pas:, pex:), p de la sous-mesure N.
-# Une valeur absente (NA, et NaN, que is.na() traite comme NA) est admise ;
-# Inf, -Inf et toute valeur hors de [0, 1] sont refusees.
+# Lecture sur les champs BRUTS (avant as.numeric(), qui changerait une
+# valeur corrompue, "0,7", "1.5x", "abc", en NA) : seul le marqueur
+# d'absence "NA" est admis (f17() l'ecrit pour toute valeur non finie, et
+# champs_tranche(), champs_sm() et champs_erreur() pour les lignes refusees
+# ou en erreur ; aucun autre marqueur n'est produit dans ces colonnes) ;
+# toute autre valeur doit etre un nombre decimal (forme de sprintf("%.17g"))
+# compris dans [0, 1]. Sont donc refuses : champ vide, "NaN", "Inf", "-Inf",
+# virgule decimale, texte, et toute valeur hors de [0, 1].
 COLS_P01 <- list(tranche = c("p_agr", "p_ceff", grep("^(pas|pex):", COLS_TRANCHE, value = TRUE)),
                  sm = c("pW_bas", "pW_haut", "pD_bas", "pD_haut"), oracle = character(0))
-p_hors_01 <- function(D, cols) cols[vapply(cols, function(k) { x <- D[[k]]; any(!is.na(x) & (x < 0 | x > 1)) }, logical(1))]
+RE_NOMBRE <- "^-?[0-9]+(\\.[0-9]+)?([eE][-+]?[0-9]+)?$"
+p_hors_01 <- function(donnees, cols_mode, cols) {
+  if (!length(donnees) || !length(cols)) return(character(0))
+  M <- do.call(rbind, donnees); colnames(M) <- cols_mode
+  cols[vapply(cols, function(k) {
+    x <- M[, k]; ab <- x == "NA"
+    v <- suppressWarnings(as.numeric(x))
+    any(!ab & (!grepl(RE_NOMBRE, x) | is.na(v) | v < 0 | v > 1))
+  }, logical(1))]
+}
 invariants_sortie <- function(p) {
   err <- character(0)
   D <- en_table(p$donnees, COLS[[p$mode]])
   b <- if (p$mode == "oracle") D$k else D$b
   if (!identical(as.integer(sort(b)), seq.int(p$debut, p$fin))) err <- c(err, "indices des lignes differents de debut..fin")
   if (!all(D$statut %in% c("admis", "refuse"))) err <- c(err, "statut inconnu")
-  h01 <- p_hors_01(D, COLS_P01[[p$mode]])
-  if (length(h01)) err <- c(err, sprintf("p hors de [0, 1] (%s)", paste(h01, collapse = ", ")))
+  h01 <- p_hors_01(p$donnees, COLS[[p$mode]], COLS_P01[[p$mode]])
+  if (length(h01)) err <- c(err, sprintf("p hors de [0, 1] ou illisible (%s)", paste(h01, collapse = ", ")))
   if (p$mode == "tranche") {
     A <- D[D$statut == "admis", , drop = FALSE]
     for (pf in c("R", "B")) {

@@ -30,6 +30,10 @@
 #       "- Sortie <nom> : md5 <md5>, terminee, INTEGRITE <etat>, synchronisee <UTC>"
 #       (nom de fichier seul : aucun chemin absolu, D-a de #242), lue par
 #       --combiner --journal ;
+#       une sortie citee au JOURNAL par plusieurs lignes "- Sortie <nom> :
+#       md5", meme identiques, est signalee ("LIGNES MULTIPLES <nom> ...") et
+#       traitee comme un md5 perime (une ligne et une seule : regle de
+#       controler_md5.sh et de --combiner --journal) ;
 #       une sortie deja citee au JOURNAL, terminee ou non, dont le md5
 #       differe (sortie regeneree, ou retiree puis relancee et encore
 #       partielle, apres sa synchronisation : md5 du JOURNAL perime, #248)
@@ -47,7 +51,7 @@
 #  L'identite git est celle du WORKTREE (Claude <noreply@anthropic.com> pour
 #  une session de Claude, CLAUDE.md) ; une autre identite est signalee.
 #  Code de sortie (passage unique) : 0 si la synchronisation aboutit sans
-#  md5 perime, 1 sinon.
+#  md5 perime ni ligne multiple, 1 sinon.
 ###############################################################################
 set -u
 
@@ -92,10 +96,15 @@ passage() {
     nom=$(basename "$f")
     # Sortie deja citee au JOURNAL, terminee OU NON (retiree puis relancee :
     # sa version partielle ne doit pas ecraser la copie terminee) : md5 compare.
-    mj=$(md5_journal "$journal" "$nom" | sort -u)
+    # Une ligne et une seule (regle de controler_md5.sh et de --combiner
+    # --journal) : des lignes multiples, meme identiques, sont un ecart.
+    mj=$(md5_journal "$journal" "$nom")
     if [ -n "$mj" ]; then
       mf=$(md5 "$f")
-      if [ "$mj" != "$mf" ]; then
+      if [ "$(printf '%s\n' "$mj" | wc -l)" -ne 1 ]; then
+        echo "LIGNES MULTIPLES $nom : $(printf '%s\n' "$mj" | wc -l | tr -d ' ') lignes \"- Sortie $nom : md5\" au JOURNAL (une attendue), md5 $(echo $mj) ; fichier $mf, non copiee" >&2
+        perimes="$perimes$nom "; n_perimes=$((n_perimes + 1))
+      elif [ "$mj" != "$mf" ]; then
         echo "PERIME $nom : JOURNAL $(echo $mj), fichier $mf ($(terminee "$f" && echo "sortie regeneree" || echo "sortie partielle, relancee") apres sa synchronisation ; non copiee)" >&2
         perimes="$perimes$nom "; n_perimes=$((n_perimes + 1))
       fi
@@ -117,7 +126,7 @@ passage() {
   # 3. Commit et push (sauf essai a blanc).
   local code_fin=0
   [ "$n_perimes" -gt 0 ] && code_fin=1
-  if [ "$BLANC" -eq 1 ]; then echo "$(utc) : essai a blanc, $n_new nouvelle(s) sortie(s) terminee(s) au JOURNAL, copies conformes, $n_perimes md5 perime(s) (aucune commande git)"; return "$code_fin"; fi
+  if [ "$BLANC" -eq 1 ]; then echo "$(utc) : essai a blanc, $n_new nouvelle(s) sortie(s) terminee(s) au JOURNAL, copies conformes, $n_perimes md5 perime(s) ou ligne(s) multiple(s) (aucune commande git)"; return "$code_fin"; fi
   git -C "$WT" add -- "$SOUS" || return 1
   if git -C "$WT" diff --cached --quiet -- "$SOUS"; then echo "$(utc) : rien a synchroniser"; return "$code_fin"; fi
   local msg
@@ -128,7 +137,7 @@ $PIED_COMMIT"
   git -C "$WT" commit -q -m "$msg" -- "$SOUS" || return 1
   local essai attente=2
   for essai in 1 2 3 4 5; do
-    if git -C "$WT" push -q -u origin "$BRANCHE"; then echo "$(utc) : synchronise ($n_new nouvelle(s) sortie(s) terminee(s), $n_perimes md5 perime(s))"; return "$code_fin"; fi
+    if git -C "$WT" push -q -u origin "$BRANCHE"; then echo "$(utc) : synchronise ($n_new nouvelle(s) sortie(s) terminee(s), $n_perimes md5 perime(s) ou ligne(s) multiple(s))"; return "$code_fin"; fi
     [ "$essai" -lt 5 ] && { sleep "$attente"; attente=$((attente * 2)); }
   done
   echo "push refuse apres cinq tentatives" >&2
