@@ -1,0 +1,49 @@
+# Journal de la combinaison de la mesure #206 (+ #119)
+
+- Début (UTC) : 2026-10-11T05:21:12Z ; fin (UTC) : 2026-10-11T05:22:13Z
+- Commande : Rscript tests/calibration_mc_mw_t8.R --combiner mesure206 --niveau L0 --ecrire --brut brut206-calibration-mw-brut.tsv --journal JOURNAL.md
+- Commit de la combinaison : 3a95e11400f2e770c6d7242c88a9e67fd394ca28
+- Plateforme : R version 4.3.3 (2024-02-29) ; Ubuntu 24.04.5 LTS ; Linux, x86_64 ; BLAS : libblas.so.3.12.0 ; LAPACK : liblapack.so.3.12.0 (version 3.12.0)
+- Locale LC_CTYPE : C.UTF-8 → C.UTF-8
+- Empreinte sans commentaires : 9c8bf0d7971dd5fb215e5e30e1784591
+- JOURNAL de la mesure : JOURNAL.md (md5 cef76e86a1121e8f1631f7f00d13078d) : md5 des 33 sorties conformes ; lignes du débit et de l'empreinte (#231) lues ; niveau : L0
+- Sorties lues (toutes INTEGRITE OK, FIN en dernière ligne, couvertures exactes, aucun refus) :
+  - oracle-A.txt md5 d614980dbe8988f6a79adb45330021c8
+  - oracle-E.txt md5 3243e66efd3f8981b047aea4ba52b19c
+  - oracle-N.txt md5 21c8a42f84657d7e3d05b29dc04b5628
+  - sm-0001-0250.txt md5 9199ab85bccf43ec04a9483d7258b2b7
+  - sm-0251-0500.txt md5 7b2769f2197f578ecd02a9185bbe4ce8
+  - tranche-A-0001-0250.txt md5 123d6cef099b3c290e75ba8972f4a2db
+  - tranche-A-0251-0500.txt md5 2fe31ba9b4d5536031afb347953414f3
+  - tranche-A-0501-0750.txt md5 5bf70a7f60911ec90c07e7bd3c492e21
+  - tranche-A-0751-1000.txt md5 3db548bb8d79d8dad801404821638954
+  - tranche-E-0001-0125.txt md5 15a7964b83af1c35f55052959556d319
+  - tranche-E-0126-0250.txt md5 8310f4656346c72c485364249224d01f
+  - tranche-E-0251-0375.txt md5 a104b899ea3083a9d9f61a3cf1f5f929
+  - tranche-E-0376-0500.txt md5 8d8f0a62e98cd70f8af1cb153eb2d7be
+  - tranche-E-0501-0625.txt md5 35a56add5c1bbc158f789e2dd3e34527
+  - tranche-E-0626-0750.txt md5 2225e1da082e4d1555e9edbd9a531349
+  - tranche-E-0751-0875.txt md5 558397b2e86272a9c9dcef2912305001
+  - tranche-E-0876-1000.txt md5 d51d18d9795e90d7a8e473b11d034cc5
+  - tranche-E-1001-1250.txt md5 1c55477b8795ba18540936f04e06ae56
+  - tranche-E-1251-1500.txt md5 fb6b969c16580de5cf514f67df4a6f90
+  - tranche-E-1501-1750.txt md5 bb376297e635ea89dd15ec3a0cb4409b
+  - tranche-E-1751-2000.txt md5 6fffa196495f77ef9713b89e7799d123
+  - tranche-N-0001-0125.txt md5 e779d775dd6e5d91fe8bb1237ccdb0bc
+  - tranche-N-0126-0250.txt md5 81b06f446989f8b941e7663377db644a
+  - tranche-N-0251-0375.txt md5 265986ad710c25e1b0e1536c4c8f7c14
+  - tranche-N-0376-0500.txt md5 0eb0f8de32377ac75a02a8585698c053
+  - tranche-N-0501-0625.txt md5 669a5d7f8b25183e38c38b57082c8653
+  - tranche-N-0626-0750.txt md5 d9372b0eee4c69792f1743bfe956ae77
+  - tranche-N-0751-0875.txt md5 9b38e131aa9b4bcdd7d46b98c0947037
+  - tranche-N-0876-1000.txt md5 5c8063b64eea58a2b41940255625a37d
+  - tranche-N-1001-1250.txt md5 9818834486cab0da28b724fd1f24b574
+  - tranche-N-1251-1500.txt md5 4b13d97605c178f3351b7c656a4792b7
+  - tranche-N-1501-1750.txt md5 f8a6956dfb2044bb938abc7e04a0531c
+  - tranche-N-1751-2000.txt md5 76b436d4eafbfcf61ad1646cecb16c73
+- Fichiers écrits :
+  - 20261011-issue206-calibration-mw.md md5 faeda5ade201d599739c1bcd931bab1d
+  - 20261011-issue206-calibration-mw-brut.tsv md5 c4c7ac003ff1f501034a2d96e17ae196
+  - 20261011-issue119-mw.md md5 27701ea71854dd6e71156e7eec0d0015
+  - 20261011-issue206-journal-mesure.md md5 cef76e86a1121e8f1631f7f00d13078d
+
