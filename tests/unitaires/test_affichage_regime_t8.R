@@ -125,6 +125,10 @@ verifier("D-a masquer_chemins() : valeurs brutes de la grille dans les sources (
          { v <- sprintf("docs/tableaux/x.md (md5 %s, suivi par git : oui) ; valeurs brutes de la grille /tmp/s v/g-brut.tsv (md5 %s)", MD5A, MD5A)
            identical(E$masquer_chemins(v),
                      sprintf("docs/tableaux/x.md (md5 %s, suivi par git : oui) ; valeurs brutes de la grille g-brut.tsv%s (md5 %s)", MD5A, HD, MD5A)) })
+verifier("D-a masquer_chemins() (revue) : toutes les occurrences masquees, chemins avec espace compris",
+         identical(E$masquer_chemins("/c d/e.md (md5 2) ; /f/g.md (md5 3)"), sprintf("e.md%s (md5 2) ; g.md%s (md5 3)", HD, HD)))
+verifier("D-a masquer_chemins() (revue) : le chemin de tete s'arrete au separateur ; (aucun bloc avale)",
+         identical(E$masquer_chemins("/usr/lib/x.so ; autre /tmp/y (md5 abc)"), sprintf("/usr/lib/x.so ; autre y%s (md5 abc)", HD)))
 verifier("D-a masquer_chemins() : grille du depot en chemin absolu citee relativement",
          identical(E$masquer_chemins(sprintf("%s/docs/tableaux/g.md (md5 %s)", RACINE_229, MD5A)), sprintf("docs/tableaux/g.md (md5 %s)", MD5A)))
 verifier("D-a masquer_chemins() : autres chemins absolus (LAPACK de la plateforme) et barres de fraction inchanges",
@@ -161,6 +165,10 @@ verifier("D-b agregat de T2 de J1 sur la population du critere (bords) : n = 2, 
 verifier("D-c agregat sur les lignes Monte-Carlo : 1/2 replication avec >= 1 A ou E, aucune en E (sature a 1 avec TOST)",
          { ch <- strsplit(sub(" \\|$", "", sub("^\\| ", "", lig_crit)), " | ", fixed = TRUE)[[1]]
            identical(ch[4:7], rep("1,0000 / 1,0000", 4)) && identical(ch[8:11], rep("0,5000 / 0,0000", 4)) })
+verifier("D-c LIGNE_TOST nommee dans le texte de T2 si elle est parmi les lignes exclues, pas sinon (revue)",
+         any(grepl(sprintf("dont la ligne \u00ab %s \u00bb qui sature J1", E$LIGNE_TOST), T2, fixed = TRUE)) &&
+           { LT2b <- c(E$STAT_LIGNE[["AD"]], "Autre ligne", E$STAT_LIGNE[["BP"]])
+             !any(grepl("sature J1", E$tableau_t2(list(J1 = E$matrices(D1)), LT2b), fixed = TRUE)) })
 verifier("D-c en-tete : colonnes des lignes Monte-Carlo annoncees (2 lignes, 1 exclue)",
          any(grepl("lignes Monte-Carlo :", T2, fixed = TRUE)) && any(grepl("les 2 lignes Monte-Carlo seules", T2, fixed = TRUE)))
 verifier("D-c controle descriptif : lignes exclues de meme verdict sous les quatre variantes, aucune exception",
@@ -201,6 +209,9 @@ verifier("m1 C1b : n de la population affiche, sans mention n < 100 a n = 200",
 D4 <- E$en_table(lapply(1:4, function(b) rep_ligne(b, "bord0")))
 COND4 <- E$conditions_regime(list(J2 = E$matrices(D4)), REF0)
 C44 <- E$conditions_c4(list(H0 = E$matrices(D4)))
+verifier("m1 txt_n() : seuil lu dans N_EVALUABLE (revue), et non ecrit en dur",
+         { e2 <- new.env(parent = E); e2$N_EVALUABLE <- 50L; f <- E$txt_n; environment(f) <- e2
+           identical(f("J2", 40L), "J2 40 (n < 50)") && identical(f("J2", 60L), "J2 60") && identical(E$txt_n("J2", 99L), "J2 99 (n < 100)") })
 verifier("m1 C1b et C3 : mention n < 100 a n = 4, etat inchange (remplie, pas non evaluable)",
          grepl("n : J2 4 (n < 100)", COND4$detail[COND4$cond == "C1b" & COND4$variante == "V3b"], fixed = TRUE) &&
            grepl("sur n = 4 (n < 100)", COND4$detail[COND4$cond == "C3" & COND4$variante == "V3b"], fixed = TRUE) &&

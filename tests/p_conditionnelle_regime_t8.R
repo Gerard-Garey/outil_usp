@@ -543,19 +543,19 @@ chemin_affiche <- function(f) {
   if (startsWith(a_c, paste0(r_c, "/"))) substring(a, nchar(r) + 2L) else sprintf("%s (hors du d\u00e9p\u00f4t)", basename(a))
 }
 # Valeur de contexte affichee en T0 (tranche et --combiner) et dans le
-# controle (i3), bornee par son contexte (#242, D-a) : chemin absolu en
-# tete de valeur suivi de " (md5" (tableau de la grille, que --combiner
-# relit comme chemin) et chemin absolu des "valeurs brutes de la grille
-# <chemin> (md5" (sources des tranches deja ecrites), espaces compris,
-# cites par chemin_affiche(). Les autres chemins absolus (bibliotheque
-# LAPACK de la plateforme) ne sont pas touches.
+# controle (i3) (#242, D-a) : chaque chemin absolu cite juste avant
+# " (md5 " (tableau de la grille, que --combiner relit comme chemin ;
+# sources et valeurs brutes de la grille des tranches deja ecrites) est
+# cite par chemin_affiche(), toutes occurrences comprises. Un chemin
+# commence en tete de valeur ou apres une espace ou une parenthese, par
+# "/x" (x ni espace ni "/"), "\\" ou "X:/" ; il peut contenir des espaces
+# mais s'arrete au separateur ";". Les autres chemins absolus (non suivis
+# de " (md5 ", comme la bibliotheque LAPACK de la plateforme) et les
+# barres de fraction (" / ", "ref/2") ne sont pas touches.
 masquer_chemins <- function(v) {
-  absolu <- "(?:/|\\\\\\\\|[A-Za-z]:[/\\\\])"
-  for (motif in c(sprintf("^(%s.+?)(?= \\(md5 )", absolu),
-                  sprintf("(?<=valeurs brutes de la grille )(%s.+?)(?= \\(md5 )", absolu))) {
-    m <- regexpr(motif, v, perl = TRUE)
-    if (any(m > 0L)) regmatches(v, m) <- vapply(regmatches(v, m), chemin_affiche, "")
-  }
+  motif <- "(?:^|(?<=[ (]))(?:/[^ ;/(]|\\\\\\\\|[A-Za-z]:[/\\\\])[^;]*?(?= \\(md5 )"
+  m <- gregexpr(motif, v, perl = TRUE)
+  regmatches(v, m) <- lapply(regmatches(v, m), function(x) vapply(x, chemin_affiche, "", USE.NAMES = FALSE))
   v
 }
 # Tableau de la grille d'une combinaison (contexte "grille" des tranches,
@@ -711,7 +711,8 @@ STAT_LIGNE <- c(
   Grubbsr = "Valeur aberrante isolee (Grubbs) sur ratios bruts")
 # Ligne de usp_tests() d'equivalence de la constante (TOST), qui sature
 # les agregats de T2 de J1 (#242, D-c ; exclue des agregats des lignes
-# Monte-Carlo).
+# Monte-Carlo) : nommee dans le texte de T2 seulement si elle figure parmi
+# les lignes exclues (aucun libelle perime si elle change de nom).
 LIGNE_TOST <- "Equivalence de la constante a zero (TOST)"
 # Lignes de run_engine() hors du perimetre de T2 (#45) : rapport de
 # vraisemblance sur delta et largeur de l'IC a delta fixe.
@@ -918,7 +919,7 @@ lib_ia <- function(ia) c(a10 = "0,10", a05 = "0,05")[[ia]]
 fmt_p <- function(p) sub(".", ",", sprintf("%.3g", p), fixed = TRUE)
 # n d'une population de condition marginale (C1b, C3, C4a, C4b), avec la
 # mention "n < 100" sous N_EVALUABLE (m1, avis d'actuary : etat inchange).
-txt_n <- function(lib, n) sprintf("%s %d%s", lib, n, if (n < N_EVALUABLE) " (n < 100)" else "")
+txt_n <- function(lib, n) sprintf("%s %d%s", lib, n, if (n < N_EVALUABLE) sprintf(" (n < %d)", N_EVALUABLE) else "")
 liste_cel <- function(x, n = 10) if (!length(x)) "aucune" else
   paste(c(utils::head(x, n), if (length(x) > n) sprintf("... (%d en tout)", length(x))), collapse = " ; ")
 
@@ -1076,7 +1077,7 @@ conditions_regime <- function(DM, REF) {
       }
     }
     ajout("C2b", v, if (!n_ev) ETAT[["ne"]] else if (length(def)) ETAT[["ko"]] else ETAT[["ok"]],
-          sprintf("cellules en d\u00e9faut : %s ; cellules non \u00e9valuables (n < 100) : %s%s%s%s", liste_cel(def), liste_cel(ne),
+          sprintf("cellules en d\u00e9faut : %s ; cellules non \u00e9valuables (n < %d) : %s%s%s%s", liste_cel(def), N_EVALUABLE, liste_cel(ne),
                   if (length(bna)) sprintf(" ; bande non applicable (L6) : %s", liste_cel(bna)) else "",
                   if (length(desc)) sprintf(" ; descriptives pour V3a (L13) : %s", paste(unique(desc), collapse = ", ")) else "", txt_manque))
   }
@@ -1246,7 +1247,8 @@ tableau_t2 <- function(DM, LIGNES_T2) {
                       "population du crit\u00e8re (J1 : bords seulement) puis par r\u00e9gime (J1 int\u00e9rieur : descriptif) ; toutes les lignes, puis",
                       sprintf("les %d lignes Monte-Carlo seules (lignes qui lisent la p_mc d'une des %d statistiques du catalogue ; les %d autres",
                               length(i_mc), NS, length(i_hors)),
-                      "lignes, dont la ligne TOST qui sature J1, ne d\u00e9pendent pas de la variante) :"), "",
+                      sprintf("lignes%s ne d\u00e9pendent pas de la variante) :",
+                              if (LIGNE_TOST %in% LIGNES_T2[i_hors]) sprintf(", dont la ligne \u00ab %s \u00bb qui sature J1,", LIGNE_TOST) else "")), "",
          entete_md(c("Jeu", "R\u00e9gime", "n", paste(VARIANTES, "\u2265 1 A ou E / \u2265 1 E"),
                      paste(VARIANTES, "lignes Monte-Carlo : \u2265 1 A ou E / \u2265 1 E"))))
   for (j in intersect(JEUX, names(DM))) for (r in c("critere", REG)) {
