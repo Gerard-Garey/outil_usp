@@ -721,7 +721,9 @@ contexte des fonctions de calcul du catalogue~: ratios $r_t$ et ratios centrés 
 l'issue~\#215, vecteur $\hat\pi_t$ de l'ajustement (de l'observé, ou de la réplication), lu par
 l'entrée \code{Intercept} pour les poids de la régression pondérée~;
 ensemble des colonnes dégénérées (figé à l'observé par \code{mw\_bootstrap()}, calculé sur
-\code{aj} s'il n'est pas fourni) et résidus de Mack calculés avec cet ensemble (issue~\#60) \\
+\code{aj} s'il n'est pas fourni) et résidus de Mack calculés avec cet ensemble (issue~\#60), lus
+depuis l'issue~\#239 par les entrées \code{ExpVar} et \code{KruskalAcc}, qui ne les recalculent
+plus \\
 \code{.mc\_evaluer()} & catalogue, contexte & vecteur nommé dans l'ordre du catalogue~; erreur
 qui nomme la statistique si une entrée ne rend pas une valeur de longueur~1 \\
 \code{engine\_p\_mc()} & valeurs simulées, valeur observée, sens du rejet & \code{p\_mc},
@@ -898,10 +900,27 @@ vérifications colonne par colonne de M1 et, depuis l'issue~\#60, de
 \code{mw\_test\_homogeneite\_}\allowbreak\code{accident()},
 \code{mw\_test\_annees\_}\allowbreak\code{calendaires()} et
 \code{mw\_stat\_correlation\_}\allowbreak\code{dev()} (\code{NULL}~:
-ensemble calculé sur \code{aj}) & statistiques des tests M1 à M6 (détail~: §\ref{sec:index-fonctions}) \\
-\code{.mw\_spearman\_p()},\newline \code{.fisher\_combine()} & deux vecteurs (le premier déjà
-aplati), \code{plancher\_b} (1)~; p-values de colonne & p-value bilatérale de Spearman d'une
-colonne, dans $[2/n!, 1]$ (loi de permutation à $n \le 9$ sans ex \ae quo, sinon approximation
+ensemble calculé sur \code{aj})~; argument facultatif \code{res} (résidus de Mack déjà calculés,
+ceux du contexte dans le bootstrap~; \code{NULL}~: calculés par \code{mw\_residus()}, issue~\#239)
+de \code{mw\_test\_exposant\_}\allowbreak\code{variance()} et
+\code{mw\_test\_homogeneite\_}\allowbreak\code{accident()} & statistiques des tests M1 à M6 (détail~: §\ref{sec:index-fonctions}) \\
+\code{.mw\_table()},\newline \code{.mw\_noms\_bloc()},\newline
+\code{.mw\_noms\_lignes\_}\newline\code{empilees()} & colonnes préallouées, noms de lignes~;
+vecteur d'un bloc~; noms et tailles des blocs & table \code{data.frame} assemblée en une fois, sous
+la forme exacte du résultat de \code{rbind.data.frame()} itéré, ordre des attributs compris, pour
+les tables de \code{mw\_residus()}, \code{mw\_test\_annees\_}\allowbreak\code{calendaires()},
+\code{mw\_test\_ordonnee\_}\allowbreak\code{origine()}, \code{mw\_test\_homogeneite\_}\allowbreak\code{f()},
+\code{mw\_test\_courbure()}, \code{mw\_famille\_alpha()} et
+\code{mw\_test\_exposant\_}\allowbreak\code{variance()}, auparavant bâties par \code{rbind()} à chaque
+colonne~; noms de lignes que \code{data.frame()} et \code{rbind()} itéré donneraient à un triangle à
+noms de lignes (issue~\#239~: objets de \code{run\_engine()} des cinq cas de référence
+identiques avant et après, au sens d'\code{identical()}) \\
+\code{.mw\_spearman()},\newline \code{.mw\_spearman\_p()},\newline \code{.fisher\_combine()} & deux vecteurs (le premier déjà
+aplati), \code{plancher\_b} (1)~; p-values de colonne & corrélation de rang $\hat\rho_s$ et p-value
+bilatérale de Spearman d'une colonne, tirées d'un seul appel à \code{cor.test()}
+(\code{.mw\_spearman()}, issue~\#239~; \code{.mw\_spearman\_p()}, qui en rend la seule p-value,
+n'est plus appelée que par les tests unitaires), celle-ci
+dans $[2/n!, 1]$ (loi de permutation à $n \le 9$ sans ex \ae quo, sinon approximation
 de Student relevée à $2/n!$, fiche~\ref{mw:m1b})~; statistique $X$ de Fisher, p-value
 $\chi^2(2K)$ et $K$, sans exclusion (p-value nulle relevée à \code{.Machine\$double.xmin},
 p-value non finie~: statistique \code{NA}, issue~\#90, fiche~\ref{mw:m1a}) \\
@@ -1959,7 +1978,7 @@ Ordonnée à l'origine par colonne & \ref{mw:m1a} &
 \code{mw\_test\_ordonnee\_origine()}~; colonnes dégénérées par \code{.mw\_colonne\_degeneree()} &
 idem (p de Fisher, via \code{.fisher\_combine()}) & \code{Origine} \\
 Homogénéité de $f_j$ & \ref{mw:m1b} & \code{mw\_test\_homogeneite\_f()}, même exclusion &
-idem (p de Fisher, via \code{.fisher\_combine()}, sur les $p_j$ de \code{.mw\_spearman\_p()},
+idem (p de Fisher, via \code{.fisher\_combine()}, sur les $p_j$ de \code{.mw\_spearman()},
 issue~\#90)~; \code{.mw\_fisher\_rangs\_p\_min()} ($p_{\min}$, issue~\#115) & \code{HomogF} \\
 Absence de courbure & \ref{mw:m1c} & \code{mw\_test\_courbure()}, même exclusion &
 idem (p de Fisher) & \code{Courbure} \\
@@ -1973,7 +1992,7 @@ Breusch--Pagan sur résidus de Mack & \ref{mw:m2bp} &
 \code{stats::pchisq()} (p asymptotique) & \code{BP} \\
 Exposant de variance par colonne & \ref{mw:m2b} &
 \code{mw\_test\_exposant\_variance()} & idem (p de Fisher, via \code{.fisher\_combine()}, sur
-les $p_j$ de \code{.mw\_spearman\_p()}, issue~\#90)~; \code{.mw\_fisher\_rangs\_p\_min()}
+les $p_j$ de \code{.mw\_spearman()}, issues~\#90 et~\#239)~; \code{.mw\_fisher\_rangs\_p\_min()}
 ($p_{\min}$, issue~\#115) & \code{ExpVar} \\
 Variance unitaire des résidus & \ref{mw:m2var} & \code{stats::var()} sur
 \code{mw\_residus()} & diagnostic, aucune p-value & --- \\
@@ -2223,7 +2242,7 @@ cumuls $C(i,j)$ au plancher~0 et valeurs absolues des résidus de Mack au planch
 \code{mw\_test\_homogeneite\_accident()} (fiche~\ref{mw:m3acc}). Depuis l'issue~\#90, un ex
 \ae quo ainsi défini dans une colonne de l'homogénéité de $f_j$ ou de l'exposant de variance fait
 calculer la p-value de cette colonne par l'approximation de Student relevée à $2/n_j!$, et non
-par la loi de permutation (\code{.mw\_spearman\_p()}, fiche~\ref{mw:m1b})~; depuis l'issue~\#115, il
+par la loi de permutation (\code{.mw\_spearman()} depuis l'issue~\#239, fiche~\ref{mw:m1b})~; depuis l'issue~\#115, il
 rend aussi \code{p\_min} non attribuée (\code{NA}, motif dans le commentaire) pour les lignes de
 rang de cette méthode (corrélation entre années adjacentes, homogénéité de $f_j$, exposant de
 variance, Kruskal--Wallis~; tableau~\ref{tab:pmin}). Les mêmes fonctions servant à
@@ -3611,10 +3630,13 @@ Mack ---, non une formule du règlement, qui ne prescrit pas de bootstrap~; aucu
 bibliographique n'est citée à son appui, aucune n'ayant été vérifiée dans le texte. Les résidus
 redressés ont, à $\sigma_j$ connu, la variance unitaire du modèle, mais ne sont ni indépendants ni échangeables (contrainte de
 colonne, leviers inégaux)~: l'échangeabilité que suppose le rééchantillonnage reste une
-approximation, qu'aucun théorème ne couvre pour ce test bootstrap et qu'aucune calibration des
-p-values de Monte-Carlo de la méthode à $T = 8$ ne mesure (issue~\#206~; les mesures de
-calibration de la section~\ref{sec:calib-asympt-mw} et de la suivante sont antérieures à
-l'issue).
+approximation, qu'aucun théorème ne couvre pour ce test bootstrap. Le niveau réel des p-values
+de Monte-Carlo qui en résultent est mesuré à $T = 8$ sous un plan, le modèle de Mack ajusté au
+triangle de contrôle (issue~\#206, section~\ref{sec:calib-mc-mw})~: constat de simulation sous
+ce plan, qui ne vaut ni pour une autre géométrie de triangle ni pour un autre paramétrage. Sous
+ce plan, le redressement ramène le taux de rejet de la famille $\alpha$, libérale avec le vivier
+non redressé ($0{,}207$ au seuil $0{,}10$ sous erreurs gaussiennes), à $0{,}100$ sur les mêmes
+triangles, et laisse conservatrice la ligne de Breusch--Pagan.
 
 \emph{Effet mesuré} (triangle de contrôle, $B = 999$, graine 20260831, régénération de la
 référence par la CI, tableau \code{docs/tableaux/20261006-issue46-reserve2.md}).
@@ -3632,11 +3654,16 @@ celui de l'hétéroscédasticité résiduelle (Breusch--Pagan), dont la p-value 
 tire dans la loi \emph{empirique} des résidus observés. Son hypothèse nulle est
 « les résidus suivent leur propre loi empirique », et non « les résidus sont
 normaux ». Une p-value de Monte-Carlo pour un test de normalité y serait donc
-vide de sens~; la vérification par simulation le confirme, la fréquence de rejet
-tombant à zéro au lieu de 5~\%. Les tests de normalité de la famille M5 sont en
-conséquence exclus du bootstrap et rapportés avec leur propre loi nulle~: loi
+vide de sens~; la mesure de l'issue~\#119 le confirme (500 triangles $8\times 8$ simulés sous
+$H_0$ avec des erreurs gaussiennes, $B = 999$, constat de simulation, section~\ref{sec:calib-asympt-mw})~:
+la p-value de Monte-Carlo de $W$ de Shapiro--Wilk (queue basse) et celle de la statistique de
+Lilliefors (queue haute) ne rejettent dans aucun triangle, aux seuils de $10~\%$ et de $5~\%$. Les tests de normalité de la
+famille M5 sont en conséquence exclus du bootstrap et rapportés avec leur propre loi nulle~: loi
 exacte de $W$ évaluée par simulation directe pour Shapiro--Wilk, approximation de
-Dallal \& Wilkinson pour Lilliefors.
+Dallal \& Wilkinson pour Lilliefors. Ces lois nulles supposent un échantillon i.i.d., ce que
+les résidus de Mack ne sont pas~: leur niveau sur ces résidus n'est pas établi (mesure de la
+même issue sur 2\,000 triangles à erreurs gaussiennes~: $22{,}1~\%$ de rejets au seuil de
+$10~\%$ pour Shapiro--Wilk, $18{,}75~\%$ pour Lilliefors~; issue~\#245, ouverte).
 \end{encadre}
 
 
@@ -4715,13 +4742,13 @@ convergent au bord (Andrews, 2000) \\
 Tendance avec le cumulé, à colonne donnée & \textbf{MW} & $t$ pondéré (GLS,
 effet fixe de colonne) & Non & Oui & Oui & Monte-Carlo &
 \textbf{Déconseillée} : les cellules d'une colonne partagent $\hat f_j$ et
-$\hat\sigma_j$ & Version agrégée puissante (100 \% sous l'alternative testée) ;
-les tests par colonne localisent \\
+$\hat\sigma_j$ & Version agrégée ; les tests par colonne localisent \\
 
 Ordonnée à l'origine par colonne & \textbf{MW} & $X$ de Fisher & Non &
 Oui, $\chi^2(2K)$ & Oui & Monte-Carlo &
 \textbf{Déconseillée} : colonnes adjacentes non indépendantes &
-\textbf{Test central de M1} ; calibration MC vérifiée (10,7 \% et 4,7 \%) \\
+\textbf{Test central de M1} ; niveau réel de la p MC compatible sous le plan du triangle de
+contrôle (§\ref{sec:calib-mc-mw}) \\
 
 Homogénéité de $f_j$ entre années de survenance & \textbf{MW} & $X$ de Fisher &
 Non & Oui, $\chi^2(2K)$ & Oui & Monte-Carlo & Idem &
@@ -4741,7 +4768,8 @@ Diagnostic de robustesse ; chiffre l'enjeu du choix de pondération \\
 Breusch--Pagan sur résidus de Mack & \textbf{MW} & LM & Non & Oui & Oui &
 Monte-Carlo & \textbf{Déconseillée} : convergence $\chi^2$ lente \emph{et}
 dépendance intra-colonne & Bootstrap recommandé ; teste l'exposant 1 imposé par
-le règlement \\
+le règlement ; p MC elle-même conservatrice sous le plan du triangle de contrôle
+(§\ref{sec:calib-mc-mw}, issue~\#243) \\
 
 Exposant de variance par colonne & \textbf{MW} & $X$ de Fisher & Non &
 Oui, $\chi^2(2K)$ & Oui & Monte-Carlo &
@@ -4794,11 +4822,14 @@ Indicatif ; $n = 28$ à $T = 8$, sous le seuil de fiabilité \\
 
 Shapiro--Wilk sur résidus de Mack & \textbf{MW} & $W$ & \textbf{Oui}, loi nulle
 simulée & Approx. Royston & \textbf{Non} (voir texte) & Loi nulle simulée &
-Sans objet : loi propre & Diagnostic seulement : normalité non exigée par D(2)(h) \\
+Sans objet : loi propre & Diagnostic seulement : normalité non exigée par D(2)(h)~; loi nulle
+i.i.d., niveau sur les résidus de Mack non établi (0,221 à 0,10 sous erreurs gaussiennes,
+§\ref{sec:calib-asympt-mw}~; issue~\#245) \\
 
 Lilliefors sur résidus de Mack & \textbf{MW} & $D_{\mathrm{L}}$ & Non &
 Oui (Dallal--Wilkinson) & Non & p de Dallal--Wilkinson &
-\textbf{Sous conditions} & Variante secondaire ; diagnostic seulement \\
+\textbf{Sous conditions} & Variante secondaire ; diagnostic seulement~; niveau sur les résidus de
+Mack non établi (§\ref{sec:calib-asympt-mw}~; issue~\#245) \\
 
 \multicolumn{9}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- M6 : robustesse de l'estimation}}} \\
 
@@ -5062,7 +5093,8 @@ $\mathcal{O}(B^{-1/2})$ pour la première ; non établie pour la seconde &
 Échangeabilité des résidus redressés par le levier (issue~\#46, §\ref{sec:boot-mw}), de variance
 unitaire sous le modèle à $\sigma_j$ connu mais ni indépendants ni échangeables &
 \textbf{Ne permet pas de tester la normalité} : la loi nulle simulée est la loi
-empirique des résidus~; calibration à $T = 8$ non établie (issue~\#206) \\
+empirique des résidus~; niveau réel mesuré à $T = 8$ sous le plan du triangle de contrôle
+(issue~\#206, §\ref{sec:calib-mc-mw})~: constat de simulation, non résultat général \\
 
 \midrule
 \multicolumn{7}{@{}l@{}}{\textbf{(D) Convergence de l'estimateur du paramètre (méthode lognormale)}} \\
@@ -5448,6 +5480,19 @@ modèle ajusté}, sans portée générale~; les intervalles de Clopper--Pearson 
 mesurent l'incertitude liée à $R$, et rien de l'erreur d'approximation en $T$. Les valeurs de
 niveau du tableau ci-dessous en viennent~; «~Non étudiée~» y porte sur la puissance seule.
 
+\noindent\emph{Calibration des p-values de Monte-Carlo de la méthode Merz--Wüthrich (issue~\#206)}
+(script \code{tests/}\allowbreak\code{calibration\_mc\_mw\_t8.R}, exécuté et combiné au commit \code{3a95e11}~;
+sortie \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md}, valeurs brutes
+\code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw-brut.tsv}). Niveau réel des
+treize p-values de Monte-Carlo de \code{MW\_CATALOGUE\_MC}, par \code{mw\_bootstrap()} ($B = 999$)
+et \code{mw\_tests()}, sous le modèle de Mack ajusté au triangle de contrôle, avec trois lois
+d'erreurs (N, E, A~; 2\,000, 2\,000 et 1\,000 triangles $8 \times 8$)~; protocole, référence
+$\rho$, lecture en quatre états et résultats à la section~\ref{sec:calib-mc-mw}. Statut~:
+\emph{constat de simulation sous ce plan}, sans portée générale~; intervalles de
+Clopper--Pearson à 95~\%, fonction du nombre de triangles, muets sur l'erreur en $T$. Les valeurs
+de niveau des lignes Merz--Wüthrich du tableau ci-dessous en viennent~; «~Non étudiée~» y porte
+sur la puissance seule.
+
 \noindent\emph{Conservatisme au régime intérieur (issue~\#175)} (script
 \code{tests/conservatisme\_interieur\_t8.R}, commit \code{139031d}~; sortie
 \code{docs/tableaux/}\newline \code{20261009-issue175-conservatisme-interieur.md}). Trois
@@ -5605,22 +5650,22 @@ Grubbs, ratios bruts (\ref{fiche:grubbs-ratios-bruts}) & Plancher Monte-Carlo $1
 \midrule
 \multicolumn{5}{@{}l@{}}{\textbf{Méthode Merz--Wüthrich}} \\
 \midrule
-M1, tendance avec le cumulé (\ref{mw:m1}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée (valeur de la rubrique~6 sans script versionné) & \code{engine\_p\_mc()} & --- \\
-M1, ordonnée à l'origine (\ref{mw:m1a}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
-M1, homogénéité de $f_j$ (\ref{mw:m1b}) & $p_{\min} = 1{,}53\cdot 10^{-9}$ (loi de référence échangeable)~; plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{.mw\_fisher\_rangs\_p\_min()}, \code{engine\_p\_mc()} & --- \\
-M1, courbure (\ref{mw:m1c}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
-M1, famille $\alpha$ (\ref{mw:m1d}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
-M2, hétéroscédasticité (\ref{mw:m2bp}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
-M2, exposant de variance (\ref{mw:m2b}) & $p_{\min} = 1{,}53\cdot 10^{-9}$ (loi de référence échangeable)~; plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{.mw\_fisher\_rangs\_p\_min()}, \code{engine\_p\_mc()} & --- \\
-M3, effets calendaires (\ref{mw:m3cal}) & $p_{\min} = 2^{-17} = 7{,}63\cdot 10^{-6}$ (loi binomiale indépendante de Mack)~; plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée & \code{.mw\_calendrier\_p\_min()}, \code{engine\_p\_mc()} & --- \\
-M3, homogénéité entre années (\ref{mw:m3acc}) & $p_{\min} = 8{,}29\cdot 10^{-15}$ (loi de référence échangeable)~; plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{.mw\_kruskal\_p\_min()}, \code{engine\_p\_mc()} & --- \\
-M3, corrélation entre colonnes (\ref{mw:m3cor}) & $p_{\min} = 1{,}61\cdot 10^{-7}$ (loi de référence échangeable)~; plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée & \code{.mw\_corr\_p\_min()}, \code{engine\_p\_mc()} & --- \\
-M3, Durbin--Watson (\ref{mw:m3dw}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
-M3, suites (\ref{mw:m3runs}) & $p_{\min} = 3{,}85\cdot 10^{-7}$ (loi de référence échangeable)~; plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée & \code{runs\_p\_min()}, \code{engine\_p\_mc()} & --- \\
-M4, Grubbs (\ref{mw:m4gr}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée & \code{engine\_p\_mc()} & --- \\
+M1, tendance avec le cumulé (\ref{mw:m1}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}114$~; $0{,}064$, E $0{,}1205$~; $0{,}053$, A $0{,}130$~; $0{,}073$, légèrement libérale~: écart mineur à $0{,}10$ sous les trois lois~; à $0{,}05$, écart mineur sous N, compatible sous E, écart non tranché sous A & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
+M1, ordonnée à l'origine (\ref{mw:m1a}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}088$~; $0{,}042$, E $0{,}097$~; $0{,}0475$, A $0{,}106$~; $0{,}061$, compatible sous les trois lois et aux deux seuils & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
+M1, homogénéité de $f_j$ (\ref{mw:m1b}) & $p_{\min} = 1{,}53\cdot 10^{-9}$ (loi de référence échangeable)~; plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0955$~; $0{,}039$, E $0{,}089$~; $0{,}0415$, A $0{,}091$~; $0{,}041$, compatible, sauf un écart mineur du côté conservateur sous N à $0{,}05$ & \code{.mw\_fisher\_rangs\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
+M1, courbure (\ref{mw:m1c}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}093$~; $0{,}0445$, E $0{,}080$~; $0{,}036$, A $0{,}095$~; $0{,}041$, compatible sous N et A~; écart mineur du côté conservateur sous E aux deux seuils & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
+M1, famille $\alpha$ (\ref{mw:m1d}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0955$~; $0{,}0385$, E $0{,}097$~; $0{,}042$, A $0{,}102$~; $0{,}037$, compatible, sauf un écart mineur du côté conservateur sous N à $0{,}05$ & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
+M2, hétéroscédasticité (\ref{mw:m2bp}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}016$~; $0{,}005$, E $0{,}0695$~; $0{,}0245$, A $0{,}004$~; $0{,}000$, \textbf{distorsion matérielle du côté conservateur} sous N et A, écart mineur du même côté sous E (issue~\#243, ouverte) & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
+M2, exposant de variance (\ref{mw:m2b}) & $p_{\min} = 1{,}53\cdot 10^{-9}$ (loi de référence échangeable)~; plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0955$~; $0{,}046$, E $0{,}095$~; $0{,}0495$, A $0{,}098$~; $0{,}048$, compatible sous les trois lois et aux deux seuils & \code{.mw\_fisher\_rangs\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
+M3, effets calendaires (\ref{mw:m3cal}) & $p_{\min} = 2^{-17} = 7{,}63\cdot 10^{-6}$ (loi binomiale indépendante de Mack)~; plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}086$~; $0{,}0455$, E $0{,}081$~; $0{,}041$, A $0{,}084$~; $0{,}040$, compatible sous les trois lois et aux deux seuils & \code{.mw\_calendrier\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
+M3, homogénéité entre années (\ref{mw:m3acc}) & $p_{\min} = 8{,}29\cdot 10^{-15}$ (loi de référence échangeable)~; plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}096$~; $0{,}0505$, E $0{,}1005$~; $0{,}049$, A $0{,}080$~; $0{,}036$, compatible, sauf un écart mineur du côté conservateur sous A à $0{,}10$ & \code{.mw\_kruskal\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
+M3, corrélation entre colonnes (\ref{mw:m3cor}) & $p_{\min} = 1{,}61\cdot 10^{-7}$ (loi de référence échangeable)~; plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0965$~; $0{,}0515$, E $0{,}0995$~; $0{,}052$, A $0{,}088$~; $0{,}044$, compatible sous les trois lois et aux deux seuils & \code{.mw\_corr\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
+M3, Durbin--Watson (\ref{mw:m3dw}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0855$~; $0{,}0455$, E $0{,}101$~; $0{,}053$, A $0{,}087$~; $0{,}032$, compatible, sauf un écart mineur du côté conservateur sous A à $0{,}05$ & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
+M3, suites (\ref{mw:m3runs}) & $p_{\min} = 3{,}85\cdot 10^{-7}$ (loi de référence échangeable)~; plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}058$~; $0{,}0275$, E $0{,}0525$~; $0{,}0225$, A $0{,}051$~; $0{,}032$, compatible, sauf un écart mineur du côté conservateur sous E à $0{,}05$ & \code{runs\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
+M4, Grubbs (\ref{mw:m4gr}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}099$~; $0{,}0445$, E $0{,}075$~; $0{,}035$, A $0{,}159$~; $0{,}088$, compatible sous N~; écart mineur du côté conservateur sous E aux deux seuils~; écart non tranché du côté libéral sous A aux deux seuils & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
 M4, ESD de Rosner (\ref{mw:m4ros}) & Sans objet (procédure sans p-value) & Non étudiée & \code{test\_rosner()} & --- \\
-M5, Shapiro--Wilk (\ref{mw:m5sw}) & Plancher de la loi nulle simulée $1/20\,001 \approx 5{,}0\cdot 10^{-5}$ & Non étudiée & \code{sw\_p\_loi\_nulle()} & --- \\
-M5, Lilliefors (\ref{mw:m5li}) & Sans objet (approximation continue) & Non étudiée & \code{lillie\_p()} & --- \\
+M5, Shapiro--Wilk (\ref{mw:m5sw}) & Plancher de la loi nulle simulée $1/20\,001 \approx 5{,}0\cdot 10^{-5}$ & Non étudiée~; niveau de la p-value exacte sous le plan du triangle de contrôle, erreurs gaussiennes ($\alpha = 0{,}10$~; $0{,}05$)~: $0{,}221$~; $0{,}109$, au-dessus du seuil nominal (issue~\#245, ouverte)~; p-value de Monte-Carlo de $W$, non retenue~: aucun rejet sur 500 triangles & \code{sw\_p\_loi\_nulle()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue119-mw.md} \\
+M5, Lilliefors (\ref{mw:m5li}) & Sans objet (approximation continue) & Non étudiée~; niveau de la p-value de Dallal et Wilkinson sous le plan du triangle de contrôle, erreurs gaussiennes ($\alpha = 0{,}10$~; $0{,}05$)~: $0{,}1875$~; $0{,}1025$, au-dessus du seuil nominal (issue~\#245, ouverte)~; p-value de Monte-Carlo, non retenue~: aucun rejet sur 500 triangles & \code{lillie\_p()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue119-mw.md} \\
 \end{longtable}
 \end{center}
 \end{landscape}
@@ -11491,20 +11536,29 @@ où $\mu_j$ est un \textbf{effet fixe d'année de développement}. Deux points d
 construction sont déterminants et ont été établis par simulation.
 
 \emph{L'effet fixe de colonne est indispensable.} Le facteur $f_j$ décroît
-fortement avec $j$ (de $3{,}49$ à $1{,}02$ sur le triangle de contrôle) alors que
+fortement avec $j$ (de $3{,}20$ à $1{,}03$ sur le triangle de contrôle, de $3{,}49$ à $1{,}02$ sur
+celui de Taylor \& Ashe) alors que
 le cumulé $C(i,j)$ croît~: une régression agrégée \emph{sans} terme de colonne
-capte cette relation mécanique et non une dépendance au volume. Sur des triangles
-simulés \emph{exactement} sous $H_0$, une telle régression rejette dans
-\textbf{100~\% des cas}. Avec l'effet fixe, la fréquence de rejet revient à
-$0{,}068$ au seuil nominal de $0{,}10$.
+capte cette relation mécanique et non une dépendance au volume. Sur les triangles $8\times 8$
+simulés sous $H_0$ selon le modèle de Mack ajusté au triangle de contrôle (issue~\#119,
+section~\ref{sec:calib-asympt-mw}), la p-value de Student d'une telle régression
+(\code{lm(F \textasciitilde\ C)}, poids $C(i,j)/\hat\sigma_j^2$) rejette au seuil $0{,}10$ dans
+\textbf{$96{,}8~\%$ à $98{,}8~\%$ des cas} selon la loi des erreurs. Avec l'effet fixe, la p-value de
+Student de la ligne rejette dans $7{,}6~\%$ à $8{,}3~\%$ des cas au même seuil ($2{,}6~\%$ à
+$4{,}0~\%$ à $0{,}05$). Constats de simulation sous ce plan~; la fréquence de $0{,}068$ citée par
+les versions antérieures venait d'une simulation dont ni le plan ni le script n'ont été
+retrouvés, et est retirée.
 
 \emph{La pondération doit être celle des moindres carrés généralisés.} Puisque
 $\operatorname{Var}\big(F(i,j)\big) = \sigma_j^2/C(i,j)$, le poids exact est
 $C(i,j)/\sigma_j^2$ et non $C(i,j)$ seul~: $\sigma_j^2$ varie de plusieurs ordres
 de grandeur entre la première et la dernière colonne, et pondérer par $C(i,j)$
-seul rend l'échelle résiduelle dominée par les premières colonnes --- au point
-que le test ne rejette \emph{jamais} sous l'alternative comme sous l'hypothèse
-nulle.
+seul rend l'échelle résiduelle dominée par les premières colonnes. Sur le même plan, la p-value
+de Student de la régression à effet de colonne pondérée par $C(i,j)$ seul rejette sous $H_0$ dans
+$4{,}75~\%$ à $6{,}0~\%$ des cas au seuil $0{,}10$ ($2{,}25~\%$ à $3{,}3~\%$ à $0{,}05$)~: ce test
+est conservateur, et non inopérant comme l'affirmaient les versions antérieures («~ne rejette
+jamais sous l'alternative comme sous l'hypothèse nulle~»)~; son comportement sous l'alternative
+n'est pas mesuré.
 \Hzero
 $H_0 : b = 0$ --- à année de développement donnée, le facteur de développement ne
 dépend pas du niveau du cumulé.
@@ -11522,9 +11576,11 @@ statistique $t$ de \code{.mw\_pente\_intra()}, la même que celle qu'affiche la 
 de Student est fournie comme complément non simulé.
 \Usage
 Ce test est le pendant \emph{agrégé} du test d'ordonnée à l'origine par colonne
-qui suit~: il gagne en puissance ce que l'autre gagne en localisation. Puissance
-mesurée sous une alternative où le facteur dépend linéairement du volume~:
-$100~\%$ de rejets au seuil de $10~\%$. Il ne dit pas, en revanche, quelle
+qui suit~: il gagne en puissance ce que l'autre gagne en localisation. Sa puissance n'est pas
+étudiée à $T = 8$ (rubrique~7)~: la valeur de $100~\%$ de rejets au seuil de $10~\%$ sous une
+alternative où le facteur dépend linéairement du volume, citée par les versions antérieures,
+venait d'une simulation sans script versionné et d'intensité inconnue~; elle est retirée. Il ne
+dit pas, en revanche, quelle
 colonne est en cause~: c'est le rôle du test par colonne et du graphique en
 petits multiples.
 \Pertinence
@@ -11532,9 +11588,9 @@ petits multiples.
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$. La puissance de $100~\%$ citée en rubrique~6 provient d'une simulation dont le script n'est pas versionné~; elle n'est pas reprise au tableau~\ref{tab:tracabilite-puissance}.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}114$ (N), $0{,}1205$ (E), $0{,}130$ (A), pour $\rho = 0{,}098$~; à $0{,}05$, $0{,}064$, $0{,}053$, $0{,}073$ ($\rho = 0{,}048$)~; légèrement libérale~: écart mineur à $0{,}10$ sous les trois lois~; à $0{,}05$, écart mineur sous N, compatible sous E, écart non tranché sous A.
 
-\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
 \end{fiche}
 
 \begin{fiche}{M1 --- Nullité de l'ordonnée à l'origine, colonne par colonne}
@@ -11605,11 +11661,14 @@ $C(\cdot,j+1)$. La p-value du khi-deux est donc rapportée comme non simulée et
 \emph{indicative}~; la loi de référence retenue est celle du bootstrap de
 résidus.
 \Pval
-p-value de Monte-Carlo retenue. Calibration vérifiée par simulation sous $H_0$
-(1\,500 triangles $10\times10$)~: 10,7~\% de rejets au seuil nominal de 10~\% et
-4,7~\% au seuil de 5~\%~; constat antérieur au redressement du vivier par le levier
-(issue~\#46, section~\ref{sec:boot-mw}), sans script versionné, non refait depuis, et qui ne porte
-pas sur $T = 8$ (issue~\#206). Sur le triangle de contrôle, la p-value de Monte-Carlo vaut
+p-value de Monte-Carlo retenue. Son niveau réel, mesuré sous le plan du triangle de contrôle
+(issue~\#206, section~\ref{sec:calib-mc-mw}), est compatible avec la référence sous les trois
+lois d'erreurs et aux deux seuils (rubrique~7)~: constat de simulation sous ce plan. Les versions
+antérieures citaient une calibration «~vérifiée par simulation sous $H_0$~» sur 1\,500 triangles
+$10\times10$ (10,7~\% de rejets au seuil de 10~\%, 4,7~\% à 5~\%), constat antérieur au
+redressement du vivier par le levier (issue~\#46, section~\ref{sec:boot-mw}), sans script
+versionné ni protocole retrouvé, et qui ne portait pas sur $T = 8$~; il est retiré au profit de
+cette mesure. Sur le triangle de contrôle, la p-value de Monte-Carlo vaut
 $0{,}085$ ($B = 999$, graine 20260831, \code{ALERTE}), $0{,}095$ avant le redressement du vivier~;
 sur les vingt graines 20260831 à 20260850, de $0{,}078$ à $0{,}105$, \code{ALERTE} sur 15 graines
 (16 avant l'issue~\#46)~: ligne voisine du seuil, dont le verdict dépend de la graine
@@ -11682,9 +11741,9 @@ actionnable.
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}088$ (N), $0{,}097$ (E), $0{,}106$ (A), pour $\rho = 0{,}099$~; à $0{,}05$, $0{,}042$, $0{,}0475$, $0{,}061$ ($\rho = 0{,}049$)~; compatible sous les trois lois et aux deux seuils.
 
-\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
 \end{fiche}
 
 \begin{fiche}{M1 --- Homogénéité de $f_j$ entre années de survenance}
@@ -11703,8 +11762,8 @@ $H_0$ : le facteur $f_j$ est \emph{commun à toutes les années de survenance}~;
 les facteurs individuels ne présentent aucune tendance en $i$.
 \Stat
 $\hat\rho_{s,j}$ par colonne (celui de \code{cor.test()}), de p-value bilatérale $p_j$
-calculée par \code{.mw\_spearman\_p()} (issue~\#90, décisions du mainteneur du 6~octobre
-2026)~: à $n_j \le 9$ sans ex \ae quo, loi de permutation de $\hat\rho_{s,j}$ énumérée par
+(issue~\#90, décisions du mainteneur du 6~octobre 2026), $\hat\rho_{s,j}$ et $p_j$ étant tirés
+d'un seul appel à \code{cor.test()} (\code{.mw\_spearman()}, issue~\#239)~: à $n_j \le 9$ sans ex \ae quo, loi de permutation de $\hat\rho_{s,j}$ énumérée par
 \code{cor.test(exact = TRUE)}~; sinon ($n_j > 9$, ou ex \ae quo, au sens de la
 section~\ref{sec:ex-aequo}~: égalité au bit près après aplatissement), approximation de Student
 de \code{cor.test(exact = FALSE)}, relevée au plancher $2/n_j!$, valeur exacte de
@@ -11755,9 +11814,9 @@ porte sur le niveau et non sur la pente.
 
 \textbf{Table.} Tableau~\ref{tab:pmin}, partie Merz--Wüthrich.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ ($p_{\min} \ll \alpha/2$, aucune bascule par la règle~R1). Non applicable à $T = 5$ (une seule colonne de quatre facteurs, statistique non définie)~; $p_{\min}$ non attribuée dès $T = 11$. Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ ($p_{\min} \ll \alpha/2$, aucune bascule par la règle~R1). Non applicable à $T = 5$ (une seule colonne de quatre facteurs, statistique non définie)~; $p_{\min}$ non attribuée dès $T = 11$. Puissance non étudiée à $T = 8$. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}0955$ (N), $0{,}089$ (E), $0{,}091$ (A), pour $\rho = 0{,}099$~; à $0{,}05$, $0{,}039$, $0{,}0415$, $0{,}041$ ($\rho = 0{,}049$)~; compatible, sauf un écart mineur du côté conservateur sous N à $0{,}05$.
 
-\textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi de référence échangeable, non sous le modèle de Mack~; plancher~: exact, fonction de $B$.
+\textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi de référence échangeable, non sous le modèle de Mack~; plancher~: exact, fonction de $B$. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
 \end{fiche}
 
 \begin{fiche}{M1 --- Absence de courbure de la régression}
@@ -11789,9 +11848,9 @@ est faible.
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}093$ (N), $0{,}080$ (E), $0{,}095$ (A), pour $\rho = 0{,}099$~; à $0{,}05$, $0{,}0445$, $0{,}036$, $0{,}041$ ($\rho = 0{,}049$)~; compatible sous N et A~; écart mineur du côté conservateur sous E aux deux seuils.
 
-\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
 \end{fiche}
 
 \begin{fiche}{M1 --- Stabilité du facteur selon la pondération (famille $\alpha$)}
@@ -11837,9 +11896,9 @@ matérielle sur le paramètre final.
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}0955$ (N), $0{,}097$ (E), $0{,}102$ (A), pour $\rho = 0{,}099$~; à $0{,}05$, $0{,}0385$, $0{,}042$, $0{,}037$ ($\rho = 0{,}049$)~; compatible, sauf un écart mineur du côté conservateur sous N à $0{,}05$. Avec le vivier d'avant l'issue~\#46, non redressé, la même p-value était libérale, en distorsion matérielle ($0{,}207$ sous N et $0{,}180$ sous E à $0{,}10$, sur les 1\,000 premiers triangles)~; le redressement la ramène à $0{,}100$ et $0{,}097$ sur les mêmes triangles (section~\ref{sec:calib-mc-mw}).
 
-\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -11883,11 +11942,14 @@ de cellules est modeste et les résidus d'une même colonne sont liés par
 $\hat f_j$ et $\hat\sigma_j$.
 \Pval
 p-value de Monte-Carlo retenue~; la p-value du khi-deux est fournie comme
-complément non simulé. \textbf{Celle-ci sous-rejette massivement}~: $0{,}5~\%$ de
-rejets mesurés au seuil nominal de $10~\%$ (section~\ref{sec:calib-asympt-mw}),
-car $\hat\sigma_j^2$ est estimé sur la colonne même, ce qui réduit la dispersion
-des résidus standardisés et donc le $R^2$ de la régression auxiliaire~; c'est la
-contrainte exacte $\sum_i r(i,j)^2 = n_j - 1$ établie à la fiche~\ref{mw:m2var}.
+complément non simulé. \textbf{Celle-ci sous-rejette massivement}~: aucun rejet, aux seuils
+$0{,}10$ et $0{,}05$, sur les 2\,000 triangles $8\times 8$ simulés sous $H_0$ sous chacune des lois
+d'erreurs N et E, ni sur les 1\,000 sous A (section~\ref{sec:calib-asympt-mw}).
+Cause non établie~: la statistique $nR^2$ ne dépend pas de l'échelle des résidus, et la
+dispersion réduite des résidus standardisés, qui découle de la contrainte exacte
+$\sum_i r(i,j)^2 = n_j - 1$ établie à la fiche~\ref{mw:m2var}, ne l'explique pas à elle seule
+(les versions antérieures l'attribuaient à cette seule dispersion réduite, par un $R^2$
+auxiliaire trop faible).
 
 \emph{Sur le triangle de contrôle, une ligne à la frontière du seuil.} Depuis le redressement du
 vivier par le levier (issue~\#46, section~\ref{sec:boot-mw}), la p-value de Monte-Carlo y vaut
@@ -11902,7 +11964,12 @@ moyenne $0{,}094$ avant, $0{,}108$ après (de $0{,}094$ à $0{,}129$)~; \code{AL
 avant, 3 après, le verdict passant d'\code{ALERTE} à \code{OK} sur 11 graines et ne passant
 d'\code{OK} à \code{ALERTE} sur aucune. Constat de simulation
 sur un seul triangle~: le verdict de cette ligne dépend de la graine, avant comme après l'issue.
-La calibration de cette p-value de Monte-Carlo à $T = 8$ n'est pas établie (issue~\#206).
+\textbf{Cette p-value de Monte-Carlo est elle-même conservatrice} sous le plan du triangle de
+contrôle (issue~\#206, section~\ref{sec:calib-mc-mw}, rubrique~7)~: distorsion matérielle sous
+les lois d'erreurs N et A ($0{,}016$ et $0{,}004$ de rejets au seuil $0{,}10$, pour une référence
+de $0{,}099$), écart mineur sous E ($0{,}0695$). Sous ce plan, la ligne rejette sous $H_0$ bien moins souvent que son seuil~: un verdict \code{OK} n'y établit pas l'absence d'hétéroscédasticité, la puissance n'étant pas étudiée à $T = 8$, et une p-value voisine du seuil, comme
+celle du triangle de contrôle, ne se lit pas comme une absence de signal (constat de simulation
+sous ce plan~; issue~\#243, ouverte, moteur inchangé).
 \Usage
 Ce test porte spécifiquement sur \emph{l'exposant~1} de la structure de variance
 $\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$. Un rejet suggère
@@ -11916,9 +11983,9 @@ changement de méthode.
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}016$ (N), $0{,}0695$ (E), $0{,}004$ (A), pour $\rho = 0{,}099$~; à $0{,}05$, $0{,}005$, $0{,}0245$, $0{,}000$ ($\rho = 0{,}049$)~; \textbf{distorsion matérielle du côté conservateur} sous N et A, écart mineur du même côté sous E (issue~\#243, ouverte).
 
-\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -11941,8 +12008,8 @@ $H_0$ : l'amplitude des résidus standardisés ne dépend pas de $C(i,j)$ à
 l'intérieur d'une colonne, ce qui est la traduction directe de
 $\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$.
 \Stat
-$\hat\rho_{s,j}$ par colonne, de p-value bilatérale $p_j$ calculée par
-\code{.mw\_spearman\_p()} selon la règle de la fiche~\ref{mw:m1b} (issue~\#90, étendue à cette
+$\hat\rho_{s,j}$ par colonne, de p-value bilatérale $p_j$, tirés d'un seul appel à \code{cor.test()}
+(\code{.mw\_spearman()}, issue~\#239), $p_j$ selon la règle de la fiche~\ref{mw:m1b} (issue~\#90, étendue à cette
 ligne par décision du mainteneur du 6~octobre 2026~; les cumuls, déjà aplatis, le sont une
 seconde fois au plancher~0, sans effet), puis combinaison des $K$ p-values par Fisher,
 $X = -2\sum_j \ln p_j$ (\code{.fisher\_combine()}, sans exclusion, fiche~\ref{mw:m1a}). Effet
@@ -11967,9 +12034,9 @@ et non comme un motif de changement de méthode.
 
 \textbf{Table.} Tableau~\ref{tab:pmin}, partie Merz--Wüthrich.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ ($p_{\min} \ll \alpha/2$, aucune bascule par la règle~R1). Non applicable à $T = 5$~; $p_{\min}$ non attribuée dès $T = 11$. Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ ($p_{\min} \ll \alpha/2$, aucune bascule par la règle~R1). Non applicable à $T = 5$~; $p_{\min}$ non attribuée dès $T = 11$. Puissance non étudiée à $T = 8$. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}0955$ (N), $0{,}095$ (E), $0{,}098$ (A), pour $\rho = 0{,}099$~; à $0{,}05$, $0{,}046$, $0{,}0495$, $0{,}048$ ($\rho = 0{,}049$)~; compatible sous les trois lois et aux deux seuils.
 
-\textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi de référence échangeable, non sous le modèle de Mack~; plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
+\textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi de référence échangeable, non sous le modèle de Mack~; plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
 \end{fiche}
 
 \begin{fiche}{M2 --- Variance unitaire des résidus de Mack (diagnostic)}
@@ -12173,9 +12240,9 @@ diagonales exploitables, dont plusieurs ne comptent que deux ou trois
 
 \textbf{Table.} Tableau~\ref{tab:pmin}, partie Merz--Wüthrich.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Test inopérant au seuil $\alpha = 0{,}10$ sur le sous-triangle $5 \times 5$ du triangle de contrôle ($n_k = 3, 3$, $p_{\min} = 0{,}125$)~: ligne restituée en diagnostic, sans verdict (règle~R1 appliquée telle quelle aux lignes Merz--Wüthrich, décision du mainteneur du 6~octobre 2026, en attendant l'issue~\#125, section~\ref{sec:nature}). Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Test inopérant au seuil $\alpha = 0{,}10$ sur le sous-triangle $5 \times 5$ du triangle de contrôle ($n_k = 3, 3$, $p_{\min} = 0{,}125$)~: ligne restituée en diagnostic, sans verdict (règle~R1 appliquée telle quelle aux lignes Merz--Wüthrich, décision du mainteneur du 6~octobre 2026, en attendant l'issue~\#125, section~\ref{sec:nature}). Puissance non étudiée à $T = 8$. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}086$ (N), $0{,}081$ (E), $0{,}084$ (A), pour $\rho = 0{,}086$~; à $0{,}05$, $0{,}0455$, $0{,}041$, $0{,}040$ ($\rho = 0{,}043$, $0{,}040$, $0{,}043$)~; compatible sous les trois lois et aux deux seuils. La référence est inférieure à $\alpha$ par discrétude de la statistique (83 à 86 valeurs distinctes dans l'échantillon oracle selon la loi, atome le plus lourd de masse $0{,}100$ à $0{,}105$).
 
-\textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi binomiale indépendante de Mack, non sous le modèle de Mack~; plancher~: exact, fonction de $B$.
+\textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi binomiale indépendante de Mack, non sous le modèle de Mack~; plancher~: exact, fonction de $B$. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -12240,9 +12307,9 @@ contrôle, $J = 7$) et la dernière un seul.
 
 \textbf{Table.} Tableau~\ref{tab:pmin}, partie Merz--Wüthrich.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ ($p_{\min} \ll \alpha/2$, aucune bascule par la règle~R1, de $T = 5$, $p_{\min} = 4{,}76\cdot 10^{-3}$, à $T = 12$). Diagnostic quand chaque année n'a qu'un résidu (rubrique~4). Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ ($p_{\min} \ll \alpha/2$, aucune bascule par la règle~R1, de $T = 5$, $p_{\min} = 4{,}76\cdot 10^{-3}$, à $T = 12$). Diagnostic quand chaque année n'a qu'un résidu (rubrique~4). Puissance non étudiée à $T = 8$. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}096$ (N), $0{,}1005$ (E), $0{,}080$ (A), pour $\rho = 0{,}099$~; à $0{,}05$, $0{,}0505$, $0{,}049$, $0{,}036$ ($\rho = 0{,}049$)~; compatible, sauf un écart mineur du côté conservateur sous A à $0{,}10$.
 
-\textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi de référence échangeable (forme close démontrée et vérifiée par énumération), non sous le modèle de Mack~; plancher~: exact, fonction de $B$.
+\textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi de référence échangeable (forme close démontrée et vérifiée par énumération), non sous le modèle de Mack~; plancher~: exact, fonction de $B$. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
 \end{fiche}
 
 \begin{fiche}{M3 --- Corrélation entre années de développement adjacentes}
@@ -12313,9 +12380,9 @@ trois facteurs (rubrique~7), ce qui rend le test très peu puissant.
 
 \textbf{Table.} Tableau~\ref{tab:pmin}, partie Merz--Wüthrich.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Test inopérant au seuil $\alpha = 0{,}10$ sur tout triangle complet $5 \times 5$ (une paire de trois facteurs, $p_{\min} = 1/3$)~: ligne restituée en diagnostic, sans verdict (règle~R1 appliquée telle quelle aux lignes Merz--Wüthrich, décision du mainteneur du 6~octobre 2026, en attendant l'issue~\#125, section~\ref{sec:nature}). Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Test inopérant au seuil $\alpha = 0{,}10$ sur tout triangle complet $5 \times 5$ (une paire de trois facteurs, $p_{\min} = 1/3$)~: ligne restituée en diagnostic, sans verdict (règle~R1 appliquée telle quelle aux lignes Merz--Wüthrich, décision du mainteneur du 6~octobre 2026, en attendant l'issue~\#125, section~\ref{sec:nature}). Puissance non étudiée à $T = 8$. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}0965$ (N), $0{,}0995$ (E), $0{,}088$ (A), pour $\rho = 0{,}098$~; à $0{,}05$, $0{,}0515$, $0{,}052$, $0{,}044$ ($\rho = 0{,}048$)~; compatible sous les trois lois et aux deux seuils.
 
-\textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi de référence échangeable, non sous le modèle de Mack~; plancher~: exact, fonction de $B$.
+\textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi de référence échangeable, non sous le modèle de Mack~; plancher~: exact, fonction de $B$. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -12348,9 +12415,9 @@ développement et calendaire, qui localisent la structure.
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}0855$ (N), $0{,}101$ (E), $0{,}087$ (A), pour $\rho = 0{,}098$~; à $0{,}05$, $0{,}0455$, $0{,}053$, $0{,}032$ ($\rho = 0{,}048$)~; compatible, sauf un écart mineur du côté conservateur sous A à $0{,}05$.
 
-\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -12380,12 +12447,11 @@ retenue, contrairement à ce qui est fait pour la méthode lognormale. Loi de
 référence~: bootstrap de résidus.
 \Pval
 p-value de Monte-Carlo retenue~; l'approximation normale est fournie comme
-complément non simulé. \textbf{Celle-ci sur-rejette nettement}~: $15{,}3~\%$ de
-rejets mesurés au seuil nominal de $10~\%$ (section~\ref{sec:calib-asympt-mw}).
-La cause est identifiée~: la contrainte
-$\sum_i \sqrt{C(i,j)}\,r(i,j) = 0$ rend les résidus d'une même colonne
-négativement corrélés, donc leurs signes plus alternés que sous l'échangeabilité
-supposée.
+complément non simulé. \textbf{Celle-ci sur-rejette nettement}~: $13{,}5~\%$ de
+rejets au seuil nominal de $10~\%$ sur les triangles $8\times 8$ simulés sous $H_0$ avec des
+erreurs gaussiennes ($12{,}85~\%$ et $12{,}2~\%$ sous les lois E et A), et les mêmes taux au seuil
+de $5~\%$ (section~\ref{sec:calib-asympt-mw}).
+Cause proposée, non mesurée~: la contrainte $\sum_i \sqrt{C(i,j)}\,r(i,j) = 0$ rend les résidus d'une même colonne négativement corrélés, ce qui rendrait leurs signes plus alternés que sous l'échangeabilité supposée~; la mesure, bilatérale, ne distingue pas les deux sens de rejet et n'établit pas ce mécanisme.
 \Usage
 Test non paramétrique robuste, sensible aussi bien au regroupement qu'à
 l'alternance excessive des signes. Sa lecture souffre, comme celle de
@@ -12395,9 +12461,9 @@ Durbin--Watson, du caractère conventionnel de l'ordre de parcours.
 
 \textbf{Table.} Tableau~\ref{tab:pmin}, partie Merz--Wüthrich.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Sur le sous-triangle $5 \times 5$ du triangle de contrôle ($n_1 = n_2 = 4$, $p_{\min} = 4/70 = 0{,}0571$), la ligne reste un test à $\alpha = 0{,}10$, et son commentaire dit que l'\code{ECHEC} est possible, la p-value retenue de Monte-Carlo pouvant être inférieure à $p_{\min}$ (règle~R1, section~\ref{sec:nature}). Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Sur le sous-triangle $5 \times 5$ du triangle de contrôle ($n_1 = n_2 = 4$, $p_{\min} = 4/70 = 0{,}0571$), la ligne reste un test à $\alpha = 0{,}10$, et son commentaire dit que l'\code{ECHEC} est possible, la p-value retenue de Monte-Carlo pouvant être inférieure à $p_{\min}$ (règle~R1, section~\ref{sec:nature}). Puissance non étudiée à $T = 8$. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}058$ (N), $0{,}0525$ (E), $0{,}051$ (A), pour $\rho = 0{,}051$, $0{,}053$, $0{,}053$~; à $0{,}05$, $0{,}0275$, $0{,}0225$, $0{,}032$ ($\rho = 0{,}030$, $0{,}031$, $0{,}032$)~; compatible, sauf un écart mineur du côté conservateur sous E à $0{,}05$. La référence est inférieure à $\alpha$ par discrétude de la statistique (17 valeurs distinctes dans l'échantillon oracle de chaque loi, atome le plus lourd de masse $0{,}168$ à $0{,}177$), non par défaut de la procédure.
 
-\textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi combinatoire, qui n'est pas celle des résidus de Mack~; plancher~: exact, fonction de $B$.
+\textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi combinatoire, qui n'est pas celle des résidus de Mack~; plancher~: exact, fonction de $B$. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -12435,7 +12501,8 @@ bootstrap de résidus.
 \Pval
 p-value de Monte-Carlo retenue~; la borne de Bonferroni est fournie comme
 majorant non simulé. \textbf{Ce majorant est extrêmement conservateur} sur des
-résidus de Mack~: aucun rejet en 600 simulations sous $H_0$ au seuil de $10~\%$
+résidus de Mack~: aucun rejet, aux seuils $0{,}10$ et $0{,}05$, sur les 2\,000 triangles
+$8\times 8$ simulés sous $H_0$ sous chacune des lois d'erreurs N et E, ni sur les 1\,000 sous A
 (section~\ref{sec:calib-asympt-mw}). Il ne doit donc jamais servir de critère de
 décision.
 \Usage
@@ -12449,9 +12516,9 @@ la justification doit être métier.
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}099$ (N), $0{,}075$ (E), $0{,}159$ (A), pour $\rho = 0{,}099$~; à $0{,}05$, $0{,}0445$, $0{,}035$, $0{,}088$ ($\rho = 0{,}049$)~; compatible sous N~; écart mineur du côté conservateur sous E aux deux seuils~; écart non tranché du côté libéral sous A aux deux seuils.
 
-\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance.
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -12484,9 +12551,9 @@ limite de son domaine. À traiter comme un signal d'attention.
 
 \textbf{Table.} Sans objet.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type procédure de décision~; limites des valeurs critiques en rubrique~6. Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type procédure de décision~; limites des valeurs critiques en rubrique~6. Puissance non étudiée à $T = 8$. Sous le plan du triangle de contrôle (issue~\#206, section~\ref{sec:calib-mc-mw}), la procédure au niveau $\alpha = 0{,}10$ ne déclare aucune cellule aberrante dans les 2\,000 triangles à erreurs gaussiennes (intervalle de Clopper--Pearson à 95~\% $[0~;~0{,}0018]$), seule loi du plan sous laquelle sa normalité est vraie~: une absence de cellule déclarée n'y établit pas l'absence de cellule aberrante.
 
-\textbf{Statut des valeurs.} Aucune valeur chiffrée.
+\textbf{Statut des valeurs.} Taux sous $H_0$~: constat de simulation sous un plan, intervalle de Clopper--Pearson fonction du nombre de triangles simulés.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -12530,18 +12597,27 @@ $\mathcal{O}(B_{\text{null}}^{-1/2})$.
 bootstrap de résidus employé pour tous les autres tests de la méthode, car
 celui-ci tire dans la loi \emph{empirique} des résidus observés~: son hypothèse
 nulle serait « les résidus suivent leur propre loi empirique », ce qui rendrait
-le test vide de sens (la simulation confirme une fréquence de rejet nulle au
-lieu de 5~\%). D'où le recours à une loi nulle propre, indépendante du triangle
-ajusté. Le résultat n'est pertinent que si l'on souhaite exploiter la MSEP pour
+le test vide de sens~: sur 500 triangles $8\times 8$ simulés sous $H_0$ avec des erreurs
+gaussiennes (issue~\#119, section~\ref{sec:calib-asympt-mw}), la p-value de Monte-Carlo de $W$, en
+queue basse, ne rejette dans aucun triangle aux seuils de $10~\%$ et de $5~\%$ (borne
+supérieure de l'intervalle de Clopper--Pearson à 95~\%~: $0{,}0074$), au lieu de $10~\%$ et
+$5~\%$ pour un test au niveau. D'où le recours à une loi nulle propre, indépendante du triangle
+ajusté. \textbf{Cette loi nulle propre n'est pas non plus établie sur les résidus de Mack}~:
+elle est celle de $W$ pour un échantillon i.i.d. normal, et les résidus de Mack ne sont ni
+indépendants ni de même variance, même sous erreurs gaussiennes (contrainte de colonne, variance
+$1 - h_{ij}$ à $\sigma_j$ connu, section~\ref{sec:boot-mw}). Sur les 2\,000 triangles simulés du même
+plan avec des erreurs gaussiennes, la p-value exacte de la ligne rejette dans $22{,}1~\%$ des cas au seuil
+$0{,}10$ et $10{,}9~\%$ à $0{,}05$ (constat de simulation sous un plan)~; ce constat est
+signalé sans conclusion sur la ligne, dont le traitement relève de l'issue~\#245, ouverte. Le résultat n'est pertinent que si l'on souhaite exploiter la MSEP pour
 construire un quantile, usage qui excède la méthode réglementaire.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $W$, continue. La p-value retenue, de nature exacte, est lue sur une loi nulle simulée de 20\,000 tirages à la taille du vecteur des résidus (\code{sw\_p\_loi\_nulle()})~: son plancher est $1/20\,001 \approx 5{,}0\cdot 10^{-5}$, fonction du nombre de tirages.
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test~; la normalité n'est pas exigée par le modèle (rubrique~6). Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test~; la normalité n'est pas exigée par le modèle (rubrique~6). Puissance non étudiée à $T = 8$. Niveau de la p-value exacte retenue, mesuré sous le plan du triangle de contrôle avec des erreurs gaussiennes (2\,000 triangles $8\times 8$, issue~\#119, section~\ref{sec:calib-asympt-mw})~: $0{,}221$ $[0{,}203~;~0{,}240]$ au seuil $0{,}10$ et $0{,}109$ à $0{,}05$, au-dessus du seuil nominal~; signalé sans conclusion, le traitement de la ligne relevant de l'issue~\#245, ouverte. Sous les lois d'erreurs E et A du même plan, la normalité est fausse par construction, et les taux mesurés ($0{,}5945$ et $0{,}517$ à $0{,}10$) ne sont pas des niveaux. La p-value de Monte-Carlo de $W$, non retenue, ne rejette dans aucun des 500 triangles à erreurs gaussiennes (rubrique~6).
 
-\textbf{Statut des valeurs.} Plancher~: valeur exacte~; la loi nulle simulée porte une erreur de Monte-Carlo en $1/\sqrt{20\,000}$.
+\textbf{Statut des valeurs.} Plancher~: valeur exacte~; la loi nulle simulée porte une erreur de Monte-Carlo en $1/\sqrt{20\,000}$. Taux de rejet~: constat de simulation sous un plan, intervalles de Clopper--Pearson fonction du nombre de triangles simulés.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -12571,9 +12647,9 @@ la normalité n'est pas exigée par la méthode.
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test, variante secondaire de Shapiro--Wilk. Puissance non étudiée à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test, variante secondaire de Shapiro--Wilk. Puissance non étudiée à $T = 8$. Niveau de la p-value de Dallal et Wilkinson retenue, mesuré sous le plan du triangle de contrôle avec des erreurs gaussiennes (2\,000 triangles $8\times 8$, issue~\#119, section~\ref{sec:calib-asympt-mw})~: $0{,}1875$ $[0{,}171~;~0{,}205]$ au seuil $0{,}10$ et $0{,}1025$ à $0{,}05$, au-dessus du seuil nominal~; signalé sans conclusion (issue~\#245, ouverte). Sous les lois E et A, la normalité est fausse par construction et les taux mesurés ne sont pas des niveaux. La p-value de Monte-Carlo de la statistique, non retenue, ne rejette dans aucun des 500 triangles à erreurs gaussiennes, en queue haute (fiche~\ref{mw:m5sw}, rubrique~6).
 
-\textbf{Statut des valeurs.} Aucune valeur chiffrée.
+\textbf{Statut des valeurs.} Taux de rejet~: constat de simulation sous un plan, intervalles de Clopper--Pearson fonction du nombre de triangles simulés~; aucune autre valeur chiffrée.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -13321,44 +13397,80 @@ section~\ref{sec:mw} et les deux voies ci-dessus corrigent.
 
 Les p-values non simulées de la méthode Merz--Wüthrich sont rapportées à titre de
 complément, la p-value retenue étant celle du bootstrap. Il importe néanmoins de
-savoir \emph{de combien} elles s'en écartent, et pourquoi. Fréquences de rejet
-mesurées sur 600 triangles $10\times10$ simulés exactement sous $H_0$, au seuil
-nominal de $10~\%$ (intervalle de confiance à 95~\%~: $\pm 0{,}024$)~:
+savoir \emph{de combien} elles s'en écartent, et pourquoi. Fréquences de rejet sous $H_0$ de
+chaque p-value non simulée que restitue \code{mw\_tests()}, mesurées sur les triangles $8\times 8$
+de la mesure de la section~\ref{sec:calib-mc-mw} (issue~\#119, même plan, mêmes lois
+d'erreurs N, E et A, 2\,000, 2\,000 et 1\,000 triangles~; tableau T6 de
+\code{docs/tableaux/}\newline \code{20261011-issue119-mw.md}, script
+\code{tests/}\allowbreak\code{calibration\_mc\_mw\_t8.R}, commit \code{3a95e11})~; constat de
+simulation sous ce plan. Demi-largeur des intervalles de Clopper--Pearson à 95~\% (dans le
+fichier)~: au plus $0{,}016$ sous N et E et $0{,}022$ sous A, sauf pour Shapiro--Wilk et
+Lilliefors (au plus $0{,}023$ sous N et E et $0{,}032$ sous A).
 
 \begin{center}
-\small
+\footnotesize
+\setlength{\tabcolsep}{3pt}
 \rowcolors{2}{tablerow}{white}
-\begin{tabular}{@{}p{5.1cm}p{1.9cm}p{8.0cm}@{}}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{4.6cm}cccccc>{\raggedright\arraybackslash}p{4.0cm}@{}}
 \rowcolor{tableheader}
-\textcolor{financeblue}{\textbf{Test}} &
-\textcolor{financeblue}{\textbf{Rejets à 10 \%}} &
-\textcolor{financeblue}{\textbf{Interprétation}} \\
-Ordonnée à l'origine (Fisher) & 0,092 & Conforme \\
-Homogénéité de $f_j$ (Fisher) & 0,125 & Léger sur-rejet, dans l'incertitude \\
-Courbure (Fisher) & 0,112 & Conforme \\
-Exposant de variance (Fisher) & 0,097 & Conforme \\
-Kruskal--Wallis & 0,135 & Sur-rejet~: groupes très déséquilibrés \\
-Effets d'année calendaire & 0,123 & Sur-rejet~: approximation normale d'une somme
-portant sur peu de diagonales \\
-Test des suites & \textbf{0,153} & \textbf{Sur-rejet marqué.} La contrainte
+\textcolor{financeblue}{\textbf{Ligne (p-value non simulée)}} &
+\multicolumn{2}{c}{\textcolor{financeblue}{\textbf{N}}} &
+\multicolumn{2}{c}{\textcolor{financeblue}{\textbf{E}}} &
+\multicolumn{2}{c}{\textcolor{financeblue}{\textbf{A}}} &
+\textcolor{financeblue}{\textbf{Interprétation (cause proposée)}} \\
+\rowcolor{tableheader}
+ & 0,10 & 0,05 & 0,10 & 0,05 & 0,10 & 0,05 & \\
+Tendance avec le cumulé (Student) & 0,081 & 0,0335 & 0,076 & 0,026 & 0,083 & 0,040 &
+Sous le seuil nominal sous N et E~; intervalle le contenant sous A \\
+Ordonnée à l'origine (Fisher) & 0,0915 & 0,0435 & 0,1045 & 0,0475 & 0,109 & 0,056 &
+Intervalles contenant le seuil nominal \\
+Homogénéité de $f_j$ (Fisher) & 0,033 & 0,0125 & 0,038 & 0,0185 & 0,035 & 0,012 &
+\textbf{Conservatrice} \\
+Courbure (Fisher) & 0,100 & 0,051 & 0,0965 & 0,0435 & 0,104 & 0,053 &
+Intervalles contenant le seuil nominal \\
+Breusch--Pagan ($\chi^2$) & \textbf{0} & \textbf{0} & \textbf{0} & \textbf{0} & \textbf{0} &
+\textbf{0} & \textbf{Très conservatrice.} Cause non établie~: la statistique $nR^2$ ne dépend pas de l'échelle des résidus, et la dispersion réduite des résidus standardisés ne l'explique pas à elle seule \\
+Exposant de variance (Fisher) & 0,040 & 0,011 & 0,043 & 0,0165 & 0,039 & 0,015 &
+\textbf{Conservatrice} \\
+Effets d'année calendaire & 0,1125 & 0,089 & 0,116 & 0,0945 & 0,114 & 0,087 &
+Sur-rejet net à $0{,}05$~; à $0{,}10$, intervalle excluant le seuil sous E seulement. Cause proposée~: approximation normale d'une somme portant sur peu de diagonales \\
+Kruskal--Wallis & 0,125 & 0,050 & 0,1265 & 0,0525 & 0,100 & 0,037 &
+Sur-rejet à $0{,}10$ sous N et E~: groupes très déséquilibrés \\
+Test des suites & \textbf{0,135} & \textbf{0,135} & \textbf{0,1285} & \textbf{0,1285} &
+\textbf{0,122} & \textbf{0,122} & \textbf{Sur-rejet marqué.} La contrainte
 $\sum_i \sqrt{C(i,j)}\,r(i,j) = 0$ rend les résidus d'une colonne négativement
 corrélés, d'où une alternance des signes plus fréquente que sous
 l'échangeabilité supposée par l'approximation normale \\
-Grubbs (borne de Bonferroni) & \textbf{0,000} & \textbf{Extrêmement
-conservatrice.} La borne est un majorant, et les résidus étant déjà standardisés
-par colonne, l'écart au maximum est faible \\
-Breusch--Pagan ($\chi^2$) & \textbf{0,005} & \textbf{Très conservatrice.}
-$\hat\sigma_j^2$ est estimé sur la colonne même~; les résidus standardisés ont
-une dispersion réduite, donc un $R^2$ auxiliaire trop faible \\
+Grubbs (borne de Bonferroni) & \textbf{0} & \textbf{0} & \textbf{0} & \textbf{0} & \textbf{0} &
+\textbf{0} & \textbf{Extrêmement conservatrice.} La borne est un majorant, et les résidus étant
+déjà standardisés par colonne, l'écart au maximum est faible \\
+Shapiro--Wilk (p-value exacte, loi nulle i.i.d.) & 0,221 & 0,109 & 0,5945 & 0,4195 & 0,517 &
+0,366 & Au-dessus du seuil nominal sous N (issue~\#245)~; sous E et A, normalité fausse \\
+Lilliefors (Dallal--Wilkinson) & 0,1875 & 0,1025 & 0,559 & 0,3785 & 0,456 & 0,317 &
+Idem \\
 \end{tabular}
 \end{center}
 
 \noindent
-Les lignes de l'homogénéité de $f_j$ et de l'exposant de variance ont été mesurées avant
-l'issue~\#90, quand la p-value de chaque colonne était l'approximation de Student~; depuis, elle
-suit la loi de permutation à $n_j \le 9$ (fiche~\ref{mw:m1b}), et ces deux fréquences, non
-remesurées, ne décrivent plus la p-value $\chi^2(2K)$ que restitue le moteur. Aucun script
-versionné ne produit ce tableau.
+Lecture. Sous E et A, les erreurs ne sont pas normales~: les taux de Shapiro--Wilk et de
+Lilliefors n'y sont pas des niveaux. Les autres lignes ont la même hypothèse nulle sous les trois lois. Les
+interprétations du tableau sont celles des versions antérieures, conservées lorsque la mesure en
+confirme le sens~; elles proposent une cause sans la mesurer. Le test des suites rejette au même
+taux aux deux seuils~: aucune de ses p-values normales ne tombe dans $[0{,}05~;~0{,}10[$ sur ces
+triangles. Les combinaisons de Fisher de l'homogénéité de $f_j$ et de l'exposant de variance, dont
+les p-values de colonne suivent la loi de permutation depuis l'issue~\#90 (fiche~\ref{mw:m1b}),
+sont conservatrices~; c'est le sens qu'annoncerait la sur-uniformité de ces p-values si les colonnes étaient indépendantes et la loi de permutation celle du modèle de Mack, hypothèses non acquises (même fiche)~: la mesure établit le sens de l'écart sous ce plan, non sa cause. Deux autres régressions, hors moteur, éclairent la
+construction de la fiche~\ref{mw:m1}~: la régression agrégée sans effet de colonne rejette dans
+$98{,}35~\%$, $96{,}8~\%$ et $98{,}8~\%$ des cas au seuil $0{,}10$ (N, E, A), et la régression à
+effet de colonne pondérée par $C(i,j)$ seul dans $6{,}0~\%$, $4{,}75~\%$ et $5{,}8~\%$.
+
+\emph{Historique.} Les versions antérieures citaient, à cette place, des fréquences de rejet sur
+600 triangles $10\times10$ «~simulés exactement sous $H_0$~» au seuil de $10~\%$ (ordonnée à
+l'origine $0{,}092$, homogénéité de $f_j$ $0{,}125$, courbure $0{,}112$, exposant de variance
+$0{,}097$, Kruskal--Wallis $0{,}135$, effets calendaires $0{,}123$, suites $0{,}153$, Grubbs
+$0{,}000$, Breusch--Pagan $0{,}005$), dont celles de l'homogénéité de $f_j$ et de l'exposant de
+variance antérieures à l'issue~\#90~; aucun script ni protocole n'en a été retrouvé. Elles sont
+retirées et remplacées par la présente mesure (décision du mainteneur sur l'issue~\#119).
 
 \begin{encadre}
 \textbf{Conséquence pratique.} Les écarts observés entre p-value asymptotique et
@@ -13368,41 +13480,225 @@ qui ne sont ni indépendants ni échangeables. Trois tests s'en écartent fortem
 et dans des sens opposés~: le test des suites sur-rejette, Grubbs et
 Breusch--Pagan sous-rejettent massivement. Dans les trois cas, c'est la p-value
 de Monte-Carlo qui est retenue par le moteur, et elle seule doit être utilisée en
-dossier. La p-value non simulée n'est conservée que pour documenter l'écart.
+dossier. La p-value non simulée n'est conservée que pour documenter l'écart. La p-value de
+Monte-Carlo n'est pas pour autant exempte de distorsion~: sous le plan du triangle de
+contrôle, celle de Breusch--Pagan est elle aussi conservatrice
+(section~\ref{sec:calib-mc-mw}).
 \end{encadre}
 
 \subsection{Calibration des p-values de Monte-Carlo (Merz--Wüthrich)}
+\label{sec:calib-mc-mw}
 
-Sur 160 triangles $10\times10$ simulés sous le modèle de Mack, fréquence de rejet
-au seuil nominal de 10~\% (intervalle de confiance à 95~\%~: $\pm 0{,}046$)~:
+\emph{Objet et statut.} Le niveau réel à $T = 8$ des treize p-values de Monte-Carlo de la
+méthode, une par entrée de \code{MW\_CATALOGUE\_MC}, chacune p-value retenue de sa ligne sur le
+triangle de contrôle, est mesuré sous un plan unique (issue~\#206)~: le modèle de Mack ajusté au
+triangle de contrôle (\code{tests/donnees/triangle\_mw.csv}, $I = J = 7$, triangle $8\times 8$),
+dont les $\hat f_j$ et les $\hat\sigma_j^2$, $\hat\sigma^2_{J-1}$ extrapolée comprise, sont pris
+pour vrais et dont la première colonne est fixée. C'est un \emph{constat de simulation sous ce
+plan}, non un résultat général~: il ne se transpose ni à une autre géométrie de triangle ni à un
+autre paramétrage. Aucun théorème ne couvre ce test bootstrap à $T = 8$
+(section~\ref{sec:boot-mw})~; l'exactitude à $B$ fini des tests de Monte-Carlo (Dwass, 1957~;
+Hope, 1968, section~\ref{sec:biblio}) suppose des répliques tirées dans la loi nulle vraie, ce
+que font les répliques du témoin «~oracle~» décrit ci-dessous, et non celles du bootstrap, tirées
+avec $\hat f_j$, $\hat\sigma_j^2$ et le vivier réestimés sur chaque triangle. «~Compatible~»
+signifie «~aucune distorsion détectée à la précision de la mesure~», jamais «~exact~».
+
+\emph{Protocole} (spécification \code{docs/specifications/}\newline
+\code{206-calibration-mc-merz-wuthrich.md}, approuvée avant toute exécution, et ses annotations
+des 10 et 11~octobre 2026). Les erreurs standardisées du modèle suivent l'une de trois lois~: N,
+gaussienne~; E, loi uniforme sur les 27 résidus du vivier redressé du triangle de contrôle
+(\code{.mw\_pool\_residus()}, section~\ref{sec:boot-mw}) divisés par leur écart-type,
+platykurtique (excès de kurtosis $-1{,}39$)~; A, loi Gamma(2) centrée réduite, asymétrique.
+Sont simulés 2\,000 triangles sous N et sous E, 1\,000 sous A, chacun traité par
+\code{mw\_bootstrap()} ($B = 999$, vivier redressé du moteur) et \code{mw\_tests()}, chemin dont
+l'identité avec \code{run\_engine()} est contrôlée sur échantillon, sous des graines dont les
+plages sont disjointes des graines littérales du dépôt (contrôle consigné dans le fichier de
+résultats). Le vivier d'avant l'issue~\#46, non redressé, est appliqué aux 1\,000
+premiers triangles sous N et sous E, avec les mêmes graines. Un rejet est $p_{\mathrm{mc}} <
+\alpha$, aux seuils $0{,}10$ et $0{,}05$, qui sont, à $\alpha = 0{,}10$, ceux de l'\code{ALERTE} et
+de l'\code{ECHEC}. La \emph{référence} $\rho$ est la taille lissée, à $B = 999$, du test de
+Monte-Carlo idéal dont les répliques seraient tirées dans la loi vraie (règle «~$\ge$~»
+d'\code{engine\_p\_mc()}), estimée sur un échantillon «~oracle~» de $N_0 = 20\,000$ triangles par
+loi~; elle vaut $0{,}099$ en queue haute et $0{,}098$ au bilatéral pour une statistique sans
+atome, et moins pour les statistiques à peu de valeurs~: effets calendaires ($0{,}086$) et suites
+($0{,}051$ à $0{,}053$), par discrétude. L'erreur de $\rho$ due à $N_0$ est de l'ordre de
+$0{,}002$ à $0{,}10$ (ordre de grandeur déclaré dans le fichier de résultats). Lecture en quatre
+états de la section~\ref{sec:calibration-mc} (compatible, écart mineur, écart non tranché,
+distorsion matérielle, avec son côté), la bande de Bradley $[\rho/2~;~3\rho/2]$ étant rapportée à
+$\rho$~; classes calculées sur les valeurs non arrondies. Trois incertitudes restent distinctes~:
+l'intervalle de Clopper--Pearson à 95~\% d'un taux, fonction du nombre de triangles~; l'erreur de
+$\rho$, fonction de $N_0$~; et l'erreur de Monte-Carlo de chaque p-value, fonction de $B$, qui
+fait partie de la procédure mesurée (section~\ref{sec:deuxerreurs}).
+
+\emph{Exécution} (script hors CI \code{tests/calibration\_mc\_mw\_t8.R}, 33 sorties exécutées et
+combinées au commit \code{3a95e11}, R~4.3.3 sous Linux, BLAS et LAPACK de référence du système,
+générateur du moteur~; sortie \code{docs/tableaux/}\newline
+\code{20261011-issue206-calibration-mw.md}, tableaux T0 à T5, valeurs brutes
+\code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw-brut.tsv}, journaux
+\code{docs/tableaux/}\newline \code{20261011-issue206-journal-mesure.md} et
+\code{docs/tableaux/}\newline \code{20261011-issue206-journal-combinaison.md}~; les mesures de
+l'issue~\#119 tirées des mêmes triangles sont dans \code{docs/tableaux/}\newline
+\code{20261011-issue119-mw.md}, section~\ref{sec:calib-asympt-mw}). Contrôles~: le triangle de
+contrôle traité par le script est identique à sa référence de non-régression~; aucun triangle
+refusé, aucune p-value de Monte-Carlo absente~; $B$ effectif de 999 partout, sauf $998$ pour
+$0{,}004~\%$ des couples (triangle, statistique) sous E.
+
+\emph{Résultats, pool redressé du moteur} (tableau T1 du fichier). Taux de rejet sous $H_0$,
+intervalle de Clopper--Pearson à 95~\% arrondi au millième, classe~: c, compatible~; m, écart
+mineur~; nt, écart non tranché~; \textbf{Dc}, distorsion matérielle du côté conservateur. $\rho$
+est donné pour N, E et A quand il diffère au millième selon la loi.
 
 \begin{center}
-\small
+\scriptsize
+\setlength{\tabcolsep}{3pt}
 \rowcolors{2}{tablerow}{white}
-\begin{tabular}{@{}p{6.4cm}cc@{}}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{2.9cm}>{\raggedright\arraybackslash}p{1.3cm}>{\raggedright\arraybackslash}p{3.6cm}>{\raggedright\arraybackslash}p{3.6cm}>{\raggedright\arraybackslash}p{3.6cm}@{}}
 \rowcolor{tableheader}
-\textcolor{financeblue}{\textbf{Statistique}} &
-\textcolor{financeblue}{\textbf{rejets à 10 \%}} &
-\textcolor{financeblue}{\textbf{rejets à 5 \%}} \\
-Effets d'année calendaire & 0,062 & 0,019 \\
-Corrélation entre années de développement & 0,119 & 0,037 \\
-Breusch--Pagan sur résidus de Mack & 0,100 & 0,062 \\
-Grubbs & 0,113 & 0,044 \\
-Durbin--Watson & 0,100 & 0,050 \\
-Test des suites & 0,056 & 0,025 \\
-Proportionnalité (pente) & 0,069 & 0,044 \\
+\textcolor{financeblue}{\textbf{Clé (fiche)}} &
+\textcolor{financeblue}{\textbf{$\rho$}} &
+\textcolor{financeblue}{\textbf{N~: taux [IC] classe}} &
+\textcolor{financeblue}{\textbf{E~: taux [IC] classe}} &
+\textcolor{financeblue}{\textbf{A~: taux [IC] classe}} \\
+\code{PenteIntra} (\ref{mw:m1}) & $0{,}098$ & $0{,}114$ $[0{,}100~;~0{,}129]$ m & $0{,}1205$ $[0{,}107~;~0{,}136]$ m & $0{,}130$ $[0{,}110~;~0{,}152]$ m \\
+\code{Origine} (\ref{mw:m1a}) & $0{,}099$ & $0{,}088$ $[0{,}076~;~0{,}101]$ c & $0{,}097$ $[0{,}084~;~0{,}111]$ c & $0{,}106$ $[0{,}088~;~0{,}127]$ c \\
+\code{HomogF} (\ref{mw:m1b}) & $0{,}099$ & $0{,}0955$ $[0{,}083~;~0{,}109]$ c & $0{,}089$ $[0{,}077~;~0{,}102]$ c & $0{,}091$ $[0{,}074~;~0{,}111]$ c \\
+\code{Courbure} (\ref{mw:m1c}) & $0{,}099$ & $0{,}093$ $[0{,}081~;~0{,}107]$ c & $0{,}080$ $[0{,}068~;~0{,}093]$ m & $0{,}095$ $[0{,}078~;~0{,}115]$ c \\
+\code{Alpha} (\ref{mw:m1d}) & $0{,}099$ & $0{,}0955$ $[0{,}083~;~0{,}109]$ c & $0{,}097$ $[0{,}084~;~0{,}111]$ c & $0{,}102$ $[0{,}084~;~0{,}122]$ c \\
+\code{BP} (\ref{mw:m2bp}) & $0{,}099$ & $0{,}016$ $[0{,}011~;~0{,}023]$ \textbf{Dc} & $0{,}0695$ $[0{,}059~;~0{,}082]$ m & $0{,}004$ $[0{,}001~;~0{,}010]$ \textbf{Dc} \\
+\code{ExpVar} (\ref{mw:m2b}) & $0{,}099$ & $0{,}0955$ $[0{,}083~;~0{,}109]$ c & $0{,}095$ $[0{,}083~;~0{,}109]$ c & $0{,}098$ $[0{,}080~;~0{,}118]$ c \\
+\code{Calendrier} (\ref{mw:m3cal}) & $0{,}086$ & $0{,}086$ $[0{,}074~;~0{,}099]$ c & $0{,}081$ $[0{,}069~;~0{,}094]$ c & $0{,}084$ $[0{,}068~;~0{,}103]$ c \\
+\code{KruskalAcc} (\ref{mw:m3acc}) & $0{,}099$ & $0{,}096$ $[0{,}083~;~0{,}110]$ c & $0{,}1005$ $[0{,}088~;~0{,}115]$ c & $0{,}080$ $[0{,}064~;~0{,}099]$ m \\
+\code{CorrDev} (\ref{mw:m3cor}) & $0{,}098$ & $0{,}0965$ $[0{,}084~;~0{,}110]$ c & $0{,}0995$ $[0{,}087~;~0{,}113]$ c & $0{,}088$ $[0{,}071~;~0{,}107]$ c \\
+\code{DW} (\ref{mw:m3dw}) & $0{,}098$ & $0{,}0855$ $[0{,}074~;~0{,}099]$ c & $0{,}101$ $[0{,}088~;~0{,}115]$ c & $0{,}087$ $[0{,}070~;~0{,}106]$ c \\
+\code{Runs} (\ref{mw:m3runs}) & $0{,}051$~;\newline $0{,}053$~;\newline $0{,}053$ & $0{,}058$ $[0{,}048~;~0{,}069]$ c & $0{,}0525$ $[0{,}043~;~0{,}063]$ c & $0{,}051$ $[0{,}038~;~0{,}067]$ c \\
+\code{Grubbs} (\ref{mw:m4gr}) & $0{,}099$ & $0{,}099$ $[0{,}086~;~0{,}113]$ c & $0{,}075$ $[0{,}064~;~0{,}087]$ m & $0{,}159$ $[0{,}137~;~0{,}183]$ nt \\
 \end{tabular}
+
+\smallskip
+Seuil $\alpha = 0{,}10$.
+\end{center}
+
+\begin{center}
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\rowcolors{2}{tablerow}{white}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{2.9cm}>{\raggedright\arraybackslash}p{1.3cm}>{\raggedright\arraybackslash}p{3.6cm}>{\raggedright\arraybackslash}p{3.6cm}>{\raggedright\arraybackslash}p{3.6cm}@{}}
+\rowcolor{tableheader}
+\textcolor{financeblue}{\textbf{Clé (fiche)}} &
+\textcolor{financeblue}{\textbf{$\rho$}} &
+\textcolor{financeblue}{\textbf{N~: taux [IC] classe}} &
+\textcolor{financeblue}{\textbf{E~: taux [IC] classe}} &
+\textcolor{financeblue}{\textbf{A~: taux [IC] classe}} \\
+\code{PenteIntra} (\ref{mw:m1}) & $0{,}048$ & $0{,}064$ $[0{,}054~;~0{,}076]$ m & $0{,}053$ $[0{,}044~;~0{,}064]$ c & $0{,}073$ $[0{,}058~;~0{,}091]$ nt \\
+\code{Origine} (\ref{mw:m1a}) & $0{,}049$ & $0{,}042$ $[0{,}034~;~0{,}052]$ c & $0{,}0475$ $[0{,}039~;~0{,}058]$ c & $0{,}061$ $[0{,}047~;~0{,}078]$ c \\
+\code{HomogF} (\ref{mw:m1b}) & $0{,}049$ & $0{,}039$ $[0{,}031~;~0{,}048]$ m & $0{,}0415$ $[0{,}033~;~0{,}051]$ c & $0{,}041$ $[0{,}030~;~0{,}055]$ c \\
+\code{Courbure} (\ref{mw:m1c}) & $0{,}049$ & $0{,}0445$ $[0{,}036~;~0{,}054]$ c & $0{,}036$ $[0{,}028~;~0{,}045]$ m & $0{,}041$ $[0{,}030~;~0{,}055]$ c \\
+\code{Alpha} (\ref{mw:m1d}) & $0{,}049$ & $0{,}0385$ $[0{,}030~;~0{,}048]$ m & $0{,}042$ $[0{,}034~;~0{,}052]$ c & $0{,}037$ $[0{,}026~;~0{,}051]$ c \\
+\code{BP} (\ref{mw:m2bp}) & $0{,}049$ & $0{,}005$ $[0{,}002~;~0{,}009]$ \textbf{Dc} & $0{,}0245$ $[0{,}018~;~0{,}032]$ m & $0{,}000$ $[0{,}000~;~0{,}004]$ \textbf{Dc} \\
+\code{ExpVar} (\ref{mw:m2b}) & $0{,}049$ & $0{,}046$ $[0{,}037~;~0{,}056]$ c & $0{,}0495$ $[0{,}040~;~0{,}060]$ c & $0{,}048$ $[0{,}036~;~0{,}063]$ c \\
+\code{Calendrier} (\ref{mw:m3cal}) & $0{,}043$~;\newline $0{,}040$~;\newline $0{,}043$ & $0{,}0455$ $[0{,}037~;~0{,}056]$ c & $0{,}041$ $[0{,}033~;~0{,}051]$ c & $0{,}040$ $[0{,}029~;~0{,}054]$ c \\
+\code{KruskalAcc} (\ref{mw:m3acc}) & $0{,}049$ & $0{,}0505$ $[0{,}041~;~0{,}061]$ c & $0{,}049$ $[0{,}040~;~0{,}059]$ c & $0{,}036$ $[0{,}025~;~0{,}049]$ c \\
+\code{CorrDev} (\ref{mw:m3cor}) & $0{,}048$ & $0{,}0515$ $[0{,}042~;~0{,}062]$ c & $0{,}052$ $[0{,}043~;~0{,}063]$ c & $0{,}044$ $[0{,}032~;~0{,}059]$ c \\
+\code{DW} (\ref{mw:m3dw}) & $0{,}048$ & $0{,}0455$ $[0{,}037~;~0{,}056]$ c & $0{,}053$ $[0{,}044~;~0{,}064]$ c & $0{,}032$ $[0{,}022~;~0{,}045]$ m \\
+\code{Runs} (\ref{mw:m3runs}) & $0{,}030$~;\newline $0{,}031$~;\newline $0{,}032$ & $0{,}0275$ $[0{,}021~;~0{,}036]$ c & $0{,}0225$ $[0{,}016~;~0{,}030]$ m & $0{,}032$ $[0{,}022~;~0{,}045]$ c \\
+\code{Grubbs} (\ref{mw:m4gr}) & $0{,}049$ & $0{,}0445$ $[0{,}036~;~0{,}054]$ c & $0{,}035$ $[0{,}027~;~0{,}044]$ m & $0{,}088$ $[0{,}071~;~0{,}107]$ nt \\
+\end{tabular}
+
+\smallskip
+Seuil $\alpha = 0{,}05$.
 \end{center}
 
 \noindent
-Toutes les valeurs sont compatibles avec les niveaux nominaux à l'intérieur de
-l'intervalle de confiance. Ces fréquences ont été mesurées avant le redressement du vivier par le
-levier (issue~\#46, section~\ref{sec:boot-mw}), qui change la loi de référence de toutes les
-p-values de Monte-Carlo de la méthode, et avant les issues~\#60 et~\#90~; elles n'ont pas été
-refaites, ne portent pas sur $T = 8$, et aucun script versionné ne les produit. La calibration des
-p-values de Monte-Carlo de la méthode à $T = 8$ relève de l'issue~\#206.
+Sur les 26 cellules de chaque loi (13 statistiques, deux seuils)~: sous N, 20 compatibles,
+4 écarts mineurs et 2 distorsions matérielles~; sous E, 18 compatibles et 8 écarts mineurs~; sous
+A, 18 compatibles, 3 écarts mineurs, 3 écarts non tranchés et 2 distorsions matérielles. Aucune
+distorsion matérielle n'est du côté libéral. Sur 26 intervalles, environ $1{,}3$ exclusions de la
+référence sont attendues par le seul hasard (intervalles corrélés~: ordre de grandeur, non un
+test). Lecture, ligne par ligne, dans la rubrique~7 de chaque fiche~; trois statistiques se
+distinguent.
+\begin{itemize}[itemsep=2pt]
+  \item \emph{Breusch--Pagan} (\code{BP}, fiche~\ref{mw:m2bp})~: distorsion matérielle du côté
+  conservateur sous N et A aux deux seuils, écart mineur du même côté sous E. Sous ce plan, la ligne rejette sous $H_0$ bien moins souvent que son seuil~: un verdict \code{OK} n'y établit pas l'absence d'hétéroscédasticité, la puissance n'étant pas étudiée à $T = 8$, et une
+  p-value voisine du seuil, comme celle du triangle de contrôle ($0{,}103$), ne se lit pas comme une
+  absence de signal. Constat documenté, moteur inchangé~; issue~\#243, ouverte (décision du
+  mainteneur du 11~octobre 2026).
+  \item \emph{Grubbs} (\code{Grubbs}, fiche~\ref{mw:m4gr})~: compatible sous N, écart mineur du
+  côté conservateur sous E, écart non tranché du côté libéral sous A ($0{,}159$
+  $[0{,}137~;~0{,}183]$ à $0{,}10$, $0{,}088$ $[0{,}071~;~0{,}107]$ à $0{,}05$)~: classes non
+  compatibles de part et d'autre de $\rho$ selon la loi des erreurs, à la même statistique et au
+  même seuil, indication descriptive d'un niveau sensible à cette loi. Constat documenté seul.
+  \item \emph{Tendance avec le cumulé} (\code{PenteIntra}, fiche~\ref{mw:m1})~: légèrement
+  libérale, écart mineur à $0{,}10$ sous les trois lois ($0{,}114$ à $0{,}130$), écart non tranché
+  sous A à $0{,}05$ ($0{,}073$). Constat documenté seul.
+\end{itemize}
+Les autres écarts mineurs sont tous du côté conservateur (homogénéité de $f_j$ et famille
+$\alpha$ sous N à $0{,}05$~; courbure sous E aux deux seuils~; suites sous E à $0{,}05$~;
+homogénéité entre années de survenance sous A à $0{,}10$~; Durbin--Watson sous A à $0{,}05$).
+Les trois p-values voisines du seuil sur le triangle de contrôle s'y lisent ainsi~: ordonnée à
+l'origine ($0{,}085$), compatible partout~; homogénéité de $f_j$ ($0{,}080$), compatible sauf un
+écart mineur du côté conservateur sous N à $0{,}05$~; Breusch--Pagan ($0{,}103$), conservatrice
+(ci-dessus). Pour les deux premières, le verdict \code{ALERTE} du triangle de contrôle est rendu par une p-value dont le niveau au seuil $0{,}10$ ne présente, sous ce plan, aucune distorsion détectée~; cette mesure du niveau ne dit rien de l'erreur de Monte-Carlo de la p-value du triangle lui-même (\code{err\_mc}, fonction de $B$), qui reste à lire ligne par ligne.
 
+\emph{Effet du redressement du vivier} (issue~\#46~; tableaux T1~bis et T2). Sur les 1\,000
+premiers triangles sous N et sous E, mêmes graines, les décisions des deux viviers sont comparées
+par un test de McNemar exact bilatéral, avec la correction de Holm (1979, section~\ref{sec:biblio})
+au niveau $0{,}05$ sur les 13 statistiques, par loi et par seuil. \emph{Famille $\alpha$}~: le
+vivier non redressé est libéral, en distorsion matérielle ($0{,}207$ $[0{,}182~;~0{,}233]$ sous N
+et $0{,}180$ $[0{,}157~;~0{,}205]$ sous E à $0{,}10$~; $0{,}112$ et $0{,}108$ à $0{,}05$)~; le
+vivier redressé rejette $0{,}100$ et $0{,}097$ à $0{,}10$ sur les mêmes triangles ($\rho =
+0{,}099$)~; toutes les décisions discordantes sont des rejets du seul vivier non redressé (107 et
+83 à $0{,}10$, 75 et 65 à $0{,}05$~; p-values de Holm au plus $7{,}1\cdot 10^{-19}$)~: sous ce
+plan, le redressement rapproche le taux de rejet de la référence, ce qui conforte
+l'issue~\#46 pour cette ligne. \emph{Breusch--Pagan sous E à $0{,}10$}~: 18 décisions
+discordantes, toutes des rejets du seul vivier non redressé (p-value de Holm $9{,}2\cdot
+10^{-5}$)~; le taux passe de $0{,}081$ à $0{,}063$ sur les mêmes triangles et s'éloigne de
+$\rho$~; ce constat est rattaché à l'issue~\#243, sans rouvrir la variante retenue par
+l'issue~\#46. Aucune autre comparaison n'est significative après correction de Holm.
 
+\emph{Témoins oracle} (tableau T3). Pour chaque triangle mesuré, la p-value de Monte-Carlo de
+chaque statistique est aussi calculée contre l'échantillon oracle de sa loi, dont les répliques
+sont tirées dans la loi vraie~; le taux de rejet de ce témoin est comparé à sa taille par un test
+binomial exact bilatéral, avec la correction de Holm sur les 13 statistiques. Deux signaux sur
+78~: N, homogénéité de $f_j$, $0{,}05$ (71 rejets sur 2\,000, taille $0{,}04996$, p-value de Holm
+$0{,}031$) et E, suites, $0{,}05$ (44 sur 2\,000, taux $0{,}022$ contre une taille de $0{,}036$,
+p-value de Holm $0{,}0042$). Tous deux sont expliqués, et la lecture n'est pas suspendue
+(annotation du 11~octobre 2026 de la spécification, décision du mainteneur)~: pour les suites,
+un atome de la statistique est à cheval sur le seuil dans l'échantillon oracle réalisé (masse
+$0{,}01755$~; probabilité de queue basse $0{,}0077$ avant l'atome et $0{,}02525$ avec lui, de part
+et d'autre de $0{,}025$), de sorte que la décision du témoin y est déterministe, et l'écart à la
+taille, $0{,}0144$, reste inférieur à la masse de l'atome~; pour l'homogénéité de $f_j$, la
+variance du taux du témoin doit tenir compte de l'échantillon oracle partagé par tous les
+triangles, $\alpha(1-\alpha)(1/n + 1/N_0)$, et le signal n'est alors plus significatif (p-value
+de Holm d'environ $0{,}060$, approximation normale). La règle du témoin a été corrigée en
+conséquence pour les statistiques à atomes~; la référence $\rho$ n'en est pas affectée.
+
+\emph{Verdicts sous $H_0$ et multiplicité} (tableau T4, pool redressé). Part des triangles
+simulés sous le modèle qui reçoivent au moins une \code{ALERTE} ou un \code{ECHEC} sur les
+verdicts des 13 statistiques de Monte-Carlo~: $0{,}6355$ (N), $0{,}6415$ (E), $0{,}655$ (A)~; au moins un
+\code{ECHEC}~: $0{,}3875$, $0{,}381$, $0{,}398$. Sur toutes les lignes à verdict, procédure ESD
+et lignes M5 comprises~: $0{,}734$, $0{,}887$, $0{,}849$, et $0{,}482$, $0{,}6975$, $0{,}649$ pour
+au moins un \code{ECHEC}~; sous E et A, les lignes M5 rejettent la normalité, fausse par
+construction (section~\ref{sec:calib-asympt-mw}). Sous ce plan, un triangle conforme au modèle de
+Mack reçoit donc, dans près de deux cas sur trois, au moins une \code{ALERTE} ou un \code{ECHEC} sur les verdicts de ses 13 statistiques de Monte-Carlo~: le nombre de verdicts
+\code{ALERTE} ou \code{ECHEC} d'un triangle se lit avec cette multiplicité. Le repère
+$1 - 0{,}9^{13} = 0{,}746$ suppose treize décisions indépendantes au niveau $0{,}10$~: c'est un ordre
+de grandeur, non une référence. La procédure ESD de Rosner (fiche~\ref{mw:m4ros}) détecte au
+moins une cellule aberrante dans 0 triangle sur 2\,000 sous N, 5 sur 2\,000 ($0{,}0025$) sous E et 23 sur 1\,000 ($0{,}023$) sous A, au niveau $\alpha = 0{,}10$.
+
+\emph{Voisinage du seuil} (tableau T4). La fréquence sous $H_0$ d'un écart
+$|p_{\mathrm{mc}} - \alpha|$ inférieur à deux fois \code{err\_mc} va, selon la statistique et la loi, de
+$0{,}009$ (Breusch--Pagan, N) à $0{,}0665$ (tendance avec le cumulé, E) à $\alpha = 0{,}10$, et
+de $0{,}001$ (Breusch--Pagan, A) à $0{,}049$ (tendance avec le cumulé, E) à $0{,}05$~: c'est la
+fréquence à laquelle se déclencherait, sous ce plan, le signalement d'une p-value voisine du
+seuil que propose l'issue~\#244, ouverte (une phrase dans le champ \code{detail}, sans changer ni
+p-value ni verdict).
+
+\emph{Historique.} Les versions antérieures de ce document citaient, à cette place, des
+fréquences de rejet mesurées sur 160 triangles $10\times10$ simulés sous le modèle de Mack, pour
+sept statistiques, toutes jugées «~compatibles avec les niveaux nominaux~»~; la mesure était
+antérieure aux issues~\#46, \#60 et~\#90, ne portait pas sur $T = 8$, et aucun script ni
+protocole n'en a été retrouvé. Elle est retirée et remplacée par la présente mesure (décision du
+mainteneur sur l'issue~\#206).
 
 \clearpage
 % =============================================================================
@@ -13626,18 +13922,18 @@ soutient dans le présent document.
   1,5~\% citée à la fiche~\ref{fiche:foc} pour le taux de faux \code{ECHEC}
   (0 sur 200 jeux simulés), borne qui ne vaut que pour le générateur de
   simulation employé, à $\hat\delta$ intérieur et sur la plateforme de mesure.
-  Elle fournit aussi les intervalles des taux de rejet de la
-  section~\ref{sec:calibration-mc}.
+  Elle fournit aussi les intervalles des taux de rejet des
+  sections~\ref{sec:calibration-mc} et~\ref{sec:calib-mc-mw}.
 
   \item J.\,V. Bradley, \emph{Robustness?}, \emph{British Journal of
   Mathematical and Statistical Psychology}, 31(2), 1978, p.~144--152.
   \emph{Portée.} Critère «~libéral~» de robustesse du niveau d'un test~: un
   taux de rejet réel compris entre la moitié et une fois et demie du niveau
   nominal, soit $[0{,}05~;~0{,}15]$ à $0{,}10$. C'est une convention, non un
-  théorème~; elle sert à la section~\ref{sec:calibration-mc} à distinguer un
-  écart mineur d'une distorsion matérielle, et sa transposition à une taille de
-  référence discrète est une convention du protocole de l'issue~\#166, non de
-  l'article. Elle ne dit rien du niveau des tests du moteur à $T = 8$.
+  théorème~; elle sert aux sections~\ref{sec:calibration-mc} et~\ref{sec:calib-mc-mw} à
+  distinguer un écart mineur d'une distorsion matérielle, et sa transposition à une taille de
+  référence discrète est une convention du protocole de l'issue~\#166, reprise par celui de
+  l'issue~\#206, non de l'article. Elle ne dit rien du niveau des tests du moteur à $T = 8$.
 
   \item S.~Holm, \emph{A simple sequentially rejective multiple test procedure},
   \emph{Scandinavian Journal of Statistics}, 6(2), 1979, p.~65--70.
@@ -13645,7 +13941,17 @@ soutient dans le présent document.
   le taux d'erreur de première espèce d'une famille de tests sans hypothèse sur
   leur dépendance~; elle sert, à la section~\ref{sec:calibration-mc}, à corriger
   la multiplicité des comparaisons appariées (McNemar) de la mesure de
-  l'issue~\#229. Elle ne dit rien du niveau des tests du moteur.
+  l'issue~\#229, et, à la section~\ref{sec:calib-mc-mw}, celle des comparaisons appariées et des
+  témoins de la mesure de l'issue~\#206. Elle ne dit rien du niveau des tests du moteur.
+
+  \item Q.~McNemar, \emph{Note on the sampling error of the difference between correlated
+  proportions or percentages}, \emph{Psychometrika}, 12(2), 1947, p.~153--157.
+  \emph{Portée.} Comparaison de deux proportions mesurées sur les mêmes unités, fondée sur les
+  seules paires discordantes~; l'article en donne une forme normale et signale son équivalent
+  $\chi^2$. Les comparaisons appariées des sections~\ref{sec:calibration-mc}
+  et~\ref{sec:calib-mc-mw} en emploient la version exacte, test binomial bilatéral de
+  paramètre $1/2$ sur le nombre de paires discordantes, que l'article ne développe pas. Elle ne
+  dit rien du niveau des tests du moteur.
 
   \item D.\,R. Cox, \emph{Some problems connected with statistical inference},
   \emph{The Annals of Mathematical Statistics}, 29(2), 1958, p.~357--372~;
@@ -14053,8 +14359,11 @@ littérature consultée.
   levier (issue~\#46, section~\ref{sec:boot-mw}), n'est établie par aucune référence consultée~:
   les résidus redressés ont la variance unitaire du modèle à $\sigma_j$ connu, mais ne sont ni
   indépendants ni échangeables, et aucun théorème identifié ne couvre le test de Monte-Carlo qui
-  en résulte~; aucune référence n'a été vérifiée pour le redressement lui-même, et la calibration
-  des p-values de Monte-Carlo de la méthode à $T = 8$ n'est pas faite (issue~\#206).
+  en résulte~; aucune référence n'a été vérifiée pour le redressement lui-même. Le niveau réel
+  des p-values de Monte-Carlo de la méthode est mesuré à $T = 8$ sous un seul plan, le modèle de
+  Mack ajusté au triangle de contrôle (issue~\#206, section~\ref{sec:calib-mc-mw})~: c'est un
+  constat de simulation sous ce plan, non un résultat général, et la validité du test reste sans
+  théorème.
   \item \textbf{La calibration conditionnelle au régime de $\hat\delta$} de la p-value de
   Monte-Carlo de la méthode lognormale n'est fondée à $T = 8$ par aucune référence consultée~:
   le principe d'un test conditionnel (Cox, 1958~; Buehler, 1959) ne couvre pas un événement
@@ -14144,6 +14453,8 @@ repère indicatif de 40~\% du second n'emporte aucun verdict (ADR~0001). \\
 \bottomrule
 \end{tabular}
 \end{center}
+
+\noindent Sous le plan du triangle de contrôle de la méthode Merz--Wüthrich, un triangle conforme au modèle de Mack reçoit au moins une \code{ALERTE} ou un \code{ECHEC} sur les verdicts de ses 13 statistiques de Monte-Carlo dans $63{,}6$ à $65{,}5~\%$ des cas (section~\ref{sec:calib-mc-mw}, constat de simulation sous ce plan)~: le nombre de tels verdicts d'un triangle ne se lit pas sans cette multiplicité.
 
 \subsection*{Taux de franchissement des repères sous le modèle ajusté}
 \label{sec:taux-reperes}
@@ -14430,7 +14741,7 @@ Bloc gris & Fonction \textbf{interne} de support, appelée par une autre
 fonction du moteur et jamais directement par \code{usp\_tests()} ou
 \code{mw\_tests()}~:\newline
 \code{sw\_loi\_nulle()}, \code{.imhof\_p\_sup0()}, \code{.runs\_dens()},\newline
-\code{.fisher\_combine()}, \code{.mw\_spearman\_p()}, \code{.mack\_moments\_Z()},\newline
+\code{.fisher\_combine()}, \code{.mw\_spearman()}, \code{.mack\_moments\_Z()},\newline
 \code{mw\_simuler\_triangle()}, \code{.mw\_stats()}, \code{.mw\_pool\_residus()}.\newline
 Le préfixe d'un point ne définit pas cette catégorie~: \code{.shapiro\_sur()},
 \code{.mw\_lm\_intra()} et \code{.mw\_detail\_extrapolation()}, préfixées d'un
@@ -14939,7 +15250,8 @@ dossiers. Priorité de revue. \\
 Les fonctions internes de la méthode Merz--Wüthrich relèvent de la même lecture~: une anomalie
 de \code{.fisher\_combine()} atteindrait les quatre combinaisons de Fisher de M1 et M2 (ordonnée
 à l'origine, homogénéité de $f_j$, courbure, exposant de variance), et une anomalie de
-\code{.mw\_spearman\_p()} la deuxième et la quatrième (homogénéité de $f_j$, exposant de
+\code{.mw\_spearman()}, qui calcule depuis l'issue~\#239 la corrélation de rang et la p-value de
+chaque colonne, la deuxième et la quatrième (homogénéité de $f_j$, exposant de
 variance~; issue~\#90)~; \code{runs\_p\_min()}, qui fournit la
 $p_{\min}$ des suites dans les deux méthodes depuis l'issue~\#115, relève des fonctions communes
 aux deux dispositifs.
