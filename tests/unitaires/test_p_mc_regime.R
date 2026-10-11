@@ -355,6 +355,24 @@ local({
            })
 })
 
+# U5 bis : B_cible < B_MIN_DEGENERESCENCE (decision du 11/10/2026, precision
+# de Q-A4-9). B = 30, B_max = 25 x 31 = 775 ; l'enveloppe m = 60 rend delta**
+# interieur aux appels 60, 120, ..., 720 seulement, d'ou 12 retenus < 30 :
+# B_max est atteint (arret B_max, 775 appels comptes). La cause de
+# l'indisponibilite est B, pas la rarete : MOTIF_MC_REPLIC_INSUFFISANTES reste.
+local({
+  e <- rapide_force(60L)
+  bt <- boot_enveloppe(list(usp_ajuster_rapide = e$fn))(f2, B = 30, seed = 20260831)
+  r <- bt$p_mc_regime
+  verifier("U5 bis B = 30 : V3b, B_cible 30, B_max 775 atteint (775 appels), retenus 12 < 50",
+           identical(r$variante, "V3b") && identical(r$B_cible, 30) && identical(r$B_max, 775) &&
+             identical(r$tirages, 775) && identical(r$arret, "B_max") && identical(e$k, 775L) &&
+             identical(r$retenus, 12))
+  verifier("U5 bis B = 30 : les 34 motif_mc = MOTIF_MC_REPLIC_INSUFFISANTES, aucun MOTIF_MC_REGIME_RARE",
+           identical(unname(bt$motif_mc), rep(MOTIF_MC_REPLIC_INSUFFISANTES, 34L)) &&
+             !any(bt$motif_mc %in% MOTIF_MC_REGIME_RARE))
+})
+
 # U6 : retenus >= 50 -> pas de substitution.
 local({
   e <- rapide_force(40L)
@@ -534,6 +552,19 @@ local({
              contrat_v1(bt, "interieur", "volumes constants : regime de delta non identifie", 20260831, 99) &&
              cpt$n <= 99L &&
              all(vapply(lignes_mc(tt), function(l) identical(l$nature_p, NATURE_V1), logical(1))))
+})
+
+# U9 (c) : volumes constants avec delta estime au bord (usp_ajuster() rend
+# delta = 0 sur rep(100, 8)). Le motif volumes constants prime sur le bord
+# (decision du 11/10/2026) ; regime_obs decrit delta estime : bord0.
+local({
+  xc <- rep(100, 8)
+  fit <- usp_ajuster(xc, y1)
+  bt <- usp_bootstrap(fit, B = 99, seed = 20260831)
+  verifier("U9 (c) volumes constants, delta estime au bord 0 par usp_ajuster() : V1, motif volumes constants, regime bord0",
+           identical(fit$delta, 0) && usp_regime(fit$delta, xc)$delta_au_bord &&
+             usp_regime(fit$delta, xc)$volumes_constants &&
+             contrat_v1(bt, "bord0", "volumes constants : regime de delta non identifie", 20260831, 99))
 })
 
 # =============================================================================

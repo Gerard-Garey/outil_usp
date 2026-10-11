@@ -962,10 +962,11 @@ verifier("Objet non fonction rbind dans l'environnement global : section Control
 # interieur, V3b, arret a la cible : 510 tirages, mesure du 11/10/2026) ;
 # replication b = 1455 de #229 sur les volumes de donnees_ln.csv (interieur,
 # regime interieur rare : arret a B_max = 2500 tirages, 97 retenus) ; volumes
-# constants rep(110, 8) (delta estime au bord 0, motif du bord prioritaire,
-# specification par. 2.2) ; p_mc_regime au motif "volumes constants" pose a la
-# main (delta estime interieur a volumes constants non atteint par
-# usp_ajuster(), qui n'y libere jamais delta) ; res_mw (reserve2).
+# constants rep(110, 8) (delta estime au bord 0, motif volumes constants
+# prioritaire sur le bord, decision du 11/10/2026) ; p_mc_regime au motif
+# "volumes constants" pose a la main (delta estime interieur a volumes
+# constants non atteint par usp_ajuster(), qui n'y libere jamais delta) ;
+# res_mw (reserve2).
 .lancer_ln <- function(x, y) run_engine(xt = x, yt = y, methode = "premium", segment = 1,
                                         B = 99, nature_donnees = "brutes")
 .ln_int <- utils::read.csv(file.path(.racine, "tests", "donnees", "donnees_ln_interieur.csv"))
@@ -996,7 +997,8 @@ verifier("p_mc_regime : jeux au contrat attendu (V3b cible, V3b B_max, V1 bord 1
            identical(res_ln$bootstrap$p_mc_regime[c("regime_obs", "variante")],
                      list(regime_obs = "bord1", variante = "V1")) &&
            identical(res_vc$bootstrap$p_mc_regime[c("regime_obs", "variante", "motif_v1")],
-                     list(regime_obs = "bord0", variante = "V1", motif_v1 = "delta estime au bord")) &&
+                     list(regime_obs = "bord0", variante = "V1",
+                          motif_v1 = "volumes constants : regime de delta non identifie")) &&
            is.null(res_mw$bootstrap$p_mc_regime))
 verifier("texte_p_mc_regime() : V3b, arret a la cible (tirages, retenus, B)",
          identical(texte_p_mc_regime(res_cible), TXT_CIBLE))
@@ -1005,9 +1007,10 @@ verifier("texte_p_mc_regime() : V3b, arret a B_max (tirages, retenus, B_max, cib
 verifier("texte_p_mc_regime() : V1, delta estime au bord 1",
          identical(texte_p_mc_regime(res_ln),
                    "marginales, sur les 99 tirages (delta estim\u00e9 au bord 1)"))
-verifier("texte_p_mc_regime() : V1, volumes constants (delta estime au bord 0, motif du bord prioritaire)",
-         identical(texte_p_mc_regime(res_vc),
-                   "marginales, sur les 99 tirages (delta estim\u00e9 au bord 0)"))
+verifier("texte_p_mc_regime() : V1, volumes constants (delta estime au bord 0, motif volumes constants prioritaire)",
+         identical(texte_p_mc_regime(res_vc), paste(
+           "marginales, sur les 99 tirages (volumes constants : r\u00e9gime de delta non",
+           "identifi\u00e9)")))
 verifier("texte_p_mc_regime() : V1, motif volumes constants (p_mc_regime pose a la main)",
          identical(texte_p_mc_regime(res_vc_motif), paste(
            "marginales, sur les 99 tirages (volumes constants : r\u00e9gime de delta non",

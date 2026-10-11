@@ -3532,7 +3532,8 @@ MOTIF_MC_ATOME_HORS_OBS   <- "loi simulee ponctuelle, statistique observee hors 
 # Regime interieur de delta estime rare (issue #240, Q-A4-9 (A) ; ADR 0003
 # annote le 11/10/2026) : sous la variante conditionnelle (V3b) de
 # usp_bootstrap(), B_max tirages atteints avec moins de B_MIN_DEGENERESCENCE
-# tirages retenus ; remplace alors MOTIF_MC_REPLIC_INSUFFISANTES et
+# tirages retenus, a B >= B_MIN_DEGENERESCENCE seulement (decision du
+# 11/10/2026) ; remplace alors MOTIF_MC_REPLIC_INSUFFISANTES et
 # MOTIF_MC_AUCUNE_REPLIC (substitution faite dans usp_bootstrap() seule).
 # Motif non degenere (hors de motifs_degeneres d'add()) : la regle actuelle
 # s'applique (repli nomme, diagnostic, ou test sans p-value ; politique de
@@ -4003,7 +4004,11 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
   # distinct. Sinon V1 : p-value sur les B tirages, calcul inchange.
   # A volumes constants, pi_t ne depend pas de delta et le regime de delta
   # estime est un artefact de l'optimiseur ; sous refit = FALSE (appel direct
-  # seulement), delta** n'existe pas (Q-240-1).
+  # seulement), delta** n'existe pas (Q-240-1). Motif de V1 : volumes
+  # constants teste avant delta au bord (decision du 11/10/2026), l'optimiseur
+  # rendant alors delta = 0 ou 1 ; meme ordre que la ligne « Position de
+  # delta » et que les lignes LR de usp_tests(). regime_obs decrit delta
+  # estime et reste bord0 ou bord1.
   reg <- usp_regime(fit$delta, fit$x)
   interieur <- function(d) is.finite(d) && !usp_regime(d, fit$x)$delta_au_bord
   regime_obs <- if (!reg$delta_au_bord) "interieur"
@@ -4014,8 +4019,8 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
     # V1 : p-values de Monte-Carlo, erreur de Monte-Carlo et B effectif, le
     # sens du rejet etant lu au catalogue USP_CATALOGUE_MC.
     mc <- .mc_p_values(sim, stats_obs, USP_CATALOGUE_MC, e_obs)
-    motif_v1 <- if (reg$delta_au_bord) "delta estime au bord"
-                else if (reg$volumes_constants) "volumes constants : regime de delta non identifie"
+    motif_v1 <- if (reg$volumes_constants) "volumes constants : regime de delta non identifie"
+                else if (reg$delta_au_bord) "delta estime au bord"
                 else "refit = FALSE : delta** non reestime"
     p_mc_regime <- list(
       regime_obs = regime_obs, variante = "V1", motif_v1 = motif_v1,
@@ -4066,8 +4071,12 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
     # Regime interieur rare (specification par. 4.1) : B_max atteint avec
     # moins de B_MIN_DEGENERESCENCE tirages retenus. Seuls les motifs de
     # nombre de tirages sont remplaces ; p_mc, err_mc, B_effectif et
-    # granularite_stat restent tels que rendus par .mc_p_values().
-    if (arret == "B_max" && n < B_MIN_DEGENERESCENCE) {
+    # granularite_stat restent tels que rendus par .mc_p_values(). Pas de
+    # substitution si B_cible < B_MIN_DEGENERESCENCE (decision du 11/10/2026,
+    # precision de Q-A4-9) : la cible elle-meme aurait donne
+    # MOTIF_MC_REPLIC_INSUFFISANTES, la cause est B et non la rarete.
+    if (arret == "B_max" && n < B_MIN_DEGENERESCENCE &&
+        B_cible >= B_MIN_DEGENERESCENCE) {
       k <- !is.na(mc$motif_mc) &
         mc$motif_mc %in% c(MOTIF_MC_REPLIC_INSUFFISANTES, MOTIF_MC_AUCUNE_REPLIC)
       mc$motif_mc[k] <- MOTIF_MC_REGIME_RARE
