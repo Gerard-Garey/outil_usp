@@ -904,9 +904,9 @@ ensemble calculé sur \code{aj})~; argument facultatif \code{res} (résidus de M
 ceux du contexte dans le bootstrap~; \code{NULL}~: calculés par \code{mw\_residus()}, issue~\#239)
 de \code{mw\_test\_exposant\_}\allowbreak\code{variance()} et
 \code{mw\_test\_homogeneite\_}\allowbreak\code{accident()} & statistiques des tests M1 à M6 (détail~: §\ref{sec:index-fonctions}) \\
-\code{.mw\_table()},\newline \code{.mw\_noms\_bloc()},\newline
-\code{.mw\_noms\_lignes\_}\newline\code{empilees()} & colonnes préallouées, noms de lignes~;
-vecteur d'un bloc~; noms et tailles des blocs & table \code{data.frame} assemblée en une fois, sous
+\code{.mw\_table()},\newline \code{.mw\_empiler()},\newline
+\code{.mw\_noms\_lignes\_}\newline\code{empilees()} & colonnes, noms de lignes~;
+blocs d'une colonne de développement, colonne source des noms~; vecteurs sources des noms (issue~\#250) & table \code{data.frame} assemblée en une fois, sous
 la forme exacte du résultat de \code{rbind.data.frame()} itéré, ordre des attributs compris, pour
 les tables de \code{mw\_residus()}, \code{mw\_test\_annees\_}\allowbreak\code{calendaires()},
 \code{mw\_test\_ordonnee\_}\allowbreak\code{origine()}, \code{mw\_test\_homogeneite\_}\allowbreak\code{f()},
