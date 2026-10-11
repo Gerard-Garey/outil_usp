@@ -7540,16 +7540,19 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
 
 
 # Pente commune de F(i,j) sur C(i,j) A EFFET DE COLONNE FIXE, ponderee par
-# C(i,j) conformement a l'hypothese de variance M2. Renvoie la statistique de
-# Student de la pente, ou NA si le modele n'est pas estimable.
+# C(i,j) / sigma_j^2 (moindres carres generalises, hypothese de variance M2).
+# Renvoie la statistique de Student de la pente, ou NA si le modele n'est pas
+# estimable.
 .mw_lm_intra <- function(res) {
   if (nrow(res) < 4 || stats::sd(res$C) == 0) return(NULL)
   # Ponderation des MOINDRES CARRES GENERALISES : Var(F(i,j)) = sigma_j^2 /
   # C(i,j), donc le poids exact est C(i,j) / sigma_j^2. Ponderer par C(i,j)
-  # seul serait insuffisant : sigma_j^2 varie de plusieurs ordres de grandeur
-  # entre la premiere et la derniere colonne, l'echelle residuelle serait
-  # dominee par les premieres et le test deviendrait inoperant (verifie par
-  # simulation : aucun rejet sous H0).
+  # seul ne respecte pas cette variance, sigma_j^2 variant fortement d'une
+  # colonne a l'autre. Mesure #119 (docs/tableaux/20261011-issue119-mw.md,
+  # T6, ligne (2) ; triangles 8 x 8 du plan reserve2, constat de simulation) :
+  # avec C(i,j) seul, la p de Student rejette sous H0 dans 4,8 a 6,0 % des cas
+  # a 0,10 (2,3 a 3,3 % a 0,05) selon la loi des erreurs : test conservateur,
+  # non inoperant.
   if (!("sigma_j" %in% names(res)) || any(!is.finite(res$sigma_j)) ||
       any(res$sigma_j <= 0)) return(NULL)
   res$w <- res$C / res$sigma_j^2
@@ -8168,10 +8171,17 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
   # reechantillonnage tire dans la loi empirique des residus OBSERVES : son
   # hypothese nulle est "les residus suivent leur propre loi empirique", et non
   # "les residus sont normaux". Une p-value de Monte-Carlo y serait vide de
-  # sens (verification par simulation : frequence de rejet nulle au lieu de
-  # 5 %). La normalite n'est d'ailleurs PAS une hypothese du modele de Mack :
+  # sens : mesure #119 (docs/tableaux/20261011-issue119-mw.md, T7 ; loi N,
+  # pool redresse, 500 triangles 8 x 8 du plan reserve2, B = 999, constat de
+  # simulation), la p de Monte-Carlo de W de Shapiro-Wilk (queue basse) et
+  # de D de Lilliefors (queue haute) ne rejette jamais (0 sur 500 a 0,10 et
+  # a 0,05), au lieu de 10 % et 5 % pour un test au niveau. La loi nulle
+  # propre de W sur les residus de Mack n'est pas non plus au niveau (meme
+  # fichier, T6 : 22 % de rejets a 0,10 sous erreurs gaussiennes ; issue
+  # #245). La normalite n'est d'ailleurs PAS une hypothese du modele de Mack :
   # l'annexe XVII, D(2)(h), ne specifie que les deux premiers moments. Elle est
-  # donc traitee comme un diagnostic descriptif, avec sa loi nulle propre.
+  # donc traitee comme un diagnostic descriptif, avec sa loi nulle propre,
+  # dont le niveau sur les residus de Mack reste a etablir (issue #245).
   # P-values de Monte-Carlo, erreur de Monte-Carlo et B effectif, le sens du
   # rejet etant lu au catalogue MW_CATALOGUE_MC (fonction partagee avec
   # usp_bootstrap()).
@@ -8219,8 +8229,10 @@ MW_CATALOGUE_MC <- list(
   # triangle. L'EFFET DE COLONNE EST INDISPENSABLE : le facteur f_j decroit
   # avec j alors que le cumule C(i,j) croit, de sorte qu'une regression
   # agregee sans terme d'annee de developpement capte cette relation mecanique
-  # et rejette H0 de facon quasi systematique (verifie par simulation : 100 %
-  # de rejets sous H0). L'ajout de facteur(j) ramene le test a ce qu'il
+  # et rejette H0 de facon quasi systematique (mesure #119,
+  # docs/tableaux/20261011-issue119-mw.md, T6, ligne (1) : 96,8 a 98,8 % de
+  # rejets sous H0 a 0,10, triangles 8 x 8 du plan reserve2, constat de
+  # simulation). L'ajout de facteur(j) ramene le test a ce qu'il
   # pretend mesurer : une dependance au volume A L'INTERIEUR de chaque
   # colonne. La statistique est la pente intra-colonne de .mw_pente_intra()
   # (cle renommee a l'issue #41 ; ADR 0003).
