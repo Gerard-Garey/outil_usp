@@ -377,3 +377,13 @@ Aucun seuil d'acceptation. Un dépassement de trois fois ces estimations est sig
 - **Q-240-4** — Quand B_max est atteint avec 50 ≤ B_eff < B, la garantie de #127 ne s'étend pas à B_eff. *Recommandation : l'accepter et la documenter* ; la mention de plancher existante suffit, et toute règle nouvelle relève de #181 (E2b).
 - **Q-240-5** — La graine du flux est consignée **même au bord**, où le flux n'est pas posé (valeur dérivée de `seed` ; `tirages` = B indique qu'il n'a pas servi). *Recommandation : oui.* Alternative : `NA` au bord.
 - **Q-240-6** — Collisions de graines (§ 5) : documentées seulement. *Recommandation : oui.*
+
+---
+
+> **Annotation du 11/10/2026 : point d'arrêt C1 franchi.** Le mainteneur approuve la spécification telle quelle (commit `50b0bd5`). Toutes les questions sont tranchées selon les recommandations :
+> - **Q-240-1** : V1 à volumes constants et sous `refit = FALSE`, avec `motif_v1` nommé ;
+> - **Q-240-2** : nature « Monte-Carlo (bootstrap parametrique, conditionnel au regime interieur de delta estime) » ;
+> - **Q-240-3** : les quatorze tests restent dans la batterie, U3 compris ;
+> - **Q-240-4** : la limite de la garantie de #127 à B_eff < B est acceptée et documentée ; toute règle nouvelle relève de #181 ;
+> - **Q-240-5** : la graine du flux est toujours consignée, au bord compris ;
+> - **Q-240-6** : les collisions de graines sont documentées seulement.
