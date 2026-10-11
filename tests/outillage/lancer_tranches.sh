@@ -57,7 +57,7 @@ case "$PROCESSUS" in ''|*[!0-9]*) echo "-j : entier attendu" >&2; exit 2 ;; esac
 [ "$PROCESSUS" -ge 1 ] || { echo "-j : au moins 1" >&2; exit 2; }
 command -v Rscript >/dev/null 2>&1 || { echo "Rscript introuvable" >&2; exit 2; }
 
-md5() { if command -v md5sum >/dev/null 2>&1; then md5sum "$1" | cut -d' ' -f1; else md5 -q "$1"; fi; }
+md5() { if command -v md5sum >/dev/null 2>&1; then md5sum "$1" | cut -d' ' -f1; else command md5 -q "$1"; fi; }
 utc() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 # Sortie terminee : derniere ligne non vide "FIN<TAB>..."
 terminee() { [ -f "$1" ] && [ "$(grep -v '^[[:space:]]*$' "$1" | tail -n 1 | cut -f1)" = "FIN" ]; }

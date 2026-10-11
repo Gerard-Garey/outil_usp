@@ -65,7 +65,7 @@ if [ "$BLANC" -eq 0 ]; then
     echo "avertissement : identite git du worktree '$(git -C "$WT" config user.name) <$(git -C "$WT" config user.email)>' (attendue pour Claude : Claude <noreply@anthropic.com>)" >&2
 fi
 
-md5() { if command -v md5sum >/dev/null 2>&1; then md5sum "$1" | cut -d' ' -f1; else md5 -q "$1"; fi; }
+md5() { if command -v md5sum >/dev/null 2>&1; then md5sum "$1" | cut -d' ' -f1; else command md5 -q "$1"; fi; }
 utc() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 terminee() { [ -f "$1" ] && [ "$(grep -v '^[[:space:]]*$' "$1" | tail -n 1 | cut -f1)" = "FIN" ]; }
 

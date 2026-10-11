@@ -33,7 +33,7 @@ done
 [ -n "$JOURNAL" ] || JOURNAL="$DOSSIER/JOURNAL.md"
 [ -f "$JOURNAL" ] || { echo "JOURNAL introuvable : $JOURNAL" >&2; exit 2; }
 
-md5() { if command -v md5sum >/dev/null 2>&1; then md5sum "$1" | cut -d' ' -f1; else md5 -q "$1"; fi; }
+md5() { if command -v md5sum >/dev/null 2>&1; then md5sum "$1" | cut -d' ' -f1; else command md5 -q "$1"; fi; }
 terminee() { [ -f "$1" ] && [ "$(grep -v '^[[:space:]]*$' "$1" | tail -n 1 | cut -f1)" = "FIN" ]; }
 
 ko=0; n_ok=0
