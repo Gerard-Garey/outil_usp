@@ -13,8 +13,10 @@
 #    JOURNAL : defaut DOSSIER/JOURNAL.md.
 #  Controles :
 #    - chaque sortie terminee (*.txt, derniere ligne non vide "FIN<TAB>...")
-#      a une ligne "- Sortie <nom> : md5 <md5>" au JOURNAL, de md5 egal a
-#      celui du fichier ;
+#      a une ligne et une seule "- Sortie <nom> : md5 <md5>" au JOURNAL, en
+#      debut de ligne, de md5 egal a celui du fichier (#248 : une ligne en
+#      double, meme de md5 egal, est un ecart, comme pour --combiner
+#      --journal) ;
 #    - chaque sortie citee au JOURNAL existe dans DOSSIER et a ce md5 ;
 #    - les sorties partielles (sans FIN) sont listees, sans erreur.
 #  Code de sortie : 0 si tout concorde, 1 sinon.
@@ -41,16 +43,17 @@ for f in "$DOSSIER"/*.txt; do
   [ -e "$f" ] || continue
   nom=$(basename "$f")
   if ! terminee "$f"; then echo "PARTIELLE $nom (sans FIN)"; continue; fi
-  j=$(grep -F -- "- Sortie $nom : md5 " "$JOURNAL" | sed -n 's/^.* : md5 \([0-9a-f]\{32\}\).*$/\1/p' | sort -u)
+  j=$(awk -v n="$nom" 'index($0, "- Sortie " n " : md5 ") == 1 { r = substr($0, length("- Sortie " n " : md5 ") + 1); m = substr(r, 1, 32); c = substr(r, 33, 1); if (length(m) == 32 && m !~ /[^0-9a-f]/ && (c == "" || c == "," || c == " " || c == "\t" || c == "\r")) print m }' "$JOURNAL")
   m=$(md5 "$f")
   if [ -z "$j" ]; then echo "ABSENTE DU JOURNAL $nom ($m)"; ko=1
-  elif [ "$(printf '%s\n' "$j" | wc -l)" -ne 1 ] || [ "$j" != "$m" ]; then echo "DIFFERENTE $nom : fichier $m, JOURNAL $(echo $j)"; ko=1
+  elif [ "$(printf '%s\n' "$j" | wc -l)" -ne 1 ]; then echo "LIGNES MULTIPLES $nom : $(printf '%s\n' "$j" | wc -l | tr -d ' ') lignes au JOURNAL (une attendue), md5 $(echo $j)"; ko=1
+  elif [ "$j" != "$m" ]; then echo "DIFFERENTE $nom : fichier $m, JOURNAL $j"; ko=1
   else n_ok=$((n_ok + 1)); fi
 done
 while read -r nom m; do
   [ -n "$nom" ] || continue
   if [ ! -f "$DOSSIER/$nom" ]; then echo "CITEE AU JOURNAL, ABSENTE $nom"; ko=1
   elif [ "$(md5 "$DOSSIER/$nom")" != "$m" ]; then echo "CITEE AU JOURNAL, md5 DIFFERENT $nom"; ko=1; fi
-done < <(sed -n 's/^- Sortie \([^ ]*\) : md5 \([0-9a-f]\{32\}\).*$/\1 \2/p' "$JOURNAL")
+done < <(awk 'index($0, "- Sortie ") == 1 { r = substr($0, 10); k = index(r, " : md5 "); if (k < 2) next; n = substr(r, 1, k - 1); if (n ~ /[ \t]/) next; r = substr(r, k + 7); m = substr(r, 1, 32); c = substr(r, 33, 1); if (length(m) == 32 && m !~ /[^0-9a-f]/ && (c == "" || c == "," || c == " " || c == "\t" || c == "\r")) print n, m }' "$JOURNAL")
 echo "BILAN : $n_ok sortie(s) terminee(s) conforme(s) au JOURNAL ; $( [ "$ko" -eq 0 ] && echo 'aucun ecart' || echo 'ECARTS ci-dessus')"
 exit "$ko"

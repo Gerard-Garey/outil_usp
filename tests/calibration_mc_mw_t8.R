@@ -87,8 +87,10 @@
 #  est ecartee et recalculee ; sont toujours recalcules, et doivent redonner
 #  la ligne reprise hors durees (controle (reprise), INTEGRITE ECHEC sinon) :
 #  le premier triangle admis (echantillon des controles (i1), (i2), (s)), la
-#  derniere ligne reprise et, en mode oracle (aucun controle par triangle),
-#  un echantillon regulier de N_ECH_REPRISE_ORACLE lignes reprises.
+#  derniere ligne reprise et un echantillon regulier de lignes reprises
+#  (N_ECH_REPRISE_ORACLE en mode oracle, N_ECH_REPRISE_TRANCHE en mode
+#  tranche depuis #248 ; aucun en sous-mesure N) : une ligne interieure
+#  alteree n'est detectee que si elle tombe dans cet echantillon.
 #  --prevol (par. 8) : sans rien ecrire, mesure c_b (mw_bootstrap() a
 #  B = 999 et mw_tests(), cache de la loi nulle de Shapiro-Wilk chaud), le
 #  debit agrege a 1, 2, 3 et 4 processus concurrents (sous-processus
@@ -110,12 +112,17 @@
 #  correspondance ligne <-> cle differents ; couverture de 1..R_(loi, pool)
 #  (et 1..500 pour la sous-mesure) qui n'est pas exactement une fois ; loi
 #  du niveau sans oracle, ou oracle de taille differente ; invariant (d)
-#  faux ; md5 des valeurs de l'oracle different de MD5_VALEURS ; avec
-#  --journal : md5 d'une sortie absent du JOURNAL ou different, ligne
-#  "- Empreinte sans commentaires : <md5>" absente, multiple ou differente,
+#  faux (dont une p de #119 hors de [0, 1] ou illisible, #248) ; md5 des
+#  valeurs de l'oracle different de MD5_VALEURS ; avec --journal : pour une
+#  sortie, ligne "- Sortie <nom> : md5 <md5>" (en debut de ligne) absente,
+#  multiple ou de md5 different de celui du fichier (#248 : un md5 cite
+#  ailleurs ne suffit plus), ligne "- Empreinte sans commentaires : <md5>"
+#  absente, multiple ou differente,
 #  ligne "- Niveau : Lk" differente de --niveau. Lignes attendues au
 #  JOURNAL (une chacune) : "- Debit : <texte>" (avec ou sans accent),
-#  "- Niveau : Lk", "- Empreinte sans commentaires : <md5>".
+#  "- Niveau : Lk", "- Empreinte sans commentaires : <md5>", et une par
+#  sortie : "- Sortie <nom> : md5 <md5>[, suite libre]" (format de
+#  tests/outillage/synchroniser_sauvegarde.sh).
 #  --ecrire (avec --combiner, --niveau, --journal et --brut obligatoires) :
 #  ecrit dans docs/tableaux/ (date du jour), nouveaux et jamais patches :
 #    <AAAAMMJJ>-issue206-calibration-mw.md et -calibration-mw-brut.tsv,
@@ -128,7 +135,10 @@
 #  propre, code hors du depot, sortie --essai, --reduit, plan du niveau
 #  incomplet, garde_ecrasement() (#173) sans --remplacer, chemin absolu ou
 #  /tmp dans un fichier a ecrire (D-a de #242). Gardes anticipees (#205).
-#  --sortie DOSSIER : memes fichiers HORS du depot (jamais ecrases).
+#  --sortie DOSSIER : memes fichiers HORS du depot (jamais ecrases),
+#  ecrits avec la copie --brut par lot (#248) : tous produits dans des
+#  dossiers temporaires voisins de leurs cibles, md5 des copies controles, puis
+#  renommes ; une erreur ne laisse aucun d'eux (ni temporaire) en place.
 #
 #  Fonctions reprises par copie declaree de tests/p_conditionnelle_regime_t8.R
 #  (ce script execute son calcul au chargement) : plateforme_calcul(),
@@ -1178,13 +1188,37 @@ lire_sortie <- function(f) {
        reprise = vapply(champs("REPRISE"), paste, "", collapse = " "))
 }
 # Invariants (d) d'une sortie, lus sur les champs (tranche) : B_eff <= 999,
-# p sur la grille ; statut connu.
+# p sur la grille ; statut connu ; p hors catalogue Monte-Carlo dans [0, 1]
+# (#248, constat m2) : p des regressions de #119 (p_agr, p_ceff), p
+# asymptotiques et exactes des lignes (pas:, pex:), p de la sous-mesure N.
+# Lecture sur les champs BRUTS (avant as.numeric(), qui changerait une
+# valeur corrompue, "0,7", "1.5x", "abc", en NA) : seul le marqueur
+# d'absence "NA" est admis (f17() l'ecrit pour toute valeur non finie, et
+# champs_tranche(), champs_sm() et champs_erreur() pour les lignes refusees
+# ou en erreur ; aucun autre marqueur n'est produit dans ces colonnes) ;
+# toute autre valeur doit etre un nombre decimal (forme de sprintf("%.17g"))
+# compris dans [0, 1]. Sont donc refuses : champ vide, "NaN", "Inf", "-Inf",
+# virgule decimale, texte, et toute valeur hors de [0, 1].
+COLS_P01 <- list(tranche = c("p_agr", "p_ceff", grep("^(pas|pex):", COLS_TRANCHE, value = TRUE)),
+                 sm = c("pW_bas", "pW_haut", "pD_bas", "pD_haut"), oracle = character(0))
+RE_NOMBRE <- "^-?[0-9]+(\\.[0-9]+)?([eE][-+]?[0-9]+)?$"
+p_hors_01 <- function(donnees, cols_mode, cols) {
+  if (!length(donnees) || !length(cols)) return(character(0))
+  M <- do.call(rbind, donnees); colnames(M) <- cols_mode
+  cols[vapply(cols, function(k) {
+    x <- M[, k]; ab <- x == "NA"
+    v <- suppressWarnings(as.numeric(x))
+    any(!ab & (!grepl(RE_NOMBRE, x) | is.na(v) | v < 0 | v > 1))
+  }, logical(1))]
+}
 invariants_sortie <- function(p) {
   err <- character(0)
   D <- en_table(p$donnees, COLS[[p$mode]])
   b <- if (p$mode == "oracle") D$k else D$b
   if (!identical(as.integer(sort(b)), seq.int(p$debut, p$fin))) err <- c(err, "indices des lignes differents de debut..fin")
   if (!all(D$statut %in% c("admis", "refuse"))) err <- c(err, "statut inconnu")
+  h01 <- p_hors_01(p$donnees, COLS[[p$mode]], COLS_P01[[p$mode]])
+  if (length(h01)) err <- c(err, sprintf("p hors de [0, 1] ou illisible (%s)", paste(h01, collapse = ", ")))
   if (p$mode == "tranche") {
     A <- D[D$statut == "admis", , drop = FALSE]
     for (pf in c("R", "B")) {
@@ -1204,6 +1238,81 @@ invariants_sortie <- function(p) {
     if (any(A$nW > B_BOOT | A$nD > B_BOOT)) err <- c(err, "invariant (d) faux (B_eff > 999)")
   }
   err
+}
+
+# Ligne du JOURNAL d'une sortie (#248) : exactement une ligne
+# "- Sortie <nom> : md5 <md5>" (en debut de ligne, suite libre apres une
+# virgule ou un blanc, format de synchroniser_sauvegarde.sh), de md5 egal a
+# celui du fichier. NULL si conforme, sinon le motif du refus. Meme regle
+# que tests/outillage/controler_md5.sh.
+ecart_journal_sortie <- function(jl, nom, md5) {
+  m <- regmatches(jl, regexec("^- Sortie (\\S+) : md5 ([0-9a-f]{32})([,[:space:]]|$)", jl))
+  m <- Filter(function(x) length(x) && identical(x[2], nom), m)
+  if (length(m) != 1L)
+    return(sprintf("%d ligne(s) \"- Sortie %s : md5 <md5>\" au JOURNAL (une attendue)", length(m), nom))
+  if (!identical(m[[1]][3], md5))
+    return(sprintf("md5 de %s au JOURNAL (%s) different de celui du fichier (%s)", nom, m[[1]][3], md5))
+  NULL
+}
+
+# Ecriture par lot (#248, --combiner --sortie et --brut) : ecrire(cible,
+# lignes) et copier(source, cible, md5) produisent le fichier dans un
+# dossier temporaire voisin de la cible (tempfile() du dossier de la cible :
+# le renommage reste sur le meme systeme de fichiers) ; seuls les fichiers
+# copies (copier()) ont leur md5 controle contre une valeur attendue, les
+# fichiers ecrits (ecrire()) ne le sont pas. valider() verifie que toutes
+# les cibles sont encore absentes, puis les renomme une a une
+# (file.rename()) et retire les temporaires ; annuler() retire les cibles
+# deja renommees par ce lot et les temporaires. Toute anomalie leve une
+# erreur (stop()), jamais un quit() : l'appelant annule avant de refuser.
+# Limite : entre la verification d'absence et chaque file.rename() reste
+# une courte fenetre de course ; une cible creee pendant cette fenetre par
+# un autre processus serait ecrasee sous POSIX (file.rename() remplace la
+# destination) puis retiree par annuler() en cas d'erreur ulterieure.
+ecriture_par_lot <- function() {
+  tmp <- character(0); faits <- character(0); cibles <- character(0)
+  temporaire <- function(cible) {
+    d <- dirname(cible)
+    if (is.na(tmp[d])) {
+      t <- tempfile(".lot248-", tmpdir = d)
+      if (!dir.create(t)) stop("dossier temporaire non cree a cote de ", basename(cible))
+      tmp[d] <<- t
+    }
+    file.path(tmp[[d]], basename(cible))
+  }
+  ajouter <- function(cible) {
+    if (cible %in% cibles) stop("cible en double : ", basename(cible))
+    if (file.exists(cible)) stop("cible deja presente, jamais ecrasee : ", basename(cible))
+    cibles <<- c(cibles, cible)
+    temporaire(cible)
+  }
+  list(
+    ecrire = function(cible, lignes) {
+      f <- ajouter(cible)
+      con <- file(f, open = "wb"); on.exit(close(con))
+      writeLines(utf8(lignes), con, useBytes = TRUE)
+    },
+    copier = function(src, cible, md5_attendu) {
+      f <- ajouter(cible)
+      if (!isTRUE(file.copy(src, f)) || !identical(md5_fichier(f), md5_attendu)) stop("copie refusee ou md5 different : ", basename(cible))
+    },
+    cibles = function() cibles,
+    temporaire = function(cible) file.path(tmp[[dirname(cible)]], basename(cible)),
+    valider = function() {
+      deja <- cibles[file.exists(cibles)]
+      if (length(deja)) stop("cible(s) apparue(s) pendant la combinaison, jamais ecrasee(s) : ", paste(basename(deja), collapse = ", "))
+      for (cible in cibles) {
+        if (!file.rename(file.path(tmp[[dirname(cible)]], basename(cible)), cible)) stop("renommage refuse : ", basename(cible))
+        faits <<- c(faits, cible)
+      }
+      unlink(unname(tmp), recursive = TRUE)
+      invisible(TRUE)
+    },
+    annuler = function() {
+      unlink(faits)
+      unlink(unname(tmp), recursive = TRUE)
+      invisible(TRUE)
+    })
 }
 
 ###############################################################################
@@ -1236,9 +1345,8 @@ if (MODE == "combiner") {
     if (!file.exists(OPT_JOURNAL)) refuser("--journal introuvable")
     jl <- readLines(OPT_JOURNAL, warn = FALSE, encoding = "UTF-8")
     for (p in parts) {
-      li <- jl[grepl(p$nom, jl, fixed = TRUE)]
-      md <- unique(unlist(regmatches(li, gregexpr("\\b[0-9a-f]{32}\\b", li))))
-      if (!length(li) || !p$md5 %in% md) refuser("--journal : md5 de ", p$nom, " (", p$md5, ") absent du JOURNAL ou different")
+      e <- ecart_journal_sortie(jl, p$nom, p$md5)
+      if (!is.null(e)) refuser("--journal : ", e)
     }
     ld <- Filter(length, regmatches(jl, regexec("^\\s*- D(\u00e9|e)bit : (.*\\S)\\s*$", jl)))
     if (length(ld) != 1L) refuser("--journal : ", length(ld), " ligne(s) \"- Debit : <texte>\" (une attendue)")
@@ -1430,16 +1538,26 @@ if (MODE == "combiner") {
     ecrire(CIBLES[["jcomb"]], journal_comb(ecr))
     message("ecrit : ", paste(NOMS_SORTIE, collapse = ", "))
   } else if (!is.na(OPT_SORTIE) || !is.na(OPT_BRUT)) {
-    if (!is.na(OPT_BRUT)) copier(F_BRUT_TMP, OPT_BRUT, MD5_BRUT)
-    if (!is.na(OPT_SORTIE)) {
-      cib <- file.path(OPT_SORTIE, NOMS_SORTIE); names(cib) <- names(NOMS_SORTIE)
-      copier(F_BRUT_TMP, cib[["brut"]], MD5_BRUT)
-      ecrire(cib[["md"]], sortie); ecrire(cib[["md119"]], sortie119)
-      if (!is.na(OPT_JOURNAL)) copier(OPT_JOURNAL, cib[["journal"]], md5_fichier(OPT_JOURNAL))
-      ecr <- vapply(intersect(c("md", "brut", "md119", "journal"), names(cib)[file.exists(cib)]), function(k) sprintf("%s md5 %s", NOMS_SORTIE[[k]], md5_fichier(cib[[k]])), "")
-      ecrire(cib[["jcomb"]], journal_comb(ecr))
-      message("ecrit dans --sortie : ", paste(basename(cib[file.exists(cib)]), collapse = ", "))
-    }
+    # Ecriture par lot (#248) : chaque fichier est produit dans un dossier
+    # temporaire voisin de sa cible (meme systeme de fichiers), md5 controle,
+    # puis tous sont renommes vers leurs cibles, encore absentes ; toute
+    # erreur retire les temporaires et les cibles deja renommees (jamais un
+    # fichier preexistant) avant le refus : aucun etat mixte.
+    lot <- ecriture_par_lot()
+    tryCatch({
+      if (!is.na(OPT_BRUT)) lot$copier(F_BRUT_TMP, OPT_BRUT, MD5_BRUT)
+      if (!is.na(OPT_SORTIE)) {
+        cib <- file.path(OPT_SORTIE, NOMS_SORTIE); names(cib) <- names(NOMS_SORTIE)
+        lot$copier(F_BRUT_TMP, cib[["brut"]], MD5_BRUT)
+        lot$ecrire(cib[["md"]], sortie); lot$ecrire(cib[["md119"]], sortie119)
+        if (!is.na(OPT_JOURNAL)) lot$copier(OPT_JOURNAL, cib[["journal"]], md5_fichier(OPT_JOURNAL))
+        k_ecr <- intersect(c("md", "brut", "md119", "journal"), names(cib)[cib %in% lot$cibles()])
+        ecr <- vapply(k_ecr, function(k) sprintf("%s md5 %s", NOMS_SORTIE[[k]], md5_fichier(lot$temporaire(cib[[k]]))), "")
+        lot$ecrire(cib[["jcomb"]], journal_comb(ecr))
+      }
+      lot$valider()
+    }, error = function(e) { lot$annuler(); refuser("ecriture par lot annulee, rien d'ecrit : ", conditionMessage(e)) })
+    for (f in lot$cibles()) message("ecrit (md5 ", md5_fichier(f), ") : ", basename(f))
   }
   unlink(F_BRUT_TMP)
   quit(status = 0L)
@@ -1897,9 +2015,21 @@ ENTETE <- utf8(c(paste0("PARAMETRES\t", PAR), sprintf("TRANCHE\t%d\t%d\t%s", DEB
 # Lignes reprises recalculees d'office (M1 de l'audit de #206) : une ligne
 # tronquee au milieu d'un champ garde le bon nombre de champs ; elle est
 # ecartee si le fichier ne finit pas par un saut de ligne, et la derniere
-# ligne reprise (plus, en mode oracle, un echantillon regulier) est
-# recalculee et comparee hors durees.
+# ligne reprise, plus un echantillon regulier de lignes reprises (mode
+# oracle et, depuis #248 (constat m1), mode tranche : une ligne interieure
+# alteree n'etait pas recalculee), sont recalculees et comparees hors
+# durees. Echantillon regulier : N lignes d'indices regulierement espaces
+# dans les lignes reprises triees, la premiere et la derniere comprises.
+# Mode sm : aucun echantillon (cout d'un triangle de la sous-mesure).
 N_ECH_REPRISE_ORACLE <- 50L
+N_ECH_REPRISE_TRANCHE <- 10L
+N_ECH_REPRISE <- c(tranche = N_ECH_REPRISE_TRANCHE, oracle = N_ECH_REPRISE_ORACLE, sm = 0L)
+lignes_recalcul_reprise <- function(b_ok, mode) {
+  if (!length(b_ok)) return(integer(0))
+  bo <- sort(b_ok); n <- min(N_ECH_REPRISE[[mode]], length(bo))
+  ech <- if (n > 0L) bo[unique(round(seq(1, length(bo), length.out = n)))] else integer(0)
+  unique(c(b_ok[length(b_ok)], ech))
+}
 REPRIS <- list(); N_IGNOREES <- 0L; N_NON_TERMINEE <- 0L; TXT_REPRISE <- NULL; B_RECALC_FORCE <- integer(0)
 if (!is.na(OPT_REPRENDRE)) {
   la <- readLines(OPT_REPRENDRE, warn = FALSE, encoding = "UTF-8")
@@ -1920,14 +2050,7 @@ if (!is.na(OPT_REPRENDRE)) {
     vapply(rp, function(x) length(x) >= 2L && x[2] %in% c("admis", "refuse"), logical(1))
   if (anyDuplicated(bs[ok])) { message("--reprendre : REFUS -- lignes en double"); quit(status = 1L) }
   REPRIS <- stats::setNames(rp[ok], bs[ok]); N_IGNOREES <- sum(!ok) + N_NON_TERMINEE
-  b_ok <- bs[ok]
-  if (length(b_ok)) {
-    B_RECALC_FORCE <- b_ok[length(b_ok)]
-    if (MODE == "oracle") {
-      bo <- sort(b_ok)
-      B_RECALC_FORCE <- unique(c(B_RECALC_FORCE, bo[unique(round(seq(1, length(bo), length.out = min(N_ECH_REPRISE_ORACLE, length(bo)))))]))
-    }
-  }
+  B_RECALC_FORCE <- lignes_recalcul_reprise(bs[ok], MODE)
   TXT_REPRISE <- c(basename(OPT_REPRENDRE), md5_fichier(OPT_REPRENDRE))
 }
 
@@ -1993,14 +2116,14 @@ if (MODE == "tranche") {
   controle(!length(B_ECH), sprintf("(b) noms des p = 13 cl\u00e9s du catalogue, dans son ordre, et motifs d'absence connus, \u00e0 chaque triangle calcul\u00e9%s", if (length(B_ECH)) paste0(" : \u00e9checs ", liste_cel(B_ECH, 20)) else ""))
   e_inv <- invariants_sortie(list(mode = "tranche", donnees = DATA, debut = DEBUT, fin = FIN, pools = OPT_POOLS))
   controle(!length(D_ECH) && !length(e_inv[!grepl("statut inconnu", e_inv)]),
-           sprintf("(d) B_eff \u2264 999 et p sur la grille k/(B_eff + 1) (\u00d7 2 en bilat\u00e9ral, plafonn\u00e9e \u00e0 1), sur les objets et sur les champs de chaque ligne REP ; admis + refus\u00e9s + en erreur = %d%s",
+           sprintf("(d) B_eff \u2264 999 et p sur la grille k/(B_eff + 1) (\u00d7 2 en bilat\u00e9ral, plafonn\u00e9e \u00e0 1), sur les objets et sur les champs de chaque ligne REP ; p des r\u00e9gressions de #119, p asymptotiques et exactes dans [0, 1] (#248) ; admis + refus\u00e9s + en erreur = %d%s",
                    FIN - DEBUT + 1L, if (length(c(D_ECH, e_inv))) paste0(" : ", paste(c(D_ECH, e_inv), collapse = " ; ")) else ""))
 }
 if (MODE == "sm") {
   controle(!is.null(S_CTL) && all(S_CTL), sprintf("(s) premier triangle admis (b = %s) : les 999 triangles bootstrap r\u00e9g\u00e9n\u00e9r\u00e9s par mw_simuler_triangle() sous S(N, b) redonnent par .mw_stats() les p_mc et B effectifs de mw_bootstrap() (identical()) : %s",
                                                   ECH, if (is.null(S_CTL)) "aucun triangle admis calcul\u00e9" else paste(sprintf("%s %s", names(S_CTL), ifelse(S_CTL, "oui", "NON")), collapse = ", ")))
   e_inv <- invariants_sortie(list(mode = "sm", donnees = DATA, debut = DEBUT, fin = FIN, pools = "-"))
-  controle(!length(e_inv[!grepl("statut inconnu", e_inv)]), sprintf("(d) B_eff \u2264 999 sur chaque ligne SM ; admis + refus\u00e9s + en erreur = %d%s", FIN - DEBUT + 1L,
+  controle(!length(e_inv[!grepl("statut inconnu", e_inv)]), sprintf("(d) B_eff \u2264 999 et p dans [0, 1] (#248) sur chaque ligne SM ; admis + refus\u00e9s + en erreur = %d%s", FIN - DEBUT + 1L,
                                                                     if (length(e_inv)) paste0(" : ", paste(e_inv, collapse = " ; ")) else ""))
 }
 if (MODE == "oracle") {
@@ -2010,7 +2133,7 @@ if (MODE == "oracle") {
 if (!is.null(TXT_REPRISE))
   controle(!length(ECH_REPRISE), sprintf("(reprise) %s (md5 %s) : en-t\u00eate identique ; %d ligne(s) reprise(s) telle(s) quelle(s), %d recalcul\u00e9e(s) (\u00e9chantillon des contr\u00f4les, derni\u00e8re ligne reprise%s) et identique(s) hors dur\u00e9es, %d ligne(s) illisible(s), tronqu\u00e9e(s) ou en erreur ignor\u00e9e(s), dont %d derni\u00e8re ligne non termin\u00e9e par un saut de ligne \u00e9cart\u00e9e%s",
                                          TXT_REPRISE[1], TXT_REPRISE[2], N_REPRIS, N_RECALC - length(ECH_REPRISE),
-                                         if (MODE == "oracle") sprintf(", \u00e9chantillon r\u00e9gulier d'au plus %d lignes", N_ECH_REPRISE_ORACLE) else "",
+                                         if (N_ECH_REPRISE[[MODE]] > 0L) sprintf(", \u00e9chantillon r\u00e9gulier d'au plus %d lignes", N_ECH_REPRISE[[MODE]]) else "",
                                          N_IGNOREES, N_NON_TERMINEE,
                                          if (length(ECH_REPRISE)) paste0(" ; diff\u00e9rentes : ", paste(ECH_REPRISE, collapse = ", ")) else ""))
 if (length(ECH_REPRISE))
