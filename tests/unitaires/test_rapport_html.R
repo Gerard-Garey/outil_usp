@@ -16,7 +16,11 @@
 #  contraste (issue #162) ; vue Detail : commentaire du moteur long replie
 #  sans texte retire, colonne Fonction (champ fonction, #111), commentaire du
 #  moteur dans l'annexe des tests exclus, texte entier dans le rapport fige
-#  (issue #178).
+#  (issue #178) ; ligne "P-values Monte-Carlo" de l'en-tete
+#  (texte_p_mc_regime(), issue #240, Q-A4-12 (B)) : V3b arret a la cible et a
+#  B_max, V1 au bord et a volumes constants, objet sans p_mc_regime, reserve2 ;
+#  graine du flux (metadata$seed_flux_regime) dans valeurs_generateur() et
+#  l'en-tete, absente en reserve2.
 #  References : RFC 4648, section 10 (vecteurs de test base64) ; regle de
 #  selection de l'onglet Tests (filtrer_selection).
 #  La branche PNG est exercee partout ou capabilities("png") est vrai ; la
@@ -949,5 +953,116 @@ verifier("Objet non fonction rbind dans l'environnement global : section Control
            !inherits(r5, "error") && grepl("<table", sect(f0), fixed = TRUE) &&
              identical(sect(f5), sect(f0))
          })
+
+## --- Ligne "P-values Monte-Carlo" (issue #240, Q-A4-12 (B)) ------------------
+# texte_p_mc_regime() lit res$bootstrap$p_mc_regime sans calcul ; la ligne
+# est ecrite dans la section 1 du rapport fige, apres la granularite et avant
+# le seuil alpha, et absente pour reserve2 et pour un objet sans p_mc_regime.
+# Jeux : res_ln (delta estime au bord 1, V1) ; donnees_ln_interieur.csv (J2,
+# interieur, V3b, arret a la cible : 510 tirages, mesure du 11/10/2026) ;
+# replication b = 1455 de #229 sur les volumes de donnees_ln.csv (interieur,
+# regime interieur rare : arret a B_max = 2500 tirages, 97 retenus) ; volumes
+# constants rep(110, 8) (delta estime au bord 0, motif du bord prioritaire,
+# specification par. 2.2) ; p_mc_regime au motif "volumes constants" pose a la
+# main (delta estime interieur a volumes constants non atteint par
+# usp_ajuster(), qui n'y libere jamais delta) ; res_mw (reserve2).
+.lancer_ln <- function(x, y) run_engine(xt = x, yt = y, methode = "premium", segment = 1,
+                                        B = 99, nature_donnees = "brutes")
+.ln_int <- utils::read.csv(file.path(.racine, "tests", "donnees", "donnees_ln_interieur.csv"))
+.ln_j1 <- utils::read.csv(file.path(.racine, "tests", "donnees", "donnees_ln.csv"))
+res_cible <- .lancer_ln(.ln_int$xt, .ln_int$yt)
+res_bmax <- .lancer_ln(.ln_j1$xt, c(80.061271676886193, 62.506419725192131, 75.947508440386684,
+  73.078214305038301, 81.70127631154007, 88.287475207907406, 89.71478845147162, 107.19756511252216))
+res_vc <- .lancer_ln(rep(110, 8), yt)
+res_vc_motif <- res_cible
+res_vc_motif$bootstrap$p_mc_regime <- modifyList(res_cible$bootstrap$p_mc_regime, list(
+  regime_obs = "interieur", variante = "V1",
+  motif_v1 = "volumes constants : regime de delta non identifie",
+  B_cible = NA_real_, B_max = NA_real_, tirages = 99, retenus_v1 = NA_real_, retenus = NA_real_,
+  rejets_flux = c(reajustement = NA_real_, hors_regime = NA_real_, statistiques = NA_real_),
+  arret = NA_character_))
+res_sans <- res_cible
+res_sans$bootstrap$p_mc_regime <- NULL
+TXT_CIBLE <- paste("conditionnelles au r\u00e9gime int\u00e9rieur de delta estim\u00e9 \u2014",
+                   "510 tirages, 99 retenus, arr\u00eat \u00e0 la cible (B = 99 retenus)")
+TXT_BMAX <- paste("conditionnelles au r\u00e9gime int\u00e9rieur de delta estim\u00e9 \u2014",
+                  "2500 tirages, 97 retenus, arr\u00eat \u00e0 B_max (2500 tirages),",
+                  "cible B = 99 non atteinte")
+verifier("p_mc_regime : jeux au contrat attendu (V3b cible, V3b B_max, V1 bord 1, V1 bord 0, reserve2 sans champ)",
+         identical(res_cible$bootstrap$p_mc_regime[c("variante", "tirages", "retenus", "arret")],
+                   list(variante = "V3b", tirages = 510, retenus = 99, arret = "cible")) &&
+           identical(res_bmax$bootstrap$p_mc_regime[c("variante", "tirages", "retenus", "arret")],
+                     list(variante = "V3b", tirages = 2500, retenus = 97, arret = "B_max")) &&
+           identical(res_ln$bootstrap$p_mc_regime[c("regime_obs", "variante")],
+                     list(regime_obs = "bord1", variante = "V1")) &&
+           identical(res_vc$bootstrap$p_mc_regime[c("regime_obs", "variante", "motif_v1")],
+                     list(regime_obs = "bord0", variante = "V1", motif_v1 = "delta estime au bord")) &&
+           is.null(res_mw$bootstrap$p_mc_regime))
+verifier("texte_p_mc_regime() : V3b, arret a la cible (tirages, retenus, B)",
+         identical(texte_p_mc_regime(res_cible), TXT_CIBLE))
+verifier("texte_p_mc_regime() : V3b, arret a B_max (tirages, retenus, B_max, cible non atteinte)",
+         identical(texte_p_mc_regime(res_bmax), TXT_BMAX))
+verifier("texte_p_mc_regime() : V1, delta estime au bord 1",
+         identical(texte_p_mc_regime(res_ln),
+                   "marginales, sur les 99 tirages (delta estim\u00e9 au bord 1)"))
+verifier("texte_p_mc_regime() : V1, volumes constants (delta estime au bord 0, motif du bord prioritaire)",
+         identical(texte_p_mc_regime(res_vc),
+                   "marginales, sur les 99 tirages (delta estim\u00e9 au bord 0)"))
+verifier("texte_p_mc_regime() : V1, motif volumes constants (p_mc_regime pose a la main)",
+         identical(texte_p_mc_regime(res_vc_motif), paste(
+           "marginales, sur les 99 tirages (volumes constants : r\u00e9gime de delta non",
+           "identifi\u00e9)")))
+verifier("texte_p_mc_regime() : objet sans p_mc_regime -> NULL, sans erreur",
+         is.null(texte_p_mc_regime(res_sans)))
+verifier("texte_p_mc_regime() : reserve2 -> NULL, sans erreur",
+         is.null(texte_p_mc_regime(res_mw)))
+# Section 1 du rapport fige (en-tete de gel).
+.sect_gel <- function(res) {
+  f <- tempfile(fileext = ".html")
+  rapport_html(res, NULL, f, interactif = FALSE, identite = idt)
+  entre(lire(f), "<h2 id='gel'>", "<h3>Empreintes</h3>")
+}
+.ligne_mc <- function(sect, texte) {
+  i_gran <- regexpr("champ granularite_stat)", sect, fixed = TRUE)
+  i_mc <- regexpr(paste0("<td>P-values Monte-Carlo</td><td>", .echap_html(texte), "</td>"),
+                  sect, fixed = TRUE)
+  i_alpha <- regexpr("Seuil alpha des verdicts", sect, fixed = TRUE)
+  i_gran > 0 && i_mc > i_gran && i_alpha > i_mc && compte(sect, "P-values Monte-Carlo") == 1L
+}
+verifier("rapport fige : ligne P-values Monte-Carlo (V3b, cible) entre la granularite et le seuil alpha",
+         .ligne_mc(.sect_gel(res_cible), TXT_CIBLE))
+verifier("rapport fige : ligne P-values Monte-Carlo (V3b, B_max)",
+         .ligne_mc(.sect_gel(res_bmax), TXT_BMAX))
+verifier("rapport fige : ligne P-values Monte-Carlo (V1, bord 1)",
+         .ligne_mc(.sect_gel(res_ln), texte_p_mc_regime(res_ln)))
+verifier("rapport fige : ligne P-values Monte-Carlo (V1, volumes constants)",
+         .ligne_mc(.sect_gel(res_vc), texte_p_mc_regime(res_vc)))
+verifier("rapport fige : objet sans p_mc_regime, rapport ecrit sans la ligne",
+         { s0 <- .sect_gel(res_sans)
+           nzchar(s0) && grepl("Seuil alpha des verdicts", s0, fixed = TRUE) &&
+             !grepl("P-values Monte-Carlo", s0, fixed = TRUE) })
+verifier("rapport fige : reserve2, rapport ecrit sans la ligne",
+         { s0 <- .sect_gel(res_mw)
+           nzchar(s0) && grepl("Seuil alpha des verdicts", s0, fixed = TRUE) &&
+             !grepl("P-values Monte-Carlo", s0, fixed = TRUE) })
+# Graine du flux (metadata$seed_flux_regime, #240) : valeurs_generateur() et
+# ligne de l'en-tete, libelle de lib_gen (un libelle manquant s'ecrirait NA).
+LIB_FLUX <- paste("Graine du flux compl\u00e9mentaire des p-values Monte-Carlo",
+                  "(r\u00e9gime int\u00e9rieur de delta estim\u00e9)")
+verifier("valeurs_generateur() : seed_flux_regime = \"20800000\" en primes (V1 et V3b), absent en reserve2",
+         identical(valeurs_generateur(res_ln$metadata)[["seed_flux_regime"]], "20800000") &&
+           identical(valeurs_generateur(res_cible$metadata)[["seed_flux_regime"]], "20800000") &&
+           identical(names(valeurs_generateur(res_ln$metadata)),
+                     c("generateur", "seed_loi_nulle_sw", "seed_flux_regime")) &&
+           !("seed_flux_regime" %in% names(valeurs_generateur(res_mw$metadata))))
+verifier("valeurs_generateur() : seed_flux_regime ecrit sans notation scientifique (-2146944479)",
+         identical(valeurs_generateur(list(seed_flux_regime = -2146944479))[["seed_flux_regime"]],
+                   "-2146944479"))
+verifier("rapport fige : ligne de la graine du flux (libelle et valeur), aucune cle NA",
+         { s0 <- .sect_gel(res_cible)
+           grepl(paste0("<td>", .echap_html(LIB_FLUX), "</td><td>20800000</td>"), s0, fixed = TRUE) &&
+             !grepl("<td>NA</td>", s0, fixed = TRUE) })
+verifier("rapport fige : reserve2, pas de ligne de la graine du flux",
+         !grepl("Graine du flux", .sect_gel(res_mw), fixed = TRUE))
 
 fin_fichier()

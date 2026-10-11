@@ -1342,10 +1342,11 @@ libelle_derogation <- function(res, parametre) {
 # Donnees et dans l'en-tete du rapport fige). Lecture seule de metadata, aucun
 # calcul : un champ absent (objet anterieur a l'issue #37) ne produit pas
 # d'element. Rend un vecteur de textes bruts nomme par champ de metadata
-# (generateur, seed_loi_nulle_sw ; la graine de l'enveloppe du QQ-plot est
-# retiree par l'issue #47, l'enveloppe etant lue dans le bootstrap) ;
-# chaque appelant choisit ses libelles (ASCII dans
-# l'onglet Donnees, accentues dans le rapport) et echappe s'il ecrit en HTML.
+# (generateur, seed_loi_nulle_sw, seed_flux_regime de #240 ; la graine de
+# l'enveloppe du QQ-plot est retiree par l'issue #47, l'enveloppe etant lue
+# dans le bootstrap) ; chaque appelant choisit ses libelles (ASCII dans le
+# journal d'execution, accentues dans le rapport, table lib_gen) et echappe
+# s'il ecrit en HTML.
 valeurs_generateur <- function(m) {
   out <- character(0)
   g <- m$generateur
@@ -1354,7 +1355,55 @@ valeurs_generateur <- function(m) {
                                 ", sample.kind = ", g$sample.kind)
   if (!is.null(m$seed_loi_nulle_sw))
     out["seed_loi_nulle_sw"] <- format(m$seed_loi_nulle_sw, scientific = FALSE)
+  # Graine du flux complementaire de la p-value Monte-Carlo conditionnelle au
+  # regime de delta estime (issue #240, spec. par. 3.3) : primes et reserve
+  # no 1 seulement, champ absent pour reserve2.
+  if (!is.null(m$seed_flux_regime))
+    out["seed_flux_regime"] <- format(m$seed_flux_regime, scientific = FALSE)
   out
+}
+
+# Ligne d'en-tete "P-values Monte-Carlo" (issue #240, decision Q-A4-12 (B) du
+# mainteneur ; specification, par. 3.2 et 3.4) : en-tete du rapport fige et
+# resume (bloc Etat) de l'application. Lecture seule de
+# res$bootstrap$p_mc_regime, aucun calcul : les comptes (tirages, retenus,
+# B_cible, B_max) et l'arret sont ceux du moteur, le motif de V1 est traduit
+# en libelle accentue par une table de correspondance (texte du moteur repris
+# tel quel s'il n'y figure pas). Rend la valeur seule (texte brut, sans le
+# libelle "P-values Monte-Carlo"), ou NULL pour reserve2 et pour un objet sans
+# p_mc_regime (objet anterieur a #240) : aucune ligne n'est alors affichee.
+# L'appelant echappe le texte s'il l'ecrit en HTML.
+texte_p_mc_regime <- function(res) {
+  if (identical(res$metadata$methode, "reserve2")) return(NULL)
+  r <- res$bootstrap$p_mc_regime
+  if (!is.list(r) || !is.character(r$variante) || length(r$variante) != 1L) return(NULL)
+  ent <- function(v) if (length(v) == 1L && is.finite(v)) format(v, scientific = FALSE) else "\u2013"
+  if (identical(r$variante, "V3b")) {
+    arret <- if (identical(r$arret, "cible"))
+      sprintf("arr\u00eat \u00e0 la cible (B = %s retenus)", ent(r$B_cible))
+    else if (identical(r$arret, "B_max"))
+      sprintf("arr\u00eat \u00e0 B_max (%s tirages), cible B = %s non atteinte",
+              ent(r$B_max), ent(r$B_cible))
+    else paste("arr\u00eat", if (length(r$arret) == 1L && !is.na(r$arret)) r$arret else "\u2013")
+    return(sprintf(paste("conditionnelles au r\u00e9gime int\u00e9rieur de delta estim\u00e9 \u2014",
+                         "%s tirages, %s retenus, %s"), ent(r$tirages), ent(r$retenus), arret))
+  }
+  if (identical(r$variante, "V1")) {
+    motifs <- c("delta estime au bord" = "delta estim\u00e9 au bord",
+                "volumes constants : regime de delta non identifie" =
+                  "volumes constants : r\u00e9gime de delta non identifi\u00e9",
+                "refit = FALSE : delta** non reestime" = "refit = FALSE : delta** non r\u00e9estim\u00e9")
+    mv <- if (length(r$motif_v1) == 1L && !is.na(r$motif_v1)) r$motif_v1 else NULL
+    lib <- if (is.null(mv)) NULL else if (mv %in% names(motifs)) motifs[[mv]] else mv
+    # Bord precise par regime_obs (code du moteur) : "au bord 0" ou "au bord 1".
+    bord <- c(bord0 = " 0", bord1 = " 1")
+    if (identical(mv, "delta estime au bord") && length(r$regime_obs) == 1L &&
+        isTRUE(r$regime_obs %in% names(bord)))
+      lib <- paste0(lib, bord[[r$regime_obs]])
+    return(sprintf("marginales, sur les %s tirages%s", ent(r$tirages),
+                   if (is.null(lib)) "" else paste0(" (", lib, ")")))
+  }
+  paste("variante", r$variante)
 }
 
 # Tableau "Robustesse du calibrage" (onglet Calibration et section 4 du
@@ -1733,6 +1782,7 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
     ajout <- function(...) B[[length(B) + 1L]] <<- list(...)
 
     # --- 1. En-tete de gel ----------------------------------------------------
+    lig_mc <- texte_p_mc_regime(res)
     libelle_methode <- switch(m$methode,
       premium  = "risque de prime (annexe XVII, section B)",
       reserve1 = "risque de r\u00e9serve n\u00b0 1 (annexe XVII, section C)",
@@ -1746,6 +1796,9 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
               paste("Granularit\u00e9 nominale d'une p-value Monte-Carlo unilat\u00e9rale,",
                     "1/(B+1) sur B nominal (bilat\u00e9rale : 2/(B_eff+1), par statistique,",
                     "champ granularite_stat)"),
+              # Ligne d'en-tete de #240 (Q-A4-12 (B)) : absente pour reserve2
+              # et pour un objet sans p_mc_regime.
+              if (!is.null(lig_mc)) "P-values Monte-Carlo",
               "Seuil alpha des verdicts", "Graine (seed)", "Bar\u00e8me de cr\u00e9dibilit\u00e9",
               "sigma standard", "Nature des donn\u00e9es")
     vals <- c(format(m$horodatage, "%Y-%m-%d %H:%M:%S %Z"),
@@ -1758,6 +1811,7 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
                        paste0(" \u2014 <b>", .echap_html(lib_prof), "</b>")),
               as.character(m$B),
               format(res$bootstrap$granularite, digits = 6),
+              if (!is.null(lig_mc)) .txt(lig_mc),
               format(m$alpha), format(m$seed, scientific = FALSE),
               paste0(.txt(m$bareme),
                      if (!is.null(lib_bareme <- libelle_derogation(res, "bareme")))
@@ -1770,7 +1824,9 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
     # manque dans metadata.
     gen <- valeurs_generateur(m)
     lib_gen <- c(generateur = "G\u00e9n\u00e9rateur al\u00e9atoire",
-                 seed_loi_nulle_sw = "Graine de la loi nulle de Shapiro-Wilk")
+                 seed_loi_nulle_sw = "Graine de la loi nulle de Shapiro-Wilk",
+                 seed_flux_regime = paste("Graine du flux compl\u00e9mentaire des p-values",
+                                          "Monte-Carlo (r\u00e9gime int\u00e9rieur de delta estim\u00e9)"))
     cles <- c(cles, unname(lib_gen[names(gen)])); vals <- c(vals, .txt(unname(gen)))
     if (!mw) {
       cles <- c(cles, "Test d'\u00e9quivalence de la constante")
