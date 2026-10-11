@@ -206,6 +206,20 @@
 #  (--regime-brut, par defaut le plus recent
 #  docs/tableaux/<AAAAMMJJ>-issue229-p-conditionnelle-regime-brut.tsv).
 #
+#  Affichage (#242 ; sans effet sur les calculs ni sur les lignes machine
+#  hors des textes) : chemins hors du depot cites par leur seul nom
+#  (chemin_affiche(), masquer_chemins()) ; agregats de T2 sur la population
+#  du critere (J1 : bords), et aussi sur les seules lignes Monte-Carlo
+#  (STAT_LIGNE), avec controle descriptif des lignes exclues ; C1c contre
+#  la reference de la cellule (lissee pour une loi discrete), ecart au par.
+#  2.2 dit dans le detail ; n affiche pour C1b, C3, C4a, C4b (mention
+#  "n < 100", etat inchange : m1, avis d'actuary) ; decimales des IC et des
+#  taux adaptees aux seuils de lecture (decimales_ic()) ; nombre de p
+#  absentes affiche a cote des taux (T1, T1 bis, P1, C4c) ; scenario H0 precise
+#  (NOTE_SCEN) ; aide a la lecture propre a chaque partie ; libelles
+#  accentues en sequences \u (lisibles dans les fichiers ecrits sous
+#  LC_ALL=C).
+#
 #  Alea : tout tirage passe par engine_sous_graine() (generateur
 #  ENGINE_RNG_KIND) : jeux de J1, J2, J3 sous 20260927 (expression YSIM de
 #  #72) ; bootstrap de la replication b sous 20260831 + b ; flux de V3b
@@ -508,6 +522,51 @@ chemin_cite <- function(f) {
   r <- normalizePath(RACINE, winslash = "/", mustWork = TRUE)
   if (startsWith(a, paste0(r, "/"))) substring(a, nchar(r) + 2L) else a
 }
+# Chemin cite dans un texte affiche (T0, controles, details ; #242, D-a) :
+# relatif a la racine sous le depot ; hors du depot, nom du fichier seul
+# suivi de "(hors du depot)", jamais le chemin absolu (dossier temporaire
+# de session, poste) ; le md5 cite a cote identifie le fichier.
+# L'appartenance au depot se lit sur le prefixe du chemin absolu (dossier
+# normalise s'il existe), que le fichier existe ou non. chemin_cite()
+# reste le chemin fonctionnel (git, relecture par --combiner).
+chemin_absolu <- function(f) {
+  g <- gsub("\\\\", "/", f)
+  d <- dirname(g)
+  if (dir.exists(d)) return(file.path(normalizePath(d, winslash = "/"), basename(g)))
+  if (grepl("^(/|[A-Za-z]:/)", g)) g else file.path(normalizePath(".", winslash = "/"), g)
+}
+chemin_affiche <- function(f) {
+  if (is.na(f)) return(as.character(f))
+  a <- chemin_absolu(f)
+  r <- normalizePath(RACINE, winslash = "/", mustWork = FALSE)
+  if (.Platform$OS.type == "windows") { a_c <- tolower(a); r_c <- tolower(r) } else { a_c <- a; r_c <- r }
+  if (startsWith(a_c, paste0(r_c, "/"))) substring(a, nchar(r) + 2L) else sprintf("%s (hors du d\u00e9p\u00f4t)", basename(a))
+}
+# Valeur de contexte affichee en T0 (tranche et --combiner) et dans le
+# controle (i3), bornee par son contexte (#242, D-a) : chemin absolu en
+# tete de valeur suivi de " (md5" (tableau de la grille, que --combiner
+# relit comme chemin) et chemin absolu des "valeurs brutes de la grille
+# <chemin> (md5" (sources des tranches deja ecrites), espaces compris,
+# cites par chemin_affiche(). Les autres chemins absolus (bibliotheque
+# LAPACK de la plateforme) ne sont pas touches.
+masquer_chemins <- function(v) {
+  absolu <- "(?:/|\\\\\\\\|[A-Za-z]:[/\\\\])"
+  for (motif in c(sprintf("^(%s.+?)(?= \\(md5 )", absolu),
+                  sprintf("(?<=valeurs brutes de la grille )(%s.+?)(?= \\(md5 )", absolu))) {
+    m <- regexpr(motif, v, perl = TRUE)
+    if (any(m > 0L)) regmatches(v, m) <- vapply(regmatches(v, m), chemin_affiche, "")
+  }
+  v
+}
+# Tableau de la grille d'une combinaison (contexte "grille" des tranches,
+# #242, audit A1) : chemin (absolu tel quel, sinon sous la racine), suivi
+# par git, et motif "non suivi" cite par chemin_affiche().
+grille_combinaison <- function(v) {
+  ch <- sub(" \\(md5.*$", "", v)
+  f <- if (grepl("^(/|\\\\|[A-Za-z]:)", ch)) ch else file.path(RACINE, ch)
+  suivi <- identical(suivi_git(f), "oui")
+  list(chemin = f, nv = if (suivi) character(0) else sprintf("tableau de la grille %s non suivi par git", chemin_affiche(f)))
+}
 suivi_git <- function(f) {
   if (is.na(f) || !file.exists(f) || !sous_depot(dirname(f))) return("non")
   code <- tryCatch(suppressWarnings(system2("git", c("--literal-pathspecs", "-C", shQuote(RACINE), "ls-files",
@@ -605,6 +664,11 @@ SCENARIOS <- data.frame(code = CODES_SCEN, s = 1:6, famille = c("H", "H", "C", "
 LIB_SCEN <- stats::setNames(sprintf("%s, %s = %s", SCENARIOS$famille,
                                     c(H = "k", C = "\u03bb", A = "\u03bd")[SCENARIOS$famille], format(SCENARIOS$par)),
                             SCENARIOS$code)
+# Precision affichee du scenario H0 (#242, D-f) : son code se lit comme
+# l'hypothese nulle, alors que c'est l'alternative H a k = 0 (Var(Y)
+# constante, hors de la famille reglementaire k dans [1 ; 2], par. 6). Le
+# code H0 (noms de fichiers, PARAMETRES) est inchange.
+NOTE_SCEN <- c(H0 = "alternative o\u00f9 Var(Y) est constante (k = 0, hors de la famille r\u00e9glementaire k \u2208 [1 ; 2]) ; pas l'hypoth\u00e8se nulle")
 CIBLES <- list(H = c("BP", "BP79", "White", "GQ", "BF"), C = c("Grubbs", "Grubbsr", "DAgo", "JB", "SF"),
                A = c("DAgo", "JB", "SF", "Grubbs", "Grubbsr"))
 STATS_P2 <- c("BP", "BP79", "White", "BF", "RESET", "Intercept")
@@ -645,6 +709,10 @@ STAT_LIGNE <- c(
   supFr = "Rupture de niveau (sup-F) sur ratios bruts",
   CUSUMr = "Stabilite cumulee (OLS-CUSUM) sur ratios bruts",
   Grubbsr = "Valeur aberrante isolee (Grubbs) sur ratios bruts")
+# Ligne de usp_tests() d'equivalence de la constante (TOST), qui sature
+# les agregats de T2 de J1 (#242, D-c ; exclue des agregats des lignes
+# Monte-Carlo).
+LIGNE_TOST <- "Equivalence de la constante a zero (TOST)"
 # Lignes de run_engine() hors du perimetre de T2 (#45) : rapport de
 # vraisemblance sur delta et largeur de l'IC a delta fixe.
 hors_t2 <- function(lignes) startsWith(lignes, "Rapport de vraisemblance") |
@@ -765,19 +833,42 @@ matrices <- function(D) {
 # mineur) ; sinon ecart non tranche. Bande non applicable si ref < 2/n (L6) :
 # lecture binaire, compatible ou ecart a examiner, jamais de distorsion.
 CLASSES <- c("compatible", "\u00e9cart mineur", "\u00e9cart non tranch\u00e9", "distorsion mat\u00e9rielle")
-lecture <- function(k, n, ref) {
+# Decimales d'affichage d'un IC et de son taux (#242, D-e ; le taux est
+# passe avec les bornes : la classe "ecart mineur" se lit sur le taux face
+# a ref/2 et 3 ref/2) : au moins d, et autant qu'il faut (au plus 10) pour
+# que chaque valeur arrondie (bornes, taux) reste, par rapport a
+# chaque seuil de lecture arrondi (reference, bornes de la bande de
+# Bradley, alpha), du meme cote que la borne exacte par rapport au seuil
+# exact : l'IC affiche ne parait jamais contenir un seuil qu'il exclut,
+# ni exclure un seuil qu'il contient.
+decimales_ic <- function(ci, seuils, d = 4L) {
+  seuils <- seuils[is.finite(seuils)]
+  if (anyNA(ci) || !length(seuils)) return(d)
+  for (k in seq.int(d, 10L))
+    if (all(vapply(seuils, function(x) all(sign(round(ci, k) - round(x, k)) == sign(ci - x)), logical(1)))) return(k)
+  10L
+}
+# na : nombre de p absentes parmi les n (comptees comme non-rejets, par.
+# 2.1), affiche a cote du taux (#242) ; seuils : seuils de lecture
+# supplementaires (alpha de C1b) pour le choix des decimales (d).
+lecture <- function(k, n, ref, na = 0L, seuils = numeric(0)) {
   if (n == 0) return(list(k = k, n = 0, taux = NA_real_, ci = c(NA_real_, NA_real_), evaluable = FALSE, bna = NA,
-                          disj = FALSE, cote = NA_character_, classe = "non \u00e9valuable"))
+                          disj = FALSE, cote = NA_character_, classe = "non \u00e9valuable", na = na, d = 4L))
   ci <- ic_cp(k, n); t <- k / n
   ref_ic <- ref >= ci[1] && ref <= ci[2]
   bna <- ref < 2 / n
   cote <- if (bna) NA_character_ else if (ci[2] < ref / 2) "conservateur" else if (ci[1] > 3 * ref / 2) "lib\u00e9ral" else NA_character_
   classe <- if (ref_ic) CLASSES[1] else if (bna) "\u00e9cart \u00e0 examiner (bande non applicable)" else
     if (!is.na(cote)) CLASSES[4] else if (t >= ref / 2 && t <= 3 * ref / 2) CLASSES[2] else CLASSES[3]
-  list(k = k, n = n, taux = t, ci = ci, evaluable = TRUE, bna = bna, disj = !is.na(cote), cote = cote, classe = classe)
+  list(k = k, n = n, taux = t, ci = ci, evaluable = TRUE, bna = bna, disj = !is.na(cote), cote = cote, classe = classe, na = na,
+       d = decimales_ic(c(ci, t), c(ref, if (!bna) c(ref / 2, 3 * ref / 2), seuils)))
 }
+# Nombre de p absentes (comptees comme non-rejets), affiche s'il est non nul.
+# Forme courte pour les cellules de C4c (quatre taux par cellule).
+txt_na_court <- function(na) if (isTRUE(na > 0)) sprintf(" (%d p abs.)", na) else ""
+txt_na <- function(na) if (isTRUE(na > 0)) sprintf(" ; %d p absente%s (non-rejet)", na, if (na > 1) "s" else "") else ""
 txt_lec <- function(c_) if (!c_$evaluable) "\u2014" else
-  sprintf("%s %s%s", num(c_$taux, 4), txt_ic(c_$ci), if (c_$disj) sprintf(" **%s**", c_$cote) else "")
+  sprintf("%s %s%s%s", num(c_$taux, c_$d), txt_ic(c_$ci, c_$d), if (c_$disj) sprintf(" **%s**", c_$cote) else "", txt_na(c_$na))
 # Defaut des regles (a) et (b) de #175 d'une cellule de la variante x contre
 # V1 (m) : "" si aucun, sinon le motif (creee, inversee, aggravee).
 defaut_ab <- function(m, x) {
@@ -806,7 +897,7 @@ famille_mcn <- function(MX, v, a, rows, st) {
 cellule <- function(MX, rows, s, v, ia, REF) {
   a <- SEUILS[match(ia, IA)]
   p <- MX$P[[v]][rows, s]
-  lecture(sum(is.finite(p) & p < a), sum(rows), REF[s, ia])
+  lecture(sum(is.finite(p) & p < a), sum(rows), REF[s, ia], na = sum(!is.finite(p)), seuils = a)
 }
 # Population du critere (par. 2.1) : J1, replications au bord ; J2, J3 et
 # scenarios, replications traitees ; quoi : un regime, ou "toutes". Une
@@ -820,10 +911,14 @@ lignes_pop <- function(j, MX, quoi = "critere") {
 # Vectorisee : appelee sur une colonne (McNemar significatifs, C5) comme sur
 # un jeu seul.
 lib_pop <- function(j) vapply(j, function(x) if (x == "J1") "J1 (bords)" else
-  if (x %in% names(LIB_SCEN)) sprintf("%s (%s)", x, LIB_SCEN[[x]]) else x, "", USE.NAMES = FALSE)
+  if (x %in% names(LIB_SCEN)) sprintf("%s (%s%s)", x, LIB_SCEN[[x]], if (x %in% names(NOTE_SCEN)) paste0(" : ", NOTE_SCEN[[x]]) else "") else x,
+  "", USE.NAMES = FALSE)
 lib_ia <- function(ia) c(a10 = "0,10", a05 = "0,05")[[ia]]
 # p-value (McNemar apres Holm) a trois chiffres significatifs, sans remplissage.
 fmt_p <- function(p) sub(".", ",", sprintf("%.3g", p), fixed = TRUE)
+# n d'une population de condition marginale (C1b, C3, C4a, C4b), avec la
+# mention "n < 100" sous N_EVALUABLE (m1, avis d'actuary : etat inchange).
+txt_n <- function(lib, n) sprintf("%s %d%s", lib, n, if (n < N_EVALUABLE) " (n < 100)" else "")
 liste_cel <- function(x, n = 10) if (!length(x)) "aucune" else
   paste(c(utils::head(x, n), if (length(x) > n) sprintf("... (%d en tout)", length(x))), collapse = " ; ")
 
@@ -849,7 +944,7 @@ tableau_t1 <- function(DM, REF) {
         c_ <- cellule(MX, rows, s, v, ia, REF)
         m <- if (v == "V1") "\u2014" else { x <- mc[[ia]][[v]]; x <- x[x$stat == s, ]
           sprintf("%d / %d, %s", x$n01, x$n10, fmt_p(x$p_holm)) }
-        c(num(REF[s, ia], 4), c_$k, txt_lec(c_), c_$classe, m)
+        c(num(REF[s, ia], c_$d), c_$k, txt_lec(c_), c_$classe, m)
       }))
       L <- c(L, ligne_md(lib_pop(j), sprintf("%s (%s)%s", s, QUEUE[[s]], if (s %in% DISCRETES) " \u2020" else ""),
                          paste(c(if (s %in% F_T) "F_T" else "F_R", if (s %in% F_8) "F_8"), collapse = ", "), v, sum(rows),
@@ -918,7 +1013,10 @@ conditions_regime <- function(DM, REF) {
                                    if (length(desc)) sprintf(" ; descriptives pour V3a (loi discr\u00e8te, L13) : %s", paste(unique(desc), collapse = ", ")) else "",
                                    txt_manque))
   }
-  # C1b, C1c
+  # C1b, C1c ; n de chaque jeu affiche, mention "n < 100" (m1, avis
+  # d'actuary : etat inchange, "non evaluable" reserve aux cellules par
+  # regime).
+  n_c1 <- paste(vapply(jeux, function(j) txt_n(lib_pop(j), sum(lignes_pop(j, DM[[j]]))), ""), collapse = " ; ")
   for (v in VARIANTES_CRIT) {
     def <- cons <- character(0); n_ev <- 0L
     for (j in jeux) for (ia in IA) {
@@ -932,13 +1030,20 @@ conditions_regime <- function(DM, REF) {
         if (sig && mc$n01[i] > mc$n10[i] && isTRUE(x$ci[1] > a))
           def <- c(def, sprintf("%s %s %s (%d/%d, p Holm %s)", lib_pop(j), mc$stat[i], lib_ia(ia), mc$n01[i], mc$n10[i],
                                 fmt_p(mc$p_holm[i])))
-        if (sig && mc$n10[i] > mc$n01[i] && isTRUE(x$ci[2] < a))
-          cons <- c(cons, sprintf("%s %s %s (%d/%d)", lib_pop(j), mc$stat[i], lib_ia(ia), mc$n01[i], mc$n10[i]))
+        # C1c contre la reference de la cellule (alpha, ou taille lissee de
+        # #166 pour une loi discrete, comme T1), et non alpha du par. 2.2
+        # (#242, D-d, avis d'actuary) ; C1b reste au seuil alpha (L9). V3a :
+        # cellules a loi discrete marquees descriptives (L13).
+        if (sig && mc$n10[i] > mc$n01[i] && isTRUE(x$ci[2] < REF[mc$stat[i], ia]))
+          cons <- c(cons, sprintf("%s %s %s (%d/%d)%s", lib_pop(j), mc$stat[i], lib_ia(ia), mc$n01[i], mc$n10[i],
+                                  if (v == "V3a" && mc$stat[i] %in% DISCRETES) " [descriptive, L13]" else ""))
       }
     }
     ajout("C1b", v, if (!n_ev) ETAT[["ne"]] else if (length(def)) ETAT[["ko"]] else ETAT[["ok"]],
-          sprintf("aggravation lib\u00e9rale (McNemar Holm < 0,05, n01 > n10, borne basse > \u03b1, L9) : %s%s", liste_cel(def), txt_manque))
-    ajout("C1c (descriptif)", v, if (length(cons)) "aggravation conservatrice" else "aucune", liste_cel(cons))
+          sprintf("aggravation lib\u00e9rale (McNemar Holm < 0,05, n01 > n10, borne basse > \u03b1, L9) : %s ; n : %s%s", liste_cel(def), n_c1, txt_manque))
+    ajout("C1c (descriptif)", v, if (length(cons)) "aggravation conservatrice" else "aucune",
+          sprintf("aggravation conservatrice (McNemar Holm < 0,05, n10 > n01, borne haute < r\u00e9f. de la cellule, liss\u00e9e de #166 pour une loi discr\u00e8te \u2020, et non \u03b1 du par. 2.2 : #242 D-d ; C1b \u00e0 \u03b1, L9) : %s",
+                  liste_cel(cons)))
   }
   # C2a
   for (v in VARIANTES_CRIT) for (j in intersect(c("J2", "J3"), jeux)) {
@@ -995,7 +1100,8 @@ conditions_regime <- function(DM, REF) {
       autres <- setdiff(unique(mo), MOTIFS_C3)
       if (length(autres)) txt_mo <- paste0(txt_mo, ", ", paste(sprintf("%s %d", ifelse(autres %in% names(LIB_MOTIF), LIB_MOTIF[autres], autres),
                                                                         vapply(autres, function(k) sum(mo == k), 1L)), collapse = ", "))
-      parts <- c(parts, sprintf("%s %s (%d r\u00e9pl. ; motifs : %s)", lib_pop(j), num(part, 4), sum(apply(ab, 1, any)), txt_mo))
+      parts <- c(parts, sprintf("%s %s (%d r\u00e9pl. sur n = %s ; motifs : %s)", lib_pop(j), num(part, 4), sum(apply(ab, 1, any)),
+                                trimws(txt_n("", sum(rows))), txt_mo))
     }
     ajout("C3", v, if (!n_ev) ETAT[["ne"]] else if (ko) ETAT[["ko"]] else ETAT[["ok"]],
           sprintf("part des r\u00e9plications o\u00f9 la p manque pour au moins une statistique de F_R alors que celle de V1 existe (seuil 1 %%) : %s%s",
@@ -1123,15 +1229,52 @@ tableau_t2 <- function(DM, LIGNES_T2) {
       L <- c(L, ligne_md(lib_pop(j), LIGNES_T2[i], n, paste(cols, collapse = " | "), paste(rep3, collapse = " ; ")))
     }
   }
-  L <- c(L, "", "Agr\u00e9gats par r\u00e9plication (au moins une ligne en ALERTE ou ECHEC ; au moins une en ECHEC), par jeu et par r\u00e9gime :", "",
-         entete_md(c("Jeu", "R\u00e9gime", "n", paste(VARIANTES, "\u2265 1 A ou E / \u2265 1 E"))))
-  for (j in intersect(JEUX, names(DM))) for (r in c("toutes", REG)) {
+  # Agregats (#242) : premiere ligne de chaque jeu sur la population du
+  # critere (J1 : bords seulement, D-b ; J2, J3 : toutes les replications
+  # traitees), puis par regime (J1 interieur : descriptif) ; colonnes
+  # toutes lignes, puis lignes Monte-Carlo seules (D-c, avis d'actuary) :
+  # lignes STAT_LIGNE[STATS], qui lisent la p_mc d'une statistique du
+  # catalogue. Les lignes exclues (TOST, qui sature J1, et les autres) ne
+  # dependent pas de la variante : controle descriptif ci-dessous.
+  i_mc <- sort(stats::na.omit(match(STAT_LIGNE[STATS], LIGNES_T2)))
+  n_l <- length(LIGNES_T2)
+  i_hors <- setdiff(seq_len(n_l), i_mc)
+  extraire <- function(x, i) vapply(x, function(z) if (nchar(z) == n_l) paste(substring(z, i, i), collapse = "") else z, "",
+                                    USE.NAMES = FALSE)
+  agr <- function(x) sprintf("%s / %s", num(mean(grepl("[AE]", x)), 4), num(mean(grepl("E", x, fixed = TRUE)), 4))
+  L <- c(L, "", paste("Agr\u00e9gats par r\u00e9plication (au moins une ligne en ALERTE ou ECHEC ; au moins une en ECHEC), par jeu, sur la",
+                      "population du crit\u00e8re (J1 : bords seulement) puis par r\u00e9gime (J1 int\u00e9rieur : descriptif) ; toutes les lignes, puis",
+                      sprintf("les %d lignes Monte-Carlo seules (lignes qui lisent la p_mc d'une des %d statistiques du catalogue ; les %d autres",
+                              length(i_mc), NS, length(i_hors)),
+                      "lignes, dont la ligne TOST qui sature J1, ne d\u00e9pendent pas de la variante) :"), "",
+         entete_md(c("Jeu", "R\u00e9gime", "n", paste(VARIANTES, "\u2265 1 A ou E / \u2265 1 E"),
+                     paste(VARIANTES, "lignes Monte-Carlo : \u2265 1 A ou E / \u2265 1 E"))))
+  for (j in intersect(JEUX, names(DM))) for (r in c("critere", REG)) {
     MX <- DM[[j]]; rows <- lignes_pop(j, MX, r)
     if (!any(rows) || all(MX$verd$V1[rows] == "-")) next
-    cols <- vapply(VARIANTES, function(v) { x <- MX$verd[[v]][rows]
-      sprintf("%s / %s", num(mean(grepl("[AE]", x)), 4), num(mean(grepl("E", x, fixed = TRUE)), 4)) }, "")
-    L <- c(L, ligne_md(j, if (r == "toutes") "tous" else LIB_REG[[r]], sum(rows), paste(cols, collapse = " | ")))
+    cols <- vapply(VARIANTES, function(v) agr(MX$verd[[v]][rows]), "")
+    cols_m <- vapply(VARIANTES, function(v) agr(extraire(MX$verd[[v]][rows], i_mc)), "")
+    L <- c(L, ligne_md(j, if (r == "critere") sprintf("population du crit\u00e8re%s", if (j == "J1") " (bords)" else "") else LIB_REG[[r]],
+                       sum(rows), paste(c(cols, cols_m), collapse = " | ")))
   }
+  # Controle descriptif : sur chaque replication traitee, les lignes hors
+  # Monte-Carlo ont le meme verdict sous les quatre variantes.
+  exc <- character(0); n_ctl <- 0L
+  for (j in intersect(JEUX, names(DM))) {
+    MX <- DM[[j]]; rows <- which(lignes_pop(j, MX, "toutes"))
+    for (b in rows) {
+      vb <- vapply(VARIANTES, function(v) MX$verd[[v]][b], "")
+      if (any(nchar(vb) != n_l)) next
+      n_ctl <- n_ctl + 1L
+      for (i in i_hors) {
+        ch <- substring(vb, i, i)
+        if (length(unique(ch)) > 1L)
+          exc <- c(exc, sprintf("%s r\u00e9plication %d, %s (%s)", j, b, LIGNES_T2[i], paste(sprintf("%s %s", VARIANTES, ch), collapse = ", ")))
+      }
+    }
+  }
+  L <- c(L, "", sprintf("Contr\u00f4le descriptif : sur %d r\u00e9plication(s) trait\u00e9e(s), les %d lignes hors Monte-Carlo ont le m\u00eame verdict sous les quatre variantes ; exceptions : %s.",
+                        n_ctl, length(i_hors), liste_cel(exc, 20)))
   c(L, "")
 }
 
@@ -1142,13 +1285,17 @@ tableau_t3 <- function(DL, DM, OL) {
                      "p absentes V1 ; V3a ; V3b (cellules r\u00e9plication x statistique, motifs)", "(h2) r\u00e9pl. avec \u2265 1 quasi-\u00e9galit\u00e9 (BP, BP79, White, BF, RESET, Intercept)",
                      "dur\u00e9e par r\u00e9plication (s) : moyenne [m\u00e9d. ; max]")))
   mmm <- function(v) if (!length(v)) "\u2014" else sprintf("%.0f [%.0f ; %.0f]", stats::median(v), min(v), max(v))
+  # Lignes par regime (et ecartees, en erreur) : jeu sans la mention
+  # "(bords)" de lib_pop(), qui contredisait la ligne du regime interieur
+  # de J1 (#242) ; scenarios : lib_pop().
+  lib_j <- function(j) if (j %in% JEUX) j else lib_pop(j)
   for (j in intersect(c(JEUX, CODES_SCEN), names(DL))) for (r in c(REG, "ecartee", "erreur")) {
     D <- DL[[j]]; MX <- DM[[j]]
     k <- if (r %in% REG) D$statut == "traitee" & D$regime == r else D$statut == r
     if (!any(k)) next
-    if (r == "ecartee") { L <- c(L, ligne_md(lib_pop(j), "\u00e9cart\u00e9es (refus de #188 ou erreur de usp_ajuster())", sum(k), paste(rep("\u2014", 7), collapse = " | "),
+    if (r == "ecartee") { L <- c(L, ligne_md(lib_j(j), "\u00e9cart\u00e9es (refus de #188 ou erreur de usp_ajuster())", sum(k), paste(rep("\u2014", 7), collapse = " | "),
                                              sprintf("%s", num(mean(D$duree[k]), 2)))); next }
-    if (r == "erreur") { L <- c(L, ligne_md(lib_pop(j), sprintf("en erreur (statut erreur, hors population ; refus\u00e9es par --combiner) : %s",
+    if (r == "erreur") { L <- c(L, ligne_md(lib_j(j), sprintf("en erreur (statut erreur, hors population ; refus\u00e9es par --combiner) : %s",
                                                                 liste_cel(sprintf("b = %.0f (%s) : %s", D$b[k], D$regime[k], D$discordances[k]), 20)),
                                             sum(k), paste(rep("\u2014", 7), collapse = " | "), sprintf("%s", num(mean(D$duree[k]), 2)))); next }
     ab <- vapply(c("V1", "V3a", "V3b"), function(v) {
@@ -1156,7 +1303,7 @@ tableau_t3 <- function(DL, DM, OL) {
       if (!length(m)) "0" else { t <- table(m); sprintf("%d (%s)", length(m), paste(sprintf("%s %d", LIB_MOTIF[names(t)], as.integer(t)), collapse = ", ")) }
     }, "")
     h2 <- vapply(STATS_P2, function(s) sum(D[[paste0("h2:", s)]][k] > 0), 1)
-    L <- c(L, ligne_md(lib_pop(j), LIB_REG[[r]], sum(k), mmm(B_BOOT - D$ech_rapide[k] - D$ech_stats[k]),
+    L <- c(L, ligne_md(lib_j(j), LIB_REG[[r]], sum(k), mmm(B_BOOT - D$ech_rapide[k] - D$ech_stats[k]),
                        mmm(D$a_v1[k]), mmm(D$ret_v3b[k]),
                        sprintf("%.0f [%.0f ; %.0f]", mean(D$tir_v3b[k]), stats::median(D$tir_v3b[k]), max(D$tir_v3b[k])),
                        sprintf("%d (%s)", sum(D$arret[k] == "B_max"), num(mean(D$arret[k] == "B_max"), 4)),
@@ -1185,24 +1332,49 @@ tableau_t3 <- function(DL, DM, OL) {
   L
 }
 
-aide_lecture <- function() c(
-  "### Aide \u00e0 la lecture", "",
-  paste("Statut : **constat de simulation** sous les mod\u00e8les ajust\u00e9s \u00e0 J1 et J2 et sous le mod\u00e8le synth\u00e9tique J3, pas un r\u00e9sultat",
-        "g\u00e9n\u00e9ral. V1 : p_mc du moteur (rejeu de usp_bootstrap(), contr\u00f4les (i1), (i2)) ; V3a : tirages de V1 dont \u03b4\u0302** est dans le",
-        "r\u00e9gime de \u03b4\u0302*_b ; V3b : V3a compl\u00e9t\u00e9e par un flux distinct jusqu'\u00e0 999 retenus ou 25 000 tirages ; V3h : V3b \u00e0 \u03b4\u0302*",
-        "int\u00e9rieur, V1 aux bords. **Aucune r\u00e9f\u00e9rence ne fonde V3 \u00e0 T = 8.**"), "",
-  paste("IC : Clopper-Pearson \u00e0 95 %, incertitude Monte-Carlo sur le taux (fonction du nombre de r\u00e9plications), pas l'erreur",
-        "d'approximation en T. L'erreur li\u00e9e \u00e0 B fait partie de la proc\u00e9dure mesur\u00e9e. Taux par r\u00e9gime : conditionnels \u00e0 un \u00e9v\u00e9nement",
-        "fonction des donn\u00e9es. Bande de Bradley (1978) : convention, pas th\u00e9or\u00e8me (r\u00e8gle de lecture de #166) ; bande non",
-        "applicable si la r\u00e9f\u00e9rence est inf\u00e9rieure \u00e0 2/n (L6). Population : J1 aux bords (int\u00e9rieur descriptif, T1 bis) ; J2 et J3,",
-        "r\u00e9plications trait\u00e9es (\u00e9cart\u00e9es par le refus de #188 ou une erreur de usp_ajuster(), ou au statut erreur : T3)."), "",
-  paste("McNemar exact, Holm au niveau 0,05 par famille (par. 2.1, Q-A1-5). \u00c0 l'\u00e9tape 6, les d\u00e9cisions sont mesur\u00e9es : la",
-        "lecture \u00ab au point \u00bb et la lecture \u00ab sous ind\u00e9pendance \u00bb de L10, qui portent sur un McNemar pr\u00e9dit par la grille, se r\u00e9duisent",
-        "au test exact sur les paires discordantes mesur\u00e9es.",
-        "C5 se lit selon L15 (annotation du 10/10/2026) : un t\u00e9moin significatif est expliqu\u00e9 si sa diff\u00e9rence V3b \u2212 V1",
-        "mesur\u00e9e a le signe pr\u00e9dit par la grille et reste \u00e0 moins de e* de la pr\u00e9diction ; sinon il suspend la lecture."), "",
-  "**Crit\u00e8re de la sp\u00e9cification (par. 2.1 et 2.2), report\u00e9 sans modification, \u00e9valu\u00e9 m\u00e9caniquement sans conclure :**", "",
-  paste(">", TEXTE_CRITERE_229), "")
+# Aide a la lecture, propre a chaque partie (#242, D-i : celle de la
+# partie P reprenait celle de la partie regime).
+aide_lecture <- function(partie = "regime") {
+  variantes <- paste("V1 : p_mc du moteur (rejeu de usp_bootstrap(), contr\u00f4les (i1), (i2)) ; V3a : tirages de V1 dont \u03b4\u0302** est dans le",
+                     "r\u00e9gime de \u03b4\u0302*_b ; V3b : V3a compl\u00e9t\u00e9e par un flux distinct jusqu'\u00e0 999 retenus ou 25 000 tirages ; V3h : V3b \u00e0 \u03b4\u0302*",
+                     "int\u00e9rieur, V1 aux bords. **Aucune r\u00e9f\u00e9rence ne fonde V3 \u00e0 T = 8.**")
+  affichage <- if (identical(partie, "puissance"))
+    paste("Une p absente compte comme un non-rejet (par. 2.1) ; leur nombre est indiqu\u00e9 \u00e0 c\u00f4t\u00e9 du taux quand il n'est pas nul.",
+          "Taux et IC : 4 d\u00e9cimales, 3 en C4c ; aucun seuil de lecture.") else
+    paste("Une p absente compte comme un non-rejet (par. 2.1) ; leur nombre est indiqu\u00e9 \u00e0 c\u00f4t\u00e9 du taux quand il n'est pas nul.",
+                     "IC et taux : 4 d\u00e9cimales au moins, davantage quand l'arrondi placerait une borne de l'autre c\u00f4t\u00e9 d'un seuil de lecture",
+                     "(r\u00e9f\u00e9rence, bornes de la bande, \u03b1).")
+  mcn <- paste("McNemar exact, Holm au niveau 0,05 par famille (par. 2.1, Q-A1-5). \u00c0 l'\u00e9tape 6, les d\u00e9cisions sont mesur\u00e9es : la",
+               "lecture \u00ab au point \u00bb et la lecture \u00ab sous ind\u00e9pendance \u00bb de L10, qui portent sur un McNemar pr\u00e9dit par la grille, se r\u00e9duisent",
+               "au test exact sur les paires discordantes mesur\u00e9es.")
+  corps <- if (identical(partie, "puissance")) c(
+    paste("Statut : **constat de simulation** sous six alternatives (par. 6) engendr\u00e9es sur le mod\u00e8le ajust\u00e9 de J2, pas un r\u00e9sultat",
+          "g\u00e9n\u00e9ral : H, structure de variance Var(Y) \u221d x^k hors de la famille r\u00e9glementaire (k = 0 et k = 3 ; **le sc\u00e9nario H0 est",
+          "l'alternative k = 0, et non l'hypoth\u00e8se nulle**) ; C, contamination d'intensit\u00e9 \u03bb ; A, erreurs \u03c7\u00b2 centr\u00e9es r\u00e9duites \u00e0 \u03bd degr\u00e9s",
+          "de libert\u00e9 (intensit\u00e9s en T0).", variantes), "",
+    paste("Puissance : taux de rejet k / n sur toutes les r\u00e9plications trait\u00e9es du sc\u00e9nario (\u00e9cart\u00e9es ou en erreur : T3), IC de",
+          "Clopper-Pearson \u00e0 95 %, incertitude Monte-Carlo sur le taux (fonction du nombre de r\u00e9plications), pas l'erreur d'approximation",
+          "en T. L'erreur li\u00e9e \u00e0 B fait partie de la proc\u00e9dure mesur\u00e9e. Entre parenth\u00e8ses, le niveau de la variante sur J2 (T1 de la",
+          "partie r\u00e9gime, population du crit\u00e8re) : une puissance se lit avec le niveau mesur\u00e9 de la m\u00eame variante (C4c). Aucune bande de",
+          "Bradley ni classe de #166 : il n'y a pas de r\u00e9f\u00e9rence de niveau sous une alternative.", affichage), "",
+    paste(mcn, "C4a : variante contre V1 sur toutes les r\u00e9plications du sc\u00e9nario, famille (sc\u00e9nario, \u03b1) sur F_R ; C4b : sur les",
+          "r\u00e9plications \u00e0 \u03b4\u0302* int\u00e9rieur, \u03b1 = 0,10, famille (sc\u00e9nario, \u03b1 = 0,10, ensemble cible) ; C4c (puissance par r\u00e9gime) :",
+          "descriptif, conditionnel \u00e0 un \u00e9v\u00e9nement fonction des donn\u00e9es. Profils : C1 \u00e0 C3 relus dans les valeurs brutes de la partie",
+          "r\u00e9gime (T0), C4 de cette partie. T2 n'est pas calcul\u00e9 en partie P.")) else c(
+    paste("Statut : **constat de simulation** sous les mod\u00e8les ajust\u00e9s \u00e0 J1 et J2 et sous le mod\u00e8le synth\u00e9tique J3, pas un r\u00e9sultat",
+          "g\u00e9n\u00e9ral.", variantes), "",
+    paste("IC : Clopper-Pearson \u00e0 95 %, incertitude Monte-Carlo sur le taux (fonction du nombre de r\u00e9plications), pas l'erreur",
+          "d'approximation en T. L'erreur li\u00e9e \u00e0 B fait partie de la proc\u00e9dure mesur\u00e9e. Taux par r\u00e9gime : conditionnels \u00e0 un \u00e9v\u00e9nement",
+          "fonction des donn\u00e9es. Bande de Bradley (1978) : convention, pas th\u00e9or\u00e8me (r\u00e8gle de lecture de #166) ; bande non",
+          "applicable si la r\u00e9f\u00e9rence est inf\u00e9rieure \u00e0 2/n (L6). Population : J1 aux bords (int\u00e9rieur descriptif, T1 bis) ; J2 et J3,",
+          "r\u00e9plications trait\u00e9es (\u00e9cart\u00e9es par le refus de #188 ou une erreur de usp_ajuster(), ou au statut erreur : T3).", affichage), "",
+    paste(mcn,
+          "C5 se lit selon L15 (annotation du 10/10/2026) : un t\u00e9moin significatif est expliqu\u00e9 si sa diff\u00e9rence V3b \u2212 V1",
+          "mesur\u00e9e a le signe pr\u00e9dit par la grille et reste \u00e0 moins de e* de la pr\u00e9diction ; sinon il suspend la lecture."))
+  c("### Aide \u00e0 la lecture", "", corps, "",
+    "**Crit\u00e8re de la sp\u00e9cification (par. 2.1 et 2.2), report\u00e9 sans modification, \u00e9valu\u00e9 m\u00e9caniquement sans conclure :**", "",
+    paste(">", TEXTE_CRITERE_229), "")
+}
 
 tableaux_regime <- function(DL, OL, REF, LIGNES_T2) {
   DM <- lapply(DL, matrices)
@@ -1224,8 +1396,10 @@ conditions_c4 <- function(DP) {
   txt_manque <- if (length(manque)) sprintf(" ; sc\u00e9narios absents : %s", paste(manque, collapse = ", ")) else ""
   for (v in VARIANTES_CRIT) {
     def <- character(0); n_ev <- 0L
+    n_a <- character(0)
     for (sc in scs) for (ia in IA) {
       MX <- DP[[sc]]; rows <- lignes_pop(sc, MX, "toutes")
+      if (ia == IA[1]) n_a <- c(n_a, txt_n(sc, sum(rows)))
       if (!any(rows)) next
       n_ev <- n_ev + 1L
       mc <- famille_mcn(MX, v, SEUILS[match(ia, IA)], rows, F_R)
@@ -1234,10 +1408,12 @@ conditions_c4 <- function(DP) {
                                         fmt_p(mc$p_holm[k])))
     }
     ajout("C4a", v, if (!n_ev) ETAT[["ne"]] else if (length(def)) ETAT[["ko"]] else ETAT[["ok"]],
-          sprintf("perte significative (McNemar Holm < 0,05, n10 > n01, F_R, toutes r\u00e9plications) : %s%s", liste_cel(def), txt_manque))
-    gain <- character(0); n_ev <- 0L
+          sprintf("perte significative (McNemar Holm < 0,05, n10 > n01, F_R, toutes r\u00e9plications) : %s ; n : %s%s", liste_cel(def),
+                  paste(n_a, collapse = " ; "), txt_manque))
+    gain <- n_b <- character(0); n_ev <- 0L
     for (sc in scs) {
       MX <- DP[[sc]]; rows <- lignes_pop(sc, MX, "interieur")
+      n_b <- c(n_b, txt_n(sc, sum(rows)))
       if (!any(rows)) next
       n_ev <- n_ev + 1L
       cib <- CIBLES[[SCENARIOS$famille[SCENARIOS$code == sc]]]
@@ -1247,7 +1423,8 @@ conditions_c4 <- function(DP) {
                                           fmt_p(mc$p_holm[k])))
     }
     ajout("C4b", v, if (!n_ev) ETAT[["ne"]] else if (length(gain)) ETAT[["ok"]] else ETAT[["ko"]],
-          sprintf("gain significatif \u00e0 \u03b4\u0302* int\u00e9rieur (\u03b1 = 0,10, Holm sur l'ensemble cible, n01 > n10) : %s%s", liste_cel(gain), txt_manque))
+          sprintf("gain significatif \u00e0 \u03b4\u0302* int\u00e9rieur (\u03b1 = 0,10, Holm sur l'ensemble cible, n01 > n10) : %s ; n \u00e0 \u03b4\u0302* int\u00e9rieur : %s%s",
+                  liste_cel(gain), paste(n_b, collapse = " ; "), txt_manque))
   }
   do.call(rbind, C)
 }
@@ -1275,10 +1452,10 @@ tableaux_puissance <- function(DP, DLR, REF) {
       a <- SEUILS[match(ia, IA)]; rbind(famille_mcn(MX, v, a, rows, F_R), famille_mcn(MX, v, a, rows, F_T)) }))
     for (s in STATS) for (v in VARIANTES) {
       cols <- unlist(lapply(IA, function(ia) {
-        a <- SEUILS[match(ia, IA)]; p <- MX$P[[v]][rows, s]; k <- sum(is.finite(p) & p < a); n <- sum(rows)
+        a <- SEUILS[match(ia, IA)]; p <- MX$P[[v]][rows, s]; k <- sum(is.finite(p) & p < a); n <- sum(rows); na <- sum(!is.finite(p))
         m <- if (v == "V1") "\u2014" else { x <- mc[[ia]][[v]]; x <- x[x$stat == s, ]
           sprintf("%d / %d, %s", x$n01, x$n10, fmt_p(x$p_holm)) }
-        c(sprintf("%s %s (%s)", num(if (n) k / n else NA, 4), txt_ic(ic_cp(k, n)), if (is.null(niv)) "\u2014" else num(niv[[ia]][s, v], 4)), m)
+        c(sprintf("%s %s (%s)%s", num(if (n) k / n else NA, 4), txt_ic(ic_cp(k, n)), if (is.null(niv)) "\u2014" else num(niv[[ia]][s, v], 4), txt_na(na)), m)
       }))
       L <- c(L, ligne_md(lib_pop(sc), s, if (s %in% cib) "oui" else "", v, sum(rows), paste(cols, collapse = " | ")))
     }
@@ -1292,7 +1469,7 @@ tableaux_puissance <- function(DP, DLR, REF) {
     for (s in cib)
       L <- c(L, ligne_md(lib_pop(sc), s, paste(vapply(rs, sum, 1L), collapse = " ; "),
                          paste(vapply(VARIANTES, function(v) paste(vapply(rs, function(r) {
-                           p <- MX$P[[v]][r, s]; if (any(r)) num(mean(is.finite(p) & p < 0.10), 3) else "\u2014" }, ""), collapse = " ; "), ""),
+                           p <- MX$P[[v]][r, s]; if (any(r)) paste0(num(mean(is.finite(p) & p < 0.10), 3), txt_na_court(sum(!is.finite(p)))) else "\u2014" }, ""), collapse = " ; "), ""),
                                collapse = " | ")))
   }
   c(L, "", tableau_t3(DP, DM, list()))
@@ -1357,7 +1534,7 @@ lire_pred_c5 <- function(f) {
   e <- as.numeric(sub(",", ".", r[2:5], fixed = TRUE))
   if (anyNA(e) || anyNA(t1[, -(1:2)])) return(NULL)
   list(t1 = t1, estar = matrix(e, 2, 2, byrow = TRUE, dimnames = list(c("J1", "J2"), IA)),
-       txt = sprintf("%s (md5 %s) : T1 pr\u00e9dit, %d lignes ; e* J1 %s / %s, J2 et J3 %s / %s", chemin_cite(f), md5_fichier(f), nrow(t1),
+       txt = sprintf("%s (md5 %s) : T1 pr\u00e9dit, %d lignes ; e* J1 %s / %s, J2 et J3 %s / %s", chemin_affiche(f), md5_fichier(f), nrow(t1),
                      num(e[1], 4), num(e[2], 4), num(e[3], 4), num(e[4], 4)))
 }
 PRED_C5 <- NULL; PRED_C5_TXT <- "tableau de la grille illisible : aucun t\u00e9moin significatif ne peut \u00eatre expliqu\u00e9"
@@ -1556,7 +1733,7 @@ if (MODE_COMBINER) {
       refuser("--journal : (i3) empreinte sans commentaires du JOURNAL ", le[[1]][2], " differente de celle des tranches ", emp)
     TXT_DEBIT <- gsub("|", "\\|", ld[[1]][3], fixed = TRUE)
     TXT_EMP_J <- sprintf("%s, \u00e9gale \u00e0 celle des tranches (contr\u00f4le (i3))", le[[1]][2])
-    TXT_JOURNAL <- sprintf("%s (md5 %s) : md5 des %d tranches conformes ; lignes du d\u00e9bit P4 et de l'empreinte (#231) lues", chemin_cite(OPT_JOURNAL),
+    TXT_JOURNAL <- sprintf("%s (md5 %s) : md5 des %d tranches conformes ; lignes du d\u00e9bit P4 et de l'empreinte (#231) lues", chemin_affiche(OPT_JOURNAL),
                            md5_fichier(OPT_JOURNAL), length(parts))
   }
   groupes <- unique(vapply(parts, `[[`, "", "groupe"))
@@ -1603,12 +1780,12 @@ if (MODE_COMBINER) {
     regmatches(z, gregexpr("docs/tableaux/[^ ]+ \\(md5 [0-9a-f]{32}", z)) })))
   for (s in src) {
     f <- file.path(RACINE, sub(" \\(md5.*$", "", s)); m <- sub("^.*md5 ", "", s)
-    if (!identical(suivi_git(f), "oui")) nv <- c(nv, sprintf("%s non suivi par git", chemin_cite(f)))
-    else if (!identical(md5_fichier(f), m)) nv <- c(nv, sprintf("%s modifi\u00e9 depuis les tranches (md5)", chemin_cite(f)))
+    if (!identical(suivi_git(f), "oui")) nv <- c(nv, sprintf("%s non suivi par git", chemin_affiche(f)))
+    else if (!identical(md5_fichier(f), m)) nv <- c(nv, sprintf("%s modifi\u00e9 depuis les tranches (md5)", chemin_affiche(f)))
   }
-  F_GRILLE_C <- sub(" \\(md5.*$", "", ctx1[["grille"]])
-  charger_pred_c5(if (grepl("^(/|[A-Za-z]:)", F_GRILLE_C)) F_GRILLE_C else file.path(RACINE, F_GRILLE_C))
-  if (!identical(suivi_git(file.path(RACINE, F_GRILLE_C)), "oui")) nv <- c(nv, sprintf("tableau de la grille %s non suivi par git", F_GRILLE_C))
+  GR_C <- grille_combinaison(ctx1[["grille"]])
+  charger_pred_c5(GR_C$chemin)
+  nv <- c(nv, GR_C$nv)
   if (OPT_ECRIRE && length(nv))
     refuser("--ecrire refuse (tableau versionne dans docs/tableaux/) : ", paste(nv, collapse = " ; "),
             " -- relancer sur un arbre propre, ou utiliser --sortie DOSSIER hors du depot")
@@ -1636,16 +1813,16 @@ if (MODE_COMBINER) {
         x <- M[M[, "jeu"] == j & M[, "b"] != "0", -1, drop = FALSE]
         en_table(lapply(seq_len(nrow(x)), function(i) unname(x[i, ])))
       })
-      TXT_RB <- sprintf("%s (md5 %s, suivi par git : %s)", chemin_cite(frb), md5_fichier(frb), suivi_git(frb))
+      TXT_RB <- sprintf("%s (md5 %s, suivi par git : %s)", chemin_affiche(frb), md5_fichier(frb), suivi_git(frb))
       if (!identical(suivi_git(frb), "oui")) nv <- c(nv, "valeurs brutes de la partie r\u00e9gime non suivies par git")
     } else TXT_RB <- "introuvables (profils non \u00e9valu\u00e9s)"
     if (OPT_ECRIRE && is.null(DLR)) refuser("--ecrire refuse : valeurs brutes de la partie regime introuvables (--regime-brut)")
   }
   # T0
   t0 <- c(entete_md(c("Grandeur", "Valeur")),
-          vapply(CLES_COMMUNES, function(k) ligne_md(LIBELLES_CONTEXTE[[k]], ctx1[[k]]), ""))
+          vapply(CLES_COMMUNES, function(k) ligne_md(LIBELLES_CONTEXTE[[k]], masquer_chemins(ctx1[[k]])), ""))
   for (g in names(DL)) {
-    t0 <- c(t0, vapply(setdiff(CLES_CONTEXTE, CLES_COMMUNES), function(k) ligne_md(sprintf("%s : %s", g, LIBELLES_CONTEXTE[[k]]), CTX[[g]][[k]]), ""),
+    t0 <- c(t0, vapply(setdiff(CLES_CONTEXTE, CLES_COMMUNES), function(k) ligne_md(sprintf("%s : %s", g, LIBELLES_CONTEXTE[[k]]), masquer_chemins(CTX[[g]][[k]])), ""),
             ligne_md(sprintf("%s : R\u00e9plications", g), sprintf("%d (tranches %s)", RG[[g]],
                      paste(vapply(parts[vapply(parts, function(p) p$groupe == g, logical(1))], function(p) sprintf("%d-%d", p$debut, p$fin), ""), collapse = ", "))),
             ligne_md(sprintf("%s : Dur\u00e9e cumul\u00e9e (s)", g), sprintf("contr\u00f4les %.0f ; total %.0f ; r\u00e9plications %.0f",
@@ -1664,7 +1841,7 @@ if (MODE_COMBINER) {
           ligne_md("Valeurs brutes de cette sortie", sprintf("%s : md5 %s, %d lignes de r\u00e9plications (copie hors du d\u00e9p\u00f4t : --brut)",
                                                            NOMS_SORTIE[[OPT_PARTIE]][["brut"]], MD5_BRUT, length(BRUT) - 1L)),
           if (OPT_PARTIE == "puissance") ligne_md("Valeurs brutes de la partie r\u00e9gime (C1 \u00e0 C3, niveaux de J2)", TXT_RB),
-          ligne_md("Intensit\u00e9s des sc\u00e9narios de P (constantes INTENSITES)", paste(sprintf("%s : %s", names(LIB_SCEN), LIB_SCEN), collapse = " ; ")),
+          ligne_md("Intensit\u00e9s des sc\u00e9narios de P (constantes INTENSITES)", paste(lib_pop(names(LIB_SCEN)), collapse = " ; ")),
           ligne_md("Discordances list\u00e9es (i1), (v3a), (t2) (expliqu\u00e9es)", liste_cel(c(disc_obs, disc), 200)),
           ligne_md("Versionnable (--ecrire)", if (length(nv)) paste("non :", paste(nv, collapse = " ; ")) else "oui"),
           ligne_md("Contr\u00f4les d'int\u00e9grit\u00e9", sprintf("OK dans les %d tranche(s), invariants du corps v\u00e9rifi\u00e9s", length(parts))))
@@ -1675,7 +1852,7 @@ if (MODE_COMBINER) {
               sprintf("Param\u00e8tres : %s", paste(vapply(names(DL), function(g)
                 parts[vapply(parts, function(p) p$groupe == g, logical(1))][[1]]$parametres, ""), collapse = " | ")), "",
               "### T0 -- provenance (identique dans les tranches de chaque groupe, v\u00e9rifi\u00e9)", "", t0, "",
-              aide_lecture(),
+              aide_lecture(OPT_PARTIE),
               if (OPT_PARTIE == "regime") tableaux_regime(DL, OL, RF$REF, LIGNES_T2) else tableaux_puissance(DL, DLR, RF$REF))
   ecrire_console(sortie)
   ecrire <- function(f, lignes) { con <- file(f, open = "wb"); writeLines(enc2utf8(lignes), con, useBytes = TRUE); close(con) }
@@ -2053,12 +2230,12 @@ if (OPT_PREVOL) {
   }
   d_pv <- as.numeric(difftime(Sys.time(), t_pv, units = "secs"))
   n_err_pv <- vapply(ERR_PV, length, 1L)
-  ecrire_console(c(sprintf("## Pré-vol (--prevol) : %s, R = %d (sans bootstrap, rien d'écrit)", GROUPE, OPT_R), "",
+  ecrire_console(c(sprintf("## Pr\u00e9-vol (--prevol) : %s, R = %d (sans bootstrap, rien d'\u00e9crit)", GROUPE, OPT_R), "",
                    sprintf("Commit : %s ; plateforme : %s ; p de V1 : valeurs brutes de #221 de %s (%s, md5 %s)%s", COMMIT,
-                           plateforme_calcul(), src_p, chemin_cite(fb), md5_fichier(fb), if (GROUPE == "J3") ", au même b (J3 n'a pas de valeurs brutes de #221)" else ""),
-                   sprintf("Réplications validées : %d sur %d (régimes : %s) ; durée %.1f s (%.4f s par réplication)", n_val, OPT_R,
+                           plateforme_calcul(), src_p, chemin_affiche(fb), md5_fichier(fb), if (GROUPE == "J3") ", au m\u00eame b (J3 n'a pas de valeurs brutes de #221)" else ""),
+                   sprintf("R\u00e9plications valid\u00e9es : %d sur %d (r\u00e9gimes : %s) ; dur\u00e9e %.1f s (%.4f s par r\u00e9plication)", n_val, OPT_R,
                            paste(sprintf("%s %d", REG, vapply(REG, function(r) sum(reg_pv == r), 1L)), collapse = ", "), d_pv, d_pv / OPT_R), "",
-                   entete_md(c("Fonction", "erreurs", "réplications (b, message)")),
+                   entete_md(c("Fonction", "erreurs", "r\u00e9plications (b, message)")),
                    vapply(FONCTIONS_PV, function(f) ligne_md(f, n_err_pv[[f]], liste_cel(ERR_PV[[f]], 20)), ""), "",
                    sprintf("Bilan : %s", if (sum(n_err_pv)) sprintf("%d erreur(s)", sum(n_err_pv)) else "aucune erreur")))
   quit(status = if (sum(n_err_pv)) 1L else 0L)
@@ -2110,7 +2287,7 @@ md5_t0_221 <- local({
 TXT_I3 <- sprintf("%s : empreinte sans commentaires de R/engine.R %s, (g5) de la grille %s ; md5 du fichier entier %s ; md5 du moteur du T0 de #221 (pour m\u00e9moire, lien par (i1) et (c)) %s",
                   if (isTRUE(GRILLE$ok && GRILLE$g5 == EMPREINTE_SC && GRILLE$param_spec)) "OK" else "\u00c9CHEC", EMPREINTE_SC, GRILLE$g5, MD5_MOTEUR, md5_t0_221)
 controle(GRILLE$ok && identical(GRILLE$g5, EMPREINTE_SC) && GRILLE$param_spec,
-         sprintf("(i3) %s ; tableau de la grille %s", TXT_I3, TXT_GRILLE))
+         sprintf("(i3) %s ; tableau de la grille %s", TXT_I3, masquer_chemins(TXT_GRILLE)))
 # (a) J1 observe contre la reference premium ; lignes de T2
 RES_A <- executer_cas("premium")
 cmp_a <- comparer_objets(neutraliser_instables(readRDS(chemin_reference("premium"))), neutraliser_instables(RES_A), tol = TOLERANCE)
@@ -2185,12 +2362,12 @@ if (PARTIE == "regime") {
     REG_REF <- unname(M[k, "regime"][order(as.integer(M[k, "b"]))])
     controle(identical(md5_fichier(OPT_GRILLE_BRUT), GRILLE$brut_md5) && length(REG_REF) >= OPT_R,
              sprintf("(c-J3) valeurs brutes de la grille %s : md5 %s, \u00e9gal \u00e0 celui du T0 du tableau de la grille (%s) ; %d r\u00e9plications de J3 (couche v\u00e9rit\u00e9)",
-                     chemin_cite(OPT_GRILLE_BRUT), md5_fichier(OPT_GRILLE_BRUT), GRILLE$brut_md5, length(REG_REF)))
+                     chemin_affiche(OPT_GRILLE_BRUT), md5_fichier(OPT_GRILLE_BRUT), GRILLE$brut_md5, length(REG_REF)))
     SOURCES <- c(F_TAB221[["J2"]])
   }
 } else {
   sc <- SCENARIOS[SCENARIOS$code == GROUPE, ]
-  LIB_JEU <- sprintf("sc\u00e9nario %s (%s) sur le mod\u00e8le ajust\u00e9 de J2", GROUPE, LIB_SCEN[[GROUPE]])
+  LIB_JEU <- sprintf("sc\u00e9nario %s sur le mod\u00e8le ajust\u00e9 de J2", lib_pop(GROUPE))
   # Copie declaree de tests/grille_regime_t8.R (generer_scenario(),
   # md5_valeurs()), ordre des tirages fixe par L8.
   generer_scenario <- function(sc, R) {
@@ -2325,8 +2502,8 @@ CTX <- c(
   commit = COMMIT, plateforme = plateforme_calcul(), empreintes = EMPREINTES,
   empreinte_sc = sprintf("%s (md5 du fichier entier %s)", EMPREINTE_SC, MD5_MOTEUR),
   grille = TXT_GRILLE, reference = TXT_A,
-  sources = paste(c(vapply(SOURCES[!is.na(SOURCES)], function(f) sprintf("%s (md5 %s, suivi par git : %s)", chemin_cite(f), md5_fichier(f), suivi_git(f)), ""),
-                    if (identical(GROUPE, "J3")) sprintf("valeurs brutes de la grille %s (md5 %s)", chemin_cite(OPT_GRILLE_BRUT), md5_fichier(OPT_GRILLE_BRUT))), collapse = " ; "),
+  sources = paste(c(vapply(SOURCES[!is.na(SOURCES)], function(f) sprintf("%s (md5 %s, suivi par git : %s)", chemin_affiche(f), md5_fichier(f), suivi_git(f)), ""),
+                    if (identical(GROUPE, "J3")) sprintf("valeurs brutes de la grille %s (md5 %s)", chemin_affiche(OPT_GRILLE_BRUT), md5_fichier(OPT_GRILLE_BRUT))), collapse = " ; "),
   scenario_l8 = TXT_L8, regle_r4 = REGLE_R4, lignes_t2 = paste(LIGNES_T2, collapse = " ; "),
   essai = if (OPT_ESSAI) "oui" else "non", i3 = TXT_I3)
 stopifnot(identical(names(CTX), CLES_CONTEXTE))
@@ -2413,12 +2590,12 @@ calculer_rep <- function(b, y, ctl) {
           repro <- egal(rc$mc$p_mc[[s]], p221[[s]])
           # cause (1) : quasi-egalites (h2) comptees sur les seuls tirages
           # de V1 (h2_v1), pas sur les ajouts de V3b
-          cause <- if (s %in% STATS_P2 && r$h2_v1[[s]] > 0) "(1) quasi-égalité (h2)" else
-            if (!identical(rc$ok, r$rv$ok)) "(2) changement de rétention" else NA_character_
+          cause <- if (s %in% STATS_P2 && r$h2_v1[[s]] > 0) "(1) quasi-\u00e9galit\u00e9 (h2)" else
+            if (!identical(rc$ok, r$rv$ok)) "(2) changement de r\u00e9tention" else NA_character_
           if (repro && !is.na(cause)) expl <- c(expl, s)
-          discord <- c(discord, sprintf("(i1) %s : p de #221 %.17g, p de V1 %.17g, recalcul par la contre-implémentation %s, %s", s, p221[[s]],
+          discord <- c(discord, sprintf("(i1) %s : p de #221 %.17g, p de V1 %.17g, recalcul par la contre-impl\u00e9mentation %s, %s", s, p221[[s]],
                                         r$mc$V1$p_mc[[s]], if (repro) "reproduit #221" else "NE reproduit PAS #221",
-                                        if (is.na(cause)) "cause non établie" else cause))
+                                        if (is.na(cause)) "cause non \u00e9tablie" else cause))
         }
         i1 <- if (length(setdiff(d1, expl))) "ECHEC" else "EXPL"
       } else i1 <- "OK"
@@ -2430,7 +2607,7 @@ calculer_rep <- function(b, y, ctl) {
         ok_l <- !is.na(st) & st %in% expl
         t2 <- if (all(ok_l)) "EXPL" else "ECHEC"
         discord <- c(discord, sprintf("(t2) %s : p retenue de #221 %.17g, de V1 %.17g, %s", LIGNES_T2[dl], pr[dl], r$t2$V1$p[dl],
-                                      ifelse(ok_l, "expliquée par (i1)", "NON expliquée")))
+                                      ifelse(ok_l, "expliqu\u00e9e par (i1)", "NON expliqu\u00e9e")))
       } else t2 <- "OK"
       vv <- verifier_v3a(r, b, discord); v3a <- vv$etat; discord <- vv$discord
     }
@@ -2477,7 +2654,7 @@ for (b in seq.int(DEBUT, FIN)) {
       if (res$statut == "traitee") {
         if (!is.null(res$h1)) {
           H1_OK <- !length(res$h1$ko)
-          TXT_H1 <- sprintf("réplication %d : %d contexte(s) comparé(s) (observé et tirages réajustés de V1 et de V3b), désaccords : %s",
+          TXT_H1 <- sprintf("r\u00e9plication %d : %d contexte(s) compar\u00e9(s) (observ\u00e9 et tirages r\u00e9ajust\u00e9s de V1 et de V3b), d\u00e9saccords : %s",
                             b, res$h1$n, if (length(res$h1$ko)) paste(sprintf("%s (%d)", names(table(res$h1$ko)), as.integer(table(res$h1$ko))), collapse = ", ") else "aucun")
         }
         if (isTRUE(ctl$complet)) {
@@ -2553,7 +2730,7 @@ S <- c(sprintf("## Mesure #229 : p-value Monte-Carlo conditionnelle au r\u00e9gi
                if (is.na(OPT_TRANCHE)) "unique" else OPT_TRANCHE), "",
        sprintf("Param\u00e8tres : %s", PAR), "",
        "### T0 -- provenance", "", entete_md(c("Grandeur", "Valeur")),
-       vapply(CLES_CONTEXTE, function(k) ligne_md(LIBELLES_CONTEXTE[[k]], nettoyer_champ(CTX[[k]])), ""),
+       vapply(CLES_CONTEXTE, function(k) ligne_md(LIBELLES_CONTEXTE[[k]], masquer_chemins(nettoyer_champ(CTX[[k]]))), ""),
        ligne_md("R\u00e9plications", sprintf("%d (trait\u00e9es ici : %d \u00e0 %d ; trait\u00e9es : %d ; en erreur : %d)", if (PARTIE == "regime") OPT_R else OPT_RP, DEBUT, FIN, n_tr, n_err)),
        if (!is.null(TXT_REPRISE)) ligne_md("Reprise (--reprendre)", sprintf("%s (md5 %s) : %d r\u00e9plication(s) reprise(s), %d recalcul\u00e9e(s) (\u00e9chantillon des contr\u00f4les), %d ligne(s) ignor\u00e9e(s) ; dur\u00e9es des r\u00e9plications reprises : celles de la premi\u00e8re ex\u00e9cution ; dur\u00e9e totale : cette ex\u00e9cution seule",
                                                                           TXT_REPRISE[1], TXT_REPRISE[2], N_REPRIS, N_RECALC_REPRIS, N_IGNOREES)),
