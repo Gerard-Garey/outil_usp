@@ -7785,7 +7785,9 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
 #     enumeree (prho.c, n_small = 9) ;
 #   - n <= 9 avec ex aequo (#207) : loi de permutation conditionnelle aux
 #     rangs moyens observes, comptee exactement par .mw_spearman_loi_rangs()
-#     (sans alea), p bilaterale par doublement, comme cor.test() ;
+#     (sans alea), p bilaterale par doublement de la plus petite des deux
+#     queues (coincide avec cor.test() sans ex aequo ; avec ex aequo, ne
+#     s'en ecarte qu'au centre de la loi, p >= 0,83 mesure) ;
 #   - n > 9 : cor.test(exact = FALSE), approximation de Student, relevee au
 #     plancher 2/n!, valeur exacte de P(|rho| = 1) sans ex aequo et simple
 #     plancher numerique avec ex aequo ; a |rho| = 1, l'approximation rend
@@ -7949,8 +7951,8 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
 # l'aurait garanti que par mesure. Interception ciblee : withCallingHandlers()
 # n'etouffe (muffleWarning) que l'avertissement emis par summary.lm() avec ce
 # message, en anglais ou traduit dans la langue de la session (gettext(),
-# domaine R-stats du paquet stats ; la forme traduite n'a pas ete mesuree,
-# aucune locale traduite n'etant disponible dans la session de #203) ; tout
+# domaine R-stats du paquet stats ; forme traduite verifiee par l'audit de
+# #203 sous une locale fr_FR construite pour l'occasion) ; tout
 # autre avertissement, y compris un autre avertissement de summary.lm(),
 # remonte (tests/unitaires/test_merz_wuthrich.R).
 # L'ajustement m est force avant l'installation du gestionnaire : les
