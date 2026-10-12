@@ -912,12 +912,18 @@ réplication de M1 où une colonne retenue devient dégénérée \\
 \code{mw\_residus()} & \code{aj}, \code{j\_degeneres} (\code{NULL}~: ensemble calculé sur
 \code{aj}) & \code{data.frame} des résidus de Mack
 $r(i,j)$, colonnes dégénérées exclues et consignées dans l'attribut \code{colonnes\_exclues}
-(issue~\#60) \\
+(issue~\#60), écart $F(i,j) - \hat f_j$ par \code{.mw\_ecart\_facteur\_stable()} (issue~\#233) \\
+\code{.mw\_ecart\_}\newline\code{facteur\_stable()} & cumuls $C(\cdot,j)$ et $C(\cdot,j+1)$ d'une
+colonne & vecteur des $F(i,j) - \hat f_j$ par l'identité exacte
+$\sum_{k \neq i} C(k,j)\big(F(i,j) - F(k,j)\big)/S_j$, sans annulation pour une cellule dominante,
+sommes par \code{sum()}~; employé par \code{mw\_residus()} et \code{mw\_influence()}
+(issue~\#233, section~\ref{sec:boot-mw}) \\
 \code{mw\_simuler\_triangle()}, \code{.mw\_stats()} & \code{aj}, vivier de
 résidus~; \code{aj} & triangle simulé~; vecteur de 13 statistiques \\
 \code{.mw\_pool\_residus()} & \code{aj}, \code{j\_degeneres} & vivier du bootstrap de Mack~:
-résidus retenus par \code{mw\_residus()}, redressés par $\sqrt{1 - h_{ij}}$, $1 - h_{ij}$ calculé
-comme $(S_j - C(i,j))/S_j$, puis recentrés (issue~\#46, section~\ref{sec:boot-mw}) \\
+résidus retenus par \code{mw\_residus()} (sous forme stable depuis l'issue~\#233), redressés par
+$\sqrt{1 - h_{ij}}$, $1 - h_{ij}$ calculé comme $(S_j - C(i,j))/S_j$, somme des autres cellules
+divisée par $S_j$, puis recentrés (issue~\#46, section~\ref{sec:boot-mw}) \\
 \code{mw\_test\_*()}, \code{mw\_famille\_alpha()},
 \code{mw\_stat\_correlation\_dev()} & \code{aj}~; argument \code{j\_degeneres} des trois
 vérifications colonne par colonne de M1 et, depuis l'issue~\#60, de
@@ -979,7 +985,9 @@ $\sigma_{\text{std}}$, barème & $\sigma_{\mathrm{USP}}$ et ses composantes \\
 \code{mw\_influence()} & \code{aj} & levier, facteur sans la cellule,
 écart relatif de $\hat f_j$, résidu de Mack (\code{NA} sur une colonne dégénérée), DFBETAS
 et son repère de lecture $2/\sqrt{n_j}$, par cellule, booléen de coloration
-\code{fort\_dfbetas} et booléen \code{dfbetas\_non\_borne} (issue~\#89) \\
+\code{fort\_dfbetas} et booléen \code{dfbetas\_non\_borne} (issue~\#89)~; facteur sans la
+cellule et $1 - h$ tirés des sommes des autres cellules, écarts au facteur sous forme stable
+(issue~\#233, fiche~\ref{mw:influence}) \\
 \code{mw\_contributions()} & \code{aj}, \code{msep} (sortie de
 \code{mw\_msep()}) & parts de chaque année de survenance dans la réserve et
 dans le terme de variance de processus \\
@@ -3775,8 +3783,9 @@ $\big(S_j - C(i,j)\big)/S_j$, somme des autres cellules de la colonne divisée p
 comme $1 - C(i,j)/S_j$, qui vaut~$0$ en virgule flottante dès qu'une cellule domine sa colonne
 d'un facteur de l'ordre de $10^{16}$ (mesuré sur le triangle de contrôle dont la première ligne
 est multipliée par $10^{17}$~: $1 - C/S = 0$, $(S - C)/S = 6{,}8\cdot 10^{-17}$, vivier fini)~;
-pour une telle cellule, le résidu $r(i,j)$ lui-même perd ses chiffres par annulation dans
-$F(i,j) - \hat f_j$, et le redressement agrandit cette erreur, limite antérieure à l'issue. Seul le
+pour une telle cellule, le résidu $r(i,j)$ lui-même perdait ses chiffres par annulation dans
+$F(i,j) - \hat f_j$, et le redressement agrandissait cette erreur, limite antérieure à l'issue et
+levée depuis par l'issue~\#233 (écart au facteur sous forme stable, ci-dessous). Seul le
 vivier change~: \code{mw\_residus()}, les statistiques observées et répliquées et
 \code{mw\_simuler\_triangle()} sont inchangés. Avant l'issue, le vivier était
 $r(i,j) - \bar r$, de moyenne des carrés $0{,}7775$ sur le triangle de contrôle (la somme des
@@ -3813,6 +3822,46 @@ ont une changent~; un verdict change,
 celui de l'hétéroscédasticité résiduelle (Breusch--Pagan), dont la p-value passe de $0{,}086$
 (\code{ALERTE}) à $0{,}103$ (\code{OK}), ligne présentée comme \emph{à la frontière du seuil}
 (fiche~\ref{mw:m2bp}, visa du mainteneur du 6~octobre 2026).
+
+\emph{Écart au facteur sous forme stable} (issue~\#233, décision du mainteneur
+Q-E2c-2 du 11~octobre 2026). Quand une cellule domine sa colonne, $\hat f_j$ est égal à son facteur individuel
+à l'arrondi près, et la différence directe $F(i,j) - \hat f_j$ perd ses chiffres significatifs par
+annulation. Depuis l'issue, l'écart est calculé par l'identité exacte
+\[
+  F(i,j) - \hat f_j = \frac{1}{S_j} \sum_{k \neq i} C(k,j)\,\big(F(i,j) - F(k,j)\big),
+\]
+conséquence de $\sum_k C(k,j)\,F(k,j) = S_j\,\hat f_j$ (\code{.mw\_ecart\_facteur\_stable()})~:
+chaque terme est une différence de facteurs individuels, sans annulation entre grandeurs de
+l'ordre de la cellule dominante. \textbf{Aucune définition ne change}~: les deux écritures sont
+égales en arithmétique exacte, et $\hat f_j$, $\hat\sigma_j^2$, la MSEP et
+$\sigma_{\mathrm{USP}}$ (\code{mw\_ajuster()}) ne sont pas modifiés. L'écriture sert au résidu de
+Mack (\code{mw\_residus()}, donc au vivier et à toutes les statistiques fondées sur les résidus)
+et, dans \code{mw\_influence()}, au résidu, à $e(i,j)$, à $s_{(i)}^2$ et à la variation relative
+de $\hat f_j$ (fiche~\ref{mw:influence}). Mesuré par \code{tests/mesure\_precision\_residus\_mw.R}
+(tableau \code{docs/tableaux/20261011-issue233-precision-residus-mw.md}~; triangle de contrôle et
+sous-triangle $8 \times 8$ de Taylor \& Ashe, ligne $0$, $3$ ou $6$ multipliée par $10^{e}$ ou
+$10^{-e}$, $e = 10, \ldots, 17, 20, 25, 30$~; référence calculée par le paquet~R Rmpfr à
+256~bits, contrôlée à 512~bits)~: erreur relative maximale des $r(i,j)$ de $5{,}93\cdot 10^{2}$
+avec le moteur antérieur à l'issue, $7{,}02\cdot 10^{-13}$ avec le moteur actuel~; erreur absolue
+maximale du vivier redressé et recentré de $1{,}12\cdot 10^{2}$, puis $7{,}76\cdot 10^{-13}$.
+Statut~: constat numérique sur des triangles construits, sans portée statistique. Sur le triangle
+de contrôle, les valeurs ne changent qu'à l'arrondi près, sous la tolérance des références
+(références inchangées), et $\sigma_{\mathrm{USP}}$, p-values de Monte-Carlo et verdicts sont
+identiques~; sur les triangles construits ($e = 12, \ldots, 17$, \code{run\_engine()}, $B = 999$,
+graine 20260831), $38$ verdicts changent sur $19$ triangles, tous d'une ligne multipliée par au
+moins $10^{14}$ ou au plus $10^{-14}$, $\sigma_{\mathrm{USP}}$ restant identique sur chacun~: ces
+changements sont la correction elle-même. \emph{Limite non levée.} La correction ne règle pas la perte de réplications quand une
+ligne a un poids négligeable~: l'écart-type $\sigma_j\sqrt{C(i,j)}$ du terme aléatoire de ses
+cumuls simulés domine alors leur espérance $f_j\,C(i,j)$, et une réplication dont un cumul simulé n'est pas strictement positif est
+écartée (\code{mw\_simuler\_triangle()}), de sorte que \code{B\_effectif} dépend du signe des
+tirages. Ce n'est pas un effet de précision, mais une fragilité du bootstrap, signalée hors de
+l'issue. Mesuré (\code{mw\_bootstrap()}, $B = 999$, graine 20260831) sur le sous-triangle de
+Taylor \& Ashe dont la ligne~$0$ est multipliée par $10^{-15}$ ($\sigma_j\sqrt{C(0,j)}$ y dépasse
+$f_j\,C(0,j)$ d'un facteur de $8{,}5\cdot 10^{5}$ à $6{,}7\cdot 10^{6}$ sur les cinq premières
+colonnes)~: \code{B\_effectif} de $96$ avec le moteur antérieur à l'issue et de $38$ avec le
+moteur actuel, toutes les réplications perdues l'étant par un cumul simulé non positif de la
+ligne~$0$ ($903$, puis $961$)~; la correction change les résidus de cette ligne, donc le vivier,
+mais ne crée pas la fragilité.
 
 \begin{encadre}
 \textbf{Limite structurelle du rééchantillonnage de résidus.} Cette procédure
@@ -11118,7 +11167,8 @@ estimateur de $\sigma_j^2$ sans la cellule, le moteur calcule
   = \frac{e(i,j)}{\sqrt{S_j}\,\big(1 - h(i,j)\big)\,s_{(i)}}.
 \]
 C'est la valeur que donne \code{stats::dfbetas()} sur cette régression (écart maximal mesuré
-$7\cdot 10^{-14}$ sur le triangle de contrôle \code{tests/donnees/triangle\_mw.csv}), avec sa
+$5{,}4\cdot 10^{-14}$ avec le moteur actuel, $7\cdot 10^{-14}$ avant l'issue~\#233, sur le triangle
+de contrôle \code{tests/donnees/triangle\_mw.csv}), avec sa
 convention de signe~: un DFBETAS négatif désigne une cellule dont le retrait \emph{augmente}
 $\hat f_j$, de signe opposé à la variation relative de la rubrique~3. Le moteur calcule
 $s_{(i)}^2$ directement par retrait de la cellule, à partir de $\hat f_j^{(-i)}$, et non par la
@@ -11127,6 +11177,23 @@ qu'emploie \code{stats::dfbetas()}~: cette forme est la différence de deux term
 $(n_j-1)\,\hat\sigma_j^2$, qui perd sa précision quand les cellules restantes de la colonne sont
 presque proportionnelles~; le test unitaire compare le moteur à \code{stats::dfbetas()} sur un
 triangle bien conditionné et au réajustement direct dans le cas presque proportionnel.
+\emph{Écriture stable} (issue~\#233)~: $\hat f_j^{(-i)}$ est le quotient des sommes des
+\emph{autres} cellules de la colonne, $\sum_{k \neq i} C(k,j+1) / \sum_{k \neq i} C(k,j)$, et
+$1 - h(i,j)$ vaut $\sum_{k \neq i} C(k,j)/S_j$, au lieu des différences $S_j - C(i,j)$ et
+$S'_j - C(i,j+1)$, qui s'annulent en virgule flottante pour une cellule dominante~;
+$e(i,j) = C(i,j)\big(F(i,j) - \hat f_j\big)$ et le résidu de Mack reçoivent l'écart au facteur
+sous forme stable (section~\ref{sec:boot-mw})~; les écarts
+$C(k,j+1) - \hat f_j^{(-i)}C(k,j) = C(k,j)\big(F(k,j) - \hat f_j^{(-i)}\big)$ de $s_{(i)}^2$ sont
+calculés par la même identité sur la colonne privée de la cellule~; la variation relative de
+$\hat f_j$ l'est par l'identité exacte
+$\big(\hat f_j^{(-i)} - \hat f_j\big)/\hat f_j = -\,C(i,j)\big(F(i,j) - \hat f_j\big)\big/
+\big(\big(S_j - C(i,j)\big)\hat f_j\big)$, sans différence de deux grandeurs presque égales. Ces
+écritures sont égales aux précédentes en arithmétique exacte. Mesuré sur la grille de la
+section~\ref{sec:boot-mw} (référence à 256~bits, constat numérique sur des triangles construits),
+moteur antérieur à l'issue puis moteur actuel~: erreur relative maximale de $\hat f_j^{(-i)}$ de
+$1{,}00$ à $2{,}5\cdot 10^{-16}$, de la variation relative de $6{,}65\cdot 10^{2}$ à
+$2{,}0\cdot 10^{-13}$, du DFBETAS de $29{,}4$ à $1{,}9\cdot 10^{-13}$~; DFBETAS \code{NA} dans une
+colonne retenue de $n_j \ge 3$ cellules, hors garde de non-bornage, de $78$ à~$0$.
 \textbf{Diagnostics, non tests.}
 \Hzero
 Sans objet.
@@ -11163,7 +11230,7 @@ Sans objet pour un verdict~: aucune loi de référence n'est comparée au DFBETA
 du repère (rubrique~6), on use d'une identité algébrique exacte de la régression à un seul
 coefficient~: $\mathrm{DFBETAS}(i,j) = t(i,j)\,\sqrt{h(i,j)/\big(1-h(i,j)\big)}$, où
 $t(i,j)$ est le résidu studentisé externe de la cellule (vérifiée numériquement à
-$7\cdot 10^{-14}$ près sur le triangle de contrôle contre \code{stats::rstudent()} et
+$5{,}4\cdot 10^{-14}$ près sur le triangle de contrôle, moteur actuel, contre \code{stats::rstudent()} et
 \code{stats::hatvalues()}). Si, de plus, les erreurs sont gaussiennes, $t(i,j)$ suit
 conditionnellement à $C(\cdot,j)$ une loi de Student à $n_j - 2$ degrés de liberté~: résultat
 classique de la régression linéaire gaussienne, qui se vérifie directement~:
@@ -11638,7 +11705,9 @@ Le support des tests est le résidu standardisé de Mack
   r(i,j) = \frac{\sqrt{C(i,j)}}{\hat\sigma_j}
   \left(\frac{C(i,j+1)}{C(i,j)} - \hat f_j\right),
 \]
-centré, d'échelle approximativement unitaire et non corrélé sous M1 à M3. Ces
+centré, d'échelle approximativement unitaire et non corrélé sous M1 à M3 (écart
+$F(i,j) - \hat f_j$ calculé sous une forme stable équivalente depuis l'issue~\#233,
+section~\ref{sec:boot-mw}). Ces
 trois propriétés portent sur le \emph{modèle}~: l'échelle \emph{observée} est,
 elle, contrainte par construction, la somme des carrés des résidus d'une colonne
 valant exactement $n_j - 1$ (fiche~\ref{mw:m2var}).
@@ -14499,7 +14568,8 @@ Merz--Wüthrich~: erreur de prédiction à un an, D(5) (§\ref{sec:mw}) &
 Merz--Wüthrich~: paramètre propre $\sigma_{(\text{res},s,\mathrm{USP})}$ et
 crédibilité (§\ref{sec:mw}) & \code{mw\_parametre()}, \code{usp\_credibilite()} \\
 Merz--Wüthrich~: résidus standardisés de Mack (§\ref{sec:mw}) &
-\code{mw\_residus()} \\
+\code{mw\_residus()}, \code{.mw\_ecart\_facteur\_stable()} (écart au facteur sous forme
+stable, issue~\#233) \\
 Merz--Wüthrich~: bootstrap semi-paramétrique et p-values de Monte-Carlo
 (§\ref{sec:boot-mw}) & \code{mw\_bootstrap()}, \code{.mw\_pool\_residus()} (vivier redressé
 par le levier, issue~\#46), \code{mw\_simuler\_triangle()}, \code{.mw\_stats()} \\
