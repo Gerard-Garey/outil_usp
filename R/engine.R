@@ -7722,7 +7722,9 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
 }
 .mw_spearman_loi_rangs <- function(a, b) {
   n <- length(a)
-  if (n < 2L || n > 9L || length(b) != n)
+  if (length(b) != n)
+    stop(".mw_spearman_loi_rangs() : a et b de longueurs differentes")
+  if (n < 2L || n > 9L)
     stop(".mw_spearman_loi_rangs() : n doit etre compris entre 2 et 9")
   A <- as.integer(round(2 * rank(a))); B <- as.integer(round(2 * rank(b)))
   lc <- .mw_spearman_comptes(sort(A), sort(B))
@@ -8185,12 +8187,10 @@ mw_test_homogeneite_accident <- function(aj, j_degeneres = NULL, res = NULL) {
   if (!isTRUE(defini) || !length(n)) return(list(p_min = NA_real_, effectifs = NA_character_))
   eff <- if (is.null(libelle)) paste(sprintf("%s = %d", names(n), as.integer(n)), collapse = ", ")
          else sprintf("%s = %s", libelle, paste(n, collapse = ", "))
-  # Mention de la loi enumeree seulement si la p_min est attribuee (aucune
-  # colonne au-dela de n_max, ou p_j garde l'approximation de Student).
-  if (isTRUE(ex_aequo) && isTRUE(ex_aequo_enumere)) {
-    if (!any(n > n_max))
-      eff <- paste(eff, "; ex aequo : loi de permutation conditionnelle aux rangs moyens, enumeree")
-  } else if (isTRUE(ex_aequo))
+  # Mention de la loi enumeree seulement si la p_min est attribuee : aucune
+  # colonne au-dela de n_max (ou p_j garde l'approximation de Student) et
+  # p_min finie (ajoutee en fin de fonction).
+  if (isTRUE(ex_aequo) && !isTRUE(ex_aequo_enumere))
     return(list(p_min = NA_real_, effectifs = paste(eff, "; ex aequo : loi de permutation",
                                                     "conditionnelle non tabulee, p_min non attribuee")))
   if (any(n > n_max))
@@ -8208,6 +8208,8 @@ mw_test_homogeneite_accident <- function(aj, j_degeneres = NULL, res = NULL) {
       if (is.character(mot) && length(mot) == 1L) mot else
         "p_min non calculable sur ces effectifs, p_min non attribuee", sep = "")))
   }
+  if (isTRUE(ex_aequo) && isTRUE(ex_aequo_enumere))
+    eff <- paste(eff, "; ex aequo : loi de permutation conditionnelle aux rangs moyens, enumeree")
   list(p_min = p, effectifs = eff)
 }
 

@@ -2117,6 +2117,17 @@ verifier(".mw_p_min_ligne : colonne de plus de 9 facteurs avec ex aequo, aucune 
            is.na(e$p_min) && !grepl("enumeree", e$effectifs, fixed = TRUE) &&
              grepl("colonne de plus de 9 facteurs", e$effectifs, fixed = TRUE)
          })
+verifier(".mw_p_min_ligne : p_min non finie avec ex aequo (K < 2), aucune mention de loi enumeree ; longueurs differentes nommees (#207, /code-review)",
+         {
+           e <- .mw_p_min_ligne(TRUE, c(5), "colonnes n_j", function(n) NA_real_, TRUE, n_max = 9,
+                                ex_aequo_enumere = TRUE)
+           f <- .mw_p_min_ligne(TRUE, c(5, 4), "colonnes n_j", function(n) 0.01, TRUE, n_max = 9,
+                                ex_aequo_enumere = TRUE)
+           m <- tryCatch(.mw_spearman_loi_rangs(1:5, 1:4), error = conditionMessage)
+           is.na(e$p_min) && !grepl("enumeree", e$effectifs, fixed = TRUE) &&
+             identical(f$p_min, 0.01) && grepl("enumeree", f$effectifs, fixed = TRUE) &&
+             grepl("longueurs differentes", m, fixed = TRUE)
+         })
 verifier("p_min de Fisher avec ex aequo = produit des masse_min, par enumeration brute (4 et 3 facteurs) (#207)",
          {
            a1 <- c(1, 1, 2, 3); a2 <- c(2, 2, 1)
