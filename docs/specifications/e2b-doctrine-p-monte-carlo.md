@@ -344,11 +344,11 @@ Sur Calendrier, le maximum simulé (2,557) dépasse l'extrémité du support obs
 
 | Clé | Sens | Extrémités à la configuration observée | Définie si |
 |---|---|---|---|
-| `CoxStuart` | haut | c(0, n_p/2) | m = n_p |
+| `CoxStuart` | haut | c(NA, n_p/2) (extrémité basse non lue en queue haute ; Q3 d'actuary, #125) | m = n_p |
 | `Runs` (z, plancher 1) ; `Runsr` (u, plancher `.usp_plancher_u(r)`) ; MW `Runs` (r) | deux | Z(R = 2) et Z(R_max), R_max = 2 min(n₁, n₂) + 1{n₁ ≠ n₂}, (n₁, n₂) de `.runs_effectifs()`. Z est calculé par un assistant partagé avec `test_runs()`, au bit près | n₁, n₂ ≥ 1 |
 | `MK` | deux | Z(S = ∓T(T−1)/2), par le code de `test_mann_kendall()` | r sans ex æquo |
 | `SpearTps`, `SpearVol` | deux | c(0, (T³ − T)/3) | sans ex æquo (r ; r et x) ; volumes non constants |
-| `Smirnov` | haut | c(0, 1) | ligne calculable, z sans ex æquo |
+| `Smirnov` | haut | c(NA, 1) (extrémité basse non lue en queue haute ; Q3 d'actuary, #125) | ligne calculable, z sans ex æquo |
 | `Calendrier` | deux | ((0 − E)/√V, (Σ⌊n_k/2⌋ − E)/√V), sur les diagonales retenues de l'observé | statistique finie |
 | `CorrDev` | deux | c(−1, 1) | sans ex æquo |
 | `HomogF`, `ExpVar` | haut | X_max = `.fisher_combine(p_j,min)$stat`, avec p_j,min la plus petite p atteignable de la colonne j à sa structure d'ex æquo observée : 2/n_j! sans ex æquo, minimum du support de la loi conditionnelle aux rangs moyens sinon (à exposer par `.mw_spearman_loi_rangs()`) | n_j ≤ 9 pour tout j |
