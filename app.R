@@ -1097,8 +1097,16 @@ server <- function(input, output, session) {
     r <- resultat()
     if (is.null(r)) return(div(style = "color:#7F8C8D", "Aucun calcul lance."))
     m <- r$metadata
+    # Ligne de #240 (Q-A4-12 (B)) : p-values Monte-Carlo conditionnelles au
+    # regime interieur de delta estime ou marginales, texte de
+    # texte_p_mc_regime() (display_helpers.R, lecture de
+    # r$bootstrap$p_mc_regime) ; NULL, donc aucune ligne, pour reserve2 et un
+    # objet sans p_mc_regime. Texte echappe par tags.
+    lig_mc <- texte_p_mc_regime(r)
     tagList(
       div(HTML(sprintf("<b>T</b> = %d &nbsp; <b>B</b> = %d", m$T, m$B))),
+      if (!is.null(lig_mc))
+        div(style = "font-size:12px", tags$b("P-values Monte-Carlo"), paste(":", lig_mc)),
       div(HTML(sprintf("<b>seed</b> = %s", format(m$seed, scientific = FALSE)))),
       div(HTML(sprintf("<b>sigma_USP</b> = <span class='cle' style='font-size:18px'>%.4f</span>",
                        r$parametre_final$sigma_usp))),
@@ -1407,6 +1415,11 @@ server <- function(input, output, session) {
     cat("Granularite p_mc     :", format(R()$bootstrap$granularite),
         "( = 1/(B+1), B nominal : p-value unilaterale ; bilaterale 2/(B_eff+1),",
         "par statistique : res$bootstrap$granularite_stat )\n")
+    # Ligne de #240 (Q-A4-12 (B)) : texte de texte_p_mc_regime(), comme le
+    # bloc Etat et l'en-tete du rapport fige ; aucune ligne pour reserve2 et
+    # pour un objet sans p_mc_regime.
+    lig_mc <- texte_p_mc_regime(R())
+    if (!is.null(lig_mc)) cat("P-values Monte-Carlo :", lig_mc, "\n")
     cat("Seuil alpha          :", m$alpha, "\n")
     cat("Graine (seed)        :", format(m$seed, scientific = FALSE), "\n")
     # Generateur et graines fixes consignes par le moteur (issue #37) ; un
@@ -1418,6 +1431,11 @@ server <- function(input, output, session) {
     if (!is.na(gen["seed_loi_nulle_sw"]))
       cat("Graine loi nulle SW  :", gen[["seed_loi_nulle_sw"]],
           "(loi nulle de Shapiro-Wilk)\n")
+    # Graine du flux complementaire de la p-value conditionnelle au regime
+    # (issue #240, metadata$seed_flux_regime) ; absente pour reserve2.
+    if (!is.na(gen["seed_flux_regime"]))
+      cat("Graine flux regime   :", gen[["seed_flux_regime"]],
+          "(flux complementaire des p-values Monte-Carlo, #240)\n")
     cat("Horodatage           :", format(m$horodatage, "%Y-%m-%d %H:%M:%S"), "\n")
     cat("Duree (s)            :", round(m$duree_sec, 2), "\n")
     cat("Version R            :", m$version_R, "\n")
