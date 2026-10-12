@@ -182,6 +182,17 @@ verifier("profondeur_coherente() : n = 4 ou 41 sans garde -> l'apercu s'evalue (
 .tdg <- .appels(parse(.app, keep.source = FALSE), "table_detail_groupe")
 verifier("app.R : vue Detail, un appel a table_detail_groupe() avec replier = TRUE (#178)",
          length(.tdg) == 1L && isTRUE(.tdg[[1]]$replier))
+# Bloc Etat et journal d'execution (issue #240, Q-A4-12 (B)) : la ligne
+# "P-values Monte-Carlo" est mise en forme par texte_p_mc_regime()
+# (display_helpers.R), appelee deux fois dans app.R : une fois dans le rendu
+# de output$etat, une fois dans celui de output$tab_meta.
+.rendu <- function(nom) Filter(function(e) identical(e[[2]], call("$", as.name("output"), as.name(nom))),
+                               .appels(parse(.app, keep.source = FALSE), "<-"))
+.etat <- .rendu("etat"); .meta <- .rendu("tab_meta")
+verifier("app.R : texte_p_mc_regime() appelee deux fois, une dans output$etat, une dans output$tab_meta (#240)",
+         length(.appels(parse(.app, keep.source = FALSE), "texte_p_mc_regime")) == 2L &&
+           length(.etat) == 1L && length(.appels(.etat[[1]], "texte_p_mc_regime")) == 1L &&
+           length(.meta) == 1L && length(.appels(.meta[[1]], "texte_p_mc_regime")) == 1L)
 .src_app <- readLines(.app, encoding = "UTF-8")
 verifier("app.R : regles CSS du commentaire replie (details.com) (#178)",
          any(grepl("details.com > summary", .src_app, fixed = TRUE)) &&
@@ -367,6 +378,43 @@ a("objet non fonction rbind global : table des controles identical a celle rendu
   is.character(r199$sans) && grepl("<table", r199$sans, fixed = TRUE) &&
     identical(r199$avec, r199$sans))
 )---"
+  # Ligne "P-values Monte-Carlo" du bloc Etat et du journal, graine du flux
+  # dans le journal (issue #240, Q-A4-12 (B)) : textes de texte_p_mc_regime()
+  # et de valeurs_generateur(), lus dans le resultat, presents en primes (jeu
+  # par defaut) et absents en reserve no 2 (triangle par defaut).
+  .bloc_240 <- r"---(
+## Ligne "P-values Monte-Carlo" du bloc Etat (issue #240)
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  do.call(session$setInputs, saisie199)
+  session$setInputs(go = 1)
+  et <- as.character(output$etat$html)
+  lig <- texte_p_mc_regime(resultat())
+  a("bloc Etat (primes) : ligne P-values Monte-Carlo, texte de texte_p_mc_regime() (#240)",
+    is.character(lig) && grepl("<b>P-values Monte-Carlo</b>", et, fixed = TRUE) &&
+      grepl(htmltools::htmlEscape(lig), et, fixed = TRUE))
+  jo <- output$tab_meta
+  a("journal (primes) : ligne P-values Monte-Carlo entre la granularite et alpha, graine du flux 20800000 (#240)",
+    grepl(paste0("P-values Monte-Carlo : ", lig, " \n"), jo, fixed = TRUE) &&
+      regexpr("Granularite p_mc", jo, fixed = TRUE) < regexpr("P-values Monte-Carlo", jo, fixed = TRUE) &&
+      regexpr("P-values Monte-Carlo", jo, fixed = TRUE) < regexpr("Seuil alpha", jo, fixed = TRUE) &&
+      grepl("Graine flux regime   : 20800000 ", jo, fixed = TRUE))
+  session$setInputs(methode = "reserve2", reinit = 2)
+  # Le navigateur rend la grille du triangle : ses cellules observees c_i_j
+  # sont relues, sans quoi le moteur refuse un triangle vide.
+  tr <- triangle(); k <- which(!is.na(tr), arr.ind = TRUE)
+  do.call(session$setInputs, setNames(as.list(tr[k]), sprintf("c_%d_%d", k[, 1] - 1L, k[, 2] - 1L)))
+  session$setInputs(go = 2)
+  et <- as.character(output$etat$html)
+  a("bloc Etat (reserve no 2) : aucune ligne P-values Monte-Carlo (#240)",
+    isTRUE(resultat()$ok) && identical(resultat()$metadata$methode, "reserve2") &&
+      grepl("sigma_USP", et, fixed = TRUE) && !grepl("P-values Monte-Carlo", et, fixed = TRUE))
+  jo <- output$tab_meta
+  a("journal (reserve no 2) : ni ligne P-values Monte-Carlo ni graine du flux (#240)",
+    grepl("Seuil alpha", jo, fixed = TRUE) && !grepl("P-values Monte-Carlo", jo, fixed = TRUE) &&
+      !grepl("Graine flux regime", jo, fixed = TRUE))
+})
+)---"
   .script <- tempfile(fileext = ".R")
   writeLines(c(
     'suppressMessages(library(shiny))',
@@ -479,7 +527,7 @@ a("objet non fonction rbind global : table des controles identical a celle rendu
     '  a("import n = 41 (hors [5 ; 40]) : garde non posee, apercu evalue avec T = 8 (#183)",',
     '    is.null(profondeur_import()) && is.character(ap) &&',
     '      !grepl("superieure", ap, fixed = TRUE))',
-    '})', .bloc_155, .bloc_199), .script)
+    '})', .bloc_155, .bloc_199, .bloc_240), .script)
   # Processus fils lance depuis la racine du depot : app.R y source
   # R/engine.R par chemin relatif. --vanilla ignore .Renviron et .Rprofile :
   # les bibliotheques de ce processus (.libPaths()) lui sont transmises par
@@ -496,8 +544,8 @@ a("objet non fonction rbind global : table des controles identical a celle rendu
                         setwd(.ici)
                       })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 31 assertions rendues", length(.lignes) == 31L)
-  if (length(.lignes) != 31L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 35 assertions rendues", length(.lignes) == 35L)
+  if (length(.lignes) != 35L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {

@@ -56,6 +56,9 @@ DOSSIER_REF <- file.path(RACINE, "tests", "reference")
 TOLERANCE <- 1e-6
 
 .ln  <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln.csv"))
+# Jeu a delta estime interieur (J2 de #229 ; xi, yi de
+# tests/unitaires/test_controles_numeriques.R), issue #240.
+.ln_int <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln_interieur.csv"))
 .tri <- local({
   df <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
   m <- as.matrix(df[, setdiff(names(df), "i")])
@@ -88,7 +91,15 @@ CAS <- list(
   # standard du melange change (NP standard 80 %, art. 117, paragraphe 3 ;
   # issue #55). Reference creee par la CI (mode creation, M31, M30).
   premium_net = function() run_engine(xt = .ln$xt, yt = .ln$yt, methode = "premium",
-                                      segment = 1, annexe = "II", nature_donnees = "nettes")
+                                      segment = 1, annexe = "II", nature_donnees = "nettes"),
+  # Jeu a delta estime INTERIEUR (J2 de la mesure de #229, delta estime
+  # 0,664 ; tests/donnees/donnees_ln_interieur.csv), configuration de #229 :
+  # methode premium, segment 1 de l'annexe II, donnees brutes. Seul cas ou la
+  # p-value Monte-Carlo conditionnelle au regime de delta estime (variante
+  # V3b, flux complementaire) est calculee (issue #240, Q-A4-11). Reference
+  # creee par la CI (mode creation, M31, M30).
+  premium_interieur = function() run_engine(xt = .ln_int$xt, yt = .ln_int$yt, methode = "premium",
+                                            segment = 1, annexe = "II", nature_donnees = "brutes")
 )
 
 # Retire les champs qui varient d'un appel a l'autre ou d'une machine a

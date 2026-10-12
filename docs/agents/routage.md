@@ -18,7 +18,8 @@ Le paramètre `model` d'un appel `Agent` l'emporte sur le `model` de la fiche ; 
 
 | Fiche | Modèle servi | Effort | `maxTurns` | Usage |
 |---|---|---|---|---|
-| `architect`, `actuary` | `opus` | `medium` | 40 | routine (§ 3) |
+| `architect` | `opus` | `medium` | 40 | routine (§ 3) |
+| `actuary` | `opus` | `medium` | 60 (40 jusqu'au 11/10/2026, Q-A4-16) | routine (§ 3) |
 | `architect-approfondi`, `actuary-approfondi` | `opus` | `high` | 80 | jugement (§ 3) |
 | `architect-approfondi`, `actuary-approfondi` appelées avec `model: "fable"` | Fable (fiche : `opus`, l'appel l'emporte) | `high` | 80 | cas du § 4.1, ou accord du mainteneur |
 
@@ -102,7 +103,7 @@ Ordre selon la nature du blocage : information → preuve ; exploration → effo
 
 - **Par question** : au plus une relance ciblée, une hausse d'effort et une consultation Fable ; ensuite arrêt et compte rendu au mainteneur, statut `revue requise` ; l'accord du mainteneur lève le plafond (§ 5.5).
 - **Par branche de travail** : au-delà de **3 consultations Fable** (ADR compris), accord du mainteneur avant chaque nouvelle consultation. Hors de toute branche ouverte (point d'étape entre deux branches, par exemple), le même plafond court **par période entre deux points d'étape** ; ces consultations sont notées dans la feuille de route (§ 7).
-- **Par consultation** : `maxTurns` de la fiche (40 ou 80). Ce plafond borne les tours, **pas les tokens** ; une réponse courte ne borne pas le raisonnement. Une reprise par `SendMessage` repart probablement avec un budget complet (à vérifier).
+- **Par consultation** : `maxTurns` de la fiche (40, 60 ou 80). Ce plafond borne les tours, **pas les tokens** ; une réponse courte ne borne pas le raisonnement. Une reprise par `SendMessage` repart probablement avec un budget complet (à vérifier).
 
 ### 5.3 Modèle indisponible, plafond atteint
 
