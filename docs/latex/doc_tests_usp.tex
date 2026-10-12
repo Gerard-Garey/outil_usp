@@ -5043,7 +5043,8 @@ avec ex \ae quo (issue~\#207) \\
 
 Absence de courbure & \textbf{MW} & $X$ de Fisher & Non & Oui, $\chi^2(2K)$ &
 Oui & Monte-Carlo & Idem &
-Puissance faible : 3 paramètres pour 4 à 6 observations \\
+Puissance faible : 3 paramètres pour 4 à 7 observations à $T = 8$, soit 1 à 4 degrés de liberté
+résiduels~; colonne à 1 degré de liberté conservée (fiche~\ref{mw:m1c}) \\
 
 Famille $\alpha$ (pondération) & \textbf{MW} & amplitude relative & Non & Non &
 Oui & Monte-Carlo & Sans objet : aucune loi analytique &
@@ -12213,7 +12214,13 @@ $1/C(i,j)$, sur les colonnes comptant au moins quatre observations.
 \Hzero
 $H_0 : c_j = 0$ dans chaque colonne.
 \Stat
-Statistique de Student sur $\hat c_j$, p-values combinées par Fisher. Colonnes dégénérées
+Statistique de Student $t_j = \hat c_j/\widehat{\mathrm{se}}(\hat c_j)$ dans chaque colonne, de
+p-value bilatérale lue sur la loi de Student à $n_j - 3$ degrés de liberté (trois coefficients
+estimés sur $n_j$ observations), p-values combinées par Fisher. À $T = 8$, les colonnes retenues
+sont $j = 0$ à~$3$, de $n_j = 7, 6, 5, 4$ observations, soit $4, 3, 2, 1$ degrés de liberté
+résiduels. Mesuré sur le triangle de contrôle (\code{mw\_test\_courbure()})~: $K = 4$,
+$t_j = 0{,}934$~; $-1{,}982$~; $-9{,}162$~; $-3{,}463$ et $p_j = 0{,}403$~; $0{,}142$~; $0{,}0117$~;
+$0{,}179$, $X = 18{,}06$. Colonnes dégénérées
 exclues, dans l'observé comme dans le bootstrap, selon la règle de la fiche~\ref{mw:m1a}.
 Comme pour l'ordonnée à l'origine, \code{summary()} est appelé par \code{.mw\_summary\_lm()}, qui
 intercepte le seul avertissement d'ajustement parfait de \code{summary.lm()}, sans changer
@@ -12227,8 +12234,30 @@ La linéarité et la nullité de la constante sont deux propriétés distinctes~
 relation courbe peut passer par l'origine et satisfaire le test précédent tout en
 contredisant $\mathbb{E}[C(i,j+1)\mid C(i,j)] = f_j C(i,j)$. Ce test ferme cette
 possibilité. Limite sévère à faible profondeur~: estimer trois paramètres sur
-quatre à six observations laisse très peu de degrés de liberté, et la puissance
+quatre à sept observations (à $T = 8$) laisse très peu de degrés de liberté, et la puissance
 est faible.
+
+\medskip
+\emph{Colonne à un seul degré de liberté résiduel} (issue~\#234, décision du mainteneur Q-E2c-1
+du 11~octobre 2026). Sur tout triangle d'au moins cinq années, exactement une colonne,
+$j = I - 4$, compte $n_j = 4$ observations, donc un seul degré de liberté résiduel ($j = 3$ sur le
+triangle de contrôle). Elle est \textbf{conservée} dans la combinaison de Fisher. Sa puissance
+propre est faible~: sous erreurs gaussiennes, la puissance exacte du test de Student bilatéral à
+un degré de liberté contre un paramètre de non-centralité de~$3$ vaut $0{,}186$ au seuil de
+$5~\%$ et $0{,}361$ au seuil de $10~\%$ (calcul exact sur la loi de Student non centrale,
+\code{1 - pt(q, 1, ncp = 3) + pt(-q, 1, ncp = 3)} avec \code{q = qt(1 - a/2, 1)}), contre
+$0{,}617$ à deux degrés de liberté au seuil de $10~\%$~; ces valeurs portent sur le test d'une
+colonne isolée, non sur la ligne. Elle reste pourtant la \emph{seule} vérification de la
+linéarité de la colonne $I - 4$~: l'écarter, avec un motif ou par un seuil de deux degrés de
+liberté, retirerait cette vérification, ramènerait $K$ de~$4$ à~$3$ à $T = 8$ et rendrait la
+ligne non définie sur un triangle de six années, où ne resteraient qu'une colonne et une
+combinaison de Fisher à $K = 1$, que \code{.fisher\_combine()} ne calcule pas. Un faible degré
+de liberté ne fausse pas, à lui seul, la p-value de la colonne, lue sur sa loi de Student (exacte
+sous les hypothèses de la régression pondérée gaussienne, que le modèle de Mack ne pose pas)~; il
+en réduit la puissance, et la colonne pèse dans $X$ par $-2\ln p_j$ comme les autres. Aucune référence ne
+tranche ce choix à $T = 8$~: la décision repose sur cet arbitrage, sans résultat publié à
+l'appui. Le statut de la p-value retenue n'en dépend pas~: elle reste de
+Monte-Carlo, la colonne étant traitée de la même façon à l'observé et dans chaque réplication.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $X$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{Courbure}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
