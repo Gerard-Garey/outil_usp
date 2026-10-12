@@ -12078,8 +12078,10 @@ cas de référence). Avec le moteur actuel, aucun avertissement sur les quatre t
 L'interception a été préférée à un recalcul sans \code{summary.lm()} (par \code{lm.fit()} ou
 \code{qr()}), dont l'égalité des valeurs n'aurait été établie que par mesure. La pente
 intra-colonne (\code{.mw\_lm\_intra()}) et Breusch--Pagan ne sont pas interceptés~: ils
-n'émettent pas cet avertissement (\code{run\_engine()} actuel, $B = 199$, aucun avertissement~R
-sur le triangle de contrôle multiplié par $10^{k}$, $k = -52, -30, -10, 10, 30, 46$).
+n'en ont émis aucun (\code{run\_engine()} actuel, $B = 199$, aucun avertissement~R sur le
+triangle de contrôle multiplié par $10^{k}$, $k = -52, -30, -10, 10, 30, 46$)~; leur critère est
+invariant par changement d'unité des cumulés (facteurs sans dimension et poids
+$C(i,j)/\hat\sigma_j^2$ pour la pente intra-colonne, $r^2$ sans dimension pour Breusch--Pagan).
 \Usage
 C'est le test central de M1, et celui que la régression agrégée ne pouvait pas
 fournir. Il répond à la première des deux exigences du texte réglementaire~: une
