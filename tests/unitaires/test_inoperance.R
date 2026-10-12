@@ -118,7 +118,9 @@ verifier("add() : p_ex NA, p_min = 0,0571, p_mc = 0,048 -> ECHEC, detail 'ECHEC 
              identical(l$detail, paste("d. p_min de la loi de reference echangeable = 0.0571 >= alpha/2 = 0.05",
                                        "(n1 = 4, n2 = 4) ; la p-value Monte-Carlo retenue, simulee sous le",
                                        "modele ajuste, peut lui etre inferieure (erreur Monte-Carlo,",
-                                       "non-echangeabilite) : ECHEC possible"))
+                                       "non-echangeabilite) : ECHEC possible ;",
+                                       # p = 0,048 a moins de 2 err_mc = 0,02 de alpha/2 (#244)
+                                       PHRASE_VERDICT_SENSIBLE_MC))
          })
 verifier("add() : p_ex NA, alpha/2 <= p_min < alpha, p_mc = 0,5 -> test OK, meme texte 'ECHEC possible'",
          {
@@ -916,7 +918,9 @@ verifier("f8, B = 59, alpha = 0,06 : lignes des suites (residus, ratios bruts) s
              identical(b8_59$p_mc_regime$variante, "V3b") &&
              identical(b8_59$B_effectif[[if (grepl("ratios", nm)) "Runsr" else "Runs"]], 59) &&
              endsWith(l$detail, paste("p_min de la loi de reference echangeable = 0.0571 >= alpha/2 = 0.03",
-                                      "(n1 = 4, n2 = 4) ; plancher Monte-Carlo >= alpha/2 = 0.03 : ECHEC inatteignable")) &&
+                                      "(n1 = 4, n2 = 4) ; plancher Monte-Carlo >= alpha/2 = 0.03 : ECHEC inatteignable ;",
+                                      # p = 0,133, err_mc = 0,065 : a 1,13 err_mc de alpha = 0,06 (#244)
+                                      PHRASE_VERDICT_SENSIBLE_MC)) &&
              !grepl("ECHEC possible", l$detail, fixed = TRUE)
          }, logical(1))))
 # Runsr, regime 1 (pi_t constant, p exacte) : la phrase "p-value EXACTE est

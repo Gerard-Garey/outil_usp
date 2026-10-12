@@ -1065,11 +1065,16 @@ verifier("Restitution : la colonne exclue est nommee dans le commentaire, estima
              grepl("Colonne degeneree", l$commentaire, fixed = TRUE) &&
              grepl("j = 2 (3 facteurs)", l$commentaire, fixed = TRUE) &&
              grepl("K = 2 colonne(s) testee(s) sur 3 eligible(s)", l$commentaire, fixed = TRUE) &&
-             identical(dr$commentaire[grepl("ordonnee a l'origine", dr$test)], base_oo) &&
+             # A B = 99, les trois p Monte-Carlo (0,12 ; 0,08 ; 0,05) sont a moins
+             # de 2 err_mc d'un seuil : phrase de #244 en dernier.
+             identical(dr$commentaire[grepl("ordonnee a l'origine", dr$test)],
+                       paste(base_oo, PHRASE_VERDICT_SENSIBLE_MC)) &&
              identical(dr$commentaire[grepl("Homogeneite de f_j", dr$test)],
-                       "Correlation de rang entre F(i,j) et i, colonne par colonne, combinee par Fisher") &&
+                       paste("Correlation de rang entre F(i,j) et i, colonne par colonne, combinee par Fisher ;",
+                             PHRASE_VERDICT_SENSIBLE_MC)) &&
              identical(dr$commentaire[grepl("courbure", dr$test)],
-                       "Une courbure invalide la linearite meme si la constante est nulle")
+                       paste("Une courbure invalide la linearite meme si la constante est nulle ;",
+                             PHRASE_VERDICT_SENSIBLE_MC))
          })
 
 ## --- Courbure : colonne a 1 ddl residuel conservee (issue #234) ------------

@@ -3643,6 +3643,21 @@ engine_p_mc <- function(sim, obs, queue) {
 # les residus de Mack : niveau de M5 a #245).
 NATURE_APPROX_N_FINI <- "approximation a n fini sous i.i.d. normal"
 
+# Phrase de sensibilite du verdict a l'alea de simulation (#244 ; ADR 0003
+# annote le 12/10/2026, point 3 ; Q-E2b-5, D1-5), posee par add() seul en
+# dernier element du detail d'une ligne de type test, sans verdict fourni,
+# dont la p retenue est Monte-Carlo (bootstrap ou p_mc_ext), d'erreur err_mc
+# finie et > 0, quand |p - s| < 2 err_mc (inegalite stricte) pour un seuil s
+# de la regle des verdicts de la ligne : {alpha/2, alpha} en sens "ne pas
+# rejeter", {alpha, SEUIL_ECHEC_SENS_REJETER} en sens "rejeter", atteignable
+# (plancher Monte-Carlo g_mc NA ou < s). Reste le dernier element du detail :
+# .usp_poser_renvois() insere le renvoi de #215 avant elle. Phrase fixe,
+# sans aucun nombre issu du bootstrap (regle #76 : "2" est une constante de
+# la regle) ; ni p, ni verdict, ni champ ne changent.
+PHRASE_VERDICT_SENSIBLE_MC <- paste(
+  "verdict sensible a l'alea de simulation",
+  "(p a moins de 2 erreurs de Monte-Carlo du seuil)")
+
 # --- Enregistrement des lignes de resultat des tests --------------------------
 # Fonction unique, partagee par usp_tests() et mw_tests() (ADR 0003, point 2).
 # Renvoie list(add, lignes) : add() enregistre une ligne, lignes() rend la
@@ -3717,7 +3732,9 @@ NATURE_APPROX_N_FINI <- "approximation a n fini sous i.i.d. normal"
 # INFO, sens et p_retenue = NA ; son detail le dit en tete (#128, point 2').
 # Une p Monte-Carlo retenue dont le plancher (granularite_stat) rend un
 # verdict inatteignable au seuil alpha est mentionnee en fin de detail (#128,
-# point d).
+# point d). Une p Monte-Carlo retenue a moins de 2 err_mc d'un seuil de la
+# regle des verdicts de la ligne recoit en dernier PHRASE_VERDICT_SENSIBLE_MC
+# (#244).
 engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
   pmc <- boot$p_mc; emc <- boot$err_mc; mmc <- boot$motif_mc
   gmc <- boot$granularite_stat
@@ -3940,6 +3957,30 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
       if (!is.null(txt_g)) {
         sep <- if (!nzchar(detail)) "" else if (grepl("\\.$", detail)) " " else " ; "
         detail <- trimws(paste0(detail, sep, txt_g))
+      }
+    }
+    # Verdict Monte-Carlo proche d'un seuil (#244 ; ADR 0003 annote le
+    # 12/10/2026, point 3 ; D1-5) : ligne de type test (ni diagnostic, test
+    # inoperant compris, ni non applicable), sans verdict fourni, p retenue
+    # Monte-Carlo (pas de p exacte finie, p_mc finie, bootstrap ou p_mc_ext),
+    # err_mc finie et > 0, |p - s| < 2 err_mc (inegalite stricte) pour un
+    # seuil s atteignable de la regle des verdicts ci-dessous. err_mc tient deja compte
+    # de la queue du catalogue (sqrt(p (k - p) / B_eff), k = 2 en bilateral,
+    # engine_p_mc()) : aucun cas particulier ici. Phrase fixe en dernier element
+    # du detail, apres la mention du plancher, meme regle de jonction ; aucun
+    # nombre issu du bootstrap (regle #76). Ni p ni verdict ne changent.
+    if (type == "test" && is.null(verdict) && !is.finite(p_ex) && is.finite(p_mc) &&
+        is.finite(e_mc) && e_mc > 0) {
+      seuils <- if (identical(sens, "rejeter")) c(alpha, SEUIL_ECHEC_SENS_REJETER)
+                else c(alpha / 2, alpha)
+      # Seuils atteignables seulement (precision d'actuary, Q1 de la reprise) :
+      # un seuil s compte si g_mc est NA (p_mc_ext, sans granularite) ou
+      # g_mc < s, g_mc etant le plancher de la mention de #128, point d,
+      # dans la meme arithmetique ; p_mc >= g_mc >= s ne peut pas franchir s.
+      seuils <- seuils[is.na(g_mc) | g_mc < seuils]
+      if (any(abs(p_mc - seuils) < 2 * e_mc)) {
+        sep <- if (!nzchar(detail)) "" else if (grepl("\\.$", detail)) " " else " ; "
+        detail <- trimws(paste0(detail, sep, PHRASE_VERDICT_SENSIBLE_MC))
       }
     }
     # ADR 0001 (amendement du 23/09/2026, M7) : seule une ligne de type "test"
@@ -10221,13 +10262,26 @@ USP_TXT_RENVOI_SV <- paste(
 # porte donc le renvoi si et seulement si la colonne renvoi d'
 # engine_table_tests() est non NA (coherence par construction, y compris
 # sous R1 et R3 sur Spearman). Seul le champ detail est complete, apres
-# toutes les mentions posees par add() ; add() et engine_registre_tests()
-# sont inchanges. Idempotent (point de vigilance (c) de l'ADR 0003) : un
-# texte deja present en fin de detail n'est pas ajoute une seconde fois.
+# toutes les mentions posees par add(), sauf PHRASE_VERDICT_SENSIBLE_MC
+# (#244), qui reste le dernier element du detail (ADR 0003 annote le
+# 12/10/2026, point 3 ; constat C1 de l'audit de #244) : quand le detail
+# finit par elle, le renvoi est insere avant elle, chaque jonction suivant
+# .usp_joindre(). add() et engine_registre_tests() sont inchanges.
+# Idempotent (point de vigilance (c) de l'ADR 0003) : un texte deja present
+# en fin de detail (avant la phrase de #244 le cas echeant) n'est pas ajoute
+# une seconde fois.
 .usp_poser_renvois <- function(L) {
-  ajouter <- function(d, txt)
-    if (is.character(d) && length(d) == 1L && !is.na(d) && endsWith(d, txt)) d
-    else .usp_joindre(d, txt)
+  ajouter <- function(d, txt) {
+    if (!is.character(d) || length(d) != 1L || is.na(d)) return(.usp_joindre(d, txt))
+    ph <- PHRASE_VERDICT_SENSIBLE_MC
+    if (endsWith(d, ph)) {
+      # base : detail sans la phrase ni sa jonction (" " ou " ; ", add()).
+      base <- sub("( ; | )$", "", substr(d, 1L, nchar(d) - nchar(ph)))
+      if (endsWith(base, txt)) return(d)
+      return(.usp_joindre(.usp_joindre(base, txt), ph))
+    }
+    if (endsWith(d, txt)) d else .usp_joindre(d, txt)
+  }
   rv <- usp_renvois(L)
   for (i in which(!is.na(rv))) {
     L[[i]]$detail <- ajouter(L[[i]]$detail, USP_TXT_RENVOI_CST)

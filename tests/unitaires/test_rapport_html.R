@@ -883,8 +883,19 @@ desechap <- function(x) gsub("&amp;", "&", gsub("&gt;", ">", gsub("&lt;", "<", x
                                                    fixed = TRUE), fixed = TRUE)
 # Texte rendu par une cellule de .commentaire_replie() : debut (summary) et
 # suite (corps du details), rejoints par l'espace de coupure ; tiret : NA.
+# Phrase de #244 sortie du repli (pied) : retiree, puis rejointe au texte
+# relu selon la regle de jonction d'add() (" " apres un point final, " ; "
+# sinon, phrase seule si le reste est vide).
+PIED244 <- paste0("<br><span style='color:#B9770E;font-weight:600;font-size:11px'>",
+                  .echap_html(PHRASE_VERDICT_SENSIBLE_MC), "</span>")
 relire_com <- function(cel) vapply(cel, function(x) {
   if (identical(x, "–")) return(NA_character_)
+  if (endsWith(x, PIED244)) {
+    b <- relire_com(substr(x, 1L, nchar(x) - nchar(PIED244)))
+    if (is.na(b) || !nzchar(b)) return(PHRASE_VERDICT_SENSIBLE_MC)
+    return(paste0(b, if (grepl("\\.$", b)) " " else " ; ", PHRASE_VERDICT_SENSIBLE_MC))
+  }
+  if (!nzchar(x)) return("")
   m <- regmatches(x, regexec("^<details class='com'><summary>(.*)</summary>(.*)</details>$", x))[[1]]
   if (!length(m)) return(desechap(x))
   d <- desechap(m[2]); r <- desechap(m[3])
@@ -897,7 +908,11 @@ for (cas in list(list(nom = "lognormale", tb = tb), list(nom = "MW", tb = tbm)))
   com1 <- t1$commentaire; com1[!is.na(com1) & !nzchar(trimws(com1))] <- NA_character_
   dr <- table_detail_groupe(t1, replier = TRUE); dp <- table_detail_groupe(t1)
   cel <- dr[["Motif / commentaire"]]
-  long <- !is.na(com1) & nchar(com1) > 200L
+  # Longueur comptee sans la phrase de #244 ni sa jonction, sortie du repli.
+  sans244 <- ifelse(!is.na(com1) & endsWith(com1, PHRASE_VERDICT_SENSIBLE_MC),
+                    sub("[ ;]+$", "", substr(com1, 1L, nchar(com1) - nchar(PHRASE_VERDICT_SENSIBLE_MC))),
+                    com1)
+  long <- !is.na(com1) & nchar(sans244) > 200L
   verifier(sprintf("Vue Detail (%s) : commentaire long replie (<details>), court en clair, aucun texte retire (#178)", cas$nom),
            any(long) && all(startsWith(cel[long], "<details class='com'><summary>")) &&
            !any(grepl("<details", cel[!long], fixed = TRUE)) &&
@@ -921,6 +936,27 @@ verifier(".commentaire_replie() : coupure au dernier espace avant le seuil, au s
              identical(cr[4], "–") && grepl("a &lt; b</details>$", cr[1]) &&
              identical(cr[2], paste0("<details class='com'><summary>", strrep("x", 200),
                                      "</summary>", strrep("x", 250), "</details>"))
+         })
+# Phrase de #244 (decision du mainteneur : sortie du repli) : cas long, Origine
+# de reserve2 (314 caracteres, phrase au-dela du seuil de 200) ; cas court,
+# Grubbs de premium_interieur (128 caracteres) ; phrase seule, homogeneite des
+# dispersions de premium (detail vide hors phrase).
+ref244 <- function(cas, i) readRDS(file.path(.racine, "tests", "reference",
+                                             paste0(cas, ".rds")))$tests[[i]]$detail
+verifier(".commentaire_replie() : phrase de #244 hors du <details>, en pied, texte relu entier (#244, #178)",
+         {
+           x_long <- ref244("reserve2", 2); x_court <- ref244("premium_interieur", 37)
+           x_seul <- ref244("premium", 15)
+           cr <- .commentaire_replie(c(x_long, x_court, x_seul))
+           nchar(x_long) > 200L && endsWith(x_long, PHRASE_VERDICT_SENSIBLE_MC) &&
+             startsWith(cr[1], "<details class='com'><summary>") &&
+             endsWith(cr[1], paste0("</details>", PIED244)) &&
+             !grepl("alea de simulation", sub(PIED244, "", cr[1], fixed = TRUE), fixed = TRUE) &&
+             identical(cr[2], paste0(.echap_html(sub(paste0(" ; ", PHRASE_VERDICT_SENSIBLE_MC), "",
+                                                     x_court, fixed = TRUE)), PIED244)) &&
+             !grepl("<details", cr[2], fixed = TRUE) &&
+             identical(cr[3], PIED244) &&
+             identical(relire_com(cr), c(x_long, x_court, x_seul))
          })
 verifier("Garde : table sans colonne fonction -> tiret dans la colonne Fonction (#178)",
          { tbf <- tb; tbf$fonction <- NULL; all(table_detail_groupe(tbf)$Fonction == "–") })
