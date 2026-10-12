@@ -931,7 +931,7 @@ de \code{mw\_test\_exposant\_}\allowbreak\code{variance()} et
 \code{mw\_test\_homogeneite\_}\allowbreak\code{accident()} & statistiques des tests M1 à M6 (détail~: §\ref{sec:index-fonctions}) \\
 \code{.mw\_table()},\newline \code{.mw\_empiler()},\newline
 \code{.mw\_noms\_lignes\_}\newline\code{empilees()} & colonnes, noms de lignes~;
-blocs d'une colonne de développement, colonne source des noms~; vecteurs sources des noms (issue~\#250) & table \code{data.frame} assemblée en une fois, sous
+liste de blocs, un par colonne de développement, et nom de la colonne source des noms~; vecteurs sources des noms (issue~\#250) & table \code{data.frame} assemblée en une fois, sous
 la forme exacte du résultat de \code{rbind.data.frame()} itéré, ordre des attributs compris, pour
 les tables de \code{mw\_residus()}, \code{mw\_test\_annees\_}\allowbreak\code{calendaires()},
 \code{mw\_test\_ordonnee\_}\allowbreak\code{origine()}, \code{mw\_test\_homogeneite\_}\allowbreak\code{f()},
@@ -939,7 +939,13 @@ les tables de \code{mw\_residus()}, \code{mw\_test\_annees\_}\allowbreak\code{ca
 \code{mw\_test\_exposant\_}\allowbreak\code{variance()}, auparavant bâties par \code{rbind()} à chaque
 colonne~; noms de lignes que \code{data.frame()} et \code{rbind()} itéré donneraient à un triangle à
 noms de lignes (issue~\#239~: objets de \code{run\_engine()} des cinq cas de référence
-identiques avant et après, au sens d'\code{identical()}) \\
+identiques avant et après, au sens d'\code{identical()}). Depuis l'issue~\#250,
+\code{.mw\_empiler()} porte seule la comptabilité des blocs (positions, nombre de lignes, noms de
+lignes), refuse par une erreur un bloc dont les colonnes n'ont pas toutes la même longueur (aucun
+recyclage), et les noms de lignes sont lus sur \code{rbind()} itéré lui-même, et non recalculés~;
+\code{do.call(rbind, \ldots)} n'est pas retenu, car il peut rendre d'autres noms que
+\code{rbind()} itéré (vérifié par\newline \code{tests/unitaires/test\_tables\_mw.R})~; objets de \code{run\_engine()}
+des cinq cas de référence de nouveau identiques avant et après \\
 \code{.mw\_spearman()},\newline \code{.mw\_spearman\_p()},\newline \code{.fisher\_combine()} & deux vecteurs (le premier déjà
 aplati), \code{plancher\_b} (1)~; p-values de colonne & corrélation de rang $\hat\rho_s$ et p-value
 bilatérale de Spearman d'une colonne, tirées d'un seul appel à \code{cor.test()}
