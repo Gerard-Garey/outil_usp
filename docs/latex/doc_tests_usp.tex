@@ -929,6 +929,10 @@ ensemble calculé sur \code{aj})~; argument facultatif \code{res} (résidus de M
 ceux du contexte dans le bootstrap~; \code{NULL}~: calculés par \code{mw\_residus()}, issue~\#239)
 de \code{mw\_test\_exposant\_}\allowbreak\code{variance()} et
 \code{mw\_test\_homogeneite\_}\allowbreak\code{accident()} & statistiques des tests M1 à M6 (détail~: §\ref{sec:index-fonctions}) \\
+\code{.mw\_summary\_lm()} & ajustement \code{lm()} & \code{summary()} de l'ajustement, appelé tel
+quel, sans le seul avertissement «~\code{essentially perfect fit}~» de \code{summary.lm()}, tout
+autre avertissement remontant~; employé par \code{mw\_test\_ordonnee\_}\allowbreak\code{origine()} et
+\code{mw\_test\_courbure()} (issue~\#203, fiche~\ref{mw:m1a}) \\
 \code{.mw\_table()},\newline \code{.mw\_empiler()},\newline
 \code{.mw\_noms\_lignes\_}\newline\code{empilees()} & colonnes, noms de lignes~;
 liste de blocs, un par colonne de développement, et nom de la colonne source des noms~; vecteurs sources des noms (issue~\#250) & table \code{data.frame} assemblée en une fois, sous
@@ -11945,9 +11949,27 @@ mesurée et acceptée~: une colonne dont l'écart relatif dépasse à peine $10^
 \emph{pondérée} inférieure à $10^{-30}$ fois le carré de l'échelle des valeurs ajustées) n'est
 pas un écart relatif des facteurs~: la pondération $1/C(i,j)$ de la régression le rend
 dépendant de l'échelle des cumulés, l'écart relatif à partir duquel il se déclenche croissant
-avec elle~; un avertissement~R peut alors encore apparaître, comme avant
+avec elle~; un avertissement~R pouvait alors encore apparaître, comme avant
 l'issue~\#56, jusqu'à un écart relatif de l'ordre de $10^{-11}$ sur le triangle où il a été
-mesuré. Ce voisinage est un constat sur ce triangle, non un seuil.
+mesuré. Ce voisinage est un constat sur ce triangle, non un seuil. \emph{Interception de
+l'avertissement} (issue~\#203). Cet avertissement («~\code{essentially perfect fit: summary may
+be unreliable}~») ne signale pas un défaut du calcul~: son critère dépend de l'unité des
+cumulés. Mesuré avec le moteur antérieur à l'issue (\code{run\_engine()}, $B = 999$, graine
+20260831, avertissements comptés)~: aucun sur le triangle de contrôle, $93$ sur ce triangle
+multiplié par $10^{20}$, $9\,014$ multiplié par $10^{46}$, et $1\,287$ sur le triangle de
+Taylor \& Ashe à colonne $j = 4$ perturbée de $\pm 9\cdot 10^{-13}$ décrite plus haut (écart
+relatif $1{,}02\cdot 10^{-12}$). Depuis l'issue, la nullité de l'ordonnée à l'origine et la
+courbure (fiche~\ref{mw:m1c}) appellent \code{summary()} par \code{.mw\_summary\_lm()}, qui
+n'étouffe que cet avertissement émis par \code{summary.lm()}, dans son libellé anglais ou
+traduit, et laisse remonter tout autre avertissement~; \code{summary.lm()} étant appelée telle
+quelle sur le même ajustement, les valeurs sont inchangées par construction (objets de
+\code{run\_engine()} identiques au sens d'\code{identical()} avant et après l'issue sur les cinq
+cas de référence). Avec le moteur actuel, aucun avertissement sur les quatre triangles ci-dessus.
+L'interception a été préférée à un recalcul sans \code{summary.lm()} (par \code{lm.fit()} ou
+\code{qr()}), dont l'égalité des valeurs n'aurait été établie que par mesure. La pente
+intra-colonne (\code{.mw\_lm\_intra()}) et Breusch--Pagan ne sont pas interceptés~: ils
+n'émettent pas cet avertissement (\code{run\_engine()} actuel, $B = 199$, aucun avertissement~R
+sur le triangle de contrôle multiplié par $10^{k}$, $k = -52, -30, -10, 10, 30, 46$).
 \Usage
 C'est le test central de M1, et celui que la régression agrégée ne pouvait pas
 fournir. Il répond à la première des deux exigences du texte réglementaire~: une
@@ -12058,6 +12080,9 @@ $H_0 : c_j = 0$ dans chaque colonne.
 \Stat
 Statistique de Student sur $\hat c_j$, p-values combinées par Fisher. Colonnes dégénérées
 exclues, dans l'observé comme dans le bootstrap, selon la règle de la fiche~\ref{mw:m1a}.
+Comme pour l'ordonnée à l'origine, \code{summary()} est appelé par \code{.mw\_summary\_lm()}, qui
+intercepte le seul avertissement d'ajustement parfait de \code{summary.lm()}, sans changer
+aucune valeur (issue~\#203, fiche~\ref{mw:m1a}).
 \Loi
 $\chi^2(2K)$ approchée. Loi de référence~: bootstrap de résidus.
 \Pval
