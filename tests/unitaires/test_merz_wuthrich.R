@@ -1072,6 +1072,44 @@ verifier("Restitution : la colonne exclue est nommee dans le commentaire, estima
                        "Une courbure invalide la linearite meme si la constante est nulle")
          })
 
+## --- Courbure : colonne a 1 ddl residuel conservee (issue #234) ------------
+# Decision Q-E2c-1 du mainteneur (11/10/2026), option A : la colonne a n = 4
+# (3 parametres, 1 ddl residuel) reste VOLONTAIREMENT dans la combinaison de
+# Fisher du test de courbure ; aucun changement de calcul. Sur reserve2
+# (triangle_mw.csv) : K = 4, colonnes j = 0..3, n = (7, 6, 5, 4), j = 3
+# incluse. t_j attendus : valeurs exactes calculees par actuary en
+# arithmetique rationnelle (tolerance relative 1e-9). Les t_j lus dans
+# $detail sont aussi recalcules par lm() hors de la fonction, et X = -2 somme
+# log p_j, p_j bilaterale de Student a n - 3 ddl.
+verifier("Courbure (#234, Q-E2c-1 option A) : reserve2, K = 4, j = 0..3, n = (7, 6, 5, 4), colonne j = 3 a 1 ddl incluse ; t_j = valeurs rationnelles a 1e-9 ; X = Fisher des p_j",
+         {
+           cb <- mw_test_courbure(mw_ajuster(tri_ref))
+           dt <- cb$detail
+           t_exact <- c(0.9342276499696924, -1.982363320600040,
+                        -9.161812002906837, -3.462887950378827)
+           # recalcul independant, selection de mw_test_courbure() (idx = 0..I-j-1)
+           t_lm <- vapply(dt$j, function(j) {
+             i <- seq_len(nrow(tri_ref) - j - 1)
+             C0 <- tri_ref[i, j + 1]; C1 <- tri_ref[i, j + 2]
+             summary(stats::lm(C1 ~ C0 + I(C0^2), weights = 1 / C0))$coefficients[3, 3]
+           }, numeric(1))
+           p_j <- 2 * stats::pt(-abs(dt$t), df = dt$n - 3)
+           r <- list(
+             K = identical(cb$K, 4L) && identical(cb$eligibles, 4L) && !nrow(cb$exclues),
+             j = identical(as.integer(dt$j), 0:3),
+             n = identical(as.integer(dt$n), c(7L, 6L, 5L, 4L)),
+             ddl_j3 = isTRUE(any(dt$j == 3) && dt$n[dt$j == 3] - 3 == 1),
+             t_exact = proche(dt$t, t_exact, rel = 1e-9),
+             t_lm = proche(dt$t, t_lm, rel = 1e-12),
+             p_j = proche(dt$p, p_j, rel = 1e-12),
+             X = proche(cb$stat, -2 * sum(log(p_j)), rel = 1e-12),
+             p = proche(cb$p, stats::pchisq(-2 * sum(log(p_j)), 8, lower.tail = FALSE),
+                        rel = 1e-10))
+           ko <- vapply(r, function(v) !isTRUE(v), logical(1))
+           if (!any(ko)) TRUE else
+             paste(names(r)[ko], vapply(r[ko], as.character, ""), sep = " : ", collapse = " ; ")
+         })
+
 ## --- Domaine numerique des cumuls (issue #185) ------------------------------
 # Toute cellule observee finie strictement positive hors de
 # [DOMAINE_NUMERIQUE_MIN ; DOMAINE_NUMERIQUE_MAX] (bornes incluses) est
