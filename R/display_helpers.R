@@ -148,6 +148,12 @@ badge_nature <- function(n) {
     return("<span style='color:#7D3C98;font-weight:600'>mod\u00e8le MCO</span>")
   if (grepl("^exacte", n))      return("<span style='color:#1E8449;font-weight:600'>exacte</span>")
   if (grepl("^Monte-Carlo", n)) return("<span style='color:#00468C;font-weight:600'>Monte-Carlo</span>")
+  # Approximation de la loi a n fini sous i.i.d. normal (#120, constante
+  # NATURE_APPROX_N_FINI du moteur) : ni loi limite ni loi exacte ; badge
+  # distinct de "asymptotique" par son libelle comme par sa couleur
+  # (#6E2C00, retenue par app-review).
+  if (grepl("^approximation a n fini", n))
+    return("<span style='color:#6E2C00;font-weight:600'>approx. n fini</span>")
   "<span style='color:#B9770E;font-weight:600'>asymptotique</span>"
 }
 
@@ -1969,6 +1975,10 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
           paste("<div class='gris'>Nature de la p-value retenue :",
                 "<b style='color:#1E8449'>exacte</b> &gt; <b style='color:#00468C'>Monte-Carlo</b>",
                 "&gt; <b style='color:#B9770E'>asymptotique</b>.",
+                "La nature <b style='color:#6E2C00'>approx. n fini</b> (Lilliefors, Anscombe-Glynn)",
+                "est une p non simul\u00e9e qui approche la loi de la statistique \u00e0 n fini",
+                "sous \u00e9chantillon i.i.d. normal ; elle occupe le rang de l'asymptotique",
+                "sans \u00eatre une loi limite, et ne vaut que si cette hypoth\u00e8se tient.",
                 "Les p-values <b style='color:#7D3C98'>sous le mod\u00e8le auxiliaire pond\u00e9r\u00e9</b>",
                 "(TOST) sont hors hi\u00e9rarchie : elles ne sont retenues que",
                 "faute de p exacte ou Monte-Carlo sous le mod\u00e8le r\u00e9glementaire, et ne",

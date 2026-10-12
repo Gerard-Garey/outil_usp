@@ -164,6 +164,12 @@ annexe <- entre(h, "<section id='section-annexe-exclus'>", "</section>")
 verifier("Rapport : encadre de personnalisation avec le nombre de lignes du moteur",
          grepl(sprintf("Le moteur a calcul\u00e9 %d lignes", nrow(tb)), principal, fixed = TRUE) &&
          grepl("sans effet sur le calcul", principal, fixed = TRUE))
+# Legende des natures du rapport fige (#120) : la nature "approx. n fini"
+# (NATURE_APPROX_N_FINI) y est nommee, dans la couleur de son badge.
+verifier("Rapport : legende des natures, nature 'approx. n fini' nommee dans la couleur du badge (#120)",
+         grepl("<b style='color:#6E2C00'>approx. n fini</b> (Lilliefors, Anscombe-Glynn)",
+               principal, fixed = TRUE) &&
+         grepl("color:#6E2C00", badge_nature(NATURE_APPROX_N_FINI), fixed = TRUE))
 verifier("Rapport : chaque test retenu est dans la section principale, pas en annexe",
          all(vapply(tb$test[retenu], function(n) length(ligne_de(principal, n)) >= 1 &&
                       !length(ligne_de(annexe, n)), logical(1))))
@@ -302,6 +308,10 @@ verifier("Rapport MW : exclus par defaut en annexe avec leur verdict",
            grepl(badge_verdict(tbm$verdict[k]),
                  ligne_de(entre(hm, "<section id='section-annexe-exclus'>", "</section>"), tbm$test[k]),
                  fixed = TRUE), logical(1))))
+verifier("Rapport MW : M5 Lilliefors (variante secondaire, en annexe) sous le badge 'approx. n fini' (#120)",
+         grepl(badge_nature(NATURE_APPROX_N_FINI),
+               ligne_de(entre(hm, "<section id='section-annexe-exclus'>", "</section>"),
+                        "Lilliefors sur les residus de Mack"), fixed = TRUE))
 verifier("Rapport MW : formule racine(MSEP) / R, sans facteur de taille finie",
          grepl("racine(MSEP) / R", texte_formule(res_mw), fixed = TRUE) &&
          !grepl("(T+1)/(T-1)", texte_formule(res_mw), fixed = TRUE) &&

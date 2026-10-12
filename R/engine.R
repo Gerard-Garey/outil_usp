@@ -3630,6 +3630,17 @@ engine_p_mc <- function(sim, obs, queue) {
        motif_mc = stats::setNames(vapply(r, function(o) o$motif, character(1)), noms))
 }
 
+# Nature d'une p non simulee qui n'est pas une loi limite (issue #120, ADR
+# 0003 annote le 12/10/2026, point 1 ; Q-E2b-6, D1-3) : approximation de la
+# loi de la statistique a n fini sous echantillon i.i.d. normal, ajustee sur
+# tables simulees ou sur moments exacts (famille (ii) de la specification
+# E2b : Dallal-Wilkinson prolonge par Stephens pour Lilliefors, Anscombe-Glynn
+# pour l'aplatissement). Passee a add() par l'argument nature_as, sur les
+# seules lignes sans mc_nom de cette famille. Le libelle dit ce qu'est la p ;
+# il ne dit pas que l'hypothese i.i.d. normale tient (elle ne tient pas sur
+# les residus de Mack : niveau de M5 a #245).
+NATURE_APPROX_N_FINI <- "approximation a n fini sous i.i.d. normal"
+
 # --- Enregistrement des lignes de resultat des tests --------------------------
 # Fonction unique, partagee par usp_tests() et mw_tests() (ADR 0003, point 2).
 # Renvoie list(add, lignes) : add() enregistre une ligne, lignes() rend la
@@ -3670,6 +3681,12 @@ engine_p_mc <- function(sim, obs, queue) {
 #                 detail prefixe "TEST INOPERANT"), FALSE sinon, jamais NA
 #                 (ligne R3, ligne sans aucune p-value du point 2' de #128 :
 #                 FALSE). Les affichages lisent ce champ, pas le prefixe.
+#   nature_as   : nature de la p non simulee (colonne p_asymptotique, nom
+#                 conserve) quand c'est elle qui est retenue (#120) :
+#                 "asymptotique" (defaut, loi limite) ou NATURE_APPROX_N_FINI ;
+#                 toute autre valeur est refusee (stop). Le rang dans la
+#                 hierarchie est inchange ; sans effet si une p exacte ou
+#                 Monte-Carlo est retenue.
 # Motif d'indisponibilite Monte-Carlo (#44, regle R3) : si mc_nom est
 # renseigne et p_mc absente, le motif est lu dans boot$motif_mc (produit par
 # engine_p_mc() / .mc_p_values(), jamais devine) quand l'appelant n'en
@@ -3712,7 +3729,8 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
                   base = "commun", variante = "principale",
                   p_min = NA_real_, effectifs = NA_character_,
                   repli_asymptotique = TRUE, libelle_p_as = "p asymptotique",
-                  p_mc_ext = NA_real_, err_mc_ext = NA_real_, fonction) {
+                  p_mc_ext = NA_real_, err_mc_ext = NA_real_,
+                  nature_as = "asymptotique", fonction) {
     # Provenance de la ligne (#111, regle A1) : fonction est obligatoire et
     # doit nommer une fonction definie dans l'environnement du moteur
     # (inherits = FALSE : une fonction de stats, "cor.test", est refusee ;
@@ -3726,6 +3744,12 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     if (!exists(fonction, envir = environment(engine_registre_tests), mode = "function",
                 inherits = FALSE))
       stop("add() : fonction inconnue du moteur : ", fonction, " (", nom, ")", call. = FALSE)
+    # Nature de la p non simulee (#120) : deux valeurs admises, toute autre
+    # est une erreur de programmation.
+    if (!is.character(nature_as) || length(nature_as) != 1L || is.na(nature_as) ||
+        !nature_as %in% c("asymptotique", NATURE_APPROX_N_FINI))
+      stop("add() : nature_as inconnue : ", paste(format(nature_as), collapse = " "),
+           " (", nom, ")", call. = FALSE)
     # Refus explicite (ADR 0003, point 3) : une statistique Monte-Carlo
     # inconnue du catalogue, ou absente de l'objet bootstrap, est une erreur
     # de programmation ; le repli silencieux sur l'asymptotique est interdit.
@@ -3859,7 +3883,8 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
       detail <- trimws(paste0(pre_mc, "aucune p-value disponible sur ces donnees :",
                               " aucun verdict (ADR 0001). ", detail))
     }
-    # Hierarchie adaptee a T faible : exacte > Monte-Carlo > asymptotique.
+    # Hierarchie adaptee a T faible : exacte > Monte-Carlo > p non simulee
+    # (colonne p_asymptotique), dont la nature est nature_as (#120).
     if (is.finite(p_ex)) {
       p_ret <- p_ex; nature <- "exacte"
     } else if (is.finite(p_mc)) {
@@ -3867,7 +3892,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     } else if (is.finite(p_as)) {
       p_ret <- p_as
       nature <- if (!is.na(motif_non_mc))
-        paste0("asymptotique (", motif_non_mc, ")") else "asymptotique"
+        paste0(nature_as, " (", motif_non_mc, ")") else nature_as
     } else {
       p_ret <- NA_real_; nature <- NA_character_
     }
@@ -5179,7 +5204,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         fonction = "test_anscombe_kurt",
         H0 = "aplatissement de la population egal a 3", H1 = "aplatissement different de 3",
         stat_nom = "Z", stat = ak$stat, loi = "N(0,1) approx. (Wilson-Hilferty)",
-        estim_nom = "aplatissement", estim = jb$kurt, p_as = ak$p)
+        estim_nom = "aplatissement", estim = jb$kurt, p_as = ak$p,
+        # Anscombe-Glynn : approximation de la loi a n fini sous i.i.d.
+        # normal (moments exacts), non loi limite (#120).
+        nature_as = NATURE_APPROX_N_FINI)
   else
     add(fam, "Aplatissement (Anscombe-Glynn, T >= 20)", "Anscombe & Glynn (1983), Biometrika 70",
         fonction = "test_anscombe_kurt",
@@ -8846,7 +8874,10 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       H0 = "les residus de Mack sont normaux", H1 = "loi non normale",
       stat_nom = "D", stat = stat_lilliefors(r),
       loi = "loi de Lilliefors (parametres estimes)",
-      p_as = lillie_p(stat_lilliefors(r), n))
+      p_as = lillie_p(stat_lilliefors(r), n),
+      # Dallal-Wilkinson prolonge par Stephens : approximation de la loi a n
+      # fini sous i.i.d. normal, non loi limite (#120).
+      nature_as = NATURE_APPROX_N_FINI)
 
   ## --- M6 : robustesse de l'estimation --------------------------------------
   fam <- "M6. robustesse de l'estimation"
