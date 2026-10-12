@@ -786,12 +786,15 @@ verifier("A par differences centrees (h = 1e-4) : MSEP a 1e-8 de mw_msep(), A a 
 # CONTEXT.md : "Un diagnostic n'a pas de verdict (affiche INFO)." add() applique
 # deja cette regle de lui-meme des que type != "test" ; le defaut ne peut donc
 # naitre que d'un appelant qui FORCE un verdict par l'argument verdict = .
-# mw_tests() ne lit du bootstrap que p_mc et err_mc : un objet fictif suffit,
-# aucune simulation n'est necessaire ici.
+# mw_tests() lit du bootstrap p_mc et err_mc (add()), et B et B_effectif
+# (.mw_phrase_b_effectif(), #204, refus explicite s'ils manquent) : un objet
+# fictif suffit, aucune simulation n'est necessaire ici ; B_effectif = B,
+# aucune phrase de #204.
 boot_mw_fictif <- local({
   s <- .mw_stats(at)
   p <- stats::setNames(rep(0.5, length(s)), names(s))
-  list(stats_obs = as.list(s), p_mc = p, err_mc = p * 0 + 0.01)
+  list(stats_obs = as.list(s), p_mc = p, err_mc = p * 0 + 0.01,
+       B = 999, B_effectif = p * 0 + 999)
 })
 lignes_mw <- mw_tests(at, boot_mw_fictif)
 verifier("M6 concentration de la reserve : diagnostic sans verdict (ADR 0001)",

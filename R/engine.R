@@ -8698,6 +8698,46 @@ MW_CATALOGUE_MC <- list(
 .mw_stats <- function(aj, j_degeneres = NULL)
   .mc_evaluer(MW_CATALOGUE_MC, .mw_contexte_mc(aj, j_degeneres))
 
+# --- B effectif < B sur une ligne Monte-Carlo de Merz-Wuthrich (#204) ---------
+# Phrase ajoutee en fin du detail d'une des 13 lignes Monte-Carlo de
+# mw_tests() (decision du mainteneur du 12/10/2026, commentaire 6120564480
+# de #204 ; ADR 0003 annote le 12/10/2026, point 4 ; specification E2b,
+# section 6) :
+#   - cas A : p_mc calculee (finie) et B_effectif < B : la p Monte-Carlo est
+#     conditionnelle a la definition de la statistique (comptee sur les seules
+#     replications ou elle est finie) ;
+#   - cas B : motif MOTIF_MC_REPLIC_INSUFFISANTES : nombres seuls ;
+#   - sinon (B_effectif = B, MOTIF_MC_AUCUNE_REPLIC, motifs degeneres,
+#     statistique observee non finie) : "".
+# Exception a la regle #76 (aucun nombre issu du bootstrap dans detail)
+# bornee a ces deux phrases et a mw_tests() ; add() ne les pose pas et la
+# regle y reste entiere. Les nombres sont lus dans boot$B_effectif[[mc_nom]]
+# et boot$B. Refus explicite (meme principe que l'ADR 0003, point 3, et que
+# #181 : jamais devine) : boot$B absent ou non fini, ou mc_nom absent de
+# boot$B_effectif (ou B_effectif non fini), est une erreur de programmation.
+.mw_phrase_b_effectif <- function(boot, mc_nom) {
+  B <- boot$B; be <- boot$B_effectif
+  if (is.null(B) || length(B) != 1L || !is.finite(B))
+    stop(".mw_phrase_b_effectif() : B absent ou non fini dans le bootstrap (", mc_nom, ")",
+         call. = FALSE)
+  if (is.null(be) || !mc_nom %in% names(be) || !is.finite(be[[mc_nom]]))
+    stop(".mw_phrase_b_effectif() : B effectif absent ou non fini dans le bootstrap : ",
+         mc_nom, call. = FALSE)
+  B <- unname(B); be <- unname(be[[mc_nom]])
+  p <- if (mc_nom %in% names(boot$p_mc)) unname(boot$p_mc[[mc_nom]]) else NA_real_
+  m <- if (!is.null(boot$motif_mc) && mc_nom %in% names(boot$motif_mc))
+    unname(boot$motif_mc[[mc_nom]]) else NA_character_
+  if (is.finite(p) && be < B)
+    sprintf(paste("B effectif = %d sur B = %d (%d replication(s) ecartee(s), statistique",
+                  "non finie) : p-value Monte-Carlo conditionnelle a la definition de la",
+                  "statistique, comptee sur les seules replications ou elle est finie ;",
+                  "l'absence de biais de cette selection n'est pas demontree."),
+            as.integer(be), as.integer(B), as.integer(B - be))
+  else if (!is.finite(p) && identical(m, MOTIF_MC_REPLIC_INSUFFISANTES))
+    sprintf("B effectif = %d sur B = %d.", as.integer(be), as.integer(B))
+  else ""
+}
+
 # --- Table des tests de la methode Merz-Wuthrich ------------------------------
 # Meme structure de sortie que usp_tests() : chaque ligne porte H0, H1, la
 # statistique, les p-values disponibles et la nature de celle qui est retenue.
@@ -8708,7 +8748,22 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   # du catalogue ou du bootstrap leve une erreur.
   reg <- engine_registre_tests(boot, MW_CATALOGUE_MC, alpha,
                                nature_mc = "Monte-Carlo (bootstrap de residus)")
-  add <- reg$add
+  # Lignes Monte-Carlo (mc_nom renseigne, les 13 statistiques de
+  # MW_CATALOGUE_MC) : la phrase de .mw_phrase_b_effectif() (#204) est jointe
+  # en fin du detail transmis a add(), avec la regle de jonction d'add()
+  # ("" si detail vide, " " apres un point, " ; " sinon). add() n'est pas
+  # modifiee ; ses ajouts (prefixe du motif, regle R1, plancher, #244) se
+  # placent autour comme pour tout detail.
+  add <- function(..., mc_nom = NA_character_, detail = "") {
+    if (!is.na(mc_nom)) {
+      ph <- .mw_phrase_b_effectif(boot, mc_nom)
+      if (nzchar(ph)) {
+        sep <- if (!nzchar(detail)) "" else if (grepl("\\.$", detail)) " " else " ; "
+        detail <- trimws(paste0(detail, sep, ph))
+      }
+    }
+    reg$add(..., mc_nom = mc_nom, detail = detail)
+  }
 
   ## --- M1 : proportionnalite des cumules (D(2)(h)(iii)) ---------------------
   fam <- "M1. proportionnalite des cumules (annexe XVII D(2)(h)(iii))"

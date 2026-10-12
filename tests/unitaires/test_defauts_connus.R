@@ -78,9 +78,16 @@ verifier("add() refuse un mc_nom inconnu du catalogue (erreur explicite)",
 verifier("mw_tests() refuse un mc_nom absent du bootstrap (erreur explicite)",
          {
            p <- stats::setNames(rep(0.5, length(s_mw)), names(s_mw))
+           # B et B_effectif (= B) complets, lus par .mw_phrase_b_effectif()
+           # (#204) : le refus teste reste celui d'add() pour Calendrier.
+           be <- p * 0 + 999
            p <- p[setdiff(names(p), "Calendrier")]
-           leve_erreur(mw_tests(mw_ajuster(tri_mw),
-                                list(stats_obs = as.list(s_mw), p_mc = p, err_mc = p * 0 + 0.01)))
+           e <- tryCatch(mw_tests(mw_ajuster(tri_mw),
+                                  list(stats_obs = as.list(s_mw), p_mc = p, err_mc = p * 0 + 0.01,
+                                       B = 999, B_effectif = be)),
+                         error = function(e) e)
+           inherits(e, "error") &&
+             grepl("absente du bootstrap : Calendrier", conditionMessage(e), fixed = TRUE)
          })
 verifier("Catalogues Monte-Carlo : les statistiques simulees sont exactement celles du catalogue, dans son ordre",
          identical(names(s_obs), names(USP_CATALOGUE_MC)) &&
