@@ -476,3 +476,22 @@ Les tests existants qui lisent « ECHEC possible » ou « loi de reference echan
 - [statsmodels — source de lilliefors (référence Dallal et Wilkinson 1986, Am. Statist. 40(4), 294-296)](https://statsmodels.org/0.6.1/_modules/statsmodels/stats/lilliefors.html)
 - [IMSL — Lilliefors normality test (approximation analytique de Dallal et Wilkinson)](https://help.imsl.com/python/current/docs/stat/fit/lillieforsNormalityTest.html)
 - [Springer — Royston (1992), Statistics and Computing 2, 117-119](https://link.springer.com/article/10.1007/BF01891203)
+
+## Annotation du 12/10/2026 : décisions du mainteneur au point D1
+
+*Décisions rendues en session par le mainteneur, toutes selon les recommandations d'`actuary`. Le code peut commencer.*
+
+| Question | Décision |
+|---|---|
+| Q-E2b-D1-1 (#181) | **(B) généralisée** : plus aucun repli sur une p non simulée quand la p Monte-Carlo manque pour un motif non dégénéré |
+| Q-E2b-D1-2 (#181) | la ligne devient un **diagnostic** (verdict INFO, p non simulée conservée dans sa colonne, non retenue) ; libellé par défaut « p non simulee (loi du champ loi) » |
+| Q-E2b-D1-3 (#120) | nature « approximation a n fini sous i.i.d. normal », badge « approx. n fini » |
+| Q-E2b-D1-4 (#182) | extension aux `loi` des six autres lignes de la règle R7 et au `detail` de Smirnov, dans le même commit et le même patch de `premium_interieur` |
+| Q-E2b-D1-5 (#244) | seuils du verdict : {α/2, α} en sens « ne pas rejeter », {α, 0,30} en sens « rejeter » ; patch des six références |
+| Q-E2b-D1-6 (#204) | tests T1 à T5 du § 6 approuvés ; `MOTIF_MC_AUCUNE_REPLIC` hors de la phrase |
+| Q-E2b-D1-7 (#125) | portée : les 13 statistiques discrètes, par le champ `extremes` du catalogue |
+| Q-E2b-D1-8 (#125) | R1 lit p_min_mc **seule, sans marge**, quand la p Monte-Carlo est retenue ; pour HomogF et ExpVar avec ex æquo, cela remplace la lecture de `p_min` confirmée le 12/10 au matin |
+| Q-E2b-D1-9 (#125) | pas de phrase de sensibilité pour p_min_mc |
+| Q-E2b-D1-10 (#125) | champ `p_min_mc` de ligne après `inoperant` (mise à jour de `CLAUDE.md`), `bootstrap$p_min_mc` en fin de liste, colonne de la table après `p_min` |
+
+**Verdicts hors références** changés par #181 et #125 : approuvés par ces décisions. Tout verdict **de référence** qui changerait à la régénération de #125, et tout changement de σ_USP, restent soumis au mainteneur.
