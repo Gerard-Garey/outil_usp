@@ -3873,8 +3873,14 @@ de contrôle, les valeurs ne changent qu'à l'arrondi près, sous la tolérance 
 (références inchangées), et $\sigma_{\mathrm{USP}}$, p-values de Monte-Carlo et verdicts sont
 identiques~; sur les triangles construits ($e = 12, \ldots, 17$, \code{run\_engine()}, $B = 999$,
 graine 20260831), $38$ verdicts changent sur $19$ triangles, tous d'une ligne multipliée par au
-moins $10^{14}$ ou au plus $10^{-14}$, $\sigma_{\mathrm{USP}}$ restant identique sur chacun~: ces
-changements sont la correction elle-même. \emph{Limite non levée.} La correction ne règle pas la perte de réplications quand une
+moins $10^{14}$ ou au plus $10^{-14}$, $\sigma_{\mathrm{USP}}$ restant identique sur chacun. Vingt-neuf sont la correction elle-même
+(statistiques et vivier recalculés sans annulation)~; neuf sont des passages de ou vers une ligne
+de test sans p-value retenue (\code{INFO}, motif «~\code{replications finies insuffisantes}~»), le
+nombre de réplications retenues franchissant \code{B\_MIN\_DEGENERESCENCE} ($50$)~: six de ces verdicts y
+entrent sur le sous-triangle de Taylor \& Ashe dont la ligne~$0$ est multipliée par $10^{-15}$ ou
+$10^{-17}$ (\code{B\_effectif} de $96$ à $38$, et de $91$ à $33$), trois en sortent sur le
+triangle de contrôle dont la ligne~$0$ est multipliée par $10^{-17}$ (de $47$ à $78$)~; ceux-là
+relèvent aussi de la limite non levée ci-dessous. \emph{Limite non levée.} La correction ne règle pas la perte de réplications quand une
 ligne a un poids négligeable~: l'écart-type $\sigma_j\sqrt{C(i,j)}$ du terme aléatoire de ses
 cumuls simulés domine alors leur espérance $f_j\,C(i,j)$, et une réplication dont un cumul simulé n'est pas strictement positif est
 écartée (\code{mw\_simuler\_triangle()}), de sorte que \code{B\_effectif} dépend du signe des
