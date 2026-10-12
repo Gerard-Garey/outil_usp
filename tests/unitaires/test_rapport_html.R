@@ -170,6 +170,14 @@ verifier("Rapport : legende des natures, nature 'approx. n fini' nommee dans la 
          grepl("<b style='color:#6E2C00'>approx. n fini</b> (Lilliefors, Anscombe-Glynn)",
                principal, fixed = TRUE) &&
          grepl("color:#6E2C00", badge_nature(NATURE_APPROX_N_FINI), fixed = TRUE))
+# Legende de la hierarchie (#181) : rang de la p non simulee et absence de
+# repli quand la p Monte-Carlo manque.
+verifier("Rapport : legende 'exacte > Monte-Carlo > p non simulee', aucun repli sur la p non simulee (#181)",
+         grepl(paste("&gt; p non simul\u00e9e (<b style='color:#B9770E'>asymptotique</b> ou",
+                     "<b style='color:#6E2C00'>approx. n fini</b>)."), principal, fixed = TRUE) &&
+         grepl(paste("Quand la p Monte-Carlo manque, la p non simul\u00e9e n'est jamais retenue",
+                     "\u00e0 sa place (ADR 0001) : sauf p exacte, la ligne ne porte aucune",
+                     "p-value retenue."), principal, fixed = TRUE))
 verifier("Rapport : chaque test retenu est dans la section principale, pas en annexe",
          all(vapply(tb$test[retenu], function(n) length(ligne_de(principal, n)) >= 1 &&
                       !length(ligne_de(annexe, n)), logical(1))))

@@ -122,13 +122,11 @@ verifier("U120-5 premium a T = 20 : seule la ligne Anscombe-Glynn porte NATURE_A
 ## --- U120-6 : badge de badge_nature() ------------------------------------------
 env120 <- new.env(parent = globalenv())
 sys.source(file.path(.racine120, "R", "display_helpers.R"), envir = env120)
-verifier("U120-6 badge_nature() : NATURE_APPROX_N_FINI -> 'approx. n fini', distinct des badges asymptotiques",
+verifier("U120-6 badge_nature() : NATURE_APPROX_N_FINI -> 'approx. n fini', distinct du badge 'asymptotique'",
          {
            b <- env120$badge_nature(NATURE_APPROX_N_FINI)
            b_as <- env120$badge_nature("asymptotique")
-           b_rep <- env120$badge_nature(paste0("asymptotique (Monte-Carlo indisponible : ",
-                                               MOTIF_MC_AUCUNE_REPLIC, ")"))
-           grepl(">approx. n fini<", b, fixed = TRUE) && b != b_as && b != b_rep &&
+           grepl(">approx. n fini<", b, fixed = TRUE) && b != b_as &&
              !grepl("#B9770E", b, fixed = TRUE)
          })
 

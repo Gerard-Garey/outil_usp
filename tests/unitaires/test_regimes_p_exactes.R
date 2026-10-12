@@ -312,7 +312,9 @@ reg$add("F", "a", "r", fonction = "usp_tests", detail = "base.", p_as = 0.5, p_m
 reg$add("F", "b", "r", fonction = "usp_tests", detail = "base.", p_as = 0.5, p_min = NA_real_)
 reg$add("F", "c", "r", fonction = "usp_tests", type = "non applicable", detail = "base.", p_min = NA_real_,
         effectifs = "motif X")
-reg$add("F", "d", "r", fonction = "usp_tests", detail = "base", p_as = 0.5, p_min = 0.001, effectifs = "motif X")
+# Ligne d : p exacte (p_min associee a une p non simulee seule refusee
+# depuis #181).
+reg$add("F", "d", "r", fonction = "usp_tests", detail = "base", p_ex = 0.5, p_min = 0.001, effectifs = "motif X")
 reg$add("F", "e", "r", fonction = "usp_tests", p_as = 0.5, p_min = NA_real_, effectifs = "motif X")
 L <- reg$lignes()
 verifier("add() : p_min NA et effectifs renseignes -> detail termine par le motif",

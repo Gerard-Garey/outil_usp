@@ -3486,7 +3486,8 @@ USP_CATALOGUE_MC <- list(
 #                               imposant B >= B_MIN_USAGE = 99, plus de la
 #                               moitie des simulations ont echoue ; p_mc = NA,
 #                               traitee par add() comme MOTIF_MC_AUCUNE_REPLIC
-#                               (repli nomme, ou test sans p-value) ;
+#                               (diagnostic si une p non simulee existe,
+#                               sinon test sans p-value ; #181) ;
 #   MOTIF_MC_DISPERSION_NULLE : au moins B_MIN_DEGENERESCENCE simulations
 #                               finies, d'etendue <= tol et dont la valeur
 #                               commune coincide avec l'observee a tol pres
@@ -3536,8 +3537,9 @@ MOTIF_MC_ATOME_HORS_OBS   <- "loi simulee ponctuelle, statistique observee hors 
 # 11/10/2026) ; remplace alors MOTIF_MC_REPLIC_INSUFFISANTES et
 # MOTIF_MC_AUCUNE_REPLIC (substitution faite dans usp_bootstrap() seule).
 # Motif non degenere (hors de motifs_degeneres d'add()) : la regle actuelle
-# s'applique (repli nomme, diagnostic, ou test sans p-value ; politique de
-# repli a #181). Aucun nombre issu du bootstrap dans le texte (#76).
+# s'applique (#181, ADR 0003 annote le 12/10/2026, point 2 : diagnostic si
+# une p non simulee existe, sinon test sans p-value ; aucun repli). Aucun
+# nombre issu du bootstrap dans le texte (#76).
 MOTIF_MC_REGIME_RARE <- sprintf(paste(
   "regime interieur de delta estime rare : B_max = %d (B + 1) tirages atteints",
   "avec moins de B_MIN_DEGENERESCENCE = %d tirages retenus"),
@@ -3697,13 +3699,17 @@ NATURE_APPROX_N_FINI <- "approximation a n fini sous i.i.d. normal"
 #     complement de COMPLEMENTS_MOTIF_MC s'il y en a un (#126) ;
 #   - MOTIF_MC_OBS_NON_FINIE, sans p exacte -> "non applicable", detail
 #     prefixe du motif ;
-#   - autre motif (aucune replication finie, replications finies
-#     insuffisantes, statistique non definie d'apres le catalogue), sans p
-#     exacte, avec p asymptotique -> repli NOMME :
-#     nature "asymptotique (Monte-Carlo indisponible : <motif>)", si
-#     repli_asymptotique (defaut TRUE) ; sinon (repli_asymptotique = FALSE,
-#     ligne "Nullite de la constante") -> diagnostic, detail prefixe
-#     "Monte-Carlo indisponible : <motif> ; <libelle_p_as> non retenue".
+#   - autre motif, non degenere (aucune replication finie, replications
+#     finies insuffisantes, regime interieur rare, statistique non definie
+#     d'apres le catalogue), sans p exacte, avec p non simulee (colonne
+#     p_asymptotique) -> diagnostic (INFO), p non simulee conservee dans sa
+#     colonne, non retenue (p_retenue et nature_p NA, inoperant FALSE),
+#     detail prefixe "Monte-Carlo indisponible : <motif> ; <libelle_p_as>
+#     non retenue (ADR 0001)." (#181, option (B) generalisee, ADR 0003
+#     annote le 12/10/2026, point 2 : aucun repli sur une p non simulee) ;
+#     libelle_p_as par defaut "p non simulee (loi du champ loi)", la
+#     constante passe le sien ; sans p non simulee, la ligne reste un test
+#     sans p-value retenue (#128, point 2', ci-dessous).
 # Une ligne a p exacte finie garde sa p exacte retenue (hierarchie), hors
 # degenerescence (MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_ATOME_HORS_OBS,
 # MOTIF_MC_CONDITION), qui ecarte aussi la p exacte.
@@ -3725,10 +3731,10 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
                   estim_nom = NA_character_, estim = NA_real_,
                   p_ex = NA_real_, p_as = NA_real_, mc_nom = NA_character_,
                   detail = "", verdict = NULL, sens = "ne pas rejeter",
-                  motif_non_mc = NA_character_, nature_forcee = NA_character_,
+                  nature_forcee = NA_character_,
                   base = "commun", variante = "principale",
                   p_min = NA_real_, effectifs = NA_character_,
-                  repli_asymptotique = TRUE, libelle_p_as = "p asymptotique",
+                  libelle_p_as = "p non simulee (loi du champ loi)",
                   p_mc_ext = NA_real_, err_mc_ext = NA_real_,
                   nature_as = "asymptotique", fonction) {
     # Provenance de la ligne (#111, regle A1) : fonction est obligatoire et
@@ -3772,6 +3778,14 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     # Regle R3 (#44) : motif d'indisponibilite lu au bootstrap.
     motif_boot <- if (!is.na(mc_nom) && !is.finite(p_mc) && !is.null(mmc) &&
                       mc_nom %in% names(mmc)) unname(mmc[[mc_nom]]) else NA_character_
+    # Refus explicite (#181, avis d'actuary, option c ; meme principe que
+    # l'ADR 0003, point 3) : une p Monte-Carlo absente sans motif lu (objet
+    # bootstrap incoherent, ou anterieur au champ motif_mc) est une erreur
+    # de programmation ; le motif n'est jamais devine et la p non simulee
+    # n'est jamais retenue a la place de la p Monte-Carlo absente.
+    if (!is.na(mc_nom) && !is.finite(p_mc) && is.na(motif_boot))
+      stop("add() : p Monte-Carlo absente sans motif d'indisponibilite dans le bootstrap : ",
+           mc_nom, " (", nom, ")")
     if (type == "test" && !is.na(motif_boot)) {
       if (motif_boot %in% motifs_degeneres) {
         type <- "diagnostic"
@@ -3780,17 +3794,15 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
       } else if (!is.finite(p_ex) && identical(motif_boot, MOTIF_MC_OBS_NON_FINIE)) {
         type <- "non applicable"
         detail <- trimws(paste0(motif_boot, " : test non applicable. ", detail))
-      } else if (!is.finite(p_ex) && is.na(motif_non_mc)) {
-        if (isTRUE(repli_asymptotique)) {
-          motif_non_mc <- paste("Monte-Carlo indisponible :", motif_boot)
-        } else if (is.finite(p_as)) {
-          # Repli interdit par l'appelant (#44, reprise, constat 2 d'audit) :
-          # la p non simulee ne vaut pas sous le modele reglementaire, elle
-          # n'est pas retenue a la place de la p Monte-Carlo absente.
-          type <- "diagnostic"
-          detail <- trimws(paste0("Monte-Carlo indisponible : ", motif_boot, " ; ",
-                                  libelle_p_as, " non retenue (ADR 0001). ", detail))
-        }
+      } else if (!is.finite(p_ex) && is.finite(p_as)) {
+        # Aucun repli sur une p non simulee (#181, option (B) generalisee,
+        # decision D1-1 et D1-2 du 12/10/2026) : aucune des quatre familles
+        # de p non simulees n'a de validite etablie a T = 8 sous le modele
+        # reglementaire ; elle n'est pas retenue a la place de la p
+        # Monte-Carlo absente (ADR 0001), la ligne devient un diagnostic.
+        type <- "diagnostic"
+        detail <- trimws(paste0("Monte-Carlo indisponible : ", motif_boot, " ; ",
+                                libelle_p_as, " non retenue (ADR 0001). ", detail))
       }
     }
     # Ligne sans aucune p-value (p exacte, Monte-Carlo et asymptotique toutes
@@ -3813,9 +3825,9 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     # sens : en sens "rejeter", un OK exige p < alpha.
     # p_min est calculee sur la loi de reference discrete (loi echangeable).
     # Avec une p exacte finie, c'est la p_min de la p retenue : ECHEC
-    # inatteignable. Sans p exacte mais avec une p Monte-Carlo ou
-    # asymptotique (pi_t variable, regle R7 : p Monte-Carlo retenue, simulee
-    # sous le modele ajuste), p_min n'est pas une borne de la p retenue, qui
+    # inatteignable. Sans p exacte mais avec une p Monte-Carlo (pi_t
+    # variable, regle R7 : p Monte-Carlo retenue, simulee sous le modele
+    # ajuste), p_min n'est pas une borne de la p retenue, qui
     # peut lui etre inferieure (erreur Monte-Carlo, non-echangeabilite) :
     # l'ECHEC reste possible et le detail le dit (#44, option 3 d'actuary,
     # decision du 27/09/2026). La bascule en test inoperant (p_min >= alpha)
@@ -3832,6 +3844,15 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     # outre inoperant = TRUE, que lit type_ligne() de display_helpers.R
     # (#129, point 3).
     inoperant <- FALSE
+    # Refus explicite (#181, avis d'actuary) : p_min associee a une p non
+    # simulee seule (ni p exacte, ni p Monte-Carlo). Aucun appel d'add() du
+    # moteur ne le fait (treize appels a p_min portent mc_nom ; la pente de
+    # Pitman n'en passe que si sa p de permutation est finie) ; la branche de
+    # R1 qui le traitait est retiree.
+    if (type == "test" && is.finite(p_min) && !is.finite(p_ex) && !is.finite(p_mc) &&
+        is.finite(p_as))
+      stop("add() : p_min associee a une p non simulee seule (ni p exacte ni p Monte-Carlo) : ",
+           nom)
     if (type == "test" && is.finite(p_min)) {
       eff <- if (!is.na(effectifs)) paste0(" (", effectifs, ")") else ""
       # Meme condition que l'ancien suffixe d'approximation : p exacte absente,
@@ -3847,20 +3868,18 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
                                 " ", detail))
       } else if (identical(sens, "ne pas rejeter") && p_min >= alpha / 2 && !aucune_p) {
         sep <- if (!nzchar(detail)) "" else if (grepl("\\.$", detail)) " " else " ; "
-        # Sans p exacte, la suite du texte suit la p qui sera retenue par la
-        # hierarchie ci-dessous (Monte-Carlo, sinon asymptotique).
+        # Sans p exacte, la suite du texte suit la p Monte-Carlo retenue par
+        # la hierarchie ci-dessous. Branche "p-value asymptotique retenue"
+        # retiree (#181, ADR 0003 annote le 12/10/2026, point 2) : le cas
+        # est refuse plus haut (stop).
         txt_r1 <- if (!sans_p_ex)
           sprintf("ECHEC inatteignable : p_min = %.4f >= alpha/2 = %g%s", p_min, alpha / 2, eff)
         else paste0(
           sprintf("p_min de la loi de reference echangeable = %.4f >= alpha/2 = %g%s", p_min, alpha / 2, eff),
-          if (is.finite(p_mc) && plancher_echec)
-            ""
-          else if (is.finite(p_mc))
+          if (is.finite(p_mc) && !plancher_echec)
             paste(" ; la p-value Monte-Carlo retenue, simulee sous le modele ajuste, peut",
                   "lui etre inferieure (erreur Monte-Carlo, non-echangeabilite) : ECHEC possible")
-          else
-            paste(" ; la p-value asymptotique retenue, calculee hors de cette loi, peut",
-                  "lui etre inferieure : ECHEC possible"))
+          else "")
         detail <- trimws(paste0(detail, sep, txt_r1))
       }
     }
@@ -3890,9 +3909,10 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     } else if (is.finite(p_mc)) {
       p_ret <- p_mc; nature <- nature_mc
     } else if (is.finite(p_as)) {
-      p_ret <- p_as
-      nature <- if (!is.na(motif_non_mc))
-        paste0(nature_as, " (", motif_non_mc, ")") else nature_as
+      # Atteinte seulement par une ligne sans mc_nom (p_mc_ext absente
+      # comprise) : une ligne a mc_nom dont la p Monte-Carlo manque n'est
+      # plus un test a p non simulee (diagnostic ou non applicable, #181).
+      p_ret <- p_as; nature <- nature_as
     } else {
       p_ret <- NA_real_; nature <- NA_character_
     }
@@ -4517,9 +4537,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 
   # Phrase des lignes dont le detail nomme la p Monte-Carlo comme retenue
   # (RESET, OLS-CUSUM, suites sur ratios bruts ; #128, point c) : vraie
-  # seulement si la p Monte-Carlo existe. Sinon add() se replie sur une
-  # p-value nommee par nature_p, ou n'en retient aucune (motif de
-  # degenerescence, ligne sans p-value) : le detail ne la nomme pas.
+  # seulement si la p Monte-Carlo existe. Sinon add() n'en retient aucune,
+  # sauf p exacte (diagnostic si une p non simulee existe, #181 ; motif de
+  # degenerescence ; ligne sans p-value) : le detail ne la nomme pas.
   mc_dispo <- function(nm) is.finite(boot$p_mc[[nm]])
   txt_mc_indispo <- function(debut) paste(debut, "est indisponible sur ces donnees ;",
                                           "la p-value retenue, s'il en est une, est nommee par nature_p")
@@ -4602,9 +4622,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       estim_nom = "constante a",
       estim = if (is.finite(ti$stat)) unname(ti$a) else NA_real_,
       p_as = ti$p, mc_nom = "Intercept",
-      # Sans p Monte-Carlo (B_eff = 0), aucune p retenue : la p de Student ne
-      # vaut pas sous le modele reglementaire (#44, reprise, constat 2).
-      repli_asymptotique = FALSE,
+      # Sans p Monte-Carlo, aucune p retenue (diagnostic d'add(), regle
+      # commune depuis #181) : libelle explicite de la p non simulee.
       libelle_p_as = "p de Student sous le modele auxiliaire pondere",
       # Renvoi croise a Spearman ratio / volume : pose apres coup par
       # .usp_poser_renvois() (#215, option (ii) d'actuary).

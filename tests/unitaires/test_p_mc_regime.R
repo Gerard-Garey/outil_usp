@@ -327,13 +327,19 @@ local({
              !grepl("[^ -~]", MOTIF_MC_REGIME_RARE))
   verifier_invariants("U5", bt, x2)
   tt <- usp_tests(f2, bt, 0.10, methode = "premium")
-  nat_repli <- paste0("asymptotique (Monte-Carlo indisponible : ", MOTIF_MC_REGIME_RARE, ")")
-  repli <- Filter(function(l) identical(l$nature_p, nat_repli), tt)
-  verifier("U5 usp_tests() (i) : repli nomme sur la p asymptotique, type test, non inoperant (au moins une ligne)",
-           length(repli) >= 1L &&
-             all(vapply(repli, function(l) identical(l$type, "test") && identical(l$inoperant, FALSE) &&
-                                           !is.finite(l$p_exacte) && is.finite(l$p_asymptotique) &&
-                                           identical(l$p_retenue, l$p_asymptotique), logical(1))))
+  # (i) reecrit a #181 (ADR 0003 annote le 12/10/2026, point 2) : plus de
+  # repli nomme sur la p non simulee ; la ligne est un diagnostic.
+  pre_rare <- paste0("Monte-Carlo indisponible : ", MOTIF_MC_REGIME_RARE,
+                     " ; p non simulee (loi du champ loi) non retenue (ADR 0001).")
+  diag_rare <- Filter(function(l) startsWith(l$detail, pre_rare), tt)
+  verifier("U5 usp_tests() (i) : sans repli (#181), lignes a p non simulee en diagnostic INFO, p conservee, non inoperant (au moins une)",
+           length(diag_rare) >= 1L &&
+             all(vapply(diag_rare, function(l) identical(l$type, "diagnostic") && identical(l$verdict, "INFO") &&
+                                               identical(l$inoperant, FALSE) && !is.finite(l$p_exacte) &&
+                                               is.finite(l$p_asymptotique) && is.na(l$p_retenue) &&
+                                               is.na(l$nature_p), logical(1))) &&
+             !any(vapply(tt, function(l) is.character(l$nature_p) && !is.na(l$nature_p) &&
+                                         startsWith(l$nature_p, "asymptotique (Monte-Carlo"), logical(1))))
   verifier("U5 usp_tests() : aucune ligne a nature Monte-Carlo du bootstrap (p_mc toutes NA)",
            length(lignes_mc(tt)) == 0L)
   verifier("U5 usp_tests() (ii) : Nullite de la constante en diagnostic, sans p retenue",
@@ -606,7 +612,8 @@ local({
 })
 
 # =============================================================================
-# U12 -- classement d'add() (motif non degenere ; add() non modifiee)
+# U12 -- classement d'add() (motif non degenere ; diagnostic sans repli
+# depuis #181)
 # =============================================================================
 local({
   bt <- boot_u2$J2$boot
@@ -618,14 +625,17 @@ local({
     reg$lignes()[[1]]
   }
   l1 <- ligne(p_as = 0.2)
-  l2 <- ligne(p_as = 0.2, repli_asymptotique = FALSE)
+  l2 <- ligne(p_as = 0.2, libelle_p_as = "p de Student sous le modele auxiliaire pondere")
   l3 <- ligne(p_ex = 0.3, p_as = 0.2)
-  verifier("U12 repli nomme sur la p asymptotique fournie",
-           identical(l1$type, "test") && identical(l1$p_retenue, 0.2) &&
-             identical(l1$nature_p, paste0("asymptotique (Monte-Carlo indisponible : ", MOTIF_MC_REGIME_RARE, ")")))
-  verifier("U12 diagnostic sous repli_asymptotique = FALSE",
+  verifier("U12 p non simulee fournie : diagnostic sans repli (#181), p conservee non retenue",
+           identical(l1$type, "diagnostic") && identical(l1$verdict, "INFO") && is.na(l1$p_retenue) &&
+             is.na(l1$nature_p) && identical(l1$p_asymptotique, 0.2) && identical(l1$inoperant, FALSE) &&
+             startsWith(l1$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REGIME_RARE,
+                                          " ; p non simulee (loi du champ loi) non retenue (ADR 0001).")))
+  verifier("U12 diagnostic au libelle de l'appelant (constante)",
            identical(l2$type, "diagnostic") && is.na(l2$p_retenue) &&
-             grepl(MOTIF_MC_REGIME_RARE, l2$detail, fixed = TRUE))
+             startsWith(l2$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REGIME_RARE,
+                                          " ; p de Student sous le modele auxiliaire pondere non retenue")))
   verifier("U12 p exacte retenue si fournie",
            identical(l3$type, "test") && identical(l3$p_retenue, 0.3) && identical(l3$nature_p, "exacte"))
   verifier("U12 MOTIF_MC_REGIME_RARE hors des motifs degeneres d'add() (texte de engine_registre_tests())",

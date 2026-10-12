@@ -128,13 +128,22 @@ verifier("add() : p_ex NA, alpha/2 <= p_min < alpha, p_mc = 0,5 -> test OK, meme
              startsWith(l$detail, "p_min de la loi de reference echangeable = 0.0571 >= alpha/2 = 0.05 ;") &&
              endsWith(l$detail, ": ECHEC possible") && !grepl("inatteignable", l$detail, fixed = TRUE)
          })
-verifier("add() : p_ex NA, p asymptotique seule, alpha/2 <= p_min < alpha -> texte de la p asymptotique",
+# Branche "p-value asymptotique retenue" de R1 retiree (#181) : p_min
+# associee a une p non simulee seule est refusee (avis d'actuary) ; aucun
+# appel d'add() du moteur ne le fait.
+verifier("add() : p_ex NA, p non simulee seule, p_min finie -> erreur (#181)",
          {
-           r <- reg_fictif(); r$add("F", "t", "ref", fonction = "usp_tests", p_as = 0.3, p_min = 4 / 70)
-           l <- r$lignes()[[1]]
-           identical(l$type, "test") && identical(l$nature_p, "asymptotique") &&
-             grepl("la p-value asymptotique retenue, calculee hors de cette loi", l$detail, fixed = TRUE) &&
-             !grepl("inatteignable", l$detail, fixed = TRUE)
+           m <- tryCatch({ r <- reg_fictif(); r$add("F", "t", "ref", fonction = "usp_tests", p_as = 0.3,
+                                                    p_min = 4 / 70); "" },
+                         error = function(e) conditionMessage(e))
+           identical(m, "add() : p_min associee a une p non simulee seule (ni p exacte ni p Monte-Carlo) : t")
+         })
+verifier("add() : p non simulee seule et p_min, ligne non applicable ou diagnostic -> pas d'erreur (R1 sans objet)",
+         {
+           r <- reg_fictif()
+           r$add("F", "t", "ref", fonction = "usp_tests", p_as = 0.3, p_min = 4 / 70, type = "diagnostic")
+           r$add("F", "u", "ref", fonction = "usp_tests", p_as = 0.3, p_min = 4 / 70, type = "non applicable")
+           length(r$lignes()) == 2L
          })
 # #128, point 2' (decision du mainteneur du 01/10/2026) : sans aucune p, la
 # phrase "ECHEC inatteignable" n'est plus ajoutee ; le detail dit qu'aucun
@@ -219,9 +228,10 @@ verifier("engine_p_mc : loi ponctuelle, observee hors de l'atome -> motif atome 
 # usp_bootstrap() et usp_tests() appeles directement, non bornes.
 # B = 2 (#128) : toutes les p_mc absentes, motif replications insuffisantes ;
 # Smirnov et Cox-Stuart gardent leur p exacte (motif sans degenerescence) ;
-# une ligne sans p exacte avec p asymptotique se replie, nommee (RESET) ;
+# une ligne sans p exacte avec p non simulee devient un diagnostic, sans
+# repli (RESET, #181) ;
 # une ligne sans aucune p reste un test INFO avec la phrase de #128 (sup-F).
-verifier("usp_bootstrap(B = 2) + usp_tests() : motif replications insuffisantes ; p exactes gardees, repli nomme, test sans p-value",
+verifier("usp_bootstrap(B = 2) + usp_tests() : motif replications insuffisantes ; p exactes gardees, diagnostic sans repli (#181), test sans p-value",
          {
            b2 <- usp_bootstrap(fit, B = 2, seed = 20260831)
            t2 <- usp_tests(fit, b2, methode = "premium")
@@ -232,8 +242,10 @@ verifier("usp_bootstrap(B = 2) + usp_tests() : motif replications insuffisantes 
            identical(sm$nature_p, "exacte") && is.finite(sm$p_retenue) &&
              is.finite(cs$p_exacte) && identical(cs$type, "diagnostic") &&
              all(b2$motif_mc == MOTIF_MC_REPLIC_INSUFFISANTES) && all(is.na(b2$p_mc)) &&
-             identical(rs$nature_p, paste0("asymptotique (Monte-Carlo indisponible : ",
-                                           MOTIF_MC_REPLIC_INSUFFISANTES, ")")) &&
+             identical(rs$type, "diagnostic") && identical(rs$verdict, "INFO") &&
+             is.na(rs$p_retenue) && is.na(rs$nature_p) && is.finite(rs$p_asymptotique) &&
+             startsWith(rs$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES,
+                                          " ; p non simulee (loi du champ loi) non retenue (ADR 0001).")) &&
              identical(sf$type, "test") && identical(sf$verdict, "INFO") && is.na(sf$p_retenue) &&
              startsWith(sf$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES,
                                           " ; aucune p-value disponible sur ces donnees : aucun verdict (ADR 0001)."))
@@ -332,18 +344,20 @@ verifier("add() : statistique observee non finie sans p exacte -> non applicable
            identical(l$type, "non applicable") && identical(l$verdict, "INFO") &&
              startsWith(l$detail, MOTIF_MC_OBS_NON_FINIE)
          })
-verifier("add() : aucune replication finie avec p asymptotique -> repli NOMME",
-         {
-           r <- reg_motif(MOTIF_MC_AUCUNE_REPLIC); r$add("F", "t", "ref", fonction = "usp_tests", p_as = 0.3, mc_nom = "S")
-           l <- r$lignes()[[1]]
-           identical(l$type, "test") && identical(l$p_retenue, 0.3) &&
-             identical(l$nature_p, paste0("asymptotique (Monte-Carlo indisponible : ",
-                                          MOTIF_MC_AUCUNE_REPLIC, ")"))
-         })
-verifier("add() : repli_asymptotique = FALSE, aucune replication finie -> diagnostic, p asymptotique conservee non retenue",
+verifier("add() : aucune replication finie avec p non simulee -> diagnostic, libelle par defaut, aucun repli (#181)",
          {
            r <- reg_motif(MOTIF_MC_AUCUNE_REPLIC)
-           r$add("F", "t", "ref", fonction = "usp_tests", p_as = 0.3, mc_nom = "S", repli_asymptotique = FALSE,
+           r$add("F", "t", "ref", fonction = "usp_tests", p_as = 0.3, mc_nom = "S", detail = "d.")
+           l <- r$lignes()[[1]]
+           identical(l$type, "diagnostic") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
+             is.na(l$nature_p) && identical(l$p_asymptotique, 0.3) && identical(l$inoperant, FALSE) &&
+             identical(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_AUCUNE_REPLIC,
+                                        " ; p non simulee (loi du champ loi) non retenue (ADR 0001). d."))
+         })
+verifier("add() : libelle_p_as fourni, aucune replication finie -> diagnostic au libelle de l'appelant",
+         {
+           r <- reg_motif(MOTIF_MC_AUCUNE_REPLIC)
+           r$add("F", "t", "ref", fonction = "usp_tests", p_as = 0.3, mc_nom = "S",
                  libelle_p_as = "p de Student sous le modele auxiliaire MCO")
            l <- r$lignes()[[1]]
            identical(l$type, "diagnostic") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
@@ -358,12 +372,28 @@ verifier("add() : motif present et p exacte finie (hors degenerescence) -> p exa
            l <- r$lignes()[[1]]
            identical(l$type, "test") && identical(l$nature_p, "exacte") && identical(l$p_retenue, 0.5)
          })
-verifier("add() : bootstrap sans champ motif_mc (objet anterieur) -> comportement inchange",
+# #181 (avis d'actuary, option c) : une p Monte-Carlo absente sans motif lu
+# est refusee, le motif n'etant jamais devine ; une p Monte-Carlo presente
+# reste lue sans motif_mc.
+verifier("add() : bootstrap sans champ motif_mc (objet anterieur), p_mc absente -> erreur",
          {
            r <- engine_registre_tests(list(p_mc = c(S = NA_real_), err_mc = c(S = NA_real_)),
                                       list(S = .mc_entree(function(e) 1, "haut")), 0.10, "MC")
-           r$add("F", "t", "ref", fonction = "usp_tests", p_as = 0.3, mc_nom = "S")
-           identical(r$lignes()[[1]]$nature_p, "asymptotique")
+           m <- tryCatch({ r$add("F", "t", "ref", fonction = "usp_tests", p_as = 0.3, mc_nom = "S"); "" },
+                         error = function(e) conditionMessage(e))
+           identical(m, "add() : p Monte-Carlo absente sans motif d'indisponibilite dans le bootstrap : S (t)")
+         })
+verifier("add() : motif_mc present mais NA pour une p_mc absente -> erreur ; p_mc presente sans motif_mc -> lue",
+         {
+           r <- engine_registre_tests(list(p_mc = c(S = NA_real_), err_mc = c(S = NA_real_),
+                                           motif_mc = c(S = NA_character_)),
+                                      list(S = .mc_entree(function(e) 1, "haut")), 0.10, "MC")
+           e1 <- tryCatch({ r$add("F", "t", "ref", fonction = "usp_tests", mc_nom = "S"); FALSE },
+                          error = function(e) TRUE)
+           r2 <- engine_registre_tests(list(p_mc = c(S = 0.4), err_mc = c(S = 0.01)),
+                                       list(S = .mc_entree(function(e) 1, "haut")), 0.10, "MC")
+           r2$add("F", "t", "ref", fonction = "usp_tests", p_as = 0.3, mc_nom = "S")
+           e1 && identical(r2$lignes()[[1]]$nature_p, "MC") && identical(r2$lignes()[[1]]$p_retenue, 0.4)
          })
 
 ## --- 4. usp_tests() : constante, TOST, pente, Fisher, AD, CvM ---------------
@@ -741,14 +771,14 @@ reg_beff <- function(b_eff, alpha = 0.10, ...) {
   b <- boot_beff(b_eff, ...)
   engine_registre_tests(b, list(S = .mc_entree(function(e) 1, "haut")), alpha, "Monte-Carlo")
 }
-verifier("add() : B_eff = 1 et 49, p asymptotique -> repli nomme 'Monte-Carlo indisponible : replications finies insuffisantes'",
+verifier("add() : B_eff = 1 et 49, p non simulee -> diagnostic 'Monte-Carlo indisponible : replications finies insuffisantes', aucun repli (#181)",
          all(vapply(c(1, 49), function(b) {
            r <- reg_beff(b); r$add("F", "t", "ref", fonction = "usp_tests", p_as = 0.3, mc_nom = "S")
            l <- r$lignes()[[1]]
-           identical(l$type, "test") && identical(l$verdict, "OK") && identical(l$p_retenue, 0.3) &&
-             is.na(l$p_mc) &&
-             identical(l$nature_p, paste0("asymptotique (Monte-Carlo indisponible : ",
-                                          MOTIF_MC_REPLIC_INSUFFISANTES, ")"))
+           identical(l$type, "diagnostic") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
+             is.na(l$nature_p) && is.na(l$p_mc) && identical(l$p_asymptotique, 0.3) &&
+             identical(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES,
+                                        " ; p non simulee (loi du champ loi) non retenue (ADR 0001)."))
          }, logical(1))))
 verifier("add() : B_eff = 1 et 49, aucune p -> test INFO, sens et p_retenue inchanges, motif puis phrase 'aucune p-value disponible'",
          all(vapply(c(1, 49), function(b) {
@@ -925,7 +955,7 @@ verifier("Runsr regime 1 : p_mc finie -> phrase sur p_mc presente ; p_mc NA (B =
          })
 # Phrases du detail qui nomment la p Monte-Carlo retenue (#128, point c) :
 # conditionnelles a la presence de p_mc.
-verifier("usp_tests() : RESET et OLS-CUSUM, p_mc presente -> 'retenue' ; absente -> 'indisponible', nature_p nomme le repli",
+verifier("usp_tests() : RESET et OLS-CUSUM, p_mc presente -> 'retenue' ; absente -> 'indisponible', diagnostic sans p retenue (#181)",
          {
            ok <- usp_tests(fit, boot_fictif(fit), methode = "premium")
            ko <- usp_tests(fit, boot_fictif(fit, motif = c(RESET = MOTIF_MC_AUCUNE_REPLIC,
@@ -937,12 +967,14 @@ verifier("usp_tests() : RESET et OLS-CUSUM, p_mc presente -> 'retenue' ; absente
              endsWith(r2$detail, paste("1970). La p Monte-Carlo, simulee sous le modele ajuste, est",
                                        "indisponible sur ces donnees ; la p-value retenue, s'il en est",
                                        "une, est nommee par nature_p.")) &&
-             startsWith(r2$nature_p, "asymptotique (Monte-Carlo indisponible") &&
+             identical(r2$type, "diagnostic") && is.na(r2$nature_p) && is.na(r2$p_retenue) &&
              identical(c1$detail, "La formule asymptotique n'a aucune validite a T = 8 : p_mc retenue") &&
-             identical(c2$detail, paste("La formule asymptotique n'a aucune validite a T = 8 ; p_mc est",
-                                        "indisponible sur ces donnees ; la p-value retenue, s'il en est",
-                                        "une, est nommee par nature_p")) &&
-             startsWith(c2$nature_p, "asymptotique (Monte-Carlo indisponible")
+             identical(c2$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_AUCUNE_REPLIC,
+                                         " ; p non simulee (loi du champ loi) non retenue (ADR 0001). ",
+                                         "La formule asymptotique n'a aucune validite a T = 8 ; p_mc est ",
+                                         "indisponible sur ces donnees ; la p-value retenue, s'il en est ",
+                                         "une, est nommee par nature_p")) &&
+             identical(c2$type, "diagnostic") && is.na(c2$nature_p) && identical(c2$verdict, "INFO")
          })
 # Cas du commentaire 5888798043 de #128 : T = 12, pi_t variable, une paire
 # de Cox-Stuart a difference nulle (r_7 = r_1 : m = 5 sur n_p = 6), alpha =
