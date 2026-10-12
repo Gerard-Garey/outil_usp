@@ -1386,7 +1386,7 @@ Closes #125
 
 Hors périmètre : #254, #255 (F) ; #253, #257, #259 (E2d) ; #243, #245, #201, #232, #256 (E2e) ; #258 (R13) ; #214, #222, #246 (F) ; toute modification de σ_USP.
 
-- [x] feu vert du mainteneur (ouverture approuvée le 12/10) — [ ] branche créée — [ ] ce point en premier commit `docs:` — [ ] PR brouillon (six `Closes`) — [x] Q-E2b-1 à Q-E2b-10 (12/10, selon les recommandations) — [ ] étape 1, D1 — [ ] étape 2 — [ ] étape 3 (#120) — [ ] étape 4 (#181) — [ ] étape 5 (#182) — [ ] étape 6 (#244) — [ ] étape 7 (#204) — [ ] étape 8 (#125, régénération) — [ ] visas — [ ] étape 9 — [ ] revue finale — [ ] fusion, fermeture vérifiée — *(rédigée le 12/10/2026, trentième point)*
+- [x] feu vert du mainteneur (ouverture approuvée le 12/10) — [x] branche créée (`59175a5`) — [x] ce point en premier commit `docs:` (`59175a5`) — [x] PR brouillon (#261) (six `Closes`) — [x] Q-E2b-1 à Q-E2b-10 (12/10, selon les recommandations) — [x] étape 1, D1 (spécification `ca31df4`, décisions D1 du mainteneur toutes selon les recommandations `3ea4fff`, 12/10) — [x] étape 2 (ADR 0003 annoté le 12/10, `CONTEXT.md` ; commit `docs:` de la session ; `CLAUDE.md`, quatre champs de fin de ligne, par commit `claude:` séparé, sur accord) — [ ] étape 3 (#120) — [ ] étape 4 (#181) — [ ] étape 5 (#182) — [ ] étape 6 (#244) — [ ] étape 7 (#204) — [ ] étape 8 (#125, régénération) — [ ] visas — [ ] étape 9 — [ ] revue finale — [ ] fusion, fermeture vérifiée — *(rédigée le 12/10/2026, trentième point)*
 
 ---
 
