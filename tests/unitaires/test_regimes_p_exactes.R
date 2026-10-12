@@ -180,7 +180,7 @@ verifier("Bande : ligne Runsr sans phrase R7/R8 (regime #29 inchange : p exacte 
 # nature_p, add() pouvant encore l'ecarter (regle R1, degenerescence).
 verifier("Runsr, regimes 2 et 3 : p_mc presente -> 'est retenue' (3) ou 'est calculee' (2, #187) ; absente -> 'indisponible', test sans p-value",
          {
-           txt_ind <- "est indisponible sur ces donnees ; la p-value retenue, s'il en est une, est nommee par nature_p"
+           txt_ind <- "est indisponible sur ces donnees : aucune p-value n'est retenue (ADR 0001)"
            m <- c(Runsr = MOTIF_MC_AUCUNE_REPLIC)
            nm <- "Test des suites sur ratios bruts"
            a3 <- ligne(t8, nm)
@@ -190,16 +190,36 @@ verifier("Runsr, regimes 2 et 3 : p_mc presente -> 'est retenue' (3) ou 'est cal
            grepl("Seule la p-value Monte-Carlo, simulee sous le modele ajuste avec ses pi_t, est retenue ;",
                  a3$detail, fixed = TRUE) &&
              grepl(paste("La p-value Monte-Carlo, simulee sous le modele ajuste avec ses pi_t,", txt_ind),
-                   b3$detail, fixed = TRUE) && !grepl("est retenue", b3$detail, fixed = TRUE) &&
+                   b3$detail, fixed = TRUE) && !grepl(" est retenue", b3$detail, fixed = TRUE) &&
              grepl(paste("La p-value Monte-Carlo, simulee sous le modele ajuste, est calculee ;",
                          "la p-value retenue, s'il en est une, est nommee par nature_p."),
-                   a2$detail, fixed = TRUE) && !grepl("est retenue", a2$detail, fixed = TRUE) &&
+                   a2$detail, fixed = TRUE) && !grepl(" est retenue", a2$detail, fixed = TRUE) &&
              endsWith(b2$detail, paste0("Monte-Carlo, simulee sous le modele ajuste, ", txt_ind, ".")) &&
-             !grepl("est retenue", b2$detail, fixed = TRUE) &&
+             !grepl(" est retenue", b2$detail, fixed = TRUE) &&
              all(vapply(list(b2, b3), function(l)
                identical(l$type, "test") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
                  startsWith(l$detail, "Monte-Carlo indisponible : aucune replication finie"),
                logical(1)))
+         })
+# #182 (Q1 d'audit, retenue) : txt_mc_indispo() n'a que des appelants sans p
+# exacte (RESET, OLS-CUSUM, Runsr non attribuee) ; p_mc absente, aucune
+# p-value n'est retenue, et le texte le dit sans renvoyer a nature_p. La
+# phrase "s'il en est une" reste dans la seule branche Runsr AVEC p_mc
+# (regime 2, add() pouvant encore ecarter la p Monte-Carlo).
+verifier("txt_mc_indispo (#182) : RESET et OLS-CUSUM sans p_mc -> 'aucune p-value n'est retenue' ; Runsr regime 2 avec p_mc -> 's'il en est une' conservee",
+         {
+           ko <- usp_tests(fit, boot_fictif(fit, motif = c(RESET = MOTIF_MC_AUCUNE_REPLIC,
+                                                           CUSUM = MOTIF_MC_AUCUNE_REPLIC)),
+                           methode = "premium")
+           r <- ligne(ko, "RESET (forme fonctionnelle)"); k <- ligne(ko, "Stabilite cumulee (OLS-CUSUM)")
+           a2 <- ligne(tb, "Test des suites sur ratios bruts")
+           nouveau <- "est indisponible sur ces donnees : aucune p-value n'est retenue (ADR 0001)"
+           all(vapply(list(r, k), function(l)
+             grepl(nouveau, l$detail, fixed = TRUE) && !grepl("s'il en est une", l$detail, fixed = TRUE) &&
+               is.na(l$p_retenue) && is.na(l$p_exacte), logical(1))) &&
+             is.finite(a2$p_mc) &&
+             grepl("est calculee ; la p-value retenue, s'il en est une, est nommee par nature_p.",
+                   a2$detail, fixed = TRUE) && !grepl(nouveau, a2$detail, fixed = TRUE)
          })
 
 # Suffixe de bande seulement si la p exacte de la ligne est finie (#70, Q3).

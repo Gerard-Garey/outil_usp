@@ -4534,6 +4534,13 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     else if (is.finite(p_ex)) joindre(detail, txt_bande)
     else detail
   }
+  # Champ loi des lignes de la regle R7 (#182, textes inconditionnels, D1-4) :
+  # a pi_t constant, libelle inchange (loi qualifiee d'exacte) ; a pi_t
+  # variable, la p exacte n'est pas attribuee et la p retenue, s'il en est
+  # une, est Monte-Carlo : le libelle ne dit plus la loi exacte dans ce regime.
+  loi_r7 <- function(cst, variable)
+    if (isTRUE(pi_constant)) cst
+    else paste0(variable, ", exacte a pi_t constant seulement (regle R7)")
 
   # Phrase des lignes dont le detail nomme la p Monte-Carlo comme retenue
   # (RESET, OLS-CUSUM, suites sur ratios bruts ; #128, point c) : vraie
@@ -4541,8 +4548,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # sauf p exacte (diagnostic si une p non simulee existe, #181 ; motif de
   # degenerescence ; ligne sans p-value) : le detail ne la nomme pas.
   mc_dispo <- function(nm) is.finite(boot$p_mc[[nm]])
-  txt_mc_indispo <- function(debut) paste(debut, "est indisponible sur ces donnees ;",
-                                          "la p-value retenue, s'il en est une, est nommee par nature_p")
+  # Appelants sans p exacte (RESET, OLS-CUSUM, Runsr non attribuee) : p_mc
+  # absente, aucune p-value n'est retenue (#181).
+  txt_mc_indispo <- function(debut) paste(debut, "est indisponible sur ces donnees :",
+                                          "aucune p-value n'est retenue (ADR 0001)")
 
   # p_min des lignes de rangs (Spearman, Mann-Kendall ; #44, reprise, avis
   # d'actuary Q5) : 2/T! n'est la p minimale que sans ex aequo ; avec ex
@@ -4894,7 +4903,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         fonction = "usp_tests",
         H0 = "independance (aucune association monotone)", H1 = "association monotone",
         stat_nom = "S", stat = unname(cs$statistic),
-        loi = "permutation exacte (T <= 9, sans ex aequo)",
+        loi = loi_r7("permutation exacte (T <= 9, sans ex aequo)",
+                     "loi de permutation (T <= 9, sans ex aequo)"),
         estim_nom = "rho_s", estim = unname(cs$estimate),
         p_ex = p_sv,
         p_as = cs$p.value, mc_nom = "SpearVol",
@@ -4909,7 +4919,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         fonction = "usp_tests",
         type = "non applicable",
         H0 = "independance (aucune association monotone)", H1 = "association monotone",
-        stat_nom = "S", loi = "permutation exacte (T <= 9, sans ex aequo)",
+        stat_nom = "S",
+        loi = loi_r7("permutation exacte (T <= 9, sans ex aequo)",
+                     "loi de permutation (T <= 9, sans ex aequo)"),
         estim_nom = "rho_s", mc_nom = "SpearVol", detail = txt_vol_cst)
   }
   ct <- suppressWarnings(stats::cor.test(r_ea, seq_along(r), method = "spearman", exact = FALSE))
@@ -4919,7 +4931,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       H0 = "independance entre le ratio et le rang chronologique",
       H1 = "association monotone avec le temps",
       stat_nom = "S", stat = unname(ct$statistic),
-      loi = "permutation exacte (T <= 9, sans ex aequo)",
+      loi = loi_r7("permutation exacte (T <= 9, sans ex aequo)",
+                   "loi de permutation (T <= 9, sans ex aequo)"),
       estim_nom = "rho_s", estim = unname(ct$estimate),
       p_ex = p_st,
       p_as = ct$p.value, mc_nom = "SpearTps",
@@ -4932,7 +4945,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       "Mann (1945) ; loi exacte : Kendall & Gibbons (1990), ch. 4-5",
       H0 = "absence de tendance monotone (r_t i.i.d.)", H1 = "tendance monotone",
       stat_nom = "Z", stat = mk$stat,
-      loi = "loi exacte de S (distribution mahonienne)",
+      loi = loi_r7("loi exacte de S (distribution mahonienne)",
+                   "loi de S (distribution mahonienne)"),
       estim_nom = "S de Kendall", estim = mk$S,
       p_ex = p_mk, p_as = mk$p, mc_nom = "MK",
       p_min = pmin_rangs(r_ea), effectifs = eff_rangs(r_ea),
@@ -4959,8 +4973,14 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       fonction = "test_cox_stuart",
       H0 = "P(D_t > 0) = 1/2 (absence de tendance)", H1 = "P(D_t > 0) != 1/2",
       stat_nom = "K", stat = cx$stat,
-      loi = paste("Binomiale(m, 1/2) EXACTE, m differences non nulles ;",
-                  "p_mc par |K - n_p/2|, n_p paires, queue haute"),
+      # #182 : quatre regimes. "EXACTE" a pi_t constant seulement (regle R7) ;
+      # avec ex aequo (m < n_p), la p_mc n'est pas calculee (statistique NA
+      # au catalogue) et le libelle ne la decrit plus.
+      loi = paste(if (isTRUE(pi_constant)) "Binomiale(m, 1/2) EXACTE, m differences non nulles ;"
+                  else paste("Binomiale(m, 1/2), m differences non nulles, exacte a pi_t",
+                             "constant seulement (regle R7) ;"),
+                  if (cx$m < cx$n_p) "p_mc non calculee (ex aequo)"
+                  else "p_mc par |K - n_p/2|, n_p paires, queue haute"),
       p_ex = p_cx, mc_nom = "CoxStuart",
       p_min = p_min, effectifs = sprintf("m = %d differences non nulles", cx$m),
       detail = detail_r7(cx_detail, p_cx))
@@ -5042,7 +5062,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         type = if (calculable) "test" else "non applicable",
         H0 = "F1 = F2 (memes lois)", H1 = "lois differentes",
         stat_nom = "D", stat = if (calculable) unname(ks2$statistic) else NA_real_,
-        loi = "exacte combinatoire (ks.test, sans ex aequo)",
+        loi = loi_r7("exacte combinatoire (ks.test, sans ex aequo)",
+                     "loi combinatoire (ks.test, sans ex aequo)"),
         p_ex = p_sm, mc_nom = "Smirnov",
         p_min = if (calculable && !ea_sm) smirnov_p_min(sum(grp), sum(!grp)) else NA_real_,
         effectifs = if (!calculable) NA_character_
@@ -5057,9 +5078,14 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                         "annees (moins de 3 dans un groupe, ex aequo sur la mediane) :",
                         "test non applicable"), sum(grp), sum(!grp))
         else if (ea_sm) detail_r7("Voir aussi le QQ-plot a deux echantillons", p_sm)
+        # #182 (D1-4) : a pi_t variable, la p retenue est Monte-Carlo et
+        # 2/C(n1+n2, n1) ne la borne pas ; le texte dit de quelle loi c'est
+        # le minimum.
         else detail_r7(sprintf(paste("Voir aussi le QQ-plot a deux echantillons ; p-value",
-                                     "minimale atteignable = %.4f, atteinte seulement pour",
+                                     "minimale atteignable%s = %.4f, atteinte seulement pour",
                                      "D = 1 (deux groupes totalement separes)"),
+                               if (isTRUE(pi_constant)) ""
+                               else " sous la loi de reference echangeable",
                                smirnov_p_min(sum(grp), sum(!grp))), p_sm))
   }
   # Issue #58 : a volumes constants (usp_regime(), tolerance TOL_DELTA_BORD),
@@ -5121,9 +5147,11 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         detail_r7(paste("W etant invariant par translation et changement d'echelle,",
                         "sa loi nulle ne depend d'aucun parametre : la simulation est",
                         "independante du modele USP ajuste (ce n'est pas un bootstrap)."), p_sw)
+      # #182 : le renvoi ne nomme la p Monte-Carlo que si elle existe.
       else paste("loi nulle i.i.d. sans objet a pi_t variable (W(P epsilon) n'a pas",
                  "la loi de W sous i.i.d. normal) ; voir la ligne Shapiro-Wilk sur",
-                 "residus standardises (p Monte-Carlo)"))
+                 if (mc_dispo("SW")) "residus standardises (p Monte-Carlo)"
+                 else "residus standardises (p Monte-Carlo indisponible sur ces donnees)"))
   sf <- test_shapiro_francia(z)
   add(fam, "Shapiro-Francia", "Shapiro & Francia (1972), JASA 67 ; Royston (1993)",
       fonction = "test_shapiro_francia",
@@ -5145,14 +5173,20 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   txt_plage <- if (hors_plage)
     sprintf(paste(" p non simulee NA : T = %d hors de la plage de l'implementation",
                   "de reference (n > 7)."), T) else ""
-  loi_stephens <- function(st) sprintf(paste(
-    "loi %s, cas parametres estimes ; p non simulee : ajustement de Stephens (cas 3)",
-    "sur estim (statistique re-standardisee), non sur stat ; p_mc sur stat",
-    "(statistique du catalogue)"), st)
+  # #182 : chaque morceau n'est ecrit que dans le regime ou il est vrai (p non
+  # simulee hors plage a T < 8 ; p_mc absente). A T >= 8 avec p_mc, chaine
+  # identique a celle d'avant #182.
+  loi_stephens <- function(st, hors_plage, mc) paste0(
+    sprintf("loi %s, cas parametres estimes ; ", st),
+    if (!hors_plage)
+      paste("p non simulee : ajustement de Stephens (cas 3) sur estim (statistique",
+            "re-standardisee), non sur stat")
+    else "p non simulee non calculee (T < 8, hors de la plage de l'implementation de reference)",
+    if (mc) " ; p_mc sur stat (statistique du catalogue)" else "")
   add(fam, "Anderson-Darling", "Anderson & Darling (1954), JASA 49",
       fonction = "stat_ad",
       H0 = H0n, H1 = H1n, stat_nom = "A2", stat = boot$stats_obs$AD,
-      loi = loi_stephens("AD"),
+      loi = loi_stephens("AD", hors_plage, mc_dispo("AD")),
       estim_nom = "A2 sur (z - zbar)/s_z", estim = a2_std,
       p_as = if (hors_plage) NA_real_ else ad_p_stephens(a2_std, T), mc_nom = "AD",
       detail = paste0("Sensible aux queues. p non simulee : ajustement empirique de",
@@ -5161,7 +5195,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   add(fam, "Cramer-von Mises", "Cramer (1928) / von Mises (1928) ; Stephens (1974)",
       fonction = "stat_cvm",
       H0 = H0n, H1 = H1n, stat_nom = "W2", stat = boot$stats_obs$CvM,
-      loi = loi_stephens("CvM"),
+      loi = loi_stephens("CvM", hors_plage, mc_dispo("CvM")),
       estim_nom = "W2 sur (z - zbar)/s_z", estim = w2_std,
       p_as = if (hors_plage) NA_real_ else cvm_p_stephens(w2_std, T), mc_nom = "CvM",
       detail = trimws(txt_plage))
@@ -5241,7 +5275,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       base = "z",
       H0 = "rho = 0 (absence d'autocorrelation d'ordre 1)", H1 = "rho != 0",
       stat_nom = "DW", stat = boot$stats_obs$DW,
-      loi = "forme quadratique en normales ; loi EXACTE par la methode d'Imhof (1961)",
+      loi = loi_r7("forme quadratique en normales ; loi EXACTE par la methode d'Imhof (1961)",
+                   "forme quadratique en normales ; loi par la methode d'Imhof (1961)"),
       p_ex = p_dw, mc_nom = "DW",
       detail = detail_r7(paste("Statistique calculee sur residus CENTRES. Les bornes d_L/d_U,",
                                "etablies pour des residus MCO, ne sont pas utilisees : la loi",
@@ -5280,7 +5315,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       type = if (is.finite(ru$stat)) "test" else "non applicable",
       H0 = "la suite des signes est un arrangement aleatoire",
       H1 = "arrangement non aleatoire (regroupement ou alternance)",
-      stat_nom = "Z", stat = ru$stat, loi = "loi combinatoire EXACTE de R",
+      stat_nom = "Z", stat = ru$stat,
+      loi = loi_r7("loi combinatoire EXACTE de R", "loi combinatoire de R"),
       estim_nom = "nb de suites R", estim = ru$runs,
       p_ex = p_ru, p_as = ru$p, mc_nom = "Runs",
       p_min = runs_p_min(eff_z[["n1"]], eff_z[["n2"]]),
@@ -5757,13 +5793,19 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                        "complet, qui reajuste delta, n'est pas convergent quand delta est",
                        "au bord (Andrews, 2000). Bornes : res$ic_bootstrap_restreint."))
   if (!is.null(lr_delta)) {
-    txt_lr <- paste("Aucun verdict (ADR 0001) : le LR mesure si les donnees distinguent",
-                    "cette borne de l'optimum, non l'adequation du modele. Lecture : LR = 0,",
-                    "borne atteinte par l'estimation ; p_mc elevee, borne aussi defendable",
+    # #182 : la lecture de p_mc n'est ecrite que si p_mc existe (borne par
+    # borne, dans la boucle ci-dessous).
+    txt_lr <- function(mc)
+      paste("Aucun verdict (ADR 0001) : le LR mesure si les donnees distinguent",
+            "cette borne de l'optimum, non l'adequation du modele. Lecture : LR = 0,",
+            if (mc)
+              paste("borne atteinte par l'estimation ; p_mc elevee, borne aussi defendable",
                     "que delta estime ; p_mc faible, borne moins compatible avec les",
-                    "donnees. La p asymptotique (melange de Chernoff) est rapportee pour",
-                    "memoire et non retenue : ecart a la loi simulee mesure a T = 8 (fiche",
-                    "du .tex).")
+                    "donnees.")
+            else "borne atteinte par l'estimation.",
+            "La p asymptotique (melange de Chernoff) est rapportee pour",
+            "memoire et non retenue : ecart a la loi simulee mesure a T = 8 (fiche",
+            "du .tex).")
     loi_lr <- paste("sous H0 : loi simulee par bootstrap parametrique restreint (modele",
                     "contraint delta = delta0, B replications) ; asymptotique : melange",
                     "1/2 chi2(0) + 1/2 chi2(1), non retenue")
@@ -5808,7 +5850,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
           stat_nom = li$stat_nom, stat = b$lr, loi = loi_lr,
           estim_nom = "sigma(delta0, gamma~)", estim = b$sigma_contraint,
           p_as = b$p_asymptotique, p_mc_ext = b$p_mc, err_mc_ext = b$err_mc,
-          detail = paste(c(pref, txt_lr), collapse = " "))
+          detail = paste(c(pref, txt_lr(is.finite(b$p_mc))), collapse = " "))
     }
   }
   # Renvoi croise constante <-> Spearman ratio / volume (#215, option (ii)

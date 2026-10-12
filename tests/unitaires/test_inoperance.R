@@ -965,15 +965,15 @@ verifier("usp_tests() : RESET et OLS-CUSUM, p_mc presente -> 'retenue' ; absente
            c1 <- ligne(ok, "Stabilite cumulee (OLS-CUSUM)"); c2 <- ligne(ko, "Stabilite cumulee (OLS-CUSUM)")
            endsWith(r1$detail, "1970). La p Monte-Carlo, simulee sous le modele ajuste, est retenue.") &&
              endsWith(r2$detail, paste("1970). La p Monte-Carlo, simulee sous le modele ajuste, est",
-                                       "indisponible sur ces donnees ; la p-value retenue, s'il en est",
-                                       "une, est nommee par nature_p.")) &&
+                                       "indisponible sur ces donnees : aucune p-value n'est retenue",
+                                       "(ADR 0001).")) &&
              identical(r2$type, "diagnostic") && is.na(r2$nature_p) && is.na(r2$p_retenue) &&
              identical(c1$detail, "La formule asymptotique n'a aucune validite a T = 8 : p_mc retenue") &&
              identical(c2$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_AUCUNE_REPLIC,
                                          " ; p non simulee (loi du champ loi) non retenue (ADR 0001). ",
                                          "La formule asymptotique n'a aucune validite a T = 8 ; p_mc est ",
-                                         "indisponible sur ces donnees ; la p-value retenue, s'il en est ",
-                                         "une, est nommee par nature_p")) &&
+                                         "indisponible sur ces donnees : aucune p-value n'est retenue ",
+                                         "(ADR 0001)")) &&
              identical(c2$type, "diagnostic") && is.na(c2$nature_p) && identical(c2$verdict, "INFO")
          })
 # Cas du commentaire 5888798043 de #128 : T = 12, pi_t variable, une paire
