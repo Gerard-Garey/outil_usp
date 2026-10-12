@@ -961,7 +961,7 @@ ta_pert <- function(eps) {
 # par replication, le K des verifications Origine et Courbure calcule avec
 # l'ensemble fige a l'observe. Sert au test seulement : K par replication
 # n'est pas expose dans le resultat. Les avertissements R eventuels sont
-# comptes (element nw), non asserts ici (voir plus bas).
+# comptes (element nw) ; nuls depuis #203 (assertion plus bas).
 k_replications <- function(t, B = 99, seed = 20260831) {
   aj <- mw_ajuster(t); jd <- .mw_colonnes_degenerees(aj)
   Ko <- Kc <- rep(NA_integer_, B); nw <- 0L
@@ -1014,12 +1014,12 @@ verifier("K identique entre observe et replications, colonne retenue a l'observe
          {
            ok <- vapply(c(9e-13, 2e-12), function(e) {
              p <- pert_calc(e); a <- p$a; kr <- p$kr; b <- p$b
-             oo <- suppressWarnings(mw_test_ordonnee_origine(a))
-             cb <- suppressWarnings(mw_test_courbure(a))
+             oo <- mw_test_ordonnee_origine(a)
+             cb <- mw_test_courbure(a)
              # une replication ou la colonne j = 4 devient degeneree n'a pas de
              # statistique (NA), jamais un K different de l'observe ; le
              # nombre de NA du rejeu est celui que B_effectif ecarte.
-             identical(kr$jd, a$J - 1L) && oo$K == 7 && cb$K == 6 &&
+             identical(kr$jd, a$J - 1L) && oo$K == 7 && cb$K == 6 && kr$nw == 0L &&
                all(is.na(kr$Ko) | kr$Ko == 7) && all(is.na(kr$Kc) | kr$Kc == 6) &&
                b$B_effectif[["Origine"]] <= 99 &&
                b$B_effectif[["Origine"]] == sum(!is.na(kr$Ko)) &&
@@ -1070,6 +1070,44 @@ verifier("Restitution : la colonne exclue est nommee dans le commentaire, estima
                        "Correlation de rang entre F(i,j) et i, colonne par colonne, combinee par Fisher") &&
              identical(dr$commentaire[grepl("courbure", dr$test)],
                        "Une courbure invalide la linearite meme si la constante est nulle")
+         })
+
+## --- Courbure : colonne a 1 ddl residuel conservee (issue #234) ------------
+# Decision Q-E2c-1 du mainteneur (11/10/2026), option A : la colonne a n = 4
+# (3 parametres, 1 ddl residuel) reste VOLONTAIREMENT dans la combinaison de
+# Fisher du test de courbure ; aucun changement de calcul. Sur reserve2
+# (triangle_mw.csv) : K = 4, colonnes j = 0..3, n = (7, 6, 5, 4), j = 3
+# incluse. t_j attendus : valeurs exactes calculees par actuary en
+# arithmetique rationnelle (tolerance relative 1e-9). Les t_j lus dans
+# $detail sont aussi recalcules par lm() hors de la fonction, et X = -2 somme
+# log p_j, p_j bilaterale de Student a n - 3 ddl.
+verifier("Courbure (#234, Q-E2c-1 option A) : reserve2, K = 4, j = 0..3, n = (7, 6, 5, 4), colonne j = 3 a 1 ddl incluse ; t_j = valeurs rationnelles a 1e-9 ; X = Fisher des p_j",
+         {
+           cb <- mw_test_courbure(mw_ajuster(tri_ref))
+           dt <- cb$detail
+           t_exact <- c(0.9342276499696924, -1.982363320600040,
+                        -9.161812002906837, -3.462887950378827)
+           # recalcul independant, selection de mw_test_courbure() (idx = 0..I-j-1)
+           t_lm <- vapply(dt$j, function(j) {
+             i <- seq_len(nrow(tri_ref) - j - 1)
+             C0 <- tri_ref[i, j + 1]; C1 <- tri_ref[i, j + 2]
+             summary(stats::lm(C1 ~ C0 + I(C0^2), weights = 1 / C0))$coefficients[3, 3]
+           }, numeric(1))
+           p_j <- 2 * stats::pt(-abs(dt$t), df = dt$n - 3)
+           r <- list(
+             K = identical(cb$K, 4L) && identical(cb$eligibles, 4L) && !nrow(cb$exclues),
+             j = identical(as.integer(dt$j), 0:3),
+             n = identical(as.integer(dt$n), c(7L, 6L, 5L, 4L)),
+             ddl_j3 = isTRUE(any(dt$j == 3) && dt$n[dt$j == 3] - 3 == 1),
+             t_exact = proche(dt$t, t_exact, rel = 1e-9),
+             t_lm = proche(dt$t, t_lm, rel = 1e-12),
+             p_j = proche(dt$p, p_j, rel = 1e-12),
+             X = proche(cb$stat, -2 * sum(log(p_j)), rel = 1e-12),
+             p = proche(cb$p, stats::pchisq(-2 * sum(log(p_j)), 8, lower.tail = FALSE),
+                        rel = 1e-10))
+           ko <- vapply(r, function(v) !isTRUE(v), logical(1))
+           if (!any(ko)) TRUE else
+             paste(names(r)[ko], vapply(r[ko], as.character, ""), sep = " : ", collapse = " ; ")
          })
 
 ## --- Domaine numerique des cumuls (issue #185) ------------------------------
@@ -1157,6 +1195,43 @@ verifier("Domaine (#185) : invariance dans le domaine, x 1e-40 et x 1e40 : sigma
                isTRUE(proche(d$p_retenue, d0$p_retenue, rel = 1e-6, abs = 1e-12))
            }, logical(1))
            isTRUE(r0$ok) && all(ok)
+         })
+
+## --- Avertissement "essentially perfect fit" de summary.lm() en M1 (#203) ---
+# Le critere de cet avertissement depend de l'unite des cumules (ponderation
+# 1/C(i,j) de l'ordonnee a l'origine et de la courbure) ; .mw_summary_lm()
+# l'intercepte, lui seul, sans changer aucun resultat (objets run_engine()
+# identical() avant / apres, mesure #203). Mesure avant #203, B = 199 :
+# ta_pert(9e-13) 258 avertissements, triangle_mw x 1e20 : 20, x 1e46 : 1 814,
+# tous de mw_test_ordonnee_origine() et mw_test_courbure().
+avert203 <- function(expr) {
+  w <- character(0)
+  withCallingHandlers(expr, warning = function(x) {
+    w <<- c(w, conditionMessage(x)); invokeRestart("muffleWarning") })
+  w
+}
+verifier("summary.lm() en M1 (#203) : run_engine reserve2 sans aucun avertissement R, ta_pert(9e-13), triangle_mw x 1e20 et x 1e46 (B = 199)",
+         {
+           n <- vapply(list(ta_pert(9e-13), m185 * 1e20, m185 * 1e46), function(t)
+             length(avert203(run_engine(methode = "reserve2", triangle = t,
+                                        segment = 1, annexe = "II", B = 199))), integer(1))
+           if (all(n == 0L)) TRUE else paste("avertissements :", paste(n, collapse = ", "))
+         })
+verifier(".mw_summary_lm() (#203) : resultat = summary() ; seul l'avertissement 'essentially perfect fit' de summary.lm() est intercepte",
+         {
+           x <- c(1, 2, 3, 4, 5); m <- stats::lm(I(2 * x) ~ x)    # ajustement parfait
+           m2 <- m; m2$df.residual <- m2$df.residual + 1L       # autre avertissement de summary.lm()
+           .S3method("summary", "faux203", function(object, ...) {
+             warning("essentially perfect fit: summary may be unreliable"); "faux" })
+           w0 <- avert203(summary(m)); w1 <- avert203(s1 <- .mw_summary_lm(m))
+           w2 <- avert203(.mw_summary_lm(m2))
+           w3 <- avert203(.mw_summary_lm({ warning("autre 203"); m }))
+           w4 <- avert203(.mw_summary_lm(structure(list(), class = "faux203")))
+           length(w0) == 1L && grepl("essentially perfect fit", w0) && length(w1) == 0L &&
+             identical(s1, suppressWarnings(summary(m))) &&
+             identical(w2, "residual degrees of freedom in object suggest this is not an \"lm\" fit") &&
+             identical(w3, "autre 203") &&
+             identical(w4, "essentially perfect fit: summary may be unreliable")
          })
 
 ## --- Triangle totalement degenere refuse (issue #192) -------------------------
@@ -1342,9 +1417,20 @@ recalc152 <- function(t) {
   }))
   corr <- sum(cd[, 1] * cd[, 2]) / sum(cd[, 2])
   # p de Spearman par colonne (#90) : loi de permutation a n <= 9 sans ex
-  # aequo (au bit pres apres signif()), sinon Student relevee a 2/n!
+  # aequo (au bit pres apres signif()) ; avec ex aequo a n <= 9 (#207),
+  # enumeration brute des n! permutations sur les rangs moyens, doublement ;
+  # sinon Student relevee a 2/n!
   p_sp <- function(a, b) {
-    n <- length(a); ex <- n <= 9 && !anyDuplicated(a) && !anyDuplicated(b)
+    n <- length(a); ea <- anyDuplicated(a) || anyDuplicated(b)
+    if (n <= 9 && ea) {
+      prm <- function(v) if (length(v) <= 1) list(v) else
+        do.call(c, lapply(seq_along(v), function(i) lapply(prm(v[-i]), function(q) c(v[i], q))))
+      A <- 2 * rank(a); B <- 2 * rank(b)
+      D <- vapply(prm(seq_len(n)), function(pi) sum(A * B[pi]), numeric(1))
+      d0 <- sum(A * B)
+      return(min(1, 2 * min(sum(D <= d0), sum(D >= d0)) / length(D)))
+    }
+    ex <- n <= 9 && !ea
     min(1, max(2 / factorial(n),
                suppressWarnings(cor.test(a, b, method = "spearman", exact = ex)$p.value)))
   }
@@ -1776,12 +1862,12 @@ verifier(".mw_spearman_p jamais nulle, dans [2/n!, 1], avec ex aequo ou n > 9 (#
              a[1:2] <- a[1]                       # au moins un ex aequo dans a
              p <- .mw_spearman_p(a, b); p >= 2 / factorial(n) && p <= 1
            }, logical(1)))
-           # ex aequo a la tolerance dans b (plancher 0) : b aplati, pas de loi
-           # exacte (cor.test() sur b brut, sans ex aequo au bit pres, l'enumere)
+           # ex aequo a la tolerance dans b (plancher 0) : b aplati, loi
+           # conditionnelle aux rangs moyens de b aplati (#207 ; cor.test() sur
+           # b brut, sans ex aequo au bit pres, enumererait une autre loi)
            b <- c(1, 1 * (1 + 1e-14), 2, 3, 4, 5); a <- c(2, 1, 4, 3, 5, 6)
            p <- .mw_spearman_p(a, b, plancher_b = 0)
-           all(ok) && identical(p, min(1, max(2 / factorial(6), suppressWarnings(stats::cor.test(
-             a, c(1, 1, 2, 3, 4, 5), method = "spearman", exact = FALSE))$p.value))) &&
+           all(ok) && identical(p, .mw_spearman_loi_rangs(a, c(1, 1, 2, 3, 4, 5))$p) &&
              !identical(p, stats::cor.test(a, b, method = "spearman", exact = TRUE)$p.value)
          })
 verifier(".fisher_combine : aucune exclusion, p = 0 au plancher, p non finie -> NA, K constant (#90)",
@@ -1930,18 +2016,154 @@ verifier("Sous-triangle 5 x 5, alpha = 0,10 : Calendaire et CorrDev inoperants, 
              su$type == "test" && !su$inoperant && isTRUE(proche(su$p_min, 4 / 70, 1e-12)) &&
              grepl("ECHEC possible", su$commentaire, fixed = TRUE)
          })
-verifier("Ex aequo de F : p_min NA de HomogF et CorrDev, motif dans le commentaire (#115, critere 4)",
+# Adapte par #207 : la p_min de HomogF est attribuee avec ex aequo (loi
+# conditionnelle aux rangs moyens, decision Q-E2c-3) ; celle de CorrDev reste
+# NA avec motif.
+verifier("Ex aequo de F : p_min de HomogF attribuee (#207), p_min NA de CorrDev avec motif (#115, critere 4)",
          {
            t <- tri_ref
            t[2, 2] <- t[2, 1] * t[1, 2] / t[1, 1]          # F(1,0) = F(0,0)
            t[3, 3] <- t[3, 2] * t[1, 3] / t[1, 2]          # F(2,1) = F(0,1)
            d <- engine_table_tests(run_mw(t))
            mot <- "ex aequo : loi de permutation conditionnelle non tabulee, p_min non attribuee"
-           all(vapply(c("Homogeneite de f_j entre annees de survenance",
-                        "Correlation entre annees de developpement adjacentes"), function(k) {
-             x <- d[d$test == k, ]
-             is.na(x$p_min) && x$type == "test" && grepl(mot, x$commentaire, fixed = TRUE)
+           hf <- d[d$test == "Homogeneite de f_j entre annees de survenance", ]
+           co <- d[d$test == "Correlation entre annees de developpement adjacentes", ]
+           # colonnes n_j = 7, 6, 5, 4 ; un ex aequo double en j = 0 et j = 1 :
+           # masses 2 x 2!/7!, 2 x 2!/6!, 2/5!, 2/4! (forme close 2 prod t_g!/n!)
+           isTRUE(proche(hf$p_min, 64 / prod(factorial(7:4)), 1e-12)) && hf$type == "test" &&
+             !grepl("non tabulee", hf$commentaire, fixed = TRUE) &&
+             is.na(co$p_min) && co$type == "test" && grepl(mot, co$commentaire, fixed = TRUE)
+         })
+
+## --- p de Spearman avec ex aequo a n <= 9 : loi conditionnelle aux rangs (#207)
+# Specification d'actuary approuvee le 11/10/2026 (Q-E2c-3 : p_min attribuee ;
+# Q-E2c-4 : p bilaterale par doublement). Controles independants du moteur :
+# enumeration brute des n! permutations (perms_n(), ci-dessus), D entier.
+spearman_enum <- function(a, b) {
+  n <- length(a); A <- round(2 * rank(a)); B <- round(2 * rank(b))
+  P <- perms_n(n)
+  D <- apply(P, 1, function(pi) n * sum(A * B[pi]) - sum(A) * sum(B))
+  d0 <- n * sum(A * B) - sum(A) * sum(B)
+  q <- function(d) min(nrow(P), 2 * min(sum(D <= d), sum(D >= d)))
+  qs <- vapply(D, q, numeric(1))
+  list(p = q(d0) / nrow(P), masse_min = sum(qs == min(qs)) / nrow(P))
+}
+verifier("Spearman avec ex aequo : a = (1,1,2,3,4), b = 5:1 -> p = 1/30 (#207)",
+         identical(.mw_spearman_p(c(1, 1, 2, 3, 4), 5:1), 1 / 30) &&
+           identical(spearman_enum(c(1, 1, 2, 3, 4), 5:1)$p, 1 / 30))
+verifier("Spearman avec ex aequo des deux cotes (ExpVar) : p = 0,10 par doublement, masse_min = 0,05 (#207)",
+         {
+           sp <- .mw_spearman(c(1, 1, 1, 3, 4), c(1, 2, 2, 4, 5), plancher_b = 0)
+           identical(sp$p, 0.1) && identical(sp$masse_min, 0.05) &&
+             identical(sp$rho, unname(suppressWarnings(stats::cor.test(
+               c(1, 1, 1, 3, 4), c(1, 2, 2, 4, 5), method = "spearman", exact = FALSE))$estimate))
+         })
+verifier("masse_min de HomogF (b = idx sans ex aequo) = forme close 2 prod t_g!/n! : 1/90, 1/420, 1/1890 (#207)",
+         {
+           m <- function(a) .mw_spearman(a, seq_along(a) - 1L)$masse_min
+           fc <- function(a) 2 * prod(factorial(table(a))) / factorial(length(a))
+           cas <- list(c(1, 1, 2, 2, 3, 4), c(5, 5, 5, 1, 2, 3, 4), c(1, 1, 1, 1, 2, 2, 3, 3, 4))
+           identical(m(cas[[1]]), 1 / 90) && identical(m(cas[[2]]), 1 / 420) &&
+             identical(m(cas[[3]]), 1 / 1890) &&
+             all(vapply(cas, function(a) identical(m(a), fc(a)), logical(1))) &&
+             identical(.mw_spearman(c(3, 1, 4, 2), 0:3)$masse_min, 2 / 24)
+         })
+verifier("Contre-epreuve par enumeration brute des n! permutations, n = 4 a 7, ex aequo tires (#207)",
+         {
+           ok <- engine_sous_graine(20261011, vapply(1:48, function(k) {
+             n <- 4L + (k %% 4L)
+             a <- sample(1:3, n, replace = TRUE); if (!anyDuplicated(a)) a[2] <- a[1]
+             b <- if (k %% 2L) seq_len(n) - 1L else sample(1:4, n, replace = TRUE)
+             if (length(unique(a)) < 2 || length(unique(b)) < 2) return(TRUE)
+             sp <- .mw_spearman(a, b, plancher_b = 0); en <- spearman_enum(a, b)
+             identical(sp$p, en$p) && identical(sp$masse_min, en$masse_min) &&
+               sp$p >= 2 / factorial(n) && sp$p <= 1 &&
+               identical(sp$rho, stats::cor(rank(a), rank(b)))
            }, logical(1)))
+           all(ok)
+         })
+# n = 8 (40 320 permutations, reprise apres audit, m3(a)) : D de toutes les
+# permutations par produit matriciel, p et masse_min par tabulation des
+# valeurs distinctes de D (spearman_enum() serait quadratique en n!).
+spearman_enum_tab <- function(a, b) {
+  n <- length(a); A <- round(2 * rank(a)); B <- round(2 * rank(b)); P <- perms_n(n)
+  D <- as.vector(matrix(B[P], nrow(P)) %*% A) * n - sum(A) * sum(B)
+  d0 <- n * sum(A * B) - sum(A) * sum(B)
+  tb <- table(D); v <- as.numeric(names(tb)); cnt <- as.vector(tb); N <- nrow(P)
+  q <- vapply(v, function(d) min(N, 2 * min(sum(cnt[v <= d]), sum(cnt[v >= d]))), numeric(1))
+  list(p = min(N, 2 * min(sum(D <= d0), sum(D >= d0))) / N, masse_min = sum(cnt[q == min(q)]) / N)
+}
+verifier("Contre-epreuve par enumeration brute a n = 8 : ex aequo d'un cote, puis des deux cotes (#207)",
+         {
+           cas <- list(list(c(3, 3, 1, 5, 2, 2, 2, 4), 0:7),
+                       list(c(1, 1, 2, 2, 3, 3, 4, 4), c(8, 6, 7, 5, 3, 4, 1, 2)),
+                       list(c(1, 2, 2, 3, 3, 3, 4, 5), c(2, 2, 1, 3, 3, 5, 4, 4)),
+                       list(c(5, 1, 1, 2, 4, 4, 3, 3), c(1, 1, 1, 2, 2, 3, 3, 3)))
+           all(vapply(cas, function(x) {
+             sp <- .mw_spearman(x[[1]], x[[2]], plancher_b = 0); en <- spearman_enum_tab(x[[1]], x[[2]])
+             identical(sp$p, en$p) && identical(sp$masse_min, en$masse_min)
+           }, logical(1)))
+         })
+verifier("Spearman a entree constante (ex aequo a n <= 9) : rho, p et masse_min NA (#207, m2)",
+         {
+           s1 <- .mw_spearman(c(2, 2, 2, 2, 2), 0:4); s2 <- .mw_spearman(c(1, 3, 2, 5), c(4, 4, 4, 4), 0)
+           all(is.na(c(s1$rho, s1$p, s1$masse_min, s2$rho, s2$p, s2$masse_min))) &&
+             is.na(.mw_spearman_p(c(2, 2, 2, 2, 2), 0:4))
+         })
+verifier(".mw_p_min_ligne : colonne de plus de 9 facteurs avec ex aequo, aucune mention de loi enumeree (#207, m1)",
+         {
+           e <- .mw_p_min_ligne(TRUE, c(10, 5), "colonnes n_j", function(n) 0.5, TRUE, n_max = 9,
+                                ex_aequo_enumere = TRUE)
+           is.na(e$p_min) && !grepl("enumeree", e$effectifs, fixed = TRUE) &&
+             grepl("colonne de plus de 9 facteurs", e$effectifs, fixed = TRUE)
+         })
+verifier(".mw_p_min_ligne : p_min non finie avec ex aequo (K < 2), aucune mention de loi enumeree ; longueurs differentes nommees (#207, /code-review)",
+         {
+           e <- .mw_p_min_ligne(TRUE, c(5), "colonnes n_j", function(n) NA_real_, TRUE, n_max = 9,
+                                ex_aequo_enumere = TRUE)
+           f <- .mw_p_min_ligne(TRUE, c(5, 4), "colonnes n_j", function(n) 0.01, TRUE, n_max = 9,
+                                ex_aequo_enumere = TRUE)
+           m <- tryCatch(.mw_spearman_loi_rangs(1:5, 1:4), error = conditionMessage)
+           is.na(e$p_min) && !grepl("enumeree", e$effectifs, fixed = TRUE) &&
+             identical(f$p_min, 0.01) && grepl("enumeree", f$effectifs, fixed = TRUE) &&
+             grepl("longueurs differentes", m, fixed = TRUE)
+         })
+verifier("p_min de Fisher avec ex aequo = produit des masse_min, par enumeration brute (4 et 3 facteurs) (#207)",
+         {
+           a1 <- c(1, 1, 2, 3); a2 <- c(2, 2, 1)
+           pj <- function(a) { P <- perms_n(length(a))
+             apply(P, 1, function(pi) spearman_enum(a[pi], seq_along(a) - 1L)$p) }
+           X <- as.vector(outer(-2 * log(pj(a1)), -2 * log(pj(a2)), "+"))
+           enum <- p_min_enum(X, rep(1 / length(X), length(X)), "haut")
+           ms <- c(.mw_spearman(a1, 0:3)$masse_min, .mw_spearman(a2, 0:2)$masse_min)
+           isTRUE(proche(.mw_fisher_rangs_p_min(c(4, 3), ms), enum, 1e-9)) &&
+             isTRUE(proche(enum, (4 / 24) * (4 / 6), 1e-9)) &&
+             identical(.mw_fisher_rangs_p_min(c(7, 6, 5, 4)),
+                       .mw_fisher_rangs_p_min(c(7, 6, 5, 4), 2 / factorial(c(7, 6, 5, 4)))) &&
+             is.na(.mw_fisher_rangs_p_min(c(5, 4), c(0.1, NA)))
+         })
+verifier(".mw_p_min_ligne : ex aequo enumeres, p_min attribuee et motif dans effectifs (#207)",
+         {
+           s <- .mw_p_min_ligne(TRUE, c(5, 4), "colonnes n_j",
+                                function(n) .mw_fisher_rangs_p_min(n, c(1 / 30, 1 / 12)), TRUE,
+                                n_max = 9, ex_aequo_enumere = TRUE)
+           s10 <- .mw_p_min_ligne(TRUE, c(10, 4), "colonnes n_j", function(n) 0.5, TRUE,
+                                  n_max = 9, ex_aequo_enumere = TRUE)
+           isTRUE(proche(s$p_min, 1 / 360, 1e-12)) &&
+             identical(s$effectifs, paste("colonnes n_j = 5, 4 ; ex aequo : loi de permutation",
+                                          "conditionnelle aux rangs moyens, enumeree")) &&
+             is.na(s10$p_min) && grepl("colonne de plus de 9 facteurs", s10$effectifs, fixed = TRUE)
+         })
+verifier("ExpVar a premiere colonne de cumuls a ex aequo : p_min attribuee, motif enumere (#207)",
+         {
+           t <- tri_ref; t[1:8, 1] <- round(t[1:8, 1], -2)  # 300 x 5, 400 x 3
+           t[, -1] <- t[, -1] - tri_ref[, 1] + t[, 1]
+           ev <- mw_test_exposant_variance(mw_ajuster(t))
+           d <- engine_table_tests(run_engine(methode = "reserve2", triangle = t, segment = 1,
+                                              annexe = "II", B = 99))
+           x <- d[d$test == "Adequation de l'exposant de variance, colonne par colonne", ]
+           any(ev$detail$ex_aequo) && length(ev$masse_min) == nrow(ev$detail) &&
+             is.finite(x$p_min) && x$p_min == .mw_fisher_rangs_p_min(ev$detail$n, ev$masse_min)
          })
 
 ## --- Pool du bootstrap redresse par le levier (#46, variante B) ---------------
@@ -2017,5 +2239,64 @@ verifier("Pool redresse (#46, C2) : ligne 0 x 1e17, pool fini, B_eff > 0 ou moti
              all(be > 0 | (!is.na(mo[names(be)]) & nzchar(mo[names(be)]))) &&
              !any(is.nan(tb$p_retenue))
          })
+
+## --- Residus de Mack sous forme stable (#233) -------------------------------
+# F(i,j) - f_j calcule par .mw_ecart_facteur_stable() (somme des ecarts aux
+# autres facteurs ponderee par les C(k,j)) et non par difference : une ligne
+# qui domine ses colonnes d'un facteur 1e15 ou 1e16 ne doit plus noyer les
+# residus dans l'arrondi de f_j. Deux proprietes exactes, sans reference
+# externe :
+#  - colonne a n_j = 2 cellules (j = 5 de reserve2) : |r_ij| = sqrt(1 - h_ij),
+#    1 - h_ij = C(autre,j) / S_j ;
+#  - contrainte d'estimation de f_j : somme_i sqrt(C_ij) r_ij = 0, verifiee
+#    en relatif a 1e-12 de somme_i |sqrt(C_ij) r_ij| pour j = 0..6 ; la
+#    colonne j = 6 (n_j = 1) n'a pas de residu, j = 0..5 doivent en avoir.
+# Moteur d'avant #233 (7613e8a) : ligne 0 x 1e16, |r / sqrt(1 - h)| = 0 sur
+# la cellule dominante de j = 5 et rapports de contrainte jusqu'a 1 ; ligne
+# 3 x 1e15, rapports jusqu'a 1 (colonne j = 2).
+.verifier_residus_stables <- function(ligne, e) {
+  t <- tri_ref; t[ligne + 1, ] <- t[ligne + 1, ] * 10^e
+  a <- mw_ajuster(t); r <- mw_residus(a)
+  c5 <- r[r$j == 5, ]
+  omh <- vapply(seq_len(nrow(c5)), function(k) {
+    col <- a$tri[1:2, 6]; sum(col[-(c5$i[k] + 1)]) / sum(col)
+  }, numeric(1))
+  n2 <- nrow(c5) == 2L && all(abs(abs(c5$residu) / sqrt(omh) - 1) <= 1e-12)
+  contrainte <- vapply(0:6, function(j) {
+    x <- r[r$j == j, ]
+    if (!nrow(x)) return(NA_real_)
+    v <- sqrt(x$C) * x$residu
+    abs(sum(v)) / sum(abs(v))
+  }, numeric(1))
+  n2 && all(!is.na(contrainte[1:6])) && is.na(contrainte[7]) &&
+    all(contrainte[1:6] <= 1e-12)
+}
+verifier("Residus stables (#233) : reserve2, ligne 0 x 1e16 : |r / sqrt(1 - h)| = 1 a 1e-12 en j = 5 (n = 2) ; contrainte somme sqrt(C) r = 0 a 1e-12 pres, j = 0..6",
+         .verifier_residus_stables(0L, 16))
+verifier("Residus stables (#233) : reserve2, ligne 3 x 1e15 : memes controles",
+         .verifier_residus_stables(3L, 15))
+
+# mw_influence() (#233, suite) : f_j^(-i), 1 - h_i, s2_(i) et dfbeta_relatif
+# par sommes des AUTRES cellules et ecarts stables. Moteur d'avant (7613e8a),
+# reserve2 ligne 0 : x 1e16, f_sans_cellule de la cellule dominante 3,0 /
+# 1,333 / 1,333 / 1,0 / 1,0 au lieu de 3,203 / 1,657 / 1,332 / 1,156 /
+# 1,095 (j = 0..4) ; x 1e17, 1 - h = 0, f_sans_cellule NaN, dfbetas NA.
+.verifier_influence_dominante <- function(e) {
+  t <- tri_ref; t[1, ] <- t[1, ] * 10^e
+  inf <- mw_influence(mw_ajuster(t))
+  d <- inf[inf$i == 0, ]
+  # f_j recalcule sur la colonne privee de la ligne 0 (lignes 1..I-j-1)
+  f_ref <- vapply(d$j, function(j) {
+    k <- 2:(nrow(t) - j - 1)
+    sum(t[k, j + 2]) / sum(t[k, j + 1])
+  }, numeric(1))
+  dfb <- d$dfbetas[d$j <= 4]                      # n_j >= 3 : j = 0..4
+  nrow(d) == 6L && all(abs(d$f_sans_cellule / f_ref - 1) <= 1e-12) &&
+    length(dfb) == 5L && all(is.finite(dfb))
+}
+verifier("mw_influence() stable (#233) : reserve2, ligne 0 x 1e16 : f_sans_cellule dominante = f_j sans la ligne 0 a 1e-12 ; DFBETAS finis (j = 0..4)",
+         .verifier_influence_dominante(16))
+verifier("mw_influence() stable (#233) : reserve2, ligne 0 x 1e17 : memes controles",
+         .verifier_influence_dominante(17))
 
 fin_fichier()

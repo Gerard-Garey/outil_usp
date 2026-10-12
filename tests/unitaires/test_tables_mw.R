@@ -8,12 +8,17 @@
 #  (b) HomogF et ExpVar tirent rho et p d'un seul cor.test() (.mw_spearman()) ;
 #  (c) les tables de mw_residus(), mw_test_annees_calendaires(),
 #  mw_test_ordonnee_origine(), mw_test_homogeneite_f(), mw_test_courbure(),
-#  mw_famille_alpha() et mw_test_exposant_variance() sont baties par colonnes
-#  prealloues assemblees une fois (.mw_table()), au lieu d'un rbind() par
-#  colonne. Critere de #239 : resultats IDENTIQUES au bit pres, ordre des
+#  mw_famille_alpha() et mw_test_exposant_variance() sont assemblees une
+#  fois (#239 : colonnes prealloues et .mw_table() ; #250 : blocs empiles par
+#  l'utilitaire unique .mw_empiler(), noms de lignes par rbind() itere dans
+#  .mw_noms_lignes_empilees()), au lieu d'un rbind() par colonne. Les deux
+#  utilitaires sont aussi compares directement a rbind() itere, sur des blocs
+#  synthetiques (fin du fichier, #250). Critere de #239 : resultats IDENTIQUES au bit pres, ordre des
 #  attributs compris (identical(attrib.as.set = FALSE)). La contre-implementation
 #  ci-dessous est l'ancienne forme, copiee du moteur au commit daabd7a
-#  (commentaires retires), evaluee dans un environnement dedie dont le parent
+#  (commentaires retires ; residu de mw_residus() reporte sous la forme
+#  stable de #233, .mw_ecart_facteur_stable()), evaluee dans un
+#  environnement dedie dont le parent
 #  est celui du moteur : les fonctions non modifiees (mw_stat_correlation_dev(),
 #  .mw_pente_intra(), .mc_evaluer()...) sont communes. Chaque fonction est
 #  comparee par meme() (valeur, ou message d'erreur) et par la liste des
@@ -87,7 +92,10 @@ local({
         i = idx, j = j, calendrier = idx + j,
         C = Cij, F = Cij1 / Cij, f_chapeau = aj$f[j + 1],
         sigma_j = sqrt(aj$sigma2[j + 1]),
-        residu = sqrt(Cij) * (Cij1 / Cij - aj$f[j + 1]) / sqrt(aj$sigma2[j + 1]),
+        # #233 : ecart F - f sous forme stable, reporte dans l'ancienne forme
+        # (seule la valeur du residu change ; l'assemblage compare par #239
+        # est inchange)
+        residu = sqrt(Cij) * .mw_ecart_facteur_stable(Cij, Cij1) / sqrt(aj$sigma2[j + 1]),
         stringsAsFactors = FALSE))
     }
     attr(out, "colonnes_exclues") <- exclues
@@ -130,7 +138,13 @@ local({
          Z = Z, E = EZ, V = VZ, detail = A, etiquettes = etiquettes)
   }
 
-  .mw_spearman_p <- function(a, b, plancher_b = 1) {
+  # Renommee par #207 : la p de Spearman de l'ancienne forme (daabd7a) n'est
+  # plus celle du moteur avec ex aequo a n <= 9 ; les copies de
+  # mw_test_homogeneite_f() et mw_test_exposant_variance() ci-dessous
+  # appellent la .mw_spearman_p() du moteur (environnement parent), de sorte
+  # que la comparaison porte sur l'assemblage des tables (#239), et cette copie
+  # ne sert plus qu'a la comparaison sans ex aequo de .mw_spearman_p().
+  .mw_spearman_p_daabd7a <- function(a, b, plancher_b = 1) {
     b <- engine_aplatir_ex_aequo(b, plancher = plancher_b)
     n <- length(a)
     exact <- n <= 9 && !anyDuplicated(a) && !anyDuplicated(b)
@@ -330,6 +344,13 @@ FONCTIONS_JD <- c("mw_residus", "mw_test_annees_calendaires", "mw_test_ordonnee_
 # residus transmis = valeur capturee de mw_residus(), ancienne forme de
 # mw_test_exposant_variance() et mw_test_homogeneite_accident() calculee une
 # fois.
+# masse_min (#207) : element ajoute au resultat de mw_test_homogeneite_f() et
+# de mw_test_exposant_variance(), absent de l'ancienne forme ; retire avant
+# comparaison (son calcul est controle dans test_merz_wuthrich.R).
+sans_masse <- function(x) {
+  if (is.list(x$valeur) && !is.null(x$valeur$masse_min)) x$valeur$masse_min <- NULL
+  x
+}
 ecarts <- function(t, jds = list(NULL), etiquette = "", fonctions = FONCTIONS_JD,
                    alpha = TRUE) {
   aj <- tryCatch(mw_ajuster(t), error = function(e) NULL)
@@ -343,7 +364,7 @@ ecarts <- function(t, jds = list(NULL), etiquette = "", fonctions = FONCTIONS_JD
     # Filet de securite, inactif sur les jeux actuels (0 saut sur 76 ensembles).
     if (any(vapply(vus, identical, logical(1), r))) next
     vus[[length(vus) + 1L]] <- r
-    nouv <- lapply(stats::setNames(nm = fonctions), function(f) capturer(get(f), list(aj, jd)))
+    nouv <- lapply(stats::setNames(nm = fonctions), function(f) sans_masse(capturer(get(f), list(aj, jd))))
     anc  <- lapply(stats::setNames(nm = fonctions), function(f) capturer(ANCIEN[[f]], list(aj, jd)))
     for (f in fonctions)
       if (!meme(nouv[[f]], anc[[f]])) out <- c(out, paste(etiquette, f, "jd =", deparse(jd)))
@@ -352,7 +373,7 @@ ecarts <- function(t, jds = list(NULL), etiquette = "", fonctions = FONCTIONS_JD
     res <- nouv[["mw_residus"]]$valeur
     if (is.data.frame(res))
       for (f in intersect(c("mw_test_exposant_variance", "mw_test_homogeneite_accident"), fonctions))
-        if (!meme(capturer(get(f), list(aj, jd, res)), anc[[f]]))
+        if (!meme(sans_masse(capturer(get(f), list(aj, jd, res))), anc[[f]]))
           out <- c(out, paste(etiquette, f, "(res fourni) jd =", deparse(jd)))
   }
   out
@@ -487,7 +508,11 @@ verifier("Triangles tires sous graine (3 a 12 annees, ex aequo, colonnes degener
            ecarts(TIRAGES[[k]], if (PLAN_TIRAGES$noms[k]) list(NULL, 0L, 1L) else list(NULL, integer(0)),
                   paste("tirage", k))))))
 
-verifier(".mw_spearman_p() et .mw_spearman() : p identique a l'ancienne forme, rho = estimation de cor.test(exact = FALSE) (#239)",
+# Restreint par #207 : avec ex aequo a n <= 9, la p de .mw_spearman() suit
+# la loi de permutation conditionnelle aux rangs moyens (.mw_spearman_loi_rangs()),
+# et non plus l'ancienne forme ; l'identite de p a l'ancienne forme n'est
+# exigee que sans ex aequo (ou a n > 9, chemin inchange), celle de rho partout.
+verifier(".mw_spearman_p() et .mw_spearman() : p identique a l'ancienne forme sans ex aequo, rho = estimation de cor.test(exact = FALSE) (#239, #207)",
          {
            ok <- engine_sous_graine(20261012, vapply(1:300, function(k) {
              n <- 3L + (k %% 12L)
@@ -495,10 +520,11 @@ verifier(".mw_spearman_p() et .mw_spearman() : p identique a l'ancienne forme, r
              b <- if (k %% 2L) seq_len(n) - 1L else round(stats::rlnorm(n), 1) + 1
              pl <- if (k %% 2L) 1 else 0
              sp <- .mw_spearman(a, b, pl)
-             ct <- suppressWarnings(stats::cor.test(a, engine_aplatir_ex_aequo(b, plancher = pl),
-                                                    method = "spearman", exact = FALSE))
-             identical(.mw_spearman_p(a, b, pl), ANCIEN$.mw_spearman_p(a, b, pl)) &&
-               identical(sp$p, ANCIEN$.mw_spearman_p(a, b, pl)) &&
+             bp <- engine_aplatir_ex_aequo(b, plancher = pl)
+             ct <- suppressWarnings(stats::cor.test(a, bp, method = "spearman", exact = FALSE))
+             ea9 <- n <= 9 && (anyDuplicated(a) > 0 || anyDuplicated(bp) > 0)
+             p_att <- if (ea9) .mw_spearman_loi_rangs(a, bp)$p else ANCIEN$.mw_spearman_p_daabd7a(a, b, pl)
+             identical(.mw_spearman_p(a, b, pl), p_att) && identical(sp$p, p_att) &&
                identical(sp$rho, unname(ct$estimate))
            }, logical(1)))
            if (all(ok)) TRUE else paste(sum(!ok), "ecart(s)")
@@ -516,6 +542,63 @@ verifier("Une evaluation de .mw_stats() appelle mw_residus() une seule fois (#23
            tryCatch(.mw_stats(mw_ajuster(tri_ref), 4L),
                     finally = assign("mw_residus", orig, envir = env))
            if (identical(n, 1L) && identical(mw_residus, orig)) TRUE else paste("appels :", n)
+         })
+
+# --- .mw_empiler() et .mw_noms_lignes_empilees() contre rbind() (#250) -------
+# Blocs synthetiques de tailles 1 a 4, a la forme de ceux de mw_residus()
+# (colonnes entieres i et j, colonne C qui porte les noms de
+# lignes) : sans noms, noms tires d'un vivier a collisions avec make.unique()
+# ("a", "a1", "a11"...), doublons, vides, numeros, ou noms manquants (NA).
+# Reference : l'ancienne forme, rbind() ITERE depuis data.frame() sur des
+# data.frame() a trois colonnes, comparee par meme() (valeur, ou message
+# d'erreur) ; .mw_noms_lignes_empilees() seule est comparee aux noms de
+# lignes de cette reference.
+VIVIER_NOMS <- c("a", "a1", "a2", "a11", "a12", "a21", "b", "b1", "1", "2", "11", "")
+tirer_blocs <- function(k) {
+  nb <- 1L + (k %% 5L)
+  lapply(seq_len(nb), function(b) {
+    n <- 1L + ((k + b) %% 4L)
+    C <- round(stats::rlnorm(n), 3)
+    type <- (k * 7L + b) %% 6L
+    if (type >= 3L) names(C) <- sample(VIVIER_NOMS, n, replace = TRUE)
+    if (type == 5L && k %% 11L == 0L) names(C)[1L] <- NA
+    list(i = seq_len(n) - 1L, j = rep(as.integer(b), n), C = C)
+  })
+}
+rbind_itere <- function(blocs)
+  Reduce(function(table, b) rbind(table, data.frame(i = b$i, j = b$j, C = b$C,
+                                                     stringsAsFactors = FALSE)),
+         blocs, data.frame())
+JEUX_BLOCS <- engine_sous_graine(20261111, lapply(1:400, tirer_blocs))
+verifier(".mw_empiler() : table identique a rbind() itere, noms de lignes compris (#250)",
+         {
+           e <- which(!vapply(JEUX_BLOCS, function(bl)
+             meme(capturer(.mw_empiler, list(bl, "C")), capturer(rbind_itere, list(bl))),
+             logical(1)))
+           if (!length(e)) TRUE else paste("jeux en ecart :", paste(head(e, 10), collapse = " "))
+         })
+verifier(".mw_noms_lignes_empilees() : noms de lignes de rbind() itere, NULL si automatiques (#250)",
+         {
+           e <- which(!vapply(JEUX_BLOCS, function(bl) {
+             ref <- tryCatch(rbind_itere(bl), error = function(err) NULL)
+             if (is.null(ref)) return(TRUE)   # noms manquants : erreur, comparee ci-dessus
+             attendu <- if (.row_names_info(ref) > 0L) attr(ref, "row.names") else NULL
+             identical(.mw_noms_lignes_empilees(lapply(bl, `[[`, "C")), attendu)
+           }, logical(1)))
+           if (!length(e)) TRUE else paste("jeux en ecart :", paste(head(e, 10), collapse = " "))
+         })
+# Pourquoi rbind() ITERE et non do.call(rbind, blocs) : make.unique() a chaque
+# empilement ou une seule fois donnent des noms differents sur certains jeux
+# de collisions (en-tete de .mw_noms_lignes_empilees(), moteur).
+verifier("do.call(rbind, blocs) rend d'autres noms que rbind() itere sur au moins un jeu (#250)",
+         {
+           n <- sum(vapply(JEUX_BLOCS, function(bl) {
+             a <- tryCatch(rbind_itere(bl), error = function(err) NULL)
+             if (is.null(a)) return(FALSE)
+             b <- do.call(rbind, lapply(bl, function(x) data.frame(i = x$i, j = x$j, C = x$C)))
+             !identical(attr(a, "row.names"), attr(b, "row.names"))
+           }, logical(1)))
+           if (n > 0L) TRUE else "aucun ecart entre les deux formes"
          })
 
 fin_fichier()

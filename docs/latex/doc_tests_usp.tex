@@ -912,12 +912,18 @@ réplication de M1 où une colonne retenue devient dégénérée \\
 \code{mw\_residus()} & \code{aj}, \code{j\_degeneres} (\code{NULL}~: ensemble calculé sur
 \code{aj}) & \code{data.frame} des résidus de Mack
 $r(i,j)$, colonnes dégénérées exclues et consignées dans l'attribut \code{colonnes\_exclues}
-(issue~\#60) \\
+(issue~\#60), écart $F(i,j) - \hat f_j$ par \code{.mw\_ecart\_facteur\_stable()} (issue~\#233) \\
+\code{.mw\_ecart\_}\newline\code{facteur\_stable()} & cumuls $C(\cdot,j)$ et $C(\cdot,j+1)$ d'une
+colonne & vecteur des $F(i,j) - \hat f_j$ par l'identité exacte
+$\sum_{k \neq i} C(k,j)\big(F(i,j) - F(k,j)\big)/S_j$, sans annulation pour une cellule dominante,
+sommes par \code{sum()}~; employé par \code{mw\_residus()} et \code{mw\_influence()}
+(issue~\#233, section~\ref{sec:boot-mw}) \\
 \code{mw\_simuler\_triangle()}, \code{.mw\_stats()} & \code{aj}, vivier de
 résidus~; \code{aj} & triangle simulé~; vecteur de 13 statistiques \\
 \code{.mw\_pool\_residus()} & \code{aj}, \code{j\_degeneres} & vivier du bootstrap de Mack~:
-résidus retenus par \code{mw\_residus()}, redressés par $\sqrt{1 - h_{ij}}$, $1 - h_{ij}$ calculé
-comme $(S_j - C(i,j))/S_j$, puis recentrés (issue~\#46, section~\ref{sec:boot-mw}) \\
+résidus retenus par \code{mw\_residus()} (sous forme stable depuis l'issue~\#233), redressés par
+$\sqrt{1 - h_{ij}}$, $1 - h_{ij}$ calculé comme $(S_j - C(i,j))/S_j$, somme des autres cellules
+divisée par $S_j$, puis recentrés (issue~\#46, section~\ref{sec:boot-mw}) \\
 \code{mw\_test\_*()}, \code{mw\_famille\_alpha()},
 \code{mw\_stat\_correlation\_dev()} & \code{aj}~; argument \code{j\_degeneres} des trois
 vérifications colonne par colonne de M1 et, depuis l'issue~\#60, de
@@ -929,9 +935,13 @@ ensemble calculé sur \code{aj})~; argument facultatif \code{res} (résidus de M
 ceux du contexte dans le bootstrap~; \code{NULL}~: calculés par \code{mw\_residus()}, issue~\#239)
 de \code{mw\_test\_exposant\_}\allowbreak\code{variance()} et
 \code{mw\_test\_homogeneite\_}\allowbreak\code{accident()} & statistiques des tests M1 à M6 (détail~: §\ref{sec:index-fonctions}) \\
-\code{.mw\_table()},\newline \code{.mw\_noms\_bloc()},\newline
-\code{.mw\_noms\_lignes\_}\newline\code{empilees()} & colonnes préallouées, noms de lignes~;
-vecteur d'un bloc~; noms et tailles des blocs & table \code{data.frame} assemblée en une fois, sous
+\code{.mw\_summary\_lm()} & ajustement \code{lm()} & \code{summary()} de l'ajustement, appelé tel
+quel, sans le seul avertissement «~\code{essentially perfect fit}~» de \code{summary.lm()}, tout
+autre avertissement remontant~; employé par \code{mw\_test\_ordonnee\_}\allowbreak\code{origine()} et
+\code{mw\_test\_courbure()} (issue~\#203, fiche~\ref{mw:m1a}) \\
+\code{.mw\_table()},\newline \code{.mw\_empiler()},\newline
+\code{.mw\_noms\_lignes\_}\newline\code{empilees()} & colonnes, noms de lignes~;
+liste de blocs, un par colonne de développement, et nom de la colonne source des noms~; vecteurs sources des noms (issue~\#250) & table \code{data.frame} assemblée en une fois, sous
 la forme exacte du résultat de \code{rbind.data.frame()} itéré, ordre des attributs compris, pour
 les tables de \code{mw\_residus()}, \code{mw\_test\_annees\_}\allowbreak\code{calendaires()},
 \code{mw\_test\_ordonnee\_}\allowbreak\code{origine()}, \code{mw\_test\_homogeneite\_}\allowbreak\code{f()},
@@ -939,26 +949,48 @@ les tables de \code{mw\_residus()}, \code{mw\_test\_annees\_}\allowbreak\code{ca
 \code{mw\_test\_exposant\_}\allowbreak\code{variance()}, auparavant bâties par \code{rbind()} à chaque
 colonne~; noms de lignes que \code{data.frame()} et \code{rbind()} itéré donneraient à un triangle à
 noms de lignes (issue~\#239~: objets de \code{run\_engine()} des cinq cas de référence
-identiques avant et après, au sens d'\code{identical()}) \\
+identiques avant et après, au sens d'\code{identical()}). Depuis l'issue~\#250,
+\code{.mw\_empiler()} porte seule la comptabilité des blocs (positions, nombre de lignes, noms de
+lignes), refuse par une erreur un bloc dont les colonnes n'ont pas toutes la même longueur (aucun
+recyclage), et les noms de lignes sont lus sur \code{rbind()} itéré lui-même, et non recalculés~;
+\code{do.call(rbind, \ldots)} n'est pas retenu, car il peut rendre d'autres noms que
+\code{rbind()} itéré (vérifié par\newline \code{tests/unitaires/test\_tables\_mw.R})~; objets de \code{run\_engine()}
+des cinq cas de référence de nouveau identiques avant et après \\
 \code{.mw\_spearman()},\newline \code{.mw\_spearman\_p()},\newline \code{.fisher\_combine()} & deux vecteurs (le premier déjà
 aplati), \code{plancher\_b} (1)~; p-values de colonne & corrélation de rang $\hat\rho_s$ et p-value
 bilatérale de Spearman d'une colonne, tirées d'un seul appel à \code{cor.test()}
 (\code{.mw\_spearman()}, issue~\#239~; \code{.mw\_spearman\_p()}, qui en rend la seule p-value,
 n'est plus appelée que par les tests unitaires), celle-ci
-dans $[2/n!, 1]$ (loi de permutation à $n \le 9$ sans ex \ae quo, sinon approximation
-de Student relevée à $2/n!$, fiche~\ref{mw:m1b})~; statistique $X$ de Fisher, p-value
+dans $[2/n!, 1]$ (loi de permutation à $n \le 9$, énumérée par \code{cor.test()} sans ex \ae quo
+et conditionnelle aux rangs moyens avec ex \ae quo depuis l'issue~\#207~; approximation de Student
+relevée à $2/n!$ à $n > 9$~; \code{NA} si l'une des deux variables est constante après
+aplatissement, fiche~\ref{mw:m1b}), et \code{masse\_min}, masse de la plus petite p-value
+atteignable de la colonne ($2/n!$ sans ex \ae quo, comptée sur la loi conditionnelle avec ex
+\ae quo, \code{NA} à $n > 9$)~; statistique $X$ de Fisher, p-value
 $\chi^2(2K)$ et $K$, sans exclusion (p-value nulle relevée à \code{.Machine\$double.xmin},
 p-value non finie~: statistique \code{NA}, issue~\#90, fiche~\ref{mw:m1a}) \\
+\code{.mw\_spearman\_}\newline\code{loi\_rangs()},\newline \code{.mw\_spearman\_}\newline\code{comptes()},\newline
+\code{.cache\_mw\_}\newline\code{spearman} & deux vecteurs de même longueur $n$, $2 \le n \le 9$~;
+doubles entiers des rangs moyens, triés & p-value bilatérale de Spearman par doublement de la plus
+petite queue et \code{masse\_min}, sur la loi de permutation conditionnelle aux rangs moyens
+observés (issue~\#207, fiche~\ref{mw:m1b})~; comptes entiers exacts de
+$S = \sum_i A_i B_{\pi(i)}$ sur les $n!$ permutations, par programmation dynamique sur les
+sous-ensembles (au plus $2^9$ états), sans aléa, avec contrôle que leur somme vaut $n!$~;
+environnement de mise en cache de ces comptes, sous la clé des deux multiensembles \\
 \code{.mw\_calendrier\_p\_min()},\newline \code{.mw\_corr\_p\_min()},\newline
 \code{.mw\_fisher\_rangs\_p\_min()},\newline \code{.mw\_kruskal\_p\_min()},\newline
-\code{.mw\_p\_min\_ligne()} & $n_k$ des diagonales~; $n_k$ des paires~; $n_j$ des colonnes~;
+\code{.mw\_p\_min\_ligne()} & $n_k$ des diagonales~; $n_k$ des paires~; $n_j$ des colonnes et
+\code{masse\_min} ($2/n_j!$ par défaut, issue~\#207)~;
 tailles des groupes~; statistique définie, effectifs, libellé, fonction, ex \ae quo,
-\code{n\_max} & plus petite p-value atteignable sous la loi de référence discrète des lignes
+\code{n\_max}, \code{ex\_aequo\_enumere} & plus petite p-value atteignable sous la loi de référence discrète des lignes
 calendaire, de corrélation entre années adjacentes, d'homogénéité de $f_j$ et d'exposant de
 variance, et de Kruskal--Wallis (\code{NA} hors domaine, motif en attribut \code{motif} pour la
 dernière)~; arguments \code{p\_min} et \code{effectifs} d'une ligne de \code{mw\_tests()}, motif
 de l'absence de $p_{\min}$ (ex \ae quo, $n_j > 9$, valeur non calculable) porté par
-\code{effectifs} (issue~\#115, tableau~\ref{tab:pmin}). Champs de sortie ajoutés à cette fin~:
+\code{effectifs} (issue~\#115, tableau~\ref{tab:pmin})~; avec \code{ex\_aequo\_enumere}
+(homogénéité de $f_j$ et exposant de variance, issue~\#207), $p_{\min} = \prod_j$
+\code{masse\_min}$_j$ est attribuée malgré les ex \ae quo, et la mention de la loi conditionnelle
+aux rangs moyens n'est ajoutée à \code{effectifs} que si cette $p_{\min}$ est finie. Champs de sortie ajoutés à cette fin~:
 \code{ex\_aequo} (corrélation entre années adjacentes, et par colonne pour l'homogénéité de
 $f_j$ et l'exposant de variance), \code{tailles} et \code{ex\_aequo} (Kruskal--Wallis) \\
 \code{mw\_tests()} & \code{aj}, \code{boot}, \code{alpha} (0,10) &
@@ -969,7 +1001,9 @@ $\sigma_{\text{std}}$, barème & $\sigma_{\mathrm{USP}}$ et ses composantes \\
 \code{mw\_influence()} & \code{aj} & levier, facteur sans la cellule,
 écart relatif de $\hat f_j$, résidu de Mack (\code{NA} sur une colonne dégénérée), DFBETAS
 et son repère de lecture $2/\sqrt{n_j}$, par cellule, booléen de coloration
-\code{fort\_dfbetas} et booléen \code{dfbetas\_non\_borne} (issue~\#89) \\
+\code{fort\_dfbetas} et booléen \code{dfbetas\_non\_borne} (issue~\#89)~; facteur sans la
+cellule et $1 - h$ tirés des sommes des autres cellules, écarts au facteur sous forme stable
+(issue~\#233, fiche~\ref{mw:influence}) \\
 \code{mw\_contributions()} & \code{aj}, \code{msep} (sortie de
 \code{mw\_msep()}) & parts de chaque année de survenance dans la réserve et
 dans le terme de variance de processus \\
@@ -2317,15 +2351,23 @@ paire aplatis séparément, fiche~\ref{mw:m3cor}), \code{mw\_test\_homogeneite\_
 qu'un facteur égal à la médiane à la tolérance près est étiqueté «~*~», fiche~\ref{mw:m3cal})~;
 cumuls $C(i,j)$ au plancher~0 et valeurs absolues des résidus de Mack au plancher~1 dans
 \code{mw\_test\_exposant\_variance()} (fiche~\ref{mw:m2b})~; résidus de Mack au plancher~1 dans
-\code{mw\_test\_homogeneite\_accident()} (fiche~\ref{mw:m3acc}). Depuis l'issue~\#90, un ex
-\ae quo ainsi défini dans une colonne de l'homogénéité de $f_j$ ou de l'exposant de variance fait
-calculer la p-value de cette colonne par l'approximation de Student relevée à $2/n_j!$, et non
-par la loi de permutation (\code{.mw\_spearman()} depuis l'issue~\#239, fiche~\ref{mw:m1b})~; depuis l'issue~\#115, il
-rend aussi \code{p\_min} non attribuée (\code{NA}, motif dans le commentaire) pour les lignes de
-rang de cette méthode (corrélation entre années adjacentes, homogénéité de $f_j$, exposant de
-variance, Kruskal--Wallis~; tableau~\ref{tab:pmin}). Les mêmes fonctions servant à
+\code{mw\_test\_homogeneite\_accident()} (fiche~\ref{mw:m3acc}). De l'issue~\#90 à
+l'issue~\#207, un ex \ae quo ainsi défini dans une colonne de l'homogénéité de $f_j$ ou de
+l'exposant de variance faisait calculer la p-value de cette colonne par l'approximation de Student
+relevée à $2/n_j!$, et non par la loi de permutation (\code{.mw\_spearman()} depuis
+l'issue~\#239, fiche~\ref{mw:m1b})~; depuis l'issue~\#207 (décisions du mainteneur Q-E2c-3 et
+Q-E2c-4 du 11~octobre 2026), à $n_j \le 9$, cette p-value suit la loi de permutation
+conditionnelle aux rangs moyens observés, comptée exactement et sans aléa
+(\code{.mw\_spearman\_loi\_rangs()}, fiche~\ref{mw:m1b}), l'approximation de Student ne restant
+employée qu'au-delà de neuf observations. Depuis l'issue~\#115, un ex \ae quo rend
+\code{p\_min} non attribuée (\code{NA}, motif dans le commentaire) pour la corrélation entre années
+adjacentes et pour Kruskal--Wallis~; il la rendait aussi non attribuée pour l'homogénéité de $f_j$
+et l'exposant de variance jusqu'à l'issue~\#207, qui l'attribue sur la loi conditionnelle aux
+rangs moyens (tableau~\ref{tab:pmin}, note~(iv)). Les lignes de rang de la méthode lognormale
+gardent \code{p\_min} non attribuée avec ex \ae quo~: la divergence entre les deux méthodes est
+assumée (décision Q-E2c-3). Les mêmes fonctions servant à
 l'observé et dans les réplications, le catalogue \code{MW\_CATALOGUE\_MC} n'a pas été modifié par
-cette issue. Ni les données, ni l'ajustement
+l'issue~\#152. Ni les données, ni l'ajustement
 (\code{usp\_noyau()}, \code{mw\_ajuster()}), ni les autres statistiques (Anderson--Darling, Shapiro--Wilk,
 Durbin--Watson, Grubbs, régressions auxiliaires) ne sont aplatis. Restent à égalité \emph{exacte},
 sur $x_t$ brut, un volume étant saisi et non calculé~: la partition
@@ -3765,8 +3807,9 @@ $\big(S_j - C(i,j)\big)/S_j$, somme des autres cellules de la colonne divisée p
 comme $1 - C(i,j)/S_j$, qui vaut~$0$ en virgule flottante dès qu'une cellule domine sa colonne
 d'un facteur de l'ordre de $10^{16}$ (mesuré sur le triangle de contrôle dont la première ligne
 est multipliée par $10^{17}$~: $1 - C/S = 0$, $(S - C)/S = 6{,}8\cdot 10^{-17}$, vivier fini)~;
-pour une telle cellule, le résidu $r(i,j)$ lui-même perd ses chiffres par annulation dans
-$F(i,j) - \hat f_j$, et le redressement agrandit cette erreur, limite antérieure à l'issue. Seul le
+pour une telle cellule, le résidu $r(i,j)$ lui-même perdait ses chiffres par annulation dans
+$F(i,j) - \hat f_j$, et le redressement agrandissait cette erreur, limite antérieure à l'issue et
+levée depuis par l'issue~\#233 (écart au facteur sous forme stable, ci-dessous). Seul le
 vivier change~: \code{mw\_residus()}, les statistiques observées et répliquées et
 \code{mw\_simuler\_triangle()} sont inchangés. Avant l'issue, le vivier était
 $r(i,j) - \bar r$, de moyenne des carrés $0{,}7775$ sur le triangle de contrôle (la somme des
@@ -3803,6 +3846,52 @@ ont une changent~; un verdict change,
 celui de l'hétéroscédasticité résiduelle (Breusch--Pagan), dont la p-value passe de $0{,}086$
 (\code{ALERTE}) à $0{,}103$ (\code{OK}), ligne présentée comme \emph{à la frontière du seuil}
 (fiche~\ref{mw:m2bp}, visa du mainteneur du 6~octobre 2026).
+
+\emph{Écart au facteur sous forme stable} (issue~\#233, décision du mainteneur
+Q-E2c-2 du 11~octobre 2026). Quand une cellule domine sa colonne, $\hat f_j$ est égal à son facteur individuel
+à l'arrondi près, et la différence directe $F(i,j) - \hat f_j$ perd ses chiffres significatifs par
+annulation. Depuis l'issue, l'écart est calculé par l'identité exacte
+\[
+  F(i,j) - \hat f_j = \frac{1}{S_j} \sum_{k \neq i} C(k,j)\,\big(F(i,j) - F(k,j)\big),
+\]
+conséquence de $\sum_k C(k,j)\,F(k,j) = S_j\,\hat f_j$ (\code{.mw\_ecart\_facteur\_stable()})~:
+chaque terme est une différence de facteurs individuels, sans annulation entre grandeurs de
+l'ordre de la cellule dominante. \textbf{Aucune définition ne change}~: les deux écritures sont
+égales en arithmétique exacte, et $\hat f_j$, $\hat\sigma_j^2$, la MSEP et
+$\sigma_{\mathrm{USP}}$ (\code{mw\_ajuster()}) ne sont pas modifiés. L'écriture sert au résidu de
+Mack (\code{mw\_residus()}, donc au vivier et à toutes les statistiques fondées sur les résidus)
+et, dans \code{mw\_influence()}, au résidu, à $e(i,j)$, à $s_{(i)}^2$ et à la variation relative
+de $\hat f_j$ (fiche~\ref{mw:influence}). Mesuré par \code{tests/mesure\_precision\_residus\_mw.R}
+(tableau \code{docs/tableaux/20261011-issue233-precision-residus-mw.md}~; triangle de contrôle et
+sous-triangle $8 \times 8$ de Taylor \& Ashe, ligne $0$, $3$ ou $6$ multipliée par $10^{e}$ ou
+$10^{-e}$, $e = 10, \ldots, 17, 20, 25, 30$~; référence calculée par le paquet~R Rmpfr à
+256~bits, contrôlée à 512~bits)~: erreur relative maximale des $r(i,j)$ de $5{,}93\cdot 10^{2}$
+avec le moteur antérieur à l'issue, $7{,}02\cdot 10^{-13}$ avec le moteur actuel~; erreur absolue
+maximale du vivier redressé et recentré de $1{,}12\cdot 10^{2}$, puis $7{,}76\cdot 10^{-13}$.
+Statut~: constat numérique sur des triangles construits, sans portée statistique. Sur le triangle
+de contrôle, les valeurs ne changent qu'à l'arrondi près, sous la tolérance des références
+(références inchangées), et $\sigma_{\mathrm{USP}}$, p-values de Monte-Carlo et verdicts sont
+identiques~; sur les triangles construits ($e = 12, \ldots, 17$, \code{run\_engine()}, $B = 999$,
+graine 20260831), $38$ verdicts changent sur $19$ triangles, tous d'une ligne multipliée par au
+moins $10^{14}$ ou au plus $10^{-14}$, $\sigma_{\mathrm{USP}}$ restant identique sur chacun. Vingt-neuf sont la correction elle-même
+(statistiques et vivier recalculés sans annulation)~; neuf sont des passages de ou vers une ligne
+de test sans p-value retenue (\code{INFO}, motif «~\code{replications finies insuffisantes}~»), le
+nombre de réplications retenues franchissant \code{B\_MIN\_DEGENERESCENCE} ($50$)~: six de ces verdicts y
+entrent sur le sous-triangle de Taylor \& Ashe dont la ligne~$0$ est multipliée par $10^{-15}$ ou
+$10^{-17}$ (\code{B\_effectif} de $96$ à $38$, et de $91$ à $33$), trois en sortent sur le
+triangle de contrôle dont la ligne~$0$ est multipliée par $10^{-17}$ (de $47$ à $78$)~; ceux-là
+relèvent aussi de la limite non levée ci-dessous. \emph{Limite non levée.} La correction ne règle pas la perte de réplications quand une
+ligne a un poids négligeable~: l'écart-type $\sigma_j\sqrt{C(i,j)}$ du terme aléatoire de ses
+cumuls simulés domine alors leur espérance $f_j\,C(i,j)$, et une réplication dont un cumul simulé n'est pas strictement positif est
+écartée (\code{mw\_simuler\_triangle()}), de sorte que \code{B\_effectif} dépend du signe des
+tirages. Ce n'est pas un effet de précision, mais une fragilité du bootstrap, signalée hors de
+l'issue. Mesuré (\code{mw\_bootstrap()}, $B = 999$, graine 20260831) sur le sous-triangle de
+Taylor \& Ashe dont la ligne~$0$ est multipliée par $10^{-15}$ ($\sigma_j\sqrt{C(0,j)}$ y dépasse
+$f_j\,C(0,j)$ d'un facteur de $8{,}5\cdot 10^{5}$ à $6{,}7\cdot 10^{6}$ sur les cinq premières
+colonnes)~: \code{B\_effectif} de $96$ avec le moteur antérieur à l'issue et de $38$ avec le
+moteur actuel, toutes les réplications perdues l'étant par un cumul simulé non positif de la
+ligne~$0$ ($903$, puis $961$)~; la correction change les résidus de cette ligne, donc le vivier,
+mais ne crée pas la fragilité.
 
 \begin{encadre}
 \textbf{Limite structurelle du rééchantillonnage de résidus.} Cette procédure
@@ -4357,6 +4446,11 @@ leur est appliquée telle quelle, sans règle propre à la méthode, en attendan
 inopérant, et la ligne des suites ($4/70 = 0{,}0571$) reste un test dont l'\code{ECHEC} est
 possible (mesuré par \code{run\_engine()} sur le sous-triangle $5 \times 5$ du triangle de
 contrôle)~; sur le triangle de contrôle $8 \times 8$, aucune de ces vérifications n'est inopérante.
+Depuis l'issue~\#207, la $p_{\min}$ de l'homogénéité de $f_j$ et de l'exposant de variance est
+attribuée aussi avec ex \ae quo, sur la loi de permutation conditionnelle aux rangs moyens
+(tableau~\ref{tab:pmin}, note~(iv))~: la règle s'y applique de même, la ligne restant un test
+dont le commentaire écrit «~\code{ECHEC possible}~» si $\alpha/2 \le p_{\min} < \alpha$, et
+basculant en test inopérant si $p_{\min} \ge \alpha$, ce qui exige $m_j \ge \alpha$ dans chaque colonne combinée ($m_j \le 1$), donc, au seuil $\alpha = 0{,}10$ par défaut et dès $\alpha > 1/12$, des ex \ae quo dans toutes ces colonnes, une colonne sans ex \ae quo ayant $m_j = 2/n_j! \le 1/12$ (fiche~\ref{mw:m1b}, rubrique~7). Avec ex \ae quo, cette $p_{\min}$ peut en outre sous-estimer le plus petit niveau que la p-value de Monte-Carlo atteint en pratique, les facteurs simulés des réplications n'ayant en général pas d'ex \ae quo~: la règle peut alors laisser en test une ligne que sa p-value de Monte-Carlo rend pratiquement inopérante (exemple et portée à la fiche~\ref{mw:m1b}, rubrique~7).
 \emph{(ii) Monte-Carlo indisponible} (règles~R2 et~R3)~: quand \code{p\_mc} manque,
 \code{engine\_p\_mc()} en donne le motif (\code{bootstrap\$motif\_mc}), jamais deviné par
 l'appelant~: statistique observée non finie, aucune réplication finie, réplications finies
@@ -4947,11 +5041,13 @@ contrôle (§\ref{sec:calib-mc-mw}) \\
 Homogénéité de $f_j$ entre années de survenance & \textbf{MW} & $X$ de Fisher &
 Non & Oui, $\chi^2(2K)$ & Oui & Monte-Carlo & Idem &
 Seconde exigence du texte : « pour toutes les années d'accident » ; $p_j$ de colonne sur la
-loi de permutation à $n_j \le 9$, jamais nulle (issue~\#90) \\
+loi de permutation à $n_j \le 9$, jamais nulle (issue~\#90), conditionnelle aux rangs moyens
+avec ex \ae quo (issue~\#207) \\
 
 Absence de courbure & \textbf{MW} & $X$ de Fisher & Non & Oui, $\chi^2(2K)$ &
 Oui & Monte-Carlo & Idem &
-Puissance faible : 3 paramètres pour 4 à 6 observations \\
+Puissance faible : 3 paramètres pour 4 à 7 observations à $T = 8$, soit 1 à 4 degrés de liberté
+résiduels~; colonne à 1 degré de liberté conservée (fiche~\ref{mw:m1c}) \\
 
 Famille $\alpha$ (pondération) & \textbf{MW} & amplitude relative & Non & Non &
 Oui & Monte-Carlo & Sans objet : aucune loi analytique &
@@ -5505,18 +5601,27 @@ $p_{\min} = \min\big(1, 2\prod_k 1/n_k!\big)$ sur les paires retenues, de $n_k =
 facteurs ($k = 1, \ldots, I - 3$~; \code{.mw\_corr\_p\_min()}, démonstration à la
 fiche~\ref{mw:m3cor}). (iv)~\emph{Homogénéité de $f_j$ et exposant de variance} (queue haute)~:
 permutations indépendantes de chaque colonne, $p_j$ de la loi de permutation de Spearman
-(fiche~\ref{mw:m1b})~; $p_{\min} = \prod_j 2/n_j!$ sur les colonnes de $n_j \ge 4$ facteurs
-(\code{.mw\_fisher\_rangs\_p\_min()})~; non attribuée (\code{NA}, motif dans le commentaire) dès
+(fiche~\ref{mw:m1b})~; $p_{\min} = \prod_j m_j$ sur les colonnes de $n_j \ge 4$ facteurs
+(\code{.mw\_fisher\_rangs\_p\_min()}), où $m_j$ (\code{masse\_min}) est la probabilité, sous la
+loi de permutation de la colonne, de l'ensemble des permutations qui atteignent sa plus petite
+$p_j$~: $m_j = 2/n_j!$ sans ex \ae quo (les deux permutations extrêmes), d'où
+$p_{\min} = \prod_j 2/n_j!$ et les valeurs du tableau, établies sans ex \ae quo~; avec ex \ae quo,
+depuis l'issue~\#207, $m_j$ est compté exactement sur la loi conditionnelle aux rangs moyens
+(\code{.mw\_spearman\_loi\_rangs()})~; non attribuée (\code{NA}, motif dans le commentaire) dès
 qu'une colonne compte plus de neuf facteurs, $p_j$ n'y suivant plus la loi de permutation, donc dès
 $T = 11$~; sans objet à $T = 5$, une seule colonne n'ayant que quatre facteurs (ligne non
 applicable). (v)~\emph{Kruskal--Wallis entre années de survenance} (queue haute)~: affectations
 équiprobables des rangs aux groupes~; forme close $p_{\min} = k!\prod_i n_i!/N!$ pour $k$ groupes
 de tailles $n_i$ (\code{.mw\_kruskal\_p\_min()}, démonstration à la fiche~\ref{mw:m3acc})~; ici
 $k = I$ et $n_i = \min(I - i, I - 1)$~; \code{NA} avec motif si la valeur sort de la précision de
-la machine. (vi)~\emph{Ex \ae quo}~: pour les lignes de rangs (corrélation, homogénéité, exposant,
-Kruskal--Wallis), un ex \ae quo au sens de la section~\ref{sec:ex-aequo} donne $p_{\min}$ =
-\code{NA}, la loi de permutation conditionnelle n'étant pas tabulée, avec le motif dans le
-commentaire~; les suites et l'effet calendaire écartent déjà les valeurs égales à la médiane.
+la machine. (vi)~\emph{Ex \ae quo}~: pour la corrélation et Kruskal--Wallis, un ex \ae quo au
+sens de la section~\ref{sec:ex-aequo} donne $p_{\min}$ = \code{NA}, la loi de permutation
+conditionnelle n'étant pas tabulée, avec le motif dans le commentaire~; pour l'homogénéité et
+l'exposant, il donnait aussi \code{NA} jusqu'à l'issue~\#207, et $p_{\min}$ est depuis attribuée
+sur la loi conditionnelle aux rangs moyens (note~(iv)), le champ \code{effectifs} portant la
+mention «~\code{ex aequo : loi de permutation conditionnelle aux rangs moyens, enumeree}~», qui
+n'apparaît dans le commentaire de la ligne que lorsque la règle~R1 s'y applique
+($p_{\min} \ge \alpha/2$, section~\ref{sec:nature})~; les suites et l'effet calendaire écartent déjà les valeurs égales à la médiane.
 (vii)~\emph{Nature}~: valeurs exactes sous la loi de référence, qui n'est pas celle du modèle de
 Mack~; la p-value retenue de ces lignes est toujours de Monte-Carlo, et ces valeurs n'en sont pas
 une borne (section~\ref{sec:nature}). Les colonnes $T \le 8$ ont été vérifiées contre le champ
@@ -11108,7 +11213,8 @@ estimateur de $\sigma_j^2$ sans la cellule, le moteur calcule
   = \frac{e(i,j)}{\sqrt{S_j}\,\big(1 - h(i,j)\big)\,s_{(i)}}.
 \]
 C'est la valeur que donne \code{stats::dfbetas()} sur cette régression (écart maximal mesuré
-$7\cdot 10^{-14}$ sur le triangle de contrôle \code{tests/donnees/triangle\_mw.csv}), avec sa
+$5{,}4\cdot 10^{-14}$ avec le moteur actuel, $7\cdot 10^{-14}$ avant l'issue~\#233, sur le triangle
+de contrôle \code{tests/donnees/triangle\_mw.csv}), avec sa
 convention de signe~: un DFBETAS négatif désigne une cellule dont le retrait \emph{augmente}
 $\hat f_j$, de signe opposé à la variation relative de la rubrique~3. Le moteur calcule
 $s_{(i)}^2$ directement par retrait de la cellule, à partir de $\hat f_j^{(-i)}$, et non par la
@@ -11117,6 +11223,23 @@ qu'emploie \code{stats::dfbetas()}~: cette forme est la différence de deux term
 $(n_j-1)\,\hat\sigma_j^2$, qui perd sa précision quand les cellules restantes de la colonne sont
 presque proportionnelles~; le test unitaire compare le moteur à \code{stats::dfbetas()} sur un
 triangle bien conditionné et au réajustement direct dans le cas presque proportionnel.
+\emph{Écriture stable} (issue~\#233)~: $\hat f_j^{(-i)}$ est le quotient des sommes des
+\emph{autres} cellules de la colonne, $\sum_{k \neq i} C(k,j+1) / \sum_{k \neq i} C(k,j)$, et
+$1 - h(i,j)$ vaut $\sum_{k \neq i} C(k,j)/S_j$, au lieu des différences $S_j - C(i,j)$ et
+$S'_j - C(i,j+1)$, qui s'annulent en virgule flottante pour une cellule dominante~;
+$e(i,j) = C(i,j)\big(F(i,j) - \hat f_j\big)$ et le résidu de Mack reçoivent l'écart au facteur
+sous forme stable (section~\ref{sec:boot-mw})~; les écarts
+$C(k,j+1) - \hat f_j^{(-i)}C(k,j) = C(k,j)\big(F(k,j) - \hat f_j^{(-i)}\big)$ de $s_{(i)}^2$ sont
+calculés par la même identité sur la colonne privée de la cellule~; la variation relative de
+$\hat f_j$ l'est par l'identité exacte
+$\big(\hat f_j^{(-i)} - \hat f_j\big)/\hat f_j = -\,C(i,j)\big(F(i,j) - \hat f_j\big)\big/
+\big(\big(S_j - C(i,j)\big)\hat f_j\big)$, sans différence de deux grandeurs presque égales. Ces
+écritures sont égales aux précédentes en arithmétique exacte. Mesuré sur la grille de la
+section~\ref{sec:boot-mw} (référence à 256~bits, constat numérique sur des triangles construits),
+moteur antérieur à l'issue puis moteur actuel~: erreur relative maximale de $\hat f_j^{(-i)}$ de
+$1{,}00$ à $2{,}5\cdot 10^{-16}$, de la variation relative de $6{,}65\cdot 10^{2}$ à
+$2{,}0\cdot 10^{-13}$, du DFBETAS de $29{,}4$ à $1{,}9\cdot 10^{-13}$~; DFBETAS \code{NA} dans une
+colonne retenue de $n_j \ge 3$ cellules, hors garde de non-bornage, de $78$ à~$0$.
 \textbf{Diagnostics, non tests.}
 \Hzero
 Sans objet.
@@ -11153,7 +11276,7 @@ Sans objet pour un verdict~: aucune loi de référence n'est comparée au DFBETA
 du repère (rubrique~6), on use d'une identité algébrique exacte de la régression à un seul
 coefficient~: $\mathrm{DFBETAS}(i,j) = t(i,j)\,\sqrt{h(i,j)/\big(1-h(i,j)\big)}$, où
 $t(i,j)$ est le résidu studentisé externe de la cellule (vérifiée numériquement à
-$7\cdot 10^{-14}$ près sur le triangle de contrôle contre \code{stats::rstudent()} et
+$5{,}4\cdot 10^{-14}$ près sur le triangle de contrôle, moteur actuel, contre \code{stats::rstudent()} et
 \code{stats::hatvalues()}). Si, de plus, les erreurs sont gaussiennes, $t(i,j)$ suit
 conditionnellement à $C(\cdot,j)$ une loi de Student à $n_j - 2$ degrés de liberté~: résultat
 classique de la régression linéaire gaussienne, qui se vérifie directement~:
@@ -11628,7 +11751,9 @@ Le support des tests est le résidu standardisé de Mack
   r(i,j) = \frac{\sqrt{C(i,j)}}{\hat\sigma_j}
   \left(\frac{C(i,j+1)}{C(i,j)} - \hat f_j\right),
 \]
-centré, d'échelle approximativement unitaire et non corrélé sous M1 à M3. Ces
+centré, d'échelle approximativement unitaire et non corrélé sous M1 à M3 (écart
+$F(i,j) - \hat f_j$ calculé sous une forme stable équivalente depuis l'issue~\#233,
+section~\ref{sec:boot-mw}). Ces
 trois propriétés portent sur le \emph{modèle}~: l'échelle \emph{observée} est,
 elle, contrainte par construction, la somme des carrés des résidus d'une colonne
 valant exactement $n_j - 1$ (fiche~\ref{mw:m2var}).
@@ -11939,9 +12064,29 @@ mesurée et acceptée~: une colonne dont l'écart relatif dépasse à peine $10^
 \emph{pondérée} inférieure à $10^{-30}$ fois le carré de l'échelle des valeurs ajustées) n'est
 pas un écart relatif des facteurs~: la pondération $1/C(i,j)$ de la régression le rend
 dépendant de l'échelle des cumulés, l'écart relatif à partir duquel il se déclenche croissant
-avec elle~; un avertissement~R peut alors encore apparaître, comme avant
+avec elle~; un avertissement~R pouvait alors encore apparaître, comme avant
 l'issue~\#56, jusqu'à un écart relatif de l'ordre de $10^{-11}$ sur le triangle où il a été
-mesuré. Ce voisinage est un constat sur ce triangle, non un seuil.
+mesuré. Ce voisinage est un constat sur ce triangle, non un seuil. \emph{Interception de
+l'avertissement} (issue~\#203). Cet avertissement («~\code{essentially perfect fit: summary may
+be unreliable}~») ne signale pas un défaut du calcul~: son critère dépend de l'unité des
+cumulés. Mesuré avec le moteur antérieur à l'issue (\code{run\_engine()}, $B = 999$, graine
+20260831, avertissements comptés)~: aucun sur le triangle de contrôle, $93$ sur ce triangle
+multiplié par $10^{20}$, $9\,014$ multiplié par $10^{46}$, et $1\,287$ sur le triangle de
+Taylor \& Ashe à colonne $j = 4$ perturbée de $\pm 9\cdot 10^{-13}$ décrite plus haut (écart
+relatif $1{,}02\cdot 10^{-12}$). Depuis l'issue, la nullité de l'ordonnée à l'origine et la
+courbure (fiche~\ref{mw:m1c}) appellent \code{summary()} par \code{.mw\_summary\_lm()}, qui
+n'étouffe que cet avertissement émis par \code{summary.lm()}, dans son libellé anglais ou
+traduit, et laisse remonter tout autre avertissement~; \code{summary.lm()} étant appelée telle
+quelle sur le même ajustement, les valeurs sont inchangées par construction (objets de
+\code{run\_engine()} identiques au sens d'\code{identical()} avant et après l'issue sur les cinq
+cas de référence). Avec le moteur actuel, aucun avertissement sur les quatre triangles ci-dessus.
+L'interception a été préférée à un recalcul sans \code{summary.lm()} (par \code{lm.fit()} ou
+\code{qr()}), dont l'égalité des valeurs n'aurait été établie que par mesure. La pente
+intra-colonne (\code{.mw\_lm\_intra()}) et Breusch--Pagan ne sont pas interceptés~: ils
+n'en ont émis aucun (\code{run\_engine()} actuel, $B = 199$, aucun avertissement~R sur le
+triangle de contrôle multiplié par $10^{k}$, $k = -52, -30, -10, 10, 30, 46$)~; leur critère est
+invariant par changement d'unité des cumulés (facteurs sans dimension et poids
+$C(i,j)/\hat\sigma_j^2$ pour la pente intra-colonne, $r^2$ sans dimension pour Breusch--Pagan).
 \Usage
 C'est le test central de M1, et celui que la régression agrégée ne pouvait pas
 fournir. Il répond à la première des deux exigences du texte réglementaire~: une
@@ -11984,8 +12129,30 @@ les facteurs individuels ne présentent aucune tendance en $i$.
 $\hat\rho_{s,j}$ par colonne (celui de \code{cor.test()}), de p-value bilatérale $p_j$
 (issue~\#90, décisions du mainteneur du 6~octobre 2026), $\hat\rho_{s,j}$ et $p_j$ étant tirés
 d'un seul appel à \code{cor.test()} (\code{.mw\_spearman()}, issue~\#239)~: à $n_j \le 9$ sans ex \ae quo, loi de permutation de $\hat\rho_{s,j}$ énumérée par
-\code{cor.test(exact = TRUE)}~; sinon ($n_j > 9$, ou ex \ae quo, au sens de la
-section~\ref{sec:ex-aequo}~: égalité au bit près après aplatissement), approximation de Student
+\code{cor.test(exact = TRUE)}~; à $n_j \le 9$ avec ex \ae quo (au sens de la
+section~\ref{sec:ex-aequo}~: égalité au bit près après aplatissement), depuis l'issue~\#207
+(décisions du mainteneur Q-E2c-3 et Q-E2c-4 du 11~octobre 2026), loi de permutation
+\emph{conditionnelle aux rangs moyens observés}, $\hat\rho_{s,j}$ restant celui de
+\code{cor.test()}. Avec $A_i$ et $B_i$ les doubles des rangs moyens des deux variables, entiers,
+$\hat\rho_{s,j}$ est une fonction affine strictement croissante de
+$S(\pi) = \sum_i A_i B_{\pi(i)}$, et la loi de $S$ sous $\pi$ uniforme sur les $n_j!$ permutations
+est comptée exactement, en entiers, par programmation dynamique sur les sous-ensembles
+(\code{.mw\_spearman\_loi\_rangs()}, \code{.mw\_spearman\_comptes()}, sans aléa)~; avec $s_0$ la
+valeur observée,
+\[
+  p_j = \min\Big(1,\; 2\min\big(\mathbb{P}(S \le s_0),\, \mathbb{P}(S \ge s_0)\big)\Big),
+\]
+doublement de la plus petite des deux queues. Sans ex \ae quo, ce doublement donne la p-value de
+\code{cor.test(exact = TRUE)}~: mesuré sur toutes les permutations de $n = 4$ à~$8$, écart nul.
+Avec ex \ae quo, \code{cor.test()} n'énumère pas cette loi, et sa règle bilatérale (doublement
+de la queue située du côté de la valeur observée par rapport au centre) ne s'écarte du doublement
+de la plus petite queue, sur la même loi conditionnelle, qu'au centre de la loi~: sur toutes les
+valeurs du support des couples ordonnés de structures d'ex \ae quo (tailles des groupes d'ex
+\ae quo dans l'ordre des valeurs, l'une au moins des deux variables ayant un ex \ae quo) de
+$n = 4$ à~$7$, tailles des colonnes à $T = 8$ ($227\,191$ valeurs), $378$ écarts, tous à
+$p_j \ge 0{,}83$, le doublement de la plus petite queue donnant chaque fois la plus petite
+p-value~; $n = 8$ et~$9$ ne sont pas couverts. Aucune identité avec \code{cor.test()} n'est donc
+affirmée en présence d'ex \ae quo. À $n_j > 9$, approximation de Student
 de \code{cor.test(exact = FALSE)}, relevée au plancher $2/n_j!$, valeur exacte de
 $\mathbb{P}(|\hat\rho_{s,j}| = 1)$ sous la loi de permutation sans ex \ae quo et simple plancher
 numérique avec ex \ae quo. $p_j$ est ainsi dans $[2/n_j!, 1]$ et n'est jamais nulle. Les $K$
@@ -12021,7 +12188,16 @@ isolément, qui n'est pas celle des facteurs sous le modèle de Mack, elles ne s
 p-values exactes au sens de l'ADR~0002, et la p-value $\chi^2(2K)$ qui les combine reste un
 complément non simulé. Sur le triangle de contrôle, le verdict est \code{ALERTE} sur chacune des vingt graines
 20260831 à 20260850 ($B = 999$, p-value de Monte-Carlo de $0{,}062$ à $0{,}093$), avant comme après
-le redressement du vivier par le levier (issue~\#46, section~\ref{sec:boot-mw}).
+le redressement du vivier par le levier (issue~\#46, section~\ref{sec:boot-mw}). \emph{Effet de
+la loi conditionnelle aux rangs moyens} (issue~\#207)~: nul sur le triangle de contrôle, qui n'a
+aucun ex \ae quo (objets de \code{run\_engine()} identiques avant et après l'issue)~; sur deux
+triangles à facteurs répétés obtenus par arrondi du triangle de contrôle, de quelques centièmes de
+p-value de Monte-Carlo. Mesuré ($B = 999$, graine 20260831, moteur antérieur puis
+postérieur à l'issue) sur le triangle de contrôle arrondi à la dizaine~: $X$ de $13{,}424$ à
+$13{,}165$, p-value de Monte-Carlo de $0{,}041$ à $0{,}047$, \code{ECHEC} inchangé, $0{,}047$
+étant à moins d'une erreur de Monte-Carlo ($\approx 0{,}007$ à $B = 999$) de $\alpha/2 = 0{,}05$~; arrondi à la
+centaine~: p-value de Monte-Carlo de $0{,}354$ à $0{,}378$, et de $0{,}921$ à $0{,}860$ pour
+l'exposant de variance (fiche~\ref{mw:m2b}), verdicts inchangés (constats sur ces triangles).
 \Usage
 Ce test répond à la \emph{seconde} exigence du texte, distincte de la première~:
 même si la proportionnalité vaut dans chaque colonne, un facteur qui dériverait
@@ -12030,13 +12206,13 @@ telle dérive traduit un changement de politique de règlement ou de mix de
 portefeuille. Elle n'est pas détectable par le test d'ordonnée à l'origine, qui
 porte sur le niveau et non sur la pente.
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} $\prod_j 2/n_j! = 16/(7!\,6!\,5!\,4!) = 1{,}53\cdot 10^{-9}$ sur le triangle de contrôle ($K = 4$ colonnes de $n_j = 7, 6, 5, 4$ facteurs, \code{.mw\_fisher\_rangs\_p\_min()}, issue~\#115)~: $X$ est maximal si et seulement si toutes les colonnes ont $|\hat\rho_{s,j}| = 1$, chacune avec la probabilité $2/n_j!$ sous des permutations indépendantes des colonnes, $p_j$ étant strictement décroissante en $|\hat\rho_{s,j}|$ et finie en $|\hat\rho_{s,j}| = 1$ depuis l'issue~\#90. Valeur exacte sous cette loi de référence échangeable, qui n'est pas celle du modèle de Mack~: elle ne borne pas la p-value retenue. Non attribuée (\code{NA}, motif dans le commentaire) avec un ex \ae quo ou si une colonne compte plus de neuf facteurs. La p-value retenue est de Monte-Carlo (clé \code{HomogF}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est le seul plancher établi de la p-value retenue.
+\textbf{p-value minimale à $T = 8$.} $\prod_j 2/n_j! = 16/(7!\,6!\,5!\,4!) = 1{,}53\cdot 10^{-9}$ sur le triangle de contrôle ($K = 4$ colonnes de $n_j = 7, 6, 5, 4$ facteurs, \code{.mw\_fisher\_rangs\_p\_min()}, issue~\#115)~: $X$ est maximal si et seulement si toutes les colonnes ont $|\hat\rho_{s,j}| = 1$, chacune avec la probabilité $2/n_j!$ sous des permutations indépendantes des colonnes, $p_j$ étant strictement décroissante en $|\hat\rho_{s,j}|$ et finie en $|\hat\rho_{s,j}| = 1$ depuis l'issue~\#90. Valeur exacte sous cette loi de référence échangeable, qui n'est pas celle du modèle de Mack~: elle ne borne pas la p-value retenue. \emph{Avec ex \ae quo} (issue~\#207, décision Q-E2c-3), $X$ est maximal si et seulement si chaque colonne atteint sa plus petite $p_j$, et $p_{\min} = \prod_j m_j$, $m_j$ étant la masse de cet événement sous la loi conditionnelle aux rangs moyens de la colonne (tableau~\ref{tab:pmin}, note~(iv))~; la mention «~\code{ex aequo : loi de permutation conditionnelle aux rangs moyens, enumeree}~» figure dans le champ \code{effectifs}, et n'apparaît dans le commentaire de la ligne que lorsque la règle~R1 s'y applique ($p_{\min} \ge \alpha/2$). Cette $p_{\min}$ ne borne pas davantage la p-value retenue, et les ex \ae quo ajoutent un écart de sens opposé à celui de la non-échangeabilité~: les facteurs simulés des réplications n'ont en général pas d'ex \ae quo (une égalité n'y survient qu'en colonne~$0$, entre années de même cumul initial qui tirent le même résidu), leurs $p_j$ suivent alors la loi de permutation sans ex \ae quo, et les valeurs simulées de $X$ peuvent atteindre ou dépasser le maximum de $X$ à l'observé bien plus souvent que $p_{\min}$ ne l'indique. Exemple (triangle de six années, énumération exhaustive des $5! \times 4!$ couples de permutations)~: deux colonnes de $5$ et $4$ facteurs à deux paliers ($2$ et $3$ facteurs égaux, puis $2$ et~$2$), $m_j = 0{,}2$ et $1/3$, $p_{\min} = 1/15 = 0{,}0667$, alors que la probabilité, sous la loi de permutation sans ex \ae quo, d'une valeur de $X$ au moins égale à ce maximum vaut $17/120 = 0{,}142$. Avec ex \ae quo, $p_{\min}$ peut donc sous-estimer le plus petit niveau que la p-value de Monte-Carlo atteint en pratique, et celle-ci tend à être conservatrice (argument et exemple établis sous les lois de permutation, non mesurés sous le modèle de Mack)~; la règle~R1, appliquée à cette $p_{\min}$, peut laisser en test, avec la mention «~\code{ECHEC possible}~», une ligne dont la p-value de Monte-Carlo ne descendrait pas sous $\alpha$ si la loi bootstrap de $X$ était la loi de permutation sans ex \ae quo (dans l'exemple, $p_{\min} = 0{,}0667 < \alpha = 0{,}10 < 0{,}142$). Non attribuée (\code{NA}, motif dans le commentaire) si une colonne compte plus de neuf facteurs. La p-value retenue est de Monte-Carlo (clé \code{HomogF}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est le seul plancher établi de la p-value retenue.
 
 \textbf{Table.} Tableau~\ref{tab:pmin}, partie Merz--Wüthrich.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ ($p_{\min} \ll \alpha/2$, aucune bascule par la règle~R1). Non applicable à $T = 5$ (une seule colonne de quatre facteurs, statistique non définie)~; $p_{\min}$ non attribuée dès $T = 11$. Puissance non étudiée à $T = 8$. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}0955$ (N), $0{,}089$ (E), $0{,}091$ (A), pour $\rho = 0{,}099$~; à $0{,}05$, $0{,}039$, $0{,}0415$, $0{,}041$ ($\rho = 0{,}049$)~; compatible, sauf un écart mineur du côté conservateur sous N à $0{,}05$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ ($p_{\min} \ll \alpha/2$, aucune bascule par la règle~R1). Avec des ex \ae quo lourds, la règle~R1 peut s'appliquer depuis l'issue~\#207 (section~\ref{sec:nature})~: si $\alpha/2 \le p_{\min} < \alpha$, la ligne reste un test, et son commentaire dit que la p-value de Monte-Carlo retenue peut être inférieure à $p_{\min}$ («~\code{ECHEC possible}~»)~; si $p_{\min} \ge \alpha$, elle bascule en test inopérant, ce qui exige $m_j \ge \alpha$ dans chaque colonne combinée ($m_j \le 1$), donc, au seuil $\alpha = 0{,}10$ par défaut et dès $\alpha > 1/12$, des ex \ae quo dans toutes ces colonnes, une colonne sans ex \ae quo ayant $m_j = 2/n_j! \le 1/12$ (exemple~: colonnes de $5$ et $4$ facteurs dont tous sauf un sont égaux, $m_j = 0{,}4$ et $0{,}5$, $p_{\min} = 0{,}2$). Aucune bascule sur le triangle de contrôle ni sur ses versions arrondies à la dizaine et à la centaine ($p_{\min}$ de $3{,}06\cdot 10^{-9}$ et $7{,}35\cdot 10^{-8}$). Non applicable à $T = 5$ (une seule colonne de quatre facteurs, statistique non définie)~; $p_{\min}$ non attribuée dès $T = 11$. Puissance non étudiée à $T = 8$. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}0955$ (N), $0{,}089$ (E), $0{,}091$ (A), pour $\rho = 0{,}099$~; à $0{,}05$, $0{,}039$, $0{,}0415$, $0{,}041$ ($\rho = 0{,}049$)~; compatible, sauf un écart mineur du côté conservateur sous N à $0{,}05$.
 
-\textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi de référence échangeable, non sous le modèle de Mack~; plancher~: exact, fonction de $B$. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
+\textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi de référence échangeable (conditionnelle aux rangs moyens avec ex \ae quo), non sous le modèle de Mack~; plancher~: exact, fonction de $B$. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
 \end{fiche}
 
 \begin{fiche}{M1 --- Absence de courbure de la régression}
@@ -12050,8 +12226,17 @@ $1/C(i,j)$, sur les colonnes comptant au moins quatre observations.
 \Hzero
 $H_0 : c_j = 0$ dans chaque colonne.
 \Stat
-Statistique de Student sur $\hat c_j$, p-values combinées par Fisher. Colonnes dégénérées
+Statistique de Student $t_j = \hat c_j/\widehat{\mathrm{se}}(\hat c_j)$ dans chaque colonne, de
+p-value bilatérale lue sur la loi de Student à $n_j - 3$ degrés de liberté (trois coefficients
+estimés sur $n_j$ observations), p-values combinées par Fisher. À $T = 8$, les colonnes retenues
+sont $j = 0$ à~$3$, de $n_j = 7, 6, 5, 4$ observations, soit $4, 3, 2, 1$ degrés de liberté
+résiduels. Mesuré sur le triangle de contrôle (\code{mw\_test\_courbure()})~: $K = 4$,
+$t_j = 0{,}934$~; $-1{,}982$~; $-9{,}162$~; $-3{,}463$ et $p_j = 0{,}403$~; $0{,}142$~; $0{,}0117$~;
+$0{,}179$, $X = 18{,}06$. Colonnes dégénérées
 exclues, dans l'observé comme dans le bootstrap, selon la règle de la fiche~\ref{mw:m1a}.
+Comme pour l'ordonnée à l'origine, \code{summary()} est appelé par \code{.mw\_summary\_lm()}, qui
+intercepte le seul avertissement d'ajustement parfait de \code{summary.lm()}, sans changer
+aucune valeur (issue~\#203, fiche~\ref{mw:m1a}).
 \Loi
 $\chi^2(2K)$ approchée. Loi de référence~: bootstrap de résidus.
 \Pval
@@ -12061,16 +12246,45 @@ La linéarité et la nullité de la constante sont deux propriétés distinctes~
 relation courbe peut passer par l'origine et satisfaire le test précédent tout en
 contredisant $\mathbb{E}[C(i,j+1)\mid C(i,j)] = f_j C(i,j)$. Ce test ferme cette
 possibilité. Limite sévère à faible profondeur~: estimer trois paramètres sur
-quatre à six observations laisse très peu de degrés de liberté, et la puissance
+quatre à sept observations (à $T = 8$) laisse très peu de degrés de liberté, et la puissance
 est faible.
+
+\medskip
+\emph{Colonne à un seul degré de liberté résiduel} (issue~\#234, décision du mainteneur Q-E2c-1
+du 11~octobre 2026). Sur un triangle carré d'au moins cinq années (plus généralement dès que $J \ge I - 3$), exactement une colonne,
+$j = I - 4$, compte $n_j = 4$ observations, donc un seul degré de liberté résiduel ($j = 3$ sur le
+triangle de contrôle). Elle est \textbf{conservée} dans la combinaison de Fisher. Sa puissance
+propre est faible~: sous erreurs gaussiennes, la puissance exacte du test de Student bilatéral à
+un degré de liberté contre un paramètre de non-centralité de~$3$ vaut $0{,}186$ au seuil de
+$5~\%$ et $0{,}361$ au seuil de $10~\%$ (calcul exact sur la loi de Student non centrale,
+\code{1 - pt(q, 1, ncp = 3) + pt(-q, 1, ncp = 3)} avec \code{q = qt(1 - a/2, 1)}~; la
+non-centralité~$3$ est une valeur d'illustration, et la comparaison à non-centralité égale n'isole
+que l'effet du nombre de degrés de liberté sur la valeur critique, la non-centralité d'une colonne
+dépendant elle-même de $c_j$, de $\sigma_j$ et de la dispersion de ses $C(i,j)$), contre
+$0{,}617$ à deux degrés de liberté au seuil de $10~\%$~; ces valeurs portent sur le test d'une
+colonne isolée, non sur la ligne. Elle reste pourtant la \emph{seule} vérification du terme
+quadratique propre à la colonne $I - 4$ (la pente intra-colonne, fiche~\ref{mw:m1}, n'y est
+sensible qu'à travers une pente commune à toutes les colonnes)~: l'écarter, avec un motif ou par un seuil de deux degrés de
+liberté, retirerait cette vérification, ramènerait $K$ de~$4$ à~$3$ à $T = 8$ et rendrait la
+ligne non définie sur un triangle carré de six années, où ne resteraient qu'une colonne et une
+combinaison de Fisher à $K = 1$, que \code{.fisher\_combine()} ne calcule pas. Un faible degré
+de liberté ne fausse pas, à lui seul, la p-value de la colonne, lue sur sa loi de Student (exacte
+sous les hypothèses de la régression pondérée gaussienne, que le modèle de Mack ne pose pas)~; il
+en réduit la puissance, et la colonne pèse dans $X$ par $-2\ln p_j$ comme les autres~: quand l'écart à la linéarité
+porte sur d'autres colonnes, son terme, de loi proche de sa loi sous $H_0$, ajoute de la
+dispersion à $X$ sans en déplacer le centre et dilue la puissance de la ligne~; aucun calcul
+versionné ne chiffre ce coût, ni le gain de la conservation, à $T = 8$. Aucune référence ne
+tranche ce choix à $T = 8$~: la décision repose sur cet arbitrage, sans résultat publié à
+l'appui. Le statut de la p-value retenue n'en dépend pas~: elle reste de
+Monte-Carlo, la colonne étant traitée de la même façon à l'observé et dans chaque réplication.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $X$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{Courbure}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}093$ (N), $0{,}080$ (E), $0{,}095$ (A), pour $\rho = 0{,}099$~; à $0{,}05$, $0{,}0445$, $0{,}036$, $0{,}041$ ($\rho = 0{,}049$)~; compatible sous N et A~; écart mineur du côté conservateur sous E aux deux seuils.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance de la ligne non étudiée à $T = 8$ (la rubrique~6 cite, à titre d'illustration, la puissance exacte du test de Student d'une colonne isolée sous erreurs gaussiennes, qui n'est pas une puissance de la ligne). Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}093$ (N), $0{,}080$ (E), $0{,}095$ (A), pour $\rho = 0{,}099$~; à $0{,}05$, $0{,}0445$, $0{,}036$, $0{,}041$ ($\rho = 0{,}049$)~; compatible sous N et A~; écart mineur du côté conservateur sous E aux deux seuils.
 
-\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance de la ligne. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
 \end{fiche}
 
 \begin{fiche}{M1 --- Stabilité du facteur selon la pondération (famille $\alpha$)}
@@ -12230,7 +12444,8 @@ $\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$.
 \Stat
 $\hat\rho_{s,j}$ par colonne, de p-value bilatérale $p_j$, tirés d'un seul appel à \code{cor.test()}
 (\code{.mw\_spearman()}, issue~\#239), $p_j$ selon la règle de la fiche~\ref{mw:m1b} (issue~\#90, étendue à cette
-ligne par décision du mainteneur du 6~octobre 2026~; les cumuls, déjà aplatis, le sont une
+ligne par décision du mainteneur du 6~octobre 2026~; avec ex \ae quo à $n_j \le 9$, loi
+conditionnelle aux rangs moyens des deux variables, issue~\#207~; les cumuls, déjà aplatis, le sont une
 seconde fois au plancher~0, sans effet), puis combinaison des $K$ p-values par Fisher,
 $X = -2\sum_j \ln p_j$ (\code{.fisher\_combine()}, sans exclusion, fiche~\ref{mw:m1a}). Effet
 mesuré de l'issue~: fiche~\ref{mw:m1b}.
@@ -12250,13 +12465,13 @@ inadapté --- l'alternative étant un exposant~0 (variance constante) ou~2
 ouvert}, un rejet doit être documenté comme une limite du modèle réglementaire
 et non comme un motif de changement de méthode.
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} $\prod_j 2/n_j! = 1{,}53\cdot 10^{-9}$ sur le triangle de contrôle ($K = 4$ colonnes de $n_j = 7, 6, 5, 4$ résidus, \code{.mw\_fisher\_rangs\_p\_min()}, issue~\#115, étendue à cette ligne par décision du mainteneur du 6~octobre 2026), par le même argument qu'à la fiche~\ref{mw:m1b}~: $X$, discrète sous la loi de permutation de chaque colonne depuis l'issue~\#90, n'est maximale que si toutes les colonnes ont $|\hat\rho_{s,j}| = 1$. Valeur exacte sous cette loi de référence échangeable, qui n'est pas celle du modèle de Mack~: elle ne borne pas la p-value retenue. Non attribuée (\code{NA}, motif dans le commentaire) avec un ex \ae quo des $|r(i,j)|$ ou des $C(i,j)$, ou si une colonne compte plus de neuf résidus. La p-value retenue est de Monte-Carlo (clé \code{ExpVar}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est le seul plancher établi de la p-value retenue.
+\textbf{p-value minimale à $T = 8$.} $\prod_j 2/n_j! = 1{,}53\cdot 10^{-9}$ sur le triangle de contrôle ($K = 4$ colonnes de $n_j = 7, 6, 5, 4$ résidus, \code{.mw\_fisher\_rangs\_p\_min()}, issue~\#115, étendue à cette ligne par décision du mainteneur du 6~octobre 2026), par le même argument qu'à la fiche~\ref{mw:m1b}~: $X$, discrète sous la loi de permutation de chaque colonne depuis l'issue~\#90, n'est maximale que si toutes les colonnes ont $|\hat\rho_{s,j}| = 1$. Valeur exacte sous cette loi de référence échangeable, qui n'est pas celle du modèle de Mack~: elle ne borne pas la p-value retenue. Avec un ex \ae quo des $|r(i,j)|$ ou des $C(i,j)$, attribuée depuis l'issue~\#207 sur la loi conditionnelle aux rangs moyens ($\prod_j m_j$, fiche~\ref{mw:m1b}), avec la même réserve~: les résidus des réplications n'ont en général pas d'ex \ae quo (en colonne~$0$, deux années de même cumul initial qui tirent le même résidu en ont un), les cumuls de la première colonne, conservée dans chaque réplication, gardant les leurs. Non attribuée (\code{NA}, motif dans le commentaire) si une colonne compte plus de neuf résidus. La règle~R1 s'y applique comme à la fiche~\ref{mw:m1b}. La p-value retenue est de Monte-Carlo (clé \code{ExpVar}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est le seul plancher établi de la p-value retenue.
 
 \textbf{Table.} Tableau~\ref{tab:pmin}, partie Merz--Wüthrich.
 
 \textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ ($p_{\min} \ll \alpha/2$, aucune bascule par la règle~R1). Non applicable à $T = 5$~; $p_{\min}$ non attribuée dès $T = 11$. Puissance non étudiée à $T = 8$. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}0955$ (N), $0{,}095$ (E), $0{,}098$ (A), pour $\rho = 0{,}099$~; à $0{,}05$, $0{,}046$, $0{,}0495$, $0{,}048$ ($\rho = 0{,}049$)~; compatible sous les trois lois et aux deux seuils.
 
-\textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi de référence échangeable, non sous le modèle de Mack~; plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
+\textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi de référence échangeable (conditionnelle aux rangs moyens avec ex \ae quo), non sous le modèle de Mack~; plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
 \end{fiche}
 
 \begin{fiche}{M2 --- Variance unitaire des résidus de Mack (diagnostic)}
@@ -14468,7 +14683,8 @@ Merz--Wüthrich~: erreur de prédiction à un an, D(5) (§\ref{sec:mw}) &
 Merz--Wüthrich~: paramètre propre $\sigma_{(\text{res},s,\mathrm{USP})}$ et
 crédibilité (§\ref{sec:mw}) & \code{mw\_parametre()}, \code{usp\_credibilite()} \\
 Merz--Wüthrich~: résidus standardisés de Mack (§\ref{sec:mw}) &
-\code{mw\_residus()} \\
+\code{mw\_residus()}, \code{.mw\_ecart\_facteur\_stable()} (écart au facteur sous forme
+stable, issue~\#233) \\
 Merz--Wüthrich~: bootstrap semi-paramétrique et p-values de Monte-Carlo
 (§\ref{sec:boot-mw}) & \code{mw\_bootstrap()}, \code{.mw\_pool\_residus()} (vivier redressé
 par le levier, issue~\#46), \code{mw\_simuler\_triangle()}, \code{.mw\_stats()} \\
@@ -15560,7 +15776,10 @@ de \code{.fisher\_combine()} atteindrait les quatre combinaisons de Fisher de M1
 à l'origine, homogénéité de $f_j$, courbure, exposant de variance), et une anomalie de
 \code{.mw\_spearman()}, qui calcule depuis l'issue~\#239 la corrélation de rang et la p-value de
 chaque colonne, la deuxième et la quatrième (homogénéité de $f_j$, exposant de
-variance~; issue~\#90)~; \code{runs\_p\_min()}, qui fournit la
+variance~; issue~\#90), de même qu'une anomalie de \code{.mw\_spearman\_loi\_rangs()} ou de
+\code{.mw\_spearman\_comptes()}, qui comptent depuis l'issue~\#207 la loi conditionnelle aux
+rangs moyens des colonnes à ex \ae quo, et dont dépend aussi la $p_{\min}$ de l'homogénéité de
+$f_j$ et de l'exposant de variance~; \code{runs\_p\_min()}, qui fournit la
 $p_{\min}$ des suites dans les deux méthodes depuis l'issue~\#115, relève des fonctions communes
 aux deux dispositifs.
 
