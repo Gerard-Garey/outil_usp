@@ -1379,9 +1379,20 @@ recalc152 <- function(t) {
   }))
   corr <- sum(cd[, 1] * cd[, 2]) / sum(cd[, 2])
   # p de Spearman par colonne (#90) : loi de permutation a n <= 9 sans ex
-  # aequo (au bit pres apres signif()), sinon Student relevee a 2/n!
+  # aequo (au bit pres apres signif()) ; avec ex aequo a n <= 9 (#207),
+  # enumeration brute des n! permutations sur les rangs moyens, doublement ;
+  # sinon Student relevee a 2/n!
   p_sp <- function(a, b) {
-    n <- length(a); ex <- n <= 9 && !anyDuplicated(a) && !anyDuplicated(b)
+    n <- length(a); ea <- anyDuplicated(a) || anyDuplicated(b)
+    if (n <= 9 && ea) {
+      prm <- function(v) if (length(v) <= 1) list(v) else
+        do.call(c, lapply(seq_along(v), function(i) lapply(prm(v[-i]), function(q) c(v[i], q))))
+      A <- 2 * rank(a); B <- 2 * rank(b)
+      D <- vapply(prm(seq_len(n)), function(pi) sum(A * B[pi]), numeric(1))
+      d0 <- sum(A * B)
+      return(min(1, 2 * min(sum(D <= d0), sum(D >= d0)) / length(D)))
+    }
+    ex <- n <= 9 && !ea
     min(1, max(2 / factorial(n),
                suppressWarnings(cor.test(a, b, method = "spearman", exact = ex)$p.value)))
   }
@@ -1813,12 +1824,12 @@ verifier(".mw_spearman_p jamais nulle, dans [2/n!, 1], avec ex aequo ou n > 9 (#
              a[1:2] <- a[1]                       # au moins un ex aequo dans a
              p <- .mw_spearman_p(a, b); p >= 2 / factorial(n) && p <= 1
            }, logical(1)))
-           # ex aequo a la tolerance dans b (plancher 0) : b aplati, pas de loi
-           # exacte (cor.test() sur b brut, sans ex aequo au bit pres, l'enumere)
+           # ex aequo a la tolerance dans b (plancher 0) : b aplati, loi
+           # conditionnelle aux rangs moyens de b aplati (#207 ; cor.test() sur
+           # b brut, sans ex aequo au bit pres, enumererait une autre loi)
            b <- c(1, 1 * (1 + 1e-14), 2, 3, 4, 5); a <- c(2, 1, 4, 3, 5, 6)
            p <- .mw_spearman_p(a, b, plancher_b = 0)
-           all(ok) && identical(p, min(1, max(2 / factorial(6), suppressWarnings(stats::cor.test(
-             a, c(1, 1, 2, 3, 4, 5), method = "spearman", exact = FALSE))$p.value))) &&
+           all(ok) && identical(p, .mw_spearman_loi_rangs(a, c(1, 1, 2, 3, 4, 5))$p) &&
              !identical(p, stats::cor.test(a, b, method = "spearman", exact = TRUE)$p.value)
          })
 verifier(".fisher_combine : aucune exclusion, p = 0 au plancher, p non finie -> NA, K constant (#90)",
@@ -1967,18 +1978,143 @@ verifier("Sous-triangle 5 x 5, alpha = 0,10 : Calendaire et CorrDev inoperants, 
              su$type == "test" && !su$inoperant && isTRUE(proche(su$p_min, 4 / 70, 1e-12)) &&
              grepl("ECHEC possible", su$commentaire, fixed = TRUE)
          })
-verifier("Ex aequo de F : p_min NA de HomogF et CorrDev, motif dans le commentaire (#115, critere 4)",
+# Adapte par #207 : la p_min de HomogF est attribuee avec ex aequo (loi
+# conditionnelle aux rangs moyens, decision Q-E2c-3) ; celle de CorrDev reste
+# NA avec motif.
+verifier("Ex aequo de F : p_min de HomogF attribuee (#207), p_min NA de CorrDev avec motif (#115, critere 4)",
          {
            t <- tri_ref
            t[2, 2] <- t[2, 1] * t[1, 2] / t[1, 1]          # F(1,0) = F(0,0)
            t[3, 3] <- t[3, 2] * t[1, 3] / t[1, 2]          # F(2,1) = F(0,1)
            d <- engine_table_tests(run_mw(t))
            mot <- "ex aequo : loi de permutation conditionnelle non tabulee, p_min non attribuee"
-           all(vapply(c("Homogeneite de f_j entre annees de survenance",
-                        "Correlation entre annees de developpement adjacentes"), function(k) {
-             x <- d[d$test == k, ]
-             is.na(x$p_min) && x$type == "test" && grepl(mot, x$commentaire, fixed = TRUE)
+           hf <- d[d$test == "Homogeneite de f_j entre annees de survenance", ]
+           co <- d[d$test == "Correlation entre annees de developpement adjacentes", ]
+           # colonnes n_j = 7, 6, 5, 4 ; un ex aequo double en j = 0 et j = 1 :
+           # masses 2 x 2!/7!, 2 x 2!/6!, 2/5!, 2/4! (forme close 2 prod t_g!/n!)
+           isTRUE(proche(hf$p_min, 64 / prod(factorial(7:4)), 1e-12)) && hf$type == "test" &&
+             !grepl("non tabulee", hf$commentaire, fixed = TRUE) &&
+             is.na(co$p_min) && co$type == "test" && grepl(mot, co$commentaire, fixed = TRUE)
+         })
+
+## --- p de Spearman avec ex aequo a n <= 9 : loi conditionnelle aux rangs (#207)
+# Specification d'actuary approuvee le 11/10/2026 (Q-E2c-3 : p_min attribuee ;
+# Q-E2c-4 : p bilaterale par doublement). Controles independants du moteur :
+# enumeration brute des n! permutations (perms_n(), ci-dessus), D entier.
+spearman_enum <- function(a, b) {
+  n <- length(a); A <- round(2 * rank(a)); B <- round(2 * rank(b))
+  P <- perms_n(n)
+  D <- apply(P, 1, function(pi) n * sum(A * B[pi]) - sum(A) * sum(B))
+  d0 <- n * sum(A * B) - sum(A) * sum(B)
+  q <- function(d) min(nrow(P), 2 * min(sum(D <= d), sum(D >= d)))
+  qs <- vapply(D, q, numeric(1))
+  list(p = q(d0) / nrow(P), masse_min = sum(qs == min(qs)) / nrow(P))
+}
+verifier("Spearman avec ex aequo : a = (1,1,2,3,4), b = 5:1 -> p = 1/30 (#207)",
+         identical(.mw_spearman_p(c(1, 1, 2, 3, 4), 5:1), 1 / 30) &&
+           identical(spearman_enum(c(1, 1, 2, 3, 4), 5:1)$p, 1 / 30))
+verifier("Spearman avec ex aequo des deux cotes (ExpVar) : p = 0,10 par doublement, masse_min = 0,05 (#207)",
+         {
+           sp <- .mw_spearman(c(1, 1, 1, 3, 4), c(1, 2, 2, 4, 5), plancher_b = 0)
+           identical(sp$p, 0.1) && identical(sp$masse_min, 0.05) &&
+             identical(sp$rho, unname(suppressWarnings(stats::cor.test(
+               c(1, 1, 1, 3, 4), c(1, 2, 2, 4, 5), method = "spearman", exact = FALSE))$estimate))
+         })
+verifier("masse_min de HomogF (b = idx sans ex aequo) = forme close 2 prod t_g!/n! : 1/90, 1/420, 1/1890 (#207)",
+         {
+           m <- function(a) .mw_spearman(a, seq_along(a) - 1L)$masse_min
+           fc <- function(a) 2 * prod(factorial(table(a))) / factorial(length(a))
+           cas <- list(c(1, 1, 2, 2, 3, 4), c(5, 5, 5, 1, 2, 3, 4), c(1, 1, 1, 1, 2, 2, 3, 3, 4))
+           identical(m(cas[[1]]), 1 / 90) && identical(m(cas[[2]]), 1 / 420) &&
+             identical(m(cas[[3]]), 1 / 1890) &&
+             all(vapply(cas, function(a) identical(m(a), fc(a)), logical(1))) &&
+             identical(.mw_spearman(c(3, 1, 4, 2), 0:3)$masse_min, 2 / 24)
+         })
+verifier("Contre-epreuve par enumeration brute des n! permutations, n = 4 a 7, ex aequo tires (#207)",
+         {
+           ok <- engine_sous_graine(20261011, vapply(1:48, function(k) {
+             n <- 4L + (k %% 4L)
+             a <- sample(1:3, n, replace = TRUE); if (!anyDuplicated(a)) a[2] <- a[1]
+             b <- if (k %% 2L) seq_len(n) - 1L else sample(1:4, n, replace = TRUE)
+             if (length(unique(a)) < 2 || length(unique(b)) < 2) return(TRUE)
+             sp <- .mw_spearman(a, b, plancher_b = 0); en <- spearman_enum(a, b)
+             identical(sp$p, en$p) && identical(sp$masse_min, en$masse_min) &&
+               sp$p >= 2 / factorial(n) && sp$p <= 1 &&
+               identical(sp$rho, stats::cor(rank(a), rank(b)))
            }, logical(1)))
+           all(ok)
+         })
+# n = 8 (40 320 permutations, reprise apres audit, m3(a)) : D de toutes les
+# permutations par produit matriciel, p et masse_min par tabulation des
+# valeurs distinctes de D (spearman_enum() serait quadratique en n!).
+spearman_enum_tab <- function(a, b) {
+  n <- length(a); A <- round(2 * rank(a)); B <- round(2 * rank(b)); P <- perms_n(n)
+  D <- as.vector(matrix(B[P], nrow(P)) %*% A) * n - sum(A) * sum(B)
+  d0 <- n * sum(A * B) - sum(A) * sum(B)
+  tb <- table(D); v <- as.numeric(names(tb)); cnt <- as.vector(tb); N <- nrow(P)
+  q <- vapply(v, function(d) min(N, 2 * min(sum(cnt[v <= d]), sum(cnt[v >= d]))), numeric(1))
+  list(p = min(N, 2 * min(sum(D <= d0), sum(D >= d0))) / N, masse_min = sum(cnt[q == min(q)]) / N)
+}
+verifier("Contre-epreuve par enumeration brute a n = 8 : ex aequo d'un cote, puis des deux cotes (#207)",
+         {
+           cas <- list(list(c(3, 3, 1, 5, 2, 2, 2, 4), 0:7),
+                       list(c(1, 1, 2, 2, 3, 3, 4, 4), c(8, 6, 7, 5, 3, 4, 1, 2)),
+                       list(c(1, 2, 2, 3, 3, 3, 4, 5), c(2, 2, 1, 3, 3, 5, 4, 4)),
+                       list(c(5, 1, 1, 2, 4, 4, 3, 3), c(1, 1, 1, 2, 2, 3, 3, 3)))
+           all(vapply(cas, function(x) {
+             sp <- .mw_spearman(x[[1]], x[[2]], plancher_b = 0); en <- spearman_enum_tab(x[[1]], x[[2]])
+             identical(sp$p, en$p) && identical(sp$masse_min, en$masse_min)
+           }, logical(1)))
+         })
+verifier("Spearman a entree constante (ex aequo a n <= 9) : rho, p et masse_min NA (#207, m2)",
+         {
+           s1 <- .mw_spearman(c(2, 2, 2, 2, 2), 0:4); s2 <- .mw_spearman(c(1, 3, 2, 5), c(4, 4, 4, 4), 0)
+           all(is.na(c(s1$rho, s1$p, s1$masse_min, s2$rho, s2$p, s2$masse_min))) &&
+             is.na(.mw_spearman_p(c(2, 2, 2, 2, 2), 0:4))
+         })
+verifier(".mw_p_min_ligne : colonne de plus de 9 facteurs avec ex aequo, aucune mention de loi enumeree (#207, m1)",
+         {
+           e <- .mw_p_min_ligne(TRUE, c(10, 5), "colonnes n_j", function(n) 0.5, TRUE, n_max = 9,
+                                ex_aequo_enumere = TRUE)
+           is.na(e$p_min) && !grepl("enumeree", e$effectifs, fixed = TRUE) &&
+             grepl("colonne de plus de 9 facteurs", e$effectifs, fixed = TRUE)
+         })
+verifier("p_min de Fisher avec ex aequo = produit des masse_min, par enumeration brute (4 et 3 facteurs) (#207)",
+         {
+           a1 <- c(1, 1, 2, 3); a2 <- c(2, 2, 1)
+           pj <- function(a) { P <- perms_n(length(a))
+             apply(P, 1, function(pi) spearman_enum(a[pi], seq_along(a) - 1L)$p) }
+           X <- as.vector(outer(-2 * log(pj(a1)), -2 * log(pj(a2)), "+"))
+           enum <- p_min_enum(X, rep(1 / length(X), length(X)), "haut")
+           ms <- c(.mw_spearman(a1, 0:3)$masse_min, .mw_spearman(a2, 0:2)$masse_min)
+           isTRUE(proche(.mw_fisher_rangs_p_min(c(4, 3), ms), enum, 1e-9)) &&
+             isTRUE(proche(enum, (4 / 24) * (4 / 6), 1e-9)) &&
+             identical(.mw_fisher_rangs_p_min(c(7, 6, 5, 4)),
+                       .mw_fisher_rangs_p_min(c(7, 6, 5, 4), 2 / factorial(c(7, 6, 5, 4)))) &&
+             is.na(.mw_fisher_rangs_p_min(c(5, 4), c(0.1, NA)))
+         })
+verifier(".mw_p_min_ligne : ex aequo enumeres, p_min attribuee et motif dans effectifs (#207)",
+         {
+           s <- .mw_p_min_ligne(TRUE, c(5, 4), "colonnes n_j",
+                                function(n) .mw_fisher_rangs_p_min(n, c(1 / 30, 1 / 12)), TRUE,
+                                n_max = 9, ex_aequo_enumere = TRUE)
+           s10 <- .mw_p_min_ligne(TRUE, c(10, 4), "colonnes n_j", function(n) 0.5, TRUE,
+                                  n_max = 9, ex_aequo_enumere = TRUE)
+           isTRUE(proche(s$p_min, 1 / 360, 1e-12)) &&
+             identical(s$effectifs, paste("colonnes n_j = 5, 4 ; ex aequo : loi de permutation",
+                                          "conditionnelle aux rangs moyens, enumeree")) &&
+             is.na(s10$p_min) && grepl("colonne de plus de 9 facteurs", s10$effectifs, fixed = TRUE)
+         })
+verifier("ExpVar a premiere colonne de cumuls a ex aequo : p_min attribuee, motif enumere (#207)",
+         {
+           t <- tri_ref; t[1:8, 1] <- round(t[1:8, 1], -2)  # 300 x 5, 400 x 3
+           t[, -1] <- t[, -1] - tri_ref[, 1] + t[, 1]
+           ev <- mw_test_exposant_variance(mw_ajuster(t))
+           d <- engine_table_tests(run_engine(methode = "reserve2", triangle = t, segment = 1,
+                                              annexe = "II", B = 99))
+           x <- d[d$test == "Adequation de l'exposant de variance, colonne par colonne", ]
+           any(ev$detail$ex_aequo) && length(ev$masse_min) == nrow(ev$detail) &&
+             is.finite(x$p_min) && x$p_min == .mw_fisher_rangs_p_min(ev$detail$n, ev$masse_min)
          })
 
 ## --- Pool du bootstrap redresse par le levier (#46, variante B) ---------------

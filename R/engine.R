@@ -7612,32 +7612,125 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
 
 # P-value bilaterale de Spearman d'une colonne, pour les combinaisons de Fisher
 # de HomogF (mw_test_homogeneite_f()) et d'ExpVar (mw_test_exposant_variance())
-# (issue #90, decisions du mainteneur du 06/10/2026). a : deja aplati par
-# l'appelant a TOL_EX_AEQUO, avec le plancher de sa grandeur (#152) ; b :
-# aplati ici, plancher plancher_b (sans effet sur des entiers distincts).
+# (issue #90, decisions du mainteneur du 06/10/2026 ; issue #207, decisions
+# Q-E2c-3 et Q-E2c-4 du 11/10/2026). a : deja aplati par l'appelant a
+# TOL_EX_AEQUO, avec le plancher de sa grandeur (#152) ; b : aplati ici,
+# plancher plancher_b (sans effet sur des entiers distincts).
 # Apres aplatissement, un ex aequo est une egalite au bit pres (en-tete de
 # TOL_EX_AEQUO), comme dans les statistiques de rang de #152.
 #   - n <= 9 sans ex aequo : cor.test(exact = TRUE), loi de permutation
 #     enumeree (prho.c, n_small = 9) ;
-#   - sinon (n > 9, ou ex aequo) : cor.test(exact = FALSE), approximation de
-#     Student, relevee au plancher 2/n!, valeur exacte de P(|rho| = 1) sans
-#     ex aequo et simple plancher numerique avec ex aequo ; a |rho| = 1,
-#     l'approximation rend p = 0 (n = 4) ou 1,7e-61 (n = 10), sous 2/n!.
-# Resultat dans [2/n!, 1] (NA si cor.test() ne rend pas de p-value finie).
+#   - n <= 9 avec ex aequo (#207) : loi de permutation conditionnelle aux
+#     rangs moyens observes, comptee exactement par .mw_spearman_loi_rangs()
+#     (sans alea), p bilaterale par doublement, comme cor.test() ;
+#   - n > 9 : cor.test(exact = FALSE), approximation de Student, relevee au
+#     plancher 2/n!, valeur exacte de P(|rho| = 1) sans ex aequo et simple
+#     plancher numerique avec ex aequo ; a |rho| = 1, l'approximation rend
+#     p = 0 (n = 4) ou 1,7e-61 (n = 10), sous 2/n!.
+# Resultat dans [2/n!, 1] (NA si cor.test() ne rend pas de p-value finie,
+# hors du chemin enumere ; NA aussi, avec masse_min, si a ou b est constant
+# apres aplatissement).
 # Ces p_j ne sont PAS des p exactes au sens de l'ADR 0002 : elles n'entrent
 # que dans la statistique X de Fisher, dont la p retenue reste Monte-Carlo.
 .mw_spearman_p <- function(a, b, plancher_b = 1) .mw_spearman(a, b, plancher_b)$p
 # rho et p du meme appel de cor.test() (#239) : rho = estimation de
 # cor.test(), cor(rank(a), rank(b)) apres aplatissement de b, qui ne depend
-# pas de l'argument exact ; p = .mw_spearman_p().
+# pas de l'argument exact ; p = .mw_spearman_p() ; masse_min (#207) :
+# probabilite, sous la loi de reference de p, de l'ensemble des permutations
+# qui atteignent la plus petite p atteignable de la colonne (p_min de la
+# ligne, .mw_fisher_rangs_p_min()) : 2/n! sans ex aequo a n <= 9 (les deux
+# permutations extremes), compte exact de .mw_spearman_loi_rangs() avec ex
+# aequo a n <= 9, NA a n > 9 (plancher 2/n! atteint par d'autres
+# permutations que les deux extremes).
 .mw_spearman <- function(a, b, plancher_b = 1) {
   b <- engine_aplatir_ex_aequo(b, plancher = plancher_b)
   n <- length(a)
-  exact <- n <= 9 && !anyDuplicated(a) && !anyDuplicated(b)
+  ex_aequo <- anyDuplicated(a) > 0 || anyDuplicated(b) > 0
+  exact <- n <= 9 && !ex_aequo
   ct <- suppressWarnings(stats::cor.test(a, b, method = "spearman", exact = exact))
   p <- ct$p.value
-  list(rho = unname(ct$estimate),
-       p = if (!is.finite(p)) NA_real_ else min(1, max(2 / factorial(n), p)))
+  p <- if (!is.finite(p)) NA_real_ else min(1, max(2 / factorial(n), p))
+  masse <- if (n > 9) NA_real_ else 2 / factorial(n)
+  # a ou b constant : correlation de rang non definie, p et masse_min NA
+  # (comme cor.test(), rho = NA), hors du chemin enumere.
+  if (n <= 9 && ex_aequo && (length(unique(a)) < 2 || length(unique(b)) < 2)) {
+    p <- NA_real_; masse <- NA_real_
+  } else if (n <= 9 && ex_aequo) {
+    # rho de cor.test() conserve ; p et masse_min de la loi conditionnelle.
+    lr <- .mw_spearman_loi_rangs(a, b)
+    p <- lr$p; masse <- lr$masse_min
+  }
+  list(rho = unname(ct$estimate), p = p, masse_min = masse)
+}
+
+# Loi de permutation conditionnelle de Spearman aux rangs moyens observes
+# (#207, specification d'actuary approuvee le 11/10/2026), n <= 9. A = 2 ra et
+# B = 2 rb, ra et rb rangs moyens de a et de b (rank(), ex aequo au bit pres),
+# sont des entiers ; la statistique D(pi) = n somme A_i B_pi(i) - somme A
+# somme B est un entier, fonction strictement croissante de
+# S(pi) = somme A_i B_pi(i) (n > 0, sommes de A et de B fixes) : la loi de D et
+# les comparaisons a d0 se lisent sur S, entier, comparees exactement. Loi de
+# reference : pi uniforme sur les n! permutations, exacte sous
+# echangeabilite, conditionnellement aux rangs moyens observes. Elle ne
+# depend que des multiensembles de A et de B (S(pi o sigma) parcourt les
+# memes valeurs que S(pi)) : comptes calcules sur A et B tries, mis en cache
+# sous la cle des deux multiensembles (.cache_mw_spearman ; le bootstrap
+# repete les memes structures d'ex aequo, par exemple la premiere colonne de
+# cumuls, conservee, dans ExpVar).
+# Comptage par programmation dynamique sur les sous-ensembles : l'etat est
+# l'ensemble des positions de B deja affectees aux k premiers A (k = son
+# cardinal), avec le vecteur des comptes de la somme partielle (entiers,
+# exacts en double : au plus 9! = 362880). Au plus 2^9 = 512 etats.
+# p bilaterale par doublement (decision Q-E2c-4) :
+#   p = min(1, 2 min(P(S <= s0), P(S >= s0))),
+# comptes entiers divises une seule fois par n!. masse_min : somme des
+# comptes des valeurs s dont la p (meme formule, en comptes entiers) est la
+# plus petite du support, divisee par n!.
+.cache_mw_spearman <- new.env(parent = emptyenv())
+.mw_spearman_comptes <- function(As, Bs) {
+  cle <- paste(paste(As, collapse = ","), paste(Bs, collapse = ","), sep = "|")
+  if (!is.null(.cache_mw_spearman[[cle]])) return(.cache_mw_spearman[[cle]])
+  n <- length(As)
+  smax <- sum(As * Bs)                          # As, Bs tries croissants
+  L <- smax + 1L                                # indices 1..L <-> s = 0..smax
+  nm <- bitwShiftL(1L, n)
+  taille <- integer(nm)                         # cardinal de chaque etat
+  for (m in seq_len(nm - 1L))
+    taille[m + 1L] <- taille[bitwShiftR(m, 1L) + 1L] + bitwAnd(m, 1L)
+  cpt <- vector("list", nm)
+  cpt[[1L]] <- c(1, numeric(smax))
+  for (m in 0:(nm - 2L)) {
+    v <- cpt[[m + 1L]]
+    if (is.null(v)) next
+    a <- As[taille[m + 1L] + 1L]
+    for (j in seq_len(n)) {
+      bit <- bitwShiftL(1L, j - 1L)
+      if (bitwAnd(m, bit)) next
+      inc <- a * Bs[j]
+      w <- c(numeric(inc), v[seq_len(L - inc)])
+      t <- m + bit + 1L
+      cpt[[t]] <- if (is.null(cpt[[t]])) w else cpt[[t]] + w
+    }
+  }
+  cnt <- cpt[[nm]]
+  s <- which(cnt > 0) - 1L
+  out <- list(s = s, n = cnt[s + 1L], total = factorial(n))
+  if (sum(out$n) != out$total)
+    stop(".mw_spearman_comptes() : somme des comptes differente de n!")
+  .cache_mw_spearman[[cle]] <- out
+  out
+}
+.mw_spearman_loi_rangs <- function(a, b) {
+  n <- length(a)
+  if (n < 2L || n > 9L || length(b) != n)
+    stop(".mw_spearman_loi_rangs() : n doit etre compris entre 2 et 9")
+  A <- as.integer(round(2 * rank(a))); B <- as.integer(round(2 * rank(b)))
+  lc <- .mw_spearman_comptes(sort(A), sort(B))
+  s0 <- sum(A * B)
+  bas <- cumsum(lc$n); haut <- rev(cumsum(rev(lc$n)))   # P(S <= s), P(S >= s)
+  q <- pmin(lc$total, 2 * pmin(bas, haut))               # comptes entiers
+  q0 <- min(lc$total, 2 * min(sum(lc$n[lc$s <= s0]), sum(lc$n[lc$s >= s0])))
+  list(p = q0 / lc$total, masse_min = sum(lc$n[q == min(q)]) / lc$total)
 }
 
 # Colonnes degenerees des verifications colonne par colonne de M1 (issue #56,
@@ -7797,6 +7890,7 @@ mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
   # Une ligne par colonne retenue, table assemblee une fois (.mw_empiler(),
   # #239, #250).
   blocs <- list()
+  masses <- numeric(0)
   ex <- .mw_exclues_vide()
   jd <- .mw_j_exclues(aj, j_degeneres)
   for (j in 0:(J - 1)) {
@@ -7812,22 +7906,25 @@ mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
     # F aplati a TOL_EX_AEQUO avant cor.test() (#152), plancher 0.
     F <- engine_aplatir_ex_aequo(tri[idx + 1, j + 2] / tri[idx + 1, j + 1], plancher = 0)
     # rho et p de la colonne par un seul cor.test() (.mw_spearman(), #239) :
-    # p de .mw_spearman_p() (issue #90), loi de permutation a n <= 9 sans ex
-    # aequo, jamais nulle ; rho = cor(rank(F), rank(idx)), comme le rho de
+    # p de .mw_spearman_p() (issue #90), loi de permutation a n <= 9 (sans ex
+    # aequo par cor.test(), avec ex aequo conditionnelle aux rangs moyens,
+    # #207), jamais nulle ; rho = cor(rank(F), rank(idx)), comme le rho de
     # cor.test(exact = FALSE) qu'il remplace (l'estimation ne depend pas de
     # exact, et idx, entiers distincts, est inchange par l'aplatissement).
     sp <- .mw_spearman(F, idx)
     # ex_aequo (#115) : ex aequo de F apres aplatissement (idx est sans ex
-    # aequo), p_j hors loi de permutation, p_min NA (.mw_fisher_rangs_p_min()).
+    # aequo) ; masse_min (#207) : masse de la plus petite p_j de la colonne,
+    # lue par .mw_fisher_rangs_p_min() (p_min de la ligne), hors de detail.
     blocs[[length(blocs) + 1L]] <- list(j = j, n = length(idx), rho = sp$rho, p = sp$p,
                                         ex_aequo = anyDuplicated(F) > 0)
+    masses <- c(masses, sp$masse_min)
   }
   det <- .mw_empiler(blocs)
   if (!nrow(det)) return(list(stat = NA_real_, p = NA_real_, detail = det,
                               exclues = ex$colonnes, eligibles = ex$eligibles))
   fc <- .fisher_combine(det$p)
   list(stat = fc$stat, p = fc$p, K = fc$K, detail = det,
-       exclues = ex$colonnes, eligibles = ex$eligibles)
+       exclues = ex$colonnes, eligibles = ex$eligibles, masse_min = masses)
 }
 
 # (c) Absence de courbure : terme quadratique dans la regression ponderee.
@@ -7904,6 +8001,7 @@ mw_test_exposant_variance <- function(aj, j_degeneres = NULL, res = NULL) {
   # Une ligne par colonne retenue, table assemblee une fois (.mw_empiler(),
   # #239, #250).
   blocs <- list()
+  masses <- numeric(0)
   for (j in unique(res$j)) {
     sel <- res$j == j; nd <- sum(sel)
     # Ex aequo a la tolerance TOL_EX_AEQUO (#152), avant la garde sd() == 0
@@ -7920,14 +8018,15 @@ mw_test_exposant_variance <- function(aj, j_degeneres = NULL, res = NULL) {
     # comme HomogF ; Ca y est aplati une seconde fois (plancher_b = 0), sans
     # effet, de sorte que rho est celui de cor.test(ra, Ca) qu'il remplace.
     sp <- .mw_spearman(ra, Ca, plancher_b = 0)
-    # ex_aequo (#115) : comme dans mw_test_homogeneite_f().
+    # ex_aequo (#115) et masse_min (#207) : comme dans mw_test_homogeneite_f().
     blocs[[length(blocs) + 1L]] <- list(j = j, n = nd, rho = sp$rho, p = sp$p,
                                         ex_aequo = anyDuplicated(ra) > 0 || anyDuplicated(Ca) > 0)
+    masses <- c(masses, sp$masse_min)
   }
   det <- .mw_empiler(blocs)
   if (!nrow(det)) return(list(stat = NA_real_, p = NA_real_, detail = det))
   fc <- .fisher_combine(det$p)
-  list(stat = fc$stat, p = fc$p, K = fc$K, detail = det)
+  list(stat = fc$stat, p = fc$p, K = fc$K, detail = det, masse_min = masses)
 }
 
 # (f) Homogeneite des residus entre annees de survenance (hypothese (i)).
@@ -8021,16 +8120,26 @@ mw_test_homogeneite_accident <- function(aj, j_degeneres = NULL, res = NULL) {
 }
 
 # HomogF et ExpVar (queue haute) : X = -2 somme ln p_j, p_j de Spearman par
-# .mw_spearman_p(), loi de permutation enumeree (n_j <= 9 sans ex aequo) :
-# p_j = 2/n_j! a |rho_j| = 1 exactement et p_j > 2/n_j! sinon (strictement
-# decroissante en |rho_j|, issue #90), colonnes permutees independamment.
-# X maximal si et seulement si toutes les colonnes ont |rho_j| = 1, de
-# probabilite 2/n_j! chacune : p_min = prod 2/n_j!. Au-dela de n_j = 9,
-# p_j est l'approximation de Student relevee au plancher 2/n_j!, atteint par
-# d'autres permutations que les deux extremes : p_min n'est pas attribuee.
-.mw_fisher_rangs_p_min <- function(n_j) {
+# .mw_spearman_p(), loi de permutation enumeree a n_j <= 9, colonnes
+# permutees independamment. X est strictement decroissant en chaque p_j : X
+# est maximal si et seulement si chaque colonne atteint sa plus petite p_j,
+# evenement de probabilite masse_min_j (.mw_spearman(), #207) ; d'ou
+# p_min = prod masse_min_j. Sans ex aequo, p_j = 2/n_j! a |rho_j| = 1
+# exactement et p_j > 2/n_j! sinon (strictement decroissante en |rho_j|,
+# issue #90) : masse_min_j = 2/n_j! (valeur par defaut), p_min = prod 2/n_j!.
+# Avec ex aequo (#207), masse_min_j est comptee sur la loi de permutation
+# conditionnelle aux rangs moyens. Au-dela de n_j = 9, p_j est
+# l'approximation de Student relevee au plancher 2/n_j!, atteint par d'autres
+# permutations que les deux extremes : p_min n'est pas attribuee.
+# Calcul en logarithmes : une colonne de masse 2/n_j! garde le terme
+# log(2) - lfactorial(n_j) de #115 (p_min sans ex aequo inchangee au bit
+# pres), les autres log(masse_min_j).
+.mw_fisher_rangs_p_min <- function(n_j, masse_min = 2 / factorial(n_j)) {
   if (length(n_j) < 2 || any(!is.finite(n_j) | n_j < 2 | n_j > 9)) return(NA_real_)
-  .p_borne(exp(sum(log(2) - lfactorial(n_j))))
+  if (length(masse_min) != length(n_j) || any(!is.finite(masse_min) | masse_min <= 0 |
+                                              masse_min > 1)) return(NA_real_)
+  sans <- masse_min == 2 / factorial(n_j)
+  .p_borne(exp(sum(ifelse(sans, log(2) - lfactorial(n_j), log(masse_min)))))
 }
 
 # Kruskal-Wallis entre annees de survenance (queue haute), sans ex aequo :
@@ -8065,15 +8174,23 @@ mw_test_homogeneite_accident <- function(aj, j_degeneres = NULL, res = NULL) {
 # motiver, detail inchange). n : effectifs de la loi de reference, passes a
 # f_p_min ; libelle : leur nom dans effectifs (NULL : n nomme, "n1 = 13, n2 = 13",
 # format des suites de usp_tests()). ex_aequo (lignes de rangs) :
-# loi de permutation conditionnelle non tabulee, p_min NA ; n_max : au-dela,
-# loi de reference non tabulee (p_j de Spearman a n_j > 9), p_min NA. Le
-# motif est porte par effectifs, qu'add() ajoute au detail d'un test sans
-# p_min (#70, 5a), comme eff_rangs dans usp_tests().
-.mw_p_min_ligne <- function(defini, n, libelle, f_p_min, ex_aequo = FALSE, n_max = Inf) {
+# loi de permutation conditionnelle non tabulee, p_min NA, sauf si
+# ex_aequo_enumere (HomogF et ExpVar, #207) : loi conditionnelle aux rangs
+# moyens enumeree, p_min attribuee par f_p_min, motif ajoute a effectifs ;
+# n_max : au-dela, loi de reference non tabulee (p_j de Spearman a
+# n_j > 9), p_min NA. Le motif est porte par effectifs, qu'add() ajoute au
+# detail d'un test sans p_min (#70, 5a), comme eff_rangs dans usp_tests().
+.mw_p_min_ligne <- function(defini, n, libelle, f_p_min, ex_aequo = FALSE, n_max = Inf,
+                            ex_aequo_enumere = FALSE) {
   if (!isTRUE(defini) || !length(n)) return(list(p_min = NA_real_, effectifs = NA_character_))
   eff <- if (is.null(libelle)) paste(sprintf("%s = %d", names(n), as.integer(n)), collapse = ", ")
          else sprintf("%s = %s", libelle, paste(n, collapse = ", "))
-  if (isTRUE(ex_aequo))
+  # Mention de la loi enumeree seulement si la p_min est attribuee (aucune
+  # colonne au-dela de n_max, ou p_j garde l'approximation de Student).
+  if (isTRUE(ex_aequo) && isTRUE(ex_aequo_enumere)) {
+    if (!any(n > n_max))
+      eff <- paste(eff, "; ex aequo : loi de permutation conditionnelle aux rangs moyens, enumeree")
+  } else if (isTRUE(ex_aequo))
     return(list(p_min = NA_real_, effectifs = paste(eff, "; ex aequo : loi de permutation",
                                                     "conditionnelle non tabulee, p_min non attribuee")))
   if (any(n > n_max))
@@ -8334,9 +8451,12 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                      "tolerance de l'outil"),
                      "de proportionnalite")))
   hf <- mw_test_homogeneite_f(aj)
-  # p_min (#115) : .mw_fisher_rangs_p_min() sur les n_j des K colonnes combinees.
+  # p_min (#115) : .mw_fisher_rangs_p_min() sur les n_j et les masses
+  # masse_min_j des K colonnes combinees (#207 : ex aequo compris, loi
+  # conditionnelle aux rangs moyens).
   pm_hf <- .mw_p_min_ligne(is.finite(hf$stat), hf$detail$n, "colonnes n_j",
-                           .mw_fisher_rangs_p_min, any(hf$detail$ex_aequo), n_max = 9)
+                           function(n) .mw_fisher_rangs_p_min(n, hf$masse_min),
+                           any(hf$detail$ex_aequo), n_max = 9, ex_aequo_enumere = TRUE)
   add(fam, "Homogeneite de f_j entre annees de survenance",
       fonction = "mw_test_homogeneite_f",
       "Annexe XVII, D(2)(h)(iii) : 'pour toutes les annees d'accident'",
@@ -8394,7 +8514,8 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       detail = "Si Var(C(i,j+1)|C(i,j)) = sigma_j^2 C(i,j), les residus standardises sont d'echelle constante")
   ev <- mw_test_exposant_variance(aj)
   pm_ev <- .mw_p_min_ligne(is.finite(ev$stat), ev$detail$n, "colonnes n_j",
-                           .mw_fisher_rangs_p_min, any(ev$detail$ex_aequo), n_max = 9)
+                           function(n) .mw_fisher_rangs_p_min(n, ev$masse_min),
+                           any(ev$detail$ex_aequo), n_max = 9, ex_aequo_enumere = TRUE)
   add(fam, "Adequation de l'exposant de variance, colonne par colonne",
       fonction = "mw_test_exposant_variance",
       "Annexe XVII, D(2)(h)(iv) ; complement de Breusch-Pagan",
