@@ -244,19 +244,18 @@ table_synthese_groupe <- function(tb) {
 # est remplace par la frontiere entre le <summary> et le corps). Mise en forme
 # seule, chaque partie echappee ; NA : tiret, comme .txt().
 # Phrase de sensibilite du verdict (#244, PHRASE_VERDICT_SENSIBLE_MC du
-# moteur, toujours dernier element du detail) : sortie du repli (decision du
-# mainteneur, version d'app-review) et affichee apres lui, sur sa propre
-# ligne ; sa jonction (" " ou " ; ") est retiree, le reste est replie comme
+# moteur, toujours chargee avec lui, dernier element du detail) : sortie du
+# repli (decision du mainteneur, version d'app-review) et affichee apres lui,
+# sur sa propre ligne (<br> devant elle, sauf si elle est seule dans la
+# cellule) ; sa jonction (" " ou " ; ") est retiree, le reste est replie comme
 # avant. Sans la phrase, rendu inchange.
 .commentaire_replie <- function(com, seuil = 200L) {
   vapply(com, function(x) {
     if (is.na(x)) return("\u2013")
-    # Phrase de sensibilite du verdict (#244, constante du moteur) : sortie
-    # du repli, affichee apres lui ; le texte restant est replie comme avant.
-    sens <- exists("PHRASE_VERDICT_SENSIBLE_MC") && endsWith(x, PHRASE_VERDICT_SENSIBLE_MC)
+    sens <- endsWith(x, PHRASE_VERDICT_SENSIBLE_MC)
     if (sens) {
       x <- sub("[ ;]+$", "", substr(x, 1L, nchar(x) - nchar(PHRASE_VERDICT_SENSIBLE_MC)))
-      pied <- paste0("<br><span style='color:#B9770E;font-weight:600;font-size:11px'>",
+      pied <- paste0("<span style='color:#B9770E;font-weight:600;font-size:11px'>",
                      .echap_html(PHRASE_VERDICT_SENSIBLE_MC), "</span>")
     } else pied <- ""
     corps <- if (!nzchar(x)) ""
@@ -270,7 +269,7 @@ table_synthese_groupe <- function(tb) {
         paste0("<details class='com'><summary>", .echap_html(debut), "</summary>",
                .echap_html(suite), "</details>")
       }
-    paste0(corps, pied)
+    paste0(corps, if (nzchar(corps) && nzchar(pied)) "<br>", pied)
   }, character(1), USE.NAMES = FALSE)
 }
 

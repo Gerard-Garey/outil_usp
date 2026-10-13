@@ -885,14 +885,16 @@ desechap <- function(x) gsub("&amp;", "&", gsub("&gt;", ">", gsub("&lt;", "<", x
 # suite (corps du details), rejoints par l'espace de coupure ; tiret : NA.
 # Phrase de #244 sortie du repli (pied) : retiree, puis rejointe au texte
 # relu selon la regle de jonction d'add() (" " apres un point final, " ; "
-# sinon, phrase seule si le reste est vide).
-PIED244 <- paste0("<br><span style='color:#B9770E;font-weight:600;font-size:11px'>",
+# sinon). Phrase seule dans la cellule : SPAN244 sans <br> (remarque
+# d'app-review sur #244).
+SPAN244 <- paste0("<span style='color:#B9770E;font-weight:600;font-size:11px'>",
                   .echap_html(PHRASE_VERDICT_SENSIBLE_MC), "</span>")
+PIED244 <- paste0("<br>", SPAN244)
 relire_com <- function(cel) vapply(cel, function(x) {
   if (identical(x, "–")) return(NA_character_)
+  if (identical(x, SPAN244)) return(PHRASE_VERDICT_SENSIBLE_MC)
   if (endsWith(x, PIED244)) {
     b <- relire_com(substr(x, 1L, nchar(x) - nchar(PIED244)))
-    if (is.na(b) || !nzchar(b)) return(PHRASE_VERDICT_SENSIBLE_MC)
     return(paste0(b, if (grepl("\\.$", b)) " " else " ; ", PHRASE_VERDICT_SENSIBLE_MC))
   }
   if (!nzchar(x)) return("")
@@ -955,7 +957,7 @@ verifier(".commentaire_replie() : phrase de #244 hors du <details>, en pied, tex
              identical(cr[2], paste0(.echap_html(sub(paste0(" ; ", PHRASE_VERDICT_SENSIBLE_MC), "",
                                                      x_court, fixed = TRUE)), PIED244)) &&
              !grepl("<details", cr[2], fixed = TRUE) &&
-             identical(cr[3], PIED244) &&
+             identical(cr[3], SPAN244) && !grepl("<br>", cr[3], fixed = TRUE) &&
              identical(relire_com(cr), c(x_long, x_court, x_seul))
          })
 verifier("Garde : table sans colonne fonction -> tiret dans la colonne Fonction (#178)",
