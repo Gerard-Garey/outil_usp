@@ -2268,7 +2268,7 @@ est le nom d'une entrée du catalogue de la méthode, qui est aussi le nom de co
 par \code{.stats\_bootstrapables()} (ou \code{.mw\_stats()}) et consommé par
 \code{usp\_bootstrap()} (ou \code{mw\_bootstrap()}). La fonction d'enregistrement
 \code{add()} d'\code{engine\_registre\_tests()} refuse, par une erreur, une clé absente du
-catalogue ou de l'objet bootstrap~: une p-value asymptotique ne peut donc pas être retenue à la
+catalogue ou de l'objet bootstrap~: une p non simulée ne peut donc pas être retenue à la
 place d'une p-value de Monte-Carlo prévue par suite d'une clé mal écrite (ADR~0003, point~3).
 \end{encadre}
 
@@ -3854,7 +3854,7 @@ Le moteur restitue ce pas par statistique, sur $B_{\text{eff}}$, dans le champ
 $2/(B_{\text{eff}}+1)$ au bilatéral (issue~\#40)~; le champ \code{granularite}, lu par
 l'application, reste le pas unilatéral nominal $1/(B+1)$. Sa limite est qu'elle teste la conformité au \emph{modèle ajusté}~: si le modèle est
 mal spécifié dans une direction que $S$ ne détecte pas, la p-value sera élevée à tort. Dans les
-sorties du script, elle figure en colonne \code{p\_mc} et prime sur la p-value asymptotique
+sorties du script, elle figure en colonne \code{p\_mc} et prime sur la p non simulée
 lorsque les deux sont disponibles.
 \end{fiche}
 
@@ -4466,7 +4466,7 @@ retenue lorsqu'une p-value exacte ou de Monte-Carlo est disponible.
 \textbf{P non simulée.} On appelle ainsi toute p-value rangée dans la colonne
 \code{p\_asymptotique}, dont le nom est conservé (issue~\#120). Elle relève de l'une de quatre
 familles, de statuts distincts~: \emph{(i)} une \emph{loi limite} quand $T \to \infty$ ($\chi^2$
-des tests de type multiplicateur de Lagrange, loi de Kolmogorov à paramètres estimés, pont
+des tests de type multiplicateur de Lagrange, loi de Kolmogorov, établie pour des paramètres connus et appliquée à des résidus à paramètres estimés, pont
 brownien de l'OLS-CUSUM, $\chi^2(k-1)$ de Kruskal--Wallis)~; \emph{(ii)} une \emph{approximation
 de la loi à $n$ fini} sous l'hypothèse d'un échantillon i.i.d. normal, ajustée sur des tables
 simulées ou sur des moments exacts (Royston pour Shapiro--Wilk et Shapiro--Francia, Stephens pour
@@ -4474,7 +4474,7 @@ Anderson--Darling et Cramér--von Mises, Dallal et Wilkinson prolongés par Step
 Lilliefors, D'Agostino pour l'asymétrie, Anscombe et Glynn pour l'aplatissement)~;
 \emph{(iii)} une loi exacte ou approchée sous un \emph{modèle auxiliaire gaussien}, non sous
 l'annexe~XVII ($F$ de RESET, de Goldfeld--Quandt et de Brown--Forsythe, Student et combinaison de
-Fisher $\chi^2(2K)$ de lignes de la méthode Merz--Wüthrich, Student et Bonferroni de Grubbs)~;
+Fisher $\chi^2(2K)$ de lignes de la méthode Merz--Wüthrich, borne de Bonferroni (majorant) de Grubbs, sur la loi de Student)~;
 \emph{(iv)} l'approximation normale d'une loi de rangs discrète (Spearman, Mann--Kendall, suites,
 effet calendaire). Au sens du tableau ci-dessus, la famille~(i) est asymptotique, la
 famille~(ii) une approximation numérique, la famille~(iii) exacte ou approchée sous un autre
@@ -5555,10 +5555,11 @@ Spearman & $\hat\rho_s$ & $\mathcal{N}$ / $t(T-2)$ & Convergence en loi &
 $\mathcal{O}(T^{-1/2})$ & Indépendance, absence d'ex \ae quo &
 Loi de permutation exacte employée à $\hat\pi_t$ constant, $T \le 9$, sans ex \ae quo~; Monte-Carlo sinon \\
 
-D'Agostino & $\sqrt{b_1}$ transformé & $\mathcal{N}(0,1)$ &
-Convergence en loi & Transformation $S_U$ conçue pour corriger l'ordre
-$T^{-1}$ ; validité annoncée $T\ge 8$ & Moments d'ordre 6 finis &
-Limite du domaine ; bootstrap en complément \\
+D'Agostino & $\sqrt{b_1}$ transformé par la loi $S_U$ de Johnson, ajustée sur les moments exacts
+de $\sqrt{b_1}$ à $T$ fini (fiche~\ref{fiche:dagostino-asymetrie}) & $\mathcal{N}(0,1)$ approchée &
+Approximation à $n$ fini sous i.i.d. normal, non asymptotique (issue~\#120) & Sans objet
+(ajustement à $n$ fini)~; validité annoncée $T \ge 8$ & Échantillon i.i.d. normal & Limite du
+domaine~; p-value de Monte-Carlo retenue, p non simulée en complément \\
 
 Anderson--Darling, CvM, KS & Processus empirique
 $\sqrt{T}(\hat F - F_0)$ & Pont brownien (transformé) &
@@ -7776,18 +7777,18 @@ $0{,}05$ et dans $10{,}2~\%$ $[9{,}2~;~11{,}1]$ au seuil $0{,}10$ (intervalles d
 Clopper--Pearson, qui ne mesurent que l'incertitude de simulation). Ce constat, propre à ce jeu,
 ne rend pas la loi exacte et ne se transpose pas à d'autres données.
 \Pval
-La p-value asymptotique $p = 1 - F_{\mathcal{F},q,T-k-q}(F)$ est restituée (loi affichée
+La p-value non simulée $p = 1 - F_{\mathcal{F},q,T-k-q}(F)$, loi $F$ sous le modèle auxiliaire gaussien (famille~(iii), section~\ref{sec:nature}), est restituée (loi affichée
 «~F(2,5) approx.~» à $T = 8$) sans être retenue. La p-value retenue est de Monte-Carlo, simulée sous le
 modèle ajusté (clé \code{RESET}, rejet en queue haute), les volumes $x_t$ étant fixés dans les
 réplications. Sur le jeu de contrôle (méthode prime, $B = 999$)~: $F = 0{,}005077$, p-value
-asymptotique $0{,}995$, p-value de Monte-Carlo retenue $0{,}996$. Le commentaire de la ligne ne
+non simulée $0{,}995$, p-value de Monte-Carlo retenue $0{,}996$. Le commentaire de la ligne ne
 nomme la p-value de Monte-Carlo comme retenue que si elle existe (issue~\#128)~; sinon, il dit
 «~\code{La p Monte-Carlo, simulee sous le modele ajuste, est indisponible sur ces donnees~: aucune
 p-value n'est retenue (ADR 0001).}~» (issue~\#182~; il renvoyait auparavant à \code{nature\_p},
 vide depuis l'issue~\#181)~: faute de réplications finies en nombre suffisant, aucune p-value n'est retenue et
 la ligne devient un diagnostic «~\code{Monte-Carlo indisponible}~», sa p-value non simulée restant
 affichée sans être retenue (issue~\#181, section~\ref{sec:nature}, point~(ii)~; mesuré avec
-\code{usp\_bootstrap(B = 40)}~; jusqu'à cette issue, la p-value asymptotique était retenue sous la
+\code{usp\_bootstrap(B = 40)}~; jusqu'à cette issue, la p-value non simulée était retenue sous la
 nature «~\code{asymptotique (Monte-Carlo indisponible~:} \emph{motif}\code{)}~», qui n'existe plus).
 \Usage
 On souhaite \emph{ne pas} rejeter. Le test est générique~: il détecte une non-linéarité sans en
@@ -14367,14 +14368,13 @@ l'entreprise. C'est ce défaut que la transcription de la
 section~\ref{sec:mw} et les deux voies ci-dessus corrigent.
 \end{encadre}
 
-\subsection{Calibration des p-values asymptotiques (Merz--Wüthrich)}
+\subsection{Calibration des p-values non simulées (Merz--Wüthrich)}
 \label{sec:calib-asympt-mw}
 
 Les p-values non simulées de la méthode Merz--Wüthrich sont rapportées à titre de
 complément, la p-value retenue étant celle du bootstrap, sauf pour la normalité (M5)~: celle de
 Lilliefors, approximation à $n$ fini sous i.i.d. normal et non loi limite (issue~\#120), est
-retenue, faute de p-value exacte et de p-value de Monte-Carlo (fiche~\ref{mw:m5li}). Le titre de
-la sous-section dit «~asymptotiques~» pour l'ensemble de ces p-values non simulées. Il importe néanmoins de
+retenue, faute de p-value exacte et de p-value de Monte-Carlo (fiche~\ref{mw:m5li}). Il importe néanmoins de
 savoir \emph{de combien} elles s'en écartent, et pourquoi. Fréquences de rejet sous $H_0$ de
 chaque p-value non simulée que restitue \code{mw\_tests()}, mesurées sur les triangles $8\times 8$
 de la mesure de la section~\ref{sec:calib-mc-mw} (issue~\#119, même plan, mêmes lois
@@ -14451,7 +14451,7 @@ variance antérieures à l'issue~\#90~; aucun script ni protocole n'en a été r
 retirées et remplacées par la présente mesure (décision du mainteneur sur l'issue~\#119).
 
 \begin{encadre}
-\textbf{Conséquence pratique.} Les écarts observés entre p-value asymptotique et
+\textbf{Conséquence pratique.} Les écarts observés entre p-value non simulée et
 p-value de Monte-Carlo ne traduisent pas une erreur de calcul mais la
 \emph{non-validité} des lois de référence classiques sur des résidus de triangle,
 qui ne sont ni indépendants ni échangeables. Trois tests s'en écartent fortement
