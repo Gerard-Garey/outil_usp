@@ -6118,7 +6118,7 @@ de \code{.runs\_effectifs()}, la même fonction que pour la méthode lognormale~
 diagonale retenue ($n_k \ge 2$ étiquettes $L$ ou $S$), $L_k \sim \mathcal{B}(n_k, 1/2)$, diagonales
 indépendantes, $Z = \sum_k \min(L_k, n_k - L_k)$~; loi de $Z$ par convolution exacte, et
 $p_{\min} = \min_z 2\min\big(\mathbb{P}(Z \le z), \mathbb{P}(Z \ge z)\big)$, bornée à~1
-(\code{.mw\_calendrier\_p\_min()}). C'est la loi du schéma binomial de Mack (1994), appelée ici loi
+(\code{.mw\_calendrier\_p\_min()}). C'est la loi du schéma binomial de Mack (1994, \emph{CAS Forum}, annexe~H), appelée ici loi
 binomiale indépendante de Mack (fiche~\ref{mw:m3cal}), celle des
 moments exacts de la fiche~\ref{mw:m3cal}, et \textbf{non} la loi de permutation des facteurs à
 l'intérieur de chaque colonne~: dans une colonne, le nombre de $L$ est fixé par la médiane, ce
@@ -11754,8 +11754,11 @@ pente très prononcée doit être retenue.
 
 \begin{fiche}{Visualisation de la régression chain-ladder (Merz--Wüthrich)}
 \label{sec:graph-mw}
-\refl{T.~Mack (1993), \emph{op.\ cit.}, section~3, qui recommande explicitement
-l'examen graphique des nuages $C(i,j+1)$ contre $C(i,j)$ avant tout test formel.}
+\refl{T.~Mack, \emph{Measuring the variability of chain ladder reserve estimates},
+\emph{Casualty Actuarial Society Forum}, printemps 1994, p.~101--182, chapitre~5,
+p.~121--125, qui recommande de contrôler les hypothèses de linéarité et de variance par
+l'examen graphique des nuages $C(i,j+1)$ contre $C(i,j)$ et des résidus pondérés, et y
+compare les estimateurs pondérés par $C(i,j)^2$, par $C(i,j)$ et non pondéré.}
 \Cadre
 Trois représentations, rattachées à l'hypothèse M1. La première est un ensemble
 de petits multiples~: pour chaque année de développement $j$, le nuage des
@@ -11802,7 +11805,7 @@ comptent de toute façon moins de trois observations et ne sont pas testées.
 
 \begin{fiche}{Influence et leviers du triangle (Merz--Wüthrich)}
 \label{mw:influence}
-\refl{T.~Mack (1993), \emph{op.\ cit.}, pour la structure de pondération~;
+\refl{T.~Mack (1993), \emph{op.\ cit.}, section~3, p.~217, pour la structure de pondération~;
 R.\,D. Cook (1977) et D.\,C. Hoaglin, R.\,E. Welsch (1978), \emph{op.\ cit.},
 pour les notions de levier et d'influence transposées ici.}
 \Cadre
@@ -12487,7 +12490,8 @@ section~\ref{sec:notations-mw}.
 \begin{fiche}{M1 --- Absence de tendance des facteurs avec le cumulé, à colonne donnée}
 \label{mw:m1}
 \refl{T.~Mack, \emph{Distribution-free calculation of the standard error of chain
-ladder reserve estimates}, \emph{ASTIN Bulletin}, 23(2), 1993, section~3.}
+ladder reserve estimates}, \emph{ASTIN Bulletin}, 23(2), 1993, section~2, hypothèse~(1),
+p.~214, et section~3, hypothèse de variance~(3), p.~217.}
 \Cadre
 Régression auxiliaire menée sur l'ensemble des cellules du triangle~:
 \[
@@ -12596,7 +12600,10 @@ issue~\#257).
 \begin{fiche}{M1 --- Nullité de l'ordonnée à l'origine, colonne par colonne}
 \label{mw:m1a}
 \refl{T.~Mack, \emph{Distribution-free calculation of the standard error of chain
-ladder reserve estimates}, \emph{ASTIN Bulletin}, 23(2), 1993, section~3 ;
+ladder reserve estimates}, \emph{ASTIN Bulletin}, 23(2), 1993, section~2, hypothèse~(1),
+p.~214, et section~3, hypothèse de variance~(3), p.~217~; régression pondérée sans constante
+de poids $1/C(i,j)$, dont l'estimateur est le facteur chain-ladder~: T.~Mack (1994,
+\emph{CAS Forum}), \emph{op.\ cit.}, chapitre~5, p.~121--123~;
 combinaison des p-values : R.\,A. Fisher, \emph{Statistical Methods for Research
 Workers}, 4\textsuperscript{e} éd., Oliver \& Boyd, 1932, §21.1.}
 \Cadre
@@ -13081,8 +13088,10 @@ Monte-Carlo, la colonne étant traitée de la même façon à l'observé et dans
 
 \begin{fiche}{M1 --- Stabilité du facteur selon la pondération (famille $\alpha$)}
 \label{mw:m1d}
-\refl{T.~Mack, \emph{Which stochastic model is underlying the chain ladder
-method~?}, \emph{Insurance: Mathematics and Economics}, 15(2--3), 1994.}
+\refl{T.~Mack (1994, \emph{CAS Forum}), \emph{op.\ cit.}, chapitre~3, p.~111
+(facteur chain-ladder, moyenne des facteurs individuels pondérée par $C(i,j)$, chacun
+estimateur sans biais de $f_j$), et chapitre~5, p.~122--124 (estimateurs $f_{k0}$, pondéré
+par $C(i,j)^2$, et $f_{k2}$, moyenne simple, soit $\alpha = 2$ et $\alpha = 0$ ici).}
 \Cadre
 On considère la famille d'estimateurs
 \[
@@ -13269,7 +13278,7 @@ et non comme un motif de changement de méthode.
 
 \begin{fiche}{M2 --- Variance unitaire des résidus de Mack (diagnostic)}
 \label{mw:m2var}
-\refl{Diagnostic d'échelle~; Mack (1993), \emph{op.\ cit.}, définition de
+\refl{Diagnostic d'échelle~; Mack (1993), \emph{op.\ cit.}, section~3, p.~217, définition de
 $\hat\sigma_j^2$.}
 \Cadre
 Résidus standardisés $r(i,j)$ (section~\ref{sec:notations-mw}), tels que
@@ -13405,10 +13414,34 @@ section~\ref{sec:notations-mw}.
 
 \begin{fiche}{M3 --- Effets d'année calendaire (test de Mack)}
 \label{mw:m3cal}
-\refl{T.~Mack, \emph{Which stochastic model is underlying the chain ladder
-method~?}, \emph{Insurance: Mathematics and Economics}, 15(2--3), 1994,
-p.~133--138~; T.~Mack (1993), \emph{op.\ cit.}, section~5.}
+\refl{T.~Mack, \emph{Measuring the variability of chain ladder reserve estimates},
+\emph{Casualty Actuarial Society Forum}, printemps 1994, p.~101--182, annexe~H,
+p.~162--168 (procédure d'origine, suivie par l'outil)~; version révisée par l'auteur~:
+T.~Mack, \emph{Measuring the variability of chain ladder reserve estimates},
+\emph{Claims Reserving Manual}, vol.~2, section~D6, Faculty and Institute of Actuaries,
+septembre 1997, annexe~H, p.~D6.47--D6.51 (non retenue).}
 \Cadre
+\emph{Procédure suivie.} \code{mw\_test\_annees\_}\allowbreak\code{calendaires()} met en œuvre la procédure
+d'origine de l'annexe~H de Mack (1994, \emph{CAS Forum})~: partage de chaque colonne de facteurs
+en facteurs supérieurs et inférieurs à sa médiane, l'élément égal à la médiane d'une colonne
+d'effectif impair étant éliminé (p.~163)~; $Z_k = \min(L_k, S_k)$ sur chaque diagonale~$k$
+(indice noté $j$ chez Mack), $L_k$ binomiale de paramètre $1/2$ (p.~164)~; moments (H1) de
+$\mathbb{E}[Z_k]$ et (H2) de $\operatorname{Var}[Z_k]$ (p.~165), reproduits à la rubrique~4~;
+statistique globale $Z$, somme des $Z_k$ (écrite $Z_2 + \cdots + Z_{I-1}$ chez Mack, qui
+numérote les diagonales à partir de~1), d'où sont écartées la première diagonale et toute
+diagonale où $L_k + S_k \le 1$ (p.~165), ce que fait le moteur en ne retenant que les
+diagonales de $n_k = L_k + S_k \ge 2$ étiquettes. Trois points sont propres à l'outil et absents de l'annexe~H~: le
+traitement des ex \ae quo (aplatissement à \code{TOL\_EX\_AEQUO} et étiquette «~*~» pour toute
+valeur égale à la médiane, alors que l'annexe~H n'envisage qu'un seul élément éliminé par
+colonne, celui d'une colonne d'effectif impair)~; le gel des colonnes dégénérées, décrit
+ci-dessous~; la p-value, de Monte-Carlo (rubrique~5), au lieu de la règle de décision normale
+de l'annexe~H. La version révisée par l'auteur dans le \emph{Claims Reserving Manual} (1997,
+note p.~D6.1~: «~a changed and more thorough test procedure in Appendix~H~») teste chaque
+diagonale séparément, sur la loi de $Z_k$ tabulée selon $n_k$, au seuil de $10~\%$
+(p.~D6.49), et réduit à $50~\%$ le poids, dans le calcul de $\hat f_k$, des facteurs du type
+prédominant d'une diagonale significative (p.~D6.49)~; elle ne contient ni la statistique
+globale $Z$ ni les moments (H1) et (H2). L'outil ne la retient pas.
+
 Dans chaque colonne $j$, les facteurs observés $F(i,j)$ sont classés en
 « grands » ($L$) et « petits » ($S$) par rapport à leur médiane, les valeurs
 égales à la médiane étant étiquetées «~*~» et écartées~; les facteurs sont aplatis à
@@ -13444,8 +13477,14 @@ avec $m_k = \lfloor (n_k-1)/2 \rfloor$~:
   - \binom{n_k-1}{m_k}\frac{n_k(n_k-1)}{2^{n_k}} + \mathbb{E}[Z_k] - \mathbb{E}[Z_k]^2 .
 \]
 Ces deux expressions ont été vérifiées par énumération exhaustive de la loi de
-$\min(L, n-L)$ pour $n = 2,\dots,12$~: concordance à $10^{-10}$ près. En
-revanche, la normalité de la \emph{somme} $Z$ n'est qu'approchée. La loi exacte de $Z$ sous ce
+$\min(L, n-L)$ pour $n = 2,\dots,12$~: concordance à $10^{-10}$ près. Elles sont celles
+de Mack (1994, \emph{CAS Forum}, (H1) et (H2), p.~165). Sur le triangle de l'exemple numérique
+de Mack (données de la Reinsurance Association of America, $I = 10$, p.~125--126),
+\code{mw\_test\_annees\_calendaires()} reproduit l'exemple publié de l'annexe~H (p.~166--167)~:
+mêmes étiquettes $L$, $S$, «~*~» colonne par colonne, mêmes $(Z_k, n_k)$ sur les huit diagonales
+retenues, $Z = 14$, $\mathbb{E}[Z] = 12{,}875$ et $\operatorname{Var}[Z] = 3{,}978516$, que Mack
+arrondit à $3{,}9785$ (mesure ponctuelle par appel direct de la fonction, sans test versionné).
+En revanche, la normalité de la \emph{somme} $Z$ n'est qu'approchée. La loi exacte de $Z$ sous ce
 schéma --- $L_k$ binomiales indépendantes, que nous appelons loi binomiale indépendante de Mack ---
 s'obtient par convolution~; le moteur ne s'en sert que pour la $p_{\min}$ de la ligne
 (rubrique~7, issue~\#115), non pour une p-value. Elle n'est pas la loi de permutation des
@@ -13455,6 +13494,23 @@ des deux n'est la loi des étiquettes sous le modèle de Mack.
 \Pval
 $p = 2\big(1 - \Phi(|Z^\star|)\big)$ pour la version asymptotique~; la p-value de
 Monte-Carlo est celle retenue.
+
+\emph{Comparaison avec la règle de décision de Mack.} L'annexe~H (p.~165--166) traite les
+$Z_k$ comme «~(almost) uncorrelated~», somme leurs moments et suppose $Z$ approximativement
+normale~: elle rejette, «~with an error probability of 5~\%~», quand $Z$ sort de
+$\mathbb{E}[Z] \pm 2\sqrt{\operatorname{Var}[Z]}$, soit $|Z^\star| > 2$, où
+$Z^\star = (Z - \mathbb{E}[Z])/\sqrt{\operatorname{Var}[Z]}$ est la statistique de la ligne. Cette
+règle équivaut à comparer la p-value asymptotique ci-dessus à $2\big(1 - \Phi(2)\big) = 0{,}0455$~:
+elle repose sur la même approximation normale, dont le niveau réel à $T = 8$ n'est établi par
+aucun résultat (rubrique~4). L'outil ne la reprend pas~: il restitue cette p-value asymptotique
+comme complément, retient la p-value de Monte-Carlo (bootstrap de résidus, clé
+\code{Calendrier}, bilatérale) et la compare au seuil $\alpha$ du calcul, $0{,}10$ par défaut et
+non $0{,}05$. Sur le triangle de contrôle ($B = 999$, graine 20260831), $Z = 2$,
+$\mathbb{E}[Z] = 7{,}375$, $\operatorname{Var}[Z] = 2{,}3047$, $Z^\star = -3{,}54$~: $Z$ sort de
+l'intervalle de Mack $[4{,}34~;~10{,}41]$, la p-value asymptotique vaut $4{,}0\cdot 10^{-4}$, la
+p-value de Monte-Carlo retenue $0{,}004$, et le verdict est \code{ECHEC}~; les deux lectures
+concluent ici dans le même sens. Sur l'exemple de Mack, $Z^\star = 0{,}564$ et la p-value
+asymptotique vaut $0{,}573$, en accord avec le non-rejet publié (p.~167--168).
 \Usage
 C'est le test le plus informatif du dispositif Merz--Wüthrich, car il détecte ce
 que ni M1 ni M2 ne voient~: un choc affectant un exercice comptable entier
@@ -13542,8 +13598,10 @@ contrôle, $J = 7$) et la dernière un seul.
 
 \begin{fiche}{M3 --- Corrélation entre années de développement adjacentes}
 \label{mw:m3cor}
-\refl{T.~Mack (1993), \emph{op.\ cit.}, section~4~; C.~Spearman (1904),
-\emph{op.\ cit.} pour la corrélation de rang.}
+\refl{T.~Mack (1994, \emph{CAS Forum}), \emph{op.\ cit.}, annexe~G, p.~155--161 (statistique
+$T$, moyenne des corrélations de Spearman $T_k$ pondérée par $I-k-1$, formules (G4) à (G6))~;
+même annexe dans la version révisée du \emph{Claims Reserving Manual} (1997), \emph{op.\ cit.},
+p.~D6.42--D6.46~; C.~Spearman (1904), \emph{op.\ cit.} pour la corrélation de rang.}
 \Cadre
 Pour chaque paire de colonnes adjacentes $(k-1 \to k)$ et $(k \to k+1)$, on
 calcule la corrélation de rang de Spearman entre les facteurs individuels
@@ -15601,13 +15659,43 @@ modèle et un mode d'inférence différents.
   le triangle de Taylor \& Ashe qui a servi à valider notre implémentation de
   $\hat f_j$, $\hat\sigma_j^2$ et de la règle d'extrapolation.
 
+  \item T.~Mack, \emph{Measuring the variability of chain ladder reserve
+  estimates}, \emph{Casualty Actuarial Society Forum}, printemps 1994,
+  p.~101--182.
+  \emph{Portée.} Source du test des effets d'année calendaire (annexe~H,
+  p.~162--168~: élimination de l'élément égal à la médiane, $Z_k = \min(L_k, S_k)$,
+  moments (H1) et (H2), statistique globale $Z$, règle de décision normale
+  $\mathbb{E}[Z] \pm 2\sqrt{\operatorname{Var}[Z]}$), procédure d'origine que suit
+  \code{mw\_test\_annees\_calendaires()}~; c'est de cette annexe que proviennent les moments
+  de $Z_k$, que nous avons vérifiés par énumération exhaustive, et l'exemple publié
+  (p.~166--167) que la fonction reproduit (fiche~\ref{mw:m3cal}). Source aussi du test de
+  corrélation entre facteurs de développement adjacents (annexe~G, p.~155--161,
+  fiche~\ref{mw:m3cor}), des graphiques de contrôle des hypothèses de linéarité et de
+  variance et des estimateurs de $f_j$ pondérés autrement (chapitre~5, p.~121--125~;
+  fiches~\ref{sec:graph-mw}, \ref{mw:m1a} et~\ref{mw:m1d}).
+
+  \item T.~Mack, \emph{Measuring the variability of chain ladder reserve
+  estimates}, \emph{Claims Reserving Manual}, vol.~2, section~D6, Faculty and
+  Institute of Actuaries, septembre 1997.
+  \emph{Portée.} Réimpression du précédent, dont la note liminaire (p.~D6.1)
+  annonce quelques changements du texte et «~a changed and more thorough test
+  procedure in Appendix~H~». L'annexe~H révisée (p.~D6.47--D6.51) teste chaque
+  diagonale séparément au seuil de $10~\%$ et réduit à $50~\%$ le poids des facteurs
+  du type prédominant d'une diagonale significative, sans statistique globale ni
+  moments (H1) et (H2)~; l'outil ne la retient pas (fiche~\ref{mw:m3cal}). L'annexe~G
+  (p.~D6.42--D6.46) garde le test de corrélation entre facteurs adjacents.
+
   \item T.~Mack, \emph{Which stochastic model is underlying the chain ladder
   method~?}, \emph{Insurance: Mathematics and Economics}, 15(2--3), 1994,
   p.~133--138.
-  \emph{Portée.} Source du test des effets d'année calendaire et de la
-  discussion des hypothèses testables. C'est de cet article que proviennent les
-  moments de $Z_k = \min(L_k, S_k)$, que nous avons vérifiés par énumération
-  exhaustive.
+  \emph{Portée.} Article qui établit le modèle stochastique conditionnel sous-jacent à la
+  méthode chain-ladder (espérance conditionnelle proportionnelle au dernier cumul,
+  indépendance des années de survenance) et le distingue du modèle log-linéaire. Lu dans
+  une réimpression paginée 229--240~: il ne contient \textbf{ni} le test des effets
+  d'année calendaire \textbf{ni} la famille d'estimateurs pondérés de la
+  fiche~\ref{mw:m1d}, que les versions antérieures de ce document lui attribuaient
+  (issue~\#201)~; ces renvois pointent désormais vers Mack (1994, \emph{CAS Forum}),
+  ci-dessus. Il n'est plus cité par aucune fiche et reste mentionné pour cette raison.
 
   \item M.~Merz, M.\,V. Wüthrich, \emph{Modelling the claims development result
   for solvency purposes}, \emph{Casualty Actuarial Society E-Forum}, automne
