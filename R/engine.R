@@ -8596,6 +8596,7 @@ mw_test_courbure <- function(aj, j_degeneres = NULL) {
   # #239, #250).
   blocs <- list()
   ex <- .mw_exclues_vide()
+  ni <- data.frame(j = integer(0), n_facteurs = integer(0))   # #269
   jd <- .mw_j_exclues(aj, j_degeneres)
   for (j in 0:(J - 1)) {
     idx <- 0:(I - j - 1)
@@ -8605,24 +8606,59 @@ mw_test_courbure <- function(aj, j_degeneres = NULL) {
     # statistique NA, AVANT tout calcul du t (.mw_courbure_colonne()).
     if (j %in% jd) { ex <- .mw_exclure(ex, j, length(idx)); next }
     ex$eligibles <- ex$eligibles + 1L
-    if (.mw_colonne_degeneree(aj, j)) return(.mw_stat_non_definie(ex))
+    if (.mw_colonne_degeneree(aj, j)) {
+      r0 <- .mw_stat_non_definie(ex)
+      r0$non_identifiables <- ni
+      return(r0)
+    }
     C0 <- tri[idx + 1, j + 1]; C1 <- tri[idx + 1, j + 2]
-    if (stats::sd(C0) == 0) next
     # Forme close (#253) : plus aucune exclusion silencieuse par le rang
     # numerique de lm() ; seule la non-identifiabilite exacte (moins de trois
     # valeurs distinctes de C(i,j)) ecarte la colonne, comme sd(C0) == 0
-    # (doctrine de #90, decision D1-7 du 13/10/2026).
-    r <- .mw_courbure_colonne(C0, C1)
-    if (is.null(r)) next
+    # (doctrine de #90, decision D1-7 du 13/10/2026). La colonne ecartee est
+    # enregistree dans l'element "non_identifiables" et nommee dans le
+    # libelle par .mw_phrase_non_identifiable() (#269) : elle reste comptee
+    # dans "eligibles", hors de K. Ensemble ecarte inchange : sd(C0) == 0
+    # implique une seule valeur distincte, et .mw_courbure_colonne() ne rend
+    # NULL (n >= 4 ici) qu'a moins de trois valeurs distinctes ou a A = 0,
+    # somme de termes strictement positifs des qu'il existe un triplet de
+    # valeurs distinctes.
+    r <- if (stats::sd(C0) != 0) .mw_courbure_colonne(C0, C1)
+    if (is.null(r)) {
+      ni[nrow(ni) + 1L, ] <- list(as.integer(j), length(idx))
+      next
+    }
     blocs[[length(blocs) + 1L]] <- list(j = j, n = length(idx), c2 = r[["c2"]],
                                         t = r[["t"]], p = r[["p"]])
   }
   det <- .mw_empiler(blocs)
   if (!nrow(det)) return(list(stat = NA_real_, p = NA_real_, detail = det,
-                              exclues = ex$colonnes, eligibles = ex$eligibles))
+                              exclues = ex$colonnes, eligibles = ex$eligibles,
+                              non_identifiables = ni))
   fc <- .fisher_combine(det$p)
   list(stat = fc$stat, p = fc$p, K = fc$K, detail = det,
-       exclues = ex$colonnes, eligibles = ex$eligibles)
+       exclues = ex$colonnes, eligibles = ex$eligibles, non_identifiables = ni)
+}
+
+# Phrase ajoutee au libelle ("detail") de la ligne de courbure de M1,
+# SEULEMENT si une colonne eligible a moins de trois valeurs distinctes de
+# C(i,j) (element "non_identifiables" de mw_test_courbure(), #269) ; chaine
+# vide sinon. Texte fixe : j, n_j, K et eligibles sont ceux de l'appel
+# observe, aucun nombre issu du bootstrap (#76). Placee par mw_tests() apres
+# la phrase des colonnes degenerees (.mw_phrase_exclusion()), avec la meme
+# clause "K = ... sur ... eligible(s)".
+.mw_phrase_non_identifiable <- function(r) {
+  ni <- r$non_identifiables
+  if (is.null(ni) || !nrow(ni)) return("")
+  K <- if (is.null(r$K)) 0L else r$K
+  plur <- nrow(ni) > 1
+  sprintf(paste0(
+    "%s a moins de trois valeurs distinctes de C(i,j) : %s ; terme quadratique ",
+    "non identifiable, %s hors de la combinaison de Fisher ; K = %d colonne(s) ",
+    "testee(s) sur %d eligible(s). L'exclusion ne vaut pas preuve de linearite."),
+    if (plur) "Colonnes" else "Colonne",
+    paste(sprintf("j = %d (%d facteurs)", ni$j, ni$n_facteurs), collapse = ", "),
+    if (plur) "colonnes" else "colonne", K, r$eligibles)
 }
 
 # (d) Stabilite du facteur selon la ponderation : famille alpha.
@@ -9367,12 +9403,13 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       loi = "chi2(2K) approx. -> Monte-Carlo",
       estim_nom = "colonnes testees", estim = if (is.null(cb$K)) NA_real_ else cb$K,
       p_as = cb$p, mc_nom = "Courbure",
-      detail = .mw_avec_exclusion(
+      detail = .mw_avec_exclusion(.mw_avec_exclusion(
         "Une courbure invalide la linearite meme si la constante est nulle",
         .mw_phrase_exclusion(cb,
           paste0("terme quadratique nul pour des facteurs exactement egaux, statistique de Student ",
                  "non definie (0/0) ou reduite a des ecarts negligeables a la tolerance de l'outil"),
-          "de linearite")))
+          "de linearite")),
+        .mw_phrase_non_identifiable(cb)))
   al <- mw_famille_alpha(aj)
   add(fam, "Stabilite du facteur selon la ponderation (famille alpha)",
       fonction = "mw_famille_alpha",

@@ -211,9 +211,13 @@ local({
          exclues = ex$colonnes, eligibles = ex$eligibles)
   }
 
+  # Element non_identifiables (#269) ajoute a l'ancienne forme : colonnes
+  # ecartees par sd(C0) == 0 ou par .mw_courbure_colonne() NULL, empilees
+  # par rbind() (et non par affectation de ligne comme dans le moteur).
   mw_test_courbure <- function(aj, j_degeneres = NULL) {
     I <- aj$I; J <- aj$J; tri <- aj$tri
     det <- data.frame()
+    ni <- data.frame(j = integer(0), n_facteurs = integer(0))
     ex <- .mw_exclues_vide()
     jd <- .mw_j_exclues(aj, j_degeneres)
     for (j in 0:(J - 1)) {
@@ -221,19 +225,23 @@ local({
       if (length(idx) < 4) next                    # 3 parametres + 1 ddl
       if (j %in% jd) { ex <- .mw_exclure(ex, j, length(idx)); next }
       ex$eligibles <- ex$eligibles + 1L
-      if (.mw_colonne_degeneree(aj, j)) return(.mw_stat_non_definie(ex))
+      if (.mw_colonne_degeneree(aj, j))
+        return(c(.mw_stat_non_definie(ex), list(non_identifiables = ni)))
       C0 <- tri[idx + 1, j + 1]; C1 <- tri[idx + 1, j + 2]
-      if (stats::sd(C0) == 0) next
-      m <- .mw_courbure_colonne(C0, C1)
-      if (is.null(m)) next
+      m <- if (stats::sd(C0) != 0) .mw_courbure_colonne(C0, C1)
+      if (is.null(m)) {
+        ni <- rbind(ni, data.frame(j = as.integer(j), n_facteurs = as.integer(length(idx))))
+        next
+      }
       det <- rbind(det, data.frame(j = j, n = length(idx),
         c2 = m[["c2"]], t = m[["t"]], p = m[["p"]], stringsAsFactors = FALSE))
     }
     if (!nrow(det)) return(list(stat = NA_real_, p = NA_real_, detail = det,
-                                exclues = ex$colonnes, eligibles = ex$eligibles))
+                                exclues = ex$colonnes, eligibles = ex$eligibles,
+                                non_identifiables = ni))
     fc <- .fisher_combine(det$p)
     list(stat = fc$stat, p = fc$p, K = fc$K, detail = det,
-         exclues = ex$colonnes, eligibles = ex$eligibles)
+         exclues = ex$colonnes, eligibles = ex$eligibles, non_identifiables = ni)
   }
 
   mw_famille_alpha <- function(aj) {

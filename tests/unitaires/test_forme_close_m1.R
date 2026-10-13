@@ -147,15 +147,18 @@ verifier("T253-5 : triangles aux bornes du domaine [1e-50 ; 1e50] de #185 : vali
              extreme_pente = proche(sx$pente, -0.78452449405942448, rel = 1e-10)))
          })
 
-verifier("T253-6 : colonne a deux valeurs distinctes de C(i,j) ecartee (K = 3) ; pente a C constant par colonne : NULL, statistique NA (#253, D1-7)",
+verifier("T253-6 / T269-6 : colonne a deux valeurs distinctes de C(i,j) ecartee (K = 3) et enregistree dans non_identifiables ; pente a C constant par colonne : NULL, statistique NA (#253, D1-7, #269)",
          {
            t <- tri253
            t[, 1] <- rep(c(250, 320), 4)            # colonne j = 0 : deux valeurs
            s <- stats253(t)
+           ni <- mw_test_courbure(mw_ajuster(t))$non_identifiables
            res <- data.frame(j = rep(0:1, each = 3), C = rep(c(10, 20), each = 3),
                              sigma_j = rep(c(1, 2), each = 3), F = c(1.5, 1.6, 1.4, 1.1, 1.2, 1.05))
            ok_liste(list(
              K = identical(s$K, 3L), j = identical(as.integer(s$j), 1:3),
+             non_identifiables = nrow(ni) == 1L && identical(ni$j, 0L) &&
+               identical(ni$n_facteurs, 7L),
              colonne_null = is.null(.mw_courbure_colonne(t[1:7, 1], t[1:7, 2])),
              pente_null = is.null(.mw_lm_intra(res)),
              pente_na = identical(.mw_pente_intra(res), NA_real_)))
@@ -218,6 +221,102 @@ verifier("Forme close = summary(lm()) a 1e-10 sur reserve2 et a valeurs de C rep
              noms = identical(names(li), names(co)),
              pente = proche(li, co, rel = 1e-10),
              repetees = proche(cc[c("c2", "t", "p")], ref_lm[c(1, 3, 4)], rel = 1e-10)))
+         })
+
+## --- Restitution des colonnes non identifiables de la courbure (#269) -------
+# Specification d'E2e (docs/specifications/e2e-niveaux-et-documentation.md,
+# sections 4 et 6, tests T269-1 a T269-6 ; decisions D1-5 a D1-8 du
+# mainteneur, 13/10/2026). Triangles construits a partir de reserve2 (section
+# 4) : T1, C(0..2,1) = 1000 et C(3..5,1) = 1100 ; T2, C(0..2,2) = 1600 et
+# C(3..4,2) = 1800 ; T3, C(.,0) = 320 et 350 en alternance (colonne figee) ;
+# T5 (hors tableau, pour T269-3) : T1 et colonne j = 2 degeneree,
+# C(i,3) = 1,3 C(i,2) pour i = 0..4.
+t1_269 <- local({ t <- tri253; t[1:6, 2] <- rep(c(1000, 1100), each = 3); t })
+t2_269 <- local({ t <- tri253; t[1:5, 3] <- c(1600, 1600, 1600, 1800, 1800); t })
+t3_269 <- local({ t <- tri253; t[, 1] <- rep(c(320, 350), 4); t })
+t5_269 <- local({ t <- t1_269; t[1:5, 4] <- 1.3 * t[1:5, 3]; t })
+# Commentaire de la ligne de courbure de run_engine()
+courbure269 <- function(t, B = 199, seed = 20260831) {
+  d <- engine_table_tests(run_engine(methode = "reserve2", triangle = t, segment = 1,
+                                     annexe = "II", B = B, seed = seed))
+  d[grepl("courbure", d$test), c("estimation", "commentaire")]
+}
+base269 <- "Une courbure invalide la linearite meme si la constante est nulle"
+phrase269_t1 <- paste(
+  "Colonne a moins de trois valeurs distinctes de C(i,j) : j = 1 (6 facteurs) ;",
+  "terme quadratique non identifiable, colonne hors de la combinaison de Fisher ;",
+  "K = 3 colonne(s) testee(s) sur 4 eligible(s). L'exclusion ne vaut pas preuve de linearite.")
+# Commentaire sans la phrase de #244 finale, si elle est posee
+sans244 <- function(x) {
+  s <- paste0(" ", PHRASE_VERDICT_SENSIBLE_MC)
+  if (endsWith(x, s)) substr(x, 1L, nchar(x) - nchar(s)) else x
+}
+
+verifier("T269-1 : T1, phrase de la colonne non identifiable j = 1 (6 facteurs), K = 3 sur 4 eligibles ; estimation = 3 (#269)",
+         {
+           l <- courbure269(t1_269)
+           cb <- mw_test_courbure(mw_ajuster(t1_269))
+           ok_liste(list(
+             ligne = nrow(l) == 1L, estim = identical(l$estimation, 3),
+             phrase = identical(sans244(l$commentaire), paste0(base269, ". ", phrase269_t1)),
+             element = identical(cb$non_identifiables,
+                                 data.frame(j = 1L, n_facteurs = 6L)),
+             exclues_vide = nrow(cb$exclues) == 0L,
+             K_elig = identical(cb$K, 3L) && identical(cb$eligibles, 4L)))
+         })
+verifier("T269-2 : T3, colonne figee j = 0 (7 facteurs) ; T2, j = 2 (5 facteurs) (#269)",
+         {
+           l3 <- courbure269(t3_269); l2 <- courbure269(t2_269)
+           ok_liste(list(
+             t3 = grepl("valeurs distinctes de C(i,j) : j = 0 (7 facteurs) ;", l3$commentaire, fixed = TRUE),
+             t3_K = grepl("K = 3 colonne(s) testee(s) sur 4 eligible(s)", l3$commentaire, fixed = TRUE),
+             t2 = grepl("valeurs distinctes de C(i,j) : j = 2 (5 facteurs) ;", l2$commentaire, fixed = TRUE),
+             estim = identical(c(l3$estimation, l2$estimation), c(3, 3))))
+         })
+verifier("T269-3 : colonne degeneree (j = 2) et colonne non identifiable (j = 1) : deux phrases, la degeneree d'abord, meme clause K = 2 sur 4 (#269)",
+         {
+           l <- courbure269(t5_269)
+           cm <- l$commentaire
+           p_deg <- regexpr("Colonne degeneree", cm, fixed = TRUE)
+           p_ni <- regexpr("Colonne a moins de trois valeurs distinctes", cm, fixed = TRUE)
+           ok_liste(list(
+             deux = p_deg > 0 && p_ni > 0, ordre = p_deg < p_ni,
+             base = startsWith(cm, paste0(base269, ". Colonne degeneree")),
+             deg = grepl("j = 2 (5 facteurs) ; terme quadratique nul", cm, fixed = TRUE),
+             ni = grepl("j = 1 (6 facteurs) ; terme quadratique non identifiable", cm, fixed = TRUE),
+             clause = lengths(regmatches(cm, gregexpr(
+               "K = 2 colonne(s) testee(s) sur 4 eligible(s).", cm, fixed = TRUE))) == 2L,
+             estim = identical(l$estimation, 2)))
+         })
+verifier("T269-4 : reserve2, aucune colonne non identifiable, phrase vide ; detail de la reference = libelle de base (#269)",
+         {
+           cb <- mw_test_courbure(mw_ajuster(tri253))
+           ref <- readRDS(file.path(.racine253, "tests", "reference", "reserve2.rds"))
+           k <- which(vapply(ref$tests, function(x) grepl("courbure", x$test), logical(1)))
+           ok_liste(list(
+             vide = identical(cb$non_identifiables, data.frame(j = integer(0), n_facteurs = integer(0))),
+             phrase = identical(.mw_phrase_non_identifiable(cb), ""),
+             ref = length(k) == 1L && identical(ref$tests[[k]]$detail, base269)))
+         })
+verifier("T269-5 : T1, B = 199 et 999, deux graines : phrase identique (aucun nombre issu du bootstrap), phrase de #244 en dernier si posee (#269)",
+         {
+           cms <- unlist(lapply(c(199, 999), function(B) vapply(c(20260831, 1), function(sd)
+             courbure269(t1_269, B = B, seed = sd)$commentaire, "")))
+           att <- paste0(base269, ". ", phrase269_t1)
+           ok_liste(list(
+             quatre = length(cms) == 4L,
+             identiques = all(vapply(cms, sans244, "") == att),
+             fin = all(cms == att | cms == paste(att, PHRASE_VERDICT_SENSIBLE_MC))))
+         })
+# Plusieurs colonnes : forme plurielle (T1 et T2 combines)
+verifier("Phrase plurielle : j = 1 (6 facteurs), j = 2 (5 facteurs), K = 2 sur 4 (#269)",
+         {
+           t <- t1_269; t[1:5, 3] <- t2_269[1:5, 3]
+           ph <- .mw_phrase_non_identifiable(mw_test_courbure(mw_ajuster(t)))
+           identical(ph, paste(
+             "Colonnes a moins de trois valeurs distinctes de C(i,j) : j = 1 (6 facteurs), j = 2 (5 facteurs) ;",
+             "terme quadratique non identifiable, colonnes hors de la combinaison de Fisher ;",
+             "K = 2 colonne(s) testee(s) sur 4 eligible(s). L'exclusion ne vaut pas preuve de linearite."))
          })
 
 bilan_fichier()
