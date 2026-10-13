@@ -6,7 +6,8 @@
 #  par. 7 (tests U1 a U14), approuvee au point d'arret C1 le 11/10/2026.
 #  Fonctions visees : usp_graine_flux_regime(), usp_bootstrap() (variante V1
 #  au bord, V3b a delta estime interieur, champ p_mc_regime), usp_tests()
-#  (nature), run_engine() (metadata$seed_flux_regime).
+#  (nature), run_engine() (metadata$seed_flux_regime) ; U15 : transcription
+#  rejeu_p_mc_v3h() de tests/outils_tests.R (#262).
 #
 #  Oracle (U2 a U4) : valeurs brutes de la mesure de #229,
 #  docs/tableaux/20261010-issue229-p-conditionnelle-regime-brut.tsv (valeurs
@@ -684,5 +685,70 @@ verifier("U14 tests/donnees/donnees_ln_interieur.csv = xi, yi de test_controles_
            identical(names(ln_int), c("t", "xt", "yt")) && identical(ln_int$t, 1:8) &&
              identical(as.numeric(ln_int$xt), env$xi) && identical(ln_int$yt, env$yi)
          })
+
+# =============================================================================
+# U15 -- rejeu_p_mc_v3h() de tests/outils_tests.R (#262, revue finale de R13)
+# =============================================================================
+# Garde-fou de la transcription de la variante V3h lue par les scripts hors
+# CI qui rejouent la boucle de usp_bootstrap() (puissance_t8.R,
+# comparer_ajusteurs_bootstrap.R) : boucle V1 rejouee ici (memes tirages,
+# meme reajustement, memes regles d'ecart), puis rejeu_p_mc_v3h(), compare
+# par identical() a usp_bootstrap(). B = 60 : au-dessus de
+# B_MIN_DEGENERESCENCE, des p_mc et des p_min_mc finies (a B = 30, toutes les
+# p_mc sont NA). outils_tests.R est source dans un environnement dedie
+# (comme test_comparateur.R). Non couverts ici (mutants survivants mesures
+# a la revue de R13) : arret a B_max et motif MOTIF_MC_REGIME_RARE (a J2,
+# B = 60 : arret a la cible apres 320 tirages) ; branche V1 par volumes
+# constants (aucun jeu a volumes constants) ; rejet d'un tirage du flux a
+# delta** non fini ou dont les statistiques echouent (aucun tel tirage sur
+# J2) ; controles hors CI de #262. Duree mesuree : environ 4 s (13/10/2026,
+# conteneur Linux, R 4.3.3, chargement de outils_tests.R compris).
+local({
+  .dossier <- if (exists("DOSSIER_UNITAIRES", inherits = TRUE)) DOSSIER_UNITAIRES else {
+    .f <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE))
+    if (length(.f)) dirname(.f) else "tests/unitaires"
+  }
+  oe <- new.env(parent = globalenv())
+  sys.source(file.path(.dossier, "..", "outils_tests.R"), envir = oe)
+  rejouer <- function(fit, B, seed) {
+    e <- .usp_contexte_mc(fit$x, fit$y, fit$z, fit$pi)
+    so <- .mc_evaluer(USP_CATALOGUE_MC, e)
+    bt <- engine_sous_graine(seed, {
+      sim <- matrix(NA_real_, B, length(so), dimnames = list(NULL, names(so)))
+      ok <- rep(FALSE, B); dl <- rep(NA_real_, B)
+      for (b in seq_len(B)) {
+        yb <- usp_simuler(fit)
+        f <- try(usp_ajuster_rapide(fit$x, yb, fit$delta, fit$gamma), silent = TRUE)
+        if (inherits(f, "try-error")) next
+        sb <- try(.stats_bootstrapables(fit$x, yb, f$z, f$pi), silent = TRUE)
+        if (inherits(sb, "try-error")) next
+        sim[b, ] <- sb[names(so)]; ok[b] <- TRUE; dl[b] <- f$delta
+      }
+      list(sim = sim, ok = ok, dl = dl)
+    })
+    oe$rejeu_p_mc_v3h(fit, bt$sim, bt$ok, bt$dl, so, e, B, seed)
+  }
+  ecarts <- function(r, u, regime) {
+    ch <- c("p_mc", "err_mc", "B_effectif", "motif_mc", "p_min_mc")
+    k <- c(ch[!vapply(ch, function(n) identical(r[[n]], u[[n]]), TRUE)],
+           if (!identical(r$granularite, u$granularite_stat)) "granularite",
+           paste0("p_mc_regime$", regime[!vapply(regime, function(n)
+             identical(r$p_mc_regime[[n]], u$p_mc_regime[[n]]), TRUE)]))
+    k <- k[k != "p_mc_regime$"]
+    if (length(k)) paste("differents :", paste(k, collapse = ", ")) else TRUE
+  }
+  B <- 60; graine <- 20260831
+  u2 <- usp_bootstrap(f2, B = B, seed = graine); r2 <- rejouer(f2, B, graine)
+  verifier("U15 rejeu_p_mc_v3h() sur J2 (V3b), B = 60 : flux pose, des p_mc et p_min_mc finies",
+           identical(u2$p_mc_regime$variante, "V3b") && u2$p_mc_regime$tirages > B &&
+             any(is.finite(u2$p_mc)) && any(is.finite(u2$p_min_mc)))
+  verifier("U15 rejeu_p_mc_v3h() sur J2 (V3b), B = 60 : identical() a usp_bootstrap() (p_mc, err_mc, B_effectif, granularite, motif_mc, p_min_mc, variante, retenus_v1, retenus, tirages, arret)",
+           ecarts(r2, u2, c("variante", "retenus_v1", "retenus", "tirages", "arret")))
+  u1 <- usp_bootstrap(f1, B = B, seed = graine); r1 <- rejouer(f1, B, graine)
+  verifier("U15 rejeu_p_mc_v3h() sur J1 (V1, delta estime au bord), B = 60 : variante V1, des p_mc finies",
+           identical(u1$p_mc_regime$variante, "V1") && any(is.finite(u1$p_mc)))
+  verifier("U15 rejeu_p_mc_v3h() sur J1 (V1), B = 60 : identical() a usp_bootstrap() (p_mc, err_mc, B_effectif, granularite, motif_mc, p_min_mc, variante)",
+           ecarts(r1, u1, "variante"))
+})
 
 fin_fichier()

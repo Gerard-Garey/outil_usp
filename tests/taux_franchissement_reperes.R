@@ -753,6 +753,9 @@ ic_bootstrap <- function(fit, param, graine, B) {
 }
 
 # Table des tests d'un jeu (x, y) traitee comme par run_engine().
+# Limite : p_mc factice (0,5, sans bootstrap) et pas de p_min_mc ; le type et
+# le prefixe "TEST INOPERANT" des lignes Monte-Carlo suivent donc la branche
+# de la regle R1 qui lit p_min, non la branche Monte-Carlo (#125, #262).
 traiter <- function(x, y, graine_ic) {
   fb <- usp_ajuster(x, y)
   param <- usp_parametre(fb, SIGMA_STD, BAREME)
@@ -764,9 +767,23 @@ traiter <- function(x, y, graine_ic) {
   fb$largeur_ic <- icb$largeur
   i_jack <- if (jack_calcule) which.max(abs(d_jack)) else NULL
   rob <- list(jack_annee = i_jack, jack_usp = if (jack_calcule) d_jack[i_jack] / param$sigma_usp else NULL)
-  so <- .mc_evaluer(USP_CATALOGUE_MC, .usp_contexte_mc(fb$x, fb$y, fb$z, fb$pi))
-  boot <- list(stats_obs = as.list(so), p_mc = so * 0 + 0.5, err_mc = so * 0 + 0.01,
-               motif_mc = stats::setNames(rep(NA_character_, length(so)), names(so)))
+  e_obs <- .usp_contexte_mc(fb$x, fb$y, fb$z, fb$pi)
+  so <- .mc_evaluer(USP_CATALOGUE_MC, e_obs)
+  # p_mc factice (lignes Monte-Carlo non lues). Motif d'indisponibilite
+  # rendu par .mc_p_values() du moteur lui-meme, sur une matrice de
+  # simulations vide et le contexte observe (#262, revue finale de R13) :
+  # statistique observee non finie (MOTIF_MC_OBS_NON_FINIE, ou motif de la
+  # condition non_definie du catalogue) et condition degenere du catalogue
+  # (MOTIF_MC_CONDITION), comme dans usp_bootstrap() ; le motif
+  # MOTIF_MC_AUCUNE_REPLIC, propre a la matrice vide, est ramene a NA (p_mc
+  # factice). Une ligne a motif a p_mc et err_mc NA : add() exige alors ce
+  # motif (stop() de #181).
+  mc0 <- .mc_p_values(matrix(NA_real_, 0L, length(so), dimnames = list(NULL, names(so))),
+                      so, USP_CATALOGUE_MC, e_obs)
+  motif <- mc0$motif_mc
+  motif[motif %in% MOTIF_MC_AUCUNE_REPLIC] <- NA_character_
+  boot <- list(stats_obs = as.list(so), p_mc = ifelse(is.na(motif), 0.5, NA_real_),
+               err_mc = ifelse(is.na(motif), 0.01, NA_real_), motif_mc = motif)
   tt <- usp_tests(fb, boot, ALPHA, theta_equiv = THETA_EQUIV, delta_equiv = NULL,
                   robustesse = rob, methode = METHODE)
   list(fit = fb, tests = tt, sigma_boot = icb$sigma_boot, regime = usp_regime(fb$delta, fb$x))

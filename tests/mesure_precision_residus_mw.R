@@ -39,10 +39,6 @@
 #    l'en-tete cite chaque fichier remplace et son md5 d'avant
 #    (ligne_remplacement()). Le commit cite en tete est donc un SHA nu.
 #    --ecrire refuse aussi --sans-p.
-#  A FAIRE (hors du perimetre de la branche de #233, suite consignee au
-#  mainteneur) : enregistrer ce script dans SCRIPTS_ECRIRE et
-#  GARDES_ANTICIPEES de tests/unitaires/test_garde_ecrasement.R, qui
-#  controlent ces gardes pour les huit autres scripts a --ecrire.
 #
 #  Grille : deux bases 8 x 8, reserve2 (tests/donnees/triangle_mw.csv) et
 #  TA8 (sous-triangle 8 x 8 des huit premieres annees de survenance et de

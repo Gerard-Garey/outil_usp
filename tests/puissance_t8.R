@@ -87,17 +87,47 @@
 #       usp_ajuster_contraint() sont deterministes) : les y** sont ceux de
 #       usp_bootstrap() au bit pres (controle sur le jeu observe) ;
 #    3. p Monte-Carlo par .mc_p_values() (engine_p_mc(), queue du catalogue,
-#       conditions du catalogue evaluees sur l'observe) ;
+#       conditions du catalogue evaluees sur l'observe), selon la variante
+#       V3h de usp_bootstrap() (#240, ADR 0014 ; transcrite par
+#       rejeu_p_mc_v3h() de tests/outils_tests.R depuis #262) : a delta
+#       chapeau interieur et volumes non constants, p conditionnelle au
+#       regime interieur (V3b), sur les replications de la boucle dont
+#       delta** est interieur, completees par le flux distinct de
+#       usp_bootstrap() (graine usp_graine_flux_regime()), dont les tirages
+#       ne calculent que les six statistiques ; V1 sinon. Meme limite qu'au
+#       point 2 : usp_bootstrap() ecarte un tirage du flux dont une AUTRE
+#       statistique du catalogue complet echoue, la chaine reduite le
+#       retiendrait ; la matrice des tirages retenus differerait alors de ce
+#       tirage et, l'arret a la cible venant un tirage plus tot, du dernier
+#       (les y** suivants sont inchanges : seul usp_simuler() consomme de
+#       l'alea). Non corrige (revue finale de R13, #262) : catalogue
+#       complet de l'ordre de 5 a 7 ms par tirage contre 0,9 a 1 ms pour
+#       les six (deux mesures, machine chargee), soit, sur J2
+#       observe a B = 999 (V3b, 4 490 tirages dont 3 491 du flux), chaine
+#       7,6 a 8,7 s avec les six contre 11,1 a 11,9 s avec le catalogue
+#       complet (+ 3,5 s environ, + 45 %), lignes des six identiques ; cas
+#       jamais observe : 0 tirage du flux sur 5 460 (J2 observe et 6 jeux
+#       simules sous l'ajustement de J2, tous a delta chapeau* interieur,
+#       B = 999) ou les six aboutissent et le catalogue complet echoue
+#       (mesures du 13/10/2026, conteneur Linux, R 4.3.3). Passer au
+#       catalogue complet : retirer l'argument evaluer de l'appel de
+#       rejeu_p_mc_v3h() dans chaine() (defaut : .stats_bootstrapables()) ;
 #    4. p retenue et verdict par usp_tests() lui-meme (accord d'actuary du
 #       30/09/2026), avec un objet bootstrap dont usp_tests() ne lit que les
-#       champs stats_obs (catalogue complet, sur l'observe), p_mc, err_mc et
-#       motif_mc ; seules les six p_mc, err_mc et motif_mc sont calcules
-#       (les autres NA, motif MOTIF_MC_AUCUNE_REPLIC depuis #181 ; leurs
-#       lignes ne sont pas lues). La regle R7 (p exacte a
-#       pi constant, Monte-Carlo sinon ; DWr toujours Monte-Carlo) et les
-#       regles R1, R3 et R13 ne sont donc pas transcrites mais appliquees par
-#       le moteur ; cout mesure de usp_tests() : 26 ms par appel (30/09/2026,
-#       conteneur Linux, R 4.3.3), contre ~2,5 s pour la boucle a B = 999.
+#       champs stats_obs (catalogue complet, sur l'observe), p_mc, err_mc,
+#       motif_mc, p_min_mc (plancher Monte-Carlo de la regle R1, #125) et
+#       p_mc_regime$variante (nature de la p) ; seules les six p_mc,
+#       err_mc, motif_mc et p_min_mc sont calcules (les autres NA, motif
+#       MOTIF_MC_AUCUNE_REPLIC depuis #181 ; leurs lignes ne sont pas
+#       lues). La regle R7 (p exacte a pi constant, Monte-Carlo sinon ;
+#       DWr toujours Monte-Carlo) et les regles R1, R3 et R13 ne sont donc
+#       pas transcrites mais appliquees par le moteur ; cout mesure de
+#       usp_tests() : 26 ms par appel (30/09/2026, conteneur Linux,
+#       R 4.3.3), contre 2,0 a 2,7 s pour la boucle reduite a B = 999 et, a
+#       delta chapeau* interieur, le flux V3b en sus : 4,8 a 5,2 s sur J2
+#       observe (3 491 tirages du flux, 1,4 a 1,5 ms par tirage), jusqu'a
+#       FACTEUR_B_MAX_REGIME (B + 1) tirages en tout (mesures du 13/10/2026,
+#       conteneur Linux, R 4.3.3).
 #    Ventilation : ALERTE et ECHEC, et regime du reajustement (delta chapeau*
 #    au bord 1 : pi constant ; au bord 0 ; interieur).
 #
@@ -222,7 +252,16 @@
 #  l'ordre de 7 a 8 min) ; volet B 2,5 a 2,8 s par replication et par point
 #  a B = 999 (5 points x 500 : de l'ordre de 1,8 h par jeu en sequentiel,
 #  soit ~ 14 min par tranche en 8 tranches paralleles) ; controles de
-#  transcription : un run_engine() par jeu, ~ 20 s.
+#  transcription : un run_engine() par jeu, ~ 20 s. Depuis #262 (flux V3b
+#  de la p Monte-Carlo, point 3 du volet B), une replication a delta
+#  chapeau* interieur coute en plus son flux, jusqu'a FACTEUR_B_MAX_REGIME
+#  (B + 1) tirages : mesure du 13/10/2026 (meme conteneur, --volet B
+#  --R-chaine 5 --B 999) : J1 2,37 s par replication et par point (aucune
+#  des 25 replications a delta chapeau* interieur), J2 3,23 s (4 sur 25),
+#  soit ~ 5 s de plus par replication interieure ; controles 16 s (J1) et
+#  29 s (J2). La duree d'une execution complete depend donc de la part de
+#  replications a delta chapeau* interieur, et de la rarete du regime
+#  interieur sous leur ajustement (nombre de tirages du flux).
 #  Critere de recette (decision d'actuary du 30/09/2026) : --R 200
 #  --R-chaine 2 rend le code 0 en moins de trois minutes, controles compris
 #  (mesure : voir le compte rendu de #116 ; 106 a 114 s avant la reprise).
@@ -599,11 +638,13 @@ ecrire_fichiers <- function(fichiers, commit = commit_depot("tests/puissance_t8.
 # sur les jeux observes seulement). Avec le catalogue complet, les regles
 # d'ecartement sont celles de usp_bootstrap(). Rend sim (B x statistiques),
 # sigma et z des replications (NA si ecartee), pour le controle d'integrite
-# contre usp_bootstrap().
+# contre usp_bootstrap(), et retenu et delta** des replications, lus par la
+# variante V3h de la p Monte-Carlo (rejeu_p_mc_v3h(), #262).
 boucle_reduite <- function(fit, graine, B, catalogue) {
   engine_sous_graine(graine, {
     sim <- matrix(NA_real_, B, length(catalogue), dimnames = list(NULL, names(catalogue)))
-    sig <- rep(NA_real_, B)
+    sig <- dl <- rep(NA_real_, B)
+    ok <- rep(FALSE, B)
     zb <- matrix(NA_real_, B, length(fit$x))
     for (b in seq_len(B)) {
       yb <- usp_simuler(fit)
@@ -614,13 +655,20 @@ boucle_reduite <- function(fit, graine, B, catalogue) {
       sim[b, ] <- sb
       zb[b, ] <- fb$z
       sig[b] <- fb$sigma
+      dl[b] <- fb$delta
+      ok[b] <- TRUE
     }
-    list(sim = sim, sigma_boot = sig[is.finite(sig)], z_boot = zb)
+    list(sim = sim, sigma_boot = sig[is.finite(sig)], z_boot = zb, retenu = ok, delta = dl)
   })
 }
 
 # Chaine reduite d'une replication : reajustement, boucle reduite, p_mc des
-# six statistiques, usp_tests(). Rend NULL + motif si le reajustement echoue.
+# six statistiques (variante V3h de usp_bootstrap() : V3b a delta estime
+# interieur et volumes non constants, flux complementaire limite aux six
+# statistiques ; V1 sinon ; rejeu_p_mc_v3h() de tests/outils_tests.R, #262),
+# usp_tests(). Rend NULL + motif si le reajustement echoue. Limite du flux
+# (tirage dont une autre statistique du catalogue complet echoue, retenu ici
+# et ecarte par usp_bootstrap()), cout et mesure : en-tete, volet B, point 3.
 chaine <- function(x, y, graine, B) {
   fb <- tryCatch(usp_ajuster(x, y), error = function(e) e)
   if (inherits(fb, "error")) return(list(ecart = "usp_ajuster() en erreur"))
@@ -628,14 +676,20 @@ chaine <- function(x, y, graine, B) {
   so <- tryCatch(.mc_evaluer(USP_CATALOGUE_MC, e_obs), error = function(e) e)
   if (inherits(so, "error")) return(list(ecart = "statistiques observ\u00e9es en erreur"))
   bt <- boucle_reduite(fb, graine, B, USP_CATALOGUE_MC[SIX])
-  mc <- .mc_p_values(bt$sim, so[SIX], USP_CATALOGUE_MC, e_obs)
-  p_mc <- err_mc <- so * NA_real_
+  mc <- rejeu_p_mc_v3h(fb, bt$sim, bt$retenu, bt$delta, so[SIX], e_obs, B, graine,
+                       evaluer = function(yb, f) .mc_evaluer(USP_CATALOGUE_MC[SIX],
+                                                             .usp_contexte_mc(fb$x, yb, f$z, f$pi)))
+  p_mc <- err_mc <- p_min_mc <- so * NA_real_
   # Statistiques hors des six, non simulees par la boucle reduite : motif
   # MOTIF_MC_AUCUNE_REPLIC explicite, add() refusant une p Monte-Carlo
   # absente sans motif (#181) ; leurs lignes ne sont pas lues.
   motif <- stats::setNames(rep(MOTIF_MC_AUCUNE_REPLIC, length(so)), names(so))
   p_mc[SIX] <- mc$p_mc; err_mc[SIX] <- mc$err_mc; motif[SIX] <- mc$motif_mc
-  boot <- list(stats_obs = as.list(so), p_mc = p_mc, err_mc = err_mc, motif_mc = motif)
+  # Plancher Monte-Carlo (#125) : sans lui, add() appliquerait la branche de
+  # la regle R1 qui lit p_min (#262, complement de la revue finale d'E2b).
+  p_min_mc[SIX] <- mc$p_min_mc
+  boot <- list(stats_obs = as.list(so), p_mc = p_mc, err_mc = err_mc, motif_mc = motif,
+               p_min_mc = p_min_mc, p_mc_regime = mc$p_mc_regime)
   tt <- usp_tests(fb, boot, ALPHA, theta_equiv = THETA_EQUIV, methode = METHODE)
   list(fit = fb, tests = tt, lignes = lignes_six(engine_table_tests(list(tests = tt))),
        motif_mc = mc$motif_mc, boucle = bt, regime = code_regime(fb))
