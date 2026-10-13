@@ -770,8 +770,10 @@ retenue, \code{asymptotique} par défaut ou \code{NATURE\_APPROX\_N\_FINI}, tout
 refusée, issue~\#120),
 unique et partagée par \code{usp\_tests()} et \code{mw\_tests()}~: hiérarchie des p-values,
 règles de sortie de l'issue~\#44 (test inopérant par \code{p\_min}, motif Monte-Carlo lu dans
-\code{motif\_mc}, repli asymptotique nommé ou interdit par \code{repli\_asymptotique},
-§\ref{sec:nature}), restitution d'une ligne de test sans aucune p-value et mention du plancher
+\code{motif\_mc}, diagnostic sans p-value retenue quand la p-value de Monte-Carlo manque pour un
+motif non dégénéré et qu'une p non simulée existe, issue~\#181, §\ref{sec:nature}~; refus par
+\code{stop()} d'une p-value de Monte-Carlo absente sans motif d'indisponibilité et d'une
+\code{p\_min} associée à une p non simulée seule), restitution d'une ligne de test sans aucune p-value et mention du plancher
 de Monte-Carlo (issue~\#128), règle de verdict (seuil d'\code{ECHEC} des tests en sens «~rejeter~», constante
 \code{SEUIL\_ECHEC\_SENS\_REJETER} $= 0{,}30$, §\ref{sec:synthese}), refus d'une clé
 Monte-Carlo absente du catalogue ou du bootstrap \\
@@ -3660,6 +3662,14 @@ est dégénérée, \code{p\_mc} vaut \code{NA} et \code{engine\_p\_mc()} en rend
 \code{motif\_mc} de l'objet bootstrap, issue~\#44)~; la conséquence sur la ligne est décrite à
 la section~\ref{sec:nature}.
 
+\emph{Règle commune aux fiches des statistiques Monte-Carlo} (rubrique~5 de chacune, qui y
+renvoie sans la répéter). \emph{(a) p-value de Monte-Carlo manquante} (issue~\#181)~: aucune p non
+simulée n'est retenue à sa place, quelle que soit sa famille (loi limite, approximation à $n$
+fini, loi sous un modèle auxiliaire, approximation normale d'une loi de rangs)~; pour un motif non
+dégénéré et sans p-value exacte, la ligne devient un diagnostic si elle a une p non simulée,
+restituée sans être retenue, et reste un test sans p-value retenue sinon (section~\ref{sec:nature},
+point~(ii), où la raison est donnée pour chacune des trois voies).
+
 \emph{p-value conditionnelle au régime de $\hat\delta$} (branche lognormale, issue~\#240,
 ADR~0014, variante V3h de la section~\ref{sec:calibration-mc}). Le régime de $\hat\delta$ est lu
 par \code{usp\_regime()}, seule définition (tolérance \code{TOL\_DELTA\_BORD}~: intérieur si
@@ -4196,15 +4206,20 @@ Diagnostic \\
   unilatéral, $1{,}856$ en bilatéral, à $\alpha = 0{,}10$)~: le classement test / diagnostic de la
   ligne y dépend du sens, non son verdict (fiche~\ref{fiche:student-pente}, rubrique~6~;
   issue~\#218).
-  \item \emph{Règle~R5, constante}~: la p-value de Student n'est pas retenue (argument
-  \code{repli\_asymptotique = FALSE} d'\code{add()})~; la p-value de Monte-Carlo l'est (sur le jeu
+  \item \emph{Règle~R5, constante}~: la p-value de Student n'est pas retenue (aucune p non simulée n'est retenue à la place d'une
+  p-value de Monte-Carlo manquante, règle commune à toutes les lignes depuis l'issue~\#181~;
+  argument \code{repli\_asymptotique = FALSE} d'\code{add()}, propre à cette ligne, jusqu'à cette
+  issue)~; la p-value de Monte-Carlo l'est (sur le jeu
   de contrôle, $0{,}964$, contre $0{,}949$ pour la p-value de Student, statistique pondérée
   depuis l'issue~\#215~; $0{,}944$ et $0{,}938$ auparavant, fiche~\ref{fiche:student-constante}).
   Si la p-value de Monte-Carlo manque pour un motif autre
   qu'une dégénérescence de la loi simulée ou qu'une statistique observée non finie, la ligne passe
   en diagnostic, son commentaire commençant
   par \code{Monte-Carlo indisponible :} suivi du motif et de \code{p de Student sous le modele
-  auxiliaire pondere non retenue (ADR 0001)} (\code{\dots{} sous le modele auxiliaire MCO non retenue \dots} jusqu'à l'issue~\#215).
+  auxiliaire pondere non retenue (ADR 0001)} (\code{\dots{} sous le modele auxiliaire MCO non retenue \dots} jusqu'à l'issue~\#215)~;
+  depuis l'issue~\#181, toute ligne dans ce cas suit la même règle, avec le libellé par défaut
+  \code{p non simulee (loi du champ loi)} (section~\ref{sec:nature}, point~(ii)), la constante
+  gardant le sien.
   \item \emph{Nature forcée}~: les deux natures «~sous le modèle auxiliaire pondéré~» du TOST et les
   deux natures de la pente (\code{exacte par permutation \dots} et \code{Monte-Carlo
   (permutations aleatoires ; \dots)}) sont posées par l'argument \code{nature\_forcee}
@@ -4508,10 +4523,10 @@ de \code{p\_mc}, \code{err\_mc}, \code{B\_effectif} et \code{granularite\_stat} 
 les motifs qui portent sur les données observées (statistique observée non finie, non définie,
 condition \code{degenere}) gardent la priorité, et le motif n'est \emph{pas} un motif de
 dégénérescence~: l'absence tient au nombre de tirages, non à une loi simulée fixée par
-l'estimation, et la ligne suit la règle exposée plus bas (repli asymptotique nommé, diagnostic pour la
-nullité de la constante, ligne de type test sans p-value retenue quand elle n'a aucune p-value,
-p-value exacte retenue si elle existe~; ADR~0003, annotation du 11~octobre 2026~; la politique de repli quand la p-value de
-Monte-Carlo manque relève de l'issue~\#181). \code{run\_engine()} exigeant
+l'estimation, et la ligne suit la règle exposée plus bas (diagnostic sans p-value retenue quand une
+p non simulée existe, ligne de type test sans p-value retenue quand elle n'a aucune p-value,
+p-value exacte retenue si elle existe~; ADR~0003, annotations du 11 et du 12~octobre 2026,
+issue~\#181). \code{run\_engine()} exigeant
 $B \ge$ \code{B\_MIN\_USAGE} $= 99$ (section~\ref{sec:controles}), cette branche n'y est plus
 atteinte que si moins de 50 des $B$ réplications sont finies, donc si plus de la moitié ont
 échoué~; elle l'est par les appels directs de
@@ -4521,7 +4536,7 @@ réplication finie, réplications finies insuffisantes, dispersion nulle, atome 
 observée. La condition \code{degenere} du catalogue, évaluée par \code{.mc\_p\_values()},
 l'emporte sur les deux motifs qui tiennent au nombre de réplications finies, parce qu'elle porte
 sur les données observées~: une statistique dégénérée sur ces données n'a aucune p-value retenue
-et jamais de repli asymptotique, quel que soit $B_{\text{eff}}$ (ADR~0001)~; elle ne remplace pas
+et aucune p non simulée n'y est retenue, quel que soit $B_{\text{eff}}$ (ADR~0001)~; elle ne remplace pas
 le motif de la statistique observée non finie, qui n'existe pas (issue~\#128~; sans effet à ce
 jour, aucune entrée des catalogues ne définissant \code{degenere}). Une dégénérescence fait
 sortir la ligne en diagnostic, sans p-value retenue, p-value exacte comprise~: la loi de
@@ -4543,10 +4558,48 @@ celle de la dispersion nulle serait fausse~; les simulations étant reproductibl
 n'est pas un bruit d'arrondi de ce calcul, mais le signe que la statistique observée et les
 statistiques simulées ne sont pas calculées par le même chemin, défaut à examiner, et aucune
 mesure ne fonde une tolérance intermédiaire. Une statistique observée non finie, sans
-p-value exacte, rend la ligne non applicable. Dans les autres cas, sans p-value exacte, la
-p-value asymptotique n'est retenue que sous une nature qui nomme le repli, «~asymptotique
-(Monte-Carlo indisponible~: \emph{motif})~», jamais en silence~; ce repli est interdit pour la
-nullité de la constante, dont la ligne passe alors en diagnostic (point (iii)). Une ligne de type
+p-value exacte, rend la ligne non applicable. Dans les autres cas --- motif non dégénéré~: aucune
+réplication finie, réplications finies insuffisantes, régime intérieur rare, statistique non
+définie d'après le catalogue ---, sans p-value exacte, \textbf{aucune p non simulée n'est retenue
+à la place de la p-value de Monte-Carlo manquante} (issue~\#181, option~(B) généralisée,
+décisions du mainteneur du 12~octobre 2026~; ADR~0003, annotation du 12~octobre 2026, point~2)~:
+si la ligne a une p non simulée, elle devient un \emph{diagnostic}, verdict \code{INFO},
+\code{p\_retenue} et \code{nature\_p} à \code{NA}, \code{inoperant} à \code{FALSE}, la p non simulée
+restant affichée dans sa colonne, et son commentaire commence par «~\code{Monte-Carlo
+indisponible~:} \emph{motif} \code{; p non simulee (loi du champ loi) non retenue (ADR 0001).}~»,
+le libellé renvoyant au champ \code{loi} de la ligne, qui décrit cette p (la nullité de la
+constante, point~(iii), garde son libellé \code{p de Student sous le modele auxiliaire
+pondere}). Jusqu'à cette issue, la p-value asymptotique était retenue sous une nature qui
+nommait le repli, «~asymptotique (Monte-Carlo indisponible~: \emph{motif})~», sauf pour la
+constante~; cette nature n'existe plus. Aucune des trois voies de la hiérarchie n'est ouverte
+dans ce cas, et le document le dit des trois~: \emph{(a)} aucune p-value exacte n'existe pour la
+ligne (sinon elle serait retenue)~; \emph{(b)} la p-value de Monte-Carlo manque, pour un motif
+posé par \code{engine\_p\_mc()} ou par le catalogue, jamais deviné~; \emph{(c)} la p non simulée
+n'a de validité établie à $T = 8$ sous le modèle réglementaire dans aucune de ses quatre familles
+(encadré ci-dessus)~: une loi limite ignore l'estimation des paramètres et sa vitesse de
+convergence n'est pas établie à $T = 8$~; une approximation à $n$ fini suppose des observations
+i.i.d. normales, que $z_t = P\varepsilon$ n'est pas à $\hat\pi_t$ variable, et, pour
+Anderson--Darling et Cramér--von Mises, porte sur la statistique re-standardisée (\code{estim},
+règle~R6), non sur la statistique \code{stat} de la p-value de Monte-Carlo~; une loi sous un
+modèle auxiliaire gaussien est contredite par les hypothèses H2 et H3, ou, en Merz--Wüthrich,
+par la dépendance des colonnes~; l'approximation normale d'une loi de rangs n'intervient qu'à
+$\hat\pi_t$ variable, où la loi échangeable elle-même est fausse. Mesuré à $T = 8$ sur deux
+jeux, à $B = 999$, l'écart entre la p non simulée et la p-value de Monte-Carlo changerait des
+verdicts dans les deux sens si la première était retenue (Breusch--Pagan 1979~: $0{,}144$ contre $0{,}090$~; Brown--Forsythe~: $0{,}091$
+contre $0{,}104$~; Goldfeld--Quandt sur le jeu à $\hat\delta$ intérieur~: $0{,}443$ contre
+$0{,}018$~; p non simulée contre p-value de Monte-Carlo retenue, lues dans les références
+\code{premium} et \code{premium\_interieur} de \code{tests/reference/}). C'est la
+règle déjà appliquée par l'ADR~0001 (repli sur la loi nominale interdit), par la règle~R5
+(constante) et par l'ADR~0014, point~2, qui écarte le repli de la p-value conditionnelle au
+régime sur la p-value marginale~; se replier sur une p non simulée, plus éloignée encore de la loi
+de référence, serait incohérent. Le moteur ajoute deux invariants, par \code{stop()}~: une ligne
+qui porte une clé Monte-Carlo dont la p-value manque \emph{sans} motif d'indisponibilité dans
+l'objet bootstrap est refusée (le moteur ne devine pas la cause d'une absence)~; une
+\code{p\_min} associée à une p non simulée seule est refusée (la règle~R1 n'a pas de sens sur une
+p-value qui n'est pas lue sur la loi discrète de référence). Aucun ne se déclenche en production.
+Le diagnostic et la ligne sans aucune p-value, ci-dessous, ont la même cause~: l'asymétrie est
+assumée, le diagnostic étant, au sens de \code{CONTEXT.md}, la ligne dont les p-values existent mais
+ne fondent aucun verdict. Une ligne de type
 test qui n'a alors aucune des trois p-values --- p-value de Monte-Carlo seule, absente faute de
 réplications finies en nombre suffisant, sans p-value exacte ni asymptotique, ou cas de
 Cox--Stuart de la fiche~\ref{fiche:cox-stuart} --- reste de type test, sans p-value retenue ni
@@ -4560,7 +4613,9 @@ ne l'est~; son champ \code{inoperant} vaut \code{FALSE}. Mesuré par \code{usp\_
 jeu de contrôle avec \code{usp\_bootstrap(B = 40)} ($B_{\text{eff}} = 40$, méthode prime,
 $\alpha = 0{,}10$)~: sup-F, et Durbin--Watson, Ljung--Box, sup-F, OLS-CUSUM et Grubbs sur ratios
 bruts sont dans cet état, et les autres lignes à clé Monte-Carlo sans p-value exacte qui ont
-une p-value asymptotique la retiennent sous la nature nommée, hors nullité de la constante. \emph{Plancher de Monte-Carlo.} Quand la p-value retenue est la p-value de Monte-Carlo
+une p non simulée sont des diagnostics «~\code{Monte-Carlo indisponible}~», constante comprise
+(vingt sur ce jeu, toutes de verdict \code{INFO}~; avant l'issue~\#181, dix-neuf d'entre elles
+retenaient leur p asymptotique, dont trois aux verdicts \code{ALERTE} ou \code{ECHEC}). \emph{Plancher de Monte-Carlo.} Quand la p-value retenue est la p-value de Monte-Carlo
 du bootstrap, sa plus petite valeur possible, la granularité par statistique $1/(B_{\text{eff}}
 + 1)$, ou $2/(B_{\text{eff}} + 1)$ en bilatéral (\code{bootstrap\$granularite\_stat}), est
 comparée à $\alpha$ dans l'arithmétique de la règle des verdicts~; si elle rend un verdict
@@ -7452,9 +7507,11 @@ réplications. Sur le jeu de contrôle (méthode prime, $B = 999$)~: $F = 0{,}00
 asymptotique $0{,}995$, p-value de Monte-Carlo retenue $0{,}996$. Le commentaire de la ligne ne
 nomme la p-value de Monte-Carlo comme retenue que si elle existe~; sinon, il dit qu'elle est
 indisponible et que la p-value retenue, s'il en est une, est nommée par \code{nature\_p}
-(issue~\#128)~: faute de réplications finies en nombre suffisant, c'est la p-value asymptotique
-sous la nature «~\code{asymptotique (Monte-Carlo indisponible~:} \emph{motif}\code{)}~»
-(section~\ref{sec:nature}, point~(ii)~; mesuré avec \code{usp\_bootstrap(B = 40)}).
+(issue~\#128)~: faute de réplications finies en nombre suffisant, aucune p-value n'est retenue et
+la ligne devient un diagnostic «~\code{Monte-Carlo indisponible}~», sa p-value non simulée restant
+affichée sans être retenue (issue~\#181, section~\ref{sec:nature}, point~(ii)~; mesuré avec
+\code{usp\_bootstrap(B = 40)}~; jusqu'à cette issue, la p-value asymptotique était retenue sous la
+nature «~\code{asymptotique (Monte-Carlo indisponible~:} \emph{motif}\code{)}~», qui n'existe plus).
 \Usage
 On souhaite \emph{ne pas} rejeter. Le test est générique~: il détecte une non-linéarité sans en
 indiquer la forme. Limites à $T$ faible~: avec $T = 5$ il ne reste que 2 degrés de liberté au
@@ -9947,9 +10004,10 @@ Le script retient la p-value de Monte-Carlo, l'approximation brownienne étant i
 $T \le 15$. Le commentaire («~\code{La formule asymptotique n'a aucune validite a T = 8~: p\_mc
 retenue}~») ne nomme \code{p\_mc} comme retenue que si elle existe~; sinon, il dit qu'elle est
 indisponible et renvoie à \code{nature\_p} (issue~\#128)~: faute de réplications finies en
-nombre suffisant, la règle~(ii) de la section~\ref{sec:nature} retient alors la p-value
-asymptotique sous une nature qui nomme le repli (mesuré avec \code{usp\_bootstrap(B = 40)}),
-alors même que le commentaire dit cette formule sans validité à $T = 8$.
+nombre suffisant, la ligne devient, par la règle~(ii) de la section~\ref{sec:nature}, un
+diagnostic sans p-value retenue, la p-value asymptotique restant affichée (issue~\#181~; mesuré
+avec \code{usp\_bootstrap(B = 40)})~; jusqu'à cette issue, elle était retenue sous une nature qui
+nommait le repli, alors même que le commentaire dit cette formule sans validité à $T = 8$.
 \Usage
 Complémentaire du sup-F~: le CUSUM détecte plutôt des dérives \emph{graduelles}, là où le sup-F
 détecte des ruptures \emph{brutales}. Sa limite majeure ici est que la convergence vers le pont
@@ -14692,9 +14750,10 @@ d'\code{engine\_registre\_tests()}, unique et partagée par \code{usp\_tests()} 
 Sortie de la hiérarchie (grandeur rivée par l'estimation) & branche finale de \code{add()}~:
 \code{p\_retenue} et \code{nature\_p} à \code{NA}, verdict \code{INFO}, seul admis
 hors des types \code{test} et \code{procedure de decision} \\
-Test inopérant, Monte-Carlo indisponible ou dégénéré, repli nommé, nature «~sous le modèle
+Test inopérant, Monte-Carlo indisponible (diagnostic, issue~\#181) ou dégénéré, nature «~sous le modèle
 auxiliaire pondéré~» du TOST («~MCO~» avant l'issue~\#215~; §\ref{sec:nature} et~\ref{sec:modele-auxiliaire}, issue~\#44) & \code{add()}~: arguments \code{p\_min},
-\code{effectifs}, \code{repli\_asymptotique}, \code{nature\_forcee}~; \code{runs\_p\_min()},
+\code{effectifs}, \code{libelle\_p\_as}, \code{nature\_forcee} (\code{repli\_asymptotique}
+retiré par l'issue~\#181)~; \code{runs\_p\_min()},
 \code{cox\_stuart\_p\_min()}, \code{smirnov\_p\_min()}, \code{mk\_p\_min()}~; motif
 \code{motif\_mc} d'\code{engine\_p\_mc()} et de \code{.mc\_p\_values()} (constantes
 \code{TOL\_DISPERSION\_MC}, \code{B\_MIN\_DEGENERESCENCE})~; complément du commentaire par
