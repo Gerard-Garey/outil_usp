@@ -12634,15 +12634,24 @@ valeur observée,
 \]
 doublement de la plus petite des deux queues. Sans ex \ae quo, ce doublement donne la p-value de
 \code{cor.test(exact = TRUE)}~: mesuré sur toutes les permutations de $n = 4$ à~$8$, écart nul.
-Avec ex \ae quo, \code{cor.test()} n'énumère pas cette loi, et sa règle bilatérale (doublement
-de la queue située du côté de la valeur observée par rapport au centre) ne s'écarte du doublement
-de la plus petite queue, sur la même loi conditionnelle, qu'au centre de la loi~: sur toutes les
-valeurs du support des couples ordonnés de structures d'ex \ae quo (tailles des groupes d'ex
-\ae quo dans l'ordre des valeurs, l'une au moins des deux variables ayant un ex \ae quo) de
-$n = 4$ à~$7$, tailles des colonnes à $T = 8$ ($227\,191$ valeurs), $378$ écarts, tous à
-$p_j \ge 0{,}83$, le doublement de la plus petite queue donnant chaque fois la plus petite
-p-value~; $n = 8$ et~$9$ ne sont pas couverts. Aucune identité avec \code{cor.test()} n'est donc
-affirmée en présence d'ex \ae quo. À $n_j > 9$, approximation de Student
+Avec ex \ae quo, \code{cor.test()} n'énumère pas cette loi~: elle renonce à la p-value exacte et
+rend l'approximation de Student. La comparaison qui suit ne porte donc pas sur la p-value que
+rend \code{cor.test()}, mais sur sa règle bilatérale de choix de la queue (doublement de la queue
+située du côté de la valeur observée par rapport au centre $\hat\rho_{s,j} = 0$), appliquée à la
+même loi conditionnelle exacte~; cette règle ne s'écarte du doublement de la plus petite queue
+qu'au voisinage du centre de la loi. Énumération exacte, sans aléa ni approximation, sur les
+comptes de \code{.mw\_spearman\_comptes()} (script hors CI
+\code{tests/enumeration\_}\allowbreak\code{spearman\_ex\_aequo.R}, issue~\#259, tableau
+\code{docs/tableaux/20261013-}\allowbreak\code{issue259-spearman-ex-aequo.md})~: sur toutes les
+valeurs du support des couples ordonnés de structures d'ex \ae quo non constantes (tailles des
+groupes d'ex \ae quo dans l'ordre des valeurs, au moins deux groupes~: une structure à un seul
+groupe est une variable constante, pour laquelle \code{.mw\_spearman()} rend $p_j$ \code{NA}~;
+l'une au moins des deux variables ayant un ex \ae quo) de $n = 4$ à~$7$, tailles des colonnes à
+$T = 8$ ($227\,191$ valeurs), $378$ écarts, dont $258$ au centre et $120$ hors du centre, ces
+derniers tous à $n = 7$, tous à $|\hat\rho_{s,j}| \le 0{,}066$~; tous à $p_j \ge 5/6$, minimum
+atteint à $n = 6$ ($6/7$ à $n = 7$, aucun écart à $n = 4$ et~$5$), le doublement de la plus
+petite queue donnant chaque fois la plus petite p-value~; $n = 8$ et~$9$ ne sont pas couverts.
+Aucune identité avec \code{cor.test()} n'est donc affirmée en présence d'ex \ae quo. À $n_j > 9$, approximation de Student
 de \code{cor.test(exact = FALSE)}, relevée au plancher $2/n_j!$, valeur exacte de
 $\mathbb{P}(|\hat\rho_{s,j}| = 1)$ sous la loi de permutation sans ex \ae quo et simple plancher
 numérique avec ex \ae quo. $p_j$ est ainsi dans $[2/n_j!, 1]$ et n'est jamais nulle. Les $K$
