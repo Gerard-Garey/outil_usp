@@ -44,8 +44,14 @@ sans_244 <- function(d) sub(paste0(" ", PHRASE_VERDICT_SENSIBLE_MC), "", d, fixe
 
 ## --- Triangle ta_pert(9e-13) (Taylor & Ashe, colonne 6 presque degeneree) ------
 # Meme triangle que U181-7 (test_sans_repli_p_non_simulee.R) et ta_pert() de
-# test_merz_wuthrich.R : B_eff = 67 sur 99 et 42 sur 60 pour Origine, HomogF,
-# Courbure ; B_eff = B sur les dix autres statistiques Monte-Carlo.
+# test_merz_wuthrich.R : B_eff < B pour Origine, HomogF, Courbure ; B_eff = B
+# sur les dix autres statistiques Monte-Carlo. Valeurs mesurees (R 4.3.x,
+# Linux) : 67 sur 99 et 42 sur 60. La perturbation est placee a la
+# tolerance : ces comptes peuvent varier entre plateformes ; les assertions
+# portent sur des relations (B_eff < B, B_eff >= B_MIN_DEGENERESCENCE pour le
+# cas A, < B_MIN_DEGENERESCENCE pour le cas B, nombres de la phrase egaux a
+# boot$B_effectif, boot$B et leur difference), pas sur ces comptes (constat
+# C3 d'audit, revue finale d'E2b).
 ta204 <- matrix(c(357848, 352118, 290507, 310608, 443160, 396132, 440832, 359480, 376686, 344014,
   1124788, 1236139, 1292306, 1418858, 1136350, 1333217, 1288463, 1421128, 1363294, NA,
   1735330, 2170033, 2218525, 2195047, 2128333, 2180715, 2419861, 2864498, NA, NA,
@@ -66,28 +72,34 @@ ligne <- function(tm, n) Filter(function(l) identical(l$test, n), tm)[[1]]
 
 ## --- T1 (cas A) : B = 99 ---------------------------------------------------------
 bt99 <- mw_bootstrap(aj204, B = 99); tm99 <- mw_tests(aj204, bt99)
-verifier("T1 ta_pert(9e-13), B = 99 : B_eff = 67 sur Origine, HomogF, Courbure, 99 ailleurs",
-         identical(unname(bt99$B_effectif[names(noms3)]), c(67, 67, 67)) &&
-           all(bt99$B_effectif[setdiff(names(bt99$B_effectif), names(noms3))] == 99) &&
+# B effectif de chaque statistique des trois lignes (67 mesure).
+be99 <- as.integer(bt99$B_effectif[names(noms3)]); names(be99) <- names(noms3)
+pa99 <- function(nm) phrase_a(be99[[nm]], as.integer(bt99$B))
+verifier("T1 ta_pert(9e-13), B = 99 : B_MIN_DEGENERESCENCE <= B_eff < B sur Origine, HomogF, Courbure, B ailleurs",
+         identical(as.integer(bt99$B), 99L) &&
+           all(be99 < bt99$B) && all(be99 >= B_MIN_DEGENERESCENCE) &&
+           all(bt99$B_effectif[setdiff(names(bt99$B_effectif), names(noms3))] == bt99$B) &&
            all(is.finite(bt99$p_mc)))
-verifier("T1 Origine, HomogF, Courbure : phrase A (67, 99, 32) en fin du detail (avant la phrase de #244)",
-         all(vapply(noms3, function(n) {
-           l <- ligne(tm99, n); d <- sans_244(l$detail)
-           endsWith(d, phrase_a(67L, 99L)) &&
+verifier("T1 Origine, HomogF, Courbure : phrase A (B_eff, B, B - B_eff ; 67, 99, 32 mesures) en fin du detail (avant la phrase de #244)",
+         all(vapply(names(noms3), function(nm) {
+           l <- ligne(tm99, noms3[[nm]]); d <- sans_244(l$detail)
+           endsWith(d, pa99(nm)) &&
+             grepl(sprintf("B effectif = %d sur B = %d (%d replication(s)", be99[[nm]],
+                           as.integer(bt99$B), as.integer(bt99$B) - be99[[nm]]), d, fixed = TRUE) &&
              lengths(regmatches(l$detail, gregexpr("B effectif =", l$detail, fixed = TRUE))) == 1L &&
              identical(l$type, "test") && identical(l$p_retenue, l$p_mc)
          }, logical(1))))
 verifier("T1 HomogF et Courbure finissent par la phrase A ; Origine par la phrase A puis celle de #244",
-         endsWith(ligne(tm99, noms3[["HomogF"]])$detail, phrase_a(67L, 99L)) &&
-           endsWith(ligne(tm99, noms3[["Courbure"]])$detail, phrase_a(67L, 99L)) &&
+         endsWith(ligne(tm99, noms3[["HomogF"]])$detail, pa99("HomogF")) &&
+           endsWith(ligne(tm99, noms3[["Courbure"]])$detail, pa99("Courbure")) &&
            endsWith(ligne(tm99, noms3[["Origine"]])$detail,
-                    paste(phrase_a(67L, 99L), PHRASE_VERDICT_SENSIBLE_MC)))
+                    paste(pa99("Origine"), PHRASE_VERDICT_SENSIBLE_MC)))
 verifier("T1 jonction exacte (regle de jonction d'add()) : ' ' apres un point (Origine), ' ; ' sinon (HomogF, Courbure)",
          endsWith(sans_244(ligne(tm99, noms3[["Origine"]])$detail),
-                  paste0("colonne par colonne. ", phrase_a(67L, 99L))) &&
-           grepl(paste0("Fisher ; ", phrase_a(67L, 99L)), ligne(tm99, noms3[["HomogF"]])$detail,
+                  paste0("colonne par colonne. ", pa99("Origine"))) &&
+           grepl(paste0("Fisher ; ", pa99("HomogF")), ligne(tm99, noms3[["HomogF"]])$detail,
                  fixed = TRUE) &&
-           grepl(paste0("est nulle ; ", phrase_a(67L, 99L)), ligne(tm99, noms3[["Courbure"]])$detail,
+           grepl(paste0("est nulle ; ", pa99("Courbure")), ligne(tm99, noms3[["Courbure"]])$detail,
                  fixed = TRUE))
 verifier("T1 les autres lignes (dix lignes Monte-Carlo comprises) ne contiennent pas 'B effectif ='",
          {
@@ -98,13 +110,16 @@ verifier("T1 les autres lignes (dix lignes Monte-Carlo comprises) ne contiennent
 
 ## --- T2 (cas B) : B = 60 ---------------------------------------------------------
 bt60 <- mw_bootstrap(aj204, B = 60); tm60 <- mw_tests(aj204, bt60)
-verifier("T2 ta_pert(9e-13), B = 60 : B_eff = 42, motif replications insuffisantes",
-         identical(unname(bt60$B_effectif[names(noms3)]), c(42, 42, 42)) &&
+# B effectif de chaque statistique des trois lignes (42 mesure).
+be60 <- as.integer(bt60$B_effectif[names(noms3)]); names(be60) <- names(noms3)
+verifier("T2 ta_pert(9e-13), B = 60 : 0 < B_eff < B_MIN_DEGENERESCENCE (< B), motif replications insuffisantes",
+         identical(as.integer(bt60$B), 60L) &&
+           all(be60 > 0L) && all(be60 < B_MIN_DEGENERESCENCE) && all(be60 < bt60$B) &&
            all(bt60$motif_mc[names(noms3)] == MOTIF_MC_REPLIC_INSUFFISANTES))
-verifier("T2 Origine, HomogF, Courbure : diagnostic de #181, detail fini par 'B effectif = 42 sur B = 60.'",
-         all(vapply(noms3, function(n) {
-           l <- ligne(tm60, n)
-           endsWith(l$detail, phrase_b(42L, 60L)) &&
+verifier("T2 Origine, HomogF, Courbure : diagnostic de #181, detail fini par 'B effectif = <B_eff> sur B = <B>.' (42 et 60 mesures)",
+         all(vapply(names(noms3), function(nm) {
+           l <- ligne(tm60, noms3[[nm]])
+           endsWith(l$detail, phrase_b(be60[[nm]], as.integer(bt60$B))) &&
              !grepl("conditionnelle a la definition", l$detail, fixed = TRUE) &&
              lengths(regmatches(l$detail, gregexpr("B effectif =", l$detail, fixed = TRUE))) == 1L &&
              identical(l$type, "diagnostic") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
@@ -143,9 +158,21 @@ for (m in motifs_t4) local({
            identical(.mw_phrase_b_effectif(b, "Origine"), "") && !a_beff(l) &&
              grepl(m[[1]], l$detail, fixed = TRUE))
 })
+# Objets synthetiques a B effectif distinct des comptes mesures (67, 42) :
+# une phrase dont les nombres seraient codes en dur ne passe pas (reprise du
+# constat d'audit, revue finale d'E2b).
+verifier("T4 .mw_phrase_b_effectif() synthetique : cas A (B_eff = 80, p_mc finie) et cas B (B_eff = 30, motif replications insuffisantes)",
+         {
+           b_a <- bt99; b_a$B_effectif[["Origine"]] <- 80
+           b_b <- boot_motif(MOTIF_MC_REPLIC_INSUFFISANTES, 30)
+           is.finite(b_a$p_mc[["Origine"]]) &&
+             identical(.mw_phrase_b_effectif(b_a, "Origine"), phrase_a(80L, 99L)) &&
+             identical(.mw_phrase_b_effectif(b_b, "Origine"), phrase_b(30L, as.integer(bt99$B)))
+         })
 verifier("T4 .mw_phrase_b_effectif() : cas A, cas B et B_eff = B (lecture de boot$B_effectif et boot$B)",
-         identical(.mw_phrase_b_effectif(bt99, "Origine"), phrase_a(67L, 99L)) &&
-           identical(.mw_phrase_b_effectif(bt60, "HomogF"), phrase_b(42L, 60L)) &&
+         identical(.mw_phrase_b_effectif(bt99, "Origine"), pa99("Origine")) &&
+           identical(.mw_phrase_b_effectif(bt60, "HomogF"),
+                     phrase_b(be60[["HomogF"]], as.integer(bt60$B))) &&
            identical(.mw_phrase_b_effectif(bt99, "Alpha"), "") &&
            identical(.mw_phrase_b_effectif(bt60, "Alpha"), ""))
 verifier("T4 refus explicite (jamais devine) : B absent ou non fini, mc_nom absent de B_effectif",
