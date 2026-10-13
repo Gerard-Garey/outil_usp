@@ -1002,6 +1002,11 @@ $f_j$ et l'exposant de variance), \code{tailles} et \code{ex\_aequo} (Kruskal--W
 \code{mw\_tests()} & \code{aj}, \code{boot}, \code{alpha} (0,10) &
 liste des tests M1 à M6 (même structure que \code{usp\_tests()}, même fonction
 d'enregistrement \code{engine\_registre\_tests()}) \\
+\code{.mw\_phrase\_b\_}\newline\code{effectif()} & \code{boot}, \code{mc\_nom} & phrase
+«~\code{B effectif = \dots{} sur B = \dots}~» jointe par \code{mw\_tests()} au commentaire d'une
+ligne de Monte-Carlo (cas~A, $B_{\text{eff}} < B$ et p-value finie~; cas~B, motif
+\code{MOTIF\_MC\_REPLIC\_INSUFFISANTES}), chaîne vide sinon~; erreur si \code{boot\$B} ou
+\code{boot\$B\_effectif} manque ou n'est pas fini (issue~\#204, fiche~\ref{mw:m1a}) \\
 \code{mw\_parametre()} & \code{aj}, \code{msep} (champ \code{\$msep}),
 $\sigma_{\text{std}}$, barème & $\sigma_{\mathrm{USP}}$ et ses composantes \\
 \code{mw\_influence()} & \code{aj} & levier, facteur sans la cellule,
@@ -1850,7 +1855,15 @@ et~\ref{fiche:ic-bootstrap}). Reste aussi imprimée, hors du cas de contrôle ($
 $1 - \hat\delta$ que les commentaires des lignes de centrage et de variance donnent à deux
 chiffres significatifs dans la bande de tolérance (fiche~\ref{fiche:centrage})~: issue de
 l'optimiseur et non stockée en tant que telle ($\hat\delta$ l'est), elle a été signalée et
-conservée lors de la même revue.
+conservée lors de la même revue. \emph{Exception bornée} (issue~\#204, décision Q-E2b-4 du
+mainteneur du 12~octobre 2026~; ADR~0003, annotation du 12~octobre 2026, point~4)~: les deux
+phrases «~\code{B effectif = \dots{} sur B = \dots}~» que \code{mw\_tests()} pose sur ses lignes de
+Monte-Carlo (fiche~\ref{mw:m1a}, rubrique~5) impriment des entiers de comptage issus
+du bootstrap~; elles seules, et \code{add()} reste soumise entière à la règle. Un compte de
+réplications finies est un entier, supposé identique d'une plateforme à l'autre hors cas
+pathologique (\emph{hypothèse}, non mesurée), et il est absent des six références, où
+$B_{\text{eff}} = B$ sur les treize statistiques de Monte-Carlo de \code{reserve2}. Toute autre
+phrase portant un nombre issu du bootstrap exige une nouvelle décision.
 
 \begin{encadre}
 \textbf{Point de revue.} L'objet retourné contient un champ \code{\$metadata}
@@ -3676,6 +3689,10 @@ point~(ii), où la raison est donnée pour chacune des trois voies).
 phrase \code{PHRASE\_VERDICT\_SENSIBLE\_MC}, sans changement de p-value ni de verdict
 (section~\ref{sec:nature}, «~Verdict sensible à l'aléa de simulation~», où sont donnés la
 condition, les seuils retenus et ce que vaut ce signalement).
+\emph{(c) Méthode Merz--Wüthrich, $B$ effectif inférieur à $B$} (issue~\#204)~: le commentaire des
+lignes de Monte-Carlo de \code{mw\_tests()} porte alors la phrase «~\code{B effectif = \dots{} sur B
+= \dots}~», seule exception à la règle selon laquelle aucun nombre issu du bootstrap n'entre dans
+un commentaire (fiche~\ref{mw:m1a}, rubrique~5, «~Restitution de $B$ effectif inférieur à $B$~»).
 
 \emph{p-value conditionnelle au régime de $\hat\delta$} (branche lognormale, issue~\#240,
 ADR~0014, variante V3h de la section~\ref{sec:calibration-mc}). Le régime de $\hat\delta$ est lu
@@ -4636,7 +4653,8 @@ n'étant pas une $p_{\min}$ de loi de référence (décision du mainteneur du
 intérieur, le plafond de la p-value conditionnelle au régime est atteint avec
 $50 \le B_{\text{eff}} < B$, la garantie de l'issue~\#127 portant sur $B$ nominal
 (section~\ref{sec:controles}, issue~\#240)~; ni le plancher ni $B_{\text{eff}}$ n'y sont imprimés, aucun
-nombre issu du bootstrap n'entrant dans le commentaire (issue~\#76), et ils se lisent dans
+nombre issu du bootstrap n'entrant dans le commentaire (issue~\#76~; seule exception, bornée aux
+deux phrases de l'issue~\#204 que pose \code{mw\_tests()}, fiche~\ref{mw:m1a}, rubrique~5), et ils se lisent dans
 \code{bootstrap\$granularite\_stat} et \code{bootstrap\$B\_effectif}. Mesuré sur un bootstrap
 forgé passé à \code{add()} (statistique bilatérale \code{DW}, $\alpha = 0{,}05$)~: la mention
 «~\code{ECHEC inatteignable}~» apparaît à $B_{\text{eff}} = 79$ ($2/80 = \alpha/2$) et disparaît à
@@ -12253,6 +12271,34 @@ $\pm 9 \cdot 10^{-13}$ en relatif (écart relatif observé $1{,}02\cdot 10^{-12}
 retenue)~: \code{B\_effectif} de \code{Origine}, \code{Courbure} et \code{HomogF} égal à $749$
 avec le moteur antérieur à l'issue, $537$ avec le moteur de l'issue, $649$ avec le moteur
 actuel, les issues ultérieures de la branche modifiant les réplications.
+\emph{Restitution de $B$ effectif inférieur à $B$} (issue~\#204, décision du mainteneur du
+12~octobre 2026~; ADR~0003, annotation du 12~octobre 2026, point~4). Sur les lignes de ses treize
+statistiques de Monte-Carlo, \code{mw\_tests()} joint en fin du commentaire qu'elle passe à \code{add()}, par
+\code{.mw\_phrase\_b\_effectif()} et avec la règle de jonction d'\code{add()}, l'une de deux
+phrases. \emph{Cas~A}, p-value de Monte-Carlo finie et $B_{\text{eff}} < B$~: «~\code{B effectif =
+\dots{} sur B = \dots{} (\dots{} replication(s) ecartee(s), statistique non finie)~: p-value
+Monte-Carlo conditionnelle a la definition de la statistique, comptee sur les seules
+replications ou elle est finie~; l'absence de biais de cette selection n'est pas demontree.}~».
+\emph{Cas~B}, motif \code{MOTIF\_MC\_REPLIC\_INSUFFISANTES}~: «~\code{B effectif = \dots{} sur B =
+\dots.}~»~; la ligne est alors un diagnostic (section~\ref{sec:nature}, point~(ii), issue~\#181),
+dont le commentaire commence par «~\code{Monte-Carlo indisponible~: \dots}~» et finit par cette
+phrase. Aucune phrase pour \code{MOTIF\_MC\_AUCUNE\_REPLIC} (le motif dit déjà $B_{\text{eff}} =
+0$), pour un motif de dégénérescence, ni pour les lignes lognormales. Les nombres sont lus dans
+\code{bootstrap\$B\_effectif} et \code{bootstrap\$B}~; si l'un manque ou n'est pas fini,
+\code{.mw\_phrase\_b\_effectif()} lève une erreur~: le nombre imprimé n'est jamais deviné. Ce
+qu'ajoute ensuite \code{add()} (mention du plancher, phrase de l'issue~\#244) suit la phrase.
+C'est la seule exception à la règle selon laquelle aucun nombre issu du bootstrap n'entre dans un
+commentaire (issue~\#76~; section~\ref{sec:graines}). \emph{Statut}~: la loi de référence devient
+celle de la statistique \emph{sachant qu'elle est définie}~; aucun résultat ne garantit l'absence
+de biais de cette sélection, et la phrase le dit sans corriger la p-value. Mesuré par
+\code{mw\_bootstrap()} et \code{mw\_tests()} (graine 20260831) sur le triangle de Taylor \& Ashe
+$10\times10$ dont la colonne~6 est rendue presque dégénérée (perturbation relative $9\cdot
+10^{-13}$, triangle des tests unitaires de l'issue)~: à $B = 99$, $B_{\text{eff}} = 67$ pour
+\code{Origine}, \code{HomogF} et \code{Courbure}, cas~A sur ces trois vérifications, restées des tests,
+la phrase de l'issue~\#244 suivant celle de l'issue~\#204 sur l'ordonnée à l'origine~; à $B = 60$,
+$B_{\text{eff}} = 42$, cas~B, trois diagnostics~; les dix autres statistiques de Monte-Carlo, à
+$B_{\text{eff}} = B$, n'en donnent aucune. Sur \code{reserve2}, $B_{\text{eff}} = B$ pour les
+treize statistiques et aucune ligne ne porte la phrase.
 \emph{Asymétrie avec M3, conservée sans alignement.} Pour une colonne \emph{retenue} à
 l'observé qui devient dégénérée dans une réplication, M1 rend une statistique non définie et
 écarte la réplication de \code{B\_effectif}~; le test calendaire et la corrélation entre années
@@ -14917,7 +14963,8 @@ Merz--Wüthrich~: bootstrap semi-paramétrique et p-values de Monte-Carlo
 (§\ref{sec:boot-mw}) & \code{mw\_bootstrap()}, \code{.mw\_pool\_residus()} (vivier redressé
 par le levier, issue~\#46), \code{mw\_simuler\_triangle()}, \code{.mw\_stats()} \\
 Merz--Wüthrich~: tests et diagnostics M1 à M6 (sections~\ref{sec:mwm1}
-à~\ref{sec:mwm6}) & \code{mw\_tests()} \\
+à~\ref{sec:mwm6}) & \code{mw\_tests()}~; phrase de $B$ effectif inférieur à $B$ par \code{.mw\_phrase\_b\_effectif()}
+(issue~\#204) \\
 Merz--Wüthrich~: leviers, DFBETA, DFBETAS et contributions par année de survenance
 (fiche~\ref{mw:influence}) & \code{mw\_influence()}, \code{mw\_contributions()} \\
 Contrôles de validité (§\ref{sec:controles}) & \code{engine\_valider\_donnees()}, \code{usp\_controle\_donnees()},
