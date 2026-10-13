@@ -12955,7 +12955,12 @@ $V(S) = (x_l - x_k)(x_m - x_k)(x_m - x_l)$ et
 $D(S) = (x_l - x_k)(e_m - e_k) - (x_m - x_k)(e_l - e_k)$, et, pour un quadruplet $Q$, $d_Q$ le
 déterminant de $[1, x, x^2, e]_Q$, développé selon la colonne des écarts. Par la formule de
 Cauchy--Binet (déterminant d'une matrice de Gram pondérée égal à la somme, sur les parties, des
-$w_S$ multipliés par le carré du mineur) et la règle de Cramer,
+$w_S$ multipliés par le carré du mineur), qui écrit sous forme de sommes $A = \det(X^{\top}WX)$
+pour $X = [1, x, x^2]$, le numérateur $N$ et le mineur $A_0$~; par la règle de Cramer pour
+$\hat c_j$~; par l'expression de l'élément diagonal de l'inverse par son cofacteur,
+$\big((X^{\top}WX)^{-1}\big)_{c_j c_j} = A_0/A$, $A_0$ étant le mineur de $A$ associé à $c_j$~;
+et par le complément de Schur, le déterminant $G$ de la matrice de Gram pondérée de
+$[1, x, x^2, e]$ valant $A$ fois la somme pondérée des carrés des résidus~:
 \[
   A = \sum_S w_S V(S)^2, \quad N = \sum_S w_S V(S) D(S), \quad
   A_0 = \sum_{k < l} w_k w_l (x_l - x_k)^2, \quad G = \sum_Q w_Q d_Q^2,
@@ -12965,7 +12970,7 @@ $w_S$ multipliés par le carré du mineur) et la règle de Cramer,
 \]
 $G/A$ étant la somme pondérée des carrés des résidus. Ce sont des identités exactes de la
 régression pondérée~: en arithmétique exacte, $t_j$ est celui de \code{lm()}, et la définition
-ne change pas. Ces deux identités algébriques classiques ne sont adossées à aucune référence
+ne change pas. Ces identités algébriques classiques ne sont adossées à aucune référence
 relue~: leur mise en œuvre est vérifiée par la mesure (ci-dessous). Chaque produit et chaque
 somme est formé à exposant séparé (\code{.mw\_me()}, \code{.mw\_somme\_me()}), ce qui les garde
 finis sur tout le domaine $[10^{-50}~;~10^{50}]$ des cumuls admis (issue~\#185). Le
@@ -12975,14 +12980,18 @@ répètent, pourvu qu'il y en ait au moins trois distinctes. Seule la non-identi
 $\mathrm{sd} = 0$ et selon la règle de l'issue~\#90 (décision D1-7). Deux comportements de cette
 exclusion, antérieurs à l'issue~\#253, restent ouverts~: elle n'est pas restituée dans le
 commentaire de la ligne (issue~\#269)~; pour $j \ge 1$, elle peut écarter une colonne à
-l'observé sans l'écarter dans les réplications, où $K$ diffère alors (issue~\#270, question
-soumise à \code{actuary}). Avant l'issue, \code{lm()} écartait le terme quadratique par son
+l'observé sans l'écarter dans les réplications, où $K$ diffère alors (issue~\#270, ouverte)~: la
+statistique observée, somme de $K$ termes $-2\log p_j \ge 0$, est alors comparée à des
+réplications qui en comptent un de plus, de sorte que la p-value de Monte-Carlo est majorée, à
+réplications données, par rapport à une comparaison à $K$ égal (sens conservateur). Avant l'issue, \code{lm()} écartait le terme quadratique par son
 critère de rang numérique et la colonne sortait de la combinaison sans trace~: sur le triangle
 de contrôle dont la ligne~$0$ est multipliée par $10^{13}$ ou par $10^{15}$, la statistique
-valait \code{NA} (moteur de \code{68360f4}). Ajustement parfait ($G = 0$)~: $t_j = \pm\infty$ et $p_j = 0$,
+valait \code{NA} (moteur de \code{68360f4}). Ajustement parfait ($G = 0$, $N \neq 0$)~: $t_j = \pm\infty$ et $p_j = 0$,
 relevée au plancher de \code{.fisher\_combine()}, d'où un $X$ fini~; si $N = G = 0$, $t_j$
 n'est pas défini et la statistique vaut \code{NA} (règle de l'issue~\#90)~; ces deux événements
-sont de probabilité nulle sous le modèle de Mack, et aucune garde à seuil n'est ajoutée.
+sont de probabilité nulle dès que la loi conditionnelle des cumuls a une densité (le modèle de
+Mack n'en fixe que les deux premiers moments)~; dans le bootstrap, qui tire dans un vivier fini,
+ils exigent une coïncidence exacte en double précision. Aucune garde à seuil n'est ajoutée.
 \emph{Vérification}~: le test \code{tests/unitaires/}\allowbreak\code{test\_forme\_close\_m1.R}
 fige les $t_j$ et la pente intra-colonne (fiche~\ref{mw:m1}) sur le triangle de contrôle, sur
 ses lignes~$0$ et~$3$ multipliées par $10^{30}$, sa ligne~$0$ multipliée par $10^{-30}$ et par
@@ -13013,8 +13022,10 @@ celui de \code{lm()} croît à peu près linéairement en $n_j$. Mesure de la se
 (\code{mw\_test\_courbure()} appelée sur un triangle simulé de $I$ années, moteurs de
 \code{68360f4} et de la tête de branche, R~4.3.3, machine partagée, ordre de grandeur
 seulement), surcoût extrapolé aux quelque $1\,000$ évaluations d'une exécution à $B = 999$~:
-non mesurable à $I = 8$, $4$~s environ à $I = 10$, $9$~min environ à $I = 30$ et $46$~min
-environ à $I = 40$ (triangle trimestriel de dix ans). Sans effet à $T = 8$~; le coût est
+non mesurable à $I = 8$, quelques secondes au plus à $I = 10$ et~$12$ (de l'ordre du bruit de
+la mesure), de l'ordre de $10$~min à $I = 30$ et de $45$~min à $I = 40$ (triangle trimestriel de
+dix ans~; durée d'un appel multipliée par $1\,000$, script non versionné~; mesures de la
+rédaction~: $9$ et $46$~min~; mesure refaite à la validation~: $13$ et $43$~min). Sans effet à $T = 8$~; le coût est
 accepté, plutôt que de borner $I$ ou de chercher une forme moins coûteuse.
 
 \medskip
