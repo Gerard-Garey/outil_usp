@@ -840,7 +840,10 @@ en dernier élément depuis l'issue~\#125, \code{p\_min\_mc}, plancher Monte-Car
 \code{mw\_bootstrap()} & \code{aj}, $B$ (999), \code{seed} (20260831) &
 \code{stats\_obs}, \code{p\_mc}, \code{err\_mc},
 \code{B\_effectif}, \code{granularite}, \code{sigma\_boot}, \code{B}, \code{granularite\_stat},
-\code{motif\_mc}, et, en dernier depuis l'issue~\#125, \code{p\_min\_mc} \\
+\code{motif\_mc}, depuis l'issue~\#257 \code{cumuls\_retires} (au moins un triangle simulé
+retiré) et \code{plafond\_cumuls} (plafond de \code{FACTEUR\_B\_MAX\_MW}$\,(B+1)$ triangles
+atteint avant $B$ triangles acceptés~: des réplications manquent), et, en dernier depuis
+l'issue~\#125, \code{p\_min\_mc} \\
 \code{usp\_tests()} & \code{fit}, \code{boot}, \code{alpha} (0,10),
 \code{theta\_equiv} (0,10), \code{delta\_equiv}, \code{robustesse} (\code{NULL}),
 \code{lr\_delta} (\code{NULL}~; sortie d'\code{usp\_lr\_delta()}),
@@ -952,7 +955,16 @@ différence $\sum_l x_l - x_k$, qui s'annule en flottant quand $x_k$ domine sa c
 $1 - h_{ij}$) et \code{mw\_influence()} ($S_j - C(i,j)$ et $S'_j - C(i,j+1)$), mêmes opérations
 que les deux formes qu'il remplace \\
 \code{mw\_simuler\_triangle()}, \code{.mw\_stats()} & \code{aj}, vivier de
-résidus~; \code{aj} & triangle simulé~; vecteur de 13 statistiques \\
+résidus~; \code{aj} & triangle simulé, rendu depuis l'issue~\#257 dès le premier cumul simulé non
+strictement positif ou non fini (cellule \code{NA}, colonnes suivantes non tirées)~; vecteur de
+13 statistiques \\
+\code{.mw\_tirer\_triangle\_}\newline\code{valide()},\newline
+\code{.mw\_triangle\_}\newline\code{incomplet()} & \code{aj}, vivier, nombre de tirages restant
+sous le plafond~; triangle simulé & triangle accepté (aucun \code{NA} dans sa partie
+supérieure, \code{.mw\_triangle\_}\allowbreak\code{incomplet()}), nombre de triangles tirés
+et retirés, ou \code{NULL} si le plafond est atteint sans triangle accepté~; acceptation-rejet
+dans le flux de \code{mw\_bootstrap()}, partagée avec les boucles des tests unitaires qui la
+reproduisent (issue~\#257, section~\ref{sec:boot-mw}) \\
 \code{.mw\_pool\_residus()} & \code{aj}, \code{j\_degeneres} & vivier du bootstrap de Mack~:
 résidus retenus par \code{mw\_residus()} (sous forme stable depuis l'issue~\#233), redressés par
 $\sqrt{1 - h_{ij}}$, $1 - h_{ij}$ calculé comme $(S_j - C(i,j))/S_j$, somme des autres cellules
@@ -1075,7 +1087,13 @@ d'enregistrement \code{engine\_registre\_tests()}) \\
 ligne de Monte-Carlo (cas~A, $B_{\text{eff}} < B$ et p-value finie~; cas~B, motif
 \code{MOTIF\_MC\_REPLIC\_INSUFFISANTES}), chaîne vide sinon~; erreur si \code{boot\$B} ou
 \code{boot\$B\_effectif} manque ou n'est pas fini (issue~\#204, fiche~\ref{mw:m1a}) \\
-\code{mw\_parametre()} & \code{aj}, \code{msep} (champ \code{\$msep}),
+\code{.mw\_phrases\_}\newline\code{retirage()} & \code{boot} & phrases fixes
+\code{PHRASE\_MW\_CUMULS\_RETIRES} (si \code{boot\$cumuls\_retires}) puis
+\code{PHRASE\_MW\_PLAFOND\_CUMULS} (si \code{boot\$plafond\_cumuls}), sans nombre issu du
+bootstrap, jointes par \code{mw\_tests()} avant la phrase de l'issue~\#204, chaîne vide sinon~;
+erreur si l'un des deux champs manque ou n'est pas un booléen non \code{NA} (issue~\#257,
+fiche~\ref{mw:m1a}) \\
+\code{mw\_parametre()} &\code{aj}, \code{msep} (champ \code{\$msep}),
 $\sigma_{\text{std}}$, barème & $\sigma_{\mathrm{USP}}$ et ses composantes \\
 \code{mw\_influence()} & \code{aj} & levier, facteur sans la cellule,
 écart relatif de $\hat f_j$, résidu de Mack (\code{NA} sur une colonne dégénérée), DFBETAS
@@ -1500,7 +1518,13 @@ l'état du générateur (l'objet \code{.Random.seed} de l'environnement global) 
   \code{engine\_sous\_graine()}~; à chaque réplication,
   \code{mw\_simuler\_triangle()} tire avec remise, par \code{sample()}, les
   résidus du vivier, redressés par le levier puis recentrés (\code{.mw\_pool\_residus()},
-  issue~\#46, section~\ref{sec:boot-mw}), calculé une fois, sans tirage, avant la boucle. \emph{Portée}~: tous les résultats de Monte-Carlo
+  issue~\#46, section~\ref{sec:boot-mw}), calculé une fois, sans tirage, avant la boucle.
+  Depuis l'issue~\#257, un triangle simulé dont un cumul n'est pas strictement positif ou n'est
+  pas fini est retiré et remplacé par un nouveau tirage (\code{.mw\_tirer\_triangle\_}\allowbreak\code{valide()}),
+  dans le même flux et sous la même graine, au plus \code{FACTEUR\_B\_MAX\_MW}$\,(B+1) =
+  25\,(B+1)$ triangles au total~: le nombre de tirages consommés dépend alors des données, sans
+  source d'aléa nouvelle (ADR~0004, annotation du 13~octobre 2026~; section~\ref{sec:boot-mw}).
+  \emph{Portée}~: tous les résultats de Monte-Carlo
   de la branche Merz--Wüthrich (p-values Monte-Carlo, \code{sigma\_boot} et
   l'intervalle qui en est tiré). \emph{État}~: restauré.
 \item \code{sw\_loi\_nulle()}, appelée par \code{sw\_p\_loi\_nulle()} dans les
@@ -1929,9 +1953,12 @@ conservée lors de la même revue. \emph{Exception bornée} (issue~\#204, décis
 mainteneur du 12~octobre 2026~; ADR~0003, annotation du 12~octobre 2026, point~4)~: les deux
 phrases «~\code{B effectif = \dots{} sur B = \dots}~» que \code{mw\_tests()} pose sur ses lignes de
 Monte-Carlo (fiche~\ref{mw:m1a}, rubrique~5) impriment des entiers de comptage issus
-du bootstrap~; elles seules, et \code{add()} reste soumise entière à la règle. Un compte de réplications finies est un entier, supposé identique d'une plateforme à l'autre
+du bootstrap~; elles seules, et \code{add()} reste soumise entière à la règle. Les deux phrases
+fixes de l'issue~\#257 (\code{PHRASE\_MW\_CUMULS\_RETIRES}, \code{PHRASE\_MW\_PLAFOND\_CUMULS}),
+jointes avant elles, n'impriment aucun nombre issu du bootstrap (seule la formule
+«~\code{25 (B + 1)}~» du plafond y figure)~: elles ne relèvent pas de l'exception. Un compte de réplications finies est un entier, supposé identique d'une plateforme à l'autre
 (\emph{hypothèse}, non mesurée). Cette hypothèse est la moins assurée là où ces phrases
-apparaissent~: une réplication n'est écartée que si sa statistique n'est pas définie, ce qui, dans
+apparaissent~: hors plafond du retirage des triangles simulés (issue~\#257, section~\ref{sec:boot-mw}), une réplication n'est écartée que si sa statistique n'est pas définie, ce qui, dans
 les cas mesurés, tient à une colonne devenue dégénérée au voisinage de la tolérance ($10^{-12}$
 relative~; triangle de l'issue perturbé de $9\cdot 10^{-13}$)~; sur un triangle construit voisin,
 \code{B\_effectif} a varié de $749$ à $537$ puis à $649$ avec les versions du moteur
@@ -2267,7 +2294,8 @@ Paramètre propre $\sigma_{(\text{res},s,\mathrm{USP})}$ & \S\ref{sec:mw} &
 Résidus standardisés de Mack & \S\ref{sec:mw} & \code{mw\_residus()} &
 sans objet & --- \\
 Bootstrap semi-paramétrique & \S\ref{sec:boot-mw} & \code{mw\_bootstrap()}
-(via \code{.mw\_pool\_residus()}, \code{mw\_simuler\_triangle()} et \code{.mw\_stats()}) &
+(via \code{.mw\_pool\_residus()}, \code{mw\_simuler\_triangle()} et \code{.mw\_stats()}~;
+retirage par \code{.mw\_tirer\_triangle\_}\allowbreak\code{valide()}, issue~\#257) &
 sans objet & toutes les clés ci-dessus \\
 Leviers, DFBETA et DFBETAS du triangle & \ref{mw:influence} & \code{mw\_influence()} &
 diagnostic, aucune p-value & --- \\
@@ -3781,10 +3809,16 @@ point~(ii), où la raison est donnée pour chacune des trois voies).
 phrase \code{PHRASE\_VERDICT\_SENSIBLE\_MC}, sans changement de p-value ni de verdict
 (section~\ref{sec:nature}, «~Verdict sensible à l'aléa de simulation~», où sont donnés la
 condition, les seuils retenus et ce que vaut ce signalement).
-\emph{(c) Méthode Merz--Wüthrich, $B$ effectif inférieur à $B$} (issue~\#204)~: le commentaire des
-lignes de Monte-Carlo de \code{mw\_tests()} porte alors la phrase «~\code{B effectif = \dots{} sur B
-= \dots}~», seule exception à la règle selon laquelle aucun nombre issu du bootstrap n'entre dans
-un commentaire (fiche~\ref{mw:m1a}, rubrique~5, «~Restitution de $B$ effectif inférieur à $B$~»).
+\emph{(c) Méthode Merz--Wüthrich, triangles simulés retirés et $B$ effectif inférieur à $B$}
+(issues~\#257 et~\#204)~: si des triangles simulés à cumul non strictement positif ont été
+retirés, le commentaire des lignes de Monte-Carlo de \code{mw\_tests()} porte la phrase fixe
+\code{PHRASE\_MW\_CUMULS\_RETIRES}, suivie, si le plafond de tirages est atteint, de
+\code{PHRASE\_MW\_PLAFOND\_CUMULS}~; ces deux phrases ne portent aucun nombre issu du bootstrap
+(«~\code{25 (B + 1)}~» est la formule du plafond). Si $B_{\text{eff}} < B$, la phrase
+«~\code{B effectif = \dots{} sur B = \dots}~» les suit~; elle est la seule exception à la règle
+selon laquelle aucun nombre issu du bootstrap n'entre dans un commentaire (fiche~\ref{mw:m1a},
+rubrique~5, «~Restitution de $B$ effectif inférieur à $B$~»). La phrase de l'issue~\#244 reste la
+dernière.
 
 \emph{p-value conditionnelle au régime de $\hat\delta$} (branche lognormale, issue~\#240,
 ADR~0014, variante V3h de la section~\ref{sec:calibration-mc}). Le régime de $\hat\delta$ est lu
@@ -4019,18 +4053,93 @@ simulée)~: six de ces verdicts y
 entrent sur le sous-triangle de Taylor \& Ashe dont la ligne~$0$ est multipliée par $10^{-15}$ ou
 $10^{-17}$ (\code{B\_effectif} de $96$ à $38$, et de $91$ à $33$), trois en sortent sur le
 triangle de contrôle dont la ligne~$0$ est multipliée par $10^{-17}$ (de $47$ à $78$)~; ceux-là
-relèvent aussi de la limite non levée ci-dessous. \emph{Limite non levée.} La correction ne règle pas la perte de réplications quand une
+relèvent aussi de la limite décrite ci-dessous, levée depuis par l'issue~\#257. \emph{Limite
+que l'issue~\#233 ne levait pas.} Cette correction ne réglait pas la perte de réplications quand une
 ligne a un poids négligeable~: l'écart-type $\sigma_j\sqrt{C(i,j)}$ du terme aléatoire de ses
-cumuls simulés domine alors leur espérance $f_j\,C(i,j)$, et une réplication dont un cumul simulé n'est pas strictement positif est
-écartée (\code{mw\_simuler\_triangle()}), de sorte que \code{B\_effectif} dépend du signe des
-tirages. Ce n'est pas un effet de précision, mais une fragilité du bootstrap, signalée hors de
-l'issue. Mesuré (\code{mw\_bootstrap()}, $B = 999$, graine 20260831) sur le sous-triangle de
-Taylor \& Ashe dont la ligne~$0$ est multipliée par $10^{-15}$ ($\sigma_j\sqrt{C(0,j)}$ y dépasse
-$f_j\,C(0,j)$ d'un facteur de $8{,}5\cdot 10^{5}$ à $6{,}7\cdot 10^{6}$ sur les cinq premières
-colonnes)~: \code{B\_effectif} de $96$ avec le moteur antérieur à l'issue et de $38$ avec le
-moteur actuel, toutes les réplications perdues l'étant par un cumul simulé non positif de la
-ligne~$0$ ($903$, puis $961$)~; la correction change les résidus de cette ligne, donc le vivier,
-mais ne crée pas la fragilité.
+cumuls simulés domine alors leur espérance $f_j\,C(i,j)$, et une réplication dont un cumul simulé
+n'était pas strictement positif était écartée (\code{mw\_simuler\_triangle()}), de sorte que
+\code{B\_effectif} dépendait du signe des tirages. Ce n'est pas un effet de précision, mais une
+fragilité du bootstrap, signalée hors de l'issue (issue~\#257). Mesuré (\code{mw\_bootstrap()},
+$B = 999$, graine 20260831) sur le sous-triangle de Taylor \& Ashe dont la ligne~$0$ est
+multipliée par $10^{-15}$ ($\sigma_j\sqrt{C(0,j)}$ y dépasse $f_j\,C(0,j)$ d'un facteur de
+$8{,}5\cdot 10^{5}$ à $6{,}7\cdot 10^{6}$ sur les cinq premières colonnes)~: \code{B\_effectif}
+de $96$ avec le moteur antérieur à l'issue~\#233 et de $38$ avec le moteur de cette issue, toutes
+les réplications perdues l'étant par un cumul simulé non positif de la ligne~$0$ ($903$, puis
+$961$)~; la correction changeait les résidus de cette ligne, donc le vivier, mais ne créait pas la
+fragilité.
+
+\emph{Retirage des triangles simulés à cumul non strictement positif} (issue~\#257, option A1,
+décisions D1-1 à D1-4 du mainteneur du 13~octobre 2026~; ADR~0004, annotation du 13~octobre
+2026). Le modèle de Mack n'est défini que pour des cumuls strictement positifs (variance
+proportionnelle à $C(i,j)$)~: un cumul simulé non positif sort de son support. Depuis l'issue,
+\code{mw\_simuler\_triangle()} rend le triangle dès le premier cumul simulé non strictement
+positif ou non fini (\code{+Inf} compris), cellule à \code{NA} et colonnes suivantes non
+tirées~: aucune racine carrée d'un cumul négatif n'est plus calculée, et l'avertissement~R
+«~\code{NaNs produced}~», qu'émettait auparavant la colonne suivante, disparaît. Pour chaque
+réplication, \code{mw\_bootstrap()} retire alors le triangle entier et en tire un autre
+(\code{.mw\_tirer\_triangle\_}\allowbreak\code{valide()}), dans le même flux et sous la même
+graine, jusqu'à un triangle dont tous les cumuls simulés sont strictement positifs et finis,
+avec un plafond de \code{FACTEUR\_B\_MAX\_MW}$\,(B+1) = 25\,(B+1)$ triangles tirés au total,
+retirés compris (constante distincte de \code{FACTEUR\_B\_MAX\_REGIME}, de même valeur). Au
+plafond, les réplications restantes manquent (statistiques \code{NA}). Les échecs de
+\code{mw\_ajuster()} ou du calcul des statistiques sur un triangle accepté ne sont pas
+retirés~: ils restent des statistiques non finies, hors de $B_{\text{eff}}$. \emph{Loi de
+référence.} Par l'argument élémentaire de l'acceptation-rejet, les triangles acceptés sont
+indépendants et de même loi, celle du triangle simulé sachant que tous ses cumuls sont
+strictement positifs~; c'était déjà la loi de référence avant l'issue, où la réplication était
+écartée. La p-value de Monte-Carlo reste donc conditionnelle à la positivité des cumuls simulés,
+sa loi de référence et son niveau limite ($B \to \infty$) sont inchangés, et seule son erreur de
+Monte-Carlo diminue, $B_{\text{eff}}$ valant $B$ hors plafond et hors statistique non finie.
+Statut~: argument élémentaire, sans référence~; le niveau de ces p-values sur un plan à ligne de
+poids faible n'est mesuré sous aucune option (constat de la spécification de la branche, non
+levé). Les options écartées --- retirage cellule par cellule, qui change la loi de référence~;
+troncature des cumuls, sans fondement~; loi positive de mêmes deux premiers moments, qui
+abandonne le rééchantillonnage des résidus et rend encore des cumuls nuls en double précision
+--- sont comparées dans la spécification de la branche
+(\code{docs/specifications/}\allowbreak\code{e2d-merz-wuthrich-replications-definitions.md}, §~2).
+\emph{Traçabilité}~: deux booléens, \code{bootstrap\$cumuls\_retires} (au moins un triangle
+simulé retiré) et \code{bootstrap\$plafond\_cumuls} (plafond atteint avant $B$ triangles
+acceptés~: des réplications manquent), et deux phrases fixes, sans nombre issu du bootstrap,
+jointes aux lignes de Monte-Carlo (fiche~\ref{mw:m1a}, rubrique~5)~; le nombre de triangles
+retirés n'est pas restitué. \emph{Effet.} Le triangle de contrôle, son sous-triangle
+$5\times5$ et le sous-triangle $8\times8$ de Taylor \& Ashe ne peuvent tirer aucun cumul non
+positif, quelle que soit la graine~: avec $m < 0$ le plus petit résidu du vivier, la borne
+inférieure itérée $L(i,j+1) = \hat f_j\,L(i,j) + \hat\sigma_j\,m\sqrt{L(i,j)}$, partie de la
+première colonne, reste positive et dans la zone où elle croît (marge minimale
+$\hat f_j\sqrt{L}/(\hat\sigma_j|m|)$ de $37{,}7$ sur le triangle de contrôle et de $2{,}91$ sur
+le sous-triangle de Taylor \& Ashe, au-dessus de $1/2$ sur le sous-triangle $5\times5$~; test
+T257-2 de \code{tests/unitaires/}\allowbreak\code{test\_retirage\_mw.R}). Sur \code{reserve2},
+toutes les valeurs numériques sont identiques au bit près, et les deux booléens, à
+\code{FALSE}, ont été posés dans la référence par patch chirurgical
+(\code{tests/patcher\_reference.R}), sans régénération. Mesuré hors des références
+(\code{mw\_bootstrap()}, graine 20260831, moteurs de \code{ecb5b04} et de la tête de branche)~:
+sur le sous-triangle de Taylor \& Ashe dont la ligne~$0$ est multipliée par $10^{-15}$
+($B = 999$), \code{B\_effectif} passe de $38$ à $999$~; par $10^{-17}$, de $33$ à $839$, plafond
+atteint~; dont la ligne~$4$ est multipliée par $0{,}03$, $0{,}01$ et $0{,}003$ ($B = 199$), de
+$151$, $121$ et $84$ à $199$~; les avertissements «~\code{NaNs produced}~» ($961$, $966$, $43$,
+$67$ et $89$ auparavant) disparaissent.
+
+\emph{Triangle de contrôle dont la ligne~$0$ est multipliée par $10^{-14}$} (\code{run\_engine()},
+graine 20260831, moteurs de \code{ecb5b04} et de la tête de branche). Avant l'issue, à $B = 999$,
+$B_{\text{eff}} = 81$ sur les treize statistiques, et le commentaire de chaque ligne de
+Monte-Carlo attribuait les $918$ réplications écartées à une «~\code{statistique non finie}~»,
+alors qu'elles l'étaient par un cumul simulé non positif~; à $B = 199$, $B_{\text{eff}} = 17$, sous
+\code{B\_MIN\_DEGENERESCENCE}, et les lignes de Monte-Carlo étaient sans verdict (\code{INFO}). Depuis, $B_{\text{eff}} = B$. À $B = 999$, la pente
+intra-colonne (fiche~\ref{mw:m1}) et l'effet calendaire (fiche~\ref{mw:m3cal}) restent en
+\code{ECHEC}, au plancher de leur p-value de Monte-Carlo ($2/(B_{\text{eff}}+1)$ et
+$p_{\min}^{\mathrm{MC}}$~: $0{,}024$ avant, $0{,}002$ après)~; à $B = 199$, ils sont en
+\code{ECHEC} à $0{,}010$. Ces deux rejets détectent une ligne de poids infime, incompatible avec
+l'hypothèse de variance de Mack~: ce sont des constats sur un triangle construit, non un résultat
+réglementaire. Durbin--Watson (fiche~\ref{mw:m3dw}) passe d'\code{ALERTE} ($p = 0{,}073$,
+$B_{\text{eff}} = 81$) à \code{OK} à $B = 999$, avec $p = 0{,}100$ exactement, au seuil
+$\alpha = 0{,}10$ (la règle des verdicts est stricte, $p < \alpha$), erreur de Monte-Carlo
+$0{,}014$ et phrase de l'issue~\#244~; à $B = 199$, la même ligne est en \code{ALERTE}
+($p = 0{,}070$). La courbure (fiche~\ref{mw:m1c}) se comporte de même~: \code{ALERTE} à $B = 199$
+($p = 0{,}095$), \code{OK} à $B = 999$ ($p = 0{,}111$, phrase de l'issue~\#244). Ces deux verdicts
+sont donc indéterminés à la précision de Monte-Carlo~: l'écart entre $B = 199$ et $B = 999$ est
+une erreur de Monte-Carlo (fonction de $B$), sous une loi de référence inchangée, et non un effet
+de $T$. Réserve d'\code{actuary}~; changement approuvé par le mainteneur le 13~octobre 2026.
+$\sigma_{\mathrm{USP}}$ est inchangé ($0{,}04440281$).
 
 \begin{encadre}
 \textbf{Limite structurelle du rééchantillonnage de résidus.} Cette procédure
@@ -12456,7 +12565,11 @@ alternative où le facteur dépend linéairement du volume, citée par les versi
 venait d'une simulation sans script versionné et d'intensité inconnue~; elle est retirée. Il ne
 dit pas, en revanche, quelle
 colonne est en cause~: c'est le rôle du test par colonne et du graphique en
-petits multiples.
+petits multiples. Sur le triangle de contrôle dont la ligne~$0$ est multipliée par $10^{-14}$, la
+ligne est en \code{ECHEC} au plancher de sa p-value de Monte-Carlo, à $B = 199$ comme à
+$B = 999$~: elle détecte une ligne de poids infime, incompatible avec l'hypothèse de variance de
+Mack, constat sur un triangle construit et non résultat réglementaire (section~\ref{sec:boot-mw},
+issue~\#257).
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $t$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{PenteIntra}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
@@ -12590,7 +12703,22 @@ phrase. Aucune phrase pour \code{MOTIF\_MC\_AUCUNE\_REPLIC} (le motif dit déjà
 \code{.mw\_phrase\_b\_effectif()} lève une erreur~: le nombre imprimé n'est jamais deviné. Ce
 qu'ajoute ensuite \code{add()} (mention du plancher, phrase de l'issue~\#244) suit la phrase.
 C'est la seule exception à la règle selon laquelle aucun nombre issu du bootstrap n'entre dans un
-commentaire (issue~\#76~; section~\ref{sec:graines}). \emph{Statut}~: la loi de référence devient
+commentaire (issue~\#76~; section~\ref{sec:graines}). \emph{Phrases du retirage des triangles
+simulés} (issue~\#257, décisions D1-3 et D1-4 du mainteneur du 13~octobre 2026~;
+section~\ref{sec:boot-mw}). Sur les mêmes lignes, \code{mw\_tests()} joint d'abord, par
+\code{.mw\_phrases\_}\allowbreak\code{retirage()}, si \code{bootstrap\$cumuls\_retires} est vrai,
+la phrase «~\code{Triangles simules a cumul non strictement positif ecartes et remplaces par un
+nouveau tirage~: p-value Monte-Carlo conditionnelle a la positivite des cumuls simules.}~»
+(\code{PHRASE\_MW\_CUMULS\_RETIRES}), puis, si \code{bootstrap\$plafond\_cumuls} est vrai, la
+phrase «~\code{Plafond de 25 (B + 1) triangles simules atteint~: des replications manquent faute
+de triangle simule a cumuls strictement positifs.}~» (\code{PHRASE\_MW\_PLAFOND\_CUMULS})~; la
+phrase de l'issue~\#204 vient ensuite, celle de l'issue~\#244 reste la dernière. Ni l'une ni l'autre
+ne porte de nombre issu du bootstrap. Depuis l'issue~\#257, hors plafond, un triangle simulé à
+cumul non strictement positif ne fait plus perdre de réplication~: le cas~A ne paraît plus que pour
+des statistiques non finies, et sa parenthèse «~\code{statistique non finie}~» est exacte. Au
+plafond, les réplications manquantes ont une statistique \code{NA} et sont comptées, comme les
+statistiques non finies, dans les réplications écartées de la phrase de l'issue~\#204, que la
+phrase du plafond précède et explique (décision D1-4~: texte de l'issue~\#204 inchangé). \emph{Statut}~: la loi de référence devient
 celle de la statistique \emph{sachant qu'elle est définie}~; aucun résultat ne garantit l'absence
 de biais de cette sélection, et la phrase le dit sans corriger la p-value. Mesuré par
 \code{mw\_bootstrap()} et \code{mw\_tests()} (graine 20260831) sur le triangle de Taylor \& Ashe
@@ -13485,7 +13613,10 @@ p-value de Monte-Carlo exclusivement.
 Complément aux deux tests précédents~: l'ordre de parcours étant conventionnel,
 un rejet est plus difficile à interpréter que pour une série chronologique. Il
 faut alors se reporter aux graphiques des résidus par année de survenance, de
-développement et calendaire, qui localisent la structure.
+développement et calendaire, qui localisent la structure. Sur un triangle construit (triangle de
+contrôle dont la ligne~$0$ est multipliée par $10^{-14}$), le verdict est \code{ALERTE} à
+$B = 199$ et \code{OK} à $B = 999$, avec une p-value égale au seuil~: il est indéterminé à la
+précision de Monte-Carlo (section~\ref{sec:boot-mw}, issue~\#257).
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $DW$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{DW}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
@@ -14687,7 +14818,11 @@ générateur du moteur~; sortie \code{docs/tableaux/}\newline
 \code{docs/tableaux/}\newline \code{20261011-issue206-journal-mesure.md} et
 \code{docs/tableaux/}\newline \code{20261011-issue206-journal-combinaison.md}~; les mesures de
 l'issue~\#119 tirées des mêmes triangles sont dans \code{docs/tableaux/}\newline
-\code{20261011-issue119-mw.md}, section~\ref{sec:calib-asympt-mw}). Contrôles~: le triangle de
+\code{20261011-issue119-mw.md}, section~\ref{sec:calib-asympt-mw}). La mesure est antérieure à
+l'issue~\#257~: le générateur des triangles du plan (\code{gen\_triangle\_h0()} du script) ne
+retire pas les triangles simulés à cumul non strictement positif comme le fait désormais
+\code{mw\_bootstrap()} (section~\ref{sec:boot-mw})~; son alignement, avant toute relance de la
+mesure, est suivi par l'issue~\#271. Contrôles~: le triangle de
 contrôle traité par le script est identique à sa référence de non-régression~; aucun triangle
 refusé, aucune p-value de Monte-Carlo absente~; $B$ effectif de 999 partout, sauf $998$ pour
 $0{,}004~\%$ des couples (triangle, statistique) sous E.
@@ -15342,9 +15477,13 @@ Merz--Wüthrich~: résidus standardisés de Mack (§\ref{sec:mw}) &
 stable, issue~\#233) \\
 Merz--Wüthrich~: bootstrap semi-paramétrique et p-values de Monte-Carlo
 (§\ref{sec:boot-mw}) & \code{mw\_bootstrap()}, \code{.mw\_pool\_residus()} (vivier redressé
-par le levier, issue~\#46), \code{mw\_simuler\_triangle()}, \code{.mw\_stats()} \\
+par le levier, issue~\#46), \code{mw\_simuler\_triangle()}, \code{.mw\_stats()}~; retirage
+des triangles simulés à cumul non strictement positif par
+\code{.mw\_tirer\_triangle\_}\allowbreak\code{valide()}, plafond \code{FACTEUR\_B\_MAX\_MW}
+(issue~\#257) \\
 Merz--Wüthrich~: tests et diagnostics M1 à M6 (sections~\ref{sec:mwm1}
-à~\ref{sec:mwm6}) & \code{mw\_tests()}~; phrase de $B$ effectif inférieur à $B$ par \code{.mw\_phrase\_b\_effectif()}
+à~\ref{sec:mwm6}) & \code{mw\_tests()}~; phrases du retirage par
+\code{.mw\_phrases\_}\allowbreak\code{retirage()} (issue~\#257)~; phrase de $B$ effectif inférieur à $B$ par \code{.mw\_phrase\_b\_effectif()}
 (issue~\#204) \\
 Merz--Wüthrich~: leviers, DFBETA, DFBETAS et contributions par année de survenance
 (fiche~\ref{mw:influence}) & \code{mw\_influence()}, \code{mw\_contributions()} \\
@@ -15371,7 +15510,7 @@ laquelle passent toutes les sources~: \code{usp\_bootstrap()} (tirages de
 \code{usp\_simuler()}, et, depuis l'issue~\#240, flux complémentaire sous la graine
 d'\code{usp\_graine\_flux\_regime()}, constante \code{DECALAGE\_GRAINE\_FLUX\_REGIME}, consignée
 dans \code{\$metadata\$seed\_flux\_regime}), \code{mw\_bootstrap()} (tirages de
-\code{mw\_simuler\_triangle()}),\newline \code{sw\_loi\_nulle()}, \code{usp\_lr\_delta()}
+\code{mw\_simuler\_triangle()}, retirage compris depuis l'issue~\#257, dans le même flux),\newline \code{sw\_loi\_nulle()}, \code{usp\_lr\_delta()}
 (issue~\#45), \code{usp\_permutation\_pente()} (issue~\#169)~; \code{engine\_plots\_data()} ne tire plus rien depuis l'issue~\#47, ni
 \code{engine\_ecrire\_xlsx()} et \code{engine\_lire\_xlsx()} depuis l'issue~\#42~; générateur
 fixé \code{ENGINE\_RNG\_KIND} et graine fixe \code{SEED\_LOI\_NULLE\_SW}, consignés dans
