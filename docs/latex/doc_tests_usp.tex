@@ -945,12 +945,19 @@ colonne & vecteur des $F(i,j) - \hat f_j$ par l'identité exacte
 $\sum_{k \neq i} C(k,j)\big(F(i,j) - F(k,j)\big)/S_j$, sans annulation pour une cellule dominante,
 sommes par \code{sum()}~; employé par \code{mw\_residus()} et \code{mw\_influence()}
 (issue~\#233, section~\ref{sec:boot-mw}) \\
+\code{.mw\_sommes\_}\newline\code{autres()} & vecteur $x$ des cellules d'une colonne & vecteur
+des $\sum_{l \neq k} x_l$, somme directe par \code{sum()} des $n - 1$ autres valeurs, sans la
+différence $\sum_l x_l - x_k$, qui s'annule en flottant quand $x_k$ domine sa colonne
+(issue~\#233)~; partagé depuis l'issue~\#260 par \code{.mw\_pool\_residus()} (numérateur de
+$1 - h_{ij}$) et \code{mw\_influence()} ($S_j - C(i,j)$ et $S'_j - C(i,j+1)$), mêmes opérations
+que les deux formes qu'il remplace \\
 \code{mw\_simuler\_triangle()}, \code{.mw\_stats()} & \code{aj}, vivier de
 résidus~; \code{aj} & triangle simulé~; vecteur de 13 statistiques \\
 \code{.mw\_pool\_residus()} & \code{aj}, \code{j\_degeneres} & vivier du bootstrap de Mack~:
 résidus retenus par \code{mw\_residus()} (sous forme stable depuis l'issue~\#233), redressés par
 $\sqrt{1 - h_{ij}}$, $1 - h_{ij}$ calculé comme $(S_j - C(i,j))/S_j$, somme des autres cellules
-divisée par $S_j$, puis recentrés (issue~\#46, section~\ref{sec:boot-mw}) \\
+divisée par $S_j$ (sommes par \code{.mw\_sommes\_autres()}, une fois par colonne depuis
+l'issue~\#260), puis recentrés (issue~\#46, section~\ref{sec:boot-mw}) \\
 \code{mw\_test\_*()}, \code{mw\_famille\_alpha()},
 \code{mw\_stat\_correlation\_dev()} & \code{aj}~; argument \code{j\_degeneres} des trois
 vérifications colonne par colonne de M1 et, depuis l'issue~\#60, de
@@ -982,11 +989,20 @@ lignes), refuse par une erreur un bloc dont les colonnes n'ont pas toutes la mê
 recyclage), et les noms de lignes sont lus sur \code{rbind()} itéré lui-même, et non recalculés~;
 \code{do.call(rbind, \ldots)} n'est pas retenu, car il peut rendre d'autres noms que
 \code{rbind()} itéré (vérifié par\newline \code{tests/unitaires/test\_tables\_mw.R})~; objets de \code{run\_engine()}
-des cinq cas de référence de nouveau identiques avant et après \\
+des cinq cas de référence de nouveau identiques avant et après. Depuis l'issue~\#260,
+\code{mw\_influence()} empile aussi ses blocs par \code{.mw\_empiler()}, noms de lignes lus sur
+$C(i,j)$, au lieu d'un \code{data.frame()} construit bloc à bloc~: objets de
+\code{run\_engine()} des six cas de référence identiques avant et après (hors horodatage et
+durée d'exécution)~; sur un triangle dont un nom de ligne vaut \code{NA}, le refus par une
+erreur R est inchangé (même message), seul l'appel en cause change (issue~\#268) \\
 \code{.mw\_spearman()},\newline \code{.mw\_spearman\_p()},\newline \code{.fisher\_combine()} & deux vecteurs (le premier déjà
 aplati), \code{plancher\_b} (1)~; p-values de colonne & corrélation de rang $\hat\rho_s$ et p-value
-bilatérale de Spearman d'une colonne, tirées d'un seul appel à \code{cor.test()}
-(\code{.mw\_spearman()}, issue~\#239~; \code{.mw\_spearman\_p()}, qui en rend la seule p-value,
+bilatérale de Spearman d'une colonne, tirées d'un seul appel de \code{.mw\_spearman()}
+(issue~\#239), qui appelle \code{cor.test()} au plus une fois~: depuis l'issue~\#260, sur le
+chemin énuméré avec ex \ae quo ($n \le 9$, sans valeur manquante), où seule l'estimation de
+\code{cor.test()} était lue, $\hat\rho_s$ est calculé par la même formule,
+\code{cor(rank(a), rank(b))}, sans appel à \code{cor.test()}, qui reste appelée en présence d'une
+valeur manquante (paires incomplètes retirées)~; \code{.mw\_spearman\_p()}, qui en rend la seule p-value,
 n'est plus appelée que par les tests unitaires), celle-ci
 dans $[2/n!, 1]$ (loi de permutation à $n \le 9$, énumérée par \code{cor.test()} sans ex \ae quo
 et conditionnelle aux rangs moyens avec ex \ae quo depuis l'issue~\#207~; approximation de Student
@@ -1046,8 +1062,9 @@ $\sigma_{\text{std}}$, barème & $\sigma_{\mathrm{USP}}$ et ses composantes \\
 écart relatif de $\hat f_j$, résidu de Mack (\code{NA} sur une colonne dégénérée), DFBETAS
 et son repère de lecture $2/\sqrt{n_j}$, par cellule, booléen de coloration
 \code{fort\_dfbetas} et booléen \code{dfbetas\_non\_borne} (issue~\#89)~; facteur sans la
-cellule et $1 - h$ tirés des sommes des autres cellules, écarts au facteur sous forme stable
-(issue~\#233, fiche~\ref{mw:influence}) \\
+cellule et $1 - h$ tirés des sommes des autres cellules (\code{.mw\_sommes\_autres()} depuis
+l'issue~\#260), écarts au facteur sous forme stable (issue~\#233, fiche~\ref{mw:influence})~;
+table empilée par \code{.mw\_empiler()} depuis l'issue~\#260 \\
 \code{mw\_contributions()} & \code{aj}, \code{msep} (sortie de
 \code{mw\_msep()}) & parts de chaque année de survenance dans la réserve et
 dans le terme de variance de processus \\
@@ -12611,19 +12628,21 @@ Dans chaque colonne $j$ comptant au moins quatre observations, on mesure la
 corrélation de rang entre les facteurs individuels $F(i,j)$ et l'indice $i$ de
 l'année de survenance. Hypothèses non testées~: continuité, absence d'ex
 \ae quo~; des facteurs égaux à \code{TOL\_EX\_AEQUO} près sont traités en ex \ae quo, aplatis au
-plancher~0 avant \code{cor.test()} (issue~\#152, §\ref{sec:ex-aequo}).
+plancher~0 avant le calcul de la corrélation de rang (issue~\#152, §\ref{sec:ex-aequo}).
 \Hzero
 $H_0$ : le facteur $f_j$ est \emph{commun à toutes les années de survenance}~;
 les facteurs individuels ne présentent aucune tendance en $i$.
 \Stat
 $\hat\rho_{s,j}$ par colonne (celui de \code{cor.test()}), de p-value bilatérale $p_j$
 (issue~\#90, décisions du mainteneur du 6~octobre 2026), $\hat\rho_{s,j}$ et $p_j$ étant tirés
-d'un seul appel à \code{cor.test()} (\code{.mw\_spearman()}, issue~\#239)~: à $n_j \le 9$ sans ex \ae quo, loi de permutation de $\hat\rho_{s,j}$ énumérée par
+d'un seul appel de \code{.mw\_spearman()} (issue~\#239), qui appelle \code{cor.test()} au plus
+une fois (aucune sur le chemin énuméré avec ex \ae quo depuis l'issue~\#260, ci-dessous)~: à $n_j \le 9$ sans ex \ae quo, loi de permutation de $\hat\rho_{s,j}$ énumérée par
 \code{cor.test(exact = TRUE)}~; à $n_j \le 9$ avec ex \ae quo (au sens de la
 section~\ref{sec:ex-aequo}~: égalité au bit près après aplatissement), depuis l'issue~\#207
 (décisions du mainteneur Q-E2c-3 et Q-E2c-4 du 11~octobre 2026), loi de permutation
 \emph{conditionnelle aux rangs moyens observés}, $\hat\rho_{s,j}$ restant celui de
-\code{cor.test()}. Avec $A_i$ et $B_i$ les doubles des rangs moyens des deux variables, entiers,
+\code{cor.test()}, calculé depuis l'issue~\#260 par sa formule, \code{cor(rank(a), rank(b))},
+sans appel à \code{cor.test()}, dont la p-value n'est pas lue sur ce chemin. Avec $A_i$ et $B_i$ les doubles des rangs moyens des deux variables, entiers,
 $\hat\rho_{s,j}$ est une fonction affine strictement croissante de
 $S(\pi) = \sum_i A_i B_{\pi(i)}$, et la loi de $S$ sous $\pi$ uniforme sur les $n_j!$ permutations
 est comptée exactement, en entiers, par programmation dynamique sur les sous-ensembles
@@ -12941,8 +12960,9 @@ $H_0$ : l'amplitude des résidus standardisés ne dépend pas de $C(i,j)$ à
 l'intérieur d'une colonne, ce qui est la traduction directe de
 $\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$.
 \Stat
-$\hat\rho_{s,j}$ par colonne, de p-value bilatérale $p_j$, tirés d'un seul appel à \code{cor.test()}
-(\code{.mw\_spearman()}, issue~\#239), $p_j$ selon la règle de la fiche~\ref{mw:m1b} (issue~\#90, étendue à cette
+$\hat\rho_{s,j}$ par colonne, de p-value bilatérale $p_j$, tirés d'un seul appel de
+\code{.mw\_spearman()} (issue~\#239~; sans appel à \code{cor.test()} sur le chemin énuméré avec
+ex \ae quo depuis l'issue~\#260), $p_j$ selon la règle de la fiche~\ref{mw:m1b} (issue~\#90, étendue à cette
 ligne par décision du mainteneur du 6~octobre 2026~; avec ex \ae quo à $n_j \le 9$, loi
 conditionnelle aux rangs moyens des deux variables, issue~\#207~; les cumuls, déjà aplatis, le sont une
 seconde fois au plancher~0, sans effet), puis combinaison des $K$ p-values par Fisher,
