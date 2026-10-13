@@ -24,6 +24,10 @@
 #  regressions auxiliaires calculees par QR depuis #237 (contre_*(), en fin
 #  de fichier), lue par tests/unitaires/test_regressions_qr.R et par les
 #  controles (h1), (i1) et (v3a) de p_conditionnelle_regime_t8.R.
+#  Porte enfin la transcription de la variante V3h de la p-value
+#  Monte-Carlo de usp_bootstrap() (rejeu_p_mc_v3h(), #262), lue par
+#  puissance_t8.R et comparer_ajusteurs_bootstrap.R, qui rejouent la boucle
+#  du bootstrap.
 ###############################################################################
 
 # Repertoire racine du depot : les scripts peuvent etre lances depuis la
@@ -726,6 +730,80 @@ inserer_t0 <- function(lignes, ajout) {
   fin <- t[1]
   while (fin < length(lignes) && startsWith(lignes[fin + 1L], "|")) fin <- fin + 1L
   append(lignes, ajout, after = fin)
+}
+
+# --- Variante V3h de la p-value Monte-Carlo, rejouee hors du moteur (#262) ---
+# Pour les scripts hors CI qui rejouent la boucle de usp_bootstrap() sans
+# l'appeler (tests/puissance_t8.R, chaine() ; tests/comparer_ajusteurs_
+# bootstrap.R, p_mc_ajusteurs()) : meme choix de variante et meme calcul que
+# usp_bootstrap() (issue #240, ADR 0014), le reajustement etant toujours
+# fait (refit = TRUE). A delta estime interieur et volumes non constants :
+# V3b, p-value sur les tirages retenus de la boucle dont delta** est
+# interieur, dans l'ordre de b, completes par un flux distinct sous
+# engine_sous_graine(usp_graine_flux_regime(seed)) jusqu'a B tirages retenus
+# ou B_max = FACTEUR_B_MAX_REGIME (B + 1) tirages, ceux de la boucle compris ;
+# un tirage du flux est ecarte si son reajustement echoue ou rend un delta
+# non fini, si delta** est au bord, ou si ses statistiques echouent ; motif
+# MOTIF_MC_REGIME_RARE substitue comme dans le moteur. Sinon V1 :
+# .mc_p_values() sur les B tirages de la boucle. Conditions du catalogue
+# evaluees sur le contexte observe e_obs dans les deux cas.
+#   sim       : matrice B x statistiques de la boucle (ligne NA si le tirage
+#               n'est pas retenu) ; colonnes : statistiques calculees ;
+#   retenu    : tirages retenus par la boucle (reajustement et statistiques) ;
+#   delta     : delta** des tirages (NA si non reajuste) ;
+#   stats_obs : statistiques observees (nommees, au moins colnames(sim)) ;
+#   seed      : graine de la boucle (celle de usp_bootstrap()) ;
+#   reajuster(yb) : reajustement d'un tirage du flux (defaut : celui du
+#               moteur, usp_ajuster_rapide() depuis l'optimum) ;
+#   evaluer(yb, f) : statistiques colnames(sim) d'un tirage du flux reajuste
+#               (defaut : .stats_bootstrapables(), catalogue complet).
+# Rend la liste de .mc_p_values() (p_mc, err_mc, B_effectif, granularite,
+# motif_mc, p_min_mc) et p_mc_regime (variante "V1" ou "V3b" ; sous V3b,
+# retenus de la boucle, retenus au total, tirages et arret, comme
+# usp_bootstrap()), dont usp_tests() lit la variante (nature de la p).
+# Mesure : sur J2 (xi, yi de tests/unitaires/test_controles_numeriques.R),
+# B = 99, graine 20260831, p_mc, err_mc, B_effectif, granularite, motif_mc
+# et p_min_mc identical() a ceux de usp_bootstrap() (V3b, 99 retenus, 510
+# tirages).
+rejeu_p_mc_v3h <- function(fit, sim, retenu, delta, stats_obs, e_obs, B, seed,
+                           reajuster = function(yb) usp_ajuster_rapide(fit$x, yb, fit$delta, fit$gamma),
+                           evaluer = function(yb, f) .stats_bootstrapables(fit$x, yb, f$z, f$pi)) {
+  noms <- colnames(sim)
+  # retenu et delta indexes comme les lignes de sim (tirage b de la boucle)
+  stopifnot(length(retenu) == nrow(sim), length(delta) == nrow(sim))
+  reg <- usp_regime(fit$delta, fit$x)
+  if (reg$delta_au_bord || reg$volumes_constants)
+    return(c(.mc_p_values(sim, stats_obs, USP_CATALOGUE_MC, e_obs),
+             list(p_mc_regime = list(variante = "V1"))))
+  interieur <- function(d) is.finite(d) && !usp_regime(d, fit$x)$delta_au_bord
+  int_v1 <- retenu & vapply(delta, interieur, logical(1))
+  B_max <- FACTEUR_B_MAX_REGIME * (as.numeric(B) + 1)
+  S <- matrix(NA_real_, B, length(noms), dimnames = list(NULL, noms))
+  a <- sum(int_v1)
+  if (a > 0) S[seq_len(a), ] <- sim[int_v1, , drop = FALSE]
+  n <- a; tir <- as.numeric(B)
+  if (n < B) engine_sous_graine(usp_graine_flux_regime(seed), {
+    while (n < B && tir < B_max) {
+      tir <- tir + 1
+      yb <- usp_simuler(fit)
+      f <- try(reajuster(yb), silent = TRUE)
+      if (inherits(f, "try-error") || !is.finite(f$delta)) next
+      if (usp_regime(f$delta, fit$x)$delta_au_bord) next
+      sb <- try(evaluer(yb, f), silent = TRUE)
+      if (inherits(sb, "try-error")) next
+      n <- n + 1
+      S[n, ] <- sb[noms]
+    }
+  })
+  mc <- .mc_p_values(S[seq_len(n), , drop = FALSE], stats_obs, USP_CATALOGUE_MC, e_obs)
+  arret <- if (n == B) "cible" else "B_max"
+  if (arret == "B_max" && n < B_MIN_DEGENERESCENCE && B >= B_MIN_DEGENERESCENCE) {
+    k <- !is.na(mc$motif_mc) &
+      mc$motif_mc %in% c(MOTIF_MC_REPLIC_INSUFFISANTES, MOTIF_MC_AUCUNE_REPLIC)
+    mc$motif_mc[k] <- MOTIF_MC_REGIME_RARE
+  }
+  c(mc, list(p_mc_regime = list(variante = "V3b", retenus_v1 = as.numeric(a), retenus = as.numeric(n),
+                                tirages = tir, arret = arret)))
 }
 
 # --- Contre-implementation par lm() / anova() des six regressions de #237 ----

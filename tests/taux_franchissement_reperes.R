@@ -753,6 +753,9 @@ ic_bootstrap <- function(fit, param, graine, B) {
 }
 
 # Table des tests d'un jeu (x, y) traitee comme par run_engine().
+# Limite : p_mc factice (0,5, sans bootstrap) et pas de p_min_mc ; le type et
+# le prefixe "TEST INOPERANT" des lignes Monte-Carlo suivent donc la branche
+# de la regle R1 qui lit p_min, non la branche Monte-Carlo (#125, #262).
 traiter <- function(x, y, graine_ic) {
   fb <- usp_ajuster(x, y)
   param <- usp_parametre(fb, SIGMA_STD, BAREME)
@@ -764,9 +767,20 @@ traiter <- function(x, y, graine_ic) {
   fb$largeur_ic <- icb$largeur
   i_jack <- if (jack_calcule) which.max(abs(d_jack)) else NULL
   rob <- list(jack_annee = i_jack, jack_usp = if (jack_calcule) d_jack[i_jack] / param$sigma_usp else NULL)
-  so <- .mc_evaluer(USP_CATALOGUE_MC, .usp_contexte_mc(fb$x, fb$y, fb$z, fb$pi))
+  e_obs <- .usp_contexte_mc(fb$x, fb$y, fb$z, fb$pi)
+  so <- .mc_evaluer(USP_CATALOGUE_MC, e_obs)
+  # p_mc factice (lignes Monte-Carlo non lues) ; une statistique observee non
+  # finie rend p_mc NA, et add() exige alors un motif (stop() de #181) : motif
+  # MOTIF_MC_OBS_NON_FINIE, regle d'engine_p_mc(), remplace par celui de la
+  # condition non_definie du catalogue quand elle en rend un, comme
+  # .mc_p_values() (#262).
+  motif <- ifelse(is.finite(so), NA_character_, MOTIF_MC_OBS_NON_FINIE)
+  for (nm in names(so)[!is.finite(so)]) {
+    nd <- USP_CATALOGUE_MC[[nm]]$non_definie
+    if (!is.null(nd) && !is.na(nd(e_obs))) motif[[nm]] <- nd(e_obs)
+  }
   boot <- list(stats_obs = as.list(so), p_mc = so * 0 + 0.5, err_mc = so * 0 + 0.01,
-               motif_mc = stats::setNames(rep(NA_character_, length(so)), names(so)))
+               motif_mc = stats::setNames(motif, names(so)))
   tt <- usp_tests(fb, boot, ALPHA, theta_equiv = THETA_EQUIV, delta_equiv = NULL,
                   robustesse = rob, methode = METHODE)
   list(fit = fb, tests = tt, sigma_boot = icb$sigma_boot, regime = usp_regime(fb$delta, fb$x))
