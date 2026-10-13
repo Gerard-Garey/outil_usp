@@ -8896,12 +8896,54 @@ mw_simuler_triangle <- function(aj, res_pool) {
     if (!is.finite(sg)) sg <- 0
     e <- sample(res_pool, length(idx), replace = TRUE)
     Cij <- tri[idx + 1, j + 1]
-    tri[idx + 1, j + 2] <- Cij * aj$f[j + 1] + e * sg * sqrt(Cij)
+    nv <- Cij * aj$f[j + 1] + e * sg * sqrt(Cij)
+    # Cumul simule non strictement positif ou non fini (ligne de poids faible :
+    # sigma_j sqrt(C_ij) >> f_j C_ij) : le modele de Mack n'est defini que pour
+    # des cumules strictement positifs (variance proportionnelle a C_ij). Le
+    # triangle est rendu des le premier tel cumul, cellule a NA et colonnes
+    # suivantes non tirees, sans racine carree d'un cumul negatif (#257) ;
+    # mw_bootstrap() en tire un autre. Loi de reference : celle du triangle
+    # simule sachant tous ses cumuls strictement positifs (la meme qu'avant
+    # #257, ou la replication etait ecartee).
+    inval <- !is.finite(nv) | nv <= 0
+    if (any(inval)) {
+      nv[inval] <- NA_real_
+      tri[idx + 1, j + 2] <- nv
+      return(tri)
+    }
+    tri[idx + 1, j + 2] <- nv
   }
-  # Un cumul simule negatif ou decroissant rendrait les facteurs non definis :
-  # on borne par une valeur stricitement positive, en le signalant au besoin.
-  tri[!is.na(tri) & tri <= 0] <- NA_real_
   tri
+}
+
+# Plafond du retirage des triangles simules de mw_bootstrap() (#257, decision
+# D1-2 du mainteneur du 13/10/2026 ; specification
+# docs/specifications/e2d-merz-wuthrich-replications-definitions.md, par. 3) :
+# au plus FACTEUR_B_MAX_MW * (B + 1) triangles simules au total, retires
+# compris. Constante distincte de FACTEUR_B_MAX_REGIME (#240), de meme valeur.
+FACTEUR_B_MAX_MW <- 25
+
+# Triangle simule valide pour une replication de mw_bootstrap() (#257, option
+# A1 de la specification, par. 3, point 2) : tire par mw_simuler_triangle()
+# jusqu'a un triangle sans NA dans sa partie superieure (tous ses cumuls
+# strictement positifs et finis), au plus `reste` triangles. Rend la liste
+# (tri = triangle accepte, ou NULL si `reste` tirages n'en ont donne aucun ;
+# n = nombre de triangles tires, accepte compris ; rejets = nombre de
+# triangles retires). Acceptation-rejet : les triangles acceptes sont i.i.d.
+# selon la loi du triangle simule sachant tous ses cumuls strictement
+# positifs, la loi de reference d'avant #257. Seul ce motif est retire : un
+# echec de mw_ajuster() ou de .mw_stats() sur un triangle accepte reste une
+# statistique non finie (B effectif). Partagee par mw_bootstrap() et par les
+# boucles des tests unitaires qui la reproduisent.
+.mw_triangle_incomplet <- function(tb)
+  anyNA(tb[upper.tri(tb, diag = TRUE)[, rev(seq_len(ncol(tb)))]])
+.mw_tirer_triangle_valide <- function(aj, pool, reste) {
+  n <- 0
+  while (n < reste) {
+    tb <- mw_simuler_triangle(aj, pool); n <- n + 1
+    if (!.mw_triangle_incomplet(tb)) return(list(tri = tb, n = n, rejets = n - 1))
+  }
+  list(tri = NULL, n = n, rejets = n)
 }
 
 # Somme des AUTRES cellules d'une colonne (#233, #260) : element k = somme
@@ -8979,9 +9021,18 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
     noms <- names(obs)
     sim <- matrix(NA_real_, B, length(noms), dimnames = list(NULL, noms))
     sig <- rep(NA_real_, B)
+    # Retirage des triangles a cumul non strictement positif (#257, A1) :
+    # plafond de FACTEUR_B_MAX_MW * (B + 1) triangles tires au total ; au
+    # plafond, les replications restantes valent NA. Deux booleens seuls
+    # sont restitues (D1-3 (a)) : aucun compte de tirages.
+    n_max <- FACTEUR_B_MAX_MW * (as.numeric(B) + 1)
+    n_tires <- 0; cumuls_retires <- FALSE; plafond_cumuls <- FALSE
     for (b in seq_len(B)) {
-      tb <- mw_simuler_triangle(aj, pool)
-      if (anyNA(tb[upper.tri(tb, diag = TRUE)[, rev(seq_len(ncol(tb)))]])) next
+      tir <- .mw_tirer_triangle_valide(aj, pool, n_max - n_tires)
+      n_tires <- n_tires + tir$n
+      if (tir$rejets > 0) cumuls_retires <- TRUE
+      if (is.null(tir$tri)) { plafond_cumuls <- TRUE; next }
+      tb <- tir$tri
       ab <- try(mw_ajuster(tb), silent = TRUE)
       if (inherits(ab, "try-error")) next
       sb <- try(.mw_stats(ab, jd), silent = TRUE)
@@ -9019,6 +9070,9 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
        B_effectif = mc$B_effectif, granularite = 1 / (B + 1),
        sigma_boot = sig[is.finite(sig)], B = B,
        granularite_stat = mc$granularite, motif_mc = mc$motif_mc,
+       # Tracabilite du retirage (#257, D1-3 (a)) : au moins un triangle
+       # simule retire ; plafond atteint (des replications manquent).
+       cumuls_retires = cumuls_retires, plafond_cumuls = plafond_cumuls,
        # Plancher Monte-Carlo par statistique (#125, D1-10), dernier element,
        # comme dans usp_bootstrap().
        p_min_mc = mc$p_min_mc)
@@ -9179,6 +9233,36 @@ MW_CATALOGUE_MC <- list(
   else ""
 }
 
+# Phrases fixes du retirage des triangles simules (#257, decisions D1-3 (a)
+# et D1-4 du mainteneur du 13/10/2026 ; specification
+# docs/specifications/e2d-merz-wuthrich-replications-definitions.md, par. 3,
+# point 3) : aucun nombre issu du bootstrap (regle #76 entiere ; "25 (B + 1)"
+# est la formule du plafond FACTEUR_B_MAX_MW). Jointes par mw_tests() sur
+# ses lignes Monte-Carlo, avant la phrase de #204 ; celle de #244 reste la
+# derniere (posee par add()).
+PHRASE_MW_CUMULS_RETIRES <- paste(
+  "Triangles simules a cumul non strictement positif ecartes et remplaces par un",
+  "nouveau tirage : p-value Monte-Carlo conditionnelle a la positivite des cumuls",
+  "simules.")
+PHRASE_MW_PLAFOND_CUMULS <- paste(
+  "Plafond de 25 (B + 1) triangles simules atteint : des replications manquent",
+  "faute de triangle simule a cumuls strictement positifs.")
+# Phrases du retirage applicables au bootstrap boot, dans l'ordre (retirage,
+# puis plafond), "" si aucune. Refus explicite (meme principe que
+# .mw_phrase_b_effectif(), jamais devine) : boot$cumuls_retires ou
+# boot$plafond_cumuls absent, ou autre qu'un booleen non NA de longueur 1,
+# est une erreur de programmation.
+.mw_phrases_retirage <- function(boot) {
+  for (ch in c("cumuls_retires", "plafond_cumuls")) {
+    v <- boot[[ch]]
+    if (!is.logical(v) || length(v) != 1L || is.na(v))
+      stop(".mw_phrases_retirage() : ", ch, " absent ou non booleen dans le bootstrap",
+           call. = FALSE)
+  }
+  paste(c(if (boot$cumuls_retires) PHRASE_MW_CUMULS_RETIRES,
+          if (boot$plafond_cumuls) PHRASE_MW_PLAFOND_CUMULS), collapse = " ")
+}
+
 # --- Table des tests de la methode Merz-Wuthrich ------------------------------
 # Meme structure de sortie que usp_tests() : chaque ligne porte H0, H1, la
 # statistique, les p-values disponibles et la nature de celle qui est retenue.
@@ -9198,9 +9282,12 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   # boot$p_mc n'appelle pas .mw_phrase_b_effectif() : le refus d'add()
   # ("statistique Monte-Carlo absente du bootstrap") part en premier (#204,
   # constat M1 de l'audit).
+  # Phrases du retirage (#257, .mw_phrases_retirage()) : jointes de meme,
+  # avant celle de #204, sur les memes lignes (statistique presente dans
+  # boot$p_mc : le refus d'add() garde la priorite).
   add <- function(..., mc_nom = NA_character_, detail = "") {
     if (!is.na(mc_nom) && mc_nom %in% names(boot$p_mc)) {
-      ph <- .mw_phrase_b_effectif(boot, mc_nom)
+      ph <- trimws(paste(.mw_phrases_retirage(boot), .mw_phrase_b_effectif(boot, mc_nom)))
       if (nzchar(ph)) {
         sep <- if (!nzchar(detail)) "" else if (grepl("\\.$", detail)) " " else " ; "
         detail <- trimws(paste0(detail, sep, ph))

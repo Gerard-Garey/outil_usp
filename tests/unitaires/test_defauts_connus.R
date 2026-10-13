@@ -79,12 +79,14 @@ verifier("mw_tests() refuse un mc_nom absent du bootstrap (erreur explicite)",
          {
            p <- stats::setNames(rep(0.5, length(s_mw)), names(s_mw))
            # B et B_effectif (= B) complets, lus par .mw_phrase_b_effectif()
-           # (#204) : le refus teste reste celui d'add() pour Calendrier.
+           # (#204), et booleens du retirage, lus par .mw_phrases_retirage()
+           # (#257) : le refus teste reste celui d'add() pour Calendrier.
            be <- p * 0 + 999
            p <- p[setdiff(names(p), "Calendrier")]
            e <- tryCatch(mw_tests(mw_ajuster(tri_mw),
                                   list(stats_obs = as.list(s_mw), p_mc = p, err_mc = p * 0 + 0.01,
-                                       B = 999, B_effectif = be)),
+                                       B = 999, B_effectif = be, cumuls_retires = FALSE,
+                                       plafond_cumuls = FALSE)),
                          error = function(e) e)
            inherits(e, "error") &&
              grepl("absente du bootstrap : Calendrier", conditionMessage(e), fixed = TRUE)

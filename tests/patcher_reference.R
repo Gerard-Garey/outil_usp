@@ -168,6 +168,31 @@ retirer_groupe <- function(o, pas_parent, cles) {
   o
 }
 
+# Reordonne le conteneur atteint par pas_parent selon les noms de modele (son
+# homologue dans le resultat recalcule), si et seulement si les deux portent
+# les memes noms, sans doublon ni nom vide, ET si l'ordre relatif des entrees
+# preexistantes (noms hors `ajoutes`, entrees ajoutees par le patch) est le
+# meme des deux cotes : seules les entrees ajoutees sont deplacees, une
+# permutation des entrees de la reference n'est jamais absorbee (constat 1 de
+# l'audit de #257). Sinon le laisse tel quel (la verification de structure
+# refusera alors le patch). Aucune valeur posee.
+reordonner_comme <- function(o, pas_parent, modele, ajoutes) {
+  if (length(pas_parent)) {
+    o[[pas_parent[[1L]]]] <- reordonner_comme(o[[pas_parent[[1L]]]], pas_parent[-1L], modele,
+                                              ajoutes)
+    return(o)
+  }
+  n <- names(o); m <- names(modele)
+  if (is.null(n) || is.null(m) || anyDuplicated(n) || any(!nzchar(n)) ||
+      length(n) != length(m) || !setequal(n, m) || identical(n, m) ||
+      !identical(setdiff(m, ajoutes), setdiff(n, ajoutes))) return(o)
+  att <- attributes(o)
+  r <- o[m]
+  # attributs du conteneur autres que names conserves (verifies ensuite)
+  for (a in setdiff(names(att), "names")) attr(r, a) <- att[[a]]
+  r
+}
+
 # Tous les attributs de l'arbre SAUF names, qui change legitimement des qu'une
 # entree est retiree. aplatir() ne voit ni dim, ni class, ni row.names
 # (constat d'audit) : cette fonction ferme l'angle mort.
@@ -353,6 +378,27 @@ patcher_objets <- function(avant, apres, motifs, nom = "objet") {
       cles_feuille <- lapply(idx, function(i) pas_tous[[i]][[length(pas_tous[[i]])]])
       patche <- retirer_groupe(patche, pas_parent, cles_feuille)
     }
+  }
+
+  # Entrees nommees ajoutees (absentes de la reference) : assigner() les pose
+  # en fin de leur conteneur. Elles sont replacees au rang qu'elles occupent
+  # dans le resultat recalcule (issue #257 : deux booleens inseres avant
+  # bootstrap$p_min_mc, qui reste le dernier element). Seul l'ordre des
+  # entrees du conteneur change, jamais une valeur ; le conteneur n'est
+  # reordonne que s'il porte exactement les noms, sans doublon, du conteneur
+  # recalcule. Les controles ci-dessous (feuilles non designees au bit pres,
+  # attributs, structure) portent sur l'objet reordonne. Limite : seul le
+  # conteneur parent d'une FEUILLE ajoutee est reordonne ; une sous-liste
+  # entiere ajoutee au milieu d'un conteneur reste en fin de celui-ci et le
+  # patch est refuse (refus par exces, jamais une difference admise).
+  ajoutes <- setdiff(poses, names(fa))
+  pas_aj <- lapply(ajoutes, decouper)
+  parents_aj <- lapply(pas_aj, function(p) utils::head(p, -1L))
+  for (pp in unique(parents_aj)) {
+    # noms des entrees ajoutees dans ce conteneur
+    noms_aj <- unlist(lapply(pas_aj[vapply(parents_aj, identical, logical(1), pp)],
+                             function(p) { k <- p[[length(p)]]; if (is.character(k)) k }))
+    patche <- reordonner_comme(patche, pp, lire(apres, pp), as.character(noms_aj))
   }
 
   # ---------------------------------------------------------------------------

@@ -102,4 +102,27 @@ verifier("Vecteur imbrique tests[[2]]$av 1 -> 2 : patche a l'identique du recalc
            r <- patcher(mk("a"), mk(c("a", "b")), "av")
            !refuse(r) && identical(r, mk(c("a", "b"))) })
 
+## --- Entrees nommees ajoutees : rang du resultat recalcule (#257) -----------
+# Deux booleens inseres avant le dernier element d'un conteneur (cas de
+# bootstrap$cumuls_retires et bootstrap$plafond_cumuls, avant p_min_mc) :
+# poses puis replaces a leur rang, voisins numeriques au bit pres.
+mk257 <- function(...) list(sigma = 0.1, bootstrap = c(list(B = 99, p = 0.25), list(...),
+                                                        list(p_min_mc = c(a = NA_real_, b = 0.01))))
+verifier("Booleens ajoutes avant le dernier element : patche a l'identique du recalcule, ordre compris (#257)",
+         { a <- mk257(); b <- mk257(r = FALSE, q = FALSE)
+           r <- patcher(a, b, c("bootstrap\\$r$", "bootstrap\\$q$"))
+           !refuse(r) && identical(r, b) && identical(names(r$bootstrap), c("B", "p", "r", "q", "p_min_mc")) })
+verifier("Booleen ajoute avec une derive non designee sous le seuil : derive laissee a la reference (#257)",
+         { a <- mk257(); b <- mk257(r = TRUE); b$bootstrap$p <- 0.25 * (1 + 5e-7)
+           r <- patcher(a, b, "bootstrap\\$r$")
+           e <- mk257(r = TRUE)
+           !refuse(r) && identical(r, e) })
+verifier("Booleen ajoute et entrees preexistantes permutees : refuse (aucune permutation absorbee, constat 1 de l'audit de #257)",
+         { a <- list(b = list(x = 1.5, y = 2.5, z = 3.5))
+           b <- list(b = list(y = 2.5, x = 1.5, c = TRUE, z = 3.5))
+           refuse(patcher(a, b, "c$")) &&
+             refuse(patcher(a, list(b = list(y = 2.5, x = 1.5, z = 3.5)), "x$")) })
+verifier("Nombre ajoute avant le dernier element : refuse (invariant, aucune valeur numerique posee)",
+         refuse(patcher(mk257(), mk257(n = 3), "bootstrap\\$n$")))
+
 fin_fichier()

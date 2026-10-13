@@ -787,14 +787,15 @@ verifier("A par differences centrees (h = 1e-4) : MSEP a 1e-8 de mw_msep(), A a 
 # deja cette regle de lui-meme des que type != "test" ; le defaut ne peut donc
 # naitre que d'un appelant qui FORCE un verdict par l'argument verdict = .
 # mw_tests() lit du bootstrap p_mc et err_mc (add()), et B et B_effectif
-# (.mw_phrase_b_effectif(), #204, refus explicite s'ils manquent) : un objet
-# fictif suffit, aucune simulation n'est necessaire ici ; B_effectif = B,
-# aucune phrase de #204.
+# (.mw_phrase_b_effectif(), #204, refus explicite s'ils manquent), et
+# cumuls_retires et plafond_cumuls (.mw_phrases_retirage(), #257, meme
+# refus) : un objet fictif suffit, aucune simulation n'est necessaire ici ;
+# B_effectif = B, aucun retirage, aucune phrase de #204 ni de #257.
 boot_mw_fictif <- local({
   s <- .mw_stats(at)
   p <- stats::setNames(rep(0.5, length(s)), names(s))
   list(stats_obs = as.list(s), p_mc = p, err_mc = p * 0 + 0.01,
-       B = 999, B_effectif = p * 0 + 999)
+       B = 999, B_effectif = p * 0 + 999, cumuls_retires = FALSE, plafond_cumuls = FALSE)
 })
 lignes_mw <- mw_tests(at, boot_mw_fictif)
 verifier("M6 concentration de la reserve : diagnostic sans verdict (ADR 0001)",
@@ -970,9 +971,12 @@ k_replications <- function(t, B = 99, seed = 20260831) {
   Ko <- Kc <- rep(NA_integer_, B); nw <- 0L
   engine_sous_graine(seed, {
     pool <- .mw_pool_residus(aj, jd)   # pool de mw_bootstrap() (#46)
+    # retirage et plafond de mw_bootstrap() (#257), fonction partagee
+    n_max <- FACTEUR_B_MAX_MW * (B + 1); n_tir <- 0
     for (b in seq_len(B)) {
-      tb <- mw_simuler_triangle(aj, pool)
-      if (anyNA(tb[upper.tri(tb, diag = TRUE)[, rev(seq_len(ncol(tb)))]])) next
+      tir <- .mw_tirer_triangle_valide(aj, pool, n_max - n_tir)
+      n_tir <- n_tir + tir$n
+      if (is.null(tb <- tir$tri)) next
       ab <- try(mw_ajuster(tb), silent = TRUE)
       if (inherits(ab, "try-error")) next
       withCallingHandlers({
@@ -1561,9 +1565,12 @@ n_res_replications <- function(t, B = 99, seed = 20260831) {
   aj <- mw_ajuster(t); jd <- .mw_colonnes_degenerees(aj); n <- rep(NA_integer_, B)
   engine_sous_graine(seed, {
     pool <- .mw_pool_residus(aj, jd)   # pool de mw_bootstrap() (#46)
+    # retirage et plafond de mw_bootstrap() (#257), fonction partagee
+    n_max <- FACTEUR_B_MAX_MW * (B + 1); n_tir <- 0
     for (b in seq_len(B)) {
-      tb <- mw_simuler_triangle(aj, pool)
-      if (anyNA(tb[upper.tri(tb, diag = TRUE)[, rev(seq_len(ncol(tb)))]])) next
+      tir <- .mw_tirer_triangle_valide(aj, pool, n_max - n_tir)
+      n_tir <- n_tir + tir$n
+      if (is.null(tb <- tir$tri)) next
       ab <- try(mw_ajuster(tb), silent = TRUE)
       if (inherits(ab, "try-error")) next
       n[b] <- nrow(.mw_contexte_mc(ab, jd)$res)
@@ -1630,9 +1637,12 @@ stats_cal_cor <- function(t, B = 99, seed = 20260831) {
   S <- matrix(NA_real_, B, 2, dimnames = list(NULL, c("Calendrier", "CorrDev")))
   engine_sous_graine(seed, {
     pool <- .mw_pool_residus(aj, jd)
+    # retirage et plafond de mw_bootstrap() (#257), fonction partagee
+    n_max <- FACTEUR_B_MAX_MW * (B + 1); n_tir <- 0
     for (b in seq_len(B)) {
-      tb <- mw_simuler_triangle(aj, pool)
-      if (anyNA(tb[upper.tri(tb, diag = TRUE)[, rev(seq_len(ncol(tb)))]])) next
+      tir <- .mw_tirer_triangle_valide(aj, pool, n_max - n_tir)
+      n_tir <- n_tir + tir$n
+      if (is.null(tb <- tir$tri)) next
       ab <- try(mw_ajuster(tb), silent = TRUE)
       if (inherits(ab, "try-error")) next
       S[b, ] <- .mw_stats(ab, jd)[colnames(S)]
@@ -1690,9 +1700,12 @@ verifier("Colonne aplatie constante (C1) : degeneree, exclue de HomogF et des re
            kk <- integer(0); nna <- 0L; np0 <- 0L
            engine_sous_graine(20260831, {
              pool <- .mw_pool_residus(a, jd)   # pool de mw_bootstrap() (#46)
+             # retirage et plafond de mw_bootstrap() (#257), fonction partagee
+             n_max <- FACTEUR_B_MAX_MW * (99 + 1); n_tir <- 0
              for (b in 1:99) {
-               tb <- mw_simuler_triangle(a, pool)
-               if (anyNA(tb[upper.tri(tb, diag = TRUE)[, rev(seq_len(ncol(tb)))]])) next
+               tir <- .mw_tirer_triangle_valide(a, pool, n_max - n_tir)
+               n_tir <- n_tir + tir$n
+               if (is.null(tb <- tir$tri)) next
                ab <- try(mw_ajuster(tb), silent = TRUE)
                if (inherits(ab, "try-error")) next
                hb <- mw_test_homogeneite_f(ab, jd)
@@ -2221,9 +2234,12 @@ verifier("mw_bootstrap() tire dans .mw_pool_residus() ; statistiques observees i
            engine_sous_graine(20260831, {
              pool <- .mw_pool_residus(a, jd)
              # boucle alignee sur celle de mw_bootstrap() (sauts compris)
+             # retirage et plafond de mw_bootstrap() (#257), fonction partagee
+             n_max <- FACTEUR_B_MAX_MW * (19 + 1); n_tir <- 0
              for (k in 1:19) {
-               tb <- mw_simuler_triangle(a, pool)
-               if (anyNA(tb[upper.tri(tb, diag = TRUE)[, rev(seq_len(ncol(tb)))]])) next
+               tir <- .mw_tirer_triangle_valide(a, pool, n_max - n_tir)
+               n_tir <- n_tir + tir$n
+               if (is.null(tb <- tir$tri)) next
                ab <- try(mw_ajuster(tb), silent = TRUE)
                if (inherits(ab, "try-error")) next
                sb <- try(.mw_stats(ab, jd), silent = TRUE)
