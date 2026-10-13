@@ -153,9 +153,9 @@ verifier("U8 res : lr_delta apres profil, ic_bootstrap_restreint apres ic_bootst
            match("lr_delta", n) == match("profil", n) + 1L &&
              match("ic_bootstrap_restreint", n) == match("ic_bootstrap", n) + 1L &&
              identical(tail(names(r1$plots_data), 2), c("lr_delta", "qq_enveloppe")) &&
-             # p_mc_regime (#240) suit z_boot.
-             identical(tail(names(r1$bootstrap), 4), c("sigma_boot_restreint", "n_echec_restreint", "z_boot",
-                                                       "p_mc_regime")) &&
+             # p_mc_regime (#240) suit z_boot ; p_min_mc (#125) suit p_mc_regime.
+             identical(tail(names(r1$bootstrap), 5), c("sigma_boot_restreint", "n_echec_restreint", "z_boot",
+                                                       "p_mc_regime", "p_min_mc")) &&
              is.integer(r1$bootstrap$n_echec_restreint) &&
              tail(names(r1$ajustement), 1) == "kkt_au_moins_un" &&
              "largeur_ic_restreint" %in% names(r1$ajustement)

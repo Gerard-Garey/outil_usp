@@ -908,21 +908,35 @@ y8 <- c(27.25, 105.90, 57.04, 117.04, 64.50, 152.70, 95.28, 113.69)
 f8 <- usp_ajuster(x8, y8)
 b8_59 <- usp_bootstrap(f8, B = 59, seed = 20260831)
 t8_59 <- usp_tests(f8, b8_59, alpha = 0.06, methode = "premium")
-verifier("f8, B = 59, alpha = 0,06 : lignes des suites (residus, ratios bruts) sans 'ECHEC possible', plancher ECHEC inatteignable",
-         all(vapply(c("Test des suites (aleatoire des signes)", "Test des suites sur ratios bruts"),
-                    function(nm) {
-           l <- ligne(t8_59, nm)
+# Depuis #125 (D1-8 ; ADR 0003 annote le 12/10/2026, point 5), la p
+# Monte-Carlo etant retenue, R1 lit le plancher Monte-Carlo p_min_mc et non
+# plus p_min : la mention du plancher de #128 (point d) est omise dans cette
+# branche. Mesure (B = 59, V3b, B_eff = 59) : Runs p_min_mc = 2/60 = 0,0333
+# (aucune replication aux extremites, egal a g) >= alpha/2 = 0,03 -> ECHEC
+# inatteignable ; Runsr p_min_mc = 4/60 = 0,0667 >= alpha = 0,06 -> test
+# inoperant (changement de type hors des references, approuve par D1-8).
+verifier("f8, B = 59, alpha = 0,06 : suites sur residus 'ECHEC inatteignable' Monte-Carlo, suites sur ratios bruts inoperant (#125)",
+         {
+           lz <- ligne(t8_59, "Test des suites (aleatoire des signes)")
+           lr <- ligne(t8_59, "Test des suites sur ratios bruts")
            # f8 : delta estime interieur (0,683), p Monte-Carlo conditionnelle
            # au regime depuis #240 (variante V3b, B_effectif <= B = 59).
-           identical(l$nature_p, NATURE_MC_REGIME_INTERIEUR) && identical(l$type, "test") &&
-             identical(b8_59$p_mc_regime$variante, "V3b") &&
-             identical(b8_59$B_effectif[[if (grepl("ratios", nm)) "Runsr" else "Runs"]], 59) &&
-             endsWith(l$detail, paste("p_min de la loi de reference echangeable = 0.0571 >= alpha/2 = 0.03",
-                                      "(n1 = 4, n2 = 4) ; plancher Monte-Carlo >= alpha/2 = 0.03 : ECHEC inatteignable ;",
-                                      # p = 0,133, err_mc = 0,065 : a 1,13 err_mc de alpha = 0,06 (#244)
-                                      PHRASE_VERDICT_SENSIBLE_MC)) &&
-             !grepl("ECHEC possible", l$detail, fixed = TRUE)
-         }, logical(1))))
+           identical(b8_59$p_mc_regime$variante, "V3b") &&
+             identical(b8_59$B_effectif[["Runs"]], 59) && identical(b8_59$B_effectif[["Runsr"]], 59) &&
+             identical(lz$nature_p, NATURE_MC_REGIME_INTERIEUR) && identical(lz$type, "test") &&
+             identical(lz$p_min_mc, 2 / 60) &&
+             endsWith(lz$detail, paste("ECHEC inatteignable : plus petite p-value Monte-Carlo atteignable sur",
+                                       "ces replications >= alpha/2 = 0.03 (n1 = 4, n2 = 4) ;",
+                                       # p = 0,133, err_mc = 0,065 : a 1,13 err_mc de alpha = 0,06 (#244)
+                                       PHRASE_VERDICT_SENSIBLE_MC)) &&
+             !grepl("ECHEC possible", lz$detail, fixed = TRUE) &&
+             !grepl("plancher Monte-Carlo", lz$detail, fixed = TRUE) &&
+             identical(lr$type, "diagnostic") && isTRUE(lr$inoperant) && identical(lr$verdict, "INFO") &&
+             identical(lr$p_min_mc, 4 / 60) &&
+             startsWith(lr$detail, paste("TEST INOPERANT au seuil alpha = 0.06 : plus petite p-value Monte-Carlo",
+                                         "atteignable sur ces replications >= alpha (n1 = 4, n2 = 4) ; aucun",
+                                         "verdict (ADR 0001)."))
+         })
 # Runsr, regime 1 (pi_t constant, p exacte) : la phrase "p-value EXACTE est
 # retenue" n'est ecrite que hors motif de degenerescence de Runsr (#128).
 verifier("Runsr regime 1 : sans motif -> 'EXACTE est retenue' ; motif de degenerescence -> diagnostic, 'EXACTE est ecartee'",
@@ -1206,9 +1220,10 @@ verifier("run_engine : 51 lignes sur les donnees de test a B = B_MIN_USAGE (lign
 ## --- 6. Champ inoperant (#129, point 3) ----------------------------------------
 # add() pose sur chaque ligne un logique inoperant, TRUE si et seulement si la
 # bascule de la regle R1 a eu lieu (detail prefixe "TEST INOPERANT"), FALSE
-# sinon, jamais NA ; dernier champ de la ligne, apres p_min et fonction.
-# Invariant verifie sur les lignes de run_engine() de ce fichier et sur
-# celles des cinq references versionnees (tests/reference/).
+# sinon, jamais NA ; apres p_min et fonction, suivi du seul champ p_min_mc
+# depuis #125 (D1-10). Invariant verifie sur les lignes de run_engine() de
+# ce fichier et sur celles des cinq references versionnees (tests/reference/,
+# qui portent p_min_mc apres la regeneration de #125).
 inv_inop <- function(tt) {
   ok_type <- vapply(tt, function(l) is.logical(l$inoperant) && length(l$inoperant) == 1L &&
                       !is.na(l$inoperant), logical(1))
@@ -1216,8 +1231,9 @@ inv_inop <- function(tt) {
                                   sum(!ok_type), "ligne(s)"))
   inop <- vapply(tt, function(l) l$inoperant, logical(1))
   pref <- vapply(tt, function(l) startsWith(l$detail, "TEST INOPERANT"), logical(1))
-  noms_ok <- vapply(tt, function(l) identical(tail(names(l), 3L),
-                                              c("p_min", "fonction", "inoperant")), logical(1))
+  noms_ok <- vapply(tt, function(l) identical(tail(names(l), 4L),
+                                              c("p_min", "fonction", "inoperant", "p_min_mc")),
+                    logical(1))
   diag_ok <- all(vapply(tt[inop], function(l) identical(l$type, "diagnostic") &&
                           identical(l$verdict, "INFO"), logical(1)))
   if (!identical(inop, pref)) paste("inoperant != prefixe TEST INOPERANT :", sum(inop != pref), "ligne(s)")
@@ -1225,7 +1241,7 @@ inv_inop <- function(tt) {
   else if (!diag_ok) "ligne inoperante hors diagnostic INFO"
   else TRUE
 }
-verifier("add() : bascule R1 -> inoperant TRUE ; p_min < alpha, p_min NA -> FALSE ; derniers champs p_min, fonction, inoperant",
+verifier("add() : bascule R1 -> inoperant TRUE ; p_min < alpha, p_min NA -> FALSE ; derniers champs p_min, fonction, inoperant, p_min_mc",
          {
            r <- reg_fictif()
            r$add("F", "t1", "ref", fonction = "usp_tests", p_ex = 0.9, p_min = 0.125)
@@ -1266,7 +1282,7 @@ verifier("run_engine() : inoperant <=> prefixe TEST INOPERANT sur toutes les lig
            else isTRUE(cs10$inoperant) && identical(cs12$inoperant, FALSE) &&
              any(vapply(res_ln$tests, function(l) l$inoperant, logical(1)))
          })
-verifier("References versionnees (5 cas) : inoperant <=> prefixe TEST INOPERANT, jamais NA, derniers champs p_min, fonction, inoperant",
+verifier("References versionnees (5 cas) : inoperant <=> prefixe TEST INOPERANT, jamais NA, derniers champs p_min, fonction, inoperant, p_min_mc",
          {
            cas <- c("premium", "reserve1", "reserve2", "premium_ii6", "premium_net")
            v <- lapply(cas, function(k) {
