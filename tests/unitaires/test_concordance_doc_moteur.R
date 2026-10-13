@@ -213,11 +213,98 @@ verifier("grandeurs_moteur : lignes de base r hors test des suites, et parmi ell
            isTRUE(all(unname(g[c("base r hors suites", "base r hors suites Monte-Carlo")]) == c(2, 1)))
          })
 # Issue #111 (decision du mainteneur, critere "5 + 1 + 2") : des huit
-# exemptions de provenance, deux restent (provenance indirecte), avec leur
+# exemptions de provenance, deux restaient (provenance indirecte), avec leur
 # risque residuel ecrit ; les six autres sont des phrases du registre.
-verifier("Exemptions de provenance par fonction : deux restantes (indirectes), motif ecrivant le risque residuel",
-         sum(vapply(cc$EXEMPTES_DECOMPTES, function(e) grepl("risque residuel", e$motif, fixed = TRUE), logical(1))) == 2L &&
-           sum(startsWith(vapply(cc$DECOMPTES, `[[`, "", "id"), "provenance : ")) == 6L)
+# Issue #232 : celle de .fisher_combine() devient une phrase verifiee du
+# registre (graphe d'appels du moteur) ; reste le noeud (q4) de M3.
+verifier("Exemptions de provenance : une restante (noeud du schema), motif ecrivant le risque residuel (#111, #232)",
+         sum(vapply(cc$EXEMPTES_DECOMPTES, function(e) grepl("risque residuel", e$motif, fixed = TRUE), logical(1))) == 1L &&
+           sum(startsWith(vapply(cc$DECOMPTES, `[[`, "", "id"), "provenance : ")) == 6L &&
+           sum(startsWith(vapply(cc$DECOMPTES, `[[`, "", "id"), "provenance indirecte : ")) == 1L &&
+           !any(grepl("fisher", vapply(cc$EXEMPTES_DECOMPTES, `[[`, "", "contexte"), ignore.case = TRUE)))
+# Issue #232 : appelants directs lus dans le graphe d'appels (all.names du
+# corps), lignes servies comptees par famille et hors famille, phrase du
+# graphe Merz-Wuthrich verifiee ; mutations "4 tests M1" et "2 tests M2"
+# detectees.
+verifier("appelants_directs (#232) : fonctions qui appellent f, f exclue, noms tries, non-fonctions ignorees",
+         {
+           e <- new.env()
+           e$.f <- function(p) sum(p)
+           e$b <- function(x) .f(x) + 1
+           e$a <- function(x) { y <- .f(x); y }
+           e$c <- function(x) x
+           e$d <- 3
+           identical(cc$appelants_directs(e, ".f"), c("a", "b")) &&
+             identical(cc$appelants_directs(e, "absente"), character(0))
+         })
+verifier("grandeurs_moteur (#232) : lignes servies par un appelant, par famille et hors famille ; sans appelants, aucune grandeur",
+         {
+           lg <- list(list(famille = "M1. a", fonction = "f1"), list(famille = "M1. a", fonction = "f2"),
+                      list(famille = "M1. a", fonction = "autre"), list(famille = "M2. b", fonction = "f1"),
+                      list(famille = "M3. c", fonction = "autre"))
+           g <- cc$grandeurs_moteur(lg, appelants = list(.fc = c("f1", "f2", "f_sans_ligne")))
+           g0 <- cc$grandeurs_moteur(lg)
+           isTRUE(unname(g["appel .fc famille M1"]) == 2) && isTRUE(unname(g["appel .fc hors M1"]) == 1) &&
+             isTRUE(unname(g["appel .fc famille M2"]) == 1) && isTRUE(unname(g["appel .fc famille M3"]) == 0) &&
+             isTRUE(unname(g["appel .fc hors M3"]) == 3) && !any(startsWith(names(g0), "appel ")) &&
+             isTRUE(unname(g["appel .fc hors M1 tout en M2"]) == 1) &&
+             isTRUE(unname(g["appel .fc hors M2 tout en M1"]) == 2) &&
+             is.na(g[["appel .fc hors M3 tout en M1"]]) &&
+             is.na(g[["appel .fc hors M1 tout en M3"]]) &&
+             isTRUE(cc$grandeurs_moteur(lg, appelants = list(.fc = "f2"))[["appel .fc hors M1 tout en M3"]] == 0) &&
+             is.na(cc$grandeurs_moteur(c(lg, list(list(famille = "M3. c", fonction = "f1"))),
+                                       appelants = list(.fc = "f1"))[["appel .fc hors M1 tout en M2"]])
+         })
+.reg_fc <- Filter(function(a) startsWith(a$id, "provenance indirecte : "), cc$DECOMPTES)
+.doc_fc <- c("% .fisher_combine() dessert quatre tests de M1 et un de M2 ; commentaire",
+             "\\node[int] (fi)",
+             "  {\\code{.fisher\\_combine()}\\\\ \\scriptsize dessert 3 tests M1 + 1 test M2};")
+.g_fc <- list(reserve2 = c("appel .fisher_combine famille M1" = 3, "appel .fisher_combine hors M1 tout en M2" = 1))
+verifier("Provenance indirecte (#232) : phrase du graphe trouvee et juste -> ok ; '4 tests M1' ou '2 tests M2' -> ECART",
+         {
+           v <- cc$verifier_decomptes(.doc_fc, .g_fc, .reg_fc)
+           v4 <- cc$verifier_decomptes(sub("dessert 3 tests M1", "dessert 4 tests M1", .doc_fc, fixed = TRUE),
+                                       .g_fc, .reg_fc)
+           v2 <- cc$verifier_decomptes(sub("+ 1 test M2", "+ 2 tests M2", .doc_fc, fixed = TRUE), .g_fc, .reg_fc)
+           cl <- cc$classer_formulations(.doc_fc, v, list())
+           length(.reg_fc) == 1L && nrow(v) == 2L && all(v$statut == "ok") && identical(v$ligne, c(3L, 3L)) &&
+             identical(v4$statut, c("ECART", "ok")) && identical(v2$statut, c("ok", "ECART")) &&
+             identical(cl$formulations$statut, "verifiee")
+         })
+# Reprise de l'audit (#232) : la seconde capture ne lit plus "hors M1" mais
+# les lignes servies en M2 si toutes les lignes servies hors M1 y sont ; une
+# ligne servie passee de M2 a M3 fait un ecart.
+verifier("Provenance indirecte (#232) : 3 lignes M1 + 1 ligne M3 servies contre '3 tests M1 + 1 test M2' -> ECART",
+         {
+           l13 <- c(lapply(1:3, function(i) list(famille = "M1. a", fonction = "f1")),
+                    list(list(famille = "M3. c", fonction = "f1"), list(famille = "M2. b", fonction = "autre")))
+           g13 <- cc$grandeurs_moteur(l13, appelants = list(.fisher_combine = "f1"))
+           v13 <- cc$verifier_decomptes(.doc_fc, list(reserve2 = g13), .reg_fc)
+           isTRUE(unname(g13["appel .fisher_combine hors M1"]) == 1) &&
+             is.na(g13[["appel .fisher_combine hors M1 tout en M2"]]) && identical(v13$statut, c("ok", "ECART"))
+         })
+verifier("appelants_directs (#232) : garde par deparse() -- do.call, defaut d'argument, liste et alias -> arret",
+         {
+           arrete <- function(e) inherits(tryCatch(cc$appelants_directs(e, ".f"), error = function(err) err), "error")
+           base_env <- function() { e <- new.env(); e$.f <- function(p) sum(p); e$a <- function(x) .f(x); e }
+           e1 <- base_env(); e1$b <- function(x) do.call(".f", list(x))
+           e2 <- base_env(); e2$b <- function(x, g = .f) g(x)
+           e3 <- base_env(); e3$CAT <- list(k = list(stat = function(x) .f(x)))
+           e4 <- base_env(); e4$fc <- e4$.f
+           e0 <- base_env(); e0$c <- function(x) x
+           arrete(e1) && arrete(e2) && arrete(e3) && arrete(e4) &&
+             identical(cc$appelants_directs(e0, ".f"), "a") &&
+             grepl("[a] differente de la recherche dans deparse() [a, b]",
+                   tryCatch(cc$appelants_directs(e1, ".f"), error = conditionMessage), fixed = TRUE)
+         })
+verifier("Provenance indirecte (#232) : appelants de .fisher_combine() dans le moteur, dont .mw_fisher_x_max() sans ligne",
+         {
+           em <- new.env(parent = globalenv())
+           sys.source(file.path(.dossier, "..", "..", "R", "engine.R"), envir = em)
+           identical(cc$appelants_directs(em, ".fisher_combine"),
+                     c(".mw_fisher_x_max", "mw_test_courbure", "mw_test_exposant_variance",
+                       "mw_test_homogeneite_f", "mw_test_ordonnee_origine"))
+         })
 verifier("grandeurs_moteur (#111) : lignes par fonction, compte commun des fonctions sur z et u (NA s'ils different)",
          {
            l5 <- lapply(rep(cc$FONCTIONS_Z_ET_U, each = 2), function(f) list(fonction = f))
