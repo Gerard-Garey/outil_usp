@@ -20,7 +20,10 @@
 #  attributs compris (identical(attrib.as.set = FALSE)). La contre-implementation
 #  ci-dessous est l'ancienne forme, copiee du moteur au commit daabd7a
 #  (commentaires retires ; residu de mw_residus() reporte sous la forme
-#  stable de #233, .mw_ecart_facteur_stable()), evaluee dans un
+#  stable de #233, .mw_ecart_facteur_stable() ; t et p du terme quadratique
+#  de mw_test_courbure() reportes sous la forme close de #253,
+#  .mw_courbure_colonne(), qui remplace lm() dans le moteur : la comparaison
+#  porte sur l'assemblage des tables, objet de #239), evaluee dans un
 #  environnement dedie dont le parent
 #  est celui du moteur : les fonctions non modifiees (mw_stat_correlation_dev(),
 #  .mw_pente_intra(), .mc_evaluer()...) sont communes. Chaque fonction est
@@ -221,11 +224,10 @@ local({
       if (.mw_colonne_degeneree(aj, j)) return(.mw_stat_non_definie(ex))
       C0 <- tri[idx + 1, j + 1]; C1 <- tri[idx + 1, j + 2]
       if (stats::sd(C0) == 0) next
-      m <- try(summary(stats::lm(C1 ~ C0 + I(C0^2), weights = 1 / C0)), silent = TRUE)
-      if (inherits(m, "try-error") || nrow(m$coefficients) < 3) next
+      m <- .mw_courbure_colonne(C0, C1)
+      if (is.null(m)) next
       det <- rbind(det, data.frame(j = j, n = length(idx),
-        c2 = m$coefficients[3, 1], t = m$coefficients[3, 3],
-        p = m$coefficients[3, 4], stringsAsFactors = FALSE))
+        c2 = m[["c2"]], t = m[["t"]], p = m[["p"]], stringsAsFactors = FALSE))
     }
     if (!nrow(det)) return(list(stat = NA_real_, p = NA_real_, detail = det,
                                 exclues = ex$colonnes, eligibles = ex$eligibles))
