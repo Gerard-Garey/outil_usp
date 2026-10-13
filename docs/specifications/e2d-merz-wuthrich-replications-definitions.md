@@ -408,3 +408,27 @@ Le mainteneur a tranché les sept questions selon les recommandations, en sessio
 - **D1-7** : colonne exactement non identifiable écartée, selon la doctrine de #90.
 
 Il approuve aussi les verdicts nouveaux sur triangles construits listés aux § 6 et 7, tous hors des références. #257 et #253 passent en `ready-for-agent`, et les étapes 5 (#253) et 6 (#257) de la fiche E2d peuvent commencer.
+
+## Annotation du 13/10/2026 : mise en œuvre de #253 (étape 5) et avis d'`actuary`
+
+Cette annotation vient d'`actuary`, consulté sur le diff de l'étape 5. Elle ne remplace pas le texte ci-dessus : elle le précise.
+
+- **§ 6, courbure : développement du déterminant.**
+  - Le code forme SCR = Σ_Q w_Q det_Q² / A, avec det_Q = Σ_r (−1)^r e_{a_r} V(Q∖a_r) : c'est le développement de Laplace selon la colonne e.
+  - Quand les x sont distincts, det_Q vaut ±V₄(Q) e[Q], même quantité que l'écriture du § 6. Le développement reste en outre défini en présence d'ex æquo de C(i, j), pourvu qu'il y ait au moins trois valeurs distinctes. L'écriture V₄(Q) e[Q] y donnerait NaN (V₄ = 0, e[Q] = ±Inf).
+  - Mesure contre une référence rationnelle indépendante (équations normales complètes) : erreur ≤ 1,2·10^-14 sur des colonnes à ex æquo et quasi-ex æquo **[V]**.
+  - Les produits et les sommes sont formés à exposant séparé (`.mw_me()`, `.mw_somme_me()`). C'est ainsi qu'est mis en œuvre le « par exemple » du § 6 sur le domaine [1e-50 ; 1e50].
+  - L'hypothèse **[H]** du triangle à deux échelles extrêmes (ligne 0 à 1e48, lignes 1 à 3 à 1e-48) est **confirmée** : statistiques finies, erreur 3,4·10^-14 contre la référence exacte **[V]**.
+- **§ 4, précision de l'ancien moteur hors grille.**
+  - Sur `reserve2`, ligne 0 × 10^-14, `lm()` (moteur de `68360f4`) rend une pente intra-colonne t = −2,5664165744012393, au lieu de −1,12099717781044. L'erreur relative vaut 1,29, sans NA ni avertissement **[V]**.
+  - L'erreur maximale de 5,2·10^-8 annoncée au § 4 ne vaut donc que sur les points de la grille.
+  - Ce cas renforce l'abandon de la voie (M) : un motif fondé sur le rang de `lm()` ne l'aurait pas intercepté.
+  - Effet : la statistique affichée passe de −2,566 à −1,121. Le verdict reste INFO tant que #257 n'est pas traité (B effectif < `B_MIN_DEGENERESCENCE`). Il sera calculé sur la valeur juste après l'étape 6. Ce triangle construit n'est pas dans la liste approuvée à D1 : le mainteneur en est informé.
+  - Un test unitaire fige la valeur juste. Une phrase de la fiche `mw:m1` du `.tex` citera ce constat au passage de `docwriter`.
+- **§ 10, hors périmètre, ajout.**
+  - Une colonne exactement affine construite donne un t non significatif numériquement : rapport de bruits d'arrondi, comme sous `lm()`, qui ne s'en distinguait que par un avertissement.
+  - L'ajustement parfait exact (G = 0) donne t = ±Inf, puis p = 0 relevée au plancher de `.fisher_combine()`. Si N = 0 aussi, t = NaN et la statistique vaut NA (règle de #90). C'est un événement de probabilité nulle sous le modèle de Mack.
+  - Aucune garde à seuil n'est ajoutée : elle réintroduirait un seuil numérique sans sens statistique (motif de rejet de (M)).
+- **Traçabilité des valeurs écrites en dur** (§ 6, « Tests attendus »). Elles sont recalculées par un script R hors CI versionné, `tests/unitaires/generer_valeurs_forme_close_m1.R`.
+  - Il utilise Rmpfr (Q-E2c-5), à 4 096 bits puis 8 192 bits, avec un contrôle de stabilité des 17 chiffres.
+  - Sa méthode est indépendante de la forme close : équations normales complètes, élimination de Gauss.
