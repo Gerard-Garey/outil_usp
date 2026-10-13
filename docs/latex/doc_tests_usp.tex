@@ -1893,10 +1893,15 @@ conservée lors de la même revue. \emph{Exception bornée} (issue~\#204, décis
 mainteneur du 12~octobre 2026~; ADR~0003, annotation du 12~octobre 2026, point~4)~: les deux
 phrases «~\code{B effectif = \dots{} sur B = \dots}~» que \code{mw\_tests()} pose sur ses lignes de
 Monte-Carlo (fiche~\ref{mw:m1a}, rubrique~5) impriment des entiers de comptage issus
-du bootstrap~; elles seules, et \code{add()} reste soumise entière à la règle. Un compte de
-réplications finies est un entier, supposé identique d'une plateforme à l'autre hors cas
-pathologique (\emph{hypothèse}, non mesurée), et il est absent des six références, où
-$B_{\text{eff}} = B$ sur les treize statistiques de Monte-Carlo de \code{reserve2}. Toute autre
+du bootstrap~; elles seules, et \code{add()} reste soumise entière à la règle. Un compte de réplications finies est un entier, supposé identique d'une plateforme à l'autre
+(\emph{hypothèse}, non mesurée). Cette hypothèse est la moins assurée là où ces phrases
+apparaissent~: une réplication n'est écartée que si sa statistique n'est pas définie, ce qui, dans
+les cas mesurés, tient à une colonne devenue dégénérée au voisinage de la tolérance ($10^{-12}$
+relative~; triangle de l'issue perturbé de $9\cdot 10^{-13}$)~; sur un triangle construit voisin,
+\code{B\_effectif} a varié de $749$ à $537$ puis à $649$ avec les versions du moteur
+(fiche~\ref{mw:m1a}), signe de la sensibilité de ce compte au détail du calcul. Il est absent des
+six références, où $B_{\text{eff}} = B$ sur les treize statistiques de Monte-Carlo de
+\code{reserve2}, et aucune comparaison aux références n'en dépend. Toute autre
 phrase portant un nombre issu du bootstrap exige une nouvelle décision.
 
 \begin{encadre}
