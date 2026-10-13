@@ -78,9 +78,16 @@ verifier("add() refuse un mc_nom inconnu du catalogue (erreur explicite)",
 verifier("mw_tests() refuse un mc_nom absent du bootstrap (erreur explicite)",
          {
            p <- stats::setNames(rep(0.5, length(s_mw)), names(s_mw))
+           # B et B_effectif (= B) complets, lus par .mw_phrase_b_effectif()
+           # (#204) : le refus teste reste celui d'add() pour Calendrier.
+           be <- p * 0 + 999
            p <- p[setdiff(names(p), "Calendrier")]
-           leve_erreur(mw_tests(mw_ajuster(tri_mw),
-                                list(stats_obs = as.list(s_mw), p_mc = p, err_mc = p * 0 + 0.01)))
+           e <- tryCatch(mw_tests(mw_ajuster(tri_mw),
+                                  list(stats_obs = as.list(s_mw), p_mc = p, err_mc = p * 0 + 0.01,
+                                       B = 999, B_effectif = be)),
+                         error = function(e) e)
+           inherits(e, "error") &&
+             grepl("absente du bootstrap : Calendrier", conditionMessage(e), fixed = TRUE)
          })
 verifier("Catalogues Monte-Carlo : les statistiques simulees sont exactement celles du catalogue, dans son ordre",
          identical(names(s_obs), names(USP_CATALOGUE_MC)) &&
@@ -542,15 +549,17 @@ verifier("add() (#111) refuse fonction absente, non chaine, vide ou inconnue du 
              grepl("fonction inconnue du moteur : cor.test", m_cor, fixed = TRUE) &&
              grepl("fonction inconnue du moteur : ANNEXE_II", m_cst, fixed = TRUE) &&
              identical(m_ok, "") && length(l) == 1L &&
-             identical(utils::tail(names(l[[1]]), 3), c("p_min", "fonction", "inoperant")) &&
+             # p_min_mc apres inoperant depuis #125 (D1-10).
+             identical(utils::tail(names(l[[1]]), 4), c("p_min", "fonction", "inoperant", "p_min_mc")) &&
              identical(l[[1]]$fonction, ".shapiro_sur")
          })
 # Les cinq cas de tests/outils_tests.R (CAS), a B = 99 pour la duree : la
 # liste des lignes et leur fonction ne dependent pas de B (chaine litterale a
 # chaque appel d'add()). Chaque ligne porte une fonction non vide, definie
-# dans l'environnement du moteur, suivie du seul champ inoperant (#129,
-# point 3) ; engine_table_tests() l'expose en avant-derniere colonne.
-verifier("Cinq cas (#111) : chaque ligne porte une fonction du moteur, avant-dernier champ (puis inoperant) ; colonne fonction de engine_table_tests()",
+# dans l'environnement du moteur, suivie des champs inoperant (#129, point
+# 3) et p_min_mc (#125, D1-10) ; engine_table_tests() l'expose en
+# avant-derniere colonne (p_min_mc y suit p_min).
+verifier("Cinq cas (#111) : chaque ligne porte une fonction du moteur, suivie d'inoperant et de p_min_mc ; colonne fonction de engine_table_tests()",
          {
            ln <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln.csv"))
            env_moteur <- environment(engine_registre_tests)
@@ -569,7 +578,8 @@ verifier("Cinq cas (#111) : chaque ligne porte une fonction du moteur, avant-der
              tb <- engine_table_tests(r)
              isTRUE(r$ok) && length(f) > 0L && !anyNA(f) && all(nzchar(f)) &&
                all(vapply(f, exists, NA, envir = env_moteur, inherits = FALSE)) &&
-               all(vapply(r$tests, function(t) identical(utils::tail(names(t), 2), c("fonction", "inoperant")),
+               all(vapply(r$tests, function(t) identical(utils::tail(names(t), 3),
+                                                          c("fonction", "inoperant", "p_min_mc")),
                           NA)) &&
                identical(utils::tail(names(tb), 2), c("fonction", "inoperant")) &&
                identical(tb$fonction, unname(f))

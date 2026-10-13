@@ -91,8 +91,9 @@
 #    4. p retenue et verdict par usp_tests() lui-meme (accord d'actuary du
 #       30/09/2026), avec un objet bootstrap dont usp_tests() ne lit que les
 #       champs stats_obs (catalogue complet, sur l'observe), p_mc, err_mc et
-#       motif_mc ; seules les six p_mc, err_mc et motif_mc sont renseignes
-#       (les autres NA, sans motif ; leurs lignes ne sont pas lues). La regle R7 (p exacte a
+#       motif_mc ; seules les six p_mc, err_mc et motif_mc sont calcules
+#       (les autres NA, motif MOTIF_MC_AUCUNE_REPLIC depuis #181 ; leurs
+#       lignes ne sont pas lues). La regle R7 (p exacte a
 #       pi constant, Monte-Carlo sinon ; DWr toujours Monte-Carlo) et les
 #       regles R1, R3 et R13 ne sont donc pas transcrites mais appliquees par
 #       le moteur ; cout mesure de usp_tests() : 26 ms par appel (30/09/2026,
@@ -629,7 +630,10 @@ chaine <- function(x, y, graine, B) {
   bt <- boucle_reduite(fb, graine, B, USP_CATALOGUE_MC[SIX])
   mc <- .mc_p_values(bt$sim, so[SIX], USP_CATALOGUE_MC, e_obs)
   p_mc <- err_mc <- so * NA_real_
-  motif <- stats::setNames(rep(NA_character_, length(so)), names(so))
+  # Statistiques hors des six, non simulees par la boucle reduite : motif
+  # MOTIF_MC_AUCUNE_REPLIC explicite, add() refusant une p Monte-Carlo
+  # absente sans motif (#181) ; leurs lignes ne sont pas lues.
+  motif <- stats::setNames(rep(MOTIF_MC_AUCUNE_REPLIC, length(so)), names(so))
   p_mc[SIX] <- mc$p_mc; err_mc[SIX] <- mc$err_mc; motif[SIX] <- mc$motif_mc
   boot <- list(stats_obs = as.list(so), p_mc = p_mc, err_mc = err_mc, motif_mc = motif)
   tt <- usp_tests(fb, boot, ALPHA, theta_equiv = THETA_EQUIV, methode = METHODE)

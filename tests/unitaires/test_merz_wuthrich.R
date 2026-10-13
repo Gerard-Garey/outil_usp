@@ -786,12 +786,15 @@ verifier("A par differences centrees (h = 1e-4) : MSEP a 1e-8 de mw_msep(), A a 
 # CONTEXT.md : "Un diagnostic n'a pas de verdict (affiche INFO)." add() applique
 # deja cette regle de lui-meme des que type != "test" ; le defaut ne peut donc
 # naitre que d'un appelant qui FORCE un verdict par l'argument verdict = .
-# mw_tests() ne lit du bootstrap que p_mc et err_mc : un objet fictif suffit,
-# aucune simulation n'est necessaire ici.
+# mw_tests() lit du bootstrap p_mc et err_mc (add()), et B et B_effectif
+# (.mw_phrase_b_effectif(), #204, refus explicite s'ils manquent) : un objet
+# fictif suffit, aucune simulation n'est necessaire ici ; B_effectif = B,
+# aucune phrase de #204.
 boot_mw_fictif <- local({
   s <- .mw_stats(at)
   p <- stats::setNames(rep(0.5, length(s)), names(s))
-  list(stats_obs = as.list(s), p_mc = p, err_mc = p * 0 + 0.01)
+  list(stats_obs = as.list(s), p_mc = p, err_mc = p * 0 + 0.01,
+       B = 999, B_effectif = p * 0 + 999)
 })
 lignes_mw <- mw_tests(at, boot_mw_fictif)
 verifier("M6 concentration de la reserve : diagnostic sans verdict (ADR 0001)",
@@ -1065,11 +1068,16 @@ verifier("Restitution : la colonne exclue est nommee dans le commentaire, estima
              grepl("Colonne degeneree", l$commentaire, fixed = TRUE) &&
              grepl("j = 2 (3 facteurs)", l$commentaire, fixed = TRUE) &&
              grepl("K = 2 colonne(s) testee(s) sur 3 eligible(s)", l$commentaire, fixed = TRUE) &&
-             identical(dr$commentaire[grepl("ordonnee a l'origine", dr$test)], base_oo) &&
+             # A B = 99, les trois p Monte-Carlo (0,12 ; 0,08 ; 0,05) sont a moins
+             # de 2 err_mc d'un seuil : phrase de #244 en dernier.
+             identical(dr$commentaire[grepl("ordonnee a l'origine", dr$test)],
+                       paste(base_oo, PHRASE_VERDICT_SENSIBLE_MC)) &&
              identical(dr$commentaire[grepl("Homogeneite de f_j", dr$test)],
-                       "Correlation de rang entre F(i,j) et i, colonne par colonne, combinee par Fisher") &&
+                       paste("Correlation de rang entre F(i,j) et i, colonne par colonne, combinee par Fisher ;",
+                             PHRASE_VERDICT_SENSIBLE_MC)) &&
              identical(dr$commentaire[grepl("courbure", dr$test)],
-                       "Une courbure invalide la linearite meme si la constante est nulle")
+                       paste("Une courbure invalide la linearite meme si la constante est nulle ;",
+                             PHRASE_VERDICT_SENSIBLE_MC))
          })
 
 ## --- Courbure : colonne a 1 ddl residuel conservee (issue #234) ------------
@@ -2000,21 +2008,28 @@ verifier("reserve2 : p_min des six lignes discretes, les 13 autres NA (#115, cri
              isTRUE(proche(runs_p_min(13, 13), 3.845932e-7, 1e-6)) &&
              !any(d$inoperant)
          })
-verifier("Sous-triangle 5 x 5, alpha = 0,10 : Calendaire et CorrDev inoperants, Suites reste un test (#115)",
+# Depuis #125 (D1-8), la p Monte-Carlo etant retenue, R1 lit le plancher
+# Monte-Carlo p_min_mc (B = 99, B_eff = 99) : Calendaire 0,10 >= alpha et
+# CorrDev 0,38 >= alpha -> inoperants (prefixe Monte-Carlo) ; Suites
+# 0,02 < alpha/2 -> test sans texte de R1 (le texte "ECHEC possible" lu sur
+# p_min = 4/70 a disparu). p_min reste restituee.
+verifier("Sous-triangle 5 x 5, alpha = 0,10 : Calendaire et CorrDev inoperants sur p_min_mc, Suites reste un test sans texte de R1 (#115, #125)",
          {
            t5 <- tri_ref[1:5, 1:5]; t5[row(t5) + col(t5) > 6] <- NA
            d <- engine_table_tests(run_mw(t5))
            l <- function(k) d[d$test == k, ]
-           pre <- paste("TEST INOPERANT au seuil alpha = 0.1 : p-value minimale atteignable",
-                        "sous la loi de reference echangeable")
+           pre <- paste("TEST INOPERANT au seuil alpha = 0.1 : plus petite p-value Monte-Carlo",
+                        "atteignable sur ces replications >= alpha")
            ca <- l("Effets d'annee calendaire (test de Mack)")
            co <- l("Correlation entre annees de developpement adjacentes")
            su <- l("Test des suites sur les residus de Mack")
            all(vapply(list(ca, co), function(x) isTRUE(x$inoperant) && x$type == "diagnostic" &&
                         identical(x$verdict, "INFO") && startsWith(x$commentaire, pre), logical(1))) &&
              identical(ca$p_min, 0.125) && isTRUE(proche(co$p_min, 1 / 3, 1e-12)) &&
+             isTRUE(proche(ca$p_min_mc, 0.10, 1e-12)) && isTRUE(proche(co$p_min_mc, 0.38, 1e-12)) &&
              su$type == "test" && !su$inoperant && isTRUE(proche(su$p_min, 4 / 70, 1e-12)) &&
-             grepl("ECHEC possible", su$commentaire, fixed = TRUE)
+             isTRUE(proche(su$p_min_mc, 0.02, 1e-12)) &&
+             !grepl("ECHEC", su$commentaire, fixed = TRUE) && !grepl("p_min", su$commentaire, fixed = TRUE)
          })
 # Adapte par #207 : la p_min de HomogF est attribuee avec ex aequo (loi
 # conditionnelle aux rangs moyens, decision Q-E2c-3) ; celle de CorrDev reste

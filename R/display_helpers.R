@@ -148,6 +148,12 @@ badge_nature <- function(n) {
     return("<span style='color:#7D3C98;font-weight:600'>mod\u00e8le MCO</span>")
   if (grepl("^exacte", n))      return("<span style='color:#1E8449;font-weight:600'>exacte</span>")
   if (grepl("^Monte-Carlo", n)) return("<span style='color:#00468C;font-weight:600'>Monte-Carlo</span>")
+  # Approximation de la loi a n fini sous i.i.d. normal (#120, constante
+  # NATURE_APPROX_N_FINI du moteur) : ni loi limite ni loi exacte ; badge
+  # distinct de "asymptotique" par son libelle comme par sa couleur
+  # (#6E2C00, retenue par app-review).
+  if (startsWith(n, NATURE_APPROX_N_FINI))
+    return("<span style='color:#6E2C00;font-weight:600'>approx. n fini</span>")
   "<span style='color:#B9770E;font-weight:600'>asymptotique</span>"
 }
 
@@ -237,17 +243,33 @@ table_synthese_groupe <- function(tb) {
 # rejoints par l'espace de coupure, rendent le commentaire entier (cet espace
 # est remplace par la frontiere entre le <summary> et le corps). Mise en forme
 # seule, chaque partie echappee ; NA : tiret, comme .txt().
+# Phrase de sensibilite du verdict (#244, PHRASE_VERDICT_SENSIBLE_MC du
+# moteur, toujours chargee avec lui, dernier element du detail) : sortie du
+# repli (decision du mainteneur, version d'app-review) et affichee apres lui,
+# sur sa propre ligne (<br> devant elle, sauf si elle est seule dans la
+# cellule) ; sa jonction (" " ou " ; ") est retiree, le reste est replie comme
+# avant. Sans la phrase, rendu inchange.
 .commentaire_replie <- function(com, seuil = 200L) {
   vapply(com, function(x) {
     if (is.na(x)) return("\u2013")
-    if (nchar(x) <= seuil) return(.echap_html(x))
-    tete <- substr(x, 1L, seuil)
-    esp <- gregexpr(" ", tete, fixed = TRUE)[[1]]
-    k <- if (any(esp > 1L)) max(esp) else seuil + 1L
-    debut <- substr(x, 1L, k - 1L)
-    suite <- substr(x, if (k <= seuil) k + 1L else k, nchar(x))
-    paste0("<details class='com'><summary>", .echap_html(debut), "</summary>",
-           .echap_html(suite), "</details>")
+    sens <- endsWith(x, PHRASE_VERDICT_SENSIBLE_MC)
+    if (sens) {
+      x <- sub("[ ;]+$", "", substr(x, 1L, nchar(x) - nchar(PHRASE_VERDICT_SENSIBLE_MC)))
+      pied <- paste0("<span style='color:#B9770E;font-weight:600;font-size:11px'>",
+                     .echap_html(PHRASE_VERDICT_SENSIBLE_MC), "</span>")
+    } else pied <- ""
+    corps <- if (!nzchar(x)) ""
+      else if (nchar(x) <= seuil) .echap_html(x)
+      else {
+        tete <- substr(x, 1L, seuil)
+        esp <- gregexpr(" ", tete, fixed = TRUE)[[1]]
+        k <- if (any(esp > 1L)) max(esp) else seuil + 1L
+        debut <- substr(x, 1L, k - 1L)
+        suite <- substr(x, if (k <= seuil) k + 1L else k, nchar(x))
+        paste0("<details class='com'><summary>", .echap_html(debut), "</summary>",
+               .echap_html(suite), "</details>")
+      }
+    paste0(corps, if (nzchar(corps) && nzchar(pied)) "<br>", pied)
   }, character(1), USE.NAMES = FALSE)
 }
 
@@ -279,8 +301,14 @@ table_detail_groupe <- function(tb, replier = FALSE) {
     # p-value minimale atteignable (loi de reference discrete, #44) ; colonne
     # absente d'une table anterieure au champ : tiret. Trois chiffres
     # significatifs : 2/8! = 5,0e-5 s'afficherait 0.0000 avec fmt_p().
-    `p min` = if (is.null(tb$p_min)) rep("\u2013", nrow(tb))
-              else ifelse(is.finite(tb$p_min), formatC(tb$p_min, format = "g", digits = 3), "\u2013"),
+    "p min (loi discr\u00e8te)" = if (is.null(tb$p_min)) rep("\u2013", nrow(tb))
+                                   else ifelse(is.finite(tb$p_min), formatC(tb$p_min, format = "g", digits = 3), "\u2013"),
+    # Plancher Monte-Carlo (#125) : plus petite p Monte-Carlo atteignable sur
+    # les replications tirees, lue par la regle R1 quand la p Monte-Carlo est
+    # retenue (NA hors de cette branche : tiret). Colonne absente d'une table
+    # anterieure au champ : tiret. Meme format que la colonne precedente.
+    `p min MC` = if (is.null(tb$p_min_mc)) rep("\u2013", nrow(tb))
+                 else ifelse(is.finite(tb$p_min_mc), formatC(tb$p_min_mc, format = "g", digits = 3), "\u2013"),
     Sens = .txt(tb$sens_du_test),
     `Motif / commentaire` = if (replier) .commentaire_replie(com) else .txt(com),
     Reference = .txt(tb$reference),
@@ -1968,7 +1996,15 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
             nrow(tb), sum(retenu), sum(!retenu)),
           paste("<div class='gris'>Nature de la p-value retenue :",
                 "<b style='color:#1E8449'>exacte</b> &gt; <b style='color:#00468C'>Monte-Carlo</b>",
-                "&gt; <b style='color:#B9770E'>asymptotique</b>.",
+                "&gt; p non simul\u00e9e (<b style='color:#B9770E'>asymptotique</b> ou",
+                "<b style='color:#6E2C00'>approx. n fini</b>).",
+                "Quand la p Monte-Carlo manque, la p non simul\u00e9e n'est jamais retenue",
+                "\u00e0 sa place (ADR 0001) : sauf p exacte, la ligne ne porte aucune",
+                "p-value retenue.",
+                "La nature <b style='color:#6E2C00'>approx. n fini</b> (Lilliefors, Anscombe-Glynn)",
+                "est une p non simul\u00e9e qui approche la loi de la statistique \u00e0 n fini",
+                "sous \u00e9chantillon i.i.d. normal ; elle occupe le rang de l'asymptotique",
+                "sans \u00eatre une loi limite, et ne vaut que si cette hypoth\u00e8se tient.",
                 "Les p-values <b style='color:#7D3C98'>sous le mod\u00e8le auxiliaire pond\u00e9r\u00e9</b>",
                 "(TOST) sont hors hi\u00e9rarchie : elles ne sont retenues que",
                 "faute de p exacte ou Monte-Carlo sous le mod\u00e8le r\u00e9glementaire, et ne",

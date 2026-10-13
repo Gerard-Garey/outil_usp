@@ -164,6 +164,20 @@ annexe <- entre(h, "<section id='section-annexe-exclus'>", "</section>")
 verifier("Rapport : encadre de personnalisation avec le nombre de lignes du moteur",
          grepl(sprintf("Le moteur a calcul\u00e9 %d lignes", nrow(tb)), principal, fixed = TRUE) &&
          grepl("sans effet sur le calcul", principal, fixed = TRUE))
+# Legende des natures du rapport fige (#120) : la nature "approx. n fini"
+# (NATURE_APPROX_N_FINI) y est nommee, dans la couleur de son badge.
+verifier("Rapport : legende des natures, nature 'approx. n fini' nommee dans la couleur du badge (#120)",
+         grepl("<b style='color:#6E2C00'>approx. n fini</b> (Lilliefors, Anscombe-Glynn)",
+               principal, fixed = TRUE) &&
+         grepl("color:#6E2C00", badge_nature(NATURE_APPROX_N_FINI), fixed = TRUE))
+# Legende de la hierarchie (#181) : rang de la p non simulee et absence de
+# repli quand la p Monte-Carlo manque.
+verifier("Rapport : legende 'exacte > Monte-Carlo > p non simulee', aucun repli sur la p non simulee (#181)",
+         grepl(paste("&gt; p non simul\u00e9e (<b style='color:#B9770E'>asymptotique</b> ou",
+                     "<b style='color:#6E2C00'>approx. n fini</b>)."), principal, fixed = TRUE) &&
+         grepl(paste("Quand la p Monte-Carlo manque, la p non simul\u00e9e n'est jamais retenue",
+                     "\u00e0 sa place (ADR 0001) : sauf p exacte, la ligne ne porte aucune",
+                     "p-value retenue."), principal, fixed = TRUE))
 verifier("Rapport : chaque test retenu est dans la section principale, pas en annexe",
          all(vapply(tb$test[retenu], function(n) length(ligne_de(principal, n)) >= 1 &&
                       !length(ligne_de(annexe, n)), logical(1))))
@@ -302,6 +316,10 @@ verifier("Rapport MW : exclus par defaut en annexe avec leur verdict",
            grepl(badge_verdict(tbm$verdict[k]),
                  ligne_de(entre(hm, "<section id='section-annexe-exclus'>", "</section>"), tbm$test[k]),
                  fixed = TRUE), logical(1))))
+verifier("Rapport MW : M5 Lilliefors (variante secondaire, en annexe) sous le badge 'approx. n fini' (#120)",
+         grepl(badge_nature(NATURE_APPROX_N_FINI),
+               ligne_de(entre(hm, "<section id='section-annexe-exclus'>", "</section>"),
+                        "Lilliefors sur les residus de Mack"), fixed = TRUE))
 verifier("Rapport MW : formule racine(MSEP) / R, sans facteur de taille finie",
          grepl("racine(MSEP) / R", texte_formule(res_mw), fixed = TRUE) &&
          !grepl("(T+1)/(T-1)", texte_formule(res_mw), fixed = TRUE) &&
@@ -865,8 +883,21 @@ desechap <- function(x) gsub("&amp;", "&", gsub("&gt;", ">", gsub("&lt;", "<", x
                                                    fixed = TRUE), fixed = TRUE)
 # Texte rendu par une cellule de .commentaire_replie() : debut (summary) et
 # suite (corps du details), rejoints par l'espace de coupure ; tiret : NA.
+# Phrase de #244 sortie du repli (pied) : retiree, puis rejointe au texte
+# relu selon la regle de jonction d'add() (" " apres un point final, " ; "
+# sinon). Phrase seule dans la cellule : SPAN244 sans <br> (remarque
+# d'app-review sur #244).
+SPAN244 <- paste0("<span style='color:#B9770E;font-weight:600;font-size:11px'>",
+                  .echap_html(PHRASE_VERDICT_SENSIBLE_MC), "</span>")
+PIED244 <- paste0("<br>", SPAN244)
 relire_com <- function(cel) vapply(cel, function(x) {
   if (identical(x, "–")) return(NA_character_)
+  if (identical(x, SPAN244)) return(PHRASE_VERDICT_SENSIBLE_MC)
+  if (endsWith(x, PIED244)) {
+    b <- relire_com(substr(x, 1L, nchar(x) - nchar(PIED244)))
+    return(paste0(b, if (grepl("\\.$", b)) " " else " ; ", PHRASE_VERDICT_SENSIBLE_MC))
+  }
+  if (!nzchar(x)) return("")
   m <- regmatches(x, regexec("^<details class='com'><summary>(.*)</summary>(.*)</details>$", x))[[1]]
   if (!length(m)) return(desechap(x))
   d <- desechap(m[2]); r <- desechap(m[3])
@@ -879,7 +910,11 @@ for (cas in list(list(nom = "lognormale", tb = tb), list(nom = "MW", tb = tbm)))
   com1 <- t1$commentaire; com1[!is.na(com1) & !nzchar(trimws(com1))] <- NA_character_
   dr <- table_detail_groupe(t1, replier = TRUE); dp <- table_detail_groupe(t1)
   cel <- dr[["Motif / commentaire"]]
-  long <- !is.na(com1) & nchar(com1) > 200L
+  # Longueur comptee sans la phrase de #244 ni sa jonction, sortie du repli.
+  sans244 <- ifelse(!is.na(com1) & endsWith(com1, PHRASE_VERDICT_SENSIBLE_MC),
+                    sub("[ ;]+$", "", substr(com1, 1L, nchar(com1) - nchar(PHRASE_VERDICT_SENSIBLE_MC))),
+                    com1)
+  long <- !is.na(com1) & nchar(sans244) > 200L
   verifier(sprintf("Vue Detail (%s) : commentaire long replie (<details>), court en clair, aucun texte retire (#178)", cas$nom),
            any(long) && all(startsWith(cel[long], "<details class='com'><summary>")) &&
            !any(grepl("<details", cel[!long], fixed = TRUE)) &&
@@ -904,8 +939,72 @@ verifier(".commentaire_replie() : coupure au dernier espace avant le seuil, au s
              identical(cr[2], paste0("<details class='com'><summary>", strrep("x", 200),
                                      "</summary>", strrep("x", 250), "</details>"))
          })
+# Phrase de #244 (decision du mainteneur : sortie du repli) : cas long, Origine
+# de reserve2 (314 caracteres, phrase au-dela du seuil de 200) ; cas court,
+# Grubbs de premium_interieur (128 caracteres) ; phrase seule, homogeneite des
+# dispersions de premium (detail vide hors phrase).
+ref244 <- function(cas, i) readRDS(file.path(.racine, "tests", "reference",
+                                             paste0(cas, ".rds")))$tests[[i]]$detail
+verifier(".commentaire_replie() : phrase de #244 hors du <details>, en pied, texte relu entier (#244, #178)",
+         {
+           x_long <- ref244("reserve2", 2); x_court <- ref244("premium_interieur", 37)
+           x_seul <- ref244("premium", 15)
+           cr <- .commentaire_replie(c(x_long, x_court, x_seul))
+           nchar(x_long) > 200L && endsWith(x_long, PHRASE_VERDICT_SENSIBLE_MC) &&
+             startsWith(cr[1], "<details class='com'><summary>") &&
+             endsWith(cr[1], paste0("</details>", PIED244)) &&
+             !grepl("alea de simulation", sub(PIED244, "", cr[1], fixed = TRUE), fixed = TRUE) &&
+             identical(cr[2], paste0(.echap_html(sub(paste0(" ; ", PHRASE_VERDICT_SENSIBLE_MC), "",
+                                                     x_court, fixed = TRUE)), PIED244)) &&
+             !grepl("<details", cr[2], fixed = TRUE) &&
+             identical(cr[3], SPAN244) && !grepl("<br>", cr[3], fixed = TRUE) &&
+             identical(relire_com(cr), c(x_long, x_court, x_seul))
+         })
 verifier("Garde : table sans colonne fonction -> tiret dans la colonne Fonction (#178)",
          { tbf <- tb; tbf$fonction <- NULL; all(table_detail_groupe(tbf)$Fonction == "–") })
+# Colonne "p min MC" de la vue Detail (plancher Monte-Carlo p_min_mc, #125,
+# constat C1 d'app-review sur E2b) : sur premium_interieur, la ligne
+# "Tendance par signes du ratio S/P" est un test inoperant dont la bascule R1
+# lit p_min_mc = 0,149 (test_plancher_mc.R, U125-6), alors que la p minimale
+# de la loi discrete vaut 0,125. Meme fonction dans l'application (vue
+# Detail, replier = TRUE) et dans le rapport fige (section 5).
+res_pi <- readRDS(file.path(.racine, "tests", "reference", "premium_interieur.rds"))
+tb_pi <- engine_table_tests(res_pi)
+nom_signes <- "Tendance par signes du ratio S/P"
+i_signes <- match(nom_signes, tb_pi$test)
+verifier("Vue Detail : colonnes \"p min (loi discr\u00e8te)\" puis \"p min MC\", 0,125 et 0,149 sur la ligne inoperante des signes (premium_interieur, #125)",
+         {
+           dd <- table_detail_groupe(tb_pi, replier = TRUE)
+           j <- match("p min (loi discr\u00e8te)", names(dd))
+           !is.na(i_signes) && isTRUE(tb_pi$inoperant[i_signes]) && !is.na(j) &&
+             identical(names(dd)[j + 1L], "p min MC") &&
+             identical(dd[i_signes, j], "0.125") && identical(dd[["p min MC"]][i_signes], "0.149") &&
+             identical(dd[["p min MC"]] == "\u2013", !is.finite(tb_pi$p_min_mc)) &&
+             identical(dd[names(dd) != "Motif / commentaire"],
+                       table_detail_groupe(tb_pi)[names(dd) != "Motif / commentaire"])
+         })
+verifier("Garde : table sans colonne p_min_mc -> tiret dans la colonne p min MC (#125)",
+         { tbf <- tb_pi; tbf$p_min_mc <- NULL; all(table_detail_groupe(tbf)[["p min MC"]] == "\u2013") })
+# Le rapport fige est produit sur un recalcul du cas (parametres de CAS dans
+# tests/outils_tests.R, B par defaut) : la reference versionnee est nettoyee
+# de champs de metadata (horodatage, duree, version de R) que l'en-tete du
+# rapport lit.
+verifier("Rapport fige (premium_interieur recalcule) : en-tetes p min et p min MC, 0,125 et 0,149 sur la ligne des signes (#125)",
+         {
+           d_pi <- utils::read.csv(file.path(.racine, "tests", "donnees", "donnees_ln_interieur.csv"))
+           res_pi2 <- run_engine(xt = d_pi$xt, yt = d_pi$yt, methode = "premium", segment = 1,
+                                 annexe = "II", nature_donnees = "brutes")
+           tb_pi2 <- engine_table_tests(res_pi2)
+           f_pi <- tempfile(fileext = ".html")
+           rapport_html(res_pi2, selection_defaut(tb_pi2), f_pi, interactif = FALSE, identite = idt)
+           h_pi <- lire(f_pi); unlink(f_pi)
+           pr_pi <- entre(h_pi, "<section id='section-tests-retenus'>", "</section>")
+           l_pi <- ligne_de(pr_pi, nom_signes)
+           grepl("<th>p min (loi discr\u00e8te)</th><th>p min MC</th>", pr_pi, fixed = TRUE) &&
+             # Deux lignes portent le test : Synthese puis Detail ; seule la
+             # seconde a les colonnes p min.
+             length(l_pi) == 2L && grepl("<td>0.125</td><td>0.149</td>", l_pi[2], fixed = TRUE)
+         })
 verifier("Rapport : colonne Fonction dans le detail des tests retenus, commentaire en entier, aucun <details> (#178)",
          all(vapply(which(retenu), function(k)
            any(grepl(paste0("<td><code>", tb$fonction[k], "</code></td></tr>"),

@@ -344,11 +344,13 @@ FONCTIONS_JD <- c("mw_residus", "mw_test_annees_calendaires", "mw_test_ordonnee_
 # residus transmis = valeur capturee de mw_residus(), ancienne forme de
 # mw_test_exposant_variance() et mw_test_homogeneite_accident() calculee une
 # fois.
-# masse_min (#207) : element ajoute au resultat de mw_test_homogeneite_f() et
-# de mw_test_exposant_variance(), absent de l'ancienne forme ; retire avant
-# comparaison (son calcul est controle dans test_merz_wuthrich.R).
+# masse_min (#207) et p_min_col (#125) : elements ajoutes au resultat de
+# mw_test_homogeneite_f() et de mw_test_exposant_variance(), absents de
+# l'ancienne forme ; retires avant comparaison (leur calcul est controle dans
+# test_merz_wuthrich.R et test_plancher_mc.R).
 sans_masse <- function(x) {
   if (is.list(x$valeur) && !is.null(x$valeur$masse_min)) x$valeur$masse_min <- NULL
+  if (is.list(x$valeur) && !is.null(x$valeur$p_min_col)) x$valeur$p_min_col <- NULL
   x
 }
 ecarts <- function(t, jds = list(NULL), etiquette = "", fonctions = FONCTIONS_JD,
