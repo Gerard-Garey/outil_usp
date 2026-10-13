@@ -5,12 +5,13 @@
 #  la maniere d'executer le moteur pour chacun, et le comparateur unique de
 #  non-regression (comparer_objets). Source par test_reproductibilite.R,
 #  generer_references.R, comparer_references.R, patcher_reference.R et
-#  regenerer_et_rendre_compte.R ; source aussi par les neuf scripts de
+#  regenerer_et_rendre_compte.R ; source aussi par les dix scripts de
 #  mesure hors CI qui ont --ecrire (puissance_t8.R, constats_puissance_t8.R,
 #  calibration_mc_t8.R, taux_franchissement_reperes.R,
 #  conservatisme_interieur_t8.R, grille_regime_t8.R,
 #  p_conditionnelle_regime_t8.R, calibration_mc_mw_t8.R,
-#  mesure_precision_residus_mw.R), qui y trouvent la
+#  mesure_precision_residus_mw.R, enumeration_spearman_ex_aequo.R), qui y
+#  trouvent la
 #  garde d'ecrasement des tableaux versionnes (garde_ecrasement(), #173),
 #  le commit du depot et les motifs de non-versionnement (commit_depot(),
 #  motifs_non_versionnable(), #205 ; commit_depot() sert aussi a
@@ -618,12 +619,13 @@ empreinte_sans_commentaires <- function(fichier = file.path(RACINE, "R", "engine
 
 # ---------------------------------------------------------------------------
 #  Garde d'ecrasement des tableaux versionnes (issue #173). Seul lieu de la
-#  regle, appelee par les neuf scripts de mesure hors CI qui ont --ecrire
+#  regle, appelee par les dix scripts de mesure hors CI qui ont --ecrire
 #  (tests/puissance_t8.R, tests/constats_puissance_t8.R,
 #  tests/calibration_mc_t8.R, tests/taux_franchissement_reperes.R,
 #  tests/conservatisme_interieur_t8.R, tests/grille_regime_t8.R,
 #  tests/p_conditionnelle_regime_t8.R, tests/calibration_mc_mw_t8.R,
-#  tests/mesure_precision_residus_mw.R), APRES
+#  tests/mesure_precision_residus_mw.R,
+#  tests/enumeration_spearman_ex_aequo.R), APRES
 #  leurs gardes propres (arbre propre, motifs_non_versionnable()) et AVANT
 #  toute ecriture : tous les chemins cibles d'une execution sont controles
 #  d'abord, puis seulement ecrits. tests/puissance_t8.R (constat m2 d'audit
