@@ -14443,15 +14443,25 @@ conditionnement. \emph{Scripts hors CI.} Les mesures des issues~\#166, \#175 et~
 sur la p-value marginale V1 et ne se reproduisent qu'à leur commit~: un contrôle d'intégrité qui
 compare au moteur une p-value de Monte-Carlo rejouée en V1 devient faux, depuis l'issue~\#240,
 sur tout jeu à $\hat\delta$ intérieur --- contrôle~(i2) de
-\code{tests/p\_conditionnelle\_}\allowbreak\code{regime\_t8.R} et de
-\code{tests/conservatisme\_}\allowbreak\code{interieur\_t8.R}, contrôle~S5 de
-\code{tests/comparer\_}\allowbreak\code{ajusteurs\_bootstrap.R} sur J2, contrôle de transcription de
-\code{tests/puissance\_t8.R} sur J2 (par lecture du code~: les lignes comparées par
-\code{identical()}, au nombre de six, comprennent des p-values de Monte-Carlo~; script non exécuté~; sur J2 observé, la p-value de Monte-Carlo de Durbin--Watson
-passe de $0{,}496$ à $0{,}390$, celle de Mann--Kendall de $0{,}784$ à $0{,}830$) ---, et
+\code{tests/p\_conditionnelle\_}\allowbreak\code{regime\_t8.R} (issue~\#267, ouverte) et de
+\code{tests/conservatisme\_}\allowbreak\code{interieur\_t8.R} ---, et
 \code{tests/calibration\_mc\_t8.R}, qui exécute \code{run\_engine()} complet, calculerait
 désormais V3h sur les réplications intérieures, de sorte que ses tableaux ne se reproduisent qu'au
-commit cité (\code{26e7496}). Le coût d'une exécution croît à $\hat\delta$ intérieur avec le
+commit cité (\code{26e7496}). Deux autres contrôles l'étaient devenus aussi, de l'issue~\#240 à
+l'issue~\#262 (correctif R13, PR~\#266), qui les a rétablis en rejouant la variante V3h dans les
+scripts (\code{rejeu\_p\_mc\_v3h()} de \code{tests/outils\_tests.R}, comparée par
+\code{identical()} à \code{usp\_bootstrap()} par la batterie unitaire)~: le contrôle~S5 de
+\code{tests/comparer\_}\allowbreak\code{ajusteurs\_bootstrap.R} sur J2, qui compare aussi
+\code{motif\_mc}, \code{p\_min\_mc}, la variante et, sous V3b, les comptes de tirages du flux,
+et le critère~3 de \code{tests/puissance\_t8.R} (transcription contre \code{run\_engine()} sur
+J1 et J2 observés~: les lignes comparées par \code{identical()}, au nombre de six, comprennent
+des p-values de Monte-Carlo, et, sous V3h, sur J2 observé, celle de Durbin--Watson passe de $0{,}496$ à $0{,}390$,
+celle de Mann--Kendall de $0{,}784$ à $0{,}830$). Exécution de la session de rédaction (R~4.3.3,
+graine 20260831, $B = 99$, essais hors protocole)~: S5 «~OK~» sur J2
+(\code{--jeu J2 --B 99 --sans-seconde-passe}), critère~3 «~OK~» sur J1 et J2
+(\code{--volet B --R-chaine 2 --B 99}). Ce rétablissement ne réexécute aucun tableau versionné~:
+les tableaux déjà versionnés de ces scripts citent leur commit d'exécution et ne se reproduisent
+qu'à ce commit (question de leur remesure portée par l'issue~\#256). Le coût d'une exécution croît à $\hat\delta$ intérieur avec le
 nombre de tirages ($4\,490$ au lieu de 999 sur \code{premium\_interieur}, jusqu'à $25\,(B+1)$
 quand le régime intérieur est rare).
 
@@ -14545,11 +14555,15 @@ $0{,}1114524114$ ($-2{,}2\cdot 10^{-7}$ en relatif, effet de l'issue~\#63)~; le 
 95~\% de l'intervalle bootstrap bouge de $+1{,}6\cdot 10^{-4}$ en relatif, les autres de moins
 de $6\cdot 10^{-7}$~; seule la p-value retenue de Shapiro--Wilk change ($0{,}621 \to 0{,}620$)~;
 aucun verdict ne change. Le contrôle d'intégrité S5 du script (reconstruction de
-\code{usp\_tests()} sur J1) échoue depuis l'issue~\#45, le script n'appelant pas
-\code{usp\_tests()} avec son nouvel argument \code{lr\_delta}, et, depuis l'issue~\#240, ses
-contrôles des p-values de Monte-Carlo d'\code{usp\_bootstrap()} échouent sur J2, où la p-value
-conditionnelle au régime est retenue (paragraphe «~Mise en œuvre~» ci-dessus)~; les mesures de $q$
-et des régimes n'en dépendent pas.
+\code{usp\_tests()} sur J1) a échoué à partir de l'issue~\#45, le script n'appelant pas
+\code{usp\_tests()} avec son nouvel argument \code{lr\_delta}, jusqu'au commit \code{a811ee7} de
+cette issue, qui le lui passe~; de l'issue~\#240 à l'issue~\#262 (correctif R13), ses contrôles
+des p-values de Monte-Carlo d'\code{usp\_bootstrap()} échouaient sur J2, où la p-value
+conditionnelle au régime est retenue (paragraphe «~Mise en œuvre~» ci-dessus), et l'issue~\#262
+les a rétablis (section~\ref{sec:calibration-mc}, «~Scripts hors CI~»). Exécution de la session
+de rédaction (protocole par défaut, $B = 999$, graine 20260831, sans seconde passe)~: S5 «~OK~»
+sur J1 (\code{identical()} avec \code{usp\_bootstrap()} et avec \code{run\_engine()} des quatre
+cas) et sur J2~; les mesures de $q$ et des régimes n'en dépendent pas.
 
 \medskip
 \begin{encadre}
