@@ -5,27 +5,29 @@
 #  Teste garde_ecrasement(), ligne_remplacement() et inserer_t0() de
 #  tests/outils_tests.R sur un depot git temporaire (git init dans
 #  tempdir() : un fichier suivi, un non suivi, un absent), puis, sans calcul
-#  long, les huit scripts de mesure hors CI qui ont --ecrire :
+#  long, les neuf scripts de mesure hors CI qui ont --ecrire :
 #  (a) fichier suivi sans --remplacer : refus, rien d'ecrit (aucun des
 #      fichiers de l'execution), message qui nomme le fichier ;
 #  (b) fichier non suivi ou absent : aucun refus ;
 #  (c) --remplacer : fichier suivi rendu avec son md5 d'avant, cite par la
 #      ligne de T0 ;
-#  (d) --remplacer sans --ecrire : refus d'usage des huit scripts (avant
+#  (d) --remplacer sans --ecrire : refus d'usage des neuf scripts (avant
 #      tout chargement du moteur) ;
 #  git indisponible (commande introuvable) ou racine hors d'un depot, et
 #  fichier existant : refus, meme avec --remplacer ; test statique : chacun
-#  des huit scripts appelle la garde avant toute ecriture ; puissance_t8.R
+#  des neuf scripts appelle la garde avant toute ecriture ; puissance_t8.R
 #  --ecrire (hors --combiner) dans un depot git temporaire ou le tableau du
 #  jour est suivi : refus des l'analyse des options, avant tout calcul
 #  (constat m2 d'audit de #173).
 #  Issue #205 : commit_depot() et motifs_non_versionnable() (definition
 #  unique dans tests/outils_tests.R) sur un depot git temporaire ; test
-#  statique : aucun script de mesure ne les redefinit, et chacun des huit
+#  statique : aucun script de mesure ne les redefinit, et chacun des neuf
 #  scripts qui ont --ecrire evalue ses gardes (arbre propre, ecrasement,
 #  dossier cible) avant le premier appel couteux (calcul, ou lecture des
 #  tranches de --combiner) ; execution sur un depot git temporaire : refus
-#  avant tout calcul des huit scripts si docs/tableaux/ manque ou si l'arbre
+#  avant tout calcul des huit scripts de CAS_A (tous sauf
+#  mesure_precision_residus_mw.R, qui exige Rmpfr avant ses gardes, #258)
+#  si docs/tableaux/ manque ou si l'arbre
 #  de travail est modifie, et de constats_puissance_t8.R si un tableau du
 #  jour est suivi ; constats_puissance_t8.R --ecrire hors du depot, arbre
 #  modifie : aucun refus (seul l'ecrit versionnable est garde).
@@ -197,7 +199,7 @@ if (GIT_OK) {
   cat("  [saute] garde_ecrasement() sur depot git temporaire : git introuvable\n")
 }
 
-## --- Les huit scripts -------------------------------------------------------
+## --- Les neuf scripts -------------------------------------------------------
 # grille_regime_t8.R (#229, etape 4) : --ecrire ecrit le tableau seul ; ses
 # valeurs brutes vont hors du depot (--brut, obligatoire avec --ecrire).
 # p_conditionnelle_regime_t8.R (#229, etapes 5 et 6) : --combiner --ecrire
@@ -206,9 +208,11 @@ if (GIT_OK) {
 # calibration_mc_mw_t8.R (#206, etape 4) : --combiner --ecrire ecrit cinq
 # fichiers dans docs/tableaux/ (tableaux, valeurs brutes, journaux), et la
 # copie des valeurs brutes hors du depot (--brut et --journal obligatoires).
+# mesure_precision_residus_mw.R (#233, enregistre par #258) : --ecrire ecrit
+# le tableau et ses valeurs brutes dans docs/tableaux/.
 SCRIPTS_ECRIRE <- c("puissance_t8.R", "constats_puissance_t8.R", "calibration_mc_t8.R",
                     "taux_franchissement_reperes.R", "conservatisme_interieur_t8.R", "grille_regime_t8.R",
-                    "p_conditionnelle_regime_t8.R", "calibration_mc_mw_t8.R")
+                    "p_conditionnelle_regime_t8.R", "calibration_mc_mw_t8.R", "mesure_precision_residus_mw.R")
 .tests <- file.path(.dossier, "..")
 for (sc in SCRIPTS_ECRIRE) {
   L <- readLines(file.path(.tests, sc), encoding = "UTF-8")
@@ -425,9 +429,15 @@ verifier("tests/outils_tests.R : commit_depot() et motifs_non_versionnable() def
 # appelee la seule (bloc --combiner place avant le calcul) passerait pour
 # anticipee en execution directe (mesure sur les scripts d'avant #205 :
 # puissance_t8.R et taux_franchissement_reperes.R).
+# mclapply : les appels faits dans une fonction anonyme passee en argument
+# (parallel::mclapply(ids, function(k) mesure_precision(k))) sont classes
+# "dans une fonction" et ne comptent pas ; l'appel de mclapply() au premier
+# niveau marque donc le premier calcul de mesure_precision_residus_mw.R
+# (#258 ; mesure : premier appel couteux inchange pour les huit autres
+# scripts).
 COUTEUSES <- c("run_engine", "executer_cas", "usp_ajuster", "usp_bootstrap", "usp_simuler", "engine_sous_graine",
                "mw_ajuster", "mw_bootstrap", "sw_loi_nulle", "lois_discretes", "lire_comptes",
-               "lire_sortie")
+               "lire_sortie", "mclapply")
 ordre_appels <- function(f) {
   # options(keep.parse.data = TRUE) : sys.source() (lanceur
   # tests/test_unitaires.R) la pose a FALSE ; parse() ne garde alors pas les
@@ -494,7 +504,8 @@ GARDES_ANTICIPEES <- list(
   conservatisme_interieur_t8.R = c("motifs_non_versionnable", "garde_ecrasement"),
   grille_regime_t8.R = c("motifs_non_versionnable", "garde_ecrasement"),
   p_conditionnelle_regime_t8.R = c("motifs_non_versionnable", "garde_ecrasement"),
-  calibration_mc_mw_t8.R = c("motifs_non_versionnable", "garde_ecrasement"))
+  calibration_mc_mw_t8.R = c("motifs_non_versionnable", "garde_ecrasement"),
+  mesure_precision_residus_mw.R = c("motifs_non_versionnable", "garde_ecrasement"))
 for (sc in names(GARDES_ANTICIPEES)) {
   o <- ordre_appels(file.path(.tests, sc))
   l_cout <- o$premiere(COUTEUSES)
@@ -507,7 +518,12 @@ for (sc in names(GARDES_ANTICIPEES)) {
   # dossier cible de --ecrire (docs/tableaux/) controle avant le premier appel
   # couteux : expression de premier niveau qui appelle dir.exists() sur
   # docs/tableaux ou dossier_sortie() (constats_puissance_t8.R : --ecrire
-  # DOSSIER, controle des l'analyse des options)
+  # DOSSIER, controle des l'analyse des options), ou qui appelle une fonction
+  # du script dont le corps contient un appel dir.exists() dont l'argument
+  # contient "tableaux" (gardes_ecrire() de mesure_precision_residus_mw.R,
+  # #258). Limite : un seul niveau de fonction (une fonction de premier
+  # niveau appelee au premier niveau ; un controle delegue a une seconde
+  # fonction n'est pas suivi).
   verifier(sprintf("%s : existence du dossier cible de --ecrire controlee avant le premier appel couteux (#205)", sc),
            { k <- !is.na(o$haut) & o$ap$text == "dir.exists"
              ids <- unique(o$haut[k])
@@ -515,12 +531,24 @@ for (sc in names(GARDES_ANTICIPEES)) {
              txt <- vapply(ids, function(i) { r <- o$pd[o$pd$id == i, ]
                                               paste(src[r$line1:r$line2], collapse = " ") }, "")
              l_d <- o$ligne[as.character(ids[grepl("\"tableaux\"|dossier_sortie\\(\\)|OPT_ECRIRE", txt)])]
+             # appels dir.exists(...) d'une expression, a toute profondeur
+             appels_dir <- function(x) if (!is.call(x)) list() else
+               c(if (identical(x[[1]], as.name("dir.exists"))) list(x), unlist(lapply(as.list(x)[-1], appels_dir),
+                                                                             recursive = FALSE))
+             f_dossier <- unlist(lapply(o$ex, function(e)
+               if (is.call(e) && as.character(e[[1]])[1] %in% c("<-", "=") && is.name(e[[2]]) && is.call(e[[3]]) &&
+                   identical(e[[3]][[1]], as.name("function")) &&
+                   any(vapply(appels_dir(e[[3]]), function(a)
+                     any(grepl("\"tableaux\"", deparse(as.list(a)[-1]), fixed = TRUE)), logical(1))))
+                 as.character(e[[2]])))
+             k_f <- !is.na(o$haut) & o$ap$text %in% f_dossier
+             l_d <- c(l_d, o$ligne[as.character(unique(o$haut[k_f]))])
              length(l_d) && min(l_d) < l_cout })
 }
 
 ## --- Gardes anticipees : execution sur un depot git temporaire (#205) ---------
 # Depot temporaire (racine avec espace) qui porte le moteur, les outils, les
-# donnees et les huit scripts, sans docs/tableaux/ ; les tableaux du jour
+# donnees et les neuf scripts, sans docs/tableaux/ ; les tableaux du jour
 # (et du lendemain) de la partie tost de constats_puissance_t8.R sont suivis
 # dans docs/autres/. Preuve qu'aucun calcul n'a commence : aucun titre de
 # sortie ("## ") dans la sortie, et duree mesuree.
@@ -538,7 +566,7 @@ if (GIT_OK) {
   init_a <- identical(ga("init", "-q"), 0L) && identical(ga("add", "-A"), 0L) &&
     identical(ga("-c", "user.name=test", "-c", "user.email=test@example.invalid", "-c", "commit.gpgsign=false",
                  "commit", "-q", "-m", "init"), 0L)
-  verifier("Gardes anticipees : depot git temporaire (racine avec espace), huit scripts commites", init_a)
+  verifier("Gardes anticipees : depot git temporaire (racine avec espace), neuf scripts commites", init_a)
   lancer_a <- function(sc, args) {
     ancien <- setwd(da)
     on.exit(setwd(ancien))
@@ -552,6 +580,9 @@ if (GIT_OK) {
   }
   refus_avant_calcul <- function(o, motif)
     identical(attr(o, "status"), 1L) && any(grepl(motif, o, fixed = TRUE)) && !any(grepl("^## ", o))
+  # mesure_precision_residus_mw.R n'a pas de cas d'execution : il s'arrete
+  # sans Rmpfr (paquet hors CI) avant ses gardes de --ecrire (mesure, #258) ;
+  # ses gardes ne sont controlees ici que statiquement.
   CAS_A <- list(puissance_t8.R = c("--ecrire", "--volet", "A", "--R", "20"),
                 calibration_mc_t8.R = c("--combiner", "tranche-absente.txt", "--ecrire"),
                 taux_franchissement_reperes.R = c("--ecrire", "--issue", "999", "--R", "1"),

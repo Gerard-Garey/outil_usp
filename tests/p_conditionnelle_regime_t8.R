@@ -2016,10 +2016,22 @@ compter_h2 <- function(S, stats_obs) vapply(STATS_P2, function(s) {
   v <- S[, s]; sum(is.finite(v) & abs(v - o) <= TOL_H2 * max(1, abs(o)))
 }, 1)
 # Liste "bootstrap" d'une variante pour usp_tests() (champs lus par
-# engine_registre_tests()).
-boot_variante <- function(stats_obs, mc) list(stats_obs = as.list(stats_obs), p_mc = mc$p_mc, err_mc = mc$err_mc,
-                                              B_effectif = mc$B_effectif, granularite = 1 / (B_BOOT + 1), B = B_BOOT,
-                                              granularite_stat = mc$granularite, motif_mc = mc$motif_mc)
+# engine_registre_tests()) ; p_min_mc, plancher Monte-Carlo de la regle R1
+# (#125), rendu par .mc_p_values() avec le contexte observe (#262) : sans
+# lui, add() lit p_min. NULL pour la liste factice de --prevol
+# (boot_factice(), aucune replication), qui garde la branche de p_min.
+# variante : "V3b" pour la variante V3b quand usp_bootstrap() la retiendrait
+# (delta chapeau*_b interieur et volumes non constants, usp_regime()) ; la
+# liste porte alors p_mc_regime$variante, et usp_tests() attribue la nature
+# NATURE_MC_REGIME_INTERIEUR comme run_engine() (revue finale de R13, #262).
+# NULL sinon (V1, V3a, V3b aux bords, que le moteur ne calcule pas ;
+# boot_factice()) : nature "Monte-Carlo (bootstrap parametrique)".
+boot_variante <- function(stats_obs, mc, variante = NULL)
+  c(list(stats_obs = as.list(stats_obs), p_mc = mc$p_mc, err_mc = mc$err_mc,
+         B_effectif = mc$B_effectif, granularite = 1 / (B_BOOT + 1), B = B_BOOT,
+         granularite_stat = mc$granularite, motif_mc = mc$motif_mc,
+         p_min_mc = mc$p_min_mc),
+    if (!is.null(variante)) list(p_mc_regime = list(variante = variante)))
 codes_t2 <- function(tests) {
   nm <- vapply(tests, `[[`, "", "test"); k <- match(LIGNES_T2, nm)
   list(v = paste(vapply(k, function(i) if (is.na(i)) "-" else code_verdict(tests[[i]]$verdict), ""), collapse = ""),
@@ -2077,8 +2089,12 @@ traiter <- function(x, y, b, ctl = list(complet = FALSE, h1 = FALSE), t2 = TRUE)
       usp_permutation_pente(x, y, B = B_BOOT, seed = g_boot, unilateral = .pitman_unilateral()) else NULL
     # une erreur de usp_tests() remonte (variante citee) : la replication
     # prend le statut "erreur" (tryCatch de la boucle des replications)
+    rg <- usp_regime(fit$delta, fit$x)
+    v3b_moteur <- !rg$delta_au_bord && !rg$volumes_constants
     out$t2 <- lapply(stats::setNames(nm = names(out$mc)), function(v)
-      codes_t2(tryCatch(usp_tests(fit, boot_variante(rv$stats_obs, out$mc[[v]]), ALPHA, theta_equiv = THETA_EQUIV,
+      codes_t2(tryCatch(usp_tests(fit, boot_variante(rv$stats_obs, out$mc[[v]],
+                                                     variante = if (v == "V3b" && v3b_moteur) "V3b"),
+                                  ALPHA, theta_equiv = THETA_EQUIV,
                                   methode = METHODE, lr_delta = NULL, permutation_pente = perm),
                         error = function(e) stop(sprintf("usp_tests() (%s) : %s", v, conditionMessage(e)), call. = FALSE))))
   }

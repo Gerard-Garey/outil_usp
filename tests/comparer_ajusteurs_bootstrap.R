@@ -25,6 +25,22 @@
 #  Le reajustement ne consomme aucun alea (L-BFGS-B deterministe) : la suite
 #  des yb est celle du moteur, verifiee par le controle d'integrite S5
 #  (identical() avec usp_bootstrap() et run_engine()).
+#  p Monte-Carlo (agregat 6, controle S5) : variante V3h de usp_bootstrap()
+#  (#240, ADR 0014), rejouee par rejeu_p_mc_v3h() de tests/outils_tests.R
+#  depuis #262 ; a delta estime interieur (J2), chaque ajusteur conditionne
+#  sur ses propres delta** et complete le flux distinct du moteur avec son
+#  propre reajustement. S5 compare aussi motif_mc, p_min_mc, la variante et,
+#  sous V3b, retenus_v1, retenus, tirages et arret de p_mc_regime.
+#  Cout du flux V3b (J2 seulement ; J1, delta estime au bord, reste en V1
+#  sans flux) : chaque ajusteur tire son propre flux, jusqu'a B tirages
+#  retenus ou FACTEUR_B_MAX_REGIME (B + 1) tirages, et reajuste chaque tirage
+#  du flux, retenu ou non ; pour C, c'est usp_ajuster() complet a chaque
+#  tirage. Duree chronometree par ajusteur (etapes "<jeu> : p Monte-Carlo,
+#  ajusteur <a>" du tableau des temps). Mesure du 13/10/2026 (conteneur
+#  Linux, R 4.3.3, B = 999, graine 20260831, batterie unitaire en parallele
+#  sur la machine) : J2, R 9,4 s, C 128,6 s, R3 17,3 s, contre 60,4 s pour le
+#  rejeu des 999 replications des trois ajusteurs ; J1, 0,1 s ou moins par
+#  ajusteur ; total 232 s (J2) et 111 s (J1).
 #
 #  Jeux (T = 8) : J1, tests/donnees/donnees_ln.csv (jeu des quatre cas de
 #  reference lognormaux) ; J2, jeu a delta estime interieur lu dans
@@ -281,9 +297,23 @@ analyser <- function(o, nom_jeu, passe) {
 }
 
 # --- p_mc (agregat 6) --------------------------------------------------------------
-p_mc_ajusteurs <- function(fit, o) {
+# p Monte-Carlo de chaque ajusteur selon la variante V3h de usp_bootstrap()
+# (rejeu_p_mc_v3h() de tests/outils_tests.R, #262) : conditions du
+# catalogue evaluees sur le contexte observe e ; a delta estime interieur
+# (J2), p conditionnelle au regime interieur (V3b), sur les replications
+# dont le delta** de L'AJUSTEUR est interieur, completees par le flux
+# distinct de usp_bootstrap() reajuste par ce meme ajusteur. Pour R, c'est
+# le calcul de usp_bootstrap() (controle S5). Rend aussi motif_mc et
+# p_min_mc du meme ajusteur que la p_mc. Duree chronometree par ajusteur
+# (etape "<jeu> : p Monte-Carlo, ajusteur <a>" du tableau des temps) : sous
+# V3b, elle porte le cout du flux de cet ajusteur (voir l'en-tete).
+p_mc_ajusteurs <- function(fit, o, nom_jeu) {
+  e_obs <- .usp_contexte_mc(fit$x, fit$y, fit$z, fit$pi)
   stats_obs <- .stats_bootstrapables(fit$x, fit$y, fit$z, fit$pi)
-  lapply(stats::setNames(AJ, AJ), function(a) .mc_p_values(o[[a]]$sim, stats_obs, USP_CATALOGUE_MC))
+  lapply(stats::setNames(AJ, AJ), function(a)
+    chrono(sprintf("%s : p Monte-Carlo, ajusteur %s", nom_jeu, a),
+           rejeu_p_mc_v3h(fit, o[[a]]$sim, o[[a]]$ok_stats, o[[a]]$delta, stats_obs, e_obs, o$B, o$graine,
+                          reajuster = function(yb) AJUSTEURS[[a]](fit, yb))))
 }
 classer_s2 <- function(d, gran) {
   # Tolerance 1e-12 : un ecart d'exactement une granularite, calcule par
@@ -360,13 +390,26 @@ for (nj in JEUX_RETENUS) {
   s5 <- character(0)
   ref_boot <- chrono(sprintf("%s : usp_bootstrap() du moteur", nj), usp_bootstrap(fit, B = OPT_B, seed = OPT_GRAINE))
   vR <- vecteurs_boot(o$R)
-  pR <- .mc_p_values(o$R$sim, .stats_bootstrapables(fit$x, fit$y, fit$z, fit$pi), USP_CATALOGUE_MC)
+  # p Monte-Carlo des trois ajusteurs (agregat 6), variante V3h (#262) ;
+  # celle de R est controlee ici contre usp_bootstrap().
+  pm <- p_mc_ajusteurs(fit, o, nj)
+  pR <- pm$R
   controler <- function(nom, a, b) if (!identical(a, b)) s5 <<- c(s5, nom)
   for (ch in c("sigma_boot", "delta_boot", "gamma_boot"))
     controler(paste0("usp_bootstrap()$", ch), vR[[ch]], ref_boot[[ch]])
   controler("usp_bootstrap()$p_mc", pR$p_mc, ref_boot$p_mc)
   controler("usp_bootstrap()$err_mc", pR$err_mc, ref_boot$err_mc)
   controler("usp_bootstrap()$B_effectif", pR$B_effectif, ref_boot$B_effectif)
+  controler("usp_bootstrap()$motif_mc", pR$motif_mc, ref_boot$motif_mc)
+  controler("usp_bootstrap()$p_min_mc", pR$p_min_mc, ref_boot$p_min_mc)
+  # Variante et, sous V3b, decompte du flux (retenus de la boucle et au
+  # total, tirages, arret) ; hors de V3b, ces champs sont NA dans le moteur
+  # et absents du rejeu : seule la variante est comparee (revue finale de
+  # R13, #262).
+  controler("usp_bootstrap()$p_mc_regime$variante", pR$p_mc_regime$variante, ref_boot$p_mc_regime$variante)
+  if (identical(ref_boot$p_mc_regime$variante, "V3b"))
+    for (ch in c("retenus_v1", "retenus", "tirages", "arret"))
+      controler(paste0("usp_bootstrap()$p_mc_regime$", ch), pR$p_mc_regime[[ch]], ref_boot$p_mc_regime[[ch]])
   res_cas <- list()
   if (nj == "J1") {
     res_cas <- chrono("J1 : run_engine() des quatre cas", lapply(stats::setNames(CAS_LN, CAS_LN), function(cc) CAS[[cc]]()))
@@ -404,8 +447,7 @@ for (nj in JEUX_RETENUS) {
   # --- Agregats 1 a 4 ---
   rq <- analyser(o, nj, sprintf("B = %d, graine %.0f", OPT_B, OPT_GRAINE))
 
-  # --- Agregat 6 : p_mc ---
-  pm <- p_mc_ajusteurs(fit, o)
+  # --- Agregat 6 : p_mc (pm, calcule avant S5) ---
   s2 <- table_T5(pm, nj)
 
   # --- Agregats 5 (sigma_USP) et 7 (verdicts), J1 seulement ---
@@ -451,6 +493,11 @@ for (nj in JEUX_RETENUS) {
         b <- res$bootstrap; f <- res$ajustement
         b$p_mc <- pm[[a]]$p_mc; b$err_mc <- pm[[a]]$err_mc; b$B_effectif <- pm[[a]]$B_effectif
         b$granularite_stat <- pm[[a]]$granularite
+        # motif_mc et p_min_mc du meme ajusteur que la p_mc (#262) : sinon,
+        # une p_mc NA de l'ajusteur avec le motif NA du moteur arrete
+        # usp_tests() (stop() de #181), et la regle R1 lit le plancher
+        # Monte-Carlo du moteur (#125).
+        b$motif_mc <- pm[[a]]$motif_mc; b$p_min_mc <- pm[[a]]$p_min_mc
         b[c("sigma_boot", "delta_boot", "gamma_boot")] <- vX[[a]]
         f$largeur_ic <- larg[[a]]
         # lr_delta : repris tel quel de run_engine() (res$lr_delta, issue #45)
