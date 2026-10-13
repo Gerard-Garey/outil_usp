@@ -6188,6 +6188,24 @@ p-value de Monte-Carlo. Dans la bande de tolérance de \code{usp\_regime()}, $\h
 constant qu'à un écart d'ordre $1 - \hat\delta$ près, et l'exactitude ne vaut qu'à cet ordre
 près~; le commentaire des seules lignes dont la p-value exacte est attribuée le dit.
 
+\emph{Libellés selon le régime} (issue~\#182, décisions du mainteneur du 12~octobre 2026). Un
+texte de la ligne ne nomme une p-value que si elle existe, et ne qualifie une loi d'exacte que
+dans le régime où elle l'est. À $\hat\pi_t$ constant, le champ \code{loi} des sept vérifications de la
+règle qui en portent un est inchangé et dit la loi exacte (Durbin--Watson~: «~\code{loi EXACTE par
+la methode d'Imhof (1961)}~»~; suites~: «~\code{loi combinatoire EXACTE de R}~»~; Mann--Kendall,
+Smirnov, Spearman contre volume et contre temps, Cox--Stuart). À $\hat\pi_t$ variable, où la
+p-value exacte n'est pas attribuée, il ne la dit plus exacte et se termine par
+«~\code{exacte a pi\_t constant seulement (regle R7)}~»~: «~\code{forme quadratique en normales~;
+loi par la methode d'Imhof (1961), \dots}~», «~\code{loi combinatoire de R, \dots}~», «~\code{loi de
+S (distribution mahonienne), \dots}~», «~\code{loi combinatoire (ks.test, sans ex aequo),
+\dots}~», «~\code{loi de permutation (T <= 9, sans ex aequo), \dots}~» pour Spearman contre volume et
+contre temps, et «~Binomiale(m, 1/2), \code{m differences non nulles, \dots}~» pour Cox--Stuart
+(fiche~\ref{fiche:cox-stuart}). Le commentaire de Smirnov à $\hat\pi_t$ variable dit de quelle loi
+est le minimum qu'il cite, «~\code{p-value minimale atteignable sous la loi de reference
+echangeable = 0.0286}~», cette valeur ne bornant pas la p-value de Monte-Carlo retenue
+(fiche~\ref{fiche:smirnov}). Mesuré sur les références \code{premium} ($\hat\pi_t$ constant) et
+\code{premium\_interieur} ($\hat\pi_t$ variable).
+
 \emph{Calibration mesurée par régime} (constat de simulation, non une borne). Deux scénarios à
 $T = 8$, $\beta = 0{,}7$, $\sigma = 0{,}15$, 10\,000 jeux chacun~: (A)~$\delta = 1$, volumes du jeu
 de contrôle (graine 2501)~; (B)~$\delta = 0$, volumes équidistants et croissants de 50 à 200, soit
@@ -7505,9 +7523,10 @@ La p-value asymptotique $p = 1 - F_{\mathcal{F},q,T-k-q}(F)$ est restituée (loi
 modèle ajusté (clé \code{RESET}, rejet en queue haute), les volumes $x_t$ étant fixés dans les
 réplications. Sur le jeu de contrôle (méthode prime, $B = 999$)~: $F = 0{,}005077$, p-value
 asymptotique $0{,}995$, p-value de Monte-Carlo retenue $0{,}996$. Le commentaire de la ligne ne
-nomme la p-value de Monte-Carlo comme retenue que si elle existe~; sinon, il dit qu'elle est
-indisponible et que la p-value retenue, s'il en est une, est nommée par \code{nature\_p}
-(issue~\#128)~: faute de réplications finies en nombre suffisant, aucune p-value n'est retenue et
+nomme la p-value de Monte-Carlo comme retenue que si elle existe (issue~\#128)~; sinon, il dit
+«~\code{La p Monte-Carlo, simulee sous le modele ajuste, est indisponible sur ces donnees~: aucune
+p-value n'est retenue (ADR 0001).}~» (issue~\#182~; il renvoyait auparavant à \code{nature\_p},
+vide depuis l'issue~\#181)~: faute de réplications finies en nombre suffisant, aucune p-value n'est retenue et
 la ligne devient un diagnostic «~\code{Monte-Carlo indisponible}~», sa p-value non simulée restant
 affichée sans être retenue (issue~\#181, section~\ref{sec:nature}, point~(ii)~; mesuré avec
 \code{usp\_bootstrap(B = 40)}~; jusqu'à cette issue, la p-value asymptotique était retenue sous la
@@ -7735,7 +7754,12 @@ $K$ lui-même mais $|K - n_p/2|$, $n_p = T - c$ étant le nombre de paires, avec
 rejet en queue haute~: la loi de $K$ étant symétrique sous $H_0$, la queue haute de
 $|K - n_p/2|$ est la région de rejet bilatérale de $K$. C'est une transformation qui conserve la
 région de rejet, et non une autre statistique (ADR~0003, annotation du 24~septembre 2026)~; la
-chaîne \code{loi} de la ligne la mentionne. Cette équivalence suppose $m = n_p$, c'est-à-dire
+chaîne \code{loi} de la ligne la mentionne quand cette p-value est calculée («~\code{p\_mc par |K -
+n\_p/2|, n\_p paires, queue haute}~»), et dit «~\code{p\_mc non calculee (ex aequo)}~» sinon~; elle
+ne qualifie la loi binomiale d'exacte («~Binomiale(m, 1/2) EXACTE, m differences non nulles~») qu'à $\hat\pi_t$
+constant, et écrit à $\hat\pi_t$ variable «~Binomiale(m, 1/2)\code{, m differences non nulles,
+exacte a pi\_t constant seulement (regle R7)}~» (issue~\#182, quatre régimes~; mesuré sur
+\code{premium} et \code{premium\_interieur}, sans ex \ae quo). Cette équivalence suppose $m = n_p$, c'est-à-dire
 aucune différence nulle~: $n_p/2$ est alors le centre de la loi de $K$. Or les réplications,
 tirées d'une loi continue, ne comportent jamais de différence nulle~: elles simulent
 $K^{*} \sim \mathcal{B}(n_p, 1/2)$, alors qu'en présence d'ex \ae quo ($m < n_p$) le $K$ observé
@@ -8141,7 +8165,10 @@ constants). À $\hat\pi_t$ variable, ce ne serait qu'une approximation dont l'é
 borné~: depuis l'issue~\#70 (règle~R7), le moteur n'attribue la p-value exacte qu'à $\hat\pi_t$
 constant, et retient sinon la p-value de Monte-Carlo (clé \code{Smirnov}), le commentaire
 commençant par «~\code{p exacte non attribuee~: loi de reference exacte seulement a pi\_t constant (z = P
-epsilon non echangeable, r\_t non identiquement distribues).}~» Le
+epsilon non echangeable, r\_t non identiquement distribues).}~» et nommant, depuis l'issue~\#182,
+la loi dont $2/70$ est le minimum («~\code{p-value minimale atteignable sous la loi de reference
+echangeable = 0.0286}~», mesuré sur \code{premium\_interieur})~; le champ \code{loi} ne dit alors
+plus la loi exacte (section~\ref{sec:base-residus}). Le
 \emph{QQ-plot à deux échantillons} associé (section~\ref{sec:graphiques}) reste le diagnostic le plus lisible.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} $2/\binom{8}{4} = 2/70 = 0{,}0286$ ($n_1 = n_2 = 4$, sans ex \ae quo dans $z$, \code{smirnov\_p\_min()}), atteinte seulement pour $D = 1$~; avec ex \ae quo, \code{p\_min} vaut \code{NA} et aucune p-value exacte n'est attribuée (issue~\#112)~; p-values atteignables $0{,}0286$~; $0{,}2286$~; $0{,}7714$~; $1$. Exacte à $\hat\pi_t$ constant, où la p-value exacte de \code{stats::ks.test()} est retenue~; à $\hat\pi_t$ variable, la p-value retenue est de Monte-Carlo (clé \code{Smirnov}, rejet en queue haute, plancher $1/(B+1)$, soit $0{,}001$ à $B = 999$) et $0{,}0286$, $p_{\min}$ de la loi de référence échangeable, ne borne pas cette p-value de Monte-Carlo.
@@ -8380,7 +8407,11 @@ donc calculée sur la statistique \emph{re-standardisée}, $A^2$ de $(z - \bar z
 dans le champ \code{estim}~; le champ \code{stat} garde $A^2$ calculée sur $z$, statistique du
 catalogue sur laquelle porte la p-value de Monte-Carlo. La p-value non simulée n'est pas calculée
 pour $T < 8$, hors de la plage de l'implémentation de référence \code{nortest::ad.test} ($n > 7$),
-et le commentaire le dit~; la plage de la table de D'Agostino \& Stephens elle-même n'a pas été
+et le commentaire le dit, comme, depuis l'issue~\#182, le champ \code{loi}~: «~\code{p non simulee non
+calculee (T < 8, hors de la plage de l'implementation de reference)}~» au lieu de la description de
+l'ajustement de Stephens (mesuré à $T = 7$ sur les sept premières années du jeu de contrôle)~; ce
+champ ne décrit la p-value de Monte-Carlo («~\code{p\_mc sur stat (statistique du catalogue)}~») que
+si elle existe, et reste inchangé à $T \ge 8$ quand elle existe~; la plage de la table de D'Agostino \& Stephens elle-même n'a pas été
 vérifiée sur l'ouvrage. Ce sont des ajustements empiriques et non un résultat exact~; sur
 20\,000 échantillons i.i.d. $\mathcal{N}(0,1)$ de taille $T = 8$ re-standardisés (graine~1,
 constat de simulation), la fréquence de $p \le 0{,}05$ vaut $5{,}0~\%$ et celle de $p \le 0{,}10$
@@ -8429,7 +8460,8 @@ $W^{*2} = W^2(1 + 0{,}5/T)$ lorsque les paramètres sont estimés.
 Approximations par morceaux de Stephens pour le cas à paramètres estimés, rapportées comme
 p-value non simulée, calculées comme pour Anderson--Darling sur la statistique re-standardisée,
 $W^2$ de $(z - \bar z)/s_z$, restituée dans le champ \code{estim}, et non calculées pour
-$T < 8$ (règle~R6, issue~\#44)~; sur les mêmes 20\,000 échantillons re-standardisés, la fréquence
+$T < 8$ (règle~R6, issue~\#44~; champ \code{loi} selon le régime comme pour Anderson--Darling,
+issue~\#182)~; sur les mêmes 20\,000 échantillons re-standardisés, la fréquence
 de $p \le 0{,}05$ vaut $4{,}8~\%$ et celle de $p \le 0{,}10$ vaut $10{,}0~\%$ (constat de
 simulation, même protocole que pour Anderson--Darling, fiche~\ref{fiche:anderson-darling}, la
 p-value étant celle de \code{cvm\_p\_stephens()} appliquée à \code{stat\_cvm()}). Mesuré sur le jeu de contrôle~: $0{,}480$ (contre $0{,}398$ avant l'issue~\#44).
@@ -8565,7 +8597,10 @@ basse, attribuée à $\hat\pi_t$ constant seulement. Depuis l'issue~\#70 (règle
 ligne est \emph{non applicable} à $\hat\pi_t$ variable~: la loi nulle i.i.d. n'y décrit pas $W(z)$,
 elle n'est ni calculée ni rappelée ($W$ reste dans \code{stat}), et le commentaire renvoie à la
 ligne de Shapiro--Wilk sur résidus standardisés, dont la p-value de Monte-Carlo, simulée sous le
-modèle ajusté, reste disponible. Sous le modèle ajusté, la ligne est non applicable dans $50{,}2~\%$
+modèle ajusté, reste disponible~: «~\code{\dots{}~; voir la ligne Shapiro-Wilk sur residus
+standardises (p Monte-Carlo)}~» (mesuré sur \code{premium\_interieur}), ou, quand cette p-value
+manque, «~\code{\dots{} (p Monte-Carlo indisponible sur ces donnees)}~» (mesuré sur le même jeu avec
+\code{usp\_bootstrap(B = 40)}), le renvoi ne nommant une p-value que si elle existe (issue~\#182). Sous le modèle ajusté, la ligne est non applicable dans $50{,}2~\%$
 des jeux simulés sur le jeu de contrôle et $63{,}9~\%$ sur le jeu à $\hat\delta$ intérieur,
 exactement ceux où $\hat\delta^{*}$ n'est pas au bord~1 (constat de simulation, issue~\#72,
 2\,000 réplications, section~\ref{sec:taux-reperes})~: même sur le jeu de contrôle, où
@@ -8879,7 +8914,9 @@ Cette p-value est \emph{exacte} au sens de l'ADR~0002 \textbf{à $\hat\pi_t$ con
 (règle~R7), le moteur ne l'attribue que dans ce régime~: à $\hat\pi_t$ variable, la colonne
 \code{p\_exacte} vaut \code{NA}, l'intégrale d'Imhof n'est pas évaluée, la p-value de Monte-Carlo
 (clé \code{DW}) est retenue et le commentaire commence par «~\code{p exacte non attribuee~: loi de reference exacte seulement a pi\_t constant (z = P
-epsilon non echangeable, r\_t non identiquement distribues).}~» Dans la bande de
+epsilon non echangeable, r\_t non identiquement distribues).}~»~; le champ \code{loi} dit alors
+«~\code{forme quadratique en normales~; loi par la methode d'Imhof (1961), exacte a pi\_t constant
+seulement (regle R7)}~», et non «~\code{loi EXACTE}~» (issue~\#182, section~\ref{sec:base-residus}). Dans la bande de
 tolérance de \code{usp\_regime()}, le commentaire ajoute que la loi n'est exacte qu'à un écart
 d'ordre $1 - \hat\delta$, ou de l'étendue relative des volumes, près
 (section~\ref{sec:base-residus}).
@@ -9873,7 +9910,9 @@ Monte-Carlo (clé \code{Runsr}), bilatérale. Le commentaire de la ligne suit ce
 l'issue~\#128~: sous la double condition, il dit la p-value exacte retenue, sauf motif de
 dégénérescence de \code{Runsr}, qui l'écarte (ADR~0001, section~\ref{sec:nature}, point~(ii))~;
 hors de la double condition, il ne nomme la p-value de Monte-Carlo comme retenue que si elle
-existe, et renvoie sinon à \code{nature\_p}. Quand $\hat\pi_t$ est constant mais qu'un signe
+existe, et dit sinon qu'elle «~\code{est indisponible sur ces donnees~: aucune p-value n'est retenue
+(ADR 0001)}~» (issue~\#182~; mesuré à $\hat\pi_t$ variable sur le jeu à $\hat\delta$ intérieur avec
+\code{usp\_bootstrap(B = 40)}~; il renvoyait auparavant à \code{nature\_p}). Quand $\hat\pi_t$ est constant mais qu'un signe
 diffère entre $u_t - \operatorname{med}(u)$ et $z_t - \operatorname{med}(z)$, le commentaire
 distingue depuis l'issue~\#187 deux sous-cas~: $\hat\pi_t$ \emph{exactement} constant,
 où l'écart est attribué au traitement numérique (centrage de $u$ par la moyenne, aplatissement des
@@ -9881,8 +9920,9 @@ ex \ae quo à une tolérance relative à $\max_t|r_t|$ sur $u$ et absolue sous~1
 section~\ref{sec:ex-aequo}), non à une variation de $\hat\pi_t$~; $\hat\pi_t$ constant à la
 tolérance \code{TOL\_DELTA\_BORD} près seulement, où la variation résiduelle de $\hat\pi_t$ est
 nommée. Dans les deux sous-cas, il se termine par «~\code{La p-value Monte-Carlo, simulee sous le
-modele ajuste, est calculee ; la p-value retenue, s'il en est une, est nommee par nature\_p.}~»,
-sans dire la p-value de Monte-Carlo retenue, une règle de restitution pouvant encore l'écarter
+modele ajuste, est calculee ; la p-value retenue, s'il en est une, est nommee par nature\_p.}~»
+quand cette p-value existe (seule branche où cette phrase subsiste, issue~\#182), et par la phrase
+d'indisponibilité ci-dessus sinon, sans dire la p-value de Monte-Carlo retenue, une règle de restitution pouvant encore l'écarter
 (cas mesuré à la fiche~\ref{fiche:suites-wald-wolfowitz}, rubrique~5). Sous la double condition, la p-value de
 Monte-Carlo, quand elle existe, estime la même quantité que la p-value exacte, à l'erreur de
 Monte-Carlo près~; le commentaire ne cite cette p-value de Monte-Carlo que si elle existe
@@ -10003,7 +10043,8 @@ $p = 2\sum_{j=1}^{\infty}(-1)^{j-1}\exp\!\big(-2j^2\,\mathrm{CUSUM}^2\big)$.
 Le script retient la p-value de Monte-Carlo, l'approximation brownienne étant inutilisable à
 $T \le 15$. Le commentaire («~\code{La formule asymptotique n'a aucune validite a T = 8~: p\_mc
 retenue}~») ne nomme \code{p\_mc} comme retenue que si elle existe~; sinon, il dit qu'elle est
-indisponible et renvoie à \code{nature\_p} (issue~\#128)~: faute de réplications finies en
+indisponible~: «~\code{\dots{}~; p\_mc est indisponible sur ces donnees~: aucune p-value n'est
+retenue (ADR 0001)}~» (issues~\#128 et~\#182~; il renvoyait auparavant à \code{nature\_p})~: faute de réplications finies en
 nombre suffisant, la ligne devient, par la règle~(ii) de la section~\ref{sec:nature}, un
 diagnostic sans p-value retenue, la p-value asymptotique restant affichée (issue~\#181~; mesuré
 avec \code{usp\_bootstrap(B = 40)})~; jusqu'à cette issue, elle était retenue sous une nature qui
@@ -10551,7 +10592,9 @@ serait-il aussi défendable~? Lecture, reprise par le commentaire de la ligne~: 
 borne atteinte par l'estimation~; \code{p\_mc} faible, borne moins compatible avec les données
 que $\hat\delta$~; \code{p\_mc} élevée, borne aussi défendable que $\hat\delta$ --- ce qui signifie
 que les données ne distinguent pas la borne de l'optimum, \textbf{non que la borne est
-établie}~: à $T = 8$, une p-value élevée n'est pas une preuve. Une $\mathrm{LR}$ faible pour les
+établie}~: à $T = 8$, une p-value élevée n'est pas une preuve. Le commentaire ne donne les deux lectures de \code{p\_mc} que si elle existe~; sinon, il
+s'arrête à «~\code{LR = 0, borne atteinte par l'estimation.}~» (issue~\#182~: un texte ne nomme
+une p-value que si elle existe). Une $\mathrm{LR}$ faible pour les
 deux bornes signifie que $\delta$ n'est pas identifié et que le paramètre final repose sur une
 convention plutôt que sur l'information contenue dans l'historique~; l'effet sur
 $\hat\sigma$ se lit dans \code{estim} ($\tilde\sigma(\delta_0)$). Sur le jeu de contrôle, $\delta_0 = 0$ donne $\mathrm{LR} = 0{,}551$,
@@ -14732,7 +14775,8 @@ Optimisation sous contrainte $\delta\in[0,1]$ & \code{usp\_objectif()}, \code{us
 $\hat\delta$ au bord, $\hat\pi_t$ constant (fiches~\ref{fiche:position-delta}, \ref{fiche:centrage}) & \code{usp\_regime()}, tolérance \code{TOL\_DELTA\_BORD} \\
 Lois exactes (Kendall, suites) & \code{mk\_p\_exacte()}, \code{runs\_p\_exacte()},
 \code{usp\_runsr\_p\_exacte()}~; attribution des p-values exactes à $\hat\pi_t$ constant seulement
-et libellés selon le régime (règles~R7 et~R8 d'\code{usp\_tests()}, issue~\#70) \\
+et libellés selon le régime (règles~R7 et~R8 d'\code{usp\_tests()}, issue~\#70~; champ \code{loi}
+par la fermeture locale \code{loi\_r7()}, textes inconditionnels de l'issue~\#182) \\
 Statistiques de test & \code{stat\_*()}, \code{test\_*()} \\
 Bootstrap paramétrique et p-values MC & \code{.stats\_bootstrapables()}, \code{usp\_bootstrap()}~;\newline
 catalogues \code{USP\_CATALOGUE\_MC} et \code{MW\_CATALOGUE\_MC} (\code{.mc\_entree()},
