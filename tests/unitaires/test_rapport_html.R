@@ -962,6 +962,49 @@ verifier(".commentaire_replie() : phrase de #244 hors du <details>, en pied, tex
          })
 verifier("Garde : table sans colonne fonction -> tiret dans la colonne Fonction (#178)",
          { tbf <- tb; tbf$fonction <- NULL; all(table_detail_groupe(tbf)$Fonction == "–") })
+# Colonne "p min MC" de la vue Detail (plancher Monte-Carlo p_min_mc, #125,
+# constat C1 d'app-review sur E2b) : sur premium_interieur, la ligne
+# "Tendance par signes du ratio S/P" est un test inoperant dont la bascule R1
+# lit p_min_mc = 0,149 (test_plancher_mc.R, U125-6), alors que la p minimale
+# de la loi discrete vaut 0,125. Meme fonction dans l'application (vue
+# Detail, replier = TRUE) et dans le rapport fige (section 5).
+res_pi <- readRDS(file.path(.racine, "tests", "reference", "premium_interieur.rds"))
+tb_pi <- engine_table_tests(res_pi)
+nom_signes <- "Tendance par signes du ratio S/P"
+i_signes <- match(nom_signes, tb_pi$test)
+verifier("Vue Detail : colonnes \"p min (loi discr\u00e8te)\" puis \"p min MC\", 0,125 et 0,149 sur la ligne inoperante des signes (premium_interieur, #125)",
+         {
+           dd <- table_detail_groupe(tb_pi, replier = TRUE)
+           j <- match("p min (loi discr\u00e8te)", names(dd))
+           !is.na(i_signes) && isTRUE(tb_pi$inoperant[i_signes]) && !is.na(j) &&
+             identical(names(dd)[j + 1L], "p min MC") &&
+             identical(dd[i_signes, j], "0.125") && identical(dd[["p min MC"]][i_signes], "0.149") &&
+             identical(dd[["p min MC"]] == "\u2013", !is.finite(tb_pi$p_min_mc)) &&
+             identical(dd[names(dd) != "Motif / commentaire"],
+                       table_detail_groupe(tb_pi)[names(dd) != "Motif / commentaire"])
+         })
+verifier("Garde : table sans colonne p_min_mc -> tiret dans la colonne p min MC (#125)",
+         { tbf <- tb_pi; tbf$p_min_mc <- NULL; all(table_detail_groupe(tbf)[["p min MC"]] == "\u2013") })
+# Le rapport fige est produit sur un recalcul du cas (parametres de CAS dans
+# tests/outils_tests.R, B par defaut) : la reference versionnee est nettoyee
+# de champs de metadata (horodatage, duree, version de R) que l'en-tete du
+# rapport lit.
+verifier("Rapport fige (premium_interieur recalcule) : en-tetes p min et p min MC, 0,125 et 0,149 sur la ligne des signes (#125)",
+         {
+           d_pi <- utils::read.csv(file.path(.racine, "tests", "donnees", "donnees_ln_interieur.csv"))
+           res_pi2 <- run_engine(xt = d_pi$xt, yt = d_pi$yt, methode = "premium", segment = 1,
+                                 annexe = "II", nature_donnees = "brutes")
+           tb_pi2 <- engine_table_tests(res_pi2)
+           f_pi <- tempfile(fileext = ".html")
+           rapport_html(res_pi2, selection_defaut(tb_pi2), f_pi, interactif = FALSE, identite = idt)
+           h_pi <- lire(f_pi); unlink(f_pi)
+           pr_pi <- entre(h_pi, "<section id='section-tests-retenus'>", "</section>")
+           l_pi <- ligne_de(pr_pi, nom_signes)
+           grepl("<th>p min (loi discr\u00e8te)</th><th>p min MC</th>", pr_pi, fixed = TRUE) &&
+             # Deux lignes portent le test : Synthese puis Detail ; seule la
+             # seconde a les colonnes p min.
+             length(l_pi) == 2L && grepl("<td>0.125</td><td>0.149</td>", l_pi[2], fixed = TRUE)
+         })
 verifier("Rapport : colonne Fonction dans le detail des tests retenus, commentaire en entier, aucun <details> (#178)",
          all(vapply(which(retenu), function(k)
            any(grepl(paste0("<td><code>", tb$fonction[k], "</code></td></tr>"),

@@ -152,7 +152,7 @@ badge_nature <- function(n) {
   # NATURE_APPROX_N_FINI du moteur) : ni loi limite ni loi exacte ; badge
   # distinct de "asymptotique" par son libelle comme par sa couleur
   # (#6E2C00, retenue par app-review).
-  if (grepl("^approximation a n fini", n))
+  if (startsWith(n, NATURE_APPROX_N_FINI))
     return("<span style='color:#6E2C00;font-weight:600'>approx. n fini</span>")
   "<span style='color:#B9770E;font-weight:600'>asymptotique</span>"
 }
@@ -301,8 +301,14 @@ table_detail_groupe <- function(tb, replier = FALSE) {
     # p-value minimale atteignable (loi de reference discrete, #44) ; colonne
     # absente d'une table anterieure au champ : tiret. Trois chiffres
     # significatifs : 2/8! = 5,0e-5 s'afficherait 0.0000 avec fmt_p().
-    `p min` = if (is.null(tb$p_min)) rep("\u2013", nrow(tb))
-              else ifelse(is.finite(tb$p_min), formatC(tb$p_min, format = "g", digits = 3), "\u2013"),
+    "p min (loi discr\u00e8te)" = if (is.null(tb$p_min)) rep("\u2013", nrow(tb))
+                                   else ifelse(is.finite(tb$p_min), formatC(tb$p_min, format = "g", digits = 3), "\u2013"),
+    # Plancher Monte-Carlo (#125) : plus petite p Monte-Carlo atteignable sur
+    # les replications tirees, lue par la regle R1 quand la p Monte-Carlo est
+    # retenue (NA hors de cette branche : tiret). Colonne absente d'une table
+    # anterieure au champ : tiret. Meme format que la colonne precedente.
+    `p min MC` = if (is.null(tb$p_min_mc)) rep("\u2013", nrow(tb))
+                 else ifelse(is.finite(tb$p_min_mc), formatC(tb$p_min_mc, format = "g", digits = 3), "\u2013"),
     Sens = .txt(tb$sens_du_test),
     `Motif / commentaire` = if (replier) .commentaire_replie(com) else .txt(com),
     Reference = .txt(tb$reference),
