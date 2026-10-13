@@ -971,8 +971,27 @@ de \code{mw\_test\_exposant\_}\allowbreak\code{variance()} et
 \code{mw\_test\_homogeneite\_}\allowbreak\code{accident()} & statistiques des tests M1 à M6 (détail~: §\ref{sec:index-fonctions}) \\
 \code{.mw\_summary\_lm()} & ajustement \code{lm()} & \code{summary()} de l'ajustement, appelé tel
 quel, sans le seul avertissement «~\code{essentially perfect fit}~» de \code{summary.lm()}, tout
-autre avertissement remontant~; employé par \code{mw\_test\_ordonnee\_}\allowbreak\code{origine()} et
-\code{mw\_test\_courbure()} (issue~\#203, fiche~\ref{mw:m1a}) \\
+autre avertissement remontant~; employé par \code{mw\_test\_ordonnee\_}\allowbreak\code{origine()}
+(issue~\#203, fiche~\ref{mw:m1a})~; \code{mw\_test\_courbure()} l'employait aussi jusqu'à
+l'issue~\#253, qui calcule le terme quadratique en forme close, sans \code{lm()}
+(fiche~\ref{mw:m1c}) \\
+\code{.mw\_lm\_intra()},\newline \code{.mw\_pente\_intra()} & résidus de Mack
+(\code{mw\_residus()}, colonnes $j$, $C$, $F$, $\hat\sigma_j$) & ligne «~\code{C}~» (estimation,
+écart-type, $t$, p de Student) de la régression pondérée de $F(i,j)$ sur $C(i,j)$ à effet fixe
+de colonne, et son seul $t$, statistique de la pente intra-colonne~; depuis l'issue~\#253, en
+forme close (centrage pondéré par colonne, théorème de Frisch et Waugh), sans \code{lm()}
+(fiche~\ref{mw:m1}) \\
+\code{.mw\_courbure\_}\newline\code{colonne()} & cumuls $C(\cdot,j)$ et $C(\cdot,j+1)$ d'une
+colonne & coefficient $\hat c_j$, $t_j$ et p bilatérale de Student du terme quadratique de la
+courbure, en forme close (formule de Cauchy--Binet et règle de Cramer), sans \code{lm()}~;
+\code{NULL} si la colonne compte moins de quatre observations ou moins de trois valeurs
+distinctes de $C(i,j)$ (issue~\#253, fiche~\ref{mw:m1c}) \\
+\code{.mw\_me()},\newline \code{.mw\_somme\_me()} & réels~; mantisses et exposants &
+écriture à exposant séparé $v = m\,2^e$, $|m| \in [1, 2[$ (sous-normaux compris, $0$ et non
+finis laissés tels quels), et somme, colonne par colonne, de termes ainsi écrits, ramenés à
+l'exposant du plus grand par une puissance de~2 (exacte), sommés par \code{colSums()}, sans
+produit matriciel~: produits et sommes de \code{.mw\_courbure\_}\allowbreak\code{colonne()} finis
+sur tout le domaine $[10^{-50}~;~10^{50}]$ (issue~\#253) \\
 \code{.mw\_table()},\newline \code{.mw\_empiler()},\newline
 \code{.mw\_noms\_lignes\_}\newline\code{empilees()} & colonnes, noms de lignes~;
 liste de blocs, un par colonne de développement, et nom de la colonne source des noms~; vecteurs sources des noms (issue~\#250) & table \code{data.frame} assemblée en une fois, sous
@@ -2160,7 +2179,8 @@ contrôle \code{OK} / \code{ECHEC}, aucune p-value & --- \\
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- M1 : proportionnalité des cumulés (annexe XVII, D(2)(h)(iii))}}} \\
 \midrule
 Tendance avec le cumulé, à colonne donnée & \ref{mw:m1} &
-\code{.mw\_lm\_intra()} (via \code{.mw\_pente\_intra()}) &
+\code{.mw\_lm\_intra()} (via \code{.mw\_pente\_intra()}~; forme close, sans \code{lm()},
+depuis l'issue~\#253) &
 idem (p de Student, approchée) & \code{PenteIntra} \\
 Ordonnée à l'origine par colonne & \ref{mw:m1a} &
 \code{mw\_test\_ordonnee\_origine()}~; colonnes dégénérées par \code{.mw\_colonne\_degeneree()} &
@@ -2168,7 +2188,9 @@ idem (p de Fisher, via \code{.fisher\_combine()}) & \code{Origine} \\
 Homogénéité de $f_j$ & \ref{mw:m1b} & \code{mw\_test\_homogeneite\_f()}, même exclusion &
 idem (p de Fisher, via \code{.fisher\_combine()}, sur les $p_j$ de \code{.mw\_spearman()},
 issue~\#90)~; \code{.mw\_fisher\_rangs\_p\_min()} ($p_{\min}$, issue~\#115) & \code{HomogF} \\
-Absence de courbure & \ref{mw:m1c} & \code{mw\_test\_courbure()}, même exclusion &
+Absence de courbure & \ref{mw:m1c} & \code{mw\_test\_courbure()}, même exclusion (via
+\code{.mw\_courbure\_}\allowbreak\code{colonne()}, forme close, sans \code{lm()}, depuis
+l'issue~\#253) &
 idem (p de Fisher) & \code{Courbure} \\
 Famille $\alpha$ & \ref{mw:m1d} & \code{mw\_famille\_alpha()} &
 \textbf{aucune} (pas de loi analytique) & \code{Alpha} \\
@@ -12385,6 +12407,38 @@ dépend pas du niveau du cumulé.
 \Stat
 $t = \hat b / \widehat{\mathrm{se}}(\hat b)$ dans la régression pondérée à effet
 fixe de colonne.
+
+\emph{Calcul en forme close} (issue~\#253, décisions D1-5 et D1-6 du mainteneur du 13~octobre
+2026~; \code{.mw\_lm\_intra()}, sans \code{lm()}). Retirer l'effet fixe de colonne revient à
+centrer $C$ et $F$ en moyenne pondérée dans chaque colonne, puis à régresser $F$ centré sur $C$
+centré sans constante~: c'est le théorème de Frisch et Waugh (R.~Frisch, F.\,V. Waugh,
+\emph{Partial time regressions as compared with individual trends}, \emph{Econometrica}, 1(4),
+1933, p.~387--401, qui l'établissent pour une tendance temporelle~; il est appliqué ici à des
+indicatrices de colonne, par les moindres carrés ordinaires sur les lignes multipliées par
+$\sqrt{w_{ij}}$). Dans la colonne $j$,
+\[
+  \tilde C(i,j) = \frac{\sum_k w_{kj}\,\big(C(i,j) - C(k,j)\big)}{\sum_k w_{kj}},
+\]
+$\tilde F(i,j)$ de même~; $\hat b = \sum w\,\tilde C\tilde F / \sum w\,\tilde C^2$ et
+$\widehat{\mathrm{se}}(\hat b)^2 = \sum w\,(\tilde F - \hat b\,\tilde C)^2 / \big((N - G - 1)
+\sum w\,\tilde C^2\big)$, sommes sur les $N$ cellules des $G$ colonnes, p de Student à
+$N - G - 1$ degrés de liberté. Le centrage par différences deux à deux évite l'annulation entre
+grandeurs de l'ordre d'une cellule dominante~; les poids sont ramenés à $\max w \in [1, 2[$ par une
+puissance de~2 (multiplication exacte, $t$ invariant). En arithmétique exacte, c'est la
+statistique de la ligne «~\code{C}~» de \code{summary(lm(F \textasciitilde\ factor(j) + C,
+weights = w))}~: la définition ne change pas. Avant l'issue, \code{lm()} écartait $C$ par son
+critère de rang numérique (tolérance $10^{-7}$) et la ligne valait \code{NA}~: mesuré, avec le
+moteur de \code{68360f4}, sur le triangle de contrôle dont la ligne~$0$ est multipliée par
+$10^{15}$ ou par $10^{-15}$. Il pouvait aussi rendre une valeur finie et fausse, sans \code{NA} ni
+avertissement~: ligne~$0$ multipliée par $10^{-14}$, $t = -2{,}566$ au lieu de $-1{,}121$ (erreur
+relative $1{,}29$). La forme close y rend $-1{,}1210$, à $9{,}7\cdot 10^{-17}$ en relatif de la
+référence calculée par une méthode indépendante (équations normales complètes, élimination de
+Gauss à 4\,096 bits, contrôle à 8\,192 bits~: script hors CI
+\code{tests/unitaires/}\allowbreak\code{generer\_valeurs\_forme\_close\_m1.R}, paquet~R
+Rmpfr~; valeur figée par \code{tests/unitaires/}\allowbreak\code{test\_forme\_close\_m1.R}).
+Sur le triangle de contrôle lui-même, $t$ change de $1{,}2\cdot 10^{-13}$ en relatif, sans effet
+sur la p-value de Monte-Carlo ni sur le verdict. Statut~: identité algébrique exacte, vérifiée
+numériquement~; aucune garde à seuil n'est ajoutée.
 \Loi
 Loi de Student approchée~: les cellules d'une même colonne partagent $\hat f_j$
 et $\hat\sigma_j$, ce qui invalide les degrés de liberté nominaux. Loi de
@@ -12562,8 +12616,10 @@ p-value~: une p-value nulle, débordement de la loi de référence, est relevée
 lieu d'écarter la colonne qui porte la preuve la plus forte contre $H_0$~; une p-value non finie
 ou hors de $[0, 1]$ rend la statistique \code{NA} sans changer $K$, et la réplication sort de
 \code{B\_effectif}. $K$ est ainsi le nombre de p-values transmises, et ne varie plus que si la
-fonction de la ligne écarte elle-même une colonne (colonne trop courte, \code{lm()} en échec,
-garde $\mathrm{sd} = 0$ de la courbure et de l'exposant de variance). Auparavant, une p-value
+fonction de la ligne écarte elle-même une colonne (colonne trop courte, \code{lm()} en échec
+pour l'ordonnée à l'origine, garde $\mathrm{sd} = 0$ de la courbure et de l'exposant de variance,
+et, pour la courbure depuis l'issue~\#253, moins de trois valeurs distinctes de $C(i,j)$,
+fiche~\ref{mw:m1c}). Auparavant, une p-value
 nulle faisait écarter sa colonne sans trace, et $K$ pouvait différer entre la statistique
 observée et ses réplications (effet mesuré, fiche~\ref{mw:m1b}). Limite
 mesurée et acceptée~: une colonne dont l'écart relatif dépasse à peine $10^{-12}$ reste soumise
@@ -12576,20 +12632,24 @@ l'issue~\#56, jusqu'à un écart relatif de l'ordre de $10^{-11}$ sur le triangl
 mesuré. Ce voisinage est un constat sur ce triangle, non un seuil. \emph{Interception de
 l'avertissement} (issue~\#203). Cet avertissement («~\code{essentially perfect fit: summary may
 be unreliable}~») ne signale pas un défaut du calcul~: son critère dépend de l'unité des
-cumulés. Mesuré avec le moteur antérieur à l'issue (\code{run\_engine()}, $B = 999$, graine
+cumulés. Mesuré avec le moteur antérieur à l'issue~\#203 (\code{run\_engine()}, $B = 999$, graine
 20260831, avertissements comptés)~: aucun sur le triangle de contrôle, $93$ sur ce triangle
 multiplié par $10^{20}$, $9\,014$ multiplié par $10^{46}$, et $1\,287$ sur le triangle de
 Taylor \& Ashe à colonne $j = 4$ perturbée de $\pm 9\cdot 10^{-13}$ décrite plus haut (écart
-relatif $1{,}02\cdot 10^{-12}$). Depuis l'issue, la nullité de l'ordonnée à l'origine et la
-courbure (fiche~\ref{mw:m1c}) appellent \code{summary()} par \code{.mw\_summary\_lm()}, qui
+relatif $1{,}02\cdot 10^{-12}$). Depuis l'issue~\#203, la nullité de l'ordonnée à l'origine
+et, jusqu'à l'issue~\#253, la courbure (fiche~\ref{mw:m1c}) appellent \code{summary()} par
+\code{.mw\_summary\_lm()}, qui
 n'étouffe que cet avertissement émis par \code{summary.lm()}, dans son libellé anglais ou
 traduit, et laisse remonter tout autre avertissement~; \code{summary.lm()} étant appelée telle
 quelle sur le même ajustement, les valeurs sont inchangées par construction (objets de
 \code{run\_engine()} identiques au sens d'\code{identical()} avant et après l'issue sur les cinq
-cas de référence). Avec le moteur actuel, aucun avertissement sur les quatre triangles ci-dessus.
+cas de référence). Depuis l'issue~\#253, la courbure est calculée en forme close, sans
+\code{lm()} ni \code{summary()} (fiche~\ref{mw:m1c})~: seule l'ordonnée à l'origine passe encore
+par \code{.mw\_summary\_lm()}. Avec le moteur actuel, aucun avertissement sur les quatre triangles ci-dessus.
 L'interception a été préférée à un recalcul sans \code{summary.lm()} (par \code{lm.fit()} ou
 \code{qr()}), dont l'égalité des valeurs n'aurait été établie que par mesure. La pente
-intra-colonne (\code{.mw\_lm\_intra()}) et Breusch--Pagan ne sont pas interceptés~: ils
+intra-colonne (\code{.mw\_lm\_intra()}, calculée sans \code{lm()} depuis l'issue~\#253,
+fiche~\ref{mw:m1}) et Breusch--Pagan ne sont pas interceptés~: ils
 n'en ont émis aucun (\code{run\_engine()} actuel, $B = 199$, aucun avertissement~R sur le
 triangle de contrôle multiplié par $10^{k}$, $k = -52, -30, -10, 10, 30, 46$)~; leur critère est
 invariant par changement d'unité des cumulés (facteurs sans dimension et poids
@@ -12752,9 +12812,59 @@ résiduels. Mesuré sur le triangle de contrôle (\code{mw\_test\_courbure()})~:
 $t_j = 0{,}934$~; $-1{,}982$~; $-9{,}162$~; $-3{,}463$ et $p_j = 0{,}403$~; $0{,}142$~; $0{,}0117$~;
 $0{,}179$, $X = 18{,}06$. Colonnes dégénérées
 exclues, dans l'observé comme dans le bootstrap, selon la règle de la fiche~\ref{mw:m1a}.
-Comme pour l'ordonnée à l'origine, \code{summary()} est appelé par \code{.mw\_summary\_lm()}, qui
-intercepte le seul avertissement d'ajustement parfait de \code{summary.lm()}, sans changer
-aucune valeur (issue~\#203, fiche~\ref{mw:m1a}).
+De l'issue~\#203 à l'issue~\#253, comme pour l'ordonnée à l'origine, \code{summary()} était
+appelé par \code{.mw\_summary\_lm()}, qui interceptait le seul avertissement d'ajustement parfait
+de \code{summary.lm()}, sans changer aucune valeur (fiche~\ref{mw:m1a}).
+
+\emph{Calcul en forme close} (issue~\#253, décisions D1-5 à D1-7 du mainteneur du 13~octobre
+2026~; \code{.mw\_courbure\_}\allowbreak\code{colonne()}, sans \code{lm()}). Le $t_j$ du terme
+quadratique ne change pas quand on remplace $C(i,j+1)$ par l'écart
+$e_i = C(i,j)\big(F(i,j) - \hat f_j\big)$ (opération sur les colonnes de la matrice des
+régresseurs augmentée de la réponse), calculé sans annulation par
+\code{.mw\_ecart\_facteur\_}\allowbreak\code{stable()} (issue~\#233). Avec $x_i = C(i,j)$,
+$w_i = 1/x_i$ et $w_S = \prod_{i \in S} w_i$, on note, pour un triplet $S = \{k < l < m\}$,
+$V(S) = (x_l - x_k)(x_m - x_k)(x_m - x_l)$ et
+$D(S) = (x_l - x_k)(e_m - e_k) - (x_m - x_k)(e_l - e_k)$, et, pour un quadruplet $Q$, $d_Q$ le
+déterminant de $[1, x, x^2, e]_Q$, développé selon la colonne des écarts. Par la formule de
+Cauchy--Binet (déterminant d'une matrice de Gram pondérée égal à la somme, sur les parties, des
+$w_S$ multipliés par le carré du mineur) et la règle de Cramer,
+\[
+  A = \sum_S w_S V(S)^2, \quad N = \sum_S w_S V(S) D(S), \quad
+  A_0 = \sum_{k < l} w_k w_l (x_l - x_k)^2, \quad G = \sum_Q w_Q d_Q^2,
+\]
+\[
+  \hat c_j = N/A, \qquad t_j = \frac{N\sqrt{n_j - 3}}{\sqrt{G\,A_0}},
+\]
+$G/A$ étant la somme pondérée des carrés des résidus. Ce sont des identités exactes de la
+régression pondérée~: en arithmétique exacte, $t_j$ est celui de \code{lm()}, et la définition
+ne change pas. Ces deux identités algébriques classiques ne sont adossées à aucune référence
+relue~: leur mise en œuvre est vérifiée par la mesure (ci-dessous). Chaque produit et chaque
+somme est formé à exposant séparé (\code{.mw\_me()}, \code{.mw\_somme\_me()}), ce qui les garde
+finis sur tout le domaine $[10^{-50}~;~10^{50}]$ des cumuls admis (issue~\#185). Le
+développement de $d_Q$ selon la colonne des écarts reste défini quand des valeurs de $C(i,j)$ se
+répètent, pourvu qu'il y en ait au moins trois distinctes. Seule la non-identifiabilité exacte
+(moins de trois valeurs distinctes de $C(i,j)$, soit $A = 0$) écarte une colonne, comme la garde
+$\mathrm{sd} = 0$ et selon la règle de l'issue~\#90 (décision D1-7). Deux comportements de cette
+exclusion, antérieurs à l'issue~\#253, restent ouverts~: elle n'est pas restituée dans le
+commentaire de la ligne (issue~\#269)~; pour $j \ge 1$, elle peut écarter une colonne à
+l'observé sans l'écarter dans les réplications, où $K$ diffère alors (issue~\#270, question
+soumise à \code{actuary}). Avant l'issue, \code{lm()} écartait le terme quadratique par son
+critère de rang numérique et la colonne sortait de la combinaison sans trace~: sur le triangle
+de contrôle dont la ligne~$0$ est multipliée par $10^{13}$ ou par $10^{15}$, la statistique
+valait \code{NA} (moteur de \code{68360f4}). Ajustement parfait ($G = 0$)~: $t_j = \pm\infty$ et $p_j = 0$,
+relevée au plancher de \code{.fisher\_combine()}, d'où un $X$ fini~; si $N = G = 0$, $t_j$
+n'est pas défini et la statistique vaut \code{NA} (règle de l'issue~\#90)~; ces deux événements
+sont de probabilité nulle sous le modèle de Mack, et aucune garde à seuil n'est ajoutée.
+\emph{Vérification}~: le test \code{tests/unitaires/}\allowbreak\code{test\_forme\_close\_m1.R}
+fige les $t_j$ et la pente intra-colonne (fiche~\ref{mw:m1}) sur le triangle de contrôle, sur
+ses lignes~$0$ et~$3$ multipliées par $10^{30}$, sa ligne~$0$ multipliée par $10^{-30}$ et par
+$10^{-14}$, et sur deux triangles aux bornes du domaine~; ces 35 valeurs sont recalculées par une
+méthode indépendante de la forme close (équations normales complètes, élimination de Gauss à
+4\,096 bits, contrôle à 8\,192 bits~: script hors CI
+\code{tests/unitaires/}\allowbreak\code{generer\_valeurs\_forme\_close\_m1.R}, paquet~R
+Rmpfr), dont le moteur s'écarte au plus de $1{,}1\cdot 10^{-13}$ en relatif. Sur le
+triangle de contrôle, $X$ change de $2{,}2\cdot 10^{-14}$ en relatif et sa p-value
+$\chi^2(2K)$ de $1{,}4\cdot 10^{-13}$, sans effet sur la p-value de Monte-Carlo ni sur le verdict.
 \Loi
 $\chi^2(2K)$ approchée. Loi de référence~: bootstrap de résidus.
 \Pval
@@ -12766,6 +12876,18 @@ contredisant $\mathbb{E}[C(i,j+1)\mid C(i,j)] = f_j C(i,j)$. Ce test ferme cette
 possibilité. Limite sévère à faible profondeur~: estimer trois paramètres sur
 quatre à sept observations (à $T = 8$) laisse très peu de degrés de liberté, et la puissance
 est faible.
+
+\medskip
+\emph{Coût du calcul en forme close} (constat C3 de l'audit de l'issue~\#253, accepté par le
+mainteneur le 13~octobre 2026). La forme close somme sur les $\binom{n_j}{4}$ quadruplets de
+chaque colonne~: son coût croît comme $n_j^4$, sans borne sur la taille du triangle, alors que
+celui de \code{lm()} croît à peu près linéairement en $n_j$. Mesure de la session de rédaction
+(\code{mw\_test\_courbure()} appelée sur un triangle simulé de $I$ années, moteurs de
+\code{68360f4} et de la tête de branche, R~4.3.3, machine partagée, ordre de grandeur
+seulement), surcoût extrapolé aux quelque $1\,000$ évaluations d'une exécution à $B = 999$~:
+non mesurable à $I = 8$, $4$~s environ à $I = 10$, $9$~min environ à $I = 30$ et $46$~min
+environ à $I = 40$ (triangle trimestriel de dix ans). Sans effet à $T = 8$~; le coût est
+accepté, plutôt que de borner $I$ ou de chercher une forme moins coûteuse.
 
 \medskip
 \emph{Colonne à un seul degré de liberté résiduel} (issue~\#234, décision du mainteneur Q-E2c-1
