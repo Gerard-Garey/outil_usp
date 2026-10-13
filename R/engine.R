@@ -8134,8 +8134,10 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
 #   - n <= 9 avec ex aequo (#207) : loi de permutation conditionnelle aux
 #     rangs moyens observes, comptee exactement par .mw_spearman_loi_rangs()
 #     (sans alea), p bilaterale par doublement de la plus petite des deux
-#     queues (coincide avec cor.test() sans ex aequo ; avec ex aequo, ne
-#     s'en ecarte qu'au centre de la loi, p >= 0,83 mesure) ;
+#     queues (coincide avec cor.test() sans ex aequo ; avec ex aequo, la
+#     regle de queue de cor.test() appliquee a cette loi ne s'en ecarte
+#     qu'au voisinage du centre, |rho| <= 0,066, a p >= 5/6 ; enumeration
+#     de n = 4 a 7, tests/enumeration_spearman_ex_aequo.R, #259) ;
 #   - n > 9 : cor.test(exact = FALSE), approximation de Student, relevee au
 #     plancher 2/n!, valeur exacte de P(|rho| = 1) sans ex aequo et simple
 #     plancher numerique avec ex aequo ; a |rho| = 1, l'approximation rend
