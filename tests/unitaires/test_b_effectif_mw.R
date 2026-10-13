@@ -162,6 +162,20 @@ verifier("T4 refus explicite (jamais devine) : B absent ou non fini, mc_nom abse
              all(grepl("B effectif absent ou non fini dans le bootstrap : Origine", m[3:4], fixed = TRUE)) &&
              leve_erreur(mw_tests(aj204, sans_b))
          })
+# Ordre des refus (constat M1 de l'audit de #204) : une statistique absente de
+# tout le bootstrap (ni p_mc ni B_effectif) est refusee par add() ("absente du
+# bootstrap"), pas par .mw_phrase_b_effectif(), qui n'est appelee que pour une
+# statistique presente dans boot$p_mc.
+verifier("T4 statistique absente de p_mc et de B_effectif : refus d'add() 'absente du bootstrap : Calendrier'",
+         {
+           sans_cal <- bt99
+           sans_cal$p_mc <- bt99$p_mc[names(bt99$p_mc) != "Calendrier"]
+           sans_cal$B_effectif <- bt99$B_effectif[names(bt99$B_effectif) != "Calendrier"]
+           m <- tryCatch({ mw_tests(aj204, sans_cal); NA_character_ },
+                         error = function(e) conditionMessage(e))
+           !is.na(m) && grepl("add() : statistique Monte-Carlo absente du bootstrap : Calendrier", m,
+                              fixed = TRUE) && !grepl(".mw_phrase_b_effectif()", m, fixed = TRUE)
+         })
 
 ## --- T5 : lignes lognormales ---------------------------------------------------------
 # J1 : donnees_ln.csv (delta estime = 1) ; J2 : jeu a delta estime interieur

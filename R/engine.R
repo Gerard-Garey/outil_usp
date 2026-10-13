@@ -9020,9 +9020,12 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   # en fin du detail transmis a add(), avec la regle de jonction d'add()
   # ("" si detail vide, " " apres un point, " ; " sinon). add() n'est pas
   # modifiee ; ses ajouts (prefixe du motif, regle R1, plancher, #244) se
-  # placent autour comme pour tout detail.
+  # placent autour comme pour tout detail. Une statistique absente de
+  # boot$p_mc n'appelle pas .mw_phrase_b_effectif() : le refus d'add()
+  # ("statistique Monte-Carlo absente du bootstrap") part en premier (#204,
+  # constat M1 de l'audit).
   add <- function(..., mc_nom = NA_character_, detail = "") {
-    if (!is.na(mc_nom)) {
+    if (!is.na(mc_nom) && mc_nom %in% names(boot$p_mc)) {
       ph <- .mw_phrase_b_effectif(boot, mc_nom)
       if (nzchar(ph)) {
         sep <- if (!nzchar(detail)) "" else if (grepl("\\.$", detail)) " " else " ; "

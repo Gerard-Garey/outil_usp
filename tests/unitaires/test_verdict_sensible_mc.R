@@ -171,6 +171,15 @@ verifier("U244-9 sens 'rejeter' : g_mc = 0,12 >= alpha -> alpha ne compte pas ; 
            porte(ligne244(0.29, 0.008, g = 0.12, sens = "rejeter")))
 verifier("U244-9 p_mc_ext (g_mc NA) : tous les seuils comptent (p = 0,045 pres d'alpha/2)",
          porte(ligne244(mc = FALSE, p_mc_ext = 0.045, err_mc_ext = 0.0066)))
+# Frontiere g_mc = s (constat C2 de l'audit de #244) : le seuil s n'est
+# atteignable que si g_mc < s (inegalite stricte). g_mc = alpha/2 = 0,05 :
+# alpha/2 ne compte pas ; p = 0,06 a 1,25 err de alpha/2, a 5 err d'alpha.
+# Tue la mutation "<" -> "<=" du filtre des seuils.
+verifier("U244-9 frontiere g_mc = alpha/2 = 0,05 : alpha/2 inatteignable -> pas de phrase",
+         {
+           l <- ligne244(0.06, 0.008, g = 0.05)
+           identical(l$type, "test") && !grepl(PH, l$detail, fixed = TRUE)
+         })
 
 ## --- Renvoi de #215 avant la phrase (constat C1 de l'audit de #244) ---------------
 # Scenario de l'audit : donnees du cas premium, yt + 100 (constante non nulle,
@@ -187,6 +196,20 @@ verifier("Renvoi #215 : ligne constante (yt + 100) -> renvoi present, phrase de 
            lengths(regmatches(cst244$detail, gregexpr(USP_TXT_RENVOI_CST, cst244$detail, fixed = TRUE))) == 1L)
 verifier("Renvoi #215 : .usp_poser_renvois() idempotent avec la phrase de #244",
          identical(.usp_poser_renvois(r215$tests), r215$tests))
+# Jonction quand la base finit sans point (constat C3 de l'audit de #244) :
+# liste fictive (ligne constante et ligne Spearman de meme variante, p exacte
+# finie), detail de la ligne constante = "Texte ; " + phrase. La base "Texte"
+# est jointe au renvoi par " ; " (.usp_joindre()), le renvoi (fini par un
+# point) a la phrase par " ".
+L215 <- list(list(test = "Nullite de la constante (proportionnalite stricte)", type = "test",
+                  variante = "principale", detail = paste0("Texte ; ", PH)),
+             list(test = "Independance ratio S/P vs volume", type = "test",
+                  variante = "principale", p_exacte = 0.3, detail = ""))
+R215 <- .usp_poser_renvois(L215)
+verifier("Renvoi #215 : base sans point final -> 'Texte ; ' + renvoi + ' ' + phrase ; idempotent",
+         identical(R215[[1]]$detail, paste0("Texte ; ", USP_TXT_RENVOI_CST, " ", PH)) &&
+           identical(R215[[2]]$detail, USP_TXT_RENVOI_SV) &&
+           identical(.usp_poser_renvois(R215), R215))
 
 ## --- U244-7 : six references ----------------------------------------------------------
 # Les 11 lignes de la specification (section 5, mesure M1), par cas : indice
@@ -199,18 +222,46 @@ ATTENDU244 <- list(
   reserve2 = c(`2` = "Nullite de l'ordonnee a l'origine, colonne par colonne",
                `6` = "Heteroscedasticite residuelle vs cumul"))
 for (cas in c("premium_ii6", "premium_net", "reserve1")) ATTENDU244[cas] <- list(ATTENDU244$premium)
-regle244 <- function(l, alpha) {
+# Regle recalculee, alignee sur add() (U244-9 et #125) : seuils atteignables
+# seulement, plancher p_min_mc de la ligne s'il est fini, sinon g_mc lu dans
+# bootstrap$granularite_stat. La ligne ne porte pas son mc_nom : la
+# statistique est retrouvee par (p_mc, err_mc) dans le bootstrap ; aucune
+# correspondance -> p Monte-Carlo externe (g_mc NA) ; correspondances de
+# granularites differentes -> erreur (jamais devine).
+g244 <- function(l, boot) {
+  # p Monte-Carlo externe (usp_lr_delta(), p_mc_ext) : g_mc NA d'emblee,
+  # sans appariement (constat C-1 de l'audit : la ligne delta = 1, p_mc = 1,
+  # err_mc = 0, s'appariait a CoxStuart).
+  if (identical(l$fonction, "usp_lr_delta")) return(NA_real_)
+  k <- names(boot$p_mc)[!is.na(boot$p_mc) & boot$p_mc == l$p_mc &
+                          !is.na(boot$err_mc[names(boot$p_mc)]) &
+                          boot$err_mc[names(boot$p_mc)] == l$err_mc]
+  if (!length(k)) return(NA_real_)
+  g <- unique(unname(boot$granularite_stat[k]))
+  if (length(g) != 1L) stop("regle244 : statistique ambigue pour la ligne ", l$test)
+  g
+}
+regle244 <- function(l, alpha, boot) {
   if (!identical(l$type, "test") || is.finite(l$p_exacte) || !is.finite(l$p_mc) ||
       !is.finite(l$err_mc) || l$err_mc <= 0) return(FALSE)
   s <- if (identical(l$sens, "rejeter")) c(alpha, SEUIL_ECHEC_SENS_REJETER) else c(alpha / 2, alpha)
+  pl <- if (is.finite(l$p_min_mc)) l$p_min_mc else g244(l, boot)
+  s <- s[is.na(pl) | pl < s]
   any(abs(l$p_mc - s) < 2 * l$err_mc)
 }
+verifier("g244() : lignes de usp_lr_delta (p Monte-Carlo externe) de premium -> g_mc NA, sans appariement",
+         {
+           rp <- readRDS(file.path(.racine244, "tests", "reference", "premium.rds"))
+           lr <- Filter(function(l) identical(l$fonction, "usp_lr_delta"), rp$tests)
+           length(lr) == 2L && all(is.na(vapply(lr, g244, numeric(1), boot = rp$bootstrap)))
+         })
 n244 <- 0L
 for (cas in names(ATTENDU244)) local({
   ref <- readRDS(file.path(.racine244, "tests", "reference", paste0(cas, ".rds")))
   att <- ATTENDU244[[cas]]
   idx_ph <- which(vapply(ref$tests, function(l) grepl(PH, l$detail, fixed = TRUE), logical(1)))
-  idx_rg <- which(vapply(ref$tests, regle244, logical(1), alpha = ref$metadata$alpha))
+  idx_rg <- which(vapply(ref$tests, regle244, logical(1), alpha = ref$metadata$alpha,
+                         boot = ref$bootstrap))
   verifier(sprintf("U244-7 %s : phrase sur les seules lignes %s, en dernier, une fois", cas,
                    paste(names(att), collapse = ", ")),
            identical(as.character(idx_ph), names(att)) &&
