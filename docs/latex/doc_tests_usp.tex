@@ -765,7 +765,9 @@ libellé de nature Monte-Carlo & fonction \code{add()} d'enregistrement d'une li
 catalogue, refusés avec une clé \code{mc\_nom}, issue~\#45~; argument obligatoire
 \code{fonction}, provenance de la ligne, refusé s'il est absent, vide, non textuel ou s'il ne
 désigne pas une fonction de l'environnement du moteur, issue~\#111~; champ \code{inoperant}
-posé sur chaque ligne, issue~\#129),
+posé sur chaque ligne, issue~\#129~; argument \code{nature\_as}, nature d'une p non simulée
+retenue, \code{asymptotique} par défaut ou \code{NATURE\_APPROX\_N\_FINI}, toute autre valeur
+refusée, issue~\#120),
 unique et partagée par \code{usp\_tests()} et \code{mw\_tests()}~: hiérarchie des p-values,
 règles de sortie de l'issue~\#44 (test inopérant par \code{p\_min}, motif Monte-Carlo lu dans
 \code{motif\_mc}, repli asymptotique nommé ou interdit par \code{repli\_asymptotique},
@@ -1947,7 +1949,7 @@ information)~; diagnostic dans tous les régimes depuis l'issue~\#169 & --- \\
 Coefficient $R^2$ & \ref{fiche:r2} & \code{test\_lm\_complet()} &
 diagnostic, aucune p-value & --- \\
 RESET & \ref{fiche:reset} & \code{test\_reset()} (régressions par \code{.usp\_mco\_qr()}) &
-\code{test\_reset()} (p asymptotique, loi $F$ approchée) & \code{RESET} \\
+\code{test\_reset()} (p non simulée, loi $F$ approchée) & \code{RESET} \\
 Spearman ($\times 2$) & \ref{fiche:spearman} & \code{stats::cor.test()} (appel direct) &
 \code{stats::cor.test(..., exact = TRUE)} (p exacte, permutation)~; \code{mk\_p\_min()}
 ($p_{\min}$) & \code{SpearVol} /
@@ -1971,9 +1973,9 @@ idem (p asymptotique, $\chi^2$ sous normalité) &
 White & \ref{fiche:white} & \code{test\_white()} (idem) &
 \code{test\_white()} (p asymptotique, $\chi^2$) & \code{White} \\
 Goldfeld--Quandt & \ref{fiche:goldfeld-quandt} & \code{test\_goldfeld\_quandt()} &
-\code{test\_goldfeld\_quandt()} (p asymptotique, loi $F$ approchée) & \code{GQ} \\
+\code{test\_goldfeld\_quandt()} (p non simulée, loi $F$ approchée) & \code{GQ} \\
 Brown--Forsythe & \ref{fiche:brown-forsythe} & \code{test\_brown\_forsythe()} (ANOVA à un facteur par \code{.usp\_mco\_qr()}) &
-\code{test\_brown\_forsythe()} (p asymptotique, loi $F$ approchée) & \code{BF} \\
+\code{test\_brown\_forsythe()} (p non simulée, loi $F$ approchée) & \code{BF} \\
 Smirnov (2 éch.) & \ref{fiche:smirnov} & \code{stats::ks.test()} (appel direct) &
 \code{stats::ks.test()} (p exacte combinatoire, sans ex \ae quo, $z_t$ aplatis par
 \code{engine\_aplatir\_ex\_aequo()})~; \code{smirnov\_p\_min()} ($p_{\min}$, \code{NA} avec ex
@@ -2005,9 +2007,10 @@ $W$ réutilisée) & \code{sw\_p\_loi\_nulle()} (p exacte simulée, via
 Jarque--Bera & \ref{fiche:jarque-bera} & \code{test\_jarque\_bera()} &
 \code{test\_jarque\_bera()} (p asymptotique, $\chi^2_2$) & \code{JB} \\
 D'Agostino (asymétrie) & \ref{fiche:dagostino-asymetrie} & \code{test\_dagostino\_skew()} &
-\code{test\_dagostino\_skew()} (p asymptotique, transf. $S_U$) & \code{DAgo} \\
+\code{test\_dagostino\_skew()} (p approx. à $n$ fini, transf. $S_U$) & \code{DAgo} \\
 Anscombe--Glynn (aplat.) & \ref{fiche:anscombe-glynn-aplatissement} & \code{test\_anscombe\_kurt()} &
-\code{test\_anscombe\_kurt()} (p asymptotique, Wilson--Hilferty) & --- \\
+\code{test\_anscombe\_kurt()} (p approx. à $n$ fini, Wilson--Hilferty, retenue à $T \ge 20$ sous
+\code{NATURE\_APPROX\_N\_FINI}, issue~\#120) & --- \\
 
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Hypothèse H4 --- indépendance et validité du maximum de vraisemblance}}} \\
 \midrule
@@ -2047,7 +2050,7 @@ aucune (théorique seulement, Andrews 1993) & \code{supF} \\
 OLS-CUSUM & \ref{fiche:ols-cusum} & \code{stat\_cusum()} &
 formule de Kolmogorov, calculée en ligne dans \code{usp\_tests()} & \code{CUSUM} \\
 Grubbs & \ref{fiche:grubbs} & \code{test\_grubbs()} &
-\code{test\_grubbs()} (p asymptotique, borne de Bonferroni) & \code{Grubbs} \\
+\code{test\_grubbs()} (p non simulée, borne de Bonferroni) & \code{Grubbs} \\
 Rosner (ESD) & \ref{fiche:rosner-esd} & \code{test\_rosner()} &
 procédure de décision, aucune p-value & --- \\
 Distance de Cook & \ref{fiche:cook} & \code{stats::cooks.distance()} (appel
@@ -2117,7 +2120,7 @@ Homogénéité entre années de survenance & \ref{mw:m3acc} &
 issue~\#60)~; \code{.mw\_kruskal\_p\_min()} ($p_{\min}$, issue~\#115) & \code{KruskalAcc} \\
 Effets d'année calendaire & \ref{mw:m3cal} &
 \code{mw\_test\_annees\_calendaires()} (via \code{.mack\_moments\_Z()}) &
-idem (p asymptotique ; moments \emph{exacts})~; \code{.mw\_calendrier\_p\_min()} ($p_{\min}$,
+idem (p non simulée, approximation normale ; moments \emph{exacts})~; \code{.mw\_calendrier\_p\_min()} ($p_{\min}$,
 issue~\#115) & \code{Calendrier} \\
 Corrélation entre années de développement & \ref{mw:m3cor} &
 \code{mw\_stat\_correlation\_dev()} & \textbf{aucune} (pas de loi analytique)~;
@@ -2140,7 +2143,8 @@ procédure de décision, aucune p-value & --- \\
 Shapiro--Wilk sur résidus de Mack & \ref{mw:m5sw} & \code{.shapiro\_sur()} &
 \code{sw\_p\_loi\_nulle()} (p exacte simulée, via \code{sw\_loi\_nulle()}) & --- \\
 Lilliefors sur résidus de Mack & \ref{mw:m5li} & \code{stat\_lilliefors()} &
-\code{lillie\_p()} (approx. Dallal \& Wilkinson) & --- \\
+\code{lillie\_p()} (approx. Dallal \& Wilkinson, retenue sous \code{NATURE\_APPROX\_N\_FINI},
+issue~\#120) & --- \\
 
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- M6 : robustesse de l'estimation}}} \\
 \midrule
@@ -2543,10 +2547,12 @@ $\hat\delta$, $R^2$, nombre de valeurs aberrantes, distance de Cook maximale\dot
 n'ont \emph{aucune} loi de référence dans ce dispositif et ne doivent pas être lues comme des
 statistiques de test. \\
 \code{p\_exacte},\newline \code{p\_}\newline\code{asymptotique},\newline \code{p\_mc} & \textbf{p-values}~:
-respectivement exacte, asymptotique et de Monte-Carlo (bootstrap paramétrique, ou de résidus
+respectivement exacte, non simulée (colonne au nom conservé, qui reçoit toute p-value ni exacte
+ni simulée~: loi limite, approximation à $n$ fini, loi sous un modèle auxiliaire~; issue~\#120,
+section~\ref{sec:nature}) et de Monte-Carlo (bootstrap paramétrique, ou de résidus
 pour la méthode Merz--Wüthrich), chacune \code{NA} quand elle n'est pas calculée~;
 \code{err\_mc} porte l'erreur de Monte-Carlo de \code{p\_mc}. La p-value qui fonde le verdict
-est \code{p\_retenue}, choisie dans l'ordre exacte, Monte-Carlo, asymptotique par la fonction
+est \code{p\_retenue}, choisie dans l'ordre exacte, Monte-Carlo, p non simulée par la fonction
 \code{add()} d'\code{engine\_registre\_tests()}, commune aux deux méthodes~; \code{nature\_p}
 dit laquelle. \\
 \code{p\_min} & \textbf{p-value minimale atteignable} (issue~\#44)~: plus petite p-value que
@@ -4340,7 +4346,10 @@ l'approximation à $T$ fini~: il faut disposer, séparément, d'un résultat sur
 calculable analytiquement, et l'on emploie une formule d'ajustement (Royston
 pour Shapiro--Wilk, Stephens pour Anderson--Darling). La qualité de
 l'approximation dépend du domaine de validité annoncé par ses auteurs, qui doit
-être vérifié pour $T = 8$. \\
+être vérifié pour $T = 8$. Une p-value de ce type, approximation de la loi \emph{à $n$ fini} sous
+l'hypothèse d'observations i.i.d. normales, n'est pas asymptotique~: retenue, elle porte la
+nature \code{approximation a n fini sous i.i.d. normal} (constante \code{NATURE\_APPROX\_N\_FINI},
+issue~\#120), et non \code{asymptotique}. \\
 \textbf{Comportement empirique} & Résultat d'une étude de simulation. Il
 documente le niveau effectif observé, mais ne transforme jamais une
 approximation en résultat exact et ne vaut que pour le modèle sous lequel la
@@ -4353,11 +4362,36 @@ simulation a été conduite. \\
 \begin{encadre}
 \textbf{Principe de sélection retenu dans le moteur.} Pour chaque test, la
 p-value effectivement utilisée pour le verdict suit la hiérarchie
-\emph{exacte $\succ$ Monte-Carlo $\succ$ asymptotique}. Le champ \code{nature\_p}
+\emph{exacte $\succ$ Monte-Carlo $\succ$ p non simulée}. Le champ \code{nature\_p}
 de la sortie indique laquelle a été retenue, et les trois valeurs
 (\code{p\_exacte}, \code{p\_asymptotique}, \code{p\_monte\_carlo}) restent
-affichées séparément pour permettre la revue. Aucune p-value asymptotique n'est
+affichées séparément pour permettre la revue. Aucune p-value non simulée n'est
 retenue lorsqu'une p-value exacte ou de Monte-Carlo est disponible.
+
+\medskip
+\textbf{P non simulée.} On appelle ainsi toute p-value rangée dans la colonne
+\code{p\_asymptotique}, dont le nom est conservé (issue~\#120). Elle relève de l'une de quatre
+familles, de statuts distincts~: \emph{(i)} une \emph{loi limite} quand $T \to \infty$ ($\chi^2$
+des tests de type multiplicateur de Lagrange, loi de Kolmogorov à paramètres estimés, pont
+brownien de l'OLS-CUSUM, $\chi^2(k-1)$ de Kruskal--Wallis)~; \emph{(ii)} une \emph{approximation
+de la loi à $n$ fini} sous l'hypothèse d'un échantillon i.i.d. normal, ajustée sur des tables
+simulées ou sur des moments exacts (Royston pour Shapiro--Wilk et Shapiro--Francia, Stephens pour
+Anderson--Darling et Cramér--von Mises, Dallal et Wilkinson prolongés par Stephens pour
+Lilliefors, D'Agostino pour l'asymétrie, Anscombe et Glynn pour l'aplatissement)~;
+\emph{(iii)} une loi exacte ou approchée sous un \emph{modèle auxiliaire gaussien}, non sous
+l'annexe~XVII ($F$ de RESET, de Goldfeld--Quandt et de Brown--Forsythe, Student et combinaison de
+Fisher $\chi^2(2K)$ de lignes de la méthode Merz--Wüthrich, Student et Bonferroni de Grubbs)~;
+\emph{(iv)} l'approximation normale d'une loi de rangs discrète (Spearman, Mann--Kendall, suites,
+effet calendaire). Au sens du tableau ci-dessus, la famille~(i) est asymptotique, la
+famille~(ii) une approximation numérique, la famille~(iii) exacte ou approchée sous un autre
+modèle que le modèle réglementaire, et la famille~(iv) une approximation d'une loi discrète
+fondée sur un théorème limite. Une p non simulée retenue porte la nature \code{asymptotique}, ou, pour la famille~(ii), la nature
+\code{approximation a n fini sous i.i.d. normal}, posée par l'argument \code{nature\_as}
+d'\code{add()} (badge «~approx.\ n fini~» de \code{badge\_nature()} dans l'application)~; les deux
+ont le même rang, le dernier, dans la hiérarchie. Le libellé nomme l'hypothèse sous laquelle
+l'approximation est construite, sans affirmer qu'elle tient~: les résidus $z_t$ à $\hat\pi_t$
+variable et les résidus de Mack ne sont pas i.i.d. normaux. Aucune des quatre familles n'a de
+validité établie à $T = 8$ sous le modèle réglementaire.
 
 \medskip
 \textbf{Ce que cette hiérarchie ne dit pas~: la règle de sortie.} La hiérarchie
@@ -4804,6 +4838,17 @@ le cas \code{premium\_interieur} ($\hat\delta = 0{,}664$)~: les 33 p-values rete
 Monte-Carlo portent toutes la nature conditionnelle~; sur les quatre autres cas lognormaux
 ($\hat\delta = 1$), aucune.
 
+Les colonnes «~Asympt.~?~» et «~Asympt. utilisable à $T = 8$~?~» portent sur la p non simulée de
+la ligne (colonne \code{p\_asymptotique}), quelle que soit sa famille (section~\ref{sec:nature},
+encadré)~: une loi limite, mais aussi une approximation à $n$ fini sous i.i.d. normal (Royston,
+Stephens, Dallal--Wilkinson, D'Agostino, Anscombe--Glynn), une loi sous un modèle auxiliaire
+gaussien ou l'approximation normale d'une loi de rangs. Seules deux vérifications retiennent une p
+de la famille~(ii), faute de p-value exacte et de p-value de Monte-Carlo~: Lilliefors sur les résidus
+de Mack et, à $T \ge 20$, Anscombe--Glynn~; leur nature est \code{approximation a n fini sous
+i.i.d. normal} (issue~\#120). Mesuré sur les six cas de référence (\code{tests/reference/})~: la
+ligne de Lilliefors de \code{reserve2} est la seule à porter cette nature, aucune ligne ne porte la
+nature \code{asymptotique}.
+
 \begin{landscape}
 \begin{center}
 \scriptsize
@@ -4925,8 +4970,8 @@ KS contre $\mathcal{N}(0,1)$ & LN & $D$ & Non & Oui (Kolmogorov) & Oui & Monte-C
 \textbf{Déconseillée} : 0 rejet sur 3\,000 simulations à 5 \%, test vidé de sa puissance &
 Utiliser Lilliefors à la place \\
 
-Lilliefors & LN & $D_{\mathrm{L}}$ & Non & Oui (Dallal--Wilkinson) & Oui &
-p de Dallal--Wilkinson & \textbf{Oui} : calibration vérifiée à $T=8$ (5,2 \% à 5 \%) &
+Lilliefors & LN & $D_{\mathrm{L}}$ & Non & Oui (Dallal--Wilkinson, approximation à $n$ fini) & Oui &
+Monte-Carlo, p de Dallal--Wilkinson en complément & \textbf{Oui} : calibration vérifiée à $T=8$ (5,2 \% à 5 \%) &
 Version correcte du KS à paramètres estimés \\
 
 Jarque--Bera & LN & JB & Non & Oui & Oui & Monte-Carlo &
@@ -4937,7 +4982,7 @@ D'Agostino (asym.) & LN & $Z$ & Non & Oui (transf. $S_U$) & Oui & Monte-Carlo &
 \textbf{Sous conditions} : défini dès $T\ge 8$, à la limite du domaine &
 Bootstrap ; à interpréter avec prudence \\
 
-Anscombe--Glynn & LN & $Z$ & Non & Oui & --- & \textbf{Non applicable} ($T<20$) &
+Anscombe--Glynn & LN & $Z$ & Non & Oui (approximation à $n$ fini) & --- & \textbf{Non applicable} ($T<20$)~; à $T \ge 20$, approximation à $n$ fini sous i.i.d. normal &
 Sans objet & Non utilisable à $T=8$ \\
 
 Durbin--Watson & LN & DW & \textbf{Oui} : forme quadratique, méthode d'Imhof & --- & Oui &
@@ -5117,7 +5162,7 @@ i.i.d., niveau sur les résidus de Mack non établi (0,221 à 0,10 sous erreurs 
 §\ref{sec:calib-asympt-mw}~; issue~\#245) \\
 
 Lilliefors sur résidus de Mack & \textbf{MW} & $D_{\mathrm{L}}$ & Non &
-Oui (Dallal--Wilkinson) & Non & p de Dallal--Wilkinson &
+Oui (Dallal--Wilkinson, approximation à $n$ fini) & Non & p de Dallal--Wilkinson, nature \code{approximation a n fini sous i.i.d. normal} &
 \textbf{Sous conditions} & Variante secondaire ; diagnostic seulement~; niveau sur les résidus de
 Mack non établi (§\ref{sec:calib-asympt-mw}~; issue~\#245) \\
 
@@ -5260,6 +5305,15 @@ Shapiro--Wilk / Francia & $W$, $W'$ & Approx. normalisée de Royston &
 Approximation numérique, non asymptotique & Sans objet (ajustement empirique) &
 Domaine de validité annoncé par l'auteur & Domaine couvert mais
 transformation distincte à $T\le 11$ ; bootstrap en complément \\
+
+Lilliefors (LN et MW), Anscombe--Glynn & \emph{Aucun} en $T$~: $D_{\mathrm{L}}$ par l'approximation
+analytique de Dallal et Wilkinson prolongée par Stephens~; $Z$ d'Anscombe--Glynn ajusté sur les
+moments exacts de $b_2$ & --- & Approximation à $n$ fini sous i.i.d. normal, non asymptotique
+(issue~\#120) & Sans objet (ajustement à $n$ fini, non suite en $T$) &
+Échantillon i.i.d. normal, que ni $z_t$ à $\hat\pi_t$ variable ni les résidus de Mack ne
+vérifient & LN~: Monte-Carlo retenu~; MW~: p retenue, niveau mesuré au-dessus du nominal sous
+erreurs gaussiennes (§\ref{sec:calib-asympt-mw}, issue~\#245)~; Anscombe--Glynn non applicable
+($T < 20$) \\
 
 Centrage, variance unitaire (diagnostics) & \emph{Aucun} : $\bar z$ et
 $\operatorname{Var}(z)$ sont rivés par les conditions du premier ordre (en
@@ -8520,7 +8574,7 @@ accent), avec son erreur de Monte-Carlo.
 La p-value asymptotique $p = 1 - F_{\chi^2_2}(\mathrm{JB})$ est calculée et restituée dans la
 colonne \code{p\_asymptotique}, sans être retenue~: aucune p-value exacte n'est calculée (la loi de JB à $T$ fini n'est pas
 tabulée dans le moteur), et la
-hiérarchie exacte $\succ$ Monte-Carlo $\succ$ asymptotique place la p-value de Monte-Carlo avant
+hiérarchie exacte $\succ$ Monte-Carlo $\succ$ p non simulée place la p-value de Monte-Carlo avant
 elle, d'autant que la convergence vers $\chi^2(2)$ est trop lente pour être présumée à $T = 8$
 (rubrique~6). Mesuré sur le jeu de contrôle (méthode prime, $B = 999$, graine 20260831)~:
 $\mathrm{JB} = 0{,}506$, p-value de Monte-Carlo retenue $0{,}674$ (erreur $0{,}015$), p-value
@@ -8637,7 +8691,7 @@ quantile à 99,5~\%), mais aussi le moins souvent disponible~: il exige $T \ge 2
 ce qu'exige la crédibilité pleine de l'annexe~XVII. Lorsqu'il n'est pas applicable, l'analyse de
 queue doit reposer sur le QQ-plot, sur Anderson--Darling et sur les tests de valeurs aberrantes.
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} Sans objet à $T = 8$~: la ligne est non applicable pour $T < 20$. À $T \ge 20$, la p-value retenue est asymptotique (approximation normale), sans p-value de Monte-Carlo~: loi continue, $p_{\min}$ sans objet.
+\textbf{p-value minimale à $T = 8$.} Sans objet à $T = 8$~: la ligne est non applicable pour $T < 20$. À $T \ge 20$, la p-value retenue est l'approximation normale de Wilson--Hilferty, ajustée sur les moments exacts de $b_2$ sous un échantillon i.i.d. normal, sous la nature \code{approximation a n fini sous i.i.d. normal} (issue~\#120~; non une loi limite), sans p-value de Monte-Carlo~: loi continue, $p_{\min}$ sans objet.
 
 \textbf{Table.} Sans objet.
 
@@ -11823,7 +11877,7 @@ M3 & Test des suites & test & Monte-Carlo \\
 M4 & Cellule aberrante (Grubbs) & test & Monte-Carlo \\
 M4 & Cellules aberrantes multiples (Rosner) & procédure de décision & --- \\
 M5 & Shapiro--Wilk & test (diagnostic) & exacte simulée \\
-M5 & Lilliefors & test (diagnostic), secondaire & asymptotique \\
+M5 & Lilliefors & test (diagnostic), secondaire & approximation à $n$ fini sous i.i.d. normal \\
 M6 & Extrapolation de $\hat\sigma^2_{J-1}$ & diagnostic & --- \\
 M6 & Concentration de la réserve & diagnostic & --- \\
 \end{tabular}
@@ -11847,7 +11901,8 @@ tableau~\ref{tab:pmin}), l'homogénéité de $f_j$ et l'exposant de variance son
 (mesuré par \code{run\_engine()}). Treize de ces quinze
 tests reposent sur le bootstrap de résidus~; Shapiro--Wilk dispose d'une loi nulle propre, pour la raison exposée
 dans sa fiche, et Lilliefors de l'approximation analytique de Dallal et Wilkinson, restituée
-sous la nature \code{asymptotique} faute de catégorie propre (fiche~\ref{mw:m5li}). Les six entrées en gras ci-dessus sont celles qui
+sous la nature \code{approximation a n fini sous i.i.d. normal} (fiche~\ref{mw:m5li}~; issue~\#120~;
+\code{asymptotique} jusqu'à cette issue, faute de catégorie propre). Les six entrées en gras ci-dessus sont celles qui
 vérifient les hypothèses de chaîne d'échelle \emph{colonne par colonne}, comme
 l'exige la formulation « pour toutes les années d'accident » du texte~; la
 régression agrégée initiale, conservée en tête, ne le permettait pas.
@@ -13073,12 +13128,17 @@ Loi de Lilliefors, tenant compte de l'estimation de la moyenne et de
 l'écart-type sur l'échantillon.
 \Pval
 Approximation analytique de Dallal \& Wilkinson, prolongée par les polynômes de
-Stephens. p-value non simulée, disponible dès $n \ge 5$.
+Stephens. p-value non simulée, disponible dès $n \ge 5$, retenue sous la nature
+\code{approximation a n fini sous i.i.d. normal} (issue~\#120)~: approximation de la loi de
+$D_{\mathrm{L}}$ à $n$ fini sous un échantillon i.i.d. normal, ni loi limite ni loi exacte. Le
+libellé nomme l'hypothèse sans affirmer qu'elle tient~: les résidus de Mack ne sont pas i.i.d.
+(variances inégales, dépendance introduite par la standardisation), et la qualité de
+l'approximation sur eux n'est pas établie (rubrique~7, issue~\#245).
 \Usage
 Complément de recoupement à Shapiro--Wilk, moins puissant. Même réserve de fond~:
 la normalité n'est pas exigée par la méthode.
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} Sans objet~: la p-value retenue est l'approximation analytique de Dallal et Wilkinson (\code{lillie\_p()}), ajustement numérique de la loi à $n$ fini et non loi limite, que le moteur range dans la colonne \code{p\_asymptotique} et restitue sous la nature \code{asymptotique} faute de catégorie propre~; fonction continue de $D$, sans plancher. Elle est retenue faute d'alternative~: les tests de normalité sont exclus du bootstrap de résidus, dont la loi nulle est la loi empirique des résidus (tableau~\ref{tab:conv}), et aucune loi exacte n'est disponible.
+\textbf{p-value minimale à $T = 8$.} Sans objet~: la p-value retenue est l'approximation analytique de Dallal et Wilkinson (\code{lillie\_p()}), ajustement numérique de la loi à $n$ fini et non loi limite, que le moteur range dans la colonne \code{p\_asymptotique} et restitue, depuis l'issue~\#120, sous la nature \code{approximation a n fini sous i.i.d. normal} (\code{asymptotique} auparavant, faute de catégorie propre)~; fonction continue de $D$, sans plancher. Elle est retenue faute d'alternative~: les tests de normalité sont exclus du bootstrap de résidus, dont la loi nulle est la loi empirique des résidus (tableau~\ref{tab:conv}), et aucune loi exacte n'est disponible.
 
 \textbf{Table.} Sans objet (loi continue).
 
@@ -13897,7 +13957,10 @@ section~\ref{sec:mw} et les deux voies ci-dessus corrigent.
 \label{sec:calib-asympt-mw}
 
 Les p-values non simulées de la méthode Merz--Wüthrich sont rapportées à titre de
-complément, la p-value retenue étant celle du bootstrap. Il importe néanmoins de
+complément, la p-value retenue étant celle du bootstrap, sauf pour la normalité (M5)~: celle de
+Lilliefors, approximation à $n$ fini sous i.i.d. normal et non loi limite (issue~\#120), est
+retenue, faute de p-value exacte et de p-value de Monte-Carlo (fiche~\ref{mw:m5li}). Le titre de
+la sous-section dit «~asymptotiques~» pour l'ensemble de ces p-values non simulées. Il importe néanmoins de
 savoir \emph{de combien} elles s'en écartent, et pourquoi. Fréquences de rejet sous $H_0$ de
 chaque p-value non simulée que restitue \code{mw\_tests()}, mesurées sur les triangles $8\times 8$
 de la mesure de la section~\ref{sec:calib-mc-mw} (issue~\#119, même plan, mêmes lois
@@ -14621,9 +14684,11 @@ catalogues \code{USP\_CATALOGUE\_MC} et \code{MW\_CATALOGUE\_MC} (\code{.mc\_ent
 \code{usp\_bootstrap()} (\code{usp\_regime()}, \code{FACTEUR\_B\_MAX\_REGIME},
 \code{MOTIF\_MC\_REGIME\_RARE}, champ \code{p\_mc\_regime}), nature
 \code{NATURE\_MC\_REGIME\_INTERIEUR} passée par \code{usp\_tests()} \\
-Hiérarchie exacte $\succ$ MC $\succ$ asymptotique & fonction \code{add()}
+Hiérarchie exacte $\succ$ MC $\succ$ p non simulée, nature d'une p non simulée retenue
+(§\ref{sec:nature}, issue~\#120) & fonction \code{add()}
 d'\code{engine\_registre\_tests()}, unique et partagée par \code{usp\_tests()} et
-\code{mw\_tests()} \\
+\code{mw\_tests()}~; argument \code{nature\_as} (\code{asymptotique} ou
+\code{NATURE\_APPROX\_N\_FINI}) \\
 Sortie de la hiérarchie (grandeur rivée par l'estimation) & branche finale de \code{add()}~:
 \code{p\_retenue} et \code{nature\_p} à \code{NA}, verdict \code{INFO}, seul admis
 hors des types \code{test} et \code{procedure de decision} \\
@@ -14909,7 +14974,7 @@ les fondements théoriques du bootstrap et des tests de Monte-Carlo.
 \textbf{Verdict} & \textbf{Signification} \\
 \midrule
 \code{OK} & p-value \emph{retenue} --- celle que désigne \code{nature\_p}, choisie dans l'ordre
-exacte $\succ$ Monte-Carlo $\succ$ asymptotique --- au-dessus du seuil d'alerte, ou, pour la
+exacte $\succ$ Monte-Carlo $\succ$ p non simulée --- au-dessus du seuil d'alerte, ou, pour la
 procédure ESD de Rosner (fiches~\ref{fiche:rosner-esd} et~\ref{mw:m4ros}), aucune valeur
 aberrante détectée au niveau $\alpha$. Pour le TOST et le test de Pitman sur la pente (et, avant
 l'issue~\#169, pour le test de Fisher), la logique est inversée~: \code{OK} correspond à un $p$ \emph{faible} ($p < \alpha$),
@@ -15096,7 +15161,7 @@ issue~\#89)~: protocole, taux et statuts à la fiche~\ref{mw:influence}.
   \item \textbf{Tests des hypothèses H1 à H4} (sections~\ref{sec:h1} à~\ref{sec:h4}), en lisant
         pour chacun la p-value \emph{retenue} par le moteur, celle que désigne le champ
         \code{nature\_p}. La hiérarchie appliquée est \emph{exacte $\succ$ Monte-Carlo
-        $\succ$ asymptotique} (section~\ref{sec:nature})~: la p-value de Monte-Carlo n'est
+        $\succ$ p non simulée} (section~\ref{sec:nature})~: la p-value de Monte-Carlo n'est
         pas la première servie, elle vient \emph{après} la p-value exacte lorsque celle-ci
         existe. Mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$)~: des 51
         lignes de la table auditable, 9 retiennent une p-value exacte, et 7 d'entre
