@@ -8032,6 +8032,25 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
 # C(i,j) / sigma_j^2 (moindres carres generalises, hypothese de variance M2).
 # Renvoie la ligne "C" des coefficients (estimation, ecart-type, t, p), ou
 # NULL si le modele n'est pas estimable ; .mw_pente_intra() en tire t, ou NA.
+# Calcul en forme close (#253, voie (R), decision D1-5 du 13/10/2026), sans
+# lm() : theoreme de Frisch et Waugh (1933), applique aux moindres carres
+# ordinaires sur les lignes multipliees par sqrt(w) : retirer les indicatrices
+# de colonne revient a centrer C et F en moyenne ponderee dans chaque colonne,
+# puis a regresser F centre sur C centre sans constante.
+#   C~_i = somme_k w_k (C_i - C_k) / somme_k w_k (k dans la colonne de i),
+#   F~_i de meme (differences deux a deux : aucune annulation entre grandeurs
+#   d'ordre de la cellule dominante, contrairement a C_i - moyenne) ;
+#   beta = somme w C~ F~ / somme w C~^2, u = F~ - beta C~,
+#   ddl = N - G - 1 (G colonnes), se = sqrt(somme w u^2 / ddl / somme w C~^2),
+#   t = beta / se, p = 2 P(T_ddl > |t|) (forme de summary.lm()).
+# Meme statistique que la ligne "C" de summary(lm(F ~ factor(j) + C,
+# weights = w)) en arithmetique exacte ; avant #253, lm() ecartait C par son
+# critere de rang numerique (tolerance 1e-7) sur une cellule dominante
+# (ligne x 1e15) ou une ligne de poids faible (ligne 0 x 1e-15), et la ligne
+# devenait NA. Avec une seule colonne, le centrage est celui de l'ordonnee a
+# l'origine de lm(F ~ C). Poids ramenes a max(w) dans [1, 2[ par une
+# puissance de 2 (multiplication exacte ; t invariant a l'echelle des poids).
+# NULL si somme w C~^2 = 0 exactement (C constant dans chaque colonne).
 .mw_lm_intra <- function(res) {
   if (nrow(res) < 4 || stats::sd(res$C) == 0) return(NULL)
   # Ponderation des MOINDRES CARRES GENERALISES : Var(F(i,j)) = sigma_j^2 /
@@ -8044,15 +8063,22 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
   # non inoperant.
   if (!("sigma_j" %in% names(res)) || any(!is.finite(res$sigma_j)) ||
       any(res$sigma_j <= 0)) return(NULL)
-  res$w <- res$C / res$sigma_j^2
-  if (length(unique(res$j)) < 2)
-    m <- try(stats::lm(F ~ C, weights = w, data = res), silent = TRUE)
-  else
-    m <- try(stats::lm(F ~ factor(j) + C, weights = w, data = res), silent = TRUE)
-  if (inherits(m, "try-error")) return(NULL)
-  co <- summary(m)$coefficients
-  if (!("C" %in% rownames(co))) return(NULL)
-  co["C", ]
+  w <- res$C / res$sigma_j^2
+  w <- w * 2^-floor(log2(max(w)))
+  Ct <- Ft <- numeric(length(w))
+  for (g in split(seq_along(w), res$j)) {
+    wg <- w[g]; sw <- sum(wg); Cg <- res$C[g]; Fg <- res$F[g]
+    Ct[g] <- vapply(Cg, function(c) sum(wg * (c - Cg)) / sw, numeric(1))
+    Ft[g] <- vapply(Fg, function(f) sum(wg * (f - Fg)) / sw, numeric(1))
+  }
+  sxx <- sum(w * Ct^2)
+  if (isTRUE(sxx == 0)) return(NULL)
+  b <- sum(w * Ct * Ft) / sxx
+  ddl <- length(w) - length(unique(res$j)) - 1L
+  se <- sqrt(sum(w * (Ft - b * Ct)^2) / ddl / sxx)
+  tv <- b / se
+  c(Estimate = b, "Std. Error" = se, "t value" = tv,
+    "Pr(>|t|)" = 2 * stats::pt(abs(tv), ddl, lower.tail = FALSE))
 }
 .mw_pente_intra <- function(res) {
   co <- .mw_lm_intra(res)
@@ -8108,8 +8134,10 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
 #   - n <= 9 avec ex aequo (#207) : loi de permutation conditionnelle aux
 #     rangs moyens observes, comptee exactement par .mw_spearman_loi_rangs()
 #     (sans alea), p bilaterale par doublement de la plus petite des deux
-#     queues (coincide avec cor.test() sans ex aequo ; avec ex aequo, ne
-#     s'en ecarte qu'au centre de la loi, p >= 0,83 mesure) ;
+#     queues (coincide avec cor.test() sans ex aequo ; avec ex aequo, la
+#     regle de queue de cor.test() appliquee a cette loi ne s'en ecarte
+#     qu'au voisinage du centre, |rho| <= 0,066, a p >= 5/6 ; enumeration
+#     de n = 4 a 7, tests/enumeration_spearman_ex_aequo.R, #259) ;
 #   - n > 9 : cor.test(exact = FALSE), approximation de Student, relevee au
 #     plancher 2/n!, valeur exacte de P(|rho| = 1) sans ex aequo et simple
 #     plancher numerique avec ex aequo ; a |rho| = 1, l'approximation rend
@@ -8120,9 +8148,11 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
 # Ces p_j ne sont PAS des p exactes au sens de l'ADR 0002 : elles n'entrent
 # que dans la statistique X de Fisher, dont la p retenue reste Monte-Carlo.
 .mw_spearman_p <- function(a, b, plancher_b = 1) .mw_spearman(a, b, plancher_b)$p
-# rho et p du meme appel de cor.test() (#239) : rho = estimation de
+# rho et p d'un seul appel de .mw_spearman() (#239) : rho = estimation de
 # cor.test(), cor(rank(a), rank(b)) apres aplatissement de b, qui ne depend
-# pas de l'argument exact ; p = .mw_spearman_p() ; masse_min (#207) :
+# pas de l'argument exact (sur le chemin enumere avec ex aequo, ou la p de
+# cor.test() n'est pas lue, rho est calcule par cette meme formule sans
+# appeler cor.test(), #260) ; p = .mw_spearman_p() ; masse_min (#207) :
 # probabilite, sous la loi de reference de p, de l'ensemble des permutations
 # qui atteignent la plus petite p atteignable de la colonne (p_min de la
 # ligne, .mw_fisher_rangs_p_min()) : 2/n! sans ex aequo a n <= 9 (les deux
@@ -8134,9 +8164,22 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
   n <- length(a)
   ex_aequo <- anyDuplicated(a) > 0 || anyDuplicated(b) > 0
   exact <- n <= 9 && !ex_aequo
-  ct <- suppressWarnings(stats::cor.test(a, b, method = "spearman", exact = exact))
-  p <- ct$p.value
-  p <- if (!is.finite(p)) NA_real_ else min(1, max(2 / factorial(n), p))
+  if (n <= 9 && ex_aequo && !anyNA(a) && !anyNA(b)) {
+    # Chemin enumere avec ex aequo (#260) : la p de cor.test() n'y est pas
+    # lue (remplacee plus bas par la loi conditionnelle), seul rho l'est ;
+    # rho calcule comme dans stats::cor.test(method = "spearman"),
+    # cor(rank(a), rank(b)), NA s'il n'est pas fini (a ou b constant), sans
+    # le reste de cor.test(). Garde anyNA() : cor.test() retire les paires
+    # incompletes (complete.cases()) ; ce cas garde l'appel a cor.test().
+    rho <- suppressWarnings(stats::cor(rank(a), rank(b)))
+    if (!is.finite(rho)) rho <- NA_real_
+    p <- NA_real_
+  } else {
+    ct <- suppressWarnings(stats::cor.test(a, b, method = "spearman", exact = exact))
+    rho <- unname(ct$estimate)
+    p <- ct$p.value
+    p <- if (!is.finite(p)) NA_real_ else min(1, max(2 / factorial(n), p))
+  }
   masse <- if (n > 9) NA_real_ else 2 / factorial(n)
   # p_min (#125) : plus petite p atteignable de la colonne a sa structure
   # d'ex aequo observee : 2/n! sans ex aequo a n <= 9, min du support de la
@@ -8147,11 +8190,11 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
   if (n <= 9 && ex_aequo && (length(unique(a)) < 2 || length(unique(b)) < 2)) {
     p <- NA_real_; masse <- NA_real_; p_min <- NA_real_
   } else if (n <= 9 && ex_aequo) {
-    # rho de cor.test() conserve ; p et masse_min de la loi conditionnelle.
+    # rho calcule plus haut ; p et masse_min de la loi conditionnelle.
     lr <- .mw_spearman_loi_rangs(a, b)
     p <- lr$p; masse <- lr$masse_min; p_min <- lr$p_min
   }
-  list(rho = unname(ct$estimate), p = p, masse_min = masse, p_min = p_min)
+  list(rho = rho, p = p, masse_min = masse, p_min = p_min)
 }
 
 # Loi de permutation conditionnelle de Spearman aux rangs moyens observes
@@ -8243,7 +8286,8 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
 #      au regard des colonnes degenerees, K est identique entre statistique
 #      observee et simulee ; .fisher_combine() n'ecarte plus aucune p-value
 #      (issue #90) : K ne varie plus que si l'appelant ecarte une colonne
-#      (lm() en echec, garde sd() == 0) ;
+#      (lm() en echec, garde sd() == 0 ; pour la courbure, depuis #253,
+#      moins de trois valeurs distinctes de C(i,j), sans lm()) ;
 #   2. une colonne retenue a l'observe mais degeneree dans la replication
 #      n'est ni exclue (K changerait) ni soumise a lm() / cor.test() : la
 #      statistique de la replication vaut NA et sort de B_effectif.
@@ -8254,11 +8298,12 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
 # donnees reelles : ces cas sont des garde-fous numeriques. Le moteur detecte
 # la degenerescence lui-meme avant tout appel a lm() : une colonne degeneree
 # n'est jamais soumise a lm() ni a summary.lm().
-# Une colonne a peine au-dessus du seuil reste soumise a lm(), dont le critere
+# Une colonne a peine au-dessus du seuil reste soumise a lm() (ordonnee a
+# l'origine ; la courbure est calculee sans lm() depuis #253), dont le critere
 # "essentially perfect fit" de summary.lm() n'est pas relatif (variance
 # residuelle ponderee, rss/ddl, comparee a 1e-30 fois le carre des valeurs
 # ajustees non ponderees) : avec la ponderation 1/C(i,j) de l'ordonnee a
-# l'origine et de la courbure, il depend de l'unite des cumules. Cet
+# l'origine, il depend de l'unite des cumules. Cet
 # avertissement, et lui seul, est intercepte par .mw_summary_lm() (#203,
 # ci-dessous) ; le calcul est inchange. Les colonnes exclues
 # sont rendues a part (element "exclues", data.frame j, n_facteurs ; element
@@ -8268,8 +8313,9 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
 
 # summary() d'un ajustement lm() de M1, sans l'avertissement "essentially
 # perfect fit: summary may be unreliable" de summary.lm() (#203). Avec la
-# ponderation 1/C(i,j) de mw_test_ordonnee_origine() et de
-# mw_test_courbure(), le critere de cet avertissement (variance residuelle
+# ponderation 1/C(i,j) de mw_test_ordonnee_origine() (et de
+# mw_test_courbure() avant #253, qui la calcule depuis sans lm()), le
+# critere de cet avertissement (variance residuelle
 # ponderee < 1e-30 fois le carre des valeurs ajustees) depend de l'unite des
 # cumules : mesure sur le triangle reserve2 multiplie par 10^e, B = 999,
 # aucun avertissement a e = 0, 93 a e = 20, 9 014 a e = 46, sigma_USP et
@@ -8400,9 +8446,10 @@ mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
     if (j %in% jd) { ex <- .mw_exclure(ex, j, length(idx)); next }
     ex$eligibles <- ex$eligibles + 1L
     if (.mw_colonne_degeneree(aj, j)) return(.mw_stat_non_definie(ex))
-    # F aplati a TOL_EX_AEQUO avant cor.test() (#152), plancher 0.
+    # F aplati a TOL_EX_AEQUO avant .mw_spearman() (#152), plancher 0.
     F <- engine_aplatir_ex_aequo(tri[idx + 1, j + 2] / tri[idx + 1, j + 1], plancher = 0)
-    # rho et p de la colonne par un seul cor.test() (.mw_spearman(), #239) :
+    # rho et p de la colonne par un seul appel de .mw_spearman() (#239,
+    # sans cor.test() sur le chemin enumere avec ex aequo, #260) :
     # p de .mw_spearman_p() (issue #90), loi de permutation a n <= 9 (sans ex
     # aequo par cor.test(), avec ex aequo conditionnelle aux rangs moyens,
     # #207), jamais nulle ; rho = cor(rank(F), rank(idx)), comme le rho de
@@ -8428,6 +8475,118 @@ mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
        p_min_col = p_mins)
 }
 
+# Nombres a exposant separe (#253) : v = m 2^e, e entier, m = v / 2^e de
+# module dans [1, 2[ pour tout v fini non nul, sous-normaux compris. log2()
+# arrondit : floor(log2(|v|)) peut exceder d'une unite l'exposant vrai (1024
+# pour .Machine$double.xmax, d'ou 2^e = Inf et m = 0 sans correction ; e + 1
+# juste sous une puissance de 2, d'ou |m| = 2) ; e est donc borne a 1023,
+# puis corrige d'un pas dans chaque sens. Les mises a l'echelle par une
+# puissance de 2 sont exactes (2^e representable pour e dans [-1074, 1023],
+# quotient dans [1, 2[ representable). v = 0 rend m = 0, e = 0 ; v non fini
+# rend m = v, e = 0. Un produit de facteurs est forme sur les mantisses
+# (module borne, aucun debordement) et sur les exposants (somme entiere
+# exacte) : memes arrondis que le produit direct, sans debordement ni
+# sous-debordement sur le domaine [1e-50 ; 1e50] de #185.
+.mw_me <- function(v) {
+  e <- floor(log2(abs(v)))
+  e[!is.finite(e)] <- 0
+  e <- pmin(e, 1023)
+  m <- v / 2^e
+  h <- !is.na(m) & is.finite(m) & abs(m) >= 2
+  m[h] <- m[h] / 2; e[h] <- e[h] + 1
+  b <- !is.na(m) & m != 0 & abs(m) < 1
+  m[b] <- m[b] * 2; e[b] <- e[b] - 1
+  list(m = m, e = e)
+}
+# Somme, colonne par colonne, d'une matrice k x m de termes m 2^e (un vecteur
+# est une seule somme) : chaque terme est ramene a l'exposant du plus grand
+# par une puissance de 2 (exact ; un terme qui sous-deborde est negligeable
+# devant le plus grand), puis somme par colSums(), sans produit matriciel
+# (independance du BLAS). Rend la somme sous la forme .mw_me().
+.mw_somme_me <- function(m, e) {
+  m <- as.matrix(m); e <- as.matrix(e)
+  e[m == 0] <- -Inf
+  E <- apply(e, 2, max)
+  E[!is.finite(E)] <- 0
+  v <- .mw_me(colSums(m * 2^(e - rep(E, each = nrow(e)))))
+  list(m = v$m, e = v$e + E)
+}
+
+# t et p du terme quadratique d'une colonne de mw_test_courbure(), en forme
+# close (#253, voie (R), decision D1-5 du 13/10/2026), sans lm(). Regression
+# ponderee de C(i,j+1) sur (1, C(i,j), C(i,j)^2), poids w_i = 1 / C(i,j) ;
+# le t du terme quadratique est inchange quand on remplace C(i,j+1) par
+# l'ecart e_i = C(i,j) (F(i,j) - f_j) (operation sur les colonnes [1, x, y]),
+# calcule sans annulation par .mw_ecart_facteur_stable() (#233). Avec
+# x_i = C(i,j), w_S = produit des w_i sur S, pour S = {k < l < m} :
+#   V(S) = (x_l - x_k)(x_m - x_k)(x_m - x_l)        (determinant de [1, x, x^2]_S)
+#   D(S) = (x_l - x_k)(e_m - e_k) - (x_m - x_k)(e_l - e_k)  (de [1, x, e]_S)
+# et, pour Q = {a1 < a2 < a3 < a4}, le determinant de [1, x, x^2, e]_Q
+# developpe selon la colonne e : det_Q = somme_r (-1)^r e_ar V(Q prive de ar)
+# (valable aussi a valeurs de x repetees, ou la difference divisee e[Q] de la
+# specification n'est pas definie). Par la formule de Cauchy-Binet
+# (determinant d'une matrice de Gram ponderee = somme sur les parties des
+# w_S det^2) et la regle de Cramer :
+#   A = somme_S w_S V(S)^2 = det(X'WX), X = [1, x, x^2] ;
+#   N = somme_S w_S V(S) D(S), c = N / A (coefficient du terme quadratique) ;
+#   A0 = somme_{k<l} w_k w_l (x_l - x_k)^2 (mineur de A pour c) ;
+#   G = somme_Q w_Q det_Q^2 = det de Gram de [X, e], SCR = G / A ;
+#   t = c / sqrt(SCR / (n - 3) * A0 / A) = N sqrt(n - 3) / sqrt(G A0),
+#   p = 2 P(T_{n-3} > |t|) (forme de summary.lm()).
+# Identites exactes de la regression ponderee : en arithmetique exacte, ce t
+# est celui de lm() (controle contre une reference rationnelle exacte,
+# specification d'E2d, section 6). Chaque produit et chaque somme est forme a
+# exposant separe (.mw_me(), .mw_somme_me()) : les produits de poids et de
+# differences restent finis sur tout le domaine [1e-50 ; 1e50] de #185.
+# NULL si moins de trois valeurs distinctes de C(i,j) (A = 0 exactement,
+# terme quadratique non identifiable ; decision D1-7).
+.mw_courbure_colonne <- function(C0, C1) {
+  n <- length(C0)
+  if (n < 4 || length(unique(C0)) < 3) return(NULL)
+  e <- C0 * .mw_ecart_facteur_stable(C0, C1)
+  w <- .mw_me(1 / C0)
+  dx <- .mw_me(outer(C0, C0, function(a, b) b - a))   # x_b - x_a en [a, b]
+  de <- .mw_me(outer(e, e, function(a, b) b - a))
+  ee <- .mw_me(e)
+  # V sur les triplets (colonnes de S, indices croissants), m et e
+  V <- function(S) {
+    i12 <- cbind(S[1, ], S[2, ]); i13 <- cbind(S[1, ], S[3, ]); i23 <- cbind(S[2, ], S[3, ])
+    list(m = dx$m[i12] * dx$m[i13] * dx$m[i23], e = dx$e[i12] + dx$e[i13] + dx$e[i23])
+  }
+  S2 <- utils::combn(n, 2); S3 <- utils::combn(n, 3); S4 <- utils::combn(n, 4)
+  w3 <- list(m = w$m[S3[1, ]] * w$m[S3[2, ]] * w$m[S3[3, ]],
+             e = w$e[S3[1, ]] + w$e[S3[2, ]] + w$e[S3[3, ]])
+  v3 <- V(S3)
+  A <- .mw_somme_me(w3$m * v3$m^2, w3$e + 2 * v3$e)
+  if (A$m == 0) return(NULL)
+  kl <- cbind(S3[1, ], S3[2, ]); km <- cbind(S3[1, ], S3[3, ])
+  D <- .mw_somme_me(rbind(dx$m[kl] * de$m[km], -dx$m[km] * de$m[kl]),
+                    rbind(dx$e[kl] + de$e[km], dx$e[km] + de$e[kl]))
+  N <- .mw_somme_me(w3$m * v3$m * D$m, w3$e + v3$e + D$e)
+  i2 <- t(S2)
+  A0 <- .mw_somme_me(w$m[S2[1, ]] * w$m[S2[2, ]] * dx$m[i2]^2,
+                     w$e[S2[1, ]] + w$e[S2[2, ]] + 2 * dx$e[i2])
+  dm <- de4 <- matrix(0, 4L, ncol(S4))
+  for (r in 1:4) {
+    vr <- V(S4[-r, , drop = FALSE])
+    dm[r, ] <- (-1)^r * ee$m[S4[r, ]] * vr$m
+    de4[r, ] <- ee$e[S4[r, ]] + vr$e
+  }
+  d4 <- .mw_somme_me(dm, de4)
+  G <- .mw_somme_me(w$m[S4[1, ]] * w$m[S4[2, ]] * w$m[S4[3, ]] * w$m[S4[4, ]] * d4$m^2,
+                    w$e[S4[1, ]] + w$e[S4[2, ]] + w$e[S4[3, ]] + w$e[S4[4, ]] + 2 * d4$e)
+  # Ajustement parfait (G = 0, e exactement dans l'espace de [1, x, x^2]) :
+  # t = +-Inf si N != 0, d'ou p = 0, relevee au plancher de .fisher_combine()
+  # (X fini) ; t = NaN si N = 0 aussi, d'ou p = NaN et une statistique NA
+  # (regle de #90). Mesures : test unitaire « G = 0 » de test_forme_close_m1.R.
+  # t = N sqrt(n - 3) / sqrt(G A0) : exposant de G A0 rendu pair (exact)
+  mGA <- G$m * A0$m; eGA <- G$e + A0$e
+  if (eGA %% 2 != 0) { mGA <- 2 * mGA; eGA <- eGA - 1 }
+  tv <- N$m * sqrt(n - 3) / sqrt(mGA) * 2^(N$e - eGA / 2)
+  c(c2 = N$m / A$m * 2^(N$e - A$e), t = tv,
+    p = 2 * stats::pt(abs(tv), n - 3, lower.tail = FALSE))
+}
+
 # (c) Absence de courbure : terme quadratique dans la regression ponderee.
 # Une courbure significative contredit la LINEARITE, meme si la constante est
 # nulle : E[C(i,j+1)|C(i,j)] ne serait alors pas proportionnelle a C(i,j).
@@ -8443,16 +8602,20 @@ mw_test_courbure <- function(aj, j_degeneres = NULL) {
     if (length(idx) < 4) next                    # 3 parametres + 1 ddl
     # Colonne degeneree (issue #56) : terme quadratique exactement nul, t = 0/0 ;
     # colonne de l'ensemble fige exclue, colonne retenue mais degeneree ->
-    # statistique NA, AVANT tout appel a lm().
+    # statistique NA, AVANT tout calcul du t (.mw_courbure_colonne()).
     if (j %in% jd) { ex <- .mw_exclure(ex, j, length(idx)); next }
     ex$eligibles <- ex$eligibles + 1L
     if (.mw_colonne_degeneree(aj, j)) return(.mw_stat_non_definie(ex))
     C0 <- tri[idx + 1, j + 1]; C1 <- tri[idx + 1, j + 2]
     if (stats::sd(C0) == 0) next
-    m <- try(.mw_summary_lm(stats::lm(C1 ~ C0 + I(C0^2), weights = 1 / C0)), silent = TRUE)
-    if (inherits(m, "try-error") || nrow(m$coefficients) < 3) next
-    blocs[[length(blocs) + 1L]] <- list(j = j, n = length(idx), c2 = m$coefficients[3, 1],
-                                        t = m$coefficients[3, 3], p = m$coefficients[3, 4])
+    # Forme close (#253) : plus aucune exclusion silencieuse par le rang
+    # numerique de lm() ; seule la non-identifiabilite exacte (moins de trois
+    # valeurs distinctes de C(i,j)) ecarte la colonne, comme sd(C0) == 0
+    # (doctrine de #90, decision D1-7 du 13/10/2026).
+    r <- .mw_courbure_colonne(C0, C1)
+    if (is.null(r)) next
+    blocs[[length(blocs) + 1L]] <- list(j = j, n = length(idx), c2 = r[["c2"]],
+                                        t = r[["t"]], p = r[["p"]])
   }
   det <- .mw_empiler(blocs)
   if (!nrow(det)) return(list(stat = NA_real_, p = NA_real_, detail = det,
@@ -8506,7 +8669,7 @@ mw_test_exposant_variance <- function(aj, j_degeneres = NULL, res = NULL) {
   for (j in unique(res$j)) {
     sel <- res$j == j; nd <- sum(sel)
     # Ex aequo a la tolerance TOL_EX_AEQUO (#152), avant la garde sd() == 0
-    # et cor.test() : C en plancher 0 (montant, tolerance relative), |r| en
+    # et .mw_spearman() : C en plancher 0 (montant, tolerance relative), |r| en
     # plancher 1 (grandeur d'ordre 1, comme les residus de Mack de #112).
     # Colonne a C constants ou a |r| constants apres aplatissement :
     # correlation de rang non definie (ecart-type nul), colonne ecartee de la
@@ -8515,8 +8678,8 @@ mw_test_exposant_variance <- function(aj, j_degeneres = NULL, res = NULL) {
     Ca <- engine_aplatir_ex_aequo(res$C[sel], plancher = 0)
     ra <- engine_aplatir_ex_aequo(abs(res$residu[sel]))
     if (nd < 4 || stats::sd(Ca) == 0 || stats::sd(ra) == 0) next
-    # rho et p de la colonne par un seul cor.test() (.mw_spearman(), #239),
-    # comme HomogF ; Ca y est aplati une seconde fois (plancher_b = 0), sans
+    # rho et p de la colonne par un seul appel de .mw_spearman() (#239,
+    # #260), comme HomogF ; Ca y est aplati une seconde fois (plancher_b = 0), sans
     # effet, de sorte que rho est celui de cor.test(ra, Ca) qu'il remplace.
     sp <- .mw_spearman(ra, Ca, plancher_b = 0)
     # ex_aequo (#115) et masse_min (#207) : comme dans mw_test_homogeneite_f().
@@ -8735,13 +8898,64 @@ mw_simuler_triangle <- function(aj, res_pool) {
     if (!is.finite(sg)) sg <- 0
     e <- sample(res_pool, length(idx), replace = TRUE)
     Cij <- tri[idx + 1, j + 1]
-    tri[idx + 1, j + 2] <- Cij * aj$f[j + 1] + e * sg * sqrt(Cij)
+    nv <- Cij * aj$f[j + 1] + e * sg * sqrt(Cij)
+    # Cumul simule non strictement positif ou non fini (ligne de poids faible :
+    # sigma_j sqrt(C_ij) >> f_j C_ij) : le modele de Mack n'est defini que pour
+    # des cumules strictement positifs (variance proportionnelle a C_ij). Le
+    # triangle est rendu des le premier tel cumul, cellule a NA et colonnes
+    # suivantes non tirees, sans racine carree d'un cumul negatif (#257) ;
+    # mw_bootstrap() en tire un autre. Loi de reference : celle du triangle
+    # simule sachant tous ses cumuls strictement positifs (la meme qu'avant
+    # #257, ou la replication etait ecartee).
+    inval <- !is.finite(nv) | nv <= 0
+    if (any(inval)) {
+      nv[inval] <- NA_real_
+      tri[idx + 1, j + 2] <- nv
+      return(tri)
+    }
+    tri[idx + 1, j + 2] <- nv
   }
-  # Un cumul simule negatif ou decroissant rendrait les facteurs non definis :
-  # on borne par une valeur stricitement positive, en le signalant au besoin.
-  tri[!is.na(tri) & tri <= 0] <- NA_real_
   tri
 }
+
+# Plafond du retirage des triangles simules de mw_bootstrap() (#257, decision
+# D1-2 du mainteneur du 13/10/2026 ; specification
+# docs/specifications/e2d-merz-wuthrich-replications-definitions.md, par. 3) :
+# au plus FACTEUR_B_MAX_MW * (B + 1) triangles simules au total, retires
+# compris. Constante distincte de FACTEUR_B_MAX_REGIME (#240), de meme valeur.
+FACTEUR_B_MAX_MW <- 25
+
+# Triangle simule valide pour une replication de mw_bootstrap() (#257, option
+# A1 de la specification, par. 3, point 2) : tire par mw_simuler_triangle()
+# jusqu'a un triangle sans NA dans sa partie superieure (tous ses cumuls
+# strictement positifs et finis), au plus `reste` triangles. Rend la liste
+# (tri = triangle accepte, ou NULL si `reste` tirages n'en ont donne aucun ;
+# n = nombre de triangles tires, accepte compris ; rejets = nombre de
+# triangles retires). Acceptation-rejet : les triangles acceptes sont i.i.d.
+# selon la loi du triangle simule sachant tous ses cumuls strictement
+# positifs, la loi de reference d'avant #257. Seul ce motif est retire : un
+# echec de mw_ajuster() ou de .mw_stats() sur un triangle accepte reste une
+# statistique non finie (B effectif). Partagee par mw_bootstrap() et par les
+# boucles des tests unitaires qui la reproduisent.
+.mw_triangle_incomplet <- function(tb)
+  anyNA(tb[upper.tri(tb, diag = TRUE)[, rev(seq_len(ncol(tb)))]])
+.mw_tirer_triangle_valide <- function(aj, pool, reste) {
+  n <- 0
+  while (n < reste) {
+    tb <- mw_simuler_triangle(aj, pool); n <- n + 1
+    if (!.mw_triangle_incomplet(tb)) return(list(tri = tb, n = n, rejets = n - 1))
+  }
+  list(tri = NULL, n = n, rejets = n)
+}
+
+# Somme des AUTRES cellules d'une colonne (#233, #260) : element k = somme
+# de x prive de x[k], par sum() directe des n - 1 autres valeurs, exacte a
+# l'arrondi pres. La difference sum(x) - x[k] s'annule en flottant quand x[k]
+# domine sa colonne (#233). Partagee par .mw_pool_residus()
+# (1 - h_ij) et mw_influence() (S_j - C(i,j), S'_j - C(i,j+1)) : memes
+# operations que les deux formes qu'elle remplace, donc memes bits.
+.mw_sommes_autres <- function(x)
+  vapply(seq_along(x), function(k) sum(x[-k]), numeric(1))
 
 # Pool de reechantillonnage du bootstrap de Mack (issue #46, decision du
 # mainteneur du 06/10/2026, Q-E2r-46-1, variante B). Sous le modele de Mack a
@@ -8779,11 +8993,15 @@ mw_simuler_triangle <- function(aj, res_pool) {
   res <- mw_residus(aj, j_degeneres)
   if (!nrow(res)) return(numeric(0))
   # 1 - h_ij = (S_j - C_ij) / S_j, sur les lignes 0..I-j-1 de la colonne j
-  # (memes cellules que mw_residus() et mw_influence()).
-  un_moins_h <- vapply(seq_len(nrow(res)), function(k) {
-    col <- aj$tri[seq_len(aj$I - res$j[k]), res$j[k] + 1]
-    sum(col[-(res$i[k] + 1)]) / sum(col)
-  }, numeric(1))
+  # (memes cellules que mw_residus() et mw_influence()), somme des autres
+  # cellules par .mw_sommes_autres(), partagee avec mw_influence() (#260),
+  # calculee une fois par colonne.
+  un_moins_h <- numeric(nrow(res))
+  for (j in unique(res$j)) {
+    sel <- res$j == j
+    col <- aj$tri[seq_len(aj$I - j), j + 1]
+    un_moins_h[sel] <- .mw_sommes_autres(col)[res$i[sel] + 1] / sum(col)
+  }
   pool <- res$residu / sqrt(un_moins_h)
   pool - mean(pool)                               # recentrage
 }
@@ -8805,9 +9023,18 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
     noms <- names(obs)
     sim <- matrix(NA_real_, B, length(noms), dimnames = list(NULL, noms))
     sig <- rep(NA_real_, B)
+    # Retirage des triangles a cumul non strictement positif (#257, A1) :
+    # plafond de FACTEUR_B_MAX_MW * (B + 1) triangles tires au total ; au
+    # plafond, les replications restantes valent NA. Deux booleens seuls
+    # sont restitues (D1-3 (a)) : aucun compte de tirages.
+    n_max <- FACTEUR_B_MAX_MW * (as.numeric(B) + 1)
+    n_tires <- 0; cumuls_retires <- FALSE; plafond_cumuls <- FALSE
     for (b in seq_len(B)) {
-      tb <- mw_simuler_triangle(aj, pool)
-      if (anyNA(tb[upper.tri(tb, diag = TRUE)[, rev(seq_len(ncol(tb)))]])) next
+      tir <- .mw_tirer_triangle_valide(aj, pool, n_max - n_tires)
+      n_tires <- n_tires + tir$n
+      if (tir$rejets > 0) cumuls_retires <- TRUE
+      if (is.null(tir$tri)) { plafond_cumuls <- TRUE; next }
+      tb <- tir$tri
       ab <- try(mw_ajuster(tb), silent = TRUE)
       if (inherits(ab, "try-error")) next
       sb <- try(.mw_stats(ab, jd), silent = TRUE)
@@ -8845,6 +9072,9 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
        B_effectif = mc$B_effectif, granularite = 1 / (B + 1),
        sigma_boot = sig[is.finite(sig)], B = B,
        granularite_stat = mc$granularite, motif_mc = mc$motif_mc,
+       # Tracabilite du retirage (#257, D1-3 (a)) : au moins un triangle
+       # simule retire ; plafond atteint (des replications manquent).
+       cumuls_retires = cumuls_retires, plafond_cumuls = plafond_cumuls,
        # Plancher Monte-Carlo par statistique (#125, D1-10), dernier element,
        # comme dans usp_bootstrap().
        p_min_mc = mc$p_min_mc)
@@ -9005,6 +9235,36 @@ MW_CATALOGUE_MC <- list(
   else ""
 }
 
+# Phrases fixes du retirage des triangles simules (#257, decisions D1-3 (a)
+# et D1-4 du mainteneur du 13/10/2026 ; specification
+# docs/specifications/e2d-merz-wuthrich-replications-definitions.md, par. 3,
+# point 3) : aucun nombre issu du bootstrap (regle #76 entiere ; "25 (B + 1)"
+# est la formule du plafond FACTEUR_B_MAX_MW). Jointes par mw_tests() sur
+# ses lignes Monte-Carlo, avant la phrase de #204 ; celle de #244 reste la
+# derniere (posee par add()).
+PHRASE_MW_CUMULS_RETIRES <- paste(
+  "Triangles simules a cumul non strictement positif ecartes et remplaces par un",
+  "nouveau tirage : p-value Monte-Carlo conditionnelle a la positivite des cumuls",
+  "simules.")
+PHRASE_MW_PLAFOND_CUMULS <- paste(
+  "Plafond de 25 (B + 1) triangles simules atteint : des replications manquent",
+  "faute de triangle simule a cumuls strictement positifs.")
+# Phrases du retirage applicables au bootstrap boot, dans l'ordre (retirage,
+# puis plafond), "" si aucune. Refus explicite (meme principe que
+# .mw_phrase_b_effectif(), jamais devine) : boot$cumuls_retires ou
+# boot$plafond_cumuls absent, ou autre qu'un booleen non NA de longueur 1,
+# est une erreur de programmation.
+.mw_phrases_retirage <- function(boot) {
+  for (ch in c("cumuls_retires", "plafond_cumuls")) {
+    v <- boot[[ch]]
+    if (!is.logical(v) || length(v) != 1L || is.na(v))
+      stop(".mw_phrases_retirage() : ", ch, " absent ou non booleen dans le bootstrap",
+           call. = FALSE)
+  }
+  paste(c(if (boot$cumuls_retires) PHRASE_MW_CUMULS_RETIRES,
+          if (boot$plafond_cumuls) PHRASE_MW_PLAFOND_CUMULS), collapse = " ")
+}
+
 # --- Table des tests de la methode Merz-Wuthrich ------------------------------
 # Meme structure de sortie que usp_tests() : chaque ligne porte H0, H1, la
 # statistique, les p-values disponibles et la nature de celle qui est retenue.
@@ -9024,9 +9284,12 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   # boot$p_mc n'appelle pas .mw_phrase_b_effectif() : le refus d'add()
   # ("statistique Monte-Carlo absente du bootstrap") part en premier (#204,
   # constat M1 de l'audit).
+  # Phrases du retirage (#257, .mw_phrases_retirage()) : jointes de meme,
+  # avant celle de #204, sur les memes lignes (statistique presente dans
+  # boot$p_mc : le refus d'add() garde la priorite).
   add <- function(..., mc_nom = NA_character_, detail = "") {
     if (!is.na(mc_nom) && mc_nom %in% names(boot$p_mc)) {
-      ph <- .mw_phrase_b_effectif(boot, mc_nom)
+      ph <- trimws(paste(.mw_phrases_retirage(boot), .mw_phrase_b_effectif(boot, mc_nom)))
       if (nzchar(ph)) {
         sep <- if (!nzchar(detail)) "" else if (grepl("\\.$", detail)) " " else " ; "
         detail <- trimws(paste0(detail, sep, ph))
@@ -9854,7 +10117,11 @@ engine_motif_b_alpha <- function(B, alpha) {
 mw_influence <- function(aj) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
   jd <- .mw_j_exclues(aj, NULL)
-  out <- data.frame()
+  # Un bloc par colonne, empile par .mw_empiler() (#260), comme les tables
+  # de M1-M6 depuis #239 : memes colonnes, types et noms de lignes (noms de
+  # C(i,j), premier vecteur nomme de l'ancien bloc data.frame()) que
+  # l'ancien rbind() itere.
+  blocs <- list()
   for (j in 0:(J - 1)) {
     idx <- 0:(I - j - 1)
     if (length(idx) < 2) next
@@ -9866,8 +10133,8 @@ mw_influence <- function(aj) {
     # (S_j - C(i,j) vaut 0 en flottant a partir d'un rapport de l'ordre de
     # 1e17 sur reserve2) ; la somme directe des n - 1 autres cellules est
     # exacte a l'arrondi pres.
-    S_sans <- vapply(seq_along(Cij), function(k) sum(Cij[-k]), numeric(1))
-    S1_sans <- vapply(seq_along(Cij1), function(k) sum(Cij1[-k]), numeric(1))
+    S_sans <- .mw_sommes_autres(Cij)
+    S1_sans <- .mw_sommes_autres(Cij1)
     f_sans <- S1_sans / S_sans
     retenue <- is.finite(aj$sigma2[j + 1]) && aj$sigma2[j + 1] > 0 && !(j %in% jd)
     # F(i,j) - f_j sous forme stable (#233), commune au residu et a e_i.
@@ -9897,19 +10164,19 @@ mw_influence <- function(aj) {
         dfbetas[!is.finite(dfbetas)] <- NA_real_
       }
     }
-    out <- rbind(out, data.frame(
-      i = idx, j = j, C = Cij, F = Cij1 / Cij,
-      levier = h, seuil_levier = 2 / length(idx),
-      f_chapeau = aj$f[j + 1], f_sans_cellule = f_sans,
+    blocs[[length(blocs) + 1L]] <- list(
+      i = idx, j = rep(j, n), C = Cij, F = Cij1 / Cij,
+      levier = h, seuil_levier = rep(2 / length(idx), n),
+      f_chapeau = rep(aj$f[j + 1], n), f_sans_cellule = f_sans,
       # f_j^(-i) - f_j = -C(i,j) (F(i,j) - f_j) / (S_j - C(i,j)), identite
       # exacte, sans la difference f_sans - f_j de deux grandeurs presque
       # egales (#233)
       dfbeta_relatif = -Cij * ecart_f / S_sans / aj$f[j + 1],
       residu = resid,
-      dfbetas = dfbetas, repere_dfbetas = REPERE_DFBETAS_MW / sqrt(n),
-      dfbetas_non_borne = non_borne,
-      stringsAsFactors = FALSE))
+      dfbetas = dfbetas, repere_dfbetas = rep(REPERE_DFBETAS_MW / sqrt(n), n),
+      dfbetas_non_borne = non_borne)
   }
+  out <- .mw_empiler(blocs, source_noms = "C")
   # Colonnes ajoutees en fin (#89), apres fort_levier : l'ordre des onze
   # premieres colonnes est inchange ; dfbetas_non_borne en derniere position.
   dfb <- out$dfbetas; rep_dfb <- out$repere_dfbetas; nb <- out$dfbetas_non_borne
