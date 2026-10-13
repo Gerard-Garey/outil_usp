@@ -5,11 +5,12 @@
 #  la maniere d'executer le moteur pour chacun, et le comparateur unique de
 #  non-regression (comparer_objets). Source par test_reproductibilite.R,
 #  generer_references.R, comparer_references.R, patcher_reference.R et
-#  regenerer_et_rendre_compte.R ; source aussi par les huit scripts de
+#  regenerer_et_rendre_compte.R ; source aussi par les neuf scripts de
 #  mesure hors CI qui ont --ecrire (puissance_t8.R, constats_puissance_t8.R,
 #  calibration_mc_t8.R, taux_franchissement_reperes.R,
 #  conservatisme_interieur_t8.R, grille_regime_t8.R,
-#  p_conditionnelle_regime_t8.R, calibration_mc_mw_t8.R), qui y trouvent la
+#  p_conditionnelle_regime_t8.R, calibration_mc_mw_t8.R,
+#  mesure_precision_residus_mw.R), qui y trouvent la
 #  garde d'ecrasement des tableaux versionnes (garde_ecrasement(), #173),
 #  le commit du depot et les motifs de non-versionnement (commit_depot(),
 #  motifs_non_versionnable(), #205 ; commit_depot() sert aussi a
