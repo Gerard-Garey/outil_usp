@@ -841,7 +841,7 @@ en dernier élément depuis l'issue~\#125, \code{p\_min\_mc}, plancher Monte-Car
 \code{stats\_obs}, \code{p\_mc}, \code{err\_mc},
 \code{B\_effectif}, \code{granularite}, \code{sigma\_boot}, \code{B}, \code{granularite\_stat},
 \code{motif\_mc}, depuis l'issue~\#257 \code{cumuls\_retires} (au moins un triangle simulé
-retiré) et \code{plafond\_cumuls} (plafond de \code{FACTEUR\_B\_MAX\_MW}$\,(B+1)$ triangles
+écarté et retiré) et \code{plafond\_cumuls} (plafond de \code{FACTEUR\_B\_MAX\_MW}$\,(B+1)$ triangles
 atteint avant $B$ triangles acceptés~: des réplications manquent), et, en dernier depuis
 l'issue~\#125, \code{p\_min\_mc} \\
 \code{usp\_tests()} & \code{fit}, \code{boot}, \code{alpha} (0,10),
@@ -962,7 +962,7 @@ strictement positif ou non fini (cellule \code{NA}, colonnes suivantes non tiré
 \code{.mw\_triangle\_}\newline\code{incomplet()} & \code{aj}, vivier, nombre de tirages restant
 sous le plafond~; triangle simulé & triangle accepté (aucun \code{NA} dans sa partie
 supérieure, \code{.mw\_triangle\_}\allowbreak\code{incomplet()}), nombre de triangles tirés
-et retirés, ou \code{NULL} si le plafond est atteint sans triangle accepté~; acceptation-rejet
+et écartés, ou \code{NULL} si le plafond est atteint sans triangle accepté~; acceptation-rejet
 dans le flux de \code{mw\_bootstrap()}, partagée avec les boucles des tests unitaires qui la
 reproduisent (issue~\#257, section~\ref{sec:boot-mw}) \\
 \code{.mw\_pool\_residus()} & \code{aj}, \code{j\_degeneres} & vivier du bootstrap de Mack~:
@@ -1520,7 +1520,7 @@ l'état du générateur (l'objet \code{.Random.seed} de l'environnement global) 
   résidus du vivier, redressés par le levier puis recentrés (\code{.mw\_pool\_residus()},
   issue~\#46, section~\ref{sec:boot-mw}), calculé une fois, sans tirage, avant la boucle.
   Depuis l'issue~\#257, un triangle simulé dont un cumul n'est pas strictement positif ou n'est
-  pas fini est retiré et remplacé par un nouveau tirage (\code{.mw\_tirer\_triangle\_}\allowbreak\code{valide()}),
+  pas fini est écarté et remplacé par un nouveau tirage (\code{.mw\_tirer\_triangle\_}\allowbreak\code{valide()}),
   dans le même flux et sous la même graine, au plus \code{FACTEUR\_B\_MAX\_MW}$\,(B+1) =
   25\,(B+1)$ triangles au total~: le nombre de tirages consommés dépend alors des données, sans
   source d'aléa nouvelle (ADR~0004, annotation du 13~octobre 2026~; section~\ref{sec:boot-mw}).
@@ -3809,9 +3809,9 @@ point~(ii), où la raison est donnée pour chacune des trois voies).
 phrase \code{PHRASE\_VERDICT\_SENSIBLE\_MC}, sans changement de p-value ni de verdict
 (section~\ref{sec:nature}, «~Verdict sensible à l'aléa de simulation~», où sont donnés la
 condition, les seuils retenus et ce que vaut ce signalement).
-\emph{(c) Méthode Merz--Wüthrich, triangles simulés retirés et $B$ effectif inférieur à $B$}
+\emph{(c) Méthode Merz--Wüthrich, triangles simulés écartés et $B$ effectif inférieur à $B$}
 (issues~\#257 et~\#204)~: si des triangles simulés à cumul non strictement positif ont été
-retirés, le commentaire des lignes de Monte-Carlo de \code{mw\_tests()} porte la phrase fixe
+écartés et retirés, le commentaire des lignes de Monte-Carlo de \code{mw\_tests()} porte la phrase fixe
 \code{PHRASE\_MW\_CUMULS\_RETIRES}, suivie, si le plafond de tirages est atteint, de
 \code{PHRASE\_MW\_PLAFOND\_CUMULS}~; ces deux phrases ne portent aucun nombre issu du bootstrap
 («~\code{25 (B + 1)}~» est la formule du plafond). Si $B_{\text{eff}} < B$, la phrase
@@ -4070,27 +4070,31 @@ fragilité.
 
 \emph{Retirage des triangles simulés à cumul non strictement positif} (issue~\#257, option A1,
 décisions D1-1 à D1-4 du mainteneur du 13~octobre 2026~; ADR~0004, annotation du 13~octobre
-2026). Le modèle de Mack n'est défini que pour des cumuls strictement positifs (variance
-proportionnelle à $C(i,j)$)~: un cumul simulé non positif sort de son support. Depuis l'issue,
+2026). Le modèle de Mack suppose des cumuls positifs (variance proportionnelle à $C(i,j)$), et
+l'outil, dont les résidus divisent par $\sqrt{C(i,j)}$, des cumuls strictement positifs~: un
+cumul simulé non strictement positif sort de ce domaine. Depuis l'issue,
 \code{mw\_simuler\_triangle()} rend le triangle dès le premier cumul simulé non strictement
 positif ou non fini (\code{+Inf} compris), cellule à \code{NA} et colonnes suivantes non
 tirées~: aucune racine carrée d'un cumul négatif n'est plus calculée, et l'avertissement~R
 «~\code{NaNs produced}~», qu'émettait auparavant la colonne suivante, disparaît. Pour chaque
-réplication, \code{mw\_bootstrap()} retire alors le triangle entier et en tire un autre
+réplication, \code{mw\_bootstrap()} écarte alors le triangle entier et en tire un autre
 (\code{.mw\_tirer\_triangle\_}\allowbreak\code{valide()}), dans le même flux et sous la même
 graine, jusqu'à un triangle dont tous les cumuls simulés sont strictement positifs et finis,
 avec un plafond de \code{FACTEUR\_B\_MAX\_MW}$\,(B+1) = 25\,(B+1)$ triangles tirés au total,
-retirés compris (constante distincte de \code{FACTEUR\_B\_MAX\_REGIME}, de même valeur). Au
+triangles écartés compris (constante distincte de \code{FACTEUR\_B\_MAX\_REGIME}, de même valeur). Au
 plafond, les réplications restantes manquent (statistiques \code{NA}). Les échecs de
-\code{mw\_ajuster()} ou du calcul des statistiques sur un triangle accepté ne sont pas
-retirés~: ils restent des statistiques non finies, hors de $B_{\text{eff}}$. \emph{Loi de
-référence.} Par l'argument élémentaire de l'acceptation-rejet, les triangles acceptés sont
-indépendants et de même loi, celle du triangle simulé sachant que tous ses cumuls sont
-strictement positifs~; c'était déjà la loi de référence avant l'issue, où la réplication était
-écartée. La p-value de Monte-Carlo reste donc conditionnelle à la positivité des cumuls simulés,
-sa loi de référence et son niveau limite ($B \to \infty$) sont inchangés, et seule son erreur de
-Monte-Carlo diminue, $B_{\text{eff}}$ valant $B$ hors plafond et hors statistique non finie.
-Statut~: argument élémentaire, sans référence~; le niveau de ces p-values sur un plan à ligne de
+\code{mw\_ajuster()} ou du calcul des statistiques sur un triangle accepté ne donnent pas
+lieu à un retirage~: ils restent des statistiques non finies, hors de $B_{\text{eff}}$. \emph{Loi de
+référence.} Les triangles tirés sont indépendants et de même loi, et l'acceptation ne dépend
+que du triangle (événement $\mathcal{A}$~: tous ses cumuls simulés sont strictement positifs et
+finis)~; conditionnellement à la suite des acceptations, les triangles acceptés sont donc
+indépendants et de même loi, celle du triangle simulé sachant $\mathcal{A}$, plafond compris~:
+seul leur nombre diminue. C'était déjà la loi de référence avant l'issue, où la réplication était
+écartée. La p-value de Monte-Carlo reste donc conditionnelle à la positivité des cumuls simulés~;
+sa loi de référence et sa limite quand $B \to \infty$ (p-value du bootstrap idéal, dont le
+niveau n'est pas établi sur ces triangles) sont inchangées, et seule son erreur de Monte-Carlo
+diminue, $B_{\text{eff}}$ valant $B$ hors plafond et hors statistique non finie. Statut~:
+argument de probabilité élémentaire, exact, donné sans référence~; le niveau de ces p-values sur un plan à ligne de
 poids faible n'est mesuré sous aucune option (constat de la spécification de la branche, non
 levé). Les options écartées --- retirage cellule par cellule, qui change la loi de référence~;
 troncature des cumuls, sans fondement~; loi positive de mêmes deux premiers moments, qui
@@ -4098,16 +4102,17 @@ abandonne le rééchantillonnage des résidus et rend encore des cumuls nuls en 
 --- sont comparées dans la spécification de la branche
 (\code{docs/specifications/}\allowbreak\code{e2d-merz-wuthrich-replications-definitions.md}, §~2).
 \emph{Traçabilité}~: deux booléens, \code{bootstrap\$cumuls\_retires} (au moins un triangle
-simulé retiré) et \code{bootstrap\$plafond\_cumuls} (plafond atteint avant $B$ triangles
+simulé écarté et retiré) et \code{bootstrap\$plafond\_cumuls} (plafond atteint avant $B$ triangles
 acceptés~: des réplications manquent), et deux phrases fixes, sans nombre issu du bootstrap,
 jointes aux lignes de Monte-Carlo (fiche~\ref{mw:m1a}, rubrique~5)~; le nombre de triangles
-retirés n'est pas restitué. \emph{Effet.} Le triangle de contrôle, son sous-triangle
+écartés n'est pas restitué. \emph{Effet.} Le triangle de contrôle, son sous-triangle
 $5\times5$ et le sous-triangle $8\times8$ de Taylor \& Ashe ne peuvent tirer aucun cumul non
 positif, quelle que soit la graine~: avec $m < 0$ le plus petit résidu du vivier, la borne
 inférieure itérée $L(i,j+1) = \hat f_j\,L(i,j) + \hat\sigma_j\,m\sqrt{L(i,j)}$, partie de la
 première colonne, reste positive et dans la zone où elle croît (marge minimale
 $\hat f_j\sqrt{L}/(\hat\sigma_j|m|)$ de $37{,}7$ sur le triangle de contrôle et de $2{,}91$ sur
-le sous-triangle de Taylor \& Ashe, au-dessus de $1/2$ sur le sous-triangle $5\times5$~; test
+le sous-triangle de Taylor \& Ashe, de $84{,}3$ sur le sous-triangle $5\times5$~; la borne reste
+dans la zone où elle croît tant que cette marge dépasse $1/2$~; test
 T257-2 de \code{tests/unitaires/}\allowbreak\code{test\_retirage\_mw.R}). Sur \code{reserve2},
 toutes les valeurs numériques sont identiques au bit près, et les deux booléens, à
 \code{FALSE}, ont été posés dans la référence par patch chirurgical
@@ -4128,9 +4133,14 @@ alors qu'elles l'étaient par un cumul simulé non positif~; à $B = 199$, $B_{\
 intra-colonne (fiche~\ref{mw:m1}) et l'effet calendaire (fiche~\ref{mw:m3cal}) restent en
 \code{ECHEC}, au plancher de leur p-value de Monte-Carlo ($2/(B_{\text{eff}}+1)$ et
 $p_{\min}^{\mathrm{MC}}$~: $0{,}024$ avant, $0{,}002$ après)~; à $B = 199$, ils sont en
-\code{ECHEC} à $0{,}010$. Ces deux rejets détectent une ligne de poids infime, incompatible avec
-l'hypothèse de variance de Mack~: ce sont des constats sur un triangle construit, non un résultat
-réglementaire. Durbin--Watson (fiche~\ref{mw:m3dw}) passe d'\code{ALERTE} ($p = 0{,}073$,
+\code{ECHEC} à $0{,}010$. Ces deux rejets ne portent pas sur l'hypothèse que teste chaque ligne.
+Ils traduisent l'écart entre la ligne~$0$ observée, dont les facteurs restent proches de
+$\hat f_j$, et le modèle de Mack ajusté, sous lequel leur écart-type $\hat\sigma_j/\sqrt{C(0,j)}$
+dépasse $5\cdot 10^{4}$ sur les cinq premières colonnes. Les réplications de la pente
+intra-colonne s'y concentrent près de $\pm 1$ (toutes dans $[-1{,}0003~;~1{,}0017]$ pour
+$t = -1{,}121$ à l'observé~; $B = 999$, graine 20260831). Les tests de M2 n'y rejettent pas
+(Breusch--Pagan $p = 0{,}456$, exposant de variance $p = 0{,}905$). Ce sont des constats sur un
+triangle construit, non un résultat réglementaire. Durbin--Watson (fiche~\ref{mw:m3dw}) passe d'\code{ALERTE} ($p = 0{,}073$,
 $B_{\text{eff}} = 81$) à \code{OK} à $B = 999$, avec $p = 0{,}100$ exactement, au seuil
 $\alpha = 0{,}10$ (la règle des verdicts est stricte, $p < \alpha$), erreur de Monte-Carlo
 $0{,}014$ et phrase de l'issue~\#244~; à $B = 199$, la même ligne est en \code{ALERTE}
@@ -4138,7 +4148,8 @@ $0{,}014$ et phrase de l'issue~\#244~; à $B = 199$, la même ligne est en \code
 ($p = 0{,}095$), \code{OK} à $B = 999$ ($p = 0{,}111$, phrase de l'issue~\#244). Ces deux verdicts
 sont donc indéterminés à la précision de Monte-Carlo~: l'écart entre $B = 199$ et $B = 999$ est
 une erreur de Monte-Carlo (fonction de $B$), sous une loi de référence inchangée, et non un effet
-de $T$. Réserve d'\code{actuary}~; changement approuvé par le mainteneur le 13~octobre 2026.
+de $T$. Ces changements de verdict, indéterminés à la précision de Monte-Carlo, ont été
+approuvés par le mainteneur le 13~octobre 2026.
 $\sigma_{\mathrm{USP}}$ est inchangé ($0{,}04440281$).
 
 \begin{encadre}
@@ -12567,8 +12578,10 @@ dit pas, en revanche, quelle
 colonne est en cause~: c'est le rôle du test par colonne et du graphique en
 petits multiples. Sur le triangle de contrôle dont la ligne~$0$ est multipliée par $10^{-14}$, la
 ligne est en \code{ECHEC} au plancher de sa p-value de Monte-Carlo, à $B = 199$ comme à
-$B = 999$~: elle détecte une ligne de poids infime, incompatible avec l'hypothèse de variance de
-Mack, constat sur un triangle construit et non résultat réglementaire (section~\ref{sec:boot-mw},
+$B = 999$~: rejet non spécifique~: il ne traduit pas une tendance des facteurs avec le cumul,
+mais l'écart entre la ligne~$0$ observée et le modèle de Mack ajusté, sous lequel la loi bootstrap
+de $t$ se concentre près de $\pm 1$~; constat sur un triangle construit et non résultat
+réglementaire (section~\ref{sec:boot-mw},
 issue~\#257).
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $t$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{PenteIntra}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
@@ -14844,10 +14857,16 @@ générateur du moteur~; sortie \code{docs/tableaux/}\newline
 \code{docs/tableaux/}\newline \code{20261011-issue206-journal-combinaison.md}~; les mesures de
 l'issue~\#119 tirées des mêmes triangles sont dans \code{docs/tableaux/}\newline
 \code{20261011-issue119-mw.md}, section~\ref{sec:calib-asympt-mw}). La mesure est antérieure à
-l'issue~\#257~: le générateur des triangles du plan (\code{gen\_triangle\_h0()} du script) ne
-retire pas les triangles simulés à cumul non strictement positif comme le fait désormais
-\code{mw\_bootstrap()} (section~\ref{sec:boot-mw})~; son alignement, avant toute relance de la
-mesure, est suivi par l'issue~\#271. Contrôles~: le triangle de
+l'issue~\#257 et n'en dépend pas. Sous le moteur de la mesure, un triangle simulé à cumul non
+strictement positif faisait perdre la réplication sur les treize statistiques à la fois. Or,
+dans les valeurs brutes ($7\,000$ bootstraps, pools redressé et brut, $91\,000$ couples
+(triangle, statistique)), un seul couple a un $B$ effectif inférieur à 999 ($998$,
+\code{PenteIntra}, sous E), les autres statistiques du même triangle étant à 999~: aucun cumul
+simulé invalide n'a été tiré. Dans ce cas, \code{mw\_bootstrap()} consomme depuis
+l'issue~\#257 le même flux et rend les mêmes triangles (section~\ref{sec:boot-mw}). Avant toute
+relance, le générateur \code{gen\_triangle\_h0()} et le contrôle~(s) du script, qui
+reproduisent la simulation antérieure à l'issue (\code{NaN} au lieu de l'arrêt au premier cumul
+invalide, sans retirage), sont à aligner (issue~\#271). Contrôles~: le triangle de
 contrôle traité par le script est identique à sa référence de non-régression~; aucun triangle
 refusé, aucune p-value de Monte-Carlo absente~; $B$ effectif de 999 partout, sauf $998$ pour
 $0{,}004~\%$ des couples (triangle, statistique) sous E.
