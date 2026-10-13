@@ -618,11 +618,12 @@ empreinte_sans_commentaires <- function(fichier = file.path(RACINE, "R", "engine
 
 # ---------------------------------------------------------------------------
 #  Garde d'ecrasement des tableaux versionnes (issue #173). Seul lieu de la
-#  regle, appelee par les huit scripts de mesure hors CI qui ont --ecrire
+#  regle, appelee par les neuf scripts de mesure hors CI qui ont --ecrire
 #  (tests/puissance_t8.R, tests/constats_puissance_t8.R,
 #  tests/calibration_mc_t8.R, tests/taux_franchissement_reperes.R,
 #  tests/conservatisme_interieur_t8.R, tests/grille_regime_t8.R,
-#  tests/p_conditionnelle_regime_t8.R, tests/calibration_mc_mw_t8.R), APRES
+#  tests/p_conditionnelle_regime_t8.R, tests/calibration_mc_mw_t8.R,
+#  tests/mesure_precision_residus_mw.R), APRES
 #  leurs gardes propres (arbre propre, motifs_non_versionnable()) et AVANT
 #  toute ecriture : tous les chemins cibles d'une execution sont controles
 #  d'abord, puis seulement ecrits. tests/puissance_t8.R (constat m2 d'audit

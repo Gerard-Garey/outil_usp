@@ -103,8 +103,8 @@
 #       p_mc_regime$variante (nature de la p) ; seules les six p_mc,
 #       err_mc, motif_mc et p_min_mc sont calcules (les autres NA, motif
 #       MOTIF_MC_AUCUNE_REPLIC depuis #181 ; leurs lignes ne sont pas
-#       lues). La regle R7 (p exacte a pi constant, Monte-Carlo sinon ; DWr toujours Monte-Carlo) et les
-#       regles R1, R3 et R13 ne sont donc pas transcrites mais appliquees par
+#       lues). La regle R7 (p exacte a pi constant, Monte-Carlo sinon ;
+#       DWr toujours Monte-Carlo) et les regles R1, R3 et R13 ne sont donc pas transcrites mais appliquees par
 #       le moteur ; cout mesure de usp_tests() : 26 ms par appel (30/09/2026,
 #       conteneur Linux, R 4.3.3), contre ~2,5 s pour la boucle a B = 999.
 #    Ventilation : ALERTE et ECHEC, et regime du reajustement (delta chapeau*
