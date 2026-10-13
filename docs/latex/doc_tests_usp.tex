@@ -14580,8 +14580,8 @@ $0{,}1114524114$ ($-2{,}2\cdot 10^{-7}$ en relatif, effet de l'issue~\#63)~; le 
 de $6\cdot 10^{-7}$~; seule la p-value retenue de Shapiro--Wilk change ($0{,}621 \to 0{,}620$)~;
 aucun verdict ne change. Le contrôle d'intégrité S5 du script (reconstruction de
 \code{usp\_tests()} sur J1) a échoué à partir de l'issue~\#45, le script n'appelant pas
-\code{usp\_tests()} avec son nouvel argument \code{lr\_delta}, jusqu'au commit \code{a811ee7} de
-cette issue, qui le lui passe~; de l'issue~\#240 à l'issue~\#262 (correctif R13), ses contrôles
+\code{usp\_tests()} avec son nouvel argument \code{lr\_delta}, jusqu'à une correction de la même
+issue~\#45, qui le lui passe~; de l'issue~\#240 à l'issue~\#262 (correctif R13), ses contrôles
 des p-values de Monte-Carlo d'\code{usp\_bootstrap()} échouaient sur J2, où la p-value
 conditionnelle au régime est retenue (paragraphe «~Mise en œuvre~» ci-dessus), et l'issue~\#262
 les a rétablis (section~\ref{sec:calibration-mc}, «~Scripts hors CI~»). Exécution de la session
