@@ -651,6 +651,16 @@ $(n_1, n_2)$~; $T$ & plus petite p-value atteignable de la loi de référence di
 observés, convention bilatérale du doublement (règle~R1, issue~\#44~; §\ref{sec:nature}) \\
 \code{.runs\_effectifs()} & $z_t$ ou $u_t$, \code{plancher} (1) & effectifs $(n_1, n_2)$ de part et d'autre de la
 médiane, après aplatissement des ex \ae quo au plancher donné \\
+\code{.runs\_z()},\newline \code{.mk\_z()} & $R$, $n_1$, $n_2$~; $S$, $T$, correction d'ex \ae quo &
+statistique centrée réduite des suites et de Mann--Kendall, assistants partagés par
+\code{test\_runs()} et \code{test\_mann\_kendall()} et par le calcul des extrémités, de sorte que
+les extrémités et la statistique observée sont calculées par les mêmes opérations (issue~\#125,
+références identiques au bit près) \\
+\code{.runs\_extremes()},\newline \code{.mk\_extremes()},\newline \code{.spearman\_extremes()} &
+$z_t$ ou $u_t$, \code{plancher}~; $r$~; $T$ & extrémités \code{c(bas, haut)} du support à la
+configuration observée, lues par le champ \code{extremes} d'\code{USP\_CATALOGUE\_MC} pour le
+plancher Monte-Carlo de la règle~R1~: $Z$ en $R = 2$ et en $R_{\max}$~; $Z$ en $S = \mp T(T-1)/2$,
+sans ex \ae quo~; $S = 0$ et $(T^3 - T)/3$ (issue~\#125, tableau~\ref{tab:pmin}, note~(v)) \\
 \code{TOL\_EX\_AEQUO},\newline \code{engine\_aplatir\_}\newline\code{ex\_aequo()},\newline
 \code{engine\_ex\_aequo()},\newline \code{.usp\_aplatir\_}\newline\code{volumes()},\newline
 \code{.usp\_aplatir\_}\newline\code{ratios()},\newline \code{.usp\_plancher\_u()} & constante
@@ -722,13 +732,17 @@ autre valeur (ADR~0002 amendé, point~4) \\
 \code{.stats\_bootstrapables()} & $x$, $y$, $z$ & vecteur de 34 statistiques, évaluation
 du catalogue \code{USP\_CATALOGUE\_MC} \\
 \code{USP\_CATALOGUE\_MC},\newline \code{MW\_CATALOGUE\_MC} & entrées construites par
-\code{.mc\_entree(calc, queue,}\newline\code{degenere)} & catalogues des statistiques
+\code{.mc\_entree(calc, queue,}\newline\code{degenere, non\_definie,}\newline\code{extremes)} & catalogues des statistiques
 Monte-Carlo (34 et 13 entrées)~: fonction de calcul, sens du rejet (\code{haut}, \code{bas},
 \code{deux}), condition de dégénérescence \code{degenere} (\code{NULL} pour toutes les entrées~;
 évaluée sur le contexte observé par \code{.mc\_p\_values()} depuis l'issue~\#44) et motif
 \code{non\_definie} d'une statistique non définie sur ces données (seule entrée qui le renseigne~:
-\code{CoxStuart}, ex \ae quo, issue~\#85)~; seule source du calcul observé, du calcul simulé et
-de la p-value de Monte-Carlo (ADR~0003) \\
+\code{CoxStuart}, ex \ae quo, issue~\#85), et, depuis l'issue~\#125, champ \code{extremes},
+fonction du contexte observé rendant les extrémités \code{c(bas, haut)} du support de la
+statistique à la configuration observée, renseigné pour les treize statistiques discrètes à
+$p_{\min}$ (\code{NULL} ailleurs~; refus par une erreur d'une valeur qui n'est pas une fonction, ou
+d'un résultat de mauvaise forme)~; seule source du calcul observé, du calcul simulé et de la
+p-value de Monte-Carlo (ADR~0003) \\
 \code{.usp\_contexte\_mc()},\newline \code{.mw\_contexte\_mc()} & $x$, $y$, $z$, \code{pi}~; \code{aj} &
 contexte des fonctions de calcul du catalogue~: ratios $r_t$ et ratios centrés $u_t$, et, depuis
 l'issue~\#215, vecteur $\hat\pi_t$ de l'ajustement (de l'observé, ou de la réplication), lu par
@@ -739,7 +753,8 @@ depuis l'issue~\#239 par les entrées \code{ExpVar} et \code{KruskalAcc}, qui ne
 plus \\
 \code{.mc\_evaluer()} & catalogue, contexte & vecteur nommé dans l'ordre du catalogue~; erreur
 qui nomme la statistique si une entrée ne rend pas une valeur de longueur~1 \\
-\code{engine\_p\_mc()} & valeurs simulées, valeur observée, sens du rejet & \code{p\_mc},
+\code{engine\_p\_mc()} & valeurs simulées, valeur observée, sens du rejet, \code{extremes}
+(\code{NULL}) & \code{p\_mc},
 \code{err\_mc} (formule selon le sens, §\ref{sec:deuxerreurs}), \code{B\_effectif},
 \code{granularite} d'une statistique (fiche~\ref{fiche:procedure-mc}), et \code{motif}
 d'absence de \code{p\_mc} (constantes \code{MOTIF\_MC\_*}~; loi dégénérée jugée à
@@ -747,12 +762,16 @@ d'absence de \code{p\_mc} (constantes \code{MOTIF\_MC\_*}~; loi dégénérée ju
 réplications finies, issue~\#44, §\ref{sec:nature}~; en deçà, \code{p\_mc} n'est pas calculée,
 motif \code{MOTIF\_MC\_REPLIC\_INSUFFISANTES}, issue~\#128, branche que \code{run\_engine()},
 qui exige $B \ge$ \code{B\_MIN\_USAGE} $= 99$, n'atteint que si moins de 50 réplications sont
-finies, et que les appels directs atteignent)~; fonction unique des deux méthodes \\
+finies, et que les appels directs atteignent), et, depuis l'issue~\#125, plancher Monte-Carlo
+\code{p\_min\_mc} aux extrémités fournies (\code{NA} sans extrémité ou si \code{p\_mc} manque,
+borné par \code{p\_mc}, §\ref{sec:nature})~; fonction unique des deux méthodes \\
 \code{.mc\_p\_values()} & matrice des simulations, valeurs observées, catalogue, contexte
 observé & \code{engine\_p\_mc()} colonne par colonne, sens lu au catalogue, conditions
 \code{degenere} (prioritaire sur les motifs de nombre de réplications, issue~\#128) et
 \code{non\_definie} évaluées sur le contexte observé~; vecteur
-\code{motif\_mc}~; erreur si une statistique simulée est absente du catalogue \\
+\code{motif\_mc}~; champ \code{extremes} évalué une fois sur le contexte observé et vecteur
+\code{p\_min\_mc}, dernier élément rendu (issue~\#125)~; erreur si une statistique simulée est
+absente du catalogue \\
 \code{.complement\_motif\_mc()},\newline \code{COMPLEMENTS\_}\newline\code{MOTIF\_MC},\newline
 \code{DETAIL\_MC\_ATOME\_}\newline\code{HORS\_OBS} & motif Monte-Carlo~; table~; phrase &
 phrase qui complète le commentaire d'une ligne pour un motif donné (vide sinon)~; table nommée
@@ -815,11 +834,13 @@ tirages dont $\hat\delta^{**}$ est intérieur, complétés sur le flux
 d'\code{usp\_graine\_flux\_regime()} jusqu'à $B$ retenus ou $25\,(B+1)$ tirages
 (\code{FACTEUR\_B\_MAX\_REGIME}), et \code{MOTIF\_MC\_REGIME\_RARE} remplace les motifs de nombre de
 réplications quand ce plafond est atteint avec moins de \code{B\_MIN\_DEGENERESCENCE} tirages
-retenus, à $B \ge$ \code{B\_MIN\_DEGENERESCENCE} seulement (fiche~\ref{fiche:procedure-mc}) \\
+retenus, à $B \ge$ \code{B\_MIN\_DEGENERESCENCE} seulement (fiche~\ref{fiche:procedure-mc})~;
+en dernier élément depuis l'issue~\#125, \code{p\_min\_mc}, plancher Monte-Carlo par statistique
+(\code{NA} pour les statistiques continues), calculé sur les tirages retenus \\
 \code{mw\_bootstrap()} & \code{aj}, $B$ (999), \code{seed} (20260831) &
 \code{stats\_obs}, \code{p\_mc}, \code{err\_mc},
 \code{B\_effectif}, \code{granularite}, \code{sigma\_boot}, \code{B}, \code{granularite\_stat},
-\code{motif\_mc} \\
+\code{motif\_mc}, et, en dernier depuis l'issue~\#125, \code{p\_min\_mc} \\
 \code{usp\_tests()} & \code{fit}, \code{boot}, \code{alpha} (0,10),
 \code{theta\_equiv} (0,10), \code{delta\_equiv}, \code{robustesse} (\code{NULL}),
 \code{lr\_delta} (\code{NULL}~; sortie d'\code{usp\_lr\_delta()}),
@@ -972,7 +993,10 @@ et conditionnelle aux rangs moyens avec ex \ae quo depuis l'issue~\#207~; approx
 relevée à $2/n!$ à $n > 9$~; \code{NA} si l'une des deux variables est constante après
 aplatissement, fiche~\ref{mw:m1b}), et \code{masse\_min}, masse de la plus petite p-value
 atteignable de la colonne ($2/n!$ sans ex \ae quo, comptée sur la loi conditionnelle avec ex
-\ae quo, \code{NA} à $n > 9$)~; statistique $X$ de Fisher, p-value
+\ae quo, \code{NA} à $n > 9$), et, depuis l'issue~\#125, cette plus petite p-value elle-même
+(\code{p\_min}), dont \code{mw\_test\_homogeneite\_}\allowbreak\code{f()} et
+\code{mw\_test\_exposant\_}\allowbreak\code{variance()} rendent le vecteur par colonne
+(\code{p\_min\_col}), lu par \code{.mw\_fisher\_x\_max()}~; statistique $X$ de Fisher, p-value
 $\chi^2(2K)$ et $K$, sans exclusion (p-value nulle relevée à \code{.Machine\$double.xmin},
 p-value non finie~: statistique \code{NA}, issue~\#90, fiche~\ref{mw:m1a}) \\
 \code{.mw\_spearman\_}\newline\code{loi\_rangs()},\newline \code{.mw\_spearman\_}\newline\code{comptes()},\newline
@@ -999,6 +1023,15 @@ de l'absence de $p_{\min}$ (ex \ae quo, $n_j > 9$, valeur non calculable) porté
 aux rangs moyens n'est ajoutée à \code{effectifs} que si cette $p_{\min}$ est finie. Champs de sortie ajoutés à cette fin~:
 \code{ex\_aequo} (corrélation entre années adjacentes, et par colonne pour l'homogénéité de
 $f_j$ et l'exposant de variance), \code{tailles} et \code{ex\_aequo} (Kruskal--Wallis) \\
+\code{.mw\_calendrier\_}\newline\code{extremes()},\newline \code{.mw\_corr\_extremes()},\newline
+\code{.mw\_fisher\_x\_max()},\newline \code{.mw\_kruskal\_}\newline\code{extremes()} & résultat de la
+fonction de la statistique sur le contexte observé & extrémités \code{c(bas, haut)} du support à la
+configuration observée, lues par le champ \code{extremes} de \code{MW\_CATALOGUE\_MC}~: effet
+calendaire, $(0 - E)/\sqrt{V}$ et $(\sum_k\lfloor n_k/2\rfloor - E)/\sqrt{V}$~; corrélation,
+$-1$ et $1$ sans ex \ae quo~; homogénéité de $f_j$ et exposant de variance, extrémité haute
+$X_{\max}$ par \code{.fisher\_combine()} sur \code{p\_min\_col}~; Kruskal--Wallis, extrémité haute,
+$H$ de l'affectation en blocs de rangs contigus~; \code{NA} là où la ligne n'a pas de $p_{\min}$
+(issue~\#125, tableau~\ref{tab:pmin}) \\
 \code{mw\_tests()} & \code{aj}, \code{boot}, \code{alpha} (0,10) &
 liste des tests M1 à M6 (même structure que \code{usp\_tests()}, même fonction
 d'enregistrement \code{engine\_registre\_tests()}) \\
@@ -1051,8 +1084,9 @@ toutes les quantités tracées (branche Merz--Wüthrich) \\
 \code{REPERE\_INFLUENCE\_SIGMA},\newline \code{REPERE\_DFBETAS\_MW} & constantes ($0{,}10$ et
 $2$, numérateur de $2/\sqrt{n_j}$) & repères de lecture des graphiques d'influence, sans verdict
 (fiches~\ref{fiche:jackknife} et~\ref{mw:influence}) \\
-\code{engine\_table\_tests()} & \code{res} & \code{data.frame} auditable de 26 colonnes (mesuré
-sur le jeu de contrôle), dont la colonne \code{p\_min} (issue~\#44), la colonne dérivée
+\code{engine\_table\_tests()} & \code{res} & \code{data.frame} auditable de 27 colonnes (mesuré
+sur le cas \code{premium}), dont la colonne \code{p\_min} (issue~\#44), la colonne \code{p\_min\_mc}
+qui la suit (issue~\#125, \code{NA} pour un objet antérieur au champ), la colonne dérivée
 \code{renvoi} (issue~\#215~: repère «~voir aussi~», calculé par \code{usp\_renvois()} à partir des
 seuls champs \code{test}, \code{variante}, \code{type} et \code{p\_exacte} des lignes, jamais du
 commentaire~; non posé par \code{add()}, absent des références~; \code{NA} pour toute ligne de la
@@ -1060,7 +1094,7 @@ méthode Merz--Wüthrich, fiche~\ref{fiche:student-constante}, rubrique~6) et, e
 positions, après \code{renvoi}, les colonnes \code{fonction},
 provenance de la ligne (issue~\#111), et \code{inoperant}, indicateur logique de test inopérant
 (issue~\#129~; \code{NA} pour un objet antérieur au champ)~; l'export CSV de l'application
-reprend ces 26 colonnes telles quelles \\
+reprend ces 27 colonnes telles quelles \\
 \code{run\_engine()} & entrées utilisateur, dont \code{nature\_donnees} (obligatoire pour
 \code{premium}), $T$ (contrôlé par \code{engine\_valider\_}\newline\code{profondeur()}~; les $T$
 années les plus récentes des $n$ fournies sont retenues, $n$ étant consigné dans
@@ -2575,8 +2609,10 @@ dit laquelle. \\
 \code{p\_min} & \textbf{p-value minimale atteignable} (issue~\#44)~: plus petite p-value que
 la loi de référence discrète peut produire aux effectifs observés (suites, Cox--Stuart, Smirnov,
 Mann--Kendall, Spearman)~; \code{NA} pour une loi continue. Elle fonde la règle d'inopérance
-(section~\ref{sec:nature}). Champ placé en fin de ligne, avant \code{fonction} et
-\code{inoperant}~; colonne \code{p\_min} de la table auditable, après \code{erreur\_MC}. \\
+(section~\ref{sec:nature}) quand la p-value exacte est retenue~; quand la p-value de Monte-Carlo
+l'est, la règle lit depuis l'issue~\#125 le champ \code{p\_min\_mc}, et \code{p\_min} reste
+restituée. Champ placé en fin de ligne, avant \code{fonction}, \code{inoperant} et
+\code{p\_min\_mc}~; colonne \code{p\_min} de la table auditable, après \code{erreur\_MC}. \\
 \code{fonction} & \textbf{Provenance de la ligne} (issue~\#111)~: nom de la fonction nommée de
 \code{R/engine.R} qui calcule la statistique de la ligne (\code{stat}, à défaut \code{estim}),
 appelée directement ou par la fonction de calcul du catalogue Monte-Carlo (\code{DW} $\to$
@@ -2591,15 +2627,27 @@ une fonction de \code{R/engine.R}. Champ placé après \code{p\_min}, avant \cod
 colonne \code{fonction} de la table auditable, avant-dernière. \\
 \code{inoperant} & \textbf{Indicateur de test inopérant} (issue~\#129)~: logique posé par
 \code{add()} sur chaque ligne, \code{TRUE} si et seulement si la bascule de la règle~R1 a eu lieu
-(ligne de type test dont $p_{\min} \ge \alpha$, restituée en diagnostic, commentaire préfixé
+(ligne de type test dont $p_{\min}$, ou, dans la branche Monte-Carlo de la règle, $p_{\min}^{\mathrm{MC}}$,
+atteint $\alpha$, restituée en diagnostic, commentaire préfixé
 «~\code{TEST INOPERANT}~», section~\ref{sec:nature}), \code{FALSE} sinon, jamais \code{NA}~:
 notamment pour une ligne à loi simulée dégénérée (règle~R3), une ligne dont le type a été changé
 en amont d'\code{add()} (règles~R4 et~R13) et une ligne restée de type test sans aucune p-value.
 L'affichage et les tests repèrent le test inopérant par ce champ, non par le préfixe du
 commentaire, qui reste pour le lecteur (mesuré sur les cas de référence~: Cox--Stuart seul à
 \code{TRUE} dans chacun des cas lognormaux, aucun en Merz--Wüthrich, en accord avec le
-préfixe). Dernier champ de la ligne~; dernière colonne de la table auditable (\code{NA}
-seulement pour un objet résultat antérieur au champ). \\
+préfixe). Champ placé après \code{fonction}, avant \code{p\_min\_mc}~; dernière colonne de la
+table auditable (\code{NA} seulement pour un objet résultat antérieur au champ). \\
+\code{p\_min\_mc} & \textbf{Plancher Monte-Carlo lu par la règle~R1} (issue~\#125)~: plus petite
+valeur que la p-value de Monte-Carlo retenue peut prendre sur les réplications tirées, quand la
+statistique observée parcourt son support à la configuration observée (section~\ref{sec:nature},
+point~(i)), posé par \code{add()} sur chaque ligne avec la valeur lue dans
+\code{bootstrap\$p\_min\_mc} par la branche Monte-Carlo de la règle, \code{NA} hors de cette
+branche (en particulier quand la p-value exacte est retenue, et pour toute statistique continue).
+Exact pour les réplications tirées, fonction de $B$ et de la graine~; jamais imprimé dans le
+commentaire (issue~\#76). Dernier champ de la ligne~; colonne \code{p\_min\_mc} de la table
+auditable, après \code{p\_min} (\code{NA} pour un objet résultat antérieur au champ). Mesuré sur
+les cas de référence~: champ fini sur chacune des vérifications à $p_{\min}$ de \code{premium\_interieur} (sept) et
+de \code{reserve2} (six), \code{NA} partout sur les quatre cas à $\hat\delta = 1$. \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -3910,13 +3958,20 @@ avec le moteur antérieur à l'issue, $7{,}02\cdot 10^{-13}$ avec le moteur actu
 maximale du vivier redressé et recentré de $1{,}12\cdot 10^{2}$, puis $7{,}76\cdot 10^{-13}$.
 Statut~: constat numérique sur des triangles construits, sans portée statistique. Sur le triangle
 de contrôle, les valeurs ne changent qu'à l'arrondi près, sous la tolérance des références
-(références inchangées), et $\sigma_{\mathrm{USP}}$, p-values de Monte-Carlo et verdicts sont
-identiques~; sur les triangles construits ($e = 12, \ldots, 17$, \code{run\_engine()}, $B = 999$,
+(références inchangées par l'issue elle-même), et $\sigma_{\mathrm{USP}}$, p-values de Monte-Carlo et
+verdicts sont identiques~; ces écarts d'arrondi ont été absorbés par la régénération par la CI des
+références à l'issue~\#125 (\code{reserve2}~: $2\,275$ des $3\,953$ valeurs numériques
+diffèrent de la référence antérieure, d'au plus $4{,}7\cdot 10^{-13}$ en relatif, sur
+\code{plots\_data\$influence\$dfbeta\_relatif}, aucune différence non numérique, hors les
+$32$ feuilles ajoutées par le champ \code{p\_min\_mc}~; mesuré en comparant les deux versions
+de \code{tests/reference/reserve2.rds} par la règle de \code{comparer\_objets()})~; sur les triangles construits ($e = 12, \ldots, 17$, \code{run\_engine()}, $B = 999$,
 graine 20260831), $38$ verdicts changent sur $19$ triangles, tous d'une ligne multipliée par au
 moins $10^{14}$ ou au plus $10^{-14}$, $\sigma_{\mathrm{USP}}$ restant identique sur chacun. Vingt-neuf sont la correction elle-même
 (statistiques et vivier recalculés sans annulation)~; neuf sont des passages de ou vers une ligne
 de test sans p-value retenue (\code{INFO}, motif «~\code{replications finies insuffisantes}~»), le
-nombre de réplications retenues franchissant \code{B\_MIN\_DEGENERESCENCE} ($50$)~: six de ces verdicts y
+nombre de réplications retenues franchissant \code{B\_MIN\_DEGENERESCENCE} ($50$~; état de la mesure,
+antérieure à l'issue~\#181, qui fait d'une telle ligne un diagnostic quand elle a une p non
+simulée)~: six de ces verdicts y
 entrent sur le sous-triangle de Taylor \& Ashe dont la ligne~$0$ est multipliée par $10^{-15}$ ou
 $10^{-17}$ (\code{B\_effectif} de $96$ à $38$, et de $91$ à $33$), trois en sortent sur le
 triangle de contrôle dont la ligne~$0$ est multipliée par $10^{-17}$ (de $47$ à $78$)~; ceux-là
@@ -4491,18 +4546,95 @@ Ces deux conclusions ne valent à la lettre que si la p-value retenue est exacte
 $\hat\pi_t$ constant~: $p_{\min}$ est alors le minimum de la p-value retenue. Sans p-value exacte
 (à $\hat\pi_t$ variable, où la p-value retenue est de Monte-Carlo, simulée sous le modèle ajusté),
 $p_{\min}$ est celle de la loi de référence échangeable et ne borne pas la p-value retenue, qui
-peut lui être inférieure, pour deux raisons distinctes~: l'erreur de Monte-Carlo, fonction de $B$,
-et la non-échangeabilité sous le modèle ajusté (résidus $z_t$ non échangeables, ratios $r_t$ non
-identiquement distribués), qui écarte la loi simulée de la loi échangeable et ne disparaît pas
-quand $B$ croît. Le moteur maintient alors la bascule en test inopérant, dont le
-commentaire parle de \code{p-value minimale atteignable sous la loi de reference echangeable}, et,
-pour $\alpha/2 \le p_{\min} < \alpha$, écrit que l'\code{ECHEC} est possible au lieu
-d'inatteignable (issue~\#44~; ordre de grandeur à la fiche~\ref{fiche:suites-wald-wolfowitz},
-rubrique~6), sauf si le plancher de la p-value de Monte-Carlo atteint déjà $\alpha/2$~: la
-suite «~\code{ECHEC possible}~» est alors omise et le commentaire mentionne le plancher
-(point~(ii), issue~\#128~; mesuré à $\alpha = 0{,}06$ et $p_{\min} = 0{,}0571$~: omise à
-$B_{\text{eff}} = 59$, écrite à $B_{\text{eff}} = 99$). Une ligne restée de type test sans
-aucune p-value ne reçoit ni l'une ni l'autre de ces phrases (point~(ii), issue~\#128).
+peut lui être inférieure, et le plus petit niveau que celle-ci peut atteindre s'en écarte dans
+les deux sens, pour deux raisons distinctes~: l'erreur de Monte-Carlo,
+fonction de $B$, et la non-échangeabilité sous le modèle ajusté (résidus $z_t$ non échangeables,
+ratios $r_t$ non identiquement distribués), qui écarte la loi simulée de la loi échangeable et ne
+disparaît pas quand $B$ croît. \emph{Branche Monte-Carlo de la règle} (issue~\#125, décisions
+D1-7 à D1-10 du mainteneur du 12~octobre 2026~; ADR~0003, annotation du 12~octobre 2026,
+point~5). Dans ce cas --- ligne de type test, $p_{\min}$ finie, sans p-value exacte, p-value de
+Monte-Carlo du bootstrap retenue ---, la règle ne lit plus $p_{\min}$ mais le \emph{plancher
+Monte-Carlo} $p_{\min}^{\mathrm{MC}}$ (champ \code{p\_min\_mc}), plus petite valeur que la p-value
+de Monte-Carlo, calculée sur les réplications effectivement retenues, peut prendre quand la
+statistique observée parcourt son support \emph{à la configuration observée} (effectifs, ex
+\ae quo). Soient $x_{\text{bas}}$ et $x_{\text{haut}}$ les extrémités de ce support, déclarées au
+catalogue par le champ \code{extremes} de \code{.mc\_entree()} et évaluées une fois sur le
+contexte observé par \code{.mc\_p\_values()}, et $N_{\text{haut}}$, $N_{\text{bas}}$ les nombres
+de réplications finies au-delà de chacune, à la tolérance \code{TOL\_DISPERSION\_MC}
+$\times \max(1, |x|)$~; \code{engine\_p\_mc()} rend
+\[
+  p_{\min}^{\mathrm{MC}} = \frac{1 + N_{\text{haut}}}{B_{\text{eff}} + 1}
+  \ \text{(queue haute)}, \qquad
+  p_{\min}^{\mathrm{MC}} = \frac{1 + N_{\text{bas}}}{B_{\text{eff}} + 1}\ \text{(queue basse)},
+\]
+\[
+  p_{\min}^{\mathrm{MC}} = \min\!\Big(1, \frac{2\,(1 + \min(N_{\text{haut}}, N_{\text{bas}}))}{B_{\text{eff}} + 1}\Big)
+  \ \text{(bilatéral)},
+\]
+borné par la p-value de Monte-Carlo observée. C'est le minimum exact, sur le support, de la
+formule de la p-value de Monte-Carlo, décroissante en la statistique en queue haute et croissante
+en queue basse~: pour les réplications tirées, $\hat p_{\text{MC}} \ge p_{\min}^{\mathrm{MC}} \ge$
+\code{granularite\_stat}, sans approximation~; son écart à la valeur que donnerait un $B$ infini
+est une erreur de Monte-Carlo, fonction de $B$ (section~\ref{sec:deuxerreurs}). Il ne rend pas la
+p-value de Monte-Carlo exacte (ADR~0002) et ne borne pas l'erreur d'approximation à $T = 8$, qu'aucune
+théorie ne borne. Les extrémités sont celles du support observé, et non le maximum simulé, que les
+réplications peuvent dépasser quand leurs effectifs diffèrent de ceux de l'observé (effet
+calendaire). Le champ \code{extremes} est renseigné pour les treize statistiques discrètes qui
+reçoivent une $p_{\min}$, et là seulement (domaine de la règle inchangé)~: Cox--Stuart, suites sur
+$z_t$ et sur $u_t$, Mann--Kendall, Spearman contre temps et contre volume, Smirnov
+(\code{USP\_CATALOGUE\_MC})~; suites, effet calendaire, corrélation entre années adjacentes,
+homogénéité de $f_j$, exposant de variance, Kruskal--Wallis (\code{MW\_CATALOGUE\_MC})~; les
+extrémités et leur calcul sont au tableau~\ref{tab:pmin}, note~(v). Lecture~: si
+$p_{\min}^{\mathrm{MC}} \ge \alpha$, la ligne est un test inopérant, commentaire préfixé
+«~\code{TEST INOPERANT au seuil alpha = \dots{}~: plus petite p-value Monte-Carlo atteignable sur
+ces replications >= alpha (\dots)~; aucun verdict (ADR 0001).}~», champ \code{inoperant} à
+\code{TRUE}~; si $\alpha/2 \le p_{\min}^{\mathrm{MC}} < \alpha$ en sens «~ne pas rejeter~», la
+ligne reste un test et son commentaire se termine par «~\code{ECHEC inatteignable~: plus petite
+p-value Monte-Carlo atteignable sur ces replications >= alpha/2 = \dots}~»~; si
+$p_{\min}^{\mathrm{MC}} < \alpha/2$, aucun texte de la règle. La mention du plancher (point~(ii))
+est omise dans cette branche, $p_{\min}^{\mathrm{MC}}$ étant au moins égal à la granularité et la
+règle disant déjà ce qu'il rend inatteignable~; le texte «~\code{ECHEC possible}~», qui disait
+que la p-value retenue pouvait passer sous une $p_{\min}$ qui ne la bornait pas, n'a plus d'objet,
+le plancher effectif étant connu. $p_{\min}^{\mathrm{MC}}$ n'est jamais imprimé (issue~\#76)~: il
+se lit dans le champ \code{p\_min\_mc} de la ligne, posé par \code{add()} après \code{inoperant}
+(\code{NA} hors de cette branche, en particulier quand la p-value exacte est retenue), dans la
+colonne \code{p\_min\_mc} de la table auditable, après \code{p\_min}, et, par statistique, dans
+\code{bootstrap\$p\_min\_mc}~; $p_{\min}$ reste restituée. \emph{Sans marge} (décision D1-8)~: la
+règle lit $p_{\min}^{\mathrm{MC}}$ seul~; une marge en erreurs de Monte-Carlo laisserait en test
+une ligne incapable de rejeter avec les réplications tirées, ce que la règle doit signaler. Le
+classement dépend donc de la graine et de $B$, comme un verdict, et reste reproductible à graine
+fixée, ce que dit «~\code{sur ces replications}~»~; aucune phrase de sensibilité ne le signale
+(décision D1-9). Le changement de type reste fondé sur une propriété de la loi simulée (un atome de
+masse au moins $\alpha$ à l'extrémité du support, qui subsiste quand $B$ croît), et non sur $B$,
+ce qui le distingue de la granularité, que la décision du 1\textsuperscript{er}~octobre 2026 laisse
+en mention seule. Mesuré sur les références (\code{tests/reference/}, $B = 999$)~: sur
+\code{premium\_interieur}, loi conditionnelle au régime intérieur de $\hat\delta$, Cox--Stuart
+$p_{\min}^{\mathrm{MC}} = 0{,}149$ ($p_{\min} = 0{,}125$), test inopérant~; suites sur $z_t$
+$0{,}058$ et sur ratios bruts $0{,}062$ ($p_{\min} = 0{,}0571$), tests dont l'\code{ECHEC} est
+dit inatteignable~; Smirnov $0{,}007$ ($p_{\min} = 0{,}0286$), Mann--Kendall et Spearman $0{,}002$,
+sans texte de la règle~; aucun type, aucun verdict ni aucune p-value n'y change par rapport à la
+lecture antérieure de $p_{\min}$, seul le commentaire de ces trois vérifications change. Sur
+\code{reserve2}, $0{,}002$ au bilatéral et $0{,}001$ en queue haute pour les six vérifications. Sur
+les quatre cas à $\hat\delta = 1$, la p-value exacte est retenue et le champ \code{p\_min\_mc} de la
+ligne vaut \code{NA}, le plancher restant calculé dans \code{bootstrap\$p\_min\_mc} (Cox--Stuart
+$0{,}132$, suites sur $z_t$ $0{,}058$ et sur ratios bruts $0{,}056$, Smirnov $0{,}029$,
+Mann--Kendall et Spearman $0{,}002$). Hors des références, le changement de type peut aller dans
+les deux sens~: sur le jeu à $\hat\delta = 0{,}683$ de \code{tests/unitaires/}\allowbreak
+\code{test\_regimes\_p\_exactes.R} (\code{run\_engine()}, $B = 999$), au seuil $\alpha = 0{,}13$,
+Cox--Stuart, qu'une $p_{\min} = 0{,}125 < \alpha$ laissait en test, est inopérant
+($p_{\min}^{\mathrm{MC}} = 0{,}143$)~; l'exemple inverse est celui de l'effet calendaire ci-dessous.
+Les fréquences de ces changements sous le modèle ajusté ne sont pas mesurées. \emph{Hors de cette
+branche} --- p-value exacte retenue, ou objet bootstrap antérieur au champ \code{p\_min\_mc}, qui
+le laisse \code{NA} ---, la règle garde sa lecture de $p_{\min}$~: sans p-value exacte, la bascule
+en test inopérant parle alors de \code{p-value minimale atteignable sous la loi de reference
+echangeable}, et, pour $\alpha/2 \le p_{\min} < \alpha$, le commentaire écrit que l'\code{ECHEC} est
+possible au lieu d'inatteignable (issue~\#44~; ordre de grandeur à la
+fiche~\ref{fiche:suites-wald-wolfowitz}, rubrique~6), sauf si le plancher de la p-value de
+Monte-Carlo atteint déjà $\alpha/2$~: la suite «~\code{ECHEC possible}~» est alors omise et le
+commentaire mentionne le plancher (point~(ii), issue~\#128~; mesure antérieure à l'issue~\#125, à
+$\alpha = 0{,}06$ et $p_{\min} = 0{,}0571$~: omise à $B_{\text{eff}} = 59$, écrite à
+$B_{\text{eff}} = 99$). Une ligne restée de type test sans aucune p-value ne reçoit ni l'une ni
+l'autre de ces phrases (point~(ii), issue~\#128).
 \emph{Méthode Merz--Wüthrich} (issue~\#115, décisions du mainteneur du 6~octobre 2026,
 Q-E2r-115-2 à~4). Six vérifications ont une statistique discrète sous une loi de référence
 combinatoire et reçoivent une $p_{\min}$~: suites, effet calendaire, corrélation entre années
@@ -4512,18 +4644,33 @@ attribuée, la p-value retenue est de Monte-Carlo, et aucune de ces lois de réf
 exacte pour le modèle de Mack, sous aucun régime~: les résidus d'une colonne ne sont pas
 échangeables (variance $1 - h_{ij}$, contrainte $\sum_i \sqrt{C(i,j)}\,r(i,j) = 0$,
 section~\ref{sec:boot-mw}), les facteurs d'une colonne n'ont pas la même variance, et les colonnes
-adjacentes sont dépendantes. Ces $p_{\min}$ ne bornent donc jamais la p-value retenue~; la règle
-leur est appliquée telle quelle, sans règle propre à la méthode, en attendant l'issue~\#125
-(décision Q-E2r-115-3)~: sur un triangle $5 \times 5$ à $\alpha = 0{,}10$, l'effet calendaire
-($p_{\min} = 0{,}125$) et la corrélation entre années adjacentes ($1/3$) sont restitués en test
-inopérant, et la ligne des suites ($4/70 = 0{,}0571$) reste un test dont l'\code{ECHEC} est
-possible (mesuré par \code{run\_engine()} sur le sous-triangle $5 \times 5$ du triangle de
-contrôle)~; sur le triangle de contrôle $8 \times 8$, aucune de ces vérifications n'est inopérante.
-Depuis l'issue~\#207, la $p_{\min}$ de l'homogénéité de $f_j$ et de l'exposant de variance est
-attribuée aussi avec ex \ae quo, sur la loi de permutation conditionnelle aux rangs moyens
-(tableau~\ref{tab:pmin}, note~(iv))~: la règle s'y applique de même, la ligne restant un test
-dont le commentaire écrit «~\code{ECHEC possible}~» si $\alpha/2 \le p_{\min} < \alpha$, et
-basculant en test inopérant si $p_{\min} \ge \alpha$, ce qui exige $m_j \ge \alpha$ dans chaque colonne combinée ($m_j \le 1$), donc, au seuil $\alpha = 0{,}10$ par défaut et dès $\alpha > 1/12$, des ex \ae quo dans toutes ces colonnes, une colonne sans ex \ae quo ayant $m_j = 2/n_j! \le 1/12$ (fiche~\ref{mw:m1b}, rubrique~7). Avec ex \ae quo, cette $p_{\min}$ peut en outre sous-estimer le plus petit niveau que la p-value de Monte-Carlo atteint en pratique, les facteurs simulés des réplications n'ayant en général pas d'ex \ae quo~: la règle peut alors laisser en test une ligne que sa p-value de Monte-Carlo rend pratiquement inopérante (exemple et portée à la fiche~\ref{mw:m1b}, rubrique~7).
+adjacentes sont dépendantes. Ces $p_{\min}$ ne bornent donc jamais la p-value retenue~; depuis
+l'issue~\#125, la règle leur est appliquée par sa branche Monte-Carlo, sans règle propre à la
+méthode, et lit $p_{\min}^{\mathrm{MC}}$, la loi simulée par le bootstrap de résidus (jusqu'à cette
+issue, elle lisait $p_{\min}$, décision Q-E2r-115-3). Mesuré par \code{run\_engine()} ($B = 999$,
+graine 20260831) sur le sous-triangle $5 \times 5$ du triangle de contrôle, à $\alpha = 0{,}10$~: la
+corrélation entre années adjacentes est un test inopérant ($p_{\min}^{\mathrm{MC}} = 0{,}33$,
+$p_{\min} = 1/3$)~; l'effet calendaire ($p_{\min} = 0{,}125$, qui le rendait inopérant avant
+l'issue) est un test, de verdict \code{ALERTE}, dont l'\code{ECHEC} est dit inatteignable
+($p_{\min}^{\mathrm{MC}} = 0{,}096$, égal à la p-value de Monte-Carlo, la statistique observée
+étant à l'extrémité de son support), et qui porte la phrase de l'issue~\#244~; à $B = 99$, le même
+plancher vaut $0{,}10$ et la ligne est inopérante (\code{tests/unitaires/test\_merz\_wuthrich.R}),
+illustration de la dépendance du classement aux réplications tirées~; la ligne des suites
+($p_{\min} = 4/70 = 0{,}0571$, \code{ECHEC} dit possible avant l'issue) est un test sans texte de la
+règle ($p_{\min}^{\mathrm{MC}} = 0{,}002$)~; sur le triangle de contrôle $8 \times 8$, aucune de ces
+vérifications n'est inopérante. Depuis l'issue~\#207, la $p_{\min}$ de l'homogénéité de $f_j$ et de
+l'exposant de variance est attribuée aussi avec ex \ae quo, sur la loi de permutation
+conditionnelle aux rangs moyens (tableau~\ref{tab:pmin}, note~(iv))~; une bascule sur cette
+$p_{\min}$ exigerait $m_j \ge \alpha$ dans chaque colonne combinée ($m_j \le 1$), donc, au seuil
+$\alpha = 0{,}10$ par défaut et dès $\alpha > 1/12$, des ex \ae quo dans toutes ces colonnes, une
+colonne sans ex \ae quo ayant $m_j = 2/n_j! \le 1/12$ (fiche~\ref{mw:m1b}, rubrique~7). Avec ex
+\ae quo, cette $p_{\min}$ peut sous-estimer le plus petit niveau que la p-value de Monte-Carlo
+atteint, les facteurs simulés des réplications n'ayant en général pas d'ex \ae quo~; depuis
+l'issue~\#125, la règle lit pour ces deux vérifications le plancher Monte-Carlo, dont l'extrémité
+haute est la statistique de Fisher obtenue quand chaque colonne atteint sa plus petite p-value à sa
+structure d'ex \ae quo observée (\code{.mw\_fisher\_x\_max()}), ce qui remplace la lecture de
+$p_{\min}$ confirmée par le mainteneur le 12~octobre 2026 au matin (décision D1-8~; exemple à la
+fiche~\ref{mw:m1b}, rubrique~7).
 \emph{(ii) Monte-Carlo indisponible} (règles~R2 et~R3)~: quand \code{p\_mc} manque,
 \code{engine\_p\_mc()} en donne le motif (\code{bootstrap\$motif\_mc}), jamais deviné par
 l'appelant~: statistique observée non finie, aucune réplication finie, réplications finies
@@ -4649,7 +4796,8 @@ atteignable}~» en sens «~ne pas rejeter~», «~\code{\ldots{} >= alpha =} \ldo
 inatteignable}~» en sens «~rejeter~» (issue~\#128, point~d). C'est une mention seule~: ni motif,
 ni changement de type, ni extension de la règle~R1, le plancher, limite numérique liée à $B$,
 n'étant pas une $p_{\min}$ de loi de référence (décision du mainteneur du
-1\textsuperscript{er}~octobre 2026)~; elle est la seule protection quand, à $\hat\delta$
+1\textsuperscript{er}~octobre 2026)~; elle est omise dans la branche Monte-Carlo de la règle~R1
+(point~(i), issue~\#125), qui lit le plancher Monte-Carlo, au moins égal à la granularité~; elle est la seule protection quand, à $\hat\delta$
 intérieur, le plafond de la p-value conditionnelle au régime est atteint avec
 $50 \le B_{\text{eff}} < B$, la garantie de l'issue~\#127 portant sur $B$ nominal
 (section~\ref{sec:controles}, issue~\#240)~; ni le plancher ni $B_{\text{eff}}$ n'y sont imprimés, aucun
@@ -5473,6 +5621,15 @@ Modèle correctement spécifié, estimateur consistant &
 ajustés (constat de simulation, section~\ref{sec:calibration-mc}). C'est ici, et non dans le choix de $B$, que
 réside la limite du dispositif~: la correction en $1/(B+1)$ ne rend pas le test exact \\
 
+Plancher Monte-Carlo des statistiques discrètes, lu par la règle~R1 (issue~\#125) &
+$p_{\min}^{\mathrm{MC}} = (1 + N_{\text{ext}})/(B_{\text{eff}} + 1)$, $N_{\text{ext}}$ réplications à
+l'extrémité du support observé (doublé au bilatéral) & Masse, sous la loi simulée, de l'extrémité du
+support & Convergence presque sûre en $B$ (LFGN) & $\mathcal{O}(B^{-1/2})$, granularité
+$1/(B_{\text{eff}}+1)$ & Réplications i.i.d. sous le modèle ajusté (ou sous la loi conditionnelle
+au régime) & \emph{Exact} pour les réplications tirées~: $\hat p_{\text{MC}} \ge
+p_{\min}^{\mathrm{MC}}$ sans approximation~; son écart à sa limite est une erreur de Monte-Carlo~;
+ne dit rien de l'erreur d'approximation en $T$ (section~\ref{sec:nature}) \\
+
 Statistiques du catalogue lognormal, $\hat\delta$ intérieur (issue~\#240) & $\hat p_{\text{MC}}$
 sur les $B_{\text{eff}} \le B$ tirages retenus dont $\hat\delta^{**}$ est intérieur, parmi au plus
 $25\,(B+1)$ & p-value bootstrap \emph{conditionnelle} au régime intérieur de $\hat\delta^{**}$ &
@@ -5634,7 +5791,7 @@ dossier remis au superviseur.
 \label{tab:pmin}
 % -----------------------------------------------------------------------------
 
-La plus petite p-value qu'une statistique puisse produire aux effectifs observés sous sa loi de référence discrète échangeable, $p_{\min}$, borne ce qu'un test peut conclure lorsque cette loi fournit la p-value retenue (p-value exacte, $\hat\pi_t$ constant)~: si $p_{\min} \ge \alpha$, le test est \emph{inopérant} au sens de \code{CONTEXT.md} (règle~R1, section~\ref{sec:nature}). Le moteur maintient cette bascule à $\hat\pi_t$ variable, où $p_{\min}$ ne borne pas la p-value de Monte-Carlo retenue (note~(v), issue~\#125). Elle n'est une contrainte que pour une loi
+La plus petite p-value qu'une statistique puisse produire aux effectifs observés sous sa loi de référence discrète échangeable, $p_{\min}$, borne ce qu'un test peut conclure lorsque cette loi fournit la p-value retenue (p-value exacte, $\hat\pi_t$ constant)~: si $p_{\min} \ge \alpha$, le test est \emph{inopérant} au sens de \code{CONTEXT.md} (règle~R1, section~\ref{sec:nature}). Quand la p-value retenue est de Monte-Carlo ($\hat\pi_t$ variable, et toutes les vérifications de la méthode Merz--Wüthrich), $p_{\min}$ ne la borne pas, et la règle~R1 lit depuis l'issue~\#125 le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$ de la loi simulée, et non la valeur du tableau (note~(v)). Elle n'est une contrainte que pour une loi
 de référence \emph{discrète}~; pour une loi continue (Student, Fisher, loi d'Imhof, loi
 asymptotique), toute p-value est atteignable et $p_{\min}$ est sans objet. Le tableau ci-dessous
 donne, de $T = 5$ à $T = 12$, les valeurs des lois discrètes de la méthode lognormale, calculées
@@ -5688,7 +5845,20 @@ de référence discrète. Elles sont la $p_{\min}$ de la p-value retenue lorsque
 à $\hat\pi_t$ constant (section~\ref{sec:base-residus})~; à $\hat\pi_t$ variable, la p-value retenue
 est de Monte-Carlo, et la valeur du tableau, $p_{\min}$ de la loi de référence échangeable, n'en
 est pas une borne~: la p-value de Monte-Carlo peut lui être inférieure (erreur de Monte-Carlo et
-non-échangeabilité, section~\ref{sec:nature}), ce que le commentaire de la ligne dit. Pour Spearman
+non-échangeabilité, section~\ref{sec:nature}). Depuis l'issue~\#125, la règle~R1 y lit le plancher
+Monte-Carlo $p_{\min}^{\mathrm{MC}}$ (section~\ref{sec:nature}, point~(i)), calculé par
+\code{engine\_p\_mc()} aux extrémités du support \emph{à la configuration observée}, déclarées au
+catalogue (champ \code{extremes})~: suites sur $z_t$ et sur $u_t$, $Z$ en $R = 2$ et en $R_{\max} =
+2\min(n_1, n_2) + \mathds{1}\{n_1 \neq n_2\}$ (\code{.runs\_extremes()}, $Z$ calculé par
+\code{.runs\_z()}, comme dans \code{test\_runs()})~; Cox--Stuart, $|K - n_p/2| = n_p/2$, seule
+l'extrémité haute étant lue, sans différence nulle ($m = n_p$)~; Smirnov, $D = 1$, extrémité haute
+seule, sans ex \ae quo dans $z$~; Mann--Kendall, $Z$ en $S = \mp T(T-1)/2$ (\code{.mk\_extremes()},
+\code{.mk\_z()}, comme dans \code{test\_mann\_kendall()}), sans ex \ae quo~; Spearman, $S = 0$ et
+$S = (T^3 - T)/3$ (\code{.spearman\_extremes()}), sans ex \ae quo. Le tableau reste exact pour la
+loi de référence et $p_{\min}$ reste restituée~; seule la lecture de la règle change. Mesuré sur
+\code{premium\_interieur}~: $p_{\min}^{\mathrm{MC}} = 0{,}058$ et $0{,}062$ (suites sur $z_t$ et sur
+$u_t$, contre $0{,}0571$), $0{,}149$ (Cox--Stuart, contre $0{,}125$), $0{,}007$ (Smirnov, contre
+$0{,}0286$), $0{,}002$ (Mann--Kendall, Spearman, contre $4{,}96\cdot 10^{-5}$). Pour Spearman
 à $T > 9$, quel que soit le régime, le moteur pose $p_{\min} = 2/T!$ (\code{mk\_p\_min()}) sans
 attribuer de p-value exacte, \code{cor.test(exact = TRUE)} ne rendant au-delà de $T = 9$ qu'un
 développement d'Edgeworth~: la valeur du tableau y est celle de la loi de référence échangeable,
@@ -5699,12 +5869,13 @@ $p < \alpha/2$, \code{ALERTE} si $\alpha/2 \le p < \alpha$, en sens « ne pas re
 \begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
   \item \emph{suites}~: inopérant pour $T \le 7$ ($p_{\min} \ge 0{,}2$)~; test à \code{ECHEC}
   inatteignable pour $T = 8$ et $9$ ($\alpha/2 \le p_{\min} = 0{,}0571 < \alpha$) à $\hat\pi_t$
-  constant, possible à $\hat\pi_t$ variable (note~(v))~; \code{ECHEC}
+  constant~; à $\hat\pi_t$ variable, la règle lit $p_{\min}^{\mathrm{MC}}$ (note~(v))~; \code{ECHEC}
   atteignable dès $T = 10$. À $T = 8$, les p-values atteignables sont $0{,}0571$~; $0{,}2286$~;
   $0{,}7429$ et $1$~: \code{ALERTE} seulement si $R \in \{2, 8\}$~;
   \item \emph{Cox--Stuart}~: inopérant pour $T \le 9$~; test à \code{ECHEC} inatteignable pour
-  $T = 10$ et $11$ ($p_{\min} = 0{,}0625$) à $\hat\pi_t$ constant, possible à $\hat\pi_t$
-  variable~; \code{ECHEC} atteignable dès $T = 12$. À $T = 8$, les
+  $T = 10$ et $11$ ($p_{\min} = 0{,}0625$) à $\hat\pi_t$ constant~; à $\hat\pi_t$ variable, la règle
+  lit $p_{\min}^{\mathrm{MC}}$, qui peut excéder $p_{\min}$ (à $T = 8$, $0{,}149$ sur
+  \code{premium\_interieur})~; \code{ECHEC} atteignable dès $T = 12$. À $T = 8$, les
   p-values atteignables sont $0{,}125$~; $0{,}625$ et $1$~;
   \item \emph{Smirnov}~: $p_{\min} < \alpha/2$ à tout $T \ge 8$. À $T = 8$, les p-values
   atteignables sont $0{,}0286$~; $0{,}2286$~; $0{,}7714$ et $1$~: le verdict est binaire,
@@ -5772,7 +5943,9 @@ $p_{\min} = \min_z 2\min\big(\mathbb{P}(Z \le z), \mathbb{P}(Z \ge z)\big)$, bor
 binomiale indépendante de Mack (fiche~\ref{mw:m3cal}), celle des
 moments exacts de la fiche~\ref{mw:m3cal}, et \textbf{non} la loi de permutation des facteurs à
 l'intérieur de chaque colonne~: dans une colonne, le nombre de $L$ est fixé par la médiane, ce
-qui lie les diagonales (choix de la spécification, question renvoyée à l'issue~\#125). Les $n_k$
+qui lie les diagonales (choix de la spécification~; la question du choix de la loi, posée par
+l'audit de l'issue~\#115 et renvoyée à l'issue~\#125, est sans objet pour la règle~R1 depuis cette
+issue, la règle lisant la loi simulée, et la $p_{\min}$ binomiale reste restituée). Les $n_k$
 dépendent des données (une colonne de $n_j$ impair a un facteur égal à sa médiane, étiqueté
 «~*~»)~: sur le triangle de contrôle, $n_k = 2, 3, 4, 4, 6, 5$ et $p_{\min} = 2^{-17}$, sur le
 triangle de Taylor \& Ashe ($T = 10$), $9{,}31\cdot 10^{-10}$. (iii)~\emph{Corrélation entre
@@ -5804,14 +5977,27 @@ n'apparaît dans le commentaire de la ligne que lorsque la règle~R1 s'y appliqu
 ($p_{\min} \ge \alpha/2$, section~\ref{sec:nature})~; les suites et l'effet calendaire écartent déjà les valeurs égales à la médiane.
 (vii)~\emph{Nature}~: valeurs exactes sous la loi de référence, qui n'est pas celle du modèle de
 Mack~; la p-value retenue de ces lignes est toujours de Monte-Carlo, et ces valeurs n'en sont pas
-une borne (section~\ref{sec:nature}). Les colonnes $T \le 8$ ont été vérifiées contre le champ
+une borne (section~\ref{sec:nature})~; depuis l'issue~\#125, la règle~R1 lit le plancher
+Monte-Carlo $p_{\min}^{\mathrm{MC}}$, aux extrémités du support observé déclarées au catalogue~:
+suites, comme pour la méthode lognormale~; effet calendaire, $(0 - E)/\sqrt{V}$ et
+$(\sum_k \lfloor n_k/2 \rfloor - E)/\sqrt{V}$ sur les diagonales retenues de l'observé
+(\code{.mw\_calendrier\_extremes()})~; corrélation, $-1$ et $1$ (\code{.mw\_corr\_extremes()})~;
+homogénéité et exposant de variance, statistique de Fisher obtenue quand chaque colonne atteint sa
+plus petite p-value à sa structure d'ex \ae quo observée (\code{.mw\_fisher\_x\_max()}, sur
+\code{p\_min\_col} de \code{.mw\_spearman()})~; Kruskal--Wallis, $H$ de l'affectation en blocs de
+rangs contigus aux tailles observées (\code{.mw\_kruskal\_extremes()}). Sur \code{reserve2},
+$p_{\min}^{\mathrm{MC}} = 0{,}002$ au bilatéral et $0{,}001$ en queue haute. Les colonnes $T \le 8$ ont été vérifiées contre le champ
 \code{p\_min} de \code{run\_engine()} sur les sous-triangles du triangle de contrôle, la colonne
 $T = 10$ sur le triangle de Taylor \& Ashe~; les autres sont calculées par les mêmes fonctions aux
-effectifs de la géométrie. \emph{Bascules à $\alpha = 0{,}10$}~: à $T = 5$, la corrélation est
-inopérante pour tout triangle complet ($p_{\min} = 1/3$), l'effet calendaire l'est sur le
-sous-triangle de contrôle ($n_k = 3, 3$, $p_{\min} = 0{,}125$), et la ligne des suites reste un test
-dont l'\code{ECHEC} est possible ($\alpha/2 \le 0{,}0571 < \alpha$, p-value retenue de Monte-Carlo,
-section~\ref{sec:nature})~; dès $T = 6$, toutes les valeurs du tableau sont sous $\alpha/2$.
+effectifs de la géométrie. \emph{Bascules à $\alpha = 0{,}10$}~: les valeurs du tableau ne fondent plus la bascule depuis
+l'issue~\#125, qui lit $p_{\min}^{\mathrm{MC}}$. À $T = 5$, sur le sous-triangle de contrôle
+(\code{run\_engine()}, $B = 999$), la corrélation est inopérante ($p_{\min}^{\mathrm{MC}} = 0{,}33$,
+pour $p_{\min} = 1/3$), l'effet calendaire ($n_k = 3, 3$, $p_{\min} = 0{,}125$) est un test dont
+l'\code{ECHEC} est inatteignable ($p_{\min}^{\mathrm{MC}} = 0{,}096$~; $0{,}10$ et ligne inopérante à
+$B = 99$), et la ligne des suites est un test sans texte de la règle ($0{,}002$~;
+section~\ref{sec:nature}, point~(i))~; dès $T = 6$, toutes les valeurs du tableau sont sous
+$\alpha/2$, ce qui ne préjuge pas de $p_{\min}^{\mathrm{MC}}$, au moins égal à la granularité
+$1/(B_{\text{eff}}+1)$ ou $2/(B_{\text{eff}}+1)$.
 
 % -----------------------------------------------------------------------------
 \subsection{Tableau de traçabilité de la rubrique 7}
@@ -7709,13 +7895,13 @@ règle d'\code{usp\_renvois()}~; la ligne Spearman ne porte pas elle-même de re
 \code{renvoi}, que seule la ligne de la constante reçoit.
 \end{encadre}
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} $2/T! = 4{,}96\cdot 10^{-5}$ sans ex \ae quo (\code{mk\_p\_min()}). Exacte sur la loi de permutation à $\hat\pi_t$ constant, où la p-value exacte est retenue (\code{stats::cor.test()}, $T \le 9$, sans ex \ae quo)~; à $\hat\pi_t$ variable, ou au-delà de $T = 9$, la p-value retenue est de Monte-Carlo (clé \code{SpearVol}, \code{SpearTps}, bilatérale) et $4{,}96\cdot 10^{-5}$, $p_{\min}$ de la loi de référence échangeable, ne borne pas cette p-value de Monte-Carlo~: le plancher effectif est alors $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}). Avec ex \ae quo, \code{p\_min} vaut \code{NA} et aucune p-value exacte n'est attribuée (issue~\#70).
+\textbf{p-value minimale à $T = 8$.} $2/T! = 4{,}96\cdot 10^{-5}$ sans ex \ae quo (\code{mk\_p\_min()}). Exacte sur la loi de permutation à $\hat\pi_t$ constant, où la p-value exacte est retenue (\code{stats::cor.test()}, $T \le 9$, sans ex \ae quo)~; à $\hat\pi_t$ variable, ou au-delà de $T = 9$, la p-value retenue est de Monte-Carlo (clé \code{SpearVol}, \code{SpearTps}, bilatérale) et $4{,}96\cdot 10^{-5}$, $p_{\min}$ de la loi de référence échangeable, ne borne pas cette p-value de Monte-Carlo~: son plancher est au moins $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), et la règle~R1 y lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$ (issue~\#125, section~\ref{sec:nature}), mesuré à $0{,}002$ sur \code{premium\_interieur}, aucune réplication n'atteignant une extrémité du support. Avec ex \ae quo, \code{p\_min} vaut \code{NA} et aucune p-value exacte n'est attribuée (issue~\#70).
 
 \textbf{Table.} Tableau~\ref{tab:pmin}, dernière colonne~: aucune bascule de $T = 5$ à $T = 12$.
 
 \textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes ($p_{\min} \ll \alpha$)~; la ligne « ratio contre volume » est non applicable à volumes constants (section~\ref{sec:volumes-constants}). Puissance non étudiée à $T = 8$. Niveau de la p-value retenue sous le modèle ajusté (issue~\#166, $R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc}), exacte dans les réplications où $\hat\pi^{*}_t$ est constant et de Monte-Carlo dans les autres~: ratio contre volume, J1, $0{,}093$ à $\alpha = 0{,}10$ et $0{,}0525$ à $0{,}05$, J2, $0{,}100$ et $0{,}0495$ (références mélangées $0{,}0933$ et $0{,}0444$ sur J1, $0{,}0925$ et $0{,}0440$ sur J2)~; ratio contre temps, J1, $0{,}093$ et $0{,}0485$, J2, $0{,}0895$ et $0{,}039$~; compatible aux deux seuils sur les deux jeux, de même que la p-value de Monte-Carlo seule contre sa taille lissée ($0{,}0904$ et $0{,}0429$). Sur J2, la p-value de Monte-Carlo du ratio contre temps rejette à $0{,}10$ dans $0{,}061$ des réplications au bord~1 et $0{,}117$ au bord~0 (taux conditionnels, sans référence exacte).
 
-\textbf{Statut des valeurs.} $p_{\min}$~: exacte (énumération de la loi de permutation) à $\hat\pi_t$ constant~; à $\hat\pi_t$ variable, $p_{\min}$ exacte sur la loi de référence échangeable, qui ne borne pas la p-value de Monte-Carlo~; plancher de Monte-Carlo~: exact, fonction de $B$. Niveau~: constat de simulation sous le modèle ajusté à J1 et à J2 (section~\ref{sec:calibration-mc}), incertitude de Clopper--Pearson liée à $R$, intervalles dans les fichiers de résultats.
+\textbf{Statut des valeurs.} $p_{\min}$~: exacte (énumération de la loi de permutation) à $\hat\pi_t$ constant~; à $\hat\pi_t$ variable, $p_{\min}$ exacte sur la loi de référence échangeable, qui ne borne pas la p-value de Monte-Carlo~; plancher de Monte-Carlo et plancher $p_{\min}^{\mathrm{MC}}$ lu par la règle~R1~: exacts pour les réplications tirées, fonction de $B$ (et de la graine pour le second). Niveau~: constat de simulation sous le modèle ajusté à J1 et à J2 (section~\ref{sec:calibration-mc}), incertitude de Clopper--Pearson liée à $R$, intervalles dans les fichiers de résultats.
 \end{fiche}
 
 \begin{fiche}{Test de tendance de Mann--Kendall}
@@ -7776,13 +7962,13 @@ $T \approx 10$, en-deçà la loi exacte est nécessaire. Surtout, le test suppos
 \emph{l'indépendance} des observations~: en présence d'autocorrélation positive il rejette
 beaucoup trop souvent, ce qui impose de le lire conjointement avec les tests de la section~\ref{sec:h4}.
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} $2/T! = 4{,}96\cdot 10^{-5}$ sans ex \ae quo (\code{mk\_p\_min()}). Exacte sur la loi de permutation à $\hat\pi_t$ constant, où la p-value exacte est retenue (\code{mk\_p\_exacte()}, $T \le 12$, sans ex \ae quo)~; à $\hat\pi_t$ variable, ou au-delà de $T = 12$, la p-value retenue est de Monte-Carlo (clé \code{MK}, bilatérale) et $4{,}96\cdot 10^{-5}$, $p_{\min}$ de la loi de référence échangeable, ne borne pas cette p-value de Monte-Carlo~: le plancher effectif est alors $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}). Avec ex \ae quo, \code{p\_min} vaut \code{NA} et aucune p-value exacte n'est attribuée (issue~\#70).
+\textbf{p-value minimale à $T = 8$.} $2/T! = 4{,}96\cdot 10^{-5}$ sans ex \ae quo (\code{mk\_p\_min()}). Exacte sur la loi de permutation à $\hat\pi_t$ constant, où la p-value exacte est retenue (\code{mk\_p\_exacte()}, $T \le 12$, sans ex \ae quo)~; à $\hat\pi_t$ variable, ou au-delà de $T = 12$, la p-value retenue est de Monte-Carlo (clé \code{MK}, bilatérale) et $4{,}96\cdot 10^{-5}$, $p_{\min}$ de la loi de référence échangeable, ne borne pas cette p-value de Monte-Carlo~: son plancher est au moins $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), et la règle~R1 y lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$ (issue~\#125, section~\ref{sec:nature}), mesuré à $0{,}002$ sur \code{premium\_interieur}, aucune réplication n'atteignant une extrémité du support. Avec ex \ae quo, \code{p\_min} vaut \code{NA} et aucune p-value exacte n'est attribuée (issue~\#70).
 
 \textbf{Table.} Tableau~\ref{tab:pmin}, dernière colonne~: aucune bascule de $T = 5$ à $T = 12$.
 
 \textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes ($p_{\min} \ll \alpha$). \emph{Puissance de la p-value exacte, jeu de contrôle} (volet~A de l'issue~\#116, J1, $\hat\pi_t$ constant, 20\,000 séries par point, $\alpha = 0{,}10$~; protocole au tableau~\ref{tab:tracabilite-puissance})~: niveau $0{,}060$ pour une taille exacte de $0{,}0610$ (et $0{,}0300$ pour $0{,}0312$ à $\alpha = 0{,}05$)~; la loi de $S$ étant discrète, le test est conservateur, de taille effective $0{,}061$ pour un seuil nominal de $0{,}10$. Contre un AR(1) stationnaire, $0{,}014$~; $0{,}121$~; $0{,}187$~; $0{,}280$~; $0{,}389$ pour $\rho = -0{,}5$~; $0{,}3$~; $0{,}5$~; $0{,}7$~; $0{,}9$~: à $\rho = -0{,}5$, le taux est sous le niveau, l'alternance réduisant $|S|$. Contre une tendance de 1~; 2~; 3 écarts-types, $0{,}136$~; $0{,}352$~; $0{,}622$~: des lignes mesurées au volet~A, c'est la plus puissante contre la tendance de 2 et 3 écarts-types, au niveau de Durbin--Watson à 1 écart-type ($0{,}136$ contre $0{,}138$). Contre une rupture de 1~; 2~; 3 écarts-types après l'année~4, $0{,}178$~; $0{,}410$~; $0{,}549$, et de 2 écarts-types après l'année~6, $0{,}221$~; contre un écart-type multiplié par 2~; 3 les années de volume supérieur à la médiane, $0{,}067$~; $0{,}071$, soit à peine plus que le niveau. \emph{P-value retenue après réajustement} (volet~B, J1~/ J2, 500 réplications par point, $B = 999$)~: niveau $0{,}074$~/ $0{,}068$~; AR(1) à $\rho = 0{,}5$~: $0{,}208$~/ $0{,}192$~; à $\rho = 0{,}9$~: $0{,}406$~/ $0{,}384$~; tendance de 2 écarts-types~: $0{,}340$~/ $0{,}298$~; rupture de 2 écarts-types après l'année~4~: $0{,}424$~/ $0{,}464$. Mesures hors modèle réglementaire. Niveau de la p-value retenue sous le modèle ajusté (issue~\#166, $R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc}), exacte dans les réplications où $\hat\pi^{*}_t$ est constant et de Monte-Carlo dans les autres~: J1, $0{,}0695$ à $\alpha = 0{,}10$ et $0{,}0375$ à $0{,}05$~; J2, $0{,}062$ et $0{,}029$~; compatible avec les références mélangées ($0{,}0661$ et $0{,}0324$ sur J1, $0{,}0674$ et $0{,}0327$ sur J2), de même que la p-value de Monte-Carlo seule ($0{,}074$ et $0{,}040$, $0{,}065$ et $0{,}029$) contre sa taille lissée ($0{,}0711$ et $0{,}0336$)~; sur J2, au bord~1, la p-value de Monte-Carlo rejette à $0{,}10$ dans $0{,}0305$ des réplications (taux conditionnel, sans référence exacte).
 
-\textbf{Statut des valeurs.} $p_{\min}$~: exacte (énumération de la loi de permutation) à $\hat\pi_t$ constant~; à $\hat\pi_t$ variable, $p_{\min}$ exacte sur la loi de référence échangeable, qui ne borne pas la p-value de Monte-Carlo~; plancher de Monte-Carlo~: exact, fonction de $B$~; tailles exactes~: énumération de la loi de $S$~; puissances et niveaux mesurés~: constats de simulation sous des alternatives choisies, hors modèle réglementaire (intervalles de Clopper--Pearson dans les fichiers de résultats, incertitude de simulation muette sur l'erreur en $T$). Niveau~: constat de simulation sous le modèle ajusté à J1 et à J2 (section~\ref{sec:calibration-mc}), incertitude de Clopper--Pearson liée à $R$, intervalles dans les fichiers de résultats.
+\textbf{Statut des valeurs.} $p_{\min}$~: exacte (énumération de la loi de permutation) à $\hat\pi_t$ constant~; à $\hat\pi_t$ variable, $p_{\min}$ exacte sur la loi de référence échangeable, qui ne borne pas la p-value de Monte-Carlo~; plancher de Monte-Carlo et plancher $p_{\min}^{\mathrm{MC}}$ lu par la règle~R1~: exacts pour les réplications tirées, fonction de $B$ (et de la graine pour le second)~; tailles exactes~: énumération de la loi de $S$~; puissances et niveaux mesurés~: constats de simulation sous des alternatives choisies, hors modèle réglementaire (intervalles de Clopper--Pearson dans les fichiers de résultats, incertitude de simulation muette sur l'erreur en $T$). Niveau~: constat de simulation sous le modèle ajusté à J1 et à J2 (section~\ref{sec:calibration-mc}), incertitude de Clopper--Pearson liée à $R$, intervalles dans les fichiers de résultats.
 \end{fiche}
 
 \begin{fiche}{Test de tendance par signes de Cox--Stuart}
@@ -7884,18 +8070,26 @@ de simulation. Le moteur le restitue en diagnostic, sans verdict ni p-value rete
 issue~\#44~; \code{cox\_stuart\_p\_min()}), la p-value minimale figurant dans le champ
 \code{p\_min} et en tête du commentaire (\code{TEST INOPERANT au seuil alpha = 0.1~: p-value
 minimale atteignable = 0.1250 (m = 4 differences non nulles)}), le champ \code{inoperant} valant
-\code{TRUE} (issue~\#129) et les p-values calculées restant affichées~; à $\hat\pi_t$ variable, où la p-value exacte n'est pas attribuée, le commentaire dit
-\code{p-value minimale atteignable sous la loi de reference echangeable = 0.1250}, cette valeur
-n'étant pas une borne de la p-value de Monte-Carlo (section~\ref{sec:nature}). Jusqu'à l'issue~\#44, la ligne sortait \code{OK} sur le jeu de contrôle. Elle ne
+\code{TRUE} (issue~\#129) et les p-values calculées restant affichées~; à $\hat\pi_t$ variable, où la p-value exacte n'est pas attribuée et où la p-value de
+Monte-Carlo serait retenue, la règle lit depuis l'issue~\#125 le plancher Monte-Carlo
+$p_{\min}^{\mathrm{MC}}$ (section~\ref{sec:nature}, point~(i)), et le commentaire commence par
+\code{TEST INOPERANT au seuil alpha = 0.1~: plus petite p-value Monte-Carlo atteignable sur ces
+replications >= alpha (m = 4 differences non nulles)} (mesuré sur \code{premium\_interieur},
+$p_{\min}^{\mathrm{MC}} = 0{,}149$). Le plancher y estime, sur les réplications tirées, la
+probabilité sous le modèle ajusté que les $n_p$ différences soient toutes de même signe~; elle ne
+vaut $0{,}125$ que sous la loi échangeable, et rien n'exclut qu'elle passe sous $\alpha$ hors de
+ce régime (fréquence non mesurée), la ligne devenant alors un test. Jusqu'à l'issue~\#125, le
+commentaire disait \code{p-value minimale atteignable sous la loi de reference echangeable =
+0.1250}, valeur qui ne borne pas la p-value de Monte-Carlo. Jusqu'à l'issue~\#44, la ligne sortait \code{OK} sur le jeu de contrôle. Elle ne
 redevient un test qu'à un seuil $\alpha > p_{\min}$, soit $\alpha > 0{,}125$ sans ex \ae quo.
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} $0{,}125$ ($m = 4$ différences non nulles, \code{cox\_stuart\_p\_min()})~; p-values atteignables $0{,}125$~; $0{,}625$~; $1$. Exacte sur la loi binomiale à $\hat\pi_t$ constant~; à $\hat\pi_t$ variable, où la p-value exacte n'est pas attribuée, $p_{\min}$ de la loi de référence échangeable, qui ne borne pas la p-value de Monte-Carlo (section~\ref{sec:nature}). Avec ex \ae quo, $m < 4$ et $p_{\min} \ge 0{,}25$. Au seuil par défaut $\alpha = 0{,}10$, et plus généralement pour $\alpha \le 0{,}125$, aucune p-value n'est retenue à $T = 8$, la ligne étant un diagnostic (règle~R1). Sans ex \ae quo et pour $0{,}125 < \alpha < 0{,}30$, la ligne est un test, qui retient la p-value exacte à $\hat\pi_t$ constant et la p-value de Monte-Carlo à $\hat\pi_t$ variable (mesuré par \code{usp\_tests()} à $\alpha = 0{,}13$~: sur le jeu de contrôle, $\hat\delta = 1$, p-value exacte retenue~; sur le jeu à $\hat\delta = 0{,}683$ de \code{tests/unitaires/test\_regimes\_p\_exactes.R}, p-value de Monte-Carlo retenue)~; avec ex \ae quo, le cas $m = 3$ et $0{,}25 < \alpha < 0{,}30$ est traité à la rubrique~5.
+\textbf{p-value minimale à $T = 8$.} $0{,}125$ ($m = 4$ différences non nulles, \code{cox\_stuart\_p\_min()})~; p-values atteignables $0{,}125$~; $0{,}625$~; $1$. Exacte sur la loi binomiale à $\hat\pi_t$ constant~; à $\hat\pi_t$ variable, où la p-value exacte n'est pas attribuée, $p_{\min}$ de la loi de référence échangeable, qui ne borne pas la p-value de Monte-Carlo (section~\ref{sec:nature})~; la règle~R1 y lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$ (issue~\#125), $0{,}149$ sur \code{premium\_interieur} et $0{,}143$ sur le jeu à $\hat\delta = 0{,}683$ de \code{tests/unitaires/test\_regimes\_p\_exactes.R} (\code{run\_engine()}, $B = 999$), plancher de la p-value retenue s'il est sous $\alpha$. Avec ex \ae quo, $m < 4$ et $p_{\min} \ge 0{,}25$. Au seuil par défaut $\alpha = 0{,}10$, et plus généralement pour $\alpha \le 0{,}125$, aucune p-value n'est retenue à $T = 8$, la ligne étant un diagnostic (règle~R1). Sans ex \ae quo et pour $0{,}125 < \alpha < 0{,}30$, la ligne est un test à $\hat\pi_t$ constant, qui retient la p-value exacte~; à $\hat\pi_t$ variable, elle n'en est un que si $p_{\min}^{\mathrm{MC}} < \alpha$, et retient alors la p-value de Monte-Carlo (mesuré par \code{run\_engine()} à $\alpha = 0{,}13$~: sur le jeu de contrôle, $\hat\delta = 1$, test, p-value exacte retenue~; sur le jeu à $\hat\delta = 0{,}683$, $p_{\min}^{\mathrm{MC}} = 0{,}143 \ge \alpha$, test inopérant, alors que la lecture de $p_{\min} = 0{,}125$ en faisait un test retenant la p-value de Monte-Carlo avant l'issue~\#125)~; avec ex \ae quo, le cas $m = 3$ et $0{,}25 < \alpha < 0{,}30$ est traité à la rubrique~5.
 
 \textbf{Table.} Tableau~\ref{tab:pmin}~: inopérant pour $T \le 9$~; \code{ECHEC} atteignable dès $T = 12$.
 
-\textbf{Pertinence à $T = 8$.} Test inopérant pour toute donnée à $T = 8$ ($p_{\min} \ge \alpha = 0{,}10$)~: ligne restituée en diagnostic, sans verdict (règle~R1)~; sans ex \ae quo, elle ne devient un test qu'à partir de $T = 10$. Au seuil $\alpha = 0{,}10$, la puissance est nulle pour $T \le 9$, aucune donnée ne pouvant donner $p < \alpha$~; au-delà, puissance non étudiée. Niveau de la p-value de Monte-Carlo sous le modèle ajusté (issue~\#166, $R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc})~: $p_{\mathrm{mc}} < 0{,}10$ dans 0 des $2\,000$ réplications de chaque jeu, pour une taille lissée de $0{,}0006$~: compatible, sans effet sur un verdict, la ligne étant un diagnostic à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Test inopérant pour toute donnée à $T = 8$ et $\hat\pi_t$ constant ($p_{\min} \ge \alpha = 0{,}10$)~: ligne restituée en diagnostic, sans verdict (règle~R1)~; à $\hat\pi_t$ variable, la bascule lit $p_{\min}^{\mathrm{MC}}$, mesuré au-dessus de $\alpha$ sur les deux jeux à $\hat\delta$ intérieur cités ($0{,}149$ et $0{,}143$), sans résultat qui l'assure pour toute donnée~; sans ex \ae quo, elle ne devient un test qu'à partir de $T = 10$. Au seuil $\alpha = 0{,}10$, la puissance est nulle pour $T \le 9$ à $\hat\pi_t$ constant, aucune donnée ne pouvant donner $p < \alpha$, et à $\hat\pi_t$ variable tant que $p_{\min}^{\mathrm{MC}} \ge \alpha$~; au-delà, puissance non étudiée. Niveau de la p-value de Monte-Carlo sous le modèle ajusté (issue~\#166, $R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc})~: $p_{\mathrm{mc}} < 0{,}10$ dans 0 des $2\,000$ réplications de chaque jeu, pour une taille lissée de $0{,}0006$~: compatible, sans effet sur un verdict, la ligne étant un diagnostic à $T = 8$.
 
-\textbf{Statut des valeurs.} $p_{\min}$ et p-values atteignables~: exactes (loi binomiale, énumération) à $\hat\pi_t$ constant~; à $\hat\pi_t$ variable, $p_{\min}$ exacte sur la loi de référence échangeable, qui ne borne pas la p-value de Monte-Carlo~; puissance nulle pour $T \le 9$ au seuil $\alpha = 0{,}10$~: conséquence exacte de $p_{\min} \ge 0{,}125 > \alpha$ et de la règle~R1, qui classe la ligne en diagnostic dans les deux régimes. Niveau~: constat de simulation sous le modèle ajusté à J1 et à J2 (section~\ref{sec:calibration-mc}), incertitude de Clopper--Pearson liée à $R$, intervalles dans les fichiers de résultats.
+\textbf{Statut des valeurs.} $p_{\min}$ et p-values atteignables~: exactes (loi binomiale, énumération) à $\hat\pi_t$ constant~; à $\hat\pi_t$ variable, $p_{\min}$ exacte sur la loi de référence échangeable, qui ne borne pas la p-value de Monte-Carlo~; plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$~: exact pour les réplications tirées, fonction de $B$ et de la graine (issue~\#125)~; puissance nulle pour $T \le 9$ au seuil $\alpha = 0{,}10$ à $\hat\pi_t$ constant~: conséquence exacte de $p_{\min} \ge 0{,}125 > \alpha$ et de la règle~R1~; à $\hat\pi_t$ variable, conséquence de $p_{\min}^{\mathrm{MC}} \ge \alpha$ sur les jeux mesurés, non établie pour toute donnée. Niveau~: constat de simulation sous le modèle ajusté à J1 et à J2 (section~\ref{sec:calibration-mc}), incertitude de Clopper--Pearson liée à $R$, intervalles dans les fichiers de résultats.
 \end{fiche}
 
 \newpage
@@ -8226,8 +8420,8 @@ avec $n_1 = n_2 = 5$, la plus petite p-value atteignable est $2/\binom{10}{5} \a
 le rejet reste donc possible mais exige un écart maximal~; à $T = 8$, $n_1 = n_2 = 4$ et
 $p_{\min} = 2/\binom{8}{4} = 2/70 \approx 0{,}029$ (\code{smirnov\_p\_min()}, champ
 \code{p\_min}, atteinte seulement pour $D = 1$), sous $\alpha/2 = 0{,}05$~: le test n'est pas
-inopérant au seuil par défaut, il le serait à tout seuil $\alpha \le 0{,}029$ (règle~R1,
-issue~\#44)~; (ii) les deux échantillons ne sont pas
+inopérant au seuil par défaut, il le serait à tout seuil $\alpha \le 0{,}029$ à $\hat\pi_t$ constant
+(règle~R1, issue~\#44~; à $\hat\pi_t$ variable, la règle lit le plancher Monte-Carlo, issue~\#125)~; (ii) les deux échantillons ne sont pas
 indépendants puisque les $z_t$ partagent les mêmes paramètres estimés
 $(\hat\beta, \hat\delta, \hat\gamma)$~: $z \sim \mathcal{N}(0, P)$ sous le modèle ajusté
 (section~\ref{sec:base-residus}, issue~\#25). La loi combinatoire suppose seulement les $z_t$
@@ -8243,13 +8437,13 @@ echangeable = 0.0286}~», mesuré sur \code{premium\_interieur})~; le champ \cod
 plus la loi exacte (section~\ref{sec:base-residus}). Le
 \emph{QQ-plot à deux échantillons} associé (section~\ref{sec:graphiques}) reste le diagnostic le plus lisible.
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} $2/\binom{8}{4} = 2/70 = 0{,}0286$ ($n_1 = n_2 = 4$, sans ex \ae quo dans $z$, \code{smirnov\_p\_min()}), atteinte seulement pour $D = 1$~; avec ex \ae quo, \code{p\_min} vaut \code{NA} et aucune p-value exacte n'est attribuée (issue~\#112)~; p-values atteignables $0{,}0286$~; $0{,}2286$~; $0{,}7714$~; $1$. Exacte à $\hat\pi_t$ constant, où la p-value exacte de \code{stats::ks.test()} est retenue~; à $\hat\pi_t$ variable, la p-value retenue est de Monte-Carlo (clé \code{Smirnov}, rejet en queue haute, plancher $1/(B+1)$, soit $0{,}001$ à $B = 999$) et $0{,}0286$, $p_{\min}$ de la loi de référence échangeable, ne borne pas cette p-value de Monte-Carlo.
+\textbf{p-value minimale à $T = 8$.} $2/\binom{8}{4} = 2/70 = 0{,}0286$ ($n_1 = n_2 = 4$, sans ex \ae quo dans $z$, \code{smirnov\_p\_min()}), atteinte seulement pour $D = 1$~; avec ex \ae quo, \code{p\_min} vaut \code{NA} et aucune p-value exacte n'est attribuée (issue~\#112)~; p-values atteignables $0{,}0286$~; $0{,}2286$~; $0{,}7714$~; $1$. Exacte à $\hat\pi_t$ constant, où la p-value exacte de \code{stats::ks.test()} est retenue~; à $\hat\pi_t$ variable, la p-value retenue est de Monte-Carlo (clé \code{Smirnov}, rejet en queue haute, plancher $1/(B+1)$, soit $0{,}001$ à $B = 999$) et $0{,}0286$, $p_{\min}$ de la loi de référence échangeable, ne borne pas cette p-value de Monte-Carlo~; la règle~R1 y lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$ (issue~\#125, section~\ref{sec:nature}), mesuré à $0{,}007$ sur \code{premium\_interieur}, sous $p_{\min}$.
 
 \textbf{Table.} Tableau~\ref{tab:pmin}~: $p_{\min} < \alpha/2$ à tout $T \ge 8$~; les valeurs pour $T < 8$ sont hors moteur.
 
 \textbf{Pertinence à $T = 8$.} Ligne calculée seulement pour $T \ge 8$~; non applicable à volumes constants (section~\ref{sec:volumes-constants}) ou si un groupe compte moins de trois années. À $T = 8$ et $\hat\pi_t$ constant, le verdict est binaire~: \code{ECHEC} si $D = 1$, \code{OK} sinon, l'\code{ALERTE} étant impossible. \emph{Puissance de la p-value exacte, jeu de contrôle} (volet~A de l'issue~\#116, J1, $\hat\pi_t$ constant, 20\,000 séries par point, $\alpha = 0{,}10$~; protocole au tableau~\ref{tab:tracabilite-puissance})~: niveau $0{,}028$, soit la taille exacte $2/70$, le même événement ($D = 1$) donnant le rejet aux seuils $0{,}10$ et $0{,}05$. Contre un AR(1) stationnaire, $0{,}005$~; $0{,}065$~; $0{,}108$~; $0{,}169$~; $0{,}245$ pour $\rho = -0{,}5$~; $0{,}3$~; $0{,}5$~; $0{,}7$~; $0{,}9$~; contre une tendance de 1~; 2~; 3 écarts-types, $0{,}058$~; $0{,}151$~; $0{,}275$~; contre une rupture de 1~; 2~; 3 écarts-types après l'année~4, $0{,}142$~; $0{,}491$~; $0{,}833$, et de 2 écarts-types après l'année~6, $0{,}057$~; contre un écart-type multiplié par 2~; 3 les années de volume supérieur à la médiane, $0{,}038$~; $0{,}051$. \emph{Lecture.} (i)~Sur J1, les volumes croissent globalement avec $t$ (de $104{,}2$ en $t = 1$ à $131{,}2$ en $t = 8$) et la partition $x_t > \mathrm{méd}(x)$ est $\{5, 6, 7, 8\}$~: la puissance contre la rupture après l'année~4 et contre la tendance est celle d'un décalage de niveau entre les deux groupes de volume, confondu ici avec le temps. Sur J2, dont la partition est $\{3, 4, 5, 6\}$, la p-value retenue ne rejette presque jamais sous la tendance ($0{,}002$) ni sous la rupture ($0{,}004$), et rejette dans $0{,}066$ des cas sous l'AR(1) à $\rho = 0{,}9$ (volet~B). (ii)~Contre l'hétéroscédasticité liée au volume, objet de la ligne en~H2, la puissance est limitée~: à $\hat\pi_t$ constant, le rejet exige $D = 1$, et quand le facteur multiplicatif de l'écart-type croît sans borne, la probabilité de $D = 1$ tend vers celle que les quatre résidus du groupe à fort volume soient tous du même signe, $2 \times (1/2)^4 = 2/16 = 0{,}125$~; mesurée à $0{,}038$ et $0{,}051$ pour les facteurs 2 et 3, elle montre que la ligne teste une différence de position entre groupes de volume, non une différence de variance. (iii)~\emph{P-value retenue après réajustement} (volet~B, J1~/ J2, 500 réplications par point, $B = 999$)~: niveau $0{,}032$~/ $0{,}026$~; AR(1) à $\rho = 0{,}5$~: $0{,}108$~/ $0{,}058$~; à $\rho = 0{,}9$~: $0{,}260$~/ $0{,}066$~; tendance de 2 écarts-types~: $0{,}130$~/ $0{,}002$~; rupture de 2 écarts-types après l'année~4~: $0{,}448$~/ $0{,}004$~; aucune \code{ALERTE} sur les deux jeux. Mesures hors modèle réglementaire. Niveau de la p-value retenue sous le modèle ajusté (issue~\#166, $R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc}), exacte dans les réplications où $\hat\pi^{*}_t$ est constant et de Monte-Carlo dans les autres~: J1, $0{,}0315$, J2, $0{,}0275$, aux seuils $0{,}10$ et $0{,}05$ (même événement), pour une référence de $0{,}0286$~: compatible sur les deux jeux, de même que la p-value de Monte-Carlo seule contre sa taille lissée.
 
-\textbf{Statut des valeurs.} $p_{\min}$ et p-values atteignables~: exactes (énumération des 70 partitions) à $\hat\pi_t$ constant~; à $\hat\pi_t$ variable, $p_{\min}$ exacte sur la loi de référence échangeable, qui ne borne pas la p-value de Monte-Carlo~; plancher de Monte-Carlo~: exact, fonction de $B$~; limite $2/16$~: calcul exact de la probabilité limite~; puissances et niveaux mesurés~: constats de simulation sous des alternatives choisies, hors modèle réglementaire (intervalles de Clopper--Pearson dans les fichiers de résultats, incertitude de simulation muette sur l'erreur en $T$). Niveau~: constat de simulation sous le modèle ajusté à J1 et à J2 (section~\ref{sec:calibration-mc}), incertitude de Clopper--Pearson liée à $R$, intervalles dans les fichiers de résultats.
+\textbf{Statut des valeurs.} $p_{\min}$ et p-values atteignables~: exactes (énumération des 70 partitions) à $\hat\pi_t$ constant~; à $\hat\pi_t$ variable, $p_{\min}$ exacte sur la loi de référence échangeable, qui ne borne pas la p-value de Monte-Carlo~; plancher de Monte-Carlo et plancher $p_{\min}^{\mathrm{MC}}$ lu par la règle~R1~: exacts pour les réplications tirées, fonction de $B$ (et de la graine pour le second)~; limite $2/16$~: calcul exact de la probabilité limite~; puissances et niveaux mesurés~: constats de simulation sous des alternatives choisies, hors modèle réglementaire (intervalles de Clopper--Pearson dans les fichiers de résultats, incertitude de simulation muette sur l'erreur en $T$). Niveau~: constat de simulation sous le modèle ajusté à J1 et à J2 (section~\ref{sec:calibration-mc}), incertitude de Clopper--Pearson liée à $R$, intervalles dans les fichiers de résultats.
 \end{fiche}
 
 \begin{fiche}{Position de $\hat\delta$ dans son domaine (diagnostic)}
@@ -9193,23 +9387,31 @@ est inatteignable à $\hat\pi_t$ constant, ce que le commentaire de la ligne dit
 (\code{ECHEC inatteignable~: p\_min = 0.0571 >= alpha/2 = 0.05 (n1 = 4, n2 = 4)}). Le verdict \code{OK} couvre les cinq valeurs $R \in \{3, \dots, 7\}$, soit une
 probabilité $66/70 = 0{,}943$ sous $H_0$~: il ne vaut pas validation de l'indépendance.
 À $\hat\pi_t$ variable, la p-value retenue est de Monte-Carlo et $0{,}0571$, $p_{\min}$ de la loi
-de référence échangeable, ne la borne pas~: l'\code{ECHEC} est possible, ce que le commentaire
-dit~: il donne \code{p\_min de la loi de reference echangeable = 0.0571}, précise que la p-value
-de Monte-Carlo retenue peut lui être inférieure (erreur de Monte-Carlo, non-échangeabilité) et
-conclut \code{ECHEC possible} (section~\ref{sec:nature}). Ordre de grandeur
+de référence échangeable, ne la borne pas. Depuis l'issue~\#125, la règle~R1 y lit le plancher
+Monte-Carlo $p_{\min}^{\mathrm{MC}}$, plus petite valeur que la p-value de Monte-Carlo peut prendre
+sur les réplications tirées (section~\ref{sec:nature}, point~(i))~: si $\alpha/2 \le
+p_{\min}^{\mathrm{MC}} < \alpha$, l'\code{ECHEC} est inatteignable et le commentaire le dit
+(\code{ECHEC inatteignable~: plus petite p-value Monte-Carlo atteignable sur ces replications >=
+alpha/2 = 0.05 (n1 = 4, n2 = 4)}, mesuré sur \code{premium\_interieur},
+$p_{\min}^{\mathrm{MC}} = 0{,}058$)~; si $p_{\min}^{\mathrm{MC}} < \alpha/2$, l'\code{ECHEC} est
+possible et le commentaire ne dit rien de la règle ($0{,}022$ sur le jeu à $\hat\delta = 0{,}683$ de
+\code{tests/unitaires/test\_regimes\_p\_exactes.R}, \code{run\_engine()}, $B = 999$). Jusqu'à cette
+issue, le commentaire donnait \code{p\_min de la loi de reference echangeable = 0.0571}, précisait
+que la p-value de Monte-Carlo retenue pouvait lui être inférieure (erreur de Monte-Carlo,
+non-échangeabilité) et concluait \code{ECHEC possible}. Ordre de grandeur
 des deux causes. \emph{Erreur de Monte-Carlo} (fonction de $B$)~: autour de $p = 0{,}057$, elle
 vaut environ $0{,}011$ à $B = 999$ et $0{,}003$ à $B = 9\,999$ (formule bilatérale de
 \code{engine\_p\_mc()}, section~\ref{sec:deuxerreurs}), du même ordre, à $B = 999$, que l'écart
 entre $0{,}057$ et $\alpha/2$. \emph{Non-échangeabilité} (fonction du modèle ajusté, non de $B$)~:
-sous des modèles ajustés à volumes croissants dans un rapport~17 ($\sigma = 0{,}5$), la probabilité $\mathbb{P}(R^* = 2)$ qu'une série simulée ne compte que deux suites a été mesurée de $0{,}032$ à $0{,}016$, et jusqu'à $0{,}003$ à volumes extrêmes, contre $2/70 = 0{,}0286$ sous la loi échangeable --- constat de simulation d'\code{actuary} du 27~septembre 2026 (grille de 36 modèles, $B = 5\,000$ par modèle, hors jeux de référence, scripts non versionnés, consigné à l'issue~\#125, seule trace)~; l'issue~\#125 propose de lire la règle~R1 sur
-la loi bootstrap. Remède d'usage~: quand la p-value de Monte-Carlo est proche du seuil, relancer
+sous des modèles ajustés à volumes croissants dans un rapport~17 ($\sigma = 0{,}5$), la probabilité $\mathbb{P}(R^* = 2)$ qu'une série simulée ne compte que deux suites a été mesurée de $0{,}032$ à $0{,}016$, et jusqu'à $0{,}003$ à volumes extrêmes, contre $2/70 = 0{,}0286$ sous la loi échangeable --- constat de simulation d'\code{actuary} du 27~septembre 2026 (grille de 36 modèles, $B = 5\,000$ par modèle, hors jeux de référence, scripts non versionnés, consigné à l'issue~\#125, seule trace)~; c'est ce qui a conduit l'issue~\#125 à lire la règle~R1
+sur la loi bootstrap. Remède d'usage~: quand la p-value de Monte-Carlo est proche du seuil, relancer
 avec $B = 9\,999$, ce qui réduit la première cause et laisse la seconde inchangée.
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} $4/70 = 0{,}0571$ ($n_1 = n_2 = 4$, \code{runs\_p\_min()})~; p-values atteignables $0{,}0571$~; $0{,}2286$~; $0{,}7429$~; $1$. Exacte à $\hat\pi_t$ constant, où la p-value exacte de \code{runs\_p\_exacte()} est retenue~; à $\hat\pi_t$ variable, la p-value retenue est de Monte-Carlo (clé \code{Runs}, bilatérale, plancher $2/(B+1)$, soit $0{,}002$ à $B = 999$) et $0{,}0571$, $p_{\min}$ de la loi de référence échangeable, ne borne pas cette p-value de Monte-Carlo (rubrique~6).
+\textbf{p-value minimale à $T = 8$.} $4/70 = 0{,}0571$ ($n_1 = n_2 = 4$, \code{runs\_p\_min()})~; p-values atteignables $0{,}0571$~; $0{,}2286$~; $0{,}7429$~; $1$. Exacte à $\hat\pi_t$ constant, où la p-value exacte de \code{runs\_p\_exacte()} est retenue~; à $\hat\pi_t$ variable, la p-value retenue est de Monte-Carlo (clé \code{Runs}, bilatérale, plancher $2/(B+1)$, soit $0{,}002$ à $B = 999$) et $0{,}0571$, $p_{\min}$ de la loi de référence échangeable, ne borne pas cette p-value de Monte-Carlo (rubrique~6)~; la règle~R1 y lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$ (issue~\#125), $0{,}058$ sur \code{premium\_interieur}.
 
 \textbf{Table.} Tableau~\ref{tab:pmin}~: inopérant pour $T \le 7$~; \code{ECHEC} inatteignable à $T = 8$ et $9$ à $\hat\pi_t$ constant.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test, à \code{ECHEC} inatteignable à $\hat\pi_t$ constant ($\alpha/2 \le p_{\min} < \alpha$), possible à $\hat\pi_t$ variable (rubrique~6)~: à $\hat\pi_t$ constant, \code{ALERTE} seulement si $R \in \{2, 8\}$. \emph{Puissance de la p-value exacte, jeu de contrôle} (volet~A de l'issue~\#116, J1, $\hat\pi_t$ constant, 20\,000 séries par point, $\alpha = 0{,}10$, rejet signifiant ici \code{ALERTE}~; protocole au tableau~\ref{tab:tracabilite-puissance})~: niveau $0{,}058$, compatible avec la taille exacte $4/70 = 0{,}0571$. Contre un AR(1) stationnaire, $0{,}148$~; $0{,}078$~; $0{,}116$~; $0{,}174$~; $0{,}249$ pour $\rho = -0{,}5$~; $0{,}3$~; $0{,}5$~; $0{,}7$~; $0{,}9$~; contre une tendance de 1~; 2~; 3 écarts-types entre la première et la huitième année, $0{,}081$~; $0{,}164$~; $0{,}282$~; contre une rupture de 1~; 2~; 3 écarts-types après l'année~4, $0{,}157$~; $0{,}494$~; $0{,}834$, et de 2 écarts-types après l'année~6, $0{,}062$~; contre un écart-type multiplié par 2~; 3 les années de volume supérieur à la médiane, $0{,}066$~; $0{,}077$, soit à peine plus que le niveau~: la ligne ne voit pas cette hétéroscédasticité. À $\alpha = 0{,}05$, la ligne est inopérante (règle~R1) et aucune des 20\,000 séries du point nul n'est rejetée. Contre l'AR(1), ces valeurs sont compatibles avec le constat~C1 (écarts d'au plus $0{,}004$ pour $\rho = 0{,}3$ à $0{,}9$) et avec le constat du 23~septembre 2026 de l'issue~\#44, que C1 reproduit (écart normalisé du volet~A à ce constat~: $|z| \le 0{,}78$)~; elles sont de l'ordre de la moitié de celles de Durbin--Watson exact (fiche~\ref{fiche:durbin-watson}) à chaque $\rho$, à niveau effectif plus faible ($0{,}057$ contre $0{,}100$), ce qui explique une partie de l'écart. \emph{P-value retenue après réajustement} (volet~B, J1~/ J2, 500 réplications par point, $B = 999$)~: niveau $0{,}064$~/ $0{,}066$~; AR(1) à $\rho = 0{,}5$~: $0{,}112$~/ $0{,}116$~; à $\rho = 0{,}9$~: $0{,}268$~/ $0{,}244$~; tendance de 2 écarts-types~: $0{,}140$~/ $0{,}144$~; rupture de 2 écarts-types après l'année~4~: $0{,}448$~/ $0{,}428$. Ce volet ne reproduit pas le volet~A~: la p-value retenue y suit le régime du réajustement, et sur J1 l'écart sous la rupture ($0{,}448$ contre $0{,}494$) tient à cette sélection de régime ($0{,}317$ dans le régime $\hat\delta^* = 1$, $0{,}515$ dans le régime $\hat\delta^* = 0$), non à une erreur. L'\code{ECHEC} y est inatteignable en régime $\hat\delta^* = 1$ ($\hat\pi^*_t$ constant, p-value
+\textbf{Pertinence à $T = 8$.} Ligne de type test, à \code{ECHEC} inatteignable à $\hat\pi_t$ constant ($\alpha/2 \le p_{\min} < \alpha$)~; à $\hat\pi_t$ variable, inatteignable ou possible selon $p_{\min}^{\mathrm{MC}}$ (rubrique~6)~: à $\hat\pi_t$ constant, \code{ALERTE} seulement si $R \in \{2, 8\}$. \emph{Puissance de la p-value exacte, jeu de contrôle} (volet~A de l'issue~\#116, J1, $\hat\pi_t$ constant, 20\,000 séries par point, $\alpha = 0{,}10$, rejet signifiant ici \code{ALERTE}~; protocole au tableau~\ref{tab:tracabilite-puissance})~: niveau $0{,}058$, compatible avec la taille exacte $4/70 = 0{,}0571$. Contre un AR(1) stationnaire, $0{,}148$~; $0{,}078$~; $0{,}116$~; $0{,}174$~; $0{,}249$ pour $\rho = -0{,}5$~; $0{,}3$~; $0{,}5$~; $0{,}7$~; $0{,}9$~; contre une tendance de 1~; 2~; 3 écarts-types entre la première et la huitième année, $0{,}081$~; $0{,}164$~; $0{,}282$~; contre une rupture de 1~; 2~; 3 écarts-types après l'année~4, $0{,}157$~; $0{,}494$~; $0{,}834$, et de 2 écarts-types après l'année~6, $0{,}062$~; contre un écart-type multiplié par 2~; 3 les années de volume supérieur à la médiane, $0{,}066$~; $0{,}077$, soit à peine plus que le niveau~: la ligne ne voit pas cette hétéroscédasticité. À $\alpha = 0{,}05$, la ligne est inopérante (règle~R1) et aucune des 20\,000 séries du point nul n'est rejetée. Contre l'AR(1), ces valeurs sont compatibles avec le constat~C1 (écarts d'au plus $0{,}004$ pour $\rho = 0{,}3$ à $0{,}9$) et avec le constat du 23~septembre 2026 de l'issue~\#44, que C1 reproduit (écart normalisé du volet~A à ce constat~: $|z| \le 0{,}78$)~; elles sont de l'ordre de la moitié de celles de Durbin--Watson exact (fiche~\ref{fiche:durbin-watson}) à chaque $\rho$, à niveau effectif plus faible ($0{,}057$ contre $0{,}100$), ce qui explique une partie de l'écart. \emph{P-value retenue après réajustement} (volet~B, J1~/ J2, 500 réplications par point, $B = 999$)~: niveau $0{,}064$~/ $0{,}066$~; AR(1) à $\rho = 0{,}5$~: $0{,}112$~/ $0{,}116$~; à $\rho = 0{,}9$~: $0{,}268$~/ $0{,}244$~; tendance de 2 écarts-types~: $0{,}140$~/ $0{,}144$~; rupture de 2 écarts-types après l'année~4~: $0{,}448$~/ $0{,}428$. Ce volet ne reproduit pas le volet~A~: la p-value retenue y suit le régime du réajustement, et sur J1 l'écart sous la rupture ($0{,}448$ contre $0{,}494$) tient à cette sélection de régime ($0{,}317$ dans le régime $\hat\delta^* = 1$, $0{,}515$ dans le régime $\hat\delta^* = 0$), non à une erreur. L'\code{ECHEC} y est inatteignable en régime $\hat\delta^* = 1$ ($\hat\pi^*_t$ constant, p-value
 exacte retenue, $p_{\min} = 4/70 \ge \alpha/2$)~; les \code{ECHEC} comptés (J1~: 2 réplications
 sur 500 sous le point nul, 29 sous la rupture) relèvent donc tous d'un réajustement à
 $\hat\pi^*_t$ variable, où la p-value retenue est de Monte-Carlo --- illustration chiffrée de la
@@ -10016,15 +10218,22 @@ fiche~\ref{fiche:suites-wald-wolfowitz} lorsque la p-value exacte est retenue~; 
 s'applique à cette ligne comme à celle sur $z_t$, avec la p-value minimale aux effectifs des signes
 de $u_t$ (champ \code{p\_min}). Sans p-value exacte, cette p-value minimale, calculée sur la loi
 de référence échangeable, ne borne pas la p-value de Monte-Carlo retenue, qui peut lui être
-inférieure (erreur de Monte-Carlo, non-échangeabilité)~: le commentaire de la ligne dit alors
-\code{ECHEC possible} au lieu d'\code{ECHEC inatteignable} (issue~\#44~; ordre de grandeur à la
-fiche~\ref{fiche:suites-wald-wolfowitz}, rubrique~6~; sur $u_t$, dont les $r_t$ ne sont pas identiquement distribués, l'écart mesuré va dans l'autre sens que sur $z_t$~: $\mathbb{P}(R^* = 2)$ jusqu'à $0{,}26$ contre $2/70$, soit une $p_{\min}$ bootstrap au-dessus de $0{,}0571$ (issue~\#125)~; l'\code{ECHEC} n'y reste possible que par l'erreur de Monte-Carlo).
+inférieure (erreur de Monte-Carlo, non-échangeabilité)~; depuis l'issue~\#125, la règle~R1 y lit le
+plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$ de la loi simulée (section~\ref{sec:nature},
+point~(i))~: sur \code{premium\_interieur}, $p_{\min}^{\mathrm{MC}} = 0{,}062 \ge \alpha/2$, et le
+commentaire dit \code{ECHEC inatteignable~: plus petite p-value Monte-Carlo atteignable sur ces
+replications >= alpha/2 = 0.05 (n1 = 4, n2 = 4)}~; jusqu'à cette issue, il disait \code{ECHEC
+possible} (issue~\#44~; ordre de grandeur à la fiche~\ref{fiche:suites-wald-wolfowitz}, rubrique~6~;
+sur $u_t$, dont les $r_t$ ne sont pas identiquement distribués, l'écart mesuré va dans l'autre sens
+que sur $z_t$~: $\mathbb{P}(R^* = 2)$ jusqu'à $0{,}26$ contre $2/70$, soit un plancher bootstrap
+au-dessus de $0{,}0571$, issue~\#125~; il peut aller jusqu'au test inopérant si les deux extrêmes
+sont fréquents, possibilité dont la fréquence n'est pas mesurée).
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} $4/70 = 0{,}0571$ ($n_1 = n_2 = 4$, \code{runs\_p\_min()}). Exacte à $\hat\pi_t$ constant, où la statistique et la p-value exacte retenue sont celles de la ligne sur $z_t$ (\code{usp\_runsr\_p\_exacte()})~; à $\hat\pi_t$ variable, la p-value retenue est de Monte-Carlo (clé \code{Runsr}, bilatérale, plancher $2/(B+1)$, soit $0{,}002$ à $B = 999$) et $0{,}0571$, $p_{\min}$ de la loi de référence échangeable, n'en est pas une borne (rubrique~6).
+\textbf{p-value minimale à $T = 8$.} $4/70 = 0{,}0571$ ($n_1 = n_2 = 4$, \code{runs\_p\_min()}). Exacte à $\hat\pi_t$ constant, où la statistique et la p-value exacte retenue sont celles de la ligne sur $z_t$ (\code{usp\_runsr\_p\_exacte()})~; à $\hat\pi_t$ variable, la p-value retenue est de Monte-Carlo (clé \code{Runsr}, bilatérale, plancher $2/(B+1)$, soit $0{,}002$ à $B = 999$) et $0{,}0571$, $p_{\min}$ de la loi de référence échangeable, n'en est pas une borne (rubrique~6)~; la règle~R1 y lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$ (issue~\#125), $0{,}062$ sur \code{premium\_interieur}.
 
 \textbf{Table.} Tableau~\ref{tab:pmin}~: \code{ECHEC} inatteignable à $T = 8$ et $9$ à $\hat\pi_t$ constant.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test, à \code{ECHEC} inatteignable à $\hat\pi_t$ constant, possible à $\hat\pi_t$ variable (rubrique~6). À $\hat\pi_t$ constant, la statistique étant identique à celle de la ligne sur $z_t$ --- identité vérifiée réplication par réplication au volet~A de l'issue~\#116, sans aucune différence sur 300\,000 séries ---, la puissance est celle de la ligne sur $z_t$ (fiche~\ref{fiche:suites-wald-wolfowitz}). \emph{P-value retenue après réajustement} (volet~B de l'issue~\#116, J1~/ J2, 500 réplications par point, $B = 999$, $\alpha = 0{,}10$~; protocole au tableau~\ref{tab:tracabilite-puissance}), exacte dans les réplications où $\hat\pi^*_t$ est constant et de Monte-Carlo dans les autres~: niveau $0{,}062$~/ $0{,}064$~; AR(1) à $\rho = 0{,}5$~: $0{,}112$~/ $0{,}124$~; à $\rho = 0{,}9$~: $0{,}268$~/ $0{,}242$~; tendance de 2 écarts-types~: $0{,}140$~/ $0{,}144$~; rupture de 2 écarts-types après l'année~4~: $0{,}450$~/ $0{,}438$~; les écarts à la ligne sur $z_t$ vont de $0$ à $0{,}010$, sous la demi-largeur des intervalles de Clopper--Pearson. Mesures hors modèle réglementaire. Niveau de la p-value retenue sous le modèle ajusté (issue~\#166, $R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc}), exacte dans les réplications où $\hat\pi^{*}_t$ est constant et de Monte-Carlo dans les autres~: J1, $0{,}062$ à $\alpha = 0{,}10$ et $0{,}0035$ à $0{,}05$~; J2, $0{,}061$ et $0{,}008$~; compatible avec les références mélangées ($0{,}0571$ à $0{,}10$~; $0{,}0049$ sur J1 et $0{,}0062$ sur J2 à $0{,}05$).
+\textbf{Pertinence à $T = 8$.} Ligne de type test, à \code{ECHEC} inatteignable à $\hat\pi_t$ constant~; à $\hat\pi_t$ variable, selon $p_{\min}^{\mathrm{MC}}$ (rubrique~6~; inatteignable sur \code{premium\_interieur}). À $\hat\pi_t$ constant, la statistique étant identique à celle de la ligne sur $z_t$ --- identité vérifiée réplication par réplication au volet~A de l'issue~\#116, sans aucune différence sur 300\,000 séries ---, la puissance est celle de la ligne sur $z_t$ (fiche~\ref{fiche:suites-wald-wolfowitz}). \emph{P-value retenue après réajustement} (volet~B de l'issue~\#116, J1~/ J2, 500 réplications par point, $B = 999$, $\alpha = 0{,}10$~; protocole au tableau~\ref{tab:tracabilite-puissance}), exacte dans les réplications où $\hat\pi^*_t$ est constant et de Monte-Carlo dans les autres~: niveau $0{,}062$~/ $0{,}064$~; AR(1) à $\rho = 0{,}5$~: $0{,}112$~/ $0{,}124$~; à $\rho = 0{,}9$~: $0{,}268$~/ $0{,}242$~; tendance de 2 écarts-types~: $0{,}140$~/ $0{,}144$~; rupture de 2 écarts-types après l'année~4~: $0{,}450$~/ $0{,}438$~; les écarts à la ligne sur $z_t$ vont de $0$ à $0{,}010$, sous la demi-largeur des intervalles de Clopper--Pearson. Mesures hors modèle réglementaire. Niveau de la p-value retenue sous le modèle ajusté (issue~\#166, $R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc}), exacte dans les réplications où $\hat\pi^{*}_t$ est constant et de Monte-Carlo dans les autres~: J1, $0{,}062$ à $\alpha = 0{,}10$ et $0{,}0035$ à $0{,}05$~; J2, $0{,}061$ et $0{,}008$~; compatible avec les références mélangées ($0{,}0571$ à $0{,}10$~; $0{,}0049$ sur J1 et $0{,}0062$ sur J2 à $0{,}05$).
 
 \textbf{Statut des valeurs.} $p_{\min}$~: exacte à $\hat\pi_t$ constant~; à $\hat\pi_t$ variable, $p_{\min}$ exacte sur la loi de référence échangeable, qui ne borne pas la p-value de Monte-Carlo~; identité avec la ligne sur $z_t$~: contrôle exhaustif sur les séries simulées~; puissances et niveau~: constats de simulation sous des alternatives choisies, hors modèle réglementaire (intervalles de Clopper--Pearson dans les fichiers de résultats, incertitude de simulation muette sur l'erreur en $T$). Niveau~: constat de simulation sous le modèle ajusté à J1 et à J2 (section~\ref{sec:calibration-mc}), incertitude de Clopper--Pearson liée à $R$, intervalles dans les fichiers de résultats.
 \end{fiche}
@@ -12068,10 +12277,11 @@ unitaire des résidus (M2) est un diagnostic~: elle n'a ni hypothèse nulle ni l
 de référence, et sa valeur est de surcroît \emph{contrainte par construction}
 (fiche~\ref{mw:m2var}). Aucun des trois diagnostics ne porte de verdict~: tous
 sont restitués \code{INFO}, conformément à l'ADR~0001. Ces types sont ceux du triangle de contrôle $8 \times 8$~:
-sur son sous-triangle $5 \times 5$, à $\alpha = 0{,}10$, l'effet calendaire et la corrélation entre
-années adjacentes sont restitués en test inopérant (règle~R1, issue~\#115,
-tableau~\ref{tab:pmin}), l'homogénéité de $f_j$ et l'exposant de variance sont non applicables
-(mesuré par \code{run\_engine()}). Treize de ces quinze
+sur son sous-triangle $5 \times 5$, à $\alpha = 0{,}10$ (\code{run\_engine()}, $B = 999$), la
+corrélation entre années adjacentes est restituée en test inopérant (règle~R1, lue depuis
+l'issue~\#125 sur le plancher Monte-Carlo, section~\ref{sec:nature}, point~(i), et
+tableau~\ref{tab:pmin}), l'effet calendaire reste un test (il est inopérant à $B = 99$), et
+l'homogénéité de $f_j$, la courbure et l'exposant de variance sont non applicables. Treize de ces quinze
 tests reposent sur le bootstrap de résidus~; Shapiro--Wilk dispose d'une loi nulle propre, pour la raison exposée
 dans sa fiche, et Lilliefors de l'approximation analytique de Dallal et Wilkinson, restituée
 sous la nature \code{approximation a n fini sous i.i.d. normal} (fiche~\ref{mw:m5li}~; issue~\#120~;
@@ -12465,11 +12675,11 @@ telle dérive traduit un changement de politique de règlement ou de mix de
 portefeuille. Elle n'est pas détectable par le test d'ordonnée à l'origine, qui
 porte sur le niveau et non sur la pente.
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} $\prod_j 2/n_j! = 16/(7!\,6!\,5!\,4!) = 1{,}53\cdot 10^{-9}$ sur le triangle de contrôle ($K = 4$ colonnes de $n_j = 7, 6, 5, 4$ facteurs, \code{.mw\_fisher\_rangs\_p\_min()}, issue~\#115)~: $X$ est maximal si et seulement si toutes les colonnes ont $|\hat\rho_{s,j}| = 1$, chacune avec la probabilité $2/n_j!$ sous des permutations indépendantes des colonnes, $p_j$ étant strictement décroissante en $|\hat\rho_{s,j}|$ et finie en $|\hat\rho_{s,j}| = 1$ depuis l'issue~\#90. Valeur exacte sous cette loi de référence échangeable, qui n'est pas celle du modèle de Mack~: elle ne borne pas la p-value retenue. \emph{Avec ex \ae quo} (issue~\#207, décision Q-E2c-3), $X$ est maximal si et seulement si chaque colonne atteint sa plus petite $p_j$, et $p_{\min} = \prod_j m_j$, $m_j$ étant la masse de cet événement sous la loi conditionnelle aux rangs moyens de la colonne (tableau~\ref{tab:pmin}, note~(iv))~; la mention «~\code{ex aequo : loi de permutation conditionnelle aux rangs moyens, enumeree}~» figure dans le champ \code{effectifs}, et n'apparaît dans le commentaire de la ligne que lorsque la règle~R1 s'y applique ($p_{\min} \ge \alpha/2$). Cette $p_{\min}$ ne borne pas davantage la p-value retenue, et les ex \ae quo ajoutent un écart de sens opposé à celui de la non-échangeabilité~: les facteurs simulés des réplications n'ont en général pas d'ex \ae quo (une égalité n'y survient qu'en colonne~$0$, entre années de même cumul initial qui tirent le même résidu), leurs $p_j$ suivent alors la loi de permutation sans ex \ae quo, et les valeurs simulées de $X$ peuvent atteindre ou dépasser le maximum de $X$ à l'observé bien plus souvent que $p_{\min}$ ne l'indique. Exemple (triangle de six années, énumération exhaustive des $5! \times 4!$ couples de permutations)~: deux colonnes de $5$ et $4$ facteurs à deux paliers ($2$ et $3$ facteurs égaux, puis $2$ et~$2$), $m_j = 0{,}2$ et $1/3$, $p_{\min} = 1/15 = 0{,}0667$, alors que la probabilité, sous la loi de permutation sans ex \ae quo, d'une valeur de $X$ au moins égale à ce maximum vaut $17/120 = 0{,}142$. Avec ex \ae quo, $p_{\min}$ peut donc sous-estimer le plus petit niveau que la p-value de Monte-Carlo atteint en pratique, et celle-ci tend à être conservatrice (argument et exemple établis sous les lois de permutation, non mesurés sous le modèle de Mack)~; la règle~R1, appliquée à cette $p_{\min}$, peut laisser en test, avec la mention «~\code{ECHEC possible}~», une ligne dont la p-value de Monte-Carlo ne descendrait pas sous $\alpha$ si la loi bootstrap de $X$ était la loi de permutation sans ex \ae quo (dans l'exemple, $p_{\min} = 0{,}0667 < \alpha = 0{,}10 < 0{,}142$). Non attribuée (\code{NA}, motif dans le commentaire) si une colonne compte plus de neuf facteurs. La p-value retenue est de Monte-Carlo (clé \code{HomogF}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est le seul plancher établi de la p-value retenue.
+\textbf{p-value minimale à $T = 8$.} $\prod_j 2/n_j! = 16/(7!\,6!\,5!\,4!) = 1{,}53\cdot 10^{-9}$ sur le triangle de contrôle ($K = 4$ colonnes de $n_j = 7, 6, 5, 4$ facteurs, \code{.mw\_fisher\_rangs\_p\_min()}, issue~\#115)~: $X$ est maximal si et seulement si toutes les colonnes ont $|\hat\rho_{s,j}| = 1$, chacune avec la probabilité $2/n_j!$ sous des permutations indépendantes des colonnes, $p_j$ étant strictement décroissante en $|\hat\rho_{s,j}|$ et finie en $|\hat\rho_{s,j}| = 1$ depuis l'issue~\#90. Valeur exacte sous cette loi de référence échangeable, qui n'est pas celle du modèle de Mack~: elle ne borne pas la p-value retenue. \emph{Avec ex \ae quo} (issue~\#207, décision Q-E2c-3), $X$ est maximal si et seulement si chaque colonne atteint sa plus petite $p_j$, et $p_{\min} = \prod_j m_j$, $m_j$ étant la masse de cet événement sous la loi conditionnelle aux rangs moyens de la colonne (tableau~\ref{tab:pmin}, note~(iv))~; la mention «~\code{ex aequo : loi de permutation conditionnelle aux rangs moyens, enumeree}~» figure dans le champ \code{effectifs}, et n'apparaît dans le commentaire de la ligne que lorsque la règle~R1 s'y applique ($p_{\min} \ge \alpha/2$). Cette $p_{\min}$ ne borne pas davantage la p-value retenue, et les ex \ae quo ajoutent un écart de sens opposé à celui de la non-échangeabilité~: les facteurs simulés des réplications n'ont en général pas d'ex \ae quo (une égalité n'y survient qu'en colonne~$0$, entre années de même cumul initial qui tirent le même résidu), leurs $p_j$ suivent alors la loi de permutation sans ex \ae quo, et les valeurs simulées de $X$ peuvent atteindre ou dépasser le maximum de $X$ à l'observé bien plus souvent que $p_{\min}$ ne l'indique. Exemple (triangle de six années, énumération exhaustive des $5! \times 4!$ couples de permutations)~: deux colonnes de $5$ et $4$ facteurs à deux paliers ($2$ et $3$ facteurs égaux, puis $2$ et~$2$), $m_j = 0{,}2$ et $1/3$, $p_{\min} = 1/15 = 0{,}0667$, alors que la probabilité, sous la loi de permutation sans ex \ae quo, d'une valeur de $X$ au moins égale à ce maximum vaut $17/120 = 0{,}142$. Avec ex \ae quo, $p_{\min}$ peut donc sous-estimer le plus petit niveau que la p-value de Monte-Carlo atteint en pratique, et celle-ci tend à être conservatrice (argument et exemple établis sous les lois de permutation, non mesurés sous le modèle de Mack). Jusqu'à l'issue~\#125, la règle~R1, appliquée à cette $p_{\min}$, pouvait laisser en test, avec la mention «~\code{ECHEC possible}~», une ligne dont la p-value de Monte-Carlo ne descendrait pas sous $\alpha$ si la loi bootstrap de $X$ était la loi de permutation sans ex \ae quo (dans l'exemple, $p_{\min} = 0{,}0667 < \alpha = 0{,}10 < 0{,}142$)~; depuis cette issue (décision D1-8 du 12~octobre 2026, qui remplace la lecture de $p_{\min}$ confirmée le même jour au matin), la règle lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$, compté sur les réplications au-delà de $X_{\max}$, statistique de Fisher obtenue quand chaque colonne atteint sa plus petite $p_j$ à sa structure d'ex \ae quo observée (\code{.mw\_fisher\_x\_max()}, sur \code{p\_min\_col} de \code{.mw\_spearman()})~: dans l'exemple, si la loi bootstrap de $X$ était la loi de permutation sans ex \ae quo, ce plancher serait voisin de $0{,}142 \ge \alpha$ et la ligne serait un test inopérant (raisonnement sous cette hypothèse, non mesuré sous le modèle de Mack). Non attribuée (\code{NA}, motif dans le commentaire) si une colonne compte plus de neuf facteurs. La p-value retenue est de Monte-Carlo (clé \code{HomogF}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est le plancher arithmétique de la p-value retenue~; depuis l'issue~\#125, la règle~R1 lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$, minimum exact de cette p-value sur les réplications tirées, aux extrémités du support observé (section~\ref{sec:nature}, point~(i)), égal à ce plancher sur \code{reserve2} ($0{,}001$).
 
 \textbf{Table.} Tableau~\ref{tab:pmin}, partie Merz--Wüthrich.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ ($p_{\min} \ll \alpha/2$, aucune bascule par la règle~R1). Avec des ex \ae quo lourds, la règle~R1 peut s'appliquer depuis l'issue~\#207 (section~\ref{sec:nature})~: si $\alpha/2 \le p_{\min} < \alpha$, la ligne reste un test, et son commentaire dit que la p-value de Monte-Carlo retenue peut être inférieure à $p_{\min}$ («~\code{ECHEC possible}~»)~; si $p_{\min} \ge \alpha$, elle bascule en test inopérant, ce qui exige $m_j \ge \alpha$ dans chaque colonne combinée ($m_j \le 1$), donc, au seuil $\alpha = 0{,}10$ par défaut et dès $\alpha > 1/12$, des ex \ae quo dans toutes ces colonnes, une colonne sans ex \ae quo ayant $m_j = 2/n_j! \le 1/12$ (exemple~: colonnes de $5$ et $4$ facteurs dont tous sauf un sont égaux, $m_j = 0{,}4$ et $0{,}5$, $p_{\min} = 0{,}2$). Aucune bascule sur le triangle de contrôle ni sur ses versions arrondies à la dizaine et à la centaine ($p_{\min}$ de $3{,}06\cdot 10^{-9}$ et $7{,}35\cdot 10^{-8}$). Non applicable à $T = 5$ (une seule colonne de quatre facteurs, statistique non définie)~; $p_{\min}$ non attribuée dès $T = 11$. Puissance non étudiée à $T = 8$. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}0955$ (N), $0{,}089$ (E), $0{,}091$ (A), pour $\rho = 0{,}099$~; à $0{,}05$, $0{,}039$, $0{,}0415$, $0{,}041$ ($\rho = 0{,}049$)~; compatible, sauf un écart mineur du côté conservateur sous N à $0{,}05$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ ($p_{\min} \ll \alpha/2$~; plancher Monte-Carlo $p_{\min}^{\mathrm{MC}} = 0{,}001$ sur \code{reserve2}, aucune bascule par la règle~R1). Depuis l'issue~\#125, la règle~R1 lit $p_{\min}^{\mathrm{MC}}$ (section~\ref{sec:nature}, point~(i)), avec ou sans ex \ae quo~: test inopérant si $p_{\min}^{\mathrm{MC}} \ge \alpha$, \code{ECHEC} dit inatteignable si $\alpha/2 \le p_{\min}^{\mathrm{MC}} < \alpha$. Jusqu'à cette issue, avec des ex \ae quo lourds, elle lisait $p_{\min}$ (issue~\#207)~: si $\alpha/2 \le p_{\min} < \alpha$, la ligne restait un test dont le commentaire disait «~\code{ECHEC possible}~»~; si $p_{\min} \ge \alpha$, elle basculait en test inopérant, ce qui exige $m_j \ge \alpha$ dans chaque colonne combinée ($m_j \le 1$), donc, au seuil $\alpha = 0{,}10$ par défaut et dès $\alpha > 1/12$, des ex \ae quo dans toutes ces colonnes, une colonne sans ex \ae quo ayant $m_j = 2/n_j! \le 1/12$ (exemple~: colonnes de $5$ et $4$ facteurs dont tous sauf un sont égaux, $m_j = 0{,}4$ et $0{,}5$, $p_{\min} = 0{,}2$). Aucune bascule sur le triangle de contrôle ni sur ses versions arrondies à la dizaine et à la centaine ($p_{\min}$ de $3{,}06\cdot 10^{-9}$ et $7{,}35\cdot 10^{-8}$). Non applicable à $T = 5$ (une seule colonne de quatre facteurs, statistique non définie)~; $p_{\min}$ non attribuée dès $T = 11$. Puissance non étudiée à $T = 8$. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}0955$ (N), $0{,}089$ (E), $0{,}091$ (A), pour $\rho = 0{,}099$~; à $0{,}05$, $0{,}039$, $0{,}0415$, $0{,}041$ ($\rho = 0{,}049$)~; compatible, sauf un écart mineur du côté conservateur sous N à $0{,}05$.
 
 \textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi de référence échangeable (conditionnelle aux rangs moyens avec ex \ae quo), non sous le modèle de Mack~; plancher~: exact, fonction de $B$. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
 \end{fiche}
@@ -12724,7 +12934,7 @@ inadapté --- l'alternative étant un exposant~0 (variance constante) ou~2
 ouvert}, un rejet doit être documenté comme une limite du modèle réglementaire
 et non comme un motif de changement de méthode.
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} $\prod_j 2/n_j! = 1{,}53\cdot 10^{-9}$ sur le triangle de contrôle ($K = 4$ colonnes de $n_j = 7, 6, 5, 4$ résidus, \code{.mw\_fisher\_rangs\_p\_min()}, issue~\#115, étendue à cette ligne par décision du mainteneur du 6~octobre 2026), par le même argument qu'à la fiche~\ref{mw:m1b}~: $X$, discrète sous la loi de permutation de chaque colonne depuis l'issue~\#90, n'est maximale que si toutes les colonnes ont $|\hat\rho_{s,j}| = 1$. Valeur exacte sous cette loi de référence échangeable, qui n'est pas celle du modèle de Mack~: elle ne borne pas la p-value retenue. Avec un ex \ae quo des $|r(i,j)|$ ou des $C(i,j)$, attribuée depuis l'issue~\#207 sur la loi conditionnelle aux rangs moyens ($\prod_j m_j$, fiche~\ref{mw:m1b}), avec la même réserve~: les résidus des réplications n'ont en général pas d'ex \ae quo (en colonne~$0$, deux années de même cumul initial qui tirent le même résidu en ont un), les cumuls de la première colonne, conservée dans chaque réplication, gardant les leurs. Non attribuée (\code{NA}, motif dans le commentaire) si une colonne compte plus de neuf résidus. La règle~R1 s'y applique comme à la fiche~\ref{mw:m1b}. La p-value retenue est de Monte-Carlo (clé \code{ExpVar}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est le seul plancher établi de la p-value retenue.
+\textbf{p-value minimale à $T = 8$.} $\prod_j 2/n_j! = 1{,}53\cdot 10^{-9}$ sur le triangle de contrôle ($K = 4$ colonnes de $n_j = 7, 6, 5, 4$ résidus, \code{.mw\_fisher\_rangs\_p\_min()}, issue~\#115, étendue à cette ligne par décision du mainteneur du 6~octobre 2026), par le même argument qu'à la fiche~\ref{mw:m1b}~: $X$, discrète sous la loi de permutation de chaque colonne depuis l'issue~\#90, n'est maximale que si toutes les colonnes ont $|\hat\rho_{s,j}| = 1$. Valeur exacte sous cette loi de référence échangeable, qui n'est pas celle du modèle de Mack~: elle ne borne pas la p-value retenue. Avec un ex \ae quo des $|r(i,j)|$ ou des $C(i,j)$, attribuée depuis l'issue~\#207 sur la loi conditionnelle aux rangs moyens ($\prod_j m_j$, fiche~\ref{mw:m1b}), avec la même réserve~: les résidus des réplications n'ont en général pas d'ex \ae quo (en colonne~$0$, deux années de même cumul initial qui tirent le même résidu en ont un), les cumuls de la première colonne, conservée dans chaque réplication, gardant les leurs. Non attribuée (\code{NA}, motif dans le commentaire) si une colonne compte plus de neuf résidus. La règle~R1 s'y applique comme à la fiche~\ref{mw:m1b}. La p-value retenue est de Monte-Carlo (clé \code{ExpVar}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est le plancher arithmétique de la p-value retenue~; depuis l'issue~\#125, la règle~R1 lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$, minimum exact de cette p-value sur les réplications tirées, aux extrémités du support observé (section~\ref{sec:nature}, point~(i)), égal à ce plancher sur \code{reserve2} ($0{,}001$).
 
 \textbf{Table.} Tableau~\ref{tab:pmin}, partie Merz--Wüthrich.
 
@@ -12930,11 +13140,11 @@ posée par D(2)(h)(i). Limite à $T = 8$~: la somme ne porte que sur $I-1$
 diagonales exploitables, dont plusieurs ne comptent que deux ou trois
 étiquettes, d'où le recours au bootstrap plutôt qu'à l'approximation normale.
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} $2^{-17} = 7{,}63\cdot 10^{-6}$ sur le triangle de contrôle (diagonales retenues de $n_k = 2, 3, 4, 4, 6, 5$ étiquettes, les étiquettes «~*~» étant écartées~; \code{.mw\_calendrier\_p\_min()}, issue~\#115)~: $\min_z 2\min\big(\mathbb{P}(Z \le z), \mathbb{P}(Z \ge z)\big)$, bornée à~1, sous la loi binomiale indépendante de Mack, dont la loi de $Z$ est obtenue par convolution exacte (rubrique~4). Valeur exacte sous cette loi de référence, qui n'est pas celle du modèle de Mack~: elle ne borne pas la p-value retenue. Les $n_k$ dépendent des données. La p-value retenue est de Monte-Carlo (clé \code{Calendrier}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est le seul plancher établi de la p-value retenue.
+\textbf{p-value minimale à $T = 8$.} $2^{-17} = 7{,}63\cdot 10^{-6}$ sur le triangle de contrôle (diagonales retenues de $n_k = 2, 3, 4, 4, 6, 5$ étiquettes, les étiquettes «~*~» étant écartées~; \code{.mw\_calendrier\_p\_min()}, issue~\#115)~: $\min_z 2\min\big(\mathbb{P}(Z \le z), \mathbb{P}(Z \ge z)\big)$, bornée à~1, sous la loi binomiale indépendante de Mack, dont la loi de $Z$ est obtenue par convolution exacte (rubrique~4). Valeur exacte sous cette loi de référence, qui n'est pas celle du modèle de Mack~: elle ne borne pas la p-value retenue. Les $n_k$ dépendent des données. La p-value retenue est de Monte-Carlo (clé \code{Calendrier}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est le plancher arithmétique de la p-value retenue~; depuis l'issue~\#125, la règle~R1 lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$, minimum exact de cette p-value sur les réplications tirées, aux extrémités du support observé (section~\ref{sec:nature}, point~(i)), égal à ce plancher sur \code{reserve2} ($0{,}002$).
 
 \textbf{Table.} Tableau~\ref{tab:pmin}, partie Merz--Wüthrich.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Test inopérant au seuil $\alpha = 0{,}10$ sur le sous-triangle $5 \times 5$ du triangle de contrôle ($n_k = 3, 3$, $p_{\min} = 0{,}125$)~: ligne restituée en diagnostic, sans verdict (règle~R1 appliquée telle quelle aux lignes Merz--Wüthrich, décision du mainteneur du 6~octobre 2026, en attendant l'issue~\#125, section~\ref{sec:nature}). Puissance non étudiée à $T = 8$. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}086$ (N), $0{,}081$ (E), $0{,}084$ (A), pour $\rho = 0{,}086$~; à $0{,}05$, $0{,}0455$, $0{,}041$, $0{,}040$ ($\rho = 0{,}043$, $0{,}040$, $0{,}043$)~; compatible sous les trois lois et aux deux seuils. La référence est inférieure à $\alpha$ par discrétude de la statistique (83 à 86 valeurs distinctes dans l'échantillon oracle selon la loi, atome le plus lourd de masse $0{,}100$ à $0{,}105$).
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ ($p_{\min}^{\mathrm{MC}} = 0{,}002$ sur \code{reserve2}). Sur le sous-triangle $5 \times 5$ du triangle de contrôle ($n_k = 3, 3$, $p_{\min} = 0{,}125$), la règle~R1 lit depuis l'issue~\#125 le plancher Monte-Carlo (section~\ref{sec:nature}, point~(i))~: mesuré par \code{run\_engine()} à $\alpha = 0{,}10$, $p_{\min}^{\mathrm{MC}} = 0{,}096$ à $B = 999$ (graine 20260831), et la ligne reste un test, de verdict \code{ALERTE}, \code{ECHEC} dit inatteignable, avec la phrase de l'issue~\#244~; $0{,}10$ à $B = 99$, et elle est un test inopérant. La bascule dépend donc des réplications tirées, sans marge (décision D1-8). Jusqu'à l'issue~\#125, la règle lisait $p_{\min}$ et la ligne était inopérante (décision du mainteneur du 6~octobre 2026). Puissance non étudiée à $T = 8$. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}086$ (N), $0{,}081$ (E), $0{,}084$ (A), pour $\rho = 0{,}086$~; à $0{,}05$, $0{,}0455$, $0{,}041$, $0{,}040$ ($\rho = 0{,}043$, $0{,}040$, $0{,}043$)~; compatible sous les trois lois et aux deux seuils. La référence est inférieure à $\alpha$ par discrétude de la statistique (83 à 86 valeurs distinctes dans l'échantillon oracle selon la loi, atome le plus lourd de masse $0{,}100$ à $0{,}105$).
 
 \textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi binomiale indépendante de Mack, non sous le modèle de Mack~; plancher~: exact, fonction de $B$. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
 \end{fiche}
@@ -12997,7 +13207,7 @@ d'indépendance et d'identité de distribution. Limite structurelle~: les groupe
 sont très déséquilibrés, la première ligne comptant $J - 1$ résidus (six sur le triangle de
 contrôle, $J = 7$) et la dernière un seul.
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} $7!\prod_i n_i!/27! = 8{,}29\cdot 10^{-15}$ sur le triangle de contrôle ($k = 7$ années de survenance de $n_i = 6, 6, 5, 4, 3, 2, 1$ résidus, $N = 27$~; \code{.mw\_kruskal\_p\_min()}, issue~\#115, décision du mainteneur du 6~octobre 2026), par la forme close de la rubrique~4. Valeur exacte sous la loi de référence échangeable, qui n'est pas celle du modèle de Mack~: elle ne borne pas la p-value retenue. Non attribuée (\code{NA}, motif dans le commentaire) avec un ex \ae quo des résidus aplatis, ou si la valeur sort de la précision de la machine. La p-value retenue est de Monte-Carlo (clé \code{KruskalAcc}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est le seul plancher établi de la p-value retenue.
+\textbf{p-value minimale à $T = 8$.} $7!\prod_i n_i!/27! = 8{,}29\cdot 10^{-15}$ sur le triangle de contrôle ($k = 7$ années de survenance de $n_i = 6, 6, 5, 4, 3, 2, 1$ résidus, $N = 27$~; \code{.mw\_kruskal\_p\_min()}, issue~\#115, décision du mainteneur du 6~octobre 2026), par la forme close de la rubrique~4. Valeur exacte sous la loi de référence échangeable, qui n'est pas celle du modèle de Mack~: elle ne borne pas la p-value retenue. Non attribuée (\code{NA}, motif dans le commentaire) avec un ex \ae quo des résidus aplatis, ou si la valeur sort de la précision de la machine. La p-value retenue est de Monte-Carlo (clé \code{KruskalAcc}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est le plancher arithmétique de la p-value retenue~; depuis l'issue~\#125, la règle~R1 lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$, minimum exact de cette p-value sur les réplications tirées, aux extrémités du support observé (section~\ref{sec:nature}, point~(i)), égal à ce plancher sur \code{reserve2} ($0{,}001$).
 
 \textbf{Table.} Tableau~\ref{tab:pmin}, partie Merz--Wüthrich.
 
@@ -13070,11 +13280,11 @@ MSEP, qui suppose que les erreurs de projection ne se cumulent pas. Limite~: sur
 un triangle $8\times8$, seules quatre paires de colonnes comptent au moins
 trois facteurs (rubrique~7), ce qui rend le test très peu puissant.
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} $2/(6!\,5!\,4!\,3!) = 2/12\,441\,600 = 1{,}61\cdot 10^{-7}$ sur le triangle de contrôle (quatre paires de $n_k = 6, 5, 4, 3$ facteurs~; \code{.mw\_corr\_p\_min()}, issue~\#115), par l'argument de chaîne de la rubrique~4. Valeur exacte sous la loi de référence échangeable, qui n'est pas celle du modèle de Mack~: elle ne borne pas la p-value retenue. Non attribuée (\code{NA}, motif dans le commentaire) avec un ex \ae quo dans une paire retenue. La p-value retenue est de Monte-Carlo (clé \code{CorrDev}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est le seul plancher établi de la p-value retenue.
+\textbf{p-value minimale à $T = 8$.} $2/(6!\,5!\,4!\,3!) = 2/12\,441\,600 = 1{,}61\cdot 10^{-7}$ sur le triangle de contrôle (quatre paires de $n_k = 6, 5, 4, 3$ facteurs~; \code{.mw\_corr\_p\_min()}, issue~\#115), par l'argument de chaîne de la rubrique~4. Valeur exacte sous la loi de référence échangeable, qui n'est pas celle du modèle de Mack~: elle ne borne pas la p-value retenue. Non attribuée (\code{NA}, motif dans le commentaire) avec un ex \ae quo dans une paire retenue. La p-value retenue est de Monte-Carlo (clé \code{CorrDev}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est le plancher arithmétique de la p-value retenue~; depuis l'issue~\#125, la règle~R1 lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$, minimum exact de cette p-value sur les réplications tirées, aux extrémités du support observé (section~\ref{sec:nature}, point~(i)), égal à ce plancher sur \code{reserve2} ($0{,}002$).
 
 \textbf{Table.} Tableau~\ref{tab:pmin}, partie Merz--Wüthrich.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Test inopérant au seuil $\alpha = 0{,}10$ sur tout triangle complet $5 \times 5$ (une paire de trois facteurs, $p_{\min} = 1/3$)~: ligne restituée en diagnostic, sans verdict (règle~R1 appliquée telle quelle aux lignes Merz--Wüthrich, décision du mainteneur du 6~octobre 2026, en attendant l'issue~\#125, section~\ref{sec:nature}). Puissance non étudiée à $T = 8$. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}0965$ (N), $0{,}0995$ (E), $0{,}088$ (A), pour $\rho = 0{,}098$~; à $0{,}05$, $0{,}0515$, $0{,}052$, $0{,}044$ ($\rho = 0{,}048$)~; compatible sous les trois lois et aux deux seuils.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ ($p_{\min}^{\mathrm{MC}} = 0{,}002$ sur \code{reserve2}). Test inopérant au seuil $\alpha = 0{,}10$ sur le sous-triangle $5 \times 5$ du triangle de contrôle (une paire de trois facteurs, $p_{\min} = 1/3$, $p_{\min}^{\mathrm{MC}} = 0{,}33$ par \code{run\_engine()}, $B = 999$)~: ligne restituée en diagnostic, sans verdict (règle~R1 lue depuis l'issue~\#125 sur le plancher Monte-Carlo, section~\ref{sec:nature}~; elle lisait auparavant $p_{\min}$, qui rendait la ligne inopérante sur tout triangle complet $5 \times 5$, décision du mainteneur du 6~octobre 2026). Puissance non étudiée à $T = 8$. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}0965$ (N), $0{,}0995$ (E), $0{,}088$ (A), pour $\rho = 0{,}098$~; à $0{,}05$, $0{,}0515$, $0{,}052$, $0{,}044$ ($\rho = 0{,}048$)~; compatible sous les trois lois et aux deux seuils.
 
 \textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi de référence échangeable, non sous le modèle de Mack~; plancher~: exact, fonction de $B$. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
 \end{fiche}
@@ -13151,11 +13361,11 @@ Test non paramétrique robuste, sensible aussi bien au regroupement qu'à
 l'alternance excessive des signes. Sa lecture souffre, comme celle de
 Durbin--Watson, du caractère conventionnel de l'ordre de parcours.
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} \code{runs\_p\_min(13, 13)} $= 3{,}85\cdot 10^{-7}$ sur le triangle de contrôle ($n_1 = n_2 = 13$, effectifs de \code{.runs\_effectifs()}~; champ \code{p\_min} de la ligne depuis l'issue~\#115, auparavant valeur indicative non portée par le moteur), sous la loi combinatoire de Swed et Eisenhart, avec le doublement. Valeur exacte sous cette loi de référence échangeable, qui n'est pas celle des résidus de Mack (rubrique~4)~: elle ne borne pas la p-value retenue. La p-value retenue est de Monte-Carlo (clé \code{Runs}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est le seul plancher établi de la p-value retenue.
+\textbf{p-value minimale à $T = 8$.} \code{runs\_p\_min(13, 13)} $= 3{,}85\cdot 10^{-7}$ sur le triangle de contrôle ($n_1 = n_2 = 13$, effectifs de \code{.runs\_effectifs()}~; champ \code{p\_min} de la ligne depuis l'issue~\#115, auparavant valeur indicative non portée par le moteur), sous la loi combinatoire de Swed et Eisenhart, avec le doublement. Valeur exacte sous cette loi de référence échangeable, qui n'est pas celle des résidus de Mack (rubrique~4)~: elle ne borne pas la p-value retenue. La p-value retenue est de Monte-Carlo (clé \code{Runs}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est le plancher arithmétique de la p-value retenue~; depuis l'issue~\#125, la règle~R1 lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$, minimum exact de cette p-value sur les réplications tirées, aux extrémités du support observé (section~\ref{sec:nature}, point~(i)), égal à ce plancher sur \code{reserve2} ($0{,}002$).
 
 \textbf{Table.} Tableau~\ref{tab:pmin}, partie Merz--Wüthrich.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Sur le sous-triangle $5 \times 5$ du triangle de contrôle ($n_1 = n_2 = 4$, $p_{\min} = 4/70 = 0{,}0571$), la ligne reste un test à $\alpha = 0{,}10$, et son commentaire dit que l'\code{ECHEC} est possible, la p-value retenue de Monte-Carlo pouvant être inférieure à $p_{\min}$ (règle~R1, section~\ref{sec:nature}). Puissance non étudiée à $T = 8$. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}058$ (N), $0{,}0525$ (E), $0{,}051$ (A), pour $\rho = 0{,}051$, $0{,}053$, $0{,}053$~; à $0{,}05$, $0{,}0275$, $0{,}0225$, $0{,}032$ ($\rho = 0{,}030$, $0{,}031$, $0{,}032$)~; compatible, sauf un écart mineur du côté conservateur sous E à $0{,}05$. La référence est inférieure à $\alpha$ par discrétude de la statistique (17 valeurs distinctes dans l'échantillon oracle de chaque loi, atome le plus lourd de masse $0{,}168$ à $0{,}177$), non par défaut de la procédure.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Sur le sous-triangle $5 \times 5$ du triangle de contrôle ($n_1 = n_2 = 4$, $p_{\min} = 4/70 = 0{,}0571$), la ligne reste un test à $\alpha = 0{,}10$~; depuis l'issue~\#125, la règle~R1 lit le plancher Monte-Carlo, $p_{\min}^{\mathrm{MC}} = 0{,}002 < \alpha/2$ (\code{run\_engine()}, $B = 999$), et le commentaire ne porte aucun texte de la règle~; il disait auparavant que l'\code{ECHEC} était possible (section~\ref{sec:nature}). Puissance non étudiée à $T = 8$. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}058$ (N), $0{,}0525$ (E), $0{,}051$ (A), pour $\rho = 0{,}051$, $0{,}053$, $0{,}053$~; à $0{,}05$, $0{,}0275$, $0{,}0225$, $0{,}032$ ($\rho = 0{,}030$, $0{,}031$, $0{,}032$)~; compatible, sauf un écart mineur du côté conservateur sous E à $0{,}05$. La référence est inférieure à $\alpha$ par discrétude de la statistique (17 valeurs distinctes dans l'échantillon oracle de chaque loi, atome le plus lourd de masse $0{,}168$ à $0{,}177$), non par défaut de la procédure.
 
 \textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi combinatoire, qui n'est pas celle des résidus de Mack~; plancher~: exact, fonction de $B$. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
 \end{fiche}
@@ -15397,15 +15607,17 @@ issue~\#89)~: protocole, taux et statuts à la fiche~\ref{mw:influence}.
 \subsection*{Tests structurellement inopérants à faible $T$}
 
 Le tableau ci-dessous recense les tests dont la validité ou le pouvoir de rejet dépend de $T$.
-Au sens de \code{CONTEXT.md}, un test est \emph{inopérant} lorsque sa plus petite p-value atteignable aux effectifs observés sous la loi de référence discrète échangeable, $p_{\min}$, atteint ou dépasse $\alpha$~: à $\hat\pi_t$ constant, où la p-value exacte est retenue, aucune donnée ne peut alors le faire rejeter~; à $\hat\pi_t$ variable, la bascule est maintenue sur cette même $p_{\min}$, qui ne borne pas la p-value de Monte-Carlo retenue (section~\ref{sec:nature}, issue~\#125). Depuis l'issue~\#44, le moteur calcule $p_{\min}$ pour les cinq lois
+Au sens de \code{CONTEXT.md}, un test est \emph{inopérant} lorsque sa plus petite p-value atteignable aux effectifs observés sous la loi de référence discrète échangeable, $p_{\min}$, atteint ou dépasse $\alpha$~: à $\hat\pi_t$ constant, où la p-value exacte est retenue, aucune donnée ne peut alors le faire rejeter~; à $\hat\pi_t$ variable, où la p-value retenue est de Monte-Carlo et où $p_{\min}$ ne la borne pas, la règle lit depuis l'issue~\#125 le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$, plus petite valeur que cette p-value peut prendre sur les réplications tirées (section~\ref{sec:nature}, point~(i))~; la bascule dépend alors des réplications tirées. Depuis l'issue~\#44, le moteur calcule $p_{\min}$ pour les cinq lois
 de référence discrètes (suites sur $z_t$ et sur $u_t$, Cox--Stuart, Smirnov, Mann--Kendall et
 Spearman), et, depuis l'issue~\#169, pour la loi de permutation unilatérale de la pente
 (\code{usp\_permutation\_pente()}, $1/T!$ sans ex \ae quo, fiche~\ref{fiche:student-pente}), et
 restitue en diagnostic, sans verdict, toute ligne inopérante (règle~R1,
 section~\ref{sec:nature})~; à $T = 8$ et $\alpha = 0{,}10$, sans ex \ae quo, seul Cox--Stuart
-l'est, et il l'est pour toute donnée. Depuis l'issue~\#115, la même règle s'applique à six vérifications
-de la méthode Merz--Wüthrich, sur une $p_{\min}$ qui ne borne jamais leur p-value retenue, de
-Monte-Carlo~; aucune n'est inopérante sur un triangle $8 \times 8$. Les valeurs de $p_{\min}$ de $T = 5$ à $T = 12$ et les seuils
+l'est, pour toute donnée à $\hat\pi_t$ constant et sur les deux jeux à $\hat\delta$ intérieur mesurés
+($p_{\min}^{\mathrm{MC}} = 0{,}149$ et $0{,}143$, fiche~\ref{fiche:cox-stuart}). Depuis l'issue~\#115, la
+même règle s'applique à six vérifications de la méthode Merz--Wüthrich, dont la p-value retenue est
+de Monte-Carlo, et, depuis l'issue~\#125, sur leur plancher Monte-Carlo~; aucune n'est inopérante
+sur le triangle $8 \times 8$ de contrôle. Les valeurs de $p_{\min}$ de $T = 5$ à $T = 12$ et les seuils
 de bascule à $\alpha = 0{,}10$ sont au tableau~\ref{tab:pmin}~; la rubrique~7 de chaque fiche de
 test en donne la lecture propre au test. Les autres entrées du tableau relèvent d'une approximation mal calibrée ou d'une
 définition impossible à faible $T$, non de l'inopérance.
@@ -15422,16 +15634,18 @@ $m \le 4$, donc pour $T \le 9$ sans ex \ae quo, et toujours à $T = 8$~: restitu
 (règle~R1)~; \code{ECHEC} atteignable seulement dès $T = 12$ (tableau~\ref{tab:pmin}). \\
 Corrélation entre années adjacentes et effet calendaire (Merz--Wüthrich) & $T \ge 6$ ($\alpha = 0{,}10$) &
 Sur un triangle $5 \times 5$, $p_{\min} = 1/3$ pour la corrélation (tout triangle complet) et
-$0{,}125$ pour l'effet calendaire (sous-triangle de contrôle)~: restitués en diagnostic (règle~R1,
-issue~\#115), alors que la p-value retenue, de Monte-Carlo, n'est pas bornée par $p_{\min}$
-(issue~\#125, tableau~\ref{tab:pmin}). \\
+$0{,}125$ pour l'effet calendaire (sous-triangle de contrôle)~; depuis l'issue~\#125, la règle~R1
+lit le plancher Monte-Carlo~: sur le sous-triangle de contrôle ($B = 999$), la corrélation est
+restituée en diagnostic ($0{,}33$) et l'effet calendaire reste un test ($0{,}096$~; inopérant à
+$B = 99$, plancher $0{,}10$~; tableau~\ref{tab:pmin}). \\
 Anscombe--Glynn & $T \ge 20$ & Non défini en-deçà~; marqué \code{INFO}. \\
 D'Agostino (asymétrie) & $T \ge 8$ & Non défini en-deçà~; à $T = 8$, niveau de la p-value normale légèrement libéral et puissance contre une loi exponentielle de $39~\%$ au seuil de 10~\%, $81~\%$ à $T = 20$ (constat~C4, fiche~\ref{fiche:dagostino-asymetrie}). \\
 Jarque--Bera & $T \ge 50$ & $b_2$ borné par $\approx T$~; convergence $\chi^2$ très lente. \\
 Ljung--Box / Box--Pierce & $T \ge 30$ & Approximation $\chi^2$ mal calibrée. \\
 Wald--Wolfowitz & $n_1,n_2 \ge 10$ & Approximation normale~; granularité de $R$ (loi exacte
 retenue, $p_{\min} = 0{,}057$ à $T = 8$~: \code{ECHEC} inatteignable à $\alpha = 0{,}10$ à
-$\hat\pi_t$ constant, possible à $\hat\pi_t$ variable, test inopérant à $\alpha \le 0{,}057$). \\
+$\hat\pi_t$ constant, selon le plancher Monte-Carlo à $\hat\pi_t$ variable, test inopérant à
+$\alpha \le 0{,}057$ à $\hat\pi_t$ constant). \\
 Breusch--Pagan / White & $T \ge 30$ & Convergence asymptotique lente. \\
 Rosner ESD & $T \ge 25$ & Valeurs critiques peu fiables en-deçà. \\
 Durbin--Watson & --- & Bornes invalides sur résidus de maximum de vraisemblance. \\
@@ -16056,7 +16270,13 @@ variance~; issue~\#90), de même qu'une anomalie de \code{.mw\_spearman\_loi\_ra
 rangs moyens des colonnes à ex \ae quo, et dont dépend aussi la $p_{\min}$ de l'homogénéité de
 $f_j$ et de l'exposant de variance~; \code{runs\_p\_min()}, qui fournit la
 $p_{\min}$ des suites dans les deux méthodes depuis l'issue~\#115, relève des fonctions communes
-aux deux dispositifs.
+aux deux dispositifs. Depuis l'issue~\#125, \code{engine\_p\_mc()} calcule en outre, pour les
+treize statistiques discrètes, le plancher Monte-Carlo lu par la règle~R1 dans \code{add()}, aux
+extrémités que déclare le champ \code{extremes} des deux catalogues~: une anomalie d'une fonction
+d'extrémités (\code{.runs\_extremes()}, \code{.mw\_fisher\_x\_max()}\ldots) n'atteint aucune
+p-value, mais peut changer le type d'une ligne (test ou test inopérant)~; \code{.runs\_z()} et
+\code{.mk\_z()}, partagées avec \code{test\_runs()} et \code{test\_mann\_kendall()}, atteindraient
+aussi la statistique observée.
 
 \noindent
 Cette hiérarchie explique l'ordre de vérification retenu lors du développement~:
