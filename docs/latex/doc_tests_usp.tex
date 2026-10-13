@@ -4839,9 +4839,12 @@ verdict sans la phrase n'en est pas plus sûr à cet égard. Près d'un seuil, l
 la graine~: sur le triangle de contrôle, la nullité de l'ordonnée à l'origine est \code{ALERTE} sur
 15 des vingt graines 20260831 à 20260850 (fiche~\ref{mw:m1a}, constat de simulation sur un seul
 triangle)~; fréquences sous $H_0$ de l'écart au seuil à la section~\ref{sec:calib-mc-mw}. La largeur de la bande étant
-proportionnelle à \code{err\_mc}, donc à $B^{-1/2}$, la fréquence de la phrase décroît en
-$1/\sqrt{B}$ quand $B$ croît, la densité de la p-value au voisinage du seuil étant fixée
-(argument élémentaire, sans référence). Mesuré sur les six cas de référence
+proportionnelle à \code{err\_mc}, donc à $B^{-1/2}$, la fréquence de la phrase sur un ensemble de
+jeux de données vaut, pour $B$ grand, environ $4\,f(s)\,\text{err}_{\text{mc}}(s)$, $f$ étant la
+densité en $s$, supposée continue et non nulle, de la p-value à $B$ infini sur ces jeux~: elle
+décroît alors en $1/\sqrt{B}$ (argument élémentaire, sans référence). Quand cette p-value a un
+atome voisin de $s$, la décroissance n'intervient qu'une fois la bande plus étroite que la
+distance de l'atome au seuil. Mesuré sur les six cas de référence
 (\code{tests/reference/})~: onze occurrences, toutes au seuil $\alpha = 0{,}10$, aucune à
 $\alpha/2$~: Breusch--Pagan original ($p = 0{,}090$, \code{err\_mc} $= 0{,}0091$, \code{ALERTE}) et
 homogénéité des dispersions par la médiane ($0{,}104$, $0{,}0097$, \code{OK}) sur chacun des cas
