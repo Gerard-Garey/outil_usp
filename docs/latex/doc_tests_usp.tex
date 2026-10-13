@@ -688,8 +688,8 @@ strictement positif (issue~\#215, fiche~\ref{fiche:student-constante}) \\
 \code{usp\_renvois()},\newline \code{.usp\_poser\_renvois()},\newline
 \code{USP\_TXT\_RENVOI\_CST},\newline \code{USP\_TXT\_RENVOI\_SV} & lignes de tests~; lignes de
 tests~; textes & repère de renvoi de chaque ligne (\code{NA} hors de la ligne de la constante en
-régime $\hat\pi_t$ constant)~; ajout, en fin de commentaire et de façon idempotente, des deux textes
-de renvoi croisé aux lignes de la constante et de Spearman ratio contre volume, selon la même
+régime $\hat\pi_t$ constant)~; ajout, en fin de commentaire (avant la phrase de l'issue~\#244, qui reste la dernière) et de
+façon idempotente, des deux textes de renvoi croisé aux lignes de la constante et de Spearman ratio contre volume, selon la même
 règle, en fin d'\code{usp\_tests()}~; textes du renvoi (issue~\#215,
 fiche~\ref{fiche:student-constante}, rubrique~6) \\
 \code{usp\_identifiabilite\_}\newline\code{pente()},\newline
@@ -775,7 +775,9 @@ motif non dégénéré et qu'une p non simulée existe, issue~\#181, §\ref{sec:
 \code{stop()} d'une p-value de Monte-Carlo absente sans motif d'indisponibilité et d'une
 \code{p\_min} associée à une p non simulée seule), restitution d'une ligne de test sans aucune p-value et mention du plancher
 de Monte-Carlo (issue~\#128), règle de verdict (seuil d'\code{ECHEC} des tests en sens «~rejeter~», constante
-\code{SEUIL\_ECHEC\_SENS\_REJETER} $= 0{,}30$, §\ref{sec:synthese}), refus d'une clé
+\code{SEUIL\_ECHEC\_SENS\_REJETER} $= 0{,}30$, §\ref{sec:synthese}), phrase
+\code{PHRASE\_VERDICT\_SENSIBLE\_MC} d'un verdict de Monte-Carlo à moins de deux erreurs de
+Monte-Carlo d'un seuil atteignable (issue~\#244, §\ref{sec:nature}), refus d'une clé
 Monte-Carlo absente du catalogue ou du bootstrap \\
 \code{usp\_simuler()} & \code{fit} & $T$ pertes $y_t$ simulées sous le modèle
 ajusté (ou sous le modèle contraint, pour \code{usp\_lr\_delta()}) \\
@@ -3669,6 +3671,11 @@ fini, loi sous un modèle auxiliaire, approximation normale d'une loi de rangs)~
 dégénéré et sans p-value exacte, la ligne devient un diagnostic si elle a une p non simulée,
 restituée sans être retenue, et reste un test sans p-value retenue sinon (section~\ref{sec:nature},
 point~(ii), où la raison est donnée pour chacune des trois voies).
+\emph{(b) p-value de Monte-Carlo retenue près d'un seuil} (issue~\#244)~: à moins de deux fois
+\code{err\_mc} d'un seuil atteignable de la règle des verdicts, le commentaire se termine par la
+phrase \code{PHRASE\_VERDICT\_SENSIBLE\_MC}, sans changement de p-value ni de verdict
+(section~\ref{sec:nature}, «~Verdict sensible à l'aléa de simulation~», où sont donnés la
+condition, les seuils retenus et ce que vaut ce signalement).
 
 \emph{p-value conditionnelle au régime de $\hat\delta$} (branche lognormale, issue~\#240,
 ADR~0014, variante V3h de la section~\ref{sec:calibration-mc}). Le régime de $\hat\delta$ est lu
@@ -4633,7 +4640,45 @@ nombre issu du bootstrap n'entrant dans le commentaire (issue~\#76), et ils se l
 \code{bootstrap\$granularite\_stat} et \code{bootstrap\$B\_effectif}. Mesuré sur un bootstrap
 forgé passé à \code{add()} (statistique bilatérale \code{DW}, $\alpha = 0{,}05$)~: la mention
 «~\code{ECHEC inatteignable}~» apparaît à $B_{\text{eff}} = 79$ ($2/80 = \alpha/2$) et disparaît à
-$B_{\text{eff}} = 80$. La détection
+$B_{\text{eff}} = 80$. \emph{Verdict sensible à l'aléa de simulation} (issue~\#244, décisions du
+mainteneur du 12~octobre 2026~; ADR~0003, annotation du 12~octobre 2026, point~3). Quand la p-value
+retenue d'une ligne de type test, sans verdict fourni, est une p-value de Monte-Carlo (du bootstrap
+ou calculée hors du catalogue, comme les permutations aléatoires de la pente), d'erreur
+\code{err\_mc} finie et non nulle, et qu'elle est à moins de deux fois \code{err\_mc} d'un seuil $s$
+de la règle des verdicts de la ligne ($|p - s| < 2\,\text{err}_{\text{mc}}$, inégalité stricte~;
+$s \in \{\alpha/2, \alpha\}$ en sens «~ne pas rejeter~», $s \in \{\alpha,
+\text{\code{SEUIL\_ECHEC\_SENS\_REJETER}}\}$ en sens «~rejeter~»), \code{add()} ajoute en dernier
+élément du commentaire la phrase fixe «~\code{verdict sensible a l'alea de simulation (p a moins
+de 2 erreurs de Monte-Carlo du seuil)}~» (constante \code{PHRASE\_VERDICT\_SENSIBLE\_MC}), après la
+mention du plancher et, dans la branche lognormale, après le renvoi croisé que
+\code{.usp\_poser\_renvois()} insère avant elle (issue~\#215). Seuls comptent les seuils
+\emph{atteignables}~: un seuil $s$ n'est retenu que si le plancher de la p-value est inférieur à
+$s$ --- le plancher Monte-Carlo \code{p\_min\_mc} dans la branche Monte-Carlo de la
+règle~R1 (point~(i), issue~\#125), la granularité $1/(B_{\text{eff}}+1)$ ou $2/(B_{\text{eff}}+1)$ sinon, aucun
+pour une p-value calculée hors du catalogue~---, la p-value ne pouvant franchir un seuil que son
+plancher rend infranchissable, et la dire sensible contredirait la mention «~\code{ECHEC
+inatteignable}~» de la même ligne. Ni la p-value, ni le verdict, ni aucun champ ne changent~; la
+phrase ne porte aucun nombre issu du bootstrap («~2~» est une constante de la règle, issue~\#76).
+Elle est exclue des diagnostics (test inopérant compris), des lignes non applicables, des
+verdicts fournis et des lignes dont la p-value exacte est retenue. \emph{Ce que vaut ce
+signalement.} C'est une règle d'avertissement, non un test~: $2\,\text{err}_{\text{mc}}$
+n'est pas un intervalle de confiance de la p-value sous $H_0$, mais l'ordre de grandeur de
+l'aléa de simulation de $\hat p_{\text{MC}}$ \emph{conditionnellement au modèle ajusté} pris pour
+vrai (section~\ref{sec:deuxerreurs})~; il ne dit rien de l'erreur d'approximation à $T = 8$, et un
+verdict sans la phrase n'en est pas plus sûr à cet égard. Près d'un seuil, le verdict dépend de
+la graine~: sur le triangle de contrôle, la nullité de l'ordonnée à l'origine est \code{ALERTE} sur
+15 des vingt graines 20260831 à 20260850 (fiche~\ref{mw:m1a}, constat de simulation sur un seul
+triangle)~; fréquences sous $H_0$ de l'écart au seuil à la section~\ref{sec:calib-mc-mw}. La largeur de la bande étant
+proportionnelle à \code{err\_mc}, donc à $B^{-1/2}$, la fréquence de la phrase décroît en
+$1/\sqrt{B}$ quand $B$ croît, la densité de la p-value au voisinage du seuil étant fixée
+(argument élémentaire, sans référence). Mesuré sur les six cas de référence
+(\code{tests/reference/})~: onze occurrences, toutes au seuil $\alpha = 0{,}10$, aucune à
+$\alpha/2$~: Breusch--Pagan original ($p = 0{,}090$, \code{err\_mc} $= 0{,}0091$, \code{ALERTE}) et
+homogénéité des dispersions par la médiane ($0{,}104$, $0{,}0097$, \code{OK}) sur chacun des cas
+\code{premium}, \code{premium\_ii6}, \code{premium\_net} et \code{reserve1}~; Grubbs sur
+\code{premium\_interieur} ($0{,}105$, $0{,}0097$, \code{OK})~; nullité de l'ordonnée à l'origine
+($0{,}085$, $0{,}0088$, \code{ALERTE}) et Breusch--Pagan ($0{,}103$, $0{,}0096$, \code{OK}) sur
+\code{reserve2}. La détection
 générique de dégénérescence ne voit qu'une loi simulée \emph{ponctuelle}~: elle n'aurait pas
 détecté la loi en mélange, à atome en la valeur observée, du centrage des résidus
 (fiche~\ref{fiche:centrage}), qui relève de la condition \code{degenere} du catalogue~; cette
@@ -4739,6 +4784,14 @@ nombre, indépendants et de même loi sous la loi conditionnelle au régime, l'e
 conditionnellement à $B_{\text{eff}}$, qui dépend des données. Elle reste en
 $\mathcal{O}(B_{\text{eff}}^{-1/2})$ et ne dit rien de l'erreur d'approximation à $T = 8$, qu'aucune
 théorie ne borne pour ce conditionnement (ADR~0014).
+
+\emph{Usage de \code{err\_mc} dans la restitution} (issue~\#244). Outre sa colonne, \code{err\_mc}
+sert à une seule règle, d'avertissement et non de test~: une p-value de Monte-Carlo retenue à
+moins de deux fois \code{err\_mc} d'un seuil atteignable de la règle des verdicts reçoit la phrase
+fixe \code{PHRASE\_VERDICT\_SENSIBLE\_MC} (section~\ref{sec:nature}, «~Verdict sensible à l'aléa de
+simulation~»). Cette phrase dit la sensibilité du verdict à l'aléa de simulation, à $B$ fixé et
+conditionnellement au modèle ajusté~; elle ne dit rien de l'erreur d'approximation en $T$, colonne
+de droite du tableau ci-dessus.
 
 À $\hat p = 1$ en queue haute ou basse --- toutes les réplications au-delà de la valeur
 observée, cas de la p-value de Monte-Carlo de Cox--Stuart sur le jeu de contrôle
@@ -6746,7 +6799,8 @@ constante, le repère «~\code{Independance ratio S/P vs volume}~» dans la colo
 d'\code{engine\_table\_tests()} quand la ligne Spearman de même variante est de type test avec une
 p-value exacte finie et que la constante n'est pas non applicable~; \code{NA} partout ailleurs, et
 pour toute ligne de la méthode Merz--Wüthrich. Selon la même règle, \code{.usp\_poser\_renvois()}
-ajoute en fin de commentaire le texte \code{USP\_TXT\_RENVOI\_CST} sur la ligne de la constante et
+ajoute en fin de commentaire, avant la phrase de l'issue~\#244 si la ligne la porte, le texte
+\code{USP\_TXT\_RENVOI\_CST} sur la ligne de la constante et
 \code{USP\_TXT\_RENVOI\_SV} sur la ligne Spearman, si bien que la colonne et les commentaires
 concordent par construction, même quand la règle~R1 ou~R3 bascule la ligne Spearman en
 diagnostic. Le repère n'est pas symétrique~: la ligne Spearman n'en porte pas. L'application
@@ -12173,7 +12227,10 @@ cette mesure. Sur le triangle de contrôle, la p-value de Monte-Carlo vaut
 $0{,}085$ ($B = 999$, graine 20260831, \code{ALERTE}), $0{,}095$ avant le redressement du vivier~;
 sur les vingt graines 20260831 à 20260850, de $0{,}078$ à $0{,}105$, \code{ALERTE} sur 15 graines
 (16 avant l'issue~\#46)~: ligne voisine du seuil, dont le verdict dépend de la graine
-indépendamment de l'issue (constat de simulation sur un seul triangle).
+indépendamment de l'issue (constat de simulation sur un seul triangle). Depuis l'issue~\#244, son
+commentaire le signale à la graine 20260831 par la phrase \code{PHRASE\_VERDICT\_SENSIBLE\_MC}
+($|0{,}085 - 0{,}10| < 2 \times 0{,}0088$~; section~\ref{sec:nature}, référence
+\code{reserve2}).
 
 \emph{Colonnes dégénérées dans le bootstrap.} L'ensemble des colonnes dégénérées (tolérance
 $10^{-12}$ relative, deux volets du prédicat) est déterminé sur le triangle observé et conservé dans chaque réplication,
@@ -14353,10 +14410,12 @@ moins une cellule aberrante dans 0 triangle sur 2\,000 sous N, 5 sur 2\,000 ($0{
 \emph{Voisinage du seuil} (tableau T4). La fréquence sous $H_0$ d'un écart
 $|p_{\mathrm{mc}} - \alpha|$ inférieur à deux fois \code{err\_mc} va, selon la statistique et la loi, de
 $0{,}009$ (Breusch--Pagan, N) à $0{,}0665$ (tendance avec le cumulé, E) à $\alpha = 0{,}10$, et
-de $0{,}001$ (Breusch--Pagan, A) à $0{,}049$ (tendance avec le cumulé, E) à $0{,}05$~: c'est la
-fréquence à laquelle se déclencherait, sous ce plan, le signalement d'une p-value voisine du
-seuil que propose l'issue~\#244, ouverte (une phrase dans le champ \code{detail}, sans changer ni
-p-value ni verdict).
+de $0{,}001$ (Breusch--Pagan, A) à $0{,}049$ (tendance avec le cumulé, E) à $0{,}05$~: c'est,
+sous ce plan, la fréquence de la phrase de l'issue~\#244 due au seul seuil $\alpha$ (phrase
+\code{PHRASE\_VERDICT\_SENSIBLE\_MC} du champ \code{detail}, sans changer ni p-value ni verdict,
+section~\ref{sec:nature}, «~Verdict sensible à l'aléa de simulation~»)~; au seuil par défaut $\alpha = 0{,}10$, la phrase compte
+aussi le seuil $\alpha/2 = 0{,}05$, dont la fréquence est celle de la colonne à $0{,}05$, et ne
+compte que les seuils atteignables.
 
 \emph{Historique.} Les versions antérieures de ce document citaient, à cette place, des
 fréquences de rejet mesurées sur 160 triangles $10\times10$ simulés sous le modèle de Mack, pour
@@ -14830,7 +14889,8 @@ de base \code{r} dans \code{usp\_tests()} \\
 Erreur de Monte-Carlo (§\ref{sec:deuxerreurs}) & champ \code{err\_mc} de \code{usp\_bootstrap()} et de
 \code{mw\_bootstrap()}, calculé par \code{engine\_p\_mc()}~: $\sqrt{\hat p(1-\hat p)/B_{\text{eff}}}$
 en queue haute ou basse, $\sqrt{\hat p(2-\hat p)/B_{\text{eff}}}$ au bilatéral~; pas élémentaire
-de $\hat p$, par statistique, dans \code{granularite\_stat} \\
+de $\hat p$, par statistique, dans \code{granularite\_stat}~; lue par \code{add()} pour la phrase
+\code{PHRASE\_VERDICT\_SENSIBLE\_MC} (issue~\#244) \\
 Jackknife, profils, rapport de vraisemblance & \code{usp\_jackknife()}, \code{usp\_profil()},
 \code{usp\_lr\_delta()} et \code{usp\_ajuster\_contraint()} (issue~\#45) \\
 Calibration et paramètre final & \code{usp\_parametre()}, \code{usp\_credibilite()} \\
