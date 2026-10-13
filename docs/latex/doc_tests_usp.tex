@@ -841,7 +841,7 @@ en dernier élément depuis l'issue~\#125, \code{p\_min\_mc}, plancher Monte-Car
 \code{stats\_obs}, \code{p\_mc}, \code{err\_mc},
 \code{B\_effectif}, \code{granularite}, \code{sigma\_boot}, \code{B}, \code{granularite\_stat},
 \code{motif\_mc}, depuis l'issue~\#257 \code{cumuls\_retires} (au moins un triangle simulé
-écarté et retiré) et \code{plafond\_cumuls} (plafond de \code{FACTEUR\_B\_MAX\_MW}$\,(B+1)$ triangles
+écarté et remplacé par un nouveau tirage) et \code{plafond\_cumuls} (plafond de \code{FACTEUR\_B\_MAX\_MW}$\,(B+1)$ triangles
 atteint avant $B$ triangles acceptés~: des réplications manquent), et, en dernier depuis
 l'issue~\#125, \code{p\_min\_mc} \\
 \code{usp\_tests()} & \code{fit}, \code{boot}, \code{alpha} (0,10),
@@ -3811,7 +3811,7 @@ phrase \code{PHRASE\_VERDICT\_SENSIBLE\_MC}, sans changement de p-value ni de ve
 condition, les seuils retenus et ce que vaut ce signalement).
 \emph{(c) Méthode Merz--Wüthrich, triangles simulés écartés et $B$ effectif inférieur à $B$}
 (issues~\#257 et~\#204)~: si des triangles simulés à cumul non strictement positif ont été
-écartés et retirés, le commentaire des lignes de Monte-Carlo de \code{mw\_tests()} porte la phrase fixe
+écartés et remplacés par un nouveau tirage, le commentaire des lignes de Monte-Carlo de \code{mw\_tests()} porte la phrase fixe
 \code{PHRASE\_MW\_CUMULS\_RETIRES}, suivie, si le plafond de tirages est atteint, de
 \code{PHRASE\_MW\_PLAFOND\_CUMULS}~; ces deux phrases ne portent aucun nombre issu du bootstrap
 («~\code{25 (B + 1)}~» est la formule du plafond). Si $B_{\text{eff}} < B$, la phrase
@@ -4102,7 +4102,7 @@ abandonne le rééchantillonnage des résidus et rend encore des cumuls nuls en 
 --- sont comparées dans la spécification de la branche
 (\code{docs/specifications/}\allowbreak\code{e2d-merz-wuthrich-replications-definitions.md}, §~2).
 \emph{Traçabilité}~: deux booléens, \code{bootstrap\$cumuls\_retires} (au moins un triangle
-simulé écarté et retiré) et \code{bootstrap\$plafond\_cumuls} (plafond atteint avant $B$ triangles
+simulé écarté et remplacé par un nouveau tirage) et \code{bootstrap\$plafond\_cumuls} (plafond atteint avant $B$ triangles
 acceptés~: des réplications manquent), et deux phrases fixes, sans nombre issu du bootstrap,
 jointes aux lignes de Monte-Carlo (fiche~\ref{mw:m1a}, rubrique~5)~; le nombre de triangles
 écartés n'est pas restitué. \emph{Effet.} Le triangle de contrôle, son sous-triangle
