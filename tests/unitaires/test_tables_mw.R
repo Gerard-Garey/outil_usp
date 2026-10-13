@@ -5,7 +5,10 @@
 #  Depuis #239 : (a) mw_test_exposant_variance() et
 #  mw_test_homogeneite_accident() recoivent les residus de Mack du contexte
 #  .mw_contexte_mc() (argument res) au lieu de rappeler mw_residus() ;
-#  (b) HomogF et ExpVar tirent rho et p d'un seul cor.test() (.mw_spearman()) ;
+#  (b) HomogF et ExpVar tirent rho et p d'un seul cor.test() (.mw_spearman()),
+#  sauf sur le chemin enumere avec ex aequo (n <= 9), ou cor.test() n'est
+#  plus appele depuis #260 : rho y est calcule par cor(rank(a), rank(b)),
+#  formule de cor.test() ;
 #  (c) les tables de mw_residus(), mw_test_annees_calendaires(),
 #  mw_test_ordonnee_origine(), mw_test_homogeneite_f(), mw_test_courbure(),
 #  mw_famille_alpha() et mw_test_exposant_variance() sont assemblees une
@@ -601,6 +604,122 @@ verifier("do.call(rbind, blocs) rend d'autres noms que rbind() itere sur au moin
              !identical(attr(a, "row.names"), attr(b, "row.names"))
            }, logical(1)))
            if (n > 0L) TRUE else "aucun ecart entre les deux formes"
+         })
+
+# --- mw_influence() et .mw_pool_residus() contre leur forme de a3d68b7 (#260) --
+# Depuis #260 (points 2 et 3) : la somme des autres cellules d'une colonne est
+# calculee par l'utilitaire unique .mw_sommes_autres(), partage par
+# .mw_pool_residus() (une fois par colonne au lieu d'une fois par residu) et
+# mw_influence() ; mw_influence() empile ses blocs par .mw_empiler() au lieu
+# d'un rbind() itere. Reference : les deux fonctions copiees du moteur au
+# commit a3d68b7 (commentaires retires), evaluees dans un environnement dedie
+# dont le parent est celui du moteur. Critere : identite au bit pres, ordre des
+# attributs compris (meme()), valeur ou message d'erreur. Jeux : le triangle
+# du cas reserve2, sans noms et aux dix jeux de noms de lignes du test #239
+# ci-dessus (noms manquants compris : erreur, comparee par son message) ; ce
+# triangle a ligne 0 dominante (x 10^10, 10^17, 10^30) ; ta_deg, ta_bruit,
+# tri_deg ; les triangles minimaux 2 x 2 a 4 x 4 ; les douze triangles tires
+# (TIRAGES). Pool compare avec j_degeneres calcule (NULL) et fige a l'observe
+# (.mw_colonnes_degenerees()), comme dans mw_bootstrap().
+ANCIEN_A3D68B7 <- new.env(parent = environment(mw_ajuster))
+local({
+  .mw_pool_residus <- function(aj, j_degeneres = NULL) {
+    res <- mw_residus(aj, j_degeneres)
+    if (!nrow(res)) return(numeric(0))
+    un_moins_h <- vapply(seq_len(nrow(res)), function(k) {
+      col <- aj$tri[seq_len(aj$I - res$j[k]), res$j[k] + 1]
+      sum(col[-(res$i[k] + 1)]) / sum(col)
+    }, numeric(1))
+    pool <- res$residu / sqrt(un_moins_h)
+    pool - mean(pool)
+  }
+  mw_influence <- function(aj) {
+    I <- aj$I; J <- aj$J; tri <- aj$tri
+    jd <- .mw_j_exclues(aj, NULL)
+    out <- data.frame()
+    for (j in 0:(J - 1)) {
+      idx <- 0:(I - j - 1)
+      if (length(idx) < 2) next
+      Cij <- tri[idx + 1, j + 1]; Cij1 <- tri[idx + 1, j + 2]
+      Sj <- sum(Cij); Sj1 <- sum(Cij1)
+      h <- Cij / Sj
+      S_sans <- vapply(seq_along(Cij), function(k) sum(Cij[-k]), numeric(1))
+      S1_sans <- vapply(seq_along(Cij1), function(k) sum(Cij1[-k]), numeric(1))
+      f_sans <- S1_sans / S_sans
+      retenue <- is.finite(aj$sigma2[j + 1]) && aj$sigma2[j + 1] > 0 && !(j %in% jd)
+      ecart_f <- .mw_ecart_facteur_stable(Cij, Cij1)
+      resid <- if (retenue)
+        sqrt(Cij) * ecart_f / sqrt(aj$sigma2[j + 1])
+      else rep(NA_real_, length(idx))
+      n <- length(idx)
+      dfbetas <- rep(NA_real_, n)
+      non_borne <- rep(FALSE, n)
+      if (retenue && n >= 3) {
+        e <- Cij * ecart_f
+        un_moins_h <- S_sans / Sj
+        s2 <- sum(e^2 / Cij) / (n - 1)
+        if (is.finite(s2) && s2 > 0) {
+          s2_i <- vapply(seq_len(n), function(k)
+            sum(Cij[-k] * .mw_ecart_facteur_stable(Cij[-k], Cij1[-k])^2) / (n - 2),
+            numeric(1))
+          garde <- 1e2 * .Machine$double.eps * (n - 1) * s2
+          ok <- is.finite(s2_i) & s2_i > garde
+          non_borne <- is.finite(s2_i) & s2_i <= garde
+          dfbetas[ok] <- e[ok] * sqrt(Sj) / (Sj * un_moins_h[ok] * sqrt(s2_i[ok]))
+          dfbetas[!is.finite(dfbetas)] <- NA_real_
+        }
+      }
+      out <- rbind(out, data.frame(
+        i = idx, j = j, C = Cij, F = Cij1 / Cij,
+        levier = h, seuil_levier = 2 / length(idx),
+        f_chapeau = aj$f[j + 1], f_sans_cellule = f_sans,
+        dfbeta_relatif = -Cij * ecart_f / S_sans / aj$f[j + 1],
+        residu = resid,
+        dfbetas = dfbetas, repere_dfbetas = REPERE_DFBETAS_MW / sqrt(n),
+        dfbetas_non_borne = non_borne,
+        stringsAsFactors = FALSE))
+    }
+    dfb <- out$dfbetas; rep_dfb <- out$repere_dfbetas; nb <- out$dfbetas_non_borne
+    out$dfbetas <- NULL; out$repere_dfbetas <- NULL; out$dfbetas_non_borne <- NULL
+    out$fort_levier <- out$levier > out$seuil_levier
+    out$dfbetas <- dfb
+    out$repere_dfbetas <- rep_dfb
+    out$fort_dfbetas <- !is.na(out$dfbetas) & abs(out$dfbetas) > out$repere_dfbetas
+    out$dfbetas_non_borne <- nb
+    out
+  }
+}, envir = ANCIEN_A3D68B7)
+# Ecarts sur un triangle t : vecteur des fonctions en ecart, vide si tout est
+# identique (ajustement refuse : rien a comparer, compte a part).
+ecarts_260 <- function(t, etiquette) {
+  aj <- tryCatch(mw_ajuster(t), error = function(e) NULL)
+  if (is.null(aj)) return(character(0))
+  jd <- tryCatch(.mw_colonnes_degenerees(aj), error = function(e) NULL)
+  c(if (!meme(capturer(mw_influence, list(aj)), capturer(ANCIEN_A3D68B7$mw_influence, list(aj))))
+      paste(etiquette, ": mw_influence"),
+    if (!meme(capturer(.mw_pool_residus, list(aj)), capturer(ANCIEN_A3D68B7$.mw_pool_residus, list(aj))))
+      paste(etiquette, ": .mw_pool_residus"),
+    if (!is.null(jd) && !meme(capturer(.mw_pool_residus, list(aj, jd)),
+                              capturer(ANCIEN_A3D68B7$.mw_pool_residus, list(aj, jd))))
+      paste(etiquette, ": .mw_pool_residus (jd fige)"))
+}
+verifier("mw_influence() et .mw_pool_residus() : identiques a la forme de a3d68b7, noms, cellule dominante et colonnes degenerees compris (#260)",
+         {
+           noms <- list(paste0("a", 1:8), as.character(1:8), as.character(0:7),
+                        c("a", "a1", "a2", "a11", "b", "a3", "a21", "a12"),
+                        c("x", "x", "y", "z", "u", "v", "w", "t"),
+                        c("", "", "", "", "", "", "", ""), c("", "b", "c", "d", "e", "f", "g", "h"),
+                        c("", "1", "2", "11", "21", "3", "4", "5"), c("1", "11", "12", "111", "2", "21", "3", "31"),
+                        c(NA, "b", "c", "d", "e", "f", "g", "h"))
+           jeux <- c(list(reserve2 = tri_ref),
+                     stats::setNames(lapply(noms, function(nm) { t <- tri_ref; rownames(t) <- nm; t }),
+                                     paste("noms", seq_along(noms))),
+                     stats::setNames(lapply(c(10, 17, 30), function(e) { t <- tri_ref; t[1, ] <- t[1, ] * 10^e; t }),
+                                     paste("ligne 0 x 10 ^", c(10, 17, 30))),
+                     list(ta_deg = ta_deg, ta_bruit = ta_bruit, tri_deg = tri_deg,
+                          "2 x 2" = tri_ref[1:2, 1:2], "3 x 3" = tri_ref[1:3, 1:3], "4 x 4" = tri_ref[1:4, 1:4]),
+                     stats::setNames(TIRAGES, paste("tirage", seq_along(TIRAGES))))
+           resultat(unlist(lapply(names(jeux), function(nm) ecarts_260(jeux[[nm]], nm))))
          })
 
 fin_fichier()
