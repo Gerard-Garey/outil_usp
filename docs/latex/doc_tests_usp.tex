@@ -4747,14 +4747,18 @@ dans ce cas, et le document le dit des trois~: \emph{(a)} aucune p-value exacte 
 ligne (sinon elle serait retenue)~; \emph{(b)} la p-value de Monte-Carlo manque, pour un motif
 posé par \code{engine\_p\_mc()} ou par le catalogue, jamais deviné~; \emph{(c)} la p non simulée
 n'a de validité établie à $T = 8$ sous le modèle réglementaire dans aucune de ses quatre familles
-(encadré ci-dessus)~: une loi limite ignore l'estimation des paramètres et sa vitesse de
-convergence n'est pas établie à $T = 8$~; une approximation à $n$ fini suppose des observations
+(encadré ci-dessus)~: une loi limite ne décrit la statistique que quand $T \to \infty$~: elle néglige les termes
+d'ordre fini, dont l'effet de l'estimation des paramètres à $T = 8$, et, pour la loi de
+Kolmogorov appliquée à des résidus, l'estimation elle-même~; aucune vitesse de convergence n'est
+établie à $T = 8$ sous le modèle réglementaire (tableau~\ref{tab:conv})~; une approximation à $n$ fini suppose des observations
 i.i.d. normales, que $z_t = P\varepsilon$ n'est pas à $\hat\pi_t$ variable, et, pour
 Anderson--Darling et Cramér--von Mises, porte sur la statistique re-standardisée (\code{estim},
 règle~R6), non sur la statistique \code{stat} de la p-value de Monte-Carlo~; une loi sous un
 modèle auxiliaire gaussien est contredite par les hypothèses H2 et H3, ou, en Merz--Wüthrich,
-par la dépendance des colonnes~; l'approximation normale d'une loi de rangs n'intervient qu'à
-$\hat\pi_t$ variable, où la loi échangeable elle-même est fausse. Mesuré à $T = 8$ sur deux
+par la dépendance des colonnes~; l'approximation normale d'une loi de rangs approche, là où elle
+intervient, une loi de référence échangeable qui n'est pas celle du modèle~: à $\hat\pi_t$ variable
+en méthode lognormale (à $\hat\pi_t$ constant, la p-value exacte existe et est retenue), et sur les
+résidus de Mack, non échangeables, en Merz--Wüthrich (suites, effet calendaire). Mesuré à $T = 8$ sur deux
 jeux, à $B = 999$, l'écart entre la p non simulée et la p-value de Monte-Carlo changerait des
 verdicts dans les deux sens si la première était retenue (Breusch--Pagan 1979~: $0{,}144$ contre $0{,}090$~; Brown--Forsythe~: $0{,}091$
 contre $0{,}104$~; Goldfeld--Quandt sur le jeu à $\hat\delta$ intérieur~: $0{,}443$ contre
