@@ -420,3 +420,19 @@ Les verdicts sont déduits de la règle d'`add()` (sens « ne pas rejeter », α
 - **D1-11 — Remesure des tableaux de J1 et J2 (Q-E2e-8).** *Recommandation* : **oui**, une issue à créer sur accord. Titre : « mesure: remesurer sous le moteur courant (V3h, p_min_mc) le volet B de puissance_t8.R (J1, J2) ». Libellés `enhancement`, `needs-triage`. J2 est nécessaire et J1 se fait dans le même passage ; après R14 ; branche décidée à la clôture d'E2e. *Alternative* : documenter seulement les tableaux comme datés (V1, avant #125), ce qui n'est pas suffisant pour le dossier.
 - **D1-12 — QA1.** *Recommandation* : aucune action ; la sélection propre à chaque ajusteur est la bonne quantité.
 - **D1-13 — QA2 (#267).** *Recommandation* : la reformulation préserve l'objet du contrôle, à condition de comparer à `mc3b` (graine du flux égale par construction) et de garder les champs non touchés par V3h, la lacune de J3 étant écrite ; #267 passe en `ready-for-agent`, et R14 peut s'ouvrir.
+
+---
+
+## Annotation du 13/10/2026 : décisions du mainteneur au point d'arrêt D1
+
+Toutes les décisions suivent les recommandations ci-dessus.
+- **D1-1 à D1-3 (#245)** : option (a) et colonne (A) ; aucune issue (b).
+- **D1-4 (#243)** : option (a).
+- **D1-5 à D1-8 (#269, #270)** : ensemble figé à l'observé, argument `j_non_identifiables`, élément `non_identifiables` et phrase fixe. Verdicts sur triangles construits approuvés (T1 ALERTE → ECHEC).
+- **D1-9** : issue séparée en F, **#273**.
+- **D1-10 (#256)** : puissance V3h citée à côté de V1, clé « non étudiée comme cible » remplacée.
+- **D1-11** : issue de remesure **#274**, après R14, branche décidée à la clôture d'E2e.
+- **D1-12** : aucune action.
+- **D1-13** : (i2) reformulé selon le § 8.3 ; #267 en `ready-for-agent` ; R14 peut s'ouvrir.
+
+Libellés posés le 13/10 : #245, #243, #269, #270 et #267 en `ready-for-agent`.
