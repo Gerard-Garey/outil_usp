@@ -12510,7 +12510,8 @@ phrases. \emph{Cas~A}, p-value de Monte-Carlo finie et $B_{\text{eff}} < B$~: «
 Monte-Carlo conditionnelle a la definition de la statistique, comptee sur les seules
 replications ou elle est finie~; l'absence de biais de cette selection n'est pas demontree.}~».
 \emph{Cas~B}, motif \code{MOTIF\_MC\_REPLIC\_INSUFFISANTES}~: «~\code{B effectif = \dots{} sur B =
-\dots.}~»~; la ligne est alors un diagnostic (section~\ref{sec:nature}, point~(ii), issue~\#181),
+\dots.}~»~; la ligne est alors un diagnostic si elle porte une p non simulée, un test sans p-value
+retenue sinon (Alpha, CorrDev, DW) (section~\ref{sec:nature}, point~(ii), issue~\#181),
 dont le commentaire commence par «~\code{Monte-Carlo indisponible~: \dots}~» et finit par cette
 phrase. Aucune phrase pour \code{MOTIF\_MC\_AUCUNE\_REPLIC} (le motif dit déjà $B_{\text{eff}} =
 0$), pour un motif de dégénérescence, ni pour les lignes lognormales. Les nombres sont lus dans
