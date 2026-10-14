@@ -3770,8 +3770,14 @@ engine_p_mc <- function(sim, obs, queue, extremes = NULL) {
 # E2b). Passee a add() par l'argument nature_as, sur les seules lignes sans
 # mc_nom de cette famille. Depuis #245 (lignes M5 de Merz-Wuthrich en
 # diagnostic, sans p retenue ni nature_p), sa seule ligne est l'aplatissement
-# d'Anscombe-Glynn (moments exacts), test a T >= 20 seulement. Le libelle dit
-# ce qu'est la p ; il ne dit pas que l'hypothese i.i.d. normale tient.
+# d'Anscombe-Glynn (moments exacts), test a T >= 20 seulement. La p non
+# simulee de D'Agostino (test_dagostino_skew() : transformation S_U de Johnson
+# ajustee sur les moments exacts de sqrt(b1)) releve aussi de cette famille,
+# mais sa ligne porte un mc_nom ("DAgo"), comme SW, SF, AD, CvM et Lilliefors :
+# depuis #181, la p non simulee d'une ligne a mc_nom n'est jamais retenue,
+# et ces lignes ne passent donc pas nature_as (portee de D1-3, specification
+# d'E2b ; #264). Le libelle dit ce qu'est la p ; il ne dit pas que
+# l'hypothese i.i.d. normale tient.
 NATURE_APPROX_N_FINI <- "approximation a n fini sous i.i.d. normal"
 
 # Phrase de sensibilite du verdict a l'alea de simulation (#244 ; ADR 0003
@@ -3789,6 +3795,24 @@ NATURE_APPROX_N_FINI <- "approximation a n fini sous i.i.d. normal"
 PHRASE_VERDICT_SENSIBLE_MC <- paste(
   "verdict sensible a l'alea de simulation",
   "(p a moins de 2 erreurs de Monte-Carlo du seuil)")
+
+# Jonction de deux textes de detail (#264) : fonction unique, appelee par
+# add() (regle R1, restitution d'effectifs, plancher Monte-Carlo, phrase de
+# #244), par mw_tests() (phrases de #257 et #204), par usp_tests() (joindre)
+# et par .usp_poser_renvois(). b vide -> a ; sinon a vide -> b ; sinon
+# a, puis " " si a finit par un point, " ; " sinon, puis b. Aucun trimws()
+# (les appelants gardent le leur) ; aucune majuscule apres un point (decision
+# d'actuary, #264) : b est un suffixe verbatim du resultat des qu'il est non
+# vide, invariant lu par .usp_poser_renvois() et R/display_helpers.R
+# (endsWith sur PHRASE_VERDICT_SENSIBLE_MC). Les lecteurs inverses
+# (.usp_poser_renvois(), R/display_helpers.R) retirent la jonction en dur :
+# toute evolution de cette regle les touche. .mw_avec_exclusion() suit une
+# autre regle (". ") et n'appelle pas cette fonction.
+.engine_joindre <- function(a, b) {
+  if (!nzchar(b)) return(a)
+  if (!nzchar(a)) return(b)
+  paste0(a, if (grepl("\\.$", a)) " " else " ; ", b)
+}
 
 # --- Enregistrement des lignes de resultat des tests --------------------------
 # Fonction unique, partagee par usp_tests() et mw_tests() (ADR 0003, point 2).
@@ -4049,8 +4073,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
             "atteignable sur ces replications >= alpha%s ; aucun verdict (ADR 0001)."),
             alpha, eff), " ", detail))
         } else if (identical(sens, "ne pas rejeter") && p_min_mc >= alpha / 2) {
-          sep <- if (!nzchar(detail)) "" else if (grepl("\\.$", detail)) " " else " ; "
-          detail <- trimws(paste0(detail, sep, sprintf(paste(
+          detail <- trimws(.engine_joindre(detail, sprintf(paste(
             "ECHEC inatteignable : plus petite p-value Monte-Carlo atteignable sur ces",
             "replications >= alpha/2 = %g%s"), alpha / 2, eff)))
         }
@@ -4063,7 +4086,6 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
                                         alpha, lib_pmin, p_min, eff),
                                 " ", detail))
       } else if (identical(sens, "ne pas rejeter") && p_min >= alpha / 2 && !aucune_p) {
-        sep <- if (!nzchar(detail)) "" else if (grepl("\\.$", detail)) " " else " ; "
         # Sans p exacte, la suite du texte suit la p Monte-Carlo retenue par
         # la hierarchie ci-dessous. Branche "p-value asymptotique retenue"
         # retiree (#181, ADR 0003 annote le 12/10/2026, point 2) : le cas
@@ -4076,7 +4098,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
             paste(" ; la p-value Monte-Carlo retenue, simulee sous le modele ajuste, peut",
                   "lui etre inferieure (erreur Monte-Carlo, non-echangeabilite) : ECHEC possible")
           else "")
-        detail <- trimws(paste0(detail, sep, txt_r1))
+        detail <- trimws(.engine_joindre(detail, txt_r1))
       }
     }
     # Restitution du motif de l'absence de p_min (#70, 5a) : pour un test
@@ -4085,8 +4107,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     # de la branche "ECHEC inatteignable". Les lignes non applicables ne sont
     # pas concernees.
     if (type == "test" && !is.finite(p_min) && !is.na(effectifs)) {
-      sep <- if (!nzchar(detail)) "" else if (grepl("\\.$", detail)) " " else " ; "
-      detail <- trimws(paste0(detail, sep, effectifs))
+      detail <- trimws(.engine_joindre(detail, effectifs))
     }
     # Test sans aucune p-value (#128, point 2') : type, verdict INFO, sens et
     # p_retenue = NA inchanges (decision du 27/09/2026, "Test sans p-value
@@ -4136,8 +4157,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
         sprintf("plancher Monte-Carlo >= alpha/2 = %g : ECHEC inatteignable", alpha / 2)
       else NULL
       if (!is.null(txt_g)) {
-        sep <- if (!nzchar(detail)) "" else if (grepl("\\.$", detail)) " " else " ; "
-        detail <- trimws(paste0(detail, sep, txt_g))
+        detail <- trimws(.engine_joindre(detail, txt_g))
       }
     }
     # Verdict Monte-Carlo proche d'un seuil (#244 ; ADR 0003 annote le
@@ -4164,8 +4184,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
       pl <- if (is.finite(p_min_mc)) p_min_mc else g_mc
       seuils <- seuils[is.na(pl) | pl < seuils]
       if (any(abs(p_mc - seuils) < 2 * e_mc)) {
-        sep <- if (!nzchar(detail)) "" else if (grepl("\\.$", detail)) " " else " ; "
-        detail <- trimws(paste0(detail, sep, PHRASE_VERDICT_SENSIBLE_MC))
+        detail <- trimws(.engine_joindre(detail, PHRASE_VERDICT_SENSIBLE_MC))
       }
     }
     # ADR 0001 (amendement du 23/09/2026, M7) : seule une ligne de type "test"
@@ -4746,9 +4765,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # alors celle d'avant #70 au bit pres.
   p_ex_si_pi_constant <- function(p) if (isTRUE(pi_constant)) p else NA_real_
   # Regle R8 (#70) : libelles des huit lignes selon le regime. Jonction de
-  # deux textes selon la regle de la branche "ECHEC inatteignable" de add() :
-  # " " apres un point final, " ; " sinon, rien si l'un des deux est vide.
-  joindre <- .usp_joindre
+  # deux textes par la fonction unique .engine_joindre() (#264), celle
+  # d'add() : " " apres un point final, " ; " sinon, rien si l'un des deux
+  # est vide.
+  joindre <- .engine_joindre
   txt_pi_variable <- paste("p exacte non attribuee : loi de reference exacte seulement",
                            "a pi_t constant (z = P epsilon non echangeable, r_t non",
                            "identiquement distribues).")
@@ -9376,8 +9396,8 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                                nature_mc = "Monte-Carlo (bootstrap de residus)")
   # Lignes Monte-Carlo (mc_nom renseigne, les 13 statistiques de
   # MW_CATALOGUE_MC) : la phrase de .mw_phrase_b_effectif() (#204) est jointe
-  # en fin du detail transmis a add(), avec la regle de jonction d'add()
-  # ("" si detail vide, " " apres un point, " ; " sinon). add() n'est pas
+  # en fin du detail transmis a add(), par la fonction de jonction d'add(),
+  # .engine_joindre() (#264 ; " " apres un point, " ; " sinon). add() n'est pas
   # modifiee ; ses ajouts (prefixe du motif, regle R1, plancher, #244) se
   # placent autour comme pour tout detail. Une statistique absente de
   # boot$p_mc n'appelle pas .mw_phrase_b_effectif() : le refus d'add()
@@ -9390,8 +9410,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
     if (!is.na(mc_nom) && mc_nom %in% names(boot$p_mc)) {
       ph <- trimws(paste(.mw_phrases_retirage(boot), .mw_phrase_b_effectif(boot, mc_nom)))
       if (nzchar(ph)) {
-        sep <- if (!nzchar(detail)) "" else if (grepl("\\.$", detail)) " " else " ; "
-        detail <- trimws(paste0(detail, sep, ph))
+        detail <- trimws(.engine_joindre(detail, ph))
       }
     }
     reg$add(..., mc_nom = mc_nom, detail = detail)
@@ -10948,16 +10967,6 @@ usp_renvois <- function(tests) {
   }, character(1), USE.NAMES = FALSE)
 }
 
-# Jonction de deux textes de detail (regle de la branche "ECHEC
-# inatteignable" de add()) : " " apres un point final, " ; " sinon, rien si
-# l'un des deux est vide. Partagee par usp_tests() (joindre) et
-# .usp_poser_renvois().
-.usp_joindre <- function(a, b) {
-  if (!nzchar(b)) return(a)
-  if (!nzchar(a)) return(b)
-  paste0(a, if (grepl("\\.$", a)) " " else " ; ", b)
-}
-
 # Textes du renvoi croise (#215, libelle d'actuary) : (a) sur la ligne
 # constante, (b) sur la ligne Spearman ratio / volume.
 USP_TXT_RENVOI_CST <- paste(
@@ -10985,21 +10994,21 @@ USP_TXT_RENVOI_SV <- paste(
 # (#244), qui reste le dernier element du detail (ADR 0003 annote le
 # 12/10/2026, point 3 ; constat C1 de l'audit de #244) : quand le detail
 # finit par elle, le renvoi est insere avant elle, chaque jonction suivant
-# .usp_joindre(). add() et engine_registre_tests() sont inchanges.
+# .engine_joindre(). add() et engine_registre_tests() sont inchanges.
 # Idempotent (point de vigilance (c) de l'ADR 0003) : un texte deja present
 # en fin de detail (avant la phrase de #244 le cas echeant) n'est pas ajoute
 # une seconde fois.
 .usp_poser_renvois <- function(L) {
   ajouter <- function(d, txt) {
-    if (!is.character(d) || length(d) != 1L || is.na(d)) return(.usp_joindre(d, txt))
+    if (!is.character(d) || length(d) != 1L || is.na(d)) return(.engine_joindre(d, txt))
     ph <- PHRASE_VERDICT_SENSIBLE_MC
     if (endsWith(d, ph)) {
       # base : detail sans la phrase ni sa jonction (" " ou " ; ", add()).
       base <- sub("( ; | )$", "", substr(d, 1L, nchar(d) - nchar(ph)))
       if (endsWith(base, txt)) return(d)
-      return(.usp_joindre(.usp_joindre(base, txt), ph))
+      return(.engine_joindre(.engine_joindre(base, txt), ph))
     }
-    if (endsWith(d, txt)) d else .usp_joindre(d, txt)
+    if (endsWith(d, txt)) d else .engine_joindre(d, txt)
   }
   rv <- usp_renvois(L)
   for (i in which(!is.na(rv))) {

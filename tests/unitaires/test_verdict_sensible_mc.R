@@ -199,7 +199,7 @@ verifier("Renvoi #215 : .usp_poser_renvois() idempotent avec la phrase de #244",
 # Jonction quand la base finit sans point (constat C3 de l'audit de #244) :
 # liste fictive (ligne constante et ligne Spearman de meme variante, p exacte
 # finie), detail de la ligne constante = "Texte ; " + phrase. La base "Texte"
-# est jointe au renvoi par " ; " (.usp_joindre()), le renvoi (fini par un
+# est jointe au renvoi par " ; " (.engine_joindre()), le renvoi (fini par un
 # point) a la phrase par " ".
 L215 <- list(list(test = "Nullite de la constante (proportionnalite stricte)", type = "test",
                   variante = "principale", detail = paste0("Texte ; ", PH)),
