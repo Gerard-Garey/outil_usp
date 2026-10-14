@@ -404,12 +404,15 @@ local({
 
 # =============================================================================
 # U7 -- B != 999, contre-implementation (copie declaree de rejouer_v1(complet
-# = TRUE) et de completer_v3b() de tests/p_conditionnelle_regime_t8.R,
-# l. 1776-1832, parametrees par B : B_cible = B, B_max = 25 (B + 1), graine
-# usp_graine_flux_regime(seed))
+# = TRUE), de completer_v3b() et de regime_tirage() de
+# tests/p_conditionnelle_regime_t8.R, parametrees par B : B_cible = B,
+# B_max = 25 (B + 1), graine usp_graine_flux_regime(seed) ; criteres de
+# completer_v3b() alignes sur le moteur par #280)
 # =============================================================================
 code_regime <- function(delta) if (delta >= 1 - TOL_DELTA_BORD) "bord1" else
   if (delta <= TOL_DELTA_BORD) "bord0" else "interieur"
+regime_tirage <- function(delta, x) if (!usp_regime(delta, x)$delta_au_bord) "interieur" else
+  if (delta >= 0.5) "bord1" else "bord0"
 rejouer_v1_u7 <- function(fit, graine, B, cat_ = USP_CATALOGUE_MC) {
   e_obs <- .usp_contexte_mc(fit$x, fit$y, fit$z, fit$pi)
   nm <- names(cat_)
@@ -448,8 +451,8 @@ completer_v3b_u7 <- function(fit, r_b, S_A, graine, B, cat_ = USP_CATALOGUE_MC) 
       tir <- tir + 1L
       yb <- usp_simuler(fit)
       f <- try(usp_ajuster_rapide(fit$x, yb, fit$delta, fit$gamma), silent = TRUE)
-      if (inherits(f, "try-error")) { cpt[["rapide"]] <- cpt[["rapide"]] + 1L; next }
-      if (code_regime(f$delta) != r_b) { cpt[["hors"]] <- cpt[["hors"]] + 1L; next }
+      if (inherits(f, "try-error") || !is.finite(f$delta)) { cpt[["rapide"]] <- cpt[["rapide"]] + 1L; next }
+      if (regime_tirage(f$delta, fit$x) != r_b) { cpt[["hors"]] <- cpt[["hors"]] + 1L; next }
       sb <- try(.mc_evaluer(cat_, .usp_contexte_mc(fit$x, yb, f$z, f$pi)), silent = TRUE)
       if (inherits(sb, "try-error")) { cpt[["stats"]] <- cpt[["stats"]] + 1L; next }
       nA <- nA + 1L

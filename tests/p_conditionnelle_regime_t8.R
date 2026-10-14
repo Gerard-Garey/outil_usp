@@ -130,8 +130,8 @@
 #         delta_boot, gamma_boot, sigma_boot_restreint, n_echec_restreint,
 #         z_boot) du rejeu complet (usp_ajuster_contraint() retabli), et
 #         rejeu complet identique au rejeu allege (P3 : memes statistiques
-#         simulees et memes delta**) ; p-value Monte-Carlo selon la variante
-#         que retient usp_bootstrap() depuis #240 (V3h ; critere du moteur,
+#         simulees et observees, memes delta**) ; p-value Monte-Carlo selon
+#         la variante que retient usp_bootstrap() depuis #240 (V3h ; critere du moteur,
 #         usp_regime()) : au bord ou a volumes constants, V1 (p_mc, err_mc,
 #         B_effectif, granularite_stat, motif_mc et, depuis #267, p_min_mc
 #         du rejeu complet ; p de V1 = p_mc) ; a delta chapeau*_b interieur
@@ -144,8 +144,10 @@
 #         seconde transcription rejeu_p_mc_v3h() de tests/outils_tests.R
 #         (#262 ; memes champs) ; pour (i2) seulement, motif_mc de mc3b
 #         recoit la substitution MOTIF_MC_REGIME_RARE du moteur (arret a
-#         B_max avec moins de B_MIN_DEGENERESCENCE retenus), mc3b restant
-#         inchange pour T1 ; libelles de (i2) : regime et variante comparee
+#         B_max avec moins de B_MIN_DEGENERESCENCE retenus ;
+#         substituer_motif_regime_rare() de tests/outils_tests.R, partagee
+#         avec rejeu_p_mc_v3h(), #280), mc3b restant inchange pour T1 ;
+#         libelles de (i2) : regime et variante comparee
 #         de chaque element de l'echantillon ; sur l'echantillon : jeu observe (J1, J2),
 #         premiere replication traitee et premiere replication interieure de
 #         la tranche ; J1 observe : p de la variante comparee (V1 au bord
@@ -157,13 +159,16 @@
 #         tirages de V1 dont delta** est au bord ne sont plus confrontees au
 #         moteur par (i2). Sur J1 et J2, (i1) couvre V1 au bit pres contre
 #         les valeurs brutes de #221 ; sur J3, rien ne la couvre.
-#         ECARTS DE CODE CONNUS (#267, par. 8.3, point 5) : completer_v3b()
-#         ne teste pas is.finite(f$delta) (un delta** non fini fait lever
-#         code_regime() : replication en erreur, refusee par --combiner,
-#         sans divergence silencieuse) et classe le regime par code_regime()
-#         et non par usp_regime() (memes seuils TOL_DELTA_BORD ; volumes
-#         constants ignores, d'ou le choix de branche de (i2) par
-#         usp_regime()) ;
+#         ECARTS DE CODE (#267, par. 8.3, point 5) : resorbes par #280.
+#         completer_v3b() ecarte comme le moteur un tirage a delta** non
+#         fini (compte dans cpt["rapide"], au lieu de faire lever
+#         code_regime() et de mettre la replication en erreur) et lit le
+#         regime d'un tirage par regime_tirage(), c'est-a-dire par
+#         usp_regime() (meme partition que code_regime() pour un delta fini,
+#         memes seuils TOL_DELTA_BORD). Restent hors du moteur, par
+#         construction de la mesure : V3b est calculee dans tous les
+#         regimes de delta*_b, bords compris, et sans egard aux volumes
+#         constants (d'ou le choix de branche de (i2) par usp_regime()) ;
 #    (i3) empreinte sans commentaires de R/engine.R (#231,
 #         empreinte_sans_commentaires()) egale a celle du (g5) du tableau de
 #         la grille (--grille, par defaut le plus recent
@@ -544,6 +549,14 @@ ic_cp <- function(k, n) if (n > 0) {
 txt_ic <- function(ci, d = 4) if (anyNA(ci)) "\u2014" else sprintf("[%s ; %s]", num(ci[1], d), num(ci[2], d))
 code_regime <- function(delta) if (delta >= 1 - TOL_DELTA_BORD) "bord1" else
   if (delta <= TOL_DELTA_BORD) "bord0" else "interieur"
+# Regime de delta** d'un tirage du flux de V3b, lu comme usp_bootstrap()
+# (#240, branche V3b et regime_obs) : interieur si usp_regime()$delta_au_bord
+# est faux, bord1 si delta >= 0,5, bord0 sinon ; delta fini (le tirage a
+# delta non fini est ecarte avant, comme dans le moteur). Meme partition que
+# code_regime() pour un delta fini (memes seuils TOL_DELTA_BORD) ; le
+# critere est celui du moteur depuis #280 (completer_v3b()).
+regime_tirage <- function(delta, x) if (!usp_regime(delta, x)$delta_au_bord) "interieur" else
+  if (delta >= 0.5) "bord1" else "bord0"
 md5_fichier <- function(f) if (is.na(f) || !file.exists(f)) "absent" else unname(tools::md5sum(f))
 chemin_cite <- function(f) {
   if (is.na(f) || !file.exists(f)) return(as.character(f))
@@ -2013,7 +2026,10 @@ rejouer_v1 <- function(fit, graine, cat_ = USP_CATALOGUE_MC, complet = FALSE, h1
 # Completion de V3b (par. 5) : S_A, statistiques des tirages de V1 retenus
 # dans le regime r_b ; flux sous graine ; p1 = TRUE : levier P1 (aucune
 # statistique hors regime) ; p1 = FALSE : statistiques a chaque tirage
-# reajuste (controle (s1)).
+# reajuste (controle (s1)). Criteres du moteur (usp_bootstrap(), branche
+# V3b ; #280) : un reajustement en echec ou a delta** non fini est compte
+# dans cpt["rapide"] (rejets_flux["reajustement"] du moteur), le regime du
+# tirage est lu par regime_tirage() (usp_regime()).
 completer_v3b <- function(fit, r_b, S_A, graine, cat_ = USP_CATALOGUE_MC, p1 = TRUE, h1 = FALSE) {
   nm <- names(cat_)
   S <- matrix(NA_real_, B_CIBLE, length(nm), dimnames = list(NULL, nm))
@@ -2025,9 +2041,9 @@ completer_v3b <- function(fit, r_b, S_A, graine, cat_ = USP_CATALOGUE_MC, p1 = T
       tir <- tir + 1L
       yb <- usp_simuler(fit)
       f <- try(usp_ajuster_rapide(fit$x, yb, fit$delta, fit$gamma), silent = TRUE)
-      if (inherits(f, "try-error")) { cpt[["rapide"]] <- cpt[["rapide"]] + 1L; next }
+      if (inherits(f, "try-error") || !is.finite(f$delta)) { cpt[["rapide"]] <- cpt[["rapide"]] + 1L; next }
       if (!p1) sb <- try(.mc_evaluer(cat_, .usp_contexte_mc(fit$x, yb, f$z, f$pi)), silent = TRUE)
-      if (code_regime(f$delta) != r_b) { cpt[["hors"]] <- cpt[["hors"]] + 1L; next }
+      if (regime_tirage(f$delta, fit$x) != r_b) { cpt[["hors"]] <- cpt[["hors"]] + 1L; next }
       if (h1) { ko_h1 <- c(ko_h1, confronter_p2(fit$x, yb, f$z, f$pi)); n_h1 <- n_h1 + 1L }
       if (p1) sb <- try(.mc_evaluer(cat_, .usp_contexte_mc(fit$x, yb, f$z, f$pi)), silent = TRUE)
       if (inherits(sb, "try-error")) { cpt[["stats"]] <- cpt[["stats"]] + 1L; next }
@@ -2101,7 +2117,12 @@ traiter <- function(x, y, b, ctl = list(complet = FALSE, h1 = FALSE), t2 = TRUE)
     ub <- usp_bootstrap(fit, B = B_BOOT, seed = g_boot)
     mcc <- .mc_p_values(rc$sim, rc$stats_obs, USP_CATALOGUE_MC, e_obs)
     # Champs que V3h (#240) ne touche pas : comparaison inchangee (P3 compris).
-    ch <- c(P3_sim = identical(rc$sim, rv$sim), P3_delta = identical(rc$delta, rv$delta),
+    # P3_sim : statistiques simulees ET observees des deux rejeux identiques,
+    # donc mc1 (rejeu allege) = mcc (rejeu complet) : la p de V1 n'est
+    # comparee a usp_bootstrap() qu'une fois, par mcc (#280, champ p_mc_V1
+    # retire).
+    ch <- c(P3_sim = identical(rc$sim, rv$sim) && identical(rc$stats_obs, rv$stats_obs),
+            P3_delta = identical(rc$delta, rv$delta),
             stats_obs = identical(as.list(rc$stats_obs), ub$stats_obs),
             vapply(c("sigma_boot", "delta_boot", "gamma_boot", "sigma_boot_restreint", "n_echec_restreint", "z_boot"),
                    function(k) identical(rc$boot[[k]], ub[[k]]), logical(1)))
@@ -2118,20 +2139,12 @@ traiter <- function(x, y, b, ctl = list(complet = FALSE, h1 = FALSE), t2 = TRUE)
       # plus, seconde transcription rejeu_p_mc_v3h() (tests/outils_tests.R,
       # #262) sur les memes tirages de V1.
       pr <- ub$p_mc_regime
-      # Copie locale pour (i2) seulement (avis d'actuary sur #267, Q1) : meme
-      # substitution du motif de regime interieur rare que usp_bootstrap()
-      # (R/engine.R, branche V3b) et rejeu_p_mc_v3h() (tests/outils_tests.R) :
-      # arret a B_max avec moins de B_MIN_DEGENERESCENCE tirages retenus (et
-      # B_CIBLE >= B_MIN_DEGENERESCENCE), seuls MOTIF_MC_REPLIC_INSUFFISANTES
-      # et MOTIF_MC_AUCUNE_REPLIC remplaces par MOTIF_MC_REGIME_RARE. mc3b
-      # reste inchange (il alimente T1 ; code_motif() n'a pas de code pour
-      # ce motif).
-      mc3b_i2 <- mc3b
-      if (v3$arret == "B_max" && v3$nA < B_MIN_DEGENERESCENCE && B_CIBLE >= B_MIN_DEGENERESCENCE) {
-        k <- !is.na(mc3b_i2$motif_mc) &
-          mc3b_i2$motif_mc %in% c(MOTIF_MC_REPLIC_INSUFFISANTES, MOTIF_MC_AUCUNE_REPLIC)
-        mc3b_i2$motif_mc[k] <- MOTIF_MC_REGIME_RARE
-      }
+      # Copie pour (i2) seulement (avis d'actuary sur #267, Q1) : substitution
+      # du motif de regime interieur rare de usp_bootstrap() (branche V3b),
+      # par substituer_motif_regime_rare() de tests/outils_tests.R, partagee
+      # avec rejeu_p_mc_v3h() (#280). mc3b reste inchange (il alimente T1 ;
+      # code_motif() n'a pas de code pour ce motif).
+      mc3b_i2 <- substituer_motif_regime_rare(mc3b, v3$arret, v3$nA, B_CIBLE)
       rh <- rejeu_p_mc_v3h(fit, rv$sim, rv$ok, rv$delta, rv$stats_obs, e_obs, B_BOOT, g_boot)
       ch <- c(ch, variante = identical(pr$variante, "V3b"),
               p_mc = identical(mc3b_i2$p_mc, ub$p_mc), err_mc = identical(mc3b_i2$err_mc, ub$err_mc),
@@ -2152,8 +2165,7 @@ traiter <- function(x, y, b, ctl = list(complet = FALSE, h1 = FALSE), t2 = TRUE)
     } else {
       # Au bord (ou volumes constants) : comparaison a V1, avec p_min_mc
       # (plancher Monte-Carlo, #125 ; avis d'actuary sur #267, Q2).
-      ch <- c(ch, p_mc = identical(mcc$p_mc, ub$p_mc),
-              p_mc_V1 = identical(mc1$p_mc, ub$p_mc), err_mc = identical(mcc$err_mc, ub$err_mc),
+      ch <- c(ch, p_mc = identical(mcc$p_mc, ub$p_mc), err_mc = identical(mcc$err_mc, ub$err_mc),
               B_effectif = identical(mcc$B_effectif, ub$B_effectif), granularite_stat = identical(mcc$granularite, ub$granularite_stat),
               motif_mc = identical(mcc$motif_mc, ub$motif_mc), p_min_mc = identical(mcc$p_min_mc, ub$p_min_mc))
       out$i2_var <- "V1"
