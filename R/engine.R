@@ -9679,16 +9679,17 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                      "que le seuil nominal (constat de simulation sous un plan). La p-value",
                      "est restituee pour information ; elle n'est pertinente que si l'on",
                      "souhaite exploiter la MSEP pour un quantile."))
+  D <- stat_lilliefors(r)
   add(fam, "Lilliefors sur les residus de Mack",
       fonction = "stat_lilliefors",
       "Lilliefors (1967) ; p-value : Dallal & Wilkinson (1986)",
       type = "diagnostic", variante = "secondaire",
       H0 = "les residus de Mack sont normaux", H1 = "loi non normale",
-      stat_nom = "D", stat = stat_lilliefors(r),
+      stat_nom = "D", stat = D,
       loi = "loi de Lilliefors sous echantillon i.i.d. normal (parametres estimes), non sous le modele de Mack",
       # Dallal-Wilkinson prolonge par Stephens (#120) ; nature_as retire
       # (#245) : sans effet sur une ligne sans verdict.
-      p_as = lillie_p(stat_lilliefors(r), n),
+      p_as = lillie_p(D, n),
       detail = paste("Diagnostic sans verdict (ADR 0001) : approximation de Dallal et",
                      "Wilkinson de la loi de D a n fini sous echantillon i.i.d. normal, que",
                      "les residus de Mack ne sont pas ; sous erreurs gaussiennes, elle",
