@@ -2001,7 +2001,7 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
                 "Quand la p Monte-Carlo manque, la p non simul\u00e9e n'est jamais retenue",
                 "\u00e0 sa place (ADR 0001) : sauf p exacte, la ligne ne porte aucune",
                 "p-value retenue.",
-                "La nature <b style='color:#6E2C00'>approx. n fini</b> (Lilliefors, Anscombe-Glynn)",
+                "La nature <b style='color:#6E2C00'>approx. n fini</b> (Anscombe-Glynn, T &gt;= 20)",
                 "est une p non simul\u00e9e qui approche la loi de la statistique \u00e0 n fini",
                 "sous \u00e9chantillon i.i.d. normal ; elle occupe le rang de l'asymptotique",
                 "sans \u00eatre une loi limite, et ne vaut que si cette hypoth\u00e8se tient.",

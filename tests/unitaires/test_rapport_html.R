@@ -167,7 +167,7 @@ verifier("Rapport : encadre de personnalisation avec le nombre de lignes du mote
 # Legende des natures du rapport fige (#120) : la nature "approx. n fini"
 # (NATURE_APPROX_N_FINI) y est nommee, dans la couleur de son badge.
 verifier("Rapport : legende des natures, nature 'approx. n fini' nommee dans la couleur du badge (#120)",
-         grepl("<b style='color:#6E2C00'>approx. n fini</b> (Lilliefors, Anscombe-Glynn)",
+         grepl("<b style='color:#6E2C00'>approx. n fini</b> (Anscombe-Glynn, T &gt;= 20)",
                principal, fixed = TRUE) &&
          grepl("color:#6E2C00", badge_nature(NATURE_APPROX_N_FINI), fixed = TRUE))
 # Legende de la hierarchie (#181) : rang de la p non simulee et absence de
