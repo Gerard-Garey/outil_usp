@@ -459,3 +459,7 @@ Ces changements sont à soumettre au mainteneur avec le tableau (Q-Fd-1). Les te
 - **Q-Fd-11 — Validation des changements de verdict hors références** (§ 5.1, sous-triangle 5 × 5 et transitions sous H0). *Recommandation* : approuver sur le tableau de la mesure versionnée (T5) et sur le tableau avant / après de l'étape 3.
 
 ---
+
+## Annotation du 14/10/2026 : décisions du mainteneur (point d'arrêt D1-Fd)
+
+Le mainteneur a tranché le 14/10/2026, avant l'ouverture de Fd, **Q-Fd-1 à Q-Fd-11 toutes selon les recommandations** de la présente spécification : queue basse pour Z sous réserve du critère K1 de la mesure versionnée (Q-Fd-1) ; mesure versionnée avant le code, scénario de compensation compris (Q-Fd-2) ; p asymptotique Φ(Z*) (Q-Fd-3) ; #275 en ligne de diagnostic propre avec sa fiche (Q-Fd-4) ; repère fixe de 10 % (`REPERE_DIAGONALE_MACK_1997`), indépendant de α (Q-Fd-5) ; diagonales repérées par k = i + j (Q-Fd-6) ; #268 refuse les noms de ligne `NA`, vides et en double, admet l'absence de noms (Q-Fd-7) ; deux régénérations de `reserve2`, une par issue qui change un résultat (Q-Fd-8) ; F1 seulement si le mainteneur fournit les PDF de Mack, F2 dans le passage `docwriter` (Q-Fd-9) ; issue « minimum par diagonale » à proposer après la remise ou en Ff (Q-Fd-10) ; changements de verdict hors références approuvés sur les tableaux de la mesure et de l'étape #276 (Q-Fd-11). Le point d'arrêt D1-Fd est levé ; l'arrêt D2-Fd (échec de K1) demeure.
