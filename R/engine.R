@@ -7913,9 +7913,15 @@ mw_residus <- function(aj, j_degeneres = NULL) {
 }
 
 # --- Test des effets d'annee calendaire (Mack) --------------------------------
-# Mack (1994), "Which stochastic model is underlying the chain ladder method ?",
-# Insurance: Mathematics and Economics 15, 133-138 ; repris dans Mack (1993),
-# ASTIN Bulletin 23(2), 213-225.
+# Mack (1994), "Measuring the variability of chain ladder reserve estimates",
+# CAS Forum, printemps 1994, 101-182, annexe H, p. 162-168 : procedure
+# d'origine (statistique globale Z, moments (H1) et (H2), regle normale), que
+# suivent cette fonction, .mack_moments_Z() et .mw_calendrier_p_min(). La
+# reimpression du Claims Reserving Manual, vol. 2, section D6 (1997), annexe H
+# revisee, p. D6.47-D6.51, teste chaque diagonale separement et n'est pas
+# retenue (decision Q-201-1 du mainteneur, 13/10/2026, issue #201). Ni Mack
+# (1994), Insurance: Mathematics and Economics 15, 133-138, ni Mack (1993),
+# ASTIN Bulletin 23(2), 213-225, ne contiennent ce test (issue #201).
 # Principe : dans chaque colonne j, les facteurs observes sont classes en
 # "grands" (L) et "petits" (S) par rapport a leur mediane ; sous H0 d'absence
 # d'effet calendaire, la repartition des L et des S le long de chaque diagonale
@@ -7986,7 +7992,10 @@ mw_test_annees_calendaires <- function(aj, j_degeneres = NULL) {
 }
 
 # --- Test de correlation entre annees de developpement adjacentes (Mack) -----
-# Mack (1997) / Mack (1993), ASTIN Bulletin 23(2). L'hypothese D(2)(h)(ii)
+# Mack (1994), CAS Forum, printemps 1994, annexe G (statistique T, moyenne
+# des correlations de Spearman ponderee), reprise dans le Claims Reserving
+# Manual, section D6 (1997), annexe G ; Mack (1993), ASTIN Bulletin 23(2), ne
+# contient pas ce test (issue #201). L'hypothese D(2)(h)(ii)
 # suppose les facteurs de developpement successifs non correles. On mesure la
 # correlation de rang de Spearman entre colonnes adjacentes, agregee sur le
 # triangle. La loi sous H0 dependant de la geometrie du triangle, la p-value
@@ -8817,9 +8826,9 @@ mw_test_homogeneite_accident <- function(aj, j_degeneres = NULL, res = NULL) {
 
 # Effet calendaire (bilateral) : sur chaque diagonale retenue (n_k >= 2),
 # L_k ~ Binomiale(n_k, 1/2), diagonales independantes, Z = somme min(L_k,
-# n_k - L_k). C'est la loi binomiale independante de Mack (1994), celle des
-# moments de .mack_moments_Z(), et NON la loi de permutation intra-colonne
-# (dans une colonne, le nombre de L est fixe par la mediane, ce qui lie les
+# n_k - L_k). C'est la loi binomiale independante de Mack (1994, CAS Forum,
+# annexe H), celle des moments de .mack_moments_Z(), et NON la loi de
+# permutation intra-colonne (dans une colonne, le nombre de L est fixe par la mediane, ce qui lie les
 # diagonales) : choix de la specification (#115 (b)2) ; la question Q1 de
 # l'audit, renvoyee a #125, est sans objet pour R1 depuis #125 (R1 lit la
 # loi simulee, p_min_mc) ; cette p_min reste restituee. Loi de Z par convolution exacte ; p_min = min sur
@@ -9388,7 +9397,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   ti <- .mw_lm_intra(res)
   add(fam, "Absence de tendance des facteurs avec le cumul, a colonne donnee",
       fonction = ".mw_lm_intra",
-      "Mack (1993), ASTIN Bulletin 23(2)",
+      "Mack (1993), ASTIN Bulletin 23(2), section 2, hyp. (1) ; section 3, hyp. (3)",
       H0 = "a annee de developpement donnee, le facteur ne depend pas du niveau de C(i,j)",
       H1 = "les facteurs varient avec le volume a l'interieur d'une colonne",
       stat_nom = "t", stat = if (!is.null(ti)) unname(ti[3]) else NA_real_,
@@ -9403,7 +9412,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   oo <- mw_test_ordonnee_origine(aj)
   add(fam, "Nullite de l'ordonnee a l'origine, colonne par colonne",
       fonction = "mw_test_ordonnee_origine",
-      "Mack (1993), ASTIN Bulletin 23(2), section 3",
+      "Mack (1993), ASTIN Bulletin 23(2), section 2, hyp. (1) ; section 3, hyp. (3) ; Mack (1994), CAS Forum, chap. 5",
       H0 = "a_j = 0 pour toute annee de developpement j",
       H1 = "au moins une colonne presente une composante fixe",
       stat_nom = "X de Fisher", stat = oo$stat,
@@ -9460,9 +9469,12 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
           "de linearite")),
         .mw_phrase_non_identifiable(cb)))
   al <- mw_famille_alpha(aj)
+  # Source des estimateurs ponderes (issue #201, decision Q-201-2) : Mack
+  # (1994), CAS Forum, chapitres 3 et 5 ; l'article de l'IME 15 (1994) ne
+  # les contient pas.
   add(fam, "Stabilite du facteur selon la ponderation (famille alpha)",
       fonction = "mw_famille_alpha",
-      "Mack (1994), Insurance: Mathematics and Economics 15",
+      "Mack (1994), CAS Forum (printemps), 101-182, chap. 3 et 5",
       H0 = "les estimateurs alpha = 0, 1 et 2 visent le meme f_j",
       H1 = "la valeur du facteur depend de la ponderation retenue",
       stat_nom = "amplitude relative", stat = al$stat,
@@ -9545,7 +9557,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                             "diagonales n_k", .mw_calendrier_p_min)
   add(fam, "Effets d'annee calendaire (test de Mack)",
       fonction = "mw_test_annees_calendaires",
-      "Mack (1994), Insurance: Mathematics and Economics 15, 133-138",
+      "Mack (1994), CAS Forum (printemps), 101-182, annexe H",
       H0 = "absence d'effet d'annee calendaire (diagonales homogenes)",
       H1 = "une ou plusieurs diagonales atypiques (inflation, changement de cadence)",
       stat_nom = "Z centre reduit", stat = cal$stat,
@@ -9581,7 +9593,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                             .mw_corr_p_min, isTRUE(cor$ex_aequo))
   add(fam, "Correlation entre annees de developpement adjacentes",
       fonction = "mw_stat_correlation_dev",
-      "Mack (1993, 1997), ASTIN Bulletin ; correlation de rang de Spearman",
+      "Mack (1994), CAS Forum (printemps), 101-182, annexe G ; correlation de rang de Spearman",
       H0 = "facteurs de developpement successifs non correles",
       H1 = "correlation entre colonnes adjacentes",
       stat_nom = "rho agrege", stat = cor$stat,
