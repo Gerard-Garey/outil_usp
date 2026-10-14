@@ -773,20 +773,24 @@ FONCTIONS_INDIRECTES <- ".fisher_combine"
 #   place dans un defaut d'argument (formals, hors du corps), un appel par
 #   un alias global (fc <- .fisher_combine, puis fc(p)), ni un appel depuis
 #   une fonction rangee dans une liste (catalogue Monte-Carlo) plutot que
-#   liee a un nom de env. Garde : appelants_textuels() cherche f dans
-#   deparse() de chaque fonction (formals compris) et de chaque liste de env
-#   (catalogues compris), et un alias de f (objet identique sous un autre
-#   nom) est cherche par identical() ; toute difference avec la lecture par
-#   all.names() arrete le script (stop()). Restent hors de la garde : un nom
-#   construit (paste0(".fisher_", "combine")) et un appel depuis un
-#   environnement autre que env. Deux autres limites : (a) seuls les
-#   appelants DIRECTS sont lus ; une fonction de ligne qui passe par une
-#   aide intermediaire (t() appelle h(), qui appelle f) sort du compte, et
-#   la concordance signale alors un ECART alors que le .tex peut etre juste
-#   (diagnostic a lire avec ce point) ; (b) la garde arrete aussi par exces
-#   quand f figure dans une chaine de caracteres ou dans un nom plus long
-#   (recherche litterale) : faux positif sans danger, a traiter le jour ou
-#   il survient (audit de la reprise de #232).
+#   liee a un nom de env. Garde : appelants_textuels() cherche le nom f,
+#   comme identificateur entier, dans deparse() de chaque fonction (formals
+#   compris) et de chaque liste de env (catalogues compris), et un alias de
+#   f (objet identique sous un autre nom, ou rangee dans une liste de env,
+#   a toute profondeur) est cherche par identical() (alias_dans()) ; toute
+#   difference avec la lecture par all.names() arrete le script (stop()).
+#   Restent hors de la garde : un nom construit (paste0(".fisher_",
+#   "combine")) et un appel depuis un environnement autre que env. Deux
+#   autres limites : (a) seuls les appelants DIRECTS sont lus ; une fonction
+#   de ligne qui passe par une aide intermediaire (t() appelle h(), qui
+#   appelle f) sort du compte, et la concordance signale alors un ECART
+#   alors que le .tex peut etre juste (diagnostic a lire avec ce point) ;
+#   (b) la garde arrete aussi par exces quand f figure dans une chaine de
+#   caracteres (recherche dans le texte deparse) : faux positif sans
+#   danger, a traiter le jour ou il survient (audit de la reprise de #232).
+#   Un nom plus long qui contient f (".fisher_combine2", "x.fisher_combine")
+#   n'arrete plus le script depuis #280 : f n'y est reconnu que borde par
+#   des caracteres hors de [A-Za-z0-9._], ceux d'un nom syntaxique R.
 appelants_directs <- function(env, f) {
   noms <- ls(env, all.names = TRUE)
   directs <- sort(Filter(function(n) {
@@ -795,7 +799,7 @@ appelants_directs <- function(env, f) {
   }, noms))
   textuels <- appelants_textuels(env, f)
   alias <- if (exists(f, envir = env, inherits = FALSE))
-    Filter(function(n) !identical(n, f) && identical(get(n, envir = env), get(f, envir = env)), noms)
+    Filter(function(n) !identical(n, f) && alias_dans(get(n, envir = env), get(f, envir = env)), noms)
   else character(0)
   if (length(alias) || !identical(directs, textuels))
     stop(sprintf(paste0("appelants_directs(\"%s\") : lecture par all.names(body()) [%s] differente de la ",
@@ -808,12 +812,26 @@ appelants_directs <- function(env, f) {
 }
 
 # Objets de env (fonctions et listes, f exclue) dont deparse() contient le
-# nom f (recherche litterale) ; noms tries. Garde de appelants_directs().
+# nom f comme identificateur entier : precede et suivi d'un caractere hors
+# de [A-Za-z0-9._] ou d'une extremite de ligne (#280 ; un nom plus long qui
+# contient f n'est pas un appel de f) ; noms tries. Garde de
+# appelants_directs().
 appelants_textuels <- function(env, f) {
+  motif <- paste0("(?<![A-Za-z0-9._])\\Q", f, "\\E(?![A-Za-z0-9._])")
   sort(Filter(function(n) {
     g <- get(n, envir = env)
-    !identical(n, f) && (is.function(g) || is.list(g)) && any(grepl(f, deparse(g), fixed = TRUE))
+    !identical(n, f) && (is.function(g) || is.list(g)) && any(grepl(motif, deparse(g), perl = TRUE))
   }, ls(env, all.names = TRUE)))
+}
+
+# Vrai si o est la fonction cible (identical()) ou une liste qui la contient,
+# a toute profondeur : alias de f sous un autre nom de env ou range dans une
+# liste (catalogue). deparse() d'une telle liste donne le corps de f, pas son
+# nom : appelants_textuels() ne le voit pas (#280). Garde de
+# appelants_directs().
+alias_dans <- function(o, cible) {
+  if (is.function(o)) return(identical(o, cible))
+  is.list(o) && any(vapply(o, alias_dans, logical(1), cible = cible))
 }
 
 # Fonctions declinees sur z_t et sur u_t (phrase "2 entrees chacune" du

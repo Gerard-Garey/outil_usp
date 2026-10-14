@@ -297,6 +297,23 @@ verifier("appelants_directs (#232) : garde par deparse() -- do.call, defaut d'ar
              grepl("[a] differente de la recherche dans deparse() [a, b]",
                    tryCatch(cc$appelants_directs(e1, ".f"), error = conditionMessage), fixed = TRUE)
          })
+# Issue #280 : garde de appelants_directs(). f n'est reconnu dans deparse()
+# que comme identificateur entier (un nom plus long qui le contient n'arrete
+# plus le script) ; un alias range dans une liste (deparse() n'en montre que
+# le corps) arrete le script ; une chaine qui contient f l'arrete toujours
+# (limite (b) ecrite, faux positif sans danger).
+verifier("appelants_directs (#280) : nom plus long contenant f -> pas d'arret ; alias dans une liste -> arret ; f dans une chaine -> arret",
+         {
+           arrete <- function(e) inherits(tryCatch(cc$appelants_directs(e, ".f"), error = function(err) err), "error")
+           base_env <- function() { e <- new.env(); e$.f <- function(p) sum(p); e$a <- function(x) .f(x); e }
+           e1 <- base_env(); e1$.f2 <- function(p) p; e1$b <- function(x) .f2(x) + x.f + .f_bis(x)
+           e2 <- base_env(); e2$CAT <- list(k = list(stat = e2$.f))
+           e3 <- base_env(); e3$b <- function(x) paste("appel de", ".f")
+           e4 <- base_env(); e4$b <- function(x) { y <- x; .f(y) }
+           identical(cc$appelants_directs(e1, ".f"), "a") && identical(cc$appelants_textuels(e1, ".f"), "a") &&
+             arrete(e2) && grepl("alias de .f : CAT", tryCatch(cc$appelants_directs(e2, ".f"), error = conditionMessage), fixed = TRUE) &&
+             arrete(e3) && identical(cc$appelants_directs(e4, ".f"), c("a", "b"))
+         })
 verifier("Provenance indirecte (#232) : appelants de .fisher_combine() dans le moteur, dont .mw_fisher_x_max() sans ligne",
          {
            em <- new.env(parent = globalenv())
