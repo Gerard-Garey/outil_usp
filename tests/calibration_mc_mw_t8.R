@@ -564,11 +564,11 @@ gen_triangle_h0 <- function(aj, tirer) {
   }
   tri
 }
-# Partie superieure du triangle (cellules observees), masque de mw_bootstrap().
-partie_sup <- function(tri) tri[upper.tri(tri, diag = TRUE)[, rev(seq_len(ncol(tri)))]]
 # Admission d'un triangle simule (par. 2) : motif de refus, ou ajustement.
+# Cellule observee a NA (cumul simule non fini ou <= 0) : critere de
+# .mw_triangle_incomplet() du moteur, celui de mw_bootstrap() (#257).
 admettre <- function(tri) {
-  if (anyNA(partie_sup(tri))) return(list(ok = FALSE, motif = "cellule <= 0"))
+  if (.mw_triangle_incomplet(tri)) return(list(ok = FALSE, motif = "cellule <= 0"))
   v <- mw_valider_triangle(tri, segment = SEGMENT, annexe = ANNEXE)
   if (!isTRUE(v$ok)) return(list(ok = FALSE, motif = nettoyer_champ(paste("mw_valider_triangle :", paste(v$erreurs, collapse = " ; ")))))
   aj <- tryCatch(mw_ajuster(tri), error = function(e) e)
@@ -1622,7 +1622,9 @@ traiter_triangle <- function(loi, b, avec_brut, ctl = FALSE) {
   }
   out$r119 <- regressions_119(aj)
   if (ctl) {
-    so <- as.list(.mw_stats(aj, jd))
+    # Ensembles figes a l'observe comme dans mw_bootstrap() (jd, #56, #60 ;
+    # jni, colonnes non identifiables de la courbure, #270).
+    so <- as.list(.mw_stats(aj, jd, .mw_colonnes_courbure_non_identifiables(aj, jd)))
     out$i1 <- c(stats_obs = identical(bR$stats_obs, so), oracle = identical(as.list(stats_oracle(aj)), bR$stats_obs))
     re <- run_engine(methode = METHODE, triangle = tri, segment = SEGMENT, annexe = ANNEXE, seed = g)
     i2 <- c(tests_R = identical(re$tests, tR), bootstrap_R = identical(re$bootstrap, bR))
@@ -1691,10 +1693,17 @@ traiter_sm <- function(b, ctl = FALSE) {
   ad <- admettre(tri)
   if (!ad$ok) return(list(statut = "refuse", motif = ad$motif, duree = secondes(t0)))
   aj <- ad$aj; jd <- .mw_colonnes_degenerees(aj); g <- graine_boot("N", b)
+  # Colonnes non identifiables de la courbure (#270), figees a l'observe
+  # comme dans mw_bootstrap() : lues par le controle (s) seulement.
+  # jni fige a l'observe comme dans mw_bootstrap() (#270, #280) ; vide sur
+  # les triangles des lois continues : alignement verifie par lecture, couvert
+  # dans le moteur par les tests de #270, pas par (s).
+  jni <- .mw_colonnes_courbure_non_identifiables(aj, jd)
   pool <- .mw_pool_residus(aj, jd)
   tris <- engine_sous_graine(g, tirer_triangles_boot(aj, pool, B_BOOT))
   ajs <- lapply(tris, function(tb) {
-    if (is.null(tb) || anyNA(partie_sup(tb))) return(NULL)
+    # filet : tirer_triangles_boot() ne rend que des triangles valides ou NULL
+    if (is.null(tb) || .mw_triangle_incomplet(tb)) return(NULL)
     ab <- try(mw_ajuster(tb), silent = TRUE)
     if (inherits(ab, "try-error")) NULL else ab
   })
@@ -1721,11 +1730,11 @@ traiter_sm <- function(b, ctl = FALSE) {
     # mw_bootstrap() avec celles du moteur relu, est verifiee par (g).
     S <- t(vapply(ajs, function(a) {
       if (is.null(a)) return(rep(NA_real_, NS))
-      sb <- try(.mw_stats(a, jd), silent = TRUE)
+      sb <- try(.mw_stats(a, jd, jni), silent = TRUE)
       if (inherits(sb, "try-error")) rep(NA_real_, NS) else unname(sb[CLES])
     }, numeric(NS)))
     colnames(S) <- CLES
-    e_obs <- .mw_contexte_mc(aj, jd)
+    e_obs <- .mw_contexte_mc(aj, jd, jni)
     mc <- .mc_p_values(S, .mc_evaluer(MW_CATALOGUE_MC, e_obs), MW_CATALOGUE_MC, e_obs)
     bt <- mw_bootstrap(aj, B = B_BOOT, seed = g)
     out$s <- c(p_mc = identical(mc$p_mc, bt$p_mc), B_effectif = identical(mc$B_effectif, bt$B_effectif))
@@ -2021,9 +2030,10 @@ controle(grepl("^[0-9a-f]{32}$", EMPREINTE_SC), paste("(i3)", TXT_I3))
 # pour le pool redresse (RES_A) et pour le pool brut (injection active).
 if (MODE == "tranche") {
   aj_r2 <- RES_A$ajustement; jd_r2 <- .mw_colonnes_degenerees(aj_r2)
+  jni_r2 <- .mw_colonnes_courbure_non_identifiables(aj_r2, jd_r2)
   b_r2 <- mw_bootstrap(aj_r2, B = B_BOOT, seed = GRAINE_R2); t_r2 <- mw_tests(aj_r2, b_r2, ALPHA)
-  i1_r2 <- identical(RES_A$bootstrap$stats_obs, as.list(.mw_stats(aj_r2, jd_r2))) && identical(as.list(stats_oracle(aj_r2)), RES_A$bootstrap$stats_obs)
-  controle(i1_r2, "(i1) reserve2 : bootstrap$stats_obs de run_engine() identique (identical()) \u00e0 .mw_stats(aj, jd) recalcul\u00e9 et au chemin oracle")
+  i1_r2 <- identical(RES_A$bootstrap$stats_obs, as.list(.mw_stats(aj_r2, jd_r2, jni_r2))) && identical(as.list(stats_oracle(aj_r2)), RES_A$bootstrap$stats_obs)
+  controle(i1_r2, "(i1) reserve2 : bootstrap$stats_obs de run_engine() identique (identical()) \u00e0 .mw_stats(aj, jd, jni) recalcul\u00e9 (ensembles fig\u00e9s \u00e0 l'observ\u00e9, #270) et au chemin oracle")
   if (identical(OPT_POOLS, "redresse,brut")) {
     re_b <- avec_pool_brut(run_engine(methode = METHODE, triangle = .tri, segment = SEGMENT, annexe = ANNEXE, seed = GRAINE_R2))
     b_r2b <- avec_pool_brut(mw_bootstrap(aj_r2, B = B_BOOT, seed = GRAINE_R2)); t_r2b <- mw_tests(aj_r2, b_r2b, ALPHA)
@@ -2150,7 +2160,7 @@ for (b in seq.int(DEBUT, FIN)) {
 D <- en_table(DATA, COLS[[MODE]])
 n_adm <- sum(D$statut == "admis"); n_ref <- sum(D$statut == "refuse"); n_err <- sum(D$statut == "erreur")
 if (MODE == "tranche") {
-  controle(!is.null(I1) && all(I1), sprintf("(i1) premier triangle admis de la tranche (b = %s) : boot$stats_obs identique (identical()) \u00e0 .mw_stats(aj_b, jd_b) recalcul\u00e9 et au chemin oracle%s",
+  controle(!is.null(I1) && all(I1), sprintf("(i1) premier triangle admis de la tranche (b = %s) : boot$stats_obs identique (identical()) \u00e0 .mw_stats(aj_b, jd_b, jni_b) recalcul\u00e9 (ensembles fig\u00e9s \u00e0 l'observ\u00e9, #270) et au chemin oracle%s",
                                             ECH, if (is.null(I1)) " (aucun triangle admis calcul\u00e9)" else if (all(I1)) "" else paste0(" ; diff\u00e9rences : ", paste(names(I1)[!I1], collapse = ", "))))
   controle(!is.null(I2) && all(I2), sprintf("(i2) premier triangle admis (b = %s) : $tests et $bootstrap de run_engine(methode = \"reserve2\", triangle = tri_b, segment = 1, annexe = \"II\", seed = S(\u2113, b)) identiques au chemin du script (%s)",
                                             ECH, if (is.null(I2)) "aucun triangle admis calcul\u00e9" else paste(sprintf("%s %s", names(I2), ifelse(I2, "oui", "NON")), collapse = ", ")))
@@ -2163,7 +2173,7 @@ if (MODE == "tranche") {
                    FIN - DEBUT + 1L, if (length(c(D_ECH, e_inv))) paste0(" : ", paste(c(D_ECH, e_inv), collapse = " ; ")) else ""))
 }
 if (MODE == "sm") {
-  controle(!is.null(S_CTL) && all(S_CTL), sprintf("(s) premier triangle admis (b = %s) : les 999 triangles bootstrap r\u00e9g\u00e9n\u00e9r\u00e9s par .mw_tirer_triangle_valide() (retirage et plafond de mw_bootstrap(), #257, #271 ; retirage non exerc\u00e9 sous le pool r\u00e9el, arr\u00eat au premier cumul invalide et identit\u00e9 de .mw_tirer_triangle_valide() v\u00e9rifi\u00e9s par (g)) sous S(N, b) redonnent par .mw_stats() les p_mc et B effectifs de mw_bootstrap() (identical()) : %s",
+  controle(!is.null(S_CTL) && all(S_CTL), sprintf("(s) premier triangle admis (b = %s) : les 999 triangles bootstrap r\u00e9g\u00e9n\u00e9r\u00e9s par .mw_tirer_triangle_valide() (retirage et plafond de mw_bootstrap(), #257, #271 ; retirage non exerc\u00e9 sous le pool r\u00e9el, arr\u00eat au premier cumul invalide et identit\u00e9 de .mw_tirer_triangle_valide() v\u00e9rifi\u00e9s par (g)) sous S(N, b) redonnent par .mw_stats() (jd et jni fig\u00e9s \u00e0 l'observ\u00e9, #270) les p_mc et B effectifs de mw_bootstrap() (identical()) : %s",
                                                   ECH, if (is.null(S_CTL)) "aucun triangle admis calcul\u00e9" else paste(sprintf("%s %s", names(S_CTL), ifelse(S_CTL, "oui", "NON")), collapse = ", ")))
   e_inv <- invariants_sortie(list(mode = "sm", donnees = DATA, debut = DEBUT, fin = FIN, pools = "-"))
   controle(!length(e_inv[!grepl("statut inconnu", e_inv)]), sprintf("(d) B_eff \u2264 999 et p dans [0, 1] (#248) sur chaque ligne SM ; admis + refus\u00e9s + en erreur = %d%s", FIN - DEBUT + 1L,
