@@ -32,6 +32,14 @@
 #     seule "Reinitialiser" la change ; grille redessinee par une seconde
 #     reinitialisation sur des donnees deja par defaut (series et triangle)
 #     et par un second import du meme fichier ;
+#   - portee de PROFONDEUR_MAX, regle "T = donnees chargees" (issue #212,
+#     decision du mainteneur du 14/10/2026) : refus_dimension_triangle() et
+#     profondeur_apres_reinitialisation() hors Shiny ; avec shiny, import
+#     d'un triangle 41 x 41 refuse avec motif (triangle courant garde),
+#     charger_mw() refusant au demarrage un fichier de 41 annees,
+#     triangle 40 x 40 accepte, reinitialisation des series ramenant le
+#     champ T a 8 (T saisi 12 et 200), saisie T = 200 en reserve no 2
+#     toujours plafonnee a 40 (non-regression de #194) ;
 #   - objet non fonction rbind de l'environnement global (issue #199) : avec
 #     shiny, table des controles (output$tab_controles) identique a celle
 #     rendue sans lui ; rapport_html() : voir test_rapport_html.R ;
@@ -208,7 +216,8 @@ verifier("app.R : regles CSS du commentaire replie (details.com) (#178)",
 ## --- Dimension du triangle et reinitialisation (issue #155) --------------------
 # Fonctions de premier niveau d'app.R, evaluees seules comme triangle_defaut().
 .noms_155 <- c("DONNEES_DEFAUT", "profondeur_reinitialisation", "jeu_reinitialise",
-               "message_reinitialisation")
+               "message_reinitialisation", "refus_dimension_triangle",
+               "profondeur_apres_reinitialisation")
 for (.x in parse(.app, keep.source = FALSE))
   if (is.call(.x) && identical(.x[[1]], as.name("<-")) &&
       as.character(.x[[2]]) %in% .noms_155) eval(.x, .env)
@@ -255,10 +264,60 @@ verifier("jeu_reinitialise() : triangle par defaut de T annees (reserve no 2), s
            identical(.env$jeu_reinitialise(TRUE, 5), .env$triangle_defaut(5)) &&
            identical(.env$jeu_reinitialise(FALSE, 5), .env$DONNEES_DEFAUT) &&
            identical(.env$jeu_reinitialise(FALSE, 12), .env$DONNEES_DEFAUT))
-verifier("message_reinitialisation() : dimension du triangle nommee (reserve no 2) (#155)",
+# Assertion modifiee par #212 (regle "T = donnees chargees") : le message
+# des series nommait seulement la reinitialisation ; il nomme desormais les
+# 8 annees chargees et T = 8, valeur reportee dans le champ T.
+verifier("message_reinitialisation() : dimension du triangle (reserve no 2) (#155), annees des series et T (#212)",
          identical(.env$message_reinitialisation(TRUE, 10),
                    "Donnees reinitialisees : triangle par defaut 10 x 10.") &&
-           identical(.env$message_reinitialisation(FALSE, 10), "Donnees reinitialisees."))
+           identical(.env$message_reinitialisation(FALSE, 8),
+                     "Donnees reinitialisees : series par defaut de 8 annees, T = 8."))
+
+## --- Portee de PROFONDEUR_MAX : regle "T = donnees chargees" (issue #212) ----
+verifier("refus_dimension_triangle() : triangle de 5, 8, 40 annees dans la borne, sans motif (#212)",
+         all(vapply(list(5L, 8L, 40L), function(n)
+           identical(.env$refus_dimension_triangle(n), character(0)), logical(1))))
+verifier("refus_dimension_triangle() : 41 et 100 annees refusees, motif qui nomme la dimension et la limite de l'application (#212)",
+         identical(.env$refus_dimension_triangle(41L),
+                   "Triangle 41 x 41 : au-dela de la limite de l'application (40 annees d'accident, rendu de la grille).") &&
+           identical(.env$refus_dimension_triangle(100L),
+                     "Triangle 100 x 100 : au-dela de la limite de l'application (40 annees d'accident, rendu de la grille)."))
+# Demarrage sur un fichier de triangle de 41 annees (issue #212, M2 de la
+# revue) : charger_mw() est evaluee avec ses dependances d'app.R, FICHIER_MW
+# pointant vers un fichier ecrit dans un repertoire temporaire (le depot
+# n'est pas touche). Les fonctions du moteur sont lues dans l'environnement
+# global.
+for (.x in parse(.app, keep.source = FALSE))
+  if (is.call(.x) && identical(.x[[1]], as.name("<-")) &&
+      as.character(.x[[2]]) %in% c("statut_fichier", "REFUS_DEMARRAGE", "triangle_vide",
+                                   "MESSAGE_ILLISIBLE", "lire_tableau", "journaliser",
+                                   "charger_mw")) eval(.x, .env)
+.dir212 <- tempfile("demarrage212_"); dir.create(.dir212)
+.tri41 <- .env$triangle_defaut(41)
+utils::write.csv(data.frame(i = 0:40, setNames(as.data.frame(.tri41), paste0("j", 0:40))),
+                 file.path(.dir212, "usp_donnees_MW.csv"), row.names = FALSE, na = "")
+.env$FICHIER_MW <- file.path(.dir212, "usp_donnees_MW.csv")
+.cm <- .env$charger_mw()
+verifier("charger_mw(), fichier de 41 annees au demarrage : refuse avec le motif de refus_dimension_triangle(), grille vide 8 x 8 (#212)",
+         identical(.cm$statut$ok, FALSE) &&
+           grepl(.env$refus_dimension_triangle(41L), .cm$statut$msg, fixed = TRUE) &&
+           grepl("present mais refuse au demarrage", .cm$statut$msg, fixed = TRUE) &&
+           identical(.cm$valeur, .env$triangle_vide(8)))
+utils::write.csv(data.frame(i = 0:39, setNames(as.data.frame(.env$triangle_defaut(40)), paste0("j", 0:39))),
+                 file.path(.dir212, "usp_donnees_MW.csv"), row.names = FALSE, na = "")
+.cm <- .env$charger_mw()
+verifier("charger_mw(), fichier de 40 annees au demarrage : charge (#212)",
+         isTRUE(.cm$statut$ok) && identical(dim(.cm$valeur), c(40L, 40L)))
+unlink(.dir212, recursive = TRUE); rm("FICHIER_MW", envir = .env)
+.pa <- lapply(list(NULL, NA_real_, 0, 5, 12, 40, 200), function(t)
+  .env$profondeur_apres_reinitialisation(FALSE, t))
+verifier("profondeur_apres_reinitialisation() (series) : T = 8 des series par defaut, quel que soit le T saisi, sans motif ni plafonnement (#212)",
+         all(vapply(.pa, function(r) identical(r$T, 8L) && length(r$erreurs) == 0L &&
+                      length(r$plafonnement) == 0L, logical(1))))
+verifier("profondeur_apres_reinitialisation() (reserve no 2) : identique a profondeur_reinitialisation() (#194, #212)",
+         all(vapply(list(NULL, NA_real_, 0, 5, 12, 40, 200), function(t)
+           identical(.env$profondeur_apres_reinitialisation(TRUE, t),
+                     .env$profondeur_reinitialisation(t)), logical(1))))
 # Lecture du code : aucun observateur du champ T n'ecrit le triangle (appel
 # triangle(x), avec argument) ; l'observateur de "Reinitialiser" incremente
 # le compteur version_grille ; celui de l'import n'appelle plus
@@ -354,6 +413,70 @@ testServer(app_b, {
     identical(eb$T_INIT, 8L) && isTRUE(eb$CHARGE_MW$statut$ok) && meme_tri(triangle(), tri10) &&
       a_id(grille_html(output), "c_9_0"))
 })
+)---"
+  # Portee de PROFONDEUR_MAX (issue #212, regle "T = donnees chargees" du
+  # mainteneur du 14/10/2026). updateNumericInput() et showNotification()
+  # sont remplaces, dans l'environnement d'app.R, par un releve : la session
+  # simulee de shiny ne renvoie pas au serveur la valeur poussee dans le
+  # champ T. Mesure avant correction (14/10/2026, testServer) : triangle
+  # 41 x 41 importe en 1,65 s, 100 x 100 en 12,0 s (rendu de la grille,
+  # HTML de 1,86 Mo) ; series reinitialisees avec T saisi = 12 ou 40 : champ
+  # T inchange, avec T = 200 : champ T a 40, pour 8 annees chargees.
+  .bloc_212 <- r"---(
+## Portee de PROFONDEUR_MAX : regle "T = donnees chargees" (issue #212)
+maj212 <- list(); notifs212 <- character(0)
+assign("updateNumericInput", function(session, inputId, value = NULL, ...) {
+  maj212[[length(maj212) + 1L]] <<- list(id = inputId, value = value); invisible(NULL)
+}, envir = ea)
+assign("showNotification", function(ui, ...) {
+  notifs212 <<- c(notifs212, paste(as.character(ui), collapse = "")); invisible("id")
+}, envir = ea)
+champ_T <- function() vapply(Filter(function(m) identical(m$id, "profondeur"), maj212),
+                             function(m) as.numeric(m$value), numeric(1))
+testServer(app, {
+  do.call(session$setInputs, modifyList(base, list(methode = "reserve2", reinit = 1)))
+  t0 <- triangle(); v0 <- version_grille()
+  f41 <- fichier_tri(ea$triangle_defaut(41))
+  maj212 <<- list(); notifs212 <<- character(0)
+  duree <- system.time(session$setInputs(fichier_import = f41))[["elapsed"]]
+  a("import d'un triangle 41 x 41 : refuse, triangle courant 8 x 8 et grille gardes (#212)",
+    identical(triangle(), t0) && identical(version_grille(), v0) &&
+      a_id(grille_html(output), "c_7_0") && !a_id(grille_html(output), "c_8_0"))
+  a("import d'un triangle 41 x 41 : statut d'import motive, notification Import refuse, champ T non touche (#212)",
+    identical(statut_import()$ok, FALSE) &&
+      grepl(paste(ea$refus_dimension_triangle(41L), "Import refuse, triangle courant conserve."),
+            statut_import()$msg, fixed = TRUE) &&
+      identical(notifs212, "Import refuse.") && !length(champ_T()))
+  a("import d'un triangle 41 x 41 : refus en moins de 1 s (1,65 s avant #212)", duree < 1)
+  session$setInputs(fichier_import = fichier_tri(ea$triangle_defaut(40)))
+  a("import d'un triangle 40 x 40 : accepte, dimension gardee (#212)",
+    identical(dim(triangle()), c(40L, 40L)) &&
+      isTRUE(all.equal(triangle(), ea$triangle_defaut(40))) && isTRUE(statut_import()$ok) &&
+      a_id(grille_html(output), "c_39_0"))
+  maj212 <<- list(); notifs212 <<- character(0)
+  session$setInputs(profondeur = 200, reinit = 2)
+  a("saisie T = 200, reserve no 2 : triangle par defaut 40 x 40, champ T a 40, message de plafonnement (#194)",
+    identical(triangle(), ea$triangle_defaut(40)) && identical(champ_T(), 40) &&
+      identical(notifs212, c("Profondeur T = 200 au-dela du maximum de 40 : T = 40 retenu.",
+                             "Donnees reinitialisees : triangle par defaut 40 x 40.")))
+})
+for (T212 in c(12, 200)) testServer(app, {
+  do.call(session$setInputs, modifyList(base, list(profondeur = T212)))
+  maj212 <<- list(); notifs212 <<- character(0)
+  session$setInputs(reinit = 1)
+  a(sprintf("series, T saisi = %d : reinitialisation, 8 annees chargees, champ T ramene a 8 (#212)", T212),
+    identical(donnees(), ea$DONNEES_DEFAUT) && identical(champ_T(), 8) &&
+      identical(notifs212, "Donnees reinitialisees : series par defaut de 8 annees, T = 8."))
+})
+testServer(app, {
+  do.call(session$setInputs, base)
+  maj212 <<- list(); notifs212 <<- character(0)
+  session$setInputs(reinit = 1)
+  a("series, T saisi = 8 : reinitialisation sans mise a jour du champ T (#212)",
+    identical(donnees(), ea$DONNEES_DEFAUT) && !length(champ_T()) &&
+      identical(notifs212, "Donnees reinitialisees : series par defaut de 8 annees, T = 8."))
+})
+rm("updateNumericInput", "showNotification", envir = ea)
 )---"
   # Objet rbind non fonction de l'environnement global (issue #199) : la
   # table des controles (output$tab_controles) est rendue dans deux sessions,
@@ -630,7 +753,7 @@ rm("showNotification", envir = ea)
     '  a("import n = 41 (hors [5 ; 40]) : garde non posee, apercu evalue avec T = 8 (#183)",',
     '    is.null(profondeur_import()) && is.character(ap) &&',
     '      !grepl("superieure", ap, fixed = TRUE))',
-    '})', .bloc_155, .bloc_199, .bloc_240, .bloc_226, .bloc_236), .script)
+    '})', .bloc_155, .bloc_212, .bloc_199, .bloc_240, .bloc_226, .bloc_236), .script)
   # Processus fils lance depuis la racine du depot : app.R y source
   # R/engine.R par chemin relatif. --vanilla ignore .Renviron et .Rprofile :
   # les bibliotheques de ce processus (.libPaths()) lui sont transmises par
@@ -647,8 +770,8 @@ rm("showNotification", envir = ea)
                         setwd(.ici)
                       })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 46 assertions rendues", length(.lignes) == 46L)
-  if (length(.lignes) != 46L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 54 assertions rendues", length(.lignes) == 54L)
+  if (length(.lignes) != 54L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {

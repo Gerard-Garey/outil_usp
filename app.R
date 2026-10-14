@@ -213,9 +213,40 @@ charger_mw <- function() {
   if (!is.null(lu$erreur)) return(refus(lu$erreur))
   r <- engine_lire_triangle(lu$df)
   if (!r$ok) return(refus(r$erreurs))
+  # Triangle de plus de PROFONDEUR_MAX annees : meme refus qu'a l'import
+  # (refus_dimension_triangle(), issue #212), grille vide 8 x 8.
+  rd <- refus_dimension_triangle(nrow(r$triangle))
+  if (length(rd)) return(refus(rd))
   list(valeur = r$triangle,
        statut = statut_fichier(TRUE, src, sprintf("charge au demarrage (triangle %d x %d).",
                                                   nrow(r$triangle), ncol(r$triangle))))
+}
+
+# Bornes du champ T (numericInput "profondeur"), partagees avec la garde de
+# l'apercu apres import (profondeur_attendue_import(), issue #183) : une
+# seule source, pour que la garde ne puisse pas attendre une valeur que le
+# champ refuse. Definies avant charger_mw(), qui les lit au demarrage
+# (refus_dimension_triangle(), issue #212).
+PROFONDEUR_MIN <- 5L
+PROFONDEUR_MAX <- 40L
+
+# Refus d'un triangle de plus de T_max annees d'accident, importe ou lu au
+# demarrage (issue #212, regle "T = donnees chargees" du mainteneur du
+# 14/10/2026) : meme borne que la reinitialisation (PROFONDEUR_MAX, borne du
+# champ T ; profondeur_reinitialisation(), issue #194), limite de
+# l'application et non borne methodologique. Un triangle fourni ne peut pas
+# etre plafonne comme le T saisi sans ecarter des donnees : il est refuse,
+# avec un motif qui nomme sa dimension et la limite. Sans ce refus, l'import
+# d'un triangle 100 x 100 figeait l'application 12 s sur le rendu de la
+# grille (mesure par testServer, issue #212). Retourne le motif,
+# character(0) si le triangle de n annees est dans la limite ; la suite
+# (triangle courant garde a l'import, grille vide au demarrage) est ajoutee
+# par l'appelant.
+refus_dimension_triangle <- function(n, T_max = PROFONDEUR_MAX) {
+  if (n <= T_max) return(character(0))
+  sprintf(paste("Triangle %d x %d : au-dela de la limite de l'application (%d annees",
+                "d'accident, rendu de la grille)."),
+          as.integer(n), as.integer(n), as.integer(T_max))
 }
 
 CHARGE_LN <- charger_ln()
@@ -223,12 +254,6 @@ CHARGE_MW <- charger_mw()
 DONNEES_INIT  <- CHARGE_LN$valeur
 TRIANGLE_INIT <- CHARGE_MW$valeur
 T_INIT        <- nrow(DONNEES_INIT)
-# Bornes du champ T (numericInput "profondeur"), partagees avec la garde de
-# l'apercu apres import (profondeur_attendue_import(), issue #183) : une
-# seule source, pour que la garde ne puisse pas attendre une valeur que le
-# champ refuse.
-PROFONDEUR_MIN <- 5L
-PROFONDEUR_MAX <- 40L
 
 # ---------------------------------------------------------------------------
 # UI : zone principale a gauche, panneau de parametres a DROITE
@@ -597,7 +622,22 @@ jeu_reinitialise <- function(mw, T) if (isTRUE(mw)) triangle_defaut(T) else DONN
 message_reinitialisation <- function(mw, T) {
   if (isTRUE(mw)) sprintf("Donnees reinitialisees : triangle par defaut %d x %d.",
                           as.integer(T), as.integer(T))
-  else "Donnees reinitialisees."
+  else sprintf("Donnees reinitialisees : series par defaut de %d annees, T = %d.",
+               as.integer(T), as.integer(T))
+}
+
+# Profondeur affichee apres "Reinitialiser les donnees" (issue #212, regle
+# "T = donnees chargees" du mainteneur du 14/10/2026). Reserve no 2 :
+# profondeur_reinitialisation() du T saisi (triangle par defaut de T
+# annees, T plafonne a PROFONDEUR_MAX, issue #194). Methodes lognormales :
+# le jeu charge est toujours celui des series par defaut (jeu_reinitialise())
+# ; T vaut son nombre d'annees, quel que soit le T saisi, qui n'est ni
+# plafonne ni controle. Auparavant, le champ T gardait le T saisi (12, 40)
+# ou passait a 40 (T = 200 saisi) avec des series de 8 annees chargees.
+# Retourne la liste de profondeur_reinitialisation().
+profondeur_apres_reinitialisation <- function(mw, T, T_series = nrow(DONNEES_DEFAUT)) {
+  if (isTRUE(mw)) return(profondeur_reinitialisation(T))
+  list(T = as.integer(T_series), erreurs = character(0), plafonnement = character(0))
 }
 
 # ---------------------------------------------------------------------------
@@ -905,22 +945,21 @@ server <- function(input, output, session) {
     )
   })
 
-  # Reinitialisation (jeu_reinitialise()). Series (methodes lognormales) :
-  # les 8 annees du jeu par defaut, quelle que soit T (issue #134 : la
-  # grille n'est plus alignee sur T ; le moteur retient les T plus
-  # recentes, ou refuse T > 8). Triangle : jeu par defaut de T annees
-  # d'accident, seule action qui change sa dimension (issue #155, Q-R7-2
-  # (A)) ; le message nomme la dimension chargee. Champ T vide ou non
-  # recevable (issue #100) : profondeur_reinitialisation() retient la
-  # profondeur du jeu par defaut, reportee dans le champ T, et le motif du
-  # moteur est affiche. T saisi au-dela de PROFONDEUR_MAX (issue #194,
-  # Q-R10-1 (A)) : profondeur_reinitialisation() le plafonne a 40, reporte
-  # dans le champ T, et le message nomme T saisi et T retenu. Le compteur
-  # version_grille force le redessin de la grille, meme si les donnees
-  # valent deja le jeu par defaut (issue #155).
+  # Reinitialisation (jeu_reinitialise(), profondeur_apres_reinitialisation()).
+  # Methodes lognormales (issues #134, #212) : les 8 annees du jeu par
+  # defaut sont chargees quel que soit le T saisi, et le champ T est ramene
+  # a 8 (regle "T = donnees chargees"), valeur nommee par le message.
+  # Reserve no 2 (issues #155, #100, #194, inchangees) : triangle par defaut
+  # de T annees, seule action qui change sa dimension ; T vide ou non
+  # recevable remplace par 8 avec le motif du moteur, T > PROFONDEUR_MAX
+  # plafonne a 40 avec un message qui nomme T saisi et T retenu ; le champ T
+  # recoit la valeur retenue. Le compteur version_grille force le redessin
+  # de la grille, meme si les donnees valent deja le jeu par defaut (#155).
   observeEvent(input$reinit, {
-    pr <- profondeur_reinitialisation(input$profondeur)
+    pr <- profondeur_apres_reinitialisation(est_mw(), input$profondeur)
     T <- pr$T
+    if (!est_mw() && !isTRUE(input$profondeur == T))
+      updateNumericInput(session, "profondeur", value = T)
     if (length(pr$erreurs)) {
       updateNumericInput(session, "profondeur", value = T)
       showNotification(paste(c(pr$erreurs, sprintf("Profondeur par defaut retablie : T = %d.", T)),
@@ -965,6 +1004,15 @@ server <- function(input, output, session) {
       # le meme champ porte la profondeur retenue pour les series (methodes
       # lognormales), qu'un import de triangle n'a pas a modifier.
       m <- v$triangle
+      # Triangle de plus de PROFONDEUR_MAX annees : refus motive, meme borne
+      # que la reinitialisation (refus_dimension_triangle(), issue #212).
+      rd <- refus_dimension_triangle(nrow(m))
+      if (length(rd)) {
+        statut_import(list(ok = FALSE, msg = sprintf(
+          "Fichier %s (%s) : %s Import refuse, triangle courant conserve.",
+          fi$name, toupper(ext), rd)))
+        showNotification("Import refuse.", type = "error", duration = 8); return()
+      }
       triangle(m); version_grille(version_grille() + 1L)
       effacer_statut_demarrage()
       statut_import(list(ok = TRUE, msg = sprintf("Triangle %d x %d importe depuis %s (%s).",
