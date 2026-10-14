@@ -1555,8 +1555,9 @@ l'état du générateur (l'objet \code{.Random.seed} de l'environnement global) 
   de $n$, du nombre de tirages, de la graine et du générateur (\code{sw\_cle\_cache()},
   issue~\#37)~: un second appel à la même taille ne tire plus rien et renvoie la même loi. \emph{Portée}~: la p-value
   exacte simulée du test de Shapiro--Wilk sans la normalisation de Royston
-  (fiche~\ref{fiche:shapiro-wilk-sans-royston}) et du test de Shapiro--Wilk sur les résidus de Mack
-  (fiche~\ref{mw:m5sw}).
+  (fiche~\ref{fiche:shapiro-wilk-sans-royston}) et la p-value, sous le modèle auxiliaire d'un
+  échantillon i.i.d. normal, du diagnostic de Shapiro--Wilk sur les résidus de Mack
+  (fiche~\ref{mw:m5sw}~; p-value exacte simulée jusqu'à l'issue~\#245).
   \emph{État}~: restauré, ou retiré s'il n'existait pas avant l'appel (l'exception qui
   laissait l'état produit dans ce cas a disparu avec l'issue~\#42).
 \item \code{usp\_permutation\_pente()} (méthodes de primes et de réserve n\textsuperscript{o}~1,
@@ -1688,7 +1689,8 @@ générateur L'Ecuyer, l'enveloppe du QQ-plot ainsi que les deux p-values
 exactes simulées de Shapiro--Wilk, qui reposent sur la loi nulle de
 \code{sw\_loi\_nulle()}~: mesuré dans une session R neuve, $0{,}596370 \to
 0{,}595220$ (fiche~\ref{fiche:shapiro-wilk-sans-royston}) et $0{,}0713964 \to 0{,}0712964$ (résidus de
-Mack, fiche~\ref{mw:m5sw}), sans changement de verdict. Ces deux dernières ne
+Mack, fiche~\ref{mw:m5sw}, alors retenue comme exacte~; diagnostic sans verdict depuis
+l'issue~\#245), sans changement de verdict. Ces deux dernières ne
 changeaient toutefois que si la loi nulle n'avait pas déjà été simulée dans la
 session, la clé du cache (taille, nombre de tirages, graine) ne comportant pas le
 générateur~; depuis l'issue~\#37, la loi est toujours simulée sous \code{ENGINE\_RNG\_KIND}, et
@@ -2280,10 +2282,11 @@ procédure de décision, aucune p-value & --- \\
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- M5 : normalité (diagnostic, non exigée par le modèle)}}} \\
 \midrule
 Shapiro--Wilk sur résidus de Mack & \ref{mw:m5sw} & \code{.shapiro\_sur()} &
-\code{sw\_p\_loi\_nulle()} (p exacte simulée, via \code{sw\_loi\_nulle()}) & --- \\
+\code{sw\_p\_loi\_nulle()} (p sous modèle auxiliaire i.i.d. normal, via \code{sw\_loi\_nulle()},
+restituée sans être retenue, issue~\#245) & --- \\
 Lilliefors sur résidus de Mack & \ref{mw:m5li} & \code{stat\_lilliefors()} &
-\code{lillie\_p()} (approx. Dallal \& Wilkinson, retenue sous \code{NATURE\_APPROX\_N\_FINI},
-issue~\#120) & --- \\
+\code{lillie\_p()} (approx. Dallal \& Wilkinson, restituée sans être retenue depuis
+l'issue~\#245) & --- \\
 
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- M6 : robustesse de l'estimation}}} \\
 \midrule
@@ -4179,11 +4182,13 @@ $H_0$ avec des erreurs gaussiennes, $B = 999$, constat de simulation, section~\r
 la p-value de Monte-Carlo de $W$ de Shapiro--Wilk (queue basse) et celle de la statistique de
 Lilliefors (queue haute) ne rejettent dans aucun triangle, aux seuils de $10~\%$ et de $5~\%$. Les tests de normalité de la
 famille M5 sont en conséquence exclus du bootstrap et rapportés avec leur propre loi nulle~: loi
-exacte de $W$ évaluée par simulation directe pour Shapiro--Wilk, approximation de
-Dallal \& Wilkinson pour Lilliefors. Ces lois nulles supposent un échantillon i.i.d., ce que
-les résidus de Mack ne sont pas~: leur niveau sur ces résidus n'est pas établi (mesure de la
-même issue sur 2\,000 triangles à erreurs gaussiennes~: $22{,}1~\%$ de rejets au seuil de
-$10~\%$ pour Shapiro--Wilk, $18{,}75~\%$ pour Lilliefors~; issue~\#245, ouverte).
+de $W$ pour un échantillon i.i.d. normal, évaluée par simulation directe, pour Shapiro--Wilk,
+approximation de Dallal \& Wilkinson pour Lilliefors. Ces lois nulles supposent un échantillon
+i.i.d., ce que les résidus de Mack ne sont pas~: leur niveau sur ces résidus n'est pas établi
+(mesure de la même issue sur 2\,000 triangles à erreurs gaussiennes~: $22{,}1~\%$ de rejets au
+seuil de $10~\%$ pour Shapiro--Wilk, $18{,}75~\%$ pour Lilliefors). Depuis l'issue~\#245, Shapiro--Wilk et
+Lilliefors y sont des diagnostics sans verdict, dont la p-value est restituée sans être retenue
+(fiches~\ref{mw:m5sw} et~\ref{mw:m5li}).
 \end{encadre}
 
 
@@ -5311,11 +5316,12 @@ Les colonnes «~Asympt.~?~» et «~Asympt. utilisable à $T = 8$~?~» portent su
 la ligne (colonne \code{p\_asymptotique}), quelle que soit sa famille (section~\ref{sec:nature},
 encadré)~: une loi limite, mais aussi une approximation à $n$ fini sous i.i.d. normal (Royston,
 Stephens, Dallal--Wilkinson, D'Agostino, Anscombe--Glynn), une loi sous un modèle auxiliaire
-gaussien ou l'approximation normale d'une loi de rangs. Seules deux vérifications retiennent une p
-de la famille~(ii), faute de p-value exacte et de p-value de Monte-Carlo~: Lilliefors sur les résidus
-de Mack et, à $T \ge 20$, Anscombe--Glynn~; leur nature est \code{approximation a n fini sous
-i.i.d. normal} (issue~\#120). Mesuré sur les six cas de référence (\code{tests/reference/})~: la
-ligne de Lilliefors de \code{reserve2} est la seule à porter cette nature, aucune ligne ne porte la
+gaussien ou l'approximation normale d'une loi de rangs. Une seule vérification retient une p
+de la famille~(ii), faute de p-value exacte et de p-value de Monte-Carlo~: Anscombe--Glynn, à
+$T \ge 20$~; sa nature est \code{approximation a n fini sous i.i.d. normal} (issue~\#120).
+Lilliefors sur les résidus de Mack la portait aussi jusqu'à l'issue~\#245, qui en a fait un
+diagnostic sans p-value retenue (fiche~\ref{mw:m5li}). Mesuré sur les six cas de référence
+(\code{tests/reference/}, champ \code{nature\_p})~: aucune ligne ne porte cette nature, ni la
 nature \code{asymptotique}.
 
 \begin{landscape}
@@ -5624,16 +5630,18 @@ Indicatif ; $n = 27$ à $T = 8$, à la limite du seuil de fiabilité ($n \ge 25$
 
 \multicolumn{9}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- M5 : normalité (diagnostic, non exigée)}}} \\
 
-Shapiro--Wilk sur résidus de Mack & \textbf{MW} & $W$ & \textbf{Oui}, loi nulle
-simulée & Approx. Royston & \textbf{Non} (voir texte) & Loi nulle simulée &
-Sans objet : loi propre & Diagnostic seulement : normalité non exigée par D(2)(h)~; loi nulle
-i.i.d., niveau sur les résidus de Mack non établi (0,221 à 0,10 sous erreurs gaussiennes,
-§\ref{sec:calib-asympt-mw}~; issue~\#245) \\
+Shapiro--Wilk sur résidus de Mack & \textbf{MW} & $W$ & \textbf{Non}~: loi nulle simulée
+d'un échantillon i.i.d. normal, non celle des résidus de Mack (issue~\#245) & Approx. Royston & \textbf{Non} (voir texte) &
+\textbf{Diagnostic}, aucune p-value retenue (p sous le modèle auxiliaire restituée) &
+Sans objet : aucune p-value retenue & Diagnostic seulement : normalité non exigée par D(2)(h)~; loi nulle
+i.i.d., niveau sur les résidus de Mack de 0,221 à 0,10 sous erreurs gaussiennes
+(§\ref{sec:calib-asympt-mw}~; fiche~\ref{mw:m5sw}) \\
 
 Lilliefors sur résidus de Mack & \textbf{MW} & $D_{\mathrm{L}}$ & Non &
-Oui (Dallal--Wilkinson, approximation à $n$ fini) & Non & p de Dallal--Wilkinson, nature \code{approximation a n fini sous i.i.d. normal} &
-\textbf{Sous conditions} & Variante secondaire ; diagnostic seulement~; niveau sur les résidus de
-Mack non établi (§\ref{sec:calib-asympt-mw}~; issue~\#245) \\
+Oui (Dallal--Wilkinson, approximation à $n$ fini) & Non & \textbf{Diagnostic}, aucune p-value
+retenue (p de Dallal--Wilkinson restituée, issue~\#245) &
+\textbf{Non} : 0,1875 de rejets à 0,10 sous erreurs gaussiennes & Variante secondaire ; diagnostic seulement~; niveau sur les résidus de
+Mack au-dessus du nominal (§\ref{sec:calib-asympt-mw}~; fiche~\ref{mw:m5li}) \\
 
 \multicolumn{9}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- M6 : robustesse de l'estimation}}} \\
 
@@ -5781,8 +5789,9 @@ analytique de Dallal et Wilkinson prolongée par Stephens~; $Z$ d'Anscombe--Glyn
 moments exacts de $b_2$ & --- & Approximation à $n$ fini sous i.i.d. normal, non asymptotique
 (issue~\#120) & Sans objet (ajustement à $n$ fini, non suite en $T$) &
 Échantillon i.i.d. normal, que ni $z_t$ à $\hat\pi_t$ variable ni les résidus de Mack ne
-vérifient & LN~: Monte-Carlo retenu~; MW~: p retenue, niveau mesuré au-dessus du nominal sous
-erreurs gaussiennes (§\ref{sec:calib-asympt-mw}, issue~\#245)~; Anscombe--Glynn non applicable
+vérifient & LN~: Monte-Carlo retenu~; MW~: diagnostic, p restituée sans être retenue
+(issue~\#245), niveau mesuré au-dessus du nominal sous erreurs gaussiennes
+(§\ref{sec:calib-asympt-mw})~; Anscombe--Glynn non applicable
 ($T < 20$) \\
 
 Centrage, variance unitaire (diagnostics) & \emph{Aucun} : $\bar z$ et
@@ -12480,9 +12489,9 @@ sur son sous-triangle $5 \times 5$, à $\alpha = 0{,}10$ (\code{run\_engine()}, 
 corrélation entre années adjacentes est restituée en test inopérant (règle~R1, lue depuis
 l'issue~\#125 sur le plancher Monte-Carlo, section~\ref{sec:nature}, point~(i), et
 tableau~\ref{tab:pmin}), l'effet calendaire reste un test (il est inopérant à $B = 99$), et
-l'homogénéité de $f_j$, la courbure et l'exposant de variance sont non applicables. Treize de ces treize
-tests reposent sur le bootstrap de résidus, sans exception~; les deux diagnostics de normalité n'y
-passent pas~: Shapiro--Wilk dispose d'une loi nulle propre, pour la raison exposée
+l'homogénéité de $f_j$, la courbure et l'exposant de variance sont non applicables.
+Les treize tests d'hypothèse reposent tous sur le bootstrap de résidus~; les deux diagnostics de normalité
+n'y passent pas~: Shapiro--Wilk dispose d'une loi nulle propre, pour la raison exposée
 dans sa fiche, et Lilliefors de l'approximation analytique de Dallal et Wilkinson
 (fiche~\ref{mw:m5li}), l'une et l'autre sous le modèle auxiliaire i.i.d. normal. Les six entrées en gras ci-dessus sont celles qui
 vérifient les hypothèses de chaîne d'échelle \emph{colonne par colonne}, comme
@@ -13987,8 +13996,9 @@ limite de son domaine. À traiter comme un signal d'attention.
 \end{encadre}
 
 Les fiches ci-dessous suivent la structure en six rubriques employée pour les
-hypothèses H1 à H4 de la méthode lognormale, complétée de la rubrique~7 pour les
-fiches de test et de procédure de décision. Les notations sont celles de la
+hypothèses H1 à H4 de la méthode lognormale. Shapiro--Wilk et Lilliefors y sont des
+diagnostics, sans verdict (ADR~0001, issue~\#245)~: leurs fiches ne portent pas la
+rubrique~7. Les notations sont celles de la
 section~\ref{sec:notations-mw}.
 
 \begin{fiche}{M5 --- Shapiro--Wilk sur les résidus de Mack}
@@ -13997,20 +14007,32 @@ section~\ref{sec:notations-mw}.
 par simulation directe.}
 \Cadre
 Résidus de Mack. \textbf{La normalité n'est pas une hypothèse du modèle}~:
-D(2)(h) ne spécifie que les deux premiers moments conditionnels. Ce
-test est donc un \emph{diagnostic} et non la vérification d'une exigence
-réglementaire.
+D(2)(h) ne spécifie que les deux premiers moments conditionnels. Cette
+ligne est donc un \emph{diagnostic}, sans verdict (ADR~0001~; type \code{diagnostic}
+depuis l'issue~\#245), et non la vérification d'une exigence réglementaire.
 \Hzero
-$H_0$ : les résidus de Mack sont issus d'une loi normale.
+$H_0$ (du modèle auxiliaire sous lequel la p-value est calculée)~: les résidus de Mack sont
+issus d'une loi normale.
 \Stat
 $W$, statistique de Shapiro--Wilk.
 \Loi
-$W$ étant invariante par translation et changement d'échelle, sa loi sous $H_0$
-ne dépend que de l'effectif~: elle est évaluée numériquement par simulation
-directe de 20\,000 échantillons normaux.
+$W$ étant invariante par translation et changement d'échelle, sa loi pour un échantillon
+\emph{i.i.d.} normal ne dépend que de l'effectif~: elle est évaluée numériquement par simulation
+directe de 20\,000 échantillons normaux (\code{sw\_p\_loi\_nulle()}, graine
+\code{SEED\_LOI\_NULLE\_SW}). Ce n'est pas la loi de $W$ sur les résidus de Mack, même sous
+erreurs gaussiennes (rubrique~6)~: c'est une loi sous un \emph{modèle auxiliaire}, non sous le
+modèle de Mack.
 \Pval
-p-value \emph{exacte à l'erreur de Monte-Carlo près}, en
-$\mathcal{O}(B_{\text{null}}^{-1/2})$.
+Aucune p-value retenue~: la ligne est un diagnostic, sans p-value retenue, sans nature ni sens, de
+verdict \code{INFO} (issue~\#245). La p-value lue sur la loi nulle simulée, à l'erreur de
+Monte-Carlo de cette loi près, en $\mathcal{O}(B_{\text{null}}^{-1/2})$ avec
+$B_{\text{null}} = 20\,000$, est restituée pour information dans la colonne
+\code{p\_asymptotique}, qui reçoit toute p-value ni exacte ni de Monte-Carlo~: p sous un modèle
+auxiliaire, famille~(iii) de la section~\ref{sec:nature}. Elle n'est pas exacte au sens de
+l'ADR~0002, la loi employée n'étant pas celle de $W$ sur les résidus de Mack~; jusqu'à
+l'issue~\#245, elle était rangée dans \code{p\_exacte} et retenue sous la nature \code{exacte}.
+Mesuré sur le triangle de contrôle (\code{run\_engine()}, $B = 999$, graine 20260831)~:
+$p = 0{,}0714$, de verdict \code{ALERTE} avant l'issue, \code{INFO} depuis.
 \Usage
 \textbf{Point de méthode déterminant.} Ce test ne peut pas passer par le
 bootstrap de résidus employé pour tous les autres tests de la méthode, car
@@ -14025,18 +14047,48 @@ ajusté. \textbf{Cette loi nulle propre n'est pas non plus établie sur les rés
 elle est celle de $W$ pour un échantillon i.i.d. normal, et les résidus de Mack ne sont ni
 indépendants ni de même variance, même sous erreurs gaussiennes (contrainte de colonne, variance
 $1 - h_{ij}$ à $\sigma_j$ connu, section~\ref{sec:boot-mw}). Sur les 2\,000 triangles simulés du même
-plan avec des erreurs gaussiennes, la p-value exacte de la ligne rejette dans $22{,}1~\%$ des cas au seuil
-$0{,}10$ et $10{,}9~\%$ à $0{,}05$ (constat de simulation sous un plan)~; ce constat est
-signalé sans conclusion sur la ligne, dont le traitement relève de l'issue~\#245, ouverte. Le résultat n'est pertinent que si l'on souhaite exploiter la MSEP pour
+plan avec des erreurs gaussiennes, la p-value de la ligne, calculée sous le modèle auxiliaire,
+rejette dans $22{,}1~\%$ des cas au seuil $0{,}10$ et $10{,}9~\%$ à $0{,}05$ (constat de
+simulation sous un plan). Le résultat n'est pertinent que si l'on souhaite exploiter la MSEP pour
 construire un quantile, usage qui excède la méthode réglementaire.
 
-\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $W$, continue. La p-value retenue, de nature exacte, est lue sur une loi nulle simulée de 20\,000 tirages à la taille du vecteur des résidus (\code{sw\_p\_loi\_nulle()})~: son plancher est $1/20\,001 \approx 5{,}0\cdot 10^{-5}$, fonction du nombre de tirages.
+\emph{Pourquoi un diagnostic sans verdict} (issue~\#245, décisions D1-1 et D1-2 du mainteneur du
+13~octobre 2026). Aucune des trois voies de la hiérarchie ne donne une p-value retenable.
+\emph{(i)~Exacte}~: la loi nulle simulée est celle d'un échantillon i.i.d. normal, et les résidus
+de Mack n'en sont pas un, même quand le modèle de Mack à erreurs gaussiennes est vrai. Ils
+satisfont, par construction, deux contraintes exactes par colonne~:
+$\sum_i \sqrt{C(i,j)}\,r(i,j) = 0$, parce que $\hat f_j$ est la moyenne des $F(i,j)$ pondérée
+par $C(i,j)$, et $\sum_i r(i,j)^2 = n_j - 1$, parce que $\hat\sigma_j^2$ est estimé sur les mêmes
+facteurs (fiche~\ref{mw:m2var}). Mesuré sur le triangle de contrôle (\code{mw\_residus()})~: les
+27 résidus se répartissent en six colonnes, $j = 0$ à~$5$, de $n_j = 7, 6, 5, 4, 3, 2$, et
+portent donc douze contraintes~; la première somme vaut au plus $1{,}1\cdot 10^{-14}$ en valeur
+absolue, la seconde s'écarte de $n_j - 1$ d'au plus $9\cdot 10^{-16}$, soit les deux identités à
+l'arrondi près. $W$ n'a donc pas, sur ces résidus, la loi simulée, et la mesure le confirme~: un
+rejet dans $22{,}1~\%$ des cas au seuil $0{,}10$ quand la normalité est vraie (ci-dessus).
+\emph{(ii)~Monte-Carlo}~: vide de sens, le bootstrap tirant dans la loi empirique des résidus
+(ci-dessus). \emph{(iii)~P non simulée}~: la seule disponible est celle du modèle auxiliaire
+i.i.d. normal, dont le niveau mesuré est plus du double du seuil nominal~; la retenir serait le
+repli sur une loi nominale qu'interdit l'ADR~0001. Enfin, la normalité n'est exigée ni par le
+modèle (rubrique~1) ni par le calcul du paramètre~: $\sigma_{\mathrm{USP}}$ est calculé par
+\code{mw\_parametre()} à partir de l'ajustement, de la MSEP, de l'écart-type standard et du
+barème, sans quantile ni hypothèse de loi. Un verdict serait donc à la fois mal calibré et sans
+objet réglementaire~; la p-value reste restituée, pour la lecture du QQ-plot ou l'usage d'un
+quantile de la MSEP.
 
-\textbf{Table.} Sans objet (loi continue).
-
-\textbf{Pertinence à $T = 8$.} Ligne de type test~; la normalité n'est pas exigée par le modèle (rubrique~6). Puissance non étudiée à $T = 8$. Niveau de la p-value exacte retenue, mesuré sous le plan du triangle de contrôle avec des erreurs gaussiennes (2\,000 triangles $8\times 8$, issue~\#119, section~\ref{sec:calib-asympt-mw})~: $0{,}221$ $[0{,}203~;~0{,}240]$ au seuil $0{,}10$ et $0{,}109$ à $0{,}05$, au-dessus du seuil nominal~; signalé sans conclusion, le traitement de la ligne relevant de l'issue~\#245, ouverte. Sous les lois d'erreurs E et A du même plan, la normalité est fausse par construction, et les taux mesurés ($0{,}5945$ et $0{,}517$ à $0{,}10$) ne sont pas des niveaux. La p-value de Monte-Carlo de $W$, non retenue, ne rejette dans aucun des 500 triangles à erreurs gaussiennes (rubrique~6).
-
-\textbf{Statut des valeurs.} Plancher~: valeur exacte~; la loi nulle simulée porte une erreur de Monte-Carlo en $1/\sqrt{20\,000}$. Taux de rejet~: constat de simulation sous un plan, intervalles de Clopper--Pearson fonction du nombre de triangles simulés.
+\emph{Plancher et niveau de la p-value restituée.} La loi de $W$ est continue~; la p-value, lue
+sur une loi nulle simulée de 20\,000 tirages à la taille du vecteur des résidus
+(\code{sw\_p\_loi\_nulle()}), a pour plancher $1/20\,001 \approx 5{,}0\cdot 10^{-5}$, fonction du
+nombre de tirages. Sa fréquence de rejet, mesurée sous le plan du triangle de contrôle avec des
+erreurs gaussiennes (2\,000 triangles $8\times 8$, issue~\#119, section~\ref{sec:calib-asympt-mw}),
+vaut $0{,}221$ $[0{,}203~;~0{,}240]$ au seuil $0{,}10$ et $0{,}109$ à $0{,}05$, au-dessus du seuil
+nominal. Sous les lois d'erreurs E et A du même plan, la normalité est fausse par construction, et
+les taux mesurés ($0{,}5945$ et $0{,}517$ à $0{,}10$) ne sont pas des niveaux. La p-value de
+Monte-Carlo de $W$, que le moteur ne calcule pas, ne rejette dans aucun des 500 triangles à
+erreurs gaussiennes (ci-dessus). Puissance non étudiée à $T = 8$. \emph{Statut}~: plancher, valeur
+exacte~; la loi nulle simulée porte une erreur de Monte-Carlo en $1/\sqrt{20\,000}$~; taux de
+rejet, constat de simulation sous un plan, intervalles de Clopper--Pearson fonction du nombre de
+triangles simulés~; contraintes de colonne, identités exactes, vérifiées numériquement sur un
+triangle.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -14045,35 +14097,50 @@ construire un quantile, usage qui excède la méthode réglementaire.
 \refl{H.\,W. Lilliefors (1967), \emph{op.\ cit.}~; p-value~: G.\,E. Dallal,
 L.~Wilkinson (1986), \emph{op.\ cit.}}
 \Cadre
-Identique à la fiche précédente. Variante \emph{secondaire}~: masquée par défaut
-dans l'application, conservée dans l'export.
+Identique à la fiche précédente~: diagnostic sans verdict (ADR~0001, issue~\#245). Variante
+\emph{secondaire}~: masquée par défaut dans l'application, conservée dans l'export.
 \Hzero
-$H_0$ : les résidus de Mack sont issus d'une loi normale, de moyenne et de
-variance quelconques.
+$H_0$ (du modèle auxiliaire sous lequel la p-value est calculée)~: les résidus de Mack sont
+issus d'une loi normale, de moyenne et de variance quelconques.
 \Stat
 $D_{\mathrm{L}} = \sup_u \big|\hat F(u) - \Phi((u - \bar r)/s_r)\big|$.
 \Loi
 Loi de Lilliefors, tenant compte de l'estimation de la moyenne et de
-l'écart-type sur l'échantillon.
+l'écart-type sur l'échantillon, pour un échantillon \emph{i.i.d.} normal~: loi sous un modèle
+auxiliaire, non sous le modèle de Mack.
 \Pval
-Approximation analytique de Dallal \& Wilkinson, prolongée par les polynômes de
-Stephens. p-value non simulée, disponible dès $n \ge 5$, retenue sous la nature
-\code{approximation a n fini sous i.i.d. normal} (issue~\#120)~: approximation de la loi de
-$D_{\mathrm{L}}$ à $n$ fini sous un échantillon i.i.d. normal, ni loi limite ni loi exacte. Le
-libellé nomme l'hypothèse sans affirmer qu'elle tient~: les résidus de Mack ne sont pas i.i.d.
-(variances inégales, dépendance introduite par la standardisation), et la qualité de
-l'approximation sur eux n'est pas établie (rubrique~7, issue~\#245).
+Aucune p-value retenue~: la ligne est un diagnostic, sans p-value retenue, sans nature ni sens, de
+verdict \code{INFO} (issue~\#245). La p-value restituée pour information est l'approximation
+analytique de Dallal \& Wilkinson, prolongée par les polynômes de Stephens (\code{lillie\_p()}),
+disponible dès $n \ge 5$ et rangée dans la colonne \code{p\_asymptotique}~: approximation de la
+loi de $D_{\mathrm{L}}$ à $n$ fini sous un échantillon i.i.d. normal, ni loi limite ni loi exacte.
+Les résidus de Mack ne sont pas i.i.d. (variances inégales, dépendance introduite par la
+standardisation, deux contraintes exactes par colonne, fiche~\ref{mw:m5sw}), et la qualité de
+l'approximation sur eux n'est pas établie. De l'issue~\#120 à l'issue~\#245, cette p-value était
+retenue, sous la nature \code{approximation a n fini sous i.i.d. normal} (\code{asymptotique}
+auparavant, faute de catégorie propre). Mesuré sur le triangle de contrôle
+(\code{run\_engine()}, $B = 999$, graine 20260831)~: $p = 0{,}457$, de verdict \code{OK} avant
+l'issue, \code{INFO} depuis.
 \Usage
 Complément de recoupement à Shapiro--Wilk, moins puissant. Même réserve de fond~:
-la normalité n'est pas exigée par la méthode.
+la normalité n'est pas exigée par la méthode. La ligne est un diagnostic pour les raisons de la
+fiche~\ref{mw:m5sw} (rubrique~6)~: aucune loi exacte n'est disponible sur les résidus de Mack~;
+une p-value de Monte-Carlo serait vide de sens, les tests de normalité étant exclus du bootstrap
+de résidus, dont la loi nulle est la loi empirique des résidus (tableau~\ref{tab:conv})~; et
+l'approximation de Dallal et Wilkinson, seule p non simulée disponible, rejette plus souvent que
+le seuil nominal quand la normalité est vraie (ci-dessous), de sorte que la retenir serait un
+repli sur une loi nominale (ADR~0001).
 
-\textbf{p-value minimale à $T = 8$.} Sans objet~: la p-value retenue est l'approximation analytique de Dallal et Wilkinson (\code{lillie\_p()}), ajustement numérique de la loi à $n$ fini et non loi limite, que le moteur range dans la colonne \code{p\_asymptotique} et restitue, depuis l'issue~\#120, sous la nature \code{approximation a n fini sous i.i.d. normal} (\code{asymptotique} auparavant, faute de catégorie propre)~; fonction continue de $D$, sans plancher. Elle est retenue faute d'alternative~: les tests de normalité sont exclus du bootstrap de résidus, dont la loi nulle est la loi empirique des résidus (tableau~\ref{tab:conv}), et aucune loi exacte n'est disponible.
-
-\textbf{Table.} Sans objet (loi continue).
-
-\textbf{Pertinence à $T = 8$.} Ligne de type test, variante secondaire de Shapiro--Wilk. Puissance non étudiée à $T = 8$. Niveau de la p-value de Dallal et Wilkinson retenue, mesuré sous le plan du triangle de contrôle avec des erreurs gaussiennes (2\,000 triangles $8\times 8$, issue~\#119, section~\ref{sec:calib-asympt-mw})~: $0{,}1875$ $[0{,}171~;~0{,}205]$ au seuil $0{,}10$ et $0{,}1025$ à $0{,}05$, au-dessus du seuil nominal~; signalé sans conclusion (issue~\#245, ouverte). Sous les lois E et A, la normalité est fausse par construction et les taux mesurés ne sont pas des niveaux. La p-value de Monte-Carlo de la statistique, non retenue, ne rejette dans aucun des 500 triangles à erreurs gaussiennes, en queue haute (fiche~\ref{mw:m5sw}, rubrique~6).
-
-\textbf{Statut des valeurs.} Taux de rejet~: constat de simulation sous un plan, intervalles de Clopper--Pearson fonction du nombre de triangles simulés~; aucune autre valeur chiffrée.
+\emph{Plancher et niveau de la p-value restituée.} Fonction continue de $D_{\mathrm{L}}$, sans
+plancher. Sa fréquence de rejet, mesurée sous le plan du triangle de contrôle avec des erreurs
+gaussiennes (2\,000 triangles $8\times 8$, issue~\#119, section~\ref{sec:calib-asympt-mw}), vaut
+$0{,}1875$ $[0{,}171~;~0{,}205]$ au seuil $0{,}10$ et $0{,}1025$ à $0{,}05$, au-dessus du seuil
+nominal. Sous les lois E et A, la normalité est fausse par construction et les taux mesurés ne
+sont pas des niveaux. La p-value de Monte-Carlo de la statistique, que le moteur ne calcule pas,
+ne rejette dans aucun des 500 triangles à erreurs gaussiennes, en queue haute
+(fiche~\ref{mw:m5sw}, rubrique~6). Puissance non étudiée à $T = 8$. \emph{Statut}~: taux de
+rejet, constat de simulation sous un plan, intervalles de Clopper--Pearson fonction du nombre de
+triangles simulés~; p-value du triangle de contrôle, valeur calculée par le moteur.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -14900,9 +14967,11 @@ section~\ref{sec:mw} et les deux voies ci-dessus corrigent.
 \label{sec:calib-asympt-mw}
 
 Les p-values non simulées de la méthode Merz--Wüthrich sont rapportées à titre de
-complément, la p-value retenue étant celle du bootstrap, sauf pour la normalité (M5)~: celle de
-Lilliefors, approximation à $n$ fini sous i.i.d. normal et non loi limite (issue~\#120), est
-retenue, faute de p-value exacte et de p-value de Monte-Carlo (fiche~\ref{mw:m5li}). Il importe néanmoins de
+complément, la p-value retenue étant celle du bootstrap~; les vérifications de normalité (M5),
+Shapiro--Wilk et Lilliefors, sont depuis l'issue~\#245 des diagnostics sans p-value retenue, dont la p-value, calculée sous le
+modèle auxiliaire d'un échantillon i.i.d. normal, est restituée pour information
+(fiches~\ref{mw:m5sw} et~\ref{mw:m5li}~; celle de Lilliefors était retenue de l'issue~\#120
+à l'issue~\#245, faute de p-value exacte et de p-value de Monte-Carlo). Il importe néanmoins de
 savoir \emph{de combien} elles s'en écartent, et pourquoi. Fréquences de rejet sous $H_0$ de
 chaque p-value non simulée que restitue \code{mw\_tests()}, mesurées sur les triangles $8\times 8$
 de la mesure de la section~\ref{sec:calib-mc-mw} (issue~\#119, même plan, mêmes lois
@@ -14950,8 +15019,8 @@ l'échangeabilité supposée par l'approximation normale \\
 Grubbs (borne de Bonferroni) & \textbf{0} & \textbf{0} & \textbf{0} & \textbf{0} & \textbf{0} &
 \textbf{0} & \textbf{Extrêmement conservatrice.} La borne est un majorant, et les résidus étant
 déjà standardisés par colonne, l'écart au maximum est faible \\
-Shapiro--Wilk (p-value exacte, loi nulle i.i.d.) & 0,221 & 0,109 & 0,5945 & 0,4195 & 0,517 &
-0,366 & Au-dessus du seuil nominal sous N (issue~\#245)~; sous E et A, normalité fausse \\
+Shapiro--Wilk (loi nulle simulée i.i.d. normale~; p exacte lors de la mesure) & 0,221 & 0,109 & 0,5945 & 0,4195 & 0,517 &
+0,366 & Au-dessus du seuil nominal sous N, d'où la ligne en diagnostic (issue~\#245)~; sous E et A, normalité fausse \\
 Lilliefors (Dallal--Wilkinson) & 0,1875 & 0,1025 & 0,559 & 0,3785 & 0,456 & 0,317 &
 Idem \\
 \end{tabular}
@@ -15191,8 +15260,9 @@ conséquence pour les statistiques à atomes~; la référence $\rho$ n'en est pa
 \emph{Verdicts sous $H_0$ et multiplicité} (tableau T4, pool redressé). Part des triangles
 simulés sous le modèle qui reçoivent au moins une \code{ALERTE} ou un \code{ECHEC} sur les
 verdicts des 13 statistiques de Monte-Carlo~: $0{,}6355$ (N), $0{,}6415$ (E), $0{,}655$ (A)~; au moins un
-\code{ECHEC}~: $0{,}3875$, $0{,}381$, $0{,}398$. Sur toutes les lignes à verdict, procédure ESD
-et lignes M5 comprises~: $0{,}734$, $0{,}887$, $0{,}849$, et $0{,}482$, $0{,}6975$, $0{,}649$ pour
+\code{ECHEC}~: $0{,}3875$, $0{,}381$, $0{,}398$. Sur toutes les lignes alors à verdict, procédure ESD
+et lignes M5 comprises (mesure antérieure à l'issue~\#245, qui en a fait des
+diagnostics sans verdict)~: $0{,}734$, $0{,}887$, $0{,}849$, et $0{,}482$, $0{,}6975$, $0{,}649$ pour
 au moins un \code{ECHEC}~; sous E et A, les lignes M5 rejettent la normalité, fausse par
 construction (section~\ref{sec:calib-asympt-mw}). Sous ce plan, un triangle conforme au modèle de
 Mack reçoit donc, dans près de deux cas sur trois, au moins une \code{ALERTE} ou un \code{ECHEC} sur les verdicts de ses 13 statistiques de Monte-Carlo~: le nombre de verdicts
