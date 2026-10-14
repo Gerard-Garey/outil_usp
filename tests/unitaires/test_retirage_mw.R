@@ -14,7 +14,10 @@
 #      les replications restantes valent NA ;
 #    - deux booleens bootstrap$cumuls_retires et bootstrap$plafond_cumuls ;
 #      deux phrases fixes sans nombre, jointes par mw_tests() sur les lignes
-#      Monte-Carlo avant la phrase de #204, celle de #244 restant la derniere.
+#      Monte-Carlo avant la phrase de #204, celle de #244 restant la derniere ;
+#    - au plafond, la phrase de #204 du cas A est celle du plafond (#279 :
+#      replications manquantes, deux causes nommees) ; la phrase du plafond
+#      est construite depuis FACTEUR_B_MAX_MW (controle par mutation).
 #  Assertions par relations (B effectif = B, B effectif < B, egalite entre
 #  statistiques), sans compte de tirages code en dur (comme 5541cc8). Valeurs
 #  mesurees (R 4.3.3, Linux, graine 20260831), en commentaire seulement :
@@ -172,6 +175,27 @@ verifier("T257-4 phrases dans l'ordre : retirage, plafond, puis #204 ; #244 dern
                (v < 0 || endsWith(d, PHRASE_VERDICT_SENSIBLE_MC))
            }, logical(1))) && any(vapply(lm_, a_beff, logical(1)))
          })
+# #279 : au plafond, phrase du cas A au plafond, nombres lus dans l'objet
+# (B effectif 839 sur 999 mesure, non code en dur) ; plus aucune phrase
+# imputant les replications manquantes a une statistique non finie.
+gabarit_plafond_279 <- paste(
+  "B effectif = %d sur B = %d (%d replication(s) manquante(s) : plafond de tirages",
+  "atteint et, le cas echeant, statistique non finie) : p-value Monte-Carlo comptee",
+  "sur les seules replications ou la statistique est finie ; les replications perdues",
+  "au plafond le sont independamment de la valeur de la statistique, l'absence de",
+  "biais de la selection par statistique non finie n'est pas demontree.")
+verifier("T257-4 / #279 : phrase du plafond sur les 13 lignes Monte-Carlo, nombres de boot$B_effectif et boot$B, aucune 'ecartee(s), statistique non finie'",
+         {
+           # les lignes ne portent pas mc_nom : B effectif est le meme sur les
+           # 13 statistiques (assertion T257-4 ci-dessus), lu dans l'objet
+           lm_ <- lignes_mc(tm4)
+           be <- unique(as.integer(bt4$b$B_effectif)); B <- as.integer(bt4$b$B)
+           ok <- vapply(lm_, function(l)
+             grepl(sprintf(gabarit_plafond_279, be, B, B - be), l$detail, fixed = TRUE), logical(1))
+           length(be) == 1L && length(lm_) == 13L && all(ok) &&
+             !any(vapply(tm4, function(l) grepl("ecartee(s), statistique non finie", l$detail, fixed = TRUE),
+                         logical(1)))
+         })
 
 ## --- T257-5 : TA8, ligne 4 x 0,03, 0,01, 0,003, B = 199 ----------------------------------
 verifier("T257-5 TA8 ligne 4 x 0,03, 0,01 et 0,003, B = 199 : B effectif = B partout, aucun avertissement (#257)",
@@ -217,6 +241,36 @@ verifier("Phrases du retirage : texte fixe, seul nombre la formule 25 (B + 1) eg
            identical(.mw_phrases_retirage(list(cumuls_retires = FALSE, plafond_cumuls = FALSE)), "") &&
            identical(.mw_phrases_retirage(list(cumuls_retires = TRUE, plafond_cumuls = TRUE)),
                      paste(PHRASE_MW_CUMULS_RETIRES, PHRASE_MW_PLAFOND_CUMULS)))
+## --- #279 : phrase du plafond construite depuis FACTEUR_B_MAX_MW ----------------------
+gabarit_phrase_plafond <- paste(
+  "Plafond de %d (B + 1) triangles simules atteint : des replications manquent",
+  "faute de triangle simule a cumuls strictement positifs.")
+verifier("#279 PHRASE_MW_PLAFOND_CUMULS = sprintf(gabarit, FACTEUR_B_MAX_MW) (controle statique)",
+         identical(PHRASE_MW_PLAFOND_CUMULS, sprintf(gabarit_phrase_plafond, FACTEUR_B_MAX_MW)))
+# Mutation : la source du moteur, FACTEUR_B_MAX_MW porte a 30, evaluee dans un
+# environnement neuf ; une phrase ecrite en dur garderait "25". A 25,5,
+# l'evaluation doit echouer (sprintf("%d") refuse un double non entier).
+src_279 <- readLines(file.path(.racine257, "R", "engine.R"), warn = FALSE, encoding = "UTF-8")
+aff_279 <- grep("^FACTEUR_B_MAX_MW <- 25$", src_279)
+muter_279 <- function(v) {
+  s <- src_279; s[aff_279] <- paste("FACTEUR_B_MAX_MW <-", v)
+  e <- new.env(parent = globalenv())
+  eval(parse(text = s, encoding = "UTF-8"), envir = e)
+  e
+}
+verifier("#279 mutation FACTEUR_B_MAX_MW 25 -> 30 (environnement neuf) : 'Plafond de 30 (B + 1)', aussi via .mw_phrases_retirage()",
+         {
+           e <- muter_279("30")
+           ph <- e$PHRASE_MW_PLAFOND_CUMULS
+           r <- e$.mw_phrases_retirage(list(cumuls_retires = TRUE, plafond_cumuls = TRUE))
+           length(aff_279) == 1L && identical(e$FACTEUR_B_MAX_MW, 30) &&
+             grepl("Plafond de 30 (B + 1)", ph, fixed = TRUE) && !grepl("25", ph, fixed = TRUE) &&
+             grepl(ph, r, fixed = TRUE) && !grepl("25", r, fixed = TRUE) &&
+             identical(PHRASE_MW_PLAFOND_CUMULS, sprintf(gabarit_phrase_plafond, 25))
+         })
+verifier("#279 mutation FACTEUR_B_MAX_MW 25 -> 25.5 : le chargement du moteur leve une erreur (facteur non entier refuse, non tronque)",
+         length(aff_279) == 1L && leve_erreur(muter_279("25.5")))
+
 verifier(".mw_phrases_retirage() : booleen absent, NA ou non logique refuse (jamais devine)",
          all(vapply(list(list(plafond_cumuls = FALSE), list(cumuls_retires = FALSE),
                          list(cumuls_retires = NA, plafond_cumuls = FALSE),

@@ -9318,19 +9318,28 @@ MW_CATALOGUE_MC <- list(
 # Phrase ajoutee en fin du detail d'une des 13 lignes Monte-Carlo de
 # mw_tests() (decision du mainteneur du 12/10/2026, commentaire 6120564480
 # de #204 ; ADR 0003 annote le 12/10/2026, point 4 ; specification E2b,
-# section 6) :
-#   - cas A : p_mc calculee (finie) et B_effectif < B : la p Monte-Carlo est
-#     conditionnelle a la definition de la statistique (comptee sur les seules
-#     replications ou elle est finie) ;
+# section 6). Conditions evaluees dans cet ordre :
+#   - cas A, plafond non atteint : p_mc calculee (finie), B_effectif < B et
+#     boot$plafond_cumuls FALSE : la p Monte-Carlo est conditionnelle a la
+#     definition de la statistique (comptee sur les seules replications ou
+#     elle est finie) ;
+#   - cas A, plafond atteint (#279 ; avis d'actuary, commentaire 6172090383
+#     de #279 ; texte approuve par le mainteneur le 14/10/2026) : p_mc finie,
+#     B_effectif < B et boot$plafond_cumuls TRUE (plafond du retirage de #257
+#     atteint) : les deux causes possibles des replications manquantes sont
+#     nommees, sans repartition chiffree ;
 #   - cas B : motif MOTIF_MC_REPLIC_INSUFFISANTES : nombres seuls ;
 #   - sinon (B_effectif = B, MOTIF_MC_AUCUNE_REPLIC, motifs degeneres,
 #     statistique observee non finie) : "".
 # Exception a la regle #76 (aucun nombre issu du bootstrap dans detail)
-# bornee a ces deux phrases et a mw_tests() ; add() ne les pose pas et la
-# regle y reste entiere. Les nombres sont lus dans boot$B_effectif[[mc_nom]]
-# et boot$B. Refus explicite (meme principe que l'ADR 0003, point 3, et que
-# #181 : jamais devine) : boot$B absent ou non fini, ou mc_nom absent de
-# boot$B_effectif (ou B_effectif non fini), est une erreur de programmation.
+# bornee a ces phrases et a mw_tests() (ADR 0003, annotation du 12/10/2026,
+# point 4) ; add() ne les pose pas et la regle y reste entiere. Les nombres
+# sont lus dans boot$B_effectif[[mc_nom]] et boot$B, les memes trois dans les
+# deux phrases du cas A. Refus explicite (meme principe que l'ADR 0003,
+# point 3, et que #181 : jamais devine) : boot$B absent ou non fini, ou
+# mc_nom absent de boot$B_effectif (ou B_effectif non fini), est une erreur
+# de programmation ; de meme, au cas A seulement (seul cas ou il est lu),
+# boot$plafond_cumuls absent, ou autre qu'un booleen non NA de longueur 1.
 .mw_phrase_b_effectif <- function(boot, mc_nom) {
   B <- boot$B; be <- boot$B_effectif
   if (is.null(B) || length(B) != 1L || !is.finite(B))
@@ -9343,13 +9352,26 @@ MW_CATALOGUE_MC <- list(
   p <- if (mc_nom %in% names(boot$p_mc)) unname(boot$p_mc[[mc_nom]]) else NA_real_
   m <- if (!is.null(boot$motif_mc) && mc_nom %in% names(boot$motif_mc))
     unname(boot$motif_mc[[mc_nom]]) else NA_character_
-  if (is.finite(p) && be < B)
-    sprintf(paste("B effectif = %d sur B = %d (%d replication(s) ecartee(s), statistique",
-                  "non finie) : p-value Monte-Carlo conditionnelle a la definition de la",
-                  "statistique, comptee sur les seules replications ou elle est finie ;",
-                  "l'absence de biais de cette selection n'est pas demontree."),
-            as.integer(be), as.integer(B), as.integer(B - be))
-  else if (!is.finite(p) && identical(m, MOTIF_MC_REPLIC_INSUFFISANTES))
+  if (is.finite(p) && be < B) {
+    pl <- boot$plafond_cumuls
+    if (!is.logical(pl) || length(pl) != 1L || is.na(pl))
+      stop(".mw_phrase_b_effectif() : plafond_cumuls absent ou non booleen dans le bootstrap (",
+           mc_nom, ")", call. = FALSE)
+    if (!pl)
+      sprintf(paste("B effectif = %d sur B = %d (%d replication(s) ecartee(s), statistique",
+                    "non finie) : p-value Monte-Carlo conditionnelle a la definition de la",
+                    "statistique, comptee sur les seules replications ou elle est finie ;",
+                    "l'absence de biais de cette selection n'est pas demontree."),
+              as.integer(be), as.integer(B), as.integer(B - be))
+    else
+      sprintf(paste("B effectif = %d sur B = %d (%d replication(s) manquante(s) : plafond",
+                    "de tirages atteint et, le cas echeant, statistique non finie) : p-value",
+                    "Monte-Carlo comptee sur les seules replications ou la statistique est",
+                    "finie ; les replications perdues au plafond le sont independamment de",
+                    "la valeur de la statistique, l'absence de biais de la selection par",
+                    "statistique non finie n'est pas demontree."),
+              as.integer(be), as.integer(B), as.integer(B - be))
+  } else if (!is.finite(p) && identical(m, MOTIF_MC_REPLIC_INSUFFISANTES))
     sprintf("B effectif = %d sur B = %d.", as.integer(be), as.integer(B))
   else ""
 }
@@ -9358,16 +9380,18 @@ MW_CATALOGUE_MC <- list(
 # et D1-4 du mainteneur du 13/10/2026 ; specification
 # docs/specifications/e2d-merz-wuthrich-replications-definitions.md, par. 3,
 # point 3) : aucun nombre issu du bootstrap (regle #76 entiere ; "25 (B + 1)"
-# est la formule du plafond FACTEUR_B_MAX_MW). Jointes par mw_tests() sur
-# ses lignes Monte-Carlo, avant la phrase de #204 ; celle de #244 reste la
-# derniere (posee par add()).
+# est la formule du plafond FACTEUR_B_MAX_MW, un parametre). Jointes par
+# mw_tests() sur ses lignes Monte-Carlo, avant la phrase de #204 ; celle de
+# #244 reste la derniere (posee par add()). La phrase du plafond est
+# construite depuis FACTEUR_B_MAX_MW (#279), sans as.integer() : un facteur
+# non entier fait echouer sprintf("%d") au chargement, au lieu d'etre tronque.
 PHRASE_MW_CUMULS_RETIRES <- paste(
   "Triangles simules a cumul non strictement positif ecartes et remplaces par un",
   "nouveau tirage : p-value Monte-Carlo conditionnelle a la positivite des cumuls",
   "simules.")
-PHRASE_MW_PLAFOND_CUMULS <- paste(
-  "Plafond de 25 (B + 1) triangles simules atteint : des replications manquent",
-  "faute de triangle simule a cumuls strictement positifs.")
+PHRASE_MW_PLAFOND_CUMULS <- sprintf(paste(
+  "Plafond de %d (B + 1) triangles simules atteint : des replications manquent",
+  "faute de triangle simule a cumuls strictement positifs."), FACTEUR_B_MAX_MW)
 # Phrases du retirage applicables au bootstrap boot, dans l'ordre (retirage,
 # puis plafond), "" si aucune. Refus explicite (meme principe que
 # .mw_phrase_b_effectif(), jamais devine) : boot$cumuls_retires ou

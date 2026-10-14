@@ -10,6 +10,10 @@
 #    - cas A (p_mc finie, B_effectif < B) : phrase "B effectif = %d sur B = %d
 #      (%d replication(s) ecartee(s), statistique non finie) : p-value
 #      Monte-Carlo conditionnelle a la definition de la statistique, ..." ;
+#    - cas A au plafond du retirage de #257 (boot$plafond_cumuls TRUE) :
+#      phrase "B effectif = %d sur B = %d (%d replication(s) manquante(s) :
+#      plafond de tirages atteint et, le cas echeant, statistique non
+#      finie) : ..." (#279, texte approuve par le mainteneur le 14/10/2026) ;
 #    - cas B (motif MOTIF_MC_REPLIC_INSUFFISANTES) : "B effectif = %d sur B = %d." ;
 #    - exception a la regle #76 bornee a ces deux phrases, posees par
 #      mw_tests() seul via .mw_phrase_b_effectif() ; add() n'est pas touchee ;
@@ -37,6 +41,16 @@ phrase_a <- function(be, B)
                 "l'absence de biais de cette selection n'est pas demontree."),
           be, B, B - be)
 phrase_b <- function(be, B) sprintf("B effectif = %d sur B = %d.", be, B)
+# Cas A au plafond du retirage de #257 (#279 ; texte approuve par le
+# mainteneur le 14/10/2026).
+phrase_a_plafond <- function(be, B)
+  sprintf(paste("B effectif = %d sur B = %d (%d replication(s) manquante(s) : plafond de",
+                "tirages atteint et, le cas echeant, statistique non finie) : p-value",
+                "Monte-Carlo comptee sur les seules replications ou la statistique est finie ;",
+                "les replications perdues au plafond le sont independamment de la valeur de",
+                "la statistique, l'absence de biais de la selection par statistique non finie",
+                "n'est pas demontree."),
+          be, B, B - be)
 a_beff <- function(l) grepl("B effectif =", l$detail, fixed = TRUE)
 # detail sans la phrase de #244, posee en dernier par add() (elle suit donc
 # la phrase de #204 quand les deux sont presentes).
@@ -204,6 +218,49 @@ verifier("T4 statistique absente de p_mc et de B_effectif : refus d'add() 'absen
                               fixed = TRUE) && !grepl(".mw_phrase_b_effectif()", m, fixed = TRUE)
          })
 
+## --- #279 : cas A au plafond du retirage (plafond_cumuls TRUE) -----------------------
+# Objets synthetiques tires de bt99 (plafond non atteint, plafond_cumuls FALSE) :
+# seul plafond_cumuls est force. B effectif 80, B 99 : les trois nombres de la
+# phrase sont lus dans l'objet (une phrase codee en dur ne passe pas).
+verifier("#279 cas A au plafond (B_eff = 80, B = 99, plafond_cumuls TRUE) : phrase du plafond, trois nombres seuls (80, 99, 19)",
+         {
+           b <- bt99; b$B_effectif[["Origine"]] <- 80; b$plafond_cumuls <- TRUE
+           ph <- .mw_phrase_b_effectif(b, "Origine")
+           identical(bt99$plafond_cumuls, FALSE) && is.finite(b$p_mc[["Origine"]]) &&
+             identical(ph, phrase_a_plafond(80L, 99L)) &&
+             identical(regmatches(ph, gregexpr("[0-9]+", ph))[[1]], c("80", "99", "19")) &&
+             !grepl("ecartee(s), statistique non finie", ph, fixed = TRUE)
+         })
+verifier("#279 plafond_cumuls FALSE : cas A inchange ; plafond_cumuls TRUE et motif replications insuffisantes : cas B inchange",
+         {
+           b_f <- bt99; b_f$B_effectif[["Origine"]] <- 80; b_f$plafond_cumuls <- FALSE
+           b_b <- boot_motif(MOTIF_MC_REPLIC_INSUFFISANTES, 30); b_b$plafond_cumuls <- TRUE
+           identical(.mw_phrase_b_effectif(b_f, "Origine"), phrase_a(80L, 99L)) &&
+             identical(.mw_phrase_b_effectif(b_b, "Origine"), phrase_b(30L, 99L))
+         })
+verifier("#279 plafond_cumuls lu au cas A seulement : absent, NA ou 0 refuse (jamais devine) ; ignore hors cas A",
+         {
+           msg <- function(b) tryCatch({ .mw_phrase_b_effectif(b, "Origine"); NA_character_ },
+                                       error = function(e) conditionMessage(e))
+           base <- bt99; base$B_effectif[["Origine"]] <- 80
+           sans <- base; sans$plafond_cumuls <- NULL
+           b_na <- base; b_na$plafond_cumuls <- NA
+           b_0 <- base; b_0$plafond_cumuls <- 0
+           m <- vapply(list(sans, b_na, b_0), msg, character(1))
+           # hors cas A (B_eff = B ; cas B) : plafond_cumuls absent n'est pas lu
+           hors_a <- bt99; hors_a$plafond_cumuls <- NULL
+           hors_b <- boot_motif(MOTIF_MC_REPLIC_INSUFFISANTES, 30); hors_b$plafond_cumuls <- NULL
+           all(!is.na(m)) &&
+             all(grepl("plafond_cumuls absent ou non booleen dans le bootstrap (Origine)", m, fixed = TRUE)) &&
+             identical(.mw_phrase_b_effectif(hors_a, "Alpha"), "") &&
+             identical(.mw_phrase_b_effectif(hors_b, "Origine"), phrase_b(30L, 99L)) &&
+             # par mw_tests(), le refus vient d'abord de .mw_phrases_retirage()
+             # (#257), evaluee avant .mw_phrase_b_effectif() : message verifie
+             grepl("mw_phrases_retirage",
+                   tryCatch({ mw_tests(aj204, sans); "" },
+                            error = function(e) conditionMessage(e)), fixed = TRUE)
+         })
+
 ## --- T5 : lignes lognormales ---------------------------------------------------------
 # J1 : donnees_ln.csv (delta estime = 1) ; J2 : jeu a delta estime interieur
 # (V3b) ; usp_bootstrap(B = 40) : B_eff < B_MIN_DEGENERESCENCE partout.
@@ -226,6 +283,7 @@ verifier("T5 premium_interieur (reference versionnee) : aucune ligne ne contient
          })
 
 ## --- Exception a la regle #76 bornee a mw_tests() ------------------------------------
+# Trois gabarits "B effectif = %d" : cas A, cas A au plafond (#279), cas B.
 verifier("add() (engine_registre_tests) ne pose aucune phrase 'B effectif' ; seul .mw_phrase_b_effectif() l'ecrit",
          {
            src <- readLines(file.path(.racine204, "R", "engine.R"), warn = FALSE)
@@ -234,7 +292,7 @@ verifier("add() (engine_registre_tests) ne pose aucune phrase 'B effectif' ; seu
            deb <- grep("^\\.mw_phrase_b_effectif <- function", src)
            fin <- deb + which(src[(deb + 1):length(src)] == "}")[1]
            !any(grepl("B effectif", deparse(engine_registre_tests), fixed = TRUE)) &&
-             length(ici) == 2L && all(ici > deb & ici < fin)
+             length(ici) == 3L && all(ici > deb & ici < fin)
          })
 
 bilan_fichier()
