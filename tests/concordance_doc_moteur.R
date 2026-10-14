@@ -694,8 +694,12 @@ DECOMPTES <- list(
   list(id = "Merz-Wuthrich : tests de normalite (M5)", methode = "reserve2",
        motif = paste0("Les ", N_, " lignes de normalit\u00e9 \\(M5\\) sont compt\u00e9es parmi les diagnostics"),
        champs = "famille M5 type diagnostic"),
+  # Meme nombre capture deux fois (groupe dans une assertion avant, puis
+  # groupe ordinaire, a la meme position), comme pour la base r ci-dessous :
+  # tests de Merz-Wuthrich et lignes a p-value retenue de Monte-Carlo, qui
+  # doivent coincider (#245, phrase reformulee a l'etape 7 d'E2e).
   list(id = "Merz-Wuthrich : tests reposant sur le bootstrap", methode = "reserve2",
-       motif = paste0(N_, " de ces ", N_, " tests reposent sur le bootstrap"),
+       motif = paste0("Les (?=", N_, ")", N_, " tests d'hypoth\u00e8se reposent tous sur le bootstrap"),
        champs = c("nature Monte-Carlo", "type test")),
   # Formulation a qualificatif intercale ("cinq autres lignes"), inventoriee
   # depuis l'audit de #75 (C2). Le meme nombre est capture deux fois (groupe

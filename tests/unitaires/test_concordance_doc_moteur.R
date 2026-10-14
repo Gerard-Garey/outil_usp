@@ -533,16 +533,17 @@ verifier("Issue #91 : --strict echoue (code 1) sur la cle USP Intercept injectee
            any(grepl(sprintf("^    l\\.%-5d Intercept +absente du catalogue MW \\(cle du catalogue USP\\)$", .k91),
                      r_91$sortie)))
 # Issue #75 : deux injections dans une meme copie du .tex (un seul appel du
-# script) -- un decompte faux dans une phrase du registre ("Treize de ces
-# treize tests" -> "Douze", mesure 13) et une formulation nouvelle ni
+# script) -- un decompte faux dans une phrase du registre ("Les treize
+# tests d'hypothese reposent tous" -> "Les douze", mesure 13) et une formulation nouvelle ni
 # verifiee ni exemptee (l'exemple de faux negatif de l'ancien en-tete,
 # "51 lignes de tests pour la prime").
 .tex_75 <- readLines(file.path(.racine, "docs", "latex", "doc_tests_usp.tex"), warn = FALSE, encoding = "UTF-8")
-.k75 <- grep("Treize de ces treize", .tex_75, fixed = TRUE)
+.k75 <- grep("Les treize tests d'hypoth\u00e8se reposent tous", .tex_75, fixed = TRUE)
 .tex_mutant <- tempfile(fileext = ".tex")
 .k75r <- grep("Les cinq autres lignes de la base", .tex_75, fixed = TRUE)
 writeLines(c(sub("Les cinq autres lignes de la base", "Les six autres lignes de la base",
-                 sub("Treize de ces treize", "Douze de ces treize", .tex_75, fixed = TRUE), fixed = TRUE),
+                 sub("Les treize tests d'hypoth\u00e8se reposent tous", "Les douze tests d'hypoth\u00e8se reposent tous",
+                     .tex_75, fixed = TRUE), fixed = TRUE),
              "Mutant : on compte 51~lignes de tests pour la prime.",
              "Mutant : puis $6$ lignes et quatre-vingts lignes.",
              "Mutant : le lecteur refuse un tableau de deux lignes."), .tex_mutant, useBytes = TRUE)
