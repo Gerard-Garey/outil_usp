@@ -2045,7 +2045,7 @@ if (MODE == "tranche") {
   jni_r2 <- .mw_colonnes_courbure_non_identifiables(aj_r2, jd_r2)
   b_r2 <- mw_bootstrap(aj_r2, B = B_BOOT, seed = GRAINE_R2); t_r2 <- mw_tests(aj_r2, b_r2, ALPHA)
   i1_r2 <- identical(RES_A$bootstrap$stats_obs, as.list(.mw_stats(aj_r2, .mw_ensembles_figes(aj_r2, jd_r2, jni_r2)))) && identical(as.list(stats_oracle(aj_r2)), RES_A$bootstrap$stats_obs)
-  controle(i1_r2, "(i1) reserve2 : bootstrap$stats_obs de run_engine() identique (identical()) \u00e0 .mw_stats(aj, jd, jni) recalcul\u00e9 (ensembles fig\u00e9s \u00e0 l'observ\u00e9, #270) et au chemin oracle stats_oracle() (jni par le d\u00e9faut de .mw_ensembles_figes(), m\u00eame fonction que mw_bootstrap() : d\u00e9finition de la loi oracle, pas un recalcul ind\u00e9pendant de jni)")
+  controle(i1_r2, "(i1) reserve2 : bootstrap$stats_obs de run_engine() identique (identical()) \u00e0 .mw_stats(aj, .mw_ensembles_figes(aj, jd, jni)) recalcul\u00e9 (ensembles fig\u00e9s \u00e0 l'observ\u00e9, #270) et au chemin oracle stats_oracle() (jni par le d\u00e9faut de .mw_ensembles_figes(), m\u00eame fonction que mw_bootstrap() : d\u00e9finition de la loi oracle, pas un recalcul ind\u00e9pendant de jni)")
   if (identical(OPT_POOLS, "redresse,brut")) {
     re_b <- avec_pool_brut(run_engine(methode = METHODE, triangle = .tri, segment = SEGMENT, annexe = ANNEXE, seed = GRAINE_R2))
     b_r2b <- avec_pool_brut(mw_bootstrap(aj_r2, B = B_BOOT, seed = GRAINE_R2)); t_r2b <- mw_tests(aj_r2, b_r2b, ALPHA)
@@ -2172,7 +2172,7 @@ for (b in seq.int(DEBUT, FIN)) {
 D <- en_table(DATA, COLS[[MODE]])
 n_adm <- sum(D$statut == "admis"); n_ref <- sum(D$statut == "refuse"); n_err <- sum(D$statut == "erreur")
 if (MODE == "tranche") {
-  controle(!is.null(I1) && all(I1), sprintf("(i1) premier triangle admis de la tranche (b = %s) : boot$stats_obs identique (identical()) \u00e0 .mw_stats(aj_b, jd_b, jni_b) recalcul\u00e9 (ensembles fig\u00e9s \u00e0 l'observ\u00e9, #270) et au chemin oracle stats_oracle() (jni par le d\u00e9faut de .mw_ensembles_figes(), m\u00eame fonction que mw_bootstrap() : d\u00e9finition de la loi oracle, pas un recalcul ind\u00e9pendant de jni)%s",
+  controle(!is.null(I1) && all(I1), sprintf("(i1) premier triangle admis de la tranche (b = %s) : boot$stats_obs identique (identical()) \u00e0 .mw_stats(aj_b, .mw_ensembles_figes(aj_b, jd_b, jni_b)) recalcul\u00e9 (ensembles fig\u00e9s \u00e0 l'observ\u00e9, #270) et au chemin oracle stats_oracle() (jni par le d\u00e9faut de .mw_ensembles_figes(), m\u00eame fonction que mw_bootstrap() : d\u00e9finition de la loi oracle, pas un recalcul ind\u00e9pendant de jni)%s",
                                             ECH, if (is.null(I1)) " (aucun triangle admis calcul\u00e9)" else if (all(I1)) "" else paste0(" ; diff\u00e9rences : ", paste(names(I1)[!I1], collapse = ", "))))
   controle(!is.null(I2) && all(I2), sprintf("(i2) premier triangle admis (b = %s) : $tests et $bootstrap de run_engine(methode = \"reserve2\", triangle = tri_b, segment = 1, annexe = \"II\", seed = S(\u2113, b)) identiques au chemin du script (%s)",
                                             ECH, if (is.null(I2)) "aucun triangle admis calcul\u00e9" else paste(sprintf("%s %s", names(I2), ifelse(I2, "oui", "NON")), collapse = ", ")))

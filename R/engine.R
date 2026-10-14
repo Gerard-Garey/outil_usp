@@ -9207,6 +9207,7 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
     # tirage n'est ajoute ni retire : seule la statistique des replications
     # change.
     if (is.null(figes)) figes <- .mw_ensembles_figes(aj)
+    .mw_verifier_figes(figes, "mw_bootstrap()")
     # Pool : residus de Mack retenus du triangle observe, colonnes degenerees
     # exclues (#60), redresses par le levier puis recentres (#46).
     pool <- .mw_pool_residus(aj, figes$degeneres)
@@ -9279,6 +9280,17 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
 # --- Catalogue Monte-Carlo de la methode Merz-Wuthrich (ADR 0003) -------------
 # Meme structure que USP_CATALOGUE_MC (voir .mc_entree()) ; contexte construit
 # par .mw_contexte_mc(). `degenere` : NULL pour toutes les entrees.
+# Controle de forme de l'objet des ensembles figes (#278, audit C2) : une
+# liste aux noms exacts de .mw_ensembles_figes() ; un vecteur (ancienne
+# signature) ou une liste mal nommee, dont les elements liraient NULL et
+# feraient recalculer en silence les ensembles sur la replication (perte
+# du gel a l'observe de #56 et #270), sont refuses.
+.mw_verifier_figes <- function(figes, appelant) {
+  if (!is.list(figes) || !identical(names(figes), c("degeneres", "non_identifiables")))
+    stop(appelant, " : ensembles figes attendus sous la forme de .mw_ensembles_figes()")
+  invisible(figes)
+}
+
 # Contexte : ajustement aj ; ensembles figes de .mw_ensembles_figes() (#278 :
 # colonnes degenerees exclues des verifications colonne par colonne de M1,
 # issue #56, et des residus de Mack, issue #60 ; colonnes non identifiables
@@ -9289,8 +9301,7 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
 # refuse.
 .mw_contexte_mc <- function(aj, figes = NULL) {
   if (is.null(figes)) figes <- .mw_ensembles_figes(aj)
-  if (!is.list(figes))
-    stop(".mw_contexte_mc() : ensembles figes attendus sous la forme de .mw_ensembles_figes()")
+  .mw_verifier_figes(figes, ".mw_contexte_mc()")
   res <- mw_residus(aj, figes$degeneres)
   list(aj = aj, res = res, r = res$residu, figes = figes)
 }
@@ -9499,6 +9510,7 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
   # .run_engine_mw(), lus au lieu d'etre recalcules par chaque fonction de
   # test ; NULL : .mw_ensembles_figes(aj), le meme calcul.
   if (is.null(figes)) figes <- .mw_ensembles_figes(aj)
+  .mw_verifier_figes(figes, "mw_tests()")
   jd <- figes$degeneres
   res <- mw_residus(aj, jd); r <- res$residu; n <- length(r)
   # Enregistrement des lignes de resultat : fonction partagee avec usp_tests()
@@ -10243,7 +10255,7 @@ engine_motif_b_alpha <- function(B, alpha) {
     # lus par mw_bootstrap() et par mw_tests().
     figes <- .mw_ensembles_figes(aj)
     boot <- mw_bootstrap(aj, B = B, seed = seed, figes = figes)
-    tests <- mw_tests(aj, boot, alpha, figes)
+    tests <- mw_tests(aj, boot, alpha, figes = figes)
     res   <- mw_residus(aj)
     # L'exclusion de colonnes est restituee par l'avertissement de
     # mw_valider_ajustement() ; l'attribut n'est pas stocke dans le resultat

@@ -536,4 +536,14 @@ verifier("U125-5 HomogF et ExpVar avec ex aequo : p_min_mc >= p_min ; bascule en
                "aux rangs moyens, enumeree)")))
          })
 
+verifier("#278 objet des ensembles figes : liste mal nommee ou vecteur refuses (contexte, mw_bootstrap(), mw_tests())",
+         {
+           mal <- list(j_degeneres = integer(0), j_non_identifiables = integer(0))
+           leve_erreur(.mw_stats(a125, mal)) && leve_erreur(.mw_contexte_mc(a125, mal)) &&
+             leve_erreur(.mw_stats(a125, 4L)) &&
+             leve_erreur(mw_bootstrap(a125, B = 9, figes = mal)) &&
+             leve_erreur(mw_tests(a125, b125, figes = mal)) &&
+             identical(.mw_stats(a125), .mw_stats(a125, .mw_ensembles_figes(a125)))
+         })
+
 fin_fichier()
