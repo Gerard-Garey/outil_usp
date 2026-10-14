@@ -1093,6 +1093,12 @@ ligne de Monte-Carlo (cas~A, $B_{\text{eff}} < B$ et p-value finie~; cas~B, moti
 bootstrap, jointes par \code{mw\_tests()} avant la phrase de l'issue~\#204, chaîne vide sinon~;
 erreur si l'un des deux champs manque ou n'est pas un booléen non \code{NA} (issue~\#257,
 fiche~\ref{mw:m1a}) \\
+\code{.mw\_phrase\_non\_}\newline\code{identifiable()} & résultat de
+\code{mw\_test\_courbure()} & phrase fixe jointe par \code{mw\_tests()} au commentaire de la
+ligne de courbure, qui nomme les colonnes de l'élément \code{non\_identifiables} (moins de trois
+valeurs distinctes de $C(i,j)$~: $j$, nombre de facteurs, $K$ et colonnes éligibles de l'appel
+observé, aucun nombre issu du bootstrap), après la phrase des colonnes dégénérées~; chaîne vide
+si l'élément est vide (issue~\#269, fiche~\ref{mw:m1c}) \\
 \code{mw\_parametre()} &\code{aj}, \code{msep} (champ \code{\$msep}),
 $\sigma_{\text{std}}$, barème & $\sigma_{\mathrm{USP}}$ et ses composantes \\
 \code{mw\_influence()} & \code{aj} & levier, facteur sans la cellule,
@@ -12998,8 +13004,9 @@ développement de $d_Q$ selon la colonne des écarts reste défini quand des val
 répètent, pourvu qu'il y en ait au moins trois distinctes. Seule la non-identifiabilité exacte
 (moins de trois valeurs distinctes de $C(i,j)$, soit $A = 0$) écarte une colonne, comme la garde
 $\mathrm{sd} = 0$ et selon la règle de l'issue~\#90 (décision D1-7). Deux comportements de cette
-exclusion, antérieurs à l'issue~\#253, restent ouverts~: elle n'est pas restituée dans le
-commentaire de la ligne (issue~\#269)~; pour $j \ge 1$, elle peut écarter une colonne à
+exclusion, antérieurs à l'issue~\#253, ont été relevés~: elle n'était pas restituée dans le
+commentaire de la ligne, ce que corrige l'issue~\#269 (\emph{Restitution des colonnes non
+identifiables}, ci-dessous)~; pour $j \ge 1$, elle peut écarter une colonne à
 l'observé sans l'écarter dans les réplications, où $K$ diffère alors (issue~\#270, ouverte)~: la
 statistique observée, somme de $K$ termes $-2\log p_j \ge 0$, est alors comparée à des
 réplications qui en comptent un de plus, de sorte que la p-value de Monte-Carlo est majorée, à
@@ -13022,6 +13029,36 @@ méthode indépendante de la forme close (équations normales complètes, élimi
 Rmpfr), dont le moteur s'écarte au plus de $1{,}1\cdot 10^{-13}$ en relatif. Sur le
 triangle de contrôle, $X$ change de $2{,}2\cdot 10^{-14}$ en relatif et sa p-value
 $\chi^2(2K)$ de $1{,}4\cdot 10^{-13}$, sans effet sur la p-value de Monte-Carlo ni sur le verdict.
+
+\emph{Restitution des colonnes non identifiables} (issue~\#269). Depuis l'issue,
+\code{mw\_test\_courbure()} enregistre chaque colonne éligible écartée faute de trois valeurs
+distinctes de $C(i,j)$ dans un élément \code{non\_identifiables}, table à deux colonnes
+(\code{j}, et \code{n\_facteurs}, nombre $n_j$ de ses facteurs individuels), une ligne par
+colonne en $j$ croissant, vide s'il n'y en a aucune, porté par tous les retours de la fonction,
+retours \code{NA} compris. Une telle colonne reste comptée parmi les colonnes éligibles, hors
+de~$K$~; elle n'est pas une colonne dégénérée au sens de la fiche~\ref{mw:m1a}, et les deux
+autres vérifications colonne par colonne de M1 ne l'excluent pas. \code{mw\_tests()} la nomme
+dans le commentaire de la ligne par \code{.mw\_phrase\_}\allowbreak\code{non\_identifiable()},
+phrase fixe dont les seuls nombres sont $j$, $n_j$, $K$ et le nombre de colonnes éligibles de
+l'appel observé, aucun n'étant issu du bootstrap (issue~\#76)~: «~\code{Colonne a moins de trois
+valeurs distinctes de C(i,j)~: j = \dots{} (\dots{} facteurs)~; terme quadratique non
+identifiable, colonne hors de la combinaison de Fisher~; K = \dots{} colonne(s) testee(s) sur
+\dots{} eligible(s). L'exclusion ne vaut pas preuve de linearite.}~», au pluriel
+«~\code{Colonnes a moins de trois}~\dots~» et «~\code{colonnes hors de la combinaison}~» quand il y en a plusieurs,
+énumérées par des virgules. Elle suit la phrase des colonnes dégénérées quand les deux sont
+posées, avec la même clause «~\code{K = \dots{} sur \dots{} eligible(s)}~», et précède les
+phrases du retirage des triangles simulés (issue~\#257), de $B$ effectif inférieur à $B$
+(issue~\#204) et du verdict de Monte-Carlo proche d'un seuil atteignable (issue~\#244), jointes
+ensuite dans cet ordre (fiche~\ref{mw:m1a}). Mesuré (\code{run\_engine()}, méthode
+\code{reserve2}, $B = 999$, graine 20260831)~: sur le triangle de contrôle, aucune colonne non
+identifiable, élément vide et commentaire réduit au libellé de base~; sur ce triangle où
+$C(i,1)$ vaut $1\,000$ pour $i = 0, 1, 2$ et $1\,100$ pour $i = 3, 4, 5$ (deux valeurs
+distinctes), la phrase nomme «~\code{j = 1 (6 facteurs)}~» avec «~\code{K = 3 colonne(s)
+testee(s) sur 4 eligible(s)}~», et elle est identique à $B = 199$ sous la graine~1~; en rendant
+de plus la colonne $j = 2$ dégénérée ($C(i,3) = 1{,}3\,C(i,2)$ pour $i = 0$ à~$4$), les deux
+phrases se suivent, celle des colonnes dégénérées d'abord, chacune avec «~\code{K = 2 colonne(s)
+testee(s) sur 4 eligible(s)}~». Comme pour une colonne dégénérée, l'exclusion ne vaut pas preuve
+de linéarité~: la colonne n'est pas testée.
 \Loi
 $\chi^2(2K)$ approchée. Loi de référence~: bootstrap de résidus.
 \Pval
@@ -15586,7 +15623,8 @@ des triangles simulés à cumul non strictement positif par
 Merz--Wüthrich~: tests et diagnostics M1 à M6 (sections~\ref{sec:mwm1}
 à~\ref{sec:mwm6}) & \code{mw\_tests()}~; phrases du retirage par
 \code{.mw\_phrases\_}\allowbreak\code{retirage()} (issue~\#257)~; phrase de $B$ effectif inférieur à $B$ par \code{.mw\_phrase\_b\_effectif()}
-(issue~\#204) \\
+(issue~\#204)~; phrase des colonnes non identifiables de la courbure par
+\code{.mw\_phrase\_}\allowbreak\code{non\_identifiable()} (issue~\#269) \\
 Merz--Wüthrich~: leviers, DFBETA, DFBETAS et contributions par année de survenance
 (fiche~\ref{mw:influence}) & \code{mw\_influence()}, \code{mw\_contributions()} \\
 Contrôles de validité (§\ref{sec:controles}) & \code{engine\_valider\_donnees()}, \code{usp\_controle\_donnees()},
