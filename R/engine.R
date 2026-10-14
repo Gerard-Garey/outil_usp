@@ -9049,7 +9049,13 @@ mw_test_homogeneite_accident <- function(aj, j_degeneres = NULL, res = NULL) {
 # PARAMETRIQUE n'est possible, contrairement a la methode lognormale. On
 # reechantillonne donc les residus standardises de Mack, ce qui ne suppose que
 # leur echangeabilite. La p-value obtenue est donc de nature semi-parametrique.
-mw_simuler_triangle <- function(aj, res_pool) {
+# mw_simuler_triangle() rend le triangle seul ; .mw_simuler_triangle_etat(),
+# qui porte le calcul, rend aussi complet = FALSE si le triangle a ete rendu
+# au premier cumul invalide, TRUE sinon : .mw_tirer_triangle_valide() le lit
+# au lieu de balayer le triangle une seconde fois (#278). Memes tirages,
+# meme triangle.
+mw_simuler_triangle <- function(aj, res_pool) .mw_simuler_triangle_etat(aj, res_pool)$tri
+.mw_simuler_triangle_etat <- function(aj, res_pool) {
   I <- aj$I; J <- aj$J
   tri <- matrix(NA_real_, I + 1, J + 1)
   tri[, 1] <- aj$tri[, 1]                       # premiere colonne conservee
@@ -9072,11 +9078,11 @@ mw_simuler_triangle <- function(aj, res_pool) {
     if (any(inval)) {
       nv[inval] <- NA_real_
       tri[idx + 1, j + 2] <- nv
-      return(tri)
+      return(list(tri = tri, complet = FALSE))
     }
     tri[idx + 1, j + 2] <- nv
   }
-  tri
+  list(tri = tri, complet = TRUE)
 }
 
 # Plafond du retirage des triangles simules de mw_bootstrap() (#257, decision
@@ -9098,13 +9104,19 @@ FACTEUR_B_MAX_MW <- 25
 # echec de mw_ajuster() ou de .mw_stats() sur un triangle accepte reste une
 # statistique non finie (B effectif). Partagee par mw_bootstrap() et par les
 # boucles des tests unitaires qui la reproduisent.
+# Acceptation lue sur l'indicateur complet de .mw_simuler_triangle_etat()
+# (#278), sans second balayage par .mw_triangle_incomplet() : sur un triangle
+# carre (I = J, seul admis par mw_valider_triangle()) a premiere colonne
+# observee complete, la partie superieure que balaie .mw_triangle_incomplet()
+# est exactement la premiere colonne observee et les cellules tirees, d'ou la
+# meme decision. .mw_triangle_incomplet() reste le controle des tests.
 .mw_triangle_incomplet <- function(tb)
   anyNA(tb[upper.tri(tb, diag = TRUE)[, rev(seq_len(ncol(tb)))]])
 .mw_tirer_triangle_valide <- function(aj, pool, reste) {
   n <- 0
   while (n < reste) {
-    tb <- mw_simuler_triangle(aj, pool); n <- n + 1
-    if (!.mw_triangle_incomplet(tb)) return(list(tri = tb, n = n, rejets = n - 1))
+    s <- .mw_simuler_triangle_etat(aj, pool); n <- n + 1
+    if (s$complet) return(list(tri = s$tri, n = n, rejets = n - 1))
   }
   list(tri = NULL, n = n, rejets = n)
 }

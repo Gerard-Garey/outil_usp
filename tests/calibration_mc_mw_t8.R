@@ -1861,7 +1861,7 @@ controle_g <- function() {
   sys.source(file.path(RACINE, "R", "engine.R"), envir = e0, keep.source = FALSE)
   meme <- function(nm) { a <- get(nm, envir = ENV_MOTEUR); b <- get(nm, envir = e0)
     identical(formals(a), formals(b)) && identical(body(a), body(b)) }
-  fns <- c("mw_simuler_triangle", ".mw_tirer_triangle_valide", ".mw_triangle_incomplet",
+  fns <- c("mw_simuler_triangle", ".mw_simuler_triangle_etat", ".mw_tirer_triangle_valide", ".mw_triangle_incomplet",
            ".mw_pool_residus", "mw_bootstrap")
   ok_fns <- all(vapply(fns, meme, logical(1)))
   list(ok = all(ok) && all(dil["identique", ]) && any(dil["incomplet", ]) && ok_fns,
