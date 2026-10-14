@@ -1576,7 +1576,7 @@ n_res_replications <- function(t, B = 99, seed = 20260831) {
       if (is.null(tb <- tir$tri)) next
       ab <- try(mw_ajuster(tb), silent = TRUE)
       if (inherits(ab, "try-error")) next
-      n[b] <- nrow(.mw_contexte_mc(ab, jd)$res)
+      n[b] <- nrow(.mw_contexte_mc(ab, .mw_ensembles_figes(ab, jd))$res)
     }
   })
   list(obs = nrow(mw_residus(aj)), n = n)
@@ -1648,7 +1648,7 @@ stats_cal_cor <- function(t, B = 99, seed = 20260831) {
       if (is.null(tb <- tir$tri)) next
       ab <- try(mw_ajuster(tb), silent = TRUE)
       if (inherits(ab, "try-error")) next
-      S[b, ] <- .mw_stats(ab, jd)[colnames(S)]
+      S[b, ] <- .mw_stats(ab, .mw_ensembles_figes(ab, jd))[colnames(S)]
     }
   })
   S
@@ -2245,7 +2245,7 @@ verifier("mw_bootstrap() tire dans .mw_pool_residus() ; statistiques observees i
                if (is.null(tb <- tir$tri)) next
                ab <- try(mw_ajuster(tb), silent = TRUE)
                if (inherits(ab, "try-error")) next
-               sb <- try(.mw_stats(ab, jd), silent = TRUE)
+               sb <- try(.mw_stats(ab, .mw_ensembles_figes(ab, jd)), silent = TRUE)
                if (inherits(sb, "try-error")) next
                m <- try(mw_msep(ab), silent = TRUE)
                if (!inherits(m, "try-error") && is.finite(m$msep) && ab$reserve > 0)
@@ -2253,7 +2253,7 @@ verifier("mw_bootstrap() tire dans .mw_pool_residus() ; statistiques observees i
              }
            })
            identical(b$sigma_boot, sig[is.finite(sig)]) &&
-             identical(b$stats_obs, as.list(.mc_evaluer(MW_CATALOGUE_MC, .mw_contexte_mc(a, jd))))
+             identical(b$stats_obs, as.list(.mc_evaluer(MW_CATALOGUE_MC, .mw_contexte_mc(a, .mw_ensembles_figes(a, jd)))))
          })
 # C2 de l'audit de #46 : ligne 0 de reserve2 multipliee par 1e17. 1 - C/S vaut
 # 0 en flottant pour les cellules de la ligne 0 ; 1 - h est calcule comme la

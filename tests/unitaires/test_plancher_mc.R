@@ -210,7 +210,10 @@ verifier("U125-3 CorrDev (6 x 6) : colonnes concordantes -> stat = extremes[2] =
          {
            conc <- tri125c(lapply(5:1, seq_len), 5)
            disc <- tri125c(lapply(5:1, function(n) if (n %% 2) seq_len(n) else rev(seq_len(n))), 5)
-           ec <- list(aj = conc, j_degeneres = integer(0)); ed <- list(aj = disc, j_degeneres = integer(0))
+           # contexte construit a la main : ensembles figes vides, forme de l'objet de
+           # .mw_ensembles_figes() (#278)
+           fg0 <- list(degeneres = integer(0), non_identifiables = integer(0))
+           ec <- list(aj = conc, figes = fg0); ed <- list(aj = disc, figes = fg0)
            sc <- mw_stat_correlation_dev(conc, integer(0)); sd_ <- mw_stat_correlation_dev(disc, integer(0))
            length(sc$T) == 2L && isTRUE(proche(sc$stat, MW_CATALOGUE_MC$CorrDev$extremes(ec)[2], abs = 1e-12)) &&
              isTRUE(proche(sd_$stat, MW_CATALOGUE_MC$CorrDev$extremes(ed)[1], abs = 1e-12)) &&
@@ -221,8 +224,9 @@ verifier("U125-3 Calendrier (5 x 5, rangs trouves par enumeration des 288 affect
            lo <- tri125c(list(c(1, 4, 2, 3), c(3, 1, 2), c(1, 2), 1), 4)
            hi <- tri125c(list(c(1, 2, 3, 4), c(3, 1, 2), c(2, 1), 1), 4)
            cl <- mw_test_annees_calendaires(lo, integer(0)); ch <- mw_test_annees_calendaires(hi, integer(0))
-           xl <- MW_CATALOGUE_MC$Calendrier$extremes(list(aj = lo, j_degeneres = integer(0)))
-           xh <- MW_CATALOGUE_MC$Calendrier$extremes(list(aj = hi, j_degeneres = integer(0)))
+           fg0 <- list(degeneres = integer(0), non_identifiables = integer(0))       # ensembles figes vides (#278)
+           xl <- MW_CATALOGUE_MC$Calendrier$extremes(list(aj = lo, figes = fg0))
+           xh <- MW_CATALOGUE_MC$Calendrier$extremes(list(aj = hi, figes = fg0))
            cl$Z == 0 && ch$Z == sum(floor(ch$detail[, "n"] / 2)) &&
              identical(cl$stat, xl[1]) && identical(ch$stat, xh[2])
          })

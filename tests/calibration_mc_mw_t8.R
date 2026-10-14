@@ -34,7 +34,7 @@
 #             (expression de b827726^, restauree par finally, technique de
 #             e88b6e6), sur le meme triangle et la meme graine (appariement) ;
 #    par. 4 : oracle (N0 = 20 000 triangles par loi, statistiques par
-#             .mw_stats(aj, .mw_colonnes_degenerees(aj))) ; reference rho
+#             stats_oracle(aj), ensembles figes de aj) ; reference rho
 #             (taille lissee a B = 999, regle unique pour toutes les
 #             statistiques) ; temoin K3 (p_or = engine_p_mc(S0, s_obs, sens),
 #             calculee a la combinaison sur la statistique observee de la
@@ -581,7 +581,7 @@ admettre <- function(tri) {
 }
 # Chemin oracle (par. 4) : statistiques d'un triangle comme une observee.
 # jd passe explicitement, jni (colonnes non identifiables de la courbure,
-# #270) recalcule par le defaut de .mw_contexte_mc(), soit
+# #270) recalcule par le defaut de .mw_ensembles_figes() (#278), soit
 # .mw_colonnes_courbure_non_identifiables(aj, jd) : la fonction meme que
 # mw_bootstrap() appelle pour figer jni a l'observe. Le volet "oracle" de
 # (i1) n'est donc pas un recalcul independant de jni (#280) : il verifie
@@ -589,7 +589,7 @@ admettre <- function(tri) {
 # observee de mw_bootstrap() (meme jd, meme jni par le chemin par defaut).
 # La reecriture independante de jni (.jni_oracle()) est dans
 # tests/unitaires/test_tables_mw.R (#270).
-stats_oracle <- function(aj) .mw_stats(aj, .mw_colonnes_degenerees(aj))
+stats_oracle <- function(aj) .mw_stats(aj, .mw_ensembles_figes(aj, .mw_colonnes_degenerees(aj)))
 
 # --- Pool brut d'avant #46 (par. 3, C-206-4) ----------------------------------
 # Expression de b827726^:R/engine.R, mw_bootstrap() : res <- mw_residus(aj,
@@ -1634,9 +1634,9 @@ traiter_triangle <- function(loi, b, avec_brut, ctl = FALSE) {
     # Volet stats_obs : ensembles figes a l'observe et passes comme dans
     # mw_bootstrap() (jd, #56, #60 ; jni, colonnes non identifiables de la
     # courbure, #270). Volet oracle : stats_oracle(), jni par le defaut de
-    # .mw_contexte_mc() (meme fonction : pas un recalcul independant, voir
-    # stats_oracle()).
-    so <- as.list(.mw_stats(aj, jd, .mw_colonnes_courbure_non_identifiables(aj, jd)))
+    # .mw_ensembles_figes() (meme fonction : pas un recalcul independant, voir
+    # stats_oracle()). Ensembles passes en un objet (#278).
+    so <- as.list(.mw_stats(aj, .mw_ensembles_figes(aj, jd, .mw_colonnes_courbure_non_identifiables(aj, jd))))
     out$i1 <- c(stats_obs = identical(bR$stats_obs, so), oracle = identical(as.list(stats_oracle(aj)), bR$stats_obs))
     re <- run_engine(methode = METHODE, triangle = tri, segment = SEGMENT, annexe = ANNEXE, seed = g)
     i2 <- c(tests_R = identical(re$tests, tR), bootstrap_R = identical(re$bootstrap, bR))
@@ -1739,13 +1739,14 @@ traiter_sm <- function(b, ctl = FALSE) {
     # continues : alignement verifie par lecture, couvert dans le moteur par
     # les tests de #270, pas par (s).
     jni <- .mw_colonnes_courbure_non_identifiables(aj, jd)
+    figes <- .mw_ensembles_figes(aj, jd, jni)        # objet unique (#278)
     S <- t(vapply(ajs, function(a) {
       if (is.null(a)) return(rep(NA_real_, NS))
-      sb <- try(.mw_stats(a, jd, jni), silent = TRUE)
+      sb <- try(.mw_stats(a, figes), silent = TRUE)
       if (inherits(sb, "try-error")) rep(NA_real_, NS) else unname(sb[CLES])
     }, numeric(NS)))
     colnames(S) <- CLES
-    e_obs <- .mw_contexte_mc(aj, jd, jni)
+    e_obs <- .mw_contexte_mc(aj, figes)
     mc <- .mc_p_values(S, .mc_evaluer(MW_CATALOGUE_MC, e_obs), MW_CATALOGUE_MC, e_obs)
     bt <- mw_bootstrap(aj, B = B_BOOT, seed = g)
     out$s <- c(p_mc = identical(mc$p_mc, bt$p_mc), B_effectif = identical(mc$B_effectif, bt$B_effectif))
@@ -2043,8 +2044,8 @@ if (MODE == "tranche") {
   aj_r2 <- RES_A$ajustement; jd_r2 <- .mw_colonnes_degenerees(aj_r2)
   jni_r2 <- .mw_colonnes_courbure_non_identifiables(aj_r2, jd_r2)
   b_r2 <- mw_bootstrap(aj_r2, B = B_BOOT, seed = GRAINE_R2); t_r2 <- mw_tests(aj_r2, b_r2, ALPHA)
-  i1_r2 <- identical(RES_A$bootstrap$stats_obs, as.list(.mw_stats(aj_r2, jd_r2, jni_r2))) && identical(as.list(stats_oracle(aj_r2)), RES_A$bootstrap$stats_obs)
-  controle(i1_r2, "(i1) reserve2 : bootstrap$stats_obs de run_engine() identique (identical()) \u00e0 .mw_stats(aj, jd, jni) recalcul\u00e9 (ensembles fig\u00e9s \u00e0 l'observ\u00e9, #270) et au chemin oracle stats_oracle() (jni par le d\u00e9faut de .mw_contexte_mc(), m\u00eame fonction que mw_bootstrap() : d\u00e9finition de la loi oracle, pas un recalcul ind\u00e9pendant de jni)")
+  i1_r2 <- identical(RES_A$bootstrap$stats_obs, as.list(.mw_stats(aj_r2, .mw_ensembles_figes(aj_r2, jd_r2, jni_r2)))) && identical(as.list(stats_oracle(aj_r2)), RES_A$bootstrap$stats_obs)
+  controle(i1_r2, "(i1) reserve2 : bootstrap$stats_obs de run_engine() identique (identical()) \u00e0 .mw_stats(aj, jd, jni) recalcul\u00e9 (ensembles fig\u00e9s \u00e0 l'observ\u00e9, #270) et au chemin oracle stats_oracle() (jni par le d\u00e9faut de .mw_ensembles_figes(), m\u00eame fonction que mw_bootstrap() : d\u00e9finition de la loi oracle, pas un recalcul ind\u00e9pendant de jni)")
   if (identical(OPT_POOLS, "redresse,brut")) {
     re_b <- avec_pool_brut(run_engine(methode = METHODE, triangle = .tri, segment = SEGMENT, annexe = ANNEXE, seed = GRAINE_R2))
     b_r2b <- avec_pool_brut(mw_bootstrap(aj_r2, B = B_BOOT, seed = GRAINE_R2)); t_r2b <- mw_tests(aj_r2, b_r2b, ALPHA)
@@ -2171,7 +2172,7 @@ for (b in seq.int(DEBUT, FIN)) {
 D <- en_table(DATA, COLS[[MODE]])
 n_adm <- sum(D$statut == "admis"); n_ref <- sum(D$statut == "refuse"); n_err <- sum(D$statut == "erreur")
 if (MODE == "tranche") {
-  controle(!is.null(I1) && all(I1), sprintf("(i1) premier triangle admis de la tranche (b = %s) : boot$stats_obs identique (identical()) \u00e0 .mw_stats(aj_b, jd_b, jni_b) recalcul\u00e9 (ensembles fig\u00e9s \u00e0 l'observ\u00e9, #270) et au chemin oracle stats_oracle() (jni par le d\u00e9faut de .mw_contexte_mc(), m\u00eame fonction que mw_bootstrap() : d\u00e9finition de la loi oracle, pas un recalcul ind\u00e9pendant de jni)%s",
+  controle(!is.null(I1) && all(I1), sprintf("(i1) premier triangle admis de la tranche (b = %s) : boot$stats_obs identique (identical()) \u00e0 .mw_stats(aj_b, jd_b, jni_b) recalcul\u00e9 (ensembles fig\u00e9s \u00e0 l'observ\u00e9, #270) et au chemin oracle stats_oracle() (jni par le d\u00e9faut de .mw_ensembles_figes(), m\u00eame fonction que mw_bootstrap() : d\u00e9finition de la loi oracle, pas un recalcul ind\u00e9pendant de jni)%s",
                                             ECH, if (is.null(I1)) " (aucun triangle admis calcul\u00e9)" else if (all(I1)) "" else paste0(" ; diff\u00e9rences : ", paste(names(I1)[!I1], collapse = ", "))))
   controle(!is.null(I2) && all(I2), sprintf("(i2) premier triangle admis (b = %s) : $tests et $bootstrap de run_engine(methode = \"reserve2\", triangle = tri_b, segment = 1, annexe = \"II\", seed = S(\u2113, b)) identiques au chemin du script (%s)",
                                             ECH, if (is.null(I2)) "aucun triangle admis calcul\u00e9" else paste(sprintf("%s %s", names(I2), ifelse(I2, "oui", "NON")), collapse = ", ")))

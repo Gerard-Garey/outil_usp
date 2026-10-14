@@ -23,7 +23,10 @@
 #  stable de #233, .mw_ecart_facteur_stable() ; t et p du terme quadratique
 #  de mw_test_courbure() reportes sous la forme close de #253,
 #  .mw_courbure_colonne(), qui remplace lm() dans le moteur : la comparaison
-#  porte sur l'assemblage des tables, objet de #239), evaluee dans un
+#  porte sur l'assemblage des tables, objet de #239 ; ensembles figes rendus
+#  par le contexte dans l'element figes, forme de l'objet de
+#  .mw_ensembles_figes(), et moteur appele par l'adaptateur moteur(), #278),
+#  evaluee dans un
 #  environnement dedie dont le parent
 #  est celui du moteur : les fonctions non modifiees (mw_stat_correlation_dev(),
 #  .mw_pente_intra(), .mc_evaluer()...) sont communes. Chaque fonction est
@@ -324,17 +327,20 @@ local({
   }
 
   # Champ j_non_identifiables (#270) : ensemble fourni, ou recalcule par
-  # .jni_oracle().
+  # .jni_oracle(). Ensembles rendus dans l'element figes du contexte, sous
+  # la forme de l'objet de .mw_ensembles_figes() (#278 : transposition de
+  # l'interface seule, ensembles calcules ici comme avant).
   .mw_contexte_mc <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL) {
     jd <- .mw_j_exclues(aj, j_degeneres)
     res <- mw_residus(aj, jd)
     jni <- if (is.null(j_non_identifiables)) .jni_oracle(aj, jd) else as.integer(j_non_identifiables)
-    list(aj = aj, res = res, r = res$residu, j_degeneres = jd, j_non_identifiables = jni)
+    list(aj = aj, res = res, r = res$residu,
+         figes = list(degeneres = jd, non_identifiables = jni))
   }
 
   MW_CATALOGUE_MC <- list(
-    Calendrier = .mc_entree(function(e) mw_test_annees_calendaires(e$aj, e$j_degeneres)$stat, "deux"),
-    CorrDev    = .mc_entree(function(e) mw_stat_correlation_dev(e$aj, e$j_degeneres)$stat, "deux"),
+    Calendrier = .mc_entree(function(e) mw_test_annees_calendaires(e$aj, e$figes$degeneres)$stat, "deux"),
+    CorrDev    = .mc_entree(function(e) mw_stat_correlation_dev(e$aj, e$figes$degeneres)$stat, "deux"),
     BP         = .mc_entree(function(e) {
       res <- e$res; r <- e$r
       if (nrow(res) > 3 && stats::sd(res$C) > 0)
@@ -344,13 +350,13 @@ local({
     DW         = .mc_entree(function(e) stat_dw(e$r), "deux"),
     Runs       = .mc_entree(function(e) test_runs(e$r)$stat, "deux"),
     PenteIntra = .mc_entree(function(e) .mw_pente_intra(e$res), "deux"),
-    Origine    = .mc_entree(function(e) mw_test_ordonnee_origine(e$aj, e$j_degeneres)$stat, "haut"),
-    HomogF     = .mc_entree(function(e) mw_test_homogeneite_f(e$aj, e$j_degeneres)$stat, "haut"),
-    Courbure   = .mc_entree(function(e) mw_test_courbure(e$aj, e$j_degeneres,
-                                                      e$j_non_identifiables)$stat, "haut"),
+    Origine    = .mc_entree(function(e) mw_test_ordonnee_origine(e$aj, e$figes$degeneres)$stat, "haut"),
+    HomogF     = .mc_entree(function(e) mw_test_homogeneite_f(e$aj, e$figes$degeneres)$stat, "haut"),
+    Courbure   = .mc_entree(function(e) mw_test_courbure(e$aj, e$figes$degeneres,
+                                                      e$figes$non_identifiables)$stat, "haut"),
     Alpha      = .mc_entree(function(e) mw_famille_alpha(e$aj)$stat, "haut"),
-    ExpVar     = .mc_entree(function(e) mw_test_exposant_variance(e$aj, e$j_degeneres)$stat, "haut"),
-    KruskalAcc = .mc_entree(function(e) mw_test_homogeneite_accident(e$aj, e$j_degeneres)$stat, "haut")
+    ExpVar     = .mc_entree(function(e) mw_test_exposant_variance(e$aj, e$figes$degeneres)$stat, "haut"),
+    KruskalAcc = .mc_entree(function(e) mw_test_homogeneite_accident(e$aj, e$figes$degeneres)$stat, "haut")
   )
 
   .mw_stats <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL)
@@ -371,6 +377,14 @@ capturer <- function(f, args) {
 # identical() par defaut ne voit pas l'ordre names / class / row.names, que
 # voit la comparaison aux references (structure_arbre(), outils_tests.R).
 meme <- function(x, y) identical(x, y, attrib.as.set = FALSE)
+# Moteur appele sous la convention (aj, jd, jni) de la reecriture : depuis
+# #278, .mw_contexte_mc() et .mw_stats() du moteur recoivent l'objet de
+# .mw_ensembles_figes() ; jd et jni (NULL : calcules sur aj par le moteur)
+# y sont passes tels quels.
+MOTEUR_FIGES <- list(
+  .mw_contexte_mc = function(aj, jd = NULL, jni = NULL) .mw_contexte_mc(aj, .mw_ensembles_figes(aj, jd, jni)),
+  .mw_stats       = function(aj, jd = NULL, jni = NULL) .mw_stats(aj, .mw_ensembles_figes(aj, jd, jni)))
+moteur <- function(f) if (!is.null(MOTEUR_FIGES[[f]])) MOTEUR_FIGES[[f]] else get(f)
 # Fonctions comparees (nom dans le moteur et dans ANCIEN) ; mw_famille_alpha()
 # ne prend pas j_degeneres.
 FONCTIONS_JD <- c("mw_residus", "mw_test_annees_calendaires", "mw_test_ordonnee_origine",
@@ -411,7 +425,7 @@ ecarts <- function(t, jds = list(NULL), etiquette = "", fonctions = FONCTIONS_JD
     # mesure du 14/10/2026).
     if (any(vapply(vus, identical, logical(1), r))) next
     vus[[length(vus) + 1L]] <- r
-    nouv <- lapply(stats::setNames(nm = fonctions), function(f) sans_masse(capturer(get(f), list(aj, jd))))
+    nouv <- lapply(stats::setNames(nm = fonctions), function(f) sans_masse(capturer(moteur(f), list(aj, jd))))
     anc  <- lapply(stats::setNames(nm = fonctions), function(f) capturer(ANCIEN[[f]], list(aj, jd)))
     for (f in fonctions)
       if (!meme(nouv[[f]], anc[[f]])) out <- c(out, paste(etiquette, f, "jd =", deparse(jd)))
@@ -579,7 +593,7 @@ FONCTIONS_JNI <- c("mw_test_courbure", ".mw_contexte_mc", ".mw_stats")
 ecarts_jni <- function(aj, jd, jni, etiquette) {
   out <- character(0)
   for (f in FONCTIONS_JNI)
-    if (!meme(capturer(get(f), list(aj, jd, jni)), capturer(ANCIEN[[f]], list(aj, jd, jni))))
+    if (!meme(capturer(moteur(f), list(aj, jd, jni)), capturer(ANCIEN[[f]], list(aj, jd, jni))))
       out <- c(out, paste(etiquette, f, "jd =", deparse(jd), "jni =", deparse(jni)))
   out
 }
@@ -678,7 +692,8 @@ verifier("Une evaluation de .mw_stats() appelle mw_residus() une seule fois (#23
            env <- environment(mw_residus)
            assign("mw_residus", function(aj, j_degeneres = NULL) {
              n <<- n + 1L; orig(aj, j_degeneres) }, envir = env)
-           tryCatch(.mw_stats(mw_ajuster(tri_ref), 4L),
+           a <- mw_ajuster(tri_ref)
+           tryCatch(.mw_stats(a, .mw_ensembles_figes(a, 4L)),
                     finally = assign("mw_residus", orig, envir = env))
            if (identical(n, 1L) && identical(mw_residus, orig)) TRUE else paste("appels :", n)
          })
