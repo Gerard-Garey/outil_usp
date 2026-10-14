@@ -405,11 +405,43 @@ local({
 # =============================================================================
 # U7 -- B != 999, contre-implementation (copie declaree de rejouer_v1(complet
 # = TRUE) et de completer_v3b() de tests/p_conditionnelle_regime_t8.R,
-# l. 1776-1832, parametrees par B : B_cible = B, B_max = 25 (B + 1), graine
-# usp_graine_flux_regime(seed))
+# parametrees par B : B_cible = B, B_max = 25 (B + 1), graine
+# usp_graine_flux_regime(seed) ; criteres de completer_v3b() alignes sur le
+# moteur par #280 ; regime lu par regime_tirage() de tests/outils_tests.R,
+# partagee avec ce script)
 # =============================================================================
-code_regime <- function(delta) if (delta >= 1 - TOL_DELTA_BORD) "bord1" else
-  if (delta <= TOL_DELTA_BORD) "bord0" else "interieur"
+# tests/outils_tests.R source dans un environnement dedie (comme
+# test_comparateur.R), lu par U7 (regime_tirage()) et U15 (rejeu_p_mc_v3h()).
+OE <- local({
+  .dossier <- if (exists("DOSSIER_UNITAIRES", inherits = TRUE)) DOSSIER_UNITAIRES else {
+    .f <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE))
+    if (length(.f)) dirname(.f) else "tests/unitaires"
+  }
+  oe <- new.env(parent = globalenv())
+  sys.source(file.path(.dossier, "..", "outils_tests.R"), envir = oe)
+  oe
+})
+regime_tirage <- OE$regime_tirage
+# Garde de regime_tirage() (#280) : delta_au_bord de usp_regime() ne lit pas
+# les volumes, ce qui permet a regime_tirage() de l'appeler sur x = 1 ; la
+# partition doit egaler celle de usp_regime(delta, x) pour des volumes
+# variables (J2, J3) et constants (exacts, et dans la bande TOL_DELTA_BORD),
+# sur un balayage de delta qui encadre les bords TOL_DELTA_BORD et
+# 1 - TOL_DELTA_BORD au plus pres, et celle de code_regime() des scripts hors
+# CI pour un delta fini.
+local({
+  e <- TOL_DELTA_BORD; u <- .Machine$double.eps
+  d <- c(seq(-0.1, 1.1, by = 1e-3), 0, 1, 0.5, e, 1 - e, e * (1 + c(-1, 1) * u),
+         (1 - e) + c(-1, 1) * u, e / 2, 1 - e / 2, -e, 1 + e)
+  ref <- function(delta, x) if (!usp_regime(delta, x)$delta_au_bord) "interieur" else
+    if (delta >= 0.5) "bord1" else "bord0"
+  code_regime <- function(delta) if (delta >= 1 - e) "bord1" else if (delta <= e) "bord0" else "interieur"
+  pt <- vapply(d, regime_tirage, "")
+  xs <- list(x2, X3, rep(100, 8), 100 * (1 + rep(c(0, e / 2), 4)))
+  verifier("U7 regime_tirage() : partition identique a usp_regime(delta, x) (volumes variables et constants) et a code_regime(), bords encadres",
+           all(vapply(xs, function(x) identical(vapply(d, ref, "", x = x), pt), logical(1))) &&
+             identical(vapply(d, code_regime, ""), pt) && all(c("bord0", "interieur", "bord1") %in% pt))
+})
 rejouer_v1_u7 <- function(fit, graine, B, cat_ = USP_CATALOGUE_MC) {
   e_obs <- .usp_contexte_mc(fit$x, fit$y, fit$z, fit$pi)
   nm <- names(cat_)
@@ -448,8 +480,8 @@ completer_v3b_u7 <- function(fit, r_b, S_A, graine, B, cat_ = USP_CATALOGUE_MC) 
       tir <- tir + 1L
       yb <- usp_simuler(fit)
       f <- try(usp_ajuster_rapide(fit$x, yb, fit$delta, fit$gamma), silent = TRUE)
-      if (inherits(f, "try-error")) { cpt[["rapide"]] <- cpt[["rapide"]] + 1L; next }
-      if (code_regime(f$delta) != r_b) { cpt[["hors"]] <- cpt[["hors"]] + 1L; next }
+      if (inherits(f, "try-error") || !is.finite(f$delta)) { cpt[["rapide"]] <- cpt[["rapide"]] + 1L; next }
+      if (regime_tirage(f$delta) != r_b) { cpt[["hors"]] <- cpt[["hors"]] + 1L; next }
       sb <- try(.mc_evaluer(cat_, .usp_contexte_mc(fit$x, yb, f$z, f$pi)), silent = TRUE)
       if (inherits(sb, "try-error")) { cpt[["stats"]] <- cpt[["stats"]] + 1L; next }
       nA <- nA + 1L
@@ -460,9 +492,9 @@ completer_v3b_u7 <- function(fit, r_b, S_A, graine, B, cat_ = USP_CATALOGUE_MC) 
        arret = if (nA == B_CIBLE) "cible" else "B_max", B_max = B_MAX)
 }
 attendu_u7 <- function(fit, B, seed) {
-  r_b <- code_regime(fit$delta)
+  r_b <- regime_tirage(fit$delta)
   rv <- rejouer_v1_u7(fit, seed, B)
-  rd <- vapply(rv$delta, function(d) if (is.finite(d)) code_regime(d) else NA_character_, "")
+  rd <- vapply(rv$delta, function(d) if (is.finite(d)) regime_tirage(d) else NA_character_, "")
   A <- rv$ok & !is.na(rd) & rd == r_b
   v3 <- completer_v3b_u7(fit, r_b, rv$sim[A, , drop = FALSE], usp_graine_flux_regime(seed), B)
   mc <- .mc_p_values(v3$S, rv$stats_obs, USP_CATALOGUE_MC, rv$e_obs)
@@ -695,21 +727,17 @@ verifier("U14 tests/donnees/donnees_ln_interieur.csv = xi, yi de test_controles_
 # meme reajustement, memes regles d'ecart), puis rejeu_p_mc_v3h(), compare
 # par identical() a usp_bootstrap(). B = 60 : au-dessus de
 # B_MIN_DEGENERESCENCE, des p_mc et des p_min_mc finies (a B = 30, toutes les
-# p_mc sont NA). outils_tests.R est source dans un environnement dedie
-# (comme test_comparateur.R). Non couverts ici (mutants survivants mesures
+# p_mc sont NA). outils_tests.R est lu dans l'environnement dedie OE, pose
+# avant U7. Non couverts ici (mutants survivants mesures
 # a la revue de R13) : arret a B_max et motif MOTIF_MC_REGIME_RARE (a J2,
 # B = 60 : arret a la cible apres 320 tirages) ; branche V1 par volumes
 # constants (aucun jeu a volumes constants) ; rejet d'un tirage du flux a
 # delta** non fini ou dont les statistiques echouent (aucun tel tirage sur
 # J2) ; controles hors CI de #262. Duree mesuree : environ 4 s (13/10/2026,
-# conteneur Linux, R 4.3.3, chargement de outils_tests.R compris).
+# conteneur Linux, R 4.3.3, chargement de outils_tests.R compris, deplace
+# avant U7 par #280).
 local({
-  .dossier <- if (exists("DOSSIER_UNITAIRES", inherits = TRUE)) DOSSIER_UNITAIRES else {
-    .f <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE))
-    if (length(.f)) dirname(.f) else "tests/unitaires"
-  }
-  oe <- new.env(parent = globalenv())
-  sys.source(file.path(.dossier, "..", "outils_tests.R"), envir = oe)
+  oe <- OE
   rejouer <- function(fit, B, seed) {
     e <- .usp_contexte_mc(fit$x, fit$y, fit$z, fit$pi)
     so <- .mc_evaluer(USP_CATALOGUE_MC, e)
