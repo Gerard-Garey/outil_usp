@@ -34,7 +34,11 @@
 #     et par un second import du meme fichier ;
 #   - objet non fonction rbind de l'environnement global (issue #199) : avec
 #     shiny, table des controles (output$tab_controles) identique a celle
-#     rendue sans lui ; rapport_html() : voir test_rapport_html.R.
+#     rendue sans lui ; rapport_html() : voir test_rapport_html.R ;
+#   - notifications de refus (issue #226) : avec shiny, "Calcul refuse"
+#     (scenario de l'issue, motif de plus de 700 caracteres) et "Calcul non
+#     lance" (reserve no 2) notifient un texte fixe, le motif complet du
+#     moteur etant dans le bandeau.
 #  La partie Shiny tourne dans un processus R distinct : app.R attache shiny
 #  et recharge le moteur dans l'environnement global, ce qui ne doit pas
 #  toucher les fichiers de tests suivants.
@@ -415,6 +419,55 @@ testServer(app, {
       !grepl("Graine flux regime", jo, fixed = TRUE))
 })
 )---"
+  # Notifications de refus (issue #226) : texte fixe d'interface, motif
+  # complet dans le bandeau. showNotification() est remplace, dans
+  # l'environnement d'app.R, par un releve du texte notifie : la session
+  # simulee de shiny n'envoie aucune notification (sendNotification() y est
+  # sans effet, shiny 1.8.0). Scenario de l'issue (refus "maximum de
+  # vraisemblance non atteint", motif unique de plus de 700 caracteres) et
+  # triangle a cellule observee manquante (Calcul non lance, reserve no 2).
+  .bloc_226 <- r"---(
+## Notifications de refus : texte fixe, motif complet dans le bandeau (issue #226)
+notifs226 <- character(0)
+assign("showNotification", function(ui, ...) {
+  notifs226 <<- c(notifs226, paste(as.character(ui), collapse = "")); invisible("id")
+}, envir = ea)
+xs226 <- c(98.10, 101.30, 104.20, 102.25, 109.34, 114.64, 118.41, 121.28)
+r226 <- run_engine(xs226, 0.7 * xs226, methode = "premium", sigma_standard = 0.1,
+                   nature_donnees = "brutes", T = 8, B = 99, alpha = 0.10, seed = 20260831,
+                   segment = 1L, annexe = "II", theta_equiv = 0.10)
+motif226 <- r226$validation$erreurs
+testServer(app, {
+  do.call(session$setInputs, modifyList(base, list(reinit = 1, sigma_manuel = TRUE, sigma_std = 0.1)))
+  do.call(session$setInputs, c(setNames(as.list(xs226), paste0("x_", 1:8)),
+                               setNames(as.list(0.7 * xs226), paste0("y_", 1:8))))
+  notifs226 <<- character(0)
+  session$setInputs(go = 1)
+  bd <- as.character(output$bandeau_refus$html)
+  a("scenario de #226 : refus du moteur, un motif de plus de 700 caracteres, sans erreur_r",
+    identical(r226$ok, FALSE) && is.null(r226$validation$erreur_r) &&
+      length(motif226) == 1L && nchar(motif226) > 700L)
+  a("Calcul refuse : notification au texte fixe, seule notification du clic (#226)",
+    identical(notifs226, "Calcul refuse : aucun resultat n'est produit (voir le bandeau)."))
+  a("Calcul refuse : motif complet du moteur dans le bandeau (#226)",
+    is.null(resultat()) && grepl(ea$TITRE_REFUSE, bd, fixed = TRUE) &&
+      grepl(htmltools::htmlEscape(motif226), bd, fixed = TRUE))
+  session$setInputs(methode = "reserve2", reinit = 2)
+  tr <- triangle(); k <- which(!is.na(tr), arr.ind = TRUE)
+  do.call(session$setInputs, setNames(as.list(tr[k]), sprintf("c_%d_%d", k[, 1] - 1L, k[, 2] - 1L)))
+  session$setInputs(c_1_1 = NA)
+  mv <- mw_valider_triangle(lire_triangle(), segment = 1L, annexe = "II")$erreurs
+  notifs226 <<- character(0)
+  session$setInputs(go = 2)
+  bd <- as.character(output$bandeau_refus$html)
+  a("Calcul non lance (reserve no 2) : notification au texte fixe (#226)",
+    identical(notifs226, "Calcul non lance : aucun resultat n'est produit (voir le bandeau)."))
+  a("Calcul non lance (reserve no 2) : motif du moteur dans le bandeau (#226)",
+    identical(mv, "Cellule observee manquante en (i=1, j=1).") &&
+      grepl(ea$TITRE_NON_LANCE, bd, fixed = TRUE) && grepl(htmltools::htmlEscape(mv), bd, fixed = TRUE))
+})
+rm("showNotification", envir = ea)
+)---"
   .script <- tempfile(fileext = ".R")
   writeLines(c(
     'suppressMessages(library(shiny))',
@@ -527,7 +580,7 @@ testServer(app, {
     '  a("import n = 41 (hors [5 ; 40]) : garde non posee, apercu evalue avec T = 8 (#183)",',
     '    is.null(profondeur_import()) && is.character(ap) &&',
     '      !grepl("superieure", ap, fixed = TRUE))',
-    '})', .bloc_155, .bloc_199, .bloc_240), .script)
+    '})', .bloc_155, .bloc_199, .bloc_240, .bloc_226), .script)
   # Processus fils lance depuis la racine du depot : app.R y source
   # R/engine.R par chemin relatif. --vanilla ignore .Renviron et .Rprofile :
   # les bibliotheques de ce processus (.libPaths()) lui sont transmises par
@@ -544,8 +597,8 @@ testServer(app, {
                         setwd(.ici)
                       })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 35 assertions rendues", length(.lignes) == 35L)
-  if (length(.lignes) != 35L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 40 assertions rendues", length(.lignes) == 40L)
+  if (length(.lignes) != 40L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {

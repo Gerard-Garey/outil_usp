@@ -693,8 +693,12 @@ server <- function(input, output, session) {
     if (!est_mw() && (is.null(input$profondeur) || is.na(input$profondeur)))
       motifs <- c(motifs, AIDE_T_VIDE)
     refuser(TITRE_REFUSE, motifs)
-    showNotification(paste("Calcul refuse :",
-                           paste(utils::head(res$validation$erreurs, 2), collapse = " ")),
+    # Texte fixe d'interface (issue #226), comme le defaut de calcul : un
+    # motif du moteur peut depasser 700 caracteres (maximum de
+    # vraisemblance non atteint, #188 : 772 sur le scenario de l'issue),
+    # illisible dans une notification. Le motif complet est dans le
+    # bandeau ; ni troncature ni extraction.
+    showNotification("Calcul refuse : aucun resultat n'est produit (voir le bandeau).",
                      type = "error", duration = 15)
     FALSE
   }
@@ -1015,7 +1019,9 @@ server <- function(input, output, session) {
       v <- mw_valider_triangle(m, segment = segment_apercu(), annexe = annexe_apercu())
       if (!v$ok) {
         refuser(TITRE_NON_LANCE, utils::head(v$erreurs, 6))
-        showNotification(paste("Calcul non lance :", paste(utils::head(v$erreurs, 2), collapse = " ")),
+        # Texte fixe (issue #226) : les deux premiers motifs, seuls repris
+        # jusqu'ici, sont aussi dans le bandeau, qui en porte jusqu'a six.
+        showNotification("Calcul non lance : aucun resultat n'est produit (voir le bandeau).",
                          type = "error", duration = 10); return()
       }
       abouti <- withProgress(message = "Merz-Wuthrich : chain-ladder, MSEP et bootstrap", value = 0.4, {
