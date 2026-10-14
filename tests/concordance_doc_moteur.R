@@ -798,9 +798,15 @@ appelants_directs <- function(env, f) {
     is.function(g) && !identical(n, f) && f %in% all.names(body(g))
   }, noms))
   textuels <- appelants_textuels(env, f)
-  alias <- if (exists(f, envir = env, inherits = FALSE))
-    Filter(function(n) !identical(n, f) && alias_dans(get(n, envir = env), get(f, envir = env)), noms)
-  else character(0)
+  # cible lue une fois ; objets ni fonction ni liste ecartes avant alias_dans()
+  alias <- if (exists(f, envir = env, inherits = FALSE)) {
+    cible <- get(f, envir = env)
+    Filter(function(n) {
+      if (identical(n, f)) return(FALSE)
+      o <- get(n, envir = env)
+      (is.function(o) || is.list(o)) && alias_dans(o, cible)
+    }, noms)
+  } else character(0)
   if (length(alias) || !identical(directs, textuels))
     stop(sprintf(paste0("appelants_directs(\"%s\") : lecture par all.names(body()) [%s] differente de la ",
                         "recherche dans deparse() [%s]%s ; appel indirect (do.call, match.fun, defaut ",
@@ -831,7 +837,10 @@ appelants_textuels <- function(env, f) {
 # appelants_directs().
 alias_dans <- function(o, cible) {
   if (is.function(o)) return(identical(o, cible))
-  is.list(o) && any(vapply(o, alias_dans, logical(1), cible = cible))
+  if (!is.list(o)) return(FALSE)
+  # elements ni fonction ni liste ecartes sans appel ; arret au premier alias
+  for (e in o) if ((is.function(e) || is.list(e)) && alias_dans(e, cible)) return(TRUE)
+  FALSE
 }
 
 # Fonctions declinees sur z_t et sur u_t (phrase "2 entrees chacune" du
