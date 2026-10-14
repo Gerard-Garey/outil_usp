@@ -135,7 +135,9 @@
 #         usp_regime()) : au bord ou a volumes constants, V1 (p_mc, err_mc,
 #         B_effectif, granularite_stat, motif_mc et, depuis #267, p_min_mc
 #         du rejeu complet ; p de V1 = p_mc) ; a delta chapeau*_b interieur
-#         (#267, specification E2e, par. 8.3), mc3b, la V3b du script
+#         (#267, decision D1-13 ; specification
+#         docs/specifications/e2e-niveaux-et-documentation.md, par. 8.3,
+#         versee par la branche E2e), mc3b, la V3b du script
 #         (completer_v3b()) : p_mc, err_mc, B_effectif, granularite_stat,
 #         motif_mc, p_min_mc et, de p_mc_regime, variante ("V3b"),
 #         retenus_v1 (nA0), retenus (nA), tirages (tir) et arret, plus la
@@ -152,7 +154,14 @@
 #         interieur, le moteur n'expose plus V1 ; les statistiques des
 #         tirages de V1 dont delta** est au bord ne sont plus confrontees au
 #         moteur par (i2). Sur J1 et J2, (i1) couvre V1 au bit pres contre
-#         les valeurs brutes de #221 ; sur J3, rien ne la couvre ;
+#         les valeurs brutes de #221 ; sur J3, rien ne la couvre.
+#         ECARTS DE CODE CONNUS (#267, par. 8.3, point 5) : completer_v3b()
+#         ne teste pas is.finite(f$delta) (un delta** non fini fait lever
+#         code_regime() : replication en erreur, refusee par --combiner,
+#         sans divergence silencieuse) et classe le regime par code_regime()
+#         et non par usp_regime() (memes seuils TOL_DELTA_BORD ; volumes
+#         constants ignores, d'ou le choix de branche de (i2) par
+#         usp_regime()) ;
 #    (i3) empreinte sans commentaires de R/engine.R (#231,
 #         empreinte_sans_commentaires()) egale a celle du (g5) du tableau de
 #         la grille (--grille, par defaut le plus recent
@@ -2099,7 +2108,7 @@ traiter <- function(x, y, b, ctl = list(complet = FALSE, h1 = FALSE), t2 = TRUE)
     # constants, V1 sinon.
     rg_i2 <- usp_regime(fit$delta, fit$x)
     if (!rg_i2$delta_au_bord && !rg_i2$volumes_constants) {
-      # (i2) reformule (#267 ; specification E2e, par. 8.3, condition 1) :
+      # (i2) reformule (#267, D1-13 ; specification E2e, par. 8.3, condition 1) :
       # p-value et grandeurs de usp_bootstrap() comparees a mc3b, la V3b du
       # script (completer_v3b()), ce qui etablit que la V3b mesuree est la
       # V3h du moteur (graine du flux usp_graine_flux_regime(GRAINE_BOOT + b)
