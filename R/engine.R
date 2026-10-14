@@ -8558,9 +8558,21 @@ mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
 # par une puissance de 2 (exact ; un terme qui sous-deborde est negligeable
 # devant le plus grand), puis somme par colSums(), sans produit matriciel
 # (independance du BLAS). Rend la somme sous la forme .mw_me().
+# Mantisse NA ou NaN (#278, point 6 de l'issue) : aucune erreur, elle se
+# propage a la somme (m NA ou NaN), d'ou c2, t et p NaN dans
+# .mw_courbure_colonne() et une statistique de courbure NA (.fisher_combine(),
+# regle de #90). L'indice logique NA de m == 0 etait deja ignore par
+# l'affectation d'un scalaire ; la garde !is.na(m) l'ecrit, sans changer le
+# resultat (mesure #278 : 5 000 matrices a mantisses NA, NaN, Inf et 0,
+# resultats identical() avant / apres). Non atteinte sur le domaine
+# [1e-50 ; 1e50] de #185 (entrees finies et strictement positives,
+# mantisses finies ; mesure #278 : 20 000 colonnes tirees sur ce domaine,
+# aucune p NaN) ; atteinte hors domaine par un cumul sous-normal (1/C(i,j)
+# deborde : statistique de courbure NA, mesure #278 sur reserve2 a
+# C(0,1) = 1e-320).
 .mw_somme_me <- function(m, e) {
   m <- as.matrix(m); e <- as.matrix(e)
-  e[m == 0] <- -Inf
+  e[!is.na(m) & m == 0] <- -Inf
   E <- apply(e, 2, max)
   E[!is.finite(E)] <- 0
   v <- .mw_me(colSums(m * 2^(e - rep(E, each = nrow(e)))))
