@@ -743,14 +743,16 @@ statistique à la configuration observée, renseigné pour les treize statistiqu
 $p_{\min}$ (\code{NULL} ailleurs~; refus par une erreur d'une valeur qui n'est pas une fonction, ou
 d'un résultat de mauvaise forme)~; seule source du calcul observé, du calcul simulé et de la
 p-value de Monte-Carlo (ADR~0003) \\
-\code{.usp\_contexte\_mc()},\newline \code{.mw\_contexte\_mc()} & $x$, $y$, $z$, \code{pi}~; \code{aj} &
+\code{.usp\_contexte\_mc()},\newline \code{.mw\_contexte\_mc()} & $x$, $y$, $z$, \code{pi}~; \code{aj},
+\code{j\_degeneres}, \code{j\_non\_identifiables} (\code{NULL}~: calculés sur \code{aj}) &
 contexte des fonctions de calcul du catalogue~: ratios $r_t$ et ratios centrés $u_t$, et, depuis
 l'issue~\#215, vecteur $\hat\pi_t$ de l'ajustement (de l'observé, ou de la réplication), lu par
 l'entrée \code{Intercept} pour les poids de la régression pondérée~;
 ensemble des colonnes dégénérées (figé à l'observé par \code{mw\_bootstrap()}, calculé sur
 \code{aj} s'il n'est pas fourni) et résidus de Mack calculés avec cet ensemble (issue~\#60), lus
 depuis l'issue~\#239 par les entrées \code{ExpVar} et \code{KruskalAcc}, qui ne les recalculent
-plus \\
+plus~; depuis l'issue~\#270, ensemble des colonnes non identifiables de la courbure, figé de
+même, lu par l'entrée \code{Courbure} (fiche~\ref{mw:m1c}) \\
 \code{.mc\_evaluer()} & catalogue, contexte & vecteur nommé dans l'ordre du catalogue~; erreur
 qui nomme la statistique si une entrée ne rend pas une valeur de longueur~1 \\
 \code{engine\_p\_mc()} & valeurs simulées, valeur observée, sens du rejet, \code{extremes}
@@ -925,6 +927,12 @@ maximal des facteurs individuels à $\hat f_j$~; prédicat unique de colonne dé
 volets (écart relatif au plus \code{tol}, ou facteurs que l'aplatissement des ex \ae quo à
 \code{tol} rend tous égaux, issue~\#60)~; ensemble des colonnes dégénérées, figé à l'observé par
 \code{mw\_bootstrap()} (fiche~\ref{mw:m1a}) \\
+\code{.mw\_colonnes\_}\newline\code{courbure\_non\_}\newline\code{identifiables()} & \code{aj},
+\code{j\_degeneres} (\code{NULL}~: ensemble calculé sur \code{aj}) & vecteur croissant
+d'entiers, éventuellement vide, des colonnes non identifiables de la courbure~: $n_j \ge 4$, hors
+des colonnes exclues, colonne non dégénérée, moins de trois valeurs distinctes de $C(i,j)$
+(égalité exacte)~; ensemble figé à l'observé par \code{mw\_bootstrap()} et transmis aux
+réplications (issue~\#270, fiche~\ref{mw:m1c}) \\
 \code{.MW\_PREDICAT\_}\newline\code{DEGENERE\_TEXTE} & constante (chaîne) & énoncé unique des deux
 volets du prédicat, repris par l'avertissement des colonnes exclues, l'avertissement
 d'extrapolation de $\hat\sigma^2_{J-1}$, le motif de refus de l'issue~\#192 et la phrase
@@ -955,7 +963,8 @@ différence $\sum_l x_l - x_k$, qui s'annule en flottant quand $x_k$ domine sa c
 $1 - h_{ij}$) et \code{mw\_influence()} ($S_j - C(i,j)$ et $S'_j - C(i,j+1)$), mêmes opérations
 que les deux formes qu'il remplace \\
 \code{mw\_simuler\_triangle()}, \code{.mw\_stats()} & \code{aj}, vivier de
-résidus~; \code{aj} & triangle simulé, rendu depuis l'issue~\#257 dès le premier cumul simulé non
+résidus~; \code{aj}, \code{j\_degeneres}, \code{j\_non\_identifiables} (ensembles figés à
+l'observé, le second depuis l'issue~\#270) & triangle simulé, rendu depuis l'issue~\#257 dès le premier cumul simulé non
 strictement positif ou non fini (cellule \code{NA}, colonnes suivantes non tirées)~; vecteur de
 13 statistiques \\
 \code{.mw\_tirer\_triangle\_}\newline\code{valide()},\newline
@@ -977,7 +986,9 @@ vérifications colonne par colonne de M1 et, depuis l'issue~\#60, de
 \code{mw\_test\_homogeneite\_}\allowbreak\code{accident()},
 \code{mw\_test\_annees\_}\allowbreak\code{calendaires()} et
 \code{mw\_stat\_correlation\_}\allowbreak\code{dev()} (\code{NULL}~:
-ensemble calculé sur \code{aj})~; argument facultatif \code{res} (résidus de Mack déjà calculés,
+ensemble calculé sur \code{aj})~; argument \code{j\_non\_identifiables} de
+\code{mw\_test\_courbure()} (ensemble figé des colonnes non identifiables, \code{NULL}~: calculé
+sur \code{aj}, issue~\#270)~; argument facultatif \code{res} (résidus de Mack déjà calculés,
 ceux du contexte dans le bootstrap~; \code{NULL}~: calculés par \code{mw\_residus()}, issue~\#239)
 de \code{mw\_test\_exposant\_}\allowbreak\code{variance()} et
 \code{mw\_test\_homogeneite\_}\allowbreak\code{accident()} & statistiques des tests M1 à M6 (détail~: §\ref{sec:index-fonctions}) \\
@@ -12700,6 +12711,8 @@ l'issue~\#60, le même ensemble figé est transmis aux résidus de Mack de chaqu
 catalogue \code{MW\_CATALOGUE\_MC}) et, par extension décidée par le mainteneur le
 6~octobre 2026, au test calendaire et à la corrélation entre années adjacentes (entrées
 \code{Calendrier} et \code{CorrDev}, fiches~\ref{mw:m3cal} et~\ref{mw:m3cor}).
+Depuis l'issue~\#270, l'ensemble des colonnes non identifiables de la courbure, distinct de
+celui-ci, est figé de même (fiche~\ref{mw:m1c}).
 \emph{Effectif conditionnel au voisinage du seuil.} Quand une colonne retenue à l'observé est
 juste au-dessus de la tolérance, une part des réplications la rend dégénérée, et la p-value de
 Monte-Carlo des trois vérifications colonne par colonne est calculée sur les seules réplications où la statistique est
@@ -12771,9 +12784,10 @@ lieu d'écarter la colonne qui porte la preuve la plus forte contre $H_0$~; une 
 ou hors de $[0, 1]$ rend la statistique \code{NA} sans changer $K$, et la réplication sort de
 \code{B\_effectif}. $K$ est ainsi le nombre de p-values transmises, et ne varie plus que si la
 fonction de la ligne écarte elle-même une colonne (colonne trop courte, \code{lm()} en échec
-pour l'ordonnée à l'origine, garde $\mathrm{sd} = 0$ de la courbure et de l'exposant de variance,
-et, pour la courbure depuis l'issue~\#253, moins de trois valeurs distinctes de $C(i,j)$,
-fiche~\ref{mw:m1c}). Auparavant, une p-value
+pour l'ordonnée à l'origine, garde $\mathrm{sd} = 0$ de l'exposant de variance,
+et, pour la courbure depuis l'issue~\#253, moins de trois valeurs distinctes de $C(i,j)$, prédicat
+qui couvre la garde $\mathrm{sd} = 0$ qu'elle avait jusqu'à l'issue~\#270 et dont l'ensemble est,
+depuis cette issue, figé à l'observé, fiche~\ref{mw:m1c}). Auparavant, une p-value
 nulle faisait écarter sa colonne sans trace, et $K$ pouvait différer entre la statistique
 observée et ses réplications (effet mesuré, fiche~\ref{mw:m1b}). Limite
 mesurée et acceptée~: une colonne dont l'écart relatif dépasse à peine $10^{-12}$ reste soumise
@@ -13002,15 +13016,18 @@ somme est formé à exposant séparé (\code{.mw\_me()}, \code{.mw\_somme\_me()}
 finis sur tout le domaine $[10^{-50}~;~10^{50}]$ des cumuls admis (issue~\#185). Le
 développement de $d_Q$ selon la colonne des écarts reste défini quand des valeurs de $C(i,j)$ se
 répètent, pourvu qu'il y en ait au moins trois distinctes. Seule la non-identifiabilité exacte
-(moins de trois valeurs distinctes de $C(i,j)$, soit $A = 0$) écarte une colonne, comme la garde
-$\mathrm{sd} = 0$ et selon la règle de l'issue~\#90 (décision D1-7). Deux comportements de cette
+(moins de trois valeurs distinctes de $C(i,j)$, soit $A = 0$) écarte une colonne, selon la règle
+de l'issue~\#90 (décision D1-7)~; la garde $\mathrm{sd} = 0$, qui l'écartait aussi, en est un cas
+particulier (une seule valeur distincte) et a été retirée par l'issue~\#270, ce prédicat la
+couvrant (\emph{Ensemble figé à l'observé}, ci-dessous). Deux comportements de cette
 exclusion, antérieurs à l'issue~\#253, ont été relevés~: elle n'était pas restituée dans le
 commentaire de la ligne, ce que corrige l'issue~\#269 (\emph{Restitution des colonnes non
-identifiables}, ci-dessous)~; pour $j \ge 1$, elle peut écarter une colonne à
-l'observé sans l'écarter dans les réplications, où $K$ diffère alors (issue~\#270, ouverte)~: la
-statistique observée, somme de $K$ termes $-2\log p_j \ge 0$, est alors comparée à des
-réplications qui en comptent un de plus, de sorte que la p-value de Monte-Carlo est majorée, à
-réplications données, par rapport à une comparaison à $K$ égal (sens conservateur). Avant l'issue, \code{lm()} écartait le terme quadratique par son
+identifiables}, ci-dessous)~; pour $j \ge 1$, elle pouvait écarter une colonne à
+l'observé sans l'écarter dans les réplications, où $K$ différait alors~: la
+statistique observée, somme de $K$ termes $-2\log p_j \ge 0$, était comparée à des
+réplications qui en comptaient un de plus, de sorte que la p-value de Monte-Carlo était majorée, à
+réplications données, par rapport à une comparaison à $K$ égal (sens conservateur), ce que
+corrige l'issue~\#270 (\emph{Ensemble figé à l'observé}, ci-dessous). Avant l'issue~\#253, \code{lm()} écartait le terme quadratique par son
 critère de rang numérique et la colonne sortait de la combinaison sans trace~: sur le triangle
 de contrôle dont la ligne~$0$ est multipliée par $10^{13}$ ou par $10^{15}$, la statistique
 valait \code{NA} (moteur de \code{68360f4}). Ajustement parfait ($G = 0$, $N \neq 0$)~: $t_j = \pm\infty$ et $p_j = 0$,
@@ -13059,6 +13076,82 @@ de plus la colonne $j = 2$ dégénérée ($C(i,3) = 1{,}3\,C(i,2)$ pour $i = 0$ 
 phrases se suivent, celle des colonnes dégénérées d'abord, chacune avec «~\code{K = 2 colonne(s)
 testee(s) sur 4 eligible(s)}~». Comme pour une colonne dégénérée, l'exclusion ne vaut pas preuve
 de linéarité~: la colonne n'est pas testée.
+
+\emph{Ensemble figé à l'observé} (issue~\#270, décisions D1-5, D1-6 et D1-8 du mainteneur du
+13~octobre 2026). Les colonnes non identifiables sont celles que rend
+\code{.mw\_colonnes\_courbure\_}\allowbreak\code{non\_identifiables()}~: les $j$ tels que
+$n_j \ge 4$, hors des colonnes exclues de la vérification (ensemble figé des colonnes dégénérées,
+fiche~\ref{mw:m1a}), dont la colonne n'est pas dégénérée et dont les $C(i,j)$ comptent moins de
+trois valeurs distinctes, au sens de l'égalité exacte (\code{unique()})~; une colonne constante en
+fait partie. \code{mw\_bootstrap()} calcule cet ensemble une fois, sur le triangle observé, après
+celui des colonnes dégénérées, et le transmet à chaque réplication par l'argument
+\code{j\_non\_identifiables} de \code{mw\_test\_courbure()}, de \code{.mw\_contexte\_mc()} et de
+\code{.mw\_stats()}, que lit l'entrée \code{Courbure} de \code{MW\_CATALOGUE\_MC} (nom, rejet en
+queue haute et absence d'extrémités inchangés)~; à l'appel observé, l'argument vaut \code{NULL}
+et l'ensemble est calculé sur le triangle, ce qui donne le même. La statistique observée et
+celle de chaque réplication combinent ainsi les mêmes colonnes, avec le même $K$~: c'est la
+règle des colonnes dégénérées (issue~\#56, fiche~\ref{mw:m1a}), transposée. Son second volet
+l'est aussi~: une colonne retenue à l'observé mais non identifiable dans une réplication rend la
+statistique \code{NA}, avec $K$ \code{NA}, et la réplication sort de $B$ effectif, au lieu de
+donner une statistique à une colonne de moins que l'observée~; aucune colonne n'est plus écartée
+sans trace. L'élément \code{non\_identifiables} (ci-dessus) décrit depuis l'issue l'ensemble
+figé~: il est formé avant le parcours des colonnes et porté complet par les retours \code{NA},
+alors que \code{exclues} et le nombre de colonnes éligibles restent ceux des colonnes parcourues
+avant l'arrêt. L'ensemble est distinct de celui des colonnes dégénérées~: les deux autres
+vérifications colonne par colonne de M1 et les résidus de Mack ne l'emploient pas. Aucun tirage
+n'est ajouté ni retiré~; seule la statistique des réplications change.
+
+\emph{Pourquoi figer l'ensemble plutôt que reproduire la sélection dans chaque réplication.}
+Avant l'issue, le prédicat était évalué sur chaque triangle simulé. Pour $j = 0$, la colonne est
+reprise telle quelle de l'observé par \code{mw\_simuler\_triangle()}, et l'exclusion se
+reproduisait~; pour $j \ge 1$, les cumuls sont simulés, et les égalités exactes de l'observé ne
+s'y retrouvent pas (constat ci-dessous~: 999 réplications sur 999 à $K = 4$ sur les trois
+triangles concernés). La statistique observée était alors comparée à la loi d'une autre
+statistique, à une colonne de plus. Reproduire une règle de sélection dans le bootstrap ne vaut
+que si le modèle simulé peut produire ce qui la déclenche, ce qui n'est pas le cas ici~; figer
+l'ensemble compare la même fonction du triangle à l'observé et dans chaque réplication, comme la
+p-value de Monte-Carlo conditionnelle à la définition de la statistique (fiche~\ref{mw:m1a},
+\emph{Effectif conditionnel au voisinage du seuil}).
+C'est un argument élémentaire, adossé à aucune référence publiée. Sous l'approximation nominale
+(colonnes indépendantes, chaque $-2\ln p_j$ de loi $\chi^2(2)$ sous $H_0$), la règle antérieure
+comparait une statistique de loi $\chi^2(6)$ au quantile d'une $\chi^2(8)$, et rejetait avec
+probabilité $\mathbb{P}\big(\chi^2(6) \ge q_{0{,}90}(\chi^2(8))\big) = 0{,}038$ au seuil de
+$0{,}10$ et $0{,}017$ au seuil de $0{,}05$, soit un conservatisme d'un facteur $2{,}7$ à~$3$
+(calcul exact sous cette approximation, \code{pchisq(qchisq(1 - a, 8), 6, lower.tail = FALSE)},
+et non mesure à $T = 8$, où les colonnes ne sont pas indépendantes).
+
+\emph{Constat sur triangles construits.} Triangles dérivés du triangle de contrôle, $B = 999$,
+graine 20260831, \code{mw\_bootstrap()} et \code{mw\_tests()}, moteur de l'issue~\#269 (avant)
+et moteur postérieur à l'issue~\#270 (après)~; $K$ des réplications par un rejeu de la boucle de
+\code{mw\_bootstrap()} réduit à la courbure, dont la p-value de Monte-Carlo est identique à
+celle du moteur sur les cinq triangles, avant comme après~:
+
+\begin{center}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}p{4.6cm}ccccc@{}}
+\toprule
+Triangle & non & $K$ & $K$ des & p-value de & verdict \\
+ & identifiable & observé & réplications & Monte-Carlo & \\
+ & & & avant / après & avant / après & avant / après \\
+\midrule
+Triangle de contrôle & aucune & 4 & 4 / 4 & $0{,}030$ / $0{,}030$ & \code{ECHEC} / \code{ECHEC} \\
+T1~: $C(i,1) = 1\,000$ ($i \le 2$), $1\,100$ ($3 \le i \le 5$) & $j = 1$ & 3 & 4 / 3 & $0{,}081$ / $0{,}031$ & \code{ALERTE} / \code{ECHEC} \\
+T2~: $C(i,2) = 1\,600$ ($i \le 2$), $1\,800$ ($i = 3, 4$) & $j = 2$ & 3 & 4 / 3 & $0{,}634$ / $0{,}394$ & \code{OK} / \code{OK} \\
+T3~: $C(i,0) = 320$, $350$ en alternance & $j = 0$ & 3 & 3 / 3 & $0{,}017$ / $0{,}017$ & \code{ECHEC} / \code{ECHEC} \\
+T4~: $C(i,1) = 1\,050$ ($i \le 5$) & $j = 1$ & 3 & 4 / 3 & $0{,}043$ / $0{,}016$ & \code{ECHEC} / \code{ECHEC} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent Dans chaque cas, les 999 réplications ont le $K$ indiqué et $B$ effectif vaut 999. Sur
+T1, $X = 13{,}9956$ à $K = 3$~; sa queue $\chi^2(6)$ vaut $0{,}0297$ et sa queue $\chi^2(8)$
+$0{,}0819$~: la p-value de Monte-Carlo d'avant est proche de la seconde, celle d'après de la
+première. Le changement de verdict de T1 a été approuvé par le mainteneur (décision D1-8).
+\emph{Statut}~: constat de simulation sur cinq triangles construits et une graine, non une mesure
+de niveau. Le niveau de la p-value de Monte-Carlo sous l'ensemble figé n'est mesuré sur aucun plan
+dont les $C(i,j)$ présentent des ex \ae quo exacts~; les taux de rejet de la rubrique~7 ont été
+mesurés avant l'issue~\#270, et l'effet de l'issue sur leur plan n'est pas mesuré.
 \Loi
 $\chi^2(2K)$ approchée. Loi de référence~: bootstrap de résidus.
 \Pval
@@ -13118,7 +13211,7 @@ Monte-Carlo, la colonne étant traitée de la même façon à l'observé et dans
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance de la ligne non étudiée à $T = 8$ (la rubrique~6 cite, à titre d'illustration, la puissance exacte du test de Student d'une colonne isolée sous erreurs gaussiennes, qui n'est pas une puissance de la ligne). Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}093$ (N), $0{,}080$ (E), $0{,}095$ (A), pour $\rho = 0{,}099$~; à $0{,}05$, $0{,}0445$, $0{,}036$, $0{,}041$ ($\rho = 0{,}049$)~; compatible sous N et A~; écart mineur du côté conservateur sous E aux deux seuils.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance de la ligne non étudiée à $T = 8$ (la rubrique~6 cite, à titre d'illustration, la puissance exacte du test de Student d'une colonne isolée sous erreurs gaussiennes, qui n'est pas une puissance de la ligne). Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}093$ (N), $0{,}080$ (E), $0{,}095$ (A), pour $\rho = 0{,}099$~; à $0{,}05$, $0{,}0445$, $0{,}036$, $0{,}041$ ($\rho = 0{,}049$)~; compatible sous N et A~; écart mineur du côté conservateur sous E aux deux seuils. Mesure antérieure à l'issue~\#270 (ensemble figé des colonnes non identifiables, rubrique~3), dont l'effet sur ce plan n'est pas mesuré.
 
 \textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance de la ligne. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
 \end{fiche}
