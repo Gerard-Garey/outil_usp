@@ -432,3 +432,13 @@ Cette annotation vient d'`actuary`, consulté sur le diff de l'étape 5. Elle ne
 - **Traçabilité des valeurs écrites en dur** (§ 6, « Tests attendus »). Elles sont recalculées par un script R hors CI versionné, `tests/unitaires/generer_valeurs_forme_close_m1.R`.
   - Il utilise Rmpfr (Q-E2c-5), à 4 096 bits puis 8 192 bits, avec un contrôle de stabilité des 17 chiffres.
   - Sa méthode est indépendante de la forme close : équations normales complètes, élimination de Gauss.
+
+## Annotation du 14/10/2026 : prémisse de D1-7 corrigée (E2e, #269, #270)
+
+Annotation d'`architect`, étape 6 de la fiche « Branche E2e ». Elle ne remplace pas le texte ci-dessus : elle le corrige.
+
+- **§ 6, « Non-identifiabilité exacte »** : la phrase « Ce cas ne dépend pas des réplications : la colonne 0 est figée et les cumuls simulés sont continus » est **fausse pour j ≥ 1** (spécification d'E2e, `docs/specifications/e2e-niveaux-et-documentation.md`, § 4).
+  - La colonne était écartée à l'observé. Pour j ≥ 1, elle était **combinée** dans les réplications, faute d'ex æquo dans les cumuls simulés : K = 3 à l'observé contre 4 dans 999 réplications sur 999 (triangles construits T1, T2 et T4).
+  - Seule j = 0, figée par `mw_simuler_triangle()`, se reproduisait.
+- **Correction** : #270 (`4f69677`, option (a), D1-5 et D1-6 d'E2e). L'ensemble des colonnes non identifiables est figé à l'observé (`.mw_colonnes_courbure_non_identifiables()`, argument `j_non_identifiables`). Une colonne retenue mais non identifiable dans une réplication rend la statistique `NA`. L'exclusion est restituée dans le `detail` par #269 (`ec3c7dc`). Voir `CONTEXT.md`, « Colonne non identifiable (courbure) ».
+- **D1-7 n'est pas rouvert** : la colonne exactement non identifiable reste écartée à l'observé. Seule sa prémisse, et donc le traitement des réplications, change.

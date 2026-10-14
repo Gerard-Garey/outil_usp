@@ -7,8 +7,10 @@
 #  section 2, tests U120-1 a U120-7 ; decision D1-3 ; ADR 0003 annote le
 #  12/10/2026, point 1) :
 #    - constante NATURE_APPROX_N_FINI et argument nature_as d'add() ;
-#    - nature des lignes "Lilliefors sur les residus de Mack" (mw_tests()) et
-#      "Aplatissement (Anscombe-Glynn, T >= 20)" (usp_tests()) ;
+#    - nature de la ligne "Aplatissement (Anscombe-Glynn, T >= 20)"
+#      (usp_tests()) ; la ligne "Lilliefors sur les residus de Mack"
+#      (mw_tests()), diagnostic depuis #245, n'a plus de nature_p (U120-1,
+#      reecrit : T245-5) ;
 #    - badge "approx. n fini" de badge_nature() (display_helpers.R).
 #  U120-7 (aucune valeur numerique changee sur les six cas) est porte par
 #  tests/test_reproductibilite.R (comparaison aux references, dont celle de
@@ -73,10 +75,13 @@ verifier("U120-4 add() : p Monte-Carlo externe (p_mc_ext) -> nature Monte-Carlo,
          identical(nature120(p_mc_ext = 0.4, err_mc_ext = 0.01, p_as = 0.3,
                              nature_as = NATURE_APPROX_N_FINI), "Monte-Carlo"))
 
-## --- U120-1 : M5 Lilliefors de reserve2 ----------------------------------------
+## --- U120-1 : M5 Lilliefors de reserve2 (reecrit par #245, T245-5) ------------
 # Triangle du cas reserve2 (outils_tests.R) a B = B_MIN_USAGE : la p de
 # Lilliefors (lillie_p() sur les residus de Mack) ne depend pas du bootstrap ;
-# elle est comparee a la reference a la tolerance de non-regression.
+# elle est comparee a la reference a la tolerance de non-regression. Depuis
+# #245 (decision D1-1 (a)), la ligne est un diagnostic : add() pose nature_p
+# a NA ; NATURE_APPROX_N_FINI n'est plus portee que par Anscombe-Glynn a
+# T >= 20 (U120-5).
 outils120 <- new.env(parent = globalenv())
 sys.source(file.path(.racine120, "tests", "outils_tests.R"), envir = outils120)
 res120 <- suppressWarnings(run_engine(methode = "reserve2", triangle = outils120$.tri,
@@ -84,16 +89,16 @@ res120 <- suppressWarnings(run_engine(methode = "reserve2", triangle = outils120
 ref120 <- readRDS(file.path(.racine120, "tests", "reference", "reserve2.rds"))
 lil <- function(res) Filter(function(l) identical(l$test, "Lilliefors sur les residus de Mack"),
                             res$tests)[[1]]
-verifier("U120-1 reserve2 : nature_p de 'Lilliefors sur les residus de Mack' = NATURE_APPROX_N_FINI",
-         identical(lil(res120)$nature_p, NATURE_APPROX_N_FINI))
-verifier("U120-1 reserve2 : p_retenue et verdict de Lilliefors identiques a la reference",
-         isTRUE(proche(lil(res120)$p_retenue, lil(ref120)$p_retenue, rel = outils120$TOLERANCE)) &&
-           identical(lil(res120)$verdict, lil(ref120)$verdict) &&
-           identical(lil(res120)$type, "test"))
-verifier("U120-1 reserve2 : aucune autre ligne ne porte NATURE_APPROX_N_FINI ni 'asymptotique'",
+verifier("U120-1 reserve2 : 'Lilliefors sur les residus de Mack' diagnostic, nature_p et p_retenue NA (#245)",
+         identical(lil(res120)$type, "diagnostic") && identical(lil(res120)$nature_p, NA_character_) &&
+           identical(lil(res120)$p_retenue, NA_real_) && identical(lil(res120)$verdict, "INFO"))
+verifier("U120-1 reserve2 : p_asymptotique de Lilliefors identique a la reference",
+         isTRUE(proche(lil(res120)$p_asymptotique, lil(ref120)$p_asymptotique,
+                       rel = outils120$TOLERANCE)))
+verifier("U120-1 reserve2 : aucune ligne ne porte NATURE_APPROX_N_FINI ni 'asymptotique'",
          {
            n <- vapply(res120$tests, function(l) if (is.na(l$nature_p)) "" else l$nature_p, character(1))
-           sum(n == NATURE_APPROX_N_FINI) == 1L && !any(startsWith(n, "asymptotique"))
+           !any(n == NATURE_APPROX_N_FINI) && !any(startsWith(n, "asymptotique"))
          })
 
 ## --- U120-5 : Anscombe-Glynn a T = 20 -------------------------------------------

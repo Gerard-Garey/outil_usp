@@ -334,7 +334,7 @@ ui <- fluidPage(
                     "Quand la p Monte-Carlo manque, la p non simul&eacute;e n'est jamais retenue",
                     "&agrave; sa place (ADR 0001) : sauf p exacte, la ligne ne porte aucune",
                     "p-value retenue.",
-                    "La nature <b style='color:#6E2C00'>approx. n fini</b> (Lilliefors, Anscombe-Glynn)",
+                    "La nature <b style='color:#6E2C00'>approx. n fini</b> (Anscombe-Glynn, T &gt;= 20)",
                     "est une p non simul&eacute;e qui approche la loi de la statistique &agrave; n fini",
                     "sous &eacute;chantillon i.i.d. normal ; elle occupe le rang de l'asymptotique",
                     "sans &ecirc;tre une loi limite, et ne vaut que si cette hypoth&egrave;se tient.",

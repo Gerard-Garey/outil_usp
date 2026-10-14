@@ -233,3 +233,15 @@ Monte-Carlo (bootstrap parametrique, conditionnel au regime interieur de delta e
 - `CLAUDE.md`, section « Structure d'un résultat de test » (quatre champs de fin de ligne ; hiérarchie dite « exacte > Monte-Carlo > p non simulée ») : commit `claude:` séparé de la session principale, sur accord.
 - `.tex` : surface documentaire de la spécification, § 10, au passage unique de `docwriter` (règle 9).
 - Issues : #120, #181, #182, #244, #204, #125 ; #76 (règle et exception) ; #245, #254 (C-E2b-2, C-E2b-3) ; PR #261.
+
+---
+
+## Annotation du 14 octobre 2026 — une seule exemption de provenance restante (#232) ; portée de `NATURE_APPROX_N_FINI` réduite (#245), branche E2e
+
+**1. Bilan des exemptions de provenance (complète l'annotation du 02/10/2026, A3).** Des deux exemptions de provenance indirecte maintenues le 01/10, celle de `.fisher_combine()` (profondeur 2) est **levée** par #232 (`155d912`). La phrase du graphe Merz-Wüthrich « `.fisher_combine()` dessert N tests M1 + N test(s) M2 » est désormais vérifiée par le registre `DECOMPTES` de `tests/concordance_doc_moteur.R`. La vérification lit le graphe d'appels du moteur sans l'exécuter : `appelants_directs()` lit `all.names(body())`, `FONCTIONS_INDIRECTES` vaut `.fisher_combine`, et `grandeurs_moteur()` reçoit l'argument `appelants`. Elle compte les lignes de `res$tests` dont le champ `fonction` est un appelant, par famille. `.mw_fisher_x_max()`, appelant sans ligne propre, n'entre pas dans le compte. Une garde (`appelants_textuels()`, alias par `identical()`) arrête le script si la lecture textuelle diffère ; ses limites sont écrites au point (vi) de l'en-tête du script. Le contrôle a relevé un écart, corrigé par M32 (`5d4e8c5`) : la fonction dessert **3** tests M1 (ordonnée à l'origine, homogénéité de f_j, courbure) et 1 test M2 (exposant de variance), et non 4 + 1.
+
+**Reste exemptée une seule formulation** : le nœud **(q4)** du graphe Merz-Wüthrich, « M3 (2 entrées) ». Son entrée de `EXEMPTES_DECOMPTES` a pour id « noeud M3 correlations (graphe Merz-Wuthrich) » et pour motif `MOTIF_PROVENANCE_INDIRECTE` : c'est un sous-ensemble de la famille M3 rattaché à un nœud du schéma, qui ne nomme aucune fonction. Le bilan devient « 5 vérifiées + 1 par grandeur dérivée + 1 par graphe d'appels + 1 maintenue ». Le risque résiduel du motif reste celui-ci : si le code change et que le document ne suit pas, le décompte du nœud n'est pas détecté.
+
+**2. Portée de la nature « approximation à n fini sous i.i.d. normal » (point 1 de l'annotation du 12/10/2026).** Depuis #245 (`897ce6b`, D1-1 (a) du 13/10/2026), « Lilliefors sur les residus de Mack » est un diagnostic : l'argument `nature_as` est retiré de l'appel, et la ligne n'a plus de `nature_p`. La nature n'est plus portée que par « Aplatissement (Anscombe-Glynn, T >= 20) ». Les légendes de l'application et du rapport figé sont alignées (`0f62f90`). La constante, l'argument `nature_as` d'`add()` et la liste des natures possibles restent inchangés. Le contrat d'`add()` est inchangé : #245 ne change que les arguments d'appel des deux lignes M5. Voir ADR 0002, annotation du 14/10/2026.
+
+Issues : #232, #111, #245, #120.

@@ -40,7 +40,7 @@
 #          rien est un ecart (perimee) ; une garde ne perime pas.
 #
 #       LIMITES : (i) une formulation exemptee n'est pas verifiee (anaphore,
-#       provenance indirecte par fonction (#111), lignes d'un tableau du
+#       noeud du schema qui regroupe des lignes (#111), lignes d'un tableau du
 #       document, constat de simulation, dimension d'un tableau ou d'un fichier d'entree --
 #       garde de contexte : un vrai decompte ecrit "tableau de N lignes"
 #       serait lui aussi exempte) ; (ii) un decompte ecrit sans les mots "lignes",
@@ -58,7 +58,14 @@
 #       vingt et un" et "quatre-vingt et un" sont inventories entiers et
 #       lus NA, voir MOT_NOMBRE) ; (v) les formules mathematiques sont lues sans leurs
 #       delimiteurs $ : "$6$ lignes" est inventorie, mais un nombre calcule
-#       dans une formule ("$2k/T$ lignes") ne l'est pas ;
+#       dans une formule ("$2k/T$ lignes") ne l'est pas ; (vi) une
+#       provenance indirecte par fonction (#232, FONCTIONS_INDIRECTES) lit
+#       le graphe d'appels par all.names(body()) : un appel par chaine
+#       (do.call, match.fun), par un defaut d'argument, par un alias global
+#       ou depuis une liste lui echappe ; la garde de appelants_directs()
+#       (recherche dans deparse(), alias par identical()) arrete alors le
+#       script, sauf pour un nom construit par paste0() ou un appel depuis
+#       un autre environnement ;
 #    3. chaque prefixe de famille produit par le moteur dans res$tests (deux
 #       premiers caracteres du champ famille, cle de GROUPES) est declare
 #       dans GROUPES de R/display_helpers.R ; les familles rencontrees
@@ -685,10 +692,14 @@ DECOMPTES <- list(
        motif = paste0("Chacun des ", N_, " tests dispose de sa propre fonction"),
        champs = "famille C. type test"),
   list(id = "Merz-Wuthrich : tests de normalite (M5)", methode = "reserve2",
-       motif = paste0("Les ", N_, " tests de normalit\u00e9 sont compt\u00e9s parmi les tests"),
-       champs = "famille M5 type test"),
+       motif = paste0("Les ", N_, " lignes de normalit\u00e9 \\(M5\\) sont compt\u00e9es parmi les diagnostics"),
+       champs = "famille M5 type diagnostic"),
+  # Meme nombre capture deux fois (groupe dans une assertion avant, puis
+  # groupe ordinaire, a la meme position), comme pour la base r ci-dessous :
+  # tests de Merz-Wuthrich et lignes a p-value retenue de Monte-Carlo, qui
+  # doivent coincider (#245, phrase reformulee a l'etape 7 d'E2e).
   list(id = "Merz-Wuthrich : tests reposant sur le bootstrap", methode = "reserve2",
-       motif = paste0(N_, " de ces ", N_, " tests reposent sur le bootstrap"),
+       motif = paste0("Les (?=", N_, ")", N_, " tests d'hypoth\u00e8se reposent tous sur le bootstrap"),
        champs = c("nature Monte-Carlo", "type test")),
   # Formulation a qualificatif intercale ("cinq autres lignes"), inventoriee
   # depuis l'audit de #75 (C2). Le meme nombre est capture deux fois (groupe
@@ -731,8 +742,79 @@ DECOMPTES <- list(
   list(id = "provenance : stat_dw() ... test_grubbs() (tableau des portees)", methode = c("premium", "reserve1"),
        motif = paste0("stat_dw\\(\\), test_runs\\(\\), stat_supF\\(\\), stat_cusum\\(\\) et test_grubbs\\(\\) \\(",
                       N_, " entr\u00e9es chacune"),
-       champs = "fonctions z et u (compte commun)")
+       champs = "fonctions z et u (compte commun)"),
+  # Issue #232 : provenance indirecte de .fisher_combine() (profondeur 2),
+  # verifiee sur le graphe d'appels du moteur (FONCTIONS_INDIRECTES,
+  # appelants_directs()) : lignes de res$tests dont la fonction (champ
+  # fonction) appelle directement .fisher_combine(), comptees par famille.
+  # Les appelants qui ne sont le champ fonction d'aucune ligne
+  # (.mw_fisher_x_max(), plancher Monte-Carlo de HomogF et ExpVar, #207)
+  # n'entrent pas dans le compte. Le schema ne nomme que M1 et M2 : la
+  # seconde capture est comparee au nombre de lignes servies en M2 si
+  # toutes les lignes servies hors M1 sont en M2, NA sinon (grandeur
+  # "appel <nom> hors M1 tout en M2") : une ligne servie ajoutee dans une
+  # autre famille, ou passee de M2 a une autre famille, fait un ecart.
+  list(id = "provenance indirecte : .fisher_combine() (graphe Merz-Wuthrich)", methode = "reserve2",
+       motif = paste0("\\.fisher_combine\\(\\)[^;]{0,40}?dessert ", N_, " tests M1 \\+ ", N_, " tests? M2"),
+       champs = c("appel .fisher_combine famille M1", "appel .fisher_combine hors M1 tout en M2"))
 )
+
+# Fonctions internes dont les lignes servies sont comptees par le graphe
+# d'appels du moteur (issue #232) : grandeurs "appel <nom> famille <Mk>" et
+# "appel <nom> hors <Mk>" de grandeurs_moteur(), argument appelants.
+FONCTIONS_INDIRECTES <- ".fisher_combine"
+
+# Fonctions de env dont le corps appelle (ou nomme) directement la fonction
+# f ; noms tries. Lecture du graphe d'appels par all.names(body()), sans
+# executer le moteur (issue #232).
+#   LIMITES de all.names(body()) : il ne voit que les symboles du corps. Il
+#   ne voit pas un appel par chaine de caracteres (do.call(".fisher_combine",
+#   ...), match.fun(".fisher_combine"), get(".fisher_combine")), un appel
+#   place dans un defaut d'argument (formals, hors du corps), un appel par
+#   un alias global (fc <- .fisher_combine, puis fc(p)), ni un appel depuis
+#   une fonction rangee dans une liste (catalogue Monte-Carlo) plutot que
+#   liee a un nom de env. Garde : appelants_textuels() cherche f dans
+#   deparse() de chaque fonction (formals compris) et de chaque liste de env
+#   (catalogues compris), et un alias de f (objet identique sous un autre
+#   nom) est cherche par identical() ; toute difference avec la lecture par
+#   all.names() arrete le script (stop()). Restent hors de la garde : un nom
+#   construit (paste0(".fisher_", "combine")) et un appel depuis un
+#   environnement autre que env. Deux autres limites : (a) seuls les
+#   appelants DIRECTS sont lus ; une fonction de ligne qui passe par une
+#   aide intermediaire (t() appelle h(), qui appelle f) sort du compte, et
+#   la concordance signale alors un ECART alors que le .tex peut etre juste
+#   (diagnostic a lire avec ce point) ; (b) la garde arrete aussi par exces
+#   quand f figure dans une chaine de caracteres ou dans un nom plus long
+#   (recherche litterale) : faux positif sans danger, a traiter le jour ou
+#   il survient (audit de la reprise de #232).
+appelants_directs <- function(env, f) {
+  noms <- ls(env, all.names = TRUE)
+  directs <- sort(Filter(function(n) {
+    g <- get(n, envir = env)
+    is.function(g) && !identical(n, f) && f %in% all.names(body(g))
+  }, noms))
+  textuels <- appelants_textuels(env, f)
+  alias <- if (exists(f, envir = env, inherits = FALSE))
+    Filter(function(n) !identical(n, f) && identical(get(n, envir = env), get(f, envir = env)), noms)
+  else character(0)
+  if (length(alias) || !identical(directs, textuels))
+    stop(sprintf(paste0("appelants_directs(\"%s\") : lecture par all.names(body()) [%s] differente de la ",
+                        "recherche dans deparse() [%s]%s ; appel indirect (do.call, match.fun, defaut ",
+                        "d'argument, liste) a traiter (issue #232)"),
+                 f, paste(directs, collapse = ", "), paste(textuels, collapse = ", "),
+                 if (length(alias)) paste0(", alias de ", f, " : ", paste(alias, collapse = ", ")) else ""),
+         call. = FALSE)
+  directs
+}
+
+# Objets de env (fonctions et listes, f exclue) dont deparse() contient le
+# nom f (recherche litterale) ; noms tries. Garde de appelants_directs().
+appelants_textuels <- function(env, f) {
+  sort(Filter(function(n) {
+    g <- get(n, envir = env)
+    !identical(n, f) && (is.function(g) || is.list(g)) && any(grepl(f, deparse(g), fixed = TRUE))
+  }, ls(env, all.names = TRUE)))
+}
 
 # Fonctions declinees sur z_t et sur u_t (phrase "2 entrees chacune" du
 # tableau des portees) : grandeur derivee "fonctions z et u (compte commun)"
@@ -757,10 +839,11 @@ MOTIF_ANAPHORE <- "reprise anaphorique de tests nommes dans le texte qui precede
 # res$tests nomme la fonction du moteur qui en calcule la statistique ; une
 # provenance DIRECTE ("test_lm_complet() alimente N entrees") est donc une
 # phrase verifiee du registre DECOMPTES (grandeur "fonction <nom>" de
-# grandeurs_moteur()). Restent exemptees les provenances INDIRECTES : une
-# fonction appelee par la fonction qui calcule la statistique (profondeur 2,
-# .fisher_combine()) ou un noeud du schema qui regroupe des lignes sans
-# nommer de fonction.
+# grandeurs_moteur()). Une provenance INDIRECTE par fonction (profondeur 2,
+# .fisher_combine()) est verifiee depuis #232 sur le graphe d'appels du
+# moteur (phrase "provenance indirecte : .fisher_combine()" du registre,
+# FONCTIONS_INDIRECTES). Reste exempte un noeud du schema qui regroupe des
+# lignes sans nommer de fonction.
 MOTIF_PROVENANCE_INDIRECTE <- paste("provenance indirecte d'entrees (graphe d'appels du moteur) : le champ",
                                     "fonction de res$tests ne nomme que la fonction qui calcule la statistique",
                                     "de la ligne, pas les fonctions qu'elle appelle ni les regroupements du",
@@ -787,8 +870,6 @@ EXEMPTES_DECOMPTES <- list(
   list(id = "calibration Merz-Wuthrich : trois tests s'ecartent",
        contexte = "Trois tests s'en \u00e9cartent fortement",
        motif = "constat de simulation de la calibration des lois de reference, pas un decompte de la table"),
-  list(id = ".fisher_combine() (graphe Merz-Wuthrich)", contexte = "dessert 4 tests M1",
-       motif = MOTIF_PROVENANCE_INDIRECTE),
   list(id = "noeud M3 correlations (graphe Merz-Wuthrich)", contexte = "\\(q4\\) M3 \\(2 entr\u00e9es\\)",
        motif = paste(MOTIF_PROVENANCE_INDIRECTE, "(sous-ensemble de la famille M3 rattache a un noeud du schema)"))
 )
@@ -816,7 +897,13 @@ GARDES_DECOMPTES <- list(
 # Grandeurs structurelles de la table des tests d'un resultat du moteur
 # (et, si fourni, de res$controles). Un champ absent d'une ligne vaut NA :
 # la ligne n'est alors comptee dans aucune grandeur qui porte sur ce champ.
-grandeurs_moteur <- function(tests, controles = NULL) {
+# appelants (issue #232) : NULL, ou liste nommee par fonction interne
+# (FONCTIONS_INDIRECTES) des fonctions qui l'appellent directement
+# (appelants_directs()) ; pour chacune, nombre de lignes dont le champ
+# fonction est l'un de ses appelants, par famille, hors de chaque famille,
+# et hors d'une famille f "tout en h" (lignes servies en h si toutes les
+# lignes servies hors f sont en h, NA sinon).
+grandeurs_moteur <- function(tests, controles = NULL, appelants = NULL) {
   champ <- function(n, l = tests) vapply(l, function(t) { v <- t[[n]]; if (is.null(v) || !length(v)) NA_character_ else as.character(v)[1] },
                                          character(1))
   nat <- champ("nature_p"); typ <- champ("type"); fam <- substr(champ("famille"), 1L, 2L)
@@ -869,6 +956,18 @@ grandeurs_moteur <- function(tests, controles = NULL) {
   n_zu <- vapply(FONCTIONS_Z_ET_U, function(f) sum(fon %in% f), numeric(1))
   g["fonctions z et u (compte commun)"] <- if (length(unique(n_zu)) == 1L) n_zu[[1]] else NA_real_
   for (f in unique(fam)) g[paste("famille", f)] <- sum(fam == f)
+  for (fi in names(appelants)) {
+    sert <- fon %in% appelants[[fi]]
+    for (f in unique(fam)) {
+      g[paste("appel", fi, "famille", f)] <- sum(sert & fam %in% f)
+      g[paste("appel", fi, "hors", f)] <- sum(sert & !fam %in% f)
+      # lignes servies en h si toutes les lignes servies hors f sont en h,
+      # NA sinon (une famille NA compte hors de toute famille)
+      for (h in setdiff(unique(fam), f))
+        g[paste("appel", fi, "hors", f, "tout en", h)] <-
+          if (all(fam[sert & !fam %in% f] %in% h)) sum(sert & fam %in% h) else NA_real_
+    }
+  }
   for (f in unique(fam)) for (ty in unique(typ[fam %in% f]))
     g[paste("famille", f, "type", ty)] <- sum(fam %in% f & typ %in% ty)
   if (!is.null(controles)) {
@@ -1178,9 +1277,9 @@ REGISTRE_RUBRIQUE7 <- list(
   list(label = "mw:m3dw", tests = "Autocorrelation des residus (Durbin-Watson)"),
   list(label = "mw:m3runs", tests = "Test des suites sur les residus de Mack"),
   list(label = "mw:m4gr", tests = "Cellule aberrante du triangle (Grubbs)"),
-  list(label = "mw:m4ros", tests = "Cellules aberrantes multiples (ESD generalise)"),
-  list(label = "mw:m5sw", tests = "Shapiro-Wilk sur les residus de Mack"),
-  list(label = "mw:m5li", tests = "Lilliefors sur les residus de Mack")
+  list(label = "mw:m4ros", tests = "Cellules aberrantes multiples (ESD generalise)")
+  # mw:m5sw et mw:m5li retirees (#245, decision D1-1 (a) du 13/10/2026) :
+  # les deux lignes M5 sont des diagnostics, sans rubrique 7.
 )
 TYPES_RUBRIQUE7 <- c("test", "procedure de decision")
 
@@ -1923,7 +2022,8 @@ if (sys.nframe() == 0L) {
     reserve1_j2 = run_engine(xt = j2$x, yt = j2$y, methode = "reserve1", segment = 1, annexe = "II", B = B)))
   if (!all(vapply(resultats_j2, function(r) isTRUE(r$ok), logical(1))))
     stop("run_engine() sur le jeu J2 : resultat ok = FALSE", call. = FALSE)
-  grandeurs <- c(lapply(resultats, function(r) grandeurs_moteur(r$tests, r$controles)),
+  appelants <- setNames(lapply(FONCTIONS_INDIRECTES, function(f) appelants_directs(env, f)), FONCTIONS_INDIRECTES)
+  grandeurs <- c(lapply(resultats, function(r) grandeurs_moteur(r$tests, r$controles, appelants)),
                  lapply(resultats_vc, function(r) grandeurs_moteur(r$tests, r$controles)),
                  list(code = grandeurs_code(env)))
   ecrire(sprintf("\n=== 2. Decomptes (moteur execute sur tests/donnees/, B = %d)\n", B))

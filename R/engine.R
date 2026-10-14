@@ -3767,11 +3767,11 @@ engine_p_mc <- function(sim, obs, queue, extremes = NULL) {
 # 0003 annote le 12/10/2026, point 1 ; Q-E2b-6, D1-3) : approximation de la
 # loi de la statistique a n fini sous echantillon i.i.d. normal, ajustee sur
 # tables simulees ou sur moments exacts (famille (ii) de la specification
-# E2b : Dallal-Wilkinson prolonge par Stephens pour Lilliefors, Anscombe-Glynn
-# pour l'aplatissement). Passee a add() par l'argument nature_as, sur les
-# seules lignes sans mc_nom de cette famille. Le libelle dit ce qu'est la p ;
-# il ne dit pas que l'hypothese i.i.d. normale tient (elle ne tient pas sur
-# les residus de Mack : niveau de M5 a #245).
+# E2b). Passee a add() par l'argument nature_as, sur les seules lignes sans
+# mc_nom de cette famille. Depuis #245 (lignes M5 de Merz-Wuthrich en
+# diagnostic, sans p retenue ni nature_p), sa seule ligne est l'aplatissement
+# d'Anscombe-Glynn (moments exacts), test a T >= 20 seulement. Le libelle dit
+# ce qu'est la p ; il ne dit pas que l'hypothese i.i.d. normale tient.
 NATURE_APPROX_N_FINI <- "approximation a n fini sous i.i.d. normal"
 
 # Phrase de sensibilite du verdict a l'alea de simulation (#244 ; ADR 0003
@@ -7913,9 +7913,15 @@ mw_residus <- function(aj, j_degeneres = NULL) {
 }
 
 # --- Test des effets d'annee calendaire (Mack) --------------------------------
-# Mack (1994), "Which stochastic model is underlying the chain ladder method ?",
-# Insurance: Mathematics and Economics 15, 133-138 ; repris dans Mack (1993),
-# ASTIN Bulletin 23(2), 213-225.
+# Mack (1994), "Measuring the variability of chain ladder reserve estimates",
+# CAS Forum, printemps 1994, 101-182, annexe H, p. 162-168 : procedure
+# d'origine (statistique globale Z, moments (H1) et (H2), regle normale), que
+# suivent cette fonction, .mack_moments_Z() et .mw_calendrier_p_min(). La
+# reimpression du Claims Reserving Manual, vol. 2, section D6 (1997), annexe H
+# revisee, p. D6.47-D6.51, teste chaque diagonale separement et n'est pas
+# retenue (decision Q-201-1 du mainteneur, 13/10/2026, issue #201). Ni Mack
+# (1994), Insurance: Mathematics and Economics 15, 133-138, ni Mack (1993),
+# ASTIN Bulletin 23(2), 213-225, ne contiennent ce test (issue #201).
 # Principe : dans chaque colonne j, les facteurs observes sont classes en
 # "grands" (L) et "petits" (S) par rapport a leur mediane ; sous H0 d'absence
 # d'effet calendaire, la repartition des L et des S le long de chaque diagonale
@@ -7986,7 +7992,10 @@ mw_test_annees_calendaires <- function(aj, j_degeneres = NULL) {
 }
 
 # --- Test de correlation entre annees de developpement adjacentes (Mack) -----
-# Mack (1997) / Mack (1993), ASTIN Bulletin 23(2). L'hypothese D(2)(h)(ii)
+# Mack (1994), CAS Forum, printemps 1994, annexe G (statistique T, moyenne
+# des correlations de Spearman ponderee), reprise dans le Claims Reserving
+# Manual, section D6 (1997), annexe G ; Mack (1993), ASTIN Bulletin 23(2), ne
+# contient pas ce test (issue #201). L'hypothese D(2)(h)(ii)
 # suppose les facteurs de developpement successifs non correles. On mesure la
 # correlation de rang de Spearman entre colonnes adjacentes, agregee sur le
 # triangle. La loi sous H0 dependant de la geometrie du triangle, la p-value
@@ -8286,8 +8295,12 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
 #      au regard des colonnes degenerees, K est identique entre statistique
 #      observee et simulee ; .fisher_combine() n'ecarte plus aucune p-value
 #      (issue #90) : K ne varie plus que si l'appelant ecarte une colonne
-#      (lm() en echec, garde sd() == 0 ; pour la courbure, depuis #253,
-#      moins de trois valeurs distinctes de C(i,j), sans lm()) ;
+#      (lm() en echec, garde sd() == 0 ; pour la courbure, depuis #270,
+#      plus jamais : ses colonnes a moins de trois valeurs distinctes de
+#      C(i,j) forment un second ensemble fige a l'observe,
+#      .mw_colonnes_courbure_non_identifiables(), et une colonne retenue
+#      mais non identifiable dans la replication rend la statistique NA,
+#      comme au volet 2 ci-dessous) ;
 #   2. une colonne retenue a l'observe mais degeneree dans la replication
 #      n'est ni exclue (K changerait) ni soumise a lm() / cor.test() : la
 #      statistique de la replication vaut NA et sort de B_effectif.
@@ -8587,16 +8600,56 @@ mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
     p = 2 * stats::pt(abs(tv), n - 3, lower.tail = FALSE))
 }
 
+# Colonnes non identifiables de la courbure (#270, option (a), decisions
+# D1-5 et D1-6 du 13/10/2026) : j = 0..J-1 tels que n_j = I - j >= 4, j hors
+# de l'ensemble des colonnes exclues (.mw_j_exclues(aj, j_degeneres)), colonne
+# non degeneree (.mw_colonne_degeneree()), et moins de trois valeurs
+# distinctes de C(0..I-j-1, j) (egalite exacte, unique() ; une colonne
+# constante, ecartee avant #270 par la garde sd(C0) == 0, est couverte) :
+# le terme quadratique n'y est pas identifiable. Vecteur d'entiers croissants,
+# eventuellement vide. mw_bootstrap() le calcule UNE FOIS sur le triangle
+# observe et le fige pour chaque replication, comme les colonnes degenerees
+# (#56) : la statistique observee et celle des replications combinent les
+# memes colonnes (meme K). Ensemble distinct de celui des colonnes
+# degenerees : les autres verifications de M1 n'en excluent pas la colonne.
+.mw_colonnes_courbure_non_identifiables <- function(aj, j_degeneres = NULL) {
+  I <- aj$I; jd <- .mw_j_exclues(aj, j_degeneres)
+  j <- 0:(aj$J - 1L)
+  garder <- vapply(j, function(k) {
+    idx <- 0:(I - k - 1)
+    length(idx) >= 4 && !(k %in% jd) && !.mw_colonne_degeneree(aj, k) &&
+      length(unique(aj$tri[idx + 1, k + 1])) < 3
+  }, logical(1))
+  as.integer(j[garder])
+}
+
 # (c) Absence de courbure : terme quadratique dans la regression ponderee.
 # Une courbure significative contredit la LINEARITE, meme si la constante est
 # nulle : E[C(i,j+1)|C(i,j)] ne serait alors pas proportionnelle a C(i,j).
-mw_test_courbure <- function(aj, j_degeneres = NULL) {
+# j_non_identifiables : ensemble des colonnes non identifiables (#270), fige a
+# l'observe par mw_bootstrap() ; NULL : calcule sur aj (appel observe).
+mw_test_courbure <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
   # Une ligne par colonne retenue, table assemblee une fois (.mw_empiler(),
   # #239, #250).
   blocs <- list()
   ex <- .mw_exclues_vide()
   jd <- .mw_j_exclues(aj, j_degeneres)
+  jni <- if (is.null(j_non_identifiables))
+    .mw_colonnes_courbure_non_identifiables(aj, jd) else as.integer(j_non_identifiables)
+  # Element "non_identifiables" (#269) : colonnes de l'ensemble fige que la
+  # boucle ecarte (n_j >= 4, hors des colonnes exclues), en j croissant. Il
+  # est forme AVANT la boucle et porte tel quel par tous les retours, retours
+  # NA compris (constat 3b de l'audit de #269) : il decrit l'ensemble fige,
+  # non les colonnes parcourues avant un arret de la boucle. "exclues" et
+  # "eligibles", eux, restent ceux des colonnes parcourues avant l'arret
+  # (.mw_stat_non_definie(), commun aux verifications de M1).
+  # Lignes ajoutees une a une (meme forme d'objet, ordre des attributs
+  # compris, qu'au commit de #269).
+  jn <- sort(unique(jni[jni %in% 0:(J - 1) & I - jni >= 4 & !(jni %in% jd)]))
+  ni <- data.frame(j = integer(0), n_facteurs = integer(0))
+  for (k in jn) ni[nrow(ni) + 1L, ] <- list(as.integer(k), as.integer(I - k))
+  na_stat <- function() { r0 <- .mw_stat_non_definie(ex); r0$non_identifiables <- ni; r0 }
   for (j in 0:(J - 1)) {
     idx <- 0:(I - j - 1)
     if (length(idx) < 4) next                    # 3 parametres + 1 ddl
@@ -8605,24 +8658,55 @@ mw_test_courbure <- function(aj, j_degeneres = NULL) {
     # statistique NA, AVANT tout calcul du t (.mw_courbure_colonne()).
     if (j %in% jd) { ex <- .mw_exclure(ex, j, length(idx)); next }
     ex$eligibles <- ex$eligibles + 1L
-    if (.mw_colonne_degeneree(aj, j)) return(.mw_stat_non_definie(ex))
+    # Colonne non identifiable de l'ensemble fige (#270) : ecartee, comptee
+    # dans "eligibles", hors de K, nommee dans le libelle par
+    # .mw_phrase_non_identifiable() (#269). Testee AVANT le controle de
+    # degenerescence : une colonne de l'ensemble fige, hors de K, ne rend pas
+    # la statistique NA si elle devient degeneree dans une replication.
+    if (j %in% jni) next
+    if (.mw_colonne_degeneree(aj, j)) return(na_stat())
     C0 <- tri[idx + 1, j + 1]; C1 <- tri[idx + 1, j + 2]
-    if (stats::sd(C0) == 0) next
     # Forme close (#253) : plus aucune exclusion silencieuse par le rang
-    # numerique de lm() ; seule la non-identifiabilite exacte (moins de trois
-    # valeurs distinctes de C(i,j)) ecarte la colonne, comme sd(C0) == 0
-    # (doctrine de #90, decision D1-7 du 13/10/2026).
+    # numerique de lm(). Colonne retenue a l'observe mais non identifiable
+    # dans cet appel (moins de trois valeurs distinctes de C(i,j), d'ou
+    # .mw_courbure_colonne() NULL ; second volet de la regle de #56, transpose
+    # par #270) : statistique NA, K = NA, et la replication sort de B effectif,
+    # au lieu d'une statistique a une colonne de moins que l'observee. La garde
+    # sd(C0) == 0 d'avant #270 est couverte par le predicat (une seule valeur
+    # distincte).
     r <- .mw_courbure_colonne(C0, C1)
-    if (is.null(r)) next
+    if (is.null(r)) return(na_stat())
     blocs[[length(blocs) + 1L]] <- list(j = j, n = length(idx), c2 = r[["c2"]],
                                         t = r[["t"]], p = r[["p"]])
   }
   det <- .mw_empiler(blocs)
   if (!nrow(det)) return(list(stat = NA_real_, p = NA_real_, detail = det,
-                              exclues = ex$colonnes, eligibles = ex$eligibles))
+                              exclues = ex$colonnes, eligibles = ex$eligibles,
+                              non_identifiables = ni))
   fc <- .fisher_combine(det$p)
   list(stat = fc$stat, p = fc$p, K = fc$K, detail = det,
-       exclues = ex$colonnes, eligibles = ex$eligibles)
+       exclues = ex$colonnes, eligibles = ex$eligibles, non_identifiables = ni)
+}
+
+# Phrase ajoutee au libelle ("detail") de la ligne de courbure de M1,
+# SEULEMENT si une colonne eligible a moins de trois valeurs distinctes de
+# C(i,j) (element "non_identifiables" de mw_test_courbure(), #269) ; chaine
+# vide sinon. Texte fixe : j, n_j, K et eligibles sont ceux de l'appel
+# observe, aucun nombre issu du bootstrap (#76). Placee par mw_tests() apres
+# la phrase des colonnes degenerees (.mw_phrase_exclusion()), avec la meme
+# clause "K = ... sur ... eligible(s)".
+.mw_phrase_non_identifiable <- function(r) {
+  ni <- r$non_identifiables
+  if (is.null(ni) || !nrow(ni)) return("")
+  K <- if (is.null(r$K)) 0L else r$K
+  plur <- nrow(ni) > 1
+  sprintf(paste0(
+    "%s a moins de trois valeurs distinctes de C(i,j) : %s ; terme quadratique ",
+    "non identifiable, %s hors de la combinaison de Fisher ; K = %d colonne(s) ",
+    "testee(s) sur %d eligible(s). L'exclusion ne vaut pas preuve de linearite."),
+    if (plur) "Colonnes" else "Colonne",
+    paste(sprintf("j = %d (%d facteurs)", ni$j, ni$n_facteurs), collapse = ", "),
+    if (plur) "colonnes" else "colonne", K, r$eligibles)
 }
 
 # (d) Stabilite du facteur selon la ponderation : famille alpha.
@@ -8744,9 +8828,9 @@ mw_test_homogeneite_accident <- function(aj, j_degeneres = NULL, res = NULL) {
 
 # Effet calendaire (bilateral) : sur chaque diagonale retenue (n_k >= 2),
 # L_k ~ Binomiale(n_k, 1/2), diagonales independantes, Z = somme min(L_k,
-# n_k - L_k). C'est la loi binomiale independante de Mack (1994), celle des
-# moments de .mack_moments_Z(), et NON la loi de permutation intra-colonne
-# (dans une colonne, le nombre de L est fixe par la mediane, ce qui lie les
+# n_k - L_k). C'est la loi binomiale independante de Mack (1994, CAS Forum,
+# annexe H), celle des moments de .mack_moments_Z(), et NON la loi de
+# permutation intra-colonne (dans une colonne, le nombre de L est fixe par la mediane, ce qui lie les
 # diagonales) : choix de la specification (#115 (b)2) ; la question Q1 de
 # l'audit, renvoyee a #125, est sans objet pour R1 depuis #125 (R1 lit la
 # loi simulee, p_min_mc) ; cette p_min reste restituee. Loi de Z par convolution exacte ; p_min = min sur
@@ -9014,11 +9098,17 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
     # #56) et residus de Mack de toutes les lignes qui en dependent (issue
     # #60, via le contexte de .mw_contexte_mc()).
     jd <- .mw_colonnes_degenerees(aj)
+    # Colonnes non identifiables de la courbure (#270), determinees UNE FOIS
+    # sur le triangle observe, apres jd, et figees de meme : la statistique
+    # de courbure de chaque replication combine les memes colonnes que
+    # l'observee. Aucun tirage n'est ajoute ni retire : seule la statistique
+    # des replications change.
+    jni <- .mw_colonnes_courbure_non_identifiables(aj, jd)
     # Pool : residus de Mack retenus du triangle observe, colonnes degenerees
     # exclues (#60), redresses par le levier puis recentres (#46).
     pool <- .mw_pool_residus(aj, jd)
     # Contexte observe conserve pour les conditions du catalogue (#44).
-    e_obs <- .mw_contexte_mc(aj, jd)
+    e_obs <- .mw_contexte_mc(aj, jd, jni)
     obs <- .mc_evaluer(MW_CATALOGUE_MC, e_obs)
     noms <- names(obs)
     sim <- matrix(NA_real_, B, length(noms), dimnames = list(NULL, noms))
@@ -9037,7 +9127,7 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
       tb <- tir$tri
       ab <- try(mw_ajuster(tb), silent = TRUE)
       if (inherits(ab, "try-error")) next
-      sb <- try(.mw_stats(ab, jd), silent = TRUE)
+      sb <- try(.mw_stats(ab, jd, jni), silent = TRUE)
       if (inherits(sb, "try-error")) next
       sim[b, ] <- sb[noms]
       mb <- try(mw_msep(ab), silent = TRUE)
@@ -9055,11 +9145,14 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
   # de D de Lilliefors (queue haute) ne rejette jamais (0 sur 500 a 0,10 et
   # a 0,05), au lieu de 10 % et 5 % pour un test au niveau. La loi nulle
   # propre de W sur les residus de Mack n'est pas non plus au niveau (meme
-  # fichier, T6 : 22 % de rejets a 0,10 sous erreurs gaussiennes ; issue
-  # #245). La normalite n'est d'ailleurs PAS une hypothese du modele de Mack :
-  # l'annexe XVII, D(2)(h), ne specifie que les deux premiers moments. Elle est
-  # donc traitee comme un diagnostic descriptif, avec sa loi nulle propre,
-  # dont le niveau sur les residus de Mack reste a etablir (issue #245).
+  # fichier, T6, n = 2000 : 0,221 de rejets a 0,10 sous erreurs gaussiennes,
+  # et 0,1875 pour Lilliefors) : les residus de Mack portent deux contraintes exactes
+  # par colonne et ne sont pas un echantillon i.i.d. La normalite n'est
+  # d'ailleurs PAS une hypothese du modele de Mack : l'annexe XVII, D(2)(h),
+  # ne specifie que les deux premiers moments. Les deux lignes M5 sont donc
+  # des diagnostics sans verdict (issue #245, decision D1-1 (a) du mainteneur,
+  # 13/10/2026), dont la p sous echantillon i.i.d. normal est restituee pour
+  # information, sans etre retenue (mw_tests()).
   # P-values de Monte-Carlo, erreur de Monte-Carlo et B effectif, le sens du
   # rejet etant lu au catalogue MW_CATALOGUE_MC (fonction partagee avec
   # usp_bootstrap()).
@@ -9087,11 +9180,15 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
 # exclues des verifications colonne par colonne de M1 (issue #56) et des
 # residus de Mack (issue #60) : fige a l'observe par mw_bootstrap(), calcule
 # sur aj s'il n'est pas fourni ; residus de Mack (mw_residus(), calcules une
-# fois avec cet ensemble) et leur vecteur r.
-.mw_contexte_mc <- function(aj, j_degeneres = NULL) {
+# fois avec cet ensemble) et leur vecteur r ; ensemble j_non_identifiables des
+# colonnes non identifiables de la courbure (#270), fige a l'observe par
+# mw_bootstrap(), calcule sur aj (avec jd) s'il n'est pas fourni.
+.mw_contexte_mc <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL) {
   jd <- .mw_j_exclues(aj, j_degeneres)
   res <- mw_residus(aj, jd)
-  list(aj = aj, res = res, r = res$residu, j_degeneres = jd)
+  jni <- if (is.null(j_non_identifiables))
+    .mw_colonnes_courbure_non_identifiables(aj, jd) else as.integer(j_non_identifiables)
+  list(aj = aj, res = res, r = res$residu, j_degeneres = jd, j_non_identifiables = jni)
 }
 
 # Extremites du support des six statistiques discretes de Merz-Wuthrich, a
@@ -9176,7 +9273,8 @@ MW_CATALOGUE_MC <- list(
   HomogF     = .mc_entree(function(e) mw_test_homogeneite_f(e$aj, e$j_degeneres)$stat, "haut",
                           extremes = function(e)
                             .mw_fisher_x_max(mw_test_homogeneite_f(e$aj, e$j_degeneres))),
-  Courbure   = .mc_entree(function(e) mw_test_courbure(e$aj, e$j_degeneres)$stat, "haut"),
+  Courbure   = .mc_entree(function(e) mw_test_courbure(e$aj, e$j_degeneres,
+                                                    e$j_non_identifiables)$stat, "haut"),
   Alpha      = .mc_entree(function(e) mw_famille_alpha(e$aj)$stat, "haut"),
   # Residus de Mack du contexte, e$res, calcules une seule fois par
   # .mw_contexte_mc() avec l'ensemble fige des colonnes degenerees (issue
@@ -9191,9 +9289,10 @@ MW_CATALOGUE_MC <- list(
 
 # Statistiques bootstrapables de la methode Merz-Wuthrich (catalogue
 # MW_CATALOGUE_MC). j_degeneres : ensemble fige des colonnes degenerees de M1
-# (NULL : calcule sur aj).
-.mw_stats <- function(aj, j_degeneres = NULL)
-  .mc_evaluer(MW_CATALOGUE_MC, .mw_contexte_mc(aj, j_degeneres))
+# (NULL : calcule sur aj) ; j_non_identifiables : ensemble fige des colonnes
+# non identifiables de la courbure (#270 ; NULL : calcule sur aj).
+.mw_stats <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL)
+  .mc_evaluer(MW_CATALOGUE_MC, .mw_contexte_mc(aj, j_degeneres, j_non_identifiables))
 
 # --- B effectif < B sur une ligne Monte-Carlo de Merz-Wuthrich (#204) ---------
 # Phrase ajoutee en fin du detail d'une des 13 lignes Monte-Carlo de
@@ -9303,7 +9402,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   ti <- .mw_lm_intra(res)
   add(fam, "Absence de tendance des facteurs avec le cumul, a colonne donnee",
       fonction = ".mw_lm_intra",
-      "Mack (1993), ASTIN Bulletin 23(2)",
+      "Mack (1993), ASTIN Bulletin 23(2), section 2, hyp. (1) ; section 3, hyp. (3)",
       H0 = "a annee de developpement donnee, le facteur ne depend pas du niveau de C(i,j)",
       H1 = "les facteurs varient avec le volume a l'interieur d'une colonne",
       stat_nom = "t", stat = if (!is.null(ti)) unname(ti[3]) else NA_real_,
@@ -9318,7 +9417,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
   oo <- mw_test_ordonnee_origine(aj)
   add(fam, "Nullite de l'ordonnee a l'origine, colonne par colonne",
       fonction = "mw_test_ordonnee_origine",
-      "Mack (1993), ASTIN Bulletin 23(2), section 3",
+      "Mack (1993), ASTIN Bulletin 23(2), section 2, hyp. (1) ; section 3, hyp. (3) ; Mack (1994), CAS Forum, chap. 5",
       H0 = "a_j = 0 pour toute annee de developpement j",
       H1 = "au moins une colonne presente une composante fixe",
       stat_nom = "X de Fisher", stat = oo$stat,
@@ -9367,16 +9466,20 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       loi = "chi2(2K) approx. -> Monte-Carlo",
       estim_nom = "colonnes testees", estim = if (is.null(cb$K)) NA_real_ else cb$K,
       p_as = cb$p, mc_nom = "Courbure",
-      detail = .mw_avec_exclusion(
+      detail = .mw_avec_exclusion(.mw_avec_exclusion(
         "Une courbure invalide la linearite meme si la constante est nulle",
         .mw_phrase_exclusion(cb,
           paste0("terme quadratique nul pour des facteurs exactement egaux, statistique de Student ",
                  "non definie (0/0) ou reduite a des ecarts negligeables a la tolerance de l'outil"),
-          "de linearite")))
+          "de linearite")),
+        .mw_phrase_non_identifiable(cb)))
   al <- mw_famille_alpha(aj)
+  # Source des estimateurs ponderes (issue #201, decision Q-201-2) : Mack
+  # (1994), CAS Forum, chapitres 3 et 5 ; l'article de l'IME 15 (1994) ne
+  # les contient pas.
   add(fam, "Stabilite du facteur selon la ponderation (famille alpha)",
       fonction = "mw_famille_alpha",
-      "Mack (1994), Insurance: Mathematics and Economics 15",
+      "Mack (1994), CAS Forum (printemps), 101-182, chap. 3 et 5",
       H0 = "les estimateurs alpha = 0, 1 et 2 visent le meme f_j",
       H1 = "la valeur du facteur depend de la ponderation retenue",
       stat_nom = "amplitude relative", stat = al$stat,
@@ -9459,7 +9562,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                             "diagonales n_k", .mw_calendrier_p_min)
   add(fam, "Effets d'annee calendaire (test de Mack)",
       fonction = "mw_test_annees_calendaires",
-      "Mack (1994), Insurance: Mathematics and Economics 15, 133-138",
+      "Mack (1994), CAS Forum (printemps), 101-182, annexe H",
       H0 = "absence d'effet d'annee calendaire (diagonales homogenes)",
       H1 = "une ou plusieurs diagonales atypiques (inflation, changement de cadence)",
       stat_nom = "Z centre reduit", stat = cal$stat,
@@ -9495,7 +9598,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                             .mw_corr_p_min, isTRUE(cor$ex_aequo))
   add(fam, "Correlation entre annees de developpement adjacentes",
       fonction = "mw_stat_correlation_dev",
-      "Mack (1993, 1997), ASTIN Bulletin ; correlation de rang de Spearman",
+      "Mack (1994), CAS Forum (printemps), 101-182, annexe G ; correlation de rang de Spearman",
       H0 = "facteurs de developpement successifs non correles",
       H1 = "correlation entre colonnes adjacentes",
       stat_nom = "rho agrege", stat = cor$stat,
@@ -9545,29 +9648,53 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       verdict = if (ro$nb_outliers >= 2) "ECHEC" else if (ro$nb_outliers == 1) "ALERTE" else "OK")
 
   ## --- M5 : normalite, DIAGNOSTIC seulement ---------------------------------
+  # Deux diagnostics sans verdict (#245, decisions D1-1 (a) et D1-2 (A) du
+  # mainteneur, 13/10/2026 ; ADR 0001) : la normalite n'est pas une hypothese
+  # du modele (annexe XVII, D(2)(h)) et sigma_USP n'utilise aucun quantile.
+  # Les residus de Mack ne sont pas un echantillon i.i.d. : deux contraintes
+  # exactes par colonne (somme des sqrt(C(i,j)) r(i,j) nulle ; somme des
+  # r(i,j)^2 egale a n_j - 1, sigma_j etant estime sur les memes facteurs).
+  # Les lois nulles de W et de D, celles d'un echantillon i.i.d. normal, n'y
+  # sont donc pas au niveau (docs/tableaux/20261011-issue119-mw.md, T6, plan
+  # reserve2, erreurs gaussiennes, n = 2000 : 0,221 de rejets de Shapiro-Wilk
+  # et 0,1875 de Lilliefors au seuil 0,10 ; constat de simulation sous un plan). La p de
+  # Shapiro-Wilk n'est pas exacte (ADR 0002) : elle passe en colonne
+  # p_asymptotique, p sous un modele auxiliaire (famille (iii) de la p non
+  # simulee, CONTEXT.md). add() pose seule sens, p_retenue et nature_p a NA.
   fam <- "M5. normalite des residus (diagnostic, NON exige par le modele)"
   sw <- .shapiro_sur(r)
   add(fam, "Shapiro-Wilk sur les residus de Mack",
       fonction = ".shapiro_sur",
       "Shapiro & Wilk (1965) ; loi nulle evaluee par simulation directe",
+      type = "diagnostic",
       H0 = "les residus de Mack sont normaux", H1 = "loi non normale",
       stat_nom = "W", stat = sw$stat,
-      loi = "loi exacte de W sous normalite, evaluee numeriquement",
-      p_ex = sw_p_loi_nulle(sw$stat, n),
-      detail = paste("L'annexe XVII, D(2)(h), ne specifie que les DEUX PREMIERS MOMENTS :",
-                     "la normalite n'est pas requise par la methode. Ce test n'est pertinent",
-                     "que si l'on souhaite exploiter la MSEP pour un quantile."))
+      loi = "loi de W sous echantillon i.i.d. normal (simulation directe), non sous le modele de Mack",
+      p_as = sw_p_loi_nulle(sw$stat, n),
+      detail = paste("Diagnostic sans verdict (ADR 0001) : la normalite n'est pas une hypothese",
+                     "du modele (l'annexe XVII, D(2)(h), ne specifie que les deux premiers",
+                     "moments). La loi nulle de W est celle d'un echantillon i.i.d. normal,",
+                     "que les residus de Mack ne sont pas (f_j et sigma_j estimes sur les",
+                     "memes facteurs) : sous erreurs gaussiennes, elle rejette plus souvent",
+                     "que le seuil nominal (constat de simulation sous un plan). La p-value",
+                     "est restituee pour information ; elle n'est pertinente que si l'on",
+                     "souhaite exploiter la MSEP pour un quantile."))
+  D <- stat_lilliefors(r)
   add(fam, "Lilliefors sur les residus de Mack",
       fonction = "stat_lilliefors",
       "Lilliefors (1967) ; p-value : Dallal & Wilkinson (1986)",
-      variante = "secondaire",
+      type = "diagnostic", variante = "secondaire",
       H0 = "les residus de Mack sont normaux", H1 = "loi non normale",
-      stat_nom = "D", stat = stat_lilliefors(r),
-      loi = "loi de Lilliefors (parametres estimes)",
-      p_as = lillie_p(stat_lilliefors(r), n),
-      # Dallal-Wilkinson prolonge par Stephens : approximation de la loi a n
-      # fini sous i.i.d. normal, non loi limite (#120).
-      nature_as = NATURE_APPROX_N_FINI)
+      stat_nom = "D", stat = D,
+      loi = "loi de Lilliefors sous echantillon i.i.d. normal (parametres estimes), non sous le modele de Mack",
+      # Dallal-Wilkinson prolonge par Stephens (#120) ; nature_as retire
+      # (#245) : sans effet sur une ligne sans verdict.
+      p_as = lillie_p(D, n),
+      detail = paste("Diagnostic sans verdict (ADR 0001) : approximation de Dallal et",
+                     "Wilkinson de la loi de D a n fini sous echantillon i.i.d. normal, que",
+                     "les residus de Mack ne sont pas ; sous erreurs gaussiennes, elle",
+                     "rejette plus souvent que le seuil nominal (constat de simulation sous",
+                     "un plan). La p-value est restituee pour information."))
 
   ## --- M6 : robustesse de l'estimation --------------------------------------
   fam <- "M6. robustesse de l'estimation"

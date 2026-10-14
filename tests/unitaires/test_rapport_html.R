@@ -167,7 +167,7 @@ verifier("Rapport : encadre de personnalisation avec le nombre de lignes du mote
 # Legende des natures du rapport fige (#120) : la nature "approx. n fini"
 # (NATURE_APPROX_N_FINI) y est nommee, dans la couleur de son badge.
 verifier("Rapport : legende des natures, nature 'approx. n fini' nommee dans la couleur du badge (#120)",
-         grepl("<b style='color:#6E2C00'>approx. n fini</b> (Lilliefors, Anscombe-Glynn)",
+         grepl("<b style='color:#6E2C00'>approx. n fini</b> (Anscombe-Glynn, T &gt;= 20)",
                principal, fixed = TRUE) &&
          grepl("color:#6E2C00", badge_nature(NATURE_APPROX_N_FINI), fixed = TRUE))
 # Legende de la hierarchie (#181) : rang de la p non simulee et absence de
@@ -316,10 +316,15 @@ verifier("Rapport MW : exclus par defaut en annexe avec leur verdict",
            grepl(badge_verdict(tbm$verdict[k]),
                  ligne_de(entre(hm, "<section id='section-annexe-exclus'>", "</section>"), tbm$test[k]),
                  fixed = TRUE), logical(1))))
-verifier("Rapport MW : M5 Lilliefors (variante secondaire, en annexe) sous le badge 'approx. n fini' (#120)",
-         grepl(badge_nature(NATURE_APPROX_N_FINI),
-               ligne_de(entre(hm, "<section id='section-annexe-exclus'>", "</section>"),
-                        "Lilliefors sur les residus de Mack"), fixed = TRUE))
+# Depuis #245, la ligne M5 Lilliefors est un diagnostic : ni nature_p ni
+# verdict de test ; elle n'a plus le badge 'approx. n fini' (#120).
+verifier("Rapport MW : M5 Lilliefors (variante secondaire, en annexe), diagnostic INFO sans badge 'approx. n fini' (#245)",
+         {
+           lg <- ligne_de(entre(hm, "<section id='section-annexe-exclus'>", "</section>"),
+                          "Lilliefors sur les residus de Mack")
+           length(lg) == 1L && nzchar(lg) && grepl(badge_verdict("INFO"), lg, fixed = TRUE) &&
+             !grepl(badge_nature(NATURE_APPROX_N_FINI), lg, fixed = TRUE)
+         })
 verifier("Rapport MW : formule racine(MSEP) / R, sans facteur de taille finie",
          grepl("racine(MSEP) / R", texte_formule(res_mw), fixed = TRUE) &&
          !grepl("(T+1)/(T-1)", texte_formule(res_mw), fixed = TRUE) &&
