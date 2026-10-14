@@ -1409,8 +1409,14 @@ texte_p_mc_regime <- function(res) {
   if (identical(r$variante, "V3b")) {
     arret <- if (identical(r$arret, "cible"))
       sprintf("arr\u00eat \u00e0 la cible (B = %s retenus)", ent(r$B_cible))
+    # Arret a B_max (issue #254, option (a), texte seul) : moins de B tirages
+    # retenus, donc pas par statistique (granularite_stat, calcule par le
+    # moteur sur B_eff <= retenus < B) plus grossier que la granularite
+    # nominale 1/(B+1). Aucun pas n'est calcule ici.
     else if (identical(r$arret, "B_max"))
-      sprintf("arr\u00eat \u00e0 B_max (%s tirages), cible B = %s non atteinte",
+      sprintf(paste("arr\u00eat \u00e0 B_max (%s tirages), cible B = %s non atteinte ;",
+                    "granularit\u00e9 effective par statistique : champ granularite_stat,",
+                    "plus grossi\u00e8re que la granularit\u00e9 nominale"),
               ent(r$B_max), ent(r$B_cible))
     else paste("arr\u00eat", if (length(r$arret) == 1L && !is.na(r$arret)) r$arret else "\u2013")
     return(sprintf(paste("conditionnelles au r\u00e9gime int\u00e9rieur de delta estim\u00e9 \u2014",
@@ -1870,9 +1876,10 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
     cles <- c(cles, unname(lib_gen[names(gen)])); vals <- c(vals, .txt(unname(gen)))
     if (!mw) {
       cles <- c(cles, "Test d'\u00e9quivalence de la constante")
+      # Marges absentes (objet relu et nettoye, #263) : tiret par .ou_tiret().
       vals <- c(vals, if (is.null(m$delta_equiv))
-        sprintf("marge = %s de la perte moyenne (theta_equiv)", format(m$theta_equiv))
-        else sprintf("marge Delta fix\u00e9e a priori = %s", format(m$delta_equiv)))
+        sprintf("marge = %s de la perte moyenne (theta_equiv)", .ou_tiret(m$theta_equiv, format))
+        else sprintf("marge Delta fix\u00e9e a priori = %s", .ou_tiret(m$delta_equiv, format)))
     }
     idt <- if (is.null(identite)) list(version = NA, md5_engine = NA, releve = NA) else identite
     cles <- c(cles, "Version de R", "Version de l'outil (DESCRIPTION)")

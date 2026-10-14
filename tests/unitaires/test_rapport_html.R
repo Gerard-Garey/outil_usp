@@ -21,7 +21,9 @@
 #  B_max, V1 au bord et a volumes constants, objet sans p_mc_regime, reserve2 ;
 #  graine du flux (metadata$seed_flux_regime) dans valeurs_generateur() et
 #  l'en-tete, absente en reserve2 ; rapport sur les six references nettoyees
-#  (sans horodatage, duree_sec ni version_R), tiret dans ces lignes (#263).
+#  (sans horodatage, duree_sec ni version_R), tiret dans ces lignes (#263) ;
+#  mention de la granularite effective en V3b arrete a B_max seulement
+#  (#254) ; tiret pour une marge theta_equiv ou delta_equiv absente.
 #  References : RFC 4648, section 10 (vecteurs de test base64) ; regle de
 #  selection de l'onglet Tests (filtrer_selection).
 #  La branche PNG est exercee partout ou capabilities("png") est vrai ; la
@@ -1088,7 +1090,10 @@ TXT_CIBLE <- paste("conditionnelles au r\u00e9gime int\u00e9rieur de delta estim
                    "510 tirages, 99 retenus, arr\u00eat \u00e0 la cible (B = 99 retenus)")
 TXT_BMAX <- paste("conditionnelles au r\u00e9gime int\u00e9rieur de delta estim\u00e9 \u2014",
                   "2500 tirages, 97 retenus, arr\u00eat \u00e0 B_max (2500 tirages),",
-                  "cible B = 99 non atteinte")
+                  "cible B = 99 non atteinte ; granularit\u00e9 effective par statistique :",
+                  "champ granularite_stat, plus grossi\u00e8re que la granularit\u00e9 nominale")
+# Mention de la granularite effective (#254) : en V3b arrete a B_max seulement.
+MENTION_254 <- "granularit\u00e9 effective par statistique"
 verifier("p_mc_regime : jeux au contrat attendu (V3b cible, V3b B_max, V1 bord 1, V1 bord 0, reserve2 sans champ)",
          identical(res_cible$bootstrap$p_mc_regime[c("variante", "tirages", "retenus", "arret")],
                    list(variante = "V3b", tirages = 510, retenus = 99, arret = "cible")) &&
@@ -1119,6 +1124,25 @@ verifier("texte_p_mc_regime() : objet sans p_mc_regime -> NULL, sans erreur",
          is.null(texte_p_mc_regime(res_sans)))
 verifier("texte_p_mc_regime() : reserve2 -> NULL, sans erreur",
          is.null(texte_p_mc_regime(res_mw)))
+# #254 : mention de la granularite effective en V3b arrete a B_max seulement.
+# Le jeu res_bmax arrete a B_max (97 retenus) a toutes ses granularite_stat
+# au-dessus de la granularite nominale 1/(B+1) (contrat de la mention) ; un
+# arret "B_max" pose a la main sous V1 (champ arret ignore hors V3b) ne la
+# produit pas.
+res_v1_bmax <- res_ln
+res_v1_bmax$bootstrap$p_mc_regime$arret <- "B_max"
+verifier("#254 : granularite_stat > granularite nominale sur le jeu arrete a B_max",
+         { g <- res_bmax$bootstrap$granularite_stat
+           all(is.finite(g)) && all(g > res_bmax$bootstrap$granularite) })
+verifier("#254 : mention de la granularite effective en V3b, arret a B_max",
+         compte(texte_p_mc_regime(res_bmax), MENTION_254) == 1L)
+verifier("#254 : mention absente en V3b arret a la cible, en V1 (bord 1, volumes constants, arret B_max pose a la main), reserve2 et sans p_mc_regime",
+         !grepl(MENTION_254, texte_p_mc_regime(res_cible), fixed = TRUE) &&
+           !grepl(MENTION_254, texte_p_mc_regime(res_ln), fixed = TRUE) &&
+           !grepl(MENTION_254, texte_p_mc_regime(res_vc), fixed = TRUE) &&
+           !grepl(MENTION_254, texte_p_mc_regime(res_vc_motif), fixed = TRUE) &&
+           !grepl(MENTION_254, texte_p_mc_regime(res_v1_bmax), fixed = TRUE) &&
+           is.null(texte_p_mc_regime(res_mw)) && is.null(texte_p_mc_regime(res_sans)))
 # Section 1 du rapport fige (en-tete de gel).
 .sect_gel <- function(res) {
   f <- tempfile(fileext = ".html")
@@ -1136,6 +1160,10 @@ verifier("rapport fige : ligne P-values Monte-Carlo (V3b, cible) entre la granul
          .ligne_mc(.sect_gel(res_cible), TXT_CIBLE))
 verifier("rapport fige : ligne P-values Monte-Carlo (V3b, B_max)",
          .ligne_mc(.sect_gel(res_bmax), TXT_BMAX))
+verifier("rapport fige : mention de la granularite effective (#254) en V3b arrete a B_max seulement",
+         compte(.sect_gel(res_bmax), MENTION_254) == 1L &&
+           all(vapply(list(res_cible, res_ln, res_vc, res_v1_bmax, res_sans, res_mw),
+                      function(r) !grepl(MENTION_254, .sect_gel(r), fixed = TRUE), TRUE)))
 verifier("rapport fige : ligne P-values Monte-Carlo (V1, bord 1)",
          .ligne_mc(.sect_gel(res_ln), texte_p_mc_regime(res_ln)))
 verifier("rapport fige : ligne P-values Monte-Carlo (V1, volumes constants)",
@@ -1199,5 +1227,43 @@ for (f_ref in REFS_263) {
                !grepl(">NULL<", h0, fixed = TRUE)
            })
 }
+
+# Marges du test d'equivalence de la constante (revue de #263) : un objet
+# lognormal sans theta_equiv (ou avec un delta_equiv vide) donne un rapport
+# sans erreur et un tiret a la place de la marge, comme les autres champs de
+# metadata absents.
+CLE_EQUIV <- "Test d'\u00e9quivalence de la constante"
+verifier("Rapport fige : marge theta_equiv absente -> tiret, sans erreur (revue de #263)",
+         {
+           r0 <- readRDS(file.path(.racine, "tests", "reference", "premium.rds"))
+           r0$metadata$theta_equiv <- NULL
+           f0 <- tempfile(fileext = ".html")
+           ok0 <- tryCatch({
+             rapport_html(r0, NULL, f0, interactif = FALSE, identite = idt); TRUE
+           }, error = function(e) FALSE)
+           h0 <- if (ok0) lire(f0) else ""; unlink(f0)
+           ok0 && identical(cle_val(entre(h0, "<h2 id='gel'>", "</table>"), CLE_EQUIV),
+                            .echap_html("marge = \u2013 de la perte moyenne (theta_equiv)"))
+         })
+verifier("Rapport fige : marge theta_equiv presente -> valeur inchangee (0.1)",
+         {
+           f0 <- tempfile(fileext = ".html")
+           rapport_html(res_ln, NULL, f0, interactif = FALSE, identite = idt)
+           h0 <- lire(f0); unlink(f0)
+           identical(cle_val(entre(h0, "<h2 id='gel'>", "</table>"), CLE_EQUIV),
+                     "marge = 0.1 de la perte moyenne (theta_equiv)")
+         })
+verifier("Rapport fige : marge delta_equiv de longueur nulle -> tiret, sans erreur",
+         {
+           r0 <- readRDS(file.path(.racine, "tests", "reference", "premium.rds"))
+           r0$metadata$delta_equiv <- numeric(0)
+           f0 <- tempfile(fileext = ".html")
+           ok0 <- tryCatch({
+             rapport_html(r0, NULL, f0, interactif = FALSE, identite = idt); TRUE
+           }, error = function(e) FALSE)
+           h0 <- if (ok0) lire(f0) else ""; unlink(f0)
+           ok0 && identical(cle_val(entre(h0, "<h2 id='gel'>", "</table>"), CLE_EQUIV),
+                            .echap_html("marge Delta fix\u00e9e a priori = \u2013"))
+         })
 
 fin_fichier()
