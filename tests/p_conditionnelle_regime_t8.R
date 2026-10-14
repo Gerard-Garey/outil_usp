@@ -126,15 +126,44 @@
 #         statistique (de P2) ou (2) un changement de retention d'un tirage
 #         (retenues differentes entre le rejeu et son recalcul) ; sinon
 #         echec bloquant ;
-#    (i2) identical() avec usp_bootstrap() (stats_obs, p_mc, err_mc,
-#         B_effectif, granularite_stat, motif_mc, sigma_boot, delta_boot,
-#         gamma_boot, sigma_boot_restreint, n_echec_restreint, z_boot) du
-#         rejeu complet (usp_ajuster_contraint() retabli), et rejeu complet
-#         identique au rejeu allege (P3 : memes statistiques simulees et
-#         memes delta**), sur l'echantillon : jeu observe (J1, J2), premiere
-#         replication traitee et premiere replication interieure de la
-#         tranche ; J1 observe : p de V1 aussi identiques aux p_mc de
-#         run_engine() du controle (a) ;
+#    (i2) identical() avec usp_bootstrap() (stats_obs, sigma_boot,
+#         delta_boot, gamma_boot, sigma_boot_restreint, n_echec_restreint,
+#         z_boot) du rejeu complet (usp_ajuster_contraint() retabli), et
+#         rejeu complet identique au rejeu allege (P3 : memes statistiques
+#         simulees et memes delta**) ; p-value Monte-Carlo selon la variante
+#         que retient usp_bootstrap() depuis #240 (V3h ; critere du moteur,
+#         usp_regime()) : au bord ou a volumes constants, V1 (p_mc, err_mc,
+#         B_effectif, granularite_stat, motif_mc et, depuis #267, p_min_mc
+#         du rejeu complet ; p de V1 = p_mc) ; a delta chapeau*_b interieur
+#         (#267, decision D1-13 ; specification
+#         docs/specifications/e2e-niveaux-et-documentation.md, par. 8.3,
+#         versee par la branche E2e), mc3b, la V3b du script
+#         (completer_v3b()) : p_mc, err_mc, B_effectif, granularite_stat,
+#         motif_mc, p_min_mc et, de p_mc_regime, variante ("V3b"),
+#         retenus_v1 (nA0), retenus (nA), tirages (tir) et arret, plus la
+#         seconde transcription rejeu_p_mc_v3h() de tests/outils_tests.R
+#         (#262 ; memes champs) ; pour (i2) seulement, motif_mc de mc3b
+#         recoit la substitution MOTIF_MC_REGIME_RARE du moteur (arret a
+#         B_max avec moins de B_MIN_DEGENERESCENCE retenus), mc3b restant
+#         inchange pour T1 ; libelles de (i2) : regime et variante comparee
+#         de chaque element de l'echantillon ; sur l'echantillon : jeu observe (J1, J2),
+#         premiere replication traitee et premiere replication interieure de
+#         la tranche ; J1 observe : p de la variante comparee (V1 au bord
+#         ou a volumes constants, V3b de mc3b a delta chapeau interieur,
+#         meme choix par usp_regime() que ci-dessus) aussi identiques aux
+#         p_mc de run_engine() du controle (a).
+#         LACUNE RESIDUELLE (#267, par. 8.3, point 4) : a delta chapeau*_b
+#         interieur, le moteur n'expose plus V1 ; les statistiques des
+#         tirages de V1 dont delta** est au bord ne sont plus confrontees au
+#         moteur par (i2). Sur J1 et J2, (i1) couvre V1 au bit pres contre
+#         les valeurs brutes de #221 ; sur J3, rien ne la couvre.
+#         ECARTS DE CODE CONNUS (#267, par. 8.3, point 5) : completer_v3b()
+#         ne teste pas is.finite(f$delta) (un delta** non fini fait lever
+#         code_regime() : replication en erreur, refusee par --combiner,
+#         sans divergence silencieuse) et classe le regime par code_regime()
+#         et non par usp_regime() (memes seuils TOL_DELTA_BORD ; volumes
+#         constants ignores, d'ou le choix de branche de (i2) par
+#         usp_regime()) ;
 #    (i3) empreinte sans commentaires de R/engine.R (#231,
 #         empreinte_sans_commentaires()) egale a celle du (g5) du tableau de
 #         la grille (--grille, par defaut le plus recent
@@ -2071,13 +2100,65 @@ traiter <- function(x, y, b, ctl = list(complet = FALSE, h1 = FALSE), t2 = TRUE)
     rc <- rejouer_v1(fit, g_boot, complet = TRUE)
     ub <- usp_bootstrap(fit, B = B_BOOT, seed = g_boot)
     mcc <- .mc_p_values(rc$sim, rc$stats_obs, USP_CATALOGUE_MC, e_obs)
+    # Champs que V3h (#240) ne touche pas : comparaison inchangee (P3 compris).
     ch <- c(P3_sim = identical(rc$sim, rv$sim), P3_delta = identical(rc$delta, rv$delta),
-            stats_obs = identical(as.list(rc$stats_obs), ub$stats_obs), p_mc = identical(mcc$p_mc, ub$p_mc),
-            p_mc_V1 = identical(mc1$p_mc, ub$p_mc), err_mc = identical(mcc$err_mc, ub$err_mc),
-            B_effectif = identical(mcc$B_effectif, ub$B_effectif), granularite_stat = identical(mcc$granularite, ub$granularite_stat),
-            motif_mc = identical(mcc$motif_mc, ub$motif_mc),
+            stats_obs = identical(as.list(rc$stats_obs), ub$stats_obs),
             vapply(c("sigma_boot", "delta_boot", "gamma_boot", "sigma_boot_restreint", "n_echec_restreint", "z_boot"),
                    function(k) identical(rc$boot[[k]], ub[[k]]), logical(1)))
+    # Variante retenue par usp_bootstrap() (#240, ADR 0014 ; critere du
+    # moteur, usp_regime()) : V3b a delta chapeau*_b interieur et volumes non
+    # constants, V1 sinon.
+    rg_i2 <- usp_regime(fit$delta, fit$x)
+    if (!rg_i2$delta_au_bord && !rg_i2$volumes_constants) {
+      # (i2) reformule (#267, D1-13 ; specification E2e, par. 8.3, condition 1) :
+      # p-value et grandeurs de usp_bootstrap() comparees a mc3b, la V3b du
+      # script (completer_v3b()), ce qui etablit que la V3b mesuree est la
+      # V3h du moteur (graine du flux usp_graine_flux_regime(GRAINE_BOOT + b)
+      # = GRAINE_V3B + b, plafonds B_CIBLE = B et B_MAX = 25 (B + 1)) ; en
+      # plus, seconde transcription rejeu_p_mc_v3h() (tests/outils_tests.R,
+      # #262) sur les memes tirages de V1.
+      pr <- ub$p_mc_regime
+      # Copie locale pour (i2) seulement (avis d'actuary sur #267, Q1) : meme
+      # substitution du motif de regime interieur rare que usp_bootstrap()
+      # (R/engine.R, branche V3b) et rejeu_p_mc_v3h() (tests/outils_tests.R) :
+      # arret a B_max avec moins de B_MIN_DEGENERESCENCE tirages retenus (et
+      # B_CIBLE >= B_MIN_DEGENERESCENCE), seuls MOTIF_MC_REPLIC_INSUFFISANTES
+      # et MOTIF_MC_AUCUNE_REPLIC remplaces par MOTIF_MC_REGIME_RARE. mc3b
+      # reste inchange (il alimente T1 ; code_motif() n'a pas de code pour
+      # ce motif).
+      mc3b_i2 <- mc3b
+      if (v3$arret == "B_max" && v3$nA < B_MIN_DEGENERESCENCE && B_CIBLE >= B_MIN_DEGENERESCENCE) {
+        k <- !is.na(mc3b_i2$motif_mc) &
+          mc3b_i2$motif_mc %in% c(MOTIF_MC_REPLIC_INSUFFISANTES, MOTIF_MC_AUCUNE_REPLIC)
+        mc3b_i2$motif_mc[k] <- MOTIF_MC_REGIME_RARE
+      }
+      rh <- rejeu_p_mc_v3h(fit, rv$sim, rv$ok, rv$delta, rv$stats_obs, e_obs, B_BOOT, g_boot)
+      ch <- c(ch, variante = identical(pr$variante, "V3b"),
+              p_mc = identical(mc3b_i2$p_mc, ub$p_mc), err_mc = identical(mc3b_i2$err_mc, ub$err_mc),
+              B_effectif = identical(mc3b_i2$B_effectif, ub$B_effectif),
+              granularite_stat = identical(mc3b_i2$granularite, ub$granularite_stat),
+              motif_mc = identical(mc3b_i2$motif_mc, ub$motif_mc), p_min_mc = identical(mc3b_i2$p_min_mc, ub$p_min_mc),
+              retenus_v1 = identical(as.numeric(v3$nA0), pr$retenus_v1), retenus = identical(as.numeric(v3$nA), pr$retenus),
+              tirages = identical(as.numeric(v3$tir), pr$tirages), arret = identical(v3$arret, pr$arret),
+              v3h_outils = identical(rh$p_mc, ub$p_mc) && identical(rh$err_mc, ub$err_mc) &&
+                identical(rh$B_effectif, ub$B_effectif) && identical(rh$granularite, ub$granularite_stat) &&
+                identical(rh$motif_mc, ub$motif_mc) && identical(rh$p_min_mc, ub$p_min_mc) &&
+                identical(rh$p_mc_regime[c("variante", "retenus_v1", "retenus", "tirages", "arret")],
+                          pr[c("variante", "retenus_v1", "retenus", "tirages", "arret")]))
+      out$i2_var <- "V3b : mc3b + rejeu_p_mc_v3h"
+      # p de la variante comparee, reprise par la comparaison du jeu observe
+      # J1 a run_engine() du controle (a)
+      out$i2_p <- list(variante = "V3b", p_mc = mc3b_i2$p_mc)
+    } else {
+      # Au bord (ou volumes constants) : comparaison a V1, avec p_min_mc
+      # (plancher Monte-Carlo, #125 ; avis d'actuary sur #267, Q2).
+      ch <- c(ch, p_mc = identical(mcc$p_mc, ub$p_mc),
+              p_mc_V1 = identical(mc1$p_mc, ub$p_mc), err_mc = identical(mcc$err_mc, ub$err_mc),
+              B_effectif = identical(mcc$B_effectif, ub$B_effectif), granularite_stat = identical(mcc$granularite, ub$granularite_stat),
+              motif_mc = identical(mcc$motif_mc, ub$motif_mc), p_min_mc = identical(mcc$p_min_mc, ub$p_min_mc))
+      out$i2_var <- "V1"
+      out$i2_p <- list(variante = "V1", p_mc = mc1$p_mc)
+    }
     out$i2 <- names(ch)[!ch]
     v3s <- completer_v3b(fit, r_b, rv$sim[A, , drop = FALSE], g_v3b, p1 = FALSE)
     mc3s <- .mc_p_values(v3s$S, rv$stats_obs, USP_CATALOGUE_MC, e_obs)
@@ -2478,9 +2559,14 @@ if (PARTIE == "regime" && GROUPE %in% c("J1", "J2")) {
   JO <- if (GROUPE == "J1") list(x = .ln$xt, y = .ln$yt) else J2_DONNEES
   ro <- traiter(JO$x, JO$y, 0L, ctl = list(complet = TRUE, h1 = FALSE), t2 = FALSE)
   e_o <- ro$i2
-  if (GROUPE == "J1" && !identical(ro$mc$V1$p_mc, RES_A$bootstrap$p_mc)) e_o <- c(e_o, "p_mc de run_engine() (a)")
-  controle(!length(e_o), sprintf("(i2) %s observ\u00e9 : rejeu complet identique (identical()) \u00e0 usp_bootstrap(seed = %.0f), rejeu all\u00e9g\u00e9 (P3) identique au rejeu complet%s%s",
-                                 GROUPE, GRAINE_BOOT, if (GROUPE == "J1") " ; p de V1 = p_mc de run_engine() du contr\u00f4le (a)" else "",
+  # J1 : p de la variante comparee par (i2) (choisie dans traiter() par
+  # usp_regime() : V1 au bord ou a volumes constants, V3b de mc3b a delta
+  # chapeau interieur) contre la p_mc de run_engine() du controle (a)
+  vp_o <- if (is.null(ro$i2_p)) "-" else ro$i2_p$variante
+  if (GROUPE == "J1" && (is.null(ro$i2_p) || !identical(ro$i2_p$p_mc, RES_A$bootstrap$p_mc)))
+    e_o <- c(e_o, sprintf("p_mc de run_engine() (a) contre %s", vp_o))
+  controle(!length(e_o), sprintf("(i2) %s observ\u00e9 (%s, %s) : champs hors V3h du rejeu complet identiques (identical()) \u00e0 usp_bootstrap(seed = %.0f), p-value Monte-Carlo de la variante compar\u00e9e, rejeu all\u00e9g\u00e9 (P3) identique au rejeu complet%s%s",
+                                 GROUPE, ro$regime, if (is.null(ro$i2_var)) "-" else ro$i2_var, GRAINE_BOOT, if (GROUPE == "J1") sprintf(" ; p de %s = p_mc de run_engine() du contr\u00f4le (a)", vp_o) else "",
                                  if (length(e_o)) paste0(" ; diff\u00e9rences : ", paste(e_o, collapse = ", ")) else ""))
   controle(isTRUE(ro$s1), sprintf("(s1) %s observ\u00e9 : V3b sans P1 (statistiques \u00e0 chaque tirage) identique (p, tirages, B effectifs)", GROUPE))
   vo <- verifier_v3a(ro, 0L, character(0))
@@ -2587,7 +2673,7 @@ calculer_rep <- function(b, y, ctl) {
   discord <- character(0); i1 <- "-"; t2 <- "-"; v3a <- "-"
   if (r$statut == "traitee") {
     if (isTRUE(ctl$h1)) out$h1 <- r$h1
-    if (isTRUE(ctl$complet)) { out$i2 <- r$i2; out$s1 <- isTRUE(r$s1) }
+    if (isTRUE(ctl$complet)) { out$i2 <- r$i2; out$i2_var <- r$i2_var; out$s1 <- isTRUE(r$s1) }
     # (b) noms et motifs (objets)
     out$ech_b <- !all(vapply(r$mc, function(m) identical(names(m$p_mc), STATS) && identical(names(m$motif_mc), STATS) &&
                                all(code_motif(m$motif_mc) != "?"), logical(1)))
@@ -2676,7 +2762,7 @@ for (b in seq.int(DEBUT, FIN)) {
                             b, res$h1$n, if (length(res$h1$ko)) paste(sprintf("%s (%d)", names(table(res$h1$ko)), as.integer(table(res$h1$ko))), collapse = ", ") else "aucun")
         }
         if (isTRUE(ctl$complet)) {
-          echantillon <- c(echantillon, sprintf("%d (%s)", b, res$regime))
+          echantillon <- c(echantillon, sprintf("%d (%s, %s)", b, res$regime, res$i2_var))
           if (length(res$i2)) { ech$i2 <- c(ech$i2, b); TXT_ECH_I2 <- c(TXT_ECH_I2, sprintf("%d (%s)", b, paste(res$i2, collapse = ", "))) }
           if (!isTRUE(res$s1)) ech$s1 <- c(ech$s1, b)
         }
@@ -2718,7 +2804,7 @@ if (!is.null(BRUT221)) {
   controle(!n_v3a[["ECHEC"]], sprintf("(v3a) p de V3a = p3 des valeurs brutes de #175 (couples (b, s) communs, B3 \u00e9gal) : %d OK, %d expliqu\u00e9e(s), %d en \u00e9chec%s",
                                       n_v3a[["OK"]], n_v3a[["EXPL"]], n_v3a[["ECHEC"]], liste_b(b_de(function(v) v$v3a == "ECHEC"))))
 }
-controle(!length(ech$i2), sprintf("(i2) rejeu complet identique (identical()) \u00e0 usp_bootstrap() et rejeu all\u00e9g\u00e9 (P3) identique au rejeu complet, sur l'\u00e9chantillon de la tranche : %s%s",
+controle(!length(ech$i2), sprintf("(i2) champs hors V3h du rejeu complet identiques (identical()) \u00e0 usp_bootstrap(), p-value Monte-Carlo de la variante compar\u00e9e (V1 au bord, V3b : mc3b + rejeu_p_mc_v3h \u00e0 \u03b4\u0302*_b int\u00e9rieur) et rejeu all\u00e9g\u00e9 (P3) identique au rejeu complet, sur l'\u00e9chantillon de la tranche (b, r\u00e9gime, variante) : %s%s",
                                   if (length(echantillon)) paste(echantillon, collapse = ", ") else "aucune r\u00e9plication trait\u00e9e", liste_b(TXT_ECH_I2)))
 controle(!length(ech$s1), sprintf("(s1) V3b sans P1 identique (p, tirages, B effectifs) sur l'\u00e9chantillon de (i2)%s", liste_b(ech$s1)))
 controle(!identical(H1_OK, FALSE),
