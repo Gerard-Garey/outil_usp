@@ -148,8 +148,10 @@
 #         inchange pour T1 ; libelles de (i2) : regime et variante comparee
 #         de chaque element de l'echantillon ; sur l'echantillon : jeu observe (J1, J2),
 #         premiere replication traitee et premiere replication interieure de
-#         la tranche ; J1 observe : p de V1 aussi identiques aux p_mc de
-#         run_engine() du controle (a).
+#         la tranche ; J1 observe : p de la variante comparee (V1 au bord
+#         ou a volumes constants, V3b de mc3b a delta chapeau interieur,
+#         meme choix par usp_regime() que ci-dessus) aussi identiques aux
+#         p_mc de run_engine() du controle (a).
 #         LACUNE RESIDUELLE (#267, par. 8.3, point 4) : a delta chapeau*_b
 #         interieur, le moteur n'expose plus V1 ; les statistiques des
 #         tirages de V1 dont delta** est au bord ne sont plus confrontees au
@@ -2144,6 +2146,9 @@ traiter <- function(x, y, b, ctl = list(complet = FALSE, h1 = FALSE), t2 = TRUE)
                 identical(rh$p_mc_regime[c("variante", "retenus_v1", "retenus", "tirages", "arret")],
                           pr[c("variante", "retenus_v1", "retenus", "tirages", "arret")]))
       out$i2_var <- "V3b : mc3b + rejeu_p_mc_v3h"
+      # p de la variante comparee, reprise par la comparaison du jeu observe
+      # J1 a run_engine() du controle (a)
+      out$i2_p <- list(variante = "V3b", p_mc = mc3b_i2$p_mc)
     } else {
       # Au bord (ou volumes constants) : comparaison a V1, avec p_min_mc
       # (plancher Monte-Carlo, #125 ; avis d'actuary sur #267, Q2).
@@ -2152,6 +2157,7 @@ traiter <- function(x, y, b, ctl = list(complet = FALSE, h1 = FALSE), t2 = TRUE)
               B_effectif = identical(mcc$B_effectif, ub$B_effectif), granularite_stat = identical(mcc$granularite, ub$granularite_stat),
               motif_mc = identical(mcc$motif_mc, ub$motif_mc), p_min_mc = identical(mcc$p_min_mc, ub$p_min_mc))
       out$i2_var <- "V1"
+      out$i2_p <- list(variante = "V1", p_mc = mc1$p_mc)
     }
     out$i2 <- names(ch)[!ch]
     v3s <- completer_v3b(fit, r_b, rv$sim[A, , drop = FALSE], g_v3b, p1 = FALSE)
@@ -2553,9 +2559,14 @@ if (PARTIE == "regime" && GROUPE %in% c("J1", "J2")) {
   JO <- if (GROUPE == "J1") list(x = .ln$xt, y = .ln$yt) else J2_DONNEES
   ro <- traiter(JO$x, JO$y, 0L, ctl = list(complet = TRUE, h1 = FALSE), t2 = FALSE)
   e_o <- ro$i2
-  if (GROUPE == "J1" && !identical(ro$mc$V1$p_mc, RES_A$bootstrap$p_mc)) e_o <- c(e_o, "p_mc de run_engine() (a)")
+  # J1 : p de la variante comparee par (i2) (choisie dans traiter() par
+  # usp_regime() : V1 au bord ou a volumes constants, V3b de mc3b a delta
+  # chapeau interieur) contre la p_mc de run_engine() du controle (a)
+  vp_o <- if (is.null(ro$i2_p)) "-" else ro$i2_p$variante
+  if (GROUPE == "J1" && (is.null(ro$i2_p) || !identical(ro$i2_p$p_mc, RES_A$bootstrap$p_mc)))
+    e_o <- c(e_o, sprintf("p_mc de run_engine() (a) contre %s", vp_o))
   controle(!length(e_o), sprintf("(i2) %s observ\u00e9 (%s, %s) : champs hors V3h du rejeu complet identiques (identical()) \u00e0 usp_bootstrap(seed = %.0f), p-value Monte-Carlo de la variante compar\u00e9e, rejeu all\u00e9g\u00e9 (P3) identique au rejeu complet%s%s",
-                                 GROUPE, ro$regime, if (is.null(ro$i2_var)) "-" else ro$i2_var, GRAINE_BOOT, if (GROUPE == "J1") " ; p de V1 = p_mc de run_engine() du contr\u00f4le (a)" else "",
+                                 GROUPE, ro$regime, if (is.null(ro$i2_var)) "-" else ro$i2_var, GRAINE_BOOT, if (GROUPE == "J1") sprintf(" ; p de %s = p_mc de run_engine() du contr\u00f4le (a)", vp_o) else "",
                                  if (length(e_o)) paste0(" ; diff\u00e9rences : ", paste(e_o, collapse = ", ")) else ""))
   controle(isTRUE(ro$s1), sprintf("(s1) %s observ\u00e9 : V3b sans P1 (statistiques \u00e0 chaque tirage) identique (p, tirages, B effectifs)", GROUPE))
   vo <- verifier_v3a(ro, 0L, character(0))
