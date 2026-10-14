@@ -535,10 +535,14 @@ tireur <- function(loi) switch(loi,
   N = function(n) stats::rnorm(n),
   E = function(n) sample(POOL_E, n, replace = TRUE),
   A = function(n) (stats::qgamma(stats::runif(n), 2) - 2) / sqrt(2))
-# Generateur du DGP : meme recursion, meme expression et meme ordre de
-# consommation des epsilon que mw_simuler_triangle() (controle (g)) ; seul
-# le tirage des epsilon change. Nom distinct (par. 2) : une fonction
-# mw_simuler_triangle definie ici masquerait celle qu'appelle mw_bootstrap().
+# Generateur du DGP : meme recursion, meme expression, meme ordre de
+# consommation des epsilon et meme arret que mw_simuler_triangle() (controle
+# (g)) ; seul le tirage des epsilon change. Depuis #257 (aligne par #271) :
+# triangle rendu des le premier cumul simule non fini ou <= 0, cellule a NA
+# (jamais NaN : aucune racine carree d'un cumul negatif) et colonnes
+# suivantes non tirees ; admettre() le refuse (motif "cellule <= 0"), sans
+# retirage (par. 2). Nom distinct (par. 2) : une fonction mw_simuler_triangle
+# definie ici masquerait celle qu'appelle mw_bootstrap().
 gen_triangle_h0 <- function(aj, tirer) {
   I <- aj$I; J <- aj$J
   tri <- matrix(NA_real_, I + 1, J + 1)
@@ -549,9 +553,15 @@ gen_triangle_h0 <- function(aj, tirer) {
     if (!is.finite(sg)) sg <- 0
     e <- tirer(length(idx))
     Cij <- tri[idx + 1, j + 1]
-    tri[idx + 1, j + 2] <- Cij * aj$f[j + 1] + e * sg * sqrt(Cij)
+    nv <- Cij * aj$f[j + 1] + e * sg * sqrt(Cij)
+    inval <- !is.finite(nv) | nv <= 0
+    if (any(inval)) {
+      nv[inval] <- NA_real_
+      tri[idx + 1, j + 2] <- nv
+      return(tri)
+    }
+    tri[idx + 1, j + 2] <- nv
   }
-  tri[!is.na(tri) & tri <= 0] <- NA_real_
   tri
 }
 # Partie superieure du triangle (cellules observees), masque de mw_bootstrap().
@@ -1652,9 +1662,24 @@ champs_tranche <- function(b, r) {
          f17(c(cR$pas, rep(NA_real_, NL_MAX - length(cR$pas)))), f17(c(cR$pex, rep(NA_real_, NL_MAX - length(cR$pex)))))
   unname(v)
 }
+# Triangles bootstrap de mw_bootstrap(), dans son flux (#271) : B
+# replications tirees en sequence par .mw_tirer_triangle_valide() du moteur,
+# avec retirage des triangles a cumul non strictement positif (#257) et le
+# meme plafond FACTEUR_B_MAX_MW (B + 1) triangles au total ; NULL pour une
+# replication au plafond (NA dans mw_bootstrap()). A appeler sous la graine
+# du bootstrap (engine_sous_graine()).
+tirer_triangles_boot <- function(aj, pool, B) {
+  n_max <- FACTEUR_B_MAX_MW * (as.numeric(B) + 1); n_tires <- 0
+  lapply(seq_len(B), function(i) {
+    tir <- .mw_tirer_triangle_valide(aj, pool, n_max - n_tires)
+    n_tires <<- n_tires + tir$n
+    tir$tri
+  })
+}
 # Sous-mesure N (par. 9) : triangle b de la loi N, regeneration des 999
-# triangles bootstrap de mw_bootstrap() (seul sample() consomme de l'alea ;
-# les triangles sont tous tires d'abord, sous la graine du bootstrap),
+# triangles bootstrap de mw_bootstrap() par tirer_triangles_boot() (seul
+# sample() consomme de l'alea ; les triangles sont tous tires d'abord, sous
+# la graine du bootstrap, retirage de #257 compris),
 # reajustement, W et D sur les residus de Mack (colonnes degenerees figees a
 # l'observe). n_jd_diff : nombre de repliques reajustees dont l'ensemble des
 # colonnes degenerees recalcule differe de l'ensemble fige (annotation du
@@ -1667,9 +1692,9 @@ traiter_sm <- function(b, ctl = FALSE) {
   if (!ad$ok) return(list(statut = "refuse", motif = ad$motif, duree = secondes(t0)))
   aj <- ad$aj; jd <- .mw_colonnes_degenerees(aj); g <- graine_boot("N", b)
   pool <- .mw_pool_residus(aj, jd)
-  tris <- engine_sous_graine(g, lapply(seq_len(B_BOOT), function(i) mw_simuler_triangle(aj, pool)))
+  tris <- engine_sous_graine(g, tirer_triangles_boot(aj, pool, B_BOOT))
   ajs <- lapply(tris, function(tb) {
-    if (anyNA(partie_sup(tb))) return(NULL)
+    if (is.null(tb) || anyNA(partie_sup(tb))) return(NULL)
     ab <- try(mw_ajuster(tb), silent = TRUE)
     if (inherits(ab, "try-error")) NULL else ab
   })
@@ -1688,6 +1713,12 @@ traiter_sm <- function(b, ctl = FALSE) {
   if (ctl) {
     # (s) : statistiques du catalogue sur les triangles regeneres (memes
     # rejets que mw_bootstrap()) -> p_mc identiques a celles du moteur.
+    # Le retirage de #257 n'y est pas exerce sous le pool reel (aucun
+    # triangle retire, 999 tirages pour 999 replications, triangles 1 et 2
+    # de la loi N, mesure du 14/10/2026, #271) ;
+    # l'identite de gen_triangle_h0() avec mw_simuler_triangle() a cumul
+    # invalide, et des fonctions .mw_tirer_triangle_valide() et
+    # mw_bootstrap() avec celles du moteur relu, est verifiee par (g).
     S <- t(vapply(ajs, function(a) {
       if (is.null(a)) return(rep(NA_real_, NS))
       sb <- try(.mw_stats(a, jd), silent = TRUE)
@@ -1789,20 +1820,31 @@ controle_graines <- function() {
                      if (length(dessus)) paste(sprintf("%.0f", dessus), collapse = ", ") else "aucun", SEED_LOI_NULLE_SW, GRAINE_R2, if (hors_ext) "oui" else "NON"))
 }
 # (g) : generateur identique a mw_simuler_triangle() (100 graines) ; fonctions
-# du moteur identiques a celles du fichier relu hors injection.
+# du moteur identiques a celles du fichier relu hors injection. Volet sous
+# pool dilate (#271) : sur les memes 100 graines, epsilon tires dans
+# FACTEUR_G_DILATE * POOL0, qui rend des triangles a cumul simule non fini
+# ou <= 0 (mesure du 14/10/2026 : 0 / 100 sur POOL0, 48 / 100 a 30) ; exige
+# l'identite ET au moins un tel triangle, faute de quoi l'arret au premier
+# cumul invalide (#257) ne serait pas exerce.
+FACTEUR_G_DILATE <- 30
 controle_g <- function() {
-  ok <- vapply(seq_len(100), function(i) {
+  meme_g <- function(pool) vapply(seq_len(100), function(i) {
     g <- graine_tri("N", i)
-    identical(engine_sous_graine(g, gen_triangle_h0(AJ0, function(n) sample(POOL0, n, replace = TRUE))),
-              engine_sous_graine(g, mw_simuler_triangle(AJ0, POOL0)))
-  }, logical(1))
+    a <- engine_sous_graine(g, gen_triangle_h0(AJ0, function(n) sample(pool, n, replace = TRUE)))
+    b <- engine_sous_graine(g, mw_simuler_triangle(AJ0, pool))
+    c(identique = identical(a, b), incomplet = .mw_triangle_incomplet(b))
+  }, logical(2))
+  ok <- meme_g(POOL0)["identique", ]
+  dil <- meme_g(FACTEUR_G_DILATE * POOL0)
   e0 <- new.env()
   sys.source(file.path(RACINE, "R", "engine.R"), envir = e0, keep.source = FALSE)
   meme <- function(nm) { a <- get(nm, envir = ENV_MOTEUR); b <- get(nm, envir = e0)
     identical(formals(a), formals(b)) && identical(body(a), body(b)) }
-  list(ok = all(ok) && meme("mw_simuler_triangle") && meme(".mw_pool_residus") && meme("mw_bootstrap"),
-       txt = sprintf("gen_triangle_h0() (\u03b5 tir\u00e9s par sample(pool)) = mw_simuler_triangle() sous la m\u00eame graine, identical(), sur %d / 100 graines (graines des triangles N, b = 1..100) ; mw_simuler_triangle, .mw_pool_residus et mw_bootstrap de l'environnement identiques (formals, body) \u00e0 celles de R/engine.R relu : %s",
-                     sum(ok), if (meme("mw_simuler_triangle") && meme(".mw_pool_residus") && meme("mw_bootstrap")) "oui" else "NON"))
+  fns <- c("mw_simuler_triangle", ".mw_tirer_triangle_valide", ".mw_pool_residus", "mw_bootstrap")
+  ok_fns <- all(vapply(fns, meme, logical(1)))
+  list(ok = all(ok) && all(dil["identique", ]) && any(dil["incomplet", ]) && ok_fns,
+       txt = sprintf("gen_triangle_h0() (\u03b5 tir\u00e9s par sample(pool)) = mw_simuler_triangle() sous la m\u00eame graine, identical(), sur %d / 100 graines (graines des triangles N, b = 1..100) ; sous pool dilat\u00e9 %g fois (#271) : %d / 100, dont %d triangle(s) \u00e0 cumul simul\u00e9 non fini ou \u2264 0 (au moins un exig\u00e9) ; %s de l'environnement identiques (formals, body) \u00e0 celles de R/engine.R relu : %s",
+                     sum(ok), FACTEUR_G_DILATE, sum(dil["identique", ]), sum(dil["incomplet", ]), paste(fns, collapse = ", "), if (ok_fns) "oui" else "NON"))
 }
 # (i4) : corps injecte conforme a l'expression de b827726^ (git show),
 # evaluee sur reserve2 ; injection active pendant l'appel ; restauration.
@@ -2120,7 +2162,7 @@ if (MODE == "tranche") {
                    FIN - DEBUT + 1L, if (length(c(D_ECH, e_inv))) paste0(" : ", paste(c(D_ECH, e_inv), collapse = " ; ")) else ""))
 }
 if (MODE == "sm") {
-  controle(!is.null(S_CTL) && all(S_CTL), sprintf("(s) premier triangle admis (b = %s) : les 999 triangles bootstrap r\u00e9g\u00e9n\u00e9r\u00e9s par mw_simuler_triangle() sous S(N, b) redonnent par .mw_stats() les p_mc et B effectifs de mw_bootstrap() (identical()) : %s",
+  controle(!is.null(S_CTL) && all(S_CTL), sprintf("(s) premier triangle admis (b = %s) : les 999 triangles bootstrap r\u00e9g\u00e9n\u00e9r\u00e9s par .mw_tirer_triangle_valide() (retirage et plafond de mw_bootstrap(), #257, #271 ; retirage non exerc\u00e9 sous le pool r\u00e9el, arr\u00eat au premier cumul invalide et identit\u00e9 de .mw_tirer_triangle_valide() v\u00e9rifi\u00e9s par (g)) sous S(N, b) redonnent par .mw_stats() les p_mc et B effectifs de mw_bootstrap() (identical()) : %s",
                                                   ECH, if (is.null(S_CTL)) "aucun triangle admis calcul\u00e9" else paste(sprintf("%s %s", names(S_CTL), ifelse(S_CTL, "oui", "NON")), collapse = ", ")))
   e_inv <- invariants_sortie(list(mode = "sm", donnees = DATA, debut = DEBUT, fin = FIN, pools = "-"))
   controle(!length(e_inv[!grepl("statut inconnu", e_inv)]), sprintf("(d) B_eff \u2264 999 et p dans [0, 1] (#248) sur chaque ligne SM ; admis + refus\u00e9s + en erreur = %d%s", FIN - DEBUT + 1L,
