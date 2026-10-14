@@ -534,15 +534,15 @@ verifier("Issue #91 : --strict echoue (code 1) sur la cle USP Intercept injectee
                      r_91$sortie)))
 # Issue #75 : deux injections dans une meme copie du .tex (un seul appel du
 # script) -- un decompte faux dans une phrase du registre ("Treize de ces
-# quinze tests" -> "Douze", mesure 13) et une formulation nouvelle ni
+# treize tests" -> "Douze", mesure 13) et une formulation nouvelle ni
 # verifiee ni exemptee (l'exemple de faux negatif de l'ancien en-tete,
 # "51 lignes de tests pour la prime").
 .tex_75 <- readLines(file.path(.racine, "docs", "latex", "doc_tests_usp.tex"), warn = FALSE, encoding = "UTF-8")
-.k75 <- grep("Treize de ces quinze", .tex_75, fixed = TRUE)
+.k75 <- grep("Treize de ces treize", .tex_75, fixed = TRUE)
 .tex_mutant <- tempfile(fileext = ".tex")
 .k75r <- grep("Les cinq autres lignes de la base", .tex_75, fixed = TRUE)
 writeLines(c(sub("Les cinq autres lignes de la base", "Les six autres lignes de la base",
-                 sub("Treize de ces quinze", "Douze de ces quinze", .tex_75, fixed = TRUE), fixed = TRUE),
+                 sub("Treize de ces treize", "Douze de ces treize", .tex_75, fixed = TRUE), fixed = TRUE),
              "Mutant : on compte 51~lignes de tests pour la prime.",
              "Mutant : puis $6$ lignes et quatre-vingts lignes.",
              "Mutant : le lecteur refuse un tableau de deux lignes."), .tex_mutant, useBytes = TRUE)
