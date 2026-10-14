@@ -581,9 +581,10 @@ admettre <- function(tri) {
 }
 # Chemin oracle (par. 4) : statistiques d'un triangle comme une observee.
 # jd passe explicitement, jni (colonnes non identifiables de la courbure,
-# #270) recalcule par le defaut de .mw_ensembles_figes() (#278), soit
-# .mw_colonnes_courbure_non_identifiables(aj, jd) : la fonction meme que
-# mw_bootstrap() appelle pour figer jni a l'observe. Le volet "oracle" de
+# #270) et jno (de l'ordonnee a l'origine, #273) recalcules par le defaut de
+# .mw_ensembles_figes() (#278), soit .mw_colonnes_courbure_non_identifiables(aj,
+# jd) et .mw_colonnes_origine_non_identifiables(aj, jd) : les fonctions memes
+# que mw_bootstrap() appelle pour figer jni et jno a l'observe. Le volet "oracle" de
 # (i1) n'est donc pas un recalcul independant de jni (#280) : il verifie
 # que la loi oracle est calculee avec la definition de la statistique
 # observee de mw_bootstrap() (meme jd, meme jni par le chemin par defaut).
@@ -1633,10 +1634,12 @@ traiter_triangle <- function(loi, b, avec_brut, ctl = FALSE) {
   if (ctl) {
     # Volet stats_obs : ensembles figes a l'observe et passes comme dans
     # mw_bootstrap() (jd, #56, #60 ; jni, colonnes non identifiables de la
-    # courbure, #270). Volet oracle : stats_oracle(), jni par le defaut de
-    # .mw_ensembles_figes() (meme fonction : pas un recalcul independant, voir
-    # stats_oracle()). Ensembles passes en un objet (#278).
-    so <- as.list(.mw_stats(aj, .mw_ensembles_figes(aj, jd, .mw_colonnes_courbure_non_identifiables(aj, jd))))
+    # courbure, #270 ; jno, colonnes non identifiables de l'ordonnee a
+    # l'origine, #273). Volet oracle : stats_oracle(), jni et jno par le
+    # defaut de .mw_ensembles_figes() (memes fonctions : pas un recalcul
+    # independant, voir stats_oracle()). Ensembles passes en un objet (#278).
+    so <- as.list(.mw_stats(aj, .mw_ensembles_figes(aj, jd, .mw_colonnes_courbure_non_identifiables(aj, jd),
+                                                    .mw_colonnes_origine_non_identifiables(aj, jd))))
     out$i1 <- c(stats_obs = identical(bR$stats_obs, so), oracle = identical(as.list(stats_oracle(aj)), bR$stats_obs))
     re <- run_engine(methode = METHODE, triangle = tri, segment = SEGMENT, annexe = ANNEXE, seed = g)
     i2 <- c(tests_R = identical(re$tests, tR), bootstrap_R = identical(re$bootstrap, bR))
@@ -1734,12 +1737,14 @@ traiter_sm <- function(b, ctl = FALSE) {
     # l'identite de gen_triangle_h0() avec mw_simuler_triangle() a cumul
     # invalide, et des fonctions .mw_tirer_triangle_valide() et
     # mw_bootstrap() avec celles du moteur relu, est verifiee par (g).
-    # Colonnes non identifiables de la courbure figees a l'observe comme
-    # dans mw_bootstrap() (#270, #280) ; jni vide sur les triangles des lois
-    # continues : alignement verifie par lecture, couvert dans le moteur par
-    # les tests de #270, pas par (s).
+    # Colonnes non identifiables de la courbure et de l'ordonnee a l'origine
+    # figees a l'observe comme dans mw_bootstrap() (#270, #280, #273) ; jni
+    # et jno vides sur les triangles des lois continues : alignement verifie
+    # par lecture, couvert dans le moteur par les tests de #270 et #273, pas
+    # par (s).
     jni <- .mw_colonnes_courbure_non_identifiables(aj, jd)
-    figes <- .mw_ensembles_figes(aj, jd, jni)        # objet unique (#278)
+    jno <- .mw_colonnes_origine_non_identifiables(aj, jd)
+    figes <- .mw_ensembles_figes(aj, jd, jni, jno)   # objet unique (#278)
     S <- t(vapply(ajs, function(a) {
       if (is.null(a)) return(rep(NA_real_, NS))
       sb <- try(.mw_stats(a, figes), silent = TRUE)
@@ -2185,7 +2190,7 @@ if (MODE == "tranche") {
                    FIN - DEBUT + 1L, if (length(c(D_ECH, e_inv))) paste0(" : ", paste(c(D_ECH, e_inv), collapse = " ; ")) else ""))
 }
 if (MODE == "sm") {
-  controle(!is.null(S_CTL) && all(S_CTL), sprintf("(s) premier triangle admis (b = %s) : les 999 triangles bootstrap r\u00e9g\u00e9n\u00e9r\u00e9s par .mw_tirer_triangle_valide() (retirage et plafond de mw_bootstrap(), #257, #271 ; retirage non exerc\u00e9 sous le pool r\u00e9el, arr\u00eat au premier cumul invalide et identit\u00e9 de .mw_tirer_triangle_valide() v\u00e9rifi\u00e9s par (g)) sous S(N, b) redonnent par .mw_stats() (jd et jni fig\u00e9s \u00e0 l'observ\u00e9, #270) les p_mc et B effectifs de mw_bootstrap() (identical()) : %s",
+  controle(!is.null(S_CTL) && all(S_CTL), sprintf("(s) premier triangle admis (b = %s) : les 999 triangles bootstrap r\u00e9g\u00e9n\u00e9r\u00e9s par .mw_tirer_triangle_valide() (retirage et plafond de mw_bootstrap(), #257, #271 ; retirage non exerc\u00e9 sous le pool r\u00e9el, arr\u00eat au premier cumul invalide et identit\u00e9 de .mw_tirer_triangle_valide() v\u00e9rifi\u00e9s par (g)) sous S(N, b) redonnent par .mw_stats() (jd, jni et jno fig\u00e9s \u00e0 l'observ\u00e9, #270, #273) les p_mc et B effectifs de mw_bootstrap() (identical()) : %s",
                                                   ECH, if (is.null(S_CTL)) "aucun triangle admis calcul\u00e9" else paste(sprintf("%s %s", names(S_CTL), ifelse(S_CTL, "oui", "NON")), collapse = ", ")))
   e_inv <- invariants_sortie(list(mode = "sm", donnees = DATA, debut = DEBUT, fin = FIN, pools = "-"))
   controle(!length(e_inv[!grepl("statut inconnu", e_inv)]), sprintf("(d) B_eff \u2264 999 et p dans [0, 1] (#248) sur chaque ligne SM ; admis + refus\u00e9s + en erreur = %d%s", FIN - DEBUT + 1L,

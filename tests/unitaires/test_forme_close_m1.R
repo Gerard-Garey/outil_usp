@@ -431,7 +431,8 @@ verifier("T270-4 : invariance de l'appel observe : mw_test_courbure(aj) = mw_tes
              identical(jni, att[[nm]]) &&
                identical(jni, .mw_colonnes_courbure_non_identifiables(aj)) &&
                identical(mw_test_courbure(aj), mw_test_courbure(aj, jd, jni)) &&
-               identical(.mw_ensembles_figes(aj), list(degeneres = jd, non_identifiables = jni)) &&
+               identical(.mw_ensembles_figes(aj), list(degeneres = jd, non_identifiables = jni,
+                                                       origine_non_identifiables = .mw_colonnes_origine_non_identifiables(aj, jd))) &&
                identical(.mw_contexte_mc(aj), .mw_contexte_mc(aj, .mw_ensembles_figes(aj, jd, jni))) &&
                identical(.mw_contexte_mc(aj)$figes$non_identifiables, jni) &&
                identical(.mw_stats(aj), .mw_stats(aj, .mw_ensembles_figes(aj, jd, jni)))

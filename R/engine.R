@@ -8325,12 +8325,13 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
 #      au regard des colonnes degenerees, K est identique entre statistique
 #      observee et simulee ; .fisher_combine() n'ecarte plus aucune p-value
 #      (issue #90) : K ne varie plus que si l'appelant ecarte une colonne
-#      (lm() en echec, garde sd() == 0 ; pour la courbure, depuis #270,
-#      plus jamais : ses colonnes a moins de trois valeurs distinctes de
-#      C(i,j) forment un second ensemble fige a l'observe,
-#      .mw_colonnes_courbure_non_identifiables(), et une colonne retenue
-#      mais non identifiable dans la replication rend la statistique NA,
-#      comme au volet 2 ci-dessous) ;
+#      (garde sd() == 0 ; pour la courbure, depuis #270, et pour l'ordonnee
+#      a l'origine, depuis #273, plus jamais : leurs colonnes a moins de
+#      trois, resp. deux, valeurs distinctes de C(i,j) forment un ensemble
+#      fige a l'observe, .mw_colonnes_courbure_non_identifiables() et
+#      .mw_colonnes_origine_non_identifiables(), et une colonne retenue
+#      mais non identifiable dans la replication, ou dont lm() echoue,
+#      rend la statistique NA, comme au volet 2 ci-dessous) ;
 #   2. une colonne retenue a l'observe mais degeneree dans la replication
 #      n'est ni exclue (K changerait) ni soumise a lm() / cor.test() : la
 #      statistique de la replication vaut NA et sort de B_effectif.
@@ -8444,15 +8445,75 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
   paste0(base, if (grepl("\\.$", base)) " " else ". ", phrase)
 }
 
+# Colonnes non identifiables de l'ordonnee a l'origine (#273, decision D1-9
+# transposee, forme d'actuary du 14/10/2026, option (A) du mainteneur du
+# 14/10/2026) : j = 0..J-1 tels que n_j = I - j >= 3, j hors de l'ensemble des
+# colonnes exclues (.mw_j_exclues(aj, j_degeneres)), colonne non degeneree
+# (.mw_colonne_degeneree()), et moins de deux valeurs distinctes de
+# C(0..I-j-1, j) (egalite exacte, unique(), comme pour la courbure) :
+# C(i,j) constant, la constante et la pente de la regression ponderee ne
+# sont pas separables. Vecteur d'entiers croissants, eventuellement vide.
+# Inclus dans l'ensemble de la courbure (.mw_colonnes_courbure_non_
+# identifiables()), sauf la colonne n_j = 3, que la courbure ne considere
+# pas. mw_bootstrap() le calcule UNE FOIS sur le triangle observe et le fige
+# pour chaque replication (#278) : la statistique observee et celle des
+# replications combinent les memes colonnes (meme K). Option (A) : le
+# predicat ne lit pas le rang numerique de lm() ; une colonne a plusieurs
+# valeurs distinctes que lm() ecarte quand meme (dispersion relative des
+# cumules < 1e-7 environ, tolerance de qr()) n'est pas dans l'ensemble et
+# rend la statistique NA (mw_test_ordonnee_origine()).
+.mw_colonnes_origine_non_identifiables <- function(aj, j_degeneres = NULL) {
+  I <- aj$I; jd <- .mw_j_exclues(aj, j_degeneres)
+  j <- 0:(aj$J - 1L)
+  garder <- vapply(j, function(k) {
+    idx <- 0:(I - k - 1)
+    length(idx) >= 3 && !(k %in% jd) && !.mw_colonne_degeneree(aj, k) &&
+      length(unique(aj$tri[idx + 1, k + 1])) < 2
+  }, logical(1))
+  as.integer(j[garder])
+}
+
+# Element "non_identifiables" d'une verification de M1 a ensemble fige de
+# colonnes non identifiables (courbure, #269 ; ordonnee a l'origine, #273) :
+# colonnes de l'ensemble fige jni que la boucle ecarte (0 <= j <= J - 1,
+# n_j = I - j >= n_min, hors des colonnes exclues jd), en j croissant,
+# data.frame(j, n_facteurs). Forme AVANT la boucle et porte tel quel par
+# tous les retours, retours NA compris (constat 3b de l'audit de #269) : il
+# decrit l'ensemble fige, non les colonnes parcourues avant un arret. Table
+# construite par vecteur (#278) : meme objet (identical(), attrib.as.set =
+# FALSE : noms de lignes explicites 1..n et ordre des attributs compris) que
+# des lignes ajoutees une a une ; data.frame() vide de meme forme sans
+# colonne ecartee.
+.mw_table_non_identifiables <- function(jni, I, J, jd, n_min) {
+  jn <- sort(unique(jni[jni %in% 0:(J - 1) & I - jni >= n_min & !(jni %in% jd)]))
+  if (length(jn))
+    structure(list(j = as.integer(jn), n_facteurs = as.integer(I - jn)),
+              row.names = seq_along(jn), class = "data.frame") else
+    data.frame(j = integer(0), n_facteurs = integer(0))
+}
+
 # (a) Nullite de l'ordonnee a l'origine, colonne par colonne.
 # Regression ponderee C(i,j+1) = a_j + b_j C(i,j), poids 1/C(i,j).
-mw_test_ordonnee_origine <- function(aj, j_degeneres = NULL) {
+# j_non_identifiables : ensemble des colonnes non identifiables de
+# l'ordonnee (#273), fige a l'observe par mw_bootstrap() (element
+# origine_non_identifiables de .mw_ensembles_figes()) ; NULL : calcule sur aj
+# (appel observe).
+mw_test_ordonnee_origine <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
   # Une ligne par colonne retenue, table assemblee une fois (.mw_empiler(),
   # #239, #250).
   blocs <- list()
   ex <- .mw_exclues_vide()
+  # Ensembles figes : memes calculs que .mw_ensembles_figes(), restreints aux
+  # deux ensembles lus ici (le calcul de l'ensemble de la courbure n'est pas
+  # refait a chaque replication).
   jd <- .mw_j_exclues(aj, j_degeneres)
+  jni <- if (is.null(j_non_identifiables))
+    .mw_colonnes_origine_non_identifiables(aj, jd) else as.integer(j_non_identifiables)
+  # Element "non_identifiables" (#273) : forme avant la boucle, porte par
+  # tous les retours (.mw_table_non_identifiables()).
+  ni <- .mw_table_non_identifiables(jni, I, J, jd, 3L)
+  na_stat <- function() { r0 <- .mw_stat_non_definie(ex); r0$non_identifiables <- ni; r0 }
   for (j in 0:(J - 1)) {
     idx <- 0:(I - j - 1)
     if (length(idx) < 3) next                    # 2 parametres + 1 ddl minimum
@@ -8461,10 +8522,20 @@ mw_test_ordonnee_origine <- function(aj, j_degeneres = NULL) {
     # degeneree -> statistique NA, AVANT tout appel a lm().
     if (j %in% jd) { ex <- .mw_exclure(ex, j, length(idx)); next }
     ex$eligibles <- ex$eligibles + 1L
-    if (.mw_colonne_degeneree(aj, j)) return(.mw_stat_non_definie(ex))
+    # Colonne non identifiable de l'ensemble fige (#273) : ecartee, comptee
+    # dans "eligibles", hors de K, nommee dans le libelle par
+    # .mw_phrase_origine_non_identifiable(). Testee AVANT le controle de
+    # degenerescence, comme pour la courbure (#270).
+    if (j %in% jni) next
+    if (.mw_colonne_degeneree(aj, j)) return(na_stat())
     C0 <- tri[idx + 1, j + 1]; C1 <- tri[idx + 1, j + 2]
     m <- try(.mw_summary_lm(stats::lm(C1 ~ C0, weights = 1 / C0)), silent = TRUE)
-    if (inherits(m, "try-error") || nrow(m$coefficients) < 2) next
+    # Plus aucune exclusion silencieuse (#273, second volet de #56) : une
+    # colonne retenue dont lm() echoue ou rend moins de deux coefficients
+    # (C(i,j) constant dans une replication, ou rang numerique deficient a
+    # l'observe, option (A)) rend la statistique NA, K = NA ; la replication
+    # sort de B effectif, au lieu d'une statistique a une colonne de moins.
+    if (inherits(m, "try-error") || nrow(m$coefficients) < 2) return(na_stat())
     blocs[[length(blocs) + 1L]] <- list(
       j = j, n = length(idx), a = m$coefficients[1, 1], se_a = m$coefficients[1, 2],
       t = m$coefficients[1, 3], p = m$coefficients[1, 4], b = m$coefficients[2, 1],
@@ -8472,12 +8543,25 @@ mw_test_ordonnee_origine <- function(aj, j_degeneres = NULL) {
   }
   det <- .mw_empiler(blocs)
   if (!nrow(det)) return(list(stat = NA_real_, p = NA_real_, detail = det,
-                              exclues = ex$colonnes, eligibles = ex$eligibles))
+                              exclues = ex$colonnes, eligibles = ex$eligibles,
+                              non_identifiables = ni))
   fc <- .fisher_combine(det$p)
   list(stat = fc$stat, p = fc$p, K = fc$K, detail = det,
        t_max = det$t[which.max(abs(det$t))], j_max = det$j[which.max(abs(det$t))],
-       exclues = ex$colonnes, eligibles = ex$eligibles)
+       exclues = ex$colonnes, eligibles = ex$eligibles, non_identifiables = ni)
 }
+
+# Phrase ajoutee au libelle ("detail") de la ligne de l'ordonnee a l'origine
+# de M1, SEULEMENT si une colonne eligible a moins de deux valeurs distinctes
+# de C(i,j) (element "non_identifiables" de mw_test_ordonnee_origine(),
+# #273) ; chaine vide sinon. Texte fixe, gabarit
+# .mw_phrase_colonnes_ecartees() (#278) : j, n_j, K et eligibles de l'appel
+# observe, aucun nombre issu du bootstrap (#76). Placee par mw_tests() apres
+# la phrase des colonnes degenerees (.mw_phrase_exclusion()).
+.mw_phrase_origine_non_identifiable <- function(r)
+  .mw_phrase_colonnes_ecartees(r$non_identifiables, r,
+    paste(c("Colonne", "Colonnes"), "a moins de deux valeurs distinctes de C(i,j)"),
+    "ordonnee a l'origine non identifiable", "de proportionnalite")
 
 # (b) Homogeneite de f_j entre annees de survenance.
 # Si f_j est commun a toutes les annees d'accident, les facteurs individuels
@@ -8701,19 +8785,27 @@ mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
 #                     residus de Mack (.mw_colonnes_degenerees(), #56, #60) ;
 #   non_identifiables colonnes non identifiables de la courbure, apres
 #                     degeneres (.mw_colonnes_courbure_non_identifiables(),
-#                     #270).
+#                     #270) ;
+#   origine_non_identifiables
+#                     colonnes non identifiables de l'ordonnee a l'origine,
+#                     apres degeneres
+#                     (.mw_colonnes_origine_non_identifiables(), #273).
 # Un ensemble fige nouveau s'ajoute ici comme element ; la fonction du test
 # qui le lit le recoit en argument, de sa fermeture du catalogue et de
 # mw_tests() ; mw_bootstrap(), le contexte et .mw_stats() n'en changent pas.
-# j_degeneres, j_non_identifiables : ensembles imposes (NULL : calcules sur
-# aj, non_identifiables apres degeneres), pour les appels qui figent un
-# ensemble et laissent l'autre au calcul sur aj (mw_test_courbure(), tests
-# unitaires).
-.mw_ensembles_figes <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL) {
+# j_degeneres, j_non_identifiables, j_origine_non_identifiables : ensembles
+# imposes (NULL : calcules sur aj, apres degeneres), pour les appels qui
+# figent un ensemble et laissent les autres au calcul sur aj
+# (mw_test_courbure(), mw_test_ordonnee_origine(), tests unitaires). Le
+# calcul de chaque ensemble est saute quand il est impose.
+.mw_ensembles_figes <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL,
+                                j_origine_non_identifiables = NULL) {
   jd <- .mw_j_exclues(aj, j_degeneres)
   jni <- if (is.null(j_non_identifiables))
     .mw_colonnes_courbure_non_identifiables(aj, jd) else as.integer(j_non_identifiables)
-  list(degeneres = jd, non_identifiables = jni)
+  jno <- if (is.null(j_origine_non_identifiables))
+    .mw_colonnes_origine_non_identifiables(aj, jd) else as.integer(j_origine_non_identifiables)
+  list(degeneres = jd, non_identifiables = jni, origine_non_identifiables = jno)
 }
 
 # (c) Absence de courbure : terme quadratique dans la regression ponderee.
@@ -8727,24 +8819,20 @@ mw_test_courbure <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL)
   # #239, #250).
   blocs <- list()
   ex <- .mw_exclues_vide()
-  fg <- .mw_ensembles_figes(aj, j_degeneres, j_non_identifiables)
-  jd <- fg$degeneres; jni <- fg$non_identifiables
+  # Ensembles figes : memes calculs que .mw_ensembles_figes(), restreints aux
+  # deux ensembles lus ici (le calcul de l'ensemble de l'ordonnee a l'origine,
+  # #273, n'est pas fait a chaque replication).
+  jd <- .mw_j_exclues(aj, j_degeneres)
+  jni <- if (is.null(j_non_identifiables))
+    .mw_colonnes_courbure_non_identifiables(aj, jd) else as.integer(j_non_identifiables)
   # Element "non_identifiables" (#269) : colonnes de l'ensemble fige que la
-  # boucle ecarte (n_j >= 4, hors des colonnes exclues), en j croissant. Il
-  # est forme AVANT la boucle et porte tel quel par tous les retours, retours
-  # NA compris (constat 3b de l'audit de #269) : il decrit l'ensemble fige,
-  # non les colonnes parcourues avant un arret de la boucle. "exclues" et
-  # "eligibles", eux, restent ceux des colonnes parcourues avant l'arret
-  # (.mw_stat_non_definie(), commun aux verifications de M1).
-  # Table construite par vecteur (#278) : meme objet (identical(),
-  # attrib.as.set = FALSE : noms de lignes explicites 1..n et ordre des
-  # attributs compris) que les lignes ajoutees une a une avant (#269) ;
-  # data.frame() vide de meme forme sans colonne ecartee.
-  jn <- sort(unique(jni[jni %in% 0:(J - 1) & I - jni >= 4 & !(jni %in% jd)]))
-  ni <- if (length(jn))
-    structure(list(j = as.integer(jn), n_facteurs = as.integer(I - jn)),
-              row.names = seq_along(jn), class = "data.frame") else
-    data.frame(j = integer(0), n_facteurs = integer(0))
+  # boucle ecarte (n_j >= 4, hors des colonnes exclues), en j croissant,
+  # forme avant la boucle et porte tel quel par tous les retours
+  # (.mw_table_non_identifiables(), partagee avec l'ordonnee a l'origine,
+  # #273). "exclues" et "eligibles", eux, restent ceux des colonnes
+  # parcourues avant l'arret (.mw_stat_non_definie(), commun aux
+  # verifications de M1).
+  ni <- .mw_table_non_identifiables(jni, I, J, jd, 4L)
   na_stat <- function() { r0 <- .mw_stat_non_definie(ex); r0$non_identifiables <- ni; r0 }
   for (j in 0:(J - 1)) {
     idx <- 0:(I - j - 1)
@@ -9202,8 +9290,9 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
     # et chaque replication : colonnes degenerees de M1 (issue #56) et des
     # residus de Mack de toutes les lignes qui en dependent (issue #60, via
     # le contexte de .mw_contexte_mc()) ; colonnes non identifiables de la
-    # courbure (#270), apres les degenerees : la statistique de courbure de
-    # chaque replication combine les memes colonnes que l'observee. Aucun
+    # courbure (#270) et de l'ordonnee a l'origine (#273), apres les
+    # degenerees : la statistique de courbure et celle de l'ordonnee de
+    # chaque replication combinent les memes colonnes que l'observee. Aucun
     # tirage n'est ajoute ni retire : seule la statistique des replications
     # change.
     if (is.null(figes)) figes <- .mw_ensembles_figes(aj)
@@ -9284,9 +9373,10 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
 # liste aux noms exacts de .mw_ensembles_figes() ; un vecteur (ancienne
 # signature) ou une liste mal nommee, dont les elements liraient NULL et
 # feraient recalculer en silence les ensembles sur la replication (perte
-# du gel a l'observe de #56 et #270), sont refuses.
+# du gel a l'observe de #56, #270 et #273), sont refuses.
 .mw_verifier_figes <- function(figes, appelant) {
-  if (!is.list(figes) || !identical(names(figes), c("degeneres", "non_identifiables")))
+  if (!is.list(figes) || !identical(names(figes), c("degeneres", "non_identifiables",
+                                                  "origine_non_identifiables")))
     stop(appelant, " : ensembles figes attendus sous la forme de .mw_ensembles_figes()")
   invisible(figes)
 }
@@ -9294,7 +9384,8 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
 # Contexte : ajustement aj ; ensembles figes de .mw_ensembles_figes() (#278 :
 # colonnes degenerees exclues des verifications colonne par colonne de M1,
 # issue #56, et des residus de Mack, issue #60 ; colonnes non identifiables
-# de la courbure, #270), figes a l'observe par mw_bootstrap(), calcules sur aj
+# de la courbure, #270, et de l'ordonnee a l'origine, #273), figes a
+# l'observe par mw_bootstrap(), calcules sur aj
 # s'ils ne sont pas fournis ; residus de Mack (mw_residus(), calcules une
 # fois avec les colonnes degenerees) et leur vecteur r. Un objet qui n'est
 # pas une liste (vecteur d'entiers de l'ancienne signature, avant #278) est
@@ -9384,7 +9475,8 @@ MW_CATALOGUE_MC <- list(
   # Tests specifiques de l'hypothese (iii), colonne par colonne. Les
   # statistiques de Fisher et de Kruskal-Wallis rejettent en queue haute ;
   # l'amplitude de la famille alpha egalement.
-  Origine    = .mc_entree(function(e) mw_test_ordonnee_origine(e$aj, e$figes$degeneres)$stat, "haut"),
+  Origine    = .mc_entree(function(e) mw_test_ordonnee_origine(e$aj, e$figes$degeneres,
+                                                            e$figes$origine_non_identifiables)$stat, "haut"),
   HomogF     = .mc_entree(function(e) mw_test_homogeneite_f(e$aj, e$figes$degeneres)$stat, "haut",
                           extremes = function(e)
                             .mw_fisher_x_max(mw_test_homogeneite_f(e$aj, e$figes$degeneres))),
@@ -9557,7 +9649,7 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
                      "quasi-totalite des cas."))
 
   # --- Tests colonne par colonne de l'hypothese (iii) ------------------------
-  oo <- mw_test_ordonnee_origine(aj, jd)
+  oo <- mw_test_ordonnee_origine(aj, jd, figes$origine_non_identifiables)
   add(fam, "Nullite de l'ordonnee a l'origine, colonne par colonne",
       fonction = "mw_test_ordonnee_origine",
       "Mack (1993), ASTIN Bulletin 23(2), section 2, hyp. (1) ; section 3, hyp. (3) ; Mack (1994), CAS Forum, chap. 5",
@@ -9567,7 +9659,7 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
       loi = "chi2(2K) approx. (colonnes non independantes) -> Monte-Carlo",
       estim_nom = "colonnes testees", estim = if (is.null(oo$K)) NA_real_ else oo$K,
       p_as = oo$p, mc_nom = "Origine",
-      detail = .mw_avec_exclusion(paste(
+      detail = .mw_avec_exclusion(.mw_avec_exclusion(paste(
                      "La regression ponderee SANS constante et de poids 1/C(i,j) a pour",
                      "estimateur exactement f_j (identite de Mack, verifiee a 1e-16).",
                      "Ajouter une constante fournit donc le test naturel de la",
@@ -9576,7 +9668,8 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
                      "ordonnee a l'origine nulle pour des facteurs exactement egaux, statistique ",
                      "de Student non definie (0/0) ou reduite a des ecarts negligeables a la ",
                      "tolerance de l'outil"),
-                     "de proportionnalite")))
+                     "de proportionnalite")),
+                   .mw_phrase_origine_non_identifiable(oo)))
   hf <- mw_test_homogeneite_f(aj, jd)
   # p_min (#115) : .mw_fisher_rangs_p_min() sur les n_j et les masses
   # masse_min_j des K colonnes combinees (#207 : ex aequo compris, loi
