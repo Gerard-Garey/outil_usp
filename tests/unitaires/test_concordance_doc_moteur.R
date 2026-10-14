@@ -695,9 +695,14 @@ verifier("Issue #114 : registre au moteur -- declaration hors_jeux perimee et li
          .a_motif(.er2, "fiche:b", "hors_jeux perimee") && .a_motif(.er2, "fiche:a, fiche:d", "plusieurs fiches"))
 .labs <- vapply(cc$REGISTRE_RUBRIQUE7, `[[`, character(1), "label")
 .noms <- unlist(lapply(cc$REGISTRE_RUBRIQUE7, `[[`, "tests"))
-verifier("Issue #114 : registre REGISTRE_RUBRIQUE7 -- 52 fiches (53 decidees le 27/09/2026, moins fiche:fisher-global, diagnostic depuis #169), labels et noms uniques",
-         length(.labs) == 52L && !anyDuplicated(.labs) && !anyDuplicated(.noms) &&
-           all(grepl("^(fiche|mw):[a-z0-9-]+$", .labs)) && sum(startsWith(.labs, "mw:")) == 16L)
+verifier("Issue #114 : registre REGISTRE_RUBRIQUE7 -- 50 fiches (53 decidees le 27/09/2026, moins fiche:fisher-global, diagnostic depuis #169, et mw:m5sw, mw:m5li, diagnostics depuis #245), labels et noms uniques",
+         length(.labs) == 50L && !anyDuplicated(.labs) && !anyDuplicated(.noms) &&
+           all(grepl("^(fiche|mw):[a-z0-9-]+$", .labs)) && sum(startsWith(.labs, "mw:")) == 14L)
+# T245-7 : les deux fiches M5 (diagnostics depuis #245) ne sont plus au
+# registre, ni par leur label ni par le nom de leur ligne.
+verifier("T245-7 registre REGISTRE_RUBRIQUE7 sans mw:m5sw ni mw:m5li ni leurs lignes",
+         !any(c("mw:m5sw", "mw:m5li") %in% .labs) &&
+           !any(c("Shapiro-Wilk sur les residus de Mack", "Lilliefors sur les residus de Mack") %in% .noms))
 verifier("Issue #114 : jeu J2 lu dans test_controles_numeriques.R (T = 8)",
          { j <- cc$lire_jeu_j2(.racine); length(j$x) == 8L && length(j$y) == 8L })
 

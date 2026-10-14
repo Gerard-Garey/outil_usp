@@ -1273,9 +1273,9 @@ REGISTRE_RUBRIQUE7 <- list(
   list(label = "mw:m3dw", tests = "Autocorrelation des residus (Durbin-Watson)"),
   list(label = "mw:m3runs", tests = "Test des suites sur les residus de Mack"),
   list(label = "mw:m4gr", tests = "Cellule aberrante du triangle (Grubbs)"),
-  list(label = "mw:m4ros", tests = "Cellules aberrantes multiples (ESD generalise)"),
-  list(label = "mw:m5sw", tests = "Shapiro-Wilk sur les residus de Mack"),
-  list(label = "mw:m5li", tests = "Lilliefors sur les residus de Mack")
+  list(label = "mw:m4ros", tests = "Cellules aberrantes multiples (ESD generalise)")
+  # mw:m5sw et mw:m5li retirees (#245, decision D1-1 (a) du 13/10/2026) :
+  # les deux lignes M5 sont des diagnostics, sans rubrique 7.
 )
 TYPES_RUBRIQUE7 <- c("test", "procedure de decision")
 

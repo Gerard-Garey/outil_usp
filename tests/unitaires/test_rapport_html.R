@@ -316,10 +316,15 @@ verifier("Rapport MW : exclus par defaut en annexe avec leur verdict",
            grepl(badge_verdict(tbm$verdict[k]),
                  ligne_de(entre(hm, "<section id='section-annexe-exclus'>", "</section>"), tbm$test[k]),
                  fixed = TRUE), logical(1))))
-verifier("Rapport MW : M5 Lilliefors (variante secondaire, en annexe) sous le badge 'approx. n fini' (#120)",
-         grepl(badge_nature(NATURE_APPROX_N_FINI),
-               ligne_de(entre(hm, "<section id='section-annexe-exclus'>", "</section>"),
-                        "Lilliefors sur les residus de Mack"), fixed = TRUE))
+# Depuis #245, la ligne M5 Lilliefors est un diagnostic : ni nature_p ni
+# verdict de test ; elle n'a plus le badge 'approx. n fini' (#120).
+verifier("Rapport MW : M5 Lilliefors (variante secondaire, en annexe), diagnostic INFO sans badge 'approx. n fini' (#245)",
+         {
+           lg <- ligne_de(entre(hm, "<section id='section-annexe-exclus'>", "</section>"),
+                          "Lilliefors sur les residus de Mack")
+           length(lg) == 1L && nzchar(lg) && grepl(badge_verdict("INFO"), lg, fixed = TRUE) &&
+             !grepl(badge_nature(NATURE_APPROX_N_FINI), lg, fixed = TRUE)
+         })
 verifier("Rapport MW : formule racine(MSEP) / R, sans facteur de taille finie",
          grepl("racine(MSEP) / R", texte_formule(res_mw), fixed = TRUE) &&
          !grepl("(T+1)/(T-1)", texte_formule(res_mw), fixed = TRUE) &&

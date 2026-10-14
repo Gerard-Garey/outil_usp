@@ -3767,11 +3767,11 @@ engine_p_mc <- function(sim, obs, queue, extremes = NULL) {
 # 0003 annote le 12/10/2026, point 1 ; Q-E2b-6, D1-3) : approximation de la
 # loi de la statistique a n fini sous echantillon i.i.d. normal, ajustee sur
 # tables simulees ou sur moments exacts (famille (ii) de la specification
-# E2b : Dallal-Wilkinson prolonge par Stephens pour Lilliefors, Anscombe-Glynn
-# pour l'aplatissement). Passee a add() par l'argument nature_as, sur les
-# seules lignes sans mc_nom de cette famille. Le libelle dit ce qu'est la p ;
-# il ne dit pas que l'hypothese i.i.d. normale tient (elle ne tient pas sur
-# les residus de Mack : niveau de M5 a #245).
+# E2b). Passee a add() par l'argument nature_as, sur les seules lignes sans
+# mc_nom de cette famille. Depuis #245 (lignes M5 de Merz-Wuthrich en
+# diagnostic, sans p retenue ni nature_p), sa seule ligne est l'aplatissement
+# d'Anscombe-Glynn (moments exacts), test a T >= 20 seulement. Le libelle dit
+# ce qu'est la p ; il ne dit pas que l'hypothese i.i.d. normale tient.
 NATURE_APPROX_N_FINI <- "approximation a n fini sous i.i.d. normal"
 
 # Phrase de sensibilite du verdict a l'alea de simulation (#244 ; ADR 0003
@@ -9143,11 +9143,14 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
   # de D de Lilliefors (queue haute) ne rejette jamais (0 sur 500 a 0,10 et
   # a 0,05), au lieu de 10 % et 5 % pour un test au niveau. La loi nulle
   # propre de W sur les residus de Mack n'est pas non plus au niveau (meme
-  # fichier, T6 : 22 % de rejets a 0,10 sous erreurs gaussiennes ; issue
-  # #245). La normalite n'est d'ailleurs PAS une hypothese du modele de Mack :
-  # l'annexe XVII, D(2)(h), ne specifie que les deux premiers moments. Elle est
-  # donc traitee comme un diagnostic descriptif, avec sa loi nulle propre,
-  # dont le niveau sur les residus de Mack reste a etablir (issue #245).
+  # fichier, T6, n = 2000 : 0,221 de rejets a 0,10 sous erreurs gaussiennes,
+  # et 0,1875 pour Lilliefors) : les residus de Mack portent deux contraintes exactes
+  # par colonne et ne sont pas un echantillon i.i.d. La normalite n'est
+  # d'ailleurs PAS une hypothese du modele de Mack : l'annexe XVII, D(2)(h),
+  # ne specifie que les deux premiers moments. Les deux lignes M5 sont donc
+  # des diagnostics sans verdict (issue #245, decision D1-1 (a) du mainteneur,
+  # 13/10/2026), dont la p sous echantillon i.i.d. normal est restituee pour
+  # information, sans etre retenue (mw_tests()).
   # P-values de Monte-Carlo, erreur de Monte-Carlo et B effectif, le sens du
   # rejet etant lu au catalogue MW_CATALOGUE_MC (fonction partagee avec
   # usp_bootstrap()).
@@ -9643,29 +9646,52 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       verdict = if (ro$nb_outliers >= 2) "ECHEC" else if (ro$nb_outliers == 1) "ALERTE" else "OK")
 
   ## --- M5 : normalite, DIAGNOSTIC seulement ---------------------------------
+  # Deux diagnostics sans verdict (#245, decisions D1-1 (a) et D1-2 (A) du
+  # mainteneur, 13/10/2026 ; ADR 0001) : la normalite n'est pas une hypothese
+  # du modele (annexe XVII, D(2)(h)) et sigma_USP n'utilise aucun quantile.
+  # Les residus de Mack ne sont pas un echantillon i.i.d. : deux contraintes
+  # exactes par colonne (somme des sqrt(C(i,j)) r(i,j) nulle ; somme des
+  # r(i,j)^2 egale a n_j - 1, sigma_j etant estime sur les memes facteurs).
+  # Les lois nulles de W et de D, celles d'un echantillon i.i.d. normal, n'y
+  # sont donc pas au niveau (docs/tableaux/20261011-issue119-mw.md, T6, plan
+  # reserve2, erreurs gaussiennes, n = 2000 : 0,221 de rejets de Shapiro-Wilk
+  # et 0,1875 de Lilliefors au seuil 0,10 ; constat de simulation sous un plan). La p de
+  # Shapiro-Wilk n'est pas exacte (ADR 0002) : elle passe en colonne
+  # p_asymptotique, p sous un modele auxiliaire (famille (iii) de la p non
+  # simulee, CONTEXT.md). add() pose seule sens, p_retenue et nature_p a NA.
   fam <- "M5. normalite des residus (diagnostic, NON exige par le modele)"
   sw <- .shapiro_sur(r)
   add(fam, "Shapiro-Wilk sur les residus de Mack",
       fonction = ".shapiro_sur",
       "Shapiro & Wilk (1965) ; loi nulle evaluee par simulation directe",
+      type = "diagnostic",
       H0 = "les residus de Mack sont normaux", H1 = "loi non normale",
       stat_nom = "W", stat = sw$stat,
-      loi = "loi exacte de W sous normalite, evaluee numeriquement",
-      p_ex = sw_p_loi_nulle(sw$stat, n),
-      detail = paste("L'annexe XVII, D(2)(h), ne specifie que les DEUX PREMIERS MOMENTS :",
-                     "la normalite n'est pas requise par la methode. Ce test n'est pertinent",
-                     "que si l'on souhaite exploiter la MSEP pour un quantile."))
+      loi = "loi de W sous echantillon i.i.d. normal (simulation directe), non sous le modele de Mack",
+      p_as = sw_p_loi_nulle(sw$stat, n),
+      detail = paste("Diagnostic sans verdict (ADR 0001) : la normalite n'est pas une hypothese",
+                     "du modele (l'annexe XVII, D(2)(h), ne specifie que les deux premiers",
+                     "moments). La loi nulle de W est celle d'un echantillon i.i.d. normal,",
+                     "que les residus de Mack ne sont pas (f_j et sigma_j estimes sur les",
+                     "memes facteurs) : sous erreurs gaussiennes, elle rejette plus souvent",
+                     "que le seuil nominal (constat de simulation sous un plan). La p-value",
+                     "est restituee pour information ; elle n'est pertinente que si l'on",
+                     "souhaite exploiter la MSEP pour un quantile."))
   add(fam, "Lilliefors sur les residus de Mack",
       fonction = "stat_lilliefors",
       "Lilliefors (1967) ; p-value : Dallal & Wilkinson (1986)",
-      variante = "secondaire",
+      type = "diagnostic", variante = "secondaire",
       H0 = "les residus de Mack sont normaux", H1 = "loi non normale",
       stat_nom = "D", stat = stat_lilliefors(r),
-      loi = "loi de Lilliefors (parametres estimes)",
+      loi = "loi de Lilliefors sous echantillon i.i.d. normal (parametres estimes), non sous le modele de Mack",
+      # Dallal-Wilkinson prolonge par Stephens (#120) ; nature_as retire
+      # (#245) : sans effet sur une ligne sans verdict.
       p_as = lillie_p(stat_lilliefors(r), n),
-      # Dallal-Wilkinson prolonge par Stephens : approximation de la loi a n
-      # fini sous i.i.d. normal, non loi limite (#120).
-      nature_as = NATURE_APPROX_N_FINI)
+      detail = paste("Diagnostic sans verdict (ADR 0001) : approximation de Dallal et",
+                     "Wilkinson de la loi de D a n fini sous echantillon i.i.d. normal, que",
+                     "les residus de Mack ne sont pas ; sous erreurs gaussiennes, elle",
+                     "rejette plus souvent que le seuil nominal (constat de simulation sous",
+                     "un plan). La p-value est restituee pour information."))
 
   ## --- M6 : robustesse de l'estimation --------------------------------------
   fam <- "M6. robustesse de l'estimation"
