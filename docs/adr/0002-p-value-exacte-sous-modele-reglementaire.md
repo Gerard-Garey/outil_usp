@@ -66,3 +66,34 @@ Une p-value n'est **exacte**, au sens de l'outil, que si la loi de la statistiqu
 - **Documentation du sens** (passage de `docwriter`) : le sens est dit dans le nom, H1, le `detail` et la fiche ; références proposées par `actuary-approfondi`, **confirmées mais non relues** : Bland et Altman (1994), *BMJ* 309, p. 248, sur le choix a priori d'un test unilatéral ; Hoenig et Heisey (2001), *The American Statistician* 55(1), 19-24, sur la puissance calculée a posteriori (portée de R4). Aucune autre référence n'est citée à ce titre.
 
 Issues : #169 (motif et mise en œuvre), #5 (origine du texte d'origine), #44 (R4, R5), #117 et #167 (nature MCO), #189 (garde « y constant », préalable). Voir ADR 0001 et ADR 0003, annotations du 6 octobre 2026 ; `docs/feuille-de-route.md`, fiche E1f, étape 4.
+
+---
+
+## Annotation du 14 octobre 2026 — Shapiro-Wilk sur résidus de Mack : la p n'est pas exacte (#245, branche E2e)
+
+**Origine.** L'évaluation que le présent ADR demande à `actuary` pour « Shapiro-Wilk par loi nulle simulée » a été faite, pour la méthode Merz-Wüthrich, par la spécification d'E2e (`docs/specifications/e2e-niveaux-et-documentation.md`, § 1 et § 2, `ef4de76`). Le mainteneur l'a approuvée au point d'arrêt D1 le 13/10/2026 : décision D1-1 (a), lignes M5 en diagnostic ; décision D1-2 (A), p déplacée de `p_exacte` vers `p_asymptotique`. Mise en œuvre par `897ce6b`.
+
+**Constat.** La H0 de la ligne, « résidus de Mack normaux », contient le modèle de Mack à erreurs gaussiennes, qui appartient à la famille réglementaire. Seul le premier fondement vaut donc : la p n'est exacte que si la loi de W sous ce modèle est exacte. Or `sw_p_loi_nulle()` donne la loi de W pour un échantillon **i.i.d.** N(0, 1) de taille n. Les résidus de Mack ne sont pas i.i.d., même sous erreurs gaussiennes. Ils satisfont deux contraintes exactes par colonne :
+- Σ_i √C(i,j)·r(i,j) = 0 ;
+- Σ_i r(i,j)² = n_j − 1, parce que σ̂²_j est estimé sur les mêmes facteurs.
+
+Sur `reserve2`, les 27 résidus portent ainsi 12 contraintes (mesure d'`actuary`, à 1e-14 près). Sous erreurs gaussiennes, sur le plan `reserve2` (2 000 triangles), la ligne rejette 0,221 [0,203 ; 0,240] au seuil 0,10 (constat de simulation, `docs/tableaux/20261011-issue119-mw.md`, T6).
+
+**Décision.**
+- La p de Shapiro-Wilk sur les résidus de Mack **n'est pas exacte** au sens de l'outil. Elle passe de `p_exacte` à `p_asymptotique`, avec la même valeur, la même fonction et la même graine `SEED_LOI_NULLE_SW`. C'est une p sous un **modèle auxiliaire** (échantillon i.i.d. normal), non sous l'annexe XVII : famille (iii) des p non simulées (`CONTEXT.md`, « P non simulée »).
+- Son champ `loi` le dit : « loi de W sous echantillon i.i.d. normal (simulation directe), non sous le modele de Mack ».
+- La ligne devient un **diagnostic** (ADR 0001) : `sens`, `p_retenue` et `nature_p` sont à `NA`, le verdict est INFO. Cette p n'est donc retenue nulle part.
+- La conclusion sur l'exactitude vaut **indépendamment** du type de la ligne : même si la ligne restait un test, sa p ne pourrait pas être dite exacte.
+
+**Portée.**
+- La décision ne vise que la ligne « Shapiro-Wilk sur les residus de Mack » de `mw_tests()`.
+- La ligne Shapiro-Wilk lognormale à loi nulle simulée **n'est pas touchée** : elle garde sa p exacte à π̂_t constant seulement (règle R8, #70, `p_ex_si_pi_constant()`).
+- Aucune règle générale n'est créée : une ligne mal calibrée qui vérifie une hypothèse du modèle reste un test (Breusch-Pagan sur résidus de Mack, #243).
+
+**Effet.** Régénération de `reserve2` par la CI (exécution `38533717313`, mode `regeneration`, branche éphémère `claude/regeneration-245`, commit calculé `33c1da0`).
+- Ligne Shapiro-Wilk : `p_exacte` 0,07139643 → `NA` ; `p_asymptotique` `NA` → 0,07139643 ; `p_retenue` → `NA` ; `nature_p` « exacte » → `NA` ; verdict ALERTE → INFO.
+- Ligne Lilliefors : verdict OK → INFO, sa p asymptotique est inchangée.
+- σ_USP inchangé ; les cinq cas lognormaux sont identiques.
+- Visa du mainteneur le 14/10/2026 sur le tableau avant / après (`docs/tableaux/20261014-issue245-reserve2.md`).
+
+**Conséquences.** `CONTEXT.md` : entrées « P-value exacte », « P non simulée », « Diagnostic » et « Approximation à n fini sous i.i.d. normal » alignées le 14/10/2026. `.tex` : fiches `mw:m5sw` et `mw:m5li`, `tab:nature`, décomptes de verdicts, au passage unique de `docwriter` (règle 9). Issues : #245, #120 (nature de la ligne Lilliefors, devenue sans objet sur M5), #243.
