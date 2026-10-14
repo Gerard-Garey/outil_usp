@@ -38,7 +38,10 @@
 #   - notifications de refus (issue #226) : avec shiny, "Calcul refuse"
 #     (scenario de l'issue, motif de plus de 700 caracteres) et "Calcul non
 #     lance" (reserve no 2) notifient un texte fixe, le motif complet du
-#     moteur etant dans le bandeau.
+#     moteur etant dans le bandeau ;
+#   - virgule decimale des nombres affiches (issue #236) : avec shiny, bloc
+#     Etat, bloc du parametre retenu, journal, table de calibration, note
+#     d'influence et notification du retrait d'une ligne.
 #  La partie Shiny tourne dans un processus R distinct : app.R attache shiny
 #  et recharge le moteur dans l'environnement global, ce qui ne doit pas
 #  toucher les fichiers de tests suivants.
@@ -468,6 +471,53 @@ testServer(app, {
 })
 rm("showNotification", envir = ea)
 )---"
+  # Virgule decimale des nombres affiches (issue #236) : bloc Etat, bloc du
+  # parametre retenu (intervalle bootstrap "[a ; b]"), journal, table de
+  # calibration, note d'influence et notification du retrait d'une ligne
+  # (valeurs separees par " ; "), sur le jeu par defaut (B = 99, alpha = 0,10).
+  .bloc_236 <- r"---(
+## Virgule decimale des nombres affiches (issue #236)
+notifs236 <- character(0)
+assign("showNotification", function(ui, ...) {
+  notifs236 <<- c(notifs236, paste(as.character(ui), collapse = "")); invisible("id")
+}, envir = ea)
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  do.call(session$setInputs, saisie199)
+  session$setInputs(go = 1)
+  r <- resultat(); p <- r$parametre_final; ic <- r$ic_bootstrap
+  sig <- sub(".", ",", sprintf("%.4f", p$sigma_usp), fixed = TRUE)
+  et <- as.character(output$etat$html)
+  a("bloc Etat : sigma_USP en virgule decimale, 4 decimales (#236)",
+    isTRUE(r$ok) && grepl("^0,[0-9]{4}$", sig) &&
+      grepl(paste0("font-size:18px'>", sig, "</span>"), et, fixed = TRUE))
+  # Point decimal recherche hors des attributs style (font-size:12.5px).
+  bf <- as.character(output$bloc_final$html)
+  a("bloc du parametre : sigma_USP, variation et intervalle bootstrap \"[a ; b]\" en virgule decimale, aucun point decimal hors style (#236)",
+    grepl(paste0("sigma_USP = ", sig, "</span>"), bf, fixed = TRUE) &&
+      grepl("par rapport au parametre standard de 0,1000", bf, fixed = TRUE) &&
+      grepl("90 % : \\[[0-9]+,[0-9]{4} ; [0-9]+,[0-9]{4}\\]", bf) &&
+      grepl(gsub("(\\d)\\.(\\d)", "\\1,\\2", sprintf("95 %% : [%.4f ; %.4f]", ic[1], ic[5])), bf, fixed = TRUE) &&
+      !grepl("[0-9]\\.[0-9]", gsub("style=\"[^\"]*\"", "", bf)))
+  jo <- output$tab_meta
+  a("journal : sigma standard, granularite et alpha en virgule decimale (#236)",
+    grepl("sigma standard       : 0,1 ", jo, fixed = TRUE) &&
+      grepl("Granularite p_mc     : 0,01 ", jo, fixed = TRUE) &&
+      grepl("Seuil alpha          : 0,1 \n", jo, fixed = TRUE))
+  tc <- output$tab_calibration
+  a("table de calibration : valeurs a 5 decimales en virgule decimale (#236)",
+    grepl("<td> [0-9]+,[0-9]{5} </td>", tc) && !grepl("[0-9]\\.[0-9]", tc))
+  ni <- as.character(output$note_influence$html)
+  a("note d'influence (application) : reperes et ecart en virgule decimale, aucun point decimal (#236)",
+    grepl("(4/T = 0,500)", ni, fixed = TRUE) && grepl("<b>[+-][0-9]+,[0-9] %</b>", ni) &&
+      !grepl("[0-9]\\.[0-9]", ni))
+  notifs236 <<- character(0)
+  session$setInputs(retirer_annee = 1)
+  a("retrait d'une ligne renseignee : valeurs en virgule decimale, separees par \" ; \" (#236)",
+    identical(notifs236, "Ligne t = 8 retiree (x_t = 131,22 ; y_t = 117,37)."))
+})
+rm("showNotification", envir = ea)
+)---"
   .script <- tempfile(fileext = ".R")
   writeLines(c(
     'suppressMessages(library(shiny))',
@@ -580,7 +630,7 @@ rm("showNotification", envir = ea)
     '  a("import n = 41 (hors [5 ; 40]) : garde non posee, apercu evalue avec T = 8 (#183)",',
     '    is.null(profondeur_import()) && is.character(ap) &&',
     '      !grepl("superieure", ap, fixed = TRUE))',
-    '})', .bloc_155, .bloc_199, .bloc_240, .bloc_226), .script)
+    '})', .bloc_155, .bloc_199, .bloc_240, .bloc_226, .bloc_236), .script)
   # Processus fils lance depuis la racine du depot : app.R y source
   # R/engine.R par chemin relatif. --vanilla ignore .Renviron et .Rprofile :
   # les bibliotheques de ce processus (.libPaths()) lui sont transmises par
@@ -597,8 +647,8 @@ rm("showNotification", envir = ea)
                         setwd(.ici)
                       })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 40 assertions rendues", length(.lignes) == 40L)
-  if (length(.lignes) != 40L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 46 assertions rendues", length(.lignes) == 46L)
+  if (length(.lignes) != 46L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {

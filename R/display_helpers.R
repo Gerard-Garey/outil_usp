@@ -25,10 +25,35 @@ COUL <- list(trait = "#B03A2E", pt = "#00468C", env = "#C8DCFA",
 .plotly_dispo <- function()
   !isTRUE(getOption("usp.graphiques_base")) && requireNamespace("plotly", quietly = TRUE)
 
-fmt_nb <- function(v, d = 4) ifelse(is.finite(v), formatC(v, format = "f", digits = d), "\u2013")
-fmt_p  <- function(v) ifelse(is.finite(v), formatC(v, format = "f", digits = 4), "\u2013")
+# --- Virgule decimale des nombres affiches (#236) ----------------------------
+# Formateur d'affichage unique des notes, libelles et tableaux de
+# l'application et du rapport fige. Il ne fait aucun calcul : le nombre est
+# ecrit exactement comme avant, puis son point decimal (le premier et seul
+# point de l'ecriture d'un nombre) devient une virgule. Arrondi, nombre de
+# chiffres, signe, notation scientifique, NA, NaN et Inf sont ceux de
+# l'ecriture d'origine :
+#  - par defaut, sprintf(fmt, x), fmt etant une seule conversion numerique
+#    ("%.4f", "%+.2f", "%.3g"...) ; pour un nombre fini, identique a
+#    formatC(format = "f" ou "g", flag = "+") ;
+#  - digits donne : format(x, digits = digits), valeur par valeur (sans
+#    l'alignement que format() applique a un vecteur) ; digits = 15 reproduit
+#    as.character(), getOption("digits") reproduit format(x) et cat(x).
+# Pas d'espace des milliers : l'ecriture d'origine n'en a pas. Les exports
+# CSV et xlsx, les valeurs relues (saisie, import) et les chaines lues par un
+# parseur gardent le point (hors champ de #236).
+# Entier ou logique (colonne tout NA) : converti en double, sprintf() refusant
+# "%f" sur un entier (formatC(), utilise avant #236, l'acceptait).
+.num_fr <- function(x, fmt = "%.4f", digits = NULL) {
+  if (is.integer(x) || is.logical(x)) x <- as.double(x)
+  s <- if (is.null(digits)) sprintf(fmt, x)
+       else vapply(x, function(v) format(v, digits = digits), "", USE.NAMES = FALSE)
+  sub(".", ",", s, fixed = TRUE)
+}
+
+fmt_nb <- function(v, d = 4) ifelse(is.finite(v), .num_fr(v, paste0("%.", d, "f")), "\u2013")
+fmt_p  <- function(v) ifelse(is.finite(v), .num_fr(v, "%.4f"), "\u2013")
 fmt_pc <- function(v, d = 1) ifelse(is.finite(v),
-                                    paste0(formatC(100 * v, format = "f", digits = d), " %"), "\u2013")
+                                    paste0(.num_fr(100 * v, paste0("%.", d, "f")), " %"), "\u2013")
 
 # --- Regroupement des tests par grande hypothese -----------------------------
 # engine.R prefixe chaque famille par une lettre. On la traduit ici en libelle
@@ -302,13 +327,13 @@ table_detail_groupe <- function(tb, replier = FALSE) {
     # absente d'une table anterieure au champ : tiret. Trois chiffres
     # significatifs : 2/8! = 5,0e-5 s'afficherait 0.0000 avec fmt_p().
     "p min (loi discr\u00e8te)" = if (is.null(tb$p_min)) rep("\u2013", nrow(tb))
-                                   else ifelse(is.finite(tb$p_min), formatC(tb$p_min, format = "g", digits = 3), "\u2013"),
+                                   else ifelse(is.finite(tb$p_min), .num_fr(tb$p_min, "%.3g"), "\u2013"),
     # Plancher Monte-Carlo (#125) : plus petite p Monte-Carlo atteignable sur
     # les replications tirees, lue par la regle R1 quand la p Monte-Carlo est
     # retenue (NA hors de cette branche : tiret). Colonne absente d'une table
     # anterieure au champ : tiret. Meme format que la colonne precedente.
     `p min MC` = if (is.null(tb$p_min_mc)) rep("\u2013", nrow(tb))
-                 else ifelse(is.finite(tb$p_min_mc), formatC(tb$p_min_mc, format = "g", digits = 3), "\u2013"),
+                 else ifelse(is.finite(tb$p_min_mc), .num_fr(tb$p_min_mc, "%.3g"), "\u2013"),
     Sens = .txt(tb$sens_du_test),
     `Motif / commentaire` = if (replier) .commentaire_replie(com) else .txt(com),
     Reference = .txt(tb$reference),
@@ -328,8 +353,13 @@ html_table <- function(d, classe = "table table-condensed data") {
 #  GRAPHIQUES  --  representation de res$plots_data uniquement
 # =============================================================================
 
+# Separateurs plotly (#236) : virgule decimale, espace des milliers, dans les
+# infobulles (hovertemplate "%{y:.3f}", "%{y:,.0f}") et les graduations ;
+# attribut layout.separators de plotly.js ("decimale" puis "milliers").
+.SEPARATEURS_PLOTLY <- ", "
 .mep <- function(p, titre, xlab, ylab) {
   plotly::layout(p, title = list(text = titre, font = list(size = 14, color = COUL$pt)),
+                 separators = .SEPARATEURS_PLOTLY,
                  xaxis = list(title = xlab, zeroline = FALSE, gridcolor = "#EEEEEE"),
                  yaxis = list(title = ylab, zeroline = FALSE, gridcolor = "#EEEEEE"),
                  paper_bgcolor = COUL$fond, plot_bgcolor = COUL$fond,
@@ -351,7 +381,7 @@ plot_ajustement <- function(pd) {
         line = list(color = COUL$trait, width = 2), hoverinfo = "skip")
   p <- plotly::add_markers(p, x = d$x, y = d$y, marker = list(size = 9, color = COUL$pt),
         hovertemplate = "x = %{x:.2f}<br>y = %{y:.2f}<extra></extra>")
-  .mep(p, sprintf("Ajustement E[Y] = beta x   (beta = %.4f)", pd$beta), "x_t", "y_t")
+  .mep(p, sprintf("Ajustement E[Y] = beta x   (beta = %s)", .num_fr(pd$beta, "%.4f")), "x_t", "y_t")
 }
 
 plot_ratio <- function(pd) {
@@ -719,7 +749,7 @@ plot_profil_delta <- function(pd) {
   p <- plotly::add_lines(p, x = rep(pd$delta_estime, 2), y = yl,
         line = list(color = COUL$trait, dash = "dash"), hoverinfo = "skip")
   p <- .lr_reperes_plotly(p, pd, range(d$delta))
-  .mep(p, sprintf("Profil de vraisemblance en delta (estime = %.4f)", pd$delta_estime),
+  .mep(p, sprintf("Profil de vraisemblance en delta (estime = %s)", .num_fr(pd$delta_estime, "%.4f")),
        "delta", "objectif profile")
 }
 
@@ -751,7 +781,7 @@ plot_surface_objectif <- function(pd) {
         type = "scatter3d", mode = "markers",
         marker = list(size = 6, color = COUL$trait),
         hovertemplate = "optimum<br>delta = %{y:.4f}<br>gamma = %{x:.4f}<extra></extra>")
-  plotly::layout(p,
+  plotly::layout(p, separators = .SEPARATEURS_PLOTLY,
     title = list(text = titre,
                  font = list(size = 14,
                              color = if (isTRUE(S$au_bord)) COUL$trait else COUL$pt)),
@@ -777,7 +807,7 @@ plot_coupe_delta <- function(pd) {
         hovertemplate = "delta = %{x:.3f}<br>objectif = %{y:.4f}<extra></extra>")
   p <- plotly::add_lines(p, x = rep(S$delta_opt, 2), y = range(v),
         line = list(color = COUL$trait, dash = "dash"), hoverinfo = "skip")
-  .mep(p, sprintf("Coupe a gamma optimal \u2014 amplitude = %.4f", S$amplitude_delta),
+  .mep(p, sprintf("Coupe a gamma optimal \u2014 amplitude = %s", .num_fr(S$amplitude_delta, "%.4f")),
        "delta", "objectif")
 }
 
@@ -797,7 +827,7 @@ plot_boot_sigma <- function(pd) {
 
 plot_calibration <- function(cand) {
   etiq <- c("standard", "estime seul", "USP retenu")
-  lab  <- formatC(cand$valeur, format = "f", digits = 4)
+  lab  <- .num_fr(cand$valeur, "%.4f")
   # Les trois valeurs sont proches : on cadre l'axe avec une marge haute
   # suffisante pour que les etiquettes placees au-dessus des barres restent
   # dans la zone de trace.
@@ -822,7 +852,7 @@ plot_calibration <- function(cand) {
         textfont = list(color = COUL$pt, size = 13),
         cliponaxis = FALSE,
         hovertemplate = "%{x}<br>sigma = %{y:.5f}<extra></extra>")
-  p <- plotly::layout(p,
+  p <- plotly::layout(p, separators = .SEPARATEURS_PLOTLY,
         title = list(text = "Valeurs candidates et parametre retenu",
                      font = list(size = 14, color = COUL$pt)),
         xaxis = list(title = "", zeroline = FALSE, gridcolor = "#EEEEEE"),
@@ -991,7 +1021,7 @@ plot_influence_levier <- function(pd) {
     if (nrow(k) > 1)
       p <- plotly::add_lines(p, x = k$levier, y = k$residu,
             line = list(color = COUL$ref, dash = "dot", width = 1),
-            hovertemplate = paste0("Cook = ", n, "<extra></extra>"))
+            hovertemplate = paste0("Cook = ", .num_fr(n, digits = 15), "<extra></extra>"))
   }
   p <- plotly::add_lines(p, x = c(0, max(d$levier) * 1.15), y = c(0, 0),
         line = list(color = COUL$ref, dash = "dash"), hoverinfo = "skip")
@@ -1097,7 +1127,7 @@ plot_mw_levier <- function(pd) {
 # libelle reste litteral (c/sqrt(n_j)), sans aucun calcul.
 .libelle_repere_dfbetas <- function() {
   c0 <- get0("REPERE_DFBETAS_MW", mode = "numeric", ifnotfound = NULL)
-  paste0(if (is.null(c0)) "c" else format(signif(c0, 6)), "/&radic;n_j")
+  paste0(if (is.null(c0)) "c" else .num_fr(signif(c0, 6), digits = getOption("digits")), "/&radic;n_j")
 }
 plot_mw_dfbeta <- function(pd) {
   if (!.influence_mw(pd) || is.null(pd$influence$fort_dfbetas)) return(.vide())
@@ -1127,8 +1157,9 @@ plot_mw_dfbeta <- function(pd) {
     graphics::lines(xr, -rr, col = COUL$ref, lty = 2)
     return(invisible())
   }
-  info <- sprintf("cellule %s<br>DFBETAS = %+.3f (repere +/- %.3f ; f_j - f_j sans la cellule)<br>variation de f_j au retrait de la cellule = %+.3f %%",
-                  etiq, v, d$repere_dfbetas, 100 * d$dfbeta_relatif)
+  info <- sprintf("cellule %s<br>DFBETAS = %s (repere +/- %s ; f_j - f_j sans la cellule)<br>variation de f_j au retrait de la cellule = %s %%",
+                  etiq, .num_fr(v, "%+.3f"), .num_fr(d$repere_dfbetas, "%.3f"),
+                  .num_fr(100 * d$dfbeta_relatif, "%+.3f"))
   p <- plotly::plot_ly(x = x[ok], y = v[ok], type = "bar",
         text = info[ok], textposition = "none",
         marker = list(color = ifelse(d$fort_dfbetas[ok], COUL$trait, COUL$env),
@@ -1169,7 +1200,7 @@ plot_mw_contributions <- function(pd) {
   p <- plotly::add_trace(p, x = d$i, y = 100 * d$part_terme_variance, type = "bar",
         name = "terme de variance", marker = list(color = COUL$trait),
         hovertemplate = "annee %{x}<br>variance : %{y:.1f} %<extra></extra>")
-  p <- plotly::layout(p, barmode = "group", showlegend = TRUE,
+  p <- plotly::layout(p, barmode = "group", showlegend = TRUE, separators = .SEPARATEURS_PLOTLY,
         title = list(text = "Contribution de chaque annee de survenance",
                      font = list(size = 14, color = COUL$pt)),
         xaxis = list(title = "annee de survenance i", gridcolor = "#EEEEEE"),
@@ -1221,7 +1252,7 @@ plot_mw_regressions <- function(pd, max_panneaux = 9) {
     p <- plotly::plot_ly()
     p <- plotly::add_lines(p, x = xr, y = e$f * xr,
           line = list(color = COUL$trait, width = 2), showlegend = FALSE,
-          hovertemplate = paste0("f = ", round(e$f, 4), "<extra></extra>"))
+          hovertemplate = paste0("f = ", .num_fr(round(e$f, 4), digits = 15), "<extra></extra>"))
     if (is.finite(e$a))
       p <- plotly::add_lines(p, x = xr, y = e$a + e$b * xr,
             line = list(color = COUL$ref, dash = "dash"), showlegend = FALSE,
@@ -1238,7 +1269,7 @@ plot_mw_regressions <- function(pd, max_panneaux = 9) {
   })
   p <- plotly::subplot(ps, nrows = ceiling(length(ps) / 3), margin = 0.045,
                        titleX = FALSE, titleY = FALSE)
-  plotly::layout(p, title = list(
+  plotly::layout(p, separators = .SEPARATEURS_PLOTLY, title = list(
       text = "Regressions par annee de developpement : trait plein = f_j (sans constante), pointille = avec constante",
       font = list(size = 12, color = COUL$pt)),
     paper_bgcolor = COUL$fond, plot_bgcolor = COUL$fond,
@@ -1269,7 +1300,7 @@ plot_mw_origine <- function(pd, alpha) {
   p <- plotly::add_trace(p, x = d$j, y = d$a, type = "scatter", mode = "markers",
         error_y = list(type = "data", array = 1.96 * d$se_a, color = COUL$pt),
         marker = list(size = 10, color = ifelse(sig, COUL$trait, COUL$pt)),
-        text = paste0("p = ", formatC(d$p, format = "f", digits = 4)),
+        text = paste0("p = ", .num_fr(d$p, "%.4f")),
         hovertemplate = "j = %{x}<br>a = %{y:,.0f}<br>%{text}<extra></extra>")
   .mep(p, "Ordonnee a l'origine par colonne, intervalle a 95 % (M1)",
        "annee de developpement j", "ordonnee a l'origine a_j")
@@ -1300,7 +1331,8 @@ plot_mw_alpha <- function(pd) {
           marker = list(size = 8, color = cl),
           hovertemplate = paste0(nm, "<br>j = %{x}<br>f = %{y:.5f}<extra></extra>"))
   }
-  plotly::layout(p, title = list(text = "Facteur estime selon la ponderation (famille alpha)",
+  plotly::layout(p, separators = .SEPARATEURS_PLOTLY,
+    title = list(text = "Facteur estime selon la ponderation (famille alpha)",
       font = list(size = 14, color = COUL$pt)),
     xaxis = list(title = "annee de developpement j", gridcolor = "#EEEEEE"),
     yaxis = list(title = "facteur estime", gridcolor = "#EEEEEE"),
@@ -1469,14 +1501,15 @@ note_surface <- function(pd) {
   if (is.null(S)) return(NULL)
   if (isTRUE(S$au_bord))
     list(alerte = TRUE, html = sprintf(paste(
-      "delta est estim&eacute; <b>au bord</b> (%.4f). Amplitude de",
-      "l'objectif le long de delta &agrave; gamma optimal : <b>%.4f</b>.",
+      "delta est estim&eacute; <b>au bord</b> (%s). Amplitude de",
+      "l'objectif le long de delta &agrave; gamma optimal : <b>%s</b>.",
       "Une amplitude faible confirme un plateau, donc une structure de",
-      "variance non identifi&eacute;e."), S$delta_opt, S$amplitude_delta))
+      "variance non identifi&eacute;e."), .num_fr(S$delta_opt, "%.4f"),
+      .num_fr(S$amplitude_delta, "%.4f")))
   else
     list(alerte = FALSE, html = sprintf(
-      "delta = %.4f est int&eacute;rieur au domaine ; amplitude le long de delta : %.4f.",
-      S$delta_opt, S$amplitude_delta))
+      "delta = %s est int&eacute;rieur au domaine ; amplitude le long de delta : %s.",
+      .num_fr(S$delta_opt, "%.4f"), .num_fr(S$amplitude_delta, "%.4f")))
 }
 
 # alpha : seuil des verdicts du calcul (res$metadata$alpha), et non 0,10 en
@@ -1493,7 +1526,8 @@ note_m1 <- function(pd, alpha) {
     "entre les deux signale une composante fixe non pr&eacute;vue par le mod&egrave;le.",
     "<br><b>%d colonne(s) sur %d</b> pr&eacute;sentent une ordonn&eacute;e &agrave;",
     "l'origine significative au seuil alpha = %s, la plus marqu&eacute;e &eacute;tant",
-    "<b>j = %d</b> (p = %.4f)."), k, nrow(d), format(alpha), w$j, w$p)
+    "<b>j = %d</b> (p = %s)."), k, nrow(d), .num_fr(alpha, digits = getOption("digits")), w$j,
+    .num_fr(w$p, "%.4f"))
 }
 
 note_influence_mw <- function(pd) {
@@ -1531,8 +1565,9 @@ note_influence_mw <- function(pd) {
     "Plusieurs cellules color&eacute;es sont donc attendues sans anomalie, surtout dans",
     "les colonnes courtes.",
     "La cellule la plus influente est",
-    "<b>(i = %d, j = %d)</b> (DFBETAS = %+.2f), dont le retrait d&eacute;placerait f_%d de",
-    "<b>%+.2f %%</b>."), nd, lib, mx$i, mx$j, mx$dfbetas, mx$j, 100 * mx$dfbeta_relatif),
+    "<b>(i = %d, j = %d)</b> (DFBETAS = %s), dont le retrait d&eacute;placerait f_%d de",
+    "<b>%s %%</b>."), nd, lib, mx$i, mx$j, .num_fr(mx$dfbetas, "%+.2f"), mx$j,
+    .num_fr(100 * mx$dfbeta_relatif, "%+.2f")),
     txt_nb), collapse = " ")
 }
 
@@ -1544,19 +1579,19 @@ note_influence <- function(pd) {
   # Distances de Cook non finies (#153, motif pose par le moteur) : influent
   # vaut NA, le decompte est remplace par une phrase qui renvoie au motif.
   cook <- if (is.null(pd$influence_motif))
-    sprintf("<b>%d</b> observation(s) au-del&agrave; du rep&egrave;re de Cook (4/T = %.3f)",
-            sum(d$influent), d$seuil_cook[1])
-  else sprintf(paste("Distance de Cook non finie : rep&egrave;re de Cook (4/T = %.3f) sans objet",
-                     "(motif dans les graphiques) ;"), d$seuil_cook[1])
+    sprintf("<b>%d</b> observation(s) au-del&agrave; du rep&egrave;re de Cook (4/T = %s)",
+            sum(d$influent), .num_fr(d$seuil_cook[1], "%.3f"))
+  else sprintf(paste("Distance de Cook non finie : rep&egrave;re de Cook (4/T = %s) sans objet",
+                     "(motif dans les graphiques) ;"), .num_fr(d$seuil_cook[1], "%.3f"))
   nl <- sum(d$fort_levier)
   sprintf(paste(
     "%s%s <b>%d</b>",
-    "au-del&agrave; du rep&egrave;re de levier (2k/T = %.3f). Le retrait de l'ann&eacute;e la plus",
-    "influente d&eacute;place sigma_USP de <b>%+.1f %%</b>. Un levier &eacute;lev&eacute;",
+    "au-del&agrave; du rep&egrave;re de levier (2k/T = %s). Le retrait de l'ann&eacute;e la plus",
+    "influente d&eacute;place sigma_USP de <b>%s %%</b>. Un levier &eacute;lev&eacute;",
     "seul n'est pas probl&eacute;matique : c'est sa combinaison avec un r&eacute;sidu",
     "important, mesur&eacute;e par la distance de Cook, qui l'est."),
-    cook, if (is.null(pd$influence_motif)) " et" else "", nl, d$seuil_levier[1],
-    100 * d$ecart_sigma[which.max(abs(d$ecart_sigma))])
+    cook, if (is.null(pd$influence_motif)) " et" else "", nl, .num_fr(d$seuil_levier[1], "%.3f"),
+    .num_fr(100 * d$ecart_sigma[which.max(abs(d$ecart_sigma))], "%+.1f"))
 }
 
 # =============================================================================
@@ -1681,10 +1716,15 @@ encoder_base64 <- function(octets) {
 # Un graphique fige en PNG (branche base R), integre en base64. Toute erreur
 # de trace est convertie en bandeau : le rapport n'echoue jamais sur un
 # graphique.
+# Virgule decimale (#236) : OutDec = "," le temps du trace, pour les
+# graduations des axes et les nombres ecrits par les fonctions graphiques de
+# base ; restaure en sortie.
 .graphique_png <- function(gr) {
   largeur <- if (isTRUE(gr$plein)) 1000 else 560
   fichier <- tempfile(fileext = ".png")
   on.exit(unlink(fichier), add = TRUE)
+  ancien <- options(OutDec = ",")
+  on.exit(options(ancien), add = TRUE)
   r <- tryCatch({
     grDevices::png(fichier, width = largeur, height = gr$h)
     dev <- grDevices::dev.cur()
@@ -1846,8 +1886,10 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
               "Seuil alpha des verdicts", "Graine (seed)", "Bar\u00e8me de cr\u00e9dibilit\u00e9",
               "sigma standard", "Nature des donn\u00e9es")
     # Champs absents d'un objet relu (#263) : tiret, comme pour segment.
+    # Nombres en virgule decimale (#236) ; nb_defaut reproduit format(x).
+    nb_defaut <- function(x) .num_fr(x, digits = getOption("digits"))
     vals <- c(.ou_tiret(m$horodatage, function(x) format(x, "%Y-%m-%d %H:%M:%S %Z")),
-              .ou_tiret(m$duree_sec, function(x) sprintf("%.2f s", x)), genere,
+              .ou_tiret(m$duree_sec, function(x) paste(.num_fr(x, "%.2f"), "s")), genere,
               paste0("<code>", m$methode, "</code> \u2014 ", libelle_methode),
               paste("annexe", m$annexe),
               if (is.null(m$segment)) "\u2013" else paste0(m$segment, " \u2014 ", .txt(m$libelle_segment)),
@@ -1855,14 +1897,14 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
                      if (!is.null(lib_prof <- libelle_derogation(res, "profondeur")))
                        paste0(" \u2014 <b>", .echap_html(lib_prof), "</b>")),
               .ou_tiret(m$B, as.character),
-              .ou_tiret(res$bootstrap$granularite, function(x) format(x, digits = 6)),
+              .ou_tiret(res$bootstrap$granularite, function(x) .num_fr(x, digits = 6)),
               if (!is.null(lig_mc)) .txt(lig_mc),
-              .ou_tiret(m$alpha, format),
+              .ou_tiret(m$alpha, nb_defaut),
               .ou_tiret(m$seed, function(x) format(x, scientific = FALSE)),
               paste0(.ou_tiret(m$bareme),
                      if (!is.null(lib_bareme <- libelle_derogation(res, "bareme")))
                        paste0(" \u2014 <b>", .echap_html(lib_bareme), "</b>")),
-              paste0(.ou_tiret(m$sigma_standard, function(x) format(x, digits = 10)),
+              paste0(.ou_tiret(m$sigma_standard, function(x) .num_fr(x, digits = 10)),
                      if (!is.null(lib_sigma <- libelle_derogation(res, "sigma_standard")))
                        paste0(" \u2014 <b>", .echap_html(lib_sigma), "</b>")),
               .txt(table_parametre_standard(res)$Valeur[1]))
@@ -1878,8 +1920,8 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
       cles <- c(cles, "Test d'\u00e9quivalence de la constante")
       # Marges absentes (objet relu et nettoye, #263) : tiret par .ou_tiret().
       vals <- c(vals, if (is.null(m$delta_equiv))
-        sprintf("marge = %s de la perte moyenne (theta_equiv)", .ou_tiret(m$theta_equiv, format))
-        else sprintf("marge Delta fix\u00e9e a priori = %s", .ou_tiret(m$delta_equiv, format)))
+        sprintf("marge = %s de la perte moyenne (theta_equiv)", .ou_tiret(m$theta_equiv, nb_defaut))
+        else sprintf("marge Delta fix\u00e9e a priori = %s", .ou_tiret(m$delta_equiv, nb_defaut)))
     }
     idt <- if (is.null(identite)) list(version = NA, md5_engine = NA, releve = NA) else identite
     cles <- c(cles, "Version de R", "Version de l'outil (DESCRIPTION)")
@@ -1912,9 +1954,10 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
           "<h3>Empreintes</h3>", html_table(empreintes, classe = "data"))
 
     # --- 2. Donnees -----------------------------------------------------------
-    # as.character() ecrit chaque valeur isolement (15 chiffres significatifs),
-    # sans l'alignement des decimales que format() applique a tout le vecteur.
-    num <- function(v) ifelse(is.na(v), "\u2013", as.character(v))
+    # Chaque valeur est ecrite isolement comme par as.character() (15 chiffres
+    # significatifs), sans l'alignement des decimales que format() applique a
+    # tout le vecteur, avec la virgule decimale (#236).
+    num <- function(v) ifelse(is.na(v), "\u2013", .num_fr(v, digits = 15))
     if (mw) {
       tri <- res$triangle
       d <- data.frame(i = seq_len(nrow(tri)) - 1L, matrix(num(tri), nrow(tri)),
@@ -1954,12 +1997,13 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
     cal <- res$calibration; cand <- res$candidats
     ajout("<h2 id='parametre'>4. Param\u00e8tre retenu et calibration</h2>",
           "<div class='bloc'>",
-          sprintf("<div><span class='cle'>sigma_USP = %.4f</span></div>", p$sigma_usp),
-          sprintf("<div>soit %+.1f %% par rapport au param\u00e8tre standard de %.4f</div>",
-                  100 * p$variation_relative, p$sigma_standard),
+          sprintf("<div><span class='cle'>sigma_USP = %s</span></div>", .num_fr(p$sigma_usp, "%.4f")),
+          sprintf("<div>soit %s %% par rapport au param\u00e8tre standard de %s</div>",
+                  .num_fr(100 * p$variation_relative, "%+.1f"), .num_fr(p$sigma_standard, "%.4f")),
           if (!is.null(ic)) sprintf(paste(
-            "<div style='margin-top:6px'>Intervalle bootstrap 90 %% : [%.4f ; %.4f]",
-            "&nbsp;|&nbsp; 95 %% : [%.4f ; %.4f]</div>"), ic[2], ic[4], ic[1], ic[5]),
+            "<div style='margin-top:6px'>Intervalle bootstrap 90 %% : [%s ; %s]",
+            "&nbsp;|&nbsp; 95 %% : [%s ; %s]</div>"), .num_fr(ic[2], "%.4f"), .num_fr(ic[4], "%.4f"),
+            .num_fr(ic[1], "%.4f"), .num_fr(ic[5], "%.4f")),
           sprintf("<div class='gris' style='margin-top:6px'>%s</div>", .echap_html(texte_formule(res))),
           "</div>",
           paste("<h3>Param\u00e8tre standard remplac\u00e9 (art. 218, paragraphe 1) et",

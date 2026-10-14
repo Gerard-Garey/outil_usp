@@ -23,7 +23,9 @@
 #  l'en-tete, absente en reserve2 ; rapport sur les six references nettoyees
 #  (sans horodatage, duree_sec ni version_R), tiret dans ces lignes (#263) ;
 #  mention de la granularite effective en V3b arrete a B_max seulement
-#  (#254) ; tiret pour une marge theta_equiv ou delta_equiv absente.
+#  (#254) ; tiret pour une marge theta_equiv ou delta_equiv absente ;
+#  virgule decimale des nombres affiches (.num_fr(), fmt_*(), notes, rapport
+#  fige ; issue #236).
 #  References : RFC 4648, section 10 (vecteurs de test base64) ; regle de
 #  selection de l'onglet Tests (filtrer_selection).
 #  La branche PNG est exercee partout ou capabilities("png") est vrai ; la
@@ -206,9 +208,9 @@ verifier("Rapport : empreintes des donnees, du resultat et du code presentes",
 verifier("Rapport : horodatage du calcul et version DESCRIPTION restitues",
          grepl(format(res_ln$metadata$horodatage, "%Y-%m-%d %H:%M:%S"), h, fixed = TRUE) &&
          grepl(paste0("<td>", idt$version, "</td>"), h, fixed = TRUE))
-verifier("Rapport : donnees lues dans res (x_t et y_t du calcul)",
-         grepl("<td>1</td><td>104.2</td><td>68.97</td>", h, fixed = TRUE) &&
-         grepl("<td>7</td><td>132.4</td><td>78.89</td>", h, fixed = TRUE))
+verifier("Rapport : donnees lues dans res (x_t et y_t du calcul), virgule decimale (#236)",
+         grepl("<td>1</td><td>104,2</td><td>68,97</td>", h, fixed = TRUE) &&
+         grepl("<td>7</td><td>132,4</td><td>78,89</td>", h, fixed = TRUE))
 verifier("Rapport lognormal : formule avec le facteur sqrt((T+1)/(T-1))",
          grepl("sqrt((T+1)/(T-1))", texte_formule(res_ln), fixed = TRUE) &&
          grepl(.echap_html(texte_formule(res_ln)), h, fixed = TRUE))
@@ -312,8 +314,8 @@ f_mw <- tempfile(fileext = ".html")
 r_mw <- rapport_html(res_mw, NULL, f_mw, interactif = FALSE, identite = idt)
 hm <- lire(f_mw)
 tbm <- engine_table_tests(res_mw); rm <- filtrer_selection(tbm, selection_defaut(tbm))
-verifier("Rapport MW : triangle du calcul restitue, cellules non observees en tiret",
-         grepl("<td>2766.61</td>", hm, fixed = TRUE) && grepl("<td>\u2013</td>", hm, fixed = TRUE))
+verifier("Rapport MW : triangle du calcul restitue (virgule decimale, #236), cellules non observees en tiret",
+         grepl("<td>2766,61</td>", hm, fixed = TRUE) && grepl("<td>\u2013</td>", hm, fixed = TRUE))
 verifier("Rapport MW : exclus par defaut en annexe avec leur verdict",
          any(!rm) && all(vapply(which(!rm), function(k)
            grepl(badge_verdict(tbm$verdict[k]),
@@ -986,7 +988,7 @@ verifier("Vue Detail : colonnes \"p min (loi discr\u00e8te)\" puis \"p min MC\",
            j <- match("p min (loi discr\u00e8te)", names(dd))
            !is.na(i_signes) && isTRUE(tb_pi$inoperant[i_signes]) && !is.na(j) &&
              identical(names(dd)[j + 1L], "p min MC") &&
-             identical(dd[i_signes, j], "0.125") && identical(dd[["p min MC"]][i_signes], "0.149") &&
+             identical(dd[i_signes, j], "0,125") && identical(dd[["p min MC"]][i_signes], "0,149") &&
              identical(dd[["p min MC"]] == "\u2013", !is.finite(tb_pi$p_min_mc)) &&
              identical(dd[names(dd) != "Motif / commentaire"],
                        table_detail_groupe(tb_pi)[names(dd) != "Motif / commentaire"])
@@ -1006,7 +1008,7 @@ verifier("Rapport fige (reference premium_interieur) : en-tetes p min et p min M
            grepl("<th>p min (loi discr\u00e8te)</th><th>p min MC</th>", pr_pi, fixed = TRUE) &&
              # Deux lignes portent le test : Synthese puis Detail ; seule la
              # seconde a les colonnes p min.
-             length(l_pi) == 2L && grepl("<td>0.125</td><td>0.149</td>", l_pi[2], fixed = TRUE)
+             length(l_pi) == 2L && grepl("<td>0,125</td><td>0,149</td>", l_pi[2], fixed = TRUE)
          })
 verifier("Rapport : colonne Fonction dans le detail des tests retenus, commentaire en entier, aucun <details> (#178)",
          all(vapply(which(retenu), function(k)
@@ -1245,13 +1247,13 @@ verifier("Rapport fige : marge theta_equiv absente -> tiret, sans erreur (revue 
            ok0 && identical(cle_val(entre(h0, "<h2 id='gel'>", "</table>"), CLE_EQUIV),
                             .echap_html("marge = \u2013 de la perte moyenne (theta_equiv)"))
          })
-verifier("Rapport fige : marge theta_equiv presente -> valeur inchangee (0.1)",
+verifier("Rapport fige : marge theta_equiv presente -> valeur inchangee (0,1, virgule decimale #236)",
          {
            f0 <- tempfile(fileext = ".html")
            rapport_html(res_ln, NULL, f0, interactif = FALSE, identite = idt)
            h0 <- lire(f0); unlink(f0)
            identical(cle_val(entre(h0, "<h2 id='gel'>", "</table>"), CLE_EQUIV),
-                     "marge = 0.1 de la perte moyenne (theta_equiv)")
+                     "marge = 0,1 de la perte moyenne (theta_equiv)")
          })
 verifier("Rapport fige : marge delta_equiv de longueur nulle -> tiret, sans erreur",
          {
@@ -1264,6 +1266,89 @@ verifier("Rapport fige : marge delta_equiv de longueur nulle -> tiret, sans erre
            h0 <- if (ok0) lire(f0) else ""; unlink(f0)
            ok0 && identical(cle_val(entre(h0, "<h2 id='gel'>", "</table>"), CLE_EQUIV),
                             .echap_html("marge Delta fix\u00e9e a priori = \u2013"))
+         })
+
+## --- Virgule decimale des nombres affiches (issue #236) ------------------------
+# .num_fr() ecrit le nombre comme avant (sprintf(fmt, x), ou format(x, digits)
+# valeur par valeur) et ne change que le separateur decimal ; aucun espace des
+# milliers. Notes, tables et rapport fige l'emploient ; les exports CSV et
+# xlsx, hors champ, ne passent pas par display_helpers.R.
+verifier(".num_fr() : signe, arrondi et nombre de chiffres du format d'origine, virgule decimale (#236)",
+         identical(.num_fr(c(1.5349, -0.0031, 0, 12.25), "%+.2f"), c("+1,53", "-0,00", "+0,00", "+12,25")) &&
+           identical(.num_fr(c(0.0300, 0.13289), "%.4f"), c("0,0300", "0,1329")) &&
+           identical(.num_fr(-9.4321, "%+.1f"), "-9,4") && identical(.num_fr(0.5, "%.3f"), "0,500"))
+verifier(".num_fr() : NA, NaN, Inf et -Inf ecrits comme par sprintf(), sans virgule (#236)",
+         identical(.num_fr(c(NA, NaN, Inf, -Inf), "%.4f"), c("NA", "NaN", "Inf", "-Inf")) &&
+           identical(.num_fr(c(NA, NaN, Inf, -Inf), "%+.2f"), c("NA", "NaN", "+Inf", "-Inf")) &&
+           identical(.num_fr(NA, "%.4f"), "NA") && identical(.num_fr(numeric(0)), character(0)))
+verifier(".num_fr() : grands nombres sans espace des milliers, notation scientifique conservee (#236)",
+         identical(.num_fr(1234567.891, "%.2f"), "1234567,89") &&
+           identical(.num_fr(123456789012, digits = 15), "123456789012") &&
+           identical(.num_fr(c(2.5e-5, 1e-20, 4.96e-5), "%.3g"), c("2,5e-05", "1e-20", "4,96e-05")) &&
+           identical(.num_fr(c(1e5, 0.1 + 0.2, 2766.61), digits = 15), c("1e+05", "0,3", "2766,61")))
+verifier(".num_fr() : digits = 15 reproduit as.character(), digits = 7 reproduit format() valeur par valeur, entier accepte (#236)",
+         {
+           v <- c(104.2, 68.97, 1 / 3, 2 / 3 * 1e7, 1e-5, 1234567.891, 100000.5, 0.001, 1 / 1001)
+           identical(.num_fr(v, digits = 15), sub(".", ",", as.character(v), fixed = TRUE)) &&
+             identical(.num_fr(c(0.001, 1 / 1001), digits = 7), c("0,001", "0,000999001")) &&
+             identical(.num_fr(2L, "%.4f"), "2,0000")
+         })
+# formatC(format = "g") complete a gauche une ecriture courte (" 123", " 0.1",
+# "   0") ; .num_fr() ne le fait pas (espaces sans effet dans une cellule HTML).
+verifier(".num_fr() : identique a formatC(decimal.mark = \",\") pour des nombres finis, format \"f\", et \"g\" aux espaces de tete pres (#236)",
+         {
+           v <- c(1.5349, -0.0031, 123.456789, 2.5e-5, 0.125, 0.149, 2 / 40320, 1e6 + 0.3)
+           identical(.num_fr(v, "%.4f"), formatC(v, format = "f", digits = 4, decimal.mark = ",")) &&
+             identical(.num_fr(v, "%+.2f"), formatC(v, format = "f", digits = 2, flag = "+", decimal.mark = ",")) &&
+             identical(.num_fr(v, "%.3g"), trimws(formatC(v, format = "g", digits = 3, decimal.mark = ","))) &&
+             identical(formatC(c(123, 0.1), format = "g", digits = 3), c(" 123", " 0.1"))
+         })
+verifier("fmt_nb(), fmt_p(), fmt_pc() : virgule decimale, tiret pour une valeur non finie (#236)",
+         identical(fmt_p(c(0.05, NA, Inf)), c("0,0500", "\u2013", "\u2013")) &&
+           identical(fmt_nb(c(-1.23456, 1e3), 2), c("-1,23", "1000,00")) &&
+           identical(fmt_nb(1L), "1,0000") && identical(fmt_pc(0.1234), "12,3 %"))
+# Note de l'issue : reference reserve2 (CI), cellule la plus influente
+# (i = 1, j = 4), DFBETAS +1,53 et deplacement de f_4 de -0,30 %.
+res_mw_ref <- readRDS(file.path(.racine, "tests", "reference", "reserve2.rds"))
+res_ln_ref <- readRDS(file.path(.racine, "tests", "reference", "premium.rds"))
+verifier("note_influence_mw() (reference reserve2) : \"(DFBETAS = +1,53)\" et \"-0,30 %\" de l'issue, aucun point decimal (#236)",
+         {
+           n <- note_influence_mw(res_mw_ref$plots_data)
+           grepl("<b>(i = 1, j = 4)</b> (DFBETAS = +1,53)", n, fixed = TRUE) &&
+             grepl("f_4 de <b>-0,30 %</b>", n, fixed = TRUE) && !grepl("[0-9]\\.[0-9]", n)
+         })
+verifier("note_m1(), note_surface(), note_influence() (references) : virgule decimale, aucun point decimal (#236)",
+         {
+           n1 <- note_m1(res_mw_ref$plots_data, 0.10)
+           ns <- note_surface(res_ln_ref$plots_data)$html
+           ni <- note_influence(res_ln_ref$plots_data)
+           grepl("au seuil alpha = 0,1, ", n1, fixed = TRUE) && grepl("(p = 0,0300)", n1, fixed = TRUE) &&
+             grepl("<b>au bord</b> (1,0000)", ns, fixed = TRUE) && grepl("(4/T = 0,500)", ni, fixed = TRUE) &&
+             !any(grepl("[0-9]\\.[0-9]", c(n1, ns, ni)))
+         })
+# Rapport fige sur la reference premium, duree forgee (champ retire par
+# nettoyer()) : echantillon de lignes de l'en-tete, du bloc du parametre (bornes
+# d'intervalle separees par " ; ") et des tables ; OutDec restaure.
+verifier("Rapport fige (reference premium) : en-tete, parametre, intervalle \"[a ; b]\" et calibration en virgule decimale, OutDec restaure (#236)",
+         {
+           r0 <- res_ln_ref; r0$metadata$duree_sec <- 6.137
+           od <- getOption("OutDec")
+           f0 <- tempfile(fileext = ".html")
+           rapport_html(r0, NULL, f0, interactif = FALSE, identite = idt)
+           h0 <- lire(f0); unlink(f0)
+           gel <- entre(h0, "<h2 id='gel'>", "</table>")
+           bloc <- entre(h0, "<div class='bloc'>", "<h3>")
+           identical(getOption("OutDec"), od) &&
+             identical(cle_val(gel, "Dur\u00e9e du calcul"), "6,14 s") &&
+             identical(cle_val(gel, "Seuil alpha des verdicts"), "0,1") &&
+             identical(cle_val(gel, "sigma standard"), "0,1") &&
+             identical(cle_val(gel, CLE_EQUIV), "marge = 0,1 de la perte moyenne (theta_equiv)") &&
+             grepl("<td>0,001</td>", gel, fixed = TRUE) &&
+             grepl("sigma_USP = 0,1115</span>", bloc, fixed = TRUE) &&
+             grepl("soit +11,5 % par rapport au param\u00e8tre standard de 0,1000", bloc, fixed = TRUE) &&
+             grepl("90 % : [0,0752 ; 0,1370] &nbsp;|&nbsp; 95 % : [0,0712 ; 0,1416]", bloc, fixed = TRUE) &&
+             !grepl("[0-9]\\.[0-9]", gsub("style='[^']*'", "", bloc)) &&
+             grepl("<td>delta (parametre de melange)</td><td>1,00000</td>", h0, fixed = TRUE)
          })
 
 fin_fichier()

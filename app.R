@@ -773,8 +773,10 @@ server <- function(input, output, session) {
     d <- saisie_courante(); n <- nrow(d)
     if (n <= 1L) return()
     if (!is.na(d$xt[n]) || !is.na(d$yt[n]))
-      showNotification(sprintf("Ligne t = %d retiree (x_t = %s, y_t = %s).", n,
-                               format(d$xt[n]), format(d$yt[n])),
+      # Virgule decimale (#236) : les deux valeurs sont separees par " ; ".
+      showNotification(sprintf("Ligne t = %d retiree (x_t = %s ; y_t = %s).", n,
+                               .num_fr(d$xt[n], digits = getOption("digits")),
+                               .num_fr(d$yt[n], digits = getOption("digits"))),
                        type = "warning", duration = 8)
     donnees(d[-n, , drop = FALSE])
   })
@@ -1122,10 +1124,10 @@ server <- function(input, output, session) {
       if (!is.null(lig_mc))
         div(style = "font-size:12px", tags$b("P-values Monte-Carlo"), paste(":", lig_mc)),
       div(HTML(sprintf("<b>seed</b> = %s", format(m$seed, scientific = FALSE)))),
-      div(HTML(sprintf("<b>sigma_USP</b> = <span class='cle' style='font-size:18px'>%.4f</span>",
-                       r$parametre_final$sigma_usp))),
+      div(HTML(sprintf("<b>sigma_USP</b> = <span class='cle' style='font-size:18px'>%s</span>",
+                       .num_fr(r$parametre_final$sigma_usp, "%.4f")))),
       div(style = "color:#7F8C8D;font-size:12px",
-          sprintf("calcule en %.1f s", m$duree_sec))
+          sprintf("calcule en %s s", .num_fr(m$duree_sec, "%.1f")))
     )
   })
 
@@ -1348,13 +1350,16 @@ server <- function(input, output, session) {
   output$bloc_final <- renderUI({
     r <- R(); p <- r$parametre_final; ic <- r$ic_bootstrap
     tagList(
-      div(HTML(sprintf("<span class='cle'>sigma_USP = %.4f</span>", p$sigma_usp))),
-      div(HTML(sprintf("soit %+.1f %% par rapport au parametre standard de %.4f",
-                       100 * p$variation_relative, p$sigma_standard))),
+      # Virgule decimale (#236) ; bornes d'intervalle separees par " ; ".
+      div(HTML(sprintf("<span class='cle'>sigma_USP = %s</span>", .num_fr(p$sigma_usp, "%.4f")))),
+      div(HTML(sprintf("soit %s %% par rapport au parametre standard de %s",
+                       .num_fr(100 * p$variation_relative, "%+.1f"),
+                       .num_fr(p$sigma_standard, "%.4f")))),
       if (!is.null(ic))
         div(style = "margin-top:6px", HTML(sprintf(
-          "Intervalle bootstrap 90 %% : [%.4f ; %.4f] &nbsp;|&nbsp; 95 %% : [%.4f ; %.4f]",
-          ic[2], ic[4], ic[1], ic[5]))),
+          "Intervalle bootstrap 90 %% : [%s ; %s] &nbsp;|&nbsp; 95 %% : [%s ; %s]",
+          .num_fr(ic[2], "%.4f"), .num_fr(ic[4], "%.4f"),
+          .num_fr(ic[1], "%.4f"), .num_fr(ic[5], "%.4f")))),
       # Texte propre a chaque methode (texte_formule, R/display_helpers.R),
       # partage avec le rapport fige : le facteur sqrt((T+1)/(T-1)) ne
       # concerne que les methodes lognormales (#4, piste 4).
@@ -1412,7 +1417,9 @@ server <- function(input, output, session) {
     cat("Methode              :", m$methode, "\n")
     cat("Perimetre            : annexe", m$annexe, "\n")
     cat("Segment              :", m$segment, "-", m$libelle_segment, "\n")
-    cat("sigma standard       :", m$sigma_standard,
+    # Nombres en virgule decimale (#236) : nb() reproduit l'ecriture de cat().
+    nb <- function(x) .num_fr(x, digits = getOption("digits"))
+    cat("sigma standard       :", nb(m$sigma_standard),
         if (!is.null(libelle_derogation(R(), "sigma_standard")))
           "(saisi : derogation au parametre reglementaire)", "\n")
     cat("Nature des donnees   :", table_parametre_standard(R())$Valeur[1], "\n")
@@ -1426,7 +1433,7 @@ server <- function(input, output, session) {
     cat("Profondeur T         :", m$T,
         if (!is.null(lib_prof)) paste0("(", lib_prof, ")"), "\n")
     cat("Replications B       :", m$B, "\n")
-    cat("Granularite p_mc     :", format(R()$bootstrap$granularite),
+    cat("Granularite p_mc     :", nb(R()$bootstrap$granularite),
         "( = 1/(B+1), B nominal : p-value unilaterale ; bilaterale 2/(B_eff+1),",
         "par statistique : res$bootstrap$granularite_stat )\n")
     # Ligne de #240 (Q-A4-12 (B)) : texte de texte_p_mc_regime(), comme le
@@ -1434,7 +1441,7 @@ server <- function(input, output, session) {
     # pour un objet sans p_mc_regime.
     lig_mc <- texte_p_mc_regime(R())
     if (!is.null(lig_mc)) cat("P-values Monte-Carlo :", lig_mc, "\n")
-    cat("Seuil alpha          :", m$alpha, "\n")
+    cat("Seuil alpha          :", nb(m$alpha), "\n")
     cat("Graine (seed)        :", format(m$seed, scientific = FALSE), "\n")
     # Generateur et graines fixes consignes par le moteur (issue #37) ; un
     # champ absent de metadata ne produit pas de ligne.
@@ -1451,7 +1458,7 @@ server <- function(input, output, session) {
       cat("Graine flux regime   :", gen[["seed_flux_regime"]],
           "(flux complementaire des p-values Monte-Carlo, #240)\n")
     cat("Horodatage           :", format(m$horodatage, "%Y-%m-%d %H:%M:%S"), "\n")
-    cat("Duree (s)            :", round(m$duree_sec, 2), "\n")
+    cat("Duree (s)            :", nb(round(m$duree_sec, 2)), "\n")
     cat("Version R            :", m$version_R, "\n")
   })
 
