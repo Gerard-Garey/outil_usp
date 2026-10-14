@@ -60,11 +60,13 @@
 #      sigma2_4 = 0 exactement ; sous la graine 20261010, le premier cas
 #      n'apparaissait qu'a la 7e replication),
 #      ensemble j_degeneres fige a l'observe ;
-#    - les triangles T1, T3 et T6 a colonne non identifiable de la courbure
-#      (#269, #270), et les deux premieres replications de T1 et de T3
-#      (graine 20261010) sous l'ensemble des colonnes non identifiables fige
-#      a l'observe ; la courbure de l'ancienne forme y est une reecriture
-#      independante de la selection des colonnes (T270-7) ;
+#    - les triangles T1, T3, T4 et T6 a colonne non identifiable de la
+#      courbure (#269, #270, #278), et les deux premieres replications de T1,
+#      de T3 et de T4 (graine 20261010) sous l'ensemble des colonnes non
+#      identifiables fige a l'observe ; la courbure de l'ancienne forme y est
+#      une reecriture independante de la selection des colonnes (T270-7) ;
+#    - la branche (b) de la courbure (#270, #278) : triangles T1b et T3b, ou
+#      la colonne de l'ensemble fige est degeneree dans l'appel ;
 #    - douze triangles tires sous graine (PLAN_TIRAGES : 3 a 12 annees ;
 #      continus ; ex aequo, effectifs au tirage 9, 8 annees ; colonnes
 #      degenerees interieures, tirages 3, 4, 7, 9 a 12 ; colonnes nulles
@@ -405,7 +407,8 @@ ecarts <- function(t, jds = list(NULL), etiquette = "", fonctions = FONCTIONS_JD
   vus <- list()
   for (jd in jds) {
     r <- .mw_j_exclues(aj, jd)
-    # Filet de securite, inactif sur les jeux actuels (0 saut sur 76 ensembles).
+    # Filet de securite, inactif sur les jeux actuels (0 saut sur 82 ensembles,
+    # mesure du 14/10/2026).
     if (any(vapply(vus, identical, logical(1), r))) next
     vus[[length(vus) + 1L]] <- r
     nouv <- lapply(stats::setNames(nm = fonctions), function(f) sans_masse(capturer(get(f), list(aj, jd))))
@@ -462,6 +465,19 @@ tri_t1 <- tri_ref; tri_t1[1:6, 2] <- rep(c(1000, 1100), each = 3)
 tri_t3 <- tri_ref; tri_t3[, 1] <- rep(c(320, 350), 4)
 tri_t6 <- tri_ref; tri_t6[1:5, 3] <- c(1600, 1600, 1600, 1800, 1800)
 tri_t6[1:6, 2] <- tri_t6[1:6, 3] / 1.3
+# T4 (specification d'E2e, section 4) : C(0..5,1) = 1050, colonne j = 1
+# constante (une seule valeur distincte de C(i,j)).
+tri_t4 <- tri_ref; tri_t4[1:6, 2] <- 1050
+# Branche (b) de la courbure (#270, correction du 14/10/2026 ; #278, etape 1
+# de la branche F, reserve M2 de l'audit d'E2e) : triangles de replication
+# construits a la main, ou la colonne de l'ensemble fige a l'observe devient
+# degeneree. T1b : T1, colonne j = 1 degeneree, C(i,1) = C(i,2) / 1,3 pour
+# i = 0..5 (T7 de T270-9) ; T3b : T3, colonne j = 0 degeneree,
+# C(i,0) = C(i,1) / 1,5 pour i = 0..6. Appeles avec les ensembles figes de
+# l'observe (T1 : jd = 6, jni = 1 ; T3 : jd = 6, jni = 0), ou la colonne
+# n'est pas degeneree.
+tri_t1b <- tri_t1; tri_t1b[1:6, 2] <- tri_t1b[1:6, 3] / 1.3
+tri_t3b <- tri_t3; tri_t3b[1:7, 1] <- tri_t3b[1:7, 2] / 1.5
 
 # Triangle tire sous la graine courante : n annees, facteurs decroissants
 # bruites ; variantes : ex aequo (montants arrondis a la centaine), colonne
@@ -517,12 +533,13 @@ verifier("Cas reserve2, noms de lignes (lettres, numeros, collisions, doublons) 
            })))
          })
 
-verifier("Triangles a colonne degeneree, a colonne non identifiable (T1, T3, T6) et minimaux : identiques a l'ancienne forme (#239, #270)",
+verifier("Triangles a colonne degeneree, a colonne non identifiable (T1, T3, T4, T6) et minimaux : identiques a l'ancienne forme (#239, #270, #278)",
          resultat(c(ecarts(ta_deg, list(NULL, integer(0)), "ta_deg"),
                     ecarts(ta_bruit, list(NULL, integer(0), 4L), "ta_bruit"),
                     ecarts(tri_deg, list(NULL, integer(0)), "tri_deg"),
                     ecarts(tri_t1, list(NULL, integer(0)), "T1"),
                     ecarts(tri_t3, list(NULL), "T3"),
+                    ecarts(tri_t4, list(NULL), "T4"),
                     ecarts(tri_t6, list(NULL, integer(0)), "T6"),
                     ecarts(tri_ref[1:2, 1:2], list(NULL), "2 x 2"),
                     ecarts(tri_ref[1:3, 1:3], list(NULL), "3 x 3"),
@@ -549,14 +566,15 @@ verifier("Replications du bootstrap (reserve2, ta_deg, tri_deg) : identiques a l
          })
 
 # Ensemble des colonnes non identifiables de la courbure fige a l'observe
-# (#270, T270-7) : les deux premieres replications de T1 et de T3 (graine
-# 20261010), jd et jni de l'observe transmis comme dans mw_bootstrap() ; la
-# colonne j >= 1 de T1 n'a plus d'ex aequo dans les replications et n'est
-# ecartee que parce qu'elle est dans l'ensemble fige ; la colonne figee j = 0
-# de T3 l'est dans les deux formes. Appels observes a ensemble impose :
-# T1 sous jni = integer(0) (colonne j = 1 retenue a deux valeurs : second
-# volet, statistique NA) ; T6 sous jd = integer(0) (retour NA de la colonne
-# degeneree j = 1, element non_identifiables complet, constat 3b).
+# (#270, T270-7) : les deux premieres replications de T1, de T3 et de T4
+# (graine 20261010), jd et jni de l'observe transmis comme dans
+# mw_bootstrap() ; la colonne j = 1 de T1 et de T4 n'a plus d'ex aequo dans
+# les replications et n'est ecartee que parce qu'elle est dans l'ensemble
+# fige ; la colonne figee j = 0 de T3 l'est dans les deux formes. Appels
+# observes a ensemble impose : T1 sous jni = integer(0) (colonne j = 1
+# retenue a deux valeurs : second volet, statistique NA) ; T6 sous
+# jd = integer(0) (retour NA de la colonne degeneree j = 1, element
+# non_identifiables complet, constat 3b).
 FONCTIONS_JNI <- c("mw_test_courbure", ".mw_contexte_mc", ".mw_stats")
 ecarts_jni <- function(aj, jd, jni, etiquette) {
   out <- character(0)
@@ -565,9 +583,9 @@ ecarts_jni <- function(aj, jd, jni, etiquette) {
       out <- c(out, paste(etiquette, f, "jd =", deparse(jd), "jni =", deparse(jni)))
   out
 }
-verifier("Ensemble des colonnes non identifiables fige (T1, T3 : replications ; T1, T6 : ensembles imposes) : identiques a la reecriture independante (#270, T270-7)",
+verifier("Ensemble des colonnes non identifiables fige (T1, T3, T4 : replications ; T1, T6 : ensembles imposes) : identiques a la reecriture independante (#270, T270-7, #278)",
          {
-           e <- unlist(lapply(list(T1 = tri_t1, T3 = tri_t3), function(t) {
+           e <- unlist(lapply(list(T1 = tri_t1, T3 = tri_t3, T4 = tri_t4), function(t) {
              aj <- mw_ajuster(t); jd <- .mw_colonnes_degenerees(aj)
              jni <- .mw_colonnes_courbure_non_identifiables(aj, jd)
              pool <- .mw_pool_residus(aj, jd)
@@ -584,6 +602,32 @@ verifier("Ensemble des colonnes non identifiables fige (T1, T3 : replications ; 
                       if (!is.na(na1$stat) || !identical(na1$K, NA_integer_)) "T1 : stat ou K non NA",
                       if (!identical(na6$non_identifiables, data.frame(j = 2L, n_facteurs = 5L)))
                         "T6 : non_identifiables incomplet"))
+         })
+
+# Branche (b) de la courbure (#270, correction du 14/10/2026 ; #278, etape 1
+# de la branche F) : colonne de l'ensemble fige jni, degeneree dans l'appel,
+# ecartee AVANT le controle de degenerescence. T1b et T3b (en-tete des
+# triangles) sous les ensembles figes de T1 et de T3, recalcules ici sur
+# l'observe. Garde contre un test vide : dans chaque appel, la colonne est
+# degeneree (.mw_colonne_degeneree()), dans jni, hors de jd, et la reecriture
+# independante rend une statistique finie, K = 3, la colonne nommee dans
+# non_identifiables : un moteur qui ferait le controle de degenerescence
+# d'abord (statistique NA, K NA) s'ecarte de la reecriture (mutation mesuree
+# a l'etape 1 de la branche F).
+verifier("Branche (b) de la courbure : colonne de l'ensemble fige degeneree dans l'appel (T1b, T3b), identique a la reecriture independante, statistique finie (#270, #278)",
+         {
+           cas <- list(T1b = list(tri_t1, tri_t1b), T3b = list(tri_t3, tri_t3b))
+           resultat(unlist(lapply(names(cas), function(nm) {
+             ao <- mw_ajuster(cas[[nm]][[1]]); jd <- .mw_colonnes_degenerees(ao)
+             jni <- ANCIEN$.jni_oracle(ao, jd)
+             a <- mw_ajuster(cas[[nm]][[2]])
+             o <- ANCIEN$mw_test_courbure(a, jd, jni)
+             garde <- length(jni) == 1L && !(jni %in% jd) && .mw_colonne_degeneree(a, jni) &&
+               is.finite(o$stat) && identical(o$K, 3L) &&
+               identical(o$non_identifiables$j, jni) && !(jni %in% o$detail$j)
+             c(if (!garde) paste(nm, ": cas (b) non exerce"),
+               ecarts_jni(a, jd, jni, nm))
+           })))
          })
 
 # Plan des triangles tires (en-tete) : taille, variante, noms de lignes.
