@@ -125,4 +125,25 @@ verifier("Booleen ajoute et entrees preexistantes permutees : refuse (aucune per
 verifier("Nombre ajoute avant le dernier element : refuse (invariant, aucune valeur numerique posee)",
          refuse(patcher(mk257(), mk257(n = 3), "bootstrap\\$n$")))
 
+## --- Sous-liste ajoutee au milieu d'un conteneur (#280) ---------------------
+# Avant #280, seul le parent de la feuille ajoutee etait reordonne : une
+# sous-liste ajoutee avant le dernier element restait en fin de conteneur et
+# le patch etait refuse (structure). Chaque conteneur qui recoit une entree
+# ajoutee, a tout niveau, est desormais replace au rang du recalcule.
+verifier("Sous-liste ajoutee avant le dernier element : patche a l'identique du recalcule, ordre compris (#280)",
+         { b <- mk257(s = list(x = "t", y = TRUE))
+           r <- patcher(mk257(), b, "bootstrap\\$s\\$")
+           !refuse(r) && identical(r, b) && identical(names(r$bootstrap), c("B", "p", "s", "p_min_mc")) })
+verifier("Sous-liste a deux niveaux ajoutee au milieu, et a la racine : patchees a l'identique du recalcule (#280)",
+         { b <- mk257(s = list(x = "t", u = list(y = TRUE, z = NA)))
+           r <- patcher(mk257(), b, "bootstrap\\$s\\$")
+           a8 <- list(s = 0.1, t = "a"); b8 <- list(s = 0.1, n = list(c = "u"), t = "a")
+           r8 <- patcher(a8, b8, "^n\\$")
+           !refuse(r) && identical(r, b) && !refuse(r8) && identical(r8, b8) })
+verifier("Sous-liste ajoutee portant un nombre : refuse (invariant) ; avec entrees preexistantes permutees : refuse (#280)",
+         { a <- list(b = list(x = 1.5, y = 2.5, z = 3.5))
+           b <- list(b = list(y = 2.5, x = 1.5, n = list(c = TRUE), z = 3.5))
+           refuse(patcher(mk257(), mk257(s = list(x = "t", n = 3)), "bootstrap\\$s\\$")) &&
+             refuse(patcher(a, b, "\\$n\\$")) })
+
 fin_fichier()

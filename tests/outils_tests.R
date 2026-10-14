@@ -28,7 +28,9 @@
 #  Porte enfin la transcription de la variante V3h de la p-value
 #  Monte-Carlo de usp_bootstrap() (rejeu_p_mc_v3h(), #262), lue par
 #  puissance_t8.R et comparer_ajusteurs_bootstrap.R, qui rejouent la boucle
-#  du bootstrap.
+#  du bootstrap, et deux pieces de cette variante partagees avec
+#  p_conditionnelle_regime_t8.R et tests/unitaires/test_p_mc_regime.R
+#  (substituer_motif_regime_rare(), regime_tirage() ; #280).
 ###############################################################################
 
 # Repertoire racine du depot : les scripts peuvent etre lances depuis la
@@ -735,6 +737,43 @@ inserer_t0 <- function(lignes, ajout) {
   append(lignes, ajout, after = fin)
 }
 
+# --- Motif de regime interieur rare de la variante V3b (#240, #280) ----------
+# Transcription, hors du moteur, de la substitution de usp_bootstrap()
+# (R/engine.R, branche V3b ; specification de #240, par. 4.1) : arret a B_max
+# (arret = "B_max") avec moins de B_MIN_DEGENERESCENCE tirages retenus et une
+# cible B_cible >= B_MIN_DEGENERESCENCE ; seuls les motifs
+# MOTIF_MC_REPLIC_INSUFFISANTES et MOTIF_MC_AUCUNE_REPLIC de mc$motif_mc sont
+# remplaces par MOTIF_MC_REGIME_RARE ; p_mc, err_mc, B_effectif et
+# granularite inchanges. mc : liste de .mc_p_values(). Seule copie des
+# scripts de tests/ : rejeu_p_mc_v3h() ci-dessous et le controle (i2) de
+# tests/p_conditionnelle_regime_t8.R (#280).
+substituer_motif_regime_rare <- function(mc, arret, retenus, B_cible) {
+  if (arret == "B_max" && retenus < B_MIN_DEGENERESCENCE && B_cible >= B_MIN_DEGENERESCENCE) {
+    k <- !is.na(mc$motif_mc) &
+      mc$motif_mc %in% c(MOTIF_MC_REPLIC_INSUFFISANTES, MOTIF_MC_AUCUNE_REPLIC)
+    mc$motif_mc[k] <- MOTIF_MC_REGIME_RARE
+  }
+  mc
+}
+
+# --- Regime de delta** d'un tirage, critere du moteur (#240, #280) ----------
+# Lu comme usp_bootstrap() (R/engine.R, branche V3b et regime_obs) :
+# "interieur" si usp_regime()$delta_au_bord est faux, "bord1" si
+# delta >= 0,5, "bord0" sinon. delta fini (un tirage a delta non fini est
+# ecarte avant, comme dans le moteur ; NA leve une erreur). delta_au_bord de
+# usp_regime() ne lit que delta et tol, pas les volumes : usp_regime() est
+# appelee sur x = 1 (scalaire), ce qui evite de recalculer
+# usp_volumes_constants() sur les volumes fixes a chaque tirage (#280).
+# Garde : U7 de tests/unitaires/test_p_mc_regime.R compare la partition a
+# celle de usp_regime(delta, x)$delta_au_bord sur un balayage de delta
+# (bords TOL_DELTA_BORD et 1 - TOL_DELTA_BORD encadres), volumes constants
+# et variables. Meme partition que code_regime() des scripts hors CI pour
+# un delta fini (memes seuils TOL_DELTA_BORD). Seule copie des scripts de
+# tests/ : traiter() et completer_v3b() de tests/p_conditionnelle_regime_t8.R
+# (calcul V3b) et U7 de tests/unitaires/test_p_mc_regime.R.
+regime_tirage <- function(delta) if (!usp_regime(delta, 1)$delta_au_bord) "interieur" else
+  if (delta >= 0.5) "bord1" else "bord0"
+
 # --- Variante V3h de la p-value Monte-Carlo, rejouee hors du moteur (#262) ---
 # Pour les scripts hors CI qui rejouent la boucle de usp_bootstrap() sans
 # l'appeler (tests/puissance_t8.R, chaine() ; tests/comparer_ajusteurs_
@@ -747,7 +786,8 @@ inserer_t0 <- function(lignes, ajout) {
 # ou B_max = FACTEUR_B_MAX_REGIME (B + 1) tirages, ceux de la boucle compris ;
 # un tirage du flux est ecarte si son reajustement echoue ou rend un delta
 # non fini, si delta** est au bord, ou si ses statistiques echouent ; motif
-# MOTIF_MC_REGIME_RARE substitue comme dans le moteur. Sinon V1 :
+# MOTIF_MC_REGIME_RARE substitue comme dans le moteur
+# (substituer_motif_regime_rare()). Sinon V1 :
 # .mc_p_values() sur les B tirages de la boucle. Conditions du catalogue
 # evaluees sur le contexte observe e_obs dans les deux cas.
 #   sim       : matrice B x statistiques de la boucle (ligne NA si le tirage
@@ -800,11 +840,7 @@ rejeu_p_mc_v3h <- function(fit, sim, retenu, delta, stats_obs, e_obs, B, seed,
   })
   mc <- .mc_p_values(S[seq_len(n), , drop = FALSE], stats_obs, USP_CATALOGUE_MC, e_obs)
   arret <- if (n == B) "cible" else "B_max"
-  if (arret == "B_max" && n < B_MIN_DEGENERESCENCE && B >= B_MIN_DEGENERESCENCE) {
-    k <- !is.na(mc$motif_mc) &
-      mc$motif_mc %in% c(MOTIF_MC_REPLIC_INSUFFISANTES, MOTIF_MC_AUCUNE_REPLIC)
-    mc$motif_mc[k] <- MOTIF_MC_REGIME_RARE
-  }
+  mc <- substituer_motif_regime_rare(mc, arret, n, B)
   c(mc, list(p_mc_regime = list(variante = "V3b", retenus_v1 = as.numeric(a), retenus = as.numeric(n),
                                 tirages = tir, arret = arret)))
 }

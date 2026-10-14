@@ -387,19 +387,32 @@ patcher_objets <- function(avant, apres, motifs, nom = "objet") {
   # entrees du conteneur change, jamais une valeur ; le conteneur n'est
   # reordonne que s'il porte exactement les noms, sans doublon, du conteneur
   # recalcule. Les controles ci-dessous (feuilles non designees au bit pres,
-  # attributs, structure) portent sur l'objet reordonne. Limite : seul le
-  # conteneur parent d'une FEUILLE ajoutee est reordonne ; une sous-liste
-  # entiere ajoutee au milieu d'un conteneur reste en fin de celui-ci et le
-  # patch est refuse (refus par exces, jamais une difference admise).
+  # attributs, structure) portent sur l'objet reordonne. Sous-liste ajoutee
+  # (issue #280) : chaque niveau du chemin d'une feuille ajoutee absent de la
+  # reference est une entree ajoutee de son conteneur. Le parent de la
+  # feuille, le conteneur qui recoit la sous-liste et chaque conteneur
+  # intermediaire cree par le patch sont donc reordonnes ; avant #280, seul
+  # le parent de la feuille l'etait, et une sous-liste ajoutee au milieu
+  # d'un conteneur restait en fin de celui-ci (patch refuse par la
+  # verification de structure). Une entree ajoutee par indice (sans nom)
+  # n'est jamais deplacee. Limite : un vecteur atomique de longueur >= 2
+  # ajoute (feuilles indexees ["nom"] ou [k] d'un chemin absent de la
+  # reference) est pose feuille par feuille, en liste, et le patch est
+  # refuse (refus par exces, jamais une difference admise).
   ajoutes <- setdiff(poses, names(fa))
-  pas_aj <- lapply(ajoutes, decouper)
-  parents_aj <- lapply(pas_aj, function(p) utils::head(p, -1L))
-  for (pp in unique(parents_aj)) {
-    # noms des entrees ajoutees dans ce conteneur
-    noms_aj <- unlist(lapply(pas_aj[vapply(parents_aj, identical, logical(1), pp)],
-                             function(p) { k <- p[[length(p)]]; if (is.character(k)) k }))
-    patche <- reordonner_comme(patche, pp, lire(apres, pp), as.character(noms_aj))
+  conteneurs <- list(); noms_aj <- list()
+  for (p in lapply(ajoutes, decouper)) for (k in seq_along(p)) {
+    if (!is.character(p[[k]]) || existe(avant, p[seq_len(k)])) next
+    pp <- p[seq_len(k - 1L)]
+    i <- Position(function(q) identical(q, pp), conteneurs)
+    if (is.na(i)) {
+      conteneurs <- c(conteneurs, list(pp)); noms_aj <- c(noms_aj, list(character(0)))
+      i <- length(conteneurs)
+    }
+    noms_aj[[i]] <- union(noms_aj[[i]], p[[k]])
   }
+  for (i in seq_along(conteneurs))
+    patche <- reordonner_comme(patche, conteneurs[[i]], lire(apres, conteneurs[[i]]), noms_aj[[i]])
 
   # ---------------------------------------------------------------------------
   #  Verification du resultat du patch
