@@ -8384,23 +8384,35 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
   ex$eligibles <- ex$eligibles + 1L
   ex
 }
+# Phrase d'exclusion de colonnes d'une ligne de M1 (#278 : gabarit unique
+# des phrases des colonnes degenerees et des colonnes non identifiables de la
+# courbure) : chaine vide si cols (data.frame j, n_facteurs) est NULL ou
+# vide ; sinon "<sujet> : j = .. (.. facteurs), ... ; <quoi>, colonne(s) hors
+# de la combinaison de Fisher ; K = .. colonne(s) testee(s) sur ..
+# eligible(s). L'exclusion ne vaut pas preuve <preuve>.". sujet : c(singulier,
+# pluriel), qualification comprise ; K et eligibles lus dans r (resultat de
+# la fonction de test de l'appel observe ; K NULL compte 0) : aucun nombre
+# issu du bootstrap (#76).
+.mw_phrase_colonnes_ecartees <- function(cols, r, sujet, quoi, preuve) {
+  if (is.null(cols) || !nrow(cols)) return("")
+  K <- if (is.null(r$K)) 0L else r$K
+  plur <- nrow(cols) > 1
+  sprintf(paste0(
+    "%s : %s ; %s, %s hors de la combinaison de Fisher ; K = %d colonne(s) ",
+    "testee(s) sur %d eligible(s). L'exclusion ne vaut pas preuve %s."),
+    sujet[[if (plur) 2L else 1L]],
+    paste(sprintf("j = %d (%d facteurs)", cols$j, cols$n_facteurs), collapse = ", "),
+    quoi, if (plur) "colonnes" else "colonne", K, r$eligibles, preuve)
+}
 # Phrase ajoutee au libelle ("detail") d'une ligne de M1, SEULEMENT si une
 # colonne est exclue ; chaine vide sinon (libelle inchange). quoi : ce qui
 # n'est pas defini sur la colonne ; preuve : ce que l'exclusion ne prouve pas.
 .mw_phrase_exclusion <- function(r, quoi, preuve) {
-  ex <- r$exclues
-  if (is.null(ex) || !nrow(ex)) return("")
-  K <- if (is.null(r$K)) 0L else r$K
-  plur <- nrow(ex) > 1
-  sprintf(paste0(
-    "%s (facteurs individuels egaux a f_j a la tolerance relative 1e-12 de l'outil : ",
-    .MW_PREDICAT_DEGENERE_TEXTE, " ; sigma2_j nul ou numeriquement nul) : %s ; %s, ",
-    "%s hors de la combinaison ",
-    "de Fisher ; K = %d colonne(s) testee(s) sur %d eligible(s). ",
-    "L'exclusion ne vaut pas preuve %s."),
-    if (plur) "Colonnes degenerees" else "Colonne degeneree",
-    paste(sprintf("j = %d (%d facteurs)", ex$j, ex$n_facteurs), collapse = ", "),
-    quoi, if (plur) "colonnes" else "colonne", K, r$eligibles, preuve)
+  qualif <- paste0(
+    " (facteurs individuels egaux a f_j a la tolerance relative 1e-12 de l'outil : ",
+    .MW_PREDICAT_DEGENERE_TEXTE, " ; sigma2_j nul ou numeriquement nul)")
+  .mw_phrase_colonnes_ecartees(r$exclues, r,
+    paste0(c("Colonne degeneree", "Colonnes degenerees"), qualif), quoi, preuve)
 }
 
 # Ensemble des colonnes exclues d'une verification de M1 : j_degeneres s'il
@@ -8689,11 +8701,15 @@ mw_test_courbure <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL)
   # non les colonnes parcourues avant un arret de la boucle. "exclues" et
   # "eligibles", eux, restent ceux des colonnes parcourues avant l'arret
   # (.mw_stat_non_definie(), commun aux verifications de M1).
-  # Lignes ajoutees une a une (meme forme d'objet, ordre des attributs
-  # compris, qu'au commit de #269).
+  # Table construite par vecteur (#278) : meme objet (identical(),
+  # attrib.as.set = FALSE : noms de lignes explicites 1..n et ordre des
+  # attributs compris) que les lignes ajoutees une a une avant (#269) ;
+  # data.frame() vide de meme forme sans colonne ecartee.
   jn <- sort(unique(jni[jni %in% 0:(J - 1) & I - jni >= 4 & !(jni %in% jd)]))
-  ni <- data.frame(j = integer(0), n_facteurs = integer(0))
-  for (k in jn) ni[nrow(ni) + 1L, ] <- list(as.integer(k), as.integer(I - k))
+  ni <- if (length(jn))
+    structure(list(j = as.integer(jn), n_facteurs = as.integer(I - jn)),
+              row.names = seq_along(jn), class = "data.frame") else
+    data.frame(j = integer(0), n_facteurs = integer(0))
   na_stat <- function() { r0 <- .mw_stat_non_definie(ex); r0$non_identifiables <- ni; r0 }
   for (j in 0:(J - 1)) {
     idx <- 0:(I - j - 1)
@@ -8740,19 +8756,12 @@ mw_test_courbure <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL)
 # observe, aucun nombre issu du bootstrap (#76). Placee par mw_tests() apres
 # la phrase des colonnes degenerees (.mw_phrase_exclusion()), avec la meme
 # clause "K = ... sur ... eligible(s)".
-.mw_phrase_non_identifiable <- function(r) {
-  ni <- r$non_identifiables
-  if (is.null(ni) || !nrow(ni)) return("")
-  K <- if (is.null(r$K)) 0L else r$K
-  plur <- nrow(ni) > 1
-  sprintf(paste0(
-    "%s a moins de trois valeurs distinctes de C(i,j) : %s ; terme quadratique ",
-    "non identifiable, %s hors de la combinaison de Fisher ; K = %d colonne(s) ",
-    "testee(s) sur %d eligible(s). L'exclusion ne vaut pas preuve de linearite."),
-    if (plur) "Colonnes" else "Colonne",
-    paste(sprintf("j = %d (%d facteurs)", ni$j, ni$n_facteurs), collapse = ", "),
-    if (plur) "colonnes" else "colonne", K, r$eligibles)
-}
+# Gabarit partage avec .mw_phrase_exclusion() (.mw_phrase_colonnes_ecartees(),
+# #278).
+.mw_phrase_non_identifiable <- function(r)
+  .mw_phrase_colonnes_ecartees(r$non_identifiables, r,
+    paste(c("Colonne", "Colonnes"), "a moins de trois valeurs distinctes de C(i,j)"),
+    "terme quadratique non identifiable", "de linearite")
 
 # (d) Stabilite du facteur selon la ponderation : famille alpha.
 #   f_j^(alpha) = somme_i C(i,j)^alpha F(i,j) / somme_i C(i,j)^alpha
