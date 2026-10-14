@@ -13586,6 +13586,35 @@ diagonale séparément, sur la loi de $Z_k$ tabulée selon $n_k$, au seuil de $1
 prédominant d'une diagonale significative (p.~D6.49)~; elle ne contient ni la statistique
 globale $Z$ ni les moments (H1) et (H2). L'outil ne la retient pas.
 
+\emph{Pourquoi la version de 1997 n'est pas retenue} (décision Q-201-1 du mainteneur du
+13~octobre 2026, sur avis d'\code{actuary}). Ses deux volets sont écartés pour des motifs
+distincts. \emph{(i)~La repondération est contraire au règlement.} Quand la probabilité tabulée
+est au plus $10~\%$, les facteurs du type prédominant de la diagonale «~are viewed to be
+outliers~», et $\hat f_k = \sum_i w_{ik}\,C_{i,k+1} / \sum_i w_{ik}\,C_{ik}$ avec $w_{ik} = 0{,}5$
+pour eux (p.~D6.49)~; l'auteur ajoute que les formules de $\alpha_k^2$ et de l'erreur standard
+«~must be changed analogously~», sans les donner (p.~D6.49), et que ce choix «~will not cause any
+essential disadvantage as we only change weights and do not discard anything entirely~»
+(p.~D6.50)~; le corps du texte (p.~D6.15--D6.23) ne motive pas autrement le changement. Or
+l'annexe~XVII, section~D, point~(4)(c), définit $\hat f_j = \sum_{i=0}^{I-j-1} C(i,j+1) \big/ \sum_{i=0}^{I-j-1} C(i,j)$
+sans pondération, et la MSEP du point~(5) est calculée avec ce $\hat f_j$ (section~\ref{sec:mw})~:
+repondérer les facteurs modifierait le paramètre réglementaire, ce qu'un test de l'outil ne
+peut pas faire. \emph{(ii)~La détection par diagonale ne maîtrise pas la multiplicité et voit
+peu de diagonales à $T = 8$.} Chaque diagonale est testée séparément au seuil de $10~\%$, sans
+correction pour le nombre de diagonales, alors que la version de 1994 l'écartait expressément
+(«~It is not advisable to test each $Z_j$ separately in order to avoid an accumulation of the
+error probabilities~», p.~165). Sous la loi binomiale de paramètre $1/2$, la plus petite
+probabilité $\mathbb{P}(Z_k \le 0) = 2 \cdot 2^{-n_k}$ vaut $0{,}125$ à $n_k = 4$ et $0{,}0625$
+à $n_k = 5$~: seule une diagonale d'au moins cinq étiquettes peut descendre à $10~\%$, ce qui,
+sur un triangle $8 \times 8$, concerne au plus trois des six diagonales retenues. Mesuré sur le
+triangle de contrôle (\code{mw\_test\_annees\_}\allowbreak\code{calendaires()})~: les six
+diagonales retenues comptent $n_k = 2, 3, 4, 4, 6, 5$ étiquettes, et cinq d'entre elles sont
+entièrement $L$ ou entièrement $S$ ($Z_k = 0$)~; la règle de 1997 n'en signalerait qu'une, celle
+de $n_k = 6$ ($2 \cdot 2^{-6} = 0{,}03125$), alors que la statistique globale de l'outil donne
+$Z = 2$ pour $\mathbb{E}[Z] = 7{,}375$ et une p-value de Monte-Carlo de $0{,}004$
+(\code{run\_engine()}, $B = 999$, graine 20260831), verdict \code{ECHEC}. Ce constat porte sur un
+seul triangle. Aucune référence vérifiée ne compare la puissance des deux règles à $T = 8$. Une
+restitution par diagonale, sans verdict, est renvoyée à l'issue~\#275.
+
 Dans chaque colonne $j$, les facteurs observés $F(i,j)$ sont classés en
 « grands » ($L$) et « petits » ($S$) par rapport à leur médiane, les valeurs
 égales à la médiane étant étiquetées «~*~» et écartées~; les facteurs sont aplatis à
