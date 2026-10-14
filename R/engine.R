@@ -7858,12 +7858,21 @@ mw_parametre <- function(aj, msep, sigma_standard, bareme = "court") {
 # definition ne change : en arithmetique exacte les deux ecritures sont
 # egales (le terme k = i est nul). f_j de mw_ajuster() n'est pas modifie.
 # Sommes par sum(), sans produit matriciel (independance du BLAS).
-.mw_ecart_facteur_stable <- function(C0, C1) {
-  Fij <- C1 / C0
-  S <- sum(C0)
-  vapply(seq_along(Fij), function(k) sum(C0[-k] * (Fij[k] - Fij[-k])) / S,
-         numeric(1))
-}
+# Centrage pondere par differences deux a deux (#278, forme partagee par
+# .mw_ecart_facteur_stable() et .mw_lm_intra()) : element i =
+# somme_k w_k (x_i - x_k) / somme_k w_k, soit x_i moins la moyenne ponderee
+# des x, sans annulation entre grandeurs d'ordre de la cellule dominante. Le
+# terme k = i, w_i (x_i - x_i), est un zero exact pour x_i et w_i finis :
+# l'inclure ne change aucun bit de la somme (accumulateur de sum() parti de
+# +0, auquel un zero n'ajoute rien) ; avant #278, .mw_ecart_facteur_stable()
+# l'omettait (x[-k]), d'ou le meme resultat (mesure #278 : 20 000 colonnes
+# sur [1e-50 ; 1e50], identical() avant / apres ; objets des six cas et des
+# bootstraps de T1 a T4 identical()). Sommes par sum(), sans produit
+# matriciel (independance du BLAS). Vecteur sans noms.
+.mw_centrage_pondere <- function(x, w, sw = sum(w))
+  vapply(seq_along(x), function(i) sum(w * (x[i] - x)) / sw, numeric(1))
+.mw_ecart_facteur_stable <- function(C0, C1)
+  .mw_centrage_pondere(C1 / C0, C0)
 
 # --- Residus standardises de Mack --------------------------------------------
 # r(i,j) = sqrt(C(i,j)) * ( C(i,j+1)/C(i,j) - f_j ) / sigma_j
@@ -8096,9 +8105,9 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
   w <- w * 2^-floor(log2(max(w)))
   Ct <- Ft <- numeric(length(w))
   for (g in split(seq_along(w), res$j)) {
-    wg <- w[g]; sw <- sum(wg); Cg <- res$C[g]; Fg <- res$F[g]
-    Ct[g] <- vapply(Cg, function(c) sum(wg * (c - Cg)) / sw, numeric(1))
-    Ft[g] <- vapply(Fg, function(f) sum(wg * (f - Fg)) / sw, numeric(1))
+    wg <- w[g]; sw <- sum(wg)
+    Ct[g] <- .mw_centrage_pondere(res$C[g], wg, sw)
+    Ft[g] <- .mw_centrage_pondere(res$F[g], wg, sw)
   }
   sxx <- sum(w * Ct^2)
   if (isTRUE(sxx == 0)) return(NULL)
