@@ -8586,6 +8586,20 @@ mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
 # differences restent finis sur tout le domaine [1e-50 ; 1e50] de #185.
 # NULL si moins de trois valeurs distinctes de C(i,j) (A = 0 exactement,
 # terme quadratique non identifiable ; decision D1-7).
+# Parties a 2, 3 et 4 elements de 1..n (utils::combn()) : calculees une fois
+# par n et gardees dans .MW_COMBN_CACHE (#278), au lieu d'un recalcul a chaque
+# colonne et a chaque replication. Cache deterministe : la table ne depend que
+# de n, sans alea ; memes matrices que l'appel direct.
+.MW_COMBN_CACHE <- new.env(parent = emptyenv())
+.mw_combinaisons <- function(n) {
+  cle <- as.character(n)
+  tab <- .MW_COMBN_CACHE[[cle]]
+  if (is.null(tab)) {
+    tab <- list(S2 = utils::combn(n, 2), S3 = utils::combn(n, 3), S4 = utils::combn(n, 4))
+    assign(cle, tab, envir = .MW_COMBN_CACHE)
+  }
+  tab
+}
 .mw_courbure_colonne <- function(C0, C1) {
   n <- length(C0)
   if (n < 4 || length(unique(C0)) < 3) return(NULL)
@@ -8599,7 +8613,7 @@ mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
     i12 <- cbind(S[1, ], S[2, ]); i13 <- cbind(S[1, ], S[3, ]); i23 <- cbind(S[2, ], S[3, ])
     list(m = dx$m[i12] * dx$m[i13] * dx$m[i23], e = dx$e[i12] + dx$e[i13] + dx$e[i23])
   }
-  S2 <- utils::combn(n, 2); S3 <- utils::combn(n, 3); S4 <- utils::combn(n, 4)
+  cmb <- .mw_combinaisons(n); S2 <- cmb$S2; S3 <- cmb$S3; S4 <- cmb$S4
   w3 <- list(m = w$m[S3[1, ]] * w$m[S3[2, ]] * w$m[S3[3, ]],
              e = w$e[S3[1, ]] + w$e[S3[2, ]] + w$e[S3[3, ]])
   v3 <- V(S3)
