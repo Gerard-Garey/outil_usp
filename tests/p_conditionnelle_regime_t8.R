@@ -162,10 +162,11 @@
 #         ECARTS DE CODE (#267, par. 8.3, point 5) : resorbes par #280.
 #         completer_v3b() ecarte comme le moteur un tirage a delta** non
 #         fini (compte dans cpt["rapide"], au lieu de faire lever
-#         code_regime() et de mettre la replication en erreur) et lit le
-#         regime d'un tirage par regime_tirage(), c'est-a-dire par
-#         usp_regime() (meme partition que code_regime() pour un delta fini,
-#         memes seuils TOL_DELTA_BORD). Restent hors du moteur, par
+#         code_regime() et de mettre la replication en erreur) ; tout le
+#         calcul V3b (regime r_b du jeu, tirages de V1 retenus, tirages du
+#         flux) lit le regime par regime_tirage() de tests/outils_tests.R,
+#         c'est-a-dire par usp_regime() (meme partition que code_regime()
+#         pour un delta fini, memes seuils TOL_DELTA_BORD). Restent hors du moteur, par
 #         construction de la mesure : V3b est calculee dans tous les
 #         regimes de delta*_b, bords compris, et sans egard aux volumes
 #         constants (d'ou le choix de branche de (i2) par usp_regime()) ;
@@ -549,14 +550,6 @@ ic_cp <- function(k, n) if (n > 0) {
 txt_ic <- function(ci, d = 4) if (anyNA(ci)) "\u2014" else sprintf("[%s ; %s]", num(ci[1], d), num(ci[2], d))
 code_regime <- function(delta) if (delta >= 1 - TOL_DELTA_BORD) "bord1" else
   if (delta <= TOL_DELTA_BORD) "bord0" else "interieur"
-# Regime de delta** d'un tirage du flux de V3b, lu comme usp_bootstrap()
-# (#240, branche V3b et regime_obs) : interieur si usp_regime()$delta_au_bord
-# est faux, bord1 si delta >= 0,5, bord0 sinon ; delta fini (le tirage a
-# delta non fini est ecarte avant, comme dans le moteur). Meme partition que
-# code_regime() pour un delta fini (memes seuils TOL_DELTA_BORD) ; le
-# critere est celui du moteur depuis #280 (completer_v3b()).
-regime_tirage <- function(delta, x) if (!usp_regime(delta, x)$delta_au_bord) "interieur" else
-  if (delta >= 0.5) "bord1" else "bord0"
 md5_fichier <- function(f) if (is.na(f) || !file.exists(f)) "absent" else unname(tools::md5sum(f))
 chemin_cite <- function(f) {
   if (is.na(f) || !file.exists(f)) return(as.character(f))
@@ -2029,7 +2022,7 @@ rejouer_v1 <- function(fit, graine, cat_ = USP_CATALOGUE_MC, complet = FALSE, h1
 # reajuste (controle (s1)). Criteres du moteur (usp_bootstrap(), branche
 # V3b ; #280) : un reajustement en echec ou a delta** non fini est compte
 # dans cpt["rapide"] (rejets_flux["reajustement"] du moteur), le regime du
-# tirage est lu par regime_tirage() (usp_regime()).
+# tirage est lu par regime_tirage() (tests/outils_tests.R, usp_regime()).
 completer_v3b <- function(fit, r_b, S_A, graine, cat_ = USP_CATALOGUE_MC, p1 = TRUE, h1 = FALSE) {
   nm <- names(cat_)
   S <- matrix(NA_real_, B_CIBLE, length(nm), dimnames = list(NULL, nm))
@@ -2043,7 +2036,7 @@ completer_v3b <- function(fit, r_b, S_A, graine, cat_ = USP_CATALOGUE_MC, p1 = T
       f <- try(usp_ajuster_rapide(fit$x, yb, fit$delta, fit$gamma), silent = TRUE)
       if (inherits(f, "try-error") || !is.finite(f$delta)) { cpt[["rapide"]] <- cpt[["rapide"]] + 1L; next }
       if (!p1) sb <- try(.mc_evaluer(cat_, .usp_contexte_mc(fit$x, yb, f$z, f$pi)), silent = TRUE)
-      if (regime_tirage(f$delta, fit$x) != r_b) { cpt[["hors"]] <- cpt[["hors"]] + 1L; next }
+      if (regime_tirage(f$delta) != r_b) { cpt[["hors"]] <- cpt[["hors"]] + 1L; next }
       if (h1) { ko_h1 <- c(ko_h1, confronter_p2(fit$x, yb, f$z, f$pi)); n_h1 <- n_h1 + 1L }
       if (p1) sb <- try(.mc_evaluer(cat_, .usp_contexte_mc(fit$x, yb, f$z, f$pi)), silent = TRUE)
       if (inherits(sb, "try-error")) { cpt[["stats"]] <- cpt[["stats"]] + 1L; next }
@@ -2093,12 +2086,14 @@ traiter <- function(x, y, b, ctl = list(complet = FALSE, h1 = FALSE), t2 = TRUE)
   if (!isTRUE(va$ok))
     return(list(statut = "ecartee", regime = "ecartee", delta = if (inherits(fit, "error")) NA_real_ else fit$delta,
                 gamma = if (inherits(fit, "error")) NA_real_ else fit$gamma, duree = as.numeric(difftime(Sys.time(), t0, units = "secs"))))
-  r_b <- code_regime(fit$delta)
+  # Regime du jeu et des tirages de V1 : regime_tirage(), seul classificateur
+  # du calcul V3b (critere du moteur, #280).
+  r_b <- regime_tirage(fit$delta)
   g_boot <- GRAINE_BOOT + b; g_v3b <- GRAINE_V3B + b
   rv <- rejouer_v1(fit, g_boot, h1 = isTRUE(ctl$h1))
   e_obs <- rv$e_obs
   mc1 <- .mc_p_values(rv$sim, rv$stats_obs, USP_CATALOGUE_MC, e_obs)
-  rd <- vapply(rv$delta, function(d) if (is.finite(d)) code_regime(d) else NA_character_, "")
+  rd <- vapply(rv$delta, function(d) if (is.finite(d)) regime_tirage(d) else NA_character_, "")
   A <- rv$ok & !is.na(rd) & rd == r_b
   mc3a <- .mc_p_values(rv$sim[A, , drop = FALSE], rv$stats_obs, USP_CATALOGUE_MC, e_obs)
   v3 <- completer_v3b(fit, r_b, rv$sim[A, , drop = FALSE], g_v3b, h1 = isTRUE(ctl$h1))
@@ -2117,11 +2112,12 @@ traiter <- function(x, y, b, ctl = list(complet = FALSE, h1 = FALSE), t2 = TRUE)
     ub <- usp_bootstrap(fit, B = B_BOOT, seed = g_boot)
     mcc <- .mc_p_values(rc$sim, rc$stats_obs, USP_CATALOGUE_MC, e_obs)
     # Champs que V3h (#240) ne touche pas : comparaison inchangee (P3 compris).
-    # P3_sim : statistiques simulees ET observees des deux rejeux identiques,
-    # donc mc1 (rejeu allege) = mcc (rejeu complet) : la p de V1 n'est
-    # comparee a usp_bootstrap() qu'une fois, par mcc (#280, champ p_mc_V1
-    # retire).
-    ch <- c(P3_sim = identical(rc$sim, rv$sim) && identical(rc$stats_obs, rv$stats_obs),
+    # P3_sim et P3_stats_obs : statistiques simulees et observees des deux
+    # rejeux identiques (deux champs, pour que (i2) dise lequel diverge ;
+    # l'echec de l'un met (i2) en echec), donc mc1 (rejeu allege) = mcc
+    # (rejeu complet) : la p de V1 n'est comparee a usp_bootstrap() qu'une
+    # fois, par mcc (#280, champ p_mc_V1 retire).
+    ch <- c(P3_sim = identical(rc$sim, rv$sim), P3_stats_obs = identical(rc$stats_obs, rv$stats_obs),
             P3_delta = identical(rc$delta, rv$delta),
             stats_obs = identical(as.list(rc$stats_obs), ub$stats_obs),
             vapply(c("sigma_boot", "delta_boot", "gamma_boot", "sigma_boot_restreint", "n_echec_restreint", "z_boot"),
@@ -2537,7 +2533,7 @@ p_contre <- function(fit, graine, noms = STATS, r_b = NULL) {
   rv <- rejouer_v1(fit, graine, cat_ = cat_)
   mc1 <- .mc_p_values(rv$sim, rv$stats_obs, cat_, rv$e_obs)
   if (is.null(r_b)) return(list(mc = mc1, ok = rv$ok))
-  rd <- vapply(rv$delta, function(d) if (is.finite(d)) code_regime(d) else NA_character_, "")
+  rd <- vapply(rv$delta, function(d) if (is.finite(d)) regime_tirage(d) else NA_character_, "")
   A <- rv$ok & !is.na(rd) & rd == r_b
   list(mc = .mc_p_values(rv$sim[A, , drop = FALSE], rv$stats_obs, cat_, rv$e_obs), ok = rv$ok)
 }
