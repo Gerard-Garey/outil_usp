@@ -6525,8 +6525,6 @@ M3, Durbin--Watson (\ref{mw:m3dw}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (b
 M3, suites (\ref{mw:m3runs}) & $p_{\min} = 3{,}85\cdot 10^{-7}$ (loi de référence échangeable)~; plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}058$~; $0{,}0275$, E $0{,}0525$~; $0{,}0225$, A $0{,}051$~; $0{,}032$, compatible, sauf un écart mineur du côté conservateur sous E à $0{,}05$ & \code{runs\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
 M4, Grubbs (\ref{mw:m4gr}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}099$~; $0{,}0445$, E $0{,}075$~; $0{,}035$, A $0{,}159$~; $0{,}088$, compatible sous N~; écart mineur du côté conservateur sous E aux deux seuils~; écart non tranché du côté libéral sous A aux deux seuils & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
 M4, ESD de Rosner (\ref{mw:m4ros}) & Sans objet (procédure sans p-value) & Non étudiée & \code{test\_rosner()} & --- \\
-M5, Shapiro--Wilk (\ref{mw:m5sw}) & Plancher de la loi nulle simulée $1/20\,001 \approx 5{,}0\cdot 10^{-5}$ & Non étudiée~; niveau de la p-value exacte sous le plan du triangle de contrôle, erreurs gaussiennes ($\alpha = 0{,}10$~; $0{,}05$)~: $0{,}221$~; $0{,}109$, au-dessus du seuil nominal (issue~\#245, ouverte)~; p-value de Monte-Carlo de $W$, non retenue~: aucun rejet sur 500 triangles & \code{sw\_p\_loi\_nulle()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue119-mw.md} \\
-M5, Lilliefors (\ref{mw:m5li}) & Sans objet (approximation continue) & Non étudiée~; niveau de la p-value de Dallal et Wilkinson sous le plan du triangle de contrôle, erreurs gaussiennes ($\alpha = 0{,}10$~; $0{,}05$)~: $0{,}1875$~; $0{,}1025$, au-dessus du seuil nominal (issue~\#245, ouverte)~; p-value de Monte-Carlo, non retenue~: aucun rejet sur 500 triangles & \code{lillie\_p()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue119-mw.md} \\
 \end{longtable}
 \end{center}
 \end{landscape}
@@ -12440,34 +12438,36 @@ M3 & Autocorrélation (Durbin--Watson) & test & Monte-Carlo \\
 M3 & Test des suites & test & Monte-Carlo \\
 M4 & Cellule aberrante (Grubbs) & test & Monte-Carlo \\
 M4 & Cellules aberrantes multiples (Rosner) & procédure de décision & --- \\
-M5 & Shapiro--Wilk & test (diagnostic) & exacte simulée \\
-M5 & Lilliefors & test (diagnostic), secondaire & approximation à $n$ fini sous i.i.d. normal \\
+M5 & Shapiro--Wilk & diagnostic & --- \\
+M5 & Lilliefors & diagnostic, secondaire & --- \\
 M6 & Extrapolation de $\hat\sigma^2_{J-1}$ & diagnostic & --- \\
 M6 & Concentration de la réserve & diagnostic & --- \\
 \end{tabular}
 \end{center}
 
 \noindent
-Dix-neuf entrées, dont \textbf{quinze} tests d'hypothèse, une procédure de
-décision et \textbf{trois} diagnostics, conformément au champ \code{type} que
+Dix-neuf entrées, dont \textbf{treize} tests d'hypothèse, une procédure de
+décision et \textbf{cinq} diagnostics, conformément au champ \code{type} que
 \code{mw\_tests()} attribue à chaque ligne et qu'\code{engine\_table\_tests()}
-restitue. Les deux tests de normalité sont comptés parmi les tests~: la famille
-M5 est intitulée « diagnostic » parce que la normalité n'est pas exigée par le
-modèle réglementaire (D(2)(h)), mais chacun d'eux comporte bien une hypothèse
-nulle, une statistique, une p-value et un verdict. Inversement, la variance
-unitaire des résidus (M2) est un diagnostic~: elle n'a ni hypothèse nulle ni loi
-de référence, et sa valeur est de surcroît \emph{contrainte par construction}
-(fiche~\ref{mw:m2var}). Aucun des trois diagnostics ne porte de verdict~: tous
-sont restitués \code{INFO}, conformément à l'ADR~0001. Ces types sont ceux du triangle de contrôle $8 \times 8$~:
+restitue. Les deux lignes de normalité (M5) sont comptées parmi les diagnostics
+depuis l'issue~\#245~: la normalité n'est pas exigée par le modèle réglementaire
+(D(2)(h)), et leurs lois nulles, celles d'un échantillon i.i.d. normal, ne sont
+pas celles des résidus de Mack~; leur p-value, calculée sous ce modèle auxiliaire
+i.i.d. normal, est restituée pour information et n'est pas retenue (fiches~\ref{mw:m5sw}
+et~\ref{mw:m5li}). La variance unitaire des résidus (M2) est aussi un diagnostic~: elle
+n'a ni hypothèse nulle ni loi de référence, et sa valeur est de surcroît
+\emph{contrainte par construction} (fiche~\ref{mw:m2var}). Aucun des cinq
+diagnostics ne porte de verdict~: tous sont restitués \code{INFO}, conformément à
+l'ADR~0001. Ces types sont ceux du triangle de contrôle $8 \times 8$~:
 sur son sous-triangle $5 \times 5$, à $\alpha = 0{,}10$ (\code{run\_engine()}, $B = 999$), la
 corrélation entre années adjacentes est restituée en test inopérant (règle~R1, lue depuis
 l'issue~\#125 sur le plancher Monte-Carlo, section~\ref{sec:nature}, point~(i), et
 tableau~\ref{tab:pmin}), l'effet calendaire reste un test (il est inopérant à $B = 99$), et
-l'homogénéité de $f_j$, la courbure et l'exposant de variance sont non applicables. Treize de ces quinze
-tests reposent sur le bootstrap de résidus~; Shapiro--Wilk dispose d'une loi nulle propre, pour la raison exposée
-dans sa fiche, et Lilliefors de l'approximation analytique de Dallal et Wilkinson, restituée
-sous la nature \code{approximation a n fini sous i.i.d. normal} (fiche~\ref{mw:m5li}~; issue~\#120~;
-\code{asymptotique} jusqu'à cette issue, faute de catégorie propre). Les six entrées en gras ci-dessus sont celles qui
+l'homogénéité de $f_j$, la courbure et l'exposant de variance sont non applicables. Treize de ces treize
+tests reposent sur le bootstrap de résidus, sans exception~; les deux diagnostics de normalité n'y
+passent pas~: Shapiro--Wilk dispose d'une loi nulle propre, pour la raison exposée
+dans sa fiche, et Lilliefors de l'approximation analytique de Dallal et Wilkinson
+(fiche~\ref{mw:m5li}), l'une et l'autre sous le modèle auxiliaire i.i.d. normal. Les six entrées en gras ci-dessus sont celles qui
 vérifient les hypothèses de chaîne d'échelle \emph{colonne par colonne}, comme
 l'exige la formulation « pour toutes les années d'accident » du texte~; la
 régression agrégée initiale, conservée en tête, ne le permettait pas.
@@ -13899,7 +13899,7 @@ plan avec des erreurs gaussiennes, la p-value exacte de la ligne rejette dans $2
 $0{,}10$ et $10{,}9~\%$ à $0{,}05$ (constat de simulation sous un plan)~; ce constat est
 signalé sans conclusion sur la ligne, dont le traitement relève de l'issue~\#245, ouverte. Le résultat n'est pertinent que si l'on souhaite exploiter la MSEP pour
 construire un quantile, usage qui excède la méthode réglementaire.
-\Pertinence
+
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $W$, continue. La p-value retenue, de nature exacte, est lue sur une loi nulle simulée de 20\,000 tirages à la taille du vecteur des résidus (\code{sw\_p\_loi\_nulle()})~: son plancher est $1/20\,001 \approx 5{,}0\cdot 10^{-5}$, fonction du nombre de tirages.
 
 \textbf{Table.} Sans objet (loi continue).
@@ -13936,7 +13936,7 @@ l'approximation sur eux n'est pas établie (rubrique~7, issue~\#245).
 \Usage
 Complément de recoupement à Shapiro--Wilk, moins puissant. Même réserve de fond~:
 la normalité n'est pas exigée par la méthode.
-\Pertinence
+
 \textbf{p-value minimale à $T = 8$.} Sans objet~: la p-value retenue est l'approximation analytique de Dallal et Wilkinson (\code{lillie\_p()}), ajustement numérique de la loi à $n$ fini et non loi limite, que le moteur range dans la colonne \code{p\_asymptotique} et restitue, depuis l'issue~\#120, sous la nature \code{approximation a n fini sous i.i.d. normal} (\code{asymptotique} auparavant, faute de catégorie propre)~; fonction continue de $D$, sans plancher. Elle est retenue faute d'alternative~: les tests de normalité sont exclus du bootstrap de résidus, dont la loi nulle est la loi empirique des résidus (tableau~\ref{tab:conv}), et aucune loi exacte n'est disponible.
 
 \textbf{Table.} Sans objet (loi continue).
