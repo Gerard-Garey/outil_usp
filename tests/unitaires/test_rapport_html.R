@@ -20,7 +20,8 @@
 #  (texte_p_mc_regime(), issue #240, Q-A4-12 (B)) : V3b arret a la cible et a
 #  B_max, V1 au bord et a volumes constants, objet sans p_mc_regime, reserve2 ;
 #  graine du flux (metadata$seed_flux_regime) dans valeurs_generateur() et
-#  l'en-tete, absente en reserve2.
+#  l'en-tete, absente en reserve2 ; rapport sur les six references nettoyees
+#  (sans horodatage, duree_sec ni version_R), tiret dans ces lignes (#263).
 #  References : RFC 4648, section 10 (vecteurs de test base64) ; regle de
 #  selection de l'onglet Tests (filtrer_selection).
 #  La branche PNG est exercee partout ou capabilities("png") est vrai ; la
@@ -990,18 +991,13 @@ verifier("Vue Detail : colonnes \"p min (loi discr\u00e8te)\" puis \"p min MC\",
          })
 verifier("Garde : table sans colonne p_min_mc -> tiret dans la colonne p min MC (#125)",
          { tbf <- tb_pi; tbf$p_min_mc <- NULL; all(table_detail_groupe(tbf)[["p min MC"]] == "\u2013") })
-# Le rapport fige est produit sur un recalcul du cas (parametres de CAS dans
-# tests/outils_tests.R, B par defaut) : la reference versionnee est nettoyee
-# de champs de metadata (horodatage, duree, version de R) que l'en-tete du
-# rapport lit.
-verifier("Rapport fige (premium_interieur recalcule) : en-tetes p min et p min MC, 0,125 et 0,149 sur la ligne des signes (#125)",
+# Le rapport fige est produit sur la reference versionnee, lue sans recalcul :
+# les champs de metadata qu'en retire nettoyer() (horodatage, duree, version
+# de R) s'affichent en tiret depuis #263.
+verifier("Rapport fige (reference premium_interieur) : en-tetes p min et p min MC, 0,125 et 0,149 sur la ligne des signes (#125)",
          {
-           d_pi <- utils::read.csv(file.path(.racine, "tests", "donnees", "donnees_ln_interieur.csv"))
-           res_pi2 <- run_engine(xt = d_pi$xt, yt = d_pi$yt, methode = "premium", segment = 1,
-                                 annexe = "II", nature_donnees = "brutes")
-           tb_pi2 <- engine_table_tests(res_pi2)
            f_pi <- tempfile(fileext = ".html")
-           rapport_html(res_pi2, selection_defaut(tb_pi2), f_pi, interactif = FALSE, identite = idt)
+           rapport_html(res_pi, selection_defaut(tb_pi), f_pi, interactif = FALSE, identite = idt)
            h_pi <- lire(f_pi); unlink(f_pi)
            pr_pi <- entre(h_pi, "<section id='section-tests-retenus'>", "</section>")
            l_pi <- ligne_de(pr_pi, nom_signes)
@@ -1171,5 +1167,37 @@ verifier("rapport fige : ligne de la graine du flux (libelle et valeur), aucune 
              !grepl("<td>NA</td>", s0, fixed = TRUE) })
 verifier("rapport fige : reserve2, pas de ligne de la graine du flux",
          !grepl("Graine du flux", .sect_gel(res_mw), fixed = TRUE))
+
+# Objet relu et nettoye (#263) : les six references de tests/reference/, sans
+# horodatage, duree_sec ni version_R dans metadata, donnent un rapport sans
+# erreur, avec un tiret dans les lignes de ces champs ; titre sans "NULL".
+# Valeur de la ligne `cle` de la table cle-valeur de l'en-tete (motif fixe).
+cle_val <- function(s, cle) {
+  debut <- paste0("<td>", .echap_html(cle), "</td><td>")
+  i <- regexpr(debut, s, fixed = TRUE)
+  if (i < 0) return(NA_character_)
+  reste <- substr(s, i + nchar(debut), nchar(s))
+  substr(reste, 1, regexpr("</td>", reste, fixed = TRUE) - 1L)
+}
+CLES_263 <- c("Horodatage du calcul (run_engine)", "Dur\u00e9e du calcul", "Version de R")
+REFS_263 <- sort(list.files(file.path(.racine, "tests", "reference"), "[.]rds$", full.names = TRUE))
+verifier("Six references dans tests/reference/ pour le rapport fige (#263)", length(REFS_263) == 6L)
+for (f_ref in REFS_263) {
+  verifier(sprintf("Rapport fige sur la reference %s : sans erreur, tiret pour horodatage, duree et version de R (#263)",
+                   basename(f_ref)),
+           {
+             r0 <- readRDS(f_ref)
+             f0 <- tempfile(fileext = ".html")
+             ok0 <- tryCatch({
+               rapport_html(r0, NULL, f0, interactif = FALSE, identite = idt); TRUE
+             }, error = function(e) FALSE)
+             h0 <- if (ok0) lire(f0) else ""; unlink(f0)
+             g0 <- entre(h0, "<h2 id='gel'>", "</table>")
+             ok0 && all(!c("horodatage", "duree_sec", "version_R") %in% names(r0$metadata)) &&
+               identical(unname(vapply(CLES_263, cle_val, "", s = g0)), rep("\u2013", 3L)) &&
+               grepl("calcul du \u2013</title>", h0, fixed = TRUE) &&
+               !grepl(">NULL<", h0, fixed = TRUE)
+           })
+}
 
 fin_fichier()

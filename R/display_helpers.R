@@ -1611,6 +1611,16 @@ encoder_base64 <- function(octets) {
   gsub(">", "&gt;", x, fixed = TRUE)
 }
 .txt <- function(x) ifelse(is.na(x), "\u2013", .echap_html(as.character(x)))
+# Valeur scalaire d'un champ de metadata pour l'en-tete du rapport fige :
+# tiret si le champ est absent (NULL ou longueur nulle, cas d'un objet relu
+# et nettoye par nettoyer() de tests/outils_tests.R, issue #263), sinon f(x).
+# Garantit une chaine de longueur 1, pour que cles et vals restent alignes ;
+# evite aussi format(NULL, ...), qui vaut la chaine "NULL".
+.ou_tiret <- function(x, f = .txt) {
+  if (length(x) == 0L) return("\u2013")
+  v <- f(x)
+  if (length(v) != 1L || is.na(v)) "\u2013" else v
+}
 
 .bandeau_html <- function(texte, classe = "avert")
   sprintf("<div class='%s'>%s</div>", classe, texte)
@@ -1829,22 +1839,24 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
               if (!is.null(lig_mc)) "P-values Monte-Carlo",
               "Seuil alpha des verdicts", "Graine (seed)", "Bar\u00e8me de cr\u00e9dibilit\u00e9",
               "sigma standard", "Nature des donn\u00e9es")
-    vals <- c(format(m$horodatage, "%Y-%m-%d %H:%M:%S %Z"),
-              sprintf("%.2f s", m$duree_sec), genere,
+    # Champs absents d'un objet relu (#263) : tiret, comme pour segment.
+    vals <- c(.ou_tiret(m$horodatage, function(x) format(x, "%Y-%m-%d %H:%M:%S %Z")),
+              .ou_tiret(m$duree_sec, function(x) sprintf("%.2f s", x)), genere,
               paste0("<code>", m$methode, "</code> \u2014 ", libelle_methode),
               paste("annexe", m$annexe),
               if (is.null(m$segment)) "\u2013" else paste0(m$segment, " \u2014 ", .txt(m$libelle_segment)),
-              paste0(as.character(m$T),
+              paste0(.ou_tiret(m$T, as.character),
                      if (!is.null(lib_prof <- libelle_derogation(res, "profondeur")))
                        paste0(" \u2014 <b>", .echap_html(lib_prof), "</b>")),
-              as.character(m$B),
-              format(res$bootstrap$granularite, digits = 6),
+              .ou_tiret(m$B, as.character),
+              .ou_tiret(res$bootstrap$granularite, function(x) format(x, digits = 6)),
               if (!is.null(lig_mc)) .txt(lig_mc),
-              format(m$alpha), format(m$seed, scientific = FALSE),
-              paste0(.txt(m$bareme),
+              .ou_tiret(m$alpha, format),
+              .ou_tiret(m$seed, function(x) format(x, scientific = FALSE)),
+              paste0(.ou_tiret(m$bareme),
                      if (!is.null(lib_bareme <- libelle_derogation(res, "bareme")))
                        paste0(" \u2014 <b>", .echap_html(lib_bareme), "</b>")),
-              paste0(format(m$sigma_standard, digits = 10),
+              paste0(.ou_tiret(m$sigma_standard, function(x) format(x, digits = 10)),
                      if (!is.null(lib_sigma <- libelle_derogation(res, "sigma_standard")))
                        paste0(" \u2014 <b>", .echap_html(lib_sigma), "</b>")),
               .txt(table_parametre_standard(res)$Valeur[1]))
@@ -1864,7 +1876,7 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
     }
     idt <- if (is.null(identite)) list(version = NA, md5_engine = NA, releve = NA) else identite
     cles <- c(cles, "Version de R", "Version de l'outil (DESCRIPTION)")
-    vals <- c(vals, .txt(m$version_R), .txt(idt$version))
+    vals <- c(vals, .ou_tiret(m$version_R), .ou_tiret(idt$version))
     empreintes <- data.frame(
       a = c("Donn\u00e9es du calcul", "R\u00e9sultat du moteur", "Code du moteur (R/engine.R)"),
       b = paste0("<code>", c(.txt(empr$donnees), .txt(empr$resultat), .txt(idt$md5_engine)),
@@ -1878,6 +1890,10 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
                   "relev\u00e9s le", .txt(idt$releve), "au chargement du moteur par l'application.")),
       stringsAsFactors = FALSE)
     names(empreintes) <- c("Objet", "Empreinte md5", "Statut")
+    # Invariant de l'en-tete (#263) : une valeur par cle.
+    if (length(cles) != length(vals))
+      stop(sprintf("rapport_html() : en-tete desaligne (%d cles, %d valeurs).",
+                   length(cles), length(vals)))
     ajout("<h1>Rapport fig\u00e9 \u2014 param\u00e8tres propres \u00e0 l'entreprise (USP)</h1>",
           paste("<div class='gris'>Solvabilit\u00e9 II, r\u00e8glement d\u00e9l\u00e9gu\u00e9 (UE) 2015/35,",
                 "art. 218-220 et annexe XVII</div>"),
@@ -2111,7 +2127,7 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
     }
     c("<!DOCTYPE html>", "<html lang=\"fr\">", "<head>", "<meta charset=\"utf-8\">",
       sprintf("<title>Rapport USP fig\u00e9 \u2014 %s, calcul du %s</title>", m$methode,
-              format(m$horodatage, "%Y-%m-%d %H:%M:%S")),
+              .ou_tiret(m$horodatage, function(x) format(x, "%Y-%m-%d %H:%M:%S"))),
       "<style>", CSS_RAPPORT, "</style>", tete, "</head>", "<body>", corps, "</body>", "</html>")
   }
 
