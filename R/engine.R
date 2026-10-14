@@ -8286,8 +8286,12 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
 #      au regard des colonnes degenerees, K est identique entre statistique
 #      observee et simulee ; .fisher_combine() n'ecarte plus aucune p-value
 #      (issue #90) : K ne varie plus que si l'appelant ecarte une colonne
-#      (lm() en echec, garde sd() == 0 ; pour la courbure, depuis #253,
-#      moins de trois valeurs distinctes de C(i,j), sans lm()) ;
+#      (lm() en echec, garde sd() == 0 ; pour la courbure, depuis #270,
+#      plus jamais : ses colonnes a moins de trois valeurs distinctes de
+#      C(i,j) forment un second ensemble fige a l'observe,
+#      .mw_colonnes_courbure_non_identifiables(), et une colonne retenue
+#      mais non identifiable dans la replication rend la statistique NA,
+#      comme au volet 2 ci-dessous) ;
 #   2. une colonne retenue a l'observe mais degeneree dans la replication
 #      n'est ni exclue (K changerait) ni soumise a lm() / cor.test() : la
 #      statistique de la replication vaut NA et sort de B_effectif.
@@ -8587,17 +8591,56 @@ mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
     p = 2 * stats::pt(abs(tv), n - 3, lower.tail = FALSE))
 }
 
+# Colonnes non identifiables de la courbure (#270, option (a), decisions
+# D1-5 et D1-6 du 13/10/2026) : j = 0..J-1 tels que n_j = I - j >= 4, j hors
+# de l'ensemble des colonnes exclues (.mw_j_exclues(aj, j_degeneres)), colonne
+# non degeneree (.mw_colonne_degeneree()), et moins de trois valeurs
+# distinctes de C(0..I-j-1, j) (egalite exacte, unique() ; une colonne
+# constante, ecartee avant #270 par la garde sd(C0) == 0, est couverte) :
+# le terme quadratique n'y est pas identifiable. Vecteur d'entiers croissants,
+# eventuellement vide. mw_bootstrap() le calcule UNE FOIS sur le triangle
+# observe et le fige pour chaque replication, comme les colonnes degenerees
+# (#56) : la statistique observee et celle des replications combinent les
+# memes colonnes (meme K). Ensemble distinct de celui des colonnes
+# degenerees : les autres verifications de M1 n'en excluent pas la colonne.
+.mw_colonnes_courbure_non_identifiables <- function(aj, j_degeneres = NULL) {
+  I <- aj$I; jd <- .mw_j_exclues(aj, j_degeneres)
+  j <- 0:(aj$J - 1L)
+  garder <- vapply(j, function(k) {
+    idx <- 0:(I - k - 1)
+    length(idx) >= 4 && !(k %in% jd) && !.mw_colonne_degeneree(aj, k) &&
+      length(unique(aj$tri[idx + 1, k + 1])) < 3
+  }, logical(1))
+  as.integer(j[garder])
+}
+
 # (c) Absence de courbure : terme quadratique dans la regression ponderee.
 # Une courbure significative contredit la LINEARITE, meme si la constante est
 # nulle : E[C(i,j+1)|C(i,j)] ne serait alors pas proportionnelle a C(i,j).
-mw_test_courbure <- function(aj, j_degeneres = NULL) {
+# j_non_identifiables : ensemble des colonnes non identifiables (#270), fige a
+# l'observe par mw_bootstrap() ; NULL : calcule sur aj (appel observe).
+mw_test_courbure <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
   # Une ligne par colonne retenue, table assemblee une fois (.mw_empiler(),
   # #239, #250).
   blocs <- list()
   ex <- .mw_exclues_vide()
-  ni <- data.frame(j = integer(0), n_facteurs = integer(0))   # #269
   jd <- .mw_j_exclues(aj, j_degeneres)
+  jni <- if (is.null(j_non_identifiables))
+    .mw_colonnes_courbure_non_identifiables(aj, jd) else as.integer(j_non_identifiables)
+  # Element "non_identifiables" (#269) : colonnes de l'ensemble fige que la
+  # boucle ecarte (n_j >= 4, hors des colonnes exclues), en j croissant. Il
+  # est forme AVANT la boucle et porte tel quel par tous les retours, retours
+  # NA compris (constat 3b de l'audit de #269) : il decrit l'ensemble fige,
+  # non les colonnes parcourues avant un arret de la boucle. "exclues" et
+  # "eligibles", eux, restent ceux des colonnes parcourues avant l'arret
+  # (.mw_stat_non_definie(), commun aux verifications de M1).
+  # Lignes ajoutees une a une (meme forme d'objet, ordre des attributs
+  # compris, qu'au commit de #269).
+  jn <- sort(unique(jni[jni %in% 0:(J - 1) & I - jni >= 4 & !(jni %in% jd)]))
+  ni <- data.frame(j = integer(0), n_facteurs = integer(0))
+  for (k in jn) ni[nrow(ni) + 1L, ] <- list(as.integer(k), as.integer(I - k))
+  na_stat <- function() { r0 <- .mw_stat_non_definie(ex); r0$non_identifiables <- ni; r0 }
   for (j in 0:(J - 1)) {
     idx <- 0:(I - j - 1)
     if (length(idx) < 4) next                    # 3 parametres + 1 ddl
@@ -8606,28 +8649,22 @@ mw_test_courbure <- function(aj, j_degeneres = NULL) {
     # statistique NA, AVANT tout calcul du t (.mw_courbure_colonne()).
     if (j %in% jd) { ex <- .mw_exclure(ex, j, length(idx)); next }
     ex$eligibles <- ex$eligibles + 1L
-    if (.mw_colonne_degeneree(aj, j)) {
-      r0 <- .mw_stat_non_definie(ex)
-      r0$non_identifiables <- ni
-      return(r0)
-    }
+    if (.mw_colonne_degeneree(aj, j)) return(na_stat())
+    # Colonne non identifiable de l'ensemble fige (#270) : ecartee, comptee
+    # dans "eligibles", hors de K, nommee dans le libelle par
+    # .mw_phrase_non_identifiable() (#269).
+    if (j %in% jni) next
     C0 <- tri[idx + 1, j + 1]; C1 <- tri[idx + 1, j + 2]
     # Forme close (#253) : plus aucune exclusion silencieuse par le rang
-    # numerique de lm() ; seule la non-identifiabilite exacte (moins de trois
-    # valeurs distinctes de C(i,j)) ecarte la colonne, comme sd(C0) == 0
-    # (doctrine de #90, decision D1-7 du 13/10/2026). La colonne ecartee est
-    # enregistree dans l'element "non_identifiables" et nommee dans le
-    # libelle par .mw_phrase_non_identifiable() (#269) : elle reste comptee
-    # dans "eligibles", hors de K. Ensemble ecarte inchange : sd(C0) == 0
-    # implique une seule valeur distincte, et .mw_courbure_colonne() ne rend
-    # NULL (n >= 4 ici) qu'a moins de trois valeurs distinctes ou a A = 0,
-    # somme de termes strictement positifs des qu'il existe un triplet de
-    # valeurs distinctes.
-    r <- if (stats::sd(C0) != 0) .mw_courbure_colonne(C0, C1)
-    if (is.null(r)) {
-      ni[nrow(ni) + 1L, ] <- list(as.integer(j), length(idx))
-      next
-    }
+    # numerique de lm(). Colonne retenue a l'observe mais non identifiable
+    # dans cet appel (moins de trois valeurs distinctes de C(i,j), d'ou
+    # .mw_courbure_colonne() NULL ; second volet de la regle de #56, transpose
+    # par #270) : statistique NA, K = NA, et la replication sort de B effectif,
+    # au lieu d'une statistique a une colonne de moins que l'observee. La garde
+    # sd(C0) == 0 d'avant #270 est couverte par le predicat (une seule valeur
+    # distincte).
+    r <- .mw_courbure_colonne(C0, C1)
+    if (is.null(r)) return(na_stat())
     blocs[[length(blocs) + 1L]] <- list(j = j, n = length(idx), c2 = r[["c2"]],
                                         t = r[["t"]], p = r[["p"]])
   }
@@ -9050,11 +9087,17 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
     # #56) et residus de Mack de toutes les lignes qui en dependent (issue
     # #60, via le contexte de .mw_contexte_mc()).
     jd <- .mw_colonnes_degenerees(aj)
+    # Colonnes non identifiables de la courbure (#270), determinees UNE FOIS
+    # sur le triangle observe, apres jd, et figees de meme : la statistique
+    # de courbure de chaque replication combine les memes colonnes que
+    # l'observee. Aucun tirage n'est ajoute ni retire : seule la statistique
+    # des replications change.
+    jni <- .mw_colonnes_courbure_non_identifiables(aj, jd)
     # Pool : residus de Mack retenus du triangle observe, colonnes degenerees
     # exclues (#60), redresses par le levier puis recentres (#46).
     pool <- .mw_pool_residus(aj, jd)
     # Contexte observe conserve pour les conditions du catalogue (#44).
-    e_obs <- .mw_contexte_mc(aj, jd)
+    e_obs <- .mw_contexte_mc(aj, jd, jni)
     obs <- .mc_evaluer(MW_CATALOGUE_MC, e_obs)
     noms <- names(obs)
     sim <- matrix(NA_real_, B, length(noms), dimnames = list(NULL, noms))
@@ -9073,7 +9116,7 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
       tb <- tir$tri
       ab <- try(mw_ajuster(tb), silent = TRUE)
       if (inherits(ab, "try-error")) next
-      sb <- try(.mw_stats(ab, jd), silent = TRUE)
+      sb <- try(.mw_stats(ab, jd, jni), silent = TRUE)
       if (inherits(sb, "try-error")) next
       sim[b, ] <- sb[noms]
       mb <- try(mw_msep(ab), silent = TRUE)
@@ -9123,11 +9166,15 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
 # exclues des verifications colonne par colonne de M1 (issue #56) et des
 # residus de Mack (issue #60) : fige a l'observe par mw_bootstrap(), calcule
 # sur aj s'il n'est pas fourni ; residus de Mack (mw_residus(), calcules une
-# fois avec cet ensemble) et leur vecteur r.
-.mw_contexte_mc <- function(aj, j_degeneres = NULL) {
+# fois avec cet ensemble) et leur vecteur r ; ensemble j_non_identifiables des
+# colonnes non identifiables de la courbure (#270), fige a l'observe par
+# mw_bootstrap(), calcule sur aj (avec jd) s'il n'est pas fourni.
+.mw_contexte_mc <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL) {
   jd <- .mw_j_exclues(aj, j_degeneres)
   res <- mw_residus(aj, jd)
-  list(aj = aj, res = res, r = res$residu, j_degeneres = jd)
+  jni <- if (is.null(j_non_identifiables))
+    .mw_colonnes_courbure_non_identifiables(aj, jd) else as.integer(j_non_identifiables)
+  list(aj = aj, res = res, r = res$residu, j_degeneres = jd, j_non_identifiables = jni)
 }
 
 # Extremites du support des six statistiques discretes de Merz-Wuthrich, a
@@ -9212,7 +9259,8 @@ MW_CATALOGUE_MC <- list(
   HomogF     = .mc_entree(function(e) mw_test_homogeneite_f(e$aj, e$j_degeneres)$stat, "haut",
                           extremes = function(e)
                             .mw_fisher_x_max(mw_test_homogeneite_f(e$aj, e$j_degeneres))),
-  Courbure   = .mc_entree(function(e) mw_test_courbure(e$aj, e$j_degeneres)$stat, "haut"),
+  Courbure   = .mc_entree(function(e) mw_test_courbure(e$aj, e$j_degeneres,
+                                                    e$j_non_identifiables)$stat, "haut"),
   Alpha      = .mc_entree(function(e) mw_famille_alpha(e$aj)$stat, "haut"),
   # Residus de Mack du contexte, e$res, calcules une seule fois par
   # .mw_contexte_mc() avec l'ensemble fige des colonnes degenerees (issue
@@ -9227,9 +9275,10 @@ MW_CATALOGUE_MC <- list(
 
 # Statistiques bootstrapables de la methode Merz-Wuthrich (catalogue
 # MW_CATALOGUE_MC). j_degeneres : ensemble fige des colonnes degenerees de M1
-# (NULL : calcule sur aj).
-.mw_stats <- function(aj, j_degeneres = NULL)
-  .mc_evaluer(MW_CATALOGUE_MC, .mw_contexte_mc(aj, j_degeneres))
+# (NULL : calcule sur aj) ; j_non_identifiables : ensemble fige des colonnes
+# non identifiables de la courbure (#270 ; NULL : calcule sur aj).
+.mw_stats <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL)
+  .mc_evaluer(MW_CATALOGUE_MC, .mw_contexte_mc(aj, j_degeneres, j_non_identifiables))
 
 # --- B effectif < B sur une ligne Monte-Carlo de Merz-Wuthrich (#204) ---------
 # Phrase ajoutee en fin du detail d'une des 13 lignes Monte-Carlo de

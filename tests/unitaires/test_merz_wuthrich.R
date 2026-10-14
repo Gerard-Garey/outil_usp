@@ -968,6 +968,9 @@ ta_pert <- function(eps) {
 # comptes (element nw) ; nuls depuis #203 (assertion plus bas).
 k_replications <- function(t, B = 99, seed = 20260831) {
   aj <- mw_ajuster(t); jd <- .mw_colonnes_degenerees(aj)
+  # colonnes non identifiables de la courbure figees a l'observe, comme dans
+  # mw_bootstrap() (#270)
+  jni <- .mw_colonnes_courbure_non_identifiables(aj, jd)
   Ko <- Kc <- rep(NA_integer_, B); nw <- 0L
   engine_sous_graine(seed, {
     pool <- .mw_pool_residus(aj, jd)   # pool de mw_bootstrap() (#46)
@@ -981,7 +984,7 @@ k_replications <- function(t, B = 99, seed = 20260831) {
       if (inherits(ab, "try-error")) next
       withCallingHandlers({
         o <- mw_test_ordonnee_origine(ab, j_degeneres = jd)
-        c2 <- mw_test_courbure(ab, j_degeneres = jd)
+        c2 <- mw_test_courbure(ab, j_degeneres = jd, j_non_identifiables = jni)
       }, warning = function(w) { nw <<- nw + 1L; invokeRestart("muffleWarning") })
       Ko[b] <- if (is.null(o$K)) NA_integer_ else as.integer(o$K)
       Kc[b] <- if (is.null(c2$K)) NA_integer_ else as.integer(c2$K)
