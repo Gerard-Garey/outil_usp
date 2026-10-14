@@ -471,6 +471,29 @@ verifier("Constat 3b (#269, #270) : retour NA d'une colonne degeneree retenue, n
              observe = identical(ob6$non_identifiables, na6$non_identifiables) &&
                identical(ob6$K, 2L)))
          })
+# Ordre des controles de la boucle (#270, correction (b) du 14/10/2026) : une
+# colonne de l'ensemble fige jni, hors de K, est ecartee AVANT le controle de
+# degenerescence. T7 (triangle de replication construit a la main) : reserve2,
+# colonne j = 1 degeneree, C(i,1) = C(i,2) / 1,3 pour i = 0..5 (six facteurs
+# F(i,1) egaux), appelee avec j_degeneres = integer(0) (colonne non degeneree
+# a l'observe) et j_non_identifiables = 1 (fige a l'observe) : statistique
+# finie, K = 3 sur 4 eligibles, j = 1 hors du detail. Ancien ordre (controle
+# de degenerescence d'abord) : statistique NA, K NA.
+t7_270 <- local({ t <- tri253; t[1:6, 2] <- t[1:6, 3] / 1.3; t })
+verifier("T270-9 : colonne de l'ensemble fige degeneree dans une replication : ecartee avant le controle de degenerescence, statistique finie, K = 3 sur 4 eligibles (#270)",
+         {
+           a7 <- mw_ajuster(t7_270)
+           c7 <- mw_test_courbure(a7, integer(0), 1L)
+           ok_liste(list(
+             degeneree = .mw_colonne_degeneree(a7, 1L) &&
+               1L %in% .mw_colonnes_degenerees(a7),
+             stat_finie = is.finite(c7$stat) && is.finite(c7$p),
+             K = identical(c7$K, 3L),
+             eligibles = identical(c7$eligibles, 4L),
+             hors_detail = !(1L %in% c7$detail$j) &&
+               identical(as.integer(c7$detail$j), c(0L, 2L, 3L)),
+             ni = identical(c7$non_identifiables, data.frame(j = 1L, n_facteurs = 6L))))
+         })
 verifier("T270-8 : T1, mw_bootstrap() sous un generateur de l'appelant different (L'Ecuyer-CMRG) : RNGkind() et .Random.seed restaures (#270)",
          {
            x <- boot270("t1", t1_269, 999)

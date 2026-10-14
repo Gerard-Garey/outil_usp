@@ -252,9 +252,9 @@ local({
       if (length(idx) < 4) next                    # 3 parametres + 1 ddl
       if (j %in% jd) { ex <- .mw_exclure(ex, j, length(idx)); next }
       ex$eligibles <- ex$eligibles + 1L
+      if (j %in% jni) next
       if (.mw_colonne_degeneree(aj, j))
         return(c(.mw_stat_non_definie(ex), list(non_identifiables = ni)))
-      if (j %in% jni) next
       C0 <- tri[idx + 1, j + 1]; C1 <- tri[idx + 1, j + 2]
       m <- .mw_courbure_colonne(C0, C1)
       if (is.null(m)) return(c(.mw_stat_non_definie(ex), list(non_identifiables = ni)))

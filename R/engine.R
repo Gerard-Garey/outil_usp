@@ -8658,11 +8658,13 @@ mw_test_courbure <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL)
     # statistique NA, AVANT tout calcul du t (.mw_courbure_colonne()).
     if (j %in% jd) { ex <- .mw_exclure(ex, j, length(idx)); next }
     ex$eligibles <- ex$eligibles + 1L
-    if (.mw_colonne_degeneree(aj, j)) return(na_stat())
     # Colonne non identifiable de l'ensemble fige (#270) : ecartee, comptee
     # dans "eligibles", hors de K, nommee dans le libelle par
-    # .mw_phrase_non_identifiable() (#269).
+    # .mw_phrase_non_identifiable() (#269). Testee AVANT le controle de
+    # degenerescence : une colonne de l'ensemble fige, hors de K, ne rend pas
+    # la statistique NA si elle devient degeneree dans une replication.
     if (j %in% jni) next
+    if (.mw_colonne_degeneree(aj, j)) return(na_stat())
     C0 <- tri[idx + 1, j + 1]; C1 <- tri[idx + 1, j + 2]
     # Forme close (#253) : plus aucune exclusion silencieuse par le rang
     # numerique de lm(). Colonne retenue a l'observe mais non identifiable
