@@ -1840,7 +1840,8 @@ controle_g <- function() {
   sys.source(file.path(RACINE, "R", "engine.R"), envir = e0, keep.source = FALSE)
   meme <- function(nm) { a <- get(nm, envir = ENV_MOTEUR); b <- get(nm, envir = e0)
     identical(formals(a), formals(b)) && identical(body(a), body(b)) }
-  fns <- c("mw_simuler_triangle", ".mw_tirer_triangle_valide", ".mw_pool_residus", "mw_bootstrap")
+  fns <- c("mw_simuler_triangle", ".mw_tirer_triangle_valide", ".mw_triangle_incomplet",
+           ".mw_pool_residus", "mw_bootstrap")
   ok_fns <- all(vapply(fns, meme, logical(1)))
   list(ok = all(ok) && all(dil["identique", ]) && any(dil["incomplet", ]) && ok_fns,
        txt = sprintf("gen_triangle_h0() (\u03b5 tir\u00e9s par sample(pool)) = mw_simuler_triangle() sous la m\u00eame graine, identical(), sur %d / 100 graines (graines des triangles N, b = 1..100) ; sous pool dilat\u00e9 %g fois (#271) : %d / 100, dont %d triangle(s) \u00e0 cumul simul\u00e9 non fini ou \u2264 0 (au moins un exig\u00e9) ; %s de l'environnement identiques (formals, body) \u00e0 celles de R/engine.R relu : %s",
