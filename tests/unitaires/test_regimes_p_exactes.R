@@ -172,13 +172,14 @@ verifier("Bande : ligne Runsr sans phrase R7/R8 (regime #29 inchange : p exacte 
              !grepl("p exacte non attribuee", l$detail, fixed = TRUE) &&
              !grepl("loi de reference exacte a un ecart", l$detail, fixed = TRUE)
          })
-# #128, point c : la phrase "p-value Monte-Carlo ... est retenue" de la
-# ligne Runsr (regime 3, pi_t variable) n'est ecrite que si p_mc existe ;
+# #128, point c : la phrase "p-value Monte-Carlo ... est calculee" (#214 ;
+# "est retenue" avant) de la ligne Runsr (regime 3, pi_t variable) n'est
+# ecrite que si p_mc existe ;
 # sinon la ligne, sans p exacte ni asymptotique, est un test sans p-value
 # (phrase de #128 en tete). Regime 2 (bande a signes differents) depuis
 # #187 : p_mc presente, la phrase dit la p Monte-Carlo calculee et renvoie a
 # nature_p, add() pouvant encore l'ecarter (regle R1, degenerescence).
-verifier("Runsr, regimes 2 et 3 : p_mc presente -> 'est retenue' (3) ou 'est calculee' (2, #187) ; absente -> 'indisponible', test sans p-value",
+verifier("Runsr, regimes 2 et 3 : p_mc presente -> 'est calculee' (3, #214 ; 2, #187) ; absente -> 'indisponible', test sans p-value",
          {
            txt_ind <- "est indisponible sur ces donnees : aucune p-value n'est retenue (ADR 0001)"
            m <- c(Runsr = MOTIF_MC_AUCUNE_REPLIC)
@@ -187,8 +188,9 @@ verifier("Runsr, regimes 2 et 3 : p_mc presente -> 'est retenue' (3) ou 'est cal
            b3 <- ligne(usp_tests(f8, boot_fictif(f8, motif = m), methode = "premium"), nm)
            a2 <- ligne(tb, nm)
            b2 <- ligne(usp_tests(fb, boot_fictif(fb, motif = m), methode = "premium"), nm)
-           grepl("Seule la p-value Monte-Carlo, simulee sous le modele ajuste avec ses pi_t, est retenue ;",
-                 a3$detail, fixed = TRUE) &&
+           grepl(paste("Seule la p-value Monte-Carlo, simulee sous le modele ajuste avec ses pi_t,",
+                       "est calculee ; la p-value retenue, s'il en est une, est nommee par nature_p ;"),
+                 a3$detail, fixed = TRUE) && !grepl(" est retenue", a3$detail, fixed = TRUE) &&
              grepl(paste("La p-value Monte-Carlo, simulee sous le modele ajuste avec ses pi_t,", txt_ind),
                    b3$detail, fixed = TRUE) && !grepl(" est retenue", b3$detail, fixed = TRUE) &&
              grepl(paste("La p-value Monte-Carlo, simulee sous le modele ajuste, est calculee ;",
@@ -204,8 +206,9 @@ verifier("Runsr, regimes 2 et 3 : p_mc presente -> 'est retenue' (3) ou 'est cal
 # #182 (Q1 d'audit, retenue) : txt_mc_indispo() n'a que des appelants sans p
 # exacte (RESET, OLS-CUSUM, Runsr non attribuee) ; p_mc absente, aucune
 # p-value n'est retenue, et le texte le dit sans renvoyer a nature_p. La
-# phrase "s'il en est une" reste dans la seule branche Runsr AVEC p_mc
-# (regime 2, add() pouvant encore ecarter la p Monte-Carlo).
+# phrase "s'il en est une" reste dans les branches AVEC p_mc (Runsr regime 2,
+# et, depuis #214, RESET, OLS-CUSUM, Runsr regimes 1 et 3), add() pouvant
+# encore ecarter la p calculee.
 verifier("txt_mc_indispo (#182) : RESET et OLS-CUSUM sans p_mc -> 'aucune p-value n'est retenue' ; Runsr regime 2 avec p_mc -> 's'il en est une' conservee",
          {
            ko <- usp_tests(fit, boot_fictif(fit, motif = c(RESET = MOTIF_MC_AUCUNE_REPLIC,

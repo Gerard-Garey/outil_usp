@@ -18,7 +18,7 @@ Le paramètre `model` d'un appel `Agent` l'emporte sur le `model` de la fiche ; 
 
 | Fiche | Modèle servi | Effort | `maxTurns` | Usage |
 |---|---|---|---|---|
-| `architect` | `opus` | `medium` | 40 | routine (§ 3) |
+| `architect` | `opus` | `medium` | 60 (40 jusqu'au 14/10/2026, Q-F-9) | routine (§ 3) |
 | `actuary` | `opus` | `medium` | 60 (40 jusqu'au 11/10/2026, Q-A4-16) | routine (§ 3) |
 | `architect-approfondi`, `actuary-approfondi` | `opus` | `high` | 80 | jugement (§ 3) |
 | `architect-approfondi`, `actuary-approfondi` appelées avec `model: "fable"` | Fable (fiche : `opus`, l'appel l'emporte) | `high` | 80 | cas du § 4.1, ou accord du mainteneur |

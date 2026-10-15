@@ -702,6 +702,14 @@ régime $\hat\pi_t$ constant)~; ajout, en fin de commentaire (avant la phrase de
 façon idempotente, des deux textes de renvoi croisé aux lignes de la constante et de Spearman ratio contre volume, selon la même
 règle, en fin d'\code{usp\_tests()}~; textes du renvoi (issue~\#215,
 fiche~\ref{fiche:student-constante}, rubrique~6) \\
+\code{.engine\_joindre()} & deux textes $a$, $b$ & fonction unique de jonction des commentaires
+(issue~\#264)~: $a$ si $b$ est vide, sinon $b$ si $a$ est vide, sinon $a$ suivi d'une espace s'il
+finit par un point, de «~\code{~; }~» sinon, puis de $b$, sans \code{trimws()} ni majuscule, de
+sorte que $b$ non vide est un suffixe littéral du résultat~; employée par \code{add()} (règle~R1,
+effectifs, plancher, phrase de l'issue~\#244), par \code{mw\_tests()} (phrases des
+issues~\#257 et~\#204), par \code{usp\_tests()} et par \code{.usp\_poser\_renvois()}, qui
+remplace sept copies de la règle~; \code{.mw\_avec\_exclusion()} (phrases des colonnes écartées
+de M1) suit une autre règle, une espace après un point, «~\code{. }~» sinon \\
 \code{usp\_identifiabilite\_}\newline\code{pente()},\newline
 \code{SEUIL\_PUISSANCE\_PENTE} & $x$, $\hat\beta$, $\hat\sigma$, $\alpha$,
 \code{unilateral} (\code{FALSE})~; constante ($0{,}5$) & indice $\hat\lambda$ et puissance
@@ -744,7 +752,8 @@ $p_{\min}$ (\code{NULL} ailleurs~; refus par une erreur d'une valeur qui n'est p
 d'un résultat de mauvaise forme)~; seule source du calcul observé, du calcul simulé et de la
 p-value de Monte-Carlo (ADR~0003) \\
 \code{.usp\_contexte\_mc()},\newline \code{.mw\_contexte\_mc()} & $x$, $y$, $z$, \code{pi}~; \code{aj},
-\code{j\_degeneres}, \code{j\_non\_identifiables} (\code{NULL}~: calculés sur \code{aj}) &
+\code{figes} (objet des ensembles figés de \code{.mw\_ensembles\_figes()}~; \code{NULL}~: construit
+sur \code{aj}~; issue~\#278) &
 contexte des fonctions de calcul du catalogue~: ratios $r_t$ et ratios centrés $u_t$, et, depuis
 l'issue~\#215, vecteur $\hat\pi_t$ de l'ajustement (de l'observé, ou de la réplication), lu par
 l'entrée \code{Intercept} pour les poids de la régression pondérée~;
@@ -752,7 +761,13 @@ ensemble des colonnes dégénérées (figé à l'observé par \code{mw\_bootstra
 \code{aj} s'il n'est pas fourni) et résidus de Mack calculés avec cet ensemble (issue~\#60), lus
 depuis l'issue~\#239 par les entrées \code{ExpVar} et \code{KruskalAcc}, qui ne les recalculent
 plus~; depuis l'issue~\#270, ensemble des colonnes non identifiables de la courbure, figé de
-même, lu par l'entrée \code{Courbure} (fiche~\ref{mw:m1c}) \\
+même, lu par l'entrée \code{Courbure} (fiche~\ref{mw:m1c})~; depuis l'issue~\#273, ensemble des
+colonnes non identifiables de l'ordonnée à l'origine, figé de même, lu par l'entrée
+\code{Origine} (fiche~\ref{mw:m1a}). Depuis l'issue~\#278, ces ensembles
+ne sont plus transmis en arguments séparés~: le contexte porte l'objet unique des ensembles
+figés (élément \code{figes}), dont chaque fermeture de \code{MW\_CATALOGUE\_MC} passe l'élément
+voulu à la fonction de test, et dont la forme, liste aux noms exacts puis chaque élément, est
+contrôlée par \code{.mw\_verifier\_figes()} \\
 \code{.mc\_evaluer()} & catalogue, contexte & vecteur nommé dans l'ordre du catalogue~; erreur
 qui nomme la statistique si une entrée ne rend pas une valeur de longueur~1 \\
 \code{engine\_p\_mc()} & valeurs simulées, valeur observée, sens du rejet, \code{extremes}
@@ -839,7 +854,9 @@ réplications quand ce plafond est atteint avec moins de \code{B\_MIN\_DEGENERES
 retenus, à $B \ge$ \code{B\_MIN\_DEGENERESCENCE} seulement (fiche~\ref{fiche:procedure-mc})~;
 en dernier élément depuis l'issue~\#125, \code{p\_min\_mc}, plancher Monte-Carlo par statistique
 (\code{NA} pour les statistiques continues), calculé sur les tirages retenus \\
-\code{mw\_bootstrap()} & \code{aj}, $B$ (999), \code{seed} (20260831) &
+\code{mw\_bootstrap()} & \code{aj}, $B$ (999), \code{seed} (20260831), \code{figes}
+(\code{NULL}~: objet des ensembles figés construit sur \code{aj} par
+\code{.mw\_ensembles\_figes()}, même calcul~; issue~\#278) &
 \code{stats\_obs}, \code{p\_mc}, \code{err\_mc},
 \code{B\_effectif}, \code{granularite}, \code{sigma\_boot}, \code{B}, \code{granularite\_stat},
 \code{motif\_mc}, depuis l'issue~\#257 \code{cumuls\_retires} (au moins un triangle simulé
@@ -933,6 +950,40 @@ d'entiers, éventuellement vide, des colonnes non identifiables de la courbure~:
 des colonnes exclues, colonne non dégénérée, moins de trois valeurs distinctes de $C(i,j)$
 (égalité exacte)~; ensemble figé à l'observé par \code{mw\_bootstrap()} et transmis aux
 réplications (issue~\#270, fiche~\ref{mw:m1c}) \\
+\code{.mw\_colonnes\_}\newline\code{origine\_non\_}\newline\code{identifiables()} & \code{aj},
+\code{j\_degeneres} (\code{NULL}~: ensemble calculé sur \code{aj}) & vecteur croissant
+d'entiers, éventuellement vide, des colonnes non identifiables de l'ordonnée à l'origine~:
+$n_j \ge 3$, hors des colonnes exclues, colonne non dégénérée, moins de deux valeurs distinctes de
+$C(i,j)$ (égalité exacte, sans lecture du rang numérique de \code{lm()})~; ensemble figé à
+l'observé et transmis aux réplications (issue~\#273, fiche~\ref{mw:m1a}) \\
+\code{.mw\_table\_non\_}\newline\code{identifiables()} & ensemble figé, $I$, $J$, colonnes
+exclues, $n_{\min}$ & élément \code{non\_identifiables} des résultats de
+\code{mw\_test\_courbure()} ($n_{\min} = 4$) et, depuis l'issue~\#273, de
+\code{mw\_test\_ordonnee\_}\allowbreak\code{origine()} ($n_{\min} = 3$)~: colonnes de l'ensemble
+figé que le parcours écarte ($n_j \ge n_{\min}$, hors des colonnes exclues), \code{data.frame}
+(\code{j}, \code{n\_facteurs}) en $j$ croissant, vide sans telle colonne, formé avant le parcours
+et porté par tous les retours, retours \code{NA} compris \\
+\code{.mw\_ensembles\_}\newline\code{figes()},\newline \code{.mw\_verifier\_}\newline\code{figes()} &
+\code{aj}, \code{j\_degeneres}, \code{j\_non\_identifiables},
+\code{j\_origine\_non\_}\allowbreak\code{identifiables} (\code{NULL}~: calculés sur
+\code{aj})~; objet, nom de l'appelant, $J$ (\code{aj\$J}, \code{NULL} par défaut) & objet unique des ensembles de colonnes figés à l'observé
+(issue~\#278)~: liste nommée de vecteurs croissants d'entiers, éventuellement vides,
+\code{degeneres} (colonnes dégénérées, fiche~\ref{mw:m1a}) puis \code{non\_identifiables}
+(colonnes non identifiables de la courbure, calculées après les dégénérées,
+fiche~\ref{mw:m1c}), puis, depuis l'issue~\#273, \code{origine\_non\_identifiables} (colonnes
+non identifiables de l'ordonnée à l'origine, calculées après les dégénérées,
+fiche~\ref{mw:m1a})~; un argument fourni impose son ensemble, dont le calcul est sauté. Construit
+une fois par \code{.run\_engine\_mw()} et lu par \code{mw\_bootstrap()}, \code{.mw\_contexte\_mc()},
+donc \code{.mw\_stats()} et les fermetures de \code{MW\_CATALOGUE\_MC}, et \code{mw\_tests()}, qui
+ne recalculent plus les ensembles~; contrôle de forme (liste aux noms exacts du constructeur,
+sinon erreur), appelé par ces trois fonctions avec $J$ = \code{aj\$J}~: un vecteur ou une liste
+mal nommée, dont les éléments liraient \code{NULL}, ferait recalculer en silence les ensembles sur
+chaque réplication et perdre le gel à l'observé. Depuis la revue finale de l'issue~\#278, chaque
+élément est contrôlé à son tour, un élément \code{NULL} produisant le même effet~: vecteur
+numérique à valeurs entières, sans \code{NA}, dans $0, \ldots, J-1$ ($\ge 0$ si $J$ n'est pas
+fourni), \code{integer(0)} accepté~; un élément \code{NULL}, \code{NA}, caractère, logique, non
+entier ou hors bornes est refusé par une erreur qui nomme l'élément (doublons et ordre non
+contrôlés)~; aucun objet construit par \code{.mw\_ensembles\_figes()} n'est refusé \\
 \code{.MW\_PREDICAT\_}\newline\code{DEGENERE\_TEXTE} & constante (chaîne) & énoncé unique des deux
 volets du prédicat, repris par l'avertissement des colonnes exclues, l'avertissement
 d'extrapolation de $\hat\sigma^2_{J-1}$, le motif de refus de l'issue~\#192 et la phrase
@@ -944,8 +995,12 @@ un objet d'ajustement réduit et pour $J < 2$~; prédicat du refus de
 \code{.mw\_j\_exclues()},\newline \code{.mw\_stat\_non\_definie()} & \code{aj},
 \code{j\_degeneres} & colonnes exclues d'une vérification de M1, des résidus de Mack et des
 lignes de M2 et M3 qui reçoivent l'ensemble figé (issue~\#60)~; résultat \code{NA} d'une
-réplication de M1 où une colonne retenue devient dégénérée (pour la courbure, colonne hors aussi
-de l'ensemble figé des colonnes non identifiables, fiche~\ref{mw:m1c}) \\
+réplication de M1 où une colonne retenue devient dégénérée (pour la courbure et, depuis
+l'issue~\#273, pour l'ordonnée à l'origine, colonne hors aussi de l'ensemble figé des colonnes
+non identifiables de la vérification, fiches~\ref{mw:m1c} et~\ref{mw:m1a}), $K$ valant
+\code{NA}~; depuis l'issue~\#273, aussi le résultat de l'ordonnée à l'origine quand \code{lm()}
+échoue ou rend moins de deux coefficients sur une colonne retenue, à l'observé comme dans une
+réplication \\
 \code{mw\_msep()} & \code{aj} & \code{\$msep}, \code{\$terme\_variance},
 \code{\$terme\_covariance} \\
 \code{mw\_residus()} & \code{aj}, \code{j\_degeneres} (\code{NULL}~: ensemble calculé sur
@@ -957,24 +1012,47 @@ colonne & vecteur des $F(i,j) - \hat f_j$ par l'identité exacte
 $\sum_{k \neq i} C(k,j)\big(F(i,j) - F(k,j)\big)/S_j$, sans annulation pour une cellule dominante,
 sommes par \code{sum()}~; employé par \code{mw\_residus()} et \code{mw\_influence()}
 (issue~\#233, section~\ref{sec:boot-mw}) \\
+\code{.mw\_centrage\_}\newline\code{pondere()} & vecteur $x$, poids $w$, somme des poids &
+vecteur des $\sum_k w_k (x_i - x_k)/\sum_k w_k$, soit $x_i$ moins la moyenne pondérée des $x$,
+par différences deux à deux, sans annulation entre grandeurs de l'ordre d'une cellule
+dominante, sommes par \code{sum()}~; forme partagée depuis l'issue~\#278 par
+\code{.mw\_ecart\_facteur\_}\allowbreak\code{stable()} ($x = F(\cdot,j)$, $w = C(\cdot,j)$) et
+\code{.mw\_lm\_intra()} (centrage par colonne de $C$ et de $F$). Le terme $k = i$, nul, est
+inclus~; \code{.mw\_ecart\_facteur\_}\allowbreak\code{stable()} l'omettait avant l'issue, sans
+effet sur le résultat pour $x_i$ et $w_i$ finis, un zéro exact n'ajoutant rien à la somme
+(mesuré~: 20\,000 colonnes de 2 à 10 cellules tirées sur $[10^{-50}~;~10^{50}]$, graine 278,
+résultats identiques à l'ancienne forme au sens d'\code{identical()}~; références inchangées) \\
 \code{.mw\_sommes\_}\newline\code{autres()} & vecteur $x$ des cellules d'une colonne & vecteur
 des $\sum_{l \neq k} x_l$, somme directe par \code{sum()} des $n - 1$ autres valeurs, sans la
 différence $\sum_l x_l - x_k$, qui s'annule en flottant quand $x_k$ domine sa colonne
 (issue~\#233)~; partagé depuis l'issue~\#260 par \code{.mw\_pool\_residus()} (numérateur de
 $1 - h_{ij}$) et \code{mw\_influence()} ($S_j - C(i,j)$ et $S'_j - C(i,j+1)$), mêmes opérations
 que les deux formes qu'il remplace \\
-\code{mw\_simuler\_triangle()}, \code{.mw\_stats()} & \code{aj}, vivier de
-résidus~; \code{aj}, \code{j\_degeneres}, \code{j\_non\_identifiables} (ensembles figés à
-l'observé, le second depuis l'issue~\#270) & triangle simulé, rendu depuis l'issue~\#257 dès le premier cumul simulé non
-strictement positif ou non fini (cellule \code{NA}, colonnes suivantes non tirées)~; vecteur de
-13 statistiques \\
+\code{mw\_simuler\_triangle()},\newline \code{.mw\_simuler\_}\newline\code{triangle\_etat()},\newline
+\code{.mw\_stats()} & \code{aj}, vivier de
+résidus~; \code{aj}, \code{figes} (objet des ensembles figés à l'observé depuis l'issue~\#278,
+auparavant arguments \code{j\_degeneres} et, depuis l'issue~\#270, \code{j\_non\_identifiables}~;
+\code{NULL}~: construit sur \code{aj}) & triangle simulé, rendu depuis l'issue~\#257 dès le premier cumul simulé non
+strictement positif ou non fini (cellule \code{NA}, colonnes suivantes non tirées)~; depuis
+l'issue~\#278, le calcul est porté par \code{.mw\_simuler\_}\allowbreak\code{triangle\_etat()},
+qui rend aussi l'indicateur \code{complet} (\code{FALSE} si le triangle a été rendu au premier
+cumul invalide), \code{mw\_simuler\_triangle()} en étant l'enveloppe (mêmes tirages, même
+triangle)~; vecteur de 13 statistiques \\
 \code{.mw\_tirer\_triangle\_}\newline\code{valide()},\newline
 \code{.mw\_triangle\_}\newline\code{incomplet()} & \code{aj}, vivier, nombre de tirages restant
 sous le plafond~; triangle simulé & triangle accepté (aucun \code{NA} dans sa partie
-supérieure, \code{.mw\_triangle\_}\allowbreak\code{incomplet()}), nombre de triangles tirés
+supérieure), nombre de triangles tirés
 et écartés, ou \code{NULL} si le plafond est atteint sans triangle accepté~; acceptation-rejet
 dans le flux de \code{mw\_bootstrap()}, partagée avec les boucles des tests unitaires qui la
-reproduisent (issue~\#257, section~\ref{sec:boot-mw}) \\
+reproduisent (issue~\#257, section~\ref{sec:boot-mw}). Depuis l'issue~\#278, l'acceptation lit
+l'indicateur \code{complet} de \code{.mw\_simuler\_}\allowbreak\code{triangle\_etat()} au lieu
+de balayer le triangle une seconde fois par \code{.mw\_triangle\_}\allowbreak\code{incomplet()},
+qui reste le contrôle des tests unitaires~: sur un triangle carré à première colonne complète,
+seul admis par \code{mw\_valider\_triangle()}, la partie supérieure balayée est exactement la
+première colonne et les cellules tirées, d'où la même décision (mesuré sur le triangle de
+contrôle, graines 1 à 100, vivier multiplié par 1, 30, 100 et 300~: sur ces 400 tirages, dont 237
+triangles incomplets, même triangle que \code{mw\_simuler\_triangle()} et même décision que
+\code{.mw\_triangle\_}\allowbreak\code{incomplet()}) \\
 \code{.mw\_pool\_residus()} & \code{aj}, \code{j\_degeneres} & vivier du bootstrap de Mack~:
 résidus retenus par \code{mw\_residus()} (sous forme stable depuis l'issue~\#233), redressés par
 $\sqrt{1 - h_{ij}}$, $1 - h_{ij}$ calculé comme $(S_j - C(i,j))/S_j$, somme des autres cellules
@@ -989,7 +1067,10 @@ vérifications colonne par colonne de M1 et, depuis l'issue~\#60, de
 \code{mw\_stat\_correlation\_}\allowbreak\code{dev()} (\code{NULL}~:
 ensemble calculé sur \code{aj})~; argument \code{j\_non\_identifiables} de
 \code{mw\_test\_courbure()} (ensemble figé des colonnes non identifiables, \code{NULL}~: calculé
-sur \code{aj}, issue~\#270)~; argument facultatif \code{res} (résidus de Mack déjà calculés,
+sur \code{aj}, issue~\#270) et, depuis l'issue~\#273, de
+\code{mw\_test\_ordonnee\_}\allowbreak\code{origine()} (ensemble figé des colonnes non
+identifiables de l'ordonnée, élément \code{origine\_non\_}\allowbreak\code{identifiables} de l'objet des ensembles
+figés)~; argument facultatif \code{res} (résidus de Mack déjà calculés,
 ceux du contexte dans le bootstrap~; \code{NULL}~: calculés par \code{mw\_residus()}, issue~\#239)
 de \code{mw\_test\_exposant\_}\allowbreak\code{variance()} et
 \code{mw\_test\_homogeneite\_}\allowbreak\code{accident()} & statistiques des tests M1 à M6 (détail~: §\ref{sec:index-fonctions}) \\
@@ -1004,12 +1085,17 @@ l'issue~\#253, qui calcule le terme quadratique en forme close, sans \code{lm()}
 écart-type, $t$, p de Student) de la régression pondérée de $F(i,j)$ sur $C(i,j)$ à effet fixe
 de colonne, et son seul $t$, statistique de la pente intra-colonne~; depuis l'issue~\#253, en
 forme close (centrage pondéré par colonne, théorème de Frisch et Waugh), sans \code{lm()}
-(fiche~\ref{mw:m1}) \\
+(fiche~\ref{mw:m1})~; centrage par \code{.mw\_centrage\_pondere()} depuis l'issue~\#278 \\
 \code{.mw\_courbure\_}\newline\code{colonne()} & cumuls $C(\cdot,j)$ et $C(\cdot,j+1)$ d'une
 colonne & coefficient $\hat c_j$, $t_j$ et p bilatérale de Student du terme quadratique de la
 courbure, en forme close (formule de Cauchy--Binet et règle de Cramer), sans \code{lm()}~;
 \code{NULL} si la colonne compte moins de quatre observations ou moins de trois valeurs
 distinctes de $C(i,j)$ (issue~\#253, fiche~\ref{mw:m1c}) \\
+\code{.mw\_combinaisons()} & $n$ & parties à 2, 3 et 4 éléments de $\{1, \ldots, n\}$
+(\code{utils::combn()}) employées par \code{.mw\_courbure\_}\allowbreak\code{colonne()},
+calculées une fois par $n$ et gardées dans le cache \code{.MW\_COMBN\_CACHE} depuis
+l'issue~\#278, au lieu d'un recalcul à chaque colonne et à chaque réplication~; cache
+déterministe, sans aléa, hors des résultats~: mêmes matrices que l'appel direct \\
 \code{.mw\_me()},\newline \code{.mw\_somme\_me()} & réels~; mantisses et exposants &
 écriture à exposant séparé $v = m\,2^e$, $|m| \in [1, 2[$ (sous-normaux compris, $0$ et non
 finis laissés tels quels), et somme, colonne par colonne, de termes ainsi écrits, ramenés à
@@ -1091,26 +1177,61 @@ $-1$ et $1$ sans ex \ae quo~; homogénéité de $f_j$ et exposant de variance, e
 $X_{\max}$ par \code{.fisher\_combine()} sur \code{p\_min\_col}~; Kruskal--Wallis, extrémité haute,
 $H$ de l'affectation en blocs de rangs contigus~; \code{NA} là où la ligne n'a pas de $p_{\min}$
 (issue~\#125, tableau~\ref{tab:pmin}) \\
-\code{mw\_tests()} & \code{aj}, \code{boot}, \code{alpha} (0,10) &
+\code{mw\_tests()} & \code{aj}, \code{boot}, \code{alpha} (0,10), \code{figes} (\code{NULL}~:
+construit sur \code{aj} par \code{.mw\_ensembles\_figes()}, même calcul) &
 liste des tests M1 à M6 (même structure que \code{usp\_tests()}, même fonction
-d'enregistrement \code{engine\_registre\_tests()}) \\
+d'enregistrement \code{engine\_registre\_tests()})~; depuis l'issue~\#278, les ensembles figés
+sont lus dans l'objet reçu, celui de \code{mw\_bootstrap()}, au lieu d'être recalculés par
+chaque fonction de test. Précondition~: \code{figes} est l'objet même qui a servi à construire
+\code{boot}, ou \code{NULL} si \code{boot} a été construit avec \code{figes = NULL}~; elle n'est
+pas vérifiée, \code{boot} ne portant pas les ensembles figés (les y ajouter changerait les
+références), et un objet différent ferait lire les statistiques observées et simulées de
+\code{boot} avec des ensembles d'une autre définition, sans erreur~; \code{run\_engine()} la
+garantit, \code{.run\_engine\_mw()} construisant l'objet une fois et le passant aux deux appels \\
 \code{.mw\_phrase\_b\_}\newline\code{effectif()} & \code{boot}, \code{mc\_nom} & phrase
 «~\code{B effectif = \dots{} sur B = \dots}~» jointe par \code{mw\_tests()} au commentaire d'une
-ligne de Monte-Carlo (cas~A, $B_{\text{eff}} < B$ et p-value finie~; cas~B, motif
+ligne de Monte-Carlo (cas~A, $B_{\text{eff}} < B$ et p-value finie, sous deux formes depuis
+l'issue~\#279 selon que le plafond du retirage est atteint ou non~; cas~B, motif
 \code{MOTIF\_MC\_REPLIC\_INSUFFISANTES}), chaîne vide sinon~; erreur si \code{boot\$B} ou
-\code{boot\$B\_effectif} manque ou n'est pas fini (issue~\#204, fiche~\ref{mw:m1a}) \\
+\code{boot\$B\_effectif} manque ou n'est pas fini, et, au cas~A seulement, si
+\code{boot\$plafond\_cumuls} manque ou n'est pas un booléen non \code{NA} (issues~\#204
+et~\#279, fiche~\ref{mw:m1a}) \\
 \code{.mw\_phrases\_}\newline\code{retirage()} & \code{boot} & phrases fixes
 \code{PHRASE\_MW\_CUMULS\_RETIRES} (si \code{boot\$cumuls\_retires}) puis
 \code{PHRASE\_MW\_PLAFOND\_CUMULS} (si \code{boot\$plafond\_cumuls}), sans nombre issu du
 bootstrap, jointes par \code{mw\_tests()} avant la phrase de l'issue~\#204, chaîne vide sinon~;
 erreur si l'un des deux champs manque ou n'est pas un booléen non \code{NA} (issue~\#257,
-fiche~\ref{mw:m1a}) \\
+fiche~\ref{mw:m1a})~; depuis l'issue~\#279, \code{PHRASE\_MW\_PLAFOND\_CUMULS} est construite à
+partir de \code{FACTEUR\_B\_MAX\_MW} par \code{sprintf("\%d")}, sans conversion en entier~: même
+chaîne pour la valeur~25, erreur au chargement du moteur pour un facteur non entier, au lieu
+d'une troncature \\
 \code{.mw\_phrase\_non\_}\newline\code{identifiable()} & résultat de
 \code{mw\_test\_courbure()} & phrase fixe jointe par \code{mw\_tests()} au commentaire de la
 ligne de courbure, qui nomme les colonnes de l'élément \code{non\_identifiables} (moins de trois
 valeurs distinctes de $C(i,j)$~: $j$, nombre de facteurs, $K$ et colonnes éligibles de l'appel
 observé, aucun nombre issu du bootstrap), après la phrase des colonnes dégénérées~; chaîne vide
 si l'élément est vide (issue~\#269, fiche~\ref{mw:m1c}) \\
+\code{.mw\_phrase\_}\newline\code{origine\_non\_}\newline\code{identifiable()} & résultat de
+\code{mw\_test\_ordonnee\_}\allowbreak\code{origine()} & phrase fixe jointe par
+\code{mw\_tests()} au commentaire de la ligne de l'ordonnée à l'origine, qui nomme les colonnes
+de l'élément \code{non\_identifiables} (moins de deux valeurs distinctes de $C(i,j)$), au gabarit
+de \code{.mw\_phrase\_}\allowbreak\code{colonnes\_ecartees()}, après la phrase des colonnes
+dégénérées~; chaîne vide si l'élément est vide (issue~\#273, fiche~\ref{mw:m1a}) \\
+\code{.mw\_phrase\_}\newline\code{colonnes\_}\newline\code{ecartees()} & colonnes écartées
+(\code{data.frame} \code{j}, \code{n\_facteurs}), résultat de la fonction de test de l'appel
+observé, sujet (singulier, pluriel), ce qui n'est pas défini, ce que l'exclusion ne prouve pas &
+gabarit unique, depuis l'issue~\#278, des phrases de colonnes écartées de M1, partagé par
+\code{.mw\_phrase\_exclusion()} (colonnes dégénérées),
+\code{.mw\_phrase\_non\_}\allowbreak\code{identifiable()} et, depuis l'issue~\#273,
+\code{.mw\_phrase\_origine\_}\allowbreak\code{non\_identifiable()}~: «~\code{<sujet>~: j = \dots{}
+(\dots{} facteurs), \dots~; <quoi>, colonne hors de la combinaison de Fisher~; K = \dots{}
+colonne(s) testee(s) sur \dots{} eligible(s). L'exclusion ne vaut pas preuve <preuve>.}~»
+(«~\code{colonnes hors}~» et sujet au pluriel pour plusieurs colonnes), $K$ et
+le nombre d'éligibles lus dans le résultat de l'appel observé ($K$ absent compté~0), aucun
+nombre issu du bootstrap~; depuis l'issue~\#273, la clause «~\code{~; K = \dots{} eligible(s)}~»
+est omise quand $K$ vaut \code{NA} (statistique observée non définie, décompte des éligibles
+arrêté à la colonne en cause), la phrase finissant alors par «~\code{hors de la combinaison de
+Fisher.}~»~; chaîne vide sans colonne écartée \\
 \code{mw\_parametre()} &\code{aj}, \code{msep} (champ \code{\$msep}),
 $\sigma_{\text{std}}$, barème & $\sigma_{\mathrm{USP}}$ et ses composantes \\
 \code{mw\_influence()} & \code{aj} & levier, facteur sans la cellule,
@@ -1195,7 +1316,9 @@ $4/\alpha$ n'est pas fini ou n'est pas inférieur à $2^{52}$ \\
 (défaut de calcul intercepté~; option \code{usp.engine.lever\_erreurs}, §\ref{sec:controles}) \\
 \code{.run\_engine\_mw()} & entrées de \code{run\_engine()} pour
 \code{methode = "reserve2"}, dont \code{nature\_donnees} & objet \code{usp\_engine} de la branche
-Merz--Wüthrich \\
+Merz--Wüthrich~; depuis l'issue~\#278, construit une fois, sur le triangle observé, l'objet des
+ensembles figés (\code{.mw\_ensembles\_figes()}) et le passe à \code{mw\_bootstrap()} et à
+\code{mw\_tests()} (argument \code{figes}) \\
 \end{longtable}
 }
 
@@ -1970,9 +2093,10 @@ $1 - \hat\delta$ que les commentaires des lignes de centrage et de variance donn
 chiffres significatifs dans la bande de tolérance (fiche~\ref{fiche:centrage})~: issue de
 l'optimiseur et non stockée en tant que telle ($\hat\delta$ l'est), elle a été signalée et
 conservée lors de la même revue. \emph{Exception bornée} (issue~\#204, décision Q-E2b-4 du
-mainteneur du 12~octobre 2026~; ADR~0003, annotation du 12~octobre 2026, point~4)~: les deux
+mainteneur du 12~octobre 2026~; ADR~0003, annotation du 12~octobre 2026, point~4)~: les
 phrases «~\code{B effectif = \dots{} sur B = \dots}~» que \code{mw\_tests()} pose sur ses lignes de
-Monte-Carlo (fiche~\ref{mw:m1a}, rubrique~5) impriment des entiers de comptage issus
+Monte-Carlo (fiche~\ref{mw:m1a}, rubrique~5), trois gabarits depuis l'issue~\#279 (cas~A hors
+plafond, cas~A au plafond du retirage, cas~B), impriment des entiers de comptage issus
 du bootstrap~; elles seules, et \code{add()} reste soumise entière à la règle. Les deux phrases
 fixes de l'issue~\#257 (\code{PHRASE\_MW\_CUMULS\_RETIRES}, \code{PHRASE\_MW\_PLAFOND\_CUMULS}),
 jointes avant elles, n'impriment aucun nombre issu du bootstrap (seule la formule
@@ -2230,7 +2354,9 @@ Tendance avec le cumulé, à colonne donnée & \ref{mw:m1} &
 depuis l'issue~\#253) &
 idem (p de Student, approchée) & \code{PenteIntra} \\
 Ordonnée à l'origine par colonne & \ref{mw:m1a} &
-\code{mw\_test\_ordonnee\_origine()}~; colonnes dégénérées par \code{.mw\_colonne\_degeneree()} &
+\code{mw\_test\_ordonnee\_origine()}~; colonnes dégénérées par \code{.mw\_colonne\_degeneree()}~;
+colonnes non identifiables par \code{.mw\_colonnes\_origine\_}\allowbreak\code{non\_identifiables()}
+(issue~\#273) &
 idem (p de Fisher, via \code{.fisher\_combine()}) & \code{Origine} \\
 Homogénéité de $f_j$ & \ref{mw:m1b} & \code{mw\_test\_homogeneite\_f()}, même exclusion &
 idem (p de Fisher, via \code{.fisher\_combine()}, sur les $p_j$ de \code{.mw\_spearman()},
@@ -3836,7 +3962,8 @@ condition, les seuils retenus et ce que vaut ce signalement).
 \code{PHRASE\_MW\_CUMULS\_RETIRES}, suivie, si le plafond de tirages est atteint, de
 \code{PHRASE\_MW\_PLAFOND\_CUMULS}~; ces deux phrases ne portent aucun nombre issu du bootstrap
 («~\code{25 (B + 1)}~» est la formule du plafond). Si $B_{\text{eff}} < B$, la phrase
-«~\code{B effectif = \dots{} sur B = \dots}~» les suit~; elle est la seule exception à la règle
+«~\code{B effectif = \dots{} sur B = \dots}~» les suit, sous une forme qui nomme le plafond et
+les statistiques non finies quand le plafond est atteint (issue~\#279)~; elle est la seule exception à la règle
 selon laquelle aucun nombre issu du bootstrap n'entre dans un commentaire (fiche~\ref{mw:m1a},
 rubrique~5, «~Restitution de $B$ effectif inférieur à $B$~»). La phrase de l'issue~\#244 reste la
 dernière.
@@ -5001,7 +5128,8 @@ intérieur, le plafond de la p-value conditionnelle au régime est atteint avec
 $50 \le B_{\text{eff}} < B$, la garantie de l'issue~\#127 portant sur $B$ nominal
 (section~\ref{sec:controles}, issue~\#240)~; ni le plancher ni $B_{\text{eff}}$ n'y sont imprimés, aucun
 nombre issu du bootstrap n'entrant dans le commentaire (issue~\#76~; seule exception, bornée aux
-deux phrases de l'issue~\#204 que pose \code{mw\_tests()}, fiche~\ref{mw:m1a}, rubrique~5), et ils se lisent dans
+phrases de l'issue~\#204 que pose \code{mw\_tests()}, trois gabarits depuis l'issue~\#279,
+fiche~\ref{mw:m1a}, rubrique~5), et ils se lisent dans
 \code{bootstrap\$granularite\_stat} et \code{bootstrap\$B\_effectif}. Mesuré sur un bootstrap
 forgé passé à \code{add()} (statistique bilatérale \code{DW}, $\alpha = 0{,}05$)~: la mention
 «~\code{ECHEC inatteignable}~» apparaît à $B_{\text{eff}} = 79$ ($2/80 = \alpha/2$) et disparaît à
@@ -7993,7 +8121,13 @@ La p-value non simulée $p = 1 - F_{\mathcal{F},q,T-k-q}(F)$, loi $F$ sous le mo
 modèle ajusté (clé \code{RESET}, rejet en queue haute), les volumes $x_t$ étant fixés dans les
 réplications. Sur le jeu de contrôle (méthode prime, $B = 999$)~: $F = 0{,}005077$, p-value
 non simulée $0{,}995$, p-value de Monte-Carlo retenue $0{,}996$. Le commentaire de la ligne ne
-nomme la p-value de Monte-Carlo comme retenue que si elle existe (issue~\#128)~; sinon, il dit
+nomme la p-value de Monte-Carlo que si elle existe (issue~\#128). Si elle existe, il dit, depuis
+l'issue~\#214, «~\code{La p Monte-Carlo, simulee sous le modele ajuste, est calculee~; la p-value
+retenue, s'il en est une, est nommee par nature\_p.}~», sans la déclarer retenue~: c'est la
+formule du test des suites sur ratios bruts (fiche~\ref{fiche:suites-ratios-bruts}), ligne que la
+règle~R1 peut rendre inopérante, reprise ici par harmonisation~; l'ancienne phrase
+(«~\code{\dots{} est retenue.}~») était exacte sur cette ligne, qui n'a pas de $p_{\min}$ et que
+la règle~R1 ne peut donc pas rendre inopérante. Si elle n'existe pas, il dit
 «~\code{La p Monte-Carlo, simulee sous le modele ajuste, est indisponible sur ces donnees~: aucune
 p-value n'est retenue (ADR 0001).}~» (issue~\#182~; il renvoyait auparavant à \code{nature\_p},
 vide depuis l'issue~\#181)~: faute de réplications finies en nombre suffisant, aucune p-value n'est retenue et
@@ -10393,12 +10527,28 @@ Sous la double condition de \code{usp\_runsr\_p\_exacte()} --- $\hat\pi_t$ const
 $z_t - \operatorname{med}(z)$ identiques terme à terme ---, p-value exacte de
 \code{runs\_p\_exacte()}, convention bilatérale du doublement (issue~\#29)~; sinon, p-value de
 Monte-Carlo (clé \code{Runsr}), bilatérale. Le commentaire de la ligne suit ces régimes depuis
-l'issue~\#128~: sous la double condition, il dit la p-value exacte retenue, sauf motif de
+l'issue~\#128~: sous la double condition, il dit la p-value exacte calculée, «~\code{la p-value
+EXACTE est calculee (convention bilaterale du doublement, celle du bootstrap), la meme que sur la
+ligne des suites sur residus standardises (issue \#29)~; la p-value retenue, s'il en est une, est
+nommee par nature\_p.}~», sauf motif de
 dégénérescence de \code{Runsr}, qui l'écarte (ADR~0001, section~\ref{sec:nature}, point~(ii))~;
-hors de la double condition, il ne nomme la p-value de Monte-Carlo comme retenue que si elle
-existe, et dit sinon qu'elle «~\code{est indisponible sur ces donnees~: aucune p-value n'est retenue
+hors de la double condition, il ne nomme la p-value de Monte-Carlo que si elle
+existe --- à $\hat\pi_t$ variable, «~\code{Seule la p-value Monte-Carlo, simulee sous le modele
+ajuste avec ses pi\_t, est calculee~; la p-value retenue, s'il en est une, est nommee par
+nature\_p~;}~» ---, et dit sinon qu'elle «~\code{est indisponible sur ces donnees~: aucune p-value n'est retenue
 (ADR 0001)}~» (issue~\#182~; mesuré à $\hat\pi_t$ variable sur le jeu à $\hat\delta$ intérieur avec
-\code{usp\_bootstrap(B = 40)}~; il renvoyait auparavant à \code{nature\_p}). Quand $\hat\pi_t$ est constant mais qu'un signe
+\code{usp\_bootstrap(B = 40)}~; il renvoyait auparavant à \code{nature\_p}). \emph{Aucune phrase de
+\code{usp\_tests()} ne déclare la p-value retenue} (issue~\#214, décision Q-F-5)~: jusqu'à cette issue, il disait
+«~\code{la p-value EXACTE est retenue}~» sous la double condition et «~\code{Seule la p-value
+Monte-Carlo [\dots] est retenue}~» à $\hat\pi_t$ variable, ce que contredit la règle~R1 quand elle
+bascule la ligne en test inopérant~: \code{add()} ne retient alors aucune p-value, et le
+commentaire commence par «~\code{TEST INOPERANT \dots{}~; aucun verdict (ADR 0001).}~». La
+p-value retenue, s'il en est une, se lit dans \code{nature\_p} et \code{p\_retenue}. Mesuré
+(\code{run\_engine()}, méthode prime, $B = 999$, graine 20260831, $\alpha = 0{,}05$, moteur
+antérieur à l'issue pour «~avant~»)~: sur le jeu de contrôle (double condition, $p_{\min} = 4/70 =
+0{,}0571 \ge \alpha$) comme sur le jeu à $\hat\delta$ intérieur ($\hat\pi_t$ variable, plancher
+Monte-Carlo au moins égal à $\alpha$), la ligne est un test inopérant, \code{p\_retenue} vaut
+\code{NA}, et le commentaire, qui disait la p-value «~\code{retenue}~», la dit «~\code{calculee}~». Quand $\hat\pi_t$ est constant mais qu'un signe
 diffère entre $u_t - \operatorname{med}(u)$ et $z_t - \operatorname{med}(z)$, le commentaire
 distingue depuis l'issue~\#187 deux sous-cas~: $\hat\pi_t$ \emph{exactement} constant,
 où l'écart est attribué au traitement numérique (centrage de $u$ par la moyenne, aplatissement des
@@ -10407,14 +10557,15 @@ section~\ref{sec:ex-aequo}), non à une variation de $\hat\pi_t$~; $\hat\pi_t$ c
 tolérance \code{TOL\_DELTA\_BORD} près seulement, où la variation résiduelle de $\hat\pi_t$ est
 nommée. Dans les deux sous-cas, il se termine par «~\code{La p-value Monte-Carlo, simulee sous le
 modele ajuste, est calculee ; la p-value retenue, s'il en est une, est nommee par nature\_p.}~»
-quand cette p-value existe (seule branche où cette phrase subsiste, issue~\#182), et par la phrase
+quand cette p-value existe (issue~\#182~; formule étendue par l'issue~\#214 aux deux autres
+régimes de la ligne, à RESET et à OLS-CUSUM), et par la phrase
 d'indisponibilité ci-dessus sinon, sans dire la p-value de Monte-Carlo retenue, une règle de restitution pouvant encore l'écarter
 (cas mesuré à la fiche~\ref{fiche:suites-wald-wolfowitz}, rubrique~5). Sous la double condition, la p-value de
 Monte-Carlo, quand elle existe, estime la même quantité que la p-value exacte, à l'erreur de
 Monte-Carlo près~; le commentaire ne cite cette p-value de Monte-Carlo que si elle existe
 («~\code{La p-value Monte-Carlo de la colonne p\_mc estime la meme quantite, a l'erreur
 Monte-Carlo pres.}~»), et n'ajoute rien quand \code{p\_mc} est manquante, la p-value exacte
-retenue étant déjà nommée (mesuré sur le jeu de contrôle avec \code{usp\_bootstrap(B = 40)},
+calculée étant déjà nommée (mesuré sur le jeu de contrôle avec \code{usp\_bootstrap(B = 40)},
 \code{p\_mc} manquante, et $B = 999$, \code{p\_mc} $= 0{,}768$). La condition, ses deux motifs et les deux limites
 (bande de tolérance, régime estimé) sont détaillés à la fiche~\ref{fiche:suites-wald-wolfowitz},
 rubrique~5. Mesuré sur le jeu de contrôle ($\hat\delta = 1$)~: $Z = -0{,}764$ sur $u_t$ comme sur
@@ -10534,8 +10685,12 @@ La statistique converge donc vers $\sup_{u\in[0,1]}|B^\circ(u)|$, de loi de Kolm
 Asymptotiquement
 $p = 2\sum_{j=1}^{\infty}(-1)^{j-1}\exp\!\big(-2j^2\,\mathrm{CUSUM}^2\big)$.
 Le script retient la p-value de Monte-Carlo, l'approximation brownienne étant inutilisable à
-$T \le 15$. Le commentaire («~\code{La formule asymptotique n'a aucune validite a T = 8~: p\_mc
-retenue}~») ne nomme \code{p\_mc} comme retenue que si elle existe~; sinon, il dit qu'elle est
+$T \le 15$. Le commentaire ne nomme \code{p\_mc} que si elle existe~; il dit alors, depuis
+l'issue~\#214, «~\code{La formule asymptotique n'a aucune validite a T = 8~; p\_mc est calculee~;
+la p-value retenue, s'il en est une, est nommee par nature\_p.}~» (jusqu'à cette issue,
+«~\code{\dots{}~: p\_mc retenue}~», exact sur cette ligne, sans $p_{\min}$, que la règle~R1 ne
+peut rendre inopérante~; formule harmonisée avec celle du test des suites sur ratios bruts,
+fiche~\ref{fiche:suites-ratios-bruts})~; sinon, il dit qu'elle est
 indisponible~: «~\code{\dots{}~; p\_mc est indisponible sur ces donnees~: aucune p-value n'est
 retenue (ADR 0001)}~» (issues~\#128 et~\#182~; il renvoyait auparavant à \code{nature\_p})~: faute de réplications finies en
 nombre suffisant, la ligne devient, par la règle~(ii) de la section~\ref{sec:nature}, un
@@ -11824,7 +11979,14 @@ Student par colonne est inférieure au seuil $\alpha$ du calcul (\code{res\$meta
 lu par \code{plot\_mw\_origine(pd, alpha)} et par la note \code{note\_m1(pd, alpha)} qui les
 compte, et non plus fixé à $0{,}10$ dans l'affichage (issue~\#4, piste~3). Cette coloration
 colonne par colonne est une aide de lecture~: elle ne tient pas compte de la multiplicité des
-colonnes, et le verdict est celui de la fiche~\ref{mw:m1a}. Celui de la
+colonnes, et le verdict est celui de la fiche~\ref{mw:m1a}. Ce graphique représente les
+colonnes testées par l'appel observé de \code{mw\_test\_ordonnee\_}\allowbreak\code{origine()}
+(élément \code{detail})~: une colonne exclue comme dégénérée ou non identifiable de l'ordonnée à
+l'origine (moins de deux valeurs distinctes de $C(i,j)$) n'y figure pas, et, depuis
+l'issue~\#273, quand \code{lm()} rend la statistique observée non définie (colonne retenue à moins
+de deux coefficients, fiche~\ref{mw:m1a}), aucune colonne n'est représentée et le graphique
+affiche «~\code{Ordonnees a l'origine indisponibles}~». Une statistique non définie faute de deux
+colonnes testées ($K = 1$) laisse la colonne testée représentée. Celui de la
 famille $\alpha$ chiffre l'enjeu du choix de pondération~: des courbes
 confondues signifient que la question est sans portée pratique sur le triangle
 considéré~; des courbes qui divergent sur une colonne désignent celle où
@@ -12689,13 +12851,74 @@ $J-3$ et $J-2$, trois vérifications de M1, refus du triangle totalement dégén
 (issue~\#192, §\ref{sec:controles}) et exclusion des résidus de Mack (issue~\#60,
 §\ref{sec:mw}). Elle est exclue de la combinaison de Fisher avant tout appel à \code{lm()} ou
 \code{cor.test()}, comme une colonne trop courte, et nommée dans le libellé de la ligne
-(«~$K$ colonne(s) testée(s) sur $n$ éligible(s)~»), sans champ nouveau~; l'exclusion ne vaut
-pas preuve de proportionnalité. Le seuil $10^{-12}$ est une convention de restitution, environ
+(«~$K$ colonne(s) testée(s) sur $n$ éligible(s)~», clause omise depuis l'issue~\#273 quand la
+statistique observée n'est pas définie, $K$ valant alors \code{NA}), sans champ nouveau~;
+l'exclusion ne vaut pas preuve de proportionnalité. Le seuil $10^{-12}$ est une convention de restitution, environ
 $4\,500$ fois l'epsilon machine ($2{,}2\cdot 10^{-16}$), et non un seuil statistique. La dernière colonne, qui n'a
 qu'un facteur individuel, appartient trivialement à l'ensemble, sans effet puisqu'elle n'est
 jamais éligible. Mesuré sur le triangle de contrôle rendu dégénéré en $j = 4$ (trois facteurs
 égaux)~: la colonne est exclue de la seule ligne d'ordonnée à l'origine, où elle est éligible
 ($K = 4$ colonnes testées sur 5 éligibles), et \code{run\_engine()} n'émet aucun avertissement~R.
+
+\emph{Colonnes non identifiables de l'ordonnée à l'origine} (issue~\#273, option~(A) retenue par
+le mainteneur le 14~octobre 2026). Une colonne éligible ($n_j \ge 3$), hors des colonnes exclues
+et non dégénérée, dont les $C(i,j)$ comptent moins de deux valeurs distinctes (égalité exacte,
+\code{unique()}) n'identifie pas la régression~: $C(i,j)$ étant constant, la constante $a_j$ et
+la pente $b_j$ ne sont pas séparables. L'ensemble de ces colonnes
+(\code{.mw\_colonnes\_origine\_}\allowbreak\code{non\_identifiables()}) est calculé une fois
+sur le triangle observé, après les colonnes dégénérées, et figé pour chaque réplication (élément
+\code{origine\_non\_identifiables} de l'objet des ensembles figés, argument
+\code{j\_non\_identifiables} de \code{mw\_test\_ordonnee\_}\allowbreak\code{origine()}, lu par
+l'entrée \code{Origine} de \code{MW\_CATALOGUE\_MC})~: c'est la règle de la courbure
+(fiche~\ref{mw:m1c}, \emph{Ensemble figé à l'observé}), transposée~: l'argument de cette fiche
+(\emph{Pourquoi figer l'ensemble plutôt que reproduire la sélection dans chaque réplication}) s'y
+applique tel quel, les égalités exactes de l'observé ne se retrouvant pas dans les cumuls simulés
+pour $j \ge 1$~; ses chiffres, établis pour la courbure, ne s'y transposent pas. Une colonne de l'ensemble est comptée parmi les éligibles, écartée avant le contrôle
+de dégénérescence, hors de~$K$, et nommée dans le commentaire de la ligne par
+\code{.mw\_phrase\_origine\_}\allowbreak\code{non\_identifiable()}, après la phrase des colonnes
+dégénérées~: «~\code{Colonne a moins de deux valeurs distinctes de C(i,j)~: j = \dots{}
+(\dots{} facteurs)~; ordonnee a l'origine non identifiable, colonne hors de la combinaison de
+Fisher~; K = \dots{} colonne(s) testee(s) sur \dots{} eligible(s). L'exclusion ne vaut pas preuve
+de proportionnalite.}~» (au pluriel pour plusieurs colonnes), $j$, $n_j$, $K$ et le nombre
+d'éligibles étant ceux de l'appel observé, aucun n'étant issu du bootstrap (issue~\#76). Le
+prédicat ne lit pas le rang numérique de \code{lm()}. Second volet~: plus aucune colonne n'est
+écartée sans trace. Une colonne retenue dont \code{lm()} échoue ou rend moins de deux
+coefficients --- $C(i,j)$ constant dans une réplication, ou, à l'observé, colonne à plusieurs
+valeurs distinctes que le critère de rang numérique de \code{lm()} écarte --- rend la
+statistique \code{NA}, avec $K$ \code{NA}~: la réplication sort de $B$ effectif, et, à l'observé,
+la ligne est restituée non applicable (motif «~\code{statistique observee non finie}~», verdict
+\code{INFO}). Avant l'issue, une telle colonne était écartée sans trace, à l'observé comme dans
+une réplication, de sorte que $K$ pouvait différer entre la statistique observée et ses
+réplications. Quand la colonne était écartée à l'observé seulement (cas de la mesure ci-dessous),
+la règle antérieure était conservatrice, et ce sens est exact, non approché~: à triangles simulés
+identiques et à $B$ effectif égal, chaque statistique simulée était la statistique actuelle
+augmentée du terme $-2\ln p_j \ge 0$ de la colonne écartée à l'observé, de sorte que la p-value
+de Monte-Carlo antérieure majorait l'actuelle. L'ampleur n'est établie que par la mesure~; sous
+l'approximation nominale (colonnes indépendantes), $K = 4$ à l'observé contre $5$ dans les
+réplications donnerait un rejet de probabilité
+$\mathbb{P}\big(\chi^2(8) \ge q_{0{,}90}(\chi^2(10))\big) = 0{,}043$ au seuil de $0{,}10$ et
+$0{,}019$ au seuil de $0{,}05$ (calcul exact sous cette approximation,
+\code{pchisq(qchisq(1 - a, 10), 8, lower.tail = FALSE)}, non mesure à $T = 8$). Une colonne
+écartée dans une réplication seulement aurait joué en sens inverse~; aucune des 999 réplications
+du triangle de la mesure ci-dessous (T4 de la fiche~\ref{mw:m1c}) n'en compte. Mesuré (\code{run\_engine()},
+méthode \code{reserve2}, $B = 999$, graine 20260831, moteur de \code{bbe3a2a} pour «~avant~»)
+sur le triangle de contrôle dont $C(i,1)$ vaut $1\,050$ pour $i = 0$ à~$5$~: avant, $K = 4$ à
+l'observé et $K = 5$ dans les 999 réplications, p-value de Monte-Carlo $0{,}289$~; après, $K = 4$
+à l'observé et dans les 999 réplications, p-value de Monte-Carlo $0{,}162$, verdict \code{OK}
+inchangé, la phrase nommant «~\code{j = 1 (6 facteurs)}~» avec «~\code{K = 4 colonne(s)
+testee(s) sur 5 eligible(s)}~». Sur le triangle de contrôle lui-même, aucune colonne non
+identifiable, p-value inchangée ($0{,}085$). Sur le triangle de contrôle dont $C(i,1)$ vaut
+$1\,050\,(1 + 10^{-8} i)$ pour $i = 0$ à~$5$ (six valeurs distinctes, colonne hors de
+l'ensemble, que \code{lm()} écarte)~: avant, même p-value $0{,}289$, la colonne étant écartée sans
+trace~; après, ligne non applicable. Si l'on garde $C(i,1) = 1\,050$ pour $i = 0$ à~$5$ et que
+$C(i,2)$ vaut $1\,600\,(1 + 10^{-8} i)$ pour $i = 0$ à~$4$, la ligne est non applicable et la phrase des colonnes
+non identifiables, qui nomme $j = 1$, s'arrête à «~\code{hors de la combinaison de Fisher.}~»,
+sans clause $K$. \emph{Conséquence sur le graphique}~: les ordonnées à l'origine représentées
+(section~\ref{sec:graph-mw}) sont le détail par colonne de l'appel observé~; quand \code{lm()}
+rend la statistique observée non définie (second volet ci-dessus), ce détail est vide et le graphique affiche «~\code{Ordonnees a
+l'origine indisponibles}~», alors qu'avant l'issue il représentait les autres colonnes (quatre sur
+le triangle à $C(i,1) = 1\,050\,(1 + 10^{-8} i)$). Sur une colonne constante, membre de l'ensemble figé, le graphique
+représente les autres colonnes, comme avant.
 \Loi
 $X \sim \chi^2(2K)$ \emph{si les colonnes étaient indépendantes}. Elles ne le
 sont pas tout à fait~: les colonnes $j$ et $j+1$ partagent le vecteur
@@ -12723,16 +12946,19 @@ commentaire le signale à la graine 20260831 par la phrase \code{PHRASE\_VERDICT
 $10^{-12}$ relative, deux volets du prédicat) est déterminé sur le triangle observé et conservé dans chaque réplication,
 de sorte que $K$ est identique entre statistique observée et simulée~; une réplication dans
 laquelle une colonne retenue devient dégénérée n'a pas de statistique et est comptée hors de
-\code{B\_effectif} (\code{.mw\_colonnes\_degenerees()}, argument \code{j\_degeneres}~; pour
+\code{B\_effectif} (\code{.mw\_colonnes\_degenerees()}, argument \code{j\_degeneres} des fonctions de
+test, élément \code{degeneres} de l'objet des ensembles figés depuis l'issue~\#278~; pour
 la courbure, une colonne de l'ensemble figé des colonnes non identifiables n'est pas retenue et
-reste ignorée, fiche~\ref{mw:m1c}). Depuis
+reste ignorée, fiche~\ref{mw:m1c}, de même, depuis l'issue~\#273, pour l'ordonnée à l'origine,
+ci-dessus). Depuis
 l'issue~\#60, le même ensemble figé est transmis aux résidus de Mack de chaque réplication
 (contexte de \code{.mw\_contexte\_mc()}, entrées \code{ExpVar} et \code{KruskalAcc} du
 catalogue \code{MW\_CATALOGUE\_MC}) et, par extension décidée par le mainteneur le
 6~octobre 2026, au test calendaire et à la corrélation entre années adjacentes (entrées
 \code{Calendrier} et \code{CorrDev}, fiches~\ref{mw:m3cal} et~\ref{mw:m3cor}).
 Depuis l'issue~\#270, l'ensemble des colonnes non identifiables de la courbure, distinct de
-celui-ci, est figé de même (fiche~\ref{mw:m1c}).
+celui-ci, est figé de même (fiche~\ref{mw:m1c}), et, depuis l'issue~\#273, celui des colonnes non
+identifiables de l'ordonnée à l'origine (ci-dessus).
 \emph{Effectif conditionnel au voisinage du seuil.} Quand une colonne retenue à l'observé est
 juste au-dessus de la tolérance, une part des réplications la rend dégénérée, et la p-value de
 Monte-Carlo des trois vérifications colonne par colonne est calculée sur les seules réplications où la statistique est
@@ -12747,11 +12973,31 @@ actuel, les issues ultérieures de la branche modifiant les réplications.
 \emph{Restitution de $B$ effectif inférieur à $B$} (issue~\#204, décision du mainteneur du
 12~octobre 2026~; ADR~0003, annotation du 12~octobre 2026, point~4). Sur les lignes de ses treize
 statistiques de Monte-Carlo, \code{mw\_tests()} joint en fin du commentaire qu'elle passe à \code{add()}, par
-\code{.mw\_phrase\_b\_effectif()} et avec la règle de jonction d'\code{add()}, l'une de deux
-phrases. \emph{Cas~A}, p-value de Monte-Carlo finie et $B_{\text{eff}} < B$~: «~\code{B effectif =
+\code{.mw\_phrase\_b\_effectif()} et avec la fonction de jonction d'\code{add()},
+\code{.engine\_joindre()} (issue~\#264), l'une de trois
+phrases. \emph{Cas~A}, p-value de Monte-Carlo finie et $B_{\text{eff}} < B$, plafond du retirage
+des triangles simulés non atteint (\code{bootstrap\$plafond\_cumuls} faux)~: «~\code{B effectif =
 \dots{} sur B = \dots{} (\dots{} replication(s) ecartee(s), statistique non finie)~: p-value
 Monte-Carlo conditionnelle a la definition de la statistique, comptee sur les seules
 replications ou elle est finie~; l'absence de biais de cette selection n'est pas demontree.}~».
+\emph{Cas~A au plafond} (issue~\#279, texte approuvé par le mainteneur le 14~octobre 2026),
+mêmes conditions, plafond atteint (\code{bootstrap\$plafond\_cumuls} vrai)~: «~\code{B effectif
+= \dots{} sur B = \dots{} (\dots{} replication(s) manquante(s)~: plafond de tirages atteint et, le
+cas echeant, statistique non finie)~: p-value Monte-Carlo comptee sur les seules replications ou
+la statistique est finie~; les replications perdues au plafond le sont independamment de la
+valeur de la statistique, l'absence de biais de la selection par statistique non finie n'est pas
+demontree.}~», avec les mêmes trois nombres ($B_{\text{eff}}$, $B$, $B - B_{\text{eff}}$), les
+deux causes nommées sans répartition chiffrée. La première partie de la dernière proposition
+repose sur un argument élémentaire, adossé à aucune référence publiée~: conditionnellement au triangle observé (ajustement et vivier fixés), le
+générateur pseudo-aléatoire étant traité comme une suite i.i.d., les triangles simulés successifs
+forment une suite i.i.d.~; la suite des triangles acceptés est alors i.i.d. selon la loi du
+triangle sachant ses cumuls strictement positifs et finis, et indépendante de la suite des
+indicateurs d'acceptation (propriété de la méthode de rejet). Le plafond, qui ne dépend que de
+ces indicateurs, arrête le tirage sans regarder la valeur des statistiques~: le nombre $M \le B$
+de triangles acceptés est une fonction des seuls indicateurs et, conditionnellement à $M$, les
+$M$ triangles acceptés restent i.i.d. sous cette loi~; $B_{\text{eff}}$ est formé parmi eux par la
+seule sélection des statistiques finies. La
+seconde partie, la sélection par statistique non finie, reste non démontrée, comme au cas~A.
 \emph{Cas~B}, motif \code{MOTIF\_MC\_REPLIC\_INSUFFISANTES}~: «~\code{B effectif = \dots{} sur B =
 \dots.}~»~; la ligne est alors un diagnostic si elle porte une p non simulée, un test sans p-value
 retenue sinon (Alpha, CorrDev, DW) (section~\ref{sec:nature}, point~(ii), issue~\#181),
@@ -12775,9 +13021,18 @@ phrase de l'issue~\#204 vient ensuite, celle de l'issue~\#244 reste la dernière
 ne porte de nombre issu du bootstrap. Depuis l'issue~\#257, hors plafond, un triangle simulé à
 cumul non strictement positif ne fait plus perdre de réplication~: le cas~A ne paraît plus que pour
 des statistiques non finies, et sa parenthèse «~\code{statistique non finie}~» est exacte. Au
-plafond, les réplications manquantes ont une statistique \code{NA} et sont comptées, comme les
-statistiques non finies, dans les réplications écartées de la phrase de l'issue~\#204, que la
-phrase du plafond précède et explique (décision D1-4~: texte de l'issue~\#204 inchangé). \emph{Statut}~: la loi de référence devient
+plafond, les réplications manquantes ont une statistique \code{NA} et sont comptées, avec les
+statistiques non finies, dans $B - B_{\text{eff}}$~; de l'issue~\#257 à l'issue~\#279, le texte
+du cas~A restait inchangé (décision D1-4) et imputait alors toutes les réplications manquantes à
+une statistique non finie, alors que le plafond en explique au moins une~; depuis l'issue~\#279,
+la phrase du cas~A au plafond nomme les deux causes. Mesuré (\code{mw\_bootstrap()} et
+\code{mw\_tests()}, $B = 999$, graine 20260831) sur le sous-triangle $8\times8$ de Taylor \&
+Ashe dont la ligne~$0$ est multipliée par $10^{-17}$~: plafond atteint, $B_{\text{eff}} = 839$
+pour les treize statistiques, dont chaque ligne de Monte-Carlo porte, dans cet ordre, la
+phrase du retirage, celle du plafond et «~\code{B effectif = 839 sur B = 999 (160 replication(s)
+manquante(s)~: plafond de tirages atteint et, le cas echeant, statistique non finie)}~\dots~»,
+au lieu de «~\code{(160 replication(s) ecartee(s), statistique non finie)}~» avant l'issue~; aucune
+p-value, aucun verdict ne change. \emph{Statut}~: la loi de référence devient
 celle de la statistique \emph{sachant qu'elle est définie}~; aucun résultat ne garantit l'absence
 de biais de cette sélection, et la phrase le dit sans corriger la p-value. Mesuré par
 \code{mw\_bootstrap()} et \code{mw\_tests()} (graine 20260831) sur le triangle de Taylor \& Ashe
@@ -12789,7 +13044,8 @@ $B_{\text{eff}} = 42$, cas~B, trois diagnostics~; les dix autres statistiques de
 $B_{\text{eff}} = B$, n'en donnent aucune. Sur \code{reserve2}, $B_{\text{eff}} = B$ pour les
 treize statistiques et aucune ligne ne porte la phrase.
 \emph{Asymétrie avec M3, conservée sans alignement.} Pour une colonne \emph{retenue} à
-l'observé (pour la courbure, hors aussi de l'ensemble figé des colonnes non identifiables) qui
+l'observé (pour la courbure et l'ordonnée à l'origine, hors aussi de l'ensemble figé des colonnes
+non identifiables de la vérification) qui
 devient dégénérée dans une réplication, M1 rend une statistique non définie et
 écarte la réplication de \code{B\_effectif}~; le test calendaire et la corrélation entre années
 adjacentes gardent la réplication, la colonne n'en étant écartée que si l'aplatissement des ex
@@ -12804,11 +13060,14 @@ p-value~: une p-value nulle, débordement de la loi de référence, est relevée
 lieu d'écarter la colonne qui porte la preuve la plus forte contre $H_0$~; une p-value non finie
 ou hors de $[0, 1]$ rend la statistique \code{NA} sans changer $K$, et la réplication sort de
 \code{B\_effectif}. $K$ est ainsi le nombre de p-values transmises, et ne varie plus que si la
-fonction de la ligne écarte elle-même une colonne (colonne trop courte, \code{lm()} en échec
-pour l'ordonnée à l'origine, garde $\mathrm{sd} = 0$ de l'exposant de variance,
+fonction de la ligne écarte elle-même une colonne (colonne trop courte, garde $\mathrm{sd} = 0$
+de l'exposant de variance,
 et, pour la courbure depuis l'issue~\#253, moins de trois valeurs distinctes de $C(i,j)$, prédicat
 qui couvre la garde $\mathrm{sd} = 0$ qu'elle avait jusqu'à l'issue~\#270 et dont l'ensemble est,
-depuis cette issue, figé à l'observé, fiche~\ref{mw:m1c}). Auparavant, une p-value
+depuis cette issue, figé à l'observé, fiche~\ref{mw:m1c}~; pour l'ordonnée à l'origine,
+\code{lm()} en échec écartait la colonne jusqu'à l'issue~\#273, depuis laquelle il rend la
+statistique \code{NA}, l'ensemble des colonnes à moins de deux valeurs distinctes de $C(i,j)$
+étant figé à l'observé, \emph{Colonnes non identifiables de l'ordonnée à l'origine}, ci-dessus). Auparavant, une p-value
 nulle faisait écarter sa colonne sans trace, et $K$ pouvait différer entre la statistique
 observée et ses réplications (effet mesuré, fiche~\ref{mw:m1b}). Limite
 mesurée et acceptée~: une colonne dont l'écart relatif dépasse à peine $10^{-12}$ reste soumise
@@ -13075,7 +13334,9 @@ distinctes de $C(i,j)$ dans un élément \code{non\_identifiables}, table à deu
 colonne en $j$ croissant, vide s'il n'y en a aucune, porté par tous les retours de la fonction,
 retours \code{NA} compris. Une telle colonne reste comptée parmi les colonnes éligibles, hors
 de~$K$~; elle n'est pas une colonne dégénérée au sens de la fiche~\ref{mw:m1a}, et les deux
-autres vérifications colonne par colonne de M1 ne l'excluent pas. \code{mw\_tests()} la nomme
+autres vérifications colonne par colonne de M1 ne l'excluent pas à ce titre (depuis
+l'issue~\#273, l'ordonnée à l'origine écarte, par son propre ensemble figé, les colonnes à une
+seule valeur distincte de $C(i,j)$, fiche~\ref{mw:m1a}). \code{mw\_tests()} la nomme
 dans le commentaire de la ligne par \code{.mw\_phrase\_}\allowbreak\code{non\_identifiable()},
 phrase fixe dont les seuls nombres sont $j$, $n_j$, $K$ et le nombre de colonnes éligibles de
 l'appel observé, aucun n'étant issu du bootstrap (issue~\#76)~: «~\code{Colonne a moins de trois
@@ -13084,7 +13345,9 @@ identifiable, colonne hors de la combinaison de Fisher~; K = \dots{} colonne(s) 
 \dots{} eligible(s). L'exclusion ne vaut pas preuve de linearite.}~», au pluriel
 «~\code{Colonnes a moins de trois}~\dots~» et «~\code{colonnes hors de la combinaison}~» quand il y en a plusieurs,
 énumérées par des virgules. Elle suit la phrase des colonnes dégénérées quand les deux sont
-posées, avec la même clause «~\code{K = \dots{} sur \dots{} eligible(s)}~», et précède les
+posées, avec la même clause «~\code{K = \dots{} sur \dots{} eligible(s)}~» (omise des deux
+phrases, depuis l'issue~\#273, quand la statistique observée n'est pas définie et que $K$ vaut
+\code{NA}~; gabarit commun \code{.mw\_phrase\_}\allowbreak\code{colonnes\_ecartees()}), et précède les
 phrases du retirage des triangles simulés (issue~\#257), de $B$ effectif inférieur à $B$
 (issue~\#204) et du verdict de Monte-Carlo proche d'un seuil atteignable (issue~\#244), jointes
 ensuite dans cet ordre (fiche~\ref{mw:m1a}). Mesuré (\code{run\_engine()}, méthode
@@ -13115,12 +13378,18 @@ eligible(s)}~».
 $n_j \ge 4$, hors des colonnes exclues de la vérification (ensemble figé des colonnes dégénérées,
 fiche~\ref{mw:m1a}), dont la colonne n'est pas dégénérée et dont les $C(i,j)$ comptent moins de
 trois valeurs distinctes, au sens de l'égalité exacte (\code{unique()})~; une colonne constante en
-fait partie. \code{mw\_bootstrap()} calcule cet ensemble une fois, sur le triangle observé, après
-celui des colonnes dégénérées, et le transmet à chaque réplication par l'argument
-\code{j\_non\_identifiables} de \code{mw\_test\_courbure()}, de \code{.mw\_contexte\_mc()} et de
-\code{.mw\_stats()}, que lit l'entrée \code{Courbure} de \code{MW\_CATALOGUE\_MC} (nom, rejet en
-queue haute et absence d'extrémités inchangés)~; à l'appel observé, l'argument vaut \code{NULL}
-et l'ensemble est calculé sur le triangle, ce qui donne le même. La statistique observée et
+fait partie. Cet ensemble est calculé une fois, sur le triangle observé, après
+celui des colonnes dégénérées, et transmis à chaque réplication par l'argument
+\code{j\_non\_identifiables} de \code{mw\_test\_courbure()}, que lui passe l'entrée
+\code{Courbure} de \code{MW\_CATALOGUE\_MC} (nom, rejet en
+queue haute et absence d'extrémités inchangés). Depuis l'issue~\#278, il est l'élément
+\code{non\_identifiables} de l'objet unique des ensembles figés (\code{.mw\_ensembles\_figes()},
+index des fonctions), construit par \code{.run\_engine\_mw()} et passé à \code{mw\_bootstrap()},
+qui le transmet au contexte de \code{.mw\_contexte\_mc()} et \code{.mw\_stats()}, où la fermeture
+le lit, et à \code{mw\_tests()}, qui le passe à l'appel observé~; avant cette issue, il était
+calculé dans \code{mw\_bootstrap()}, transmis par un argument \code{j\_non\_identifiables} de
+\code{.mw\_contexte\_mc()} et de \code{.mw\_stats()}, et recalculé sur le triangle pour l'appel
+observé, ce qui donnait le même. La statistique observée et
 celle de chaque réplication combinent ainsi les mêmes colonnes, avec le même $K$~: c'est la
 règle des colonnes dégénérées (issue~\#56, fiche~\ref{mw:m1a}), transposée. Son second volet
 l'est aussi~: une colonne retenue à l'observé mais non identifiable dans une réplication rend la
@@ -13138,7 +13407,9 @@ hors de l'ensemble figé, la même colonne rend la statistique et $K$ \code{NA}.
 figé~: il est formé avant le parcours des colonnes et porté complet par les retours \code{NA},
 alors que \code{exclues} et le nombre de colonnes éligibles restent ceux des colonnes parcourues
 avant l'arrêt. L'ensemble est distinct de celui des colonnes dégénérées~: les deux autres
-vérifications colonne par colonne de M1 et les résidus de Mack ne l'emploient pas. Aucun tirage
+vérifications colonne par colonne de M1 et les résidus de Mack ne l'emploient pas~; l'ordonnée à
+l'origine a, depuis l'issue~\#273, son propre ensemble figé, à moins de deux valeurs distinctes
+(fiche~\ref{mw:m1a}). Aucun tirage
 n'est ajouté ni retiré~; seule la statistique des réplications change.
 
 \emph{Pourquoi figer l'ensemble plutôt que reproduire la sélection dans chaque réplication.}
@@ -15193,7 +15464,13 @@ simulé invalide n'a été tiré. Dans ce cas, \code{mw\_bootstrap()} consomme d
 l'issue~\#257 le même flux et rend les mêmes triangles (section~\ref{sec:boot-mw}). Avant toute
 relance, le générateur \code{gen\_triangle\_h0()} et le contrôle~(s) du script, qui
 reproduisent la simulation antérieure à l'issue (\code{NaN} au lieu de l'arrêt au premier cumul
-invalide, sans retirage), sont à aligner (issue~\#271). Contrôles~: le triangle de
+invalide, sans retirage), sont à aligner (issue~\#271). La mesure est aussi antérieure à
+l'issue~\#273 (fiche~\ref{mw:m1a}) et n'a pas été reprise sous le moteur postérieur. L'issue ne
+change la statistique de la ligne \code{Origine} que sur une colonne à moins de deux valeurs
+distinctes de $C(i,j)$ ou que \code{lm()} écarte (tolérance $10^{-7}$)~; sous le plan, la première
+colonne, fixée, compte huit valeurs distinctes et les colonnes suivantes sont simulées, ce qui
+rend ces cas invraisemblables sans les exclure formellement~: les niveaux de la ligne sont tenus
+pour inchangés, argument non mesuré. Contrôles~: le triangle de
 contrôle traité par le script est identique à sa référence de non-régression~; aucun triangle
 refusé, aucune p-value de Monte-Carlo absente~; $B$ effectif de 999 partout, sauf $998$ pour
 $0{,}004~\%$ des couples (triangle, statistique) sous E.
@@ -15850,15 +16127,19 @@ Merz--Wüthrich~: résidus standardisés de Mack (§\ref{sec:mw}) &
 stable, issue~\#233) \\
 Merz--Wüthrich~: bootstrap semi-paramétrique et p-values de Monte-Carlo
 (§\ref{sec:boot-mw}) & \code{mw\_bootstrap()}, \code{.mw\_pool\_residus()} (vivier redressé
-par le levier, issue~\#46), \code{mw\_simuler\_triangle()}, \code{.mw\_stats()}~; retirage
+par le levier, issue~\#46), \code{mw\_simuler\_triangle()}, \code{.mw\_stats()}~; ensembles de
+colonnes figés à l'observé, objet unique de \code{.mw\_ensembles\_figes()}, contrôlé par
+\code{.mw\_verifier\_figes()} (issue~\#278)~; retirage
 des triangles simulés à cumul non strictement positif par
 \code{.mw\_tirer\_triangle\_}\allowbreak\code{valide()}, plafond \code{FACTEUR\_B\_MAX\_MW}
 (issue~\#257) \\
 Merz--Wüthrich~: tests et diagnostics M1 à M6 (sections~\ref{sec:mwm1}
 à~\ref{sec:mwm6}) & \code{mw\_tests()}~; phrases du retirage par
 \code{.mw\_phrases\_}\allowbreak\code{retirage()} (issue~\#257)~; phrase de $B$ effectif inférieur à $B$ par \code{.mw\_phrase\_b\_effectif()}
-(issue~\#204)~; phrase des colonnes non identifiables de la courbure par
-\code{.mw\_phrase\_}\allowbreak\code{non\_identifiable()} (issue~\#269) \\
+(issue~\#204~; forme au plafond du retirage, issue~\#279)~; phrase des colonnes non identifiables de la courbure par
+\code{.mw\_phrase\_}\allowbreak\code{non\_identifiable()} (issue~\#269) et de l'ordonnée à
+l'origine par \code{.mw\_phrase\_origine\_}\allowbreak\code{non\_identifiable()}
+(issue~\#273) \\
 Merz--Wüthrich~: leviers, DFBETA, DFBETAS et contributions par année de survenance
 (fiche~\ref{mw:influence}) & \code{mw\_influence()}, \code{mw\_contributions()} \\
 Contrôles de validité (§\ref{sec:controles}) & \code{engine\_valider\_donnees()}, \code{usp\_controle\_donnees()},
