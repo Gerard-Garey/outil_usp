@@ -2757,9 +2757,10 @@ usp_identifiabilite_pente <- function(x, beta, sigma, alpha, unilateral = FALSE)
 # les T! appariements de y avec x sont equiprobables. La statistique est la
 # correlation r (fonction croissante de t_b et de b_hat a x et {y_t} fixes :
 # meme ordre des appariements). Echelle brute (x, y), sans logarithme.
-# Calcul : x et y centres reduits ; r de chaque appariement par un produit
-# matriciel unique (lignes = permutations) ; r_obs lu sur la ligne identite
-# de ce meme calcul (pas de formule separee, pas de lm()), d'ou p >= 1/T!.
+# Calcul : x et y centres reduits ; r de chaque appariement par produit
+# matriciel (lignes = permutations), bloc par bloc (.usp_r_permutations(),
+# #222) ; r_obs lu sur la ligne identite de ce meme calcul (pas de formule
+# separee, pas de lm()), d'ou p >= 1/T!.
 # Comptage des permutations au moins aussi extremes a TOL_EX_AEQUO pres, en
 # tolerance absolue (|r| <= 1, regime plancher 1 de engine_aplatir_ex_aequo()).
 #   T <= T_MAX_ENUM_PERMUTATION (9, comme n_small de prho.c) : enumeration des
@@ -2804,6 +2805,9 @@ SENS_PITMAN_PENTE <- "unilateral"
 .cache_permutations <- new.env(parent = emptyenv())
 # Matrice des T! permutations de 1:T (une par ligne), ligne 1 = identite, par
 # insertion de k en toutes positions (position k d'abord). Mise en cache par T.
+# usp_permutation_pente() ne la demande plus qu'a T - 1 (.usp_r_permutations(),
+# #222) : a T = T_MAX_ENUM_PERMUTATION = 9, le cache garde 8! x 8 entiers au
+# lieu de 9! x 9.
 engine_permutations <- function(T) {
   cle <- paste0("T", T)
   if (!is.null(.cache_permutations[[cle]])) return(.cache_permutations[[cle]])
@@ -2822,6 +2826,32 @@ engine_permutations <- function(T) {
     stop("engine_permutations() : la premiere ligne n'est pas l'identite")
   .cache_permutations[[cle]] <- P
   P
+}
+# Correlations r des T! appariements de yc avec xc (vecteurs centres
+# normalises de usp_permutation_pente()), dans l'ordre des lignes de
+# engine_permutations(T) (ligne 1 = identite), sans former la matrice
+# T! x T (#222, point 4). Par construction (insertion), les lignes de
+# engine_permutations(T) forment T blocs consecutifs de (T - 1)! lignes : le
+# bloc de rang b = T - j + 1 (j = T, ..., 1) porte T en colonne j et les
+# lignes de engine_permutations(T - 1) dans les autres colonnes, dans leur
+# ordre. Chaque bloc est multiplie par xc comme l'etait la matrice entiere,
+# avec les memes operandes par ligne. Mesure (#222, BLAS de reference) :
+# resultats de usp_permutation_pente() identical() a ceux du produit de la
+# matrice entiere sur 400 jeux (T = 3 a 9, deux sens). Seule
+# engine_permutations(T - 1) est mise en cache.
+.usp_r_permutations <- function(xc, yc) {
+  T <- length(xc)
+  P1 <- engine_permutations(T - 1L)
+  n <- nrow(P1)
+  Y1 <- matrix(yc[P1], n)
+  Yb <- matrix(0, n, T)
+  rp <- numeric(n * T)
+  for (j in T:1) {
+    Yb[, j] <- yc[T]
+    Yb[, -j] <- Y1
+    rp[(T - j) * n + seq_len(n)] <- as.vector(Yb %*% xc)
+  }
+  rp
 }
 # Nombre d'appariements de y avec x qui reproduisent l'appariement des
 # valeurs aplaties xa (dans l'ordre) avec ya : prod m_a(x)! prod m_b(y)! /
@@ -2853,8 +2883,7 @@ usp_permutation_pente <- function(x, y, B = 999, seed = 20260831,
   extreme <- function(r, r0) if (unilateral) r >= r0 - TOL_EX_AEQUO
                              else abs(r) >= abs(r0) - TOL_EX_AEQUO
   if (methode == "enumeration") {
-    P <- engine_permutations(T)
-    rp <- as.vector(matrix(yc[P], nrow(P)) %*% xc)
+    rp <- .usp_r_permutations(xc, yc)
     r_obs <- rp[1]
     n_perm <- as.numeric(length(rp))
     p <- sum(extreme(rp, r_obs)) / n_perm
@@ -3071,7 +3100,12 @@ usp_poids_gls <- function(x, pi) {
 # (usp_poids_gls() rend NULL, #215) : motif "statistique non definie", apres
 # la marge.
 # pi : vecteur pi_t de l'ajustement sous H0 (fit$pi), obligatoire (#215).
-test_tost_intercept <- function(x, y, pi, theta = 0.10, delta_abs = NULL) {
+# m : regression ponderee .usp_lm_pondere(x, y, pi) (#222, point 1) ;
+# usp_tests() la calcule une fois et la passe a test_intercept() et a
+# test_tost_intercept(). Par defaut calculee ici, et seulement apres les
+# gardes (evaluation paresseuse de l'argument).
+test_tost_intercept <- function(x, y, pi, theta = 0.10, delta_abs = NULL,
+                                m = .usp_lm_pondere(x, y, pi)) {
   # Volumes constants : critere unique usp_volumes_constants() (issue #59).
   # Pertes constantes (usp_pertes_constantes(), #189) : apres les volumes
   # constants, avant la marge.
@@ -3086,9 +3120,8 @@ test_tost_intercept <- function(x, y, pi, theta = 0.10, delta_abs = NULL) {
          p_bas = NA_real_, p_haut = NA_real_, ddl = length(x) - 2,
          marge_a_priori = FALSE, non_applicable = motif)
   if (!is.na(motif)) return(non_applicable(motif))
-  # Modele auxiliaire pondere (#215) ; poids invalides -> statistique non
-  # definie (meme motif que la garde #153 ci-dessous).
-  m <- .usp_lm_pondere(x, y, pi)
+  # Modele auxiliaire pondere (#215), argument m (#222) ; poids invalides
+  # -> statistique non definie (meme motif que la garde #153 ci-dessous).
   if (is.null(m)) return(non_applicable("statistique non definie"))
   # Garde-fou (regle R12, #59) : si lm() a ecarte x, coefficients[1, ] serait
   # la moyenne de y du modele y ~ 1 ; aucune p-value n'est calculee.
@@ -3129,8 +3162,11 @@ test_tost_intercept <- function(x, y, pi, theta = 0.10, delta_abs = NULL) {
 # catalogue Monte-Carlo) ; a poids constants, c'est le t de lm(y ~ x). p :
 # p de Student t(T-2) du t pondere, approchee (poids estimes), non retenue
 # par usp_tests() (regle R5). a : constante estimee ponderee (estimation de
-# la ligne). pi est obligatoire.
-test_intercept <- function(x, y, pi) {
+# la ligne). pi est obligatoire. m : regression ponderee
+# .usp_lm_pondere(x, y, pi), partagee avec test_tost_intercept() par
+# usp_tests() (#222, point 1) ; par defaut calculee ici, apres les gardes
+# (evaluation paresseuse ; entree Intercept du catalogue Monte-Carlo).
+test_intercept <- function(x, y, pi, m = .usp_lm_pondere(x, y, pi)) {
   # Volumes constants (usp_volumes_constants(), #59) ; garde-fou R12 : x
   # ecarte par lm() -> NA, jamais le t de la moyenne du modele y ~ 1.
   # x_ecarte (#168) : TRUE sur la seule branche du garde-fou R12 ; usp_tests()
@@ -3148,7 +3184,6 @@ test_intercept <- function(x, y, pi) {
          pertes_constantes = pertes_constantes, a = NA_real_)
   if (usp_volumes_constants(x)) return(na())
   if (usp_pertes_constantes(y)) return(na(pertes_constantes = TRUE))
-  m <- .usp_lm_pondere(x, y, pi)
   if (is.null(m)) return(na())
   if (!"x" %in% rownames(m$coefficients)) return(na(x_ecarte = TRUE))
   list(stat = m$coefficients[1, 3], p = .p_borne(m$coefficients[1, 4]), x_ecarte = FALSE,
@@ -4856,7 +4891,14 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   fam <- paste("B. H1 - linearite / proportionnalite", cite_hyp("i"))
   # Constante (#215) : modele auxiliaire pondere, poids GLS au pi de
   # l'ajustement sous H0 (fit$pi), comme l'entree Intercept du catalogue.
-  ti <- test_intercept(x, y, fit$pi); lmc <- test_lm_complet(x, y)
+  # Regression ponderee partagee (#222, point 1) : calculee une fois ici et
+  # passee a test_intercept() et a test_tost_intercept(), qui la lisaient
+  # chacune par leur propre appel a .usp_lm_pondere() (memes x, y, pi :
+  # memes valeurs). Volumes ou pertes constants : non calculee (NULL), comme
+  # avant (les deux fonctions sortent sur ces predicats avant de lire m ;
+  # .usp_lm_pondere() n'est appelee qu'apres usp_pertes_constantes()).
+  lm_pond <- if (vol_cst || pertes_cst) NULL else .usp_lm_pondere(x, y, fit$pi)
+  ti <- test_intercept(x, y, fit$pi, m = lm_pond); lmc <- test_lm_complet(x, y)
   # p exacte de Spearman ratio / volume (p_sv), calculee une seule fois et
   # lue par la ligne Spearman ci-dessous. NA a volumes constants (ligne
   # Spearman non applicable, R13).
@@ -4877,7 +4919,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   add(fam, "Nullite de la constante (proportionnalite stricte)",
       fonction = "test_intercept",
       "Student (1908), Biometrika 6",
-      type = si_vol_cst(if (pertes_cst || !is.finite(ti$stat)) "non applicable" else "test"),
+      # Pertes constantes : t NA (test_intercept(), #189), d'ou non
+      # applicable par la seule finitude (#222, point 2).
+      type = si_vol_cst(if (!is.finite(ti$stat)) "non applicable" else "test"),
       H0 = "a = 0 (proportionnalite stricte)", H1 = "a != 0",
       stat_nom = "t", stat = ti$stat,
       loi = sprintf(paste("t(%d) sous le modele auxiliaire pondere (poids estimes :",
@@ -4894,7 +4938,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                             if (!is.finite(ti$stat)) txt_stat_non_def
                             else paste("Le NON-rejet ne prouve pas la proportionnalite :",
                                        "voir le test d'equivalence ci-dessous.")))
-  tost <- test_tost_intercept(x, y, fit$pi, theta = theta_equiv, delta_abs = delta_equiv)
+  tost <- test_tost_intercept(x, y, fit$pi, theta = theta_equiv, delta_abs = delta_equiv,
+                              m = lm_pond)
   add(fam, "Equivalence de la constante a zero (TOST)",
       fonction = "test_tost_intercept",
       "Schuirmann (1987), J. Pharmacokinet. Biopharm. 15",
@@ -4990,9 +5035,11 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # peu disperses), non un ecart au modele : la ligne de la pente est
   # restituee en diagnostic. lambda et la puissance approchee sont rappeles
   # dans le detail dans les deux cas.
-  # Sens du test : SENS_PITMAN_PENTE, seule definition (#169).
+  # Sens du test : SENS_PITMAN_PENTE, seule definition (#169) ; libelle du
+  # detail derive de la constante (#222, point 5), dont .pitman_unilateral()
+  # garantit la valeur.
   pitman_uni <- .pitman_unilateral()
-  txt_sens <- "unilateral"
+  txt_sens <- SENS_PITMAN_PENTE
   idp <- usp_identifiabilite_pente(x, fit$beta, fit$sigma, alpha, unilateral = pitman_uni)
   pente_ident <- !is.finite(idp$puissance) || idp$puissance >= SEUIL_PUISSANCE_PENTE
   txt_ident <- if (!is.finite(idp$puissance)) "" else
@@ -5101,7 +5148,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # txt_f_non_def. R4 et R1 ne la concernent pas.
   add(fam, "Test de Fisher (significativite globale)", "Fisher (1922, 1925)",
       fonction = "test_lm_complet",
-      type = if (pertes_cst || !is.finite(lmc$F)) "non applicable" else "diagnostic",
+      # Volumes ou pertes constants : F NA (test_lm_complet(), #189), d'ou
+      # non applicable par la seule finitude (#222, point 2).
+      type = if (!is.finite(lmc$F)) "non applicable" else "diagnostic",
       H0 = "b = 0", H1 = "b != 0",
       stat_nom = "F", stat = lmc$F,
       loi = if (is.finite(lmc$F))
@@ -11291,13 +11340,13 @@ USP_TXT_RENVOI_SV <- paste(
 }
 
 # Table des tests sous forme de data.frame auditable (donnees, pas affichage).
-# renvoi (#215) : colonne derivee, calculee ici par usp_renvois() (NA pour
-# reserve2), placee avant fonction : la table se termine par fonction,
-# inoperant (ordre fixe par l'annotation du 02/10/2026 de l'ADR 0003).
+# renvoi (#215) : colonne derivee, calculee ici par usp_renvois(), placee
+# avant fonction : la table se termine par fonction, inoperant (ordre fixe
+# par l'annotation du 02/10/2026 de l'ADR 0003). reserve2 : usp_renvois()
+# rend NA sur chaque ligne (aucune ligne constante), sans cas particulier
+# (#222, point 3).
 engine_table_tests <- function(res) {
-  rv <- if (identical(res$methode, "reserve2") ||
-            identical(res$metadata$methode, "reserve2"))
-    rep(NA_character_, length(res$tests)) else usp_renvois(res$tests)
+  rv <- usp_renvois(res$tests)
   do.call(base::rbind, lapply(seq_along(res$tests), function(i) { t <- res$tests[[i]]; data.frame(
     famille = t$famille, test = t$test, type = t$type,
     base = t$base, variante = t$variante,

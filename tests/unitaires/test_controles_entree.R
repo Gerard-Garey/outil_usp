@@ -608,7 +608,6 @@ avec_summary_nan153 <- function(expr) {
   on.exit(if (existait) assign("summary", orig, envir = e) else rm("summary", envir = e))
   avec_pondere237(alterer, expr)
 }
-.tost_orig153 <- test_tost_intercept
 # Garde Cook atteinte a coup sur (usp_tests(), engine_plots_data()) : avant
 # #153, erreur R dans usp_tests() (if (any(ck > 4 / T)) sur NaN, defaut
 # intercepte par run_engine()) ; plot_influence_levier() et
@@ -639,9 +638,12 @@ verifier("test_tost_intercept() et usp_tests(), constante et erreur-type NaN (in
                                list(stat = NA_real_, p = NA_real_,
                                     non_applicable = "statistique non definie"))
            f1 <- usp_ajuster(x153, y153); b1 <- usp_bootstrap(f1, B = B_MIN_USAGE)
-           tt <- tryCatch(avec_injection("test_tost_intercept",
-                                         function(...) avec_summary_nan153(.tost_orig153(...)),
-                                         usp_tests(f1, b1, methode = "premium")),
+           # usp_tests() : la regression ponderee est calculee une fois et
+           # passee a la constante et au TOST (#222, point 1) ; l'alteration
+           # porte donc sur .usp_lm_pondere(), objet partage, et non sur
+           # test_tost_intercept() seule.
+           tt <- tryCatch(avec_pondere237(function(cf) { cf[1, 1:2] <- NaN; cf },
+                                          usp_tests(f1, b1, methode = "premium")),
                           error = function(e) e)
            !inherits(r, "error") && identical(r$non_applicable, "statistique non definie") &&
              identical(r$p, NA_real_) && identical(r$stat, NA_real_) && identical(names(r), ref) &&
@@ -676,9 +678,10 @@ verifier("Coherence TOST (#153, #168) : x ecarte par lm() (injection de summary(
            f1 <- usp_ajuster(x153, y153); b1 <- usp_bootstrap(f1, B = B_MIN_USAGE)
            r12 <- avec_summary_sans_x153(test_tost_intercept(x153, y153, pi153))
            ok12 <- avec_summary_sans_x153(tost_coherent153(r12, ref, x153, y153, pi153))
-           tt12 <- avec_injection("test_tost_intercept",
-                                  function(...) avec_summary_sans_x153(.tost_orig153(...)),
-                                  usp_tests(f1, b1, methode = "premium"))
+           # Regression ponderee partagee de usp_tests() (#222, point 1) :
+           # l'alteration porte sur .usp_lm_pondere().
+           tt12 <- avec_pondere237(function(cf) cf[rownames(cf) != "x", , drop = FALSE],
+                                   usp_tests(f1, b1, methode = "premium"))
            r0 <- test_tost_intercept(x153, y153, pi153)
            identical(r12$non_applicable, "x ecarte") && isTRUE(ok12) &&
              ligne_tost_coherente153(ligne153(tt12, LIGNE_TOST153), r12, x153) &&
@@ -713,7 +716,10 @@ sv_sans_renvoi215 <- function(l, l0) {
   sans_detail <- function(u) { u$detail <- NULL; u }
   identical(sans_detail(l), sans_detail(l0)) && !grepl(TXT_RENVOI_SV215, l$detail, fixed = TRUE)
 }
-# Evalue expr avec les trois fonctions enveloppees dans avec_summary_sans_x153().
+# Evalue expr avec les trois fonctions enveloppees dans avec_summary_sans_x153(),
+# et .usp_lm_pondere() alteree (ligne x retiree) : usp_tests() calcule la
+# regression ponderee une fois, hors de test_intercept() et de
+# test_tost_intercept(), et la leur passe (#222, point 1).
 avec_r12_168 <- function(expr) {
   e <- environment(run_engine)
   orig <- mget(FONCTIONS_R12_168, envir = e)
@@ -722,7 +728,7 @@ avec_r12_168 <- function(expr) {
     assign(nm, function(...) avec_summary_sans_x153(f(...)), envir = e)
   })
   on.exit(for (nm in FONCTIONS_R12_168) assign(nm, orig[[nm]], envir = e))
-  expr
+  avec_pondere237(function(cf) cf[rownames(cf) != "x", , drop = FALSE], expr)
 }
 verifier("test_intercept() et test_lm_complet() : champ x_ecarte TRUE sur la seule branche du garde-fou R12 (injection), FALSE sur la branche calculee et a volumes constants, stat et p NA sous R12 ; test_tost_intercept() : motif 'x ecarte' sous R12, 'volumes constants' a volumes constants (#168)",
          {

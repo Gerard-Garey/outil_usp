@@ -568,6 +568,33 @@ verifier("usp_permutation_pente : T = 9 enumeration (362880) ; T = 10 et 12 perm
            }
            ok
          })
+# Calcul par blocs (#222, point 4) : memes r, dans le meme ordre, que le
+# produit de la matrice entiere engine_permutations(T) ; seule
+# engine_permutations(T - 1) reste en cache apres une enumeration a T = 9.
+verifier(".usp_r_permutations() = produit de la matrice entiere engine_permutations(T) par xc (T = 3 a 9, ordre des lignes compris, ligne 1 = identite) ; apres usp_permutation_pente() a T = 9, cache T8 et non T9 (#222)",
+         {
+           ok <- TRUE
+           t9_avant <- !is.null(.cache_permutations[["T9"]])
+           for (T_ in 3:9) {
+             xs <- 100 + 7 * seq_len(T_) + (seq_len(T_) %% 3) * 5; ys <- xs * (1 + (seq_len(T_) %% 4) / 10)
+             xc <- xs - mean(xs); yc <- ys - mean(ys)
+             xc <- xc / sqrt(sum(xc^2)); yc <- yc / sqrt(sum(yc^2))
+             P <- engine_permutations(T_)
+             ref <- as.vector(matrix(yc[P], nrow(P)) %*% xc)
+             rp <- .usp_r_permutations(xc, yc)
+             # Tolerance 1e-12 voulue pour la portabilite : l'identite au bit
+             # pres n'est mesuree que sous le BLAS de reference (celui de la
+             # CI) ; sous un autre BLAS, l'ordre de sommation peut dependre du
+             # nombre de lignes du produit (audit leger de #222, constat C1).
+             ok <- ok && isTRUE(proche(rp, ref, rel = 0, abs = 1e-12)) &&
+               isTRUE(proche(rp[1], sum(xc * yc), rel = 0, abs = 1e-12))
+           }
+           if (!t9_avant) rm("T9", envir = .cache_permutations)
+           x9 <- 100 + 10 * (1:9) + (1:9)^2; y9 <- x9 * (1 + ((1:9) %% 4) / 10)
+           invisible(usp_permutation_pente(x9, y9))
+           ok && !is.null(.cache_permutations[["T8"]]) &&
+             (t9_avant || is.null(.cache_permutations[["T9"]]))
+         })
 verifier("Pente T = 10 : nature Monte-Carlo des permutations (p_mc_ext), p exacte NA ; B <= 9 -> OK inatteignable dans le detail (#169)",
          {
            xs <- 100 + 7 * (1:10) + ((1:10) %% 3) * 5; ys <- xs * (1 + ((1:10) %% 4) / 10)

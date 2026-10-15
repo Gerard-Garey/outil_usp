@@ -326,4 +326,26 @@ verifier("Constat 3 : pi injecte non fini (f$pi[1] <- NA, J1) -> constante et TO
              identical(lt$detail, TXT_STAT_NON_DEF215)
          })
 
+# Regression ponderee partagee (#222, point 1) : un seul appel de
+# .usp_lm_pondere() par usp_tests() (deux avant #222), aucun a pertes
+# constantes ; resultats des deux fonctions identiques avec m passe ou
+# calcule par defaut.
+verifier("Regression ponderee partagee (#222) : usp_tests() appelle .usp_lm_pondere() une fois (J1, J2), zero a pertes constantes ; test_intercept() et test_tost_intercept() avec m = .usp_lm_pondere() identiques a l'appel sans m",
+         {
+           e <- environment(run_engine)
+           pond_orig <- get(".usp_lm_pondere", envir = e, inherits = FALSE)
+           n <- 0L
+           assign(".usp_lm_pondere", function(...) { n <<- n + 1L; pond_orig(...) }, envir = e)
+           compte <- function(f) { b <- boot_fictif(f); n <<- 0L; usp_tests(f, b, methode = "premium"); n }
+           fc <- f2; fc$y <- rep(70, 8)
+           r <- tryCatch(c(compte(f1), compte(f2), compte(fc)), error = function(err) err,
+                         finally = assign(".usp_lm_pondere", pond_orig, envir = e))
+           m2 <- .usp_lm_pondere(x2, y2, f2$pi)
+           !inherits(r, "error") && identical(r, c(1L, 1L, 0L)) &&
+             identical(test_intercept(x2, y2, f2$pi, m = m2), test_intercept(x2, y2, f2$pi)) &&
+             identical(test_tost_intercept(x2, y2, f2$pi, m = m2), test_tost_intercept(x2, y2, f2$pi)) &&
+             identical(test_tost_intercept(x2, y2, f2$pi, delta_abs = 5, m = m2),
+                       test_tost_intercept(x2, y2, f2$pi, delta_abs = 5))
+         })
+
 fin_fichier()
