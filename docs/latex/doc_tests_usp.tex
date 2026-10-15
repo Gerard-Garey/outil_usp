@@ -753,7 +753,9 @@ ensemble des colonnes dégénérées (figé à l'observé par \code{mw\_bootstra
 \code{aj} s'il n'est pas fourni) et résidus de Mack calculés avec cet ensemble (issue~\#60), lus
 depuis l'issue~\#239 par les entrées \code{ExpVar} et \code{KruskalAcc}, qui ne les recalculent
 plus~; depuis l'issue~\#270, ensemble des colonnes non identifiables de la courbure, figé de
-même, lu par l'entrée \code{Courbure} (fiche~\ref{mw:m1c}). Depuis l'issue~\#278, ces ensembles
+même, lu par l'entrée \code{Courbure} (fiche~\ref{mw:m1c})~; depuis l'issue~\#273, ensemble des
+colonnes non identifiables de l'ordonnée à l'origine, figé de même, lu par l'entrée
+\code{Origine} (fiche~\ref{mw:m1a}). Depuis l'issue~\#278, ces ensembles
 ne sont plus transmis en arguments séparés~: le contexte porte l'objet unique des ensembles
 figés (élément \code{figes}), dont chaque fermeture de \code{MW\_CATALOGUE\_MC} passe l'élément
 voulu à la fonction de test, et dont la forme est contrôlée par \code{.mw\_verifier\_figes()} \\
@@ -939,13 +941,29 @@ d'entiers, éventuellement vide, des colonnes non identifiables de la courbure~:
 des colonnes exclues, colonne non dégénérée, moins de trois valeurs distinctes de $C(i,j)$
 (égalité exacte)~; ensemble figé à l'observé par \code{mw\_bootstrap()} et transmis aux
 réplications (issue~\#270, fiche~\ref{mw:m1c}) \\
+\code{.mw\_colonnes\_}\newline\code{origine\_non\_}\newline\code{identifiables()} & \code{aj},
+\code{j\_degeneres} (\code{NULL}~: ensemble calculé sur \code{aj}) & vecteur croissant
+d'entiers, éventuellement vide, des colonnes non identifiables de l'ordonnée à l'origine~:
+$n_j \ge 3$, hors des colonnes exclues, colonne non dégénérée, moins de deux valeurs distinctes de
+$C(i,j)$ (égalité exacte, sans lecture du rang numérique de \code{lm()})~; ensemble figé à
+l'observé et transmis aux réplications (issue~\#273, fiche~\ref{mw:m1a}) \\
+\code{.mw\_table\_non\_}\newline\code{identifiables()} & ensemble figé, $I$, $J$, colonnes
+exclues, $n_{\min}$ & élément \code{non\_identifiables} des résultats de
+\code{mw\_test\_courbure()} ($n_{\min} = 4$) et, depuis l'issue~\#273, de
+\code{mw\_test\_ordonnee\_}\allowbreak\code{origine()} ($n_{\min} = 3$)~: colonnes de l'ensemble
+figé que le parcours écarte ($n_j \ge n_{\min}$, hors des colonnes exclues), \code{data.frame}
+(\code{j}, \code{n\_facteurs}) en $j$ croissant, vide sans telle colonne, formé avant le parcours
+et porté par tous les retours, retours \code{NA} compris \\
 \code{.mw\_ensembles\_}\newline\code{figes()},\newline \code{.mw\_verifier\_}\newline\code{figes()} &
-\code{aj}, \code{j\_degeneres}, \code{j\_non\_identifiables} (\code{NULL}~: calculés sur
+\code{aj}, \code{j\_degeneres}, \code{j\_non\_identifiables},
+\code{j\_origine\_non\_}\allowbreak\code{identifiables} (\code{NULL}~: calculés sur
 \code{aj})~; objet, nom de l'appelant & objet unique des ensembles de colonnes figés à l'observé
 (issue~\#278)~: liste nommée de vecteurs croissants d'entiers, éventuellement vides,
 \code{degeneres} (colonnes dégénérées, fiche~\ref{mw:m1a}) puis \code{non\_identifiables}
 (colonnes non identifiables de la courbure, calculées après les dégénérées,
-fiche~\ref{mw:m1c})~; un argument fourni impose son ensemble, dont le calcul est sauté. Construit
+fiche~\ref{mw:m1c}), puis, depuis l'issue~\#273, \code{origine\_non\_identifiables} (colonnes
+non identifiables de l'ordonnée à l'origine, calculées après les dégénérées,
+fiche~\ref{mw:m1a})~; un argument fourni impose son ensemble, dont le calcul est sauté. Construit
 une fois par \code{.run\_engine\_mw()} et lu par \code{mw\_bootstrap()}, \code{.mw\_contexte\_mc()},
 donc \code{.mw\_stats()} et les fermetures de \code{MW\_CATALOGUE\_MC}, et \code{mw\_tests()}, qui
 ne recalculent plus les ensembles~; contrôle de forme (liste aux noms exacts du constructeur,
@@ -963,8 +981,12 @@ un objet d'ajustement réduit et pour $J < 2$~; prédicat du refus de
 \code{.mw\_j\_exclues()},\newline \code{.mw\_stat\_non\_definie()} & \code{aj},
 \code{j\_degeneres} & colonnes exclues d'une vérification de M1, des résidus de Mack et des
 lignes de M2 et M3 qui reçoivent l'ensemble figé (issue~\#60)~; résultat \code{NA} d'une
-réplication de M1 où une colonne retenue devient dégénérée (pour la courbure, colonne hors aussi
-de l'ensemble figé des colonnes non identifiables, fiche~\ref{mw:m1c}) \\
+réplication de M1 où une colonne retenue devient dégénérée (pour la courbure et, depuis
+l'issue~\#273, pour l'ordonnée à l'origine, colonne hors aussi de l'ensemble figé des colonnes
+non identifiables de la vérification, fiches~\ref{mw:m1c} et~\ref{mw:m1a}), $K$ valant
+\code{NA}~; depuis l'issue~\#273, aussi le résultat de l'ordonnée à l'origine quand \code{lm()}
+échoue ou rend moins de deux coefficients sur une colonne retenue, à l'observé comme dans une
+réplication \\
 \code{mw\_msep()} & \code{aj} & \code{\$msep}, \code{\$terme\_variance},
 \code{\$terme\_covariance} \\
 \code{mw\_residus()} & \code{aj}, \code{j\_degeneres} (\code{NULL}~: ensemble calculé sur
@@ -1031,7 +1053,10 @@ vérifications colonne par colonne de M1 et, depuis l'issue~\#60, de
 \code{mw\_stat\_correlation\_}\allowbreak\code{dev()} (\code{NULL}~:
 ensemble calculé sur \code{aj})~; argument \code{j\_non\_identifiables} de
 \code{mw\_test\_courbure()} (ensemble figé des colonnes non identifiables, \code{NULL}~: calculé
-sur \code{aj}, issue~\#270)~; argument facultatif \code{res} (résidus de Mack déjà calculés,
+sur \code{aj}, issue~\#270) et, depuis l'issue~\#273, de
+\code{mw\_test\_ordonnee\_}\allowbreak\code{origine()} (ensemble figé des colonnes non
+identifiables de l'ordonnée, élément \code{origine\_non\_}\allowbreak\code{identifiables} de l'objet des ensembles
+figés)~; argument facultatif \code{res} (résidus de Mack déjà calculés,
 ceux du contexte dans le bootstrap~; \code{NULL}~: calculés par \code{mw\_residus()}, issue~\#239)
 de \code{mw\_test\_exposant\_}\allowbreak\code{variance()} et
 \code{mw\_test\_homogeneite\_}\allowbreak\code{accident()} & statistiques des tests M1 à M6 (détail~: §\ref{sec:index-fonctions}) \\
@@ -1161,17 +1186,27 @@ ligne de courbure, qui nomme les colonnes de l'élément \code{non\_identifiable
 valeurs distinctes de $C(i,j)$~: $j$, nombre de facteurs, $K$ et colonnes éligibles de l'appel
 observé, aucun nombre issu du bootstrap), après la phrase des colonnes dégénérées~; chaîne vide
 si l'élément est vide (issue~\#269, fiche~\ref{mw:m1c}) \\
+\code{.mw\_phrase\_}\newline\code{origine\_non\_}\newline\code{identifiable()} & résultat de
+\code{mw\_test\_ordonnee\_}\allowbreak\code{origine()} & phrase fixe jointe par
+\code{mw\_tests()} au commentaire de la ligne de l'ordonnée à l'origine, qui nomme les colonnes
+de l'élément \code{non\_identifiables} (moins de deux valeurs distinctes de $C(i,j)$), au gabarit
+de \code{.mw\_phrase\_}\allowbreak\code{colonnes\_ecartees()}, après la phrase des colonnes
+dégénérées~; chaîne vide si l'élément est vide (issue~\#273, fiche~\ref{mw:m1a}) \\
 \code{.mw\_phrase\_}\newline\code{colonnes\_}\newline\code{ecartees()} & colonnes écartées
 (\code{data.frame} \code{j}, \code{n\_facteurs}), résultat de la fonction de test de l'appel
 observé, sujet (singulier, pluriel), ce qui n'est pas défini, ce que l'exclusion ne prouve pas &
 gabarit unique, depuis l'issue~\#278, des phrases de colonnes écartées de M1, partagé par
-\code{.mw\_phrase\_exclusion()} (colonnes dégénérées) et
-\code{.mw\_phrase\_non\_}\allowbreak\code{identifiable()}~: «~\code{<sujet>~: j = \dots{}
+\code{.mw\_phrase\_exclusion()} (colonnes dégénérées),
+\code{.mw\_phrase\_non\_}\allowbreak\code{identifiable()} et, depuis l'issue~\#273,
+\code{.mw\_phrase\_origine\_}\allowbreak\code{non\_identifiable()}~: «~\code{<sujet>~: j = \dots{}
 (\dots{} facteurs), \dots~; <quoi>, colonne hors de la combinaison de Fisher~; K = \dots{}
 colonne(s) testee(s) sur \dots{} eligible(s). L'exclusion ne vaut pas preuve <preuve>.}~»
 («~\code{colonnes hors}~» et sujet au pluriel pour plusieurs colonnes), $K$ et
 le nombre d'éligibles lus dans le résultat de l'appel observé ($K$ absent compté~0), aucun
-nombre issu du bootstrap~; chaîne vide sans colonne écartée \\
+nombre issu du bootstrap~; depuis l'issue~\#273, la clause «~\code{~; K = \dots{} eligible(s)}~»
+est omise quand $K$ vaut \code{NA} (statistique observée non définie, décompte des éligibles
+arrêté à la colonne en cause), la phrase finissant alors par «~\code{hors de la combinaison de
+Fisher.}~»~; chaîne vide sans colonne écartée \\
 \code{mw\_parametre()} &\code{aj}, \code{msep} (champ \code{\$msep}),
 $\sigma_{\text{std}}$, barème & $\sigma_{\mathrm{USP}}$ et ses composantes \\
 \code{mw\_influence()} & \code{aj} & levier, facteur sans la cellule,
@@ -2293,7 +2328,9 @@ Tendance avec le cumulé, à colonne donnée & \ref{mw:m1} &
 depuis l'issue~\#253) &
 idem (p de Student, approchée) & \code{PenteIntra} \\
 Ordonnée à l'origine par colonne & \ref{mw:m1a} &
-\code{mw\_test\_ordonnee\_origine()}~; colonnes dégénérées par \code{.mw\_colonne\_degeneree()} &
+\code{mw\_test\_ordonnee\_origine()}~; colonnes dégénérées par \code{.mw\_colonne\_degeneree()}~;
+colonnes non identifiables par \code{.mw\_colonnes\_origine\_}\allowbreak\code{non\_identifiables()}
+(issue~\#273) &
 idem (p de Fisher, via \code{.fisher\_combine()}) & \code{Origine} \\
 Homogénéité de $f_j$ & \ref{mw:m1b} & \code{mw\_test\_homogeneite\_f()}, même exclusion &
 idem (p de Fisher, via \code{.fisher\_combine()}, sur les $p_j$ de \code{.mw\_spearman()},
@@ -11887,7 +11924,11 @@ Student par colonne est inférieure au seuil $\alpha$ du calcul (\code{res\$meta
 lu par \code{plot\_mw\_origine(pd, alpha)} et par la note \code{note\_m1(pd, alpha)} qui les
 compte, et non plus fixé à $0{,}10$ dans l'affichage (issue~\#4, piste~3). Cette coloration
 colonne par colonne est une aide de lecture~: elle ne tient pas compte de la multiplicité des
-colonnes, et le verdict est celui de la fiche~\ref{mw:m1a}. Celui de la
+colonnes, et le verdict est celui de la fiche~\ref{mw:m1a}. Il représente les colonnes que
+combine l'appel observé~: une colonne non identifiable de l'ordonnée à l'origine (moins de deux
+valeurs distinctes de $C(i,j)$) n'y figure pas, et, depuis l'issue~\#273, quand la statistique
+observée n'est pas définie (fiche~\ref{mw:m1a}), aucune colonne n'est représentée et le graphique
+affiche «~\code{Ordonnees a l'origine indisponibles}~». Celui de la
 famille $\alpha$ chiffre l'enjeu du choix de pondération~: des courbes
 confondues signifient que la question est sans portée pratique sur le triangle
 considéré~; des courbes qui divergent sur une colonne désignent celle où
@@ -12752,13 +12793,61 @@ $J-3$ et $J-2$, trois vérifications de M1, refus du triangle totalement dégén
 (issue~\#192, §\ref{sec:controles}) et exclusion des résidus de Mack (issue~\#60,
 §\ref{sec:mw}). Elle est exclue de la combinaison de Fisher avant tout appel à \code{lm()} ou
 \code{cor.test()}, comme une colonne trop courte, et nommée dans le libellé de la ligne
-(«~$K$ colonne(s) testée(s) sur $n$ éligible(s)~»), sans champ nouveau~; l'exclusion ne vaut
-pas preuve de proportionnalité. Le seuil $10^{-12}$ est une convention de restitution, environ
+(«~$K$ colonne(s) testée(s) sur $n$ éligible(s)~», clause omise depuis l'issue~\#273 quand la
+statistique observée n'est pas définie, $K$ valant alors \code{NA}), sans champ nouveau~;
+l'exclusion ne vaut pas preuve de proportionnalité. Le seuil $10^{-12}$ est une convention de restitution, environ
 $4\,500$ fois l'epsilon machine ($2{,}2\cdot 10^{-16}$), et non un seuil statistique. La dernière colonne, qui n'a
 qu'un facteur individuel, appartient trivialement à l'ensemble, sans effet puisqu'elle n'est
 jamais éligible. Mesuré sur le triangle de contrôle rendu dégénéré en $j = 4$ (trois facteurs
 égaux)~: la colonne est exclue de la seule ligne d'ordonnée à l'origine, où elle est éligible
 ($K = 4$ colonnes testées sur 5 éligibles), et \code{run\_engine()} n'émet aucun avertissement~R.
+
+\emph{Colonnes non identifiables de l'ordonnée à l'origine} (issue~\#273, option~(A) retenue par
+le mainteneur le 14~octobre 2026). Une colonne éligible ($n_j \ge 3$), hors des colonnes exclues
+et non dégénérée, dont les $C(i,j)$ comptent moins de deux valeurs distinctes (égalité exacte,
+\code{unique()}) n'identifie pas la régression~: $C(i,j)$ étant constant, la constante $a_j$ et
+la pente $b_j$ ne sont pas séparables. L'ensemble de ces colonnes
+(\code{.mw\_colonnes\_origine\_}\allowbreak\code{non\_identifiables()}) est calculé une fois
+sur le triangle observé, après les colonnes dégénérées, et figé pour chaque réplication (élément
+\code{origine\_non\_identifiables} de l'objet des ensembles figés, argument
+\code{j\_non\_identifiables} de \code{mw\_test\_ordonnee\_}\allowbreak\code{origine()}, lu par
+l'entrée \code{Origine} de \code{MW\_CATALOGUE\_MC})~: c'est la règle de la courbure
+(fiche~\ref{mw:m1c}, \emph{Ensemble figé à l'observé}), dont le raisonnement vaut ici à
+l'identique. Une colonne de l'ensemble est comptée parmi les éligibles, écartée avant le contrôle
+de dégénérescence, hors de~$K$, et nommée dans le commentaire de la ligne par
+\code{.mw\_phrase\_origine\_}\allowbreak\code{non\_identifiable()}, après la phrase des colonnes
+dégénérées~: «~\code{Colonne a moins de deux valeurs distinctes de C(i,j)~: j = \dots{}
+(\dots{} facteurs)~; ordonnee a l'origine non identifiable, colonne hors de la combinaison de
+Fisher~; K = \dots{} colonne(s) testee(s) sur \dots{} eligible(s). L'exclusion ne vaut pas preuve
+de proportionnalite.}~» (au pluriel pour plusieurs colonnes), $j$, $n_j$, $K$ et le nombre
+d'éligibles étant ceux de l'appel observé, aucun n'étant issu du bootstrap (issue~\#76). Le
+prédicat ne lit pas le rang numérique de \code{lm()}. Second volet~: plus aucune colonne n'est
+écartée sans trace. Une colonne retenue dont \code{lm()} échoue ou rend moins de deux
+coefficients --- $C(i,j)$ constant dans une réplication, ou, à l'observé, colonne à plusieurs
+valeurs distinctes que le critère de rang numérique de \code{lm()} écarte --- rend la
+statistique \code{NA}, avec $K$ \code{NA}~: la réplication sort de $B$ effectif, et, à l'observé,
+la ligne est restituée non applicable (motif «~\code{statistique observee non finie}~», verdict
+\code{INFO}). Avant l'issue, une telle colonne était écartée sans trace, à l'observé comme dans
+une réplication, de sorte que $K$ pouvait différer entre la statistique observée et ses
+réplications, avec le biais conservateur décrit pour la courbure. Mesuré (\code{run\_engine()},
+méthode \code{reserve2}, $B = 999$, graine 20260831, moteur de \code{bbe3a2a} pour «~avant~»)
+sur le triangle de contrôle dont $C(i,1)$ vaut $1\,050$ pour $i = 0$ à~$5$~: avant, $K = 4$ à
+l'observé et $K = 5$ dans les 999 réplications, p-value de Monte-Carlo $0{,}289$~; après, $K = 4$
+à l'observé et dans les 999 réplications, p-value de Monte-Carlo $0{,}162$, verdict \code{OK}
+inchangé, la phrase nommant «~\code{j = 1 (6 facteurs)}~» avec «~\code{K = 4 colonne(s)
+testee(s) sur 5 eligible(s)}~». Sur le triangle de contrôle lui-même, aucune colonne non
+identifiable, p-value inchangée ($0{,}085$). Sur le triangle de contrôle dont $C(i,1)$ vaut
+$1\,050\,(1 + 10^{-8} i)$ pour $i = 0$ à~$5$ (six valeurs distinctes, colonne hors de
+l'ensemble, que \code{lm()} écarte)~: avant, même p-value $0{,}289$, la colonne étant écartée sans
+trace~; après, ligne non applicable. Si l'on garde $C(i,1) = 1\,050$ pour $i = 0$ à~$5$ et que
+$C(i,2)$ vaut $1\,600\,(1 + 10^{-8} i)$ pour $i = 0$ à~$4$, la ligne est non applicable et la phrase des colonnes
+non identifiables, qui nomme $j = 1$, s'arrête à «~\code{hors de la combinaison de Fisher.}~»,
+sans clause $K$. \emph{Conséquence sur le graphique}~: les ordonnées à l'origine représentées
+(section~\ref{sec:graph-mw}) sont le détail par colonne de l'appel observé~; quand la statistique
+observée n'est pas définie, ce détail est vide et le graphique affiche «~\code{Ordonnees a
+l'origine indisponibles}~», alors qu'avant l'issue il représentait les autres colonnes (quatre sur
+le triangle à $C(i,1) = 1\,050\,(1 + 10^{-8} i)$). Sur une colonne constante, membre de l'ensemble figé, le graphique
+représente les autres colonnes, comme avant.
 \Loi
 $X \sim \chi^2(2K)$ \emph{si les colonnes étaient indépendantes}. Elles ne le
 sont pas tout à fait~: les colonnes $j$ et $j+1$ partagent le vecteur
@@ -12789,14 +12878,16 @@ laquelle une colonne retenue devient dégénérée n'a pas de statistique et est
 \code{B\_effectif} (\code{.mw\_colonnes\_degenerees()}, argument \code{j\_degeneres} des fonctions de
 test, élément \code{degeneres} de l'objet des ensembles figés depuis l'issue~\#278~; pour
 la courbure, une colonne de l'ensemble figé des colonnes non identifiables n'est pas retenue et
-reste ignorée, fiche~\ref{mw:m1c}). Depuis
+reste ignorée, fiche~\ref{mw:m1c}, de même, depuis l'issue~\#273, pour l'ordonnée à l'origine,
+ci-dessus). Depuis
 l'issue~\#60, le même ensemble figé est transmis aux résidus de Mack de chaque réplication
 (contexte de \code{.mw\_contexte\_mc()}, entrées \code{ExpVar} et \code{KruskalAcc} du
 catalogue \code{MW\_CATALOGUE\_MC}) et, par extension décidée par le mainteneur le
 6~octobre 2026, au test calendaire et à la corrélation entre années adjacentes (entrées
 \code{Calendrier} et \code{CorrDev}, fiches~\ref{mw:m3cal} et~\ref{mw:m3cor}).
 Depuis l'issue~\#270, l'ensemble des colonnes non identifiables de la courbure, distinct de
-celui-ci, est figé de même (fiche~\ref{mw:m1c}).
+celui-ci, est figé de même (fiche~\ref{mw:m1c}), et, depuis l'issue~\#273, celui des colonnes non
+identifiables de l'ordonnée à l'origine (ci-dessus).
 \emph{Effectif conditionnel au voisinage du seuil.} Quand une colonne retenue à l'observé est
 juste au-dessus de la tolérance, une part des réplications la rend dégénérée, et la p-value de
 Monte-Carlo des trois vérifications colonne par colonne est calculée sur les seules réplications où la statistique est
@@ -12853,7 +12944,8 @@ $B_{\text{eff}} = 42$, cas~B, trois diagnostics~; les dix autres statistiques de
 $B_{\text{eff}} = B$, n'en donnent aucune. Sur \code{reserve2}, $B_{\text{eff}} = B$ pour les
 treize statistiques et aucune ligne ne porte la phrase.
 \emph{Asymétrie avec M3, conservée sans alignement.} Pour une colonne \emph{retenue} à
-l'observé (pour la courbure, hors aussi de l'ensemble figé des colonnes non identifiables) qui
+l'observé (pour la courbure et l'ordonnée à l'origine, hors aussi de l'ensemble figé des colonnes
+non identifiables de la vérification) qui
 devient dégénérée dans une réplication, M1 rend une statistique non définie et
 écarte la réplication de \code{B\_effectif}~; le test calendaire et la corrélation entre années
 adjacentes gardent la réplication, la colonne n'en étant écartée que si l'aplatissement des ex
@@ -12868,11 +12960,14 @@ p-value~: une p-value nulle, débordement de la loi de référence, est relevée
 lieu d'écarter la colonne qui porte la preuve la plus forte contre $H_0$~; une p-value non finie
 ou hors de $[0, 1]$ rend la statistique \code{NA} sans changer $K$, et la réplication sort de
 \code{B\_effectif}. $K$ est ainsi le nombre de p-values transmises, et ne varie plus que si la
-fonction de la ligne écarte elle-même une colonne (colonne trop courte, \code{lm()} en échec
-pour l'ordonnée à l'origine, garde $\mathrm{sd} = 0$ de l'exposant de variance,
+fonction de la ligne écarte elle-même une colonne (colonne trop courte, garde $\mathrm{sd} = 0$
+de l'exposant de variance,
 et, pour la courbure depuis l'issue~\#253, moins de trois valeurs distinctes de $C(i,j)$, prédicat
 qui couvre la garde $\mathrm{sd} = 0$ qu'elle avait jusqu'à l'issue~\#270 et dont l'ensemble est,
-depuis cette issue, figé à l'observé, fiche~\ref{mw:m1c}). Auparavant, une p-value
+depuis cette issue, figé à l'observé, fiche~\ref{mw:m1c}~; pour l'ordonnée à l'origine,
+\code{lm()} en échec écartait la colonne jusqu'à l'issue~\#273, depuis laquelle il rend la
+statistique \code{NA}, l'ensemble des colonnes à moins de deux valeurs distinctes de $C(i,j)$
+étant figé à l'observé, \emph{Colonnes non identifiables de l'ordonnée à l'origine}, ci-dessus). Auparavant, une p-value
 nulle faisait écarter sa colonne sans trace, et $K$ pouvait différer entre la statistique
 observée et ses réplications (effet mesuré, fiche~\ref{mw:m1b}). Limite
 mesurée et acceptée~: une colonne dont l'écart relatif dépasse à peine $10^{-12}$ reste soumise
@@ -13139,7 +13234,9 @@ distinctes de $C(i,j)$ dans un élément \code{non\_identifiables}, table à deu
 colonne en $j$ croissant, vide s'il n'y en a aucune, porté par tous les retours de la fonction,
 retours \code{NA} compris. Une telle colonne reste comptée parmi les colonnes éligibles, hors
 de~$K$~; elle n'est pas une colonne dégénérée au sens de la fiche~\ref{mw:m1a}, et les deux
-autres vérifications colonne par colonne de M1 ne l'excluent pas. \code{mw\_tests()} la nomme
+autres vérifications colonne par colonne de M1 ne l'excluent pas à ce titre (depuis
+l'issue~\#273, l'ordonnée à l'origine écarte, par son propre ensemble figé, les colonnes à une
+seule valeur distincte de $C(i,j)$, fiche~\ref{mw:m1a}). \code{mw\_tests()} la nomme
 dans le commentaire de la ligne par \code{.mw\_phrase\_}\allowbreak\code{non\_identifiable()},
 phrase fixe dont les seuls nombres sont $j$, $n_j$, $K$ et le nombre de colonnes éligibles de
 l'appel observé, aucun n'étant issu du bootstrap (issue~\#76)~: «~\code{Colonne a moins de trois
@@ -13148,7 +13245,9 @@ identifiable, colonne hors de la combinaison de Fisher~; K = \dots{} colonne(s) 
 \dots{} eligible(s). L'exclusion ne vaut pas preuve de linearite.}~», au pluriel
 «~\code{Colonnes a moins de trois}~\dots~» et «~\code{colonnes hors de la combinaison}~» quand il y en a plusieurs,
 énumérées par des virgules. Elle suit la phrase des colonnes dégénérées quand les deux sont
-posées, avec la même clause «~\code{K = \dots{} sur \dots{} eligible(s)}~», et précède les
+posées, avec la même clause «~\code{K = \dots{} sur \dots{} eligible(s)}~» (omise des deux
+phrases, depuis l'issue~\#273, quand la statistique observée n'est pas définie et que $K$ vaut
+\code{NA}~; gabarit commun \code{.mw\_phrase\_}\allowbreak\code{colonnes\_ecartees()}), et précède les
 phrases du retirage des triangles simulés (issue~\#257), de $B$ effectif inférieur à $B$
 (issue~\#204) et du verdict de Monte-Carlo proche d'un seuil atteignable (issue~\#244), jointes
 ensuite dans cet ordre (fiche~\ref{mw:m1a}). Mesuré (\code{run\_engine()}, méthode
@@ -13208,7 +13307,9 @@ hors de l'ensemble figé, la même colonne rend la statistique et $K$ \code{NA}.
 figé~: il est formé avant le parcours des colonnes et porté complet par les retours \code{NA},
 alors que \code{exclues} et le nombre de colonnes éligibles restent ceux des colonnes parcourues
 avant l'arrêt. L'ensemble est distinct de celui des colonnes dégénérées~: les deux autres
-vérifications colonne par colonne de M1 et les résidus de Mack ne l'emploient pas. Aucun tirage
+vérifications colonne par colonne de M1 et les résidus de Mack ne l'emploient pas~; l'ordonnée à
+l'origine a, depuis l'issue~\#273, son propre ensemble figé, à moins de deux valeurs distinctes
+(fiche~\ref{mw:m1a}). Aucun tirage
 n'est ajouté ni retiré~; seule la statistique des réplications change.
 
 \emph{Pourquoi figer l'ensemble plutôt que reproduire la sélection dans chaque réplication.}
@@ -15930,7 +16031,9 @@ Merz--Wüthrich~: tests et diagnostics M1 à M6 (sections~\ref{sec:mwm1}
 à~\ref{sec:mwm6}) & \code{mw\_tests()}~; phrases du retirage par
 \code{.mw\_phrases\_}\allowbreak\code{retirage()} (issue~\#257)~; phrase de $B$ effectif inférieur à $B$ par \code{.mw\_phrase\_b\_effectif()}
 (issue~\#204)~; phrase des colonnes non identifiables de la courbure par
-\code{.mw\_phrase\_}\allowbreak\code{non\_identifiable()} (issue~\#269) \\
+\code{.mw\_phrase\_}\allowbreak\code{non\_identifiable()} (issue~\#269) et de l'ordonnée à
+l'origine par \code{.mw\_phrase\_origine\_}\allowbreak\code{non\_identifiable()}
+(issue~\#273) \\
 Merz--Wüthrich~: leviers, DFBETA, DFBETAS et contributions par année de survenance
 (fiche~\ref{mw:influence}) & \code{mw\_influence()}, \code{mw\_contributions()} \\
 Contrôles de validité (§\ref{sec:controles}) & \code{engine\_valider\_donnees()}, \code{usp\_controle\_donnees()},
