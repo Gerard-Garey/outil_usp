@@ -702,6 +702,14 @@ régime $\hat\pi_t$ constant)~; ajout, en fin de commentaire (avant la phrase de
 façon idempotente, des deux textes de renvoi croisé aux lignes de la constante et de Spearman ratio contre volume, selon la même
 règle, en fin d'\code{usp\_tests()}~; textes du renvoi (issue~\#215,
 fiche~\ref{fiche:student-constante}, rubrique~6) \\
+\code{.engine\_joindre()} & deux textes $a$, $b$ & fonction unique de jonction des commentaires
+(issue~\#264)~: $a$ si $b$ est vide, sinon $b$ si $a$ est vide, sinon $a$ suivi d'une espace s'il
+finit par un point, de «~\code{~; }~» sinon, puis de $b$, sans \code{trimws()} ni majuscule, de
+sorte que $b$ non vide est un suffixe littéral du résultat~; employée par \code{add()} (règle~R1,
+effectifs, plancher, phrase de l'issue~\#244), par \code{mw\_tests()} (phrases des
+issues~\#257 et~\#204), par \code{usp\_tests()} et par \code{.usp\_poser\_renvois()}, qui
+remplace sept copies de la règle~; \code{.mw\_avec\_exclusion()} (phrases des colonnes écartées
+de M1) suit une autre règle, une espace après un point, «~\code{. }~» sinon \\
 \code{usp\_identifiabilite\_}\newline\code{pente()},\newline
 \code{SEUIL\_PUISSANCE\_PENTE} & $x$, $\hat\beta$, $\hat\sigma$, $\alpha$,
 \code{unilateral} (\code{FALSE})~; constante ($0{,}5$) & indice $\hat\lambda$ et puissance
@@ -12902,7 +12910,8 @@ actuel, les issues ultérieures de la branche modifiant les réplications.
 \emph{Restitution de $B$ effectif inférieur à $B$} (issue~\#204, décision du mainteneur du
 12~octobre 2026~; ADR~0003, annotation du 12~octobre 2026, point~4). Sur les lignes de ses treize
 statistiques de Monte-Carlo, \code{mw\_tests()} joint en fin du commentaire qu'elle passe à \code{add()}, par
-\code{.mw\_phrase\_b\_effectif()} et avec la règle de jonction d'\code{add()}, l'une de deux
+\code{.mw\_phrase\_b\_effectif()} et avec la fonction de jonction d'\code{add()},
+\code{.engine\_joindre()} (issue~\#264), l'une de deux
 phrases. \emph{Cas~A}, p-value de Monte-Carlo finie et $B_{\text{eff}} < B$~: «~\code{B effectif =
 \dots{} sur B = \dots{} (\dots{} replication(s) ecartee(s), statistique non finie)~: p-value
 Monte-Carlo conditionnelle a la definition de la statistique, comptee sur les seules
