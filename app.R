@@ -50,7 +50,24 @@ rendu_graphique <- function(expr, env = parent.frame(), quoted = FALSE) {
   force(env)
   if (requireNamespace("plotly", quietly = TRUE))
     plotly::renderPlotly(expr, env = env, quoted = quoted)
-  else shiny::renderPlot(expr, env = env, quoted = quoted)
+  else avec_virgule_decimale(shiny::renderPlot(expr, env = env, quoted = quoted))
+}
+
+# Virgule decimale des traces base R de l'application (#236), comme
+# .graphique_png() pour le rapport fige : OutDec = "," le temps de l'appel de
+# la fonction de rendu, restaure en sortie par on.exit. La fonction de rendu
+# de renderPlot() (shiny 1.8.0) trace (drawPlot()) puis redimensionne le
+# trace enregistre (resizeSavedPlot()) dans le meme appel : les graduations
+# sont ecrites avec la virgule dans les deux cas. Les attributs de la
+# fonction de rendu (classe, outputFunc...) sont recopies.
+avec_virgule_decimale <- function(rendu) {
+  f <- function(...) {
+    ancien <- options(OutDec = ",")
+    on.exit(options(ancien), add = TRUE)
+    rendu(...)
+  }
+  attributes(f) <- attributes(rendu)
+  f
 }
 
 
@@ -815,8 +832,7 @@ server <- function(input, output, session) {
     if (!is.na(d$xt[n]) || !is.na(d$yt[n]))
       # Virgule decimale (#236) : les deux valeurs sont separees par " ; ".
       showNotification(sprintf("Ligne t = %d retiree (x_t = %s ; y_t = %s).", n,
-                               .num_fr(d$xt[n], digits = getOption("digits")),
-                               .num_fr(d$yt[n], digits = getOption("digits"))),
+                               .num_fr_defaut(d$xt[n]), .num_fr_defaut(d$yt[n])),
                        type = "warning", duration = 8)
     donnees(d[-n, , drop = FALSE])
   })
@@ -955,20 +971,26 @@ server <- function(input, output, session) {
   # plafonne a 40 avec un message qui nomme T saisi et T retenu ; le champ T
   # recoit la valeur retenue. Le compteur version_grille force le redessin
   # de la grille, meme si les donnees valent deja le jeu par defaut (#155).
+  # Le champ T n'est mis a jour qu'une fois : series, si T saisi differe de
+  # 8 ; reserve no 2, si T saisi est irrecevable ou plafonne (les deux
+  # listes de profondeur_reinitialisation() s'excluent). Series : garde de
+  # l'apercu posee a T comme a l'import (profondeur_attendue_import(), issue
+  # #183) ; sans elle, l'apercu s'evaluait avec l'ancien T (12) sur les 8
+  # annees chargees, le temps de l'aller-retour du navigateur (refus
+  # "Profondeur T = 12 superieure au nombre d'annees fournies (8)").
   observeEvent(input$reinit, {
     pr <- profondeur_apres_reinitialisation(est_mw(), input$profondeur)
     T <- pr$T
-    if (!est_mw() && !isTRUE(input$profondeur == T))
+    if (length(pr$erreurs) || length(pr$plafonnement) ||
+        (!est_mw() && !isTRUE(input$profondeur == T))) {
+      if (!est_mw()) profondeur_import(profondeur_attendue_import(T))
       updateNumericInput(session, "profondeur", value = T)
-    if (length(pr$erreurs)) {
-      updateNumericInput(session, "profondeur", value = T)
+    }
+    if (length(pr$erreurs))
       showNotification(paste(c(pr$erreurs, sprintf("Profondeur par defaut retablie : T = %d.", T)),
                              collapse = " "), type = "warning", duration = 10)
-    }
-    if (length(pr$plafonnement)) {
-      updateNumericInput(session, "profondeur", value = T)
+    if (length(pr$plafonnement))
       showNotification(pr$plafonnement, type = "warning", duration = 10)
-    }
     if (est_mw()) triangle(jeu_reinitialise(TRUE, T)) else donnees(jeu_reinitialise(FALSE, T))
     version_grille(version_grille() + 1L)
     statut_import(NULL); effacer_statut_demarrage()
@@ -1465,9 +1487,9 @@ server <- function(input, output, session) {
     cat("Methode              :", m$methode, "\n")
     cat("Perimetre            : annexe", m$annexe, "\n")
     cat("Segment              :", m$segment, "-", m$libelle_segment, "\n")
-    # Nombres en virgule decimale (#236) : nb() reproduit l'ecriture de cat().
-    nb <- function(x) .num_fr(x, digits = getOption("digits"))
-    cat("sigma standard       :", nb(m$sigma_standard),
+    # Nombres en virgule decimale (#236) : .num_fr_defaut() reproduit
+    # l'ecriture de cat().
+    cat("sigma standard       :", .num_fr_defaut(m$sigma_standard),
         if (!is.null(libelle_derogation(R(), "sigma_standard")))
           "(saisi : derogation au parametre reglementaire)", "\n")
     cat("Nature des donnees   :", table_parametre_standard(R())$Valeur[1], "\n")
@@ -1481,7 +1503,7 @@ server <- function(input, output, session) {
     cat("Profondeur T         :", m$T,
         if (!is.null(lib_prof)) paste0("(", lib_prof, ")"), "\n")
     cat("Replications B       :", m$B, "\n")
-    cat("Granularite p_mc     :", nb(R()$bootstrap$granularite),
+    cat("Granularite p_mc     :", .num_fr_defaut(R()$bootstrap$granularite),
         "( = 1/(B+1), B nominal : p-value unilaterale ; bilaterale 2/(B_eff+1),",
         "par statistique : res$bootstrap$granularite_stat )\n")
     # Ligne de #240 (Q-A4-12 (B)) : texte de texte_p_mc_regime(), comme le
@@ -1489,7 +1511,7 @@ server <- function(input, output, session) {
     # pour un objet sans p_mc_regime.
     lig_mc <- texte_p_mc_regime(R())
     if (!is.null(lig_mc)) cat("P-values Monte-Carlo :", lig_mc, "\n")
-    cat("Seuil alpha          :", nb(m$alpha), "\n")
+    cat("Seuil alpha          :", .num_fr_defaut(m$alpha), "\n")
     cat("Graine (seed)        :", format(m$seed, scientific = FALSE), "\n")
     # Generateur et graines fixes consignes par le moteur (issue #37) ; un
     # champ absent de metadata ne produit pas de ligne.
@@ -1506,7 +1528,7 @@ server <- function(input, output, session) {
       cat("Graine flux regime   :", gen[["seed_flux_regime"]],
           "(flux complementaire des p-values Monte-Carlo, #240)\n")
     cat("Horodatage           :", format(m$horodatage, "%Y-%m-%d %H:%M:%S"), "\n")
-    cat("Duree (s)            :", nb(round(m$duree_sec, 2)), "\n")
+    cat("Duree (s)            :", .num_fr_defaut(round(m$duree_sec, 2)), "\n")
     cat("Version R            :", m$version_R, "\n")
   })
 

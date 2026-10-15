@@ -1268,6 +1268,34 @@ verifier("Rapport fige : marge delta_equiv de longueur nulle -> tiret, sans erre
                             .echap_html("marge Delta fix\u00e9e a priori = \u2013"))
          })
 
+# Champ present mais NA (revue finale de #263) : tiret, et non "NA" ou
+# "NA s". Mesure avant correction (14/10/2026) : reference premium avec
+# duree_sec, alpha et bootstrap$granularite a NA -> "NA s", "NA", "NA".
+CLE_GRAN <- paste("Granularit\u00e9 nominale d'une p-value Monte-Carlo unilat\u00e9rale,",
+                  "1/(B+1) sur B nominal (bilat\u00e9rale : 2/(B_eff+1), par statistique,",
+                  "champ granularite_stat)")
+verifier("Rapport fige : duree_sec, alpha et granularite a NA -> tiret, ni \"NA\" ni \"NA s\" (revue de #263)",
+         {
+           r0 <- readRDS(file.path(.racine, "tests", "reference", "premium.rds"))
+           r0$metadata$duree_sec <- NA_real_; r0$metadata$alpha <- NA_real_
+           r0$bootstrap$granularite <- NA_real_
+           f0 <- tempfile(fileext = ".html")
+           ok0 <- tryCatch({
+             rapport_html(r0, NULL, f0, interactif = FALSE, identite = idt); TRUE
+           }, error = function(e) FALSE)
+           h0 <- if (ok0) lire(f0) else ""; unlink(f0)
+           g0 <- entre(h0, "<h2 id='gel'>", "</table>")
+           ok0 && identical(unname(vapply(c("Dur\u00e9e du calcul", "Seuil alpha des verdicts", CLE_GRAN),
+                                          cle_val, "", s = g0)), rep("\u2013", 3L))
+         })
+verifier(".ou_tiret() : NA scalaire -> tiret avant f(), valeur finie -> f(x), vecteur garde la regle de longueur (revue de #263)",
+         identical(.ou_tiret(NA_real_, function(x) paste(.num_fr(x, "%.2f"), "s")), "\u2013") &&
+           identical(.ou_tiret(NA, function(x) .num_fr(x, digits = 7)), "\u2013") &&
+           identical(.ou_tiret(as.POSIXct(NA)), "\u2013") &&
+           identical(.ou_tiret(6.137, function(x) paste(.num_fr(x, "%.2f"), "s")), "6,14 s") &&
+           identical(.ou_tiret(c(1, NA), function(x) "deux"), "deux") &&
+           identical(.ou_tiret(c(1, 2), function(x) c("a", "b")), "\u2013"))
+
 ## --- Virgule decimale des nombres affiches (issue #236) ------------------------
 # .num_fr() ecrit le nombre comme avant (sprintf(fmt, x), ou format(x, digits)
 # valeur par valeur) et ne change que le separateur decimal ; aucun espace des
@@ -1303,6 +1331,31 @@ verifier(".num_fr() : identique a formatC(decimal.mark = \",\") pour des nombres
              identical(.num_fr(v, "%.3g"), trimws(formatC(v, format = "g", digits = 3, decimal.mark = ","))) &&
              identical(formatC(c(123, 0.1), format = "g", digits = 3), c(" 123", " 0.1"))
          })
+# Formateur par defaut nomme (revue finale de #236) : meme sortie que
+# l'ecriture repetee .num_fr(x, digits = getOption("digits")), qu'il remplace.
+verifier(".num_fr_defaut() : identique a .num_fr(x, digits = getOption(\"digits\")), y compris sous digits = 4 (#236)",
+         {
+           v <- c(0.1, 0.001, 1 / 3, 104.2, 131.22, 1e-20, 1e5, NA, NaN, Inf)
+           od <- options(digits = 4)
+           d4 <- tryCatch(identical(.num_fr_defaut(v), .num_fr(v, digits = 4)) &&
+                            identical(.num_fr_defaut(1 / 3), "0,3333"),
+                          finally = options(od))
+           d4 && identical(getOption("digits"), od$digits) &&
+             identical(.num_fr_defaut(v), .num_fr(v, digits = getOption("digits"))) &&
+             identical(.num_fr_defaut(1 / 3), "0,3333333") &&
+             identical(.num_fr_defaut(integer(0)), character(0))
+         })
+verifier("Formateur par defaut : aucune ecriture .num_fr(..., digits = getOption(\"digits\")) hors de .num_fr_defaut() dans app.R et display_helpers.R (#236)",
+         {
+           n <- vapply(file.path(.racine, c("app.R", file.path("R", "display_helpers.R"))), function(f)
+             length(grep("digits = getOption(\"digits\")", readLines(f, encoding = "UTF-8", warn = FALSE),
+                         fixed = TRUE)), 0L)
+           identical(unname(n), c(0L, 1L))
+         })
+# Espace insecable des milliers (revue finale de #236) : un nombre n'est pas
+# coupe en fin de ligne d'une infobulle ou d'une graduation plotly.
+verifier(".SEPARATEURS_PLOTLY : virgule decimale puis espace insecable U+00A0 (#236)",
+         identical(utf8ToInt(.SEPARATEURS_PLOTLY), c(44L, 160L)))
 verifier("fmt_nb(), fmt_p(), fmt_pc() : virgule decimale, tiret pour une valeur non finie (#236)",
          identical(fmt_p(c(0.05, NA, Inf)), c("0,0500", "\u2013", "\u2013")) &&
            identical(fmt_nb(c(-1.23456, 1e3), 2), c("-1,23", "1000,00")) &&

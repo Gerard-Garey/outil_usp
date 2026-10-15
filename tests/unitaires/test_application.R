@@ -334,6 +334,12 @@ verifier("app.R : \"Reinitialiser\" incremente version_grille (#155 c)",
 .obs_I <- Filter(function(o) .sur(o, "fichier_import"), .obs)
 verifier("app.R : l'import d'un triangle ne modifie plus le champ T (#155)",
          length(.obs_I) == 1L && length(.appels(.obs_I[[1]], "updateNumericInput")) == 1L)
+# Revue finale de #212 : un seul appel de updateNumericInput() dans
+# l'observateur de "Reinitialiser" (trois auparavant, pour la meme valeur T),
+# et la garde de l'apercu y est posee comme a l'import.
+verifier("app.R : \"Reinitialiser\" n'appelle updateNumericInput() qu'une fois et pose la garde profondeur_import() (#212, #183)",
+         length(.appels(.obs_R[[1]], "updateNumericInput")) == 1L &&
+           .ecrit(.obs_R[[1]], "profondeur_import"))
 
 ## --- Grille des series et journal (issues #134, #136) -------------------------
 if (requireNamespace("shiny", quietly = TRUE)) {
@@ -477,6 +483,74 @@ testServer(app, {
       identical(notifs212, "Donnees reinitialisees : series par defaut de 8 annees, T = 8."))
 })
 rm("updateNumericInput", "showNotification", envir = ea)
+)---"
+  # Garde de l'apercu a la reinitialisation des series (revue finale de #212,
+  # sur le modele de l'import, #183). La session simulee ne renvoie pas la
+  # valeur poussee dans le champ T : elle reproduit l'aller-retour du
+  # navigateur, pendant lequel le champ vaut encore l'ancien T. Mesure avant
+  # correction (14/10/2026) : 12 annees importees, T = 12, puis Reinitialiser
+  # : garde NULL, apercu "Profondeur T = 12 superieure au nombre d'annees
+  # fournies (8)."
+  .bloc_212_garde <- r"---(
+## Garde de l'apercu a la reinitialisation des series (issue #212)
+d0 <- ea$DONNEES_DEFAUT
+testServer(app, {
+  do.call(session$setInputs, base)
+  session$setInputs(fichier_import = fichier(12)); grille(session, 12)
+  session$setInputs(profondeur = 12)
+  av <- apercu(output)
+  session$setInputs(reinit = 1)
+  do.call(session$setInputs, c(setNames(as.list(d0$xt), paste0("x_", 1:8)),
+                               setNames(as.list(d0$yt), paste0("y_", 1:8))))
+  ap <- apercu(output)
+  a("series, T = 12, Reinitialiser : garde posee a 8, apercu non reevalue avec T = 12 sur 8 annees (#212)",
+    is.character(av) && !grepl("class=\"err\"", av, fixed = TRUE) &&
+      identical(profondeur_import(), 8L) && garde(av, ap) &&
+      !grepl("superieure", paste(ap, collapse = ""), fixed = TRUE))
+  session$setInputs(profondeur = 8)
+  ap <- apercu(output)
+  a("series, puis T = 8 : garde levee, apercu reevalue sur 8 annees sans refus (#212)",
+    is.null(profondeur_import()) && is.character(ap) && grepl("T = 8 :", ap, fixed = TRUE) &&
+      !grepl("class=\"err\"", ap, fixed = TRUE))
+})
+testServer(app, {
+  do.call(session$setInputs, base)
+  session$setInputs(reinit = 1)
+  a("series, T saisi = 8, Reinitialiser : garde non posee (champ deja aligne) (#212)",
+    is.null(profondeur_import()))
+  session$setInputs(methode = "reserve2", profondeur = 200)
+  session$setInputs(reinit = 2)
+  a("reserve no 2, T = 200, Reinitialiser : garde des series non posee (#212)",
+    is.null(profondeur_import()) && identical(dim(triangle()), c(40L, 40L)))
+})
+)---"
+  # Virgule decimale des traces base R de l'application (revue finale de
+  # #236) : rendu_graphique() sans plotly (ou avec l'option
+  # usp.graphiques_base, voir le compte rendu) passe par renderPlot(), qui
+  # trace avec OutDec = "," et le restaure. Mesure avant correction
+  # (14/10/2026, plotly absent) : OutDec "." pendant le trace, format(0.5)
+  # "0.5". Sous plotly, rendu_graphique() rend un graphique plotly : la
+  # verification ne porte alors que sur la restauration d'OutDec.
+  .bloc_236_base <- r"---(
+## Virgule decimale des traces base R de l'application (issue #236)
+vu236 <- NULL
+app236 <- shinyApp(fluidPage(), function(input, output, session) {
+  output$p <- ea$rendu_graphique({
+    if (requireNamespace("plotly", quietly = TRUE)) plotly::plot_ly()
+    else { plot(c(0.5, 1.5))
+           vu236 <<- list(OutDec = getOption("OutDec"),
+                          graduations = format(graphics::axTicks(2)))
+           invisible() }
+  })
+})
+od236 <- getOption("OutDec")
+testServer(app236, { x236 <<- tryCatch(output$p, error = function(e) e) })
+plotly236 <- requireNamespace("plotly", quietly = TRUE)
+a("rendu_graphique() (base R) : OutDec = \",\" pendant le trace, graduations en virgule, OutDec restaure (#236)",
+  identical(getOption("OutDec"), od236) &&
+    (plotly236 || (identical(vu236$OutDec, ",") && is.character(x236$src) &&
+                     all(grepl("^[0-9]+(,[0-9]+)?$", vu236$graduations)) &&
+                     any(grepl(",", vu236$graduations, fixed = TRUE)))))
 )---"
   # Objet rbind non fonction de l'environnement global (issue #199) : la
   # table des controles (output$tab_controles) est rendue dans deux sessions,
@@ -753,7 +827,7 @@ rm("showNotification", envir = ea)
     '  a("import n = 41 (hors [5 ; 40]) : garde non posee, apercu evalue avec T = 8 (#183)",',
     '    is.null(profondeur_import()) && is.character(ap) &&',
     '      !grepl("superieure", ap, fixed = TRUE))',
-    '})', .bloc_155, .bloc_212, .bloc_199, .bloc_240, .bloc_226, .bloc_236), .script)
+    '})', .bloc_155, .bloc_212, .bloc_212_garde, .bloc_236_base, .bloc_199, .bloc_240, .bloc_226, .bloc_236), .script)
   # Processus fils lance depuis la racine du depot : app.R y source
   # R/engine.R par chemin relatif. --vanilla ignore .Renviron et .Rprofile :
   # les bibliotheques de ce processus (.libPaths()) lui sont transmises par
@@ -770,8 +844,8 @@ rm("showNotification", envir = ea)
                         setwd(.ici)
                       })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 54 assertions rendues", length(.lignes) == 54L)
-  if (length(.lignes) != 54L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 59 assertions rendues", length(.lignes) == 59L)
+  if (length(.lignes) != 59L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {

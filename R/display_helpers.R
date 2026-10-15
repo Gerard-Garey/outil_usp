@@ -49,6 +49,9 @@ COUL <- list(trait = "#B03A2E", pt = "#00468C", env = "#C8DCFA",
        else vapply(x, function(v) format(v, digits = digits), "", USE.NAMES = FALSE)
   sub(".", ",", s, fixed = TRUE)
 }
+# Formateur par defaut : reproduit format(x) et cat(x) (digits =
+# getOption("digits")), en virgule decimale.
+.num_fr_defaut <- function(x) .num_fr(x, digits = getOption("digits"))
 
 fmt_nb <- function(v, d = 4) ifelse(is.finite(v), .num_fr(v, paste0("%.", d, "f")), "\u2013")
 fmt_p  <- function(v) ifelse(is.finite(v), .num_fr(v, "%.4f"), "\u2013")
@@ -353,10 +356,11 @@ html_table <- function(d, classe = "table table-condensed data") {
 #  GRAPHIQUES  --  representation de res$plots_data uniquement
 # =============================================================================
 
-# Separateurs plotly (#236) : virgule decimale, espace des milliers, dans les
+# Separateurs plotly (#236) : virgule decimale, espace insecable des
+# milliers (U+00A0, qui evite la coupure d'un nombre en fin de ligne), dans les
 # infobulles (hovertemplate "%{y:.3f}", "%{y:,.0f}") et les graduations ;
 # attribut layout.separators de plotly.js ("decimale" puis "milliers").
-.SEPARATEURS_PLOTLY <- ", "
+.SEPARATEURS_PLOTLY <- ",\u00a0"
 .mep <- function(p, titre, xlab, ylab) {
   plotly::layout(p, title = list(text = titre, font = list(size = 14, color = COUL$pt)),
                  separators = .SEPARATEURS_PLOTLY,
@@ -1127,7 +1131,7 @@ plot_mw_levier <- function(pd) {
 # libelle reste litteral (c/sqrt(n_j)), sans aucun calcul.
 .libelle_repere_dfbetas <- function() {
   c0 <- get0("REPERE_DFBETAS_MW", mode = "numeric", ifnotfound = NULL)
-  paste0(if (is.null(c0)) "c" else .num_fr(signif(c0, 6), digits = getOption("digits")), "/&radic;n_j")
+  paste0(if (is.null(c0)) "c" else .num_fr_defaut(signif(c0, 6)), "/&radic;n_j")
 }
 plot_mw_dfbeta <- function(pd) {
   if (!.influence_mw(pd) || is.null(pd$influence$fort_dfbetas)) return(.vide())
@@ -1526,7 +1530,7 @@ note_m1 <- function(pd, alpha) {
     "entre les deux signale une composante fixe non pr&eacute;vue par le mod&egrave;le.",
     "<br><b>%d colonne(s) sur %d</b> pr&eacute;sentent une ordonn&eacute;e &agrave;",
     "l'origine significative au seuil alpha = %s, la plus marqu&eacute;e &eacute;tant",
-    "<b>j = %d</b> (p = %s)."), k, nrow(d), .num_fr(alpha, digits = getOption("digits")), w$j,
+    "<b>j = %d</b> (p = %s)."), k, nrow(d), .num_fr_defaut(alpha), w$j,
     .num_fr(w$p, "%.4f"))
 }
 
@@ -1656,9 +1660,11 @@ encoder_base64 <- function(octets) {
 # tiret si le champ est absent (NULL ou longueur nulle, cas d'un objet relu
 # et nettoye par nettoyer() de tests/outils_tests.R, issue #263), sinon f(x).
 # Garantit une chaine de longueur 1, pour que cles et vals restent alignes ;
-# evite aussi format(NULL, ...), qui vaut la chaine "NULL".
+# evite aussi format(NULL, ...), qui vaut la chaine "NULL". Champ present
+# mais NA (scalaire) : tiret, teste avant f(), qui ecrirait "NA" ou "NA s"
+# (sprintf("%.2f", NA) vaut "NA").
 .ou_tiret <- function(x, f = .txt) {
-  if (length(x) == 0L) return("\u2013")
+  if (length(x) == 0L || (length(x) == 1L && isTRUE(is.na(x)))) return("\u2013")
   v <- f(x)
   if (length(v) != 1L || is.na(v)) "\u2013" else v
 }
@@ -1886,8 +1892,7 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
               "Seuil alpha des verdicts", "Graine (seed)", "Bar\u00e8me de cr\u00e9dibilit\u00e9",
               "sigma standard", "Nature des donn\u00e9es")
     # Champs absents d'un objet relu (#263) : tiret, comme pour segment.
-    # Nombres en virgule decimale (#236) ; nb_defaut reproduit format(x).
-    nb_defaut <- function(x) .num_fr(x, digits = getOption("digits"))
+    # Nombres en virgule decimale (#236) ; .num_fr_defaut() reproduit format(x).
     vals <- c(.ou_tiret(m$horodatage, function(x) format(x, "%Y-%m-%d %H:%M:%S %Z")),
               .ou_tiret(m$duree_sec, function(x) paste(.num_fr(x, "%.2f"), "s")), genere,
               paste0("<code>", m$methode, "</code> \u2014 ", libelle_methode),
@@ -1899,7 +1904,7 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
               .ou_tiret(m$B, as.character),
               .ou_tiret(res$bootstrap$granularite, function(x) .num_fr(x, digits = 6)),
               if (!is.null(lig_mc)) .txt(lig_mc),
-              .ou_tiret(m$alpha, nb_defaut),
+              .ou_tiret(m$alpha, .num_fr_defaut),
               .ou_tiret(m$seed, function(x) format(x, scientific = FALSE)),
               paste0(.ou_tiret(m$bareme),
                      if (!is.null(lib_bareme <- libelle_derogation(res, "bareme")))
@@ -1920,8 +1925,8 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
       cles <- c(cles, "Test d'\u00e9quivalence de la constante")
       # Marges absentes (objet relu et nettoye, #263) : tiret par .ou_tiret().
       vals <- c(vals, if (is.null(m$delta_equiv))
-        sprintf("marge = %s de la perte moyenne (theta_equiv)", .ou_tiret(m$theta_equiv, nb_defaut))
-        else sprintf("marge Delta fix\u00e9e a priori = %s", .ou_tiret(m$delta_equiv, nb_defaut)))
+        sprintf("marge = %s de la perte moyenne (theta_equiv)", .ou_tiret(m$theta_equiv, .num_fr_defaut))
+        else sprintf("marge Delta fix\u00e9e a priori = %s", .ou_tiret(m$delta_equiv, .num_fr_defaut)))
     }
     idt <- if (is.null(identite)) list(version = NA, md5_engine = NA, releve = NA) else identite
     cles <- c(cles, "Version de R", "Version de l'outil (DESCRIPTION)")
