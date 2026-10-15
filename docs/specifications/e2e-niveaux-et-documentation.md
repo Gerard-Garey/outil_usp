@@ -385,6 +385,7 @@ Les verdicts sont déduits de la règle d'`add()` (sens « ne pas rejeter », α
      - Sur J1 et J2, (i1) couvre V1 au bit près contre les valeurs brutes de #221.
      - Sur J3, rien ne la couvre.
   5. **Écarts de code** entre `completer_v3b()` et le moteur. Le script ne teste pas `is.finite(f$delta)`, et il classe le régime par `code_regime()` plutôt que par `usp_regime()`. Un δ** non fini ferait échouer `if` dans le script **[H]**, qui ne divergerait donc pas en silence. Le contrôle reformulé le détecterait. À relever dans #267.
+     - *[Annoté le 15/10/2026 (F), par `docwriter` : écarts résorbés par #280, commit `cf4be73` (points 2 et 3 de l'issue). `completer_v3b()` compte un δ** non fini en « rapide », comme le moteur, et lit le régime du tirage par `regime_tirage()` (`tests/outils_tests.R`), fondée sur `usp_regime()` ; vérifié dans `tests/p_conditionnelle_regime_t8.R` à la tête `94cb960`.]*
 - `#267` peut passer en `ready-for-agent` avec ces critères.
 
 ## 9. Effet attendu (récapitulatif)
