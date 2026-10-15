@@ -766,7 +766,8 @@ colonnes non identifiables de l'ordonnée à l'origine, figé de même, lu par l
 \code{Origine} (fiche~\ref{mw:m1a}). Depuis l'issue~\#278, ces ensembles
 ne sont plus transmis en arguments séparés~: le contexte porte l'objet unique des ensembles
 figés (élément \code{figes}), dont chaque fermeture de \code{MW\_CATALOGUE\_MC} passe l'élément
-voulu à la fonction de test, et dont la forme est contrôlée par \code{.mw\_verifier\_figes()} \\
+voulu à la fonction de test, et dont la forme, liste aux noms exacts puis chaque élément, est
+contrôlée par \code{.mw\_verifier\_figes()} \\
 \code{.mc\_evaluer()} & catalogue, contexte & vecteur nommé dans l'ordre du catalogue~; erreur
 qui nomme la statistique si une entrée ne rend pas une valeur de longueur~1 \\
 \code{engine\_p\_mc()} & valeurs simulées, valeur observée, sens du rejet, \code{extremes}
@@ -965,7 +966,7 @@ et porté par tous les retours, retours \code{NA} compris \\
 \code{.mw\_ensembles\_}\newline\code{figes()},\newline \code{.mw\_verifier\_}\newline\code{figes()} &
 \code{aj}, \code{j\_degeneres}, \code{j\_non\_identifiables},
 \code{j\_origine\_non\_}\allowbreak\code{identifiables} (\code{NULL}~: calculés sur
-\code{aj})~; objet, nom de l'appelant & objet unique des ensembles de colonnes figés à l'observé
+\code{aj})~; objet, nom de l'appelant, $J$ (\code{aj\$J}, \code{NULL} par défaut) & objet unique des ensembles de colonnes figés à l'observé
 (issue~\#278)~: liste nommée de vecteurs croissants d'entiers, éventuellement vides,
 \code{degeneres} (colonnes dégénérées, fiche~\ref{mw:m1a}) puis \code{non\_identifiables}
 (colonnes non identifiables de la courbure, calculées après les dégénérées,
@@ -975,9 +976,14 @@ fiche~\ref{mw:m1a})~; un argument fourni impose son ensemble, dont le calcul est
 une fois par \code{.run\_engine\_mw()} et lu par \code{mw\_bootstrap()}, \code{.mw\_contexte\_mc()},
 donc \code{.mw\_stats()} et les fermetures de \code{MW\_CATALOGUE\_MC}, et \code{mw\_tests()}, qui
 ne recalculent plus les ensembles~; contrôle de forme (liste aux noms exacts du constructeur,
-sinon erreur), appelé par ces trois fonctions~: un vecteur ou une liste mal nommée, dont les
-éléments liraient \code{NULL}, ferait recalculer en silence les ensembles sur chaque réplication
-et perdre le gel à l'observé \\
+sinon erreur), appelé par ces trois fonctions avec $J$ = \code{aj\$J}~: un vecteur ou une liste
+mal nommée, dont les éléments liraient \code{NULL}, ferait recalculer en silence les ensembles sur
+chaque réplication et perdre le gel à l'observé. Depuis la revue finale de l'issue~\#278, chaque
+élément est contrôlé à son tour, un élément \code{NULL} produisant le même effet~: vecteur
+numérique à valeurs entières, sans \code{NA}, dans $0, \ldots, J-1$ ($\ge 0$ si $J$ n'est pas
+fourni), \code{integer(0)} accepté~; un élément \code{NULL}, \code{NA}, caractère, logique, non
+entier ou hors bornes est refusé par une erreur qui nomme l'élément (doublons et ordre non
+contrôlés)~; aucun objet construit par \code{.mw\_ensembles\_figes()} n'est refusé \\
 \code{.MW\_PREDICAT\_}\newline\code{DEGENERE\_TEXTE} & constante (chaîne) & énoncé unique des deux
 volets du prédicat, repris par l'avertissement des colonnes exclues, l'avertissement
 d'extrapolation de $\hat\sigma^2_{J-1}$, le motif de refus de l'issue~\#192 et la phrase
@@ -1176,7 +1182,12 @@ construit sur \code{aj} par \code{.mw\_ensembles\_figes()}, même calcul) &
 liste des tests M1 à M6 (même structure que \code{usp\_tests()}, même fonction
 d'enregistrement \code{engine\_registre\_tests()})~; depuis l'issue~\#278, les ensembles figés
 sont lus dans l'objet reçu, celui de \code{mw\_bootstrap()}, au lieu d'être recalculés par
-chaque fonction de test \\
+chaque fonction de test. Précondition~: \code{figes} est l'objet même qui a servi à construire
+\code{boot}, ou \code{NULL} si \code{boot} a été construit avec \code{figes = NULL}~; elle n'est
+pas vérifiée, \code{boot} ne portant pas les ensembles figés (les y ajouter changerait les
+références), et un objet différent ferait lire les statistiques observées et simulées de
+\code{boot} avec des ensembles d'une autre définition, sans erreur~; \code{run\_engine()} la
+garantit, \code{.run\_engine\_mw()} construisant l'objet une fois et le passant aux deux appels \\
 \code{.mw\_phrase\_b\_}\newline\code{effectif()} & \code{boot}, \code{mc\_nom} & phrase
 «~\code{B effectif = \dots{} sur B = \dots}~» jointe par \code{mw\_tests()} au commentaire d'une
 ligne de Monte-Carlo (cas~A, $B_{\text{eff}} < B$ et p-value finie, sous deux formes depuis
