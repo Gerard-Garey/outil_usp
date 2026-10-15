@@ -8402,17 +8402,22 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
 # eligible(s). L'exclusion ne vaut pas preuve <preuve>.". sujet : c(singulier,
 # pluriel), qualification comprise ; K et eligibles lus dans r (resultat de
 # la fonction de test de l'appel observe ; K NULL compte 0) : aucun nombre
-# issu du bootstrap (#76).
+# issu du bootstrap (#76). K NA (statistique non definie : retour
+# .mw_stat_non_definie(), le decompte des eligibles s'arrete a la colonne
+# fautive et est partiel) : la clause "; K = .. eligible(s)" est omise, la
+# phrase se termine par "hors de la combinaison de Fisher." (#273).
 .mw_phrase_colonnes_ecartees <- function(cols, r, sujet, quoi, preuve) {
   if (is.null(cols) || !nrow(cols)) return("")
   K <- if (is.null(r$K)) 0L else r$K
   plur <- nrow(cols) > 1
+  clause_K <- if (is.na(K)) "" else
+    sprintf(" ; K = %d colonne(s) testee(s) sur %d eligible(s)", K, r$eligibles)
   sprintf(paste0(
-    "%s : %s ; %s, %s hors de la combinaison de Fisher ; K = %d colonne(s) ",
-    "testee(s) sur %d eligible(s). L'exclusion ne vaut pas preuve %s."),
+    "%s : %s ; %s, %s hors de la combinaison de Fisher%s. ",
+    "L'exclusion ne vaut pas preuve %s."),
     sujet[[if (plur) 2L else 1L]],
     paste(sprintf("j = %d (%d facteurs)", cols$j, cols$n_facteurs), collapse = ", "),
-    quoi, if (plur) "colonnes" else "colonne", K, r$eligibles, preuve)
+    quoi, if (plur) "colonnes" else "colonne", clause_K, preuve)
 }
 # Phrase ajoutee au libelle ("detail") d'une ligne de M1, SEULEMENT si une
 # colonne est exclue ; chaine vide sinon (libelle inchange). quoi : ce qui

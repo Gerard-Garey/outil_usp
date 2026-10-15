@@ -743,6 +743,34 @@ verifier("Ensemble des colonnes non identifiables de l'ordonnee fige (T4, n_j = 
                         "eps : stat ou K non NA"))
          })
 
+# Ordre des controles de mw_test_ordonnee_origine() (#273, reprise C1 de
+# l'audit de 867d65d) : colonne de l'ensemble fige jno ecartee AVANT le
+# controle de degenerescence, comme pour la courbure (#270). Triangle de
+# reference, colonne j = 2 degeneree (C(0..4,3) = 1,3 C(0..4,2)), appel sous
+# jd = integer(0) et jno = 2 (cas d'une replication ou la colonne figee a
+# l'observe devient degeneree). Valeurs mesurees : X = 14,93813, K = 4
+# (colonnes 0, 1, 3, 4), 5 eligibles. Garde contre un test vide : la colonne
+# est degeneree (.mw_colonne_degeneree()) ; un moteur qui ferait le controle
+# de degenerescence d'abord rend la statistique NA (mutation mesuree).
+tri_o2 <- tri_ref; tri_o2[1:5, 4] <- 1.3 * tri_o2[1:5, 3]
+verifier("Ordonnee a l'origine : colonne de l'ensemble fige degeneree dans l'appel, ecartee avant le controle de degenerescence (X = 14,93813, K = 4), identique a la reecriture independante (#273)",
+         {
+           a <- mw_ajuster(tri_o2)
+           o <- mw_test_ordonnee_origine(a, integer(0), 2L)
+           resultat(c(
+             if (!.mw_colonne_degeneree(a, 2L)) "colonne j = 2 non degeneree : cas non exerce",
+             if (!is.finite(o$stat) || abs(o$stat - 14.93813) > 5e-6)
+               paste("stat", format(o$stat, digits = 10)),
+             if (!identical(o$K, 4L)) paste("K", deparse(o$K)),
+             if (!identical(o$eligibles, 5L)) paste("eligibles", deparse(o$eligibles)),
+             if (!identical(o$detail$j, c(0L, 1L, 3L, 4L))) "colonnes combinees",
+             if (!identical(o$non_identifiables, data.frame(j = 2L, n_facteurs = 5L)))
+               "non_identifiables",
+             if (!meme(capturer(mw_test_ordonnee_origine, list(a, integer(0), 2L)),
+                       capturer(ANCIEN$mw_test_ordonnee_origine, list(a, integer(0), 2L))))
+               "!= reecriture independante"))
+         })
+
 # Plan des triangles tires (en-tete) : taille, variante, noms de lignes.
 PLAN_TIRAGES <- data.frame(
   n        = c(3L, 3L, 4L, 4L, 5L, 6L, 7L, 8L, 8L, 8L, 10L, 12L),

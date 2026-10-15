@@ -256,5 +256,33 @@ verifier("T273-8 : T4, mw_bootstrap() sous un generateur de l'appelant different
                          p_autres = identical(x$boot$p_mc[autres], b0$p_mc[autres]),
                          douze = length(autres) == 12L))
          })
+# Reprise C2 de l'audit de 867d65d : statistique observee NA (option (A),
+# lm() a un coefficient sur une colonne retenue) et ensemble fige non vide.
+# T4q : T4 et C(0..4,2) = 1600 (1 + 1e-8 k) (cinq valeurs distinctes, hors
+# de l'ensemble, lm() ecarte C0) : ensemble {1}, retour NA a j = 2, decompte
+# des eligibles partiel (3 sur 5, mesure). La phrase de
+# .mw_phrase_origine_non_identifiable() nomme la colonne j = 1 sans la
+# clause "; K = .. colonne(s) testee(s) sur .. eligible(s)" (avant : "K = NA
+# colonne(s) testee(s) sur 3 eligible(s)").
+t4q_273 <- local({ t <- t4_273; t[1:5, 3] <- 1600 * (1 + 1e-8 * 0:4); t })
+verifier("Reprise C2 : T4q, statistique observee NA et ensemble fige {1} : phrase des colonnes non identifiables sans clause K (ni K = NA ni decompte partiel des eligibles) ; detail de la ligne de mw_tests() de meme (#273)",
+         {
+           aq <- mw_ajuster(t4q_273)
+           o <- mw_test_ordonnee_origine(aq)
+           ph <- .mw_phrase_origine_non_identifiable(o)
+           att <- paste(
+             "Colonne a moins de deux valeurs distinctes de C(i,j) : j = 1 (6 facteurs) ;",
+             "ordonnee a l'origine non identifiable, colonne hors de la combinaison de Fisher.",
+             "L'exclusion ne vaut pas preuve de proportionnalite.")
+           l <- ligne_origine(aq, mw_bootstrap(aq, B = 99, seed = 20260831))
+           ok_liste(list(
+             cinq = length(unique(t4q_273[1:5, 3])) == 5L,
+             ensemble = identical(.mw_ensembles_figes(aq)$origine_non_identifiables, 1L),
+             na = identical(o$stat, NA_real_) && identical(o$K, NA_integer_),
+             partiel = identical(o$eligibles, 3L),
+             phrase = identical(ph, att),
+             sans_K = !grepl("K = ", ph, fixed = TRUE) && !grepl("eligible(s)", ph, fixed = TRUE),
+             ligne = grepl(att, l$detail, fixed = TRUE) && !grepl("K = NA", l$detail, fixed = TRUE)))
+         })
 
 fin_fichier()
