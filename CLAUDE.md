@@ -70,7 +70,7 @@ Chaque test est enregistré dans `usp_tests()` / `mw_tests()` via la fonction `a
 
 ## Documentation LaTeX (`docs/latex/doc_tests_usp.tex`)
 
-Document unique (~5 700 lignes) qui doit rester synchronisé avec le code : noms de fonctions (`\code{}`), liste exacte des tests, méthode de calcul de chaque p-value. Sections clés : architecture et index des fonctions, « Nature des p-values et validité à T = 8 » (tableaux 1 et 2 : disponibilité des p-values, nature et vitesse des convergences), puis une section par hypothèse (H1-H4, M1-M6). Bibliographie manuelle en fin de document (« Compléments bibliographiques », `\label{sec:biblio}`), sans BibTeX. **Toute modification du `.tex` respecte `docs/latex/CONVENTIONS.md`** (plan fixe, gabarit des fiches à six rubriques, renvois par `\ref`, conservation du contenu, typographie). Commentaires et texte en français ; les commentaires du code R sont en français sans accents.
+Document unique (~17 300 lignes) qui doit rester synchronisé avec le code : noms de fonctions (`\code{}`), liste exacte des tests, méthode de calcul de chaque p-value. Sections clés : architecture et index des fonctions, « Nature des p-values et validité à T = 8 » (tableaux 1 et 2 : disponibilité des p-values, nature et vitesse des convergences), puis une section par hypothèse (H1-H4, M1-M6). Bibliographie manuelle en fin de document (« Compléments bibliographiques », `\label{sec:biblio}`), sans BibTeX. **Toute modification du `.tex` respecte `docs/latex/CONVENTIONS.md`** (plan fixe, gabarit des fiches à six rubriques, renvois par `\ref`, conservation du contenu, typographie). Commentaires et texte en français ; les commentaires du code R sont en français sans accents.
 
 ## Rigueur statistique (détail dans `docs/exigences.md`)
 
