@@ -8110,13 +8110,13 @@ La p-value non simulée $p = 1 - F_{\mathcal{F},q,T-k-q}(F)$, loi $F$ sous le mo
 modèle ajusté (clé \code{RESET}, rejet en queue haute), les volumes $x_t$ étant fixés dans les
 réplications. Sur le jeu de contrôle (méthode prime, $B = 999$)~: $F = 0{,}005077$, p-value
 non simulée $0{,}995$, p-value de Monte-Carlo retenue $0{,}996$. Le commentaire de la ligne ne
-nomme la p-value de Monte-Carlo que si elle existe (issue~\#128)~; il dit alors, depuis
+nomme la p-value de Monte-Carlo que si elle existe (issue~\#128). Si elle existe, il dit, depuis
 l'issue~\#214, «~\code{La p Monte-Carlo, simulee sous le modele ajuste, est calculee~; la p-value
 retenue, s'il en est une, est nommee par nature\_p.}~», sans la déclarer retenue~: c'est la
-formule des lignes qu'une règle de restitution peut rendre inopérantes (test des suites sur
-ratios bruts, fiche~\ref{fiche:suites-ratios-bruts}), reprise ici par harmonisation, l'ancienne
-phrase («~\code{\dots{} est retenue.}~») étant exacte sur cette ligne, qui n'a pas de $p_{\min}$ et
-que la règle~R1 ne peut donc pas rendre inopérante~; sinon, il dit
+formule du test des suites sur ratios bruts (fiche~\ref{fiche:suites-ratios-bruts}), ligne que la
+règle~R1 peut rendre inopérante, reprise ici par harmonisation~; l'ancienne phrase
+(«~\code{\dots{} est retenue.}~») était exacte sur cette ligne, qui n'a pas de $p_{\min}$ et que
+la règle~R1 ne peut donc pas rendre inopérante. Si elle n'existe pas, il dit
 «~\code{La p Monte-Carlo, simulee sous le modele ajuste, est indisponible sur ces donnees~: aucune
 p-value n'est retenue (ADR 0001).}~» (issue~\#182~; il renvoyait auparavant à \code{nature\_p},
 vide depuis l'issue~\#181)~: faute de réplications finies en nombre suffisant, aucune p-value n'est retenue et
@@ -10526,8 +10526,8 @@ existe --- à $\hat\pi_t$ variable, «~\code{Seule la p-value Monte-Carlo, simul
 ajuste avec ses pi\_t, est calculee~; la p-value retenue, s'il en est une, est nommee par
 nature\_p~;}~» ---, et dit sinon qu'elle «~\code{est indisponible sur ces donnees~: aucune p-value n'est retenue
 (ADR 0001)}~» (issue~\#182~; mesuré à $\hat\pi_t$ variable sur le jeu à $\hat\delta$ intérieur avec
-\code{usp\_bootstrap(B = 40)}~; il renvoyait auparavant à \code{nature\_p}). \emph{Aucun commentaire
-ne déclare la p-value retenue} (issue~\#214, décision Q-F-5)~: jusqu'à cette issue, il disait
+\code{usp\_bootstrap(B = 40)}~; il renvoyait auparavant à \code{nature\_p}). \emph{Aucune phrase de
+\code{usp\_tests()} ne déclare la p-value retenue} (issue~\#214, décision Q-F-5)~: jusqu'à cette issue, il disait
 «~\code{la p-value EXACTE est retenue}~» sous la double condition et «~\code{Seule la p-value
 Monte-Carlo [\dots] est retenue}~» à $\hat\pi_t$ variable, ce que contredit la règle~R1 quand elle
 bascule la ligne en test inopérant~: \code{add()} ne retient alors aucune p-value, et le
