@@ -1179,15 +1179,21 @@ sont lus dans l'objet reçu, celui de \code{mw\_bootstrap()}, au lieu d'être re
 chaque fonction de test \\
 \code{.mw\_phrase\_b\_}\newline\code{effectif()} & \code{boot}, \code{mc\_nom} & phrase
 «~\code{B effectif = \dots{} sur B = \dots}~» jointe par \code{mw\_tests()} au commentaire d'une
-ligne de Monte-Carlo (cas~A, $B_{\text{eff}} < B$ et p-value finie~; cas~B, motif
+ligne de Monte-Carlo (cas~A, $B_{\text{eff}} < B$ et p-value finie, sous deux formes depuis
+l'issue~\#279 selon que le plafond du retirage est atteint ou non~; cas~B, motif
 \code{MOTIF\_MC\_REPLIC\_INSUFFISANTES}), chaîne vide sinon~; erreur si \code{boot\$B} ou
-\code{boot\$B\_effectif} manque ou n'est pas fini (issue~\#204, fiche~\ref{mw:m1a}) \\
+\code{boot\$B\_effectif} manque ou n'est pas fini, et, au cas~A seulement, si
+\code{boot\$plafond\_cumuls} manque ou n'est pas un booléen non \code{NA} (issues~\#204
+et~\#279, fiche~\ref{mw:m1a}) \\
 \code{.mw\_phrases\_}\newline\code{retirage()} & \code{boot} & phrases fixes
 \code{PHRASE\_MW\_CUMULS\_RETIRES} (si \code{boot\$cumuls\_retires}) puis
 \code{PHRASE\_MW\_PLAFOND\_CUMULS} (si \code{boot\$plafond\_cumuls}), sans nombre issu du
 bootstrap, jointes par \code{mw\_tests()} avant la phrase de l'issue~\#204, chaîne vide sinon~;
 erreur si l'un des deux champs manque ou n'est pas un booléen non \code{NA} (issue~\#257,
-fiche~\ref{mw:m1a}) \\
+fiche~\ref{mw:m1a})~; depuis l'issue~\#279, \code{PHRASE\_MW\_PLAFOND\_CUMULS} est construite à
+partir de \code{FACTEUR\_B\_MAX\_MW} par \code{sprintf("\%d")}, sans conversion en entier~: même
+chaîne pour la valeur~25, erreur au chargement du moteur pour un facteur non entier, au lieu
+d'une troncature \\
 \code{.mw\_phrase\_non\_}\newline\code{identifiable()} & résultat de
 \code{mw\_test\_courbure()} & phrase fixe jointe par \code{mw\_tests()} au commentaire de la
 ligne de courbure, qui nomme les colonnes de l'élément \code{non\_identifiables} (moins de trois
@@ -2076,9 +2082,10 @@ $1 - \hat\delta$ que les commentaires des lignes de centrage et de variance donn
 chiffres significatifs dans la bande de tolérance (fiche~\ref{fiche:centrage})~: issue de
 l'optimiseur et non stockée en tant que telle ($\hat\delta$ l'est), elle a été signalée et
 conservée lors de la même revue. \emph{Exception bornée} (issue~\#204, décision Q-E2b-4 du
-mainteneur du 12~octobre 2026~; ADR~0003, annotation du 12~octobre 2026, point~4)~: les deux
+mainteneur du 12~octobre 2026~; ADR~0003, annotation du 12~octobre 2026, point~4)~: les
 phrases «~\code{B effectif = \dots{} sur B = \dots}~» que \code{mw\_tests()} pose sur ses lignes de
-Monte-Carlo (fiche~\ref{mw:m1a}, rubrique~5) impriment des entiers de comptage issus
+Monte-Carlo (fiche~\ref{mw:m1a}, rubrique~5), trois gabarits depuis l'issue~\#279 (cas~A hors
+plafond, cas~A au plafond du retirage, cas~B), impriment des entiers de comptage issus
 du bootstrap~; elles seules, et \code{add()} reste soumise entière à la règle. Les deux phrases
 fixes de l'issue~\#257 (\code{PHRASE\_MW\_CUMULS\_RETIRES}, \code{PHRASE\_MW\_PLAFOND\_CUMULS}),
 jointes avant elles, n'impriment aucun nombre issu du bootstrap (seule la formule
@@ -3944,7 +3951,8 @@ condition, les seuils retenus et ce que vaut ce signalement).
 \code{PHRASE\_MW\_CUMULS\_RETIRES}, suivie, si le plafond de tirages est atteint, de
 \code{PHRASE\_MW\_PLAFOND\_CUMULS}~; ces deux phrases ne portent aucun nombre issu du bootstrap
 («~\code{25 (B + 1)}~» est la formule du plafond). Si $B_{\text{eff}} < B$, la phrase
-«~\code{B effectif = \dots{} sur B = \dots}~» les suit~; elle est la seule exception à la règle
+«~\code{B effectif = \dots{} sur B = \dots}~» les suit, sous une forme qui nomme le plafond et
+les statistiques non finies quand le plafond est atteint (issue~\#279)~; elle est la seule exception à la règle
 selon laquelle aucun nombre issu du bootstrap n'entre dans un commentaire (fiche~\ref{mw:m1a},
 rubrique~5, «~Restitution de $B$ effectif inférieur à $B$~»). La phrase de l'issue~\#244 reste la
 dernière.
@@ -5109,7 +5117,8 @@ intérieur, le plafond de la p-value conditionnelle au régime est atteint avec
 $50 \le B_{\text{eff}} < B$, la garantie de l'issue~\#127 portant sur $B$ nominal
 (section~\ref{sec:controles}, issue~\#240)~; ni le plancher ni $B_{\text{eff}}$ n'y sont imprimés, aucun
 nombre issu du bootstrap n'entrant dans le commentaire (issue~\#76~; seule exception, bornée aux
-deux phrases de l'issue~\#204 que pose \code{mw\_tests()}, fiche~\ref{mw:m1a}, rubrique~5), et ils se lisent dans
+phrases de l'issue~\#204 que pose \code{mw\_tests()}, trois gabarits depuis l'issue~\#279,
+fiche~\ref{mw:m1a}, rubrique~5), et ils se lisent dans
 \code{bootstrap\$granularite\_stat} et \code{bootstrap\$B\_effectif}. Mesuré sur un bootstrap
 forgé passé à \code{add()} (statistique bilatérale \code{DW}, $\alpha = 0{,}05$)~: la mention
 «~\code{ECHEC inatteignable}~» apparaît à $B_{\text{eff}} = 79$ ($2/80 = \alpha/2$) et disparaît à
@@ -12911,11 +12920,26 @@ actuel, les issues ultérieures de la branche modifiant les réplications.
 12~octobre 2026~; ADR~0003, annotation du 12~octobre 2026, point~4). Sur les lignes de ses treize
 statistiques de Monte-Carlo, \code{mw\_tests()} joint en fin du commentaire qu'elle passe à \code{add()}, par
 \code{.mw\_phrase\_b\_effectif()} et avec la fonction de jonction d'\code{add()},
-\code{.engine\_joindre()} (issue~\#264), l'une de deux
-phrases. \emph{Cas~A}, p-value de Monte-Carlo finie et $B_{\text{eff}} < B$~: «~\code{B effectif =
+\code{.engine\_joindre()} (issue~\#264), l'une de trois
+phrases. \emph{Cas~A}, p-value de Monte-Carlo finie et $B_{\text{eff}} < B$, plafond du retirage
+des triangles simulés non atteint (\code{bootstrap\$plafond\_cumuls} faux)~: «~\code{B effectif =
 \dots{} sur B = \dots{} (\dots{} replication(s) ecartee(s), statistique non finie)~: p-value
 Monte-Carlo conditionnelle a la definition de la statistique, comptee sur les seules
 replications ou elle est finie~; l'absence de biais de cette selection n'est pas demontree.}~».
+\emph{Cas~A au plafond} (issue~\#279, texte approuvé par le mainteneur le 14~octobre 2026),
+mêmes conditions, plafond atteint (\code{bootstrap\$plafond\_cumuls} vrai)~: «~\code{B effectif
+= \dots{} sur B = \dots{} (\dots{} replication(s) manquante(s)~: plafond de tirages atteint et, le
+cas echeant, statistique non finie)~: p-value Monte-Carlo comptee sur les seules replications ou
+la statistique est finie~; les replications perdues au plafond le sont independamment de la
+valeur de la statistique, l'absence de biais de la selection par statistique non finie n'est pas
+demontree.}~», avec les mêmes trois nombres ($B_{\text{eff}}$, $B$, $B - B_{\text{eff}}$), les
+deux causes nommées sans répartition chiffrée. La première partie de la dernière proposition
+repose sur un argument élémentaire, adossé à aucune référence publiée~: dans une suite i.i.d. de
+triangles simulés, la suite des triangles acceptés est i.i.d. selon la loi du triangle sachant
+ses cumuls strictement positifs et indépendante de la suite des indicateurs d'acceptation~; le
+plafond, qui ne dépend que de ces indicateurs, arrête le tirage sans regarder la valeur des
+statistiques, et les $B_{\text{eff}}$ réplications acceptées restent i.i.d. sous cette loi. La
+seconde partie, la sélection par statistique non finie, reste non démontrée, comme au cas~A.
 \emph{Cas~B}, motif \code{MOTIF\_MC\_REPLIC\_INSUFFISANTES}~: «~\code{B effectif = \dots{} sur B =
 \dots.}~»~; la ligne est alors un diagnostic si elle porte une p non simulée, un test sans p-value
 retenue sinon (Alpha, CorrDev, DW) (section~\ref{sec:nature}, point~(ii), issue~\#181),
@@ -12939,9 +12963,18 @@ phrase de l'issue~\#204 vient ensuite, celle de l'issue~\#244 reste la dernière
 ne porte de nombre issu du bootstrap. Depuis l'issue~\#257, hors plafond, un triangle simulé à
 cumul non strictement positif ne fait plus perdre de réplication~: le cas~A ne paraît plus que pour
 des statistiques non finies, et sa parenthèse «~\code{statistique non finie}~» est exacte. Au
-plafond, les réplications manquantes ont une statistique \code{NA} et sont comptées, comme les
-statistiques non finies, dans les réplications écartées de la phrase de l'issue~\#204, que la
-phrase du plafond précède et explique (décision D1-4~: texte de l'issue~\#204 inchangé). \emph{Statut}~: la loi de référence devient
+plafond, les réplications manquantes ont une statistique \code{NA} et sont comptées, avec les
+statistiques non finies, dans $B - B_{\text{eff}}$~; de l'issue~\#257 à l'issue~\#279, le texte
+du cas~A restait inchangé (décision D1-4) et imputait alors toutes les réplications manquantes à
+une statistique non finie, alors que le plafond en explique au moins une~; depuis l'issue~\#279,
+la phrase du cas~A au plafond nomme les deux causes. Mesuré (\code{mw\_bootstrap()} et
+\code{mw\_tests()}, $B = 999$, graine 20260831) sur le sous-triangle $8\times8$ de Taylor \&
+Ashe dont la ligne~$0$ est multipliée par $10^{-17}$~: plafond atteint, $B_{\text{eff}} = 839$
+pour les treize statistiques, dont chaque ligne de Monte-Carlo porte, dans cet ordre, la
+phrase du retirage, celle du plafond et «~\code{B effectif = 839 sur B = 999 (160 replication(s)
+manquante(s)~: plafond de tirages atteint et, le cas echeant, statistique non finie)}~\dots~»,
+au lieu de «~\code{(160 replication(s) ecartee(s), statistique non finie)}~» avant l'issue~; aucune
+p-value, aucun verdict ne change. \emph{Statut}~: la loi de référence devient
 celle de la statistique \emph{sachant qu'elle est définie}~; aucun résultat ne garantit l'absence
 de biais de cette sélection, et la phrase le dit sans corriger la p-value. Mesuré par
 \code{mw\_bootstrap()} et \code{mw\_tests()} (graine 20260831) sur le triangle de Taylor \& Ashe
@@ -16039,7 +16072,7 @@ des triangles simulés à cumul non strictement positif par
 Merz--Wüthrich~: tests et diagnostics M1 à M6 (sections~\ref{sec:mwm1}
 à~\ref{sec:mwm6}) & \code{mw\_tests()}~; phrases du retirage par
 \code{.mw\_phrases\_}\allowbreak\code{retirage()} (issue~\#257)~; phrase de $B$ effectif inférieur à $B$ par \code{.mw\_phrase\_b\_effectif()}
-(issue~\#204)~; phrase des colonnes non identifiables de la courbure par
+(issue~\#204~; forme au plafond du retirage, issue~\#279)~; phrase des colonnes non identifiables de la courbure par
 \code{.mw\_phrase\_}\allowbreak\code{non\_identifiable()} (issue~\#269) et de l'ordonnée à
 l'origine par \code{.mw\_phrase\_origine\_}\allowbreak\code{non\_identifiable()}
 (issue~\#273) \\
