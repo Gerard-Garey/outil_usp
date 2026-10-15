@@ -2335,4 +2335,66 @@ verifier("mw_influence() stable (#233) : reserve2, ligne 0 x 1e16 : f_sans_cellu
 verifier("mw_influence() stable (#233) : reserve2, ligne 0 x 1e17 : memes controles",
          .verifier_influence_dominante(17))
 
+# Noms de ligne du triangle (#268) : facultatifs ; s'ils sont fournis, chacun
+# est renseigne (ni NA, ni vide, ni fait de seuls blancs) et unique. Avant
+# #268 : nom NA -> defaut de calcul intercepte (erreur R dans
+# mw_plots_data()) ; nom vide et doublon -> ok = TRUE, le doublon remplace en
+# silence dans les tables. Un refus est un motif metier, sans erreur_r.
+.run_noms <- function(noms) {
+  t <- tri_ref; rownames(t) <- noms
+  run_engine(methode = "reserve2", triangle = t, segment = 1, annexe = "II", B = 99)
+}
+.refus_noms <- function(noms, motif) {
+  r <- .run_noms(noms)
+  v <- mw_valider_triangle(`rownames<-`(tri_ref, noms))
+  identical(r$ok, FALSE) && identical(r$validation$ok, FALSE) &&
+    is.null(r$validation$erreur_r) && is.null(r$parametre_final) &&
+    identical(r$validation$erreurs, motif) && identical(v$ok, FALSE) &&
+    identical(v$erreurs, motif)
+}
+annees <- as.character(2017:2024)
+verifier("Noms de ligne (#268) : nom NA refuse, motif metier, sans erreur_r",
+         .refus_noms(replace(annees, 8, NA),
+                     "Nom d'annee d'accident manquant ou vide en ligne 8 (i=7)."))
+verifier("Noms de ligne (#268) : nom vide refuse, motif metier, sans erreur_r",
+         .refus_noms(replace(annees, 3, ""),
+                     "Nom d'annee d'accident manquant ou vide en ligne 3 (i=2)."))
+verifier("Noms de ligne (#268) : nom fait de seuls blancs refuse comme un nom vide",
+         .refus_noms(replace(annees, 1, " \t"),
+                     "Nom d'annee d'accident manquant ou vide en ligne 1 (i=0)."))
+verifier("Noms de ligne (#268) : annees d'accident en double refusees, un motif par nom, positions citees",
+         .refus_noms(replace(annees, c(7, 4), c("2022", "2019")),
+                     c("Annee d'accident en double : \"2019\" (lignes 3 et 4, i=2 et i=3).",
+                       "Annee d'accident en double : \"2022\" (lignes 6 et 7, i=5 et i=6).")))
+verifier("Noms de ligne (#268) : trois lignes au meme nom, un seul motif",
+         .refus_noms(replace(annees, c(2, 5), "2017"),
+                     "Annee d'accident en double : \"2017\" (lignes 1, 2 et 5, i=0, i=1 et i=4)."))
+verifier("Noms de ligne (#268) : blanc initial, doublon compare sans les blancs, forme saisie citee",
+         .refus_noms(replace(annees, 7, " 2022"),
+                     "Annee d'accident en double : \"2022\", \" 2022\" (lignes 6 et 7, i=5 et i=6)."))
+verifier("Noms de ligne (#268) : blanc final, doublon compare sans les blancs, forme saisie citee",
+         .refus_noms(replace(annees, 2, "2017 "),
+                     "Annee d'accident en double : \"2017\", \"2017 \" (lignes 1 et 2, i=0 et i=1)."))
+verifier("Noms de ligne (#268) : manquants et doublon cumules, doublon compte hors des noms manquants",
+         .refus_noms(c(NA, "", annees[3:6], "2022", "2024"),
+                     c("Nom d'annee d'accident manquant ou vide en ligne 1 (i=0).",
+                       "Nom d'annee d'accident manquant ou vide en ligne 2 (i=1).",
+                       "Annee d'accident en double : \"2022\" (lignes 6 et 7, i=5 et i=6).")))
+# Valeurs comparees sans leurs noms : sous un triangle nomme, sigma_usp,
+# sigma_estime, sigma_estime_brut et variation_relative de parametre_final
+# portent un nom de ligne ("2018" pour 2017:2024), comportement anterieur a
+# #268, hors de son perimetre (issue #319 ; retirer unname() a sa
+# correction).
+verifier("Noms de ligne (#268) : triangle sans noms et triangle a noms valides admis, parametre final de meme valeur",
+         {
+           r0 <- run_engine(methode = "reserve2", triangle = tri_ref, segment = 1,
+                            annexe = "II", B = 99)
+           r1 <- .run_noms(annees)
+           isTRUE(r0$ok) && isTRUE(r1$ok) && !length(r1$validation$erreurs) &&
+             identical(unname(unlist(r0$parametre_final)), unname(unlist(r1$parametre_final)))
+         })
+verifier("Noms de ligne (#268) : data.frame a noms de ligne automatiques admis",
+         isTRUE(run_engine(methode = "reserve2", triangle = as.data.frame(tri_ref),
+                           segment = 1, annexe = "II", B = 99)$ok))
+
 fin_fichier()

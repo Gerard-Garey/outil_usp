@@ -7107,6 +7107,38 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
           sprintf(" ; %d cellules observees hors du domaine", length(hors_i)) else ""))
     }
   }
+  # Noms de ligne (issue #268) : facultatifs, ils identifient l'annee
+  # d'accident et ne servent qu'aux noms de lignes des tables restituees
+  # (.mw_noms_lignes_empilees()), jamais au calcul. Un triangle sans noms de
+  # ligne est admis ; s'il en porte, chacun est renseigne et unique. Le
+  # controle lit les noms tels que saisis (une matrice garde ses doublons a
+  # as.matrix()) : un nom NA, vide ou fait de seuls blancs n'identifie aucune
+  # annee ; un doublon designe deux fois la meme annee, et serait remplace en
+  # silence par un nom automatique dans les tables. Pas de remplacement par
+  # defaut : il masquerait une erreur de saisie et romprait la tracabilite
+  # entre la saisie et les tables. Place apres les controles de cellules,
+  # qu'il ne masque pas.
+  noms <- rownames(tri)
+  if (!is.null(noms)) {
+    manquant <- is.na(noms) | !nzchar(trimws(noms))
+    for (k in which(manquant))
+      err <- c(err, sprintf("Nom d'annee d'accident manquant ou vide en ligne %d (i=%d).",
+                            k, k - 1L))
+    # Doublons compares sur les noms renseignes debarrasses de leurs blancs
+    # initiaux et finaux ("2022" et " 2022" designent la meme annee), sans
+    # autre normalisation (ni casse, ni conversion numerique). Un motif par
+    # nom en double, qui cite les formes saisies, sans reecriture, et les
+    # positions des lignes.
+    cle <- trimws(noms); cle[manquant] <- NA_character_
+    enum <- function(x) if (length(x) == 1L) x else
+      paste(paste(x[-length(x)], collapse = ", "), "et", x[length(x)])
+    for (d in unique(cle[!manquant & duplicated(cle)])) {
+      k <- which(!manquant & cle == d)
+      err <- c(err, sprintf("Annee d'accident en double : %s (lignes %s, %s).",
+                            paste0("\"", unique(noms[k]), "\"", collapse = ", "),
+                            enum(k), enum(paste0("i=", k - 1L))))
+    }
+  }
   # Bareme, segment et annexe (issue #131) : controles apres les erreurs de
   # donnees, qu'ils ne masquent pas (comme dans engine_valider_donnees()), et
   # avant tout avertissement ; une valeur invalide est refusee sans erreur R.
