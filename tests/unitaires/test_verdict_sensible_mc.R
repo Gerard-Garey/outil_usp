@@ -273,4 +273,4 @@ for (cas in names(ATTENDU244)) local({
 })
 verifier("U244-7 six cas : 11 lignes marquees au total", n244 == 11L)
 
-bilan_fichier()
+fin_fichier()

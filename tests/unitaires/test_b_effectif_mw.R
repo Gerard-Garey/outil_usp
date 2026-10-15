@@ -295,4 +295,4 @@ verifier("add() (engine_registre_tests) ne pose aucune phrase 'B effectif' ; seu
              length(ici) == 3L && all(ici > deb & ici < fin)
          })
 
-bilan_fichier()
+fin_fichier()

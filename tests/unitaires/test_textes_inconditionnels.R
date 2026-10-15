@@ -195,4 +195,4 @@ verifier("U182-5 Smirnov, detail : inchange a pi_t constant, loi echangeable nom
                    d2, fixed = TRUE)
          })
 
-bilan_fichier()
+fin_fichier()

@@ -189,4 +189,4 @@ verifier("U181-8 R/engine.R : plus de repli_asymptotique, de motif_non_mc ni de 
                list(p_mc = numeric(0), err_mc = numeric(0)), list(), 0.10, "MC")$add))
          })
 
-bilan_fichier()
+fin_fichier()

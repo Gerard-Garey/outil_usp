@@ -93,4 +93,4 @@ verifier("T245-4 Lilliefors : detail = phrase fixe du point 4, ASCII, sans nombr
          identical(li245[[1]]$detail, DETAIL_LI) && !grepl("[^ -~]", li245[[1]]$detail) &&
            !grepl("[0-9]", sans_renvois(li245[[1]]$detail)))
 
-bilan_fichier()
+fin_fichier()
