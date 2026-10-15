@@ -744,7 +744,8 @@ $p_{\min}$ (\code{NULL} ailleurs~; refus par une erreur d'une valeur qui n'est p
 d'un résultat de mauvaise forme)~; seule source du calcul observé, du calcul simulé et de la
 p-value de Monte-Carlo (ADR~0003) \\
 \code{.usp\_contexte\_mc()},\newline \code{.mw\_contexte\_mc()} & $x$, $y$, $z$, \code{pi}~; \code{aj},
-\code{j\_degeneres}, \code{j\_non\_identifiables} (\code{NULL}~: calculés sur \code{aj}) &
+\code{figes} (objet des ensembles figés de \code{.mw\_ensembles\_figes()}~; \code{NULL}~: construit
+sur \code{aj}~; issue~\#278) &
 contexte des fonctions de calcul du catalogue~: ratios $r_t$ et ratios centrés $u_t$, et, depuis
 l'issue~\#215, vecteur $\hat\pi_t$ de l'ajustement (de l'observé, ou de la réplication), lu par
 l'entrée \code{Intercept} pour les poids de la régression pondérée~;
@@ -752,7 +753,10 @@ ensemble des colonnes dégénérées (figé à l'observé par \code{mw\_bootstra
 \code{aj} s'il n'est pas fourni) et résidus de Mack calculés avec cet ensemble (issue~\#60), lus
 depuis l'issue~\#239 par les entrées \code{ExpVar} et \code{KruskalAcc}, qui ne les recalculent
 plus~; depuis l'issue~\#270, ensemble des colonnes non identifiables de la courbure, figé de
-même, lu par l'entrée \code{Courbure} (fiche~\ref{mw:m1c}) \\
+même, lu par l'entrée \code{Courbure} (fiche~\ref{mw:m1c}). Depuis l'issue~\#278, ces ensembles
+ne sont plus transmis en arguments séparés~: le contexte porte l'objet unique des ensembles
+figés (élément \code{figes}), dont chaque fermeture de \code{MW\_CATALOGUE\_MC} passe l'élément
+voulu à la fonction de test, et dont la forme est contrôlée par \code{.mw\_verifier\_figes()} \\
 \code{.mc\_evaluer()} & catalogue, contexte & vecteur nommé dans l'ordre du catalogue~; erreur
 qui nomme la statistique si une entrée ne rend pas une valeur de longueur~1 \\
 \code{engine\_p\_mc()} & valeurs simulées, valeur observée, sens du rejet, \code{extremes}
@@ -839,7 +843,9 @@ réplications quand ce plafond est atteint avec moins de \code{B\_MIN\_DEGENERES
 retenus, à $B \ge$ \code{B\_MIN\_DEGENERESCENCE} seulement (fiche~\ref{fiche:procedure-mc})~;
 en dernier élément depuis l'issue~\#125, \code{p\_min\_mc}, plancher Monte-Carlo par statistique
 (\code{NA} pour les statistiques continues), calculé sur les tirages retenus \\
-\code{mw\_bootstrap()} & \code{aj}, $B$ (999), \code{seed} (20260831) &
+\code{mw\_bootstrap()} & \code{aj}, $B$ (999), \code{seed} (20260831), \code{figes}
+(\code{NULL}~: objet des ensembles figés construit sur \code{aj} par
+\code{.mw\_ensembles\_figes()}, même calcul~; issue~\#278) &
 \code{stats\_obs}, \code{p\_mc}, \code{err\_mc},
 \code{B\_effectif}, \code{granularite}, \code{sigma\_boot}, \code{B}, \code{granularite\_stat},
 \code{motif\_mc}, depuis l'issue~\#257 \code{cumuls\_retires} (au moins un triangle simulé
@@ -933,6 +939,19 @@ d'entiers, éventuellement vide, des colonnes non identifiables de la courbure~:
 des colonnes exclues, colonne non dégénérée, moins de trois valeurs distinctes de $C(i,j)$
 (égalité exacte)~; ensemble figé à l'observé par \code{mw\_bootstrap()} et transmis aux
 réplications (issue~\#270, fiche~\ref{mw:m1c}) \\
+\code{.mw\_ensembles\_}\newline\code{figes()},\newline \code{.mw\_verifier\_}\newline\code{figes()} &
+\code{aj}, \code{j\_degeneres}, \code{j\_non\_identifiables} (\code{NULL}~: calculés sur
+\code{aj})~; objet, nom de l'appelant & objet unique des ensembles de colonnes figés à l'observé
+(issue~\#278)~: liste nommée de vecteurs croissants d'entiers, éventuellement vides,
+\code{degeneres} (colonnes dégénérées, fiche~\ref{mw:m1a}) puis \code{non\_identifiables}
+(colonnes non identifiables de la courbure, calculées après les dégénérées,
+fiche~\ref{mw:m1c})~; un argument fourni impose son ensemble, dont le calcul est sauté. Construit
+une fois par \code{.run\_engine\_mw()} et lu par \code{mw\_bootstrap()}, \code{.mw\_contexte\_mc()},
+donc \code{.mw\_stats()} et les fermetures de \code{MW\_CATALOGUE\_MC}, et \code{mw\_tests()}, qui
+ne recalculent plus les ensembles~; contrôle de forme (liste aux noms exacts du constructeur,
+sinon erreur), appelé par ces trois fonctions~: un vecteur ou une liste mal nommée, dont les
+éléments liraient \code{NULL}, ferait recalculer en silence les ensembles sur chaque réplication
+et perdre le gel à l'observé \\
 \code{.MW\_PREDICAT\_}\newline\code{DEGENERE\_TEXTE} & constante (chaîne) & énoncé unique des deux
 volets du prédicat, repris par l'avertissement des colonnes exclues, l'avertissement
 d'extrapolation de $\hat\sigma^2_{J-1}$, le motif de refus de l'issue~\#192 et la phrase
@@ -957,24 +976,47 @@ colonne & vecteur des $F(i,j) - \hat f_j$ par l'identité exacte
 $\sum_{k \neq i} C(k,j)\big(F(i,j) - F(k,j)\big)/S_j$, sans annulation pour une cellule dominante,
 sommes par \code{sum()}~; employé par \code{mw\_residus()} et \code{mw\_influence()}
 (issue~\#233, section~\ref{sec:boot-mw}) \\
+\code{.mw\_centrage\_}\newline\code{pondere()} & vecteur $x$, poids $w$, somme des poids &
+vecteur des $\sum_k w_k (x_i - x_k)/\sum_k w_k$, soit $x_i$ moins la moyenne pondérée des $x$,
+par différences deux à deux, sans annulation entre grandeurs de l'ordre d'une cellule
+dominante, sommes par \code{sum()}~; forme partagée depuis l'issue~\#278 par
+\code{.mw\_ecart\_facteur\_}\allowbreak\code{stable()} ($x = F(\cdot,j)$, $w = C(\cdot,j)$) et
+\code{.mw\_lm\_intra()} (centrage par colonne de $C$ et de $F$). Le terme $k = i$, nul, est
+inclus~; \code{.mw\_ecart\_facteur\_}\allowbreak\code{stable()} l'omettait avant l'issue, sans
+effet sur le résultat pour $x_i$ et $w_i$ finis, un zéro exact n'ajoutant rien à la somme
+(mesuré~: 20\,000 colonnes de 2 à 10 cellules tirées sur $[10^{-50}~;~10^{50}]$, graine 278,
+résultats identiques à l'ancienne forme au sens d'\code{identical()}~; références inchangées) \\
 \code{.mw\_sommes\_}\newline\code{autres()} & vecteur $x$ des cellules d'une colonne & vecteur
 des $\sum_{l \neq k} x_l$, somme directe par \code{sum()} des $n - 1$ autres valeurs, sans la
 différence $\sum_l x_l - x_k$, qui s'annule en flottant quand $x_k$ domine sa colonne
 (issue~\#233)~; partagé depuis l'issue~\#260 par \code{.mw\_pool\_residus()} (numérateur de
 $1 - h_{ij}$) et \code{mw\_influence()} ($S_j - C(i,j)$ et $S'_j - C(i,j+1)$), mêmes opérations
 que les deux formes qu'il remplace \\
-\code{mw\_simuler\_triangle()}, \code{.mw\_stats()} & \code{aj}, vivier de
-résidus~; \code{aj}, \code{j\_degeneres}, \code{j\_non\_identifiables} (ensembles figés à
-l'observé, le second depuis l'issue~\#270) & triangle simulé, rendu depuis l'issue~\#257 dès le premier cumul simulé non
-strictement positif ou non fini (cellule \code{NA}, colonnes suivantes non tirées)~; vecteur de
-13 statistiques \\
+\code{mw\_simuler\_triangle()},\newline \code{.mw\_simuler\_}\newline\code{triangle\_etat()},\newline
+\code{.mw\_stats()} & \code{aj}, vivier de
+résidus~; \code{aj}, \code{figes} (objet des ensembles figés à l'observé depuis l'issue~\#278,
+auparavant arguments \code{j\_degeneres} et, depuis l'issue~\#270, \code{j\_non\_identifiables}~;
+\code{NULL}~: construit sur \code{aj}) & triangle simulé, rendu depuis l'issue~\#257 dès le premier cumul simulé non
+strictement positif ou non fini (cellule \code{NA}, colonnes suivantes non tirées)~; depuis
+l'issue~\#278, le calcul est porté par \code{.mw\_simuler\_}\allowbreak\code{triangle\_etat()},
+qui rend aussi l'indicateur \code{complet} (\code{FALSE} si le triangle a été rendu au premier
+cumul invalide), \code{mw\_simuler\_triangle()} en étant l'enveloppe (mêmes tirages, même
+triangle)~; vecteur de 13 statistiques \\
 \code{.mw\_tirer\_triangle\_}\newline\code{valide()},\newline
 \code{.mw\_triangle\_}\newline\code{incomplet()} & \code{aj}, vivier, nombre de tirages restant
 sous le plafond~; triangle simulé & triangle accepté (aucun \code{NA} dans sa partie
-supérieure, \code{.mw\_triangle\_}\allowbreak\code{incomplet()}), nombre de triangles tirés
+supérieure), nombre de triangles tirés
 et écartés, ou \code{NULL} si le plafond est atteint sans triangle accepté~; acceptation-rejet
 dans le flux de \code{mw\_bootstrap()}, partagée avec les boucles des tests unitaires qui la
-reproduisent (issue~\#257, section~\ref{sec:boot-mw}) \\
+reproduisent (issue~\#257, section~\ref{sec:boot-mw}). Depuis l'issue~\#278, l'acceptation lit
+l'indicateur \code{complet} de \code{.mw\_simuler\_}\allowbreak\code{triangle\_etat()} au lieu
+de balayer le triangle une seconde fois par \code{.mw\_triangle\_}\allowbreak\code{incomplet()},
+qui reste le contrôle des tests unitaires~: sur un triangle carré à première colonne complète,
+seul admis par \code{mw\_valider\_triangle()}, la partie supérieure balayée est exactement la
+première colonne et les cellules tirées, d'où la même décision (mesuré sur le triangle de
+contrôle, graines 1 à 100, vivier multiplié par 1, 30, 100 et 300~: sur ces 400 tirages, dont 237
+triangles incomplets, même triangle que \code{mw\_simuler\_triangle()} et même décision que
+\code{.mw\_triangle\_}\allowbreak\code{incomplet()}) \\
 \code{.mw\_pool\_residus()} & \code{aj}, \code{j\_degeneres} & vivier du bootstrap de Mack~:
 résidus retenus par \code{mw\_residus()} (sous forme stable depuis l'issue~\#233), redressés par
 $\sqrt{1 - h_{ij}}$, $1 - h_{ij}$ calculé comme $(S_j - C(i,j))/S_j$, somme des autres cellules
@@ -1004,12 +1046,17 @@ l'issue~\#253, qui calcule le terme quadratique en forme close, sans \code{lm()}
 écart-type, $t$, p de Student) de la régression pondérée de $F(i,j)$ sur $C(i,j)$ à effet fixe
 de colonne, et son seul $t$, statistique de la pente intra-colonne~; depuis l'issue~\#253, en
 forme close (centrage pondéré par colonne, théorème de Frisch et Waugh), sans \code{lm()}
-(fiche~\ref{mw:m1}) \\
+(fiche~\ref{mw:m1})~; centrage par \code{.mw\_centrage\_pondere()} depuis l'issue~\#278 \\
 \code{.mw\_courbure\_}\newline\code{colonne()} & cumuls $C(\cdot,j)$ et $C(\cdot,j+1)$ d'une
 colonne & coefficient $\hat c_j$, $t_j$ et p bilatérale de Student du terme quadratique de la
 courbure, en forme close (formule de Cauchy--Binet et règle de Cramer), sans \code{lm()}~;
 \code{NULL} si la colonne compte moins de quatre observations ou moins de trois valeurs
 distinctes de $C(i,j)$ (issue~\#253, fiche~\ref{mw:m1c}) \\
+\code{.mw\_combinaisons()} & $n$ & parties à 2, 3 et 4 éléments de $\{1, \ldots, n\}$
+(\code{utils::combn()}) employées par \code{.mw\_courbure\_}\allowbreak\code{colonne()},
+calculées une fois par $n$ et gardées dans le cache \code{.MW\_COMBN\_CACHE} depuis
+l'issue~\#278, au lieu d'un recalcul à chaque colonne et à chaque réplication~; cache
+déterministe, sans aléa, hors des résultats~: mêmes matrices que l'appel direct \\
 \code{.mw\_me()},\newline \code{.mw\_somme\_me()} & réels~; mantisses et exposants &
 écriture à exposant séparé $v = m\,2^e$, $|m| \in [1, 2[$ (sous-normaux compris, $0$ et non
 finis laissés tels quels), et somme, colonne par colonne, de termes ainsi écrits, ramenés à
@@ -1091,9 +1138,12 @@ $-1$ et $1$ sans ex \ae quo~; homogénéité de $f_j$ et exposant de variance, e
 $X_{\max}$ par \code{.fisher\_combine()} sur \code{p\_min\_col}~; Kruskal--Wallis, extrémité haute,
 $H$ de l'affectation en blocs de rangs contigus~; \code{NA} là où la ligne n'a pas de $p_{\min}$
 (issue~\#125, tableau~\ref{tab:pmin}) \\
-\code{mw\_tests()} & \code{aj}, \code{boot}, \code{alpha} (0,10) &
+\code{mw\_tests()} & \code{aj}, \code{boot}, \code{alpha} (0,10), \code{figes} (\code{NULL}~:
+construit sur \code{aj} par \code{.mw\_ensembles\_figes()}, même calcul) &
 liste des tests M1 à M6 (même structure que \code{usp\_tests()}, même fonction
-d'enregistrement \code{engine\_registre\_tests()}) \\
+d'enregistrement \code{engine\_registre\_tests()})~; depuis l'issue~\#278, les ensembles figés
+sont lus dans l'objet reçu, celui de \code{mw\_bootstrap()}, au lieu d'être recalculés par
+chaque fonction de test \\
 \code{.mw\_phrase\_b\_}\newline\code{effectif()} & \code{boot}, \code{mc\_nom} & phrase
 «~\code{B effectif = \dots{} sur B = \dots}~» jointe par \code{mw\_tests()} au commentaire d'une
 ligne de Monte-Carlo (cas~A, $B_{\text{eff}} < B$ et p-value finie~; cas~B, motif
@@ -1111,6 +1161,17 @@ ligne de courbure, qui nomme les colonnes de l'élément \code{non\_identifiable
 valeurs distinctes de $C(i,j)$~: $j$, nombre de facteurs, $K$ et colonnes éligibles de l'appel
 observé, aucun nombre issu du bootstrap), après la phrase des colonnes dégénérées~; chaîne vide
 si l'élément est vide (issue~\#269, fiche~\ref{mw:m1c}) \\
+\code{.mw\_phrase\_}\newline\code{colonnes\_}\newline\code{ecartees()} & colonnes écartées
+(\code{data.frame} \code{j}, \code{n\_facteurs}), résultat de la fonction de test de l'appel
+observé, sujet (singulier, pluriel), ce qui n'est pas défini, ce que l'exclusion ne prouve pas &
+gabarit unique, depuis l'issue~\#278, des phrases de colonnes écartées de M1, partagé par
+\code{.mw\_phrase\_exclusion()} (colonnes dégénérées) et
+\code{.mw\_phrase\_non\_}\allowbreak\code{identifiable()}~: «~\code{<sujet>~: j = \dots{}
+(\dots{} facteurs), \dots~; <quoi>, colonne hors de la combinaison de Fisher~; K = \dots{}
+colonne(s) testee(s) sur \dots{} eligible(s). L'exclusion ne vaut pas preuve <preuve>.}~»
+(«~\code{colonnes hors}~» et sujet au pluriel pour plusieurs colonnes), $K$ et
+le nombre d'éligibles lus dans le résultat de l'appel observé ($K$ absent compté~0), aucun
+nombre issu du bootstrap~; chaîne vide sans colonne écartée \\
 \code{mw\_parametre()} &\code{aj}, \code{msep} (champ \code{\$msep}),
 $\sigma_{\text{std}}$, barème & $\sigma_{\mathrm{USP}}$ et ses composantes \\
 \code{mw\_influence()} & \code{aj} & levier, facteur sans la cellule,
@@ -1195,7 +1256,9 @@ $4/\alpha$ n'est pas fini ou n'est pas inférieur à $2^{52}$ \\
 (défaut de calcul intercepté~; option \code{usp.engine.lever\_erreurs}, §\ref{sec:controles}) \\
 \code{.run\_engine\_mw()} & entrées de \code{run\_engine()} pour
 \code{methode = "reserve2"}, dont \code{nature\_donnees} & objet \code{usp\_engine} de la branche
-Merz--Wüthrich \\
+Merz--Wüthrich~; depuis l'issue~\#278, construit une fois, sur le triangle observé, l'objet des
+ensembles figés (\code{.mw\_ensembles\_figes()}) et le passe à \code{mw\_bootstrap()} et à
+\code{mw\_tests()} (argument \code{figes}) \\
 \end{longtable}
 }
 
@@ -12723,7 +12786,8 @@ commentaire le signale à la graine 20260831 par la phrase \code{PHRASE\_VERDICT
 $10^{-12}$ relative, deux volets du prédicat) est déterminé sur le triangle observé et conservé dans chaque réplication,
 de sorte que $K$ est identique entre statistique observée et simulée~; une réplication dans
 laquelle une colonne retenue devient dégénérée n'a pas de statistique et est comptée hors de
-\code{B\_effectif} (\code{.mw\_colonnes\_degenerees()}, argument \code{j\_degeneres}~; pour
+\code{B\_effectif} (\code{.mw\_colonnes\_degenerees()}, argument \code{j\_degeneres} des fonctions de
+test, élément \code{degeneres} de l'objet des ensembles figés depuis l'issue~\#278~; pour
 la courbure, une colonne de l'ensemble figé des colonnes non identifiables n'est pas retenue et
 reste ignorée, fiche~\ref{mw:m1c}). Depuis
 l'issue~\#60, le même ensemble figé est transmis aux résidus de Mack de chaque réplication
@@ -13115,12 +13179,18 @@ eligible(s)}~».
 $n_j \ge 4$, hors des colonnes exclues de la vérification (ensemble figé des colonnes dégénérées,
 fiche~\ref{mw:m1a}), dont la colonne n'est pas dégénérée et dont les $C(i,j)$ comptent moins de
 trois valeurs distinctes, au sens de l'égalité exacte (\code{unique()})~; une colonne constante en
-fait partie. \code{mw\_bootstrap()} calcule cet ensemble une fois, sur le triangle observé, après
-celui des colonnes dégénérées, et le transmet à chaque réplication par l'argument
-\code{j\_non\_identifiables} de \code{mw\_test\_courbure()}, de \code{.mw\_contexte\_mc()} et de
-\code{.mw\_stats()}, que lit l'entrée \code{Courbure} de \code{MW\_CATALOGUE\_MC} (nom, rejet en
-queue haute et absence d'extrémités inchangés)~; à l'appel observé, l'argument vaut \code{NULL}
-et l'ensemble est calculé sur le triangle, ce qui donne le même. La statistique observée et
+fait partie. Cet ensemble est calculé une fois, sur le triangle observé, après
+celui des colonnes dégénérées, et transmis à chaque réplication par l'argument
+\code{j\_non\_identifiables} de \code{mw\_test\_courbure()}, que lui passe l'entrée
+\code{Courbure} de \code{MW\_CATALOGUE\_MC} (nom, rejet en
+queue haute et absence d'extrémités inchangés). Depuis l'issue~\#278, il est l'élément
+\code{non\_identifiables} de l'objet unique des ensembles figés (\code{.mw\_ensembles\_figes()},
+index des fonctions), construit par \code{.run\_engine\_mw()} et passé à \code{mw\_bootstrap()},
+qui le transmet au contexte de \code{.mw\_contexte\_mc()} et \code{.mw\_stats()}, où la fermeture
+le lit, et à \code{mw\_tests()}, qui le passe à l'appel observé~; avant cette issue, il était
+calculé dans \code{mw\_bootstrap()}, transmis par un argument \code{j\_non\_identifiables} de
+\code{.mw\_contexte\_mc()} et de \code{.mw\_stats()}, et recalculé sur le triangle pour l'appel
+observé, ce qui donnait le même. La statistique observée et
 celle de chaque réplication combinent ainsi les mêmes colonnes, avec le même $K$~: c'est la
 règle des colonnes dégénérées (issue~\#56, fiche~\ref{mw:m1a}), transposée. Son second volet
 l'est aussi~: une colonne retenue à l'observé mais non identifiable dans une réplication rend la
@@ -15850,7 +15920,9 @@ Merz--Wüthrich~: résidus standardisés de Mack (§\ref{sec:mw}) &
 stable, issue~\#233) \\
 Merz--Wüthrich~: bootstrap semi-paramétrique et p-values de Monte-Carlo
 (§\ref{sec:boot-mw}) & \code{mw\_bootstrap()}, \code{.mw\_pool\_residus()} (vivier redressé
-par le levier, issue~\#46), \code{mw\_simuler\_triangle()}, \code{.mw\_stats()}~; retirage
+par le levier, issue~\#46), \code{mw\_simuler\_triangle()}, \code{.mw\_stats()}~; ensembles de
+colonnes figés à l'observé, objet unique de \code{.mw\_ensembles\_figes()}, contrôlé par
+\code{.mw\_verifier\_figes()} (issue~\#278)~; retirage
 des triangles simulés à cumul non strictement positif par
 \code{.mw\_tirer\_triangle\_}\allowbreak\code{valide()}, plafond \code{FACTEUR\_B\_MAX\_MW}
 (issue~\#257) \\
