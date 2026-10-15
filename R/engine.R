@@ -3770,8 +3770,14 @@ engine_p_mc <- function(sim, obs, queue, extremes = NULL) {
 # E2b). Passee a add() par l'argument nature_as, sur les seules lignes sans
 # mc_nom de cette famille. Depuis #245 (lignes M5 de Merz-Wuthrich en
 # diagnostic, sans p retenue ni nature_p), sa seule ligne est l'aplatissement
-# d'Anscombe-Glynn (moments exacts), test a T >= 20 seulement. Le libelle dit
-# ce qu'est la p ; il ne dit pas que l'hypothese i.i.d. normale tient.
+# d'Anscombe-Glynn (moments exacts), test a T >= 20 seulement. La p non
+# simulee de D'Agostino (test_dagostino_skew() : transformation S_U de Johnson
+# ajustee sur les moments exacts de sqrt(b1)) releve aussi de cette famille,
+# mais sa ligne porte un mc_nom ("DAgo"), comme SW, SF, AD, CvM et Lilliefors :
+# depuis #181, la p non simulee d'une ligne a mc_nom n'est jamais retenue,
+# et ces lignes ne passent donc pas nature_as (portee de D1-3, specification
+# d'E2b ; #264). Le libelle dit ce qu'est la p ; il ne dit pas que
+# l'hypothese i.i.d. normale tient.
 NATURE_APPROX_N_FINI <- "approximation a n fini sous i.i.d. normal"
 
 # Phrase de sensibilite du verdict a l'alea de simulation (#244 ; ADR 0003
@@ -3789,6 +3795,24 @@ NATURE_APPROX_N_FINI <- "approximation a n fini sous i.i.d. normal"
 PHRASE_VERDICT_SENSIBLE_MC <- paste(
   "verdict sensible a l'alea de simulation",
   "(p a moins de 2 erreurs de Monte-Carlo du seuil)")
+
+# Jonction de deux textes de detail (#264) : fonction unique, appelee par
+# add() (regle R1, restitution d'effectifs, plancher Monte-Carlo, phrase de
+# #244), par mw_tests() (phrases de #257 et #204), par usp_tests() (joindre)
+# et par .usp_poser_renvois(). b vide -> a ; sinon a vide -> b ; sinon
+# a, puis " " si a finit par un point, " ; " sinon, puis b. Aucun trimws()
+# (les appelants gardent le leur) ; aucune majuscule apres un point (decision
+# d'actuary, #264) : b est un suffixe verbatim du resultat des qu'il est non
+# vide, invariant lu par .usp_poser_renvois() et R/display_helpers.R
+# (endsWith sur PHRASE_VERDICT_SENSIBLE_MC). Les lecteurs inverses
+# (.usp_poser_renvois(), R/display_helpers.R) retirent la jonction en dur :
+# toute evolution de cette regle les touche. .mw_avec_exclusion() suit une
+# autre regle (". ") et n'appelle pas cette fonction.
+.engine_joindre <- function(a, b) {
+  if (!nzchar(b)) return(a)
+  if (!nzchar(a)) return(b)
+  paste0(a, if (grepl("\\.$", a)) " " else " ; ", b)
+}
 
 # --- Enregistrement des lignes de resultat des tests --------------------------
 # Fonction unique, partagee par usp_tests() et mw_tests() (ADR 0003, point 2).
@@ -4049,8 +4073,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
             "atteignable sur ces replications >= alpha%s ; aucun verdict (ADR 0001)."),
             alpha, eff), " ", detail))
         } else if (identical(sens, "ne pas rejeter") && p_min_mc >= alpha / 2) {
-          sep <- if (!nzchar(detail)) "" else if (grepl("\\.$", detail)) " " else " ; "
-          detail <- trimws(paste0(detail, sep, sprintf(paste(
+          detail <- trimws(.engine_joindre(detail, sprintf(paste(
             "ECHEC inatteignable : plus petite p-value Monte-Carlo atteignable sur ces",
             "replications >= alpha/2 = %g%s"), alpha / 2, eff)))
         }
@@ -4063,7 +4086,6 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
                                         alpha, lib_pmin, p_min, eff),
                                 " ", detail))
       } else if (identical(sens, "ne pas rejeter") && p_min >= alpha / 2 && !aucune_p) {
-        sep <- if (!nzchar(detail)) "" else if (grepl("\\.$", detail)) " " else " ; "
         # Sans p exacte, la suite du texte suit la p Monte-Carlo retenue par
         # la hierarchie ci-dessous. Branche "p-value asymptotique retenue"
         # retiree (#181, ADR 0003 annote le 12/10/2026, point 2) : le cas
@@ -4076,7 +4098,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
             paste(" ; la p-value Monte-Carlo retenue, simulee sous le modele ajuste, peut",
                   "lui etre inferieure (erreur Monte-Carlo, non-echangeabilite) : ECHEC possible")
           else "")
-        detail <- trimws(paste0(detail, sep, txt_r1))
+        detail <- trimws(.engine_joindre(detail, txt_r1))
       }
     }
     # Restitution du motif de l'absence de p_min (#70, 5a) : pour un test
@@ -4085,8 +4107,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     # de la branche "ECHEC inatteignable". Les lignes non applicables ne sont
     # pas concernees.
     if (type == "test" && !is.finite(p_min) && !is.na(effectifs)) {
-      sep <- if (!nzchar(detail)) "" else if (grepl("\\.$", detail)) " " else " ; "
-      detail <- trimws(paste0(detail, sep, effectifs))
+      detail <- trimws(.engine_joindre(detail, effectifs))
     }
     # Test sans aucune p-value (#128, point 2') : type, verdict INFO, sens et
     # p_retenue = NA inchanges (decision du 27/09/2026, "Test sans p-value
@@ -4136,8 +4157,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
         sprintf("plancher Monte-Carlo >= alpha/2 = %g : ECHEC inatteignable", alpha / 2)
       else NULL
       if (!is.null(txt_g)) {
-        sep <- if (!nzchar(detail)) "" else if (grepl("\\.$", detail)) " " else " ; "
-        detail <- trimws(paste0(detail, sep, txt_g))
+        detail <- trimws(.engine_joindre(detail, txt_g))
       }
     }
     # Verdict Monte-Carlo proche d'un seuil (#244 ; ADR 0003 annote le
@@ -4164,8 +4184,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
       pl <- if (is.finite(p_min_mc)) p_min_mc else g_mc
       seuils <- seuils[is.na(pl) | pl < seuils]
       if (any(abs(p_mc - seuils) < 2 * e_mc)) {
-        sep <- if (!nzchar(detail)) "" else if (grepl("\\.$", detail)) " " else " ; "
-        detail <- trimws(paste0(detail, sep, PHRASE_VERDICT_SENSIBLE_MC))
+        detail <- trimws(.engine_joindre(detail, PHRASE_VERDICT_SENSIBLE_MC))
       }
     }
     # ADR 0001 (amendement du 23/09/2026, M7) : seule une ligne de type "test"
@@ -4746,9 +4765,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # alors celle d'avant #70 au bit pres.
   p_ex_si_pi_constant <- function(p) if (isTRUE(pi_constant)) p else NA_real_
   # Regle R8 (#70) : libelles des huit lignes selon le regime. Jonction de
-  # deux textes selon la regle de la branche "ECHEC inatteignable" de add() :
-  # " " apres un point final, " ; " sinon, rien si l'un des deux est vide.
-  joindre <- .usp_joindre
+  # deux textes par la fonction unique .engine_joindre() (#264), celle
+  # d'add() : " " apres un point final, " ; " sinon, rien si l'un des deux
+  # est vide.
+  joindre <- .engine_joindre
   txt_pi_variable <- paste("p exacte non attribuee : loi de reference exacte seulement",
                            "a pi_t constant (z = P epsilon non echangeable, r_t non",
                            "identiquement distribues).")
@@ -4775,9 +4795,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     if (isTRUE(pi_constant)) cst
     else paste0(variable, ", exacte a pi_t constant seulement (regle R7)")
 
-  # Phrase des lignes dont le detail nomme la p Monte-Carlo comme retenue
-  # (RESET, OLS-CUSUM, suites sur ratios bruts ; #128, point c) : vraie
-  # seulement si la p Monte-Carlo existe. Sinon add() n'en retient aucune,
+  # Phrase des lignes dont le detail dit la p Monte-Carlo calculee et renvoie
+  # a nature_p pour la p retenue (RESET, OLS-CUSUM, suites sur ratios bruts ;
+  # #128, point c ; #214) : ecrite seulement si la p Monte-Carlo existe.
+  # Sinon add() n'en retient aucune,
   # sauf p exacte (diagnostic si une p non simulee existe, #181 ; motif de
   # degenerescence ; ligne sans p-value) : le detail ne la nomme pas.
   mc_dispo <- function(nm) is.finite(boot$p_mc[[nm]])
@@ -5126,8 +5147,11 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                  "auxiliaires engendrent {x, x^2, x^3}, espace fixe : la dependance",
                  "en y de f = beta_hat x n'est pas en cause (Milliken et Graybill,",
                  "1970).",
+                 # #214 : la phrase ne declare plus la p retenue (contredite
+                 # par la regle R1 sur une ligne inoperante) ; nature_p la nomme.
                  if (mc_dispo("RESET"))
-                   "La p Monte-Carlo, simulee sous le modele ajuste, est retenue."
+                   paste("La p Monte-Carlo, simulee sous le modele ajuste, est calculee ;",
+                         "la p-value retenue, s'il en est une, est nommee par nature_p.")
                  else
                    paste0(txt_mc_indispo("La p Monte-Carlo, simulee sous le modele ajuste,"), ".")))
   if (!vol_cst) {
@@ -5732,8 +5756,11 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                if (is.finite(cc)) .p_borne(2 * sum((-1)^(0:99) *
                  exp(-2 * (1:100)^2 * cc^2))) else NA_real_ },
       mc_nom = "CUSUM",
+      # #214 : la phrase ne declare plus p_mc retenue (contredite par la
+      # regle R1 sur une ligne inoperante) ; nature_p nomme la p retenue.
       detail = if (mc_dispo("CUSUM"))
-        "La formule asymptotique n'a aucune validite a T = 8 : p_mc retenue"
+        paste("La formule asymptotique n'a aucune validite a T = 8 ; p_mc est calculee ;",
+              "la p-value retenue, s'il en est une, est nommee par nature_p.")
       else paste("La formule asymptotique n'a aucune validite a T = 8 ;",
                  txt_mc_indispo("p_mc")))
   gr <- test_grubbs(z)
@@ -5817,9 +5844,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # u a plancher max|r| (#187, Q-187-1 b), comme Runsr au catalogue.
   plancher_u <- .usp_plancher_u(r)
   p_ex_r <- usp_runsr_p_exacte(z, u, pi_constant, plancher_u)
-  # #128 : la phrase "p-value EXACTE ... retenue" du regime 1 n'est vraie que
-  # hors motif de degenerescence de la statistique Runsr, qui ecarte aussi la
-  # p exacte dans add() (motifs_degeneres d'engine_registre_tests()). Runsr
+  # #128 : la phrase "p-value EXACTE est calculee" du regime 1 (renvoi a
+  # nature_p, #214) n'est ecrite que hors motif de degenerescence de la
+  # statistique Runsr, qui ecarte aussi la p exacte dans add()
+  # (motifs_degeneres d'engine_registre_tests()). Runsr
   # n'a pas de condition degenere au catalogue, mais une loi simulee
   # ponctuelle (engine_p_mc()) n'est pas exclue par le code.
   m_runsr <- if (!is.null(boot$motif_mc) && "Runsr" %in% names(boot$motif_mc))
@@ -5838,15 +5866,18 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                 "combinatoire de R s'applique aussi aux ratios bruts : la p-value",
                 if (runsr_degenere)
                   "EXACTE est ecartee par le motif de degenerescence en tete (ADR 0001)."
-                else paste("EXACTE est retenue (convention bilaterale du doublement, celle du",
+                else paste("EXACTE est calculee (convention bilaterale du doublement, celle du",
                            "bootstrap), la meme que sur la ligne des suites sur residus",
+                           "standardises (issue #29) ; la p-value retenue, s'il en est une,",
+                           "est nommee par nature_p.",
+                           # #214 : la phrase ne declare plus la p exacte retenue
+                           # (contredite par la regle R1 quand la ligne est
+                           # inoperante, p_min >= alpha) ; nature_p la nomme.
                            # #128, point c : la phrase sur p_mc n'est ecrite que si
-                           # p_mc existe ; absente, rien n'est ajoute (la p retenue,
-                           # exacte, est deja nommee, et nature_p le dit).
+                           # p_mc existe ; absente, rien n'est ajoute.
                            if (mc_dispo("Runsr"))
-                             paste("standardises (issue #29). La p-value Monte-Carlo de la colonne p_mc",
-                                   "estime la meme quantite, a l'erreur Monte-Carlo pres.")
-                           else "standardises (issue #29)."))
+                             paste("La p-value Monte-Carlo de la colonne p_mc estime la meme",
+                                   "quantite, a l'erreur Monte-Carlo pres.")))
     if (!isTRUE(regime$pi_constant_exact))
       d1 <- paste(d1, sprintf(paste(
         "Ici pi_t n'est constant qu'a la tolerance TOL_DELTA_BORD = %g pres (%s) :",
@@ -5900,8 +5931,11 @@ usp_tests <- function(fit, boot, alpha = 0.10,
           "chaque annee), les arrangements des signes de u_t - med(u) ne sont pas",
           "equiprobables et la loi combinatoire de R n'est qu'une approximation,",
           "sans borne d'erreur connue a T = 8.",
+          # #214 : "est calculee", et non plus "est retenue" (contredite par
+          # la regle R1 sur une ligne inoperante) ; nature_p nomme la p retenue.
           if (mc_dispo("Runsr"))
-            "Seule la p-value Monte-Carlo, simulee sous le modele ajuste avec ses pi_t, est retenue ;"
+            paste("Seule la p-value Monte-Carlo, simulee sous le modele ajuste avec ses pi_t,",
+                  "est calculee ; la p-value retenue, s'il en est une, est nommee par nature_p ;")
           else
             paste(txt_mc_indispo("La p-value Monte-Carlo, simulee sous le modele ajuste avec ses pi_t,"), ";"),
           "la statistique differe en general de celle de la ligne des suites sur",
@@ -7838,12 +7872,21 @@ mw_parametre <- function(aj, msep, sigma_standard, bareme = "court") {
 # definition ne change : en arithmetique exacte les deux ecritures sont
 # egales (le terme k = i est nul). f_j de mw_ajuster() n'est pas modifie.
 # Sommes par sum(), sans produit matriciel (independance du BLAS).
-.mw_ecart_facteur_stable <- function(C0, C1) {
-  Fij <- C1 / C0
-  S <- sum(C0)
-  vapply(seq_along(Fij), function(k) sum(C0[-k] * (Fij[k] - Fij[-k])) / S,
-         numeric(1))
-}
+# Centrage pondere par differences deux a deux (#278, forme partagee par
+# .mw_ecart_facteur_stable() et .mw_lm_intra()) : element i =
+# somme_k w_k (x_i - x_k) / somme_k w_k, soit x_i moins la moyenne ponderee
+# des x, sans annulation entre grandeurs d'ordre de la cellule dominante. Le
+# terme k = i, w_i (x_i - x_i), est un zero exact pour x_i et w_i finis :
+# l'inclure ne change aucun bit de la somme (accumulateur de sum() parti de
+# +0, auquel un zero n'ajoute rien) ; avant #278, .mw_ecart_facteur_stable()
+# l'omettait (x[-k]), d'ou le meme resultat (mesure #278 : 20 000 colonnes
+# sur [1e-50 ; 1e50], identical() avant / apres ; objets des six cas et des
+# bootstraps de T1 a T4 identical()). Sommes par sum(), sans produit
+# matriciel (independance du BLAS). Vecteur sans noms.
+.mw_centrage_pondere <- function(x, w, sw = sum(w))
+  vapply(seq_along(x), function(i) sum(w * (x[i] - x)) / sw, numeric(1))
+.mw_ecart_facteur_stable <- function(C0, C1)
+  .mw_centrage_pondere(C1 / C0, C0)
 
 # --- Residus standardises de Mack --------------------------------------------
 # r(i,j) = sqrt(C(i,j)) * ( C(i,j+1)/C(i,j) - f_j ) / sigma_j
@@ -8076,9 +8119,9 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
   w <- w * 2^-floor(log2(max(w)))
   Ct <- Ft <- numeric(length(w))
   for (g in split(seq_along(w), res$j)) {
-    wg <- w[g]; sw <- sum(wg); Cg <- res$C[g]; Fg <- res$F[g]
-    Ct[g] <- vapply(Cg, function(c) sum(wg * (c - Cg)) / sw, numeric(1))
-    Ft[g] <- vapply(Fg, function(f) sum(wg * (f - Fg)) / sw, numeric(1))
+    wg <- w[g]; sw <- sum(wg)
+    Ct[g] <- .mw_centrage_pondere(res$C[g], wg, sw)
+    Ft[g] <- .mw_centrage_pondere(res$F[g], wg, sw)
   }
   sxx <- sum(w * Ct^2)
   if (isTRUE(sxx == 0)) return(NULL)
@@ -8289,22 +8332,24 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
 # comme une colonne trop courte. Dans le bootstrap, la regle a deux volets
 # (option (a) d'actuary sur #56) :
 #   1. l'ensemble des colonnes degenerees est determine UNE FOIS sur le
-#      triangle observe (argument j_degeneres, transmis par mw_bootstrap() via
-#      le contexte de .mw_contexte_mc()) ; chaque replication exclut
+#      triangle observe (argument j_degeneres, element degeneres de
+#      .mw_ensembles_figes() transmis par mw_bootstrap() via le contexte de
+#      .mw_contexte_mc() et lu par mw_tests(), #278) ; chaque replication exclut
 #      exactement ces colonnes, degenerees ou non dans le triangle simule :
 #      au regard des colonnes degenerees, K est identique entre statistique
 #      observee et simulee ; .fisher_combine() n'ecarte plus aucune p-value
 #      (issue #90) : K ne varie plus que si l'appelant ecarte une colonne
-#      (lm() en echec, garde sd() == 0 ; pour la courbure, depuis #270,
-#      plus jamais : ses colonnes a moins de trois valeurs distinctes de
-#      C(i,j) forment un second ensemble fige a l'observe,
-#      .mw_colonnes_courbure_non_identifiables(), et une colonne retenue
-#      mais non identifiable dans la replication rend la statistique NA,
-#      comme au volet 2 ci-dessous) ;
+#      (garde sd() == 0 ; pour la courbure, depuis #270, et pour l'ordonnee
+#      a l'origine, depuis #273, plus jamais : leurs colonnes a moins de
+#      trois, resp. deux, valeurs distinctes de C(i,j) forment un ensemble
+#      fige a l'observe, .mw_colonnes_courbure_non_identifiables() et
+#      .mw_colonnes_origine_non_identifiables(), et une colonne retenue
+#      mais non identifiable dans la replication, ou dont lm() echoue,
+#      rend la statistique NA, comme au volet 2 ci-dessous) ;
 #   2. une colonne retenue a l'observe mais degeneree dans la replication
 #      n'est ni exclue (K changerait) ni soumise a lm() / cor.test() : la
 #      statistique de la replication vaut NA et sort de B_effectif.
-# Avec j_degeneres = NULL (appel sur le triangle observe, mw_tests()),
+# Avec j_degeneres = NULL (appel direct sur un triangle, sans ensemble fige),
 # l'ensemble est calcule sur aj lui-meme : f(aj) et
 # f(aj, j_degeneres = .mw_colonnes_degenerees(aj)) sont identiques. Des
 # donnees proportionnelles a 12 chiffres pres ne se rencontrent pas sur
@@ -8363,23 +8408,40 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
   ex$eligibles <- ex$eligibles + 1L
   ex
 }
+# Phrase d'exclusion de colonnes d'une ligne de M1 (#278 : gabarit unique
+# des phrases des colonnes degenerees et des colonnes non identifiables de la
+# courbure) : chaine vide si cols (data.frame j, n_facteurs) est NULL ou
+# vide ; sinon "<sujet> : j = .. (.. facteurs), ... ; <quoi>, colonne(s) hors
+# de la combinaison de Fisher ; K = .. colonne(s) testee(s) sur ..
+# eligible(s). L'exclusion ne vaut pas preuve <preuve>.". sujet : c(singulier,
+# pluriel), qualification comprise ; K et eligibles lus dans r (resultat de
+# la fonction de test de l'appel observe ; K NULL compte 0) : aucun nombre
+# issu du bootstrap (#76). K NA (statistique non definie : retour
+# .mw_stat_non_definie(), le decompte des eligibles s'arrete a la colonne
+# fautive et est partiel) : la clause "; K = .. eligible(s)" est omise, la
+# phrase se termine par "hors de la combinaison de Fisher." (#273).
+.mw_phrase_colonnes_ecartees <- function(cols, r, sujet, quoi, preuve) {
+  if (is.null(cols) || !nrow(cols)) return("")
+  K <- if (is.null(r$K)) 0L else r$K
+  plur <- nrow(cols) > 1
+  clause_K <- if (is.na(K)) "" else
+    sprintf(" ; K = %d colonne(s) testee(s) sur %d eligible(s)", K, r$eligibles)
+  sprintf(paste0(
+    "%s : %s ; %s, %s hors de la combinaison de Fisher%s. ",
+    "L'exclusion ne vaut pas preuve %s."),
+    sujet[[if (plur) 2L else 1L]],
+    paste(sprintf("j = %d (%d facteurs)", cols$j, cols$n_facteurs), collapse = ", "),
+    quoi, if (plur) "colonnes" else "colonne", clause_K, preuve)
+}
 # Phrase ajoutee au libelle ("detail") d'une ligne de M1, SEULEMENT si une
 # colonne est exclue ; chaine vide sinon (libelle inchange). quoi : ce qui
 # n'est pas defini sur la colonne ; preuve : ce que l'exclusion ne prouve pas.
 .mw_phrase_exclusion <- function(r, quoi, preuve) {
-  ex <- r$exclues
-  if (is.null(ex) || !nrow(ex)) return("")
-  K <- if (is.null(r$K)) 0L else r$K
-  plur <- nrow(ex) > 1
-  sprintf(paste0(
-    "%s (facteurs individuels egaux a f_j a la tolerance relative 1e-12 de l'outil : ",
-    .MW_PREDICAT_DEGENERE_TEXTE, " ; sigma2_j nul ou numeriquement nul) : %s ; %s, ",
-    "%s hors de la combinaison ",
-    "de Fisher ; K = %d colonne(s) testee(s) sur %d eligible(s). ",
-    "L'exclusion ne vaut pas preuve %s."),
-    if (plur) "Colonnes degenerees" else "Colonne degeneree",
-    paste(sprintf("j = %d (%d facteurs)", ex$j, ex$n_facteurs), collapse = ", "),
-    quoi, if (plur) "colonnes" else "colonne", K, r$eligibles, preuve)
+  qualif <- paste0(
+    " (facteurs individuels egaux a f_j a la tolerance relative 1e-12 de l'outil : ",
+    .MW_PREDICAT_DEGENERE_TEXTE, " ; sigma2_j nul ou numeriquement nul)")
+  .mw_phrase_colonnes_ecartees(r$exclues, r,
+    paste0(c("Colonne degeneree", "Colonnes degenerees"), qualif), quoi, preuve)
 }
 
 # Ensemble des colonnes exclues d'une verification de M1 : j_degeneres s'il
@@ -8402,15 +8464,75 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
   paste0(base, if (grepl("\\.$", base)) " " else ". ", phrase)
 }
 
+# Colonnes non identifiables de l'ordonnee a l'origine (#273, decision D1-9
+# transposee, forme d'actuary du 14/10/2026, option (A) du mainteneur du
+# 14/10/2026) : j = 0..J-1 tels que n_j = I - j >= 3, j hors de l'ensemble des
+# colonnes exclues (.mw_j_exclues(aj, j_degeneres)), colonne non degeneree
+# (.mw_colonne_degeneree()), et moins de deux valeurs distinctes de
+# C(0..I-j-1, j) (egalite exacte, unique(), comme pour la courbure) :
+# C(i,j) constant, la constante et la pente de la regression ponderee ne
+# sont pas separables. Vecteur d'entiers croissants, eventuellement vide.
+# Inclus dans l'ensemble de la courbure (.mw_colonnes_courbure_non_
+# identifiables()), sauf la colonne n_j = 3, que la courbure ne considere
+# pas. mw_bootstrap() le calcule UNE FOIS sur le triangle observe et le fige
+# pour chaque replication (#278) : la statistique observee et celle des
+# replications combinent les memes colonnes (meme K). Option (A) : le
+# predicat ne lit pas le rang numerique de lm() ; une colonne a plusieurs
+# valeurs distinctes que lm() ecarte quand meme (dispersion relative des
+# cumules < 1e-7 environ, tolerance de qr()) n'est pas dans l'ensemble et
+# rend la statistique NA (mw_test_ordonnee_origine()).
+.mw_colonnes_origine_non_identifiables <- function(aj, j_degeneres = NULL) {
+  I <- aj$I; jd <- .mw_j_exclues(aj, j_degeneres)
+  j <- 0:(aj$J - 1L)
+  garder <- vapply(j, function(k) {
+    idx <- 0:(I - k - 1)
+    length(idx) >= 3 && !(k %in% jd) && !.mw_colonne_degeneree(aj, k) &&
+      length(unique(aj$tri[idx + 1, k + 1])) < 2
+  }, logical(1))
+  as.integer(j[garder])
+}
+
+# Element "non_identifiables" d'une verification de M1 a ensemble fige de
+# colonnes non identifiables (courbure, #269 ; ordonnee a l'origine, #273) :
+# colonnes de l'ensemble fige jni que la boucle ecarte (0 <= j <= J - 1,
+# n_j = I - j >= n_min, hors des colonnes exclues jd), en j croissant,
+# data.frame(j, n_facteurs). Forme AVANT la boucle et porte tel quel par
+# tous les retours, retours NA compris (constat 3b de l'audit de #269) : il
+# decrit l'ensemble fige, non les colonnes parcourues avant un arret. Table
+# construite par vecteur (#278) : meme objet (identical(), attrib.as.set =
+# FALSE : noms de lignes explicites 1..n et ordre des attributs compris) que
+# des lignes ajoutees une a une ; data.frame() vide de meme forme sans
+# colonne ecartee.
+.mw_table_non_identifiables <- function(jni, I, J, jd, n_min) {
+  jn <- sort(unique(jni[jni %in% 0:(J - 1) & I - jni >= n_min & !(jni %in% jd)]))
+  if (length(jn))
+    structure(list(j = as.integer(jn), n_facteurs = as.integer(I - jn)),
+              row.names = seq_along(jn), class = "data.frame") else
+    data.frame(j = integer(0), n_facteurs = integer(0))
+}
+
 # (a) Nullite de l'ordonnee a l'origine, colonne par colonne.
 # Regression ponderee C(i,j+1) = a_j + b_j C(i,j), poids 1/C(i,j).
-mw_test_ordonnee_origine <- function(aj, j_degeneres = NULL) {
+# j_non_identifiables : ensemble des colonnes non identifiables de
+# l'ordonnee (#273), fige a l'observe par mw_bootstrap() (element
+# origine_non_identifiables de .mw_ensembles_figes()) ; NULL : calcule sur aj
+# (appel observe).
+mw_test_ordonnee_origine <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
   # Une ligne par colonne retenue, table assemblee une fois (.mw_empiler(),
   # #239, #250).
   blocs <- list()
   ex <- .mw_exclues_vide()
+  # Ensembles figes : memes calculs que .mw_ensembles_figes(), restreints aux
+  # deux ensembles lus ici (le calcul de l'ensemble de la courbure n'est pas
+  # refait a chaque replication).
   jd <- .mw_j_exclues(aj, j_degeneres)
+  jni <- if (is.null(j_non_identifiables))
+    .mw_colonnes_origine_non_identifiables(aj, jd) else as.integer(j_non_identifiables)
+  # Element "non_identifiables" (#273) : forme avant la boucle, porte par
+  # tous les retours (.mw_table_non_identifiables()).
+  ni <- .mw_table_non_identifiables(jni, I, J, jd, 3L)
+  na_stat <- function() { r0 <- .mw_stat_non_definie(ex); r0$non_identifiables <- ni; r0 }
   for (j in 0:(J - 1)) {
     idx <- 0:(I - j - 1)
     if (length(idx) < 3) next                    # 2 parametres + 1 ddl minimum
@@ -8419,10 +8541,20 @@ mw_test_ordonnee_origine <- function(aj, j_degeneres = NULL) {
     # degeneree -> statistique NA, AVANT tout appel a lm().
     if (j %in% jd) { ex <- .mw_exclure(ex, j, length(idx)); next }
     ex$eligibles <- ex$eligibles + 1L
-    if (.mw_colonne_degeneree(aj, j)) return(.mw_stat_non_definie(ex))
+    # Colonne non identifiable de l'ensemble fige (#273) : ecartee, comptee
+    # dans "eligibles", hors de K, nommee dans le libelle par
+    # .mw_phrase_origine_non_identifiable(). Testee AVANT le controle de
+    # degenerescence, comme pour la courbure (#270).
+    if (j %in% jni) next
+    if (.mw_colonne_degeneree(aj, j)) return(na_stat())
     C0 <- tri[idx + 1, j + 1]; C1 <- tri[idx + 1, j + 2]
     m <- try(.mw_summary_lm(stats::lm(C1 ~ C0, weights = 1 / C0)), silent = TRUE)
-    if (inherits(m, "try-error") || nrow(m$coefficients) < 2) next
+    # Plus aucune exclusion silencieuse (#273, second volet de #56) : une
+    # colonne retenue dont lm() echoue ou rend moins de deux coefficients
+    # (C(i,j) constant dans une replication, ou rang numerique deficient a
+    # l'observe, option (A)) rend la statistique NA, K = NA ; la replication
+    # sort de B effectif, au lieu d'une statistique a une colonne de moins.
+    if (inherits(m, "try-error") || nrow(m$coefficients) < 2) return(na_stat())
     blocs[[length(blocs) + 1L]] <- list(
       j = j, n = length(idx), a = m$coefficients[1, 1], se_a = m$coefficients[1, 2],
       t = m$coefficients[1, 3], p = m$coefficients[1, 4], b = m$coefficients[2, 1],
@@ -8430,12 +8562,25 @@ mw_test_ordonnee_origine <- function(aj, j_degeneres = NULL) {
   }
   det <- .mw_empiler(blocs)
   if (!nrow(det)) return(list(stat = NA_real_, p = NA_real_, detail = det,
-                              exclues = ex$colonnes, eligibles = ex$eligibles))
+                              exclues = ex$colonnes, eligibles = ex$eligibles,
+                              non_identifiables = ni))
   fc <- .fisher_combine(det$p)
   list(stat = fc$stat, p = fc$p, K = fc$K, detail = det,
        t_max = det$t[which.max(abs(det$t))], j_max = det$j[which.max(abs(det$t))],
-       exclues = ex$colonnes, eligibles = ex$eligibles)
+       exclues = ex$colonnes, eligibles = ex$eligibles, non_identifiables = ni)
 }
+
+# Phrase ajoutee au libelle ("detail") de la ligne de l'ordonnee a l'origine
+# de M1, SEULEMENT si une colonne eligible a moins de deux valeurs distinctes
+# de C(i,j) (element "non_identifiables" de mw_test_ordonnee_origine(),
+# #273) ; chaine vide sinon. Texte fixe, gabarit
+# .mw_phrase_colonnes_ecartees() (#278) : j, n_j, K et eligibles de l'appel
+# observe, aucun nombre issu du bootstrap (#76). Placee par mw_tests() apres
+# la phrase des colonnes degenerees (.mw_phrase_exclusion()).
+.mw_phrase_origine_non_identifiable <- function(r)
+  .mw_phrase_colonnes_ecartees(r$non_identifiables, r,
+    paste(c("Colonne", "Colonnes"), "a moins de deux valeurs distinctes de C(i,j)"),
+    "ordonnee a l'origine non identifiable", "de proportionnalite")
 
 # (b) Homogeneite de f_j entre annees de survenance.
 # Si f_j est commun a toutes les annees d'accident, les facteurs individuels
@@ -8516,9 +8661,21 @@ mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
 # par une puissance de 2 (exact ; un terme qui sous-deborde est negligeable
 # devant le plus grand), puis somme par colSums(), sans produit matriciel
 # (independance du BLAS). Rend la somme sous la forme .mw_me().
+# Mantisse NA ou NaN (#278, point 6 de l'issue) : aucune erreur, elle se
+# propage a la somme (m NA ou NaN), d'ou c2, t et p NaN dans
+# .mw_courbure_colonne() et une statistique de courbure NA (.fisher_combine(),
+# regle de #90). L'indice logique NA de m == 0 etait deja ignore par
+# l'affectation d'un scalaire ; la garde !is.na(m) l'ecrit, sans changer le
+# resultat (mesure #278 : 5 000 matrices a mantisses NA, NaN, Inf et 0,
+# resultats identical() avant / apres). Non atteinte sur le domaine
+# [1e-50 ; 1e50] de #185 (entrees finies et strictement positives,
+# mantisses finies ; mesure #278 : 20 000 colonnes tirees sur ce domaine,
+# aucune p NaN) ; atteinte hors domaine par un cumul sous-normal (1/C(i,j)
+# deborde : statistique de courbure NA, mesure #278 sur reserve2 a
+# C(0,1) = 1e-320).
 .mw_somme_me <- function(m, e) {
   m <- as.matrix(m); e <- as.matrix(e)
-  e[m == 0] <- -Inf
+  e[!is.na(m) & m == 0] <- -Inf
   E <- apply(e, 2, max)
   E[!is.finite(E)] <- 0
   v <- .mw_me(colSums(m * 2^(e - rep(E, each = nrow(e)))))
@@ -8553,6 +8710,20 @@ mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
 # differences restent finis sur tout le domaine [1e-50 ; 1e50] de #185.
 # NULL si moins de trois valeurs distinctes de C(i,j) (A = 0 exactement,
 # terme quadratique non identifiable ; decision D1-7).
+# Parties a 2, 3 et 4 elements de 1..n (utils::combn()) : calculees une fois
+# par n et gardees dans .MW_COMBN_CACHE (#278), au lieu d'un recalcul a chaque
+# colonne et a chaque replication. Cache deterministe : la table ne depend que
+# de n, sans alea ; memes matrices que l'appel direct.
+.MW_COMBN_CACHE <- new.env(parent = emptyenv())
+.mw_combinaisons <- function(n) {
+  cle <- as.character(n)
+  tab <- .MW_COMBN_CACHE[[cle]]
+  if (is.null(tab)) {
+    tab <- list(S2 = utils::combn(n, 2), S3 = utils::combn(n, 3), S4 = utils::combn(n, 4))
+    assign(cle, tab, envir = .MW_COMBN_CACHE)
+  }
+  tab
+}
 .mw_courbure_colonne <- function(C0, C1) {
   n <- length(C0)
   if (n < 4 || length(unique(C0)) < 3) return(NULL)
@@ -8566,7 +8737,7 @@ mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
     i12 <- cbind(S[1, ], S[2, ]); i13 <- cbind(S[1, ], S[3, ]); i23 <- cbind(S[2, ], S[3, ])
     list(m = dx$m[i12] * dx$m[i13] * dx$m[i23], e = dx$e[i12] + dx$e[i13] + dx$e[i23])
   }
-  S2 <- utils::combn(n, 2); S3 <- utils::combn(n, 3); S4 <- utils::combn(n, 4)
+  cmb <- .mw_combinaisons(n); S2 <- cmb$S2; S3 <- cmb$S3; S4 <- cmb$S4
   w3 <- list(m = w$m[S3[1, ]] * w$m[S3[2, ]] * w$m[S3[3, ]],
              e = w$e[S3[1, ]] + w$e[S3[2, ]] + w$e[S3[3, ]])
   v3 <- V(S3)
@@ -8623,6 +8794,39 @@ mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
   as.integer(j[garder])
 }
 
+# Ensembles de colonnes figes a l'observe de Merz-Wuthrich (#278) : objet
+# unique, construit UNE FOIS sur le triangle observe (.run_engine_mw(), ou
+# mw_bootstrap() et mw_tests() appeles seuls) et lu par mw_bootstrap(), par
+# le contexte du catalogue (.mw_contexte_mc()), donc par .mw_stats() et les
+# fermetures de MW_CATALOGUE_MC, et par mw_tests(). Liste nommee de vecteurs
+# d'entiers croissants, eventuellement vides :
+#   degeneres         colonnes degenerees des verifications de M1 et des
+#                     residus de Mack (.mw_colonnes_degenerees(), #56, #60) ;
+#   non_identifiables colonnes non identifiables de la courbure, apres
+#                     degeneres (.mw_colonnes_courbure_non_identifiables(),
+#                     #270) ;
+#   origine_non_identifiables
+#                     colonnes non identifiables de l'ordonnee a l'origine,
+#                     apres degeneres
+#                     (.mw_colonnes_origine_non_identifiables(), #273).
+# Un ensemble fige nouveau s'ajoute ici comme element ; la fonction du test
+# qui le lit le recoit en argument, de sa fermeture du catalogue et de
+# mw_tests() ; mw_bootstrap(), le contexte et .mw_stats() n'en changent pas.
+# j_degeneres, j_non_identifiables, j_origine_non_identifiables : ensembles
+# imposes (NULL : calcules sur aj, apres degeneres), pour les appels qui
+# figent un ensemble et laissent les autres au calcul sur aj
+# (mw_test_courbure(), mw_test_ordonnee_origine(), tests unitaires). Le
+# calcul de chaque ensemble est saute quand il est impose.
+.mw_ensembles_figes <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL,
+                                j_origine_non_identifiables = NULL) {
+  jd <- .mw_j_exclues(aj, j_degeneres)
+  jni <- if (is.null(j_non_identifiables))
+    .mw_colonnes_courbure_non_identifiables(aj, jd) else as.integer(j_non_identifiables)
+  jno <- if (is.null(j_origine_non_identifiables))
+    .mw_colonnes_origine_non_identifiables(aj, jd) else as.integer(j_origine_non_identifiables)
+  list(degeneres = jd, non_identifiables = jni, origine_non_identifiables = jno)
+}
+
 # (c) Absence de courbure : terme quadratique dans la regression ponderee.
 # Une courbure significative contredit la LINEARITE, meme si la constante est
 # nulle : E[C(i,j+1)|C(i,j)] ne serait alors pas proportionnelle a C(i,j).
@@ -8634,21 +8838,20 @@ mw_test_courbure <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL)
   # #239, #250).
   blocs <- list()
   ex <- .mw_exclues_vide()
+  # Ensembles figes : memes calculs que .mw_ensembles_figes(), restreints aux
+  # deux ensembles lus ici (le calcul de l'ensemble de l'ordonnee a l'origine,
+  # #273, n'est pas fait a chaque replication).
   jd <- .mw_j_exclues(aj, j_degeneres)
   jni <- if (is.null(j_non_identifiables))
     .mw_colonnes_courbure_non_identifiables(aj, jd) else as.integer(j_non_identifiables)
   # Element "non_identifiables" (#269) : colonnes de l'ensemble fige que la
-  # boucle ecarte (n_j >= 4, hors des colonnes exclues), en j croissant. Il
-  # est forme AVANT la boucle et porte tel quel par tous les retours, retours
-  # NA compris (constat 3b de l'audit de #269) : il decrit l'ensemble fige,
-  # non les colonnes parcourues avant un arret de la boucle. "exclues" et
-  # "eligibles", eux, restent ceux des colonnes parcourues avant l'arret
-  # (.mw_stat_non_definie(), commun aux verifications de M1).
-  # Lignes ajoutees une a une (meme forme d'objet, ordre des attributs
-  # compris, qu'au commit de #269).
-  jn <- sort(unique(jni[jni %in% 0:(J - 1) & I - jni >= 4 & !(jni %in% jd)]))
-  ni <- data.frame(j = integer(0), n_facteurs = integer(0))
-  for (k in jn) ni[nrow(ni) + 1L, ] <- list(as.integer(k), as.integer(I - k))
+  # boucle ecarte (n_j >= 4, hors des colonnes exclues), en j croissant,
+  # forme avant la boucle et porte tel quel par tous les retours
+  # (.mw_table_non_identifiables(), partagee avec l'ordonnee a l'origine,
+  # #273). "exclues" et "eligibles", eux, restent ceux des colonnes
+  # parcourues avant l'arret (.mw_stat_non_definie(), commun aux
+  # verifications de M1).
+  ni <- .mw_table_non_identifiables(jni, I, J, jd, 4L)
   na_stat <- function() { r0 <- .mw_stat_non_definie(ex); r0$non_identifiables <- ni; r0 }
   for (j in 0:(J - 1)) {
     idx <- 0:(I - j - 1)
@@ -8695,19 +8898,12 @@ mw_test_courbure <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL)
 # observe, aucun nombre issu du bootstrap (#76). Placee par mw_tests() apres
 # la phrase des colonnes degenerees (.mw_phrase_exclusion()), avec la meme
 # clause "K = ... sur ... eligible(s)".
-.mw_phrase_non_identifiable <- function(r) {
-  ni <- r$non_identifiables
-  if (is.null(ni) || !nrow(ni)) return("")
-  K <- if (is.null(r$K)) 0L else r$K
-  plur <- nrow(ni) > 1
-  sprintf(paste0(
-    "%s a moins de trois valeurs distinctes de C(i,j) : %s ; terme quadratique ",
-    "non identifiable, %s hors de la combinaison de Fisher ; K = %d colonne(s) ",
-    "testee(s) sur %d eligible(s). L'exclusion ne vaut pas preuve de linearite."),
-    if (plur) "Colonnes" else "Colonne",
-    paste(sprintf("j = %d (%d facteurs)", ni$j, ni$n_facteurs), collapse = ", "),
-    if (plur) "colonnes" else "colonne", K, r$eligibles)
-}
+# Gabarit partage avec .mw_phrase_exclusion() (.mw_phrase_colonnes_ecartees(),
+# #278).
+.mw_phrase_non_identifiable <- function(r)
+  .mw_phrase_colonnes_ecartees(r$non_identifiables, r,
+    paste(c("Colonne", "Colonnes"), "a moins de trois valeurs distinctes de C(i,j)"),
+    "terme quadratique non identifiable", "de linearite")
 
 # (d) Stabilite du facteur selon la ponderation : famille alpha.
 #   f_j^(alpha) = somme_i C(i,j)^alpha F(i,j) / somme_i C(i,j)^alpha
@@ -8972,7 +9168,13 @@ mw_test_homogeneite_accident <- function(aj, j_degeneres = NULL, res = NULL) {
 # PARAMETRIQUE n'est possible, contrairement a la methode lognormale. On
 # reechantillonne donc les residus standardises de Mack, ce qui ne suppose que
 # leur echangeabilite. La p-value obtenue est donc de nature semi-parametrique.
-mw_simuler_triangle <- function(aj, res_pool) {
+# mw_simuler_triangle() rend le triangle seul ; .mw_simuler_triangle_etat(),
+# qui porte le calcul, rend aussi complet = FALSE si le triangle a ete rendu
+# au premier cumul invalide, TRUE sinon : .mw_tirer_triangle_valide() le lit
+# au lieu de balayer le triangle une seconde fois (#278). Memes tirages,
+# meme triangle.
+mw_simuler_triangle <- function(aj, res_pool) .mw_simuler_triangle_etat(aj, res_pool)$tri
+.mw_simuler_triangle_etat <- function(aj, res_pool) {
   I <- aj$I; J <- aj$J
   tri <- matrix(NA_real_, I + 1, J + 1)
   tri[, 1] <- aj$tri[, 1]                       # premiere colonne conservee
@@ -8995,11 +9197,11 @@ mw_simuler_triangle <- function(aj, res_pool) {
     if (any(inval)) {
       nv[inval] <- NA_real_
       tri[idx + 1, j + 2] <- nv
-      return(tri)
+      return(list(tri = tri, complet = FALSE))
     }
     tri[idx + 1, j + 2] <- nv
   }
-  tri
+  list(tri = tri, complet = TRUE)
 }
 
 # Plafond du retirage des triangles simules de mw_bootstrap() (#257, decision
@@ -9021,13 +9223,19 @@ FACTEUR_B_MAX_MW <- 25
 # echec de mw_ajuster() ou de .mw_stats() sur un triangle accepte reste une
 # statistique non finie (B effectif). Partagee par mw_bootstrap() et par les
 # boucles des tests unitaires qui la reproduisent.
+# Acceptation lue sur l'indicateur complet de .mw_simuler_triangle_etat()
+# (#278), sans second balayage par .mw_triangle_incomplet() : sur un triangle
+# carre (I = J, seul admis par mw_valider_triangle()) a premiere colonne
+# observee complete, la partie superieure que balaie .mw_triangle_incomplet()
+# est exactement la premiere colonne observee et les cellules tirees, d'ou la
+# meme decision. .mw_triangle_incomplet() reste le controle des tests.
 .mw_triangle_incomplet <- function(tb)
   anyNA(tb[upper.tri(tb, diag = TRUE)[, rev(seq_len(ncol(tb)))]])
 .mw_tirer_triangle_valide <- function(aj, pool, reste) {
   n <- 0
   while (n < reste) {
-    tb <- mw_simuler_triangle(aj, pool); n <- n + 1
-    if (!.mw_triangle_incomplet(tb)) return(list(tri = tb, n = n, rejets = n - 1))
+    s <- .mw_simuler_triangle_etat(aj, pool); n <- n + 1
+    if (s$complet) return(list(tri = s$tri, n = n, rejets = n - 1))
   }
   list(tri = NULL, n = n, rejets = n)
 }
@@ -9090,25 +9298,31 @@ FACTEUR_B_MAX_MW <- 25
   pool - mean(pool)                               # recentrage
 }
 
-mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
+# figes : ensembles de colonnes figes a l'observe (.mw_ensembles_figes(aj),
+# #278), construits par l'appelant (.run_engine_mw(), qui les passe aussi a
+# mw_tests()) ; NULL : construits ici sur aj, meme calcul. L'objet n'est pas
+# conserve dans le retour : l'appelant passe le meme a mw_tests()
+# (precondition documentee en tete de mw_tests()).
+mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
   # Tirages sous graine locale (ADR 0004, #42) : etat de l'appelant restaure.
   engine_sous_graine(seed, {
-    # Colonnes degenerees determinees UNE FOIS sur le triangle observe et
-    # figees pour la statistique observee et chaque replication : M1 (issue
-    # #56) et residus de Mack de toutes les lignes qui en dependent (issue
-    # #60, via le contexte de .mw_contexte_mc()).
-    jd <- .mw_colonnes_degenerees(aj)
-    # Colonnes non identifiables de la courbure (#270), determinees UNE FOIS
-    # sur le triangle observe, apres jd, et figees de meme : la statistique
-    # de courbure de chaque replication combine les memes colonnes que
-    # l'observee. Aucun tirage n'est ajoute ni retire : seule la statistique
-    # des replications change.
-    jni <- .mw_colonnes_courbure_non_identifiables(aj, jd)
+    # Ensembles de colonnes figes (.mw_ensembles_figes(), #278), determines
+    # UNE FOIS sur le triangle observe et figes pour la statistique observee
+    # et chaque replication : colonnes degenerees de M1 (issue #56) et des
+    # residus de Mack de toutes les lignes qui en dependent (issue #60, via
+    # le contexte de .mw_contexte_mc()) ; colonnes non identifiables de la
+    # courbure (#270) et de l'ordonnee a l'origine (#273), apres les
+    # degenerees : la statistique de courbure et celle de l'ordonnee de
+    # chaque replication combinent les memes colonnes que l'observee. Aucun
+    # tirage n'est ajoute ni retire : seule la statistique des replications
+    # change.
+    if (is.null(figes)) figes <- .mw_ensembles_figes(aj)
+    .mw_verifier_figes(figes, "mw_bootstrap()", aj$J)
     # Pool : residus de Mack retenus du triangle observe, colonnes degenerees
     # exclues (#60), redresses par le levier puis recentres (#46).
-    pool <- .mw_pool_residus(aj, jd)
+    pool <- .mw_pool_residus(aj, figes$degeneres)
     # Contexte observe conserve pour les conditions du catalogue (#44).
-    e_obs <- .mw_contexte_mc(aj, jd, jni)
+    e_obs <- .mw_contexte_mc(aj, figes)
     obs <- .mc_evaluer(MW_CATALOGUE_MC, e_obs)
     noms <- names(obs)
     sim <- matrix(NA_real_, B, length(noms), dimnames = list(NULL, noms))
@@ -9127,7 +9341,7 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
       tb <- tir$tri
       ab <- try(mw_ajuster(tb), silent = TRUE)
       if (inherits(ab, "try-error")) next
-      sb <- try(.mw_stats(ab, jd, jni), silent = TRUE)
+      sb <- try(.mw_stats(ab, figes), silent = TRUE)
       if (inherits(sb, "try-error")) next
       sim[b, ] <- sb[noms]
       mb <- try(mw_msep(ab), silent = TRUE)
@@ -9176,19 +9390,51 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
 # --- Catalogue Monte-Carlo de la methode Merz-Wuthrich (ADR 0003) -------------
 # Meme structure que USP_CATALOGUE_MC (voir .mc_entree()) ; contexte construit
 # par .mw_contexte_mc(). `degenere` : NULL pour toutes les entrees.
-# Contexte : ajustement aj, ensemble j_degeneres des colonnes degenerees
-# exclues des verifications colonne par colonne de M1 (issue #56) et des
-# residus de Mack (issue #60) : fige a l'observe par mw_bootstrap(), calcule
-# sur aj s'il n'est pas fourni ; residus de Mack (mw_residus(), calcules une
-# fois avec cet ensemble) et leur vecteur r ; ensemble j_non_identifiables des
-# colonnes non identifiables de la courbure (#270), fige a l'observe par
-# mw_bootstrap(), calcule sur aj (avec jd) s'il n'est pas fourni.
-.mw_contexte_mc <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL) {
-  jd <- .mw_j_exclues(aj, j_degeneres)
-  res <- mw_residus(aj, jd)
-  jni <- if (is.null(j_non_identifiables))
-    .mw_colonnes_courbure_non_identifiables(aj, jd) else as.integer(j_non_identifiables)
-  list(aj = aj, res = res, r = res$residu, j_degeneres = jd, j_non_identifiables = jni)
+# Controle de forme de l'objet des ensembles figes (#278, audit C2) : une
+# liste aux noms exacts de .mw_ensembles_figes() ; un vecteur (ancienne
+# signature) ou une liste mal nommee, dont les elements liraient NULL et
+# feraient recalculer en silence les ensembles sur la replication (perte
+# du gel a l'observe de #56, #270 et #273), sont refuses. Chaque element
+# est controle a son tour (revue finale de #278, constat C1) : un element
+# NULL ferait lui aussi recalculer l'ensemble a chaque replication (les
+# fonctions de test lisent NULL comme « non fourni »). Chaque element doit
+# etre un vecteur numerique (integer(0) accepte), sans NA, a valeurs
+# entieres, dans 0..J-1 quand J (nombre de colonnes de developpement, aj$J)
+# est fourni, >= 0 sinon ; tout autre objet (NULL, NA, caractere, logique,
+# non entier, hors bornes) est refuse par stop(), avec le nom de l'element.
+# Doublons et ordre ne sont pas controles. Aucun calcul n'est change pour un
+# objet construit par .mw_ensembles_figes().
+.mw_verifier_figes <- function(figes, appelant, J = NULL) {
+  noms <- c("degeneres", "non_identifiables", "origine_non_identifiables")
+  if (!is.list(figes) || !identical(names(figes), noms))
+    stop(appelant, " : ensembles figes attendus sous la forme de .mw_ensembles_figes()")
+  for (nm in noms) {
+    v <- figes[[nm]]
+    ok <- is.numeric(v) && is.null(dim(v)) && !anyNA(v) && all(is.finite(v)) &&
+      all(v == round(v)) && all(v >= 0) && (is.null(J) || all(v <= J - 1))
+    if (!ok)
+      stop(appelant, " : element ", nm, " des ensembles figes invalide (vecteur ",
+           "d'entiers sans NA attendu, dans ",
+           if (is.null(J)) "0, 1, 2, ..." else paste0("0..", format(J - 1)),
+           " ; integer(0) si vide)", call. = FALSE)
+  }
+  invisible(figes)
+}
+
+# Contexte : ajustement aj ; ensembles figes de .mw_ensembles_figes() (#278 :
+# colonnes degenerees exclues des verifications colonne par colonne de M1,
+# issue #56, et des residus de Mack, issue #60 ; colonnes non identifiables
+# de la courbure, #270, et de l'ordonnee a l'origine, #273), figes a
+# l'observe par mw_bootstrap(), calcules sur aj
+# s'ils ne sont pas fournis ; residus de Mack (mw_residus(), calcules une
+# fois avec les colonnes degenerees) et leur vecteur r. Un objet qui n'est
+# pas une liste (vecteur d'entiers de l'ancienne signature, avant #278) est
+# refuse.
+.mw_contexte_mc <- function(aj, figes = NULL) {
+  if (is.null(figes)) figes <- .mw_ensembles_figes(aj)
+  .mw_verifier_figes(figes, ".mw_contexte_mc()", aj$J)
+  res <- mw_residus(aj, figes$degeneres)
+  list(aj = aj, res = res, r = res$residu, figes = figes)
 }
 
 # Extremites du support des six statistiques discretes de Merz-Wuthrich, a
@@ -9237,12 +9483,12 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831) {
 MW_CATALOGUE_MC <- list(
   # Ensemble fige des colonnes degenerees transmis (#60, extension de
   # Q-E2r-60-1 (b) du 06/10/2026), comme pour M1, ExpVar et KruskalAcc.
-  Calendrier = .mc_entree(function(e) mw_test_annees_calendaires(e$aj, e$j_degeneres)$stat, "deux",
+  Calendrier = .mc_entree(function(e) mw_test_annees_calendaires(e$aj, e$figes$degeneres)$stat, "deux",
                           extremes = function(e)
-                            .mw_calendrier_extremes(mw_test_annees_calendaires(e$aj, e$j_degeneres))),
-  CorrDev    = .mc_entree(function(e) mw_stat_correlation_dev(e$aj, e$j_degeneres)$stat, "deux",
+                            .mw_calendrier_extremes(mw_test_annees_calendaires(e$aj, e$figes$degeneres))),
+  CorrDev    = .mc_entree(function(e) mw_stat_correlation_dev(e$aj, e$figes$degeneres)$stat, "deux",
                           extremes = function(e)
-                            .mw_corr_extremes(mw_stat_correlation_dev(e$aj, e$j_degeneres))),
+                            .mw_corr_extremes(mw_stat_correlation_dev(e$aj, e$figes$degeneres))),
   # Heteroscedasticite residuelle : les residus de Mack ne doivent plus
   # dependre de C(i,j) si la variance est bien proportionnelle a C(i,j).
   BP         = .mc_entree(function(e) {
@@ -9269,48 +9515,57 @@ MW_CATALOGUE_MC <- list(
   # Tests specifiques de l'hypothese (iii), colonne par colonne. Les
   # statistiques de Fisher et de Kruskal-Wallis rejettent en queue haute ;
   # l'amplitude de la famille alpha egalement.
-  Origine    = .mc_entree(function(e) mw_test_ordonnee_origine(e$aj, e$j_degeneres)$stat, "haut"),
-  HomogF     = .mc_entree(function(e) mw_test_homogeneite_f(e$aj, e$j_degeneres)$stat, "haut",
+  Origine    = .mc_entree(function(e) mw_test_ordonnee_origine(e$aj, e$figes$degeneres,
+                                                            e$figes$origine_non_identifiables)$stat, "haut"),
+  HomogF     = .mc_entree(function(e) mw_test_homogeneite_f(e$aj, e$figes$degeneres)$stat, "haut",
                           extremes = function(e)
-                            .mw_fisher_x_max(mw_test_homogeneite_f(e$aj, e$j_degeneres))),
-  Courbure   = .mc_entree(function(e) mw_test_courbure(e$aj, e$j_degeneres,
-                                                    e$j_non_identifiables)$stat, "haut"),
+                            .mw_fisher_x_max(mw_test_homogeneite_f(e$aj, e$figes$degeneres))),
+  Courbure   = .mc_entree(function(e) mw_test_courbure(e$aj, e$figes$degeneres,
+                                                    e$figes$non_identifiables)$stat, "haut"),
   Alpha      = .mc_entree(function(e) mw_famille_alpha(e$aj)$stat, "haut"),
   # Residus de Mack du contexte, e$res, calcules une seule fois par
   # .mw_contexte_mc() avec l'ensemble fige des colonnes degenerees (issue
   # #60) et transmis tels quels (#239), au lieu d'un recalcul par statistique.
-  ExpVar     = .mc_entree(function(e) mw_test_exposant_variance(e$aj, e$j_degeneres, e$res)$stat, "haut",
+  ExpVar     = .mc_entree(function(e) mw_test_exposant_variance(e$aj, e$figes$degeneres, e$res)$stat, "haut",
                           extremes = function(e)
-                            .mw_fisher_x_max(mw_test_exposant_variance(e$aj, e$j_degeneres, e$res))),
-  KruskalAcc = .mc_entree(function(e) mw_test_homogeneite_accident(e$aj, e$j_degeneres, e$res)$stat, "haut",
+                            .mw_fisher_x_max(mw_test_exposant_variance(e$aj, e$figes$degeneres, e$res))),
+  KruskalAcc = .mc_entree(function(e) mw_test_homogeneite_accident(e$aj, e$figes$degeneres, e$res)$stat, "haut",
                           extremes = function(e)
-                            .mw_kruskal_extremes(mw_test_homogeneite_accident(e$aj, e$j_degeneres, e$res)))
+                            .mw_kruskal_extremes(mw_test_homogeneite_accident(e$aj, e$figes$degeneres, e$res)))
 )
 
 # Statistiques bootstrapables de la methode Merz-Wuthrich (catalogue
-# MW_CATALOGUE_MC). j_degeneres : ensemble fige des colonnes degenerees de M1
-# (NULL : calcule sur aj) ; j_non_identifiables : ensemble fige des colonnes
-# non identifiables de la courbure (#270 ; NULL : calcule sur aj).
-.mw_stats <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL)
-  .mc_evaluer(MW_CATALOGUE_MC, .mw_contexte_mc(aj, j_degeneres, j_non_identifiables))
+# MW_CATALOGUE_MC). figes : ensembles figes de .mw_ensembles_figes() (#278 ;
+# NULL : calcules sur aj).
+.mw_stats <- function(aj, figes = NULL)
+  .mc_evaluer(MW_CATALOGUE_MC, .mw_contexte_mc(aj, figes))
 
 # --- B effectif < B sur une ligne Monte-Carlo de Merz-Wuthrich (#204) ---------
 # Phrase ajoutee en fin du detail d'une des 13 lignes Monte-Carlo de
 # mw_tests() (decision du mainteneur du 12/10/2026, commentaire 6120564480
 # de #204 ; ADR 0003 annote le 12/10/2026, point 4 ; specification E2b,
-# section 6) :
-#   - cas A : p_mc calculee (finie) et B_effectif < B : la p Monte-Carlo est
-#     conditionnelle a la definition de la statistique (comptee sur les seules
-#     replications ou elle est finie) ;
+# section 6). Conditions evaluees dans cet ordre :
+#   - cas A, plafond non atteint : p_mc calculee (finie), B_effectif < B et
+#     boot$plafond_cumuls FALSE : la p Monte-Carlo est conditionnelle a la
+#     definition de la statistique (comptee sur les seules replications ou
+#     elle est finie) ;
+#   - cas A, plafond atteint (#279 ; avis d'actuary, commentaire 6172090383
+#     de #279 ; texte approuve par le mainteneur le 14/10/2026) : p_mc finie,
+#     B_effectif < B et boot$plafond_cumuls TRUE (plafond du retirage de #257
+#     atteint) : les deux causes possibles des replications manquantes sont
+#     nommees, sans repartition chiffree ;
 #   - cas B : motif MOTIF_MC_REPLIC_INSUFFISANTES : nombres seuls ;
 #   - sinon (B_effectif = B, MOTIF_MC_AUCUNE_REPLIC, motifs degeneres,
 #     statistique observee non finie) : "".
 # Exception a la regle #76 (aucun nombre issu du bootstrap dans detail)
-# bornee a ces deux phrases et a mw_tests() ; add() ne les pose pas et la
-# regle y reste entiere. Les nombres sont lus dans boot$B_effectif[[mc_nom]]
-# et boot$B. Refus explicite (meme principe que l'ADR 0003, point 3, et que
-# #181 : jamais devine) : boot$B absent ou non fini, ou mc_nom absent de
-# boot$B_effectif (ou B_effectif non fini), est une erreur de programmation.
+# bornee a ces phrases et a mw_tests() (ADR 0003, annotation du 12/10/2026,
+# point 4) ; add() ne les pose pas et la regle y reste entiere. Les nombres
+# sont lus dans boot$B_effectif[[mc_nom]] et boot$B, les memes trois dans les
+# deux phrases du cas A. Refus explicite (meme principe que l'ADR 0003,
+# point 3, et que #181 : jamais devine) : boot$B absent ou non fini, ou
+# mc_nom absent de boot$B_effectif (ou B_effectif non fini), est une erreur
+# de programmation ; de meme, au cas A seulement (seul cas ou il est lu),
+# boot$plafond_cumuls absent, ou autre qu'un booleen non NA de longueur 1.
 .mw_phrase_b_effectif <- function(boot, mc_nom) {
   B <- boot$B; be <- boot$B_effectif
   if (is.null(B) || length(B) != 1L || !is.finite(B))
@@ -9323,13 +9578,26 @@ MW_CATALOGUE_MC <- list(
   p <- if (mc_nom %in% names(boot$p_mc)) unname(boot$p_mc[[mc_nom]]) else NA_real_
   m <- if (!is.null(boot$motif_mc) && mc_nom %in% names(boot$motif_mc))
     unname(boot$motif_mc[[mc_nom]]) else NA_character_
-  if (is.finite(p) && be < B)
-    sprintf(paste("B effectif = %d sur B = %d (%d replication(s) ecartee(s), statistique",
-                  "non finie) : p-value Monte-Carlo conditionnelle a la definition de la",
-                  "statistique, comptee sur les seules replications ou elle est finie ;",
-                  "l'absence de biais de cette selection n'est pas demontree."),
-            as.integer(be), as.integer(B), as.integer(B - be))
-  else if (!is.finite(p) && identical(m, MOTIF_MC_REPLIC_INSUFFISANTES))
+  if (is.finite(p) && be < B) {
+    pl <- boot$plafond_cumuls
+    if (!is.logical(pl) || length(pl) != 1L || is.na(pl))
+      stop(".mw_phrase_b_effectif() : plafond_cumuls absent ou non booleen dans le bootstrap (",
+           mc_nom, ")", call. = FALSE)
+    if (!pl)
+      sprintf(paste("B effectif = %d sur B = %d (%d replication(s) ecartee(s), statistique",
+                    "non finie) : p-value Monte-Carlo conditionnelle a la definition de la",
+                    "statistique, comptee sur les seules replications ou elle est finie ;",
+                    "l'absence de biais de cette selection n'est pas demontree."),
+              as.integer(be), as.integer(B), as.integer(B - be))
+    else
+      sprintf(paste("B effectif = %d sur B = %d (%d replication(s) manquante(s) : plafond",
+                    "de tirages atteint et, le cas echeant, statistique non finie) : p-value",
+                    "Monte-Carlo comptee sur les seules replications ou la statistique est",
+                    "finie ; les replications perdues au plafond le sont independamment de",
+                    "la valeur de la statistique, l'absence de biais de la selection par",
+                    "statistique non finie n'est pas demontree."),
+              as.integer(be), as.integer(B), as.integer(B - be))
+  } else if (!is.finite(p) && identical(m, MOTIF_MC_REPLIC_INSUFFISANTES))
     sprintf("B effectif = %d sur B = %d.", as.integer(be), as.integer(B))
   else ""
 }
@@ -9338,16 +9606,18 @@ MW_CATALOGUE_MC <- list(
 # et D1-4 du mainteneur du 13/10/2026 ; specification
 # docs/specifications/e2d-merz-wuthrich-replications-definitions.md, par. 3,
 # point 3) : aucun nombre issu du bootstrap (regle #76 entiere ; "25 (B + 1)"
-# est la formule du plafond FACTEUR_B_MAX_MW). Jointes par mw_tests() sur
-# ses lignes Monte-Carlo, avant la phrase de #204 ; celle de #244 reste la
-# derniere (posee par add()).
+# est la formule du plafond FACTEUR_B_MAX_MW, un parametre). Jointes par
+# mw_tests() sur ses lignes Monte-Carlo, avant la phrase de #204 ; celle de
+# #244 reste la derniere (posee par add()). La phrase du plafond est
+# construite depuis FACTEUR_B_MAX_MW (#279), sans as.integer() : un facteur
+# non entier fait echouer sprintf("%d") au chargement, au lieu d'etre tronque.
 PHRASE_MW_CUMULS_RETIRES <- paste(
   "Triangles simules a cumul non strictement positif ecartes et remplaces par un",
   "nouveau tirage : p-value Monte-Carlo conditionnelle a la positivite des cumuls",
   "simules.")
-PHRASE_MW_PLAFOND_CUMULS <- paste(
-  "Plafond de 25 (B + 1) triangles simules atteint : des replications manquent",
-  "faute de triangle simule a cumuls strictement positifs.")
+PHRASE_MW_PLAFOND_CUMULS <- sprintf(paste(
+  "Plafond de %d (B + 1) triangles simules atteint : des replications manquent",
+  "faute de triangle simule a cumuls strictement positifs."), FACTEUR_B_MAX_MW)
 # Phrases du retirage applicables au bootstrap boot, dans l'ordre (retirage,
 # puis plafond), "" si aucune. Refus explicite (meme principe que
 # .mw_phrase_b_effectif(), jamais devine) : boot$cumuls_retires ou
@@ -9367,8 +9637,24 @@ PHRASE_MW_PLAFOND_CUMULS <- paste(
 # --- Table des tests de la methode Merz-Wuthrich ------------------------------
 # Meme structure de sortie que usp_tests() : chaque ligne porte H0, H1, la
 # statistique, les p-values disponibles et la nature de celle qui est retenue.
-mw_tests <- function(aj, boot, alpha = 0.10) {
-  res <- mw_residus(aj); r <- res$residu; n <- length(r)
+#
+# Precondition (#278, revue finale, constat C2) : figes doit etre l'objet
+# meme qui a servi a construire boot (mw_bootstrap(aj, ..., figes)), ou NULL
+# si boot a ete construit avec figes = NULL (les deux recalculent alors
+# .mw_ensembles_figes(aj), le meme calcul). mw_tests() ne le verifie pas :
+# boot ne porte pas les ensembles figes (ajouter cet element changerait les
+# references) ; un figes different lirait les statistiques observees et
+# simulees de boot avec des ensembles d'une autre definition (exclusions,
+# K, libelles), sans erreur. run_engine() garantit la precondition :
+# .run_engine_mw() construit l'objet une fois et le passe aux deux appels.
+mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
+  # Ensembles figes a l'observe (#278) : ceux de mw_bootstrap(), passes par
+  # .run_engine_mw(), lus au lieu d'etre recalcules par chaque fonction de
+  # test ; NULL : .mw_ensembles_figes(aj), le meme calcul.
+  if (is.null(figes)) figes <- .mw_ensembles_figes(aj)
+  .mw_verifier_figes(figes, "mw_tests()", aj$J)
+  jd <- figes$degeneres
+  res <- mw_residus(aj, jd); r <- res$residu; n <- length(r)
   # Enregistrement des lignes de resultat : fonction partagee avec usp_tests()
   # (engine_registre_tests(), ADR 0003) ; une statistique Monte-Carlo absente
   # du catalogue ou du bootstrap leve une erreur.
@@ -9376,8 +9662,8 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                                nature_mc = "Monte-Carlo (bootstrap de residus)")
   # Lignes Monte-Carlo (mc_nom renseigne, les 13 statistiques de
   # MW_CATALOGUE_MC) : la phrase de .mw_phrase_b_effectif() (#204) est jointe
-  # en fin du detail transmis a add(), avec la regle de jonction d'add()
-  # ("" si detail vide, " " apres un point, " ; " sinon). add() n'est pas
+  # en fin du detail transmis a add(), par la fonction de jonction d'add(),
+  # .engine_joindre() (#264 ; " " apres un point, " ; " sinon). add() n'est pas
   # modifiee ; ses ajouts (prefixe du motif, regle R1, plancher, #244) se
   # placent autour comme pour tout detail. Une statistique absente de
   # boot$p_mc n'appelle pas .mw_phrase_b_effectif() : le refus d'add()
@@ -9390,8 +9676,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
     if (!is.na(mc_nom) && mc_nom %in% names(boot$p_mc)) {
       ph <- trimws(paste(.mw_phrases_retirage(boot), .mw_phrase_b_effectif(boot, mc_nom)))
       if (nzchar(ph)) {
-        sep <- if (!nzchar(detail)) "" else if (grepl("\\.$", detail)) " " else " ; "
-        detail <- trimws(paste0(detail, sep, ph))
+        detail <- trimws(.engine_joindre(detail, ph))
       }
     }
     reg$add(..., mc_nom = mc_nom, detail = detail)
@@ -9414,7 +9699,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                      "quasi-totalite des cas."))
 
   # --- Tests colonne par colonne de l'hypothese (iii) ------------------------
-  oo <- mw_test_ordonnee_origine(aj)
+  oo <- mw_test_ordonnee_origine(aj, jd, figes$origine_non_identifiables)
   add(fam, "Nullite de l'ordonnee a l'origine, colonne par colonne",
       fonction = "mw_test_ordonnee_origine",
       "Mack (1993), ASTIN Bulletin 23(2), section 2, hyp. (1) ; section 3, hyp. (3) ; Mack (1994), CAS Forum, chap. 5",
@@ -9424,7 +9709,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       loi = "chi2(2K) approx. (colonnes non independantes) -> Monte-Carlo",
       estim_nom = "colonnes testees", estim = if (is.null(oo$K)) NA_real_ else oo$K,
       p_as = oo$p, mc_nom = "Origine",
-      detail = .mw_avec_exclusion(paste(
+      detail = .mw_avec_exclusion(.mw_avec_exclusion(paste(
                      "La regression ponderee SANS constante et de poids 1/C(i,j) a pour",
                      "estimateur exactement f_j (identite de Mack, verifiee a 1e-16).",
                      "Ajouter une constante fournit donc le test naturel de la",
@@ -9433,8 +9718,9 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
                      "ordonnee a l'origine nulle pour des facteurs exactement egaux, statistique ",
                      "de Student non definie (0/0) ou reduite a des ecarts negligeables a la ",
                      "tolerance de l'outil"),
-                     "de proportionnalite")))
-  hf <- mw_test_homogeneite_f(aj)
+                     "de proportionnalite")),
+                   .mw_phrase_origine_non_identifiable(oo)))
+  hf <- mw_test_homogeneite_f(aj, jd)
   # p_min (#115) : .mw_fisher_rangs_p_min() sur les n_j et les masses
   # masse_min_j des K colonnes combinees (#207 : ex aequo compris, loi
   # conditionnelle aux rangs moyens).
@@ -9456,7 +9742,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
         .mw_phrase_exclusion(hf,
           "facteurs individuels constants, correlation de rang non definie",
           "de l'homogeneite de f_j entre annees de survenance")))
-  cb <- mw_test_courbure(aj)
+  cb <- mw_test_courbure(aj, jd, figes$non_identifiables)
   add(fam, "Absence de courbure de la regression",
       fonction = "mw_test_courbure",
       "Test du terme quadratique, dans l'esprit de Ramsey (1969)",
@@ -9500,7 +9786,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       stat_nom = "LM", stat = bp$stat, loi = "chi2(1) asymptotique",
       p_as = bp$p, mc_nom = "BP",
       detail = "Si Var(C(i,j+1)|C(i,j)) = sigma_j^2 C(i,j), les residus standardises sont d'echelle constante")
-  ev <- mw_test_exposant_variance(aj)
+  ev <- mw_test_exposant_variance(aj, jd)
   pm_ev <- .mw_p_min_ligne(is.finite(ev$stat), ev$detail$n, "colonnes n_j",
                            function(n) .mw_fisher_rangs_p_min(n, ev$masse_min),
                            any(ev$detail$ex_aequo), n_max = 9, ex_aequo_enumere = TRUE)
@@ -9554,7 +9840,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
 
   ## --- M3 : independance des annees d'accident et de developpement ----------
   fam <- "M3. independance (annexe XVII D(2)(h)(i) et (ii))"
-  cal <- mw_test_annees_calendaires(aj)
+  cal <- mw_test_annees_calendaires(aj, jd)
   # p_min (#115) : n_k des diagonales retenues (n_k >= 2) ; les etiquettes "*"
   # (ex aequo a la mediane) sont deja ecartees des n_k.
   pm_cal <- .mw_p_min_ligne(is.finite(cal$stat),
@@ -9571,7 +9857,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
       p_as = cal$p, mc_nom = "Calendrier",
       p_min = pm_cal$p_min, effectifs = pm_cal$effectifs,
       detail = "Les diagonales representent les exercices comptables : un effet calendaire viole l'independance des annees d'accident")
-  ka <- mw_test_homogeneite_accident(aj)
+  ka <- mw_test_homogeneite_accident(aj, jd)
   pm_ka <- .mw_p_min_ligne(is.finite(ka$stat), ka$tailles, "residus par annee de survenance",
                            .mw_kruskal_p_min, isTRUE(ka$ex_aequo))
   add(fam, "Homogeneite des residus entre annees de survenance",
@@ -9593,7 +9879,7 @@ mw_tests <- function(aj, boot, alpha = 0.10) {
         "(groupes de taille 1), quelle que soit la donnee ; ",
         "H ne mesure rien ici. ") else "",
         "Traduction testable de l'independance des annees de survenance, D(2)(h)(i)"))
-  cor <- mw_stat_correlation_dev(aj)
+  cor <- mw_stat_correlation_dev(aj, jd)
   pm_cor <- .mw_p_min_ligne(is.finite(cor$stat), cor$poids + 1, "paires de colonnes n_k",
                             .mw_corr_p_min, isTRUE(cor$ex_aequo))
   add(fam, "Correlation entre annees de developpement adjacentes",
@@ -10108,8 +10394,11 @@ engine_motif_b_alpha <- function(B, alpha) {
     }
 
     par  <- mw_parametre(aj, msep$msep, sigma_standard, bareme)
-    boot <- mw_bootstrap(aj, B = B, seed = seed)
-    tests <- mw_tests(aj, boot, alpha)
+    # Ensembles de colonnes figes a l'observe (#278) : construits une fois,
+    # lus par mw_bootstrap() et par mw_tests().
+    figes <- .mw_ensembles_figes(aj)
+    boot <- mw_bootstrap(aj, B = B, seed = seed, figes = figes)
+    tests <- mw_tests(aj, boot, alpha, figes = figes)
     res   <- mw_residus(aj)
     # L'exclusion de colonnes est restituee par l'avertissement de
     # mw_valider_ajustement() ; l'attribut n'est pas stocke dans le resultat
@@ -10948,16 +11237,6 @@ usp_renvois <- function(tests) {
   }, character(1), USE.NAMES = FALSE)
 }
 
-# Jonction de deux textes de detail (regle de la branche "ECHEC
-# inatteignable" de add()) : " " apres un point final, " ; " sinon, rien si
-# l'un des deux est vide. Partagee par usp_tests() (joindre) et
-# .usp_poser_renvois().
-.usp_joindre <- function(a, b) {
-  if (!nzchar(b)) return(a)
-  if (!nzchar(a)) return(b)
-  paste0(a, if (grepl("\\.$", a)) " " else " ; ", b)
-}
-
 # Textes du renvoi croise (#215, libelle d'actuary) : (a) sur la ligne
 # constante, (b) sur la ligne Spearman ratio / volume.
 USP_TXT_RENVOI_CST <- paste(
@@ -10985,21 +11264,21 @@ USP_TXT_RENVOI_SV <- paste(
 # (#244), qui reste le dernier element du detail (ADR 0003 annote le
 # 12/10/2026, point 3 ; constat C1 de l'audit de #244) : quand le detail
 # finit par elle, le renvoi est insere avant elle, chaque jonction suivant
-# .usp_joindre(). add() et engine_registre_tests() sont inchanges.
+# .engine_joindre(). add() et engine_registre_tests() sont inchanges.
 # Idempotent (point de vigilance (c) de l'ADR 0003) : un texte deja present
 # en fin de detail (avant la phrase de #244 le cas echeant) n'est pas ajoute
 # une seconde fois.
 .usp_poser_renvois <- function(L) {
   ajouter <- function(d, txt) {
-    if (!is.character(d) || length(d) != 1L || is.na(d)) return(.usp_joindre(d, txt))
+    if (!is.character(d) || length(d) != 1L || is.na(d)) return(.engine_joindre(d, txt))
     ph <- PHRASE_VERDICT_SENSIBLE_MC
     if (endsWith(d, ph)) {
       # base : detail sans la phrase ni sa jonction (" " ou " ; ", add()).
       base <- sub("( ; | )$", "", substr(d, 1L, nchar(d) - nchar(ph)))
       if (endsWith(base, txt)) return(d)
-      return(.usp_joindre(.usp_joindre(base, txt), ph))
+      return(.engine_joindre(.engine_joindre(base, txt), ph))
     }
-    if (endsWith(d, txt)) d else .usp_joindre(d, txt)
+    if (endsWith(d, txt)) d else .engine_joindre(d, txt)
   }
   rv <- usp_renvois(L)
   for (i in which(!is.na(rv))) {

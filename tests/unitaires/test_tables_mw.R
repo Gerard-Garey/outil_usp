@@ -23,7 +23,10 @@
 #  stable de #233, .mw_ecart_facteur_stable() ; t et p du terme quadratique
 #  de mw_test_courbure() reportes sous la forme close de #253,
 #  .mw_courbure_colonne(), qui remplace lm() dans le moteur : la comparaison
-#  porte sur l'assemblage des tables, objet de #239), evaluee dans un
+#  porte sur l'assemblage des tables, objet de #239 ; ensembles figes rendus
+#  par le contexte dans l'element figes, forme de l'objet de
+#  .mw_ensembles_figes(), et moteur appele par l'adaptateur moteur(), #278),
+#  evaluee dans un
 #  environnement dedie dont le parent
 #  est celui du moteur : les fonctions non modifiees (mw_stat_correlation_dev(),
 #  .mw_pente_intra(), .mc_evaluer()...) sont communes. Chaque fonction est
@@ -60,11 +63,13 @@
 #      sigma2_4 = 0 exactement ; sous la graine 20261010, le premier cas
 #      n'apparaissait qu'a la 7e replication),
 #      ensemble j_degeneres fige a l'observe ;
-#    - les triangles T1, T3 et T6 a colonne non identifiable de la courbure
-#      (#269, #270), et les deux premieres replications de T1 et de T3
-#      (graine 20261010) sous l'ensemble des colonnes non identifiables fige
-#      a l'observe ; la courbure de l'ancienne forme y est une reecriture
-#      independante de la selection des colonnes (T270-7) ;
+#    - les triangles T1, T3, T4 et T6 a colonne non identifiable de la
+#      courbure (#269, #270, #278), et les deux premieres replications de T1,
+#      de T3 et de T4 (graine 20261010) sous l'ensemble des colonnes non
+#      identifiables fige a l'observe ; la courbure de l'ancienne forme y est
+#      une reecriture independante de la selection des colonnes (T270-7) ;
+#    - la branche (b) de la courbure (#270, #278) : triangles T1b et T3b, ou
+#      la colonne de l'ensemble fige est degeneree dans l'appel ;
 #    - douze triangles tires sous graine (PLAN_TIRAGES : 3 a 12 annees ;
 #      continus ; ex aequo, effectifs au tirage 9, 8 annees ; colonnes
 #      degenerees interieures, tirages 3, 4, 7, 9 a 12 ; colonnes nulles
@@ -164,20 +169,47 @@ local({
     min(1, max(2 / factorial(n), p))
   }
 
-  mw_test_ordonnee_origine <- function(aj, j_degeneres = NULL) {
+  # Ordonnee a l'origine : reecriture independante de la selection des
+  # colonnes (#273, T273-9 ; option (A) du mainteneur, 14/10/2026). L'ensemble
+  # des colonnes non identifiables est recalcule ici (.jno_oracle(), predicat
+  # ecrit a nouveau : n_j >= 3, hors des colonnes exclues, non degeneree, une
+  # seule valeur distincte de C(i,j)), sans
+  # .mw_colonnes_origine_non_identifiables() ; fourni (j_non_identifiables),
+  # il est fige comme dans mw_bootstrap(). Element non_identifiables empile
+  # par rbind() avant la boucle, porte par les retours NA. Colonne retenue
+  # dont lm() echoue ou rend moins de deux coefficients (second volet de
+  # #56, plus de next silencieux) : statistique NA, K NA.
+  .jno_oracle <- function(aj, jd) {
+    out <- integer(0)
+    for (j in 0:(aj$J - 1)) {
+      n <- aj$I - j
+      if (n < 3 || j %in% jd || .mw_colonne_degeneree(aj, j)) next
+      if (length(unique(aj$tri[seq_len(n), j + 1])) == 1L) out <- c(out, as.integer(j))
+    }
+    out
+  }
+  mw_test_ordonnee_origine <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL) {
     I <- aj$I; J <- aj$J; tri <- aj$tri
     det <- data.frame()
     ex <- .mw_exclues_vide()
     jd <- .mw_j_exclues(aj, j_degeneres)
+    jno <- if (is.null(j_non_identifiables)) .jno_oracle(aj, jd) else as.integer(j_non_identifiables)
+    ni <- data.frame(j = integer(0), n_facteurs = integer(0))
+    for (j in sort(unique(jno)))
+      if (j >= 0 && j <= J - 1 && I - j >= 3 && !(j %in% jd))
+        ni <- rbind(ni, data.frame(j = as.integer(j), n_facteurs = as.integer(I - j)))
     for (j in 0:(J - 1)) {
       idx <- 0:(I - j - 1)
       if (length(idx) < 3) next                    # 2 parametres + 1 ddl minimum
       if (j %in% jd) { ex <- .mw_exclure(ex, j, length(idx)); next }
       ex$eligibles <- ex$eligibles + 1L
-      if (.mw_colonne_degeneree(aj, j)) return(.mw_stat_non_definie(ex))
+      if (j %in% jno) next
+      if (.mw_colonne_degeneree(aj, j))
+        return(c(.mw_stat_non_definie(ex), list(non_identifiables = ni)))
       C0 <- tri[idx + 1, j + 1]; C1 <- tri[idx + 1, j + 2]
       m <- try(summary(stats::lm(C1 ~ C0, weights = 1 / C0)), silent = TRUE)
-      if (inherits(m, "try-error") || nrow(m$coefficients) < 2) next
+      if (inherits(m, "try-error") || nrow(m$coefficients) < 2)
+        return(c(.mw_stat_non_definie(ex), list(non_identifiables = ni)))
       det <- rbind(det, data.frame(
         j = j, n = length(idx),
         a = m$coefficients[1, 1], se_a = m$coefficients[1, 2],
@@ -185,11 +217,12 @@ local({
         b = m$coefficients[2, 1], f_cl = aj$f[j + 1], stringsAsFactors = FALSE))
     }
     if (!nrow(det)) return(list(stat = NA_real_, p = NA_real_, detail = det,
-                                exclues = ex$colonnes, eligibles = ex$eligibles))
+                                exclues = ex$colonnes, eligibles = ex$eligibles,
+                                non_identifiables = ni))
     fc <- .fisher_combine(det$p)
     list(stat = fc$stat, p = fc$p, K = fc$K, detail = det,
          t_max = det$t[which.max(abs(det$t))], j_max = det$j[which.max(abs(det$t))],
-         exclues = ex$colonnes, eligibles = ex$eligibles)
+         exclues = ex$colonnes, eligibles = ex$eligibles, non_identifiables = ni)
   }
 
   mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
@@ -321,18 +354,25 @@ local({
          tailles = as.vector(table(g)), ex_aequo = anyDuplicated(ra) > 0)
   }
 
-  # Champ j_non_identifiables (#270) : ensemble fourni, ou recalcule par
-  # .jni_oracle().
-  .mw_contexte_mc <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL) {
+  # Champs j_non_identifiables (#270) et j_origine_non_identifiables (#273) :
+  # ensembles fournis, ou recalcules par .jni_oracle() et .jno_oracle().
+  # Ensembles rendus dans l'element figes du contexte, sous la forme de
+  # l'objet de .mw_ensembles_figes() (#278 : transposition de l'interface
+  # seule, ensembles calcules ici comme avant).
+  .mw_contexte_mc <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL,
+                              j_origine_non_identifiables = NULL) {
     jd <- .mw_j_exclues(aj, j_degeneres)
     res <- mw_residus(aj, jd)
     jni <- if (is.null(j_non_identifiables)) .jni_oracle(aj, jd) else as.integer(j_non_identifiables)
-    list(aj = aj, res = res, r = res$residu, j_degeneres = jd, j_non_identifiables = jni)
+    jno <- if (is.null(j_origine_non_identifiables)) .jno_oracle(aj, jd) else
+      as.integer(j_origine_non_identifiables)
+    list(aj = aj, res = res, r = res$residu,
+         figes = list(degeneres = jd, non_identifiables = jni, origine_non_identifiables = jno))
   }
 
   MW_CATALOGUE_MC <- list(
-    Calendrier = .mc_entree(function(e) mw_test_annees_calendaires(e$aj, e$j_degeneres)$stat, "deux"),
-    CorrDev    = .mc_entree(function(e) mw_stat_correlation_dev(e$aj, e$j_degeneres)$stat, "deux"),
+    Calendrier = .mc_entree(function(e) mw_test_annees_calendaires(e$aj, e$figes$degeneres)$stat, "deux"),
+    CorrDev    = .mc_entree(function(e) mw_stat_correlation_dev(e$aj, e$figes$degeneres)$stat, "deux"),
     BP         = .mc_entree(function(e) {
       res <- e$res; r <- e$r
       if (nrow(res) > 3 && stats::sd(res$C) > 0)
@@ -342,17 +382,20 @@ local({
     DW         = .mc_entree(function(e) stat_dw(e$r), "deux"),
     Runs       = .mc_entree(function(e) test_runs(e$r)$stat, "deux"),
     PenteIntra = .mc_entree(function(e) .mw_pente_intra(e$res), "deux"),
-    Origine    = .mc_entree(function(e) mw_test_ordonnee_origine(e$aj, e$j_degeneres)$stat, "haut"),
-    HomogF     = .mc_entree(function(e) mw_test_homogeneite_f(e$aj, e$j_degeneres)$stat, "haut"),
-    Courbure   = .mc_entree(function(e) mw_test_courbure(e$aj, e$j_degeneres,
-                                                      e$j_non_identifiables)$stat, "haut"),
+    Origine    = .mc_entree(function(e) mw_test_ordonnee_origine(e$aj, e$figes$degeneres,
+                                                              e$figes$origine_non_identifiables)$stat, "haut"),
+    HomogF     = .mc_entree(function(e) mw_test_homogeneite_f(e$aj, e$figes$degeneres)$stat, "haut"),
+    Courbure   = .mc_entree(function(e) mw_test_courbure(e$aj, e$figes$degeneres,
+                                                      e$figes$non_identifiables)$stat, "haut"),
     Alpha      = .mc_entree(function(e) mw_famille_alpha(e$aj)$stat, "haut"),
-    ExpVar     = .mc_entree(function(e) mw_test_exposant_variance(e$aj, e$j_degeneres)$stat, "haut"),
-    KruskalAcc = .mc_entree(function(e) mw_test_homogeneite_accident(e$aj, e$j_degeneres)$stat, "haut")
+    ExpVar     = .mc_entree(function(e) mw_test_exposant_variance(e$aj, e$figes$degeneres)$stat, "haut"),
+    KruskalAcc = .mc_entree(function(e) mw_test_homogeneite_accident(e$aj, e$figes$degeneres)$stat, "haut")
   )
 
-  .mw_stats <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL)
-    .mc_evaluer(MW_CATALOGUE_MC, .mw_contexte_mc(aj, j_degeneres, j_non_identifiables))
+  .mw_stats <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL,
+                        j_origine_non_identifiables = NULL)
+    .mc_evaluer(MW_CATALOGUE_MC, .mw_contexte_mc(aj, j_degeneres, j_non_identifiables,
+                                                 j_origine_non_identifiables))
 
 }, envir = ANCIEN)
 
@@ -369,6 +412,16 @@ capturer <- function(f, args) {
 # identical() par defaut ne voit pas l'ordre names / class / row.names, que
 # voit la comparaison aux references (structure_arbre(), outils_tests.R).
 meme <- function(x, y) identical(x, y, attrib.as.set = FALSE)
+# Moteur appele sous la convention (aj, jd, jni, jno) de la reecriture :
+# depuis #278, .mw_contexte_mc() et .mw_stats() du moteur recoivent l'objet
+# de .mw_ensembles_figes() ; jd, jni et jno (#273) (NULL : calcules sur aj
+# par le moteur) y sont passes tels quels.
+MOTEUR_FIGES <- list(
+  .mw_contexte_mc = function(aj, jd = NULL, jni = NULL, jno = NULL)
+    .mw_contexte_mc(aj, .mw_ensembles_figes(aj, jd, jni, jno)),
+  .mw_stats       = function(aj, jd = NULL, jni = NULL, jno = NULL)
+    .mw_stats(aj, .mw_ensembles_figes(aj, jd, jni, jno)))
+moteur <- function(f) if (!is.null(MOTEUR_FIGES[[f]])) MOTEUR_FIGES[[f]] else get(f)
 # Fonctions comparees (nom dans le moteur et dans ANCIEN) ; mw_famille_alpha()
 # ne prend pas j_degeneres.
 FONCTIONS_JD <- c("mw_residus", "mw_test_annees_calendaires", "mw_test_ordonnee_origine",
@@ -405,10 +458,11 @@ ecarts <- function(t, jds = list(NULL), etiquette = "", fonctions = FONCTIONS_JD
   vus <- list()
   for (jd in jds) {
     r <- .mw_j_exclues(aj, jd)
-    # Filet de securite, inactif sur les jeux actuels (0 saut sur 76 ensembles).
+    # Filet de securite, inactif sur les jeux actuels (0 saut sur 82 ensembles,
+    # mesure du 14/10/2026).
     if (any(vapply(vus, identical, logical(1), r))) next
     vus[[length(vus) + 1L]] <- r
-    nouv <- lapply(stats::setNames(nm = fonctions), function(f) sans_masse(capturer(get(f), list(aj, jd))))
+    nouv <- lapply(stats::setNames(nm = fonctions), function(f) sans_masse(capturer(moteur(f), list(aj, jd))))
     anc  <- lapply(stats::setNames(nm = fonctions), function(f) capturer(ANCIEN[[f]], list(aj, jd)))
     for (f in fonctions)
       if (!meme(nouv[[f]], anc[[f]])) out <- c(out, paste(etiquette, f, "jd =", deparse(jd)))
@@ -462,6 +516,19 @@ tri_t1 <- tri_ref; tri_t1[1:6, 2] <- rep(c(1000, 1100), each = 3)
 tri_t3 <- tri_ref; tri_t3[, 1] <- rep(c(320, 350), 4)
 tri_t6 <- tri_ref; tri_t6[1:5, 3] <- c(1600, 1600, 1600, 1800, 1800)
 tri_t6[1:6, 2] <- tri_t6[1:6, 3] / 1.3
+# T4 (specification d'E2e, section 4) : C(0..5,1) = 1050, colonne j = 1
+# constante (une seule valeur distincte de C(i,j)).
+tri_t4 <- tri_ref; tri_t4[1:6, 2] <- 1050
+# Branche (b) de la courbure (#270, correction du 14/10/2026 ; #278, etape 1
+# de la branche F, reserve M2 de l'audit d'E2e) : triangles de replication
+# construits a la main, ou la colonne de l'ensemble fige a l'observe devient
+# degeneree. T1b : T1, colonne j = 1 degeneree, C(i,1) = C(i,2) / 1,3 pour
+# i = 0..5 (T7 de T270-9) ; T3b : T3, colonne j = 0 degeneree,
+# C(i,0) = C(i,1) / 1,5 pour i = 0..6. Appeles avec les ensembles figes de
+# l'observe (T1 : jd = 6, jni = 1 ; T3 : jd = 6, jni = 0), ou la colonne
+# n'est pas degeneree.
+tri_t1b <- tri_t1; tri_t1b[1:6, 2] <- tri_t1b[1:6, 3] / 1.3
+tri_t3b <- tri_t3; tri_t3b[1:7, 1] <- tri_t3b[1:7, 2] / 1.5
 
 # Triangle tire sous la graine courante : n annees, facteurs decroissants
 # bruites ; variantes : ex aequo (montants arrondis a la centaine), colonne
@@ -517,12 +584,13 @@ verifier("Cas reserve2, noms de lignes (lettres, numeros, collisions, doublons) 
            })))
          })
 
-verifier("Triangles a colonne degeneree, a colonne non identifiable (T1, T3, T6) et minimaux : identiques a l'ancienne forme (#239, #270)",
+verifier("Triangles a colonne degeneree, a colonne non identifiable (T1, T3, T4, T6) et minimaux : identiques a l'ancienne forme (#239, #270, #278)",
          resultat(c(ecarts(ta_deg, list(NULL, integer(0)), "ta_deg"),
                     ecarts(ta_bruit, list(NULL, integer(0), 4L), "ta_bruit"),
                     ecarts(tri_deg, list(NULL, integer(0)), "tri_deg"),
                     ecarts(tri_t1, list(NULL, integer(0)), "T1"),
                     ecarts(tri_t3, list(NULL), "T3"),
+                    ecarts(tri_t4, list(NULL), "T4"),
                     ecarts(tri_t6, list(NULL, integer(0)), "T6"),
                     ecarts(tri_ref[1:2, 1:2], list(NULL), "2 x 2"),
                     ecarts(tri_ref[1:3, 1:3], list(NULL), "3 x 3"),
@@ -549,25 +617,26 @@ verifier("Replications du bootstrap (reserve2, ta_deg, tri_deg) : identiques a l
          })
 
 # Ensemble des colonnes non identifiables de la courbure fige a l'observe
-# (#270, T270-7) : les deux premieres replications de T1 et de T3 (graine
-# 20261010), jd et jni de l'observe transmis comme dans mw_bootstrap() ; la
-# colonne j >= 1 de T1 n'a plus d'ex aequo dans les replications et n'est
-# ecartee que parce qu'elle est dans l'ensemble fige ; la colonne figee j = 0
-# de T3 l'est dans les deux formes. Appels observes a ensemble impose :
-# T1 sous jni = integer(0) (colonne j = 1 retenue a deux valeurs : second
-# volet, statistique NA) ; T6 sous jd = integer(0) (retour NA de la colonne
-# degeneree j = 1, element non_identifiables complet, constat 3b).
+# (#270, T270-7) : les deux premieres replications de T1, de T3 et de T4
+# (graine 20261010), jd et jni de l'observe transmis comme dans
+# mw_bootstrap() ; la colonne j = 1 de T1 et de T4 n'a plus d'ex aequo dans
+# les replications et n'est ecartee que parce qu'elle est dans l'ensemble
+# fige ; la colonne figee j = 0 de T3 l'est dans les deux formes. Appels
+# observes a ensemble impose : T1 sous jni = integer(0) (colonne j = 1
+# retenue a deux valeurs : second volet, statistique NA) ; T6 sous
+# jd = integer(0) (retour NA de la colonne degeneree j = 1, element
+# non_identifiables complet, constat 3b).
 FONCTIONS_JNI <- c("mw_test_courbure", ".mw_contexte_mc", ".mw_stats")
 ecarts_jni <- function(aj, jd, jni, etiquette) {
   out <- character(0)
   for (f in FONCTIONS_JNI)
-    if (!meme(capturer(get(f), list(aj, jd, jni)), capturer(ANCIEN[[f]], list(aj, jd, jni))))
+    if (!meme(capturer(moteur(f), list(aj, jd, jni)), capturer(ANCIEN[[f]], list(aj, jd, jni))))
       out <- c(out, paste(etiquette, f, "jd =", deparse(jd), "jni =", deparse(jni)))
   out
 }
-verifier("Ensemble des colonnes non identifiables fige (T1, T3 : replications ; T1, T6 : ensembles imposes) : identiques a la reecriture independante (#270, T270-7)",
+verifier("Ensemble des colonnes non identifiables fige (T1, T3, T4 : replications ; T1, T6 : ensembles imposes) : identiques a la reecriture independante (#270, T270-7, #278)",
          {
-           e <- unlist(lapply(list(T1 = tri_t1, T3 = tri_t3), function(t) {
+           e <- unlist(lapply(list(T1 = tri_t1, T3 = tri_t3, T4 = tri_t4), function(t) {
              aj <- mw_ajuster(t); jd <- .mw_colonnes_degenerees(aj)
              jni <- .mw_colonnes_courbure_non_identifiables(aj, jd)
              pool <- .mw_pool_residus(aj, jd)
@@ -584,6 +653,122 @@ verifier("Ensemble des colonnes non identifiables fige (T1, T3 : replications ; 
                       if (!is.na(na1$stat) || !identical(na1$K, NA_integer_)) "T1 : stat ou K non NA",
                       if (!identical(na6$non_identifiables, data.frame(j = 2L, n_facteurs = 5L)))
                         "T6 : non_identifiables incomplet"))
+         })
+
+# Branche (b) de la courbure (#270, correction du 14/10/2026 ; #278, etape 1
+# de la branche F) : colonne de l'ensemble fige jni, degeneree dans l'appel,
+# ecartee AVANT le controle de degenerescence. T1b et T3b (en-tete des
+# triangles) sous les ensembles figes de T1 et de T3, recalcules ici sur
+# l'observe. Garde contre un test vide : dans chaque appel, la colonne est
+# degeneree (.mw_colonne_degeneree()), dans jni, hors de jd, et la reecriture
+# independante rend une statistique finie, K = 3, la colonne nommee dans
+# non_identifiables : un moteur qui ferait le controle de degenerescence
+# d'abord (statistique NA, K NA) s'ecarte de la reecriture (mutation mesuree
+# a l'etape 1 de la branche F).
+verifier("Branche (b) de la courbure : colonne de l'ensemble fige degeneree dans l'appel (T1b, T3b), identique a la reecriture independante, statistique finie (#270, #278)",
+         {
+           cas <- list(T1b = list(tri_t1, tri_t1b), T3b = list(tri_t3, tri_t3b))
+           resultat(unlist(lapply(names(cas), function(nm) {
+             ao <- mw_ajuster(cas[[nm]][[1]]); jd <- .mw_colonnes_degenerees(ao)
+             jni <- ANCIEN$.jni_oracle(ao, jd)
+             a <- mw_ajuster(cas[[nm]][[2]])
+             o <- ANCIEN$mw_test_courbure(a, jd, jni)
+             garde <- length(jni) == 1L && !(jni %in% jd) && .mw_colonne_degeneree(a, jni) &&
+               is.finite(o$stat) && identical(o$K, 3L) &&
+               identical(o$non_identifiables$j, jni) && !(jni %in% o$detail$j)
+             c(if (!garde) paste(nm, ": cas (b) non exerce"),
+               ecarts_jni(a, jd, jni, nm))
+           })))
+         })
+
+# Ensemble des colonnes non identifiables de l'ordonnee a l'origine fige a
+# l'observe (#273, T273-9) : reecriture independante (.jno_oracle(),
+# mw_test_ordonnee_origine() et contexte de l'environnement ANCIEN) comparee
+# au moteur. Cas : (i) ensembles {1} sur T4, {} sur reserve2 et T1 (deux
+# valeurs distinctes en j = 1 : identifiable), {4} sur un triangle dont
+# seule la colonne j = 4 (n_j = 3, hors de la courbure) est constante ;
+# (ii) les deux premieres replications de T4 (graine 20261010), jd, jni et
+# jno de l'observe transmis comme dans mw_bootstrap() ; (iii) T4 sous
+# jno = integer(0) (colonne constante retenue : lm() a un coefficient,
+# statistique NA, K NA, ancien next silencieux) ; (iv) colonne quasi
+# constante C(0..5,1) = 1050 (1 + 1e-8 k) (six valeurs distinctes, hors de
+# l'ensemble, lm() a un coefficient : option (A), statistique NA a l'observe).
+tri_n3 <- tri_ref; tri_n3[1:3, 5] <- 2500
+tri_eps <- tri_ref; tri_eps[1:6, 2] <- 1050 * (1 + 1e-8 * 0:5)
+verifier("Ensemble des colonnes non identifiables de l'ordonnee fige (T4, n_j = 3, replications, ensemble impose, quasi-constante) : identique a la reecriture independante (#273, T273-9)",
+         {
+           att <- list(reserve2 = list(tri_ref, integer(0)), T1 = list(tri_t1, integer(0)),
+                       T4 = list(tri_t4, 1L), n3 = list(tri_n3, 4L), eps = list(tri_eps, integer(0)))
+           e_ens <- unlist(lapply(names(att), function(nm) {
+             aj <- mw_ajuster(att[[nm]][[1]]); jd <- .mw_colonnes_degenerees(aj)
+             jno <- .mw_colonnes_origine_non_identifiables(aj, jd)
+             c(if (!identical(jno, att[[nm]][[2]])) paste(nm, ": ensemble", deparse(jno)),
+               if (!identical(jno, ANCIEN$.jno_oracle(aj, jd))) paste(nm, ": ensemble != oracle"),
+               if (!identical(.mw_ensembles_figes(aj)$origine_non_identifiables, jno))
+                 paste(nm, ": element de .mw_ensembles_figes()"),
+               if (nm == "n3" && length(.mw_colonnes_courbure_non_identifiables(aj, jd)))
+                 "n3 : colonne n_j = 3 dans l'ensemble de la courbure",
+               ecarts(att[[nm]][[1]], list(NULL), nm,
+                      fonctions = c("mw_test_ordonnee_origine", ".mw_contexte_mc", ".mw_stats"),
+                      alpha = FALSE))
+           }))
+           f4 <- c(".mw_contexte_mc", ".mw_stats")
+           ecarts_jno <- function(aj, jd, jni, jno, etiquette) {
+             out <- character(0)
+             if (!meme(capturer(mw_test_ordonnee_origine, list(aj, jd, jno)),
+                       capturer(ANCIEN$mw_test_ordonnee_origine, list(aj, jd, jno))))
+               out <- c(out, paste(etiquette, "mw_test_ordonnee_origine"))
+             for (f in f4)
+               if (!meme(capturer(moteur(f), list(aj, jd, jni, jno)),
+                         capturer(ANCIEN[[f]], list(aj, jd, jni, jno))))
+                 out <- c(out, paste(etiquette, f))
+             out
+           }
+           a4 <- mw_ajuster(tri_t4); jd4 <- .mw_colonnes_degenerees(a4)
+           jni4 <- .mw_colonnes_courbure_non_identifiables(a4, jd4)
+           jno4 <- .mw_colonnes_origine_non_identifiables(a4, jd4)
+           pool <- .mw_pool_residus(a4, jd4)
+           tb <- engine_sous_graine(20261010, lapply(1:2, function(b) mw_simuler_triangle(a4, pool)))
+           e_rep <- unlist(lapply(seq_along(tb), function(b) {
+             ab <- mw_ajuster(tb[[b]])
+             c(if (length(unique(tb[[b]][1:6, 2])) < 2) paste("replication", b, ": colonne constante"),
+               ecarts_jno(ab, jd4, jni4, jno4, paste("T4 replication", b)))
+           }))
+           na4 <- mw_test_ordonnee_origine(a4, jd4, integer(0))
+           ae <- mw_ajuster(tri_eps); oe <- mw_test_ordonnee_origine(ae)
+           resultat(c(e_ens, e_rep, ecarts_jno(a4, jd4, jni4, integer(0), "T4 jno vide"),
+                      if (!identical(na4$stat, NA_real_) || !identical(na4$K, NA_integer_))
+                        "T4 jno vide : stat ou K non NA",
+                      if (!identical(oe$stat, NA_real_) || !identical(oe$K, NA_integer_))
+                        "eps : stat ou K non NA"))
+         })
+
+# Ordre des controles de mw_test_ordonnee_origine() (#273, reprise C1 de
+# l'audit de 867d65d) : colonne de l'ensemble fige jno ecartee AVANT le
+# controle de degenerescence, comme pour la courbure (#270). Triangle de
+# reference, colonne j = 2 degeneree (C(0..4,3) = 1,3 C(0..4,2)), appel sous
+# jd = integer(0) et jno = 2 (cas d'une replication ou la colonne figee a
+# l'observe devient degeneree). Valeurs mesurees : X = 14,93813, K = 4
+# (colonnes 0, 1, 3, 4), 5 eligibles. Garde contre un test vide : la colonne
+# est degeneree (.mw_colonne_degeneree()) ; un moteur qui ferait le controle
+# de degenerescence d'abord rend la statistique NA (mutation mesuree).
+tri_o2 <- tri_ref; tri_o2[1:5, 4] <- 1.3 * tri_o2[1:5, 3]
+verifier("Ordonnee a l'origine : colonne de l'ensemble fige degeneree dans l'appel, ecartee avant le controle de degenerescence (X = 14,93813, K = 4), identique a la reecriture independante (#273)",
+         {
+           a <- mw_ajuster(tri_o2)
+           o <- mw_test_ordonnee_origine(a, integer(0), 2L)
+           resultat(c(
+             if (!.mw_colonne_degeneree(a, 2L)) "colonne j = 2 non degeneree : cas non exerce",
+             if (!is.finite(o$stat) || abs(o$stat - 14.93813) > 5e-6)
+               paste("stat", format(o$stat, digits = 10)),
+             if (!identical(o$K, 4L)) paste("K", deparse(o$K)),
+             if (!identical(o$eligibles, 5L)) paste("eligibles", deparse(o$eligibles)),
+             if (!identical(o$detail$j, c(0L, 1L, 3L, 4L))) "colonnes combinees",
+             if (!identical(o$non_identifiables, data.frame(j = 2L, n_facteurs = 5L)))
+               "non_identifiables",
+             if (!meme(capturer(mw_test_ordonnee_origine, list(a, integer(0), 2L)),
+                       capturer(ANCIEN$mw_test_ordonnee_origine, list(a, integer(0), 2L))))
+               "!= reecriture independante"))
          })
 
 # Plan des triangles tires (en-tete) : taille, variante, noms de lignes.
@@ -634,7 +819,8 @@ verifier("Une evaluation de .mw_stats() appelle mw_residus() une seule fois (#23
            env <- environment(mw_residus)
            assign("mw_residus", function(aj, j_degeneres = NULL) {
              n <<- n + 1L; orig(aj, j_degeneres) }, envir = env)
-           tryCatch(.mw_stats(mw_ajuster(tri_ref), 4L),
+           a <- mw_ajuster(tri_ref)
+           tryCatch(.mw_stats(a, .mw_ensembles_figes(a, 4L)),
                     finally = assign("mw_residus", orig, envir = env))
            if (identical(n, 1L) && identical(mw_residus, orig)) TRUE else paste("appels :", n)
          })

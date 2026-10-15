@@ -431,9 +431,11 @@ verifier("T270-4 : invariance de l'appel observe : mw_test_courbure(aj) = mw_tes
              identical(jni, att[[nm]]) &&
                identical(jni, .mw_colonnes_courbure_non_identifiables(aj)) &&
                identical(mw_test_courbure(aj), mw_test_courbure(aj, jd, jni)) &&
-               identical(.mw_contexte_mc(aj), .mw_contexte_mc(aj, jd, jni)) &&
-               identical(.mw_contexte_mc(aj)$j_non_identifiables, jni) &&
-               identical(.mw_stats(aj), .mw_stats(aj, jd, jni))
+               identical(.mw_ensembles_figes(aj), list(degeneres = jd, non_identifiables = jni,
+                                                       origine_non_identifiables = .mw_colonnes_origine_non_identifiables(aj, jd))) &&
+               identical(.mw_contexte_mc(aj), .mw_contexte_mc(aj, .mw_ensembles_figes(aj, jd, jni))) &&
+               identical(.mw_contexte_mc(aj)$figes$non_identifiables, jni) &&
+               identical(.mw_stats(aj), .mw_stats(aj, .mw_ensembles_figes(aj, jd, jni)))
            }, logical(1))
            if (all(ok)) TRUE else paste("ecart :", paste(names(ok)[!ok], collapse = ", "))
          })
@@ -450,7 +452,7 @@ verifier("T270-5 : second volet : T1 avec j_non_identifiables = integer(0) (colo
              # colonnes parcourues jusqu'a l'arret : j = 0 et j = 1
              eligibles = identical(c1$eligibles, 2L),
              fermeture = identical(MW_CATALOGUE_MC$Courbure$calc(
-               .mw_contexte_mc(a1, integer(0), integer(0))), NA_real_)))
+               .mw_contexte_mc(a1, .mw_ensembles_figes(a1, integer(0), integer(0)))), NA_real_)))
          })
 # Constat 3b de l'audit de #269 : au retour NA d'une colonne degeneree, le
 # moteur porte l'element non_identifiables COMPLET (ensemble fige, forme avant

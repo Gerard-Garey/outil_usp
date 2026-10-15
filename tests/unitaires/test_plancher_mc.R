@@ -210,7 +210,10 @@ verifier("U125-3 CorrDev (6 x 6) : colonnes concordantes -> stat = extremes[2] =
          {
            conc <- tri125c(lapply(5:1, seq_len), 5)
            disc <- tri125c(lapply(5:1, function(n) if (n %% 2) seq_len(n) else rev(seq_len(n))), 5)
-           ec <- list(aj = conc, j_degeneres = integer(0)); ed <- list(aj = disc, j_degeneres = integer(0))
+           # contexte construit a la main : ensembles figes vides, forme de l'objet de
+           # .mw_ensembles_figes() (#278)
+           fg0 <- list(degeneres = integer(0), non_identifiables = integer(0))
+           ec <- list(aj = conc, figes = fg0); ed <- list(aj = disc, figes = fg0)
            sc <- mw_stat_correlation_dev(conc, integer(0)); sd_ <- mw_stat_correlation_dev(disc, integer(0))
            length(sc$T) == 2L && isTRUE(proche(sc$stat, MW_CATALOGUE_MC$CorrDev$extremes(ec)[2], abs = 1e-12)) &&
              isTRUE(proche(sd_$stat, MW_CATALOGUE_MC$CorrDev$extremes(ed)[1], abs = 1e-12)) &&
@@ -221,8 +224,9 @@ verifier("U125-3 Calendrier (5 x 5, rangs trouves par enumeration des 288 affect
            lo <- tri125c(list(c(1, 4, 2, 3), c(3, 1, 2), c(1, 2), 1), 4)
            hi <- tri125c(list(c(1, 2, 3, 4), c(3, 1, 2), c(2, 1), 1), 4)
            cl <- mw_test_annees_calendaires(lo, integer(0)); ch <- mw_test_annees_calendaires(hi, integer(0))
-           xl <- MW_CATALOGUE_MC$Calendrier$extremes(list(aj = lo, j_degeneres = integer(0)))
-           xh <- MW_CATALOGUE_MC$Calendrier$extremes(list(aj = hi, j_degeneres = integer(0)))
+           fg0 <- list(degeneres = integer(0), non_identifiables = integer(0))       # ensembles figes vides (#278)
+           xl <- MW_CATALOGUE_MC$Calendrier$extremes(list(aj = lo, figes = fg0))
+           xh <- MW_CATALOGUE_MC$Calendrier$extremes(list(aj = hi, figes = fg0))
            cl$Z == 0 && ch$Z == sum(floor(ch$detail[, "n"] / 2)) &&
              identical(cl$stat, xl[1]) && identical(ch$stat, xh[2])
          })
@@ -530,6 +534,46 @@ verifier("U125-5 HomogF et ExpVar avec ex aequo : p_min_mc >= p_min ; bascule en
              startsWith(l2$detail, sprintf(PRE_MC, a_inop, paste(
                " (colonnes n_j = 7, 6, 5, 4 ; ex aequo : loi de permutation conditionnelle",
                "aux rangs moyens, enumeree)")))
+         })
+
+verifier("#278 objet des ensembles figes : liste mal nommee ou vecteur refuses (contexte, mw_bootstrap(), mw_tests())",
+         {
+           mal <- list(j_degeneres = integer(0), j_non_identifiables = integer(0))
+           leve_erreur(.mw_stats(a125, mal)) && leve_erreur(.mw_contexte_mc(a125, mal)) &&
+             leve_erreur(.mw_stats(a125, 4L)) &&
+             leve_erreur(mw_bootstrap(a125, B = 9, figes = mal)) &&
+             leve_erreur(mw_tests(a125, b125, figes = mal)) &&
+             identical(.mw_stats(a125), .mw_stats(a125, .mw_ensembles_figes(a125)))
+         })
+
+# Revue finale de #278, constat C1 : liste aux noms exacts mais a element
+# invalide (NULL, NA, caractere, logique, non entier, negatif, hors 0..J-1,
+# non fini) refusee par les trois appelants ; integer(0) et entiers portes
+# par un double acceptes, a resultat identique.
+verifier("#278 objet des ensembles figes : element NULL, NA, caractere, logique, non entier ou hors 0..J-1 refuse ; integer(0) accepte",
+         {
+           f0 <- .mw_ensembles_figes(a125)
+           avec <- function(nm, v) { g <- f0; g[nm] <- list(v); g }
+           nul <- list(degeneres = NULL, non_identifiables = NULL, origine_non_identifiables = NULL)
+           mauvais <- list(avec("degeneres", NA_integer_), avec("non_identifiables", "1"),
+                           avec("origine_non_identifiables", TRUE), avec("degeneres", 1.5),
+                           avec("non_identifiables", -1L), avec("origine_non_identifiables", a125$J),
+                           avec("degeneres", Inf), avec("non_identifiables", NULL), nul)
+           msg <- tryCatch(.mw_contexte_mc(a125, avec("non_identifiables", NULL)),
+                           error = function(e) conditionMessage(e))
+           vide <- list(degeneres = integer(0), non_identifiables = integer(0),
+                        origine_non_identifiables = integer(0))
+           dbl <- lapply(f0, as.numeric)
+           all(vapply(mauvais, function(g) leve_erreur(.mw_contexte_mc(a125, g)), logical(1))) &&
+             leve_erreur(mw_bootstrap(a125, B = 9, figes = nul)) &&
+             leve_erreur(mw_tests(a125, b125, figes = nul)) &&
+             # borne J - 1 transmise par mw_bootstrap() et mw_tests() (aj$J)
+             leve_erreur(mw_bootstrap(a125, B = 9, figes = avec("degeneres", a125$J))) &&
+             leve_erreur(mw_tests(a125, b125, figes = avec("degeneres", a125$J))) &&
+             grepl("element non_identifiables", msg, fixed = TRUE) &&
+             !leve_erreur(.mw_stats(a125, vide)) &&
+             !leve_erreur(.mw_verifier_figes(avec("degeneres", a125$J - 1L), "x", a125$J)) &&
+             identical(.mw_stats(a125, dbl), .mw_stats(a125, f0))
          })
 
 fin_fichier()
