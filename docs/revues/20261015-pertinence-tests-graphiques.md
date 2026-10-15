@@ -338,37 +338,59 @@ Libellé : état actuel → recommandation de la revue (aucun libellé n'a été
 | #294 | Point décimal dans les textes du moteur | 1 | aucun | option (a) : laisser et documenter | B | `needs-triage` → `ready-for-human` |
 | #295 | Option `usp.graphiques_base` ignorée | 4 | aucun | technique | B | inchangé |
 
-## 6. Issues nouvelles proposées (non créées)
+## 6. Issues nouvelles proposées
 
-Regroupement des propositions des six blocs ; aucune n'est couverte par une issue ouverte ou fermée (vérifié par chaque bloc). Corps détaillés : rapports de bloc, section 6. « Verdicts » : la proposition change au moins un verdict des cas de référence, d'où le visa du mainteneur dans la branche qui la traitera ; aucune ne change σ_USP.
+Créées le 15/10/2026 sur décision du mainteneur, en `needs-triage` : R-n est l'issue #(296 + n), de #297 à #317. Regroupement des propositions des six blocs ; aucune n'est couverte par une issue ouverte ou fermée (vérifié par chaque bloc). Corps détaillés : rapports de bloc, section 6. « Verdicts » : la proposition change au moins un verdict des cas de référence, d'où le visa du mainteneur dans la branche qui la traitera ; aucune ne change σ_USP.
 
 | N° | Titre proposé | Libellés | Source | Prio | Effet sur les résultats |
 |---|---|---|---|---|---|
-| R-1 | moteur : p-value ajustée par famille d'hypothèse (minP de Westfall-Young) sur les réplications existantes, en diagnostic | `enhancement` | bloc 1, N1 | H | lignes ajoutées, aucun verdict changé |
-| R-2 | moteur : TOST, ECHEC certain (p_plancher ≥ 0,30) restitué en diagnostic « équivalence non démontrable » | `enhancement` | bloc 2, N1 | H | verdicts (quatre cas à δ̂ = 1) |
-| R-3 | moteur : H2 non testable à faible dispersion des volumes (règle de restitution) ; une ligne H2 à verdict ; Smirnov rattaché à H1 ; Spearman-temps en variante | `enhancement` | bloc 2, N2 ; § 3.3 | H | verdicts |
-| R-4 | moteur : M4, test de cellule aberrante sur les résidus studentisés externes ; Grubbs et Rosner sur résidus de Mack retirés ou portés sur t | `enhancement` | bloc 6, N1 | H | verdicts, régénération de `reserve2` |
-| R-5 | moteur : M2, Breusch-Pagan à effets fixes de colonne | `enhancement` | bloc 5, N1 | H | p de la ligne ; verdict de `reserve2` inchangé |
-| R-6 | moteur : H3 et H4, réduire la redondance (SW à loi nulle simulée, CvM, KS contre N(0,1), LB1, Box-Pierce) et fixer la lecture conjointe de H3 | `enhancement` | bloc 3, B | M | structure de la table |
-| R-7 | moteur : les six lignes « ratios bruts » en diagnostic à π̂ constant ; LB1r retirée | `enhancement` | bloc 3, C ; bloc 4, § 4.6 | M | verdicts OK → INFO (quatre cas) |
-| R-8 | moteur : ESD lognormale, requalifier en diagnostic ou calibrer par Monte-Carlo | `enhancement` | bloc 4, n° 2 | M | verdict de la ligne ; dépend de #174 |
-| R-9 | tests et docs : couverture de l'IC bootstrap à T = 8, biais de la loi bootstrap de σ̂, intervalle « basic » en regard ; repères σ̂ et σ_USP sur `plot_boot_sigma` (deux méthodes) | `enhancement` | bloc 4, n° 4 ; bloc 6, § 3 | M | aucun (mesure, graphique) |
-| R-10 | moteur et app : spread-plot, bande de simulation du lissage ou retrait de la courbe | `enhancement` | bloc 4, n° 3 | M | `plots_data` |
-| R-11 | moteur : pente intra-colonne en paramétrisation relative et statut de la famille α | `enhancement` | bloc 5, N2 | M | verdicts (`reserve2` : OK → ALERTE) |
-| R-12 | moteur : M1 et M2, diagnostic d'identifiabilité intra-colonne (CV de C, se(â_j)) | `enhancement` | bloc 5, N3 (1) et (3) | M | lignes ou `detail` |
-| R-13 | mesure : puissance versionnée des lignes M1 à M4 de Merz-Wüthrich (scénarios constante, exposants 0 et 2, dérive, calendaire, ligne, cellule ; deux plans de CV) | `enhancement` | bloc 5, N3 (2) ; bloc 6, N5 | M | aucun |
-| R-14 | moteur : M6, effet des arguments de l'extrapolation de σ²_{J−1} sur √MSEP ; σ̂_j sur le graphique des facteurs | `enhancement` | bloc 6, N2 ; § 3.6 | M | `detail` ou `estim` |
-| R-15 | moteur et app : QQ-plot des résidus de Mack, droite de référence et enveloppe paramétrique | `enhancement` | bloc 6, N3 | M | `plots_data` |
-| R-16 | docs et app : lecture conjointe de M3, suites en variante secondaire, statistiques par groupe sur les nuages de résidus | `enhancement` | bloc 6, N4 | M | variante d'une ligne |
-| R-17 | tests : puissance de sup-F, OLS-CUSUM et Grubbs à T = 8 (rupture, dérive, contamination) dans `puissance_t8.R` | `enhancement` | bloc 4, n° 1 | M | aucun |
-| R-18 | moteur : constante minimale détectable dans le `detail` de la nullité de la constante | `enhancement` | bloc 2, N3 | B | `detail` |
-| R-19 | docs : transversal (tableaux 1 et 2, « ce que l'on peut affirmer », vitesses non sourcées, seuil 0,30, niveau conditionnel au bord de V3h, H₀ des p Monte-Carlo Merz-Wüthrich) | `documentation` | bloc 1, N2 ; § 3.9 | B | aucun |
-| R-20 | docs : méthode lognormale (H1 à H4, stabilité, robustesse : formulations et puissances mesurées, seuil de Cook, coloration 10 %, Grubbs exact) | `documentation` | bloc 2, N4 ; bloc 3, A ; bloc 4, n° 5 | B | aucun |
-| R-21 | docs : Merz-Wüthrich (M1 à M6 : références Venter 1998 et Mack 1999, interprétation de D(2)(h)(iii), cause du sous-rejet de BP, « le plus informatif », Rosner « tabulées », cause du sur-rejet des suites) | `documentation` | bloc 5, N4 ; bloc 6, C2-C4, C8 | B | aucun |
+| R-1 (#297) | moteur : p-value ajustée par famille d'hypothèse (minP de Westfall-Young) sur les réplications existantes, en diagnostic | `enhancement` | bloc 1, N1 | H | lignes ajoutées, aucun verdict changé |
+| R-2 (#298) | moteur : TOST, ECHEC certain (p_plancher ≥ 0,30) restitué en diagnostic « équivalence non démontrable » | `enhancement` | bloc 2, N1 | H | verdicts (quatre cas à δ̂ = 1) |
+| R-3 (#299) | moteur : H2 non testable à faible dispersion des volumes (règle de restitution) ; une ligne H2 à verdict ; Smirnov rattaché à H1 ; Spearman-temps en variante | `enhancement` | bloc 2, N2 ; § 3.3 | H | verdicts |
+| R-4 (#300) | moteur : M4, test de cellule aberrante sur les résidus studentisés externes ; Grubbs et Rosner sur résidus de Mack retirés ou portés sur t | `enhancement` | bloc 6, N1 | H | verdicts, régénération de `reserve2` |
+| R-5 (#301) | moteur : M2, Breusch-Pagan à effets fixes de colonne | `enhancement` | bloc 5, N1 | H | p de la ligne ; verdict de `reserve2` inchangé |
+| R-6 (#302) | moteur : H3 et H4, réduire la redondance (SW à loi nulle simulée, CvM, KS contre N(0,1), LB1, Box-Pierce) et fixer la lecture conjointe de H3 | `enhancement` | bloc 3, B | M | structure de la table |
+| R-7 (#303) | moteur : les six lignes « ratios bruts » en diagnostic à π̂ constant ; LB1r retirée | `enhancement` | bloc 3, C ; bloc 4, § 4.6 | M | verdicts OK → INFO (quatre cas) |
+| R-8 (#304) | moteur : ESD lognormale, requalifier en diagnostic ou calibrer par Monte-Carlo | `enhancement` | bloc 4, n° 2 | M | verdict de la ligne ; dépend de #174 |
+| R-9 (#305) | tests et docs : couverture de l'IC bootstrap à T = 8, biais de la loi bootstrap de σ̂, intervalle « basic » en regard ; repères σ̂ et σ_USP sur `plot_boot_sigma` (deux méthodes) | `enhancement` | bloc 4, n° 4 ; bloc 6, § 3 | M | aucun (mesure, graphique) |
+| R-10 (#306) | moteur et app : spread-plot, bande de simulation du lissage ou retrait de la courbe | `enhancement` | bloc 4, n° 3 | M | `plots_data` |
+| R-11 (#307) | moteur : pente intra-colonne en paramétrisation relative et statut de la famille α | `enhancement` | bloc 5, N2 | M | verdicts (`reserve2` : OK → ALERTE) |
+| R-12 (#308) | moteur : M1 et M2, diagnostic d'identifiabilité intra-colonne (CV de C, se(â_j)) | `enhancement` | bloc 5, N3 (1) et (3) | M | lignes ou `detail` |
+| R-13 (#309) | mesure : puissance versionnée des lignes M1 à M4 de Merz-Wüthrich (scénarios constante, exposants 0 et 2, dérive, calendaire, ligne, cellule ; deux plans de CV) | `enhancement` | bloc 5, N3 (2) ; bloc 6, N5 | M | aucun |
+| R-14 (#310) | moteur : M6, effet des arguments de l'extrapolation de σ²_{J−1} sur √MSEP ; σ̂_j sur le graphique des facteurs | `enhancement` | bloc 6, N2 ; § 3.6 | M | `detail` ou `estim` |
+| R-15 (#311) | moteur et app : QQ-plot des résidus de Mack, droite de référence et enveloppe paramétrique | `enhancement` | bloc 6, N3 | M | `plots_data` |
+| R-16 (#312) | docs et app : lecture conjointe de M3, suites en variante secondaire, statistiques par groupe sur les nuages de résidus | `enhancement` | bloc 6, N4 | M | variante d'une ligne |
+| R-17 (#313) | tests : puissance de sup-F, OLS-CUSUM et Grubbs à T = 8 (rupture, dérive, contamination) dans `puissance_t8.R` | `enhancement` | bloc 4, n° 1 | M | aucun |
+| R-18 (#314) | moteur : constante minimale détectable dans le `detail` de la nullité de la constante | `enhancement` | bloc 2, N3 | B | `detail` |
+| R-19 (#315) | docs : transversal (tableaux 1 et 2, « ce que l'on peut affirmer », vitesses non sourcées, seuil 0,30, niveau conditionnel au bord de V3h, H₀ des p Monte-Carlo Merz-Wüthrich) | `documentation` | bloc 1, N2 ; § 3.9 | B | aucun |
+| R-20 (#316) | docs : méthode lognormale (H1 à H4, stabilité, robustesse : formulations et puissances mesurées, seuil de Cook, coloration 10 %, Grubbs exact) | `documentation` | bloc 2, N4 ; bloc 3, A ; bloc 4, n° 5 | B | aucun |
+| R-21 (#317) | docs : Merz-Wüthrich (M1 à M6 : références Venter 1998 et Mack 1999, interprétation de D(2)(h)(iii), cause du sous-rejet de BP, « le plus informatif », Rosner « tabulées », cause du sur-rejet des suites) | `documentation` | bloc 5, N4 ; bloc 6, C2-C4, C8 | B | aucun |
 
-Libellé de triage commun : `needs-triage`. Chaque corps commencera par `> *Rédigé par l'agent actuary (IA).*` et renverra au présent rapport.
+Libellé de triage commun : `needs-triage`. Chaque corps commence par `> *Rédigé par l'agent actuary (IA).*` et renvoie au présent rapport.
+
+### 6.1 Lignes de la table des tests supprimées ou remplacées si les propositions sont retenues
+
+Sur 51 lignes lognormales et 19 lignes Merz-Wüthrich. Rien n'est supprimé à ce jour : chaque point relève d'une décision du mainteneur dans la branche qui traitera l'issue.
+
+| Ligne | Méthode, famille | Sort proposé | Issue |
+|---|---|---|---|
+| Box-Pierce (retard 2) | lognormale, H4 | retrait (dominé par Ljung-Box (2)) | #302 |
+| Ljung-Box (retard 1) sur ratios bruts | lognormale, H4 | retrait (doublon de Durbin-Watson sur ratios bruts) | #303 |
+| Shapiro-Wilk à loi nulle simulée | lognormale, H3 | fusion dans la fiche Shapiro-Wilk (option) | #302 |
+| Kolmogorov-Smirnov contre N(0,1) | lognormale, H3 | variante sans verdict ou retrait (option) | #302 |
+| Cramér-von Mises | lognormale, H3 | variante sans verdict ou retrait (option) | #302 |
+| Ljung-Box (retard 1) | lognormale, H4 | variante sans verdict ou retrait (option) | #302 |
+| Stabilité du facteur selon la pondération (famille α) | Merz-Wüthrich, M1 | diagnostic, test omnibus ou retrait (option c) | #307 |
+| Cox-Stuart (diagnostic inopérant) | lognormale, H1 | conservé ou retiré, option évoquée par le bloc 2 et portée par aucune issue | — |
+| Cellule aberrante (Grubbs) | Merz-Wüthrich, M4 | statistique remplacée par max \|t(i,j)\|, la ligne subsiste | #300 |
+| Cellules aberrantes multiples (Rosner) | Merz-Wüthrich, M4 | retrait, ou portée sur t | #300 |
+| Hétéroscédasticité résiduelle (Breusch-Pagan) | Merz-Wüthrich, M2 | statistique remplacée (effets fixes de colonne), la ligne subsiste | #301 |
+
+Entre 2 et 8 lignes disparaîtraient (9 avec Cox-Stuart) ; deux statistiques sont remplacées sans suppression de ligne. Restent dans la table, mais perdent leur verdict ou passent en variante : le TOST quand son ECHEC est certain (#298) ; Breusch-Pagan 1979, White, Goldfeld-Quandt, Brown-Forsythe, et Smirnov rattaché à H1 (#299) ; Spearman ratio-temps (#299) et le test des suites Merz-Wüthrich (#312) en variantes secondaires ; les cinq autres lignes sur ratios bruts à π̂ constant (#303) ; ESD lognormale (#304). Côté graphiques, seule la courbe lissée du spread-plot pourrait être retirée, en alternative à une bande de simulation (#306).
 
 ## 7. Décisions demandées au mainteneur
+
+*Suites décidées le 15/10/2026* : issues R-1 à R-21 créées (#297 à #317, `needs-triage`) ; avis de la revue publiés en commentaire sur #4, #5, #48, #159, #164, #200, #218, #224, #227, #230, #274, #275 et #276, sans changement de libellé ; #5 fermée (`completed`). Restent ouverts les points 4 à 7.
 
 1. **Issues nouvelles** : créer R-1 à R-21, toutes ou une sélection.
 2. **Issues existantes** : publier un commentaire de la revue sur les issues dont l'avis change quelque chose (#4, #5, #48, #159, #164, #200, #218, #224, #227, #230, #274, #275, #276) et appliquer, ou non, les changements de libellé du § 5.
