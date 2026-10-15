@@ -4795,9 +4795,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     if (isTRUE(pi_constant)) cst
     else paste0(variable, ", exacte a pi_t constant seulement (regle R7)")
 
-  # Phrase des lignes dont le detail nomme la p Monte-Carlo comme retenue
-  # (RESET, OLS-CUSUM, suites sur ratios bruts ; #128, point c) : vraie
-  # seulement si la p Monte-Carlo existe. Sinon add() n'en retient aucune,
+  # Phrase des lignes dont le detail dit la p Monte-Carlo calculee et renvoie
+  # a nature_p pour la p retenue (RESET, OLS-CUSUM, suites sur ratios bruts ;
+  # #128, point c ; #214) : ecrite seulement si la p Monte-Carlo existe.
+  # Sinon add() n'en retient aucune,
   # sauf p exacte (diagnostic si une p non simulee existe, #181 ; motif de
   # degenerescence ; ligne sans p-value) : le detail ne la nomme pas.
   mc_dispo <- function(nm) is.finite(boot$p_mc[[nm]])
@@ -5146,8 +5147,11 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                  "auxiliaires engendrent {x, x^2, x^3}, espace fixe : la dependance",
                  "en y de f = beta_hat x n'est pas en cause (Milliken et Graybill,",
                  "1970).",
+                 # #214 : la phrase ne declare plus la p retenue (contredite
+                 # par la regle R1 sur une ligne inoperante) ; nature_p la nomme.
                  if (mc_dispo("RESET"))
-                   "La p Monte-Carlo, simulee sous le modele ajuste, est retenue."
+                   paste("La p Monte-Carlo, simulee sous le modele ajuste, est calculee ;",
+                         "la p-value retenue, s'il en est une, est nommee par nature_p.")
                  else
                    paste0(txt_mc_indispo("La p Monte-Carlo, simulee sous le modele ajuste,"), ".")))
   if (!vol_cst) {
@@ -5752,8 +5756,11 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                if (is.finite(cc)) .p_borne(2 * sum((-1)^(0:99) *
                  exp(-2 * (1:100)^2 * cc^2))) else NA_real_ },
       mc_nom = "CUSUM",
+      # #214 : la phrase ne declare plus p_mc retenue (contredite par la
+      # regle R1 sur une ligne inoperante) ; nature_p nomme la p retenue.
       detail = if (mc_dispo("CUSUM"))
-        "La formule asymptotique n'a aucune validite a T = 8 : p_mc retenue"
+        paste("La formule asymptotique n'a aucune validite a T = 8 ; p_mc est calculee ;",
+              "la p-value retenue, s'il en est une, est nommee par nature_p.")
       else paste("La formule asymptotique n'a aucune validite a T = 8 ;",
                  txt_mc_indispo("p_mc")))
   gr <- test_grubbs(z)
@@ -5837,9 +5844,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # u a plancher max|r| (#187, Q-187-1 b), comme Runsr au catalogue.
   plancher_u <- .usp_plancher_u(r)
   p_ex_r <- usp_runsr_p_exacte(z, u, pi_constant, plancher_u)
-  # #128 : la phrase "p-value EXACTE ... retenue" du regime 1 n'est vraie que
-  # hors motif de degenerescence de la statistique Runsr, qui ecarte aussi la
-  # p exacte dans add() (motifs_degeneres d'engine_registre_tests()). Runsr
+  # #128 : la phrase "p-value EXACTE est calculee" du regime 1 (renvoi a
+  # nature_p, #214) n'est ecrite que hors motif de degenerescence de la
+  # statistique Runsr, qui ecarte aussi la p exacte dans add()
+  # (motifs_degeneres d'engine_registre_tests()). Runsr
   # n'a pas de condition degenere au catalogue, mais une loi simulee
   # ponctuelle (engine_p_mc()) n'est pas exclue par le code.
   m_runsr <- if (!is.null(boot$motif_mc) && "Runsr" %in% names(boot$motif_mc))
@@ -5858,15 +5866,18 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                 "combinatoire de R s'applique aussi aux ratios bruts : la p-value",
                 if (runsr_degenere)
                   "EXACTE est ecartee par le motif de degenerescence en tete (ADR 0001)."
-                else paste("EXACTE est retenue (convention bilaterale du doublement, celle du",
+                else paste("EXACTE est calculee (convention bilaterale du doublement, celle du",
                            "bootstrap), la meme que sur la ligne des suites sur residus",
+                           "standardises (issue #29) ; la p-value retenue, s'il en est une,",
+                           "est nommee par nature_p.",
+                           # #214 : la phrase ne declare plus la p exacte retenue
+                           # (contredite par la regle R1 quand la ligne est
+                           # inoperante, p_min >= alpha) ; nature_p la nomme.
                            # #128, point c : la phrase sur p_mc n'est ecrite que si
-                           # p_mc existe ; absente, rien n'est ajoute (la p retenue,
-                           # exacte, est deja nommee, et nature_p le dit).
+                           # p_mc existe ; absente, rien n'est ajoute.
                            if (mc_dispo("Runsr"))
-                             paste("standardises (issue #29). La p-value Monte-Carlo de la colonne p_mc",
-                                   "estime la meme quantite, a l'erreur Monte-Carlo pres.")
-                           else "standardises (issue #29)."))
+                             paste("La p-value Monte-Carlo de la colonne p_mc estime la meme",
+                                   "quantite, a l'erreur Monte-Carlo pres.")))
     if (!isTRUE(regime$pi_constant_exact))
       d1 <- paste(d1, sprintf(paste(
         "Ici pi_t n'est constant qu'a la tolerance TOL_DELTA_BORD = %g pres (%s) :",
@@ -5920,8 +5931,11 @@ usp_tests <- function(fit, boot, alpha = 0.10,
           "chaque annee), les arrangements des signes de u_t - med(u) ne sont pas",
           "equiprobables et la loi combinatoire de R n'est qu'une approximation,",
           "sans borne d'erreur connue a T = 8.",
+          # #214 : "est calculee", et non plus "est retenue" (contredite par
+          # la regle R1 sur une ligne inoperante) ; nature_p nomme la p retenue.
           if (mc_dispo("Runsr"))
-            "Seule la p-value Monte-Carlo, simulee sous le modele ajuste avec ses pi_t, est retenue ;"
+            paste("Seule la p-value Monte-Carlo, simulee sous le modele ajuste avec ses pi_t,",
+                  "est calculee ; la p-value retenue, s'il en est une, est nommee par nature_p ;")
           else
             paste(txt_mc_indispo("La p-value Monte-Carlo, simulee sous le modele ajuste avec ses pi_t,"), ";"),
           "la statistique differe en general de celle de la ligne des suites sur",

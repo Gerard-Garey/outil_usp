@@ -938,15 +938,17 @@ verifier("f8, B = 59, alpha = 0,06 : suites sur residus 'ECHEC inatteignable' Mo
                                          "verdict (ADR 0001)."))
          })
 # Runsr, regime 1 (pi_t constant, p exacte) : la phrase "p-value EXACTE est
-# retenue" n'est ecrite que hors motif de degenerescence de Runsr (#128).
-verifier("Runsr regime 1 : sans motif -> 'EXACTE est retenue' ; motif de degenerescence -> diagnostic, 'EXACTE est ecartee'",
+# calculee" (#214 ; "est retenue" avant) n'est ecrite que hors motif de
+# degenerescence de Runsr (#128).
+verifier("Runsr regime 1 : sans motif -> 'EXACTE est calculee' ; motif de degenerescence -> diagnostic, 'EXACTE est ecartee'",
          {
            nm <- "Test des suites sur ratios bruts"
            a <- ligne(usp_tests(fit, boot_fictif(fit), methode = "premium"), nm)
            b <- ligne(usp_tests(fit, boot_fictif(fit, motif = c(Runsr = MOTIF_MC_DISPERSION_NULLE)),
                                 methode = "premium"), nm)
            identical(a$nature_p, "exacte") &&
-             grepl("la p-value EXACTE est retenue (convention bilaterale", a$detail, fixed = TRUE) &&
+             grepl("la p-value EXACTE est calculee (convention bilaterale", a$detail, fixed = TRUE) &&
+             !grepl("EXACTE est retenue", a$detail, fixed = TRUE) &&
              identical(b$type, "diagnostic") && is.na(b$p_retenue) &&
              startsWith(b$detail, MOTIF_MC_DISPERSION_NULLE) &&
              grepl("la p-value EXACTE est ecartee par le motif de degenerescence en tete (ADR 0001).",
@@ -967,13 +969,15 @@ verifier("Runsr regime 1 : p_mc finie -> phrase sur p_mc presente ; p_mc NA (B =
            is.finite(a$p_mc) && grepl(phr, a$detail, fixed = TRUE) &&
              is.na(b40$p_mc[["Runsr"]]) && is.na(k$p_mc) &&
              identical(k$nature_p, "exacte") && is.finite(k$p_retenue) &&
-             grepl("standardises (issue #29).", k$detail, fixed = TRUE) &&
+             grepl(paste("standardises (issue #29) ; la p-value retenue, s'il en est une,",
+                         "est nommee par nature_p."), k$detail, fixed = TRUE) &&
              !grepl("p_mc", k$detail, fixed = TRUE) &&
              !grepl("estime la meme quantite", k$detail, fixed = TRUE)
          })
-# Phrases du detail qui nomment la p Monte-Carlo retenue (#128, point c) :
-# conditionnelles a la presence de p_mc.
-verifier("usp_tests() : RESET et OLS-CUSUM, p_mc presente -> 'retenue' ; absente -> 'indisponible', diagnostic sans p retenue (#181)",
+# Phrases du detail qui nomment la p Monte-Carlo (#128, point c) :
+# conditionnelles a la presence de p_mc. Depuis #214, p_mc presente, elles la
+# disent calculee et renvoient a nature_p (la regle R1 peut l'ecarter).
+verifier("usp_tests() : RESET et OLS-CUSUM, p_mc presente -> 'calculee', renvoi a nature_p ; absente -> 'indisponible', diagnostic sans p retenue (#181)",
          {
            ok <- usp_tests(fit, boot_fictif(fit), methode = "premium")
            ko <- usp_tests(fit, boot_fictif(fit, motif = c(RESET = MOTIF_MC_AUCUNE_REPLIC,
@@ -981,12 +985,15 @@ verifier("usp_tests() : RESET et OLS-CUSUM, p_mc presente -> 'retenue' ; absente
                            methode = "premium")
            r1 <- ligne(ok, "RESET (forme fonctionnelle)"); r2 <- ligne(ko, "RESET (forme fonctionnelle)")
            c1 <- ligne(ok, "Stabilite cumulee (OLS-CUSUM)"); c2 <- ligne(ko, "Stabilite cumulee (OLS-CUSUM)")
-           endsWith(r1$detail, "1970). La p Monte-Carlo, simulee sous le modele ajuste, est retenue.") &&
+           endsWith(r1$detail, paste("1970). La p Monte-Carlo, simulee sous le modele ajuste, est calculee ;",
+                                     "la p-value retenue, s'il en est une, est nommee par nature_p.")) &&
              endsWith(r2$detail, paste("1970). La p Monte-Carlo, simulee sous le modele ajuste, est",
                                        "indisponible sur ces donnees : aucune p-value n'est retenue",
                                        "(ADR 0001).")) &&
              identical(r2$type, "diagnostic") && is.na(r2$nature_p) && is.na(r2$p_retenue) &&
-             identical(c1$detail, "La formule asymptotique n'a aucune validite a T = 8 : p_mc retenue") &&
+             identical(c1$detail, paste("La formule asymptotique n'a aucune validite a T = 8 ; p_mc est",
+                                        "calculee ; la p-value retenue, s'il en est une, est nommee par",
+                                        "nature_p.")) &&
              identical(c2$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_AUCUNE_REPLIC,
                                          " ; p non simulee (loi du champ loi) non retenue (ADR 0001). ",
                                          "La formule asymptotique n'a aucune validite a T = 8 ; p_mc est ",
@@ -1299,5 +1306,113 @@ verifier("engine_table_tests : colonne logique inoperant, derniere colonne, alig
              !anyNA(tb$inoperant) &&
              identical(tb$inoperant, vapply(res_ln$tests, function(l) l$inoperant, logical(1)))
          })
+
+## --- #214 : aucun detail ne declare une p-value retenue ------------------------
+# Decision Q-F-5 (neutralisation, sur le modele du regime 2 de #187) : quand la
+# regle R1 bascule une ligne en test inoperant, add() ne retient aucune
+# p-value ; un detail qui affirmerait "p ... est retenue" contredirait le
+# prefixe "TEST INOPERANT ... aucun verdict". Les phrases RESET, OLS-CUSUM et
+# Runsr (regimes 1 et 3) disent donc la p calculee et renvoient a nature_p.
+# Motif d'affirmation (MOTIFS_RETENUE_214), trois formes : verbe au singulier
+# ("est retenue", "est retenu", hors "n'est retenue") ; verbe au pluriel
+# precede, dans la meme proposition, d'un nom de p ("les p-values ... sont
+# retenues", hors "ne sont", pour ne pas viser "residus de Mack sont
+# retenus" de mw) ; adjectif directement apres un nom de p ("p_mc retenue",
+# "p exacte retenue", "p-value EXACTE retenue", "Monte-Carlo retenue",
+# "asymptotique retenue"). "non retenue" n'est pas vise (le mot qui precede
+# "retenue" n'est pas un nom de p). Phrases admises, retirees avant la
+# recherche (EXCLUS_RETENUE_214) : "Aucune p-value retenue" (grandeur
+# rivee) ; "p-value retenue, s'il en est une" (renvoi a nature_p) ; la
+# phrase de add() (regle R1, branche "ne pas rejeter" hors bascule, ou la p
+# Monte-Carlo est effectivement retenue) "la p-value Monte-Carlo retenue,
+# simulee sous le modele ajuste, peut", dont la presence dans R/engine.R est
+# verifiee ci-dessous pour que l'exclusion ne survive pas a son texte. Les
+# six configurations de CAS, recalculees a B = 99 pour la duree (le texte
+# de ces phrases ne depend pas de B), plus les deux jeux de #214 a alpha =
+# 0,05 : regime 1 de Runsr (donnees_ln.csv, p_min = 0,0571 >= alpha) et
+# regime 3 (donnees_ln_interieur.csv, branche Monte-Carlo de R1), tous deux
+# inoperants.
+NOM_P_214 <- "(p-values?|p_mc|p exacte|p-value EXACTE|Monte-Carlo|exacte|EXACTE|asymptotique)"
+MOTIFS_RETENUE_214 <- c(
+  "(?<!n')\\best retenue?s?\\b",
+  "\\bp(-values?|_mc)?\\b[^.;:]{0,80}(?<!ne )\\bsont retenue?s\\b",
+  paste0("\\b", NOM_P_214, " retenue?s?\\b"))
+EXCLUS_RETENUE_214 <- c("Aucune p-value retenue", "aucune p-value retenue",
+                        "p-value retenue, s'il en est une",
+                        "la p-value Monte-Carlo retenue, simulee sous le modele ajuste, peut")
+affirme_retenue <- function(d) {
+  if (is.na(d)) return(FALSE)
+  for (e in EXCLUS_RETENUE_214) d <- gsub(e, "", d, fixed = TRUE)
+  any(vapply(MOTIFS_RETENUE_214, grepl, logical(1), x = d, perl = TRUE))
+}
+verifier("#214 : la phrase admise de add() (R1, p Monte-Carlo retenue hors bascule) figure dans R/engine.R",
+         any(grepl(EXCLUS_RETENUE_214[4], readLines(file.path(RACINE, "R", "engine.R"), warn = FALSE),
+                   fixed = TRUE)))
+ln214 <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln.csv"))
+li214 <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln_interieur.csv"))
+tri214 <- local({
+  df <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
+  m <- as.matrix(df[, setdiff(names(df), "i")]); storage.mode(m) <- "double"; unname(m)
+})
+lnp214 <- function(d, ...) run_engine(xt = d$xt, yt = d$yt, segment = 1, annexe = "II", B = 99, ...)
+cas214 <- list(
+  premium = lnp214(ln214, methode = "premium", nature_donnees = "brutes"),
+  reserve1 = lnp214(ln214, methode = "reserve1"),
+  reserve2 = run_engine(methode = "reserve2", triangle = tri214, segment = 1, annexe = "II", B = 99),
+  premium_ii6 = run_engine(xt = ln214$xt, yt = ln214$yt, methode = "premium", segment = 6, annexe = "II",
+                           nature_donnees = "brutes", B = 99),
+  premium_net = lnp214(ln214, methode = "premium", nature_donnees = "nettes"),
+  premium_interieur = lnp214(li214, methode = "premium", nature_donnees = "brutes"),
+  j214_regime1 = lnp214(ln214, methode = "premium", nature_donnees = "brutes", alpha = 0.05),
+  j214_regime3 = lnp214(li214, methode = "premium", nature_donnees = "brutes", alpha = 0.05))
+NM_RUNSR <- "Test des suites sur ratios bruts"
+verifier("#214 jeux : Runsr inoperant a alpha = 0,05 (regime 1 p exacte, regime 3 Monte-Carlo), detail renvoyant a nature_p",
+         {
+           a <- ligne(cas214$j214_regime1$tests, NM_RUNSR); b <- ligne(cas214$j214_regime3$tests, NM_RUNSR)
+           all(vapply(list(a, b), function(l)
+             isTRUE(l$inoperant) && is.na(l$p_retenue) && identical(l$verdict, "INFO") &&
+               startsWith(l$detail, "TEST INOPERANT au seuil alpha = 0.05") &&
+               grepl("la p-value retenue, s'il en est une, est nommee par nature_p", l$detail, fixed = TRUE),
+             logical(1))) &&
+             is.finite(a$p_exacte) && grepl("EXACTE est calculee", a$detail, fixed = TRUE) &&
+             !is.finite(b$p_exacte) && is.finite(b$p_mc)
+         })
+verifier("#214 : aucune ligne inoperante (six cas, deux jeux de #214) ne declare une p-value retenue",
+         {
+           k <- unlist(lapply(names(cas214), function(nm)
+             vapply(Filter(function(l) isTRUE(l$inoperant), cas214[[nm]]$tests), function(l)
+               if (affirme_retenue(l$detail)) paste(nm, l$test, sep = " / ") else NA_character_, "")))
+           n_inop <- sum(vapply(cas214, function(r)
+             sum(vapply(r$tests, function(l) isTRUE(l$inoperant), logical(1))), numeric(1)))
+           if (any(!is.na(k))) paste(k[!is.na(k)], collapse = " ; ") else n_inop > 0
+         })
+verifier("#214 : aucun detail, inoperant ou non (six cas, deux jeux de #214), ne declare une p-value retenue",
+         {
+           k <- unlist(lapply(names(cas214), function(nm)
+             vapply(cas214[[nm]]$tests, function(l)
+               if (affirme_retenue(l$detail)) paste(nm, l$test, sep = " / ") else NA_character_, "")))
+           if (any(!is.na(k))) paste(k[!is.na(k)], collapse = " ; ") else TRUE
+         })
+verifier("#214 : motif d'affirmation, temoins positifs (anciennes phrases) et negatifs (phrases admises)",
+         all(vapply(c("La p Monte-Carlo, simulee sous le modele ajuste, est retenue.",
+                      "La formule asymptotique n'a aucune validite a T = 8 : p_mc retenue",
+                      "la p-value EXACTE est retenue (convention bilaterale",
+                      "Seule la p-value Monte-Carlo, simulee sous le modele ajuste avec ses pi_t, est retenue ;",
+                      "la p exacte retenue", "la p-value EXACTE retenue (convention",
+                      "la p asymptotique est retenu", "les p-values Monte-Carlo sont retenues",
+                      "la p-value asymptotique retenue", "p_mc est retenue ; la p-value retenue, s'il en est une"),
+                    affirme_retenue, logical(1))) &&
+           !any(vapply(c("aucune p-value n'est retenue (ADR 0001)", "Aucune p-value retenue : la grandeur",
+                         "pour information, non retenue", "est rapportee pour memoire et non retenue",
+                         "la p-value retenue, s'il en est une, est nommee par nature_p.",
+                         paste("la p-value Monte-Carlo retenue, simulee sous le modele ajuste, peut",
+                               "lui etre inferieure (erreur Monte-Carlo, non-echangeabilite) : ECHEC possible"),
+                         "la p non simulee (loi du champ loi) non retenue",
+                         "le modele restreint delta = 1, retenu par l'outil",
+                         "3 residu(s) de Mack sont retenus pour les lignes fondees sur ces residus",
+                         "Intervalle bootstrap du parametre retenu",
+                         "conditionnelle a la structure de variance retenue",
+                         "les p-values ne sont retenues que si"),
+                       affirme_retenue, logical(1))))
 
 fin_fichier()
