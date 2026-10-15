@@ -32,9 +32,24 @@
 #     seule "Reinitialiser" la change ; grille redessinee par une seconde
 #     reinitialisation sur des donnees deja par defaut (series et triangle)
 #     et par un second import du meme fichier ;
+#   - portee de PROFONDEUR_MAX, regle "T = donnees chargees" (issue #212,
+#     decision du mainteneur du 14/10/2026) : refus_dimension_triangle() et
+#     profondeur_apres_reinitialisation() hors Shiny ; avec shiny, import
+#     d'un triangle 41 x 41 refuse avec motif (triangle courant garde),
+#     charger_mw() refusant au demarrage un fichier de 41 annees,
+#     triangle 40 x 40 accepte, reinitialisation des series ramenant le
+#     champ T a 8 (T saisi 12 et 200), saisie T = 200 en reserve no 2
+#     toujours plafonnee a 40 (non-regression de #194) ;
 #   - objet non fonction rbind de l'environnement global (issue #199) : avec
 #     shiny, table des controles (output$tab_controles) identique a celle
-#     rendue sans lui ; rapport_html() : voir test_rapport_html.R.
+#     rendue sans lui ; rapport_html() : voir test_rapport_html.R ;
+#   - notifications de refus (issue #226) : avec shiny, "Calcul refuse"
+#     (scenario de l'issue, motif de plus de 700 caracteres) et "Calcul non
+#     lance" (reserve no 2) notifient un texte fixe, le motif complet du
+#     moteur etant dans le bandeau ;
+#   - virgule decimale des nombres affiches (issue #236) : avec shiny, bloc
+#     Etat, bloc du parametre retenu, journal, table de calibration, note
+#     d'influence et notification du retrait d'une ligne.
 #  La partie Shiny tourne dans un processus R distinct : app.R attache shiny
 #  et recharge le moteur dans l'environnement global, ce qui ne doit pas
 #  toucher les fichiers de tests suivants.
@@ -201,7 +216,8 @@ verifier("app.R : regles CSS du commentaire replie (details.com) (#178)",
 ## --- Dimension du triangle et reinitialisation (issue #155) --------------------
 # Fonctions de premier niveau d'app.R, evaluees seules comme triangle_defaut().
 .noms_155 <- c("DONNEES_DEFAUT", "profondeur_reinitialisation", "jeu_reinitialise",
-               "message_reinitialisation")
+               "message_reinitialisation", "refus_dimension_triangle",
+               "profondeur_apres_reinitialisation")
 for (.x in parse(.app, keep.source = FALSE))
   if (is.call(.x) && identical(.x[[1]], as.name("<-")) &&
       as.character(.x[[2]]) %in% .noms_155) eval(.x, .env)
@@ -248,10 +264,60 @@ verifier("jeu_reinitialise() : triangle par defaut de T annees (reserve no 2), s
            identical(.env$jeu_reinitialise(TRUE, 5), .env$triangle_defaut(5)) &&
            identical(.env$jeu_reinitialise(FALSE, 5), .env$DONNEES_DEFAUT) &&
            identical(.env$jeu_reinitialise(FALSE, 12), .env$DONNEES_DEFAUT))
-verifier("message_reinitialisation() : dimension du triangle nommee (reserve no 2) (#155)",
+# Assertion modifiee par #212 (regle "T = donnees chargees") : le message
+# des series nommait seulement la reinitialisation ; il nomme desormais les
+# 8 annees chargees et T = 8, valeur reportee dans le champ T.
+verifier("message_reinitialisation() : dimension du triangle (reserve no 2) (#155), annees des series et T (#212)",
          identical(.env$message_reinitialisation(TRUE, 10),
                    "Donnees reinitialisees : triangle par defaut 10 x 10.") &&
-           identical(.env$message_reinitialisation(FALSE, 10), "Donnees reinitialisees."))
+           identical(.env$message_reinitialisation(FALSE, 8),
+                     "Donnees reinitialisees : series par defaut de 8 annees, T = 8."))
+
+## --- Portee de PROFONDEUR_MAX : regle "T = donnees chargees" (issue #212) ----
+verifier("refus_dimension_triangle() : triangle de 5, 8, 40 annees dans la borne, sans motif (#212)",
+         all(vapply(list(5L, 8L, 40L), function(n)
+           identical(.env$refus_dimension_triangle(n), character(0)), logical(1))))
+verifier("refus_dimension_triangle() : 41 et 100 annees refusees, motif qui nomme la dimension et la limite de l'application (#212)",
+         identical(.env$refus_dimension_triangle(41L),
+                   "Triangle 41 x 41 : au-dela de la limite de l'application (40 annees d'accident, rendu de la grille).") &&
+           identical(.env$refus_dimension_triangle(100L),
+                     "Triangle 100 x 100 : au-dela de la limite de l'application (40 annees d'accident, rendu de la grille)."))
+# Demarrage sur un fichier de triangle de 41 annees (issue #212, M2 de la
+# revue) : charger_mw() est evaluee avec ses dependances d'app.R, FICHIER_MW
+# pointant vers un fichier ecrit dans un repertoire temporaire (le depot
+# n'est pas touche). Les fonctions du moteur sont lues dans l'environnement
+# global.
+for (.x in parse(.app, keep.source = FALSE))
+  if (is.call(.x) && identical(.x[[1]], as.name("<-")) &&
+      as.character(.x[[2]]) %in% c("statut_fichier", "REFUS_DEMARRAGE", "triangle_vide",
+                                   "MESSAGE_ILLISIBLE", "lire_tableau", "journaliser",
+                                   "charger_mw")) eval(.x, .env)
+.dir212 <- tempfile("demarrage212_"); dir.create(.dir212)
+.tri41 <- .env$triangle_defaut(41)
+utils::write.csv(data.frame(i = 0:40, setNames(as.data.frame(.tri41), paste0("j", 0:40))),
+                 file.path(.dir212, "usp_donnees_MW.csv"), row.names = FALSE, na = "")
+.env$FICHIER_MW <- file.path(.dir212, "usp_donnees_MW.csv")
+.cm <- .env$charger_mw()
+verifier("charger_mw(), fichier de 41 annees au demarrage : refuse avec le motif de refus_dimension_triangle(), grille vide 8 x 8 (#212)",
+         identical(.cm$statut$ok, FALSE) &&
+           grepl(.env$refus_dimension_triangle(41L), .cm$statut$msg, fixed = TRUE) &&
+           grepl("present mais refuse au demarrage", .cm$statut$msg, fixed = TRUE) &&
+           identical(.cm$valeur, .env$triangle_vide(8)))
+utils::write.csv(data.frame(i = 0:39, setNames(as.data.frame(.env$triangle_defaut(40)), paste0("j", 0:39))),
+                 file.path(.dir212, "usp_donnees_MW.csv"), row.names = FALSE, na = "")
+.cm <- .env$charger_mw()
+verifier("charger_mw(), fichier de 40 annees au demarrage : charge (#212)",
+         isTRUE(.cm$statut$ok) && identical(dim(.cm$valeur), c(40L, 40L)))
+unlink(.dir212, recursive = TRUE); rm("FICHIER_MW", envir = .env)
+.pa <- lapply(list(NULL, NA_real_, 0, 5, 12, 40, 200), function(t)
+  .env$profondeur_apres_reinitialisation(FALSE, t))
+verifier("profondeur_apres_reinitialisation() (series) : T = 8 des series par defaut, quel que soit le T saisi, sans motif ni plafonnement (#212)",
+         all(vapply(.pa, function(r) identical(r$T, 8L) && length(r$erreurs) == 0L &&
+                      length(r$plafonnement) == 0L, logical(1))))
+verifier("profondeur_apres_reinitialisation() (reserve no 2) : identique a profondeur_reinitialisation() (#194, #212)",
+         all(vapply(list(NULL, NA_real_, 0, 5, 12, 40, 200), function(t)
+           identical(.env$profondeur_apres_reinitialisation(TRUE, t),
+                     .env$profondeur_reinitialisation(t)), logical(1))))
 # Lecture du code : aucun observateur du champ T n'ecrit le triangle (appel
 # triangle(x), avec argument) ; l'observateur de "Reinitialiser" incremente
 # le compteur version_grille ; celui de l'import n'appelle plus
@@ -268,6 +334,12 @@ verifier("app.R : \"Reinitialiser\" incremente version_grille (#155 c)",
 .obs_I <- Filter(function(o) .sur(o, "fichier_import"), .obs)
 verifier("app.R : l'import d'un triangle ne modifie plus le champ T (#155)",
          length(.obs_I) == 1L && length(.appels(.obs_I[[1]], "updateNumericInput")) == 1L)
+# Revue finale de #212 : un seul appel de updateNumericInput() dans
+# l'observateur de "Reinitialiser" (trois auparavant, pour la meme valeur T),
+# et la garde de l'apercu y est posee comme a l'import.
+verifier("app.R : \"Reinitialiser\" n'appelle updateNumericInput() qu'une fois et pose la garde profondeur_import() (#212, #183)",
+         length(.appels(.obs_R[[1]], "updateNumericInput")) == 1L &&
+           .ecrit(.obs_R[[1]], "profondeur_import"))
 
 ## --- Grille des series et journal (issues #134, #136) -------------------------
 if (requireNamespace("shiny", quietly = TRUE)) {
@@ -348,6 +420,138 @@ testServer(app_b, {
       a_id(grille_html(output), "c_9_0"))
 })
 )---"
+  # Portee de PROFONDEUR_MAX (issue #212, regle "T = donnees chargees" du
+  # mainteneur du 14/10/2026). updateNumericInput() et showNotification()
+  # sont remplaces, dans l'environnement d'app.R, par un releve : la session
+  # simulee de shiny ne renvoie pas au serveur la valeur poussee dans le
+  # champ T. Mesure avant correction (14/10/2026, testServer) : triangle
+  # 41 x 41 importe en 1,65 s, 100 x 100 en 12,0 s (rendu de la grille,
+  # HTML de 1,86 Mo) ; series reinitialisees avec T saisi = 12 ou 40 : champ
+  # T inchange, avec T = 200 : champ T a 40, pour 8 annees chargees.
+  .bloc_212 <- r"---(
+## Portee de PROFONDEUR_MAX : regle "T = donnees chargees" (issue #212)
+maj212 <- list(); notifs212 <- character(0)
+assign("updateNumericInput", function(session, inputId, value = NULL, ...) {
+  maj212[[length(maj212) + 1L]] <<- list(id = inputId, value = value); invisible(NULL)
+}, envir = ea)
+assign("showNotification", function(ui, ...) {
+  notifs212 <<- c(notifs212, paste(as.character(ui), collapse = "")); invisible("id")
+}, envir = ea)
+champ_T <- function() vapply(Filter(function(m) identical(m$id, "profondeur"), maj212),
+                             function(m) as.numeric(m$value), numeric(1))
+testServer(app, {
+  do.call(session$setInputs, modifyList(base, list(methode = "reserve2", reinit = 1)))
+  t0 <- triangle(); v0 <- version_grille()
+  f41 <- fichier_tri(ea$triangle_defaut(41))
+  maj212 <<- list(); notifs212 <<- character(0)
+  duree <- system.time(session$setInputs(fichier_import = f41))[["elapsed"]]
+  a("import d'un triangle 41 x 41 : refuse, triangle courant 8 x 8 et grille gardes (#212)",
+    identical(triangle(), t0) && identical(version_grille(), v0) &&
+      a_id(grille_html(output), "c_7_0") && !a_id(grille_html(output), "c_8_0"))
+  a("import d'un triangle 41 x 41 : statut d'import motive, notification Import refuse, champ T non touche (#212)",
+    identical(statut_import()$ok, FALSE) &&
+      grepl(paste(ea$refus_dimension_triangle(41L), "Import refuse, triangle courant conserve."),
+            statut_import()$msg, fixed = TRUE) &&
+      identical(notifs212, "Import refuse.") && !length(champ_T()))
+  a("import d'un triangle 41 x 41 : refus en moins de 1 s (1,65 s avant #212)", duree < 1)
+  session$setInputs(fichier_import = fichier_tri(ea$triangle_defaut(40)))
+  a("import d'un triangle 40 x 40 : accepte, dimension gardee (#212)",
+    identical(dim(triangle()), c(40L, 40L)) &&
+      isTRUE(all.equal(triangle(), ea$triangle_defaut(40))) && isTRUE(statut_import()$ok) &&
+      a_id(grille_html(output), "c_39_0"))
+  maj212 <<- list(); notifs212 <<- character(0)
+  session$setInputs(profondeur = 200, reinit = 2)
+  a("saisie T = 200, reserve no 2 : triangle par defaut 40 x 40, champ T a 40, message de plafonnement (#194)",
+    identical(triangle(), ea$triangle_defaut(40)) && identical(champ_T(), 40) &&
+      identical(notifs212, c("Profondeur T = 200 au-dela du maximum de 40 : T = 40 retenu.",
+                             "Donnees reinitialisees : triangle par defaut 40 x 40.")))
+})
+for (T212 in c(12, 200)) testServer(app, {
+  do.call(session$setInputs, modifyList(base, list(profondeur = T212)))
+  maj212 <<- list(); notifs212 <<- character(0)
+  session$setInputs(reinit = 1)
+  a(sprintf("series, T saisi = %d : reinitialisation, 8 annees chargees, champ T ramene a 8 (#212)", T212),
+    identical(donnees(), ea$DONNEES_DEFAUT) && identical(champ_T(), 8) &&
+      identical(notifs212, "Donnees reinitialisees : series par defaut de 8 annees, T = 8."))
+})
+testServer(app, {
+  do.call(session$setInputs, base)
+  maj212 <<- list(); notifs212 <<- character(0)
+  session$setInputs(reinit = 1)
+  a("series, T saisi = 8 : reinitialisation sans mise a jour du champ T (#212)",
+    identical(donnees(), ea$DONNEES_DEFAUT) && !length(champ_T()) &&
+      identical(notifs212, "Donnees reinitialisees : series par defaut de 8 annees, T = 8."))
+})
+rm("updateNumericInput", "showNotification", envir = ea)
+)---"
+  # Garde de l'apercu a la reinitialisation des series (revue finale de #212,
+  # sur le modele de l'import, #183). La session simulee ne renvoie pas la
+  # valeur poussee dans le champ T : elle reproduit l'aller-retour du
+  # navigateur, pendant lequel le champ vaut encore l'ancien T. Mesure avant
+  # correction (14/10/2026) : 12 annees importees, T = 12, puis Reinitialiser
+  # : garde NULL, apercu "Profondeur T = 12 superieure au nombre d'annees
+  # fournies (8)."
+  .bloc_212_garde <- r"---(
+## Garde de l'apercu a la reinitialisation des series (issue #212)
+d0 <- ea$DONNEES_DEFAUT
+testServer(app, {
+  do.call(session$setInputs, base)
+  session$setInputs(fichier_import = fichier(12)); grille(session, 12)
+  session$setInputs(profondeur = 12)
+  av <- apercu(output)
+  session$setInputs(reinit = 1)
+  do.call(session$setInputs, c(setNames(as.list(d0$xt), paste0("x_", 1:8)),
+                               setNames(as.list(d0$yt), paste0("y_", 1:8))))
+  ap <- apercu(output)
+  a("series, T = 12, Reinitialiser : garde posee a 8, apercu non reevalue avec T = 12 sur 8 annees (#212)",
+    is.character(av) && !grepl("class=\"err\"", av, fixed = TRUE) &&
+      identical(profondeur_import(), 8L) && garde(av, ap) &&
+      !grepl("superieure", paste(ap, collapse = ""), fixed = TRUE))
+  session$setInputs(profondeur = 8)
+  ap <- apercu(output)
+  a("series, puis T = 8 : garde levee, apercu reevalue sur 8 annees sans refus (#212)",
+    is.null(profondeur_import()) && is.character(ap) && grepl("T = 8 :", ap, fixed = TRUE) &&
+      !grepl("class=\"err\"", ap, fixed = TRUE))
+})
+testServer(app, {
+  do.call(session$setInputs, base)
+  session$setInputs(reinit = 1)
+  a("series, T saisi = 8, Reinitialiser : garde non posee (champ deja aligne) (#212)",
+    is.null(profondeur_import()))
+  session$setInputs(methode = "reserve2", profondeur = 200)
+  session$setInputs(reinit = 2)
+  a("reserve no 2, T = 200, Reinitialiser : garde des series non posee (#212)",
+    is.null(profondeur_import()) && identical(dim(triangle()), c(40L, 40L)))
+})
+)---"
+  # Virgule decimale des traces base R de l'application (revue finale de
+  # #236) : rendu_graphique() sans plotly (ou avec l'option
+  # usp.graphiques_base, voir le compte rendu) passe par renderPlot(), qui
+  # trace avec OutDec = "," et le restaure. Mesure avant correction
+  # (14/10/2026, plotly absent) : OutDec "." pendant le trace, format(0.5)
+  # "0.5". Sous plotly, rendu_graphique() rend un graphique plotly : la
+  # verification ne porte alors que sur la restauration d'OutDec.
+  .bloc_236_base <- r"---(
+## Virgule decimale des traces base R de l'application (issue #236)
+vu236 <- NULL
+app236 <- shinyApp(fluidPage(), function(input, output, session) {
+  output$p <- ea$rendu_graphique({
+    if (requireNamespace("plotly", quietly = TRUE)) plotly::plot_ly()
+    else { plot(c(0.5, 1.5))
+           vu236 <<- list(OutDec = getOption("OutDec"),
+                          graduations = format(graphics::axTicks(2)))
+           invisible() }
+  })
+})
+od236 <- getOption("OutDec")
+testServer(app236, { x236 <<- tryCatch(output$p, error = function(e) e) })
+plotly236 <- requireNamespace("plotly", quietly = TRUE)
+a("rendu_graphique() (base R) : OutDec = \",\" pendant le trace, graduations en virgule, OutDec restaure (#236)",
+  identical(getOption("OutDec"), od236) &&
+    (plotly236 || (identical(vu236$OutDec, ",") && is.character(x236$src) &&
+                     all(grepl("^[0-9]+(,[0-9]+)?$", vu236$graduations)) &&
+                     any(grepl(",", vu236$graduations, fixed = TRUE)))))
+)---"
   # Objet rbind non fonction de l'environnement global (issue #199) : la
   # table des controles (output$tab_controles) est rendue dans deux sessions,
   # sans puis avec rbind <- 5 pose avant le calcul, sur la grille du jeu par
@@ -414,6 +618,102 @@ testServer(app, {
     grepl("Seuil alpha", jo, fixed = TRUE) && !grepl("P-values Monte-Carlo", jo, fixed = TRUE) &&
       !grepl("Graine flux regime", jo, fixed = TRUE))
 })
+)---"
+  # Notifications de refus (issue #226) : texte fixe d'interface, motif
+  # complet dans le bandeau. showNotification() est remplace, dans
+  # l'environnement d'app.R, par un releve du texte notifie : la session
+  # simulee de shiny n'envoie aucune notification (sendNotification() y est
+  # sans effet, shiny 1.8.0). Scenario de l'issue (refus "maximum de
+  # vraisemblance non atteint", motif unique de plus de 700 caracteres) et
+  # triangle a cellule observee manquante (Calcul non lance, reserve no 2).
+  .bloc_226 <- r"---(
+## Notifications de refus : texte fixe, motif complet dans le bandeau (issue #226)
+notifs226 <- character(0)
+assign("showNotification", function(ui, ...) {
+  notifs226 <<- c(notifs226, paste(as.character(ui), collapse = "")); invisible("id")
+}, envir = ea)
+xs226 <- c(98.10, 101.30, 104.20, 102.25, 109.34, 114.64, 118.41, 121.28)
+r226 <- run_engine(xs226, 0.7 * xs226, methode = "premium", sigma_standard = 0.1,
+                   nature_donnees = "brutes", T = 8, B = 99, alpha = 0.10, seed = 20260831,
+                   segment = 1L, annexe = "II", theta_equiv = 0.10)
+motif226 <- r226$validation$erreurs
+testServer(app, {
+  do.call(session$setInputs, modifyList(base, list(reinit = 1, sigma_manuel = TRUE, sigma_std = 0.1)))
+  do.call(session$setInputs, c(setNames(as.list(xs226), paste0("x_", 1:8)),
+                               setNames(as.list(0.7 * xs226), paste0("y_", 1:8))))
+  notifs226 <<- character(0)
+  session$setInputs(go = 1)
+  bd <- as.character(output$bandeau_refus$html)
+  a("scenario de #226 : refus du moteur, un motif de plus de 700 caracteres, sans erreur_r",
+    identical(r226$ok, FALSE) && is.null(r226$validation$erreur_r) &&
+      length(motif226) == 1L && nchar(motif226) > 700L)
+  a("Calcul refuse : notification au texte fixe, seule notification du clic (#226)",
+    identical(notifs226, "Calcul refuse : aucun resultat n'est produit (voir le bandeau)."))
+  a("Calcul refuse : motif complet du moteur dans le bandeau (#226)",
+    is.null(resultat()) && grepl(ea$TITRE_REFUSE, bd, fixed = TRUE) &&
+      grepl(htmltools::htmlEscape(motif226), bd, fixed = TRUE))
+  session$setInputs(methode = "reserve2", reinit = 2)
+  tr <- triangle(); k <- which(!is.na(tr), arr.ind = TRUE)
+  do.call(session$setInputs, setNames(as.list(tr[k]), sprintf("c_%d_%d", k[, 1] - 1L, k[, 2] - 1L)))
+  session$setInputs(c_1_1 = NA)
+  mv <- mw_valider_triangle(lire_triangle(), segment = 1L, annexe = "II")$erreurs
+  notifs226 <<- character(0)
+  session$setInputs(go = 2)
+  bd <- as.character(output$bandeau_refus$html)
+  a("Calcul non lance (reserve no 2) : notification au texte fixe (#226)",
+    identical(notifs226, "Calcul non lance : aucun resultat n'est produit (voir le bandeau)."))
+  a("Calcul non lance (reserve no 2) : motif du moteur dans le bandeau (#226)",
+    identical(mv, "Cellule observee manquante en (i=1, j=1).") &&
+      grepl(ea$TITRE_NON_LANCE, bd, fixed = TRUE) && grepl(htmltools::htmlEscape(mv), bd, fixed = TRUE))
+})
+rm("showNotification", envir = ea)
+)---"
+  # Virgule decimale des nombres affiches (issue #236) : bloc Etat, bloc du
+  # parametre retenu (intervalle bootstrap "[a ; b]"), journal, table de
+  # calibration, note d'influence et notification du retrait d'une ligne
+  # (valeurs separees par " ; "), sur le jeu par defaut (B = 99, alpha = 0,10).
+  .bloc_236 <- r"---(
+## Virgule decimale des nombres affiches (issue #236)
+notifs236 <- character(0)
+assign("showNotification", function(ui, ...) {
+  notifs236 <<- c(notifs236, paste(as.character(ui), collapse = "")); invisible("id")
+}, envir = ea)
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  do.call(session$setInputs, saisie199)
+  session$setInputs(go = 1)
+  r <- resultat(); p <- r$parametre_final; ic <- r$ic_bootstrap
+  sig <- sub(".", ",", sprintf("%.4f", p$sigma_usp), fixed = TRUE)
+  et <- as.character(output$etat$html)
+  a("bloc Etat : sigma_USP en virgule decimale, 4 decimales (#236)",
+    isTRUE(r$ok) && grepl("^0,[0-9]{4}$", sig) &&
+      grepl(paste0("font-size:18px'>", sig, "</span>"), et, fixed = TRUE))
+  # Point decimal recherche hors des attributs style (font-size:12.5px).
+  bf <- as.character(output$bloc_final$html)
+  a("bloc du parametre : sigma_USP, variation et intervalle bootstrap \"[a ; b]\" en virgule decimale, aucun point decimal hors style (#236)",
+    grepl(paste0("sigma_USP = ", sig, "</span>"), bf, fixed = TRUE) &&
+      grepl("par rapport au parametre standard de 0,1000", bf, fixed = TRUE) &&
+      grepl("90 % : \\[[0-9]+,[0-9]{4} ; [0-9]+,[0-9]{4}\\]", bf) &&
+      grepl(gsub("(\\d)\\.(\\d)", "\\1,\\2", sprintf("95 %% : [%.4f ; %.4f]", ic[1], ic[5])), bf, fixed = TRUE) &&
+      !grepl("[0-9]\\.[0-9]", gsub("style=\"[^\"]*\"", "", bf)))
+  jo <- output$tab_meta
+  a("journal : sigma standard, granularite et alpha en virgule decimale (#236)",
+    grepl("sigma standard       : 0,1 ", jo, fixed = TRUE) &&
+      grepl("Granularite p_mc     : 0,01 ", jo, fixed = TRUE) &&
+      grepl("Seuil alpha          : 0,1 \n", jo, fixed = TRUE))
+  tc <- output$tab_calibration
+  a("table de calibration : valeurs a 5 decimales en virgule decimale (#236)",
+    grepl("<td> [0-9]+,[0-9]{5} </td>", tc) && !grepl("[0-9]\\.[0-9]", tc))
+  ni <- as.character(output$note_influence$html)
+  a("note d'influence (application) : reperes et ecart en virgule decimale, aucun point decimal (#236)",
+    grepl("(4/T = 0,500)", ni, fixed = TRUE) && grepl("<b>[+-][0-9]+,[0-9] %</b>", ni) &&
+      !grepl("[0-9]\\.[0-9]", ni))
+  notifs236 <<- character(0)
+  session$setInputs(retirer_annee = 1)
+  a("retrait d'une ligne renseignee : valeurs en virgule decimale, separees par \" ; \" (#236)",
+    identical(notifs236, "Ligne t = 8 retiree (x_t = 131,22 ; y_t = 117,37)."))
+})
+rm("showNotification", envir = ea)
 )---"
   .script <- tempfile(fileext = ".R")
   writeLines(c(
@@ -527,7 +827,7 @@ testServer(app, {
     '  a("import n = 41 (hors [5 ; 40]) : garde non posee, apercu evalue avec T = 8 (#183)",',
     '    is.null(profondeur_import()) && is.character(ap) &&',
     '      !grepl("superieure", ap, fixed = TRUE))',
-    '})', .bloc_155, .bloc_199, .bloc_240), .script)
+    '})', .bloc_155, .bloc_212, .bloc_212_garde, .bloc_236_base, .bloc_199, .bloc_240, .bloc_226, .bloc_236), .script)
   # Processus fils lance depuis la racine du depot : app.R y source
   # R/engine.R par chemin relatif. --vanilla ignore .Renviron et .Rprofile :
   # les bibliotheques de ce processus (.libPaths()) lui sont transmises par
@@ -544,8 +844,8 @@ testServer(app, {
                         setwd(.ici)
                       })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 35 assertions rendues", length(.lignes) == 35L)
-  if (length(.lignes) != 35L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 59 assertions rendues", length(.lignes) == 59L)
+  if (length(.lignes) != 59L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {

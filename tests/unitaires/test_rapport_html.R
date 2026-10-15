@@ -20,7 +20,12 @@
 #  (texte_p_mc_regime(), issue #240, Q-A4-12 (B)) : V3b arret a la cible et a
 #  B_max, V1 au bord et a volumes constants, objet sans p_mc_regime, reserve2 ;
 #  graine du flux (metadata$seed_flux_regime) dans valeurs_generateur() et
-#  l'en-tete, absente en reserve2.
+#  l'en-tete, absente en reserve2 ; rapport sur les six references nettoyees
+#  (sans horodatage, duree_sec ni version_R), tiret dans ces lignes (#263) ;
+#  mention de la granularite effective en V3b arrete a B_max seulement
+#  (#254) ; tiret pour une marge theta_equiv ou delta_equiv absente ;
+#  virgule decimale des nombres affiches (.num_fr(), fmt_*(), notes, rapport
+#  fige ; issue #236).
 #  References : RFC 4648, section 10 (vecteurs de test base64) ; regle de
 #  selection de l'onglet Tests (filtrer_selection).
 #  La branche PNG est exercee partout ou capabilities("png") est vrai ; la
@@ -203,9 +208,9 @@ verifier("Rapport : empreintes des donnees, du resultat et du code presentes",
 verifier("Rapport : horodatage du calcul et version DESCRIPTION restitues",
          grepl(format(res_ln$metadata$horodatage, "%Y-%m-%d %H:%M:%S"), h, fixed = TRUE) &&
          grepl(paste0("<td>", idt$version, "</td>"), h, fixed = TRUE))
-verifier("Rapport : donnees lues dans res (x_t et y_t du calcul)",
-         grepl("<td>1</td><td>104.2</td><td>68.97</td>", h, fixed = TRUE) &&
-         grepl("<td>7</td><td>132.4</td><td>78.89</td>", h, fixed = TRUE))
+verifier("Rapport : donnees lues dans res (x_t et y_t du calcul), virgule decimale (#236)",
+         grepl("<td>1</td><td>104,2</td><td>68,97</td>", h, fixed = TRUE) &&
+         grepl("<td>7</td><td>132,4</td><td>78,89</td>", h, fixed = TRUE))
 verifier("Rapport lognormal : formule avec le facteur sqrt((T+1)/(T-1))",
          grepl("sqrt((T+1)/(T-1))", texte_formule(res_ln), fixed = TRUE) &&
          grepl(.echap_html(texte_formule(res_ln)), h, fixed = TRUE))
@@ -309,8 +314,8 @@ f_mw <- tempfile(fileext = ".html")
 r_mw <- rapport_html(res_mw, NULL, f_mw, interactif = FALSE, identite = idt)
 hm <- lire(f_mw)
 tbm <- engine_table_tests(res_mw); rm <- filtrer_selection(tbm, selection_defaut(tbm))
-verifier("Rapport MW : triangle du calcul restitue, cellules non observees en tiret",
-         grepl("<td>2766.61</td>", hm, fixed = TRUE) && grepl("<td>\u2013</td>", hm, fixed = TRUE))
+verifier("Rapport MW : triangle du calcul restitue (virgule decimale, #236), cellules non observees en tiret",
+         grepl("<td>2766,61</td>", hm, fixed = TRUE) && grepl("<td>\u2013</td>", hm, fixed = TRUE))
 verifier("Rapport MW : exclus par defaut en annexe avec leur verdict",
          any(!rm) && all(vapply(which(!rm), function(k)
            grepl(badge_verdict(tbm$verdict[k]),
@@ -983,32 +988,27 @@ verifier("Vue Detail : colonnes \"p min (loi discr\u00e8te)\" puis \"p min MC\",
            j <- match("p min (loi discr\u00e8te)", names(dd))
            !is.na(i_signes) && isTRUE(tb_pi$inoperant[i_signes]) && !is.na(j) &&
              identical(names(dd)[j + 1L], "p min MC") &&
-             identical(dd[i_signes, j], "0.125") && identical(dd[["p min MC"]][i_signes], "0.149") &&
+             identical(dd[i_signes, j], "0,125") && identical(dd[["p min MC"]][i_signes], "0,149") &&
              identical(dd[["p min MC"]] == "\u2013", !is.finite(tb_pi$p_min_mc)) &&
              identical(dd[names(dd) != "Motif / commentaire"],
                        table_detail_groupe(tb_pi)[names(dd) != "Motif / commentaire"])
          })
 verifier("Garde : table sans colonne p_min_mc -> tiret dans la colonne p min MC (#125)",
          { tbf <- tb_pi; tbf$p_min_mc <- NULL; all(table_detail_groupe(tbf)[["p min MC"]] == "\u2013") })
-# Le rapport fige est produit sur un recalcul du cas (parametres de CAS dans
-# tests/outils_tests.R, B par defaut) : la reference versionnee est nettoyee
-# de champs de metadata (horodatage, duree, version de R) que l'en-tete du
-# rapport lit.
-verifier("Rapport fige (premium_interieur recalcule) : en-tetes p min et p min MC, 0,125 et 0,149 sur la ligne des signes (#125)",
+# Le rapport fige est produit sur la reference versionnee, lue sans recalcul :
+# les champs de metadata qu'en retire nettoyer() (horodatage, duree, version
+# de R) s'affichent en tiret depuis #263.
+verifier("Rapport fige (reference premium_interieur) : en-tetes p min et p min MC, 0,125 et 0,149 sur la ligne des signes (#125)",
          {
-           d_pi <- utils::read.csv(file.path(.racine, "tests", "donnees", "donnees_ln_interieur.csv"))
-           res_pi2 <- run_engine(xt = d_pi$xt, yt = d_pi$yt, methode = "premium", segment = 1,
-                                 annexe = "II", nature_donnees = "brutes")
-           tb_pi2 <- engine_table_tests(res_pi2)
            f_pi <- tempfile(fileext = ".html")
-           rapport_html(res_pi2, selection_defaut(tb_pi2), f_pi, interactif = FALSE, identite = idt)
+           rapport_html(res_pi, selection_defaut(tb_pi), f_pi, interactif = FALSE, identite = idt)
            h_pi <- lire(f_pi); unlink(f_pi)
            pr_pi <- entre(h_pi, "<section id='section-tests-retenus'>", "</section>")
            l_pi <- ligne_de(pr_pi, nom_signes)
            grepl("<th>p min (loi discr\u00e8te)</th><th>p min MC</th>", pr_pi, fixed = TRUE) &&
              # Deux lignes portent le test : Synthese puis Detail ; seule la
              # seconde a les colonnes p min.
-             length(l_pi) == 2L && grepl("<td>0.125</td><td>0.149</td>", l_pi[2], fixed = TRUE)
+             length(l_pi) == 2L && grepl("<td>0,125</td><td>0,149</td>", l_pi[2], fixed = TRUE)
          })
 verifier("Rapport : colonne Fonction dans le detail des tests retenus, commentaire en entier, aucun <details> (#178)",
          all(vapply(which(retenu), function(k)
@@ -1092,7 +1092,10 @@ TXT_CIBLE <- paste("conditionnelles au r\u00e9gime int\u00e9rieur de delta estim
                    "510 tirages, 99 retenus, arr\u00eat \u00e0 la cible (B = 99 retenus)")
 TXT_BMAX <- paste("conditionnelles au r\u00e9gime int\u00e9rieur de delta estim\u00e9 \u2014",
                   "2500 tirages, 97 retenus, arr\u00eat \u00e0 B_max (2500 tirages),",
-                  "cible B = 99 non atteinte")
+                  "cible B = 99 non atteinte ; granularit\u00e9 effective par statistique :",
+                  "champ granularite_stat, plus grossi\u00e8re que la granularit\u00e9 nominale")
+# Mention de la granularite effective (#254) : en V3b arrete a B_max seulement.
+MENTION_254 <- "granularit\u00e9 effective par statistique"
 verifier("p_mc_regime : jeux au contrat attendu (V3b cible, V3b B_max, V1 bord 1, V1 bord 0, reserve2 sans champ)",
          identical(res_cible$bootstrap$p_mc_regime[c("variante", "tirages", "retenus", "arret")],
                    list(variante = "V3b", tirages = 510, retenus = 99, arret = "cible")) &&
@@ -1123,6 +1126,25 @@ verifier("texte_p_mc_regime() : objet sans p_mc_regime -> NULL, sans erreur",
          is.null(texte_p_mc_regime(res_sans)))
 verifier("texte_p_mc_regime() : reserve2 -> NULL, sans erreur",
          is.null(texte_p_mc_regime(res_mw)))
+# #254 : mention de la granularite effective en V3b arrete a B_max seulement.
+# Le jeu res_bmax arrete a B_max (97 retenus) a toutes ses granularite_stat
+# au-dessus de la granularite nominale 1/(B+1) (contrat de la mention) ; un
+# arret "B_max" pose a la main sous V1 (champ arret ignore hors V3b) ne la
+# produit pas.
+res_v1_bmax <- res_ln
+res_v1_bmax$bootstrap$p_mc_regime$arret <- "B_max"
+verifier("#254 : granularite_stat > granularite nominale sur le jeu arrete a B_max",
+         { g <- res_bmax$bootstrap$granularite_stat
+           all(is.finite(g)) && all(g > res_bmax$bootstrap$granularite) })
+verifier("#254 : mention de la granularite effective en V3b, arret a B_max",
+         compte(texte_p_mc_regime(res_bmax), MENTION_254) == 1L)
+verifier("#254 : mention absente en V3b arret a la cible, en V1 (bord 1, volumes constants, arret B_max pose a la main), reserve2 et sans p_mc_regime",
+         !grepl(MENTION_254, texte_p_mc_regime(res_cible), fixed = TRUE) &&
+           !grepl(MENTION_254, texte_p_mc_regime(res_ln), fixed = TRUE) &&
+           !grepl(MENTION_254, texte_p_mc_regime(res_vc), fixed = TRUE) &&
+           !grepl(MENTION_254, texte_p_mc_regime(res_vc_motif), fixed = TRUE) &&
+           !grepl(MENTION_254, texte_p_mc_regime(res_v1_bmax), fixed = TRUE) &&
+           is.null(texte_p_mc_regime(res_mw)) && is.null(texte_p_mc_regime(res_sans)))
 # Section 1 du rapport fige (en-tete de gel).
 .sect_gel <- function(res) {
   f <- tempfile(fileext = ".html")
@@ -1140,6 +1162,10 @@ verifier("rapport fige : ligne P-values Monte-Carlo (V3b, cible) entre la granul
          .ligne_mc(.sect_gel(res_cible), TXT_CIBLE))
 verifier("rapport fige : ligne P-values Monte-Carlo (V3b, B_max)",
          .ligne_mc(.sect_gel(res_bmax), TXT_BMAX))
+verifier("rapport fige : mention de la granularite effective (#254) en V3b arrete a B_max seulement",
+         compte(.sect_gel(res_bmax), MENTION_254) == 1L &&
+           all(vapply(list(res_cible, res_ln, res_vc, res_v1_bmax, res_sans, res_mw),
+                      function(r) !grepl(MENTION_254, .sect_gel(r), fixed = TRUE), TRUE)))
 verifier("rapport fige : ligne P-values Monte-Carlo (V1, bord 1)",
          .ligne_mc(.sect_gel(res_ln), texte_p_mc_regime(res_ln)))
 verifier("rapport fige : ligne P-values Monte-Carlo (V1, volumes constants)",
@@ -1171,5 +1197,211 @@ verifier("rapport fige : ligne de la graine du flux (libelle et valeur), aucune 
              !grepl("<td>NA</td>", s0, fixed = TRUE) })
 verifier("rapport fige : reserve2, pas de ligne de la graine du flux",
          !grepl("Graine du flux", .sect_gel(res_mw), fixed = TRUE))
+
+# Objet relu et nettoye (#263) : les six references de tests/reference/, sans
+# horodatage, duree_sec ni version_R dans metadata, donnent un rapport sans
+# erreur, avec un tiret dans les lignes de ces champs ; titre sans "NULL".
+# Valeur de la ligne `cle` de la table cle-valeur de l'en-tete (motif fixe).
+cle_val <- function(s, cle) {
+  debut <- paste0("<td>", .echap_html(cle), "</td><td>")
+  i <- regexpr(debut, s, fixed = TRUE)
+  if (i < 0) return(NA_character_)
+  reste <- substr(s, i + nchar(debut), nchar(s))
+  substr(reste, 1, regexpr("</td>", reste, fixed = TRUE) - 1L)
+}
+CLES_263 <- c("Horodatage du calcul (run_engine)", "Dur\u00e9e du calcul", "Version de R")
+REFS_263 <- sort(list.files(file.path(.racine, "tests", "reference"), "[.]rds$", full.names = TRUE))
+verifier("Six references dans tests/reference/ pour le rapport fige (#263)", length(REFS_263) == 6L)
+for (f_ref in REFS_263) {
+  verifier(sprintf("Rapport fige sur la reference %s : sans erreur, tiret pour horodatage, duree et version de R (#263)",
+                   basename(f_ref)),
+           {
+             r0 <- readRDS(f_ref)
+             f0 <- tempfile(fileext = ".html")
+             ok0 <- tryCatch({
+               rapport_html(r0, NULL, f0, interactif = FALSE, identite = idt); TRUE
+             }, error = function(e) FALSE)
+             h0 <- if (ok0) lire(f0) else ""; unlink(f0)
+             g0 <- entre(h0, "<h2 id='gel'>", "</table>")
+             ok0 && all(!c("horodatage", "duree_sec", "version_R") %in% names(r0$metadata)) &&
+               identical(unname(vapply(CLES_263, cle_val, "", s = g0)), rep("\u2013", 3L)) &&
+               grepl("calcul du \u2013</title>", h0, fixed = TRUE) &&
+               !grepl(">NULL<", h0, fixed = TRUE)
+           })
+}
+
+# Marges du test d'equivalence de la constante (revue de #263) : un objet
+# lognormal sans theta_equiv (ou avec un delta_equiv vide) donne un rapport
+# sans erreur et un tiret a la place de la marge, comme les autres champs de
+# metadata absents.
+CLE_EQUIV <- "Test d'\u00e9quivalence de la constante"
+verifier("Rapport fige : marge theta_equiv absente -> tiret, sans erreur (revue de #263)",
+         {
+           r0 <- readRDS(file.path(.racine, "tests", "reference", "premium.rds"))
+           r0$metadata$theta_equiv <- NULL
+           f0 <- tempfile(fileext = ".html")
+           ok0 <- tryCatch({
+             rapport_html(r0, NULL, f0, interactif = FALSE, identite = idt); TRUE
+           }, error = function(e) FALSE)
+           h0 <- if (ok0) lire(f0) else ""; unlink(f0)
+           ok0 && identical(cle_val(entre(h0, "<h2 id='gel'>", "</table>"), CLE_EQUIV),
+                            .echap_html("marge = \u2013 de la perte moyenne (theta_equiv)"))
+         })
+verifier("Rapport fige : marge theta_equiv presente -> valeur inchangee (0,1, virgule decimale #236)",
+         {
+           f0 <- tempfile(fileext = ".html")
+           rapport_html(res_ln, NULL, f0, interactif = FALSE, identite = idt)
+           h0 <- lire(f0); unlink(f0)
+           identical(cle_val(entre(h0, "<h2 id='gel'>", "</table>"), CLE_EQUIV),
+                     "marge = 0,1 de la perte moyenne (theta_equiv)")
+         })
+verifier("Rapport fige : marge delta_equiv de longueur nulle -> tiret, sans erreur",
+         {
+           r0 <- readRDS(file.path(.racine, "tests", "reference", "premium.rds"))
+           r0$metadata$delta_equiv <- numeric(0)
+           f0 <- tempfile(fileext = ".html")
+           ok0 <- tryCatch({
+             rapport_html(r0, NULL, f0, interactif = FALSE, identite = idt); TRUE
+           }, error = function(e) FALSE)
+           h0 <- if (ok0) lire(f0) else ""; unlink(f0)
+           ok0 && identical(cle_val(entre(h0, "<h2 id='gel'>", "</table>"), CLE_EQUIV),
+                            .echap_html("marge Delta fix\u00e9e a priori = \u2013"))
+         })
+
+# Champ present mais NA (revue finale de #263) : tiret, et non "NA" ou
+# "NA s". Mesure avant correction (14/10/2026) : reference premium avec
+# duree_sec, alpha et bootstrap$granularite a NA -> "NA s", "NA", "NA".
+CLE_GRAN <- paste("Granularit\u00e9 nominale d'une p-value Monte-Carlo unilat\u00e9rale,",
+                  "1/(B+1) sur B nominal (bilat\u00e9rale : 2/(B_eff+1), par statistique,",
+                  "champ granularite_stat)")
+verifier("Rapport fige : duree_sec, alpha et granularite a NA -> tiret, ni \"NA\" ni \"NA s\" (revue de #263)",
+         {
+           r0 <- readRDS(file.path(.racine, "tests", "reference", "premium.rds"))
+           r0$metadata$duree_sec <- NA_real_; r0$metadata$alpha <- NA_real_
+           r0$bootstrap$granularite <- NA_real_
+           f0 <- tempfile(fileext = ".html")
+           ok0 <- tryCatch({
+             rapport_html(r0, NULL, f0, interactif = FALSE, identite = idt); TRUE
+           }, error = function(e) FALSE)
+           h0 <- if (ok0) lire(f0) else ""; unlink(f0)
+           g0 <- entre(h0, "<h2 id='gel'>", "</table>")
+           ok0 && identical(unname(vapply(c("Dur\u00e9e du calcul", "Seuil alpha des verdicts", CLE_GRAN),
+                                          cle_val, "", s = g0)), rep("\u2013", 3L))
+         })
+verifier(".ou_tiret() : NA scalaire -> tiret avant f(), valeur finie -> f(x), vecteur garde la regle de longueur (revue de #263)",
+         identical(.ou_tiret(NA_real_, function(x) paste(.num_fr(x, "%.2f"), "s")), "\u2013") &&
+           identical(.ou_tiret(NA, function(x) .num_fr(x, digits = 7)), "\u2013") &&
+           identical(.ou_tiret(as.POSIXct(NA)), "\u2013") &&
+           identical(.ou_tiret(6.137, function(x) paste(.num_fr(x, "%.2f"), "s")), "6,14 s") &&
+           identical(.ou_tiret(c(1, NA), function(x) "deux"), "deux") &&
+           identical(.ou_tiret(c(1, 2), function(x) c("a", "b")), "\u2013"))
+
+## --- Virgule decimale des nombres affiches (issue #236) ------------------------
+# .num_fr() ecrit le nombre comme avant (sprintf(fmt, x), ou format(x, digits)
+# valeur par valeur) et ne change que le separateur decimal ; aucun espace des
+# milliers. Notes, tables et rapport fige l'emploient ; les exports CSV et
+# xlsx, hors champ, ne passent pas par display_helpers.R.
+verifier(".num_fr() : signe, arrondi et nombre de chiffres du format d'origine, virgule decimale (#236)",
+         identical(.num_fr(c(1.5349, -0.0031, 0, 12.25), "%+.2f"), c("+1,53", "-0,00", "+0,00", "+12,25")) &&
+           identical(.num_fr(c(0.0300, 0.13289), "%.4f"), c("0,0300", "0,1329")) &&
+           identical(.num_fr(-9.4321, "%+.1f"), "-9,4") && identical(.num_fr(0.5, "%.3f"), "0,500"))
+verifier(".num_fr() : NA, NaN, Inf et -Inf ecrits comme par sprintf(), sans virgule (#236)",
+         identical(.num_fr(c(NA, NaN, Inf, -Inf), "%.4f"), c("NA", "NaN", "Inf", "-Inf")) &&
+           identical(.num_fr(c(NA, NaN, Inf, -Inf), "%+.2f"), c("NA", "NaN", "+Inf", "-Inf")) &&
+           identical(.num_fr(NA, "%.4f"), "NA") && identical(.num_fr(numeric(0)), character(0)))
+verifier(".num_fr() : grands nombres sans espace des milliers, notation scientifique conservee (#236)",
+         identical(.num_fr(1234567.891, "%.2f"), "1234567,89") &&
+           identical(.num_fr(123456789012, digits = 15), "123456789012") &&
+           identical(.num_fr(c(2.5e-5, 1e-20, 4.96e-5), "%.3g"), c("2,5e-05", "1e-20", "4,96e-05")) &&
+           identical(.num_fr(c(1e5, 0.1 + 0.2, 2766.61), digits = 15), c("1e+05", "0,3", "2766,61")))
+verifier(".num_fr() : digits = 15 reproduit as.character(), digits = 7 reproduit format() valeur par valeur, entier accepte (#236)",
+         {
+           v <- c(104.2, 68.97, 1 / 3, 2 / 3 * 1e7, 1e-5, 1234567.891, 100000.5, 0.001, 1 / 1001)
+           identical(.num_fr(v, digits = 15), sub(".", ",", as.character(v), fixed = TRUE)) &&
+             identical(.num_fr(c(0.001, 1 / 1001), digits = 7), c("0,001", "0,000999001")) &&
+             identical(.num_fr(2L, "%.4f"), "2,0000")
+         })
+# formatC(format = "g") complete a gauche une ecriture courte (" 123", " 0.1",
+# "   0") ; .num_fr() ne le fait pas (espaces sans effet dans une cellule HTML).
+verifier(".num_fr() : identique a formatC(decimal.mark = \",\") pour des nombres finis, format \"f\", et \"g\" aux espaces de tete pres (#236)",
+         {
+           v <- c(1.5349, -0.0031, 123.456789, 2.5e-5, 0.125, 0.149, 2 / 40320, 1e6 + 0.3)
+           identical(.num_fr(v, "%.4f"), formatC(v, format = "f", digits = 4, decimal.mark = ",")) &&
+             identical(.num_fr(v, "%+.2f"), formatC(v, format = "f", digits = 2, flag = "+", decimal.mark = ",")) &&
+             identical(.num_fr(v, "%.3g"), trimws(formatC(v, format = "g", digits = 3, decimal.mark = ","))) &&
+             identical(formatC(c(123, 0.1), format = "g", digits = 3), c(" 123", " 0.1"))
+         })
+# Formateur par defaut nomme (revue finale de #236) : meme sortie que
+# l'ecriture repetee .num_fr(x, digits = getOption("digits")), qu'il remplace.
+verifier(".num_fr_defaut() : identique a .num_fr(x, digits = getOption(\"digits\")), y compris sous digits = 4 (#236)",
+         {
+           v <- c(0.1, 0.001, 1 / 3, 104.2, 131.22, 1e-20, 1e5, NA, NaN, Inf)
+           od <- options(digits = 4)
+           d4 <- tryCatch(identical(.num_fr_defaut(v), .num_fr(v, digits = 4)) &&
+                            identical(.num_fr_defaut(1 / 3), "0,3333"),
+                          finally = options(od))
+           d4 && identical(getOption("digits"), od$digits) &&
+             identical(.num_fr_defaut(v), .num_fr(v, digits = getOption("digits"))) &&
+             identical(.num_fr_defaut(1 / 3), "0,3333333") &&
+             identical(.num_fr_defaut(integer(0)), character(0))
+         })
+verifier("Formateur par defaut : aucune ecriture .num_fr(..., digits = getOption(\"digits\")) hors de .num_fr_defaut() dans app.R et display_helpers.R (#236)",
+         {
+           n <- vapply(file.path(.racine, c("app.R", file.path("R", "display_helpers.R"))), function(f)
+             length(grep("digits = getOption(\"digits\")", readLines(f, encoding = "UTF-8", warn = FALSE),
+                         fixed = TRUE)), 0L)
+           identical(unname(n), c(0L, 1L))
+         })
+# Espace insecable des milliers (revue finale de #236) : un nombre n'est pas
+# coupe en fin de ligne d'une infobulle ou d'une graduation plotly.
+verifier(".SEPARATEURS_PLOTLY : virgule decimale puis espace insecable U+00A0 (#236)",
+         identical(utf8ToInt(.SEPARATEURS_PLOTLY), c(44L, 160L)))
+verifier("fmt_nb(), fmt_p(), fmt_pc() : virgule decimale, tiret pour une valeur non finie (#236)",
+         identical(fmt_p(c(0.05, NA, Inf)), c("0,0500", "\u2013", "\u2013")) &&
+           identical(fmt_nb(c(-1.23456, 1e3), 2), c("-1,23", "1000,00")) &&
+           identical(fmt_nb(1L), "1,0000") && identical(fmt_pc(0.1234), "12,3 %"))
+# Note de l'issue : reference reserve2 (CI), cellule la plus influente
+# (i = 1, j = 4), DFBETAS +1,53 et deplacement de f_4 de -0,30 %.
+res_mw_ref <- readRDS(file.path(.racine, "tests", "reference", "reserve2.rds"))
+res_ln_ref <- readRDS(file.path(.racine, "tests", "reference", "premium.rds"))
+verifier("note_influence_mw() (reference reserve2) : \"(DFBETAS = +1,53)\" et \"-0,30 %\" de l'issue, aucun point decimal (#236)",
+         {
+           n <- note_influence_mw(res_mw_ref$plots_data)
+           grepl("<b>(i = 1, j = 4)</b> (DFBETAS = +1,53)", n, fixed = TRUE) &&
+             grepl("f_4 de <b>-0,30 %</b>", n, fixed = TRUE) && !grepl("[0-9]\\.[0-9]", n)
+         })
+verifier("note_m1(), note_surface(), note_influence() (references) : virgule decimale, aucun point decimal (#236)",
+         {
+           n1 <- note_m1(res_mw_ref$plots_data, 0.10)
+           ns <- note_surface(res_ln_ref$plots_data)$html
+           ni <- note_influence(res_ln_ref$plots_data)
+           grepl("au seuil alpha = 0,1, ", n1, fixed = TRUE) && grepl("(p = 0,0300)", n1, fixed = TRUE) &&
+             grepl("<b>au bord</b> (1,0000)", ns, fixed = TRUE) && grepl("(4/T = 0,500)", ni, fixed = TRUE) &&
+             !any(grepl("[0-9]\\.[0-9]", c(n1, ns, ni)))
+         })
+# Rapport fige sur la reference premium, duree forgee (champ retire par
+# nettoyer()) : echantillon de lignes de l'en-tete, du bloc du parametre (bornes
+# d'intervalle separees par " ; ") et des tables ; OutDec restaure.
+verifier("Rapport fige (reference premium) : en-tete, parametre, intervalle \"[a ; b]\" et calibration en virgule decimale, OutDec restaure (#236)",
+         {
+           r0 <- res_ln_ref; r0$metadata$duree_sec <- 6.137
+           od <- getOption("OutDec")
+           f0 <- tempfile(fileext = ".html")
+           rapport_html(r0, NULL, f0, interactif = FALSE, identite = idt)
+           h0 <- lire(f0); unlink(f0)
+           gel <- entre(h0, "<h2 id='gel'>", "</table>")
+           bloc <- entre(h0, "<div class='bloc'>", "<h3>")
+           identical(getOption("OutDec"), od) &&
+             identical(cle_val(gel, "Dur\u00e9e du calcul"), "6,14 s") &&
+             identical(cle_val(gel, "Seuil alpha des verdicts"), "0,1") &&
+             identical(cle_val(gel, "sigma standard"), "0,1") &&
+             identical(cle_val(gel, CLE_EQUIV), "marge = 0,1 de la perte moyenne (theta_equiv)") &&
+             grepl("<td>0,001</td>", gel, fixed = TRUE) &&
+             grepl("sigma_USP = 0,1115</span>", bloc, fixed = TRUE) &&
+             grepl("soit +11,5 % par rapport au param\u00e8tre standard de 0,1000", bloc, fixed = TRUE) &&
+             grepl("90 % : [0,0752 ; 0,1370] &nbsp;|&nbsp; 95 % : [0,0712 ; 0,1416]", bloc, fixed = TRUE) &&
+             !grepl("[0-9]\\.[0-9]", gsub("style='[^']*'", "", bloc)) &&
+             grepl("<td>delta (parametre de melange)</td><td>1,00000</td>", h0, fixed = TRUE)
+         })
 
 fin_fichier()

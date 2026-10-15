@@ -50,7 +50,24 @@ rendu_graphique <- function(expr, env = parent.frame(), quoted = FALSE) {
   force(env)
   if (requireNamespace("plotly", quietly = TRUE))
     plotly::renderPlotly(expr, env = env, quoted = quoted)
-  else shiny::renderPlot(expr, env = env, quoted = quoted)
+  else avec_virgule_decimale(shiny::renderPlot(expr, env = env, quoted = quoted))
+}
+
+# Virgule decimale des traces base R de l'application (#236), comme
+# .graphique_png() pour le rapport fige : OutDec = "," le temps de l'appel de
+# la fonction de rendu, restaure en sortie par on.exit. La fonction de rendu
+# de renderPlot() (shiny 1.8.0) trace (drawPlot()) puis redimensionne le
+# trace enregistre (resizeSavedPlot()) dans le meme appel : les graduations
+# sont ecrites avec la virgule dans les deux cas. Les attributs de la
+# fonction de rendu (classe, outputFunc...) sont recopies.
+avec_virgule_decimale <- function(rendu) {
+  f <- function(...) {
+    ancien <- options(OutDec = ",")
+    on.exit(options(ancien), add = TRUE)
+    rendu(...)
+  }
+  attributes(f) <- attributes(rendu)
+  f
 }
 
 
@@ -213,9 +230,40 @@ charger_mw <- function() {
   if (!is.null(lu$erreur)) return(refus(lu$erreur))
   r <- engine_lire_triangle(lu$df)
   if (!r$ok) return(refus(r$erreurs))
+  # Triangle de plus de PROFONDEUR_MAX annees : meme refus qu'a l'import
+  # (refus_dimension_triangle(), issue #212), grille vide 8 x 8.
+  rd <- refus_dimension_triangle(nrow(r$triangle))
+  if (length(rd)) return(refus(rd))
   list(valeur = r$triangle,
        statut = statut_fichier(TRUE, src, sprintf("charge au demarrage (triangle %d x %d).",
                                                   nrow(r$triangle), ncol(r$triangle))))
+}
+
+# Bornes du champ T (numericInput "profondeur"), partagees avec la garde de
+# l'apercu apres import (profondeur_attendue_import(), issue #183) : une
+# seule source, pour que la garde ne puisse pas attendre une valeur que le
+# champ refuse. Definies avant charger_mw(), qui les lit au demarrage
+# (refus_dimension_triangle(), issue #212).
+PROFONDEUR_MIN <- 5L
+PROFONDEUR_MAX <- 40L
+
+# Refus d'un triangle de plus de T_max annees d'accident, importe ou lu au
+# demarrage (issue #212, regle "T = donnees chargees" du mainteneur du
+# 14/10/2026) : meme borne que la reinitialisation (PROFONDEUR_MAX, borne du
+# champ T ; profondeur_reinitialisation(), issue #194), limite de
+# l'application et non borne methodologique. Un triangle fourni ne peut pas
+# etre plafonne comme le T saisi sans ecarter des donnees : il est refuse,
+# avec un motif qui nomme sa dimension et la limite. Sans ce refus, l'import
+# d'un triangle 100 x 100 figeait l'application 12 s sur le rendu de la
+# grille (mesure par testServer, issue #212). Retourne le motif,
+# character(0) si le triangle de n annees est dans la limite ; la suite
+# (triangle courant garde a l'import, grille vide au demarrage) est ajoutee
+# par l'appelant.
+refus_dimension_triangle <- function(n, T_max = PROFONDEUR_MAX) {
+  if (n <= T_max) return(character(0))
+  sprintf(paste("Triangle %d x %d : au-dela de la limite de l'application (%d annees",
+                "d'accident, rendu de la grille)."),
+          as.integer(n), as.integer(n), as.integer(T_max))
 }
 
 CHARGE_LN <- charger_ln()
@@ -223,12 +271,6 @@ CHARGE_MW <- charger_mw()
 DONNEES_INIT  <- CHARGE_LN$valeur
 TRIANGLE_INIT <- CHARGE_MW$valeur
 T_INIT        <- nrow(DONNEES_INIT)
-# Bornes du champ T (numericInput "profondeur"), partagees avec la garde de
-# l'apercu apres import (profondeur_attendue_import(), issue #183) : une
-# seule source, pour que la garde ne puisse pas attendre une valeur que le
-# champ refuse.
-PROFONDEUR_MIN <- 5L
-PROFONDEUR_MAX <- 40L
 
 # ---------------------------------------------------------------------------
 # UI : zone principale a gauche, panneau de parametres a DROITE
@@ -597,7 +639,22 @@ jeu_reinitialise <- function(mw, T) if (isTRUE(mw)) triangle_defaut(T) else DONN
 message_reinitialisation <- function(mw, T) {
   if (isTRUE(mw)) sprintf("Donnees reinitialisees : triangle par defaut %d x %d.",
                           as.integer(T), as.integer(T))
-  else "Donnees reinitialisees."
+  else sprintf("Donnees reinitialisees : series par defaut de %d annees, T = %d.",
+               as.integer(T), as.integer(T))
+}
+
+# Profondeur affichee apres "Reinitialiser les donnees" (issue #212, regle
+# "T = donnees chargees" du mainteneur du 14/10/2026). Reserve no 2 :
+# profondeur_reinitialisation() du T saisi (triangle par defaut de T
+# annees, T plafonne a PROFONDEUR_MAX, issue #194). Methodes lognormales :
+# le jeu charge est toujours celui des series par defaut (jeu_reinitialise())
+# ; T vaut son nombre d'annees, quel que soit le T saisi, qui n'est ni
+# plafonne ni controle. Auparavant, le champ T gardait le T saisi (12, 40)
+# ou passait a 40 (T = 200 saisi) avec des series de 8 annees chargees.
+# Retourne la liste de profondeur_reinitialisation().
+profondeur_apres_reinitialisation <- function(mw, T, T_series = nrow(DONNEES_DEFAUT)) {
+  if (isTRUE(mw)) return(profondeur_reinitialisation(T))
+  list(T = as.integer(T_series), erreurs = character(0), plafonnement = character(0))
 }
 
 # ---------------------------------------------------------------------------
@@ -693,8 +750,12 @@ server <- function(input, output, session) {
     if (!est_mw() && (is.null(input$profondeur) || is.na(input$profondeur)))
       motifs <- c(motifs, AIDE_T_VIDE)
     refuser(TITRE_REFUSE, motifs)
-    showNotification(paste("Calcul refuse :",
-                           paste(utils::head(res$validation$erreurs, 2), collapse = " ")),
+    # Texte fixe d'interface (issue #226), comme le defaut de calcul : un
+    # motif du moteur peut depasser 700 caracteres (maximum de
+    # vraisemblance non atteint, #188 : 772 sur le scenario de l'issue),
+    # illisible dans une notification. Le motif complet est dans le
+    # bandeau ; ni troncature ni extraction.
+    showNotification("Calcul refuse : aucun resultat n'est produit (voir le bandeau).",
                      type = "error", duration = 15)
     FALSE
   }
@@ -769,8 +830,9 @@ server <- function(input, output, session) {
     d <- saisie_courante(); n <- nrow(d)
     if (n <= 1L) return()
     if (!is.na(d$xt[n]) || !is.na(d$yt[n]))
-      showNotification(sprintf("Ligne t = %d retiree (x_t = %s, y_t = %s).", n,
-                               format(d$xt[n]), format(d$yt[n])),
+      # Virgule decimale (#236) : les deux valeurs sont separees par " ; ".
+      showNotification(sprintf("Ligne t = %d retiree (x_t = %s ; y_t = %s).", n,
+                               .num_fr_defaut(d$xt[n]), .num_fr_defaut(d$yt[n])),
                        type = "warning", duration = 8)
     donnees(d[-n, , drop = FALSE])
   })
@@ -899,31 +961,36 @@ server <- function(input, output, session) {
     )
   })
 
-  # Reinitialisation (jeu_reinitialise()). Series (methodes lognormales) :
-  # les 8 annees du jeu par defaut, quelle que soit T (issue #134 : la
-  # grille n'est plus alignee sur T ; le moteur retient les T plus
-  # recentes, ou refuse T > 8). Triangle : jeu par defaut de T annees
-  # d'accident, seule action qui change sa dimension (issue #155, Q-R7-2
-  # (A)) ; le message nomme la dimension chargee. Champ T vide ou non
-  # recevable (issue #100) : profondeur_reinitialisation() retient la
-  # profondeur du jeu par defaut, reportee dans le champ T, et le motif du
-  # moteur est affiche. T saisi au-dela de PROFONDEUR_MAX (issue #194,
-  # Q-R10-1 (A)) : profondeur_reinitialisation() le plafonne a 40, reporte
-  # dans le champ T, et le message nomme T saisi et T retenu. Le compteur
-  # version_grille force le redessin de la grille, meme si les donnees
-  # valent deja le jeu par defaut (issue #155).
+  # Reinitialisation (jeu_reinitialise(), profondeur_apres_reinitialisation()).
+  # Methodes lognormales (issues #134, #212) : les 8 annees du jeu par
+  # defaut sont chargees quel que soit le T saisi, et le champ T est ramene
+  # a 8 (regle "T = donnees chargees"), valeur nommee par le message.
+  # Reserve no 2 (issues #155, #100, #194, inchangees) : triangle par defaut
+  # de T annees, seule action qui change sa dimension ; T vide ou non
+  # recevable remplace par 8 avec le motif du moteur, T > PROFONDEUR_MAX
+  # plafonne a 40 avec un message qui nomme T saisi et T retenu ; le champ T
+  # recoit la valeur retenue. Le compteur version_grille force le redessin
+  # de la grille, meme si les donnees valent deja le jeu par defaut (#155).
+  # Le champ T n'est mis a jour qu'une fois : series, si T saisi differe de
+  # 8 ; reserve no 2, si T saisi est irrecevable ou plafonne (les deux
+  # listes de profondeur_reinitialisation() s'excluent). Series : garde de
+  # l'apercu posee a T comme a l'import (profondeur_attendue_import(), issue
+  # #183) ; sans elle, l'apercu s'evaluait avec l'ancien T (12) sur les 8
+  # annees chargees, le temps de l'aller-retour du navigateur (refus
+  # "Profondeur T = 12 superieure au nombre d'annees fournies (8)").
   observeEvent(input$reinit, {
-    pr <- profondeur_reinitialisation(input$profondeur)
+    pr <- profondeur_apres_reinitialisation(est_mw(), input$profondeur)
     T <- pr$T
-    if (length(pr$erreurs)) {
+    if (length(pr$erreurs) || length(pr$plafonnement) ||
+        (!est_mw() && !isTRUE(input$profondeur == T))) {
+      if (!est_mw()) profondeur_import(profondeur_attendue_import(T))
       updateNumericInput(session, "profondeur", value = T)
+    }
+    if (length(pr$erreurs))
       showNotification(paste(c(pr$erreurs, sprintf("Profondeur par defaut retablie : T = %d.", T)),
                              collapse = " "), type = "warning", duration = 10)
-    }
-    if (length(pr$plafonnement)) {
-      updateNumericInput(session, "profondeur", value = T)
+    if (length(pr$plafonnement))
       showNotification(pr$plafonnement, type = "warning", duration = 10)
-    }
     if (est_mw()) triangle(jeu_reinitialise(TRUE, T)) else donnees(jeu_reinitialise(FALSE, T))
     version_grille(version_grille() + 1L)
     statut_import(NULL); effacer_statut_demarrage()
@@ -959,6 +1026,15 @@ server <- function(input, output, session) {
       # le meme champ porte la profondeur retenue pour les series (methodes
       # lognormales), qu'un import de triangle n'a pas a modifier.
       m <- v$triangle
+      # Triangle de plus de PROFONDEUR_MAX annees : refus motive, meme borne
+      # que la reinitialisation (refus_dimension_triangle(), issue #212).
+      rd <- refus_dimension_triangle(nrow(m))
+      if (length(rd)) {
+        statut_import(list(ok = FALSE, msg = sprintf(
+          "Fichier %s (%s) : %s Import refuse, triangle courant conserve.",
+          fi$name, toupper(ext), rd)))
+        showNotification("Import refuse.", type = "error", duration = 8); return()
+      }
       triangle(m); version_grille(version_grille() + 1L)
       effacer_statut_demarrage()
       statut_import(list(ok = TRUE, msg = sprintf("Triangle %d x %d importe depuis %s (%s).",
@@ -1015,7 +1091,9 @@ server <- function(input, output, session) {
       v <- mw_valider_triangle(m, segment = segment_apercu(), annexe = annexe_apercu())
       if (!v$ok) {
         refuser(TITRE_NON_LANCE, utils::head(v$erreurs, 6))
-        showNotification(paste("Calcul non lance :", paste(utils::head(v$erreurs, 2), collapse = " ")),
+        # Texte fixe (issue #226) : les deux premiers motifs, seuls repris
+        # jusqu'ici, sont aussi dans le bandeau, qui en porte jusqu'a six.
+        showNotification("Calcul non lance : aucun resultat n'est produit (voir le bandeau).",
                          type = "error", duration = 10); return()
       }
       abouti <- withProgress(message = "Merz-Wuthrich : chain-ladder, MSEP et bootstrap", value = 0.4, {
@@ -1116,10 +1194,10 @@ server <- function(input, output, session) {
       if (!is.null(lig_mc))
         div(style = "font-size:12px", tags$b("P-values Monte-Carlo"), paste(":", lig_mc)),
       div(HTML(sprintf("<b>seed</b> = %s", format(m$seed, scientific = FALSE)))),
-      div(HTML(sprintf("<b>sigma_USP</b> = <span class='cle' style='font-size:18px'>%.4f</span>",
-                       r$parametre_final$sigma_usp))),
+      div(HTML(sprintf("<b>sigma_USP</b> = <span class='cle' style='font-size:18px'>%s</span>",
+                       .num_fr(r$parametre_final$sigma_usp, "%.4f")))),
       div(style = "color:#7F8C8D;font-size:12px",
-          sprintf("calcule en %.1f s", m$duree_sec))
+          sprintf("calcule en %s s", .num_fr(m$duree_sec, "%.1f")))
     )
   })
 
@@ -1342,13 +1420,16 @@ server <- function(input, output, session) {
   output$bloc_final <- renderUI({
     r <- R(); p <- r$parametre_final; ic <- r$ic_bootstrap
     tagList(
-      div(HTML(sprintf("<span class='cle'>sigma_USP = %.4f</span>", p$sigma_usp))),
-      div(HTML(sprintf("soit %+.1f %% par rapport au parametre standard de %.4f",
-                       100 * p$variation_relative, p$sigma_standard))),
+      # Virgule decimale (#236) ; bornes d'intervalle separees par " ; ".
+      div(HTML(sprintf("<span class='cle'>sigma_USP = %s</span>", .num_fr(p$sigma_usp, "%.4f")))),
+      div(HTML(sprintf("soit %s %% par rapport au parametre standard de %s",
+                       .num_fr(100 * p$variation_relative, "%+.1f"),
+                       .num_fr(p$sigma_standard, "%.4f")))),
       if (!is.null(ic))
         div(style = "margin-top:6px", HTML(sprintf(
-          "Intervalle bootstrap 90 %% : [%.4f ; %.4f] &nbsp;|&nbsp; 95 %% : [%.4f ; %.4f]",
-          ic[2], ic[4], ic[1], ic[5]))),
+          "Intervalle bootstrap 90 %% : [%s ; %s] &nbsp;|&nbsp; 95 %% : [%s ; %s]",
+          .num_fr(ic[2], "%.4f"), .num_fr(ic[4], "%.4f"),
+          .num_fr(ic[1], "%.4f"), .num_fr(ic[5], "%.4f")))),
       # Texte propre a chaque methode (texte_formule, R/display_helpers.R),
       # partage avec le rapport fige : le facteur sqrt((T+1)/(T-1)) ne
       # concerne que les methodes lognormales (#4, piste 4).
@@ -1406,7 +1487,9 @@ server <- function(input, output, session) {
     cat("Methode              :", m$methode, "\n")
     cat("Perimetre            : annexe", m$annexe, "\n")
     cat("Segment              :", m$segment, "-", m$libelle_segment, "\n")
-    cat("sigma standard       :", m$sigma_standard,
+    # Nombres en virgule decimale (#236) : .num_fr_defaut() reproduit
+    # l'ecriture de cat().
+    cat("sigma standard       :", .num_fr_defaut(m$sigma_standard),
         if (!is.null(libelle_derogation(R(), "sigma_standard")))
           "(saisi : derogation au parametre reglementaire)", "\n")
     cat("Nature des donnees   :", table_parametre_standard(R())$Valeur[1], "\n")
@@ -1420,7 +1503,7 @@ server <- function(input, output, session) {
     cat("Profondeur T         :", m$T,
         if (!is.null(lib_prof)) paste0("(", lib_prof, ")"), "\n")
     cat("Replications B       :", m$B, "\n")
-    cat("Granularite p_mc     :", format(R()$bootstrap$granularite),
+    cat("Granularite p_mc     :", .num_fr_defaut(R()$bootstrap$granularite),
         "( = 1/(B+1), B nominal : p-value unilaterale ; bilaterale 2/(B_eff+1),",
         "par statistique : res$bootstrap$granularite_stat )\n")
     # Ligne de #240 (Q-A4-12 (B)) : texte de texte_p_mc_regime(), comme le
@@ -1428,7 +1511,7 @@ server <- function(input, output, session) {
     # pour un objet sans p_mc_regime.
     lig_mc <- texte_p_mc_regime(R())
     if (!is.null(lig_mc)) cat("P-values Monte-Carlo :", lig_mc, "\n")
-    cat("Seuil alpha          :", m$alpha, "\n")
+    cat("Seuil alpha          :", .num_fr_defaut(m$alpha), "\n")
     cat("Graine (seed)        :", format(m$seed, scientific = FALSE), "\n")
     # Generateur et graines fixes consignes par le moteur (issue #37) ; un
     # champ absent de metadata ne produit pas de ligne.
@@ -1445,7 +1528,7 @@ server <- function(input, output, session) {
       cat("Graine flux regime   :", gen[["seed_flux_regime"]],
           "(flux complementaire des p-values Monte-Carlo, #240)\n")
     cat("Horodatage           :", format(m$horodatage, "%Y-%m-%d %H:%M:%S"), "\n")
-    cat("Duree (s)            :", round(m$duree_sec, 2), "\n")
+    cat("Duree (s)            :", .num_fr_defaut(round(m$duree_sec, 2)), "\n")
     cat("Version R            :", m$version_R, "\n")
   })
 

@@ -338,7 +338,10 @@ section~\ref{sec:graines}), et, pour ces deux méthodes, une ligne «~P-values M
 si elles sont conditionnelles au régime intérieur de $\hat\delta$, avec le nombre de tirages, le
 nombre de tirages retenus et la cause de l'arrêt, ou marginales, avec le motif
 (\code{texte\_p\_mc\_regime()} de \code{R/display\_helpers.R}, lecture seule de
-\code{res\$bootstrap\$p\_mc\_regime}, sans calcul~; fiche~\ref{fiche:procedure-mc})~; la même
+\code{res\$bootstrap\$p\_mc\_regime}, sans calcul~; fiche~\ref{fiche:procedure-mc})~; quand la
+p-value conditionnelle au régime s'arrête à $B_{\max} = 25\,(B+1)$ tirages sans avoir atteint $B$ tirages
+retenus, cette ligne porte en outre la mention «~granularité effective par statistique~: champ
+\code{granularite\_stat}, plus grossière que la granularité nominale~» (issue~\#254)~; la même
 ligne figure dans le résumé et dans le journal d'exécution de l'application. Les tests restitués sont les \emph{tests retenus}
 selon la règle de l'onglet Tests, appliquée par la même fonction
 (\code{filtrer\_selection()}), les tests exclus figurant en annexe avec leur
@@ -2121,7 +2124,11 @@ crédibilité et le drapeau de sa saisie (\code{bareme\_saisi}, trois méthodes~
 barème de l'annexe~XVII, section~G, issue~\#93, placé après les champs de l'issue~\#37 et avant
 les champs d'exécution), le nombre d'années fournies avant troncature (\code{n\_fournies}, trois
 méthodes, issue~\#104, placé après \code{bareme\_saisi} et avant les champs d'exécution~;
-nombre de lignes du triangle, jamais tronqué, en réserve n\textsuperscript{o}~2), $T$, $B$ (dont se déduit la granularité $1/(B+1)$), le seuil
+nombre de lignes du triangle, jamais tronqué, en réserve n\textsuperscript{o}~2), $T$, $B$ (dont se déduit la granularité nominale $1/(B+1)$~; la granularité effective par
+statistique, \code{bootstrap\$granularite\_stat}, lui est au moins égale, et strictement plus
+grossière pour toute statistique quand la p-value de Monte-Carlo conditionnelle au régime de
+$\hat\delta$ s'arrête à $B_{\max}$ (non définie si aucune réplication retenue ne donne une
+statistique finie), fiche~\ref{fiche:procedure-mc}), le seuil
 $\alpha$, la graine du bootstrap (\code{seed}), le générateur posé par le moteur
 (\code{generateur}~: \code{kind}, \code{normal.kind}, \code{sample.kind}, soit
 \code{ENGINE\_RNG\_KIND}), la graine fixe de la loi nulle de Shapiro--Wilk
