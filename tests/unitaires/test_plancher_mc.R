@@ -546,4 +546,34 @@ verifier("#278 objet des ensembles figes : liste mal nommee ou vecteur refuses (
              identical(.mw_stats(a125), .mw_stats(a125, .mw_ensembles_figes(a125)))
          })
 
+# Revue finale de #278, constat C1 : liste aux noms exacts mais a element
+# invalide (NULL, NA, caractere, logique, non entier, negatif, hors 0..J-1,
+# non fini) refusee par les trois appelants ; integer(0) et entiers portes
+# par un double acceptes, a resultat identique.
+verifier("#278 objet des ensembles figes : element NULL, NA, caractere, logique, non entier ou hors 0..J-1 refuse ; integer(0) accepte",
+         {
+           f0 <- .mw_ensembles_figes(a125)
+           avec <- function(nm, v) { g <- f0; g[nm] <- list(v); g }
+           nul <- list(degeneres = NULL, non_identifiables = NULL, origine_non_identifiables = NULL)
+           mauvais <- list(avec("degeneres", NA_integer_), avec("non_identifiables", "1"),
+                           avec("origine_non_identifiables", TRUE), avec("degeneres", 1.5),
+                           avec("non_identifiables", -1L), avec("origine_non_identifiables", a125$J),
+                           avec("degeneres", Inf), avec("non_identifiables", NULL), nul)
+           msg <- tryCatch(.mw_contexte_mc(a125, avec("non_identifiables", NULL)),
+                           error = function(e) conditionMessage(e))
+           vide <- list(degeneres = integer(0), non_identifiables = integer(0),
+                        origine_non_identifiables = integer(0))
+           dbl <- lapply(f0, as.numeric)
+           all(vapply(mauvais, function(g) leve_erreur(.mw_contexte_mc(a125, g)), logical(1))) &&
+             leve_erreur(mw_bootstrap(a125, B = 9, figes = nul)) &&
+             leve_erreur(mw_tests(a125, b125, figes = nul)) &&
+             # borne J - 1 transmise par mw_bootstrap() et mw_tests() (aj$J)
+             leve_erreur(mw_bootstrap(a125, B = 9, figes = avec("degeneres", a125$J))) &&
+             leve_erreur(mw_tests(a125, b125, figes = avec("degeneres", a125$J))) &&
+             grepl("element non_identifiables", msg, fixed = TRUE) &&
+             !leve_erreur(.mw_stats(a125, vide)) &&
+             !leve_erreur(.mw_verifier_figes(avec("degeneres", a125$J - 1L), "x", a125$J)) &&
+             identical(.mw_stats(a125, dbl), .mw_stats(a125, f0))
+         })
+
 fin_fichier()

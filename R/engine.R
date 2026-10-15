@@ -9300,7 +9300,9 @@ FACTEUR_B_MAX_MW <- 25
 
 # figes : ensembles de colonnes figes a l'observe (.mw_ensembles_figes(aj),
 # #278), construits par l'appelant (.run_engine_mw(), qui les passe aussi a
-# mw_tests()) ; NULL : construits ici sur aj, meme calcul.
+# mw_tests()) ; NULL : construits ici sur aj, meme calcul. L'objet n'est pas
+# conserve dans le retour : l'appelant passe le meme a mw_tests()
+# (precondition documentee en tete de mw_tests()).
 mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
   # Tirages sous graine locale (ADR 0004, #42) : etat de l'appelant restaure.
   engine_sous_graine(seed, {
@@ -9315,7 +9317,7 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
     # tirage n'est ajoute ni retire : seule la statistique des replications
     # change.
     if (is.null(figes)) figes <- .mw_ensembles_figes(aj)
-    .mw_verifier_figes(figes, "mw_bootstrap()")
+    .mw_verifier_figes(figes, "mw_bootstrap()", aj$J)
     # Pool : residus de Mack retenus du triangle observe, colonnes degenerees
     # exclues (#60), redresses par le levier puis recentres (#46).
     pool <- .mw_pool_residus(aj, figes$degeneres)
@@ -9392,11 +9394,30 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
 # liste aux noms exacts de .mw_ensembles_figes() ; un vecteur (ancienne
 # signature) ou une liste mal nommee, dont les elements liraient NULL et
 # feraient recalculer en silence les ensembles sur la replication (perte
-# du gel a l'observe de #56, #270 et #273), sont refuses.
-.mw_verifier_figes <- function(figes, appelant) {
-  if (!is.list(figes) || !identical(names(figes), c("degeneres", "non_identifiables",
-                                                  "origine_non_identifiables")))
+# du gel a l'observe de #56, #270 et #273), sont refuses. Chaque element
+# est controle a son tour (revue finale de #278, constat C1) : un element
+# NULL ferait lui aussi recalculer l'ensemble a chaque replication (les
+# fonctions de test lisent NULL comme « non fourni »). Chaque element doit
+# etre un vecteur numerique (integer(0) accepte), sans NA, a valeurs
+# entieres, dans 0..J-1 quand J (nombre de colonnes de developpement, aj$J)
+# est fourni, >= 0 sinon ; tout autre objet (NULL, NA, caractere, logique,
+# non entier, hors bornes) est refuse par stop(), avec le nom de l'element.
+# Doublons et ordre ne sont pas controles. Aucun calcul n'est change pour un
+# objet construit par .mw_ensembles_figes().
+.mw_verifier_figes <- function(figes, appelant, J = NULL) {
+  noms <- c("degeneres", "non_identifiables", "origine_non_identifiables")
+  if (!is.list(figes) || !identical(names(figes), noms))
     stop(appelant, " : ensembles figes attendus sous la forme de .mw_ensembles_figes()")
+  for (nm in noms) {
+    v <- figes[[nm]]
+    ok <- is.numeric(v) && is.null(dim(v)) && !anyNA(v) && all(is.finite(v)) &&
+      all(v == round(v)) && all(v >= 0) && (is.null(J) || all(v <= J - 1))
+    if (!ok)
+      stop(appelant, " : element ", nm, " des ensembles figes invalide (vecteur ",
+           "d'entiers sans NA attendu, dans ",
+           if (is.null(J)) "0, 1, 2, ..." else paste0("0..", format(J - 1)),
+           " ; integer(0) si vide)", call. = FALSE)
+  }
   invisible(figes)
 }
 
@@ -9411,7 +9432,7 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
 # refuse.
 .mw_contexte_mc <- function(aj, figes = NULL) {
   if (is.null(figes)) figes <- .mw_ensembles_figes(aj)
-  .mw_verifier_figes(figes, ".mw_contexte_mc()")
+  .mw_verifier_figes(figes, ".mw_contexte_mc()", aj$J)
   res <- mw_residus(aj, figes$degeneres)
   list(aj = aj, res = res, r = res$residu, figes = figes)
 }
@@ -9616,12 +9637,22 @@ PHRASE_MW_PLAFOND_CUMULS <- sprintf(paste(
 # --- Table des tests de la methode Merz-Wuthrich ------------------------------
 # Meme structure de sortie que usp_tests() : chaque ligne porte H0, H1, la
 # statistique, les p-values disponibles et la nature de celle qui est retenue.
+#
+# Precondition (#278, revue finale, constat C2) : figes doit etre l'objet
+# meme qui a servi a construire boot (mw_bootstrap(aj, ..., figes)), ou NULL
+# si boot a ete construit avec figes = NULL (les deux recalculent alors
+# .mw_ensembles_figes(aj), le meme calcul). mw_tests() ne le verifie pas :
+# boot ne porte pas les ensembles figes (ajouter cet element changerait les
+# references) ; un figes different lirait les statistiques observees et
+# simulees de boot avec des ensembles d'une autre definition (exclusions,
+# K, libelles), sans erreur. run_engine() garantit la precondition :
+# .run_engine_mw() construit l'objet une fois et le passe aux deux appels.
 mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
   # Ensembles figes a l'observe (#278) : ceux de mw_bootstrap(), passes par
   # .run_engine_mw(), lus au lieu d'etre recalcules par chaque fonction de
   # test ; NULL : .mw_ensembles_figes(aj), le meme calcul.
   if (is.null(figes)) figes <- .mw_ensembles_figes(aj)
-  .mw_verifier_figes(figes, "mw_tests()")
+  .mw_verifier_figes(figes, "mw_tests()", aj$J)
   jd <- figes$degeneres
   res <- mw_residus(aj, jd); r <- res$residu; n <- length(r)
   # Enregistrement des lignes de resultat : fonction partagee avec usp_tests()
