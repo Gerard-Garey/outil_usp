@@ -1,0 +1,43 @@
+premier triangle : 4.440441 secs 
+H0 termine : 3.450935 mins 
+cal7 termine : 6.761861 mins 
+cal4 termine : 10.0798 mins 
+derive termine : 13.43351 mins 
+ligne termine : 16.95405 mins 
+cellule termine : 20.56678 mins 
+
+R = 60  B = 199 
+
+Taux de rejet a 0,10 (p_mc < 0,10) par scenario ; rosner : part avec >= 1 cellule declaree
+     scen Calendrier KruskalAcc CorrDev     DW   Runs Grubbs rosner  n
+5      H0     0.0833     0.1000  0.1000 0.0500 0.0833 0.1167 0.0000 60
+2    cal7     0.2833     0.0833  0.0667 0.0833 0.0500 0.8333 0.1833 60
+1    cal4     0.1167     0.0000  0.0500 0.0500 0.0333 0.0500 0.0000 60
+4  derive     0.1000     0.2833  0.1833 0.2500 0.1167 0.0667 0.0167 60
+6   ligne     0.0833     0.6500  0.2833 0.0333 0.0167 0.2500 0.0667 60
+3 cellule     0.0833     0.0000  0.0500 0.0167 0.0000 0.5000 0.0000 60
+
+Taux a 0,05 (ECHEC)
+     scen Calendrier KruskalAcc CorrDev     DW   Runs Grubbs
+5      H0     0.0500     0.0167  0.0667 0.0167 0.0167 0.0500
+2    cal7     0.1500     0.0333  0.0667 0.0833 0.0167 0.6500
+1    cal4     0.0833     0.0000  0.0167 0.0167 0.0000 0.0000
+4  derive     0.0500     0.1667  0.1167 0.1000 0.0333 0.0167
+6   ligne     0.0167     0.4500  0.2000 0.0167 0.0167 0.0167
+3 cellule     0.0500     0.0000  0.0000 0.0000 0.0000 0.0333
+
+Cellule injectee (2,2) : part ou Grubbs designe cette cellule, scenario cellule :
+0 
+
+Correlation de Spearman des p_mc sous H0 (redondance) :
+           Calendrier KruskalAcc CorrDev    DW  Runs Grubbs
+Calendrier       1.00       0.01   -0.12 -0.03 -0.08  -0.03
+KruskalAcc       0.01       1.00    0.11  0.02 -0.08   0.00
+CorrDev         -0.12       0.11    1.00  0.12 -0.16   0.14
+DW              -0.03       0.02    0.12  1.00  0.21  -0.11
+Runs            -0.08      -0.08   -0.16  0.21  1.00  -0.09
+Grubbs          -0.03       0.00    0.14 -0.11 -0.09   1.00
+
+Sous H0 : part des triangles avec >= 1 rejet a 0,10 parmi les 5 lignes M3 : 0.35 
+Sens de DW sous cal7 (DW < 2 = autocorr positive) : moyenne DWstat H0 / cal7 / derive : 2.300611 2.472118 2.067775 
+FIN
