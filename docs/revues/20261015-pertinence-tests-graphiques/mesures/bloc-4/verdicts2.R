@@ -1,0 +1,26 @@
+source("R/engine.R")
+for (cc in c("premium_interieur","premium_net","reserve1")) {
+  res <- readRDS(file.path("tests/reference", paste0(cc, ".rds")))
+  tt <- engine_table_tests(res)
+  sel <- grepl("^(F|G)\\.", tt$famille)
+  cat("\n=====", cc, " delta_hat=", res$ajustement$delta, " bord=", res$ajustement$delta_au_bord, " T=", res$ajustement$T, "\n")
+  cols <- intersect(c("test","stat","estim","p_asymptotique","p_mc","err_mc","p_retenue","nature_p","verdict"), names(tt))
+  print(tt[sel, cols], digits = 4, right = FALSE)
+}
+res <- readRDS("tests/reference/premium_interieur.rds")
+tt <- engine_table_tests(res); sel <- grepl("^(F|G)\\.", tt$famille)
+cat("\n--- details premium_interieur ---\n")
+for (i in which(sel)) cat("\n[", tt$test[i], "]\n", tt$detail[i], "\n")
+res <- readRDS("tests/reference/premium.rds")
+tt <- engine_table_tests(res); sel <- grepl("^(F|G)\\.", tt$famille)
+cat("\n--- details premium ---\n")
+for (i in which(sel)) cat("\n[", tt$test[i], "]\n", tt$detail[i], "\n")
+cat("\n--- plots_data premium: spread_lisse, lr_delta, qq_enveloppe, influence ---\n")
+pd <- res$plots_data
+print(pd$spread); print(pd$spread_lisse); print(pd$lr_delta); str(pd$qq_enveloppe); print(pd$influence)
+print(pd$qqnorm)
+cat("x:", res$ajustement$x, "\n"); cat("z:", round(res$ajustement$z,3), "\n")
+cat("\n--- premium_interieur plots ---\n")
+pdi <- readRDS("tests/reference/premium_interieur.rds")$plots_data
+print(pdi$spread_lisse); print(pdi$lr_delta); print(pdi$influence[,c("t","x","levier","residu_std","cook","ecart_sigma","fort_ecart_sigma")])
+cat("x:", readRDS("tests/reference/premium_interieur.rds")$ajustement$x, "\n")

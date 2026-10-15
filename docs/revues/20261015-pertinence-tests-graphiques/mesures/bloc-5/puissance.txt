@@ -1,0 +1,25 @@
+
+H0 (delta = 0, exposant 1) : taux de rejet a 0,10 (n = 20, B = 199)
+Calendrier    CorrDev         BP     Grubbs         DW       Runs PenteIntra 
+      0.15       0.15       0.00       0.15       0.15       0.00       0.10 
+   Origine     HomogF   Courbure      Alpha     ExpVar KruskalAcc 
+      0.15       0.25       0.20       0.10       0.10       0.15 
+
+A1 : ordonnee a l'origine, delta = 0,20 (a_j = 0,2 f_j Cbar_j) : taux de rejet a 0,10 (n = 20, B = 199)
+Calendrier    CorrDev         BP     Grubbs         DW       Runs PenteIntra 
+      0.15       0.20       0.00       0.10       0.10       0.00       0.60 
+   Origine     HomogF   Courbure      Alpha     ExpVar KruskalAcc 
+      0.80       0.80       0.15       0.50       0.05       0.15 
+
+A2 : exposant de variance 2 : taux de rejet a 0,10 (n = 20, B = 199)
+Calendrier    CorrDev         BP     Grubbs         DW       Runs PenteIntra 
+      0.15       0.15       0.00       0.20       0.15       0.00       0.10 
+   Origine     HomogF   Courbure      Alpha     ExpVar KruskalAcc 
+      0.10       0.20       0.10       0.10       0.05       0.15 
+
+A3 : exposant de variance 0 : taux de rejet a 0,10 (n = 20, B = 199)
+Calendrier    CorrDev         BP     Grubbs         DW       Runs PenteIntra 
+      0.15       0.15       0.00       0.15       0.15       0.00       0.15 
+   Origine     HomogF   Courbure      Alpha     ExpVar KruskalAcc 
+      0.15       0.20       0.20       0.10       0.10       0.15 
+duree : 4.475558 mins 
