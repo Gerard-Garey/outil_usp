@@ -12977,11 +12977,15 @@ la statistique est finie~; les replications perdues au plafond le sont independa
 valeur de la statistique, l'absence de biais de la selection par statistique non finie n'est pas
 demontree.}~», avec les mêmes trois nombres ($B_{\text{eff}}$, $B$, $B - B_{\text{eff}}$), les
 deux causes nommées sans répartition chiffrée. La première partie de la dernière proposition
-repose sur un argument élémentaire, adossé à aucune référence publiée~: dans une suite i.i.d. de
-triangles simulés, la suite des triangles acceptés est i.i.d. selon la loi du triangle sachant
-ses cumuls strictement positifs et indépendante de la suite des indicateurs d'acceptation~; le
-plafond, qui ne dépend que de ces indicateurs, arrête le tirage sans regarder la valeur des
-statistiques, et les $B_{\text{eff}}$ réplications acceptées restent i.i.d. sous cette loi. La
+repose sur un argument élémentaire, adossé à aucune référence publiée~: conditionnellement au triangle observé (ajustement et vivier fixés), le
+générateur pseudo-aléatoire étant traité comme une suite i.i.d., les triangles simulés successifs
+forment une suite i.i.d.~; la suite des triangles acceptés est alors i.i.d. selon la loi du
+triangle sachant ses cumuls strictement positifs et finis, et indépendante de la suite des
+indicateurs d'acceptation (propriété de la méthode de rejet). Le plafond, qui ne dépend que de
+ces indicateurs, arrête le tirage sans regarder la valeur des statistiques~: le nombre $M \le B$
+de triangles acceptés est une fonction des seuls indicateurs et, conditionnellement à $M$, les
+$M$ triangles acceptés restent i.i.d. sous cette loi~; $B_{\text{eff}}$ est formé parmi eux par la
+seule sélection des statistiques finies. La
 seconde partie, la sélection par statistique non finie, reste non démontrée, comme au cas~A.
 \emph{Cas~B}, motif \code{MOTIF\_MC\_REPLIC\_INSUFFISANTES}~: «~\code{B effectif = \dots{} sur B =
 \dots.}~»~; la ligne est alors un diagnostic si elle porte une p non simulée, un test sans p-value
