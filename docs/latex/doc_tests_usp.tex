@@ -11968,11 +11968,14 @@ Student par colonne est inférieure au seuil $\alpha$ du calcul (\code{res\$meta
 lu par \code{plot\_mw\_origine(pd, alpha)} et par la note \code{note\_m1(pd, alpha)} qui les
 compte, et non plus fixé à $0{,}10$ dans l'affichage (issue~\#4, piste~3). Cette coloration
 colonne par colonne est une aide de lecture~: elle ne tient pas compte de la multiplicité des
-colonnes, et le verdict est celui de la fiche~\ref{mw:m1a}. Il représente les colonnes que
-combine l'appel observé~: une colonne non identifiable de l'ordonnée à l'origine (moins de deux
-valeurs distinctes de $C(i,j)$) n'y figure pas, et, depuis l'issue~\#273, quand la statistique
-observée n'est pas définie (fiche~\ref{mw:m1a}), aucune colonne n'est représentée et le graphique
-affiche «~\code{Ordonnees a l'origine indisponibles}~». Celui de la
+colonnes, et le verdict est celui de la fiche~\ref{mw:m1a}. Ce graphique représente les
+colonnes testées par l'appel observé de \code{mw\_test\_ordonnee\_}\allowbreak\code{origine()}
+(élément \code{detail})~: une colonne exclue comme dégénérée ou non identifiable de l'ordonnée à
+l'origine (moins de deux valeurs distinctes de $C(i,j)$) n'y figure pas, et, depuis
+l'issue~\#273, quand \code{lm()} rend la statistique observée non définie (colonne retenue à moins
+de deux coefficients, fiche~\ref{mw:m1a}), aucune colonne n'est représentée et le graphique
+affiche «~\code{Ordonnees a l'origine indisponibles}~». Une statistique non définie faute de deux
+colonnes testées ($K = 1$) laisse la colonne testée représentée. Celui de la
 famille $\alpha$ chiffre l'enjeu du choix de pondération~: des courbes
 confondues signifient que la question est sans portée pratique sur le triangle
 considéré~; des courbes qui divergent sur une colonne désignent celle où
@@ -12856,8 +12859,10 @@ sur le triangle observé, après les colonnes dégénérées, et figé pour chaq
 \code{origine\_non\_identifiables} de l'objet des ensembles figés, argument
 \code{j\_non\_identifiables} de \code{mw\_test\_ordonnee\_}\allowbreak\code{origine()}, lu par
 l'entrée \code{Origine} de \code{MW\_CATALOGUE\_MC})~: c'est la règle de la courbure
-(fiche~\ref{mw:m1c}, \emph{Ensemble figé à l'observé}), dont le raisonnement vaut ici à
-l'identique. Une colonne de l'ensemble est comptée parmi les éligibles, écartée avant le contrôle
+(fiche~\ref{mw:m1c}, \emph{Ensemble figé à l'observé}), transposée~: l'argument de cette fiche
+(\emph{Pourquoi figer l'ensemble plutôt que reproduire la sélection dans chaque réplication}) s'y
+applique tel quel, les égalités exactes de l'observé ne se retrouvant pas dans les cumuls simulés
+pour $j \ge 1$~; ses chiffres, établis pour la courbure, ne s'y transposent pas. Une colonne de l'ensemble est comptée parmi les éligibles, écartée avant le contrôle
 de dégénérescence, hors de~$K$, et nommée dans le commentaire de la ligne par
 \code{.mw\_phrase\_origine\_}\allowbreak\code{non\_identifiable()}, après la phrase des colonnes
 dégénérées~: «~\code{Colonne a moins de deux valeurs distinctes de C(i,j)~: j = \dots{}
@@ -12873,7 +12878,18 @@ statistique \code{NA}, avec $K$ \code{NA}~: la réplication sort de $B$ effectif
 la ligne est restituée non applicable (motif «~\code{statistique observee non finie}~», verdict
 \code{INFO}). Avant l'issue, une telle colonne était écartée sans trace, à l'observé comme dans
 une réplication, de sorte que $K$ pouvait différer entre la statistique observée et ses
-réplications, avec le biais conservateur décrit pour la courbure. Mesuré (\code{run\_engine()},
+réplications. Quand la colonne était écartée à l'observé seulement (cas de la mesure ci-dessous),
+la règle antérieure était conservatrice, et ce sens est exact, non approché~: à triangles simulés
+identiques et à $B$ effectif égal, chaque statistique simulée était la statistique actuelle
+augmentée du terme $-2\ln p_j \ge 0$ de la colonne écartée à l'observé, de sorte que la p-value
+de Monte-Carlo antérieure majorait l'actuelle. L'ampleur n'est établie que par la mesure~; sous
+l'approximation nominale (colonnes indépendantes), $K = 4$ à l'observé contre $5$ dans les
+réplications donnerait un rejet de probabilité
+$\mathbb{P}\big(\chi^2(8) \ge q_{0{,}90}(\chi^2(10))\big) = 0{,}043$ au seuil de $0{,}10$ et
+$0{,}019$ au seuil de $0{,}05$ (calcul exact sous cette approximation,
+\code{pchisq(qchisq(1 - a, 10), 8, lower.tail = FALSE)}, non mesure à $T = 8$). Une colonne
+écartée dans une réplication seulement aurait joué en sens inverse~; aucune des 999 réplications
+du triangle de la mesure ci-dessous (T4 de la fiche~\ref{mw:m1c}) n'en compte. Mesuré (\code{run\_engine()},
 méthode \code{reserve2}, $B = 999$, graine 20260831, moteur de \code{bbe3a2a} pour «~avant~»)
 sur le triangle de contrôle dont $C(i,1)$ vaut $1\,050$ pour $i = 0$ à~$5$~: avant, $K = 4$ à
 l'observé et $K = 5$ dans les 999 réplications, p-value de Monte-Carlo $0{,}289$~; après, $K = 4$
@@ -12887,8 +12903,8 @@ trace~; après, ligne non applicable. Si l'on garde $C(i,1) = 1\,050$ pour $i = 
 $C(i,2)$ vaut $1\,600\,(1 + 10^{-8} i)$ pour $i = 0$ à~$4$, la ligne est non applicable et la phrase des colonnes
 non identifiables, qui nomme $j = 1$, s'arrête à «~\code{hors de la combinaison de Fisher.}~»,
 sans clause $K$. \emph{Conséquence sur le graphique}~: les ordonnées à l'origine représentées
-(section~\ref{sec:graph-mw}) sont le détail par colonne de l'appel observé~; quand la statistique
-observée n'est pas définie, ce détail est vide et le graphique affiche «~\code{Ordonnees a
+(section~\ref{sec:graph-mw}) sont le détail par colonne de l'appel observé~; quand \code{lm()}
+rend la statistique observée non définie (second volet ci-dessus), ce détail est vide et le graphique affiche «~\code{Ordonnees a
 l'origine indisponibles}~», alors qu'avant l'issue il représentait les autres colonnes (quatre sur
 le triangle à $C(i,1) = 1\,050\,(1 + 10^{-8} i)$). Sur une colonne constante, membre de l'ensemble figé, le graphique
 représente les autres colonnes, comme avant.
@@ -15433,7 +15449,13 @@ simulé invalide n'a été tiré. Dans ce cas, \code{mw\_bootstrap()} consomme d
 l'issue~\#257 le même flux et rend les mêmes triangles (section~\ref{sec:boot-mw}). Avant toute
 relance, le générateur \code{gen\_triangle\_h0()} et le contrôle~(s) du script, qui
 reproduisent la simulation antérieure à l'issue (\code{NaN} au lieu de l'arrêt au premier cumul
-invalide, sans retirage), sont à aligner (issue~\#271). Contrôles~: le triangle de
+invalide, sans retirage), sont à aligner (issue~\#271). La mesure est aussi antérieure à
+l'issue~\#273 (fiche~\ref{mw:m1a}) et n'a pas été reprise sous le moteur postérieur. L'issue ne
+change la statistique de la ligne \code{Origine} que sur une colonne à moins de deux valeurs
+distinctes de $C(i,j)$ ou que \code{lm()} écarte (tolérance $10^{-7}$)~; sous le plan, la première
+colonne, fixée, compte huit valeurs distinctes et les colonnes suivantes sont simulées, ce qui
+rend ces cas invraisemblables sans les exclure formellement~: les niveaux de la ligne sont tenus
+pour inchangés, argument non mesuré. Contrôles~: le triangle de
 contrôle traité par le script est identique à sa référence de non-régression~; aucun triangle
 refusé, aucune p-value de Monte-Carlo absente~; $B$ effectif de 999 partout, sauf $998$ pour
 $0{,}004~\%$ des couples (triangle, statistique) sous E.
