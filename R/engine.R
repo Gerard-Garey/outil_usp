@@ -2713,7 +2713,7 @@ test_lm_complet <- function(x, y) {
   )
 }
 
-# --- Identifiabilite de la pente (#44, regle R4, option E) --------------------
+# --- Puissance approchee a posteriori de la pente (#44 ; R4 retiree, #218, #230)
 # Sous le modele ajuste (a = 0, b = beta, Var(Y_t) = sigma^2 ((1 - delta) xbar
 # x_t + delta x_t^2)), l'esperance du t de la pente de lm(y ~ x) vaut, au
 # premier ordre, lambda = sqrt(S_xx) b / sigma_e avec S_xx = (T - 1) sd(x)^2 et
@@ -2726,15 +2726,14 @@ test_lm_complet <- function(x, y) {
 # premier ordre sous le modele auxiliaire MCO, controlee par simulation sous le
 # modele ajuste dans la specification d'actuary (#44 : 0,47 approche contre
 # 0,48 simule sur les donnees de test ; 0,136 contre 0,133 a CV = 3 %).
-# SEUIL_PUISSANCE_PENTE = 1/2 est une CONVENTION (repere : "le test a moins
-# d'une chance sur deux de rejeter quand le modele est vrai"), non un seuil
-# statistique : en dessous, la ligne du test de Pitman sur la pente est
-# restituee en diagnostic (usp_tests()).
+# Regle R4 retiree par D1-Fb (#218, #230) : la puissance approchee ne classe
+# plus la ligne de la pente (aucun repere, aucune bascule en diagnostic) ;
+# usp_tests() l'imprime dans le detail comme contexte de lecture seulement,
+# quand t_b > 0.
 # unilateral (#169, decision du mainteneur du 06/10/2026) : puissance du test
 # unilateral (H1 lien positif), P(t > t_{1 - alpha, T - 2} | ncp = lambda),
 # lue par usp_tests() pour la ligne de la pente ; FALSE par defaut (formule
 # bilaterale ci-dessus) pour les autres appelants.
-SEUIL_PUISSANCE_PENTE <- 0.5
 usp_identifiabilite_pente <- function(x, beta, sigma, alpha, unilateral = FALSE) {
   T <- length(x)
   if (T < 3 || !is.finite(beta) || !is.finite(sigma) || sigma <= 0 ||
@@ -2790,8 +2789,8 @@ usp_identifiabilite_pente <- function(x, beta, sigma, alpha, unilateral = FALSE)
 # constants R13, pertes constantes #189, R12).
 T_MAX_ENUM_PERMUTATION <- 9L
 # Sens du test de Pitman sur la pente (#169), seule definition, lue par
-# usp_tests() (p de permutation, p de Student restituee, R4 par
-# usp_identifiabilite_pente(unilateral = )) et par run_engine() : unilateral,
+# usp_tests() (p de permutation, p de Student restituee, phrase de contexte
+# par usp_identifiabilite_pente(unilateral = )) et par run_engine() : unilateral,
 # H1 lien positif (decision Q-A du mainteneur du 06/10/2026, maintenue apres
 # reexamen par actuary). Verrou (meme decision) : seule valeur admise,
 # jamais argument de run_engine() ni reglage de l'interface ; toute autre
@@ -5029,28 +5028,31 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # (t(T-2), exacte sous le modele auxiliaire MCO seulement) est restituee
   # dans p_asymptotique, non retenue (la hierarchie retient la p de
   # permutation, toujours presente sur une ligne applicable).
-  # Regle R4 (#44, option E) : identifiabilite de la pente. Si la puissance
-  # approchee du test unilateral sous le modele ajuste est inferieure au
-  # repere SEUIL_PUISSANCE_PENTE, un ECHEC decrit le plan d'experience (volumes
-  # peu disperses), non un ecart au modele : la ligne de la pente est
-  # restituee en diagnostic. lambda et la puissance approchee sont rappeles
-  # dans le detail dans les deux cas.
+  # Regle R4 retiree par D1-Fb (#218, #230) : la ligne de la pente n'est plus
+  # classee sur la puissance approchee (quantite estimee). Type "test" sur
+  # une ligne applicable, "non applicable" sinon ; seule la regle R1 (dans
+  # add()) peut la basculer en diagnostic. La puissance approchee a
+  # posteriori et lambda restent imprimees dans le detail, comme contexte de
+  # lecture, si t_b > 0 (meme signe que r) ; si t_b <= 0, le lien observe est
+  # de signe contraire au modele (beta > 0) et la puissance, calculee sous
+  # beta > 0, n'est pas restituee ; aucune phrase si elle n'est pas finie.
   # Sens du test : SENS_PITMAN_PENTE, seule definition (#169) ; libelle du
   # detail derive de la constante (#222, point 5), dont .pitman_unilateral()
   # garantit la valeur.
   pitman_uni <- .pitman_unilateral()
   txt_sens <- SENS_PITMAN_PENTE
   idp <- usp_identifiabilite_pente(x, fit$beta, fit$sigma, alpha, unilateral = pitman_uni)
-  pente_ident <- !is.finite(idp$puissance) || idp$puissance >= SEUIL_PUISSANCE_PENTE
-  txt_ident <- if (!is.finite(idp$puissance)) "" else
-    sprintf(paste("%s puissance approchee du test", txt_sens, "sous le modele ajuste = %.2f %s %.1f",
-                  "(repere conventionnel), indice d'identifiabilite lambda = sqrt(T-1) CV(x)",
-                  "beta / sigma = %.2f (approximation au premier ordre, loi de",
-                  "Student decentree)."),
-            if (pente_ident) "Pente identifiable par les donnees :"
-            else "PENTE NON IDENTIFIABLE PAR LES DONNEES :",
-            idp$puissance, if (pente_ident) ">=" else "<", SEUIL_PUISSANCE_PENTE,
-            idp$lambda)
+  txt_puissance <- if (!is.finite(idp$puissance)) ""
+    else if (is.finite(lmc$t_pente) && lmc$t_pente > 0)
+      sprintf(paste("Puissance approchee a posteriori du test", txt_sens, "sous le modele",
+                    "ajuste (au point estime ; approximation au premier ordre, loi de",
+                    "Student decentree) = %.2f, indice lambda = sqrt(T-1) CV(x) beta /",
+                    "sigma = %.2f : contexte de lecture, sans effet sur le type ni sur",
+                    "le verdict."),
+              idp$puissance, idp$lambda)
+    else paste("Lien observe nul ou negatif (r <= 0), de signe contraire au modele",
+               "(beta > 0) : puissance approchee sous le modele ajuste non restituee",
+               "(calculee sous beta > 0, sans objet ici).")
   # Ligne applicable : ni volumes constants (R13), ni pertes constantes
   # (#189), ni x ecarte par lm() (R12), t fini. usp_permutation_pente() n'est
   # appelee que sur une ligne applicable ; run_engine() la calcule avec le B
@@ -5071,8 +5073,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   if (pente_appl && !identical(perm$unilateral, pitman_uni))
     stop("usp_tests() : sens de la p de permutation de la pente different de SENS_PITMAN_PENTE")
   perm_alea <- pente_appl && identical(perm$methode, "aleatoire")
-  type_pente <- if (!pente_appl) "non applicable"
-                else if (pente_ident) "test" else "diagnostic"
+  type_pente <- if (!pente_appl) "non applicable" else "test"
   # p de Student du meme sens que la p de permutation (restituee, non retenue).
   p_student <- if (!is.finite(lmc$t_pente)) NA_real_
                else stats::pt(lmc$t_pente, T - 2, lower.tail = FALSE)
@@ -5088,8 +5089,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     # du 06/10/2026, point 3) : imprimee a l'enumeration seulement (sans
     # alea) ; au-dela, nombre issu des tirages, non imprime (regle #76), lu
     # dans metadata$permutation_pente$p_bilateral. Libelle neutre : la p
-    # unilaterale n'est pas toujours retenue (bascule en diagnostic par R4
-    # ci-dessous, ou par R1 dans add()).
+    # unilaterale n'est pas toujours retenue (bascule en diagnostic par R1
+    # dans add()).
     if (!pente_appl) NULL
     else if (perm_alea) paste("p de permutation unilaterale (sens du test) ; p bilaterale de",
                               "permutation (|r|), pour information, non retenue : non imprimee",
@@ -5100,10 +5101,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # T >= 10 et 1/(B + 1) >= alpha : la plus petite p Monte-Carlo possible
   # atteint alpha, aucun OK n'est atteignable (avis d'actuary, #169).
   # Mention sur une ligne qui reste un test seulement, meme garde que la
-  # mention du plancher de add() (type "test" apres la regle R1) : ni sous
-  # R4 (diagnostic, type_pente) ni sous R1 (p_min >= alpha, bascule de add()).
-  pente_reste_test <- identical(type_pente, "test") &&
-    !(is.finite(perm$p_min) && perm$p_min >= alpha)
+  # mention du plancher de add() (type "test" apres la regle R1) : pas sous
+  # R1 (p_min >= alpha, bascule de add()).
+  pente_reste_test <- pente_appl && !(is.finite(perm$p_min) && perm$p_min >= alpha)
   txt_plancher_perm <- if (perm_alea && pente_reste_test && 1 / (perm$B + 1) >= alpha)
     sprintf("Plancher 1/(B + 1) >= alpha = %g : OK inatteignable.", alpha) else ""
   # Motifs des lignes pente et Fisher non applicables a statistique non
@@ -5138,14 +5138,14 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       else "exacte par permutation (H0 : y independant de x, hors modele reglementaire)",
       detail = detail_motif(lmc$x_ecarte,
                             if (!is.finite(lmc$t_pente)) txt_t_pente_non_def
-                            else trimws(paste(txt_pitman, txt_ident, txt_plancher_perm))))
+                            else trimws(paste(txt_pitman, txt_puissance, txt_plancher_perm))))
   # Ligne Fisher (#169, decision Q-B revisee du 06/10/2026) : diagnostic,
   # sans verdict ni p retenue ; F et la p de Fisher F(1,T-2) bilaterale sous
   # le modele auxiliaire MCO restitues pour information (p_asymptotique,
   # emplacement non retenu). Redondante avec le test de Pitman (F = t^2) :
   # aucun second verdict sur b = 0. R13, pertes constantes et R12 gardent
   # leurs motifs (detail_motif()) ; a F non fini hors de ces cas, motif
-  # txt_f_non_def. R4 et R1 ne la concernent pas.
+  # txt_f_non_def. R1 ne la concerne pas.
   add(fam, "Test de Fisher (significativite globale)", "Fisher (1922, 1925)",
       fonction = "test_lm_complet",
       # Volumes ou pertes constants : F NA (test_lm_complet(), #189), d'ou

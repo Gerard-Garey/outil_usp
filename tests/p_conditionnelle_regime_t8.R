@@ -84,7 +84,8 @@
 #  usp_tests() n'ecrit que si run_engine() a pose ces grandeurs dans fit,
 #  sont absentes de ce chemin (code "-") : diagnostics sans p retenue (aucune
 #  p retenue dans les valeurs brutes de #221), leur verdict ne depend pas de
-#  la variante. La regle R4 en vigueur au commit mesure est citee en T0.
+#  la variante. La regle R4 au commit mesure est citee en T0 (depuis D1-Fb,
+#  #218, #230 : R4 retiree, seule R1 bascule la ligne de la pente).
 #  Partie P : jeux des six scenarios (par. 6) sur le modele ajuste de J2,
 #  generes EXACTEMENT comme tests/grille_regime_t8.R (generer_scenario(),
 #  copie declaree ; annotation, L8) : sous engine_sous_graine(20810000 + s),
@@ -1623,7 +1624,7 @@ LIBELLES_CONTEXTE <- c(
   empreinte_sc = "Empreinte sans commentaires de R/engine.R (#231) et md5 du fichier entier",
   grille = "Tableau de la grille (\u00e9tape 4)", reference = "Contr\u00f4le (a) : J1 observ\u00e9 contre tests/reference/premium.rds",
   sources = "Sources (valeurs brutes de #221 et de #175, tableaux de #221, valeurs brutes de la grille)",
-  scenario_l8 = "Jeux du sc\u00e9nario (L8)", regle_r4 = "R\u00e8gle R4 au commit mesur\u00e9 (C-229-5)",
+  scenario_l8 = "Jeux du sc\u00e9nario (L8)", regle_r4 = "R\u00e8gle R4 au commit mesur\u00e9 (C-229-5 ; retir\u00e9e par D1-Fb)",
   lignes_t2 = "Lignes de T2 (p\u00e9rim\u00e8tre)", essai = "Essai (--essai, non versionnable)", i3 = "Contr\u00f4le (i3)")
 
 lire_sortie <- function(f) {
@@ -2409,8 +2410,12 @@ LIGNES_T2 <- LIGNES_51[!hors_t2(LIGNES_51)]
 controle(length(LIGNES_51) == 51L && !anyDuplicated(LIGNES_51) && length(LIGNES_T2) == 48L,
          sprintf("(b) %d lignes de usp_tests() sur J1 observ\u00e9, libell\u00e9s distincts ; %d lignes au p\u00e9rim\u00e8tre de T2 (hors rapport de vraisemblance sur \u03b4 et largeur de l'IC \u00e0 \u03b4 fixe, #45)",
                  length(LIGNES_51), length(LIGNES_T2)))
-REGLE_R4 <- sprintf("SEUIL_PUISSANCE_PENTE = %s, SENS_PITMAN_PENTE = %s : ligne du test de Pitman sur la pente restitu\u00e9e en diagnostic si la puissance approch\u00e9e du test unilat\u00e9ral sous le mod\u00e8le ajust\u00e9 (usp_identifiabilite_pente()) est inf\u00e9rieure au seuil",
-                    format(SEUIL_PUISSANCE_PENTE), SENS_PITMAN_PENTE)
+# Regle R4 retiree par D1-Fb (#218, #230) ; reproduit la regle des mesures
+# anterieures. Constante conservee (decision Q-D1-Fb-7), lue par aucun
+# calcul du script : la chaine T0 decrit la regle du moteur mesure.
+SEUIL_PUISSANCE_PENTE_R4 <- 0.5
+REGLE_R4 <- paste("R4 retir\u00e9e (D1-Fb, #218, #230) : pente de type test d\u00e8s qu'elle est applicable,",
+                  "seule R1 la bascule")
 
 # --- Jeux de la tranche ----------------------------------------------------------
 if (is.na(OPT_TRANCHE)) { DEBUT <- 1L; FIN <- if (PARTIE == "regime") OPT_R else OPT_RP } else {

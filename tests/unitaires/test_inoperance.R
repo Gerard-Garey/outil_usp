@@ -7,7 +7,8 @@
 #    - regle d'inoperance de add() (engine_registre_tests()) ;
 #    - motif d'indisponibilite de la p Monte-Carlo, conditions `degenere` et
 #      `non_definie` du catalogue (regles R2, R3 ; ADR 0003 point 5) ;
-#    - constante et TOST (regle R5), pente et Fisher (regle R4, option E),
+#    - constante et TOST (regle R5), pente et Fisher (regle R4, option E,
+#      retiree par D1-Fb, #218, #230),
 #      Anderson-Darling et Cramer-von Mises (regle R6).
 #  References : enumeration exhaustive (suites), stats::binom.test,
 #  stats::ks.test, stats::cor.test (Kendall et Spearman exacts), stats::pt,
@@ -478,9 +479,27 @@ verifier("usp_identifiabilite_pente(unilateral = TRUE) : puissance = P(t > t(1-a
            proche(ip$puissance, stats::pt(stats::qt(0.90, 6), 6, ncp = lam, lower.tail = FALSE),
                   rel = 1e-12) && round(ip$puissance, 4) == 0.6461
          })
-verifier("Pente (R4 unilaterale) et Fisher : CV(x) = 3 % -> pente diagnostic ; CV(x) = 30 % et J1 -> pente test ; Fisher toujours diagnostic (#169)",
+# Regle R4 retiree par D1-Fb (#218, #230) : la ligne de la pente est un test
+# des qu'elle est applicable (seule R1 la bascule) ; la puissance approchee a
+# posteriori n'est plus qu'une phrase de contexte, sans repere.
+PHRASE_PUISSANCE <- paste0("Puissance approchee a posteriori du test unilateral sous le modele ajuste ",
+                           "\\(au point estime ; approximation au premier ordre, loi de Student decentree\\) ",
+                           "= ([0-9]+\\.[0-9]{2}), indice lambda = sqrt\\(T-1\\) CV\\(x\\) beta / sigma ",
+                           "= ([0-9]+\\.[0-9]{2}) : contexte de lecture, sans effet sur le type ni sur le verdict\\.")
+PHRASE_LIEN_NEGATIF <- paste("Lien observe nul ou negatif (r <= 0), de signe contraire au modele",
+                             "(beta > 0) : puissance approchee sous le modele ajuste non restituee",
+                             "(calculee sous beta > 0, sans objet ici).")
+# Valeurs imprimees (puissance, lambda) de la phrase de contexte ; NULL si absente.
+puissance_imprimee <- function(d) {
+  m <- regmatches(d, regexec(PHRASE_PUISSANCE, d))[[1]]
+  if (length(m) == 3L) as.numeric(m[2:3]) else NULL
+}
+sans_repere_r4 <- function(d)
+  !grepl("IDENTIFIABLE", d, ignore.case = TRUE) && !grepl("repere conventionnel", d, fixed = TRUE) &&
+    !grepl(">= 0.5", d, fixed = TRUE) && !grepl("< 0.5", d, fixed = TRUE)
+verifier("Pente (R4 retiree, #218) et Fisher : CV(x) = 3 %, CV(x) = 30 % et J1 -> pente test ; Fisher toujours diagnostic",
          {
-           identical(ligne(t03, pente)$type, "diagnostic") &&
+           identical(ligne(t03, pente)$type, "test") &&
              identical(ligne(t30, pente)$type, "test") && identical(ligne(tt, pente)$type, "test") &&
              all(vapply(list(tt, t03, t30), function(t)
                identical(ligne(t, fisher)$type, "diagnostic") &&
@@ -489,15 +508,42 @@ verifier("Pente (R4 unilaterale) et Fisher : CV(x) = 3 % -> pente diagnostic ; C
                  grepl("redondante avec le test de Pitman (F = t^2)", ligne(t, fisher)$detail, fixed = TRUE),
                logical(1)))
          })
-verifier("Pente (J1) : p exacte 4462/40320, nature de la permutation, p de Student unilaterale restituee non retenue, ALERTE, lambda et puissance rappeles (#169)",
+verifier("Pente CV(x) = 3 % (D1-Fb, critere (b)) : type test, phrase de contexte avec puissance approchee < 0,5 imprimee, aucun repere",
          {
-           l <- ligne(tt, pente); d <- ligne(t03, pente)
+           d <- ligne(t03, pente); v <- puissance_imprimee(d$detail)
+           ip <- usp_identifiabilite_pente(f03$x, f03$beta, f03$sigma, 0.10, unilateral = TRUE)
+           identical(d$type, "test") && identical(d$inoperant, FALSE) && !is.null(v) && v[1] < 0.5 &&
+             identical(v, round(c(ip$puissance, ip$lambda), 2)) && sans_repere_r4(d$detail) &&
+             !grepl("Lien observe nul ou negatif", d$detail, fixed = TRUE)
+         })
+verifier("Pente (J1, critere (c)) : p exacte 4462/40320, nature de la permutation, p de Student unilaterale restituee non retenue, ALERTE, phrase de contexte 0.65 / 1.78 (#169, #218)",
+         {
+           l <- ligne(tt, pente)
            identical(l$p_exacte, 4462 / 40320) && identical(l$p_retenue, l$p_exacte) &&
              identical(l$nature_p, NAT_PITMAN) && identical(l$verdict, "ALERTE") &&
+             identical(l$type, "test") &&
              identical(l$fonction, "usp_permutation_pente") && identical(l$p_min, 1 / 40320) &&
              proche(l$p_asymptotique, stats::pt(l$stat, 6, lower.tail = FALSE), rel = 1e-12) &&
-             grepl("Pente identifiable", l$detail, fixed = TRUE) && grepl("lambda", l$detail, fixed = TRUE) &&
-             identical(d$type, "diagnostic") && grepl("PENTE NON IDENTIFIABLE", d$detail, fixed = TRUE)
+             identical(puissance_imprimee(l$detail), c(0.65, 1.78)) &&
+             grepl("= 0.65", l$detail, fixed = TRUE) && grepl("= 1.78", l$detail, fixed = TRUE) &&
+             sans_repere_r4(l$detail)
+         })
+# Lien negatif (#230, critere (a)) : y positifs decroissants en x, r = -0,87 ;
+# usp_ajuster() converge (code 0). Avant D1-Fb : diagnostic "PENTE NON
+# IDENTIFIABLE" ; desormais test, ECHEC, sans puissance restituee.
+x_neg <- c(100, 150, 200, 300, 400, 500, 600, 700)
+y_neg <- c(95, 110, 80, 90, 75, 70, 60, 65)
+f_neg <- usp_ajuster(x_neg, y_neg)
+t_neg <- usp_tests(f_neg, boot_fictif(f_neg), methode = "premium")
+verifier("Pente a r < 0 (#230, critere (a)) : usp_ajuster() converge, ligne test, ECHEC, phrase 'Lien observe nul ou negatif', ni IDENTIFIABLE ni puissance a posteriori",
+         {
+           l <- ligne(t_neg, pente)
+           identical(f_neg$convergence, 0L) && stats::cor(x_neg, y_neg) < 0 && l$stat < 0 &&
+             identical(l$type, "test") && identical(l$verdict, "ECHEC") && identical(l$inoperant, FALSE) &&
+             identical(l$p_retenue, l$p_exacte) &&
+             grepl(PHRASE_LIEN_NEGATIF, l$detail, fixed = TRUE) &&
+             !grepl("IDENTIFIABLE", l$detail, ignore.case = TRUE) &&
+             !grepl("Puissance approchee a posteriori", l$detail, fixed = TRUE)
          })
 # Jeu (xi, yi) de test_controles_numeriques.R (J2, delta interieur).
 xi <- c(50, 80, 120, 200, 300, 150, 90, 60)
@@ -625,7 +671,7 @@ verifier("Garde-fou de sens : permutation_pente bilaterale passee a usp_tests() 
 # Sens du test (SENS_PITMAN_PENTE, seule definition, #169) : verrou sur
 # "unilateral" (decision du mainteneur du 06/10/2026) ; p bilaterale de
 # permutation restituee pour information dans le detail (libelle neutre :
-# la p unilaterale n'est pas toujours retenue, R4 et R1).
+# la p unilaterale n'est pas toujours retenue, R1).
 verifier("SENS_PITMAN_PENTE : verrou unilateral (toute autre valeur refusee) ; p bilaterale J1 8515/40320 = 0,2112 dans le detail, libelle neutre, p de Student unilaterale",
          {
            e <- tryCatch(.pitman_unilateral("bilateral"), error = function(e) conditionMessage(e))
@@ -726,7 +772,7 @@ verifier("Pente et Fisher : ajustement exact (x = 1:8, y = 2 x, t = F = Inf) -> 
                                         "regression de y sur x nulle : ajustement exact, ou non",
                                         "calculable) : non applicable"))
          })
-verifier("Pente T = 10, B = 9 : pas de mention 'OK inatteignable' sous R4 (diagnostic) ni sous R1 (p_min = 0,1 >= alpha)",
+verifier("Pente T = 10, B = 9 (critere (e)) : mention 'OK inatteignable' sur la ligne a CV(x) = 3 %, desormais test (R4 retiree) ; aucune sous R1 (p_min = 0,1 >= alpha)",
          {
            xs <- 100 + 7 * (1:10) + ((1:10) %% 3) * 5; ys <- xs * (1 + ((1:10) %% 4) / 10)
            xc <- mean(xs) * (1 + 0.03 * as.numeric(scale(xs))); yc <- xc * ys / xs
@@ -737,12 +783,35 @@ verifier("Pente T = 10, B = 9 : pas de mention 'OK inatteignable' sous R4 (diagn
            f1 <- usp_ajuster(x1, y1)
            l1 <- ligne(usp_tests(f1, boot_fictif(f1), methode = "premium",
                                  permutation_pente = usp_permutation_pente(x1, y1, B = 9)), pente)
-           identical(l4$type, "diagnostic") && !isTRUE(l4$inoperant) &&
-             grepl("PENTE NON IDENTIFIABLE", l4$detail, fixed = TRUE) &&
-             !grepl("OK inatteignable", l4$detail, fixed = TRUE) &&
+           identical(l4$type, "test") && identical(l4$inoperant, FALSE) &&
+             grepl("Plancher 1/(B + 1) >= alpha = 0.1 : OK inatteignable.", l4$detail, fixed = TRUE) &&
+             !is.null(puissance_imprimee(l4$detail)) && puissance_imprimee(l4$detail)[1] < 0.5 &&
+             sans_repere_r4(l4$detail) &&
              identical(l1$type, "diagnostic") && isTRUE(l1$inoperant) &&
              startsWith(l1$detail, "TEST INOPERANT") &&
              !grepl("OK inatteignable", l1$detail, fixed = TRUE)
+         })
+# Critere (d) de D1-Fb : SEUIL_PUISSANCE_PENTE n'existe plus dans le moteur ;
+# sur les jeux de ce fichier, une ligne de la pente diagnostic l'est par R1
+# seulement (inoperant = TRUE).
+verifier("R4 retiree (critere (d)) : SEUIL_PUISSANCE_PENTE absente du moteur ; aucune ligne de la pente diagnostic sans inoperant = TRUE (J1, J2, CV 3 %, CV 30 %, r < 0, T = 10)",
+         {
+           xs <- 100 + 7 * (1:10) + ((1:10) %% 3) * 5; ys <- xs * (1 + ((1:10) %% 4) / 10)
+           xc <- mean(xs) * (1 + 0.03 * as.numeric(scale(xs))); yc <- xc * ys / xs
+           f4 <- usp_ajuster(xc, yc)
+           x1 <- c(rep(100, 9), 200); y1 <- c(50, 55, 60, 52, 58, 62, 54, 57, 61, 120)
+           f1 <- usp_ajuster(x1, y1)
+           jeux <- list(tt, t_i, t03, t30, t_neg,
+                        usp_tests(f4, boot_fictif(f4), methode = "premium",
+                                  permutation_pente = usp_permutation_pente(xc, yc, B = 9)),
+                        usp_tests(f1, boot_fictif(f1), methode = "premium",
+                                  permutation_pente = usp_permutation_pente(x1, y1, B = 9)))
+           ok <- vapply(jeux, function(t) {
+             l <- ligne(t, pente)
+             !identical(l$type, "diagnostic") || isTRUE(l$inoperant)
+           }, logical(1))
+           !exists("SEUIL_PUISSANCE_PENTE", envir = environment(usp_tests), inherits = FALSE) &&
+             !exists("SEUIL_PUISSANCE_PENTE") && all(ok)
          })
 verifier("AD, CvM (R6) : estim = statistique sur (z - zbar)/s_z, p_asymptotique = Stephens sur estim",
          {

@@ -50,7 +50,8 @@ verifier("usp_tests() sur un bootstrap complet : hierarchie exacte > Monte-Carlo
            ok <- TRUE
            # Lignes de type "test" seulement : toute autre ligne n'a aucune p
            # retenue (ADR 0001, M7), y compris un test inoperant (p_min >=
-           # alpha) ou une pente non identifiable restitues en diagnostic (#44).
+           # alpha) restitue en diagnostic (avant D1-Fb, #218, #230, aussi
+           # une pente non identifiable, regle R4 retiree depuis).
            for (l in Filter(function(l) l$type == "test", tt)) {
              attendu <- if (is.finite(l$p_exacte)) l$p_exacte
                         else if (is.finite(l$p_mc)) l$p_mc else l$p_asymptotique
