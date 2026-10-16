@@ -1079,6 +1079,15 @@ figés)~; argument facultatif \code{res} (résidus de Mack déjà calculés,
 ceux du contexte dans le bootstrap~; \code{NULL}~: calculés par \code{mw\_residus()}, issue~\#239)
 de \code{mw\_test\_exposant\_}\allowbreak\code{variance()} et
 \code{mw\_test\_homogeneite\_}\allowbreak\code{accident()} & statistiques des tests M1 à M6 (détail~: §\ref{sec:index-fonctions}) \\
+\code{mw\_calendrier\_}\newline\code{diagonales()} &
+\code{cal} (résultat de \code{mw\_test\_annees\_}\allowbreak\code{calendaires()}) &
+\code{data.frame} à une ligne par diagonale retenue ($n_k \ge 2$, étiquettes «~*~»
+écartées), dans l'ordre de $k = i + j$~: $k$, $n_k$, $L_k$, $S_k$, $Z_k$, \code{p\_diag}
+$= \mathbb{P}(Z_k \le z_k)$ sous $\mathcal{B}(n_k, 1/2)$, calcul exact, et \code{repere}
+(\code{p\_diag} au plus égal à la constante \code{REPERE\_DIAGONALE\_MACK\_1997} $= 0{,}10$,
+repère de Mack (1997), indépendant de $\alpha$)~;
+aucune ligne si aucune diagonale n'est retenue~; ne recalcule ni médiane ni étiquette
+(issue~\#275, fiche~\ref{mw:m3caldiag}) \\
 \code{.mw\_summary\_lm()} & ajustement \code{lm()} & \code{summary()} de l'ajustement, appelé tel
 quel, sans le seul avertissement «~\code{essentially perfect fit}~» de \code{summary.lm()}, tout
 autre avertissement remontant~; employé par \code{mw\_test\_ordonnee\_}\allowbreak\code{origine()}
@@ -2404,6 +2413,9 @@ Effets d'année calendaire & \ref{mw:m3cal} &
 idem (p non simulée, approximation normale ; moments \emph{exacts}~; en queue basse depuis
 l'issue~\#276)~; \code{.mw\_calendrier\_p\_min()} ($p_{\min}$,
 issue~\#115) & \code{Calendrier} \\
+Effets d'année calendaire par diagonale (repère de Mack 1997) & \ref{mw:m3caldiag} &
+\code{mw\_calendrier\_diagonales()} (sur les étiquettes de \code{mw\_test\_annees\_}\allowbreak\code{calendaires()},
+issue~\#275) & diagnostic, aucune p-value & --- \\
 Corrélation entre années de développement & \ref{mw:m3cor} &
 \code{mw\_stat\_correlation\_dev()} & \textbf{aucune} (pas de loi analytique)~;
 \code{.mw\_corr\_p\_min()} ($p_{\min}$, issue~\#115) & \code{CorrDev} \\
@@ -5803,6 +5815,11 @@ Monte-Carlo, queue basse (issue~\#276) & \textbf{Sous conditions} : les moments 
 normale de leur somme ne l'est pas & Bootstrap de résidus ; test le plus
 informatif sur un triangle~; alternative unilatérale de Mack ($Z$ trop petit) \\
 
+Effets d'année calendaire par diagonale (repère de Mack 1997) & \textbf{MW} & --- & --- & --- &
+--- & Diagnostic & Sans objet & $\mathbb{P}(Z_k \le z_k)$ exacte sous la loi binomiale
+indépendante, non sous le modèle de Mack~; repère de $10~\%$ sans contrôle de multiplicité~:
+localise l'exercice en cause, sans verdict (fiche~\ref{mw:m3caldiag}) \\
+
 Corrélation entre années de développement & \textbf{MW} & $\rho$ agrégé & Non & Non &
 Oui & Monte-Carlo & Sans objet : aucune loi analytique &
 Bootstrap indispensable \\
@@ -6084,6 +6101,12 @@ Indépendance des diagonales, absence d'ex \ae quo dans les colonnes &
 Le nombre de diagonales exploitables est $I-1$ : la somme porte sur peu de
 termes, d'où le recours au bootstrap~; la p asymptotique, en queue basse depuis
 l'issue~\#276, est libérale sous le plan mesuré (section~\ref{sec:calib-asympt-mw}) \\
+
+Effets d'année calendaire par diagonale (diagnostic) & \emph{Aucune}~: $\mathbb{P}(Z_k \le z_k)$
+est calculée exactement à $n_k$ fini & --- & --- & --- &
+$L_k \sim \mathcal{B}(n_k, 1/2)$ (loi binomiale indépendante de Mack, non loi du modèle) &
+Rien ne converge~; seule une diagonale d'au moins cinq étiquettes peut descendre au repère de
+$10~\%$ (fiche~\ref{mw:m3caldiag}) \\
 
 Facteurs $\hat f_j$ & Estimateur des moindres carrés pondérés &
 $f_j$ & Convergence en probabilité ; sans biais sous M1 &
@@ -12704,6 +12727,7 @@ M2 & \textbf{Exposant de variance, colonne par colonne} & test & Monte-Carlo \\
 M2 & Variance unitaire des résidus & diagnostic & --- \\
 M3 & \textbf{Homogénéité des résidus entre années de survenance} & test & Monte-Carlo \\
 M3 & Effets d'année calendaire & test & Monte-Carlo \\
+M3 & Effets d'année calendaire par diagonale (repère de Mack 1997) & diagnostic & --- \\
 M3 & Corrélation entre années de développement & test & Monte-Carlo \\
 M3 & Autocorrélation (Durbin--Watson) & test & Monte-Carlo \\
 M3 & Test des suites & test & Monte-Carlo \\
@@ -13936,7 +13960,8 @@ section~\ref{sec:notations-mw}.
 p.~162--168 (procédure d'origine, suivie par l'outil)~; version révisée par l'auteur~:
 T.~Mack, \emph{Measuring the variability of chain ladder reserve estimates},
 \emph{Claims Reserving Manual}, vol.~2, section~D6, Faculty and Institute of Actuaries,
-septembre 1997, annexe~H, p.~D6.47--D6.51 (non retenue).}
+septembre 1997, annexe~H, p.~D6.47--D6.51 (non retenue pour le test~; repère de lecture
+du diagnostic de la fiche~\ref{mw:m3caldiag}).}
 \Cadre
 \emph{Procédure suivie.} \code{mw\_test\_annees\_}\allowbreak\code{calendaires()} met en œuvre la procédure
 d'origine de l'annexe~H de Mack (1994, \emph{CAS Forum})~: partage de chaque colonne de facteurs
@@ -13966,7 +13991,9 @@ note p.~D6.1~: «~a changed and more thorough test procedure in Appendix~H~») t
 diagonale séparément, sur la loi de $Z_k$ tabulée selon $n_k$, au seuil de $10~\%$
 (p.~D6.49), et réduit à $50~\%$ le poids, dans le calcul de $\hat f_k$, des facteurs du type
 prédominant d'une diagonale significative (p.~D6.49)~; elle ne contient ni la statistique
-globale $Z$ ni les moments (H1) et (H2). L'outil ne la retient pas.
+globale $Z$ ni les moments (H1) et (H2). L'outil ne la retient pas pour le test~; seul son
+repère de $10~\%$ par diagonale est restitué, sans verdict ni repondération, par la ligne de
+diagnostic qui suit le test (fiche~\ref{mw:m3caldiag}, issue~\#275).
 
 \emph{Pourquoi la version de 1997 n'est pas retenue} (décision Q-201-1 du mainteneur du
 13~octobre 2026, sur avis d'\code{actuary}). Ses deux volets sont écartés pour des motifs
@@ -13995,8 +14022,14 @@ de $n_k = 6$ ($2 \cdot 2^{-6} = 0{,}03125$), alors que la statistique globale de
 $Z = 2$ pour $\mathbb{E}[Z] = 7{,}375$ et une p-value de Monte-Carlo de $0{,}002$
 (\code{run\_engine()}, $B = 999$, graine 20260831~; $0{,}004$ sous la forme bilatérale antérieure
 à l'issue~\#276), verdict \code{ECHEC}. Ce constat porte sur un
-seul triangle. Aucune référence vérifiée ne compare la puissance des deux règles à $T = 8$. Une
-restitution par diagonale, sans verdict, est renvoyée à l'issue~\#275.
+seul triangle. Aucune référence vérifiée ne compare la puissance des deux règles à $T = 8$. La
+restitution par diagonale, sans verdict, est la ligne de diagnostic qui suit le test
+(fiche~\ref{mw:m3caldiag}, issue~\#275). Sous le plan de la mesure de l'issue~\#276
+(section~\ref{sec:calib-mc-mw}), la règle de 1997 appliquée à toutes les diagonales signale au
+moins une diagonale dans environ $10~\%$ des triangles simulés sous $H_0$ (même fiche)~: la
+multiplicité y reste faible \emph{parce que} peu de diagonales peuvent descendre à $10~\%$. Ce
+constat de simulation nuance le motif~(ii) sans se transposer à un triangle plus grand ni à un
+autre plan~; il ne change pas la décision, le motif~(i) suffisant à écarter la repondération.
 
 Dans chaque colonne $j$, les facteurs observés $F(i,j)$ sont classés en
 « grands » ($L$) et « petits » ($S$) par rapport à leur médiane, les valeurs
@@ -14127,6 +14160,114 @@ $Z^\star = 2{,}70$~: p-value de Monte-Carlo~1 et verdict \code{OK}, contre $0{,}
 \textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ ($p_{\min}^{\mathrm{MC}} = 0{,}001$ sur \code{reserve2}). Sur le sous-triangle $5 \times 5$ du triangle de contrôle ($n_k = 3, 3$, $p_{\min} = 0{,}0625$), la règle~R1 lit depuis l'issue~\#125 le plancher Monte-Carlo (section~\ref{sec:nature}, point~(i))~: mesuré par \code{run\_engine()} à $\alpha = 0{,}10$ (graine 20260831), $p_{\min}^{\mathrm{MC}} = 0{,}048$ à $B = 999$, égal à la p-value de Monte-Carlo, et la ligne est un test de verdict \code{ECHEC}, avec la phrase de l'issue~\#244 (l'écart de la p-value au seuil $\alpha/2$, $0{,}002$, est inférieur à son erreur de Monte-Carlo, $0{,}0068$)~; $0{,}05 = \alpha/2$ à $B = 99$, et la ligne est un test de verdict \code{ALERTE}, \code{ECHEC} dit inatteignable. Le verdict dépend donc des réplications tirées, sans marge (décision D1-8). Avant l'issue~\#276, sous la forme bilatérale ($p_{\min} = 0{,}125$), le plancher valait $0{,}096$ à $B = 999$ (test, \code{ALERTE}, \code{ECHEC} dit inatteignable, phrase de l'issue~\#244) et $0{,}10$ à $B = 99$ (test inopérant)~; jusqu'à l'issue~\#125, la règle lisait $p_{\min}$ et la ligne était inopérante (décision du mainteneur du 6~octobre 2026). \emph{Niveau} de la p-value de Monte-Carlo en queue basse, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#276, section~\ref{sec:calib-mc-mw}, tableau T1 de \code{docs/tableaux/}\allowbreak\code{20261016-issue276-calendaire.md})~: à $0{,}10$, $0{,}0835$ (N), $0{,}091$ (E), $0{,}084$ (A), pour $\rho = 0{,}089$, $0{,}091$, $0{,}090$~; à $0{,}05$, $0{,}0305$, $0{,}0365$, $0{,}037$ ($\rho = 0{,}041$, $0{,}041$, $0{,}040$)~; compatible, sauf un écart mineur du côté conservateur sous N à $0{,}05$. La référence est inférieure à $\alpha$ par discrétude de la statistique (83 à 86 valeurs distinctes dans l'échantillon oracle selon la loi, atome le plus lourd de masse $0{,}098$ à $0{,}103$). Les niveaux de l'issue~\#206 portent sur la forme bilatérale antérieure~: à $0{,}10$, $0{,}086$ (N), $0{,}081$ (E), $0{,}084$ (A), pour $\rho = 0{,}086$~; à $0{,}05$, $0{,}0455$, $0{,}041$, $0{,}040$ ($\rho = 0{,}043$, $0{,}040$, $0{,}043$)~; compatible sous les trois lois et aux deux seuils. \emph{Puissance} (même mesure, tableau T2~: loi N, $1\,000$ triangles par scénario, effet multiplicatif sur les incréments d'un exercice comptable $t$, puis recumul)~: à $0{,}10$, contre un choc de $5~\%$ et de $10~\%$ sur le dernier exercice ($t = 7$), $0{,}235$ et $0{,}401$ en queue basse, contre $0{,}157$ et $0{,}233$ sous la forme bilatérale~; sur l'exercice médian ($t = 4$), $0{,}218$ et $0{,}319$, contre $0{,}113$ et $0{,}185$~; contre une dérive de $3~\%$ et de $5~\%$ par exercice à partir de $t = 4$, $0{,}162$ et $0{,}205$, contre $0{,}084$ et $0{,}104$~; à $0{,}05$, de $0{,}074$ à $0{,}229$ en queue basse, contre $0{,}046$ à $0{,}140$~; dans chacun de ces six scénarios et aux deux seuils, les décisions discordantes des deux formes sur les mêmes triangles vont très majoritairement dans le sens de la queue basse (test de McNemar exact, p-value au plus $2{,}5\cdot 10^{-7}$). Contre une compensation alternée entre années d'accident sur l'exercice $t = 6$ ($\theta = 0{,}10$), alternative du côté haut que la ligne ne teste pas (rubrique~1), la forme bilatérale rejetait dans $0{,}109$ des cas à $0{,}10$ et $0{,}048$ à $0{,}05$, au voisinage de son niveau, la queue basse dans $0{,}017$ et $0{,}003$.
 
 \textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi binomiale indépendante de Mack, non sous le modèle de Mack~; plancher~: exact, fonction de $B$. Taux de rejet sous $H_0$ et sous les alternatives~: constat de simulation sous un plan (modèle de Mack ajusté au triangle de contrôle, section~\ref{sec:calib-mc-mw}), qui ne se transpose ni à une autre géométrie de triangle ni à un autre paramétrage~; intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
+\end{fiche}
+
+% -----------------------------------------------------------------------------
+\begin{fiche}{M3 --- Effets d'année calendaire par diagonale (repère de Mack 1997, diagnostic)}
+\label{mw:m3caldiag}
+\refl{T.~Mack, \emph{Measuring the variability of chain ladder reserve estimates},
+\emph{Claims Reserving Manual}, vol.~2, section~D6, Faculty and Institute of Actuaries,
+septembre 1997, annexe~H, p.~D6.47--D6.51 (lecture de chaque diagonale séparément~; repère de
+$10~\%$, p.~D6.49, selon la lecture consignée à l'issue~\#201).}
+\Cadre
+\code{mw\_calendrier\_}\allowbreak\code{diagonales()} restitue, pour chaque diagonale $k = i + j$
+retenue par la statistique globale du test des effets d'année calendaire
+(fiche~\ref{mw:m3cal}), le nombre $n_k$ d'étiquettes $L$ ou $S$, $L_k$, $S_k$,
+$Z_k = \min(L_k, S_k)$ et la probabilité $\mathbb{P}(Z_k \le z_k)$, où $z_k$ est la valeur
+observée de $Z_k$ (issue~\#275, décisions Q-Fd-4 à Q-Fd-6 du mainteneur du 14~octobre 2026). Elle
+lit les étiquettes de \code{mw\_test\_annees\_}\allowbreak\code{calendaires()}, sans recalculer
+ni médiane ni étiquette~: mêmes colonnes dégénérées figées, étiquettes «~*~» écartées, seules les
+diagonales de $n_k \ge 2$ étiquettes étant retenues, comme pour la statistique globale. Les
+diagonales sont repérées par l'indice $k = i + j$, celui du graphique des résidus par année
+calendaire (fiche~\ref{sec:graph-mw}), et non par les noms de ligne du triangle~; la
+diagonale~$k$ regroupe les facteurs $F(i,j)$ qui portent au numérateur les paiements de
+l'exercice comptable $i + j + 1$. La version révisée de l'annexe~H (Mack, 1997) lit chaque
+diagonale séparément, sur la loi de $Z_k$ tabulée selon $n_k$, au seuil de $10~\%$ (p.~D6.49)~;
+l'outil n'en retient que ce repère de lecture, sans la repondération des facteurs qui
+l'accompagne, contraire à l'annexe~XVII, section~D, point~(4)(c) (fiche~\ref{mw:m3cal},
+décision Q-201-1). Le repère vaut \code{REPERE\_DIAGONALE\_MACK\_1997} $= 0{,}10$, constante
+fixe, indépendante du seuil $\alpha$ du calcul (décision Q-Fd-5)~: c'est le repère de Mack, non
+un seuil de l'outil. Hypothèses non testées~: celles du test (continuité des facteurs,
+indépendance des colonnes).
+\Hzero
+La ligne n'est pas un test (rubrique~6)~; ses hypothèses décrivent ce que le repère lit, sans
+décision. $H_0$~: sur chaque diagonale, la répartition des $L$ et des $S$ est aléatoire, contre
+$H_1$~: diagonale à dominante $L$ ou $S$ (libellés d'hypothèses de la ligne dans la table auditable), en queue
+basse comme le test (fiche~\ref{mw:m3cal}).
+\Stat
+Aucune statistique de test~: la ligne est un diagnostic (champ \code{type}), sans statistique ni
+p-value. Sa grandeur descriptive (\code{estim}, «~\code{diagonales sous le repere de 10 \%}~») est
+le nombre de diagonales retenues dont $\mathbb{P}(Z_k \le z_k) \le 0{,}10$~; elle vaut \code{NA}
+si aucune diagonale n'est retenue, le commentaire étant alors «~\code{aucune diagonale retenue
+(n\_k >= 2)}~». Sinon, le commentaire (\code{detail}) donne, après un texte fixe qui rappelle
+l'absence de contrôle de multiplicité et de verdict, une entrée par diagonale retenue, dans
+l'ordre de $k$~: $n$, $L$, $S$, $Z$ et $P$, suivie de «~\code{(repere)}~» quand $P \le 0{,}10$.
+La plus petite des probabilités n'est placée dans aucune colonne de p-value, où elle serait lue
+comme la p-value d'un test.
+\Loi
+Sous la loi binomiale indépendante de Mack (fiche~\ref{mw:m3cal}, rubrique~4), $L_k \sim
+\mathcal{B}(n_k, 1/2)$ et
+\[
+  \mathbb{P}(Z_k \le z) = 2^{-n_k} \sum_{l=0}^{n_k} \binom{n_k}{l}\,
+  \mathds{1}\{\min(l, n_k - l) \le z\},
+\]
+calculée exactement~: les coefficients binomiaux et leur somme sont des entiers représentés sans
+erreur en double précision pour $n_k \le 53$ (à $T = 8$, $n_k \le 6$), et la probabilité vaut
+exactement~1 en $z = \lfloor n_k/2 \rfloor$. Elle est exacte sous cette loi de référence, non
+sous le modèle de Mack~: dans une colonne, le nombre de $L$ est fixé par la médiane, ce qui lie
+les diagonales, et les résidus ne sont pas échangeables. Pour $n_k = 2$ à~11, les valeurs du
+moteur sont égales à la table recalculée par la loi binomiale (énumération contre une récurrence
+de Pascal, \code{tests/unitaires/test\_merz\_wuthrich.R}~; mesuré aussi contre
+\code{dbinom()}, écart au plus $4{,}4\cdot 10^{-16}$)~; leur égalité avec la table publiée de
+la p.~D6.49 n'est \textbf{pas vérifiée}, le document source n'étant pas disponible dans le
+dépôt. La plus petite valeur, $\mathbb{P}(Z_k \le 0) = 2^{1-n_k}$, vaut $0{,}125$ à $n_k = 4$ et
+$0{,}0625$ à $n_k = 5$~: seule une diagonale d'au moins cinq étiquettes peut porter le repère.
+\Pval
+Aucune p-value~: ni exacte, ni de Monte-Carlo, ni asymptotique, et la ligne n'a pas de p-value
+retenue (\code{p\_retenue} \code{NA}, verdict \code{INFO}, ADR~0001). Aucune des trois voies
+n'est retenue. \emph{Exacte}~: la probabilité de la rubrique~4 est exacte sous la loi binomiale
+indépendante, qui n'est pas celle du modèle de Mack~; ce n'est donc pas une p-value exacte au
+sens de \code{CONTEXT.md}, et elle porte sur une seule diagonale, alors que la ligne en lit
+plusieurs. \emph{Monte-Carlo}~: une p-value simulée par le bootstrap de résidus supposerait une
+statistique qui intègre la multiplicité, par exemple le minimum des $\mathbb{P}(Z_k \le z_k)$
+sur les diagonales, soit une ligne de test nouvelle, hors du périmètre de l'issue~\#275, dont le
+niveau et la puissance à $T = 8$ ne sont pas mesurés. \emph{Asymptotique}~: sur des diagonales
+de deux à six étiquettes à $T = 8$, aucune loi limite n'a d'objet. Le test des effets d'année calendaire
+est la ligne précédente (fiche~\ref{mw:m3cal}).
+\Usage
+Le diagnostic localise l'exercice comptable en cause, ce que la statistique globale du test ne
+fait pas. \emph{Pourquoi il ne porte pas de verdict} (ADR~0001). (a)~La multiplicité n'est pas
+contrôlée~: chaque diagonale est lue au repère de $10~\%$ sans correction, ce que Mack (1994,
+\emph{CAS Forum}, p.~165) écartait expressément (fiche~\ref{mw:m3cal}). (b)~La loi de référence
+n'est pas celle du modèle de Mack (rubrique~4). (c)~Les diagonales courtes ne peuvent pas porter
+le repère~: une diagonale de quatre étiquettes ne descend pas sous $0{,}125$. (d)~Sous le plan du
+triangle de contrôle (mesure de l'issue~\#276, section~\ref{sec:calib-mc-mw}, tableau T3 de
+\code{docs/tableaux/}\allowbreak\code{20261016-issue276-calendaire.md}~; règle appliquée à toutes
+les diagonales retenues), au moins une diagonale est repérée dans $0{,}1005$
+$[0{,}088~;~0{,}115]$ des triangles simulés sous $H_0$ avec des erreurs gaussiennes (N),
+$0{,}1075$ $[0{,}094~;~0{,}122]$ sous E et $0{,}097$ $[0{,}079~;~0{,}117]$ sous A~; le nombre
+médian de diagonales d'au moins cinq étiquettes y est de deux. Ce taux voisin de $10~\%$ tient à
+ce que peu de diagonales peuvent porter le repère~; il ne se transpose ni à un triangle plus grand
+ni à un autre plan. Sous les alternatives de la même mesure (loi N, 1\,000 triangles par
+scénario), au moins une diagonale est repérée dans $0{,}283$ et $0{,}552$ des triangles contre
+un choc de $5$ et de $10~\%$ sur le dernier exercice ($t = 7$), $0{,}148$ et $0{,}162$ sur
+l'exercice médian ($t = 4$), $0{,}162$ et $0{,}222$ contre une dérive de $3$ et de $5~\%$, et
+$0{,}024$ contre la compensation alternée du côté haut~; à titre descriptif, le test en queue
+basse rejette au seuil $0{,}10$ dans $0{,}235$ et $0{,}401$, $0{,}218$ et $0{,}319$, $0{,}162$ et
+$0{,}205$ des triangles des mêmes scénarios (fiche~\ref{mw:m3cal}, rubrique~7)~: le repère est
+plus sensible à un choc sur le dernier exercice, dont la diagonale principale compte jusqu'à six
+étiquettes sur un triangle $8 \times 8$, et moins à un choc sur l'exercice médian, dont la diagonale principale n'en compte
+pas plus de quatre. Ces taux ne sont pas des niveaux ni des puissances d'un test~: constat de
+simulation sous un plan, intervalles de Clopper--Pearson fonction du nombre de triangles.
+Mesuré par \code{run\_engine()} (graine 20260831)~: sur le triangle de contrôle ($B = 999$), une
+seule diagonale porte le repère, $k = 5$, $n = 6$, $L = 6$, $S = 0$, $Z = 0$, $P = 0{,}03125$,
+et \code{estim} vaut~1, le test rendant \code{ECHEC}~; sur son sous-triangle $5 \times 5$
+($B = 99$), les deux diagonales retenues ont $n_k = 3$ et $P = 0{,}25$, et \code{estim} vaut~0~;
+sur un triangle $5 \times 5$ construit, dont les deux premières colonnes de facteurs sont
+dégénérées, aucune diagonale n'est retenue, \code{estim} vaut \code{NA} et le commentaire est
+celui de la rubrique~3. Les probabilités du commentaire sont des calculs exacts sous la loi
+binomiale~: aucun nombre issu du bootstrap n'y figure (règle de l'issue~\#76). Une diagonale
+repérée se lit avec le verdict du test, jamais à sa place.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -15362,6 +15503,9 @@ l'issue~\#192) &
 $|\mathrm{MSEP}| < 10^{-10}$ exigé, $0$ mesuré & \\
 Moments de $Z$ (test calendaire) par énumération exhaustive & $n = 2,\dots,12$ &
 exacts \\
+Probabilités $\mathbb{P}(Z_k \le z_k)$ du diagnostic par diagonale (\code{mw\_calendrier\_}\allowbreak\code{diagonales()},
+issue~\#275) par énumération contre une récurrence de Pascal & $n_k = 2,\dots,11$ &
+égales à la loi binomiale~; table publiée de Mack (1997, p.~D6.49) non comparée \\
 Identité $\sum_i r(i,j)^2 = n_j - 1$ sur les résidus de Mack, colonne par
 colonne & écart maximal $8{,}9\times10^{-16}$ &
 exacte (fiche~\ref{mw:m2var}) \\
@@ -16405,7 +16549,10 @@ modèle et un mode d'inférence différents.
   procedure in Appendix~H~». L'annexe~H révisée (p.~D6.47--D6.51) teste chaque
   diagonale séparément au seuil de $10~\%$ et réduit à $50~\%$ le poids des facteurs
   du type prédominant d'une diagonale significative, sans statistique globale ni
-  moments (H1) et (H2)~; l'outil ne la retient pas (fiche~\ref{mw:m3cal}). L'annexe~G
+  moments (H1) et (H2)~; l'outil ne la retient pas pour le test (fiche~\ref{mw:m3cal}) et n'en
+  restitue que le repère de $10~\%$ par diagonale, sans verdict (fiche~\ref{mw:m3caldiag}~; la
+  lecture de la p.~D6.49 est celle consignée à l'issue~\#201, et l'égalité de la table publiée de
+  cette page avec les probabilités binomiales du moteur n'est pas vérifiée). L'annexe~G
   (p.~D6.42--D6.46) garde le test de corrélation entre facteurs adjacents.
 
   \item T.~Mack, \emph{Which stochastic model is underlying the chain ladder
@@ -17323,7 +17470,8 @@ fournissent des lois de référence~; \code{.shapiro\_sur()} alimente \emph{deux
 \node[ded, below=5mm of m1] (m2)
   {\code{stats::lm(r\textasciicircum2 \textasciitilde\ C)},\\
    \code{mw\_test\_}\\ \code{exposant\_variance()}};
-\node[ded, below=5mm of m2] (cal) {\code{mw\_test\_annees\_}\\ \code{calendaires()}};
+\node[ded, below=5mm of m2] (cal) {\code{mw\_test\_annees\_}\\ \code{calendaires()},
+   \code{mw\_calendrier\_}\\ \code{diagonales()}};
 \node[ded, below=5mm of cal] (cor) {\code{mw\_stat\_}\\ \code{correlation\_dev()},
    \code{mw\_test\_}\\ \code{homogeneite\_accident()}};
 \node[mut, below=5mm of cor] (dw) {\code{stat\_dw()}, \code{test\_runs()}};
@@ -17342,7 +17490,7 @@ fournissent des lois de référence~; \code{.shapiro\_sur()} alimente \emph{deux
 \coordinate (cx) at ([xshift=16mm]fi.east);
 \node[sor, anchor=west] at (cx |- m1)  (q1) {M1 (5 entrées)};
 \node[sor, anchor=west] at (cx |- m2)  (q2) {M2 (3 entrées)};
-\node[sor, anchor=west] at (cx |- cal) (q3) {M3 année calendaire};
+\node[sor, anchor=west] at (cx |- cal) (q3) {M3 année calendaire (test et diagnostic)};
 \node[sor, anchor=west] at (cx |- cor) (q4) {M3 (2 entrées)};
 \node[sor, anchor=west] at (cx |- dw)  (q5) {M3 DW, suites};
 \node[sor, anchor=west] at (cx |- gr)  (q6) {M4 aberrants};
@@ -17446,7 +17594,10 @@ extrémités que déclare le champ \code{extremes} des deux catalogues~: une ano
 d'extrémités (\code{.runs\_extremes()}, \code{.mw\_fisher\_x\_max()}\ldots) n'atteint aucune
 p-value, mais peut changer le type d'une ligne (test ou test inopérant)~; \code{.runs\_z()} et
 \code{.mk\_z()}, partagées avec \code{test\_runs()} et \code{test\_mann\_kendall()}, atteindraient
-aussi la statistique observée.
+aussi la statistique observée. Depuis l'issue~\#275, \code{mw\_calendrier\_}\allowbreak\code{diagonales()}
+lit les étiquettes de \code{mw\_test\_annees\_}\allowbreak\code{calendaires()}, sans les
+recalculer~: une anomalie de l'étiquetage atteindrait à la fois le test des effets d'année
+calendaire et le diagnostic par diagonale.
 
 \noindent
 Cette hiérarchie explique l'ordre de vérification retenu lors du développement~:
