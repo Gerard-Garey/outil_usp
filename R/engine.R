@@ -8203,7 +8203,7 @@ mw_calendrier_diagonales <- function(cal) {
   # 2^n aussi ; z = floor(n/2) donne exactement 1 (dbinom() pouvait depasser
   # 1 de quelques ULP). A T = 8, n_k <= 6 : la colonne J - 1 n'a qu'un facteur,
   # non etiquete ; 27 facteurs etiquetables moins 3 medianes laissent 24
-  # etiquettes, et la diagonale k = 6 en porte 6 au plus.
+  # etiquettes, et les diagonales k = 5 et k = 6 en portent 6 au plus.
   p <- vapply(seq_along(n), function(i) {
     l <- 0:n[i]
     sum(choose(n[i], l)[pmin(l, n[i] - l) <= Z[i]]) / 2^n[i]

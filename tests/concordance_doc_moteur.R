@@ -195,9 +195,9 @@
 #  pour la ligne de l'IC restreint, sur boot$sigma_boot_restreint, de
 #  longueur celle de boot$sigma_boot moins boot$n_echec_restreint). Mesure sur
 #  tests/donnees/ : 47 lignes pour premium et reserve1 a B = 19 et 20, 48 a
-#  B = 21 et 22 ; reserve2 : 20 lignes a B = 19, 20, 21, 22 (mesure faite
-#  avant le seuil B_MIN_USAGE). run_engine() refuse desormais tout
-#  B < B_MIN_USAGE = 99 (R/engine.R, .engine_verifier_usage(), constat C1 de
+#  B = 21 et 22 ; reserve2 : 19 lignes a B = 19, 20, 21, 22 (mesure faite
+#  avant le seuil B_MIN_USAGE ; 20 depuis #275, nombre independant de B).
+#  run_engine() refuse desormais tout B < B_MIN_USAGE = 99 (R/engine.R, .engine_verifier_usage(), constat C1 de
 #  la revue finale d'E1), seuil qui couvre celui de l'IC. Le script lit
 #  B_MIN = B_MIN_USAGE dans R/engine.R, refuse tout --B < B_MIN (erreur,
 #  code de sortie 1, moteur non execute), et verifie apres execution que
