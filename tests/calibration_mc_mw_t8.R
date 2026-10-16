@@ -48,6 +48,18 @@
 #    par. 9 : #119 (regressions agregees, T6 ; sous-mesure N, T7) ;
 #    par. 11 : modes, sorties T0 a T7, criteres de #242.
 #
+#  Forme mesuree de la cle Calendrier (#276) : le sens de rejet est LU au
+#  catalogue (QUEUE) et compare au tableau du par. 1 (SENS_SPEC, controle
+#  (b)). Le tableau de #206 (docs/tableaux/20261011-issue206-calibration-mw.md)
+#  est la trace de la forme BILATERALE ("deux") du test calendaire de Mack ;
+#  depuis #276 (decision Q-Fd-1 du mainteneur, 14/10/2026), l'entree
+#  Calendrier du moteur est en queue basse ("bas"), mesuree par
+#  tests/mesure_calendaire_t8.R (docs/tableaux/20261016-issue276-
+#  calendaire.md). SENS_SPEC, texte de la specification de #206, n'est pas
+#  modifie : sur le moteur posterieur a #276, le controle (b) est en ECHEC
+#  (cle Calendrier, "bas" lu contre "deux" attendu ; libelle porte dans
+#  INTEGRITE), et une remesure de #206 passerait par une decision.
+#
 #  Statut des valeurs : CONSTAT DE SIMULATION SOUS UN PLAN (modele de Mack
 #  ajuste a reserve2), pas un resultat general (par. 0). Aucun theoreme ne
 #  couvre ce test bootstrap a T = 8 ; Dwass (1957) et Hope (1968) ne fondent

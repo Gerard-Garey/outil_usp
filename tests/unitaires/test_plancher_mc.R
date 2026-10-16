@@ -425,14 +425,16 @@ verifier("U125-6 premium_interieur : Cox-Stuart inoperant (prefixe Monte-Carlo) 
          })
 
 ## --- U125-7 : reserve2 -------------------------------------------------------------
-verifier("U125-7 reserve2 : p_min_mc = 0,002 (bilateral) et 0,001 (queue haute) pour les six statistiques discretes ; aucun texte de R1",
+# Calendrier en queue basse depuis #276 (decision Q-Fd-1) : 0,002 -> 0,001.
+verifier("U125-7 reserve2 : p_min_mc = 0,002 (bilateral) et 0,001 (queue haute, queue basse de Calendrier, #276) pour les six statistiques discretes ; aucun texte de R1",
          {
            b <- res_r2$bootstrap
            pm <- b$p_min_mc
            all(b$B_effectif[STAT_DISCRETES_MW] == 999) &&
-             all(vapply(c("Calendrier", "CorrDev", "Runs"),
+             identical(MW_CATALOGUE_MC$Calendrier$queue, "bas") &&
+             all(vapply(c("CorrDev", "Runs"),
                         function(k) isTRUE(proche(pm[[k]], 2 / 1000, rel = 1e-12)), logical(1))) &&
-             all(vapply(c("HomogF", "ExpVar", "KruskalAcc"),
+             all(vapply(c("Calendrier", "HomogF", "ExpVar", "KruskalAcc"),
                         function(k) isTRUE(proche(pm[[k]], 1 / 1000, rel = 1e-12)), logical(1))) &&
              all(vapply(Filter(function(l) is.finite(l$p_min_mc), res_r2$tests), function(l)
                !grepl("TEST INOPERANT|ECHEC inatteignable|ECHEC possible|p_min", l$detail), logical(1))) &&

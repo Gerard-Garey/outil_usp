@@ -22,7 +22,9 @@
 #  (commentaires retires ; residu de mw_residus() reporte sous la forme
 #  stable de #233, .mw_ecart_facteur_stable() ; t et p du terme quadratique
 #  de mw_test_courbure() reportes sous la forme close de #253,
-#  .mw_courbure_colonne(), qui remplace lm() dans le moteur : la comparaison
+#  .mw_courbure_colonne(), qui remplace lm() dans le moteur ; p asymptotique
+#  de mw_test_annees_calendaires() et queue de l'entree Calendrier reportees
+#  sous la forme de #276, queue basse : la comparaison
 #  porte sur l'assemblage des tables, objet de #239 ; ensembles figes rendus
 #  par le contexte dans l'element figes, forme de l'objet de
 #  .mw_ensembles_figes(), et moteur appele par l'adaptateur moteur(), #278),
@@ -150,7 +152,9 @@ local({
     if (!is.finite(VZ) || VZ <= 0) return(list(stat = NA_real_, p = NA_real_, Z = Z,
                                                 etiquettes = etiquettes))
     st <- (Z - EZ) / sqrt(VZ)
-    list(stat = st, p = .p_borne(2 * (1 - stats::pnorm(abs(st)))),
+    # p asymptotique reportee sous la forme de #276 (queue basse, Phi(Z*),
+    # decision Q-Fd-3) : la comparaison porte sur l'assemblage des tables
+    list(stat = st, p = .p_borne(stats::pnorm(st)),
          Z = Z, E = EZ, V = VZ, detail = A, etiquettes = etiquettes)
   }
 
@@ -370,8 +374,10 @@ local({
          figes = list(degeneres = jd, non_identifiables = jni, origine_non_identifiables = jno))
   }
 
+  # Calendrier en queue basse depuis #276 (decision Q-Fd-1 ; sans effet sur
+  # .mw_stats(), qui ne lit que les statistiques)
   MW_CATALOGUE_MC <- list(
-    Calendrier = .mc_entree(function(e) mw_test_annees_calendaires(e$aj, e$figes$degeneres)$stat, "deux"),
+    Calendrier = .mc_entree(function(e) mw_test_annees_calendaires(e$aj, e$figes$degeneres)$stat, "bas"),
     CorrDev    = .mc_entree(function(e) mw_stat_correlation_dev(e$aj, e$figes$degeneres)$stat, "deux"),
     BP         = .mc_entree(function(e) {
       res <- e$res; r <- e$r
