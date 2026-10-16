@@ -1931,11 +1931,12 @@ kw_enum <- function(t) {
   h <- vapply(perms(g), function(gg) sum(tapply(seq_len(N), gg, sum)^2 / t), numeric(1))
   sum(abs(h - max(h)) < 1e-9) / length(h)
 }
+# Queue basse depuis #276 (decision Q-Fd-1 du 14/10/2026) : min_z P(Z <= z).
 cal_enum <- function(nk) {
   gr <- as.matrix(expand.grid(lapply(nk, function(n) 0:n)))
   pr <- apply(gr, 1, function(l) prod(stats::dbinom(l, nk, 0.5)))
   Z <- apply(gr, 1, function(l) sum(pmin(l, nk - l)))
-  min(vapply(sort(unique(Z)), function(z) min(1, 2 * min(sum(pr[Z <= z]), sum(pr[Z >= z]))), numeric(1)))
+  min(vapply(sort(unique(Z)), function(z) min(1, sum(pr[Z <= z])), numeric(1)))
 }
 verifier("p_min Kruskal-Wallis par enumeration : (3,3,2,1) -> 24/5040, (4,3,2,1) -> 24/12600 (#115)",
          isTRUE(proche(.mw_kruskal_p_min(c(3, 3, 2, 1)), 24 / 5040, 1e-12)) &&
@@ -1943,12 +1944,33 @@ verifier("p_min Kruskal-Wallis par enumeration : (3,3,2,1) -> 24/5040, (4,3,2,1)
            all(vapply(list(c(3, 3, 2, 1), c(4, 3, 2, 1), c(2, 2, 2), c(3, 2, 2, 1)), function(t)
              isTRUE(proche(.mw_kruskal_p_min(t), kw_enum(t), 1e-12)), logical(1))) &&
            .mw_kruskal_p_min(rep(1, 5)) == 1 && is.na(.mw_kruskal_p_min(4)))
-verifier("p_min calendaire par enumeration : (3,3) -> 0,125, (2,3,2,4) -> 0,015625 (#115)",
-         identical(.mw_calendrier_p_min(c(3, 3)), 0.125) &&
-           identical(.mw_calendrier_p_min(c(2, 3, 2, 4)), 0.015625) &&
+verifier("p_min calendaire (queue basse) par enumeration : (3,3) -> 0,0625, (2,3,2,4) -> 0,0078125 (#115, #276)",
+         identical(.mw_calendrier_p_min(c(3, 3)), 0.0625) &&
+           identical(.mw_calendrier_p_min(c(2, 3, 2, 4)), 0.0078125) &&
            all(vapply(list(c(3, 3), c(2, 3, 2, 4), c(2, 2), c(5, 2, 3), c(2, 3, 4, 4, 6, 5)), function(n)
              isTRUE(proche(.mw_calendrier_p_min(n), cal_enum(n), 1e-12)), logical(1))) &&
            is.na(.mw_calendrier_p_min(1)))
+# Forme close de la p_min en queue basse (#276, spec. fd-test-calendaire.md,
+# par. 1.3, point 3) : min_z P(Z <= z) = P(Z = 0) = prod_k 2^(1 - n_k), et
+# moitie exacte de l'ancienne p_min bilaterale (calcul independant par
+# enumeration, cote bilateral recalcule ici).
+cal_enum_deux <- function(nk) {
+  gr <- as.matrix(expand.grid(lapply(nk, function(n) 0:n)))
+  pr <- apply(gr, 1, function(l) prod(stats::dbinom(l, nk, 0.5)))
+  Z <- apply(gr, 1, function(l) sum(pmin(l, nk - l)))
+  min(vapply(sort(unique(Z)), function(z) min(1, 2 * min(sum(pr[Z <= z]), sum(pr[Z >= z]))), numeric(1)))
+}
+verifier("p_min calendaire, forme close prod 2^(1 - n_k) et moitie de la p_min bilaterale (#276)",
+         {
+           cas <- list(2, 3, 7, c(2, 2), c(3, 3), c(2, 3, 2, 4), c(5, 2, 3), c(2, 3, 4, 4, 6, 5),
+                       c(2, 2, 2, 2, 2), c(11, 9, 6))
+           all(vapply(cas, function(n)
+             isTRUE(proche(.mw_calendrier_p_min(n), prod(2^(1 - n)), 1e-12)), logical(1))) &&
+             identical(.mw_calendrier_p_min(c(2, 3, 4, 4, 6, 5)), 2^-18) &&
+             all(vapply(cas[seq_len(8)], function(n)
+               isTRUE(proche(.mw_calendrier_p_min(n), cal_enum_deux(n) / 2, 1e-12)), logical(1))) &&
+             identical(.mw_calendrier_p_min(c(1, 2)), 0.5)
+         })
 verifier("p_min CorrDev (4,3) -> 2/(4! 3!) = 0,013889 ; Fisher de rangs prod 2/n_j!, NA a n_j > 9 ou K < 2 (#115)",
          isTRUE(proche(.mw_corr_p_min(c(4, 3)), 2 / 144, 1e-12)) &&
            isTRUE(proche(.mw_corr_p_min(3), 1 / 3, 1e-12)) &&
@@ -2011,43 +2033,109 @@ verifier("p_min non finie : NA et motif explicite dans effectifs (#115, C2)",
              is.na(s1$p_min) && identical(s1$effectifs,
                "t = 3, 2 ; p_min non calculable sur ces effectifs, p_min non attribuee")
          })
-verifier("reserve2 : p_min des six lignes discretes, les 13 autres NA (#115, critere 1)",
+verifier("reserve2 : p_min des six lignes discretes, les 14 autres NA (#115, critere 1 ; 20 lignes depuis #275)",
          {
            d <- engine_table_tests(run_mw(tri_ref))
            att <- c("Homogeneite de f_j entre annees de survenance" = 16 / prod(factorial(7:4)),
                     "Adequation de l'exposant de variance, colonne par colonne" = 16 / prod(factorial(7:4)),
-                    "Effets d'annee calendaire (test de Mack)" = 2^-17,
+                    "Effets d'annee calendaire (test de Mack)" = 2^-18,
                     "Homogeneite des residus entre annees de survenance" = 8.292518941e-15,
                     "Correlation entre annees de developpement adjacentes" = 2 / 12441600,
                     "Test des suites sur les residus de Mack" = runs_p_min(13, 13))
-           nrow(d) == 19L && all(is.na(d$p_min[!d$test %in% names(att)])) &&
+           nrow(d) == 20L && all(is.na(d$p_min[!d$test %in% names(att)])) &&
              all(vapply(names(att), function(k)
                isTRUE(proche(d$p_min[d$test == k], att[[k]], 1e-6)), logical(1))) &&
              isTRUE(proche(runs_p_min(13, 13), 3.845932e-7, 1e-6)) &&
              !any(d$inoperant)
          })
 # Depuis #125 (D1-8), la p Monte-Carlo etant retenue, R1 lit le plancher
-# Monte-Carlo p_min_mc (B = 99, B_eff = 99) : Calendaire 0,10 >= alpha et
-# CorrDev 0,38 >= alpha -> inoperants (prefixe Monte-Carlo) ; Suites
-# 0,02 < alpha/2 -> test sans texte de R1 (le texte "ECHEC possible" lu sur
-# p_min = 4/70 a disparu). p_min reste restituee.
-verifier("Sous-triangle 5 x 5, alpha = 0,10 : Calendaire et CorrDev inoperants sur p_min_mc, Suites reste un test sans texte de R1 (#115, #125)",
+# Monte-Carlo p_min_mc (B = 99, B_eff = 99) : CorrDev 0,38 >= alpha ->
+# inoperant (prefixe Monte-Carlo) ; Suites 0,02 < alpha/2 -> test sans texte
+# de R1 (le texte "ECHEC possible" lu sur p_min = 4/70 a disparu). p_min
+# reste restituee. Calendaire en queue basse depuis #276 (decision Q-Fd-1 ;
+# spec. fd-test-calendaire.md, par. 5.1 et 6) : plancher 0,05 = alpha/2 a
+# B = 99 (0,10 en bilateral, alors inoperant) -> test ALERTE, ECHEC dit
+# inatteignable ; a B = 999, p = p_min_mc = 0,048 < alpha/2 -> ECHEC (ALERTE
+# en bilateral, p = 0,096) ; p_min 0,0625 (0,125 en bilateral).
+verifier("Sous-triangle 5 x 5, alpha = 0,10 : CorrDev inoperant sur p_min_mc, Calendaire test (queue basse, #276), Suites test sans texte de R1 (#115, #125)",
          {
            t5 <- tri_ref[1:5, 1:5]; t5[row(t5) + col(t5) > 6] <- NA
            d <- engine_table_tests(run_mw(t5))
-           l <- function(k) d[d$test == k, ]
+           l <- function(k, d) d[d$test == k, ]
            pre <- paste("TEST INOPERANT au seuil alpha = 0.1 : plus petite p-value Monte-Carlo",
                         "atteignable sur ces replications >= alpha")
-           ca <- l("Effets d'annee calendaire (test de Mack)")
-           co <- l("Correlation entre annees de developpement adjacentes")
-           su <- l("Test des suites sur les residus de Mack")
-           all(vapply(list(ca, co), function(x) isTRUE(x$inoperant) && x$type == "diagnostic" &&
-                        identical(x$verdict, "INFO") && startsWith(x$commentaire, pre), logical(1))) &&
-             identical(ca$p_min, 0.125) && isTRUE(proche(co$p_min, 1 / 3, 1e-12)) &&
-             isTRUE(proche(ca$p_min_mc, 0.10, 1e-12)) && isTRUE(proche(co$p_min_mc, 0.38, 1e-12)) &&
+           ina <- paste("ECHEC inatteignable : plus petite p-value Monte-Carlo atteignable sur ces",
+                        "replications >= alpha/2 = 0.05 (diagonales n_k = 3, 3)")
+           ca <- l("Effets d'annee calendaire (test de Mack)", d)
+           co <- l("Correlation entre annees de developpement adjacentes", d)
+           su <- l("Test des suites sur les residus de Mack", d)
+           d999 <- engine_table_tests(run_engine(methode = "reserve2", triangle = t5, segment = 1,
+                                                 annexe = "II", B = 999))
+           c9 <- l("Effets d'annee calendaire (test de Mack)", d999)
+           isTRUE(co$inoperant) && co$type == "diagnostic" && identical(co$verdict, "INFO") &&
+             startsWith(co$commentaire, pre) &&
+             !ca$inoperant && ca$type == "test" && identical(ca$verdict, "ALERTE") &&
+             grepl(ina, ca$commentaire, fixed = TRUE) &&
+             isTRUE(proche(ca$p_retenue, 0.05, 1e-12)) &&
+             identical(ca$p_min, 0.0625) && isTRUE(proche(co$p_min, 1 / 3, 1e-12)) &&
+             isTRUE(proche(ca$p_min_mc, 0.05, 1e-12)) && isTRUE(proche(co$p_min_mc, 0.38, 1e-12)) &&
+             !c9$inoperant && c9$type == "test" && identical(c9$verdict, "ECHEC") &&
+             isTRUE(proche(c9$p_retenue, 0.048, 1e-12)) && isTRUE(proche(c9$p_min_mc, 0.048, 1e-12)) &&
+             !grepl("inatteignable", c9$commentaire, fixed = TRUE) &&
              su$type == "test" && !su$inoperant && isTRUE(proche(su$p_min, 4 / 70, 1e-12)) &&
              isTRUE(proche(su$p_min_mc, 0.02, 1e-12)) &&
              !grepl("ECHEC", su$commentaire, fixed = TRUE) && !grepl("p_min", su$commentaire, fixed = TRUE)
+         })
+# Queue basse du test calendaire (#276, decisions Q-Fd-1 et Q-Fd-3 ; reprise
+# apres l'audit leger). Triangle 8 x 8 a diagonales equilibrees : rangs des
+# facteurs par colonne trouves par recherche aleatoire (graine 1, 3 000
+# tirages, maximum de Z*) hors de ce fichier ; Z = 12, Z* = 2,704 > 0 (cote
+# haut, abandonne par la forme unilaterale). Mesure du 16/10/2026 a B = 99,
+# graine 20260831 : p Monte-Carlo "bas" = 1 (verdict OK), p "deux" = 0,02
+# (< alpha/2 : la forme bilaterale aurait rendu ECHEC).
+tri_cal_haut <- local({
+  rk <- list(c(4, 1, 6, 7, 2, 5, 3), c(6, 2, 5, 3, 1, 4), c(3, 2, 4, 1, 5), c(2, 4, 3, 1),
+             c(2, 1, 3), 2:1, 1)
+  f <- c(1.8, 1.4, 1.2, 1.1, 1.05, 1.03, 1.02)
+  t <- matrix(NA_real_, 8, 8); t[, 1] <- 100 + 10 * (0:7)
+  for (j in 0:6) { idx <- 0:(6 - j)
+    t[idx + 1, j + 2] <- t[idx + 1, j + 1] * f[j + 1] * (1 + 0.01 * rk[[j + 1]]) }
+  t
+})
+verifier("p asymptotique calendaire Phi(Z*) (queue basse, #276) : reserve2 1,996364e-4 ; Z* > 0 -> p > 0,5",
+         {
+           c2 <- mw_test_annees_calendaires(mw_ajuster(tri_ref))
+           ch <- mw_test_annees_calendaires(mw_ajuster(tri_cal_haut))
+           identical(c2$p, .p_borne(stats::pnorm(c2$stat))) &&
+             isTRUE(proche(c2$p, 1.996364159e-4, 1e-8)) &&
+             isTRUE(proche(2 * (1 - stats::pnorm(abs(c2$stat))), 2 * c2$p, 1e-10)) &&
+             identical(ch$p, .p_borne(stats::pnorm(ch$stat))) &&
+             ch$Z == 12 && isTRUE(proche(ch$stat, 2.7043359, 1e-6)) && ch$p > 0.5 &&
+             isTRUE(proche(ch$p, 0.9965779, 1e-6))
+         })
+verifier("Cote haut abandonne (#276) : Z* > 0 -> p Monte-Carlo 1 et verdict OK ; la queue \"deux\" rendrait p = 0,02 (B = 99)",
+         {
+           aj <- mw_ajuster(tri_cal_haut)
+           # meme flux de mw_bootstrap(), catalogue local dont seule la queue
+           # de Calendrier differe (copie de la fonction dans un environnement
+           # fils de celui du moteur)
+           boot_queue <- function(queue) {
+             ct <- MW_CATALOGUE_MC
+             ct$Calendrier <- .mc_entree(ct$Calendrier$calc, queue, extremes = ct$Calendrier$extremes)
+             f <- mw_bootstrap; e <- new.env(parent = environment(mw_bootstrap))
+             e$MW_CATALOGUE_MC <- ct; environment(f) <- e
+             f(aj, B = 99, seed = 20260831)
+           }
+           b0 <- mw_bootstrap(aj, B = 99, seed = 20260831)
+           bb <- boot_queue("bas"); bd <- boot_queue("deux")
+           d <- engine_table_tests(run_mw(tri_cal_haut))
+           ca <- d[d$test == "Effets d'annee calendaire (test de Mack)", ]
+           identical(MW_CATALOGUE_MC$Calendrier$queue, "bas") &&
+             identical(b0$p_mc[["Calendrier"]], bb$p_mc[["Calendrier"]]) &&
+             identical(b0$p_mc[["Calendrier"]], 1) && b0$B_effectif[["Calendrier"]] == 99 &&
+             isTRUE(proche(bd$p_mc[["Calendrier"]], 0.02, 1e-12)) &&
+             bd$p_mc[["Calendrier"]] < 0.05 &&
+             ca$type == "test" && identical(ca$verdict, "OK") && identical(ca$p_retenue, 1)
          })
 # Adapte par #207 : la p_min de HomogF est attribuee avec ex aequo (loi
 # conditionnelle aux rangs moyens, decision Q-E2c-3) ; celle de CorrDev reste
@@ -2334,5 +2422,241 @@ verifier("mw_influence() stable (#233) : reserve2, ligne 0 x 1e16 : f_sans_cellu
          .verifier_influence_dominante(16))
 verifier("mw_influence() stable (#233) : reserve2, ligne 0 x 1e17 : memes controles",
          .verifier_influence_dominante(17))
+
+# Noms de ligne du triangle (#268) : facultatifs ; s'ils sont fournis, chacun
+# est renseigne (ni NA, ni vide, ni fait de seuls blancs) et unique. Avant
+# #268 : nom NA -> defaut de calcul intercepte (erreur R dans
+# mw_plots_data()) ; nom vide et doublon -> ok = TRUE, le doublon remplace en
+# silence dans les tables. Un refus est un motif metier, sans erreur_r.
+.run_noms <- function(noms) {
+  t <- tri_ref; rownames(t) <- noms
+  run_engine(methode = "reserve2", triangle = t, segment = 1, annexe = "II", B = 99)
+}
+.refus_noms <- function(noms, motif) {
+  r <- .run_noms(noms)
+  v <- mw_valider_triangle(`rownames<-`(tri_ref, noms))
+  identical(r$ok, FALSE) && identical(r$validation$ok, FALSE) &&
+    is.null(r$validation$erreur_r) && is.null(r$parametre_final) &&
+    identical(r$validation$erreurs, motif) && identical(v$ok, FALSE) &&
+    identical(v$erreurs, motif)
+}
+annees <- as.character(2017:2024)
+verifier("Noms de ligne (#268) : nom NA refuse, motif metier, sans erreur_r",
+         .refus_noms(replace(annees, 8, NA),
+                     "Nom d'annee d'accident manquant ou vide en ligne 8 (i=7)."))
+verifier("Noms de ligne (#268) : nom vide refuse, motif metier, sans erreur_r",
+         .refus_noms(replace(annees, 3, ""),
+                     "Nom d'annee d'accident manquant ou vide en ligne 3 (i=2)."))
+verifier("Noms de ligne (#268) : nom fait de seuls blancs refuse comme un nom vide",
+         .refus_noms(replace(annees, 1, " \t"),
+                     "Nom d'annee d'accident manquant ou vide en ligne 1 (i=0)."))
+verifier("Noms de ligne (#268) : annees d'accident en double refusees, un motif par nom, positions citees",
+         .refus_noms(replace(annees, c(7, 4), c("2022", "2019")),
+                     c("Annee d'accident en double : \"2019\" (lignes 3 et 4, i=2 et i=3).",
+                       "Annee d'accident en double : \"2022\" (lignes 6 et 7, i=5 et i=6).")))
+verifier("Noms de ligne (#268) : trois lignes au meme nom, un seul motif",
+         .refus_noms(replace(annees, c(2, 5), "2017"),
+                     "Annee d'accident en double : \"2017\" (lignes 1, 2 et 5, i=0, i=1 et i=4)."))
+verifier("Noms de ligne (#268) : blanc initial, doublon compare sans les blancs, forme saisie citee",
+         .refus_noms(replace(annees, 7, " 2022"),
+                     "Annee d'accident en double : \"2022\", \" 2022\" (lignes 6 et 7, i=5 et i=6)."))
+verifier("Noms de ligne (#268) : blanc final, doublon compare sans les blancs, forme saisie citee",
+         .refus_noms(replace(annees, 2, "2017 "),
+                     "Annee d'accident en double : \"2017\", \"2017 \" (lignes 1 et 2, i=0 et i=1)."))
+verifier("Noms de ligne (#268) : manquants et doublon cumules, doublon compte hors des noms manquants",
+         .refus_noms(c(NA, "", annees[3:6], "2022", "2024"),
+                     c("Nom d'annee d'accident manquant ou vide en ligne 1 (i=0).",
+                       "Nom d'annee d'accident manquant ou vide en ligne 2 (i=1).",
+                       "Annee d'accident en double : \"2022\" (lignes 6 et 7, i=5 et i=6).")))
+# Blancs Unicode et echappement des formes citees (#268, correction du
+# 16/10/2026) : l'espace insecable U+00A0, les autres blancs \h, \v et les
+# caracteres de format sans chasse U+200B, U+200C, U+200D, U+2060, U+FEFF
+# (decision du mainteneur du 16/10/2026) sont des blancs ; une forme citee
+# est echappee (tabulation, guillemet), et un blanc ou un caractere de format
+# non ASCII y est ecrit \uXXXX quelle que soit la locale. Chaines non ASCII
+# construites par intToUtf8() et rawToChar() : ce fichier reste en ASCII.
+.u <- function(...) intToUtf8(c(...))
+.octets <- function(b, enc) { s <- rawToChar(as.raw(b)); Encoding(s) <- enc; s }
+verifier("Noms de ligne (#268) : espace insecable finale, doublon compare sans elle, citee \\u00a0",
+         .refus_noms(replace(annees, 7, paste0("2022", .u(0xA0))),
+                     "Annee d'accident en double : \"2022\", \"2022\\u00a0\" (lignes 6 et 7, i=5 et i=6)."))
+verifier("Noms de ligne (#268) : nom fait d'une seule espace insecable refuse comme un nom vide",
+         .refus_noms(replace(annees, 3, .u(0xA0)),
+                     "Nom d'annee d'accident manquant ou vide en ligne 3 (i=2)."))
+verifier("Noms de ligne (#268) : nom fait de blancs Unicode (U+2003, U+3000) refuse comme un nom vide",
+         .refus_noms(replace(annees, 5, .u(0x2003, 0x3000)),
+                     "Nom d'annee d'accident manquant ou vide en ligne 5 (i=4)."))
+verifier("Noms de ligne (#268) : nom fait de l'espace sans chasse U+200B refuse comme un nom vide",
+         .refus_noms(replace(annees, 4, .u(0x200B)),
+                     "Nom d'annee d'accident manquant ou vide en ligne 4 (i=3)."))
+verifier("Noms de ligne (#268) : \"x\" suivi de U+FEFF doublon de \"x\", cite \\ufeff",
+         .refus_noms(c("x", paste0("x", .u(0xFEFF)), annees[3:8]),
+                     "Annee d'accident en double : \"x\", \"x\\ufeff\" (lignes 1 et 2, i=0 et i=1)."))
+verifier("Noms de ligne (#268) : U+2060, U+200C et U+200D de bord retires, doublon de \"x\"",
+         .refus_noms(c(paste0(.u(0x2060, 0x200C), "x", .u(0x200D)), "x", annees[3:8]),
+                     "Annee d'accident en double : \"\\u2060\\u200cx\\u200d\", \"x\" (lignes 1 et 2, i=0 et i=1)."))
+verifier("Noms de ligne (#268) : tabulation et guillemet echappes dans les formes citees",
+         .refus_noms(c("a\tb", "a\tb ", "a\"b", " a\"b", annees[5:8]),
+                     c("Annee d'accident en double : \"a\\tb\", \"a\\tb \" (lignes 1 et 2, i=0 et i=1).",
+                       "Annee d'accident en double : \"a\\\"b\", \" a\\\"b\" (lignes 3 et 4, i=2 et i=3).")))
+verifier("Noms de ligne (#268) : nom a octet A0 non UTF-8 (Latin-1 non declare), sans erreur R, lu comme une espace insecable",
+         .refus_noms(replace(annees, 7, .octets(c(0x32, 0x30, 0x32, 0x32, 0xa0), "unknown")),
+                     "Annee d'accident en double : \"2022\", \"2022\\u00a0\" (lignes 6 et 7, i=5 et i=6)."))
+# Encodage "bytes" : avant la reprise, citer() levait une erreur R
+# (utf8ToInt() -> NA) que run_engine() propageait sans ok = FALSE.
+verifier("Noms de ligne (#268) : encodage \"bytes\", octets UTF-8 (C2 A0) : doublon refuse sans erreur R",
+         .refus_noms(replace(annees, 7, .octets(c(0x32, 0x30, 0x32, 0x32, 0xc2, 0xa0), "bytes")),
+                     "Annee d'accident en double : \"2022\", \"2022\\u00a0\" (lignes 6 et 7, i=5 et i=6)."))
+verifier("Noms de ligne (#268) : encodage \"bytes\", octets Latin-1 (A0) : doublon refuse sans erreur R",
+         .refus_noms(replace(annees, 7, .octets(c(0x32, 0x30, 0x32, 0x32, 0xa0), "bytes")),
+                     "Annee d'accident en double : \"2022\", \"2022\\u00a0\" (lignes 6 et 7, i=5 et i=6)."))
+verifier("Noms de ligne (#268) : encodage \"bytes\", nom fait d'une seule espace insecable refuse comme vide",
+         .refus_noms(replace(annees, 3, .octets(c(0xc2, 0xa0), "bytes")),
+                     "Nom d'annee d'accident manquant ou vide en ligne 3 (i=2)."))
+# Nom declare UTF-8 dont les octets n'en sont pas (seconde reprise du
+# 16/10/2026) : avant elle, trimws() levait l'erreur R "input string 3 is
+# invalid UTF-8", propagee par run_engine() sans ok = FALSE. Relu en Latin-1
+# (decision du mainteneur du 16/10/2026) : 32 FF FE -> "2", U+00FF, U+00FE.
+.utf8_invalide <- .octets(c(0x32, 0xff, 0xfe), "UTF-8")
+verifier("Noms de ligne (#268) : nom declare UTF-8 invalide (32 FF FE) seul : accepte sans erreur R, par mw_valider_triangle() et run_engine()",
+         local({
+           noms <- replace(annees, 3, .utf8_invalide)
+           v <- tryCatch(mw_valider_triangle(`rownames<-`(tri_ref, noms)),
+                         error = function(e) NULL)
+           r <- tryCatch(.run_noms(noms), error = function(e) NULL)
+           !is.null(v) && isTRUE(v$ok) && !is.null(r) && isTRUE(r$ok)
+         }))
+verifier("Noms de ligne (#268) : deux noms declares UTF-8 invalides identiques : doublon refuse sans erreur R, cite en Latin-1",
+         .refus_noms(c(.utf8_invalide, .utf8_invalide, annees[3:8]),
+                     paste0("Annee d'accident en double : \"2", .u(0xFF, 0xFE),
+                            "\" (lignes 1 et 2, i=0 et i=1).")))
+verifier("Noms de ligne (#268) : nom declare UTF-8 a octet A0 (32 30 32 32 A0) : doublon de \"2022\" refuse sans erreur R",
+         .refus_noms(replace(annees, 7, .octets(c(0x32, 0x30, 0x32, 0x32, 0xa0), "UTF-8")),
+                     "Annee d'accident en double : \"2022\", \"2022\\u00a0\" (lignes 6 et 7, i=5 et i=6)."))
+# Valeurs comparees sans leurs noms : sous un triangle nomme, sigma_usp,
+# sigma_estime, sigma_estime_brut et variation_relative de parametre_final
+# portent un nom de ligne ("2018" pour 2017:2024), comportement anterieur a
+# #268, hors de son perimetre (issue #319 ; retirer unname() a sa
+# correction).
+verifier("Noms de ligne (#268) : triangle sans noms et triangle a noms valides admis, parametre final de meme valeur",
+         {
+           r0 <- run_engine(methode = "reserve2", triangle = tri_ref, segment = 1,
+                            annexe = "II", B = 99)
+           r1 <- .run_noms(annees)
+           isTRUE(r0$ok) && isTRUE(r1$ok) && !length(r1$validation$erreurs) &&
+             identical(unname(unlist(r0$parametre_final)), unname(unlist(r1$parametre_final)))
+         })
+verifier("Noms de ligne (#268) : data.frame a noms de ligne automatiques admis",
+         isTRUE(run_engine(methode = "reserve2", triangle = as.data.frame(tri_ref),
+                           segment = 1, annexe = "II", B = 99)$ok))
+
+## --- Diagnostic par diagonale, repere de Mack 1997 (#275) -------------------
+# Specification docs/specifications/fd-test-calendaire.md, par. 3.2 et 3.4 ;
+# decisions Q-Fd-4 a Q-Fd-6 du mainteneur (14/10/2026).
+# Resultat factice de mw_test_annees_calendaires() : une diagonale k par
+# repartition (n, l), etiquettes "L" x l et "S" x (n - l).
+cal_factice <- function(n, l, k = 0L, extra = NULL) {
+  lab <- c(rep("L", l), rep("S", n - l), extra)
+  list(etiquettes = data.frame(i = seq_along(lab) - 1L, j = 0L, diag = k, lab = lab,
+                               stringsAsFactors = FALSE))
+}
+# Table de prob(Z_j <= z_j) de Mack (1997), D6, p. D6.49 : table recalculee
+# sous la loi binomiale (spec. par. 3.4, valeurs a 4 decimales ; NA hors
+# support) ; egalite avec la table publiee de D6.49 non verifiee, PDF hors
+# depot.
+table_d649 <- rbind(
+  c(0.5, 1, NA, NA, NA, NA), c(0.25, 1, NA, NA, NA, NA),
+  c(0.125, 0.625, 1, NA, NA, NA), c(0.0625, 0.375, 1, NA, NA, NA),
+  c(0.03125, 0.21875, 0.6875, 1, NA, NA), c(0.015625, 0.125, 0.4531, 1, NA, NA),
+  c(0.0078, 0.0703, 0.2891, 0.7266, 1, NA), c(0.0039, 0.0391, 0.1797, 0.5078, 1, NA),
+  c(0.0020, 0.0215, 0.1094, 0.3438, 0.7539, 1), c(0.0010, 0.0117, 0.0654, 0.2266, 0.5488, 1))
+# Effectifs de reference independants de choose() : triangle de Pascal par
+# recurrence entiere.
+pascal <- function(n) { v <- 1; for (k in seq_len(n)) v <- c(v, 0) + c(0, v); v }
+verifier("mw_calendrier_diagonales() : p_diag par enumeration (Pascal), n = 2 a 11, toute repartition (L, S), <= 1 et = 1 au z maximal ; table recalculee sous la loi binomiale (spec. par. 3.4) a 5e-5, egalite avec la table publiee de D6.49 non verifiee, PDF hors depot (#275)",
+         all(vapply(2:11, function(n) all(vapply(0:n, function(l) {
+           d <- mw_calendrier_diagonales(cal_factice(n, l))
+           z <- min(l, n - l)
+           ref <- sum(pascal(n)[pmin(0:n, n - 0:n) <= z]) / 2^n
+           nrow(d) == 1L && d$n == n && d$L == l && d$S == n - l && d$Z == z &&
+             identical(d$p_diag, ref) && all(d$p_diag <= 1) &&
+             (z < floor(n / 2) || identical(d$p_diag, 1)) &&
+             abs(d$p_diag - table_d649[n - 1L, z + 1L]) <= 5e-5 &&
+             identical(d$repere, ref <= 0.10)
+         }, logical(1))), logical(1))))
+verifier("mw_calendrier_diagonales() : repere a 10 % independant d'alpha, seulement a n_k >= 5 (P(Z <= 0) = 2^(1 - n)) (#275)",
+         identical(REPERE_DIAGONALE_MACK_1997, 0.10) &&
+           !mw_calendrier_diagonales(cal_factice(4, 0))$repere &&
+           mw_calendrier_diagonales(cal_factice(5, 0))$repere &&
+           identical(mw_calendrier_diagonales(cal_factice(5, 0))$p_diag, 2^-4))
+verifier(".mw_n_min_repere_diagonale() : minimum d'etiquettes du detail derive du repere, 5 a 0,10, 6 a 0,05, 4 a 0,20, puissances de 2 exactes (0,125 -> 4, 0,0625 -> 5, 0,5 -> 2, 1 -> 1), coherent avec mw_calendrier_diagonales() au repere courant (#275)",
+         identical(.mw_n_min_repere_diagonale(), 5L) &&
+           identical(.mw_n_min_repere_diagonale(0.10), 5L) &&
+           identical(.mw_n_min_repere_diagonale(0.05), 6L) &&
+           identical(.mw_n_min_repere_diagonale(0.20), 4L) &&
+           identical(.mw_n_min_repere_diagonale(0.125), 4L) &&
+           identical(.mw_n_min_repere_diagonale(0.0625), 5L) &&
+           identical(.mw_n_min_repere_diagonale(0.5), 2L) &&
+           identical(.mw_n_min_repere_diagonale(1), 1L) && {
+             n0 <- .mw_n_min_repere_diagonale()
+             !mw_calendrier_diagonales(cal_factice(n0 - 1L, 0))$repere &&
+               mw_calendrier_diagonales(cal_factice(n0, 0))$repere
+           })
+verifier("mw_calendrier_diagonales() : \"*\" ecartees, n_k < 2 ecartees, ordre de k, aucune diagonale -> 0 ligne (#275)",
+         {
+           e <- rbind(cal_factice(3, 1, k = 4L, extra = c("*", "*"))$etiquettes,
+                      cal_factice(1, 1, k = 0L, extra = "*")$etiquettes,
+                      cal_factice(2, 2, k = 2L)$etiquettes)
+           d <- mw_calendrier_diagonales(list(etiquettes = e))
+           v1 <- mw_calendrier_diagonales(cal_factice(1, 0, extra = c("*", "*")))
+           v2 <- mw_calendrier_diagonales(list(etiquettes = list(lab = NULL)))
+           identical(d$k, c(2L, 4L)) && identical(d$n, c(2L, 3L)) && identical(d$Z, c(0L, 1L)) &&
+             nrow(v1) == 0L && nrow(v2) == 0L &&
+             identical(names(v1), c("k", "n", "L", "S", "Z", "p_diag", "repere"))
+         })
+verifier("mw_calendrier_diagonales() : k, n_k et Z_k = ceux de la statistique globale (cal$detail), somme des Z_k = Z (#275)",
+         all(vapply(list(tri_ref, tri_cal_haut, tri, ta), function(t) {
+           cal <- mw_test_annees_calendaires(mw_ajuster(t))
+           d <- mw_calendrier_diagonales(cal)
+           identical(as.numeric(d$n), unname(cal$detail[, "n"])) &&
+             identical(as.numeric(d$Z), unname(cal$detail[, "Z"])) &&
+             identical(as.character(d$k), rownames(cal$detail)) &&
+             sum(d$Z) == cal$Z && identical(d$L + d$S, d$n)
+         }, logical(1))))
+verifier("reserve2 (#275) : une seule diagonale reperee, k = 5, n = 6, Z = 0, P = 0,03125 ; ligne diagnostic INFO apres le test calendaire",
+         {
+           r <- run_mw(tri_ref)
+           d <- mw_calendrier_diagonales(mw_test_annees_calendaires(r$ajustement))
+           x <- r$tests[[10]]
+           noms <- vapply(r$tests, `[[`, "", "test")
+           identical(d$k[d$repere], 5L) && d$n[d$repere] == 6L && d$Z[d$repere] == 0L &&
+             identical(d$p_diag[d$repere], 0.03125) && all(d$p_diag <= 1) &&
+             identical(noms[9:10], c("Effets d'annee calendaire (test de Mack)",
+                                     "Effets d'annee calendaire par diagonale (repere de Mack 1997)")) &&
+             identical(x$type, "diagnostic") && identical(x$verdict, "INFO") &&
+             identical(x$famille, r$tests[[9]]$famille) &&
+             identical(x$fonction, "mw_calendrier_diagonales") && identical(x$estim, 1) &&
+             identical(x$estim_nom, "diagonales sous le repere de 10 %") &&
+             all(is.na(c(x$stat, x$p_exacte, x$p_asymptotique, x$p_mc, x$err_mc, x$p_retenue,
+                         x$p_min, x$p_min_mc))) && is.na(x$nature_p) && is.na(x$sens) &&
+             !x$inoperant &&
+             grepl("k = 5 : n = 6, L = 6, S = 0, Z = 0, P = 0.03125 (repere) ; k = 6 :", x$detail, fixed = TRUE) &&
+             grepl("le test est la ligne precedente", x$detail, fixed = TRUE) &&
+             lengths(regmatches(x$detail, gregexpr("(repere)", x$detail, fixed = TRUE))) == 1L &&
+             !grepl("[^ -~]", x$detail)
+         })
+verifier("Diagnostic par diagonale sans diagonale retenue (#275) : estim NA, detail \"aucune diagonale retenue (n_k >= 2)\"",
+         {
+           # colonnes j = 1 et 2 a facteurs egaux (etiquettes "*") : seule la
+           # colonne 0 etiquette, une etiquette par diagonale
+           t <- matrix(NA_real_, 5, 5); t[, 1] <- c(100, 110, 120, 130, 140)
+           t[1:4, 2] <- t[1:4, 1] * c(1.5, 1.6, 1.7, 1.55)
+           t[1:3, 3] <- t[1:3, 2] * 1.2; t[1:2, 4] <- t[1:2, 3] * 1.1; t[1, 5] <- t[1, 4] * 1.05
+           r <- run_mw(t)
+           x <- r$tests[[which(vapply(r$tests, `[[`, "", "fonction") == "mw_calendrier_diagonales")]]
+           nrow(mw_calendrier_diagonales(mw_test_annees_calendaires(r$ajustement))) == 0L &&
+             identical(x$detail, "aucune diagonale retenue (n_k >= 2)") && is.na(x$estim) &&
+             identical(x$verdict, "INFO") && identical(x$type, "diagnostic")
+         })
 
 fin_fichier()

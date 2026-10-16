@@ -7207,6 +7207,97 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
           sprintf(" ; %d cellules observees hors du domaine", length(hors_i)) else ""))
     }
   }
+  # Noms de ligne (issue #268) : facultatifs, ils identifient l'annee
+  # d'accident et ne servent qu'aux noms de lignes des tables restituees
+  # (.mw_noms_lignes_empilees()), jamais au calcul. Un triangle sans noms de
+  # ligne est admis ; s'il en porte, chacun est renseigne et unique. Le
+  # controle lit les noms tels que saisis (une matrice garde ses doublons a
+  # as.matrix()) : un nom NA, vide ou fait de seuls blancs n'identifie aucune
+  # annee ; un doublon designe deux fois la meme annee, et serait remplace en
+  # silence par un nom automatique dans les tables. Pas de remplacement par
+  # defaut : il masquerait une erreur de saisie et romprait la tracabilite
+  # entre la saisie et les tables. Place apres les controles de cellules,
+  # qu'il ne masque pas.
+  noms <- rownames(tri)
+  if (!is.null(noms)) {
+    # Noms ramenes en UTF-8 declare, quelle que soit la locale, avant toute
+    # comparaison : une chaine non ASCII d'encodage "unknown" ou "bytes" est
+    # declaree UTF-8 si ses octets en sont, Latin-1 sinon (convention de
+    # .nettoyer_cellules(), issue #99), puis convertie par enc2utf8(). Les
+    # motifs perl lisent alors des caracteres et non des octets, en locale
+    # UTF-8 comme en locale C (en locale C, un nom UTF-8 non declare serait
+    # sinon lu octet par octet et l'octet A0 de l'espace insecable retire
+    # seul), et aucune chaine non UTF-8 ne leve d'erreur R. Une chaine
+    # declaree UTF-8 dont les octets n'en sont pas est relue en Latin-1 comme
+    # les autres (decision du mainteneur du 16/10/2026) : laissee telle
+    # quelle, elle faisait lever par trimws() l'erreur R "input string k is
+    # invalid UTF-8" (mesuree). Une chaine declaree "latin1" est toujours
+    # valide (tout octet est un caractere Latin-1) et convertie par enc2utf8().
+    noms_u <- noms
+    inc <- !is.na(noms_u) &
+      ((Encoding(noms_u) %in% c("unknown", "bytes") &
+          grepl("[^\\x01-\\x7f]", noms_u, useBytes = TRUE)) |
+         (Encoding(noms_u) == "UTF-8" & !validUTF8(noms_u)))
+    if (any(inc)) {
+      v <- validUTF8(noms_u[inc])
+      e <- rep("latin1", sum(inc)); e[v] <- "UTF-8"
+      Encoding(noms_u)[inc] <- e
+    }
+    noms_u <- enc2utf8(noms_u)
+    # Blancs : tout blanc Unicode horizontal ou vertical (classes perl \h et
+    # \v : espace, tabulation, retour chariot, saut de ligne, espace
+    # insecable U+00A0, espaces U+2000-U+200A, U+3000...) et les caracteres
+    # de format sans chasse U+200B, U+200C, U+200D, U+2060 et U+FEFF
+    # (decision du mainteneur du 16/10/2026), et non les seuls blancs ASCII
+    # du jeu par defaut de trimws(). Les cinq caracteres sont places dans la
+    # classe sous forme UTF-8 (intToUtf8()), et non en \x{...} : un motif
+    # UTF-8 non ASCII fait lire chaque sub() de trimws() en mode UTF-8, alors
+    # qu'un motif ASCII applique a des noms tous ASCII (apres retrait des
+    # blancs initiaux, par exemple) le fait lire octet par octet, ou
+    # \x{200B} est refuse (erreur PCRE "code point value too large", mesuree).
+    sans_blancs <- trimws(noms_u, whitespace = paste0(
+      "[\\h\\v", intToUtf8(c(0x200B, 0x200C, 0x200D, 0x2060, 0xFEFF)), "]"))
+    manquant <- is.na(noms) | !nzchar(sans_blancs)
+    for (k in which(manquant))
+      err <- c(err, sprintf("Nom d'annee d'accident manquant ou vide en ligne %d (i=%d).",
+                            k, k - 1L))
+    # Doublons compares sur les noms renseignes debarrasses de leurs blancs
+    # initiaux et finaux ("2022", " 2022" et "2022" suivi d'une espace
+    # insecable designent la meme annee), sans autre normalisation (ni casse,
+    # ni conversion numerique). Un motif par nom en double, qui cite les
+    # formes saisies et les positions des lignes. Chaque forme est citee
+    # entre guillemets, echappee de facon independante de la locale : un
+    # caractere ASCII l'est par encodeString() (tabulation -> \t, guillemet
+    # -> \", controles), un caractere non ASCII blanc, de controle ou de
+    # format (classes \h, \v, \p{Z}, \p{C}) est ecrit \uXXXX (\UXXXXXXXX
+    # au-dela de U+FFFF), les autres non ASCII ("e" accentue) restent tels
+    # quels. encodeString() seul ecrirait l'espace insecable telle quelle en
+    # locale UTF-8 (invisible) et "\u00a0" en locale C. En defense, une
+    # chaine dont utf8ToInt() ne lit pas les points de code (NA) est citee
+    # par encodeString() seul.
+    citer <- function(x) vapply(x, function(s) {
+      cp <- utf8ToInt(s)
+      if (anyNA(cp)) return(encodeString(s, quote = "\""))
+      ch <- vapply(cp, function(c) {
+        if (c < 128L) {
+          q <- encodeString(intToUtf8(c), quote = "\"")
+          substr(q, 2L, nchar(q) - 1L)
+        } else if (grepl("[\\h\\v\\p{Z}\\p{C}]", intToUtf8(c), perl = TRUE)) {
+          sprintf(if (c > 65535L) "\\U%08x" else "\\u%04x", c)
+        } else intToUtf8(c)
+      }, "")
+      paste0("\"", paste(ch, collapse = ""), "\"")
+    }, "", USE.NAMES = FALSE)
+    cle <- sans_blancs; cle[manquant] <- NA_character_
+    enum <- function(x) if (length(x) == 1L) x else
+      paste(paste(x[-length(x)], collapse = ", "), "et", x[length(x)])
+    for (d in unique(cle[!manquant & duplicated(cle)])) {
+      k <- which(!manquant & cle == d)
+      err <- c(err, sprintf("Annee d'accident en double : %s (lignes %s, %s).",
+                            paste(citer(unique(noms_u[k])), collapse = ", "),
+                            enum(k), enum(paste0("i=", k - 1L))))
+    }
+  }
   # Bareme, segment et annexe (issue #131) : controles apres les erreurs de
   # donnees, qu'ils ne masquent pas (comme dans engine_valider_donnees()), et
   # avant tout avertissement ; une valeur invalide est refusee sans erreur R.
@@ -8061,14 +8152,27 @@ mw_residus <- function(aj, j_degeneres = NULL) {
 # d'origine (statistique globale Z, moments (H1) et (H2), regle normale), que
 # suivent cette fonction, .mack_moments_Z() et .mw_calendrier_p_min(). La
 # reimpression du Claims Reserving Manual, vol. 2, section D6 (1997), annexe H
-# revisee, p. D6.47-D6.51, teste chaque diagonale separement et n'est pas
-# retenue (decision Q-201-1 du mainteneur, 13/10/2026, issue #201). Ni Mack
+# revisee, p. D6.47-D6.51, teste chaque diagonale separement ; cette lecture
+# n'est pas retenue pour le test (decision Q-201-1 du mainteneur, 13/10/2026,
+# issue #201), elle alimente le diagnostic sans verdict
+# mw_calendrier_diagonales() (#275, Q-Fd-4). Ni Mack
 # (1994), Insurance: Mathematics and Economics 15, 133-138, ni Mack (1993),
 # ASTIN Bulletin 23(2), 213-225, ne contiennent ce test (issue #201).
 # Principe : dans chaque colonne j, les facteurs observes sont classes en
 # "grands" (L) et "petits" (S) par rapport a leur mediane ; sous H0 d'absence
 # d'effet calendaire, la repartition des L et des S le long de chaque diagonale
 # est purement aleatoire. On note Z_k = min(L_k, S_k) sur la diagonale k.
+# Sens du test (#276, decisions Q-Fd-1 et Q-Fd-3 du mainteneur, 14/10/2026,
+# specification docs/specifications/fd-test-calendaire.md, par. 1.3) : queue
+# basse (Mack 1994, p. 164 : effet calendaire soupconne si Z est
+# significativement plus petit que son esperance ; un effet calendaire
+# concentre les etiquettes d'une diagonale et fait baisser Z). La regle de
+# decision bilaterale de la p. 166 (rejet hors de E(Z) +/- 2 sqrt(Var(Z)))
+# n'est pas suivie : le cote haut (diagonales plus equilibrees que le hasard)
+# n'est pas un effet calendaire au sens de la ligne et n'est pas teste. La p
+# asymptotique est Phi(Z*), la p Monte-Carlo est lue en queue basse
+# (MW_CATALOGUE_MC, entree Calendrier) et p_min est la masse cumulee a gauche
+# (.mw_calendrier_p_min()).
 .mack_moments_Z <- function(n) {
   # Loi exacte de Z = min(L, S) lorsque n etiquettes sont reparties au hasard :
   # L ~ Binomiale(n, 1/2) et Z = min(L, n-L).
@@ -8130,8 +8234,82 @@ mw_test_annees_calendaires <- function(aj, j_degeneres = NULL) {
   if (!is.finite(VZ) || VZ <= 0) return(list(stat = NA_real_, p = NA_real_, Z = Z,
                                               etiquettes = etiquettes))
   st <- (Z - EZ) / sqrt(VZ)
-  list(stat = st, p = .p_borne(2 * (1 - stats::pnorm(abs(st)))),
+  # p asymptotique en queue basse, Phi(Z*) (#276, Q-Fd-3) : la meme
+  # alternative que la p Monte-Carlo du catalogue.
+  list(stat = st, p = .p_borne(stats::pnorm(st)),
        Z = Z, E = EZ, V = VZ, detail = A, etiquettes = etiquettes)
+}
+
+# --- Diagnostic des effets d'annee calendaire par diagonale (#275) ------------
+# Mack (1997), Claims Reserving Manual, vol. 2, section D6, annexe H revisee,
+# p. D6.47-D6.51 : la reimpression lit chaque diagonale separement ; repere
+# de 10 % sur P(Z_k <= z_k), p. D6.49, selon la lecture de l'issue #201. Les
+# P(Z_k <= z_k) reproduisent la table recalculee sous la loi binomiale
+# (spec., par. 3.4) ; egalite avec la table publiee de D6.49 non verifiee,
+# PDF hors depot. Decisions
+# Q-Fd-4, Q-Fd-5 et Q-Fd-6 du mainteneur (14/10/2026), specification
+# docs/specifications/fd-test-calendaire.md, par. 3.1 et 3.2.
+# Ce n'est PAS un test : ni controle de multiplicite, ni verdict ; la ligne
+# est un diagnostic (INFO, p_retenue NA), le test est la statistique globale
+# de mw_test_annees_calendaires(). P(Z_k <= z_k) est exacte sous la loi
+# binomiale independante de Mack (L_k ~ Binomiale(n_k, 1/2)), non sous le
+# modele de Mack : dans une colonne, le nombre de L est fixe par la mediane.
+# Queue basse, comme le test global (#276). P(Z_k <= 0) = 2^(1 - n_k) :
+# seule une diagonale d'au moins 5 etiquettes peut porter le repere.
+# Repere de lecture de Mack (1997), independant du seuil alpha (Q-Fd-5).
+REPERE_DIAGONALE_MACK_1997 <- 0.10
+
+# Plus petit nombre d'etiquettes n d'une diagonale tel que P(Z_k <= 0) =
+# 2^(1 - n) <= repere : en deca, aucune repartition ne descend au repere.
+# Recherche entiere (et non ceiling(1 - log2(repere))) pour ne pas dependre
+# de l'arrondi de log2 quand repere est une puissance de 2 ; 5 au repere
+# 0,10 (2^-4 = 0,0625 <= 0,10 < 2^-3 = 0,125). repere dans ]0, 1].
+.mw_n_min_repere_diagonale <- function(repere = REPERE_DIAGONALE_MACK_1997) {
+  stopifnot(is.numeric(repere), length(repere) == 1L, is.finite(repere),
+            repere > 0, repere <= 1)
+  n <- 1L
+  while (2^(1 - n) > repere) n <- n + 1L
+  n
+}
+
+# cal : resultat de mw_test_annees_calendaires(). Aucune mediane ni etiquette
+# n'est recalculee : la fonction lit cal$etiquettes, ecarte les "*" et
+# groupe par diagonale k = i + j (convention de res$calendrier de
+# mw_residus(), Q-Fd-6) en ne gardant que n_k >= 2, comme la statistique
+# globale. Renvoie un data.frame a une ligne par diagonale retenue, dans
+# l'ordre de k : k, n, L, S, Z = min(L, S), p_diag = P(Z_k <= z_k) sous
+# Binomiale(n_k, 1/2), repere = p_diag <= REPERE_DIAGONALE_MACK_1997 ; zero
+# ligne si aucune diagonale n'est retenue.
+mw_calendrier_diagonales <- function(cal) {
+  vide <- data.frame(k = integer(0), n = integer(0), L = integer(0), S = integer(0),
+                     Z = integer(0), p_diag = numeric(0), repere = logical(0))
+  et <- cal$etiquettes
+  if (is.null(et) || is.null(et$lab) || !length(et$lab)) return(vide)
+  garde <- et$lab != "*"
+  if (!any(garde)) return(vide)
+  lab <- et$lab[garde]; dg <- as.integer(et$diag[garde])
+  ks <- sort(unique(dg))
+  L <- vapply(ks, function(k) sum(lab[dg == k] == "L"), integer(1))
+  S <- vapply(ks, function(k) sum(lab[dg == k] == "S"), integer(1))
+  n <- L + S
+  r <- n >= 2L
+  if (!any(r)) return(vide)
+  ks <- ks[r]; L <- L[r]; S <- S[r]; n <- n[r]
+  Z <- pmin(L, S)
+  # Masse de la queue basse : nombre de repartitions l = 0..n telles que
+  # min(l, n - l) <= z, divise par 2^n (avis d'actuary sur #275, Q2). Exacte
+  # pour n_k <= 53 : choose(n, 0:n) y est entier et egal a la recurrence de
+  # Pascal (mesure), la somme d'entiers < 2^53 est exacte et la division par
+  # 2^n aussi ; z = floor(n/2) donne exactement 1 (dbinom() pouvait depasser
+  # 1 de quelques ULP). A T = 8, n_k <= 6 : la colonne J - 1 n'a qu'un facteur,
+  # non etiquete ; 27 facteurs etiquetables moins 3 medianes laissent 24
+  # etiquettes, et les diagonales k = 5 et k = 6 en portent 6 au plus.
+  p <- vapply(seq_along(n), function(i) {
+    l <- 0:n[i]
+    sum(choose(n[i], l)[pmin(l, n[i] - l) <= Z[i]]) / 2^n[i]
+  }, numeric(1))
+  data.frame(k = ks, n = n, L = L, S = S, Z = Z, p_diag = p,
+             repere = p <= REPERE_DIAGONALE_MACK_1997)
 }
 
 # --- Test de correlation entre annees de developpement adjacentes (Mack) -----
@@ -9122,15 +9300,21 @@ mw_test_homogeneite_accident <- function(aj, j_degeneres = NULL, res = NULL) {
 # la regle R1 lit le plancher Monte-Carlo p_min_mc (extremites `extremes`
 # de MW_CATALOGUE_MC) et non plus cette p_min, qui reste restituee.
 
-# Effet calendaire (bilateral) : sur chaque diagonale retenue (n_k >= 2),
+# Effet calendaire (queue basse, Mack 1994, p. 164 ; #276, Q-Fd-1 ; la regle
+# bilaterale de la p. 166 n'est pas suivie) : sur chaque diagonale retenue
+# (n_k >= 2),
 # L_k ~ Binomiale(n_k, 1/2), diagonales independantes, Z = somme min(L_k,
 # n_k - L_k). C'est la loi binomiale independante de Mack (1994, CAS Forum,
 # annexe H), celle des moments de .mack_moments_Z(), et NON la loi de
 # permutation intra-colonne (dans une colonne, le nombre de L est fixe par la mediane, ce qui lie les
 # diagonales) : choix de la specification (#115 (b)2) ; la question Q1 de
 # l'audit, renvoyee a #125, est sans objet pour R1 depuis #125 (R1 lit la
-# loi simulee, p_min_mc) ; cette p_min reste restituee. Loi de Z par convolution exacte ; p_min = min sur
-# le support de 2 min(P(Z <= z), P(Z >= z)), bornee a 1. NA si aucune
+# loi simulee, p_min_mc) ; cette p_min reste restituee. Loi de Z par
+# convolution exacte ; p_min = min sur le support de la masse cumulee a
+# gauche P(Z <= z), soit P(Z = 0) = prod_k 2^(1 - n_k) (forme close, controlee
+# par les tests unitaires) ; elle vaut exactement la moitie de l'ancienne
+# p_min bilaterale min_z 2 min(P(Z <= z), P(Z >= z)), l'atome bas Z = 0 etant
+# toujours au plus aussi lourd que l'atome haut. Bornee a 1 ; NA si aucune
 # diagonale.
 .mw_calendrier_p_min <- function(n_k) {
   n_k <- n_k[is.finite(n_k) & n_k >= 2]
@@ -9148,7 +9332,7 @@ mw_test_homogeneite_accident <- function(aj, j_degeneres = NULL, res = NULL) {
     d <- e
   }
   sup <- which(d > 0)
-  p <- vapply(sup, function(i) 2 * min(sum(d[seq_len(i)]), sum(d[i:length(d)])), numeric(1))
+  p <- vapply(sup, function(i) sum(d[seq_len(i)]), numeric(1))
   .p_borne(min(p))
 }
 
@@ -9583,7 +9767,11 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
 MW_CATALOGUE_MC <- list(
   # Ensemble fige des colonnes degenerees transmis (#60, extension de
   # Q-E2r-60-1 (b) du 06/10/2026), comme pour M1, ExpVar et KruskalAcc.
-  Calendrier = .mc_entree(function(e) mw_test_annees_calendaires(e$aj, e$figes$degeneres)$stat, "deux",
+  # Queue basse (Mack 1994, p. 164 ; #276, decision Q-Fd-1 du 14/10/2026) :
+  # un effet calendaire fait baisser Z ; la regle bilaterale de la p. 166
+  # n'est pas suivie. Les extremites restent c(bas, haut) ; seule `bas` est
+  # lue en queue basse par engine_p_mc().
+  Calendrier = .mc_entree(function(e) mw_test_annees_calendaires(e$aj, e$figes$degeneres)$stat, "bas",
                           extremes = function(e)
                             .mw_calendrier_extremes(mw_test_annees_calendaires(e$aj, e$figes$degeneres))),
   CorrDev    = .mc_entree(function(e) mw_stat_correlation_dev(e$aj, e$figes$degeneres)$stat, "deux",
@@ -9950,13 +10138,43 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
       fonction = "mw_test_annees_calendaires",
       "Mack (1994), CAS Forum (printemps), 101-182, annexe H",
       H0 = "absence d'effet d'annee calendaire (diagonales homogenes)",
-      H1 = "une ou plusieurs diagonales atypiques (inflation, changement de cadence)",
+      H1 = "Z trop petit : une ou plusieurs diagonales a dominante L ou S (inflation, changement de cadence)",
       stat_nom = "Z centre reduit", stat = cal$stat,
-      loi = "N(0,1) approx. ; moments EXACTS de Z = min(L, n-L)",
+      loi = "N(0,1) approx., queue basse ; moments EXACTS de Z = min(L, n-L)",
       estim_nom = "Z observe", estim = cal$Z,
       p_as = cal$p, mc_nom = "Calendrier",
       p_min = pm_cal$p_min, effectifs = pm_cal$effectifs,
       detail = "Les diagonales representent les exercices comptables : un effet calendaire viole l'independance des annees d'accident")
+  # Diagnostic par diagonale (#275, Q-Fd-4 a Q-Fd-6) : repere de Mack (1997)
+  # lu sur les etiquettes de la ligne precedente, sans statistique ni p-value
+  # (la plus petite p_diag n'est pas une p-value de test) ; estim = nombre de
+  # diagonales sous le repere. Les P(Z_k <= z_k) du detail sont des calculs
+  # exacts sous la loi binomiale, aucun nombre issu du bootstrap (#76).
+  cdg <- mw_calendrier_diagonales(cal)
+  detail_cdg <- if (!nrow(cdg)) "aucune diagonale retenue (n_k >= 2)" else paste0(
+    sprintf(paste("Repere par diagonale de Mack (1997, D6, p. D6.49), sans controle de",
+                  "multiplicite et sans verdict ; le test est la ligne precedente.",
+                  "P(Z_k <= z_k) sous la loi binomiale independante de Mack (exacte sous",
+                  "cette loi, non sous le modele de Mack) ; seule une diagonale d'au moins",
+                  "%d etiquettes peut descendre a %s %%. Diagonales k = i + j des facteurs",
+                  "F(i,j) (paiements de l'exercice i + j + 1) : "),
+            .mw_n_min_repere_diagonale(REPERE_DIAGONALE_MACK_1997),
+            format(100 * REPERE_DIAGONALE_MACK_1997)),
+    paste(sprintf("k = %d : n = %d, L = %d, S = %d, Z = %d, P = %s%s",
+                  cdg$k, cdg$n, cdg$L, cdg$S, cdg$Z,
+                  vapply(cdg$p_diag, function(p) format(p, digits = 6), character(1)),
+                  ifelse(cdg$repere, " (repere)", "")), collapse = " ; "),
+    ".")
+  add(fam, "Effets d'annee calendaire par diagonale (repere de Mack 1997)",
+      fonction = "mw_calendrier_diagonales",
+      "Mack (1997), Claims Reserving Manual, vol. 2, D6, annexe H, p. D6.47-D6.51",
+      type = "diagnostic",
+      H0 = "repartition aleatoire des L et des S sur chaque diagonale",
+      H1 = "diagonale a dominante L ou S",
+      estim_nom = sprintf("diagonales sous le repere de %s %%",
+                          format(100 * REPERE_DIAGONALE_MACK_1997)),
+      estim = if (nrow(cdg)) as.numeric(sum(cdg$repere)) else NA_real_,
+      detail = detail_cdg)
   ka <- mw_test_homogeneite_accident(aj, jd)
   pm_ka <- .mw_p_min_ligne(is.finite(ka$stat), ka$tailles, "residus par annee de survenance",
                            .mw_kruskal_p_min, isTRUE(ka$ex_aequo))
