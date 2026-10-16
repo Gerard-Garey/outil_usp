@@ -1299,6 +1299,10 @@ REGISTRE_RUBRIQUE7 <- list(
   list(label = "mw:m2bp", tests = "Heteroscedasticite residuelle vs cumul"),
   list(label = "mw:m2b", tests = "Adequation de l'exposant de variance, colonne par colonne"),
   list(label = "mw:m3cal", tests = "Effets d'annee calendaire (test de Mack)"),
+  # "Effets d'annee calendaire par diagonale (repere de Mack 1997)" (#275,
+  # decision Q-Fd-4 du 14/10/2026) : diagnostic dans tous les regimes (INFO,
+  # sans p-value retenue), donc sans rubrique 7 et hors registre, comme les
+  # deux lignes M5 ci-dessous.
   list(label = "mw:m3acc", tests = "Homogeneite des residus entre annees de survenance"),
   list(label = "mw:m3cor", tests = "Correlation entre annees de developpement adjacentes"),
   list(label = "mw:m3dw", tests = "Autocorrelation des residus (Durbin-Watson)"),

@@ -8052,8 +8052,10 @@ mw_residus <- function(aj, j_degeneres = NULL) {
 # d'origine (statistique globale Z, moments (H1) et (H2), regle normale), que
 # suivent cette fonction, .mack_moments_Z() et .mw_calendrier_p_min(). La
 # reimpression du Claims Reserving Manual, vol. 2, section D6 (1997), annexe H
-# revisee, p. D6.47-D6.51, teste chaque diagonale separement et n'est pas
-# retenue (decision Q-201-1 du mainteneur, 13/10/2026, issue #201). Ni Mack
+# revisee, p. D6.47-D6.51, teste chaque diagonale separement ; cette lecture
+# n'est pas retenue pour le test (decision Q-201-1 du mainteneur, 13/10/2026,
+# issue #201), elle alimente le diagnostic sans verdict
+# mw_calendrier_diagonales() (#275, Q-Fd-4). Ni Mack
 # (1994), Insurance: Mathematics and Economics 15, 133-138, ni Mack (1993),
 # ASTIN Bulletin 23(2), 213-225, ne contiennent ce test (issue #201).
 # Principe : dans chaque colonne j, les facteurs observes sont classes en
@@ -8136,6 +8138,63 @@ mw_test_annees_calendaires <- function(aj, j_degeneres = NULL) {
   # alternative que la p Monte-Carlo du catalogue.
   list(stat = st, p = .p_borne(stats::pnorm(st)),
        Z = Z, E = EZ, V = VZ, detail = A, etiquettes = etiquettes)
+}
+
+# --- Diagnostic des effets d'annee calendaire par diagonale (#275) ------------
+# Mack (1997), Claims Reserving Manual, vol. 2, section D6, annexe H revisee,
+# p. D6.47-D6.51 : la reimpression lit chaque diagonale separement ; repere
+# de 10 % sur P(Z_k <= z_k), p. D6.49, selon la lecture de l'issue #201. Les
+# P(Z_k <= z_k) reproduisent la table recalculee sous la loi binomiale
+# (spec., par. 3.4) ; egalite avec la table publiee de D6.49 non verifiee,
+# PDF hors depot. Decisions
+# Q-Fd-4, Q-Fd-5 et Q-Fd-6 du mainteneur (14/10/2026), specification
+# docs/specifications/fd-test-calendaire.md, par. 3.1 et 3.2.
+# Ce n'est PAS un test : ni controle de multiplicite, ni verdict ; la ligne
+# est un diagnostic (INFO, p_retenue NA), le test est la statistique globale
+# de mw_test_annees_calendaires(). P(Z_k <= z_k) est exacte sous la loi
+# binomiale independante de Mack (L_k ~ Binomiale(n_k, 1/2)), non sous le
+# modele de Mack : dans une colonne, le nombre de L est fixe par la mediane.
+# Queue basse, comme le test global (#276). P(Z_k <= 0) = 2^(1 - n_k) :
+# seule une diagonale d'au moins 5 etiquettes peut porter le repere.
+# Repere de lecture de Mack (1997), independant du seuil alpha (Q-Fd-5).
+REPERE_DIAGONALE_MACK_1997 <- 0.10
+
+# cal : resultat de mw_test_annees_calendaires(). Aucune mediane ni etiquette
+# n'est recalculee : la fonction lit cal$etiquettes, ecarte les "*" et
+# groupe par diagonale k = i + j (convention de res$calendrier de
+# mw_residus(), Q-Fd-6) en ne gardant que n_k >= 2, comme la statistique
+# globale. Renvoie un data.frame a une ligne par diagonale retenue, dans
+# l'ordre de k : k, n, L, S, Z = min(L, S), p_diag = P(Z_k <= z_k) sous
+# Binomiale(n_k, 1/2), repere = p_diag <= REPERE_DIAGONALE_MACK_1997 ; zero
+# ligne si aucune diagonale n'est retenue.
+mw_calendrier_diagonales <- function(cal) {
+  vide <- data.frame(k = integer(0), n = integer(0), L = integer(0), S = integer(0),
+                     Z = integer(0), p_diag = numeric(0), repere = logical(0))
+  et <- cal$etiquettes
+  if (is.null(et) || is.null(et$lab) || !length(et$lab)) return(vide)
+  garde <- et$lab != "*"
+  if (!any(garde)) return(vide)
+  lab <- et$lab[garde]; dg <- as.integer(et$diag[garde])
+  ks <- sort(unique(dg))
+  L <- vapply(ks, function(k) sum(lab[dg == k] == "L"), integer(1))
+  S <- vapply(ks, function(k) sum(lab[dg == k] == "S"), integer(1))
+  n <- L + S
+  r <- n >= 2L
+  if (!any(r)) return(vide)
+  ks <- ks[r]; L <- L[r]; S <- S[r]; n <- n[r]
+  Z <- pmin(L, S)
+  # Masse de la queue basse : nombre de repartitions l = 0..n telles que
+  # min(l, n - l) <= z, divise par 2^n (avis d'actuary sur #275, Q2). Exacte
+  # pour n_k <= 53 : choose(n, 0:n) y est entier et egal a la recurrence de
+  # Pascal (mesure), la somme d'entiers < 2^53 est exacte et la division par
+  # 2^n aussi ; z = floor(n/2) donne exactement 1 (dbinom() pouvait depasser
+  # 1 de quelques ULP). A T = 8, n_k <= 7.
+  p <- vapply(seq_along(n), function(i) {
+    l <- 0:n[i]
+    sum(choose(n[i], l)[pmin(l, n[i] - l) <= Z[i]]) / 2^n[i]
+  }, numeric(1))
+  data.frame(k = ks, n = n, L = L, S = S, Z = Z, p_diag = p,
+             repere = p <= REPERE_DIAGONALE_MACK_1997)
 }
 
 # --- Test de correlation entre annees de developpement adjacentes (Mack) -----
@@ -9971,6 +10030,35 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
       p_as = cal$p, mc_nom = "Calendrier",
       p_min = pm_cal$p_min, effectifs = pm_cal$effectifs,
       detail = "Les diagonales representent les exercices comptables : un effet calendaire viole l'independance des annees d'accident")
+  # Diagnostic par diagonale (#275, Q-Fd-4 a Q-Fd-6) : repere de Mack (1997)
+  # lu sur les etiquettes de la ligne precedente, sans statistique ni p-value
+  # (la plus petite p_diag n'est pas une p-value de test) ; estim = nombre de
+  # diagonales sous le repere. Les P(Z_k <= z_k) du detail sont des calculs
+  # exacts sous la loi binomiale, aucun nombre issu du bootstrap (#76).
+  cdg <- mw_calendrier_diagonales(cal)
+  detail_cdg <- if (!nrow(cdg)) "aucune diagonale retenue (n_k >= 2)" else paste0(
+    sprintf(paste("Repere par diagonale de Mack (1997, D6, p. D6.49), sans controle de",
+                  "multiplicite et sans verdict ; le test est la ligne precedente.",
+                  "P(Z_k <= z_k) sous la loi binomiale independante de Mack (exacte sous",
+                  "cette loi, non sous le modele de Mack) ; seule une diagonale d'au moins",
+                  "5 etiquettes peut descendre a %s %%. Diagonales k = i + j des facteurs",
+                  "F(i,j) (paiements de l'exercice i + j + 1) : "),
+            format(100 * REPERE_DIAGONALE_MACK_1997)),
+    paste(sprintf("k = %d : n = %d, L = %d, S = %d, Z = %d, P = %s%s",
+                  cdg$k, cdg$n, cdg$L, cdg$S, cdg$Z,
+                  vapply(cdg$p_diag, function(p) format(p, digits = 6), character(1)),
+                  ifelse(cdg$repere, " (repere)", "")), collapse = " ; "),
+    ".")
+  add(fam, "Effets d'annee calendaire par diagonale (repere de Mack 1997)",
+      fonction = "mw_calendrier_diagonales",
+      "Mack (1997), Claims Reserving Manual, vol. 2, D6, annexe H, p. D6.47-D6.51",
+      type = "diagnostic",
+      H0 = "repartition aleatoire des L et des S sur chaque diagonale",
+      H1 = "diagonale a dominante L ou S",
+      estim_nom = sprintf("diagonales sous le repere de %s %%",
+                          format(100 * REPERE_DIAGONALE_MACK_1997)),
+      estim = if (nrow(cdg)) as.numeric(sum(cdg$repere)) else NA_real_,
+      detail = detail_cdg)
   ka <- mw_test_homogeneite_accident(aj, jd)
   pm_ka <- .mw_p_min_ligne(is.finite(ka$stat), ka$tailles, "residus par annee de survenance",
                            .mw_kruskal_p_min, isTRUE(ka$ex_aequo))

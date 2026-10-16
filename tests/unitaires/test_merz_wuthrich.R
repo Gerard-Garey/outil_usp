@@ -2033,7 +2033,7 @@ verifier("p_min non finie : NA et motif explicite dans effectifs (#115, C2)",
              is.na(s1$p_min) && identical(s1$effectifs,
                "t = 3, 2 ; p_min non calculable sur ces effectifs, p_min non attribuee")
          })
-verifier("reserve2 : p_min des six lignes discretes, les 13 autres NA (#115, critere 1)",
+verifier("reserve2 : p_min des six lignes discretes, les 14 autres NA (#115, critere 1 ; 20 lignes depuis #275)",
          {
            d <- engine_table_tests(run_mw(tri_ref))
            att <- c("Homogeneite de f_j entre annees de survenance" = 16 / prod(factorial(7:4)),
@@ -2042,7 +2042,7 @@ verifier("reserve2 : p_min des six lignes discretes, les 13 autres NA (#115, cri
                     "Homogeneite des residus entre annees de survenance" = 8.292518941e-15,
                     "Correlation entre annees de developpement adjacentes" = 2 / 12441600,
                     "Test des suites sur les residus de Mack" = runs_p_min(13, 13))
-           nrow(d) == 19L && all(is.na(d$p_min[!d$test %in% names(att)])) &&
+           nrow(d) == 20L && all(is.na(d$p_min[!d$test %in% names(att)])) &&
              all(vapply(names(att), function(k)
                isTRUE(proche(d$p_min[d$test == k], att[[k]], 1e-6)), logical(1))) &&
              isTRUE(proche(runs_p_min(13, 13), 3.845932e-7, 1e-6)) &&
@@ -2549,5 +2549,101 @@ verifier("Noms de ligne (#268) : triangle sans noms et triangle a noms valides a
 verifier("Noms de ligne (#268) : data.frame a noms de ligne automatiques admis",
          isTRUE(run_engine(methode = "reserve2", triangle = as.data.frame(tri_ref),
                            segment = 1, annexe = "II", B = 99)$ok))
+
+## --- Diagnostic par diagonale, repere de Mack 1997 (#275) -------------------
+# Specification docs/specifications/fd-test-calendaire.md, par. 3.2 et 3.4 ;
+# decisions Q-Fd-4 a Q-Fd-6 du mainteneur (14/10/2026).
+# Resultat factice de mw_test_annees_calendaires() : une diagonale k par
+# repartition (n, l), etiquettes "L" x l et "S" x (n - l).
+cal_factice <- function(n, l, k = 0L, extra = NULL) {
+  lab <- c(rep("L", l), rep("S", n - l), extra)
+  list(etiquettes = data.frame(i = seq_along(lab) - 1L, j = 0L, diag = k, lab = lab,
+                               stringsAsFactors = FALSE))
+}
+# Table de prob(Z_j <= z_j) de Mack (1997), D6, p. D6.49 : table recalculee
+# sous la loi binomiale (spec. par. 3.4, valeurs a 4 decimales ; NA hors
+# support) ; egalite avec la table publiee de D6.49 non verifiee, PDF hors
+# depot.
+table_d649 <- rbind(
+  c(0.5, 1, NA, NA, NA, NA), c(0.25, 1, NA, NA, NA, NA),
+  c(0.125, 0.625, 1, NA, NA, NA), c(0.0625, 0.375, 1, NA, NA, NA),
+  c(0.03125, 0.21875, 0.6875, 1, NA, NA), c(0.015625, 0.125, 0.4531, 1, NA, NA),
+  c(0.0078, 0.0703, 0.2891, 0.7266, 1, NA), c(0.0039, 0.0391, 0.1797, 0.5078, 1, NA),
+  c(0.0020, 0.0215, 0.1094, 0.3438, 0.7539, 1), c(0.0010, 0.0117, 0.0654, 0.2266, 0.5488, 1))
+# Effectifs de reference independants de choose() : triangle de Pascal par
+# recurrence entiere.
+pascal <- function(n) { v <- 1; for (k in seq_len(n)) v <- c(v, 0) + c(0, v); v }
+verifier("mw_calendrier_diagonales() : p_diag par enumeration (Pascal), n = 2 a 11, toute repartition (L, S), <= 1 et = 1 au z maximal ; table recalculee sous la loi binomiale (spec. par. 3.4) a 5e-5, egalite avec la table publiee de D6.49 non verifiee, PDF hors depot (#275)",
+         all(vapply(2:11, function(n) all(vapply(0:n, function(l) {
+           d <- mw_calendrier_diagonales(cal_factice(n, l))
+           z <- min(l, n - l)
+           ref <- sum(pascal(n)[pmin(0:n, n - 0:n) <= z]) / 2^n
+           nrow(d) == 1L && d$n == n && d$L == l && d$S == n - l && d$Z == z &&
+             identical(d$p_diag, ref) && all(d$p_diag <= 1) &&
+             (z < floor(n / 2) || identical(d$p_diag, 1)) &&
+             abs(d$p_diag - table_d649[n - 1L, z + 1L]) <= 5e-5 &&
+             identical(d$repere, ref <= 0.10)
+         }, logical(1))), logical(1))))
+verifier("mw_calendrier_diagonales() : repere a 10 % independant d'alpha, seulement a n_k >= 5 (P(Z <= 0) = 2^(1 - n)) (#275)",
+         identical(REPERE_DIAGONALE_MACK_1997, 0.10) &&
+           !mw_calendrier_diagonales(cal_factice(4, 0))$repere &&
+           mw_calendrier_diagonales(cal_factice(5, 0))$repere &&
+           identical(mw_calendrier_diagonales(cal_factice(5, 0))$p_diag, 2^-4))
+verifier("mw_calendrier_diagonales() : \"*\" ecartees, n_k < 2 ecartees, ordre de k, aucune diagonale -> 0 ligne (#275)",
+         {
+           e <- rbind(cal_factice(3, 1, k = 4L, extra = c("*", "*"))$etiquettes,
+                      cal_factice(1, 1, k = 0L, extra = "*")$etiquettes,
+                      cal_factice(2, 2, k = 2L)$etiquettes)
+           d <- mw_calendrier_diagonales(list(etiquettes = e))
+           v1 <- mw_calendrier_diagonales(cal_factice(1, 0, extra = c("*", "*")))
+           v2 <- mw_calendrier_diagonales(list(etiquettes = list(lab = NULL)))
+           identical(d$k, c(2L, 4L)) && identical(d$n, c(2L, 3L)) && identical(d$Z, c(0L, 1L)) &&
+             nrow(v1) == 0L && nrow(v2) == 0L &&
+             identical(names(v1), c("k", "n", "L", "S", "Z", "p_diag", "repere"))
+         })
+verifier("mw_calendrier_diagonales() : k, n_k et Z_k = ceux de la statistique globale (cal$detail), somme des Z_k = Z (#275)",
+         all(vapply(list(tri_ref, tri_cal_haut, tri, ta), function(t) {
+           cal <- mw_test_annees_calendaires(mw_ajuster(t))
+           d <- mw_calendrier_diagonales(cal)
+           identical(as.numeric(d$n), unname(cal$detail[, "n"])) &&
+             identical(as.numeric(d$Z), unname(cal$detail[, "Z"])) &&
+             identical(as.character(d$k), rownames(cal$detail)) &&
+             sum(d$Z) == cal$Z && identical(d$L + d$S, d$n)
+         }, logical(1))))
+verifier("reserve2 (#275) : une seule diagonale reperee, k = 5, n = 6, Z = 0, P = 0,03125 ; ligne diagnostic INFO apres le test calendaire",
+         {
+           r <- run_mw(tri_ref)
+           d <- mw_calendrier_diagonales(mw_test_annees_calendaires(r$ajustement))
+           x <- r$tests[[10]]
+           noms <- vapply(r$tests, `[[`, "", "test")
+           identical(d$k[d$repere], 5L) && d$n[d$repere] == 6L && d$Z[d$repere] == 0L &&
+             identical(d$p_diag[d$repere], 0.03125) && all(d$p_diag <= 1) &&
+             identical(noms[9:10], c("Effets d'annee calendaire (test de Mack)",
+                                     "Effets d'annee calendaire par diagonale (repere de Mack 1997)")) &&
+             identical(x$type, "diagnostic") && identical(x$verdict, "INFO") &&
+             identical(x$famille, r$tests[[9]]$famille) &&
+             identical(x$fonction, "mw_calendrier_diagonales") && identical(x$estim, 1) &&
+             identical(x$estim_nom, "diagonales sous le repere de 10 %") &&
+             all(is.na(c(x$stat, x$p_exacte, x$p_asymptotique, x$p_mc, x$err_mc, x$p_retenue,
+                         x$p_min, x$p_min_mc))) && is.na(x$nature_p) && is.na(x$sens) &&
+             !x$inoperant &&
+             grepl("k = 5 : n = 6, L = 6, S = 0, Z = 0, P = 0.03125 (repere) ; k = 6 :", x$detail, fixed = TRUE) &&
+             grepl("le test est la ligne precedente", x$detail, fixed = TRUE) &&
+             lengths(regmatches(x$detail, gregexpr("(repere)", x$detail, fixed = TRUE))) == 1L &&
+             !grepl("[^ -~]", x$detail)
+         })
+verifier("Diagnostic par diagonale sans diagonale retenue (#275) : estim NA, detail \"aucune diagonale retenue (n_k >= 2)\"",
+         {
+           # colonnes j = 1 et 2 a facteurs egaux (etiquettes "*") : seule la
+           # colonne 0 etiquette, une etiquette par diagonale
+           t <- matrix(NA_real_, 5, 5); t[, 1] <- c(100, 110, 120, 130, 140)
+           t[1:4, 2] <- t[1:4, 1] * c(1.5, 1.6, 1.7, 1.55)
+           t[1:3, 3] <- t[1:3, 2] * 1.2; t[1:2, 4] <- t[1:2, 3] * 1.1; t[1, 5] <- t[1, 4] * 1.05
+           r <- run_mw(t)
+           x <- r$tests[[which(vapply(r$tests, `[[`, "", "fonction") == "mw_calendrier_diagonales")]]
+           nrow(mw_calendrier_diagonales(mw_test_annees_calendaires(r$ajustement))) == 0L &&
+             identical(x$detail, "aucune diagonale retenue (n_k >= 2)") && is.na(x$estim) &&
+             identical(x$verdict, "INFO") && identical(x$type, "diagnostic")
+         })
 
 fin_fichier()
