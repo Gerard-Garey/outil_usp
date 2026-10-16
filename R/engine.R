@@ -7120,22 +7120,81 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
   # qu'il ne masque pas.
   noms <- rownames(tri)
   if (!is.null(noms)) {
-    manquant <- is.na(noms) | !nzchar(trimws(noms))
+    # Noms ramenes en UTF-8 declare, quelle que soit la locale, avant toute
+    # comparaison : une chaine non ASCII d'encodage "unknown" ou "bytes" est
+    # declaree UTF-8 si ses octets en sont, Latin-1 sinon (convention de
+    # .nettoyer_cellules(), issue #99), puis convertie par enc2utf8(). Les
+    # motifs perl lisent alors des caracteres et non des octets, en locale
+    # UTF-8 comme en locale C (en locale C, un nom UTF-8 non declare serait
+    # sinon lu octet par octet et l'octet A0 de l'espace insecable retire
+    # seul), et aucune chaine non UTF-8 ne leve d'erreur R. Une chaine
+    # declaree UTF-8 dont les octets n'en sont pas est relue en Latin-1 comme
+    # les autres (decision du mainteneur du 16/10/2026) : laissee telle
+    # quelle, elle faisait lever par trimws() l'erreur R "input string k is
+    # invalid UTF-8" (mesuree). Une chaine declaree "latin1" est toujours
+    # valide (tout octet est un caractere Latin-1) et convertie par enc2utf8().
+    noms_u <- noms
+    inc <- !is.na(noms_u) &
+      ((Encoding(noms_u) %in% c("unknown", "bytes") &
+          grepl("[^\\x01-\\x7f]", noms_u, useBytes = TRUE)) |
+         (Encoding(noms_u) == "UTF-8" & !validUTF8(noms_u)))
+    if (any(inc)) {
+      v <- validUTF8(noms_u[inc])
+      e <- rep("latin1", sum(inc)); e[v] <- "UTF-8"
+      Encoding(noms_u)[inc] <- e
+    }
+    noms_u <- enc2utf8(noms_u)
+    # Blancs : tout blanc Unicode horizontal ou vertical (classes perl \h et
+    # \v : espace, tabulation, retour chariot, saut de ligne, espace
+    # insecable U+00A0, espaces U+2000-U+200A, U+3000...) et les caracteres
+    # de format sans chasse U+200B, U+200C, U+200D, U+2060 et U+FEFF
+    # (decision du mainteneur du 16/10/2026), et non les seuls blancs ASCII
+    # du jeu par defaut de trimws(). Les cinq caracteres sont places dans la
+    # classe sous forme UTF-8 (intToUtf8()), et non en \x{...} : un motif
+    # UTF-8 non ASCII fait lire chaque sub() de trimws() en mode UTF-8, alors
+    # qu'un motif ASCII applique a des noms tous ASCII (apres retrait des
+    # blancs initiaux, par exemple) le fait lire octet par octet, ou
+    # \x{200B} est refuse (erreur PCRE "code point value too large", mesuree).
+    sans_blancs <- trimws(noms_u, whitespace = paste0(
+      "[\\h\\v", intToUtf8(c(0x200B, 0x200C, 0x200D, 0x2060, 0xFEFF)), "]"))
+    manquant <- is.na(noms) | !nzchar(sans_blancs)
     for (k in which(manquant))
       err <- c(err, sprintf("Nom d'annee d'accident manquant ou vide en ligne %d (i=%d).",
                             k, k - 1L))
     # Doublons compares sur les noms renseignes debarrasses de leurs blancs
-    # initiaux et finaux ("2022" et " 2022" designent la meme annee), sans
-    # autre normalisation (ni casse, ni conversion numerique). Un motif par
-    # nom en double, qui cite les formes saisies, sans reecriture, et les
-    # positions des lignes.
-    cle <- trimws(noms); cle[manquant] <- NA_character_
+    # initiaux et finaux ("2022", " 2022" et "2022" suivi d'une espace
+    # insecable designent la meme annee), sans autre normalisation (ni casse,
+    # ni conversion numerique). Un motif par nom en double, qui cite les
+    # formes saisies et les positions des lignes. Chaque forme est citee
+    # entre guillemets, echappee de facon independante de la locale : un
+    # caractere ASCII l'est par encodeString() (tabulation -> \t, guillemet
+    # -> \", controles), un caractere non ASCII blanc, de controle ou de
+    # format (classes \h, \v, \p{Z}, \p{C}) est ecrit \uXXXX (\UXXXXXXXX
+    # au-dela de U+FFFF), les autres non ASCII ("e" accentue) restent tels
+    # quels. encodeString() seul ecrirait l'espace insecable telle quelle en
+    # locale UTF-8 (invisible) et "\u00a0" en locale C. En defense, une
+    # chaine dont utf8ToInt() ne lit pas les points de code (NA) est citee
+    # par encodeString() seul.
+    citer <- function(x) vapply(x, function(s) {
+      cp <- utf8ToInt(s)
+      if (anyNA(cp)) return(encodeString(s, quote = "\""))
+      ch <- vapply(cp, function(c) {
+        if (c < 128L) {
+          q <- encodeString(intToUtf8(c), quote = "\"")
+          substr(q, 2L, nchar(q) - 1L)
+        } else if (grepl("[\\h\\v\\p{Z}\\p{C}]", intToUtf8(c), perl = TRUE)) {
+          sprintf(if (c > 65535L) "\\U%08x" else "\\u%04x", c)
+        } else intToUtf8(c)
+      }, "")
+      paste0("\"", paste(ch, collapse = ""), "\"")
+    }, "", USE.NAMES = FALSE)
+    cle <- sans_blancs; cle[manquant] <- NA_character_
     enum <- function(x) if (length(x) == 1L) x else
       paste(paste(x[-length(x)], collapse = ", "), "et", x[length(x)])
     for (d in unique(cle[!manquant & duplicated(cle)])) {
       k <- which(!manquant & cle == d)
       err <- c(err, sprintf("Annee d'accident en double : %s (lignes %s, %s).",
-                            paste0("\"", unique(noms[k]), "\"", collapse = ", "),
+                            paste(citer(unique(noms_u[k])), collapse = ", "),
                             enum(k), enum(paste0("i=", k - 1L))))
     }
   }
