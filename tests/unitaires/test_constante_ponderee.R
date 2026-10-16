@@ -137,13 +137,17 @@ verifier("Constante sans p Monte-Carlo : diagnostic, libelle 'p de Student sous 
            identical(l$type, "diagnostic") && is.na(l$p_retenue) &&
              grepl("p de Student sous le modele auxiliaire pondere non retenue", l$detail, fixed = TRUE)
          })
+# delta_equiv = 15 (et non 5 avant #298) : sur J2, p_plancher = 0,0193 < alpha,
+# la ligne reste un test ; a delta_equiv = 5, p_plancher >= alpha et la regle
+# R14 (#298) la restitue en diagnostic, sans p retenue.
 verifier("Ligne TOST : p_exacte NA dans les deux branches de marge, p retenue = p_asymptotique = p de test_tost_intercept(), loi 'modele auxiliaire pondere'",
          {
            a <- ligne(tt2, NOM_TOST)
-           b <- ligne(usp_tests(f2, boot_fictif(f2), delta_equiv = 5, methode = "premium"), NOM_TOST)
-           is.na(a$p_exacte) && is.na(b$p_exacte) &&
+           b <- ligne(usp_tests(f2, boot_fictif(f2), delta_equiv = 15, methode = "premium"), NOM_TOST)
+           identical(a$type, "test") && identical(b$type, "test") &&
+             is.na(a$p_exacte) && is.na(b$p_exacte) &&
              identical(a$p_retenue, test_tost_intercept(x2, y2, f2$pi)$p) &&
-             identical(b$p_retenue, test_tost_intercept(x2, y2, f2$pi, delta_abs = 5)$p) &&
+             identical(b$p_retenue, test_tost_intercept(x2, y2, f2$pi, delta_abs = 15)$p) &&
              identical(a$p_asymptotique, a$p_retenue) && identical(b$p_asymptotique, b$p_retenue) &&
              grepl("modele auxiliaire pondere", a$loi, fixed = TRUE) &&
              grepl("marge estimee", a$loi, fixed = TRUE) && grepl("marge fixee a priori", b$loi, fixed = TRUE)
@@ -155,15 +159,19 @@ run_jeu <- function(x, y) run_engine(xt = x, yt = y, methode = "premium", segmen
                                      nature_donnees = "brutes", B = 999, seed = 20260831)
 r1 <- run_jeu(x1, y1); r2 <- run_jeu(x2, y2)
 tb1 <- engine_table_tests(r1); tb2 <- engine_table_tests(r2)
+# p du TOST lue dans p_asymptotique (champ conserve) ; depuis #298 (regle
+# R14), la ligne de J1 est un diagnostic : p retenue NA, verdict INFO.
 valeurs_215 <- function(tb, t, p_mc, p_tost, v_tost) {
   c <- tb[tb$test == NOM_CST, ]; o <- tb[tb$test == NOM_TOST, ]
   ok <- round(c$statistique, 4) == t && abs(c$p_monte_carlo - p_mc) <= 0.002 + 1e-12 &&
-    round(o$p_retenue, 4) == p_tost && identical(o$verdict, v_tost)
+    round(o$p_asymptotique, 4) == p_tost && identical(o$verdict, v_tost) &&
+    (if (identical(v_tost, "INFO")) is.na(o$p_retenue) && identical(o$type, "diagnostic")
+     else identical(o$p_retenue, o$p_asymptotique))
   if (isTRUE(ok)) TRUE else sprintf("t = %.4f, p_mc = %.4f, TOST = %.4f (%s)", c$statistique,
-                                    c$p_monte_carlo, o$p_retenue, o$verdict)
+                                    c$p_monte_carlo, o$p_asymptotique, o$verdict)
 }
-verifier("Valeurs de #215, J1 : t = 0,0667 ; p_mc = 0,964 ; TOST 0,4651 ECHEC",
-         valeurs_215(tb1, 0.0667, 0.964, 0.4651, "ECHEC"))
+verifier("Valeurs de #215, J1 : t = 0,0667 ; p_mc = 0,964 ; TOST 0,4651 (p asymptotique), diagnostic INFO depuis #298 (ECHEC avant)",
+         valeurs_215(tb1, 0.0667, 0.964, 0.4651, "INFO"))
 # J2 (delta estime interieur) : depuis #240, la p Monte-Carlo est
 # conditionnelle au regime interieur de delta estime (variante V3b) ; la
 # valeur de #215, 0,692, etait la p marginale (V1). 0,670 = p_V3b:Intercept

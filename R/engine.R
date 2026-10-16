@@ -4961,10 +4961,29 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                                          txt_seuil_cst)))
   tost <- test_tost_intercept(x, y, fit$pi, theta = theta_equiv, delta_abs = delta_equiv,
                               m = lm_pond)
+  # Regle R14 (#298, specification Fb, section 3 ; decisions Q-D1-Fb-2 a 4 du
+  # mainteneur) : equivalence non demontrable. Sur la branche calculee du TOST
+  # (non_applicable NA), p >= p_plancher = 1 - F_t(Delta / se), egalite en
+  # a = 0, a se et Delta realises : si p_plancher >= alpha (borne incluse,
+  # comme R1), aucune constante estimee ne peut donner p < alpha, l'OK est
+  # inatteignable et la ligne est restituee en diagnostic (verdict INFO, sans
+  # p retenue, nature ni sens ; p du TOST conservee dans p_asymptotique).
+  # Decision prise ici et non dans add() (contrainte C-Fb-1) : inoperant
+  # reste FALSE (champ reserve a R1, #129). p_plancher est calculee une fois
+  # et lue par le type et par le detail ; rho = t(1-alpha, T-2) x se / Delta
+  # exprime la meme condition (rho >= 1 <=> p_plancher >= alpha en
+  # arithmetique exacte). Fonctions deterministes des donnees : aucun nombre
+  # issu du bootstrap (#76). Branches non applicables inchangees, prioritaires.
+  tost_calcule <- is.na(tost$non_applicable)
+  tost_p_plancher <- if (tost_calcule)
+    stats::pt(tost$delta / tost$se, tost$ddl, lower.tail = FALSE) else NA_real_
+  tost_rho <- if (tost_calcule)
+    stats::qt(1 - alpha, tost$ddl) * tost$se / tost$delta else NA_real_
+  tost_r14 <- isTRUE(tost_calcule && is.finite(tost$p) && tost_p_plancher >= alpha)
   add(fam, "Equivalence de la constante a zero (TOST)",
       fonction = "test_tost_intercept",
       "Schuirmann (1987), J. Pharmacokinet. Biopharm. 15",
-      type = if (is.finite(tost$p)) "test" else "non applicable",
+      type = if (!is.finite(tost$p)) "non applicable" else if (tost_r14) "diagnostic" else "test",
       H0 = "|a| >= Delta (la constante n'est PAS negligeable)",
       H1 = "|a| < Delta (constante negligeable : proportionnalite pratique)",
       stat_nom = "t (max des 2 unilateraux)", stat = tost$stat,
@@ -5005,38 +5024,42 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         # test anti-bruit).
         # Condition necessaire de conclusion (#165, formulation d'actuary
         # arretee par le mainteneur) : p = 1 - F_t((Delta - |a|)/se) >=
-        # p_plancher = 1 - F_t(Delta/se), egalite en a = 0. La branche se
-        # decide en comparant p_plancher a alpha et a SEUIL_ECHEC_SENS_REJETER,
-        # seuils de la regle des verdicts (sens "rejeter") : le detail ne
-        # contredit jamais le verdict. rho = t(1-alpha, T-2) x se / Delta,
-        # imprime a %.2f, exprime la meme condition (rho < 1 <=> p_plancher <
-        # alpha en arithmetique exacte) ; tout pres de 1, l'arrondi
-        # d'affichage peut montrer 1.00 dans l'une ou l'autre branche.
+        # p_plancher = 1 - F_t(Delta/se), egalite en a = 0. p_plancher et rho
+        # sont calcules une fois avant add() (regle R14, #298) et lus ici et
+        # par le type : le detail ne contredit jamais le type. Branche
+        # "remplie" (p_plancher < alpha, ligne de type test) : texte de #165
+        # inchange. Branche "non remplie" (regle R14, diagnostic) : phrase de
+        # la specification Fb, section 3.4, qui remplace celle de #165 ; la
+        # mention "ALERTE inatteignable" s'ajoute si p_plancher >=
+        # SEUIL_ECHEC_SENS_REJETER. rho, imprime a %.2f : tout pres de 1,
+        # l'arrondi d'affichage peut montrer 1.00 dans l'une ou l'autre branche.
         "calcule" = local({
-          p_plancher <- stats::pt(tost$delta / tost$se, tost$ddl, lower.tail = FALSE)
-          rho <- stats::qt(1 - alpha, tost$ddl) * tost$se / tost$delta
-          txt_condition <- if (p_plancher < alpha)
-            sprintf("Condition necessaire de conclusion remplie : t(1-alpha, T-2) x se(a) / Delta = %.2f < 1.",
-                    rho)
-          else paste0(sprintf(paste("Condition necessaire de conclusion non remplie :",
-                                    "t(1-alpha, T-2) x se(a) / Delta = %.2f >= 1, soit",
-                                    "se(a) >= Delta / t(1-alpha, T-2) : quelle que soit",
-                                    "la constante estimee, p >= alpha"), rho),
-                      if (p_plancher >= SEUIL_ECHEC_SENS_REJETER)
-                        sprintf(" et meme p >= %g : OK et ALERTE inatteignables",
-                                SEUIL_ECHEC_SENS_REJETER)
-                      else " : OK inatteignable",
-                      paste(". L'equivalence ne peut pas etre conclue avec ces donnees",
-                            "(plan de volumes, dispersion residuelle) et cette marge :",
-                            "ce verdict traduit une absence de preuve, non un ecart a",
-                            "la proportionnalite."))
-          paste(sprintf(paste("Rejeter H0 fournit une preuve POSITIVE de proportionnalite.",
-                              "Delta = %s (valeur : estimation \"marge Delta\") ;",
-                              "p_bas = %.4f, p_haut = %.4f."),
-                        if (isTRUE(tost$marge_a_priori)) "marge fixee a priori"
-                        else sprintf("%.0f %% de la moyenne de y", 100 * theta_equiv),
-                        tost$p_bas, tost$p_haut),
-                txt_condition)
+          txt_delta <- if (isTRUE(tost$marge_a_priori)) "marge fixee a priori"
+                       else sprintf("%.0f %% de la moyenne de y", 100 * theta_equiv)
+          if (tost_r14)
+            sprintf(paste("EQUIVALENCE NON DEMONTRABLE AVEC CES DONNEES au seuil alpha = %g :",
+                          "t(1-alpha, T-2) x se(a) / Delta = %.2f >= 1, soit p >= p_plancher =",
+                          "%.3f >= alpha quelle que soit la constante estimee : OK",
+                          "inatteignable%s ; aucun verdict (ADR 0001). Delta = %s (valeur :",
+                          "estimation \"marge Delta\") ; p_bas = %.4f, p_haut = %.4f ; p du",
+                          "TOST (champ p asymptotique : loi de Student sous le modele",
+                          "auxiliaire pondere, poids estimes) non retenue. L'equivalence ne",
+                          "peut pas etre conclue avec ces donnees (plan de volumes,",
+                          "dispersion residuelle) et cette marge : absence de preuve, non",
+                          "ecart a la proportionnalite."),
+                    alpha, tost_rho, tost_p_plancher,
+                    if (tost_p_plancher >= SEUIL_ECHEC_SENS_REJETER)
+                      sprintf(", et meme p >= %g : ALERTE inatteignable",
+                              SEUIL_ECHEC_SENS_REJETER)
+                    else "",
+                    txt_delta, tost$p_bas, tost$p_haut)
+          else
+            paste(sprintf(paste("Rejeter H0 fournit une preuve POSITIVE de proportionnalite.",
+                                "Delta = %s (valeur : estimation \"marge Delta\") ;",
+                                "p_bas = %.4f, p_haut = %.4f."),
+                          txt_delta, tost$p_bas, tost$p_haut),
+                  sprintf("Condition necessaire de conclusion remplie : t(1-alpha, T-2) x se(a) / Delta = %.2f < 1.",
+                          tost_rho))
         }),
         # Depuis #215 : poids GLS invalides inclus (texte commun avec la
         # constante, txt_stat_non_def).
