@@ -8159,6 +8159,19 @@ mw_test_annees_calendaires <- function(aj, j_degeneres = NULL) {
 # Repere de lecture de Mack (1997), independant du seuil alpha (Q-Fd-5).
 REPERE_DIAGONALE_MACK_1997 <- 0.10
 
+# Plus petit nombre d'etiquettes n d'une diagonale tel que P(Z_k <= 0) =
+# 2^(1 - n) <= repere : en deca, aucune repartition ne descend au repere.
+# Recherche entiere (et non ceiling(1 - log2(repere))) pour ne pas dependre
+# de l'arrondi de log2 quand repere est une puissance de 2 ; 5 au repere
+# 0,10 (2^-4 = 0,0625 <= 0,10 < 2^-3 = 0,125). repere dans ]0, 1].
+.mw_n_min_repere_diagonale <- function(repere = REPERE_DIAGONALE_MACK_1997) {
+  stopifnot(is.numeric(repere), length(repere) == 1L, is.finite(repere),
+            repere > 0, repere <= 1)
+  n <- 1L
+  while (2^(1 - n) > repere) n <- n + 1L
+  n
+}
+
 # cal : resultat de mw_test_annees_calendaires(). Aucune mediane ni etiquette
 # n'est recalculee : la fonction lit cal$etiquettes, ecarte les "*" et
 # groupe par diagonale k = i + j (convention de res$calendrier de
@@ -8188,7 +8201,9 @@ mw_calendrier_diagonales <- function(cal) {
   # pour n_k <= 53 : choose(n, 0:n) y est entier et egal a la recurrence de
   # Pascal (mesure), la somme d'entiers < 2^53 est exacte et la division par
   # 2^n aussi ; z = floor(n/2) donne exactement 1 (dbinom() pouvait depasser
-  # 1 de quelques ULP). A T = 8, n_k <= 7.
+  # 1 de quelques ULP). A T = 8, n_k <= 6 : la colonne J - 1 n'a qu'un facteur,
+  # non etiquete ; 27 facteurs etiquetables moins 3 medianes laissent 24
+  # etiquettes, et la diagonale k = 6 en porte 6 au plus.
   p <- vapply(seq_along(n), function(i) {
     l <- 0:n[i]
     sum(choose(n[i], l)[pmin(l, n[i] - l) <= Z[i]]) / 2^n[i]
@@ -10041,8 +10056,9 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
                   "multiplicite et sans verdict ; le test est la ligne precedente.",
                   "P(Z_k <= z_k) sous la loi binomiale independante de Mack (exacte sous",
                   "cette loi, non sous le modele de Mack) ; seule une diagonale d'au moins",
-                  "5 etiquettes peut descendre a %s %%. Diagonales k = i + j des facteurs",
+                  "%d etiquettes peut descendre a %s %%. Diagonales k = i + j des facteurs",
                   "F(i,j) (paiements de l'exercice i + j + 1) : "),
+            .mw_n_min_repere_diagonale(REPERE_DIAGONALE_MACK_1997),
             format(100 * REPERE_DIAGONALE_MACK_1997)),
     paste(sprintf("k = %d : n = %d, L = %d, S = %d, Z = %d, P = %s%s",
                   cdg$k, cdg$n, cdg$L, cdg$S, cdg$Z,

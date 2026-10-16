@@ -2589,6 +2589,19 @@ verifier("mw_calendrier_diagonales() : repere a 10 % independant d'alpha, seulem
            !mw_calendrier_diagonales(cal_factice(4, 0))$repere &&
            mw_calendrier_diagonales(cal_factice(5, 0))$repere &&
            identical(mw_calendrier_diagonales(cal_factice(5, 0))$p_diag, 2^-4))
+verifier(".mw_n_min_repere_diagonale() : minimum d'etiquettes du detail derive du repere, 5 a 0,10, 6 a 0,05, 4 a 0,20, puissances de 2 exactes (0,125 -> 4, 0,0625 -> 5, 0,5 -> 2, 1 -> 1), coherent avec mw_calendrier_diagonales() au repere courant (#275)",
+         identical(.mw_n_min_repere_diagonale(), 5L) &&
+           identical(.mw_n_min_repere_diagonale(0.10), 5L) &&
+           identical(.mw_n_min_repere_diagonale(0.05), 6L) &&
+           identical(.mw_n_min_repere_diagonale(0.20), 4L) &&
+           identical(.mw_n_min_repere_diagonale(0.125), 4L) &&
+           identical(.mw_n_min_repere_diagonale(0.0625), 5L) &&
+           identical(.mw_n_min_repere_diagonale(0.5), 2L) &&
+           identical(.mw_n_min_repere_diagonale(1), 1L) && {
+             n0 <- .mw_n_min_repere_diagonale()
+             !mw_calendrier_diagonales(cal_factice(n0 - 1L, 0))$repere &&
+               mw_calendrier_diagonales(cal_factice(n0, 0))$repere
+           })
 verifier("mw_calendrier_diagonales() : \"*\" ecartees, n_k < 2 ecartees, ordre de k, aucune diagonale -> 0 ligne (#275)",
          {
            e <- rbind(cal_factice(3, 1, k = 4L, extra = c("*", "*"))$etiquettes,
