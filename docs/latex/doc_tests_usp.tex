@@ -690,10 +690,12 @@ non finie, non entière ou hors de ces bornes (issue~\#240, §\ref{sec:graines})
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Statistiques et tests}}} \\
 \code{stat\_*()}, \code{test\_*()} & $x$, $y$ ou $z$ & statistique et p-value \\
 \code{test\_intercept()},\newline \code{test\_tost\_intercept()} & $x$, $y$, \code{pi}
-(obligatoire)~; et $\theta$ ou $\Delta$ & $t_a$, constante pondérée et p-value de Student de la
+(obligatoire)~; et $\theta$ ou $\Delta$~; \code{m} & $t_a$, constante pondérée et p-value de Student de la
 régression pondérée (constante)~; p-value d'équivalence (TOST)~; depuis l'issue~\#215, régression
 pondérée aux poids d'\code{usp\_poids\_gls()} calculés sur \code{pi}, vecteur $\hat\pi_t$ de
-l'ajustement sous $H_0$ \\
+l'ajustement sous $H_0$~; \code{m}, régression pondérée de \code{.usp\_lm\_pondere()}, calculée
+une fois par \code{usp\_tests()} et passée aux deux fonctions depuis l'issue~\#222 (par défaut
+calculée dans la fonction, après ses gardes) \\
 \code{usp\_poids\_gls()} & $x$, \code{pi} & poids des moindres carrés généralisés à $\hat\delta$,
 $w_t \propto 1/\big(x_t^2(\exp(1/\pi_t) - 1)\big)$, $x_t$ rapporté à sa moyenne et poids rapportés à
 leur maximum~; \code{NULL} si \code{pi} n'a pas la longueur de $x$ ou si un poids n'est pas fini et
@@ -729,10 +731,12 @@ $T \le$ \code{T\_MAX\_ENUM\_PERMUTATION}, \code{aleatoire} au-delà, $B$ permuta
 \code{engine\_sous\_graine()}), erreur de Monte-Carlo~; appelée par \code{run\_engine()} avec le
 $B$ et la graine de l'exécution, ou par \code{usp\_tests()} aux valeurs par défaut en appel
 direct \\
-\code{engine\_permutations()},\newline \code{.usp\_nb\_appariements()},\newline
-\code{.usp\_log\_nb\_}\newline\code{appariements()} & $T$~; volumes et pertes
+\code{engine\_permutations()},\newline \code{.usp\_r\_permutations()},\newline \code{.usp\_nb\_appariements()},\newline
+\code{.usp\_log\_nb\_}\newline\code{appariements()} & $T$~; $x$ et $y$ centrés normés~; volumes et pertes
 aplatis & matrice des $T!$ permutations de $1{:}T$ (une par ligne, première ligne identité), mise
-en cache par $T$~; nombre d'appariements reproduisant un appariement donné, arrondi, et son
+en cache par $T$~; corrélations $r$ des $T!$ appariements, dans l'ordre des lignes
+d'\code{engine\_permutations(T)}, calculées par $T$ blocs de $(T-1)!$ lignes à partir de la seule
+matrice d'\code{engine\_permutations(T - 1)}, sans former la matrice $T! \times T$ (issue~\#222)~; nombre d'appariements reproduisant un appariement donné, arrondi, et son
 logarithme (\code{lfactorial()}), lu pour $p_{\min}$ à $T \ge 10$ (division par $T!$ jusqu'à
 $T = 170$, échelle logarithmique au-delà) \\
 \code{T\_MAX\_ENUM\_}\newline\code{PERMUTATION},\newline \code{SENS\_PITMAN\_PENTE},\newline
@@ -1689,7 +1693,8 @@ l'état du générateur (l'objet \code{.Random.seed} de l'environnement global) 
 \item \code{usp\_permutation\_pente()} (méthodes de primes et de réserve n\textsuperscript{o}~1,
   test de Pitman sur la pente, issue~\#169, fiche~\ref{fiche:student-pente}~; ADR~0004, annotation
   du 7~octobre 2026). Elle ne tire qu'à $T >$ \code{T\_MAX\_ENUM\_PERMUTATION} $= 9$~: en deçà,
-  les $T!$ appariements sont énumérés par \code{engine\_permutations()}, sans aucun tirage, ce qui
+  les $T!$ appariements sont énumérés par \code{.usp\_r\_permutations()}, à partir de la matrice
+  d'\code{engine\_permutations()} à $T - 1$ (issue~\#222), sans aucun tirage, ce qui
   est le cas des cas de contrôle ($T = 8$), dont les références ne dépendent donc pas de cette
   source. \emph{Graine}~: le même paramètre \code{seed} et le même $B$ que l'exécution, transmis
   par \code{run\_engine()}, posés une fois par \code{engine\_sous\_graine()}, sous laquelle
@@ -7227,7 +7232,8 @@ Régression auxiliaire $y_t = a + b x_t + \varepsilon_t$, estimée depuis l'issu
 \emph{moindres carrés pondérés} (\code{lm(y \textasciitilde\ x, weights = w)}, modèle auxiliaire
 pondéré, section~\ref{sec:modele-auxiliaire}~; calculée depuis l'issue~\#237 par
 \code{.usp\_lm\_pondere()}, décomposition QR de \code{.usp\_mco\_qr()}, aux mêmes valeurs que
-\code{lm()}), avec les poids de \code{usp\_poids\_gls()}
+\code{lm()}~; depuis l'issue~\#222, calculée une seule fois par \code{usp\_tests()} et partagée
+avec le TOST, fiche~\ref{fiche:tost-constante}, par l'argument \code{m}), avec les poids de \code{usp\_poids\_gls()}
 \[
   w_t \;\propto\; \frac{1}{x_t^2\,\big(\exp(1/\hat\pi_t) - 1\big)},
 \]
@@ -7687,8 +7693,14 @@ ordre, donc donnent la même p-value de permutation. Le moteur restitue $t_b$ co
 (\code{stat}, calculé par \code{test\_lm\_complet()}) et $\hat b$ comme estimation (\code{estim},
 «~pente b~»)~; il compare les appariements sur $r$, calculé par
 \code{usp\_permutation\_pente()}~: $x$ et $y$ sont centrés puis normés, $r$ de chaque appariement
-est obtenu par un seul produit matriciel, et la valeur observée est lue sur la ligne identité de ce
-même calcul, sans formule séparée.
+est obtenu par produit matriciel, et la valeur observée est lue sur la ligne identité de ce
+même calcul, sans formule séparée. Depuis l'issue~\#222, ce produit est fait par blocs
+(\code{.usp\_r\_permutations()})~: les $T!$ appariements, dans l'ordre des lignes
+d'\code{engine\_permutations()} à $T$, forment $T$ blocs consécutifs de $(T-1)!$ lignes, dont
+chacun place $y_T$ dans une colonne fixe et les permutations d'ordre $T-1$ dans les autres, si
+bien que seule la matrice d'ordre $T-1$ est formée et mise en cache. Les valeurs de $r$ sont celles
+du produit de la matrice entière, au bit près (mesure de l'issue~\#222 sur 400 jeux, $T = 3$
+à~$9$, BLAS de référence).
 \Loi
 \emph{Loi de permutation de Pitman.} Sous $H_0$, conditionnellement à l'ensemble des valeurs
 observées $\{y_1, \dots, y_T\}$ --- statistique exhaustive sous $H_0$, sachant laquelle la loi des
@@ -7717,8 +7729,8 @@ la p-value retenue.
 \Pval
 \emph{À $T \le$ \code{T\_MAX\_ENUM\_PERMUTATION} $= 9$} (même borne que celle jusqu'à laquelle
 \code{cor.test()} énumère la loi exacte de Spearman, fiche~\ref{fiche:spearman})~: énumération des $T!$
-appariements (matrice des permutations de \code{engine\_permutations()}, mise en cache, première
-ligne identité), sans aléa~; p-value unilatérale
+appariements (par blocs, \code{.usp\_r\_permutations()}, sur la matrice des permutations
+d'ordre $T-1$ d'\code{engine\_permutations()}, mise en cache~; premier appariement identité), sans aléa~; p-value unilatérale
 \[
   p = \frac{\#\{\text{appariements} : r^* \ge r_{\text{obs}} - \texttt{TOL\_EX\_AEQUO}\}}{T!},
 \]
@@ -16085,7 +16097,7 @@ constante $0{,}5$ (retirée par D1-Fb, issues~\#218 et~\#230), lue par \code{usp
 depuis l'issue~\#169) \\
 Test de Pitman sur la pente, sens unilatéral verrouillé (fiche~\ref{fiche:student-pente},
 issue~\#169) & \code{usp\_permutation\_pente()}, \code{engine\_permutations()},
-\code{.usp\_nb\_appariements()}, \code{.usp\_log\_nb\_appariements()},
+\code{.usp\_r\_permutations()} (issue~\#222), \code{.usp\_nb\_appariements()}, \code{.usp\_log\_nb\_appariements()},
 \code{.pitman\_unilateral()}, constantes
 \code{T\_MAX\_ENUM\_PERMUTATION} et \code{SENS\_PITMAN\_PENTE}~; arguments \code{nature\_forcee},
 \code{p\_mc\_ext} et \code{err\_mc\_ext} d'\code{add()}~; \code{res\$metadata\$permutation\_pente}
@@ -16920,7 +16932,7 @@ statistique, dont sept sont mutualisées (en orangé), puis se rejoignent sur
 \node[mut, right=20mm of xy] (lm) {\code{test\_lm\_complet()}};
 \node[ded] (ti) at ([yshift=13.5mm]lm) {\code{test\_intercept()} \scriptsize (poids \code{usp\_poids\_gls()})};
 \node[ded, text width=46mm] (perm) at ([yshift=24mm]lm) {\code{usp\_permutation\_pente()}\\ \scriptsize via
-  \code{engine\_permutations()} ($T \le 9$)};
+  \code{.usp\_r\_permutations()} et \code{engine\_permutations()} ($T \le 9$)};
 \node[sor, right=20mm of lm, yshift=13.5mm]  (o1) {Student constante};
 \node[sor, right=20mm of lm, yshift=4.5mm]   (o2) {Pitman pente (statistique $t$)};
 \node[sor, right=20mm of lm, yshift=-4.5mm]  (o3) {Fisher global};
