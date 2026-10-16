@@ -6408,7 +6408,8 @@ n'apparaît dans le commentaire de la ligne que lorsque la règle~R1 s'y appliqu
 (vii)~\emph{Nature}~: valeurs exactes sous la loi de référence, qui n'est pas celle du modèle de
 Mack~; la p-value retenue de ces lignes est toujours de Monte-Carlo, et ces valeurs n'en sont pas
 une borne (section~\ref{sec:nature})~; depuis l'issue~\#125, la règle~R1 lit le plancher
-Monte-Carlo $p_{\min}^{\mathrm{MC}}$, aux extrémités du support observé déclarées au catalogue~:
+Monte-Carlo $p_{\min}^{\mathrm{MC}}$, aux extrémités du support observé déclarées au catalogue,
+seule l'extrémité basse étant lue pour l'effet calendaire depuis l'issue~\#276~:
 suites, comme pour la méthode lognormale~; effet calendaire, $(0 - E)/\sqrt{V}$ et
 $(\sum_k \lfloor n_k/2 \rfloor - E)/\sqrt{V}$ sur les diagonales retenues de l'observé
 (\code{.mw\_calendrier\_extremes()})~; corrélation, $-1$ et $1$ (\code{.mw\_corr\_extremes()})~;
@@ -14048,13 +14049,17 @@ exercices comptables. Hypothèses non testées~: continuité des facteurs,
 indépendance des colonnes.
 
 \emph{Sens d'un effet calendaire sur $Z$} (raisonnement de l'outil, qui n'est tiré d'aucune
-source~; issue~\#276). Le facteur $F(i,j) = C(i,j+1)/C(i,j)$ porte au numérateur les paiements de
-l'exercice comptable $i + j + 1$ et au dénominateur ceux des exercices antérieurs. Un choc
+source~; issue~\#276). Pour le facteur $F(i,j) = C(i,j+1)/C(i,j)$, l'excédent
+$F(i,j) - 1 = \big(C(i,j+1) - C(i,j)\big)/C(i,j)$ rapporte l'incrément, paiements de l'exercice
+comptable $i + j + 1$, au cumul des exercices antérieurs de la même année d'accident. Un choc
 multiplicatif $1 + \theta$, $\theta > 0$, sur les paiements d'un exercice $t$ augmente tous les
-facteurs de la diagonale $k = t - 1$, qui deviennent à dominante $L$, et diminue, moins fortement,
-ceux de la diagonale $k = t$, dont le dénominateur est gonflé (dominante $S$)~: il concentre les
-étiquettes et \textbf{fait baisser $Z$}. Une dérive, inflation surajoutée croissante à partir d'un
-exercice, donne des diagonales successives à dominante $L$ et fait aussi baisser $Z$~; une
+facteurs de la diagonale $k = t - 1$, ce qui la pousse vers une dominante $L$, et diminue, en
+général moins fortement, ceux de la diagonale $k = t$, dont le dénominateur est gonflé (vers une
+dominante $S$)~: il tend à concentrer les étiquettes et \textbf{à faire baisser $Z$}. Les
+diagonales $k > t$, dont le cumul au dénominateur contient aussi les paiements gonflés, sont
+touchées plus faiblement encore. Une dérive, inflation surajoutée croissante à partir d'un
+exercice, pousse des diagonales successives vers une dominante $L$ et tend aussi à faire baisser
+$Z$~; une
 inflation constante n'est pas visible, car elle se factorise en un effet d'année d'accident et un
 effet de développement, que la méthode de la chaîne absorbe. \emph{Hypothèse non testée par la
 forme unilatérale.} Un $Z$ grand signifie des diagonales plus équilibrées que le hasard. Une
@@ -14157,7 +14162,7 @@ $Z^\star = 2{,}70$~: p-value de Monte-Carlo~1 et verdict \code{OK}, contre $0{,}
 
 \textbf{Table.} Tableau~\ref{tab:pmin}, partie Merz--Wüthrich.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ ($p_{\min}^{\mathrm{MC}} = 0{,}001$ sur \code{reserve2}). Sur le sous-triangle $5 \times 5$ du triangle de contrôle ($n_k = 3, 3$, $p_{\min} = 0{,}0625$), la règle~R1 lit depuis l'issue~\#125 le plancher Monte-Carlo (section~\ref{sec:nature}, point~(i))~: mesuré par \code{run\_engine()} à $\alpha = 0{,}10$ (graine 20260831), $p_{\min}^{\mathrm{MC}} = 0{,}048$ à $B = 999$, égal à la p-value de Monte-Carlo, et la ligne est un test de verdict \code{ECHEC}, avec la phrase de l'issue~\#244 (l'écart de la p-value au seuil $\alpha/2$, $0{,}002$, est inférieur à son erreur de Monte-Carlo, $0{,}0068$)~; $0{,}05 = \alpha/2$ à $B = 99$, et la ligne est un test de verdict \code{ALERTE}, \code{ECHEC} dit inatteignable. Le verdict dépend donc des réplications tirées, sans marge (décision D1-8). Avant l'issue~\#276, sous la forme bilatérale ($p_{\min} = 0{,}125$), le plancher valait $0{,}096$ à $B = 999$ (test, \code{ALERTE}, \code{ECHEC} dit inatteignable, phrase de l'issue~\#244) et $0{,}10$ à $B = 99$ (test inopérant)~; jusqu'à l'issue~\#125, la règle lisait $p_{\min}$ et la ligne était inopérante (décision du mainteneur du 6~octobre 2026). \emph{Niveau} de la p-value de Monte-Carlo en queue basse, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#276, section~\ref{sec:calib-mc-mw}, tableau T1 de \code{docs/tableaux/}\allowbreak\code{20261016-issue276-calendaire.md})~: à $0{,}10$, $0{,}0835$ (N), $0{,}091$ (E), $0{,}084$ (A), pour $\rho = 0{,}089$, $0{,}091$, $0{,}090$~; à $0{,}05$, $0{,}0305$, $0{,}0365$, $0{,}037$ ($\rho = 0{,}041$, $0{,}041$, $0{,}040$)~; compatible, sauf un écart mineur du côté conservateur sous N à $0{,}05$. La référence est inférieure à $\alpha$ par discrétude de la statistique (83 à 86 valeurs distinctes dans l'échantillon oracle selon la loi, atome le plus lourd de masse $0{,}098$ à $0{,}103$). Les niveaux de l'issue~\#206 portent sur la forme bilatérale antérieure~: à $0{,}10$, $0{,}086$ (N), $0{,}081$ (E), $0{,}084$ (A), pour $\rho = 0{,}086$~; à $0{,}05$, $0{,}0455$, $0{,}041$, $0{,}040$ ($\rho = 0{,}043$, $0{,}040$, $0{,}043$)~; compatible sous les trois lois et aux deux seuils. \emph{Puissance} (même mesure, tableau T2~: loi N, $1\,000$ triangles par scénario, effet multiplicatif sur les incréments d'un exercice comptable $t$, puis recumul)~: à $0{,}10$, contre un choc de $5~\%$ et de $10~\%$ sur le dernier exercice ($t = 7$), $0{,}235$ et $0{,}401$ en queue basse, contre $0{,}157$ et $0{,}233$ sous la forme bilatérale~; sur l'exercice médian ($t = 4$), $0{,}218$ et $0{,}319$, contre $0{,}113$ et $0{,}185$~; contre une dérive de $3~\%$ et de $5~\%$ par exercice à partir de $t = 4$, $0{,}162$ et $0{,}205$, contre $0{,}084$ et $0{,}104$~; à $0{,}05$, de $0{,}074$ à $0{,}229$ en queue basse, contre $0{,}046$ à $0{,}140$~; dans chacun de ces six scénarios et aux deux seuils, les décisions discordantes des deux formes sur les mêmes triangles vont très majoritairement dans le sens de la queue basse (test de McNemar exact, p-value au plus $2{,}5\cdot 10^{-7}$). Contre une compensation alternée entre années d'accident sur l'exercice $t = 6$ ($\theta = 0{,}10$), alternative du côté haut que la ligne ne teste pas (rubrique~1), la forme bilatérale rejetait dans $0{,}109$ des cas à $0{,}10$ et $0{,}048$ à $0{,}05$, au voisinage de son niveau, la queue basse dans $0{,}017$ et $0{,}003$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ ($p_{\min}^{\mathrm{MC}} = 0{,}001$ sur \code{reserve2}). Sur le sous-triangle $5 \times 5$ du triangle de contrôle ($n_k = 3, 3$, $p_{\min} = 0{,}0625$), la règle~R1 lit depuis l'issue~\#125 le plancher Monte-Carlo (section~\ref{sec:nature}, point~(i))~: mesuré par \code{run\_engine()} à $\alpha = 0{,}10$ (graine 20260831), $p_{\min}^{\mathrm{MC}} = 0{,}048$ à $B = 999$, égal à la p-value de Monte-Carlo, et la ligne est un test de verdict \code{ECHEC}, avec la phrase de l'issue~\#244 (l'écart de la p-value au seuil $\alpha/2$, $0{,}002$, est inférieur à son erreur de Monte-Carlo, $0{,}0068$)~; $0{,}05 = \alpha/2$ à $B = 99$, et la ligne est un test de verdict \code{ALERTE}, \code{ECHEC} dit inatteignable. Le verdict dépend donc des réplications tirées, sans marge (décision D1-8). Avant l'issue~\#276, sous la forme bilatérale ($p_{\min} = 0{,}125$), le plancher valait $0{,}096$ à $B = 999$ (test, \code{ALERTE}, \code{ECHEC} dit inatteignable, phrase de l'issue~\#244) et $0{,}10$ à $B = 99$ (test inopérant)~; jusqu'à l'issue~\#125, la règle lisait $p_{\min}$ et la ligne était inopérante (décision du mainteneur du 6~octobre 2026). \emph{Niveau} de la p-value de Monte-Carlo en queue basse, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#276, section~\ref{sec:calib-mc-mw}, tableau T1 de \code{docs/tableaux/}\allowbreak\code{20261016-issue276-calendaire.md})~: à $0{,}10$, $0{,}0835$ (N), $0{,}091$ (E), $0{,}084$ (A), pour $\rho = 0{,}089$, $0{,}091$, $0{,}090$~; à $0{,}05$, $0{,}0305$, $0{,}0365$, $0{,}037$ ($\rho = 0{,}041$, $0{,}041$, $0{,}040$)~; compatible, sauf un écart mineur du côté conservateur sous N à $0{,}05$. La référence est inférieure à $\alpha$ par discrétude de la statistique (83 à 86 valeurs distinctes dans l'échantillon oracle selon la loi, atome le plus lourd de masse $0{,}098$ à $0{,}103$). Les niveaux de l'issue~\#206 portent sur la forme bilatérale antérieure~: à $0{,}10$, $0{,}086$ (N), $0{,}081$ (E), $0{,}084$ (A), pour $\rho = 0{,}086$~; à $0{,}05$, $0{,}0455$, $0{,}041$, $0{,}040$ ($\rho = 0{,}043$, $0{,}040$, $0{,}043$)~; compatible sous les trois lois et aux deux seuils. \emph{Puissance} (même mesure, tableau T2~: loi N, $1\,000$ triangles par scénario, effet multiplicatif sur les incréments d'un exercice comptable $t$, puis recumul)~: à $0{,}10$, contre un choc de $5~\%$ et de $10~\%$ sur le dernier exercice ($t = 7$), $0{,}235$ et $0{,}401$ en queue basse, contre $0{,}157$ et $0{,}233$ sous la forme bilatérale~; sur l'exercice médian ($t = 4$), $0{,}218$ et $0{,}319$, contre $0{,}113$ et $0{,}185$~; contre une dérive de $3~\%$ et de $5~\%$ par exercice à partir de $t = 4$, $0{,}162$ et $0{,}205$, contre $0{,}084$ et $0{,}104$~; à $0{,}05$, de $0{,}074$ à $0{,}229$ en queue basse, contre $0{,}046$ à $0{,}140$~; dans chacun de ces six scénarios et aux deux seuils, les décisions discordantes des deux formes sur les mêmes triangles vont très majoritairement dans le sens de la queue basse (test de McNemar exact, p-value au plus $2{,}5\cdot 10^{-7}$). Contre une compensation alternée entre années d'accident sur l'exercice $t = 6$ ($\theta = 0{,}10$), alternative du côté haut que la ligne ne teste pas (rubrique~1), la forme bilatérale rejetait dans $0{,}109$ des cas à $0{,}10$ et $0{,}048$ à $0{,}05$, un peu au-dessus de son niveau sous $H_0$ dans la même mesure ($0{,}081$ à $0{,}10$ et $0{,}037$ à $0{,}05$, loi N, tableau T1), la queue basse dans $0{,}017$ et $0{,}003$.
 
 \textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi binomiale indépendante de Mack, non sous le modèle de Mack~; plancher~: exact, fonction de $B$. Taux de rejet sous $H_0$ et sous les alternatives~: constat de simulation sous un plan (modèle de Mack ajusté au triangle de contrôle, section~\ref{sec:calib-mc-mw}), qui ne se transpose ni à une autre géométrie de triangle ni à un autre paramétrage~; intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
 \end{fiche}
@@ -14211,7 +14216,8 @@ Sous la loi binomiale indépendante de Mack (fiche~\ref{mw:m3cal}, rubrique~4), 
   \mathbb{P}(Z_k \le z) = 2^{-n_k} \sum_{l=0}^{n_k} \binom{n_k}{l}\,
   \mathds{1}\{\min(l, n_k - l) \le z\},
 \]
-calculée exactement~: les coefficients binomiaux et leur somme sont des entiers représentés sans
+calculée exactement~: les coefficients binomiaux, que \code{choose()} rend exactement (égalité à
+la récurrence de Pascal mesurée jusqu'à $n = 53$), et leur somme sont des entiers représentés sans
 erreur en double précision pour $n_k \le 53$ (à $T = 8$, $n_k \le 6$), et la probabilité vaut
 exactement~1 en $z = \lfloor n_k/2 \rfloor$. Elle est exacte sous cette loi de référence, non
 sous le modèle de Mack~: dans une colonne, le nombre de $L$ est fixé par la médiane, ce qui lie
@@ -14221,7 +14227,8 @@ de Pascal, \code{tests/unitaires/test\_merz\_wuthrich.R}~; mesuré aussi contre
 \code{dbinom()}, écart au plus $4{,}4\cdot 10^{-16}$)~; leur égalité avec la table publiée de
 la p.~D6.49 n'est \textbf{pas vérifiée}, le document source n'étant pas disponible dans le
 dépôt. La plus petite valeur, $\mathbb{P}(Z_k \le 0) = 2^{1-n_k}$, vaut $0{,}125$ à $n_k = 4$ et
-$0{,}0625$ à $n_k = 5$~: seule une diagonale d'au moins cinq étiquettes peut porter le repère.
+$0{,}0625$ à $n_k = 5$~: seule une diagonale d'au moins cinq étiquettes peut porter le repère,
+cinq étant le plus petit $n_k$ tel que $2^{1-n_k} \le 0{,}10$.
 \Pval
 Aucune p-value~: ni exacte, ni de Monte-Carlo, ni asymptotique, et la ligne n'a pas de p-value
 retenue (\code{p\_retenue} \code{NA}, verdict \code{INFO}, ADR~0001). Aucune des trois voies
@@ -14231,8 +14238,9 @@ sens de \code{CONTEXT.md}, et elle porte sur une seule diagonale, alors que la l
 plusieurs. \emph{Monte-Carlo}~: une p-value simulée par le bootstrap de résidus supposerait une
 statistique qui intègre la multiplicité, par exemple le minimum des $\mathbb{P}(Z_k \le z_k)$
 sur les diagonales, soit une ligne de test nouvelle, hors du périmètre de l'issue~\#275, dont le
-niveau et la puissance à $T = 8$ ne sont pas mesurés. \emph{Asymptotique}~: sur des diagonales
-de deux à six étiquettes à $T = 8$, aucune loi limite n'a d'objet. Le test des effets d'année calendaire
+niveau et la puissance à $T = 8$ ne sont pas mesurés. \emph{Asymptotique}~: la loi de $Z_k$ étant calculée exactement
+(rubrique~4), une loi limite n'aurait pas d'objet, et les deux à six étiquettes d'une diagonale
+à $T = 8$ ne la fonderaient pas. Le test des effets d'année calendaire
 est la ligne précédente (fiche~\ref{mw:m3cal}).
 \Usage
 Le diagnostic localise l'exercice comptable en cause, ce que la statistique globale du test ne
@@ -14254,10 +14262,12 @@ un choc de $5$ et de $10~\%$ sur le dernier exercice ($t = 7$), $0{,}148$ et $0{
 l'exercice médian ($t = 4$), $0{,}162$ et $0{,}222$ contre une dérive de $3$ et de $5~\%$, et
 $0{,}024$ contre la compensation alternée du côté haut~; à titre descriptif, le test en queue
 basse rejette au seuil $0{,}10$ dans $0{,}235$ et $0{,}401$, $0{,}218$ et $0{,}319$, $0{,}162$ et
-$0{,}205$ des triangles des mêmes scénarios (fiche~\ref{mw:m3cal}, rubrique~7)~: le repère est
-plus sensible à un choc sur le dernier exercice, dont la diagonale principale compte jusqu'à six
-étiquettes sur un triangle $8 \times 8$, et moins à un choc sur l'exercice médian, dont la diagonale principale n'en compte
-pas plus de quatre. Ces taux ne sont pas des niveaux ni des puissances d'un test~: constat de
+$0{,}205$ des triangles des mêmes scénarios (fiche~\ref{mw:m3cal}, rubrique~7)~: le repère
+signale un choc sur le dernier exercice, dont la diagonale principale compte jusqu'à six
+étiquettes sur un triangle $8 \times 8$, plus souvent que le test ne rejette, et un choc sur
+l'exercice médian, dont la diagonale principale n'en compte pas plus de quatre, moins souvent~;
+la comparaison ne se fait pas à taux sous $H_0$ égal ($0{,}1005$ pour le repère contre $0{,}0835$
+pour le test au seuil $0{,}10$, loi N, tableaux T3 et T1). Ces taux ne sont pas des niveaux ni des puissances d'un test~: constat de
 simulation sous un plan, intervalles de Clopper--Pearson fonction du nombre de triangles.
 Mesuré par \code{run\_engine()} (graine 20260831)~: sur le triangle de contrôle ($B = 999$), une
 seule diagonale porte le repère, $k = 5$, $n = 6$, $L = 6$, $S = 0$, $Z = 0$, $P = 0{,}03125$,
@@ -15656,7 +15666,8 @@ $0{,}0645$, $0{,}064$ sur les échantillons oracle de $20\,000$ triangles par lo
 bilatérale y rejette dans $0{,}1185$, $0{,}1095$ et $0{,}116$ des cas à $0{,}10$ et $0{,}0875$,
 $0{,}0885$ et $0{,}083$ à $0{,}05$, du même ordre que dans le tableau. Les deux formes sont
 libérales sous ce plan, la queue basse surtout au seuil $0{,}10$~; constat de simulation sous ce
-plan. La p asymptotique n'est pas retenue, la p-value de Monte-Carlo de la ligne étant disponible.
+plan. La p asymptotique n'est jamais retenue~: la ligne a une p-value de Monte-Carlo prévue et, si
+celle-ci manque, elle devient un diagnostic, sans repli sur la p non simulée (issue~\#181).
 
 \emph{Historique.} Les versions antérieures citaient, à cette place, des fréquences de rejet sur
 600 triangles $10\times10$ «~simulés exactement sous $H_0$~» au seuil de $10~\%$ (ordonnée à
