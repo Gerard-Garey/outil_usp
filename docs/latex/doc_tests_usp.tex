@@ -713,9 +713,8 @@ effectifs, plancher, phrase de l'issue~\#244), par \code{mw\_tests()} (phrases d
 issues~\#257 et~\#204), par \code{usp\_tests()} et par \code{.usp\_poser\_renvois()}, qui
 remplace sept copies de la règle~; \code{.mw\_avec\_exclusion()} (phrases des colonnes écartées
 de M1) suit une autre règle, une espace après un point, «~\code{. }~» sinon \\
-\code{usp\_identifiabilite\_}\newline\code{pente()},\newline
-\code{SEUIL\_PUISSANCE\_PENTE} & $x$, $\hat\beta$, $\hat\sigma$, $\alpha$,
-\code{unilateral} (\code{FALSE})~; constante ($0{,}5$) & indice $\hat\lambda$ et puissance
+\code{usp\_identifiabilite\_}\newline\code{pente()} & $x$, $\hat\beta$, $\hat\sigma$, $\alpha$,
+\code{unilateral} (\code{FALSE})~; constante ($0{,}5$, retirée par D1-Fb, issues~\#218 et~\#230) & indice $\hat\lambda$ et puissance
 approchée $\hat\pi_b$ du test de la pente, unilatérale si \code{unilateral = TRUE}, forme que lit
 \code{usp\_tests()} depuis l'issue~\#169, bilatérale sinon (\code{NA} à volumes
 constants)~; en dessous du seuil, la ligne de la pente est restituée en diagnostic (règle~R4,
@@ -4574,7 +4573,7 @@ Diagnostic \\
 
 \begin{itemize}[itemsep=1pt]
   \item \emph{Règle~R4, identifiabilité de la pente} (\code{usp\_identifiabilite\_}\allowbreak\code{pente()},
-  constante \code{SEUIL\_PUISSANCE\_}\allowbreak\code{PENTE} $= 0{,}5$~; sous-section~\ref{sec:t8})~: la puissance
+  constante $0{,}5$, retirée par D1-Fb, issues~\#218 et~\#230~; sous-section~\ref{sec:t8})~: la puissance
   approchée $\hat\pi_b$ remplace, dans la loi de Student décentrée de la
   sous-section~\ref{sec:modele-auxiliaire-spec}, $b$ par $\hat\beta$ et $\sigma_\varepsilon$ par
   $\hat\sigma\,\bar x$, d'où le paramètre de décentrage
@@ -5368,7 +5367,7 @@ de l'ordre de la granularité.
   Student décentrée $t(T-2, \hat\lambda)$ (\code{usp\_identifiabilite\_pente()},
   calcul déterministe~; forme bilatérale $\mathbb{P}\big(|t| > t_{1-\alpha/2,\,T-2}\big)$
   avant l'issue). Si $\hat\pi_b < 1/2$ (constante
-  \code{SEUIL\_PUISSANCE\_PENTE}), selon l'approximation $\hat\pi_b$, sous le modèle ajusté, le
+  $0{,}5$, retirée par D1-Fb, issues~\#218 et~\#230), selon l'approximation $\hat\pi_b$, sous le modèle ajusté, le
   test a moins d'une chance sur deux de rejeter~: un \code{ECHEC} y décrirait le
   plan d'expérience --- des volumes peu dispersés --- et non un écart au modèle, et
   la ligne de la pente est restituée en diagnostic, $\hat\lambda$ et $\hat\pi_b$
@@ -16081,7 +16080,7 @@ retiré par l'issue~\#181)~; \code{runs\_p\_min()},
 \code{TOL\_DISPERSION\_MC}, \code{B\_MIN\_DEGENERESCENCE})~; complément du commentaire par
 \code{.complement\_motif\_mc()} (table \code{COMPLEMENTS\_MOTIF\_MC}, issue~\#126) \\
 Identifiabilité de la pente, règle~R4 (§\ref{sec:t8}) & \code{usp\_identifiabilite\_pente()},
-constante \code{SEUIL\_PUISSANCE\_PENTE}, lue par \code{usp\_tests()} (puissance unilatérale
+constante $0{,}5$ (retirée par D1-Fb, issues~\#218 et~\#230), lue par \code{usp\_tests()} (puissance unilatérale
 depuis l'issue~\#169) \\
 Test de Pitman sur la pente, sens unilatéral verrouillé (fiche~\ref{fiche:student-pente},
 issue~\#169) & \code{usp\_permutation\_pente()}, \code{engine\_permutations()},
