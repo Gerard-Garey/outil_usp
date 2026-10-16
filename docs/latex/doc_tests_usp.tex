@@ -526,8 +526,10 @@ la condition de Kuhn et Tucker (issue~\#188, §\ref{sec:controles}) \\
 \code{mw\_valider\_triangle()} & \code{tri}, \code{T\_min}, \code{bareme}, \code{segment},
 \code{annexe} &
 \code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, $I$, $J$~; refus d'une cellule observée
-hors du domaine numérique, un seul motif par triangle (issue~\#185)~; avertissement de crédibilité
-partielle sur $c(I + 1, \text{barème appliqué}) < 1$ (issue~\#131) \\
+hors du domaine numérique, un seul motif par triangle (issue~\#185)~; refus d'un nom de ligne
+(année d'accident) manquant, vide ou fait de seuls blancs, ou en double après retrait des blancs
+initiaux et finaux, un triangle sans noms de ligne restant admis (issue~\#268)~; avertissement de
+crédibilité partielle sur $c(I + 1, \text{barème appliqué}) < 1$ (issue~\#131) \\
 \code{mw\_valider\_ajustement()} & \code{aj} (sortie de \code{mw\_ajuster()}),
 \code{msep} (champ \code{\$msep} de \code{mw\_msep()}) &
 \code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, \code{\$reserve},
@@ -1126,7 +1128,9 @@ des cinq cas de référence de nouveau identiques avant et après. Depuis l'issu
 $C(i,j)$, au lieu d'un \code{data.frame()} construit bloc à bloc~: objets de
 \code{run\_engine()} des six cas de référence identiques avant et après (hors horodatage et
 durée d'exécution)~; sur un triangle dont un nom de ligne vaut \code{NA}, le refus par une
-erreur R est inchangé (même message), seul l'appel en cause change (issue~\#268) \\
+erreur R était inchangé (même message), seul l'appel en cause changeant~; depuis l'issue~\#268,
+ce triangle est refusé avant tout calcul par \code{mw\_valider\_triangle()}, avec un motif de
+données et sans erreur R (§\ref{sec:controles}) \\
 \code{.mw\_spearman()},\newline \code{.mw\_spearman\_p()},\newline \code{.fisher\_combine()} & deux vecteurs (le premier déjà
 aplati), \code{plancher\_b} (1)~; p-values de colonne & corrélation de rang $\hat\rho_s$ et p-value
 bilatérale de Spearman d'une colonne, tirées d'un seul appel de \code{.mw\_spearman()}
@@ -2923,7 +2927,7 @@ La méthode Merz--Wüthrich en compte donc \textbf{deux}, appelées à deux mome
 distincts de la chaîne. \code{mw\_valider\_triangle()} s'exécute \emph{avant}
 l'ajustement et ne lit aucune grandeur estimée~: elle porte sur les données fournies
 (dimensions, complétude de la partie observée, positivité des cumulés, domaine numérique des
-cellules observées depuis l'issue~\#185), puis sur le barème, le
+cellules observées depuis l'issue~\#185, noms de ligne depuis l'issue~\#268), puis sur le barème, le
 segment et l'annexe transmis, dont une valeur invalide est une erreur bloquante, sans erreur~R
 (issue~\#131). Ce second contrôle vient après celui des cellules, qu'il ne masque pas~: les
 erreurs s'additionnent, comme dans \code{engine\_valider\_donnees()} (mesuré sur le triangle de
@@ -3664,6 +3668,11 @@ incluses (\code{DOMAINE\_NUMERIQUE\_MIN}, \code{DOMAINE\_NUMERIQUE\_MAX}) & Conv
 l'outil, sans source réglementaire (issue~\#185), mêmes constantes que pour les méthodes
 lognormales~: protège le calcul contre les échelles extrêmes (justification sous le tableau des
 méthodes lognormales). Un seul motif par triangle. Bloquant. \\
+Noms de ligne (années d'accident) & s'ils sont fournis~: aucun nom \code{NA}, vide ou fait de
+seuls blancs~; aucun nom en double après retrait des blancs initiaux et finaux & Convention de
+l'outil, sans source réglementaire (issue~\#268)~: le nom identifie l'année d'accident et ne sert
+qu'aux noms de lignes des tables restituées, jamais au calcul~; un triangle sans noms de ligne
+est admis (texte sous le tableau). Un motif par nom fautif et par nom en double. Bloquant. \\
 Monotonie des cumulés & $C(i,j+1) \ge C(i,j)$ & Avertissement \emph{actuariel,
 sans fondement réglementaire}~: D(2)(h)(iii) ne pose qu'une
 proportionnalité en espérance et ne contraint pas $f_j \ge 1$. Un recul traduit
@@ -3721,6 +3730,43 @@ statistique non réglementaire, inchangé~: à $I + 1 < 10$, un second avertisse
 $\hat\sigma_j^2$ repose sur deux ou trois observations en fin de triangle. \\
 \end{longtable}
 }
+
+\emph{Noms de ligne (issue~\#268).} Le moteur repère les cellules par leur position, et non par
+les noms de ligne du triangle~; ces noms n'alimentent que les noms de lignes des tables
+restituées (\code{.mw\_noms\_lignes\_}\allowbreak\code{empilees()}). Avant l'issue, un nom
+\code{NA} faisait échouer la première fonction qui assemblait une table nommée, et
+\code{run\_engine()} rendait \code{ok = FALSE} par un défaut de calcul intercepté~; un triangle
+à noms en double était accepté, et des lignes des tables restituées perdaient en silence leur nom
+saisi au profit d'un numéro automatique (mesuré avec le moteur antérieur à l'issue, sur le
+triangle de contrôle \code{tests/donnees/triangle\_mw.csv} muni des noms 2015 à~2022~: un nom
+\code{NA} en troisième ligne donne le défaut de calcul intercepté dans
+\code{.mw\_noms\_lignes\_}\allowbreak\code{empilees()}~; le nom 2019 en lignes~5 et~6 donne
+\code{ok = TRUE} et des lignes de \code{res\$residus} nommées 1 à~13). Depuis,
+\code{mw\_valider\_triangle()} refuse, après les contrôles de cellules qu'il ne masque pas, un nom
+\code{NA}, vide ou fait de seuls blancs (motif «~\code{Nom d'annee d'accident manquant ou vide en
+ligne} $k$ \code{(i=}$k-1$\code{).}~»), et un nom qui désigne deux fois la même année d'accident
+(motif «~\code{Annee d'accident en double :}~» suivi des formes saisies et des positions des
+lignes). Les noms sont d'abord ramenés en UTF-8, une chaîne dont les octets ne sont pas de
+l'UTF-8 valide étant lue en Latin-1, si bien que le contrôle ne lève aucune erreur R, quelle que
+soit la locale. Sont des blancs les blancs Unicode horizontaux et verticaux (classes \code{\textbackslash h}
+et \code{\textbackslash v} des expressions régulières Perl, dont l'espace insécable) et les
+caractères de format sans chasse U+200B, U+200C, U+200D, U+2060 et U+FEFF. Les doublons sont
+comparés après retrait des blancs initiaux et finaux, sans autre normalisation (ni casse, ni
+conversion numérique). Dans le motif, chaque forme saisie est citée entre guillemets et échappée
+(un blanc, un caractère de contrôle ou de format non ASCII écrit \code{\textbackslash u}$XXXX$),
+pour qu'un blanc invisible y reste lisible. Aucun nom par défaut n'est substitué~: un
+remplacement masquerait l'erreur de saisie et romprait la traçabilité entre la saisie et les
+tables restituées. Mesuré avec le moteur actuel, sur le même triangle muni des mêmes noms puis
+modifié~: un nom \code{NA} en troisième ligne donne
+«~\code{Nom d'annee d'accident manquant ou vide en ligne 3 (i=2).}~», et \code{run\_engine()}
+(méthode de réserve n\textsuperscript{o}~2, $B = 99$) rend \code{ok = FALSE} avec ce motif, sans
+\code{validation\$erreur\_r}~; un nom fait d'une espace, d'une espace insécable et de U+200B est
+refusé comme vide~; les noms «~2020~» en lignes~5 et~6 et «~2020~» entouré d'une espace et d'une
+espace insécable en ligne~7 donnent un seul motif, qui cite \code{"2020"} et
+\code{" 2020\textbackslash u00a0"} et les lignes 5, 6 et~7~; les mêmes motifs sont rendus en locale
+\code{C}. Le triangle rendu par \code{engine\_lire\_triangle()}, par lequel l'application lit le
+fichier, ne porte pas de noms de ligne (mesuré sur le même fichier)~: le refus n'est atteint
+qu'en appel direct, avec une matrice nommée.
 
 \emph{Triangle totalement dégénéré (issue~\#192).} Après \code{mw\_msep()}, avant le paramètre
 et le bootstrap, \code{mw\_valider\_ajustement()} refuse le triangle quand toutes les colonnes
