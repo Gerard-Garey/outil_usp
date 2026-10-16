@@ -4979,7 +4979,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     stats::pt(tost$delta / tost$se, tost$ddl, lower.tail = FALSE) else NA_real_
   tost_rho <- if (tost_calcule)
     stats::qt(1 - alpha, tost$ddl) * tost$se / tost$delta else NA_real_
-  tost_r14 <- isTRUE(tost_calcule && is.finite(tost$p) && tost_p_plancher >= alpha)
+  # tost_calcule garantit une p finie (garde #153 de test_tost_intercept() :
+  # p_bas et p_haut finis, p = .p_borne(max)) ; isTRUE() garde un p_plancher NaN.
+  tost_r14 <- tost_calcule && isTRUE(tost_p_plancher >= alpha)
   add(fam, "Equivalence de la constante a zero (TOST)",
       fonction = "test_tost_intercept",
       "Schuirmann (1987), J. Pharmacokinet. Biopharm. 15",
@@ -4987,8 +4989,12 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       H0 = "|a| >= Delta (la constante n'est PAS negligeable)",
       H1 = "|a| < Delta (constante negligeable : proportionnalite pratique)",
       stat_nom = "t (max des 2 unilateraux)", stat = tost$stat,
-      # #44 (regle R5, TOST) : aucune p Monte-Carlo possible (H0 composite) ;
-      # la p reste retenue, et nature et loi disent sous quel modele elle vaut.
+      # #44 (regle R5, TOST) : quand la ligne est un test, la p du TOST est
+      # retenue hors hierarchie, et nature et loi disent sous quel modele elle
+      # vaut ; sinon regle R14 (#298) : diagnostic, p non retenue, conservee
+      # dans p_asymptotique. Une simulation a la frontiere a = +/-Delta est
+      # possible (#219) mais non retenue : parametres de nuisance, niveau non
+      # garanti sur l'hypothese nulle composite.
       # #215 (decision P3 du mainteneur du 07/10/2026) : modele auxiliaire
       # pondere, poids estimes : t(T-2) approchee dans les deux branches de
       # marge, p exacte NA, p rangee dans p_asymptotique et retenue hors
