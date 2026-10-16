@@ -8060,6 +8060,17 @@ mw_residus <- function(aj, j_degeneres = NULL) {
 # "grands" (L) et "petits" (S) par rapport a leur mediane ; sous H0 d'absence
 # d'effet calendaire, la repartition des L et des S le long de chaque diagonale
 # est purement aleatoire. On note Z_k = min(L_k, S_k) sur la diagonale k.
+# Sens du test (#276, decisions Q-Fd-1 et Q-Fd-3 du mainteneur, 14/10/2026,
+# specification docs/specifications/fd-test-calendaire.md, par. 1.3) : queue
+# basse (Mack 1994, p. 164 : effet calendaire soupconne si Z est
+# significativement plus petit que son esperance ; un effet calendaire
+# concentre les etiquettes d'une diagonale et fait baisser Z). La regle de
+# decision bilaterale de la p. 166 (rejet hors de E(Z) +/- 2 sqrt(Var(Z)))
+# n'est pas suivie : le cote haut (diagonales plus equilibrees que le hasard)
+# n'est pas un effet calendaire au sens de la ligne et n'est pas teste. La p
+# asymptotique est Phi(Z*), la p Monte-Carlo est lue en queue basse
+# (MW_CATALOGUE_MC, entree Calendrier) et p_min est la masse cumulee a gauche
+# (.mw_calendrier_p_min()).
 .mack_moments_Z <- function(n) {
   # Loi exacte de Z = min(L, S) lorsque n etiquettes sont reparties au hasard :
   # L ~ Binomiale(n, 1/2) et Z = min(L, n-L).
@@ -8121,7 +8132,9 @@ mw_test_annees_calendaires <- function(aj, j_degeneres = NULL) {
   if (!is.finite(VZ) || VZ <= 0) return(list(stat = NA_real_, p = NA_real_, Z = Z,
                                               etiquettes = etiquettes))
   st <- (Z - EZ) / sqrt(VZ)
-  list(stat = st, p = .p_borne(2 * (1 - stats::pnorm(abs(st)))),
+  # p asymptotique en queue basse, Phi(Z*) (#276, Q-Fd-3) : la meme
+  # alternative que la p Monte-Carlo du catalogue.
+  list(stat = st, p = .p_borne(stats::pnorm(st)),
        Z = Z, E = EZ, V = VZ, detail = A, etiquettes = etiquettes)
 }
 
@@ -9113,15 +9126,21 @@ mw_test_homogeneite_accident <- function(aj, j_degeneres = NULL, res = NULL) {
 # la regle R1 lit le plancher Monte-Carlo p_min_mc (extremites `extremes`
 # de MW_CATALOGUE_MC) et non plus cette p_min, qui reste restituee.
 
-# Effet calendaire (bilateral) : sur chaque diagonale retenue (n_k >= 2),
+# Effet calendaire (queue basse, Mack 1994, p. 164 ; #276, Q-Fd-1 ; la regle
+# bilaterale de la p. 166 n'est pas suivie) : sur chaque diagonale retenue
+# (n_k >= 2),
 # L_k ~ Binomiale(n_k, 1/2), diagonales independantes, Z = somme min(L_k,
 # n_k - L_k). C'est la loi binomiale independante de Mack (1994, CAS Forum,
 # annexe H), celle des moments de .mack_moments_Z(), et NON la loi de
 # permutation intra-colonne (dans une colonne, le nombre de L est fixe par la mediane, ce qui lie les
 # diagonales) : choix de la specification (#115 (b)2) ; la question Q1 de
 # l'audit, renvoyee a #125, est sans objet pour R1 depuis #125 (R1 lit la
-# loi simulee, p_min_mc) ; cette p_min reste restituee. Loi de Z par convolution exacte ; p_min = min sur
-# le support de 2 min(P(Z <= z), P(Z >= z)), bornee a 1. NA si aucune
+# loi simulee, p_min_mc) ; cette p_min reste restituee. Loi de Z par
+# convolution exacte ; p_min = min sur le support de la masse cumulee a
+# gauche P(Z <= z), soit P(Z = 0) = prod_k 2^(1 - n_k) (forme close, controlee
+# par les tests unitaires) ; elle vaut exactement la moitie de l'ancienne
+# p_min bilaterale min_z 2 min(P(Z <= z), P(Z >= z)), l'atome bas Z = 0 etant
+# toujours au plus aussi lourd que l'atome haut. Bornee a 1 ; NA si aucune
 # diagonale.
 .mw_calendrier_p_min <- function(n_k) {
   n_k <- n_k[is.finite(n_k) & n_k >= 2]
@@ -9139,7 +9158,7 @@ mw_test_homogeneite_accident <- function(aj, j_degeneres = NULL, res = NULL) {
     d <- e
   }
   sup <- which(d > 0)
-  p <- vapply(sup, function(i) 2 * min(sum(d[seq_len(i)]), sum(d[i:length(d)])), numeric(1))
+  p <- vapply(sup, function(i) sum(d[seq_len(i)]), numeric(1))
   .p_borne(min(p))
 }
 
@@ -9574,7 +9593,11 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
 MW_CATALOGUE_MC <- list(
   # Ensemble fige des colonnes degenerees transmis (#60, extension de
   # Q-E2r-60-1 (b) du 06/10/2026), comme pour M1, ExpVar et KruskalAcc.
-  Calendrier = .mc_entree(function(e) mw_test_annees_calendaires(e$aj, e$figes$degeneres)$stat, "deux",
+  # Queue basse (Mack 1994, p. 164 ; #276, decision Q-Fd-1 du 14/10/2026) :
+  # un effet calendaire fait baisser Z ; la regle bilaterale de la p. 166
+  # n'est pas suivie. Les extremites restent c(bas, haut) ; seule `bas` est
+  # lue en queue basse par engine_p_mc().
+  Calendrier = .mc_entree(function(e) mw_test_annees_calendaires(e$aj, e$figes$degeneres)$stat, "bas",
                           extremes = function(e)
                             .mw_calendrier_extremes(mw_test_annees_calendaires(e$aj, e$figes$degeneres))),
   CorrDev    = .mc_entree(function(e) mw_stat_correlation_dev(e$aj, e$figes$degeneres)$stat, "deux",
@@ -9941,9 +9964,9 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
       fonction = "mw_test_annees_calendaires",
       "Mack (1994), CAS Forum (printemps), 101-182, annexe H",
       H0 = "absence d'effet d'annee calendaire (diagonales homogenes)",
-      H1 = "une ou plusieurs diagonales atypiques (inflation, changement de cadence)",
+      H1 = "Z trop petit : une ou plusieurs diagonales a dominante L ou S (inflation, changement de cadence)",
       stat_nom = "Z centre reduit", stat = cal$stat,
-      loi = "N(0,1) approx. ; moments EXACTS de Z = min(L, n-L)",
+      loi = "N(0,1) approx., queue basse ; moments EXACTS de Z = min(L, n-L)",
       estim_nom = "Z observe", estim = cal$Z,
       p_as = cal$p, mc_nom = "Calendrier",
       p_min = pm_cal$p_min, effectifs = pm_cal$effectifs,

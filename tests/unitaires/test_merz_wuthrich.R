@@ -1931,11 +1931,12 @@ kw_enum <- function(t) {
   h <- vapply(perms(g), function(gg) sum(tapply(seq_len(N), gg, sum)^2 / t), numeric(1))
   sum(abs(h - max(h)) < 1e-9) / length(h)
 }
+# Queue basse depuis #276 (decision Q-Fd-1 du 14/10/2026) : min_z P(Z <= z).
 cal_enum <- function(nk) {
   gr <- as.matrix(expand.grid(lapply(nk, function(n) 0:n)))
   pr <- apply(gr, 1, function(l) prod(stats::dbinom(l, nk, 0.5)))
   Z <- apply(gr, 1, function(l) sum(pmin(l, nk - l)))
-  min(vapply(sort(unique(Z)), function(z) min(1, 2 * min(sum(pr[Z <= z]), sum(pr[Z >= z]))), numeric(1)))
+  min(vapply(sort(unique(Z)), function(z) min(1, sum(pr[Z <= z])), numeric(1)))
 }
 verifier("p_min Kruskal-Wallis par enumeration : (3,3,2,1) -> 24/5040, (4,3,2,1) -> 24/12600 (#115)",
          isTRUE(proche(.mw_kruskal_p_min(c(3, 3, 2, 1)), 24 / 5040, 1e-12)) &&
@@ -1943,12 +1944,33 @@ verifier("p_min Kruskal-Wallis par enumeration : (3,3,2,1) -> 24/5040, (4,3,2,1)
            all(vapply(list(c(3, 3, 2, 1), c(4, 3, 2, 1), c(2, 2, 2), c(3, 2, 2, 1)), function(t)
              isTRUE(proche(.mw_kruskal_p_min(t), kw_enum(t), 1e-12)), logical(1))) &&
            .mw_kruskal_p_min(rep(1, 5)) == 1 && is.na(.mw_kruskal_p_min(4)))
-verifier("p_min calendaire par enumeration : (3,3) -> 0,125, (2,3,2,4) -> 0,015625 (#115)",
-         identical(.mw_calendrier_p_min(c(3, 3)), 0.125) &&
-           identical(.mw_calendrier_p_min(c(2, 3, 2, 4)), 0.015625) &&
+verifier("p_min calendaire (queue basse) par enumeration : (3,3) -> 0,0625, (2,3,2,4) -> 0,0078125 (#115, #276)",
+         identical(.mw_calendrier_p_min(c(3, 3)), 0.0625) &&
+           identical(.mw_calendrier_p_min(c(2, 3, 2, 4)), 0.0078125) &&
            all(vapply(list(c(3, 3), c(2, 3, 2, 4), c(2, 2), c(5, 2, 3), c(2, 3, 4, 4, 6, 5)), function(n)
              isTRUE(proche(.mw_calendrier_p_min(n), cal_enum(n), 1e-12)), logical(1))) &&
            is.na(.mw_calendrier_p_min(1)))
+# Forme close de la p_min en queue basse (#276, spec. fd-test-calendaire.md,
+# par. 1.3, point 3) : min_z P(Z <= z) = P(Z = 0) = prod_k 2^(1 - n_k), et
+# moitie exacte de l'ancienne p_min bilaterale (calcul independant par
+# enumeration, cote bilateral recalcule ici).
+cal_enum_deux <- function(nk) {
+  gr <- as.matrix(expand.grid(lapply(nk, function(n) 0:n)))
+  pr <- apply(gr, 1, function(l) prod(stats::dbinom(l, nk, 0.5)))
+  Z <- apply(gr, 1, function(l) sum(pmin(l, nk - l)))
+  min(vapply(sort(unique(Z)), function(z) min(1, 2 * min(sum(pr[Z <= z]), sum(pr[Z >= z]))), numeric(1)))
+}
+verifier("p_min calendaire, forme close prod 2^(1 - n_k) et moitie de la p_min bilaterale (#276)",
+         {
+           cas <- list(2, 3, 7, c(2, 2), c(3, 3), c(2, 3, 2, 4), c(5, 2, 3), c(2, 3, 4, 4, 6, 5),
+                       c(2, 2, 2, 2, 2), c(11, 9, 6))
+           all(vapply(cas, function(n)
+             isTRUE(proche(.mw_calendrier_p_min(n), prod(2^(1 - n)), 1e-12)), logical(1))) &&
+             identical(.mw_calendrier_p_min(c(2, 3, 4, 4, 6, 5)), 2^-18) &&
+             all(vapply(cas[seq_len(8)], function(n)
+               isTRUE(proche(.mw_calendrier_p_min(n), cal_enum_deux(n) / 2, 1e-12)), logical(1))) &&
+             identical(.mw_calendrier_p_min(c(1, 2)), 0.5)
+         })
 verifier("p_min CorrDev (4,3) -> 2/(4! 3!) = 0,013889 ; Fisher de rangs prod 2/n_j!, NA a n_j > 9 ou K < 2 (#115)",
          isTRUE(proche(.mw_corr_p_min(c(4, 3)), 2 / 144, 1e-12)) &&
            isTRUE(proche(.mw_corr_p_min(3), 1 / 3, 1e-12)) &&
@@ -2016,7 +2038,7 @@ verifier("reserve2 : p_min des six lignes discretes, les 13 autres NA (#115, cri
            d <- engine_table_tests(run_mw(tri_ref))
            att <- c("Homogeneite de f_j entre annees de survenance" = 16 / prod(factorial(7:4)),
                     "Adequation de l'exposant de variance, colonne par colonne" = 16 / prod(factorial(7:4)),
-                    "Effets d'annee calendaire (test de Mack)" = 2^-17,
+                    "Effets d'annee calendaire (test de Mack)" = 2^-18,
                     "Homogeneite des residus entre annees de survenance" = 8.292518941e-15,
                     "Correlation entre annees de developpement adjacentes" = 2 / 12441600,
                     "Test des suites sur les residus de Mack" = runs_p_min(13, 13))
@@ -2027,27 +2049,93 @@ verifier("reserve2 : p_min des six lignes discretes, les 13 autres NA (#115, cri
              !any(d$inoperant)
          })
 # Depuis #125 (D1-8), la p Monte-Carlo etant retenue, R1 lit le plancher
-# Monte-Carlo p_min_mc (B = 99, B_eff = 99) : Calendaire 0,10 >= alpha et
-# CorrDev 0,38 >= alpha -> inoperants (prefixe Monte-Carlo) ; Suites
-# 0,02 < alpha/2 -> test sans texte de R1 (le texte "ECHEC possible" lu sur
-# p_min = 4/70 a disparu). p_min reste restituee.
-verifier("Sous-triangle 5 x 5, alpha = 0,10 : Calendaire et CorrDev inoperants sur p_min_mc, Suites reste un test sans texte de R1 (#115, #125)",
+# Monte-Carlo p_min_mc (B = 99, B_eff = 99) : CorrDev 0,38 >= alpha ->
+# inoperant (prefixe Monte-Carlo) ; Suites 0,02 < alpha/2 -> test sans texte
+# de R1 (le texte "ECHEC possible" lu sur p_min = 4/70 a disparu). p_min
+# reste restituee. Calendaire en queue basse depuis #276 (decision Q-Fd-1 ;
+# spec. fd-test-calendaire.md, par. 5.1 et 6) : plancher 0,05 = alpha/2 a
+# B = 99 (0,10 en bilateral, alors inoperant) -> test ALERTE, ECHEC dit
+# inatteignable ; a B = 999, p = p_min_mc = 0,048 < alpha/2 -> ECHEC (ALERTE
+# en bilateral, p = 0,096) ; p_min 0,0625 (0,125 en bilateral).
+verifier("Sous-triangle 5 x 5, alpha = 0,10 : CorrDev inoperant sur p_min_mc, Calendaire test (queue basse, #276), Suites test sans texte de R1 (#115, #125)",
          {
            t5 <- tri_ref[1:5, 1:5]; t5[row(t5) + col(t5) > 6] <- NA
            d <- engine_table_tests(run_mw(t5))
-           l <- function(k) d[d$test == k, ]
+           l <- function(k, d) d[d$test == k, ]
            pre <- paste("TEST INOPERANT au seuil alpha = 0.1 : plus petite p-value Monte-Carlo",
                         "atteignable sur ces replications >= alpha")
-           ca <- l("Effets d'annee calendaire (test de Mack)")
-           co <- l("Correlation entre annees de developpement adjacentes")
-           su <- l("Test des suites sur les residus de Mack")
-           all(vapply(list(ca, co), function(x) isTRUE(x$inoperant) && x$type == "diagnostic" &&
-                        identical(x$verdict, "INFO") && startsWith(x$commentaire, pre), logical(1))) &&
-             identical(ca$p_min, 0.125) && isTRUE(proche(co$p_min, 1 / 3, 1e-12)) &&
-             isTRUE(proche(ca$p_min_mc, 0.10, 1e-12)) && isTRUE(proche(co$p_min_mc, 0.38, 1e-12)) &&
+           ina <- paste("ECHEC inatteignable : plus petite p-value Monte-Carlo atteignable sur ces",
+                        "replications >= alpha/2 = 0.05 (diagonales n_k = 3, 3)")
+           ca <- l("Effets d'annee calendaire (test de Mack)", d)
+           co <- l("Correlation entre annees de developpement adjacentes", d)
+           su <- l("Test des suites sur les residus de Mack", d)
+           d999 <- engine_table_tests(run_engine(methode = "reserve2", triangle = t5, segment = 1,
+                                                 annexe = "II", B = 999))
+           c9 <- l("Effets d'annee calendaire (test de Mack)", d999)
+           isTRUE(co$inoperant) && co$type == "diagnostic" && identical(co$verdict, "INFO") &&
+             startsWith(co$commentaire, pre) &&
+             !ca$inoperant && ca$type == "test" && identical(ca$verdict, "ALERTE") &&
+             grepl(ina, ca$commentaire, fixed = TRUE) &&
+             isTRUE(proche(ca$p_retenue, 0.05, 1e-12)) &&
+             identical(ca$p_min, 0.0625) && isTRUE(proche(co$p_min, 1 / 3, 1e-12)) &&
+             isTRUE(proche(ca$p_min_mc, 0.05, 1e-12)) && isTRUE(proche(co$p_min_mc, 0.38, 1e-12)) &&
+             !c9$inoperant && c9$type == "test" && identical(c9$verdict, "ECHEC") &&
+             isTRUE(proche(c9$p_retenue, 0.048, 1e-12)) && isTRUE(proche(c9$p_min_mc, 0.048, 1e-12)) &&
+             !grepl("inatteignable", c9$commentaire, fixed = TRUE) &&
              su$type == "test" && !su$inoperant && isTRUE(proche(su$p_min, 4 / 70, 1e-12)) &&
              isTRUE(proche(su$p_min_mc, 0.02, 1e-12)) &&
              !grepl("ECHEC", su$commentaire, fixed = TRUE) && !grepl("p_min", su$commentaire, fixed = TRUE)
+         })
+# Queue basse du test calendaire (#276, decisions Q-Fd-1 et Q-Fd-3 ; reprise
+# apres l'audit leger). Triangle 8 x 8 a diagonales equilibrees : rangs des
+# facteurs par colonne trouves par recherche aleatoire (graine 1, 3 000
+# tirages, maximum de Z*) hors de ce fichier ; Z = 12, Z* = 2,704 > 0 (cote
+# haut, abandonne par la forme unilaterale). Mesure du 16/10/2026 a B = 99,
+# graine 20260831 : p Monte-Carlo "bas" = 1 (verdict OK), p "deux" = 0,02
+# (< alpha/2 : la forme bilaterale aurait rendu ECHEC).
+tri_cal_haut <- local({
+  rk <- list(c(4, 1, 6, 7, 2, 5, 3), c(6, 2, 5, 3, 1, 4), c(3, 2, 4, 1, 5), c(2, 4, 3, 1),
+             c(2, 1, 3), 2:1, 1)
+  f <- c(1.8, 1.4, 1.2, 1.1, 1.05, 1.03, 1.02)
+  t <- matrix(NA_real_, 8, 8); t[, 1] <- 100 + 10 * (0:7)
+  for (j in 0:6) { idx <- 0:(6 - j)
+    t[idx + 1, j + 2] <- t[idx + 1, j + 1] * f[j + 1] * (1 + 0.01 * rk[[j + 1]]) }
+  t
+})
+verifier("p asymptotique calendaire Phi(Z*) (queue basse, #276) : reserve2 1,996364e-4 ; Z* > 0 -> p > 0,5",
+         {
+           c2 <- mw_test_annees_calendaires(mw_ajuster(tri_ref))
+           ch <- mw_test_annees_calendaires(mw_ajuster(tri_cal_haut))
+           identical(c2$p, .p_borne(stats::pnorm(c2$stat))) &&
+             isTRUE(proche(c2$p, 1.996364159e-4, 1e-8)) &&
+             isTRUE(proche(2 * (1 - stats::pnorm(abs(c2$stat))), 2 * c2$p, 1e-10)) &&
+             identical(ch$p, .p_borne(stats::pnorm(ch$stat))) &&
+             ch$Z == 12 && isTRUE(proche(ch$stat, 2.7043359, 1e-6)) && ch$p > 0.5 &&
+             isTRUE(proche(ch$p, 0.9965779, 1e-6))
+         })
+verifier("Cote haut abandonne (#276) : Z* > 0 -> p Monte-Carlo 1 et verdict OK ; la queue \"deux\" rendrait p = 0,02 (B = 99)",
+         {
+           aj <- mw_ajuster(tri_cal_haut)
+           # meme flux de mw_bootstrap(), catalogue local dont seule la queue
+           # de Calendrier differe (copie de la fonction dans un environnement
+           # fils de celui du moteur)
+           boot_queue <- function(queue) {
+             ct <- MW_CATALOGUE_MC
+             ct$Calendrier <- .mc_entree(ct$Calendrier$calc, queue, extremes = ct$Calendrier$extremes)
+             f <- mw_bootstrap; e <- new.env(parent = environment(mw_bootstrap))
+             e$MW_CATALOGUE_MC <- ct; environment(f) <- e
+             f(aj, B = 99, seed = 20260831)
+           }
+           b0 <- mw_bootstrap(aj, B = 99, seed = 20260831)
+           bb <- boot_queue("bas"); bd <- boot_queue("deux")
+           d <- engine_table_tests(run_mw(tri_cal_haut))
+           ca <- d[d$test == "Effets d'annee calendaire (test de Mack)", ]
+           identical(MW_CATALOGUE_MC$Calendrier$queue, "bas") &&
+             identical(b0$p_mc[["Calendrier"]], bb$p_mc[["Calendrier"]]) &&
+             identical(b0$p_mc[["Calendrier"]], 1) && b0$B_effectif[["Calendrier"]] == 99 &&
+             isTRUE(proche(bd$p_mc[["Calendrier"]], 0.02, 1e-12)) &&
+             bd$p_mc[["Calendrier"]] < 0.05 &&
+             ca$type == "test" && identical(ca$verdict, "OK") && identical(ca$p_retenue, 1)
          })
 # Adapte par #207 : la p_min de HomogF est attribuee avec ex aequo (loi
 # conditionnelle aux rangs moyens, decision Q-E2c-3) ; celle de CorrDev reste
