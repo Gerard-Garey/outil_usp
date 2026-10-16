@@ -4902,6 +4902,27 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # lue par la ligne Spearman ci-dessous. NA a volumes constants (ligne
   # Spearman non applicable, R13).
   p_sv <- if (!vol_cst) p_spearman_exacte(r_ea, x_ea, r_ea, x_ea) else NA_real_
+  # Seuil de rejet de la constante (#314, decision Q-D1-Fb-6) :
+  # c_alpha = t(1 - alpha/2, T - 2) x se(a), se(a) lu sur la regression
+  # ponderee partagee lm_pond (#222, point 1), non recalcule, rapporte a la
+  # moyenne de y et arrondi a l'unite. Plus petite |a| pour laquelle la p de
+  # Student du modele auxiliaire pondere (non retenue, regle R5) passe sous
+  # alpha ; la p retenue, de Monte-Carlo, n'a pas exactement ce seuil.
+  # Chaine vide (aucune phrase) si le t de la constante n'est pas fini (motifs
+  # des branches non applicables, lm_pond NULL) ou si le seuil n'est pas fini.
+  # Chaine vide aussi sans p Monte-Carlo de la constante (ligne basculee en
+  # diagnostic par add(), regle R3 / #181 : aucun seuil de rejet sur une
+  # ligne sans verdict) ; meme lecture que add() (boot$p_mc, cle Intercept).
+  p_mc_cst_ok <- "Intercept" %in% names(boot$p_mc) &&
+    is.finite(unname(boot$p_mc[["Intercept"]]))
+  txt_seuil_cst <- if (!is.finite(ti$stat) || is.null(lm_pond) || !p_mc_cst_ok) "" else local({
+    c_pct <- 100 * stats::qt(1 - alpha / 2, T - 2) * lm_pond$coefficients[1, 2] / mean(y)
+    if (!is.finite(c_pct)) "" else sprintf(paste(
+      "Seuil de rejet de la constante au seuil alpha = %g : |a| >= t(1-alpha/2, T-2)",
+      "x se(a) = %.0f %% de la moyenne de y (loi de Student du modele auxiliaire",
+      "pondere, approchee ; la p retenue, de Monte-Carlo, n'a pas exactement ce",
+      "seuil)."), alpha, c_pct)
+  })
   # Motif "statistique non definie" (#215, constat 3 d'audit), commun a la
   # constante et au TOST : t non fini hors volumes constants, pertes
   # constantes et R12, notamment poids GLS invalides (usp_poids_gls()).
@@ -4935,8 +4956,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       # .usp_poser_renvois() (#215, option (ii) d'actuary).
       detail = detail_motif(ti$x_ecarte,
                             if (!is.finite(ti$stat)) txt_stat_non_def
-                            else paste("Le NON-rejet ne prouve pas la proportionnalite :",
-                                       "voir le test d'equivalence ci-dessous.")))
+                            else joindre(paste("Le NON-rejet ne prouve pas la proportionnalite :",
+                                               "voir le test d'equivalence ci-dessous."),
+                                         txt_seuil_cst)))
   tost <- test_tost_intercept(x, y, fit$pi, theta = theta_equiv, delta_abs = delta_equiv,
                               m = lm_pond)
   add(fam, "Equivalence de la constante a zero (TOST)",
