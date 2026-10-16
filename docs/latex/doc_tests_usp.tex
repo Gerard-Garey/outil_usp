@@ -1167,7 +1167,8 @@ tailles des groupes~; statistique définie, effectifs, libellé, fonction, ex \a
 \code{n\_max}, \code{ex\_aequo\_enumere} & plus petite p-value atteignable sous la loi de référence discrète des lignes
 calendaire, de corrélation entre années adjacentes, d'homogénéité de $f_j$ et d'exposant de
 variance, et de Kruskal--Wallis (\code{NA} hors domaine, motif en attribut \code{motif} pour la
-dernière)~; arguments \code{p\_min} et \code{effectifs} d'une ligne de \code{mw\_tests()}, motif
+dernière~; pour la ligne calendaire, en queue basse depuis l'issue~\#276, masse cumulée à gauche
+$\mathbb{P}(Z = 0) = \prod_k 2^{1-n_k}$)~; arguments \code{p\_min} et \code{effectifs} d'une ligne de \code{mw\_tests()}, motif
 de l'absence de $p_{\min}$ (ex \ae quo, $n_j > 9$, valeur non calculable) porté par
 \code{effectifs} (issue~\#115, tableau~\ref{tab:pmin})~; avec \code{ex\_aequo\_enumere}
 (homogénéité de $f_j$ et exposant de variance, issue~\#207), $p_{\min} = \prod_j$
@@ -1179,7 +1180,8 @@ $f_j$ et l'exposant de variance), \code{tailles} et \code{ex\_aequo} (Kruskal--W
 \code{.mw\_fisher\_x\_max()},\newline \code{.mw\_kruskal\_}\newline\code{extremes()} & résultat de la
 fonction de la statistique sur le contexte observé & extrémités \code{c(bas, haut)} du support à la
 configuration observée, lues par le champ \code{extremes} de \code{MW\_CATALOGUE\_MC}~: effet
-calendaire, $(0 - E)/\sqrt{V}$ et $(\sum_k\lfloor n_k/2\rfloor - E)/\sqrt{V}$~; corrélation,
+calendaire, $(0 - E)/\sqrt{V}$ et $(\sum_k\lfloor n_k/2\rfloor - E)/\sqrt{V}$, seule l'extrémité
+basse étant lue depuis l'issue~\#276 (queue basse)~; corrélation,
 $-1$ et $1$ sans ex \ae quo~; homogénéité de $f_j$ et exposant de variance, extrémité haute
 $X_{\max}$ par \code{.fisher\_combine()} sur \code{p\_min\_col}~; Kruskal--Wallis, extrémité haute,
 $H$ de l'affectation en blocs de rangs contigus~; \code{NA} là où la ligne n'a pas de $p_{\min}$
@@ -2399,7 +2401,8 @@ Homogénéité entre années de survenance & \ref{mw:m3acc} &
 issue~\#60)~; \code{.mw\_kruskal\_p\_min()} ($p_{\min}$, issue~\#115) & \code{KruskalAcc} \\
 Effets d'année calendaire & \ref{mw:m3cal} &
 \code{mw\_test\_annees\_calendaires()} (via \code{.mack\_moments\_Z()}) &
-idem (p non simulée, approximation normale ; moments \emph{exacts})~; \code{.mw\_calendrier\_p\_min()} ($p_{\min}$,
+idem (p non simulée, approximation normale ; moments \emph{exacts}~; en queue basse depuis
+l'issue~\#276)~; \code{.mw\_calendrier\_p\_min()} ($p_{\min}$,
 issue~\#115) & \code{Calendrier} \\
 Corrélation entre années de développement & \ref{mw:m3cor} &
 \code{mw\_stat\_correlation\_dev()} & \textbf{aucune} (pas de loi analytique)~;
@@ -4334,7 +4337,9 @@ alors qu'elles l'étaient par un cumul simulé non positif~; à $B = 199$, $B_{\
 intra-colonne (fiche~\ref{mw:m1}) et l'effet calendaire (fiche~\ref{mw:m3cal}) restent en
 \code{ECHEC}, au plancher de leur p-value de Monte-Carlo ($2/(B_{\text{eff}}+1)$ et
 $p_{\min}^{\mathrm{MC}}$~: $0{,}024$ avant, $0{,}002$ après)~; à $B = 199$, ils sont en
-\code{ECHEC} à $0{,}010$. Ces deux rejets ne portent pas sur l'hypothèse que teste chaque ligne.
+\code{ECHEC} à $0{,}010$. Depuis l'issue~\#276, l'effet calendaire, lu en queue basse, y est en
+\code{ECHEC} à son plancher $1/(B+1)$~: $0{,}001$ à $B = 999$ et $0{,}005$ à $B = 199$ (mesuré
+dans les mêmes conditions, la pente intra-colonne restant à $0{,}002$ et $0{,}010$). Ces deux rejets ne portent pas sur l'hypothèse que teste chaque ligne.
 Ils traduisent l'écart entre la ligne~$0$ observée, dont les facteurs restent proches de
 $\hat f_j$, et le modèle de Mack ajusté, sous lequel leur écart-type $\hat\sigma_j/\sqrt{C(0,j)}$
 dépasse $5\cdot 10^{4}$ sur les cinq premières colonnes. Les réplications de la pente
@@ -4986,7 +4991,9 @@ $0{,}058$ et sur ratios bruts $0{,}062$ ($p_{\min} = 0{,}0571$), tests dont l'\c
 dit inatteignable~; Smirnov $0{,}007$ ($p_{\min} = 0{,}0286$), Mann--Kendall et Spearman $0{,}002$,
 sans texte de la règle~; aucun type, aucun verdict ni aucune p-value n'y change par rapport à la
 lecture antérieure de $p_{\min}$, seul le commentaire de ces trois vérifications change. Sur
-\code{reserve2}, $0{,}002$ au bilatéral et $0{,}001$ en queue haute pour les six vérifications. Sur
+\code{reserve2}, $0{,}002$ au bilatéral (suites, corrélation entre années adjacentes) et $0{,}001$ en
+queue haute et en queue basse (effet calendaire depuis l'issue~\#276, $0{,}002$ auparavant au
+bilatéral) pour les six vérifications. Sur
 les quatre cas à $\hat\delta = 1$, la p-value exacte est retenue et le champ \code{p\_min\_mc} de la
 ligne vaut \code{NA}, le plancher restant calculé dans \code{bootstrap\$p\_min\_mc} (Cox--Stuart
 $0{,}132$, suites sur $z_t$ $0{,}058$ et sur ratios bruts $0{,}056$, Smirnov $0{,}029$,
@@ -4994,7 +5001,8 @@ Mann--Kendall et Spearman $0{,}002$). Hors des références, le changement de ty
 les deux sens~: sur le jeu à $\hat\delta = 0{,}683$ de \code{tests/unitaires/}\allowbreak
 \code{test\_regimes\_p\_exactes.R} (\code{run\_engine()}, $B = 999$), au seuil $\alpha = 0{,}13$,
 Cox--Stuart, qu'une $p_{\min} = 0{,}125 < \alpha$ laissait en test, est inopérant
-($p_{\min}^{\mathrm{MC}} = 0{,}143$)~; l'exemple inverse est celui de l'effet calendaire ci-dessous.
+($p_{\min}^{\mathrm{MC}} = 0{,}143$)~; l'exemple inverse était celui de l'effet calendaire
+ci-dessous, sous sa forme bilatérale antérieure à l'issue~\#276.
 Les fréquences de ces changements sous le modèle ajusté ne sont pas mesurées. \emph{Hors de cette
 branche} --- p-value exacte retenue, ou objet bootstrap antérieur au champ \code{p\_min\_mc}, qui
 le laisse \code{NA} ---, la règle garde sa lecture de $p_{\min}$~: sans p-value exacte, la bascule
@@ -5022,15 +5030,21 @@ méthode, et lit $p_{\min}^{\mathrm{MC}}$, la loi simulée par le bootstrap de r
 issue, elle lisait $p_{\min}$, décision Q-E2r-115-3). Mesuré par \code{run\_engine()} ($B = 999$,
 graine 20260831) sur le sous-triangle $5 \times 5$ du triangle de contrôle, à $\alpha = 0{,}10$~: la
 corrélation entre années adjacentes est un test inopérant ($p_{\min}^{\mathrm{MC}} = 0{,}33$,
-$p_{\min} = 1/3$)~; l'effet calendaire ($p_{\min} = 0{,}125$, qui le rendait inopérant avant
-l'issue) est un test, de verdict \code{ALERTE}, dont l'\code{ECHEC} est dit inatteignable
+$p_{\min} = 1/3$)~; sous sa forme bilatérale antérieure à l'issue~\#276, l'effet calendaire
+($p_{\min} = 0{,}125$, qui le rendait inopérant avant l'issue~\#125) était un test, de verdict
+\code{ALERTE}, dont l'\code{ECHEC} était dit inatteignable
 ($p_{\min}^{\mathrm{MC}} = 0{,}096$, égal à la p-value de Monte-Carlo, la statistique observée
-étant à l'extrémité de son support), et qui porte la phrase de l'issue~\#244~; à $B = 99$, le même
-plancher vaut $0{,}10$ et la ligne est inopérante (\code{tests/unitaires/test\_merz\_wuthrich.R}),
+étant à l'extrémité de son support), et qui portait la phrase de l'issue~\#244~; à $B = 99$, le même
+plancher valait $0{,}10$ et la ligne était inopérante,
 illustration de la dépendance du classement aux réplications tirées (à $B = 999$, l'écart du
-plancher au seuil, $0{,}004$, est inférieur à son erreur de Monte-Carlo, $0{,}0135$ par la formule
-bilatérale~: le classement test~/ test inopérant n'y est pas déterminé au-delà de l'aléa de
-simulation)~; la ligne des suites
+plancher au seuil, $0{,}004$, était inférieur à son erreur de Monte-Carlo, $0{,}0135$ par la formule
+bilatérale~: le classement test~/ test inopérant n'y était pas déterminé au-delà de l'aléa de
+simulation)~; en queue basse depuis l'issue~\#276 ($p_{\min} = 0{,}0625$), il est un test de
+verdict \code{ECHEC} ($p_{\min}^{\mathrm{MC}} = 0{,}048$, égal à la p-value de Monte-Carlo, à
+$0{,}002$ du seuil $\alpha/2$ pour une erreur de Monte-Carlo de $0{,}0068$~: phrase de
+l'issue~\#244), et, à $B = 99$, un test de verdict \code{ALERTE} dont l'\code{ECHEC} est dit
+inatteignable (plancher $0{,}05 = \alpha/2$~; \code{tests/unitaires/test\_merz\_wuthrich.R})~:
+la dépendance aux réplications tirées porte désormais sur le verdict~; la ligne des suites
 ($p_{\min} = 4/70 = 0{,}0571$, \code{ECHEC} dit possible avant l'issue) est un test sans texte de la
 règle ($p_{\min}^{\mathrm{MC}} = 0{,}002$)~; sur le triangle de contrôle $8 \times 8$, aucune de ces
 vérifications n'est inopérante. Depuis l'issue~\#207, la $p_{\min}$ de l'homogénéité de $f_j$ et de
@@ -5785,9 +5799,9 @@ Traduction testable de D(2)(h)(i) ; complète le test calendaire~; un seul rési
 $H = N - 1$ par construction, aucune p-value, diagnostic (fiche~\ref{mw:m3acc}) \\
 
 Effets d'année calendaire & \textbf{MW} & $Z$ & Non & Oui (moments \emph{exacts} de $Z$) & Oui &
-Monte-Carlo & \textbf{Sous conditions} : les moments sont exacts, l'approximation
+Monte-Carlo, queue basse (issue~\#276) & \textbf{Sous conditions} : les moments sont exacts, l'approximation
 normale de leur somme ne l'est pas & Bootstrap de résidus ; test le plus
-informatif sur un triangle \\
+informatif sur un triangle~; alternative unilatérale de Mack ($Z$ trop petit) \\
 
 Corrélation entre années de développement & \textbf{MW} & $\rho$ agrégé & Non & Non &
 Oui & Monte-Carlo & Sans objet : aucune loi analytique &
@@ -6068,7 +6082,8 @@ après centrage-réduction & Convergence en loi &
 Non quantifiée ; les moments de chaque $Z_k$ sont en revanche \emph{exacts} &
 Indépendance des diagonales, absence d'ex \ae quo dans les colonnes &
 Le nombre de diagonales exploitables est $I-1$ : la somme porte sur peu de
-termes, d'où le recours au bootstrap \\
+termes, d'où le recours au bootstrap~; la p asymptotique, en queue basse depuis
+l'issue~\#276, est libérale sous le plan mesuré (section~\ref{sec:calib-asympt-mw}) \\
 
 Facteurs $\hat f_j$ & Estimateur des moindres carrés pondérés &
 $f_j$ & Convergence en probabilité ; sans biais sous M1 &
@@ -6307,11 +6322,11 @@ qui n'en compte que huit). La rubrique~7 des fiches correspondantes y renvoie.
 \textcolor{financeblue}{\textbf{\shortstack{$p_{\min}$ homogé-\\néité, exposant}}} &
 \textcolor{financeblue}{\textbf{\shortstack{$p_{\min}$\\Kruskal--Wallis}}} &
 \textcolor{financeblue}{\textbf{\shortstack{$p_{\min}$ calen-\\daire (contrôle)}}} \\
-5  & 9  & 4/4   & $0{,}0571$             & $0{,}333$              & ---                    & $4{,}76\cdot 10^{-3}$  & $0{,}125$ \\
-6  & 14 & 7/7   & $1{,}17\cdot 10^{-3}$  & $1{,}39\cdot 10^{-2}$  & $1{,}39\cdot 10^{-3}$  & $9{,}51\cdot 10^{-6}$  & $1{,}56\cdot 10^{-2}$ \\
-7  & 20 & 10/10 & $2{,}17\cdot 10^{-5}$  & $1{,}16\cdot 10^{-4}$  & $3{,}86\cdot 10^{-6}$  & $1{,}23\cdot 10^{-9}$  & $4{,}88\cdot 10^{-4}$ \\
+5  & 9  & 4/4   & $0{,}0571$             & $0{,}333$              & ---                    & $4{,}76\cdot 10^{-3}$  & $0{,}0625$ \\
+6  & 14 & 7/7   & $1{,}17\cdot 10^{-3}$  & $1{,}39\cdot 10^{-2}$  & $1{,}39\cdot 10^{-3}$  & $9{,}51\cdot 10^{-6}$  & $7{,}81\cdot 10^{-3}$ \\
+7  & 20 & 10/10 & $2{,}17\cdot 10^{-5}$  & $1{,}16\cdot 10^{-4}$  & $3{,}86\cdot 10^{-6}$  & $1{,}23\cdot 10^{-9}$  & $2{,}44\cdot 10^{-4}$ \\
 \textbf{8} & \textbf{27} & \textbf{13/13} & $\mathbf{3{,}85\cdot 10^{-7}}$ & $\mathbf{1{,}61\cdot 10^{-7}}$ &
-$\mathbf{1{,}53\cdot 10^{-9}}$ & $\mathbf{8{,}29\cdot 10^{-15}}$ & $\mathbf{7{,}63\cdot 10^{-6}}$ \\
+$\mathbf{1{,}53\cdot 10^{-9}}$ & $\mathbf{8{,}29\cdot 10^{-15}}$ & $\mathbf{3{,}81\cdot 10^{-6}}$ \\
 9  & 35 & 17/17 & $1{,}71\cdot 10^{-9}$  & $3{,}19\cdot 10^{-11}$ & $7{,}59\cdot 10^{-14}$ & $2{,}47\cdot 10^{-21}$ & --- \\
 10 & 44 & 22/22 & $1{,}90\cdot 10^{-12}$ & $7{,}91\cdot 10^{-16}$ & $4{,}19\cdot 10^{-19}$ & $2{,}78\cdot 10^{-29}$ & --- \\
 11 & 54 & 27/27 & $2{,}05\cdot 10^{-15}$ & $2{,}18\cdot 10^{-21}$ & \code{NA}             & $1{,}05\cdot 10^{-38}$ & --- \\
@@ -6323,11 +6338,14 @@ $\mathbf{1{,}53\cdot 10^{-9}}$ & $\mathbf{8{,}29\cdot 10^{-15}}$ & $\mathbf{7{,}
 $j = 0, \ldots, I - 2$, soit $N = \sum_j n_j = I(I+1)/2 - 1$ résidus de Mack). (i)~\emph{Suites}
 (bilatéral)~: loi combinatoire de Swed et Eisenhart, \code{runs\_p\_min(n1, n2)} aux effectifs
 de \code{.runs\_effectifs()}, la même fonction que pour la méthode lognormale~; $n_1 = n_2 =
-\lfloor N/2 \rfloor$ sans ex \ae quo. (ii)~\emph{Effet calendaire} (bilatéral)~: sur chaque
+\lfloor N/2 \rfloor$ sans ex \ae quo. (ii)~\emph{Effet calendaire} (queue basse depuis
+l'issue~\#276, bilatéral auparavant)~: sur chaque
 diagonale retenue ($n_k \ge 2$ étiquettes $L$ ou $S$), $L_k \sim \mathcal{B}(n_k, 1/2)$, diagonales
 indépendantes, $Z = \sum_k \min(L_k, n_k - L_k)$~; loi de $Z$ par convolution exacte, et
-$p_{\min} = \min_z 2\min\big(\mathbb{P}(Z \le z), \mathbb{P}(Z \ge z)\big)$, bornée à~1
-(\code{.mw\_calendrier\_p\_min()}). C'est la loi du schéma binomial de Mack (1994, \emph{CAS Forum}, annexe~H), appelée ici loi
+$p_{\min} = \min_z \mathbb{P}(Z \le z) = \mathbb{P}(Z = 0) = \prod_k 2^{1-n_k}$, bornée à~1
+(\code{.mw\_calendrier\_p\_min()}), exactement la moitié de la valeur bilatérale antérieure,
+$\min_z 2\min\big(\mathbb{P}(Z \le z), \mathbb{P}(Z \ge z)\big)$, l'atome bas $Z = 0$ n'étant
+jamais plus lourd que l'atome haut (fiche~\ref{mw:m3cal}, rubrique~7). C'est la loi du schéma binomial de Mack (1994, \emph{CAS Forum}, annexe~H), appelée ici loi
 binomiale indépendante de Mack (fiche~\ref{mw:m3cal}), celle des
 moments exacts de la fiche~\ref{mw:m3cal}, et \textbf{non} la loi de permutation des facteurs à
 l'intérieur de chaque colonne~: dans une colonne, le nombre de $L$ est fixé par la médiane, ce
@@ -6335,8 +6353,9 @@ qui lie les diagonales (choix de la spécification~; la question du choix de la 
 l'audit de l'issue~\#115 et renvoyée à l'issue~\#125, est sans objet pour la règle~R1 depuis cette
 issue, la règle lisant la loi simulée, et la $p_{\min}$ binomiale reste restituée). Les $n_k$
 dépendent des données (une colonne de $n_j$ impair a un facteur égal à sa médiane, étiqueté
-«~*~»)~: sur le triangle de contrôle, $n_k = 2, 3, 4, 4, 6, 5$ et $p_{\min} = 2^{-17}$, sur le
-triangle de Taylor \& Ashe ($T = 10$), $9{,}31\cdot 10^{-10}$. (iii)~\emph{Corrélation entre
+«~*~»)~: sur le triangle de contrôle, $n_k = 2, 3, 4, 4, 6, 5$ et $p_{\min} = 2^{-18}$, sur le
+triangle de Taylor \& Ashe ($T = 10$), $4{,}66\cdot 10^{-10}$ ($2^{-17}$ et $9{,}31\cdot 10^{-10}$
+au bilatéral). (iii)~\emph{Corrélation entre
 années adjacentes} (bilatéral)~: permutations indépendantes des facteurs de chaque colonne~;
 $p_{\min} = \min\big(1, 2\prod_k 1/n_k!\big)$ sur les paires retenues, de $n_k = I - k \ge 3$
 facteurs ($k = 1, \ldots, I - 3$~; \code{.mw\_corr\_p\_min()}, démonstration à la
@@ -6374,15 +6393,17 @@ homogénéité et exposant de variance, statistique de Fisher obtenue quand chaq
 plus petite p-value à sa structure d'ex \ae quo observée (\code{.mw\_fisher\_x\_max()}, sur
 \code{p\_min\_col} de \code{.mw\_spearman()})~; Kruskal--Wallis, $H$ de l'affectation en blocs de
 rangs contigus aux tailles observées (\code{.mw\_kruskal\_extremes()}). Sur \code{reserve2},
-$p_{\min}^{\mathrm{MC}} = 0{,}002$ au bilatéral et $0{,}001$ en queue haute. Les colonnes $T \le 8$ ont été vérifiées contre le champ
+$p_{\min}^{\mathrm{MC}} = 0{,}002$ au bilatéral et $0{,}001$ en queue haute et en queue basse
+(effet calendaire, depuis l'issue~\#276). Les colonnes $T \le 8$ ont été vérifiées contre le champ
 \code{p\_min} de \code{run\_engine()} sur les sous-triangles du triangle de contrôle, la colonne
 $T = 10$ sur le triangle de Taylor \& Ashe~; les autres sont calculées par les mêmes fonctions aux
 effectifs de la géométrie. \emph{Bascules à $\alpha = 0{,}10$}~: les valeurs du tableau ne fondent plus la bascule depuis
 l'issue~\#125, qui lit $p_{\min}^{\mathrm{MC}}$. À $T = 5$, sur le sous-triangle de contrôle
 (\code{run\_engine()}, $B = 999$), la corrélation est inopérante ($p_{\min}^{\mathrm{MC}} = 0{,}33$,
-pour $p_{\min} = 1/3$), l'effet calendaire ($n_k = 3, 3$, $p_{\min} = 0{,}125$) est un test dont
-l'\code{ECHEC} est inatteignable ($p_{\min}^{\mathrm{MC}} = 0{,}096$~; $0{,}10$ et ligne inopérante à
-$B = 99$), et la ligne des suites est un test sans texte de la règle ($0{,}002$~;
+pour $p_{\min} = 1/3$), l'effet calendaire ($n_k = 3, 3$, $p_{\min} = 0{,}0625$) est un test de
+verdict \code{ECHEC} ($p_{\min}^{\mathrm{MC}} = 0{,}048$~; à $B = 99$, $0{,}05$ et \code{ECHEC}
+inatteignable~; sous la forme bilatérale antérieure à l'issue~\#276, $p_{\min} = 0{,}125$,
+$0{,}096$ et \code{ECHEC} inatteignable, $0{,}10$ et ligne inopérante à $B = 99$), et la ligne des suites est un test sans texte de la règle ($0{,}002$~;
 section~\ref{sec:nature}, point~(i))~; dès $T = 6$, toutes les valeurs du tableau sont sous
 $\alpha/2$, ce qui ne préjuge pas de $p_{\min}^{\mathrm{MC}}$, au moins égal à la granularité
 $1/(B_{\text{eff}}+1)$ ou $2/(B_{\text{eff}}+1)$.
@@ -6734,7 +6755,7 @@ M1, courbure (\ref{mw:m1c}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilaté
 M1, famille $\alpha$ (\ref{mw:m1d}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0955$~; $0{,}0385$, E $0{,}097$~; $0{,}042$, A $0{,}102$~; $0{,}037$, compatible, sauf un écart mineur du côté conservateur sous N à $0{,}05$ & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
 M2, hétéroscédasticité (\ref{mw:m2bp}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}016$~; $0{,}005$, E $0{,}0695$~; $0{,}0245$, A $0{,}004$~; $0{,}000$, \textbf{distorsion matérielle du côté conservateur} sous N et A, écart mineur du même côté sous E~; fréquence sous $H_0$ d'une $p_{\mathrm{mc}} \le 0{,}103$ (valeur du triangle de contrôle)~: N $0{,}018$, E $0{,}0745$, A $0{,}006$, recalculée sur le fichier brut de la mesure (fiche~\ref{mw:m2bp}, rubrique~7~; issue~\#243, documentation seule) & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
 M2, exposant de variance (\ref{mw:m2b}) & $p_{\min} = 1{,}53\cdot 10^{-9}$ (loi de référence échangeable)~; plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0955$~; $0{,}046$, E $0{,}095$~; $0{,}0495$, A $0{,}098$~; $0{,}048$, compatible sous les trois lois et aux deux seuils & \code{.mw\_fisher\_rangs\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
-M3, effets calendaires (\ref{mw:m3cal}) & $p_{\min} = 2^{-17} = 7{,}63\cdot 10^{-6}$ (loi binomiale indépendante de Mack)~; plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}086$~; $0{,}0455$, E $0{,}081$~; $0{,}041$, A $0{,}084$~; $0{,}040$, compatible sous les trois lois et aux deux seuils & \code{.mw\_calendrier\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
+M3, effets calendaires (\ref{mw:m3cal}) & $p_{\min} = 2^{-18} = 3{,}81\cdot 10^{-6}$ (loi binomiale indépendante de Mack)~; plancher Monte-Carlo $1/(B+1) = 0{,}001$ (queue basse, issue~\#276) & Puissance sous le plan du triangle de contrôle (loi N, $\alpha = 0{,}10$) contre six effets calendaires (choc de $5$ ou $10~\%$ sur le dernier exercice ou sur l'exercice médian, dérive de $3$ ou $5~\%$)~: de $0{,}162$ à $0{,}401$ en queue basse, contre $0{,}084$ à $0{,}233$ sous la forme bilatérale antérieure~; compensation alternée (côté haut, non testé)~: $0{,}017$~; niveau de la $p_{\mathrm{mc}}$ en queue basse ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0835$~; $0{,}0305$, E $0{,}091$~; $0{,}0365$, A $0{,}084$~; $0{,}037$, compatible, sauf un écart mineur du côté conservateur sous N à $0{,}05$~; les niveaux de l'issue~\#206 portent sur la forme bilatérale & \code{.mw\_calendrier\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/mesure\_calendaire\_t8.R},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261016-issue276-calendaire.md},\newline \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
 M3, homogénéité entre années (\ref{mw:m3acc}) & $p_{\min} = 8{,}29\cdot 10^{-15}$ (loi de référence échangeable)~; plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}096$~; $0{,}0505$, E $0{,}1005$~; $0{,}049$, A $0{,}080$~; $0{,}036$, compatible, sauf un écart mineur du côté conservateur sous A à $0{,}10$ & \code{.mw\_kruskal\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
 M3, corrélation entre colonnes (\ref{mw:m3cor}) & $p_{\min} = 1{,}61\cdot 10^{-7}$ (loi de référence échangeable)~; plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0965$~; $0{,}0515$, E $0{,}0995$~; $0{,}052$, A $0{,}088$~; $0{,}044$, compatible sous les trois lois et aux deux seuils & \code{.mw\_corr\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
 M3, Durbin--Watson (\ref{mw:m3dw}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0855$~; $0{,}0455$, E $0{,}101$~; $0{,}053$, A $0{,}087$~; $0{,}032$, compatible, sauf un écart mineur du côté conservateur sous A à $0{,}05$ & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
@@ -12712,7 +12733,8 @@ l'ADR~0001. Ces types sont ceux du triangle de contrôle $8 \times 8$~:
 sur son sous-triangle $5 \times 5$, à $\alpha = 0{,}10$ (\code{run\_engine()}, $B = 999$), la
 corrélation entre années adjacentes est restituée en test inopérant (règle~R1, lue depuis
 l'issue~\#125 sur le plancher Monte-Carlo, section~\ref{sec:nature}, point~(i), et
-tableau~\ref{tab:pmin}), l'effet calendaire reste un test (il est inopérant à $B = 99$), et
+tableau~\ref{tab:pmin}), l'effet calendaire reste un test, en queue basse depuis l'issue~\#276
+(il était inopérant à $B = 99$ sous la forme bilatérale antérieure), et
 l'homogénéité de $f_j$, la courbure et l'exposant de variance sont non applicables.
 Les treize tests d'hypothèse reposent tous sur le bootstrap de résidus~; les deux diagnostics de normalité
 n'y passent pas~: Shapiro--Wilk dispose d'une loi nulle propre, pour la raison exposée
@@ -13935,8 +13957,11 @@ de la médiane, à la tolérance de l'aplatissement de l'issue~\#152, au prix d'
 faible)~; le gel des colonnes dégénérées, décrit
 ci-dessous~; la p-value, de Monte-Carlo (rubrique~5), au lieu de la règle de décision normale
 de l'annexe~H. L'alternative de Mack est unilatérale ($Z_j$ «~significantly smaller than
-$(L_j+S_j)/2$~», p.~164, dans sa notation), alors que sa règle de décision et la p-value de l'outil sont
-bilatérales (p.~166)~; la forme unilatérale relève de l'issue~\#276. La version révisée par l'auteur dans le \emph{Claims Reserving Manual} (1997,
+$(L_j+S_j)/2$~», p.~164, dans sa notation), alors que sa règle de décision est bilatérale
+(p.~166)~; depuis l'issue~\#276 (décisions Q-Fd-1 et Q-Fd-3 du mainteneur du 14~octobre 2026),
+l'outil suit l'alternative de la p.~164~: la p-value de Monte-Carlo et la p-value asymptotique
+sont lues en queue basse (rubriques~2 et~5), et la règle bilatérale de la p.~166 n'est pas
+suivie (bilatérales l'une et l'autre jusqu'à cette issue). La version révisée par l'auteur dans le \emph{Claims Reserving Manual} (1997,
 note p.~D6.1~: «~a changed and more thorough test procedure in Appendix~H~») teste chaque
 diagonale séparément, sur la loi de $Z_k$ tabulée selon $n_k$, au seuil de $10~\%$
 (p.~D6.49), et réduit à $50~\%$ le poids, dans le calcul de $\hat f_k$, des facteurs du type
@@ -13967,8 +13992,9 @@ triangle de contrôle (\code{mw\_test\_annees\_}\allowbreak\code{calendaires()})
 diagonales retenues comptent $n_k = 2, 3, 4, 4, 6, 5$ étiquettes, et cinq d'entre elles sont
 entièrement $L$ ou entièrement $S$ ($Z_k = 0$)~; la règle de 1997 n'en signalerait qu'une, celle
 de $n_k = 6$ ($2 \cdot 2^{-6} = 0{,}03125$), alors que la statistique globale de l'outil donne
-$Z = 2$ pour $\mathbb{E}[Z] = 7{,}375$ et une p-value de Monte-Carlo de $0{,}004$
-(\code{run\_engine()}, $B = 999$, graine 20260831), verdict \code{ECHEC}. Ce constat porte sur un
+$Z = 2$ pour $\mathbb{E}[Z] = 7{,}375$ et une p-value de Monte-Carlo de $0{,}002$
+(\code{run\_engine()}, $B = 999$, graine 20260831~; $0{,}004$ sous la forme bilatérale antérieure
+à l'issue~\#276), verdict \code{ECHEC}. Ce constat porte sur un
 seul triangle. Aucune référence vérifiée ne compare la puissance des deux règles à $T = 8$. Une
 restitution par diagonale, sans verdict, est renvoyée à l'issue~\#275.
 
@@ -13987,10 +14013,33 @@ $10^{-12}$ sans que l'aplatissement la rende constante (cas absent des triangles
 mesurés). Effet mesuré~: fiche~\ref{mw:m3cor}. Les diagonales $k = i+j$ correspondent aux
 exercices comptables. Hypothèses non testées~: continuité des facteurs,
 indépendance des colonnes.
+
+\emph{Sens d'un effet calendaire sur $Z$} (raisonnement de l'outil, qui n'est tiré d'aucune
+source~; issue~\#276). Le facteur $F(i,j) = C(i,j+1)/C(i,j)$ porte au numérateur les paiements de
+l'exercice comptable $i + j + 1$ et au dénominateur ceux des exercices antérieurs. Un choc
+multiplicatif $1 + \theta$, $\theta > 0$, sur les paiements d'un exercice $t$ augmente tous les
+facteurs de la diagonale $k = t - 1$, qui deviennent à dominante $L$, et diminue, moins fortement,
+ceux de la diagonale $k = t$, dont le dénominateur est gonflé (dominante $S$)~: il concentre les
+étiquettes et \textbf{fait baisser $Z$}. Une dérive, inflation surajoutée croissante à partir d'un
+exercice, donne des diagonales successives à dominante $L$ et fait aussi baisser $Z$~; une
+inflation constante n'est pas visible, car elle se factorise en un effet d'année d'accident et un
+effet de développement, que la méthode de la chaîne absorbe. \emph{Hypothèse non testée par la
+forme unilatérale.} Un $Z$ grand signifie des diagonales plus équilibrées que le hasard. Une
+compensation entre années d'accident voisines dans un même exercice, par exemple la réaffectation
+de paiements d'une année d'accident à la suivante, alterne les $L$ et les $S$ le long d'une
+diagonale~: c'est une dépendance entre années d'accident, contraire elle aussi à D(2)(h)(i), mais
+ce n'est pas un effet d'année calendaire au sens de la ligne, et aucune source lue ne propose $Z$
+comme test de cette alternative. La forme unilatérale ne la teste pas~; la forme bilatérale ne la
+détectait guère au-delà de son niveau (rubrique~7). Aucune référence vérifiée ne compare les deux
+formes du test à $T = 8$, et aucun résultat d'optimalité n'est invoqué~: le choix de la queue
+basse repose sur la lecture de l'alternative de Mack (p.~164) et sur la mesure de la rubrique~7.
 \Hzero
 $H_0$ : absence d'effet d'année calendaire --- la répartition des $L$ et des $S$
 le long de chaque diagonale est purement aléatoire, tous les arrangements étant
-équiprobables.
+équiprobables~; contre $H_1$~: $Z$ trop petit, une ou plusieurs diagonales étant à dominante
+$L$ ou $S$ (inflation, changement de cadence), alternative unilatérale de Mack (1994, p.~164),
+testée en queue basse depuis l'issue~\#276. Des diagonales plus équilibrées que le hasard
+($Z$ grand) ne relèvent pas de $H_1$ (rubrique~1).
 \Stat
 Sur la diagonale $k$ comportant $n_k$ étiquettes dont $L_k$ « grandes »~:
 $Z_k = \min(L_k,\,n_k - L_k)$, puis $Z = \sum_k Z_k$ et
@@ -14022,28 +14071,39 @@ facteurs à l'intérieur de chaque colonne~: dans une colonne, le nombre d'étiq
 par la médiane, ce qui lie les diagonales, que le schéma binomial suppose indépendantes~; aucune
 des deux n'est la loi des étiquettes sous le modèle de Mack.
 \Pval
-$p = 2\big(1 - \Phi(|Z^\star|)\big)$ pour la version asymptotique~; la p-value de
-Monte-Carlo est celle retenue.
+$p = \Phi(Z^\star)$, queue basse, pour la version asymptotique
+(\code{mw\_test\_annees\_}\allowbreak\code{calendaires()}~; depuis l'issue~\#276, décision Q-Fd-3,
+au lieu de $2\big(1 - \Phi(|Z^\star|)\big)$, afin que les deux p-values de la ligne testent la
+même alternative)~; la p-value de Monte-Carlo, en queue basse (clé \code{Calendrier} de
+\code{MW\_CATALOGUE\_MC}, \code{engine\_p\_mc()}~: part, parmi les réplications et la statistique
+observée, des statistiques au plus égales à l'observée), est celle retenue.
 
 \emph{Comparaison avec la règle de décision de Mack.} L'annexe~H (p.~165--166) traite les
 $Z_k$ comme «~(almost) uncorrelated~», somme leurs moments et suppose $Z$ approximativement
 normale~: elle rejette, «~with an error probability of 5~\%~», quand $Z$ sort de
 $\mathbb{E}[Z] \pm 2\sqrt{\operatorname{Var}[Z]}$, soit $|Z^\star| > 2$, où
 $Z^\star = (Z - \mathbb{E}[Z])/\sqrt{\operatorname{Var}[Z]}$ est la statistique de la ligne. Cette
-règle équivaut à comparer la p-value asymptotique ci-dessus à $2\big(1 - \Phi(2)\big) = 0{,}0455$~:
+règle équivaut à comparer la p-value asymptotique bilatérale $2\big(1 - \Phi(|Z^\star|)\big)$, celle
+que l'outil restituait avant l'issue~\#276, à $2\big(1 - \Phi(2)\big) = 0{,}0455$~:
 elle repose sur la même approximation normale, dont le niveau réel à $T = 8$ n'est établi par
 aucun résultat (rubrique~4)~; mesurée sous le plan du triangle de contrôle avec des erreurs
-gaussiennes (section~\ref{sec:calib-asympt-mw}), cette p-value asymptotique rejette dans
+gaussiennes (section~\ref{sec:calib-asympt-mw}), cette p-value asymptotique bilatérale rejette dans
 $0{,}1125$ des cas au seuil $0{,}10$ et $0{,}089$ au seuil $0{,}05$, seuil voisin du seuil
-implicite $0{,}0455$ de la règle (constat de simulation sous un plan). L'outil ne la reprend pas~: il restitue cette p-value asymptotique
-comme complément, retient la p-value de Monte-Carlo (bootstrap de résidus, clé
-\code{Calendrier}, bilatérale) et la compare au seuil $\alpha$ du calcul, $0{,}10$ par défaut et
-non $0{,}05$. Sur le triangle de contrôle ($B = 999$, graine 20260831), $Z = 2$,
+implicite $0{,}0455$ de la règle (constat de simulation sous un plan). La p-value asymptotique en
+queue basse restituée depuis, $\Phi(Z^\star)$, rejette sous le même plan dans $0{,}154$ des cas au
+seuil $0{,}10$ et $0{,}058$ au seuil $0{,}05$ (erreurs gaussiennes, même section)~: elle n'est pas
+plus fiable à $T = 8$ et n'est jamais retenue. L'outil ne reprend pas la règle de Mack~: il
+restitue la p-value asymptotique comme complément, retient la p-value de Monte-Carlo (bootstrap de
+résidus, clé \code{Calendrier}, queue basse) et la compare au seuil $\alpha$ du calcul, $0{,}10$
+par défaut et non $0{,}05$. Sur le triangle de contrôle ($B = 999$, graine 20260831), $Z = 2$,
 $\mathbb{E}[Z] = 7{,}375$, $\operatorname{Var}[Z] = 2{,}3047$, $Z^\star = -3{,}54$~: $Z$ sort de
-l'intervalle de Mack $[4{,}34~;~10{,}41]$, la p-value asymptotique vaut $4{,}0\cdot 10^{-4}$, la
-p-value de Monte-Carlo retenue $0{,}004$, et le verdict est \code{ECHEC}~; les deux lectures
-concluent ici dans le même sens. Sur l'exemple de Mack, $Z^\star = 0{,}564$ et la p-value
-asymptotique vaut $0{,}573$, en accord avec le non-rejet publié (p.~167--168).
+l'intervalle de Mack $[4{,}34~;~10{,}41]$, la p-value asymptotique vaut $2{,}0\cdot 10^{-4}$, la
+p-value de Monte-Carlo retenue $0{,}002$, et le verdict est \code{ECHEC} ($4{,}0\cdot 10^{-4}$,
+$0{,}004$ et \code{ECHEC} sous la forme bilatérale antérieure à l'issue~\#276)~; les deux lectures
+concluent ici dans le même sens. Sur l'exemple de Mack, $Z^\star = 0{,}564$, au-dessus de son
+espérance~: la p-value asymptotique bilatérale vaut $0{,}573$, en accord avec le non-rejet publié
+(p.~167--168), et la p-value en queue basse $\Phi(0{,}564) = 0{,}714$ (calcul à partir des valeurs
+publiées).
 \Usage
 C'est le test le plus informatif du dispositif Merz--Wüthrich, car il détecte ce
 que ni M1 ni M2 ne voient~: un choc affectant un exercice comptable entier
@@ -14051,15 +14111,22 @@ que ni M1 ni M2 ne voient~: un choc affectant un exercice comptable entier
 provisionnement). Un tel choc viole l'indépendance des années de survenance
 posée par D(2)(h)(i). Limite à $T = 8$~: la somme ne porte que sur $I-1$
 diagonales exploitables, dont plusieurs ne comptent que deux ou trois
-étiquettes, d'où le recours au bootstrap plutôt qu'à l'approximation normale.
+étiquettes, d'où le recours au bootstrap plutôt qu'à l'approximation normale. Depuis
+l'issue~\#276, la ligne ne rejette que du côté bas~: un $Z$ grand, signe possible d'une
+compensation entre années d'accident d'une même diagonale (rubrique~1), donne une p-value voisine
+de~1 et un verdict \code{OK}, qui n'établit pas l'indépendance des années d'accident contre cette
+alternative (mesuré par \code{run\_engine()}, $B = 99$, graine 20260831, sur le triangle construit
+à diagonales équilibrées de \code{tests/unitaires/}\allowbreak\code{test\_merz\_wuthrich.R},
+$Z^\star = 2{,}70$~: p-value de Monte-Carlo~1 et verdict \code{OK}, contre $0{,}02$ et
+\code{ECHEC} sous la forme bilatérale antérieure).
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} $2^{-17} = 7{,}63\cdot 10^{-6}$ sur le triangle de contrôle (diagonales retenues de $n_k = 2, 3, 4, 4, 6, 5$ étiquettes, les étiquettes «~*~» étant écartées~; \code{.mw\_calendrier\_p\_min()}, issue~\#115)~: $\min_z 2\min\big(\mathbb{P}(Z \le z), \mathbb{P}(Z \ge z)\big)$, bornée à~1, sous la loi binomiale indépendante de Mack, dont la loi de $Z$ est obtenue par convolution exacte (rubrique~4). Valeur exacte sous cette loi de référence, qui n'est pas celle du modèle de Mack~: elle ne borne pas la p-value retenue. Les $n_k$ dépendent des données. La p-value retenue est de Monte-Carlo (clé \code{Calendrier}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est le plancher arithmétique de la p-value retenue~; depuis l'issue~\#125, la règle~R1 lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$, minimum exact de cette p-value sur les réplications tirées, aux extrémités du support observé (section~\ref{sec:nature}, point~(i)), égal à ce plancher sur \code{reserve2} ($0{,}002$).
+\textbf{p-value minimale à $T = 8$.} $2^{-18} = 3{,}81\cdot 10^{-6}$ sur le triangle de contrôle (diagonales retenues de $n_k = 2, 3, 4, 4, 6, 5$ étiquettes, les étiquettes «~*~» étant écartées~; \code{.mw\_calendrier\_p\_min()}, issue~\#115)~: plus petite masse cumulée à gauche, $\min_z \mathbb{P}(Z \le z) = \mathbb{P}(Z = 0) = \prod_k 2^{1-n_k}$, bornée à~1, sous la loi binomiale indépendante de Mack, dont la loi de $Z$ est obtenue par convolution exacte (rubrique~4). Valeur exacte sous cette loi de référence, qui n'est pas celle du modèle de Mack~: elle ne borne pas la p-value retenue. Les $n_k$ dépendent des données. Avant l'issue~\#276, au bilatéral, $p_{\min} = \min_z 2\min\big(\mathbb{P}(Z \le z), \mathbb{P}(Z \ge z)\big) = 2^{-17}$~; pour tout $n_k \ge 2$, $\mathbb{P}(Z_k = 0) = 2^{1-n_k} \le \mathbb{P}(Z_k = \lfloor n_k/2 \rfloor)$, de sorte que l'atome bas de $Z$ n'est jamais plus lourd que l'atome haut et que la valeur en queue basse est exactement la moitié de la valeur bilatérale. La p-value retenue est de Monte-Carlo (clé \code{Calendrier}, queue basse)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}~; $2/(B+1)$ au bilatéral), est le plancher arithmétique de la p-value retenue~; depuis l'issue~\#125, la règle~R1 lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$, minimum exact de cette p-value sur les réplications tirées, à l'extrémité basse du support observé (section~\ref{sec:nature}, point~(i)), égal à ce plancher sur \code{reserve2} ($0{,}001$~; $0{,}002$ au bilatéral).
 
 \textbf{Table.} Tableau~\ref{tab:pmin}, partie Merz--Wüthrich.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ ($p_{\min}^{\mathrm{MC}} = 0{,}002$ sur \code{reserve2}). Sur le sous-triangle $5 \times 5$ du triangle de contrôle ($n_k = 3, 3$, $p_{\min} = 0{,}125$), la règle~R1 lit depuis l'issue~\#125 le plancher Monte-Carlo (section~\ref{sec:nature}, point~(i))~: mesuré par \code{run\_engine()} à $\alpha = 0{,}10$, $p_{\min}^{\mathrm{MC}} = 0{,}096$ à $B = 999$ (graine 20260831), et la ligne reste un test, de verdict \code{ALERTE}, \code{ECHEC} dit inatteignable, avec la phrase de l'issue~\#244~; $0{,}10$ à $B = 99$, et elle est un test inopérant. La bascule dépend donc des réplications tirées, sans marge (décision D1-8)~: à $B = 999$, l'écart du plancher au seuil est inférieur à son erreur de Monte-Carlo (section~\ref{sec:nature}, point~(i)). Jusqu'à l'issue~\#125, la règle lisait $p_{\min}$ et la ligne était inopérante (décision du mainteneur du 6~octobre 2026). Puissance non étudiée à $T = 8$. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}086$ (N), $0{,}081$ (E), $0{,}084$ (A), pour $\rho = 0{,}086$~; à $0{,}05$, $0{,}0455$, $0{,}041$, $0{,}040$ ($\rho = 0{,}043$, $0{,}040$, $0{,}043$)~; compatible sous les trois lois et aux deux seuils. La référence est inférieure à $\alpha$ par discrétude de la statistique (83 à 86 valeurs distinctes dans l'échantillon oracle selon la loi, atome le plus lourd de masse $0{,}100$ à $0{,}105$).
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ ($p_{\min}^{\mathrm{MC}} = 0{,}001$ sur \code{reserve2}). Sur le sous-triangle $5 \times 5$ du triangle de contrôle ($n_k = 3, 3$, $p_{\min} = 0{,}0625$), la règle~R1 lit depuis l'issue~\#125 le plancher Monte-Carlo (section~\ref{sec:nature}, point~(i))~: mesuré par \code{run\_engine()} à $\alpha = 0{,}10$ (graine 20260831), $p_{\min}^{\mathrm{MC}} = 0{,}048$ à $B = 999$, égal à la p-value de Monte-Carlo, et la ligne est un test de verdict \code{ECHEC}, avec la phrase de l'issue~\#244 (l'écart de la p-value au seuil $\alpha/2$, $0{,}002$, est inférieur à son erreur de Monte-Carlo, $0{,}0068$)~; $0{,}05 = \alpha/2$ à $B = 99$, et la ligne est un test de verdict \code{ALERTE}, \code{ECHEC} dit inatteignable. Le verdict dépend donc des réplications tirées, sans marge (décision D1-8). Avant l'issue~\#276, sous la forme bilatérale ($p_{\min} = 0{,}125$), le plancher valait $0{,}096$ à $B = 999$ (test, \code{ALERTE}, \code{ECHEC} dit inatteignable, phrase de l'issue~\#244) et $0{,}10$ à $B = 99$ (test inopérant)~; jusqu'à l'issue~\#125, la règle lisait $p_{\min}$ et la ligne était inopérante (décision du mainteneur du 6~octobre 2026). \emph{Niveau} de la p-value de Monte-Carlo en queue basse, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#276, section~\ref{sec:calib-mc-mw}, tableau T1 de \code{docs/tableaux/}\allowbreak\code{20261016-issue276-calendaire.md})~: à $0{,}10$, $0{,}0835$ (N), $0{,}091$ (E), $0{,}084$ (A), pour $\rho = 0{,}089$, $0{,}091$, $0{,}090$~; à $0{,}05$, $0{,}0305$, $0{,}0365$, $0{,}037$ ($\rho = 0{,}041$, $0{,}041$, $0{,}040$)~; compatible, sauf un écart mineur du côté conservateur sous N à $0{,}05$. La référence est inférieure à $\alpha$ par discrétude de la statistique (83 à 86 valeurs distinctes dans l'échantillon oracle selon la loi, atome le plus lourd de masse $0{,}098$ à $0{,}103$). Les niveaux de l'issue~\#206 portent sur la forme bilatérale antérieure~: à $0{,}10$, $0{,}086$ (N), $0{,}081$ (E), $0{,}084$ (A), pour $\rho = 0{,}086$~; à $0{,}05$, $0{,}0455$, $0{,}041$, $0{,}040$ ($\rho = 0{,}043$, $0{,}040$, $0{,}043$)~; compatible sous les trois lois et aux deux seuils. \emph{Puissance} (même mesure, tableau T2~: loi N, $1\,000$ triangles par scénario, effet multiplicatif sur les incréments d'un exercice comptable $t$, puis recumul)~: à $0{,}10$, contre un choc de $5~\%$ et de $10~\%$ sur le dernier exercice ($t = 7$), $0{,}235$ et $0{,}401$ en queue basse, contre $0{,}157$ et $0{,}233$ sous la forme bilatérale~; sur l'exercice médian ($t = 4$), $0{,}218$ et $0{,}319$, contre $0{,}113$ et $0{,}185$~; contre une dérive de $3~\%$ et de $5~\%$ par exercice à partir de $t = 4$, $0{,}162$ et $0{,}205$, contre $0{,}084$ et $0{,}104$~; à $0{,}05$, de $0{,}074$ à $0{,}229$ en queue basse, contre $0{,}046$ à $0{,}140$~; dans chacun de ces six scénarios et aux deux seuils, les décisions discordantes des deux formes sur les mêmes triangles vont très majoritairement dans le sens de la queue basse (test de McNemar exact, p-value au plus $2{,}5\cdot 10^{-7}$). Contre une compensation alternée entre années d'accident sur l'exercice $t = 6$ ($\theta = 0{,}10$), alternative du côté haut que la ligne ne teste pas (rubrique~1), la forme bilatérale rejetait dans $0{,}109$ des cas à $0{,}10$ et $0{,}048$ à $0{,}05$, au voisinage de son niveau, la queue basse dans $0{,}017$ et $0{,}003$.
 
-\textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi binomiale indépendante de Mack, non sous le modèle de Mack~; plancher~: exact, fonction de $B$. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
+\textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi binomiale indépendante de Mack, non sous le modèle de Mack~; plancher~: exact, fonction de $B$. Taux de rejet sous $H_0$ et sous les alternatives~: constat de simulation sous un plan (modèle de Mack ajusté au triangle de contrôle, section~\ref{sec:calib-mc-mw}), qui ne se transpose ni à une autre géométrie de triangle ni à un autre paramétrage~; intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -15402,7 +15469,7 @@ Breusch--Pagan ($\chi^2$) & \textbf{0} & \textbf{0} & \textbf{0} & \textbf{0} & 
 Exposant de variance (Fisher) & 0,040 & 0,011 & 0,043 & 0,0165 & 0,039 & 0,015 &
 \textbf{Conservatrice} \\
 Effets d'année calendaire & 0,1125 & 0,089 & 0,116 & 0,0945 & 0,114 & 0,087 &
-Sur-rejet net à $0{,}05$~; à $0{,}10$, intervalle excluant le seuil sous E seulement. Cause proposée~: approximation normale d'une somme portant sur peu de diagonales \\
+Forme bilatérale, antérieure à l'issue~\#276 (queue basse sous le tableau). Sur-rejet net à $0{,}05$~; à $0{,}10$, intervalle excluant le seuil sous E seulement. Cause proposée~: approximation normale d'une somme portant sur peu de diagonales \\
 Kruskal--Wallis & 0,125 & 0,050 & 0,1265 & 0,0525 & 0,100 & 0,037 &
 Sur-rejet à $0{,}10$ sous N et E~: groupes très déséquilibrés \\
 Test des suites & \textbf{0,135} & \textbf{0,135} & \textbf{0,1285} & \textbf{0,1285} &
@@ -15432,6 +15499,20 @@ sont conservatrices~; c'est le sens qu'annoncerait la sur-uniformité de ces p-v
 construction de la fiche~\ref{mw:m1}~: la régression agrégée sans effet de colonne rejette dans
 $98{,}35~\%$, $96{,}8~\%$ et $98{,}8~\%$ des cas au seuil $0{,}10$ (N, E, A), et la régression à
 effet de colonne pondérée par $C(i,j)$ seul dans $6{,}0~\%$, $4{,}75~\%$ et $5{,}8~\%$.
+
+\emph{Effets d'année calendaire en queue basse (issue~\#276).} La ligne du tableau porte sur la
+p asymptotique bilatérale $2\big(1 - \Phi(|Z^\star|)\big)$, restituée jusqu'à cette issue~; la ligne
+restitue depuis $\Phi(Z^\star)$, qui teste la même alternative que sa p-value de Monte-Carlo
+(fiche~\ref{mw:m3cal}). Sur les triangles de la mesure de l'issue~\#276, simulés sous le même plan
+(section~\ref{sec:calib-mc-mw}, tableau T6 de \code{docs/tableaux/}\allowbreak
+\code{20261016-issue276-calendaire.md}~; 2\,000, 2\,000 et 1\,000 triangles), $\Phi(Z^\star)$ rejette
+sous $H_0$ dans $0{,}154$ (N), $0{,}1695$ (E) et $0{,}143$ (A) des cas au seuil $0{,}10$, et dans
+$0{,}058$, $0{,}0635$ et $0{,}060$ au seuil $0{,}05$ ($0{,}163$, $0{,}162$, $0{,}162$ et $0{,}066$,
+$0{,}0645$, $0{,}064$ sur les échantillons oracle de $20\,000$ triangles par loi)~; la p
+bilatérale y rejette dans $0{,}1185$, $0{,}1095$ et $0{,}116$ des cas à $0{,}10$ et $0{,}0875$,
+$0{,}0885$ et $0{,}083$ à $0{,}05$, du même ordre que dans le tableau. Les deux formes sont
+libérales sous ce plan, la queue basse surtout au seuil $0{,}10$~; constat de simulation sous ce
+plan. La p asymptotique n'est pas retenue, la p-value de Monte-Carlo de la ligne étant disponible.
 
 \emph{Historique.} Les versions antérieures citaient, à cette place, des fréquences de rejet sur
 600 triangles $10\times10$ «~simulés exactement sous $H_0$~» au seuil de $10~\%$ (ordonnée à
@@ -15489,8 +15570,9 @@ de l'\code{ECHEC}. La \emph{référence} $\rho$ est la taille lissée, à $B = 9
 Monte-Carlo idéal dont les répliques seraient tirées dans la loi vraie (règle «~$\ge$~»
 d'\code{engine\_p\_mc()}), estimée sur un échantillon «~oracle~» de $N_0 = 20\,000$ triangles par
 loi~; elle vaut $0{,}099$ en queue haute et $0{,}098$ au bilatéral pour une statistique sans
-atome, et moins pour les statistiques à peu de valeurs~: effets calendaires ($0{,}086$) et suites
-($0{,}051$ à $0{,}053$), par discrétude. L'erreur de $\rho$ due à $N_0$ est de l'ordre de
+atome, et moins pour les statistiques à peu de valeurs~: effets calendaires ($0{,}086$ au
+bilatéral, forme de la mesure~; $0{,}089$ à $0{,}091$ en queue basse, mesure de l'issue~\#276
+ci-dessous) et suites ($0{,}051$ à $0{,}053$), par discrétude. L'erreur de $\rho$ due à $N_0$ est de l'ordre de
 $0{,}002$ à $0{,}10$ (ordre de grandeur déclaré dans le fichier de résultats). Lecture en quatre
 états de la section~\ref{sec:calibration-mc} (compatible, écart mineur, écart non tranché,
 distorsion matérielle, avec son côté), la bande de Bradley $[\rho/2~;~3\rho/2]$ étant rapportée à
@@ -15551,7 +15633,7 @@ est donné pour N, E et A quand il diffère au millième selon la loi.
 \code{Alpha} (\ref{mw:m1d}) & $0{,}099$ & $0{,}0955$ $[0{,}083~;~0{,}109]$ c & $0{,}097$ $[0{,}084~;~0{,}111]$ c & $0{,}102$ $[0{,}084~;~0{,}122]$ c \\
 \code{BP} (\ref{mw:m2bp}) & $0{,}099$ & $0{,}016$ $[0{,}011~;~0{,}023]$ \textbf{Dc} & $0{,}0695$ $[0{,}059~;~0{,}082]$ m & $0{,}004$ $[0{,}001~;~0{,}010]$ \textbf{Dc} \\
 \code{ExpVar} (\ref{mw:m2b}) & $0{,}099$ & $0{,}0955$ $[0{,}083~;~0{,}109]$ c & $0{,}095$ $[0{,}083~;~0{,}109]$ c & $0{,}098$ $[0{,}080~;~0{,}118]$ c \\
-\code{Calendrier} (\ref{mw:m3cal}) & $0{,}086$ & $0{,}086$ $[0{,}074~;~0{,}099]$ c & $0{,}081$ $[0{,}069~;~0{,}094]$ c & $0{,}084$ $[0{,}068~;~0{,}103]$ c \\
+\code{Calendrier} (\ref{mw:m3cal}, bilatéral) & $0{,}086$ & $0{,}086$ $[0{,}074~;~0{,}099]$ c & $0{,}081$ $[0{,}069~;~0{,}094]$ c & $0{,}084$ $[0{,}068~;~0{,}103]$ c \\
 \code{KruskalAcc} (\ref{mw:m3acc}) & $0{,}099$ & $0{,}096$ $[0{,}083~;~0{,}110]$ c & $0{,}1005$ $[0{,}088~;~0{,}115]$ c & $0{,}080$ $[0{,}064~;~0{,}099]$ m \\
 \code{CorrDev} (\ref{mw:m3cor}) & $0{,}098$ & $0{,}0965$ $[0{,}084~;~0{,}110]$ c & $0{,}0995$ $[0{,}087~;~0{,}113]$ c & $0{,}088$ $[0{,}071~;~0{,}107]$ c \\
 \code{DW} (\ref{mw:m3dw}) & $0{,}098$ & $0{,}0855$ $[0{,}074~;~0{,}099]$ c & $0{,}101$ $[0{,}088~;~0{,}115]$ c & $0{,}087$ $[0{,}070~;~0{,}106]$ c \\
@@ -15581,7 +15663,7 @@ Seuil $\alpha = 0{,}10$.
 \code{Alpha} (\ref{mw:m1d}) & $0{,}049$ & $0{,}0385$ $[0{,}030~;~0{,}048]$ m & $0{,}042$ $[0{,}034~;~0{,}052]$ c & $0{,}037$ $[0{,}026~;~0{,}051]$ c \\
 \code{BP} (\ref{mw:m2bp}) & $0{,}049$ & $0{,}005$ $[0{,}002~;~0{,}009]$ \textbf{Dc} & $0{,}0245$ $[0{,}018~;~0{,}032]$ m & $0{,}000$ $[0{,}000~;~0{,}004]$ \textbf{Dc} \\
 \code{ExpVar} (\ref{mw:m2b}) & $0{,}049$ & $0{,}046$ $[0{,}037~;~0{,}056]$ c & $0{,}0495$ $[0{,}040~;~0{,}060]$ c & $0{,}048$ $[0{,}036~;~0{,}063]$ c \\
-\code{Calendrier} (\ref{mw:m3cal}) & $0{,}043$~;\newline $0{,}040$~;\newline $0{,}043$ & $0{,}0455$ $[0{,}037~;~0{,}056]$ c & $0{,}041$ $[0{,}033~;~0{,}051]$ c & $0{,}040$ $[0{,}029~;~0{,}054]$ c \\
+\code{Calendrier} (\ref{mw:m3cal}, bilatéral) & $0{,}043$~;\newline $0{,}040$~;\newline $0{,}043$ & $0{,}0455$ $[0{,}037~;~0{,}056]$ c & $0{,}041$ $[0{,}033~;~0{,}051]$ c & $0{,}040$ $[0{,}029~;~0{,}054]$ c \\
 \code{KruskalAcc} (\ref{mw:m3acc}) & $0{,}049$ & $0{,}0505$ $[0{,}041~;~0{,}061]$ c & $0{,}049$ $[0{,}040~;~0{,}059]$ c & $0{,}036$ $[0{,}025~;~0{,}049]$ c \\
 \code{CorrDev} (\ref{mw:m3cor}) & $0{,}048$ & $0{,}0515$ $[0{,}042~;~0{,}062]$ c & $0{,}052$ $[0{,}043~;~0{,}063]$ c & $0{,}044$ $[0{,}032~;~0{,}059]$ c \\
 \code{DW} (\ref{mw:m3dw}) & $0{,}048$ & $0{,}0455$ $[0{,}037~;~0{,}056]$ c & $0{,}053$ $[0{,}044~;~0{,}064]$ c & $0{,}032$ $[0{,}022~;~0{,}045]$ m \\
@@ -15681,6 +15763,40 @@ sous ce plan, la fréquence de la phrase de l'issue~\#244 due au seul seuil $\al
 section~\ref{sec:nature}, «~Verdict sensible à l'aléa de simulation~»)~; au seuil par défaut $\alpha = 0{,}10$, la phrase compte
 aussi le seuil $\alpha/2 = 0{,}05$, dont la fréquence est celle de la colonne à $0{,}05$, et ne
 compte que les seuils atteignables.
+
+\emph{Effets d'année calendaire en queue basse (issue~\#276).} La mesure de l'issue~\#206 est
+antérieure à cette issue~: la ligne \code{Calendrier} des tableaux ci-dessus, et sa part dans les
+tableaux T4 de l'issue~\#206 (verdicts sous $H_0$, voisinage du seuil), portent sur la forme
+bilatérale de la p-value de Monte-Carlo, lue depuis en queue basse (fiche~\ref{mw:m3cal}). Une
+mesure propre compare les deux formes sur les mêmes réplications (spécification
+\code{docs/specifications/}\allowbreak\code{fd-test-calendaire.md}, §~2.3, approuvée avant toute
+exécution~; script hors CI \code{tests/mesure\_calendaire\_t8.R}, R~4.3.3 sous Linux, plateforme et
+commit consignés au tableau T0~; sortie \code{docs/tableaux/}\allowbreak
+\code{20261016-issue276-calendaire.md}, tableaux T0 à T6, valeurs brutes
+\code{docs/tableaux/}\allowbreak\code{20261016-issue276-calendaire-brut.tsv})~: même plan et mêmes
+lois N, E et A, 2\,000, 2\,000 et 1\,000 triangles neufs, $B = 999$, sous des graines disjointes
+de celles de l'issue~\#206, référence $\rho$ calculée par la même règle pour chacune des deux formes
+sur un échantillon oracle de $N_0 = 20\,000$ triangles par loi. La boucle de \code{mw\_bootstrap()}
+y est reproduite pour la seule statistique calendaire~; pour la forme bilatérale, la p-value, le
+plancher et $B_{\text{eff}}$ du script sont identiques, au sens d'\code{identical()}, à ceux du
+moteur sur \code{reserve2} et sur un triangle sur 50 du plan (240 triangles). Le critère de
+décision, fixé avant toute exécution (critère K1~: pour la queue basse, sous N et sous E, aux deux
+seuils, classe compatible ou écart mineur, une distorsion matérielle libérale arrêtant la
+modification), est rempli. Taux de rejet de la queue basse sous $H_0$ (tableau T1)~: à $0{,}10$,
+$0{,}0835$ $[0{,}072~;~0{,}096]$ c (N, $\rho = 0{,}089$), $0{,}091$ $[0{,}079~;~0{,}104]$ c (E,
+$\rho = 0{,}091$), $0{,}084$ $[0{,}068~;~0{,}103]$ c (A, $\rho = 0{,}090$)~; à $0{,}05$, $0{,}0305$
+$[0{,}023~;~0{,}039]$ m ($\rho = 0{,}041$), $0{,}0365$ $[0{,}029~;~0{,}046]$ c ($\rho = 0{,}041$),
+$0{,}037$ $[0{,}026~;~0{,}051]$ c ($\rho = 0{,}040$)~; la forme bilatérale, sur les mêmes
+triangles, est compatible sous les trois lois et aux deux seuils. Puissance (tableau T2, loi N,
+1\,000 triangles par scénario)~: la queue basse rejette plus que la forme bilatérale contre les six
+effets calendaires mesurés, et presque jamais contre une compensation alternée du côté haut, que la
+forme bilatérale ne détectait guère au-delà de son niveau (fiche~\ref{mw:m3cal}, rubrique~7).
+Plancher (tableau T4)~: $p_{\min}^{\mathrm{MC}}$ vaut au plus $0{,}003$ en queue basse et $0{,}006$
+au bilatéral sur tous les triangles mesurés, jamais au-dessus de $\alpha/2$. Les transitions de
+verdict d'une forme à l'autre (tableau T5) vont dans les deux sens sous $H_0$~: sous N, à
+$\alpha = 0{,}10$, 106 triangles passent de \code{OK} à \code{ALERTE} et 30 d'\code{ALERTE} à
+\code{ECHEC}, 58 d'\code{ALERTE} à \code{OK} et 43 d'\code{ECHEC} à \code{OK}. Constat de
+simulation sous ce plan, comme ci-dessus.
 
 \emph{Historique.} Les versions antérieures de ce document citaient, à cette place, des
 fréquences de rejet mesurées sur 160 triangles $10\times10$ simulés sous le modèle de Mack, pour
@@ -16270,9 +16386,10 @@ modèle et un mode d'inférence différents.
   p.~101--182.
   \emph{Portée.} Source du test des effets d'année calendaire (annexe~H,
   p.~162--168~: élimination de l'élément égal à la médiane, $Z_k = \min(L_k, S_k)$,
-  moments (H1) et (H2), statistique globale $Z$, règle de décision normale
-  $\mathbb{E}[Z] \pm 2\sqrt{\operatorname{Var}[Z]}$), procédure d'origine que suit
-  \code{mw\_test\_annees\_calendaires()}~; c'est de cette annexe que proviennent les moments
+  moments (H1) et (H2), statistique globale $Z$, alternative unilatérale p.~164, règle de
+  décision normale bilatérale $\mathbb{E}[Z] \pm 2\sqrt{\operatorname{Var}[Z]}$ p.~166),
+  procédure d'origine que suit \code{mw\_test\_annees\_calendaires()}, en queue basse depuis
+  l'issue~\#276, selon l'alternative de la p.~164 et non selon la règle de la p.~166~; c'est de cette annexe que proviennent les moments
   de $Z_k$, que nous avons vérifiés par énumération exhaustive, et l'exemple publié
   (p.~166--167) que la fonction reproduit (fiche~\ref{mw:m3cal}). Source aussi du test de
   corrélation entre facteurs de développement adjacents (annexe~G, p.~155--161,
@@ -16477,9 +16594,10 @@ et~\ref{fiche:multi-demarrages}).
 Une ligne de type \code{test} sans p-value retenue sort aussi \code{INFO}.
 Relèvent notamment de ce verdict~: test \emph{inopérant}, dont la plus petite p-value
 atteignable $p_{\min}$ atteint ou dépasse $\alpha$ (règle~R1, issue~\#44~; Cox--Stuart à $T = 8$,
-fiche~\ref{fiche:cox-stuart}~; effet calendaire et corrélation entre années adjacentes de la
-méthode Merz--Wüthrich sur un triangle $5 \times 5$, issue~\#115, fiches~\ref{mw:m3cal}
-et~\ref{mw:m3cor}), restitué en diagnostic~; test de Pitman sur la pente lorsque la
+fiche~\ref{fiche:cox-stuart}~; corrélation entre années adjacentes de la
+méthode Merz--Wüthrich sur un triangle $5 \times 5$, issue~\#115, fiche~\ref{mw:m3cor}, et, sous sa
+forme bilatérale antérieure à l'issue~\#276, effet calendaire sur le sous-triangle $5 \times 5$ de
+contrôle, fiche~\ref{mw:m3cal}), restitué en diagnostic~; test de Pitman sur la pente lorsque la
 pente n'est pas identifiable par les données, $\hat\pi_b < 1/2$ (règle~R4,
 section~\ref{sec:t8})~; ligne de Fisher, diagnostic dans tous les régimes depuis
 l'issue~\#169~; ligne dont la loi simulée est dégénérée (section~\ref{sec:nature})~;
@@ -16684,10 +16802,12 @@ $m \le 4$, donc pour $T \le 9$ sans ex \ae quo, et toujours à $T = 8$~: restitu
 (règle~R1)~; \code{ECHEC} atteignable seulement dès $T = 12$ (tableau~\ref{tab:pmin}). \\
 Corrélation entre années adjacentes et effet calendaire (Merz--Wüthrich) & $T \ge 6$ ($\alpha = 0{,}10$) &
 Sur un triangle $5 \times 5$, $p_{\min} = 1/3$ pour la corrélation (tout triangle complet) et
-$0{,}125$ pour l'effet calendaire (sous-triangle de contrôle)~; depuis l'issue~\#125, la règle~R1
+$0{,}0625$ pour l'effet calendaire (sous-triangle de contrôle, queue basse depuis l'issue~\#276~;
+$0{,}125$ au bilatéral)~; depuis l'issue~\#125, la règle~R1
 lit le plancher Monte-Carlo~: sur le sous-triangle de contrôle ($B = 999$), la corrélation est
-restituée en diagnostic ($0{,}33$) et l'effet calendaire reste un test ($0{,}096$~; inopérant à
-$B = 99$, plancher $0{,}10$~; tableau~\ref{tab:pmin}). \\
+restituée en diagnostic ($0{,}33$) et l'effet calendaire est un test ($0{,}048$, verdict
+\code{ECHEC}~; à $B = 99$, plancher $0{,}05$, \code{ECHEC} inatteignable~; au bilatéral, $0{,}096$, et
+inopérant à $B = 99$, plancher $0{,}10$~; tableau~\ref{tab:pmin}). \\
 Anscombe--Glynn & $T \ge 20$ & Non défini en-deçà~; marqué \code{INFO}. \\
 D'Agostino (asymétrie) & $T \ge 8$ & Non défini en-deçà~; à $T = 8$, niveau de la p-value normale légèrement libéral et puissance contre une loi exponentielle de $39~\%$ au seuil de 10~\%, $81~\%$ à $T = 20$ (constat~C4, fiche~\ref{fiche:dagostino-asymetrie}). \\
 Jarque--Bera & $T \ge 50$ & $b_2$ borné par $\approx T$~; convergence $\chi^2$ très lente. \\
