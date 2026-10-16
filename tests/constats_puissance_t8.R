@@ -1349,9 +1349,12 @@ if (OPT_PARTIE == "pitman") {
     l <- tb[tb$test == LIGNE_PITMAN, ]
     if (nrow(l) == 1L) l else NULL
   }
-  # Correlations des T! appariements, ligne 1 = identite : copie declaree du
-  # calcul de usp_permutation_pente() (centrage, division par max|.|,
-  # normalisation, engine_permutations()), controlee sur J1 et J2 observes.
+  # Correlations des T! appariements, ligne 1 = identite : meme preparation
+  # que usp_permutation_pente() (centrage, division par max|.|,
+  # normalisation, engine_permutations()), mais produit de la matrice T! x T
+  # entiere, la ou le moteur calcule par blocs (.usp_r_permutations(), #222) ;
+  # les deux calculs sont identiques au bit pres sous le BLAS de reference
+  # (mesure de #222). Controlee sur J1 et J2 observes.
   r_enumeration <- function(x, y) {
     xc <- x - mean(x); yc <- y - mean(y)
     xc <- xc / max(abs(xc)); yc <- yc / max(abs(yc))
