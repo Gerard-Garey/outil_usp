@@ -54,7 +54,13 @@ COUL <- list(trait = "#B03A2E", pt = "#00468C", env = "#C8DCFA",
 .num_fr_defaut <- function(x) .num_fr(x, digits = getOption("digits"))
 
 fmt_nb <- function(v, d = 4) ifelse(is.finite(v), .num_fr(v, paste0("%.", d, "f")), "\u2013")
-fmt_p  <- function(v) ifelse(is.finite(v), .num_fr(v, "%.4f"), "\u2013")
+# p-value (#323) : quatre decimales a partir de 1e-4, trois chiffres
+# significatifs en deca (2,48e-05), pour qu'une p-value non nulle ne
+# s'affiche jamais "0,0000". Mise en forme seule, aucun arrondi propre ;
+# meme formateur pour l'onglet Tests et le rapport fige.
+fmt_p  <- function(v) ifelse(is.finite(v),
+                             .num_fr(v, ifelse(is.finite(v) & v >= 1e-4, "%.4f", "%.3g")),
+                             "\u2013")
 fmt_pc <- function(v, d = 1) ifelse(is.finite(v),
                                     paste0(.num_fr(100 * v, paste0("%.", d, "f")), " %"), "\u2013")
 
@@ -312,10 +318,14 @@ table_synthese_groupe <- function(tb) {
 # affiche, le document fige ne dependant pas d'un clic pour etre lu ou imprime.
 # Colonne Fonction (#178, point 3) : champ fonction pose par add() (#111),
 # provenance de la ligne ; colonne absente ou NA (objet anterieur) : tiret.
-table_detail_groupe <- function(tb, replier = FALSE) {
+# Colonne "granularite MC" (#285, option (i)) : granularite effective de la
+# p Monte-Carlo de la ligne, lue dans boot$granularite_stat par
+# granularite_lignes() ; boot = NULL (appel sans objet bootstrap) : tiret.
+table_detail_groupe <- function(tb, replier = FALSE, boot = NULL) {
   com <- if (is.null(tb$commentaire)) rep(NA_character_, nrow(tb)) else tb$commentaire
   com[!is.na(com) & !nzchar(trimws(com))] <- NA_character_
   fon <- if (is.null(tb$fonction)) rep(NA_character_, nrow(tb)) else tb$fonction
+  gr <- if (is.null(boot)) rep(NA_real_, nrow(tb)) else granularite_lignes(tb, boot)
   data.frame(
     Test = paste0("<span style='font-weight:600;color:#1B2631'>", .txt(tb$test), "</span>",
                   .repere_renvoi(tb)),
@@ -337,11 +347,51 @@ table_detail_groupe <- function(tb, replier = FALSE) {
     # anterieure au champ : tiret. Meme format que la colonne precedente.
     `p min MC` = if (is.null(tb$p_min_mc)) rep("\u2013", nrow(tb))
                  else ifelse(is.finite(tb$p_min_mc), .num_fr(tb$p_min_mc, "%.3g"), "\u2013"),
+    # Granularite effective (#285) : meme format que les deux colonnes
+    # precedentes.
+    "granularit\u00e9 MC" = ifelse(is.finite(gr), .num_fr(gr, "%.3g"), "\u2013"),
     Sens = .txt(tb$sens_du_test),
     `Motif / commentaire` = if (replier) .commentaire_replie(com) else .txt(com),
     Reference = .txt(tb$reference),
     Fonction = ifelse(is.na(fon), "\u2013", paste0("<code>", .txt(fon), "</code>")),
     check.names = FALSE, stringsAsFactors = FALSE, row.names = NULL)
+}
+
+# Granularite effective de la p Monte-Carlo de chaque ligne (#285, option
+# (i), decision du mainteneur du 15/10/2026) : valeur lue dans
+# bootstrap$granularite_stat (k / (B_eff + 1), calculee par le moteur par
+# statistique, k = 2 en bilateral), aucun calcul ici. La ligne de test ne
+# porte pas le nom de sa statistique Monte-Carlo (mc_nom) : elle est
+# retrouvee par l'egalite exacte (identical()) de sa p Monte-Carlo et de son
+# erreur Monte-Carlo, que add() recopie telles quelles depuis le bootstrap.
+# Tiret (NA) quand la valeur ne peut pas etre lue sans deviner :
+#  - p Monte-Carlo ou erreur non finie (aucune p Monte-Carlo) ;
+#  - p Monte-Carlo calculee hors du bootstrap principal (p_mc_ext de add() :
+#    bootstrap restreint du LR sur delta, permutations aleatoires de
+#    Pitman), sans granularite_stat : fonctions de FONCTIONS_P_MC_EXTERNE,
+#    exclues avant l'appariement (une ligne du LR, p = 1 et erreur 0,
+#    s'apparierait sinon a CoxStuart) ; champ fonction absent (objet
+#    anterieur a #111) : tiret, l'exclusion n'etant pas verifiable ;
+#  - aucune statistique appariee, ou statistiques appariees de granularites
+#    differentes (jamais choisi).
+# Des statistiques appariees de meme granularite donnent cette valeur, qui
+# est alors celle de la ligne quelle que soit sa statistique.
+FONCTIONS_P_MC_EXTERNE <- c("usp_lr_delta", "usp_permutation_pente")
+granularite_lignes <- function(tb, boot) {
+  n <- nrow(tb); out <- rep(NA_real_, n)
+  g <- boot$granularite_stat; pmc <- boot$p_mc; emc <- boot$err_mc
+  if (!n || is.null(g) || is.null(pmc) || is.null(emc) ||
+      is.null(tb$p_monte_carlo) || is.null(tb$erreur_MC) || is.null(tb$fonction)) return(out)
+  noms <- intersect(intersect(names(pmc), names(emc)), names(g))
+  for (i in seq_len(n)) {
+    p <- tb$p_monte_carlo[i]; e <- tb$erreur_MC[i]; f <- tb$fonction[i]
+    if (!is.finite(p) || !is.finite(e) || is.na(f) || f %in% FONCTIONS_P_MC_EXTERNE) next
+    k <- noms[vapply(noms, function(s) identical(unname(pmc[[s]]), p) &&
+                                       identical(unname(emc[[s]]), e), logical(1))]
+    v <- unique(unname(g[k]))
+    if (length(v) == 1L && is.finite(v)) out[i] <- v
+  }
+  out
 }
 
 html_table <- function(d, classe = "table table-condensed data") {
@@ -1448,10 +1498,13 @@ texte_p_mc_regime <- function(res) {
     # Arret a B_max (issue #254, option (a), texte seul) : moins de B tirages
     # retenus, donc pas par statistique (granularite_stat, calcule par le
     # moteur sur B_eff <= retenus < B) plus grossier que la granularite
-    # nominale 1/(B+1). Aucun pas n'est calcule ici.
+    # nominale 1/(B+1). Aucun pas n'est calcule ici. La mention renvoie a
+    # la colonne "granularite MC" du detail des tests (#285, option (i)),
+    # plus au nom de champ brut.
     else if (identical(r$arret, "B_max"))
       sprintf(paste("arr\u00eat \u00e0 B_max (%s tirages), cible B = %s non atteinte ;",
-                    "granularit\u00e9 effective par statistique : champ granularite_stat,",
+                    "granularit\u00e9 effective par statistique : colonne",
+                    "\u00ab granularit\u00e9 MC \u00bb du d\u00e9tail des tests,",
                     "plus grossi\u00e8re que la granularit\u00e9 nominale"),
               ent(r$B_max), ent(r$B_cible))
     else paste("arr\u00eat", if (length(r$arret) == 1L && !is.na(r$arret)) r$arret else "\u2013")
@@ -2104,7 +2157,7 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
             "<div class='gris'>Synth\u00e8se</div>",
             html_table(table_synthese_groupe(sub), classe = "data"),
             "<div class='gris'>D\u00e9tail</div>",
-            html_table(table_detail_groupe(sub), classe = "data"))
+            html_table(table_detail_groupe(sub, boot = res$bootstrap), classe = "data"))
     }
     ajout("</section>")
 

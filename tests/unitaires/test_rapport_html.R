@@ -23,7 +23,11 @@
 #  l'en-tete, absente en reserve2 ; rapport sur les six references nettoyees
 #  (sans horodatage, duree_sec ni version_R), tiret dans ces lignes (#263) ;
 #  mention de la granularite effective en V3b arrete a B_max seulement
-#  (#254) ; tiret pour une marge theta_equiv ou delta_equiv absente ;
+#  (#254), qui renvoie a la colonne "granularite MC" du detail des tests ;
+#  colonne "granularite MC" lue dans bootstrap$granularite_stat, comparee a
+#  la statistique Monte-Carlo de chaque ligne relevee dans add() (#285) ;
+#  p-values sous 1e-4 en trois chiffres significatifs, jamais "0,0000"
+#  (fmt_p(), #323) ; tiret pour une marge theta_equiv ou delta_equiv absente ;
 #  virgule decimale des nombres affiches (.num_fr(), fmt_*(), notes, rapport
 #  fige ; issue #236).
 #  References : RFC 4648, section 10 (vecteurs de test base64) ; regle de
@@ -1093,7 +1097,8 @@ TXT_CIBLE <- paste("conditionnelles au r\u00e9gime int\u00e9rieur de delta estim
 TXT_BMAX <- paste("conditionnelles au r\u00e9gime int\u00e9rieur de delta estim\u00e9 \u2014",
                   "2500 tirages, 97 retenus, arr\u00eat \u00e0 B_max (2500 tirages),",
                   "cible B = 99 non atteinte ; granularit\u00e9 effective par statistique :",
-                  "champ granularite_stat, plus grossi\u00e8re que la granularit\u00e9 nominale")
+                  "colonne \u00ab granularit\u00e9 MC \u00bb du d\u00e9tail des tests,",
+                  "plus grossi\u00e8re que la granularit\u00e9 nominale")
 # Mention de la granularite effective (#254) : en V3b arrete a B_max seulement.
 MENTION_254 <- "granularit\u00e9 effective par statistique"
 verifier("p_mc_regime : jeux au contrat attendu (V3b cible, V3b B_max, V1 bord 1, V1 bord 0, reserve2 sans champ)",
@@ -1295,6 +1300,105 @@ verifier(".ou_tiret() : NA scalaire -> tiret avant f(), valeur finie -> f(x), ve
            identical(.ou_tiret(6.137, function(x) paste(.num_fr(x, "%.2f"), "s")), "6,14 s") &&
            identical(.ou_tiret(c(1, NA), function(x) "deux"), "deux") &&
            identical(.ou_tiret(c(1, 2), function(x) c("a", "b")), "\u2013"))
+
+## --- Granularite effective par ligne (#285, option (i)) ----------------------
+# La colonne "granularite MC" du detail des tests est lue dans
+# bootstrap$granularite_stat par granularite_lignes(), qui retrouve la
+# statistique de la ligne par l'egalite exacte de sa p Monte-Carlo et de son
+# erreur. Verite independante : le mc_nom passe a add() pour chaque ligne,
+# releve en enveloppant add() le temps d'un calcul (engine_registre_tests()
+# de l'environnement global, restauree en sortie) sur le jeu de res_bmax
+# (V3b arrete a B_max, granularites 1/98 et 2/98). L'enveloppe a pour
+# environnement celui du moteur : add() y verifie son argument fonction
+# (exists(..., environment(engine_registre_tests), inherits = FALSE)) ; son
+# etat (.etat285) est donc pose dans cet environnement le temps du calcul,
+# puis retire avec la restauration (la batterie source chaque fichier dans
+# un environnement enfant, invisible depuis celui du moteur).
+.mc_nom_lignes <- function(expr) {
+  env <- environment(engine_registre_tests)
+  etat <- new.env(); etat$orig <- engine_registre_tests; etat$vus <- list()
+  enveloppe <- function(...) {
+    r <- .etat285$orig(...); a <- r$add; e <- .etat285
+    k <- length(e$vus) + 1L; e$vus[[k]] <- character(0)
+    r$add <- function(...) {
+      m <- list(...)$mc_nom
+      e$vus[[k]] <- c(e$vus[[k]], if (is.null(m)) NA_character_ else m)
+      a(...)
+    }
+    r
+  }
+  environment(enveloppe) <- env
+  assign(".etat285", etat, envir = env)
+  assign("engine_registre_tests", enveloppe, envir = env)
+  on.exit({ assign("engine_registre_tests", etat$orig, envir = env)
+            rm(".etat285", envir = env) }, add = TRUE)
+  res <- expr
+  list(res = res, mc_nom = etat$vus)
+}
+.erg285 <- engine_registre_tests
+.m285 <- .mc_nom_lignes(.lancer_ln(.ln_j1$xt, res_bmax$donnees$yt))
+.r285 <- .m285$res; .mc285 <- .m285$mc_nom[[length(.m285$mc_nom)]]
+.tb285 <- engine_table_tests(.r285)
+.g285 <- granularite_lignes(.tb285, .r285$bootstrap)
+.vrai285 <- vapply(.mc285, function(m) if (is.na(m)) NA_real_
+                   else unname(.r285$bootstrap$granularite_stat[[m]]), numeric(1), USE.NAMES = FALSE)
+verifier("#285 : jeu de res_bmax rejoue a l'identique, un mc_nom releve par ligne",
+         identical(.r285$bootstrap$granularite_stat, res_bmax$bootstrap$granularite_stat) &&
+           length(.m285$mc_nom) == 1L && length(.mc285) == nrow(.tb285) &&
+           identical(get("engine_registre_tests", envir = environment(.erg285)), .erg285) &&
+           !exists(".etat285", envir = environment(.erg285), inherits = FALSE))
+verifier("#285 : granularite_lignes() = granularite_stat de la statistique de chaque ligne (34 lignes), tiret sans statistique du bootstrap (17)",
+         identical(is.finite(.g285), is.finite(.vrai285)) &&
+           identical(.g285[is.finite(.g285)], .vrai285[is.finite(.vrai285)]) &&
+           sum(is.finite(.g285)) == 34L && sum(!is.finite(.g285)) == 17L &&
+           setequal(round(.g285[is.finite(.g285)] * 98), c(1, 2)))
+verifier("#285 : lignes a p Monte-Carlo externe (usp_lr_delta) en tiret, sans appariement",
+         { k <- .tb285$fonction %in% FONCTIONS_P_MC_EXTERNE
+           any(k) && any(is.finite(.tb285$p_monte_carlo[k])) && all(is.na(.g285[k])) })
+verifier("#285 : colonne granularite MC du detail apres p min MC, valeurs lues en %.3g, tiret sans boot",
+         { d <- table_detail_groupe(.tb285, boot = .r285$bootstrap)
+           d0 <- table_detail_groupe(.tb285)
+           j <- match("p min MC", names(d))
+           identical(names(d)[j + 1L], "granularité MC") &&
+             identical(d[["granularité MC"]],
+                       ifelse(is.finite(.g285), .num_fr(.g285, "%.3g"), "–")) &&
+             all(c("0,0102", "0,0204") %in% d[["granularité MC"]]) &&
+             all(d0[["granularité MC"]] == "–") &&
+             identical(d[names(d) != "granularité MC"], d0[names(d0) != "granularité MC"]) })
+verifier("#285 : appariement ambigu (deux statistiques, granularites differentes) -> tiret, jamais choisi",
+         { b <- .r285$bootstrap; i <- which(is.finite(.g285))[1]; m <- .mc285[i]
+           autre <- setdiff(names(b$p_mc), m)[1]
+           b$p_mc[[autre]] <- b$p_mc[[m]]; b$err_mc[[autre]] <- b$err_mc[[m]]
+           b$granularite_stat[[autre]] <- b$granularite_stat[[m]] + 0.5
+           is.na(granularite_lignes(.tb285, b)[i]) &&
+             { b$granularite_stat[[autre]] <- b$granularite_stat[[m]]
+               identical(granularite_lignes(.tb285, b)[i], .g285[i]) } })
+verifier("#285 : objet sans granularite_stat ou table sans colonne fonction -> tiret partout, sans erreur",
+         { b <- .r285$bootstrap; b$granularite_stat <- NULL
+           tbf <- .tb285; tbf$fonction <- NULL
+           all(is.na(granularite_lignes(.tb285, b))) && all(is.na(granularite_lignes(tbf, .r285$bootstrap))) })
+verifier("#285 : rapport fige, colonne granularite MC dans le detail des tests retenus (section 5)",
+         { f <- tempfile(fileext = ".html")
+           rapport_html(res_bmax, NULL, f, interactif = FALSE, identite = idt)
+           s5 <- entre(lire(f), "<h2 id='tests-retenus'>", "</section>")
+           grepl("<th>granularité MC</th>", s5, fixed = TRUE) &&
+             grepl("<td>0,0204</td>", s5, fixed = TRUE) })
+
+## --- Tres petites p-values (#323) ----------------------------------------------
+# fmt_p() : "%.4f" a partir de 1e-4, "%.3g" en deca ; meme formateur pour
+# l'onglet Tests et le rapport fige. Valeurs de l'issue : p exacte de Pitman
+# 1/40320 = 2,48e-05 et p asymptotique 2,95e-06 sur premium_interieur.
+verifier("#323 : fmt_p(), %.4f a partir de 1e-4, %.3g en deca, tiret pour NA et Inf",
+         identical(fmt_p(c(0.5, 1e-4, 9.99e-5, 1 / 40320, 2.95e-6, NA, Inf, 1)),
+                   c("0,5000", "0,0001", "9,99e-05", "2,48e-05", "2,95e-06", "–", "–", "1,0000")))
+verifier("#323 : premium_interieur, Pitman et Fisher sans 0,0000 (synthese et detail)",
+         { tbp <- engine_table_tests(readRDS(file.path(.racine, "tests", "reference", "premium_interieur.rds")))
+           i <- grep("^Test de Pitman sur la pente", tbp$test); j <- grep("^Test de Fisher", tbp$test)
+           sy <- table_synthese_groupe(tbp); de <- table_detail_groupe(tbp)
+           length(i) == 1L && length(j) == 1L &&
+             identical(sy[["p retenue"]][i], "2,48e-05") && identical(de[["p exacte"]][i], "2,48e-05") &&
+             identical(de[["p asympt."]][i], "2,95e-06") && identical(de[["p asympt."]][j], "5,91e-06") &&
+             !any(c(sy[["p retenue"]], de[["p exacte"]], de[["p asympt."]], de[["p Monte-Carlo"]]) == "0,0000") })
 
 ## --- Virgule decimale des nombres affiches (issue #236) ------------------------
 # .num_fr() ecrit le nombre comme avant (sprintf(fmt, x), ou format(x, digits)
