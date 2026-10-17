@@ -8604,8 +8604,9 @@ constantes au sens de \code{usp\_pertes\_constantes()} et volumes non constants,
 sur $x_t$ (constante, TOST, pente, Fisher et $R^2$), non applicables (sous-section~\ref{sec:modele-auxiliaire-regles})~: $r_t = c/x_t$
 décroît strictement avec $x_t$, la statistique est définie, et $\hat\rho_s = -1$. Le rejet n'est
 pas un artefact de la dégénérescence~: des pertes constantes sous des volumes variables
-contredisent $\mathbb{E}[Y_t] = \beta x_t$, et cette ligne est la seule des lignes sur le volume
-de l'hypothèse~H1 à le dire dans ce régime~; son type et son verdict sont conservés. Pour que le
+contredisent $\mathbb{E}[Y_t] = \beta x_t$~; cette ligne et le test RESET sont les lignes de
+l'hypothèse~H1 sur le volume qui restent calculées dans ce régime, et toutes deux le disent
+(\code{ECHEC} à l'une et à l'autre dans la mesure ci-dessous)~; son type et son verdict sont conservés. Pour que le
 lecteur ne prenne pas ce verdict pour un effet de la saisie dégénérée que signale l'avertissement
 des pertes constantes (section~\ref{sec:controles}), le commentaire de la ligne reçoit, en seconde
 phrase, le texte fixe «~\code{Pertes y\_t constantes a la tolerance relative TOL\_DELTA\_BORD pres
@@ -8615,7 +8616,8 @@ nombre, jamais à volumes constants, où la ligne est non applicable. Mesuré (m
 segment~1 de l'annexe~II, données brutes, $B = 99$) sur les volumes du jeu de contrôle et
 $y_t = 80$~: $\hat\delta = 1$, $S = 168$ ($\hat\rho_s = -1$), p-value exacte retenue
 $2/8! = 4{,}96\cdot 10^{-5}$, \code{ECHEC}, phrase présente~; elle est absente sur le jeu de
-contrôle et à volumes constants.
+contrôle et à volumes constants. Sur ces mêmes données, le test RESET est \code{ECHEC}, de p-value
+Monte-Carlo retenue $0{,}01 = 1/(B+1)$, et les lignes de la régression sont non applicables.
 
 \medskip
 \begin{encadre}
@@ -10400,7 +10402,7 @@ résidu observé depuis l'issue~\#63 est $g_\delta = 1{,}4\cdot 10^{-15}$ au dé
 \textbf{Volumes quasi constants hors de la bande.} La sous-hessienne libre est jugée sur une
 hessienne obtenue par différences centrées du gradient analytique. Quand les volumes sont presque
 constants sans être dans la bande de \code{TOL\_DELTA\_BORD}, la courbure $H_{\delta\delta}$ est
-de l'ordre du carré de l'étendue relative des volumes (médianes de
+proportionnelle au carré de l'étendue relative des volumes (médianes de
 $|H_{\delta\delta}|/H_{\gamma\gamma}$ sous le générateur G1 ci-dessous, $s = 0{,}01$~:
 $4{,}1\cdot 10^{-10}$, $5{,}1\cdot 10^{-8}$ et $4{,}9\cdot 10^{-6}$ aux étendues nominales
 $\varepsilon = 10^{-4}$, $10^{-3}$ et $10^{-2}$, tableau~T3 du fichier cité plus bas), et le
@@ -10408,7 +10410,8 @@ démarrage retenu, de $\hat\delta$ intérieur, peut porter l'anomalie «~courbur
 positive~», avec \code{stat} \code{NA}, alors que le verdict reste \code{OK} grâce à un autre
 démarrage à l'optimum qui satisfait la condition. \textbf{Ce libellé est exact}~: la courbure
 négative est réelle et mesurée, et non noyée dans le bruit de la différence centrée. Sur
-1\,320 évaluations sur 1\,320 (40 jeux par étendue nominale, onze étendues, aux échelles
+1\,320 évaluations sur 1\,320 (population P1~: générateur G1 ci-dessous, $s = 0{,}01$, 40 jeux
+par étendue nominale, onze étendues, soit 440 jeux, chacun évalué aux trois échelles
 $10^{-3}$, $1$ et $10^{6}$ des données), $H_{\delta\delta}$ garde son signe et sa valeur à
 10~\% près pour $h$ de $10^{-2}$ à $10^{-6}$~; au pas $h = 10^{-4}$ du moteur, le bruit empirique
 (écart-type de $H_{\delta\delta}$ sur vingt points $\hat\delta \pm j\cdot 10^{-12}$) vaut au plus
@@ -10439,10 +10442,13 @@ pour ces générateurs. Le contrôle n'est pas modifié (décision du mainteneur
 issue~\#158, statu quo documenté)~: le critère initial de l'issue, aucun libellé pour une étendue
 $\varepsilon \in [2\cdot 10^{-6}\,;10^{-2}]$, est abandonné, le libellé décrivant exactement le
 démarrage retenu, sans effet sur $\sigma$, dans un régime de volumes égaux à quelques $10^{-5}$
-près. À un bord de $\delta$, où $\delta$ n'est pas libre, une courbure $H_{\delta\delta}$
+près. À un bord de $\delta$ où le gradient projeté en $\delta$ est nul ($\delta$ non libre), une courbure $H_{\delta\delta}$
 négative n'entre pas dans le critère, la sous-hessienne libre se réduisant à $H_{\gamma\gamma}$,
-et n'est pas signalée~: c'est le comportement voulu (sur les 1\,320 évaluations ci-dessus, faites au démarrage retenu,
-$H_{\delta\delta} < 0$ dans 249 cas, pour 3 jeux libellés seulement). Ce
+et n'est pas signalée~: c'est le comportement voulu (population P1 ci-dessus, au démarrage
+retenu~: $H_{\delta\delta} < 0$ pour 83 des 440 jeux, à chacune des trois échelles, soit
+249 évaluations sur 1\,320, dont un seul jeu libellé, de $\hat\delta$ intérieur~; par
+construction du critère, un démarrage retenu à $\delta$ libre, $\gamma$ intérieur et
+$H_{\delta\delta} < 0$ est toujours libellé). Ce
 résidu avait été constaté par \code{coder} à la validation de l'issue~\#71 pour une étendue
 relative de l'ordre de $10^{-5}$ (scripts non versionnés), avec une cause attribuée au bruit de
 la différence centrée que la mesure de l'issue~\#158 a contredite~; il ne concerne ni des
@@ -11709,7 +11715,9 @@ correction $\sqrt{(T+1)/(T-1)}$ sont maintenus à ceux de l'échantillon complet
 d'isoler l'effet de l'observation retirée et non de rejouer les règles de l'annexe~XVII sur $T-1$
 années. Chaque réajustement est en revanche soumis à la même règle d'existence de l'estimateur
 du maximum de vraisemblance que l'échantillon complet (\code{usp\_valider\_ajustement()},
-section~\ref{sec:controles}, issues~\#188 et~\#227)~: depuis l'issue~\#224, un réajustement
+section~\ref{sec:controles}, issues~\#188 et~\#227), jugée sur les démarrages à l'optimum du
+réajustement, issus d'une grille de cinq valeurs de $\delta$ et six de $\gamma$ (\code{n\_starts\_delta}~$= 5$, soit
+30 démarrages contre 54 pour l'échantillon complet)~: depuis l'issue~\#224, un réajustement
 refusé est traité comme un réajustement en échec (rubrique~3). \textbf{Diagnostic, non test.}
 \Hzero
 Sans objet.
@@ -11785,10 +11793,12 @@ $\Delta_{\max}$ vaut $0{,}0206$ au lieu de $0{,}3393$ avant l'issue~\#224, valeu
 ce seul réajustement, en désignant l'année~5~; $\sigma_{\mathrm{USP}} = 0{,}06205954$ et la ligne
 \code{INFO} sont inchangés. Les sept écarts restants y sont égaux à moins de $2\cdot 10^{-10}$
 près~: l'année désignée parmi eux (l'année~6 dans cette mesure) dépend du bruit d'optimiseur et
-n'est pas stable d'une session de calcul à l'autre (limite connue, issue~\#327).
+peut changer d'une plateforme à l'autre (bibliothèques d'algèbre linéaire, version de~R), le
+résultat restant reproductible sur une même machine (limite connue, issue~\#327).
 Si aucun réajustement n'est évaluable, la ligne est absente de la table (limite connue,
 issue~\#329)~; le graphique et la note d'influence de l'application ne traitent pas encore ce
-cas d'un jackknife entièrement \code{NA} (limite connue, issue~\#328).
+cas d'un jackknife entièrement \code{NA}, ni ne signalent les années non évaluables quand il ne
+l'est que partiellement (limite connue, issue~\#328).
 \Loi
 Aucune loi de référence n'est utilisée pour $\Delta_{\max}$.
 \Pval
