@@ -111,3 +111,11 @@
 - **Décisions non résolues** : requalification d'ESD (change des verdicts → mainteneur) ; restitution de l'intervalle basic à côté du percentile (mainteneur, dossier) ; #224 et #227 (mainteneur sur mon avis).
 - **Critères déclenchés** : deux lectures d'une source (seuil de Cook ; problème de documentation disponible) ; changement de résultat si les propositions 2 et 3 sont retenues ; validité à T = 8 qu'aucune source ni mesure ne tranche (couverture de l'IC de percentile au bord) ; hors bloc : vocabulaire « p non simulée » pour la borne de Grubbs et taux d'alerte familial 26 % → bloc 1 ; usage MW de `plot_boot_sigma()` / `plot_calibration()` → bloc 6.
 - **Prochaine action recommandée** : consolidation par la session principale ; soumettre au mainteneur les issues 1–5 et le choix sur ESD ; faire trancher l'attribution du seuil de Cook sur la source primaire avant toute correction du `.tex`.
+## Errata du 17/10/2026 (#313)
+
+*Ajouté par la session principale (IA), sur décision d'`actuary` ; le texte ci-dessus n'est pas réécrit.* La mesure versionnée de #313 (`docs/tableaux/20261017-issue313-stabilite-J1.md`, commit `43e162e`) rectifie deux ordres de grandeur de ce bloc :
+
+- **Grubbs sous contamination (§ 1, tableau ligne Grubbs, § 4.3, issue proposée 1)** : « 3/4/5 σ : 0,38/0,64/0,84 » et « une année à 4 σ → Grubbs 0,64 » viennent du générateur `v[sample(T,1)] <- v[sample(T,1)] + L` de `mesures/bloc-4/sim.R`, dont les deux tirages sont indépendants (l'année i reçoit v_j + λ avec une probabilité 7/8) : ce n'est pas le scénario annoncé d'une année contaminée. Valeurs pour une année contaminée e_i + λ : **0,362 / 0,613 / 0,828** (tableau versionné ; rejeu hors dépôt 0,358 / 0,614 / 0,822, commentaire de #313).
+- **Dérive de 0,25 σ par an (tableau, lignes sup-F et OLS-CUSUM)** : « 0,33 » et « 0,34 » ; tableau versionné 0,349 et 0,351 ; trois rejeux hors dépôt de 50 000 séries donnent 0,341 à 0,344 (sup-F) et 0,345 à 0,350 (CUSUM) : écart compatible avec l'erreur de simulation des deux mesures, même scénario.
+
+Les fiches F citent le tableau versionné de #313, et non ces chiffres.
