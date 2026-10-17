@@ -340,9 +340,22 @@ nombre de tirages retenus et la cause de l'arrêt, ou marginales, avec le motif
 (\code{texte\_p\_mc\_regime()} de \code{R/display\_helpers.R}, lecture seule de
 \code{res\$bootstrap\$p\_mc\_regime}, sans calcul~; fiche~\ref{fiche:procedure-mc})~; quand la
 p-value conditionnelle au régime s'arrête à $B_{\max} = 25\,(B+1)$ tirages sans avoir atteint $B$ tirages
-retenus, cette ligne porte en outre la mention «~granularité effective par statistique~: champ
-\code{granularite\_stat}, plus grossière que la granularité nominale~» (issue~\#254)~; la même
-ligne figure dans le résumé et dans le journal d'exécution de l'application. Les tests restitués sont les \emph{tests retenus}
+retenus, cette ligne porte en outre la mention «~granularité effective par statistique~:
+colonne «~granularité MC~» du détail des tests, plus grossière que la granularité nominale~»
+(issue~\#254~; renvoi à la colonne, au lieu du champ \code{granularite\_stat}, depuis
+l'issue~\#285)~; la même ligne figure dans le résumé et dans le journal d'exécution de
+l'application. Depuis l'issue~\#285, la vue Détail de l'onglet Tests et les tableaux «~Détail~»
+de la section~5 du rapport figé («~Tests retenus~») portent une colonne «~granularité MC~»~: la
+granularité effective de la p-value de Monte-Carlo de la ligne, $1/(B_{\text{eff}}+1)$, ou
+$2/(B_{\text{eff}}+1)$ en bilatéral, lue sans calcul dans \code{bootstrap\$granularite\_stat}
+par \code{granularite\_lignes()} de \code{R/display\_helpers.R}, qui retrouve la statistique de
+la ligne par l'égalité exacte de sa p-value et de son erreur de Monte-Carlo. La colonne porte
+un tiret quand la ligne n'a pas de p-value de Monte-Carlo, quand celle-ci est calculée hors du
+bootstrap principal (rapport de vraisemblance sur $\delta$, permutations du test de Pitman~:
+\code{FONCTIONS\_P\_MC\_EXTERNE}) ou quand l'appariement est ambigu. Mesuré sur les cas de
+référence \code{premium} et \code{premium\_interieur}~: granularité lue, $0{,}001$ ou
+$0{,}002$ à $B = 999$, pour toute ligne à p-value de Monte-Carlo finie, sauf celles du rapport de
+vraisemblance sur $\delta$, à tiret. Les tests restitués sont les \emph{tests retenus}
 selon la règle de l'onglet Tests, appliquée par la même fonction
 (\code{filtrer\_selection()}), les tests exclus figurant en annexe avec leur
 verdict, leur p-value retenue et le motif de leur exclusion~; le tableau de
