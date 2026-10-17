@@ -65,7 +65,7 @@ Au démarrage, l'application charge les fichiers d'échange s'ils existent
     usp_donnees_LN.csv        colonnes t, xt, yt          (méthodes lognormales)
     usp_donnees_MW.csv        colonnes i, j0, j1, ...     (triangle Merz-Wüthrich)
 
-La profondeur T est déduite du fichier des séries (méthodes lognormales) ; le triangle garde la dimension de son propre fichier, et seule « Réinitialiser les données » la change (triangle par défaut de T années, T étant plafonné à 40, #194).
+La profondeur T est déduite du fichier des séries (méthodes lognormales) ; le triangle garde la dimension de son propre fichier, et seule « Réinitialiser les données » la change (triangle par défaut de T années, T étant plafonné à 40, #194). La limite de 40 années de l'application vaut pour toutes les voies d'entrée : des séries de plus de 40 années ou un triangle de plus de 40 années d'accident sont refusés avec un motif, à l'import (données courantes conservées) comme au démarrage (fichier présent mais refusé, grille vide) (#212, #286). En méthode lognormale, « Réinitialiser les données » charge les 8 années des séries par défaut et ramène le champ T à 8 (#212).
 
 ## Usage sans Shiny (revue indépendante)
 
