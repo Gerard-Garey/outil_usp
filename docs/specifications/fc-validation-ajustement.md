@@ -219,6 +219,8 @@ Sur le jeu de l'issue, une fois l'année 5 écartée, les sept écarts sont éga
   - **(a)** : statu quo, acceptable. L'avertissement de #189 signale déjà le régime, mais il cite cinq lignes non applicables et « verifier la saisie », et le lecteur peut prendre cet ECHEC pour un effet de dégénérescence.
 - Effet : hors références. C-Fc-1 respectée (texte seulement).
 
+*Note de correction du 17/10/2026 (validation d'`actuary-approfondi` du passage de `docwriter` ; consignée par `architect`, sans réécriture du texte ci-dessus).* La phrase « C'est la seule ligne de H1 sur le volume qui le dise dans ce régime » (§ 4.2) est inexacte. Le test RESET (famille B, H1, qui régresse aussi sur le volume) reste calculé à pertes constantes et rejette lui aussi : sur les volumes de J1, avec y_t = 80, prime II-1 et B = 99, RESET est ECHEC (p Monte-Carlo 0,01) et Spearman ratio / volume ECHEC (p exacte 4,96e-5) ; mesure d'`actuary-approfondi` du 17/10/2026, que l'auteur de cette note n'a pas refaite. Ce qui suit de la phrase ne change pas : rejet qui n'est pas un artefact, type test et verdict conservés, option (b) décidée (Q-D1-Fc-5). La lecture corrigée (« cette ligne et le test RESET ») est portée par `fiche:spearman` (`10c226a`).
+
 ## 5. #158 : protocole de mesure borné et options pour D2-Fc
 
 ### 5.1 Ce que dit le pilote ; correction du diagnostic
