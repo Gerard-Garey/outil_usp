@@ -64,7 +64,8 @@
 #    sous eps' ~ N(0, Sigma_rho), d_bas et d_haut quantiles alpha/2 et
 #    1 - alpha/2 de la loi nulle de dw_p_exacte(), chaque probabilite par
 #    .imhof_p_sup0() sur les valeurs propres de
-#    Sigma^(1/2) M (A - d I) M Sigma^(1/2) (M : centrage, A : matrice de DW).
+#    Sigma^(1/2) M (A - d I) M Sigma^(1/2) (M : centrage, A : matrice de DW),
+#    calculee par dw_puissance_ar1() (R/engine.R, #170).
 #
 #  VOLET B (controle, jeux J1 et J2, 5 points N, A(0,5), A(0,9), T(2),
 #  R(t0 = 4, Delta = 2), R = --R-chaine, B = --B, alpha = 0,10) : p retenue
@@ -164,9 +165,9 @@
 #       la fin de l'execution.
 #  Rapportes, non bloquants (decision du mainteneur) : compatibilite avec
 #  C1.a (ecart normalise z, |z| <= 1,96) ; puissance de DW par Imhof dans
-#  l'IC du volet A, ses controles (rho = 0 : alpha ; recoupement par
-#  dw_p_exacte() aux points critiques) et ses echecs numeriques (uniroot()
-#  ou integration) ; ventilation par regime. Aucun n'entre dans le code de
+#  l'IC du volet A, ses controles (rho = 0 : alpha) et ses echecs numeriques
+#  (uniroot() ou integration, dans dw_puissance_ar1()) ; ventilation par
+#  regime. Aucun n'entre dans le code de
 #  sortie.
 #  Incertitude publiee : IC de Clopper-Pearson a 95 % (stats::binom.test()),
 #  incertitude Monte-Carlo fonction de R ; elle ne dit rien de l'erreur
@@ -243,9 +244,9 @@
 #    - de tests/calibration_mc_t8.R : plateforme_calcul() (copie, #171),
 #      empreintes_code() (copie adaptee : aucun fichier lu en plus) ;
 #    - de tests/outils_tests.R (definition unique, #205) : commit_depot()
-#      et motifs_non_versionnable() ;
-#    - de R/engine.R, dw_p_exacte() : construction des matrices A (differences
-#      de DW) et M (centrage) dans dw_puissance_imhof() (copie).
+#      et motifs_non_versionnable().
+#  La puissance de DW par Imhof n'est plus une copie : dw_puissance_ar1()
+#  (R/engine.R, #170) partage la construction A/M de dw_p_exacte().
 #  Duree mesuree (conteneur Linux, R 4.3.3, 30/09/2026, petits R ; les
 #  executions completes consignent la leur dans T0 et dans le bilan) :
 #  volet A 1,4 a 1,6 ms par serie et par point (15 points x 20 000 : de
@@ -1027,59 +1028,21 @@ if (OPT_VOLET %in% c("tout", "A")) {
   }
 
   # Puissance de DW sous AR(1) par Imhof (statut 3 ; non bloquant, decision
-  # du mainteneur : rapportee, hors code de sortie). A et M : copie de la
-  # construction de dw_p_exacte() (R/engine.R). Un echec numerique
-  # (uniroot(), integration) est rapporte, sans erreur R.
-  DW_A <- local({
-    A <- diag(c(1, rep(2, T_ - 2), 1))
-    for (i in 1:(T_ - 1)) { A[i, i + 1] <- -1; A[i + 1, i] <- -1 }
-    A
-  })
-  DW_M <- diag(T_) - matrix(1 / T_, T_, T_)
-  DW_EIG <- eigen(DW_M %*% DW_A %*% DW_M, symmetric = TRUE)
-  DW_LAM <- DW_EIG$values[1:(T_ - 1)]         # decroissantes ; valeur nulle ecartee
-  # Points critiques de la loi nulle : P0(DW <= d_bas) = P0(DW >= d_haut) = a/2.
-  dw_points_critiques <- function(a) {
-    p0_sup <- function(d) .imhof_p_sup0(DW_LAM - d)
-    lo <- min(DW_LAM) + 1e-9; hi <- max(DW_LAM) - 1e-9
-    c(bas  = stats::uniroot(function(d) (1 - p0_sup(d)) - a / 2, c(lo, hi), tol = 1e-12)$root,
-      haut = stats::uniroot(function(d) p0_sup(d) - a / 2, c(lo, hi), tol = 1e-12)$root)
-  }
-  # Vecteur construit de statistique DW = d : combinaison des vecteurs propres
-  # extremes de M A M (DW = lambda_min cos^2 + lambda_max sin^2).
-  vecteur_dw <- function(d) {
-    lmin <- DW_LAM[T_ - 1]; lmax <- DW_LAM[1]
-    s2 <- (d - lmin) / (lmax - lmin)
-    sqrt(1 - s2) * DW_EIG$vectors[, T_ - 1] + sqrt(s2) * DW_EIG$vectors[, 1]
-  }
-  dw_puissance_imhof <- function(rho, dc) {
-    n <- T_
-    S <- outer(seq_len(n), seq_len(n), function(i, j) rho^abs(i - j))
-    es <- eigen(S, symmetric = TRUE)
-    S12 <- es$vectors %*% diag(sqrt(es$values)) %*% t(es$vectors)
-    p_sup <- function(d) {
-      h <- eigen(S12 %*% DW_M %*% (DW_A - d * diag(n)) %*% DW_M %*% S12, symmetric = TRUE, only.values = TRUE)$values
-      .imhof_p_sup0(h[abs(h) > 1e-12])
-    }
-    (1 - p_sup(dc[["bas"]])) + p_sup(dc[["haut"]])
-  }
+  # du mainteneur : rapportee, hors code de sortie), calculee par
+  # dw_puissance_ar1() (R/engine.R, #170), qui partage la construction A/M de
+  # dw_p_exacte(). Un echec numerique (uniroot(), integration) est rapporte,
+  # sans erreur R. Le recoupement par dw_p_exacte() aux points critiques, qui
+  # reposait sur les vecteurs propres de la copie, est retire : les tests
+  # unitaires de dw_puissance_ar1() (tests/unitaires/test_lois_exactes.R,
+  # bloquants) controlent rho = 0 -> alpha, les valeurs publiees et un
+  # recoupement par simulation.
   pts_ar <- c("N", grep("^A", names(POINTS_A), value = TRUE))
   rho_de <- function(pt) if (pt == "N") 0 else as.numeric(sub("^A", "", pt))
   IMHOF_ERREUR <- NULL
-  DC <- tryCatch(dw_points_critiques(ALPHA), error = function(e) { IMHOF_ERREUR <<- conditionMessage(e); NULL })
-  imhof <- stats::setNames(rep(NA_real_, length(pts_ar)), pts_ar)
-  if (!is.null(DC)) {
-    imhof <- vapply(pts_ar, function(pt) tryCatch(dw_puissance_imhof(rho_de(pt), DC),
-                                                  error = function(e) NA_real_), numeric(1))
-    # Recoupement : dw_p_exacte() aux points critiques rend alpha.
-    p_rec <- c(dw_p_exacte(vecteur_dw(DC[["bas"]])), dw_p_exacte(vecteur_dw(DC[["haut"]])))
-    controle(all(is.finite(p_rec)) && all(abs(p_rec - ALPHA) < 1e-6),
-             sprintf(paste("Volet A, Imhof : recoupement par dw_p_exacte() sur des vecteurs construits de statistique",
-                           "d_bas = %.6f et d_haut = %.6f : p = %s et %s (attendu \u03b1)"),
-                     DC[["bas"]], DC[["haut"]], num(p_rec[1], 8), num(p_rec[2], 8)), bloquant = FALSE)
-  }
-  controle(is.null(IMHOF_ERREUR), sprintf("Volet A, Imhof : points critiques par uniroot()%s",
-                                          if (is.null(IMHOF_ERREUR)) "" else paste0(" en \u00e9chec (", IMHOF_ERREUR, ")")),
+  imhof <- vapply(pts_ar, function(pt) tryCatch(dw_puissance_ar1(T_, rho_de(pt), ALPHA), error = function(e) {
+    IMHOF_ERREUR <<- unique(c(IMHOF_ERREUR, conditionMessage(e))); NA_real_ }), numeric(1))
+  controle(is.null(IMHOF_ERREUR), sprintf("Volet A, Imhof : dw_puissance_ar1() sans erreur%s",
+                                          if (is.null(IMHOF_ERREUR)) "" else paste0(" (\u00e9chec : ", paste(IMHOF_ERREUR, collapse = " ; "), ")")),
            bloquant = FALSE)
   controle(all(is.finite(imhof)), sprintf("Volet A, Imhof : puissances calcul\u00e9es (%d / %d finies)",
                                           sum(is.finite(imhof)), length(imhof)), bloquant = FALSE)

@@ -502,6 +502,69 @@ verifier(".imhof_p_sup0 renvoie P(Q > 0) comme annonce (#33)",
                        stats::pf(0.5, 1, 1, lower.tail = FALSE), abs = 1e-7)) &&
          .imhof_p_sup0(c(1, 1, 1)) > 0.999999 && .imhof_p_sup0(-c(1, 1, 1)) < 1e-6)
 
+## --- Durbin-Watson : puissance contre un AR(1), dw_puissance_ar1() (#170) ---
+# Sous H0 (rho = 0), la puissance est le niveau alpha (points critiques de la
+# loi nulle de dw_p_exacte()).
+for (a in c(0.10, 0.05)) for (n in c(8L, 12L))
+  verifier(sprintf("DW, puissance AR(1) : rho = 0 rend alpha = %.2f (T = %d)", a, n),
+           proche(dw_puissance_ar1(n, 0, a), a, abs = 1e-8))
+# Valeurs citees dans la fiche DW et le tableau tab:tracabilite-puissance
+# (issue #116, T = 8, alpha = 0,10, test bilateral). Controle principal a
+# 6 decimales avec tolerance 1e-6 (valeurs de dw_puissance_ar1() au
+# 17/10/2026 : 0,277839764534 ; 0,159269148617 ; 0,262350178434 ;
+# 0,398028471085 ; 0,532599444205).
+rho_pub <- c(-0.5, 0.3, 0.5, 0.7, 0.9)
+puis_pub <- vapply(rho_pub, function(r) dw_puissance_ar1(8L, r, 0.10), numeric(1))
+verifier("DW, puissance AR(1) : T = 8, alpha = 0,10, rho = -0,5 ; 0,3 ; 0,5 ; 0,7 ; 0,9 a 1e-6 pres",
+         proche(puis_pub, c(0.277840, 0.159269, 0.262350, 0.398028, 0.532599), abs = 1e-6))
+# Arrondi publie a 4 decimales. A rho = 0,5, la valeur (0,262350178) n'est
+# qu'a 1,8e-7 du point milieu d'arrondi 0,26235 : un ecart de quadrature de
+# cet ordre ferait basculer l'arrondi publie vers 0,2623 (le controle a
+# 1e-6 ci-dessus resterait vert) ; ce controle est donc fragile a rho = 0,5.
+pub <- c(0.2778, 0.1593, 0.2624, 0.3980, 0.5326)
+verifier("DW, puissance AR(1) : arrondis publies 0,2778 ; 0,1593 ; 0,2624 ; 0,3980 ; 0,5326 retrouves",
+         all(round(puis_pub, 4) == pub))
+# Recoupement par simulation, independant de la construction A/M et
+# d'Imhof : points critiques = quantiles empiriques alpha/2 et 1 - alpha/2
+# de DW sur 1e5 series N(0, I), puissance = taux de rejet sur 1e5 AR(1)
+# stationnaires (v_1 = e_1, v_t = rho v_(t-1) + sqrt(1 - rho^2) e_t) ;
+# erreur-type de l'estimation de l'ordre de 0,002 ; tolerance 0,01.
+dw_lignes <- function(Z) {
+  Zc <- Z - rowMeans(Z)
+  rowSums((Zc[, -1] - Zc[, -ncol(Z)])^2) / rowSums(Zc^2)
+}
+set.seed(170)
+E0 <- matrix(stats::rnorm(1e5 * 8), ncol = 8)
+E1 <- matrix(stats::rnorm(1e5 * 8), ncol = 8)
+q0 <- stats::quantile(dw_lignes(E0), c(0.05, 0.95), names = FALSE)
+for (r in c(-0.5, 0.5, 0.9)) {
+  V <- E1
+  for (t in 2:8) V[, t] <- r * V[, t - 1] + sqrt(1 - r^2) * E1[, t]
+  d1 <- dw_lignes(V)
+  verifier(sprintf("DW, puissance AR(1) = simulation a 0,01 pres (T = 8, alpha = 0,10, rho = %.1f)", r),
+           proche(dw_puissance_ar1(8L, r, 0.10), mean(d1 <= q0[1] | d1 >= q0[2]), abs = 0.01))
+}
+# Echec de l'integration d'Imhof au calcul final (et non dans uniroot()) :
+# erreur explicite, jamais NA. Copie de dw_puissance_ar1() dont
+# .imhof_p_sup0() rend NA au dernier appel seulement (nombre d'appels
+# compte sur un calcul normal).
+local({
+  k <- 0L
+  env <- new.env(parent = environment(dw_puissance_ar1))
+  env$.imhof_p_sup0 <- function(h) { k <<- k + 1L; .imhof_p_sup0(h) }
+  f <- dw_puissance_ar1; environment(f) <- env
+  f(8L, 0.5, 0.10); k_tot <- k; k <- 0L
+  env$.imhof_p_sup0 <- function(h) { k <<- k + 1L; if (k == k_tot) NA_real_ else .imhof_p_sup0(h) }
+  r <- try(f(8L, 0.5, 0.10), silent = TRUE)
+  verifier("DW, puissance AR(1) : NA d'Imhof au calcul final -> erreur explicite (pas de NA silencieux)",
+           inherits(r, "try-error") && grepl("integration d'Imhof en echec", r, fixed = TRUE))
+})
+verifier("DW, puissance AR(1) : arguments hors domaine refuses (T < 4, |rho| >= 1, alpha hors ]0, 1[)",
+         inherits(try(dw_puissance_ar1(3L, 0.5, 0.1), silent = TRUE), "try-error") &&
+         inherits(try(dw_puissance_ar1(8L, 1, 0.1), silent = TRUE), "try-error") &&
+         inherits(try(dw_puissance_ar1(8L, 0.5, 0), silent = TRUE), "try-error") &&
+         inherits(try(dw_puissance_ar1(8.5, 0.5, 0.1), silent = TRUE), "try-error"))
+
 ## --- Moments de Z = min(L, n - L), test calendaire de Mack --------------------
 for (n in 2:15) {
   l <- 0:n; pz <- stats::dbinom(l, n, 0.5); zz <- pmin(l, n - l)
