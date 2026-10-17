@@ -2524,6 +2524,24 @@ verifier("Noms de ligne (#321) : nom \"bytes\" en ligne 3 et doublon ASCII \"202
          .refus_noms(replace(annees, c(3, 7), c(.octets(c(0x32, 0x30, 0xe9), "bytes"), "2022")),
                      c(.motif_bytes(3),
                        "Annee d'accident en double : \"2022\" (lignes 6 et 7, i=5 et i=6).")))
+# Motifs par ligne interclasses dans l'ordre des lignes (nom manquant et
+# "bytes"), doublons ensuite : avant cette reprise, le motif "bytes" de la
+# ligne 4 precedait le motif de nom manquant de la ligne 2.
+verifier("Noms de ligne (#321) : NA en ligne 2, \"bytes\" en ligne 4, vide en ligne 6 : motifs dans l'ordre des lignes",
+         .refus_noms(c(annees[1], NA, annees[3], .octets(c(0x32, 0x30, 0xe9), "bytes"),
+                       annees[5], "", annees[7:8]),
+                     c("Nom d'annee d'accident manquant ou vide en ligne 2 (i=1).",
+                       .motif_bytes(4),
+                       "Nom d'annee d'accident manquant ou vide en ligne 6 (i=5).")))
+# Un nom "bytes" retire de la lecture des autres noms : laisse dans le
+# vecteur sans recodage, il ferait lire trimws() octet par octet pour tous
+# les noms ("2022" suivi d'une espace insecable UTF-8 lu "2022\xc2", doublon
+# manque ; mesure de la reprise).
+verifier("Noms de ligne (#321) : nom \"bytes\" en ligne 3, \"2022\" suivi d'une espace insecable UTF-8 en ligne 7 : doublon de \"2022\" detecte",
+         .refus_noms(replace(annees, c(3, 7), c(.octets(c(0x32, 0x30, 0xe9), "bytes"),
+                                                paste0("2022", .u(0xA0)))),
+                     c(.motif_bytes(3),
+                       "Annee d'accident en double : \"2022\", \"2022\\u00a0\" (lignes 6 et 7, i=5 et i=6).")))
 # Issue #321 : un nom non ASCII UNIQUE d'encodage "bytes" passait
 # mw_valider_triangle() ; run_engine() rendait ensuite ok = FALSE avec
 # l'erreur R interceptee "translating strings with "bytes" encoding is not
