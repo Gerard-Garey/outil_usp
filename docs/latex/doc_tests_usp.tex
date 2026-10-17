@@ -10385,14 +10385,55 @@ résidu observé depuis l'issue~\#63 est $g_\delta = 1{,}4\cdot 10^{-15}$ au dé
 (rubrique~3).
 
 \textbf{Volumes quasi constants hors de la bande.} La sous-hessienne libre est jugée sur une
-hessienne obtenue par différences centrées~: quand les volumes sont presque constants sans être
-dans la bande de \code{TOL\_DELTA\_BORD}, la vraie courbure $H_{\delta\delta}$, proportionnelle au
-carré de l'étendue relative des volumes, peut tomber sous le bruit de cette différence centrée, et
-le démarrage retenu peut alors porter l'anomalie «~courbure non strictement positive~», avec
-\code{stat} \code{NA}, alors que le verdict reste \code{OK} grâce à un autre démarrage à
-l'optimum. Ce résidu, constaté par \code{coder} à la validation de l'issue~\#71 pour une étendue
-relative de l'ordre de $10^{-5}$ (scripts non versionnés), est accepté par \code{actuary} et suivi
-par l'issue~\#158~; il ne concerne ni des volumes réels ni les cas de référence, et ne l'a pas été
+hessienne obtenue par différences centrées du gradient analytique. Quand les volumes sont presque
+constants sans être dans la bande de \code{TOL\_DELTA\_BORD}, la courbure $H_{\delta\delta}$ est
+de l'ordre du carré de l'étendue relative des volumes (médianes de
+$|H_{\delta\delta}|/H_{\gamma\gamma}$ sous le générateur G1 ci-dessous, $s = 0{,}01$~:
+$4{,}1\cdot 10^{-10}$, $5{,}1\cdot 10^{-8}$ et $4{,}9\cdot 10^{-6}$ aux étendues nominales
+$\varepsilon = 10^{-4}$, $10^{-3}$ et $10^{-2}$, tableau~T3 du fichier cité plus bas), et le
+démarrage retenu, de $\hat\delta$ intérieur, peut porter l'anomalie «~courbure non strictement
+positive~», avec \code{stat} \code{NA}, alors que le verdict reste \code{OK} grâce à un autre
+démarrage à l'optimum qui satisfait la condition. \textbf{Ce libellé est exact}~: la courbure
+négative est réelle et mesurée, et non noyée dans le bruit de la différence centrée. Sur
+1\,320 évaluations sur 1\,320 (40 jeux par étendue nominale, onze étendues, aux échelles
+$10^{-3}$, $1$ et $10^{6}$ des données), $H_{\delta\delta}$ garde son signe et sa valeur à
+10~\% près pour $h$ de $10^{-2}$ à $10^{-6}$~; au pas $h = 10^{-4}$ du moteur, le bruit empirique
+(écart-type de $H_{\delta\delta}$ sur vingt points $\hat\delta \pm j\cdot 10^{-12}$) vaut au plus
+$3{,}5\cdot 10^{-5}\,|H_{\delta\delta}|$, et $4{,}2\cdot 10^{-3}\,|H_{\delta\delta}|$ à
+$h = 10^{-6}$. Le démarrage retenu est donc intérieur, sur une partie de l'objectif concave en
+$\delta$, et n'est pas un minimum en $\delta$. L'objectif profilé y est presque plat en $\delta$,
+et L-BFGS-B s'y arrête, les écarts d'objectif restant sous sa tolérance d'arrêt
+(\code{factr})~: ce mécanisme est une \emph{hypothèse} cohérente avec les mesures, non établie.
+Le libellé est \textbf{sans effet mesurable sur $\sigma$}~: sur les jeux libellés, l'écart
+relatif de $\sigma$ entre le démarrage retenu et le premier démarrage à l'optimum qui satisfait la
+condition est au plus $4{,}3\cdot 10^{-8}$, et l'effet de $\delta$ sur $\ln\sigma$ aux bornes de
+$[0\,;1]$, à $\hat\gamma$ fixé,
+$\max_{b \in \{0,1\}} |\ln\sigma(b,\hat\gamma) - \ln\sigma(\hat\delta,\hat\gamma)|$, au plus
+$1{,}2\cdot 10^{-6}$. Fréquence du libellé (\emph{constat de simulation},
+\code{docs/tableaux/}\allowbreak\code{20261017-issue158-courbure-delta.md}, script
+\code{tests/mesure\_courbure\_delta\_158.R}, hors CI, R~4.3.3, BLAS et LAPACK de référence)~:
+générateurs G1, $x_t = 100\,(1 + \varepsilon\,U_t)$, $U_t$ uniforme sur $[-1\,;1]$, et pertes du
+jeu de contrôle multipliées par $\exp(\mathcal{N}(0, s^2))$, $s \in \{0\,;0{,}01\}$, G2 et G3,
+volumes du jeu de contrôle (J1) ou du jeu à $\hat\delta$ intérieur (J2) comprimés à l'étendue
+relative $\varepsilon$, ratios conservés~; onze étendues nominales de $1{,}5\cdot 10^{-6}$ à
+$10^{-2}$, 100 jeux par cellule. Sur 4\,400 jeux, 14 portent le libellé, tous de verdict
+\code{OK}, à des étendues relatives de $1{,}5\cdot 10^{-6}$ à $5{,}4\cdot 10^{-5}$~; aucun sur les
+1\,200 jeux d'étendue nominale au moins égale à $10^{-4}$ (intervalle de Clopper--Pearson à
+95~\% $[0\,;0{,}0031]$), ni sur les 1\,238 jeux simulés de
+\code{tests/unitaires/test\_controles\_numeriques.R}. Le nombre de jeux fixe l'incertitude de
+simulation des fréquences, non une erreur d'approximation en $T$, et ces fréquences ne valent que
+pour ces générateurs. Le contrôle n'est pas modifié (décision du mainteneur du 17~octobre 2026,
+issue~\#158, statu quo documenté)~: le critère initial de l'issue, aucun libellé pour une étendue
+$\varepsilon \in [2\cdot 10^{-6}\,;10^{-2}]$, est abandonné, le libellé décrivant exactement le
+démarrage retenu, sans effet sur $\sigma$, dans un régime de volumes égaux à quelques $10^{-5}$
+près. À un bord de $\delta$, où $\delta$ n'est pas libre, une courbure $H_{\delta\delta}$
+négative n'entre pas dans le critère, la sous-hessienne libre se réduisant à $H_{\gamma\gamma}$,
+et n'est pas signalée~: c'est le comportement voulu (sur les 1\,320 évaluations ci-dessus, faites au démarrage retenu,
+$H_{\delta\delta} < 0$ dans 249 cas, pour 3 jeux libellés seulement). Ce
+résidu avait été constaté par \code{coder} à la validation de l'issue~\#71 pour une étendue
+relative de l'ordre de $10^{-5}$ (scripts non versionnés), avec une cause attribuée au bruit de
+la différence centrée que la mesure de l'issue~\#158 a contredite~; il ne concerne ni des
+volumes réels ni les cas de référence, et ne l'a pas été
 sur les volumes $100\,(1 + e\,\mathrm{scale}(1{:}8))$ associés aux pertes du jeu de contrôle,
 d'étendue relative $2{,}9\cdot 10^{-6}$ à $8{,}6\cdot 10^{-5}$ (mesure~: contrôle \code{OK},
 sans anomalie).
