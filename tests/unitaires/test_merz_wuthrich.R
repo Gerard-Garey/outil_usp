@@ -2503,16 +2503,48 @@ verifier("Noms de ligne (#268) : nom a octet A0 non UTF-8 (Latin-1 non declare),
          .refus_noms(replace(annees, 7, .octets(c(0x32, 0x30, 0x32, 0x32, 0xa0), "unknown")),
                      "Annee d'accident en double : \"2022\", \"2022\\u00a0\" (lignes 6 et 7, i=5 et i=6)."))
 # Encodage "bytes" : avant la reprise, citer() levait une erreur R
-# (utf8ToInt() -> NA) que run_engine() propageait sans ok = FALSE.
-verifier("Noms de ligne (#268) : encodage \"bytes\", octets UTF-8 (C2 A0) : doublon refuse sans erreur R",
+# (utf8ToInt() -> NA) que run_engine() propageait sans ok = FALSE. Depuis
+# #321 (decision d'actuary), un nom d'encodage "bytes" ne recoit que son
+# propre motif : il est exclu des controles de nom manquant et de doublon,
+# ses caracteres n'etant pas determines.
+.motif_bytes <- function(k) sprintf(paste(
+  "Nom d'annee d'accident en ligne %d (i=%d) declare d'encodage \"bytes\" :",
+  "ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en",
+  "Latin-1 declare."), k, k - 1L)
+verifier("Noms de ligne (#268, #321) : encodage \"bytes\", octets UTF-8 (C2 A0) : seul le motif \"bytes\", pas de doublon, sans erreur R",
          .refus_noms(replace(annees, 7, .octets(c(0x32, 0x30, 0x32, 0x32, 0xc2, 0xa0), "bytes")),
-                     "Annee d'accident en double : \"2022\", \"2022\\u00a0\" (lignes 6 et 7, i=5 et i=6)."))
-verifier("Noms de ligne (#268) : encodage \"bytes\", octets Latin-1 (A0) : doublon refuse sans erreur R",
+                     .motif_bytes(7)))
+verifier("Noms de ligne (#268, #321) : encodage \"bytes\", octets Latin-1 (A0) : seul le motif \"bytes\", pas de doublon, sans erreur R",
          .refus_noms(replace(annees, 7, .octets(c(0x32, 0x30, 0x32, 0x32, 0xa0), "bytes")),
-                     "Annee d'accident en double : \"2022\", \"2022\\u00a0\" (lignes 6 et 7, i=5 et i=6)."))
-verifier("Noms de ligne (#268) : encodage \"bytes\", nom fait d'une seule espace insecable refuse comme vide",
+                     .motif_bytes(7)))
+verifier("Noms de ligne (#268, #321) : encodage \"bytes\", nom fait d'une seule espace insecable : seul le motif \"bytes\", pas de nom vide",
          .refus_noms(replace(annees, 3, .octets(c(0xc2, 0xa0), "bytes")),
-                     "Nom d'annee d'accident manquant ou vide en ligne 3 (i=2)."))
+                     .motif_bytes(3)))
+verifier("Noms de ligne (#321) : nom \"bytes\" en ligne 3 et doublon ASCII \"2022\" en lignes 6 et 7 : deux motifs, positions d'origine",
+         .refus_noms(replace(annees, c(3, 7), c(.octets(c(0x32, 0x30, 0xe9), "bytes"), "2022")),
+                     c(.motif_bytes(3),
+                       "Annee d'accident en double : \"2022\" (lignes 6 et 7, i=5 et i=6).")))
+# Issue #321 : un nom non ASCII UNIQUE d'encodage "bytes" passait
+# mw_valider_triangle() ; run_engine() rendait ensuite ok = FALSE avec
+# l'erreur R interceptee "translating strings with "bytes" encoding is not
+# allowed" (make.unique() dans .mw_noms_lignes_empilees()). Il est refuse par
+# un motif metier, sans erreur_r, octets Latin-1 (32 30 E9) comme UTF-8
+# (32 30 C3 A9) ; les memes octets en encodage "unknown" restent admis.
+verifier("Noms de ligne (#321) : nom unique \"bytes\" a octets Latin-1 (32 30 E9) refuse par motif metier, sans erreur_r",
+         .refus_noms(replace(annees, 4, .octets(c(0x32, 0x30, 0xe9), "bytes")),
+                     .motif_bytes(4)))
+verifier("Noms de ligne (#321) : nom unique \"bytes\" a octets UTF-8 (32 30 C3 A9) refuse par motif metier, sans erreur_r",
+         .refus_noms(replace(annees, 4, .octets(c(0x32, 0x30, 0xc3, 0xa9), "bytes")),
+                     .motif_bytes(4)))
+verifier("Noms de ligne (#321) : deux noms \"bytes\" (lignes 2 et 8), un motif par ligne, dans l'ordre des lignes",
+         .refus_noms(c(annees[1], .octets(c(0x32, 0x30, 0xe9), "bytes"), annees[3:7],
+                       .octets(c(0x32, 0x31, 0xc3, 0xa9), "bytes")),
+                     c(.motif_bytes(2), .motif_bytes(8))))
+verifier("Noms de ligne (#321) : memes octets en encodage \"unknown\" admis, ok = TRUE sans erreur_r",
+         all(vapply(list(c(0x32, 0x30, 0xe9), c(0x32, 0x30, 0xc3, 0xa9)), function(b) {
+           r <- .run_noms(replace(annees, 4, .octets(b, "unknown")))
+           isTRUE(r$ok) && is.null(r$validation$erreur_r)
+         }, logical(1))))
 # Nom declare UTF-8 dont les octets n'en sont pas (seconde reprise du
 # 16/10/2026) : avant elle, trimws() levait l'erreur R "input string 3 is
 # invalid UTF-8", propagee par run_engine() sans ok = FALSE. Relu en Latin-1

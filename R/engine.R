@@ -7338,6 +7338,22 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
   # qu'il ne masque pas.
   noms <- rownames(tri)
   if (!is.null(noms)) {
+    # Encodage "bytes" (issue #321) : un nom ainsi declare (R ne marque
+    # "bytes" que les chaines non ASCII) est refuse, un motif par ligne, sans
+    # citer le nom. Ses octets ne disent pas quels caracteres ils codent : le
+    # lire en UTF-8 ou en Latin-1 serait deviner, et le calcul aval, qui lit
+    # rownames(tri) tel quel, levait l'erreur R "translating strings with
+    # "bytes" encoding is not allowed" (make.unique() dans
+    # .mw_noms_lignes_empilees()). Ces noms sont exclus des controles de nom
+    # manquant et de doublon qui suivent : les y lire serait deviner, et leur
+    # seul motif est celui-ci. Les motifs des autres noms gardent les numeros
+    # de ligne et les i= du triangle d'origine.
+    octets <- !is.na(noms) & Encoding(noms) == "bytes"
+    for (k in which(octets))
+      err <- c(err, sprintf(paste(
+        "Nom d'annee d'accident en ligne %d (i=%d) declare d'encodage \"bytes\" :",
+        "ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en",
+        "Latin-1 declare."), k, k - 1L))
     # Noms ramenes en UTF-8 declare, quelle que soit la locale, avant toute
     # comparaison : une chaine non ASCII d'encodage "unknown" ou "bytes" est
     # declaree UTF-8 si ses octets en sont, Latin-1 sinon (convention de
@@ -7375,7 +7391,9 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
     # \x{200B} est refuse (erreur PCRE "code point value too large", mesuree).
     sans_blancs <- trimws(noms_u, whitespace = paste0(
       "[\\h\\v", intToUtf8(c(0x200B, 0x200C, 0x200D, 0x2060, 0xFEFF)), "]"))
-    manquant <- is.na(noms) | !nzchar(sans_blancs)
+    # Noms "bytes" exclus (issue #321), sans etre mis a NA : ils ne sont ni
+    # manquants ni comptes dans les doublons.
+    manquant <- !octets & (is.na(noms) | !nzchar(sans_blancs))
     for (k in which(manquant))
       err <- c(err, sprintf("Nom d'annee d'accident manquant ou vide en ligne %d (i=%d).",
                             k, k - 1L))
@@ -7406,11 +7424,12 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
       }, "")
       paste0("\"", paste(ch, collapse = ""), "\"")
     }, "", USE.NAMES = FALSE)
-    cle <- sans_blancs; cle[manquant] <- NA_character_
+    examine <- !manquant & !octets
+    cle <- sans_blancs; cle[!examine] <- NA_character_
     enum <- function(x) if (length(x) == 1L) x else
       paste(paste(x[-length(x)], collapse = ", "), "et", x[length(x)])
-    for (d in unique(cle[!manquant & duplicated(cle)])) {
-      k <- which(!manquant & cle == d)
+    for (d in unique(cle[examine & duplicated(cle)])) {
+      k <- which(examine & cle == d)
       err <- c(err, sprintf("Annee d'accident en double : %s (lignes %s, %s).",
                             paste(citer(unique(noms_u[k])), collapse = ", "),
                             enum(k), enum(paste0("i=", k - 1L))))
