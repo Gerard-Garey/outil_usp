@@ -23,7 +23,7 @@
 #  calibration de #166 / #221 (tests/calibration_mc_t8.R) : y*_b tire sous le
 #  modele ajuste au jeu observe, flux unique sous GRAINE_JEUX = 20260927
 #  (expression YSIM de tests/taux_franchissement_reperes.R, #72) ; ajustement
-#  fit*_b = usp_ajuster(x, y*_b) et refus de #188 (usp_valider_ajustement()),
+#  fit*_b = usp_ajuster(x, y*_b) et refus de #188, #227 (usp_valider_ajustement()),
 #  comme run_engine(). Pour chaque replication du perimetre, le bootstrap de
 #  usp_bootstrap(fit*_b, B = 999, seed = 20260831 + b) est REJOUE (memes y**,
 #  meme ordre des appels) et trois p-values Monte-Carlo sont calculees sur

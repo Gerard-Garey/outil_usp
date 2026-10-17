@@ -157,7 +157,8 @@ verifier("U8 res : lr_delta apres profil, ic_bootstrap_restreint apres ic_bootst
              identical(tail(names(r1$bootstrap), 5), c("sigma_boot_restreint", "n_echec_restreint", "z_boot",
                                                        "p_mc_regime", "p_min_mc")) &&
              is.integer(r1$bootstrap$n_echec_restreint) &&
-             tail(names(r1$ajustement), 1) == "kkt_au_moins_un" &&
+             # gamma_bord_au_moins_un (#227) suit kkt_au_moins_un.
+             identical(tail(names(r1$ajustement), 2), c("kkt_au_moins_un", "gamma_bord_au_moins_un")) &&
              "largeur_ic_restreint" %in% names(r1$ajustement)
          })
 NOMS_45 <- c("Largeur relative de l'IC bootstrap 90% (delta fixe a delta estime)",

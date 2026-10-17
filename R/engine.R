@@ -1610,8 +1610,16 @@ usp_ajuster <- function(x, y, n_starts_delta = 9, verbose = FALSE,
             n_starts_echec = n_echec,
             delta_au_bord = usp_regime(d, x)$delta_au_bord,
             # En DERNIERE position (patch chirurgical des references, voir
-            # run_engine()).
-            kkt_au_moins_un = any(kkt_ok)))
+            # run_engine()) : kkt_au_moins_un, puis gamma_bord_au_moins_un.
+            kkt_au_moins_un = any(kkt_ok),
+            # gamma_bord_au_moins_un (#227) : TRUE si au moins un demarrage a
+            # l'optimum (meme ensemble idx que kkt_ok, aucune deuxieme notion
+            # d'optimum) a gamma sur une borne de BORNES_GAMMA
+            # (usp_gamma_bord(), tolerance TOL_DELTA_BORD). Lu par
+            # usp_valider_ajustement() : le refus ne depend plus du demarrage
+            # retenu.
+            gamma_bord_au_moins_un = any(vapply(idx, function(i)
+              !is.na(usp_gamma_bord(pars[i, 2])), logical(1)))))
 }
 
 # Controles numeriques de l'estimation lognormale (issue #22, decision M11 du
@@ -1734,11 +1742,12 @@ usp_controles_numeriques <- function(fit) {
 # domaine de recherche de gamma (issue #188, option A, decisions du
 # mainteneur du 08/10/2026). Annexe XVII, B(6) / C(6) : delta et gamma sont
 # les valeurs qui minimisent le montant de B(6) / C(6), dont depend le
-# parametre de B(4) / C(4). Si gamma estime est sur une borne de
-# BORNES_GAMMA (a TOL_DELTA_BORD pres ; gamma non fini classe "borne
-# basse" ; usp_gamma_bord(), #322) et qu'AUCUN demarrage a l'optimum ne
-# satisfait la condition KKT (fit$kkt_au_moins_un, usp_ajuster()), ce minimum n'est pas determine dans
-# le domaine : les donnees ne permettent d'etablir ni la distribution
+# parametre de B(4) / C(4). Si au moins un demarrage a l'optimum a gamma
+# sur une borne de BORNES_GAMMA (a TOL_DELTA_BORD pres ; gamma non fini
+# classe "borne basse" ; usp_gamma_bord(), #322 ;
+# fit$gamma_bord_au_moins_un, ou gamma retenu, #227) et qu'AUCUN demarrage a
+# l'optimum ne satisfait la condition KKT (fit$kkt_au_moins_un,
+# usp_ajuster()), ce minimum n'est pas determine dans le domaine : les donnees ne permettent d'etablir ni la distribution
 # log-normale ni l'adequation de l'estimation de la vraisemblance maximum
 # (B(2)(g) / C(2)(e), iii et iv ; art. 219(1)(d)), et l'outil ne calcule
 # pas de parametre (art. 220(1)(a) primes / (b) reserve no 1). Decisions de
@@ -1756,12 +1765,55 @@ usp_controles_numeriques <- function(fit) {
 # y rend ok = FALSE comme un refus des donnees.
 usp_valider_ajustement <- function(fit, methode = c("premium", "reserve1")) {
   methode <- match.arg(methode)
+  # Predicat sur l'ensemble des demarrages a l'optimum (#227, decisions du
+  # mainteneur du 17/10/2026, Q-Fb-11 et Q-D1-Fc-1 (a)) : refus si au moins
+  # un demarrage a l'optimum a gamma sur une borne et si aucun ne satisfait
+  # KKT. Le "||" garde la fonction totale : un ajustement sans le champ
+  # gamma_bord_au_moins_un (ajustement fictif, usp_ajuster_rapide()) est juge
+  # sur le demarrage retenu, comme avant #227 ; sur une sortie
+  # d'usp_ajuster(), le demarrage retenu appartient a l'ensemble.
   bord <- usp_gamma_bord(fit$gamma)
   bas  <- identical(bord, "basse")
-  refus <- !is.na(bord) && !isTRUE(fit$kkt_au_moins_un)
+  bord_ensemble <- !is.na(bord) || isTRUE(fit$gamma_bord_au_moins_un)
+  refus <- bord_ensemble && !isTRUE(fit$kkt_au_moins_un)
   if (!refus) return(list(ok = TRUE, erreurs = character(0)))
   prem <- methode == "premium"
   sec <- if (prem) "B" else "C"
+  phrase_art220 <- sprintf(paste0(
+    "L'outil ne calcule pas de parametre sur ces donnees (article 220, ",
+    "paragraphe 1, point %s), qui ne permettent d'etablir ni la ",
+    "distribution log-normale ni l'adequation de l'estimation de la ",
+    "vraisemblance maximum (%s, iii et iv ; article 219, paragraphe 1, ",
+    "point d))."),
+    if (prem) "a)" else "b)", if (prem) "B(2)(g)" else "C(2)(e)")
+  phrase_res2 <- if (!prem) "La methode du risque de reserve no 2 reste ouverte (meme point)."
+  if (is.na(bord)) {
+    # Forme 2 (#227 ; texte de la section 2.4 de
+    # docs/specifications/fc-validation-ajustement.md, Q-D1-Fc-2) : demarrage
+    # retenu interieur, au moins un autre demarrage a l'optimum sur une
+    # borne, cote non nomme (un seul booleen, Q-D1-Fc-1 (a)).
+    motif <- paste(c(
+      sprintf(paste0("Maximum de vraisemblance non etabli (annexe XVII, %s(6)) : ",
+                     "parmi les demarrages qui atteignent l'objectif minimal a la ",
+                     "tolerance de l'outil, au moins un a gamma sur une borne du ",
+                     "domaine de recherche [%s ; %s] (BORNES_GAMMA, bornes de l'outil, ",
+                     "non reglementaires) et aucun ne satisfait la condition du premier ",
+                     "ordre (KKT) ; le demarrage retenu, de gamma interieur, n'est pas ",
+                     "un point stationnaire certifie, et les valeurs delta et gamma qui ",
+                     "minimisent le montant de %s(6), dont depend le parametre de %s(4), ",
+                     "ne sont pas determinees dans ce domaine. Cause : objectif egal, a ",
+                     "cette tolerance, au demarrage retenu et sur la borne (ratios ",
+                     "y_t/x_t quasi egaux pres de la borne basse ; dispersion des ",
+                     "ratios extreme pres de la borne haute)."),
+              sec, format(BORNES_GAMMA[1]), format(BORNES_GAMMA[2]), sec, sec),
+      phrase_art220, phrase_res2,
+      sprintf(paste0("Verifier que y_t est observe (%s(1)(a)) et non deduit de x_t ",
+                     "par un coefficient fixe, ainsi que les unites, la correspondance ",
+                     "des annees et les valeurs aberrantes (%s(1) et %s(2)(a))."),
+              sec, sec, sec)), collapse = " ")
+    return(list(ok = FALSE, erreurs = motif))
+  }
+  # Forme 1 (#188, inchangee) : demarrage retenu sur une borne.
   motif <- paste(c(
     sprintf(paste0("Maximum de vraisemblance non atteint (annexe XVII, %s(6)) : ",
                    "gamma estime sur la borne %s du domaine de recherche [%s ; %s] ",
@@ -1772,13 +1824,7 @@ usp_valider_ajustement <- function(fit, methode = c("premium", "reserve1")) {
             format(BORNES_GAMMA[2]), sec, sec),
     if (bas) "Cause : ratios y_t/x_t egaux ou quasi egaux ; s'ils sont exactement egaux, ce minimum n'existe pas."
     else "Cause : dispersion des ratios y_t/x_t extreme ; le minimum, s'il existe, est au-dela de la borne.",
-    sprintf(paste0("L'outil ne calcule pas de parametre sur ces donnees (article 220, ",
-                   "paragraphe 1, point %s), qui ne permettent d'etablir ni la ",
-                   "distribution log-normale ni l'adequation de l'estimation de la ",
-                   "vraisemblance maximum (%s, iii et iv ; article 219, paragraphe 1, ",
-                   "point d))."),
-            if (prem) "a)" else "b)", if (prem) "B(2)(g)" else "C(2)(e)"),
-    if (!prem) "La methode du risque de reserve no 2 reste ouverte (meme point).",
+    phrase_art220, phrase_res2,
     if (bas) sprintf("Verifier que y_t est observe (%s(1)(a)) et non deduit de x_t par un coefficient fixe.", sec)
     else sprintf("Verifier les unites, la correspondance des annees et les valeurs aberrantes (%s(1) et %s(2)(a)).",
                  sec, sec)), collapse = " ")
@@ -11137,7 +11183,9 @@ run_engine <- function(xt, yt,
     # apres ecart_jackknife et largeur_ic apposes ci-dessus : le patcheur des
     # references (tests/patcher_reference.R) n'ajoute une feuille qu'en fin de
     # conteneur, et refuse le patch (verification "structure") sinon.
-    fit <- fit[c(setdiff(names(fit), "kkt_au_moins_un"), "kkt_au_moins_un")]
+    # Meme regle pour gamma_bord_au_moins_un (#227), place juste apres.
+    fit <- fit[c(setdiff(names(fit), c("kkt_au_moins_un", "gamma_bord_au_moins_un")),
+                 "kkt_au_moins_un", "gamma_bord_au_moins_un")]
 
     # Elements du detail de la ligne jackknife de usp_tests() : calcules ici,
     # transmis a usp_tests() et NON stockes dans fit ni dans le resultat.

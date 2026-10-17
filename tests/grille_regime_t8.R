@@ -53,7 +53,7 @@
 #    - couche "verite", par jeu : les R premieres lignes de l'expression YSIM
 #      de #72 (flux unique sous 20260927, sous le modele FIT0 du jeu ; J3 :
 #      FIT0_J3 synthetique du par. 3.2), soit les jeux de #221, #175 et de
-#      l'etape 6 ; ajustement usp_ajuster() et refus de #188
+#      l'etape 6 ; ajustement usp_ajuster() et refus de #188, #227
 #      (usp_valider_ajustement()), comme run_engine() ; delta*_b, r_b et
 #      S_obs,b (34 statistiques, .mc_evaluer() sur le contexte observe) ;
 #    - queues interpolees : hi = P(S >= S_obs) et lo = P(S <= S_obs),

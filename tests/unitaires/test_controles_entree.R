@@ -2592,4 +2592,92 @@ verifier("usp_valider_ajustement() : ok sur les donnees des cas de non-regressio
              logical(1)))
          })
 
+## --- Refus juge sur l'ensemble des demarrages a l'optimum (Fc, #227) ---------
+# Decisions du mainteneur du 17/10/2026 (Q-Fb-11, Q-D1-Fc-1 (a), Q-D1-Fc-2) :
+# refus si au moins un demarrage a l'optimum a gamma sur une borne
+# (fit$gamma_bord_au_moins_un, ou gamma retenu) et si aucun ne satisfait
+# KKT. Forme 1 du motif (retenu sur une borne) : motif188(), inchange ;
+# forme 2 (retenu interieur) : reconstruite ici morceau par morceau, au
+# texte de la section 2.4 de docs/specifications/fc-validation-ajustement.md,
+# independamment de usp_valider_ajustement().
+motif227 <- function(methode = c("premium", "reserve1")) {
+  methode <- match.arg(methode)
+  prem <- methode == "premium"; sec <- if (prem) "B" else "C"
+  tt <- sprintf(paste("Maximum de vraisemblance non etabli (annexe XVII, %s(6)) : parmi les",
+                      "demarrages qui atteignent l'objectif minimal a la tolerance de l'outil,",
+                      "au moins un a gamma sur une borne du domaine de recherche [-12 ; 3]",
+                      "(BORNES_GAMMA, bornes de l'outil, non reglementaires) et aucun ne",
+                      "satisfait la condition du premier ordre (KKT) ; le demarrage retenu, de",
+                      "gamma interieur, n'est pas un point stationnaire certifie, et les valeurs",
+                      "delta et gamma qui minimisent le montant de %s(6), dont depend le",
+                      "parametre de %s(4), ne sont pas determinees dans ce domaine. Cause :",
+                      "objectif egal, a cette tolerance, au demarrage retenu et sur la borne",
+                      "(ratios y_t/x_t quasi egaux pres de la borne basse ; dispersion des",
+                      "ratios extreme pres de la borne haute)."),
+                sec, sec, sec)
+  ff <- sprintf(paste("L'outil ne calcule pas de parametre sur ces donnees (article 220,",
+                      "paragraphe 1, point %s), qui ne permettent d'etablir ni la",
+                      "distribution log-normale ni l'adequation de l'estimation de la",
+                      "vraisemblance maximum (%s, iii et iv ; article 219, paragraphe 1,",
+                      "point d))."),
+                if (prem) "a)" else "b)", if (prem) "B(2)(g)" else "C(2)(e)")
+  rr <- "La methode du risque de reserve no 2 reste ouverte (meme point)."
+  vv <- sprintf(paste("Verifier que y_t est observe (%s(1)(a)) et non deduit de x_t par un",
+                      "coefficient fixe, ainsi que les unites, la correspondance des annees et",
+                      "les valeurs aberrantes (%s(1) et %s(2)(a))."),
+                sec, sec, sec)
+  paste(c(tt, ff, if (!prem) rr, vv), collapse = " ")
+}
+# Ajustements fictifs a trois champs (gamma, kkt_au_moins_un,
+# gamma_bord_au_moins_un) ; v2() a deux champs (champ absent).
+v227 <- function(g, k, b, m) usp_valider_ajustement(
+  list(gamma = g, kkt_au_moins_un = k, gamma_bord_au_moins_un = b), m)
+v2_227 <- function(g, k, m) usp_valider_ajustement(list(gamma = g, kkt_au_moins_un = k), m)
+OK227 <- list(ok = TRUE, erreurs = character(0))
+verifier("usp_valider_ajustement(), critere (a) : (-12, KKT non, bord oui) refus forme 1 ; (-11,5, non, oui) refus forme 2 ; idem borne haute (3 forme 1, 2,5 forme 2) ; premium et reserve1 (#227)",
+         all(vapply(c("premium", "reserve1"), function(m)
+           identical(v227(-12, FALSE, TRUE, m), list(ok = FALSE, erreurs = motif188("basse", m))) &&
+             identical(v227(-11.5, FALSE, TRUE, m), list(ok = FALSE, erreurs = motif227(m))) &&
+             identical(v227(3, FALSE, TRUE, m), list(ok = FALSE, erreurs = motif188("haute", m))) &&
+             identical(v227(2.5, FALSE, TRUE, m), list(ok = FALSE, erreurs = motif227(m))),
+           logical(1))))
+verifier("usp_valider_ajustement(), critere (b) : (-11,5, KKT oui, bord oui), (-12, oui, oui) et (-11,5, non, bord non) acceptes, premium et reserve1 (#227)",
+         all(vapply(c("premium", "reserve1"), function(m)
+           identical(v227(-11.5, TRUE, TRUE, m), OK227) &&
+             identical(v227(-12, TRUE, TRUE, m), OK227) &&
+             identical(v227(-11.5, FALSE, FALSE, m), OK227),
+           logical(1))))
+verifier("usp_valider_ajustement(), critere (c) : champ absent ou incoherent -> (-12, non) refus forme 1 ; (-11,5, non) accepte ; (-12, non, bord non) refus forme 1 ; (NaN, non) refus borne basse, premium et reserve1 (#227)",
+         all(vapply(c("premium", "reserve1"), function(m)
+           identical(v2_227(-12, FALSE, m), list(ok = FALSE, erreurs = motif188("basse", m))) &&
+             identical(v2_227(-11.5, FALSE, m), OK227) &&
+             identical(v227(-12, FALSE, FALSE, m), list(ok = FALSE, erreurs = motif188("basse", m))) &&
+             identical(v2_227(NaN, FALSE, m), list(ok = FALSE, erreurs = motif188("basse", m))),
+           logical(1))))
+verifier("usp_ajuster(), critere (d) : gamma_bord_au_moins_un logique de longueur 1, dernier champ ; FALSE sur J1 (donnees_ln.csv) et J2 (donnees_ln_interieur.csv) ; TRUE sur y = 0,7 x, refus forme 1 inchange (#227)",
+         {
+           ln <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln.csv"))
+           li <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln_interieur.csv"))
+           f1 <- usp_ajuster(ln$xt, ln$yt); f2 <- usp_ajuster(li$xt, li$yt)
+           fp <- usp_ajuster(xs188, 0.7 * xs188)
+           all(vapply(list(f1, f2, fp), function(f)
+             is.logical(f$gamma_bord_au_moins_un) && length(f$gamma_bord_au_moins_un) == 1L &&
+               identical(utils::tail(names(f), 1), "gamma_bord_au_moins_un"), logical(1))) &&
+             identical(f1$gamma_bord_au_moins_un, FALSE) && identical(f2$gamma_bord_au_moins_un, FALSE) &&
+             identical(fp$gamma_bord_au_moins_un, TRUE) &&
+             all(vapply(c("premium", "reserve1"), function(m)
+               identical(usp_valider_ajustement(fp, m), list(ok = FALSE, erreurs = motif188("basse", m))),
+               logical(1)))
+         })
+verifier("run_engine(), critere (d) : res$ajustement se termine par kkt_au_moins_un puis gamma_bord_au_moins_un (FALSE), premium (J1) et reserve1 (J2) (#227)",
+         {
+           ln <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln.csv"))
+           li <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln_interieur.csv"))
+           r1 <- lancer188(ln$xt, ln$yt, "premium"); r2 <- lancer188(li$xt, li$yt, "reserve1")
+           all(vapply(list(r1, r2), function(r)
+             isTRUE(r$ok) &&
+               identical(utils::tail(names(r$ajustement), 2), c("kkt_au_moins_un", "gamma_bord_au_moins_un")) &&
+               identical(r$ajustement$gamma_bord_au_moins_un, FALSE), logical(1)))
+         })
+
 fin_fichier()

@@ -267,7 +267,7 @@
 #        usp_ajuster(x, y*), diagnostic si la puissance unilaterale approchee
 #        usp_identifiabilite_pente(x, beta*, sigma*, alpha, unilateral = TRUE)
 #        < SEUIL_PUISSANCE_PENTE_R4 (comme usp_tests() avant D1-Fb) ;
-#        reajustement en erreur exclu de P2 et compte ; refus de #188 (usp_valider_ajustement())
+#        reajustement en erreur exclu de P2 et compte ; refus de #188, #227 (usp_valider_ajustement())
 #        compte, non exclu (comme traiter() de #72) ; distribution sur les
 #        modalites OK, ALERTE, ECHEC, diagnostic (R4) (plus R1 et non
 #        applicable), et conditionnelle aux lignes de P2 restees "test" ;
@@ -1052,7 +1052,7 @@ if (OPT_PARTIE == "tost-frontiere") {
     par_a <- lapply(names(A), function(na) {
       a <- A[[na]]
       dabs <- THETA_TOST * (a + bx)        # theta E[Ybar] ; = |a| aux frontieres
-      # statut : ok, refus (#188), erreur (usp_ajuster()), ynonpos (y* <= 0)
+      # statut : ok, refus (#188, #227), erreur (usp_ajuster()), ynonpos (y* <= 0)
       statut <- character(OPT_R)
       # V[cellule, grandeur, b] ; code : 0 calcule, 1 non applicable, 2 erreur
       V <- array(NA_real_, c(nrow(CELL_FR), 5L, OPT_R),
