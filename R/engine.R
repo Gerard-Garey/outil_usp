@@ -4669,6 +4669,13 @@ usp_lr_delta <- function(fit, B = 999, seed = 20260831) {
 # l'effet de l'observation retirée sur l'estimation, non de rejouer les règles
 # de l'annexe XVII sur un échantillon de T-1 années (qui pourrait passer sous
 # le minimum de 5 années).
+# Reajustement refuse par usp_valider_ajustement() (#224, meme regle que
+# l'echantillon complet, #188 et #227) : ligne laissee entierement a NA, comme
+# un reajustement en echec ; l'annee est ecartee du maximum par run_engine()
+# et declaree non evaluable dans le detail de la ligne jackknife. Methode par
+# defaut : seul le motif en depend, il n'est pas lu. Un reajustement a gamma
+# interieur sans KKT reste retenu (ECHEC non bloquant, comme l'echantillon
+# complet). Signature et colonnes inchangees.
 usp_jackknife <- function(fit, sigma_standard, bareme) {
   T <- fit$T
   cred <- usp_credibilite(T, bareme)
@@ -4678,7 +4685,7 @@ usp_jackknife <- function(fit, sigma_standard, bareme) {
   for (i in 1:T) {
     xi <- fit$x[-i]; yi <- fit$y[-i]
     f <- try(usp_ajuster(xi, yi, n_starts_delta = 5), silent = TRUE)
-    if (inherits(f, "try-error")) next
+    if (inherits(f, "try-error") || !isTRUE(usp_valider_ajustement(f)$ok)) next
     out$sigma[i] <- f$sigma
     out$sigma_usp[i] <- cred * f$sigma * corr + (1 - cred) * sigma_standard
     out$delta[i] <- f$delta; out$gamma[i] <- f$gamma
@@ -6187,17 +6194,30 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # run_engine() a fourni `robustesse`. Les ecarts rapportes a la seule part
   # estimee sigma(delta, gamma), imprimes jusqu'ici faute d'etre stockes
   # ailleurs (risque accepte en M24), sont retires (issue #76).
+  # Annees non evaluables (#224, phrase de Q-D1-Fc-3) : reajustement refuse
+  # par usp_valider_ajustement() ou en echec, ecartees du maximum ; seuls les
+  # numeros d'annee sont imprimes (#76), refus et echec non distingues.
   rb <- robustesse
+  ne <- as.integer(rb$jack_non_evaluables)
+  txt_ne <- if (length(ne) == 1L)
+    sprintf(paste0("Annee %d non evaluable (reajustement sans maximum de ",
+                   "vraisemblance etabli, ou en echec) : ecartee du maximum, ",
+                   "influence non mesuree."), ne)
+  else if (length(ne) > 1L)
+    sprintf(paste0("Annees %s et %d non evaluables (reajustements sans maximum ",
+                   "de vraisemblance etabli, ou en echec) : ecartees du maximum, ",
+                   "influence non mesuree."),
+            paste(utils::head(ne, -1L), collapse = ", "), utils::tail(ne, 1L))
   if (!is.null(fit$ecart_jackknife))
     add(fam, "Sensibilite au retrait d'une annee (jackknife)",
         fonction = "run_engine",
         "Quenouille (1949) / Tukey (1958)", type = "diagnostic",
         estim_nom = "ecart relatif max", estim = fit$ecart_jackknife,
-        detail = if (!is.null(rb$jack_annee))
+        detail = paste(c(if (!is.null(rb$jack_annee))
           sprintf("Annee la plus influente : %d (sigma_USP %s).", as.integer(rb$jack_annee),
                   if (rb$jack_usp < 0) "en baisse" else if (rb$jack_usp > 0) "en hausse"
                   else "inchange")
-        else "Annee la plus influente non determinee.")
+        else "Annee la plus influente non determinee.", txt_ne), collapse = " "))
   if (!is.null(fit$largeur_ic))
     add(fam, "Largeur relative de l'IC bootstrap 90%", "Efron (1979), Ann. Statist. 7",
         fonction = "run_engine",
@@ -11192,10 +11212,14 @@ run_engine <- function(xt, yt,
     # jack_annee : annee de plus grand |ecart| sur sigma_USP ; jack_usp : ecart
     # signe a cette annee (seul son signe est imprime, issues #24 et #76).
     # NULL si aucun reajustement n'a abouti.
+    # jack_non_evaluables (#224) : annees dont le reajustement est refuse par
+    # usp_valider_ajustement() ou en echec (sigma_USP non fini), ecartees du
+    # maximum ; entiers, eventuellement vide. Seuls ces numeros sont imprimes.
     i_jack <- if (jack_calcule) which.max(abs(d_jack)) else NULL
     robustesse <- list(
       jack_annee = i_jack,
-      jack_usp   = if (jack_calcule) d_jack[i_jack] / param$sigma_usp else NULL)
+      jack_usp   = if (jack_calcule) d_jack[i_jack] / param$sigma_usp else NULL,
+      jack_non_evaluables = which(!is.finite(jack$sigma_usp)))
 
     # Test de Pitman sur la pente (#169) : B et graine de l'execution (tirages
     # a T > T_MAX_ENUM_PERMUTATION seulement, sous engine_sous_graine()) ;
