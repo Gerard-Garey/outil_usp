@@ -293,7 +293,7 @@ verifier("usp_regime : a delta = 1 - tau, etendue relative des pi_t <= 2 tau ete
            p <- usp_pi(1 - tau, f_t$gamma, x)
            diff(range(p)) / mean(p) <= 2 * tau * diff(range(mean(x) / x))
          })
-verifier("usp_ajuster : liste exacte des champs de l'ajustement (structure des references, #22, #71)",
+verifier("usp_ajuster : liste exacte des champs de l'ajustement (structure des references, #22, #71, #227)",
          identical(names(f_t), c("pi", "ln_beta", "beta", "v", "z", "sigma", "obj",
                                  "delta", "gamma", "T", "x", "y", "xbar",
                                  "gradient", "gradient_projete", "hessienne",
@@ -302,15 +302,16 @@ verifier("usp_ajuster : liste exacte des champs de l'ajustement (structure des r
                                  "obj_min", "convergence", "part_starts_convergents",
                                  "n_starts_optimum", "n_starts_optimum_code0",
                                  "n_starts_echec",
-                                 "delta_au_bord", "kkt_au_moins_un")))
+                                 "delta_au_bord", "kkt_au_moins_un",
+                                 "gamma_bord_au_moins_un")))
 # Condition du patch chirurgical des references (#22) : le patcheur n'ajoute
 # une feuille qu'en fin de conteneur ; run_engine() replace kkt_au_moins_un
-# apres ecart_jackknife et largeur_ic.
-verifier("run_engine : res$ajustement se termine par kkt_au_moins_un (condition de patchabilite des references)",
+# puis gamma_bord_au_moins_un (#227) apres ecart_jackknife et largeur_ic.
+verifier("run_engine : res$ajustement se termine par kkt_au_moins_un puis gamma_bord_au_moins_un (condition de patchabilite des references, #227)",
          {
            r <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II", B = 99,
                            nature_donnees = "brutes")
-           identical(utils::tail(names(r$ajustement), 1), "kkt_au_moins_un") &&
+           identical(utils::tail(names(r$ajustement), 2), c("kkt_au_moins_un", "gamma_bord_au_moins_un")) &&
              all(c("ecart_jackknife", "largeur_ic") %in% names(r$ajustement))
          })
 # Issue #33 (defaut releve par audit, repris de l'issue #7), corrige : avec

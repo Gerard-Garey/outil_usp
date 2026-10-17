@@ -674,6 +674,97 @@ verifier("run_engine : jackknife entierement NA -> table produite, pas de ligne 
              !any(is.infinite(tb$estimation))
          })
 
+## --- Issue #224 : reajustements du jackknife refuses ------------------------
+# Un reajustement refuse par usp_valider_ajustement() (meme regle que
+# l'echantillon complet, #188 et #227) est laisse a NA, comme un reajustement
+# en echec ; l'annee est ecartee du maximum et declaree non evaluable dans le
+# detail (phrase de Q-D1-Fc-3, docs/specifications/fc-validation-ajustement.md
+# section 3.2). Criteres (a) a (e) de la section 3.3. Le numero de l'annee la
+# plus influente n'est pas teste sur le jeu de l'issue (ex aequo a la
+# precision de l'optimiseur, section 3.4, I-Fc-1).
+txt_ne_1 <- function(a) sprintf(paste0(
+  "Annee %d non evaluable (reajustement sans maximum de vraisemblance etabli, ",
+  "ou en echec) : ecartee du maximum, influence non mesuree."), a)
+txt_ne_n <- function(a) sprintf(paste0(
+  "Annees %s non evaluables (reajustements sans maximum de vraisemblance ",
+  "etabli, ou en echec) : ecartees du maximum, influence non mesuree."), a)
+detail_jk <- function(r) { tb <- engine_table_tests(r); tb$commentaire[tb$test == NOM_JK] }
+# Jeu de l'issue : x de J1, y = 0,7 x, y_5 = 0,8 x_5 ; sans l'annee 5, gamma
+# sur la borne basse sans KKT (refus de #188).
+y_224 <- 0.7 * x; y_224[5] <- 0.8 * x[5]
+res_224 <- run_engine(xt = x, yt = y_224, methode = "premium", segment = 1,
+                      annexe = "II", B = 99, nature_donnees = "brutes")
+verifier("#224 (a) : jeu de l'issue, annee 5 entierement NA, 'Annee 5 non evaluable', estim = 0,02063, annee 5 non designee",
+         {
+           tb <- engine_table_tests(res_224); dj <- detail_jk(res_224)
+           J <- res_224$jackknife
+           isTRUE(res_224$ok) && length(dj) == 1L &&
+             all(is.na(unlist(J[5, c("sigma", "sigma_usp", "delta", "gamma")]))) &&
+             all(is.finite(J$sigma_usp[-5])) &&
+             startsWith(dj, "Annee la plus influente : ") &&
+             endsWith(dj, paste0(". ", txt_ne_1(5L))) &&
+             !grepl("Annee la plus influente : 5 ", dj, fixed = TRUE) &&
+             isTRUE(abs(estim_ligne(tb, NOM_JK) - 0.02063) < 1e-4)
+         })
+verifier("#224 (e) : sigma_USP inchange sur le jeu de l'issue (0,06205954)",
+         isTRUE(abs(res_224$parametre_final$sigma_usp - 0.06205954) < 1e-8))
+verifier("#224 (b) : signature et colonnes d'usp_jackknife() inchangees (C-Fc-3)",
+         identical(names(formals(usp_jackknife)), c("fit", "sigma_standard", "bareme")) &&
+           identical(names(res_224$jackknife),
+                     c("annee_retiree", "sigma", "sigma_usp", "delta", "gamma")) &&
+           identical(names(res_ln_ii1$jackknife), names(res_224$jackknife)))
+# (c) Echec simule : usp_ajuster() redefini le temps de l'appel, en erreur sur
+# l'echantillon prive des annees designees ; meme phrase que le refus, une ou
+# plusieurs annees, jointes par ", " puis " et ".
+jk_echecs <- function(annees) {
+  e <- environment(run_engine); orig <- get("usp_ajuster", envir = e)
+  cibles <- lapply(annees, function(a) x[-a])
+  assign("usp_ajuster", function(x, y, ...) {
+    if (any(vapply(cibles, identical, NA, x))) stop("echec simule")
+    orig(x, y, ...)
+  }, envir = e)
+  tryCatch(run_engine(xt = x, yt = y, methode = "premium",
+                      segment = 1, annexe = "II", B = 99, nature_donnees = "brutes"),
+           finally = assign("usp_ajuster", orig, envir = e))
+}
+verifier("#224 (c) : reajustement force en erreur, meme phrase (une, deux et trois annees)",
+         {
+           r1 <- jk_echecs(3L); r2 <- jk_echecs(c(2L, 5L)); r3 <- jk_echecs(c(1L, 4L, 7L))
+           d1 <- detail_jk(r1); d2 <- detail_jk(r2); d3 <- detail_jk(r3)
+           all(is.na(r1$jackknife$sigma_usp) == (1:8 == 3L)) &&
+             all(is.na(r3$jackknife$sigma_usp) == (1:8 %in% c(1L, 4L, 7L))) &&
+             endsWith(d1, paste0(". ", txt_ne_1(3L))) &&
+             endsWith(d2, paste0(". ", txt_ne_n("2 et 5"))) &&
+             endsWith(d3, paste0(". ", txt_ne_n("1, 4 et 7"))) &&
+             startsWith(d1, "Annee la plus influente : ") &&
+             isTRUE(proche(r1$parametre_final$sigma_usp, res_ln_ii1$parametre_final$sigma_usp, rel = 1e-12))
+         })
+verifier("#224 (c) : usp_tests() direct, phrase apres 'Annee la plus influente', aucune sans annee non evaluable",
+         {
+           f <- fit; f$ecart_jackknife <- 0.1; f$largeur_ic <- 0.4
+           dj <- function(ne) {
+             rb <- list(jack_annee = 3L, jack_usp = -0.1, jack_non_evaluables = ne)
+             tb <- lignes_df(usp_tests(f, boot_fictif(), methode = "premium", robustesse = rb))
+             tb$commentaire[tb$test == NOM_JK]
+           }
+           identical(dj(integer(0)), "Annee la plus influente : 3 (sigma_USP en baisse).") &&
+             identical(dj(6L), paste("Annee la plus influente : 3 (sigma_USP en baisse).", txt_ne_1(6L))) &&
+             identical(dj(c(2L, 6L)), paste("Annee la plus influente : 3 (sigma_USP en baisse).", txt_ne_n("2 et 6")))
+         })
+verifier("#224 (d) : aucune phrase 'non evaluable' si toutes les annees sont evaluables (J1, J2)",
+         {
+           ln_int <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln_interieur.csv"))
+           r2 <- run_engine(xt = ln_int$xt, yt = ln_int$yt, methode = "premium", segment = 1,
+                            annexe = "II", B = 99, nature_donnees = "brutes")
+           ok <- TRUE
+           for (r in list(res_ln_ii1, res_ln_ii6, r2)) {
+             dj <- detail_jk(r)
+             ok <- ok && length(dj) == 1L && all(is.finite(r$jackknife$sigma_usp)) &&
+               !grepl("non evaluable", dj, fixed = TRUE)
+           }
+           ok
+         })
+
 ## --- Issue #58 : volumes constants ------------------------------------------
 # A x_t constant, a_t = 1 pour tout t : pi_t ne depend plus de delta, la
 # vraisemblance est plate en delta, qui n'est pas identifie. La regression

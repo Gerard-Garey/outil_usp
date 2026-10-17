@@ -340,9 +340,22 @@ nombre de tirages retenus et la cause de l'arrêt, ou marginales, avec le motif
 (\code{texte\_p\_mc\_regime()} de \code{R/display\_helpers.R}, lecture seule de
 \code{res\$bootstrap\$p\_mc\_regime}, sans calcul~; fiche~\ref{fiche:procedure-mc})~; quand la
 p-value conditionnelle au régime s'arrête à $B_{\max} = 25\,(B+1)$ tirages sans avoir atteint $B$ tirages
-retenus, cette ligne porte en outre la mention «~granularité effective par statistique~: champ
-\code{granularite\_stat}, plus grossière que la granularité nominale~» (issue~\#254)~; la même
-ligne figure dans le résumé et dans le journal d'exécution de l'application. Les tests restitués sont les \emph{tests retenus}
+retenus, cette ligne porte en outre la mention «~granularité effective par statistique~:
+colonne «~granularité MC~» du détail des tests, plus grossière que la granularité nominale~»
+(issue~\#254~; renvoi à la colonne, au lieu du champ \code{granularite\_stat}, depuis
+l'issue~\#285)~; la même ligne figure dans le résumé et dans le journal d'exécution de
+l'application. Depuis l'issue~\#285, la vue Détail de l'onglet Tests et les tableaux «~Détail~»
+de la section~5 du rapport figé («~Tests retenus~») portent une colonne «~granularité MC~»~: la
+granularité effective de la p-value de Monte-Carlo de la ligne, $1/(B_{\text{eff}}+1)$, ou
+$2/(B_{\text{eff}}+1)$ en bilatéral, lue sans calcul dans \code{bootstrap\$granularite\_stat}
+par \code{granularite\_lignes()} de \code{R/display\_helpers.R}, qui retrouve la statistique de
+la ligne par l'égalité exacte de sa p-value et de son erreur de Monte-Carlo. La colonne porte
+un tiret quand la ligne n'a pas de p-value de Monte-Carlo, quand celle-ci est calculée hors du
+bootstrap principal (rapport de vraisemblance sur $\delta$, permutations du test de Pitman~:
+\code{FONCTIONS\_P\_MC\_EXTERNE}) ou quand l'appariement est ambigu. Mesuré sur les cas de
+référence \code{premium} et \code{premium\_interieur}~: granularité lue, $0{,}001$ ou
+$0{,}002$ à $B = 999$, pour toute ligne à p-value de Monte-Carlo finie, sauf celles du rapport de
+vraisemblance sur $\delta$, à tiret. Les tests restitués sont les \emph{tests retenus}
 selon la règle de l'onglet Tests, appliquée par la même fonction
 (\code{filtrer\_selection()}), les tests exclus figurant en annexe avec leur
 verdict, leur p-value retenue et le motif de leur exclusion~; le tableau de
@@ -482,7 +495,8 @@ valeur hors du domaine numérique (issue~\#145), d'une
 marge du TOST hors domaine, d'une nature des données absente ou non recevable et d'un barème,
 segment ou annexe invalide (sans erreur R)~; avertissement de crédibilité partielle sur
 $c(T, \text{barème appliqué}) < 1$ (§\ref{sec:controles}, issue~\#131), d'un ratio $y_t/x_t$
-hors de la plage plausible et de pertes $y_t$ constantes (\code{usp\_pertes\_constantes()},
+hors de la plage plausible, de volumes $x_t$ constants (\code{usp\_volumes\_constants()},
+issue~\#213) et de pertes $y_t$ constantes (\code{usp\_pertes\_constantes()},
 issue~\#189) \\
 \code{DOMAINE\_NUMERIQUE\_MIN},\newline \code{DOMAINE\_NUMERIQUE\_MAX},\newline
 \code{RATIO\_PLAUSIBLE\_MIN},\newline \code{RATIO\_PLAUSIBLE\_MAX} & constantes ($10^{-50}$~;
@@ -521,8 +535,9 @@ non bloquants), ajoutés à \code{res\$controles} \\
 \code{usp\_valider\_}\newline\code{ajustement()} & \code{fit} (sortie de \code{usp\_ajuster()}),
 \code{methode} (\code{"premium"} ou \code{"reserve1"}, qui ne règle que le motif) &
 \code{\$ok}, \code{\$erreurs}~: refus (contrôle de validité bloquant, après l'ajustement) si
-$\hat\gamma$ est sur une borne de \code{BORNES\_GAMMA} sans démarrage à l'optimum qui satisfasse
-la condition de Kuhn et Tucker (issue~\#188, §\ref{sec:controles}) \\
+au moins un démarrage à l'optimum (\code{\$gamma\_bord\_au\_moins\_un}), ou le démarrage retenu,
+a $\gamma$ sur une borne de \code{BORNES\_GAMMA} et si aucun démarrage à l'optimum ne satisfait
+la condition de Kuhn et Tucker (issues~\#188 et~\#227, §\ref{sec:controles}) \\
 \code{mw\_valider\_triangle()} & \code{tri}, \code{T\_min}, \code{bareme}, \code{segment},
 \code{annexe} &
 \code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, $I$, $J$~; refus d'une cellule observée
@@ -587,7 +602,9 @@ fourni à \code{optim()}, issue~\#63) & \code{fit} complet, gradient projeté, h
 Newton complet et erreur relative $\varepsilon_\sigma$ au démarrage retenu (issue~\#71),
 convergence multi-démarrages (démarrages à l'optimum à
 \code{TOL\_OPTIMUM} $= 10^{-6}$ près), décision de Kuhn et Tucker sur ces démarrages
-(\code{\$kkt\_au\_moins\_un}, dernier champ) \\
+(\code{\$kkt\_au\_moins\_un}, avant-dernier champ) et, sur le même ensemble, présence d'au moins
+un démarrage de $\gamma$ sur une borne (\code{\$gamma\_bord\_au\_moins\_un}, dernier champ,
+\code{usp\_gamma\_bord()}, issue~\#227) \\
 \code{usp\_gradient()} & $\delta$, $\gamma$, $x$, $y$, \code{xbar} &
 gradient analytique $(g_\delta, g_\gamma)$ de l'objectif profilé \\
 \code{usp\_gradient\_optim()} & \code{par} $=(\delta,\gamma)$, $x$, $y$, \code{xbar} &
@@ -612,13 +629,21 @@ $\varepsilon_\sigma$ sur $\sigma$ (fiche~\ref{fiche:foc}, issue~\#71) \\
 $\gamma$ d'un démarrage, \code{rep\_sigma} (\code{REP\_SIGMA\_KKT}, $10^{-6}$), \code{rep\_gd}
 (\code{REP\_GD\_KKT}, $10^{-4}$), \code{volumes\_constants} & booléen~: condition de Kuhn et Tucker satisfaite en ce
 point (fiche~\ref{fiche:foc}) \\
+\code{usp\_gamma\_bord()} & $\gamma$, \code{tol} (\code{TOL\_DELTA\_BORD}) & \code{"basse"},
+\code{"haute"} ou \code{NA}~: $\gamma$ sur la borne basse ou haute de \code{BORNES\_GAMMA} à
+\code{tol} près, ou intérieur, un $\gamma$ non fini étant compté sur la borne basse~; seul
+prédicat «~$\gamma$ sur une borne~» du moteur, lu par \code{usp\_condition\_premier\_ordre()}
+(projection du gradient en $\gamma$, pas de Newton), \code{usp\_kkt\_satisfaite()},
+\code{usp\_ajuster()} (champ \code{\$gamma\_bord\_au\_moins\_un}, issue~\#227),
+\code{usp\_controles\_numeriques()} et \code{usp\_valider\_ajustement()} (issue~\#322) \\
 \code{usp\_ajuster\_rapide()} & $x$, $y$, point de départ $(\delta_0,\gamma_0)$ &
 réajustement à trois démarrages, $(\delta_0,\gamma_0)$, $(0,\gamma_0)$ et $(1,\gamma_0)$,
 objectif minimal retenu (issue~\#109), gradient analytique, \code{factr = 1e4}, employé par
 \code{usp\_bootstrap()} \\
 \code{usp\_volumes\_}\newline\code{constants()} & $x$, \code{tol}
 (\code{TOL\_DELTA\_BORD}) & booléen~: étendue des $x_t$ au plus \code{tol} fois leur moyenne~;
-seule définition des volumes constants (issue~\#59, section~\ref{sec:volumes-constants}) \\
+seule définition des volumes constants (issue~\#59, section~\ref{sec:volumes-constants}), lue
+aussi par l'avertissement d'\code{engine\_valider\_donnees()} (issue~\#213) \\
 \code{usp\_pertes\_}\newline\code{constantes()} & $y$, \code{tol}
 (\code{TOL\_DELTA\_BORD}) & booléen~: étendue des $y_t$ au plus \code{tol} fois leur moyenne~;
 seule définition des pertes constantes, jumelle d'\code{usp\_volumes\_constants()}, lue par
@@ -884,12 +909,14 @@ liste des tests (H0, H1, statistique, 3 p-values, nature~; depuis l'issue~\#240,
 \code{fonction}, issue~\#111~; citation de l'hypothèse H1 à H4 dans le champ \code{famille}, B(2)(g) ou C(2)(e) selon \code{methode}, section~\ref{sec:h1}), enregistrés par l'\code{add()}
 d'\code{engine\_registre\_tests()}~; \code{robustesse}, calculé par
 \code{run\_engine()} et non stocké, alimente le seul commentaire de la ligne jackknife (année
-d'écart maximal et sens de l'écart sur $\sigma_{\mathrm{USP}}$~; fiche~\ref{fiche:jackknife})~;
+d'écart maximal et sens de l'écart sur $\sigma_{\mathrm{USP}}$, et, depuis l'issue~\#224, années
+non évaluables~; fiche~\ref{fiche:jackknife})~;
 celui de la ligne de l'intervalle bootstrap n'en dépend pas (fiche~\ref{fiche:ic-bootstrap}) \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Robustesse et calibration}}} \\
 \code{usp\_jackknife()} & \code{fit}, $\sigma_{\text{std}}$, barème &
 table des $\hat\sigma^{(-t)}$, $\sigma_{\mathrm{USP}}^{(-t)}$, $\hat\delta^{(-t)}$,
-$\hat\gamma^{(-t)}$ \\
+$\hat\gamma^{(-t)}$~; ligne entièrement \code{NA} pour un réajustement en échec ou refusé par
+\code{usp\_valider\_ajustement()} (issue~\#224) \\
 \code{usp\_profil()} & \code{fit}, \code{n} (41 points) & profils en $\delta$ et $\gamma$ (le
 rapport de vraisemblance aux bornes, calculé ici jusqu'à l'issue~\#45 contre une loi
 $\chi^2(1)$ naïve, relève de \code{usp\_lr\_delta()})~; objectif \code{NA} aux seuls points de
@@ -1288,7 +1315,8 @@ description (\code{source}, $B_{\text{eff}}$, niveaux, rang $k$, taux in-sample,
 \code{engine\_contours\_cook()} & \code{fit}~; \code{fit}, \code{jackknife},
 \code{sigma\_usp}~; $T$ & surface de l'objectif en $(\delta,\gamma)$~; leviers,
 distances de Cook (modèle ajusté après \code{.usp\_echelle\_exacte()}, issue~\#153), écarts du
-jackknife et booléen de coloration \code{fort\_ecart\_sigma}~;
+jackknife et booléen de coloration \code{fort\_ecart\_sigma} (\code{NA} pour une année non
+évaluable, issue~\#224)~;
 courbes d'iso-Cook (appelées par \code{engine\_plots\_data()}) \\
 \code{.usp\_echelle\_exacte()},\newline \code{.usp\_ligne\_cook()} & vecteur $v$~; distances
 $D_t$, $T$ & $v / 2^{\lfloor \log_2 \max|v| \rfloor}$, rendu inchangé si ce maximum n'est pas fini
@@ -1940,7 +1968,8 @@ démarrage retenu, premier de la grille parmi des démarrages équivalents, qui 
 chemin d'optimisation (décision M23 du mainteneur, issue~\#22~;
 fiche~\ref{fiche:multi-demarrages}). Le pas de Newton,
 la hessienne, l'erreur relative $\varepsilon_\sigma$, les verdicts des contrôles, le nombre de démarrages à l'optimum et de démarrages
-sans résultat, la décision de Kuhn et Tucker \code{\$kkt\_au\_moins\_un} et
+sans résultat, la décision de Kuhn et Tucker \code{\$kkt\_au\_moins\_un}, le booléen
+\code{\$gamma\_bord\_au\_moins\_un} (depuis l'issue~\#227) et
 $(\hat\delta, \hat\gamma)$ restent comparés, et la reproductibilité
 à graine égale (\code{identical()}) porte sur l'objet entier. Ce critère a remplacé, le
 23~septembre 2026, une comparaison par \code{all.equal()} à la tolérance
@@ -2109,7 +2138,8 @@ une phrase~; la règle, les repères et leur justification figurent dans les fic
 et~\ref{fiche:ic-bootstrap}), les valeurs dans \code{res\$ajustement}, les champs
 \code{stat} et \code{estim} et \code{res\$ic\_bootstrap}. Ces quatre commentaires ne portent
 plus aucune valeur réelle issue de l'optimiseur, du bootstrap ou du jackknife, seulement des entiers
-(année la plus influente, nombres de démarrages à l'optimum et sans résultat)~; les deux
+(année la plus influente, années non évaluables du jackknife depuis l'issue~\#224, nombres de
+démarrages à l'optimum et sans résultat)~; les deux
 grandeurs sur la part estimée ne sont plus restituées et se recalculent à partir de
 \code{res\$jackknife} et \code{res\$bootstrap\$sigma\_boot} (fiches~\ref{fiche:jackknife}
 et~\ref{fiche:ic-bootstrap}). Reste aussi imprimée, hors du cas de contrôle ($\hat\delta = 1$), la valeur de
@@ -2325,12 +2355,14 @@ Suites sur ratios bruts & \ref{fiche:suites-ratios-bruts} & \code{test\_runs()} 
 \code{usp\_runsr\_p\_exacte()} (p exacte de \code{runs\_p\_exacte()} sous double condition)~;
 \code{runs\_p\_min()} ($p_{\min}$) & \code{Runsr} \\
 Condition du premier ordre (contrôle numérique, hors table des tests) & \ref{fiche:foc} &
-\code{usp\_condition\_premier\_ordre()}, \code{usp\_kkt\_satisfaite()}, \code{usp\_ajuster()}
-(champ \code{\$kkt\_au\_moins\_un}), \code{usp\_controles\_numeriques()} &
+\code{usp\_condition\_premier\_ordre()}, \code{usp\_kkt\_satisfaite()}, \code{usp\_gamma\_bord()},
+\code{usp\_ajuster()} (champ \code{\$kkt\_au\_moins\_un}), \code{usp\_controles\_numeriques()} &
 contrôle \code{OK} / \code{ECHEC}, aucune p-value & --- \\
 Existence du maximum de vraisemblance (contrôle de validité, après ajustement, hors table des
-tests) & \S\ref{sec:controles} & \code{usp\_valider\_ajustement()} (lit \code{\$gamma} et
-\code{\$kkt\_au\_moins\_un} d'\code{usp\_ajuster()}) & refus bloquant, aucune p-value & --- \\
+tests) & \S\ref{sec:controles} & \code{usp\_valider\_ajustement()} (lit \code{\$gamma},
+\code{\$kkt\_au\_moins\_un} et \code{\$gamma\_bord\_au\_moins\_un} d'\code{usp\_ajuster()},
+issue~\#227~; borne par \code{usp\_gamma\_bord()}) & refus
+bloquant, aucune p-value & --- \\
 Centrage des résidus (diagnostic) & \ref{fiche:centrage} & \code{mean()} sur $z$
 (appel direct dans \code{usp\_tests()}) & diagnostic, aucune p-value & --- \\
 Variance unitaire (diagnostic) & \ref{fiche:variance-unitaire} & \code{stats::var()} sur $z$
@@ -3323,7 +3355,11 @@ repère statistique distinct, non réglementaire, inchangé.
 
 Des volumes constants, au sens de \code{usp\_volumes\_constants()}, ne sont pas un motif de refus~:
 le calcul aboutit, mais les vérifications qui régressent sur le volume ou partitionnent par lui
-sont restituées «~non applicable~» (section~\ref{sec:volumes-constants}, issue~\#59).
+sont restituées «~non applicable~» (section~\ref{sec:volumes-constants}, issue~\#59), et,
+depuis l'issue~\#213, \code{engine\_valider\_donnees()} émet l'avertissement «~\code{Volumes x\_t
+constants a la tolerance relative TOL\_DELTA\_BORD = 1e-06 pres (etendue relative = \dots) :
+delta non identifie} \ldots~», qui nomme les lignes que la règle~R13 rend non applicables (texte complet en
+section~\ref{sec:volumes-constants}).
 Des pertes constantes, au sens de \code{usp\_pertes\_constantes()} (étendue des $y_t$ au plus
 \code{TOL\_DELTA\_BORD} fois leur moyenne), ne le sont pas non plus (issue~\#189, décision du
 mainteneur du 6~octobre 2026)~: \code{engine\_valider\_donnees()} émet l'avertissement
@@ -3336,8 +3372,9 @@ volumes du jeu de contrôle et $y_t = 80$ (méthode prime, $B = 99$)~: \code{ok 
 l'avertissement est émis, et ces lignes sont non applicables, en \code{INFO}.
 Quand volumes \emph{et} pertes sont constants, en revanche, les ratios $y_t/x_t$ sont égaux et
 \code{run\_engine()} refuse le calcul au titre de l'existence de l'estimateur (paragraphe
-suivant~; décision du mainteneur du 8~octobre 2026, le refus l'emporte), l'avertissement
-«~pertes constantes~» restant dans \code{validation\$avertissements}~; la priorité des volumes
+suivant~; décision du mainteneur du 8~octobre 2026, le refus l'emporte), les avertissements
+«~volumes constants~» puis «~pertes constantes~», dans cet ordre, restant dans
+\code{validation\$avertissements}~; la priorité des volumes
 constants sur les pertes constantes dans les motifs des lignes non applicables ne s'observe plus
 qu'en appel direct d'\code{usp\_tests()} (\code{tests/unitaires/test\_controles\_entree.R}).
 Mesuré~: $x_t = 100$ et $y_t = 70$ pour tout $t$, \code{ok = FALSE}~; volumes constants et
@@ -3346,12 +3383,27 @@ pertes du jeu de contrôle, \code{ok = TRUE}.
 \emph{Existence de l'estimateur du maximum de vraisemblance (issue~\#188).} Juste après
 \code{usp\_ajuster()}, avant les contrôles numériques, le bootstrap et tout test,
 \code{run\_engine()} appelle, avec l'ajustement et la méthode,
-\code{usp\_valider\_ajustement()}. Cette fonction refuse le calcul quand $\hat\gamma$ est sur une borne de \code{BORNES\_GAMMA} $= [-12\,;3]$, à
-\code{TOL\_DELTA\_BORD} $= 10^{-6}$ près ($\hat\gamma$ non fini étant compté sur la borne
-basse), \textbf{et} qu'aucun démarrage à l'optimum ne satisfait la condition de Kuhn et Tucker
-(\code{\$kkt\_au\_moins\_un} faux, fiche~\ref{fiche:foc}), condition qui exige elle-même
-$\gamma$ hors des bornes (\code{usp\_kkt\_satisfaite()})~: le refus revient à $\hat\gamma$ sur
-une borne sans autre démarrage à l'optimum, de $\gamma$ intérieur, qui la satisfasse. Le refus a la forme d'un refus de
+\code{usp\_valider\_ajustement()}. Cette fonction refuse le calcul quand au moins un démarrage à
+l'optimum --- le même ensemble que celui de la condition de Kuhn et Tucker, fiche~\ref{fiche:foc}
+--- a $\gamma$ sur une borne de \code{BORNES\_GAMMA} $= [-12\,;3]$, à
+\code{TOL\_DELTA\_BORD} $= 10^{-6}$ près ($\gamma$ non fini étant compté sur la borne
+basse~; prédicat unique \code{usp\_gamma\_bord()}, issue~\#322), \textbf{et} qu'aucun démarrage à l'optimum ne satisfait la condition de Kuhn et Tucker
+(\code{\$kkt\_au\_moins\_un} faux), condition qui exige elle-même
+$\gamma$ hors des bornes (\code{usp\_kkt\_satisfaite()}). Depuis l'issue~\#227 (règle décidée
+par le mainteneur le 15~octobre 2026, champ et motif le 17~octobre 2026), le premier membre est
+jugé sur l'\emph{ensemble} des démarrages à l'optimum, et non plus sur le seul démarrage retenu~:
+\code{usp\_ajuster()} le consigne dans le booléen \code{\$gamma\_bord\_au\_moins\_un}, dernier
+champ de \code{res\$ajustement} (faux sur les cinq cas de référence lognormaux, mesure), et
+\code{usp\_valider\_ajustement()} lit en outre le $\hat\gamma$ du démarrage retenu, qui
+appartient à cet ensemble~; un ajustement passé en appel direct sans ce champ garde ainsi la
+règle de l'issue~\#188, jugée sur le seul $\hat\gamma$ retenu. Le démarrage retenu, départagé
+parmi des démarrages équivalents par l'ordre de la grille, peut changer d'une plateforme à
+l'autre (fiche~\ref{fiche:multi-demarrages})~: il ne sert plus qu'à calculer $\hat\sigma$ et à
+choisir la forme du motif, et la décision n'en dépend plus. La règle refuse tout ce que
+refusait celle de l'issue~\#188 et, en outre, les ensembles \emph{mixtes} sans démarrage qui
+satisfasse la condition, dont le démarrage retenu est intérieur et un autre démarrage à
+l'optimum sur une borne~; elle ne change ni $\sigma_{\mathrm{USP}}$ ni aucun verdict des cas de
+référence. Le refus a la forme d'un refus de
 données~: \code{ok = FALSE}, motif ajouté à \code{validation\$erreurs}, objet réduit aux
 champs \code{ok}, \code{validation} et \code{metadata} (horodatage seul), avertissements de
 \code{engine\_valider\_donnees()} conservés, aucun résultat partiel, et \textbf{sans}
@@ -3359,8 +3411,10 @@ champs \code{ok}, \code{validation} et \code{metadata} (horodatage seul), averti
 abouti et ce sont les données qui ne déterminent pas l'estimateur dans le domaine de recherche.
 C'est aussi le seul contrôle \emph{bloquant} postérieur à l'ajustement lognormal~; les deux
 contrôles numériques de la famille~H, calculés ensuite sur un ajustement accepté, restent non
-bloquants (sous-section finale). Le motif, fixe à la borne et à la méthode près (l'argument
-\code{methode} n'agit que sur lui, jamais sur le prédicat), enchaîne un constat
+bloquants (sous-section finale). Le motif, fixe à sa forme, à la borne et à la méthode près
+(l'argument \code{methode} n'agit que sur lui, jamais sur le prédicat), prend deux formes.
+Quand le démarrage retenu est sur une borne (forme~1, celle de l'issue~\#188, inchangée), il
+enchaîne un constat
 («~\code{Maximum de vraisemblance non atteint (annexe XVII, B(6)) : gamma estime sur la borne
 basse du domaine de recherche [-12 ; 3] (BORNES\_GAMMA, bornes de l'outil, non reglementaires)}
 \ldots~», C(6) pour la méthode du risque de réserve n\textsuperscript{o}~1, «~\code{haute}~» à
@@ -3370,11 +3424,22 @@ B(2)(g) ou C(2)(e), iii et iv~; article~219, paragraphe~1, point~d)), pour la m�
 réserve n\textsuperscript{o}~1 le rappel que la méthode n\textsuperscript{o}~2 reste ouverte, et
 une vérification à faire (borne basse~: $y_t$ observé, B(1)(a) ou C(1)(a), et non déduit de
 $x_t$ par un coefficient fixe~; borne haute~: unités, correspondance des années et valeurs
-aberrantes, B(1) et B(2)(a) ou leurs homologues de la section~C). Mesuré sur les volumes du jeu
+aberrantes, B(1) et B(2)(a) ou leurs homologues de la section~C). Quand le démarrage retenu est
+intérieur (forme~2, issue~\#227), le constat devient «~\code{Maximum de vraisemblance non etabli
+(annexe XVII, B(6)) : parmi les demarrages qui atteignent l'objectif minimal a la tolerance de
+l'outil, au moins un a gamma sur une borne du domaine de recherche [-12 ; 3] (BORNES\_GAMMA,
+bornes de l'outil, non reglementaires) et aucun ne satisfait la condition du premier ordre (KKT)
+; le demarrage retenu, de gamma interieur, n'est pas un point stationnaire certifie}
+\ldots~»~; il ne nomme pas le côté de la borne, que le seul booléen
+\code{\$gamma\_bord\_au\_moins\_un} ne porte pas (décision du mainteneur du 17~octobre 2026), et
+réunit les causes et les vérifications des deux bornes, le fondement et le rappel de la méthode
+n\textsuperscript{o}~2 étant ceux de la forme~1, sans renvoi nouveau au règlement. Mesuré sur les volumes du jeu
 de contrôle (segment II-1, $B = 99$)~: $y_t = 0{,}7\,x_t$ est refusé à la borne basse
 pour les deux méthodes, $y_t = x_t \exp(3 w_t)$ ($w_t$ gaussien de graine 15520, ratios
 très dispersés) à la borne haute~; les jeux refusés et le texte exact des motifs sont vérifiés
-par \code{tests/unitaires/test\_controles\_entree.R}.
+par \code{tests/unitaires/test\_controles\_entree.R}, la forme~2 sur des ajustements fictifs
+(retenu intérieur, champ vrai, condition non satisfaite), faute de jeu de données connu qui la
+produise.
 
 \emph{Fondement.} Le prédicat repose sur un résultat d'existence établi dans l'encadré de la
 section~\ref{sec:h4}~: si les ratios $r_t = y_t/x_t$ sont tous égaux, le montant de B(6) (C(6))
@@ -3430,11 +3495,14 @@ non réglementaires (le texte ne borne que $\delta$, au dernier alinéa de B(6) 
 conjonction avec la condition de Kuhn et Tucker est un choix numérique de l'outil, qui fait
 porter le volet «~condition~» de la décision sur l'ensemble des démarrages à l'optimum (doctrine
 de la décision M23 du mainteneur)~: un $\hat\gamma$ retenu sur une borne alors qu'un autre
-démarrage à l'optimum satisfait la condition reste accepté. Le volet «~borne~», lui, est jugé sur
-le seul démarrage retenu (\code{\$gamma} d'\code{usp\_ajuster()})~: si, parmi les démarrages à
-l'optimum, les uns étaient sur une borne et les autres de $\gamma$ intérieur sans qu'aucun ne
-satisfasse la condition, l'issue (refus ou calcul) dépendrait du démarrage retenu, donc
-possiblement de la plateforme. Ce cas n'a pas été rencontré~: aucun ensemble mixte sur 96 jeux de
+démarrage à l'optimum satisfait la condition reste accepté. Le volet «~borne~» porte lui aussi,
+depuis l'issue~\#227 (décision du mainteneur du 15~octobre 2026, même doctrine), sur l'ensemble
+des démarrages à l'optimum (\code{\$gamma\_bord\_au\_moins\_un}). Jusqu'à cette issue, il était
+jugé sur le seul démarrage retenu (\code{\$gamma} d'\code{usp\_ajuster()})~: si, parmi les
+démarrages à l'optimum, les uns étaient sur une borne et les autres de $\gamma$ intérieur sans
+qu'aucun ne satisfasse la condition, l'issue (refus ou calcul) dépendait du démarrage retenu, donc
+possiblement de la plateforme~; un tel ensemble est désormais refusé quel que soit le démarrage
+retenu. Ce cas n'avait pas été rencontré~: aucun ensemble mixte sur 96 jeux de
 la zone de transition et 5 jeux de la borne haute (revue finale d'\code{audit} d'E1g, constat,
 non résultat général).
 
@@ -3946,8 +4014,9 @@ relative de premier ordre sur $\sigma$ du pas de Newton complet, issue~\#71),
 $|\mathrm{pg}_\delta| \le$ \code{REP\_GD\_KKT} $= 10^{-4}$ (fiche~\ref{fiche:foc}) & Contrôle
 numérique de l'estimation (\code{usp\_controles\_numeriques()})~; règle « au moins un
 démarrage », décision M25 du mainteneur. Repère $10^{-6}$ ancré sur la décision M9, repère
-$10^{-4}$ fixé d'après des mesures. Non bloquant~; un $\hat\gamma$ sur une borne sans démarrage
-qui satisfasse la condition est refusé en amont par \code{usp\_valider\_ajustement()} (issue~\#188,
+$10^{-4}$ fixé d'après des mesures. Non bloquant~; un ajustement dont au moins un démarrage à
+l'optimum a $\gamma$ sur une borne, sans démarrage qui satisfasse la condition, est refusé en
+amont par \code{usp\_valider\_ajustement()} (issues~\#188 et~\#227,
 paragraphe sous le tableau des méthodes lognormales). \\
 Convergence multi-démarrages \emph{(post-ajustement)} & au moins un démarrage à
 l'optimum (objectif à \code{TOL\_OPTIMUM} près) au code de retour~0, et au moins deux
@@ -4791,7 +4860,9 @@ Diagnostic \\
   $B = 99$)~: ces lignes sont désormais non applicables avec ce motif, la table garde toutes ses
   lignes, et seize verdicts \code{ECHEC} apparaissent ailleurs (notamment RESET, les corrélations
   de rang du ratio, Durbin--Watson, Ljung--Box, sup-F et OLS-CUSUM), qui signalent la saisie
-  anormale.
+  anormale (décompte remesuré après l'issue~\#213, inchangé). Depuis l'issue~\#213, la ligne de
+  Spearman ratio contre volume, qui reste calculée dans ce régime, porte une phrase de contexte
+  (fiche~\ref{fiche:spearman}, rubrique~6).
   \item \emph{Condition de conclusion du TOST}~: conclure exige
   $\widehat{\mathrm{se}}(\hat a) < \Delta/t_{1-\alpha,\,T-2}$~; le levier pondéré de l'origine
   $\bar x_w^{\,2}/S_{xx,w}$ ($\bar x^{\,2}/S_{xx}$ à poids constants, ou avant l'issue~\#215) peut
@@ -8527,6 +8598,27 @@ médiocre pour $T < 10$, raison pour laquelle le moteur retient la loi exacte de
 « ratio contre volume », un rejet signale un effet d'échelle non capté par la proportionnalité
 stricte.
 
+\emph{Pertes constantes} (issue~\#213, décision du mainteneur du 17~octobre 2026). À pertes
+constantes au sens de \code{usp\_pertes\_constantes()} et volumes non constants, la variante
+« ratio contre volume » reste calculée, à la différence des lignes de la régression de $y_t$
+sur $x_t$ (constante, TOST, pente, Fisher et $R^2$), non applicables (sous-section~\ref{sec:modele-auxiliaire-regles})~: $r_t = c/x_t$
+décroît strictement avec $x_t$, la statistique est définie, et $\hat\rho_s = -1$. Le rejet n'est
+pas un artefact de la dégénérescence~: des pertes constantes sous des volumes variables
+contredisent $\mathbb{E}[Y_t] = \beta x_t$~; cette ligne et le test RESET sont les lignes de
+l'hypothèse~H1 sur le volume qui restent calculées dans ce régime, et toutes deux le disent
+(\code{ECHEC} à l'une et à l'autre dans la mesure ci-dessous)~; son type et son verdict sont conservés. Pour que le
+lecteur ne prenne pas ce verdict pour un effet de la saisie dégénérée que signale l'avertissement
+des pertes constantes (section~\ref{sec:controles}), le commentaire de la ligne reçoit, en seconde
+phrase, le texte fixe «~\code{Pertes y\_t constantes a la tolerance relative TOL\_DELTA\_BORD pres
+(voir l'avertissement sur les donnees) : le ratio y\_t/x\_t varie alors en sens inverse du volume
+; un rejet traduit des pertes non proportionnelles au volume, ce que teste la ligne.}~», sans
+nombre, jamais à volumes constants, où la ligne est non applicable. Mesuré (méthode prime,
+segment~1 de l'annexe~II, données brutes, $B = 99$) sur les volumes du jeu de contrôle et
+$y_t = 80$~: $\hat\delta = 1$, $S = 168$ ($\hat\rho_s = -1$), p-value exacte retenue
+$2/8! = 4{,}96\cdot 10^{-5}$, \code{ECHEC}, phrase présente~; elle est absente sur le jeu de
+contrôle et à volumes constants. Sur ces mêmes données, le test RESET est \code{ECHEC}, de p-value
+Monte-Carlo retenue $0{,}01 = 1/(B+1)$, et les lignes de la régression sont non applicables.
+
 \medskip
 \begin{encadre}
 \textbf{Renvoi croisé avec la ligne de la nullité de la constante} (issue~\#215, renvoi décrit en
@@ -8545,7 +8637,7 @@ règle d'\code{usp\_renvois()}~; la ligne Spearman ne porte pas elle-même de re
 
 \textbf{Table.} Tableau~\ref{tab:pmin}, dernière colonne~: aucune bascule de $T = 5$ à $T = 12$.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes ($p_{\min} \ll \alpha$)~; la ligne « ratio contre volume » est non applicable à volumes constants (section~\ref{sec:volumes-constants}). Puissance non étudiée à $T = 8$ contre les écarts que vise la ligne~; des taux de rejet sous des alternatives d'une autre famille figurent au fichier de puissance de l'issue~\#229, sans être repris ici. Niveau de la p-value retenue sous le modèle ajusté (issue~\#166, $R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc}), exacte dans les réplications où $\hat\pi^{*}_t$ est constant et de Monte-Carlo dans les autres~: ratio contre volume, J1, $0{,}093$ à $\alpha = 0{,}10$ et $0{,}0525$ à $0{,}05$, J2, $0{,}100$ et $0{,}0495$ (références mélangées $0{,}0933$ et $0{,}0444$ sur J1, $0{,}0925$ et $0{,}0440$ sur J2)~; ratio contre temps, J1, $0{,}093$ et $0{,}0485$, J2, $0{,}0895$ et $0{,}039$~; compatible aux deux seuils sur les deux jeux, de même que la p-value de Monte-Carlo seule contre sa taille lissée ($0{,}0904$ et $0{,}0429$). Sur J2, la p-value de Monte-Carlo du ratio contre temps rejette à $0{,}10$ dans $0{,}061$ des réplications au bord~1 et $0{,}117$ au bord~0 (taux conditionnels, sans référence exacte). Niveau de la p-value de Monte-Carlo de la ligne sous la variante V3h, p-value retenue du moteur depuis l'issue~\#240 quand la p-value exacte n'est pas attribuée (issue~\#229, tableau~T1, $R = 2\,000$, $B = 999$, constat de simulation au commit \code{fee9968}, V3h reconstruite par le script, antérieure à son implémentation, section~\ref{sec:calibration-mc})~: J1, V3h coïncide avec V1 réplication par réplication sur les 1\,925 réplications à $\hat\delta^{*}$ au bord, seule population du tableau~T1~; les 75 réplications à $\hat\delta^{*}$ intérieur (tableau~T1~bis, descriptif) n'y figurent pas, et le niveau V3h sur l'ensemble de J1 n'est pas tabulé~; J2, ratio contre volume, $0{,}0975$ $[0{,}0848~;~0{,}1113]$ à $\alpha = 0{,}10$ et $0{,}0515$ $[0{,}0422~;~0{,}0621]$ à $0{,}05$, compatible aux deux seuils~; ratio contre temps, $0{,}0825$ $[0{,}0708~;~0{,}0954]$ à $\alpha = 0{,}10$ et $0{,}0405$ $[0{,}0323~;~0{,}0501]$ à $0{,}05$, compatible aux deux seuils. Ces taux se lisent avec la taille lissée de la p-value de Monte-Carlo (référence du tableau~T1, loi discrète), $0{,}0904$ à $0{,}10$ et $0{,}0430$ à $0{,}05$~; le niveau de la p-value retenue (mélange de la p-value exacte et de la p-value de Monte-Carlo) sous V3h n'est pas cité, le tableau~T1 ne le donnant pas.
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes ($p_{\min} \ll \alpha$)~; la ligne « ratio contre volume » est non applicable à volumes constants (section~\ref{sec:volumes-constants}), et reste un test à pertes constantes, type et verdict conservés (rubrique~6, issue~\#213). Puissance non étudiée à $T = 8$ contre les écarts que vise la ligne~; des taux de rejet sous des alternatives d'une autre famille figurent au fichier de puissance de l'issue~\#229, sans être repris ici. Niveau de la p-value retenue sous le modèle ajusté (issue~\#166, $R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc}), exacte dans les réplications où $\hat\pi^{*}_t$ est constant et de Monte-Carlo dans les autres~: ratio contre volume, J1, $0{,}093$ à $\alpha = 0{,}10$ et $0{,}0525$ à $0{,}05$, J2, $0{,}100$ et $0{,}0495$ (références mélangées $0{,}0933$ et $0{,}0444$ sur J1, $0{,}0925$ et $0{,}0440$ sur J2)~; ratio contre temps, J1, $0{,}093$ et $0{,}0485$, J2, $0{,}0895$ et $0{,}039$~; compatible aux deux seuils sur les deux jeux, de même que la p-value de Monte-Carlo seule contre sa taille lissée ($0{,}0904$ et $0{,}0429$). Sur J2, la p-value de Monte-Carlo du ratio contre temps rejette à $0{,}10$ dans $0{,}061$ des réplications au bord~1 et $0{,}117$ au bord~0 (taux conditionnels, sans référence exacte). Niveau de la p-value de Monte-Carlo de la ligne sous la variante V3h, p-value retenue du moteur depuis l'issue~\#240 quand la p-value exacte n'est pas attribuée (issue~\#229, tableau~T1, $R = 2\,000$, $B = 999$, constat de simulation au commit \code{fee9968}, V3h reconstruite par le script, antérieure à son implémentation, section~\ref{sec:calibration-mc})~: J1, V3h coïncide avec V1 réplication par réplication sur les 1\,925 réplications à $\hat\delta^{*}$ au bord, seule population du tableau~T1~; les 75 réplications à $\hat\delta^{*}$ intérieur (tableau~T1~bis, descriptif) n'y figurent pas, et le niveau V3h sur l'ensemble de J1 n'est pas tabulé~; J2, ratio contre volume, $0{,}0975$ $[0{,}0848~;~0{,}1113]$ à $\alpha = 0{,}10$ et $0{,}0515$ $[0{,}0422~;~0{,}0621]$ à $0{,}05$, compatible aux deux seuils~; ratio contre temps, $0{,}0825$ $[0{,}0708~;~0{,}0954]$ à $\alpha = 0{,}10$ et $0{,}0405$ $[0{,}0323~;~0{,}0501]$ à $0{,}05$, compatible aux deux seuils. Ces taux se lisent avec la taille lissée de la p-value de Monte-Carlo (référence du tableau~T1, loi discrète), $0{,}0904$ à $0{,}10$ et $0{,}0430$ à $0{,}05$~; le niveau de la p-value retenue (mélange de la p-value exacte et de la p-value de Monte-Carlo) sous V3h n'est pas cité, le tableau~T1 ne le donnant pas.
 
 \textbf{Statut des valeurs.} $p_{\min}$~: exacte (énumération de la loi de permutation) à $\hat\pi_t$ constant~; à $\hat\pi_t$ variable, $p_{\min}$ exacte sur la loi de référence échangeable, qui ne borne pas la p-value de Monte-Carlo~; plancher de Monte-Carlo et plancher $p_{\min}^{\mathrm{MC}}$ lu par la règle~R1~: exacts pour les réplications tirées, fonction de $B$ (et de la graine pour le second). Niveau~: constat de simulation sous le modèle ajusté à J1 et à J2 (section~\ref{sec:calibration-mc}), incertitude de Clopper--Pearson liée à $R$, intervalles dans les fichiers de résultats.
 \end{fiche}
@@ -9761,8 +9853,8 @@ $\hat\gamma(1) \le -12 \Leftrightarrow \sqrt{S/T} \le \sqrt{\ln(1 + e^{-24})} = 
 en deçà de ce seuil~: une série exactement proportionnelle a toujours $\hat\gamma$ sur la borne
 basse (mesuré sur $y_t = 0{,}7\,x_t$ et les volumes du jeu de contrôle~: $S = 2{,}8\cdot
 10^{-32}$, $\hat\gamma(1) = -37{,}4$, minimiseur fixé par l'arrondi). Ces résultats fondent le contrôle de validité \code{usp\_valider\_ajustement()}, qui
-refuse le calcul quand $\hat\gamma$ est sur une borne de son domaine sans que la condition de
-Kuhn et Tucker soit satisfaite (section~\ref{sec:controles}, où sont décrits son fondement
+refuse le calcul quand au moins un démarrage à l'optimum a $\gamma$ sur une borne de son domaine
+sans que la condition de Kuhn et Tucker soit satisfaite par aucun (issues~\#188 et~\#227~; section~\ref{sec:controles}, où sont décrits son fondement
 réglementaire, la frontière du refus et la continuité de $\sigma_{\mathrm{USP}}$ à cette
 frontière).
 \end{encadre}
@@ -10079,12 +10171,14 @@ mainteneur)~: il ne figure pas dans la table des tests mais dans \code{res\$cont
 verdict \code{OK} / \code{ECHEC} \textbf{non bloquant}~: un \code{ECHEC} est restitué et
 \code{run\_engine()} produit le calcul. La même décision \code{\$kkt\_au\_moins\_un} entre
 toutefois, avant ce contrôle, dans le contrôle de validité \emph{bloquant}
-\code{usp\_valider\_ajustement()} (issue~\#188, section~\ref{sec:controles})~: si $\hat\gamma$ est
-sur une borne de \code{BORNES\_GAMMA} et que la décision est fausse, \code{run\_engine()} refuse
-le calcul (\code{ok = FALSE}) et le présent contrôle n'est pas restitué. Par construction du code
-(non par une mesure), un résultat accepté dont le $\hat\gamma$ retenu est sur une borne porte donc
-un \code{OK} à ce contrôle, obtenu sur un autre démarrage à l'optimum~; un \code{ECHEC} restitué
-correspond à un $\hat\gamma$ intérieur.
+\code{usp\_valider\_ajustement()} (issue~\#188, section~\ref{sec:controles})~: si au moins un
+démarrage à l'optimum a $\gamma$ sur une borne de \code{BORNES\_GAMMA}
+(\code{\$gamma\_bord\_au\_moins\_un}, issue~\#227, ou $\hat\gamma$ retenu) et que la décision
+est fausse, \code{run\_engine()} refuse le calcul (\code{ok = FALSE}) et le présent contrôle
+n'est pas restitué. Par construction du code (non par une mesure), un résultat accepté dont le
+$\hat\gamma$ retenu est sur une borne porte donc un \code{OK} à ce contrôle, obtenu sur un autre
+démarrage à l'optimum~; un \code{ECHEC} restitué correspond à un ensemble de démarrages à
+l'optimum tous de $\gamma$ intérieur.
 
 En annulant la dérivée de l'objectif par rapport à $\ln\beta$, on obtient la contrainte que
 l'estimation impose mécaniquement aux résidus \emph{quel que soit} le couple $(\delta,\gamma)$~:
@@ -10115,11 +10209,14 @@ $g_\gamma = w\,\big(\sum_t z_t^2 - T\big)$, avec $w = -\pi\,2ea/(1+ea)$ commun �
 années. Le gradient est projeté sur les bornes (\code{usp\_condition\_premier\_ordre()})~:
 $\delta \in [0,1]$ et $\gamma \in [-12, 3]$ (constante \code{BORNES\_GAMMA}, bornes numériques
 et non réglementaires, le règlement ne bornant que $\delta$ au dernier alinéa de B(6) et de C(6)~;
-depuis l'issue~\#188, une estimation sur une borne de $\gamma$ sans démarrage à l'optimum qui
-satisfasse la condition ci-dessous est un \textbf{refus} de \code{usp\_valider\_ajustement()},
-section~\ref{sec:controles}~; cette condition exigeant elle-même $\gamma$ hors des bornes
-(\code{usp\_kkt\_satisfaite()}), le refus revient à $\hat\gamma$ sur une borne sans autre
-démarrage à l'optimum, de $\gamma$ intérieur, qui la satisfasse), le bord étant jugé à \code{TOL\_DELTA\_BORD} $= 10^{-6}$ près~; sur une
+depuis l'issue~\#188, un ajustement dont au moins un démarrage à l'optimum a $\gamma$ sur une
+borne, sans démarrage à l'optimum qui satisfasse la condition ci-dessous, est un \textbf{refus}
+de \code{usp\_valider\_ajustement()}, section~\ref{sec:controles}~; jusqu'à l'issue~\#227, seul
+le $\hat\gamma$ du démarrage retenu était jugé~; cette condition exigeant elle-même $\gamma$
+hors des bornes (\code{usp\_kkt\_satisfaite()}), le refus revient à un démarrage à l'optimum sur
+une borne sans autre démarrage à l'optimum, de $\gamma$ intérieur, qui la satisfasse), le bord étant jugé à \code{TOL\_DELTA\_BORD} $= 10^{-6}$ près
+(pour $\gamma$, par le prédicat unique \code{usp\_gamma\_bord()}, issue~\#322, qui compte un
+$\gamma$ non fini sur la borne basse)~; sur une
 borne inférieure la composante projetée vaut $\min(g, 0)$, sur une borne supérieure
 $\max(g, 0)$, à l'intérieur $g$. On en tire (issue~\#71, spécification d'\code{actuary} du
 28~septembre 2026)~:
@@ -10183,7 +10280,9 @@ $|\mathrm{pg}_\delta| \le$ \code{REP\_GD\_KKT} $= 10^{-4}$, \textbf{règle uniqu
 l'intérieur} (à l'intérieur, $\mathrm{pg}_\delta = g_\delta$~; maintenue par l'issue~\#71 comme
 garde de validité du modèle quadratique local). \code{usp\_ajuster()} évalue tous les démarrages à l'optimum,
 sans s'arrêter au premier succès qui réintroduirait un ordre, et restitue la décision dans le
-champ \code{\$kkt\_au\_moins\_un} de \code{res\$ajustement}~; aucun décompte des démarrages
+champ \code{\$kkt\_au\_moins\_un} de \code{res\$ajustement}, suivi du booléen
+\code{\$gamma\_bord\_au\_moins\_un} calculé sur le même ensemble pour le contrôle de validité
+(issue~\#227)~; aucun décompte des démarrages
 qui satisfont la condition n'est stocké ni imprimé, car il dépendrait, comme
 $n^{\star}_0$ (fiche~\ref{fiche:multi-demarrages}), du chemin d'optimisation. Le commentaire,
 concis depuis la décision M27 du mainteneur (issue~\#76), nomme la règle sans en rappeler les
@@ -10301,14 +10400,59 @@ résidu observé depuis l'issue~\#63 est $g_\delta = 1{,}4\cdot 10^{-15}$ au dé
 (rubrique~3).
 
 \textbf{Volumes quasi constants hors de la bande.} La sous-hessienne libre est jugée sur une
-hessienne obtenue par différences centrées~: quand les volumes sont presque constants sans être
-dans la bande de \code{TOL\_DELTA\_BORD}, la vraie courbure $H_{\delta\delta}$, proportionnelle au
-carré de l'étendue relative des volumes, peut tomber sous le bruit de cette différence centrée, et
-le démarrage retenu peut alors porter l'anomalie «~courbure non strictement positive~», avec
-\code{stat} \code{NA}, alors que le verdict reste \code{OK} grâce à un autre démarrage à
-l'optimum. Ce résidu, constaté par \code{coder} à la validation de l'issue~\#71 pour une étendue
-relative de l'ordre de $10^{-5}$ (scripts non versionnés), est accepté par \code{actuary} et suivi
-par l'issue~\#158~; il ne concerne ni des volumes réels ni les cas de référence, et ne l'a pas été
+hessienne obtenue par différences centrées du gradient analytique. Quand les volumes sont presque
+constants sans être dans la bande de \code{TOL\_DELTA\_BORD}, la courbure $H_{\delta\delta}$ est
+proportionnelle au carré de l'étendue relative des volumes (médianes de
+$|H_{\delta\delta}|/H_{\gamma\gamma}$ sous le générateur G1 ci-dessous, $s = 0{,}01$~:
+$4{,}1\cdot 10^{-10}$, $5{,}1\cdot 10^{-8}$ et $4{,}9\cdot 10^{-6}$ aux étendues nominales
+$\varepsilon = 10^{-4}$, $10^{-3}$ et $10^{-2}$, tableau~T3 du fichier cité plus bas), et le
+démarrage retenu, de $\hat\delta$ intérieur, peut porter l'anomalie «~courbure non strictement
+positive~», avec \code{stat} \code{NA}, alors que le verdict reste \code{OK} grâce à un autre
+démarrage à l'optimum qui satisfait la condition. \textbf{Ce libellé est exact}~: la courbure
+négative est réelle et mesurée, et non noyée dans le bruit de la différence centrée. Sur
+1\,320 évaluations sur 1\,320 (population P1~: générateur G1 ci-dessous, $s = 0{,}01$, 40 jeux
+par étendue nominale, onze étendues, soit 440 jeux, chacun évalué aux trois échelles
+$10^{-3}$, $1$ et $10^{6}$ des données), $H_{\delta\delta}$ garde son signe et sa valeur à
+10~\% près pour $h$ de $10^{-2}$ à $10^{-6}$~; au pas $h = 10^{-4}$ du moteur, le bruit empirique
+(écart-type de $H_{\delta\delta}$ sur vingt points $\hat\delta \pm j\cdot 10^{-12}$) vaut au plus
+$3{,}5\cdot 10^{-5}\,|H_{\delta\delta}|$, et $4{,}2\cdot 10^{-3}\,|H_{\delta\delta}|$ à
+$h = 10^{-6}$. Le démarrage retenu est donc intérieur, sur une partie de l'objectif concave en
+$\delta$, et n'est pas un minimum en $\delta$. L'objectif profilé y est presque plat en $\delta$,
+et L-BFGS-B s'y arrête, les écarts d'objectif restant sous sa tolérance d'arrêt
+(\code{factr})~: ce mécanisme est une \emph{hypothèse} cohérente avec les mesures, non établie.
+Le libellé est \textbf{sans effet mesurable sur $\sigma$}~: sur les jeux libellés, l'écart
+relatif de $\sigma$ entre le démarrage retenu et le premier démarrage à l'optimum qui satisfait la
+condition est au plus $4{,}3\cdot 10^{-8}$, et l'effet de $\delta$ sur $\ln\sigma$ aux bornes de
+$[0\,;1]$, à $\hat\gamma$ fixé,
+$\max_{b \in \{0,1\}} |\ln\sigma(b,\hat\gamma) - \ln\sigma(\hat\delta,\hat\gamma)|$, au plus
+$1{,}2\cdot 10^{-6}$. Fréquence du libellé (\emph{constat de simulation},
+\code{docs/tableaux/}\allowbreak\code{20261017-issue158-courbure-delta.md}, script
+\code{tests/mesure\_courbure\_delta\_158.R}, hors CI, R~4.3.3, BLAS et LAPACK de référence)~:
+générateurs G1, $x_t = 100\,(1 + \varepsilon\,U_t)$, $U_t$ uniforme sur $[-1\,;1]$, et pertes du
+jeu de contrôle multipliées par $\exp(\mathcal{N}(0, s^2))$, $s \in \{0\,;0{,}01\}$, G2 et G3,
+volumes du jeu de contrôle (J1) ou du jeu à $\hat\delta$ intérieur (J2) comprimés à l'étendue
+relative $\varepsilon$, ratios conservés~; onze étendues nominales de $1{,}5\cdot 10^{-6}$ à
+$10^{-2}$, 100 jeux par cellule. Sur 4\,400 jeux, 14 portent le libellé, tous de verdict
+\code{OK}, à des étendues relatives de $1{,}5\cdot 10^{-6}$ à $5{,}4\cdot 10^{-5}$~; aucun sur les
+1\,200 jeux d'étendue nominale au moins égale à $10^{-4}$ (intervalle de Clopper--Pearson à
+95~\% $[0\,;0{,}0031]$), ni sur les 1\,238 jeux simulés de
+\code{tests/unitaires/test\_controles\_numeriques.R}. Le nombre de jeux fixe l'incertitude de
+simulation des fréquences, non une erreur d'approximation en $T$, et ces fréquences ne valent que
+pour ces générateurs. Le contrôle n'est pas modifié (décision du mainteneur du 17~octobre 2026,
+issue~\#158, statu quo documenté)~: le critère initial de l'issue, aucun libellé pour une étendue
+$\varepsilon \in [2\cdot 10^{-6}\,;10^{-2}]$, est abandonné, le libellé décrivant exactement le
+démarrage retenu, sans effet sur $\sigma$, dans un régime de volumes égaux à quelques $10^{-5}$
+près. À un bord de $\delta$ où le gradient projeté en $\delta$ est nul ($\delta$ non libre), une courbure $H_{\delta\delta}$
+négative n'entre pas dans le critère, la sous-hessienne libre se réduisant à $H_{\gamma\gamma}$,
+et n'est pas signalée~: c'est le comportement voulu (population P1 ci-dessus, au démarrage
+retenu~: $H_{\delta\delta} < 0$ pour 83 des 440 jeux, à chacune des trois échelles, soit
+249 évaluations sur 1\,320, dont un seul jeu libellé, de $\hat\delta$ intérieur~; par
+construction du critère, un démarrage retenu à $\delta$ libre, $\gamma$ intérieur et
+$H_{\delta\delta} < 0$ est toujours libellé). Ce
+résidu avait été constaté par \code{coder} à la validation de l'issue~\#71 pour une étendue
+relative de l'ordre de $10^{-5}$ (scripts non versionnés), avec une cause attribuée au bruit de
+la différence centrée que la mesure de l'issue~\#158 a contredite~; il ne concerne ni des
+volumes réels ni les cas de référence, et ne l'a pas été
 sur les volumes $100\,(1 + e\,\mathrm{scale}(1{:}8))$ associés aux pertes du jeu de contrôle,
 d'étendue relative $2{,}9\cdot 10^{-6}$ à $8{,}6\cdot 10^{-5}$ (mesure~: contrôle \code{OK},
 sans anomalie).
@@ -10614,7 +10758,8 @@ $\sigma \approx 6\cdot 10^{-6}\,\hat\beta$, deux situations sans réalité pour 
 le jeu de contrôle, aucune des 999 réplications n'atteint une borne ($\hat\gamma^{*}$ reste entre
 $-3{,}34$ et $-1{,}37$). Sur les données observées, depuis l'issue~\#188, un $\hat\gamma$ sur une
 borne sans démarrage à l'optimum qui satisfasse la condition de Kuhn et Tucker conduit au refus
-du calcul (section~\ref{sec:controles})~; dans un résultat accepté, la réserve ne concerne donc
+du calcul, et, depuis l'issue~\#227, tout démarrage à l'optimum sur une borne dans ce cas
+(section~\ref{sec:controles})~; dans un résultat accepté, la réserve ne concerne donc
 plus que les réplications bootstrap, auxquelles ce refus ne s'applique pas, et le cas où le
 démarrage retenu est sur une borne alors qu'un autre démarrage à l'optimum satisfait la condition.
 
@@ -11568,17 +11713,25 @@ Pour chaque $t$, on réestime intégralement le modèle sur l'échantillon priv�
 d'où $\hat\sigma^{(-t)}$ et $\sigma_{\mathrm{USP}}^{(-t)}$. Le facteur de crédibilité $c$ et la
 correction $\sqrt{(T+1)/(T-1)}$ sont maintenus à ceux de l'échantillon complet, l'objectif étant
 d'isoler l'effet de l'observation retirée et non de rejouer les règles de l'annexe~XVII sur $T-1$
-années. \textbf{Diagnostic, non test.}
+années. Chaque réajustement est en revanche soumis à la même règle d'existence de l'estimateur
+du maximum de vraisemblance que l'échantillon complet (\code{usp\_valider\_ajustement()},
+section~\ref{sec:controles}, issues~\#188 et~\#227), jugée sur les démarrages à l'optimum du
+réajustement, issus d'une grille de cinq valeurs de $\delta$ et six de $\gamma$ (\code{n\_starts\_delta}~$= 5$, soit
+30 démarrages contre 54 pour l'échantillon complet)~: depuis l'issue~\#224, un réajustement
+refusé est traité comme un réajustement en échec (rubrique~3). \textbf{Diagnostic, non test.}
 \Hzero
 Sans objet.
 \Stat
 \[
-  \Delta_{\max} \;=\; \max_{1\le t\le T}
-  \frac{\big|\sigma_{\mathrm{USP}}^{(-t)} - \sigma_{\mathrm{USP}}\big|}{\sigma_{\mathrm{USP}}} .
+  \Delta_{\max} \;=\; \max_{t \in \mathcal{E}}
+  \frac{\big|\sigma_{\mathrm{USP}}^{(-t)} - \sigma_{\mathrm{USP}}\big|}{\sigma_{\mathrm{USP}}} ,
 \]
-L'estimateur jackknife du biais,
+où $\mathcal{E} \subseteq \{1, \dots, T\}$ est l'ensemble des années \emph{évaluables}, dont le
+réajustement a abouti sans être refusé (fin de la rubrique~; $\mathcal{E} = \{1, \dots, T\}$
+sur les cas de référence). L'estimateur jackknife du biais,
 $\widehat{\mathrm{biais}} = (T-1)\big(\overline{\sigma^{(-\cdot)}} - \hat\sigma\big)$, est
-également calculable à partir de la table produite.
+également calculable à partir de la table produite quand toutes les années sont évaluables~; la
+moyenne portant sur les $T$ réajustements, il ne l'est plus dès qu'une année ne l'est pas.
 
 \emph{Part estimée et part standard.} Notons $\hat\sigma = \sigma(\hat\delta,\hat\gamma)$.
 On appelle \emph{part estimée} de $\sigma_{\mathrm{USP}}$ sa composante
@@ -11614,9 +11767,38 @@ $t^\star$, $\big(\hat\sigma^{(-t^\star)} - \hat\sigma\big)/\hat\sigma$, qui n'es
 part~; il a été retiré pour la même raison, et se recalcule à partir de la colonne
 \code{sigma} de \code{res\$jackknife} (valeurs $\hat\sigma^{(-t)}$) et du champ \code{sigma} de
 \code{res\$ajustement} ($\hat\sigma$). Le maximum ne porte que sur les années
-dont le réajustement a abouti~: une année dont le réajustement échoue n'a de valeur sur aucune
-des deux échelles et ne peut pas être désignée, même si elle était la plus influente. Si tous
-les réajustements échouent, la ligne est absente de la table.
+évaluables~: une année dont le réajustement échoue n'a de valeur sur aucune
+des deux échelles et ne peut pas être désignée, même si elle était la plus influente. Depuis
+l'issue~\#224, il en va de même d'une année dont le réajustement aboutit mais est refusé par
+\code{usp\_valider\_ajustement()}, règle de l'échantillon complet (au moins un démarrage à
+l'optimum de $\gamma$ sur une borne de \code{BORNES\_GAMMA}, aucun qui satisfasse la condition de
+Kuhn et Tucker)~: l'estimateur du maximum de vraisemblance n'y est pas établi, et
+$\sigma_{\mathrm{USP}}^{(-t)}$ n'est pas une influence mesurée. Sa ligne de
+\code{res\$jackknife} est laissée entièrement à \code{NA} (colonnes \code{sigma},
+\code{sigma\_usp}, \code{delta} et \code{gamma}, signature et colonnes d'\code{usp\_jackknife()}
+inchangées), comme celle d'un réajustement en échec, et son écart vaut \code{NA} dans le
+graphique d'influence (\code{engine\_influence()}). Un réajustement à $\gamma$ intérieur dont
+aucun démarrage ne satisfait la condition reste retenu, comme l'échantillon complet (contrôle
+non bloquant, fiche~\ref{fiche:foc}). Le commentaire nomme les années non évaluables, après
+l'année la plus influente, par la phrase fixe «~\code{Annee 5 non evaluable (reajustement sans
+maximum de vraisemblance etabli, ou en echec) : ecartee du maximum, influence non mesuree.}~»
+(au pluriel «~\code{Annees 2 et 5 non evaluables (reajustements \dots) : ecartees du maximum
+\dots}~», numéros joints par «~,~» puis «~et~»), qui n'imprime que des numéros d'année et ne
+distingue pas le refus de l'échec, faute d'une colonne qui les sépare. Une telle année n'est
+pas dite sans influence~: son influence n'est pas mesurable par $\sigma_{\mathrm{USP}}^{(-t)}$.
+Mesuré (méthode prime, segment~1 de l'annexe~II, données brutes, $B = 99$) sur les volumes du
+jeu de contrôle et $y_t = 0{,}7\,x_t$, sauf $y_5 = 0{,}8\,x_5$~: sans l'année~5,
+$\hat\gamma = -12$ et aucun démarrage ne satisfait la condition, le réajustement est refusé~;
+$\Delta_{\max}$ vaut $0{,}0206$ au lieu de $0{,}3393$ avant l'issue~\#224, valeur que fournissait
+ce seul réajustement, en désignant l'année~5~; $\sigma_{\mathrm{USP}} = 0{,}06205954$ et la ligne
+\code{INFO} sont inchangés. Les sept écarts restants y sont égaux à moins de $2\cdot 10^{-10}$
+près~: l'année désignée parmi eux (l'année~6 dans cette mesure) dépend du bruit d'optimiseur et
+peut changer d'une plateforme à l'autre (bibliothèques d'algèbre linéaire, version de~R), le
+résultat restant reproductible sur une même machine (limite connue, issue~\#327).
+Si aucun réajustement n'est évaluable, la ligne est absente de la table (limite connue,
+issue~\#329)~; le graphique et la note d'influence de l'application ne traitent pas encore ce
+cas d'un jackknife entièrement \code{NA}, ni ne signalent les années non évaluables quand il ne
+l'est que partiellement (limite connue, issue~\#328).
 \Loi
 Aucune loi de référence n'est utilisée pour $\Delta_{\max}$.
 \Pval
@@ -16692,7 +16874,8 @@ l'origine par \code{.mw\_phrase\_origine\_}\allowbreak\code{non\_identifiable()}
 Merz--Wüthrich~: leviers, DFBETA, DFBETAS et contributions par année de survenance
 (fiche~\ref{mw:influence}) & \code{mw\_influence()}, \code{mw\_contributions()} \\
 Contrôles de validité (§\ref{sec:controles}) & \code{engine\_valider\_donnees()}, \code{usp\_controle\_donnees()},
-\code{usp\_valider\_ajustement()} (après l'ajustement lognormal, issue~\#188),
+\code{usp\_valider\_ajustement()} (après l'ajustement lognormal, issue~\#188~; borne de $\gamma$
+par \code{usp\_gamma\_bord()}, issue~\#322),
 \code{mw\_valider\_triangle()}, \code{mw\_valider\_ajustement()}~;\newline lecture des
 fichiers~: \code{engine\_lire\_donnees\_csv()}, \code{usp\_lire\_vecteur()},
 \code{engine\_lire\_triangle()} \\
@@ -16702,8 +16885,9 @@ qui produit les deux entrées ajoutées à \code{res\$controles} par \code{run\_
 décisions calculées dans \code{usp\_ajuster()}~: démarrages à l'optimum (\code{TOL\_OPTIMUM}),
 condition de Kuhn et Tucker par \code{usp\_condition\_premier\_ordre()} et
 \code{usp\_kkt\_satisfaite()} (\code{REP\_SIGMA\_KKT}, \code{REP\_GD\_KKT}, \code{BORNES\_GAMMA}~;
-hessienne \code{usp\_hessienne()}, pas de Newton \code{usp\_pas\_newton\_borne()}),
-champ \code{\$kkt\_au\_moins\_un}~; convergence multi-démarrages~: champs
+$\gamma$ sur une borne par \code{usp\_gamma\_bord()}, issue~\#322~; hessienne \code{usp\_hessienne()}, pas de Newton \code{usp\_pas\_newton\_borne()}),
+champ \code{\$kkt\_au\_moins\_un}, puis \code{\$gamma\_bord\_au\_moins\_un}, lu par
+\code{usp\_valider\_ajustement()} (issue~\#227)~; convergence multi-démarrages~: champs
 \code{\$n\_starts\_optimum}, \code{\$n\_starts\_optimum\_code0}, \code{\$n\_starts\_echec},
 \code{\$part\_starts\_convergents}~; gradient analytique \code{usp\_gradient()} \\
 Quantités des graphiques & \code{engine\_plots\_data()} (branche lognormale),\newline
@@ -17231,7 +17415,24 @@ données (section~\ref{sec:controles})~: le calcul aboutit, $\delta$ n'est pas i
 relative TOL\_DELTA\_BORD = 1e-06 pres (etendue relative = \dots)~: regression / partition sur le
 volume sans objet}~: nullité de la constante, TOST, pente (test de Pitman), Fisher, $R^2$, RESET,
 Spearman ratio contre volume, Breusch--Pagan studentisé et original, White, Goldfeld--Quandt,
-Brown--Forsythe et Smirnov. La liste des lignes de la table ne dépend pas du régime~: la ligne de
+Brown--Forsythe et Smirnov. Depuis l'issue~\#213 (décision du mainteneur du 17~octobre 2026),
+\code{engine\_valider\_donnees()} signale en outre ce régime par un avertissement, sans refus,
+jugé par \code{usp\_volumes\_constants()} sur la série retenue~: «~\code{Volumes x\_t constants a
+la tolerance relative TOL\_DELTA\_BORD = 1e-06 pres (etendue relative = \dots) : delta non
+identifie (la vraisemblance n'en depend pas a cette tolerance pres) ; regression et partition sur
+le volume sans objet (constante, TOST, pente, Fisher, R2, RESET, Spearman ratio / volume,
+Breusch-Pagan (Koenker et 1979), White, Goldfeld-Quandt, Brown-Forsythe et Smirnov non
+applicables) ; verifier la saisie.}~», qui nomme ces mêmes lignes (les deux variantes de Breusch--Pagan sous un
+seul nom) et se fonde sur $a_t = \delta + (1-\delta)\,\bar x/x_t = 1$ à $x_t = \bar x$, d'où $\pi_t$
+et l'objectif indépendants de $\delta$. Il précède, dans \code{validation\$avertissements},
+celui des pertes constantes, dans l'ordre de priorité des motifs des lignes non applicables
+(volumes constants, puis pertes constantes). Avant cette issue, seul le motif de ces lignes
+signalait le régime. Mesuré (méthode prime, segment~1 de l'annexe~II, données brutes, $B = 99$)~:
+$x_t = 100$ et pertes du jeu de contrôle, \code{ok = TRUE}, avertissement émis en tête, et ces
+lignes non applicables avec le motif ci-dessus~; volumes du jeu de contrôle (étendue relative
+$0{,}258$), aucun avertissement~; étendue relative $10^{-7}$, avertissement émis, $2\cdot
+10^{-6}$, aucun (\code{engine\_valider\_donnees()} appelée directement). La liste des lignes de
+la table ne dépend pas du régime~: la ligne de
 Smirnov, auparavant absente dans ce cas, est présente à tout $T \ge 8$. Mesuré (méthode prime,
 pertes du jeu de contrôle, volumes $100\,(1 \pm \varepsilon)$ alternés, $B = 99$, graine
 20260831)~: à $\varepsilon = 0$, $10^{-12}$, $10^{-9}$, $10^{-8}$ et $10^{-7}$, \code{ok = TRUE}

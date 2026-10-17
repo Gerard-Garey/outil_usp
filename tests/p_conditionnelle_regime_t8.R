@@ -217,7 +217,7 @@
 #  actuary ; cible : mainteneur, A3). Decision D_v(b) = 1 si p_v(b) < alpha,
 #  p absente = non-rejet. Population : J2 et J3, replications traitees
 #  (statut "traitee") ; exclues et comptees en T3 : les replications
-#  ecartees (refus de #188, ou erreur de usp_ajuster() : statut "ecartee")
+#  ecartees (refus de #188, #227, ou erreur de usp_ajuster() : statut "ecartee")
 #  et les replications en erreur (statut "erreur" : toute autre erreur du
 #  traitement d'une replication, usp_tests() compris, rattrapee par
 #  tryCatch ; ligne REP avec b, regime de delta*_b s'il est connu, "-"

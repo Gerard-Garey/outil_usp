@@ -1421,13 +1421,34 @@ usp_pas_newton_borne <- function(H, pg, delta, grad_ln_sigma, volumes_constants 
        libre_delta = lib$libre_delta, def_pos = lib$def_pos)
 }
 
+# Predicat "gamma sur une borne" (issue #322, complement du 08/10/2026 de
+# #222) : SEULE source du moteur de ce test, lu par
+# usp_condition_premier_ordre(), usp_kkt_satisfaite(), usp_ajuster()
+# (champ gamma_bord_au_moins_un, #227), usp_controles_numeriques() et
+# usp_valider_ajustement(). Bornes :
+# BORNES_GAMMA (numeriques, non reglementaires) ; tolerance tol, par defaut
+# TOL_DELTA_BORD (usp_condition_premier_ordre() la recoit en argument).
+# Resultat, pour un gamma scalaire :
+#   - "basse" si gamma <= BORNES_GAMMA[1] + tol, ou si gamma n'est pas fini
+#     (NA, NaN, +/-Inf : convention reprise de usp_valider_ajustement(),
+#     #188, ou un gamma non fini est classe "borne basse") ;
+#   - "haute" si gamma est fini et gamma >= BORNES_GAMMA[2] - tol ;
+#   - NA_character_ sinon (gamma interieur).
+# "Sur une borne" s'ecrit !is.na(usp_gamma_bord(gamma)).
+usp_gamma_bord <- function(gamma, tol = TOL_DELTA_BORD) {
+  if (!is.finite(gamma) || gamma <= BORNES_GAMMA[1] + tol) "basse"
+  else if (gamma >= BORNES_GAMMA[2] - tol) "haute"
+  else NA_character_
+}
+
 # Condition du premier ordre (Kuhn-Tucker) au point (delta, gamma), issues
 # #22 et #71 :
 #   - gradient : usp_gradient() ;
 #   - gradient_projete : composante annulee si elle pousse hors du domaine au
 #     bord (borne inferieure : min(g, 0) ; borne superieure : max(g, 0)),
-#     inchangee a l'interieur. Bord jugee a TOL_DELTA_BORD pres, pour delta
-#     dans [0, 1] comme pour gamma dans BORNES_GAMMA ;
+#     inchangee a l'interieur. Bord jugee a tol pres (TOL_DELTA_BORD par
+#     defaut), pour delta dans [0, 1] comme pour gamma dans BORNES_GAMMA
+#     (usp_gamma_bord(), #322) ;
 #   - hessienne : usp_hessienne() (pas h) ; H_gamma_gamma est
 #     hessienne["gamma", "gamma"] ;
 #   - grad_ln_sigma : usp_grad_ln_sigma() ;
@@ -1441,20 +1462,21 @@ usp_pas_newton_borne <- function(H, pg, delta, grad_ln_sigma, volumes_constants 
 usp_condition_premier_ordre <- function(delta, gamma, x, y, xbar = mean(x),
                                         tol = TOL_DELTA_BORD, h = 1e-4) {
   g <- usp_gradient(delta, gamma, x, y, xbar)
-  projeter <- function(gi, v, bas, haut) {
-    if (!is.finite(gi)) gi
-    else if (v <= bas + tol) min(gi, 0)
-    else if (v >= haut - tol) max(gi, 0)
-    else gi
+  bord_gamma <- usp_gamma_bord(gamma, tol)
+  # cote : "basse", "haute" ou NA (interieur) ; || n'evalue cote que si gi
+  # est fini (comme v avant #322).
+  projeter <- function(gi, cote) {
+    if (!is.finite(gi) || is.na(cote)) gi
+    else if (cote == "basse") min(gi, 0)
+    else max(gi, 0)
   }
-  pg <- c(delta = projeter(g[["delta"]], delta, 0, 1),
-          gamma = projeter(g[["gamma"]], gamma, BORNES_GAMMA[1], BORNES_GAMMA[2]))
+  pg <- c(delta = projeter(g[["delta"]], if (delta <= tol) "basse"
+                           else if (delta >= 1 - tol) "haute" else NA_character_),
+          gamma = projeter(g[["gamma"]], bord_gamma))
   H <- usp_hessienne(delta, gamma, x, y, xbar, h)
   gls <- usp_grad_ln_sigma(delta, gamma, x, y, xbar)
-  gamma_bord <- !is.finite(gamma) || gamma <= BORNES_GAMMA[1] + tol ||
-    gamma >= BORNES_GAMMA[2] - tol
   pn <- usp_pas_newton_borne(H, pg, delta, gls, usp_volumes_constants(x))
-  if (gamma_bord) {
+  if (!is.na(bord_gamma)) {
     pn$pas[] <- NA_real_; pn$erreur_sigma <- NA_real_; pn$pas_ecrete <- NA
   }
   list(gradient = g, gradient_projete = pg, hessienne = H, grad_ln_sigma = gls,
@@ -1467,18 +1489,17 @@ usp_condition_premier_ordre <- function(delta, gamma, x, y, xbar = mean(x),
 # cpo = usp_condition_premier_ordre(delta_s, gamma_s, ...) et de gamma_s.
 # TRUE si et seulement si, sur ce MEME point : gradient et gradient projete
 # finis, gamma_s hors des bornes numeriques BORNES_GAMMA (a TOL_DELTA_BORD
-# pres), sous-hessienne des variables libres finie et definie positive
-# (usp_hessienne_libre(), volumes_constants = usp_volumes_constants(x) du
-# jeu ajuste), pas de Newton fini, |erreur_sigma| <= rep_sigma et
-# |pg_delta| <= rep_gd. Reperes par defaut REP_SIGMA_KKT (1e-6, ancre sur
+# pres, usp_gamma_bord(), #322), sous-hessienne des variables libres finie
+# et definie positive (usp_hessienne_libre(), volumes_constants =
+# usp_volumes_constants(x) du jeu ajuste), pas de Newton fini,
+# |erreur_sigma| <= rep_sigma et |pg_delta| <= rep_gd. Reperes par defaut REP_SIGMA_KKT (1e-6, ancre sur
 # M9, #71) et REP_GD_KKT (1e-4, regle unique au bord comme a l'interieur,
 # M16), definis en tete du moteur ; le libelle de usp_controles_numeriques()
 # ne les imprime pas (issue #76) : la regle et ses reperes sont dans la fiche
 # du .tex.
 usp_kkt_satisfaite <- function(cpo, gamma, rep_sigma = REP_SIGMA_KKT, rep_gd = REP_GD_KKT,
                                volumes_constants = FALSE) {
-  gamma_bord <- !is.finite(gamma) || gamma <= BORNES_GAMMA[1] + TOL_DELTA_BORD ||
-    gamma >= BORNES_GAMMA[2] - TOL_DELTA_BORD
+  gamma_bord <- !is.na(usp_gamma_bord(gamma))
   grad_fini <- isTRUE(all(is.finite(c(cpo$gradient, cpo$gradient_projete))))
   grad_fini && !gamma_bord &&
     isTRUE(usp_hessienne_libre(cpo$hessienne, cpo$gradient_projete, volumes_constants)$def_pos) &&
@@ -1590,8 +1611,16 @@ usp_ajuster <- function(x, y, n_starts_delta = 9, verbose = FALSE,
             n_starts_echec = n_echec,
             delta_au_bord = usp_regime(d, x)$delta_au_bord,
             # En DERNIERE position (patch chirurgical des references, voir
-            # run_engine()).
-            kkt_au_moins_un = any(kkt_ok)))
+            # run_engine()) : kkt_au_moins_un, puis gamma_bord_au_moins_un.
+            kkt_au_moins_un = any(kkt_ok),
+            # gamma_bord_au_moins_un (#227) : TRUE si au moins un demarrage a
+            # l'optimum (meme ensemble idx que kkt_ok, aucune deuxieme notion
+            # d'optimum) a gamma sur une borne de BORNES_GAMMA
+            # (usp_gamma_bord(), tolerance TOL_DELTA_BORD). Lu par
+            # usp_valider_ajustement() : le refus ne depend plus du demarrage
+            # retenu.
+            gamma_bord_au_moins_un = any(vapply(idx, function(i)
+              !is.na(usp_gamma_bord(pars[i, 2])), logical(1)))))
 }
 
 # Controles numeriques de l'estimation lognormale (issue #22, decision M11 du
@@ -1655,8 +1684,7 @@ usp_controles_numeriques <- function(fit) {
   # sur une borne).
   g <- fit$gradient; pg <- fit$gradient_projete
   grad_fini <- all(is.finite(c(g, pg)))
-  gamma_bord <- !is.finite(fit$gamma) ||
-    fit$gamma <= BORNES_GAMMA[1] + TOL_DELTA_BORD || fit$gamma >= BORNES_GAMMA[2] - TOL_DELTA_BORD
+  gamma_bord <- !is.na(usp_gamma_bord(fit$gamma))
   def_pos <- usp_hessienne_libre(fit$hessienne, pg, usp_volumes_constants(fit$x))$def_pos
   ok <- isTRUE(fit$kkt_au_moins_un)
   # Volumes constants (#58) : pi_t ne depend pas de delta, g_delta = 0 et
@@ -1715,12 +1743,14 @@ usp_controles_numeriques <- function(fit) {
 # domaine de recherche de gamma (issue #188, option A, decisions du
 # mainteneur du 08/10/2026). Annexe XVII, B(6) / C(6) : delta et gamma sont
 # les valeurs qui minimisent le montant de B(6) / C(6), dont depend le
-# parametre de B(4) / C(4). Si gamma estime est sur une borne de
-# BORNES_GAMMA (a TOL_DELTA_BORD pres ; gamma non fini classe "borne
-# basse") et qu'AUCUN demarrage a l'optimum ne satisfait la condition KKT
-# (fit$kkt_au_moins_un, usp_ajuster()), ce minimum n'est pas determine dans
-# le domaine : les donnees ne permettent d'etablir ni la distribution
-# log-normale ni l'adequation de l'estimation de la vraisemblance maximum
+# parametre de B(4) / C(4). Si au moins un demarrage a l'optimum a gamma
+# sur une borne de BORNES_GAMMA (a TOL_DELTA_BORD pres ; gamma non fini
+# classe "borne basse" ; usp_gamma_bord(), #322 ;
+# fit$gamma_bord_au_moins_un, ou gamma retenu, #227) et qu'AUCUN demarrage a
+# l'optimum ne satisfait la condition KKT (fit$kkt_au_moins_un,
+# usp_ajuster()), ce minimum n'est pas determine dans le domaine : les
+# donnees ne permettent d'etablir ni la distribution log-normale ni
+# l'adequation de l'estimation de la vraisemblance maximum
 # (B(2)(g) / C(2)(e), iii et iv ; art. 219(1)(d)), et l'outil ne calcule
 # pas de parametre (art. 220(1)(a) primes / (b) reserve no 1). Decisions de
 # l'OUTIL, non reglementaires : les bornes de gamma (BORNES_GAMMA, numeriques)
@@ -1737,12 +1767,55 @@ usp_controles_numeriques <- function(fit) {
 # y rend ok = FALSE comme un refus des donnees.
 usp_valider_ajustement <- function(fit, methode = c("premium", "reserve1")) {
   methode <- match.arg(methode)
-  bas  <- !is.finite(fit$gamma) || fit$gamma <= BORNES_GAMMA[1] + TOL_DELTA_BORD
-  haut <- is.finite(fit$gamma) && fit$gamma >= BORNES_GAMMA[2] - TOL_DELTA_BORD
-  refus <- (bas || haut) && !isTRUE(fit$kkt_au_moins_un)
+  # Predicat sur l'ensemble des demarrages a l'optimum (#227, decisions du
+  # mainteneur du 17/10/2026, Q-Fb-11 et Q-D1-Fc-1 (a)) : refus si au moins
+  # un demarrage a l'optimum a gamma sur une borne et si aucun ne satisfait
+  # KKT. Le "||" garde la fonction totale : un ajustement sans le champ
+  # gamma_bord_au_moins_un (ajustement fictif, usp_ajuster_rapide()) est juge
+  # sur le demarrage retenu, comme avant #227 ; sur une sortie
+  # d'usp_ajuster(), le demarrage retenu appartient a l'ensemble.
+  bord <- usp_gamma_bord(fit$gamma)
+  bas  <- identical(bord, "basse")
+  bord_ensemble <- !is.na(bord) || isTRUE(fit$gamma_bord_au_moins_un)
+  refus <- bord_ensemble && !isTRUE(fit$kkt_au_moins_un)
   if (!refus) return(list(ok = TRUE, erreurs = character(0)))
   prem <- methode == "premium"
   sec <- if (prem) "B" else "C"
+  phrase_art220 <- sprintf(paste0(
+    "L'outil ne calcule pas de parametre sur ces donnees (article 220, ",
+    "paragraphe 1, point %s), qui ne permettent d'etablir ni la ",
+    "distribution log-normale ni l'adequation de l'estimation de la ",
+    "vraisemblance maximum (%s, iii et iv ; article 219, paragraphe 1, ",
+    "point d))."),
+    if (prem) "a)" else "b)", if (prem) "B(2)(g)" else "C(2)(e)")
+  phrase_res2 <- if (!prem) "La methode du risque de reserve no 2 reste ouverte (meme point)."
+  if (is.na(bord)) {
+    # Forme 2 (#227 ; texte de la section 2.4 de
+    # docs/specifications/fc-validation-ajustement.md, Q-D1-Fc-2) : demarrage
+    # retenu interieur, au moins un autre demarrage a l'optimum sur une
+    # borne, cote non nomme (un seul booleen, Q-D1-Fc-1 (a)).
+    motif <- paste(c(
+      sprintf(paste0("Maximum de vraisemblance non etabli (annexe XVII, %s(6)) : ",
+                     "parmi les demarrages qui atteignent l'objectif minimal a la ",
+                     "tolerance de l'outil, au moins un a gamma sur une borne du ",
+                     "domaine de recherche [%s ; %s] (BORNES_GAMMA, bornes de l'outil, ",
+                     "non reglementaires) et aucun ne satisfait la condition du premier ",
+                     "ordre (KKT) ; le demarrage retenu, de gamma interieur, n'est pas ",
+                     "un point stationnaire certifie, et les valeurs delta et gamma qui ",
+                     "minimisent le montant de %s(6), dont depend le parametre de %s(4), ",
+                     "ne sont pas determinees dans ce domaine. Cause : objectif egal, a ",
+                     "cette tolerance, au demarrage retenu et sur la borne (ratios ",
+                     "y_t/x_t quasi egaux pres de la borne basse ; dispersion des ",
+                     "ratios extreme pres de la borne haute)."),
+              sec, format(BORNES_GAMMA[1]), format(BORNES_GAMMA[2]), sec, sec),
+      phrase_art220, phrase_res2,
+      sprintf(paste0("Verifier que y_t est observe (%s(1)(a)) et non deduit de x_t ",
+                     "par un coefficient fixe, ainsi que les unites, la correspondance ",
+                     "des annees et les valeurs aberrantes (%s(1) et %s(2)(a))."),
+              sec, sec, sec)), collapse = " ")
+    return(list(ok = FALSE, erreurs = motif))
+  }
+  # Forme 1 (#188, inchangee) : demarrage retenu sur une borne.
   motif <- paste(c(
     sprintf(paste0("Maximum de vraisemblance non atteint (annexe XVII, %s(6)) : ",
                    "gamma estime sur la borne %s du domaine de recherche [%s ; %s] ",
@@ -1753,13 +1826,7 @@ usp_valider_ajustement <- function(fit, methode = c("premium", "reserve1")) {
             format(BORNES_GAMMA[2]), sec, sec),
     if (bas) "Cause : ratios y_t/x_t egaux ou quasi egaux ; s'ils sont exactement egaux, ce minimum n'existe pas."
     else "Cause : dispersion des ratios y_t/x_t extreme ; le minimum, s'il existe, est au-dela de la borne.",
-    sprintf(paste0("L'outil ne calcule pas de parametre sur ces donnees (article 220, ",
-                   "paragraphe 1, point %s), qui ne permettent d'etablir ni la ",
-                   "distribution log-normale ni l'adequation de l'estimation de la ",
-                   "vraisemblance maximum (%s, iii et iv ; article 219, paragraphe 1, ",
-                   "point d))."),
-            if (prem) "a)" else "b)", if (prem) "B(2)(g)" else "C(2)(e)"),
-    if (!prem) "La methode du risque de reserve no 2 reste ouverte (meme point).",
+    phrase_art220, phrase_res2,
     if (bas) sprintf("Verifier que y_t est observe (%s(1)(a)) et non deduit de x_t par un coefficient fixe.", sec)
     else sprintf("Verifier les unites, la correspondance des annees et les valeurs aberrantes (%s(1) et %s(2)(a)).",
                  sec, sec)), collapse = " ")
@@ -4604,6 +4671,13 @@ usp_lr_delta <- function(fit, B = 999, seed = 20260831) {
 # l'effet de l'observation retirée sur l'estimation, non de rejouer les règles
 # de l'annexe XVII sur un échantillon de T-1 années (qui pourrait passer sous
 # le minimum de 5 années).
+# Reajustement refuse par usp_valider_ajustement() (#224, meme regle que
+# l'echantillon complet, #188 et #227) : ligne laissee entierement a NA, comme
+# un reajustement en echec ; l'annee est ecartee du maximum par run_engine()
+# et declaree non evaluable dans le detail de la ligne jackknife. Methode par
+# defaut : seul le motif en depend, il n'est pas lu. Un reajustement a gamma
+# interieur sans KKT reste retenu (ECHEC non bloquant, comme l'echantillon
+# complet). Signature et colonnes inchangees.
 usp_jackknife <- function(fit, sigma_standard, bareme) {
   T <- fit$T
   cred <- usp_credibilite(T, bareme)
@@ -4613,7 +4687,7 @@ usp_jackknife <- function(fit, sigma_standard, bareme) {
   for (i in 1:T) {
     xi <- fit$x[-i]; yi <- fit$y[-i]
     f <- try(usp_ajuster(xi, yi, n_starts_delta = 5), silent = TRUE)
-    if (inherits(f, "try-error")) next
+    if (inherits(f, "try-error") || !isTRUE(usp_valider_ajustement(f)$ok)) next
     out$sigma[i] <- f$sigma
     out$sigma_usp[i] <- cred * f$sigma * corr + (1 - cred) * sigma_standard
     out$delta[i] <- f$delta; out$gamma[i] <- f$gamma
@@ -4767,6 +4841,16 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     "pertes y_t constantes a la tolerance relative TOL_DELTA_BORD = %g pres",
     "(etendue relative = %.2g) : variance totale nulle a cette tolerance pres,",
     "R2 sans objet"), TOL_DELTA_BORD, ery)
+  # Phrase de contexte de la ligne Spearman ratio / volume a pertes
+  # constantes (#213, option (b), decision Q-D1-Fc-5) : texte fixe, sans
+  # nombre, ajoute au detail de la branche calculee seulement (jamais a
+  # volumes constants, ou la ligne est non applicable, pertes_cst etant
+  # alors FALSE) ; type et verdict de la ligne inchanges.
+  txt_pertes_cst_sv <- paste(
+    "Pertes y_t constantes a la tolerance relative TOL_DELTA_BORD pres (voir",
+    "l'avertissement sur les donnees) : le ratio y_t/x_t varie alors en sens",
+    "inverse du volume ; un rejet traduit des pertes non proportionnelles au",
+    "volume, ce que teste la ligne.")
   # Priorite des motifs des lignes constante, pente et Fisher : volumes
   # constants (txt_vol_cst) > pertes constantes > x ecarte (txt_r12_test,
   # champ x_ecarte de la fonction de la ligne) > detail de la ligne. Sous
@@ -5268,8 +5352,13 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         p_min = pmin_rangs(r_ea, x_ea), effectifs = eff_rangs(r_ea, x_ea),
         # Renvoi croise a la constante : pose apres coup par
         # .usp_poser_renvois() (#215).
-        detail = detail_spearman("Une correlation signale un effet d'echelle non modelise",
-                                 p_sv))
+        # Pertes constantes (#213) : phrase de contexte en seconde phrase,
+        # jointe par ". " et non par .engine_joindre() (" ; " suivi d'une
+        # majuscule).
+        detail = detail_spearman(local({
+          d0 <- "Une correlation signale un effet d'echelle non modelise"
+          if (pertes_cst) paste0(d0, ". ", txt_pertes_cst_sv) else d0
+        }), p_sv))
   } else {
     # Regle R13 (#59) : meme reference que la branche calculee (I5).
     add(fam, "Independance ratio S/P vs volume", "Spearman (1904) ; exact : Best & Roberts (1975), AS 89",
@@ -6122,17 +6211,30 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # run_engine() a fourni `robustesse`. Les ecarts rapportes a la seule part
   # estimee sigma(delta, gamma), imprimes jusqu'ici faute d'etre stockes
   # ailleurs (risque accepte en M24), sont retires (issue #76).
+  # Annees non evaluables (#224, phrase de Q-D1-Fc-3) : reajustement refuse
+  # par usp_valider_ajustement() ou en echec, ecartees du maximum ; seuls les
+  # numeros d'annee sont imprimes (#76), refus et echec non distingues.
   rb <- robustesse
+  ne <- as.integer(rb$jack_non_evaluables)
+  txt_ne <- if (length(ne) == 1L)
+    sprintf(paste0("Annee %d non evaluable (reajustement sans maximum de ",
+                   "vraisemblance etabli, ou en echec) : ecartee du maximum, ",
+                   "influence non mesuree."), ne)
+  else if (length(ne) > 1L)
+    sprintf(paste0("Annees %s et %d non evaluables (reajustements sans maximum ",
+                   "de vraisemblance etabli, ou en echec) : ecartees du maximum, ",
+                   "influence non mesuree."),
+            paste(utils::head(ne, -1L), collapse = ", "), utils::tail(ne, 1L))
   if (!is.null(fit$ecart_jackknife))
     add(fam, "Sensibilite au retrait d'une annee (jackknife)",
         fonction = "run_engine",
         "Quenouille (1949) / Tukey (1958)", type = "diagnostic",
         estim_nom = "ecart relatif max", estim = fit$ecart_jackknife,
-        detail = if (!is.null(rb$jack_annee))
+        detail = paste(c(if (!is.null(rb$jack_annee))
           sprintf("Annee la plus influente : %d (sigma_USP %s).", as.integer(rb$jack_annee),
                   if (rb$jack_usp < 0) "en baisse" else if (rb$jack_usp > 0) "en hausse"
                   else "inchange")
-        else "Annee la plus influente non determinee.")
+        else "Annee la plus influente non determinee.", txt_ne), collapse = " "))
   if (!is.null(fit$largeur_ic))
     add(fam, "Largeur relative de l'IC bootstrap 90%", "Efron (1979), Ann. Statist. 7",
         fonction = "run_engine",
@@ -6706,6 +6808,22 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
       avt <- c(avt, "Amplitude des volumes >= 10 : rupture de perimetre possible.")
     if (anyDuplicated(data.frame(xt, yt)) > 0)
       avt <- c(avt, "Couples (xt, yt) dupliques detectes.")
+    # Volumes constants (#213) : predicat unique usp_volumes_constants()
+    # (regle R13), sur la serie recue (serie retenue pour run_engine()) ;
+    # avertissement, sans refus, place avant celui des pertes constantes
+    # (ordre de priorite des motifs : R13 > pertes constantes). A x_t
+    # constant, a_t = delta + (1 - delta) xbar / x_t = 1 : la vraisemblance
+    # ne depend pas de delta. Les lignes citees sont les treize lignes que
+    # R13 rend non applicables dans usp_tests().
+    if (usp_volumes_constants(xt))
+      avt <- c(avt, sprintf(paste("Volumes x_t constants a la tolerance relative TOL_DELTA_BORD",
+                                  "= %g pres (etendue relative = %.2g) : delta non identifie (la",
+                                  "vraisemblance n'en depend pas a cette tolerance pres) ;",
+                                  "regression et partition sur le volume sans objet (constante,",
+                                  "TOST, pente, Fisher, R2, RESET, Spearman ratio / volume,",
+                                  "Breusch-Pagan (Koenker et 1979), White, Goldfeld-Quandt,",
+                                  "Brown-Forsythe et Smirnov non applicables) ; verifier la saisie."),
+                            TOL_DELTA_BORD, diff(range(xt)) / mean(xt)))
     # Pertes constantes (#189) : predicat unique usp_pertes_constantes(),
     # sur la serie recue (serie retenue pour run_engine() et
     # engine_valider_serie_retenue()) ; avertissement, sans refus.
@@ -11118,17 +11236,23 @@ run_engine <- function(xt, yt,
     # apres ecart_jackknife et largeur_ic apposes ci-dessus : le patcheur des
     # references (tests/patcher_reference.R) n'ajoute une feuille qu'en fin de
     # conteneur, et refuse le patch (verification "structure") sinon.
-    fit <- fit[c(setdiff(names(fit), "kkt_au_moins_un"), "kkt_au_moins_un")]
+    # Meme regle pour gamma_bord_au_moins_un (#227), place juste apres.
+    fit <- fit[c(setdiff(names(fit), c("kkt_au_moins_un", "gamma_bord_au_moins_un")),
+                 "kkt_au_moins_un", "gamma_bord_au_moins_un")]
 
     # Elements du detail de la ligne jackknife de usp_tests() : calcules ici,
     # transmis a usp_tests() et NON stockes dans fit ni dans le resultat.
     # jack_annee : annee de plus grand |ecart| sur sigma_USP ; jack_usp : ecart
     # signe a cette annee (seul son signe est imprime, issues #24 et #76).
     # NULL si aucun reajustement n'a abouti.
+    # jack_non_evaluables (#224) : annees dont le reajustement est refuse par
+    # usp_valider_ajustement() ou en echec (sigma_USP non fini), ecartees du
+    # maximum ; entiers, eventuellement vide. Seuls ces numeros sont imprimes.
     i_jack <- if (jack_calcule) which.max(abs(d_jack)) else NULL
     robustesse <- list(
       jack_annee = i_jack,
-      jack_usp   = if (jack_calcule) d_jack[i_jack] / param$sigma_usp else NULL)
+      jack_usp   = if (jack_calcule) d_jack[i_jack] / param$sigma_usp else NULL,
+      jack_non_evaluables = which(!is.finite(jack$sigma_usp)))
 
     # Test de Pitman sur la pente (#169) : B et graine de l'execution (tirages
     # a T > T_MAX_ENUM_PERMUTATION seulement, sous engine_sous_graine()) ;

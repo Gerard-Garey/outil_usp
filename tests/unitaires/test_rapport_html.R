@@ -544,7 +544,13 @@ verifier("run_engine, y proportionnel a x (x = 2^(0:7), y = x / 2) : ok = FALSE,
          identical(res_p153$ok, FALSE) && identical(names(res_p153), c("ok", "validation", "metadata")) &&
            is.null(res_p153$validation$erreur_r) &&
            any(startsWith(res_p153$validation$erreurs, "Maximum de vraisemblance non atteint")))
-verifier("Graphiques d'influence, y proportionnel a x (x = 2^(0:7), y = x / 2), ajustement refuse par run_engine() (#188), robustesse de engine_plots_data() / note_influence() en appel direct : motif pose (residu_std et cook non finis) ou absent (tout fini) selon la plateforme ; aucun trace en base R ni note_influence() en erreur, aucun 'NA' dans la note (#153 ; #188)",
+# Depuis #224, les huit reajustements du jackknife de ce jeu sont refuses par
+# usp_valider_ajustement() et laisses a NA : ecart_sigma est entierement NA,
+# plot_influence_sigma() (base R) leve une erreur et note_influence() rend
+# character(0). Defaut d'affichage anterieur a #224 (reproduit a 98cb9d5),
+# suivi par l'issue #328 (decision du mainteneur du 17/10/2026).
+echec_attendu("Graphiques d'influence, y proportionnel a x (x = 2^(0:7), y = x / 2), ajustement refuse par run_engine() (#188), robustesse de engine_plots_data() / note_influence() en appel direct : motif pose (residu_std et cook non finis) ou absent (tout fini) selon la plateforme ; aucun trace en base R ni note_influence() en erreur, aucun 'NA' dans la note (#153 ; #188)",
+         "issue #328 : jackknife entierement NA (#224), graphique d'influence et note en defaut",
          {
            inf <- pdp153$influence
            np153 <- tryCatch(note_influence(pdp153), error = function(e) e)
