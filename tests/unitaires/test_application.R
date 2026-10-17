@@ -49,7 +49,23 @@
 #     moteur etant dans le bandeau ;
 #   - virgule decimale des nombres affiches (issue #236) : avec shiny, bloc
 #     Etat, bloc du parametre retenu, journal, table de calibration, note
-#     d'influence et notification du retrait d'une ligne.
+#     d'influence et notification du retrait d'une ligne ;
+#   - granularite effective par ligne (issue #285) : la vue Detail passe
+#     l'objet bootstrap a table_detail_groupe() ; avec shiny, colonne
+#     "granularite MC" dans la vue Detail, absente de la vue Synthese ;
+#   - limite de 40 annees des series (issue #286, option (a)) :
+#     refus_dimension_series() et charger_ln() au demarrage (fichiers de 41
+#     et 60 annees refuses, 40 charge) hors Shiny ; avec shiny, import de 60
+#     annees refuse (series courantes et champ T gardes), import de 41 annees
+#     refuse sans garde de l'apercu (#183 adapte), 40 annees acceptees ;
+#   - plafond de six motifs leve (issue #287, option (a)) : aucun head() dans
+#     le bandeau, l'apercu et le clic (lecture du code) ; avec shiny, sept
+#     motifs dans le bandeau et l'apercu, notification "Calcul non lance"
+#     des methodes lognormales au texte fixe ;
+#   - option usp.graphiques_base (issue #295) : sortie_graphique() et
+#     rendu_graphique() lisent .plotly_dispo() (lecture du code) ;
+#     sortie_graphique() en base R sous l'option, plotly simule installe ;
+#     avec shiny, rendu_graphique() en base R sous l'option.
 #  La partie Shiny tourne dans un processus R distinct : app.R attache shiny
 #  et recharge le moteur dans l'environnement global, ce qui ne doit pas
 #  toucher les fichiers de tests suivants.
@@ -216,7 +232,7 @@ verifier("app.R : regles CSS du commentaire replie (details.com) (#178)",
 ## --- Dimension du triangle et reinitialisation (issue #155) --------------------
 # Fonctions de premier niveau d'app.R, evaluees seules comme triangle_defaut().
 .noms_155 <- c("DONNEES_DEFAUT", "profondeur_reinitialisation", "jeu_reinitialise",
-               "message_reinitialisation", "refus_dimension_triangle",
+               "message_reinitialisation", "refus_dimension_triangle", "refus_dimension",
                "profondeur_apres_reinitialisation")
 for (.x in parse(.app, keep.source = FALSE))
   if (is.call(.x) && identical(.x[[1]], as.name("<-")) &&
@@ -309,6 +325,50 @@ utils::write.csv(data.frame(i = 0:39, setNames(as.data.frame(.env$triangle_defau
 verifier("charger_mw(), fichier de 40 annees au demarrage : charge (#212)",
          isTRUE(.cm$statut$ok) && identical(dim(.cm$valeur), c(40L, 40L)))
 unlink(.dir212, recursive = TRUE); rm("FICHIER_MW", envir = .env)
+
+## --- Limite de 40 annees des series (issue #286, option (a)) ---------------
+# Meme regle que le triangle (#212) : refus motive au-dela de PROFONDEUR_MAX,
+# a l'import (bloc Shiny ci-dessous) comme au demarrage (charger_ln()).
+for (.x in parse(.app, keep.source = FALSE))
+  if (is.call(.x) && identical(.x[[1]], as.name("<-")) &&
+      as.character(.x[[2]]) %in% c("refus_dimension_series", "refus_dimension", "grille_vide_ln", "charger_ln"))
+    eval(.x, .env)
+verifier("refus_dimension() : aide commune des deux refus, motif compose de l'objet et de la limite, character(0) dans la borne (revue finale de R16)",
+         identical(.env$refus_dimension(40L, 40L, "X", "y"), character(0)) &&
+           identical(.env$refus_dimension(41, 40L, "X", "annees y"),
+                     "X : au-dela de la limite de l'application (40 annees y)."))
+verifier("profondeur_apres_reinitialisation() : series, T retenu = 8 pour T saisi 4, 41, 100 et NA (appelant de profondeur_attendue_import(), garde n > T_max defensive)",
+         all(vapply(list(4, 41, 100, NA), function(t)
+           identical(as.numeric(.env$profondeur_apres_reinitialisation(FALSE, t)$T), 8), logical(1))))
+verifier("refus_dimension_series() : series de 5, 8, 40 annees dans la borne, sans motif (#286)",
+         all(vapply(list(5L, 8L, 40L), function(n)
+           identical(.env$refus_dimension_series(n), character(0)), logical(1))))
+verifier("refus_dimension_series() : 41 et 60 annees refusees, motif qui nomme la dimension et la limite (#286)",
+         identical(.env$refus_dimension_series(41L),
+                   "Series de 41 annees : au-dela de la limite de l'application (40 annees, borne du champ Profondeur T).") &&
+           identical(.env$refus_dimension_series(60L),
+                     "Series de 60 annees : au-dela de la limite de l'application (40 annees, borne du champ Profondeur T)."))
+# Demarrage sur un fichier de series de n annees, comme pour le triangle :
+# FICHIER_LN pointe vers un fichier ecrit dans un repertoire temporaire.
+.dir286 <- tempfile("demarrage286_"); dir.create(.dir286)
+.ecrire_ln <- function(n) utils::write.csv(
+  data.frame(t = seq_len(n), xt = round(100 * 1.03^seq_len(n), 2),
+             yt = round(70 * 1.03^seq_len(n) + 5 * (-1)^seq_len(n), 2)),
+  file.path(.dir286, "usp_donnees_LN.csv"), row.names = FALSE)
+.env$FICHIER_LN <- file.path(.dir286, "usp_donnees_LN.csv")
+.cl <- lapply(c(41L, 60L), function(n) { .ecrire_ln(n); .env$charger_ln() })
+verifier("charger_ln(), fichiers de 41 et 60 annees au demarrage : refuses avec le motif de refus_dimension_series(), grille vide de 8 annees (#286)",
+         all(vapply(seq_along(.cl), function(k) {
+           cl <- .cl[[k]]; n <- c(41L, 60L)[k]
+           identical(cl$statut$ok, FALSE) &&
+             grepl(.env$refus_dimension_series(n), cl$statut$msg, fixed = TRUE) &&
+             grepl("present mais refuse au demarrage", cl$statut$msg, fixed = TRUE) &&
+             identical(cl$valeur, .env$grille_vide_ln(8L))
+         }, logical(1))))
+.ecrire_ln(40L); .cl <- .env$charger_ln()
+verifier("charger_ln(), fichier de 40 annees au demarrage : charge (#286)",
+         isTRUE(.cl$statut$ok) && nrow(.cl$valeur) == 40L)
+unlink(.dir286, recursive = TRUE); rm("FICHIER_LN", envir = .env)
 .pa <- lapply(list(NULL, NA_real_, 0, 5, 12, 40, 200), function(t)
   .env$profondeur_apres_reinitialisation(FALSE, t))
 verifier("profondeur_apres_reinitialisation() (series) : T = 8 des series par defaut, quel que soit le T saisi, sans motif ni plafonnement (#212)",
@@ -340,6 +400,68 @@ verifier("app.R : l'import d'un triangle ne modifie plus le champ T (#155)",
 verifier("app.R : \"Reinitialiser\" n'appelle updateNumericInput() qu'une fois et pose la garde profondeur_import() (#212, #183)",
          length(.appels(.obs_R[[1]], "updateNumericInput")) == 1L &&
            .ecrit(.obs_R[[1]], "profondeur_import"))
+
+## --- Plafond de six motifs leve, notification au texte fixe (issue #287) ----
+# Lecture du code : aucun appel a head() dans conserver() (bandeau du refus
+# du moteur), dans le rendu de l'apercu (output$validation_live) ni dans
+# l'observateur du clic ; aucune notification du clic ne recopie les motifs.
+.fn_conserver <- Filter(function(e) identical(e[[2]], as.name("conserver")),
+                        .appels(parse(.app, keep.source = FALSE), "<-"))
+.obs_go <- Filter(function(o) .sur(o, "go"), .obs)
+.apercu <- .rendu("validation_live")
+# head() ou utils::head() : recherche dans le texte deparse (le nom
+# qualifie utils::head est en tete d'appel, hors des arguments que parcourt
+# .appels()).
+.heads <- function(e) grepl("\\bhead\\(", paste(deparse(e), collapse = " "))
+verifier("app.R : aucun head() dans conserver(), l'apercu et le clic (plafond de six motifs leve, #287)",
+         length(.fn_conserver) == 1L && length(.obs_go) == 1L && length(.apercu) == 1L &&
+           !.heads(.fn_conserver[[1]]) && !.heads(.obs_go[[1]]) && !.heads(.apercu[[1]]) &&
+           .heads(quote(utils::head(v$erreurs, 6))))
+# Suite de #287 (revue finale de R16) : plafonds leves aussi au demarrage du
+# triangle (charger_mw(), six motifs) et a l'import d'un triangle (trois
+# motifs) ; aucun head() ni utils::head() dans app.R hors tags$head.
+.src_heads <- grep("(^|[^$[:alnum:]_.])head\\(", readLines(.app, encoding = "UTF-8"), value = TRUE)
+.fn_charger_mw <- Filter(function(e) identical(e[[2]], as.name("charger_mw")),
+                         .appels(parse(.app, keep.source = FALSE), "<-"))
+verifier("app.R : aucun head() dans charger_mw() ni ailleurs dans app.R (plafonds du demarrage et de l'import du triangle leves, #287)",
+         length(.fn_charger_mw) == 1L && !.heads(.fn_charger_mw[[1]]) && length(.src_heads) == 0L)
+.notifs_go <- .appels(.obs_go[[1]], "showNotification")
+verifier("app.R : notifications du clic \"Calcul non lance\" au texte fixe, aucune ne recopie les motifs (#287, #226)",
+         sum(vapply(.notifs_go, function(n) identical(n[[2]],
+           "Calcul non lance : aucun resultat n'est produit (voir le bandeau)."), logical(1))) == 2L &&
+           !any(vapply(.notifs_go, function(n) is.call(n[[2]]), logical(1))))
+
+## --- Granularite effective par ligne (issue #285) ----------------------------
+verifier("app.R : la vue Detail passe l'objet bootstrap du resultat a table_detail_groupe() (#285)",
+         length(.tdg) == 1L && identical(.tdg[[1]]$boot,
+                                         call("$", call("R"), as.name("bootstrap"))))
+
+## --- Option usp.graphiques_base (issue #295) ---------------------------------
+# Lecture du code : sortie_graphique() et rendu_graphique() choisissent le
+# moteur graphique par .plotly_dispo() (display_helpers.R), comme les plot_*(),
+# et plus par requireNamespace("plotly").
+.fn_graph <- Filter(function(e) as.character(e[[2]]) %in% c("sortie_graphique", "rendu_graphique"),
+                    Filter(function(x) is.call(x) && identical(x[[1]], as.name("<-")),
+                           as.list(parse(.app, keep.source = FALSE))))
+verifier("app.R : sortie_graphique() et rendu_graphique() lisent .plotly_dispo(), sans requireNamespace() (#295)",
+         length(.fn_graph) == 2L &&
+           all(vapply(.fn_graph, function(e) length(.appels(e, ".plotly_dispo")) == 1L &&
+                        !length(.appels(e, "requireNamespace")), logical(1))))
+# Comportement, sans shiny ni plotly : display_helpers.R est charge dans un
+# environnement ou requireNamespace() repond TRUE (plotly simule installe)
+# et plotOutput() est remplace par un releve ; sous l'option, la sortie est
+# celle de base R. Avant #295, la branche plotly etait prise
+# (plotly::plotlyOutput()).
+.env295 <- new.env()
+sys.source(file.path(.racine, "R", "display_helpers.R"), envir = .env295)
+for (.x in .fn_graph) if (identical(as.character(.x[[2]]), "sortie_graphique")) eval(.x, .env295)
+.env295$requireNamespace <- function(package, ...) TRUE
+.env295$plotOutput <- function(id, height) c(base = id)
+.op295 <- options(usp.graphiques_base = TRUE)
+.so295 <- tryCatch(.env295$sortie_graphique("p"), error = function(e) e)
+options(.op295)
+verifier("sortie_graphique() : option usp.graphiques_base posee, plotly simule installe -> plotOutput (#295)",
+         identical(.so295, c(base = "p")))
 
 ## --- Grille des series et journal (issues #134, #136) -------------------------
 if (requireNamespace("shiny", quietly = TRUE)) {
@@ -482,6 +604,25 @@ testServer(app, {
     identical(donnees(), ea$DONNEES_DEFAUT) && !length(champ_T()) &&
       identical(notifs212, "Donnees reinitialisees : series par defaut de 8 annees, T = 8."))
 })
+# Series de plus de 40 annees (issue #286, option (a)) : meme refus motive que
+# le triangle. Mesure avant correction (issue #286, testServer) : 60 annees
+# importees, champ T pousse a 60 au-dela de sa borne PROFONDEUR_MAX.
+testServer(app, {
+  do.call(session$setInputs, base)
+  d0 <- donnees(); v0 <- version_grille()
+  maj212 <<- list(); notifs212 <<- character(0)
+  session$setInputs(fichier_import = fichier(60))
+  a("import de series de 60 annees : refuse, series courantes et grille gardees, champ T non touche (#286)",
+    identical(donnees(), d0) && identical(version_grille(), v0) &&
+      identical(statut_import()$ok, FALSE) &&
+      grepl(paste(ea$refus_dimension_series(60L), "Import refuse, series courantes conservees."),
+            statut_import()$msg, fixed = TRUE) &&
+      identical(notifs212, "Import refuse.") && !length(champ_T()))
+  maj212 <<- list()
+  session$setInputs(fichier_import = fichier(40))
+  a("import de series de 40 annees : accepte, champ T pousse a 40 (#286)",
+    nrow(donnees()) == 40L && identical(champ_T(), 40))
+})
 rm("updateNumericInput", "showNotification", envir = ea)
 )---"
   # Garde de l'apercu a la reinitialisation des series (revue finale de #212,
@@ -551,6 +692,15 @@ a("rendu_graphique() (base R) : OutDec = \",\" pendant le trace, graduations en 
     (plotly236 || (identical(vu236$OutDec, ",") && is.character(x236$src) &&
                      all(grepl("^[0-9]+(,[0-9]+)?$", vu236$graduations)) &&
                      any(grepl(",", vu236$graduations, fixed = TRUE)))))
+# Option usp.graphiques_base (issue #295) : rendu_graphique() rend alors la
+# fonction de avec_virgule_decimale() (branche renderPlot) et
+# sortie_graphique() un plotOutput, que plotly soit installe ou non.
+op295 <- options(usp.graphiques_base = TRUE)
+rg295 <- ea$rendu_graphique(plot(1)); so295 <- ea$sortie_graphique("p295")
+options(op295)
+a("option usp.graphiques_base : rendu_graphique() et sortie_graphique() en base R (#295)",
+  identical(body(rg295), body(ea$avec_virgule_decimale(function(...) NULL))) &&
+    grepl("shiny-plot-output", as.character(so295), fixed = TRUE))
 )---"
   # Objet rbind non fonction de l'environnement global (issue #199) : la
   # table des controles (output$tab_controles) est rendue dans deux sessions,
@@ -666,6 +816,33 @@ testServer(app, {
     identical(mv, "Cellule observee manquante en (i=1, j=1).") &&
       grepl(ea$TITRE_NON_LANCE, bd, fixed = TRUE) && grepl(htmltools::htmlEscape(mv), bd, fixed = TRUE))
 })
+# Plafond de six motifs leve, notification lognormale au texte fixe (issue
+# #287, option (a)) : valeurs hors domaine (1e60, -1), une valeur manquante,
+# nature non declaree et marge theta vide donnent sept motifs (mesure du
+# 17/10/2026, engine_valider_serie_retenue() : 7 motifs, 1 204 caracteres).
+x287 <- c(1e60, -1, 104.20, 102.25, NA, 114.64, 118.41, 121.28)
+y287 <- c(68.67, 70.91, -1, 1e60, 76.54, 80.25, 82.89, 84.90)
+m287 <- engine_valider_serie_retenue(x287, y287, T = 8, theta_equiv = NA, delta_equiv = NULL,
+                                     methode = "premium", nature_donnees = NULL,
+                                     segment = 1L, annexe = "II")$validation$erreurs
+testServer(app, {
+  do.call(session$setInputs, modifyList(base[names(base) != "nature_donnees"],
+                                        list(reinit = 1, theta_equiv = NA)))
+  do.call(session$setInputs, c(setNames(as.list(x287), paste0("x_", 1:8)),
+                               setNames(as.list(y287), paste0("y_", 1:8))))
+  ap <- as.character(output$validation_live$html)
+  notifs226 <<- character(0)
+  session$setInputs(go = 1)
+  bd <- as.character(output$bandeau_refus$html)
+  tous <- function(h) all(vapply(m287, function(m) grepl(htmltools::htmlEscape(m), h, fixed = TRUE),
+                                 logical(1)))
+  a("scenario de #287 : sept motifs du moteur avant le calcul",
+    length(m287) == 7L && is.null(input$nature_donnees))
+  a("Calcul non lance (methodes lognormales) : notification au texte fixe (#287)",
+    identical(notifs226, "Calcul non lance : aucun resultat n'est produit (voir le bandeau)."))
+  a("Calcul non lance (methodes lognormales) : les sept motifs dans le bandeau et dans l'apercu (#287)",
+    is.null(resultat()) && grepl(ea$TITRE_NON_LANCE, bd, fixed = TRUE) && tous(bd) && tous(ap))
+})
 rm("showNotification", envir = ea)
 )---"
   # Virgule decimale des nombres affiches (issue #236) : bloc Etat, bloc du
@@ -748,10 +925,14 @@ rm("showNotification", envir = ea)
     '  a("vue Detail : commentaire long replie et colonne Fonction (#178)",',
     '    grepl("<details class=\'com\'><summary>", dt, fixed = TRUE) &&',
     '      grepl("<th>Fonction</th>", dt, fixed = TRUE) && grepl("<code>test_intercept</code>", dt, fixed = TRUE))',
+    '  a("vue Detail : colonne granularite MC lue dans le bootstrap, au moins une valeur (#285)",',
+    '    grepl("<th>granularit\u00e9 MC</th>", dt, fixed = TRUE) &&',
+    '      any(is.finite(granularite_lignes(engine_table_tests(r), r$bootstrap))))',
     '  session$setInputs(vue_tests = "synth")',
     '  sy <- as.character(output$tests_par_hypothese$html)',
-    '  a("vue Synthese : ni repli ni colonne Fonction (#178)",',
-    '    !grepl("<details", sy, fixed = TRUE) && !grepl("<th>Fonction</th>", sy, fixed = TRUE))',
+    '  a("vue Synthese : ni repli ni colonne Fonction ni granularite MC (#178, #285)",',
+    '    !grepl("<details", sy, fixed = TRUE) && !grepl("<th>Fonction</th>", sy, fixed = TRUE) &&',
+    '      !grepl("granularit\u00e9 MC", sy, fixed = TRUE))',
     '  lib <- libelle_derogation(r, "profondeur")',
     '  a("ligne profondeur restituee, 2 annees ecartees", length(lib) == 1L &&',
     '    grepl("sur n = 10 annees fournies : les 2 annees les plus anciennes", lib, fixed = TRUE))',
@@ -822,11 +1003,14 @@ rm("showNotification", envir = ea)
     '  a("import n = 4 (hors [5 ; 40]) : garde non posee, apercu evalue avec T = 8 (#183)",',
     '    is.null(profondeur_import()) && is.character(ap) &&',
     '      grepl("Profondeur T = 8 superieure au nombre d\'annees fournies (4).", ap, fixed = TRUE))',
-    '  session$setInputs(fichier_import = fichier(41)); grille(session, 41)',
+    '  session$setInputs(fichier_import = fichier(41))',
     '  ap <- apercu(output)',
-    '  a("import n = 41 (hors [5 ; 40]) : garde non posee, apercu evalue avec T = 8 (#183)",',
-    '    is.null(profondeur_import()) && is.character(ap) &&',
-    '      !grepl("superieure", ap, fixed = TRUE))',
+    '  # Assertion modifiee par #286 (option (a)) : 41 annees sont refusees ; la',
+    '  # serie de 4 annees reste chargee et l\'apercu s\'evalue avec T = 8.',
+    '  a("import n = 41 (au-dela de 40) : refuse, 4 annees gardees, garde non posee, apercu evalue avec T = 8 (#183, #286)",',
+    '    nrow(donnees()) == 4L && identical(statut_import()$ok, FALSE) &&',
+    '      is.null(profondeur_import()) && is.character(ap) &&',
+    '      grepl("Profondeur T = 8 superieure au nombre d\'annees fournies (4).", ap, fixed = TRUE))',
     '})', .bloc_155, .bloc_212, .bloc_212_garde, .bloc_236_base, .bloc_199, .bloc_240, .bloc_226, .bloc_236), .script)
   # Processus fils lance depuis la racine du depot : app.R y source
   # R/engine.R par chemin relatif. --vanilla ignore .Renviron et .Rprofile :
@@ -844,8 +1028,8 @@ rm("showNotification", envir = ea)
                         setwd(.ici)
                       })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 59 assertions rendues", length(.lignes) == 59L)
-  if (length(.lignes) != 59L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 66 assertions rendues", length(.lignes) == 66L)
+  if (length(.lignes) != 66L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {
