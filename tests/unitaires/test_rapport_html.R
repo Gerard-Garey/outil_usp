@@ -27,7 +27,8 @@
 #  colonne "granularite MC" lue dans bootstrap$granularite_stat, comparee a
 #  la statistique Monte-Carlo de chaque ligne relevee dans add() (#285) ;
 #  p-values sous 1e-4 en trois chiffres significatifs, jamais "0,0000"
-#  (fmt_p(), #323) ; tiret pour une marge theta_equiv ou delta_equiv absente ;
+#  pour une p-value non nulle, p = 0 rendu "0,0000", frontiere de 1e-4 sans
+#  saut (fmt_p(), #323) ; tiret pour une marge theta_equiv ou delta_equiv absente ;
 #  virgule decimale des nombres affiches (.num_fr(), fmt_*(), notes, rapport
 #  fige ; issue #236).
 #  References : RFC 4648, section 10 (vecteurs de test base64) ; regle de
@@ -1157,7 +1158,7 @@ verifier("#254 : mention absente en V3b arret a la cible, en V1 (bord 1, volumes
   entre(lire(f), "<h2 id='gel'>", "<h3>Empreintes</h3>")
 }
 .ligne_mc <- function(sect, texte) {
-  i_gran <- regexpr("champ granularite_stat)", sect, fixed = TRUE)
+  i_gran <- regexpr("granularit\u00e9 MC \u00bb du d\u00e9tail des tests)", sect, fixed = TRUE)
   i_mc <- regexpr(paste0("<td>P-values Monte-Carlo</td><td>", .echap_html(texte), "</td>"),
                   sect, fixed = TRUE)
   i_alpha <- regexpr("Seuil alpha des verdicts", sect, fixed = TRUE)
@@ -1278,7 +1279,7 @@ verifier("Rapport fige : marge delta_equiv de longueur nulle -> tiret, sans erre
 # duree_sec, alpha et bootstrap$granularite a NA -> "NA s", "NA", "NA".
 CLE_GRAN <- paste("Granularit\u00e9 nominale d'une p-value Monte-Carlo unilat\u00e9rale,",
                   "1/(B+1) sur B nominal (bilat\u00e9rale : 2/(B_eff+1), par statistique,",
-                  "champ granularite_stat)")
+                  "colonne \u00ab granularit\u00e9 MC \u00bb du d\u00e9tail des tests)")
 verifier("Rapport fige : duree_sec, alpha et granularite a NA -> tiret, ni \"NA\" ni \"NA s\" (revue de #263)",
          {
            r0 <- readRDS(file.path(.racine, "tests", "reference", "premium.rds"))
@@ -1391,6 +1392,18 @@ verifier("#285 : rapport fige, colonne granularite MC dans le detail des tests r
 verifier("#323 : fmt_p(), %.4f a partir de 1e-4, %.3g en deca, tiret pour NA et Inf",
          identical(fmt_p(c(0.5, 1e-4, 9.99e-5, 1 / 40320, 2.95e-6, NA, Inf, 1)),
                    c("0,5000", "0,0001", "9,99e-05", "2,48e-05", "2,95e-06", "–", "–", "1,0000")))
+# Revue finale de R16 : frontiere de 1e-4 sans saut ("%.3g" ecrit "0,0001"
+# sur [9,995e-5 ; 1e-4), comme "%.4f" a 1e-4) et p = 0 exactement au format
+# de la colonne, "0,0000" (et non "0").
+verifier("#323 : fmt_p(), frontiere de 1e-4 sans saut et p = 0 rendu 0,0000 (revue finale de R16)",
+         identical(fmt_p(c(0, 9.9949e-5, 9.995e-5, 9.9995e-5, 1e-4, 1.00049e-4)),
+                   c("0,0000", "9,99e-05", "0,0001", "0,0001", "0,0001", "0,0001")))
+# p-value M1 de la note du graphique de l'ordonnee a l'origine (note_m1()) :
+# meme formateur que l'onglet Tests (revue finale de R16) ; le survol plotly
+# de plot_mw_origine() passe aussi par fmt_p() (non exerce sans plotly).
+verifier("#323 : note_m1(), p-value M1 par fmt_p(), sans 0,0000 (revue finale de R16)",
+         { nm <- note_m1(list(origine = data.frame(j = 1:3, p = c(0.3, 2.48e-5, 0.02))), 0.05)
+           grepl("<b>j = 2</b> (p = 2,48e-05)", nm, fixed = TRUE) && !grepl("0,0000", nm, fixed = TRUE) })
 verifier("#323 : premium_interieur, Pitman et Fisher sans 0,0000 (synthese et detail)",
          { tbp <- engine_table_tests(readRDS(file.path(.racine, "tests", "reference", "premium_interieur.rds")))
            i <- grep("^Test de Pitman sur la pente", tbp$test); j <- grep("^Test de Fisher", tbp$test)

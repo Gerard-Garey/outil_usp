@@ -232,7 +232,7 @@ charger_mw <- function() {
   if (!file.exists(src)) return(list(valeur = triangle_defaut(8), statut = NULL))
   refus <- function(motifs) list(valeur = triangle_vide(8),
     statut = statut_fichier(FALSE, src, paste("present mais refuse au demarrage :",
-                                              paste(utils::head(motifs, 6), collapse = " "),
+                                              paste(motifs, collapse = " "),
                                               REFUS_DEMARRAGE)))
   lu <- lire_tableau(src, grepl("xlsx$", src), row.names = NULL)
   if (!is.null(lu$erreur)) return(refus(lu$erreur))
@@ -267,12 +267,9 @@ PROFONDEUR_MAX <- 40L
 # character(0) si le triangle de n annees est dans la limite ; la suite
 # (triangle courant garde a l'import, grille vide au demarrage) est ajoutee
 # par l'appelant.
-refus_dimension_triangle <- function(n, T_max = PROFONDEUR_MAX) {
-  if (n <= T_max) return(character(0))
-  sprintf(paste("Triangle %d x %d : au-dela de la limite de l'application (%d annees",
-                "d'accident, rendu de la grille)."),
-          as.integer(n), as.integer(n), as.integer(T_max))
-}
+refus_dimension_triangle <- function(n, T_max = PROFONDEUR_MAX)
+  refus_dimension(n, T_max, sprintf("Triangle %d x %d", as.integer(n), as.integer(n)),
+                  "annees d'accident, rendu de la grille")
 
 # Refus de series de plus de T_max annees, importees ou lues au demarrage
 # (issue #286, option (a), decision du mainteneur du 15/10/2026) : la regle
@@ -284,11 +281,17 @@ refus_dimension_triangle <- function(n, T_max = PROFONDEUR_MAX) {
 # character(0) si les n annees sont dans la limite ; la suite (series
 # courantes gardees a l'import, grille vide au demarrage) est ajoutee par
 # l'appelant.
-refus_dimension_series <- function(n, T_max = PROFONDEUR_MAX) {
+refus_dimension_series <- function(n, T_max = PROFONDEUR_MAX)
+  refus_dimension(n, T_max, sprintf("Series de %d annees", as.integer(n)),
+                  "annees, borne du champ Profondeur T")
+
+# Aide commune des deux refus de dimension (#212, #286) : motif "<objet> :
+# au-dela de la limite de l'application (<T_max> <limite>).", character(0)
+# si n <= T_max. objet nomme la dimension refusee (triangle ou series),
+# limite la nature de la borne.
+refus_dimension <- function(n, T_max, objet, limite) {
   if (n <= T_max) return(character(0))
-  sprintf(paste("Series de %d annees : au-dela de la limite de l'application (%d annees,",
-                "borne du champ Profondeur T)."),
-          as.integer(n), as.integer(T_max))
+  sprintf("%s : au-dela de la limite de l'application (%d %s).", objet, as.integer(T_max), limite)
 }
 
 CHARGE_LN <- charger_ln()
@@ -614,7 +617,12 @@ profondeur_coherente <- function(T_saisi, T_attendu) {
 # rien ne garantit que le navigateur transmette n apres
 # updateNumericInput() : une garde posee a n pourrait ne jamais etre levee
 # et figer l'apercu. Elle n'est donc pas posee ; l'apercu s'evalue alors
-# avec la valeur courante du champ, comme avant #183.
+# avec la valeur courante du champ, comme avant #183. Depuis #286, une serie
+# importee de plus de T_max annees est refusee avant cet appel
+# (refus_dimension_series()), et la reinitialisation des series appelle
+# avec T = 8 : la branche n > T_max n'est plus atteinte par les appelants
+# de l'application et reste une garde defensive (seule n < T_min l'est,
+# a l'import).
 profondeur_attendue_import <- function(n, T_min = PROFONDEUR_MIN, T_max = PROFONDEUR_MAX) {
   if (!is.numeric(n) || length(n) != 1L || !is.finite(n) || n != round(n) ||
       n < T_min || n > T_max) return(NULL)
@@ -1045,7 +1053,7 @@ server <- function(input, output, session) {
       # Conversion fichier -> triangle et recevabilite : moteur.
       v <- engine_lire_triangle(df)
       if (!v$ok) {
-        statut_import(list(ok = FALSE, msg = paste(utils::head(v$erreurs, 3), collapse = " ")))
+        statut_import(list(ok = FALSE, msg = paste(v$erreurs, collapse = " ")))
         showNotification("Import refuse.", type = "error", duration = 8); return()
       }
       # Le triangle importe garde sa dimension ; le champ T n'est plus aligne

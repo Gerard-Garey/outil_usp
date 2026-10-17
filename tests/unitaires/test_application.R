@@ -232,7 +232,7 @@ verifier("app.R : regles CSS du commentaire replie (details.com) (#178)",
 ## --- Dimension du triangle et reinitialisation (issue #155) --------------------
 # Fonctions de premier niveau d'app.R, evaluees seules comme triangle_defaut().
 .noms_155 <- c("DONNEES_DEFAUT", "profondeur_reinitialisation", "jeu_reinitialise",
-               "message_reinitialisation", "refus_dimension_triangle",
+               "message_reinitialisation", "refus_dimension_triangle", "refus_dimension",
                "profondeur_apres_reinitialisation")
 for (.x in parse(.app, keep.source = FALSE))
   if (is.call(.x) && identical(.x[[1]], as.name("<-")) &&
@@ -331,8 +331,15 @@ unlink(.dir212, recursive = TRUE); rm("FICHIER_MW", envir = .env)
 # a l'import (bloc Shiny ci-dessous) comme au demarrage (charger_ln()).
 for (.x in parse(.app, keep.source = FALSE))
   if (is.call(.x) && identical(.x[[1]], as.name("<-")) &&
-      as.character(.x[[2]]) %in% c("refus_dimension_series", "grille_vide_ln", "charger_ln"))
+      as.character(.x[[2]]) %in% c("refus_dimension_series", "refus_dimension", "grille_vide_ln", "charger_ln"))
     eval(.x, .env)
+verifier("refus_dimension() : aide commune des deux refus, motif compose de l'objet et de la limite, character(0) dans la borne (revue finale de R16)",
+         identical(.env$refus_dimension(40L, 40L, "X", "y"), character(0)) &&
+           identical(.env$refus_dimension(41, 40L, "X", "annees y"),
+                     "X : au-dela de la limite de l'application (40 annees y)."))
+verifier("profondeur_apres_reinitialisation() : series, T retenu = 8 pour T saisi 4, 41, 100 et NA (appelant de profondeur_attendue_import(), garde n > T_max defensive)",
+         all(vapply(list(4, 41, 100, NA), function(t)
+           identical(as.numeric(.env$profondeur_apres_reinitialisation(FALSE, t)$T), 8), logical(1))))
 verifier("refus_dimension_series() : series de 5, 8, 40 annees dans la borne, sans motif (#286)",
          all(vapply(list(5L, 8L, 40L), function(n)
            identical(.env$refus_dimension_series(n), character(0)), logical(1))))
@@ -410,6 +417,14 @@ verifier("app.R : aucun head() dans conserver(), l'apercu et le clic (plafond de
          length(.fn_conserver) == 1L && length(.obs_go) == 1L && length(.apercu) == 1L &&
            !.heads(.fn_conserver[[1]]) && !.heads(.obs_go[[1]]) && !.heads(.apercu[[1]]) &&
            .heads(quote(utils::head(v$erreurs, 6))))
+# Suite de #287 (revue finale de R16) : plafonds leves aussi au demarrage du
+# triangle (charger_mw(), six motifs) et a l'import d'un triangle (trois
+# motifs) ; aucun head() ni utils::head() dans app.R hors tags$head.
+.src_heads <- grep("(^|[^$[:alnum:]_.])head\\(", readLines(.app, encoding = "UTF-8"), value = TRUE)
+.fn_charger_mw <- Filter(function(e) identical(e[[2]], as.name("charger_mw")),
+                         .appels(parse(.app, keep.source = FALSE), "<-"))
+verifier("app.R : aucun head() dans charger_mw() ni ailleurs dans app.R (plafonds du demarrage et de l'import du triangle leves, #287)",
+         length(.fn_charger_mw) == 1L && !.heads(.fn_charger_mw[[1]]) && length(.src_heads) == 0L)
 .notifs_go <- .appels(.obs_go[[1]], "showNotification")
 verifier("app.R : notifications du clic \"Calcul non lance\" au texte fixe, aucune ne recopie les motifs (#287, #226)",
          sum(vapply(.notifs_go, function(n) identical(n[[2]],

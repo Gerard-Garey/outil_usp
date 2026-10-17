@@ -56,10 +56,14 @@ COUL <- list(trait = "#B03A2E", pt = "#00468C", env = "#C8DCFA",
 fmt_nb <- function(v, d = 4) ifelse(is.finite(v), .num_fr(v, paste0("%.", d, "f")), "\u2013")
 # p-value (#323) : quatre decimales a partir de 1e-4, trois chiffres
 # significatifs en deca (2,48e-05), pour qu'une p-value non nulle ne
-# s'affiche jamais "0,0000". Mise en forme seule, aucun arrondi propre ;
-# meme formateur pour l'onglet Tests et le rapport fige.
+# s'affiche jamais "0,0000". Frontiere sans saut : p dans [9,995e-5 ; 1e-4)
+# s'arrondit a 1,00e-4 sous "%.3g", qui passe alors en notation fixe
+# (exposant -4) et ecrit "0,0001", comme "%.4f" a 1e-4. p = 0 exactement
+# s'affiche "0,0000", au format de la colonne ("%.3g" ecrirait "0"). Mise
+# en forme seule, aucun arrondi propre ; meme formateur pour l'onglet Tests
+# et le rapport fige.
 fmt_p  <- function(v) ifelse(is.finite(v),
-                             .num_fr(v, ifelse(is.finite(v) & v >= 1e-4, "%.4f", "%.3g")),
+                             .num_fr(v, ifelse(is.finite(v) & (v >= 1e-4 | v == 0), "%.4f", "%.3g")),
                              "\u2013")
 fmt_pc <- function(v, d = 1) ifelse(is.finite(v),
                                     paste0(.num_fr(100 * v, paste0("%.", d, "f")), " %"), "\u2013")
@@ -338,7 +342,9 @@ table_detail_groupe <- function(tb, replier = FALSE, boot = NULL) {
     `erreur MC` = ifelse(is.finite(tb$erreur_MC), paste0("\u00b1 ", fmt_nb(tb$erreur_MC)), "\u2013"),
     # p-value minimale atteignable (loi de reference discrete, #44) ; colonne
     # absente d'une table anterieure au champ : tiret. Trois chiffres
-    # significatifs : 2/8! = 5,0e-5 s'afficherait 0.0000 avec fmt_p().
+    # significatifs sur toute la colonne, au-dessus de 1e-4 compris : un
+    # plancher se lit a sa resolution (1/1001 = 0,000999, que fmt_p()
+    # arrondirait a 0,0010 ; 2/8! = 4,96e-05 rendu de meme par les deux).
     "p min (loi discr\u00e8te)" = if (is.null(tb$p_min)) rep("\u2013", nrow(tb))
                                    else ifelse(is.finite(tb$p_min), .num_fr(tb$p_min, "%.3g"), "\u2013"),
     # Plancher Monte-Carlo (#125) : plus petite p Monte-Carlo atteignable sur
@@ -1354,7 +1360,7 @@ plot_mw_origine <- function(pd, alpha) {
   p <- plotly::add_trace(p, x = d$j, y = d$a, type = "scatter", mode = "markers",
         error_y = list(type = "data", array = 1.96 * d$se_a, color = COUL$pt),
         marker = list(size = 10, color = ifelse(sig, COUL$trait, COUL$pt)),
-        text = paste0("p = ", .num_fr(d$p, "%.4f")),
+        text = paste0("p = ", fmt_p(d$p)),
         hovertemplate = "j = %{x}<br>a = %{y:,.0f}<br>%{text}<extra></extra>")
   .mep(p, "Ordonnee a l'origine par colonne, intervalle a 95 % (M1)",
        "annee de developpement j", "ordonnee a l'origine a_j")
@@ -1584,7 +1590,7 @@ note_m1 <- function(pd, alpha) {
     "<br><b>%d colonne(s) sur %d</b> pr&eacute;sentent une ordonn&eacute;e &agrave;",
     "l'origine significative au seuil alpha = %s, la plus marqu&eacute;e &eacute;tant",
     "<b>j = %d</b> (p = %s)."), k, nrow(d), .num_fr_defaut(alpha), w$j,
-    .num_fr(w$p, "%.4f"))
+    fmt_p(w$p))
 }
 
 note_influence_mw <- function(pd) {
@@ -1938,7 +1944,7 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
               "R\u00e9plications B",
               paste("Granularit\u00e9 nominale d'une p-value Monte-Carlo unilat\u00e9rale,",
                     "1/(B+1) sur B nominal (bilat\u00e9rale : 2/(B_eff+1), par statistique,",
-                    "champ granularite_stat)"),
+                    "colonne \u00ab granularit\u00e9 MC \u00bb du d\u00e9tail des tests)"),
               # Ligne d'en-tete de #240 (Q-A4-12 (B)) : absente pour reserve2
               # et pour un objet sans p_mc_regime.
               if (!is.null(lig_mc)) "P-values Monte-Carlo",
