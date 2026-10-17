@@ -10459,7 +10459,9 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
   # ligne voisine de la meme famille sort bien en INFO. Le verdict n'est plus
   # force ; add() applique INFO de lui-meme. La part et le repere de 40 %
   # restent restitues dans le detail, ou leur statut est nomme.
-  part_derniere <- aj$reserve_par_annee[aj$I + 1] / aj$reserve
+  # unname() : reserve_par_annee porte les noms de ligne du triangle, que le
+  # scalaire de la ligne prenait ("2024" pour des lignes 2017:2024, issue #319).
+  part_derniere <- unname(aj$reserve_par_annee[aj$I + 1]) / aj$reserve
   add(fam, "Part de la reserve portee par la derniere annee d'accident",
       fonction = "mw_tests",
       "Diagnostic de concentration", type = "diagnostic",

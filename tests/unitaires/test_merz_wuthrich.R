@@ -2587,6 +2587,23 @@ verifier("Parametre final sans nom (#319) : champs scalaires de parametre_final 
              all(vapply(ms, function(x) is.null(names(x)), logical(1))) &&
              identical(ms, mw_msep(mw_ajuster(tri_ref)))
          })
+# Lignes de mw_tests() sans nom (#319, reprise) : avant elle, l'estimation de
+# la ligne "Part de la reserve portee par la derniere annee d'accident"
+# portait le nom de la derniere ligne ("2024"), lu sur reserve_par_annee.
+.champs_tests <- c("stat", "estim", "p_exacte", "p_asymptotique", "p_mc", "err_mc",
+                   "p_retenue", "p_min", "p_min_mc")
+verifier("Tests sans nom (#319) : stat, estim et p-values de res$tests sans nom sous un triangle nomme ; res$tests et engine_table_tests() identiques",
+         {
+           r0 <- run_engine(methode = "reserve2", triangle = tri_ref, segment = 1,
+                            annexe = "II", B = 99)
+           r1 <- .run_noms(annees)
+           isTRUE(r1$ok) &&
+             all(vapply(r1$tests, function(t)
+               all(vapply(intersect(.champs_tests, names(t)), function(ch) is.null(names(t[[ch]])),
+                          logical(1))), logical(1))) &&
+             identical(r0$tests, r1$tests) &&
+             identical(engine_table_tests(r0), engine_table_tests(r1))
+         })
 verifier("Noms de ligne (#268) : data.frame a noms de ligne automatiques admis",
          isTRUE(run_engine(methode = "reserve2", triangle = as.data.frame(tri_ref),
                            segment = 1, annexe = "II", B = 99)$ok))
