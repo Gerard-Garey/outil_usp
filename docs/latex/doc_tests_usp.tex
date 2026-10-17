@@ -521,8 +521,9 @@ non bloquants), ajoutés à \code{res\$controles} \\
 \code{usp\_valider\_}\newline\code{ajustement()} & \code{fit} (sortie de \code{usp\_ajuster()}),
 \code{methode} (\code{"premium"} ou \code{"reserve1"}, qui ne règle que le motif) &
 \code{\$ok}, \code{\$erreurs}~: refus (contrôle de validité bloquant, après l'ajustement) si
-$\hat\gamma$ est sur une borne de \code{BORNES\_GAMMA} sans démarrage à l'optimum qui satisfasse
-la condition de Kuhn et Tucker (issue~\#188, §\ref{sec:controles}) \\
+au moins un démarrage à l'optimum (\code{\$gamma\_bord\_au\_moins\_un}), ou le démarrage retenu,
+a $\gamma$ sur une borne de \code{BORNES\_GAMMA} et si aucun démarrage à l'optimum ne satisfait
+la condition de Kuhn et Tucker (issues~\#188 et~\#227, §\ref{sec:controles}) \\
 \code{mw\_valider\_triangle()} & \code{tri}, \code{T\_min}, \code{bareme}, \code{segment},
 \code{annexe} &
 \code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, $I$, $J$~; refus d'une cellule observée
@@ -587,7 +588,9 @@ fourni à \code{optim()}, issue~\#63) & \code{fit} complet, gradient projeté, h
 Newton complet et erreur relative $\varepsilon_\sigma$ au démarrage retenu (issue~\#71),
 convergence multi-démarrages (démarrages à l'optimum à
 \code{TOL\_OPTIMUM} $= 10^{-6}$ près), décision de Kuhn et Tucker sur ces démarrages
-(\code{\$kkt\_au\_moins\_un}, dernier champ) \\
+(\code{\$kkt\_au\_moins\_un}, avant-dernier champ) et, sur le même ensemble, présence d'au moins
+un démarrage de $\gamma$ sur une borne (\code{\$gamma\_bord\_au\_moins\_un}, dernier champ,
+\code{usp\_gamma\_bord()}, issue~\#227) \\
 \code{usp\_gradient()} & $\delta$, $\gamma$, $x$, $y$, \code{xbar} &
 gradient analytique $(g_\delta, g_\gamma)$ de l'objectif profilé \\
 \code{usp\_gradient\_optim()} & \code{par} $=(\delta,\gamma)$, $x$, $y$, \code{xbar} &
@@ -617,6 +620,7 @@ point (fiche~\ref{fiche:foc}) \\
 \code{tol} près, ou intérieur, un $\gamma$ non fini étant compté sur la borne basse~; seul
 prédicat «~$\gamma$ sur une borne~» du moteur, lu par \code{usp\_condition\_premier\_ordre()}
 (projection du gradient en $\gamma$, pas de Newton), \code{usp\_kkt\_satisfaite()},
+\code{usp\_ajuster()} (champ \code{\$gamma\_bord\_au\_moins\_un}, issue~\#227),
 \code{usp\_controles\_numeriques()} et \code{usp\_valider\_ajustement()} (issue~\#322) \\
 \code{usp\_ajuster\_rapide()} & $x$, $y$, point de départ $(\delta_0,\gamma_0)$ &
 réajustement à trois démarrages, $(\delta_0,\gamma_0)$, $(0,\gamma_0)$ et $(1,\gamma_0)$,
@@ -1946,7 +1950,8 @@ démarrage retenu, premier de la grille parmi des démarrages équivalents, qui 
 chemin d'optimisation (décision M23 du mainteneur, issue~\#22~;
 fiche~\ref{fiche:multi-demarrages}). Le pas de Newton,
 la hessienne, l'erreur relative $\varepsilon_\sigma$, les verdicts des contrôles, le nombre de démarrages à l'optimum et de démarrages
-sans résultat, la décision de Kuhn et Tucker \code{\$kkt\_au\_moins\_un} et
+sans résultat, la décision de Kuhn et Tucker \code{\$kkt\_au\_moins\_un}, le booléen
+\code{\$gamma\_bord\_au\_moins\_un} (depuis l'issue~\#227) et
 $(\hat\delta, \hat\gamma)$ restent comparés, et la reproductibilité
 à graine égale (\code{identical()}) porte sur l'objet entier. Ce critère a remplacé, le
 23~septembre 2026, une comparaison par \code{all.equal()} à la tolérance
@@ -2335,8 +2340,9 @@ Condition du premier ordre (contrôle numérique, hors table des tests) & \ref{f
 \code{usp\_ajuster()} (champ \code{\$kkt\_au\_moins\_un}), \code{usp\_controles\_numeriques()} &
 contrôle \code{OK} / \code{ECHEC}, aucune p-value & --- \\
 Existence du maximum de vraisemblance (contrôle de validité, après ajustement, hors table des
-tests) & \S\ref{sec:controles} & \code{usp\_valider\_ajustement()} (lit \code{\$gamma} et
-\code{\$kkt\_au\_moins\_un} d'\code{usp\_ajuster()}~; borne par \code{usp\_gamma\_bord()}) & refus
+tests) & \S\ref{sec:controles} & \code{usp\_valider\_ajustement()} (lit \code{\$gamma},
+\code{\$kkt\_au\_moins\_un} et \code{\$gamma\_bord\_au\_moins\_un} d'\code{usp\_ajuster()},
+issue~\#227~; borne par \code{usp\_gamma\_bord()}) & refus
 bloquant, aucune p-value & --- \\
 Centrage des résidus (diagnostic) & \ref{fiche:centrage} & \code{mean()} sur $z$
 (appel direct dans \code{usp\_tests()}) & diagnostic, aucune p-value & --- \\
@@ -3353,12 +3359,27 @@ pertes du jeu de contrôle, \code{ok = TRUE}.
 \emph{Existence de l'estimateur du maximum de vraisemblance (issue~\#188).} Juste après
 \code{usp\_ajuster()}, avant les contrôles numériques, le bootstrap et tout test,
 \code{run\_engine()} appelle, avec l'ajustement et la méthode,
-\code{usp\_valider\_ajustement()}. Cette fonction refuse le calcul quand $\hat\gamma$ est sur une borne de \code{BORNES\_GAMMA} $= [-12\,;3]$, à
-\code{TOL\_DELTA\_BORD} $= 10^{-6}$ près ($\hat\gamma$ non fini étant compté sur la borne
+\code{usp\_valider\_ajustement()}. Cette fonction refuse le calcul quand au moins un démarrage à
+l'optimum --- le même ensemble que celui de la condition de Kuhn et Tucker, fiche~\ref{fiche:foc}
+--- a $\gamma$ sur une borne de \code{BORNES\_GAMMA} $= [-12\,;3]$, à
+\code{TOL\_DELTA\_BORD} $= 10^{-6}$ près ($\gamma$ non fini étant compté sur la borne
 basse~; prédicat unique \code{usp\_gamma\_bord()}, issue~\#322), \textbf{et} qu'aucun démarrage à l'optimum ne satisfait la condition de Kuhn et Tucker
-(\code{\$kkt\_au\_moins\_un} faux, fiche~\ref{fiche:foc}), condition qui exige elle-même
-$\gamma$ hors des bornes (\code{usp\_kkt\_satisfaite()})~: le refus revient à $\hat\gamma$ sur
-une borne sans autre démarrage à l'optimum, de $\gamma$ intérieur, qui la satisfasse. Le refus a la forme d'un refus de
+(\code{\$kkt\_au\_moins\_un} faux), condition qui exige elle-même
+$\gamma$ hors des bornes (\code{usp\_kkt\_satisfaite()}). Depuis l'issue~\#227 (règle décidée
+par le mainteneur le 15~octobre 2026, champ et motif le 17~octobre 2026), le premier membre est
+jugé sur l'\emph{ensemble} des démarrages à l'optimum, et non plus sur le seul démarrage retenu~:
+\code{usp\_ajuster()} le consigne dans le booléen \code{\$gamma\_bord\_au\_moins\_un}, dernier
+champ de \code{res\$ajustement} (faux sur les cinq cas de référence lognormaux, mesure), et
+\code{usp\_valider\_ajustement()} lit en outre le $\hat\gamma$ du démarrage retenu, qui
+appartient à cet ensemble~; un ajustement passé en appel direct sans ce champ garde ainsi la
+règle de l'issue~\#188, jugée sur le seul $\hat\gamma$ retenu. Le démarrage retenu, départagé
+parmi des démarrages équivalents par l'ordre de la grille, peut changer d'une plateforme à
+l'autre (fiche~\ref{fiche:multi-demarrages})~: il ne sert plus qu'à calculer $\hat\sigma$ et à
+choisir la forme du motif, et la décision n'en dépend plus. La règle refuse tout ce que
+refusait celle de l'issue~\#188 et, en outre, les ensembles \emph{mixtes} sans démarrage qui
+satisfasse la condition, dont le démarrage retenu est intérieur et un autre démarrage à
+l'optimum sur une borne~; elle ne change ni $\sigma_{\mathrm{USP}}$ ni aucun verdict des cas de
+référence. Le refus a la forme d'un refus de
 données~: \code{ok = FALSE}, motif ajouté à \code{validation\$erreurs}, objet réduit aux
 champs \code{ok}, \code{validation} et \code{metadata} (horodatage seul), avertissements de
 \code{engine\_valider\_donnees()} conservés, aucun résultat partiel, et \textbf{sans}
@@ -3366,8 +3387,10 @@ champs \code{ok}, \code{validation} et \code{metadata} (horodatage seul), averti
 abouti et ce sont les données qui ne déterminent pas l'estimateur dans le domaine de recherche.
 C'est aussi le seul contrôle \emph{bloquant} postérieur à l'ajustement lognormal~; les deux
 contrôles numériques de la famille~H, calculés ensuite sur un ajustement accepté, restent non
-bloquants (sous-section finale). Le motif, fixe à la borne et à la méthode près (l'argument
-\code{methode} n'agit que sur lui, jamais sur le prédicat), enchaîne un constat
+bloquants (sous-section finale). Le motif, fixe à sa forme, à la borne et à la méthode près
+(l'argument \code{methode} n'agit que sur lui, jamais sur le prédicat), prend deux formes.
+Quand le démarrage retenu est sur une borne (forme~1, celle de l'issue~\#188, inchangée), il
+enchaîne un constat
 («~\code{Maximum de vraisemblance non atteint (annexe XVII, B(6)) : gamma estime sur la borne
 basse du domaine de recherche [-12 ; 3] (BORNES\_GAMMA, bornes de l'outil, non reglementaires)}
 \ldots~», C(6) pour la méthode du risque de réserve n\textsuperscript{o}~1, «~\code{haute}~» à
@@ -3377,11 +3400,22 @@ B(2)(g) ou C(2)(e), iii et iv~; article~219, paragraphe~1, point~d)), pour la m�
 réserve n\textsuperscript{o}~1 le rappel que la méthode n\textsuperscript{o}~2 reste ouverte, et
 une vérification à faire (borne basse~: $y_t$ observé, B(1)(a) ou C(1)(a), et non déduit de
 $x_t$ par un coefficient fixe~; borne haute~: unités, correspondance des années et valeurs
-aberrantes, B(1) et B(2)(a) ou leurs homologues de la section~C). Mesuré sur les volumes du jeu
+aberrantes, B(1) et B(2)(a) ou leurs homologues de la section~C). Quand le démarrage retenu est
+intérieur (forme~2, issue~\#227), le constat devient «~\code{Maximum de vraisemblance non etabli
+(annexe XVII, B(6)) : parmi les demarrages qui atteignent l'objectif minimal a la tolerance de
+l'outil, au moins un a gamma sur une borne du domaine de recherche [-12 ; 3] (BORNES\_GAMMA,
+bornes de l'outil, non reglementaires) et aucun ne satisfait la condition du premier ordre (KKT)
+; le demarrage retenu, de gamma interieur, n'est pas un point stationnaire certifie}
+\ldots~»~; il ne nomme pas le côté de la borne, que le seul booléen
+\code{\$gamma\_bord\_au\_moins\_un} ne porte pas (décision du mainteneur du 17~octobre 2026), et
+réunit les causes et les vérifications des deux bornes, le fondement et le rappel de la méthode
+n\textsuperscript{o}~2 étant ceux de la forme~1, sans renvoi nouveau au règlement. Mesuré sur les volumes du jeu
 de contrôle (segment II-1, $B = 99$)~: $y_t = 0{,}7\,x_t$ est refusé à la borne basse
 pour les deux méthodes, $y_t = x_t \exp(3 w_t)$ ($w_t$ gaussien de graine 15520, ratios
 très dispersés) à la borne haute~; les jeux refusés et le texte exact des motifs sont vérifiés
-par \code{tests/unitaires/test\_controles\_entree.R}.
+par \code{tests/unitaires/test\_controles\_entree.R}, la forme~2 sur des ajustements fictifs
+(retenu intérieur, champ vrai, condition non satisfaite), faute de jeu de données connu qui la
+produise.
 
 \emph{Fondement.} Le prédicat repose sur un résultat d'existence établi dans l'encadré de la
 section~\ref{sec:h4}~: si les ratios $r_t = y_t/x_t$ sont tous égaux, le montant de B(6) (C(6))
@@ -3437,11 +3471,14 @@ non réglementaires (le texte ne borne que $\delta$, au dernier alinéa de B(6) 
 conjonction avec la condition de Kuhn et Tucker est un choix numérique de l'outil, qui fait
 porter le volet «~condition~» de la décision sur l'ensemble des démarrages à l'optimum (doctrine
 de la décision M23 du mainteneur)~: un $\hat\gamma$ retenu sur une borne alors qu'un autre
-démarrage à l'optimum satisfait la condition reste accepté. Le volet «~borne~», lui, est jugé sur
-le seul démarrage retenu (\code{\$gamma} d'\code{usp\_ajuster()})~: si, parmi les démarrages à
-l'optimum, les uns étaient sur une borne et les autres de $\gamma$ intérieur sans qu'aucun ne
-satisfasse la condition, l'issue (refus ou calcul) dépendrait du démarrage retenu, donc
-possiblement de la plateforme. Ce cas n'a pas été rencontré~: aucun ensemble mixte sur 96 jeux de
+démarrage à l'optimum satisfait la condition reste accepté. Le volet «~borne~» porte lui aussi,
+depuis l'issue~\#227 (décision du mainteneur du 15~octobre 2026, même doctrine), sur l'ensemble
+des démarrages à l'optimum (\code{\$gamma\_bord\_au\_moins\_un}). Jusqu'à cette issue, il était
+jugé sur le seul démarrage retenu (\code{\$gamma} d'\code{usp\_ajuster()})~: si, parmi les
+démarrages à l'optimum, les uns étaient sur une borne et les autres de $\gamma$ intérieur sans
+qu'aucun ne satisfasse la condition, l'issue (refus ou calcul) dépendait du démarrage retenu, donc
+possiblement de la plateforme~; un tel ensemble est désormais refusé quel que soit le démarrage
+retenu. Ce cas n'avait pas été rencontré~: aucun ensemble mixte sur 96 jeux de
 la zone de transition et 5 jeux de la borne haute (revue finale d'\code{audit} d'E1g, constat,
 non résultat général).
 
@@ -3953,8 +3990,9 @@ relative de premier ordre sur $\sigma$ du pas de Newton complet, issue~\#71),
 $|\mathrm{pg}_\delta| \le$ \code{REP\_GD\_KKT} $= 10^{-4}$ (fiche~\ref{fiche:foc}) & Contrôle
 numérique de l'estimation (\code{usp\_controles\_numeriques()})~; règle « au moins un
 démarrage », décision M25 du mainteneur. Repère $10^{-6}$ ancré sur la décision M9, repère
-$10^{-4}$ fixé d'après des mesures. Non bloquant~; un $\hat\gamma$ sur une borne sans démarrage
-qui satisfasse la condition est refusé en amont par \code{usp\_valider\_ajustement()} (issue~\#188,
+$10^{-4}$ fixé d'après des mesures. Non bloquant~; un ajustement dont au moins un démarrage à
+l'optimum a $\gamma$ sur une borne, sans démarrage qui satisfasse la condition, est refusé en
+amont par \code{usp\_valider\_ajustement()} (issues~\#188 et~\#227,
 paragraphe sous le tableau des méthodes lognormales). \\
 Convergence multi-démarrages \emph{(post-ajustement)} & au moins un démarrage à
 l'optimum (objectif à \code{TOL\_OPTIMUM} près) au code de retour~0, et au moins deux
@@ -9768,8 +9806,8 @@ $\hat\gamma(1) \le -12 \Leftrightarrow \sqrt{S/T} \le \sqrt{\ln(1 + e^{-24})} = 
 en deçà de ce seuil~: une série exactement proportionnelle a toujours $\hat\gamma$ sur la borne
 basse (mesuré sur $y_t = 0{,}7\,x_t$ et les volumes du jeu de contrôle~: $S = 2{,}8\cdot
 10^{-32}$, $\hat\gamma(1) = -37{,}4$, minimiseur fixé par l'arrondi). Ces résultats fondent le contrôle de validité \code{usp\_valider\_ajustement()}, qui
-refuse le calcul quand $\hat\gamma$ est sur une borne de son domaine sans que la condition de
-Kuhn et Tucker soit satisfaite (section~\ref{sec:controles}, où sont décrits son fondement
+refuse le calcul quand au moins un démarrage à l'optimum a $\gamma$ sur une borne de son domaine
+sans que la condition de Kuhn et Tucker soit satisfaite par aucun (issues~\#188 et~\#227~; section~\ref{sec:controles}, où sont décrits son fondement
 réglementaire, la frontière du refus et la continuité de $\sigma_{\mathrm{USP}}$ à cette
 frontière).
 \end{encadre}
@@ -10086,12 +10124,14 @@ mainteneur)~: il ne figure pas dans la table des tests mais dans \code{res\$cont
 verdict \code{OK} / \code{ECHEC} \textbf{non bloquant}~: un \code{ECHEC} est restitué et
 \code{run\_engine()} produit le calcul. La même décision \code{\$kkt\_au\_moins\_un} entre
 toutefois, avant ce contrôle, dans le contrôle de validité \emph{bloquant}
-\code{usp\_valider\_ajustement()} (issue~\#188, section~\ref{sec:controles})~: si $\hat\gamma$ est
-sur une borne de \code{BORNES\_GAMMA} et que la décision est fausse, \code{run\_engine()} refuse
-le calcul (\code{ok = FALSE}) et le présent contrôle n'est pas restitué. Par construction du code
-(non par une mesure), un résultat accepté dont le $\hat\gamma$ retenu est sur une borne porte donc
-un \code{OK} à ce contrôle, obtenu sur un autre démarrage à l'optimum~; un \code{ECHEC} restitué
-correspond à un $\hat\gamma$ intérieur.
+\code{usp\_valider\_ajustement()} (issue~\#188, section~\ref{sec:controles})~: si au moins un
+démarrage à l'optimum a $\gamma$ sur une borne de \code{BORNES\_GAMMA}
+(\code{\$gamma\_bord\_au\_moins\_un}, issue~\#227, ou $\hat\gamma$ retenu) et que la décision
+est fausse, \code{run\_engine()} refuse le calcul (\code{ok = FALSE}) et le présent contrôle
+n'est pas restitué. Par construction du code (non par une mesure), un résultat accepté dont le
+$\hat\gamma$ retenu est sur une borne porte donc un \code{OK} à ce contrôle, obtenu sur un autre
+démarrage à l'optimum~; un \code{ECHEC} restitué correspond à un ensemble de démarrages à
+l'optimum tous de $\gamma$ intérieur.
 
 En annulant la dérivée de l'objectif par rapport à $\ln\beta$, on obtient la contrainte que
 l'estimation impose mécaniquement aux résidus \emph{quel que soit} le couple $(\delta,\gamma)$~:
@@ -10122,11 +10162,12 @@ $g_\gamma = w\,\big(\sum_t z_t^2 - T\big)$, avec $w = -\pi\,2ea/(1+ea)$ commun �
 années. Le gradient est projeté sur les bornes (\code{usp\_condition\_premier\_ordre()})~:
 $\delta \in [0,1]$ et $\gamma \in [-12, 3]$ (constante \code{BORNES\_GAMMA}, bornes numériques
 et non réglementaires, le règlement ne bornant que $\delta$ au dernier alinéa de B(6) et de C(6)~;
-depuis l'issue~\#188, une estimation sur une borne de $\gamma$ sans démarrage à l'optimum qui
-satisfasse la condition ci-dessous est un \textbf{refus} de \code{usp\_valider\_ajustement()},
-section~\ref{sec:controles}~; cette condition exigeant elle-même $\gamma$ hors des bornes
-(\code{usp\_kkt\_satisfaite()}), le refus revient à $\hat\gamma$ sur une borne sans autre
-démarrage à l'optimum, de $\gamma$ intérieur, qui la satisfasse), le bord étant jugé à \code{TOL\_DELTA\_BORD} $= 10^{-6}$ près
+depuis l'issue~\#188, un ajustement dont au moins un démarrage à l'optimum a $\gamma$ sur une
+borne, sans démarrage à l'optimum qui satisfasse la condition ci-dessous, est un \textbf{refus}
+de \code{usp\_valider\_ajustement()}, section~\ref{sec:controles}~; jusqu'à l'issue~\#227, seul
+le $\hat\gamma$ du démarrage retenu était jugé~; cette condition exigeant elle-même $\gamma$
+hors des bornes (\code{usp\_kkt\_satisfaite()}), le refus revient à un démarrage à l'optimum sur
+une borne sans autre démarrage à l'optimum, de $\gamma$ intérieur, qui la satisfasse), le bord étant jugé à \code{TOL\_DELTA\_BORD} $= 10^{-6}$ près
 (pour $\gamma$, par le prédicat unique \code{usp\_gamma\_bord()}, issue~\#322, qui compte un
 $\gamma$ non fini sur la borne basse)~; sur une
 borne inférieure la composante projetée vaut $\min(g, 0)$, sur une borne supérieure
@@ -10192,7 +10233,9 @@ $|\mathrm{pg}_\delta| \le$ \code{REP\_GD\_KKT} $= 10^{-4}$, \textbf{règle uniqu
 l'intérieur} (à l'intérieur, $\mathrm{pg}_\delta = g_\delta$~; maintenue par l'issue~\#71 comme
 garde de validité du modèle quadratique local). \code{usp\_ajuster()} évalue tous les démarrages à l'optimum,
 sans s'arrêter au premier succès qui réintroduirait un ordre, et restitue la décision dans le
-champ \code{\$kkt\_au\_moins\_un} de \code{res\$ajustement}~; aucun décompte des démarrages
+champ \code{\$kkt\_au\_moins\_un} de \code{res\$ajustement}, suivi du booléen
+\code{\$gamma\_bord\_au\_moins\_un} calculé sur le même ensemble pour le contrôle de validité
+(issue~\#227)~; aucun décompte des démarrages
 qui satisfont la condition n'est stocké ni imprimé, car il dépendrait, comme
 $n^{\star}_0$ (fiche~\ref{fiche:multi-demarrages}), du chemin d'optimisation. Le commentaire,
 concis depuis la décision M27 du mainteneur (issue~\#76), nomme la règle sans en rappeler les
@@ -10623,7 +10666,8 @@ $\sigma \approx 6\cdot 10^{-6}\,\hat\beta$, deux situations sans réalité pour 
 le jeu de contrôle, aucune des 999 réplications n'atteint une borne ($\hat\gamma^{*}$ reste entre
 $-3{,}34$ et $-1{,}37$). Sur les données observées, depuis l'issue~\#188, un $\hat\gamma$ sur une
 borne sans démarrage à l'optimum qui satisfasse la condition de Kuhn et Tucker conduit au refus
-du calcul (section~\ref{sec:controles})~; dans un résultat accepté, la réserve ne concerne donc
+du calcul, et, depuis l'issue~\#227, tout démarrage à l'optimum sur une borne dans ce cas
+(section~\ref{sec:controles})~; dans un résultat accepté, la réserve ne concerne donc
 plus que les réplications bootstrap, auxquelles ce refus ne s'applique pas, et le cas où le
 démarrage retenu est sur une borne alors qu'un autre démarrage à l'optimum satisfait la condition.
 
@@ -16713,7 +16757,8 @@ décisions calculées dans \code{usp\_ajuster()}~: démarrages à l'optimum (\co
 condition de Kuhn et Tucker par \code{usp\_condition\_premier\_ordre()} et
 \code{usp\_kkt\_satisfaite()} (\code{REP\_SIGMA\_KKT}, \code{REP\_GD\_KKT}, \code{BORNES\_GAMMA}~;
 $\gamma$ sur une borne par \code{usp\_gamma\_bord()}, issue~\#322~; hessienne \code{usp\_hessienne()}, pas de Newton \code{usp\_pas\_newton\_borne()}),
-champ \code{\$kkt\_au\_moins\_un}~; convergence multi-démarrages~: champs
+champ \code{\$kkt\_au\_moins\_un}, puis \code{\$gamma\_bord\_au\_moins\_un}, lu par
+\code{usp\_valider\_ajustement()} (issue~\#227)~; convergence multi-démarrages~: champs
 \code{\$n\_starts\_optimum}, \code{\$n\_starts\_optimum\_code0}, \code{\$n\_starts\_echec},
 \code{\$part\_starts\_convergents}~; gradient analytique \code{usp\_gradient()} \\
 Quantités des graphiques & \code{engine\_plots\_data()} (branche lognormale),\newline
