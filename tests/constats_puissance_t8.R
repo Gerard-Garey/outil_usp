@@ -266,8 +266,8 @@
 #        P1, sans R4 : modalite de la p ; P2, avec R4 : y* reajuste par
 #        usp_ajuster(x, y*), diagnostic si la puissance unilaterale approchee
 #        usp_identifiabilite_pente(x, beta*, sigma*, alpha, unilateral = TRUE)
-#        < SEUIL_PUISSANCE_PENTE (comme usp_tests()) ; reajustement en erreur
-#        exclu de P2 et compte ; refus de #188 (usp_valider_ajustement())
+#        < SEUIL_PUISSANCE_PENTE_R4 (comme usp_tests() avant D1-Fb) ;
+#        reajustement en erreur exclu de P2 et compte ; refus de #188 (usp_valider_ajustement())
 #        compte, non exclu (comme traiter() de #72) ; distribution sur les
 #        modalites OK, ALERTE, ECHEC, diagnostic (R4) (plus R1 et non
 #        applicable), et conditionnelle aux lignes de P2 restees "test" ;
@@ -304,13 +304,15 @@
 #      jeux d'une execution a R plus petit sont les premiers ;
 #      controles d'integrite : expression de #72 identique ; premier jeu de
 #      chaque flux de G1 et G4 identique a un tirage isole ; aucune p de
-#      permutation manquante ; p, type et verdict de la premiere replication
-#      de G1 (avec R4) et de G4 pente negative (R4 par un reajustement), de
-#      la premiere replication de G1 classee diagnostic (R4) s'il y en a une
-#      (sinon ligne non bloquante) et des replications de G1 dont la
-#      puissance approchee est la plus proche de SEUIL_PUISSANCE_PENTE de
-#      chaque cote, identiques a p_exacte, type et verdict de la ligne Pitman
-#      de run_engine() (J1 et J2 ; regle R4 du script : diag_r4() seule) ;
+#      permutation manquante ; p, type et verdict (modalite P1, sans R4 :
+#      regle du moteur depuis D1-Fb, #218, #230) de la premiere replication
+#      de G1 et de G4 pente negative, de la premiere replication de G1 que
+#      R4 classait diagnostic s'il y en a une (sinon ligne non bloquante) et
+#      des replications de G1 dont la puissance approchee est la plus proche
+#      de SEUIL_PUISSANCE_PENTE_R4 de chaque cote, identiques a p_exacte,
+#      type et verdict de la ligne Pitman de run_engine() (J1 et J2) ; P2
+#      (avec R4, diag_r4()) n'est plus qu'une reproduction historique de la
+#      regle des mesures anterieures, sans controle croise avec le moteur ;
 #      aucun refus de #188 dans P2 sur les replications 1 a min(R, 2 000)
 #      (jeux de #221) ; enumeration transcrite egale a
 #      usp_permutation_pente() sur les jeux observes ; invariance affine de G3
@@ -1285,8 +1287,11 @@ if (OPT_PARTIE == "tost-frontiere") {
 if (OPT_PARTIE == "pitman") {
   # Seuil et sens du moteur : alpha par defaut de run_engine(), verdicts du
   # sens "rejeter" de engine_registre_tests() (OK si p < alpha, ALERTE si
-  # p < SEUIL_ECHEC_SENS_REJETER, ECHEC sinon) ; R4 : SEUIL_PUISSANCE_PENTE.
+  # p < SEUIL_ECHEC_SENS_REJETER, ECHEC sinon) ; R4 : SEUIL_PUISSANCE_PENTE_R4.
   ALPHA_PIT <- eval(formals(run_engine)$alpha)
+  # Regle R4 retiree par D1-Fb (#218, #230) ; reproduit la regle des mesures
+  # anterieures.
+  SEUIL_PUISSANCE_PENTE_R4 <- 0.5
   LIGNE_PITMAN <- "Test de Pitman sur la pente (lien positif pertes / volume)"
   MODALITES_PIT <- c("OK", "ALERTE", "ECHEC", "diagnostic (R4)", "inop\u00e9rant (R1)", "non applicable")
   verdict_rejeter <- function(p) ifelse(p < ALPHA_PIT, "OK", ifelse(p < SEUIL_ECHEC_SENS_REJETER, "ALERTE", "ECHEC"))
@@ -1327,11 +1332,11 @@ if (OPT_PARTIE == "pitman") {
   }
   # Diagnostic R4 de chaque replication (seule regle du script, G1 et G4) :
   # NA si le reajustement echoue, TRUE si la puissance approchee est
-  # inferieure a SEUIL_PUISSANCE_PENTE ; q : sortie de r4_rep() (vecteur) ou
+  # inferieure a SEUIL_PUISSANCE_PENTE_R4 ; q : sortie de r4_rep() (vecteur) ou
   # matrice de ces sorties, une ligne par replication.
   diag_r4 <- function(q) {
     if (is.null(dim(q))) q <- t(q)
-    unname(ifelse(q[, "echec"] == 1, NA, is.finite(q[, "puissance"]) & q[, "puissance"] < SEUIL_PUISSANCE_PENTE))
+    unname(ifelse(q[, "echec"] == 1, NA, is.finite(q[, "puissance"]) & q[, "puissance"] < SEUIL_PUISSANCE_PENTE_R4))
   }
   # Ligne Pitman de run_engine() (B = 99, graine 20260831 : la p
   # d'enumeration ne depend ni de B ni de la graine) : p_exacte, type,
@@ -1344,9 +1349,12 @@ if (OPT_PARTIE == "pitman") {
     l <- tb[tb$test == LIGNE_PITMAN, ]
     if (nrow(l) == 1L) l else NULL
   }
-  # Correlations des T! appariements, ligne 1 = identite : copie declaree du
-  # calcul de usp_permutation_pente() (centrage, division par max|.|,
-  # normalisation, engine_permutations()), controlee sur J1 et J2 observes.
+  # Correlations des T! appariements, ligne 1 = identite : meme preparation
+  # que usp_permutation_pente() (centrage, division par max|.|,
+  # normalisation, engine_permutations()), mais produit de la matrice T! x T
+  # entiere, la ou le moteur calcule par blocs (.usp_r_permutations(), #222) ;
+  # les deux calculs sont identiques au bit pres sous le BLAS de reference
+  # (mesure de #222). Controlee sur J1 et J2 observes.
   r_enumeration <- function(x, y) {
     xc <- x - mean(x); yc <- y - mean(y)
     xc <- xc / max(abs(xc)); yc <- yc / max(abs(yc))
@@ -1527,7 +1535,8 @@ if (OPT_PARTIE == "pitman") {
   # --- Controles d'integrite (C6) ---
   ctrl_pit <- c(ctrl_pit, controle(!is.null(expr_72_lue) && identical(deparse(expr_72_lue), deparse(EXPR_YSIM_72)),
     "C6, expression des jeux simul\u00e9s identique \u00e0 l'affectation de YSIM de tests/taux_franchissement_reperes.R (#72, flux de #221)"))
-  # Modalites (P1 sans R4, P2 avec R4).
+  # Modalites (P1 sans R4 : regle du moteur depuis D1-Fb ; P2 avec R4 :
+  # reproduction historique, SEUIL_PUISSANCE_PENTE_R4).
   for (cj in names(MES_PIT)) {
     m <- MES_PIT[[cj]]; M <- m$M; Q <- m$Q
     m$diag <- diag_r4(Q)
@@ -1535,6 +1544,7 @@ if (OPT_PARTIE == "pitman") {
     m$P2 <- modalite_pitman(M[, "p"], M[, "p_min"], M[, "t"], m$diag)
     MES_PIT[[cj]] <- m
     ng <- NEG_PIT[[cj]]; ng$diag <- diag_r4(ng$Q)
+    ng$P1 <- modalite_pitman(ng$M[, "p"], ng$M[, "p_min"], ng$M[, "t"], rep(FALSE, nrow(ng$M)))
     ng$P2 <- modalite_pitman(ng$M[, "p"], ng$M[, "p_min"], ng$M[, "t"], ng$diag)
     NEG_PIT[[cj]] <- ng
     ctrl_pit <- c(ctrl_pit, controle(identical(m$YSIM[1, ], m$y1_isole),
@@ -1546,33 +1556,36 @@ if (OPT_PARTIE == "pitman") {
     ctrl_pit <- c(ctrl_pit, controle(all(is.finite(M[, c("p", "p_bi", "p_min")])) &&
                                        all(is.finite(NEG_PIT[[cj]]$M[, c("p", "p_bi", "p_min")])),
       sprintf("C6 %s, aucune p de permutation manquante (G1, G2, G4)", cj)))
-    # p, type et verdict de la premiere replication (G1 avec R4 ; G4 pente
-    # negative, R4 par un reajustement) = ligne Pitman de run_engine().
-    # Comparaisons supplementaires (constat m2) : premiere replication de G1
-    # classee diagnostic (R4) ; replications de G1 dont la puissance
-    # approchee est la plus proche de SEUIL_PUISSANCE_PENTE de chaque cote
-    # (une erreur de seuil dans diag_r4() y change la modalite).
+    # p, type et verdict de la premiere replication (G1 ; G4 pente negative)
+    # = ligne Pitman de run_engine(), comparee a la modalite P1 (sans R4) :
+    # depuis D1-Fb (#218, #230), le moteur n'applique plus R4 et seule R1 le
+    # bascule. Replications supplementaires (constat m2), simples controles
+    # d'identite de p, type et verdict : premiere replication de G1 que R4
+    # classait diagnostic ; replications de G1 dont la puissance approchee
+    # est la plus proche de SEUIL_PUISSANCE_PENTE_R4 de chaque cote. diag_r4()
+    # (P2, reproduction historique) n'a plus de controle croise avec le
+    # moteur.
     rep_g1 <- function(b, lib) list(lib = sprintf("G1, %s (r\u00e9plication %d)", lib, b), y = m$YSIM[b, ],
-                                    p = M[b, "p"], mod = m$P2[b])
-    prem <- list(list(lib = "G1, premi\u00e8re r\u00e9plication", y = m$YSIM[1, ], p = M[1, "p"], mod = m$P2[1]),
+                                    p = M[b, "p"], mod = m$P1[b])
+    prem <- list(list(lib = "G1, premi\u00e8re r\u00e9plication", y = m$YSIM[1, ], p = M[1, "p"], mod = m$P1[1]),
                  list(lib = "G4 (pente n\u00e9gative), premi\u00e8re r\u00e9plication", y = ng$Yn[1, ],
-                      p = ng$M[1, "p"], mod = ng$P2[1]))
+                      p = ng$M[1, "p"], mod = ng$P1[1]))
     b_diag <- which(m$diag %in% TRUE)
-    if (length(b_diag)) prem <- c(prem, list(rep_g1(b_diag[1], "premi\u00e8re r\u00e9plication diagnostic (R4)")))
-    else MES_PIT[[cj]]$sans_diag <- sprintf(paste("C6 %s, G1 : aucune r\u00e9plication diagnostic (R4) parmi %d r\u00e9plications",
-                                                  "(comparaison \u00e0 run_engine() d'une r\u00e9plication diagnostic non faite ; non bloquant)"), cj, nrow(M))
+    if (length(b_diag)) prem <- c(prem, list(rep_g1(b_diag[1], "premi\u00e8re r\u00e9plication que R4 classait diagnostic, contr\u00f4le d'identit\u00e9")))
+    else MES_PIT[[cj]]$sans_diag <- sprintf(paste("C6 %s, G1 : aucune r\u00e9plication que R4 classait diagnostic parmi %d r\u00e9plications",
+                                                  "(contr\u00f4le d'identit\u00e9 suppl\u00e9mentaire non fait ; non bloquant)"), cj, nrow(M))
     pu <- Q[, "puissance"]
-    b_sous <- which(is.finite(pu) & pu < SEUIL_PUISSANCE_PENTE); b_sur <- which(is.finite(pu) & pu >= SEUIL_PUISSANCE_PENTE)
+    b_sous <- which(is.finite(pu) & pu < SEUIL_PUISSANCE_PENTE_R4); b_sur <- which(is.finite(pu) & pu >= SEUIL_PUISSANCE_PENTE_R4)
     if (length(b_sous)) prem <- c(prem, list(rep_g1(b_sous[which.max(pu[b_sous])], sprintf(
-      "puissance approch\u00e9e la plus proche sous le seuil, %s", num(max(pu[b_sous]), 4)))))
+      "contr\u00f4le d'identit\u00e9, puissance approch\u00e9e la plus proche sous le seuil historique de R4, %s", num(max(pu[b_sous]), 4)))))
     if (length(b_sur)) prem <- c(prem, list(rep_g1(b_sur[which.min(pu[b_sur])], sprintf(
-      "puissance approch\u00e9e la plus proche au-dessus du seuil, %s", num(min(pu[b_sur]), 4)))))
+      "contr\u00f4le d'identit\u00e9, puissance approch\u00e9e la plus proche au-dessus du seuil historique de R4, %s", num(min(pu[b_sur]), 4)))))
     for (pr in prem) {
       lm_ <- tryCatch(ligne_pitman_moteur(m$J$x, pr$y), error = function(e) NULL)
       ok <- !is.null(lm_) && !is.na(pr$mod) && identical(unname(lm_$p_exacte), unname(pr$p)) &&
         identical(lm_$type, type_de(pr$mod)) && identical(lm_$verdict, verdict_de(pr$mod))
       ctrl_pit <- c(ctrl_pit, controle(ok, sprintf(paste(
-        "C6 %s, %s : p de usp_permutation_pente(), type et verdict du script",
+        "C6 %s, %s : p de usp_permutation_pente(), type et verdict du script sans R4 (P1)",
         "(%s ; p = %s) identiques \u00e0 p_exacte, type et verdict de la ligne Pitman de run_engine() (%s)"),
         cj, pr$lib, if (is.na(pr$mod)) "r\u00e9ajustement en \u00e9chec" else pr$mod, num_p(pr$p),
         if (is.null(lm_)) "ligne absente" else sprintf("%s, %s, p = %s", lm_$type, lm_$verdict, num_p(lm_$p_exacte)))))
@@ -1780,7 +1793,7 @@ if (OPT_PARTIE == "pitman") {
           sprintf("p < %s (SEUIL_ECHEC_SENS_REJETER), ECHEC sinon. R4 : diagnostic si la puissance unilat\u00e9rale approch\u00e9e",
                   num(SEUIL_ECHEC_SENS_REJETER, 2)),
           "de usp_identifiabilite_pente(x, \u03b2\u0302*, \u03c3\u0302*, \u03b1, unilateral = TRUE), aux param\u00e8tres du",
-          "r\u00e9ajustement usp_ajuster(x, y*), est inf\u00e9rieure \u00e0 SEUIL_PUISSANCE_PENTE = 1/2. Les nouvelles valeurs",
+          "r\u00e9ajustement usp_ajuster(x, y*), est inf\u00e9rieure \u00e0 SEUIL_PUISSANCE_PENTE_R4 = 1/2. Les nouvelles valeurs",
           "remplacent les anciennes (C6.f dit seulement si chacune tombe dans le nouvel IC). Protocole dans l'en-t\u00eate",
           "du script. Le protocole d'origine (sp\u00e9cification du 06/10/2026) est introuvable : celui-ci le red\u00e9finit,",
           "sans pr\u00e9tendre le reproduire."), "",

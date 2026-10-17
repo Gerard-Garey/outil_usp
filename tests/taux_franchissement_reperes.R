@@ -229,6 +229,9 @@ if (!is.finite(OPT_R) || OPT_R < 1L) stop("--R : entier >= 1")
 # Configuration de run_engine() reproduite (cas de reference "premium").
 METHODE <- "premium"; SEGMENT <- 1; ANNEXE <- "II"; NATURE <- "brutes"
 ALPHA <- 0.10; THETA_EQUIV <- 0.10
+# Regle R4 retiree par D1-Fb (#218, #230) ; reproduit la regle des mesures
+# anterieures.
+SEUIL_PUISSANCE_PENTE_R4 <- 0.5
 
 # --- Chargement du moteur et des outils --------------------------------------
 DOSSIER_SCRIPT <- local({
@@ -368,7 +371,8 @@ ic_cp <- function(k, n) if (n > 0) {
 # affiches. Le seuil 4/T est celui que usp_tests() imprime ; 10 % est
 # REPERE_INFLUENCE_SIGMA du moteur ; 20 %, 50 % et 80 % sont les reperes
 # conventionnels des fiches (commentaire de usp_tests(), famille G) ; 1/2 est
-# SEUIL_PUISSANCE_PENTE (regle de restitution R4, #44, convention). Le repere
+# SEUIL_PUISSANCE_PENTE_R4 (regle de restitution R4, #44, convention ; copie
+# locale, R4 retiree du moteur par D1-Fb, #218, #230). Le repere
 # 2k/T des leviers est traite a part (deterministe a X fixes, voir l'en-tete).
 LIGNE_COOK  <- "Points influents (distance de Cook)"
 LIGNE_LEV   <- "Leviers (hat values)"
@@ -390,8 +394,8 @@ REPERES <- list(
   list(cle = "r2", groupe = "diag", libelle = "R\u00b2 de lm(y ~ x) en dessous", seuil = "0,5",
        source = "usp_tests() (d\u00e9tail de la ligne)"),
   list(cle = "pente", groupe = "regle",
-       libelle = "R\u00e8gle de restitution R4 (convention, #44) : test de Pitman sur la pente restitu\u00e9 en diagnostic (puissance unilat\u00e9rale, #169)",
-       seuil = "puissance approch\u00e9e < 1/2", source = "SEUIL_PUISSANCE_PENTE (r\u00e8gle R4, #44)"),
+       libelle = "R\u00e8gle de restitution R4 (convention, #44 ; puissance unilat\u00e9rale, #169) : r\u00e8gle R4 retir\u00e9e du moteur par D1-Fb, reproduite par le script pour la comparabilit\u00e9 des mesures ant\u00e9rieures (test de Pitman sur la pente compt\u00e9 en diagnostic)",
+       seuil = "puissance approch\u00e9e < 1/2", source = "SEUIL_PUISSANCE_PENTE_R4 (copie locale du script ; r\u00e8gle R4, #44, retir\u00e9e du moteur par D1-Fb, #218, #230)"),
   list(cle = "jack10", groupe = "diag", libelle = "Jackknife : \u00e9cart relatif max sur \u03c3_USP au-dessus", seuil = "10 %",
        source = "REPERE_INFLUENCE_SIGMA ; fiche du jackknife"),
   list(cle = "jack20", groupe = "diag", libelle = "Jackknife : \u00e9cart relatif max sur \u03c3_USP au-dessus", seuil = "20 %",
@@ -492,7 +496,7 @@ tableaux <- function(cpt, R, lev) {
          sprintf(paste("Leviers (rep\u00e8re 2k/T, k = 1) : d\u00e9terministe \u00e0 X fix\u00e9s (%s), hors des taux simul\u00e9s ;",
                        "valeur des r\u00e9plications identique \u00e0 celle du jeu observ\u00e9 : %.0f sur %.0f."),
                  lev, g("n|lev_diff") - g("k|lev_diff"), g("n|lev_diff")), "",
-         "### T1 bis -- r\u00e8gle de restitution R4 et position de \u03b4\u0302 (constat de simulation sous le mod\u00e8le ajust\u00e9 ; pas des rep\u00e8res de diagnostic)", "",
+         "### T1 bis -- r\u00e8gle de restitution R4 (r\u00e8gle R4 retir\u00e9e du moteur par D1-Fb, reproduite par le script pour la comparabilit\u00e9 des mesures ant\u00e9rieures) et position de \u03b4\u0302 (constat de simulation sous le mod\u00e8le ajust\u00e9 ; pas des rep\u00e8res de diagnostic)", "",
          tableau_reperes(cpt, "regle"), "", note_n, "")
   lignes <- unique(sub("^nl\\|", "", grep("^nl\\|", names(cpt), value = TRUE)))
   types <- c("test", "diagnostic", "non applicable", "procedure de decision")
@@ -804,8 +808,14 @@ compter <- function(cpt, r) {
   repere("lev_diff", !identical(lu(LIGNE_LEV), LEV_OBS))
   r2 <- ligne(LIGNE_R2)
   repere("r2", if (identical(r2$type, "diagnostic") && is.finite(r2$estim)) r2$estim < 0.5 else NA)
+  # R4 retiree du moteur (D1-Fb) : regle reproduite ici, comme usp_tests()
+  # l'appliquait avant (diagnostic si la puissance approchee unilaterale est
+  # finie et inferieure au seuil ; diagnostic par R1 compte aussi).
   tp <- ligne(LIGNE_PENTE)$type
-  repere("pente", if (tp %in% c("test", "diagnostic")) tp == "diagnostic" else NA)
+  pu_r4 <- usp_identifiabilite_pente(r$fit$x, r$fit$beta, r$fit$sigma, ALPHA,
+                                     unilateral = .pitman_unilateral())$puissance
+  repere("pente", if (tp %in% c("test", "diagnostic"))
+    tp == "diagnostic" || (is.finite(pu_r4) && pu_r4 < SEUIL_PUISSANCE_PENTE_R4) else NA)
   j <- lu(LIGNE_JACK); repere("jack10", j > REPERE_INFLUENCE_SIGMA); repere("jack20", j > 0.20)
   w <- lu(LIGNE_IC); repere("ic50", w > 0.50); repere("ic80", w > 0.80)
   repere("bord", r$regime$delta_au_bord)

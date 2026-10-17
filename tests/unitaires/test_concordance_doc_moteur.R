@@ -602,8 +602,12 @@ verifier("grandeurs_moteur : les cinq categories de nature partitionnent les lig
            xs <- c(104.20, 102.25, 109.34, 114.64, 118.41, 121.28, 132.40, 131.22)
            ys <- c(68.97, 76.76, 83.49, 95.38, 88.96, 70.22, 78.89, 117.37)
            fx <- usp_ajuster(xs, ys); so <- .stats_bootstrapables(fx$x, fx$y, fx$z, fx$pi)
+           # delta_equiv = 150 (rho = 0.52 < 1) : la ligne TOST reste un test a
+           # p retenue sous le modele auxiliaire pondere ; a la marge par
+           # defaut, elle est un diagnostic depuis #298 (regle R14).
            tt <- usp_tests(fx, list(stats_obs = as.list(so), p_mc = so * 0 + 0.5,
-                                    err_mc = so * 0 + 0.01), methode = "premium")
+                                    err_mc = so * 0 + 0.01), methode = "premium",
+                           delta_equiv = 150)
            g2 <- cc$grandeurs_moteur(tt)
            all(g[cinq] == 1) && sum(g[cinq]) == g[["lignes (total)"]] &&
              sum(g2[cinq]) == g2[["lignes (total)"]] && g2[["nature modele auxiliaire pondere"]] >= 1

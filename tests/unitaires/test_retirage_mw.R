@@ -278,4 +278,4 @@ verifier(".mw_phrases_retirage() : booleen absent, NA ou non logique refuse (jam
                     function(b) inherits(try(.mw_phrases_retirage(b), silent = TRUE), "try-error"),
                     logical(1))))
 
-bilan_fichier()
+fin_fichier()

@@ -504,4 +504,4 @@ verifier("T270-8 : T1, mw_bootstrap() sous un generateur de l'appelant different
                          lecuyer = identical(x$avant$kind[1], "L'Ecuyer-CMRG")))
          })
 
-bilan_fichier()
+fin_fichier()

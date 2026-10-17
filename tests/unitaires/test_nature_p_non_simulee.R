@@ -135,4 +135,4 @@ verifier("U120-6 badge_nature() : NATURE_APPROX_N_FINI -> 'approx. n fini', dist
              !grepl("#B9770E", b, fixed = TRUE)
          })
 
-bilan_fichier()
+fin_fichier()

@@ -137,13 +137,17 @@ verifier("Constante sans p Monte-Carlo : diagnostic, libelle 'p de Student sous 
            identical(l$type, "diagnostic") && is.na(l$p_retenue) &&
              grepl("p de Student sous le modele auxiliaire pondere non retenue", l$detail, fixed = TRUE)
          })
+# delta_equiv = 15 (et non 5 avant #298) : sur J2, p_plancher = 0,0193 < alpha,
+# la ligne reste un test ; a delta_equiv = 5, p_plancher >= alpha et la regle
+# R14 (#298) la restitue en diagnostic, sans p retenue.
 verifier("Ligne TOST : p_exacte NA dans les deux branches de marge, p retenue = p_asymptotique = p de test_tost_intercept(), loi 'modele auxiliaire pondere'",
          {
            a <- ligne(tt2, NOM_TOST)
-           b <- ligne(usp_tests(f2, boot_fictif(f2), delta_equiv = 5, methode = "premium"), NOM_TOST)
-           is.na(a$p_exacte) && is.na(b$p_exacte) &&
+           b <- ligne(usp_tests(f2, boot_fictif(f2), delta_equiv = 15, methode = "premium"), NOM_TOST)
+           identical(a$type, "test") && identical(b$type, "test") &&
+             is.na(a$p_exacte) && is.na(b$p_exacte) &&
              identical(a$p_retenue, test_tost_intercept(x2, y2, f2$pi)$p) &&
-             identical(b$p_retenue, test_tost_intercept(x2, y2, f2$pi, delta_abs = 5)$p) &&
+             identical(b$p_retenue, test_tost_intercept(x2, y2, f2$pi, delta_abs = 15)$p) &&
              identical(a$p_asymptotique, a$p_retenue) && identical(b$p_asymptotique, b$p_retenue) &&
              grepl("modele auxiliaire pondere", a$loi, fixed = TRUE) &&
              grepl("marge estimee", a$loi, fixed = TRUE) && grepl("marge fixee a priori", b$loi, fixed = TRUE)
@@ -155,15 +159,19 @@ run_jeu <- function(x, y) run_engine(xt = x, yt = y, methode = "premium", segmen
                                      nature_donnees = "brutes", B = 999, seed = 20260831)
 r1 <- run_jeu(x1, y1); r2 <- run_jeu(x2, y2)
 tb1 <- engine_table_tests(r1); tb2 <- engine_table_tests(r2)
+# p du TOST lue dans p_asymptotique (champ conserve) ; depuis #298 (regle
+# R14), la ligne de J1 est un diagnostic : p retenue NA, verdict INFO.
 valeurs_215 <- function(tb, t, p_mc, p_tost, v_tost) {
   c <- tb[tb$test == NOM_CST, ]; o <- tb[tb$test == NOM_TOST, ]
   ok <- round(c$statistique, 4) == t && abs(c$p_monte_carlo - p_mc) <= 0.002 + 1e-12 &&
-    round(o$p_retenue, 4) == p_tost && identical(o$verdict, v_tost)
+    round(o$p_asymptotique, 4) == p_tost && identical(o$verdict, v_tost) &&
+    (if (identical(v_tost, "INFO")) is.na(o$p_retenue) && identical(o$type, "diagnostic")
+     else identical(o$p_retenue, o$p_asymptotique))
   if (isTRUE(ok)) TRUE else sprintf("t = %.4f, p_mc = %.4f, TOST = %.4f (%s)", c$statistique,
-                                    c$p_monte_carlo, o$p_retenue, o$verdict)
+                                    c$p_monte_carlo, o$p_asymptotique, o$verdict)
 }
-verifier("Valeurs de #215, J1 : t = 0,0667 ; p_mc = 0,964 ; TOST 0,4651 ECHEC",
-         valeurs_215(tb1, 0.0667, 0.964, 0.4651, "ECHEC"))
+verifier("Valeurs de #215, J1 : t = 0,0667 ; p_mc = 0,964 ; TOST 0,4651 (p asymptotique), diagnostic INFO depuis #298 (ECHEC avant)",
+         valeurs_215(tb1, 0.0667, 0.964, 0.4651, "INFO"))
 # J2 (delta estime interieur) : depuis #240, la p Monte-Carlo est
 # conditionnelle au regime interieur de delta estime (variante V3b) ; la
 # valeur de #215, 0,692, etait la p marginale (V1). 0,670 = p_V3b:Intercept
@@ -325,5 +333,101 @@ verifier("Constat 3 : pi injecte non fini (f$pi[1] <- NA, J1) -> constante et TO
              identical(lt$type, "non applicable") && identical(lt$verdict, "INFO") &&
              identical(lt$detail, TXT_STAT_NON_DEF215)
          })
+
+# Regression ponderee partagee (#222, point 1) : un seul appel de
+# .usp_lm_pondere() par usp_tests() (deux avant #222), aucun a pertes
+# constantes ; resultats des deux fonctions identiques avec m passe ou
+# calcule par defaut.
+verifier("Regression ponderee partagee (#222) : usp_tests() appelle .usp_lm_pondere() une fois (J1, J2), zero a pertes constantes ; test_intercept() et test_tost_intercept() avec m = .usp_lm_pondere() identiques a l'appel sans m",
+         {
+           e <- environment(run_engine)
+           pond_orig <- get(".usp_lm_pondere", envir = e, inherits = FALSE)
+           n <- 0L
+           assign(".usp_lm_pondere", function(...) { n <<- n + 1L; pond_orig(...) }, envir = e)
+           compte <- function(f) { b <- boot_fictif(f); n <<- 0L; usp_tests(f, b, methode = "premium"); n }
+           fc <- f2; fc$y <- rep(70, 8)
+           r <- tryCatch(c(compte(f1), compte(f2), compte(fc)), error = function(err) err,
+                         finally = assign(".usp_lm_pondere", pond_orig, envir = e))
+           m2 <- .usp_lm_pondere(x2, y2, f2$pi)
+           !inherits(r, "error") && identical(r, c(1L, 1L, 0L)) &&
+             identical(test_intercept(x2, y2, f2$pi, m = m2), test_intercept(x2, y2, f2$pi)) &&
+             identical(test_tost_intercept(x2, y2, f2$pi, m = m2), test_tost_intercept(x2, y2, f2$pi)) &&
+             identical(test_tost_intercept(x2, y2, f2$pi, delta_abs = 5, m = m2),
+                       test_tost_intercept(x2, y2, f2$pi, delta_abs = 5))
+         })
+
+## --- 5. Seuil de rejet de la constante (#314) --------------------------------
+# Specification fb-pente-et-constante.md, section 4, decision Q-D1-Fb-6 :
+# c_alpha = t(1 - alpha/2, T - 2) x se(a), se(a) du modele auxiliaire pondere,
+# en % de la moyenne de y arrondi a l'unite. Critere (a) : recalcul
+# independant par stats::lm(y ~ x, weights = usp_poids_gls(x, fit$pi)) sur
+# J1 (tests/donnees/donnees_ln.csv) et J2 (donnees_ln_interieur.csv) ;
+# critere (b) : phrase absente sur les branches non applicables et a t non
+# fini.
+TXT_SEUIL_CST <- "Seuil de rejet de la constante au seuil alpha"
+TXT_NON_REJET <- "Le NON-rejet ne prouve pas la proportionnalite : voir le test d'equivalence ci-dessous."
+phrase_seuil <- function(alpha, pct) sprintf(paste(
+  "Seuil de rejet de la constante au seuil alpha = %g : |a| >= t(1-alpha/2, T-2)",
+  "x se(a) = %s %% de la moyenne de y (loi de Student du modele auxiliaire",
+  "pondere, approchee ; la p retenue, de Monte-Carlo, n'a pas exactement ce",
+  "seuil)."), alpha, pct)
+lire_jeu <- function(f) utils::read.csv(file.path(RACINE, "tests", "donnees", f))
+seuil_lm <- function(d, alpha) {
+  f <- usp_ajuster(d$xt, d$yt)
+  m <- stats::lm(yt ~ xt, data = d, weights = usp_poids_gls(d$xt, f$pi))
+  100 * stats::qt(1 - alpha / 2, nrow(d) - 2) * summary(m)$coefficients[1, 2] / mean(d$yt)
+}
+seuil_ok <- function(fichier, alpha, attendu) {
+  d <- lire_jeu(fichier); f <- usp_ajuster(d$xt, d$yt)
+  det <- ligne(usp_tests(f, boot_fictif(f), alpha = alpha, methode = "premium"), NOM_CST)$detail
+  c_lm <- seuil_lm(d, alpha)
+  ok <- identical(sprintf("%.0f", c_lm), attendu) &&
+    startsWith(det, paste(TXT_NON_REJET, phrase_seuil(alpha, attendu)))
+  if (isTRUE(ok)) TRUE else sprintf("seuil lm = %.4f ; detail = %s", c_lm, det)
+}
+verifier("Seuil de rejet de la constante (#314, critere (a)), alpha = 0,10 : 123 % sur J1, 12 % sur J2, recalcule par lm(y ~ x, weights = usp_poids_gls(x, fit$pi)) ; phrase juste apres celle du TOST",
+         isTRUE(seuil_ok("donnees_ln.csv", 0.10, "123")) &&
+           isTRUE(seuil_ok("donnees_ln_interieur.csv", 0.10, "12")))
+verifier("Seuil de rejet de la constante (#314), alpha = 0,05 : 155 % sur J1, 15 % sur J2",
+         isTRUE(seuil_ok("donnees_ln.csv", 0.05, "155")) &&
+           isTRUE(seuil_ok("donnees_ln_interieur.csv", 0.05, "15")))
+verifier("Seuil de rejet de la constante (#314) : sur J1, phrase avant le renvoi croise de .usp_poser_renvois() ; sur J2, derniere phrase du detail",
+         {
+           d1 <- ligne(tests_de(x1, y1), NOM_CST)$detail
+           d2 <- ligne(tt2, NOM_CST)$detail
+           p1 <- regexpr(TXT_SEUIL_CST, d1, fixed = TRUE); r1p <- regexpr(TXT_RENVOI_CST, d1, fixed = TRUE)
+           p1 > 0 && r1p > p1 && endsWith(d2, "n'a pas exactement ce seuil).")
+         })
+verifier("Seuil de rejet de la constante (#314, critere (b)) : absent a volumes constants, a pertes constantes, a t non fini (pi injecte non fini) et a x ecarte (R12)",
+         {
+           sans <- function(tt) !grepl(TXT_SEUIL_CST, ligne(tt, NOM_CST)$detail, fixed = TRUE) &&
+             identical(ligne(tt, NOM_CST)$type, "non applicable")
+           f_pc <- usp_ajuster(x1, rep(70, 8))
+           f_na <- f1; f_na$pi[1] <- NA_real_
+           e <- environment(run_engine)
+           pond_orig <- get(".usp_lm_pondere", envir = e, inherits = FALSE)
+           assign(".usp_lm_pondere", function(...) {
+             m <- pond_orig(...)
+             if (!is.null(m)) m$coefficients <- m$coefficients[rownames(m$coefficients) != "x", , drop = FALSE]
+             m
+           }, envir = e)
+           t_r12 <- tryCatch(usp_tests(f1, boot_fictif(f1), methode = "premium"),
+                             error = function(err) err,
+                             finally = assign(".usp_lm_pondere", pond_orig, envir = e))
+           !inherits(t_r12, "error") &&
+             sans(tests_de(rep(100, 8), y1)) &&
+             sans(usp_tests(f_pc, boot_fictif(f_pc), methode = "premium")) &&
+             sans(usp_tests(f_na, boot_fictif(f1), methode = "premium")) &&
+             sans(t_r12)
+         })
+# Reserve (a) d'actuary : sans p Monte-Carlo de la constante, add() bascule
+# la ligne en diagnostic (regle R3, #181) et aucun seuil de rejet n'est dit.
+verifier("Seuil de rejet de la constante (#314) : absent quand la p Monte-Carlo de la constante n'est pas finie (diagnostic d'add(), motifs MOTIF_MC_AUCUNE_REPLIC et MOTIF_MC_DISPERSION_NULLE ; J2), t fini",
+         all(vapply(c(MOTIF_MC_AUCUNE_REPLIC, MOTIF_MC_DISPERSION_NULLE), function(mo) {
+           l <- ligne(usp_tests(f2, boot_fictif(f2, motif = c(Intercept = mo)), methode = "premium"),
+                      NOM_CST)
+           identical(l$type, "diagnostic") && is.finite(l$stat) &&
+             !grepl(TXT_SEUIL_CST, l$detail, fixed = TRUE) && grepl(TXT_NON_REJET, l$detail, fixed = TRUE)
+         }, logical(1))))
 
 fin_fichier()

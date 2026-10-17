@@ -41,6 +41,18 @@ for (f in sort(list.files(DOSSIER_UNITAIRES, pattern = "^test_.*[.]R$", full.nam
     .tu$fichier <- basename(f)
     .enregistrer("chargement du fichier", "ECHEC", conditionMessage(r))
   }
+  # Garde (#284) : un fichier unitaire doit finir par fin_fichier(), seul
+  # appel qui rend un code de sortie non nul en lancement autonome
+  # (Rscript tests/unitaires/test_x.R) ; bilan_fichier() n'imprime que le
+  # decompte et laisse la sortie a 0 malgre des echecs.
+  l <- trimws(iconv(readLines(f, warn = FALSE), "UTF-8", "UTF-8", sub = "byte"))
+  l <- l[nzchar(l)]
+  if (!length(l) || l[length(l)] != "fin_fichier()") {
+    .tu$fichier <- basename(f)
+    .enregistrer(paste0(basename(f), " finit par fin_fichier()"), "ECHEC",
+                 paste0("derniere ligne non vide : ",
+                        if (length(l)) l[length(l)] else "(fichier vide)"))
+  }
 }
 cat(sprintf("\nDuree totale : %.1f s\n", as.numeric(difftime(Sys.time(), t0, units = "secs"))))
 terminer()
