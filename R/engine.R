@@ -4839,6 +4839,16 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     "pertes y_t constantes a la tolerance relative TOL_DELTA_BORD = %g pres",
     "(etendue relative = %.2g) : variance totale nulle a cette tolerance pres,",
     "R2 sans objet"), TOL_DELTA_BORD, ery)
+  # Phrase de contexte de la ligne Spearman ratio / volume a pertes
+  # constantes (#213, option (b), decision Q-D1-Fc-5) : texte fixe, sans
+  # nombre, ajoute au detail de la branche calculee seulement (jamais a
+  # volumes constants, ou la ligne est non applicable, pertes_cst etant
+  # alors FALSE) ; type et verdict de la ligne inchanges.
+  txt_pertes_cst_sv <- paste(
+    "Pertes y_t constantes a la tolerance relative TOL_DELTA_BORD pres (voir",
+    "l'avertissement sur les donnees) : le ratio y_t/x_t varie alors en sens",
+    "inverse du volume ; un rejet traduit des pertes non proportionnelles au",
+    "volume, ce que teste la ligne.")
   # Priorite des motifs des lignes constante, pente et Fisher : volumes
   # constants (txt_vol_cst) > pertes constantes > x ecarte (txt_r12_test,
   # champ x_ecarte de la fonction de la ligne) > detail de la ligne. Sous
@@ -5340,8 +5350,13 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         p_min = pmin_rangs(r_ea, x_ea), effectifs = eff_rangs(r_ea, x_ea),
         # Renvoi croise a la constante : pose apres coup par
         # .usp_poser_renvois() (#215).
-        detail = detail_spearman("Une correlation signale un effet d'echelle non modelise",
-                                 p_sv))
+        # Pertes constantes (#213) : phrase de contexte en seconde phrase,
+        # jointe par ". " et non par .engine_joindre() (" ; " suivi d'une
+        # majuscule).
+        detail = detail_spearman(local({
+          d0 <- "Une correlation signale un effet d'echelle non modelise"
+          if (pertes_cst) paste0(d0, ". ", txt_pertes_cst_sv) else d0
+        }), p_sv))
   } else {
     # Regle R13 (#59) : meme reference que la branche calculee (I5).
     add(fam, "Independance ratio S/P vs volume", "Spearman (1904) ; exact : Best & Roberts (1975), AS 89",
@@ -6791,6 +6806,22 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
       avt <- c(avt, "Amplitude des volumes >= 10 : rupture de perimetre possible.")
     if (anyDuplicated(data.frame(xt, yt)) > 0)
       avt <- c(avt, "Couples (xt, yt) dupliques detectes.")
+    # Volumes constants (#213) : predicat unique usp_volumes_constants()
+    # (regle R13), sur la serie recue (serie retenue pour run_engine()) ;
+    # avertissement, sans refus, place avant celui des pertes constantes
+    # (ordre de priorite des motifs : R13 > pertes constantes). A x_t
+    # constant, a_t = delta + (1 - delta) xbar / x_t = 1 : la vraisemblance
+    # ne depend pas de delta. Les lignes citees sont les treize lignes que
+    # R13 rend non applicables dans usp_tests().
+    if (usp_volumes_constants(xt))
+      avt <- c(avt, sprintf(paste("Volumes x_t constants a la tolerance relative TOL_DELTA_BORD",
+                                  "= %g pres (etendue relative = %.2g) : delta non identifie (la",
+                                  "vraisemblance n'en depend pas a cette tolerance pres) ;",
+                                  "regression et partition sur le volume sans objet (constante,",
+                                  "TOST, pente, Fisher, R2, RESET, Spearman ratio / volume,",
+                                  "Breusch-Pagan (Koenker et 1979), White, Goldfeld-Quandt,",
+                                  "Brown-Forsythe et Smirnov non applicables) ; verifier la saisie."),
+                            TOL_DELTA_BORD, diff(range(xt)) / mean(xt)))
     # Pertes constantes (#189) : predicat unique usp_pertes_constantes(),
     # sur la serie recue (serie retenue pour run_engine() et
     # engine_valider_serie_retenue()) ; avertissement, sans refus.

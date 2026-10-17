@@ -2680,4 +2680,123 @@ verifier("run_engine(), critere (d) : res$ajustement se termine par kkt_au_moins
                identical(r$ajustement$gamma_bord_au_moins_un, FALSE), logical(1)))
          })
 
+## --- Avertissement "volumes constants" (Fc, #213) ----------------------------
+# Decisions du mainteneur du 17/10/2026 (Q-D1-Fc-4, Q-D1-Fc-5 (b)) :
+# engine_valider_donnees() avertit, sans refus, quand usp_volumes_constants()
+# est vrai sur la serie retenue, immediatement avant l'avertissement des
+# pertes constantes (#189) ; a pertes constantes (hors volumes constants), la
+# ligne Spearman ratio / volume, calculee, porte une phrase de contexte fixe.
+# J1 : donnees_ln.csv (= xs188, ys188), etendue relative des volumes 0,258.
+avt_vc213 <- function(x) sprintf(paste(
+  "Volumes x_t constants a la tolerance relative TOL_DELTA_BORD = %g pres",
+  "(etendue relative = %.2g) : delta non identifie (la vraisemblance n'en",
+  "depend pas a cette tolerance pres) ; regression et partition sur le volume",
+  "sans objet (constante, TOST, pente, Fisher, R2, RESET, Spearman ratio /",
+  "volume, Breusch-Pagan (Koenker et 1979), White, Goldfeld-Quandt,",
+  "Brown-Forsythe et Smirnov non applicables) ; verifier la saisie."),
+  TOL_DELTA_BORD, diff(range(x)) / mean(x))
+a_vc213 <- function(avt) any(startsWith(avt, "Volumes x_t constants"))
+PHRASE_SV213 <- paste(
+  "Pertes y_t constantes a la tolerance relative TOL_DELTA_BORD pres (voir",
+  "l'avertissement sur les donnees) : le ratio y_t/x_t varie alors en sens",
+  "inverse du volume ; un rejet traduit des pertes non proportionnelles au",
+  "volume, ce que teste la ligne.")
+x213 <- rep(100, 8)
+res213 <- list(premium = lancer189(x213, ys188, "premium"),
+               reserve1 = lancer189(x213, ys188, "reserve1"))
+# Correspondance un a un des noms cites par l'avertissement et des lignes de
+# la regle R13 (Breusch-Pagan : deux lignes).
+CITES213 <- list(
+  "constante" = "Nullite de la constante (proportionnalite stricte)",
+  "TOST" = "Equivalence de la constante a zero (TOST)",
+  "pente" = "Test de Pitman sur la pente (lien positif pertes / volume)",
+  "Fisher" = "Test de Fisher (significativite globale)",
+  "R2" = "Coefficient de determination R2",
+  "RESET" = "RESET (forme fonctionnelle)",
+  "Spearman ratio / volume" = "Independance ratio S/P vs volume",
+  "Breusch-Pagan (Koenker et 1979)" =
+    c("Heteroscedasticite vs volume - Breusch-Pagan studentise (Koenker)",
+      "Heteroscedasticite vs volume - Breusch-Pagan original (non robuste)"),
+  "White" = "Heteroscedasticite (forme quadratique)",
+  "Goldfeld-Quandt" = "Egalite des variances petits vs gros volumes",
+  "Brown-Forsythe" = "Homogeneite des dispersions (mediane)",
+  "Smirnov" = "Egalite des lois petits vs gros volumes (2 ech.)")
+verifier("Critere (a) : x = 100 x 8, y de J1, premium et reserve1 : run_engine ok = TRUE ; avertissement volumes constants present, texte exact, un de plus qu'au predicat neutralise dans engine_valider_donnees() (#213)",
+         {
+           v <- engine_valider_donnees(x213, ys188, segment = 1, annexe = "II")
+           v0 <- avec_injection("usp_volumes_constants", function(...) FALSE,
+                                engine_valider_donnees(x213, ys188, segment = 1, annexe = "II"))
+           isTRUE(v$ok) && avt_vc213(x213) %in% v$avertissements &&
+             length(v$avertissements) == length(v0$avertissements) + 1L &&
+             identical(setdiff(v$avertissements, avt_vc213(x213)), v0$avertissements) &&
+             all(vapply(res213, function(r) isTRUE(r$ok) &&
+                          identical(r$validation$avertissements, v$avertissements), logical(1)))
+         })
+verifier("Critere (b) : noms cites par l'avertissement = lignes non applicables au motif R13, un a un (13 lignes, Breusch-Pagan en compte deux), premium et reserve1 (#213)",
+         {
+           a <- avt_vc213(x213)
+           liste <- sub(" non applicables\\).*$", "", sub("^.*sur le volume sans objet \\(", "", a))
+           # "Breusch-Pagan (Koenker et 1979)" contient " et " : decoupage
+           # sur le seul " et " final, puis sur les virgules.
+           cites <- strsplit(sub(" et Smirnov$", ", Smirnov", liste), ", ", fixed = TRUE)[[1]]
+           identical(cites, names(CITES213)) && length(unlist(CITES213)) == 13L &&
+             all(vapply(res213, function(r) {
+               na <- Filter(function(l) identical(l$type, "non applicable") &&
+                              startsWith(l$detail, "volumes x_t constants"), r$tests)
+               noms <- vapply(na, function(l) l$test, "")
+               length(na) == 13L && !anyDuplicated(noms) &&
+                 setequal(noms, unlist(CITES213, use.names = FALSE))
+             }, logical(1)))
+         })
+verifier("Critere (c) : avertissement absent aux volumes de J1 (etendue 0,258), present a l'etendue relative 1e-7, absent a 2e-6, y de J1 (#213)",
+         {
+           x7 <- 100 * (1 + c(0, 1e-7, rep(0, 6))); x6 <- 100 * (1 + c(0, 2e-6, rep(0, 6)))
+           v7 <- engine_valider_donnees(x7, ys188)
+           !a_vc213(engine_valider_donnees(xs188, ys188)$avertissements) &&
+             isTRUE(v7$ok) && avt_vc213(x7) %in% v7$avertissements &&
+             !a_vc213(engine_valider_donnees(x6, ys188)$avertissements) &&
+             diff(range(x7)) / mean(x7) <= TOL_DELTA_BORD && diff(range(x6)) / mean(x6) > TOL_DELTA_BORD
+         })
+verifier("Critere (d) : serie de 9 annees, la premiere a volume 50 : avertissement present sur les T = 8 retenues, absent sur la serie entiere ; run_engine(T = 8) l'emet (#213)",
+         {
+           xx <- c(50, x213); yy <- c(90, ys188)
+           s8 <- engine_valider_serie_retenue(xx, yy, T = 8)$validation
+           s9 <- engine_valider_serie_retenue(xx, yy)$validation
+           r8 <- suppressWarnings(run_engine(xt = xx, yt = yy, T = 8, methode = "premium",
+                                             segment = 1, annexe = "II", nature_donnees = "brutes",
+                                             B = B_MIN_USAGE, seed = 20260831))
+           avt_vc213(x213) %in% s8$avertissements && !a_vc213(s9$avertissements) &&
+             isTRUE(r8$ok) && avt_vc213(x213) %in% r8$validation$avertissements
+         })
+verifier("Critere (e) : donnees refusees a volumes constants (y non positif ; T = 4) : ok = FALSE, avertissement absent (#213)",
+         {
+           v1 <- engine_valider_donnees(x213, replace(ys188, 2, -1))
+           v2 <- engine_valider_donnees(rep(100, 4), ys188[1:4])
+           identical(v1$ok, FALSE) && identical(v2$ok, FALSE) &&
+             !a_vc213(v1$avertissements) && !a_vc213(v2$avertissements)
+         })
+verifier("Ordre : volumes et pertes constants (x = 110 x 8, y = 70 x 8) -> avertissement volumes constants immediatement avant celui des pertes constantes (#213 ; #189)",
+         {
+           a <- engine_valider_donnees(rep(110, 8), y189)$avertissements
+           i <- match(avt_vc213(rep(110, 8)), a); j <- match(avt_pc189(y189), a)
+           is.finite(i) && is.finite(j) && j == i + 1L
+         })
+verifier("Phrase de contexte Spearman ratio / volume (#213, Q-D1-Fc-5 (b)) : presente une fois a pertes constantes (y = 70 x 8, premium et reserve1), type et verdict inchanges au predicat neutralise, detail = phrase de base suivie de la phrase (sans renvoi #215, la constante etant non applicable) ; absente sur J1 et a volumes constants (ligne non applicable)",
+         {
+           base <- "Une correlation signale un effet d'echelle non modelise"
+           ok_pc <- all(vapply(names(res189), function(m) {
+             l <- ligne153(res189[[m]]$tests, NOM_SV215); l0 <- ligne153(neutre189[[m]]$tests, NOM_SV215)
+             identical(l$type, "test") && identical(l$type, l0$type) && identical(l$verdict, l0$verdict) &&
+               lengths(regmatches(l$detail, gregexpr(PHRASE_SV213, l$detail, fixed = TRUE))) == 1L &&
+               !grepl(PHRASE_SV213, l0$detail, fixed = TRUE) &&
+               identical(l$detail, paste0(base, ". ", PHRASE_SV213))
+           }, logical(1)))
+           rj <- lancer189(xs188, ys188)
+           ok_pc && !grepl(PHRASE_SV213, ligne153(rj$tests, NOM_SV215)$detail, fixed = TRUE) &&
+             all(vapply(res213, function(r) {
+               l <- ligne153(r$tests, NOM_SV215)
+               identical(l$type, "non applicable") && !grepl(PHRASE_SV213, l$detail, fixed = TRUE)
+             }, logical(1)))
+         })
+
 fin_fichier()
