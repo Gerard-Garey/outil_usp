@@ -612,6 +612,12 @@ $\varepsilon_\sigma$ sur $\sigma$ (fiche~\ref{fiche:foc}, issue~\#71) \\
 $\gamma$ d'un démarrage, \code{rep\_sigma} (\code{REP\_SIGMA\_KKT}, $10^{-6}$), \code{rep\_gd}
 (\code{REP\_GD\_KKT}, $10^{-4}$), \code{volumes\_constants} & booléen~: condition de Kuhn et Tucker satisfaite en ce
 point (fiche~\ref{fiche:foc}) \\
+\code{usp\_gamma\_bord()} & $\gamma$, \code{tol} (\code{TOL\_DELTA\_BORD}) & \code{"basse"},
+\code{"haute"} ou \code{NA}~: $\gamma$ sur la borne basse ou haute de \code{BORNES\_GAMMA} à
+\code{tol} près, ou intérieur, un $\gamma$ non fini étant compté sur la borne basse~; seul
+prédicat «~$\gamma$ sur une borne~» du moteur, lu par \code{usp\_condition\_premier\_ordre()}
+(projection du gradient en $\gamma$, pas de Newton), \code{usp\_kkt\_satisfaite()},
+\code{usp\_controles\_numeriques()} et \code{usp\_valider\_ajustement()} (issue~\#322) \\
 \code{usp\_ajuster\_rapide()} & $x$, $y$, point de départ $(\delta_0,\gamma_0)$ &
 réajustement à trois démarrages, $(\delta_0,\gamma_0)$, $(0,\gamma_0)$ et $(1,\gamma_0)$,
 objectif minimal retenu (issue~\#109), gradient analytique, \code{factr = 1e4}, employé par
@@ -2325,12 +2331,13 @@ Suites sur ratios bruts & \ref{fiche:suites-ratios-bruts} & \code{test\_runs()} 
 \code{usp\_runsr\_p\_exacte()} (p exacte de \code{runs\_p\_exacte()} sous double condition)~;
 \code{runs\_p\_min()} ($p_{\min}$) & \code{Runsr} \\
 Condition du premier ordre (contrôle numérique, hors table des tests) & \ref{fiche:foc} &
-\code{usp\_condition\_premier\_ordre()}, \code{usp\_kkt\_satisfaite()}, \code{usp\_ajuster()}
-(champ \code{\$kkt\_au\_moins\_un}), \code{usp\_controles\_numeriques()} &
+\code{usp\_condition\_premier\_ordre()}, \code{usp\_kkt\_satisfaite()}, \code{usp\_gamma\_bord()},
+\code{usp\_ajuster()} (champ \code{\$kkt\_au\_moins\_un}), \code{usp\_controles\_numeriques()} &
 contrôle \code{OK} / \code{ECHEC}, aucune p-value & --- \\
 Existence du maximum de vraisemblance (contrôle de validité, après ajustement, hors table des
 tests) & \S\ref{sec:controles} & \code{usp\_valider\_ajustement()} (lit \code{\$gamma} et
-\code{\$kkt\_au\_moins\_un} d'\code{usp\_ajuster()}) & refus bloquant, aucune p-value & --- \\
+\code{\$kkt\_au\_moins\_un} d'\code{usp\_ajuster()}~; borne par \code{usp\_gamma\_bord()}) & refus
+bloquant, aucune p-value & --- \\
 Centrage des résidus (diagnostic) & \ref{fiche:centrage} & \code{mean()} sur $z$
 (appel direct dans \code{usp\_tests()}) & diagnostic, aucune p-value & --- \\
 Variance unitaire (diagnostic) & \ref{fiche:variance-unitaire} & \code{stats::var()} sur $z$
@@ -3348,7 +3355,7 @@ pertes du jeu de contrôle, \code{ok = TRUE}.
 \code{run\_engine()} appelle, avec l'ajustement et la méthode,
 \code{usp\_valider\_ajustement()}. Cette fonction refuse le calcul quand $\hat\gamma$ est sur une borne de \code{BORNES\_GAMMA} $= [-12\,;3]$, à
 \code{TOL\_DELTA\_BORD} $= 10^{-6}$ près ($\hat\gamma$ non fini étant compté sur la borne
-basse), \textbf{et} qu'aucun démarrage à l'optimum ne satisfait la condition de Kuhn et Tucker
+basse~; prédicat unique \code{usp\_gamma\_bord()}, issue~\#322), \textbf{et} qu'aucun démarrage à l'optimum ne satisfait la condition de Kuhn et Tucker
 (\code{\$kkt\_au\_moins\_un} faux, fiche~\ref{fiche:foc}), condition qui exige elle-même
 $\gamma$ hors des bornes (\code{usp\_kkt\_satisfaite()})~: le refus revient à $\hat\gamma$ sur
 une borne sans autre démarrage à l'optimum, de $\gamma$ intérieur, qui la satisfasse. Le refus a la forme d'un refus de
@@ -10119,7 +10126,9 @@ depuis l'issue~\#188, une estimation sur une borne de $\gamma$ sans démarrage �
 satisfasse la condition ci-dessous est un \textbf{refus} de \code{usp\_valider\_ajustement()},
 section~\ref{sec:controles}~; cette condition exigeant elle-même $\gamma$ hors des bornes
 (\code{usp\_kkt\_satisfaite()}), le refus revient à $\hat\gamma$ sur une borne sans autre
-démarrage à l'optimum, de $\gamma$ intérieur, qui la satisfasse), le bord étant jugé à \code{TOL\_DELTA\_BORD} $= 10^{-6}$ près~; sur une
+démarrage à l'optimum, de $\gamma$ intérieur, qui la satisfasse), le bord étant jugé à \code{TOL\_DELTA\_BORD} $= 10^{-6}$ près
+(pour $\gamma$, par le prédicat unique \code{usp\_gamma\_bord()}, issue~\#322, qui compte un
+$\gamma$ non fini sur la borne basse)~; sur une
 borne inférieure la composante projetée vaut $\min(g, 0)$, sur une borne supérieure
 $\max(g, 0)$, à l'intérieur $g$. On en tire (issue~\#71, spécification d'\code{actuary} du
 28~septembre 2026)~:
@@ -16692,7 +16701,8 @@ l'origine par \code{.mw\_phrase\_origine\_}\allowbreak\code{non\_identifiable()}
 Merz--Wüthrich~: leviers, DFBETA, DFBETAS et contributions par année de survenance
 (fiche~\ref{mw:influence}) & \code{mw\_influence()}, \code{mw\_contributions()} \\
 Contrôles de validité (§\ref{sec:controles}) & \code{engine\_valider\_donnees()}, \code{usp\_controle\_donnees()},
-\code{usp\_valider\_ajustement()} (après l'ajustement lognormal, issue~\#188),
+\code{usp\_valider\_ajustement()} (après l'ajustement lognormal, issue~\#188~; borne de $\gamma$
+par \code{usp\_gamma\_bord()}, issue~\#322),
 \code{mw\_valider\_triangle()}, \code{mw\_valider\_ajustement()}~;\newline lecture des
 fichiers~: \code{engine\_lire\_donnees\_csv()}, \code{usp\_lire\_vecteur()},
 \code{engine\_lire\_triangle()} \\
@@ -16702,7 +16712,7 @@ qui produit les deux entrées ajoutées à \code{res\$controles} par \code{run\_
 décisions calculées dans \code{usp\_ajuster()}~: démarrages à l'optimum (\code{TOL\_OPTIMUM}),
 condition de Kuhn et Tucker par \code{usp\_condition\_premier\_ordre()} et
 \code{usp\_kkt\_satisfaite()} (\code{REP\_SIGMA\_KKT}, \code{REP\_GD\_KKT}, \code{BORNES\_GAMMA}~;
-hessienne \code{usp\_hessienne()}, pas de Newton \code{usp\_pas\_newton\_borne()}),
+$\gamma$ sur une borne par \code{usp\_gamma\_bord()}, issue~\#322~; hessienne \code{usp\_hessienne()}, pas de Newton \code{usp\_pas\_newton\_borne()}),
 champ \code{\$kkt\_au\_moins\_un}~; convergence multi-démarrages~: champs
 \code{\$n\_starts\_optimum}, \code{\$n\_starts\_optimum\_code0}, \code{\$n\_starts\_echec},
 \code{\$part\_starts\_convergents}~; gradient analytique \code{usp\_gradient()} \\
