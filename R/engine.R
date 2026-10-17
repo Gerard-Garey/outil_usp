@@ -1423,8 +1423,9 @@ usp_pas_newton_borne <- function(H, pg, delta, grad_ln_sigma, volumes_constants 
 
 # Predicat "gamma sur une borne" (issue #322, complement du 08/10/2026 de
 # #222) : SEULE source du moteur de ce test, lu par
-# usp_condition_premier_ordre(), usp_kkt_satisfaite(),
-# usp_controles_numeriques() et usp_valider_ajustement(). Bornes :
+# usp_condition_premier_ordre(), usp_kkt_satisfaite(), usp_ajuster()
+# (champ gamma_bord_au_moins_un, #227), usp_controles_numeriques() et
+# usp_valider_ajustement(). Bornes :
 # BORNES_GAMMA (numeriques, non reglementaires) ; tolerance tol, par defaut
 # TOL_DELTA_BORD (usp_condition_premier_ordre() la recoit en argument).
 # Resultat, pour un gamma scalaire :
@@ -1490,8 +1491,8 @@ usp_condition_premier_ordre <- function(delta, gamma, x, y, xbar = mean(x),
 # finis, gamma_s hors des bornes numeriques BORNES_GAMMA (a TOL_DELTA_BORD
 # pres, usp_gamma_bord(), #322), sous-hessienne des variables libres finie
 # et definie positive (usp_hessienne_libre(), volumes_constants =
-# usp_volumes_constants(x) du jeu ajuste), pas de Newton fini, |erreur_sigma| <= rep_sigma et
-# |pg_delta| <= rep_gd. Reperes par defaut REP_SIGMA_KKT (1e-6, ancre sur
+# usp_volumes_constants(x) du jeu ajuste), pas de Newton fini,
+# |erreur_sigma| <= rep_sigma et |pg_delta| <= rep_gd. Reperes par defaut REP_SIGMA_KKT (1e-6, ancre sur
 # M9, #71) et REP_GD_KKT (1e-4, regle unique au bord comme a l'interieur,
 # M16), definis en tete du moteur ; le libelle de usp_controles_numeriques()
 # ne les imprime pas (issue #76) : la regle et ses reperes sont dans la fiche
@@ -1747,8 +1748,9 @@ usp_controles_numeriques <- function(fit) {
 # classe "borne basse" ; usp_gamma_bord(), #322 ;
 # fit$gamma_bord_au_moins_un, ou gamma retenu, #227) et qu'AUCUN demarrage a
 # l'optimum ne satisfait la condition KKT (fit$kkt_au_moins_un,
-# usp_ajuster()), ce minimum n'est pas determine dans le domaine : les donnees ne permettent d'etablir ni la distribution
-# log-normale ni l'adequation de l'estimation de la vraisemblance maximum
+# usp_ajuster()), ce minimum n'est pas determine dans le domaine : les
+# donnees ne permettent d'etablir ni la distribution log-normale ni
+# l'adequation de l'estimation de la vraisemblance maximum
 # (B(2)(g) / C(2)(e), iii et iv ; art. 219(1)(d)), et l'outil ne calcule
 # pas de parametre (art. 220(1)(a) primes / (b) reserve no 1). Decisions de
 # l'OUTIL, non reglementaires : les bornes de gamma (BORNES_GAMMA, numeriques)
