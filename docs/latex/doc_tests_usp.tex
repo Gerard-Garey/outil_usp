@@ -482,7 +482,8 @@ valeur hors du domaine numérique (issue~\#145), d'une
 marge du TOST hors domaine, d'une nature des données absente ou non recevable et d'un barème,
 segment ou annexe invalide (sans erreur R)~; avertissement de crédibilité partielle sur
 $c(T, \text{barème appliqué}) < 1$ (§\ref{sec:controles}, issue~\#131), d'un ratio $y_t/x_t$
-hors de la plage plausible et de pertes $y_t$ constantes (\code{usp\_pertes\_constantes()},
+hors de la plage plausible, de volumes $x_t$ constants (\code{usp\_volumes\_constants()},
+issue~\#213) et de pertes $y_t$ constantes (\code{usp\_pertes\_constantes()},
 issue~\#189) \\
 \code{DOMAINE\_NUMERIQUE\_MIN},\newline \code{DOMAINE\_NUMERIQUE\_MAX},\newline
 \code{RATIO\_PLAUSIBLE\_MIN},\newline \code{RATIO\_PLAUSIBLE\_MAX} & constantes ($10^{-50}$~;
@@ -628,7 +629,8 @@ objectif minimal retenu (issue~\#109), gradient analytique, \code{factr = 1e4}, 
 \code{usp\_bootstrap()} \\
 \code{usp\_volumes\_}\newline\code{constants()} & $x$, \code{tol}
 (\code{TOL\_DELTA\_BORD}) & booléen~: étendue des $x_t$ au plus \code{tol} fois leur moyenne~;
-seule définition des volumes constants (issue~\#59, section~\ref{sec:volumes-constants}) \\
+seule définition des volumes constants (issue~\#59, section~\ref{sec:volumes-constants}), lue
+aussi par l'avertissement d'\code{engine\_valider\_donnees()} (issue~\#213) \\
 \code{usp\_pertes\_}\newline\code{constantes()} & $y$, \code{tol}
 (\code{TOL\_DELTA\_BORD}) & booléen~: étendue des $y_t$ au plus \code{tol} fois leur moyenne~;
 seule définition des pertes constantes, jumelle d'\code{usp\_volumes\_constants()}, lue par
@@ -3340,7 +3342,11 @@ repère statistique distinct, non réglementaire, inchangé.
 
 Des volumes constants, au sens de \code{usp\_volumes\_constants()}, ne sont pas un motif de refus~:
 le calcul aboutit, mais les vérifications qui régressent sur le volume ou partitionnent par lui
-sont restituées «~non applicable~» (section~\ref{sec:volumes-constants}, issue~\#59).
+sont restituées «~non applicable~» (section~\ref{sec:volumes-constants}, issue~\#59), et,
+depuis l'issue~\#213, \code{engine\_valider\_donnees()} émet l'avertissement «~\code{Volumes x\_t
+constants a la tolerance relative TOL\_DELTA\_BORD = 1e-06 pres (etendue relative = \dots) :
+delta non identifie} \ldots~», qui nomme les lignes que la règle~R13 rend non applicables (texte complet en
+section~\ref{sec:volumes-constants}).
 Des pertes constantes, au sens de \code{usp\_pertes\_constantes()} (étendue des $y_t$ au plus
 \code{TOL\_DELTA\_BORD} fois leur moyenne), ne le sont pas non plus (issue~\#189, décision du
 mainteneur du 6~octobre 2026)~: \code{engine\_valider\_donnees()} émet l'avertissement
@@ -3353,8 +3359,9 @@ volumes du jeu de contrôle et $y_t = 80$ (méthode prime, $B = 99$)~: \code{ok 
 l'avertissement est émis, et ces lignes sont non applicables, en \code{INFO}.
 Quand volumes \emph{et} pertes sont constants, en revanche, les ratios $y_t/x_t$ sont égaux et
 \code{run\_engine()} refuse le calcul au titre de l'existence de l'estimateur (paragraphe
-suivant~; décision du mainteneur du 8~octobre 2026, le refus l'emporte), l'avertissement
-«~pertes constantes~» restant dans \code{validation\$avertissements}~; la priorité des volumes
+suivant~; décision du mainteneur du 8~octobre 2026, le refus l'emporte), les avertissements
+«~volumes constants~» puis «~pertes constantes~», dans cet ordre, restant dans
+\code{validation\$avertissements}~; la priorité des volumes
 constants sur les pertes constantes dans les motifs des lignes non applicables ne s'observe plus
 qu'en appel direct d'\code{usp\_tests()} (\code{tests/unitaires/test\_controles\_entree.R}).
 Mesuré~: $x_t = 100$ et $y_t = 70$ pour tout $t$, \code{ok = FALSE}~; volumes constants et
@@ -4840,7 +4847,9 @@ Diagnostic \\
   $B = 99$)~: ces lignes sont désormais non applicables avec ce motif, la table garde toutes ses
   lignes, et seize verdicts \code{ECHEC} apparaissent ailleurs (notamment RESET, les corrélations
   de rang du ratio, Durbin--Watson, Ljung--Box, sup-F et OLS-CUSUM), qui signalent la saisie
-  anormale.
+  anormale (décompte remesuré après l'issue~\#213, inchangé). Depuis l'issue~\#213, la ligne de
+  Spearman ratio contre volume, qui reste calculée dans ce régime, porte une phrase de contexte
+  (fiche~\ref{fiche:spearman}, rubrique~6).
   \item \emph{Condition de conclusion du TOST}~: conclure exige
   $\widehat{\mathrm{se}}(\hat a) < \Delta/t_{1-\alpha,\,T-2}$~; le levier pondéré de l'origine
   $\bar x_w^{\,2}/S_{xx,w}$ ($\bar x^{\,2}/S_{xx}$ à poids constants, ou avant l'issue~\#215) peut
@@ -8576,6 +8585,25 @@ médiocre pour $T < 10$, raison pour laquelle le moteur retient la loi exacte de
 « ratio contre volume », un rejet signale un effet d'échelle non capté par la proportionnalité
 stricte.
 
+\emph{Pertes constantes} (issue~\#213, décision du mainteneur du 17~octobre 2026). À pertes
+constantes au sens de \code{usp\_pertes\_constantes()} et volumes non constants, la variante
+« ratio contre volume » reste calculée, à la différence des lignes de la régression de $y_t$
+sur $x_t$ (constante, TOST, pente, Fisher et $R^2$), non applicables (sous-section~\ref{sec:modele-auxiliaire-regles})~: $r_t = c/x_t$
+décroît strictement avec $x_t$, la statistique est définie, et $\hat\rho_s = -1$. Le rejet n'est
+pas un artefact de la dégénérescence~: des pertes constantes sous des volumes variables
+contredisent $\mathbb{E}[Y_t] = \beta x_t$, et cette ligne est la seule des lignes sur le volume
+de l'hypothèse~H1 à le dire dans ce régime~; son type et son verdict sont conservés. Pour que le
+lecteur ne prenne pas ce verdict pour un effet de la saisie dégénérée que signale l'avertissement
+des pertes constantes (section~\ref{sec:controles}), le commentaire de la ligne reçoit, en seconde
+phrase, le texte fixe «~\code{Pertes y\_t constantes a la tolerance relative TOL\_DELTA\_BORD pres
+(voir l'avertissement sur les donnees) : le ratio y\_t/x\_t varie alors en sens inverse du volume
+; un rejet traduit des pertes non proportionnelles au volume, ce que teste la ligne.}~», sans
+nombre, jamais à volumes constants, où la ligne est non applicable. Mesuré (méthode prime,
+segment~1 de l'annexe~II, données brutes, $B = 99$) sur les volumes du jeu de contrôle et
+$y_t = 80$~: $\hat\delta = 1$, $S = 168$ ($\hat\rho_s = -1$), p-value exacte retenue
+$2/8! = 4{,}96\cdot 10^{-5}$, \code{ECHEC}, phrase présente~; elle est absente sur le jeu de
+contrôle et à volumes constants.
+
 \medskip
 \begin{encadre}
 \textbf{Renvoi croisé avec la ligne de la nullité de la constante} (issue~\#215, renvoi décrit en
@@ -8594,7 +8622,7 @@ règle d'\code{usp\_renvois()}~; la ligne Spearman ne porte pas elle-même de re
 
 \textbf{Table.} Tableau~\ref{tab:pmin}, dernière colonne~: aucune bascule de $T = 5$ à $T = 12$.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes ($p_{\min} \ll \alpha$)~; la ligne « ratio contre volume » est non applicable à volumes constants (section~\ref{sec:volumes-constants}). Puissance non étudiée à $T = 8$ contre les écarts que vise la ligne~; des taux de rejet sous des alternatives d'une autre famille figurent au fichier de puissance de l'issue~\#229, sans être repris ici. Niveau de la p-value retenue sous le modèle ajusté (issue~\#166, $R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc}), exacte dans les réplications où $\hat\pi^{*}_t$ est constant et de Monte-Carlo dans les autres~: ratio contre volume, J1, $0{,}093$ à $\alpha = 0{,}10$ et $0{,}0525$ à $0{,}05$, J2, $0{,}100$ et $0{,}0495$ (références mélangées $0{,}0933$ et $0{,}0444$ sur J1, $0{,}0925$ et $0{,}0440$ sur J2)~; ratio contre temps, J1, $0{,}093$ et $0{,}0485$, J2, $0{,}0895$ et $0{,}039$~; compatible aux deux seuils sur les deux jeux, de même que la p-value de Monte-Carlo seule contre sa taille lissée ($0{,}0904$ et $0{,}0429$). Sur J2, la p-value de Monte-Carlo du ratio contre temps rejette à $0{,}10$ dans $0{,}061$ des réplications au bord~1 et $0{,}117$ au bord~0 (taux conditionnels, sans référence exacte). Niveau de la p-value de Monte-Carlo de la ligne sous la variante V3h, p-value retenue du moteur depuis l'issue~\#240 quand la p-value exacte n'est pas attribuée (issue~\#229, tableau~T1, $R = 2\,000$, $B = 999$, constat de simulation au commit \code{fee9968}, V3h reconstruite par le script, antérieure à son implémentation, section~\ref{sec:calibration-mc})~: J1, V3h coïncide avec V1 réplication par réplication sur les 1\,925 réplications à $\hat\delta^{*}$ au bord, seule population du tableau~T1~; les 75 réplications à $\hat\delta^{*}$ intérieur (tableau~T1~bis, descriptif) n'y figurent pas, et le niveau V3h sur l'ensemble de J1 n'est pas tabulé~; J2, ratio contre volume, $0{,}0975$ $[0{,}0848~;~0{,}1113]$ à $\alpha = 0{,}10$ et $0{,}0515$ $[0{,}0422~;~0{,}0621]$ à $0{,}05$, compatible aux deux seuils~; ratio contre temps, $0{,}0825$ $[0{,}0708~;~0{,}0954]$ à $\alpha = 0{,}10$ et $0{,}0405$ $[0{,}0323~;~0{,}0501]$ à $0{,}05$, compatible aux deux seuils. Ces taux se lisent avec la taille lissée de la p-value de Monte-Carlo (référence du tableau~T1, loi discrète), $0{,}0904$ à $0{,}10$ et $0{,}0430$ à $0{,}05$~; le niveau de la p-value retenue (mélange de la p-value exacte et de la p-value de Monte-Carlo) sous V3h n'est pas cité, le tableau~T1 ne le donnant pas.
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes ($p_{\min} \ll \alpha$)~; la ligne « ratio contre volume » est non applicable à volumes constants (section~\ref{sec:volumes-constants}), et reste un test à pertes constantes, type et verdict conservés (rubrique~6, issue~\#213). Puissance non étudiée à $T = 8$ contre les écarts que vise la ligne~; des taux de rejet sous des alternatives d'une autre famille figurent au fichier de puissance de l'issue~\#229, sans être repris ici. Niveau de la p-value retenue sous le modèle ajusté (issue~\#166, $R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc}), exacte dans les réplications où $\hat\pi^{*}_t$ est constant et de Monte-Carlo dans les autres~: ratio contre volume, J1, $0{,}093$ à $\alpha = 0{,}10$ et $0{,}0525$ à $0{,}05$, J2, $0{,}100$ et $0{,}0495$ (références mélangées $0{,}0933$ et $0{,}0444$ sur J1, $0{,}0925$ et $0{,}0440$ sur J2)~; ratio contre temps, J1, $0{,}093$ et $0{,}0485$, J2, $0{,}0895$ et $0{,}039$~; compatible aux deux seuils sur les deux jeux, de même que la p-value de Monte-Carlo seule contre sa taille lissée ($0{,}0904$ et $0{,}0429$). Sur J2, la p-value de Monte-Carlo du ratio contre temps rejette à $0{,}10$ dans $0{,}061$ des réplications au bord~1 et $0{,}117$ au bord~0 (taux conditionnels, sans référence exacte). Niveau de la p-value de Monte-Carlo de la ligne sous la variante V3h, p-value retenue du moteur depuis l'issue~\#240 quand la p-value exacte n'est pas attribuée (issue~\#229, tableau~T1, $R = 2\,000$, $B = 999$, constat de simulation au commit \code{fee9968}, V3h reconstruite par le script, antérieure à son implémentation, section~\ref{sec:calibration-mc})~: J1, V3h coïncide avec V1 réplication par réplication sur les 1\,925 réplications à $\hat\delta^{*}$ au bord, seule population du tableau~T1~; les 75 réplications à $\hat\delta^{*}$ intérieur (tableau~T1~bis, descriptif) n'y figurent pas, et le niveau V3h sur l'ensemble de J1 n'est pas tabulé~; J2, ratio contre volume, $0{,}0975$ $[0{,}0848~;~0{,}1113]$ à $\alpha = 0{,}10$ et $0{,}0515$ $[0{,}0422~;~0{,}0621]$ à $0{,}05$, compatible aux deux seuils~; ratio contre temps, $0{,}0825$ $[0{,}0708~;~0{,}0954]$ à $\alpha = 0{,}10$ et $0{,}0405$ $[0{,}0323~;~0{,}0501]$ à $0{,}05$, compatible aux deux seuils. Ces taux se lisent avec la taille lissée de la p-value de Monte-Carlo (référence du tableau~T1, loi discrète), $0{,}0904$ à $0{,}10$ et $0{,}0430$ à $0{,}05$~; le niveau de la p-value retenue (mélange de la p-value exacte et de la p-value de Monte-Carlo) sous V3h n'est pas cité, le tableau~T1 ne le donnant pas.
 
 \textbf{Statut des valeurs.} $p_{\min}$~: exacte (énumération de la loi de permutation) à $\hat\pi_t$ constant~; à $\hat\pi_t$ variable, $p_{\min}$ exacte sur la loi de référence échangeable, qui ne borne pas la p-value de Monte-Carlo~; plancher de Monte-Carlo et plancher $p_{\min}^{\mathrm{MC}}$ lu par la règle~R1~: exacts pour les réplications tirées, fonction de $B$ (et de la graine pour le second). Niveau~: constat de simulation sous le modèle ajusté à J1 et à J2 (section~\ref{sec:calibration-mc}), incertitude de Clopper--Pearson liée à $R$, intervalles dans les fichiers de résultats.
 \end{fiche}
@@ -17323,7 +17351,24 @@ données (section~\ref{sec:controles})~: le calcul aboutit, $\delta$ n'est pas i
 relative TOL\_DELTA\_BORD = 1e-06 pres (etendue relative = \dots)~: regression / partition sur le
 volume sans objet}~: nullité de la constante, TOST, pente (test de Pitman), Fisher, $R^2$, RESET,
 Spearman ratio contre volume, Breusch--Pagan studentisé et original, White, Goldfeld--Quandt,
-Brown--Forsythe et Smirnov. La liste des lignes de la table ne dépend pas du régime~: la ligne de
+Brown--Forsythe et Smirnov. Depuis l'issue~\#213 (décision du mainteneur du 17~octobre 2026),
+\code{engine\_valider\_donnees()} signale en outre ce régime par un avertissement, sans refus,
+jugé par \code{usp\_volumes\_constants()} sur la série retenue~: «~\code{Volumes x\_t constants a
+la tolerance relative TOL\_DELTA\_BORD = 1e-06 pres (etendue relative = \dots) : delta non
+identifie (la vraisemblance n'en depend pas a cette tolerance pres) ; regression et partition sur
+le volume sans objet (constante, TOST, pente, Fisher, R2, RESET, Spearman ratio / volume,
+Breusch-Pagan (Koenker et 1979), White, Goldfeld-Quandt, Brown-Forsythe et Smirnov non
+applicables) ; verifier la saisie.}~», qui nomme ces mêmes lignes (les deux variantes de Breusch--Pagan sous un
+seul nom) et se fonde sur $a_t = \delta + (1-\delta)\,\bar x/x_t = 1$ à $x_t = \bar x$, d'où $\pi_t$
+et l'objectif indépendants de $\delta$. Il précède, dans \code{validation\$avertissements},
+celui des pertes constantes, dans l'ordre de priorité des motifs des lignes non applicables
+(volumes constants, puis pertes constantes). Avant cette issue, seul le motif de ces lignes
+signalait le régime. Mesuré (méthode prime, segment~1 de l'annexe~II, données brutes, $B = 99$)~:
+$x_t = 100$ et pertes du jeu de contrôle, \code{ok = TRUE}, avertissement émis en tête, et ces
+lignes non applicables avec le motif ci-dessus~; volumes du jeu de contrôle (étendue relative
+$0{,}258$), aucun avertissement~; étendue relative $10^{-7}$, avertissement émis, $2\cdot
+10^{-6}$, aucun (\code{engine\_valider\_donnees()} appelée directement). La liste des lignes de
+la table ne dépend pas du régime~: la ligne de
 Smirnov, auparavant absente dans ce cas, est présente à tout $T \ge 8$. Mesuré (méthode prime,
 pertes du jeu de contrôle, volumes $100\,(1 \pm \varepsilon)$ alternés, $B = 99$, graine
 20260831)~: à $\varepsilon = 0$, $10^{-12}$, $10^{-9}$, $10^{-8}$ et $10^{-7}$, \code{ok = TRUE}
