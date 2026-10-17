@@ -1421,13 +1421,33 @@ usp_pas_newton_borne <- function(H, pg, delta, grad_ln_sigma, volumes_constants 
        libre_delta = lib$libre_delta, def_pos = lib$def_pos)
 }
 
+# Predicat "gamma sur une borne" (issue #322, complement du 08/10/2026 de
+# #222) : SEULE source du moteur de ce test, lu par
+# usp_condition_premier_ordre(), usp_kkt_satisfaite(),
+# usp_controles_numeriques() et usp_valider_ajustement(). Bornes :
+# BORNES_GAMMA (numeriques, non reglementaires) ; tolerance tol, par defaut
+# TOL_DELTA_BORD (usp_condition_premier_ordre() la recoit en argument).
+# Resultat, pour un gamma scalaire :
+#   - "basse" si gamma <= BORNES_GAMMA[1] + tol, ou si gamma n'est pas fini
+#     (NA, NaN, +/-Inf : convention reprise de usp_valider_ajustement(),
+#     #188, ou un gamma non fini est classe "borne basse") ;
+#   - "haute" si gamma est fini et gamma >= BORNES_GAMMA[2] - tol ;
+#   - NA_character_ sinon (gamma interieur).
+# "Sur une borne" s'ecrit !is.na(usp_gamma_bord(gamma)).
+usp_gamma_bord <- function(gamma, tol = TOL_DELTA_BORD) {
+  if (!is.finite(gamma) || gamma <= BORNES_GAMMA[1] + tol) "basse"
+  else if (gamma >= BORNES_GAMMA[2] - tol) "haute"
+  else NA_character_
+}
+
 # Condition du premier ordre (Kuhn-Tucker) au point (delta, gamma), issues
 # #22 et #71 :
 #   - gradient : usp_gradient() ;
 #   - gradient_projete : composante annulee si elle pousse hors du domaine au
 #     bord (borne inferieure : min(g, 0) ; borne superieure : max(g, 0)),
-#     inchangee a l'interieur. Bord jugee a TOL_DELTA_BORD pres, pour delta
-#     dans [0, 1] comme pour gamma dans BORNES_GAMMA ;
+#     inchangee a l'interieur. Bord jugee a tol pres (TOL_DELTA_BORD par
+#     defaut), pour delta dans [0, 1] comme pour gamma dans BORNES_GAMMA
+#     (usp_gamma_bord(), #322) ;
 #   - hessienne : usp_hessienne() (pas h) ; H_gamma_gamma est
 #     hessienne["gamma", "gamma"] ;
 #   - grad_ln_sigma : usp_grad_ln_sigma() ;
@@ -1441,20 +1461,21 @@ usp_pas_newton_borne <- function(H, pg, delta, grad_ln_sigma, volumes_constants 
 usp_condition_premier_ordre <- function(delta, gamma, x, y, xbar = mean(x),
                                         tol = TOL_DELTA_BORD, h = 1e-4) {
   g <- usp_gradient(delta, gamma, x, y, xbar)
-  projeter <- function(gi, v, bas, haut) {
-    if (!is.finite(gi)) gi
-    else if (v <= bas + tol) min(gi, 0)
-    else if (v >= haut - tol) max(gi, 0)
-    else gi
+  bord_gamma <- usp_gamma_bord(gamma, tol)
+  # cote : "basse", "haute" ou NA (interieur) ; || n'evalue cote que si gi
+  # est fini (comme v avant #322).
+  projeter <- function(gi, cote) {
+    if (!is.finite(gi) || is.na(cote)) gi
+    else if (cote == "basse") min(gi, 0)
+    else max(gi, 0)
   }
-  pg <- c(delta = projeter(g[["delta"]], delta, 0, 1),
-          gamma = projeter(g[["gamma"]], gamma, BORNES_GAMMA[1], BORNES_GAMMA[2]))
+  pg <- c(delta = projeter(g[["delta"]], if (delta <= tol) "basse"
+                           else if (delta >= 1 - tol) "haute" else NA_character_),
+          gamma = projeter(g[["gamma"]], bord_gamma))
   H <- usp_hessienne(delta, gamma, x, y, xbar, h)
   gls <- usp_grad_ln_sigma(delta, gamma, x, y, xbar)
-  gamma_bord <- !is.finite(gamma) || gamma <= BORNES_GAMMA[1] + tol ||
-    gamma >= BORNES_GAMMA[2] - tol
   pn <- usp_pas_newton_borne(H, pg, delta, gls, usp_volumes_constants(x))
-  if (gamma_bord) {
+  if (!is.na(bord_gamma)) {
     pn$pas[] <- NA_real_; pn$erreur_sigma <- NA_real_; pn$pas_ecrete <- NA
   }
   list(gradient = g, gradient_projete = pg, hessienne = H, grad_ln_sigma = gls,
@@ -1467,9 +1488,9 @@ usp_condition_premier_ordre <- function(delta, gamma, x, y, xbar = mean(x),
 # cpo = usp_condition_premier_ordre(delta_s, gamma_s, ...) et de gamma_s.
 # TRUE si et seulement si, sur ce MEME point : gradient et gradient projete
 # finis, gamma_s hors des bornes numeriques BORNES_GAMMA (a TOL_DELTA_BORD
-# pres), sous-hessienne des variables libres finie et definie positive
-# (usp_hessienne_libre(), volumes_constants = usp_volumes_constants(x) du
-# jeu ajuste), pas de Newton fini, |erreur_sigma| <= rep_sigma et
+# pres, usp_gamma_bord(), #322), sous-hessienne des variables libres finie
+# et definie positive (usp_hessienne_libre(), volumes_constants =
+# usp_volumes_constants(x) du jeu ajuste), pas de Newton fini, |erreur_sigma| <= rep_sigma et
 # |pg_delta| <= rep_gd. Reperes par defaut REP_SIGMA_KKT (1e-6, ancre sur
 # M9, #71) et REP_GD_KKT (1e-4, regle unique au bord comme a l'interieur,
 # M16), definis en tete du moteur ; le libelle de usp_controles_numeriques()
@@ -1477,8 +1498,7 @@ usp_condition_premier_ordre <- function(delta, gamma, x, y, xbar = mean(x),
 # du .tex.
 usp_kkt_satisfaite <- function(cpo, gamma, rep_sigma = REP_SIGMA_KKT, rep_gd = REP_GD_KKT,
                                volumes_constants = FALSE) {
-  gamma_bord <- !is.finite(gamma) || gamma <= BORNES_GAMMA[1] + TOL_DELTA_BORD ||
-    gamma >= BORNES_GAMMA[2] - TOL_DELTA_BORD
+  gamma_bord <- !is.na(usp_gamma_bord(gamma))
   grad_fini <- isTRUE(all(is.finite(c(cpo$gradient, cpo$gradient_projete))))
   grad_fini && !gamma_bord &&
     isTRUE(usp_hessienne_libre(cpo$hessienne, cpo$gradient_projete, volumes_constants)$def_pos) &&
@@ -1655,8 +1675,7 @@ usp_controles_numeriques <- function(fit) {
   # sur une borne).
   g <- fit$gradient; pg <- fit$gradient_projete
   grad_fini <- all(is.finite(c(g, pg)))
-  gamma_bord <- !is.finite(fit$gamma) ||
-    fit$gamma <= BORNES_GAMMA[1] + TOL_DELTA_BORD || fit$gamma >= BORNES_GAMMA[2] - TOL_DELTA_BORD
+  gamma_bord <- !is.na(usp_gamma_bord(fit$gamma))
   def_pos <- usp_hessienne_libre(fit$hessienne, pg, usp_volumes_constants(fit$x))$def_pos
   ok <- isTRUE(fit$kkt_au_moins_un)
   # Volumes constants (#58) : pi_t ne depend pas de delta, g_delta = 0 et
@@ -1717,8 +1736,8 @@ usp_controles_numeriques <- function(fit) {
 # les valeurs qui minimisent le montant de B(6) / C(6), dont depend le
 # parametre de B(4) / C(4). Si gamma estime est sur une borne de
 # BORNES_GAMMA (a TOL_DELTA_BORD pres ; gamma non fini classe "borne
-# basse") et qu'AUCUN demarrage a l'optimum ne satisfait la condition KKT
-# (fit$kkt_au_moins_un, usp_ajuster()), ce minimum n'est pas determine dans
+# basse" ; usp_gamma_bord(), #322) et qu'AUCUN demarrage a l'optimum ne
+# satisfait la condition KKT (fit$kkt_au_moins_un, usp_ajuster()), ce minimum n'est pas determine dans
 # le domaine : les donnees ne permettent d'etablir ni la distribution
 # log-normale ni l'adequation de l'estimation de la vraisemblance maximum
 # (B(2)(g) / C(2)(e), iii et iv ; art. 219(1)(d)), et l'outil ne calcule
@@ -1737,9 +1756,9 @@ usp_controles_numeriques <- function(fit) {
 # y rend ok = FALSE comme un refus des donnees.
 usp_valider_ajustement <- function(fit, methode = c("premium", "reserve1")) {
   methode <- match.arg(methode)
-  bas  <- !is.finite(fit$gamma) || fit$gamma <= BORNES_GAMMA[1] + TOL_DELTA_BORD
-  haut <- is.finite(fit$gamma) && fit$gamma >= BORNES_GAMMA[2] - TOL_DELTA_BORD
-  refus <- (bas || haut) && !isTRUE(fit$kkt_au_moins_un)
+  bord <- usp_gamma_bord(fit$gamma)
+  bas  <- identical(bord, "basse")
+  refus <- !is.na(bord) && !isTRUE(fit$kkt_au_moins_un)
   if (!refus) return(list(ok = TRUE, erreurs = character(0)))
   prem <- methode == "premium"
   sec <- if (prem) "B" else "C"

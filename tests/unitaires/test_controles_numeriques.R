@@ -3,7 +3,8 @@
 #  L'ESTIMATION LOGNORMALE (issue #22, decision M11)
 #
 #  usp_gradient(), usp_gradient_optim(), usp_hessienne(),
-#  usp_grad_ln_sigma(), usp_hessienne_libre(), usp_pas_newton_borne(),
+#  usp_gamma_bord() (#322), usp_grad_ln_sigma(), usp_hessienne_libre(),
+#  usp_pas_newton_borne(),
 #  usp_condition_premier_ordre(), usp_kkt_satisfaite(),
 #  usp_controles_numeriques(), champs d'ajustement de usp_ajuster()
 #  (dont kkt_au_moins_un, regle "au moins un demarrage a l'optimum
@@ -930,5 +931,58 @@ verifier("run_engine : res$controles a 10 entrees, les deux dernieres en famille
            identical(vapply(res$controles[9:10], function(u) u$test, character(1)), c(NOM_FOC, NOM_MULTI)))
 verifier("run_engine : controles numeriques OK sur le jeu de test ; resultat produit (non bloquant)",
          isTRUE(res$ok) && all(vapply(res$controles[9:10], function(u) u$verdict, character(1)) == "OK"))
+
+## --- Predicat "gamma sur une borne" (#322) ---------------------------------
+# Seule source du predicat : bornes BORNES_GAMMA, tolerance TOL_DELTA_BORD par
+# defaut, gamma non fini classe "basse".
+verifier("usp_gamma_bord : bornes, +/- TOL_DELTA_BORD, juste a l'interieur, gamma non fini (#322)",
+         {
+           b1 <- BORNES_GAMMA[1]; b2 <- BORNES_GAMMA[2]; t <- TOL_DELTA_BORD
+           v <- c(b1, b1 - t, b1 + t, b1 + 2 * t, 0, b2 - 2 * t, b2 - t, b2, b2 + t,
+                  NA, NaN, Inf, -Inf)
+           att <- c("basse", "basse", "basse", NA, NA, NA, "haute", "haute", "haute",
+                    "basse", "basse", "basse", "basse")
+           identical(vapply(v, usp_gamma_bord, character(1)), att)
+         })
+verifier("usp_gamma_bord : argument tol (tol = 0 : borne exacte seule ; tol = 1e-3) (#322)",
+         identical(c(usp_gamma_bord(BORNES_GAMMA[1], 0), usp_gamma_bord(BORNES_GAMMA[1] + 1e-9, 0),
+                     usp_gamma_bord(BORNES_GAMMA[2] - 5e-4, 1e-3), usp_gamma_bord(BORNES_GAMMA[2] - 2e-3, 1e-3)),
+                   c("basse", NA, "haute", NA)))
+verifier("usp_gamma_bord = predicat ecrit en clair avant #322 (bord, cote), 2 002 points autour des bornes",
+         {
+           t <- TOL_DELTA_BORD
+           e <- seq(-5 * t, 5 * t, length.out = 1001)
+           v <- c(BORNES_GAMMA[1] + e, BORNES_GAMMA[2] + e)
+           bord_avant <- !is.finite(v) | v <= BORNES_GAMMA[1] + t | v >= BORNES_GAMMA[2] - t
+           bas_avant <- !is.finite(v) | v <= BORNES_GAMMA[1] + t
+           r <- vapply(v, usp_gamma_bord, character(1))
+           identical(!is.na(r), bord_avant) && identical(r %in% "basse", bas_avant)
+         })
+verifier("usp_condition_premier_ordre : gradient projete = projection ecrite en clair avant #322 (delta et gamma aux bornes, a +/- tol, interieur)",
+         {
+           t <- TOL_DELTA_BORD
+           proj <- function(gi, v, bas, haut) {
+             if (!is.finite(gi)) gi else if (v <= bas + t) min(gi, 0)
+             else if (v >= haut - t) max(gi, 0) else gi
+           }
+           ok <- TRUE
+           for (d in c(0, t, 2 * t, 0.4, 1 - 2 * t, 1 - t, 1))
+             for (g in c(BORNES_GAMMA[1], BORNES_GAMMA[1] + t, BORNES_GAMMA[1] + 2 * t, -1,
+                         BORNES_GAMMA[2] - 2 * t, BORNES_GAMMA[2] - t, BORNES_GAMMA[2])) {
+               gr <- usp_gradient(d, g, xi, yi)
+               att <- c(delta = proj(gr[["delta"]], d, 0, 1),
+                        gamma = proj(gr[["gamma"]], g, BORNES_GAMMA[1], BORNES_GAMMA[2]))
+               ok <- ok && identical(usp_condition_premier_ordre(d, g, xi, yi)$gradient_projete, att)
+             }
+           ok
+         })
+verifier("usp_valider_ajustement : cote du refus lu dans usp_gamma_bord() (basse, haute, non fini = basse, interieur accepte, KKT satisfaite acceptee) (#322)",
+         {
+           v <- function(g, kkt = FALSE) usp_valider_ajustement(list(gamma = g, kkt_au_moins_un = kkt))
+           isTRUE(v(0)$ok) && isTRUE(v(BORNES_GAMMA[1], kkt = TRUE)$ok) &&
+             isFALSE(v(BORNES_GAMMA[1])$ok) && grepl("borne basse", v(BORNES_GAMMA[1])$erreurs) &&
+             isFALSE(v(NA_real_)$ok) && grepl("borne basse", v(NA_real_)$erreurs) &&
+             isFALSE(v(BORNES_GAMMA[2])$ok) && grepl("borne haute", v(BORNES_GAMMA[2])$erreurs)
+         })
 
 fin_fichier()
