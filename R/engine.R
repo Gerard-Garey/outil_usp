@@ -7849,6 +7849,11 @@ mw_msep <- function(aj) {
   for (i in 1:I) if (i < I) for (k in (i + 1):I)
     t2 <- t2 + 2 * Cu[i + 1] * Cu[k + 1] * Dl[i]
 
+  # Sommes sur le segment, sans nom (issue #319) : Cu porte les noms de ligne
+  # du triangle, et t1, t2 prenaient celui du premier terme ajoute ("2018"
+  # pour des lignes 2017:2024), propage par mw_parametre() a sigma_usp,
+  # sigma_estime, sigma_estime_brut et variation_relative.
+  t1 <- unname(t1); t2 <- unname(t2)
   list(msep = t1 + t2, terme_variance = t1, terme_covariance = t2)
 }
 

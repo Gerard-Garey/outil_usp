@@ -2533,18 +2533,27 @@ verifier("Noms de ligne (#268) : deux noms declares UTF-8 invalides identiques :
 verifier("Noms de ligne (#268) : nom declare UTF-8 a octet A0 (32 30 32 32 A0) : doublon de \"2022\" refuse sans erreur R",
          .refus_noms(replace(annees, 7, .octets(c(0x32, 0x30, 0x32, 0x32, 0xa0), "UTF-8")),
                      "Annee d'accident en double : \"2022\", \"2022\\u00a0\" (lignes 6 et 7, i=5 et i=6)."))
-# Valeurs comparees sans leurs noms : sous un triangle nomme, sigma_usp,
-# sigma_estime, sigma_estime_brut et variation_relative de parametre_final
-# portent un nom de ligne ("2018" pour 2017:2024), comportement anterieur a
-# #268, hors de son perimetre (issue #319 ; retirer unname() a sa
-# correction).
-verifier("Noms de ligne (#268) : triangle sans noms et triangle a noms valides admis, parametre final de meme valeur",
+# Parametre final identique, noms compris (issue #319) : avant sa correction,
+# sous un triangle nomme, sigma_usp, sigma_estime, sigma_estime_brut et
+# variation_relative portaient un nom de ligne ("2018" pour 2017:2024), pris
+# par les sommes de mw_msep() sur les cumuls ultimes nommes ; l'assertion
+# comparait alors les valeurs par unname().
+verifier("Noms de ligne (#268, #319) : triangle sans noms et triangle a noms valides admis, parametre final identique",
          {
            r0 <- run_engine(methode = "reserve2", triangle = tri_ref, segment = 1,
                             annexe = "II", B = 99)
            r1 <- .run_noms(annees)
            isTRUE(r0$ok) && isTRUE(r1$ok) && !length(r1$validation$erreurs) &&
-             identical(unname(unlist(r0$parametre_final)), unname(unlist(r1$parametre_final)))
+             identical(r0$parametre_final, r1$parametre_final)
+         })
+verifier("Parametre final sans nom (#319) : champs scalaires de parametre_final et msep sans nom sous un triangle nomme",
+         {
+           r1 <- .run_noms(annees)
+           ms <- mw_msep(mw_ajuster(`rownames<-`(tri_ref, annees)))
+           isTRUE(r1$ok) &&
+             all(vapply(r1$parametre_final, function(x) is.null(names(x)), logical(1))) &&
+             all(vapply(ms, function(x) is.null(names(x)), logical(1))) &&
+             identical(ms, mw_msep(mw_ajuster(tri_ref)))
          })
 verifier("Noms de ligne (#268) : data.frame a noms de ligne automatiques admis",
          isTRUE(run_engine(methode = "reserve2", triangle = as.data.frame(tri_ref),
