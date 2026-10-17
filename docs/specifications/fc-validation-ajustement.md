@@ -301,6 +301,14 @@ Pour chaque option et chaque valeur de son paramètre :
 
 **Effet sur σ̂** (critère de l'issue). Aucune option ne modifie σ̂ : seul le contrôle change. L'effet de « la variable retirée » se lit sur eff_δ (P2), borné par construction sous (D).
 
+*Note de correction du 17/10/2026 (D2-Fc ; consignée par `architect`, sans réécriture du texte ci-dessus).* La mesure du protocole (§ 5.2 ; `docs/tableaux/20261017-issue158-courbure-delta.md`, commit `6f4bff7`, moteur `cef48a9`) remplace les chiffres du pilote repris au § 5.1, selon la lecture d'`actuary-approfondi` au point d'arrêt D2-Fc :
+- « plancher de bruit empirique 10⁵ à 10⁶ fois plus petit que \|H_δδ\| » : la mesure donne un bruit au plus 3,5e-5 \|H_δδ\| au pas h = 1e-4 du moteur et 4,2e-3 \|H_δδ\| à h = 1e-6 (P1, 1 320 évaluations, aux échelles 1e-3, 1 et 1e6 ; H_δδ classé « réel », signe et valeur à 10 % près pour h de 1e-2 à 1e-6, sur 1 320 sur 1 320) — marge plus mince que celle du pilote, conclusion inchangée ;
+- « eff_δ ≤ 5e-7 » (§ 5.1 et option (D) du § 5.3) : eff_δ va jusqu'à 1,14e-6 sur les 14 jeux libellés de P2 (T7) ; l'option (D), au repère `REP_SIGMA_KKT`, laisse donc un libellé (T5) ;
+- précision de lecture : eff_δ s'entend **aux bornes de [0 ; 1]** (b ∈ {0, 1}, à γ̂ fixé), comme le définit le § 5.2 ; ce n'est pas un maximum sur tout [0 ; 1] ;
+- bande des libellés : étendues relatives de 1,5e-6 à 5,4e-5 (et non 2e-6 à 1,7e-5), 14 libellés sur 4 400 jeux, tous OK, aucun à ε ≥ 1e-4 (0 sur 1 200, IC 95 % [0 ; 0,0031]) ; écart relatif de σ au premier démarrage KKT au plus 4,25e-8 (et non 5,1e-8).
+
+Décision D2-Fc du mainteneur (17/10/2026) : **option (E)**, statu quo documenté ; (A), (B), (C), (C′) et (D) écartées ; critère d'acceptation de l'issue (« aucun libellé pour ε ∈ [2e-6 ; 1e-2] ») abandonné ; mécanisme (arrêt de L-BFGS-B dans la région concave) conservé comme hypothèse cohérente avec les mesures, sans mesure complémentaire versionnée. Texte définitif de la limite : `CONTEXT.md`, « Contrôle numérique de l'estimation ».
+
 ## 6. Effets attendus par cas de référence
 
 | Cas | #227 | #224 | #213 | #158 | σ_USP | Mode |
