@@ -894,12 +894,14 @@ liste des tests (H0, H1, statistique, 3 p-values, nature~; depuis l'issue~\#240,
 \code{fonction}, issue~\#111~; citation de l'hypothèse H1 à H4 dans le champ \code{famille}, B(2)(g) ou C(2)(e) selon \code{methode}, section~\ref{sec:h1}), enregistrés par l'\code{add()}
 d'\code{engine\_registre\_tests()}~; \code{robustesse}, calculé par
 \code{run\_engine()} et non stocké, alimente le seul commentaire de la ligne jackknife (année
-d'écart maximal et sens de l'écart sur $\sigma_{\mathrm{USP}}$~; fiche~\ref{fiche:jackknife})~;
+d'écart maximal et sens de l'écart sur $\sigma_{\mathrm{USP}}$, et, depuis l'issue~\#224, années
+non évaluables~; fiche~\ref{fiche:jackknife})~;
 celui de la ligne de l'intervalle bootstrap n'en dépend pas (fiche~\ref{fiche:ic-bootstrap}) \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Robustesse et calibration}}} \\
 \code{usp\_jackknife()} & \code{fit}, $\sigma_{\text{std}}$, barème &
 table des $\hat\sigma^{(-t)}$, $\sigma_{\mathrm{USP}}^{(-t)}$, $\hat\delta^{(-t)}$,
-$\hat\gamma^{(-t)}$ \\
+$\hat\gamma^{(-t)}$~; ligne entièrement \code{NA} pour un réajustement en échec ou refusé par
+\code{usp\_valider\_ajustement()} (issue~\#224) \\
 \code{usp\_profil()} & \code{fit}, \code{n} (41 points) & profils en $\delta$ et $\gamma$ (le
 rapport de vraisemblance aux bornes, calculé ici jusqu'à l'issue~\#45 contre une loi
 $\chi^2(1)$ naïve, relève de \code{usp\_lr\_delta()})~; objectif \code{NA} aux seuls points de
@@ -1298,7 +1300,8 @@ description (\code{source}, $B_{\text{eff}}$, niveaux, rang $k$, taux in-sample,
 \code{engine\_contours\_cook()} & \code{fit}~; \code{fit}, \code{jackknife},
 \code{sigma\_usp}~; $T$ & surface de l'objectif en $(\delta,\gamma)$~; leviers,
 distances de Cook (modèle ajusté après \code{.usp\_echelle\_exacte()}, issue~\#153), écarts du
-jackknife et booléen de coloration \code{fort\_ecart\_sigma}~;
+jackknife et booléen de coloration \code{fort\_ecart\_sigma} (\code{NA} pour une année non
+évaluable, issue~\#224)~;
 courbes d'iso-Cook (appelées par \code{engine\_plots\_data()}) \\
 \code{.usp\_echelle\_exacte()},\newline \code{.usp\_ligne\_cook()} & vecteur $v$~; distances
 $D_t$, $T$ & $v / 2^{\lfloor \log_2 \max|v| \rfloor}$, rendu inchangé si ce maximum n'est pas fini
@@ -2120,7 +2123,8 @@ une phrase~; la règle, les repères et leur justification figurent dans les fic
 et~\ref{fiche:ic-bootstrap}), les valeurs dans \code{res\$ajustement}, les champs
 \code{stat} et \code{estim} et \code{res\$ic\_bootstrap}. Ces quatre commentaires ne portent
 plus aucune valeur réelle issue de l'optimiseur, du bootstrap ou du jackknife, seulement des entiers
-(année la plus influente, nombres de démarrages à l'optimum et sans résultat)~; les deux
+(année la plus influente, années non évaluables du jackknife depuis l'issue~\#224, nombres de
+démarrages à l'optimum et sans résultat)~; les deux
 grandeurs sur la part estimée ne sont plus restituées et se recalculent à partir de
 \code{res\$jackknife} et \code{res\$bootstrap\$sigma\_boot} (fiches~\ref{fiche:jackknife}
 et~\ref{fiche:ic-bootstrap}). Reste aussi imprimée, hors du cas de contrôle ($\hat\delta = 1$), la valeur de
@@ -11621,17 +11625,23 @@ Pour chaque $t$, on réestime intégralement le modèle sur l'échantillon priv�
 d'où $\hat\sigma^{(-t)}$ et $\sigma_{\mathrm{USP}}^{(-t)}$. Le facteur de crédibilité $c$ et la
 correction $\sqrt{(T+1)/(T-1)}$ sont maintenus à ceux de l'échantillon complet, l'objectif étant
 d'isoler l'effet de l'observation retirée et non de rejouer les règles de l'annexe~XVII sur $T-1$
-années. \textbf{Diagnostic, non test.}
+années. Chaque réajustement est en revanche soumis à la même règle d'existence de l'estimateur
+du maximum de vraisemblance que l'échantillon complet (\code{usp\_valider\_ajustement()},
+section~\ref{sec:controles}, issues~\#188 et~\#227)~: depuis l'issue~\#224, un réajustement
+refusé est traité comme un réajustement en échec (rubrique~3). \textbf{Diagnostic, non test.}
 \Hzero
 Sans objet.
 \Stat
 \[
-  \Delta_{\max} \;=\; \max_{1\le t\le T}
-  \frac{\big|\sigma_{\mathrm{USP}}^{(-t)} - \sigma_{\mathrm{USP}}\big|}{\sigma_{\mathrm{USP}}} .
+  \Delta_{\max} \;=\; \max_{t \in \mathcal{E}}
+  \frac{\big|\sigma_{\mathrm{USP}}^{(-t)} - \sigma_{\mathrm{USP}}\big|}{\sigma_{\mathrm{USP}}} ,
 \]
-L'estimateur jackknife du biais,
+où $\mathcal{E} \subseteq \{1, \dots, T\}$ est l'ensemble des années \emph{évaluables}, dont le
+réajustement a abouti sans être refusé (fin de la rubrique~; $\mathcal{E} = \{1, \dots, T\}$
+sur les cas de référence). L'estimateur jackknife du biais,
 $\widehat{\mathrm{biais}} = (T-1)\big(\overline{\sigma^{(-\cdot)}} - \hat\sigma\big)$, est
-également calculable à partir de la table produite.
+également calculable à partir de la table produite quand toutes les années sont évaluables~; la
+moyenne portant sur les $T$ réajustements, il ne l'est plus dès qu'une année ne l'est pas.
 
 \emph{Part estimée et part standard.} Notons $\hat\sigma = \sigma(\hat\delta,\hat\gamma)$.
 On appelle \emph{part estimée} de $\sigma_{\mathrm{USP}}$ sa composante
@@ -11667,9 +11677,36 @@ $t^\star$, $\big(\hat\sigma^{(-t^\star)} - \hat\sigma\big)/\hat\sigma$, qui n'es
 part~; il a été retiré pour la même raison, et se recalcule à partir de la colonne
 \code{sigma} de \code{res\$jackknife} (valeurs $\hat\sigma^{(-t)}$) et du champ \code{sigma} de
 \code{res\$ajustement} ($\hat\sigma$). Le maximum ne porte que sur les années
-dont le réajustement a abouti~: une année dont le réajustement échoue n'a de valeur sur aucune
-des deux échelles et ne peut pas être désignée, même si elle était la plus influente. Si tous
-les réajustements échouent, la ligne est absente de la table.
+évaluables~: une année dont le réajustement échoue n'a de valeur sur aucune
+des deux échelles et ne peut pas être désignée, même si elle était la plus influente. Depuis
+l'issue~\#224, il en va de même d'une année dont le réajustement aboutit mais est refusé par
+\code{usp\_valider\_ajustement()}, règle de l'échantillon complet (au moins un démarrage à
+l'optimum de $\gamma$ sur une borne de \code{BORNES\_GAMMA}, aucun qui satisfasse la condition de
+Kuhn et Tucker)~: l'estimateur du maximum de vraisemblance n'y est pas établi, et
+$\sigma_{\mathrm{USP}}^{(-t)}$ n'est pas une influence mesurée. Sa ligne de
+\code{res\$jackknife} est laissée entièrement à \code{NA} (colonnes \code{sigma},
+\code{sigma\_usp}, \code{delta} et \code{gamma}, signature et colonnes d'\code{usp\_jackknife()}
+inchangées), comme celle d'un réajustement en échec, et son écart vaut \code{NA} dans le
+graphique d'influence (\code{engine\_influence()}). Un réajustement à $\gamma$ intérieur dont
+aucun démarrage ne satisfait la condition reste retenu, comme l'échantillon complet (contrôle
+non bloquant, fiche~\ref{fiche:foc}). Le commentaire nomme les années non évaluables, après
+l'année la plus influente, par la phrase fixe «~\code{Annee 5 non evaluable (reajustement sans
+maximum de vraisemblance etabli, ou en echec) : ecartee du maximum, influence non mesuree.}~»
+(au pluriel «~\code{Annees 2 et 5 non evaluables (reajustements \dots) : ecartees du maximum
+\dots}~», numéros joints par «~,~» puis «~et~»), qui n'imprime que des numéros d'année et ne
+distingue pas le refus de l'échec, faute d'une colonne qui les sépare. Une telle année n'est
+pas dite sans influence~: son influence n'est pas mesurable par $\sigma_{\mathrm{USP}}^{(-t)}$.
+Mesuré (méthode prime, segment~1 de l'annexe~II, données brutes, $B = 99$) sur les volumes du
+jeu de contrôle et $y_t = 0{,}7\,x_t$, sauf $y_5 = 0{,}8\,x_5$~: sans l'année~5,
+$\hat\gamma = -12$ et aucun démarrage ne satisfait la condition, le réajustement est refusé~;
+$\Delta_{\max}$ vaut $0{,}0206$ au lieu de $0{,}3393$ avant l'issue~\#224, valeur que fournissait
+ce seul réajustement, en désignant l'année~5~; $\sigma_{\mathrm{USP}} = 0{,}06205954$ et la ligne
+\code{INFO} sont inchangés. Les sept écarts restants y sont égaux à moins de $2\cdot 10^{-10}$
+près~: l'année désignée parmi eux (l'année~6 dans cette mesure) dépend du bruit d'optimiseur et
+n'est pas stable d'une session de calcul à l'autre (limite connue, issue~\#327).
+Si aucun réajustement n'est évaluable, la ligne est absente de la table (limite connue,
+issue~\#329)~; le graphique et la note d'influence de l'application ne traitent pas encore ce
+cas d'un jackknife entièrement \code{NA} (limite connue, issue~\#328).
 \Loi
 Aucune loi de référence n'est utilisée pour $\Delta_{\max}$.
 \Pval
