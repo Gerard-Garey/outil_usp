@@ -561,6 +561,21 @@ local({
   verifier("DW, puissance AR(1) : NA d'Imhof au calcul final -> erreur explicite (pas de NA silencieux)",
            inherits(r, "try-error") && grepl("integration d'Imhof en echec", r, fixed = TRUE))
 })
+# Pres de rho = 1, les valeurs propres de S M (A - dI) M S sont d'ordre
+# 1 - rho : avant la normalisation de h par max|h|, integrate() echouait
+# (Imhof NA, erreur explicite) a rho = 1 - 1e-6 (constat M-1 d'audit, #170).
+# Valeur mesuree 0,5899170 ; a rho = 1 - 1e-8, 0,5899175, prise ici comme
+# approximation de la limite rho -> 1.
+local({
+  p6 <- try(dw_puissance_ar1(8L, 1 - 1e-6, 0.10), silent = TRUE)
+  p8 <- try(dw_puissance_ar1(8L, 1 - 1e-8, 0.10), silent = TRUE)
+  verifier("DW, puissance AR(1) : rho = 1 - 1e-6 calcule (fini, dans [0, 1], a 1e-5 de rho = 1 - 1e-8)",
+           is.numeric(p6) && is.numeric(p8) && is.finite(p6) && p6 >= 0 && p6 <= 1 &&
+           abs(p6 - p8) < 1e-5)
+})
+verifier("DW, puissance AR(1) : T > .Machine$integer.max refuse par la garde de T",
+         { r <- try(dw_puissance_ar1(1e10, 0.5, 0.1), silent = TRUE)
+           inherits(r, "try-error") && grepl("T doit etre un entier", r, fixed = TRUE) })
 verifier("DW, puissance AR(1) : arguments hors domaine refuses (T < 4, |rho| >= 1, alpha hors ]0, 1[)",
          inherits(try(dw_puissance_ar1(3L, 0.5, 0.1), silent = TRUE), "try-error") &&
          inherits(try(dw_puissance_ar1(8L, 1, 0.1), silent = TRUE), "try-error") &&

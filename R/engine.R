@@ -2293,8 +2293,9 @@ dw_p_exacte <- function(z) {
 # precision de la quadrature. Outil de mesure : n'est pas appele par
 # run_engine().
 dw_puissance_ar1 <- function(T, rho, alpha) {
-  if (length(T) != 1L || !is.numeric(T) || !is.finite(T) || T != round(T) || T < 4)
-    stop("dw_puissance_ar1() : T doit etre un entier >= 4")
+  if (length(T) != 1L || !is.numeric(T) || !is.finite(T) || T != round(T) || T < 4 ||
+      T > .Machine$integer.max)
+    stop("dw_puissance_ar1() : T doit etre un entier >= 4 (et <= .Machine$integer.max)")
   if (length(rho) != 1L || !is.numeric(rho) || !is.finite(rho) || abs(rho) >= 1)
     stop("dw_puissance_ar1() : rho doit etre dans ]-1, 1[")
   if (length(alpha) != 1L || !is.numeric(alpha) || !is.finite(alpha) || alpha <= 0 || alpha >= 1)
@@ -2312,11 +2313,17 @@ dw_puissance_ar1 <- function(T, rho, alpha) {
   es <- eigen(S, symmetric = TRUE)
   S12 <- es$vectors %*% diag(sqrt(es$values)) %*% t(es$vectors)
   # P(DW > d) sous l'AR(1) ; valeurs propres nulles (direction du vecteur 1)
-  # ecartees.
+  # ecartees. Le signe de la forme quadratique ne depend pas de l'echelle :
+  # h est normalise par max|h|, puis filtre a un seuil relatif (1e-10). Pres
+  # de rho = 1, les valeurs propres sont d'ordre 1 - rho (1e-6 a 1e-5 a
+  # rho = 1 - 1e-6) et integrate() echouait sur h non normalise (NA,
+  # erreur "integration d'Imhof en echec" ; #170).
   p_sup <- function(d) {
     h <- eigen(S12 %*% m$M %*% (m$A - d * diag(n)) %*% m$M %*% S12,
                symmetric = TRUE, only.values = TRUE)$values
-    .imhof_p_sup0(h[abs(h) > 1e-12])
+    mx <- max(abs(h))
+    if (mx > 0) h <- h / mx
+    .imhof_p_sup0(h[abs(h) > 1e-10])
   }
   res <- (1 - p_sup(d_bas)) + p_sup(d_haut)
   # .imhof_p_sup0() rend NA si integrate() echoue : erreur explicite plutot
