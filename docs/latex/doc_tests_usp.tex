@@ -9989,7 +9989,8 @@ forme quadratique évaluée par la méthode d'Imhof (1961)~:
   \quad
   \rho(u) = \prod_j \big(1 + h_j^2u^2\big)^{1/4},
 \]
-avec $h_j = \lambda_j - c$ (Imhof, 1961, $\mathbb{P}(Q > x)$ en $x = 0$~;
+avec $h_j = \lambda_j - c$ (notation~: ce $h_j$ est le $\lambda_r$ de la formule~(3$\cdot$2) d'Imhof,
+dont le $h_r$ désigne les multiplicités, ici toutes égales à~1, avec $\delta_r = 0$~; Imhof, 1961, $\mathbb{P}(Q > x)$ en $x = 0$~;
 \code{.imhof\_p\_sup0()}). Jusqu'à l'issue~\#33, la fonction et la présente fiche portaient un
 signe «~$-$~» devant l'intégrale, qui rendait $\mathbb{P}(Q < 0)$ au lieu de
 $\mathbb{P}(Q > 0)$~; la p-value bilatérale, symétrique en les deux queues, n'en dépendait pas
@@ -14504,7 +14505,9 @@ outliers~», et $\hat f_k = \sum_i w_{ik}\,C_{i,k+1} / \sum_i w_{ik}\,C_{ik}$ av
 pour eux (p.~D6.49)~; l'auteur ajoute que les formules de $\alpha_k^2$ et de l'erreur standard
 «~must be changed analogously~», sans les donner (p.~D6.49), et que ce choix «~will not cause any
 essential disadvantage as we only change weights and do not discard anything entirely~»
-(p.~D6.50)~; le corps du texte (p.~D6.15--D6.23) ne motive pas autrement le changement. Or
+(p.~D6.50)~; le corps du texte (p.~D6.15--D6.23) ne motive pas autrement le changement
+(affirmation non relue sur le texte intégral au 18~octobre 2026~: ces pages ne figurent pas dans
+la transcription du 17~octobre 2026). Or
 l'annexe~XVII, section~D, point~(4)(c), définit $\hat f_j = \sum_{i=0}^{I-j-1} C(i,j+1) \big/ \sum_{i=0}^{I-j-1} C(i,j)$
 sans autre poids que les cumuls $C(i,j)$, et la MSEP du point~(5) est calculée avec ce $\hat f_j$ (section~\ref{sec:mw})~:
 repondérer les facteurs modifierait le paramètre réglementaire, ce qu'un test de l'outil ne
@@ -14725,8 +14728,13 @@ les diagonales, et les résidus ne sont pas échangeables. Pour $n_k = 2$ à~11,
 moteur sont égales à la table recalculée par la loi binomiale (énumération contre une récurrence
 de Pascal, \code{tests/unitaires/test\_merz\_wuthrich.R}~; mesuré aussi contre
 \code{dbinom()}, écart au plus $4{,}4\cdot 10^{-16}$)~; leur égalité avec la table publiée de
-la p.~D6.49 n'est \textbf{pas vérifiée}, le document source n'étant pas disponible dans le
-dépôt. La plus petite valeur, $\mathbb{P}(Z_k \le 0) = 2^{1-n_k}$, vaut $0{,}125$ à $n_k = 4$ et
+la p.~D6.49 est vérifiée \emph{sur une transcription de la page}, et non sur le document
+lui-même, qui n'est pas versionné dans le dépôt~: transcription en rendu graphique, sans
+reconnaissance de caractères, faite le 17~octobre 2026 par une session en accès complet et
+consignée au commentaire 6238770854 de la PR~\#332. Les 24 cellules imprimées ($n_k \le 4$ en une
+ligne, puis $n_k = 5$ à~11, pour $z = 0$, 1, 2) concordent avec les valeurs du moteur arrondies
+à la précision imprimée, chaque «~$>10~\%$~» correspondant à une valeur supérieure à $10~\%$
+($10{,}94~\%$ à $n_k = 10$, $z = 2$). La plus petite valeur, $\mathbb{P}(Z_k \le 0) = 2^{1-n_k}$, vaut $0{,}125$ à $n_k = 4$ et
 $0{,}0625$ à $n_k = 5$~: seule une diagonale d'au moins cinq étiquettes peut porter le repère,
 cinq étant le plus petit $n_k$ tel que $2^{1-n_k} \le 0{,}10$.
 \Pval
@@ -16021,7 +16029,7 @@ Moments de $Z$ (test calendaire) par énumération exhaustive & $n = 2,\dots,12$
 exacts \\
 Probabilités $\mathbb{P}(Z_k \le z_k)$ du diagnostic par diagonale (\code{mw\_calendrier\_}\allowbreak\code{diagonales()},
 issue~\#275) par énumération contre une récurrence de Pascal & $n_k = 2,\dots,11$ &
-égales à la loi binomiale~; table publiée de Mack (1997, p.~D6.49) non comparée \\
+égales à la loi binomiale~; table publiée de Mack (1997, p.~D6.49)~: 24 cellules égales aux arrondis imprimés, vérifiées sur une transcription de la page \\
 Identité $\sum_i r(i,j)^2 = n_j - 1$ sur les résidus de Mack, colonne par
 colonne & écart maximal $8{,}9\times10^{-16}$ &
 exacte (fiche~\ref{mw:m2var}) \\
@@ -16800,7 +16808,11 @@ soutient dans le présent document.
   normal variables}, \emph{Biometrika}, 48(3/4), 1961, p.~419--426.
   \emph{Portée.} Référence exacte de la méthode évoquée dans la
   fiche Durbin--Watson pour le calcul de la loi exacte de la statistique, dont
-  le document mentionnait le nom sans la référencer.
+  le document mentionnait le nom sans la référencer. La formule~(3$\cdot$2), p.~422--423, et son
+  signe, rétabli par l'issue~\#33, ont été vérifiés sur une transcription de ces pages
+  (commentaire 6238770854 de la PR~\#332)~; le $h_r$ d'Imhof y désigne les multiplicités et son
+  $\lambda_r$ les coefficients de la forme quadratique (renvoi de notation dans la fiche). Texte en
+  libre accès sur l'archive ouverte de l'Université de Genève (notice unige:101766).
 
   \item D.\,A. Belsley, E.~Kuh, R.\,E. Welsch, \emph{Regression Diagnostics: Identifying
   Influential Data and Sources of Collinearity}, Wiley, New York, 1980.
@@ -17088,7 +17100,8 @@ modèle et un mode d'inférence différents.
   moments (H1) et (H2)~; l'outil ne la retient pas pour le test (fiche~\ref{mw:m3cal}) et n'en
   restitue que le repère de $10~\%$ par diagonale, sans verdict (fiche~\ref{mw:m3caldiag}~; la
   lecture de la p.~D6.49 est celle consignée à l'issue~\#201, et l'égalité de la table publiée de
-  cette page avec les probabilités binomiales du moteur n'est pas vérifiée). L'annexe~G
+  cette page avec les probabilités binomiales du moteur est vérifiée sur une transcription de la
+  page, non sur le document lui-même). L'annexe~G
   (p.~D6.42--D6.46) garde le test de corrélation entre facteurs adjacents.
 
   \item T.~Mack, \emph{Which stochastic model is underlying the chain ladder
