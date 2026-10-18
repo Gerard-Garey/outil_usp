@@ -384,7 +384,7 @@ verifier("#274 indic_echec() : deux populations de lignes (hors TOST/Pitman/Fish
              identical(ie$toutes$V1, c(TRUE, FALSE, TRUE, TRUE)) && identical(ie$toutes$V3h, c(TRUE, TRUE, TRUE, TRUE)) })
 verifier("#274 indic_echec() : refus si une ligne exclue manque, si un libelle est duplique ou si la longueur des verdicts differe",
          inherits(tryCatch(E$indic_echec(DR, LE[-1]), error = identity), "error") &&
-           inherits(tryCatch(E$indic_echec(DR, c(LE, LE[5])), error = identity), "error") &&
+           grepl("dupliques", conditionMessage(tryCatch(E$indic_echec(DR, c(LE[-6], LE[5])), error = identity)), fixed = TRUE) &&
            inherits(tryCatch(E$indic_echec(DR, c(LE, "Ligne 7")), error = identity), "error"))
 TRE <- E$transitions_echec(list(J2 = DNE), LE, REFE)
 cpt_tr <- function(v) unlist(TRE$tab[TRE$tab$variante == v, c("n", "baisse", "admis", "defaut", "autre", "hausse")])
@@ -403,7 +403,8 @@ verifier("#274 transitions_echec() : tout passage admis (diagnostic Monte-Carlo 
              identical(t$tab$variante, c("V1", "V3h")) && all(t$tab$baisse == 1L & t$tab$admis == 1L) })
 verifier("#274 transitions_echec() : colonnes diag absentes -> NON EVALUABLE, bloquant ; ligne absente de la comparaison -> bloquant",
          { t1 <- E$transitions_echec(list(J2 = DNE[, setdiff(names(DNE), c("diag_V1", "diag_V3b"))]), LE, REFE)
-           t2 <- E$transitions_echec(list(J2 = DNE), LE, list(lignes = LE[-6], D = list(J2 = DR)))
+           # jeu ou tout passage evalue est admis (n_ko = 0) : seul manq rend le bilan bloquant
+           t2 <- E$transitions_echec(list(J2 = DNE[1, ]), LE, list(lignes = LE[-6], D = list(J2 = DR[1, ])))
            isTRUE(t1$bloquant) && startsWith(t1$bilan, "NON EVALUABLE (colonnes diag absentes : J2)") &&
              isTRUE(t2$bloquant) && identical(t2$manq, "Autre ligne") &&
              grepl("1 ligne(s) absente(s) de la comparaison", t2$bilan, fixed = TRUE) })
