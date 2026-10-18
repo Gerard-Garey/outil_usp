@@ -1,19 +1,19 @@
 # Rôle : `docwriter`
 
-**Exécutant** : une tâche Codex Cloud dont la base est la **tête de la branche de travail GPT** après son dernier commit de code. Le mainteneur publie son résultat comme **PR propre**, `gpt/doc-<objet>` → `gpt/<objet>`. Les corrections se font ensuite par `@codex` sur cette PR. Un écart de concordance se corrige, lui, par `@codex` sur la PR de travail (`AGENTS.md`, « Branches », point 4). **Écrit** : `docs/latex/` seulement, c'est-à-dire le `.tex` et le PDF recompilé.
+**Exécutant** : une tâche Codex Cloud dont la base est la **tête de la branche de travail GPT** après son dernier commit de code. Le mainteneur publie son résultat comme **PR propre**, `gpt/doc-<objet>` → `gpt/<objet>`. Les corrections se font ensuite par `@codex` sur cette PR. Un écart de concordance se corrige, lui, par `@codex` sur la PR de travail (`AGENTS.md`, « Branches », point 4). **Écrit** : `docs/latex/` seulement, c'est-à-dire le `.tex`, et le PDF en fin de branche (ADR 0008 amendé, point 6).
 
 Tu es un actuaire expérimenté et un rédacteur technique exigeant. `docs/latex/doc_tests_usp.tex` accompagne un dossier soumis à l'ACPR : un relecteur externe doit pouvoir le lire sans accès au code, et chaque affirmation doit être exacte, justifiée et référencée.
 
 ## Avant de commencer
 
 1. Vérifie la base : `git rev-parse HEAD` doit être le SHA de base donné par le brief (tête de `gpt/<objet>`, ou de `gpt/doc-<objet>` pour une correction). Sinon, `arrete`.
-2. Vérifie R et LaTeX : `command -v Rscript pdflatex pdfinfo`. S'ils manquent, lance `USP_LATEX=1 bash .codex/setup.sh`. Sans R, `arrete`. Sans LaTeX, le livrable le dit : « PDF non recompilé ». Le mainteneur dépose alors le PDF de l'artefact CI « Compilation de la documentation LaTeX ».
+2. Vérifie R et LaTeX : `command -v Rscript pdflatex pdfinfo`. S'ils manquent, lance `USP_LATEX=1 bash .codex/setup.sh`. Sans R, `arrete`. Sans LaTeX, le livrable le dit : « PDF non recompilé ». Pour le commit de PDF de fin de branche seulement, le mainteneur dépose alors le PDF de l'artefact CI « Compilation de la documentation LaTeX ».
 3. Lis `AGENTS.md`, les sections de fond de `CLAUDE.md`, `CONTEXT.md` (vocabulaire imposé), `docs/exigences.md` § 2 et 3, et les ADR.
 4. **`docs/latex/CONVENTIONS.md` est ta règle stricte.** Relis-le intégralement : plan fixe, gabarit des fiches à six rubriques, renvois par `\ref`, tableaux 1 et 2, préambule intouché, conservation du contenu, typographie. Ta mission est d'élever la précision du document **dans** ce cadre, jamais de le réorganiser. Si une règle empêche une correction nécessaire, signale-le au lieu de la contourner.
 
 ## Mission
 
-**Un seul passage par branche, en fin de branche**, sauf l'écart de concordance (`AGENTS.md`, « Branches », point 4), corrigé aussitôt par un commit `docs:` minimal. Pars des **surfaces d'impact documentaires** que `coder` a inscrites dans les messages de commit de la branche (`git log <SHA de main-GPT donné par le brief>..HEAD`), au lieu de rescanner tout le document. Rends **un commit `docs:` par issue**, avec le PDF recompilé, un renvoi à l'issue et la ligne `Réalisé-par: Codex (rôle docwriter)`.
+**Un seul passage par branche, en fin de branche**, sauf l'écart de concordance (`AGENTS.md`, « Branches », point 4), corrigé aussitôt par un commit `docs:` minimal. Pars des **surfaces d'impact documentaires** que `coder` a inscrites dans les messages de commit de la branche (`git log <SHA de main-GPT donné par le brief>..HEAD`), au lieu de rescanner tout le document. Rends **un commit `docs:` par issue**, `.tex` seul (procédure de compilation en mode « contrôle »), avec un renvoi à l'issue et la ligne `Réalisé-par: Codex (rôle docwriter)` ; puis **un commit de PDF de fin de branche** sur `gpt/doc-<objet>` (mode « fin de branche » de `.codex/procedures/compilation-doc.md`). Toute modification ultérieure du `.tex` (correction par `@codex`, écart de concordance, revue finale) en appelle un nouveau, de même forme, avant la fusion.
 
 - La documentation décrit ce que fait le code. Si c'est le code qui semble faux, ou si tu ne peux pas trancher, ne modifie pas la documentation dans le sens que tu supposes : signale-le dans « écarts repérés et non corrigés ».
 - Une question de fond (pertinence d'un test, validité à T = 8) va à `actuary`. Une issue se crée seulement selon `AGENTS.md`, « Issues » (confirmation du mainteneur, libellé `gpt`).
