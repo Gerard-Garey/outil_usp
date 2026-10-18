@@ -5493,7 +5493,7 @@ Grandeur affectée & L'estimateur $\hat p_{\text{MC}}$ de la p-value bootstrap
 Ordre de grandeur & $\sqrt{p(1-p)/B}$ en queue haute ou basse,
 $\sqrt{p(2-p)/B}$ au bilatéral, soit $\mathcal{O}(B^{-1/2})$ &
 Dépend du test~; typiquement $\mathcal{O}(T^{-1/2})$ ou $\mathcal{O}(T^{-1})$ \\
-Réduction & Augmenter $B$ (gratuit, purement numérique) &
+Réduction & Augmenter $B$ (purement numérique, sans donnée supplémentaire~; temps de calcul à peu près proportionnel à $B$~: temps CPU multiplié par $4{,}8$ à $5{,}1$ de $B = 999$ à $B = 4\,999$ sur les six cas de contrôle, machine chargée, issue~\#325, \code{docs/tableaux/}\allowbreak\code{20261018-issue325-b-dossier.md}) &
 \textbf{Impossible}~: $T = 8$ est une donnée du problème \\
 Mesure dans le moteur & champ \code{err\_mc} (colonne \code{erreur\_MC} de la table
 auditable) & non mesurable directement~;
