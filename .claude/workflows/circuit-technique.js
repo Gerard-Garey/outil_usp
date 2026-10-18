@@ -126,7 +126,8 @@ function lireArgs(a) {
     const inconnues = Object.keys(v).filter(function (k) { return ['issue', 'consigne', 'approfondi', 'effort'].indexOf(k) < 0 })
     let invalide = null
     if (Array.isArray(v) || inconnues.length) invalide = "cles admises : issue, consigne, approfondi, effort" + (inconnues.length ? " (recu : " + inconnues.join(', ') + ")" : '')
-    else if (v.issue !== undefined && v.issue !== null && !n) invalide = "issue doit etre un numero ('76' ou '#76')"
+    else if (v.issue !== undefined && v.issue !== null && (!n || (typeof v.issue !== 'number' && typeof v.issue !== 'string'))) invalide = "issue doit etre un numero ('76' ou '#76')"
+    else if (v.consigne !== undefined && v.consigne !== null && typeof v.consigne !== 'string') invalide = "consigne doit etre une chaine"
     else if (v.approfondi !== undefined && typeof v.approfondi !== 'boolean') invalide = "approfondi doit valoir true ou false"
     else if (v.effort !== undefined && !(v.approfondi === true && v.effort === 'high')) invalide = "effort n'est admis qu'avec approfondi: true, et seulement 'high'"
     return {
