@@ -2503,16 +2503,66 @@ verifier("Noms de ligne (#268) : nom a octet A0 non UTF-8 (Latin-1 non declare),
          .refus_noms(replace(annees, 7, .octets(c(0x32, 0x30, 0x32, 0x32, 0xa0), "unknown")),
                      "Annee d'accident en double : \"2022\", \"2022\\u00a0\" (lignes 6 et 7, i=5 et i=6)."))
 # Encodage "bytes" : avant la reprise, citer() levait une erreur R
-# (utf8ToInt() -> NA) que run_engine() propageait sans ok = FALSE.
-verifier("Noms de ligne (#268) : encodage \"bytes\", octets UTF-8 (C2 A0) : doublon refuse sans erreur R",
+# (utf8ToInt() -> NA) que run_engine() propageait sans ok = FALSE. Depuis
+# #321 (decision d'actuary), un nom d'encodage "bytes" ne recoit que son
+# propre motif : il est exclu des controles de nom manquant et de doublon,
+# ses caracteres n'etant pas determines.
+.motif_bytes <- function(k) sprintf(paste(
+  "Nom d'annee d'accident en ligne %d (i=%d) declare d'encodage \"bytes\" :",
+  "ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en",
+  "Latin-1 declare."), k, k - 1L)
+verifier("Noms de ligne (#268, #321) : encodage \"bytes\", octets UTF-8 (C2 A0) : seul le motif \"bytes\", pas de doublon, sans erreur R",
          .refus_noms(replace(annees, 7, .octets(c(0x32, 0x30, 0x32, 0x32, 0xc2, 0xa0), "bytes")),
-                     "Annee d'accident en double : \"2022\", \"2022\\u00a0\" (lignes 6 et 7, i=5 et i=6)."))
-verifier("Noms de ligne (#268) : encodage \"bytes\", octets Latin-1 (A0) : doublon refuse sans erreur R",
+                     .motif_bytes(7)))
+verifier("Noms de ligne (#268, #321) : encodage \"bytes\", octets Latin-1 (A0) : seul le motif \"bytes\", pas de doublon, sans erreur R",
          .refus_noms(replace(annees, 7, .octets(c(0x32, 0x30, 0x32, 0x32, 0xa0), "bytes")),
-                     "Annee d'accident en double : \"2022\", \"2022\\u00a0\" (lignes 6 et 7, i=5 et i=6)."))
-verifier("Noms de ligne (#268) : encodage \"bytes\", nom fait d'une seule espace insecable refuse comme vide",
+                     .motif_bytes(7)))
+verifier("Noms de ligne (#268, #321) : encodage \"bytes\", nom fait d'une seule espace insecable : seul le motif \"bytes\", pas de nom vide",
          .refus_noms(replace(annees, 3, .octets(c(0xc2, 0xa0), "bytes")),
-                     "Nom d'annee d'accident manquant ou vide en ligne 3 (i=2)."))
+                     .motif_bytes(3)))
+verifier("Noms de ligne (#321) : nom \"bytes\" en ligne 3 et doublon ASCII \"2022\" en lignes 6 et 7 : deux motifs, positions d'origine",
+         .refus_noms(replace(annees, c(3, 7), c(.octets(c(0x32, 0x30, 0xe9), "bytes"), "2022")),
+                     c(.motif_bytes(3),
+                       "Annee d'accident en double : \"2022\" (lignes 6 et 7, i=5 et i=6).")))
+# Motifs par ligne interclasses dans l'ordre des lignes (nom manquant et
+# "bytes"), doublons ensuite : avant cette reprise, le motif "bytes" de la
+# ligne 4 precedait le motif de nom manquant de la ligne 2.
+verifier("Noms de ligne (#321) : NA en ligne 2, \"bytes\" en ligne 4, vide en ligne 6 : motifs dans l'ordre des lignes",
+         .refus_noms(c(annees[1], NA, annees[3], .octets(c(0x32, 0x30, 0xe9), "bytes"),
+                       annees[5], "", annees[7:8]),
+                     c("Nom d'annee d'accident manquant ou vide en ligne 2 (i=1).",
+                       .motif_bytes(4),
+                       "Nom d'annee d'accident manquant ou vide en ligne 6 (i=5).")))
+# Un nom "bytes" retire de la lecture des autres noms : laisse dans le
+# vecteur sans recodage, il ferait lire trimws() octet par octet pour tous
+# les noms ("2022" suivi d'une espace insecable UTF-8 lu "2022\xc2", doublon
+# manque ; mesure de la reprise).
+verifier("Noms de ligne (#321) : nom \"bytes\" en ligne 3, \"2022\" suivi d'une espace insecable UTF-8 en ligne 7 : doublon de \"2022\" detecte",
+         .refus_noms(replace(annees, c(3, 7), c(.octets(c(0x32, 0x30, 0xe9), "bytes"),
+                                                paste0("2022", .u(0xA0)))),
+                     c(.motif_bytes(3),
+                       "Annee d'accident en double : \"2022\", \"2022\\u00a0\" (lignes 6 et 7, i=5 et i=6).")))
+# Issue #321 : un nom non ASCII UNIQUE d'encodage "bytes" passait
+# mw_valider_triangle() ; run_engine() rendait ensuite ok = FALSE avec
+# l'erreur R interceptee "translating strings with "bytes" encoding is not
+# allowed" (make.unique() dans .mw_noms_lignes_empilees()). Il est refuse par
+# un motif metier, sans erreur_r, octets Latin-1 (32 30 E9) comme UTF-8
+# (32 30 C3 A9) ; les memes octets en encodage "unknown" restent admis.
+verifier("Noms de ligne (#321) : nom unique \"bytes\" a octets Latin-1 (32 30 E9) refuse par motif metier, sans erreur_r",
+         .refus_noms(replace(annees, 4, .octets(c(0x32, 0x30, 0xe9), "bytes")),
+                     .motif_bytes(4)))
+verifier("Noms de ligne (#321) : nom unique \"bytes\" a octets UTF-8 (32 30 C3 A9) refuse par motif metier, sans erreur_r",
+         .refus_noms(replace(annees, 4, .octets(c(0x32, 0x30, 0xc3, 0xa9), "bytes")),
+                     .motif_bytes(4)))
+verifier("Noms de ligne (#321) : deux noms \"bytes\" (lignes 2 et 8), un motif par ligne, dans l'ordre des lignes",
+         .refus_noms(c(annees[1], .octets(c(0x32, 0x30, 0xe9), "bytes"), annees[3:7],
+                       .octets(c(0x32, 0x31, 0xc3, 0xa9), "bytes")),
+                     c(.motif_bytes(2), .motif_bytes(8))))
+verifier("Noms de ligne (#321) : memes octets en encodage \"unknown\" admis, ok = TRUE sans erreur_r",
+         all(vapply(list(c(0x32, 0x30, 0xe9), c(0x32, 0x30, 0xc3, 0xa9)), function(b) {
+           r <- .run_noms(replace(annees, 4, .octets(b, "unknown")))
+           isTRUE(r$ok) && is.null(r$validation$erreur_r)
+         }, logical(1))))
 # Nom declare UTF-8 dont les octets n'en sont pas (seconde reprise du
 # 16/10/2026) : avant elle, trimws() levait l'erreur R "input string 3 is
 # invalid UTF-8", propagee par run_engine() sans ok = FALSE. Relu en Latin-1
@@ -2533,18 +2583,44 @@ verifier("Noms de ligne (#268) : deux noms declares UTF-8 invalides identiques :
 verifier("Noms de ligne (#268) : nom declare UTF-8 a octet A0 (32 30 32 32 A0) : doublon de \"2022\" refuse sans erreur R",
          .refus_noms(replace(annees, 7, .octets(c(0x32, 0x30, 0x32, 0x32, 0xa0), "UTF-8")),
                      "Annee d'accident en double : \"2022\", \"2022\\u00a0\" (lignes 6 et 7, i=5 et i=6)."))
-# Valeurs comparees sans leurs noms : sous un triangle nomme, sigma_usp,
-# sigma_estime, sigma_estime_brut et variation_relative de parametre_final
-# portent un nom de ligne ("2018" pour 2017:2024), comportement anterieur a
-# #268, hors de son perimetre (issue #319 ; retirer unname() a sa
-# correction).
-verifier("Noms de ligne (#268) : triangle sans noms et triangle a noms valides admis, parametre final de meme valeur",
+# Parametre final identique, noms compris (issue #319) : avant sa correction,
+# sous un triangle nomme, sigma_usp, sigma_estime, sigma_estime_brut et
+# variation_relative portaient un nom de ligne ("2018" pour 2017:2024), pris
+# par les sommes de mw_msep() sur les cumuls ultimes nommes ; l'assertion
+# comparait alors les valeurs par unname().
+verifier("Noms de ligne (#268, #319) : triangle sans noms et triangle a noms valides admis, parametre final identique",
          {
            r0 <- run_engine(methode = "reserve2", triangle = tri_ref, segment = 1,
                             annexe = "II", B = 99)
            r1 <- .run_noms(annees)
            isTRUE(r0$ok) && isTRUE(r1$ok) && !length(r1$validation$erreurs) &&
-             identical(unname(unlist(r0$parametre_final)), unname(unlist(r1$parametre_final)))
+             identical(r0$parametre_final, r1$parametre_final)
+         })
+verifier("Parametre final sans nom (#319) : champs scalaires de parametre_final et msep sans nom sous un triangle nomme",
+         {
+           r1 <- .run_noms(annees)
+           ms <- mw_msep(mw_ajuster(`rownames<-`(tri_ref, annees)))
+           isTRUE(r1$ok) &&
+             all(vapply(r1$parametre_final, function(x) is.null(names(x)), logical(1))) &&
+             all(vapply(ms, function(x) is.null(names(x)), logical(1))) &&
+             identical(ms, mw_msep(mw_ajuster(tri_ref)))
+         })
+# Lignes de mw_tests() sans nom (#319, reprise) : avant elle, l'estimation de
+# la ligne "Part de la reserve portee par la derniere annee d'accident"
+# portait le nom de la derniere ligne ("2024"), lu sur reserve_par_annee.
+.champs_tests <- c("stat", "estim", "p_exacte", "p_asymptotique", "p_mc", "err_mc",
+                   "p_retenue", "p_min", "p_min_mc")
+verifier("Tests sans nom (#319) : stat, estim et p-values de res$tests sans nom sous un triangle nomme ; res$tests et engine_table_tests() identiques",
+         {
+           r0 <- run_engine(methode = "reserve2", triangle = tri_ref, segment = 1,
+                            annexe = "II", B = 99)
+           r1 <- .run_noms(annees)
+           isTRUE(r1$ok) &&
+             all(vapply(r1$tests, function(t)
+               all(vapply(intersect(.champs_tests, names(t)), function(ch) is.null(names(t[[ch]])),
+                          logical(1))), logical(1))) &&
+             identical(r0$tests, r1$tests) &&
+             identical(engine_table_tests(r0), engine_table_tests(r1))
          })
 verifier("Noms de ligne (#268) : data.frame a noms de ligne automatiques admis",
          isTRUE(run_engine(methode = "reserve2", triangle = as.data.frame(tri_ref),

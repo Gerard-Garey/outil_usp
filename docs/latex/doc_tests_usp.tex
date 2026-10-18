@@ -543,7 +543,10 @@ la condition de Kuhn et Tucker (issues~\#188 et~\#227, §\ref{sec:controles}) \\
 \code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, $I$, $J$~; refus d'une cellule observée
 hors du domaine numérique, un seul motif par triangle (issue~\#185)~; refus d'un nom de ligne
 (année d'accident) manquant, vide ou fait de seuls blancs, ou en double après retrait des blancs
-initiaux et finaux, un triangle sans noms de ligne restant admis (issue~\#268)~; avertissement de
+initiaux et finaux, un triangle sans noms de ligne restant admis (issue~\#268)~; refus d'un nom
+de ligne déclaré d'encodage \code{"bytes"}, par un motif propre, un par ligne, qui ne cite pas le
+nom, ce nom étant exclu des contrôles de nom manquant et de doublon, ses caractères n'étant pas
+déterminés (issue~\#321)~; avertissement de
 crédibilité partielle sur $c(I + 1, \text{barème appliqué}) < 1$ (issue~\#131) \\
 \code{mw\_valider\_ajustement()} & \code{aj} (sortie de \code{mw\_ajuster()}),
 \code{msep} (champ \code{\$msep} de \code{mw\_msep()}) &
@@ -3858,7 +3861,10 @@ triangle de contrôle \code{tests/donnees/triangle\_mw.csv} muni des noms 2015 �
 \code{NA}, vide ou fait de seuls blancs (motif «~\code{Nom d'annee d'accident manquant ou vide en
 ligne} $k$ \code{(i=}$k-1$\code{).}~»), et un nom qui désigne deux fois la même année d'accident
 (motif «~\code{Annee d'accident en double :}~» suivi des formes saisies et des positions des
-lignes). Les noms sont d'abord ramenés en UTF-8, une chaîne dont les octets ne sont pas de
+lignes). Un nom déclaré d'encodage \code{"bytes"} reçoit son seul motif («~\code{Nom d'annee
+d'accident en ligne} $k$ \code{(i=}$k-1$\code{) declare d'encodage "bytes" :}~…~»), qui ne cite
+pas le nom, et n'entre pas dans les contrôles de nom manquant et de doublon~: ses caractères ne
+sont pas déterminés, et le lire serait deviner (issue~\#321). Les autres noms sont d'abord ramenés en UTF-8, une chaîne dont les octets ne sont pas de
 l'UTF-8 valide étant lue en Latin-1, si bien que le contrôle ne lève aucune erreur R, quelle que
 soit la locale. Sont des blancs les blancs Unicode horizontaux et verticaux (classes \code{\textbackslash h}
 et \code{\textbackslash v} des expressions régulières Perl, dont l'espace insécable) et les
