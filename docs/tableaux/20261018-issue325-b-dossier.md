@@ -4,22 +4,22 @@
 
 | Grandeur | Valeur |
 |---|---|
-| Date | 2026-10-18 00:57:38 UTC |
+| Date | 2026-10-18 04:59:53 UTC |
 | Script | `tests/mesure_b_dossier_t8.R` |
-| Commit | `74b799d139686022762a4939fbd2e2322ddf4cf6` |
-| Empreintes du code | tests/mesure_b_dossier_t8.R 60f4c210cfc5bbb7c6f4ceb574036ef1 ; tests/outils_tests.R 7127605f20e8c261d41d3c372f4f2f1b |
+| Commit | `c16ebaf06cd72df130eb08f16481dcb6d01a34b6` |
+| Empreintes du code | tests/mesure_b_dossier_t8.R 3528e4b49a038c40b003c425e24b224c ; tests/outils_tests.R 7127605f20e8c261d41d3c372f4f2f1b |
 | Moteur | `R/engine.R`, md5 `a7025ea04d2ff0821bdb61b611865363`, empreinte sans commentaires `ddc234c2b680ce6208d0e90e3adfc7fb` |
 | R | R version 4.3.3 (2024-02-29), Ubuntu 24.04.5 LTS, Linux, x86_64 ; cœurs (`parallel::detectCores()`) : 4 |
 | BLAS / LAPACK | /usr/lib/x86_64-linux-gnu/blas/libblas.so.3.12.0 / /usr/lib/x86_64-linux-gnu/lapack/liblapack.so.3.12.0 |
-| Fichier remplacé (--remplacer) | docs/tableaux/20261018-issue325-b-dossier.md, md5 d'avant dd87648aa80dc5f7e5b146e490c0fb6c |
+| Fichier remplacé (--remplacer) | docs/tableaux/20261018-issue325-b-dossier.md, md5 d'avant 5086048073d87d9fcf41f838b6205a66 |
 | Plan | six cas de `CAS` (`tests/outils_tests.R`) à B = 999 et 4 999, `reserve2` en plus à B = 9 999 ; appel du cas avec le seul argument B posé ; une exécution à la fois, dans un seul processus |
 | Graines (`res$metadata`, au B minimal ; inchangées entre les B) | premium : seed 20260831, seed_loi_nulle_sw 20260901, seed_flux_regime 20800000, permutation_pente : enumeration, générateur Mersenne-Twister/Inversion/Rejection ; reserve1 : seed 20260831, seed_loi_nulle_sw 20260901, seed_flux_regime 20800000, permutation_pente : enumeration, générateur Mersenne-Twister/Inversion/Rejection ; reserve2 : seed 20260831, seed_loi_nulle_sw 20260901, générateur Mersenne-Twister/Inversion/Rejection ; premium_ii6 : seed 20260831, seed_loi_nulle_sw 20260901, seed_flux_regime 20800000, permutation_pente : enumeration, générateur Mersenne-Twister/Inversion/Rejection ; premium_net : seed 20260831, seed_loi_nulle_sw 20260901, seed_flux_regime 20800000, permutation_pente : enumeration, générateur Mersenne-Twister/Inversion/Rejection ; premium_interieur : seed 20260831, seed_loi_nulle_sw 20260901, seed_flux_regime 20800000, permutation_pente : enumeration, générateur Mersenne-Twister/Inversion/Rejection |
 | Graines identiques entre les B d'un même cas | oui |
 | α | 0.1 |
 | Contrôle (a) : exécution à B = 999 contre sa référence (`comparer_objets()`, tolérance 1e-06) | premium : CONFORME : 23840 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00 (référence md5 e03a01e28c146eb4dd4ce90819f4b7bf) ; reserve1 : CONFORME : 23839 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00 (référence md5 b8e36cf8676ee71e2284685da22e8b1d) ; reserve2 : CONFORME : 4470 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00 (référence md5 95e5336026ba7a55081e30c96f9b2991) ; premium_ii6 : CONFORME : 23840 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00 (référence md5 a8d532fe716eceed1331b064ce7432f8) ; premium_net : CONFORME : 23840 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00 (référence md5 49a1a23999413c922a01ea7532016309) ; premium_interieur : CONFORME : 23840 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00 (référence md5 33c4e963bd3fe7b0c94290cbd3c15626) |
 | Contrôle (c) : condition de #244 recalculée (écart au seuil, T3) = mention posée par le moteur, sur toutes les lignes | conforme |
-| Charge moyenne sur 1 min (`/proc/loadavg`), min – max sur les exécutions | 6.31 – 7.05 |
-| Durée totale du script | 659.9 s |
+| Charge moyenne sur 1 min (`/proc/loadavg`), min – max sur les exécutions | 3.51 – 4.00 |
+| Durée totale du script | 637.3 s |
 
 Statut des valeurs : une seule graine par cas ; p retenue, err_mc et verdict tels que les rend `run_engine()`.
 Un verdict qui change d'un B à l'autre est un comportement observé sur cette graine : la p-value Monte-Carlo est une estimation
@@ -33,22 +33,22 @@ Imbrication des tirages (T1) : vérifiée sur `sigma_boot` seul ; le flux compl�
 
 | Cas | B | Temps écoulé (s) | Temps CPU (s) | Rapport CPU / CPU à B minimal | Charge avant → après | σ_USP | Premières valeurs de `sigma_boot` identiques à celles du B minimal | Triangles retirés (`cumuls_retires`) | Plafond atteint |
 |---|---|---|---|---|---|---|---|---|---|
-| `premium` | 999 | 12.1 | 9.7 | 1.00 | 6.31 → 6.57 | 0.1114524114 | — | — | — |
-| `reserve1` | 999 | 11.5 | 9.4 | 1.00 | 6.57 → 6.81 | 0.1073524114 | — | — | — |
-| `reserve2` | 999 | 18.2 | 17.5 | 1.00 | 6.81 → 6.85 | 0.0497764613 | — | 0 | non |
-| `premium_ii6` | 999 | 10.0 | 9.5 | 1.00 | 6.85 → 6.87 | 0.1483524114 | — | — | — |
-| `premium_net` | 999 | 10.1 | 9.7 | 1.00 | 6.87 → 6.89 | 0.1032524114 | — | — | — |
-| `premium_interieur` | 999 | 18.9 | 17.8 | 1.00 | 6.89 → 6.92 | 0.0871308679 | — | — | — |
-| `premium` | 4 999 | 49.0 | 46.5 | 4.77 | 6.92 → 7.03 | 0.1114524114 | oui | — | — |
-| `reserve1` | 4 999 | 49.6 | 47.4 | 5.06 | 7.03 → 7.05 | 0.1073524114 | oui | — | — |
-| `reserve2` | 4 999 | 88.3 | 85.9 | 4.90 | 7.05 → 7.01 | 0.0497764613 | oui | 0 | non |
-| `premium_ii6` | 4 999 | 48.4 | 46.8 | 4.91 | 7.01 → 7.00 | 0.1483524114 | oui | — | — |
-| `premium_net` | 4 999 | 49.6 | 47.3 | 4.85 | 7.00 → 7.00 | 0.1032524114 | oui | — | — |
-| `premium_interieur` | 4 999 | 89.3 | 86.9 | 4.87 | 7.00 → 7.02 | 0.0871308679 | oui | — | — |
-| `reserve2` | 9 999 | 180.6 | 175.1 | 9.99 | 7.02 → 7.00 | 0.0497764613 | oui | 0 | non |
-| Total | | 635.5 | 609.6 | | | | | | |
+| `premium` | 999 | 9.4 | 9.2 | 1.00 | 3.51 → 3.59 | 0.1114524114 | — | — | — |
+| `reserve1` | 999 | 9.2 | 9.1 | 1.00 | 3.59 → 3.65 | 0.1073524114 | — | — | — |
+| `reserve2` | 999 | 17.7 | 17.5 | 1.00 | 3.65 → 3.73 | 0.0497764613 | — | 0 | non |
+| `premium_ii6` | 999 | 9.5 | 9.5 | 1.00 | 3.73 → 3.77 | 0.1483524114 | — | — | — |
+| `premium_net` | 999 | 9.8 | 9.7 | 1.00 | 3.77 → 3.81 | 0.1032524114 | — | — | — |
+| `premium_interieur` | 999 | 17.5 | 17.4 | 1.00 | 3.81 → 3.86 | 0.0871308679 | — | — | — |
+| `premium` | 4 999 | 47.8 | 47.1 | 5.09 | 3.86 → 3.94 | 0.1114524114 | oui | — | — |
+| `reserve1` | 4 999 | 47.8 | 47.4 | 5.19 | 3.94 → 3.97 | 0.1073524114 | oui | — | — |
+| `reserve2` | 4 999 | 88.7 | 87.8 | 5.02 | 3.97 → 4.00 | 0.0497764613 | oui | 0 | non |
+| `premium_ii6` | 4 999 | 47.2 | 46.7 | 4.94 | 4.00 → 4.00 | 0.1483524114 | oui | — | — |
+| `premium_net` | 4 999 | 47.1 | 46.6 | 4.80 | 4.00 → 4.00 | 0.1032524114 | oui | — | — |
+| `premium_interieur` | 4 999 | 90.1 | 88.9 | 5.11 | 4.00 → 4.00 | 0.0871308679 | oui | — | — |
+| `reserve2` | 9 999 | 176.9 | 175.2 | 10.02 | 4.00 → 4.00 | 0.0497764613 | oui | 0 | non |
+| Total | | 618.7 | 612.0 | | | | | | |
 
-Temps CPU : grandeur de référence de la durée, mesurée sur machine chargée (charge 6.31 à 7.05 sur 4 cœurs).
+Temps CPU : grandeur de référence de la durée, mesurée sur machine chargée (charge 3.51 à 4.00 sur 4 cœurs).
 
 ### T1 bis — Décomptes par cas et par B
 
@@ -393,7 +393,7 @@ Cas dont les lignes de tests sont identiques entre elles, à B donné (`identica
 `premium`, `reserve1`, `premium_ii6` et `premium_net` partagent les mêmes données (`.ln$xt`, `.ln$yt`, `CAS` de `tests/outils_tests.R`).
 Changements de verdict distincts (même test, variante, suite de verdicts et suite de p) : 3 sur 6 lignes de T3.
 
-Écart avec la revue du 15/10 (PR #296, bloc 5), qui comptait trois lignes de `reserve2` à moins de deux err_mc d'un seuil à B = 999 : cette mesure en compte 2 à B = 999 (mention #244). La troisième, HomogF (ligne 3, p = 0.0800 ± 0.0086), est à 2.33 err_mc de 0.1 et 3.50 err_mc de 0.05 : elle ne remplit pas le critère strict |p − s| < 2 err_mc de #244 (`add()`, `R/engine.R`). La revue du 15/10 comptait cette ligne parmi les lignes à moins de deux erreurs Monte-Carlo du seuil ; le critère strict de #244 posé par le moteur l'exclut (distances ci-dessus). L'origine du compte de la revue n'est pas établie.
+Écart avec la revue du 15/10 (PR #296, bloc 5), qui comptait trois lignes de `reserve2` à moins de deux err_mc d'un seuil à B = 999 : cette mesure en compte 2 à B = 999 (mention #244). La troisième, HomogF (ligne 3, sens « ne pas rejeter », p = 0.0800 ± 0.0086), est à 2.33 err_mc de 0.1 et 3.50 err_mc de 0.05 : elle ne remplit pas le critère strict |p − s| < 2 err_mc de #244 (`add()`, `R/engine.R`). La revue du 15/10 comptait cette ligne parmi les lignes à moins de deux erreurs Monte-Carlo du seuil ; le critère strict de #244 posé par le moteur l'exclut (distances ci-dessus). L'origine du compte de la revue n'est pas établie.
 
 ### T4 — Autres changements d'état entre deux B (type, inopérant, mention #244, nature de la p)
 
