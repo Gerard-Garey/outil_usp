@@ -1444,8 +1444,9 @@ lire_brut_echec <- function(f) {
 # descriptifs. p : p de la statistique du catalogue que lit la ligne
 # (STAT_LIGNE), de la variante (V3b a delta* interieur pour V3h) ; "-" pour
 # une ligne sans statistique du catalogue (p retenue par ligne absente des
-# valeurs brutes). Bilan bloquant (refus de --ecrire) : passage non admis,
-# ligne hors des libelles de la comparaison, ou colonnes diag absentes.
+# valeurs brutes) et pour une colonne p_V1:/p_V3b: absente. Bilan bloquant
+# (refus de --ecrire) : passage non admis, ligne hors des libelles de la
+# comparaison, ou colonnes diag absentes.
 transitions_echec <- function(DN, lignes, REF) {
   lh <- setdiff(lignes, LIGNES_HORS_ECHEC)
   manq <- setdiff(lh, REF$lignes)
@@ -1455,8 +1456,11 @@ transitions_echec <- function(DN, lignes, REF) {
     x <- if (v == "V1") d[[paste0(col, "_V1")]] else ifelse(d$regime == "interieur", d[[paste0(col, "_V3b")]], d[[paste0(col, "_V1")]])
     substr(x, kk, kk)
   }
+  # colonne p absente des valeurs brutes : NA (imprime "-"), de sorte que
+  # chaque passage compte soit liste
+  colp <- function(d, nm) if (is.null(d[[nm]])) rep(NA_real_, nrow(d)) else d[[nm]]
   pv <- function(d, v, s) if (is.na(s)) rep(NA_real_, nrow(d)) else
-    if (v == "V1") d[[paste0("p_V1:", s)]] else ifelse(d$regime == "interieur", d[[paste0("p_V3b:", s)]], d[[paste0("p_V1:", s)]])
+    if (v == "V1") colp(d, paste0("p_V1:", s)) else ifelse(d$regime == "interieur", colp(d, paste0("p_V3b:", s)), colp(d, paste0("p_V1:", s)))
   fp <- function(p) ifelse(is.finite(p), sprintf("%.4g", p), "-")
   res <- list(); lst <- character(0); diag_abs <- character(0)
   for (j in intersect(names(DN), names(REF$D))) {
@@ -2706,6 +2710,12 @@ if (OPT_PREVOL) {
                                                   methode = METHODE, lr_delta = NULL, permutation_pente = perm))
       if (is.null(ut)) next
       if (!exists("LIGNES_T2")) LIGNES_T2 <- local({ l <- vapply(ut, `[[`, "", "test"); l[!hors_t2(l)] })
+      # meme controle que le chemin principal ((t2), colonnes p_retenue:),
+      # avant toute indexation de PR221
+      manq_t2 <- setdiff(paste0("p_retenue:", LIGNES_T2), colnames(PR221))
+      if (length(manq_t2))
+        stop(sprintf("(t2) au pr\u00e9-vol : %d ligne(s) du p\u00e9rim\u00e8tre de T2 absente(s) des valeurs brutes de #221 (%s) : %s",
+                     length(manq_t2), chemin_affiche(fb), paste(sub("^p_retenue:", "", manq_t2), collapse = " ; ")), call. = FALSE)
       pr <- suppressWarnings(as.numeric(PR221[b, paste0("p_retenue:", LIGNES_T2)]))
       r4 <- r4_pente(fit)
       tc <- t2_classer(pr, codes_t2(ut), r4 = r4)
@@ -3119,8 +3129,8 @@ calculer_rep <- function(b, y, ctl) {
         i1 <- if (length(setdiff(d1, expl))) "ECHEC" else "EXPL"
       } else i1 <- "OK"
       # (t2)
-      # Discordance admise : expliquee par (i1), ou classe fermee T ou M
-      # (#274, t2_classer()) ; toute autre reste bloquante.
+      # Discordance admise : expliquee par (i1), ou d'une classe de la liste
+      # fermee T, M, P, R (#274, t2_classer()) ; toute autre reste bloquante.
       pr <- suppressWarnings(as.numeric(BRUT221$pr[b, ]))
       tc <- t2_classer(pr, r$t2$V1, expl, r4_pente(r$fit))
       dl <- tc$dl

@@ -408,6 +408,16 @@ verifier("#274 transitions_echec() : colonnes diag absentes -> NON EVALUABLE, bl
            isTRUE(t1$bloquant) && startsWith(t1$bilan, "NON EVALUABLE (colonnes diag absentes : J2)") &&
              isTRUE(t2$bloquant) && identical(t2$manq, "Autre ligne") &&
              grepl("1 ligne(s) absente(s) de la comparaison", t2$bilan, fixed = TRUE) })
+verifier("#274 transitions_echec() : colonne p_V3b:<stat> absente de la comparaison -> chaque passage compte reste liste, p imprimee \"-\"",
+         { t <- E$transitions_echec(list(J2 = DNE), LE, list(lignes = LE, D = list(J2 = DR[, setdiff(names(DR), "p_V3b:BP")])))
+           tv <- t$tab[t$tab$variante == "V3h", ]
+           length(t$lst) == sum(t$tab$defaut + t$tab$autre) && length(t$lst) == 3L &&
+             identical(unname(cpt_tr("V3h")), unname(unlist(tv[, c("n", "baisse", "admis", "defaut", "autre", "hausse")]))) &&
+             any(grepl("J2 b = 3, V3h, .* : p ancienne 0.03, nouvelle 0.2, nouveau verdict O, code \\.$", t$lst)) })
+verifier("#274 transitions_echec() : colonne p_V1:<stat> absente de la presente mesure -> passage V1 liste avec p nouvelle \"-\"",
+         { t <- E$transitions_echec(list(J2 = DNE[, setdiff(names(DNE), "p_V1:BP")]), LE, REFE)
+           length(t$lst) == 3L &&
+             any(grepl("J2 b = 3, V1, .* : p ancienne 0.03, nouvelle -, nouveau verdict O, code \\.$", t$lst)) })
 
 unlink(.tmp)
 fin_fichier()
