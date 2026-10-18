@@ -1,6 +1,6 @@
 ###############################################################################
 #  tests/constats_puissance_t8.R  --  CONSTATS DE NIVEAU ET DE PUISSANCE A
-#  T = 8 (issues #114, #118, #174, #219 et #220)
+#  T = 8 (issues #114, #118, #174, #219, #220 et #335)
 #
 #  OUTIL DE MESURE HORS CI : ce script n'est ni une batterie de tests ni un
 #  generateur de references. Il n'est lance ni par la CI, ni par
@@ -165,6 +165,47 @@
 #          (asymetrie) n'est pas une puissance contre l'asymetrie mais une
 #          distorsion de niveau sous queues lourdes : les tableaux parlent de
 #          "taux de rejet".
+#      C4.c (issue #335, decisions d'actuary) : p de Royston
+#      de Shapiro-Francia, lue dans test_shapiro_francia() du moteur (aucune
+#      copie de formule). Statut : CONSTAT DE SIMULATION pour toute la
+#      sous-table.
+#        - aucun tirage supplementaire, boucle separee (mesurer_normalite()
+#          et ALPHAS_118 inchanges) : T = 8 sur la matrice de C4.a, T = 20
+#          sur celle de C4.b, T = 5 = colonnes 1 a 5 de la matrice T = 8,
+#          T = 10 = colonnes 1 a 10 de la matrice T = 20 ; echantillons
+#          emboites (taux correles entre T = 5 et 8 et entre T = 10 et 20 ;
+#          IC de deux T d'une meme matrice non comparables comme
+#          independants ; T = 8 et T = 10 de matrices distinctes) ;
+#        - niveau sous N(0,1) a T = 5, 8, 10 et 20 (T = 5, 10 et 20 pour le
+#          seul desaccord des sources sur la borne basse du domaine de
+#          validite de la transformation, 5 contre 10) ; puissance contre
+#          t5, t3, exp(1) et LN(0 ; 0,5) a T = 8 seulement ; alpha = 0,10,
+#          0,05 et 0,01 (ALPHAS_SF) ; IC de Clopper-Pearson ;
+#        - la p de Royston est une approximation a n fini dont aucun niveau
+#          exact n'est connu ; la p retenue de la ligne Shapiro-Francia du
+#          moteur est la p Monte-Carlo (mc_nom "SF"), la p de Royston n'en
+#          est que la p_asymptotique ;
+#        - portee (formulation de C7) : coincide, echantillon par
+#          echantillon, avec la ligne du moteur quand pi chapeau est
+#          constant (W' invariant par transformation affine croissante) ;
+#          n'est pas la frequence conditionnelle a l'evenement "pi chapeau
+#          constant" ; a pi chapeau variable, rien ne justifie de
+#          l'appliquer ;
+#        - mise en garde de multiplicite propre : 4 T x 3 alpha = 12 IC de
+#          niveau (les lignes de puissance n'y entrent pas) ; celle de
+#          C4.a-C4.b (4 lignes x 2 alpha) inchangee ; niveaux INFORMATIFS ;
+#        - rapprochement non bloquant avec la mesure hors depot d'actuary
+#          du 17/10/2026 (R = 200 000, T = 8 ; protocole non versionne,
+#          graine non publiee) : sa valeur dans l'IC de C4.c, oui ou non ;
+#        - controles d'integrite : transcription contre run_engine() sur J1
+#          (statistique et p_asymptotique de la ligne Shapiro-Francia =
+#          test_shapiro_francia(z) a 1e-10 ; W' des z egal a celui des
+#          log-ratios) ; invariance affine de W' et de sa p (premier
+#          echantillon de chaque loi et de chaque T) ; aucune NA ; controle
+#          BLOQUANT : a R = 20 000 et graine 20260927, lignes des tableaux
+#          C4.a et C4.b identiques au caractere pres a celles de
+#          docs/tableaux/20260930-issue118-normalite.md ("non comparable",
+#          sans effet sur le code de sortie, sinon).
 #
 #  C5. Niveau du TOST de la constante a la frontiere a = +/- Delta (issue
 #      #219 ; specification d'actuary, issue #175, commentaire 6058041254,
@@ -448,7 +489,8 @@
 #  explicite : innovations AR(1) sous --graine ; echantillons K0, K2, K3 sous
 #  --graine + 1 ; jeux simules de K1 sous --graine + 2 ; jeux y* de C3 sous
 #  --graine + 3 (J1) et --graine + 4 (J2) ; uniformes de C4 sous --graine + 5
-#  (T = 8) et --graine + 6 (T = 20) ; C5 reprend les flux de C3 (--graine + 3
+#  (T = 8) et --graine + 6 (T = 20), repris par C4.c sans flux propre
+#  (colonnes 1 a 5 et 1 a 10 pour T = 5 et 10) ; C5 reprend les flux de C3 (--graine + 3
 #  et + 4), sans flux propre ; C6 : jeux du modele ajuste sous --graine
 #  (flux de #72), G3 sous --graine + 11 a + 13, pente negative sous
 #  --graine + 14 ; C7 : echantillons i.i.d. sous --graine + 7, jeux du
@@ -509,6 +551,8 @@
 #  Duree mesuree : voir la ligne "Duree" de la sortie (C1 et C2 : 72 s et
 #  124 s le 27/09/2026 ; a R = 20 000, C3 : 44 s et C4 : 28 s le 30/09/2026,
 #  soit 44 s et 33 s d'execution pour --partie tost et --partie normalite ;
+#  C4.c : 13,6 s a R = 20 000 le 18/10/2026, --partie normalite 42 s en
+#  tout, dont C4 hors C4.c : 23 s ; Linux, R 4.3.3 ;
 #  C5 : 0,068 s par replication, par jeu et par valeur de a, plus environ
 #  50 s de controles, mesure a R = 200 le 08/10/2026, soit environ 2,3 h
 #  sur un coeur a R = 20 000 ; C6 : 0,063 s par replication et par jeu pour
@@ -1054,6 +1098,50 @@ if (OPT_PARTIE %in% c("tout", "normalite")) {
       all(vapply(MES20, function(p) all(is.finite(p)), logical(1))),
     "C4, aucune statistique ni p-value manquante (T = 8 et T = 20)"))
 
+  # --- C4.c : Shapiro-Francia, p de Royston de test_shapiro_francia() (#335)
+  # Boucle separee, sans tirage supplementaire : T = 8 sur U8, T = 20 sur
+  # U20, T = 5 = colonnes 1 a 5 de U8, T = 10 = colonnes 1 a 10 de U20.
+  # Niveau (N(0,1)) aux quatre T, puissance a T = 8 seulement. Ni
+  # mesurer_normalite() ni ALPHAS_118 ne changent (C4.a et C4.b identiques,
+  # controle bloquant plus bas).
+  ALPHAS_SF <- c(0.10, 0.05, 0.01)
+  T_SF <- list(
+    list(T = 5L,  U = U8[, 1:5, drop = FALSE],   src = "colonnes 1 \u00e0 5 de la matrice T = 8"),
+    list(T = 8L,  U = U8,                        src = "matrice T = 8 (celle de C4.a)"),
+    list(T = 10L, U = U20[, 1:10, drop = FALSE], src = "colonnes 1 \u00e0 10 de la matrice T = 20"),
+    list(T = 20L, U = U20,                       src = "matrice T = 20 (celle de C4.b)"))
+  t4c <- Sys.time()
+  # W' et p de Royston, une ligne par echantillon (colonnes stat, p).
+  mesurer_sf <- function(V) t(apply(V, 1, function(v) unlist(test_shapiro_francia(v))[c("stat", "p")]))
+  SF_NIV <- lapply(T_SF, function(tt) mesurer_sf(LOIS[[1]]$q(tt$U)))
+  SF_PUI <- lapply(LOIS[-1], function(L) mesurer_sf(L$q(U8)))
+  duree_sf <- as.numeric(difftime(Sys.time(), t4c, units = "secs"))
+
+  # Invariance affine croissante de W' et de sa p : premier echantillon de
+  # chaque loi et de chaque T.
+  inv_sf <- all(vapply(LOIS, function(L) all(vapply(T_SF, function(tt) {
+    v <- L$q(tt$U[1, ])
+    isTRUE(all.equal(unlist(test_shapiro_francia(v)), unlist(test_shapiro_francia(3 + 0.2 * v)),
+                     tolerance = 1e-8))
+  }, logical(1))), logical(1)))
+  ctrl_norm <- c(ctrl_norm, controle(inv_sf, paste(
+    "C4.c, invariance affine croissante de W' et de sa p de Royston (premier \u00e9chantillon de chaque loi,",
+    "T = 5, 8, 10 et 20)")))
+  # Transcription contre run_engine() sur J1 (res1, fit1 ci-dessus).
+  l_sf  <- ligne("Shapiro-Francia")
+  sf_z  <- test_shapiro_francia(fit1$z)
+  sf_lr <- test_shapiro_francia(log(.ln$yt / .ln$xt))
+  trans_sf <- nrow(l_sf) == 1L &&
+    isTRUE(diff(range(fit1$pi)) <= 1e-12 * max(fit1$pi)) &&
+    isTRUE(all.equal(c(l_sf$statistique, l_sf$p_asymptotique), c(sf_z$stat, sf_z$p), tolerance = 1e-10)) &&
+    isTRUE(all.equal(sf_z$stat, sf_lr$stat, tolerance = 1e-10))
+  ctrl_norm <- c(ctrl_norm, controle(trans_sf, paste(
+    "C4.c, transcription contre run_engine() sur J1 (statistique et p_asymptotique de la ligne Shapiro-Francia",
+    "= test_shapiro_francia(z) \u00e0 1e-10 ; \u03c0\u0302 constant ; W' des r\u00e9sidus z \u00e9gal \u00e0 celui des log-ratios)")))
+  ctrl_norm <- c(ctrl_norm, controle(
+    all(vapply(c(SF_NIV, SF_PUI), function(M) all(is.finite(M)), logical(1))),
+    "C4.c, aucune statistique W' ni p de Royston manquante (niveau \u00e0 T = 5, 8, 10 et 20 ; puissance \u00e0 T = 8)"))
+
   TESTS8 <- list(
     list(col = "p_nulle", libelle = "Shapiro-Wilk, p par loi nulle simul\u00e9e (sw_p_loi_nulle())"),
     list(col = "p_royston", libelle = "Shapiro-Wilk, p de Royston (shapiro.test())"),
@@ -1070,6 +1158,115 @@ if (OPT_PARTIE %in% c("tout", "normalite")) {
   }, "")
   cols_taux <- c("Rejets / R (\u03b1 = 0,10)", "Taux", "IC 95 % (C-P)",
                  "Rejets / R (\u03b1 = 0,05)", "Taux", "IC 95 % (C-P)", "p minimale")
+
+  # Controle BLOQUANT (#335) : lignes des tableaux C4.a et C4.b (en-tete
+  # compris) identiques au caractere pres a celles du fichier versionne de
+  # #118, seulement a R = 20 000 et graine 20260927 ; sinon "non comparable",
+  # sans effet sur le code de sortie.
+  REF_C4 <- file.path(RACINE, "docs", "tableaux", "20260930-issue118-normalite.md")
+  extraire_table <- function(l, titre) {
+    i <- which(startsWith(l, titre))
+    if (length(i) != 1L) return(NULL)
+    j <- i + 2L; k <- j
+    while (k <= length(l) && startsWith(l[k], "|")) k <- k + 1L
+    if (k == j) character(0) else l[j:(k - 1L)]
+  }
+  tab_c4a <- enc2utf8(c(entete_md(c("Loi", "Test", cols_taux)), lignes8))
+  tab_c4b <- enc2utf8(c(entete_md(c("Loi", cols_taux)), lignes20))
+  if (OPT_R == 20000L && OPT_GRAINE == 20260927) {
+    l_ref <- if (file.exists(REF_C4)) enc2utf8(readLines(REF_C4, encoding = "UTF-8", warn = FALSE)) else character(0)
+    ref_a <- extraire_table(l_ref, "**C4.a -- ")
+    ref_b <- extraire_table(l_ref, "**C4.b -- ")
+    ctrl_norm <- c(ctrl_norm, controle(
+      !is.null(ref_a) && !is.null(ref_b) && identical(tab_c4a, ref_a) && identical(tab_c4b, ref_b),
+      sprintf(paste("C4.c sans effet sur C4 : lignes des tableaux C4.a (%d) et C4.b (%d), en-t\u00eates compris,",
+                    "identiques au caract\u00e8re pr\u00e8s \u00e0 celles de docs/tableaux/20260930-issue118-normalite.md"),
+              length(tab_c4a), length(tab_c4b))))
+  } else {
+    ctrl_norm <- c(ctrl_norm, paste(
+      "C4.c sans effet sur C4 : comparaison des tableaux C4.a et C4.b \u00e0 docs/tableaux/20260930-issue118-normalite.md",
+      "non comparable (R \u2260 20 000 ou graine \u2260 20260927) ; sans effet sur le code de sortie"))
+  }
+
+  # Tableaux de C4.c. Niveau : une ligne par T et par alpha, ecart au nominal
+  # et position de alpha par rapport a l'IC (informatifs).
+  lignes_sf_niv <- unlist(lapply(seq_along(T_SF), function(i) vapply(ALPHAS_SF, function(al) {
+    p <- SF_NIV[[i]][, "p"]; k <- sum(p < al); n <- length(p); ci <- ic_cp(k, n)
+    pos <- if (al < ci[1]) "lib\u00e9ral, IC excluant \u03b1" else if (al > ci[2])
+      "conservateur, IC excluant \u03b1" else "IC contenant \u03b1"
+    ligne_md(T_SF[[i]]$T, T_SF[[i]]$src, num(al, 2), paste(cellules_taux(p, al), collapse = " | "),
+             sub(".", ",", sprintf("%+.2f", 100 * (k / n - al)), fixed = TRUE), pos, num_p(min(p)))
+  }, "")))
+  lignes_sf_pui <- vapply(seq_along(SF_PUI), function(j) {
+    p <- SF_PUI[[j]][, "p"]
+    ligne_md(LOIS[[j + 1L]]$libelle,
+             paste(vapply(ALPHAS_SF, function(al) paste(cellules_taux(p, al), collapse = " | "), ""), collapse = " | "),
+             num_p(min(p)))
+  }, "")
+  cols_taux_sf <- c(unlist(lapply(ALPHAS_SF, function(al)
+    c(sprintf("Rejets / R (\u03b1 = %s)", num(al, 2)), "Taux", "IC 95 % (C-P)"))), "p minimale")
+  # Rapprochement non bloquant avec la mesure d'actuary du 17/10/2026 (hors
+  # depot, R = 200 000, T = 8, protocole non versionne) : sa valeur est-elle
+  # dans l'IC de C4.c a T = 8 ?
+  ACTUARY_SF <- list(
+    list(alpha = 0.10, taux = 0.1096, ic = c(0.1083, 0.1110)),
+    list(alpha = 0.05, taux = 0.0559, ic = c(0.0549, 0.0570)),
+    list(alpha = 0.01, taux = 0.0099, ic = c(0.0095, 0.0103)))
+  i8 <- which(vapply(T_SF, function(tt) tt$T, integer(1)) == 8L)
+  lignes_sf_act <- vapply(ACTUARY_SF, function(a) {
+    p <- SF_NIV[[i8]][, "p"]; k <- sum(p < a$alpha); n <- length(p); ci <- ic_cp(k, n)
+    ligne_md(num(a$alpha, 2), sprintf("%s [%s ; %s]", num(a$taux, 4), num(a$ic[1], 4), num(a$ic[2], 4)),
+             sprintf("%s [%s ; %s]", num(k / n, 4), num(ci[1], 4), num(ci[2], 4)),
+             if (ci[1] <= a$taux && a$taux <= ci[2]) "oui" else "**non**")
+  }, "")
+  section_sf <- c(
+    "**C4.c -- Shapiro-Francia, p de Royston (test_shapiro_francia()) : niveau sous N(0,1) \u00e0 T = 5, 8, 10 et 20, puissance \u00e0 T = 8**", "",
+    paste("Statut : **constat de simulation** pour toute la sous-table C4.c (niveau, puissance, rapprochement),",
+          "\u00e9chantillons i.i.d., hors mod\u00e8le r\u00e9glementaire. W' et sa p par test_shapiro_francia() du moteur (aucune",
+          "copie de formule) ; rejet si p < \u03b1. La p de Royston est une approximation \u00e0 n fini dont aucun niveau",
+          "exact n'est connu (constantes attribu\u00e9es \u00e0 Royston (1993), Statistics in Medicine 12, 181-184, d'apr\u00e8s",
+          "des sources secondaires, article non relu). Sur la ligne Shapiro-Francia du moteur, la p retenue est la",
+          "p Monte-Carlo (bootstrap param\u00e9trique, mc_nom \"SF\") ; la p de Royston mesur\u00e9e ici n'y est que",
+          "p_asymptotique."), "",
+    paste("\u00c9chantillons : aucun tirage suppl\u00e9mentaire (T = 8 et T = 20 : matrices d'uniformes de C4.a et C4.b ;",
+          "T = 5 : colonnes 1 \u00e0 5 de la matrice T = 8 ; T = 10 : colonnes 1 \u00e0 10 de la matrice T = 20). Ces",
+          "\u00e9chantillons sont embo\u00eet\u00e9s : les taux de T = 5 et de T = 8, comme ceux de T = 10 et de T = 20, sont",
+          "corr\u00e9l\u00e9s, et les IC de deux T d'une m\u00eame matrice ne se comparent pas comme des IC ind\u00e9pendants ;",
+          "T = 8 et T = 10 viennent de matrices distinctes. T = 5, 10 et 20 ne sont mesur\u00e9s que pour le niveau,",
+          "au regard du d\u00e9saccord des sources sur la borne basse du domaine de validit\u00e9 de la transformation",
+          "(5 contre 10) ; la puissance n'est mesur\u00e9e qu'\u00e0 T = 8."), "",
+    paste("Port\u00e9e : W' est invariant par transformation affine croissante (contr\u00f4le), et, \u00e0 \u03c0\u0302 constant, les",
+          "r\u00e9sidus z du moteur sont une telle transformation des log-ratios. La mesure co\u00efncide donc, \u00e9chantillon",
+          "par \u00e9chantillon, avec la p_asymptotique de la ligne Shapiro-Francia du moteur quand \u03c0\u0302 est constant",
+          "et les log-ratios i.i.d. de la loi indiqu\u00e9e. Elle n'est pas la fr\u00e9quence conditionnelle \u00e0",
+          "l'\u00e9v\u00e9nement \"\u03c0\u0302 constant\", qui d\u00e9pend des donn\u00e9es. \u00c0 \u03c0\u0302 variable, rien ne justifie de l'appliquer."), "",
+    "Niveau sous N(0,1), **informatif** : aucun code de sortie n'en d\u00e9pend.", "",
+    entete_md(c("T", "\u00c9chantillons", "\u03b1", "Rejets / R", "Taux", "IC 95 % (C-P)",
+                "\u00c9cart au nominal (points)", "Position de \u03b1", "p minimale")),
+    lignes_sf_niv, "",
+    "Puissance \u00e0 T = 8 (matrice de C4.a) :", "",
+    entete_md(c("Loi", cols_taux_sf)), lignes_sf_pui, "",
+    local({
+      n_ic <- length(T_SF) * length(ALPHAS_SF)
+      demi <- function(R) paste(vapply(ALPHAS_SF, function(al)
+        sprintf("\u00b1%s point \u00e0 \u03b1 = %s", num(100 * stats::qnorm(0.975) * sqrt(al * (1 - al) / R), 2),
+                num(al, 2)), ""), collapse = " ; ")
+      sprintf(paste("Mise en garde propre \u00e0 C4.c : %d IC de niveau \u00e0 95 %% (%d valeurs de T \u00d7 %d valeurs de \u03b1),",
+                    "sans correction de multiplicit\u00e9 ; les lignes de puissance n'y entrent pas. Sous des niveaux exacts,",
+                    "%s IC excluant \u03b1 sont attendus en moyenne par hasard (probabilit\u00e9 d'au moins un : %s %%, calcul\u00e9e",
+                    "comme si les %d IC \u00e9taient ind\u00e9pendants, ce que les \u00e9chantillons et les \u03b1 embo\u00eet\u00e9s ne r\u00e9alisent",
+                    "pas). Le qualificatif \u00ab lib\u00e9ral \u00bb ou \u00ab conservateur \u00bb n'est un constat qu'\u00e0 R = 20 000, avec",
+                    "une demi-largeur d'IC d'environ %s ; au R de cette ex\u00e9cution (R = %d) : %s."),
+              n_ic, length(T_SF), length(ALPHAS_SF), num(0.05 * n_ic, 1), num(100 * (1 - 0.95^n_ic), 0),
+              n_ic, demi(20000), OPT_R, demi(OPT_R))
+    }), "",
+    paste("Rapprochement, **non bloquant**, avec la mesure d'actuary du 17/10/2026 (hors d\u00e9p\u00f4t, R = 200 000",
+          "\u00e9chantillons i.i.d. N(0,1) de taille 8) ; son protocole n'est pas versionn\u00e9 (graine non publi\u00e9e) :"), "",
+    entete_md(c("\u03b1", "Mesure d'actuary, taux [IC 95 %]", sprintf("C4.c, T = 8 (R = %d), taux [IC 95 %% C-P]", OPT_R),
+                "Valeur d'actuary dans l'IC de C4.c")),
+    lignes_sf_act, "",
+    sprintf("Dur\u00e9e de C4.c : %s s (W' et p de Royston ; aucun tirage).", num(duree_sf, 1)), "")
+
   section_norm <- c(
     "### C4 -- Taux de rejet de Shapiro-Wilk et de l'asym\u00e9trie de D'Agostino, \u00e9chantillons i.i.d., T = 8 (et D'Agostino \u00e0 T = 20)", "",
     paste("Statut : **constat de simulation, hors mod\u00e8le r\u00e9glementaire**, sous des alternatives choisies",
@@ -1121,6 +1318,7 @@ if (OPT_PARTIE %in% c("tout", "normalite")) {
               n_ic, n_lignes, length(ALPHAS_118), num(0.05 * n_ic, 1), num(100 * (1 - 0.95^n_ic), 0),
               demi(20000), OPT_R, demi(OPT_R))
     }), "",
+    section_sf,
     sprintf("Dur\u00e9e de C4 : %.0f s.", duree_norm), "")
   sortie <- c(sortie, section_norm)
   controles <- c(controles, ctrl_norm)
@@ -2288,7 +2486,7 @@ if (!is.na(OPT_ECRIRE) && length(FICHIERS_118)) {
       lignes <- c(
         sprintf("## Constats de niveau et de puissance \u00e0 T = 8 (issue #%s)", ISSUE_118[[nom]]), "",
         paste0(sprintf("Param\u00e8tres : R=%d ; graine=%s ; partie=%s ; T=%s", OPT_R,
-                       format(OPT_GRAINE, scientific = FALSE), nom, if (nom == "normalite") "8 et 20" else "8"),
+                       format(OPT_GRAINE, scientific = FALSE), nom, if (nom == "normalite") "5, 8, 10 et 20" else "8"),
                if (nom == "pitman") sprintf(" ; R_h0=%d", OPT_R_H0),
                if (nom == "esd") sprintf(" ; R_modele=%d", OPT_R_MODELE)), "",
         entete_md(c("Grandeur", "Valeur")),
