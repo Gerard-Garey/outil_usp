@@ -10,7 +10,7 @@ Le PDF compilé `docs/latex/doc_tests_usp.pdf` est versionné, mais **commité u
 - **mode « contrôle »** : après toute modification du `.tex` (passage de `docwriter`, commit `docs:` minimal M32, corrections de la validation d'`actuary` ou de la revue finale). On compile pour vérifier le `.tex`, puis on **restaure le PDF** : le commit porte le `.tex` seul. Le PDF à lire en cours de branche est l'artefact `doc_tests_usp` de la CI ;
 - **mode « fin de branche »** : par la session principale seule, une fois que plus aucun commit ne touchera le `.tex`, juste avant la sortie du brouillon. Le commit porte le PDF seul. Toute modification ultérieure du `.tex` (y compris une intégration de `main` qui fusionne deux versions du `.tex`) en demande un nouveau avant la fusion.
 
-Une branche qui ne touche pas le `.tex` n'a pas de commit de PDF. Une intégration de `main` ne recompile pas : en cas de conflit sur le PDF, `git checkout --ours -- docs/latex/doc_tests_usp.pdf`. Un job de CI vérifie sur toute PR non brouillon qu'aucun commit du `.tex` n'est postérieur au dernier commit du PDF.
+Une branche qui ne touche pas le `.tex` n'a pas de commit de PDF. Une intégration de `main` ne recompile pas : en cas de conflit sur le PDF, `git checkout --ours -- docs/latex/doc_tests_usp.pdf`. Un job de CI vérifie sur toute PR non brouillon que le `.tex` de la PR est identique à celui du dernier commit du PDF (`.github/workflows/pdf-invariant.yml`).
 
 ## Étapes communes
 
