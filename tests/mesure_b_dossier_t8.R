@@ -95,11 +95,12 @@
 #    (motifs_non_versionnable(commit_depot())) ; code hors du depot ; garde
 #    d'ecrasement garde_ecrasement() sans --remplacer (avec --remplacer, le
 #    T0 cite le fichier remplace et son md5 d'avant) ; --essai ; controle
-#    (a) en echec.
+#    (a) ou (c) en echec.
 #  --essai : plan reduit (B = 99 et 199, reserve2 en plus a 399), NON
 #    versionnable, sans controle (a) ; verifie le script en quelques
 #    minutes.
-#  Code de sortie : 0 si le controle (a) tient (ou --essai), 1 sinon.
+#  Code de sortie : 0 si le controle (a) tient (ou --essai) et si le
+#    controle (c) tient (--essai compris), 1 sinon.
 ###############################################################################
 
 t_debut <- Sys.time()
@@ -225,7 +226,7 @@ extraire_lignes <- function(res) {
              famille = tt$famille, test = tt$test, variante = tt$variante,
              type = tt$type, p = tt$p_retenue, nature = tt$nature_p, mc = mc,
              err = ifelse(mc, tt$erreur_MC, NA_real_),
-             verdict = tt$verdict, inoperant = tt$inoperant,
+             verdict = tt$verdict, inoperant = tt$inoperant, sens = tt$sens_du_test,
              s244 = !is.na(tt$commentaire) & endsWith(tt$commentaire, ph),
              d_seuil = vapply(ds, `[[`, 0, "d"), seuil = vapply(ds, `[[`, 0, "s"),
              c244 = vapply(ds, `[[`, TRUE, "c244"),
@@ -387,23 +388,43 @@ while (length(reste_g)) {
 N_CHG_DISTINCTS <- length(unique(vapply(CHANGE_V, `[[`, "", "sig")))
 
 # Ecart avec la revue du 15/10 (C5 d'actuary) : ligne HomogF de reserve2 au
-# B de reference (au B minimal sous --essai).
+# B de reference (au B minimal sous --essai). La revue comptait trois lignes
+# a moins de deux err_mc d'un seuil, HomogF comprise. Distances aux seuils de
+# la regle de #244 selon le sens de la ligne (comme distance_seuil() :
+# {alpha, alpha/2} en sens "ne pas rejeter", {alpha,
+# SEUIL_ECHEC_SENS_REJETER} en sens "rejeter"), sans filtre d'atteignabilite
+# (constat descriptif). Phrases conditionnees sur la mention de #244 posee
+# par le moteur (s244) : "remplit" et "la retient" si elle est posee, "ne
+# remplit pas" et "l'exclut" sinon ; "La troisieme" seulement si HomogF est
+# hors mention et que la mesure compte deux autres lignes (troisieme ligne de
+# la revue), formulation neutre sinon.
+note_c5 <- function(L, i, alpha, B, B_ref) {
+  if (length(i) != 1L) return("Ligne HomogF de `reserve2` introuvable : note de comparaison \u00e0 la revue du 15/10 non produite.")
+  n244 <- sum(L$s244); s244 <- isTRUE(L$s244[i]); p <- L$p[i]; err <- L$err[i]
+  seuils <- if (identical(L$sens[i], "rejeter")) c(alpha, OT$SEUIL_ECHEC_SENS_REJETER) else c(alpha, alpha / 2)
+  d_ok <- is.finite(p) && is.finite(err) && err > 0
+  dist <- if (d_ok)
+    sprintf("est \u00e0 %s err_mc de %s et %s err_mc de %s",
+            formatC(abs(p - seuils[1L]) / err, format = "f", digits = 2), format(seuils[1L]),
+            formatC(abs(p - seuils[2L]) / err, format = "f", digits = 2), format(seuils[2L])) else
+    "n'a pas d'err_mc finie et positive (distances non calcul\u00e9es)"
+  troisieme <- !s244 && n244 == 2L
+  sujet <- if (troisieme) "La troisi\u00e8me, HomogF" else "La ligne HomogF"
+  paste0("\u00c9cart avec la revue du 15/10 (PR #296, bloc 5), qui comptait trois lignes de `reserve2` \u00e0 moins de deux err_mc d'un seuil \u00e0 B = 999 :",
+         sprintf(" cette mesure en compte %d \u00e0 B = %s (mention #244).", n244, fb(B)),
+         sprintf(" %s (ligne %d, sens \u00ab %s \u00bb, p = %s \u00b1 %s)%s %s :", sujet, i, ech(L$sens[i]), fp(p), fp(err),
+                 if (troisieme) "," else "", dist),
+         sprintf(" elle %s le crit\u00e8re strict |p \u2212 s| < 2 err_mc de #244 (`add()`, `R/engine.R`).", if (s244) "remplit" else "ne remplit pas"),
+         " La revue du 15/10 comptait cette ligne parmi les lignes \u00e0 moins de deux erreurs Monte-Carlo du seuil ;",
+         if (s244) " le crit\u00e8re strict de #244 pos\u00e9 par le moteur la retient aussi." else
+           paste0(" le crit\u00e8re strict de #244 pos\u00e9 par le moteur l'exclut", if (d_ok) " (distances ci-dessus)." else "."),
+         if (!s244 || n244 != 3L) " L'origine du compte de la revue n'est pas \u00e9tablie." else "",
+         if (B != B_ref) sprintf(" (--essai : valeurs \u00e0 B = %s, non comparables \u00e0 la revue.)", fb(B)) else "")
+}
 B_C5 <- if (B_REF %in% B_DU_CAS("reserve2")) B_REF else min(B_DU_CAS("reserve2"))
 L_C5 <- EXEC_DE("reserve2", B_C5)$lignes
 I_C5 <- which(L_C5$test == "Homogeneite de f_j entre annees de survenance")
-NOTE_C5 <- if (length(I_C5) != 1L) "Ligne HomogF de `reserve2` introuvable : note de comparaison \u00e0 la revue du 15/10 non produite." else
-  sprintf(paste0("\u00c9cart avec la revue du 15/10 (PR #296, bloc 5), qui comptait trois lignes de `reserve2` \u00e0 moins de deux err_mc d'un seuil \u00e0 B = 999 :",
-                 " cette mesure en compte %d \u00e0 B = %s (mention #244). La troisi\u00e8me, HomogF (ligne %d, p = %s \u00b1 %s), est \u00e0 %s err_mc de %s et %s err_mc de %s :",
-                 " elle %s le crit\u00e8re strict |p \u2212 s| < 2 err_mc de #244 (`add()`, `R/engine.R`).",
-                 " La revue du 15/10 comptait cette ligne parmi les lignes \u00e0 moins de deux erreurs Monte-Carlo du seuil ;",
-                 " le crit\u00e8re strict de #244 pos\u00e9 par le moteur l'exclut (distances ci-dessus). L'origine du compte de la revue n'est pas \u00e9tablie.%s"),
-          sum(L_C5$s244), fb(B_C5), I_C5, fp(L_C5$p[I_C5]), fp(L_C5$err[I_C5]),
-          formatC(abs(L_C5$p[I_C5] - EXEC_DE("reserve2", B_C5)$alpha) / L_C5$err[I_C5], format = "f", digits = 2),
-          format(EXEC_DE("reserve2", B_C5)$alpha),
-          formatC(abs(L_C5$p[I_C5] - EXEC_DE("reserve2", B_C5)$alpha / 2) / L_C5$err[I_C5], format = "f", digits = 2),
-          format(EXEC_DE("reserve2", B_C5)$alpha / 2),
-          if (L_C5$s244[I_C5]) "remplit" else "ne remplit pas",
-          if (B_C5 != B_REF) sprintf(" (--essai : valeurs \u00e0 B = %s, non comparables \u00e0 la revue.)", fb(B_C5)) else "")
+NOTE_C5 <- note_c5(L_C5, I_C5, EXEC_DE("reserve2", B_C5)$alpha, B_C5, B_REF)
 
 # --- Sorties --------------------------------------------------------------------
 if (ECRIRE) REMPLACES <- gardes_ecrire("de l'ex\u00e9cution")
@@ -519,8 +540,7 @@ if (ECRIRE) {
   con <- file(CIBLE_MD, open = "wb"); writeLines(enc2utf8(md), con, useBytes = TRUE); close(con)
   cat(sprintf("\nEcrit : %s\n", CIBLE_MD), file = stderr())
 }
-if (!CTRL_OK) {
-  message("controle (a) en echec : une execution a B = 999 differe de sa reference")
-  quit(status = 1L)
-}
-quit(status = 0L)
+if (!CTRL_OK) message("controle (a) en echec : une execution a B = 999 differe de sa reference")
+if (!CTRL_C_OK) message("controle (c) en echec : condition de #244 recalculee differente de la mention du moteur : ",
+                        paste(ECARTS_C, collapse = " ; "))
+quit(status = if (CTRL_OK && CTRL_C_OK) 0L else 1L)
