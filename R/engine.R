@@ -2330,7 +2330,8 @@ dw_puissance_ar1 <- function(T, rho, alpha) {
   # points, chaque point garde la valeur finie disponible. Limite connue :
   # pour 1 - |rho| <= 10^-8,5 a rho < 0 (T = 8, alpha = 0,10), Imhof sur h
   # normalise rend 1 sans erreur, la simulation donnant 1 - 6,9e-5 a
-  # 1 - 1,1e-5 (#170, suivi).
+  # 1 - 1,1e-5 ; etendue complete (T = 5, 8, 12 ; alpha = 0,05 et 0,10 ;
+  # deficit jusqu'a environ 1e-4 des 1 - |rho| <= 1e-8) : issue #339.
   h_de <- function(d) eigen(S12 %*% m$M %*% (m$A - d * diag(n)) %*% m$M %*% S12,
                             symmetric = TRUE, only.values = TRUE)$values
   h_bas <- h_de(d_bas); h_haut <- h_de(d_haut)
