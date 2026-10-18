@@ -4,25 +4,26 @@
 
 | Grandeur | Valeur |
 |---|---|
-| Date | 2026-10-18 00:20:12 UTC |
+| Date | 2026-10-18 00:57:38 UTC |
 | Script | `tests/mesure_b_dossier_t8.R` |
-| Commit | `0d75c9fab481d1e68d357e6ef82f9329df5dca94` |
-| Empreintes du code | tests/mesure_b_dossier_t8.R a422c50937fcd841b4b9f67a71bde0f1 ; tests/outils_tests.R 7127605f20e8c261d41d3c372f4f2f1b |
+| Commit | `74b799d139686022762a4939fbd2e2322ddf4cf6` |
+| Empreintes du code | tests/mesure_b_dossier_t8.R 60f4c210cfc5bbb7c6f4ceb574036ef1 ; tests/outils_tests.R 7127605f20e8c261d41d3c372f4f2f1b |
 | Moteur | `R/engine.R`, md5 `a7025ea04d2ff0821bdb61b611865363`, empreinte sans commentaires `ddc234c2b680ce6208d0e90e3adfc7fb` |
 | R | R version 4.3.3 (2024-02-29), Ubuntu 24.04.5 LTS, Linux, x86_64 ; cœurs (`parallel::detectCores()`) : 4 |
 | BLAS / LAPACK | /usr/lib/x86_64-linux-gnu/blas/libblas.so.3.12.0 / /usr/lib/x86_64-linux-gnu/lapack/liblapack.so.3.12.0 |
+| Fichier remplacé (--remplacer) | docs/tableaux/20261018-issue325-b-dossier.md, md5 d'avant dd87648aa80dc5f7e5b146e490c0fb6c |
 | Plan | six cas de `CAS` (`tests/outils_tests.R`) à B = 999 et 4 999, `reserve2` en plus à B = 9 999 ; appel du cas avec le seul argument B posé ; une exécution à la fois, dans un seul processus |
 | Graines (`res$metadata`, au B minimal ; inchangées entre les B) | premium : seed 20260831, seed_loi_nulle_sw 20260901, seed_flux_regime 20800000, permutation_pente : enumeration, générateur Mersenne-Twister/Inversion/Rejection ; reserve1 : seed 20260831, seed_loi_nulle_sw 20260901, seed_flux_regime 20800000, permutation_pente : enumeration, générateur Mersenne-Twister/Inversion/Rejection ; reserve2 : seed 20260831, seed_loi_nulle_sw 20260901, générateur Mersenne-Twister/Inversion/Rejection ; premium_ii6 : seed 20260831, seed_loi_nulle_sw 20260901, seed_flux_regime 20800000, permutation_pente : enumeration, générateur Mersenne-Twister/Inversion/Rejection ; premium_net : seed 20260831, seed_loi_nulle_sw 20260901, seed_flux_regime 20800000, permutation_pente : enumeration, générateur Mersenne-Twister/Inversion/Rejection ; premium_interieur : seed 20260831, seed_loi_nulle_sw 20260901, seed_flux_regime 20800000, permutation_pente : enumeration, générateur Mersenne-Twister/Inversion/Rejection |
 | Graines identiques entre les B d'un même cas | oui |
 | α | 0.1 |
 | Contrôle (a) : exécution à B = 999 contre sa référence (`comparer_objets()`, tolérance 1e-06) | premium : CONFORME : 23840 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00 (référence md5 e03a01e28c146eb4dd4ce90819f4b7bf) ; reserve1 : CONFORME : 23839 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00 (référence md5 b8e36cf8676ee71e2284685da22e8b1d) ; reserve2 : CONFORME : 4470 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00 (référence md5 95e5336026ba7a55081e30c96f9b2991) ; premium_ii6 : CONFORME : 23840 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00 (référence md5 a8d532fe716eceed1331b064ce7432f8) ; premium_net : CONFORME : 23840 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00 (référence md5 49a1a23999413c922a01ea7532016309) ; premium_interieur : CONFORME : 23840 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00 (référence md5 33c4e963bd3fe7b0c94290cbd3c15626) |
 | Contrôle (c) : condition de #244 recalculée (écart au seuil, T3) = mention posée par le moteur, sur toutes les lignes | conforme |
-| Charge moyenne sur 1 min (`/proc/loadavg`), min – max sur les exécutions | 5.35 – 7.81 |
-| Durée totale du script | 735.1 s |
+| Charge moyenne sur 1 min (`/proc/loadavg`), min – max sur les exécutions | 6.31 – 7.05 |
+| Durée totale du script | 659.9 s |
 
 Statut des valeurs : une seule graine par cas ; p retenue, err_mc et verdict tels que les rend `run_engine()`.
 Un verdict qui change d'un B à l'autre est un comportement observé sur cette graine : la p-value Monte-Carlo est une estimation
-d'erreur Monte-Carlo err_mc (fonction de B), distincte de l'erreur d'approximation de la loi de la statistique à T = 8, que B ne réduit pas.
+entachée d'une erreur Monte-Carlo err_mc (fonction de B), distincte de l'erreur de l'approximation bootstrap (simulation sous le modèle ajusté, à T = 8), que B ne réduit pas.
 Temps écoulé et temps CPU : mesurés sous la charge restituée (colonne Charge), sans correction ; non mesurés sur machine non chargée.
 Mention #244 : le `detail` de la ligne se termine par la phrase de sensibilité du verdict (p à moins de 2 err_mc d'un seuil atteignable).
 err_mc n'est affichée que lorsque la p retenue est Monte-Carlo.
@@ -32,22 +33,22 @@ Imbrication des tirages (T1) : vérifiée sur `sigma_boot` seul ; le flux compl�
 
 | Cas | B | Temps écoulé (s) | Temps CPU (s) | Rapport CPU / CPU à B minimal | Charge avant → après | σ_USP | Premières valeurs de `sigma_boot` identiques à celles du B minimal | Triangles retirés (`cumuls_retires`) | Plafond atteint |
 |---|---|---|---|---|---|---|---|---|---|
-| `premium` | 999 | 10.3 | 9.8 | 1.00 | 6.44 → 6.37 | 0.1114524114 | — | — | — |
-| `reserve1` | 999 | 11.6 | 10.1 | 1.00 | 6.37 → 6.47 | 0.1073524114 | — | — | — |
-| `reserve2` | 999 | 21.1 | 19.3 | 1.00 | 6.47 → 6.38 | 0.0497764613 | — | 0 | non |
-| `premium_ii6` | 999 | 11.3 | 9.9 | 1.00 | 6.38 → 6.40 | 0.1483524114 | — | — | — |
-| `premium_net` | 999 | 13.0 | 10.2 | 1.00 | 6.40 → 6.54 | 0.1032524114 | — | — | — |
-| `premium_interieur` | 999 | 24.7 | 19.2 | 1.00 | 6.54 → 6.70 | 0.0871308679 | — | — | — |
-| `premium` | 4 999 | 62.9 | 49.8 | 5.07 | 6.70 → 6.89 | 0.1114524114 | oui | — | — |
-| `reserve1` | 4 999 | 53.2 | 48.2 | 4.79 | 6.89 → 6.71 | 0.1073524114 | oui | — | — |
-| `reserve2` | 4 999 | 96.6 | 89.9 | 4.65 | 6.71 → 5.94 | 0.0497764613 | oui | 0 | non |
-| `premium_ii6` | 4 999 | 53.6 | 48.1 | 4.84 | 5.94 → 6.35 | 0.1483524114 | oui | — | — |
-| `premium_net` | 4 999 | 50.2 | 48.2 | 4.73 | 6.35 → 5.90 | 0.1032524114 | oui | — | — |
-| `premium_interieur` | 4 999 | 88.4 | 87.2 | 4.54 | 5.90 → 5.35 | 0.0871308679 | oui | — | — |
-| `reserve2` | 9 999 | 213.3 | 179.9 | 9.31 | 5.35 → 7.81 | 0.0497764613 | oui | 0 | non |
-| Total | | 710.1 | 629.8 | | | | | | |
+| `premium` | 999 | 12.1 | 9.7 | 1.00 | 6.31 → 6.57 | 0.1114524114 | — | — | — |
+| `reserve1` | 999 | 11.5 | 9.4 | 1.00 | 6.57 → 6.81 | 0.1073524114 | — | — | — |
+| `reserve2` | 999 | 18.2 | 17.5 | 1.00 | 6.81 → 6.85 | 0.0497764613 | — | 0 | non |
+| `premium_ii6` | 999 | 10.0 | 9.5 | 1.00 | 6.85 → 6.87 | 0.1483524114 | — | — | — |
+| `premium_net` | 999 | 10.1 | 9.7 | 1.00 | 6.87 → 6.89 | 0.1032524114 | — | — | — |
+| `premium_interieur` | 999 | 18.9 | 17.8 | 1.00 | 6.89 → 6.92 | 0.0871308679 | — | — | — |
+| `premium` | 4 999 | 49.0 | 46.5 | 4.77 | 6.92 → 7.03 | 0.1114524114 | oui | — | — |
+| `reserve1` | 4 999 | 49.6 | 47.4 | 5.06 | 7.03 → 7.05 | 0.1073524114 | oui | — | — |
+| `reserve2` | 4 999 | 88.3 | 85.9 | 4.90 | 7.05 → 7.01 | 0.0497764613 | oui | 0 | non |
+| `premium_ii6` | 4 999 | 48.4 | 46.8 | 4.91 | 7.01 → 7.00 | 0.1483524114 | oui | — | — |
+| `premium_net` | 4 999 | 49.6 | 47.3 | 4.85 | 7.00 → 7.00 | 0.1032524114 | oui | — | — |
+| `premium_interieur` | 4 999 | 89.3 | 86.9 | 4.87 | 7.00 → 7.02 | 0.0871308679 | oui | — | — |
+| `reserve2` | 9 999 | 180.6 | 175.1 | 9.99 | 7.02 → 7.00 | 0.0497764613 | oui | 0 | non |
+| Total | | 635.5 | 609.6 | | | | | | |
 
-Temps CPU : grandeur de référence de la durée, mesurée sur machine chargée (charge 5.35 à 7.81 sur 4 cœurs).
+Temps CPU : grandeur de référence de la durée, mesurée sur machine chargée (charge 6.31 à 7.05 sur 4 cœurs).
 
 ### T1 bis — Décomptes par cas et par B
 
@@ -69,7 +70,7 @@ Temps CPU : grandeur de référence de la durée, mesurée sur machine chargée 
 
 ### T2 — Lignes de tests, par cas
 
-p : p retenue ; err_mc : erreur Monte-Carlo de la ligne ; nature de la p retenue lue au B minimal (changements en T4).
+p : p retenue ; err_mc : erreur Monte-Carlo de la ligne ; type, marque « inopérant » (champ `inoperant` de la ligne, compté en T1 bis) et nature de la p retenue lus au B minimal (changements en T4).
 
 #### Cas `premium` (graine 20260831)
 
@@ -84,7 +85,7 @@ p : p retenue ; err_mc : erreur Monte-Carlo de la ligne ; nature de la p retenue
 | 7 | B. H1 - linearite / proportionnalite (annexe XVII B(2)(g)(i)) | Independance ratio S/P vs volume | principale | test | exacte | 0.8820 | — | OK |  | 0.8820 | — | OK |  |  |
 | 8 | B. H1 - linearite / proportionnalite (annexe XVII B(2)(g)(i)) | Correlation ratio S/P vs temps | principale | test | exacte | 0.8401 | — | OK |  | 0.8401 | — | OK |  |  |
 | 9 | B. H1 - linearite / proportionnalite (annexe XVII B(2)(g)(i)) | Tendance monotone du ratio S/P | principale | test | exacte | 0.7195 | — | OK |  | 0.7195 | — | OK |  |  |
-| 10 | B. H1 - linearite / proportionnalite (annexe XVII B(2)(g)(i)) | Tendance par signes du ratio S/P | principale | diagnostic | — | — | — | INFO |  | — | — | INFO |  |  |
+| 10 | B. H1 - linearite / proportionnalite (annexe XVII B(2)(g)(i)) | Tendance par signes du ratio S/P | principale | diagnostic (**inopérant**) | — | — | — | INFO |  | — | — | INFO |  |  |
 | 11 | C. H2 - structure de variance (annexe XVII B(2)(g)(ii)) | Heteroscedasticite vs volume - Breusch-Pagan studentise (Koenker) | principale | test | Monte-Carlo (bootstrap parametrique) | 0.0180 | 0.0042 | ECHEC |  | 0.0126 | 0.0016 | ECHEC |  |  |
 | 12 | C. H2 - structure de variance (annexe XVII B(2)(g)(ii)) | Heteroscedasticite vs volume - Breusch-Pagan original (non robuste) | secondaire | test | Monte-Carlo (bootstrap parametrique) | 0.0900 | 0.0091 | ALERTE | oui | 0.0832 | 0.0039 | ALERTE |  |  |
 | 13 | C. H2 - structure de variance (annexe XVII B(2)(g)(ii)) | Heteroscedasticite (forme quadratique) | principale | test | Monte-Carlo (bootstrap parametrique) | 0.0670 | 0.0079 | ALERTE |  | 0.0610 | 0.0034 | ALERTE |  |  |
@@ -140,7 +141,7 @@ p : p retenue ; err_mc : erreur Monte-Carlo de la ligne ; nature de la p retenue
 | 7 | B. H1 - linearite / proportionnalite (annexe XVII C(2)(e)(i)) | Independance ratio S/P vs volume | principale | test | exacte | 0.8820 | — | OK |  | 0.8820 | — | OK |  |  |
 | 8 | B. H1 - linearite / proportionnalite (annexe XVII C(2)(e)(i)) | Correlation ratio S/P vs temps | principale | test | exacte | 0.8401 | — | OK |  | 0.8401 | — | OK |  |  |
 | 9 | B. H1 - linearite / proportionnalite (annexe XVII C(2)(e)(i)) | Tendance monotone du ratio S/P | principale | test | exacte | 0.7195 | — | OK |  | 0.7195 | — | OK |  |  |
-| 10 | B. H1 - linearite / proportionnalite (annexe XVII C(2)(e)(i)) | Tendance par signes du ratio S/P | principale | diagnostic | — | — | — | INFO |  | — | — | INFO |  |  |
+| 10 | B. H1 - linearite / proportionnalite (annexe XVII C(2)(e)(i)) | Tendance par signes du ratio S/P | principale | diagnostic (**inopérant**) | — | — | — | INFO |  | — | — | INFO |  |  |
 | 11 | C. H2 - structure de variance (annexe XVII C(2)(e)(ii)) | Heteroscedasticite vs volume - Breusch-Pagan studentise (Koenker) | principale | test | Monte-Carlo (bootstrap parametrique) | 0.0180 | 0.0042 | ECHEC |  | 0.0126 | 0.0016 | ECHEC |  |  |
 | 12 | C. H2 - structure de variance (annexe XVII C(2)(e)(ii)) | Heteroscedasticite vs volume - Breusch-Pagan original (non robuste) | secondaire | test | Monte-Carlo (bootstrap parametrique) | 0.0900 | 0.0091 | ALERTE | oui | 0.0832 | 0.0039 | ALERTE |  |  |
 | 13 | C. H2 - structure de variance (annexe XVII C(2)(e)(ii)) | Heteroscedasticite (forme quadratique) | principale | test | Monte-Carlo (bootstrap parametrique) | 0.0670 | 0.0079 | ALERTE |  | 0.0610 | 0.0034 | ALERTE |  |  |
@@ -221,7 +222,7 @@ p : p retenue ; err_mc : erreur Monte-Carlo de la ligne ; nature de la p retenue
 | 7 | B. H1 - linearite / proportionnalite (annexe XVII B(2)(g)(i)) | Independance ratio S/P vs volume | principale | test | exacte | 0.8820 | — | OK |  | 0.8820 | — | OK |  |  |
 | 8 | B. H1 - linearite / proportionnalite (annexe XVII B(2)(g)(i)) | Correlation ratio S/P vs temps | principale | test | exacte | 0.8401 | — | OK |  | 0.8401 | — | OK |  |  |
 | 9 | B. H1 - linearite / proportionnalite (annexe XVII B(2)(g)(i)) | Tendance monotone du ratio S/P | principale | test | exacte | 0.7195 | — | OK |  | 0.7195 | — | OK |  |  |
-| 10 | B. H1 - linearite / proportionnalite (annexe XVII B(2)(g)(i)) | Tendance par signes du ratio S/P | principale | diagnostic | — | — | — | INFO |  | — | — | INFO |  |  |
+| 10 | B. H1 - linearite / proportionnalite (annexe XVII B(2)(g)(i)) | Tendance par signes du ratio S/P | principale | diagnostic (**inopérant**) | — | — | — | INFO |  | — | — | INFO |  |  |
 | 11 | C. H2 - structure de variance (annexe XVII B(2)(g)(ii)) | Heteroscedasticite vs volume - Breusch-Pagan studentise (Koenker) | principale | test | Monte-Carlo (bootstrap parametrique) | 0.0180 | 0.0042 | ECHEC |  | 0.0126 | 0.0016 | ECHEC |  |  |
 | 12 | C. H2 - structure de variance (annexe XVII B(2)(g)(ii)) | Heteroscedasticite vs volume - Breusch-Pagan original (non robuste) | secondaire | test | Monte-Carlo (bootstrap parametrique) | 0.0900 | 0.0091 | ALERTE | oui | 0.0832 | 0.0039 | ALERTE |  |  |
 | 13 | C. H2 - structure de variance (annexe XVII B(2)(g)(ii)) | Heteroscedasticite (forme quadratique) | principale | test | Monte-Carlo (bootstrap parametrique) | 0.0670 | 0.0079 | ALERTE |  | 0.0610 | 0.0034 | ALERTE |  |  |
@@ -277,7 +278,7 @@ p : p retenue ; err_mc : erreur Monte-Carlo de la ligne ; nature de la p retenue
 | 7 | B. H1 - linearite / proportionnalite (annexe XVII B(2)(g)(i)) | Independance ratio S/P vs volume | principale | test | exacte | 0.8820 | — | OK |  | 0.8820 | — | OK |  |  |
 | 8 | B. H1 - linearite / proportionnalite (annexe XVII B(2)(g)(i)) | Correlation ratio S/P vs temps | principale | test | exacte | 0.8401 | — | OK |  | 0.8401 | — | OK |  |  |
 | 9 | B. H1 - linearite / proportionnalite (annexe XVII B(2)(g)(i)) | Tendance monotone du ratio S/P | principale | test | exacte | 0.7195 | — | OK |  | 0.7195 | — | OK |  |  |
-| 10 | B. H1 - linearite / proportionnalite (annexe XVII B(2)(g)(i)) | Tendance par signes du ratio S/P | principale | diagnostic | — | — | — | INFO |  | — | — | INFO |  |  |
+| 10 | B. H1 - linearite / proportionnalite (annexe XVII B(2)(g)(i)) | Tendance par signes du ratio S/P | principale | diagnostic (**inopérant**) | — | — | — | INFO |  | — | — | INFO |  |  |
 | 11 | C. H2 - structure de variance (annexe XVII B(2)(g)(ii)) | Heteroscedasticite vs volume - Breusch-Pagan studentise (Koenker) | principale | test | Monte-Carlo (bootstrap parametrique) | 0.0180 | 0.0042 | ECHEC |  | 0.0126 | 0.0016 | ECHEC |  |  |
 | 12 | C. H2 - structure de variance (annexe XVII B(2)(g)(ii)) | Heteroscedasticite vs volume - Breusch-Pagan original (non robuste) | secondaire | test | Monte-Carlo (bootstrap parametrique) | 0.0900 | 0.0091 | ALERTE | oui | 0.0832 | 0.0039 | ALERTE |  |  |
 | 13 | C. H2 - structure de variance (annexe XVII B(2)(g)(ii)) | Heteroscedasticite (forme quadratique) | principale | test | Monte-Carlo (bootstrap parametrique) | 0.0670 | 0.0079 | ALERTE |  | 0.0610 | 0.0034 | ALERTE |  |  |
@@ -333,7 +334,7 @@ p : p retenue ; err_mc : erreur Monte-Carlo de la ligne ; nature de la p retenue
 | 7 | B. H1 - linearite / proportionnalite (annexe XVII B(2)(g)(i)) | Independance ratio S/P vs volume | principale | test | Monte-Carlo (bootstrap parametrique, conditionnel au regime interieur de delta estime) | 0.6900 | 0.0301 | OK |  | 0.7320 | 0.0136 | OK |  |  |
 | 8 | B. H1 - linearite / proportionnalite (annexe XVII B(2)(g)(i)) | Correlation ratio S/P vs temps | principale | test | Monte-Carlo (bootstrap parametrique, conditionnel au regime interieur de delta estime) | 0.8660 | 0.0314 | OK |  | 0.8188 | 0.0139 | OK |  |  |
 | 9 | B. H1 - linearite / proportionnalite (annexe XVII B(2)(g)(i)) | Tendance monotone du ratio S/P | principale | test | Monte-Carlo (bootstrap parametrique, conditionnel au regime interieur de delta estime) | 0.8300 | 0.0312 | OK |  | 0.8068 | 0.0139 | OK |  |  |
-| 10 | B. H1 - linearite / proportionnalite (annexe XVII B(2)(g)(i)) | Tendance par signes du ratio S/P | principale | diagnostic | — | — | — | INFO |  | — | — | INFO |  |  |
+| 10 | B. H1 - linearite / proportionnalite (annexe XVII B(2)(g)(i)) | Tendance par signes du ratio S/P | principale | diagnostic (**inopérant**) | — | — | — | INFO |  | — | — | INFO |  |  |
 | 11 | C. H2 - structure de variance (annexe XVII B(2)(g)(ii)) | Heteroscedasticite vs volume - Breusch-Pagan studentise (Koenker) | principale | test | Monte-Carlo (bootstrap parametrique, conditionnel au regime interieur de delta estime) | 0.3770 | 0.0153 | OK |  | 0.3836 | 0.0069 | OK |  |  |
 | 12 | C. H2 - structure de variance (annexe XVII B(2)(g)(ii)) | Heteroscedasticite vs volume - Breusch-Pagan original (non robuste) | secondaire | test | Monte-Carlo (bootstrap parametrique, conditionnel au regime interieur de delta estime) | 0.2710 | 0.0141 | OK |  | 0.2792 | 0.0063 | OK |  |  |
 | 13 | C. H2 - structure de variance (annexe XVII B(2)(g)(ii)) | Heteroscedasticite (forme quadratique) | principale | test | Monte-Carlo (bootstrap parametrique, conditionnel au regime interieur de delta estime) | 0.4290 | 0.0157 | OK |  | 0.4072 | 0.0069 | OK |  |  |
@@ -388,7 +389,7 @@ p : p retenue ; err_mc : erreur Monte-Carlo de la ligne ; nature de la p retenue
 | `premium_interieur` | 37 | Valeur aberrante isolee (Grubbs) | principale | OK (B = 999) → ALERTE (B = 4 999) | 0.1050 ± 0.0097 → 0.0926 ± 0.0041 | 0.52 (s = 0.1) → 1.80 (s = 0.1) |
 
 Écart au seuil : |p − s| / err_mc, s seuil atteignable le plus proche de la règle de #244 (α/2 ou α en sens « ne pas rejeter » ; α ou 0,30 en sens « rejeter »).
-Cas aux lignes de tests identiques à chaque B (`identical()` sur test, variante, p, err_mc, verdict, mention #244 ; la famille, qui cite la section B ou C de l'annexe XVII, est exclue) : `premium`, `reserve1`, `premium_ii6`, `premium_net`.
+Cas dont les lignes de tests sont identiques entre elles, à B donné (`identical()` sur test, variante, p, err_mc, verdict, mention #244 ; la famille, qui cite la section B ou C de l'annexe XVII, est exclue) : `premium`, `reserve1`, `premium_ii6`, `premium_net`.
 `premium`, `reserve1`, `premium_ii6` et `premium_net` partagent les mêmes données (`.ln$xt`, `.ln$yt`, `CAS` de `tests/outils_tests.R`).
 Changements de verdict distincts (même test, variante, suite de verdicts et suite de p) : 3 sur 6 lignes de T3.
 
