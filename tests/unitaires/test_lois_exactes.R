@@ -533,9 +533,11 @@ dw_lignes <- function(Z) {
   Zc <- Z - rowMeans(Z)
   rowSums((Zc[, -1] - Zc[, -ncol(Z)])^2) / rowSums(Zc^2)
 }
-set.seed(170)
-E0 <- matrix(stats::rnorm(1e5 * 8), ncol = 8)
-E1 <- matrix(stats::rnorm(1e5 * 8), ncol = 8)
+# Tirages sous engine_sous_graine() (generateur fixe ENGINE_RNG_KIND, graine
+# 170) : le .Random.seed du reste de la batterie n'en depend pas.
+E01 <- engine_sous_graine(170, list(E0 = matrix(stats::rnorm(1e5 * 8), ncol = 8),
+                                    E1 = matrix(stats::rnorm(1e5 * 8), ncol = 8)))
+E0 <- E01$E0; E1 <- E01$E1
 q0 <- stats::quantile(dw_lignes(E0), c(0.05, 0.95), names = FALSE)
 for (r in c(-0.5, 0.5, 0.9)) {
   V <- E1
