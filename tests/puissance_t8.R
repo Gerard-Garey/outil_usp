@@ -1,6 +1,7 @@
 ###############################################################################
 #  tests/puissance_t8.R  --  PUISSANCE A T = 8 DE DOUZE LIGNES DE usp_tests()
-#  SOUS DES ALTERNATIVES CONSTRUITES SUR LE MODELE AJUSTE (issues #116, #313)
+#  SOUS DES ALTERNATIVES CONSTRUITES SUR LE MODELE AJUSTE (issues #116, #313,
+#  #274)
 #
 #  OUTIL DE MESURE HORS CI : ce script n'est ni une batterie de tests ni un
 #  generateur de references. Il n'est lance ni par la CI, ni par
@@ -25,10 +26,11 @@
 #  DW (Durbin-Watson sur z_t), DWr (Durbin-Watson sur ratios bruts ; volet B
 #  seulement), MK (Mann-Kendall sur r_t), Smirnov (deux echantillons, partition
 #  x_t > med(x)). Rejet : p-value < alpha (verdict ALERTE ou ECHEC).
-#  Lignes ajoutees par #313 (volet A seulement ; issue R-17 de la revue de
-#  pertinence du 15/10/2026) : supF, CUSUM, Grubbs (sup-F, OLS-CUSUM, Grubbs
-#  sur z_t) et supFr, CUSUMr, Grubbsr (memes statistiques sur ratios bruts
-#  centres u_t), famille F de usp_tests().
+#  Lignes ajoutees par #313 (volet A ; issue R-17 de la revue de pertinence
+#  du 15/10/2026) : supF, CUSUM, Grubbs (sup-F, OLS-CUSUM, Grubbs sur z_t)
+#  et supFr, CUSUMr, Grubbsr (memes statistiques sur ratios bruts centres
+#  u_t), famille F de usp_tests(). Depuis #274, le volet B couvre aussi ces
+#  six lignes (douze lignes, LIG_B), aux cinq points du volet B.
 #
 #  Alternatives : le modele ajuste FIT0 au jeu (usp_ajuster()) est garde
 #  (beta chapeau, pi chapeau_t, x_t) ; seul epsilon est remplace. Avec
@@ -111,16 +113,20 @@
 #    exact conditionnel a la loi S0, sans alea nouveau ; hors reajustement.
 #
 #  VOLET B (controle, jeux J1 et J2, 5 points N, A(0,5), A(0,9), T(2),
-#  R(t0 = 4, Delta = 2), R = --R-chaine, B = --B, alpha = 0,10) : p retenue
+#  R(t0 = 4, Delta = 2), R = --R-chaine, B = --B, alpha = 0,10 ; douze
+#  lignes depuis #274 : les six de #116 et les six de stabilite de #313 ;
+#  remesure sous le moteur courant, V3h et p_min_mc, issue #274) : p retenue
 #  par la chaine reduite, pour chaque replication b :
 #    1. usp_ajuster(x, y*) (reajustement complet ; en erreur : replication
 #       ecartee, motif compte) ;
-#    2. boucle bootstrap de usp_bootstrap() reduite aux six statistiques
-#       (boucle_reduite(), catalogue en argument : reutilisable avec le
-#       catalogue complet), sous engine_sous_graine(--graine-ic + 1000 b) :
-#       usp_simuler() puis usp_ajuster_rapide() depuis l'optimum, replication
-#       interne ecartee si le reajustement ou l'une des SIX statistiques
-#       echoue. Ecart connu a usp_bootstrap(), qui ecarte aussi une
+#    2. boucle bootstrap de usp_bootstrap() reduite aux douze statistiques
+#       de LIG_B (six avant #274 ; boucle_reduite(), catalogue en argument :
+#       reutilisable avec le catalogue complet), sous
+#       engine_sous_graine(--graine-ic + 1000 b) : usp_simuler() puis
+#       usp_ajuster_rapide() depuis l'optimum, replication interne ecartee si
+#       le reajustement ou l'une des DOUZE statistiques echoue (les mesures
+#       de cout et d'ecart qui suivent, du 30/09 et du 13/10/2026, portent
+#       sur les six statistiques d'avant #274). Ecart connu a usp_bootstrap(), qui ecarte aussi une
 #       replication interne dont une AUTRE statistique du catalogue complet
 #       echoue : non compte dans les replications (cout : catalogue complet
 #       14,8 ms contre 0,97 ms pour les six, mesure du 30/09/2026, soit ~ +15 s
@@ -174,6 +180,17 @@
 #       conteneur Linux, R 4.3.3).
 #    Ventilation : ALERTE et ECHEC, et regime du reajustement (delta chapeau*
 #    au bord 1 : pi constant ; au bord 0 ; interieur).
+#    Depuis #274 (restitution, sans changement de la chaine) : un test
+#    inoperant (champ inoperant de la ligne, regle R1, #129 ; plancher p_min
+#    ou p_min_mc, #125) est compte a part, et non plus parmi les p
+#    manquantes ; nature de la p retenue ventilee exacte / Monte-Carlo V1 /
+#    Monte-Carlo V3b (NATURE_MC_REGIME_INTERIEUR) ; variante par regime et
+#    arret du flux V3b (cible ou plafond) comptes ; tableaux B5 (chaine des
+#    verdicts a delta chapeau* interieur : OK, ALERTE, ECHEC, INFO
+#    inoperant, sans p retenue) et B6 (part des tests inoperants par point
+#    et ligne, IC de Clopper-Pearson, par regime) ; colonne de B1 : taux de
+#    rejet avec les inoperants comptes non-rejets (taux des verdicts ALERTE
+#    ou ECHEC restitues).
 #
 #  Criteres BLOQUANTS (code de sortie 1 si l'un echoue) :
 #    1. niveau du volet A : l'IC de Clopper-Pearson BILATERAL A 99,9 % du taux
@@ -188,7 +205,7 @@
 #       >= 0,05), hors critere 1 ; assertion d'integrite : taux exactement 0 ;
 #    2. identite Runs / Runsr au volet A, replication par replication ;
 #    3. transcription contre run_engine() sur J1 et J2 observes (B = --B,
-#       graine --graine-ic) : les six lignes de engine_table_tests() de la
+#       graine --graine-ic) : les douze lignes de engine_table_tests() de la
 #       chaine sont identiques a celles de run_engine() (identical(), sauf la
 #       p exacte de DW : all.equal() a 1e-10), sigma_boot et z_boot
 #       identiques ; volet A : p exactes sur l, u, r de J1 observe egales aux
@@ -202,7 +219,10 @@
 #       petit)" et non "verifie" ;
 #    5. aucune p manquante hors motif compte (une ligne de type test sans p
 #       retenue ni motif Monte-Carlo fait echouer) ; une replication ecartee
-#       ne compte ni comme rejet ni comme non-rejet ;
+#       ne compte ni comme rejet ni comme non-rejet ; comptes coherents
+#       (#274) : par point, ligne et regime, OK + ALERTE + ECHEC + INFO
+#       inoperant + sans p retenue = replications non ecartees, et aucun
+#       verdict INFO avec une p retenue ;
 #    6. depot intact : aucune modification de R/ ni de tests/reference/ par
 #       rapport a HEAD (git status) et empreintes md5 identiques au debut et a
 #       la fin de l'execution.
@@ -250,7 +270,8 @@
 #      Rscript tests/puissance_t8.R --combiner f1 f2 ... [--ecrire [--remplacer] | --sortie DOSSIER]
 #  --ecrire : ecrit docs/tableaux/<AAAAMMJJ>-issue116-exact-J1.md et
 #  <AAAAMMJJ>-issue313-stabilite-J1.md (volet A ; lignes de stabilite, #313),
-#  -issue116-chaine-J1.md et -chaine-J2.md (volet B), date du jour de l'execution, a
+#  -issue116-chaine-J1.md et -chaine-J2.md (volet B ; nom garde depuis #274,
+#  la date distingue la remesure), date du jour de l'execution, a
 #  faire sur un arbre propre : --ecrire est REFUSE (code 1, rien d'ecrit) si
 #  le commit (celui des tranches pour --combiner, et celui de la
 #  combinaison elle-meme) porte "(arbre de travail modifie)", "(script non
@@ -326,6 +347,13 @@
 #  29 s (J2). La duree d'une execution complete depend donc de la part de
 #  replications a delta chapeau* interieur, et de la rarete du regime
 #  interieur sous leur ajustement (nombre de tirages du flux).
+#  Depuis #274 (douze statistiques ; mesure du 18/10/2026, meme conteneur,
+#  R 4.3.3, machine chargee : trois coeurs sur quatre pris par d'autres
+#  mesures, --volet B --B 999) : J1 2,60 s par replication et par point
+#  (--R-chaine 4), J2 3,76 s (--R-chaine 6, 5 replications sur 30 a delta
+#  chapeau* interieur) ; controles 17 s (J1) et 27 s (J2). Execution
+#  complete (--R-chaine 500) : de l'ordre de 1,8 h (J1) et 2,6 h (J2) en
+#  sequentiel sur un coeur.
 #  Critere de recette (decision d'actuary du 30/09/2026) : --R 200
 #  --R-chaine 2 rend le code 0 en moins de trois minutes, controles compris
 #  (mesure : voir le compte rendu de #116 ; 106 a 114 s avant la reprise ;
@@ -478,7 +506,10 @@ JEUX_B <- if (OPT_JEU == "tous") c("J1", "J2") else OPT_JEU
 SUFFIXES_EXECUTION <- c(if (OPT_VOLET %in% c("tout", "A")) c("exact-J1", "stabilite-J1"),
                         if (OPT_VOLET %in% c("tout", "B")) paste0("chaine-", JEUX_B))
 dossier_sortie <- function() if (OPT_ECRIRE) file.path(RACINE, "docs", "tableaux") else OPT_SORTIE
-# Issue du nom : #313 pour le tableau des lignes de stabilite, #116 sinon.
+# Issue du nom : #313 pour le tableau des lignes de stabilite, #116 sinon
+# (volet B compris depuis #274 : le nom -issue116-chaine-J*.md est garde,
+# controle par tests/unitaires/test_garde_ecrasement.R ; la date distingue
+# la remesure de #274 des tableaux du 30/09/2026, gardes tels quels).
 issue_sortie <- function(suffixes) ifelse(startsWith(suffixes, "stabilite"), "issue313", "issue116")
 chemins_sortie <- function(suffixes) file.path(dossier_sortie(), sprintf("%s-%s-%s.md", DATE_SORTIE,
                                                                          issue_sortie(suffixes), suffixes))
@@ -592,6 +623,17 @@ STAB <- c("supF", "CUSUM", "Grubbs", "supFr", "CUSUMr", "Grubbsr")
 CAT_STAB <- USP_CATALOGUE_MC[STAB]
 LIB_STAB <- c(supF = "sup-F (z)", CUSUM = "OLS-CUSUM (z)", Grubbs = "Grubbs (z)",
               supFr = "sup-F (ratios bruts)", CUSUMr = "OLS-CUSUM (ratios bruts)", Grubbsr = "Grubbs (ratios bruts)")
+# Lignes du volet B (#274) : les six lignes de #116 et les six lignes de
+# stabilite de #313, chaine reduite du moteur courant (V3h, p_min_mc).
+LIG_B <- c(SIX, STAB)
+LIGNES <- c(LIGNES,
+  supF    = "Rupture de niveau (sup-F)",
+  CUSUM   = "Stabilite cumulee (OLS-CUSUM)",
+  Grubbs  = "Valeur aberrante isolee (Grubbs)",
+  supFr   = "Rupture de niveau (sup-F) sur ratios bruts",
+  CUSUMr  = "Stabilite cumulee (OLS-CUSUM) sur ratios bruts",
+  Grubbsr = "Valeur aberrante isolee (Grubbs) sur ratios bruts")
+LIB_COURT <- c(LIB_COURT, LIB_STAB)
 REGIMES <- c(bord1 = "\u03b4\u0302* = 1 (\u03c0\u0302* constant)", bord0 = "\u03b4\u0302* = 0",
              interieur = "\u03b4\u0302* int\u00e9rieur")
 
@@ -664,7 +706,9 @@ code_regime <- function(fit) if (fit$delta >= 1 - TOL_DELTA_BORD) "bord1" else
 engine_observe <- function(jeu) run_engine(xt = jeu$x, yt = jeu$y, methode = METHODE, segment = SEGMENT,
                                            annexe = ANNEXE, nature_donnees = NATURE, B = OPT_B,
                                            alpha = ALPHA, theta_equiv = THETA_EQUIV, seed = OPT_GRAINE_IC)
-lignes_six <- function(tab) {
+# Lignes de LIGNES (douze : six de #116, six de stabilite de #313) dans une
+# table de engine_table_tests().
+lignes_tests <- function(tab) {
   i <- match(LIGNES, tab$test)
   if (anyNA(i) || any(vapply(LIGNES, function(l) sum(tab$test == l), numeric(1)) != 1))
     stop("lignes de usp_tests() introuvables ou multiples : script a mettre a jour (LIGNES)")
@@ -751,10 +795,10 @@ boucle_reduite <- function(fit, graine, B, catalogue) {
 }
 
 # Chaine reduite d'une replication : reajustement, boucle reduite, p_mc des
-# six statistiques (variante V3h de usp_bootstrap() : V3b a delta estime
-# interieur et volumes non constants, flux complementaire limite aux six
-# statistiques ; V1 sinon ; rejeu_p_mc_v3h() de tests/outils_tests.R, #262),
-# usp_tests(). Rend NULL + motif si le reajustement echoue. Limite du flux
+# douze statistiques de LIG_B (six de #116, six de stabilite de #313 depuis
+# #274 ; variante V3h de usp_bootstrap() : V3b a delta estime interieur et
+# volumes non constants, flux complementaire limite aux douze statistiques ;
+# V1 sinon ; rejeu_p_mc_v3h() de tests/outils_tests.R, #262), usp_tests(). Rend NULL + motif si le reajustement echoue. Limite du flux
 # (tirage dont une autre statistique du catalogue complet echoue, retenu ici
 # et ecarte par usp_bootstrap()), cout et mesure : en-tete, volet B, point 3.
 chaine <- function(x, y, graine, B) {
@@ -763,24 +807,28 @@ chaine <- function(x, y, graine, B) {
   e_obs <- .usp_contexte_mc(fb$x, fb$y, fb$z, fb$pi)
   so <- tryCatch(.mc_evaluer(USP_CATALOGUE_MC, e_obs), error = function(e) e)
   if (inherits(so, "error")) return(list(ecart = "statistiques observ\u00e9es en erreur"))
-  bt <- boucle_reduite(fb, graine, B, USP_CATALOGUE_MC[SIX])
-  mc <- rejeu_p_mc_v3h(fb, bt$sim, bt$retenu, bt$delta, so[SIX], e_obs, B, graine,
-                       evaluer = function(yb, f) .mc_evaluer(USP_CATALOGUE_MC[SIX],
+  bt <- boucle_reduite(fb, graine, B, USP_CATALOGUE_MC[LIG_B])
+  mc <- rejeu_p_mc_v3h(fb, bt$sim, bt$retenu, bt$delta, so[LIG_B], e_obs, B, graine,
+                       evaluer = function(yb, f) .mc_evaluer(USP_CATALOGUE_MC[LIG_B],
                                                              .usp_contexte_mc(fb$x, yb, f$z, f$pi)))
   p_mc <- err_mc <- p_min_mc <- so * NA_real_
-  # Statistiques hors des six, non simulees par la boucle reduite : motif
+  # Statistiques hors des douze, non simulees par la boucle reduite : motif
   # MOTIF_MC_AUCUNE_REPLIC explicite, add() refusant une p Monte-Carlo
   # absente sans motif (#181) ; leurs lignes ne sont pas lues.
   motif <- stats::setNames(rep(MOTIF_MC_AUCUNE_REPLIC, length(so)), names(so))
-  p_mc[SIX] <- mc$p_mc; err_mc[SIX] <- mc$err_mc; motif[SIX] <- mc$motif_mc
+  p_mc[LIG_B] <- mc$p_mc; err_mc[LIG_B] <- mc$err_mc; motif[LIG_B] <- mc$motif_mc
   # Plancher Monte-Carlo (#125) : sans lui, add() appliquerait la branche de
   # la regle R1 qui lit p_min (#262, complement de la revue finale d'E2b).
-  p_min_mc[SIX] <- mc$p_min_mc
+  p_min_mc[LIG_B] <- mc$p_min_mc
   boot <- list(stats_obs = as.list(so), p_mc = p_mc, err_mc = err_mc, motif_mc = motif,
                p_min_mc = p_min_mc, p_mc_regime = mc$p_mc_regime)
   tt <- usp_tests(fb, boot, ALPHA, theta_equiv = THETA_EQUIV, methode = METHODE)
-  list(fit = fb, tests = tt, lignes = lignes_six(engine_table_tests(list(tests = tt))),
-       motif_mc = mc$motif_mc, boucle = bt, regime = code_regime(fb))
+  list(fit = fb, tests = tt, lignes = lignes_tests(engine_table_tests(list(tests = tt))),
+       motif_mc = mc$motif_mc, boucle = bt, regime = code_regime(fb),
+       # variante de la p Monte-Carlo (V1 ou V3b, #240) et arret du flux V3b
+       # ("cible" ou "B_max"), comptes par compter_chaine() (#274)
+       variante = mc$p_mc_regime$variante,
+       arret = if (is.null(mc$p_mc_regime$arret)) NA_character_ else mc$p_mc_regime$arret)
 }
 
 # Comptes d'une replication (cles "|" ; aucun tabulateur).
@@ -790,17 +838,31 @@ compter_chaine <- function(cpt, pt, ch) {
   ajoute(paste0("n|", pt))
   if (!is.null(ch$ecart)) { ajoute(paste0("ecart|", pt, "|", nettoyer_cle(ch$ecart))); return(cpt) }
   ajoute(paste0("reg|", pt, "|", ch$regime))
+  # Variante de la p Monte-Carlo par regime (#274) : V3b attendue a delta
+  # chapeau* interieur (volumes non constants), V1 sinon ; arret du flux V3b.
+  ajoute(sprintf("var|%s|%s|%s", pt, ch$regime, nettoyer_cle(ch$variante)))
+  if (!is.na(ch$arret)) ajoute(sprintf("arret|%s|%s", pt, nettoyer_cle(ch$arret)))
   ajoute(paste0("bperdu|", pt), sum(!is.finite(ch$boucle$z_boot[, 1])))
-  for (k in SIX) {
+  for (k in LIG_B) {
     l <- ch$lignes[[k]]
     # Motif Monte-Carlo compte des qu'il existe, p retenue ou non (B3).
     if (!is.na(ch$motif_mc[[k]])) ajoute(sprintf("mmc|%s|%s|%s", pt, k, nettoyer_cle(ch$motif_mc[[k]])))
-    if (is.finite(l$p_retenue)) {
+    if (isTRUE(l$inoperant)) {
+      # Test inoperant (regle R1, champ inoperant, #129 ; #274) : diagnostic
+      # INFO, sans p retenue ; plancher lu par R1 : p_min_mc (branche
+      # Monte-Carlo, #125, champ p_min_mc fini) ou p_min (loi de reference).
+      ajoute(sprintf("inop|%s|%s|%s", pt, k, ch$regime))
+      ajoute(sprintf("inopbase|%s|%s|%s", pt, k, if (is.finite(l$p_min_mc)) "p_min_mc" else "p_min"))
+    } else if (is.finite(l$p_retenue)) {
       ajoute(sprintf("v|%s|%s|%s|%s", pt, k, ch$regime, l$verdict))
+      # Nature de la p retenue : exacte, Monte-Carlo V1, Monte-Carlo
+      # conditionnelle au regime interieur (V3b, NATURE_MC_REGIME_INTERIEUR), autre.
       nat <- if (identical(l$nature_p, "exacte")) "exacte"
+             else if (identical(l$nature_p, NATURE_MC_REGIME_INTERIEUR)) "mcv3b"
              else if (startsWith(l$nature_p, "Monte-Carlo")) "mc" else "autre"
       ajoute(sprintf("nat|%s|%s|%s", pt, k, nat))
     } else {
+      ajoute(sprintf("nareg|%s|%s|%s", pt, k, ch$regime))
       m <- ch$motif_mc[[k]]
       motif <- if (!identical(l$type, "test"))
         sprintf("ligne %s : %s", l$type, substr(sub("[.;:].*$", "", l$commentaire), 1, 80))
@@ -813,23 +875,35 @@ compter_chaine <- function(cpt, pt, ch) {
 }
 
 # Tableaux du volet B a partir des comptes ; rend aussi les echecs des
-# criteres 4 et 5 (evalues seulement si `complet`).
+# criteres 4 et 5 (evalues seulement si `complet`). Depuis #274 : douze
+# lignes (LIG_B), tests inoperants (regle R1) comptes a part, nature de la p
+# retenue ventilee V1 / V3b, chaine des verdicts a delta chapeau* interieur
+# (B5) et part des tests inoperants (B6).
 tableaux_chaine <- function(cpt, R, B, complet) {
   g <- function(n) if (n %in% names(cpt)) cpt[[n]] else 0
   kv <- function(pt, k, reg = names(REGIMES), v) sum(vapply(reg, function(r)
     sum(vapply(v, function(vv) g(sprintf("v|%s|%s|%s|%s", pt, k, r, vv)), numeric(1))), numeric(1)))
+  # tests inoperants et p manquantes, par regime
+  ki <- function(pt, k, reg = names(REGIMES)) sum(vapply(reg, function(r) g(sprintf("inop|%s|%s|%s", pt, k, r)), numeric(1)))
+  km <- function(pt, k, reg = names(REGIMES)) sum(vapply(reg, function(r) g(sprintf("nareg|%s|%s|%s", pt, k, r)), numeric(1)))
+  # replications non ecartees du point, par regime
+  nreg <- function(pt, reg = names(REGIMES)) sum(vapply(reg, function(r) g(sprintf("reg|%s|%s", pt, r)), numeric(1)))
+  NAT <- c("exacte", "mc", "mcv3b", "autre")
+  txt_nat <- function(pt, k) paste(vapply(NAT, function(nt) sprintf("%.0f", g(sprintf("nat|%s|%s|%s", pt, k, nt))), ""),
+                                   collapse = " / ")
   L <- c("### B1 -- taux de rejet de la p retenue (p < \u03b1 = 0,10 : verdict ALERTE ou ECHEC)", "",
          entete_md(c("Point", "Ligne", "n", "Rejets", "Taux", "IC 95 % (C-P)", "dont ALERTE", "dont ECHEC",
-                     "p exacte / Monte-Carlo / autre", "p manquantes (motif en B3)")))
+                     "p exacte / MC V1 / MC V3b / autre", "Inop\u00e9rants (R1, INFO)",
+                     "Taux, inop\u00e9rants compt\u00e9s non-rejets", "IC 95 % (C-P)", "p manquantes (motif en B3)")))
   echecs4 <- inop4 <- ok4 <- character(0)
   crit4 <- character(0)
-  for (pt in names(POINTS_B)) for (k in SIX) {
+  for (pt in names(POINTS_B)) for (k in LIG_B) {
     n <- kv(pt, k, v = c("OK", "ALERTE", "ECHEC")); ka <- kv(pt, k, v = "ALERTE"); ke <- kv(pt, k, v = "ECHEC")
     ci <- ic_cp(ka + ke, n)
     na_k <- sum(cpt[grepl(sprintf("^(na|sansmotif)\\|%s\\|%s(\\||$)", gsub("([.+])", "\\\\\\1", pt), k), names(cpt))])
+    ni <- ki(pt, k)
     L <- c(L, ligne_md(POINTS_B[[pt]]$lib, LIB_COURT[[k]], n, ka + ke, taux(ka + ke, n), txt_ic(ci), ka, ke,
-                       paste(vapply(c("exacte", "mc", "autre"), function(nt) sprintf("%.0f", g(sprintf("nat|%s|%s|%s", pt, k, nt))), ""),
-                             collapse = " / "), na_k))
+                       txt_nat(pt, k), ni, taux(ka + ke, n + ni), txt_ic(ic_cp(ka + ke, n + ni)), na_k))
     if (complet && pt == "N") {
       # Critere 4 : borne inferieure unilaterale a 99,9 % ; inoperant si
       # meme n rejets sur n ne la porteraient pas au-dessus de alpha.
@@ -843,20 +917,32 @@ tableaux_chaine <- function(cpt, R, B, complet) {
     }
   }
   L <- c(L, "", sprintf(paste("n : r\u00e9plications (sur %d par point) o\u00f9 la ligne a une p retenue ; une r\u00e9plication",
-                              "\u00e9cart\u00e9e ou une p manquante ne compte ni comme rejet ni comme non-rejet.",
+                              "\u00e9cart\u00e9e, un test inop\u00e9rant ou une p manquante ne compte ni comme rejet ni comme",
+                              "non-rejet dans le taux. Colonne \u00ab inop\u00e9rants compt\u00e9s non-rejets \u00bb : taux sur n +",
+                              "inop\u00e9rants (un test inop\u00e9rant, restitu\u00e9 en diagnostic INFO par la r\u00e8gle R1, ne peut pas",
+                              "rejeter), soit le taux de verdicts ALERTE ou ECHEC restitu\u00e9s par le moteur.",
                               "IC : incertitude Monte-Carlo sur le taux (fonction de R), pas l'erreur",
                               "d'approximation en T. La p retenue est exacte \u00e0 \u03c0\u0302* constant (r\u00e8gle R7 ;",
-                              "jamais pour les ratios bruts de Durbin-Watson), Monte-Carlo \u00e0 B = %d sinon."), R, B), "",
+                              "jamais pour les ratios bruts de Durbin-Watson ni pour les six lignes de stabilit\u00e9),",
+                              "Monte-Carlo \u00e0 B = %d sinon : V1 (toutes les r\u00e9plications du bootstrap) \u00e0 \u03b4\u0302* au bord,",
+                              "V3b (conditionnelle au r\u00e9gime int\u00e9rieur, #240) \u00e0 \u03b4\u0302* int\u00e9rieur et volumes non",
+                              "constants (variante V3h du moteur)."), R, B), "",
          "### B2 -- ventilation par r\u00e9gime du r\u00e9ajustement (taux de rejet, rejets / n)", "",
-         entete_md(c("Point", "R\u00e9gime", "R\u00e9plications", LIB_COURT[SIX])))
+         entete_md(c("Point", "R\u00e9gime", "R\u00e9plications", "Variante V1 / V3b", LIB_COURT[LIG_B])))
   for (pt in names(POINTS_B)) for (r in names(REGIMES)) {
     nr <- g(sprintf("reg|%s|%s", pt, r))
-    cel <- vapply(SIX, function(k) {
+    cel <- vapply(LIG_B, function(k) {
       n <- kv(pt, k, r, c("OK", "ALERTE", "ECHEC")); kk <- kv(pt, k, r, c("ALERTE", "ECHEC"))
       if (n > 0) sprintf("%s (%.0f / %.0f)", num(kk / n), kk, n) else "\u2014"
     }, "")
-    L <- c(L, ligne_md(POINTS_B[[pt]]$lib, REGIMES[[r]], nr, paste(cel, collapse = " | ")))
+    L <- c(L, ligne_md(POINTS_B[[pt]]$lib, REGIMES[[r]], nr,
+                       sprintf("%.0f / %.0f", g(sprintf("var|%s|%s|V1", pt, r)), g(sprintf("var|%s|%s|V3b", pt, r))),
+                       paste(cel, collapse = " | ")))
   }
+  arr <- vapply(names(POINTS_B), function(pt) sprintf("%s : %.0f / %.0f", POINTS_B[[pt]]$lib,
+                                                       g(sprintf("arret|%s|cible", pt)), g(sprintf("arret|%s|B_max", pt))), "")
+  L <- c(L, "", paste0("Arr\u00eat du flux V3b (cible B atteinte / plafond FACTEUR_B_MAX_REGIME (B + 1) atteint), par point : ",
+                       paste(arr, collapse = " ; "), "."), "")
   L <- c(L, "", "### B3 -- r\u00e9plications \u00e9cart\u00e9es et p manquantes (motifs compt\u00e9s)", "")
   cles_m <- grep("^(ecart|na|sansmotif)\\|", names(cpt), value = TRUE)
   if (!length(cles_m)) L <- c(L, "Aucune r\u00e9plication \u00e9cart\u00e9e, aucune p manquante.")
@@ -881,25 +967,64 @@ tableaux_chaine <- function(cpt, R, B, complet) {
     }
   }
   bp <- sum(cpt[grep("^bperdu\\|", names(cpt))])
-  L <- c(L, "", sprintf(paste("R\u00e9plications internes du bootstrap \u00e9cart\u00e9es (r\u00e9ajustement ou l'une des six",
+  L <- c(L, "", sprintf(paste("R\u00e9plications internes du bootstrap \u00e9cart\u00e9es (r\u00e9ajustement ou l'une des douze",
                               "statistiques en erreur), tous points confondus : %.0f. \u00c9cart connu \u00e0 usp_bootstrap(),",
                               "non compt\u00e9 : une r\u00e9plication interne o\u00f9 une autre statistique du catalogue complet",
                               "\u00e9chouerait est gard\u00e9e ici et \u00e9cart\u00e9e par usp_bootstrap() (identit\u00e9 contr\u00f4l\u00e9e sur",
                               "les jeux observ\u00e9s seulement)."), bp), "")
+  # B5 (#274) : chaine des verdicts a delta chapeau* interieur, ou le moteur
+  # retient la p conditionnelle au regime (V3b) ; repartition des verdicts
+  # restitues (OK, ALERTE, ECHEC, INFO inoperant, sans p retenue).
+  L <- c(L, "### B5 -- cha\u00eene des verdicts \u00e0 \u03b4\u0302* int\u00e9rieur (p conditionnelle au r\u00e9gime, V3b ; #274)", "",
+         entete_md(c("Point", "Ligne", "R\u00e9plications \u00e0 \u03b4\u0302* int\u00e9rieur", "OK", "ALERTE", "ECHEC",
+                     "INFO (inop\u00e9rant, R1)", "Sans p retenue", "Taux de rejet (p retenue)", "IC 95 % (C-P)",
+                     "p exacte / MC V1 / MC V3b / autre (tous r\u00e9gimes)")))
+  for (pt in names(POINTS_B)) for (k in LIG_B) {
+    r <- "interieur"
+    ko <- kv(pt, k, r, "OK"); ka <- kv(pt, k, r, "ALERTE"); ke <- kv(pt, k, r, "ECHEC")
+    L <- c(L, ligne_md(POINTS_B[[pt]]$lib, LIB_COURT[[k]], nreg(pt, r), ko, ka, ke, ki(pt, k, r), km(pt, k, r),
+                       taux(ka + ke, ko + ka + ke), txt_ic(ic_cp(ka + ke, ko + ka + ke)), txt_nat(pt, k)))
+  }
+  L <- c(L, "", paste("R\u00e9plications \u00e0 \u03b4\u0302* int\u00e9rieur = OK + ALERTE + ECHEC + INFO + sans p retenue (contr\u00f4le",
+                      "d'int\u00e9grit\u00e9). Sans p retenue : Monte-Carlo indisponible (motif en B3, par exemple r\u00e9gime",
+                      "int\u00e9rieur trop rare sous l'ajustement de la r\u00e9plication), ligne restitu\u00e9e en diagnostic."), "",
+         "### B6 -- part des tests inop\u00e9rants (r\u00e8gle R1, champ inoperant ; #274)", "",
+         entete_md(c("Point", "Ligne", "R\u00e9plications non \u00e9cart\u00e9es", "Inop\u00e9rants", "Part", "IC 95 % (C-P)",
+                     paste0("dont ", REGIMES), "Plancher lu par R1 : p_min / p_min_mc")))
+  for (pt in names(POINTS_B)) for (k in LIG_B) {
+    nn <- nreg(pt); ni <- ki(pt, k)
+    par_r <- vapply(names(REGIMES), function(r) sprintf("%.0f / %.0f", ki(pt, k, r), nreg(pt, r)), "")
+    L <- c(L, ligne_md(POINTS_B[[pt]]$lib, LIB_COURT[[k]], nn, ni, taux(ni, nn), txt_ic(ic_cp(ni, nn)),
+                       paste(par_r, collapse = " | "),
+                       sprintf("%.0f / %.0f", g(sprintf("inopbase|%s|%s|p_min", pt, k)),
+                               g(sprintf("inopbase|%s|%s|p_min_mc", pt, k)))))
+  }
+  L <- c(L, "", paste("Inop\u00e9rant : la r\u00e8gle R1 bascule la ligne en diagnostic INFO, sans verdict, quand la plus petite",
+                      "p-value atteignable est \u2265 \u03b1 : p_min (loi de r\u00e9f\u00e9rence, p exacte retenue) ou p_min_mc",
+                      "(plancher Monte-Carlo sur les r\u00e9plications tir\u00e9es, p Monte-Carlo retenue, #125). Colonnes",
+                      "\u00ab dont \u00bb : inop\u00e9rants / r\u00e9plications du r\u00e9gime de \u03b4\u0302*."), "")
+  # Integrite des comptes (#274) : par point, ligne et regime, OK + ALERTE +
+  # ECHEC + INFO inoperant + sans p retenue = replications du regime.
+  echecs_cpt <- character(0)
+  for (pt in names(POINTS_B)) for (k in LIG_B) for (r in names(REGIMES))
+    if (kv(pt, k, r, c("OK", "ALERTE", "ECHEC")) + ki(pt, k, r) + km(pt, k, r) != nreg(pt, r) ||
+        kv(pt, k, r, "INFO") != 0)
+      echecs_cpt <- c(echecs_cpt, sprintf("%s/%s/%s", pt, k, r))
   if (complet)
     L <- c(L, "### B4 -- crit\u00e8re 4 : niveau de la ligne N (borne inf\u00e9rieure unilat\u00e9rale de Clopper-Pearson \u00e0 99,9 % \u2264 \u03b1)", "",
            entete_md(c("Ligne", "n", "Rejets", "Borne inf. 99,9 %", "Borne max. (n rejets sur n)", "Statut")),
            crit4, "",
            "Inop\u00e9rant (n trop petit) : m\u00eame n rejets sur n ne porteraient pas la borne au-dessus de \u03b1 ; la ligne n'est pas v\u00e9rifi\u00e9e.", "")
   echecs5 <- grep("^sansmotif\\|", names(cpt), value = TRUE)
-  list(lignes = L, echecs4 = echecs4, inop4 = inop4, ok4 = ok4, echecs5 = echecs5)
+  list(lignes = L, echecs4 = echecs4, inop4 = inop4, ok4 = ok4, echecs5 = echecs5, echecs_cpt = echecs_cpt)
 }
 
 statut_b <- function() paste(
-  "Statut : **constat de simulation sous des alternatives choisies, hors mod\u00e8le r\u00e9glementaire** (issue #116,",
-  "volet B, contr\u00f4le). Chaque r\u00e9plication suit la cha\u00eene du moteur, r\u00e9duite : usp_ajuster(), boucle",
-  "bootstrap de usp_bootstrap() r\u00e9duite aux six statistiques, p Monte-Carlo par engine_p_mc(), p retenue et",
-  "verdict par usp_tests(). Alternatives sur le mod\u00e8le ajust\u00e9 au jeu (\u03b2\u0302, \u03c0\u0302_t, x_t gard\u00e9s ; \u03b5",
+  "Statut : **constat de simulation sous des alternatives choisies, hors mod\u00e8le r\u00e9glementaire** (issues #116",
+  "et #274, volet B). Chaque r\u00e9plication suit la cha\u00eene du moteur courant, r\u00e9duite : usp_ajuster(), boucle",
+  "bootstrap de usp_bootstrap() r\u00e9duite aux douze statistiques (six de #116, six de stabilit\u00e9 de #313),",
+  "p Monte-Carlo par engine_p_mc() selon la variante V3h (V3b \u00e0 \u03b4\u0302* int\u00e9rieur, #240), plancher",
+  "Monte-Carlo p_min_mc de la r\u00e8gle R1 (#125), p retenue et verdict par usp_tests(). Alternatives sur le mod\u00e8le ajust\u00e9 au jeu (\u03b2\u0302, \u03c0\u0302_t, x_t gard\u00e9s ; \u03b5",
   "remplac\u00e9, amplitudes en \u00e9carts-types de ln r_t) : protocole dans l'en-t\u00eate de tests/puissance_t8.R.",
   "La ligne N donne le niveau observ\u00e9 de la p retenue.")
 
@@ -972,8 +1097,8 @@ if (length(FICHIERS_COMB)) {
     if (k %in% names(p$comptes)) p$comptes[[k]] else 0, numeric(1))), numeric(1)), cles)
   B_c <- as.integer(sub("^.*;B=([0-9]+);.*$", "\\1", par))
   tb <- tableaux_chaine(cpt, R_tot, B_c, TRUE)
-  ok4 <- !length(tb$echecs4); ok5 <- !length(tb$echecs5)
-  sortie <- c(sprintf("## Puissance \u00e0 T = 8, volet B (cha\u00eene r\u00e9duite), jeu %s -- combinaison de %d tranche(s) (issue #116)",
+  ok4 <- !length(tb$echecs4); ok5 <- !length(tb$echecs5) && !length(tb$echecs_cpt)
+  sortie <- c(sprintf("## Puissance \u00e0 T = 8, volet B (cha\u00eene r\u00e9duite), jeu %s -- combinaison de %d tranche(s) (issues #116, #274)",
                       jeu_c, length(parts)), "",
               sprintf("Param\u00e8tres : %s", par), "", statut_b(), "",
               "### T0 -- contexte (identique dans toutes les tranches, v\u00e9rifi\u00e9)", "",
@@ -990,8 +1115,8 @@ if (length(FICHIERS_COMB)) {
               "### Crit\u00e8res bloquants \u00e9valu\u00e9s \u00e0 la combinaison", "",
               sprintf("- Crit\u00e8re 4, niveau du volet B (ligne N, borne inf\u00e9rieure unilat\u00e9rale 99,9 %% \u2264 \u03b1) : %s",
                       texte_crit4(tb)),
-              sprintf("- Crit\u00e8re 5, aucune p manquante hors motif compt\u00e9 : %s",
-                      if (ok5) "OK" else paste("ECHEC :", paste(tb$echecs5, collapse = " ; "))), "")
+              sprintf("- Crit\u00e8re 5, aucune p manquante hors motif compt\u00e9, comptes coh\u00e9rents (#274) : %s",
+                      if (ok5) "OK" else paste("ECHEC :", paste(c(tb$echecs5, tb$echecs_cpt), collapse = " ; "))), "")
   ecrire_console(sortie)
   if (ok4 && ok5) ecrire_fichiers(stats::setNames(list(sortie), paste0("chaine-", jeu_c)), ctx[["commit"]],
                                   ctx[["empreintes"]], combinaison = TRUE)
@@ -1051,7 +1176,7 @@ if (OPT_VOLET %in% c("tout", "A")) {
   # Critere 3 (volet A) : p sur J1 observe = p_exacte de run_engine().
   t_ca <- Sys.time()
   RES_OBS$J1 <- engine_observe(JEU_A)
-  l_obs <- lignes_six(engine_table_tests(RES_OBS$J1))
+  l_obs <- lignes_tests(engine_table_tests(RES_OBS$J1))
   p_obs <- p_exactes_a(JEU_A$y)
   controle(identical(unname(p_obs[["Runs"]]), l_obs$Runs$p_exacte) &&
              identical(unname(p_obs[["Runsr"]]), l_obs$Runsr$p_exacte) &&
@@ -1515,18 +1640,18 @@ if (OPT_VOLET %in% c("tout", "B")) {
     res <- RES_OBS[[jn]]
     controle(isTRUE(res$ok), sprintf("Crit\u00e8re 3, %s : run_engine() sur le jeu observ\u00e9 ok", jn))
     ch0 <- chaine(X, JEU$y, OPT_GRAINE_IC, OPT_B)
-    l_re <- lignes_six(engine_table_tests(res))
-    ok_l <- vapply(SIX, function(k) {
+    l_re <- lignes_tests(engine_table_tests(res))
+    ok_l <- vapply(LIG_B, function(k) {
       a <- l_re[[k]]; b <- ch0$lignes[[k]]
       cols <- setdiff(names(a), "p_exacte")
       identical(unname(as.list(a[cols])), unname(as.list(b[cols]))) &&
         (if (k == "DW") isTRUE(all.equal(a$p_exacte, b$p_exacte, tolerance = 1e-10))
          else identical(a$p_exacte, b$p_exacte))
     }, logical(1))
-    controle(all(ok_l), sprintf(paste("Crit\u00e8re 3, %s : six lignes de engine_table_tests() de la cha\u00eene r\u00e9duite",
+    controle(all(ok_l), sprintf(paste("Crit\u00e8re 3, %s : douze lignes de engine_table_tests() de la cha\u00eene r\u00e9duite",
                                       "identiques \u00e0 celles de run_engine() (B = %d, graine %s)%s"),
                                 jn, OPT_B, format(OPT_GRAINE_IC, scientific = FALSE),
-                                if (all(ok_l)) "" else paste0(" ; diff\u00e9rentes : ", paste(SIX[!ok_l], collapse = ", "))))
+                                if (all(ok_l)) "" else paste0(" ; diff\u00e9rentes : ", paste(LIG_B[!ok_l], collapse = ", "))))
     controle(identical(ch0$boucle$sigma_boot, res$bootstrap$sigma_boot) &&
                identical(ch0$boucle$z_boot, res$bootstrap$z_boot),
              sprintf("Crit\u00e8re 3, %s : sigma_boot et z_boot de la boucle r\u00e9duite identiques \u00e0 ceux de usp_bootstrap()", jn))
@@ -1551,6 +1676,11 @@ if (OPT_VOLET %in% c("tout", "B")) {
     # Critere 5 (toujours) ; critere 4 (execution d'un seul tenant seulement).
     controle(!length(tb$echecs5), sprintf("Crit\u00e8re 5, %s : aucune p manquante hors motif compt\u00e9%s", jn,
                                           if (length(tb$echecs5)) paste0(" (", paste(tb$echecs5, collapse = ", "), ")") else ""))
+    # Coherence des comptes (#274) : par point, ligne et regime, OK + ALERTE +
+    # ECHEC + INFO inoperant + sans p retenue = replications non ecartees.
+    controle(!length(tb$echecs_cpt), sprintf(paste("Crit\u00e8re 5, %s : comptes coh\u00e9rents par point, ligne et r\u00e9gime",
+                                                   "(verdicts + inop\u00e9rants + p manquantes = r\u00e9plications)%s"), jn,
+                                             if (length(tb$echecs_cpt)) paste0(" (", paste(tb$echecs_cpt, collapse = ", "), ")") else ""))
     if (complet)
       controle(!length(tb$echecs4), sprintf(paste("Crit\u00e8re 4, %s : niveau du volet B (ligne N, borne inf\u00e9rieure",
                                                   "unilat\u00e9rale 99,9 %% \u2264 \u03b1)%s"), jn,
@@ -1560,7 +1690,7 @@ if (OPT_VOLET %in% c("tout", "B")) {
                    jn, OPT_R_CHAINE, OPT_GRAINE, OPT_GRAINE_IC, OPT_B, METHODE, SEGMENT, ANNEXE, NATURE, ALPHA)
     CTX <- c(
       jeu = JEU$libelle, modele = txt_modele(FIT0),
-      configuration = sprintf("m\u00e9thode %s, segment %d de l'annexe %s, donn\u00e9es %s, \u03b1 = %g (sans effet sur les six lignes hors \u03b1)",
+      configuration = sprintf("m\u00e9thode %s, segment %d de l'annexe %s, donn\u00e9es %s, \u03b1 = %g (sans effet sur les douze lignes hors \u03b1)",
                               METHODE, SEGMENT, ANNEXE, NATURE, ALPHA),
       points = paste(vapply(POINTS_B, `[[`, "", "lib"), collapse = " ; "),
       graines = sprintf("matrice e %.0f ; bootstrap de la r\u00e9plication b : %.0f + 1000 b ; observ\u00e9 : %.0f", OPT_GRAINE + 1, OPT_GRAINE_IC, OPT_GRAINE_IC),
@@ -1570,7 +1700,7 @@ if (OPT_VOLET %in% c("tout", "B")) {
     stopifnot(identical(names(CTX), names(LIBELLES_CONTEXTE)))
     ok_jeu <- length(INTEGRITE) == n_int0
     duree_b <- as.numeric(difftime(Sys.time(), t_b, units = "secs"))
-    S <- c(sprintf("## Puissance \u00e0 T = 8, volet B (cha\u00eene r\u00e9duite), jeu %s (issue #116)", jn), "",
+    S <- c(sprintf("## Puissance \u00e0 T = 8, volet B (cha\u00eene r\u00e9duite), jeu %s (issues #116, #274)", jn), "",
            sprintf("Param\u00e8tres : %s", PAR), "", statut_b(), "",
            "### T0 -- contexte", "", entete_md(c("Grandeur", "Valeur")), lignes_contexte(CTX),
            ligne_md("R\u00e9plications par point", sprintf("%d (trait\u00e9es : %d \u00e0 %d)", OPT_R_CHAINE, DEBUT, FIN)),
