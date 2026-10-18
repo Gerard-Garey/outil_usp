@@ -170,7 +170,7 @@ Les agents de réalisation et de vérification ont leur modèle et leur effort f
   [`docs/latex/CONVENTIONS.md`](docs/latex/CONVENTIONS.md).
 - Toute modification du code s'accompagne de la mise à jour de la documentation
   LaTeX, faite en fin de branche (CLAUDE.md, règle 9) ; une branche qui modifie
-  le `.tex` se termine par un commit unique du PDF recompilé, une branche qui ne
+  le `.tex` se termine par un commit du PDF recompilé (renouvelé si le `.tex` change ensuite), une branche qui ne
   le touche pas n'en a pas (ADR 0008 amendé).
 - Identité des commits : adresse `noreply` de GitHub pour les commits du
   mainteneur (réglage « Keep my email addresses private » du compte), et

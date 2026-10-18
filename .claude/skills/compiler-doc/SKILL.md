@@ -37,7 +37,7 @@ Une branche qui ne touche pas le `.tex` n'a pas de commit de PDF. Une intégrati
 
 ## Mode « fin de branche »
 
-**Avant l'étape 1** : à la tête de la branche, `git status` ne montre **aucune** modification (le `.tex` compilé doit être celui du dernier commit qui le touche, `git log -1 --format=%h -- docs/latex/doc_tests_usp.tex`). Si l'arbre n'est pas propre, commiter ou abandonner les modifications d'abord, puis compiler ; toute modification de l'arbre après la compilation impose de recompiler. Le contrôle de CI vérifie la provenance, non le contenu : c'est cette procédure qui garantit que le PDF vient du `.tex` fusionné.
+**Avant l'étape 1** : à la tête de la branche, `git status` ne montre **aucune** modification (le `.tex` compilé doit être celui du dernier commit qui le touche, `git log -1 --format=%h -- docs/latex/doc_tests_usp.tex`). Si l'arbre n'est pas propre, commiter ou abandonner les modifications d'abord, puis compiler ; toute modification de l'arbre après la compilation impose de recompiler. Le contrôle de CI vérifie la provenance, non le contenu du PDF : c'est cette procédure qui garantit que le PDF vient du `.tex` fusionné.
 
 4. **Après la compilation** : `git status` ne montre que le PDF modifié.
 
