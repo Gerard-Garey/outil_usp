@@ -653,9 +653,10 @@ verifier("Libelles JB, jackknife et IC : ni bornes de l'IC, ni largeur, ni ecart
            if (length(pb)) paste("imprime :", paste(unique(pb), collapse = " ; ")) else TRUE
          })
 # Jackknife entierement non calcule (tous les reajustements en echec) : la
-# table est produite et ne porte pas de ligne jackknife (auparavant : estim
-# -Inf, detail "-Inf%"). usp_jackknife est redefini le temps de l'appel.
-verifier("run_engine : jackknife entierement NA -> table produite, pas de ligne jackknife ni de -Inf",
+# table est produite et porte une ligne jackknife en diagnostic sans estimation
+# (#329 ; auparavant : estim -Inf, detail "-Inf%", puis ligne absente).
+# usp_jackknife est redefini le temps de l'appel.
+verifier("run_engine : jackknife entierement NA -> table produite, une ligne jackknife diagnostic sans estimation ni -Inf (#329)",
          {
            usp_jackknife_orig <- usp_jackknife
            e <- environment(run_engine)
@@ -668,10 +669,22 @@ verifier("run_engine : jackknife entierement NA -> table produite, pas de ligne 
                                     annexe = "II", B = 99, nature_donnees = "brutes"),
                          finally = assign("usp_jackknife", usp_jackknife_orig, envir = e))
            tb <- engine_table_tests(r)
+           lj <- tb[tb$test == NOM_JK, , drop = FALSE]
+           txt <- paste0("Aucune annee evaluable (reajustements sans maximum de ",
+                         "vraisemblance etabli, ou en echec) : ecart relatif max ",
+                         "non calcule, influence non mesuree.")
            isTRUE(r$ok) && all(is.na(r$jackknife$sigma_usp)) && nrow(tb) > 0 &&
-             !NOM_JK %in% tb$test && NOM_IC %in% tb$test &&
+             nrow(lj) == 1L && NOM_IC %in% tb$test &&
+             identical(lj$type, "diagnostic") && identical(lj$verdict, "INFO") &&
+             identical(lj$inoperant, FALSE) && is.na(lj$estimation) &&
+             is.na(lj$p_retenue) && is.na(lj$sens_du_test) &&
+             identical(lj$famille, "G. Robustesse de l'estimation") &&
+             identical(lj$fonction, "run_engine") &&
+             identical(lj$nom_estimation, "ecart relatif max") &&
+             identical(lj$commentaire, txt) && !grepl("[0-9]", lj$commentaire) &&
              !any(grepl("Inf", tb$commentaire, fixed = TRUE)) &&
-             !any(is.infinite(tb$estimation))
+             !any(is.infinite(tb$estimation)) &&
+             !"ecart_jackknife" %in% names(r$ajustement)
          })
 
 ## --- Issue #224 : reajustements du jackknife refuses ------------------------

@@ -6303,6 +6303,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # Annees non evaluables (#224, phrase de Q-D1-Fc-3) : reajustement refuse
   # par usp_valider_ajustement() ou en echec, ecartees du maximum ; seuls les
   # numeros d'annee sont imprimes (#76), refus et echec non distingues.
+  # Aucune annee evaluable (les T reajustements non evaluables, #329) :
+  # fit$ecart_jackknife est alors NULL, mais la ligne jackknife est posee en
+  # diagnostic sans estimation (estim NA, aucune p-value), pour que l'absence
+  # de mesure reste visible plutot que de disparaitre de la table.
   rb <- robustesse
   ne <- as.integer(rb$jack_non_evaluables)
   txt_ne <- if (length(ne) == 1L)
@@ -6324,6 +6328,14 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                   if (rb$jack_usp < 0) "en baisse" else if (rb$jack_usp > 0) "en hausse"
                   else "inchange")
         else "Annee la plus influente non determinee.", txt_ne), collapse = " "))
+  else if (!is.null(rb) && length(ne) == fit$T)
+    add(fam, "Sensibilite au retrait d'une annee (jackknife)",
+        fonction = "run_engine",
+        "Quenouille (1949) / Tukey (1958)", type = "diagnostic",
+        estim_nom = "ecart relatif max", estim = NA_real_,
+        detail = paste0("Aucune annee evaluable (reajustements sans maximum de ",
+                        "vraisemblance etabli, ou en echec) : ecart relatif max ",
+                        "non calcule, influence non mesuree."))
   if (!is.null(fit$largeur_ic))
     add(fam, "Largeur relative de l'IC bootstrap 90%", "Efron (1979), Ann. Statist. 7",
         fonction = "run_engine",
@@ -11345,8 +11357,9 @@ run_engine <- function(xt, yt,
     ic_r <- if (length(usp_r) > 20)
       stats::quantile(usp_r, c(.025, .05, .5, .95, .975)) else NULL
 
-    # Jackknife entierement non calcule (tous les reajustements en echec) : pas
-    # de ligne jackknife (fit$ecart_jackknife NULL) plutot qu'un max a -Inf.
+    # Jackknife entierement non calcule (tous les reajustements en echec ou
+    # refuses) : fit$ecart_jackknife NULL plutot qu'un max a -Inf ; usp_tests()
+    # pose alors une ligne jackknife en diagnostic sans estimation (#329).
     d_jack <- jack$sigma_usp - param$sigma_usp
     jack_calcule <- any(is.finite(d_jack))
     fit$ecart_jackknife <- if (jack_calcule)
