@@ -134,6 +134,12 @@ jobs:
 
   documentation:
     name: Compilation de la documentation LaTeX
+    # Contrôle de compilation, jamais commité (ADR 0008 amendé le 18/10/2026,
+    # point 1). Le PDF versionné n'est commité qu'une fois par branche, en
+    # fin de branche : en cours de branche il est en retard sur le .tex, et
+    # le PDF à lire est l'artefact doc_tests_usp de la dernière exécution
+    # (rétention de 30 jours). L'invariant « PDF versionné à jour du .tex »
+    # est contrôlé par pdf-invariant.yml, sur les PR non brouillon.
     # Épinglée par cohérence avec le job des tests (issue #67).
     runs-on: ubuntu-22.04
     # Issue #123 : seulement si docs/latex/ ou la CI change (tout sur main).
@@ -156,7 +162,8 @@ jobs:
           name: doc_tests_usp
           path: docs/latex/doc_tests_usp.pdf
           if-no-files-found: error
-          # Contrôle : le PDF versionné fait foi (ADR 0008).
+          # Artefact de lecture en cours de branche (ADR 0008 amendé) ; le
+          # PDF versionné fait foi une fois le commit de fin de branche fait.
           retention-days: 30
 
   fiches-agents:

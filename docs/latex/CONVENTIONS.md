@@ -63,6 +63,6 @@ Règles **obligatoires** pour toute modification de `doc_tests_usp.tex`, par un 
 
 1. Modifications **ciblées** : on corrige le passage fautif, on ne réécrit pas une section correcte. Le diff doit rester lisible par un relecteur.
 2. Avant de modifier, relever ce que le passage affirme et ce qui y renvoie (`\ref`, tableaux, index) ; après, vérifier que tout ce qui y renvoie reste juste.
-3. Compiler en suivant la skill `compiler-doc` : aucune erreur, aucun renvoi indéfini.
+3. Compiler en suivant la skill `compiler-doc` (mode « contrôle ») : aucune erreur, aucun renvoi indéfini. Le commit porte le `.tex` seul ; le PDF est commité une fois par branche, en fin de branche, par la session principale (ADR 0008 amendé, M37).
 4. Contrôler que le plan (table des matières) est inchangé, sauf ajout voulu, et que le nombre de fiches correspond aux tests restitués par le moteur ; que chaque fiche de test et de procédure de décision porte la rubrique 7, et elle seule, avec sa ligne dans `tab:tracabilite-puissance`.
 5. Rendre compte : modifications par section, avec avant / après pour toute modification de fond, références ajoutées ou retirées et pourquoi, suppressions et leur motif.

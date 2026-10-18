@@ -1,13 +1,18 @@
 ---
 name: compiler-doc
-description: Compiler la documentation LaTeX (docs/latex/doc_tests_usp.tex) et vérifier le PDF avant commit. À utiliser après toute modification du .tex, ou quand on demande de recompiler ou de régénérer le PDF.
+description: Compiler la documentation LaTeX (docs/latex/doc_tests_usp.tex) et vérifier le PDF. Deux modes - « contrôle », après toute modification du .tex, sans commiter le PDF ; « fin de branche », pour le commit unique du PDF par la session principale, après le dernier commit du .tex et avant la sortie du brouillon. À utiliser aussi quand on demande de recompiler le PDF.
 ---
 
 # Compiler la documentation
 
-Le PDF compilé `docs/latex/doc_tests_usp.pdf` est versionné : il est recompilé et commité avec toute modification du `.tex`, sur le poste local comme en session cloud (ADR 0008).
+Le PDF compilé `docs/latex/doc_tests_usp.pdf` est versionné, mais **commité une fois par branche, en fin de branche** (ADR 0008 amendé le 18/10/2026, M37 ; `CONTEXT.md`, « Commit de PDF de fin de branche ») :
 
-## Étapes
+- **mode « contrôle »** : après toute modification du `.tex` (passage de `docwriter`, commit `docs:` minimal M32, corrections de la validation d'`actuary` ou de la revue finale). On compile pour vérifier le `.tex`, puis on **restaure le PDF** : le commit porte le `.tex` seul. Le PDF à lire en cours de branche est l'artefact `doc_tests_usp` de la CI ;
+- **mode « fin de branche »** : par la session principale seule, une fois que plus aucun commit ne touchera le `.tex`, juste avant la sortie du brouillon. Le commit porte le PDF seul. Toute modification ultérieure du `.tex` (y compris une intégration de `main` qui fusionne deux versions du `.tex`) en demande un nouveau avant la fusion.
+
+Une branche qui ne touche pas le `.tex` n'a pas de commit de PDF. Une intégration de `main` ne recompile pas : en cas de conflit sur le PDF, `git checkout --ours -- docs/latex/doc_tests_usp.pdf`. Un job de CI vérifie sur toute PR non brouillon que le `.tex` de la PR est identique à celui du dernier commit du PDF (`.github/workflows/pdf-invariant.yml`).
+
+## Étapes communes
 
 0. **Si `command -v pdflatex` échoue** (session cloud : le hook `SessionStart` n'installe pas TeX Live) : `bash .claude/hooks/preparer_latex.sh --installer` depuis la racine du dépôt, en arrière-plan dès que la tâche touche au `.tex` (plusieurs minutes). En cas d'échec, le PDF ne peut pas être compilé : le dire dans le compte rendu.
 
@@ -26,6 +31,22 @@ Le PDF compilé `docs/latex/doc_tests_usp.pdf` est versionné : il est recompil�
    - aucun « undefined » (référence ou citation indéfinie) ;
    - les avertissements `Overfull \hbox` sur les lignes modifiées sont à corriger s'ils débordent visiblement (plus de 10pt).
 
-4. **Vérifier ce qui sera commité** : `git status docs/latex` doit montrer le `.tex` et le `.pdf` modifiés ensemble. Les fichiers auxiliaires (`.aux`, `.log`, `.toc`, `.out`) sont ignorés par Git.
+## Mode « contrôle »
+
+4. **Restaurer le PDF** : `git restore docs/latex/doc_tests_usp.pdf` (depuis la racine du dépôt). `git status docs/latex` ne doit montrer que le `.tex` ; les fichiers auxiliaires (`.aux`, `.log`, `.toc`, `.out`) sont ignorés par Git. Le commit `docs:` porte le `.tex` seul.
+
+## Mode « fin de branche »
+
+**Avant l'étape 1** : à la tête de la branche, `git status` ne montre **aucune** modification (le `.tex` compilé doit être celui du dernier commit qui le touche, `git log -1 --format=%h -- docs/latex/doc_tests_usp.tex`). Si l'arbre n'est pas propre, commiter ou abandonner les modifications d'abord, puis compiler ; toute modification de l'arbre après la compilation impose de recompiler. Le contrôle de CI vérifie la provenance, non le contenu du PDF : c'est cette procédure qui garantit que le PDF vient du `.tex` fusionné.
+
+4. **Après la compilation** : `git status` ne montre que le PDF modifié.
+
+5. **Commit du PDF seul** (`docs:`), dont le message cite :
+   - le SHA du dernier commit qui touche le `.tex` ;
+   - la chaîne de composition (ligne `Producer` de `pdfinfo docs/latex/doc_tests_usp.pdf`) ;
+   - le nombre de pages ;
+   - les issues de la branche par `Refs` (jamais `Closes`, qui reste au corps de la PR).
+
+   Ce commit ne compte ni comme passage de `docwriter` ni comme commit d'issue au sens de la règle 9.
 
 La CI compile aussi le `.tex` à chaque push et publie le PDF en artefact : c'est un contrôle, pas une source du PDF versionné.
