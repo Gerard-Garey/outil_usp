@@ -377,9 +377,11 @@
 #      taille exacte 4031/40320 (permutation) et alpha (Student, eps normaux).
 #
 #  C7. Niveau de la regle ESD generalisee de Rosner a T = 8 (issue #174 ;
-#      l'issue cite 0,152 et 0,099, valeurs au millieme de la mesure du
-#      15/10/2026, docs/revues/20261015-pertinence-tests-graphiques/mesures/
-#      bloc-4/sim.R, commit e990a9f, recalculee en C7.c). Statut, trois cas :
+#      l'issue, du 30/09/2026, cite une mesure anterieure, hors depot et non
+#      versionnee : 0,152 et 0,099 ; la mesure du 15/10/2026,
+#      docs/revues/20261015-pertinence-tests-graphiques/mesures/bloc-4/sim.R,
+#      commit e990a9f, l'a reproduite (0,1515 ; 0,0992) et est recalculee en
+#      C7.c). Statut, trois cas :
 #      C7.0, valeurs critiques DETERMINISTES ; premiere etape seule sous
 #      i.i.d. normal, niveau EXACTEMENT alpha (RESULTAT EXACT, demonstration
 #      ci-dessous ; la colonne simulee en est le controle) ; tout le reste,
@@ -431,7 +433,12 @@
 #          lignes 1 a 50 000, test_rosner(v, k = 2, alpha = 0.10)) ; k / n et
 #          IC de cette mesure et de C7.a a alpha = 0,10 pour P(k chapeau >= 1),
 #          P(k chapeau = 2) et la premiere etape ; estimation de C7.a dans
-#          l'IC du 15/10, et l'inverse ;
+#          l'IC du 15/10 ; z et p bilaterale du test de deux proportions
+#          independantes (flux distincts, proportion commune en pool,
+#          approximation normale) ; phrase de lecture construite sur ces
+#          valeurs (ecart nominal p < 0,05, Bonferroni sur les trois
+#          comparaisons, alpha = 0,10 dans l'IC du 15/10 de la premiere
+#          etape) ;
 #        - C7.d (non bloquant) : repartition OK / ALERTE / ECHEC de C7.b a
 #          alpha = 0,10 sur les replications 1 a 2 000 contre celle de la
 #          ligne ESD de #166 (docs/tableaux/20261008-issue166-calibration-
@@ -481,9 +488,10 @@
 #    C3, C4, C5 : mesures nouvelles, sans valeur publiee a comparer ; IC seul.
 #    C6 : IC seul ; ancienne valeur dans le nouvel IC ou non (C6.f), sans
 #      test de compatibilite (protocole d'origine perdu).
-#    C7 : IC seul ; mesure du 15/10/2026 recalculee et C7.a, chaque
-#      estimation dans l'IC de l'autre ou non (C7.c), sans test de
-#      compatibilite.
+#    C7 : IC ; mesure du 15/10/2026 recalculee contre C7.a (C7.c) : C7.a
+#      dans l'IC du 15/10 ou non, et test de deux proportions independantes
+#      (z, p bilaterale ; Bonferroni sur trois comparaisons dans la phrase
+#      de lecture).
 #
 #  Alea : tout tirage passe par engine_sous_graine() avec une graine
 #  explicite : innovations AR(1) sous --graine ; echantillons K0, K2, K3 sous
@@ -1189,13 +1197,17 @@ if (OPT_PARTIE %in% c("tout", "normalite")) {
   }
 
   # Tableaux de C4.c. Niveau : une ligne par T et par alpha, ecart au nominal
-  # et position de alpha par rapport a l'IC (informatifs).
+  # et position de alpha par rapport a l'IC (informatifs). Ecart en points a
+  # trois decimales (pas de 100 / R points : exact a R = 20 000, ou un ecart
+  # de -0,005 point s'affichait "-0,00" a deux decimales) ; ecart nul affiche
+  # sans signe.
+  ecart_pts <- function(x) if (round(x, 3) == 0) "0,000" else sub(".", ",", sprintf("%+.3f", x), fixed = TRUE)
   lignes_sf_niv <- unlist(lapply(seq_along(T_SF), function(i) vapply(ALPHAS_SF, function(al) {
     p <- SF_NIV[[i]][, "p"]; k <- sum(p < al); n <- length(p); ci <- ic_cp(k, n)
     pos <- if (al < ci[1]) "lib\u00e9ral, IC excluant \u03b1" else if (al > ci[2])
       "conservateur, IC excluant \u03b1" else "IC contenant \u03b1"
     ligne_md(T_SF[[i]]$T, T_SF[[i]]$src, num(al, 2), paste(cellules_taux(p, al), collapse = " | "),
-             sub(".", ",", sprintf("%+.2f", 100 * (k / n - al)), fixed = TRUE), pos, num_p(min(p)))
+             ecart_pts(100 * (k / n - al)), pos, num_p(min(p)))
   }, "")))
   lignes_sf_pui <- vapply(seq_along(SF_PUI), function(j) {
     p <- SF_PUI[[j]][, "p"]
@@ -2360,10 +2372,39 @@ if (OPT_PARTIE == "esd") {
     list(nom = "P(k\u0302 \u2265 1)", a = M_1510[, "k"] >= 1, b = M_IID[, col("k", 0.1)] >= 1),
     list(nom = "P(k\u0302 = 2)", a = M_1510[, "k"] == 2, b = M_IID[, col("k", 0.1)] == 2),
     list(nom = "premi\u00e8re \u00e9tape seule, P(R\u2081 > \u03bb\u2081)", a = M_1510[, "e1"] == 1, b = M_IID[, col("e1", 0.1)] == 1))
-  lignes_pub <- vapply(Q_1510, function(q) {
-    a <- cell5(q$a); b <- cell5(q$b)
-    ligne_md(q$nom, a$txt, b$txt, dans(b$p, a$ci), dans(a$p, b$ci))
+  # Comparaison des deux estimations par le test de deux proportions
+  # independantes (flux distincts : graine 20261015 contre --graine + 7),
+  # proportion commune en pool ; p bilaterale par la loi normale.
+  z_2prop <- function(a, b) {
+    n1 <- length(a); n2 <- length(b); pb <- (sum(a) + sum(b)) / (n1 + n2)
+    (mean(a) - mean(b)) / sqrt(pb * (1 - pb) * (1 / n1 + 1 / n2))
+  }
+  ZC_1510 <- vapply(Q_1510, function(q) z_2prop(q$a, q$b), 0)
+  P_1510 <- 2 * stats::pnorm(-abs(ZC_1510))
+  lignes_pub <- vapply(seq_along(Q_1510), function(j) {
+    q <- Q_1510[[j]]; a <- cell5(q$a); b <- cell5(q$b)
+    ligne_md(q$nom, a$txt, b$txt, dans(b$p, a$ci), sub(".", ",", sprintf("%+.2f", ZC_1510[j]), fixed = TRUE),
+             num(P_1510[j], 3))
   }, "")
+  # Phrase de lecture, construite sur les valeurs calculees (ecart nominal :
+  # p < 0,05 sans correction ; Bonferroni sur les trois comparaisons).
+  ic_e1_1510 <- ic_cp(sum(Q_1510[[3]]$a), length(Q_1510[[3]]$a))
+  nom_1510 <- c("P(k\u0302 \u2265 1)", "P(k\u0302 = 2)", "la premi\u00e8re \u00e9tape")
+  nominaux <- which(P_1510 < 0.05)
+  LECTURE_1510 <- paste0(
+    "Lecture : ",
+    if (all(pmin(1, 3 * P_1510) >= 0.05)) "aucun \u00e9cart \u00e9tabli entre la mesure du 15/10 et C7.a (Bonferroni sur trois comparaisons, niveau 5 %)" else
+      "**\u00e9cart \u00e9tabli** apr\u00e8s Bonferroni sur trois comparaisons (niveau 5 %)",
+    if (!length(nominaux)) " ; aucun \u00e9cart nominal (p \u2265 0,05 sur les trois grandeurs)" else
+      paste0(" ; ", if (length(nominaux) == 1L) "le seul \u00e9cart nominal (p < 0,05 sans correction), sur " else "\u00e9carts nominaux (p < 0,05 sans correction) sur ",
+             paste(vapply(nominaux, function(j) sprintf("%s (z \u2248 %s, p \u2248 %s, \u2248 %s apr\u00e8s Bonferroni)",
+                                                        nom_1510[j], num(ZC_1510[j], 2), num(P_1510[j], 3), num(min(1, 3 * P_1510[j]), 2)), ""),
+                   collapse = " ; "),
+             if (all(pmin(1, 3 * P_1510[nominaux]) >= 0.05))
+               (if (length(nominaux) == 1L) ", est compatible avec le hasard" else ", sont compatibles avec le hasard") else ""),
+    sprintf(" ; l'IC du 15/10 pour la premi\u00e8re \u00e9tape [%s ; %s] %s la valeur exacte \u03b1 = 0,10.",
+            num(ic_e1_1510[1], 5), num(ic_e1_1510[2], 5),
+            if (0.10 >= ic_e1_1510[1] && 0.10 <= ic_e1_1510[2]) "contient" else "**ne contient pas**"))
   # Rapprochement avec #166 (docs/tableaux/20261008-issue166-calibration-J1.md
   # et -J2.md, commit 139031d, ligne ESD de la repartition des modalites :
   # OK / ALERTE / ECHEC sur les replications 1 a 2 000, run_engine() complet,
@@ -2436,10 +2477,16 @@ if (OPT_PARTIE == "esd") {
           "docs/revues/20261015-pertinence-tests-graphiques/mesures/bloc-4/sim.R (commit e990a9f), section 2 : set.seed(20261015), matrice 100 000 \u00d7 8 remplie par colonne,",
           "lignes 1 \u00e0 50 000, test_rosner(v, k = 2, alpha = 0.10) ; recalcul\u00e9e ici sous engine_sous_graine(20261015, .)",
           "(g\u00e9n\u00e9rateur \u00e9quivalent : contr\u00f4le), taux arrondis \u00e0 4 d\u00e9cimales \u00e9gaux \u00e0 ceux de bloc-4.md \u00a7 4.4 (contr\u00f4le",
-          "bloquant). L'issue #174 en cite les valeurs au milli\u00e8me (0,152 ; 0,099)."), "",
+          "bloquant). L'issue #174 (30/09/2026) cite une mesure ant\u00e9rieure, hors d\u00e9p\u00f4t et non versionn\u00e9e",
+          "(P(k\u0302 \u2265 1) = 0,152 ; premi\u00e8re \u00e9tape 0,099), que la mesure du 15/10 a reproduite (0,1515 ; 0,0992,",
+          "bloc-4.md \u00a7 4.4)."), "",
     entete_md(c("Grandeur", "Mesure du 15/10/2026 (R = 50 000)", sprintf("C7.a (R = %d)", OPT_R),
-                "Estimation de C7.a dans l'IC du 15/10", "Estimation du 15/10 dans l'IC de C7.a")),
+                "C7.a dans l'IC du 15/10", "z (15/10 \u2212 C7.a)", "p bilat\u00e9rale")),
     lignes_pub, "",
+    paste("z : test de deux proportions ind\u00e9pendantes (flux distincts, proportion commune estim\u00e9e en pool),",
+          "z = (p\u2081 \u2212 p\u2082) / \u221a(p\u0304 (1 \u2212 p\u0304) (1/n\u2081 + 1/n\u2082)) ; p bilat\u00e9rale = 2 (1 \u2212 \u03a6(|z|))",
+          "(approximation normale)."), "",
+    LECTURE_1510, "",
     "**C7.d -- Rapprochement avec #166 (ligne ESD, r\u00e9plications 1 \u00e0 2 000, run_engine() complet ; non bloquant)**", "",
     entete_md(c("Jeu", "OK / ALERTE / ECHEC de #166 (docs/tableaux/20261008-issue166-calibration-<jeu>.md, commit 139031d)",
                 "OK / ALERTE / ECHEC de C7.b, r\u00e9plications 1 \u00e0 2 000", "R\u00e9sultat")),
