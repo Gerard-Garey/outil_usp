@@ -1,0 +1,73 @@
+name: PDF invariant
+
+# ADR 0008, amendement du 18/10/2026 (M37), points 3 et 4, issue #341.
+# Invariant : a chaque fusion, le PDF versionne correspond au .tex. Le PDF
+# n'est commite qu'une fois par branche (commit de PDF de fin de branche).
+#
+# Critere de CONTENU : le .tex de HEAD (commit de fusion de test de la PR)
+# doit etre identique a celui du dernier commit qui touche le PDF (P).
+# Un critere d'historique (« git rev-list P..HEAD -- tex vide ») est faux
+# sur le commit de fusion de test : si la branche modifie le .tex (T), commite
+# le PDF (P), puis ramene le .tex a l'etat de la base (T'), la fusion est
+# identique a son premier parent sur le .tex, la simplification d'historique
+# ne parcourt pas la branche, la liste est vide et le controle passerait a
+# tort alors que le PDF versionne ne correspond plus au .tex. Le critere de
+# contenu ne depend ni des dates ni de la forme de l'historique, et ne
+# donne pas de faux positif sur un .tex modifie puis retabli a l'identique.
+# La liste des commits dans le message d'echec n'est qu'indicative.
+#
+# Workflow distinct de ci.yml : le type ready_for_review n'est pas dans les
+# types par defaut de pull_request, et l'y ajouter relancerait les tests R
+# au passage du brouillon a « pret pour revue ». Toutes bases (main,
+# main-GPT, branches gpt/...). Pas de declenchement sur push vers main : le
+# constat apres fusion n'est pas decide.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+
+# Lecture seule : aucune ecriture dans le depot.
+permissions:
+  contents: read
+
+# Un nouveau push sur la PR annule l'execution en cours de la meme PR.
+concurrency:
+  group: pdf-invariant-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pdf-a-jour:
+    name: PDF versionné à jour du .tex
+    # Brouillon : saute (statut « ignore », qui ne bloque pas une verification
+    # requise). Le job s'execute a l'evenement ready_for_review.
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      # Historique complet (fetch-depth: 0) ; le checkout par defaut d'une PR
+      # est le commit de fusion de test : le controle porte sur l'arbre qui
+      # sera fusionne.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Le .tex est celui du dernier commit du PDF
+        run: |
+          set -u
+          pdf=docs/latex/doc_tests_usp.pdf
+          tex=docs/latex/doc_tests_usp.tex
+          # P : dernier commit qui touche le PDF dans l'historique de HEAD.
+          p=$(git rev-list -1 HEAD -- "$pdf")
+          if [ -z "$p" ]; then
+            echo "::error::Aucun commit ne touche $pdf dans l'historique : PDF versionné absent. Voir la skill compiler-doc (mode « fin de branche ») et l'ADR 0008 amendé le 18/10/2026 (point 3)."
+            exit 1
+          fi
+          # Critere de contenu : le .tex de HEAD est celui de P.
+          if ! git diff --quiet "$p" HEAD -- "$tex"; then
+            # Indicatif seulement : commits qui touchent le .tex apres P.
+            # HEAD est le commit de fusion de test de la PR (SHA ephemere
+            # possible dans la liste).
+            liste=$(git log --full-history --format='%h %s' "$p"..HEAD -- "$tex" | paste -sd';' - | sed 's/;/ ; /g')
+            echo "::error::Le .tex diffère de celui du dernier commit du PDF ($(git rev-parse --short "$p")). HEAD est le commit de fusion de test de la PR ; commits du .tex depuis (liste indicative, SHA éphémère possible pour la fusion de test) : ${liste:-aucun, le .tex a été modifié puis ramené à un autre état}. Faire le commit de PDF de fin de branche (skill compiler-doc, mode « fin de branche » ; ADR 0008 amendé le 18/10/2026, points 2 à 4) avant de sortir du brouillon ou de fusionner."
+            exit 1
+          fi
+          echo "PDF à jour : le .tex de HEAD est celui du dernier commit du PDF ($(git rev-parse --short "$p"))."
