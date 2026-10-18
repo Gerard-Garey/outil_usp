@@ -5,6 +5,8 @@ date: 2026-09-22
 
 # Le PDF de la documentation se compile et se commite aussi depuis une session cloud ; sa chaîne de composition peut changer d'un commit à l'autre
 
+> *Annotation du 18 octobre 2026 : la décision 1 (PDF recompilé et commité **avec** chaque modification du `.tex`) est **remplacée** par l'amendement du 18 octobre 2026 en fin de document (M37, issue #341) : les commits du `.tex` ne portent plus le PDF, qui est commité **une fois par branche, en fin de branche**, et un job de CI contrôle qu'à chaque fusion le PDF suit le `.tex`. Les décisions 2 et 3, les options écartées et les conséquences du corps restent en vigueur, lues selon l'amendement. Le titre est conservé : la compilation et le commit du PDF restent possibles dans tout environnement.*
+
 ## Contexte
 
 Le PDF compilé `docs/latex/doc_tests_usp.pdf` est un livrable versionné, recompilé et commité avec toute modification du `.tex` (`CLAUDE.md`). Jusqu'ici, seul le poste local du mainteneur le recompilait ; la fiche `docwriter` interdisait de le commiter depuis une session cloud. Motif mesuré : le PDF du poste est composé par MiKTeX (pdfTeX 1.40.29), celui des conteneurs cloud par TeX Live 2023/Debian (pdfTeX 1.40.25) ; même source, même nombre de pages (109), mais 994 632 octets contre 824 136, soit 17 % d'écart de taille.
@@ -15,7 +17,7 @@ Conséquence observée le 22 septembre 2026 : chaque branche touchant au `.tex` 
 
 Arrêtée par le mainteneur le 22 septembre 2026.
 
-1. Le PDF est recompilé et commité avec le `.tex` **dans tout environnement**, poste local ou session cloud.
+1. Le PDF est recompilé et commité avec le `.tex` **dans tout environnement**, poste local ou session cloud. [*Remplacé le 18/10/2026 par l'amendement ci-dessous (M37) : le PDF est compilé à chaque modification du `.tex` comme **contrôle**, sans être commité ; il est commité une fois par branche, par le **commit de PDF de fin de branche**. « Dans tout environnement » reste vrai pour ce commit.*]
 2. `pdflatex` est rendu disponible par le hook `SessionStart` `.claude/hooks/preparer_latex.sh` : ajout de MiKTeX au PATH sur le poste Windows ; en session cloud, installation de TeX Live par apt **à la demande** (`--installer`, lancé par la skill `compiler-doc`), pour que les sessions qui ne touchent pas au `.tex` ne paient pas plusieurs minutes d'installation.
 3. Le compte rendu de compilation nomme la chaîne utilisée (ligne `Producer` du PDF).
 
@@ -29,3 +31,71 @@ Arrêtée par le mainteneur le 22 septembre 2026.
 - La chaîne de composition du PDF versionné peut alterner entre MiKTeX et TeX Live d'un commit à l'autre. Le contenu ne change pas ; la taille, la compression et les métadonnées changent. Tout commit du PDF enregistre de toute façon un binaire complet : l'alternance n'alourdit pas l'historique davantage.
 - Si le dossier remis à l'ACPR doit porter une chaîne unique, une recompilation finale sur le poste local suffit ; elle n'est pas imposée par le présent ADR.
 - La liste des paquets TeX Live du hook suit le préambule du `.tex` : tout nouveau `\usepackage` peut exiger un paquet de plus.
+
+---
+
+## Amendement du 18 octobre 2026 — le PDF est commité une fois par branche, en fin de branche ; un job de CI contrôle qu'à chaque fusion il suit le `.tex` (M37)
+
+### Ce que la décision 1 a coûté
+
+La décision 1 faisait de chaque commit qui touche le `.tex` un commit du PDF. Mesure du 18/10/2026 sur `main` `c3d05bb` (*vérifiée* par `architect`, `git log -- docs/latex/doc_tests_usp.pdf` et `git cat-file --batch-check='%(objectsize:disk)'` sur les blobs du PDF) : **239 commits** touchent le PDF, **239 versions distinctes**, **80,3 Mo** compressés sur disque (médiane 230 ko par version), le premier poste du dépôt (feuille de route, § 1, complément du trente-septième point). Sur la même histoire, **269 commits** touchent le `.tex`, mais **38 commits seulement** du premier parent de `main` l'ont changé (36 commits de fusion et 2 commits directs du 21/09, antérieurs à l'ADR 0007 ; `git log --first-parent`) : une version du PDF par état de `main` aurait suffi à ce que `main` porte toujours un PDF à jour. Le reste — environ 200 versions — n'a servi qu'à des états intermédiaires de branches, que personne ne relit dans l'historique : la CI compile déjà le `.tex` à chaque push et publie le PDF en artefact (`ci.yml`, job `documentation`, artefact `doc_tests_usp`). S'y ajoute un coût de procédure : chaque intégration de `main` qui croise une autre version du PDF, binaire non fusionnable (`.gitattributes`), demandait une recompilation (ADR 0007, Contexte, et clauses C5 à C5‴ de ses annotations des 5, 11, 14 et 15 octobre).
+
+### Décision (mainteneur, 18/10/2026, M37)
+
+Décision du mainteneur du 18/10/2026 (feuille de route, § 4, E-18/10 (Ff), point (b), numérotée M37 ; forme et ordre : E-18/10 (Fp), Q-37-3 et Q-37-4 (a)). Elle **remplace la décision 1** du corps ; les décisions 2 et 3 sont maintenues (point 8).
+
+1. **Les commits qui modifient le `.tex` ne portent pas le PDF.** Passage de `docwriter` (un commit `docs:` par issue, règle 9 de l'ADR 0010), commit `docs:` minimal d'écart de concordance (M32), corrections de la validation d'`actuary` ou de la revue finale : le `.tex` seul. La **compilation reste un contrôle** avant chacun de ces commits (skill `compiler-doc` : passes, erreurs, renvois indéfinis, `Overfull`, pages), mais le PDF qu'elle produit **n'est pas indexé** — compilé hors de l'arbre ou restauré après compilation, au choix de la skill ; à la création du commit, `git status` ne montre pas `docs/latex/doc_tests_usp.pdf`. Pendant la vie d'une branche, le PDF versionné y est donc en retard sur le `.tex` ; le PDF à lire est l'**artefact** `doc_tests_usp` de la dernière exécution de la CI (rétention de 30 jours), qui reste un contrôle et n'est jamais commité.
+
+2. **Un commit de PDF de fin de branche.** Toute branche fusionnée dans `main` (ou dans `main-GPT`, point 6) qui a modifié le `.tex` se termine, côté documentation, par **un commit `docs:` qui porte le seul fichier `docs/latex/doc_tests_usp.pdf`** :
+   - **moment** : après le dernier commit qui touche le `.tex` — passage de `docwriter`, corrections de la validation d'`actuary`, commits M32, corrections de la revue finale (règle 10 de l'ADR 0010) —, **juste avant la sortie du brouillon** ;
+   - **auteur** : la session principale, selon la skill `compiler-doc` (mode « fin de branche ») ; non `docwriter`, dont le passage n'est pas le dernier à toucher le `.tex` ;
+   - **forme** : compilation complète, toutes passes, sur un arbre propre à la tête de la branche (aucune modification non commitée hors du PDF), mêmes contrôles qu'au point 1 ; le message cite le SHA du dernier commit qui touche le `.tex`, la chaîne de composition (ligne `Producer`) et le nombre de pages, et renvoie aux issues de la branche par `Refs` (jamais `Closes`, qui reste au corps de la PR) ;
+   - **après lui** : toute modification du `.tex` — correction tardive, intégration de `main` qui fusionne deux versions du `.tex` (point 4) — appelle un nouveau commit de PDF, de même forme, **avant la fusion**. « Un commit unique » décrit le cas nominal, pas un plafond.
+
+   Ce commit ne compte ni comme passage de `docwriter` ni comme commit d'issue au sens de la règle 9 : la traçabilité issue → documentation reste portée par les commits du `.tex`, un par issue.
+
+3. **Invariant et contrôle mécanique** (Q-37-4 (a)). **Invariant** : à chaque fusion sur `main` — et sur `main-GPT` —, le PDF versionné correspond au `.tex`. **Contrôle** : un job de CI, exécuté sur toute PR **non brouillon** (y compris à l'événement `ready_for_review`, que les types par défaut de `pull_request` ne couvrent pas), échoue si un commit qui touche `docs/latex/doc_tests_usp.tex` n'est pas un ancêtre du dernier commit qui touche `docs/latex/doc_tests_usp.pdf` dans l'historique de la PR (forme de la feuille de route : `git merge-base --is-ancestor`). Exigences de forme, à tenir par `coder` à l'étape 4 de Fp : historique complet (`fetch-depth: 0`) ; contrôle fait sur l'arbre qui sera fusionné (commit de fusion de test de la PR) ; critère indépendant des dates de commit (par exemple : `git rev-list <dernier commit du PDF>..HEAD -- docs/latex/doc_tests_usp.tex` vide) ; permissions en lecture seule, actions épinglées par SHA comme dans `ci.yml` ; message d'échec qui nomme le commit du `.tex` non couvert et renvoie au présent amendement. Le job ne relance pas les autres jobs de la CI au passage `ready_for_review` (workflow distinct ou condition par job : choix de `coder`). Il peut aussi s'exécuter sur `push` vers `main`, où il **constate** l'invariant après la fusion ; un échec y est un incident à consigner (§ 6 de la feuille de route), non un blocage.
+
+   **Épreuve du critère** (18/10/2026, *vérifiée* par `architect`, forme `git rev-list $(git rev-list -1 <état> -- <pdf>)..<état> -- <tex>`) : rejoué sur les 78 états du premier parent de `main` jusqu'à `c3d05bb` où le PDF existe, **aucun échec** (pas de faux positif sur l'historique, où `.tex` et PDF étaient commités ensemble) ; sur un clone jetable, un commit du `.tex` seul est détecté (un commit non couvert), puis levé par un commit du PDF.
+
+   **Portée du contrôle** : il vérifie la **provenance** (aucun `.tex` postérieur au dernier PDF), non le **contenu** (que le PDF ait bien été compilé depuis ce `.tex`) ; le contenu repose sur la procédure du point 2 et sur le message du commit. **Faux positif connu** : un `.tex` modifié puis rétabli à l'identique sur la branche fait échouer le job ; un commit de PDF le lève.
+
+4. **Intégration de `main`** (commit de fusion, ADR 0007 point 6) : **aucune recompilation**. En cas de conflit sur le PDF, on garde **la version de la branche qui reçoit l'intégration** (`git checkout --ours -- docs/latex/doc_tests_usp.pdf`), sans la recompiler. Règle mécanique, qui se corrige d'elle-même : si la fusion a produit un `.tex` différent des deux côtés, le commit de fusion touche le `.tex`, le job du point 3 échoue, et un commit de PDF de fin de branche (point 2) est dû avant la fusion. Cette règle remplace, pour toute branche future, la recompilation « après chaque intégration conflictuelle » des clauses C5 à C5‴ des annotations de l'ADR 0007 (sans effet rétroactif sur les branches qu'elles visaient, toutes fusionnées).
+
+5. **Branches qui ne touchent pas le `.tex`** : aucun commit de PDF. C'est le cas du **correctif rapide** ordinaire (ADR 0007 point 3 : aucune modification du `.tex`), de la **branche éphémère de régénération** (M30 ; inchangé), des branches d'ouverture d'une période GPT et de la présente branche Fp (première application). Un **correctif rapide qui touche le `.tex`** par décision expresse du mainteneur (précédents R16 et R17) est sa propre fin de branche : son dernier commit est un commit de PDF. Une branche de processus hors branche de travail (précédents PR #176 et #337) suit la règle générale.
+
+6. **Période GPT** (Q-37-3, instruction expresse du mainteneur) : la même règle vaut sur `main-GPT` et sur les branches `gpt/…` — commits du `.tex` sans PDF, commit de PDF en fin de branche `gpt/…` avant la sortie de son brouillon, intégration de `main` sans recompilation, même contrôle (le job tourne sur toute PR non brouillon, quelle que soit sa base, donc aussi vers `main-GPT` et sur la PR de période `main-GPT` → `main`). `AGENTS.md` et `.codex/procedures/compilation-doc.md` sont alignés dans Fp (étape 5). Le lot d'une période reste disjoint de la branche de travail de Claude, PDF compris (ADR 0012, annotation du 28/09/2026, point 3) : deux commits de PDF concurrents se croiseraient encore à l'intégration.
+
+7. **Historique non réécrit.** Les 239 versions déjà publiées restent dans l'historique de `main` : ni `git filter-repo`, ni migration vers Git LFS, ni réécriture d'aucune sorte (ADR 0007 point 6 : les SHA sont cités dans les ADR, les issues, les corps de PR et la feuille de route). Le gain porte sur l'avenir seulement.
+
+8. **Décisions 2 et 3 du corps, maintenues.** `pdflatex` reste fourni par le hook `SessionStart` (installation de TeX Live à la demande en session cloud), puisque la compilation de contrôle et le commit de fin de branche en ont besoin. La chaîne de composition est nommée dans le compte rendu de chaque compilation et, désormais, dans le message du commit de PDF.
+
+### Lecture des autres ADR
+
+- **ADR 0007.** Le Contexte (« conflits sur le PDF ») et la première conséquence restent vrais comme constat ; leur cause est réduite : un conflit sur le PDF ne survient plus que si les deux côtés d'une intégration ont chacun fait leur commit de PDF (paire parallèle, correctif rapide qui touche le `.tex`), et il se règle par le point 4 sans recompilation. L'annotation de la paire Fh ∥ Fi, à rédiger au trente-huitième point, reprend le point 4 dans sa clause d'intégration de `main`. L'ADR 0007 n'est pas modifié.
+- **ADR 0010.** Règle 9 : la parenthèse « chaque commit renvoie à son issue et recompile le PDF, ADR 0008 » se lit désormais « chaque commit renvoie à son issue ; le PDF n'est commité qu'en fin de branche (ADR 0008 amendé) ». Le passage de `docwriter` reste unique, en fin de branche, à un commit `docs:` par issue ; le commit de PDF le suit et n'en fait pas partie. M32 : le commit `docs:` minimal porte le `.tex` seul (la mention « PDF recompilé » de sa première application, `a29cc09`, est historique). La règle 10 est inchangée : le commit de PDF, fait après les corrections de la revue finale, se relit sur son diff (un seul fichier binaire, message conforme au point 2).
+- **ADR 0011**, annotation du 29/09/2026, point 1 : le commit `docs:` M32 placé avant le commit de code porte le `.tex` seul.
+- **ADR 0012.** Au point 1 de la décision, la règle de fond « `.tex` et PDF recompilé avec chaque commit du `.tex` (ADR 0008, `docs/latex/CONVENTIONS.md`) », applicable à GPT, se lit désormais « `.tex` compilé pour contrôle, PDF commité en fin de branche (ADR 0008 amendé) » (point 6) ; l'annotation du 28/09/2026, point 3 (lot disjoint, PDF compris), est inchangée. L'entrée « `main-GPT` » de `CONTEXT.md` (« `.tex` et PDF […] s'y appliquent sans changement ») renvoie à la même règle.
+
+### Options écartées
+
+- **Statu quo (décision 1 du corps)** : un PDF à chaque commit du `.tex` ; coût mesuré ci-dessus (239 versions, 80,3 Mo), pour des états intermédiaires que l'artefact de la CI suffit à montrer.
+- **PDF retiré du dépôt, publié par la CI (artefact) ou en release** : le PDF est un livrable versionné du dossier ACPR, dont la correspondance avec le `.tex` doit se lire dans l'historique de `main` ; un artefact expire (30 jours) et une release vit hors de l'historique.
+- **PDF produit et commité par la CI** : écarté le 22/09/2026 (Options écartées du corps : commits poussés par un robot, droit d'écriture du workflow) ; raisons inchangées.
+- **Git LFS** : dépendance de plus sur chaque copie (poste, sessions cloud, Codex), quotas de stockage et de bande passante de GitHub, et aucun gain sur les versions passées sans migration de l'historique.
+- **Réécriture de l'historique** (`filter-repo`) pour purger les versions passées : invalide les SHA cités partout, contraire à l'ADR 0007 point 6.
+- **PDF commité par `docwriter` à la fin de son passage** : son passage n'est pas le dernier à toucher le `.tex` (validation d'`actuary`, corrections de la revue finale, M32) ; il faudrait recommencer.
+- **Recompilation à chaque intégration de `main`** (clauses C5 des annotations de l'ADR 0007) : une version du PDF par intégration, ce que la décision veut éviter ; le commit de fin de branche couvre le cas.
+- **Garder, en cas de conflit, la version de `main`** : équivalent pour le résultat (le job impose de toute façon un nouveau commit de PDF si le `.tex` fusionné diffère) ; la version de la branche qui reçoit l'intégration est retenue pour n'avoir qu'une règle, la même sur la branche de travail et sur `main-GPT`.
+- **Case du modèle de PR seulement** (Q-37-4 (b)) : l'oubli du commit de fin de branche, risque créé par la décision, resterait silencieux.
+- **Contrôle du contenu** (recompiler dans la CI et comparer au PDF versionné, ou comparer les textes extraits) : les octets diffèrent d'une chaîne à l'autre (17 % de taille entre MiKTeX et TeX Live, Contexte du corps), et une comparaison de texte extrait dépendrait des versions des outils ; le contrôle de provenance du point 3, avec la procédure du point 2, suffit à l'invariant décidé.
+
+### Conséquences
+
+- **Aucun effet sur les résultats** : ni `R/`, ni `tests/`, ni `.tex`, ni PDF, ni référence. Fp n'a aucun commit de PDF (point 5).
+- **Poids** : ordre de grandeur rétrospectif (*hypothèse* tirée de la mesure ci-dessus) : environ une version du PDF par état de `main` qui change le `.tex`, soit 38 au lieu de 239 sur l'histoire passée.
+- **Nouveau risque**, l'oubli du commit de fin de branche, couvert par le job du point 3 ; **risque résiduel**, un PDF commité depuis un autre état que la tête de la branche, couvert par la procédure du point 2 seulement.
+- **Fichiers à aligner** dans Fp (étapes 2 à 5 de la fiche Fp de la feuille de route) : `CLAUDE.md` ; `.claude/skills/compiler-doc/SKILL.md` (deux modes : contrôle, commit de fin de branche) ; `.claude/agents/docwriter.md` ; `docs/latex/CONVENTIONS.md` ; `README.md` ; `.github/pull_request_template.md` ; commentaire du job `documentation` de `.github/workflows/ci.yml` et job de contrôle ; `AGENTS.md` et `.codex/procedures/compilation-doc.md`. Terme fixé dans `CONTEXT.md` : « Commit de PDF de fin de branche ».
+- Feuille de route : § 4 (M37, E-18/10 (Ff), E-18/10 (Fp)), fiche Fp du § 3.
+
+Issue : #341. Décision : M37 (18/10/2026). Voir ADR 0007 (points 3 et 6, annotations C5 à C5‴), ADR 0010 (règle 9, M32, règle 10), ADR 0011 (annotation du 29/09/2026), ADR 0012 (point 1 de la décision ; annotation du 28/09/2026, point 3).
