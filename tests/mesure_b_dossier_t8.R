@@ -393,7 +393,9 @@ N_CHG_DISTINCTS <- length(unique(vapply(CHANGE_V, `[[`, "", "sig")))
 # la regle de #244 selon le sens de la ligne (comme distance_seuil() :
 # {alpha, alpha/2} en sens "ne pas rejeter", {alpha,
 # SEUIL_ECHEC_SENS_REJETER} en sens "rejeter"), sans filtre d'atteignabilite
-# (constat descriptif). Phrases conditionnees sur la mention de #244 posee
+# (constat descriptif) : mention absente alors qu'une distance imprimee est
+# < 2, le renvoi aux distances est remplace par "seuil non atteignable ou
+# ligne hors du perimetre de #244". Phrases conditionnees sur la mention de #244 posee
 # par le moteur (s244) : "remplit" et "la retient" si elle est posee, "ne
 # remplit pas" et "l'exclut" sinon ; "La troisieme" seulement si HomogF est
 # hors mention et que la mesure compte deux autres lignes (troisieme ligne de
@@ -403,10 +405,11 @@ note_c5 <- function(L, i, alpha, B, B_ref) {
   n244 <- sum(L$s244); s244 <- isTRUE(L$s244[i]); p <- L$p[i]; err <- L$err[i]
   seuils <- if (identical(L$sens[i], "rejeter")) c(alpha, OT$SEUIL_ECHEC_SENS_REJETER) else c(alpha, alpha / 2)
   d_ok <- is.finite(p) && is.finite(err) && err > 0
+  d <- if (d_ok) abs(p - seuils) / err else c(NA_real_, NA_real_)
   dist <- if (d_ok)
     sprintf("est \u00e0 %s err_mc de %s et %s err_mc de %s",
-            formatC(abs(p - seuils[1L]) / err, format = "f", digits = 2), format(seuils[1L]),
-            formatC(abs(p - seuils[2L]) / err, format = "f", digits = 2), format(seuils[2L])) else
+            formatC(d[1L], format = "f", digits = 2), format(seuils[1L]),
+            formatC(d[2L], format = "f", digits = 2), format(seuils[2L])) else
     "n'a pas d'err_mc finie et positive (distances non calcul\u00e9es)"
   troisieme <- !s244 && n244 == 2L
   sujet <- if (troisieme) "La troisi\u00e8me, HomogF" else "La ligne HomogF"
@@ -417,7 +420,9 @@ note_c5 <- function(L, i, alpha, B, B_ref) {
          sprintf(" elle %s le crit\u00e8re strict |p \u2212 s| < 2 err_mc de #244 (`add()`, `R/engine.R`).", if (s244) "remplit" else "ne remplit pas"),
          " La revue du 15/10 comptait cette ligne parmi les lignes \u00e0 moins de deux erreurs Monte-Carlo du seuil ;",
          if (s244) " le crit\u00e8re strict de #244 pos\u00e9 par le moteur la retient aussi." else
-           paste0(" le crit\u00e8re strict de #244 pos\u00e9 par le moteur l'exclut", if (d_ok) " (distances ci-dessus)." else "."),
+           paste0(" le crit\u00e8re strict de #244 pos\u00e9 par le moteur l'exclut",
+                  if (!d_ok) "." else if (min(d) < 2) " (seuil non atteignable ou ligne hors du p\u00e9rim\u00e8tre de #244)." else
+                    " (distances ci-dessus)."),
          if (!s244 || n244 != 3L) " L'origine du compte de la revue n'est pas \u00e9tablie." else "",
          if (B != B_ref) sprintf(" (--essai : valeurs \u00e0 B = %s, non comparables \u00e0 la revue.)", fb(B)) else "")
 }
