@@ -169,7 +169,8 @@ Les agents de réalisation et de vérification ont leur modèle et leur effort f
 - Toute modification de la documentation LaTeX respecte
   [`docs/latex/CONVENTIONS.md`](docs/latex/CONVENTIONS.md).
 - Toute modification du code s'accompagne de la mise à jour de la documentation
-  LaTeX et de la recompilation du PDF.
+  LaTeX, faite en fin de branche (CLAUDE.md, règle 9) ; le PDF versionné est
+  recompilé et commité une fois par branche, en fin de branche (ADR 0008 amendé).
 - Identité des commits : adresse `noreply` de GitHub pour les commits du
   mainteneur (réglage « Keep my email addresses private » du compte), et
   `Claude <noreply@anthropic.com>` pour ceux de Claude (CLAUDE.md).
