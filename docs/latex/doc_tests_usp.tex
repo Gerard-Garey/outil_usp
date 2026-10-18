@@ -11252,9 +11252,13 @@ diagnostic sans p-value retenue, la p-value asymptotique restant affichée (issu
 avec \code{usp\_bootstrap(B = 40)})~; jusqu'à cette issue, elle était retenue sous une nature qui
 nommait le repli, alors même que le commentaire dit cette formule sans validité à $T = 8$.
 \Usage
-Complémentaire du sup-F~: le CUSUM détecte plutôt des dérives \emph{graduelles}, là où le sup-F
-détecte des ruptures \emph{brutales}. Sa limite majeure ici est que la convergence vers le pont
-brownien suppose $T$ grand~: sur 10 points, le processus cumulé n'a aucune chance de ressembler à
+Complémentaire du sup-F. L'idée, répandue mais non sourcée dans le présent document, que le
+CUSUM viserait plutôt des dérives graduelles et le sup-F des ruptures brutales n'est pas observée à
+$T = 8$ (volet~A, référence idéalisée, rubrique~7)~: taux voisins contre une tendance, CUSUM
+supérieur contre une rupture au milieu de la période, sup-F supérieur contre une rupture tardive.
+La complémentarité mesurée tient à la position de la rupture plutôt qu'à sa forme. Constat de
+simulation sous des alternatives choisies, sans portée générale. Sa limite majeure ici est que la
+convergence vers le pont brownien suppose $T$ grand~: à $T = 8$, le processus cumulé n'a aucune chance de ressembler à
 une trajectoire brownienne et seule la simulation donne un niveau correct.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{CUSUM}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
