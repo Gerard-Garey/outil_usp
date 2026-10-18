@@ -503,11 +503,52 @@ verifier(".imhof_p_sup0 renvoie P(Q > 0) comme annonce (#33)",
          .imhof_p_sup0(c(1, 1, 1)) > 0.999999 && .imhof_p_sup0(-c(1, 1, 1)) < 1e-6)
 
 ## --- Durbin-Watson : puissance contre un AR(1), dw_puissance_ar1() (#170) ---
-# Sous H0 (rho = 0), la puissance est le niveau alpha (points critiques de la
-# loi nulle de dw_p_exacte()).
+# Controle de coherence, pas recoupement : a rho = 0, p_sup() integre les
+# memes valeurs propres (lam - d) que celles dont uniroot() a tire les points
+# critiques, et rend alpha par construction. Le recoupement independant des
+# points critiques par dw_p_exacte() suit.
 for (a in c(0.10, 0.05)) for (n in c(8L, 12L))
-  verifier(sprintf("DW, puissance AR(1) : rho = 0 rend alpha = %.2f (T = %d)", a, n),
+  verifier(sprintf("DW, puissance AR(1) : rho = 0 rend alpha = %.2f (T = %d, coherence)", a, n),
            proche(dw_puissance_ar1(n, 0, a), a, abs = 1e-8))
+# Recoupement des points critiques d_bas, d_haut de dw_puissance_ar1() par
+# dw_p_exacte(), sans toucher l'interface du moteur. Copie de la fonction dont
+# .imhof_p_sup0() enregistre ses arguments ; a rho = 0, les deux derniers
+# appels (p_sup(d_bas), p_sup(d_haut)) recoivent h = (lam - d) / c, c > 0
+# (normalisation par max|h|), d'ou c = (max lam - min lam) / (max h - min h)
+# et d = max lam - c max h, lam etant recalculees ici sans .dw_matrices().
+# Puis, comme vecteur_dw() de l'ancien puissance_t8.R : z combinaison des
+# vecteurs propres extremes de M A M, de statistique DW egale a d ;
+# dw_p_exacte(z) doit rendre alpha (p bilaterale egale a alpha au point
+# critique).
+local({
+  for (a in c(0.10, 0.05)) for (n in c(8L, 12L)) {
+    hs <- list()
+    env <- new.env(parent = environment(dw_puissance_ar1))
+    env$.imhof_p_sup0 <- function(h) { hs[[length(hs) + 1L]] <<- h; .imhof_p_sup0(h) }
+    f <- dw_puissance_ar1; environment(f) <- env
+    f(n, 0, a)
+    D <- diff(diag(n))                       # sum(diff(z)^2) = z' D'D z
+    Mc <- diag(n) - 1 / n
+    eg <- eigen(Mc %*% crossprod(D) %*% Mc, symmetric = TRUE)
+    lam <- eg$values[1:(n - 1)]
+    d_de <- function(h) {
+      c0 <- (max(lam) - min(lam)) / (max(h) - min(h))
+      max(lam) - c0 * max(h)
+    }
+    k <- length(hs)
+    dc <- c(d_de(hs[[k - 1L]]), d_de(hs[[k]]))
+    vecteur_dw <- function(d) {
+      s2 <- (d - lam[n - 1]) / (lam[1] - lam[n - 1])
+      sqrt(1 - s2) * eg$vectors[, n - 1] + sqrt(s2) * eg$vectors[, 1]
+    }
+    z <- lapply(dc, vecteur_dw)
+    p_rec <- vapply(z, dw_p_exacte, numeric(1))
+    verifier(sprintf("DW, puissance AR(1) : dw_p_exacte() aux points critiques rend alpha = %.2f (T = %d, recoupement)", a, n),
+             dc[1] < dc[2] &&
+             isTRUE(proche(vapply(z, stat_dw, numeric(1)), dc, rel = 0, abs = 1e-10)) &&
+             isTRUE(proche(p_rec, c(a, a), rel = 0, abs = 1e-6)))
+  }
+})
 # Valeurs citees dans la fiche DW et le tableau tab:tracabilite-puissance
 # (issue #116, T = 8, alpha = 0,10, test bilateral). Controle principal a
 # 6 decimales avec tolerance 1e-6 (valeurs de dw_puissance_ar1() au
