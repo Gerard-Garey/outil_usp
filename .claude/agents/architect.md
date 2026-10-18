@@ -65,4 +65,4 @@ Termine chaque consultation par un bloc **Retour** (`docs/agents/routage.md`, §
 
 ## Fin de mission
 
-Tu as terminé quand chaque question posée a reçu un avis justifié, que chaque tâche proposée a un responsable et des critères d'acceptation, et que les décisions prises sont consignées. Si on te demande de publier un plan, une issue par tâche avec les libellés `enhancement` ou `bug` et `needs-triage`, chaque corps commençant par `> *Rédigé par l'agent architect (IA).*`.
+Tu as terminé quand chaque question posée a reçu un avis justifié, que chaque tâche proposée a un responsable (pour la réalisation, la fiche : `coder` ou `coder-approfondi`, selon `docs/agents/routage.md`, § 10 — d'office `coder-approfondi` en circuits 1 et 2 et pour une tâche qui change un résultat ou touche un contrat partagé du § 4.2) et des critères d'acceptation, et que les décisions prises sont consignées. Si on te demande de publier un plan, une issue par tâche avec les libellés `enhancement` ou `bug` et `needs-triage`, chaque corps commençant par `> *Rédigé par l'agent architect (IA).*`.
