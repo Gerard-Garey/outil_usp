@@ -111,21 +111,26 @@ const CONSIGNE_M32 = 'a corriger par un commit docs: minimal avant push (M32)'
 // 'approfondi' sans tirets, option placee apres la consigne ou en double,
 // approfondi non booleen, effort sans approfondi) arrete le workflow au lieu
 // d'etre ignoree ; un mot compose comme 'non-approfondi' dans la consigne
-// l'arrete aussi, mais pas un tiret suivi d'un mot plus long ('- approfondir
-// la cause'). Une consigne qui doit citer l'option ou un tel mot passe par la
-// forme objet.
+// l'arrete aussi, comme un tiret colle a un mot plus long ('-approfondie'),
+// mais pas un tiret suivi d'une espace puis d'un mot plus long ('- approfondir
+// la cause'). En forme objet, une cle inconnue ou un champ issue qui n'est pas
+// un numero arrete aussi le workflow. Une consigne qui doit citer l'option ou
+// un tel mot passe par la forme objet.
 function lireArgs(a) {
   let v = (typeof a === 'undefined') ? null : a
   if (typeof v === 'string') {
     try { v = JSON.parse(v) } catch (e) { /* chaine libre : lue plus bas */ }
   }
   if (v !== null && typeof v === 'object') {
-    const n = String(v.issue === undefined || v.issue === null ? '' : v.issue).match(/\d+/)
+    const n = String(v.issue === undefined || v.issue === null ? '' : v.issue).trim().match(/^#?(\d+)$/)
+    const inconnues = Object.keys(v).filter(function (k) { return ['issue', 'consigne', 'approfondi', 'effort'].indexOf(k) < 0 })
     let invalide = null
-    if (v.approfondi !== undefined && typeof v.approfondi !== 'boolean') invalide = "approfondi doit valoir true ou false"
+    if (Array.isArray(v) || inconnues.length) invalide = "cles admises : issue, consigne, approfondi, effort" + (inconnues.length ? " (recu : " + inconnues.join(', ') + ")" : '')
+    else if (v.issue !== undefined && v.issue !== null && !n) invalide = "issue doit etre un numero ('76' ou '#76')"
+    else if (v.approfondi !== undefined && typeof v.approfondi !== 'boolean') invalide = "approfondi doit valoir true ou false"
     else if (v.effort !== undefined && !(v.approfondi === true && v.effort === 'high')) invalide = "effort n'est admis qu'avec approfondi: true, et seulement 'high'"
     return {
-      issue: n ? n[0] : null,
+      issue: n ? n[1] : null,
       consigne: v.consigne ? String(v.consigne) : '',
       approfondi: v.approfondi === true,
       effortHaut: v.approfondi === true && v.effort === 'high',
@@ -508,11 +513,11 @@ function noterImplementation(impl) {
 // Corps du workflow dans une fonction : un seul return au niveau superieur,
 // qui rend le rapport final a l'appelant
 async function derouler() {
-  if (!issue) {
-    return arreter("argument sans numero d'issue (attendu : '76', '76 consigne', '76 --approfondi consigne' ou '76 --approfondi=high consigne')")
-  }
   if (entree.invalide) {
     return arreter('argument invalide : ' + entree.invalide)
+  }
+  if (!issue) {
+    return arreter("argument sans numero d'issue (attendu : '76', '76 consigne', '76 --approfondi consigne' ou '76 --approfondi=high consigne')")
   }
 
   phase('Préparation')
@@ -534,7 +539,7 @@ async function derouler() {
   phase('Implémentation')
   const impl1 = await agent(consigneImplementation(depot.tete, null),
     optsCoder(CODER + ' #' + issue))
-  if (!impl1) return arreter("coder n'a rien rendu (agent saute ou interrompu)")
+  if (!impl1) return arreter(CODER + " n'a rien rendu (agent saute ou interrompu)")
   const tour1 = { implementation: impl1, verification: null, audit: null }
   rapport.tours.push(tour1)
   noterImplementation(impl1)
@@ -605,7 +610,7 @@ async function derouler() {
   const aTransmettre = { constats: aCorriger, batteries_en_echec: rouges1 }
   const impl2 = await agent(consigneImplementation(depot.tete, aTransmettre),
     optsCoder('reprise ' + CODER + ' #' + issue))
-  if (!impl2) return arreter("coder n'a rien rendu a la reprise")
+  if (!impl2) return arreter(CODER + " n'a rien rendu a la reprise")
   const tour2 = { implementation: impl2, verification: null, audit: null }
   rapport.tours.push(tour2)
   noterImplementation(impl2)
