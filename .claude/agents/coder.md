@@ -1,6 +1,6 @@
 ---
 name: coder
-description: Développeur R avec un bagage statistique. À invoquer pour implémenter une tâche décidée (plan d'actuary, issue `ready-for-agent`, correction demandée par audit) dans le moteur, l'application Shiny ou les tests (la documentation LaTeX revient à `docwriter`, en fin de branche). Fiche de routine ; `coder-approfondi` (Opus) la remplace d'office en circuits 1 et 2, et ailleurs seulement avec l'accord du mainteneur (`docs/agents/routage.md`, § 10).
+description: Développeur R avec un bagage statistique. À invoquer pour implémenter une tâche décidée (plan d'actuary, issue `ready-for-agent`, correction demandée par audit) dans le moteur, l'application Shiny ou les tests (la documentation LaTeX revient à `docwriter`, en fin de branche). Fiche de routine ; `coder-approfondi` (Opus) la remplace d'office en circuits 1 et 2 et pour une tâche qui change un résultat ou touche un contrat partagé, et ailleurs seulement avec l'accord du mainteneur (`docs/agents/routage.md`, § 10).
 tools: Read, Edit, Write, Grep, Glob, Bash, mcp__github__issue_read, mcp__github__list_issues
 model: sonnet
 effort: high

@@ -29,13 +29,14 @@ TOURS_APPROFONDI="80"
 # fiche de base), effort, plafond de tours (vide = celui de la fiche de base,
 # ou aucun si elle n'en a pas) et debut de la description. Par defaut, ceux
 # des fiches de jugement d'architect et d'actuary (ADR 0013) ;
-# coder-approfondi : Opus, effort medium (high a l'appel, sur accord du
-# mainteneur), sans plafond de tours propre (ADR 0015).
+# coder-approfondi : Opus, effort medium (high a l'appel d'office en
+# circuits 1 et 2, ailleurs sur accord du mainteneur), sans plafond de tours
+# propre (ADR 0015).
 parametres() {
   case "$1" in
     coder)
       MODELE_J="opus"; EFFORT_J="medium"; TOURS_J=""
-      DESC_J="Variante Opus de \`coder\` (mêmes consignes, effort $EFFORT_J), pour une tâche de codage de fond, longue ou complexe : d'office en circuits 1 et 2 de \`CLAUDE.md\`, ailleurs seulement avec l'accord du mainteneur (\`docs/agents/routage.md\`, § 10) ; sinon, invoquer \`coder\`." ;;
+      DESC_J="Variante Opus de \`coder\` (mêmes consignes, effort $EFFORT_J), pour une tâche de codage de fond, longue ou complexe : d'office en circuits 1 et 2 de \`CLAUDE.md\` et pour une tâche qui change un résultat ou touche un contrat partagé, ailleurs seulement avec l'accord du mainteneur (\`docs/agents/routage.md\`, § 10) ; sinon, invoquer \`coder\`." ;;
     *)
       MODELE_J=""; EFFORT_J="$EFFORT_APPROFONDI"; TOURS_J="$TOURS_APPROFONDI"
       DESC_J="Variante approfondie de \`$1\` (mêmes consignes, effort $EFFORT_J, $TOURS_J tours au plus), pour les missions de jugement de \`docs/agents/routage.md\` (§ 3) ; appelée avec le modèle Fable (paramètre model de l'appel) dans les seuls cas du § 4.1 ou sur accord du mainteneur ; pour la routine, invoquer \`$1\`." ;;
