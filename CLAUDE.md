@@ -102,8 +102,8 @@ Sept sous-agents de projet (`.claude/agents/` ; dix fiches : `architect`, `actua
 
 **Circuits types** (chacun se termine par un ou plusieurs commits sur la branche de travail, voir « Git et GitHub ») :
 
-1. **Évolution méthodologique** : `actuary` spécifie → `coder` → `audit` (+ `app-review` si l'interface change) → `docwriter` → `actuary` valide.
-2. **Correction de conformité réglementaire** : `regulatory` établit la lecture du texte → `actuary` éclaire l'interprétation → le mainteneur tranche si σ_USP change → `coder` → `audit` → `regulatory` contrôle la conformité → `docwriter`.
+1. **Évolution méthodologique** : `actuary` spécifie → `coder-approfondi` → `audit` (+ `app-review` si l'interface change) → `docwriter` → `actuary` valide.
+2. **Correction de conformité réglementaire** : `regulatory` établit la lecture du texte → `actuary` éclaire l'interprétation → le mainteneur tranche si σ_USP change → `coder-approfondi` → `audit` → `regulatory` contrôle la conformité → `docwriter`.
 3. **Correction technique** : `coder` → `audit`.
 4. **Documentation seule** : `docwriter` (+ `actuary` si le fond change, `regulatory` si une formule réglementaire est touchée).
 
