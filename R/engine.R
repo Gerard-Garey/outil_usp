@@ -2223,7 +2223,8 @@ stat_dw <- function(z) {
 }
 
 # Loi EXACTE de DW sous H0 : z ~ N(0, sigma^2 I).
-# DW = z'Az / z'z avec A la matrice des differences secondes, dont les valeurs
+# DW = z'Az / z'z avec A = D'D, D matrice des differences premieres
+# (sum(diff(z)^2) = z'Az), dont les valeurs
 # propres sont connues analytiquement : lambda_j = 2(1 - cos(pi j / n)),
 # j = 0, ..., n-1 (verification numerique faite). On a donc
 #     P(DW <= c) = P( z'(A - cI)z <= 0 )
@@ -2246,6 +2247,24 @@ stat_dw <- function(z) {
   min(max(0.5 + v / pi, 0), 1)
 }
 
+# Matrices de la loi exacte de DW a n observations, partagees par
+# dw_p_exacte() et dw_puissance_ar1() (#170, construction unique) : A = D'D,
+# D matrice des differences premieres (sum(diff(z)^2) = z'Az), et M, projecteur de
+# centrage (DW est calculee sur z - mean(z), stat_dw()).
+.dw_matrices <- function(n) {
+  A <- diag(c(1, rep(2, n - 2), 1))
+  for (i in 1:(n - 1)) { A[i, i + 1] <- -1; A[i + 1, i] <- -1 }
+  M <- diag(n) - matrix(1 / n, n, n)          # projecteur de centrage
+  list(A = A, M = M)
+}
+# Les n-1 valeurs propres non nulles de M A M (A = D'D projetee sur le
+# complement du vecteur 1), decroissantes.
+.dw_valeurs_propres <- function(n) {
+  m <- .dw_matrices(n)
+  lam <- eigen(m$M %*% m$A %*% m$M, symmetric = TRUE, only.values = TRUE)$values
+  sort(lam, decreasing = TRUE)[1:(n - 1)]   # on ecarte la valeur nulle
+}
+
 # p-value bilaterale exacte de Durbin-Watson (centrage compris : le centrage
 # retire une dimension, on travaille sur les n-1 valeurs propres non nulles de
 # A restreintes au sous-espace orthogonal au vecteur constant).
@@ -2253,16 +2272,86 @@ dw_p_exacte <- function(z) {
   n <- length(z)
   if (n < 4) return(NA_real_)
   d <- stat_dw(z)
-  # matrice des differences secondes projetee sur le complement du vecteur 1
-  A <- diag(c(1, rep(2, n - 2), 1))
-  for (i in 1:(n - 1)) { A[i, i + 1] <- -1; A[i + 1, i] <- -1 }
-  M <- diag(n) - matrix(1 / n, n, n)          # projecteur de centrage
-  lam <- eigen(M %*% A %*% M, symmetric = TRUE, only.values = TRUE)$values
-  lam <- sort(lam, decreasing = TRUE)[1:(n - 1)]   # on ecarte la valeur nulle
+  lam <- .dw_valeurs_propres(n)
   # Q = z'(A - dI)z : P(Q > 0) = P(DW > d)
   p_sup <- .imhof_p_sup0(lam - d)
   if (!is.finite(p_sup)) return(NA_real_)
   .p_borne(2 * min(p_sup, 1 - p_sup))
+}
+
+# Puissance du test bilateral exact de Durbin-Watson (dw_p_exacte(), seuil
+# alpha) contre un AR(1) stationnaire gaussien de correlation rho a T
+# observations (#170 ; valeur citee dans la fiche DW, issue #116). Le test
+# rejette si DW <= d_bas ou DW >= d_haut, points critiques de la loi nulle :
+# P0(DW <= d_bas) = P0(DW >= d_haut) = alpha / 2 (la p bilaterale de
+# dw_p_exacte(), 2 min(P0(DW <= d), P0(DW >= d)), est < alpha si et
+# seulement si d est hors de [d_bas, d_haut]). Sous z ~ N(0, Sigma), Sigma = (rho^|i-j|), on ecrit
+# z = Sigma^(1/2) e, e ~ N(0, I) ; P(DW > d) = P(e' S M (A - dI) M S e > 0),
+# S = Sigma^(1/2), forme quadratique en normales independantes de coefficients
+# les valeurs propres de S M (A - dI) M S, par .imhof_p_sup0(). Memes A et M
+# que dw_p_exacte() (.dw_matrices()). Approximation numerique (uniroot(),
+# integration d'Imhof) d'une quantite exacte ; rho = 0 rend alpha a la
+# precision de la quadrature. Outil de mesure : n'est pas appele par
+# run_engine().
+dw_puissance_ar1 <- function(T, rho, alpha) {
+  if (length(T) != 1L || !is.numeric(T) || !is.finite(T) || T != round(T) || T < 4 ||
+      T > .Machine$integer.max)
+    stop("dw_puissance_ar1() : T doit etre un entier >= 4 (et <= .Machine$integer.max)")
+  # Domaine borne a |rho| <= 1 - 1e-10 : au-dela, la fonction rendait sans
+  # erreur une valeur eloignee de la limite rho -> 1 (0,5899175 a T = 8,
+  # alpha = 0,10) : 0,5899253 a 1 - 1e-12, 0,5906 a 1 - 1e-13, 0,4755 a
+  # 1 - 1e-15 (#170).
+  if (length(rho) != 1L || !is.numeric(rho) || !is.finite(rho) || abs(rho) > 1 - 1e-10)
+    stop("dw_puissance_ar1() : rho doit verifier |rho| <= 1 - 1e-10 (domaine de precision numerique)")
+  if (length(alpha) != 1L || !is.numeric(alpha) || !is.finite(alpha) || alpha <= 0 || alpha >= 1)
+    stop("dw_puissance_ar1() : alpha doit etre dans ]0, 1[")
+  n <- as.integer(T)
+  m <- .dw_matrices(n)
+  lam <- .dw_valeurs_propres(n)
+  # Points critiques de la loi nulle, P0(DW > d) par Imhof comme dw_p_exacte().
+  p0_sup <- function(d) .imhof_p_sup0(lam - d)
+  lo <- min(lam) + 1e-9; hi <- max(lam) - 1e-9
+  d_bas  <- stats::uniroot(function(d) (1 - p0_sup(d)) - alpha / 2, c(lo, hi), tol = 1e-12)$root
+  d_haut <- stats::uniroot(function(d) p0_sup(d) - alpha / 2, c(lo, hi), tol = 1e-12)$root
+  # Racine symetrique de Sigma.
+  S <- outer(seq_len(n), seq_len(n), function(i, j) rho^abs(i - j))
+  es <- eigen(S, symmetric = TRUE)
+  S12 <- es$vectors %*% diag(sqrt(es$values)) %*% t(es$vectors)
+  # P(DW > d) sous l'AR(1) ; valeurs propres nulles (direction du vecteur 1)
+  # ecartees. Le signe de la forme quadratique ne depend pas de l'echelle :
+  # h est d'abord normalise par max|h|, puis filtre a un seuil relatif
+  # (1e-10). Pres de rho = 1, les valeurs propres sont d'ordre 1 - rho (1e-6
+  # a 1e-5 a rho = 1 - 1e-6) et integrate() echouait sur h non normalise (NA,
+  # erreur "integration d'Imhof en echec" ; #170). Pres de rho = -1, c'est
+  # l'inverse dans certains cas (T = 5, 8, 12 a rho = -1 + 1e-7) : si Imhof
+  # rend NA sur h normalise a l'un des deux points critiques, les deux sont
+  # recalcules sur h non normalise, filtre au seuil absolu 1e-12 (calcul
+  # anterieur a la normalisation) ; si ce calcul echoue aussi a l'un des
+  # points, chaque point garde la valeur finie disponible. Limite connue :
+  # pour 1 - |rho| <= 10^-8,5 a rho < 0 (T = 8, alpha = 0,10), Imhof sur h
+  # normalise rend 1 sans erreur, la simulation donnant 1 - 6,9e-5 a
+  # 1 - 1,1e-5 ; etendue complete (T = 5, 8, 12 ; alpha = 0,05 et 0,10 ;
+  # deficit jusqu'a environ 1e-4 des 1 - |rho| <= 1e-8) : issue #339.
+  h_de <- function(d) eigen(S12 %*% m$M %*% (m$A - d * diag(n)) %*% m$M %*% S12,
+                            symmetric = TRUE, only.values = TRUE)$values
+  h_bas <- h_de(d_bas); h_haut <- h_de(d_haut)
+  p_norm <- function(h) {
+    mx <- max(abs(h))
+    hn <- if (mx > 0) h / mx else h
+    .imhof_p_sup0(hn[abs(hn) > 1e-10])
+  }
+  p_brut <- function(h) .imhof_p_sup0(h[abs(h) > 1e-12])
+  p <- c(p_norm(h_bas), p_norm(h_haut))
+  if (anyNA(p)) {
+    pb <- c(p_brut(h_bas), p_brut(h_haut))
+    p <- if (!anyNA(pb)) pb else ifelse(is.na(p), pb, p)
+  }
+  res <- (1 - p[1]) + p[2]
+  # .imhof_p_sup0() rend NA si integrate() echoue : erreur explicite plutot
+  # qu'une puissance NA silencieuse (les appels de uniroot() echouent deja
+  # par erreur sur un NA).
+  if (!is.finite(res)) stop("dw_puissance_ar1() : integration d'Imhof en echec")
+  res
 }
 
 # Wald & Wolfowitz (1940), Ann. Math. Statist. 11, 147-162 (test des suites).

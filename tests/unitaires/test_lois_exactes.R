@@ -502,6 +502,174 @@ verifier(".imhof_p_sup0 renvoie P(Q > 0) comme annonce (#33)",
                        stats::pf(0.5, 1, 1, lower.tail = FALSE), abs = 1e-7)) &&
          .imhof_p_sup0(c(1, 1, 1)) > 0.999999 && .imhof_p_sup0(-c(1, 1, 1)) < 1e-6)
 
+## --- Durbin-Watson : puissance contre un AR(1), dw_puissance_ar1() (#170) ---
+# Controle de coherence, pas recoupement : a rho = 0, p_sup() integre les
+# memes valeurs propres (lam - d) que celles dont uniroot() a tire les points
+# critiques, et rend alpha par construction. Le recoupement independant des
+# points critiques par dw_p_exacte() suit.
+for (a in c(0.10, 0.05)) for (n in c(8L, 12L))
+  verifier(sprintf("DW, puissance AR(1) : rho = 0 rend alpha = %.2f (T = %d, coherence)", a, n),
+           proche(dw_puissance_ar1(n, 0, a), a, abs = 1e-8))
+# Recoupement des points critiques d_bas, d_haut de dw_puissance_ar1() par
+# dw_p_exacte(), sans toucher l'interface du moteur. Copie de la fonction dont
+# .imhof_p_sup0() enregistre ses arguments ; a rho = 0, les deux derniers
+# appels (P(DW > d_bas), P(DW > d_haut), dans cet ordre) recoivent
+# h = (lam - d) / c, c > 0 (normalisation par max|h|), d'ou
+# c = (max lam - min lam) / (max h - min h) et d = max lam - c max h, lam
+# etant recalculees ici sans .dw_matrices(). Puis, comme vecteur_dw() de
+# l'ancien puissance_t8.R : z combinaison des vecteurs propres extremes de
+# M A M, de statistique DW egale a d ; dw_p_exacte(z) doit rendre alpha (p
+# bilaterale egale a alpha au point critique). La p bilaterale ne distingue
+# pas d_bas de d_haut : on exige aussi que les points encadrent E0(DW) =
+# mean(lam) et que leurs p unilaterales, par Imhof sur les lam recalculees,
+# valent alpha / 2 a gauche de d_bas (1 - P0(DW > d_bas)) et a droite de
+# d_haut (P0(DW > d_haut)) ; un remaniement qui recalculerait deux fois
+# d_haut echoue ici (mutant d'audit, #170).
+local({
+  for (a in c(0.10, 0.05)) for (n in c(8L, 12L)) {
+    hs <- list()
+    env <- new.env(parent = environment(dw_puissance_ar1))
+    env$.imhof_p_sup0 <- function(h) { hs[[length(hs) + 1L]] <<- h; .imhof_p_sup0(h) }
+    f <- dw_puissance_ar1; environment(f) <- env
+    f(n, 0, a)
+    D <- diff(diag(n))                       # sum(diff(z)^2) = z' D'D z
+    Mc <- diag(n) - 1 / n
+    eg <- eigen(Mc %*% crossprod(D) %*% Mc, symmetric = TRUE)
+    lam <- eg$values[1:(n - 1)]
+    d_de <- function(h) {
+      c0 <- (max(lam) - min(lam)) / (max(h) - min(h))
+      max(lam) - c0 * max(h)
+    }
+    k <- length(hs)
+    dc <- c(d_de(hs[[k - 1L]]), d_de(hs[[k]]))
+    vecteur_dw <- function(d) {
+      s2 <- (d - lam[n - 1]) / (lam[1] - lam[n - 1])
+      sqrt(1 - s2) * eg$vectors[, n - 1] + sqrt(s2) * eg$vectors[, 1]
+    }
+    z <- lapply(dc, vecteur_dw)
+    p_rec <- vapply(z, dw_p_exacte, numeric(1))
+    p_uni <- c(1 - .imhof_p_sup0(lam - dc[1]), .imhof_p_sup0(lam - dc[2]))
+    verifier(sprintf("DW, puissance AR(1) : dw_p_exacte() aux points critiques rend alpha = %.2f (T = %d, recoupement)", a, n),
+             dc[1] < mean(lam) && mean(lam) < dc[2] &&
+             isTRUE(proche(vapply(z, stat_dw, numeric(1)), dc, rel = 0, abs = 1e-10)) &&
+             isTRUE(proche(p_rec, c(a, a), rel = 0, abs = 1e-6)) &&
+             isTRUE(proche(p_uni, c(a, a) / 2, rel = 0, abs = 1e-6)))
+  }
+})
+# Valeurs citees dans la fiche DW et le tableau tab:tracabilite-puissance
+# (issue #116, T = 8, alpha = 0,10, test bilateral). Controle principal a
+# 6 decimales avec tolerance 1e-6 (valeurs de dw_puissance_ar1() au
+# 17/10/2026 : 0,277839764534 ; 0,159269148617 ; 0,262350178434 ;
+# 0,398028471085 ; 0,532599444205).
+rho_pub <- c(-0.5, 0.3, 0.5, 0.7, 0.9)
+puis_pub <- vapply(rho_pub, function(r) dw_puissance_ar1(8L, r, 0.10), numeric(1))
+verifier("DW, puissance AR(1) : T = 8, alpha = 0,10, rho = -0,5 ; 0,3 ; 0,5 ; 0,7 ; 0,9 a 1e-6 pres",
+         proche(puis_pub, c(0.277840, 0.159269, 0.262350, 0.398028, 0.532599), abs = 1e-6))
+# Arrondi publie a 4 decimales. A rho = 0,5, la valeur (0,262350178) n'est
+# qu'a 1,8e-7 du point milieu d'arrondi 0,26235 : un ecart de quadrature de
+# cet ordre ferait basculer l'arrondi publie vers 0,2623 (le controle a
+# 1e-6 ci-dessus resterait vert) ; ce controle est donc fragile a rho = 0,5.
+pub <- c(0.2778, 0.1593, 0.2624, 0.3980, 0.5326)
+verifier("DW, puissance AR(1) : arrondis publies 0,2778 ; 0,1593 ; 0,2624 ; 0,3980 ; 0,5326 retrouves",
+         all(round(puis_pub, 4) == pub))
+# Recoupement par simulation, independant de la construction A/M et
+# d'Imhof : points critiques = quantiles empiriques alpha/2 et 1 - alpha/2
+# de DW sur 1e5 series N(0, I), puissance = taux de rejet sur 1e5 AR(1)
+# stationnaires (v_1 = e_1, v_t = rho v_(t-1) + sqrt(1 - rho^2) e_t) ;
+# erreur-type de l'estimation de l'ordre de 0,002 ; tolerance 0,01.
+dw_lignes <- function(Z) {
+  Zc <- Z - rowMeans(Z)
+  rowSums((Zc[, -1] - Zc[, -ncol(Z)])^2) / rowSums(Zc^2)
+}
+# Tirages sous engine_sous_graine() (generateur fixe ENGINE_RNG_KIND, graine
+# 170) : le .Random.seed du reste de la batterie n'en depend pas.
+E01 <- engine_sous_graine(170, list(E0 = matrix(stats::rnorm(1e5 * 8), ncol = 8),
+                                    E1 = matrix(stats::rnorm(1e5 * 8), ncol = 8)))
+E0 <- E01$E0; E1 <- E01$E1
+q0 <- stats::quantile(dw_lignes(E0), c(0.05, 0.95), names = FALSE)
+for (r in c(-0.5, 0.5, 0.9)) {
+  V <- E1
+  for (t in 2:8) V[, t] <- r * V[, t - 1] + sqrt(1 - r^2) * E1[, t]
+  d1 <- dw_lignes(V)
+  verifier(sprintf("DW, puissance AR(1) = simulation a 0,01 pres (T = 8, alpha = 0,10, rho = %.1f)", r),
+           proche(dw_puissance_ar1(8L, r, 0.10), mean(d1 <= q0[1] | d1 >= q0[2]), abs = 0.01))
+}
+# Echec de l'integration d'Imhof au calcul final (et non dans uniroot()) :
+# erreur explicite, jamais NA. Copie de dw_puissance_ar1() dont
+# .imhof_p_sup0() rend NA au dernier appel seulement (nombre d'appels
+# compte sur un calcul normal).
+local({
+  k <- 0L
+  env <- new.env(parent = environment(dw_puissance_ar1))
+  env$.imhof_p_sup0 <- function(h) { k <<- k + 1L; .imhof_p_sup0(h) }
+  f <- dw_puissance_ar1; environment(f) <- env
+  f(8L, 0.5, 0.10); k_tot <- k; k <- 0L
+  # NA au dernier appel (P(DW > d_haut) sur h normalise) et au-dela (repli
+  # sur h non normalise) : erreur explicite.
+  env$.imhof_p_sup0 <- function(h) { k <<- k + 1L; if (k >= k_tot) NA_real_ else .imhof_p_sup0(h) }
+  r <- try(f(8L, 0.5, 0.10), silent = TRUE)
+  verifier("DW, puissance AR(1) : NA d'Imhof au calcul final -> erreur explicite (pas de NA silencieux)",
+           inherits(r, "try-error") && grepl("integration d'Imhof en echec", r, fixed = TRUE))
+  # NA au dernier appel seulement : repli sur h non normalise aux deux points
+  # critiques, valeur finie egale a celle du calcul normal (rho = 0,5).
+  k <- 0L
+  env$.imhof_p_sup0 <- function(h) { k <<- k + 1L; if (k == k_tot) NA_real_ else .imhof_p_sup0(h) }
+  r <- try(f(8L, 0.5, 0.10), silent = TRUE)
+  verifier("DW, puissance AR(1) : NA d'Imhof sur h normalise -> repli sur h non normalise (2 appels de plus)",
+           is.numeric(r) && k == k_tot + 2L &&
+           isTRUE(proche(r, dw_puissance_ar1(8L, 0.5, 0.10), rel = 0, abs = 1e-9)))
+})
+# Pres de rho = 1, les valeurs propres de S M (A - dI) M S sont d'ordre
+# 1 - rho : avant la normalisation de h par max|h|, integrate() echouait
+# (Imhof NA, erreur explicite) a rho = 1 - 1e-6 (constat M-1 d'audit, #170).
+# Comparateur : la limite exacte rho -> 1, puissance du meme test (memes
+# d_bas, d_haut) sous Sigma = min(i, j), marche aleatoire gaussienne centree.
+# Argument : rho^|i-j| = 1 - (1 - rho)|i-j| + o(1 - rho), M annule J, et
+# M min(i, j) M = M(-|i-j|/2)M ; DW ne depend que de Mz, invariante d'echelle.
+# Limite calculee ici par Imhof (0,5899175 a alpha = 0,10 ; 0,4878612 a 0,05).
+local({
+  n <- 8L
+  D <- diff(diag(n)); Mc <- diag(n) - 1 / n; A <- crossprod(D)
+  lam <- eigen(Mc %*% A %*% Mc, symmetric = TRUE)$values[1:(n - 1)]
+  W <- outer(seq_len(n), seq_len(n), pmin)
+  ew <- eigen(W, symmetric = TRUE)
+  W12 <- ew$vectors %*% diag(sqrt(ew$values)) %*% t(ew$vectors)
+  p_w <- function(d) {
+    h <- eigen(W12 %*% Mc %*% (A - d * diag(n)) %*% Mc %*% W12,
+               symmetric = TRUE, only.values = TRUE)$values
+    .imhof_p_sup0(h[abs(h) > 1e-10])
+  }
+  for (a in c(0.10, 0.05)) {
+    p0 <- function(d) .imhof_p_sup0(lam - d)
+    lo <- min(lam) + 1e-9; hi <- max(lam) - 1e-9
+    db <- stats::uniroot(function(d) (1 - p0(d)) - a / 2, c(lo, hi), tol = 1e-12)$root
+    dh <- stats::uniroot(function(d) p0(d) - a / 2, c(lo, hi), tol = 1e-12)$root
+    lim <- (1 - p_w(db)) + p_w(dh)
+    p6 <- try(dw_puissance_ar1(n, 1 - 1e-6, a), silent = TRUE)
+    verifier(sprintf("DW, puissance AR(1) : rho = 1 - 1e-6 a 1e-5 de la limite marche aleatoire (T = 8, alpha = %.2f)", a),
+             is.numeric(p6) && is.finite(p6) && p6 >= 0 && p6 <= 1 &&
+             is.finite(lim) && abs(p6 - lim) < 1e-5)
+  }
+})
+verifier("DW, puissance AR(1) : T > .Machine$integer.max refuse par la garde de T",
+         { r <- try(dw_puissance_ar1(1e10, 0.5, 0.1), silent = TRUE)
+           inherits(r, "try-error") && grepl("T doit etre un entier", r, fixed = TRUE) })
+verifier("DW, puissance AR(1) : arguments hors domaine refuses (T < 4, |rho| >= 1, alpha hors ]0, 1[)",
+         inherits(try(dw_puissance_ar1(3L, 0.5, 0.1), silent = TRUE), "try-error") &&
+         inherits(try(dw_puissance_ar1(8L, 1, 0.1), silent = TRUE), "try-error") &&
+         inherits(try(dw_puissance_ar1(8L, 0.5, 0), silent = TRUE), "try-error") &&
+         inherits(try(dw_puissance_ar1(8.5, 0.5, 0.1), silent = TRUE), "try-error"))
+# Domaine borne a |rho| <= 1 - 1e-10 (#170) : au-dela, valeur fausse sans
+# erreur (0,5906 a 1 - 1e-13 pour une limite de 0,5899175).
+verifier("DW, puissance AR(1) : 1 - |rho| < 1e-10 refuse par la garde de rho, 1 - |rho| = 1e-10 admis",
+         { r1 <- try(dw_puissance_ar1(8L, 1 - 1e-11, 0.1), silent = TRUE)
+           r2 <- try(dw_puissance_ar1(8L, -1 + 1e-11, 0.1), silent = TRUE)
+           r3 <- try(dw_puissance_ar1(8L, 1 - 1e-13, 0.1), silent = TRUE)
+           r4 <- try(dw_puissance_ar1(8L, 1 - 1e-10, 0.1), silent = TRUE)
+           all(vapply(list(r1, r2, r3), function(r) inherits(r, "try-error") &&
+                        grepl("|rho| <= 1 - 1e-10", r, fixed = TRUE), logical(1))) &&
+           is.numeric(r4) && is.finite(r4) })
+
 ## --- Moments de Z = min(L, n - L), test calendaire de Mack --------------------
 for (n in 2:15) {
   l <- 0:n; pz <- stats::dbinom(l, n, 0.5); zz <- pmin(l, n - l)

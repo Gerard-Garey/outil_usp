@@ -273,6 +273,7 @@
 #      Rscript tests/p_conditionnelle_regime_t8.R --jeu J1|J2|J3 --tranche i/K
 #          [--R 2000] [--sortie-tranche FICHIER [--reprendre PARTIELLE]]
 #          [--grille TABLEAU.md] [--grille-brut FICHIER.tsv] [--essai]
+#          [--i3-grille-anterieure]
 #      Rscript tests/p_conditionnelle_regime_t8.R --scenario H0|H3|C3|C4|A4|A2 --tranche i/K
 #          [--R-P 1000] [--sortie-tranche FICHIER [--reprendre PARTIELLE]]
 #          [--grille TABLEAU.md] [--essai]
@@ -282,7 +283,9 @@
 #          --partie regime|puissance [--journal JOURNAL.md]
 #          [--ecrire [--remplacer] --brut FICHIER --journal JOURNAL.md
 #           | --sortie DOSSIER [--brut FICHIER]]
-#          [--regime-brut FICHIER.tsv]
+#          [--regime-brut FICHIER.tsv] [--brut-reference FICHIER.tsv]
+#      Rscript tests/p_conditionnelle_regime_t8.R --agregat-brut FICHIER.tsv
+#          [--brut-reference FICHIER.tsv]
 #  Tranche : i/K couvre b de floor((i - 1) R / K) + 1 a floor(i R / K).
 #  Elle REFUSE (code 1, avant tout calcul) un commit non propre ou un code
 #  hors du depot (motifs_non_versionnable()), sauf --essai (essai de mise
@@ -311,7 +314,10 @@
 #  recalculees, ignorees), citee par --combiner en T0.
 #  --grille : tableau de la grille (controles (i3), (l8), md5 des valeurs
 #  brutes de la grille) ; --grille-brut : valeurs brutes de la grille
-#  (obligatoire pour J3, controle (c-J3)).
+#  (obligatoire pour J3, controle (c-J3)). --i3-grille-anterieure (#274,
+#  tranches --jeu seulement) : empreinte (#231) du moteur differente du (g5)
+#  de la grille admise comme ecart declare, non bloquant, ecrit en T0 (la
+#  grille reste lisible et aux parametres de la specification).
 #  --debit (levier P4) : trois replications de J2 du regime demande
 #  (interieur par defaut), premieres de la suite YSIM, traitees comme dans
 #  une tranche (sans les controles d'echantillon) ; duree par replication.
@@ -374,6 +380,20 @@
 #  anticipees (#205) : commit et code de la combinaison, dossier
 #  docs/tableaux/ et garde d'ecrasement evalues des l'analyse des options,
 #  avant la lecture des tranches, puis de nouveau avant d'ecrire.
+#  T2 bis (#274, arbitrage d'actuary du 17/10/2026, point 1 ; partie
+#  regime) : part des replications traitees (tous regimes) avec au moins
+#  une ligne de T2 en ECHEC, V1 et V3h, par jeu, sur les lignes hors TOST,
+#  pente de Pitman, Fisher et procedure ESD (LIGNES_HORS_ECHEC, par
+#  libelle) et sur toutes les lignes ; IC de Clopper-Pearson a 95 % et
+#  McNemar exact V3h contre V1. --brut-reference FICHIER.tsv : valeurs
+#  brutes d'une autre mesure de la partie regime (libelles de T2 lus dans
+#  le tableau <...>.md de meme nom), comparaison appariee par b et par
+#  variante (McNemar exact), citee en T0. --agregat-brut FICHIER.tsv (mode
+#  a part, rien d'ecrit) : T2 bis relu dans des valeurs brutes, sans
+#  tranche ; controle de non-regression : sur
+#  docs/tableaux/20261010-issue229-p-conditionnelle-regime-brut.tsv, il
+#  redonne les frequences de V1 et V3h citees par le .tex (mesure a
+#  fee9968).
 #  --remplacer : avec --ecrire seulement (le T0 cite le fichier remplace et
 #  son md5 d'avant). --sortie DOSSIER : tableau et valeurs brutes, memes
 #  noms, dans DOSSIER, HORS du depot (jamais ecrases).
@@ -405,8 +425,8 @@ SCRIPT <- "tests/p_conditionnelle_regime_t8.R"
 ARGS <- commandArgs(trailingOnly = TRUE)
 OPTIONS_VALEUR <- c("--jeu", "--scenario", "--R", "--R-P", "--tranche", "--sortie-tranche", "--grille",
                     "--grille-brut", "--partie", "--journal", "--sortie", "--brut", "--regime-brut",
-                    "--regime-debit", "--reprendre")
-OPTIONS_DRAPEAU <- c("--ecrire", "--remplacer", "--essai", "--debit", "--prevol")
+                    "--regime-debit", "--reprendre", "--agregat-brut", "--brut-reference")
+OPTIONS_DRAPEAU <- c("--ecrire", "--remplacer", "--essai", "--debit", "--prevol", "--i3-grille-anterieure")
 MODE_COMBINER <- FALSE
 FICHIERS_COMB <- character(0)
 local({
@@ -441,6 +461,7 @@ OPT_REMPLACER <- "--remplacer" %in% ARGS
 OPT_ESSAI     <- "--essai" %in% ARGS
 OPT_DEBIT     <- "--debit" %in% ARGS
 OPT_PREVOL    <- "--prevol" %in% ARGS
+OPT_I3_ANT    <- "--i3-grille-anterieure" %in% ARGS
 if (OPT_REMPLACER && !OPT_ECRIRE) stop("--remplacer : reserve a --ecrire (remplacement d'un tableau suivi par git, #173)")
 # --ecrire sans --brut : le tableau citerait des valeurs brutes dont aucune
 # copie n'est conservee hors du depot (comme tests/grille_regime_t8.R).
@@ -466,9 +487,20 @@ OPT_BRUT      <- lire_option("--brut", NA_character_)
 OPT_REGIME_BRUT <- lire_option("--regime-brut", NA_character_)
 OPT_REGIME_DEBIT <- lire_option("--regime-debit", "interieur")
 OPT_REPRENDRE <- lire_option("--reprendre", NA_character_)
+OPT_AGREGAT_BRUT <- lire_option("--agregat-brut", NA_character_)
+OPT_BRUT_REF  <- lire_option("--brut-reference", NA_character_)
 CODES_SCEN <- c("H0", "H3", "C3", "C4", "A4", "A2")
-modes <- c(jeu = !is.na(OPT_JEU), scenario = !is.na(OPT_SCEN), combiner = MODE_COMBINER, debit = OPT_DEBIT)
-if (sum(modes) != 1L) stop("un mode et un seul : --jeu, --scenario, --combiner ou --debit")
+modes <- c(jeu = !is.na(OPT_JEU), scenario = !is.na(OPT_SCEN), combiner = MODE_COMBINER, debit = OPT_DEBIT,
+           agregat = !is.na(OPT_AGREGAT_BRUT))
+if (sum(modes) != 1L) stop("un mode et un seul : --jeu, --scenario, --combiner, --debit ou --agregat-brut")
+# --agregat-brut (#274) : agregat "au moins un ECHEC" relu dans des valeurs
+# brutes de la partie regime, sans tranche ; seule option admise avec lui :
+# --brut-reference. --brut-reference : avec --agregat-brut, ou avec
+# --combiner --partie regime.
+if (!is.na(OPT_AGREGAT_BRUT) && !all(ARGS %in% c("--agregat-brut", OPT_AGREGAT_BRUT, "--brut-reference", OPT_BRUT_REF)))
+  stop("--agregat-brut : seule option admise avec lui : --brut-reference")
+if (!is.na(OPT_BRUT_REF) && is.na(OPT_AGREGAT_BRUT) && !(MODE_COMBINER && identical(OPT_PARTIE, "regime")))
+  stop("--brut-reference : reserve a --agregat-brut et a --combiner --partie regime")
 if (MODE_COMBINER && !length(FICHIERS_COMB)) stop("--combiner : aucun fichier")
 if (!MODE_COMBINER && (OPT_ECRIRE || !is.na(OPT_SORTIE) || !is.na(OPT_BRUT) || !is.na(OPT_JOURNAL) ||
                        !is.na(OPT_PARTIE) || !is.na(OPT_REGIME_BRUT)))
@@ -497,6 +529,7 @@ if (!is.na(OPT_REPRENDRE)) {
   if (file.exists(OPT_SORTIE_TR) && normalizePath(OPT_REPRENDRE) == normalizePath(OPT_SORTIE_TR))
     stop("--reprendre : --sortie-tranche doit designer un autre fichier que la sortie partielle")
 }
+if (OPT_I3_ANT && (is.na(OPT_JEU) || OPT_PREVOL)) stop("--i3-grille-anterieure : reserve aux tranches --jeu")
 if (!OPT_DEBIT && "--regime-debit" %in% ARGS) stop("--regime-debit : reserve a --debit")
 if (!OPT_REGIME_DEBIT %in% c("interieur", "bord0", "bord1")) stop("--regime-debit : interieur, bord0 ou bord1")
 if (OPT_R > R_SPEC) stop("--R : au plus 2 000 (valeurs brutes de #221 et #175)")
@@ -750,6 +783,23 @@ STAT_LIGNE <- c(
 # Monte-Carlo) : nommee dans le texte de T2 seulement si elle figure parmi
 # les lignes exclues (aucun libelle perime si elle change de nom).
 LIGNE_TOST <- "Equivalence de la constante a zero (TOST)"
+# Lignes de T2 exclues de la population (i) de l'agregat "au moins un
+# ECHEC" (#274, arbitrage d'actuary du 17/10/2026, point 1) : lignes de sens
+# "rejeter" (TOST, pente de Pitman, Fisher) et procedure ESD, reperees par
+# leur libelle (refus si l'une manque) ; population (ii) : toutes les lignes.
+LIGNES_HORS_ECHEC <- c(LIGNE_TOST, "Test de Pitman sur la pente (lien positif pertes / volume)",
+                       "Test de Fisher (significativite globale)", "Valeurs aberrantes multiples (ESD generalise)")
+# Classes fermees de discordances (t2) admises (#274 ; classe_t2()) et
+# marqueur de la regle R14 dans le detail de la ligne TOST (#298).
+MARQUEUR_R14 <- "EQUIVALENCE NON DEMONTRABLE AVEC CES DONNEES"
+CLASSES_T2 <- c(T = "classe T (#298, r\u00e8gle R14, f20c17c)", M = "classe M (#181, Monte-Carlo indisponible, d2f6355)",
+                P = "classe P (#230, #218, r\u00e8gle R4 retir\u00e9e, 57f5da4)",
+                R = "classe R (#125, branche Monte-Carlo de R1, 448676b)")
+LIGNE_PITMAN <- "Test de Pitman sur la pente (lien positif pertes / volume)"
+# Regle R4 retiree par D1-Fb (#218, #230) ; reproduit la regle des mesures
+# anterieures (copie declaree de tests/taux_franchissement_reperes.R) :
+# recalculee pour la classe P de (t2) (r4_pente()).
+SEUIL_PUISSANCE_PENTE_R4 <- 0.5
 # Lignes de run_engine() hors du perimetre de T2 (#45) : rapport de
 # vraisemblance sur delta et largeur de l'IC a delta fixe.
 hors_t2 <- function(lignes) startsWith(lignes, "Rapport de vraisemblance") |
@@ -828,7 +878,15 @@ PROFILS_D <- c(D1 = "C1, C2, C3, C4 remplies : la variante domine V1 quelle que 
 COLS_FIXES <- c("b", "statut", "regime", "delta", "gamma", "dd_bord0", "dd_interieur", "dd_bord1", "ech_rapide",
                 "ech_stats", "a_v1", "tir_v3b", "ret_v3b", "ech_rapide_v3b", "hors_v3b", "ech_stats_v3b", "arret",
                 "i1", "t2", "v3a", "verd_V1", "verd_V3a", "verd_V3b", "nat_V1", "nat_V3a", "nat_V3b",
-                paste0("h2:", STATS_P2), "duree", "discordances")
+                "diag_V1", "diag_V3a", "diag_V3b", paste0("h2:", STATS_P2), "duree", "discordances")
+# Colonnes diag_<variante> (#274, critere par transition) : un caractere par
+# ligne de T2, comme verd_ et nat_ : M, diagnostic "Monte-Carlo
+# indisponible" (prefixe du detail pose par add(), #181) ; R, test
+# inoperant par la branche Monte-Carlo de R1 (inoperant TRUE, p_min_mc
+# finie, #125) ; r, inoperant hors de cette branche ; ".", aucun des trois ;
+# "-", ligne absente. Absentes des valeurs brutes anterieures a #274.
+COLS_DIAG <- c("diag_V1", "diag_V3a", "diag_V3b")
+PREFIXE_MC_INDISPO <- "Monte-Carlo indisponible : "
 CHAMPS_STAT <- c("p_V1", "p_V3a", "p_V3b", "B_V1", "B_V3a", "B_V3b", "m_V1", "m_V3a", "m_V3b")
 REPCOLS <- c(COLS_FIXES, as.vector(t(outer(STATS, CHAMPS_STAT, function(s, c) paste0(c, ":", s)))))
 COLS_NUM <- c("b", "delta", "gamma", "dd_bord0", "dd_interieur", "dd_bord1", "ech_rapide", "ech_stats", "a_v1",
@@ -1157,7 +1215,8 @@ conditions_regime <- function(DM, REF) {
   ajout("C5 (t\u00e9moins, V3b contre V1)", "V3b",
         if (!nrow(sig)) "aucun t\u00e9moin significatif" else if (all(sig$explique)) "t\u00e9moins significatifs tous expliqu\u00e9s (L15)" else
           "**point d'examen avant A3**",
-        sprintf("t\u00e9moins significatifs apr\u00e8s Holm : %s ; pr\u00e9dictions : %s%s", liste_cel(txt5, 40), PRED_C5_TXT, txt_manque))
+        sprintf("%st\u00e9moins significatifs apr\u00e8s Holm : %s ; pr\u00e9dictions : %s%s", if (nzchar(NOTE_C5)) paste0(NOTE_C5, " ") else "",
+                liste_cel(txt5, 40), PRED_C5_TXT, txt_manque))
   do.call(rbind, C)
 }
 # Temoins de C5 (F_T) par jeu et par seuil : McNemar V3b contre V1 (Holm sur
@@ -1197,7 +1256,7 @@ tableau_l15 <- function(DM) {
          paste("Population du crit\u00e8re ; McNemar V3b contre V1, Holm sur F_T par (jeu, \u03b1) ; pr\u00e9diction : T1 pr\u00e9dit du tableau de la grille",
                "(\u03c0 \u00e0 B fini, colonnes V3b et V1) ; e* du jeu et du seuil (J3 : celui de J2). Un t\u00e9moin significatif est expliqu\u00e9 si le",
                "signe mesur\u00e9 est le signe pr\u00e9dit et si l'\u00e9cart est inf\u00e9rieur \u00e0 e* ; sinon il suspend la lecture (par. 2.3).",
-               sprintf("Pr\u00e9dictions : %s.", PRED_C5_TXT)), "",
+               sprintf("Pr\u00e9dictions : %s.", PRED_C5_TXT)), "", if (nzchar(NOTE_C5)) c(NOTE_C5, ""),
          entete_md(c("Jeu", "\u03b1", "T\u00e9moin", "n01 / n10", "p Holm", "significatif", "V3b \u2212 V1 mesur\u00e9", "pr\u00e9dit",
                      "\u00e9cart", "e*", "signe concordant", "lecture L15")))
   for (i in seq_len(nrow(L5))) {
@@ -1316,6 +1375,188 @@ tableau_t2 <- function(DM, LIGNES_T2) {
   c(L, "")
 }
 
+###############################################################################
+#  AGREGAT "AU MOINS UN ECHEC" PAR REPLICATION (#274)
+###############################################################################
+# Indicatrices "au moins une ligne en ECHEC" d'un jeu, pour V1 et V3h. D :
+# colonnes b, statut, regime, verd_V1, verd_V3b (un caractere par ligne de
+# T2, dans l'ordre de lignes). Population : replications traitees de regime
+# connu, tous regimes (J1 interieur compris : population des chiffres du
+# .tex, 2 000 replications par jeu a fee9968). V3h : verdicts de V3b a
+# delta* interieur, de V1 sinon (comme matrices()). Deux populations de
+# lignes : hors (lignes hors LIGNES_HORS_ECHEC) et toutes.
+indic_echec <- function(D, lignes) {
+  n_l <- length(lignes)
+  k_hors <- match(LIGNES_HORS_ECHEC, lignes)
+  if (anyDuplicated(lignes) || anyNA(k_hors))
+    stop("agregat ECHEC : libelles de T2 dupliques ou ligne exclue absente : ",
+         paste(LIGNES_HORS_ECHEC[is.na(k_hors)], collapse = " ; "))
+  tr <- D$statut == "traitee" & D$regime %in% REG
+  v1 <- D$verd_V1[tr]
+  vh <- ifelse(D$regime[tr] == "interieur", D$verd_V3b[tr], D$verd_V1[tr])
+  if (any(nchar(c(v1, vh)) != n_l)) stop("agregat ECHEC : verdicts de longueur differente du nombre de lignes de T2 (", n_l, ")")
+  e <- function(v, k) Reduce(`|`, lapply(k, function(i) substr(v, i, i) == "E"), rep(FALSE, length(v)))
+  pops <- list(hors = setdiff(seq_len(n_l), k_hors), toutes = seq_len(n_l))
+  lapply(pops, function(k) list(b = as.integer(D$b[tr]), V1 = e(v1, k), V3h = e(vh, k), n_lignes = length(k)))
+}
+lib_pop_echec <- function(pop, n_lignes) if (pop == "hors")
+  sprintf("%d lignes (hors TOST, Pitman, Fisher, ESD)", n_lignes) else sprintf("toutes (%d lignes)", n_lignes)
+# Valeurs brutes de la partie regime (fichier <...>-regime-brut.tsv) et
+# libelles de T2 lus dans le T0 du tableau de meme nom (<...>-regime.md,
+# ligne "Lignes de T2 (perimetre)") : indicatrices par jeu (jeu observe,
+# b = 0, exclu).
+lire_brut_echec <- function(f) {
+  if (is.na(f) || !file.exists(f)) stop("valeurs brutes introuvables : ", f)
+  fm <- sub("-brut\\.tsv$", ".md", f)
+  if (identical(fm, f) || !file.exists(fm)) stop("tableau de meme nom introuvable (<...>-brut.tsv -> <...>.md) : ", fm)
+  l <- enc2utf8(readLines(fm, warn = FALSE, encoding = "UTF-8"))
+  ent <- "| Lignes de T2 (p\u00e9rim\u00e8tre) | "
+  li <- l[startsWith(l, ent)]
+  if (length(li) != 1L) stop("ligne \"Lignes de T2\" absente ou multiple dans ", fm)
+  lignes <- strsplit(sub(" \\|$", "", substring(li, nchar(ent) + 1L)), " ; ", fixed = TRUE)[[1]]
+  M <- lire_tsv(f)
+  cols <- c("jeu", "b", "statut", "regime", "verd_V1", "verd_V3b")
+  if (!all(cols %in% colnames(M))) stop("colonnes absentes des valeurs brutes : ", paste(setdiff(cols, colnames(M)), collapse = ", "))
+  # p des statistiques (V1, V3b : liste des transitions) et, si presentes
+  # (valeurs brutes de #274 et suivantes), colonnes diag de V1 et V3b.
+  cols <- c(cols, intersect(c("diag_V1", "diag_V3b", paste0("p_V1:", STATS), paste0("p_V3b:", STATS)), colnames(M)))
+  M <- M[M[, "b"] != "0", cols, drop = FALSE]
+  D <- lapply(stats::setNames(nm = intersect(JEUX, unique(M[, "jeu"]))), function(j) {
+    d <- as.data.frame(M[M[, "jeu"] == j, -1, drop = FALSE], stringsAsFactors = FALSE)
+    d$b <- as.integer(d$b)
+    for (k in grep("^p_", names(d), value = TRUE)) d[[k]] <- suppressWarnings(as.numeric(d[[k]]))
+    d
+  })
+  IE <- lapply(D, indic_echec, lignes = lignes)
+  list(IE = IE, D = D, lignes = lignes,
+       txt = sprintf("%s (md5 %s) ; libell\u00e9s de T2 du tableau %s (md5 %s), %d lignes", chemin_affiche(f), md5_fichier(f),
+                     chemin_affiche(fm), md5_fichier(fm), length(lignes)))
+}
+# Critere par transition (#274, arbitrage d'actuary du 17/10/2026, Q2) :
+# pour chaque jeu et chaque variante (V1, V3h), replications traitees
+# appariees par b entre la presente mesure (DN, lignes) et les valeurs
+# brutes de comparaison (REF), ligne par ligne sur les lignes de T2 hors
+# LIGNES_HORS_ECHEC : passages ECHEC -> non-ECHEC (ancien verdict E, nouveau
+# autre) ; seul est ADMIS un passage dont la nouvelle ligne est un
+# diagnostic "Monte-Carlo indisponible" (code M de diag_) ; une nouvelle
+# ligne inoperante par la branche Monte-Carlo de R1 (code R) est un defaut ;
+# tout autre passage est non explique. Passages non-ECHEC -> ECHEC :
+# descriptifs. p : p de la statistique du catalogue que lit la ligne
+# (STAT_LIGNE), de la variante (V3b a delta* interieur pour V3h) ; "-" pour
+# une ligne sans statistique du catalogue (p retenue par ligne absente des
+# valeurs brutes) et pour une colonne p_V1:/p_V3b: absente. Bilan bloquant
+# (refus de --ecrire) : passage non admis, ligne hors des libelles de la
+# comparaison, ou colonnes diag absentes.
+transitions_echec <- function(DN, lignes, REF) {
+  lh <- setdiff(lignes, LIGNES_HORS_ECHEC)
+  manq <- setdiff(lh, REF$lignes)
+  st_l <- vapply(lh, function(l) { s <- names(STAT_LIGNE)[STAT_LIGNE == l]; s <- intersect(s, STATS)
+    if (length(s)) s[1] else NA_character_ }, "")
+  ch <- function(d, v, col, kk) {
+    x <- if (v == "V1") d[[paste0(col, "_V1")]] else ifelse(d$regime == "interieur", d[[paste0(col, "_V3b")]], d[[paste0(col, "_V1")]])
+    substr(x, kk, kk)
+  }
+  # colonne p absente des valeurs brutes : NA (imprime "-"), de sorte que
+  # chaque passage compte soit liste
+  colp <- function(d, nm) if (is.null(d[[nm]])) rep(NA_real_, nrow(d)) else d[[nm]]
+  pv <- function(d, v, s) if (is.na(s)) rep(NA_real_, nrow(d)) else
+    if (v == "V1") colp(d, paste0("p_V1:", s)) else ifelse(d$regime == "interieur", colp(d, paste0("p_V3b:", s)), colp(d, paste0("p_V1:", s)))
+  fp <- function(p) ifelse(is.finite(p), sprintf("%.4g", p), "-")
+  res <- list(); lst <- character(0); diag_abs <- character(0)
+  for (j in intersect(names(DN), names(REF$D))) {
+    dn <- DN[[j]]; dr <- REF$D[[j]]
+    if (!all(c("diag_V1", "diag_V3b") %in% names(dn)) || all(dn$diag_V1 %in% c("-", NA))) { diag_abs <- c(diag_abs, j); next }
+    dn <- dn[dn$statut == "traitee" & dn$regime %in% REG, , drop = FALSE]
+    dr <- dr[dr$statut == "traitee" & dr$regime %in% REG, , drop = FALSE]
+    b <- intersect(dn$b, dr$b); dn <- dn[match(b, dn$b), , drop = FALSE]; dr <- dr[match(b, dr$b), , drop = FALSE]
+    for (v in c("V1", "V3h")) {
+      cpt <- c(baisse = 0L, admis = 0L, defaut = 0L, autre = 0L, hausse = 0L)
+      for (l in setdiff(lh, manq)) {
+        kn <- match(l, lignes); kr <- match(l, REF$lignes)
+        en <- ch(dn, v, "verd", kn) == "E"; er <- ch(dr, v, "verd", kr) == "E"
+        dg <- ch(dn, v, "diag", kn)
+        bs <- er & !en
+        cpt[["baisse"]] <- cpt[["baisse"]] + sum(bs); cpt[["hausse"]] <- cpt[["hausse"]] + sum(!er & en)
+        cpt[["admis"]] <- cpt[["admis"]] + sum(bs & dg == "M"); cpt[["defaut"]] <- cpt[["defaut"]] + sum(bs & dg == "R")
+        ko <- bs & dg != "M"
+        cpt[["autre"]] <- cpt[["autre"]] + sum(ko & dg != "R")
+        if (any(ko)) lst <- c(lst, sprintf("%s b = %d, %s, %s : p ancienne %s, nouvelle %s, nouveau verdict %s, code %s%s", j, b[ko], v, l,
+                                           fp(pv(dr, v, st_l[[l]])[ko]), fp(pv(dn, v, st_l[[l]])[ko]), ch(dn, v, "verd", kn)[ko], dg[ko],
+                                           ifelse(dg[ko] == "R", " (DEFAUT : inoperante par la branche Monte-Carlo de R1)", "")))
+      }
+      res[[length(res) + 1L]] <- data.frame(jeu = j, variante = v, n = length(b), t(cpt), stringsAsFactors = FALSE)
+    }
+  }
+  tab <- if (length(res)) do.call(rbind, res) else NULL
+  n_ko <- if (is.null(tab)) 0L else sum(tab$defaut + tab$autre)
+  bloquant <- n_ko > 0L || length(manq) > 0L || length(diag_abs) > 0L
+  list(tab = tab, lst = lst, manq = manq, diag_abs = diag_abs, n_lignes = length(lh), bloquant = bloquant,
+       bilan = if (length(diag_abs)) sprintf("NON EVALUABLE (colonnes diag absentes : %s)", paste(diag_abs, collapse = ", ")) else
+         if (n_ko || length(manq)) sprintf("TRANSITIONS NON EXPLIQUEES (%d passage(s) non admis ; %d ligne(s) absente(s) de la comparaison)", n_ko, length(manq)) else
+           "OK (tout passage ECHEC -> non-ECHEC est un diagnostic Monte-Carlo indisponible)")
+}
+tableau_transitions <- function(TR) {
+  L <- c("#### Crit\u00e8re par transition (#274, arbitrage d'actuary du 17/10/2026)", "",
+         paste(sprintf("Par jeu et par variante, r\u00e9plications trait\u00e9es appari\u00e9es, %d lignes hors TOST, Pitman, Fisher et ESD :", TR$n_lignes),
+               "passages ECHEC \u2192 non-ECHEC (comparaison \u2192 pr\u00e9sente mesure) ; admis : nouvelle ligne en diagnostic",
+               "\u00ab Monte-Carlo indisponible \u00bb (#181) ; d\u00e9faut : nouvelle ligne rendue inop\u00e9rante par la branche Monte-Carlo de R1 (#125) ;",
+               "autres : non expliqu\u00e9s. Passages non-ECHEC \u2192 ECHEC : descriptifs. Un passage non admis refuse --ecrire."), "",
+         entete_md(c("Jeu", "Variante", "n appari\u00e9", "ECHEC \u2192 non-ECHEC", "admis (M)", "d\u00e9faut (R1 Monte-Carlo)", "non expliqu\u00e9s",
+                     "non-ECHEC \u2192 ECHEC (descriptif)")))
+  if (!is.null(TR$tab)) for (i in seq_len(nrow(TR$tab))) { x <- TR$tab[i, ]
+    L <- c(L, ligne_md(x$jeu, x$variante, x$n, x$baisse, x$admis, x$defaut, x$autre, x$hausse)) }
+  c(L, "", sprintf("Lignes de T2 absentes des libell\u00e9s de la comparaison : %s.", liste_cel(TR$manq, 20)),
+    sprintf("Passages non admis (jeu, b, variante, ligne, p, verdict et code diag nouveaux) : %s.", liste_cel(TR$lst, 200)), "",
+    sprintf("**Bilan du crit\u00e8re par transition : %s.**", TR$bilan), "")
+}
+# Tableau T2 bis : par jeu et par population de lignes, k, taux et IC de
+# Clopper-Pearson a 95 % pour V1 et V3h, McNemar exact V3h contre V1 (n01 :
+# ECHEC sous V3h seule ; n10 : sous V1 seule). REF (lire_brut_echec(), ou
+# NULL) : comparaison appariee par b avec des valeurs brutes de comparaison,
+# par variante (n01 : ECHEC dans la presente mesure seule ; n10 : dans la
+# comparaison seule).
+tableau_echec <- function(IE, lignes, REF = NULL, TR = NULL) {
+  cel <- function(e) { n <- length(e); k <- sum(e)
+    if (!n) "\u2014" else sprintf("%d, %s %s", k, num(k / n, 4), txt_ic(ic_cp(k, n), 4)) }
+  txt_mcn <- function(m) sprintf("%d / %d, %s", m[["n01"]], m[["n10"]], fmt_p(m[["p"]]))
+  L <- c("### T2 bis -- au moins un ECHEC par r\u00e9plication, V1 et V3h (#274)", "",
+         paste("Part des r\u00e9plications trait\u00e9es (tous r\u00e9gimes, J1 int\u00e9rieur compris) dont au moins une ligne de T2 est en ECHEC,",
+               "sur deux populations de lignes : (i) hors TOST, pente de Pitman, Fisher et proc\u00e9dure ESD (lignes de sens \u00ab rejeter \u00bb",
+               "et proc\u00e9dure sans p-value) ; (ii) toutes les lignes. V3h : verdicts de V3b \u00e0 \u03b4\u0302* int\u00e9rieur, de V1 aux bords.",
+               "IC de Clopper-Pearson \u00e0 95 % (incertitude Monte-Carlo sur le taux, fonction du nombre de r\u00e9plications). McNemar exact",
+               "V3h contre V1 : n01 (ECHEC sous V3h seule) / n10 (ECHEC sous V1 seule), p bilat\u00e9rale ; descriptif, sans correction",
+               sprintf("de multiplicit\u00e9. Lignes de T2 : %d.", length(lignes))), "",
+         entete_md(c("Jeu", "Lignes", "n", "V1 : k, taux [IC 95 %]", "V3h : k, taux [IC 95 %]",
+                     "McNemar exact V3h contre V1 : n01 / n10, p")))
+  for (j in names(IE)) for (pop in names(IE[[j]])) {
+    x <- IE[[j]][[pop]]
+    L <- c(L, ligne_md(j, lib_pop_echec(pop, x$n_lignes), length(x$b), cel(x$V1), cel(x$V3h), txt_mcn(mcnemar(x$V3h, x$V1))))
+  }
+  if (!is.null(REF)) {
+    L <- c(L, "", paste("Comparaison appari\u00e9e (par r\u00e9plication b, r\u00e9plications trait\u00e9es dans les deux fichiers) avec les valeurs brutes",
+                        sprintf("de comparaison (--brut-reference) : %s. Libell\u00e9s de T2 %s.", REF$txt,
+                                if (identical(REF$lignes, lignes)) "identiques \u00e0 ceux de la pr\u00e9sente mesure" else
+                                  sprintf("diff\u00e9rents de ceux de la pr\u00e9sente mesure (pr\u00e9sents seulement ici : %s ; seulement dans la comparaison : %s)",
+                                          liste_cel(setdiff(lignes, REF$lignes), 20), liste_cel(setdiff(REF$lignes, lignes), 20)))),
+           "McNemar exact : n01 (ECHEC dans la pr\u00e9sente mesure seule) / n10 (ECHEC dans la comparaison seule), p bilat\u00e9rale ; descriptif.", "",
+           entete_md(c("Jeu", "Lignes (pr\u00e9sente ; comparaison)", "Variante", "n appari\u00e9 (non appari\u00e9es : ici ; comparaison)",
+                       "taux pr\u00e9sent", "taux comparaison", "McNemar exact : n01 / n10, p")))
+    for (j in intersect(names(IE), names(REF$IE))) for (pop in names(IE[[j]])) {
+      x <- IE[[j]][[pop]]; y <- REF$IE[[j]][[pop]]
+      b <- intersect(x$b, y$b); ix <- match(b, x$b); iy <- match(b, y$b)
+      for (v in c("V1", "V3h")) {
+        ex <- x[[v]][ix]; ey <- y[[v]][iy]
+        L <- c(L, ligne_md(j, sprintf("%s ; %d", lib_pop_echec(pop, x$n_lignes), y$n_lignes), v,
+                           sprintf("%d (%d ; %d)", length(b), length(setdiff(x$b, b)), length(setdiff(y$b, b))),
+                           cel(ex), cel(ey), txt_mcn(mcnemar(ex, ey))))
+      }
+    }
+    manq <- setdiff(names(IE), names(REF$IE))
+    if (length(manq)) L <- c(L, "", sprintf("Jeux absents des valeurs brutes de comparaison : %s.", paste(manq, collapse = ", ")))
+  }
+  c(L, "", if (!is.null(TR)) tableau_transitions(TR))
+}
+
 tableau_t3 <- function(DL, DM, OL) {
   L <- c("### T3 -- B effectifs, tirages de V3b, p absentes, quasi-\u00e9galit\u00e9s (h2) et dur\u00e9es par r\u00e9gime", "",
          entete_md(c("Jeu", "R\u00e9gime", "n", "retenues de V1 : m\u00e9d. [min ; max]", "|A| de V3a : m\u00e9d. [min ; max]",
@@ -1414,12 +1655,13 @@ aide_lecture <- function(partie = "regime") {
     paste(">", TEXTE_CRITERE_229), "")
 }
 
-tableaux_regime <- function(DL, OL, REF, LIGNES_T2) {
+tableaux_regime <- function(DL, OL, REF, LIGNES_T2, REF_ECHEC = NULL, TR = NULL) {
   DM <- lapply(DL, matrices)
   COND <- conditions_regime(DM, REF)
   c("### \u00c9valuation m\u00e9canique des conditions C1, C2, C3, C5 (sans conclure ; C4 : partie P)", "",
     tableau_conditions(COND), "**Profils (par. 2.3), partiels avant la partie P :**", "", profils(COND, FALSE), tableau_l15(DM),
-    tableau_t1(DM, REF), tableau_t1bis(DM, REF), tableau_t2(DM, LIGNES_T2), tableau_t3(DL, DM, OL))
+    tableau_t1(DM, REF), tableau_t1bis(DM, REF), tableau_t2(DM, LIGNES_T2),
+    tableau_echec(lapply(DL, indic_echec, lignes = LIGNES_T2), LIGNES_T2, REF_ECHEC, TR), tableau_t3(DL, DM, OL))
 }
 
 ###############################################################################
@@ -1575,6 +1817,9 @@ lire_pred_c5 <- function(f) {
        txt = sprintf("%s (md5 %s) : T1 pr\u00e9dit, %d lignes ; e* J1 %s / %s, J2 et J3 %s / %s", chemin_affiche(f), md5_fichier(f), nrow(t1),
                      num(e[1], 4), num(e[2], 4), num(e[3], 4), num(e[4], 4)))
 }
+# Note de C5 et L15 (#274, Q1 d) : posee par --combiner quand une tranche
+# declare l'ecart (i3) (--i3-grille-anterieure) ; "" sinon.
+NOTE_C5 <- ""
 PRED_C5 <- NULL; PRED_C5_TXT <- "tableau de la grille illisible : aucun t\u00e9moin significatif ne peut \u00eatre expliqu\u00e9"
 charger_pred_c5 <- function(f) {
   p <- lire_pred_c5(f)
@@ -1725,6 +1970,21 @@ invariants_tranche <- function(p) {
 }
 
 ###############################################################################
+#  MODE --agregat-brut (#274)
+###############################################################################
+# Agregat T2 bis relu dans des valeurs brutes de la partie regime (controle
+# de non-regression sur les valeurs brutes de 20261010), avec, sur option,
+# la comparaison appariee avec d'autres valeurs brutes. Rien d'ecrit.
+if (!is.na(OPT_AGREGAT_BRUT)) {
+  AB <- lire_brut_echec(OPT_AGREGAT_BRUT)
+  RB <- if (!is.na(OPT_BRUT_REF)) lire_brut_echec(OPT_BRUT_REF) else NULL
+  TRB <- if (!is.null(RB)) transitions_echec(AB$D, AB$lignes, RB) else NULL
+  ecrire_console(c(sprintf("## Agr\u00e9gat \u00ab au moins un ECHEC \u00bb (#274) relu dans %s", AB$txt), "",
+                   tableau_echec(AB$IE, AB$lignes, RB, TRB)))
+  quit(status = 0L)
+}
+
+###############################################################################
 #  MODE --combiner
 ###############################################################################
 if (MODE_COMBINER) {
@@ -1823,12 +2083,24 @@ if (MODE_COMBINER) {
   }
   GR_C <- grille_combinaison(ctx1[["grille"]])
   charger_pred_c5(GR_C$chemin)
+  if (any(vapply(CTX, function(cx) grepl("\u00c9CART D\u00c9CLAR\u00c9", cx[["i3"]], fixed = TRUE), logical(1))))
+    NOTE_C5 <- paste("**Non lus** (#274, --i3-grille-anterieure) : C5 et L15 comparent la mesure \u00e0 des pr\u00e9dictions de la grille",
+                     "calcul\u00e9es avec un moteur ant\u00e9rieur au moteur mesur\u00e9 (empreintes du contr\u00f4le (i3) en T0) ; restitu\u00e9s sans lecture,",
+                     "ils n'appuient aucune conclusion.")
   nv <- c(nv, GR_C$nv)
   if (OPT_ECRIRE && length(nv))
     refuser("--ecrire refuse (tableau versionne dans docs/tableaux/) : ", paste(nv, collapse = " ; "),
             " -- relancer sur un arbre propre, ou utiliser --sortie DOSSIER hors du depot")
   RF <- REF_STATS()
   LIGNES_T2 <- strsplit(ctx1[["lignes_t2"]], " ; ", fixed = TRUE)[[1]]
+  # Valeurs brutes de comparaison de T2 bis (#274, --brut-reference).
+  REF_ECHEC <- if (!is.na(OPT_BRUT_REF)) lire_brut_echec(OPT_BRUT_REF) else NULL
+  # Critere par transition (#274) : bilan non OK -> --ecrire refuse
+  # (--sortie seulement).
+  TR_ECHEC <- if (!is.null(REF_ECHEC)) transitions_echec(DL, LIGNES_T2, REF_ECHEC) else NULL
+  if (!is.null(TR_ECHEC) && TR_ECHEC$bloquant) nv <- c(nv, sprintf("crit\u00e8re par transition (#274) : %s", TR_ECHEC$bilan))
+  if (OPT_ECRIRE && !is.null(TR_ECHEC) && TR_ECHEC$bloquant)
+    refuser("--ecrire refuse : critere par transition (#274) : ", TR_ECHEC$bilan, " -- --sortie DOSSIER seulement")
   # Discordances listees (i1), (v3a), (t2).
   disc <- unlist(lapply(names(DL), function(g) { d <- DL[[g]]; k <- d$discordances != "-"
     if (any(k)) sprintf("%s b = %s : %s", g, d$b[k], d$discordances[k]) else character(0) }))
@@ -1846,6 +2118,10 @@ if (MODE_COMBINER) {
     frb <- if (!is.na(OPT_REGIME_BRUT)) OPT_REGIME_BRUT else derniere("^[0-9]{8}-issue229-p-conditionnelle-regime-brut\\.tsv$")
     if (!is.na(frb) && file.exists(frb)) {
       M <- lire_tsv(frb)
+      # Valeurs brutes anterieures a #274 (sans COLS_DIAG) : colonnes diag
+      # completees par "-" (non lues par la partie puissance).
+      if (identical(colnames(M), c("jeu", setdiff(REPCOLS, COLS_DIAG))))
+        M <- cbind(M, matrix("-", nrow(M), length(COLS_DIAG), dimnames = list(NULL, COLS_DIAG)))[, c("jeu", REPCOLS), drop = FALSE]
       if (!identical(colnames(M), c("jeu", REPCOLS))) refuser("--regime-brut : colonnes differentes de celles du script : ", frb)
       DLR <- lapply(stats::setNames(nm = intersect(JEUX, unique(M[, "jeu"]))), function(j) {
         x <- M[M[, "jeu"] == j & M[, "b"] != "0", -1, drop = FALSE]
@@ -1880,6 +2156,15 @@ if (MODE_COMBINER) {
                                                            NOMS_SORTIE[[OPT_PARTIE]][["brut"]], MD5_BRUT, length(BRUT) - 1L)),
           if (OPT_PARTIE == "puissance") ligne_md("Valeurs brutes de la partie r\u00e9gime (C1 \u00e0 C3, niveaux de J2)", TXT_RB),
           ligne_md("Intensit\u00e9s des sc\u00e9narios de P (constantes INTENSITES)", paste(lib_pop(names(LIB_SCEN)), collapse = " ; ")),
+          if (OPT_PARTIE == "regime") ligne_md("Valeurs brutes de comparaison de T2 bis (--brut-reference, #274)",
+                                               if (is.null(REF_ECHEC)) "non fournies" else REF_ECHEC$txt),
+          if (OPT_PARTIE == "regime") ligne_md("Crit\u00e8re par transition (#274)", if (is.null(TR_ECHEC)) "non \u00e9valu\u00e9 (--brut-reference absent)" else TR_ECHEC$bilan),
+          if (nzchar(NOTE_C5)) ligne_md("C5 et L15", NOTE_C5),
+          ligne_md("Discordances (t2) admises par classe (#274 ; nombre de lignes discordantes, par jeu)",
+                   paste(vapply(names(DL), function(g) { dd <- DL[[g]]$discordances
+                     sprintf("%s : %s", g, paste(vapply(names(CLASSES_T2), function(k)
+                       sprintf("%s %d", CLASSES_T2[[k]], sum(lengths(regmatches(dd, gregexpr(CLASSES_T2[[k]], dd, fixed = TRUE))))), ""), collapse = ", ")) }, ""),
+                     collapse = " ; ")),
           ligne_md("Discordances list\u00e9es (i1), (v3a), (t2) (expliqu\u00e9es)", liste_cel(c(disc_obs, disc), 200)),
           ligne_md("Versionnable (--ecrire)", if (length(nv)) paste("non :", paste(nv, collapse = " ; ")) else "oui"),
           ligne_md("Contr\u00f4les d'int\u00e9grit\u00e9", sprintf("OK dans les %d tranche(s), invariants du corps v\u00e9rifi\u00e9s", length(parts))))
@@ -1891,7 +2176,7 @@ if (MODE_COMBINER) {
                 parts[vapply(parts, function(p) p$groupe == g, logical(1))][[1]]$parametres, ""), collapse = " | ")), "",
               "### T0 -- provenance (identique dans les tranches de chaque groupe, v\u00e9rifi\u00e9)", "", t0, "",
               aide_lecture(OPT_PARTIE),
-              if (OPT_PARTIE == "regime") tableaux_regime(DL, OL, RF$REF, LIGNES_T2) else tableaux_puissance(DL, DLR, RF$REF))
+              if (OPT_PARTIE == "regime") tableaux_regime(DL, OL, RF$REF, LIGNES_T2, REF_ECHEC, TR_ECHEC) else tableaux_puissance(DL, DLR, RF$REF))
   ecrire_console(sortie)
   ecrire <- function(f, lignes) { con <- file(f, open = "wb"); writeLines(enc2utf8(lignes), con, useBytes = TRUE); close(con) }
   # ecraser : cible de docs/tableaux/ deja controlee par garde_ecrasement()
@@ -2071,10 +2356,75 @@ boot_variante <- function(stats_obs, mc, variante = NULL)
          granularite_stat = mc$granularite, motif_mc = mc$motif_mc,
          p_min_mc = mc$p_min_mc),
     if (!is.null(variante)) list(p_mc_regime = list(variante = variante)))
+# Classes fermees de discordances (t2) admises (#274, arbitrages d'actuary du
+# 17/10/2026), liste fermee : (i1), T, M, P, R. classe_t2() lit la nouvelle
+# ligne de usp_tests() (predicats sur ses champs et marqueurs, jamais sur le
+# seul NA) et rend un code candidat : T, ligne TOST restituee en diagnostic
+# par la regle R14 (#298, f20c17c : type diagnostic, verdict INFO, p retenue
+# NA, detail portant MARQUEUR_R14) ; M, diagnostic "Monte-Carlo
+# indisponible" (#181, d2f6355 : verdict INFO, p retenue NA, detail prefixe
+# PREFIXE_MC_INDISPO) ; b (R-bas) et h (R-haut), branche Monte-Carlo de R1
+# (#125, 448676b ; ligne sans p exacte finie ; comparaisons a ALPHA comme
+# add()) : b, inoperant TRUE, p_min_mc >= ALPHA, p_min < ALPHA ou non finie,
+# p retenue NA ; h, type test, inoperant FALSE, p_min >= ALPHA, p_min_mc <
+# ALPHA, p retenue finie ; P, ligne de la pente de Pitman de type test, p
+# retenue finie et egale a sa p exacte (permutation) ; "-" sinon.
+# t2_classer() croise ce code avec l'ancienne p (#221) et, pour P, avec la
+# regle R4 recalculee (r4_pente()).
+classe_t2 <- function(t) {
+  pr <- t$p_retenue; pe <- t$p_exacte; pm <- t$p_min; pmc <- t$p_min_mc
+  info_na <- identical(t$verdict, "INFO") && !is.finite(pr)
+  if (info_na && identical(t$test, LIGNE_TOST) && identical(t$type, "diagnostic") &&
+      grepl(MARQUEUR_R14, t$detail, fixed = TRUE)) return("T")
+  if (info_na && startsWith(as.character(t$detail), PREFIXE_MC_INDISPO)) return("M")
+  if (!is.finite(pe)) {
+    if (!is.finite(pr) && isTRUE(t$inoperant) && is.finite(pmc) && pmc >= ALPHA && (!is.finite(pm) || pm < ALPHA)) return("b")
+    if (is.finite(pr) && identical(t$type, "test") && identical(t$inoperant, FALSE) && is.finite(pm) && pm >= ALPHA &&
+        is.finite(pmc) && pmc < ALPHA) return("h")
+  }
+  if (identical(t$test, LIGNE_PITMAN) && identical(t$type, "test") && is.finite(pr) && identical(pr, pe)) return("P")
+  "-"
+}
+# Regle R4 recalculee (classe P) : puissance de usp_identifiabilite_pente()
+# finie et inferieure a SEUIL_PUISSANCE_PENTE_R4.
+r4_pente <- function(fit) {
+  pu <- usp_identifiabilite_pente(fit$x, fit$beta, fit$sigma, ALPHA, unilateral = .pitman_unilateral())$puissance
+  is.finite(pu) && pu < SEUIL_PUISSANCE_PENTE_R4
+}
+# Egalite au bit pres (avancee ici depuis les controles (i1), (v3a) : lue
+# aussi par le pre-vol).
+egal <- function(a, b) identical(as.numeric(a), as.numeric(b))
+# Discordances (t2) d'une replication : pr, p retenues de #221 (lignes de
+# T2) ; ct, codes_t2() de V1 ; expl, statistiques dont la discordance (i1)
+# est expliquee ; r4, regle R4 recalculee. Rend les indices discordants et
+# leur cause ("i1", "T", "M", "P", "R", ou NA : non expliquee, bloquante),
+# et la completude de P (r4 vrai sans discordance de classe P sur la ligne
+# de la pente : non expliquee).
+t2_classer <- function(pr, ct, expl = character(0), r4 = FALSE) {
+  dl <- which(!mapply(egal, pr, ct$p))
+  st <- names(STAT_LIGNE)[match(LIGNES_T2[dl], STAT_LIGNE)]
+  of <- is.finite(pr[dl]); nf <- is.finite(ct$p[dl]); cl <- ct$cl[dl]
+  cause <- ifelse(!is.na(st) & st %in% expl, "i1",
+           ifelse(of & !nf & cl %in% c("T", "M"), cl,
+           ifelse(of & !nf & cl == "b", "R",
+           ifelse(!of & nf & cl == "h", "R",
+           ifelse(!of & nf & cl == "P" & r4, "P", NA_character_)))))
+  list(dl = dl, cause = cause, complet_p = !r4 || any(cause %in% "P" & LIGNES_T2[dl] == LIGNE_PITMAN))
+}
+lib_cause_t2 <- function(cause) ifelse(is.na(cause), "NON expliqu\u00e9e", ifelse(cause == "i1", "expliqu\u00e9e par (i1)",
+                                       paste("expliqu\u00e9e,", CLASSES_T2[cause])))
+TXT_COMPLET_P <- "(t2) compl\u00e9tude de la classe P : r\u00e8gle R4 recalcul\u00e9e vraie sans discordance de classe P sur la ligne de la pente, NON expliqu\u00e9e"
+code_diag <- function(t) {
+  if (startsWith(as.character(t$detail), PREFIXE_MC_INDISPO)) return("M")
+  if (isTRUE(t$inoperant)) return(if (is.finite(t$p_min_mc)) "R" else "r")
+  "."
+}
 codes_t2 <- function(tests) {
   nm <- vapply(tests, `[[`, "", "test"); k <- match(LIGNES_T2, nm)
   list(v = paste(vapply(k, function(i) if (is.na(i)) "-" else code_verdict(tests[[i]]$verdict), ""), collapse = ""),
        n = paste(vapply(k, function(i) if (is.na(i)) "-" else code_nature(tests[[i]]$nature_p), ""), collapse = ""),
+       d = paste(vapply(k, function(i) if (is.na(i)) "-" else code_diag(tests[[i]]), ""), collapse = ""),
+       cl = vapply(k, function(i) if (is.na(i)) "-" else classe_t2(tests[[i]]), ""),
        p = vapply(k, function(i) if (is.na(i)) NA_real_ else tests[[i]]$p_retenue, 1))
 }
 # Traitement d'une replication (ou du jeu observe, b = 0). ctl : complet
@@ -2195,23 +2545,24 @@ traiter <- function(x, y, b, ctl = list(complet = FALSE, h1 = FALSE), t2 = TRUE)
 champs_rep <- function(b, r, i1 = "-", t2 = "-", v3a = "-", discord = character(0)) {
   f17 <- function(v) ifelse(is.finite(v), sprintf("%.17g", v), "NA")
   if (r$statut == "ecartee")
-    return(unname(c(b, "ecartee", "ecartee", f17(r$delta), f17(r$gamma), rep("NA", 11), "-", "-", "-", "-", rep("-", 6),
+    return(unname(c(b, "ecartee", "ecartee", f17(r$delta), f17(r$gamma), rep("NA", 11), "-", "-", "-", "-", rep("-", 9),
                     rep("NA", length(STATS_P2)), sprintf("%.3f", r$duree), "-",
                     rep(c(rep("NA", 6), rep("-", 3)), NS))))
   # replication en erreur : regime de delta*_b s'il est connu ("-" sinon),
   # message dans la colonne discordances, sans tabulation ni saut de ligne
   if (r$statut == "erreur")
-    return(unname(c(b, "erreur", r$regime, "NA", "NA", rep("NA", 11), "-", "-", "-", "-", rep("-", 6),
+    return(unname(c(b, "erreur", r$regime, "NA", "NA", rep("NA", 11), "-", "-", "-", "-", rep("-", 9),
                     rep("NA", length(STATS_P2)), sprintf("%.3f", r$duree),
                     nettoyer_champ(sprintf("erreur : %s", if (nzchar(r$message)) r$message else "(message vide)")),
                     rep(c(rep("NA", 6), rep("-", 3)), NS))))
   m <- r$mc
   verd <- if (is.null(r$t2)) rep("-", 3) else vapply(r$t2, `[[`, "", "v")
   nat <- if (is.null(r$t2)) rep("-", 3) else vapply(r$t2, `[[`, "", "n")
+  dg <- if (is.null(r$t2)) rep("-", 3) else vapply(r$t2, `[[`, "", "d")
   fx <- c(b, "traitee", r$regime, f17(r$delta), f17(r$gamma), sprintf("%.0f", r$dd[c("bord0", "interieur", "bord1")]),
           sprintf("%.0f", r$rv$ech[c("rapide", "stats")]), sprintf("%.0f", sum(r$A)), sprintf("%.0f", r$v3$tir),
           sprintf("%.0f", r$v3$nA), sprintf("%.0f", r$v3$cpt[c("rapide", "hors", "stats")]), r$v3$arret,
-          i1, t2, v3a, verd, nat, sprintf("%.0f", r$h2), sprintf("%.3f", r$duree),
+          i1, t2, v3a, verd, nat, dg, sprintf("%.0f", r$h2), sprintf("%.3f", r$duree),
           if (length(discord)) nettoyer_champ(paste(discord, collapse = " ; ")) else "-")
   st <- unlist(lapply(STATS, function(s) c(vapply(m, function(x) f17(x$p_mc[[s]]), ""), vapply(m, function(x) sprintf("%.0f", x$B_effectif[[s]]), ""),
                                            vapply(m, function(x) code_motif(x$motif_mc[[s]]), ""))))
@@ -2315,8 +2666,27 @@ if (OPT_PREVOL) {
                motif_mc = stats::setNames(mo, STATS))
     boot_variante(stats_obs, mc)
   }
+  # (t2) au pre-vol (#274, J1 et J2) : usp_tests() avec les p_mc de #221
+  # telles quelles (p absente : motif des replications insuffisantes, B
+  # effectif B_MIN_DEGENERESCENCE - 1 ; observee non finie : motif d'obs.
+  # non finie), p retenues comparees a celles de #221 par t2_classer().
+  # Approximation du chemin des tranches : sans bootstrap, ni p_min_mc
+  # (branche Monte-Carlo de R1 non exercee), ni motif reel d'une p absente.
+  boot_t2 <- function(stats_obs, p) {
+    obs_fin <- vapply(STATS, function(s) is.finite(stats_obs[[s]]), logical(1))
+    ok <- is.finite(p) & obs_fin
+    Be <- ifelse(ok, B_BOOT, B_MIN_DEGENERESCENCE - 1)
+    pv <- ifelse(ok, p, NA_real_)
+    mo <- ifelse(ok, NA_character_, ifelse(obs_fin, MOTIF_MC_REPLIC_INSUFFISANTES, MOTIF_MC_OBS_NON_FINIE))
+    boot_variante(stats_obs, list(p_mc = stats::setNames(pv, STATS), err_mc = stats::setNames(sqrt(pv * (K_SENS - pv) / Be), STATS),
+                                  B_effectif = stats::setNames(Be, STATS), granularite = stats::setNames(K_SENS / (Be + 1), STATS),
+                                  motif_mc = stats::setNames(mo, STATS)))
+  }
+  T2_PV <- GROUPE %in% c("J1", "J2")
+  PR221 <- if (T2_PV) M[, grep("^p_retenue:", colnames(M), value = TRUE), drop = FALSE] else NULL
+  t2_pv <- list(ok = 0L, expl = c(i1 = 0L, T = 0L, M = 0L, P = 0L, R = 0L), echec = character(0), cle = character(0), n_rep = 0L, n_r4 = 0L)
   FONCTIONS_PV <- c("usp_ajuster", "usp_valider_ajustement", ".mc_evaluer (statistiques observees)", "usp_permutation_pente",
-                    "usp_tests (p de V1 valides)", "usp_tests (p absentes, R3)")
+                    "usp_tests (p de V1 valides)", "usp_tests (p absentes, R3)", "usp_tests ((t2), p de #221)")
   ERR_PV <- stats::setNames(vector("list", length(FONCTIONS_PV)), FONCTIONS_PV)
   noter <- function(f, b, e) ERR_PV[[f]] <<- c(ERR_PV[[f]], sprintf("%d (%s)", b, nettoyer_champ(conditionMessage(e))))
   essayer <- function(f, b, expr) tryCatch(expr, error = function(e) { noter(f, b, e); NULL })
@@ -2335,6 +2705,31 @@ if (OPT_PREVOL) {
     for (k in 1:2) essayer(FONCTIONS_PV[4 + k], b,
                            usp_tests(fit, boot_factice(so, P221[b, ], absentes = k == 2L), ALPHA, theta_equiv = THETA_EQUIV,
                                      methode = METHODE, lr_delta = NULL, permutation_pente = perm))
+    if (T2_PV) {
+      ut <- essayer(FONCTIONS_PV[7], b, usp_tests(fit, boot_t2(so, P221[b, ]), ALPHA, theta_equiv = THETA_EQUIV,
+                                                  methode = METHODE, lr_delta = NULL, permutation_pente = perm))
+      if (is.null(ut)) next
+      if (!exists("LIGNES_T2")) LIGNES_T2 <- local({ l <- vapply(ut, `[[`, "", "test"); l[!hors_t2(l)] })
+      # meme controle que le chemin principal ((t2), colonnes p_retenue:),
+      # avant toute indexation de PR221
+      manq_t2 <- setdiff(paste0("p_retenue:", LIGNES_T2), colnames(PR221))
+      if (length(manq_t2))
+        stop(sprintf("(t2) au pr\u00e9-vol : %d ligne(s) du p\u00e9rim\u00e8tre de T2 absente(s) des valeurs brutes de #221 (%s) : %s",
+                     length(manq_t2), chemin_affiche(fb), paste(sub("^p_retenue:", "", manq_t2), collapse = " ; ")), call. = FALSE)
+      pr <- suppressWarnings(as.numeric(PR221[b, paste0("p_retenue:", LIGNES_T2)]))
+      r4 <- r4_pente(fit)
+      tc <- t2_classer(pr, codes_t2(ut), r4 = r4)
+      t2_pv$n_rep <- t2_pv$n_rep + 1L; t2_pv$n_r4 <- t2_pv$n_r4 + r4
+      if (!tc$complet_p) { t2_pv$echec <- c(t2_pv$echec, sprintf("b = %d, %s", b, TXT_COMPLET_P)); t2_pv$cle <- c(t2_pv$cle, "compl\u00e9tude de P") }
+      if (!length(tc$dl)) t2_pv$ok <- t2_pv$ok + 1L
+      for (k in names(t2_pv$expl)) t2_pv$expl[[k]] <- t2_pv$expl[[k]] + sum(tc$cause %in% k)
+      ko <- is.na(tc$cause)
+      if (any(ko)) t2_pv$cle <- c(t2_pv$cle, sprintf("%s, ancienne p %s, nouvelle p %s", LIGNES_T2[tc$dl[ko]],
+                                                     ifelse(is.finite(pr[tc$dl[ko]]), "finie", "NA"),
+                                                     ifelse(is.finite(codes_t2(ut)$p[tc$dl[ko]]), "finie", "NA")))
+      if (any(ko)) t2_pv$echec <- c(t2_pv$echec, sprintf("b = %d, %s : p retenue de #221 %.17g, nouvelle %.17g", b, LIGNES_T2[tc$dl[ko]],
+                                                         pr[tc$dl[ko]], codes_t2(ut)$p[tc$dl[ko]]))
+    }
   }
   d_pv <- as.numeric(difftime(Sys.time(), t_pv, units = "secs"))
   n_err_pv <- vapply(ERR_PV, length, 1L)
@@ -2345,8 +2740,17 @@ if (OPT_PREVOL) {
                            paste(sprintf("%s %d", REG, vapply(REG, function(r) sum(reg_pv == r), 1L)), collapse = ", "), d_pv, d_pv / OPT_R), "",
                    entete_md(c("Fonction", "erreurs", "r\u00e9plications (b, message)")),
                    vapply(FONCTIONS_PV, function(f) ligne_md(f, n_err_pv[[f]], liste_cel(ERR_PV[[f]], 20)), ""), "",
-                   sprintf("Bilan : %s", if (sum(n_err_pv)) sprintf("%d erreur(s)", sum(n_err_pv)) else "aucune erreur")))
-  quit(status = if (sum(n_err_pv)) 1L else 0L)
+                   if (T2_PV) c("", sprintf(paste("(t2) au pr\u00e9-vol (#274 ; p de V1 = p_mc de #221, sans bootstrap ni p_min_mc) : %d r\u00e9plication(s),",
+                                                    "%d sans discordance ; lignes discordantes admises : (i1) %d, %s ; r\u00e8gle R4 recalcul\u00e9e vraie sur %d r\u00e9plication(s) ;",
+                                                    "non expliqu\u00e9es (bloquantes) : %d%s"),
+                                              t2_pv$n_rep, t2_pv$ok, t2_pv$expl[["i1"]],
+                                              paste(sprintf("%s %d", CLASSES_T2, t2_pv$expl[names(CLASSES_T2)]), collapse = ", "), t2_pv$n_r4, length(t2_pv$echec),
+                                              if (length(t2_pv$echec)) paste0(" : ", liste_cel(t2_pv$echec, 50)) else ""),
+                                      if (length(t2_pv$cle)) { tb <- table(t2_pv$cle)
+                                        sprintf("Discordances non expliqu\u00e9es par ligne et forme : %s", paste(sprintf("%s : %d", names(tb), as.integer(tb)), collapse = " ; ")) }),
+                   "", sprintf("Bilan : %s", if (sum(n_err_pv) || length(t2_pv$echec))
+                     sprintf("%d erreur(s), %d discordance(s) (t2) non expliqu\u00e9e(s)", sum(n_err_pv), length(t2_pv$echec)) else "aucune erreur")))
+  quit(status = if (sum(n_err_pv) || length(t2_pv$echec)) 1L else 0L)
 }
 
 # --- Controles generaux --------------------------------------------------------
@@ -2392,9 +2796,19 @@ md5_t0_221 <- local({
   m <- if (length(e) == 1L) regmatches(e, regexec("R/engine\\.R ([0-9a-f]{32})", e))[[1]] else character(0)
   if (length(m) == 2L) m[2] else "illisible"
 })
+# --i3-grille-anterieure (#274, remesure de T2 sur la grille de 20261010,
+# calculee avec un moteur anterieur) : une empreinte differente de (g5) est
+# un ecart declare, non bloquant, ecrit dans la ligne CONTEXTE i3 (citee en
+# T0 par --combiner) ; grille lisible et parametres de la specification
+# toujours exiges. Les predictions de la grille (C5, L15) portent alors sur
+# le moteur de la grille, pas sur le moteur mesure.
+I3_EGAL <- isTRUE(GRILLE$ok && identical(GRILLE$g5, EMPREINTE_SC) && GRILLE$param_spec)
+I3_DECLARE <- !I3_EGAL && OPT_I3_ANT && isTRUE(GRILLE$ok && GRILLE$param_spec)
 TXT_I3 <- sprintf("%s : empreinte sans commentaires de R/engine.R %s, (g5) de la grille %s ; md5 du fichier entier %s ; md5 du moteur du T0 de #221 (pour m\u00e9moire, lien par (i1) et (c)) %s",
-                  if (isTRUE(GRILLE$ok && GRILLE$g5 == EMPREINTE_SC && GRILLE$param_spec)) "OK" else "\u00c9CHEC", EMPREINTE_SC, GRILLE$g5, MD5_MOTEUR, md5_t0_221)
-controle(GRILLE$ok && identical(GRILLE$g5, EMPREINTE_SC) && GRILLE$param_spec,
+                  if (I3_EGAL) "OK" else if (I3_DECLARE)
+                    "\u00c9CART D\u00c9CLAR\u00c9 (--i3-grille-anterieure : grille calcul\u00e9e avec un moteur ant\u00e9rieur, pr\u00e9dictions de C5 et L15 relatives \u00e0 ce moteur)" else "\u00c9CHEC",
+                  EMPREINTE_SC, GRILLE$g5, MD5_MOTEUR, md5_t0_221)
+controle(I3_EGAL || I3_DECLARE,
          sprintf("(i3) %s ; tableau de la grille %s", TXT_I3, masquer_chemins(TXT_GRILLE)))
 # (a) J1 observe contre la reference premium ; lignes de T2
 RES_A <- executer_cas("premium")
@@ -2410,10 +2824,9 @@ LIGNES_T2 <- LIGNES_51[!hors_t2(LIGNES_51)]
 controle(length(LIGNES_51) == 51L && !anyDuplicated(LIGNES_51) && length(LIGNES_T2) == 48L,
          sprintf("(b) %d lignes de usp_tests() sur J1 observ\u00e9, libell\u00e9s distincts ; %d lignes au p\u00e9rim\u00e8tre de T2 (hors rapport de vraisemblance sur \u03b4 et largeur de l'IC \u00e0 \u03b4 fixe, #45)",
                  length(LIGNES_51), length(LIGNES_T2)))
-# Regle R4 retiree par D1-Fb (#218, #230) ; reproduit la regle des mesures
-# anterieures. Constante conservee (decision Q-D1-Fb-7), lue par aucun
-# calcul du script : la chaine T0 decrit la regle du moteur mesure.
-SEUIL_PUISSANCE_PENTE_R4 <- 0.5
+# Regle R4 retiree par D1-Fb (#218, #230) ; SEUIL_PUISSANCE_PENTE_R4
+# (decision Q-D1-Fb-7) est defini en tete, lu depuis #274 par r4_pente()
+# (classe P de (t2)) ; la chaine T0 decrit la regle du moteur mesure.
 REGLE_R4 <- paste("R4 retir\u00e9e (D1-Fb, #218, #230) : pente de type test d\u00e8s qu'elle est applicable,",
                   "seule R1 la bascule")
 
@@ -2532,7 +2945,6 @@ COLL_TXT <- if (length(COLLISIONS)) TXT_COLL else "aucune"
 
 # --- Jeu observe (J1, J2 ; T3) ---------------------------------------------------
 # Comparaison au bit pres et explication des discordances (i1), (v3a).
-egal <- function(a, b) identical(as.numeric(a), as.numeric(b))
 p_contre <- function(fit, graine, noms = STATS, r_b = NULL) {
   cat_ <- CAT_CONTRE[noms]
   rv <- rejouer_v1(fit, graine, cat_ = cat_)
@@ -2717,15 +3129,17 @@ calculer_rep <- function(b, y, ctl) {
         i1 <- if (length(setdiff(d1, expl))) "ECHEC" else "EXPL"
       } else i1 <- "OK"
       # (t2)
+      # Discordance admise : expliquee par (i1), ou d'une classe de la liste
+      # fermee T, M, P, R (#274, t2_classer()) ; toute autre reste bloquante.
       pr <- suppressWarnings(as.numeric(BRUT221$pr[b, ]))
-      dl <- which(!mapply(egal, pr, r$t2$V1$p))
+      tc <- t2_classer(pr, r$t2$V1, expl, r4_pente(r$fit))
+      dl <- tc$dl
       if (length(dl)) {
-        st <- names(STAT_LIGNE)[match(LIGNES_T2[dl], STAT_LIGNE)]
-        ok_l <- !is.na(st) & st %in% expl
-        t2 <- if (all(ok_l)) "EXPL" else "ECHEC"
+        t2 <- if (all(!is.na(tc$cause)) && tc$complet_p) "EXPL" else "ECHEC"
         discord <- c(discord, sprintf("(t2) %s : p retenue de #221 %.17g, de V1 %.17g, %s", LIGNES_T2[dl], pr[dl], r$t2$V1$p[dl],
-                                      ifelse(ok_l, "expliqu\u00e9e par (i1)", "NON expliqu\u00e9e")))
-      } else t2 <- "OK"
+                                      lib_cause_t2(tc$cause)))
+      } else t2 <- if (tc$complet_p) "OK" else "ECHEC"
+      if (!tc$complet_p) discord <- c(discord, TXT_COMPLET_P)
       vv <- verifier_v3a(r, b, discord); v3a <- vv$etat; discord <- vv$discord
     }
   }

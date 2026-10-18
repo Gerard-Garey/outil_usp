@@ -1,13 +1,13 @@
 ###############################################################################
 #  tests/constats_puissance_t8.R  --  CONSTATS DE NIVEAU ET DE PUISSANCE A
-#  T = 8 (issues #114, #118, #219 et #220)
+#  T = 8 (issues #114, #118, #174, #219, #220 et #335)
 #
 #  OUTIL DE MESURE HORS CI : ce script n'est ni une batterie de tests ni un
 #  generateur de references. Il n'est lance ni par la CI, ni par
 #  test_unitaires.R (nom sans prefixe test_), ni par test_reproductibilite.R.
 #  Sortie en markdown sur la console (UTF-8). Il n'ecrit aucun fichier, sauf
 #  sur demande explicite (option --ecrire DOSSIER, parties tost, normalite,
-#  tost-frontiere et pitman seulement, voir "Usage"). R base + stats.
+#  tost-frontiere, pitman et esd seulement, voir "Usage"). R base + stats.
 #
 #  Objet : deux constats cites dans le projet sans que leur script ait ete
 #  versionne (C1, C2 : decision du mainteneur du 27/09/2026, issue #114), et
@@ -165,6 +165,47 @@
 #          (asymetrie) n'est pas une puissance contre l'asymetrie mais une
 #          distorsion de niveau sous queues lourdes : les tableaux parlent de
 #          "taux de rejet".
+#      C4.c (issue #335, decisions d'actuary) : p de Royston
+#      de Shapiro-Francia, lue dans test_shapiro_francia() du moteur (aucune
+#      copie de formule). Statut : CONSTAT DE SIMULATION pour toute la
+#      sous-table.
+#        - aucun tirage supplementaire, boucle separee (mesurer_normalite()
+#          et ALPHAS_118 inchanges) : T = 8 sur la matrice de C4.a, T = 20
+#          sur celle de C4.b, T = 5 = colonnes 1 a 5 de la matrice T = 8,
+#          T = 10 = colonnes 1 a 10 de la matrice T = 20 ; echantillons
+#          emboites (taux correles entre T = 5 et 8 et entre T = 10 et 20 ;
+#          IC de deux T d'une meme matrice non comparables comme
+#          independants ; T = 8 et T = 10 de matrices distinctes) ;
+#        - niveau sous N(0,1) a T = 5, 8, 10 et 20 (T = 5, 10 et 20 pour le
+#          seul desaccord des sources sur la borne basse du domaine de
+#          validite de la transformation, 5 contre 10) ; puissance contre
+#          t5, t3, exp(1) et LN(0 ; 0,5) a T = 8 seulement ; alpha = 0,10,
+#          0,05 et 0,01 (ALPHAS_SF) ; IC de Clopper-Pearson ;
+#        - la p de Royston est une approximation a n fini dont aucun niveau
+#          exact n'est connu ; la p retenue de la ligne Shapiro-Francia du
+#          moteur est la p Monte-Carlo (mc_nom "SF"), la p de Royston n'en
+#          est que la p_asymptotique ;
+#        - portee (formulation de C7) : coincide, echantillon par
+#          echantillon, avec la ligne du moteur quand pi chapeau est
+#          constant (W' invariant par transformation affine croissante) ;
+#          n'est pas la frequence conditionnelle a l'evenement "pi chapeau
+#          constant" ; a pi chapeau variable, rien ne justifie de
+#          l'appliquer ;
+#        - mise en garde de multiplicite propre : 4 T x 3 alpha = 12 IC de
+#          niveau (les lignes de puissance n'y entrent pas) ; celle de
+#          C4.a-C4.b (4 lignes x 2 alpha) inchangee ; niveaux INFORMATIFS ;
+#        - rapprochement non bloquant avec la mesure hors depot d'actuary
+#          du 17/10/2026 (R = 200 000, T = 8 ; protocole non versionne,
+#          graine non publiee) : sa valeur dans l'IC de C4.c, oui ou non ;
+#        - controles d'integrite : transcription contre run_engine() sur J1
+#          (statistique et p_asymptotique de la ligne Shapiro-Francia =
+#          test_shapiro_francia(z) a 1e-10 ; W' des z egal a celui des
+#          log-ratios) ; invariance affine de W' et de sa p (premier
+#          echantillon de chaque loi et de chaque T) ; aucune NA ; controle
+#          BLOQUANT : a R = 20 000 et graine 20260927, lignes des tableaux
+#          C4.a et C4.b identiques au caractere pres a celles de
+#          docs/tableaux/20260930-issue118-normalite.md ("non comparable",
+#          sans effet sur le code de sortie, sinon).
 #
 #  C5. Niveau du TOST de la constante a la frontiere a = +/- Delta (issue
 #      #219 ; specification d'actuary, issue #175, commentaire 6058041254,
@@ -335,6 +376,101 @@
 #      rattachement presume, sans verdict d'IC ; reference de G3 a k = 0 :
 #      taille exacte 4031/40320 (permutation) et alpha (Student, eps normaux).
 #
+#  C7. Niveau de la regle ESD generalisee de Rosner a T = 8 (issue #174 ;
+#      l'issue, du 30/09/2026, cite une mesure anterieure, hors depot et non
+#      versionnee : 0,152 et 0,099 ; la mesure du 15/10/2026,
+#      docs/revues/20261015-pertinence-tests-graphiques/mesures/bloc-4/sim.R,
+#      commit e990a9f, l'a reproduite (0,1515 ; 0,0992) et est recalculee en
+#      C7.c). Statut, trois cas :
+#      C7.0, valeurs critiques DETERMINISTES ; premiere etape seule sous
+#      i.i.d. normal, niveau EXACTEMENT alpha (RESULTAT EXACT, demonstration
+#      ci-dessous ; la colonne simulee en est le controle) ; tout le reste,
+#      CONSTAT DE SIMULATION. Partie executee seule (--partie esd), hors de
+#      --partie tout (duree du volet C7.b).
+#      Demonstration (premiere etape, i.i.d. normal, n = T = 8,
+#      u_t = (x_t - xbar) / s) : (i) pour un indice t fixe,
+#      u -> u sqrt(n (n - 2) / ((n - 1)^2 - n u^2)) est strictement
+#      croissante sur [0, (n - 1) / sqrt(n)), et l'image de |u_t| suit
+#      exactement la loi de |t(n - 2)| (loi de la fiche Grubbs) ; lambda1
+#      est l'image reciproque de t_{1 - alpha/(2n), n - 2}, donc
+#      P(|u_t| > lambda1) = alpha / n ; (ii) somme des u_t^2 = n - 1 = 7 et
+#      2 lambda1^2 > 7 (8,255 a alpha = 0,10 ; 9,045 a 0,05 ; controle
+#      bloquant, lambda1 lu dans test_rosner()) : deux depassements
+#      simultanes sont impossibles ; (iii) les n evenements sont disjoints et
+#      P(R1 > lambda1) = alpha ; la colonne simulee en est le controle (non
+#      bloquant : "alpha dans l'IC de la premiere etape : oui / non").
+#      Protocole :
+#        - toutes les quantites sont lues dans la sortie de test_rosner() du
+#          moteur (nb_outliers = k chapeau, R, lambda), sans copie de sa
+#          formule ; k par defaut, floor(T / 4) = 2 a T = 8 (controle) ;
+#          alpha = defaut de run_engine() (0,10) et 0,05 ; verdict de la
+#          ligne du moteur : ALERTE si k chapeau = 1, ECHEC si 2 ;
+#        - par alpha : P(k chapeau >= 1) (ALERTE ou ECHEC), P(k chapeau = 2)
+#          (ECHEC), P(k chapeau = 1), premiere etape seule P(R1 > lambda1),
+#          et P(R2 > lambda2, R1 <= lambda1), part que la seconde etape
+#          (n = 7) ajoute a la premiere ; IC de Clopper-Pearson ; valeurs
+#          critiques lambda1, lambda2 (deterministes) restituees ;
+#        - C7.a : R echantillons i.i.d. N(0,1) de taille 8, un flux sous
+#          --graine + 7, matrice remplie par ligne (les echantillons d'une
+#          execution a R plus petit sont les premiers) ; portee : C7.a est
+#          la frequence de decision de la regle sur huit observations i.i.d.
+#          normales ; elle coincide, replication par replication, avec la
+#          ligne du moteur lorsque pi chapeau est constant (z affine
+#          croissante des log-ratios) ; elle n'est pas la frequence
+#          conditionnelle a l'evenement "pi chapeau constant", qui depend des
+#          donnees ; a pi chapeau variable, z n'est pas i.i.d. et C7.a ne
+#          s'applique pas ;
+#        - C7.b : sous le modele ajuste a J1 et a J2 (jeux de C3), --R-modele
+#          jeux y* par jeu (defaut : --R),
+#          du flux de #72 (EXPR_YSIM_72, graine --graine, meme graine pour
+#          J1 et J2 : les 2 000 premiers jeux sont ceux de #166 et #221),
+#          reajustes par usp_ajuster(x, y*), test_rosner() sur les residus z
+#          du reajustement (comme usp_tests()) ; reajustement en erreur ou z
+#          non finis ecartes et comptes ; nombre de reajustements a pi
+#          chapeau constant restitue ;
+#        - C7.c : mesure du 15/10/2026 recalculee (sim.R ci-dessus, section
+#          2 : engine_sous_graine(20261015, matrix(rnorm(1e5 * 8), 1e5, 8)),
+#          lignes 1 a 50 000, test_rosner(v, k = 2, alpha = 0.10)) ; k / n et
+#          IC de cette mesure et de C7.a a alpha = 0,10 pour P(k chapeau >= 1),
+#          P(k chapeau = 2) et la premiere etape ; estimation de C7.a dans
+#          l'IC du 15/10 ; z et p bilaterale du test de deux proportions
+#          independantes (flux distincts, proportion commune en pool,
+#          approximation normale) ; phrase de lecture construite sur ces
+#          valeurs (ecart nominal p < 0,05, Bonferroni sur les trois
+#          comparaisons, alpha = 0,10 dans l'IC du 15/10 de la premiere
+#          etape) ;
+#        - C7.d (non bloquant) : repartition OK / ALERTE / ECHEC de C7.b a
+#          alpha = 0,10 sur les replications 1 a 2 000 contre celle de la
+#          ligne ESD de #166 (docs/tableaux/20261008-issue166-calibration-
+#          J1.md et -J2.md, commit 139031d : J1 1721 / 172 / 107, J2
+#          1778 / 123 / 99 ; run_engine() complet, meme flux de jeux) ;
+#          "identique" ou "ecart" ; "non comparable" si --R-modele < 2 000 ou
+#          --graine different de 20260927 ;
+#        - controles d'integrite : k = 2, R et lambda finis sur toutes les
+#          replications ; identites de lecture k chapeau >= 1 <=> (R1 >
+#          lambda1 ou R2 > lambda2) et k chapeau = 2 <=> R2 > lambda2 sur
+#          toutes les replications ; invariance de k chapeau et de R par
+#          v -> 3 + 0,2 v et v -> -5 - 7 v (100 premiers echantillons i.i.d.) ;
+#          estimation et verdict de la ligne ESD de run_engine() egaux a
+#          test_rosner(usp_ajuster(x, y)$z) sur J1 et J2 observes et sur le
+#          premier jeu simule de chacun ; J1 observe (pi chapeau constant) :
+#          R identique sur z et sur les log-ratios ; expression de #72 relue
+#          et identique ; premier tirage de chaque flux identique a un tirage
+#          isole ; RNGkind() et .Random.seed de l'appelant restaures ;
+#          2 lambda1^2 > T - 1 pour chaque alpha ; C7.c : ENGINE_RNG_KIND
+#          egal aux types par defaut de R et engine_sous_graine(20261015, .)
+#          egal a set.seed(20261015), taux du 15/10 arrondis a 4 decimales
+#          egaux a 0,1515 ; 0,0623 ; 0,0992 (docs/revues/20261015-pertinence-
+#          tests-graphiques/bloc-4.md, section 4.4).
+#      Tableau versionne (arbre propre) :
+#          Rscript tests/constats_puissance_t8.R --partie esd --R 1000000
+#              --R-modele 20000 --ecrire docs/tableaux
+#      duree mesuree de cette configuration (sans --ecrire, 17-18/10/2026) :
+#      1 376 s, dont 101 s pour C7.a, 1 261 s pour C7.b (0,032 s par
+#      replication et par jeu) et 13 s de controles, sur un conteneur de
+#      4 coeurs partages (charge moyenne sur 1 min entre 4,1 et 6,2 pendant
+#      l'execution) ; Linux, R 4.3.3.
+#
 #  Incertitude : intervalle de Clopper-Pearson a 95 % sur chaque taux
 #  (erreur Monte-Carlo, fonction de R ; elle ne dit rien de l'erreur
 #  d'approximation en T). Compatibilite avec la valeur publiee :
@@ -352,15 +488,21 @@
 #    C3, C4, C5 : mesures nouvelles, sans valeur publiee a comparer ; IC seul.
 #    C6 : IC seul ; ancienne valeur dans le nouvel IC ou non (C6.f), sans
 #      test de compatibilite (protocole d'origine perdu).
+#    C7 : IC ; mesure du 15/10/2026 recalculee contre C7.a (C7.c) : C7.a
+#      dans l'IC du 15/10 ou non, et test de deux proportions independantes
+#      (z, p bilaterale ; Bonferroni sur trois comparaisons dans la phrase
+#      de lecture).
 #
 #  Alea : tout tirage passe par engine_sous_graine() avec une graine
 #  explicite : innovations AR(1) sous --graine ; echantillons K0, K2, K3 sous
 #  --graine + 1 ; jeux simules de K1 sous --graine + 2 ; jeux y* de C3 sous
 #  --graine + 3 (J1) et --graine + 4 (J2) ; uniformes de C4 sous --graine + 5
-#  (T = 8) et --graine + 6 (T = 20) ; C5 reprend les flux de C3 (--graine + 3
+#  (T = 8) et --graine + 6 (T = 20), repris par C4.c sans flux propre
+#  (colonnes 1 a 5 et 1 a 10 pour T = 5 et 10) ; C5 reprend les flux de C3 (--graine + 3
 #  et + 4), sans flux propre ; C6 : jeux du modele ajuste sous --graine
 #  (flux de #72), G3 sous --graine + 11 a + 13, pente negative sous
-#  --graine + 14 ; chaque flux tire en une fois avant tout
+#  --graine + 14 ; C7 : echantillons i.i.d. sous --graine + 7, jeux du
+#  modele ajuste sous --graine (flux de #72) ; chaque flux tire en une fois avant tout
 #  calcul. Les parties sont independantes : ajouter C3 et C4 ne change ni les
 #  tirages ni la sortie de --partie ar1 et de --partie ks a graine egale
 #  (hors lignes de duree ; sous --partie tout, seul le titre change et les
@@ -372,13 +514,15 @@
 #
 #  Usage (depuis la racine du depot) :
 #      Rscript tests/constats_puissance_t8.R [--R 20000] [--R-ks 3000]
-#          [--graine 20260927] [--partie tout|ar1|ks|tost|normalite|tost-frontiere|pitman]
-#          [--R-h0 10000] [--ref-221 FICHIER[,FICHIER...]]
+#          [--graine 20260927] [--partie tout|ar1|ks|tost|normalite|tost-frontiere|pitman|esd]
+#          [--R-h0 10000] [--ref-221 FICHIER[,FICHIER...]] [--R-modele R]
 #          [--ecrire DOSSIER [--remplacer]]
 #  --partie tout : C1 a C4 ; C5 seulement par --partie tost-frontiere, C6
-#  seulement par --partie pitman.
+#  seulement par --partie pitman, C7 seulement par --partie esd.
 #  --R vaut pour C1 (par rho), C3 (par jeu), C4 (par loi et par T), C5
-#  (par jeu et par valeur de a) et C6 (G1, G2, G4, par jeu) ; --R-h0 pour G3
+#  (par jeu et par valeur de a), C6 (G1, G2, G4, par jeu) et C7.a ;
+#  --R-modele (--partie esd seulement, refus d'usage sinon ; defaut : --R)
+#  pour C7.b (par jeu) ; --R-h0 pour G3
 #  de C6 (par scenario et par jeu) ; --ref-221 (--partie pitman seulement,
 #  refus d'usage sinon) : sorties de #221 pour le controle croise de R4,
 #  obligatoire avec --ecrire quand R >= 2 000 (refus avant calcul sinon).
@@ -386,13 +530,14 @@
 #  DOSSIER/<AAAAMMJJ>-issue215-tost.md (issue118 avant #215),
 #  <AAAAMMJJ>-issue118-normalite.md et/ou
 #  <AAAAMMJJ>-issue219-tost-frontiere.md et/ou
-#  <AAAAMMJJ>-issue220-pitman.md (date du jour),
-#  pour les parties tost, normalite, tost-frontiere et pitman executees ; sans cette
+#  <AAAAMMJJ>-issue220-pitman.md et/ou <AAAAMMJJ>-issue174-esd.md (date du
+#  jour), pour les parties tost, normalite, tost-frontiere, pitman et esd
+#  executees ; sans cette
 #  option, rien n'est ecrit. Les fichiers versionnes de docs/tableaux/ se
 #  produisent sur un arbre de travail propre (commit cite resoluble), par
 #  --partie tost --ecrire docs/tableaux, --partie normalite --ecrire
-#  docs/tableaux, --partie tost-frontiere --ecrire docs/tableaux et --partie
-#  pitman --ecrire docs/tableaux. Garde de l'arbre propre (#205,
+#  docs/tableaux, --partie tost-frontiere --ecrire docs/tableaux, --partie
+#  pitman --ecrire docs/tableaux et --partie esd --ecrire docs/tableaux. Garde de l'arbre propre (#205,
 #  motifs_non_versionnable() de tests/outils_tests.R) : pour les parties qui
 #  ecrivent et un DOSSIER sous la racine du depot (ecrit versionnable ; un
 #  DOSSIER hors du depot n'est pas garde), --ecrire est REFUSE (code 1, rien
@@ -414,6 +559,8 @@
 #  Duree mesuree : voir la ligne "Duree" de la sortie (C1 et C2 : 72 s et
 #  124 s le 27/09/2026 ; a R = 20 000, C3 : 44 s et C4 : 28 s le 30/09/2026,
 #  soit 44 s et 33 s d'execution pour --partie tost et --partie normalite ;
+#  C4.c : 13,6 s a R = 20 000 le 18/10/2026, --partie normalite 42 s en
+#  tout, dont C4 hors C4.c : 23 s ; Linux, R 4.3.3 ;
 #  C5 : 0,068 s par replication, par jeu et par valeur de a, plus environ
 #  50 s de controles, mesure a R = 200 le 08/10/2026, soit environ 2,3 h
 #  sur un coeur a R = 20 000 ; C6 : 0,063 s par replication et par jeu pour
@@ -422,7 +569,10 @@
 #  par replication, par scenario et par jeu pour G3, plus environ 33 s de
 #  controles, mesure a R = --R-h0 = 200 le 08/10/2026 sur un conteneur dont
 #  les 4 coeurs etaient occupes, soit environ 1,7 h sur un coeur a
-#  R = 20 000 et --R-h0 = 10 000 ; Linux, R 4.3.3).
+#  R = 20 000 et --R-h0 = 10 000 ; Linux, R 4.3.3 ; C7 : 1 306 s a
+#  R = --R-modele = 20 000 le 17/10/2026, dont 2 s pour C7.a et 1 294 s pour
+#  C7.b, soit 0,032 s par replication et par jeu, et 9 s de controles, sur un
+#  conteneur de 4 coeurs partages ; Linux, R 4.3.3).
 #  Code de sortie : 0 si les controles d'integrite tiennent, 1 sinon.
 ###############################################################################
 
@@ -446,8 +596,10 @@ OPT_REMPLACER <- "--remplacer" %in% ARGS
 # #221 pour le controle croise de R4 (facultatives).
 OPT_R_H0   <- as.integer(lire_option("--R-h0", "10000"))
 OPT_REF_221 <- lire_option("--ref-221", NA_character_)
-if (!OPT_PARTIE %in% c("tout", "ar1", "ks", "tost", "normalite", "tost-frontiere", "pitman"))
-  stop("--partie : tout, ar1, ks, tost, normalite, tost-frontiere ou pitman")
+# Partie esd (#174) : jeux du modele ajuste par jeu pour C7.b (defaut : --R).
+OPT_R_MODELE <- as.integer(lire_option("--R-modele", as.character(OPT_R)))
+if (!OPT_PARTIE %in% c("tout", "ar1", "ks", "tost", "normalite", "tost-frontiere", "pitman", "esd"))
+  stop("--partie : tout, ar1, ks, tost, normalite, tost-frontiere, pitman ou esd")
 if (OPT_REMPLACER && is.na(OPT_ECRIRE)) stop("--remplacer : reserve a --ecrire (remplacement d'un tableau suivi par git, #173)")
 if (!is.na(OPT_ECRIRE) && !dir.exists(OPT_ECRIRE)) stop("--ecrire : dossier inexistant : ", OPT_ECRIRE)
 if (!is.finite(OPT_R) || OPT_R < 1L) stop("--R : entier >= 1")
@@ -455,6 +607,8 @@ if (!is.finite(OPT_R_KS) || OPT_R_KS < 1L) stop("--R-ks : entier >= 1")
 if (!is.finite(OPT_GRAINE)) stop("--graine : nombre")
 if (!is.finite(OPT_R_H0) || OPT_R_H0 < 1L) stop("--R-h0 : entier >= 1")
 if (!is.na(OPT_REF_221) && OPT_PARTIE != "pitman") stop("--ref-221 : reserve a --partie pitman")
+if ("--R-modele" %in% ARGS && OPT_PARTIE != "esd") stop("--R-modele : reserve a --partie esd")
+if (!is.finite(OPT_R_MODELE) || OPT_R_MODELE < 1L) stop("--R-modele : entier >= 1")
 # Ecriture du tableau de C6 a R >= 2 000 (jeux de #221) : controle croise de
 # R4 obligatoire (constat m4 de l'audit de #220) ; refus avant tout calcul.
 if (!is.na(OPT_ECRIRE) && OPT_PARTIE == "pitman" && OPT_R >= 2000L && is.na(OPT_REF_221))
@@ -517,12 +671,13 @@ ECRIRE_VERSIONNABLE <- !is.na(OPT_ECRIRE) && sous_depot(OPT_ECRIRE)
 # changer pendant le calcul ; date de l'ecriture, qui peut differer de
 # celle-ci si l'execution passe minuit). Seule source des chemins :
 # chemins_118().
-ISSUE_118 <- c(tost = "215", normalite = "118", "tost-frontiere" = "219", pitman = "220")
+ISSUE_118 <- c(tost = "215", normalite = "118", "tost-frontiere" = "219", pitman = "220", esd = "174")
 chemins_118 <- function(parties) stats::setNames(
   file.path(OPT_ECRIRE, sprintf("%s-issue%s-%s.md", format(Sys.Date(), "%Y%m%d"), ISSUE_118[parties], parties)),
   parties)
 PARTIES_118 <- c(if (OPT_PARTIE %in% c("tout", "tost")) "tost", if (OPT_PARTIE %in% c("tout", "normalite")) "normalite",
-                 if (OPT_PARTIE == "tost-frontiere") "tost-frontiere", if (OPT_PARTIE == "pitman") "pitman")
+                 if (OPT_PARTIE == "tost-frontiere") "tost-frontiere", if (OPT_PARTIE == "pitman") "pitman",
+                 if (OPT_PARTIE == "esd") "esd")
 if (ECRIRE_VERSIONNABLE && length(PARTIES_118)) {
   nv0 <- motifs_non_versionnable(COMMIT, "", "de l'ex\u00e9cution")
   if (length(nv0)) refus_non_versionnable(nv0)
@@ -581,12 +736,14 @@ p_kolmogorov <- function(dd, T) {
 # Titre : inchange pour les parties de #114 (sortie de ar1 et ks identique a
 # graine egale a celle du script avant #118).
 TITRE_ISSUES <- switch(OPT_PARTIE, ar1 = , ks = "issue #114", tost = , normalite = "issue #118",
-                       "tost-frontiere" = "issue #219", pitman = "issue #220", "issues #114 et #118")
+                       "tost-frontiere" = "issue #219", pitman = "issue #220", esd = "issue #174",
+                       "issues #114 et #118")
 sortie <- c(
   sprintf("## Constats de niveau et de puissance \u00e0 T = 8 (%s)", TITRE_ISSUES), "",
   paste0(sprintf("Param\u00e8tres : R=%d ; R_ks=%d ; graine=%s ; partie=%s ; T=%d", OPT_R, OPT_R_KS,
                  format(OPT_GRAINE, scientific = FALSE), OPT_PARTIE, T_),
-         if (OPT_PARTIE == "pitman") sprintf(" ; R_h0=%d", OPT_R_H0)), "",
+         if (OPT_PARTIE == "pitman") sprintf(" ; R_h0=%d", OPT_R_H0),
+         if (OPT_PARTIE == "esd") sprintf(" ; R_modele=%d", OPT_R_MODELE)), "",
   entete_md(c("Grandeur", "Valeur")),
   ligne_md("Plateforme de calcul (R, syst\u00e8me, machine, BLAS, LAPACK)", plateforme_calcul()),
   ligne_md("G\u00e9n\u00e9rateur", paste(ENGINE_RNG_KIND, collapse = ", ")),
@@ -949,6 +1106,50 @@ if (OPT_PARTIE %in% c("tout", "normalite")) {
       all(vapply(MES20, function(p) all(is.finite(p)), logical(1))),
     "C4, aucune statistique ni p-value manquante (T = 8 et T = 20)"))
 
+  # --- C4.c : Shapiro-Francia, p de Royston de test_shapiro_francia() (#335)
+  # Boucle separee, sans tirage supplementaire : T = 8 sur U8, T = 20 sur
+  # U20, T = 5 = colonnes 1 a 5 de U8, T = 10 = colonnes 1 a 10 de U20.
+  # Niveau (N(0,1)) aux quatre T, puissance a T = 8 seulement. Ni
+  # mesurer_normalite() ni ALPHAS_118 ne changent (C4.a et C4.b identiques,
+  # controle bloquant plus bas).
+  ALPHAS_SF <- c(0.10, 0.05, 0.01)
+  T_SF <- list(
+    list(T = 5L,  U = U8[, 1:5, drop = FALSE],   src = "colonnes 1 \u00e0 5 de la matrice T = 8"),
+    list(T = 8L,  U = U8,                        src = "matrice T = 8 (celle de C4.a)"),
+    list(T = 10L, U = U20[, 1:10, drop = FALSE], src = "colonnes 1 \u00e0 10 de la matrice T = 20"),
+    list(T = 20L, U = U20,                       src = "matrice T = 20 (celle de C4.b)"))
+  t4c <- Sys.time()
+  # W' et p de Royston, une ligne par echantillon (colonnes stat, p).
+  mesurer_sf <- function(V) t(apply(V, 1, function(v) unlist(test_shapiro_francia(v))[c("stat", "p")]))
+  SF_NIV <- lapply(T_SF, function(tt) mesurer_sf(LOIS[[1]]$q(tt$U)))
+  SF_PUI <- lapply(LOIS[-1], function(L) mesurer_sf(L$q(U8)))
+  duree_sf <- as.numeric(difftime(Sys.time(), t4c, units = "secs"))
+
+  # Invariance affine croissante de W' et de sa p : premier echantillon de
+  # chaque loi et de chaque T.
+  inv_sf <- all(vapply(LOIS, function(L) all(vapply(T_SF, function(tt) {
+    v <- L$q(tt$U[1, ])
+    isTRUE(all.equal(unlist(test_shapiro_francia(v)), unlist(test_shapiro_francia(3 + 0.2 * v)),
+                     tolerance = 1e-8))
+  }, logical(1))), logical(1)))
+  ctrl_norm <- c(ctrl_norm, controle(inv_sf, paste(
+    "C4.c, invariance affine croissante de W' et de sa p de Royston (premier \u00e9chantillon de chaque loi,",
+    "T = 5, 8, 10 et 20)")))
+  # Transcription contre run_engine() sur J1 (res1, fit1 ci-dessus).
+  l_sf  <- ligne("Shapiro-Francia")
+  sf_z  <- test_shapiro_francia(fit1$z)
+  sf_lr <- test_shapiro_francia(log(.ln$yt / .ln$xt))
+  trans_sf <- nrow(l_sf) == 1L &&
+    isTRUE(diff(range(fit1$pi)) <= 1e-12 * max(fit1$pi)) &&
+    isTRUE(all.equal(c(l_sf$statistique, l_sf$p_asymptotique), c(sf_z$stat, sf_z$p), tolerance = 1e-10)) &&
+    isTRUE(all.equal(sf_z$stat, sf_lr$stat, tolerance = 1e-10))
+  ctrl_norm <- c(ctrl_norm, controle(trans_sf, paste(
+    "C4.c, transcription contre run_engine() sur J1 (statistique et p_asymptotique de la ligne Shapiro-Francia",
+    "= test_shapiro_francia(z) \u00e0 1e-10 ; \u03c0\u0302 constant ; W' des r\u00e9sidus z \u00e9gal \u00e0 celui des log-ratios)")))
+  ctrl_norm <- c(ctrl_norm, controle(
+    all(vapply(c(SF_NIV, SF_PUI), function(M) all(is.finite(M)), logical(1))),
+    "C4.c, aucune statistique W' ni p de Royston manquante (niveau \u00e0 T = 5, 8, 10 et 20 ; puissance \u00e0 T = 8)"))
+
   TESTS8 <- list(
     list(col = "p_nulle", libelle = "Shapiro-Wilk, p par loi nulle simul\u00e9e (sw_p_loi_nulle())"),
     list(col = "p_royston", libelle = "Shapiro-Wilk, p de Royston (shapiro.test())"),
@@ -965,6 +1166,119 @@ if (OPT_PARTIE %in% c("tout", "normalite")) {
   }, "")
   cols_taux <- c("Rejets / R (\u03b1 = 0,10)", "Taux", "IC 95 % (C-P)",
                  "Rejets / R (\u03b1 = 0,05)", "Taux", "IC 95 % (C-P)", "p minimale")
+
+  # Controle BLOQUANT (#335) : lignes des tableaux C4.a et C4.b (en-tete
+  # compris) identiques au caractere pres a celles du fichier versionne de
+  # #118, seulement a R = 20 000 et graine 20260927 ; sinon "non comparable",
+  # sans effet sur le code de sortie.
+  REF_C4 <- file.path(RACINE, "docs", "tableaux", "20260930-issue118-normalite.md")
+  extraire_table <- function(l, titre) {
+    i <- which(startsWith(l, titre))
+    if (length(i) != 1L) return(NULL)
+    j <- i + 2L; k <- j
+    while (k <= length(l) && startsWith(l[k], "|")) k <- k + 1L
+    if (k == j) character(0) else l[j:(k - 1L)]
+  }
+  tab_c4a <- enc2utf8(c(entete_md(c("Loi", "Test", cols_taux)), lignes8))
+  tab_c4b <- enc2utf8(c(entete_md(c("Loi", cols_taux)), lignes20))
+  if (OPT_R == 20000L && OPT_GRAINE == 20260927) {
+    l_ref <- if (file.exists(REF_C4)) enc2utf8(readLines(REF_C4, encoding = "UTF-8", warn = FALSE)) else character(0)
+    ref_a <- extraire_table(l_ref, "**C4.a -- ")
+    ref_b <- extraire_table(l_ref, "**C4.b -- ")
+    ctrl_norm <- c(ctrl_norm, controle(
+      !is.null(ref_a) && !is.null(ref_b) && identical(tab_c4a, ref_a) && identical(tab_c4b, ref_b),
+      sprintf(paste("C4.c sans effet sur C4 : lignes des tableaux C4.a (%d) et C4.b (%d), en-t\u00eates compris,",
+                    "identiques au caract\u00e8re pr\u00e8s \u00e0 celles de docs/tableaux/20260930-issue118-normalite.md"),
+              length(tab_c4a), length(tab_c4b))))
+  } else {
+    ctrl_norm <- c(ctrl_norm, paste(
+      "C4.c sans effet sur C4 : comparaison des tableaux C4.a et C4.b \u00e0 docs/tableaux/20260930-issue118-normalite.md",
+      "non comparable (R \u2260 20 000 ou graine \u2260 20260927) ; sans effet sur le code de sortie"))
+  }
+
+  # Tableaux de C4.c. Niveau : une ligne par T et par alpha, ecart au nominal
+  # et position de alpha par rapport a l'IC (informatifs). Ecart en points a
+  # trois decimales (pas de 100 / R points : exact a R = 20 000, ou un ecart
+  # de -0,005 point s'affichait "-0,00" a deux decimales) ; ecart nul affiche
+  # sans signe.
+  ecart_pts <- function(x) if (round(x, 3) == 0) "0,000" else sub(".", ",", sprintf("%+.3f", x), fixed = TRUE)
+  lignes_sf_niv <- unlist(lapply(seq_along(T_SF), function(i) vapply(ALPHAS_SF, function(al) {
+    p <- SF_NIV[[i]][, "p"]; k <- sum(p < al); n <- length(p); ci <- ic_cp(k, n)
+    pos <- if (al < ci[1]) "lib\u00e9ral, IC excluant \u03b1" else if (al > ci[2])
+      "conservateur, IC excluant \u03b1" else "IC contenant \u03b1"
+    ligne_md(T_SF[[i]]$T, T_SF[[i]]$src, num(al, 2), paste(cellules_taux(p, al), collapse = " | "),
+             ecart_pts(100 * (k / n - al)), pos, num_p(min(p)))
+  }, "")))
+  lignes_sf_pui <- vapply(seq_along(SF_PUI), function(j) {
+    p <- SF_PUI[[j]][, "p"]
+    ligne_md(LOIS[[j + 1L]]$libelle,
+             paste(vapply(ALPHAS_SF, function(al) paste(cellules_taux(p, al), collapse = " | "), ""), collapse = " | "),
+             num_p(min(p)))
+  }, "")
+  cols_taux_sf <- c(unlist(lapply(ALPHAS_SF, function(al)
+    c(sprintf("Rejets / R (\u03b1 = %s)", num(al, 2)), "Taux", "IC 95 % (C-P)"))), "p minimale")
+  # Rapprochement non bloquant avec la mesure d'actuary du 17/10/2026 (hors
+  # depot, R = 200 000, T = 8, protocole non versionne) : sa valeur est-elle
+  # dans l'IC de C4.c a T = 8 ?
+  ACTUARY_SF <- list(
+    list(alpha = 0.10, taux = 0.1096, ic = c(0.1083, 0.1110)),
+    list(alpha = 0.05, taux = 0.0559, ic = c(0.0549, 0.0570)),
+    list(alpha = 0.01, taux = 0.0099, ic = c(0.0095, 0.0103)))
+  i8 <- which(vapply(T_SF, function(tt) tt$T, integer(1)) == 8L)
+  lignes_sf_act <- vapply(ACTUARY_SF, function(a) {
+    p <- SF_NIV[[i8]][, "p"]; k <- sum(p < a$alpha); n <- length(p); ci <- ic_cp(k, n)
+    ligne_md(num(a$alpha, 2), sprintf("%s [%s ; %s]", num(a$taux, 4), num(a$ic[1], 4), num(a$ic[2], 4)),
+             sprintf("%s [%s ; %s]", num(k / n, 4), num(ci[1], 4), num(ci[2], 4)),
+             if (ci[1] <= a$taux && a$taux <= ci[2]) "oui" else "**non**")
+  }, "")
+  section_sf <- c(
+    "**C4.c -- Shapiro-Francia, p de Royston (test_shapiro_francia()) : niveau sous N(0,1) \u00e0 T = 5, 8, 10 et 20, puissance \u00e0 T = 8**", "",
+    paste("Statut : **constat de simulation** pour toute la sous-table C4.c (niveau, puissance, rapprochement),",
+          "\u00e9chantillons i.i.d., hors mod\u00e8le r\u00e9glementaire. W' et sa p par test_shapiro_francia() du moteur (aucune",
+          "copie de formule) ; rejet si p < \u03b1. La p de Royston est une approximation \u00e0 n fini dont aucun niveau",
+          "exact n'est connu (constantes attribu\u00e9es \u00e0 Royston (1993), Statistics in Medicine 12, 181-184, d'apr\u00e8s",
+          "des sources secondaires, article non relu). Sur la ligne Shapiro-Francia du moteur, la p retenue est la",
+          "p Monte-Carlo (bootstrap param\u00e9trique, mc_nom \"SF\") ; la p de Royston mesur\u00e9e ici n'y est que",
+          "p_asymptotique."), "",
+    paste("\u00c9chantillons : aucun tirage suppl\u00e9mentaire (T = 8 et T = 20 : matrices d'uniformes de C4.a et C4.b ;",
+          "T = 5 : colonnes 1 \u00e0 5 de la matrice T = 8 ; T = 10 : colonnes 1 \u00e0 10 de la matrice T = 20). Ces",
+          "\u00e9chantillons sont embo\u00eet\u00e9s : les taux de T = 5 et de T = 8, comme ceux de T = 10 et de T = 20, sont",
+          "corr\u00e9l\u00e9s, et les IC de deux T d'une m\u00eame matrice ne se comparent pas comme des IC ind\u00e9pendants ;",
+          "T = 8 et T = 10 viennent de matrices distinctes. T = 5, 10 et 20 ne sont mesur\u00e9s que pour le niveau,",
+          "au regard du d\u00e9saccord des sources sur la borne basse du domaine de validit\u00e9 de la transformation",
+          "(5 contre 10) ; la puissance n'est mesur\u00e9e qu'\u00e0 T = 8."), "",
+    paste("Port\u00e9e : W' est invariant par transformation affine croissante (contr\u00f4le), et, \u00e0 \u03c0\u0302 constant, les",
+          "r\u00e9sidus z du moteur sont une telle transformation des log-ratios. La mesure co\u00efncide donc, \u00e9chantillon",
+          "par \u00e9chantillon, avec la p_asymptotique de la ligne Shapiro-Francia du moteur quand \u03c0\u0302 est constant",
+          "et les log-ratios i.i.d. de la loi indiqu\u00e9e. Elle n'est pas la fr\u00e9quence conditionnelle \u00e0",
+          "l'\u00e9v\u00e9nement \"\u03c0\u0302 constant\", qui d\u00e9pend des donn\u00e9es. \u00c0 \u03c0\u0302 variable, rien ne justifie de l'appliquer."), "",
+    "Niveau sous N(0,1), **informatif** : aucun code de sortie n'en d\u00e9pend.", "",
+    entete_md(c("T", "\u00c9chantillons", "\u03b1", "Rejets / R", "Taux", "IC 95 % (C-P)",
+                "\u00c9cart au nominal (points)", "Position de \u03b1", "p minimale")),
+    lignes_sf_niv, "",
+    "Puissance \u00e0 T = 8 (matrice de C4.a) :", "",
+    entete_md(c("Loi", cols_taux_sf)), lignes_sf_pui, "",
+    local({
+      n_ic <- length(T_SF) * length(ALPHAS_SF)
+      demi <- function(R) paste(vapply(ALPHAS_SF, function(al)
+        sprintf("\u00b1%s point \u00e0 \u03b1 = %s", num(100 * stats::qnorm(0.975) * sqrt(al * (1 - al) / R), 2),
+                num(al, 2)), ""), collapse = " ; ")
+      sprintf(paste("Mise en garde propre \u00e0 C4.c : %d IC de niveau \u00e0 95 %% (%d valeurs de T \u00d7 %d valeurs de \u03b1),",
+                    "sans correction de multiplicit\u00e9 ; les lignes de puissance n'y entrent pas. Sous des niveaux exacts,",
+                    "%s IC excluant \u03b1 sont attendus en moyenne par hasard (probabilit\u00e9 d'au moins un : %s %%, calcul\u00e9e",
+                    "comme si les %d IC \u00e9taient ind\u00e9pendants, ce que les \u00e9chantillons et les \u03b1 embo\u00eet\u00e9s ne r\u00e9alisent",
+                    "pas). Le qualificatif \u00ab lib\u00e9ral \u00bb ou \u00ab conservateur \u00bb n'est un constat qu'\u00e0 R = 20 000, avec",
+                    "une demi-largeur d'IC d'environ %s ; au R de cette ex\u00e9cution (R = %d) : %s."),
+              n_ic, length(T_SF), length(ALPHAS_SF), num(0.05 * n_ic, 1), num(100 * (1 - 0.95^n_ic), 0),
+              n_ic, demi(20000), OPT_R, demi(OPT_R))
+    }), "",
+    paste("Rapprochement, **non bloquant**, avec la mesure d'actuary du 17/10/2026 (hors d\u00e9p\u00f4t, R = 200 000",
+          "\u00e9chantillons i.i.d. N(0,1) de taille 8) ; son protocole n'est pas versionn\u00e9 (graine non publi\u00e9e) :"), "",
+    entete_md(c("\u03b1", "Mesure d'actuary, taux [IC 95 %]", sprintf("C4.c, T = 8 (R = %d), taux [IC 95 %% C-P]", OPT_R),
+                "Valeur d'actuary dans l'IC de C4.c")),
+    lignes_sf_act, "",
+    sprintf("Dur\u00e9e de C4.c : %s s (W' et p de Royston ; aucun tirage).", num(duree_sf, 1)), "")
+
   section_norm <- c(
     "### C4 -- Taux de rejet de Shapiro-Wilk et de l'asym\u00e9trie de D'Agostino, \u00e9chantillons i.i.d., T = 8 (et D'Agostino \u00e0 T = 20)", "",
     paste("Statut : **constat de simulation, hors mod\u00e8le r\u00e9glementaire**, sous des alternatives choisies",
@@ -1016,6 +1330,7 @@ if (OPT_PARTIE %in% c("tout", "normalite")) {
               n_ic, n_lignes, length(ALPHAS_118), num(0.05 * n_ic, 1), num(100 * (1 - 0.95^n_ic), 0),
               demi(20000), OPT_R, demi(OPT_R))
     }), "",
+    section_sf,
     sprintf("Dur\u00e9e de C4 : %.0f s.", duree_norm), "")
   sortie <- c(sortie, section_norm)
   controles <- c(controles, ctrl_norm)
@@ -1281,6 +1596,18 @@ if (OPT_PARTIE == "tost-frontiere") {
   FICHIERS_118[["tost-frontiere"]] <- list(section = section_fr, controles = ctrl_fr)
 }
 
+# --- Outils communs a C6 et C7 (flux de #72, #220, #174) ---------------------
+# Expression des jeux simules de #72 (tests/taux_franchissement_reperes.R,
+# affectation de YSIM) : meme flux que #221 (2 000 premiers jeux) et #166 ;
+# le texte du script de #72 est relu et compare (controle de C6 et de C7).
+# Evaluee dans un environnement ou FIT0 est le modele ajuste au jeu observe.
+EXPR_YSIM_72 <- quote(engine_sous_graine(OPT_GRAINE, t(vapply(seq_len(OPT_R), function(b) usp_simuler(FIT0), numeric(T_)))))
+expr_72_lue <- tryCatch({
+  l72 <- readLines(file.path(RACINE, "tests", "taux_franchissement_reperes.R"), warn = FALSE)
+  li <- grep("^YSIM <- ", l72, value = TRUE)
+  if (length(li) == 1L) parse(text = li)[[1]][[3]] else NULL
+}, error = function(e) NULL)
+
 # --- C6 : test de Pitman sur la pente, simulations a T = 8 (#220) ------------
 # Protocole dans l'en-tete (C6). Partie executee seule (--partie pitman), hors
 # de --partie tout (duree).
@@ -1367,16 +1694,6 @@ if (OPT_PARTIE == "pitman") {
     sprintf("%s / %s ; %s [%s ; %s]", format(k), format(n), num(k / n, 4), num(ci[1], 4), num(ci[2], 4))
   }
   cv_x <- function(x) stats::sd(x) / mean(x)
-
-  # Expression des jeux simules de #72 (tests/taux_franchissement_reperes.R,
-  # affectation de YSIM) : meme flux que #221 (2 000 premiers jeux) ; le
-  # texte du script de #72 est relu et compare (controle).
-  EXPR_YSIM_72 <- quote(engine_sous_graine(OPT_GRAINE, t(vapply(seq_len(OPT_R), function(b) usp_simuler(FIT0), numeric(T_)))))
-  expr_72_lue <- tryCatch({
-    l72 <- readLines(file.path(RACINE, "tests", "taux_franchissement_reperes.R"), warn = FALSE)
-    li <- grep("^YSIM <- ", l72, value = TRUE)
-    if (length(li) == 1L) parse(text = li)[[1]][[3]] else NULL
-  }, error = function(e) NULL)
 
   JEUX_PIT <- lapply(jeux_tost(), function(J) J[c("code", "x", "y", "libelle")])
   CODES_PIT <- vapply(JEUX_PIT, `[[`, "", "code")
@@ -1863,6 +2180,326 @@ if (OPT_PARTIE == "pitman") {
   FICHIERS_118$pitman <- list(section = section_pit, controles = ctrl_pit)
 }
 
+# --- C7 : niveau de la regle ESD (Rosner) a T = 8 (#174) ----------------------
+# Protocole dans l'en-tete (C7). Partie executee seule (--partie esd), hors de
+# --partie tout (duree du volet sous le modele ajuste). Toutes les quantites
+# sont lues dans la sortie de test_rosner() du moteur (nb_outliers, R,
+# lambda) : aucune copie de sa formule.
+if (OPT_PARTIE == "esd") {
+  ctrl_esd <- character(0)
+  t7 <- Sys.time()
+  rng_avant_esd <- list(RNGkind(), get0(".Random.seed", envir = globalenv(), inherits = FALSE))
+  ALPHA_ESD_MOTEUR <- eval(formals(run_engine)$alpha)
+  ALPHAS_ESD <- unique(c(ALPHA_ESD_MOTEUR, 0.05))
+  LIGNE_ESD <- "Valeurs aberrantes multiples (ESD generalise)"
+  # Une replication : pour chaque alpha, k chapeau (nb_outliers), depassement
+  # de la premiere et de la seconde etape (R[i] > lambda[i]) ; R et lambda
+  # finis (controle). k par defaut de test_rosner() : max(1, floor(T / 4)).
+  esd_rep <- function(v) {
+    unlist(lapply(ALPHAS_ESD, function(al) {
+      ro <- test_rosner(v, alpha = al)
+      c(k = ro$nb_outliers, e1 = ro$R[1] > ro$lambda[1], e2 = ro$R[2] > ro$lambda[2],
+        nk = length(ro$R), fini = all(is.finite(c(ro$R, ro$lambda))))
+    }))
+  }
+  noms_esd <- function(al) paste0(c("k", "e1", "e2", "nk", "fini"), "_", format(al))
+  mat_esd <- function(L) {
+    M <- t(vapply(L, esd_rep, numeric(5 * length(ALPHAS_ESD))))
+    colnames(M) <- unlist(lapply(ALPHAS_ESD, noms_esd))
+    M
+  }
+
+  # C7.a : echantillons i.i.d. N(0,1), un flux sous --graine + 7, tire en une
+  # fois avant tout calcul, rempli par ligne (echantillon i = tirages
+  # (i - 1) T + 1 a i T : les echantillons d'une execution a R plus petit sont
+  # les premiers).
+  t_iid <- Sys.time()
+  Z_ESD <- engine_sous_graine(OPT_GRAINE + 7, matrix(stats::rnorm(OPT_R * T_), nrow = OPT_R, byrow = TRUE))
+  M_IID <- mat_esd(lapply(seq_len(OPT_R), function(i) Z_ESD[i, ]))
+  duree_iid <- as.numeric(difftime(Sys.time(), t_iid, units = "secs"))
+  z1_isole <- engine_sous_graine(OPT_GRAINE + 7, stats::rnorm(T_))
+
+  # C7.b : sous le modele ajuste a J1 et J2 (flux de #72, #166, #221), y*
+  # reajuste par usp_ajuster(x, y*), test_rosner() sur les residus z du
+  # reajustement (comme usp_tests()) ; reajustement en erreur ou z non finis
+  # ecartes et comptes.
+  t_mod <- Sys.time()
+  JEUX_ESD <- lapply(jeux_tost(), function(J) J[c("code", "x", "y", "libelle")])
+  MES_ESD <- lapply(JEUX_ESD, function(J) {
+    x <- J$x
+    if (length(x) != T_) stop("C7 : jeu ", J$code, " de longueur ", length(x), ", T = ", T_, " attendu")
+    FIT0 <- usp_ajuster(x, J$y)
+    # Flux de #72 a OPT_R_MODELE jeux (EXPR_YSIM_72 lit OPT_R).
+    YSIM <- local({ OPT_R <- OPT_R_MODELE; eval(EXPR_YSIM_72) })
+    fits <- lapply(seq_len(OPT_R_MODELE), function(b) tryCatch(usp_ajuster(x, YSIM[b, ]), error = function(e) NULL))
+    ok <- vapply(fits, function(f) !is.null(f) && all(is.finite(f$z)), logical(1))
+    M <- matrix(NA_real_, OPT_R_MODELE, 5L * length(ALPHAS_ESD), dimnames = list(NULL, unlist(lapply(ALPHAS_ESD, noms_esd))))
+    if (any(ok)) M[ok, ] <- mat_esd(lapply(fits[ok], function(f) f$z))
+    pi_cst <- vapply(fits, function(f) !is.null(f) && isTRUE(diff(range(f$pi)) <= 1e-12 * max(f$pi)), logical(1))
+    list(J = J, FIT0 = FIT0, YSIM = YSIM, M = M, ok = ok, pi_cst = pi_cst,
+         y1_isole = engine_sous_graine(OPT_GRAINE, usp_simuler(FIT0)))
+  })
+  names(MES_ESD) <- vapply(JEUX_ESD, `[[`, "", "code")
+  duree_mod <- as.numeric(difftime(Sys.time(), t_mod, units = "secs"))
+  duree_esd <- as.numeric(difftime(Sys.time(), t7, units = "secs"))
+
+  # --- Controles d'integrite (bloquants) ---
+  col <- function(nom, al) paste0(nom, "_", format(al))
+  # Valeurs critiques (deterministes, lues dans test_rosner()) : colonne j =
+  # ALPHAS_ESD[j], lignes lambda1 (n = 8) et lambda2 (n = 7).
+  lam <- vapply(ALPHAS_ESD, function(al) test_rosner(Z_ESD[1, ], alpha = al)$lambda, numeric(2))
+  # Premiere etape, resultat exact (voir l'en-tete) : la demonstration exige
+  # 2 lambda1^2 > T - 1 (deux depassements simultanes impossibles).
+  ctrl_esd <- c(ctrl_esd, controle(all(2 * lam[1, ]^2 > T_ - 1), sprintf(
+    "C7, premi\u00e8re \u00e9tape exacte : 2\u03bb\u2081\u00b2 > T \u2212 1 = %d pour chaque \u03b1 (%s)", T_ - 1L,
+    paste(sprintf("%s \u00e0 \u03b1 = %s", vapply(2 * lam[1, ]^2, num, "", d = 3), vapply(ALPHAS_ESD, num, "", d = 2)),
+          collapse = " ; "))))
+  # k par defaut = floor(T / 4) = 2 a T = 8 ; R et lambda finis.
+  ctrl_esd <- c(ctrl_esd, controle(
+    all(vapply(ALPHAS_ESD, function(al) all(M_IID[, col("nk", al)] == 2) && all(M_IID[, col("fini", al)] == 1), logical(1))) &&
+      all(vapply(MES_ESD, function(m) all(vapply(ALPHAS_ESD, function(al) all(m$M[m$ok, col("nk", al)] == 2) &&
+                                                   all(m$M[m$ok, col("fini", al)] == 1), logical(1))), logical(1))),
+    "C7, k par d\u00e9faut de test_rosner() \u00e9gal \u00e0 2 = \u230aT/4\u230b \u00e0 T = 8 ; R et \u03bb finis (toutes les r\u00e9plications, C7.a et C7.b)"))
+  # Identites de lecture : k chapeau >= 1 <=> etape 1 ou etape 2 depassee ;
+  # k chapeau = 2 <=> etape 2 depassee (k = 2 : le plus grand i tel que
+  # R[i] > lambda[i]).
+  ident <- function(M) all(vapply(ALPHAS_ESD, function(al) {
+    k <- M[, col("k", al)]; e1 <- M[, col("e1", al)] == 1; e2 <- M[, col("e2", al)] == 1
+    identical(k >= 1, e1 | e2) && identical(k == 2, e2) && all(k %in% 0:2)
+  }, logical(1)))
+  ctrl_esd <- c(ctrl_esd, controle(ident(M_IID) && all(vapply(MES_ESD, function(m) ident(m$M[m$ok, , drop = FALSE]), logical(1))),
+    "C7, identit\u00e9s de lecture sur toutes les r\u00e9plications : k\u0302 \u2265 1 \u21d4 (R\u2081 > \u03bb\u2081 ou R\u2082 > \u03bb\u2082) ; k\u0302 = 2 \u21d4 R\u2082 > \u03bb\u2082"))
+  # Invariance affine (croissante et decroissante) de nb_outliers et de R sur
+  # les 100 premiers echantillons i.i.d.
+  inv_esd <- all(vapply(seq_len(min(100L, OPT_R)), function(i) {
+    v <- Z_ESD[i, ]
+    all(vapply(ALPHAS_ESD, function(al) {
+      a <- test_rosner(v, alpha = al); b <- test_rosner(3 + 0.2 * v, alpha = al); c2 <- test_rosner(-5 - 7 * v, alpha = al)
+      a$nb_outliers == b$nb_outliers && a$nb_outliers == c2$nb_outliers &&
+        isTRUE(all.equal(a$R, b$R, tolerance = 1e-10)) && isTRUE(all.equal(a$R, c2$R, tolerance = 1e-10))
+    }, logical(1)))
+  }, logical(1)))
+  ctrl_esd <- c(ctrl_esd, controle(inv_esd, sprintf(
+    "C7, invariance de k\u0302 et de R par v \u2192 3 + 0,2 v et v \u2192 \u22125 \u2212 7 v (%d premiers \u00e9chantillons i.i.d.)",
+    min(100L, OPT_R))))
+  # Transcription contre run_engine() (alpha par defaut) : estimation et
+  # verdict de la ligne ESD sur le jeu observe et le premier jeu simule de
+  # chaque jeu, contre test_rosner(usp_ajuster(x, y)$z).
+  verdict_esd <- function(k) if (k >= 2) "ECHEC" else if (k == 1) "ALERTE" else "OK"
+  trans_esd <- all(vapply(MES_ESD, function(m) all(vapply(list(m$J$y, m$YSIM[1, ]), function(y) {
+    tb <- engine_table_tests(run_engine(xt = m$J$x, yt = y, methode = "premium", segment = 1, annexe = "II",
+                                        nature_donnees = "brutes", B = 99, seed = 20260831))
+    l <- tb[tb$test == LIGNE_ESD, ]
+    k <- test_rosner(usp_ajuster(m$J$x, y)$z, alpha = ALPHA_ESD_MOTEUR)$nb_outliers
+    nrow(l) == 1L && identical(as.numeric(l$estimation), as.numeric(k)) && identical(l$verdict, verdict_esd(k))
+  }, logical(1))), logical(1)))
+  ctrl_esd <- c(ctrl_esd, controle(trans_esd, sprintf(paste(
+    "C7, transcription contre run_engine() (\u03b1 = %s) : estimation et verdict de la ligne ESD \u00e9gaux \u00e0",
+    "test_rosner(usp_ajuster(x, y)$z) sur J1 et J2 observ\u00e9s et sur le premier jeu simul\u00e9 de chacun"), num(ALPHA_ESD_MOTEUR, 2))))
+  # A pi chapeau constant (J1 observe), R de test_rosner() identique sur les
+  # residus z et sur les log-ratios (portee de C7.a).
+  f1 <- MES_ESD[["J1"]]$FIT0
+  ctrl_esd <- c(ctrl_esd, controle(
+    isTRUE(diff(range(f1$pi)) <= 1e-12 * max(f1$pi)) &&
+      isTRUE(all.equal(test_rosner(f1$z)$R, test_rosner(log(MES_ESD[["J1"]]$J$y / MES_ESD[["J1"]]$J$x))$R, tolerance = 1e-8)),
+    "C7, J1 observ\u00e9 (\u03c0\u0302 constant) : R de test_rosner() identique sur les r\u00e9sidus z et sur les log-ratios"))
+  # Flux : expression de #72 ; premier tirage identique a un tirage isole ;
+  # generateur de l'appelant restaure.
+  ctrl_esd <- c(ctrl_esd, controle(!is.null(expr_72_lue) && identical(deparse(expr_72_lue), deparse(EXPR_YSIM_72)),
+    "C7, expression des jeux simul\u00e9s identique \u00e0 l'affectation de YSIM de tests/taux_franchissement_reperes.R (#72, flux de #166 et #221)"))
+  ctrl_esd <- c(ctrl_esd, controle(identical(Z_ESD[1, ], z1_isole),
+    sprintf("C7.a, premier \u00e9chantillon du flux (graine %s) identique \u00e0 un tirage isol\u00e9", format(OPT_GRAINE + 7, scientific = FALSE))))
+  for (cj in names(MES_ESD))
+    ctrl_esd <- c(ctrl_esd, controle(identical(MES_ESD[[cj]]$YSIM[1, ], MES_ESD[[cj]]$y1_isole),
+      sprintf("C7.b %s, premier jeu du flux (graine %s) identique \u00e0 un tirage isol\u00e9", cj, format(OPT_GRAINE, scientific = FALSE))))
+  # C7.c : mesure du 15/10/2026 (revue de pertinence des tests,
+  # docs/revues/20261015-pertinence-tests-graphiques/mesures/bloc-4/sim.R,
+  # commit e990a9f, section 2 : set.seed(20261015), matrice 1e5 x 8 remplie
+  # par colonne, lignes 1 a 50 000, test_rosner(v, k = 2, alpha = 0.10)),
+  # recalculee ici sous engine_sous_graine().
+  GRAINE_1510 <- 20261015
+  Z_1510 <- engine_sous_graine(GRAINE_1510, matrix(stats::rnorm(1e5 * 8), 1e5, 8))
+  M_1510 <- t(vapply(seq_len(50000L), function(i) {
+    ro <- test_rosner(Z_1510[i, ], k = 2, alpha = 0.10)
+    c(k = ro$nb_outliers, e1 = ro$R[1] > ro$lambda[1])
+  }, numeric(2)))
+  rm(Z_1510)
+  # Generateur : engine_sous_graine(g, .) equivaut a set.seed(g) d'une
+  # session aux types par defaut de R (>= 3.6.0 : Mersenne-Twister,
+  # Inversion, Rejection), egaux a ENGINE_RNG_KIND ; set.seed() est appele
+  # dans engine_sous_graine() pour que l'etat de l'appelant soit restaure.
+  gen_1510 <- identical(unname(ENGINE_RNG_KIND), c("Mersenne-Twister", "Inversion", "Rejection")) &&
+    identical(engine_sous_graine(1, { set.seed(GRAINE_1510); stats::rnorm(16) }),
+              engine_sous_graine(GRAINE_1510, stats::rnorm(16)))
+  ctrl_esd <- c(ctrl_esd, controle(gen_1510, paste(
+    "C7.c, g\u00e9n\u00e9rateur : ENGINE_RNG_KIND = types par d\u00e9faut de R, et engine_sous_graine(20261015, .)",
+    "\u00e9gal \u00e0 set.seed(20261015) (16 premiers tirages)")))
+  TAUX_1510 <- c(mean(M_1510[, "k"] >= 1), mean(M_1510[, "k"] == 2), mean(M_1510[, "e1"] == 1))
+  REF_1510 <- c(0.1515, 0.0623, 0.0992)
+  ctrl_esd <- c(ctrl_esd, controle(isTRUE(all(abs(round(TAUX_1510, 4) - REF_1510) < 1e-9)), sprintf(paste(
+    "C7.c, mesure du 15/10/2026 recalcul\u00e9e : P(k\u0302 \u2265 1), P(k\u0302 = 2), premi\u00e8re \u00e9tape = %s (arrondis \u00e0",
+    "4 d\u00e9cimales ; bloc-4.md \u00a7 4.4 : 0,1515 ; 0,0623 ; 0,0992)"),
+    paste(vapply(TAUX_1510, num, "", d = 4), collapse = " ; "))))
+  rng_apres_esd <- list(RNGkind(), get0(".Random.seed", envir = globalenv(), inherits = FALSE))
+  ctrl_esd <- c(ctrl_esd, controle(identical(rng_avant_esd, rng_apres_esd),
+    "C7, RNGkind() et .Random.seed de l'appelant restaur\u00e9s"))
+
+  # --- Tableaux ---
+  cell_esd <- function(ind) {
+    n <- length(ind); k <- sum(ind); ci <- ic_cp(k, n)
+    sprintf("%d / %d ; %s [%s ; %s]", k, n, num(k / n, 4), num(ci[1], 4), num(ci[2], 4))
+  }
+  LOI_IID <- "i.i.d. N(0, 1), T = 8"
+  loi_mod <- function(cj) sprintf("mod\u00e8le ajust\u00e9 \u00e0 %s (usp_simuler()), z du r\u00e9ajustement usp_ajuster(x, y*)", cj)
+  lignes_esd <- function(M, loi) unlist(lapply(ALPHAS_ESD, function(al) {
+    k <- M[, col("k", al)]; e1 <- M[, col("e1", al)] == 1; e2 <- M[, col("e2", al)] == 1
+    ligne_md(loi, num(al, 2), cell_esd(k >= 1), cell_esd(k == 2), cell_esd(k == 1), cell_esd(e1),
+             cell_esd(e2 & !e1))
+  }))
+  cols_esd <- c("Loi simul\u00e9e", "\u03b1", "P(k\u0302 \u2265 1) : ALERTE ou ECHEC", "P(k\u0302 = 2) : ECHEC", "P(k\u0302 = 1) : ALERTE",
+                "Premi\u00e8re \u00e9tape seule : P(R\u2081 > \u03bb\u2081)", "Seconde \u00e9tape seule d\u00e9passe : P(R\u2082 > \u03bb\u2082, R\u2081 \u2264 \u03bb\u2081)")
+  lignes_lam <- vapply(seq_along(ALPHAS_ESD), function(j)
+    ligne_md(num(ALPHAS_ESD[j], 2), num(lam[1, j], 4), num(lam[2, j], 4)), "")
+  # C7.c : mesure du 15/10/2026 (recalculee, controlee) contre C7.a a
+  # alpha = 0,10 ; IC a cinq decimales (une borne arrondie a quatre peut
+  # masquer la position d'une estimation).
+  cell5 <- function(ind) {
+    n <- length(ind); k <- sum(ind); ci <- ic_cp(k, n)
+    list(txt = sprintf("%d / %d ; %s [%s ; %s]", k, n, num(k / n, 4), num(ci[1], 5), num(ci[2], 5)), p = k / n, ci = ci)
+  }
+  dans <- function(x, ci) if (x >= ci[1] && x <= ci[2]) "oui" else "**non**"
+  Q_1510 <- list(
+    list(nom = "P(k\u0302 \u2265 1)", a = M_1510[, "k"] >= 1, b = M_IID[, col("k", 0.1)] >= 1),
+    list(nom = "P(k\u0302 = 2)", a = M_1510[, "k"] == 2, b = M_IID[, col("k", 0.1)] == 2),
+    list(nom = "premi\u00e8re \u00e9tape seule, P(R\u2081 > \u03bb\u2081)", a = M_1510[, "e1"] == 1, b = M_IID[, col("e1", 0.1)] == 1))
+  # Comparaison des deux estimations par le test de deux proportions
+  # independantes (flux distincts : graine 20261015 contre --graine + 7),
+  # proportion commune en pool ; p bilaterale par la loi normale.
+  z_2prop <- function(a, b) {
+    n1 <- length(a); n2 <- length(b); pb <- (sum(a) + sum(b)) / (n1 + n2)
+    (mean(a) - mean(b)) / sqrt(pb * (1 - pb) * (1 / n1 + 1 / n2))
+  }
+  ZC_1510 <- vapply(Q_1510, function(q) z_2prop(q$a, q$b), 0)
+  P_1510 <- 2 * stats::pnorm(-abs(ZC_1510))
+  lignes_pub <- vapply(seq_along(Q_1510), function(j) {
+    q <- Q_1510[[j]]; a <- cell5(q$a); b <- cell5(q$b)
+    ligne_md(q$nom, a$txt, b$txt, dans(b$p, a$ci), sub(".", ",", sprintf("%+.2f", ZC_1510[j]), fixed = TRUE),
+             num(P_1510[j], 3))
+  }, "")
+  # Phrase de lecture, construite sur les valeurs calculees (ecart nominal :
+  # p < 0,05 sans correction ; Bonferroni sur les trois comparaisons).
+  ic_e1_1510 <- ic_cp(sum(Q_1510[[3]]$a), length(Q_1510[[3]]$a))
+  nom_1510 <- c("P(k\u0302 \u2265 1)", "P(k\u0302 = 2)", "la premi\u00e8re \u00e9tape")
+  nominaux <- which(P_1510 < 0.05)
+  LECTURE_1510 <- paste0(
+    "Lecture : ",
+    if (all(pmin(1, 3 * P_1510) >= 0.05)) "aucun \u00e9cart \u00e9tabli entre la mesure du 15/10 et C7.a (Bonferroni sur trois comparaisons, niveau 5 %)" else
+      "**\u00e9cart \u00e9tabli** apr\u00e8s Bonferroni sur trois comparaisons (niveau 5 %)",
+    if (!length(nominaux)) " ; aucun \u00e9cart nominal (p \u2265 0,05 sur les trois grandeurs)" else
+      paste0(" ; ", if (length(nominaux) == 1L) "le seul \u00e9cart nominal (p < 0,05 sans correction), sur " else "\u00e9carts nominaux (p < 0,05 sans correction) sur ",
+             paste(vapply(nominaux, function(j) sprintf("%s (z \u2248 %s, p \u2248 %s, \u2248 %s apr\u00e8s Bonferroni)",
+                                                        nom_1510[j], num(ZC_1510[j], 2), num(P_1510[j], 3), num(min(1, 3 * P_1510[j]), 2)), ""),
+                   collapse = " ; "),
+             if (all(pmin(1, 3 * P_1510[nominaux]) >= 0.05))
+               (if (length(nominaux) == 1L) ", est compatible avec le hasard" else ", sont compatibles avec le hasard") else ""),
+    sprintf(" ; l'IC du 15/10 pour la premi\u00e8re \u00e9tape [%s ; %s] %s la valeur exacte \u03b1 = 0,10.",
+            num(ic_e1_1510[1], 5), num(ic_e1_1510[2], 5),
+            if (0.10 >= ic_e1_1510[1] && 0.10 <= ic_e1_1510[2]) "contient" else "**ne contient pas**"))
+  # Rapprochement avec #166 (docs/tableaux/20261008-issue166-calibration-J1.md
+  # et -J2.md, commit 139031d, ligne ESD de la repartition des modalites :
+  # OK / ALERTE / ECHEC sur les replications 1 a 2 000, run_engine() complet,
+  # meme flux de jeux) : non bloquant (le moteur a evolue depuis).
+  REF_166 <- list(J1 = c(OK = 1721, ALERTE = 172, ECHEC = 107), J2 = c(OK = 1778, ALERTE = 123, ECHEC = 99))
+  lignes_166 <- vapply(names(MES_ESD), function(cj) {
+    m <- MES_ESD[[cj]]
+    if (OPT_R_MODELE < 2000L || OPT_GRAINE != 20260927)
+      return(ligne_md(cj, paste(REF_166[[cj]], collapse = " / "), "\u2014",
+                      "non comparable (R_modele < 2 000 ou graine \u2260 20260927)"))
+    ok2 <- m$ok[1:2000]; k <- m$M[1:2000, col("k", ALPHA_ESD_MOTEUR)]
+    nous <- c(OK = sum(k[ok2] == 0), ALERTE = sum(k[ok2] == 1), ECHEC = sum(k[ok2] == 2))
+    ligne_md(cj, paste(REF_166[[cj]], collapse = " / "),
+             sprintf("%s (\u00e9cart\u00e9s : %d)", paste(nous, collapse = " / "), sum(!ok2)),
+             if (all(ok2) && identical(as.numeric(nous), as.numeric(REF_166[[cj]]))) "identique" else "**\u00e9cart**")
+  }, "")
+  lignes_mod_info <- vapply(names(MES_ESD), function(cj) {
+    m <- MES_ESD[[cj]]
+    sprintf("%s : r\u00e9ajustements \u00e9cart\u00e9s (erreur ou z non finis) %d / %d ; \u03c0\u0302 constant dans %d / %d r\u00e9ajustements retenus ; \u03b4\u0302 observ\u00e9 = %s.",
+            cj, sum(!m$ok), OPT_R_MODELE, sum(m$pi_cst[m$ok]), sum(m$ok), num(m$FIT0$delta, 4))
+  }, "")
+
+  section_esd <- c(
+    "### C7 -- Niveau de la r\u00e8gle ESD g\u00e9n\u00e9ralis\u00e9e (test_rosner()) \u00e0 T = 8", "",
+    paste("Statut, trois cas. (1) C7.0 : valeurs **d\u00e9terministes** lues dans test_rosner(). (2) Premi\u00e8re \u00e9tape",
+          "seule sous i.i.d. normal : niveau **exactement \u03b1** (r\u00e9sultat exact, d\u00e9monstration ci-dessous) ; la colonne",
+          "simul\u00e9e \u00ab Premi\u00e8re \u00e9tape seule \u00bb de C7.a en est le contr\u00f4le. (3) Tout le reste (P(k\u0302 \u2265 1), P(k\u0302 = 2),",
+          "P(k\u0302 = 1), seconde \u00e9tape ; C7.a et C7.b) : **constat de simulation**. C7.a : sous l'hypoth\u00e8se",
+          "d'\u00e9chantillons i.i.d. N(0, 1) de taille 8 ; C7.b : sous le mod\u00e8le r\u00e9glementaire ajust\u00e9 \u00e0 J1 et \u00e0 J2.",
+          "Toutes les quantit\u00e9s sont lues dans la",
+          "sortie de test_rosner() du moteur (nb_outliers = k\u0302, R, \u03bb), sans copie de sa formule ; k = \u230aT/4\u230b = 2",
+          "(d\u00e9faut de test_rosner()). Verdict de la ligne du moteur : ALERTE si k\u0302 = 1, ECHEC si k\u0302 = 2. Il n'y a",
+          "pas de p-value : chaque taux est une fr\u00e9quence de d\u00e9cision, avec son IC de Clopper-Pearson \u00e0 95 %",
+          "(erreur Monte-Carlo, fonction de R ; elle ne dit rien de l'erreur d'approximation en T)."), "",
+    paste("Port\u00e9e de C7.a : C7.a est la fr\u00e9quence de d\u00e9cision de la r\u00e8gle sur huit observations i.i.d. normales.",
+          "Elle co\u00efncide, r\u00e9plication par r\u00e9plication, avec la ligne du moteur lorsque \u03c0\u0302 est constant (z affine",
+          "croissante des log-ratios). Elle n'est pas la fr\u00e9quence conditionnelle \u00e0 l'\u00e9v\u00e9nement \"\u03c0\u0302 constant\",",
+          "qui d\u00e9pend des donn\u00e9es. \u00c0 \u03c0\u0302 variable, z n'est pas i.i.d. et C7.a ne s'applique pas."), "",
+    sprintf(paste("R\u00e9plications : C7.a %d ; C7.b %d par jeu. Graines : C7.a %s ; C7.b %s (flux de #72, m\u00eame graine pour",
+                  "J1 et J2 ; les 2 000 premiers jeux sont ceux de #166 et #221)."),
+            OPT_R, OPT_R_MODELE, format(OPT_GRAINE + 7, scientific = FALSE), format(OPT_GRAINE, scientific = FALSE)), "",
+    "**C7.0 -- Valeurs critiques de test_rosner() \u00e0 T = 8 (d\u00e9terministes)**", "",
+    entete_md(c("\u03b1", "\u03bb\u2081 (n = 8)", "\u03bb\u2082 (n = 7, apr\u00e8s retrait du point le plus extr\u00eame)")), lignes_lam, "",
+    "**C7.a -- Fr\u00e9quences de d\u00e9cision sous i.i.d. N(0, 1) (k / n ; taux [IC 95 % C-P])**", "",
+    entete_md(cols_esd), lignes_esd(M_IID, LOI_IID), "",
+    sprintf(paste("D\u00e9monstration (premi\u00e8re \u00e9tape seule, i.i.d. normal, n = T = 8, u_t = (x_t \u2212 x\u0304)/s ; r\u00e9sultat exact) :",
+                  "(i) pour un indice t fix\u00e9, u \u21a6 u\u00b7\u221a(n(n \u2212 2)/((n \u2212 1)\u00b2 \u2212 n u\u00b2)) est strictement croissante sur",
+                  "[0, (n \u2212 1)/\u221an), et l'image de |u_t| suit exactement la loi de |t(n \u2212 2)| sous i.i.d. normal (loi de",
+                  "la fiche Grubbs) ; \u03bb\u2081 est l'image r\u00e9ciproque de t_{1 \u2212 \u03b1/(2n), n \u2212 2}, donc P(|u_t| > \u03bb\u2081) = \u03b1/n.",
+                  "(ii) \u03a3 u_t\u00b2 = n \u2212 1 = 7 et 2\u03bb\u2081\u00b2 > 7 (%s ; contr\u00f4le bloquant) : deux d\u00e9passements simultan\u00e9s sont",
+                  "impossibles. (iii) Les n \u00e9v\u00e9nements {|u_t| > \u03bb\u2081} sont donc disjoints et P(R\u2081 > \u03bb\u2081) = \u03b1 ; la colonne",
+                  "simul\u00e9e \u00ab Premi\u00e8re \u00e9tape seule \u00bb en est le contr\u00f4le (non bloquant ; \u03b1 dans l'IC de la premi\u00e8re \u00e9tape : %s)."),
+            paste(sprintf("%s \u00e0 \u03b1 = %s", vapply(2 * lam[1, ]^2, num, "", d = 3), vapply(ALPHAS_ESD, num, "", d = 2)),
+                  collapse = " ; "),
+            paste(vapply(ALPHAS_ESD, function(al) {
+              ci <- ic_cp(sum(M_IID[, col("e1", al)] == 1), nrow(M_IID))
+              sprintf("%s \u00e0 \u03b1 = %s", if (al >= ci[1] && al <= ci[2]) "oui" else "**non**", num(al, 2))
+            }, ""), collapse = " ; ")), "",
+    paste("Lecture : P(k\u0302 \u2265 1) = P(R\u2081 > \u03bb\u2081) + P(R\u2082 > \u03bb\u2082, R\u2081 \u2264 \u03bb\u2081) (identit\u00e9 contr\u00f4l\u00e9e r\u00e9plication par",
+          "r\u00e9plication) : la derni\u00e8re colonne est la part de P(k\u0302 \u2265 1) que la seconde \u00e9tape (n = 7) ajoute \u00e0 la",
+          "premi\u00e8re. La premi\u00e8re \u00e9tape seule est la r\u00e8gle \u00ab R\u2081 > \u03bb\u2081 \u00bb de test_rosner() (valeur critique \u00e0",
+          "1 \u2212 \u03b1/(2n) de Student), non la ligne Grubbs du moteur (test_grubbs(), p-value \u00e0 borne de Bonferroni)."), "",
+    "**C7.b -- Fr\u00e9quences de d\u00e9cision sous le mod\u00e8le ajust\u00e9 (k / n ; taux [IC 95 % C-P])**", "",
+    entete_md(cols_esd),
+    unlist(lapply(names(MES_ESD), function(cj) lignes_esd(MES_ESD[[cj]]$M[MES_ESD[[cj]]$ok, , drop = FALSE], loi_mod(cj)))), "",
+    paste("-", lignes_mod_info), "",
+    paste0("Jeux : ", paste(vapply(MES_ESD, function(m) sprintf("%s : %s", m$J$code, m$J$libelle), ""), collapse = " ; "), "."), "",
+    "**C7.c -- Mesure du 15/10/2026 (i.i.d. N(0, 1), T = 8, k = 2, \u03b1 = 0,10), recalcul\u00e9e, contre C7.a (k / n ; taux [IC 95 % C-P])**", "",
+    paste("Mesure du 15/10/2026 : revue de pertinence des tests,",
+          "docs/revues/20261015-pertinence-tests-graphiques/mesures/bloc-4/sim.R (commit e990a9f), section 2 : set.seed(20261015), matrice 100 000 \u00d7 8 remplie par colonne,",
+          "lignes 1 \u00e0 50 000, test_rosner(v, k = 2, alpha = 0.10) ; recalcul\u00e9e ici sous engine_sous_graine(20261015, .)",
+          "(g\u00e9n\u00e9rateur \u00e9quivalent : contr\u00f4le), taux arrondis \u00e0 4 d\u00e9cimales \u00e9gaux \u00e0 ceux de bloc-4.md \u00a7 4.4 (contr\u00f4le",
+          "bloquant). L'issue #174 (30/09/2026) cite une mesure ant\u00e9rieure, hors d\u00e9p\u00f4t et non versionn\u00e9e",
+          "(P(k\u0302 \u2265 1) = 0,152 ; premi\u00e8re \u00e9tape 0,099), que la mesure du 15/10 a reproduite (0,1515 ; 0,0992,",
+          "bloc-4.md \u00a7 4.4)."), "",
+    entete_md(c("Grandeur", "Mesure du 15/10/2026 (R = 50 000)", sprintf("C7.a (R = %d)", OPT_R),
+                "C7.a dans l'IC du 15/10", "z (15/10 \u2212 C7.a)", "p bilat\u00e9rale")),
+    lignes_pub, "",
+    paste("z : test de deux proportions ind\u00e9pendantes (flux distincts, proportion commune estim\u00e9e en pool),",
+          "z = (p\u2081 \u2212 p\u2082) / \u221a(p\u0304 (1 \u2212 p\u0304) (1/n\u2081 + 1/n\u2082)) ; p bilat\u00e9rale = 2 (1 \u2212 \u03a6(|z|))",
+          "(approximation normale)."), "",
+    LECTURE_1510, "",
+    "**C7.d -- Rapprochement avec #166 (ligne ESD, r\u00e9plications 1 \u00e0 2 000, run_engine() complet ; non bloquant)**", "",
+    entete_md(c("Jeu", "OK / ALERTE / ECHEC de #166 (docs/tableaux/20261008-issue166-calibration-<jeu>.md, commit 139031d)",
+                "OK / ALERTE / ECHEC de C7.b, r\u00e9plications 1 \u00e0 2 000", "R\u00e9sultat")),
+    lignes_166, "",
+    sprintf(paste("Dur\u00e9e de C7 : %.0f s de simulation (C7.a : %.0f s ; C7.b : %.0f s, soit %s s par r\u00e9plication et par",
+                  "jeu, r\u00e9ajustement compris) et %.0f s de contr\u00f4les (dont run_engine())."),
+            duree_esd, duree_iid, duree_mod, num(duree_mod / (OPT_R_MODELE * length(MES_ESD)), 4),
+            as.numeric(difftime(Sys.time(), t7, units = "secs")) - duree_esd), "")
+  sortie <- c(sortie, section_esd)
+  controles <- c(controles, ctrl_esd)
+  FICHIERS_118$esd <- list(section = section_esd, controles = ctrl_esd)
+}
+
 duree <- as.numeric(difftime(Sys.time(), t_debut, units = "secs"))
 sortie <- c(sortie, "### Contr\u00f4les d'int\u00e9grit\u00e9", "", paste("-", controles), "",
             sprintf("Dur\u00e9e totale : %.0f s.", duree))
@@ -1870,13 +2507,14 @@ ecrire_console(sortie)
 
 # --- Fichiers de docs/tableaux/ (seulement sur --ecrire, issue #118) ----------
 if (!is.na(OPT_ECRIRE) && !length(FICHIERS_118))
-  message("--ecrire ignore : aucun fichier pour --partie ", OPT_PARTIE, " (seules tost, normalite, tost-frontiere et pitman en ecrivent)")
+  message("--ecrire ignore : aucun fichier pour --partie ", OPT_PARTIE, " (seules tost, normalite, tost-frontiere, pitman et esd en ecrivent)")
 if (!is.na(OPT_ECRIRE) && length(FICHIERS_118)) {
   # tous les chemins controles par la garde d'ecrasement (#173) avant toute
   # ecriture
   # Issue du fichier : #215 pour la partie tost depuis le modele auxiliaire
   # pondere (l'ancien tableau 20260930-issue118-tost.md est garde), #219 pour
-  # la partie tost-frontiere, #220 pour la partie pitman, #118 sinon.
+  # la partie tost-frontiere, #220 pour la partie pitman, #174 pour la partie
+  # esd, #118 sinon.
   CHEMINS_118 <- chemins_118(names(FICHIERS_118))
   if (!INTEGRITE) {
     message("--ecrire : controles d'integrite en echec, aucun fichier ecrit")
@@ -1895,8 +2533,9 @@ if (!is.na(OPT_ECRIRE) && length(FICHIERS_118)) {
       lignes <- c(
         sprintf("## Constats de niveau et de puissance \u00e0 T = 8 (issue #%s)", ISSUE_118[[nom]]), "",
         paste0(sprintf("Param\u00e8tres : R=%d ; graine=%s ; partie=%s ; T=%s", OPT_R,
-                       format(OPT_GRAINE, scientific = FALSE), nom, if (nom == "normalite") "8 et 20" else "8"),
-               if (nom == "pitman") sprintf(" ; R_h0=%d", OPT_R_H0)), "",
+                       format(OPT_GRAINE, scientific = FALSE), nom, if (nom == "normalite") "5, 8, 10 et 20" else "8"),
+               if (nom == "pitman") sprintf(" ; R_h0=%d", OPT_R_H0),
+               if (nom == "esd") sprintf(" ; R_modele=%d", OPT_R_MODELE)), "",
         entete_md(c("Grandeur", "Valeur")),
         ligne_md("Plateforme de calcul (R, syst\u00e8me, machine, BLAS, LAPACK)", plateforme_calcul()),
         ligne_md("G\u00e9n\u00e9rateur", paste(ENGINE_RNG_KIND, collapse = ", ")),

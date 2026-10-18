@@ -877,7 +877,37 @@ MOTIF_PROVENANCE_INDIRECTE <- paste("provenance indirecte d'entrees (graphe d'ap
                                     "schema ; risque residuel : si le code change (la fonction alimente plus ou",
                                     "moins d'entrees) et que le document ne change pas, le decompte devenu faux",
                                     "n'est pas detecte")
+# Population de la mesure de multiplicite T2 / T2 bis (#229, #274) : lignes
+# d'usp_tests() reconstruites par la mesure (fichier date
+# docs/tableaux/20261018-issue229-p-conditionnelle-regime.md), et non lignes
+# de la table courante. 48 = table premium (51 lignes au moteur courant)
+# moins les deux lignes du rapport de vraisemblance sur delta et la largeur de
+# l'intervalle a delta fixe (#45) ; 44 = 48 moins TOST, Pitman, Fisher et
+# ESD. Ces nombres decrivent une simulation passee : les verifier sur la table
+# courante signalerait a tort un ajout de ligne au moteur, qui ne change pas
+# la population mesuree. Risque residuel : un decompte faux a l'ecriture n'est
+# pas detecte (il se controle sur le fichier date).
+MOTIF_POPULATION_T2BIS <- paste("population de la mesure T2 / T2 bis de #229/#274 (fichier date",
+                                "docs/tableaux/20261018-issue229-p-conditionnelle-regime.md), hors table",
+                                "courante : lignes d'usp_tests() reconstruites par la simulation, pas un",
+                                "decompte de res$tests")
 EXEMPTES_DECOMPTES <- list(
+  list(id = "multiplicite T2 bis : fiche Goldfeld-Quandt (44 et 48 lignes)",
+       contexte = paste0("sous le mod\u00e8le ajust\u00e9 \u00e0 J2 sur les 44 lignes retenues pour la ",
+                         "multiplicit\u00e9, et dans .{1,20}? sur les 48 lignes, TOST compris"),
+       motif = MOTIF_POPULATION_T2BIS),
+  list(id = "multiplicite T2 bis : definition de la population (48, deux et 44 lignes)",
+       contexte = paste0("Population : les 48 lignes d'usp_tests\\(\\) reconstruites par la mesure ",
+                         "\\(hors les deux lignes du rapport de vraisemblance sur .delta et la largeur ",
+                         "de l'intervalle \u00e0 .delta fix\u00e9, issue .#45\\), moins le TOST, le test de ",
+                         "Pitman sur la pente, le test de \\w+ et la proc\u00e9dure ESD, soit 44 lignes"),
+       motif = MOTIF_POPULATION_T2BIS),
+  list(id = "multiplicite T2 bis : parts inchangees sur les 44 lignes",
+       contexte = "sans aucune transition par r\u00e9plication sur ces 44 lignes",
+       motif = MOTIF_POPULATION_T2BIS),
+  list(id = "multiplicite T2 bis : parts sur les 48 lignes, TOST compris",
+       contexte = "pour V1\\. Sur les 48 lignes, TOST compris : sur J1",
+       motif = MOTIF_POPULATION_T2BIS),
   list(id = "pente et Fisher (cas sans p Monte-Carlo possible)",
        contexte = "Ces deux tests conservent donc leur loi", motif = MOTIF_ANAPHORE),
   list(id = "tableau 2 : deux lignes du tableau du document",

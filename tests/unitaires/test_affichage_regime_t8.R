@@ -23,6 +23,10 @@
 #    D-i  aide a la lecture propre a la partie P ;
 #    revue : libelles en sequences \u (aucun octet non ASCII) ; nombre de
 #    p absentes affiche a cote du taux ; libelle de J1 en T3.
+#  #274 (revue finale de Ff) : NOTE_C5 relue (lue par conditions_regime()
+#  et tableau_l15()) ; classes fermees de (t2) (classe_t2(), t2_classer())
+#  et critere ECHEC (indic_echec(), transitions_echec()) sur des lignes et
+#  des replications synthetiques.
 ###############################################################################
 
 if (!exists("verifier", mode = "function")) {
@@ -46,7 +50,8 @@ CONST_229 <- c("SCRIPT", "R_SPEC", "RP_SPEC", "CODES_SCEN", "METHODE", "ALPHA", 
                "N_EVALUABLE", "SEUIL_C3", "REG", "LIB_REG", "VARIANTES", "VARIANTES_CRIT", "JEUX", "LOI_STAT",
                "LIB_LOI", "DISCRETES", "STAT_LIGNE", "LIGNE_TOST", "STATS", "NS", "F_R", "QUEUE", "CODES_MOTIF",
                "LIB_MOTIF", "TEXTE_CRITERE_229", "PROFILS_D", "COLS_FIXES", "CHAMPS_STAT", "REPCOLS", "COLS_NUM",
-               "CLASSES", "ETAT", "PRED_C5", "PRED_C5_TXT")
+               "CLASSES", "ETAT", "PRED_C5", "PRED_C5_TXT", "NOTE_C5", "LIGNES_HORS_ECHEC", "MARQUEUR_R14",
+               "CLASSES_T2", "LIGNE_PITMAN", "PREFIXE_MC_INDISPO")
 EXPRS_229 <- parse(SCRIPT_229, keep.source = FALSE, encoding = "UTF-8")
 E <- new.env(parent = globalenv())
 assign("RACINE", RACINE_229, envir = E)
@@ -282,6 +287,146 @@ verifier("D-i C4c : p absentes affichees (forme courte)",
 verifier("T3 : ligne du regime interieur de J1 sans la mention (bords)",
          { t3 <- E$tableau_t3(list(J1 = D1), list(J1 = E$matrices(D1)), list())
            any(grepl("^\\| J1 \\| \u03b4\u0302\\* int\u00e9rieur \\|", t3)) && !any(grepl("^\\| J1 \\(bords\\) \\|", t3)) })
+
+## --- #274 : classes fermees de (t2), classe_t2() -----------------------------
+# Ligne de usp_tests() synthetique : test ordinaire a p Monte-Carlo, champs
+# remplaces par ceux de `...`.
+ligne_t <- function(...) {
+  d <- list(test = "Ligne X", type = "test", verdict = "OK", p_retenue = 0.3, p_exacte = NA_real_, p_min = NA_real_,
+            p_min_mc = NA_real_, inoperant = FALSE, detail = "")
+  m <- list(...); d[names(m)] <- m; d
+}
+A <- E$ALPHA
+diag_na <- function(...) ligne_t(type = "diagnostic", verdict = "INFO", p_retenue = NA_real_, ...)
+verifier("#274 classe_t2() T : ligne TOST en diagnostic INFO, p NA, detail portant MARQUEUR_R14 ; sans le marqueur, '-'",
+         identical(E$classe_t2(diag_na(test = E$LIGNE_TOST, detail = paste("x", E$MARQUEUR_R14))), "T") &&
+           identical(E$classe_t2(diag_na(test = E$LIGNE_TOST, detail = "autre motif")), "-") &&
+           identical(E$classe_t2(diag_na(test = "Ligne X", detail = E$MARQUEUR_R14)), "-"))
+verifier("#274 classe_t2() M : verdict INFO, p NA, detail prefixe 'Monte-Carlo indisponible : ' ; verdict OK ou p finie ou prefixe ailleurs, '-'",
+         identical(E$classe_t2(diag_na(detail = paste0(E$PREFIXE_MC_INDISPO, "motif"))), "M") &&
+           identical(E$classe_t2(diag_na(verdict = "OK", detail = paste0(E$PREFIXE_MC_INDISPO, "motif"))), "-") &&
+           identical(E$classe_t2(ligne_t(verdict = "INFO", detail = paste0(E$PREFIXE_MC_INDISPO, "motif"))), "-") &&
+           identical(E$classe_t2(diag_na(detail = paste0("x ", E$PREFIXE_MC_INDISPO))), "-"))
+verifier("#274 classe_t2() b : inoperant, p NA, p_min_mc >= alpha, seulement si p_min < alpha (ou non finie)",
+         identical(E$classe_t2(diag_na(inoperant = TRUE, p_min = A / 2, p_min_mc = A + 0.02)), "b") &&
+           identical(E$classe_t2(diag_na(inoperant = TRUE, p_min = NA_real_, p_min_mc = A + 0.02)), "b") &&
+           identical(E$classe_t2(diag_na(inoperant = TRUE, p_min = A + 0.1, p_min_mc = A + 0.02)), "-") &&
+           identical(E$classe_t2(diag_na(inoperant = TRUE, p_min = A / 2, p_min_mc = A / 2)), "-"))
+verifier("#274 classe_t2() h : test, p finie, p_min >= alpha > p_min_mc, seulement sans p exacte finie",
+         identical(E$classe_t2(ligne_t(p_min = A + 0.02, p_min_mc = A / 2)), "h") &&
+           identical(E$classe_t2(ligne_t(p_min = A + 0.02, p_min_mc = A / 2, p_exacte = 0.3)), "-") &&
+           identical(E$classe_t2(ligne_t(p_min = A / 2, p_min_mc = A / 2)), "-") &&
+           identical(E$classe_t2(ligne_t(p_min = A + 0.02, p_min_mc = A / 2, inoperant = NA)), "-"))
+verifier("#274 classe_t2() P : ligne de Pitman de type test, seulement si la p retenue est identique a la p exacte",
+         identical(E$classe_t2(ligne_t(test = E$LIGNE_PITMAN, p_retenue = 0.2, p_exacte = 0.2)), "P") &&
+           identical(E$classe_t2(ligne_t(test = E$LIGNE_PITMAN, p_retenue = 0.2, p_exacte = NA_real_)), "-") &&
+           identical(E$classe_t2(ligne_t(test = E$LIGNE_PITMAN, p_retenue = 0.2, p_exacte = 0.2 + 1e-12)), "-") &&
+           identical(E$classe_t2(ligne_t(test = "Ligne X", p_retenue = 0.2, p_exacte = 0.2)), "-"))
+
+## --- #274 : t2_classer() -------------------------------------------------------
+# LIGNES_T2 (calculee par le script a partir de run_engine()) posee ici :
+# pente de Pitman, ligne de BP, autre ligne.
+assign("LIGNES_T2", c(E$LIGNE_PITMAN, E$STAT_LIGNE[["BP"]], "Autre ligne"), envir = E)
+t2c <- function(pr, p, cl, r4 = FALSE, expl = character(0)) E$t2_classer(pr, list(p = p, cl = cl), expl, r4)
+verifier("#274 t2_classer() P : nouvelle p finie de la pente (ancienne NA) admise seulement si R4 recalculee est vraie",
+         { a <- t2c(c(NA, 0.2, 0.3), c(0.04, 0.2, 0.3), c("P", "-", "-"), r4 = TRUE)
+           b <- t2c(c(NA, 0.2, 0.3), c(0.04, 0.2, 0.3), c("P", "-", "-"), r4 = FALSE)
+           identical(a$dl, 1L) && identical(a$cause, "P") && isTRUE(a$complet_p) &&
+             identical(b$dl, 1L) && identical(b$cause, NA_character_) && isTRUE(b$complet_p) })
+verifier("#274 t2_classer() completude de P : R4 vraie sans discordance de classe P sur la pente -> complet_p FALSE",
+         { a <- t2c(c(NA, 0.2, 0.3), c(NA, 0.2, 0.3), c("-", "-", "-"), r4 = TRUE)
+           b <- t2c(c(0.1, 0.2, 0.3), c(0.1, NA, 0.3), c("-", "M", "-"), r4 = TRUE)
+           !length(a$dl) && identical(a$complet_p, FALSE) && identical(b$cause, "M") && identical(b$complet_p, FALSE) })
+verifier("#274 t2_classer() M et T : admises seulement de l'ancienne p finie a la nouvelle NA",
+         identical(t2c(c(0.1, 0.2, 0.3), c(0.1, NA, 0.3), c("-", "M", "-"))$cause, "M") &&
+           identical(t2c(c(0.1, NA, 0.3), c(0.1, 0.25, 0.3), c("-", "M", "-"))$cause, NA_character_) &&
+           identical(t2c(c(0.1, 0.2, 0.3), c(0.1, 0.25, 0.3), c("-", "M", "-"))$cause, NA_character_) &&
+           identical(t2c(c(0.1, 0.2, 0.3), c(0.1, 0.2, NA), c("-", "-", "T"))$cause, "T") &&
+           identical(t2c(c(0.1, 0.2, NA), c(0.1, 0.2, 0.3), c("-", "-", "T"))$cause, NA_character_))
+verifier("#274 t2_classer() R : b de finie a NA, h de NA a finie, jamais l'inverse",
+         identical(t2c(c(0.1, 0.2, 0.3), c(0.1, NA, 0.3), c("-", "b", "-"))$cause, "R") &&
+           identical(t2c(c(0.1, NA, 0.3), c(0.1, 0.25, 0.3), c("-", "h", "-"))$cause, "R") &&
+           identical(t2c(c(0.1, NA, 0.3), c(0.1, 0.25, 0.3), c("-", "b", "-"))$cause, NA_character_) &&
+           identical(t2c(c(0.1, 0.2, 0.3), c(0.1, NA, 0.3), c("-", "h", "-"))$cause, NA_character_))
+verifier("#274 t2_classer() i1 : discordance de la ligne d'une statistique expliquee par (i1), prioritaire ; egalite au bit pres",
+         identical(t2c(c(0.1, 0.2, 0.3), c(0.1, 0.25, 0.3), c("-", "-", "-"), expl = "BP")$cause, "i1") &&
+           identical(t2c(c(0.1, 0.2, 0.3), c(0.1, 0.25, 0.3), c("-", "-", "-"), expl = "AD")$cause, NA_character_) &&
+           identical(t2c(c(0.1, 0.2, 0.3), c(0.1, 0.2 + 1e-15, 0.3), c("-", "-", "-"))$dl, 2L))
+
+## --- #274 : indic_echec() et transitions_echec() --------------------------------
+# Lignes de T2 : les quatre lignes hors du critere ECHEC (TOST, Pitman,
+# Fisher, ESD), la ligne de BP (p_V1:BP, p_V3b:BP), une ligne sans
+# statistique du catalogue. Comparaison (REF) -> presente mesure (DN), J2 :
+#   b = 1 (bord1) : ligne 6 E -> I, diag M sous V1 et V3b -> admis (V1, V3h) ;
+#   b = 2 (interieur) : ligne 6 E -> I sous V3b seule, diag R -> defaut (V3h) ;
+#   b = 3 (bord1) : BP E -> O, diag "." -> non explique (V1, V3h ; p 0,03 -> 0,2) ;
+#   b = 4 (bord0) : BP O -> E (hausse, descriptive) ; TOST E -> O (hors critere) ;
+#   b = 5 : ecartee (hors population) dans REF.
+LE <- c(E$LIGNES_HORS_ECHEC, E$STAT_LIGNE[["BP"]], "Autre ligne")
+dfe <- function(b, statut, regime, v1, v3b, d1 = NULL, d3b = NULL, p1 = NULL, p3b = NULL) {
+  d <- data.frame(b = b, statut = statut, regime = regime, verd_V1 = v1, verd_V3b = v3b, stringsAsFactors = FALSE)
+  if (!is.null(d1)) { d$diag_V1 <- d1; d$diag_V3b <- d3b }
+  if (!is.null(p1)) { d[["p_V1:BP"]] <- p1; d[["p_V3b:BP"]] <- p3b }
+  d
+}
+DR <- dfe(1:5, c(rep("traitee", 4), "ecartee"), c("bord1", "interieur", "bord1", "bord0", "-"),
+          c("OOOOOE", "OOOOOO", "OOOOEO", "EOOOOO", "OOOOEE"), c("OOOOOE", "OOOOOE", "OOOOEO", "EOOOOO", "OOOOEE"),
+          p1 = c(0.5, 0.5, 0.03, 0.5, 0.5), p3b = c(0.5, 0.5, 0.03, 0.5, 0.5))
+DNE <- dfe(1:4, "traitee", c("bord1", "interieur", "bord1", "bord0"),
+           c("OOOOOI", "OOOOOO", "OOOOOO", "OOOOEO"), c("OOOOOI", "OOOOOI", "OOOOOO", "OOOOEO"),
+           d1 = c(".....M", "......", "......", "......"), d3b = c(".....M", ".....R", "......", "......"),
+           p1 = c(0.5, 0.5, 0.2, 0.04), p3b = c(0.5, 0.5, 0.2, 0.04))
+REFE <- list(lignes = LE, D = list(J2 = DR))
+verifier("#274 indic_echec() : deux populations de lignes (hors TOST/Pitman/Fisher/ESD : 2 ; toutes : 6), V3h = V3b a l'interieur",
+         { ie <- E$indic_echec(DR, LE)
+           identical(ie$hors$b, 1:4) && identical(ie$hors$n_lignes, 2L) && identical(ie$toutes$n_lignes, 6L) &&
+             identical(ie$hors$V1, c(TRUE, FALSE, TRUE, FALSE)) && identical(ie$hors$V3h, c(TRUE, TRUE, TRUE, FALSE)) &&
+             identical(ie$toutes$V1, c(TRUE, FALSE, TRUE, TRUE)) && identical(ie$toutes$V3h, c(TRUE, TRUE, TRUE, TRUE)) })
+verifier("#274 indic_echec() : refus si une ligne exclue manque, si un libelle est duplique ou si la longueur des verdicts differe",
+         inherits(tryCatch(E$indic_echec(DR, LE[-1]), error = identity), "error") &&
+           grepl("dupliques", conditionMessage(tryCatch(E$indic_echec(DR, c(LE[-6], LE[5])), error = identity)), fixed = TRUE) &&
+           inherits(tryCatch(E$indic_echec(DR, c(LE, "Ligne 7")), error = identity), "error"))
+TRE <- E$transitions_echec(list(J2 = DNE), LE, REFE)
+cpt_tr <- function(v) unlist(TRE$tab[TRE$tab$variante == v, c("n", "baisse", "admis", "defaut", "autre", "hausse")])
+verifier("#274 transitions_echec() : comptes V1 (n 4 ; ECHEC -> non-ECHEC 2 ; admis 1 ; defaut 0 ; non explique 1 ; hausse 1)",
+         identical(unname(cpt_tr("V1")), c(4L, 2L, 1L, 0L, 1L, 1L)))
+verifier("#274 transitions_echec() : comptes V3h, V3b au regime interieur (ECHEC -> non-ECHEC 3 ; admis 1 ; defaut R 1 ; non explique 1 ; hausse 1)",
+         identical(unname(cpt_tr("V3h")), c(4L, 3L, 1L, 1L, 1L, 1L)))
+verifier("#274 transitions_echec() : passages non admis listes (p de la statistique lue, DEFAUT pour le code R), bilan bloquant",
+         length(TRE$lst) == 3L && TRE$n_lignes == 2L && isTRUE(TRE$bloquant) &&
+           any(grepl("J2 b = 3, V1, .* : p ancienne 0.03, nouvelle 0.2, nouveau verdict O, code \\.$", TRE$lst)) &&
+           any(grepl("J2 b = 2, V3h, Autre ligne : p ancienne -, nouvelle -, nouveau verdict I, code R (DEFAUT", TRE$lst, fixed = TRUE)) &&
+           startsWith(TRE$bilan, "TRANSITIONS NON EXPLIQUEES (3 passage(s) non admis ; 0 ligne(s)"))
+verifier("#274 transitions_echec() : tout passage admis (diagnostic Monte-Carlo indisponible) -> bilan OK, non bloquant",
+         { t <- E$transitions_echec(list(J2 = DNE[1, ]), LE, list(lignes = LE, D = list(J2 = DR[1, ])))
+           identical(t$bloquant, FALSE) && startsWith(t$bilan, "OK (") && !length(t$lst) &&
+             identical(t$tab$variante, c("V1", "V3h")) && all(t$tab$baisse == 1L & t$tab$admis == 1L) })
+verifier("#274 transitions_echec() : colonnes diag absentes -> NON EVALUABLE, bloquant ; ligne absente de la comparaison -> bloquant",
+         { t1 <- E$transitions_echec(list(J2 = DNE[, setdiff(names(DNE), c("diag_V1", "diag_V3b"))]), LE, REFE)
+           # jeu ou tout passage evalue est admis (n_ko = 0) : seul manq rend le bilan bloquant
+           t2 <- E$transitions_echec(list(J2 = DNE[1, ]), LE, list(lignes = LE[-6], D = list(J2 = DR[1, ])))
+           isTRUE(t1$bloquant) && startsWith(t1$bilan, "NON EVALUABLE (colonnes diag absentes : J2)") &&
+             isTRUE(t2$bloquant) && identical(t2$manq, "Autre ligne") &&
+             grepl("1 ligne(s) absente(s) de la comparaison", t2$bilan, fixed = TRUE) })
+# b = 6 (interieur) ajoute : BP E -> O sous V3b seule, diag "." -> passage
+# V3h non explique dont la p ancienne est lue dans p_V3b:BP, retiree de la
+# comparaison : colp() doit rendre NA (imprime "-"), et non NULL, qui ferait
+# echouer ifelse() (b = 3, au bord, lit p_V1:BP et n'exerce pas ce repli).
+verifier("#274 transitions_echec() : colonne p_V3b:<stat> absente de la comparaison -> chaque passage compte reste liste, p imprimee \"-\" (regime interieur)",
+         { DR6 <- rbind(DR, dfe(6L, "traitee", "interieur", "OOOOOO", "OOOOEO", p1 = 0.5, p3b = 0.03))
+           DN6 <- rbind(DNE, dfe(6L, "traitee", "interieur", "OOOOOO", "OOOOOO", d1 = "......", d3b = "......",
+                                 p1 = 0.5, p3b = 0.2))
+           t0 <- E$transitions_echec(list(J2 = DN6), LE, list(lignes = LE, D = list(J2 = DR6)))
+           t <- E$transitions_echec(list(J2 = DN6), LE, list(lignes = LE, D = list(J2 = DR6[, setdiff(names(DR6), "p_V3b:BP")])))
+           length(t$lst) == sum(t$tab$defaut + t$tab$autre) && length(t$lst) == 4L &&
+             identical(t$tab, t0$tab) &&
+             any(grepl("J2 b = 3, V3h, .* : p ancienne 0.03, nouvelle 0.2, nouveau verdict O, code \\.$", t$lst)) &&
+             any(grepl("J2 b = 6, V3h, .* : p ancienne -, nouvelle 0.2, nouveau verdict O, code \\.$", t$lst)) &&
+             any(grepl("J2 b = 6, V3h, .* : p ancienne 0.03, nouvelle 0.2, nouveau verdict O, code \\.$", t0$lst)) })
+verifier("#274 transitions_echec() : colonne p_V1:<stat> absente de la presente mesure -> passage V1 liste avec p nouvelle \"-\"",
+         { t <- E$transitions_echec(list(J2 = DNE[, setdiff(names(DNE), "p_V1:BP")]), LE, REFE)
+           length(t$lst) == 3L &&
+             any(grepl("J2 b = 3, V1, .* : p ancienne 0.03, nouvelle -, nouveau verdict O, code \\.$", t$lst)) })
 
 unlink(.tmp)
 fin_fichier()
