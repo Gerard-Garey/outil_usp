@@ -7338,8 +7338,24 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
   # qu'il ne masque pas.
   noms <- rownames(tri)
   if (!is.null(noms)) {
+    # Encodage "bytes" (issue #321) : un nom ainsi declare (R ne marque
+    # "bytes" que les chaines non ASCII) est refuse, un motif par ligne, sans
+    # citer le nom. Ses octets ne disent pas quels caracteres ils codent : le
+    # lire en UTF-8 ou en Latin-1 serait deviner, et le calcul aval, qui lit
+    # rownames(tri) tel quel, levait l'erreur R "translating strings with
+    # "bytes" encoding is not allowed" (make.unique() dans
+    # .mw_noms_lignes_empilees()). Ces noms sont exclus des controles de nom
+    # manquant et de doublon qui suivent : les y lire serait deviner, et leur
+    # seul motif est celui-ci, interclasse par ligne avec les motifs de nom
+    # manquant. Ils sont retires (NA) de la copie noms_u avant le recodage et
+    # les motifs perl : laisse dans le vecteur sans recodage, un nom "bytes"
+    # fait lire trimws() octet par octet pour TOUS les noms (mesure : "2022"
+    # suivi d'une espace insecable UTF-8 devenait "2022\xc2" au lieu de
+    # "2022"). Les motifs des autres noms gardent les numeros de ligne et les
+    # i= du triangle d'origine.
+    octets <- !is.na(noms) & Encoding(noms) == "bytes"
     # Noms ramenes en UTF-8 declare, quelle que soit la locale, avant toute
-    # comparaison : une chaine non ASCII d'encodage "unknown" ou "bytes" est
+    # comparaison : une chaine non ASCII d'encodage "unknown" est
     # declaree UTF-8 si ses octets en sont, Latin-1 sinon (convention de
     # .nettoyer_cellules(), issue #99), puis convertie par enc2utf8(). Les
     # motifs perl lisent alors des caracteres et non des octets, en locale
@@ -7352,8 +7368,9 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
     # invalid UTF-8" (mesuree). Une chaine declaree "latin1" est toujours
     # valide (tout octet est un caractere Latin-1) et convertie par enc2utf8().
     noms_u <- noms
+    noms_u[octets] <- NA_character_
     inc <- !is.na(noms_u) &
-      ((Encoding(noms_u) %in% c("unknown", "bytes") &
+      ((Encoding(noms_u) == "unknown" &
           grepl("[^\\x01-\\x7f]", noms_u, useBytes = TRUE)) |
          (Encoding(noms_u) == "UTF-8" & !validUTF8(noms_u)))
     if (any(inc)) {
@@ -7375,10 +7392,18 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
     # \x{200B} est refuse (erreur PCRE "code point value too large", mesuree).
     sans_blancs <- trimws(noms_u, whitespace = paste0(
       "[\\h\\v", intToUtf8(c(0x200B, 0x200C, 0x200D, 0x2060, 0xFEFF)), "]"))
-    manquant <- is.na(noms) | !nzchar(sans_blancs)
-    for (k in which(manquant))
-      err <- c(err, sprintf("Nom d'annee d'accident manquant ou vide en ligne %d (i=%d).",
-                            k, k - 1L))
+    # Noms "bytes" exclus (issue #321) : NA dans noms_u seulement, ils ne
+    # sont pas lus comme manquants (test sur noms et !octets) ni comptes
+    # dans les doublons.
+    manquant <- !octets & (is.na(noms) | !nzchar(sans_blancs))
+    # Motifs par ligne dans l'ordre des lignes : "bytes" ou nom manquant.
+    for (k in which(octets | manquant))
+      err <- c(err, if (octets[k]) sprintf(paste(
+        "Nom d'annee d'accident en ligne %d (i=%d) declare d'encodage \"bytes\" :",
+        "ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en",
+        "Latin-1 declare."), k, k - 1L)
+        else sprintf("Nom d'annee d'accident manquant ou vide en ligne %d (i=%d).",
+                     k, k - 1L))
     # Doublons compares sur les noms renseignes debarrasses de leurs blancs
     # initiaux et finaux ("2022", " 2022" et "2022" suivi d'une espace
     # insecable designent la meme annee), sans autre normalisation (ni casse,
@@ -7406,11 +7431,12 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
       }, "")
       paste0("\"", paste(ch, collapse = ""), "\"")
     }, "", USE.NAMES = FALSE)
-    cle <- sans_blancs; cle[manquant] <- NA_character_
+    examine <- !manquant & !octets
+    cle <- sans_blancs; cle[!examine] <- NA_character_
     enum <- function(x) if (length(x) == 1L) x else
       paste(paste(x[-length(x)], collapse = ", "), "et", x[length(x)])
-    for (d in unique(cle[!manquant & duplicated(cle)])) {
-      k <- which(!manquant & cle == d)
+    for (d in unique(cle[examine & duplicated(cle)])) {
+      k <- which(examine & cle == d)
       err <- c(err, sprintf("Annee d'accident en double : %s (lignes %s, %s).",
                             paste(citer(unique(noms_u[k])), collapse = ", "),
                             enum(k), enum(paste0("i=", k - 1L))))
@@ -7849,6 +7875,11 @@ mw_msep <- function(aj) {
   for (i in 1:I) if (i < I) for (k in (i + 1):I)
     t2 <- t2 + 2 * Cu[i + 1] * Cu[k + 1] * Dl[i]
 
+  # Sommes sur le segment, sans nom (issue #319) : Cu porte les noms de ligne
+  # du triangle, et t1, t2 prenaient celui du premier terme ajoute ("2018"
+  # pour des lignes 2017:2024), propage par mw_parametre() a sigma_usp,
+  # sigma_estime, sigma_estime_brut et variation_relative.
+  t1 <- unname(t1); t2 <- unname(t2)
   list(msep = t1 + t2, terme_variance = t1, terme_covariance = t2)
 }
 
@@ -10435,7 +10466,9 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
   # ligne voisine de la meme famille sort bien en INFO. Le verdict n'est plus
   # force ; add() applique INFO de lui-meme. La part et le repere de 40 %
   # restent restitues dans le detail, ou leur statut est nomme.
-  part_derniere <- aj$reserve_par_annee[aj$I + 1] / aj$reserve
+  # unname() : reserve_par_annee porte les noms de ligne du triangle, que le
+  # scalaire de la ligne prenait ("2024" pour des lignes 2017:2024, issue #319).
+  part_derniere <- unname(aj$reserve_par_annee[aj$I + 1]) / aj$reserve
   add(fam, "Part de la reserve portee par la derniere annee d'accident",
       fonction = "mw_tests",
       "Diagnostic de concentration", type = "diagnostic",
