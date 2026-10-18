@@ -8,7 +8,7 @@
 
 ## Escalades, relances et arrêts
 
-<!-- « Aucune », ou une ligne par escalade, relance ciblée ou arrêt (docs/agents/routage.md, § 7) : fiche / modèle / critère déclenché / statut obtenu / suite. -->
+<!-- « Aucune », ou une ligne par escalade, relance ciblée ou arrêt (docs/agents/routage.md, § 7), et par emploi de coder-approfondi hors des cas d'office ou passage à l'effort high sur accord du mainteneur, et par appel de regulatory en effort high (§ 10) : fiche / modèle / critère déclenché / statut obtenu / suite. -->
 
 ## Contrôles
 
