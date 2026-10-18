@@ -34,7 +34,7 @@ Les rôles sont ceux du projet. **Ceux qui écrivent ne vérifient pas, ceux qui
 | `coder` | `@codex` en commentaire de la PR de travail GPT | code R, tests, `docs/feuille-de-route-gpt.md` (pas `docs/latex/`) | commit publié sur la branche de la PR, avec son compte rendu |
 | `audit` | tâche Codex Cloud **distincte**, sur la tête publiée | rien | rapport à constats gradués, collé en commentaire de PR par le mainteneur |
 | `app-review` | tâche Codex Cloud **distincte**, sur la tête publiée | rien | rapport, collé en commentaire de PR par le mainteneur |
-| `docwriter` | tâche Codex Cloud, puis `@codex` sur **sa propre PR** ; écart de concordance : `@codex` sur la PR de travail | `docs/latex/` (`.tex` et PDF) | un commit `docs:` par issue, sur `gpt/doc-<objet>` |
+| `docwriter` | tâche Codex Cloud, puis `@codex` sur **sa propre PR** ; écart de concordance : `@codex` sur la PR de travail | `docs/latex/` (`.tex` ; PDF en fin de branche) | un commit `docs:` par issue (`.tex` seul), puis un commit de PDF de fin de branche, sur `gpt/doc-<objet>` |
 
 - **Rôles tenus dans ChatGPT (work)** : le connecteur GitHub leur sert à **lire** le dépôt, les issues et les PR, à **poster un commentaire** sur la PR désignée par le mainteneur et à **créer une issue** confirmée par le mainteneur (« Issues »). Ils n'utilisent aucune autre action d'écriture du connecteur : pas de fichier, pas de commit, pas de branche, pas de PR, pas de fusion, pas de libellé sur une issue existante.
 - **Rôles tenus dans Codex** : une tâche joue **un seul rôle**. Un `@codex` dont le texte ressemble à une demande de relecture peut partir en « Codex Review » automatique. Le commentaire commence donc toujours par `Rôle : <rôle>`, et une vérification (`audit`, `app-review`) se lance comme tâche Codex Cloud, jamais par `@codex`. **Une tâche lancée sans `Rôle : …`** (tâche d'office à l'ouverture d'une PR, revue automatique) **ne modifie rien** : elle rend l'en-tête avec le statut `arrete` et la cause, sans proposer de diff (constaté sur la PR #150 le 29/09/2026).
@@ -128,7 +128,7 @@ Le risque d'erreur est plus élevé à distance : les rôles sont séparés dans
 - Procédure : `.codex/procedures/reproductibilite.md`. **Aucune régénération de `tests/reference/*.rds` hors de la CI** (ADR 0011). Pendant une période GPT, **le mainteneur déclenche `references.yml`** et dépose l'artefact ; GPT prépare le commit de code et les motifs (décision du 28/09/2026 au soir). La fermeture (vérifications (a′) à (c) et commit unique code + `.rds`) se fait **par Codex en local** sur le poste du mainteneur ; à défaut, GPT **la délègue à Claude**, qui la fait par une PR vers la branche de travail GPT (décision du mainteneur du 29/09/2026).
 - Seul `coder` écrit dans `tests/reference/`, et seulement par le patch chirurgical ou la fermeture M30 de cette procédure.
 - Tout changement de σ_USP ou d'un verdict est soumis au mainteneur, et les autres changements de p-values à `actuary`. Chaque tableau avant / après est relu par Claude à l'audit.
-- Documentation LaTeX : `.codex/procedures/compilation-doc.md`. Le PDF est recompilé et commité avec le `.tex` (ADR 0008).
+- Documentation LaTeX : `.codex/procedures/compilation-doc.md`. Le PDF est commité une fois par branche, en fin de branche ; les commits du `.tex` ne le portent pas (ADR 0008 amendé, M37).
 
 ## PR de période `main-GPT` → `main`
 
