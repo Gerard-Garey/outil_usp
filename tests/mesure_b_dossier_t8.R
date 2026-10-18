@@ -68,8 +68,9 @@
 #  garantit pas par contrat). Imbrication verifiee sur sigma_boot SEUL : ni
 #  le flux complementaire de la p conditionnelle au regime
 #  (premium_interieur, graine seed_flux_regime), ni les autres tirages.
-#  Groupes de cas aux lignes identiques (T3) : identical() sur test,
-#  variante, p, err_mc, verdict et mention de #244, a chaque B (la famille
+#  Groupes de cas dont les lignes de tests sont identiques entre elles, a B
+#  donne (T3) : identical() sur test, variante, p, err_mc, verdict et
+#  mention de #244, a chacun des B (la famille
 #  est exclue : son libelle cite la section de l'annexe XVII, B ou C, et
 #  differe entre premium et reserve1 a lignes egales, mesure sous --essai) ; T3 compte en outre les
 #  changements de verdict distincts (meme test, variante, suite de verdicts
@@ -78,9 +79,9 @@
 #  Statut des valeurs : une seule graine par cas. Un verdict qui change
 #  entre deux B est un COMPORTEMENT OBSERVE sur cette graine, pas une
 #  propriete du jeu de donnees : la p-value Monte-Carlo retenue est une
-#  estimation, d'erreur err_mc fonction de B (erreur Monte-Carlo), distincte
-#  de l'erreur d'approximation de la loi de la statistique a T = 8, que B ne
-#  reduit pas.
+#  estimation entachee d'une erreur Monte-Carlo err_mc (fonction de B),
+#  distincte de l'erreur de l'approximation bootstrap (simulation sous le
+#  modele ajuste, a T = 8), que B ne reduit pas.
 #
 #  Usage (depuis la racine du depot ; LC_ALL=C.UTF-8 sous Linux, #113) :
 #      Rscript tests/mesure_b_dossier_t8.R [--ecrire [--remplacer]] [--essai]
@@ -345,8 +346,11 @@ for (nom in NOMS_CAS) {
     vals <- unlist(lapply(L, function(l) c(fp(l$p[i]), fe(l$err[i]), ech(l$verdict[i]), if (l$s244[i]) "oui" else "")))
     chg_v <- length(unique(v)) > 1L
     # nature de la p : celle du premier B ; ses changements vont en T4
+    # type et marque inoperant : ceux du premier B (changements en T4)
     T2 <- c(T2, sprintf("| %d | %s | %s | %s | %s | %s | %s | %s |", i, ech(l1$famille[i]), ech(l1$test[i]),
-                        ech(l1$variante[i]), ech(l1$type[i]), ech(l1$nature[i]), paste(vals, collapse = " | "),
+                        ech(l1$variante[i]),
+                        paste0(ech(l1$type[i]), if (isTRUE(l1$inoperant[i])) " (**inop\u00e9rant**)" else ""),
+                        ech(l1$nature[i]), paste(vals, collapse = " | "),
                         if (chg_v) "**oui**" else ""))
     if (chg_v) {
       sig <- paste(l1$test[i], l1$variante[i], paste(v, collapse = "/"),
@@ -368,7 +372,7 @@ for (nom in NOMS_CAS) {
   }
 }
 
-# Groupes de cas aux lignes identiques a chaque B (test, variante, p,
+# Groupes de cas dont les lignes sont identiques entre elles, a chaque B (test, variante, p,
 # err_mc, verdict, mention de #244 ; famille exclue, voir l'en-tete) ; seuls
 # les groupes de plus d'un cas sont restitues.
 vue <- function(nom) lapply(B_DU_CAS(nom), function(B)
@@ -449,7 +453,7 @@ md <- c(
   "",
   "Statut des valeurs : une seule graine par cas ; p retenue, err_mc et verdict tels que les rend `run_engine()`.",
   "Un verdict qui change d'un B \u00e0 l'autre est un comportement observ\u00e9 sur cette graine : la p-value Monte-Carlo est une estimation",
-  "d'erreur Monte-Carlo err_mc (fonction de B), distincte de l'erreur d'approximation de la loi de la statistique \u00e0 T = 8, que B ne r\u00e9duit pas.",
+  "entach\u00e9e d'une erreur Monte-Carlo err_mc (fonction de B), distincte de l'erreur de l'approximation bootstrap (simulation sous le mod\u00e8le ajust\u00e9, \u00e0 T = 8), que B ne r\u00e9duit pas.",
   "Temps \u00e9coul\u00e9 et temps CPU : mesur\u00e9s sous la charge restitu\u00e9e (colonne Charge), sans correction ; non mesur\u00e9s sur machine non charg\u00e9e.",
   "Mention #244 : le `detail` de la ligne se termine par la phrase de sensibilit\u00e9 du verdict (p \u00e0 moins de 2 err_mc d'un seuil atteignable).",
   "err_mc n'est affich\u00e9e que lorsque la p retenue est Monte-Carlo.",
@@ -490,7 +494,7 @@ for (e in EXEC) {
 }
 
 md <- c(md, "", "### T2 \u2014 Lignes de tests, par cas", "",
-        "p : p retenue ; err_mc : erreur Monte-Carlo de la ligne ; nature de la p retenue lue au B minimal (changements en T4).",
+        "p : p retenue ; err_mc : erreur Monte-Carlo de la ligne ; type, marque \u00ab inop\u00e9rant \u00bb (champ `inoperant` de la ligne, compt\u00e9 en T1 bis) et nature de la p retenue lus au B minimal (changements en T4).",
         T2,
         "", "### T3 \u2014 Lignes dont le verdict change entre deux B", "",
         "| Cas | # | Test | Variante | Verdicts | p retenue \u00b1 err_mc | \u00c9cart au seuil atteignable le plus proche, en err_mc, par B |",
@@ -498,7 +502,7 @@ md <- c(md, "", "### T2 \u2014 Lignes de tests, par cas", "",
 md <- c(md, if (length(CHANGE_V)) vapply(CHANGE_V, `[[`, "", "txt") else "| \u2014 | | aucune | | | | |",
         "",
         "\u00c9cart au seuil : |p \u2212 s| / err_mc, s seuil atteignable le plus proche de la r\u00e8gle de #244 (\u03b1/2 ou \u03b1 en sens \u00ab ne pas rejeter \u00bb ; \u03b1 ou 0,30 en sens \u00ab rejeter \u00bb).",
-        sprintf("Cas aux lignes de tests identiques \u00e0 chaque B (`identical()` sur test, variante, p, err_mc, verdict, mention #244 ; la famille, qui cite la section B ou C de l'annexe XVII, est exclue) : %s.",
+        sprintf("Cas dont les lignes de tests sont identiques entre elles, \u00e0 B donn\u00e9 (`identical()` sur test, variante, p, err_mc, verdict, mention #244 ; la famille, qui cite la section B ou C de l'annexe XVII, est exclue) : %s.",
                 if (length(GROUPES)) paste(vapply(GROUPES, function(g) paste(sprintf("`%s`", g), collapse = ", "), ""), collapse = " ; ") else "aucun"),
         "`premium`, `reserve1`, `premium_ii6` et `premium_net` partagent les m\u00eames donn\u00e9es (`.ln$xt`, `.ln$yt`, `CAS` de `tests/outils_tests.R`).",
         sprintf("Changements de verdict distincts (m\u00eame test, variante, suite de verdicts et suite de p) : %d sur %d lignes de T3.",
