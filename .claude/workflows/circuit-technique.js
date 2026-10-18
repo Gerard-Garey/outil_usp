@@ -113,8 +113,8 @@ const CONSIGNE_M32 = 'a corriger par un commit docs: minimal avant push (M32)'
 // d'etre ignoree ; un mot compose comme 'non-approfondi' dans la consigne
 // l'arrete aussi, comme un tiret colle a un mot plus long ('-approfondie'),
 // mais pas un tiret suivi d'une espace puis d'un mot plus long ('- approfondir
-// la cause'). En forme objet, une cle inconnue ou un champ issue qui n'est pas
-// un numero arrete aussi le workflow. Une consigne qui doit citer l'option ou
+// la cause'). En forme objet, une cle inconnue, un champ issue qui n'est pas
+// un numero ou une consigne qui n'est pas une chaine arrete aussi le workflow. Une consigne qui doit citer l'option ou
 // un tel mot passe par la forme objet.
 function lireArgs(a) {
   let v = (typeof a === 'undefined') ? null : a
