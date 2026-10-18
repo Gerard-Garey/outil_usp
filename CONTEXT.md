@@ -235,7 +235,7 @@ Les deux niveaux d'une consultation : fiche de base (effort de routine) ou fiche
 _Avoid_ : mode rapide, mode expert
 
 **`coder` / `coder-approfondi`** :
-Fiche de réalisation par défaut (Sonnet, effort `high`) et sa variante générée au même corps (Opus, effort `medium`), employée d'office en circuits 1 et 2 de `CLAUDE.md`, ailleurs sur accord du mainteneur au cas par cas ; ce choix n'est pas une **escalade** au sens de `docs/agents/routage.md` (§ 5) : ni dossier ni plafond chiffré (§ 10, ADR 0015).
+Fiche de réalisation par défaut (Sonnet, effort `high`) et sa variante générée au même corps (Opus, effort `medium`), employée d'office en circuits 1 et 2 de `CLAUDE.md` (effort `high` à l'appel) et pour une tâche qui change un résultat ou touche un contrat partagé, ailleurs sur accord du mainteneur au cas par cas ; ce choix n'est pas une **escalade** au sens de `docs/agents/routage.md` (§ 5) : ni dossier ni plafond chiffré (§ 10, ADR 0015).
 _Avoid_ : coder Opus, coder renforcé
 
 **Escalade** :
