@@ -6,8 +6,9 @@ Paramètres : R=20000 ; graine=20260927 ; partie=normalite ; T=5, 8, 10 et 20
 | --- | --- |
 | Plateforme de calcul (R, système, machine, BLAS, LAPACK) | R version 4.3.3 (2024-02-29) ; Ubuntu 24.04.5 LTS ; Linux, x86_64 ; BLAS : /usr/lib/x86_64-linux-gnu/blas/libblas.so.3.12.0 ; LAPACK : /usr/lib/x86_64-linux-gnu/lapack/liblapack.so.3.12.0 (version 3.12.0) |
 | Générateur | Mersenne-Twister, Inversion, Rejection |
-| Commit | ff83f26072872d26e15e4441b18841e344fc54e5 |
+| Commit | 74b799d139686022762a4939fbd2e2322ddf4cf6 |
 | Script | tests/constats_puissance_t8.R --partie normalite (hors CI ; protocole dans l'en-tête) |
+| Fichier remplacé (--remplacer) | docs/tableaux/20261018-issue118-normalite.md, md5 d'avant 12f314e86f8ded72e760a7c489bd735d |
 
 ### C4 -- Taux de rejet de Shapiro-Wilk et de l'asymétrie de D'Agostino, échantillons i.i.d., T = 8 (et D'Agostino à T = 20)
 
@@ -67,18 +68,18 @@ Niveau sous N(0,1), **informatif** : aucun code de sortie n'en dépend.
 
 | T | Échantillons | α | Rejets / R | Taux | IC 95 % (C-P) | Écart au nominal (points) | Position de α | p minimale |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 5 | colonnes 1 à 5 de la matrice T = 8 | 0,10 | 2289 / 20000 | 0,1144 | [0,1101 ; 0,1189] | +1,44 | libéral, IC excluant α | 0,0017 |
-| 5 | colonnes 1 à 5 de la matrice T = 8 | 0,05 | 1127 / 20000 | 0,0563 | [0,0532 ; 0,0596] | +0,63 | libéral, IC excluant α | 0,0017 |
-| 5 | colonnes 1 à 5 de la matrice T = 8 | 0,01 | 199 / 20000 | 0,0100 | [0,0086 ; 0,0114] | -0,00 | IC contenant α | 0,0017 |
-| 8 | matrice T = 8 (celle de C4.a) | 0,10 | 2220 / 20000 | 0,1110 | [0,1067 ; 0,1154] | +1,10 | libéral, IC excluant α | 2,25e-04 |
-| 8 | matrice T = 8 (celle de C4.a) | 0,05 | 1142 / 20000 | 0,0571 | [0,0539 ; 0,0604] | +0,71 | libéral, IC excluant α | 2,25e-04 |
-| 8 | matrice T = 8 (celle de C4.a) | 0,01 | 196 / 20000 | 0,0098 | [0,0085 ; 0,0113] | -0,02 | IC contenant α | 2,25e-04 |
-| 10 | colonnes 1 à 10 de la matrice T = 20 | 0,10 | 2159 / 20000 | 0,1080 | [0,1037 ; 0,1123] | +0,79 | libéral, IC excluant α | 2,60e-04 |
-| 10 | colonnes 1 à 10 de la matrice T = 20 | 0,05 | 1066 / 20000 | 0,0533 | [0,0502 ; 0,0565] | +0,33 | libéral, IC excluant α | 2,60e-04 |
-| 10 | colonnes 1 à 10 de la matrice T = 20 | 0,01 | 190 / 20000 | 0,0095 | [0,0082 ; 0,0109] | -0,05 | IC contenant α | 2,60e-04 |
-| 20 | matrice T = 20 (celle de C4.b) | 0,10 | 2065 / 20000 | 0,1032 | [0,0991 ; 0,1075] | +0,32 | IC contenant α | 6,80e-05 |
-| 20 | matrice T = 20 (celle de C4.b) | 0,05 | 1053 / 20000 | 0,0527 | [0,0496 ; 0,0558] | +0,26 | IC contenant α | 6,80e-05 |
-| 20 | matrice T = 20 (celle de C4.b) | 0,01 | 208 / 20000 | 0,0104 | [0,0090 ; 0,0119] | +0,04 | IC contenant α | 6,80e-05 |
+| 5 | colonnes 1 à 5 de la matrice T = 8 | 0,10 | 2289 / 20000 | 0,1144 | [0,1101 ; 0,1189] | +1,445 | libéral, IC excluant α | 0,0017 |
+| 5 | colonnes 1 à 5 de la matrice T = 8 | 0,05 | 1127 / 20000 | 0,0563 | [0,0532 ; 0,0596] | +0,635 | libéral, IC excluant α | 0,0017 |
+| 5 | colonnes 1 à 5 de la matrice T = 8 | 0,01 | 199 / 20000 | 0,0100 | [0,0086 ; 0,0114] | -0,005 | IC contenant α | 0,0017 |
+| 8 | matrice T = 8 (celle de C4.a) | 0,10 | 2220 / 20000 | 0,1110 | [0,1067 ; 0,1154] | +1,100 | libéral, IC excluant α | 2,25e-04 |
+| 8 | matrice T = 8 (celle de C4.a) | 0,05 | 1142 / 20000 | 0,0571 | [0,0539 ; 0,0604] | +0,710 | libéral, IC excluant α | 2,25e-04 |
+| 8 | matrice T = 8 (celle de C4.a) | 0,01 | 196 / 20000 | 0,0098 | [0,0085 ; 0,0113] | -0,020 | IC contenant α | 2,25e-04 |
+| 10 | colonnes 1 à 10 de la matrice T = 20 | 0,10 | 2159 / 20000 | 0,1080 | [0,1037 ; 0,1123] | +0,795 | libéral, IC excluant α | 2,60e-04 |
+| 10 | colonnes 1 à 10 de la matrice T = 20 | 0,05 | 1066 / 20000 | 0,0533 | [0,0502 ; 0,0565] | +0,330 | libéral, IC excluant α | 2,60e-04 |
+| 10 | colonnes 1 à 10 de la matrice T = 20 | 0,01 | 190 / 20000 | 0,0095 | [0,0082 ; 0,0109] | -0,050 | IC contenant α | 2,60e-04 |
+| 20 | matrice T = 20 (celle de C4.b) | 0,10 | 2065 / 20000 | 0,1032 | [0,0991 ; 0,1075] | +0,325 | IC contenant α | 6,80e-05 |
+| 20 | matrice T = 20 (celle de C4.b) | 0,05 | 1053 / 20000 | 0,0527 | [0,0496 ; 0,0558] | +0,265 | IC contenant α | 6,80e-05 |
+| 20 | matrice T = 20 (celle de C4.b) | 0,01 | 208 / 20000 | 0,0104 | [0,0090 ; 0,0119] | +0,040 | IC contenant α | 6,80e-05 |
 
 Puissance à T = 8 (matrice de C4.a) :
 
@@ -99,9 +100,9 @@ Rapprochement, **non bloquant**, avec la mesure d'actuary du 17/10/2026 (hors d�
 | 0,05 | 0,0559 [0,0549 ; 0,0570] | 0,0571 [0,0539 ; 0,0604] | oui |
 | 0,01 | 0,0099 [0,0095 ; 0,0103] | 0,0098 [0,0085 ; 0,0113] | oui |
 
-Durée de C4.c : 13,3 s (W' et p de Royston ; aucun tirage).
+Durée de C4.c : 11,9 s (W' et p de Royston ; aucun tirage).
 
-Durée de C4 : 23 s.
+Durée de C4 : 25 s.
 
 ### Contrôles d'intégrité
 
