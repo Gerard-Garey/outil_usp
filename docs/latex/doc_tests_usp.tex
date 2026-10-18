@@ -11342,8 +11342,10 @@ $t_{\text{crit}} = F^{-1}_{t,\,n_i-2}\big(1 - \tfrac{\alpha}{2 n_i}\big)$~:
 \]
 À la première étape, $\lambda_1$ donne à $T = 8$ un niveau \emph{exactement} $\alpha$ sous
 l'hypothèse de huit observations i.i.d. normales (démonstration en rubrique~7)~; aux étapes
-suivantes, aucun niveau exact ne s'attache à $\lambda_i$, et la procédure entière n'a pas le
-niveau $\alpha$ (rubrique~7).
+suivantes ($i \ge 2$), aucun résultat exact connu ne donne le niveau attaché à $\lambda_i$~: $R_i$
+est calculé sur l'échantillon amputé des $i - 1$ valeurs les plus extrêmes, qui n'est pas un
+échantillon i.i.d. normal de taille $n_i$~; et la procédure entière n'a pas le niveau $\alpha$
+(mesuré~: $0{,}1506$ à $\alpha = 0{,}10$, constat~C7.a, rubrique~7).
 \Pval
 \textbf{Aucune p-value}~: il s'agit d'une procédure de décision à niveau $\alpha$ fixé. Le nombre
 retenu de valeurs aberrantes est $\hat k = \max\{i : R_i > \lambda_i\}$, et $0$ si aucun
