@@ -231,8 +231,12 @@ Une sollicitation d'`architect` ou d'`actuary` par la session principale (un app
 _Avoid_ : requête ; « appel » pour la consultation elle-même
 
 **Routine / jugement** :
-Les deux niveaux d'une consultation : fiche de base (effort de routine) ou fiche `-approfondi` (effort de jugement), toutes deux sur Opus ; valeurs : `docs/agents/routage.md`, § 2 ; Fable s'obtient sur la fiche `-approfondi` par le paramètre `model` de l'appel, dans les seuls cas prévus (ADR 0013).
+Les deux niveaux d'une consultation : fiche de base (effort de routine) ou fiche `-approfondi` (effort de jugement), toutes deux sur Opus ; valeurs : `docs/agents/routage.md`, § 2 ; Fable s'obtient sur la fiche `-approfondi` par le paramètre `model` de l'appel, dans les seuls cas prévus (ADR 0013). Vaut pour `architect` et `actuary` seulement : `coder-approfondi` suit d'autres règles (entrée « `coder` / `coder-approfondi` »).
 _Avoid_ : mode rapide, mode expert
+
+**`coder` / `coder-approfondi`** :
+Fiche de réalisation par défaut (Sonnet, effort `high`) et sa variante générée au même corps (Opus, effort `medium`), employée d'office en circuits 1 et 2 de `CLAUDE.md`, ailleurs sur accord du mainteneur au cas par cas ; ce choix n'est pas une **escalade** au sens de `docs/agents/routage.md` (§ 5) : ni dossier ni plafond chiffré (§ 10, ADR 0015).
+_Avoid_ : coder Opus, coder renforcé
 
 **Escalade** :
 Passage d'une consultation à un niveau supérieur, hausse d'effort (routine → jugement) ou changement de modèle (Opus → Fable), sur un critère observable. Distincte de la **relance ciblée** (même agent, même fiche, retour incomplet) et de la demande d'information.

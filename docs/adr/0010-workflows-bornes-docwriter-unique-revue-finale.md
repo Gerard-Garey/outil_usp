@@ -108,6 +108,8 @@ Décisions du mainteneur du 24/09/2026 (session principale, après l'audit lége
 
 *Annotation du 30 septembre 2026 : la liste des modèles des fiches citée au point 1 est remplacée, pour `architect` et `actuary`, par l'ADR 0013 (Opus par défaut, fiches `-approfondi`, Fable sur critères ; décision M35). Le reste du point 1 (aucun `model` dans les workflows) est inchangé.*
 
+*Annotation du 18 octobre 2026 (ADR 0015) : au point 1, les phrases selon lesquelles les étapes mécaniques et les étapes de jugement (`coder`, `audit`) « héritent du modèle de la session », et la liste des modèles des fiches, sont remplacées, pour `coder`, `audit`, `docwriter` et `app-review`, par l'ADR 0015 : `coder` Sonnet, effort `high` (`coder-approfondi`, Opus, effort `medium`, par l'option `--approfondi` du mainteneur dans `circuit-technique`) ; `audit` et `docwriter` Opus, effort `medium` ; `app-review` Sonnet, effort `high`. Un agent de workflow lancé avec `agentType` prend le modèle de sa fiche, les autres celui de la session (ordre documenté par Claude Code, non encore mesuré dans un workflow) : les étapes mécaniques, lancées avec `agentType: 'audit'`, sont donc servies par le modèle de la fiche `audit`, à l'effort `low` passé à l'appel ; le principe 8 de `CLAUDE.md` est corrigé en ce sens. Aucun `model` n'est fixé dans les workflows : inchangé ; les étapes mécaniques restent en `effort: 'low'`. `regulatory` (Opus) n'est pas concerné.*
+
 ---
 
 ## Annotation du 24 septembre 2026 — règle 9 : un écart de concordance `--strict` pendant une branche se corrige aussitôt (M32)
