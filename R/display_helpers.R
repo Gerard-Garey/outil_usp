@@ -1127,22 +1127,38 @@ plot_influence_cook <- function(pd) {
 # sigma_USP se deplace si l'annee t est retiree (jackknife).
 # Couleur de repere : booleen fort_ecart_sigma, calcule par le moteur
 # (engine_influence(), repere REPERE_INFLUENCE_SIGMA ; issue #33).
+# Annees non evaluables du jackknife, lues dans la table d'influence : sigma_USP
+# sans l'annee non fini (copie de jackknife$sigma_usp, meme critere que
+# jack_non_evaluables du moteur, #224), a defaut ecart_sigma non fini. Selection
+# seulement, aucun calcul.
+.jack_non_evaluables <- function(d) {
+  v <- if (is.null(d$sigma_usp_sans_t)) d$ecart_sigma else d$sigma_usp_sans_t
+  d$t[!is.finite(v)]
+}
 plot_influence_sigma <- function(pd) {
   if (!.influence_ln(pd)) return(.vide())
   d <- pd$influence
   if (is.null(d$ecart_sigma) || is.null(d$fort_ecart_sigma)) return(.vide())
+  # Jackknife entierement non evaluable (#328, #224, #329) : aucune barre a
+  # tracer, message fixe en coherence avec le detail de la ligne jackknife.
+  # Annee non evaluable seule : sa barre reste absente (hauteur NA), couleur
+  # neutre (fort_ecart_sigma y vaut NA) ; lecture telle quelle, aucun calcul.
+  # Garde aussi sur ce que trace barplot : aucun ecart_sigma fini.
+  if (length(.jack_non_evaluables(d)) == length(d$t) || !any(is.finite(d$ecart_sigma)))
+    return(.vide("Aucune annee evaluable : influence sur sigma_USP non mesuree"))
   v <- 100 * d$ecart_sigma
+  coul <- ifelse(d$fort_ecart_sigma %in% TRUE, COUL$trait, COUL$env)
   if (!.plotly_dispo()) {
     .cadre()
     graphics::barplot(v, names.arg = d$t, border = NA,
-                      col = ifelse(d$fort_ecart_sigma, COUL$trait, COUL$env),
+                      col = coul,
                       xlab = "annee retiree", ylab = "ecart sur sigma_USP (%)",
                       main = "Influence du retrait d'une annee sur sigma_USP")
     graphics::abline(h = 0, col = COUL$pt)
     return(invisible())
   }
   p <- plotly::plot_ly(x = d$t, y = v, type = "bar",
-        marker = list(color = ifelse(d$fort_ecart_sigma, COUL$trait, COUL$env),
+        marker = list(color = coul,
                       line = list(color = COUL$pt, width = 1)),
         hovertemplate = "sans l'annee %{x}<br>ecart = %{y:+.2f} %<extra></extra>")
   p <- plotly::add_lines(p, x = range(d$t), y = c(0, 0),
@@ -1647,14 +1663,35 @@ note_influence <- function(pd) {
   else sprintf(paste("Distance de Cook non finie : rep&egrave;re de Cook (4/T = %s) sans objet",
                      "(motif dans les graphiques) ;"), .num_fr(d$seuil_cook[1], "%.3f"))
   nl <- sum(d$fort_levier)
+  # Annees non evaluables du jackknife (#328, #224, #329) : lues telles
+  # quelles (sigma_USP sans l'annee non fini), sans calcul ; sigma_USP n'est
+  # pas mesure pour ces annees, y compris quand aucune n'est evaluable.
+  ne <- .jack_non_evaluables(d)
+  # Maximum calcule hors des annees non evaluables (jamais une annee dite
+  # ecartee du maximum) ; sans ecart fini hors de ne, phrase fixe.
+  e <- d$ecart_sigma; e[d$t %in% ne | !is.finite(e)] <- NA
+  jack <- if (!any(is.finite(e)))
+    paste("Aucune ann&eacute;e &eacute;valuable (r&eacute;ajustements sans maximum de",
+          "vraisemblance &eacute;tabli, ou en &eacute;chec) : l'influence sur sigma_USP n'est pas mesur&eacute;e.")
+  else paste0(
+    sprintf("Le retrait de l'ann&eacute;e la plus influente d&eacute;place sigma_USP de <b>%s %%</b>.",
+            .num_fr(100 * e[which.max(abs(e))], "%+.1f")),
+    if (length(ne) == 1L)
+      sprintf(paste(" Ann&eacute;e %d non &eacute;valuable (r&eacute;ajustement sans maximum de",
+                    "vraisemblance &eacute;tabli, ou en &eacute;chec) : &eacute;cart&eacute;e du maximum,",
+                    "influence non mesur&eacute;e."), ne)
+    else if (length(ne) > 1L)
+      sprintf(paste(" Ann&eacute;es %s et %d non &eacute;valuables (r&eacute;ajustements sans maximum de",
+                    "vraisemblance &eacute;tabli, ou en &eacute;chec) : &eacute;cart&eacute;es du maximum,",
+                    "influence non mesur&eacute;e."),
+              paste(utils::head(ne, -1L), collapse = ", "), utils::tail(ne, 1L)))
   sprintf(paste(
     "%s%s <b>%d</b>",
-    "au-del&agrave; du rep&egrave;re de levier (2k/T = %s). Le retrait de l'ann&eacute;e la plus",
-    "influente d&eacute;place sigma_USP de <b>%s %%</b>. Un levier &eacute;lev&eacute;",
+    "au-del&agrave; du rep&egrave;re de levier (2k/T = %s). %s Un levier &eacute;lev&eacute;",
     "seul n'est pas probl&eacute;matique : c'est sa combinaison avec un r&eacute;sidu",
     "important, mesur&eacute;e par la distance de Cook, qui l'est."),
     cook, if (is.null(pd$influence_motif)) " et" else "", nl, .num_fr(d$seuil_levier[1], "%.3f"),
-    .num_fr(100 * d$ecart_sigma[which.max(abs(d$ecart_sigma))], "%+.1f"))
+    jack)
 }
 
 # =============================================================================
