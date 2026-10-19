@@ -430,7 +430,7 @@ verifier("Garde-fou R12 via usp_tests() (T = 200, reg ecarte) : lignes Koenker, 
          })
 
 ## --- 5. Invariant I5 et invariant I2 ----------------------------------------------
-verifier("Invariant I5 : usp_tests() rend les memes 45 lignes (LB1r retiree, #303), dans le meme ordre, a volumes variables, quasi constants et constants",
+verifier("Invariant I5 : usp_tests() rend les memes 42 lignes (LB1r retiree, #303 ; trois lignes retirees, #302), dans le meme ordre, a volumes variables, quasi constants et constants",
          {
            # Objet bootstrap fictif de test_inoperance.R (aucune simulation).
            bf <- function(f) {
@@ -443,7 +443,7 @@ verifier("Invariant I5 : usp_tests() rend les memes 45 lignes (LB1r retiree, #30
              f <- usp_ajuster(v, y)
              vapply(usp_tests(f, bf(f), methode = "premium"), `[[`, character(1), "test")
            })
-           length(nm[[1]]) == 45L && identical(nm[[1]], nm[[2]]) && identical(nm[[1]], nm[[3]])
+           length(nm[[1]]) == 42L && identical(nm[[1]], nm[[2]]) && identical(nm[[1]], nm[[3]])
          })
 verifier("Invariant I2 dans la bande : aucune nature 'asymptotique' sans motif",
          all(vapply(res_bande, function(r)

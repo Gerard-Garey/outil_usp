@@ -401,8 +401,8 @@ verifier("add() : motif_mc present mais NA pour une p_mc absente -> erreur ; p_m
 
 ## --- 4. usp_tests() : constante, TOST, pente, Fisher, AD, CvM ---------------
 tt <- usp_tests(fit, boot_fictif(fit), methode = "premium")
-verifier("usp_tests : 45 lignes sans jackknife, IC ni LR sur delta (50 par run_engine() ; LB1r retiree, #303) ; toute ligne non-test hors procedure de decision sort INFO (M7)",
-         length(tt) == 45L &&
+verifier("usp_tests : 42 lignes sans jackknife, IC ni LR sur delta (47 par run_engine() ; LB1r retiree, #303 ; trois lignes retirees, #302) ; toute ligne non-test hors procedure de decision sort INFO (M7)",
+         length(tt) == 42L &&
          all(vapply(Filter(function(l) !l$type %in% c("test", "procedure de decision"), tt),
                     function(l) identical(l$verdict, "INFO") && is.na(l$sens), logical(1))))
 verifier("usp_tests : chaque ligne porte un champ p_min (NA pour une loi continue)",
@@ -1393,8 +1393,8 @@ verifier("engine_table_tests : colonne p_min presente, une valeur par ligne",
 # ligne de largeur d'IC presente (48 lignes avant #45) ; sous 21 tirages, que
 # run_engine() n'admet plus, elle manquait (47 lignes). Depuis #45 : plus la
 # ligne de l'IC restreint (meme regle) et les deux lignes LR sur delta.
-verifier("run_engine : 50 lignes sur les donnees de test a B = B_MIN_USAGE (lignes de largeur d'IC et de LR sur delta comprises ; LB1r retiree, #303)",
-         length(res_ln$tests) == 50L && !is.null(res_ln$ic_bootstrap) &&
+verifier("run_engine : 47 lignes sur les donnees de test a B = B_MIN_USAGE (lignes de largeur d'IC et de LR sur delta comprises ; LB1r retiree, #303 ; trois lignes retirees, #302)",
+         length(res_ln$tests) == 47L && !is.null(res_ln$ic_bootstrap) &&
            any(vapply(res_ln$tests, function(l) identical(l$test, "Largeur relative de l'IC bootstrap 90%"),
                       logical(1))))
 

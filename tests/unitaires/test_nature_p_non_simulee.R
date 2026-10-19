@@ -102,20 +102,35 @@ verifier("U120-1 reserve2 : aucune ligne ne porte NATURE_APPROX_N_FINI ni 'asymp
          })
 
 ## --- U120-5 : Anscombe-Glynn a T = 20 -------------------------------------------
-# Jeu synthetique (tirage unique, valeurs ecrites en dur) : T = 20, la ligne
-# Anscombe-Glynn est un test, sans mc_nom ; sa p non simulee est retenue.
+# Jeu synthetique (tirage unique, valeurs ecrites en dur) : T = 20. Depuis
+# #302 (Q-D1-Fh-4, specification Fh, section 5.3), la ligne Anscombe-Glynn
+# n'est un test qu'a pi_t constant : le jeu (x120, y120) a delta estime = 0
+# et volumes variables (pi_t variable, mesure du 19/10/2026), ou elle est
+# non applicable ; le test U120-5 porte sur les memes ratios a volumes
+# constants (x_t = 100, pi_t constant), ou la ligne est un test, sans mc_nom,
+# dont la p non simulee est retenue.
 x120 <- c(98.87, 101.8, 99.61, 110.06, 114.15, 111.77, 116.84, 123.69, 129.87, 130.49,
           143.58, 149.36, 147.72, 134.9, 145.59, 148.2, 151.07, 161.57, 171.74, 180.49)
 y120 <- c(75.87, 77.06, 70.25, 63.14, 85.01, 77.8, 80.52, 74.74, 86.66, 95.24,
           115.13, 103.48, 107.49, 93.92, 88.8, 99.52, 101.66, 112.43, 134.2, 136.36)
-r20 <- suppressWarnings(run_engine(xt = x120, yt = y120, methode = "premium", segment = 1,
-                                   B = 99, nature_donnees = "brutes"))
-verifier("U120-5 Anscombe-Glynn a T = 20 : p retenue = p non simulee, nature NATURE_APPROX_N_FINI",
+r20v <- suppressWarnings(run_engine(xt = x120, yt = y120, methode = "premium", segment = 1,
+                                    B = 99, nature_donnees = "brutes"))
+r20 <- suppressWarnings(run_engine(xt = rep(100, 20), yt = 100 * y120 / x120, methode = "premium",
+                                   segment = 1, B = 99, nature_donnees = "brutes"))
+verifier("U120-5 Anscombe-Glynn a T = 20, pi_t constant (volumes constants) : p retenue = p non simulee, nature NATURE_APPROX_N_FINI",
          {
            l <- Filter(function(l) identical(l$test, "Aplatissement (Anscombe-Glynn, T >= 20)"),
                        r20$tests)[[1]]
            isTRUE(r20$ok) && identical(l$type, "test") && is.finite(l$p_retenue) &&
              identical(l$p_retenue, l$p_asymptotique) && identical(l$nature_p, NATURE_APPROX_N_FINI)
+         })
+verifier("U120-5 Anscombe-Glynn a T = 20, pi_t variable (#302) : non applicable, sans p ni nature",
+         {
+           l <- Filter(function(l) identical(l$test, "Aplatissement (Anscombe-Glynn, T >= 20)"),
+                       r20v$tests)[[1]]
+           isTRUE(r20v$ok) && identical(l$type, "non applicable") && is.na(l$p_retenue) &&
+             is.na(l$p_asymptotique) && is.na(l$nature_p) &&
+             !any(vapply(r20v$tests, function(l) identical(l$nature_p, NATURE_APPROX_N_FINI), logical(1)))
          })
 verifier("U120-5 premium a T = 20 : seule la ligne Anscombe-Glynn porte NATURE_APPROX_N_FINI",
          {

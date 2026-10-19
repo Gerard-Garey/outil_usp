@@ -213,12 +213,14 @@ verifier("Renvoi #215 : base sans point final -> 'Texte ; ' + renvoi + ' ' + phr
 
 ## --- U244-7 : six references ----------------------------------------------------------
 # Les 11 lignes de la specification (section 5, mesure M1), par cas : indice
-# de la ligne dans res$tests et nom du test.
+# de la ligne dans res$tests et nom du test. Grubbs de premium_interieur :
+# indice 37 avant #302, 34 depuis le retrait de trois lignes qui la precedent
+# (Shapiro-Wilk a loi nulle simulee, Ljung-Box (1), Box-Pierce (2)).
 ATTENDU244 <- list(
   premium = c(`12` = "Heteroscedasticite vs volume - Breusch-Pagan original (non robuste)",
               `15` = "Homogeneite des dispersions (mediane)"),
   premium_ii6 = NULL, premium_net = NULL, reserve1 = NULL,
-  premium_interieur = c(`37` = "Valeur aberrante isolee (Grubbs)"),
+  premium_interieur = c(`34` = "Valeur aberrante isolee (Grubbs)"),
   reserve2 = c(`2` = "Nullite de l'ordonnee a l'origine, colonne par colonne",
                `6` = "Heteroscedasticite residuelle vs cumul"))
 for (cas in c("premium_ii6", "premium_net", "reserve1")) ATTENDU244[cas] <- list(ATTENDU244$premium)

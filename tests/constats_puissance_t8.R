@@ -144,7 +144,8 @@
 #          par le moteur (lignes principales), elle n'est qu'APPROCHEE ;
 #        - controles d'integrite : invariance affine (W, Z et leurs p) sur un
 #          echantillon de chaque loi ; transcription contre run_engine() sur
-#          J1 (W, p de Royston, p par loi nulle, Z et p de D'Agostino ; W et Z
+#          J1 (W, p de Royston, Z et p de D'Agostino ; p par loi nulle
+#          jusqu'a #302, qui retire sa ligne ; W et Z
 #          des z egaux a ceux des log-ratios, pi chapeau constant) ; aucune p
 #          manquante ;
 #        - niveaux (ligne N(0,1)) : INFORMATIFS, aucun code de sortie n'en
@@ -1087,19 +1088,21 @@ if (OPT_PARTIE %in% c("tout", "normalite")) {
   tb1 <- engine_table_tests(res1)
   ligne <- function(nom) tb1[tb1$test == nom, ]
   l_sw  <- ligne("Shapiro-Wilk sur residus standardises")
-  l_swn <- ligne("Shapiro-Wilk (loi nulle simulee, sans normalisation de Royston)")
   l_ds  <- ligne("Asymetrie (D'Agostino, T >= 8)")
   fit1 <- usp_ajuster(.ln$xt, .ln$yt)
   m_z <- mesurer_normalite(fit1$z)
   m_lr <- mesurer_normalite(log(.ln$yt / .ln$xt))
-  trans_ok <- nrow(l_sw) == 1L && nrow(l_swn) == 1L && nrow(l_ds) == 1L &&
+  # La ligne Shapiro-Wilk a loi nulle simulee est retiree de run_engine()
+  # (#302) : la p par loi nulle (sw_p_loi_nulle(), fonction du moteur) n'est
+  # plus confrontee a une ligne ; W, qui la determine, l'est toujours.
+  trans_ok <- nrow(l_sw) == 1L && nrow(l_ds) == 1L &&
     isTRUE(diff(range(fit1$pi)) <= 1e-12 * max(fit1$pi)) &&
-    isTRUE(all.equal(c(l_sw$statistique, l_sw$p_asymptotique, l_swn$p_exacte,
+    isTRUE(all.equal(c(l_sw$statistique, l_sw$p_asymptotique,
                        l_ds$statistique, l_ds$p_asymptotique),
-                     unname(m_z[c("W", "p_royston", "p_nulle", "Z", "p_dago")]), tolerance = 1e-10)) &&
+                     unname(m_z[c("W", "p_royston", "Z", "p_dago")]), tolerance = 1e-10)) &&
     isTRUE(all.equal(m_z[c("W", "Z")], m_lr[c("W", "Z")], tolerance = 1e-8))
   ctrl_norm <- c(ctrl_norm, controle(trans_ok, paste(
-    "C4, transcription contre run_engine() sur J1 (W, p de Royston, p par loi nulle, Z et p de",
+    "C4, transcription contre run_engine() sur J1 (W, p de Royston, Z et p de",
     "D'Agostino ; \u03c0\u0302 constant ; W et Z des r\u00e9sidus z \u00e9gaux \u00e0 ceux des log-ratios)")))
   ctrl_norm <- c(ctrl_norm, controle(
     all(vapply(MES8, function(M) all(is.finite(M)), logical(1))) &&
@@ -1307,7 +1310,9 @@ if (OPT_PARTIE %in% c("tout", "normalite")) {
     sprintf(paste("- Shapiro-Wilk, p par loi nulle simul\u00e9e : %s. La loi nulle est fig\u00e9e (SEED_LOI_NULLE_SW,",
                   "N = %d tirages) : l'\u00e9cart de la vraie probabilit\u00e9 de rejet au niveau nominal est une erreur",
                   "de quantile d'ordre \u221a(\u03b1(1 \u2212 \u03b1)/N) (%s), qu'aucun R ne",
-                  "r\u00e9duit ; la transcription de sw_p_loi_nulle() est contr\u00f4l\u00e9e contre run_engine() (contr\u00f4les d'int\u00e9grit\u00e9)."),
+                  "r\u00e9duit ; sw_p_loi_nulle() n'a plus de ligne dans run_engine() (Shapiro-Wilk \u00e0 loi nulle",
+                  "simul\u00e9e retir\u00e9e, #302) : seule W, qui la d\u00e9termine, est contr\u00f4l\u00e9e contre run_engine()",
+                  "(contr\u00f4les d'int\u00e9grit\u00e9)."),
             txt_niveau(MES8[[1]][, "p_nulle"]), N_NULLE,
             paste(vapply(ALPHAS_118, function(al) sprintf("%s \u00e0 \u03b1 = %s", num(sqrt(al * (1 - al) / N_NULLE), 4),
                                                            num(al, 2)), ""), collapse = " ; ")),

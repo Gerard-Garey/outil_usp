@@ -4,13 +4,14 @@
 #
 #  Consigne d'actuary du 27/09/2026 (etape 4 d'E1), regles R7, R8, R9 amendee,
 #  2b, 2c et 5a-5c :
-#    - les huit lignes a loi de reference exacte (Durbin-Watson, suites,
-#      Shapiro-Wilk loi nulle, Smirnov, Spearman volume et temps,
-#      Mann-Kendall, Cox-Stuart) n'ont de p exacte qu'a pi_t constant ;
+#    - les sept lignes a loi de reference exacte (Durbin-Watson, suites,
+#      Smirnov, Spearman volume et temps, Mann-Kendall, Cox-Stuart ;
+#      Shapiro-Wilk a loi nulle simulee, huitieme, retiree par #302) n'ont de
+#      p exacte qu'a pi_t constant ;
 #    - Spearman : aucune p exacte avec ex aequo, ni a T > 9 ;
 #    - add() restitue dans detail le motif d'absence de p_min.
 #  References : appels directs des fonctions de loi exacte (dw_p_exacte,
-#  runs_p_exacte, sw_p_loi_nulle, mk_p_exacte, stats::ks.test,
+#  runs_p_exacte, mk_p_exacte, stats::ks.test,
 #  stats::cor.test), enumeration exhaustive des 8! permutations (Spearman avec
 #  ex aequo), prho.c de R (n_small = 9 : exact pour n <= 9, Edgeworth AS 89
 #  au-dela).
@@ -35,7 +36,6 @@ boot_fictif <- function(f, p = 0.5, motif = NULL) {
 ligne <- function(tt, nom) Filter(function(l) identical(l$test, nom), tt)[[1]]
 NOM <- c(DW = "Autocorrelation d'ordre 1 (Durbin-Watson)",
          Runs = "Test des suites (aleatoire des signes)",
-         SWnul = "Shapiro-Wilk (loi nulle simulee, sans normalisation de Royston)",
          Smirnov = "Egalite des lois petits vs gros volumes (2 ech.)",
          SpearVol = "Independance ratio S/P vs volume",
          SpearTps = "Correlation ratio S/P vs temps",
@@ -56,7 +56,7 @@ fit_force <- function(x, y, d) {
          delta_au_bord = usp_regime(d, x)$delta_au_bord))
 }
 
-## --- 1. pi_t exactement constant : huit p exactes, valeurs d'avant #70 -----
+## --- 1. pi_t exactement constant : sept p exactes, valeurs d'avant #70 -----
 x <- c(104.20, 102.25, 109.34, 114.64, 118.41, 121.28, 132.40, 131.22)
 y <- c(68.97, 76.76, 83.49, 95.38, 88.96, 70.22, 78.89, 117.37)
 fit <- usp_ajuster(x, y)
@@ -72,12 +72,11 @@ nature_attendue <- function(tt, k) {
   if (k == "CoxStuart") identical(l$type, "diagnostic") && is.na(l$nature_p)
   else identical(l$nature_p, "exacte")
 }
-verifier("pi_t constant exact : sept lignes 'exacte' (Cox-Stuart inoperante, R1), p_exacte identique a l'appel direct",
+verifier("pi_t constant exact : six lignes 'exacte' (Cox-Stuart inoperante, R1), p_exacte identique a l'appel direct",
          {
            z <- fit$z; r <- y / x; grp <- x > stats::median(x)
-           W <- ligne(tt, NOM[["SWnul"]])$stat
            attendu <- list(
-             DW = dw_p_exacte(z), Runs = runs_p_exacte(z), SWnul = sw_p_loi_nulle(W, 8),
+             DW = dw_p_exacte(z), Runs = runs_p_exacte(z),
              Smirnov = stats::ks.test(z[grp], z[!grp])$p.value,
              SpearVol = stats::cor.test(r, x, method = "spearman", exact = TRUE)$p.value,
              SpearTps = stats::cor.test(r, seq_along(r), method = "spearman", exact = TRUE)$p.value,
@@ -111,12 +110,6 @@ verifier("T = 5 : suites et Cox-Stuart -> p_exacte NA, INFO par la regle R1, phr
            is.na(l$p_exacte) && identical(l$type, "diagnostic") && identical(l$verdict, "INFO") &&
              grepl("TEST INOPERANT", l$detail, fixed = TRUE) && grepl(TXT_R8, l$detail, fixed = TRUE)
          }, logical(1))))
-verifier("T = 5 : Shapiro-Wilk loi nulle -> non applicable, p_exacte NA, INFO, W conserve",
-         {
-           l <- ligne(t5, NOM[["SWnul"]])
-           identical(l$type, "non applicable") && is.na(l$p_exacte) && identical(l$verdict, "INFO") &&
-             is.finite(l$stat) && grepl("sans objet a pi_t variable", l$detail, fixed = TRUE)
-         })
 
 ## --- 3. pi_t variable, T = 8 (delta interieur) ------------------------------
 # Provenance : x fixe ; set.seed(20260928) ;
@@ -128,7 +121,7 @@ t8 <- usp_tests(f8, boot_fictif(f8), methode = "premium")
 verifier("T = 8 : pi_t variable, delta dans ]0,1[, sans ex aequo, n1 = n2 = 4 pour Smirnov",
          !isTRUE(usp_regime(f8$delta, f8$x)$pi_constant) && f8$delta > 0 && f8$delta < 1 &&
            anyDuplicated(y8 / x8) == 0 && anyDuplicated(x8) == 0 && sum(x8 > stats::median(x8)) == 4)
-verifier("T = 8 : huit lignes p_exacte NA",
+verifier("T = 8 : sept lignes p_exacte NA",
          all(vapply(NOM, function(n) is.na(ligne(t8, n)$p_exacte), logical(1))))
 verifier("T = 8 : six lignes Monte-Carlo retenue (type test) ; Cox-Stuart INFO par R1",
          all(vapply(NOM[c("DW", "Runs", "Smirnov", "SpearVol", "SpearTps", "MK")], function(n) {
@@ -136,10 +129,8 @@ verifier("T = 8 : six lignes Monte-Carlo retenue (type test) ; Cox-Stuart INFO p
          }, logical(1))) &&
            identical(ligne(t8, NOM[["CoxStuart"]])$type, "diagnostic") &&
            identical(ligne(t8, NOM[["CoxStuart"]])$verdict, "INFO"))
-verifier("T = 8 : Shapiro-Wilk loi nulle non applicable ; phrase R8 sur les sept autres lignes",
-         identical(ligne(t8, NOM[["SWnul"]])$type, "non applicable") &&
-           all(vapply(NOM[names(NOM) != "SWnul"], function(n)
-             grepl(TXT_R8, ligne(t8, n)$detail, fixed = TRUE), logical(1))))
+verifier("T = 8 : phrase R8 sur les sept lignes",
+         all(vapply(NOM, function(n) grepl(TXT_R8, ligne(t8, n)$detail, fixed = TRUE), logical(1))))
 
 ## --- 4. Assertion negative I3 : aucune nature 'exacte' a pi_t variable -----
 verifier("I3 : aucune ligne de nature 'exacte' a pi_t variable (T = 5 et T = 8), toutes lignes",
@@ -158,7 +149,7 @@ tb <- usp_tests(fb, boot_fictif(fb), methode = "premium")
 verifier("Bande : pi_constant vrai, pi_constant_exact faux",
          isTRUE(usp_regime(fb$delta, fb$x)$pi_constant) &&
            !isTRUE(usp_regime(fb$delta, fb$x)$pi_constant_exact))
-verifier("Bande : huit lignes p_exacte finie, 'exacte' (Cox-Stuart : R1), detail suffixe 'a la tolerance TOL_DELTA_BORD'",
+verifier("Bande : sept lignes p_exacte finie, 'exacte' (Cox-Stuart : R1), detail suffixe 'a la tolerance TOL_DELTA_BORD'",
          all(vapply(names(NOM), function(k) {
            l <- ligne(tb, NOM[[k]])
            is.finite(l$p_exacte) && nature_attendue(tb, k) &&
@@ -390,11 +381,13 @@ verifier("Cox-Stuart, alpha = 0,29 : donnees de test -> 'exacte', p_retenue = cx
          })
 
 ## --- 10. Invariants --------------------------------------------------------
-# T = 5 : 42 lignes (Smirnov, Ljung-Box et Box-Pierce au retard 2 exigent
-# T >= 8), nombre inchange par #70.
-verifier("Invariants : 45 lignes usp_tests() a T >= 8 dans tous les regimes testes, 42 a T = 5 (LB1r retiree, #303)",
-         all(vapply(list(tt, t8, tb, t2, t3, t10), length, integer(1)) == 45L) &&
-           length(t5) == 42L)
+# T = 5 : 40 lignes (Smirnov et Ljung-Box au retard 2 exigent T >= 8),
+# nombre inchange par #70 ; 42 a T >= 8 depuis #302 (Shapiro-Wilk a loi
+# nulle simulee, Ljung-Box (1) et Box-Pierce (2) retirees ; Box-Pierce (2)
+# n'existait qu'a T >= 8).
+verifier("Invariants : 42 lignes usp_tests() a T >= 8 dans tous les regimes testes, 40 a T = 5 (LB1r retiree, #303 ; trois lignes retirees, #302)",
+         all(vapply(list(tt, t8, tb, t2, t3, t10), length, integer(1)) == 42L) &&
+           length(t5) == 40L)
 verifier("Invariant M7 : hors test et procedure de decision, verdict INFO et sens NA",
          all(vapply(c(tt, t5, t8, tb), function(l)
            l$type %in% c("test", "procedure de decision") ||
@@ -402,8 +395,8 @@ verifier("Invariant M7 : hors test et procedure de decision, verdict INFO et sen
            logical(1))))
 res8 <- run_engine(xt = x8, yt = y8, methode = "premium", segment = 1, annexe = "II",
                    nature_donnees = "brutes", B = 99, seed = 20260831)
-verifier("run_engine, pi_t variable, B = 99 : 50 lignes (#45 ; LB1r retiree, #303), catalogue complet, aucune nature 'exacte' sur les huit",
-         isTRUE(res8$ok) && length(res8$tests) == 50L &&
+verifier("run_engine, pi_t variable, B = 99 : 47 lignes (#45 ; LB1r retiree, #303 ; trois lignes retirees, #302), catalogue complet, aucune nature 'exacte' sur les sept",
+         isTRUE(res8$ok) && length(res8$tests) == 47L &&
            identical(names(res8$bootstrap$p_mc), names(USP_CATALOGUE_MC)) &&
            !any(vapply(res8$tests, function(l)
              l$test %in% NOM && identical(l$nature_p, "exacte"), logical(1))))
@@ -516,6 +509,141 @@ verifier("R15 (#303) : J1 a B = 40, DWr et supFr portent la phrase R15 ; homolog
                logical(1))) &&
              identical(sz$type, "test") && identical(sz$verdict, "INFO") && is.na(sz$p_retenue) &&
              identical(dz$type, "test") && identical(dz$nature_p, "exacte") && is.finite(dz$p_retenue)
+         })
+
+## --- 12. #302 : batterie H3/H4 ----------------------------------------------
+# Decisions du mainteneur du 19/10/2026 (Q-D1-Fh-4, Q-D1-Fh-9 ; specification
+# Fh, section 5) : Shapiro-Wilk a loi nulle simulee, Ljung-Box (retard 1) et
+# Box-Pierce (retard 2) retirees dans tous les regimes, avec les entrees LB1
+# et BP2 du catalogue ; Kolmogorov-Smirnov contre N(0,1) et Cramer-von Mises
+# en diagnostic par decision dans tous les regimes (p-values conservees,
+# phrase fixe en fin de detail, motif Monte-Carlo en tete s'il manque une
+# p_mc) ; a pi_t variable, phrase fixe sur les lignes H3 dont la p non
+# simulee est calculee ; Anscombe-Glynn non applicable a pi_t variable
+# (T >= 20).
+NOM_RETIRES_302 <- c("Shapiro-Wilk (loi nulle simulee, sans normalisation de Royston)",
+                     "Ljung-Box (retard 1)", "Box-Pierce (retard 2)")
+NOM_DIAG_302 <- c(KS = "Kolmogorov-Smirnov contre N(0,1)", CvM = "Cramer-von Mises")
+TXT_DIAG_302 <- c(
+  KS = paste("Restituee en diagnostic par decision (issue #302) : aucun verdict ni",
+             "p-value retenue ; l'hypothese releve de la ligne Lilliefors (distance",
+             "de Kolmogorov sur residus re-standardises), dont le type et le",
+             "verdict font foi."),
+  CvM = paste("Restituee en diagnostic par decision (issue #302) : aucun verdict ni",
+              "p-value retenue ; W2 etant tres correlee a A2, l'hypothese releve de",
+              "la ligne Anderson-Darling, dont le type et le verdict font foi."))
+NOM_H3_302 <- c(SW = "Shapiro-Wilk sur residus standardises", SF = "Shapiro-Francia",
+                AD = "Anderson-Darling", Lillie = "Lilliefors (KS a parametres estimes)",
+                JB = "Jarque-Bera", DAgo = "Asymetrie (D'Agostino, T >= 8)")
+TXT_H3_302 <- paste("p non simulee etablie pour un echantillon i.i.d. normal, que",
+                    "z = P epsilon ne verifie pas a pi_t variable : restituee pour",
+                    "information, jamais retenue.")
+NOM_AG <- "Aplatissement (Anscombe-Glynn, T >= 20)"
+est_diag_302 <- function(l, k) identical(l$type, "diagnostic") && identical(l$verdict, "INFO") &&
+  is.na(l$p_retenue) && is.na(l$nature_p) && is.na(l$sens) && isFALSE(l$inoperant) &&
+  identical(l$p_mc, 0.5) && is.finite(l$p_asymptotique) && endsWith(l$detail, TXT_DIAG_302[[k]])
+verifier("#302 : trois lignes retirees dans tous les regimes (T = 8 et T = 5), entrees LB1 et BP2 retirees du catalogue",
+         !any(c("LB1", "BP2") %in% names(USP_CATALOGUE_MC)) &&
+           !any(vapply(c(tt, tb, t8, tj2, t5), function(l) l$test %in% NOM_RETIRES_302, logical(1))) &&
+           !any(vapply(res8$tests, function(l) l$test %in% NOM_RETIRES_302, logical(1))) &&
+           # sw_p_loi_nulle() reste une fonction du moteur (appelee par mw_tests()).
+           is.function(sw_p_loi_nulle))
+verifier("#302 : KS contre N(0,1) et Cramer-von Mises en diagnostic par decision, pi_t constant (exact et bande) et variable (f8, J2)",
+         all(vapply(list(tt, tb, t8, tj2), function(t)
+           all(vapply(names(NOM_DIAG_302), function(k) est_diag_302(ligne(t, NOM_DIAG_302[[k]]), k), logical(1))),
+           logical(1))))
+# Errata du 19/10/2026 de la specification Fh (section 5.1) : le renvoi
+# "Voir le test de Lilliefors ci-dessus." est retire du detail propre de KS.
+verifier("#302 : KS a pi_t constant, detail propre (sans renvoi a Lilliefors) suivi de la phrase fixe ; CvM, phrase fixe seule",
+         identical(ligne(tt, NOM_DIAG_302[["KS"]])$detail,
+                   paste("Les residus sont standardises par le MODELE, non par la moyenne",
+                         "et l'ecart-type empiriques : la loi de Kolmogorov reste tres",
+                         "conservatrice (simulation : 0 rejet sur 3 000 a 5 %).",
+                         TXT_DIAG_302[["KS"]])) &&
+           identical(ligne(tt, NOM_DIAG_302[["CvM"]])$detail, TXT_DIAG_302[["CvM"]]))
+verifier("#302 : a pi_t variable (f8, J2), phrase H3 sur SW, SF, AD, Lilliefors, JB, D'Agostino (tests, p Monte-Carlo retenue) et avant la phrase fixe de KS et CvM",
+         all(vapply(list(t8, tj2), function(t)
+           all(vapply(NOM_H3_302, function(n) {
+             l <- ligne(t, n)
+             identical(l$type, "test") && identical(l$p_retenue, 0.5) && is.finite(l$p_asymptotique) &&
+               grepl(TXT_H3_302, l$detail, fixed = TRUE)
+           }, logical(1))) &&
+             all(vapply(names(NOM_DIAG_302), function(k)
+               grepl(paste(TXT_H3_302, TXT_DIAG_302[[k]]), ligne(t, NOM_DIAG_302[[k]])$detail, fixed = TRUE),
+               logical(1))), logical(1))))
+verifier("#302 : a pi_t constant (exact et bande), aucune ligne ne porte la phrase H3",
+         !any(vapply(c(tt, tb), function(l) grepl(TXT_H3_302, l$detail, fixed = TRUE), logical(1))))
+verifier("#302 : a T = 5 (pi_t variable), Anderson-Darling et Cramer-von Mises sans p non simulee ne portent pas la phrase H3",
+         all(vapply(c("Anderson-Darling", NOM_DIAG_302[["CvM"]]), function(n) {
+           l <- ligne(t5, n); is.na(l$p_asymptotique) && !grepl(TXT_H3_302, l$detail, fixed = TRUE)
+         }, logical(1))) && grepl(TXT_H3_302, ligne(t5, NOM_H3_302[["SW"]])$detail, fixed = TRUE))
+# p Monte-Carlo absente : motif en tete du detail, forme de sa classe comme
+# dans add() ; statistique observee non finie : la ligne reste non
+# applicable (add()), sans phrase fixe.
+verifier("#302 : KS et CvM sans p Monte-Carlo, motif en tete selon sa classe ; statistique observee non finie -> non applicable",
+         {
+           b <- boot_fictif(fit, motif = c(KS = MOTIF_MC_DISPERSION_NULLE, CvM = MOTIF_MC_AUCUNE_REPLIC))
+           t <- usp_tests(fit, b, methode = "premium")
+           k <- ligne(t, NOM_DIAG_302[["KS"]]); w <- ligne(t, NOM_DIAG_302[["CvM"]])
+           b2 <- boot_fictif(fit, motif = c(KS = MOTIF_MC_OBS_NON_FINIE)); b2$stats_obs$KS <- NA_real_
+           k2 <- ligne(usp_tests(fit, b2, methode = "premium"), NOM_DIAG_302[["KS"]])
+           identical(k$type, "diagnostic") && is.na(k$p_mc) &&
+             startsWith(k$detail, paste0(MOTIF_MC_DISPERSION_NULLE, " : aucune p-value retenue (ADR 0001).")) &&
+             endsWith(k$detail, TXT_DIAG_302[["KS"]]) &&
+             identical(w$type, "diagnostic") && is.na(w$p_mc) &&
+             identical(w$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_AUCUNE_REPLIC, ". ",
+                                        TXT_DIAG_302[["CvM"]])) &&
+             identical(k2$type, "non applicable") && !grepl("issue #302", k2$detail, fixed = TRUE)
+         })
+# Critere (d) de la specification Fh (section 5) : jeu J2 etendu a T = 20
+# (x et y de J2, puis 1,05 x et 0,95 x des huit et des quatre premieres
+# annees, y perturbe de exp(0,04 sin(1,3 t)), t = 9..20) ; delta estime
+# interieur (mesure du 19/10/2026 : 0,647). A pi_t variable, la ligne
+# Anscombe-Glynn est non applicable (motif de la section 5.3, Z conserve,
+# aucune p) ; sur les memes donnees ajustees a delta = 1 (pi_t exactement
+# constant), elle reste un test a p d'approximation a n fini retenue.
+x20 <- j2$xt[c(1:8, 1:8, 1:4)] * c(rep(1, 8), rep(1.05, 8), rep(0.95, 4))
+y20 <- j2$yt[c(1:8, 1:8, 1:4)] * c(rep(1, 8), rep(1.05, 8), rep(0.95, 4)) *
+  exp(c(rep(0, 8), 0.04 * sin(1.3 * (9:20))))
+f20 <- usp_ajuster(x20, y20)
+t20 <- usp_tests(f20, boot_fictif(f20), methode = "premium")
+f20c <- fit_force(x20, y20, 1)
+t20c <- usp_tests(f20c, boot_fictif(f20c), methode = "premium")
+verifier("#302 (critere (d)) : J2 etendu a T = 20, pi_t variable -> Anscombe-Glynn non applicable, motif de la section 5.3, Z conserve, aucune p",
+         {
+           l <- ligne(t20, NOM_AG)
+           !isTRUE(usp_regime(f20$delta, f20$x)$pi_constant) && f20$delta > 0 && f20$delta < 1 &&
+             identical(l$type, "non applicable") && identical(l$verdict, "INFO") && is.finite(l$stat) &&
+             is.na(l$p_asymptotique) && is.na(l$p_retenue) && is.na(l$nature_p) &&
+             identical(l$detail, paste("approximation a n fini etablie pour un echantillon i.i.d. normal,",
+                                       "sans objet a pi_t variable (z = P epsilon non i.i.d.) ; aucune",
+                                       "p-value de Monte-Carlo prevue : test non applicable"))
+         })
+# Priorite du motif "T < 20" (constat C2 de l'audit leger de #302) : sur J2
+# (T = 8, pi_t variable), la ligne Anscombe-Glynn reste non applicable au
+# motif de T, non a celui de pi_t variable.
+verifier("#302 : J2 (T = 8, pi_t variable), Anscombe-Glynn non applicable au motif T < 20, prioritaire sur celui de pi_t variable",
+         identical(ligne(tj2, NOM_AG)$type, "non applicable") &&
+           identical(ligne(tj2, NOM_AG)$detail, "T = 8 < 20 : test non defini"))
+# Diagnostic de #181 a pi_t variable (p Monte-Carlo absente, motif non
+# degenere) : la mention d'add() ("... non retenue (ADR 0001).") en tete,
+# puis la phrase de la section 5.3 (avis d'actuary du 19/10/2026 : phrase
+# maintenue sur un tel diagnostic).
+verifier("#302 : J2, p Monte-Carlo de SW absente (motif non degenere), mention d'add() puis phrase de la section 5.3",
+         {
+           l <- ligne(usp_tests(fj2, boot_fictif(fj2, motif = c(SW = MOTIF_MC_REPLIC_INSUFFISANTES)),
+                                methode = "premium"), NOM_H3_302[["SW"]])
+           identical(l$type, "diagnostic") && is.na(l$p_retenue) && is.finite(l$p_asymptotique) &&
+             identical(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES,
+                                        " ; p non simulee (loi du champ loi) non retenue (ADR 0001). ",
+                                        TXT_H3_302))
+         })
+verifier("#302 (critere (d)) : memes donnees a delta = 1 (pi_t constant), Anscombe-Glynn test, p d'approximation a n fini retenue",
+         {
+           l <- ligne(t20c, NOM_AG)
+           isTRUE(usp_regime(f20c$delta, f20c$x)$pi_constant_exact) && identical(l$type, "test") &&
+             identical(l$nature_p, NATURE_APPROX_N_FINI) && is.finite(l$p_retenue) &&
+             identical(l$p_retenue, test_anscombe_kurt(f20c$z)$p)
          })
 
 fin_fichier()

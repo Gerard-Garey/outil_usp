@@ -95,8 +95,8 @@
 #          si elle ne sert plus) ; une declaration hors_jeux est verifiee
 #          positivement (issue #121) : la ligne doit etre de type test ou
 #          procedure sur un jeu lognormal synthetique de taille t_positif
-#          (jeu_synthetique(), methode prime, T = 10 pour Cox-Stuart, 20 pour
-#          Anscombe-Glynn) ;
+#          (jeu_synthetique(), methode prime, T = 10 pour Cox-Stuart, 20 a
+#          volumes constants pour Anscombe-Glynn) ;
 #       b) dans le .tex, chaque environnement fiche qui porte \Pertinence le
 #          porte une seule fois, apres \Usage ; l'ensemble des fiches (label
 #          nomme de la ligne qui suit \begin{fiche}{...}) qui la portent est
@@ -118,7 +118,7 @@
 #       donnees (regle R1, R4, regimes) : l'ensemble attendu n'est mesure
 #       que sur les jeux executes (T = 8) ; une fiche dont la ligne n'est de
 #       type test qu'a d'autres T (Cox-Stuart, au plus tot a T = 10 ;
-#       Anscombe-Glynn, T >= 20) est declaree hors_jeux avec son motif,
+#       Anscombe-Glynn, T >= 20 et pi_t constant) est declaree hors_jeux avec son motif,
 #       verifie en ce que la ligne existe, n'est pas de type test sur ces
 #       jeux, et l'est sur le jeu synthetique de taille t_positif (issue
 #       #121) ; ce jeu est unique (sans ex aequo, methode prime) : le type
@@ -1277,14 +1277,18 @@ verifier_cles_mc <- function(cles, catalogues) {
 # procedure sur les jeux executes par le script (le type n'y est atteint
 # qu'a d'autres T) ; t_positif : pour une entree hors_jeux, la taille T du
 # jeu synthetique (jeu_synthetique()) sur lequel la ligne doit etre de type
-# test ou procedure (verification positive, issue #121). Le registre est
-# confronte au moteur par verifier_registre_rubrique7() (jeux a T = 8) et
-# verifier_hors_jeux_positifs() (jeux synthetiques).
+# test ou procedure (verification positive, issue #121) ; volumes_constants :
+# TRUE pour une entree hors_jeux dont la ligne n'est de type test qu'a pi_t
+# constant (Anscombe-Glynn depuis #302) : le jeu synthetique est alors pris a
+# volumes constants (jeu_synthetique(T, volumes_constants = TRUE)), absent ou
+# FALSE sinon. Le registre est confronte au moteur par
+# verifier_registre_rubrique7() (jeux a T = 8) et verifier_hors_jeux_positifs()
+# (jeux synthetiques).
 MOTIF_COX_STUART_T8 <- paste("inoperant pour T <= 9 (regle R1, p_min = 0,125 a T = 8) : ligne de type test",
                              "au plus tot a T = 10 (p_min = 0,0625 < 0,10 sans ex aequo ; avec ex aequo,",
                              "m < n_p et la ligne peut rester inoperante), hors des jeux executes (T = 8)")
-MOTIF_ANSCOMBE_T8 <- paste("ligne non applicable pour T < 20 : type test a partir de T = 20 seulement,",
-                           "hors des jeux executes (T = 8)")
+MOTIF_ANSCOMBE_T8 <- paste("ligne non applicable pour T < 20, et a pi_t variable (#302) : type test a",
+                           "partir de T = 20 et a pi_t constant seulement, hors des jeux executes (T = 8)")
 REGISTRE_RUBRIQUE7 <- list(
   # Methode lognormale
   list(label = "fiche:student-constante", tests = "Nullite de la constante (proportionnalite stricte)"),
@@ -1305,19 +1309,21 @@ REGISTRE_RUBRIQUE7 <- list(
   list(label = "fiche:brown-forsythe", tests = "Homogeneite des dispersions (mediane)"),
   list(label = "fiche:smirnov", tests = "Egalite des lois petits vs gros volumes (2 ech.)"),
   list(label = "fiche:shapiro-wilk", tests = "Shapiro-Wilk sur residus standardises"),
-  list(label = "fiche:shapiro-wilk-sans-royston",
-       tests = "Shapiro-Wilk (loi nulle simulee, sans normalisation de Royston)"),
+  # fiche:shapiro-wilk-sans-royston retiree (#302, Q-D1-Fh-4) : ligne
+  # Shapiro-Wilk a loi nulle simulee retiree du moteur.
   list(label = "fiche:shapiro-francia", tests = "Shapiro-Francia"),
   list(label = "fiche:anderson-darling", tests = "Anderson-Darling"),
-  list(label = "fiche:cramer-von-mises", tests = "Cramer-von Mises"),
-  list(label = "fiche:kolmogorov-smirnov", tests = "Kolmogorov-Smirnov contre N(0,1)"),
+  # fiche:cramer-von-mises et fiche:kolmogorov-smirnov retirees (#302,
+  # Q-D1-Fh-4) : lignes en diagnostic par decision dans tous les regimes.
   list(label = "fiche:lilliefors", tests = "Lilliefors (KS a parametres estimes)"),
   list(label = "fiche:jarque-bera", tests = "Jarque-Bera"),
   list(label = "fiche:dagostino-asymetrie", tests = "Asymetrie (D'Agostino, T >= 8)"),
   list(label = "fiche:anscombe-glynn-aplatissement", tests = "Aplatissement (Anscombe-Glynn, T >= 20)",
-       hors_jeux = MOTIF_ANSCOMBE_T8, t_positif = 20L),
+       hors_jeux = MOTIF_ANSCOMBE_T8, t_positif = 20L, volumes_constants = TRUE),
   list(label = "fiche:durbin-watson", tests = "Autocorrelation d'ordre 1 (Durbin-Watson)"),
-  list(label = "fiche:ljung-box", tests = c("Ljung-Box (retard 1)", "Ljung-Box (retard 2)", "Box-Pierce (retard 2)")),
+  # Ljung-Box (retard 1) et Box-Pierce (retard 2) retirees du moteur avec
+  # leurs entrees LB1 et BP2 (#302, Q-D1-Fh-4 et Q-D1-Fh-9).
+  list(label = "fiche:ljung-box", tests = "Ljung-Box (retard 2)"),
   list(label = "fiche:suites-wald-wolfowitz", tests = "Test des suites (aleatoire des signes)"),
   list(label = "fiche:sup-f", tests = "Rupture de niveau (sup-F)"),
   list(label = "fiche:ols-cusum", tests = "Stabilite cumulee (OLS-CUSUM)"),
@@ -1466,8 +1472,9 @@ verifier_registre_rubrique7 <- function(lignes_moteur, registre = REGISTRE_RUBRI
 }
 
 # Verification positive des declarations hors_jeux (issue #121).
-# lignes_synth : data.frame (T, test, type) des lignes de res$tests des
-# executions sur les jeux synthetiques (jeu_synthetique()). Ecarts : entree
+# lignes_synth : data.frame (T, test, type, et volumes_constants s'il y a
+# lieu, FALSE si la colonne manque) des lignes de res$tests des executions
+# sur les jeux synthetiques (jeu_synthetique()). Ecarts : entree
 # hors_jeux sans t_positif ; t_positif sans hors_jeux ; entree hors_jeux
 # dont aucune ligne n'est de type test ou procedure de decision sur le jeu
 # synthetique de taille t_positif (ou dont ce jeu n'a pas ete execute).
@@ -1483,7 +1490,10 @@ verifier_hors_jeux_positifs <- function(lignes_synth, registre = REGISTRE_RUBRIQ
       next
     }
     if (is.null(r$t_positif)) { ajoute(r$label, tst, "declaration hors_jeux sans t_positif (aucune verification positive)"); next }
-    sur_t <- lignes_synth[lignes_synth$T %in% r$t_positif, , drop = FALSE]
+    vc_l <- if (is.null(lignes_synth$volumes_constants)) rep(FALSE, nrow(lignes_synth))
+            else as.logical(lignes_synth$volumes_constants)
+    sur_t <- lignes_synth[lignes_synth$T %in% r$t_positif & vc_l == isTRUE(r$volumes_constants), ,
+                          drop = FALSE]
     if (!nrow(sur_t))
       ajoute(r$label, tst, sprintf("declaration hors_jeux non verifiee : jeu synthetique T = %d non execute", r$t_positif))
     else if (!any(sur_t$test %in% r$tests & sur_t$type %in% TYPES_RUBRIQUE7))
@@ -1499,9 +1509,10 @@ verifier_hors_jeux_positifs <- function(lignes_synth, registre = REGISTRE_RUBRIQ
 # tirage) : volumes x_t = 100 + 10 (t - 1) croissants, pertes
 # y_t = x_t exp(0,1 sin(1,7 t) - 0,3). Ratios y_t / x_t deux a deux
 # distincts, donc sans difference nulle pour Cox-Stuart (m = n_p). Sert a la
-# seule verification positive des declarations hors_jeux.
-jeu_synthetique <- function(T) {
-  t <- seq_len(T); x <- 100 + 10 * (t - 1)
+# seule verification positive des declarations hors_jeux. volumes_constants
+# (#302) : x_t = 100 pour tout t (pi_t constant, regle R13), memes ratios.
+jeu_synthetique <- function(T, volumes_constants = FALSE) {
+  t <- seq_len(T); x <- if (volumes_constants) rep(100, T) else 100 + 10 * (t - 1)
   list(x = x, y = x * exp(0.1 * sin(1.7 * t) - 0.3))
 }
 
@@ -2224,16 +2235,22 @@ if (sys.nframe() == 0L) {
   # executions ne servent qu'a ce controle (ni registre a T = 8, ni sections
   # 2 et 3).
   t_pos <- sort(unique(unlist(lapply(REGISTRE_RUBRIQUE7, `[[`, "t_positif"))))
+  # Un jeu par couple (t_positif, volumes_constants) du registre (#302).
+  jeux_pos <- unique(do.call(rbind, c(list(data.frame(T = integer(0), vc = logical(0))),
+    lapply(Filter(function(r) !is.null(r$t_positif), REGISTRE_RUBRIQUE7), function(r)
+      data.frame(T = as.integer(r$t_positif), vc = isTRUE(r$volumes_constants))))))
   lsy <- do.call(rbind, c(list(data.frame(T = integer(0), test = character(0), type = character(0),
-                                          stringsAsFactors = FALSE)),
-                          lapply(t_pos, function(Tn) {
-    j <- jeu_synthetique(Tn)
+                                          volumes_constants = logical(0), stringsAsFactors = FALSE)),
+                          lapply(seq_len(nrow(jeux_pos)), function(i) {
+    Tn <- jeux_pos$T[i]; vc <- jeux_pos$vc[i]
+    j <- jeu_synthetique(Tn, volumes_constants = vc)
     r <- outils$run_engine(xt = j$x, yt = j$y, methode = "premium", segment = 1, annexe = "II", B = B,
                            nature_donnees = "brutes")
-    if (!isTRUE(r$ok)) stop(sprintf("run_engine() sur le jeu synthetique T = %d : resultat ok = FALSE", Tn), call. = FALSE)
+    if (!isTRUE(r$ok)) stop(sprintf("run_engine() sur le jeu synthetique T = %d%s : resultat ok = FALSE", Tn,
+                                    if (vc) " a volumes constants" else ""), call. = FALSE)
     data.frame(T = Tn, test = vapply(r$tests, function(t) as.character(t$test)[1], character(1)),
                type = vapply(r$tests, function(t) if (is.null(t$type)) NA_character_ else as.character(t$type)[1],
-                             character(1)), stringsAsFactors = FALSE)
+                             character(1)), volumes_constants = vc, stringsAsFactors = FALSE)
   })))
   e_hj <- verifier_hors_jeux_positifs(lsy)
   labels_hj <- vapply(Filter(function(r) !is.null(r$hors_jeux), REGISTRE_RUBRIQUE7), `[[`, character(1), "label")

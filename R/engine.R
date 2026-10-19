@@ -3597,8 +3597,13 @@ USP_CATALOGUE_MC <- list(
   SF     = .mc_entree(function(e) test_shapiro_francia(e$z)$stat, "bas"),
   JB     = .mc_entree(function(e) test_jarque_bera(e$z)$stat, "haut"),
   DW     = .mc_entree(function(e) stat_dw(e$z), "deux"),
-  LB1    = .mc_entree(function(e)
-    unname(stats::Box.test(e$z, lag = 1, type = "Ljung-Box")$statistic), "haut"),
+  # Ljung-Box (retard 1) sur residus standardises (LB1) retiree avec sa ligne
+  # (#302 ; decisions du mainteneur du 19/10/2026, Q-D1-Fh-4 et Q-D1-Fh-9,
+  # specification Fh) : un seul test d'autocorrelation d'ordre 1 par base,
+  # Durbin-Watson bilateral (DW), le plus puissant contre rho > 0,
+  # l'alternative actuarielle plausible. LB1 n'est pas un doublon de DW :
+  # Q = T (T + 2) rho_1^2 / (T - 1) est fonction de |rho_1| et, a T = 8,
+  # rejette surtout vers rho < 0 (mesures de la decision Q-D1-Fh-9).
   supF   = .mc_entree(function(e) stat_supF(e$z), "haut"),
   CUSUM  = .mc_entree(function(e) stat_cusum(e$z), "haut"),
   Grubbs = .mc_entree(function(e) test_grubbs(e$z)$stat, "haut"),
@@ -3640,9 +3645,12 @@ USP_CATALOGUE_MC <- list(
   LB2    = .mc_entree(function(e)
     if (e$T >= 8) unname(stats::Box.test(e$z, lag = 2, type = "Ljung-Box")$statistic)
     else NA_real_, "haut"),
-  BP2    = .mc_entree(function(e)
-    if (e$T >= 8) unname(stats::Box.test(e$z, lag = 2, type = "Box-Pierce")$statistic)
-    else NA_real_, "haut"),
+  # Box-Pierce (retard 2) sur residus standardises (BP2) retiree avec sa
+  # ligne (#302 ; decision du mainteneur du 19/10/2026, Q-D1-Fh-4,
+  # specification Fh) : memes rho_1 et rho_2 que Ljung-Box (retard 2), seule
+  # ligne portmanteau au retard 2 conservee ; poids relatifs de rho_2^2 a
+  # rho_1^2 de 1 (Box-Pierce) contre (T - 1)/(T - 2), soit 7/6 a T = 8
+  # (Ljung-Box). La proximite des deux puissances a T = 8 n'est pas mesuree.
   Runs   = .mc_entree(function(e) test_runs(e$z)$stat, "deux",
                       extremes = function(e) .runs_extremes(e$z)),
   MK     = .mc_entree(function(e) test_mann_kendall(e$r, plancher = 0)$stat, "deux",
@@ -4984,17 +4992,18 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                         diff(range(fit$x)) / mean(fit$x)))
     paste(e, collapse = ", ")
   })
-  # Regle R7 (#70, ADR 0002) : les lois de reference exactes des huit lignes
-  # Durbin-Watson, suites, Shapiro-Wilk (loi nulle simulee), Smirnov,
-  # Spearman (volume, temps), Mann-Kendall et Cox-Stuart supposent des
-  # observations echangeables (z_t, ou r_t, i.i.d. sous H0). C'est le cas a
+  # Regle R7 (#70, ADR 0002) : les lois de reference exactes des sept lignes
+  # Durbin-Watson, suites, Smirnov, Spearman (volume, temps), Mann-Kendall et
+  # Cox-Stuart (Shapiro-Wilk a loi nulle simulee, huitieme, retiree par #302)
+  # supposent des observations echangeables (z_t, ou r_t, i.i.d. sous H0).
+  # C'est le cas a
   # pi_t constant ; a pi_t variable, z = P epsilon n'est pas echangeable et
   # les r_t ne sont pas identiquement distribues : aucune p exacte n'est
   # attribuee. L'argument p n'est evalue qu'a pi_t constant (evaluation
   # paresseuse : ni Imhof ni enumeration a pi_t variable), et la valeur est
   # alors celle d'avant #70 au bit pres.
   p_ex_si_pi_constant <- function(p) if (isTRUE(pi_constant)) p else NA_real_
-  # Regle R8 (#70) : libelles des huit lignes selon le regime. Jonction de
+  # Regle R8 (#70) : libelles des sept lignes selon le regime. Jonction de
   # deux textes par la fonction unique .engine_joindre() (#264), celle
   # d'add() : " " apres un point final, " ; " sinon, rien si l'un des deux
   # est vide.
@@ -5036,6 +5045,42 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # absente, aucune p-value n'est retenue (#181).
   txt_mc_indispo <- function(debut) paste(debut, "est indisponible sur ces donnees :",
                                           "aucune p-value n'est retenue (ADR 0001)")
+  # Diagnostics poses par usp_tests() (type = "diagnostic" passe a add(),
+  # add() inchangee) : regle R15 (#303, diagnostic par regle) et diagnostics
+  # par decision de #302 (Kolmogorov-Smirnov contre N(0,1), Cramer-von
+  # Mises). Motif Monte-Carlo de la statistique nm, lu au bootstrap (NA si
+  # la p Monte-Carlo est calculee).
+  motif_mc_lu <- function(nm)
+    if (!is.null(boot$motif_mc) && nm %in% names(boot$motif_mc))
+      unname(boot$motif_mc[[nm]]) else NA_character_
+  # Priorite des motifs non applicables : une ligne dont la statistique
+  # observee n'est pas finie (MOTIF_MC_OBS_NON_FINIE) garde son type "test",
+  # et add() la rend non applicable ; aucun diagnostic n'y est pose.
+  stat_definie <- function(nm) is.finite(boot$stats_obs[[nm]]) &&
+    !identical(motif_mc_lu(nm), MOTIF_MC_OBS_NON_FINIE)
+  # Detail d'un tel diagnostic : motif Monte-Carlo en tete quand la p
+  # Monte-Carlo manque (sur une ligne de type test, add() l'y pose ; sur un
+  # diagnostic, elle ne le fait pas : il est pose ici pour ne pas etre
+  # perdu), puis le detail de la ligne, puis la phrase fixe du diagnostic.
+  # Forme selon la classe du motif, comme dans add() (errata du 19/10/2026 de
+  # la specification Fh, section 4.2) : motif de degenerescence -> "<motif> :
+  # aucune p-value retenue (ADR 0001)." et son complement ; autre motif
+  # (replications absentes ou insuffisantes, regime rare) -> "Monte-Carlo
+  # indisponible : <motif>.", la phrase fixe disant seule l'absence de p
+  # retenue. Aucun nombre issu du bootstrap (regle #76).
+  motifs_degeneres_diag <- c(MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_ATOME_HORS_OBS,
+                             MOTIF_MC_CONDITION)
+  detail_diagnostic <- function(nm, detail, phrase) {
+    m <- motif_mc_lu(nm)
+    pre <- if (mc_dispo(nm) || is.na(m)) ""
+           else if (m %in% motifs_degeneres_diag)
+             trimws(paste(c(paste0(m, " : aucune p-value retenue (ADR 0001)."),
+                            .complement_motif_mc(m)), collapse = " "))
+           else paste0("Monte-Carlo indisponible : ", m, ".")
+    # trimws() : un detail peut finir par une espace (paste() d'un element
+    # NULL, branche 1 de Runsr sans p_mc), qui ferait joindre par " ; ".
+    joindre(joindre(pre, trimws(detail)), phrase)
+  }
 
   # p_min des lignes de rangs (Spearman, Mann-Kendall ; #44, reprise, avis
   # d'actuary Q5) : 2/T! n'est la p minimale que sans ex aequo ; avec ex
@@ -5683,39 +5728,38 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   fam <- paste("D. H3 - lognormalite", cite_hyp("iii"))
   H0n <- "les residus standardises suivent une loi normale"
   H1n <- "loi non normale"
+  # p non simulees de H3 a pi_t variable (#302, Q-D1-Fh-4, specification Fh,
+  # section 5.3) : elles sont etablies pour un echantillon i.i.d. normal, que
+  # z = P epsilon ne verifie pas quand pi_t varie. Sans changement de type :
+  # la p Monte-Carlo, calibree sous le modele ajuste, est seule retenue
+  # (#181). A pi_t variable, la phrase fixe est jointe au detail des lignes
+  # Shapiro-Wilk, Shapiro-Francia, Anderson-Darling, Lilliefors, Jarque-Bera,
+  # D'Agostino, Kolmogorov-Smirnov contre N(0,1) et Cramer-von Mises, la ou
+  # la p non simulee est calculee (finie) : une ligne sans p non simulee
+  # (Anderson-Darling et Cramer-von Mises a T < 8) ne le dit pas.
+  txt_h3_pi_variable <- paste("p non simulee etablie pour un echantillon i.i.d. normal, que",
+                              "z = P epsilon ne verifie pas a pi_t variable : restituee pour",
+                              "information, jamais retenue.")
+  detail_h3 <- function(detail, p_as)
+    if (!isTRUE(pi_constant) && is.finite(p_as)) joindre(detail, txt_h3_pi_variable) else detail
   sw <- .shapiro_sur(z)
   add(fam, "Shapiro-Wilk sur residus standardises", "Shapiro & Wilk (1965), Biometrika 52",
       fonction = ".shapiro_sur",
       H0 = H0n, H1 = H1n, stat_nom = "W", stat = sw$stat,
       loi = "aucune forme fermee ; normalisation de Royston (1992)",
-      p_as = sw$p, mc_nom = "SW")
-  p_sw <- p_ex_si_pi_constant(sw_p_loi_nulle(sw$stat, T))
-  add(fam, "Shapiro-Wilk (loi nulle simulee, sans normalisation de Royston)",
-      fonction = ".shapiro_sur",
-      "Shapiro & Wilk (1965) ; loi nulle evaluee par simulation directe",
-      variante = "secondaire",
-      H0 = H0n, H1 = H1n, stat_nom = "W", stat = sw$stat,
-      loi = "loi exacte de W sous normalite, evaluee numeriquement (20 000 tirages)",
-      # Regle R9 amendee (#70) : a pi_t variable, W(P epsilon) n'a pas la loi
-      # de W sous i.i.d. normal ; la ligne est non applicable, la p i.i.d.
-      # n'est ni calculee ni rappelee (W reste dans stat).
-      type = if (isTRUE(pi_constant)) "test" else "non applicable",
-      p_ex = p_sw,
-      detail = if (isTRUE(pi_constant))
-        detail_r7(paste("W etant invariant par translation et changement d'echelle,",
-                        "sa loi nulle ne depend d'aucun parametre : la simulation est",
-                        "independante du modele USP ajuste (ce n'est pas un bootstrap)."), p_sw)
-      # #182 : le renvoi ne nomme la p Monte-Carlo que si elle existe.
-      else paste("loi nulle i.i.d. sans objet a pi_t variable (W(P epsilon) n'a pas",
-                 "la loi de W sous i.i.d. normal) ; voir la ligne Shapiro-Wilk sur",
-                 if (mc_dispo("SW")) "residus standardises (p Monte-Carlo)"
-                 else "residus standardises (p Monte-Carlo indisponible sur ces donnees)"))
+      p_as = sw$p, mc_nom = "SW", detail = detail_h3("", sw$p))
+  # Shapiro-Wilk a loi nulle simulee retiree (#302 ; decision du mainteneur
+  # du 19/10/2026, Q-D1-Fh-4, specification Fh) : meme statistique W que la
+  # ligne ci-dessus ; son apport, valider la normalisation de Royston, est
+  # acquis par la mesure C4 de tests/constats_puissance_t8.R. sw_p_loi_nulle()
+  # et sw_loi_nulle() restent appelees par mw_tests() (SEED_LOI_NULLE_SW et
+  # sa metadonnee inchangees).
   sf <- test_shapiro_francia(z)
   add(fam, "Shapiro-Francia", "Shapiro & Francia (1972), JASA 67 ; Royston (1993)",
       fonction = "test_shapiro_francia",
       H0 = H0n, H1 = H1n, stat_nom = "W'", stat = sf$stat,
       loi = "aucune forme fermee ; normalisation de Royston (1993)",
-      p_as = sf$p, mc_nom = "SF")
+      p_as = sf$p, mc_nom = "SF", detail = detail_h3("", sf$p))
   # Regle R6 (#44) : l'ajustement de Stephens (cas 3 : moyenne et variance
   # estimees, standardisation par zbar et s_z, celle de nortest::ad.test) ne
   # s'applique pas a z, standardise par le MODELE (a pi_t constant, z_t =
@@ -5741,45 +5785,74 @@ usp_tests <- function(fit, boot, alpha = 0.10,
             "re-standardisee), non sur stat")
     else "p non simulee non calculee (T < 8, hors de la plage de l'implementation de reference)",
     if (mc) " ; p_mc sur stat (statistique du catalogue)" else "")
+  p_ad <- if (hors_plage) NA_real_ else ad_p_stephens(a2_std, T)
   add(fam, "Anderson-Darling", "Anderson & Darling (1954), JASA 49",
       fonction = "stat_ad",
       H0 = H0n, H1 = H1n, stat_nom = "A2", stat = boot$stats_obs$AD,
       loi = loi_stephens("AD", hors_plage, mc_dispo("AD")),
       estim_nom = "A2 sur (z - zbar)/s_z", estim = a2_std,
-      p_as = if (hors_plage) NA_real_ else ad_p_stephens(a2_std, T), mc_nom = "AD",
-      detail = paste0("Sensible aux queues. p non simulee : ajustement empirique de",
-                      " D'Agostino & Stephens (1986) sur la statistique re-standardisee.",
-                      txt_plage))
+      p_as = p_ad, mc_nom = "AD",
+      detail = detail_h3(paste0("Sensible aux queues. p non simulee : ajustement empirique de",
+                                " D'Agostino & Stephens (1986) sur la statistique re-standardisee.",
+                                txt_plage), p_ad))
+  # Kolmogorov-Smirnov contre N(0,1) et Cramer-von Mises : diagnostics par
+  # decision (#302 ; decision du mainteneur du 19/10/2026, Q-D1-Fh-4 et
+  # Q-D1-Fh-7, specification Fh, section 5.1 et ses errata), dans tous les
+  # regimes : l'hypothese releve de la ligne Lilliefors (distance de
+  # Kolmogorov sur (z - zbar)/s_z, quand stat_ks() la calcule sur z) et, W2
+  # etant tres correlee a A2, de la ligne Anderson-Darling ; c'est leur type
+  # et leur verdict qui font foi (elles peuvent n'en avoir aucun : diagnostic
+  # #181, test sans p-value). type = "diagnostic" pose ici, add() inchangee
+  # (verdict INFO, ni p retenue, ni nature, ni sens ; p-values conservees
+  # dans leurs colonnes ; inoperant FALSE). Detail : celui de la ligne, puis, a pi_t
+  # variable, la phrase de la section 5.3, puis la phrase fixe du diagnostic
+  # (detail_diagnostic(), motif Monte-Carlo en tete si la p Monte-Carlo
+  # manque). Priorite des motifs non applicables (stat_definie()).
+  txt_diag_cvm <- paste("Restituee en diagnostic par decision (issue #302) : aucun verdict ni",
+                        "p-value retenue ; W2 etant tres correlee a A2, l'hypothese releve de",
+                        "la ligne Anderson-Darling, dont le type et le verdict font foi.")
+  txt_diag_ks <- paste("Restituee en diagnostic par decision (issue #302) : aucun verdict ni",
+                       "p-value retenue ; l'hypothese releve de la ligne Lilliefors (distance",
+                       "de Kolmogorov sur residus re-standardises), dont le type et le",
+                       "verdict font foi.")
+  type_decision <- function(nm) if (stat_definie(nm)) "diagnostic" else "test"
+  detail_decision <- function(nm, detail, phrase)
+    if (stat_definie(nm)) detail_diagnostic(nm, detail, phrase) else detail
+  p_cvm <- if (hors_plage) NA_real_ else cvm_p_stephens(w2_std, T)
   add(fam, "Cramer-von Mises", "Cramer (1928) / von Mises (1928) ; Stephens (1974)",
       fonction = "stat_cvm",
+      type = type_decision("CvM"),
       H0 = H0n, H1 = H1n, stat_nom = "W2", stat = boot$stats_obs$CvM,
       loi = loi_stephens("CvM", hors_plage, mc_dispo("CvM")),
       estim_nom = "W2 sur (z - zbar)/s_z", estim = w2_std,
-      p_as = if (hors_plage) NA_real_ else cvm_p_stephens(w2_std, T), mc_nom = "CvM",
-      detail = trimws(txt_plage))
+      p_as = p_cvm, mc_nom = "CvM",
+      detail = detail_decision("CvM", detail_h3(trimws(txt_plage), p_cvm), txt_diag_cvm))
+  p_ks <- { dd <- boot$stats_obs$KS
+            if (is.finite(dd)) .p_borne(2 * sum((-1)^(0:99) *
+              exp(-2 * (1:100)^2 * T * dd^2))) else NA_real_ }
   add(fam, "Kolmogorov-Smirnov contre N(0,1)", "Kolmogorov (1933) ; Smirnov (1948)",
       fonction = "stat_ks",
+      type = type_decision("KS"),
       H0 = H0n, H1 = H1n, stat_nom = "D", stat = boot$stats_obs$KS,
       variante = "secondaire",
       loi = "loi de Kolmogorov (valable a parametres CONNUS)",
-      p_as = { dd <- boot$stats_obs$KS
-               if (is.finite(dd)) .p_borne(2 * sum((-1)^(0:99) *
-                 exp(-2 * (1:100)^2 * T * dd^2))) else NA_real_ },
+      p_as = p_ks,
       mc_nom = "KS",
-      detail = paste("Les residus sont standardises par le MODELE, non par la moyenne",
-                     "et l'ecart-type empiriques : la loi de Kolmogorov reste tres",
-                     "conservatrice (simulation : 0 rejet sur 3 000 a 5 %).",
-                     "Voir le test de Lilliefors ci-dessus."))
+      detail = detail_decision("KS", detail_h3(paste(
+        "Les residus sont standardises par le MODELE, non par la moyenne",
+        "et l'ecart-type empiriques : la loi de Kolmogorov reste tres",
+        "conservatrice (simulation : 0 rejet sur 3 000 a 5 %)."), p_ks), txt_diag_ks))
   Dl <- stat_lilliefors(z)
+  p_li <- lillie_p(Dl, T)
   add(fam, "Lilliefors (KS a parametres estimes)",
       fonction = "stat_lilliefors",
       "Lilliefors (1967), JASA 62 ; p-value : Dallal & Wilkinson (1986)",
       H0 = H0n, H1 = H1n, stat_nom = "D", stat = Dl,
       loi = "loi de Lilliefors (moyenne et ecart-type estimes)",
-      p_as = lillie_p(Dl, T), mc_nom = "Lillie",
-      detail = paste("Distinct du KS contre N(0,1) : la loi de reference tient compte",
-                     "de l'estimation des parametres. Appliquer la loi de Kolmogorov",
-                     "dans ce cas rend le test extremement conservateur."))
+      p_as = p_li, mc_nom = "Lillie",
+      detail = detail_h3(paste("Distinct du KS contre N(0,1) : la loi de reference tient compte",
+                               "de l'estimation des parametres. Appliquer la loi de Kolmogorov",
+                               "dans ce cas rend le test extremement conservateur."), p_li))
   jb <- test_jarque_bera(z)
   add(fam, "Jarque-Bera", "Jarque & Bera (1980, 1987)",
       fonction = "test_jarque_bera",
@@ -5794,23 +5867,24 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       # 4.3.3) : aplatissement 1,84047, a 1,4e-5 en relatif de la frontiere
       # d'arrondi de %.3f. Les valeurs restent dans estim des lignes
       # D'Agostino (asymetrie) et Anscombe-Glynn (aplatissement).
-      detail = sprintf(paste("asymetrie et aplatissement : estimations des lignes",
-                             "D'Agostino et Anscombe-Glynn (aplatissement borne",
-                             "mecaniquement par ~T = %d)"), T))
+      detail = detail_h3(sprintf(paste("asymetrie et aplatissement : estimations des lignes",
+                                       "D'Agostino et Anscombe-Glynn (aplatissement borne",
+                                       "mecaniquement par ~T = %d)"), T), jb$p))
   ds <- test_dagostino_skew(z)
   if (is.finite(ds$stat))
     add(fam, "Asymetrie (D'Agostino, T >= 8)", "D'Agostino (1970), Biometrika 57",
         fonction = "test_dagostino_skew",
         H0 = "coefficient d'asymetrie de la population nul", H1 = "asymetrie non nulle",
         stat_nom = "Z", stat = ds$stat, loi = "N(0,1) approx. (transformation de Johnson SU)",
-        estim_nom = "asymetrie", estim = jb$skew, p_as = ds$p, mc_nom = "DAgo")
+        estim_nom = "asymetrie", estim = jb$skew, p_as = ds$p, mc_nom = "DAgo",
+        detail = detail_h3("", ds$p))
   else
     add(fam, "Asymetrie (D'Agostino, T >= 8)", "D'Agostino (1970), Biometrika 57",
         fonction = "test_dagostino_skew",
         type = "non applicable", estim_nom = "asymetrie", estim = jb$skew,
         detail = sprintf("T = %d < 8 : transformation normalisante non definie", T))
   ak <- test_anscombe_kurt(z)
-  if (is.finite(ak$stat))
+  if (is.finite(ak$stat) && isTRUE(pi_constant))
     add(fam, "Aplatissement (Anscombe-Glynn, T >= 20)", "Anscombe & Glynn (1983), Biometrika 70",
         fonction = "test_anscombe_kurt",
         H0 = "aplatissement de la population egal a 3", H1 = "aplatissement different de 3",
@@ -5819,6 +5893,23 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         # Anscombe-Glynn : approximation de la loi a n fini sous i.i.d.
         # normal (moments exacts), non loi limite (#120).
         nature_as = NATURE_APPROX_N_FINI)
+  else if (is.finite(ak$stat))
+    # Extension de la regle R9 amendee (#302, Q-D1-Fh-4, specification Fh,
+    # section 5.3) : a pi_t variable, z = P epsilon n'est pas i.i.d. ; la
+    # ligne n'a pas de p Monte-Carlo, et sa p d'approximation sous i.i.d.
+    # normal serait retenue sans justification : la ligne est non applicable,
+    # comme l'etait Shapiro-Wilk a loi nulle simulee dans ce regime. La p
+    # n'est ni rappelee ni retenue (Z reste dans stat, l'aplatissement dans
+    # estim). Le motif T < 20 prime (branche suivante).
+    add(fam, "Aplatissement (Anscombe-Glynn, T >= 20)", "Anscombe & Glynn (1983), Biometrika 70",
+        fonction = "test_anscombe_kurt",
+        type = "non applicable",
+        H0 = "aplatissement de la population egal a 3", H1 = "aplatissement different de 3",
+        stat_nom = "Z", stat = ak$stat, loi = "N(0,1) approx. (Wilson-Hilferty)",
+        estim_nom = "aplatissement", estim = jb$kurt,
+        detail = paste("approximation a n fini etablie pour un echantillon i.i.d. normal,",
+                       "sans objet a pi_t variable (z = P epsilon non i.i.d.) ; aucune",
+                       "p-value de Monte-Carlo prevue : test non applicable"))
   else
     add(fam, "Aplatissement (Anscombe-Glynn, T >= 20)", "Anscombe & Glynn (1983), Biometrika 70",
         fonction = "test_anscombe_kurt",
@@ -5839,13 +5930,11 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       detail = detail_r7(paste("Statistique calculee sur residus CENTRES. Les bornes d_L/d_U,",
                                "etablies pour des residus MCO, ne sont pas utilisees : la loi",
                                "exacte est obtenue par integration numerique d'Imhof."), p_dw))
-  lb1 <- stats::Box.test(z, lag = 1, type = "Ljung-Box")
-  add(fam, "Ljung-Box (retard 1)", "Ljung & Box (1978), Biometrika 65",
-      fonction = "usp_tests",
-      base = "z",
-      H0 = "rho_1 = 0", H1 = "autocorrelation au retard 1",
-      stat_nom = "Q", stat = unname(lb1$statistic), loi = "chi2(1) asymptotique",
-      p_as = lb1$p.value, mc_nom = "LB1")
+  # Ljung-Box (retard 1) sur residus standardises retiree dans tous les
+  # regimes (#302, Q-D1-Fh-4 et Q-D1-Fh-9), entree LB1 du catalogue retiree
+  # avec la ligne : un seul test d'autocorrelation d'ordre 1 par base, DW
+  # bilateral (le plus puissant contre rho > 0) ; LB1, fonction de |rho_1| et
+  # qui a T = 8 rejette surtout vers rho < 0, n'est pas un doublon de DW.
   if (T >= 8) {
     lb2 <- stats::Box.test(z, lag = 2, type = "Ljung-Box")
     add(fam, "Ljung-Box (retard 2)", "Ljung & Box (1978), Biometrika 65",
@@ -5853,13 +5942,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         H0 = "rho_1 = rho_2 = 0", H1 = "autocorrelation jusqu'au retard 2",
         stat_nom = "Q", stat = unname(lb2$statistic), loi = "chi2(2) asymptotique",
         p_as = lb2$p.value, mc_nom = "LB2")
-    bp2 <- stats::Box.test(z, lag = 2, type = "Box-Pierce")
-    add(fam, "Box-Pierce (retard 2)", "Box & Pierce (1970), JASA 65",
-        fonction = "usp_tests",
-        H0 = "rho_1 = rho_2 = 0", H1 = "autocorrelation jusqu'au retard 2",
-        variante = "secondaire",
-        stat_nom = "Q", stat = unname(bp2$statistic), loi = "chi2(2) asymptotique",
-        p_as = bp2$p.value, mc_nom = "BP2")
+    # Box-Pierce (retard 2) retiree (#302, Q-D1-Fh-4), entree BP2 du
+    # catalogue retiree avec la ligne : memes rho_1 et rho_2 que la ligne
+    # Ljung-Box (retard 2), seule ligne portmanteau au retard 2 conservee.
   }
   # p_min (#44, regle R1) sur la loi de R aux effectifs (n1, n2) observes ;
   # un seul cote de la mediane represente : loi non definie, ligne non
@@ -6148,36 +6233,13 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   txt_r15 <- paste("Restituee en diagnostic (regle R15) : aucun verdict ni p-value",
                    "retenue ; l'hypothese releve de la ligne homologue sur residus",
                    "standardises, dont le type et le verdict font foi.")
-  motif_mc_r <- function(nm)
-    if (!is.null(boot$motif_mc) && nm %in% names(boot$motif_mc))
-      unname(boot$motif_mc[[nm]]) else NA_character_
-  r15 <- function(nm) isTRUE(pi_constant) && is.finite(boot$stats_obs[[nm]]) &&
-    !identical(motif_mc_r(nm), MOTIF_MC_OBS_NON_FINIE)
+  r15 <- function(nm) isTRUE(pi_constant) && stat_definie(nm)
   type_r15 <- function(nm) if (r15(nm)) "diagnostic" else "test"
-  # Detail d'une ligne de R15 : motif Monte-Carlo en tete quand la p
-  # Monte-Carlo manque (sur une ligne de type test, add() l'y pose ; sur un
-  # diagnostic, elle ne le fait pas : il est pose ici pour ne pas etre
-  # perdu), puis le detail de la ligne, puis la phrase fixe de R15. Forme
-  # selon la classe du motif, comme dans add() (errata du 19/10/2026 de la
-  # specification Fh, section 4.2) : motif de degenerescence -> "<motif> :
-  # aucune p-value retenue (ADR 0001)." et son complement ; autre motif
-  # (replications absentes ou insuffisantes, regime rare) -> "Monte-Carlo
-  # indisponible : <motif>.", la phrase de R15 disant seule l'absence de p
-  # retenue. Aucun nombre issu du bootstrap (regle #76).
-  motifs_degeneres_r15 <- c(MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_ATOME_HORS_OBS,
-                            MOTIF_MC_CONDITION)
-  detail_r15 <- function(nm, detail) {
-    if (!r15(nm)) return(detail)
-    m <- motif_mc_r(nm)
-    pre <- if (mc_dispo(nm) || is.na(m)) ""
-           else if (m %in% motifs_degeneres_r15)
-             trimws(paste(c(paste0(m, " : aucune p-value retenue (ADR 0001)."),
-                            .complement_motif_mc(m)), collapse = " "))
-           else paste0("Monte-Carlo indisponible : ", m, ".")
-    # trimws() : un detail peut finir par une espace (paste() d'un element
-    # NULL, branche 1 de Runsr sans p_mc), qui ferait joindre par " ; ".
-    joindre(joindre(pre, trimws(detail)), txt_r15)
-  }
+  # Detail d'une ligne de R15 : detail_diagnostic() (motif Monte-Carlo en
+  # tete quand la p Monte-Carlo manque, selon sa classe ; detail de la
+  # ligne ; phrase fixe de R15 en fin).
+  detail_r15 <- function(nm, detail)
+    if (!r15(nm)) detail else detail_diagnostic(nm, detail, txt_r15)
   # Ligne Runsr (issue #29, decision M8) : p-value exacte sous la double
   # condition de usp_runsr_p_exacte(), calculee une fois ; le champ loi et le
   # detail en suivent le regime (note_r n'est pas concatenee pour cette
@@ -11599,6 +11661,11 @@ run_engine <- function(xt, yt,
         # loi nulle de Shapiro-Wilk. Places apres les champs existants, avant
         # les champs d'execution. La graine de l'enveloppe du QQ-plot est
         # retiree (issue #47) : l'enveloppe depend de seed et de B.
+        # seed_loi_nulle_sw : sans emploi dans la branche lognormale depuis
+        # #302 (ligne Shapiro-Wilk a loi nulle simulee retiree ; seule
+        # mw_tests() appelle encore sw_p_loi_nulle()) ; champ conserve, valeur
+        # inchangee, pour la stabilite de la structure de res$metadata (et de
+        # son affichage).
         list(generateur = as.list(ENGINE_RNG_KIND),
              seed_loi_nulle_sw = SEED_LOI_NULLE_SW),
         # Bareme saisi (issue #93) : place apres les champs de l'issue #37, en

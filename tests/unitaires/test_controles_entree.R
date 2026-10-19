@@ -2401,7 +2401,7 @@ res189 <- list(premium = lancer189(x189, y189, "premium"),
 neutre189 <- avec_injection("usp_pertes_constantes", function(...) FALSE,
                             list(premium = lancer189(x189, y189, "premium"),
                                  reserve1 = lancer189(x189, y189, "reserve1")))
-verifier("run_engine, jeu de l'issue (y = 70 x 8), premium et reserve1 : constante, TOST, pente, Fisher et R2 non applicables au motif pertes constantes (INFO, p, stat, estim NA, inoperant FALSE) ; 44 autres lignes (LB1r retiree, #303), parametre_final et sigma_USP identical a l'execution au predicat neutralise, Spearman ratio / volume identique hors detail et sans renvoi (#189, U2 ; #215)",
+verifier("run_engine, jeu de l'issue (y = 70 x 8), premium et reserve1 : constante, TOST, pente, Fisher et R2 non applicables au motif pertes constantes (INFO, p, stat, estim NA, inoperant FALSE) ; 41 autres lignes (LB1r retiree, #303 ; trois lignes retirees, #302), parametre_final et sigma_USP identical a l'execution au predicat neutralise, Spearman ratio / volume identique hors detail et sans renvoi (#189, U2 ; #215)",
          {
            pb <- character(0)
            for (m in names(res189)) {
@@ -2411,7 +2411,7 @@ verifier("run_engine, jeu de l'issue (y = 70 x 8), premium et reserve1 : constan
              if (length(p)) pb <- c(pb, paste(m, p))
              noms <- vapply(r$tests, function(l) l$test, ""); noms0 <- vapply(r0$tests, function(l) l$test, "")
              autres <- !noms %in% c(LIGNES_REG189, NOM_SV215)
-             if (!identical(noms, noms0) || sum(autres) != 44L) pb <- c(pb, paste(m, "liste des lignes"))
+             if (!identical(noms, noms0) || sum(autres) != 41L) pb <- c(pb, paste(m, "liste des lignes"))
              else if (!identical(r$tests[autres], r0$tests[autres])) pb <- c(pb, paste(m, "autres lignes"))
              else if (!sv_sans_renvoi215(ligne153(r$tests, NOM_SV215), ligne153(r0$tests, NOM_SV215)))
                pb <- c(pb, paste(m, "ligne Spearman ratio / volume"))

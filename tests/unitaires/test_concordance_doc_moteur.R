@@ -722,8 +722,12 @@ verifier("Issue #114 : registre au moteur -- declaration hors_jeux perimee et li
          .a_motif(.er2, "fiche:b", "hors_jeux perimee") && .a_motif(.er2, "fiche:a, fiche:d", "plusieurs fiches"))
 .labs <- vapply(cc$REGISTRE_RUBRIQUE7, `[[`, character(1), "label")
 .noms <- unlist(lapply(cc$REGISTRE_RUBRIQUE7, `[[`, "tests"))
-verifier("Issue #114 : registre REGISTRE_RUBRIQUE7 -- 49 fiches (53 decidees le 27/09/2026, moins fiche:fisher-global, diagnostic depuis #169, mw:m5sw, mw:m5li, diagnostics depuis #245, et fiche:ljung-box-ratios-bruts, ligne retiree par #303), labels et noms uniques",
-         length(.labs) == 49L && !"fiche:ljung-box-ratios-bruts" %in% .labs && !anyDuplicated(.labs) && !anyDuplicated(.noms) &&
+verifier("Issue #114 : registre REGISTRE_RUBRIQUE7 -- 46 fiches (53 decidees le 27/09/2026, moins fiche:fisher-global, diagnostic depuis #169, mw:m5sw, mw:m5li, diagnostics depuis #245, fiche:ljung-box-ratios-bruts, ligne retiree par #303, fiche:shapiro-wilk-sans-royston, ligne retiree, fiche:cramer-von-mises et fiche:kolmogorov-smirnov, diagnostics par decision depuis #302), labels et noms uniques",
+         length(.labs) == 46L &&
+           !any(c("fiche:ljung-box-ratios-bruts", "fiche:shapiro-wilk-sans-royston", "fiche:cramer-von-mises",
+                  "fiche:kolmogorov-smirnov") %in% .labs) &&
+           !any(c("Ljung-Box (retard 1)", "Box-Pierce (retard 2)") %in% .noms) &&
+           !anyDuplicated(.labs) && !anyDuplicated(.noms) &&
            all(grepl("^(fiche|mw):[a-z0-9-]+$", .labs)) && sum(startsWith(.labs, "mw:")) == 14L)
 # T245-7 : les deux fiches M5 (diagnostics depuis #245) ne sont plus au
 # registre, ni par leur label ni par le nom de leur ligne.
@@ -874,6 +878,28 @@ verifier("Issue #121 : registre -- Cox-Stuart t_positif = 10, Anscombe-Glynn t_p
          identical(vapply(.hj, `[[`, "", "label"), c("fiche:cox-stuart", "fiche:anscombe-glynn-aplatissement")) &&
            identical(vapply(.hj, function(r) as.integer(r$t_positif), 1L), c(10L, 20L)) &&
            grepl("au plus tot a T = 10", cc$MOTIF_COX_STUART_T8, fixed = TRUE))
+# #302 : Anscombe-Glynn n'est de type test qu'a pi_t constant ; son entree
+# hors_jeux est verifiee sur le jeu synthetique a volumes constants
+# (volumes_constants = TRUE), les lignes de ce jeu etant distinguees par la
+# colonne volumes_constants de lignes_synth (FALSE si elle manque).
+.ag <- Filter(function(r) r$label == "fiche:anscombe-glynn-aplatissement", cc$REGISTRE_RUBRIQUE7)
+.ls_302 <- data.frame(T = c(20L, 20L), test = "Aplatissement (Anscombe-Glynn, T >= 20)",
+                      type = c("non applicable", "test"), volumes_constants = c(FALSE, TRUE),
+                      stringsAsFactors = FALSE)
+verifier("Issue #302 : entree Anscombe-Glynn a volumes constants ; verification positive sur le seul jeu a volumes constants",
+         isTRUE(.ag[[1]]$volumes_constants) && grepl("a pi_t constant seulement", cc$MOTIF_ANSCOMBE_T8, fixed = TRUE) &&
+           !nrow(cc$verifier_hors_jeux_positifs(.ls_302, .ag)) &&
+           .a_motif(cc$verifier_hors_jeux_positifs(.ls_302[1, ], .ag), "fiche:anscombe-glynn-aplatissement",
+                    "T = 20 non execute") &&
+           .a_motif(cc$verifier_hors_jeux_positifs(transform(.ls_302, type = "non applicable"), .ag),
+                    "fiche:anscombe-glynn-aplatissement", "infirmee.*T = 20$") &&
+           # Sans colonne volumes_constants, toutes les lignes sont lues FALSE.
+           !nrow(cc$verifier_hors_jeux_positifs(.ls_121, .reg_121[1])))
+verifier("Issue #302 : jeu_synthetique(T, volumes_constants = TRUE) -- volumes constants, memes ratios",
+         with(cc$jeu_synthetique(20, volumes_constants = TRUE), all(x == 100) && length(y) == 20L) &&
+           isTRUE(all.equal(with(cc$jeu_synthetique(20, TRUE), y / x), with(cc$jeu_synthetique(20), y / x),
+                            tolerance = 1e-14)) &&
+           identical(cc$jeu_synthetique(10), cc$jeu_synthetique(10, volumes_constants = FALSE)))
 verifier("Issue #121 : jeu_synthetique() deterministe, de taille T, ratios deux a deux distincts",
          identical(cc$jeu_synthetique(10), cc$jeu_synthetique(10)) && length(cc$jeu_synthetique(20)$y) == 20L &&
            !anyDuplicated(with(cc$jeu_synthetique(20), y / x)))
@@ -892,6 +918,20 @@ verifier("Issue #121 : jeu_synthetique() deterministe, de taille T, ratios deux 
 verifier("Issue #121 : moteur -- Cox-Stuart de type test sur le jeu synthetique T = 10 (declaration confirmee), pas a T = 9 (infirmee)",
          !nrow(cc$verifier_hors_jeux_positifs(.lignes_synth, .cox)) &&
            .a_motif(cc$verifier_hors_jeux_positifs(.lignes_synth, .cox9), "fiche:cox-stuart", "infirmee.*T = 9$"))
+# #302 : moteur execute a T = 20 -- Anscombe-Glynn de type test sur le jeu
+# synthetique a volumes constants (pi_t constant), non applicable sur le jeu
+# a volumes croissants (pi_t variable, delta estime interieur).
+.ag_synth <- do.call(rbind, lapply(c(FALSE, TRUE), function(vc) {
+  j <- cc$jeu_synthetique(20L, volumes_constants = vc)
+  r <- run_engine(xt = j$x, yt = j$y, methode = "premium", segment = 1, annexe = "II", B = B_MIN_USAGE,
+                  nature_donnees = "brutes")
+  data.frame(T = 20L, test = vapply(r$tests, function(t) t$test, ""), type = vapply(r$tests, function(t) t$type, ""),
+             volumes_constants = vc, stringsAsFactors = FALSE)
+}))
+verifier("Issue #302 : moteur -- Anscombe-Glynn de type test sur le jeu synthetique T = 20 a volumes constants, non applicable a volumes croissants",
+         !nrow(cc$verifier_hors_jeux_positifs(.ag_synth, .ag)) &&
+           identical(.ag_synth$type[.ag_synth$test == "Aplatissement (Anscombe-Glynn, T >= 20)"],
+                     c("non applicable", "test")))
 
 # Reprise (audit de R6) : meme regle dans cles_mc_index() -- une rangee de
 # donnees avec \multicolumn intermediaire n'est plus prise pour un

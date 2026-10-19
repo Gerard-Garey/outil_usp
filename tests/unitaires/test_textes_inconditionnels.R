@@ -6,7 +6,8 @@
 #  section 4, tests U182-1 a U182-7 ; decision D1-4) : un texte ne nomme une p
 #  que si elle existe, et ne qualifie une loi d'exacte que dans le regime ou
 #  elle l'est (#128, point c). Deux branches par texte :
-#    1. detail de Shapiro-Wilk a loi nulle simulee a pi_t variable ;
+#    1. detail de Shapiro-Wilk a loi nulle simulee a pi_t variable (ligne
+#       retiree par #302 : le test U182-1 en controle l'absence) ;
 #    2. detail des deux lignes du rapport de vraisemblance sur delta ;
 #    3. loi de Cox-Stuart (quatre regimes : pi_t constant ou variable, avec ou
 #       sans ex aequo) ;
@@ -50,20 +51,19 @@ verifier("U182 jeux : delta J1 = 1, J1e = 1 ; J2 et J2e interieurs",
            J2$f$delta < 1 - TOL_DELTA_BORD && usp_ajuster(xi182, y2e)$delta < 1 - TOL_DELTA_BORD)
 
 ## --- U182-1 : Shapiro-Wilk a loi nulle simulee ---------------------------------
+# Ligne retiree dans tous les regimes par #302 (decision du mainteneur du
+# 19/10/2026, Q-D1-Fh-4) : son renvoi conditionnel n'a plus d'objet. Reste la
+# ligne Shapiro-Wilk sur residus standardises, en diagnostic quand sa p
+# Monte-Carlo manque (#181).
 N_SWN <- "Shapiro-Wilk (loi nulle simulee, sans normalisation de Royston)"
-DEB_SWN <- paste("loi nulle i.i.d. sans objet a pi_t variable (W(P epsilon) n'a pas la loi",
-                 "de W sous i.i.d. normal) ; voir la ligne Shapiro-Wilk sur residus standardises")
-verifier("U182-1 J2, p_mc de SW presente : detail inchange (p Monte-Carlo)",
-         is.finite(J2$b$p_mc[["SW"]]) &&
-           identical(lig182(J2$t, N_SWN)$detail, paste(DEB_SWN, "(p Monte-Carlo)")))
-verifier("U182-1 J2, p_mc de SW absente (motif pose) : renvoi sans p Monte-Carlo",
+verifier("U182-1 (#302) : ligne Shapiro-Wilk a loi nulle simulee absente (J1 et J2)",
+         !any(vapply(c(J1$t, J2$t), function(l) identical(l$test, N_SWN), logical(1))))
+verifier("U182-1 J2, p_mc de SW absente (motif pose) : ligne Shapiro-Wilk sur residus standardises en diagnostic",
          {
            b <- J2$b; b$p_mc["SW"] <- NA_real_; b$err_mc["SW"] <- NA_real_
            b$motif_mc["SW"] <- MOTIF_MC_REPLIC_INSUFFISANTES
            t <- usp_tests(J2$f, b, methode = "premium")
-           identical(lig182(t, N_SWN)$detail,
-                     paste(DEB_SWN, "(p Monte-Carlo indisponible sur ces donnees)")) &&
-             identical(lig182(t, "Shapiro-Wilk sur residus standardises")$type, "diagnostic")
+           identical(lig182(t, "Shapiro-Wilk sur residus standardises")$type, "diagnostic")
          })
 
 ## --- U182-2 : rapport de vraisemblance sur delta ------------------------------

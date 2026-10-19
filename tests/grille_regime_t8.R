@@ -44,7 +44,7 @@
 #      gamma_ref, delta_i), flux unique sous engine_sous_graine(20820000 +
 #      100 p + i) (matrice M x 8 tiree d'abord, ligne par ligne, avant tout
 #      calcul) ; reajustement usp_ajuster_rapide(x, y, delta_i, gamma_ref)
-#      (celui du bootstrap) ; regime ; 33 statistiques par
+#      (celui du bootstrap) ; regime ; 31 statistiques par
 #      .stats_bootstrapables() (celles du bootstrap). Un reajustement ou une
 #      evaluation en erreur ecarte le tirage (compte) ; une statistique non
 #      finie est ignoree pour cette statistique seule (comme engine_p_mc()).
@@ -55,7 +55,7 @@
 #      FIT0_J3 synthetique du par. 3.2), soit les jeux de #221, #175 et de
 #      l'etape 6 ; ajustement usp_ajuster() et refus de #188, #227
 #      (usp_valider_ajustement()), comme run_engine() ; delta*_b, r_b et
-#      S_obs,b (33 statistiques, .mc_evaluer() sur le contexte observe) ;
+#      S_obs,b (31 statistiques, .mc_evaluer() sur le contexte observe) ;
 #    - queues interpolees : hi = P(S >= S_obs) et lo = P(S <= S_obs),
 #      queues empiriques de la loi du noeud ; interpolation lineaire en delta
 #      entre les deux noeuds encadrants (delta*_b interieur), noeud exact aux
@@ -101,8 +101,8 @@
 #        A (nu) : meme mu_t et s_t, epsilon = (chi2_nu - nu) / sqrt(2 nu).
 #
 #  Validation (specification, par. 4.2), avant toute prediction :
-#    (g1) ecarts predit - mesure : 99 cellules de T1 bis de #221 par jeu et
-#         par seuil (33 statistiques x 3 regimes, J1 et J2), 33 cellules de T1
+#    (g1) ecarts predit - mesure : 93 cellules de T1 bis de #221 par jeu et
+#         par seuil (31 statistiques x 3 regimes, J1 et J2), 31 cellules de T1
 #         par jeu et par seuil, cellules V1 et V3a de #175 (J2 : 13 cellules ;
 #         J1 : bord 0, et l'interieur a titre descriptif), aux deux seuils.
 #         Taux mesures recalcules depuis les valeurs brutes de #221 (p_mc,
@@ -188,8 +188,8 @@
 #  0,10, toutes replications, pi de V1.
 #
 #  Controles d'integrite (code de sortie 1 si l'un echoue ; --ecrire refuse) :
-#    (b)  33 statistiques au catalogue USP_CATALOGUE_MC ; F_T et F_R en
-#         partition des 33 ; F_8 et les ensembles cibles dans F_R ;
+#    (b)  31 statistiques au catalogue USP_CATALOGUE_MC ; F_T et F_R en
+#         partition des 31 ; F_8 et les ensembles cibles dans F_R ;
 #    (c)  jeux de J1 et J2 identiques (identical()) a ceux de l'expression
 #         YSIM de #72 (tests/taux_franchissement_reperes.R, lue par parse(),
 #         liste blanche de noms, environnement isole, comme
@@ -345,9 +345,18 @@ X3 <- c(10, 10.5, 95, 92, 11, 11.5, 98, 90)
 DELTA3 <- 0.60; BETA3 <- 0.70; SIGMA3 <- 0.10; GAMMA3 <- log(SIGMA3 / BETA3)
 # gamma_ref de J1 et J2 cites par la specification (T0 de #221), controle (m).
 GAMMA_SPEC <- c(J1 = -1.93433, J2 = -2.31999)
-# Familles (par. 1) : F_T, douze temoins ; F_8, huit statistiques de #175 ;
-# F_R = catalogue moins F_T.
-F_T <- c("AD", "CvM", "KS", "SW", "Lillie", "Intercept", "CUSUM", "LB1", "Runs", "Runsr", "Smirnov", "CoxStuart")
+# Familles (par. 1) : F_8, huit statistiques de #175 ; F_R = catalogue moins
+# F_T (BP2, retiree par #302, en etait).
+# F_T : douze temoins au protocole approuve de #229 (texte de C5 cite sans
+# modification, controle (t)) ; onze depuis le retrait de LB1 (#302). Une
+# reexecution sur ce moteur evalue C5 sur onze temoins (Holm sur onze), C1a
+# sur 31 statistiques, C1b, C2b et C4a sur F_R de 20 : c'est une mesure
+# nouvelle, non comparable cellule a cellule aux tableaux versionnes de #229
+# (12 temoins, 34 statistiques). LB1 etait le temoin dont l'independance au
+# regime etait deja nuancee par T1 bis de #221 (0,134 au bord 1, specification
+# de #229, par. 1) ; DW, dans F_R, reste la statistique d'autocorrelation
+# d'ordre 1 de la mesure.
+F_T <- c("AD", "CvM", "KS", "SW", "Lillie", "Intercept", "CUSUM", "Runs", "Runsr", "Smirnov", "CoxStuart")
 F_8 <- c("BP", "BP79", "GQ", "BF", "Grubbs", "Grubbsr", "DAgo", "JB")
 # Scenarios de P (par. 6) : code, rang s, famille, parametre. Decision A2
 # (09/10/2026, sous delegation, annotation de la specification) : A8 (nu = 8)
@@ -504,9 +513,9 @@ if (OPT_ECRIRE) {
 
 # --- Textes du critere et de la regle A2 (specification, par. 2.1-2.2, 4.4) ---
 # Reportes sans modification (controle (t)).
-# Texte cite du protocole approuve (34 statistiques, F_R de 22) ; depuis #303
-# le catalogue en compte 33 et F_R 21, effectifs lus dans le catalogue par le
-# code ; texte non modifie (controle (t)).
+# Texte cite du protocole approuve (34 statistiques, F_R de 22, F_T de 12) ;
+# depuis #303 et #302 le catalogue en compte 31, F_R 20 et F_T 11, effectifs
+# lus dans le catalogue par le code ; texte non modifie (controle (t)).
 TEXTE_CRITERE_229 <- c(
   "### 2.1 Grandeurs",
   "",
@@ -581,9 +590,10 @@ controle <- function(ok, libelle) {
 liste_b <- function(v) if (length(v)) paste0(" : r\u00e9plication(s) ", paste(utils::head(unique(v), 20), collapse = ", "),
                                               if (length(unique(v)) > 20) ", ..." else "") else ""
 
-# (b) Catalogue et familles (33 statistiques et F_R de 21 depuis le retrait
-# de LB1r, #303).
-controle(NS == 33L && all(F_T %in% STATS) && length(F_R) == 21L && !length(intersect(F_T, F_R)) &&
+# (b) Catalogue et familles (31 statistiques, F_T de 11 et F_R de 20 depuis
+# les retraits de LB1r, #303, et de LB1 et BP2, #302).
+controle(NS == 31L && all(F_T %in% STATS) && length(F_T) == 11L && length(F_R) == 20L &&
+           !length(intersect(F_T, F_R)) &&
            setequal(union(F_T, F_R), STATS) && all(F_8 %in% F_R) && all(unlist(CIBLES) %in% F_R),
          sprintf("(b) %d statistiques au catalogue USP_CATALOGUE_MC ; F_T (%d) et F_R (%d) en partition ; F_8 et les ensembles cibles de P dans F_R",
                  NS, length(F_T), length(F_R)))
