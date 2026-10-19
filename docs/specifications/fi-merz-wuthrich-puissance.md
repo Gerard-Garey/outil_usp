@@ -364,6 +364,7 @@ Les numéros cités par #300 (14314, 14320-14324, 5765) ont glissé : ce sont le
 ## 5. #289 : contrôle des ensembles figés (S-Fi-4)
 
 1. **À l'observé** : sur les 5 000 triangles du plan de #206 (graines de #206), les trois éléments de `.mw_ensembles_figes(aj)` sont vides, K vaut 5 pour l'ordonnée et 4 pour la courbure. Coût de quelques minutes.
+   - *Annotation du 19/10/2026 (session principale, d'après `actuary` et `audit`, #289)* : inexact pour `degeneres`, qui vaut {6} sur tous les triangles (colonne j = 6, un seul facteur, n_j = 1, hors des seuils n_min des deux tests ; déjà traitée ainsi au commit de #206) ; seuls les deux ensembles de #270 et #273 sont vides. Constaté au T1 de `docs/tableaux/20261019-issue289-ensembles-figes-mw.md` ; sans effet sur les niveaux.
 2. **Réplications** : **50 triangles par loi (N, E, A), soit 150**, b = 1 à 50 de chaque loi, B = 999 aux graines de #206, environ 150 000 réplications. Catalogue réduit injecté {Origine, Courbure, sonde}. La sonde compte, par réplication :
    - les colonnes à moins de 2 (ordonnée) ou 3 (courbure) valeurs distinctes, par le prédicat de #290 ;
    - les statistiques NA par cause : `lm()` qui écarte une colonne, ou colonne dégénérée.
