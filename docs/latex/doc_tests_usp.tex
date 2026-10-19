@@ -7404,8 +7404,8 @@ $\mathrm{CV}(r) = 0{,}151$~: l'écart maximal entre $\ln r_t - \overline{\ln r}$
 et $(r_t - \bar r)/\bar r$ vaut $0{,}0143$, à comparer à
 $\mathrm{CV}(r)^2 = 0{,}0228$~;
 $\operatorname{cor}(z, u) = 0{,}998$ et $\operatorname{cor}(z, \ln r) = 1$ à la
-précision machine. Les six lignes sur base $u_t$ et leurs six homologues sur
-$z_t$ y portent le même verdict \code{OK}~; pour les cinq paires autres que le
+précision machine. Les cinq lignes sur base $u_t$ et leurs homologues sur
+$z_t$ y portent le même verdict \code{OK}~; pour les quatre paires autres que le
 test des suites, les p-values retenues diffèrent d'au plus $0{,}091$ (sup-F,
 $0{,}840$ contre $0{,}931$), l'écart le plus faible étant celui de
 Durbin--Watson ($0{,}0011$). Le second ordre vaut pour la série~; sa propagation à la
@@ -10267,8 +10267,9 @@ p-value exacte n'est attribuée, même lorsque les deux conditions tiennent (cas
 sous le modèle ajusté avec ses $\hat\pi_t$~: lorsque $\hat\pi_t$ varie, les $r_t$ sont
 indépendants mais non identiquement distribués, les arrangements de signes ne sont plus
 équiprobables et la loi combinatoire n'est qu'une approximation, sans borne d'erreur connue à
-$T = 8$. Les cinq autres lignes de la base « ratios bruts » restent en Monte-Carlo dans tous les
-régimes. Mesuré (méthode prime, $B = 999$, graine 20260831)~: sur le jeu de contrôle
+$T = 8$. Les quatre autres lignes de la base « ratios bruts » ont leur p-value de Monte-Carlo dans
+tous les régimes~; elle n'est retenue qu'à $\hat\pi_t$ variable, ces lignes étant restituées en
+diagnostic à $\hat\pi_t$ constant (règle~R15). Mesuré (méthode prime, $B = 999$, graine 20260831)~: sur le jeu de contrôle
 ($\hat\delta = 1$), p-value exacte $52/70 = 0{,}743$ sur les deux lignes, \code{p\_mc} $= 0{,}762$
 sur $z_t$ et $0{,}768$ sur $u_t$~; sur ses cinq premières années ($\hat\delta = 0$, $\hat\pi_t$
 variable), aucune p-value exacte n'est attribuée, ni sur $z_t$ (depuis l'issue~\#70) ni sur $u_t$,
