@@ -729,25 +729,23 @@ DECOMPTES <- list(
        motif = paste0(N_, " lignes d'usp_tests\\(\\) sont restitu\u00e9es .{1,3}non applicable"),
        champs = "non applicable volumes constants"),
   # Issue #111 : provenance directe par fonction, lue dans le champ fonction
-  # de res$tests (grandeur "fonction <nom>" de grandeurs_moteur()). Les cinq
-  # phrases qui nomment une seule fonction sont comparees a son nombre de
-  # lignes ; celle qui en nomme cinq ("2 entrees chacune") a leur compte
-  # commun, NA (donc ECART) s'ils different.
+  # de res$tests (grandeur "fonction <nom>" de grandeurs_moteur()). Les trois
+  # phrases qui nomment une seule fonction (test_lm_complet()) sont comparees
+  # a son nombre de lignes ; celle qui en nomme cinq ("2 entrees chacune") a
+  # leur compte commun, NA (donc ECART) s'ils different. Les deux phrases sur
+  # .shapiro_sur() (graphe H3-H4, tableau des portees) sont retirees le
+  # 19/10/2026 (#302) : depuis le retrait de la loi nulle simulee de
+  # Shapiro-Wilk, .shapiro_sur() n'alimente plus qu'une entree (une fonction,
+  # une entree), la phrase "alimente deux entrees" n'a plus d'objet.
   list(id = "provenance : test_lm_complet() (index des fonctions)", methode = c("premium", "reserve1"),
        motif = paste0("test_lm_complet\\(\\) & LN & [^&]{0,160}?", N_, " entr\u00e9es issues d'un seul appel"),
        champs = "fonction test_lm_complet"),
   list(id = "provenance : test_lm_complet() (graphe H1)", methode = c("premium", "reserve1"),
        motif = paste0("test_lm_complet\\(\\) alimente ", N_, " entr\u00e9es de la table des tests"),
        champs = "fonction test_lm_complet"),
-  list(id = "provenance : .shapiro_sur() (graphe H3-H4)", methode = c("premium", "reserve1"),
-       motif = paste0("\\.shapiro_sur\\(\\) alimente ", N_, " entr\u00e9es"),
-       champs = "fonction .shapiro_sur"),
   list(id = "provenance : test_lm_complet() (tableau des portees)", methode = c("premium", "reserve1"),
        motif = paste0("test_lm_complet\\(\\) \\(", N_, " entr\u00e9es\\)"),
        champs = "fonction test_lm_complet"),
-  list(id = "provenance : .shapiro_sur() (tableau des portees)", methode = c("premium", "reserve1"),
-       motif = paste0("\\.shapiro_sur\\(\\) \\(", N_, " entr\u00e9es\\)"),
-       champs = "fonction .shapiro_sur"),
   list(id = "provenance : stat_dw() ... test_grubbs() (tableau des portees)", methode = c("premium", "reserve1"),
        motif = paste0("stat_dw\\(\\), test_runs\\(\\), stat_supF\\(\\), stat_cusum\\(\\) et test_grubbs\\(\\) \\(",
                       N_, " entr\u00e9es chacune"),

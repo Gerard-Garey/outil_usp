@@ -220,9 +220,11 @@ verifier("grandeurs_moteur : lignes de base r hors test des suites, et parmi ell
 # risque residuel ecrit ; les six autres sont des phrases du registre.
 # Issue #232 : celle de .fisher_combine() devient une phrase verifiee du
 # registre (graphe d'appels du moteur) ; reste le noeud (q4) de M3.
+# Issue #302 : les deux phrases sur .shapiro_sur() sortent du registre
+# (une fonction, une entree) : quatre phrases directes de provenance.
 verifier("Exemptions de provenance : une restante (noeud du schema), motif ecrivant le risque residuel (#111, #232)",
          sum(vapply(cc$EXEMPTES_DECOMPTES, function(e) grepl("risque residuel", e$motif, fixed = TRUE), logical(1))) == 1L &&
-           sum(startsWith(vapply(cc$DECOMPTES, `[[`, "", "id"), "provenance : ")) == 6L &&
+           sum(startsWith(vapply(cc$DECOMPTES, `[[`, "", "id"), "provenance : ")) == 4L &&
            sum(startsWith(vapply(cc$DECOMPTES, `[[`, "", "id"), "provenance indirecte : ")) == 1L &&
            !any(grepl("fisher", vapply(cc$EXEMPTES_DECOMPTES, `[[`, "", "contexte"), ignore.case = TRUE)))
 # Issue #232 : appelants directs lus dans le graphe d'appels (all.names du
@@ -341,21 +343,21 @@ verifier("grandeurs_moteur (#111) : lignes par fonction, compte commun des fonct
 .doc_p <- c("\\code{test\\_lm\\_complet()} & LN & Student sur la constante, Student sur la",
             "pente, Fisher global, $R^2$~: \\textbf{trois entr\u00e9es issues d'un seul appel} \\\\",
             "\\caption{Hypoth\u00e8se H1. \\code{test\\_lm\\_complet()} alimente \\textbf{trois}",
-            "entr\u00e9es de la table des tests} ; \\code{.shapiro\\_sur()} alimente \\emph{deux} entr\u00e9es.",
+            "entr\u00e9es de la table des tests}.",
             "Une fonction, plusieurs tests & \\code{test\\_lm\\_complet()} (3 entr\u00e9es),",
-            "\\code{.shapiro\\_sur()} (2 entr\u00e9es)~; \\code{stat\\_dw()}, \\code{test\\_runs()},",
+            "\\code{stat\\_dw()}, \\code{test\\_runs()},",
             "\\code{stat\\_supF()}, \\code{stat\\_cusum()} et \\code{test\\_grubbs()} (2 entr\u00e9es",
             "chacune, sur $z_t$)")
-.g_p <- list(premium = c("fonction test_lm_complet" = 3, "fonction .shapiro_sur" = 2,
+.g_p <- list(premium = c("fonction test_lm_complet" = 3,
                          "fonctions z et u (compte commun)" = 2))
 .g_p$reserve1 <- .g_p$premium
-verifier("Provenance (#111) : six phrases trouvees et justes -> ok ; compte commun NA -> ECART ; 'quatre' pour 3 -> ECART",
+verifier("Provenance (#111) : quatre phrases trouvees et justes -> ok ; compte commun NA -> ECART ; 'quatre' pour 3 -> ECART",
          {
            v <- cc$verifier_decomptes(.doc_p, .g_p, .reg_p)
            g_na <- .g_p; g_na$premium["fonctions z et u (compte commun)"] <- NA_real_
            v_na <- cc$verifier_decomptes(.doc_p, g_na, .reg_p)
            v4 <- cc$verifier_decomptes(sub("(3 entr", "(4 entr", .doc_p, fixed = TRUE), .g_p, .reg_p)
-           length(.reg_p) == 6L && nrow(v) == 12L && all(v$statut == "ok") &&
+           length(.reg_p) == 4L && nrow(v) == 8L && all(v$statut == "ok") &&
              identical(v_na$statut[v_na$grandeur == "premium : fonctions z et u (compte commun)"], "ECART") &&
              identical(sort(unique(v4$statut[grepl("tableau des portees", v4$assertion) &
                                                grepl("test_lm_complet", v4$assertion)])), "ECART")
