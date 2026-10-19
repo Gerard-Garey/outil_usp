@@ -22,6 +22,16 @@
 #  (o)  --combiner --sortie : ecriture par lot, une erreur en cours
 #       d'ecriture (file.copy() rendu defaillant par un profil R) ne laisse
 #       aucun fichier.
+#  Constats de #309 (tests/puissance_mw_t8.R, sans calcul de mesure) :
+#  (p)  --lister : une ligne "nom<TAB>arguments" par sortie, nom et arguments
+#       concordants (volet, loi ou plan, cellule, plage --b exacte, sans
+#       correspondance de prefixe), chaque (plan, cellule, b) ou (loi, b)
+#       couvert une fois et une seule, aux effectifs R du plan complet ;
+#  (q)  favorise_xy() (K-300, second complement du 19/10/2026) sur comptes
+#       construits : a CEL4 ET a CEL6 au moins un seuil en faveur de X, aucun
+#       des quatre couples en faveur de Y ;
+#  (r)  eval_k0x() (K0-x) : test exact de Fisher bilateral, seuil 0,025 par
+#       cellule, sur comptes construits (175 / 500 : p = 0,0559, tenu).
 #  Les tests qui demandent bash (>= 4.3, wait -n) sont sautes, avec
 #  message, s'il manque.
 ###############################################################################
@@ -355,6 +365,96 @@ tryCatch({
   } else {
     cat("  [saute] scripts de tests/outillage/ : bash >= 4.3 introuvable\n")
   }
+
+  ## --- (p) puissance_mw_t8.R : plan des tranches (--lister), format du lanceur ----
+  # Sans calcul : --lister n'ecrit rien et rend une ligne "nom<TAB>arguments"
+  # par sortie (format de tests/outillage/lancer_tranches.sh). Plan complet de
+  # #309 : volet A N 2 000, E 2 000, A 1 000 ; volet B P1 (13 cellules), P2
+  # (6), P3 (3) aux R de la specification ; cinq oracles ; tranches de 250
+  # triangles au plus. Pour chaque ligne, les arguments sont reconstruits a
+  # partir du NOM (volet, loi ou plan, cellule, plage b1:b2) et compares par
+  # identical() (une correspondance de prefixe, 1:250 contre 1:2500, echoue).
+  SCRIPT_309 <- file.path(.tests, "puissance_mw_t8.R")
+  pl309 <- suppressWarnings(system2(RSCRIPT, c(shQuote(SCRIPT_309), "--lister"), stdout = TRUE, stderr = TRUE))
+  nm309 <- sub("\t.*$", "", pl309); ar309 <- sub("^[^\t]*\t", "", pl309)
+  verifier("(p) --lister : une ligne \"nom<TAB>arguments\" par sortie, noms uniques et de la forme attendue (va-, vb-, ora-), code 0",
+           is.null(attr(pl309, "status")) && all(grepl("\t", pl309)) && !anyDuplicated(nm309) &&
+             all(grepl("^(va-[NEA]-[0-9]{4}-[0-9]{4}|vb-P[123]-[A-Za-z0-9]+-[0-9]{4}-[0-9]{4}|ora-(A-[NEA]|B-P[23]))\\.txt$", nm309)))
+  args_attendus <- function(nm) {
+    m <- regmatches(nm, regexec("^va-([NEA])-([0-9]{4})-([0-9]{4})\\.txt$", nm))[[1]]
+    if (length(m)) return(sprintf("--volet A --loi %s --b %d:%d", m[2], as.integer(m[3]), as.integer(m[4])))
+    m <- regmatches(nm, regexec("^vb-(P[123])-([A-Za-z0-9]+)-([0-9]{4})-([0-9]{4})\\.txt$", nm))[[1]]
+    if (length(m)) return(sprintf("--volet B --plan %s --cellule %s --b %d:%d", m[2], m[3], as.integer(m[4]), as.integer(m[5])))
+    m <- regmatches(nm, regexec("^ora-A-([NEA])\\.txt$", nm))[[1]]
+    if (length(m)) return(sprintf("--oracle --volet A --loi %s", m[2]))
+    m <- regmatches(nm, regexec("^ora-B-(P[23])\\.txt$", nm))[[1]]
+    if (length(m)) return(sprintf("--oracle --volet B --plan %s", m[2]))
+    NA_character_
+  }
+  verifier("(p) --lister : arguments identiques (identical(), plage --b exacte) a ceux reconstruits du nom, pour chacune des lignes",
+           identical(unname(ar309), unname(vapply(nm309, args_attendus, ""))))
+  # Couverture : jeu (loi du volet A, ou plan.cellule du volet B) -> effectif R attendu de la specification.
+  R_attendu <- c(`A-N` = 2000L, `A-E` = 2000L, `A-A` = 1000L,
+                 `P1-H0` = 1000L, `P1-CST20` = 1000L, `P1-EXP2` = 1000L, `P1-CEL4` = 1000L, `P1-CEL6` = 1000L,
+                 `P1-CST10` = 500L, `P1-EXP0` = 500L, `P1-DFI` = 500L, `P1-CAL7` = 500L, `P1-CAL4` = 500L, `P1-DCAL` = 500L,
+                 `P1-LIG` = 500L, `P1-CELx4` = 500L,
+                 `P2-H0` = 1000L, `P2-CST20` = 1000L, `P2-EXP2` = 1000L, `P2-CST10` = 500L, `P2-EXP0` = 500L, `P2-DFI` = 500L,
+                 `P3-H0` = 1000L, `P3-CST20` = 1000L, `P3-DFI` = 500L)
+  tr309 <- grepl("^v[ab]-", nm309)
+  jeu309 <- vapply(nm309[tr309], function(nm) {
+    m <- regmatches(nm, regexec("^v[ab]-(.*)-[0-9]{4}-[0-9]{4}\\.txt$", nm))[[1]][2]
+    if (startsWith(nm, "va-")) paste0("A-", m) else m }, "")
+  bb309 <- do.call(rbind, lapply(regmatches(nm309[tr309], regexec("-([0-9]{4})-([0-9]{4})\\.txt$", nm309[tr309])), function(m) as.integer(m[2:3])))
+  couv309 <- tapply(seq_along(jeu309), jeu309, function(i) sort(unlist(lapply(i, function(k) seq.int(bb309[k, 1], bb309[k, 2])))))
+  verifier("(p) --lister : tranches de 250 triangles au plus ; chaque (plan, cellule, b) et (loi, b) couvert une fois et une seule, 1..R aux effectifs de la specification (25 jeux, 5 000 + 16 000 triangles) ; cinq oracles",
+           all(bb309[, 2] - bb309[, 1] + 1L <= 250L) && setequal(names(couv309), names(R_attendu)) &&
+             all(vapply(names(R_attendu), function(k) identical(as.integer(couv309[[k]]), seq_len(R_attendu[[k]])), logical(1))) &&
+             sum(R_attendu[startsWith(names(R_attendu), "A-")]) == 5000L && sum(R_attendu[!startsWith(names(R_attendu), "A-")]) == 16000L &&
+             sum(grepl("^ora-", nm309)) == 5L)
+
+  ## --- (q) et (r) puissance_mw_t8.R : lectures de K-300 et de K0-x sur des comptes construits ---
+  # Definitions extraites du script par parse() (jamais execute) : favorise_xy()
+  # (second complement du 19/10/2026 : a CEL4 ET a CEL6 au moins un seuil donne
+  # un McNemar exact < 0,05 en faveur de X, et aucun des quatre couples ne le
+  # donne en faveur de Y) et eval_k0x() (Fisher bilateral, seuil 0,025 par cellule).
+  E309 <- extraire_defs(SCRIPT_309, c("SEUILS", "IA", "CLASSES", "D_IC", "PUBLIE_K0X", "N_PUBLIE_K0X", "SEUIL_K0X", "num", "fmt_p", "ic_cp",
+                                      "txt_ic", "txt_lec", "lecture", "cellule", "mcnemar", "mc_paire", "adm_de", "dec", "couples_paire",
+                                      "favorise_xy", "eval_k0x"))
+  # n triangles ; p_x, p_y : p_mc de X et de Y ; deux groupes discordants : k_x triangles ou seul X rejette a a (p = 0,03),
+  # k_y ou seul Y rejette, le reste a 0,5.
+  jeu_q <- function(n, k_x, k_y, p_rej = 0.03) {
+    px <- py <- rep(0.5, n); px[seq_len(k_x)] <- p_rej; py[k_x + seq_len(k_y)] <- p_rej
+    data.frame(statut = "admis", `p:MinP4` = px, `p:MinP` = py, check.names = FALSE, stringsAsFactors = FALSE)
+  }
+  ds309 <- function(c4_10, c4_05, c6_10, c6_05) {   # chaque argument : c(k_x, k_y)
+    mk <- function(a, b) { x <- jeu_q(120, a[1], a[2], 0.03); y <- jeu_q(120, b[1], b[2], 0.08)
+      # seuil 0,10 : p = 0,08 rejette a 0,10 et pas a 0,05 ; seuil 0,05 : p = 0,03 rejette aux deux
+      rbind(y[, c("statut", "p:MinP4", "p:MinP")], x[, c("statut", "p:MinP4", "p:MinP")]) }
+    list(tr = list(`B-P1.CEL4` = mk(c4_05, c4_10), `B-P1.CEL6` = mk(c6_05, c6_10)))
+  }
+  fav309 <- E309$favorise_xy
+  environment(fav309) <- E309
+  # MinP4 favorise a CEL4 aux deux seuils et a CEL6 au seuil 0,10 : favorise
+  verifier("(q) favorise_xy : X favorise a CEL4 et a CEL6 (au moins un seuil chacune), Y jamais : TRUE",
+           isTRUE(fav309(ds309(c(30, 2), c(30, 2), c(30, 2), c(0, 0)), "MinP4", "MinP")$ok))
+  # Scenario de l'audit : X favorise a CEL4 au seuil 0,10 seulement, rien a CEL6 : FALSE
+  verifier("(q) favorise_xy : X favorise a CEL4 / 0,10 seulement (rien a CEL6) : FALSE (MinP retenu)",
+           isFALSE(fav309(ds309(c(30, 2), c(0, 0), c(0, 0), c(0, 0)), "MinP4", "MinP")$ok))
+  # Un couple en faveur de Y suffit a empecher : FALSE
+  # X reste favorise a CEL4 (0,10 et 0,05) et a CEL6 (0,10 : 62 contre 32) ; seul le couple CEL6 / 0,05 (2 contre 30) est en faveur de Y.
+  verifier("(q) favorise_xy : sans le couple en faveur de Y, X est favorise (TRUE) ; avec le seul couple CEL6 / 0,05 en faveur de Y : FALSE",
+           isTRUE(fav309(ds309(c(30, 2), c(30, 2), c(60, 2), c(0, 0)), "MinP4", "MinP")$ok) &&
+             isFALSE(fav309(ds309(c(30, 2), c(30, 2), c(60, 2), c(2, 30)), "MinP4", "MinP")$ok))
+  # k0x : 175 / 500 contre 401 / 1000 : Fisher p = 0,0559 >= 0,025, tenu ; 120 / 500 : p << 0,025, non tenu
+  k0x309 <- E309$eval_k0x
+  environment(k0x309) <- E309
+  d_k0x <- function(k7, k4) { m <- function(k) data.frame(statut = "admis", `p:Calendrier` = c(rep(0.05, k), rep(0.5, 500 - k)), check.names = FALSE, stringsAsFactors = FALSE)
+    list(tr = list(`B-P1.CAL7` = m(k7), `B-P1.CAL4` = m(k4))) }
+  r1 <- k0x309(d_k0x(175L, 160L)); r2 <- k0x309(d_k0x(120L, 160L))
+  verifier("(r) eval_k0x : CAL7 175 / 500 et CAL4 160 / 500 : Fisher p = 0,0559 et 1, K0-x tenu",
+           isTRUE(r1$ok) && abs(r1$r[[1]]$p - 0.0559) < 5e-5 && abs(r1$r[[2]]$p - 1) < 1e-12)
+  verifier("(r) eval_k0x : CAL7 120 / 500 : p < 0,025, K0-x non tenu",
+           isFALSE(r2$ok) && r2$r[[1]]$p < 0.025)
 
 }, finally = nettoyer_tmp())
 
