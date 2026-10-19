@@ -8984,6 +8984,11 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
 .mw_stat_non_definie <- function(ex)
   list(stat = NA_real_, p = NA_real_, K = NA_integer_, detail = data.frame(),
        exclues = ex$colonnes, eligibles = ex$eligibles)
+# Meme retour, avec l'element "non_identifiables" (ordonnee a l'origine, #273 ;
+# courbure, #269) : retour NA des deux verifications a ensemble fige (#290).
+.mw_stat_non_definie_ni <- function(ex, ni) {
+  r0 <- .mw_stat_non_definie(ex); r0$non_identifiables <- ni; r0
+}
 
 # Libelle de base, suivi de la phrase d'exclusion s'il y en a une : sans
 # colonne exclue, le libelle est exactement le libelle de base.
@@ -9009,13 +9014,26 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
 # valeurs distinctes que lm() ecarte quand meme (dispersion relative des
 # cumules < 1e-7 environ, tolerance de qr()) n'est pas dans l'ensemble et
 # rend la statistique NA (mw_test_ordonnee_origine()).
-.mw_colonnes_origine_non_identifiables <- function(aj, j_degeneres = NULL) {
+.mw_colonnes_origine_non_identifiables <- function(aj, j_degeneres = NULL)
+  .mw_colonnes_non_identifiables(aj, j_degeneres, 3L, 2L)
+
+# Predicat unique des colonnes non identifiables de M1 (#290) : j = 0..J-1
+# tels que n_j = I - j >= n_min, j hors de l'ensemble des colonnes exclues
+# (.mw_j_exclues(aj, j_degeneres)), colonne non degeneree
+# (.mw_colonne_degeneree()) et moins de k_distinct valeurs distinctes de
+# C(0..I-j-1, j) (egalite exacte, unique()). Appele par
+# .mw_colonnes_origine_non_identifiables() (n_min = 3, k_distinct = 2 : la
+# constante et la pente ne sont pas separables) et par
+# .mw_colonnes_courbure_non_identifiables() (n_min = 4, k_distinct = 3 : le
+# terme quadratique n'est pas identifiable). Vecteur d'entiers croissants,
+# eventuellement vide.
+.mw_colonnes_non_identifiables <- function(aj, j_degeneres, n_min, k_distinct) {
   I <- aj$I; jd <- .mw_j_exclues(aj, j_degeneres)
   j <- 0:(aj$J - 1L)
   garder <- vapply(j, function(k) {
     idx <- 0:(I - k - 1)
-    length(idx) >= 3 && !(k %in% jd) && !.mw_colonne_degeneree(aj, k) &&
-      length(unique(aj$tri[idx + 1, k + 1])) < 2
+    length(idx) >= n_min && !(k %in% jd) && !.mw_colonne_degeneree(aj, k) &&
+      length(unique(aj$tri[idx + 1, k + 1])) < k_distinct
   }, logical(1))
   as.integer(j[garder])
 }
@@ -9051,16 +9069,15 @@ mw_test_ordonnee_origine <- function(aj, j_degeneres = NULL, j_non_identifiables
   # #239, #250).
   blocs <- list()
   ex <- .mw_exclues_vide()
-  # Ensembles figes : memes calculs que .mw_ensembles_figes(), restreints aux
-  # deux ensembles lus ici (le calcul de l'ensemble de la courbure n'est pas
-  # refait a chaque replication).
-  jd <- .mw_j_exclues(aj, j_degeneres)
-  jni <- if (is.null(j_non_identifiables))
-    .mw_colonnes_origine_non_identifiables(aj, jd) else as.integer(j_non_identifiables)
+  # Ensembles figes par .mw_ensembles_figes() (#290), ensemble de la courbure
+  # impose vide : son calcul n'est pas fait ici (il n'est pas lu).
+  figes <- .mw_ensembles_figes(aj, j_degeneres, integer(0), j_non_identifiables)
+  jd <- figes$degeneres
+  jni <- figes$origine_non_identifiables
   # Element "non_identifiables" (#273) : forme avant la boucle, porte par
   # tous les retours (.mw_table_non_identifiables()).
   ni <- .mw_table_non_identifiables(jni, I, J, jd, 3L)
-  na_stat <- function() { r0 <- .mw_stat_non_definie(ex); r0$non_identifiables <- ni; r0 }
+  na_stat <- function() .mw_stat_non_definie_ni(ex, ni)
   for (j in 0:(J - 1)) {
     idx <- 0:(I - j - 1)
     if (length(idx) < 3) next                    # 2 parametres + 1 ddl minimum
@@ -9311,16 +9328,8 @@ mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
 # (#56) : la statistique observee et celle des replications combinent les
 # memes colonnes (meme K). Ensemble distinct de celui des colonnes
 # degenerees : les autres verifications de M1 n'en excluent pas la colonne.
-.mw_colonnes_courbure_non_identifiables <- function(aj, j_degeneres = NULL) {
-  I <- aj$I; jd <- .mw_j_exclues(aj, j_degeneres)
-  j <- 0:(aj$J - 1L)
-  garder <- vapply(j, function(k) {
-    idx <- 0:(I - k - 1)
-    length(idx) >= 4 && !(k %in% jd) && !.mw_colonne_degeneree(aj, k) &&
-      length(unique(aj$tri[idx + 1, k + 1])) < 3
-  }, logical(1))
-  as.integer(j[garder])
-}
+.mw_colonnes_courbure_non_identifiables <- function(aj, j_degeneres = NULL)
+  .mw_colonnes_non_identifiables(aj, j_degeneres, 4L, 3L)
 
 # Ensembles de colonnes figes a l'observe de Merz-Wuthrich (#278) : objet
 # unique, construit UNE FOIS sur le triangle observe (.run_engine_mw(), ou
@@ -9341,10 +9350,11 @@ mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
 # qui le lit le recoit en argument, de sa fermeture du catalogue et de
 # mw_tests() ; mw_bootstrap(), le contexte et .mw_stats() n'en changent pas.
 # j_degeneres, j_non_identifiables, j_origine_non_identifiables : ensembles
-# imposes (NULL : calcules sur aj, apres degeneres), pour les appels qui
-# figent un ensemble et laissent les autres au calcul sur aj
-# (mw_test_courbure(), mw_test_ordonnee_origine(), tests unitaires). Le
-# calcul de chaque ensemble est saute quand il est impose.
+# imposes (NULL : calcules sur aj, apres degeneres). mw_test_courbure() et
+# mw_test_ordonnee_origine() y resolvent leurs ensembles par defaut et
+# imposent integer(0) a l'ensemble qu'ils ne lisent pas (#290) ; les tests
+# unitaires y figent aussi un ensemble. Le calcul de chaque ensemble est
+# saute quand il est impose.
 .mw_ensembles_figes <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL,
                                 j_origine_non_identifiables = NULL) {
   jd <- .mw_j_exclues(aj, j_degeneres)
@@ -9366,12 +9376,12 @@ mw_test_courbure <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL)
   # #239, #250).
   blocs <- list()
   ex <- .mw_exclues_vide()
-  # Ensembles figes : memes calculs que .mw_ensembles_figes(), restreints aux
-  # deux ensembles lus ici (le calcul de l'ensemble de l'ordonnee a l'origine,
-  # #273, n'est pas fait a chaque replication).
-  jd <- .mw_j_exclues(aj, j_degeneres)
-  jni <- if (is.null(j_non_identifiables))
-    .mw_colonnes_courbure_non_identifiables(aj, jd) else as.integer(j_non_identifiables)
+  # Ensembles figes par .mw_ensembles_figes() (#290), ensemble de l'ordonnee a
+  # l'origine (#273) impose vide : son calcul n'est pas fait ici (il n'est pas
+  # lu).
+  figes <- .mw_ensembles_figes(aj, j_degeneres, j_non_identifiables, integer(0))
+  jd <- figes$degeneres
+  jni <- figes$non_identifiables
   # Element "non_identifiables" (#269) : colonnes de l'ensemble fige que la
   # boucle ecarte (n_j >= 4, hors des colonnes exclues), en j croissant,
   # forme avant la boucle et porte tel quel par tous les retours
@@ -9380,7 +9390,7 @@ mw_test_courbure <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL)
   # parcourues avant l'arret (.mw_stat_non_definie(), commun aux
   # verifications de M1).
   ni <- .mw_table_non_identifiables(jni, I, J, jd, 4L)
-  na_stat <- function() { r0 <- .mw_stat_non_definie(ex); r0$non_identifiables <- ni; r0 }
+  na_stat <- function() .mw_stat_non_definie_ni(ex, ni)
   for (j in 0:(J - 1)) {
     idx <- 0:(I - j - 1)
     if (length(idx) < 4) next                    # 3 parametres + 1 ddl
