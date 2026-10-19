@@ -188,29 +188,32 @@ verifier("Inventaire C2 : $6$ lignes, quatre-vingts lignes, quatre-vingt-dix-neu
                      "deux derni\u00e8res entr\u00e9es", "trois autres m\u00eames tests")) &&
            identical(unname(vapply(sub(" .*$", "", .inv_c2$formulation), cc$nombre_fr, numeric(1))),
                      c(6, 80, 99, 5, 2, 3)))
-.id_r <- "prime : lignes de base r hors suites (restent en Monte-Carlo)"
+.id_r <- "prime : lignes de base r hors suites (p-value de Monte-Carlo)"
 .reg_r <- Filter(function(a) identical(a$id, .id_r), cc$DECOMPTES)
-.doc_r <- c("Les six autres lignes de la base \u00ab ratios bruts \u00bb restent en Monte-Carlo dans tous les",
-            "r\u00e9gimes.")
-.g_r <- list(premium = c("base r hors suites" = 5, "base r hors suites Monte-Carlo" = 5))
+.doc_r <- c("Les six autres lignes de la base \u00ab ratios bruts \u00bb ont leur p-value de Monte-Carlo dans tous les",
+            "r\u00e9gimes ; elle n'est retenue qu'\u00e0 $\\hat\\pi_t$ variable.")
+.g_r <- list(premium = c("base r hors suites" = 5, "base r hors suites avec p_mc" = 5))
 .v_r <- cc$verifier_decomptes(.doc_r, .g_r, .reg_r)
 .cl_r <- cc$classer_formulations(.doc_r, .v_r, list())
 verifier("C2 : decompte faux apres un qualificatif intercale (six autres lignes, mesure 5) -> ECART sur les deux grandeurs, formulation verifiee",
          length(.reg_r) == 1L && identical(.v_r$annonce, c(6, 6)) && identical(.v_r$statut, c("ECART", "ECART")) &&
            identical(.cl_r$formulations$formulation, "six autres lignes") &&
            identical(.cl_r$formulations$statut, "verifiee"))
-verifier("C2 : meme phrase juste (cinq), une ligne de base r hors suites sortie de Monte-Carlo -> ECART sur la seconde grandeur",
+verifier("C2 : meme phrase juste (cinq), une ligne de base r hors suites sans p_mc -> ECART sur la seconde grandeur",
          identical(cc$verifier_decomptes(sub("six", "cinq", .doc_r),
-                                         list(premium = c("base r hors suites" = 5, "base r hors suites Monte-Carlo" = 4)),
+                                         list(premium = c("base r hors suites" = 5, "base r hors suites avec p_mc" = 4)),
                                          .reg_r)$statut, c("ok", "ECART")))
-verifier("grandeurs_moteur : lignes de base r hors test des suites, et parmi elles en Monte-Carlo",
+# La grandeur compte les p_mc non NA, pas la nature de la p retenue : une
+# ligne restituee en diagnostic (R15, #303) garde sa p_mc et n'a pas de nature_p.
+verifier("grandeurs_moteur : lignes de base r hors test des suites, et parmi elles celles qui ont une p_mc (retenue ou non)",
          {
-           lr <- list(list(base = "r", test = "Test des suites sur ratios bruts", nature_p = "exacte"),
-                      list(base = "r", test = "Grubbs sur ratios bruts", nature_p = "Monte-Carlo (bootstrap parametrique)"),
-                      list(base = "r", test = "sup-F sur ratios bruts", nature_p = "asymptotique (x)"),
-                      list(base = "z", test = "Grubbs", nature_p = "Monte-Carlo (bootstrap parametrique)"))
+           lr <- list(list(base = "r", test = "Test des suites sur ratios bruts", nature_p = "exacte", p_mc = 0.5),
+                      list(base = "r", test = "Grubbs sur ratios bruts", nature_p = "Monte-Carlo (bootstrap parametrique)", p_mc = 0.1),
+                      list(base = "r", test = "sup-F sur ratios bruts", nature_p = NA_character_, p_mc = 0.2),
+                      list(base = "r", test = "DW sur ratios bruts", nature_p = "asymptotique (x)", p_mc = NA_real_),
+                      list(base = "z", test = "Grubbs", nature_p = "Monte-Carlo (bootstrap parametrique)", p_mc = 0.3))
            g <- cc$grandeurs_moteur(lr)
-           isTRUE(all(unname(g[c("base r hors suites", "base r hors suites Monte-Carlo")]) == c(2, 1)))
+           isTRUE(all(unname(g[c("base r hors suites", "base r hors suites avec p_mc")]) == c(3, 2)))
          })
 # Issue #111 (decision du mainteneur, critere "5 + 1 + 2") : des huit
 # exemptions de provenance, deux restaient (provenance indirecte), avec leur
@@ -557,8 +560,8 @@ verifier("Issue #91 : --strict echoue (code 1) sur la cle USP Intercept injectee
 .tex_75 <- readLines(file.path(.racine, "docs", "latex", "doc_tests_usp.tex"), warn = FALSE, encoding = "UTF-8")
 .k75 <- grep("Les treize tests d'hypoth\u00e8se reposent tous", .tex_75, fixed = TRUE)
 .tex_mutant <- tempfile(fileext = ".tex")
-.k75r <- grep("Les cinq autres lignes de la base", .tex_75, fixed = TRUE)
-writeLines(c(sub("Les cinq autres lignes de la base", "Les six autres lignes de la base",
+.k75r <- grep("Les quatre autres lignes de la base", .tex_75, fixed = TRUE)
+writeLines(c(sub("Les quatre autres lignes de la base", "Les six autres lignes de la base",
                  sub("Les treize tests d'hypoth\u00e8se reposent tous", "Les douze tests d'hypoth\u00e8se reposent tous",
                      .tex_75, fixed = TRUE), fixed = TRUE),
              "Mutant : on compte 51~lignes de tests pour la prime.",

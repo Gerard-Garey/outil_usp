@@ -654,9 +654,13 @@ DECOMPTES <- list(
   list(id = "prime : lignes sur la base u_t", methode = "premium",
        motif = paste0(N_, " lignes de la table auditable sont calcul\u00e9es sur la base"),
        champs = "base r"),
+  # Depuis #303 (regle R15, Ljung-Box (1) retire de la base r), la base r a une
+  # ligne de moins que la base z : la phrase ne compte plus que les lignes sur
+  # u_t ("leurs homologues", sans nombre), le nombre de lignes de la base z
+  # n'etant plus egal a celui de la base r.
   list(id = "prime : lignes sur u_t et homologues sur z_t", methode = "premium",
-       motif = paste0("les ", N_, " lignes sur base u_t et leurs ", N_, " homologues sur"),
-       champs = c("base r", "base z")),
+       motif = paste0("les ", N_, " lignes sur base u_t et leurs homologues sur"),
+       champs = "base r"),
   list(id = "prime : lignes sur u_t (restent exactes)", methode = "premium",
        motif = paste0("les ", N_, " lignes restent exactes"), champs = "base r"),
   list(id = "prime : lignes sur u_t (detail CONTROLE SANS OBJET ICI)", methode = "premium",
@@ -701,16 +705,21 @@ DECOMPTES <- list(
   list(id = "Merz-Wuthrich : tests reposant sur le bootstrap", methode = "reserve2",
        motif = paste0("Les (?=", N_, ")", N_, " tests d'hypoth\u00e8se reposent tous sur le bootstrap"),
        champs = c("nature Monte-Carlo", "type test")),
-  # Formulation a qualificatif intercale ("cinq autres lignes"), inventoriee
+  # Formulation a qualificatif intercale ("quatre autres lignes"), inventoriee
   # depuis l'audit de #75 (C2). Le meme nombre est capture deux fois (groupe
   # dans une assertion avant, puis groupe ordinaire, a la meme position) :
   # le nombre de lignes de base r hors test des suites, et le nombre de ces
-  # lignes dont la p-value retenue est de Monte-Carlo ; une ligne de base r
-  # ajoutee ou sortie de Monte-Carlo fait diverger l'un des deux.
-  list(id = "prime : lignes de base r hors suites (restent en Monte-Carlo)", methode = "premium",
+  # lignes qui ont une p-value de Monte-Carlo (p_mc non NA, quelle que soit la
+  # p-value retenue). Depuis #303 (regle R15), la phrase dit que ces lignes
+  # "ont leur p-value de Monte-Carlo dans tous les regimes" et qu'elle n'est
+  # retenue qu'a pi_t variable : a pi_t constant elles sont des diagnostics,
+  # sans nature_p (la grandeur "base r hors suites Monte-Carlo", fondee sur
+  # nature_p, vaut alors 0 et ne mesure plus la phrase). Une ligne de base r
+  # ajoutee, ou sans p_mc, fait diverger l'un des deux nombres.
+  list(id = "prime : lignes de base r hors suites (p-value de Monte-Carlo)", methode = "premium",
        motif = paste0("Les (?=", N_, ")", N_, " autres lignes de la base .{1,3}ratios bruts.{1,3} ",
-                      "restent en Monte-Carlo"),
-       champs = c("base r hors suites", "base r hors suites Monte-Carlo")),
+                      "ont leur p-value de Monte-Carlo"),
+       champs = c("base r hors suites", "base r hors suites avec p_mc")),
   # Issue #59 : lignes restituees non applicables a volumes constants,
   # mesurees sur une execution supplementaire (volumes x_t = 100 constants,
   # pertes y_t de tests/donnees/donnees_ln.csv ; cles premium_vc et
@@ -999,8 +1008,8 @@ grandeurs_moteur <- function(tests, controles = NULL, appelants = NULL) {
          "variante secondaire" = sum(champ("variante") %in% "secondaire"),
          "lignes du test des suites" = sum(startsWith(nom, "Test des suites") %in% TRUE),
          "base r hors suites" = sum(base %in% "r" & !startsWith(nom, "Test des suites") %in% TRUE),
-         "base r hors suites Monte-Carlo" = sum(base %in% "r" & !startsWith(nom, "Test des suites") %in% TRUE &
-                                                  grepl("^Monte-Carlo", nat)),
+         "base r hors suites avec p_mc" = sum(base %in% "r" & !startsWith(nom, "Test des suites") %in% TRUE &
+                                                pmc),
          "grandeur rivee" = sum(startsWith(det, "Grandeur rivee par l'estimation") %in% TRUE),
          "detail sans objet ici" = sum(grepl("CONTROLE SANS OBJET ICI", det, fixed = TRUE)),
          "non applicable volumes constants" =
