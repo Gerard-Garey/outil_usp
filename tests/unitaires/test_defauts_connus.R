@@ -686,15 +686,39 @@ verifier("run_engine : jackknife entierement NA -> table produite, une ligne jac
              !any(is.infinite(tb$estimation)) &&
              !"ecart_jackknife" %in% names(r$ajustement)
          })
+# Chemin reel de #329 (Q-D1-Fh-2, commentaire 6261951079 de #327, specification
+# de Fh par. 3.4) : le test precedent substitue usp_jackknife(). Ici rien n'est
+# substitue : jeu construit (non realiste, ratios egaux a 6e-6 pres) dont
+# l'echantillon complet est accepte (gamma = -11,9925, interieur a 0,0075 de la
+# borne -12, KKT satisfaite) alors que les huit reajustements tombent sur la
+# borne sans KKT et sont tous refuses par usp_valider_ajustement(). Marges de
+# 0,0075 en gamma des deux cotes ; stabilite entre plateformes non mesuree.
+verifier("run_engine, chemin reel de #329 : huit reajustements refuses, echantillon complet accepte -> ligne jackknife diagnostic sans estimation, detail fixe",
+         {
+           y_329 <- 0.7 * x * exp(exp(-11.9925) * rep(c(1, -1), 4))
+           r <- run_engine(xt = x, yt = y_329, methode = "premium", segment = 1,
+                           annexe = "II", B = 99, nature_donnees = "brutes")
+           tb <- engine_table_tests(r)
+           lj <- tb[tb$test == NOM_JK, , drop = FALSE]
+           txt <- paste0("Aucune annee evaluable (reajustements sans maximum de ",
+                         "vraisemblance etabli, ou en echec) : ecart relatif max ",
+                         "non calcule, influence non mesuree.")
+           isTRUE(r$ok) && nrow(lj) == 1L &&
+             identical(lj$type, "diagnostic") && identical(lj$verdict, "INFO") &&
+             is.na(lj$estimation) && identical(lj$commentaire, txt) &&
+             nrow(r$jackknife) == 8L && all(is.na(r$jackknife$sigma_usp)) &&
+             !"ecart_jackknife" %in% names(r$ajustement)
+         })
 
 ## --- Issue #224 : reajustements du jackknife refuses ------------------------
 # Un reajustement refuse par usp_valider_ajustement() (meme regle que
 # l'echantillon complet, #188 et #227) est laisse a NA, comme un reajustement
 # en echec ; l'annee est ecartee du maximum et declaree non evaluable dans le
 # detail (phrase de Q-D1-Fc-3, docs/specifications/fc-validation-ajustement.md
-# section 3.2). Criteres (a) a (e) de la section 3.3. Le numero de l'annee la
-# plus influente n'est pas teste sur le jeu de l'issue (ex aequo a la
-# precision de l'optimiseur, section 3.4, I-Fc-1).
+# section 3.2). Criteres (a) a (e) de la section 3.3. Sur le jeu de l'issue,
+# les sept ecarts evaluables sont egaux a la precision de l'optimiseur (3e-10) :
+# depuis #327, le detail cite toutes les annees d'influence egale a la precision
+# numerique pres, au lieu d'en designer une au gre du bruit.
 txt_ne_1 <- function(a) sprintf(paste0(
   "Annee %d non evaluable (reajustement sans maximum de vraisemblance etabli, ",
   "ou en echec) : ecartee du maximum, influence non mesuree."), a)
@@ -714,13 +738,92 @@ verifier("#224 (a) : jeu de l'issue, annee 5 entierement NA, 'Annee 5 non evalua
            isTRUE(res_224$ok) && length(dj) == 1L &&
              all(is.na(unlist(J[5, c("sigma", "sigma_usp", "delta", "gamma")]))) &&
              all(is.finite(J$sigma_usp[-5])) &&
-             startsWith(dj, "Annee la plus influente : ") &&
-             endsWith(dj, paste0(". ", txt_ne_1(5L))) &&
-             !grepl("Annee la plus influente : 5 ", dj, fixed = TRUE) &&
+             identical(dj, paste0("Annees les plus influentes, d'influence egale a la precision numerique pres : 1, 2, 3, 4, 6, 7 et 8 (sigma_USP en hausse). ",
+                                  txt_ne_1(5L))) &&
+             !grepl("Annee la plus influente", dj, fixed = TRUE) &&
+             !grepl("ex aequo", dj, fixed = TRUE) &&
              isTRUE(abs(estim_ligne(tb, NOM_JK) - 0.02063) < 1e-4)
          })
 verifier("#224 (e) : sigma_USP inchange sur le jeu de l'issue (0,06205954)",
          isTRUE(abs(res_224$parametre_final$sigma_usp - 0.06205954) < 1e-8))
+## --- Issue #327 : annees d'influence egale a la precision numerique pres ------
+# run_engine() cite toutes les annees evaluables dont l'ecart relatif D_t est a
+# moins de tau = 2 REP_SIGMA_KKT (2 + D(1) + D(2)) du maximum (specification de
+# Fh, par. 3.2-3.3). usp_jackknife() est redefini le temps de l'appel pour fixer
+# les D_t (la table du jackknife est la seule entree de ce calcul) ; sigma_USP
+# complet est celui de res_ln_ii1, qui ne depend pas du jackknife.
+jk_imposer <- function(ecarts) {          # ecarts relatifs signes, un par annee (NA permis)
+  s0 <- res_ln_ii1$parametre_final$sigma_usp
+  e <- environment(run_engine); orig <- get("usp_jackknife", envir = e)
+  assign("usp_jackknife", function(fit, sigma_standard, bareme) {
+    o <- orig(fit, sigma_standard, bareme)
+    o$sigma_usp <- s0 * (1 + ecarts)
+    o
+  }, envir = e)
+  tryCatch(run_engine(xt = x, yt = y, methode = "premium", segment = 1,
+                      annexe = "II", B = 99, nature_donnees = "brutes"),
+           finally = assign("usp_jackknife", orig, envir = e))
+}
+tau_327 <- function(d1, d2) 2 * REP_SIGMA_KKT * (2 + d1 + d2)
+PL_327 <- "Annees les plus influentes, d'influence egale a la precision numerique pres : "
+verifier("#327 (d) : deux annees a ecarts distincts de 1e-3 -> une seule designee, phrase de l'annee la plus influente inchangee",
+         {
+           e <- rep(0.01, 8); e[1] <- -0.050; e[2] <- 0.049     # D = 0,050 et 0,049
+           dj <- detail_jk(jk_imposer(e))
+           identical(dj, "Annee la plus influente : 1 (sigma_USP en baisse).")
+         })
+verifier("#327 : seuil tau = 2 REP_SIGMA_KKT (2 + D(1) + D(2)) -> deux annees a tau/2 du maximum citees, a 2 tau designee seule",
+         {
+           e1 <- rep(0.01, 8); e1[1] <- -0.050
+           ecart <- function(g) { e <- e1; e[2] <- -(0.050 - g); e }
+           tau <- tau_327(0.050, 0.050)
+           d_pl <- detail_jk(jk_imposer(ecart(tau / 2)))
+           d_un <- detail_jk(jk_imposer(ecart(2 * tau)))
+           identical(d_pl, paste0(PL_327, "1 et 2 (sigma_USP en baisse).")) &&
+             identical(d_un, "Annee la plus influente : 1 (sigma_USP en baisse).")
+         })
+verifier("#327 : signes mixtes -> '(sigma_USP en hausse ou en baisse selon l'annee)' ; signe commun positif -> 'en hausse'",
+         {
+           e <- rep(0.01, 8); e[1] <- -0.050; e[3] <- 0.050
+           dm <- detail_jk(jk_imposer(e))
+           e[1] <- 0.050
+           dh <- detail_jk(jk_imposer(e))
+           identical(dm, paste0(PL_327, "1 et 3 (sigma_USP en hausse ou en baisse selon l'annee).")) &&
+             identical(dh, paste0(PL_327, "1 et 3 (sigma_USP en hausse)."))
+         })
+verifier("#327 : signe commun nul -> '(sigma_USP inchange)' ; ecarts signes {0, -a}, a <= tau -> phrase neutre sur le sens de la variation",
+         {
+           ne6 <- txt_ne_n("3, 4, 5, 6, 7 et 8")
+           e0 <- c(0, 0, rep(NA_real_, 6))
+           a <- tau_327(0, 0) / 2                    # a <= tau(D(1) = a, D(2) = 0)
+           e1 <- c(0, -a, rep(NA_real_, 6))
+           identical(detail_jk(jk_imposer(e0)), paste(paste0(PL_327, "1 et 2 (sigma_USP inchange)."), ne6)) &&
+             identical(detail_jk(jk_imposer(e1)),
+                       paste(paste0(PL_327, "1 et 2 (sens de la variation de sigma_USP selon l'annee)."), ne6))
+         })
+verifier("#327 : une seule annee evaluable -> designation directe, sans tolerance ; huit annees egales -> les huit citees",
+         {
+           e <- rep(NA_real_, 8); e[4] <- 0.02
+           d1 <- detail_jk(jk_imposer(e))
+           d8 <- detail_jk(jk_imposer(rep(-0.03, 8)))
+           startsWith(d1, "Annee la plus influente : 4 (sigma_USP en hausse). ") &&
+             grepl("Annees 1, 2, 3, 5, 6, 7 et 8 non evaluables", d1, fixed = TRUE) &&
+             identical(d8, paste0(PL_327, "1, 2, 3, 4, 5, 6, 7 et 8 (sigma_USP en baisse)."))
+         })
+verifier("#327 : usp_tests() direct, jack_annees absent -> phrase de l'annee la plus influente (compatibilite) ; seuls des entiers dans la phrase plurielle",
+         {
+           f <- fit; f$ecart_jackknife <- 0.1; f$largeur_ic <- 0.4
+           dj <- function(rb) {
+             tb <- lignes_df(usp_tests(f, boot_fictif(), methode = "premium", robustesse = rb))
+             tb$commentaire[tb$test == NOM_JK]
+           }
+           d_pl <- dj(list(jack_annee = 3L, jack_usp = -0.1, jack_annees = c(3L, 5L),
+                           jack_usp_annees = c(-0.1, -0.1)))
+           identical(dj(list(jack_annee = 3L, jack_usp = -0.1)),
+                     "Annee la plus influente : 3 (sigma_USP en baisse).") &&
+             identical(d_pl, paste0(PL_327, "3 et 5 (sigma_USP en baisse).")) &&
+             !grepl("[.,][0-9]", d_pl)
+         })
 verifier("#224 (b) : signature et colonnes d'usp_jackknife() inchangees (C-Fc-3)",
          identical(names(formals(usp_jackknife)), c("fit", "sigma_standard", "bareme")) &&
            identical(names(res_224$jackknife),

@@ -6313,8 +6313,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # ailleurs : ecart relatif max sur sigma_USP et largeur (q95 - q05) /
   # sigma_USP dans estim, bornes de l'IC 90 % dans res$ic_bootstrap ; les
   # reperes conventionnels (10 % / 20 %, 50 % / 80 %) dans les fiches du
-  # .tex. Le jackknife imprime l'annee la plus influente et le signe de
-  # l'ecart sur sigma_USP a cette annee (entier et signe, stables), si
+  # .tex. Le jackknife imprime l'annee la plus influente (ou les annees
+  # d'influence egale a la precision numerique pres, #327) et le signe de
+  # l'ecart sur sigma_USP a cette annee (entiers et signe, stables), si
   # run_engine() a fourni `robustesse`. Les ecarts rapportes a la seule part
   # estimee sigma(delta, gamma), imprimes jusqu'ici faute d'etre stockes
   # ailleurs (risque accepte en M24), sont retires (issue #76).
@@ -6336,16 +6337,30 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                    "de vraisemblance etabli, ou en echec) : ecartees du maximum, ",
                    "influence non mesuree."),
             paste(utils::head(ne, -1L), collapse = ", "), utils::tail(ne, 1L))
+  # Plusieurs annees d'influence egale a la precision numerique pres (#327,
+  # rb$jack_annees fourni par run_engine(), tolerance tau expliquee la-bas) :
+  # elles sont toutes citees, jointes comme txt_ne, avec le sens commun si
+  # l'ecart a le meme signe pour chacune ; entiers et signe seulement (#76).
+  ja <- as.integer(rb$jack_annees)
+  txt_jk <- if (length(ja) > 1L) {
+    sg <- sign(rb$jack_usp_annees)
+    sens_jk <- if (length(sg) == length(ja) && !anyNA(sg) && length(unique(sg)) == 1L)
+      sprintf("(sigma_USP %s)", c("en baisse", "inchange", "en hausse")[sg[1L] + 2L])
+    else if (isTRUE(any(sg == 0))) "(sens de la variation de sigma_USP selon l'annee)"
+    else "(sigma_USP en hausse ou en baisse selon l'annee)"
+    sprintf("Annees les plus influentes, d'influence egale a la precision numerique pres : %s et %d %s.",
+            paste(utils::head(ja, -1L), collapse = ", "), utils::tail(ja, 1L), sens_jk)
+  } else if (!is.null(rb$jack_annee))
+    sprintf("Annee la plus influente : %d (sigma_USP %s).", as.integer(rb$jack_annee),
+            if (rb$jack_usp < 0) "en baisse" else if (rb$jack_usp > 0) "en hausse"
+            else "inchange")
+  else "Annee la plus influente non determinee."
   if (!is.null(fit$ecart_jackknife))
     add(fam, "Sensibilite au retrait d'une annee (jackknife)",
         fonction = "run_engine",
         "Quenouille (1949) / Tukey (1958)", type = "diagnostic",
         estim_nom = "ecart relatif max", estim = fit$ecart_jackknife,
-        detail = paste(c(if (!is.null(rb$jack_annee))
-          sprintf("Annee la plus influente : %d (sigma_USP %s).", as.integer(rb$jack_annee),
-                  if (rb$jack_usp < 0) "en baisse" else if (rb$jack_usp > 0) "en hausse"
-                  else "inchange")
-        else "Annee la plus influente non determinee.", txt_ne), collapse = " "))
+        detail = paste(c(txt_jk, txt_ne), collapse = " "))
   else if (!is.null(rb) && length(ne) == fit$T)
     add(fam, "Sensibilite au retrait d'une annee (jackknife)",
         fonction = "run_engine",
@@ -11401,10 +11416,40 @@ run_engine <- function(xt, yt,
     # jack_non_evaluables (#224) : annees dont le reajustement est refuse par
     # usp_valider_ajustement() ou en echec (sigma_USP non fini), ecartees du
     # maximum ; entiers, eventuellement vide. Seuls ces numeros sont imprimes.
+    # jack_annees (#327) : annees evaluables dont l'ecart relatif
+    # D_t = |sigma_USP^(-t) - sigma_USP| / sigma_USP est a moins de tau du
+    # maximum D(1) ; jack_usp_annees : leurs ecarts signes relatifs (seul le
+    # signe est imprime). tau = 2 REP_SIGMA_KKT (2 + D(1) + D(2)), D(2) second
+    # plus grand D_t evaluable. Fondement (propagation au premier ordre) :
+    # sigma_USP est lineaire en sigma, avec un coefficient <= sigma_USP / sigma ;
+    # une erreur relative eps <= REP_SIGMA_KKT sur chaque sigma (ancre M9,
+    # reajustement qui satisfait KKT) donne |dD_t| <= (1 + D_t) (eps_t + eps_0),
+    # donc la difference de deux D_t est connue a 2 REP_SIGMA_KKT (2 + D(1) +
+    # D(2)) pres. Deux annees dont l'ecart ne depasse pas tau sont d'influence
+    # egale a la precision numerique pres : which.max les departagerait au gre
+    # du bruit de l'optimiseur, qui varie d'une plateforme a l'autre (jeu de
+    # #224, ecarts egaux a 3e-10 pres). Une seule annee evaluable : designation
+    # directe, sans tau. Limite [H] : la precision n'est certifiee que pour un
+    # reajustement qui satisfait KKT ; un reajustement accepte sans KKT (gamma
+    # interieur) n'a pas de precision garantie, tau y est une convention. Aucune
+    # constante nouvelle. jack_annee (argmax) reste l'annee designee quand
+    # jack_annees n'en compte qu'une ; usp_tests() ne le lit pas sinon.
     i_jack <- if (jack_calcule) which.max(abs(d_jack)) else NULL
+    jack_annees <- NULL
+    if (jack_calcule) {
+      d_rel <- abs(d_jack) / param$sigma_usp
+      ev <- which(is.finite(d_rel))
+      jack_annees <- if (length(ev) == 1L) ev else {
+        d12 <- sort(d_rel[ev], decreasing = TRUE)[1:2]
+        tau <- 2 * REP_SIGMA_KKT * (2 + d12[1] + d12[2])
+        ev[d_rel[ev] >= d12[1] - tau]
+      }
+    }
     robustesse <- list(
       jack_annee = i_jack,
       jack_usp   = if (jack_calcule) d_jack[i_jack] / param$sigma_usp else NULL,
+      jack_annees = jack_annees,
+      jack_usp_annees = if (jack_calcule) d_jack[jack_annees] / param$sigma_usp else NULL,
       jack_non_evaluables = which(!is.finite(jack$sigma_usp)))
 
     # Test de Pitman sur la pente (#169) : B et graine de l'execution (tirages
