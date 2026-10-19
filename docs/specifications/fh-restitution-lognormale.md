@@ -194,6 +194,10 @@ Références : identiques (aucun chemin de `run_engine()`). Circuit 3, `coder`.
   - plusieurs : `Annees les plus influentes, d'influence egale a la precision numerique pres : 1, 2, 3, 4, 6, 7 et 8 (sigma_USP en baisse).` Années jointes comme `txt_ne` (« , » puis « et ») ;
   - signe : « en baisse » ou « en hausse » s'il est commun aux années citées, sinon « (sigma_USP en hausse ou en baisse selon l'annee) ».
 - Seuls des entiers sont imprimés (#76).
+- *Erratum du 19/10/2026 (avis d'`actuary`, à la demande de la session principale, sur une question de l'audit léger de #327).*
+  - Sur le jeu de #224, le sens est « en hausse » (et non « en baisse »). Il a été mesuré dans les deux configurations : segment 1, annexe II (Δ_t ≈ 0,02063, configuration du test et de la phrase attendue) et σ standard 0,1, barème court (Δ_t ≈ 0,03668, configuration de (M2)).
+  - Signe commun nul : « (sigma_USP inchange) », valeur reprise de la phrase singulière. Ensemble de signes non uniforme qui contient 0 : « (sens de la variation de sigma_USP selon l'annee) ». La phrase « (sigma_USP en hausse ou en baisse selon l'annee) » est réservée au mélange {−, +}.
+  - Réserve pour la fiche du `.tex` (`docwriter`) : τ est certifiée pour un réajustement qui satisfait KKT. Si un réajustement est accepté sans KKT (γ intérieur), les années citées restent indiscernables, mais la liste peut être incomplète.
 - **Stabilité [H].** L'ensemble des années citées ne change entre plateformes que si un écart vaut τ au bruit près ; τ (≈ 4e-6) dépasse de quatre ordres le bruit mesuré (≤ 3e-10).
 
 **3.4 Chemin réel de #329 (S-Fh-5 (c)).**
