@@ -114,7 +114,11 @@ lignes_j <- function(x, y) {
   f <- usp_ajuster(x, y); usp_tests(f, usp_bootstrap(f, B = 40), methode = "premium")
 }
 tj <- list(J1 = lignes_j(d181$xt, d181$yt), J2 = lignes_j(xi181, yi181))
-attendu <- list(J1 = c(diag = 19L, sans_p = 6L), J2 = c(diag = 23L, sans_p = 9L))
+# Depuis #303 : Ljung-Box (1) sur ratios bruts retiree (J1 et J2 : un test sans
+# p-value de moins) ; a pi_t constant (J1), DWr, supFr, CUSUMr et Grubbsr sont
+# des diagnostics de la regle R15 et ne sont plus des tests sans p-value
+# (J1 : 6 -> 1, sup-F sur z seul ; J2 : 9 -> 8).
+attendu <- list(J1 = c(diag = 19L, sans_p = 1L), J2 = c(diag = 23L, sans_p = 8L))
 for (j in names(tj)) local({
   tt <- tj[[j]]; a <- attendu[[j]]
   pre <- pre181(MOTIF_MC_REPLIC_INSUFFISANTES)

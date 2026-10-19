@@ -302,13 +302,17 @@ verifier("Runsr (#29) : mutation 2, pi_constant TRUE a signes differents -> NA",
            !all(sign(zp - stats::median(zp)) == sign(u - stats::median(u))) &&
            is.na(usp_runsr_p_exacte(zp, u, TRUE, pu))
          })
-verifier("Runsr (#29) : pi_t constant (delta = 1), Runs et Runsr portent la meme p_retenue exacte",
+# Depuis #303 (regle R15), la ligne Runsr a pi_t constant est un diagnostic :
+# sa p exacte reste calculee (colonne p_exacte), egale a la p retenue de la
+# ligne des suites sur residus standardises, mais n'est pas retenue.
+verifier("Runsr (#29, #303) : pi_t constant (delta = 1), p exacte de Runsr = p retenue exacte de Runs ; Runsr en diagnostic R15",
          {
            a <- ligne29(f29, "Test des suites (aleatoire des signes)")
            b <- ligne29(f29, "Test des suites sur ratios bruts")
-           identical(a$stat, b$stat) && identical(a$p_retenue, b$p_retenue) &&
-           identical(b$nature_p, "exacte") && identical(b$p_exacte, b$p_retenue) &&
-           isTRUE(proche(b$p_retenue, 52 / 70, rel = 1e-12))
+           identical(a$stat, b$stat) && identical(a$p_retenue, b$p_exacte) &&
+           identical(a$nature_p, "exacte") && identical(b$type, "diagnostic") &&
+           is.na(b$p_retenue) && is.na(b$nature_p) && identical(b$verdict, "INFO") &&
+           isFALSE(b$inoperant) && isTRUE(proche(b$p_exacte, 52 / 70, rel = 1e-12))
          })
 # A T = 5, la p minimale atteignable des suites (n1 = n2 = 2) vaut 2/3 >= alpha :
 # la ligne est un test inoperant restitue en diagnostic, sans p retenue (#44,
@@ -320,10 +324,11 @@ verifier("Runsr (#29) : pi_t variable (T = 5, delta = 0), pas de p exacte, p Mon
            identical(b$type, "diagnostic") && is.na(b$p_retenue) &&
            isTRUE(proche(b$p_min, 2 / 3, rel = 1e-12))
          })
-verifier("Runsr (#29) : pi_constant vrai mais signes differents (bande de tolerance), pas de p exacte",
+verifier("Runsr (#29, #303) : pi_constant vrai mais signes differents (bande de tolerance), pas de p exacte ; p_mc conservee, diagnostic R15",
          {
            b <- ligne29(f29_bande, "Test des suites sur ratios bruts")
-           is.na(b$p_exacte) && identical(b$nature_p, "Monte-Carlo (bootstrap parametrique)")
+           is.na(b$p_exacte) && identical(b$p_mc, 0.5) && identical(b$type, "diagnostic") &&
+             is.na(b$p_retenue) && is.na(b$nature_p)
          })
 # Divergence flottante r / u (revue d'audit du commit #29) : r a deux valeurs
 # centrales distantes de 1 ulp relatif ; r_5 - med(r) vaut 0 exactement,
@@ -359,9 +364,12 @@ verifier("Runsr (#29, #112) : divergence flottante r / u de 1 ulp absorbee par l
 f29_t5 <- usp_ajuster(rep(100, 5), c(66, 70, 75, 82, 91))     # signes - - 0 + +, R = 2
 f29_ea <- usp_ajuster(rep(100, 8), c(70, 82, 75, 75, 66, 90, 60, 88))
 # Les deux cas suivants (T = 5 ; T = 8 avec deux ex aequo sur la mediane,
-# n1 = n2 = 3) ont une p minimale atteignable >= alpha (2/3 ; 0,2) : inoperants
-# (#44, regle R1), sans p retenue ; la p exacte reste calculee et verifiee.
-verifier("Runsr (#29) : T = 5 a volumes constants, p exacte = 2/3 par usp_tests() ; inoperant (#44)",
+# n1 = n2 = 3) ont une p minimale atteignable >= alpha (2/3 ; 0,2) ; pi_t y
+# est exactement constant (volumes constants) : depuis #303, la ligne est un
+# diagnostic de la regle R15, posee avant add(), et la regle R1 (#44), qui ne
+# porte que sur une ligne de type test, ne s'y applique plus (inoperant
+# FALSE) ; la p exacte et p_min restent calculees et verifiees.
+verifier("Runsr (#29, #303) : T = 5 a volumes constants, p exacte = 2/3 par usp_tests() ; diagnostic R15",
          {
            b <- ligne29(f29_t5, "Test des suites sur ratios bruts")
            a <- ligne29(f29_t5, "Test des suites (aleatoire des signes)")
@@ -369,17 +377,18 @@ verifier("Runsr (#29) : T = 5 a volumes constants, p exacte = 2/3 par usp_tests(
            identical(a$p_exacte, b$p_exacte) &&
            isTRUE(proche(b$p_exacte, 2 / 3, rel = 1e-12)) &&
            isTRUE(proche(b$p_exacte, runs_p_enum(u_de(f29_t5)), abs = 1e-12)) &&
-           identical(b$type, "diagnostic") && is.na(b$p_retenue) &&
+           identical(b$type, "diagnostic") && is.na(b$p_retenue) && isFALSE(b$inoperant) &&
            isTRUE(proche(b$p_min, 2 / 3, rel = 1e-12))
          })
-verifier("Runsr (#29) : ex aequo sur la mediane (T = 8, n1 = n2 = 3), p exacte = enumeration ; inoperant (#44)",
+verifier("Runsr (#29, #303) : ex aequo sur la mediane (T = 8, n1 = n2 = 3), p exacte = enumeration ; diagnostic R15",
          {
            u <- u_de(f29_ea)
            b <- ligne29(f29_ea, "Test des suites sur ratios bruts")
            sum(u == stats::median(u)) == 2 && signes_egaux(f29_ea) &&
            isTRUE(proche(b$p_exacte, runs_p_enum(u), abs = 1e-12)) &&
            isTRUE(proche(b$p_exacte, 0.2, rel = 1e-12)) &&
-           identical(b$type, "diagnostic") && isTRUE(proche(b$p_min, 0.2, rel = 1e-12))
+           identical(b$type, "diagnostic") && isFALSE(b$inoperant) &&
+           isTRUE(proche(b$p_min, 0.2, rel = 1e-12))
          })
 # Champs loi et detail de Runsr, par regime (revue d'audit et d'actuary).
 cas_runsr <- list(f29 = f29, f29_0 = f29_0, f29_bande = f29_bande,
@@ -423,14 +432,13 @@ verifier("Runsr (#29) : variante 1b, pi_t constant a la tolerance pres avec sign
                     delta_au_bord = usp_regime(d, x29)$delta_au_bord))
            })
            b <- ligne29(f, "Test des suites sur ratios bruts")
-           signes_egaux(f) && identical(b$nature_p, "exacte") &&
+           signes_egaux(f) && is.finite(b$p_exacte) && identical(b$type, "diagnostic") &&
              grepl("exacte a cet ordre pres", b$detail, fixed = TRUE) &&
              grepl("TOL_DELTA_BORD = 1e-06 pres (1 - delta = 5e-07)", b$detail, fixed = TRUE)
          })
-verifier("Base r (#29) : les cinq autres detail ne disent plus 'statistique est meme identique'",
+verifier("Base r (#29) : les quatre autres detail ne disent plus 'statistique est meme identique'",
          {
            nn <- c("Autocorrelation d'ordre 1 (Durbin-Watson) sur ratios bruts",
-                   "Ljung-Box (retard 1) sur ratios bruts",
                    "Rupture de niveau (sup-F) sur ratios bruts",
                    "Stabilite cumulee (OLS-CUSUM) sur ratios bruts",
                    "Valeur aberrante isolee (Grubbs) sur ratios bruts")
@@ -440,18 +448,25 @@ verifier("Base r (#29) : les cinq autres detail ne disent plus 'statistique est 
            !any(grepl("statistique est meme identique", dd, fixed = TRUE)) &&
              all(grepl("transformation logarithmique.", dc, fixed = TRUE))
          })
-verifier("Base r (#29) : DWr, LB1r, supFr, CUSUMr, Grubbsr restent en Monte-Carlo, pi_t constant ou non",
+# Depuis #303 : a pi_t constant (f29, f29_bande), les quatre lignes sont des
+# diagnostics de la regle R15 (p Monte-Carlo conservee, non retenue) ; a pi_t
+# variable (f29_0), des tests a p Monte-Carlo retenue. LB1r est retiree.
+verifier("Base r (#29, #303) : DWr, supFr, CUSUMr, Grubbsr sans p exacte ; p Monte-Carlo retenue a pi_t variable seulement",
          {
            nn <- c("Autocorrelation d'ordre 1 (Durbin-Watson) sur ratios bruts",
-                   "Ljung-Box (retard 1) sur ratios bruts",
                    "Rupture de niveau (sup-F) sur ratios bruts",
                    "Stabilite cumulee (OLS-CUSUM) sur ratios bruts",
                    "Valeur aberrante isolee (Grubbs) sur ratios bruts")
-           all(vapply(list(f29, f29_0, f29_bande), function(f)
+           all(vapply(list(f29, f29_0, f29_bande), function(f) {
+             cst <- isTRUE(usp_regime(f$delta, f$x)$pi_constant)
              all(vapply(nn, function(n) {
                l <- ligne29(f, n)
-               is.na(l$p_exacte) && identical(l$nature_p, "Monte-Carlo (bootstrap parametrique)")
-             }, logical(1))), logical(1)))
+               is.na(l$p_exacte) && identical(l$p_mc, 0.5) &&
+                 if (cst) identical(l$type, "diagnostic") && is.na(l$nature_p)
+                 else identical(l$type, "test") &&
+                   identical(l$nature_p, "Monte-Carlo (bootstrap parametrique)")
+             }, logical(1)))
+           }, logical(1)))
          })
 
 ## --- Durbin-Watson : loi exacte ---------------------------------------------

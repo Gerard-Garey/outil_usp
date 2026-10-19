@@ -1468,10 +1468,10 @@ verifier("#285 : jeu de res_bmax rejoue a l'identique, un mc_nom releve par lign
            length(.m285$mc_nom) == 1L && length(.mc285) == nrow(.tb285) &&
            identical(get("engine_registre_tests", envir = environment(.erg285)), .erg285) &&
            !exists(".etat285", envir = environment(.erg285), inherits = FALSE))
-verifier("#285 : granularite_lignes() = granularite_stat de la statistique de chaque ligne (34 lignes), tiret sans statistique du bootstrap (17)",
+verifier("#285 : granularite_lignes() = granularite_stat de la statistique de chaque ligne (33 lignes depuis le retrait de LB1r, #303), tiret sans statistique du bootstrap (17)",
          identical(is.finite(.g285), is.finite(.vrai285)) &&
            identical(.g285[is.finite(.g285)], .vrai285[is.finite(.vrai285)]) &&
-           sum(is.finite(.g285)) == 34L && sum(!is.finite(.g285)) == 17L &&
+           sum(is.finite(.g285)) == 33L && sum(!is.finite(.g285)) == 17L &&
            setequal(round(.g285[is.finite(.g285)] * 98), c(1, 2)))
 verifier("#285 : lignes a p Monte-Carlo externe (usp_lr_delta) en tiret, sans appariement",
          { k <- .tb285$fonction %in% FONCTIONS_P_MC_EXTERNE

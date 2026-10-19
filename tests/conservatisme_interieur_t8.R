@@ -55,7 +55,7 @@
 #  statistiques du perimetre de son regime (sous-catalogue de
 #  USP_CATALOGUE_MC, meme fonction calc) ; une replication interne est
 #  retenue si son reajustement rapide et ces statistiques aboutissent (dans
-#  usp_bootstrap(), si les 34 statistiques aboutissent : meme ensemble sauf
+#  usp_bootstrap(), si les 33 statistiques aboutissent : meme ensemble sauf
 #  erreur d'une statistique hors perimetre, angle mort declare dans l'aide a
 #  la lecture ; la p de la variante 1 peut alors differer de celle de #221,
 #  controle (i1)). Le jeu observe, la premiere replication rejouee de chaque
@@ -104,7 +104,7 @@
 #    (i1) p moteur rejouee = p_mc des valeurs brutes de #221 (colonnes
 #         p_mc:<stat>, ecrites en %.17g), au bit pres, pour chaque
 #         statistique de la variante 1 de chaque replication rejouee et,
-#         sur l'echantillon de (i2), pour les 34 statistiques du chemin du
+#         sur l'echantillon de (i2), pour les 33 statistiques du chemin du
 #         moteur ;
 #    (i2) identical() avec usp_bootstrap() (stats_obs, p_mc, err_mc,
 #         B_effectif, granularite_stat, motif_mc, sigma_boot, delta_boot,
@@ -753,7 +753,7 @@ aide_lecture <- function() c(
         "(3) ; une condition dont les cellules \u00e9valuables ne suffisent pas \u00e0 trancher est \u00ab non \u00e9valuable \u00bb."), "",
   paste("**Angle mort du sous-catalogue.** Dans une r\u00e9plication, les trois variantes ne calculent que les statistiques",
         "du p\u00e9rim\u00e8tre de son r\u00e9gime : une r\u00e9plication interne y est retenue si le r\u00e9ajustement rapide et ces",
-        "statistiques aboutissent, alors que usp_bootstrap() exige que les 34 statistiques du catalogue aboutissent.",
+        "statistiques aboutissent, alors que usp_bootstrap() exige que les 33 statistiques du catalogue aboutissent.",
         "Si une statistique hors p\u00e9rim\u00e8tre \u00e9chouait seule, la r\u00e9tention diff\u00e9rerait de celle du moteur, et la p de la",
         "variante 1 pourrait alors diff\u00e9rer de celle de #221 (contr\u00f4le (i1)). Sur les essais de mise au point",
         "(J2 \u00e0 R = 6, J1 \u00e0 R = 5), aucun \u00e9chec de r\u00e9ajustement ni de statistique n'a \u00e9t\u00e9 compt\u00e9 (T2, T3)."), "")

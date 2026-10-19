@@ -77,8 +77,8 @@
 #  seed = 20260831 + b, unilateral = .pitman_unilateral())), boot_v etant la
 #  liste de V1 dont p_mc, err_mc, B_effectif, granularite_stat et motif_mc
 #  sont ceux de la variante ; delta_equiv et robustesse absents (comme
-#  run_engine() a delta_equiv NULL). Lignes de T2 : les 48 lignes du
-#  perimetre (51 lignes de run_engine() moins les deux lignes du rapport de
+#  run_engine() a delta_equiv NULL). Lignes de T2 : les 47 lignes du
+#  perimetre (50 lignes de run_engine() moins les deux lignes du rapport de
 #  vraisemblance sur delta et la largeur de l'IC a delta fixe, #45) ; les
 #  lignes du jackknife et de la largeur de l'IC bootstrap 90 %, que
 #  usp_tests() n'ecrit que si run_engine() a pose ces grandeurs dans fit,
@@ -104,13 +104,13 @@
 #    (a)  J1 observe par run_engine(seed = 20260831) (executer_cas("premium"))
 #         conforme a tests/reference/premium.rds (regenere par P2) par
 #         comparer_objets() apres neutraliser_instables() ;
-#    (b)  noms et sens de rejet lus dans USP_CATALOGUE_MC (34) ; F_T et F_R
-#         en partition des 34 ; F_8 et les ensembles cibles dans F_R ; noms
+#    (b)  noms et sens de rejet lus dans USP_CATALOGUE_MC (33) ; F_T et F_R
+#         en partition des 33 ; F_8 et les ensembles cibles dans F_R ; noms
 #         des p de chaque variante = catalogue, dans son ordre ; motifs
 #         d'absence connus (codes de CODES_MOTIF) ; p de V3a ou de V3b
 #         absente alors que celle de V1 existe (cellules comptees par C3) :
-#         motif ni o, ni c, ni x (motifs communs a V1) ; 51 lignes de usp_tests()
-#         sur J1 observe, libelles distincts, 48 lignes du perimetre de T2 ;
+#         motif ni o, ni c, ni x (motifs communs a V1) ; 50 lignes de usp_tests()
+#         sur J1 observe, libelles distincts, 47 lignes du perimetre de T2 ;
 #    (c)  jeux simules identiques (identical()) a l'expression YSIM de #72
 #         (tests/taux_franchissement_reperes.R, lue par parse(), liste
 #         blanche de noms, environnement isole ; J3 : FIT0_J3 synthetique) ;
@@ -179,7 +179,7 @@
 #         --journal, egale a celle de la ligne "Empreinte sans
 #         commentaires" du JOURNAL (refus sinon) ; md5 du
 #         fichier entier cite ; md5 du moteur du T0 de #221 cite pour memoire ;
-#    (s1) sur l'echantillon de (i2) : V3b recalculee SANS P1 (34 statistiques
+#    (s1) sur l'echantillon de (i2) : V3b recalculee SANS P1 (33 statistiques
 #         a chaque tirage reajuste) ; p, tirages et B effectifs identiques ;
 #    (h1) premiere replication traitee de la tranche : sur tous ses tirages
 #         reajustes (V1 et ajouts de V3b evalues) et sur son contexte
@@ -198,10 +198,12 @@
 #         sous-catalogue du regime de #175, contre-implementation de P2)
 #         redonne p3 et B3, avec pour cause (h2) ou l'angle mort du
 #         sous-catalogue (retenues differentes) ; listee ;
-#    (t2) J1, J2 : p retenues des 48 lignes de T2 recalculees avec V1 =
+#    (t2) J1, J2 : p retenues des 47 lignes de T2 recalculees avec V1 =
 #         p_retenue des valeurs brutes de #221, au bit pres ; une discordance
 #         n'est admise que sur une ligne dont la statistique Monte-Carlo a
 #         une discordance (i1) expliquee dans la meme replication ;
+#         depuis #303 (regle R15), une reexecution sur ce moteur suppose une
+#         classe (t2) supplementaire, a arbitrer par actuary ;
 #    (l8) partie P : md5 des epsilon, des t* et des Y du scenario egaux a
 #         ceux du T0 du tableau de la grille ;
 #    (t)  texte du critere identique a la specification ; titres des
@@ -774,7 +776,7 @@ STAT_LIGNE <- c(
   SpearTps = "Correlation ratio S/P vs temps", DAgo = "Asymetrie (D'Agostino, T >= 8)",
   CoxStuart = "Tendance par signes du ratio S/P",
   DWr = "Autocorrelation d'ordre 1 (Durbin-Watson) sur ratios bruts",
-  LB1r = "Ljung-Box (retard 1) sur ratios bruts", Runsr = "Test des suites sur ratios bruts",
+  Runsr = "Test des suites sur ratios bruts",
   supFr = "Rupture de niveau (sup-F) sur ratios bruts",
   CUSUMr = "Stabilite cumulee (OLS-CUSUM) sur ratios bruts",
   Grubbsr = "Valeur aberrante isolee (Grubbs) sur ratios bruts")
@@ -821,6 +823,9 @@ code_nature <- function(n) if (is.null(n) || is.na(n)) "-" else if (n == "exacte
 
 # --- Texte du critere (specification, par. 2.1-2.2 ; copie declaree de
 # tests/grille_regime_t8.R, reporte sans modification, controle (t)) ---------
+# Texte cite du protocole approuve (34 statistiques, F_R de 22) ; depuis #303
+# le catalogue en compte 33 et F_R 21, effectifs lus dans le catalogue par le
+# code ; texte non modifie (controle (t)).
 TEXTE_CRITERE_229 <- c(
   "### 2.1 Grandeurs",
   "",
@@ -2819,9 +2824,11 @@ controle(cmp_a$conforme && identical(unlist(RES_A$metadata[c("B", "alpha", "seed
                                      c(B = as.numeric(B_BOOT), alpha = ALPHA, seed = GRAINE_BOOT, theta_equiv = THETA_EQUIV)),
          sprintf("(a) J1 observ\u00e9, run_engine(seed = %.0f), conforme \u00e0 tests/reference/premium.rds (comparer_objets(), tol\u00e9rance %g) et configuration (B, \u03b1, graine, theta_equiv) = celle du script : %s%s",
                  GRAINE_BOOT, TOLERANCE, TXT_A, if (cmp_a$conforme) "" else paste0(" : ", paste(resumer_comparaison(cmp_a, 5L), collapse = " ; "))))
+# 50 lignes depuis le retrait de Ljung-Box (1) sur ratios bruts (#303) ; nom
+# de variable conserve.
 LIGNES_51 <- vapply(RES_A$tests, `[[`, "", "test")
 LIGNES_T2 <- LIGNES_51[!hors_t2(LIGNES_51)]
-controle(length(LIGNES_51) == 51L && !anyDuplicated(LIGNES_51) && length(LIGNES_T2) == 48L,
+controle(length(LIGNES_51) == 50L && !anyDuplicated(LIGNES_51) && length(LIGNES_T2) == 47L,
          sprintf("(b) %d lignes de usp_tests() sur J1 observ\u00e9, libell\u00e9s distincts ; %d lignes au p\u00e9rim\u00e8tre de T2 (hors rapport de vraisemblance sur \u03b4 et largeur de l'IC \u00e0 \u03b4 fixe, #45)",
                  length(LIGNES_51), length(LIGNES_T2)))
 # Regle R4 retiree par D1-Fb (#218, #230) ; SEUIL_PUISSANCE_PENTE_R4

@@ -880,7 +880,7 @@ MOTIF_PROVENANCE_INDIRECTE <- paste("provenance indirecte d'entrees (graphe d'ap
 # Population de la mesure de multiplicite T2 / T2 bis (#229, #274) : lignes
 # d'usp_tests() reconstruites par la mesure (fichier date
 # docs/tableaux/20261018-issue229-p-conditionnelle-regime.md), et non lignes
-# de la table courante. 48 = table premium (51 lignes au moteur courant)
+# de la table courante. 48 = table premium de la mesure (51 lignes alors)
 # moins les deux lignes du rapport de vraisemblance sur delta et la largeur de
 # l'intervalle a delta fixe (#45) ; 44 = 48 moins TOST, Pitman, Fisher et
 # ESD. Ces nombres decrivent une simulation passee : les verifier sur la table
@@ -1315,7 +1315,8 @@ REGISTRE_RUBRIQUE7 <- list(
   list(label = "fiche:grubbs", tests = "Valeur aberrante isolee (Grubbs)"),
   list(label = "fiche:rosner-esd", tests = "Valeurs aberrantes multiples (ESD generalise)"),
   list(label = "fiche:durbin-watson-ratios-bruts", tests = "Autocorrelation d'ordre 1 (Durbin-Watson) sur ratios bruts"),
-  list(label = "fiche:ljung-box-ratios-bruts", tests = "Ljung-Box (retard 1) sur ratios bruts"),
+  # fiche:ljung-box-ratios-bruts retiree (#303, Q-D1-Fh-3) : ligne Ljung-Box
+  # (retard 1) sur ratios bruts retiree du moteur avec son entree LB1r.
   list(label = "fiche:suites-ratios-bruts", tests = "Test des suites sur ratios bruts"),
   list(label = "fiche:sup-f-ratios-bruts", tests = "Rupture de niveau (sup-F) sur ratios bruts"),
   list(label = "fiche:ols-cusum-ratios-bruts", tests = "Stabilite cumulee (OLS-CUSUM) sur ratios bruts"),

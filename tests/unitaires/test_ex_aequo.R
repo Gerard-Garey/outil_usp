@@ -136,12 +136,17 @@ verifier("Smirnov (option (i)) : p exacte et p_min NA, motif ex aequo dans z, Mo
              grepl("ex aequo dans z : loi conditionnelle non attribuee", l$detail, fixed = TRUE) &&
              !grepl("minimale atteignable = 0.0286", l$detail, fixed = TRUE)
          })
-verifier("Suites (z et r) : la paire a la mediane ecartee, n1 = n2 = 3",
+# Depuis #303 (regle R15), la ligne Runsr a pi_t constant est un diagnostic :
+# la regle R1, qui imprimait les effectifs, ne s'y applique plus ; la p_min
+# (memes effectifs n1 = n2 = 3) reste dans son champ, egale a celle des
+# suites sur z.
+verifier("Suites (z et r) : la paire a la mediane ecartee, n1 = n2 = 3 (Runsr : diagnostic R15, meme p_min, #303)",
          {
            a <- lig_ea("Test des suites (aleatoire des signes)")
            b <- lig_ea("Test des suites sur ratios bruts")
            grepl("n1 = 3, n2 = 3", a$detail, fixed = TRUE) &&
-             grepl("n1 = 3, n2 = 3", b$detail, fixed = TRUE)
+             identical(b$type, "diagnostic") && is.finite(b$p_min) && identical(a$p_min, b$p_min) &&
+             grepl("regle R15", b$detail, fixed = TRUE)
          })
 verifier("Catalogue Monte-Carlo : memes statistiques observees que usp_tests() (SpearVol, SpearTps, MK, Smirnov, Runs, Runsr)",
          {

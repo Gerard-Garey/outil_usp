@@ -165,10 +165,11 @@ verifier("Bande : huit lignes p_exacte finie, 'exacte' (Cox-Stuart : R1), detail
              grepl("a la tolerance TOL_DELTA_BORD", l$detail, fixed = TRUE) &&
              !grepl("p exacte non attribuee", l$detail, fixed = TRUE)
          }, logical(1))))
-verifier("Bande : ligne Runsr sans phrase R7/R8 (regime #29 inchange : p exacte NA, signes differents)",
+verifier("Bande : ligne Runsr sans phrase R7/R8 (regime #29 inchange : p exacte NA, signes differents ; diagnostic R15, #303)",
          {
            l <- ligne(tb, "Test des suites sur ratios bruts")
-           is.na(l$p_exacte) && identical(l$nature_p, NAT_MC) &&
+           is.na(l$p_exacte) && identical(l$p_mc, 0.5) && identical(l$type, "diagnostic") &&
+             is.na(l$nature_p) &&
              !grepl("p exacte non attribuee", l$detail, fixed = TRUE) &&
              !grepl("loi de reference exacte a un ecart", l$detail, fixed = TRUE)
          })
@@ -177,9 +178,11 @@ verifier("Bande : ligne Runsr sans phrase R7/R8 (regime #29 inchange : p exacte 
 # ecrite que si p_mc existe ;
 # sinon la ligne, sans p exacte ni asymptotique, est un test sans p-value
 # (phrase de #128 en tete). Regime 2 (bande a signes differents) depuis
-# #187 : p_mc presente, la phrase dit la p Monte-Carlo calculee et renvoie a
-# nature_p, add() pouvant encore l'ecarter (regle R1, degenerescence).
-verifier("Runsr, regimes 2 et 3 : p_mc presente -> 'est calculee' (3, #214 ; 2, #187) ; absente -> 'indisponible', test sans p-value",
+# #187 : p_mc presente, la phrase dit la p Monte-Carlo calculee ; depuis #303
+# (regle R15, pi_t constant), sans renvoi a nature_p, la ligne etant un
+# diagnostic ; p_mc absente, le motif est en tete (motif non degenere :
+# "Monte-Carlo indisponible : <motif>.") et la phrase de R15 en fin.
+verifier("Runsr, regimes 2 et 3 : p_mc presente -> 'est calculee' (3, #214 ; 2, #187, #303) ; absente -> 'indisponible' (3 : test sans p-value ; 2 : diagnostic R15)",
          {
            txt_ind <- "est indisponible sur ces donnees : aucune p-value n'est retenue (ADR 0001)"
            m <- c(Runsr = MOTIF_MC_AUCUNE_REPLIC)
@@ -193,23 +196,26 @@ verifier("Runsr, regimes 2 et 3 : p_mc presente -> 'est calculee' (3, #214 ; 2, 
                  a3$detail, fixed = TRUE) && !grepl(" est retenue", a3$detail, fixed = TRUE) &&
              grepl(paste("La p-value Monte-Carlo, simulee sous le modele ajuste avec ses pi_t,", txt_ind),
                    b3$detail, fixed = TRUE) && !grepl(" est retenue", b3$detail, fixed = TRUE) &&
-             grepl(paste("La p-value Monte-Carlo, simulee sous le modele ajuste, est calculee ;",
-                         "la p-value retenue, s'il en est une, est nommee par nature_p."),
-                   a2$detail, fixed = TRUE) && !grepl(" est retenue", a2$detail, fixed = TRUE) &&
-             endsWith(b2$detail, paste0("Monte-Carlo, simulee sous le modele ajuste, ", txt_ind, ".")) &&
+             grepl("La p-value Monte-Carlo, simulee sous le modele ajuste, est calculee.",
+                   a2$detail, fixed = TRUE) && !grepl("nommee par nature_p", a2$detail, fixed = TRUE) &&
+             !grepl(" est retenue", a2$detail, fixed = TRUE) &&
+             grepl(paste0("Monte-Carlo, simulee sous le modele ajuste, ", txt_ind, "."), b2$detail, fixed = TRUE) &&
              !grepl(" est retenue", b2$detail, fixed = TRUE) &&
-             all(vapply(list(b2, b3), function(l)
-               identical(l$type, "test") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
-                 startsWith(l$detail, "Monte-Carlo indisponible : aucune replication finie"),
-               logical(1)))
+             identical(b3$type, "test") && identical(b3$verdict, "INFO") && is.na(b3$p_retenue) &&
+             startsWith(b3$detail, "Monte-Carlo indisponible : aucune replication finie") &&
+             identical(b2$type, "diagnostic") && identical(b2$verdict, "INFO") && is.na(b2$p_retenue) &&
+             startsWith(b2$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_AUCUNE_REPLIC, ".")) &&
+             !grepl(": aucune p-value retenue (ADR 0001)", b2$detail, fixed = TRUE) &&
+             endsWith(b2$detail, "dont le type et le verdict font foi.")
          })
 # #182 (Q1 d'audit, retenue) : txt_mc_indispo() n'a que des appelants sans p
 # exacte (RESET, OLS-CUSUM, Runsr non attribuee) ; p_mc absente, aucune
 # p-value n'est retenue, et le texte le dit sans renvoyer a nature_p. La
-# phrase "s'il en est une" reste dans les branches AVEC p_mc (Runsr regime 2,
-# et, depuis #214, RESET, OLS-CUSUM, Runsr regimes 1 et 3), add() pouvant
-# encore ecarter la p calculee.
-verifier("txt_mc_indispo (#182) : RESET et OLS-CUSUM sans p_mc -> 'aucune p-value n'est retenue' ; Runsr regime 2 avec p_mc -> 's'il en est une' conservee",
+# phrase "s'il en est une" reste dans les branches AVEC p_mc de type test
+# (depuis #214, RESET, OLS-CUSUM, Runsr regime 3), add() pouvant encore
+# ecarter la p calculee ; elle est retiree des branches de Runsr a pi_t
+# constant (regimes 1 et 2), diagnostics de la regle R15 depuis #303.
+verifier("txt_mc_indispo (#182) : RESET et OLS-CUSUM sans p_mc -> 'aucune p-value n'est retenue' ; Runsr regime 2 avec p_mc -> 'est calculee', sans 's'il en est une' (#303)",
          {
            ko <- usp_tests(fit, boot_fictif(fit, motif = c(RESET = MOTIF_MC_AUCUNE_REPLIC,
                                                            CUSUM = MOTIF_MC_AUCUNE_REPLIC)),
@@ -221,8 +227,8 @@ verifier("txt_mc_indispo (#182) : RESET et OLS-CUSUM sans p_mc -> 'aucune p-valu
              grepl(nouveau, l$detail, fixed = TRUE) && !grepl("s'il en est une", l$detail, fixed = TRUE) &&
                is.na(l$p_retenue) && is.na(l$p_exacte), logical(1))) &&
              is.finite(a2$p_mc) &&
-             grepl("est calculee ; la p-value retenue, s'il en est une, est nommee par nature_p.",
-                   a2$detail, fixed = TRUE) && !grepl(nouveau, a2$detail, fixed = TRUE)
+             grepl("simulee sous le modele ajuste, est calculee.", a2$detail, fixed = TRUE) &&
+             !grepl("s'il en est une", a2$detail, fixed = TRUE) && !grepl(nouveau, a2$detail, fixed = TRUE)
          })
 
 # Suffixe de bande seulement si la p exacte de la ligne est finie (#70, Q3).
@@ -384,11 +390,11 @@ verifier("Cox-Stuart, alpha = 0,29 : donnees de test -> 'exacte', p_retenue = cx
          })
 
 ## --- 10. Invariants --------------------------------------------------------
-# T = 5 : 43 lignes (Smirnov, Ljung-Box et Box-Pierce au retard 2 exigent
+# T = 5 : 42 lignes (Smirnov, Ljung-Box et Box-Pierce au retard 2 exigent
 # T >= 8), nombre inchange par #70.
-verifier("Invariants : 46 lignes usp_tests() a T >= 8 dans tous les regimes testes, 43 a T = 5",
-         all(vapply(list(tt, t8, tb, t2, t3, t10), length, integer(1)) == 46L) &&
-           length(t5) == 43L)
+verifier("Invariants : 45 lignes usp_tests() a T >= 8 dans tous les regimes testes, 42 a T = 5 (LB1r retiree, #303)",
+         all(vapply(list(tt, t8, tb, t2, t3, t10), length, integer(1)) == 45L) &&
+           length(t5) == 42L)
 verifier("Invariant M7 : hors test et procedure de decision, verdict INFO et sens NA",
          all(vapply(c(tt, t5, t8, tb), function(l)
            l$type %in% c("test", "procedure de decision") ||
@@ -396,10 +402,120 @@ verifier("Invariant M7 : hors test et procedure de decision, verdict INFO et sen
            logical(1))))
 res8 <- run_engine(xt = x8, yt = y8, methode = "premium", segment = 1, annexe = "II",
                    nature_donnees = "brutes", B = 99, seed = 20260831)
-verifier("run_engine, pi_t variable, B = 99 : 51 lignes (#45), catalogue complet, aucune nature 'exacte' sur les huit",
-         isTRUE(res8$ok) && length(res8$tests) == 51L &&
+verifier("run_engine, pi_t variable, B = 99 : 50 lignes (#45 ; LB1r retiree, #303), catalogue complet, aucune nature 'exacte' sur les huit",
+         isTRUE(res8$ok) && length(res8$tests) == 50L &&
            identical(names(res8$bootstrap$p_mc), names(USP_CATALOGUE_MC)) &&
            !any(vapply(res8$tests, function(l)
              l$test %in% NOM && identical(l$nature_p, "exacte"), logical(1))))
+
+## --- 11. Regle R15 (#303) : lignes sur ratios bruts a pi_t constant ---------
+# A pi_t constant (regime$pi_constant, bande TOL_DELTA_BORD comprise), DWr,
+# Runsr, supFr, CUSUMr et Grubbsr sont restituees en diagnostic par
+# usp_tests() : verdict INFO, ni p retenue, ni nature, ni sens, inoperant
+# FALSE, p-values conservees, detail = motif actuel puis phrase fixe de R15.
+# A pi_t variable (jeu J2, delta estime interieur ; f8), elles restent des
+# tests. Ljung-Box (1) sur ratios bruts (LB1r) est retiree dans tous les
+# regimes, avec son entree de catalogue.
+NOM_R15 <- c(DWr = "Autocorrelation d'ordre 1 (Durbin-Watson) sur ratios bruts",
+             Runsr = "Test des suites sur ratios bruts",
+             supFr = "Rupture de niveau (sup-F) sur ratios bruts",
+             CUSUMr = "Stabilite cumulee (OLS-CUSUM) sur ratios bruts",
+             Grubbsr = "Valeur aberrante isolee (Grubbs) sur ratios bruts")
+TXT_R15 <- paste("Restituee en diagnostic (regle R15) : aucun verdict ni p-value",
+                 "retenue ; l'hypothese releve de la ligne homologue sur residus",
+                 "standardises, dont le type et le verdict font foi.")
+NOM_LB1R <- "Ljung-Box (retard 1) sur ratios bruts"
+j2 <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln_interieur.csv"))
+fj2 <- usp_ajuster(j2$xt, j2$yt)
+tj2 <- usp_tests(fj2, boot_fictif(fj2), methode = "premium")
+est_r15 <- function(l) identical(l$type, "diagnostic") && identical(l$verdict, "INFO") &&
+  is.na(l$p_retenue) && is.na(l$nature_p) && is.na(l$sens) && isFALSE(l$inoperant) &&
+  identical(l$p_mc, 0.5) && endsWith(l$detail, TXT_R15) &&
+  grepl("CONTROLE SANS OBJET ICI", l$detail, fixed = TRUE)
+verifier("R15 (#303) : pi_t exactement constant (delta = 1) et bande de tolerance, cinq lignes en diagnostic R15",
+         isTRUE(usp_regime(fit$delta, fit$x)$pi_constant_exact) &&
+           isTRUE(usp_regime(fb$delta, fb$x)$pi_constant) &&
+           all(vapply(list(tt, tb), function(t)
+             all(vapply(NOM_R15, function(n) est_r15(ligne(t, n)), logical(1))), logical(1))))
+verifier("R15 (#303) : la ligne Runsr a pi_t constant garde sa p exacte et sa p_min, sans renvoi a nature_p",
+         {
+           b <- ligne(tt, NOM_R15[["Runsr"]])
+           is.finite(b$p_exacte) && is.finite(b$p_min) &&
+             !grepl("nommee par nature_p", b$detail, fixed = TRUE) &&
+             !grepl("nommee par nature_p", ligne(tb, NOM_R15[["Runsr"]])$detail, fixed = TRUE)
+         })
+verifier("R15 (#303) : pi_t variable (jeu J2, delta interieur ; f8), cinq lignes de type test, p Monte-Carlo retenue, sans phrase R15",
+         {
+           ok <- vapply(list(tj2, t8), function(t) all(vapply(NOM_R15, function(n) {
+             l <- ligne(t, n)
+             identical(l$type, "test") && identical(l$nature_p, NAT_MC) && identical(l$p_retenue, 0.5) &&
+               !grepl("regle R15", l$detail, fixed = TRUE)
+           }, logical(1))), logical(1))
+           !isTRUE(usp_regime(fj2$delta, fj2$x)$pi_constant) && fj2$delta > 0 && fj2$delta < 1 && all(ok)
+         })
+verifier("R15 (#303) : Ljung-Box (1) sur ratios bruts retiree dans tous les regimes, entree LB1r retiree du catalogue",
+         !"LB1r" %in% names(USP_CATALOGUE_MC) &&
+           !any(vapply(c(tt, tb, t8, tj2, t5), function(l) identical(l$test, NOM_LB1R), logical(1))))
+# Priorite des motifs non applicables : statistique observee non finie
+# (motif MOTIF_MC_OBS_NON_FINIE, Runsr d'un seul cote de la mediane compris)
+# -> la ligne reste non applicable, sans phrase de R15.
+verifier("R15 (#303) : statistique observee non finie a pi_t constant, ligne non applicable sans phrase R15",
+         {
+           b <- boot_fictif(fit, motif = c(DWr = MOTIF_MC_OBS_NON_FINIE, Runsr = MOTIF_MC_OBS_NON_FINIE))
+           b$stats_obs$DWr <- NA_real_; b$stats_obs$Runsr <- NA_real_
+           t <- usp_tests(fit, b, methode = "premium")
+           all(vapply(NOM_R15[c("DWr", "Runsr")], function(n) {
+             l <- ligne(t, n)
+             identical(l$type, "non applicable") && !grepl("regle R15", l$detail, fixed = TRUE)
+           }, logical(1))) && est_r15(ligne(t, NOM_R15[["supFr"]]))
+         })
+# p Monte-Carlo absente a pi_t constant : diagnostic R15, le motif en tete du
+# detail, sous la forme de sa classe comme dans add() (degenerescence :
+# "<motif> : aucune p-value retenue (ADR 0001)." ; autre motif :
+# "Monte-Carlo indisponible : <motif>."), la phrase de R15 en fin.
+verifier("R15 (#303) : p Monte-Carlo absente a pi_t constant, diagnostic R15 avec le motif en tete",
+         {
+           b <- boot_fictif(fit, motif = c(CUSUMr = MOTIF_MC_DISPERSION_NULLE, Runsr = MOTIF_MC_AUCUNE_REPLIC))
+           t <- usp_tests(fit, b, methode = "premium")
+           l <- ligne(t, NOM_R15[["CUSUMr"]]); r <- ligne(t, NOM_R15[["Runsr"]])
+           identical(l$type, "diagnostic") && is.na(l$p_mc) && is.na(l$p_retenue) &&
+             startsWith(l$detail, paste0(MOTIF_MC_DISPERSION_NULLE, " : aucune p-value retenue (ADR 0001).")) &&
+             endsWith(l$detail, TXT_R15) &&
+             # Runsr, regime 1 sans p_mc : p exacte conservee, phrase de R15
+             # jointe apres le point final (" ", jamais " ; ").
+             identical(r$type, "diagnostic") && is.finite(r$p_exacte) && is.na(r$p_retenue) &&
+             startsWith(r$detail, "Monte-Carlo indisponible : aucune replication finie (B_effectif = 0).") &&
+             !grepl(": aucune p-value retenue (ADR 0001)", r$detail, fixed = TRUE) &&
+             grepl(paste("(issue #29).", TXT_R15), r$detail, fixed = TRUE)
+         })
+# La phrase de R15 renvoie au type et au verdict de la ligne homologue, qui
+# peut elle-meme etre sans verdict : T = 5 a volumes constants, suites sur z
+# en test inoperant (R1, p_min = 2/3 >= alpha) ; J1 a B = 40 (aucune p_mc,
+# motif replications insuffisantes), sup-F sur z en test sans p-value (INFO)
+# et DW sur z en test a p exacte (mesure du 19/10/2026 : OK, p = 0,565).
+verifier("R15 (#303) : T = 5 a volumes constants, Runsr porte la phrase R15 pendant que les suites sur z sont un test inoperant",
+         {
+           f5c <- usp_ajuster(rep(100, 5), c(66, 70, 75, 82, 91))
+           t5c <- usp_tests(f5c, boot_fictif(f5c), methode = "premium")
+           a <- ligne(t5c, "Test des suites (aleatoire des signes)"); r <- ligne(t5c, NOM_R15[["Runsr"]])
+           isTRUE(usp_regime(f5c$delta, f5c$x)$pi_constant_exact) &&
+             isTRUE(a$inoperant) && identical(a$type, "diagnostic") &&
+             identical(r$type, "diagnostic") && isFALSE(r$inoperant) && endsWith(r$detail, TXT_R15)
+         })
+verifier("R15 (#303) : J1 a B = 40, DWr et supFr portent la phrase R15 ; homologues sur z : sup-F test INFO sans p retenue, DW test a p exacte",
+         {
+           j1 <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln.csv"))
+           fj1 <- usp_ajuster(j1$xt, j1$yt)
+           tj1 <- usp_tests(fj1, usp_bootstrap(fj1, B = 40, seed = 20260831), methode = "premium")
+           dz <- ligne(tj1, "Autocorrelation d'ordre 1 (Durbin-Watson)"); sz <- ligne(tj1, "Rupture de niveau (sup-F)")
+           dr <- ligne(tj1, NOM_R15[["DWr"]]); sr <- ligne(tj1, NOM_R15[["supFr"]])
+           isTRUE(usp_regime(fj1$delta, fj1$x)$pi_constant) &&
+             all(vapply(list(dr, sr), function(l)
+               identical(l$type, "diagnostic") && is.na(l$p_mc) && endsWith(l$detail, TXT_R15) &&
+                 startsWith(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES, ".")),
+               logical(1))) &&
+             identical(sz$type, "test") && identical(sz$verdict, "INFO") && is.na(sz$p_retenue) &&
+             identical(dz$type, "test") && identical(dz$nature_p, "exacte") && is.finite(dz$p_retenue)
+         })
 
 fin_fichier()

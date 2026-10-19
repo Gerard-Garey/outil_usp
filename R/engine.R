@@ -3698,8 +3698,13 @@ USP_CATALOGUE_MC <- list(
   }),
   # --- memes statistiques sur les ratios bruts centres (base "r") -----------
   DWr    = .mc_entree(function(e) stat_dw(e$u), "deux"),
-  LB1r   = .mc_entree(function(e)
-    unname(stats::Box.test(e$u, lag = 1, type = "Ljung-Box")$statistic), "haut"),
+  # Ljung-Box (retard 1) sur ratios bruts (LB1r) retiree avec sa ligne
+  # (#303 ; decision du mainteneur du 19/10/2026, Q-D1-Fh-9, specification
+  # Fh) : un seul test d'autocorrelation d'ordre 1 par base, Durbin-Watson
+  # bilateral (DWr), le plus puissant contre rho > 0, l'alternative
+  # actuarielle plausible. LB1r n'est pas un doublon de DWr : Q = T (T + 2)
+  # rho_1^2 / (T - 1) est fonction de |rho_1| et, a T = 8, rejette surtout
+  # vers rho < 0 (mesures de la decision Q-D1-Fh-9).
   Runsr  = .mc_entree(function(e)
     test_runs(e$u, plancher = .usp_plancher_u(e$r))$stat, "deux",
     extremes = function(e) .runs_extremes(e$u, plancher = .usp_plancher_u(e$r))),
@@ -6117,9 +6122,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # cotes) -- et les autres ne different qu'au second ordre en CV(r) (mesure
   # sur les donnees du depot : cor(z, u) = 0,998, cor(z, ln r) = 1).
   # Il n'y a pas d'artefact de ponderation a detecter la ou il n'y a pas de
-  # ponderation : ces six lignes sont alors des quasi-doublons de leurs
+  # ponderation : ces cinq lignes sont alors des quasi-doublons de leurs
   # homologues sur residus, et le detail le dit au relecteur plutot que de
-  # lui laisser croire a six verifications independantes.
+  # lui laisser croire a cinq verifications independantes.
   note_r <- if (isTRUE(pi_constant))
     paste("CONTROLE SANS OBJET ICI : pi_t est constant (delta = 1, ou volumes",
           "x_t constants), il n'y a donc aucun artefact de ponderation a",
@@ -6127,6 +6132,52 @@ usp_tests <- function(fit, boot, alpha = 0.10,
           "residus standardises, dont elle ne differe que par la transformation",
           "logarithmique.") else ""
   detail_r <- function(txt = "") trimws(paste(txt, note_r))
+  # Regle R15 (#303, Q-D1-Fh-3 et Q-D1-Fh-7 du 19/10/2026 ; diagnostic par
+  # regle) : a pi_t constant (regime$pi_constant, bande TOL_DELTA_BORD
+  # comprise), les cinq lignes DWr, Runsr, supFr, CUSUMr et Grubbsr, quasi-
+  # doublons (Runsr : doublon exact quand les signes de u et de z
+  # coincident) de leurs homologues sur residus standardises, sont
+  # restituees en diagnostic : type = "diagnostic" pose
+  # ici, add() inchangee (verdict INFO, ni p retenue, ni nature, ni sens ;
+  # p-values conservees dans leurs colonnes ; inoperant FALSE, la regle R1
+  # ne s'appliquant qu'a une ligne de type test). A pi_t variable, rien ne
+  # change. Priorite des motifs non applicables : une ligne dont la
+  # statistique observee n'est pas finie (MOTIF_MC_OBS_NON_FINIE, Runsr d'un
+  # seul cote de la mediane compris) garde son type, et add() ou l'appel
+  # la rendent non applicable ; la phrase de R15 n'y est pas ajoutee.
+  txt_r15 <- paste("Restituee en diagnostic (regle R15) : aucun verdict ni p-value",
+                   "retenue ; l'hypothese releve de la ligne homologue sur residus",
+                   "standardises, dont le type et le verdict font foi.")
+  motif_mc_r <- function(nm)
+    if (!is.null(boot$motif_mc) && nm %in% names(boot$motif_mc))
+      unname(boot$motif_mc[[nm]]) else NA_character_
+  r15 <- function(nm) isTRUE(pi_constant) && is.finite(boot$stats_obs[[nm]]) &&
+    !identical(motif_mc_r(nm), MOTIF_MC_OBS_NON_FINIE)
+  type_r15 <- function(nm) if (r15(nm)) "diagnostic" else "test"
+  # Detail d'une ligne de R15 : motif Monte-Carlo en tete quand la p
+  # Monte-Carlo manque (sur une ligne de type test, add() l'y pose ; sur un
+  # diagnostic, elle ne le fait pas : il est pose ici pour ne pas etre
+  # perdu), puis le detail de la ligne, puis la phrase fixe de R15. Forme
+  # selon la classe du motif, comme dans add() (errata du 19/10/2026 de la
+  # specification Fh, section 4.2) : motif de degenerescence -> "<motif> :
+  # aucune p-value retenue (ADR 0001)." et son complement ; autre motif
+  # (replications absentes ou insuffisantes, regime rare) -> "Monte-Carlo
+  # indisponible : <motif>.", la phrase de R15 disant seule l'absence de p
+  # retenue. Aucun nombre issu du bootstrap (regle #76).
+  motifs_degeneres_r15 <- c(MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_ATOME_HORS_OBS,
+                            MOTIF_MC_CONDITION)
+  detail_r15 <- function(nm, detail) {
+    if (!r15(nm)) return(detail)
+    m <- motif_mc_r(nm)
+    pre <- if (mc_dispo(nm) || is.na(m)) ""
+           else if (m %in% motifs_degeneres_r15)
+             trimws(paste(c(paste0(m, " : aucune p-value retenue (ADR 0001)."),
+                            .complement_motif_mc(m)), collapse = " "))
+           else paste0("Monte-Carlo indisponible : ", m, ".")
+    # trimws() : un detail peut finir par une espace (paste() d'un element
+    # NULL, branche 1 de Runsr sans p_mc), qui ferait joindre par " ; ".
+    joindre(joindre(pre, trimws(detail)), txt_r15)
+  }
   # Ligne Runsr (issue #29, decision M8) : p-value exacte sous la double
   # condition de usp_runsr_p_exacte(), calculee une fois ; le champ loi et le
   # detail en suivent le regime (note_r n'est pas concatenee pour cette
@@ -6164,11 +6215,11 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                   "EXACTE est ecartee par le motif de degenerescence en tete (ADR 0001)."
                 else paste("EXACTE est calculee (convention bilaterale du doublement, celle du",
                            "bootstrap), la meme que sur la ligne des suites sur residus",
-                           "standardises (issue #29) ; la p-value retenue, s'il en est une,",
-                           "est nommee par nature_p.",
-                           # #214 : la phrase ne declare plus la p exacte retenue
-                           # (contredite par la regle R1 quand la ligne est
-                           # inoperante, p_min >= alpha) ; nature_p la nomme.
+                           "standardises (issue #29).",
+                           # #214 : la phrase ne declare pas la p exacte retenue ;
+                           # #303 (regle R15) : a pi_t constant, la ligne est un
+                           # diagnostic sans p retenue, la proposition qui
+                           # renvoyait a nature_p est retiree.
                            # #128, point c : la phrase sur p_mc n'est ecrite que si
                            # p_mc existe ; absente, rien n'est ajoute.
                            if (mc_dispo("Runsr"))
@@ -6189,9 +6240,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     # de z (centrage de u par la moyenne, aplatissement des ex aequo a
     # TOL_EX_AEQUO, plancher max|r| sur u et 1 sur z), non de pi_t. pi_t constant
     # a la tolerance pres : la variation residuelle de pi_t est nommee, avec
-    # ecart_tol. La phrase finale ne dit pas la p Monte-Carlo retenue : add()
-    # peut encore l'ecarter (motif de degenerescence, regle R1) ; nature_p
-    # nomme la p-value retenue, s'il en est une.
+    # ecart_tol. La phrase finale ne dit pas la p Monte-Carlo retenue : a
+    # pi_t constant, la ligne est un diagnostic de la regle R15 (#303), sans
+    # p retenue ; la proposition qui renvoyait a nature_p est retiree.
     debut <- if (isTRUE(regime$pi_constant_exact))
       paste("CONTROLE SANS OBJET ICI : pi_t est exactement constant (delta = 1, ou",
             "volumes x_t constants), il n'y a donc aucun artefact de ponderation a",
@@ -6215,8 +6266,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       "peut coincider ou non) et la loi combinatoire de R n'est pas attribuee a",
       "cette ligne (issue #29, seconde condition de la fonction usp_runsr_p_exacte).",
       if (mc_dispo("Runsr"))
-        paste("La p-value Monte-Carlo, simulee sous le modele ajuste, est calculee ;",
-              "la p-value retenue, s'il en est une, est nommee par nature_p.")
+        "La p-value Monte-Carlo, simulee sous le modele ajuste, est calculee."
       else paste0(txt_mc_indispo("La p-value Monte-Carlo, simulee sous le modele ajuste,"), "."))
   } else if (isTRUE(pi_constant)) {
     paste(note_r, "La loi combinatoire de R n'est pas definie ici (un seul cote",
@@ -6244,13 +6294,13 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       H0 = "absence d'autocorrelation d'ordre 1 du ratio S/P",
       H1 = "autocorrelation du ratio S/P",
       stat_nom = "DW", stat = boot$stats_obs$DWr, loi = loi_ind, mc_nom = "DWr",
-      detail = detail_r())
-  add(fam_h4,
-      fonction = "usp_tests",
-      "Ljung-Box (retard 1) sur ratios bruts", "Ljung & Box (1978), Biometrika 65",
-      base = "r", H0 = "rho_1 = 0 pour le ratio S/P", H1 = "autocorrelation au retard 1",
-      stat_nom = "Q", stat = boot$stats_obs$LB1r, loi = loi_ind, mc_nom = "LB1r",
-      detail = detail_r())
+      type = type_r15("DWr"),
+      detail = detail_r15("DWr", detail_r()))
+  # Ljung-Box (retard 1) sur ratios bruts retiree dans tous les regimes
+  # (#303, Q-D1-Fh-3 et Q-D1-Fh-9), entree LB1r du catalogue retiree avec la
+  # ligne : un seul test d'autocorrelation d'ordre 1 par base, DWr bilateral
+  # (le plus puissant contre rho > 0) ; LB1r, fonction de |rho_1| et qui a
+  # T = 8 rejette surtout vers rho < 0, n'est pas un doublon de DWr.
   add(fam_h4,
       fonction = "test_runs",
       "Test des suites sur ratios bruts", "Wald & Wolfowitz (1940)",
@@ -6261,14 +6311,16 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         "loi combinatoire EXACTE de R (pi_t constant : r_t i.i.d., signes identiques a ceux de z_t)"
       else loi_ind,
       # Issue #29 (M8) : p exacte seulement sous la double condition de
-      # usp_runsr_p_exacte() ; sinon Monte-Carlo. Les cinq autres lignes de la
-      # base "r" restent en Monte-Carlo dans tous les regimes (u_t non
+      # usp_runsr_p_exacte() ; sinon Monte-Carlo. Les quatre autres lignes de la
+      # base "r" n'ont qu'une p Monte-Carlo dans tous les regimes, retenue a
+      # pi_t variable seulement (regle R15, #303) (u_t non
       # gaussiens : ni Imhof ni loi normale).
       p_ex = p_ex_r, mc_nom = "Runsr",
-      type = if (is.finite(boot$stats_obs$Runsr)) "test" else "non applicable",
+      # Regle R15 (#303) a pi_t constant ; non applicable prioritaire.
+      type = if (is.finite(boot$stats_obs$Runsr)) type_r15("Runsr") else "non applicable",
       p_min = runs_p_min(eff_u[["n1"]], eff_u[["n2"]]),
       effectifs = sprintf("n1 = %d, n2 = %d", eff_u[["n1"]], eff_u[["n2"]]),
-      detail = if (is.finite(boot$stats_obs$Runsr)) detail_runsr else
+      detail = if (is.finite(boot$stats_obs$Runsr)) detail_r15("Runsr", detail_runsr) else
         paste("un seul cote de la mediane represente : loi de R non definie,",
               "test non applicable"))
   add(fam, "Rupture de niveau (sup-F) sur ratios bruts",
@@ -6277,14 +6329,17 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       H0 = "niveau du ratio S/P constant", H1 = "rupture de niveau du ratio S/P",
       stat_nom = "supF", stat = boot$stats_obs$supFr,
       loi = "supremum de processus -> Monte-Carlo", mc_nom = "supFr",
-      detail = detail_r("Detecte un changement de regime du ratio, independamment du modele."))
+      type = type_r15("supFr"),
+      detail = detail_r15("supFr",
+                          detail_r("Detecte un changement de regime du ratio, independamment du modele.")))
   add(fam, "Stabilite cumulee (OLS-CUSUM) sur ratios bruts",
       fonction = "stat_cusum",
       "Brown, Durbin & Evans (1975), JRSS B 37", base = "r",
       H0 = "constance du niveau du ratio S/P", H1 = "derive graduelle",
       stat_nom = "CUSUM", stat = boot$stats_obs$CUSUMr,
       loi = "sup |pont brownien| -> Monte-Carlo", mc_nom = "CUSUMr",
-      detail = detail_r())
+      type = type_r15("CUSUMr"),
+      detail = detail_r15("CUSUMr", detail_r()))
   add(fam, "Valeur aberrante isolee (Grubbs) sur ratios bruts",
       fonction = "test_grubbs",
       "Grubbs (1950, 1969), Technometrics 11", base = "r",
@@ -6293,7 +6348,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       estim_nom = "rang du ratio extreme",
       estim = { g <- test_grubbs(u); if (is.finite(g$stat)) g$idx else NA_real_ },
       mc_nom = "Grubbsr",
-      detail = detail_r("Identifie l'annee au boni/mali le plus atypique, sans passer par le modele."))
+      type = type_r15("Grubbsr"),
+      detail = detail_r15("Grubbsr",
+                          detail_r("Identifie l'annee au boni/mali le plus atypique, sans passer par le modele.")))
 
   add(fam, "Leviers (hat values)", "Hoaglin & Welsch (1978), Amer. Statist. 32",
       fonction = "usp_tests",

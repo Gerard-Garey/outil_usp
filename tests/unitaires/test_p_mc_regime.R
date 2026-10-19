@@ -318,8 +318,8 @@ local({
              identical(r$retenus, 41) &&
              identical(r$rejets_flux, c(reajustement = 0, hors_regime = 2361, statistiques = 0)) &&
              identical(r$arret, "B_max") && identical(e$k, 2500L))
-  verifier("U5 les 34 motif_mc = MOTIF_MC_REGIME_RARE ; p_mc et err_mc NA",
-           identical(unname(bt$motif_mc), rep(MOTIF_MC_REGIME_RARE, 34L)) &&
+  verifier("U5 les 33 motif_mc (LB1r retiree, #303) = MOTIF_MC_REGIME_RARE ; p_mc et err_mc NA",
+           identical(unname(bt$motif_mc), rep(MOTIF_MC_REGIME_RARE, 33L)) &&
              all(is.na(bt$p_mc)) && all(is.na(bt$err_mc)))
   verifier("U5 MOTIF_MC_REGIME_RARE : texte exact, ASCII, hors des motifs degeneres",
            identical(MOTIF_MC_REGIME_RARE, paste(
@@ -375,8 +375,8 @@ local({
            identical(r$variante, "V3b") && identical(r$B_cible, 30) && identical(r$B_max, 775) &&
              identical(r$tirages, 775) && identical(r$arret, "B_max") && identical(e$k, 775L) &&
              identical(r$retenus, 12))
-  verifier("U5 bis B = 30 : les 34 motif_mc = MOTIF_MC_REPLIC_INSUFFISANTES, aucun MOTIF_MC_REGIME_RARE",
-           identical(unname(bt$motif_mc), rep(MOTIF_MC_REPLIC_INSUFFISANTES, 34L)) &&
+  verifier("U5 bis B = 30 : les 33 motif_mc (LB1r retiree, #303) = MOTIF_MC_REPLIC_INSUFFISANTES, aucun MOTIF_MC_REGIME_RARE",
+           identical(unname(bt$motif_mc), rep(MOTIF_MC_REPLIC_INSUFFISANTES, 33L)) &&
              !any(bt$motif_mc %in% MOTIF_MC_REGIME_RARE))
 })
 

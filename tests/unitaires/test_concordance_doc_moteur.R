@@ -579,9 +579,11 @@ verifier("Garde de contexte (constat 4 de la fin d'E0b) : --strict ne compte pas
          any(grepl(sprintf("^      l\\.%-5d deux lignes +\\[garde : dimension d'un tableau ou d'un fichier\\]", length(.tex_75) + 3L),
                    r_75$sortie)) &&
            !any(grepl(sprintf("^    l\\.%-5d deux lignes ", length(.tex_75) + 3L), r_75$sortie)))
-verifier("Audit de #75, C2 : --strict signale le decompte faux injecte apres un qualificatif intercale (six autres lignes, mesure 5)",
+# Mesure 4 depuis le retrait de Ljung-Box (1) sur ratios bruts (#303) : DWr,
+# supFr, CUSUMr et Grubbsr.
+verifier("Audit de #75, C2 : --strict signale le decompte faux injecte apres un qualificatif intercale (six autres lignes, mesure 4)",
          length(.k75r) == 1L &&
-           any(grepl(sprintf("^    \\[ECART +\\] l\\.%-5d prime : lignes de base r hors suites .* base r hors suites +annonce 6 +mesure 5$",
+           any(grepl(sprintf("^    \\[ECART +\\] l\\.%-5d prime : lignes de base r hors suites .* base r hors suites +annonce 6 +mesure 4$",
                              .k75r), r_75$sortie)))
 r_b98 <- .lancer_concordance("--B", "98")
 verifier("--B 98 refuse par le script lance (code 1, erreur explicite, moteur non execute)",
@@ -717,8 +719,8 @@ verifier("Issue #114 : registre au moteur -- declaration hors_jeux perimee et li
          .a_motif(.er2, "fiche:b", "hors_jeux perimee") && .a_motif(.er2, "fiche:a, fiche:d", "plusieurs fiches"))
 .labs <- vapply(cc$REGISTRE_RUBRIQUE7, `[[`, character(1), "label")
 .noms <- unlist(lapply(cc$REGISTRE_RUBRIQUE7, `[[`, "tests"))
-verifier("Issue #114 : registre REGISTRE_RUBRIQUE7 -- 50 fiches (53 decidees le 27/09/2026, moins fiche:fisher-global, diagnostic depuis #169, et mw:m5sw, mw:m5li, diagnostics depuis #245), labels et noms uniques",
-         length(.labs) == 50L && !anyDuplicated(.labs) && !anyDuplicated(.noms) &&
+verifier("Issue #114 : registre REGISTRE_RUBRIQUE7 -- 49 fiches (53 decidees le 27/09/2026, moins fiche:fisher-global, diagnostic depuis #169, mw:m5sw, mw:m5li, diagnostics depuis #245, et fiche:ljung-box-ratios-bruts, ligne retiree par #303), labels et noms uniques",
+         length(.labs) == 49L && !"fiche:ljung-box-ratios-bruts" %in% .labs && !anyDuplicated(.labs) && !anyDuplicated(.noms) &&
            all(grepl("^(fiche|mw):[a-z0-9-]+$", .labs)) && sum(startsWith(.labs, "mw:")) == 14L)
 # T245-7 : les deux fiches M5 (diagnostics depuis #245) ne sont plus au
 # registre, ni par leur label ni par le nom de leur ligne.

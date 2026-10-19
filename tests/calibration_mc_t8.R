@@ -40,12 +40,12 @@
 #  reconstruction, aucune transcription.
 #
 #  Tableaux (lus sur engine_table_tests() et res$bootstrap) :
-#    T1     : les 34 statistiques de USP_CATALOGUE_MC ; frequence de
+#    T1     : les 33 statistiques de USP_CATALOGUE_MC ; frequence de
 #             p_mc < 0,10 et de p_mc < 0,05, que la p_mc soit retenue ou non,
 #             parmi les replications ou elle est calculee ;
 #    T1 bis : la meme mesure par regime de delta chapeau* du reajustement
 #             (bord 1 : pi chapeau* constant ; bord 0 ; interieur) ;
-#    T2     : niveau des verdicts des 51 lignes : frequence de p retenue
+#    T2     : niveau des verdicts des 50 lignes : frequence de p retenue
 #             < alpha et < alpha/2 parmi les replications ou la ligne a une p
 #             retenue (niveau conditionnel ; regles R1, R3, R4, R7 et R13
 #             comprises) ; ligne ESD (procedure de decision sans p-value) :
@@ -109,7 +109,7 @@
 #  elle est "non applicable" si la reference est inferieure a 2/n (n :
 #  denominateur du taux, np en T2), sa demi-largeur etant alors sous la
 #  resolution 1/n du taux ; une reference nulle n'est pas ramenee a {0}.
-#  Multiplicite : 136 intervalles en T1 sur J1 et J2 (34 statistiques x 2
+#  Multiplicite : 132 intervalles en T1 sur J1 et J2 (33 statistiques x 2
 #  seuils x 2 jeux), environ 7 exclusions attendues par hasard.
 #
 #  Controles d'integrite (code de sortie 1 si l'un echoue) :
@@ -118,9 +118,9 @@
 #         comparer_objets(), apres neutraliser_instables() (meme comparaison
 #         que tests/test_reproductibilite.R) ;
 #    (b)  les noms de res$bootstrap$p_mc et de res$bootstrap$motif_mc sont
-#         exactement les 34 de USP_CATALOGUE_MC, dans son ordre, a chaque
+#         exactement les 33 de USP_CATALOGUE_MC, dans son ordre, a chaque
 #         replication ; toute p_mc absente porte un motif ;
-#    (c)  51 lignes par replication, de memes libelles et dans le meme ordre
+#    (c)  50 lignes par replication, de memes libelles et dans le meme ordre
 #         que sur J1 observe (libelles distincts). Critere strict : le
 #         jackknife (deterministe) et l'IC bootstrap (graine 20260831 + b) de
 #         chaque replication sont ceux de #72, dont les tableaux les
@@ -156,7 +156,7 @@
 #         discrete appartient a l'ensemble des p des atomes enumeres par
 #         lois_discretes() (a 1e-9 pres) ; tailles des suites : atteignable
 #         4/70 et 0, lissee 0,05713 et 0,00968 (a 5e-6 pres) ;
-#  plus des controles de coherence du script : 34 statistiques au catalogue ;
+#  plus des controles de coherence du script : 33 statistiques au catalogue ;
 #  correspondance statistique -> ligne (STAT_LIGNE) verifiee sur J1 observe
 #  (p_mc de la ligne identique a celle du bootstrap) ; lignes nommees par les
 #  constantes presentes ; volumes du jeu non constants (pi chapeau* constant
@@ -193,7 +193,7 @@
 #  la tranche, dont la plateforme de calcul et les empreintes md5 du code),
 #  STATS, LIGNES, REPCOLS (colonnes des lignes REP), DUREE, INTEGRITE (OK ou
 #  ECHEC), NCOMPTES, les comptes bruts (COMPTE), NREP, une ligne REP par
-#  replication (b, regime ou "ecartee", 34 p_mc dans l'ordre de STATS, 51 p
+#  replication (b, regime ou "ecartee", 33 p_mc dans l'ordre de STATS, 50 p
 #  retenues dans l'ordre de LIGNES ; NA si absente) et, en derniere ligne,
 #  FIN (nombre de COMPTE). Rediriger la sortie de chaque tranche vers un
 #  fichier HORS du depot, puis --combiner additionne les comptes et imprime
@@ -210,9 +210,9 @@
 #  celles qu'il recalcule ; des tranches qui ne couvrent pas 1..R exactement
 #  une fois ; un invariant du corps d'une tranche faux (invariants_tranche() :
 #  rep = fin - debut + 1, ok + ecartees = rep, somme des reg = ok, somme des
-#  reg72 = rep, l|ligne|n = ok pour les 51 lignes, n + absentes = ok pour les
-#  34 p_mc, lignes REP = rep, b des REP = debut..fin, regimes et ecartees des
-#  REP = comptes, n, k1 et k2 des 34 p_mc (par regime) et des 51 p retenues
+#  reg72 = rep, l|ligne|n = ok pour les 50 lignes, n + absentes = ok pour les
+#  33 p_mc, lignes REP = rep, b des REP = debut..fin, regimes et ecartees des
+#  REP = comptes, n, k1 et k2 des 33 p_mc (par regime) et des 50 p retenues
 #  recomptes sur les lignes REP = comptes ; au total, somme des rep = R) ;
 #  les controles (e3) ou (e4) en echec.
 #  --ecrire (--combiner seulement) : ecrit
@@ -325,8 +325,10 @@ B_BOOT <- 999L
 GRAINE_JEUX <- 20260927
 GRAINE_BOOT <- 20260831
 T_ <- 8L
-N_STATS <- 34L
-N_LIGNES <- 51L
+# 33 statistiques et 50 lignes depuis le retrait de Ljung-Box (1) sur ratios
+# bruts (entree LB1r, #303).
+N_STATS <- 33L
+N_LIGNES <- 50L
 SCRIPT_72 <- file.path("tests", "taux_franchissement_reperes.R")
 TABLEAUX_72 <- c(J1 = "docs/tableaux/20260930-issue122-J1.md",
                  J2 = "docs/tableaux/20260930-issue122-J2.md")
@@ -437,7 +439,7 @@ STAT_LIGNE <- c(
   SpearTps = "Correlation ratio S/P vs temps", DAgo = "Asymetrie (D'Agostino, T >= 8)",
   CoxStuart = "Tendance par signes du ratio S/P",
   DWr = "Autocorrelation d'ordre 1 (Durbin-Watson) sur ratios bruts",
-  LB1r = "Ljung-Box (retard 1) sur ratios bruts", Runsr = "Test des suites sur ratios bruts",
+  Runsr = "Test des suites sur ratios bruts",
   supFr = "Rupture de niveau (sup-F) sur ratios bruts",
   CUSUMr = "Stabilite cumulee (OLS-CUSUM) sur ratios bruts",
   Grubbsr = "Valeur aberrante isolee (Grubbs) sur ratios bruts")
@@ -653,7 +655,7 @@ controles_72 <- function(cpt, R, jeu) {
 #  TABLEAUX A PARTIR DES COMPTES (execution directe, tranche, --combiner)
 ###############################################################################
 # cpt : vecteur nomme de comptes ; stats : nom -> queue ; lignes : libelles
-# des 51 lignes dans l'ordre de la table. Cles :
+# des 50 lignes dans l'ordre de la table. Cles :
 #   rep, ok ; ecart|b|motif ; reg|r et reg72|r (r : bord1, bord0, interieur,
 #   erreur) ; mc|s|r|n, mc|s|r|k1, mc|s|r|k2 ; mmc|s|motif ;
 #   l|ligne|n, np, k1, k2, t|type, inop, nat|classe, v|verdict ;
@@ -670,7 +672,7 @@ tableaux <- function(cpt, stats, lignes) {
   excl_t1 <- 0
   nmc <- vapply(SEUILS, function(a) c(haut = niveau_mc_continu(a, "haut"), deux = niveau_mc_continu(a, "deux")), numeric(2))
   # --- T1
-  L <- c("### T1 -- calibration de p_mc : les 34 statistiques de USP_CATALOGUE_MC (p_mc retenue ou non)", "",
+  L <- c(sprintf("### T1 -- calibration de p_mc : les %d statistiques de USP_CATALOGUE_MC (p_mc retenue ou non)", N_STATS), "",
          entete_md(c("Statistique", "Ligne de usp_tests()", "Queue", "n", cols_niv(1), cols_niv(2), "p_mc absente")))
   for (s in names(stats)) {
     n <- s_mc(s, NULL, "n"); disc <- s %in% names(LOI_STAT)
@@ -691,11 +693,12 @@ tableaux <- function(cpt, stats, lignes) {
                               "de la p_mc autour des atomes de la loi."),
                         n_ok, num(nmc["haut", 1], 3), num(nmc["haut", 2], 3), num(nmc["deux", 1], 3),
                         num(nmc["deux", 2], 3), B_BOOT, B_BOOT),
-         "", sprintf(paste("Multiplicit\u00e9 : T1 compte %d intervalles (34 statistiques \u00d7 2 seuils) ; ici %d excluent la",
-                           "r\u00e9f\u00e9rence. Sur J1 et J2 r\u00e9unis, 136 intervalles : environ 7 exclusions (5 %% de 136) sont",
+         "", sprintf(paste("Multiplicit\u00e9 : T1 compte %d intervalles (%d statistiques \u00d7 2 seuils) ; ici %d excluent la",
+                           "r\u00e9f\u00e9rence. Sur J1 et J2 r\u00e9unis, %d intervalles : environ %d exclusions (5 %% de %d) sont",
                            "attendues par hasard m\u00eame si toutes les r\u00e9f\u00e9rences sont justes (intervalles corr\u00e9l\u00e9s entre eux ;",
                            "ordre de grandeur, pas un test). T1 bis et T2 ajoutent leurs propres intervalles."),
-                     2L * length(stats), excl_t1), "")
+                     2L * length(stats), length(stats), excl_t1, 4L * length(stats),
+                     round(0.05 * 4L * length(stats)), 4L * length(stats)), "")
   # --- T1 bis
   L <- c(L, "### T1 bis -- calibration de p_mc par r\u00e9gime de \u03b4\u0302* du r\u00e9ajustement (r\u00e9f\u00e9rences de T1)", "",
          entete_md(c("Statistique", "R\u00e9gime", "n", cols_niv(1)[-4], cols_niv(2)[-4])))
@@ -714,7 +717,7 @@ tableaux <- function(cpt, stats, lignes) {
                       "des donn\u00e9es et n'ont pas de r\u00e9f\u00e9rence exacte m\u00eame pour une p_mc parfaitement calibr\u00e9e :",
                       "T1 bis localise un \u00e9cart, il ne teste pas la calibration par r\u00e9gime."), "")
   # --- T2
-  L <- c(L, "### T2 -- niveau des verdicts des 51 lignes : fr\u00e9quence de p retenue < \u03b1 et < \u03b1/2 parmi les p retenues (r\u00e8gles R1, R3, R4, R7, R13 comprises)", "",
+  L <- c(L, sprintf("### T2 -- niveau des verdicts des %d lignes : fr\u00e9quence de p retenue < \u03b1 et < \u03b1/2 parmi les p retenues (r\u00e8gles R1, R3, R4, R7, R13 comprises)", N_LIGNES), "",
          entete_md(c("Ligne", "n", "p retenue", cols_niv(1), cols_niv(2))))
   for (li in lignes) {
     cl <- nettoyer_cle(li)
@@ -974,7 +977,7 @@ invariants_tranche <- function(p) {
   if (!identical(sort(be), sort(b[rg == "ecartee"]))) err <- c(err, "replications ecartees des REP differentes de celles des comptes")
   # Recoupement des lignes REP avec les comptes (constat R3 d'audit) : n, k1
   # et k2 recomptes sur les valeurs brutes (ecrites en %.17g, relues sans
-  # perte) pour les 34 p_mc, par regime, et pour les 51 p retenues.
+  # perte) pour les 33 p_mc, par regime, et pour les 50 p retenues.
   if (length(p$rep) && identical(length(p$repcols), unique(lengths(p$rep)))) {
     M <- do.call(rbind, p$rep); colnames(M) <- p$repcols
     tr <- M[, "regime"] != "ecartee"
