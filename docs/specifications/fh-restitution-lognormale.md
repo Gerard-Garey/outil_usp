@@ -14,6 +14,22 @@
 > - **Q-D1-Fh-8 (#347)** : les parties `mw:m4ros` des écarts 3, 6 et 7 (avec les écarts 1 et 2) suivent #300 (Fi) ; Fh ne modifie pas `mw:m4ros`. La PR de Fh porte `Closes #347` (écarts 3 à 8, parties lognormales). Le report a été posté sur #300 (commentaire `6262412191`). #347 est le **septième numéro de Fh**, par décision expresse, en circuit 4 (commentaire `6262306477` de #347).
 > - **Visa des changements de verdicts annoncés** (§ 4.4, 5.5, 6.4 sous (A), 7.4 ; tableau du § 9), donné sur la prévision. Les lignes passent de **51 à 47** à T = 8. Les lignes à verdict passent de 36 à 18 sur les quatre cas à δ̂ = 1 et de 36 à 24 sur `premium_interieur`. **σ_USP est inchangé** partout et `reserve2` n'est pas touché. Rappel de la règle : chaque commit qui change un résultat porte son tableau avant / après mesuré (skill `verifier-reproductibilite`) ; un écart entre ce tableau et la prévision revient au mainteneur.
 >
+> **Décision du mainteneur du 19/10/2026, en cours d'étape 3 (Q-D1-Fh-9, LB1r et LB1).** Sur la question d'`actuary-approfondi` (avis du 19/10 sur #303, Q4), le mainteneur retient l'**option (A)** : le retrait de Ljung-Box (1) sur ratios bruts (`LB1r`) et sur z (`LB1`, #302) est **maintenu**, sur un **motif reformulé**. Le motif « même information » (§ 1 (i), § 4.3, § 5.1) est **réfuté par la mesure** : Q = T(T + 2)ρ̂₁²/(T − 1) est fonction de |ρ̂₁| et non quasi monotone en DW. À T = 8, sous H0, ρ̂₁ est décentré (E = −0,126, écart-type 0,283), et 90,8 % des rejets de LB1 au seuil 0,10 ont lieu pour ρ̂₁ < 0. L'« égalité des puissances à 0,01 près » citée de #229 et #116 était une égalité de niveau. Puissances au seuil 0,10, calibration « oracle » sous le modèle ajusté à J2, sans réajustement, 20 000 tirages par alternative [V, constat de simulation, script hors dépôt] :
+>
+> | ρ | DWr | LB1r |
+> |---|---|---|
+> | −0,6 | 0,324 | 0,491 |
+> | −0,3 | 0,155 | 0,237 |
+> | +0,3 | 0,159 | 0,077 |
+> | +0,6 | 0,332 | 0,146 |
+>
+> **Motif retenu, cas de retrait (iii) ajouté à la doctrine du § 1.** Un seul test d'autocorrélation d'ordre 1 est désigné par base : Durbin-Watson bilatéral, symétrique et le plus puissant contre l'autocorrélation positive (persistance, cycles de souscription), qui est l'alternative actuarielle plausible. Garder les deux reviendrait à tester deux fois la même H0 (environ 14 % de rejet d'au moins une des deux sous H0 au seuil 0,10). La fiche déclare la perte de puissance contre ρ < 0, chiffres à l'appui. Les commentaires du moteur qui disent « doublon de DWr » sont corrigés. Le tableau avant / après de #303 est inchangé, et σ_USP n'est pas touché.
+>
+> **Errata qui en découlent** (avis d'`actuary-approfondi` du 19/10 sur les questions de `coder-approfondi`) :
+> - **§ 1, § 4.3, § 5.1** : le motif de retrait de LB1r et de LB1 est le cas (iii) ci-dessus, non le cas (i). Les phrases « deux fonctions quasi monotones de ρ̂₁ » et « égalité des puissances à 0,01 près » sont fausses. La revue du bloc 3, § 4.8, porte la même erreur ; elle n'est pas modifiée, mais la fiche du `.tex` ne la cite plus. Box-Pierce (2) contre LB2 n'est pas touché par ce mécanisme (poids relatifs 1 contre 7/6), mais cette proximité reste non mesurée [H].
+> - **§ 4.2** : le `detail` propre à la ligne (`detail_r()`, `detail_runsr`) reste tel quel, hors la proposition retirée. Les suffixes qu'`add()` ne pose qu'aux lignes de type test (texte de R1 et effectifs, mention du plancher Monte-Carlo, phrase de #244) disparaissent, conformément au § 1. Sur le jeu de #214 à α = 0,05, Runsr en régime 1 passe ainsi de `inoperant` TRUE à `inoperant` FALSE : c'est un changement de champ, non de verdict (INFO dans les deux cas), et la ligne homologue sur z reste inopérante.
+> - **§ 4.2, motif Monte-Carlo d'une ligne R15** : `usp_tests()` pose le motif en tête. La forme dépend de la classe du motif, comme dans `add()`. Pour un motif de dégénérescence, la forme est « <motif> : aucune p-value retenue (ADR 0001). » suivie du complément. Pour les autres motifs, elle est « Monte-Carlo indisponible : <motif>. ».
+
 > **Signalements.**
 >
 > - **(i) Statut de Rosner (1983).** Le texte de base de la spécification (en-tête, ancien § 7, § 13) le tenait pour « non relu » (Q-Fc-10). Le complément corrige : l'article a été **lu en texte intégral par la session de recherche documentaire du 19/10/2026** (#347), et Q-38-10 est révisée (commentaire `6262306477` de #347). La règle Q-Fc-10 ne s'applique plus à Rosner ; elle s'applique encore à Thompson (1935).
