@@ -2297,12 +2297,16 @@ dw_puissance_ar1 <- function(T, rho, alpha) {
   if (length(T) != 1L || !is.numeric(T) || !is.finite(T) || T != round(T) || T < 4 ||
       T > .Machine$integer.max)
     stop("dw_puissance_ar1() : T doit etre un entier >= 4 (et <= .Machine$integer.max)")
-  # Domaine borne a |rho| <= 1 - 1e-10 : au-dela, la fonction rendait sans
+  # Domaine borne a rho <= 1 - 1e-10 : au-dela, la fonction rendait sans
   # erreur une valeur eloignee de la limite rho -> 1 (0,5899175 a T = 8,
   # alpha = 0,10) : 0,5899253 a 1 - 1e-12, 0,5906 a 1 - 1e-13, 0,4755 a
-  # 1 - 1e-15 (#170).
-  if (length(rho) != 1L || !is.numeric(rho) || !is.finite(rho) || abs(rho) > 1 - 1e-10)
-    stop("dw_puissance_ar1() : rho doit verifier |rho| <= 1 - 1e-10 (domaine de precision numerique)")
+  # 1 - 1e-15 (#170). Cote negatif, la borne est plus serree (1 - |rho| >=
+  # 1e-6, uniforme en T) : pres de rho = -1, Imhof rend sans erreur une
+  # valeur fausse (1, ou 1,1e-13 a T = 10) ou echoue (erreur d'integration),
+  # voir le domaine de validite plus bas (#339).
+  if (length(rho) != 1L || !is.numeric(rho) || !is.finite(rho) ||
+      rho > 1 - 1e-10 || rho < -1 + 1e-6)
+    stop("dw_puissance_ar1() : rho doit verifier -1 + 1e-6 <= rho <= 1 - 1e-10 (domaine de precision numerique)")
   if (length(alpha) != 1L || !is.numeric(alpha) || !is.finite(alpha) || alpha <= 0 || alpha >= 1)
     stop("dw_puissance_ar1() : alpha doit etre dans ]0, 1[")
   n <- as.integer(T)
@@ -2327,11 +2331,25 @@ dw_puissance_ar1 <- function(T, rho, alpha) {
   # rend NA sur h normalise a l'un des deux points critiques, les deux sont
   # recalcules sur h non normalise, filtre au seuil absolu 1e-12 (calcul
   # anterieur a la normalisation) ; si ce calcul echoue aussi a l'un des
-  # points, chaque point garde la valeur finie disponible. Limite connue :
-  # pour 1 - |rho| <= 10^-8,5 a rho < 0 (T = 8, alpha = 0,10), Imhof sur h
-  # normalise rend 1 sans erreur, la simulation donnant 1 - 6,9e-5 a
-  # 1 - 1,1e-5 ; etendue complete (T = 5, 8, 12 ; alpha = 0,05 et 0,10 ;
-  # deficit jusqu'a environ 1e-4 des 1 - |rho| <= 1e-8) : issue #339.
+  # points, chaque point garde la valeur finie disponible.
+  # Domaine de validite (#339) : T entier, 4 <= T <= .Machine$integer.max ;
+  # -1 + 1e-6 <= rho <= 1 - 1e-10 ; 0 < alpha < 1. Precision mesuree au
+  # voisinage de rho = -1 pour T = 4 a 10, 12, 15, 20, 30, 50, 100 (alpha =
+  # 0,10) et T = 5, 8, 12, 20, 30 (alpha = 0,05) (mesure du 19/10/2026, non
+  # versionnee), et sur la grille de 88 points de #170 (T = 5, 8, 12, 20 ;
+  # rho de -0,99 a 0,99) ; hors de ces T, non mesuree. Pour rho < 0, le
+  # deficit 1 - puissance suit une loi reguliere en (1 - |rho|)^(1/2) (1,2e-3
+  # a 1 - |rho| = 1e-6, T = 8, alpha = 0,10) jusqu'a une rupture, qui depend
+  # de T : au-dela, Imhof rend 1 sans erreur alors que le deficit vrai reste
+  # de l'ordre de 1e-4 a T = 5 et 8 (T = 8 : des 1 - |rho| <= 10^-8,5, deficit
+  # 1,2e-4 a 1e-8 ; T = 5 (alpha = 0,10) : des 1e-9 ; T = 9, 12, 15 : des 1e-8 ; T = 20, 30 : des
+  # 10^-8,5 ; T = 50 : ~0 des 1e-9), ou echoue (T = 4 et 10 : erreur
+  # d'integration a 10^-7,5, valeur fausse 1,1e-13 a 1e-8 pour T = 10). La
+  # garde ne depend pas de T : 1e-6 laisse une decade et demie avant la
+  # rupture la plus precoce mesuree (10^-7,5). A T = 4 (alpha = 0,10) et
+  # T = 5 (alpha = 0,05), la puissance tend vers 0 quand rho -> -1, sans
+  # signature de defaillance (vecteur alterne centre de longueur courte ;
+  # hypothese non verifiee).
   h_de <- function(d) eigen(S12 %*% m$M %*% (m$A - d * diag(n)) %*% m$M %*% S12,
                             symmetric = TRUE, only.values = TRUE)$values
   h_bas <- h_de(d_bas); h_haut <- h_de(d_haut)

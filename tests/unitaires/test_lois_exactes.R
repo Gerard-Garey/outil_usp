@@ -659,16 +659,43 @@ verifier("DW, puissance AR(1) : arguments hors domaine refuses (T < 4, |rho| >= 
          inherits(try(dw_puissance_ar1(8L, 1, 0.1), silent = TRUE), "try-error") &&
          inherits(try(dw_puissance_ar1(8L, 0.5, 0), silent = TRUE), "try-error") &&
          inherits(try(dw_puissance_ar1(8.5, 0.5, 0.1), silent = TRUE), "try-error"))
-# Domaine borne a |rho| <= 1 - 1e-10 (#170) : au-dela, valeur fausse sans
+# Domaine borne a rho <= 1 - 1e-10 (#170) : au-dela, valeur fausse sans
 # erreur (0,5906 a 1 - 1e-13 pour une limite de 0,5899175).
-verifier("DW, puissance AR(1) : 1 - |rho| < 1e-10 refuse par la garde de rho, 1 - |rho| = 1e-10 admis",
+verifier("DW, puissance AR(1) : 1 - rho < 1e-10 refuse par la garde de rho, 1 - rho = 1e-10 admis",
          { r1 <- try(dw_puissance_ar1(8L, 1 - 1e-11, 0.1), silent = TRUE)
-           r2 <- try(dw_puissance_ar1(8L, -1 + 1e-11, 0.1), silent = TRUE)
            r3 <- try(dw_puissance_ar1(8L, 1 - 1e-13, 0.1), silent = TRUE)
            r4 <- try(dw_puissance_ar1(8L, 1 - 1e-10, 0.1), silent = TRUE)
-           all(vapply(list(r1, r2, r3), function(r) inherits(r, "try-error") &&
-                        grepl("|rho| <= 1 - 1e-10", r, fixed = TRUE), logical(1))) &&
+           all(vapply(list(r1, r3), function(r) inherits(r, "try-error") &&
+                        grepl("-1 + 1e-6 <= rho <= 1 - 1e-10", r, fixed = TRUE), logical(1))) &&
            is.numeric(r4) && is.finite(r4) })
+# Garde de rho < 0 (#339), uniforme en T : 1 - |rho| >= 1e-6. Pres de rho = -1,
+# Imhof rend 1 sans erreur (T = 8, des 1 - |rho| <= 10^-8,5) ou echoue, alors
+# que le deficit vrai reste de l'ordre de 1e-4 (T = 8). Mesure du 19/10/2026 a
+# rho = -1 + 1e-6, T = 8, alpha = 0,10 : 1 - puissance = 1,2188e-3 (valeur
+# rendue 0,998781204557699). Tolerance 1e-4 sur le deficit (8 % de 1,2e-3) :
+# elle isole la valeur de la rupture (deficit nul, ou 1,2e-4 a 1e-8) sans
+# prejuger de la derive d'optimiseur entre plateformes, non mesuree ici.
+verifier("DW, puissance AR(1) : rho = -1 + 1e-7 et -1 + 1e-11 refuses avec le message du domaine (#339, T = 8, alpha = 0,10)",
+         { r <- try(dw_puissance_ar1(8L, -1 + 1e-7, 0.10), silent = TRUE)
+           r2 <- try(dw_puissance_ar1(8L, -1 + 1e-11, 0.10), silent = TRUE)
+           inherits(r, "try-error") && inherits(r2, "try-error") &&
+           grepl("-1 + 1e-6 <= rho <= 1 - 1e-10", r2, fixed = TRUE) &&
+           grepl("dw_puissance_ar1() : rho doit verifier -1 + 1e-6 <= rho <= 1 - 1e-10 (domaine de precision numerique)",
+                 r, fixed = TRUE) })
+verifier("DW, puissance AR(1) : rho = -1 + 1e-6 admis, valeur dans ]0 ; 1[ et 1 - valeur = 1,2e-3 a 1e-4 pres (#339)",
+         { v <- dw_puissance_ar1(8L, -1 + 1e-6, 0.10)
+           is.numeric(v) && is.finite(v) && v > 0 && v < 1 && abs((1 - v) - 1.2e-3) < 1e-4 })
+verifier("DW, puissance AR(1) : garde de rho < 0 uniforme en T (T = 4, 5, 12, 50 : -1 + 1e-7 refuse, -1 + 1e-6 admis, #339)",
+         all(vapply(c(4L, 5L, 12L, 50L), function(n) {
+           r <- try(dw_puissance_ar1(n, -1 + 1e-7, 0.10), silent = TRUE)
+           v <- try(dw_puissance_ar1(n, -1 + 1e-6, 0.10), silent = TRUE)
+           inherits(r, "try-error") && is.numeric(v) && is.finite(v) && v >= 0 && v <= 1
+         }, logical(1))))
+verifier("DW, puissance AR(1) : garde positive inchangee (1 - 1e-10 admis, 1 - 1e-11 refuse, message du domaine, #339)",
+         { r <- try(dw_puissance_ar1(8L, 1 - 1e-11, 0.10), silent = TRUE)
+           v <- try(dw_puissance_ar1(8L, 1 - 1e-10, 0.10), silent = TRUE)
+           inherits(r, "try-error") && is.numeric(v) && is.finite(v) &&
+           grepl("rho <= 1 - 1e-10 (domaine de precision numerique)", r, fixed = TRUE) })
 
 ## --- Moments de Z = min(L, n - L), test calendaire de Mack --------------------
 for (n in 2:15) {
