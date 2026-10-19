@@ -18180,7 +18180,7 @@ portée d'une anomalie y est circonscrite à un test, contrairement à H1.}
 \caption{Hypothèses H3 et H4 et diagnostics de stabilité. Tous les tests
 partent des résidus $z_t$ (une erreur dans \code{usp\_noyau()} affecterait tout ce graphe)~;
 six sont aussi calculés sur les ratios centrés $u_t$ (liaisons orangées). Les blocs gris
-fournissent des lois de référence~; \code{.shapiro\_sur()} alimente \emph{deux} entrées.}
+fournissent des lois de référence.}
 \label{fig:annexe-h3h4}
 \end{figure}
 \end{landscape}
@@ -18309,8 +18309,8 @@ Un test, plusieurs fonctions & Mann--Kendall (\code{test\_mann\_kendall()} +
 (\code{test\_lm\_}\allowbreak\code{complet()} + \code{usp\_permutation\_}\allowbreak\code{pente()}) & La statistique et la loi de
 référence sont séparées~: il faut vérifier les deux, et leur cohérence
 d'appariement. \\
-Une fonction, plusieurs tests & \code{test\_lm\_complet()} (2 entrées),
-\code{.shapiro\_sur()} (2 entrées)~; \code{stat\_dw()}, \code{test\_runs()},
+Une fonction, plusieurs tests & \code{test\_lm\_complet()} (2 entrées)~;
+\code{stat\_dw()}, \code{test\_runs()},
 \code{stat\_supF()}, \code{stat\_cusum()} et \code{test\_grubbs()} (2 entrées
 chacune, sur $z_t$ et sur les ratios bruts $u_t$)~; \code{.usp\_mco\_qr()} (régressions
 de H1 et H2, issue~\#237, index des fonctions) & Une anomalie se propage à toutes les
