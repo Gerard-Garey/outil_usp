@@ -545,12 +545,11 @@ verifier("run_engine, y proportionnel a x (x = 2^(0:7), y = x / 2) : ok = FALSE,
            is.null(res_p153$validation$erreur_r) &&
            any(startsWith(res_p153$validation$erreurs, "Maximum de vraisemblance non atteint")))
 # Depuis #224, les huit reajustements du jackknife de ce jeu sont refuses par
-# usp_valider_ajustement() et laisses a NA : ecart_sigma est entierement NA,
-# plot_influence_sigma() (base R) leve une erreur et note_influence() rend
-# character(0). Defaut d'affichage anterieur a #224 (reproduit a 98cb9d5),
-# suivi par l'issue #328 (decision du mainteneur du 17/10/2026).
-echec_attendu("Graphiques d'influence, y proportionnel a x (x = 2^(0:7), y = x / 2), ajustement refuse par run_engine() (#188), robustesse de engine_plots_data() / note_influence() en appel direct : motif pose (residu_std et cook non finis) ou absent (tout fini) selon la plateforme ; aucun trace en base R ni note_influence() en erreur, aucun 'NA' dans la note (#153 ; #188)",
-         "issue #328 : jackknife entierement NA (#224), graphique d'influence et note en defaut",
+# usp_valider_ajustement() et laisses a NA : ecart_sigma est entierement NA.
+# Corrige par #328 : plot_influence_sigma() rend .vide() avec un message fixe
+# et note_influence() une phrase fixe, sans 'NA' (avant : erreur « need finite
+# 'ylim' values » et character(0)).
+verifier("Graphiques d'influence, y proportionnel a x (x = 2^(0:7), y = x / 2), ajustement refuse par run_engine() (#188), robustesse de engine_plots_data() / note_influence() en appel direct : motif pose (residu_std et cook non finis) ou absent (tout fini) selon la plateforme ; aucun trace en base R ni note_influence() en erreur, aucun 'NA' dans la note (#153 ; #188 ; #328)",
          {
            inf <- pdp153$influence
            np153 <- tryCatch(note_influence(pdp153), error = function(e) e)
@@ -559,11 +558,126 @@ echec_attendu("Graphiques d'influence, y proportionnel a x (x = 2^(0:7), y = x /
            calcule <- all(is.finite(inf$cook)) && all(is.finite(inf$residu_std)) &&
              is.null(pdp153$influence_motif)
            (garde || calcule) && all(basep153) &&
-             is.character(np153) && !grepl("NA", np153, fixed = TRUE)
+             is.character(np153) && length(np153) == 1L && !grepl("NA", np153, fixed = TRUE)
+         })
+
+## --- Jackknife non evaluable : graphique et note d'influence (issue #328) -----
+# Cas entierement NA : ecart_sigma non fini sur les huit annees (jeu de #188
+# ci-dessus). Message fixe du graphique, phrase fixe de la note, en
+# coherence avec le detail de la ligne jackknife (#329) ; le rapport fige,
+# qui passe par les memes fonctions, est produit sans erreur (resultat ok de
+# J1 dont plots_data$influence est injecte a NA, run_engine() n'atteignant
+# pas ce cas sur un jeu accepte).
+MSG_328 <- "Aucune annee evaluable : influence sur sigma_USP non mesuree"
+# .vide() est enveloppe dans l'environnement de plot_influence_sigma() pour
+# relever son message (meme procede que releve_vide161, #161).
+env328 <- environment(plot_influence_sigma); vide328 <- get(".vide", envir = env328)
+vide_328 <- function(pd) {
+  msg <- NULL
+  assign(".vide", function(message = formals(vide328)$message) { msg <<- message; vide328(message) },
+         envir = env328)
+  on.exit(assign(".vide", vide328, envir = env328))
+  r <- tryCatch({ plot_influence_sigma(pd); TRUE }, error = function(e) FALSE)
+  list(ok = r, msg = msg)
+}
+option328 <- options(usp.graphiques_base = TRUE); grDevices::pdf(NULL)
+na328 <- vide_328(pdp153)
+nn328 <- tryCatch(note_influence(pdp153), error = function(e) e)
+grDevices::dev.off(); options(option328)
+verifier("plot_influence_sigma(), jackknife entierement NA (base R) : aucune erreur, graphique vide avec le message fixe (#328)",
+         all(is.na(pdp153$influence$ecart_sigma)) && na328$ok && identical(na328$msg, MSG_328))
+verifier("note_influence(), jackknife entierement NA : phrase fixe 'Aucune annee evaluable', plus de phrase sur l'annee la plus influente, aucun 'NA', une chaine (#328)",
+         is.character(nn328) && length(nn328) == 1L && !grepl("NA", nn328, fixed = TRUE) &&
+           grepl("Aucune ann&eacute;e &eacute;valuable", nn328, fixed = TRUE) &&
+           !grepl("la plus influente", nn328, fixed = TRUE) &&
+           grepl("n'est pas mesur&eacute;e", nn328, fixed = TRUE))
+verifier("Rapport fige, jackknife entierement NA (plots_data injecte) : produit sans erreur, note d'influence a phrase fixe (#328)",
+         {
+           r328 <- res_ln
+           r328$plots_data$influence$sigma_usp_sans_t <- rep(NA_real_, length(xt))
+           r328$plots_data$influence$ecart_sigma <- rep(NA_real_, length(xt))
+           r328$plots_data$influence$fort_ecart_sigma <- rep(NA, length(xt))
+           f328 <- tempfile(fileext = ".html")
+           ok328 <- tryCatch({
+             rapport_html(r328, NULL, f328, interactif = FALSE, identite = idt); TRUE
+           }, error = function(e) FALSE)
+           h328 <- if (ok328) lire(f328) else ""; unlink(f328)
+           ok328 && grepl("Aucune ann&eacute;e &eacute;valuable", h328, fixed = TRUE) &&
+             !grepl("d&eacute;place sigma_USP de", h328, fixed = TRUE) &&
+             !grepl("Graphique indisponible", h328, fixed = TRUE)
+         })
+
+# Cas partiellement NA : jeu de #224 (x de J1, y = 0,7 x, y_5 = 0,8 x_5), annee
+# 5 non evaluable. La barre de l'annee 5 reste absente, sans erreur ; la note
+# cite l'annee 5 (ensemble des annees dont ecart_sigma n'est pas fini).
+y328 <- 0.7 * xt; y328[5] <- 0.8 * xt[5]
+res328 <- tryCatch(run_engine(xt = xt, yt = y328, methode = "premium", segment = 1, B = 99,
+                               nature_donnees = "brutes"), error = function(e) e)
+pd328 <- res328$plots_data
+option328 <- options(usp.graphiques_base = TRUE); grDevices::pdf(NULL)
+base328 <- !inherits(tryCatch(plot_influence_sigma(pd328), error = function(e) e), "error")
+grDevices::dev.off(); options(option328)
+nt328 <- tryCatch(note_influence(pd328), error = function(e) e)
+verifier("Jeu de #224 (annee 5 non evaluable) : barre de l'annee 5 absente, graphique base R sans erreur ; note qui cite l'annee 5, conserve la phrase de l'annee la plus influente, aucun 'NA' (#328)",
+         !inherits(res328, "error") && isTRUE(res328$ok) &&
+           identical(which(is.na(pd328$influence$ecart_sigma)), 5L) &&
+           base328 && is.character(nt328) && length(nt328) == 1L &&
+           grepl("Ann&eacute;e 5 non &eacute;valuable", nt328, fixed = TRUE) &&
+           grepl("d&eacute;place sigma_USP de", nt328, fixed = TRUE) &&
+           !grepl("NA", nt328, fixed = TRUE))
+verifier("note_influence(), annees non evaluables 2 et 5 (injection) : 'Annees 2 et 5 non evaluables' ; jeu sans annee non evaluable : aucune phrase (#328)",
+         {
+           pd2 <- pd328; pd2$influence$sigma_usp_sans_t[2] <- NA; pd2$influence$ecart_sigma[2] <- NA
+           n2 <- note_influence(pd2)
+           n0 <- note_influence(res_ln$plots_data)
+           grepl("Ann&eacute;es 2 et 5 non &eacute;valuables", n2, fixed = TRUE) &&
+             !grepl("valuable", n0, fixed = TRUE) && !grepl("NA", n0, fixed = TRUE)
+         })
+verifier("note_influence(), annees non evaluables 2, 5 et 7 (injection) : 'Annees 2, 5 et 7 non evaluables' (#328)",
+         {
+           pd3 <- pd328
+           pd3$influence$sigma_usp_sans_t[c(2, 7)] <- NA; pd3$influence$ecart_sigma[c(2, 7)] <- NA
+           grepl("Ann&eacute;es 2, 5 et 7 non &eacute;valuables", note_influence(pd3), fixed = TRUE)
+         })
+# ecart_sigma entierement non fini alors que sigma_usp_sans_t est fini (sigma_USP
+# nul, par exemple) : le graphique est vide (jamais « need finite ylim ») et la
+# note rend la phrase fixe, une chaine.
+verifier("ecart_sigma tout NA avec sigma_usp_sans_t fini : graphique vide au message fixe, note a phrase fixe en une chaine (#328)",
+         {
+           pdn <- pd328; pdn$influence$ecart_sigma[] <- NA_real_; pdn$influence$fort_ecart_sigma[] <- NA
+           op <- options(usp.graphiques_base = TRUE); grDevices::pdf(NULL)
+           vn <- vide_328(pdn); grDevices::dev.off(); options(op)
+           nn <- tryCatch(note_influence(pdn), error = function(e) e)
+           all(is.finite(pdn$influence$sigma_usp_sans_t[-5])) && vn$ok && identical(vn$msg, MSG_328) &&
+             is.character(nn) && length(nn) == 1L && !grepl("NA", nn, fixed = TRUE) &&
+             grepl("Aucune ann&eacute;e &eacute;valuable", nn, fixed = TRUE)
+         })
+# Le maximum ne cite jamais une annee ecartee : meme avec un ecart enorme a
+# l'annee non evaluable (injection), la note donne le maximum des autres annees.
+verifier("note_influence() : maximum calcule hors des annees non evaluables (ecart injecte a l'annee 5 ignore) (#328)",
+         {
+           pdm <- pd328; pdm$influence$ecart_sigma[5] <- 9
+           grepl("sigma_USP de <b>+2,1 %</b>", note_influence(pdm), fixed = TRUE)
+         })
+# Reperage par sigma_usp_sans_t (critere de jack_non_evaluables du moteur) et
+# non par ecart_sigma : annee non evaluable reperee meme si ecart_sigma y est
+# fini (injection), repli sur ecart_sigma sans sigma_usp_sans_t.
+verifier("note_influence(), repere par sigma_usp_sans_t non fini (ecart_sigma fini) ; repli sur ecart_sigma sans sigma_usp_sans_t (#328)",
+         {
+           pdr <- pd328; pdr$influence$sigma_usp_sans_t[3] <- NA
+           pdq <- pd328; pdq$influence$sigma_usp_sans_t <- NULL
+           grepl("Ann&eacute;es 3 et 5 non &eacute;valuables", note_influence(pdr), fixed = TRUE) &&
+             grepl("Ann&eacute;e 5 non &eacute;valuable", note_influence(pdq), fixed = TRUE) &&
+             !grepl("Ann&eacute;es", note_influence(pdq), fixed = TRUE)
          })
 if (requireNamespace("plotly", quietly = TRUE)) {
   verifier("Graphiques d'influence, residus nuls (injection) et y proportionnel a x, plotly : aucun trace en erreur (#153)",
            all(sans_erreur153(pd153)) && all(sans_erreur153(pdp153)))
+  # Jackknife non evaluable (#328), branche plotly : graphique vide (entierement
+  # NA) et barre absente (partiellement NA), sans erreur.
+  verifier("plot_influence_sigma(), jackknife entierement puis partiellement NA, plotly : aucun trace en erreur (#328)",
+           !inherits(tryCatch(plotly::plotly_build(plot_influence_sigma(pdp153)), error = function(e) e), "error") &&
+             !inherits(tryCatch(plotly::plotly_build(plot_influence_sigma(pd328)), error = function(e) e), "error"))
 } else {
   cat("  note : plotly absent ; branche plotly des graphiques d'influence non exercee (attendu en CI, issue #53).\n")
 }
