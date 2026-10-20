@@ -1765,13 +1765,15 @@ l'état du générateur (l'objet \code{.Random.seed} de l'environnement global) 
   \emph{Portée}~: tous les résultats de Monte-Carlo
   de la branche Merz--Wüthrich (p-values Monte-Carlo, \code{sigma\_boot} et
   l'intervalle qui en est tiré). \emph{État}~: restauré.
-\item \code{sw\_loi\_nulle()}, appelée par \code{sw\_p\_loi\_nulle()} dans les
-  deux branches. \emph{Graine}~: fixe, 20260901 (constante \code{SEED\_LOI\_NULLE\_SW}),
+\item \code{sw\_loi\_nulle()}, appelée par \code{sw\_p\_loi\_nulle()}, dans la seule branche
+  Merz--Wüthrich depuis l'issue~\#302 (dans les deux branches auparavant). \emph{Graine}~: la
+  constante \code{SEED\_LOI\_NULLE\_SW}, fixe (20260901),
   indépendante de \code{seed} et consignée dans \code{\$metadata}, champ
-  \code{seed\_loi\_nulle\_sw}~;
+  \code{seed\_loi\_nulle\_sw} (conservé dans la métadonnée lognormale, sans emploi dans cette
+  branche depuis l'issue~\#302, pour la stabilité de la structure)~;
   \code{engine\_sous\_graine()} pose la graine avant 20\,000 échantillons $\mathcal{N}(0,1)$ de
-  taille $n$ tirés par \code{stats::rnorm()}, où $n$ vaut $T$ dans la branche
-  lognormale et le nombre de résidus dans la branche Merz--Wüthrich. La loi
+  taille $n$ tirés par \code{stats::rnorm()}, où $n$ est le nombre de résidus de la branche
+  Merz--Wüthrich ($T$ dans la branche lognormale jusqu'à l'issue~\#302). La loi
   simulée est mise en cache, pour la durée de la session R, sous une clé formée
   de $n$, du nombre de tirages, de la graine et du générateur (\code{sw\_cle\_cache()},
   issue~\#37)~: un second appel à la même taille ne tire plus rien et renvoie la même loi. \emph{Portée}~: la p-value,
@@ -2230,7 +2232,8 @@ statistique finie), fiche~\ref{fiche:procedure-mc}), le seuil
 $\alpha$, la graine du bootstrap (\code{seed}), le générateur posé par le moteur
 (\code{generateur}~: \code{kind}, \code{normal.kind}, \code{sample.kind}, soit
 \code{ENGINE\_RNG\_KIND}), la graine fixe de la loi nulle de Shapiro--Wilk
-(\code{seed\_loi\_nulle\_sw}, pour les trois méthodes~; issue~\#37, ADR~0004, point~2),
+(\code{seed\_loi\_nulle\_sw}, pour les trois méthodes~; issue~\#37, ADR~0004, point~2~; sans
+emploi dans les méthodes lognormales depuis l'issue~\#302),
 la graine du flux complémentaire de la p-value de Monte-Carlo conditionnelle au régime de
 $\hat\delta$ (\code{seed\_flux\_regime}, méthodes de primes et de réserve n\textsuperscript{o}~1,
 placée après \code{permutation\_pente} et avant les champs d'exécution, consignée même quand le
@@ -2578,9 +2581,9 @@ polynômes, utilisées par \code{mk\_p\_exacte()}), et \code{.runs\_dens()}
 \code{.shapiro\_sur()} et \code{sw\_loi\_nulle()} sont deux autres fonctions
 internes~: la première encapsule \code{stats::shapiro.test()} pour éviter
 qu'un échantillon dégénéré n'interrompe la boucle de bootstrap, la seconde
-met en cache la loi nulle simulée de $W$ par taille d'échantillon ($T$ dans la
-branche lognormale, nombre de résidus de Mack dans la branche Merz--Wüthrich~;
-§\ref{sec:graines}). Enfin, \code{dw\_puissance\_ar1()} n'est appelée ni par
+met en cache la loi nulle simulée de $W$ par taille d'échantillon (nombre de résidus de Mack
+dans la branche Merz--Wüthrich, seule à l'appeler depuis l'issue~\#302~; $T$ dans la branche
+lognormale auparavant~; §\ref{sec:graines}). Enfin, \code{dw\_puissance\_ar1()} n'est appelée ni par
 \code{usp\_tests()} ni par \code{run\_engine()}~: c'est l'outil de mesure de la puissance de
 Durbin--Watson contre un AR(1) citée dans la fiche~\ref{fiche:durbin-watson} et au
 tableau~\ref{tab:tracabilite-puissance}, placé dans le moteur pour que cette valeur publiée
@@ -4915,9 +4918,11 @@ Diagnostic \\
   Fisher, le motif de $R^2$ l'attribuait à tort au garde-fou~R12, et le TOST rendait
   \code{ECHEC}. Mesuré sur les volumes du jeu de contrôle et $y_t = 80$ (méthode prime,
   $B = 99$)~: ces lignes sont désormais non applicables avec ce motif, la table garde toutes ses
-  lignes, et seize verdicts \code{ECHEC} apparaissent ailleurs (notamment RESET, les corrélations
-  de rang du ratio, Durbin--Watson, Ljung--Box, sup-F et OLS-CUSUM), qui signalent la saisie
-  anormale (décompte remesuré après l'issue~\#213, inchangé). Depuis l'issue~\#213, la ligne de
+  lignes, et sept verdicts \code{ECHEC} apparaissent ailleurs (RESET, Spearman ratio contre
+  volume, Mann--Kendall, Durbin--Watson, Ljung--Box au retard~2, sup-F et OLS-CUSUM), qui signalent
+  la saisie anormale (remesuré par \code{run\_engine()}~; seize avant les issues~\#303, \#302
+  et~\#299, qui ont retiré ou restitué en diagnostic les autres, et décompte inchangé
+  par l'issue~\#213). Depuis l'issue~\#213, la ligne de
   Spearman ratio contre volume, qui reste calculée dans ce régime, porte une phrase de contexte
   (fiche~\ref{fiche:spearman}, rubrique~6).
   \item \emph{Condition de conclusion du TOST}~: conclure exige
@@ -5510,10 +5515,13 @@ n'y figure pas déjà, et la phrase «~\code{ECHEC inatteignable}~» de la règl
 ajoutée, parce qu'elle laissait croire \code{OK} ou \code{ALERTE} possibles alors qu'aucun verdict
 ne l'est~; son champ \code{inoperant} vaut \code{FALSE}. Mesuré par \code{usp\_tests()} sur le
 jeu de contrôle avec \code{usp\_bootstrap(B = 40)} ($B_{\text{eff}} = 40$, méthode prime,
-$\alpha = 0{,}10$)~: sup-F, et Durbin--Watson, Ljung--Box, sup-F, OLS-CUSUM et Grubbs sur ratios
-bruts sont dans cet état, et les autres lignes à clé Monte-Carlo sans p-value exacte qui ont
-une p non simulée sont des diagnostics «~\code{Monte-Carlo indisponible}~», constante comprise
-(vingt sur ce jeu, toutes de verdict \code{INFO}~; avant l'issue~\#181, dix-neuf d'entre elles
+$\alpha = 0{,}10$)~: sup-F est dans cet état (avant l'issue~\#303, Durbin--Watson, Ljung--Box au
+retard~1, sup-F, OLS-CUSUM et Grubbs sur ratios bruts l'étaient aussi~; elles sont depuis des
+diagnostics de la règle~R15, dont le commentaire porte le motif Monte-Carlo en tête), et les autres
+lignes à clé Monte-Carlo sans p-value exacte qui ont une p non simulée sont des diagnostics
+«~\code{Monte-Carlo indisponible}~», constante comprise, ou des diagnostics par décision au même
+motif en tête (dix-huit sur ce jeu, toutes de verdict \code{INFO}, remesuré~; vingt avant les
+retraits de l'issue~\#302~; avant l'issue~\#181, dix-neuf d'entre elles
 retenaient leur p asymptotique, dont trois aux verdicts \code{ALERTE} ou \code{ECHEC}). \emph{Plancher de Monte-Carlo.} Quand la p-value retenue est la p-value de Monte-Carlo
 du bootstrap, sa plus petite valeur possible, la granularité par statistique $1/(B_{\text{eff}}
 + 1)$, ou $2/(B_{\text{eff}} + 1)$ en bilatéral (\code{bootstrap\$granularite\_stat}), est
@@ -5836,8 +5844,9 @@ constants, au sens de \code{usp\_regime()}~; section~\ref{sec:base-residus}). Da
 p-value est exacte au sens de l'ADR~0002~; hors de lui, la loi de référence ne serait qu'une
 approximation sans borne d'erreur connue à $T = 8$. Depuis l'issue~\#70 (règle~R7), le moteur
 n'attribue ces p-values exactes qu'à $\hat\pi_t$ constant~; à $\hat\pi_t$ variable, la colonne
-\code{p\_exacte} vaut \code{NA} et la p-value de Monte-Carlo est retenue (la ligne de Shapiro--Wilk
-à loi nulle simulée, sans p-value de Monte-Carlo, est alors non applicable). Pour une ligne dont
+\code{p\_exacte} vaut \code{NA} et la p-value de Monte-Carlo est retenue, sauf sur les diagnostics
+(depuis les issues~\#303 et~\#299~; jusqu'à l'issue~\#302, la ligne de Shapiro--Wilk à loi nulle
+simulée, sans p-value de Monte-Carlo, y était non applicable). Pour une ligne dont
 $H_0$ est disjointe de la famille réglementaire (test de Pitman seulement), «~Oui~» dans la
 colonne «~Exacte~?~» renvoie au second fondement de l'ADR~0002~: loi exacte sous $H_0$ seule, non
 sous le modèle réglementaire.
@@ -18226,8 +18235,8 @@ résidus de Mack \\
 \code{runs\_p\_exacte()} & LN & p-value exacte des suites sur $z_t$ et, par
 \code{usp\_runsr\_p\_exacte()}, sur ratios bruts \\
 \code{stat\_dw()} & LN + MW & Durbin--Watson, dans les deux méthodes \\
-\code{.shapiro\_sur()} & LN + MW & Shapiro--Wilk (Royston et loi nulle simulée),
-dans les deux méthodes \\
+\code{.shapiro\_sur()} & LN + MW & Shapiro--Wilk (Royston, et loi nulle simulée en
+Merz--Wüthrich seulement depuis l'issue~\#302), dans les deux méthodes \\
 \code{stat\_lilliefors()}, \code{lillie\_p()} & LN + MW & Lilliefors, dans les
 deux méthodes \\
 \code{test\_lm\_complet()} & LN & Fisher global,
@@ -18688,7 +18697,7 @@ suites dépend en outre du régime de $\hat\pi_t$ et du test de concordance des
 signes. \\
 Fonction commune aux deux méthodes & \code{test\_grubbs()},
 \code{test\_rosner()}, \code{test\_runs()}, \code{stat\_dw()},
-\code{.shapiro\_sur()}, \code{stat\_lilliefors()}, \code{usp\_credibilite()},
+\code{.shapiro\_sur()}, \code{stat\_lilliefors()}, \code{lillie\_p()}, \code{usp\_credibilite()},
 \code{engine\_p\_mc()}, \code{engine\_registre\_}\newline\code{tests()} &
 Portée maximale~: une anomalie affecterait les deux dispositifs, donc les deux
 dossiers. Priorité de revue. \\
