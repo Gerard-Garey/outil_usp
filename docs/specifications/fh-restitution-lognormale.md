@@ -36,6 +36,23 @@
 >   - Mêmes alignements à prévoir aux § 6.1 (#299 : « qui porte le verdict », « testee par la seule ligne ») et § 7.3 (#304 : « testee par la ligne Grubbs »).
 > - **§ 5.3** : la phrase sur les p non simulées n'est jointe que si la p non simulée est finie. Sinon, la phrase affirmerait une valeur qui n'existe pas : c'est le cas d'AD et de CvM à T < 8, #182. La p d'Anscombe-Glynn non applicable à π̂ variable n'est pas reportée ; Z reste dans `stat`.
 > - **§ 4.2, motif Monte-Carlo d'une ligne R15** : `usp_tests()` pose le motif en tête. La forme dépend de la classe du motif, comme dans `add()`. Pour un motif de dégénérescence, la forme est « <motif> : aucune p-value retenue (ADR 0001). » suivie du complément. Pour les autres motifs, elle est « Monte-Carlo indisponible : <motif>. ».
+>
+> **Errata de l'étape 5 (#299)** (avis d'`actuary`, fiche de base, du 20/10/2026 sur les questions de `coder-approfondi`). *Consignés par l'agent architect (IA)* (fiche de base), le 20/10/2026, à la demande de la session principale ; source : brief de la session principale.
+>
+> **Errata qui en découlent** :
+> - **§ 6.3, phrase π_env.** Prendre le maximum des deux sens est conforme au § 6.2. Le libellé « de delta = 1 contre delta = 0 » est faux pour J2 : la phrase afficherait 0,34, alors que ce sens vaut 0,32. Phrase retenue :
+>   `Puissance maximale, au seuil alpha = %g, d'un test invariant de delta = 1 contre delta = 0 ou de delta = 0 contre delta = 1 (ecart le plus grand de la famille de l'annexe XVII, limite des faibles coefficients de variation) : %.2f avec ces volumes ; un OK ne demontre pas la structure de variance.`
+>   - Valeurs par sens, par Imhof, à α = 0,10 : J1 0,1260 (H0 : δ = 1) et 0,1267 (H0 : δ = 0) ; J2 0,3242 (H0 : δ = 1) et 0,3433 (H0 : δ = 0). Les critères d'acceptation de l'étape 5 (§ 6.4, critère (b) : J1 → 0,127, J2 → 0,343) restent justes : ce sont les maxima.
+>   - Le « 0,324 à c → 0 » du § 6.2 et la suite de ses valeurs en c ne portent que sur le sens H0 : δ = 1.
+>   - Mesure d'`actuary`, script hors dépôt, non versionnée [V, constat numérique] : la puissance décroît strictement en c dans les deux sens, sur J1 et sur J2. Pour J2, sens H0 : δ = 0 : 0,3433 ; 0,3396 ; 0,3145 ; 0,2591 ; 0,2130 ; 0,1826 à c = 0 ; 0,021 ; 0,2 ; 1 ; 3 ; 7,4. L'hypothèse du § 6.2 « la décroissance en c n'est mesurée que sur J2 » en est dépassée, sous cette réserve de traçabilité.
+> - **§ 6.1, phrases fixes**, alignées sur la forme des errata des § 4.2 et 5.1 (le défaut « qui porte le verdict », « testee par la seule ligne » signalé au § 5.1 est corrigé) :
+>   - BP 1979, White, Goldfeld-Quandt, Brown-Forsythe : `Restituee en diagnostic par decision (issue #299) : aucun verdict ni p-value retenue ; la structure de variance releve de la ligne Breusch-Pagan studentise (Koenker), dont le type et le verdict font foi.`
+>   - Smirnov : `Restituee en diagnostic par decision (issue #299) : aucun verdict ni p-value retenue ; compare la position de z entre petits et gros volumes, alternative de H1 plutot que de H2 ; l'hypothese H1 releve des lignes de la famille B., dont le type et le verdict font foi.`
+>   - Spearman ratio-temps : `Restituee en diagnostic par decision (issue #299) : aucun verdict ni p-value retenue ; meme alternative (tendance monotone du ratio) que la ligne Mann-Kendall, dont le type et le verdict font foi.`
+> - **Motif ex aequo de Spearman ratio-temps et de Smirnov.** Quand p_min vaut NA par ex aequo, `usp_tests()` joint lui-même au `detail` la chaîne `effectifs` existante, comme pour le motif Monte-Carlo de `detail_diagnostic()`. L'erratum du § 4.2 sur les suffixes d'`add()` visait le texte de R1 et les comptes de Runsr, non ce motif.
+> - **BP 1979, `detail` propre.** La troisième phrase, « A confronter systematiquement a la version de Koenker ci-dessus. », est retirée.
+>
+> **Constat.** Le tableau avant / après mesuré de #299 (commit `484d29a`, run CI 39394706119) est conforme à la prévision du § 6.4 et de la ligne #299 (A) du § 9 : les lignes à verdict passent de 25 à 19 sur les cas à δ̂ = 1 et de 31 à 25 sur `premium_interieur`, soit six bascules en INFO par cas. Aucun écart à renvoyer au mainteneur (rappel du visa, en tête de cet encadré).
 
 > **Signalements.**
 >
