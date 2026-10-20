@@ -1829,7 +1829,7 @@ l'état du générateur (l'objet \code{.Random.seed} de l'environnement global) 
   première source de l'autre. Mesuré par \code{usp\_graine\_flux\_regime()}~: $20\,260\,831 \to
   20\,800\,000$, $0 \to 539\,169$, $M \to -2\,146\,944\,479$, $19\,721\,732 \to
   20\,260\,901$, et les graines $1{,}5$, $2^{31}$, \code{NA} et $+\infty$ sont refusées.
-  \emph{Portée}~: les p-values de Monte-Carlo des 34 statistiques
+  \emph{Portée}~: les p-values de Monte-Carlo des 31 statistiques
   d'\code{USP\_CATALOGUE\_MC} à $\hat\delta$ intérieur. \emph{État}~: restauré. Sur les cas de
   contrôle à $\hat\delta = 1$, le flux n'est pas posé, et les résultats préexistants sont restés
   identiques au bit près à son introduction~; sur le cas \code{premium\_interieur}
@@ -2400,10 +2400,6 @@ Suites (Wald--Wolfowitz) & \ref{fiche:suites-wald-wolfowitz} & \code{test\_runs(
 \code{Runs} \\
 Durbin--Watson sur ratios bruts & \ref{fiche:durbin-watson-ratios-bruts} & \code{stat\_dw()} sur
 $u_t$ & aucune hors Monte-Carlo & \code{DWr} \\
-% Rangée retirée à l'issue #303 (Ljung--Box au retard 1 sur ratios bruts retirée du moteur,
-% entrée LB1r de USP_CATALOGUE_MC supprimée) ; texte conservé pour le passage de fin de branche :
-% Ljung--Box (retard 1) sur ratios bruts & \ref{fiche:ljung-box-ratios-bruts} &
-% \code{stats::Box.test()} sur $u_t$ & aucune hors Monte-Carlo & \code{LB1r} \\
 Suites sur ratios bruts & \ref{fiche:suites-ratios-bruts} & \code{test\_runs()} sur $u_t$ &
 \code{usp\_runsr\_p\_exacte()} (p exacte de \code{runs\_p\_exacte()} sous double condition)~;
 \code{runs\_p\_min()} ($p_{\min}$) & \code{Runsr} \\
@@ -2976,8 +2972,8 @@ colonne \code{fonction} de la table auditable, avant-dernière. \\
 atteint $\alpha$, restituée en diagnostic, commentaire préfixé
 «~\code{TEST INOPERANT}~», section~\ref{sec:nature}), \code{FALSE} sinon, jamais \code{NA}~:
 notamment pour une ligne à loi simulée dégénérée (règle~R3), une ligne dont le type a été changé
-en amont d'\code{add()} (règles~R13 et~R14, celle-ci pour le TOST depuis l'issue~\#298, et
-règle~R4 jusqu'à son retrait par D1-Fb, issues~\#218 et~\#230) et une ligne restée de type test sans aucune p-value.
+en amont d'\code{add()} (règles~R13, R14 pour le TOST depuis l'issue~\#298, R15 depuis
+l'issue~\#303, R4 jusqu'à D1-Fb, issues~\#218 et~\#230) et une ligne restée de type test sans aucune p-value.
 L'affichage et les tests repèrent le test inopérant par ce champ, non par le préfixe du
 commentaire, qui reste pour le lecteur (mesuré sur les cas de référence~: Cox--Stuart seul à
 \code{TRUE} dans chacun des cas lognormaux, aucun en Merz--Wüthrich, en accord avec le
@@ -5292,6 +5288,53 @@ règle~R1 refuse pour toute autre ligne~; il ne sert qu'à compléter le comment
 («~\code{, et meme p >= 0.3~: ALERTE inatteignable}~»). La règle vaut pour la marge relative
 comme pour la marge fixée a priori (\code{delta\_equiv})~; les branches non applicables du TOST
 gardent la priorité.
+\emph{Règle décidée hors d'\code{add()}~: contrôle sans objet de la base des ratios bruts}
+(règle~R15, issue~\#303~; décision Q-D1-Fh-3 du mainteneur du 19~octobre 2026, spécification
+\code{docs/specifications/fh-restitution-lognormale.md}, § 4). À $\hat\pi_t$ constant au sens
+d'\code{usp\_regime()} (champ \code{pi\_constant}, bande de tolérance \code{TOL\_DELTA\_BORD}
+comprise~: $\hat\delta \ge 1 - 10^{-6}$ ou volumes constants), les lignes calculées sur les
+ratios centrés $u_t$ --- Durbin--Watson, suites, rupture sup-F, OLS-CUSUM et Grubbs sur ratios
+bruts --- sont restituées en \emph{diagnostic}~: \code{usp\_tests()} passe
+\code{type = "diagnostic"} à \code{add()}, inchangée, qui pose le verdict \code{INFO} et
+\code{p\_retenue}, \code{nature\_p} et \code{sens} à \code{NA}~; les p-values calculées restent dans
+leurs colonnes (\code{p\_mc}, et \code{p\_exacte} de la ligne des suites sous la double condition
+de la fiche~\ref{fiche:suites-ratios-bruts}), le champ \code{inoperant} vaut \code{FALSE}, la
+règle~R1 ne s'appliquant qu'à une ligne de type test, et $p_{\min}$ reste restituée pour la ligne
+des suites. \emph{Motif.} Dans ce régime, $z_t = \sqrt{\hat\pi}\,(\ln r_t - \overline{\ln r})$~:
+les deux bases ne diffèrent que par la transformation logarithmique, chaque ligne est un
+quasi-doublon de son homologue sur $z_t$ (un doublon exact pour les suites quand les signes
+coïncident), et le contrôle de la pondération qu'elle porte est sans objet, faute de pondération
+(section~\ref{sec:base-residus}, « Ce contrôle est sans objet lorsque $\hat\pi_t$ est
+constant »). Les p-values ne sont pas écartées pour leur qualité --- la p-value de Monte-Carlo y
+a la validité qu'elle a sur toute base, et celle des suites est exacte ---~: c'est la redondance
+avec la ligne homologue, qui teste la même hypothèse sur les mêmes données, qui retire le
+verdict~; aucune p-value n'est donc retenue, et aucune autre voie n'est substituée. C'est un
+diagnostic \emph{par règle}, et non par décision, le classement dépendant des données par le
+régime estimé de $\hat\delta$ (comme pour les règles~R1, R3 et~R14). Le commentaire garde le
+motif propre à la ligne («~\code{CONTROLE SANS OBJET ICI} \ldots~»), puis se termine par la phrase
+fixe «~\code{Restituee en diagnostic (regle R15) : aucun verdict ni p-value retenue ; l'hypothese
+releve de la ligne homologue sur residus standardises, dont le type et le verdict font foi.}~»~:
+la formule «~\code{dont le type et le verdict font foi}~» tient compte de ce que la ligne homologue
+peut n'avoir elle-même aucun verdict (diagnostic par la règle~R1, test sans p-value retenue).
+Sans p-value de Monte-Carlo, \code{usp\_tests()} pose le motif en tête selon sa classe, comme
+\code{add()} le ferait pour un test~: «~\code{<motif> : aucune p-value retenue (ADR 0001).}~»
+suivi de son complément pour un motif de dégénérescence, «~\code{Monte-Carlo indisponible :
+<motif>.}~» sinon. Les suffixes qu'\code{add()} ne pose qu'aux lignes de type test (texte de la
+règle~R1 et effectifs, mention du plancher, phrase de l'issue~\#244) ne sont pas ajoutés, et la
+proposition «~\code{la p-value retenue, s'il en est une, est nommee par nature\_p}~» est retirée du
+commentaire de la ligne des suites à $\hat\pi_t$ constant. \emph{Priorité}~: une ligne non
+applicable le reste (statistique observée non finie, suites d'un seul côté de la médiane), sans la
+phrase de la règle. À $\hat\pi_t$ variable, rien ne change~: ces lignes sont des tests qui
+retiennent leur p-value de Monte-Carlo. Comme la règle~R14, la décision est prise dans
+\code{usp\_tests()}, \code{add()} et \code{engine\_registre\_tests()} restant inchangés.
+Mesuré par \code{run\_engine()} ($B = 999$, graine 20260831)~: sur les quatre cas de référence à
+$\hat\delta = 1$, ces lignes passent de \code{OK} à \code{INFO}, \code{p\_mc} restant
+calculée ($0{,}566$, $0{,}768$, $0{,}931$, $0{,}756$ et $0{,}777$ sur \code{premium}) et la p-value
+exacte des suites, $52/70 = 0{,}743$, restant dans \code{p\_exacte}~; sur \code{premium\_interieur}
+($\hat\delta = 0{,}664$), elles restent des tests. Sur le jeu de contrôle à $\alpha = 0{,}05$, la
+ligne des suites sur ratios bruts, test inopérant jusqu'à l'issue ($p_{\min} = 4/70 \ge \alpha$),
+est un diagnostic de la règle~R15 au champ \code{inoperant} à \code{FALSE}, verdict \code{INFO}
+inchangé, et la ligne homologue sur $z_t$ reste inopérante.
 \emph{(ii) Monte-Carlo indisponible} (règles~R2 et~R3)~: quand \code{p\_mc} manque,
 \code{engine\_p\_mc()} en donne le motif (\code{bootstrap\$motif\_mc}), jamais deviné par
 l'appelant~: statistique observée non finie, aucune réplication finie, réplications finies
@@ -5924,18 +5967,15 @@ Distribution exacte à privilégier~; $p_{\min} = 0{,}057$ à $T = 8$ : \code{EC
 inatteignable à $\alpha = 0{,}10$ à $\hat\pi_t$ constant \\
 
 Durbin--Watson sur ratios bruts & LN & DW & Non : $u_t$ non gaussiens, Imhof inapplicable &
---- & Oui & Monte-Carlo & Sans objet (aucune loi limite employée) &
-Quasi-doublon de la ligne sur $z_t$ à $\hat\pi_t$ constant \\
-
-% Rangée retirée à l'issue #303 (ligne retirée du moteur) ; texte conservé pour le passage de fin de branche :
-% Ljung--Box (1) sur ratios bruts & LN & $Q$ & Non & --- & Oui & Monte-Carlo &
-% Sans objet ($\chi^2$ non calculée) &
-% Quasi-doublon de la ligne sur $z_t$ à $\hat\pi_t$ constant \\
+--- & Oui & Monte-Carlo à $\hat\pi_t$ variable~; \textbf{diagnostic} à $\hat\pi_t$ constant
+(règle~R15) & Sans objet (aucune loi limite employée) &
+Quasi-doublon de la ligne sur $z_t$ à $\hat\pi_t$ constant, d'où le diagnostic \\
 
 Suites sur ratios bruts & LN & $Z$ / $R$ & Oui si $\hat\pi_t$ constant (combinatoire) & --- &
-Oui & \textbf{Exacte} (doublement) si $\hat\pi_t$ constant \emph{et} signes de $u_t$ et $z_t$
-identiques, Monte-Carlo sinon & Sans objet (approx. normale non calculée) &
-Doublon exact de la ligne sur $z_t$ à $\hat\pi_t$ constant \\
+Oui & Monte-Carlo à $\hat\pi_t$ variable~; \textbf{diagnostic} à $\hat\pi_t$ constant
+(règle~R15), p-value exacte (doublement) calculée, non retenue, si les signes de $u_t$ et $z_t$
+sont identiques & Sans objet (approx. normale non calculée) &
+Doublon exact de la ligne sur $z_t$ à $\hat\pi_t$ constant, d'où le diagnostic \\
 
 Centrage des résidus & LN & --- & --- & --- & --- &
 \textbf{Diagnostic} & Sans objet & Aucune p-value~: $\bar z$ est rivé par une
@@ -5961,17 +6001,20 @@ Grubbs & LN & $G$ & Borne de Bonferroni & --- & Oui & Monte-Carlo &
 \textbf{Sous conditions} : borne conservatrice, non exacte &
 Bootstrap ; borne utilisable comme majorant \\
 
-sup-F sur ratios bruts & LN & $\sup F$ & Non & --- & Oui & Monte-Carlo &
+sup-F sur ratios bruts & LN & $\sup F$ & Non & --- & Oui & Monte-Carlo à $\hat\pi_t$ variable~; \textbf{diagnostic} à $\hat\pi_t$ constant
+(règle~R15) &
 Sans objet (aucune loi limite employée) &
-Quasi-doublon de la ligne sur $z_t$ à $\hat\pi_t$ constant \\
+Quasi-doublon de la ligne sur $z_t$ à $\hat\pi_t$ constant, d'où le diagnostic \\
 
-OLS-CUSUM sur ratios bruts & LN & $\sup|S|$ & Non & --- & Oui & Monte-Carlo &
+OLS-CUSUM sur ratios bruts & LN & $\sup|S|$ & Non & --- & Oui & Monte-Carlo à $\hat\pi_t$ variable~; \textbf{diagnostic} à $\hat\pi_t$ constant
+(règle~R15) &
 Sans objet (Kolmogorov non calculée) &
-Quasi-doublon de la ligne sur $z_t$ à $\hat\pi_t$ constant \\
+Quasi-doublon de la ligne sur $z_t$ à $\hat\pi_t$ constant, d'où le diagnostic \\
 
-Grubbs sur ratios bruts & LN & $G$ & Non & --- & Oui & Monte-Carlo &
+Grubbs sur ratios bruts & LN & $G$ & Non & --- & Oui & Monte-Carlo à $\hat\pi_t$ variable~; \textbf{diagnostic} à $\hat\pi_t$ constant
+(règle~R15) &
 Sans objet (Bonferroni non calculée) &
-Quasi-doublon de la ligne sur $z_t$ à $\hat\pi_t$ constant \\
+Quasi-doublon de la ligne sur $z_t$ à $\hat\pi_t$ constant, d'où le diagnostic \\
 
 Rosner (ESD) & LN & $R_i$ & Non~; niveau exact $\alpha$ à l'étape~1 sous i.i.d. normal & --- & --- &
 Procédure de décision & Sans objet (pas de p-value) &
@@ -6305,20 +6348,16 @@ Durbin--Watson sur ratios bruts & $\hat p_{\text{MC}}$ (loi limite de DW non emp
 $p_{\text{MC}}(\hat\theta)$, p-value sous le modèle ajusté de paramètres
 $\hat\theta = (\hat\beta, \hat\delta, \hat\gamma)$ & Convergence en $B$ & $\mathcal{O}(B^{-1/2})$ &
 Modèle ajusté pris pour vrai &
-Erreur de Monte-Carlo seule contrôlée~; validité en $T$ non quantifiable
-(fiche~\ref{fiche:durbin-watson-ratios-bruts}) \\
-
-% Rangée retirée à l'issue #303 (ligne retirée du moteur) ; texte conservé pour le passage de fin de branche :
-% Ljung--Box (1) sur ratios bruts & $\hat p_{\text{MC}}$ ($\chi^2(1)$ non employée) &
-% $p_{\text{MC}}(\hat\theta)$ & Convergence en $B$ & $\mathcal{O}(B^{-1/2})$ &
-% Modèle ajusté pris pour vrai & Idem (fiche~\ref{fiche:ljung-box-ratios-bruts}) \\
+Erreur de Monte-Carlo seule contrôlée~; validité en $T$ non quantifiable~; p-value retenue à
+$\hat\pi_t$ variable seulement, diagnostic à $\hat\pi_t$ constant (règle~R15, valable pour les
+lignes de la base qui suivent~; fiche~\ref{fiche:durbin-watson-ratios-bruts}) \\
 
 Suites sur ratios bruts & \emph{Aucun} à $\hat\pi_t$ constant et signes identiques~: loi
 exacte de $R$~; sinon $\hat p_{\text{MC}}$ & Loi exacte~; sinon $p_{\text{MC}}(\hat\theta)$ &
 --- ~; sinon convergence en $B$ & ---~; sinon $\mathcal{O}(B^{-1/2})$ &
 $r_t$ i.i.d. ($\hat\pi_t$ constant)~; sinon modèle ajusté pris pour vrai &
-Exacte dans ce régime, régime estimé sur les données~; sinon comme ci-dessus
-(fiche~\ref{fiche:suites-ratios-bruts}) \\
+Exacte dans ce régime, régime estimé sur les données, mais non retenue depuis l'issue~\#303
+(diagnostic, règle~R15)~; sinon comme ci-dessus (fiche~\ref{fiche:suites-ratios-bruts}) \\
 
 sup-F sur ratios bruts & $\hat p_{\text{MC}}$ (loi d'Andrews non employée) &
 $p_{\text{MC}}(\hat\theta)$ & Convergence en $B$ & $\mathcal{O}(B^{-1/2})$ &
@@ -6539,7 +6578,10 @@ $p < \alpha/2$, \code{ALERTE} si $\alpha/2 \le p < \alpha$, en sens « ne pas re
   inatteignable pour $T = 8$ et $9$ ($\alpha/2 \le p_{\min} = 0{,}0571 < \alpha$) à $\hat\pi_t$
   constant~; à $\hat\pi_t$ variable, la règle lit $p_{\min}^{\mathrm{MC}}$ (note~(v))~; \code{ECHEC}
   atteignable dès $T = 10$. À $T = 8$, les p-values atteignables sont $0{,}0571$~; $0{,}2286$~;
-  $0{,}7429$ et $1$~: \code{ALERTE} seulement si $R \in \{2, 8\}$~;
+  $0{,}7429$ et $1$~: \code{ALERTE} seulement si $R \in \{2, 8\}$. Depuis l'issue~\#303, ces
+  seuils ne valent à $\hat\pi_t$ constant que pour la ligne sur $z_t$~: celle des suites sur
+  ratios bruts y est un diagnostic de la règle~R15, dont $p_{\min}$ reste calculée sans que la
+  règle~R1 s'y applique~;
   \item \emph{Cox--Stuart}~: inopérant pour $T \le 9$~; test à \code{ECHEC} inatteignable pour
   $T = 10$ et $11$ ($p_{\min} = 0{,}0625$) à $\hat\pi_t$ constant~; à $\hat\pi_t$ variable, la règle
   lit $p_{\min}^{\mathrm{MC}}$, qui peut excéder $p_{\min}$ (à $T = 8$, $0{,}149$ sur
@@ -6850,7 +6892,7 @@ pour les lignes que ces issues ont changées). Niveau réel, sous le
 modèle ajusté à J1 et à J2, de la chaîne complète du dossier (\code{run\_engine()}, $B = 999$,
 $R = 2\,000$ jeux simulés par jeu, au commit cité, antérieur à l'issue~\#240~: p-value marginale V1
 dans tous les régimes~; depuis, à $\hat\delta^{*}$ intérieur, la chaîne retient la p-value
-conditionnelle au régime, dont les niveaux sont ceux de l'issue~\#229), pour chacune des 34 statistiques d'\code{USP\_CATALOGUE\_MC}
+conditionnelle au régime, dont les niveaux sont ceux de l'issue~\#229), pour chacune des 34 statistiques d'\code{USP\_CATALOGUE\_MC} (que comptait alors le catalogue~; 31 depuis les issues~\#303 et~\#302, qui ont retiré les entrées de Ljung--Box au retard~1 sur $u_t$ et sur $z_t$ et de Box--Pierce)
 et pour chaque ligne de la table auditable~; protocole, références, lecture en quatre états et
 résultats à la section~\ref{sec:calibration-mc}. Statut~: \emph{constat de simulation sous le
 modèle ajusté}, sans portée générale~; les intervalles de Clopper--Pearson à 95~\% des fichiers
@@ -7117,13 +7159,11 @@ Grubbs (\ref{fiche:grubbs}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilaté
 % Rangée retirée à l'issue #304 (ESD de Rosner en diagnostic par décision, rubrique 7 retirée
 % de sa fiche) ; texte conservé pour le passage de fin de branche :
 % ESD de Rosner (\ref{fiche:rosner-esd}) & Sans objet (procédure sans p-value) & Non étudiée~; première étape~: niveau exactement $\alpha$ sous i.i.d. normal (résultat exact)~; procédure sous i.i.d. normal (C7.a, $10^6$ échantillons)~: $P(\hat k \ge 1) = 0{,}1506$ ($\alpha = 0{,}10$), $0{,}0752$ ($0{,}05$)~; $P(\hat k = 2) = 0{,}0601$, $0{,}0276$~; part de la seconde étape $0{,}0502$ ($\alpha = 0{,}10$)~; sous le modèle ajusté (C7.b, $20\,000$ jeux, $\alpha = 0{,}10$)~: $P(\hat k \ge 1) = 0{,}1473$ (J1), $0{,}1179$ (J2), première étape seule $0{,}0967$, $0{,}0693$~; issue~\#166 ($2\,000$ premiers jeux de C7.b, $\alpha = 0{,}10$)~: $P(\hat k \ge 1) = 0{,}1395$ (J1), $0{,}111$ (J2)~; $P(\hat k = 2) = 0{,}0535$, $0{,}0495$ & \code{test\_rosner()},\newline \code{tests/constats\_puissance\_t8.R},\newline \code{tests/calibration\_mc\_t8.R} & \code{docs/tableaux/}\newline \code{20261018-issue174-esd.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md} \\
-Durbin--Watson, ratios bruts (\ref{fiche:durbin-watson-ratios-bruts}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Volet~B seul (p-value retenue, J1~/ J2, issue~\#274)~: AR(1) $\rho = 0{,}5$~: $0{,}280$~/ $0{,}246$~; $\rho = 0{,}9$~: $0{,}556$~/ $0{,}530$ (avant l'issue~\#240~: $0{,}276$~/ $0{,}232$~; $0{,}556$~/ $0{,}520$)~; proche de la ligne sur $z_t$~; niveau de la $p_{\mathrm{mc}}$ sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}107$~; $0{,}0495$, J2 $0{,}092$~; $0{,}0455$, compatible~; V3h, p-value retenue depuis l'issue~\#240 ($\alpha = 0{,}10$~; $0{,}05$)~: J1 (bords, 1\,925 réplications) identique à V1~; ensemble de J1 non tabulé, J2 $0{,}1000$~; $0{,}0515$ & \code{engine\_p\_mc()},\newline \code{tests/puissance\_t8.R},\newline \code{tests/calibration\_mc\_t8.R} & \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md},\newline \code{docs/tableaux/}\newline \code{20261010-issue229-p-conditionnelle\allowbreak-regime.md} \\
-% Rangée retirée à l'issue #303 (ligne retirée du moteur) ; texte conservé pour le passage de fin de branche :
-% Ljung--Box, ratios bruts (\ref{fiche:ljung-box-ratios-bruts}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}104$~; $0{,}0495$, J2 $0{,}1035$~; $0{,}0525$, compatible~; V3h, p-value retenue depuis l'issue~\#240 ($\alpha = 0{,}10$~; $0{,}05$)~: J1 (bords, 1\,925 réplications) identique à V1~; ensemble de J1 non tabulé, J2 $0{,}1130$~; $0{,}0545$ & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_t8.R} & \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md},\newline \code{docs/tableaux/}\newline \code{20261010-issue229-p-conditionnelle\allowbreak-regime.md} \\
-Suites, ratios bruts (\ref{fiche:suites-ratios-bruts}) & $4/70 = 0{,}0571$~; plancher Monte-Carlo $0{,}002$ (bilatéral) & Celle des suites sur $z_t$ à $\hat\pi_t$ constant (identité vérifiée au volet~A)~; volet~B (p-value retenue, J1~/ J2, issue~\#274, taux identiques à ceux d'avant l'issue~\#240)~: AR(1) $\rho = 0{,}9$~: $0{,}268$~/ $0{,}242$~; rupture de 2 écarts-types~: $0{,}450$~/ $0{,}438$~; niveau de la p-value retenue sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}062$~; $0{,}0035$, J2 $0{,}061$~; $0{,}008$, compatible~; $p_{\mathrm{mc}}$ V3h, p-value retenue depuis l'issue~\#240 ($\alpha = 0{,}10$~; $0{,}05$)~: J1 (bords, 1\,925 réplications) identique à V1~; ensemble de J1 non tabulé, J2 $0{,}0610$~; $0{,}0090$ & \code{runs\_p\_min()}, \code{usp\_runsr\_p\_exacte()},\newline \code{tests/puissance\_t8.R},\newline \code{tests/calibration\_mc\_t8.R} & \code{docs/tableaux/}\newline \code{20260930-issue116-exact-J1.md},\newline \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md},\newline \code{docs/tableaux/}\newline \code{20261010-issue229-p-conditionnelle\allowbreak-regime.md} \\
-sup-F, ratios bruts (\ref{fiche:sup-f-ratios-bruts}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Volet~A, issue~\#313 (J1, référence idéalisée~: $\delta = 1$ imposé, loi nulle sans réajustement, $B$ infini~; $\alpha = 0{,}10$)~: rupture de 2 écarts-types après l'année~4~; 6~: $0{,}614$~; $0{,}522$~; tendance de 1,75 écart-type~: $0{,}346$~; contamination à 5 écarts-types, vers le haut~; le bas~: $0{,}040$~; $0{,}061$~; amplitudes en écarts-types de $\ln r_t$ ($0{,}1438$ sur J1, non $\hat\sigma$)~; effet de $B = 999$ au plus $0{,}0050$~; volet~B, issue~\#274 (p-value retenue de Monte-Carlo, V1 au bord, V3b à $\hat\delta^*$ intérieur, J1~/ J2, $\alpha = 0{,}10$, aucun inopérant)~: niveau $0{,}108$~/ $0{,}100$ (contrôle de compatibilité), rupture de 2 écarts-types après l'année~4~: $0{,}608$~/ $0{,}570$~; niveau de la $p_{\mathrm{mc}}$ sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}101$~; $0{,}0525$, J2 $0{,}101$~; $0{,}049$, compatible~; V3h, p-value retenue depuis l'issue~\#240 ($\alpha = 0{,}10$~; $0{,}05$)~: J1 (bords, 1\,925 réplications) identique à V1~; ensemble de J1 non tabulé, J2 $0{,}1045$~; $0{,}0510$ & \code{engine\_p\_mc()},\newline \code{tests/puissance\_t8.R},\newline \code{tests/calibration\_mc\_t8.R} & \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20261017-issue313-stabilite-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md},\newline \code{docs/tableaux/}\newline \code{20261010-issue229-p-conditionnelle\allowbreak-regime.md} \\
-OLS-CUSUM, ratios bruts (\ref{fiche:ols-cusum-ratios-bruts}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Volet~A, issue~\#313 (J1, référence idéalisée~: $\delta = 1$ imposé, loi nulle sans réajustement, $B$ infini~; $\alpha = 0{,}10$)~: rupture de 2 écarts-types après l'année~4~; 6~: $0{,}691$~; $0{,}416$~; tendance de 1,75 écart-type~: $0{,}348$~; contamination à 5 écarts-types, vers le haut~; le bas~: $0{,}019$~; $0{,}051$~; amplitudes en écarts-types de $\ln r_t$ ($0{,}1438$ sur J1, non $\hat\sigma$)~; effet de $B = 999$ au plus $0{,}0042$~; volet~B, issue~\#274 (p-value retenue de Monte-Carlo, V1 au bord, V3b à $\hat\delta^*$ intérieur, J1~/ J2, $\alpha = 0{,}10$, aucun inopérant)~: niveau $0{,}096$~/ $0{,}092$ (contrôle de compatibilité), rupture de 2 écarts-types après l'année~4~: $0{,}696$~/ $0{,}650$~; niveau de la $p_{\mathrm{mc}}$ sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}1045$~; $0{,}0505$, J2 $0{,}0995$~; $0{,}0505$, compatible~; V3h, p-value retenue depuis l'issue~\#240 ($\alpha = 0{,}10$~; $0{,}05$)~: J1 (bords, 1\,925 réplications) identique à V1~; ensemble de J1 non tabulé, J2 $0{,}0990$~; $0{,}0475$ & \code{engine\_p\_mc()},\newline \code{tests/puissance\_t8.R},\newline \code{tests/calibration\_mc\_t8.R} & \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20261017-issue313-stabilite-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md},\newline \code{docs/tableaux/}\newline \code{20261010-issue229-p-conditionnelle\allowbreak-regime.md} \\
-Grubbs, ratios bruts (\ref{fiche:grubbs-ratios-bruts}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Volet~A, issue~\#313 (J1, référence idéalisée~: $\delta = 1$ imposé, loi nulle sans réajustement, $B$ infini~; $\alpha = 0{,}10$)~: contamination à 3~; 4~; 5 écarts-types, vers le haut~: $0{,}503$~; $0{,}779$~; $0{,}936$, vers le bas~: $0{,}175$~; $0{,}299$~; $0{,}457$ (convexité de l'exponentielle, échelle $0{,}1438$ sur J1, non $\hat\sigma$)~; effet de $B = 999$ au plus $0{,}0045$, non comparable aux taux de l'issue~\#229 (J2, réajustement, V1 ou V3h)~; volet~B, issue~\#274 (p-value retenue de Monte-Carlo, V1 au bord, V3b à $\hat\delta^*$ intérieur, J1~/ J2, $\alpha = 0{,}10$, aucun inopérant)~: niveau $0{,}118$~/ $0{,}092$ (contrôle de compatibilité), rupture de 2 écarts-types après l'année~4~: $0{,}068$~/ $0{,}054$~; Issue~\#229, $p_{\mathrm{mc}}$ marginale (V1), $\alpha = 0{,}10$, tous jeux~; $\hat\delta^{*}$ intérieur~: $\lambda = 3$ $0{,}427$~; $0{,}273$, $\lambda = 4$ $0{,}678$~; $0{,}380$, $\nu = 4$ $0{,}237$~; $0{,}069$, $\nu = 2$ $0{,}318$~; $0{,}070$~; niveau de la $p_{\mathrm{mc}}$ sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}1005$~; $0{,}049$, J2 $0{,}0845$~; $0{,}039$, écart mineur conservateur sur J2, conservateur à $\hat\delta^{*}$ intérieur~; p-value restreinte au régime (issue~\#175, non implémentée)~: $0{,}099$ sur J2 intérieur~; V3h, p-value retenue depuis l'issue~\#240 ($\alpha = 0{,}10$~; $0{,}05$)~: J1 (bords, 1\,925 réplications) identique à V1~; ensemble de J1 non tabulé, J2 $0{,}0985$~; $0{,}0485$~; puissance V3h, tous jeux~; $\hat\delta^{*}$ intérieur~: $\lambda = 3$ $0{,}442$~; $0{,}378$, $\lambda = 4$ $0{,}698$~; $0{,}565$, $\nu = 4$ $0{,}255$~; $0{,}151$, $\nu = 2$ $0{,}337$~; $0{,}172$ & \code{engine\_p\_mc()},\newline \code{tests/puissance\_t8.R},\newline \code{tests/calibration\_mc\_t8.R},\newline \code{tests/}\newline \code{conservatisme\_interieur\_t8.R},\newline \code{tests/}\newline \code{p\_conditionnelle\_regime\_t8.R} & \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20261017-issue313-stabilite-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md},\newline \code{docs/tableaux/}\newline \code{20261009-issue175-conservatisme\allowbreak-interieur.md} ,\newline \code{docs/tableaux/}\newline \code{20261010-issue229-p-conditionnelle\allowbreak-puissance.md},\newline \code{docs/tableaux/}\newline \code{20261010-issue229-p-conditionnelle\allowbreak-regime.md} \\
+Durbin--Watson, ratios bruts (\ref{fiche:durbin-watson-ratios-bruts}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral), à $\hat\pi_t$ variable~; diagnostic, sans p-value retenue, à $\hat\pi_t$ constant (règle~R15) & Volet~B seul (p-value retenue, J1~/ J2, issue~\#274)~: AR(1) $\rho = 0{,}5$~: $0{,}280$~/ $0{,}246$~; $\rho = 0{,}9$~: $0{,}556$~/ $0{,}530$ (avant l'issue~\#240~: $0{,}276$~/ $0{,}232$~; $0{,}556$~/ $0{,}520$)~; proche de la ligne sur $z_t$~; niveau de la $p_{\mathrm{mc}}$ sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}107$~; $0{,}0495$, J2 $0{,}092$~; $0{,}0455$, compatible~; V3h, p-value retenue depuis l'issue~\#240 ($\alpha = 0{,}10$~; $0{,}05$)~: J1 (bords, 1\,925 réplications) identique à V1~; ensemble de J1 non tabulé, J2 $0{,}1000$~; $0{,}0515$ & \code{engine\_p\_mc()},\newline \code{tests/puissance\_t8.R},\newline \code{tests/calibration\_mc\_t8.R} & \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md},\newline \code{docs/tableaux/}\newline \code{20261010-issue229-p-conditionnelle\allowbreak-regime.md} \\
+Suites, ratios bruts (\ref{fiche:suites-ratios-bruts}) & $4/70 = 0{,}0571$~; plancher Monte-Carlo $0{,}002$ (bilatéral)~; à $\hat\pi_t$ constant, diagnostic (règle~R15), $p_{\min}$ calculée sans application de la règle~R1 & Celle des suites sur $z_t$ à $\hat\pi_t$ constant (identité vérifiée au volet~A)~; volet~B (p-value retenue, J1~/ J2, issue~\#274, taux identiques à ceux d'avant l'issue~\#240)~: AR(1) $\rho = 0{,}9$~: $0{,}268$~/ $0{,}242$~; rupture de 2 écarts-types~: $0{,}450$~/ $0{,}438$~; niveau de la p-value retenue sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}062$~; $0{,}0035$, J2 $0{,}061$~; $0{,}008$, compatible~; $p_{\mathrm{mc}}$ V3h, p-value retenue depuis l'issue~\#240 ($\alpha = 0{,}10$~; $0{,}05$)~: J1 (bords, 1\,925 réplications) identique à V1~; ensemble de J1 non tabulé, J2 $0{,}0610$~; $0{,}0090$ & \code{runs\_p\_min()}, \code{usp\_runsr\_p\_exacte()},\newline \code{tests/puissance\_t8.R},\newline \code{tests/calibration\_mc\_t8.R} & \code{docs/tableaux/}\newline \code{20260930-issue116-exact-J1.md},\newline \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md},\newline \code{docs/tableaux/}\newline \code{20261010-issue229-p-conditionnelle\allowbreak-regime.md} \\
+sup-F, ratios bruts (\ref{fiche:sup-f-ratios-bruts}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral), à $\hat\pi_t$ variable~; diagnostic, sans p-value retenue, à $\hat\pi_t$ constant (règle~R15) & Volet~A, issue~\#313 (J1, référence idéalisée~: $\delta = 1$ imposé, loi nulle sans réajustement, $B$ infini~; $\alpha = 0{,}10$)~: rupture de 2 écarts-types après l'année~4~; 6~: $0{,}614$~; $0{,}522$~; tendance de 1,75 écart-type~: $0{,}346$~; contamination à 5 écarts-types, vers le haut~; le bas~: $0{,}040$~; $0{,}061$~; amplitudes en écarts-types de $\ln r_t$ ($0{,}1438$ sur J1, non $\hat\sigma$)~; effet de $B = 999$ au plus $0{,}0050$~; volet~B, issue~\#274 (p-value retenue de Monte-Carlo, V1 au bord, V3b à $\hat\delta^*$ intérieur, J1~/ J2, $\alpha = 0{,}10$, aucun inopérant)~: niveau $0{,}108$~/ $0{,}100$ (contrôle de compatibilité), rupture de 2 écarts-types après l'année~4~: $0{,}608$~/ $0{,}570$~; niveau de la $p_{\mathrm{mc}}$ sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}101$~; $0{,}0525$, J2 $0{,}101$~; $0{,}049$, compatible~; V3h, p-value retenue depuis l'issue~\#240 ($\alpha = 0{,}10$~; $0{,}05$)~: J1 (bords, 1\,925 réplications) identique à V1~; ensemble de J1 non tabulé, J2 $0{,}1045$~; $0{,}0510$ & \code{engine\_p\_mc()},\newline \code{tests/puissance\_t8.R},\newline \code{tests/calibration\_mc\_t8.R} & \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20261017-issue313-stabilite-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md},\newline \code{docs/tableaux/}\newline \code{20261010-issue229-p-conditionnelle\allowbreak-regime.md} \\
+OLS-CUSUM, ratios bruts (\ref{fiche:ols-cusum-ratios-bruts}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral), à $\hat\pi_t$ variable~; diagnostic, sans p-value retenue, à $\hat\pi_t$ constant (règle~R15) & Volet~A, issue~\#313 (J1, référence idéalisée~: $\delta = 1$ imposé, loi nulle sans réajustement, $B$ infini~; $\alpha = 0{,}10$)~: rupture de 2 écarts-types après l'année~4~; 6~: $0{,}691$~; $0{,}416$~; tendance de 1,75 écart-type~: $0{,}348$~; contamination à 5 écarts-types, vers le haut~; le bas~: $0{,}019$~; $0{,}051$~; amplitudes en écarts-types de $\ln r_t$ ($0{,}1438$ sur J1, non $\hat\sigma$)~; effet de $B = 999$ au plus $0{,}0042$~; volet~B, issue~\#274 (p-value retenue de Monte-Carlo, V1 au bord, V3b à $\hat\delta^*$ intérieur, J1~/ J2, $\alpha = 0{,}10$, aucun inopérant)~: niveau $0{,}096$~/ $0{,}092$ (contrôle de compatibilité), rupture de 2 écarts-types après l'année~4~: $0{,}696$~/ $0{,}650$~; niveau de la $p_{\mathrm{mc}}$ sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}1045$~; $0{,}0505$, J2 $0{,}0995$~; $0{,}0505$, compatible~; V3h, p-value retenue depuis l'issue~\#240 ($\alpha = 0{,}10$~; $0{,}05$)~: J1 (bords, 1\,925 réplications) identique à V1~; ensemble de J1 non tabulé, J2 $0{,}0990$~; $0{,}0475$ & \code{engine\_p\_mc()},\newline \code{tests/puissance\_t8.R},\newline \code{tests/calibration\_mc\_t8.R} & \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20261017-issue313-stabilite-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md},\newline \code{docs/tableaux/}\newline \code{20261010-issue229-p-conditionnelle\allowbreak-regime.md} \\
+Grubbs, ratios bruts (\ref{fiche:grubbs-ratios-bruts}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral), à $\hat\pi_t$ variable~; diagnostic, sans p-value retenue, à $\hat\pi_t$ constant (règle~R15) & Volet~A, issue~\#313 (J1, référence idéalisée~: $\delta = 1$ imposé, loi nulle sans réajustement, $B$ infini~; $\alpha = 0{,}10$)~: contamination à 3~; 4~; 5 écarts-types, vers le haut~: $0{,}503$~; $0{,}779$~; $0{,}936$, vers le bas~: $0{,}175$~; $0{,}299$~; $0{,}457$ (convexité de l'exponentielle, échelle $0{,}1438$ sur J1, non $\hat\sigma$)~; effet de $B = 999$ au plus $0{,}0045$, non comparable aux taux de l'issue~\#229 (J2, réajustement, V1 ou V3h)~; volet~B, issue~\#274 (p-value retenue de Monte-Carlo, V1 au bord, V3b à $\hat\delta^*$ intérieur, J1~/ J2, $\alpha = 0{,}10$, aucun inopérant)~: niveau $0{,}118$~/ $0{,}092$ (contrôle de compatibilité), rupture de 2 écarts-types après l'année~4~: $0{,}068$~/ $0{,}054$~; Issue~\#229, $p_{\mathrm{mc}}$ marginale (V1), $\alpha = 0{,}10$, tous jeux~; $\hat\delta^{*}$ intérieur~: $\lambda = 3$ $0{,}427$~; $0{,}273$, $\lambda = 4$ $0{,}678$~; $0{,}380$, $\nu = 4$ $0{,}237$~; $0{,}069$, $\nu = 2$ $0{,}318$~; $0{,}070$~; niveau de la $p_{\mathrm{mc}}$ sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}1005$~; $0{,}049$, J2 $0{,}0845$~; $0{,}039$, écart mineur conservateur sur J2, conservateur à $\hat\delta^{*}$ intérieur~; p-value restreinte au régime (issue~\#175, non implémentée)~: $0{,}099$ sur J2 intérieur~; V3h, p-value retenue depuis l'issue~\#240 ($\alpha = 0{,}10$~; $0{,}05$)~: J1 (bords, 1\,925 réplications) identique à V1~; ensemble de J1 non tabulé, J2 $0{,}0985$~; $0{,}0485$~; puissance V3h, tous jeux~; $\hat\delta^{*}$ intérieur~: $\lambda = 3$ $0{,}442$~; $0{,}378$, $\lambda = 4$ $0{,}698$~; $0{,}565$, $\nu = 4$ $0{,}255$~; $0{,}151$, $\nu = 2$ $0{,}337$~; $0{,}172$ & \code{engine\_p\_mc()},\newline \code{tests/puissance\_t8.R},\newline \code{tests/calibration\_mc\_t8.R},\newline \code{tests/}\newline \code{conservatisme\_interieur\_t8.R},\newline \code{tests/}\newline \code{p\_conditionnelle\_regime\_t8.R} & \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20261017-issue313-stabilite-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md},\newline \code{docs/tableaux/}\newline \code{20261009-issue175-conservatisme\allowbreak-interieur.md} ,\newline \code{docs/tableaux/}\newline \code{20261010-issue229-p-conditionnelle\allowbreak-puissance.md},\newline \code{docs/tableaux/}\newline \code{20261010-issue229-p-conditionnelle\allowbreak-regime.md} \\
 \midrule
 \multicolumn{5}{@{}l@{}}{\textbf{Méthode Merz--Wüthrich}} \\
 \midrule
@@ -7387,12 +7427,14 @@ cette base la validité qu'elle a partout ailleurs~: le bootstrap paramétrique 
 $Y_t$ sous le modèle ajusté, donc la loi de référence d'une statistique quelconque ---
 y compris calculée sur $u_t$ --- est reproduite hétéroscédasticité comprise, à l'erreur
 de Monte-Carlo près et sous le modèle ajusté pris pour vrai (section~\ref{sec:mc})~;
-elle n'est exacte ni au sens de l'ADR~0002 ni à $T$ fini. C'est cette p-value que le moteur retient sur cette base, avec une
-seule exception~: le test des suites sur ratios bruts retient la p-value exacte
-de la loi combinatoire de $R$ lorsque $\hat\pi_t$ est constant et que les
-signes de $u_t$ coïncident avec ceux de $z_t$, les $r_t$ étant alors i.i.d.
-sous le modèle ajusté (issue~\#29~; condition détaillée à la
-fiche~\ref{fiche:suites-wald-wolfowitz}, rubrique~5).
+elle n'est exacte ni au sens de l'ADR~0002 ni à $T$ fini. C'est cette p-value que le moteur retient sur cette base
+quand $\hat\pi_t$ varie. À $\hat\pi_t$ constant, depuis l'issue~\#303, les lignes de la base
+sont des diagnostics de la règle~R15 (section~\ref{sec:nature}) et n'en retiennent aucune~; le
+test des suites sur ratios bruts y calcule toujours la p-value exacte de la loi combinatoire de
+$R$ lorsque les signes de $u_t$ coïncident avec ceux de $z_t$, les $r_t$ étant alors i.i.d. sous
+le modèle ajusté (issue~\#29~; condition détaillée à la fiche~\ref{fiche:suites-wald-wolfowitz},
+rubrique~5), et la restitue dans \code{p\_exacte} sans la retenir (jusqu'à l'issue~\#303, elle était
+retenue, seule exception à la p-value de Monte-Carlo sur cette base).
 
 Vérification par simulation à $T = 8$, sous $H_0$, statistiques calculées sur
 $u_t$ et p-values de Monte-Carlo (400 réplications, $B = 199$)~:
@@ -7412,7 +7454,12 @@ Grubbs         & 0,115 & 0,055 \\
 
 \noindent
 Les deux valeurs sont compatibles avec les niveaux nominaux à l'intérieur de
-l'intervalle de confiance à 95~\% ($\pm 0{,}029$ et $\pm 0{,}021$).
+l'intervalle de confiance à 95~\% ($\pm 0{,}029$ et $\pm 0{,}021$). Constat de simulation
+ancien, dont ni le script, ni le jeu, ni le régime de $\hat\delta$ ne sont consignés~: il ne se
+reproduit pas à partir du dépôt, et les niveaux de référence de ces lignes sont ceux de la
+section~\ref{sec:calibration-mc} ($R = 2\,000$, $B = 999$, J1 et J2). Il porte sur la p-value de
+Monte-Carlo, toujours calculée~; depuis l'issue~\#303, elle n'est retenue qu'à $\hat\pi_t$
+variable (règle~R15).
 
 \subsubsection*{Ce contrôle est sans objet lorsque $\hat\pi_t$ est constant}
 
@@ -7431,7 +7478,10 @@ $\hat\pi_t$ est constant, donc à $\hat\delta = 1$ ou à volumes $x_t$ constants
 sur l'étendue observée des $\hat\pi_t$~: \code{usp\_regime()} déclare
 $\hat\pi_t$ constant lorsque $\hat\delta \ge 1 - 10^{-6}$ ou que les volumes
 sont égaux à $10^{-6}$ près en relatif, avec la tolérance
-\code{TOL\_DELTA\_BORD} justifiée à la fiche~\ref{fiche:centrage}.
+\code{TOL\_DELTA\_BORD} justifiée à la fiche~\ref{fiche:centrage}. Depuis l'issue~\#303, il en
+tire la conséquence sur la restitution~: dans ce régime, ces lignes sont des diagnostics
+(règle~R15, section~\ref{sec:nature}), sans verdict ni p-value retenue, leur homologue sur $z_t$
+portant seul le type et le verdict.
 
 \emph{Conséquence algébrique exacte.} Lorsque $\hat\pi_t \equiv \hat\pi$, la
 forme fermée de $\ln\hat\beta$ se réduit à
@@ -7467,9 +7517,11 @@ Depuis l'issue~\#29, \code{runs\_p\_exacte()} applique le doublement et la
 ligne sur $u_t$ reçoit la p-value exacte dans ce régime
 (fiche~\ref{fiche:suites-wald-wolfowitz}, rubrique~5)~: les deux lignes portent
 désormais la même p-value exacte, $52/70 = 0{,}743$, et la colonne
-\code{p\_mc} de chacune l'estime, à l'erreur de Monte-Carlo près.
+\code{p\_mc} de chacune l'estime, à l'erreur de Monte-Carlo près. Depuis l'issue~\#303, la ligne
+sur $u_t$ ne la retient plus (règle~R15)~: seule la ligne sur $z_t$ la retient et porte un
+verdict.
 
-\emph{Pour les cinq autres, un écart du second ordre.} En écrivant
+\emph{Pour les quatre autres, un écart du second ordre.} En écrivant
 $r_t = \bar r\,(1 + \varepsilon_t)$, le développement de $\ln$ donne
 $\ln r_t - \overline{\ln r} = \varepsilon_t + \mathcal{O}(\varepsilon^2)$~: les
 deux séries centrées coïncident au premier ordre, et leur différence est
@@ -7481,34 +7533,37 @@ $\mathrm{CV}(r) = 0{,}151$~: l'écart maximal entre $\ln r_t - \overline{\ln r}$
 et $(r_t - \bar r)/\bar r$ vaut $0{,}0143$, à comparer à
 $\mathrm{CV}(r)^2 = 0{,}0228$~;
 $\operatorname{cor}(z, u) = 0{,}998$ et $\operatorname{cor}(z, \ln r) = 1$ à la
-précision machine. Les cinq lignes sur base $u_t$ et leurs homologues sur
-$z_t$ y portent le même verdict \code{OK}~; pour les quatre paires autres que le
-test des suites, les p-values retenues diffèrent d'au plus $0{,}091$ (sup-F,
-$0{,}840$ contre $0{,}931$), l'écart le plus faible étant celui de
-Durbin--Watson ($0{,}0011$). Le second ordre vaut pour la série~; sa propagation à la
+précision machine. Avant l'issue~\#303, les cinq lignes sur base $u_t$ et leurs homologues sur
+$z_t$ y portaient le même verdict \code{OK}~; depuis, les lignes sur $u_t$ y sont des diagnostics
+(règle~R15). Pour les quatre paires autres que le test des suites, la p-value de Monte-Carlo de
+la ligne sur $u_t$, toujours calculée, diffère de la p-value retenue de son homologue sur $z_t$
+d'au plus $0{,}091$ (sup-F, $0{,}840$ contre $0{,}931$), l'écart le plus faible étant celui de
+Durbin--Watson ($0{,}0011$, p-value exacte $0{,}565$ sur $z_t$ contre $0{,}566$~; mesuré par
+\code{run\_engine()} sur \code{premium}, $B = 999$, graine 20260831). Le second ordre vaut pour la série~; sa propagation à la
 statistique dépend de la régularité de celle-ci, faible pour Durbin--Watson, sensible pour
 sup-F, dont le maximum porte à $T = 8$ sur des segments de deux ou trois points au plus
 court. Une statistique qui
 repose sur une quasi-annulation garde en revanche un écart relatif important
-sur la valeur elle-même --- Ljung--Box au retard~1 vaut $9{,}2\cdot 10^{-3}$
-sur $z_t$ et $1{,}3\cdot 10^{-4}$ sur $u_t$ --- sans que le verdict en dépende
-à ce niveau de p-value.
+sur la valeur elle-même --- la statistique de Ljung--Box au retard~1 valait $9{,}2\cdot 10^{-3}$
+sur $z_t$ et $1{,}3\cdot 10^{-4}$ sur $u_t$ --- sans que le verdict en dépendît
+à ce niveau de p-value (lignes retirées depuis, sur $u_t$ par l'issue~\#303 et sur $z_t$ par
+l'issue~\#302, motif à la fiche~\ref{fiche:durbin-watson-ratios-bruts}, rubrique~6).
 
 \emph{Ce que cela change pour le dossier, et ce que cela ne change pas.} Les
-cinq lignes restent exactes~: leur statistique, leur p-value retenue --- de
-Monte-Carlo, sauf pour le test des suites, qui retient dans ce régime la
-p-value exacte --- et leur verdict sont justes, et elles gardent tout leur sens \emph{lorsque
-$\hat\pi_t$ varie}, cas pour lequel elles ont été prévues. Ce qui était faux
-est la promesse formulée sans condition~: présentées comme six vérifications
-indépendantes, elles sont, à $\hat\pi_t$ constant, des \textbf{quasi-doublons}
-de leurs homologues sur $z_t$ --- et un doublon exact pour le test des suites.
-Six verdicts \code{OK} de la table auditable n'y apportent donc pas six
-informations. Le moteur porte lui-même cette réserve~: dans ce cas, le champ
+cinq lignes restent exactes~: leur statistique et leurs p-values calculées --- de
+Monte-Carlo, et, pour le test des suites, la p-value exacte dans ce régime --- sont justes, et
+elles gardent tout leur sens \emph{lorsque $\hat\pi_t$ varie}, cas pour lequel elles ont été
+prévues et où elles sont des tests. Ce qui était faux est la promesse formulée sans condition~:
+présentées comme des vérifications indépendantes, elles sont, à $\hat\pi_t$ constant, des
+\textbf{quasi-doublons} de leurs homologues sur $z_t$ --- et un doublon exact pour le test des
+suites. Des verdicts \code{OK} de la table auditable n'y apportaient donc pas autant
+d'informations. Le moteur porte lui-même cette réserve~: dans ce cas, le champ
 \code{detail} de chacune des cinq lignes contient « \code{CONTROLE SANS
 OBJET ICI} » --- en tête pour Durbin--Watson, le test des suites et
 OLS-CUSUM, après une phrase propre à la ligne pour la rupture sup-F et Grubbs ---
 et indique que la ligne est un quasi-doublon de son homologue sur
-résidus standardisés. La situation n'a rien d'exceptionnel~: sur les $999$
+résidus standardisés~; depuis l'issue~\#303, il en tire la conséquence et restitue ces lignes en
+diagnostic, sans verdict (règle~R15, section~\ref{sec:nature}). La situation n'a rien d'exceptionnel~: sur les $999$
 réplications du bootstrap paramétrique du jeu de contrôle, $490$ --- soit
 $49{,}0~\%$ --- ont un $\hat\pi_t^{*}$ constant (constat de simulation, graine
 20260831~; 493 avant le réajustement à trois démarrages de l'issue~\#109).
@@ -7517,9 +7572,9 @@ $49{,}0~\%$ --- ont un $\hat\pi_t^{*}$ constant (constat de simulation, graine
 \begin{encadre}
 \textbf{Usage recommandé.} La base $z_t$ reste celle du dossier~: c'est la seule
 sur laquelle les p-values exactes et asymptotiques sont valides (à l'exception
-de la p-value exacte des suites sur $u_t$, attribuée seulement lorsque
+de la p-value exacte des suites sur $u_t$, calculée seulement lorsque
 $\hat\pi_t$ est constant, où la ligne n'apporte rien de plus que son homologue
-sur $z_t$), et c'est elle
+sur $z_t$ et, depuis l'issue~\#303, ne la retient pas), et c'est elle
 qui teste les hypothèses telles que l'annexe~XVII les formule. La base $u_t$ est
 un \emph{contrôle de cohérence de la pondération}, \textbf{sous la condition
 que cette pondération existe}~: elle vérifie que les conclusions
@@ -7531,7 +7586,8 @@ objet} et les cinq lignes correspondantes sont des quasi-doublons de leurs
 homologues sur $z_t$~: elles ne doivent pas être lues comme cinq vérifications
 supplémentaires (voir « Ce contrôle est sans objet lorsque $\hat\pi_t$ est
 constant », plus haut dans cette sous-section, et le champ \code{detail} de ces
-lignes, qui porte la réserve). Les deux bases sont calculées systématiquement par le moteur et
+lignes, qui porte la réserve)~; depuis l'issue~\#303, le moteur les restitue alors en diagnostic,
+sans verdict (règle~R15, section~\ref{sec:nature}). Les deux bases sont calculées systématiquement par le moteur et
 figurent toutes deux dans l'export~; la bascule de l'application ne fait que
 filtrer l'affichage.
 \end{encadre}
@@ -10371,10 +10427,16 @@ $(0{,}6~;~0{,}65~;~0{,}7~;~0{,}75 - d~;~0{,}75 + d~;~0{,}8~;~0{,}85~;~0{,}9)$, c
 \ae quo sur $u$ mais distincts sur $z$, et la statistique $Z$ vaut $-1{,}826$ sur $u_t$ contre
 $-2{,}291$ sur $z_t$~; à $d = 10^{-14}$, ils sont ex \ae quo sur les deux séries, et la ligne sur
 $u_t$ a la même statistique, $-1{,}826$, que celle sur $z_t$. Dans les deux cas, la ligne sur
-ratios bruts est inopérante ($p_{\min} = 0{,}2$ à $n_1 = n_2 = 3$, règle~R1). Si la loi de $R$ n'est pas définie --- un seul côté de la médiane représenté ---, aucune
+ratios bruts, à $\hat\pi_t$ exactement constant (volumes constants), est un diagnostic de la
+règle~R15 depuis l'issue~\#303 ($p_{\min} = 0{,}2$ à $n_1 = n_2 = 3$, règle~R1 sans objet, champ
+\code{inoperant} à \code{FALSE}), alors qu'elle était jusque-là un test inopérant~; la ligne sur
+$z_t$ est un test à $d = 10^{-13}$ ($p_{\min} = 0{,}0571$) et un test inopérant à $d = 10^{-14}$
+($p_{\min} = 0{,}2$~; remesuré par \code{run\_engine()}, $B$ = \code{B\_MIN\_USAGE}). Si la loi de $R$ n'est pas définie --- un seul côté de la médiane représenté ---, aucune
 p-value exacte n'est attribuée, même lorsque les deux conditions tiennent (cas~2b de
-\code{usp\_tests()}). Si l'une des conditions manque, la p-value retenue est celle de Monte-Carlo, simulée
-sous le modèle ajusté avec ses $\hat\pi_t$~: lorsque $\hat\pi_t$ varie, les $r_t$ sont
+\code{usp\_tests()}). Si l'une des conditions manque, seule la p-value de Monte-Carlo, simulée
+sous le modèle ajusté avec ses $\hat\pi_t$, est calculée, et elle n'est retenue qu'à $\hat\pi_t$
+variable, la ligne étant à $\hat\pi_t$ constant un diagnostic de la règle~R15 (issue~\#303)~:
+lorsque $\hat\pi_t$ varie, les $r_t$ sont
 indépendants mais non identiquement distribués, les arrangements de signes ne sont plus
 équiprobables et la loi combinatoire n'est qu'une approximation, sans borne d'erreur connue à
 $T = 8$. Les quatre autres lignes de la base « ratios bruts » ont leur p-value de Monte-Carlo dans
@@ -11161,74 +11223,76 @@ reproduit l'hétéroscédasticité des $r_t$ (section~\ref{sec:base-residus}, «
 selon la base »).
 \Pval
 p-value de Monte-Carlo, bilatérale (clé \code{DWr}, procédure de la
-fiche~\ref{fiche:procedure-mc}), seule calculée et seule retenue, avec son erreur de
-Monte-Carlo \code{err\_mc} en $\mathcal{O}(B^{-1/2})$. Mesuré sur le jeu de contrôle
+fiche~\ref{fiche:procedure-mc}), seule calculée, avec son erreur de
+Monte-Carlo \code{err\_mc} en $\mathcal{O}(B^{-1/2})$~; retenue à $\hat\pi_t$ variable seulement~:
+à $\hat\pi_t$ constant, la ligne est un diagnostic (règle~R15, section~\ref{sec:nature}) et
+aucune p-value n'est retenue, \code{p\_mc} restant restituée. Mesuré sur le jeu de contrôle
 ($\hat\delta = 1$, $B = 999$, graine 20260831)~: $\mathrm{DW} = 1{,}630$, \code{p\_mc}
-$= 0{,}566$ (erreur de Monte-Carlo $0{,}029$), contre $\mathrm{DW} = 1{,}618$ et une p-value
-exacte de $0{,}565$ sur $z_t$.
+$= 0{,}566$ (erreur de Monte-Carlo $0{,}029$), non retenue, contre $\mathrm{DW} = 1{,}618$ et une
+p-value exacte retenue de $0{,}565$ sur $z_t$.
 \Usage
 Même portée que le test sur $z_t$ (ordre~1 seulement), sans passer par le modèle. À
 $\hat\pi_t$ constant --- cas du jeu de contrôle ---, la ligne est un quasi-doublon de son
 homologue sur $z_t$, dont elle ne diffère qu'au second ordre en coefficient de variation des
 $r_t$~; son commentaire commence alors par « \code{CONTROLE SANS OBJET ICI} »
-(section~\ref{sec:base-residus}). Elle n'apporte une information propre que lorsque
-$\hat\pi_t$ varie. À $T = 8$, la p-value de Monte-Carlo n'est exacte qu'à l'erreur de
+(section~\ref{sec:base-residus}). \textbf{Pourquoi aucun verdict à $\hat\pi_t$ constant}
+(règle~R15, issue~\#303, ADR~0001)~: la ligne y teste la même hypothèse que son homologue sur
+$z_t$, sur les mêmes données, à une transformation monotone près~; un second verdict compterait
+deux fois la même information. Elle y est donc restituée en diagnostic, verdict \code{INFO},
+commentaire terminé par la phrase fixe de la règle, la ligne sur $z_t$ portant seule le type et le
+verdict. Elle n'apporte une information propre que lorsque $\hat\pi_t$ varie, où elle est un
+test. \emph{Ligne retirée~: Ljung--Box au retard~1 sur ratios bruts} (issue~\#303, décision
+Q-D1-Fh-9 du mainteneur du 19~octobre 2026, option~(A)~; spécification
+\code{docs/specifications/fh-restitution-lognormale.md}, encadré de tête). La ligne et son entrée
+« LB1r » du catalogue \code{USP\_CATALOGUE\_MC} sont retirées dans tous les régimes, comme,
+sur $z_t$, Ljung--Box au retard~1 (issue~\#302, fiche~\ref{fiche:ljung-box}). Motif~: un seul
+test d'autocorrélation d'ordre~1 est désigné par base, Durbin--Watson bilatéral, symétrique et,
+des deux, le plus puissant contre l'autocorrélation positive (persistance, cycles de
+souscription), alternative actuarielle plausible~; garder les deux reviendrait à tester deux fois
+la même hypothèse nulle (environ $14~\%$ de rejet d'au moins une des deux sous $H_0$ au seuil
+$0{,}10$, constat de simulation hors dépôt d'\code{actuary}). Ce n'est pas un doublon~:
+$Q = T(T+2)\hat\rho_1^2/(T-1)$ est fonction de $|\hat\rho_1|$, et non une fonction quasi monotone
+de $\mathrm{DW}$~; à $T = 8$, sous $H_0$, $\hat\rho_1$ est décentré (espérance $-0{,}126$,
+écart-type $0{,}283$) et $90{,}8~\%$ des rejets de Ljung--Box au retard~1 au seuil $0{,}10$ ont
+lieu pour $\hat\rho_1 < 0$ (même statut). Le retrait se paie donc d'une perte de puissance contre
+l'autocorrélation négative. Puissances au seuil $0{,}10$, calibration « oracle » sous le modèle
+ajusté à J2, sans réajustement, $20\,000$ tirages par alternative (constat de simulation
+d'\code{actuary-approfondi} du 19~octobre 2026, script hors dépôt, non versionné, qui ne se
+reproduit pas à partir du dépôt)~:
+
+\begin{center}
+\small
+\begin{tabular}{@{}lcc@{}}
+\toprule
+$\rho$ & Durbin--Watson sur ratios bruts & Ljung--Box (1) sur ratios bruts \\
+\midrule
+$-0{,}6$ & $0{,}324$ & $0{,}491$ \\
+$-0{,}3$ & $0{,}155$ & $0{,}237$ \\
+$+0{,}3$ & $0{,}159$ & $0{,}077$ \\
+$+0{,}6$ & $0{,}332$ & $0{,}146$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+Une rédaction antérieure fondait ce retrait sur une « égalité des puissances à $0{,}01$ près »
+des deux statistiques (issues~\#229 et~\#116)~: c'était une égalité de \emph{niveau}, non de
+puissance, et elle ne fonde pas le retrait. Jusqu'à l'issue~\#303, la ligne retenait sa p-value de
+Monte-Carlo en queue haute (clé « LB1r », retirée avec elle~; sur le jeu de contrôle, $Q = 1{,}3\cdot 10^{-4}$,
+\code{p\_mc} $= 0{,}996$, contre $Q = 9{,}2\cdot 10^{-3}$ et $0{,}937$ sur $z_t$). À $T = 8$, la p-value de Monte-Carlo n'est exacte qu'à l'erreur de
 Monte-Carlo près \emph{et} sous le modèle ajusté pris pour vrai~: sa validité est celle du
 bootstrap paramétrique, asymptotique en $T$ et non quantifiable à $T = 8$
 (section~\ref{sec:mc})~; la calibration mesurée sur cette base est un constat de simulation
 (section~\ref{sec:base-residus}).
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{DWr}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue, à $\hat\pi_t$ variable, est de Monte-Carlo (clé \code{DWr}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue~; à $\hat\pi_t$ constant, aucune p-value n'est retenue (règle~R15).
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. À $\hat\pi_t$ constant, la p-value retenue reste de Monte-Carlo. Dans ce régime, le commentaire de la ligne signale un contrôle sans objet, quasi-doublon de la ligne sur $z_t$~; la ligne reste un test. \emph{Puissance de la p-value retenue}, toujours de Monte-Carlo (volet~B de l'issue~\#116, remesure de l'issue~\#274 sous le moteur courant, appariée à celle du 30~septembre, J1~/ J2, 500 réplications par point, $B = 999$, $\alpha = 0{,}10$~; taux des verdicts restitués, aucun test inopérant, 0 sur 500 par point, intervalle $[0~;~0{,}007]$~; protocole au tableau~\ref{tab:tracabilite-puissance})~: niveau $0{,}110$~/ $0{,}110$~; AR(1) à $\rho = 0{,}5$~: $0{,}280$~/ $0{,}246$~; à $\rho = 0{,}9$~: $0{,}556$~/ $0{,}530$~; tendance de 2 écarts-types~: $0{,}254$~/ $0{,}234$~; rupture de 2 écarts-types après l'année~4~: $0{,}360$~/ $0{,}376$. Ces taux sont proches de ceux de la ligne sur $z_t$ (fiche~\ref{fiche:durbin-watson}) sur J1 (écart d'au plus $0{,}018$), ce qui mesure le quasi-doublon, et s'en écartent davantage sur J2, où $\hat\pi_t$ varie (jusqu'à $0{,}046$ sous la rupture). Avant l'issue~\#240 (mesure du 30~septembre)~: $0{,}108$~/ $0{,}092$~; $0{,}276$~/ $0{,}232$~; $0{,}556$~/ $0{,}520$~; $0{,}254$~/ $0{,}224$~; $0{,}360$~/ $0{,}360$ (écarts à la ligne sur $z_t$ d'au plus $0{,}016$ sur J1 et $0{,}052$ sur J2). Le volet~A de l'issue~\#116, fondé sur les p-values exactes, ne couvre pas cette ligne. Mesures hors modèle réglementaire. Niveau de la p-value de Monte-Carlo sous le modèle ajusté (issue~\#166, $R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc})~: J1, $0{,}107$ à $\alpha = 0{,}10$ et $0{,}0495$ à $0{,}05$~; J2, $0{,}092$ et $0{,}0455$~; compatible aux deux seuils sur les deux jeux~; sur J1, au bord~1, taux à $0{,}10$ de $0{,}120$ (taux conditionnel, sans référence exacte). Niveau de la p-value retenue du moteur depuis l'issue~\#240 (V3h, conditionnelle au régime de $\hat\delta$~; issue~\#229, tableau~T1, $R = 2\,000$, $B = 999$, constat de simulation au commit \code{fee9968}, V3h reconstruite par le script, antérieure à son implémentation, section~\ref{sec:calibration-mc})~: J1, V3h coïncide avec V1 réplication par réplication sur les 1\,925 réplications à $\hat\delta^{*}$ au bord, seule population du tableau~T1~; les 75 réplications à $\hat\delta^{*}$ intérieur (tableau~T1~bis, descriptif) n'y figurent pas, et le niveau V3h sur l'ensemble de J1 n'est pas tabulé~; J2, $0{,}1000$ $[0{,}0872~;~0{,}1140]$ à $\alpha = 0{,}10$ et $0{,}0515$ $[0{,}0422~;~0{,}0621]$ à $0{,}05$, compatible aux deux seuils.
+\textbf{Pertinence à $T = 8$.} Ligne de type test à $\hat\pi_t$ variable, diagnostic à $\hat\pi_t$ constant (règle~R15, issue~\#303~: quasi-doublon de la ligne sur $z_t$, rubrique~6), où sa p-value de Monte-Carlo reste calculée sans être retenue. Les mesures qui suivent sont antérieures à l'issue~\#303, quand la ligne était un test dans tous les régimes~: elles restent celles de sa p-value de Monte-Carlo, qui n'est plus retenue dans les réplications à $\hat\pi^{*}_t$ constant, où la ligne n'a plus de verdict. \emph{Puissance de la p-value de Monte-Carlo}, alors retenue (volet~B de l'issue~\#116, remesure de l'issue~\#274 sous le moteur courant, appariée à celle du 30~septembre, J1~/ J2, 500 réplications par point, $B = 999$, $\alpha = 0{,}10$~; taux des verdicts restitués, aucun test inopérant, 0 sur 500 par point, intervalle $[0~;~0{,}007]$~; protocole au tableau~\ref{tab:tracabilite-puissance})~: niveau $0{,}110$~/ $0{,}110$~; AR(1) à $\rho = 0{,}5$~: $0{,}280$~/ $0{,}246$~; à $\rho = 0{,}9$~: $0{,}556$~/ $0{,}530$~; tendance de 2 écarts-types~: $0{,}254$~/ $0{,}234$~; rupture de 2 écarts-types après l'année~4~: $0{,}360$~/ $0{,}376$. Ces taux sont proches de ceux de la ligne sur $z_t$ (fiche~\ref{fiche:durbin-watson}) sur J1 (écart d'au plus $0{,}018$), ce qui mesure le quasi-doublon, et s'en écartent davantage sur J2, où $\hat\pi_t$ varie (jusqu'à $0{,}046$ sous la rupture). Avant l'issue~\#240 (mesure du 30~septembre)~: $0{,}108$~/ $0{,}092$~; $0{,}276$~/ $0{,}232$~; $0{,}556$~/ $0{,}520$~; $0{,}254$~/ $0{,}224$~; $0{,}360$~/ $0{,}360$ (écarts à la ligne sur $z_t$ d'au plus $0{,}016$ sur J1 et $0{,}052$ sur J2). Le volet~A de l'issue~\#116, fondé sur les p-values exactes, ne couvre pas cette ligne. Mesures hors modèle réglementaire. Niveau de la p-value de Monte-Carlo sous le modèle ajusté (issue~\#166, $R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc})~: J1, $0{,}107$ à $\alpha = 0{,}10$ et $0{,}0495$ à $0{,}05$~; J2, $0{,}092$ et $0{,}0455$~; compatible aux deux seuils sur les deux jeux~; sur J1, au bord~1, taux à $0{,}10$ de $0{,}120$ (taux conditionnel, sans référence exacte). Niveau de la p-value retenue du moteur depuis l'issue~\#240 (V3h, conditionnelle au régime de $\hat\delta$~; issue~\#229, tableau~T1, $R = 2\,000$, $B = 999$, constat de simulation au commit \code{fee9968}, V3h reconstruite par le script, antérieure à son implémentation, section~\ref{sec:calibration-mc})~: J1, V3h coïncide avec V1 réplication par réplication sur les 1\,925 réplications à $\hat\delta^{*}$ au bord, seule population du tableau~T1~; les 75 réplications à $\hat\delta^{*}$ intérieur (tableau~T1~bis, descriptif) n'y figurent pas, et le niveau V3h sur l'ensemble de J1 n'est pas tabulé~; J2, $0{,}1000$ $[0{,}0872~;~0{,}1140]$ à $\alpha = 0{,}10$ et $0{,}0515$ $[0{,}0422~;~0{,}0621]$ à $0{,}05$, compatible aux deux seuils.
 
 \textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Puissances et niveau~: constats de simulation sous des alternatives choisies, hors modèle réglementaire (intervalles de Clopper--Pearson dans les fichiers de résultats, incertitude de simulation muette sur l'erreur en $T$). Niveau~: constat de simulation sous le modèle ajusté à J1 et à J2 (section~\ref{sec:calibration-mc}), incertitude de Clopper--Pearson liée à $R$, intervalles dans les fichiers de résultats.
 \end{fiche}
-
-% Fiche retirée à l'issue #303 : Ljung--Box au retard 1 sur ratios bruts n'est plus restituée par
-% usp_tests() (entrée LB1r de USP_CATALOGUE_MC supprimée). Texte d'origine conservé en commentaire pour
-% le passage de fin de branche, qui porte le motif du retrait.
-% \begin{fiche}{Ljung--Box au retard 1 sur ratios bruts}
-% \label{fiche:ljung-box-ratios-bruts}%
-% \refl{G.\,M. Ljung, G.\,E.\,P. Box (1978), \emph{op.\ cit.} (fiche~\ref{fiche:ljung-box}).}
-% \Cadre
-% Statistique de Ljung--Box au seul retard~1, appliquée aux ratios centrés $u_t$ (base
-% « ratios bruts », section~\ref{sec:base-residus}). Mêmes hypothèses non testées et même objet que
-% la fiche~\ref{fiche:durbin-watson-ratios-bruts}. Le retard~2 n'est pas restitué sur cette base~:
-% $\hat\rho_2$ n'y reposerait que sur $T-2$ produits (commentaire qui précède le catalogue
-% \code{USP\_CATALOGUE\_MC}).
-% \Hzero
-% $H_0 : \rho_1 = 0$ pour le ratio S/P, contre $H_1$~: autocorrélation au retard~1.
-% \Stat
-% $Q_{\mathrm{LB}} = T(T+2)\,\hat\rho_1^2/(T-1)$, $\hat\rho_1$ étant l'autocorrélation empirique de
-% la fiche~\ref{fiche:ljung-box} calculée sur les $u_t$ (\code{stats::Box.test()}, appel direct
-% dans \code{.stats\_bootstrapables()}). Invariante par translation et changement d'échelle.
-% \Loi
-% La loi $\chi^2(1)$ de la fiche~\ref{fiche:ljung-box} n'est ni calculée ni employée sur cette base.
-% La loi de référence est simulée par le bootstrap paramétrique sous le modèle ajusté.
-% \Pval
-% p-value de Monte-Carlo en queue haute (clé \code{LB1r}), seule calculée et seule retenue, avec
-% son erreur de Monte-Carlo. Mesuré sur le jeu de contrôle~: $Q = 1{,}3\cdot 10^{-4}$,
-% \code{p\_mc} $= 0{,}996$ (erreur $0{,}002$), contre $Q = 9{,}2\cdot 10^{-3}$ et une p-value de
-% Monte-Carlo de $0{,}937$ sur $z_t$.
-% \Usage
-% Redondant avec la fiche~\ref{fiche:durbin-watson-ratios-bruts} au premier ordre (les deux
-% statistiques sont fonctions de l'autocorrélation d'ordre~1). $Q$ repose sur une quasi-annulation
-% de $\hat\rho_1$~: sa valeur relative varie fortement d'une base à l'autre sans que la p-value en
-% dépende à ce niveau (section~\ref{sec:base-residus}). Même réserve à $\hat\pi_t$ constant
-% (quasi-doublon, « \code{CONTROLE SANS OBJET ICI} ») et même portée de la p-value de Monte-Carlo à
-% $T = 8$ que pour la fiche~\ref{fiche:durbin-watson-ratios-bruts}.
-% \Pertinence
-% \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $Q$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{LB1r}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
-%
-% \textbf{Table.} Sans objet (loi continue).
-%
-% \textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. À $\hat\pi_t$ constant, le commentaire de la ligne signale un contrôle sans objet, quasi-doublon de la ligne sur $z_t$~; la ligne reste un test. Puissance non étudiée à $T = 8$ contre les écarts que vise la ligne~; des taux de rejet sous des alternatives d'une autre famille figurent au fichier de puissance de l'issue~\#229, sans être repris ici. Niveau de la p-value de Monte-Carlo sous le modèle ajusté (issue~\#166, $R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc})~: J1, $0{,}104$ à $\alpha = 0{,}10$ et $0{,}0495$ à $0{,}05$~; J2, $0{,}1035$ et $0{,}0525$~; compatible aux deux seuils sur les deux jeux~; sur J2, au bord~1, taux à $0{,}10$ de $0{,}141$ (taux conditionnel, sans référence exacte). Niveau de la p-value retenue du moteur depuis l'issue~\#240 (V3h, conditionnelle au régime de $\hat\delta$~; issue~\#229, tableau~T1, $R = 2\,000$, $B = 999$, constat de simulation au commit \code{fee9968}, V3h reconstruite par le script, antérieure à son implémentation, section~\ref{sec:calibration-mc})~: J1, V3h coïncide avec V1 réplication par réplication sur les 1\,925 réplications à $\hat\delta^{*}$ au bord, seule population du tableau~T1~; les 75 réplications à $\hat\delta^{*}$ intérieur (tableau~T1~bis, descriptif) n'y figurent pas, et le niveau V3h sur l'ensemble de J1 n'est pas tabulé~; J2, $0{,}1130$ $[0{,}0994~;~0{,}1277]$ à $\alpha = 0{,}10$ et $0{,}0545$ $[0{,}0450~;~0{,}0654]$ à $0{,}05$, compatible aux deux seuils.
-%
-% \textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance. Niveau~: constat de simulation sous le modèle ajusté à J1 et à J2 (section~\ref{sec:calibration-mc}), incertitude de Clopper--Pearson liée à $R$, intervalles dans les fichiers de résultats.
-% \end{fiche}
 
 \begin{fiche}{Test des suites sur ratios bruts}
 \label{fiche:suites-ratios-bruts}%
@@ -11257,11 +11321,15 @@ Sous la double condition de \code{usp\_runsr\_p\_exacte()} --- $\hat\pi_t$ const
 \code{usp\_regime()}, \emph{et} signes de $u_t - \operatorname{med}(u)$ et de
 $z_t - \operatorname{med}(z)$ identiques terme à terme ---, p-value exacte de
 \code{runs\_p\_exacte()}, convention bilatérale du doublement (issue~\#29)~; sinon, p-value de
-Monte-Carlo (clé \code{Runsr}), bilatérale. Le commentaire de la ligne suit ces régimes depuis
+Monte-Carlo (clé \code{Runsr}), bilatérale. \textbf{Depuis l'issue~\#303, aucune de ces p-values
+n'est retenue à $\hat\pi_t$ constant}~: la ligne y est un diagnostic de la règle~R15
+(section~\ref{sec:nature}), les deux p-values restant dans \code{p\_exacte} et \code{p\_mc}~; à
+$\hat\pi_t$ variable, la ligne est un test et retient sa p-value de Monte-Carlo. Le commentaire de la ligne suit ces régimes depuis
 l'issue~\#128~: sous la double condition, il dit la p-value exacte calculée, «~\code{la p-value
 EXACTE est calculee (convention bilaterale du doublement, celle du bootstrap), la meme que sur la
-ligne des suites sur residus standardises (issue \#29)~; la p-value retenue, s'il en est une, est
-nommee par nature\_p.}~», sauf motif de
+ligne des suites sur residus standardises (issue \#29).}~» (la proposition qui suivait,
+«~\code{la p-value retenue, s'il en est une, est nommee par nature\_p}~», est retirée depuis
+l'issue~\#303, aucune p-value n'étant retenue dans ce régime), sauf motif de
 dégénérescence de \code{Runsr}, qui l'écarte (ADR~0001, section~\ref{sec:nature}, point~(ii))~;
 hors de la double condition, il ne nomme la p-value de Monte-Carlo que si elle
 existe --- à $\hat\pi_t$ variable, «~\code{Seule la p-value Monte-Carlo, simulee sous le modele
@@ -11278,8 +11346,12 @@ p-value retenue, s'il en est une, se lit dans \code{nature\_p} et \code{p\_reten
 (\code{run\_engine()}, méthode prime, $B = 999$, graine 20260831, $\alpha = 0{,}05$, moteur
 antérieur à l'issue pour «~avant~»)~: sur le jeu de contrôle (double condition, $p_{\min} = 4/70 =
 0{,}0571 \ge \alpha$) comme sur le jeu à $\hat\delta$ intérieur ($\hat\pi_t$ variable, plancher
-Monte-Carlo au moins égal à $\alpha$), la ligne est un test inopérant, \code{p\_retenue} vaut
-\code{NA}, et le commentaire, qui disait la p-value «~\code{retenue}~», la dit «~\code{calculee}~». Quand $\hat\pi_t$ est constant mais qu'un signe
+Monte-Carlo au moins égal à $\alpha$), la ligne était un test inopérant, \code{p\_retenue} valant
+\code{NA}, et le commentaire, qui disait la p-value «~\code{retenue}~», la dit «~\code{calculee}~».
+Depuis l'issue~\#303, sur le jeu de contrôle, la ligne est un diagnostic de la règle~R15, champ
+\code{inoperant} à \code{FALSE}, verdict \code{INFO} inchangé~; sur le jeu à $\hat\delta$
+intérieur, elle reste un test inopérant ($p_{\min}^{\mathrm{MC}} = 0{,}062 \ge \alpha$~; remesuré
+par \code{run\_engine()} à $\alpha = 0{,}05$). Quand $\hat\pi_t$ est constant mais qu'un signe
 diffère entre $u_t - \operatorname{med}(u)$ et $z_t - \operatorname{med}(z)$, le commentaire
 distingue depuis l'issue~\#187 deux sous-cas~: $\hat\pi_t$ \emph{exactement} constant,
 où l'écart est attribué au traitement numérique (centrage de $u$ par la moyenne, aplatissement des
@@ -11287,9 +11359,11 @@ ex \ae quo à une tolérance relative à $\max_t|r_t|$ sur $u$ et absolue sous~1
 section~\ref{sec:ex-aequo}), non à une variation de $\hat\pi_t$~; $\hat\pi_t$ constant à la
 tolérance \code{TOL\_DELTA\_BORD} près seulement, où la variation résiduelle de $\hat\pi_t$ est
 nommée. Dans les deux sous-cas, il se termine par «~\code{La p-value Monte-Carlo, simulee sous le
-modele ajuste, est calculee ; la p-value retenue, s'il en est une, est nommee par nature\_p.}~»
-quand cette p-value existe (issue~\#182~; formule étendue par l'issue~\#214 aux deux autres
-régimes de la ligne, à RESET et à OLS-CUSUM), et par la phrase
+modele ajuste, est calculee.}~» quand cette p-value existe (issue~\#182~; jusqu'à l'issue~\#303,
+la phrase ajoutait «~\code{la p-value retenue, s'il en est une, est nommee par nature\_p}~»,
+formule étendue par l'issue~\#214 aux deux autres régimes de la ligne, à RESET et à OLS-CUSUM, et
+retirée de ces deux sous-cas, à $\hat\pi_t$ constant, où la ligne est un diagnostic de la
+règle~R15), et par la phrase
 d'indisponibilité ci-dessus sinon, sans dire la p-value de Monte-Carlo retenue, une règle de restitution pouvant encore l'écarter
 (cas mesuré à la fiche~\ref{fiche:suites-wald-wolfowitz}, rubrique~5). Sous la double condition, la p-value de
 Monte-Carlo, quand elle existe, estime la même quantité que la p-value exacte, à l'erreur de
@@ -11301,16 +11375,21 @@ calculée étant déjà nommée (mesuré sur le jeu de contrôle avec \code{usp\
 (bande de tolérance, régime estimé) sont détaillés à la fiche~\ref{fiche:suites-wald-wolfowitz},
 rubrique~5. Mesuré sur le jeu de contrôle ($\hat\delta = 1$)~: $Z = -0{,}764$ sur $u_t$ comme sur
 $z_t$, p-value exacte $52/70 = 0{,}743$ retenue sur les deux lignes, \code{p\_mc} $= 0{,}768$
-(erreur $0{,}031$).
+(erreur $0{,}031$), mesure antérieure à l'issue~\#303~; depuis, la p-value exacte, inchangée,
+n'est plus retenue que sur la ligne sur $z_t$.
 \Usage
 À $\hat\pi_t$ constant, la ligne est un \textbf{doublon exact} de la ligne des suites sur $z_t$~:
-même statistique, même p-value exacte, même verdict (section~\ref{sec:base-residus}). Elle
-n'apporte une information propre que lorsque $\hat\pi_t$ varie, où elle retient alors la
+même statistique, même p-value exacte (section~\ref{sec:base-residus}). \textbf{Pourquoi aucun
+verdict à $\hat\pi_t$ constant} (règle~R15, issue~\#303, ADR~0001)~: un second verdict sur la même
+statistique et la même loi compterait deux fois la même information~; la ligne y est restituée en
+diagnostic, verdict \code{INFO}, la ligne sur $z_t$ portant seule le type et le verdict (jusqu'à
+l'issue, elle portait le même verdict que celle-ci). Elle
+n'apporte une information propre que lorsque $\hat\pi_t$ varie, où elle est un test et retient la
 p-value de Monte-Carlo, dont la portée à $T = 8$ est celle du bootstrap paramétrique
-(section~\ref{sec:mc}). Granularité et test inopérant~: mêmes valeurs atteignables qu'à la
-fiche~\ref{fiche:suites-wald-wolfowitz} lorsque la p-value exacte est retenue~; la règle~R1
-s'applique à cette ligne comme à celle sur $z_t$, avec la p-value minimale aux effectifs des signes
-de $u_t$ (champ \code{p\_min}). Sans p-value exacte, cette p-value minimale, calculée sur la loi
+(section~\ref{sec:mc}). Granularité et test inopérant~: à $\hat\pi_t$ constant, la p-value
+minimale aux effectifs des signes de $u_t$ (champ \code{p\_min}) reste calculée, mais la
+règle~R1 ne s'applique pas à un diagnostic~; à $\hat\pi_t$ variable, la règle~R1 s'applique à
+cette ligne comme à celle sur $z_t$. Sans p-value exacte, cette p-value minimale, calculée sur la loi
 de référence échangeable, ne borne pas la p-value de Monte-Carlo retenue, qui peut lui être
 inférieure (erreur de Monte-Carlo, non-échangeabilité)~; depuis l'issue~\#125, la règle~R1 y lit le
 plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$ de la loi simulée (section~\ref{sec:nature},
@@ -11323,11 +11402,11 @@ que sur $z_t$~: $\mathbb{P}(R^* = 2)$ jusqu'à $0{,}26$ contre $2/70$, soit un p
 au-dessus de $0{,}0571$, issue~\#125~; il peut aller jusqu'au test inopérant si les deux extrêmes
 sont fréquents, possibilité dont la fréquence n'est pas mesurée).
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} $4/70 = 0{,}0571$ ($n_1 = n_2 = 4$, \code{runs\_p\_min()}). Exacte à $\hat\pi_t$ constant, où la statistique et la p-value exacte retenue sont celles de la ligne sur $z_t$ (\code{usp\_runsr\_p\_exacte()})~; à $\hat\pi_t$ variable, la p-value retenue est de Monte-Carlo (clé \code{Runsr}, bilatérale, plancher $2/(B+1)$, soit $0{,}002$ à $B = 999$) et $0{,}0571$, $p_{\min}$ de la loi de référence échangeable, n'en est pas une borne (rubrique~6)~; la règle~R1 y lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$ (issue~\#125), $0{,}062$ sur \code{premium\_interieur}.
+\textbf{p-value minimale à $T = 8$.} $4/70 = 0{,}0571$ ($n_1 = n_2 = 4$, \code{runs\_p\_min()}). Exacte à $\hat\pi_t$ constant, où la statistique et la p-value exacte calculée sont celles de la ligne sur $z_t$ (\code{usp\_runsr\_p\_exacte()}), sans être retenues (règle~R15)~; à $\hat\pi_t$ variable, la p-value retenue est de Monte-Carlo (clé \code{Runsr}, bilatérale, plancher $2/(B+1)$, soit $0{,}002$ à $B = 999$) et $0{,}0571$, $p_{\min}$ de la loi de référence échangeable, n'en est pas une borne (rubrique~6)~; la règle~R1 y lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$ (issue~\#125), $0{,}062$ sur \code{premium\_interieur}.
 
-\textbf{Table.} Tableau~\ref{tab:pmin}~: \code{ECHEC} inatteignable à $T = 8$ et $9$ à $\hat\pi_t$ constant.
+\textbf{Table.} Tableau~\ref{tab:pmin}~: à $\hat\pi_t$ constant, $p_{\min}$ calculée, la règle~R1 ne s'appliquant plus (diagnostic de la règle~R15).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test, à \code{ECHEC} inatteignable à $\hat\pi_t$ constant~; à $\hat\pi_t$ variable, selon $p_{\min}^{\mathrm{MC}}$ (rubrique~6~; inatteignable sur \code{premium\_interieur}). À $\hat\pi_t$ constant, la statistique étant identique à celle de la ligne sur $z_t$ --- identité vérifiée réplication par réplication au volet~A de l'issue~\#116, sans aucune différence sur 300\,000 séries ---, la puissance est celle de la ligne sur $z_t$ (fiche~\ref{fiche:suites-wald-wolfowitz}). \emph{P-value retenue après réajustement} (volet~B de l'issue~\#116, remesure de l'issue~\#274 sous le moteur courant, appariée à celle du 30~septembre, J1~/ J2, 500 réplications par point, $B = 999$, $\alpha = 0{,}10$~; taux des verdicts restitués, aucun test inopérant, 0 sur 500 par point, intervalle $[0~;~0{,}007]$~; protocole au tableau~\ref{tab:tracabilite-puissance}), exacte dans les réplications où $\hat\pi^*_t$ est constant et de Monte-Carlo dans les autres~: niveau $0{,}062$~/ $0{,}064$~; AR(1) à $\rho = 0{,}5$~: $0{,}112$~/ $0{,}124$~; à $\rho = 0{,}9$~: $0{,}268$~/ $0{,}242$~; tendance de 2 écarts-types~: $0{,}140$~/ $0{,}144$~; rupture de 2 écarts-types après l'année~4~: $0{,}450$~/ $0{,}438$, taux identiques à ceux de la mesure du 30~septembre, avant l'issue~\#240~; les écarts à la ligne sur $z_t$ vont de $0$ à $0{,}010$, sous la demi-largeur des intervalles de Clopper--Pearson. Mesures hors modèle réglementaire. Niveau de la p-value retenue sous le modèle ajusté (issue~\#166, $R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc}), exacte dans les réplications où $\hat\pi^{*}_t$ est constant et de Monte-Carlo dans les autres~: J1, $0{,}062$ à $\alpha = 0{,}10$ et $0{,}0035$ à $0{,}05$~; J2, $0{,}061$ et $0{,}008$~; compatible avec les références mélangées ($0{,}0571$ à $0{,}10$~; $0{,}0049$ sur J1 et $0{,}0062$ sur J2 à $0{,}05$). Niveau de la p-value de Monte-Carlo de la ligne sous la variante V3h, p-value retenue du moteur depuis l'issue~\#240 quand la p-value exacte n'est pas attribuée (issue~\#229, tableau~T1, $R = 2\,000$, $B = 999$, constat de simulation au commit \code{fee9968}, V3h reconstruite par le script, antérieure à son implémentation, section~\ref{sec:calibration-mc})~: J1, V3h coïncide avec V1 réplication par réplication sur les 1\,925 réplications à $\hat\delta^{*}$ au bord, seule population du tableau~T1~; les 75 réplications à $\hat\delta^{*}$ intérieur (tableau~T1~bis, descriptif) n'y figurent pas, et le niveau V3h sur l'ensemble de J1 n'est pas tabulé~; J2, $0{,}0610$ $[0{,}0509~;~0{,}0724]$ à $\alpha = 0{,}10$ et $0{,}0090$ $[0{,}0053~;~0{,}0142]$ à $0{,}05$, compatible aux deux seuils. Ces taux se lisent avec la taille lissée de la p-value de Monte-Carlo (référence du tableau~T1, loi discrète), $0{,}0571$ à $0{,}10$ et $0{,}0097$ à $0{,}05$~; le niveau de la p-value retenue (mélange de la p-value exacte et de la p-value de Monte-Carlo) sous V3h n'est pas cité, le tableau~T1 ne le donnant pas.
+\textbf{Pertinence à $T = 8$.} Ligne de type test à $\hat\pi_t$ variable, à \code{ECHEC} atteignable ou non selon $p_{\min}^{\mathrm{MC}}$ (rubrique~6~; inatteignable sur \code{premium\_interieur})~; diagnostic à $\hat\pi_t$ constant (règle~R15, issue~\#303), où, jusqu'à l'issue, la ligne était un test à \code{ECHEC} inatteignable. Les mesures qui suivent sont antérieures à l'issue~\#303~: dans les réplications à $\hat\pi^{*}_t$ constant, elles portent sur la p-value exacte, que la ligne calcule toujours sans plus la retenir. À $\hat\pi_t$ constant, la statistique étant identique à celle de la ligne sur $z_t$ --- identité vérifiée réplication par réplication au volet~A de l'issue~\#116, sans aucune différence sur 300\,000 séries ---, la puissance est celle de la ligne sur $z_t$ (fiche~\ref{fiche:suites-wald-wolfowitz}). \emph{P-value retenue après réajustement} (volet~B de l'issue~\#116, remesure de l'issue~\#274 sous le moteur courant, appariée à celle du 30~septembre, J1~/ J2, 500 réplications par point, $B = 999$, $\alpha = 0{,}10$~; taux des verdicts restitués, aucun test inopérant, 0 sur 500 par point, intervalle $[0~;~0{,}007]$~; protocole au tableau~\ref{tab:tracabilite-puissance}), exacte dans les réplications où $\hat\pi^*_t$ est constant et de Monte-Carlo dans les autres~: niveau $0{,}062$~/ $0{,}064$~; AR(1) à $\rho = 0{,}5$~: $0{,}112$~/ $0{,}124$~; à $\rho = 0{,}9$~: $0{,}268$~/ $0{,}242$~; tendance de 2 écarts-types~: $0{,}140$~/ $0{,}144$~; rupture de 2 écarts-types après l'année~4~: $0{,}450$~/ $0{,}438$, taux identiques à ceux de la mesure du 30~septembre, avant l'issue~\#240~; les écarts à la ligne sur $z_t$ vont de $0$ à $0{,}010$, sous la demi-largeur des intervalles de Clopper--Pearson. Mesures hors modèle réglementaire. Niveau de la p-value retenue sous le modèle ajusté (issue~\#166, $R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc}), exacte dans les réplications où $\hat\pi^{*}_t$ est constant et de Monte-Carlo dans les autres~: J1, $0{,}062$ à $\alpha = 0{,}10$ et $0{,}0035$ à $0{,}05$~; J2, $0{,}061$ et $0{,}008$~; compatible avec les références mélangées ($0{,}0571$ à $0{,}10$~; $0{,}0049$ sur J1 et $0{,}0062$ sur J2 à $0{,}05$). Niveau de la p-value de Monte-Carlo de la ligne sous la variante V3h, p-value retenue du moteur depuis l'issue~\#240 quand la p-value exacte n'est pas attribuée (issue~\#229, tableau~T1, $R = 2\,000$, $B = 999$, constat de simulation au commit \code{fee9968}, V3h reconstruite par le script, antérieure à son implémentation, section~\ref{sec:calibration-mc})~: J1, V3h coïncide avec V1 réplication par réplication sur les 1\,925 réplications à $\hat\delta^{*}$ au bord, seule population du tableau~T1~; les 75 réplications à $\hat\delta^{*}$ intérieur (tableau~T1~bis, descriptif) n'y figurent pas, et le niveau V3h sur l'ensemble de J1 n'est pas tabulé~; J2, $0{,}0610$ $[0{,}0509~;~0{,}0724]$ à $\alpha = 0{,}10$ et $0{,}0090$ $[0{,}0053~;~0{,}0142]$ à $0{,}05$, compatible aux deux seuils. Ces taux se lisent avec la taille lissée de la p-value de Monte-Carlo (référence du tableau~T1, loi discrète), $0{,}0571$ à $0{,}10$ et $0{,}0097$ à $0{,}05$~; le niveau de la p-value retenue (mélange de la p-value exacte et de la p-value de Monte-Carlo) sous V3h n'est pas cité, le tableau~T1 ne le donnant pas.
 
 \textbf{Statut des valeurs.} $p_{\min}$~: exacte à $\hat\pi_t$ constant~; à $\hat\pi_t$ variable, $p_{\min}$ exacte sur la loi de référence échangeable, qui ne borne pas la p-value de Monte-Carlo~; identité avec la ligne sur $z_t$~: contrôle exhaustif sur les séries simulées~; puissances et niveau~: constats de simulation sous des alternatives choisies, hors modèle réglementaire (intervalles de Clopper--Pearson dans les fichiers de résultats, incertitude de simulation muette sur l'erreur en $T$). Niveau~: constat de simulation sous le modèle ajusté à J1 et à J2 (section~\ref{sec:calibration-mc}), incertitude de Clopper--Pearson liée à $R$, intervalles dans les fichiers de résultats.
 \end{fiche}
@@ -11733,23 +11812,22 @@ Ni la loi de Fisher, qui ne vaut pas pour un point de rupture estimé, ni la loi
 d'Andrews ne sont employées~: la loi de référence est simulée par le bootstrap paramétrique sous
 le modèle ajusté.
 \Pval
-p-value de Monte-Carlo en queue haute (clé \code{supFr}), seule calculée et seule retenue, avec
-son erreur de Monte-Carlo. Mesuré sur le jeu de contrôle~: $\sup F = 0{,}559$, \code{p\_mc}
-$= 0{,}931$ (erreur $0{,}008$), contre $\sup F = 0{,}841$ et \code{p\_mc} $= 0{,}840$ sur
+p-value de Monte-Carlo en queue haute (clé \code{supFr}), seule calculée, avec son erreur de Monte-Carlo~; retenue à $\hat\pi_t$ variable seulement~: à $\hat\pi_t$ constant, la ligne est un diagnostic (règle~R15, section~\ref{sec:nature}), sans p-value retenue, \code{p\_mc} restant restituée. Mesuré sur le jeu de contrôle~: $\sup F = 0{,}559$, \code{p\_mc}
+$= 0{,}931$ (erreur $0{,}008$), non retenue, contre $\sup F = 0{,}841$ et \code{p\_mc} $= 0{,}840$ sur
 $z_t$ --- l'écart le plus grand des cinq paires en Monte-Carlo (section~\ref{sec:base-residus}).
 \Usage
 Détecte un changement de régime du ratio S/P sans passer par le modèle~; un rejet s'interprète
 directement comme une rupture du ratio (changement de politique de souscription, de
 provisionnement ou de périmètre). À $\hat\pi_t$ constant, quasi-doublon de son homologue sur
-$z_t$ (« \code{CONTROLE SANS OBJET ICI} »). À $T = 8$, l'ensemble des points de rupture ne compte
+$z_t$ (« \code{CONTROLE SANS OBJET ICI} »). \textbf{Pourquoi aucun verdict à $\hat\pi_t$ constant} (règle~R15, issue~\#303, ADR~0001)~: la ligne y teste la même hypothèse que son homologue sur $z_t$, sur les mêmes données, à une transformation monotone près, et un second verdict compterait deux fois la même information~; elle y est restituée en diagnostic, verdict \code{INFO}, commentaire terminé par la phrase fixe de la règle, l'homologue sur $z_t$ portant seul le type et le verdict~; à $\hat\pi_t$ variable, elle est un test. À $T = 8$, l'ensemble des points de rupture ne compte
 que quelques candidats et la p-value de Monte-Carlo a la portée du bootstrap paramétrique
 (section~\ref{sec:mc}).
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $\sup F$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{supFr}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $\sup F$, continue~: toute p-value est atteignable. La p-value retenue, à $\hat\pi_t$ variable, est de Monte-Carlo (clé \code{supFr}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue~; à $\hat\pi_t$ constant, aucune p-value n'est retenue (règle~R15).
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. \emph{Puissance contre une rupture ou une dérive} (volet~A des issues~\#116 et~\#313, J1, $\hat\pi_t$ constant, $20\,000$ séries par point, $\alpha = 0{,}10$~; protocole au tableau~\ref{tab:tracabilite-puissance}), test à $\delta = 1$ imposé, contre une loi nulle simulée sans réajustement, à $B$ infini~: référence idéalisée de la ligne, et non puissance de la p-value retenue~: rupture de 1~; 2~; 3 écarts-types après l'année~4, $0{,}262$~; $0{,}614$~; $0{,}888$, et de 2 écarts-types après l'année~6, $0{,}522$~; tendance de 1~; 1,75~; 2~; 3 écarts-types, $0{,}191$~; $0{,}346$~; $0{,}401$~; $0{,}635$~; AR(1) à $\rho = 0{,}5$~; $0{,}9$, $0{,}315$~; $0{,}539$~; contamination d'une année à 3~; 5 écarts-types, $0{,}075$~; $0{,}040$ vers le haut et $0{,}085$~; $0{,}061$ vers le bas~; niveau sous le point nul $0{,}101$. Les amplitudes sont exprimées en écarts-types de $\ln r_t$, soit $\sqrt{1/\hat\pi} = \sqrt{\ln(1 + \hat\sigma^2/\hat\beta^2)} = 0{,}1438$ sur J1 ($\hat\delta = 1$, $\hat\sigma/\hat\beta = 0{,}1445$), et non en $\hat\sigma$~: la ligne n'étant pas invariante par le passage de $\ln r_t$ à $r_t$, sa puissance dépend du sens de l'écart et de cette échelle, et ne se transpose pas à un autre jeu. À $B = 999$, l'effet de $B$ seul déplace ces taux d'au plus $0{,}0050$. \emph{P-value retenue après réajustement} (volet~B, issue~\#274, J1~/ J2, 500 réplications par point, $B = 999$, $\alpha = 0{,}10$~; taux des verdicts \code{ALERTE} ou \code{ECHEC} restitués, aucun test inopérant, 0 sur 500 par point, intervalle $[0~;~0{,}007]$~; p-value de Monte-Carlo retenue dans toutes les réplications, V1 à $\hat\delta^*$ au bord, de 476 à 488 réplications sur 500 sur J1 et de 360 à 425 sur J2, V3b à $\hat\delta^*$ intérieur dans les autres~; protocole au tableau~\ref{tab:tracabilite-puissance})~: niveau $0{,}108$~/ $0{,}100$~; AR(1) à $\rho = 0{,}5$~: $0{,}326$~/ $0{,}304$~; à $\rho = 0{,}9$~: $0{,}548$~/ $0{,}516$~; tendance de 2 écarts-types~: $0{,}402$~/ $0{,}350$~; rupture de 2 écarts-types après l'année~4~: $0{,}608$~/ $0{,}570$. À la différence du volet~A, ces taux sont ceux de la p-value retenue, réajustement compris~; le niveau mesuré ici n'est qu'un contrôle de compatibilité (borne inférieure unilatérale de Clopper--Pearson à 99,9~\% sous $\alpha$), les niveaux de référence restant ceux, à $R = 2\,000$, cités plus loin. Constat de simulation sous des alternatives choisies, hors modèle réglementaire, sans portée générale. Des taux de rejet sous des alternatives d'une autre famille figurent au fichier de puissance de l'issue~\#229, sans être repris ici. Niveau de la p-value de Monte-Carlo sous le modèle ajusté (issue~\#166, $R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc})~: J1, $0{,}101$ à $\alpha = 0{,}10$ et $0{,}0525$ à $0{,}05$~; J2, $0{,}101$ et $0{,}049$~; compatible aux deux seuils sur les deux jeux~; sur J2, au bord~0, taux à $0{,}10$ de $0{,}131$ (taux conditionnel, sans référence exacte). Niveau de la p-value retenue du moteur depuis l'issue~\#240 (V3h, conditionnelle au régime de $\hat\delta$~; issue~\#229, tableau~T1, $R = 2\,000$, $B = 999$, constat de simulation au commit \code{fee9968}, V3h reconstruite par le script, antérieure à son implémentation, section~\ref{sec:calibration-mc})~: J1, V3h coïncide avec V1 réplication par réplication sur les 1\,925 réplications à $\hat\delta^{*}$ au bord, seule population du tableau~T1~; les 75 réplications à $\hat\delta^{*}$ intérieur (tableau~T1~bis, descriptif) n'y figurent pas, et le niveau V3h sur l'ensemble de J1 n'est pas tabulé~; J2, $0{,}1045$ $[0{,}0914~;~0{,}1187]$ à $\alpha = 0{,}10$ et $0{,}0510$ $[0{,}0418~;~0{,}0616]$ à $0{,}05$, compatible aux deux seuils.
+\textbf{Pertinence à $T = 8$.} Ligne de type test à $\hat\pi_t$ variable, diagnostic à $\hat\pi_t$ constant (règle~R15, issue~\#303, rubrique~6), où sa p-value de Monte-Carlo reste calculée sans être retenue~; les mesures de la p-value retenue qui suivent sont antérieures à l'issue~\#303, quand la ligne était un test dans tous les régimes, et restent celles de sa p-value de Monte-Carlo. \emph{Puissance contre une rupture ou une dérive} (volet~A des issues~\#116 et~\#313, J1, $\hat\pi_t$ constant, $20\,000$ séries par point, $\alpha = 0{,}10$~; protocole au tableau~\ref{tab:tracabilite-puissance}), test à $\delta = 1$ imposé, contre une loi nulle simulée sans réajustement, à $B$ infini~: référence idéalisée de la ligne, et non puissance de la p-value retenue~: rupture de 1~; 2~; 3 écarts-types après l'année~4, $0{,}262$~; $0{,}614$~; $0{,}888$, et de 2 écarts-types après l'année~6, $0{,}522$~; tendance de 1~; 1,75~; 2~; 3 écarts-types, $0{,}191$~; $0{,}346$~; $0{,}401$~; $0{,}635$~; AR(1) à $\rho = 0{,}5$~; $0{,}9$, $0{,}315$~; $0{,}539$~; contamination d'une année à 3~; 5 écarts-types, $0{,}075$~; $0{,}040$ vers le haut et $0{,}085$~; $0{,}061$ vers le bas~; niveau sous le point nul $0{,}101$. Les amplitudes sont exprimées en écarts-types de $\ln r_t$, soit $\sqrt{1/\hat\pi} = \sqrt{\ln(1 + \hat\sigma^2/\hat\beta^2)} = 0{,}1438$ sur J1 ($\hat\delta = 1$, $\hat\sigma/\hat\beta = 0{,}1445$), et non en $\hat\sigma$~: la ligne n'étant pas invariante par le passage de $\ln r_t$ à $r_t$, sa puissance dépend du sens de l'écart et de cette échelle, et ne se transpose pas à un autre jeu. À $B = 999$, l'effet de $B$ seul déplace ces taux d'au plus $0{,}0050$. \emph{P-value retenue après réajustement} (volet~B, issue~\#274, J1~/ J2, 500 réplications par point, $B = 999$, $\alpha = 0{,}10$~; taux des verdicts \code{ALERTE} ou \code{ECHEC} restitués, aucun test inopérant, 0 sur 500 par point, intervalle $[0~;~0{,}007]$~; p-value de Monte-Carlo retenue dans toutes les réplications, V1 à $\hat\delta^*$ au bord, de 476 à 488 réplications sur 500 sur J1 et de 360 à 425 sur J2, V3b à $\hat\delta^*$ intérieur dans les autres~; protocole au tableau~\ref{tab:tracabilite-puissance})~: niveau $0{,}108$~/ $0{,}100$~; AR(1) à $\rho = 0{,}5$~: $0{,}326$~/ $0{,}304$~; à $\rho = 0{,}9$~: $0{,}548$~/ $0{,}516$~; tendance de 2 écarts-types~: $0{,}402$~/ $0{,}350$~; rupture de 2 écarts-types après l'année~4~: $0{,}608$~/ $0{,}570$. À la différence du volet~A, ces taux sont ceux de la p-value retenue, réajustement compris~; le niveau mesuré ici n'est qu'un contrôle de compatibilité (borne inférieure unilatérale de Clopper--Pearson à 99,9~\% sous $\alpha$), les niveaux de référence restant ceux, à $R = 2\,000$, cités plus loin. Constat de simulation sous des alternatives choisies, hors modèle réglementaire, sans portée générale. Des taux de rejet sous des alternatives d'une autre famille figurent au fichier de puissance de l'issue~\#229, sans être repris ici. Niveau de la p-value de Monte-Carlo sous le modèle ajusté (issue~\#166, $R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc})~: J1, $0{,}101$ à $\alpha = 0{,}10$ et $0{,}0525$ à $0{,}05$~; J2, $0{,}101$ et $0{,}049$~; compatible aux deux seuils sur les deux jeux~; sur J2, au bord~0, taux à $0{,}10$ de $0{,}131$ (taux conditionnel, sans référence exacte). Niveau de la p-value retenue du moteur depuis l'issue~\#240 (V3h, conditionnelle au régime de $\hat\delta$~; issue~\#229, tableau~T1, $R = 2\,000$, $B = 999$, constat de simulation au commit \code{fee9968}, V3h reconstruite par le script, antérieure à son implémentation, section~\ref{sec:calibration-mc})~: J1, V3h coïncide avec V1 réplication par réplication sur les 1\,925 réplications à $\hat\delta^{*}$ au bord, seule population du tableau~T1~; les 75 réplications à $\hat\delta^{*}$ intérieur (tableau~T1~bis, descriptif) n'y figurent pas, et le niveau V3h sur l'ensemble de J1 n'est pas tabulé~; J2, $0{,}1045$ $[0{,}0914~;~0{,}1187]$ à $\alpha = 0{,}10$ et $0{,}0510$ $[0{,}0418~;~0{,}0616]$ à $0{,}05$, compatible aux deux seuils.
 
 \textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Puissance~: constat de simulation sous des alternatives choisies, hors modèle réglementaire, pour la référence idéalisée de la ligne ($\delta = 1$ imposé, loi nulle simulée sans réajustement, $B$ infini à l'erreur de cette loi près)~; intervalles de Clopper--Pearson dans le fichier de résultats, liés au nombre de séries et muets sur l'erreur en $T$~; effet de $B = 999$~: calcul exact conditionnel à la loi nulle simulée, hors réajustement~; puissance du volet~B (issue~\#274)~: constat de simulation, pour la p-value retenue, sous les mêmes alternatives, intervalles de Clopper--Pearson liés aux 500 réplications par point. Niveau~: constat de simulation sous le modèle ajusté à J1 et à J2 (section~\ref{sec:calibration-mc}), incertitude de Clopper--Pearson liée à $R$, intervalles dans les fichiers de résultats.
 \end{fiche}
@@ -11771,20 +11849,19 @@ $\mathrm{CUSUM} = \max_{j}\big|\sum_{t \le j}(u_t - \bar u)\big| \big/ (s_u\sqrt
 La loi de Kolmogorov, limite de la fiche~\ref{fiche:ols-cusum}, n'est ni calculée ni employée~:
 la loi de référence est simulée par le bootstrap paramétrique sous le modèle ajusté.
 \Pval
-p-value de Monte-Carlo en queue haute (clé \code{CUSUMr}), seule calculée et seule retenue,
-avec son erreur de Monte-Carlo. Mesuré sur le jeu de contrôle~: $\mathrm{CUSUM} = 0{,}533$,
-\code{p\_mc} $= 0{,}756$ (erreur $0{,}014$), contre $0{,}495$ et $0{,}817$ sur $z_t$.
+p-value de Monte-Carlo en queue haute (clé \code{CUSUMr}), seule calculée, avec son erreur de Monte-Carlo~; retenue à $\hat\pi_t$ variable seulement~: à $\hat\pi_t$ constant, la ligne est un diagnostic (règle~R15, section~\ref{sec:nature}), sans p-value retenue, \code{p\_mc} restant restituée. Mesuré sur le jeu de contrôle~: $\mathrm{CUSUM} = 0{,}533$,
+\code{p\_mc} $= 0{,}756$ (erreur $0{,}014$), non retenue, contre $0{,}495$ et $0{,}817$ sur $z_t$.
 \Usage
 Complément graduel du sup-F sur la même base. À $\hat\pi_t$ constant, quasi-doublon de son
-homologue sur $z_t$ (« \code{CONTROLE SANS OBJET ICI} »). À $T = 8$, le processus cumulé ne
+homologue sur $z_t$ (« \code{CONTROLE SANS OBJET ICI} »). \textbf{Pourquoi aucun verdict à $\hat\pi_t$ constant} (règle~R15, issue~\#303, ADR~0001)~: la ligne y teste la même hypothèse que son homologue sur $z_t$, sur les mêmes données, à une transformation monotone près, et un second verdict compterait deux fois la même information~; elle y est restituée en diagnostic, verdict \code{INFO}, commentaire terminé par la phrase fixe de la règle, l'homologue sur $z_t$ portant seul le type et le verdict~; à $\hat\pi_t$ variable, elle est un test. À $T = 8$, le processus cumulé ne
 compte que huit points~: seule la simulation fournit une loi de référence, avec la portée du
 bootstrap paramétrique (section~\ref{sec:mc}).
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{CUSUMr}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue, à $\hat\pi_t$ variable, est de Monte-Carlo (clé \code{CUSUMr}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue~; à $\hat\pi_t$ constant, aucune p-value n'est retenue (règle~R15).
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. \emph{Puissance contre une rupture ou une dérive} (volet~A des issues~\#116 et~\#313, J1, $\hat\pi_t$ constant, $20\,000$ séries par point, $\alpha = 0{,}10$~; protocole au tableau~\ref{tab:tracabilite-puissance}), test à $\delta = 1$ imposé, contre une loi nulle simulée sans réajustement, à $B$ infini~: référence idéalisée de la ligne, et non puissance de la p-value retenue~: rupture de 1~; 2~; 3 écarts-types après l'année~4, $0{,}299$~; $0{,}691$~; $0{,}939$, et de 2 écarts-types après l'année~6, $0{,}416$~; tendance de 1~; 1,75~; 2~; 3 écarts-types, $0{,}194$~; $0{,}348$~; $0{,}410$~; $0{,}641$~; AR(1) à $\rho = 0{,}5$~; $0{,}9$, $0{,}308$~; $0{,}525$~; contamination d'une année à 3~; 5 écarts-types, $0{,}063$~; $0{,}019$ vers le haut et $0{,}080$~; $0{,}051$ vers le bas, sous le niveau~; niveau sous le point nul $0{,}103$. Les amplitudes sont exprimées en écarts-types de $\ln r_t$, $0{,}1438$ sur J1, et non en $\hat\sigma$ (fiche~\ref{fiche:sup-f-ratios-bruts})~; la ligne n'étant pas invariante par le passage de $\ln r_t$ à $r_t$, sa puissance dépend du sens de l'écart et de cette échelle. À $B = 999$, l'effet de $B$ seul déplace ces taux d'au plus $0{,}0042$. \emph{P-value retenue après réajustement} (volet~B, issue~\#274, J1~/ J2, 500 réplications par point, $B = 999$, $\alpha = 0{,}10$~; taux des verdicts \code{ALERTE} ou \code{ECHEC} restitués, aucun test inopérant, 0 sur 500 par point, intervalle $[0~;~0{,}007]$~; p-value de Monte-Carlo retenue dans toutes les réplications, V1 à $\hat\delta^*$ au bord, de 476 à 488 réplications sur 500 sur J1 et de 360 à 425 sur J2, V3b à $\hat\delta^*$ intérieur dans les autres~; protocole au tableau~\ref{tab:tracabilite-puissance})~: niveau $0{,}096$~/ $0{,}092$~; AR(1) à $\rho = 0{,}5$~: $0{,}328$~/ $0{,}318$~; à $\rho = 0{,}9$~: $0{,}548$~/ $0{,}530$~; tendance de 2 écarts-types~: $0{,}412$~/ $0{,}382$~; rupture de 2 écarts-types après l'année~4~: $0{,}696$~/ $0{,}650$. À la différence du volet~A, ces taux sont ceux de la p-value retenue, réajustement compris~; le niveau mesuré ici n'est qu'un contrôle de compatibilité (borne inférieure unilatérale de Clopper--Pearson à 99,9~\% sous $\alpha$), les niveaux de référence restant ceux, à $R = 2\,000$, cités plus loin. Constat de simulation sous des alternatives choisies, hors modèle réglementaire, sans portée générale. Des taux de rejet sous des alternatives d'une autre famille figurent au fichier de puissance de l'issue~\#229, sans être repris ici. Niveau de la p-value de Monte-Carlo sous le modèle ajusté (issue~\#166, $R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc})~: J1, $0{,}1045$ à $\alpha = 0{,}10$ et $0{,}0505$ à $0{,}05$~; J2, $0{,}0995$ et $0{,}0505$~; compatible aux deux seuils sur les deux jeux. Niveau de la p-value retenue du moteur depuis l'issue~\#240 (V3h, conditionnelle au régime de $\hat\delta$~; issue~\#229, tableau~T1, $R = 2\,000$, $B = 999$, constat de simulation au commit \code{fee9968}, V3h reconstruite par le script, antérieure à son implémentation, section~\ref{sec:calibration-mc})~: J1, V3h coïncide avec V1 réplication par réplication sur les 1\,925 réplications à $\hat\delta^{*}$ au bord, seule population du tableau~T1~; les 75 réplications à $\hat\delta^{*}$ intérieur (tableau~T1~bis, descriptif) n'y figurent pas, et le niveau V3h sur l'ensemble de J1 n'est pas tabulé~; J2, $0{,}0990$ $[0{,}0863~;~0{,}1129]$ à $\alpha = 0{,}10$ et $0{,}0475$ $[0{,}0386~;~0{,}0578]$ à $0{,}05$, compatible aux deux seuils.
+\textbf{Pertinence à $T = 8$.} Ligne de type test à $\hat\pi_t$ variable, diagnostic à $\hat\pi_t$ constant (règle~R15, issue~\#303, rubrique~6), où sa p-value de Monte-Carlo reste calculée sans être retenue~; les mesures de la p-value retenue qui suivent sont antérieures à l'issue~\#303, quand la ligne était un test dans tous les régimes, et restent celles de sa p-value de Monte-Carlo. \emph{Puissance contre une rupture ou une dérive} (volet~A des issues~\#116 et~\#313, J1, $\hat\pi_t$ constant, $20\,000$ séries par point, $\alpha = 0{,}10$~; protocole au tableau~\ref{tab:tracabilite-puissance}), test à $\delta = 1$ imposé, contre une loi nulle simulée sans réajustement, à $B$ infini~: référence idéalisée de la ligne, et non puissance de la p-value retenue~: rupture de 1~; 2~; 3 écarts-types après l'année~4, $0{,}299$~; $0{,}691$~; $0{,}939$, et de 2 écarts-types après l'année~6, $0{,}416$~; tendance de 1~; 1,75~; 2~; 3 écarts-types, $0{,}194$~; $0{,}348$~; $0{,}410$~; $0{,}641$~; AR(1) à $\rho = 0{,}5$~; $0{,}9$, $0{,}308$~; $0{,}525$~; contamination d'une année à 3~; 5 écarts-types, $0{,}063$~; $0{,}019$ vers le haut et $0{,}080$~; $0{,}051$ vers le bas, sous le niveau~; niveau sous le point nul $0{,}103$. Les amplitudes sont exprimées en écarts-types de $\ln r_t$, $0{,}1438$ sur J1, et non en $\hat\sigma$ (fiche~\ref{fiche:sup-f-ratios-bruts})~; la ligne n'étant pas invariante par le passage de $\ln r_t$ à $r_t$, sa puissance dépend du sens de l'écart et de cette échelle. À $B = 999$, l'effet de $B$ seul déplace ces taux d'au plus $0{,}0042$. \emph{P-value retenue après réajustement} (volet~B, issue~\#274, J1~/ J2, 500 réplications par point, $B = 999$, $\alpha = 0{,}10$~; taux des verdicts \code{ALERTE} ou \code{ECHEC} restitués, aucun test inopérant, 0 sur 500 par point, intervalle $[0~;~0{,}007]$~; p-value de Monte-Carlo retenue dans toutes les réplications, V1 à $\hat\delta^*$ au bord, de 476 à 488 réplications sur 500 sur J1 et de 360 à 425 sur J2, V3b à $\hat\delta^*$ intérieur dans les autres~; protocole au tableau~\ref{tab:tracabilite-puissance})~: niveau $0{,}096$~/ $0{,}092$~; AR(1) à $\rho = 0{,}5$~: $0{,}328$~/ $0{,}318$~; à $\rho = 0{,}9$~: $0{,}548$~/ $0{,}530$~; tendance de 2 écarts-types~: $0{,}412$~/ $0{,}382$~; rupture de 2 écarts-types après l'année~4~: $0{,}696$~/ $0{,}650$. À la différence du volet~A, ces taux sont ceux de la p-value retenue, réajustement compris~; le niveau mesuré ici n'est qu'un contrôle de compatibilité (borne inférieure unilatérale de Clopper--Pearson à 99,9~\% sous $\alpha$), les niveaux de référence restant ceux, à $R = 2\,000$, cités plus loin. Constat de simulation sous des alternatives choisies, hors modèle réglementaire, sans portée générale. Des taux de rejet sous des alternatives d'une autre famille figurent au fichier de puissance de l'issue~\#229, sans être repris ici. Niveau de la p-value de Monte-Carlo sous le modèle ajusté (issue~\#166, $R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc})~: J1, $0{,}1045$ à $\alpha = 0{,}10$ et $0{,}0505$ à $0{,}05$~; J2, $0{,}0995$ et $0{,}0505$~; compatible aux deux seuils sur les deux jeux. Niveau de la p-value retenue du moteur depuis l'issue~\#240 (V3h, conditionnelle au régime de $\hat\delta$~; issue~\#229, tableau~T1, $R = 2\,000$, $B = 999$, constat de simulation au commit \code{fee9968}, V3h reconstruite par le script, antérieure à son implémentation, section~\ref{sec:calibration-mc})~: J1, V3h coïncide avec V1 réplication par réplication sur les 1\,925 réplications à $\hat\delta^{*}$ au bord, seule population du tableau~T1~; les 75 réplications à $\hat\delta^{*}$ intérieur (tableau~T1~bis, descriptif) n'y figurent pas, et le niveau V3h sur l'ensemble de J1 n'est pas tabulé~; J2, $0{,}0990$ $[0{,}0863~;~0{,}1129]$ à $\alpha = 0{,}10$ et $0{,}0475$ $[0{,}0386~;~0{,}0578]$ à $0{,}05$, compatible aux deux seuils.
 
 \textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Puissance~: constat de simulation sous des alternatives choisies, hors modèle réglementaire, pour la référence idéalisée de la ligne ($\delta = 1$ imposé, loi nulle simulée sans réajustement, $B$ infini à l'erreur de cette loi près)~; intervalles de Clopper--Pearson dans le fichier de résultats, liés au nombre de séries et muets sur l'erreur en $T$~; effet de $B = 999$~: calcul exact conditionnel à la loi nulle simulée, hors réajustement~; puissance du volet~B (issue~\#274)~: constat de simulation, pour la p-value retenue, sous les mêmes alternatives, intervalles de Clopper--Pearson liés aux 500 réplications par point. Niveau~: constat de simulation sous le modèle ajusté à J1 et à J2 (section~\ref{sec:calibration-mc}), incertitude de Clopper--Pearson liée à $R$, intervalles dans les fichiers de résultats.
 \end{fiche}
@@ -11808,23 +11885,22 @@ La borne de Bonferroni de la fiche~\ref{fiche:grubbs} n'est pas calculée sur ce
 de référence est simulée par le bootstrap paramétrique sous le modèle ajusté, asymétrie et
 hétéroscédasticité des $r_t$ comprises.
 \Pval
-p-value de Monte-Carlo en queue haute (clé \code{Grubbsr}), seule calculée et seule retenue,
-avec son erreur de Monte-Carlo. Mesuré sur le jeu de contrôle~: $G = 1{,}506$, \code{p\_mc}
-$= 0{,}777$ (erreur $0{,}013$), contre $G = 1{,}429$ et une p-value retenue de $0{,}861$ sur $z_t$.
+p-value de Monte-Carlo en queue haute (clé \code{Grubbsr}), seule calculée, avec son erreur de Monte-Carlo~; retenue à $\hat\pi_t$ variable seulement~: à $\hat\pi_t$ constant, la ligne est un diagnostic (règle~R15, section~\ref{sec:nature}), sans p-value retenue, \code{p\_mc} restant restituée. Mesuré sur le jeu de contrôle~: $G = 1{,}506$, \code{p\_mc}
+$= 0{,}777$ (erreur $0{,}013$), non retenue, contre $G = 1{,}429$ et une p-value retenue de $0{,}861$ sur $z_t$.
 \Usage
 Identifie l'année au boni ou au mali le plus atypique sans passer par le modèle. Mêmes limites
 structurelles qu'à la fiche~\ref{fiche:grubbs}~: masquage par plusieurs valeurs aberrantes, et
 borne $G \le (T-1)/\sqrt{T} = 2{,}47$ à $T = 8$. À $\hat\pi_t$ constant, quasi-doublon de son
-homologue sur $z_t$ (« \code{CONTROLE SANS OBJET ICI} »). À $T = 8$, la p-value de Monte-Carlo a
+homologue sur $z_t$ (« \code{CONTROLE SANS OBJET ICI} »). \textbf{Pourquoi aucun verdict à $\hat\pi_t$ constant} (règle~R15, issue~\#303, ADR~0001)~: la ligne y teste la même hypothèse que son homologue sur $z_t$, sur les mêmes données, à une transformation monotone près, et un second verdict compterait deux fois la même information~; elle y est restituée en diagnostic, verdict \code{INFO}, commentaire terminé par la phrase fixe de la règle, l'homologue sur $z_t$ portant seul le type et le verdict~; à $\hat\pi_t$ variable, elle est un test. À $T = 8$, la p-value de Monte-Carlo a
 la portée du bootstrap paramétrique (section~\ref{sec:mc})~; la calibration mesurée sur cette base
 est un constat de simulation (section~\ref{sec:base-residus}).
 À $\hat\delta$ intérieur, la p-value retenue est, depuis l'issue~\#240, la p-value de Monte-Carlo conditionnelle au régime intérieur de $\hat\delta$ (fiche~\ref{fiche:procedure-mc}, nature suffixée)~: la p-value marginale, seule calculée auparavant, y avait pour ce test un niveau inférieur au nominal, et la p-value conditionnelle ramène le taux de rejet intérieur sous le modèle ajusté, pour les huit statistiques concernées, à $0{,}091$--$0{,}119$ sur J2 et à $0{,}080$--$0{,}123$ sur J3 au seuil de $0{,}10$ (compatible avec le niveau nominal pour les huit sur J2~; sur J3, écart mineur pour trois d'entre elles~: Breusch--Pagan studentisé, $0{,}120$, et Goldfeld--Quandt, $0{,}123$, du côté libéral, Grubbs sur ratios bruts, $0{,}080$, du côté conservateur~; constat de simulation à $T = 8$, sans portée générale, section~\ref{sec:calibration-mc}). Sous les alternatives de contamination et d'asymétrie mesurées, c'est un gain de puissance au régime intérieur (rubrique~7).
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $G$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{Grubbsr}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $G$, continue~: toute p-value est atteignable. La p-value retenue, à $\hat\pi_t$ variable, est de Monte-Carlo (clé \code{Grubbsr}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue~; à $\hat\pi_t$ constant, aucune p-value n'est retenue (règle~R15).
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. $G$ est borné par $(T-1)/\sqrt{T}$, soit $2{,}475$ à $T = 8$ (borne algébrique, citée dans le commentaire de la ligne)~; la borne vaut aussi pour les réplications et ne crée pas de plancher propre. Puissance de la p-value de Monte-Carlo marginale (V1, celle du moteur au bord depuis l'issue~\#240) à $\alpha = 0{,}10$ sous des alternatives au modèle ajusté de J2 (issue~\#229, $R = 1\,000$ jeux par scénario, section~\ref{sec:calibration-mc}), sur l'ensemble des jeux et au régime $\hat\delta^{*}$ intérieur~: contamination, $\lambda = 3$, $0{,}427$ et $0{,}273$ (143 jeux intérieurs)~; $\lambda = 4$, $0{,}678$ et $0{,}380$ (108 jeux intérieurs)~; asymétrie, $\nu = 4$, $0{,}237$ et $0{,}069$ (218 jeux intérieurs)~; $\nu = 2$, $0{,}318$ et $0{,}070$ (186 jeux intérieurs). Puissance, dans la même rangée du fichier de puissance, de la p-value retenue du moteur depuis l'issue~\#240 (V3h), sur l'ensemble des jeux et au régime $\hat\delta^{*}$ intérieur~: $\lambda = 3$, $0{,}442$ et $0{,}378$~; $\lambda = 4$, $0{,}698$ et $0{,}565$~; $\nu = 4$, $0{,}255$ et $0{,}151$~; $\nu = 2$, $0{,}337$ et $0{,}172$. Constat de simulation, à rapprocher du niveau sur J2 ci-dessous. \emph{Puissance contre une année contaminée} (volet~A des issues~\#116 et~\#313, J1, $\hat\pi_t$ constant, $20\,000$ séries par point, $\alpha = 0{,}10$~; protocole au tableau~\ref{tab:tracabilite-puissance}), test à $\delta = 1$ imposé, contre une loi nulle simulée sans réajustement, à $B$ infini~: référence idéalisée de la ligne, et non puissance de la p-value retenue~: contamination d'une année à 3~; 4~; 5 écarts-types, $0{,}503$~; $0{,}779$~; $0{,}936$ vers le haut, mais $0{,}175$~; $0{,}299$~; $0{,}457$ vers le bas~; niveau sous le point nul $0{,}099$. L'asymétrie tient à la convexité de l'exponentielle, qui fait passer de $\ln r_t$ à $r_t$~: un écart de $\lambda$ écarts-types de $\ln r_t$ vers le haut éloigne davantage le ratio que le même écart vers le bas~; ces écarts-types valent $\sqrt{1/\hat\pi} = 0{,}1438$ sur J1, et non $\hat\sigma$ (fiche~\ref{fiche:sup-f-ratios-bruts}), de sorte que ces taux ne se transposent pas à un autre jeu. Sur $z_t$ (fiche~\ref{fiche:grubbs}), les deux sens ont la même loi ($0{,}362$ et $0{,}353$ à 3 écarts-types). Autres alternatives~: rupture de 2~; 3 écarts-types après l'année~4, $0{,}061$~; $0{,}025$~; de 2 écarts-types après l'année~6, $0{,}151$~; écart-type multiplié par 2~; 3 les années de fort volume, $0{,}184$~; $0{,}285$. À $B = 999$, l'effet de $B$ seul déplace ces taux d'au plus $0{,}0045$. Ces taux ne se comparent pas directement à ceux de l'issue~\#229 cités plus haut~: autre jeu (J1 contre J2), séries non réajustées contre séries réajustées, référence idéalisée contre p-value V1 ou V3h à $B = 999$. \emph{P-value retenue après réajustement} (volet~B, issue~\#274, J1~/ J2, 500 réplications par point, $B = 999$, $\alpha = 0{,}10$~; taux des verdicts \code{ALERTE} ou \code{ECHEC} restitués, aucun test inopérant, 0 sur 500 par point, intervalle $[0~;~0{,}007]$~; p-value de Monte-Carlo retenue dans toutes les réplications, V1 à $\hat\delta^*$ au bord, de 476 à 488 réplications sur 500 sur J1 et de 360 à 425 sur J2, V3b à $\hat\delta^*$ intérieur dans les autres~; protocole au tableau~\ref{tab:tracabilite-puissance})~: niveau $0{,}118$~/ $0{,}092$~; AR(1) à $\rho = 0{,}5$~: $0{,}072$~/ $0{,}074$~; à $\rho = 0{,}9$~: $0{,}044$~/ $0{,}070$~; tendance de 2 écarts-types~: $0{,}106$~/ $0{,}110$~; rupture de 2 écarts-types après l'année~4~: $0{,}068$~/ $0{,}054$. À la différence du volet~A, ces taux sont ceux de la p-value retenue, réajustement compris~; le niveau mesuré ici n'est qu'un contrôle de compatibilité (borne inférieure unilatérale de Clopper--Pearson à 99,9~\% sous $\alpha$), les niveaux de référence restant ceux, à $R = 2\,000$, cités plus loin. Constat de simulation sous des alternatives choisies, hors modèle réglementaire, sans portée générale. Niveau de la p-value de Monte-Carlo sous le modèle ajusté (issue~\#166, $R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc})~: J1, $0{,}1005$ à $\alpha = 0{,}10$ et $0{,}049$ à $0{,}05$~; J2, $0{,}0845$ et $0{,}039$~; compatible sur J1~; écart mineur, du côté conservateur, aux deux seuils sur J2. Niveau de la p-value retenue du moteur depuis l'issue~\#240 (V3h, conditionnelle au régime de $\hat\delta$~; issue~\#229, tableau~T1, $R = 2\,000$, $B = 999$, constat de simulation au commit \code{fee9968}, V3h reconstruite par le script, antérieure à son implémentation, section~\ref{sec:calibration-mc})~: J1, V3h coïncide avec V1 réplication par réplication sur les 1\,925 réplications à $\hat\delta^{*}$ au bord, seule population du tableau~T1~; les 75 réplications à $\hat\delta^{*}$ intérieur (tableau~T1~bis, descriptif) n'y figurent pas, et le niveau V3h sur l'ensemble de J1 n'est pas tabulé~; J2, $0{,}0985$ $[0{,}0858~;~0{,}1124]$ à $\alpha = 0{,}10$ et $0{,}0485$ $[0{,}0395~;~0{,}0588]$ à $0{,}05$, compatible aux deux seuils. Dans le régime $\hat\delta^{*}$ intérieur, rejets à $0{,}10$ dans aucune des 75 réplications de J1 et dans une proportion de $0{,}032$ des 464 de J2, médianes de la p-value de Monte-Carlo $0{,}76$ et $0{,}67$ (valeurs brutes)~: constat d'un niveau inférieur au niveau nominal dans ce régime, sans référence exacte conditionnelle, qui se traduit par la perte de puissance conditionnelle au régime intérieur mesurée ci-dessus (p-value conditionnelle au régime, celle du moteur à $\hat\delta$ intérieur depuis l'issue~\#240, au régime intérieur~: $0{,}378$~; $0{,}565$~; $0{,}151$~; $0{,}172$ pour $\lambda = 3$, $\lambda = 4$, $\nu = 4$, $\nu = 2$). Mesure diagnostique (issue~\#175, section~\ref{sec:calibration-mc})~: sur les mêmes 464 réplications de J2, la p-value de Monte-Carlo calculée sur les seules réplications du bootstrap dont le $\hat\delta^{**}$ est, lui aussi, intérieur rejette à $0{,}10$ dans $0{,}099$ $[0{,}073~;~0{,}130]$ des cas ($0{,}043$ à $0{,}05$), contre $0{,}032$ pour la p-value marginale V1 et $0{,}032$ à $\delta$ fixé à $\hat\delta^{*}$ (identique par construction, la statistique ne dépendant pas de l'ajustement)~; constat de simulation sous le modèle ajusté, variante non implémentée dans le moteur, qu'aucune référence ne fonde à $T = 8$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test à $\hat\pi_t$ variable, diagnostic à $\hat\pi_t$ constant (règle~R15, issue~\#303, rubrique~6), où sa p-value de Monte-Carlo reste calculée sans être retenue~; les mesures de la p-value retenue qui suivent sont antérieures à l'issue~\#303, quand la ligne était un test dans tous les régimes, et restent celles de sa p-value de Monte-Carlo. $G$ est borné par $(T-1)/\sqrt{T}$, soit $2{,}475$ à $T = 8$ (borne algébrique, citée dans le commentaire de la ligne)~; la borne vaut aussi pour les réplications et ne crée pas de plancher propre. Puissance de la p-value de Monte-Carlo marginale (V1, celle du moteur au bord depuis l'issue~\#240) à $\alpha = 0{,}10$ sous des alternatives au modèle ajusté de J2 (issue~\#229, $R = 1\,000$ jeux par scénario, section~\ref{sec:calibration-mc}), sur l'ensemble des jeux et au régime $\hat\delta^{*}$ intérieur~: contamination, $\lambda = 3$, $0{,}427$ et $0{,}273$ (143 jeux intérieurs)~; $\lambda = 4$, $0{,}678$ et $0{,}380$ (108 jeux intérieurs)~; asymétrie, $\nu = 4$, $0{,}237$ et $0{,}069$ (218 jeux intérieurs)~; $\nu = 2$, $0{,}318$ et $0{,}070$ (186 jeux intérieurs). Puissance, dans la même rangée du fichier de puissance, de la p-value retenue du moteur depuis l'issue~\#240 (V3h), sur l'ensemble des jeux et au régime $\hat\delta^{*}$ intérieur~: $\lambda = 3$, $0{,}442$ et $0{,}378$~; $\lambda = 4$, $0{,}698$ et $0{,}565$~; $\nu = 4$, $0{,}255$ et $0{,}151$~; $\nu = 2$, $0{,}337$ et $0{,}172$. Constat de simulation, à rapprocher du niveau sur J2 ci-dessous. \emph{Puissance contre une année contaminée} (volet~A des issues~\#116 et~\#313, J1, $\hat\pi_t$ constant, $20\,000$ séries par point, $\alpha = 0{,}10$~; protocole au tableau~\ref{tab:tracabilite-puissance}), test à $\delta = 1$ imposé, contre une loi nulle simulée sans réajustement, à $B$ infini~: référence idéalisée de la ligne, et non puissance de la p-value retenue~: contamination d'une année à 3~; 4~; 5 écarts-types, $0{,}503$~; $0{,}779$~; $0{,}936$ vers le haut, mais $0{,}175$~; $0{,}299$~; $0{,}457$ vers le bas~; niveau sous le point nul $0{,}099$. L'asymétrie tient à la convexité de l'exponentielle, qui fait passer de $\ln r_t$ à $r_t$~: un écart de $\lambda$ écarts-types de $\ln r_t$ vers le haut éloigne davantage le ratio que le même écart vers le bas~; ces écarts-types valent $\sqrt{1/\hat\pi} = 0{,}1438$ sur J1, et non $\hat\sigma$ (fiche~\ref{fiche:sup-f-ratios-bruts}), de sorte que ces taux ne se transposent pas à un autre jeu. Sur $z_t$ (fiche~\ref{fiche:grubbs}), les deux sens ont la même loi ($0{,}362$ et $0{,}353$ à 3 écarts-types). Autres alternatives~: rupture de 2~; 3 écarts-types après l'année~4, $0{,}061$~; $0{,}025$~; de 2 écarts-types après l'année~6, $0{,}151$~; écart-type multiplié par 2~; 3 les années de fort volume, $0{,}184$~; $0{,}285$. À $B = 999$, l'effet de $B$ seul déplace ces taux d'au plus $0{,}0045$. Ces taux ne se comparent pas directement à ceux de l'issue~\#229 cités plus haut~: autre jeu (J1 contre J2), séries non réajustées contre séries réajustées, référence idéalisée contre p-value V1 ou V3h à $B = 999$. \emph{P-value retenue après réajustement} (volet~B, issue~\#274, J1~/ J2, 500 réplications par point, $B = 999$, $\alpha = 0{,}10$~; taux des verdicts \code{ALERTE} ou \code{ECHEC} restitués, aucun test inopérant, 0 sur 500 par point, intervalle $[0~;~0{,}007]$~; p-value de Monte-Carlo retenue dans toutes les réplications, V1 à $\hat\delta^*$ au bord, de 476 à 488 réplications sur 500 sur J1 et de 360 à 425 sur J2, V3b à $\hat\delta^*$ intérieur dans les autres~; protocole au tableau~\ref{tab:tracabilite-puissance})~: niveau $0{,}118$~/ $0{,}092$~; AR(1) à $\rho = 0{,}5$~: $0{,}072$~/ $0{,}074$~; à $\rho = 0{,}9$~: $0{,}044$~/ $0{,}070$~; tendance de 2 écarts-types~: $0{,}106$~/ $0{,}110$~; rupture de 2 écarts-types après l'année~4~: $0{,}068$~/ $0{,}054$. À la différence du volet~A, ces taux sont ceux de la p-value retenue, réajustement compris~; le niveau mesuré ici n'est qu'un contrôle de compatibilité (borne inférieure unilatérale de Clopper--Pearson à 99,9~\% sous $\alpha$), les niveaux de référence restant ceux, à $R = 2\,000$, cités plus loin. Constat de simulation sous des alternatives choisies, hors modèle réglementaire, sans portée générale. Niveau de la p-value de Monte-Carlo sous le modèle ajusté (issue~\#166, $R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc})~: J1, $0{,}1005$ à $\alpha = 0{,}10$ et $0{,}049$ à $0{,}05$~; J2, $0{,}0845$ et $0{,}039$~; compatible sur J1~; écart mineur, du côté conservateur, aux deux seuils sur J2. Niveau de la p-value retenue du moteur depuis l'issue~\#240 (V3h, conditionnelle au régime de $\hat\delta$~; issue~\#229, tableau~T1, $R = 2\,000$, $B = 999$, constat de simulation au commit \code{fee9968}, V3h reconstruite par le script, antérieure à son implémentation, section~\ref{sec:calibration-mc})~: J1, V3h coïncide avec V1 réplication par réplication sur les 1\,925 réplications à $\hat\delta^{*}$ au bord, seule population du tableau~T1~; les 75 réplications à $\hat\delta^{*}$ intérieur (tableau~T1~bis, descriptif) n'y figurent pas, et le niveau V3h sur l'ensemble de J1 n'est pas tabulé~; J2, $0{,}0985$ $[0{,}0858~;~0{,}1124]$ à $\alpha = 0{,}10$ et $0{,}0485$ $[0{,}0395~;~0{,}0588]$ à $0{,}05$, compatible aux deux seuils. Dans le régime $\hat\delta^{*}$ intérieur, rejets à $0{,}10$ dans aucune des 75 réplications de J1 et dans une proportion de $0{,}032$ des 464 de J2, médianes de la p-value de Monte-Carlo $0{,}76$ et $0{,}67$ (valeurs brutes)~: constat d'un niveau inférieur au niveau nominal dans ce régime, sans référence exacte conditionnelle, qui se traduit par la perte de puissance conditionnelle au régime intérieur mesurée ci-dessus (p-value conditionnelle au régime, celle du moteur à $\hat\delta$ intérieur depuis l'issue~\#240, au régime intérieur~: $0{,}378$~; $0{,}565$~; $0{,}151$~; $0{,}172$ pour $\lambda = 3$, $\lambda = 4$, $\nu = 4$, $\nu = 2$). Mesure diagnostique (issue~\#175, section~\ref{sec:calibration-mc})~: sur les mêmes 464 réplications de J2, la p-value de Monte-Carlo calculée sur les seules réplications du bootstrap dont le $\hat\delta^{**}$ est, lui aussi, intérieur rejette à $0{,}10$ dans $0{,}099$ $[0{,}073~;~0{,}130]$ des cas ($0{,}043$ à $0{,}05$), contre $0{,}032$ pour la p-value marginale V1 et $0{,}032$ à $\delta$ fixé à $\hat\delta^{*}$ (identique par construction, la statistique ne dépendant pas de l'ajustement)~; constat de simulation sous le modèle ajusté, variante non implémentée dans le moteur, qu'aucune référence ne fonde à $T = 8$.
 
 \textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Puissance~: constat de simulation sous des alternatives au modèle ajusté de J2 (issue~\#229), incertitude de Clopper--Pearson liée à $R$, intervalles dans le fichier de résultats~; puissance du volet~A (issue~\#313)~: constat de simulation sous des alternatives choisies, hors modèle réglementaire, pour la référence idéalisée de la ligne ($\delta = 1$ imposé, loi nulle simulée sans réajustement, $B$ infini à l'erreur de cette loi près), effet de $B = 999$ calculé exactement, conditionnellement à la loi nulle simulée~; puissance du volet~B (issue~\#274)~: constat de simulation, pour la p-value retenue, sous les mêmes alternatives, intervalles de Clopper--Pearson liés aux 500 réplications par point. La borne de $G$ est exacte (algébrique). Niveau~: constat de simulation sous le modèle ajusté à J1 et à J2 (section~\ref{sec:calibration-mc}), incertitude de Clopper--Pearson liée à $R$, intervalles dans les fichiers de résultats~; mesure diagnostique de l'issue~\#175~: constat de simulation sous le modèle ajusté, taux conditionnels au régime sans référence exacte, variante non implémentée dans le moteur.
 \end{fiche}
@@ -15770,7 +15846,7 @@ $\alpha = 0{,}10$, $B = 999$, graine $20260831 + b$ pour la réplication~$b$), d
 mesure porte sur la procédure du dossier telle qu'elle s'exécute~: réajustement, bootstrap
 paramétrique, \code{engine\_p\_mc()} et verdict d'\code{add()}. Deux coïncidences de graines,
 déclarées dans les fichiers, y ont un effet borné à une réplication chacune (réplications 70
-et~96). Pour chacune des 34 statistiques d'\code{USP\_CATALOGUE\_MC}, que sa p-value soit
+et~96). Pour chacune des 34 statistiques d'\code{USP\_CATALOGUE\_MC} (que comptait alors le catalogue~; 31 depuis les issues~\#303 et~\#302, qui ont retiré les entrées de Ljung--Box au retard~1 sur $u_t$ et sur $z_t$ et de Box--Pierce), que sa p-value soit
 retenue ou non, on relève la fréquence de $p_{\mathrm{mc}} < 0{,}10$ et de
 $p_{\mathrm{mc}} < 0{,}05$, avec son intervalle de Clopper--Pearson à 95~\%
 (section~\ref{sec:biblio})~; pour chaque ligne de la table auditable, la fréquence d'une
@@ -15935,7 +16011,7 @@ moteur.
 
 \emph{p-value de Monte-Carlo conditionnelle au régime de $\hat\delta$ (issue~\#229)~: mesure et
 décision.} \textbf{La mesure n'a pas modifié le moteur}~: au commit mesuré, il calculait la p-value de Monte-Carlo
-des 34 statistiques d'\code{USP\_CATALOGUE\_MC} sur les $B = 999$ réplications
+des 34 statistiques d'\code{USP\_CATALOGUE\_MC} (que comptait alors le catalogue~; 31 depuis les issues~\#303 et~\#302, qui ont retiré les entrées de Ljung--Box au retard~1 sur $u_t$ et sur $z_t$ et de Box--Pierce) sur les $B = 999$ réplications
 d'\code{usp\_bootstrap()}, quel que soit le régime de leur $\hat\delta^{**}$ (variante notée~V1
 ci-dessous, p-value \emph{marginale})~; c'est elle que retenait toute ligne de la table
 auditable dont la p-value retenue est de Monte-Carlo. La mesure qui suit établit une limite connue de cette p-value et fonde une
@@ -16115,7 +16191,7 @@ l'issue). \emph{Réserves de la mesure, qui valent pour l'implémentation}~: la 
 calibration inconditionnelle n'est remplie qu'à une réponse près (point~(b))~; la multiplicité
 des \code{ECHEC} sous le modèle augmente (point~(d), remesuré sous le moteur courant par
 l'issue~\#274)~; la p-value conditionnelle s'applique aux
-34 statistiques du catalogue, y compris à celles dont le niveau était supposé indépendant du
+31 statistiques du catalogue (34 au commit de la mesure), y compris à celles dont le niveau était supposé indépendant du
 régime, et cette indépendance ne tient pas sur J3 pour Anderson--Darling, la constante et Smirnov
 (point~(e))~: aucune statistique du catalogue n'est donc présentée comme insensible au
 conditionnement. \emph{Scripts hors CI.} Les mesures des issues~\#166, \#175 et~\#229 portent
@@ -17241,7 +17317,8 @@ type «~non applicable~» posés par \code{usp\_tests()}~; pertes constantes~:
 \code{usp\_tests()} (motif propre) et par \code{engine\_valider\_donnees()} (avertissement),
 issue~\#189 \\
 Réserve sur la base « ratios bruts » à $\hat\pi_t$ constant & champ \code{detail} des cinq lignes
-de base \code{r} dans \code{usp\_tests()} \\
+de base \code{r} dans \code{usp\_tests()}, et, depuis l'issue~\#303, leur type \code{diagnostic}
+(règle~R15, §\ref{sec:nature}) \\
 Erreur de Monte-Carlo (§\ref{sec:deuxerreurs}) & champ \code{err\_mc} de \code{usp\_bootstrap()} et de
 \code{mw\_bootstrap()}, calculé par \code{engine\_p\_mc()}~: $\sqrt{\hat p(1-\hat p)/B_{\text{eff}}}$
 en queue haute ou basse, $\sqrt{\hat p(2-\hat p)/B_{\text{eff}}}$ au bilatéral~; pas élémentaire
@@ -17985,12 +18062,13 @@ résidus $z_t$, donc l'intégralité de H2, H3, H4 \\
 \code{usp\_regime()} & LN & Drapeau de la position de $\hat\delta$, libellés du
 centrage et de la variance unitaire (constance de $\hat\pi_t$ exacte ou à la
 tolérance près), réserve du champ \code{detail} des cinq
-lignes sur ratios bruts, première condition de la p-value exacte des suites sur ces ratios et,
+lignes sur ratios bruts et, depuis l'issue~\#303, leur restitution en diagnostic (règle~R15),
+première condition de la p-value exacte des suites sur ces ratios et,
 depuis l'issue~\#70, attribution des p-values exactes des autres lignes à loi de référence
-échangeable, et, depuis l'issue~\#240, choix de la variante de la p-value de Monte-Carlo des 34
+échangeable, et, depuis l'issue~\#240, choix de la variante de la p-value de Monte-Carlo des 31
 statistiques du catalogue (conditionnelle au régime ou marginale) et critère du régime de chaque
 $\hat\delta^{**}$~: une seule tolérance, \code{TOL\_DELTA\_BORD} \\
-\code{.stats\_bootstrapables()} & LN & Les 34 statistiques bootstrapées de la
+\code{.stats\_bootstrapables()} & LN & Les 31 statistiques bootstrapées de la
 méthode lognormale, en un seul appel \\
 \code{mw\_ajuster()} & MW & $\hat f_j$, $\hat\sigma_j^2$, $\hat C(i,j)$~: entrée
 de la MSEP, des résidus, de tous les tests M1 à M6 \\
@@ -18245,7 +18323,7 @@ autres sont des diagnostics.}
 \node[int, right=14mm of ru] (rd)  {\code{.runs\_dens()}};
 \node[int, below=2mm of rd] (rr) {\code{usp\_runsr\_p\_exacte()}\\ \scriptsize ratios bruts, $\hat\pi_t$ constant};
 
-% --- Seconde entree : ratios centres u_t (base « ratios bruts », six tests) --
+% --- Seconde entree : ratios centres u_t (base « ratios bruts », cinq lignes) --
 \node[ent, below=52mm of z] (u) {ratios centrés $u_t$};
 
 % --- Colonne des sorties : abscisse COMMUNE ---------------------------------
@@ -18264,7 +18342,7 @@ autres sont des diagnostics.}
 \node[sor, anchor=west] at (cx |- da)  (s9)  {D'Agostino};
 \node[sor, anchor=west] at (cx |- ag)  (s10) {Anscombe--Glynn};
 \node[sor, anchor=west] at (cx |- dw)  (s11) {Durbin--Watson ($z_t$ et $u_t$)};
-\node[sor, anchor=west] at (cx |- lb)  (s12) {LB, BP ; LB(1) sur $u_t$};
+\node[sor, anchor=west] at (cx |- lb)  (s12) {LB, BP};
 \node[sor, anchor=west] at (cx |- ru)  (s13) {Test des suites ($z_t$ et $u_t$)};
 \node[sor, anchor=west] at (cx |- sf2) (s14) {sup-F, CUSUM ($z_t$ et $u_t$)};
 \node[sor, anchor=west] at (cx |- gr)  (s15) {Grubbs ($z_t$ et $u_t$), Rosner};
@@ -18281,13 +18359,13 @@ autres sont des diagnostics.}
   \draw[fl] (z) -| ([xshift=-4mm]\b.west) -- (\b);
 % Les liaisons issues de u_t sont orangees et arrivent par le bas-gauche des
 % blocs, pour rester distinctes de celles issues de z_t.
-\foreach \b in {dw,lb,ru,sf2,gr}
+\foreach \b in {dw,ru,sf2,gr}
   \draw[-{Latex[length=1.6mm]}, draw=orange!80!black, line width=0.5pt]
     (u) -| ([xshift=-8mm, yshift=-1.5mm]\b.west) -- ([yshift=-1.5mm]\b.west);
 \end{tikzpicture}
 \caption{Hypothèses H3 et H4 et diagnostics de stabilité. Tous les tests
 partent des résidus $z_t$ (une erreur dans \code{usp\_noyau()} affecterait tout ce graphe)~;
-six sont aussi calculés sur les ratios centrés $u_t$ (liaisons orangées). Les blocs gris
+cinq sont aussi calculés sur $u_t$ (liaisons orangées), diagnostics à $\hat\pi_t$ constant (R15). Les blocs gris
 fournissent des lois de référence.}
 \label{fig:annexe-h3h4}
 \end{figure}
