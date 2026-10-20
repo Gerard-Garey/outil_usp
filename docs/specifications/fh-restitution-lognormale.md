@@ -23,6 +23,14 @@
 > | +0,3 | 0,159 | 0,077 |
 > | +0,6 | 0,332 | 0,146 |
 >
+> *Erratum du 20/10/2026* (décision du mainteneur D1, option (a), sur la validation de fin de branche d'`actuary-approfondi` ; avis d'`actuary` du 20/10). Le tableau ci-dessus, ainsi que les valeurs « 90,8 % » et E = −0,126, vient d'une simulation **hors dépôt** sur u_t. Il est **retiré comme preuve**, faute de traçabilité ; rien n'établit qu'il soit faux, et il ne contredit pas le tableau qui le remplace. Fait foi : `tests/mesure_lb1_dw_t8.R` et sa sortie `docs/tableaux/20261020-mesure-lb1-dw-t8.md`, qui donnent sur z i.i.d. à T = 8, sans réajustement et hors modèle réglementaire, des approximations numériques d'Imhof de quantités exactes, recoupées par simulation :
+> - E ρ̂₁ = −1/T = −0,125 ; écart-type 0,2835 ;
+> - part des rejets de LB1 avec ρ̂₁ < 0 : 0,900 à α = 0,10, et 0,940 à α = 0,05 ;
+> - puissances DW / LB1 à α = 0,10 : 0,355 / 0,513 (ρ = −0,6), 0,163 / 0,242 (ρ = −0,3), 0,159 / 0,073 (ρ = +0,3), 0,328 / 0,135 (ρ = +0,6) ;
+> - union sous H0 : 0,1407 ± 0,0008.
+>
+> À π̂ variable, sur u_t, la mesure n'est pas chiffrée. La conclusion qualitative est inchangée. Pour π_env (#299), le même script contrôle par simulation le calcul d'Imhof de `usp_puissance_enveloppe_h2()` dans le modèle limite c → 0, sans valider l'approximation des faibles coefficients de variation. Sa valeur à c fini n'est pas chiffrée par l'outil, et la décroissance en c (§ 6.2) n'est plus citée.
+>
 > **Motif retenu, cas de retrait (iii) ajouté à la doctrine du § 1.** Un seul test d'autocorrélation d'ordre 1 est désigné par base : Durbin-Watson bilatéral, symétrique et le plus puissant contre l'autocorrélation positive (persistance, cycles de souscription), qui est l'alternative actuarielle plausible. Garder les deux reviendrait à tester deux fois la même H0 (environ 14 % de rejet d'au moins une des deux sous H0 au seuil 0,10). La fiche déclare la perte de puissance contre ρ < 0, chiffres à l'appui. Les commentaires du moteur qui disent « doublon de DWr » sont corrigés. Le tableau avant / après de #303 est inchangé, et σ_USP n'est pas touché.
 >
 > **Errata qui en découlent** (avis d'`actuary-approfondi` du 19/10 sur les questions de `coder-approfondi`) :
