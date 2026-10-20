@@ -2421,7 +2421,7 @@ formule de Kolmogorov, calculée en ligne dans \code{usp\_tests()} & \code{CUSUM
 Grubbs & \ref{fiche:grubbs} & \code{test\_grubbs()} &
 \code{test\_grubbs()} (p non simulée, borne de Bonferroni) & \code{Grubbs} \\
 Rosner (ESD) & \ref{fiche:rosner-esd} & \code{test\_rosner()} &
-procédure de décision, aucune p-value & --- \\
+diagnostic par décision depuis l'issue~\#304 (procédure de décision auparavant), aucune p-value & --- \\
 Distance de Cook & \ref{fiche:cook} & \code{stats::cooks.distance()} (appel
 direct, sur $x_t$ et $y_t$ mis à l'échelle exacte par \code{.usp\_echelle\_exacte()}~; ligne
 construite par \code{.usp\_ligne\_cook()}, issue~\#153) & diagnostic, aucune p-value~; non
@@ -2994,7 +2994,9 @@ Le champ \code{type} classe chaque ligne en \emph{test} (hypothèse nulle et loi
 \emph{diagnostic} (grandeur descriptive comme $R^2$, grandeur rivée par l'estimation,
 diagnostic d'influence ou de robustesse~; les contrôles numériques de l'estimation n'y
 figurent pas, voir la section~\ref{sec:controles}),
-\emph{procédure de décision} (Rosner, qui ne produit pas de p-value) ou \emph{non applicable}.
+\emph{procédure de décision} (procédure ESD de Rosner de la méthode Merz--Wüthrich, qui ne produit
+pas de p-value~; la ligne de la méthode lognormale est un diagnostic par décision depuis
+l'issue~\#304) ou \emph{non applicable}.
 Le champ \code{sens} indique enfin si l'on souhaite rejeter ou ne pas rejeter $H_0$~: pour le
 test de Pitman sur la pente et pour le TOST, un $p$ faible est un \emph{bon} résultat, et le
 verdict du script est inversé en conséquence (la ligne de Fisher, diagnostic depuis
@@ -6083,9 +6085,9 @@ Grubbs sur ratios bruts & LN & $G$ & Non & --- & Oui & Monte-Carlo à $\hat\pi_t
 Sans objet (Bonferroni non calculée) &
 Quasi-doublon de la ligne sur $z_t$ à $\hat\pi_t$ constant, d'où le diagnostic \\
 
-Rosner (ESD) & LN & $R_i$ & Non~; niveau exact $\alpha$ à l'étape~1 sous i.i.d. normal & --- & --- &
-Procédure de décision & Sans objet (pas de p-value) &
-Indicatif seulement ; fiabilité annoncée pour $T\ge 25$ \\
+Rosner (ESD) & LN & $R_i$ & Non~; niveau exact $\alpha$ à l'étape~1 sous i.i.d. normal (démonstration du document) & --- & --- &
+\textbf{Diagnostic} par décision (issue~\#304)~: aucune p-value, aucun verdict & Sans objet (pas de p-value) &
+Indicatif seulement ; valeurs critiques approchées, jugées adéquates par l'auteur pour $T\ge 25$ \\
 
 Rapport de vraisemblance sur $\delta$ ($\delta_0 = 0$ et $1$) & LN & $\mathrm{LR}$ & Non &
 Oui (mélange $\tfrac12\chi^2_0+\tfrac12\chi^2_1$) & Oui (bootstrap restreint) &
@@ -6946,7 +6948,12 @@ de $\hat k$ sur toutes les réplications~; invariance affine~; estimation et ver
 jeu de chaque flux identique à un tirage isolé~; état du générateur de l'appelant restauré. Les
 décisions des $2\,000$ premiers jeux de C7.b sont identiques à celles de l'issue~\#166 (C7.d), et
 une mesure antérieure de la revue du 15~octobre 2026, recalculée (C7.c), ne s'écarte pas
-de C7.a au niveau de 5~\% après correction de Bonferroni sur trois comparaisons. Statut~: résultat exact pour le niveau de la première étape sous
+de C7.a au niveau de 5~\% après correction de Bonferroni sur trois comparaisons. Le fichier lit
+le verdict de la ligne selon la correspondance antérieure à l'issue~\#304 (\code{ALERTE} si
+$\hat k = 1$, \code{ECHEC} si $\hat k = 2$)~; depuis, la ligne est un diagnostic, et ses
+fréquences sont celles de $\hat k \ge 1$ et de $\hat k = 2$, $\hat k$ étant fonction déterministe de
+la sortie de \code{test\_rosner()}, inchangée. Statut~: résultat exact, démontré par le document et
+non par Rosner (1983), pour le niveau de la première étape sous
 i.i.d. normal (fiche~\ref{fiche:rosner-esd}), dont C7.a est le contrôle~; \emph{constat de
 simulation} pour tout le reste~; intervalles de Clopper--Pearson à 95~\%, incertitude fonction
 du nombre de réplications, muette sur l'erreur en $T$.
@@ -7199,9 +7206,6 @@ Suites (Wald--Wolfowitz) (\ref{fiche:suites-wald-wolfowitz}) & $4/70 = 0{,}0571$
 sup-F (\ref{fiche:sup-f}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Volet~A, issue~\#313 (J1, référence idéalisée~: $\delta = 1$ imposé, loi nulle sans réajustement, $B$ infini~; $\alpha = 0{,}10$)~: rupture de 2 écarts-types après l'année~4~; 6~: $0{,}623$~; $0{,}470$~; tendance de 1,75 écart-type~: $0{,}349$~; contamination à 5 écarts-types~: $0{,}052$~; effet de $B = 999$ au plus $0{,}0054$~; volet~B, issue~\#274 (p-value retenue de Monte-Carlo, V1 au bord, V3b à $\hat\delta^*$ intérieur, J1~/ J2, $\alpha = 0{,}10$, aucun inopérant)~: niveau $0{,}120$~/ $0{,}106$ (contrôle de compatibilité), rupture de 2 écarts-types après l'année~4~: $0{,}620$~/ $0{,}610$~; niveau de la $p_{\mathrm{mc}}$ sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}1045$~; $0{,}050$, J2 $0{,}0935$~; $0{,}0515$, compatible~; V3h, p-value retenue depuis l'issue~\#240 ($\alpha = 0{,}10$~; $0{,}05$)~: J1 (bords, 1\,925 réplications) identique à V1~; ensemble de J1 non tabulé, J2 $0{,}0950$~; $0{,}0530$ & \code{engine\_p\_mc()},\newline \code{tests/puissance\_t8.R},\newline \code{tests/calibration\_mc\_t8.R} & \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20261017-issue313-stabilite-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md},\newline \code{docs/tableaux/}\newline \code{20261010-issue229-p-conditionnelle\allowbreak-regime.md} \\
 OLS-CUSUM (\ref{fiche:ols-cusum}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Volet~A, issue~\#313 (J1, référence idéalisée~: $\delta = 1$ imposé, loi nulle sans réajustement, $B$ infini~; $\alpha = 0{,}10$)~: rupture de 2 écarts-types après l'année~4~; 6~: $0{,}699$~; $0{,}370$~; tendance de 1,75 écart-type~: $0{,}351$~; contamination à 5 écarts-types~: $0{,}032$~; effet de $B = 999$ au plus $0{,}0033$~; volet~B, issue~\#274 (p-value retenue de Monte-Carlo, V1 au bord, V3b à $\hat\delta^*$ intérieur, J1~/ J2, $\alpha = 0{,}10$, aucun inopérant)~: niveau $0{,}104$~/ $0{,}098$ (contrôle de compatibilité), rupture de 2 écarts-types après l'année~4~: $0{,}706$~/ $0{,}674$~; niveau de la $p_{\mathrm{mc}}$ sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}104$~; $0{,}049$, J2 $0{,}099$~; $0{,}048$, compatible~; V3h, p-value retenue depuis l'issue~\#240 ($\alpha = 0{,}10$~; $0{,}05$)~: J1 (bords, 1\,925 réplications) identique à V1~; ensemble de J1 non tabulé, J2 $0{,}0990$~; $0{,}0470$ & \code{engine\_p\_mc()},\newline \code{tests/puissance\_t8.R},\newline \code{tests/calibration\_mc\_t8.R} & \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20261017-issue313-stabilite-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md},\newline \code{docs/tableaux/}\newline \code{20261010-issue229-p-conditionnelle\allowbreak-regime.md} \\
 Grubbs (\ref{fiche:grubbs}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Volet~A, issue~\#313 (J1, référence idéalisée~: $\delta = 1$ imposé, loi nulle sans réajustement, $B$ infini~; $\alpha = 0{,}10$)~: contamination à 3~; 4~; 5 écarts-types~: $0{,}362$~; $0{,}613$~; $0{,}828$ (même loi vers le bas)~; rupture de 3 écarts-types après l'année~4~: $0{,}011$~; effet de $B = 999$ au plus $0{,}0043$, non comparable aux taux de l'issue~\#229 (J2, réajustement, V1 ou V3h)~; volet~B, issue~\#274 (p-value retenue de Monte-Carlo, V1 au bord, V3b à $\hat\delta^*$ intérieur, J1~/ J2, $\alpha = 0{,}10$, aucun inopérant)~: niveau $0{,}106$~/ $0{,}128$ (contrôle de compatibilité), rupture de 2 écarts-types après l'année~4~: $0{,}068$~/ $0{,}050$~; Issue~\#229, $p_{\mathrm{mc}}$ marginale (V1), $\alpha = 0{,}10$, tous jeux~; $\hat\delta^{*}$ intérieur~: $\lambda = 3$ $0{,}334$~; $0{,}105$, $\lambda = 4$ $0{,}576$~; $0{,}194$, $\nu = 4$ $0{,}190$~; $0{,}018$, $\nu = 2$ $0{,}274$~; $0{,}027$~; niveau de la $p_{\mathrm{mc}}$ sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}0995$~; $0{,}047$, J2 $0{,}0835$~; $0{,}0415$, écart mineur conservateur sur J2 à $0{,}10$, conservateur à $\hat\delta^{*}$ intérieur~; p-value restreinte au régime (issue~\#175, non implémentée)~: $0{,}093$ sur J2 intérieur~; V3h, p-value retenue depuis l'issue~\#240 ($\alpha = 0{,}10$~; $0{,}05$)~: J1 (bords, 1\,925 réplications) identique à V1~; ensemble de J1 non tabulé, J2 $0{,}1000$~; $0{,}0515$~; puissance V3h, tous jeux~; $\hat\delta^{*}$ intérieur~: $\lambda = 3$ $0{,}365$~; $0{,}322$, $\lambda = 4$ $0{,}613$~; $0{,}537$, $\nu = 4$ $0{,}211$~; $0{,}115$, $\nu = 2$ $0{,}287$~; $0{,}097$ & \code{engine\_p\_mc()},\newline \code{tests/puissance\_t8.R},\newline \code{tests/calibration\_mc\_t8.R},\newline \code{tests/}\newline \code{conservatisme\_interieur\_t8.R},\newline \code{tests/}\newline \code{p\_conditionnelle\_regime\_t8.R} & \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20261017-issue313-stabilite-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md},\newline \code{docs/tableaux/}\newline \code{20261009-issue175-conservatisme\allowbreak-interieur.md} ,\newline \code{docs/tableaux/}\newline \code{20261010-issue229-p-conditionnelle\allowbreak-puissance.md},\newline \code{docs/tableaux/}\newline \code{20261010-issue229-p-conditionnelle\allowbreak-regime.md} \\
-% Rangée retirée à l'issue #304 (ESD de Rosner en diagnostic par décision, rubrique 7 retirée
-% de sa fiche) ; texte conservé pour le passage de fin de branche :
-% ESD de Rosner (\ref{fiche:rosner-esd}) & Sans objet (procédure sans p-value) & Non étudiée~; première étape~: niveau exactement $\alpha$ sous i.i.d. normal (résultat exact)~; procédure sous i.i.d. normal (C7.a, $10^6$ échantillons)~: $P(\hat k \ge 1) = 0{,}1506$ ($\alpha = 0{,}10$), $0{,}0752$ ($0{,}05$)~; $P(\hat k = 2) = 0{,}0601$, $0{,}0276$~; part de la seconde étape $0{,}0502$ ($\alpha = 0{,}10$)~; sous le modèle ajusté (C7.b, $20\,000$ jeux, $\alpha = 0{,}10$)~: $P(\hat k \ge 1) = 0{,}1473$ (J1), $0{,}1179$ (J2), première étape seule $0{,}0967$, $0{,}0693$~; issue~\#166 ($2\,000$ premiers jeux de C7.b, $\alpha = 0{,}10$)~: $P(\hat k \ge 1) = 0{,}1395$ (J1), $0{,}111$ (J2)~; $P(\hat k = 2) = 0{,}0535$, $0{,}0495$ & \code{test\_rosner()},\newline \code{tests/constats\_puissance\_t8.R},\newline \code{tests/calibration\_mc\_t8.R} & \code{docs/tableaux/}\newline \code{20261018-issue174-esd.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md} \\
 Durbin--Watson, ratios bruts (\ref{fiche:durbin-watson-ratios-bruts}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral), à $\hat\pi_t$ variable~; diagnostic, sans p-value retenue, à $\hat\pi_t$ constant (règle~R15) & Volet~B seul (p-value retenue, J1~/ J2, issue~\#274)~: AR(1) $\rho = 0{,}5$~: $0{,}280$~/ $0{,}246$~; $\rho = 0{,}9$~: $0{,}556$~/ $0{,}530$ (avant l'issue~\#240~: $0{,}276$~/ $0{,}232$~; $0{,}556$~/ $0{,}520$)~; proche de la ligne sur $z_t$~; niveau de la $p_{\mathrm{mc}}$ sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}107$~; $0{,}0495$, J2 $0{,}092$~; $0{,}0455$, compatible~; V3h, p-value retenue depuis l'issue~\#240 ($\alpha = 0{,}10$~; $0{,}05$)~: J1 (bords, 1\,925 réplications) identique à V1~; ensemble de J1 non tabulé, J2 $0{,}1000$~; $0{,}0515$ & \code{engine\_p\_mc()},\newline \code{tests/puissance\_t8.R},\newline \code{tests/calibration\_mc\_t8.R} & \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md},\newline \code{docs/tableaux/}\newline \code{20261010-issue229-p-conditionnelle\allowbreak-regime.md} \\
 Suites, ratios bruts (\ref{fiche:suites-ratios-bruts}) & $4/70 = 0{,}0571$~; plancher Monte-Carlo $0{,}002$ (bilatéral)~; à $\hat\pi_t$ constant, diagnostic (règle~R15), $p_{\min}$ calculée sans application de la règle~R1 & Celle des suites sur $z_t$ à $\hat\pi_t$ constant (identité vérifiée au volet~A)~; volet~B (p-value retenue, J1~/ J2, issue~\#274, taux identiques à ceux d'avant l'issue~\#240)~: AR(1) $\rho = 0{,}9$~: $0{,}268$~/ $0{,}242$~; rupture de 2 écarts-types~: $0{,}450$~/ $0{,}438$~; niveau de la p-value retenue sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}062$~; $0{,}0035$, J2 $0{,}061$~; $0{,}008$, compatible~; $p_{\mathrm{mc}}$ V3h, p-value retenue depuis l'issue~\#240 ($\alpha = 0{,}10$~; $0{,}05$)~: J1 (bords, 1\,925 réplications) identique à V1~; ensemble de J1 non tabulé, J2 $0{,}0610$~; $0{,}0090$ & \code{runs\_p\_min()}, \code{usp\_runsr\_p\_exacte()},\newline \code{tests/puissance\_t8.R},\newline \code{tests/calibration\_mc\_t8.R} & \code{docs/tableaux/}\newline \code{20260930-issue116-exact-J1.md},\newline \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md},\newline \code{docs/tableaux/}\newline \code{20261010-issue229-p-conditionnelle\allowbreak-regime.md} \\
 sup-F, ratios bruts (\ref{fiche:sup-f-ratios-bruts}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral), à $\hat\pi_t$ variable~; diagnostic, sans p-value retenue, à $\hat\pi_t$ constant (règle~R15) & Volet~A, issue~\#313 (J1, référence idéalisée~: $\delta = 1$ imposé, loi nulle sans réajustement, $B$ infini~; $\alpha = 0{,}10$)~: rupture de 2 écarts-types après l'année~4~; 6~: $0{,}614$~; $0{,}522$~; tendance de 1,75 écart-type~: $0{,}346$~; contamination à 5 écarts-types, vers le haut~; le bas~: $0{,}040$~; $0{,}061$~; amplitudes en écarts-types de $\ln r_t$ ($0{,}1438$ sur J1, non $\hat\sigma$)~; effet de $B = 999$ au plus $0{,}0050$~; volet~B, issue~\#274 (p-value retenue de Monte-Carlo, V1 au bord, V3b à $\hat\delta^*$ intérieur, J1~/ J2, $\alpha = 0{,}10$, aucun inopérant)~: niveau $0{,}108$~/ $0{,}100$ (contrôle de compatibilité), rupture de 2 écarts-types après l'année~4~: $0{,}608$~/ $0{,}570$~; niveau de la $p_{\mathrm{mc}}$ sous le modèle ajusté ($\alpha = 0{,}10$~; $0{,}05$)~: J1 $0{,}101$~; $0{,}0525$, J2 $0{,}101$~; $0{,}049$, compatible~; V3h, p-value retenue depuis l'issue~\#240 ($\alpha = 0{,}10$~; $0{,}05$)~: J1 (bords, 1\,925 réplications) identique à V1~; ensemble de J1 non tabulé, J2 $0{,}1045$~; $0{,}0510$ & \code{engine\_p\_mc()},\newline \code{tests/puissance\_t8.R},\newline \code{tests/calibration\_mc\_t8.R} & \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J1.md},\newline \code{docs/tableaux/}\newline \code{20261018-issue116-chaine-J2.md},\newline \code{docs/tableaux/}\newline \code{20261017-issue313-stabilite-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md},\newline \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md},\newline \code{docs/tableaux/}\newline \code{20261010-issue229-p-conditionnelle\allowbreak-regime.md} \\
@@ -7683,9 +7687,10 @@ l'analyse de queue repose sur $A^2$, dont la p-value de Monte-Carlo est simulée
 sous le modèle réajusté~; le QQ-plot à enveloppe n'est qu'une aide de lecture, sans p-value
 ni verdict, dont les bandes sont simulées sous le modèle ajusté réestimé
 (fiche~\ref{fiche:qqnorm}) \\
-Rosner (ESD) & Fiabilité des valeurs critiques annoncée pour $T \ge 25$ &
-Conservé comme signal d'attention~; aucune exclusion de donnée ne doit en
-découler sans justification métier \\
+Rosner (ESD) & Valeurs critiques approchées, jugées adéquates par l'auteur pour $T \ge 25$
+(Rosner, 1983, p.~165, 167 et~171) &
+Conservé comme signal d'attention, diagnostic par décision depuis l'issue~\#304~; aucune exclusion
+de donnée ne doit en découler sans justification métier \\
 sup-F, OLS-CUSUM & Convergence fonctionnelle~; 8 points ne forment pas une
 trajectoire limite & p-value de Monte-Carlo seule retenue~; à lire
 conjointement avec la distance de Cook \\
@@ -11677,7 +11682,8 @@ Borne de Bonferroni utilisée par le script, tronquée à 1~:
 \]
 \Usage
 Deux limites structurelles. (i) \emph{Masquage}~: en présence de deux valeurs aberrantes ou plus,
-celles-ci gonflent $s_z$ et le test ne détecte plus rien, d'où la nécessité du test de Rosner.
+celles-ci gonflent $s_z$ et le test ne détecte plus rien, ce que la procédure de Rosner
+atténue (fiche~\ref{fiche:rosner-esd}, diagnostic par décision depuis l'issue~\#304).
 (ii) La statistique est bornée~: $G \le (T-1)/\sqrt{T}$, soit $2{,}85$ pour $T=10$~; sur de très
 petits échantillons, aucune observation ne peut être « suffisamment » extrême. Enfin, la
 sensibilité à l'hypothèse de normalité est totale~: sur une vraie loi à queue lourde, le test
@@ -11699,12 +11705,23 @@ signale des aberrations qui n'en sont pas.
 \emph{Technometrics}, 25(2), 1983, p.~165--172.}
 \Cadre
 Généralisation itérative de Grubbs. On fixe a priori un nombre maximal $k$ de valeurs aberrantes
-recherchées (le script prend $k = \max(1, \lfloor T/4 \rfloor)$) et un niveau $\alpha$, qui est
-celui passé à \code{run\_engine()} (0,10 par défaut) et non une valeur figée. Hypothèse non
-testée~: normalité de la population sous-jacente.
+recherchées et un niveau $\alpha$, qui est celui passé à \code{run\_engine()} (0,10 par défaut) et
+non une valeur figée. Le choix $k = \max(1, \lfloor T/4 \rfloor)$, soit $k = 2$ à $T = 8$ et $k = 1$
+pour $T$ de 5 à 7, est celui du projet (défaut de \code{test\_rosner()})~: Rosner laisse $k$ à
+l'utilisateur («~a prespecified upper limit~», p.~165) et simule jusqu'à $\min([n/2], 10)$
+(p.~166), soit $k = 4$ à $T = 8$. Cadre de la source~: un échantillon dont le corps est normal
+(«~the main body of data comes from a normal distribution~», p.~165)~; l'article ne traite pas de
+résidus. Hypothèse non testée~: normalité de la population sous-jacente. \emph{Source.} Les pages,
+équations, tables et citations de Rosner (1983) données dans cette fiche sont celles du relevé de
+la lecture en texte intégral du 19~octobre 2026 (issue~\#347)~; elles n'ont pas été
+recontrôlées sur l'article par la rédaction de cette fiche, l'accès au document ayant été refusé
+le 20~octobre 2026 (confrontation à la source prévue à la validation de fin de branche).
 \Hzero
-$H_0$ : aucune valeur aberrante. On teste séquentiellement les alternatives « il y a exactement
-$i$ valeurs aberrantes », $i=1,\dots,k$.
+$H_0$ : aucune valeur aberrante. Rosner définit les hypothèses $H_l$, «~$l$ valeurs aberrantes
+détectées et retirées~» (p.~166), $l = 0, \dots, k-1$. Les $k$ statistiques $R_i$ sont toutes
+calculées, et le nombre déclaré est le plus grand indice dont la statistique dépasse son seuil
+(éq.~(1.2))~: la règle n'est pas un arrêt au premier non-rejet, une statistique $R_i$ pouvant
+rester sous son seuil quand une statistique $R_j$, $j > i$, dépasse le sien.
 \Stat
 Pour $i = 1,\dots,k$, sur l'échantillon $\mathcal{S}_i$ obtenu en retirant les $i-1$ observations
 déjà écartées~:
@@ -11712,68 +11729,109 @@ déjà écartées~:
   R_i = \frac{\max_{z\in\mathcal{S}_i}\big|z - \bar z_{\mathcal{S}_i}\big|}{s_{\mathcal{S}_i}} .
 \]
 \Loi
-Valeurs critiques de Rosner (1983), calculées en forme close par \code{test\_rosner()}, avec
-$n_i = T-i+1$ et
+Valeurs critiques de Rosner (1983, éq.~(2.5)), calculées en forme close par \code{test\_rosner()},
+avec $n_i = T-i+1$ et
 $t_{\text{crit}} = F^{-1}_{t,\,n_i-2}\big(1 - \tfrac{\alpha}{2 n_i}\big)$~:
 \[
   \lambda_i \;=\; \frac{(n_i - 1)\, t_{\text{crit}}}{\sqrt{\big(n_i - 2 + t_{\text{crit}}^2\big)\, n_i}} .
 \]
-À la première étape, $\lambda_1$ donne à $T = 8$ un niveau \emph{exactement} $\alpha$ sous
-l'hypothèse de huit observations i.i.d. normales (démonstration en rubrique~7)~; aux étapes
-suivantes ($i \ge 2$), aucun résultat exact connu ne donne le niveau attaché à $\lambda_i$~: $R_i$
-est calculé sur l'échantillon amputé des $i - 1$ valeurs les plus extrêmes, qui n'est pas un
-échantillon i.i.d. normal de taille $n_i$~; et la procédure entière n'a pas le niveau $\alpha$
-(mesuré~: $0{,}1506$ à $\alpha = 0{,}10$, constat~C7.a, rubrique~7).
+Rosner les obtient par deux approximations, la conjecture~(2.1), selon laquelle la probabilité
+visée est essentiellement déterminée par $R_{l+1}$, et une borne de Bonferroni (éq.~(2.3)), et les
+appelle «~approximate percentiles~»~: l'article n'affirme d'exactitude à aucune étape, la première
+comprise. À $T = 8$, $\lambda_1 = 2{,}0317$ et $\lambda_2 = 1{,}9381$ à $\alpha = 0{,}10$,
+$2{,}1266$ et $2{,}0200$ à $0{,}05$ (\code{test\_rosner()}, remesuré). \emph{Première étape~: niveau
+exactement $\alpha$ sous i.i.d. normal --- démonstration du document, non résultat de Rosner}, qui
+présente $\lambda_1$ comme une approximation de Bonferroni. Soit $u_t = (z_t - \bar z)/s_z$,
+$n = T = 8$. (i)~Pour $t$ fixé, $u \mapsto u\sqrt{n(n-2)/\big((n-1)^2 - n u^2\big)}$ est
+strictement croissante sur $[0, (n-1)/\sqrt{n})$ et transforme $|u_t|$ en une variable de loi
+exactement celle de $|t(n-2)|$ (loi d'un écart studentisé~; fiche~\ref{fiche:grubbs})~; $\lambda_1$
+est l'image réciproque de $t_{1-\alpha/(2n),\,n-2}$, donc $\mathbb{P}(|u_t| > \lambda_1) = \alpha/n$.
+(ii)~Comme $\sum_t u_t^2 = n - 1 = 7$ et $2\lambda_1^2 > 7$ ($8{,}255$ à $\alpha = 0{,}10$, $9{,}045$ à
+$0{,}05$), deux observations ne peuvent dépasser $\lambda_1$ simultanément. (iii)~Les $n$ événements
+$\{|u_t| > \lambda_1\}$ sont donc disjoints, et $\mathbb{P}(R_1 > \lambda_1) = n \cdot \alpha/n =
+\alpha$. Pour la loi d'un écart studentisé, Rosner (1983, p.~172) donne pour référence
+W.\,R.~Thompson, \emph{On a criterion for the rejection of observations and the distribution of the
+ratio of deviation to sample standard deviation}, \emph{Annals of Mathematical Statistics}, 6,
+1935, p.~214--219 (référence non relue sur le texte intégral, titre d'après des listes de références
+secondaires, constat du 20~octobre 2026). Le
+même argument vaut pour $T$ de 5 à 7, où $k = 1$ et la procédure se réduit à sa première
+étape~: $2\lambda_1^2 = 5{,}59$~; $6{,}64$~; $7{,}51$ dépasse $T - 1 = 4$~; $5$~; $6$ à
+$\alpha = 0{,}10$, et $\lambda_1$ reste sous $(T-1)/\sqrt T$ (calcul des $\lambda_1$ par la formule
+de \code{test\_rosner()}). Aux étapes suivantes ($i \ge 2$), aucun résultat exact connu ne donne le
+niveau attaché à $\lambda_i$~: $R_i$ est calculé sur l'échantillon amputé des $i - 1$ valeurs les
+plus extrêmes, qui n'est pas un échantillon i.i.d. normal de taille $n_i$~; et la procédure
+entière n'a pas le niveau $\alpha$ (mesuré~: $0{,}1506$ à $\alpha = 0{,}10$, constat~C7.a,
+rubrique~6).
 \Pval
-\textbf{Aucune p-value}~: il s'agit d'une procédure de décision à niveau $\alpha$ fixé. Le nombre
-retenu de valeurs aberrantes est $\hat k = \max\{i : R_i > \lambda_i\}$, et $0$ si aucun
-dépassement.
+\textbf{Aucune p-value}~: l'article n'en définit aucune. Le nombre retenu de valeurs aberrantes est
+$\hat k = \max\{i : R_i > \lambda_i\}$, et $0$ si aucun dépassement~; il est restitué dans
+\code{estim}, les rangs des années déclarées dans le commentaire. \textbf{Depuis l'issue~\#304}
+(décision Q-D1-Fh-6 du mainteneur du 19~octobre 2026, option~(a)), la ligne est un
+\emph{diagnostic par décision}, pour tout $T$ (section~\ref{sec:nature})~: \code{usp\_tests()}
+passe \code{type = "diagnostic"} à \code{add()}, inchangée, qui pose le verdict \code{INFO},
+\code{sens}, \code{p\_retenue} et \code{nature\_p} à \code{NA}~; \code{test\_rosner()} est
+inchangée. Le commentaire est la phrase fixe «~\code{procedure ESD de Rosner (1983) a niveau
+nominal alpha = 0.1, sans p-value. Restituee en diagnostic par decision (issue \#304) : aucun
+verdict ni p-value retenue ; valeurs critiques approchees, jugees adequates par l'auteur a partir
+de n = 25 ; a T = 8, niveau superieur a alpha (voir la fiche) ; une valeur aberrante isolee releve
+de la ligne Grubbs sur residus standardises, dont le type et le verdict font foi.}~» (mesuré sur
+\code{premium}, $\hat k = 0$~; $\alpha$ y est imprimé au format \code{\%g}), précédée des rangs
+quand $\hat k \ge 1$. Jusqu'à l'issue~\#304, la ligne était une \emph{procédure de décision},
+verdict \code{ALERTE} si $\hat k = 1$ et \code{ECHEC} si $\hat k = 2$~; la ligne de la méthode
+Merz--Wüthrich (fiche~\ref{mw:m4ros}) l'est encore.
 \Usage
-Résout le problème de masquage de Grubbs et constitue la référence pour la détection multiple.
-Limites~: la littérature recommande $T \ge 25$ pour une fiabilité correcte des valeurs critiques,
-ce qui n'est jamais atteint en régime USP~; à $T = 8$, la fréquence mesurée d'un verdict
-\code{ALERTE} ou \code{ECHEC} sous le modèle ajusté est de $0{,}1473$ sur J1 et $0{,}1179$ sur J2
-pour $\alpha = 0{,}10$ (issue~\#174, $20\,000$ jeux simulés par jeu~; rubrique~7)~; le choix de $k$ est arbitraire et influence le
-résultat~; l'hypothèse de normalité reste critique. À $T \le 15$, la procédure est un simple
-signal d'attention, non une justification d'exclusion de données -- laquelle doit toujours reposer
-sur une analyse métier (sinistre exceptionnel identifié, erreur de saisie avérée).
-% Rubrique 7 retirée à l'issue #304 (ESD de Rosner en diagnostic par décision : une fiche de
-% diagnostic ne porte pas \Pertinence, docs/latex/CONVENTIONS.md) ; texte conservé pour le
-% passage de fin de branche (#347) :
-% \Pertinence
-% \textbf{p-value minimale à $T = 8$.} Sans objet~: procédure de décision sans p-value (\code{test\_rosner()}, décision par comparaison aux valeurs critiques de Rosner au niveau $\alpha$).
-%
-% \textbf{Table.} Sans objet.
-%
-% \textbf{Pertinence à $T = 8$.} Ligne de type procédure de décision dans tous les régimes~; limites des valeurs critiques en rubrique~6. Puissance non étudiée à $T = 8$. Les mesures de l'issue~\#174 citées ici portent sur la ligne de
-% la méthode lognormale~; la procédure ESD de la méthode Merz--Wüthrich (fiche~\ref{mw:m4ros})
-% relève des issues~\#206, \#300 et~\#309.
-% \emph{Première étape, niveau exact sous i.i.d. normal.} Soit $u_t = (z_t - \bar z)/s_z$,
-% $n = T = 8$. (i)~Pour $t$ fixé, $u \mapsto u\sqrt{n(n-2)/\big((n-1)^2 - n u^2\big)}$ est
-% strictement croissante sur $[0, (n-1)/\sqrt{n})$ et transforme $|u_t|$ en une variable de loi
-% exactement celle de $|t(n-2)|$ (fiche~\ref{fiche:grubbs})~; $\lambda_1$ est l'image réciproque de
-% $t_{1-\alpha/(2n),\,n-2}$ (rubrique~4), donc $\mathbb{P}(|u_t| > \lambda_1) = \alpha/n$.
-% (ii)~Comme $\sum_t u_t^2 = n - 1 = 7$ et $2\lambda_1^2 > 7$ ($8{,}255$ à $\alpha = 0{,}10$, $9{,}045$ à
-% $0{,}05$, avec $\lambda_1 = 2{,}0317$ et $2{,}1266$), deux observations ne peuvent dépasser $\lambda_1$
-% simultanément. (iii)~Les $n$ événements $\{|u_t| > \lambda_1\}$ sont donc disjoints, et
-% $\mathbb{P}(R_1 > \lambda_1) = n \cdot \alpha/n = \alpha$.
-% \emph{Niveau de la procédure sous i.i.d. normal} (issue~\#174, constat~C7.a, $10^6$ échantillons
-% i.i.d. $\mathcal{N}(0,1)$ de taille~8, $k = 2$~; protocole au tableau~\ref{tab:tracabilite-puissance})~:
-% $P(\hat k \ge 1) = 0{,}1506$ $[0{,}1499~;~0{,}1513]$ à $\alpha = 0{,}10$ et $0{,}0752$
-% $[0{,}0747~;~0{,}0757]$ à $0{,}05$~; $P(\hat k = 2) = 0{,}0601$ $[0{,}0596~;~0{,}0605]$ et $0{,}0276$
-% $[0{,}0273~;~0{,}0279]$~; la première étape seule rejette dans $0{,}1004$ $[0{,}0998~;~0{,}1010]$ et
-% $0{,}0500$ $[0{,}0496~;~0{,}0505]$ des échantillons, contrôle du résultat exact. $P(\hat k \ge 1)$ est
-% exactement la somme de $P(R_1 > \lambda_1)$ et de $P(R_2 > \lambda_2,\, R_1 \le \lambda_1)$~;
-% mesurée, cette seconde part vaut $0{,}0502$ $[0{,}0498~;~0{,}0507]$ à $\alpha = 0{,}10$ et $0{,}0251$ à
-% $0{,}05$~: l'excès de $P(\hat k \ge 1)$ sur $\alpha$ vient tout entier de la seconde étape, calculée
-% sur $n_2 = 7$ observations après retrait de la plus extrême. Portée~: C7.a coïncide, réplication
-% par réplication, avec la ligne du moteur lorsque $\hat\pi_t$ est constant ($z_t$ image affine
-% croissante des log-ratios, $R_i$ invariant par transformation affine)~; ce n'est pas la
-% fréquence conditionnelle à l'événement «~$\hat\pi_t$ constant~», qui dépend des données, et, à
-% $\hat\pi_t$ variable, $z_t$ n'est pas i.i.d. et C7.a ne s'applique pas.
-% \emph{Niveau mesuré sous le modèle ajusté} (issue~\#166, $R = 2\,000$ jeux simulés par jeu, $k = \lfloor 8/4 \rfloor = 2$, $\alpha = 0{,}10$, section~\ref{sec:calibration-mc})~: $P(\hat k \ge 1)$, fréquence d'un verdict \code{ALERTE} ou \code{ECHEC}, vaut $0{,}1395$ $[0{,}1246~;~0{,}1555]$ sur J1 et $0{,}111$ $[0{,}098~;~0{,}126]$ sur J2, pour un niveau visé de $0{,}10$~: écart mineur, du côté libéral, sur J1 (estimation dans la bande de Bradley $[0{,}05~;~0{,}15]$, intervalle excluant $0{,}10$), compatible sur J2~; $P(\hat k = 2)$, fréquence d'un \code{ECHEC}, vaut $0{,}0535$ $[0{,}0440~;~0{,}0643]$ et $0{,}0495$ $[0{,}0404~;~0{,}0599]$, sans niveau nominal. Mesure étendue par l'issue~\#174 (constat~C7.b, $20\,000$ jeux simulés par jeu sous le modèle ajusté, chacun réajusté par \code{usp\_ajuster()}, $k = 2$~; les $2\,000$ premiers jeux sont ceux de l'issue~\#166, dont les décisions sont retrouvées à l'identique, de sorte que les deux mesures ne sont pas indépendantes)~: $P(\hat k \ge 1) = 0{,}1473$ $[0{,}1424~;~0{,}1523]$ sur J1 et $0{,}1179$ $[0{,}1135~;~0{,}1225]$ sur J2 à $\alpha = 0{,}10$ ($0{,}0716$ et $0{,}0561$ à $0{,}05$)~; $P(\hat k = 2) = 0{,}0588$ et $0{,}0549$ à $\alpha = 0{,}10$. L'exactitude de la première étape ne passe pas aux résidus réajustés~: la première étape seule rejette dans $0{,}0967$ $[0{,}0926~;~0{,}1009]$ des jeux sur J1 et $0{,}0693$ $[0{,}0658~;~0{,}0729]$ sur J2 à $\alpha = 0{,}10$, et la seconde étape ajoute $0{,}0506$ sur J1 et $0{,}0487$ sur J2. Sur J1, l'excès sur $\alpha$ vient donc, comme sous i.i.d. normal, de la seconde étape. Rosner (1983) ne tabule ses valeurs critiques qu'à partir de $n = 25$~; à $T = 8$, le niveau de la règle sur huit observations normales i.i.d. est celui du constat~C7.a ci-dessus.
-%
-% \textbf{Statut des valeurs.} Niveau de la première étape sous i.i.d. normal~: \emph{résultat exact} (démonstration ci-dessus), dont la colonne simulée de C7.a est le contrôle~; valeurs critiques~: déterministes, lues dans \code{test\_rosner()}. Niveau de la procédure sous i.i.d. normal (C7.a) et sous le modèle ajusté à J1 et à J2 (issues~\#166 et~\#174, section~\ref{sec:calibration-mc})~: constats de simulation, intervalles de Clopper--Pearson à 95~\% liés au nombre de réplications, muets sur l'erreur en $T$~; sur J1, l'écart au niveau visé n'est pas un effet de cette incertitude. Borne de l'union~: propriété exacte de la règle~; son effet chiffré à $T = 8$, non donné par la littérature consultée, est mesuré (C7.a, C7.b)~: constat de simulation.
+Atténue le masquage d'un test à une valeur aberrante (exemple de Rosner, 1983, p.~171, face à une
+procédure à une seule valeur aberrante)~; l'avantage que revendique l'auteur face à l'ESD d'origine
+est le contrôle du niveau sous les hypothèses $H_l$ (p.~171). \emph{Domaine de la source}~: les
+valeurs critiques sont jugées adéquates à partir de $n = 25$ en trois endroits --- résumé
+(p.~165~: «~adequately accurate [\ldots] for detecting up to 10 outliers in samples as small as
+25~»), p.~167 («~for $n \ge 25$ the estimated $\alpha$ levels are quite close to .05~») et p.~171
+(«~does not work well for small samples ($n < 25$)~») ---~; «~adéquat~» n'y veut pas dire
+«~exact~»~: à $\alpha = 0{,}05$, le niveau estimé vaut encore $0{,}06$ à $n = 25$ et $30$ (table~1,
+p.~167, $2\,000$ itérations, erreur de Monte-Carlo d'environ $0{,}005$). Pour $n \le 15$, le niveau
+réel atteint 2 à 2,5 fois le niveau nominal (p.~167), aux $k$ élevés~; à $k = 1$ ou $2$, la table~1
+donne de 1,0 à 1,4 fois $\alpha$, et, à $n = 10$, un niveau qui croît avec $k$, de $0{,}06$ à
+$0{,}13$, ce qui étaye que le choix de $k$ influence le résultat. Rien n'est simulé en deçà de
+$n = 10$ ni tabulé en deçà de $n = 25$~: l'article ne permet aucune conclusion chiffrée à $T = 8$,
+et le seul chiffre à $T = 8$ est le constat~C7 du dépôt (constat de simulation versionné, ci-dessous).
+La robustesse à la non-normalité est renvoyée par l'auteur à des travaux ultérieurs (p.~171).
+\textbf{Pourquoi aucun verdict} (diagnostic par décision, issue~\#304~; ADR~0001). La ligne ne
+fournit aucune p-value, et aucune des trois voies n'en ouvre une qui permette un verdict propre à
+$T = 8$~: aucune loi exacte de $\hat k$ n'est connue (au-delà de la première étape, voir la
+rubrique~4) ni aucune loi asymptotique employable~; une p-value de Monte-Carlo sur $\hat k$
+serait une construction du projet, que la source ne définit pas, demanderait de passer $\alpha$ à
+\code{usp\_bootstrap()}, hors du contrat actuel, et aurait pour plancher $P^{*}(\hat k^{*} = 2)$,
+environ $0{,}059$ sur J1 et $0{,}055$ sur J2 à $\alpha = 0{,}10$ (C7.b ci-dessous), au-dessus de
+$\alpha/2$~: elle ne pourrait rendre que \code{OK} ou \code{ALERTE}, redondants avec Grubbs. Le
+verdict de procédure de décision, lui, est rendu à un niveau réel supérieur à $\alpha$ à $T = 8$
+(C7.a~: $0{,}1506$ à $\alpha = 0{,}10$), sous des valeurs critiques que l'auteur écarte lui-même en
+deçà de $n = 25$ (p.~171)~; une valeur aberrante isolée relève de la ligne Grubbs, dont la p-value
+de Monte-Carlo est calibrée, et le gain de l'ESD contre le masquage, à $T = 8$ et deux valeurs
+aberrantes sur huit, n'est ni mesuré ni établi par la source. Calibrer les $\lambda_i$ à $T = 8$ par
+simulation, voie la plus proche de la suggestion de l'auteur pour les petits échantillons
+(p.~171), n'a pas été retenu (décision du mainteneur)~: la correspondance entre $\hat k$ et un verdict
+resterait sans fondement, la calibration ne serait exacte qu'à $\hat\pi_t$ constant, et elle ajouterait
+une source d'aléa. Limites qui demeurent~: le choix de $k$ est arbitraire et influence le résultat~;
+l'hypothèse de normalité reste critique. À $T \le 15$, la procédure est un simple signal
+d'attention, non une justification d'exclusion de données -- laquelle doit toujours reposer sur une
+analyse métier (sinistre exceptionnel identifié, erreur de saisie avérée). \emph{Mesures} (la
+correspondance $\hat k \to$ verdict qu'elles mentionnent, \code{ALERTE} si $\hat k = 1$ et
+\code{ECHEC} si $\hat k = 2$, est celle de la ligne avant l'issue~\#304~; ce sont des fréquences de
+$\hat k \ge 1$ et de $\hat k = 2$, toujours calculées). \emph{Niveau de la procédure sous i.i.d. normal} (issue~\#174, constat~C7.a, $10^6$ échantillons
+i.i.d. $\mathcal{N}(0,1)$ de taille~8, $k = 2$~; protocole au tableau~\ref{tab:tracabilite-puissance})~:
+$P(\hat k \ge 1) = 0{,}1506$ $[0{,}1499~;~0{,}1513]$ à $\alpha = 0{,}10$ et $0{,}0752$
+$[0{,}0747~;~0{,}0757]$ à $0{,}05$~; $P(\hat k = 2) = 0{,}0601$ $[0{,}0596~;~0{,}0605]$ et $0{,}0276$
+$[0{,}0273~;~0{,}0279]$~; la première étape seule rejette dans $0{,}1004$ $[0{,}0998~;~0{,}1010]$ et
+$0{,}0500$ $[0{,}0496~;~0{,}0505]$ des échantillons, contrôle du résultat exact. $P(\hat k \ge 1)$ est
+exactement la somme de $P(R_1 > \lambda_1)$ et de $P(R_2 > \lambda_2,\, R_1 \le \lambda_1)$~;
+mesurée, cette seconde part vaut $0{,}0502$ $[0{,}0498~;~0{,}0507]$ à $\alpha = 0{,}10$ et $0{,}0251$ à
+$0{,}05$~: l'excès de $P(\hat k \ge 1)$ sur $\alpha$ vient tout entier de la seconde étape, calculée
+sur $n_2 = 7$ observations après retrait de la plus extrême. Portée~: C7.a coïncide, réplication
+par réplication, avec la ligne du moteur lorsque $\hat\pi_t$ est constant ($z_t$ image affine
+croissante des log-ratios, $R_i$ invariant par transformation affine)~; ce n'est pas la
+fréquence conditionnelle à l'événement «~$\hat\pi_t$ constant~», qui dépend des données, et, à
+$\hat\pi_t$ variable, $z_t$ n'est pas i.i.d. et C7.a ne s'applique pas.
+\emph{Niveau mesuré sous le modèle ajusté} (issue~\#166, $R = 2\,000$ jeux simulés par jeu, $k = \lfloor 8/4 \rfloor = 2$, $\alpha = 0{,}10$, section~\ref{sec:calibration-mc})~: $P(\hat k \ge 1)$, fréquence d'un verdict \code{ALERTE} ou \code{ECHEC}, vaut $0{,}1395$ $[0{,}1246~;~0{,}1555]$ sur J1 et $0{,}111$ $[0{,}098~;~0{,}126]$ sur J2, pour un niveau visé de $0{,}10$~: écart mineur, du côté libéral, sur J1 (estimation dans la bande de Bradley $[0{,}05~;~0{,}15]$, intervalle excluant $0{,}10$), compatible sur J2~; $P(\hat k = 2)$, fréquence d'un \code{ECHEC}, vaut $0{,}0535$ $[0{,}0440~;~0{,}0643]$ et $0{,}0495$ $[0{,}0404~;~0{,}0599]$, sans niveau nominal. Mesure étendue par l'issue~\#174 (constat~C7.b, $20\,000$ jeux simulés par jeu sous le modèle ajusté, chacun réajusté par \code{usp\_ajuster()}, $k = 2$~; les $2\,000$ premiers jeux sont ceux de l'issue~\#166, dont les décisions sont retrouvées à l'identique, de sorte que les deux mesures ne sont pas indépendantes)~: $P(\hat k \ge 1) = 0{,}1473$ $[0{,}1424~;~0{,}1523]$ sur J1 et $0{,}1179$ $[0{,}1135~;~0{,}1225]$ sur J2 à $\alpha = 0{,}10$ ($0{,}0716$ et $0{,}0561$ à $0{,}05$)~; $P(\hat k = 2) = 0{,}0588$ et $0{,}0549$ à $\alpha = 0{,}10$. L'exactitude de la première étape ne passe pas aux résidus réajustés~: la première étape seule rejette dans $0{,}0967$ $[0{,}0926~;~0{,}1009]$ des jeux sur J1 et $0{,}0693$ $[0{,}0658~;~0{,}0729]$ sur J2 à $\alpha = 0{,}10$, et la seconde étape ajoute $0{,}0506$ sur J1 et $0{,}0487$ sur J2. Sur J1, l'excès sur $\alpha$ vient donc, comme sous i.i.d. normal, de la seconde étape. Rosner (1983) ne tabule ses valeurs critiques qu'à partir de $n = 25$~; à $T = 8$, le niveau de la règle sur huit observations normales i.i.d. est celui du constat~C7.a ci-dessus. \emph{Statut de ces valeurs.} Niveau de la première étape sous i.i.d. normal~: \emph{résultat exact} (démonstration du document, rubrique~4), dont la colonne simulée de C7.a est le contrôle~; valeurs critiques~: déterministes, lues dans \code{test\_rosner()}. Niveau de la procédure sous i.i.d. normal (C7.a) et sous le modèle ajusté à J1 et à J2 (issues~\#166 et~\#174, section~\ref{sec:calibration-mc})~: constats de simulation, intervalles de Clopper--Pearson à 95~\% liés au nombre de réplications, muets sur l'erreur en $T$~; sur J1, l'écart au niveau visé n'est pas un effet de cette incertitude. Borne de l'union~: propriété exacte de la règle~; son effet chiffré à $T = 8$, non donné par la littérature consultée, est mesuré (C7.a, C7.b)~: constat de simulation.
 \end{fiche}
 
 \begin{fiche}{Distance de Cook (diagnostic)}
@@ -15925,8 +15983,6 @@ tests --- mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$), 
 la table auditable retiennent une p-value de Monte-Carlo, contre 5 une p-value exacte, 0 une
 p-value sous le modèle auxiliaire pondéré et 0 une p-value asymptotique, les 29 dernières n'ayant
 aucune p-value retenue (28 diagnostics, 0 procédure de décision et 1 ligne non applicable)~;
-% Décomptes modifiés à l'issue #304 (procédure ESD lognormale en diagnostic par décision) ;
-% valeurs antérieures : 27 diagnostics, 1 procédure de décision.
 le TOST compte parmi les diagnostics depuis l'issue~\#298 (règle~R14~: $p_{\text{plancher}} =
 0{,}440 \ge \alpha$ sur ce jeu, section~\ref{sec:nature}).
 Les mesures qui suivent (issues~\#166, \#221, \#175 et~\#229) ont toutes été faites avant
@@ -17755,8 +17811,9 @@ l'issue~\#169, pour le test de Fisher), la logique est inversée~: \code{OK} cor
 $0 < \alpha < 0{,}30$, faute de quoi la zone \code{ALERTE} de ces tests disparaîtrait~:
 erreur d'usage, section~\ref{sec:controles}). \\
 \code{ALERTE} & p-value retenue dans la zone intermédiaire $[\alpha/2\,;\,\alpha[$ (par défaut
-$[5\,\%\,;\,10\,\%[$), ou, pour la procédure ESD, une valeur aberrante détectée. \\
-\code{ECHEC} & p-value retenue sous le seuil strict $\alpha/2$, ou, pour la procédure ESD, deux
+$[5\,\%\,;\,10\,\%[$), ou, pour la procédure ESD de la méthode Merz--Wüthrich, une valeur aberrante
+détectée (la ligne lognormale est un diagnostic depuis l'issue~\#304). \\
+\code{ECHEC} & p-value retenue sous le seuil strict $\alpha/2$, ou, pour la procédure ESD de la méthode Merz--Wüthrich, deux
 valeurs aberrantes ou plus. N'invalide pas
 mécaniquement l'USP, mais impose une justification explicite~: nature de l'écart, retraitement
 envisagé, sensibilité du paramètre final. \\
@@ -18006,7 +18063,7 @@ retenue, $p_{\min} = 0{,}057$ à $T = 8$~: \code{ECHEC} inatteignable à $\alpha
 $\hat\pi_t$ constant, selon le plancher Monte-Carlo à $\hat\pi_t$ variable, test inopérant à
 $\alpha \le 0{,}057$ à $\hat\pi_t$ constant). \\
 Breusch--Pagan / White & $T \ge 30$ & Convergence asymptotique lente. \\
-Rosner ESD & $T \ge 25$ & Valeurs critiques peu fiables en-deçà. \\
+Rosner ESD & $T \ge 25$ & Valeurs critiques approchées, jugées adéquates par l'auteur à partir de $n = 25$ (résumé, p.~165~; p.~167~; p.~171), niveau estimé encore $0{,}06$ pour $0{,}05$ à $n = 25$~; en deçà, niveau réel supérieur au nominal (constat~C7 à $T = 8$, fiche~\ref{fiche:rosner-esd}). \\
 Durbin--Watson & --- & Bornes invalides sur résidus de maximum de vraisemblance. \\
 sup-F de Quandt & --- & Loi de Fisher inapplicable (point de rupture estimé). \\
 \bottomrule
@@ -18461,7 +18518,7 @@ autres sont des diagnostics.}
 \node[sor, anchor=west] at (cx |- lb)  (s12) {Ljung--Box (retard 2)};
 \node[sor, anchor=west] at (cx |- ru)  (s13) {Test des suites ($z_t$ et $u_t$)};
 \node[sor, anchor=west] at (cx |- sf2) (s14) {sup-F, CUSUM ($z_t$ et $u_t$)};
-\node[sor, anchor=west] at (cx |- gr)  (s15) {Grubbs ($z_t$ et $u_t$), Rosner};
+\node[sor, anchor=west] at (cx |- gr)  (s15) {Grubbs ($z_t$ et $u_t$), Rosner (diagnostic)};
 
 % --- Liaisons ----------------------------------------------------------------
 \draw[fl] (sw) -- (s1);
