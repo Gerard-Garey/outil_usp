@@ -685,18 +685,31 @@ $\hat\pi_t$ constant seulement (règle~R7, fiche~\ref{fiche:durbin-watson})~; ma
 $D$ matrice des différences premières ($\sum_t (z_{t+1} - z_t)^2 = z'Az$), et projecteur de
 centrage $M$~; ces $n-1$ valeurs propres, décroissantes.
 Construction unique de la loi nulle, partagée avec \code{dw\_puissance\_ar1()} (issue~\#170) \\
-\code{dw\_puissance\_ar1()} & $T$ (entier, $4 \le T \le 2^{31} - 1$, plus grand entier de R), $|\rho| \le 1 - 10^{-10}$ (erreur explicite au-delà),
+\code{dw\_puissance\_ar1()} & $T$ (entier, $4 \le T \le 2^{31} - 1$, plus grand entier de R),
+$-1 + 10^{-6} \le \rho \le 1 - 10^{-10}$ (erreur explicite au-delà, issue~\#339),
 $\alpha \in\, ]0, 1[$ & puissance du test bilatéral exact de Durbin--Watson au seuil $\alpha$
 contre un AR(1) stationnaire gaussien de corrélation $\rho$~: points critiques de la loi nulle par
 \code{stats::uniroot()}, puis intégrale d'Imhof sous l'AR(1)~; si l'intégration échoue à l'un
 des deux points critiques sur les valeurs propres normalisées, repli sur les valeurs propres non
 normalisées pour les deux points (si le repli échoue à l'un d'eux, chaque point garde la valeur
-finie disponible), puis erreur explicite si un point reste sans valeur finie. Limite connue au 18~octobre 2026
-(issue~\#339)~: près de $\rho = -1$ ($1 - |\rho| \le 10^{-8{,}5}$ à $T = 8$,
-$\alpha = 0{,}10$), la fonction rend 1 sans erreur, alors qu'une simulation donne de
-$1 - 6{,}9\cdot 10^{-5}$ à $1 - 1{,}1\cdot 10^{-5}$ (cas $T = 8$, $\alpha = 0{,}10$~; étendue complète~:
-issue~\#339)~; sans effet sur les valeurs citées
-($\rho \in [-0{,}5~;~0{,}9]$). N'est pas appelée par \code{run\_engine()}~: outil de mesure de la puissance citée
+finie disponible), puis erreur explicite si un point reste sans valeur finie. \emph{Domaine de
+validité} (issue~\#339)~: côté négatif, la garde $1 - |\rho| \ge 10^{-6}$, uniforme en $T$, lève
+l'erreur « rho doit verifier -1 + 1e-6 <= rho <= 1 - 1e-10 (domaine de precision
+numerique) »~; précision mesurée au voisinage de $\rho = -1$ pour $T = 4$ à $10$, $12$, $15$,
+$20$, $30$, $50$, $100$ ($\alpha = 0{,}10$) et $T = 5$, $8$, $12$, $20$, $30$ ($\alpha = 0{,}05$)
+(mesure du 19~octobre 2026, non versionnée), et sur la grille de 88 points de l'issue~\#170
+($T \in \{5, 8, 12, 20\}$, $\rho$ de $-0{,}99$ à $0{,}99$)~; hors de ces $T$, non mesurée. En
+deçà de la garde, le déficit (un moins la puissance) suit une loi régulière en $(1 - |\rho|)^{1/2}$
+($1{,}2\cdot 10^{-3}$ à $1 - |\rho| = 10^{-6}$, $T = 8$, $\alpha = 0{,}10$) jusqu'à une rupture qui
+dépend de $T$ (garde levée sur une copie de la fonction, approximation numérique~: à $T = 8$,
+$\alpha = 0{,}10$, déficit $1{,}2\cdot 10^{-4}$ à $10^{-8}$ puis valeur 1 sans erreur dès
+$10^{-8{,}5}$~; à $T = 5$, valeur 1 dès $10^{-9}$~; à $T = 4$ et $10$, erreur d'intégration à
+$10^{-7{,}5}$), alors que le déficit vrai, estimé par simulation, reste de l'ordre de $10^{-4}$
+(issue~\#339, constat de simulation)~; la garde laisse une décade et demie avant la rupture la
+plus précoce mesurée. À $T = 4$ ($\alpha = 0{,}10$) et $T = 5$ ($\alpha = 0{,}05$), la puissance
+tend vers 0 quand $\rho \to -1$, sans signature de défaillance (hypothèse non vérifiée~:
+vecteur alterné centré de longueur courte). Avant l'issue~\#339, la fonction rendait 1 sans
+erreur dans cette zone. Sans effet sur les valeurs citées ($\rho \in [-0{,}5~;~0{,}9]$). N'est pas appelée par \code{run\_engine()}~: outil de mesure de la puissance citée
 dans la fiche~\ref{fiche:durbin-watson}, appelé par \code{tests/puissance\_t8.R} (issue~\#170) \\
 \code{runs\_p\_min()},\newline \code{cox\_stuart\_p\_min()},\newline
 \code{smirnov\_p\_min()},\newline \code{mk\_p\_min()} & effectifs $(n_1, n_2)$~; $m$~;
