@@ -6318,17 +6318,32 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       p_as = gr$p, mc_nom = "Grubbs",
       estim_nom = "rang de l'obs. extreme", estim = gr$idx,
       detail = sprintf("G est borne par (T-1)/sqrt(T) = %.3f", (T - 1) / sqrt(T)))
+  # Procedure ESD de Rosner (1983) : diagnostic par decision, pour tout T
+  # (#304, Q-D1-Fh-6, option (a) ; specification Fh, section 7.3). Valeurs
+  # critiques approchees, jugees adequates par l'auteur a partir de n = 25 ;
+  # a T = 8, sous i.i.d. normal, P(k chapeau >= 1) depasse alpha (constat de
+  # simulation C7 de #174, docs/tableaux/20261018-issue174-esd.md). type =
+  # "diagnostic" pose ici, add() inchangee : verdict INFO, sens, p_retenue et
+  # nature_p NA. k chapeau reste en estim, les rangs dans le detail ;
+  # test_rosner() est inchangee, et la ligne Merz-Wuthrich (mw_tests())
+  # reste une procedure de decision. Aucun motif non applicable n'existe
+  # pour cette ligne (test_rosner() rend k chapeau = max(c(0, which(R >
+  # lambda))), entier de 0 a k).
   ro <- test_rosner(z, alpha = alpha)
   add(fam, "Valeurs aberrantes multiples (ESD generalise)", "Rosner (1983), Technometrics 25",
       fonction = "test_rosner",
-      type = "procedure de decision",
+      type = "diagnostic",
       H0 = "aucune valeur aberrante", H1 = "il existe i <= k valeurs aberrantes",
       estim_nom = "nb de valeurs aberrantes", estim = ro$nb_outliers,
-      detail = sprintf("procedure a niveau alpha = %.2f (aucune p-value)%s", alpha,
-                       if (ro$nb_outliers > 0)
-                         paste0(" ; rangs ", paste(ro$positions, collapse = ", ")) else ""),
-      verdict = if (ro$nb_outliers >= 2) "ECHEC"
-                else if (ro$nb_outliers == 1) "ALERTE" else "OK")
+      detail = paste(
+        sprintf("procedure ESD de Rosner (1983) a niveau nominal alpha = %g, sans p-value%s.", alpha,
+                if (ro$nb_outliers > 0)
+                  paste0(" ; rangs ", paste(ro$positions, collapse = ", ")) else ""),
+        "Restituee en diagnostic par decision (issue #304) : aucun verdict ni p-value retenue ;",
+        "valeurs critiques approchees, jugees adequates par l'auteur a partir de n = 25 ;",
+        "a T = 8, niveau superieur a alpha (voir la fiche) ; une valeur aberrante isolee",
+        "releve de la ligne Grubbs sur residus standardises, dont le type et le verdict",
+        "font foi."))
   # Distance de Cook et leviers de y = beta x (#153) : x et y mis a l'echelle
   # exacte (.usp_echelle_exacte()), D_t et h_t etant invariants par x -> a x,
   # y -> b y. Sans elle, D_t devenait non fini a petite echelle (x et y x

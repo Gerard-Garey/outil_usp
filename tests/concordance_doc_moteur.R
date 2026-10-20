@@ -1328,7 +1328,9 @@ REGISTRE_RUBRIQUE7 <- list(
   list(label = "fiche:sup-f", tests = "Rupture de niveau (sup-F)"),
   list(label = "fiche:ols-cusum", tests = "Stabilite cumulee (OLS-CUSUM)"),
   list(label = "fiche:grubbs", tests = "Valeur aberrante isolee (Grubbs)"),
-  list(label = "fiche:rosner-esd", tests = "Valeurs aberrantes multiples (ESD generalise)"),
+  # fiche:rosner-esd retiree (#304, Q-D1-Fh-6, option (a)) : la procedure ESD
+  # lognormale est un diagnostic par decision pour tout T. mw:m4ros reste,
+  # l'ESD Merz-Wuthrich etant une procedure de decision (Fi, #300).
   list(label = "fiche:durbin-watson-ratios-bruts", tests = "Autocorrelation d'ordre 1 (Durbin-Watson) sur ratios bruts"),
   # fiche:ljung-box-ratios-bruts retiree (#303, Q-D1-Fh-3) : ligne Ljung-Box
   # (retard 1) sur ratios bruts retiree du moteur avec son entree LB1r.

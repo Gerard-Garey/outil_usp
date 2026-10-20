@@ -48,8 +48,9 @@
 #    T2     : niveau des verdicts des 47 lignes : frequence de p retenue
 #             < alpha et < alpha/2 parmi les replications ou la ligne a une p
 #             retenue (niveau conditionnel ; regles R1, R3, R4, R7 et R13
-#             comprises) ; ligne ESD (procedure de decision sans p-value) :
-#             frequence de ALERTE ou ECHEC et de ECHEC sur les replications
+#             comprises) ; ligne ESD (diagnostic par decision depuis #304,
+#             sans p-value ni verdict) : frequence de k chapeau >= 1 et de
+#             k chapeau = 2 (colonne estimation) sur les replications
 #             traitees ; puis composition (types, natures de la p retenue,
 #             verdicts : frequence inconditionnelle des verdicts) ;
 #    T3     : effectifs par regime (run_engine() et code de #72),
@@ -95,10 +96,12 @@
 #      sous le modele ajuste, a = 0) : sens "rejeter", pas de reference ; la
 #      ligne Fisher, diagnostic sans p retenue depuis #169, tombe dans
 #      "sans objet (aucune p retenue)" ;
-#    - ligne ESD : ALERTE ou ECHEC (k chapeau >= 1) contre 0,10, niveau
-#      nominal de la procedure de Rosner (valeurs critiques a 1 - alpha/(2
-#      n_i)), exactitude non etablie a T = 8 ; ECHEC (k chapeau = 2) sans
-#      reference.
+#    - ligne ESD (diagnostic par decision depuis #304 : verdict INFO ; k
+#      chapeau lu dans la colonne estimation, l'ancien verdict ALERTE ou
+#      ECHEC etant k chapeau >= 1, ECHEC k chapeau = 2) : k chapeau >= 1
+#      contre 0,10, niveau nominal de la procedure de Rosner (valeurs
+#      critiques a 1 - alpha/(2 n_i)), exactitude non etablie a T = 8 ;
+#      k chapeau = 2 sans reference.
 #  Aide a la lecture, sans conclure : pour chaque IC, reference dans l'IC
 #  (oui / non) et position par rapport a la bande liberale de Bradley (1978),
 #  [ref/2 ; 3 ref/2] ([0,05 ; 0,15] a 0,10, [0,025 ; 0,075] a 0,05 : le
@@ -660,6 +663,11 @@ controles_72 <- function(cpt, R, jeu) {
 #   rep, ok ; ecart|b|motif ; reg|r et reg72|r (r : bord1, bord0, interieur,
 #   erreur) ; mc|s|r|n, mc|s|r|k1, mc|s|r|k2 ; mmc|s|motif ;
 #   l|ligne|n, np, k1, k2, t|type, inop, nat|classe, v|verdict ;
+#   l|ligne ESD|kesd1, kesd2 (k chapeau >= 1, k chapeau = 2 : colonne
+#   estimation, #304 ; absentes des comptes anterieurs a #304, ou la ligne
+#   ESD portait v|ALERTE (k chapeau = 1) et v|ECHEC (k chapeau = 2) : T2
+#   somme les deux formes, exacte pour des comptes anciens, nouveaux ou
+#   combines) ;
 #   h|controle|verdict ; lr|borne|r|n, k1, k2 ; lrm|borne|motif ;
 #   ic|n, ic|k50, ic|k80 ; bperdu, bperdu_rep, rechec, lrechec|borne ;
 #   lrnc|borne (LR non calculable sur l'observe, #161).
@@ -725,10 +733,15 @@ tableaux <- function(cpt, stats, lignes) {
     gl <- function(suf) g(sprintf("l|%s|%s", cl, suf))
     n <- gl("n"); np <- gl("np")
     if (identical(li, LIGNE_ESD)) {
-      # Procedure de decision sans p-value : ALERTE ou ECHEC (k chapeau >= 1)
-      # contre le niveau nominal 0,10 ; ECHEC (k chapeau = 2) sans reference.
-      c1 <- lecture(gl("v|ALERTE") + gl("v|ECHEC"), n, ALPHA); c2 <- lecture(gl("v|ECHEC"), n, NA_real_)
-      L <- c(L, ligne_md(li, n, "\u2014 (proc\u00e9dure sans p-value)",
+      # Diagnostic par decision (#304), sans p-value ni verdict : k chapeau
+      # >= 1 (colonne estimation) contre le niveau nominal 0,10 ; k chapeau
+      # = 2 sans reference. Meme evenement que l'ancien verdict ALERTE ou
+      # ECHEC (resp. ECHEC), fonction deterministe de k chapeau : les comptes
+      # anterieurs a #304 (v|ALERTE, v|ECHEC, sans kesd) restent lisibles ;
+      # depuis #304, la ligne ESD est toujours v|INFO.
+      c1 <- lecture(gl("kesd1") + gl("v|ALERTE") + gl("v|ECHEC"), n, ALPHA)
+      c2 <- lecture(gl("kesd2") + gl("v|ECHEC"), n, NA_real_)
+      L <- c(L, ligne_md(li, n, "diagnostic par decision (#304) : frequence de k\u0302 >= 1",
                          paste(c(c1[c("k", "taux", "ic")], txt_ref(ALPHA, " \u2021"), c1[c("ref_ic", "bande")]), collapse = " | "),
                          paste(c(c2[c("k", "taux", "ic")], "\u2014", "\u2014", "\u2014"), collapse = " | ")))
       next
@@ -765,10 +778,10 @@ tableaux <- function(cpt, stats, lignes) {
                "liss\u00e9e). Une p retenue d'une autre nature (repli asymptotique nomm\u00e9, r\u00e8gle R3 ; attendu 0 \u00e0 T = 8",
                "sans ex \u00e6quo) compte dans np et dans les rejets, non dans la r\u00e9f\u00e9rence, alors suivie de",
                "\u00ab (n hors r\u00e9f. = k) \u00bb."), "",
-         paste("\u2021 Ligne ESD (proc\u00e9dure de d\u00e9cision, sans p-value) : premi\u00e8re colonne, ALERTE ou ECHEC, mesure",
-               "P(k\u0302 \u2265 1), sur les r\u00e9plications trait\u00e9es, contre 0,10, niveau nominal de la proc\u00e9dure de Rosner,",
+         paste("\u2021 Ligne ESD (diagnostic par d\u00e9cision depuis #304, sans p-value ni verdict) : premi\u00e8re colonne, k\u0302 \u2265 1",
+               "(colonne estimation), mesure P(k\u0302 \u2265 1), sur les r\u00e9plications trait\u00e9es, contre 0,10, niveau nominal de la proc\u00e9dure de Rosner,",
                "valeurs critiques \u00e0 1 \u2212 \u03b1/(2 n_i) ; exactitude non \u00e9tablie \u00e0 T = 8 ni sur z = P\u03b5. Seconde",
-               "colonne : ECHEC, mesure P(k\u0302 = 2), sans niveau nominal."), "",
+               "colonne : k\u0302 = 2, mesure P(k\u0302 = 2), sans niveau nominal."), "",
          "### T2 (suite) -- composition des lignes : types, nature de la p retenue, verdicts", "",
          entete_md(c("Ligne", "n", "test", "diagnostic", "dont inop\u00e9rant (R1)", "non applicable",
                      "proc\u00e9dure de d\u00e9cision", "p exacte", "p Monte-Carlo", "p asymptotique", "autre p",
@@ -1229,8 +1242,9 @@ controle(setequal(names(STAT_LIGNE), names(USP_CATALOGUE_MC)) && all(STAT_LIGNE 
          "Coh\u00e9rence : correspondance STAT_LIGNE (statistique -> ligne) v\u00e9rifi\u00e9e sur J1 observ\u00e9 (p_mc de la ligne = p_mc du bootstrap)")
 controle(all(names(LIGNES_SANS_NIVEAU) %in% LIGNES) && all(names(LOI_LIGNE) %in% LIGNES) &&
            all(c(LIGNE_ESD, LIGNE_IC) %in% LIGNES) && all(names(LOI_STAT) %in% names(USP_CATALOGUE_MC)) &&
-           identical(TAB_A$type[match(LIGNE_ESD, LIGNES)], "procedure de decision"),
-         "Coh\u00e9rence : lignes et statistiques nomm\u00e9es par les constantes du script pr\u00e9sentes (ESD : proc\u00e9dure de d\u00e9cision)")
+           identical(TAB_A$type[match(LIGNE_ESD, LIGNES)], "diagnostic") &&
+           identical(TAB_A$verdict[match(LIGNE_ESD, LIGNES)], "INFO"),
+         "Coh\u00e9rence : lignes et statistiques nomm\u00e9es par les constantes du script pr\u00e9sentes (ESD : diagnostic par d\u00e9cision, INFO, #304)")
 # (f) References ancrees au moteur (constat F6 d'audit).
 f_atomes <- vapply(names(LOI_LIGNE), function(li) {
   p <- TAB_A$p_exacte[match(li, LIGNES)]
@@ -1309,6 +1323,12 @@ for (b in seq.int(DEBUT, FIN)) {
     if (!is.na(tab$commentaire[k]) && startsWith(tab$commentaire[k], "TEST INOPERANT")) ajoute(sprintf("l|%s|inop", li))
     ajoute(sprintf("l|%s|nat|%s", li, classe_nature(tab$nature_p[k])))
     ajoute(sprintf("l|%s|v|%s", li, nettoyer_cle(tab$verdict[k])))
+    # Ligne ESD (#304) : k chapeau lu dans la colonne estimation (k = 2 a
+    # T = 8 : k chapeau = 2 <=> k chapeau >= 2).
+    if (identical(tab$test[k], LIGNE_ESD) && is.finite(tab$estimation[k])) {
+      if (tab$estimation[k] >= 1) ajoute(sprintf("l|%s|kesd1", li))
+      if (tab$estimation[k] >= 2) ajoute(sprintf("l|%s|kesd2", li))
+    }
     p <- tab$p_retenue[k]
     if (is.finite(p)) {
       ajoute(sprintf("l|%s|np", li))

@@ -724,11 +724,12 @@ verifier("Issue #114 : registre au moteur -- declaration hors_jeux perimee et li
          .a_motif(.er2, "fiche:b", "hors_jeux perimee") && .a_motif(.er2, "fiche:a, fiche:d", "plusieurs fiches"))
 .labs <- vapply(cc$REGISTRE_RUBRIQUE7, `[[`, character(1), "label")
 .noms <- unlist(lapply(cc$REGISTRE_RUBRIQUE7, `[[`, "tests"))
-verifier("Issue #114 : registre REGISTRE_RUBRIQUE7 -- 41 fiches (53 decidees le 27/09/2026, moins fiche:fisher-global, diagnostic depuis #169, mw:m5sw, mw:m5li, diagnostics depuis #245, fiche:ljung-box-ratios-bruts, ligne retiree par #303, fiche:shapiro-wilk-sans-royston, ligne retiree, fiche:cramer-von-mises et fiche:kolmogorov-smirnov, diagnostics par decision depuis #302, fiche:breusch-pagan-1979, fiche:white, fiche:goldfeld-quandt, fiche:brown-forsythe et fiche:smirnov, diagnostics par decision depuis #299), labels et noms uniques",
-         length(.labs) == 41L &&
+verifier("Issue #114 : registre REGISTRE_RUBRIQUE7 -- 40 fiches (53 decidees le 27/09/2026, moins fiche:fisher-global, diagnostic depuis #169, mw:m5sw, mw:m5li, diagnostics depuis #245, fiche:ljung-box-ratios-bruts, ligne retiree par #303, fiche:shapiro-wilk-sans-royston, ligne retiree, fiche:cramer-von-mises et fiche:kolmogorov-smirnov, diagnostics par decision depuis #302, fiche:breusch-pagan-1979, fiche:white, fiche:goldfeld-quandt, fiche:brown-forsythe et fiche:smirnov, diagnostics par decision depuis #299, fiche:rosner-esd, diagnostic par decision depuis #304), labels et noms uniques",
+         length(.labs) == 40L &&
            !any(c("fiche:ljung-box-ratios-bruts", "fiche:shapiro-wilk-sans-royston", "fiche:cramer-von-mises",
                   "fiche:kolmogorov-smirnov", "fiche:breusch-pagan-1979", "fiche:white",
-                  "fiche:goldfeld-quandt", "fiche:brown-forsythe", "fiche:smirnov") %in% .labs) &&
+                  "fiche:goldfeld-quandt", "fiche:brown-forsythe", "fiche:smirnov",
+                  "fiche:rosner-esd") %in% .labs) &&
            !any(c("Ljung-Box (retard 1)", "Box-Pierce (retard 2)") %in% .noms) &&
            !anyDuplicated(.labs) && !anyDuplicated(.noms) &&
            all(grepl("^(fiche|mw):[a-z0-9-]+$", .labs)) && sum(startsWith(.labs, "mw:")) == 14L)

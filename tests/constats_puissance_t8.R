@@ -452,9 +452,11 @@
 #          lambda1 ou R2 > lambda2) et k chapeau = 2 <=> R2 > lambda2 sur
 #          toutes les replications ; invariance de k chapeau et de R par
 #          v -> 3 + 0,2 v et v -> -5 - 7 v (100 premiers echantillons i.i.d.) ;
-#          estimation et verdict de la ligne ESD de run_engine() egaux a
-#          test_rosner(usp_ajuster(x, y)$z) sur J1 et J2 observes et sur le
-#          premier jeu simule de chacun ; J1 observe (pi chapeau constant) :
+#          estimation de la ligne ESD de run_engine() egale au k chapeau de
+#          test_rosner(usp_ajuster(x, y)$z), ligne de type diagnostic et de
+#          verdict INFO (diagnostic par decision, #304), sur J1 et J2
+#          observes et sur le premier jeu simule de chacun ; J1 observe (pi
+#          chapeau constant) :
 #          R identique sur z et sur les log-ratios ; expression de #72 relue
 #          et identique ; premier tirage de chaque flux identique a un tirage
 #          isole ; RNGkind() et .Random.seed de l'appelant restaures ;
@@ -2287,20 +2289,23 @@ if (OPT_PARTIE == "esd") {
   ctrl_esd <- c(ctrl_esd, controle(inv_esd, sprintf(
     "C7, invariance de k\u0302 et de R par v \u2192 3 + 0,2 v et v \u2192 \u22125 \u2212 7 v (%d premiers \u00e9chantillons i.i.d.)",
     min(100L, OPT_R))))
-  # Transcription contre run_engine() (alpha par defaut) : estimation et
-  # verdict de la ligne ESD sur le jeu observe et le premier jeu simule de
-  # chaque jeu, contre test_rosner(usp_ajuster(x, y)$z).
-  verdict_esd <- function(k) if (k >= 2) "ECHEC" else if (k == 1) "ALERTE" else "OK"
+  # Transcription contre run_engine() (alpha par defaut) : estimation de la
+  # ligne ESD sur le jeu observe et le premier jeu simule de chaque jeu,
+  # contre test_rosner(usp_ajuster(x, y)$z) ; type diagnostic et verdict
+  # INFO (diagnostic par decision depuis #304 ; l'ancien verdict etait une
+  # fonction deterministe de k chapeau, lu desormais dans estimation).
   trans_esd <- all(vapply(MES_ESD, function(m) all(vapply(list(m$J$y, m$YSIM[1, ]), function(y) {
     tb <- engine_table_tests(run_engine(xt = m$J$x, yt = y, methode = "premium", segment = 1, annexe = "II",
                                         nature_donnees = "brutes", B = 99, seed = 20260831))
     l <- tb[tb$test == LIGNE_ESD, ]
     k <- test_rosner(usp_ajuster(m$J$x, y)$z, alpha = ALPHA_ESD_MOTEUR)$nb_outliers
-    nrow(l) == 1L && identical(as.numeric(l$estimation), as.numeric(k)) && identical(l$verdict, verdict_esd(k))
+    nrow(l) == 1L && identical(as.numeric(l$estimation), as.numeric(k)) &&
+      identical(l$type, "diagnostic") && identical(l$verdict, "INFO")
   }, logical(1))), logical(1)))
   ctrl_esd <- c(ctrl_esd, controle(trans_esd, sprintf(paste(
-    "C7, transcription contre run_engine() (\u03b1 = %s) : estimation et verdict de la ligne ESD \u00e9gaux \u00e0",
-    "test_rosner(usp_ajuster(x, y)$z) sur J1 et J2 observ\u00e9s et sur le premier jeu simul\u00e9 de chacun"), num(ALPHA_ESD_MOTEUR, 2))))
+    "C7, transcription contre run_engine() (\u03b1 = %s) : estimation de la ligne ESD \u00e9gale au k\u0302 de",
+    "test_rosner(usp_ajuster(x, y)$z), ligne diagnostic de verdict INFO (#304), sur J1 et J2 observ\u00e9s et sur le",
+    "premier jeu simul\u00e9 de chacun"), num(ALPHA_ESD_MOTEUR, 2))))
   # A pi chapeau constant (J1 observe), R de test_rosner() identique sur les
   # residus z et sur les log-ratios (portee de C7.a).
   f1 <- MES_ESD[["J1"]]$FIT0

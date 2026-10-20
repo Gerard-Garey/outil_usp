@@ -407,17 +407,64 @@ verifier("usp_tests : toute ligne type != 'test' hors 'procedure de decision' so
            else all(c("Sensibilite au retrait d'une annee (jackknife)",
                       "Largeur relative de l'IC bootstrap 90%") %in% tab_ln$test)
          })
-verifier("ESD lognormal (procedure de decision) : verdict OK / ALERTE / ECHEC, sens 'ne pas rejeter'",
+# Issue #304 (Q-D1-Fh-6, option (a)) : la procedure ESD lognormale est un
+# diagnostic par decision, pour tout T (verdict INFO, sens, p_retenue et
+# nature_p NA ; k chapeau de test_rosner() en estim, rangs dans le detail,
+# phrase fixe du diagnostic). Trois jeux : bootstrap fictif (k chapeau = 0),
+# run_engine() complet (B = 99), et jeu contamine (y_3 et y_6 x 2,5 ; delta
+# chapeau = 0, k chapeau = 2, rangs 3 et 6, mesure du 20/10/2026). La ligne
+# Merz-Wuthrich reste une procedure de decision (test_merz_wuthrich.R).
+NOM_ESD <- "Valeurs aberrantes multiples (ESD generalise)"
+detail_esd_attendu <- function(alpha, positions)
+  paste0(sprintf("procedure ESD de Rosner (1983) a niveau nominal alpha = %g, sans p-value", alpha),
+         if (length(positions)) paste0(" ; rangs ", paste(positions, collapse = ", ")) else "",
+         ". Restituee en diagnostic par decision (issue #304) : aucun verdict ni p-value retenue ;",
+         " valeurs critiques approchees, jugees adequates par l'auteur a partir de n = 25 ;",
+         " a T = 8, niveau superieur a alpha (voir la fiche) ; une valeur aberrante isolee",
+         " releve de la ligne Grubbs sur residus standardises, dont le type et le verdict font foi.")
+y_esd <- y; y_esd[c(3, 6)] <- y_esd[c(3, 6)] * 2.5
+fit_esd <- usp_ajuster(x, y_esd)
+s_esd <- .stats_bootstrapables(fit_esd$x, fit_esd$y, fit_esd$z, fit_esd$pi)
+boot_esd <- list(stats_obs = as.list(s_esd),
+                 p_mc = stats::setNames(rep(0.5, length(s_esd)), names(s_esd)),
+                 err_mc = stats::setNames(rep(0.01, length(s_esd)), names(s_esd)))
+verifier("ESD lognormal (#304) : diagnostic par decision, INFO, sens / p_retenue / nature_p NA, estim = k chapeau, phrase fixe (k chapeau = 0 et 2)",
          {
-           ok <- TRUE
-           for (tb in list(tab_fictif, tab_ln)) {
-             e <- tb[tb$type == "procedure de decision", ]
-             ok <- ok && nrow(e) == 1L &&
-               identical(e$test, "Valeurs aberrantes multiples (ESD generalise)") &&
-               e$verdict %in% c("OK", "ALERTE", "ECHEC") &&
-               identical(e$sens_du_test, "ne pas rejeter")
+           jeux <- list(
+             fictif = list(L = usp_tests(fit, boot_fictif(), methode = "premium"), z = fit$z),
+             run_engine = list(L = res_ln_ii1$tests,
+                               z = usp_ajuster(res_ln_ii1$donnees$xt, res_ln_ii1$donnees$yt)$z),
+             contamine = list(L = usp_tests(fit_esd, boot_esd, methode = "premium"), z = fit_esd$z))
+           pb <- character(0)
+           for (nj in names(jeux)) {
+             L <- jeux[[nj]]$L
+             e <- Filter(function(l) identical(l$test, NOM_ESD), L)
+             if (length(e) != 1L) { pb <- c(pb, paste(nj, ": ligne ESD absente ou dupliquee")); next }
+             e <- e[[1]]; ro <- test_rosner(jeux[[nj]]$z, alpha = 0.10)
+             if (!(identical(e$type, "diagnostic") && identical(e$verdict, "INFO") &&
+                   is.na(e$sens) && is.na(e$p_retenue) && is.na(e$nature_p) &&
+                   identical(e$inoperant, FALSE) && identical(e$fonction, "test_rosner") &&
+                   identical(e$estim_nom, "nb de valeurs aberrantes") &&
+                   identical(as.numeric(e$estim), as.numeric(ro$nb_outliers)) &&
+                   identical(e$detail, detail_esd_attendu(0.10, ro$positions))))
+               pb <- c(pb, sprintf("%s : type %s, verdict %s, estim %s, detail '%s'", nj, e$type,
+                                   e$verdict, format(e$estim), e$detail))
+             if (any(vapply(L, function(l) identical(l$type, "procedure de decision"), logical(1))))
+               pb <- c(pb, paste(nj, ": procedure de decision encore produite par usp_tests()"))
            }
-           ok
+           k_c <- test_rosner(fit_esd$z, alpha = 0.10)
+           if (!(identical(k_c$nb_outliers, 2L) || identical(k_c$nb_outliers, 2)) ||
+               !identical(sort(k_c$positions), c(3L, 6L)))
+             pb <- c(pb, "jeu contamine : k chapeau different de 2 ou rangs differents de 3, 6 (jeu a revoir)")
+           if (length(pb)) paste(pb, collapse = " ; ") else TRUE
+         })
+verifier("ESD lognormal (#304) : diagnostic par decision a toute valeur d'alpha (0.05), phrase avec alpha = 0.05",
+         {
+           L <- usp_tests(fit_esd, boot_esd, alpha = 0.05, methode = "premium")
+           e <- Filter(function(l) identical(l$test, NOM_ESD), L)[[1]]
+           ro <- test_rosner(fit_esd$z, alpha = 0.05)
+           identical(e$type, "diagnostic") && identical(e$verdict, "INFO") &&
+             identical(e$detail, detail_esd_attendu(0.05, ro$positions))
          })
 verifier("usp_tests : types en usage dans {test, diagnostic, non applicable, procedure de decision}",
          {
@@ -520,13 +567,24 @@ verifier("add() (usp_tests) refuse un verdict force sur un diagnostic (Leviers, 
            grepl("un verdict n'est admis que pour type = 'test' ou 'procedure de decision'", m, fixed = TRUE) &&
              grepl("Leviers (hat values)", m, fixed = TRUE)
          })
-verifier("add() (usp_tests) refuse une procedure de decision sans verdict (ESD)",
+# Depuis #304, usp_tests() ne produit plus de procedure de decision (l'ESD
+# lognormale est un diagnostic par decision) : la garde de add() est
+# exercee par un appel direct au registre lognormal (et, dans
+# test_merz_wuthrich.R, par mw_tests(), dont l'ESD reste une procedure de
+# decision) ; un verdict force sur la ligne ESD diagnostic est refuse.
+verifier("add() (registre lognormal) refuse une procedure de decision sans verdict ; usp_tests refuse un verdict force sur l'ESD diagnostic (#304)",
          {
-           f <- usp_tests_modifie("verdict = if (ro$nb_outliers >= 2)",
-                                  "verdict = if (TRUE) NULL else if (ro$nb_outliers >= 2)")
-           m <- message_erreur(f(fit, boot_fictif(), methode = "premium"))
-           grepl("une ligne de type 'procedure de decision' doit fournir son verdict", m, fixed = TRUE) &&
-             grepl("Valeurs aberrantes multiples (ESD generalise)", m, fixed = TRUE)
+           reg <- engine_registre_tests(boot_fictif(), USP_CATALOGUE_MC, 0.10, "Monte-Carlo")
+           m1 <- message_erreur(reg$add("F. Stabilite, ruptures et points aberrants", NOM_ESD,
+                                        "Rosner (1983), Technometrics 25", fonction = "test_rosner",
+                                        type = "procedure de decision"))
+           f <- usp_tests_modifie('type = "diagnostic", H0 = "aucune valeur aberrante"',
+                                  'type = "diagnostic", verdict = "OK", H0 = "aucune valeur aberrante"')
+           m2 <- message_erreur(f(fit, boot_fictif(), methode = "premium"))
+           grepl("une ligne de type 'procedure de decision' doit fournir son verdict", m1, fixed = TRUE) &&
+             grepl(NOM_ESD, m1, fixed = TRUE) &&
+             grepl("un verdict n'est admis que pour type = 'test' ou 'procedure de decision'", m2, fixed = TRUE) &&
+             grepl(NOM_ESD, m2, fixed = TRUE)
          })
 
 # Provenance des lignes (#111, regles A1, A2, A4) : add() exige fonction,
