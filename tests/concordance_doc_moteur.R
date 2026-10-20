@@ -1300,12 +1300,11 @@ REGISTRE_RUBRIQUE7 <- list(
        t_positif = 10L),
   list(label = "fiche:breusch-pagan-koenker",
        tests = "Heteroscedasticite vs volume - Breusch-Pagan studentise (Koenker)"),
-  list(label = "fiche:breusch-pagan-1979",
-       tests = "Heteroscedasticite vs volume - Breusch-Pagan original (non robuste)"),
-  list(label = "fiche:white", tests = "Heteroscedasticite (forme quadratique)"),
-  list(label = "fiche:goldfeld-quandt", tests = "Egalite des variances petits vs gros volumes"),
-  list(label = "fiche:brown-forsythe", tests = "Homogeneite des dispersions (mediane)"),
-  list(label = "fiche:smirnov", tests = "Egalite des lois petits vs gros volumes (2 ech.)"),
+  # fiche:breusch-pagan-1979, fiche:white, fiche:goldfeld-quandt,
+  # fiche:brown-forsythe et fiche:smirnov retirees (#299, Q-D1-Fh-5) : lignes
+  # en diagnostic par decision dans tous les regimes. fiche:spearman reste,
+  # par sa ligne ratio / volume (la ligne ratio / temps est un diagnostic par
+  # decision depuis #299).
   list(label = "fiche:shapiro-wilk", tests = "Shapiro-Wilk sur residus standardises"),
   # fiche:shapiro-wilk-sans-royston retiree (#302, Q-D1-Fh-4) : ligne
   # Shapiro-Wilk a loi nulle simulee retiree du moteur.

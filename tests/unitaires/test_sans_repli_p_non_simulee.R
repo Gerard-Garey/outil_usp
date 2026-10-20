@@ -122,7 +122,13 @@ tj <- list(J1 = lignes_j(d181$xt, d181$yt), J2 = lignes_j(xi181, yi181))
 # Cramer-von Mises en diagnostic par decision (motif en tete sous la forme
 # "Monte-Carlo indisponible : <motif>.", hors du prefixe de #181) : quatre
 # lignes de moins au prefixe de #181 (J1 : 19 -> 15 ; J2 : 23 -> 19).
-attendu <- list(J1 = c(diag = 15L, sans_p = 1L), J2 = c(diag = 19L, sans_p = 8L))
+# Depuis #299 : Breusch-Pagan 1979, White, Goldfeld-Quandt, Brown-Forsythe,
+# Smirnov et Spearman ratio / temps en diagnostic par decision (meme forme
+# du motif que #302) : J1, quatre lignes de moins au prefixe de #181
+# (15 -> 11 ; Smirnov et Spearman-temps y ont une p exacte) ; J2, cinq
+# (19 -> 14, Spearman-temps compris), et Smirnov, sans p non simulee,
+# n'est plus un test sans p-value (8 -> 7).
+attendu <- list(J1 = c(diag = 11L, sans_p = 1L), J2 = c(diag = 14L, sans_p = 7L))
 for (j in names(tj)) local({
   tt <- tj[[j]]; a <- attendu[[j]]
   pre <- pre181(MOTIF_MC_REPLIC_INSUFFISANTES)

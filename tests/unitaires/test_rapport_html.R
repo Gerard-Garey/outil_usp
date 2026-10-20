@@ -1076,10 +1076,14 @@ verifier(".commentaire_replie() : coupure au dernier espace avant le seuil, au s
          })
 # Phrase de #244 (decision du mainteneur : sortie du repli) : cas long, Origine
 # de reserve2 (314 caracteres, phrase au-dela du seuil de 200) ; cas court,
-# Grubbs de premium_interieur (128 caracteres) ; phrase seule, homogeneite des
-# dispersions de premium (detail vide hors phrase). Ligne designee par son
-# nom de test (#302 : un retrait de lignes decale les indices), une et une
-# seule par reference (erreur sinon).
+# Grubbs de premium_interieur (128 caracteres) ; phrase seule : detail
+# synthetique egal a PHRASE_VERDICT_SENSIBLE_MC (depuis #299, homogeneite des
+# dispersions de premium, source de ce cas, est un diagnostic par decision
+# sans la phrase de #244, et aucune ligne des references n'a plus un detail
+# reduit a la seule phrase ; cas d'add() a detail vide, U244-8 de
+# test_verdict_sensible_mc.R). Ligne designee par son nom de test (#302 : un
+# retrait de lignes decale les indices), une et une seule par reference
+# (erreur sinon).
 ref244 <- function(cas, nom) {
   l <- Filter(function(l) identical(l$test, nom),
               readRDS(file.path(.racine, "tests", "reference", paste0(cas, ".rds")))$tests)
@@ -1090,7 +1094,7 @@ verifier(".commentaire_replie() : phrase de #244 hors du <details>, en pied, tex
          {
            x_long <- ref244("reserve2", "Nullite de l'ordonnee a l'origine, colonne par colonne")
            x_court <- ref244("premium_interieur", "Valeur aberrante isolee (Grubbs)")
-           x_seul <- ref244("premium", "Homogeneite des dispersions (mediane)")
+           x_seul <- PHRASE_VERDICT_SENSIBLE_MC
            cr <- .commentaire_replie(c(x_long, x_court, x_seul))
            nchar(x_long) > 200L && endsWith(x_long, PHRASE_VERDICT_SENSIBLE_MC) &&
              startsWith(cr[1], "<details class='com'><summary>") &&

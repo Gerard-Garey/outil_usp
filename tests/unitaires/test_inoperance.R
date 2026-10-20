@@ -238,7 +238,9 @@ verifier("usp_bootstrap(B = 2) + usp_tests() : motif replications insuffisantes 
          {
            b2 <- usp_bootstrap(fit, B = 2, seed = 20260831)
            t2 <- usp_tests(fit, b2, methode = "premium")
-           sm <- ligne(t2, "Egalite des lois petits vs gros volumes (2 ech.)")
+           # p exacte gardee : Durbin-Watson (Smirnov, temoin avant #299, est
+           # depuis un diagnostic par decision, sans p retenue).
+           sm <- ligne(t2, "Autocorrelation d'ordre 1 (Durbin-Watson)")
            cs <- ligne(t2, "Tendance par signes du ratio S/P")
            rs <- ligne(t2, "RESET (forme fonctionnelle)")
            sf <- ligne(t2, "Rupture de niveau (sup-F)")

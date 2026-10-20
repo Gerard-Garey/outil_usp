@@ -2842,6 +2842,74 @@ test_brown_forsythe <- function(u, reg) {
   list(stat = F, p = .p_borne(stats::pf(F, 1, ddl, lower.tail = FALSE)))
 }
 
+# Puissance enveloppe de H2 (#299, option (A) ; decision du mainteneur du
+# 19/10/2026, Q-D1-Fh-5, specification Fh, section 6.2) : puissance pi_env,
+# au seuil alpha, du test le plus puissant invariant entre les deux bornes
+# de la famille de l'annexe XVII, delta = 1 (Var(ln Y_t) proportionnelle a
+# 1, Sigma0 = I) et delta = 0 (Var(ln Y_t) proportionnelle a xbar / x_t,
+# Sigma1 = diag(xbar / x_t)), le maximum des deux sens (H0 et H1 echanges).
+# Fonction de x et de alpha seulement : aucun parametre estime, ce n'est pas
+# une puissance a posteriori. Lue par usp_tests() (detail de Breusch-Pagan
+# studentise).
+# Modele [H] : limite des faibles coefficients de variation, c = e^(2 gamma)
+# -> 0, ou Var(ln Y_t) = ln(1 + c a_t) ~ c a_t, a_t = delta + (1 - delta)
+# xbar / x_t ; le terme de moyenne -1/2 ln(1 + c a_t) est neglige : ln y =
+# mu 1 + e, e ~ N(0, s^2 Sigma_i). Groupe : translations de ln y le long de
+# 1 et changements d'echelle de e (s inconnu). Invariant maximal : direction
+# de w = H'e, H base orthonormee du complement de 1 ; w ~ N(0, s^2 A_i), A_i
+# = H' Sigma_i H, A0 = I. La loi de la direction (gaussienne centrale
+# angulaire) a la densite |A|^(-1/2) (u' A^-1 u)^(-(T-1)/2) ; le lemme de
+# Neyman-Pearson applique a l'invariant maximal (Lehmann et Romano 2005,
+# Testing Statistical Hypotheses, 3e ed., ch. 6, section 6.3, contenu non
+# relu ; derivation de la specification Fh, section 6.2) rejette H0 : A_n
+# contre H1 : A_a pour Q_k = w'(A_n^-1 - k A_a^-1) w > 0 (w' A_i^-1 w est la
+# somme des carres residuelle de l'estimation MCG de mu sous Sigma_i). Dans
+# la base propre de A1 (valeurs propres a_j, A0 = I reste I), le sens
+# "H0 : delta = 1" donne Q_k = sum (1 - k / a_j) w_j^2 : niveau P(sum (1 -
+# k / a_j) chi2_1 > 0), puissance P(sum (a_j - k) chi2_1 > 0) ; le sens
+# "H0 : delta = 0" est le meme calcul sur 1 / a_j. k, dans ]min a ; max a[,
+# est la racine (uniroot()) de niveau = alpha, chaque probabilite etant
+# calculee par .imhof_p_sup0() (P(sum h_j chi2_1 > 0), Imhof 1961) sur h
+# normalise par max|h| (le signe de Q ne depend pas de l'echelle ; meme
+# precaution que dw_puissance_ar1()). Approximation numerique (quadrature,
+# uniroot(), tolerance 1e-12 comme dw_puissance_ar1()) d'une quantite
+# exacte sous ce modele. Controle Monte-Carlo hors CI (R = 2e5, statistique
+# ecrite comme rapport des sommes de carres MCO et MCG) : voir le message
+# du commit de #299.
+# Hypotheses [H] (specification Fh, section 6.2) : les tests H2 du moteur
+# ne sont invariants sous ce groupe que dans la limite des faibles CV ; hors
+# de la famille (variance en x^k raide), la puissance d'un test H2 peut
+# depasser pi_env : pi_env borne la detection d'un ecart DANS la famille
+# reglementaire. La puissance du test invariant decroit strictement en c
+# dans les deux sens sur J1 et J2 (mesure d'actuary du 20/10/2026, non
+# versionnee) : la limite c -> 0 y est la plus favorable ; non etabli pour
+# d'autres volumes [H]. Invariante par x -> lambda x (xbar / x_t l'est).
+# Non calculee a volumes constants (usp_volumes_constants() : Sigma1 = Sigma0,
+# aucune alternative ; ligne Breusch-Pagan non applicable, regle R13) : NA ;
+# NA aussi si l'integration d'Imhof ou la recherche de racine echoue : une
+# erreur, ou un avertissement (uniroot() signale une non-convergence par un
+# simple warning, sans erreur), rendent NA ; la phrase de usp_tests() est
+# alors omise.
+usp_puissance_enveloppe_h2 <- function(x, alpha) {
+  if (!is.numeric(x) || length(x) < 3L || !all(is.finite(x)) || any(x <= 0))
+    stop("usp_puissance_enveloppe_h2() : x doit etre un vecteur d'au moins 3 volumes finis strictement positifs")
+  if (length(alpha) != 1L || !is.numeric(alpha) || !is.finite(alpha) || alpha <= 0 || alpha >= 1)
+    stop("usp_puissance_enveloppe_h2() : alpha doit etre dans ]0, 1[")
+  if (usp_volumes_constants(x)) return(NA_real_)
+  T <- length(x)
+  H <- qr.Q(qr(cbind(1, diag(T))))[, -1L, drop = FALSE]
+  a <- eigen(crossprod(H, (mean(x) / x) * H), symmetric = TRUE, only.values = TRUE)$values
+  p_sup <- function(h) .imhof_p_sup0(h / max(abs(h)))
+  # Puissance du sens "H0 : A0 = I contre H1 : diag(a)".
+  sens <- function(a) tryCatch({
+    k <- stats::uniroot(function(k) p_sup(1 - k / a) - alpha, range(a),
+                        f.lower = 1 - alpha, f.upper = -alpha, tol = 1e-12)$root
+    p_sup(a - k)
+  }, error = function(e) NA_real_, warning = function(w) NA_real_)
+  p <- c(sens(a), sens(1 / a))
+  if (anyNA(p)) NA_real_ else max(p)
+}
+
 # Regression simple non contrainte y = a + b*x + e (Student & Fisher, 1908/1922/1925)
 # utilisee uniquement comme diagnostic exploratoire de H1 - le modele
 # reglementaire lui-meme est y = beta*x + e, sans constante (cf. test_intercept).
@@ -5048,8 +5116,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # Diagnostics poses par usp_tests() (type = "diagnostic" passe a add(),
   # add() inchangee) : regle R15 (#303, diagnostic par regle) et diagnostics
   # par decision de #302 (Kolmogorov-Smirnov contre N(0,1), Cramer-von
-  # Mises). Motif Monte-Carlo de la statistique nm, lu au bootstrap (NA si
-  # la p Monte-Carlo est calculee).
+  # Mises) et de #299 (Breusch-Pagan 1979, White, Goldfeld-Quandt,
+  # Brown-Forsythe, Smirnov, Spearman ratio / temps). Motif Monte-Carlo de
+  # la statistique nm, lu au bootstrap (NA si la p Monte-Carlo est calculee).
   motif_mc_lu <- function(nm)
     if (!is.null(boot$motif_mc) && nm %in% names(boot$motif_mc))
       unname(boot$motif_mc[[nm]]) else NA_character_
@@ -5081,13 +5150,42 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     # NULL, branche 1 de Runsr sans p_mc), qui ferait joindre par " ; ".
     joindre(joindre(pre, trimws(detail)), phrase)
   }
+  # Diagnostics par decision (#302 : Kolmogorov-Smirnov, Cramer-von Mises ;
+  # #299 : Breusch-Pagan 1979, White, Goldfeld-Quandt, Brown-Forsythe,
+  # Smirnov, Spearman ratio / temps) : type "diagnostic" si la statistique
+  # observee est definie, sinon type "test" laisse a add(), qui rend la
+  # ligne non applicable (priorite des motifs non applicables) ; detail par
+  # detail_diagnostic(). Les motifs non applicables poses par l'appelant
+  # (volumes constants, regle R13 ; White a moins de trois volumes
+  # distincts ; partition de Smirnov) sont testes avant.
+  type_decision <- function(nm) if (stat_definie(nm)) "diagnostic" else "test"
+  detail_decision <- function(nm, detail, phrase)
+    if (stat_definie(nm)) detail_diagnostic(nm, detail, phrase) else detail
+  # Lignes de #299 : ordre motif Monte-Carlo (detail_diagnostic()), detail
+  # propre, motif ex aequo (motif_ea, Spearman ratio / temps et Smirnov : la
+  # chaine effectifs de la ligne, jointe ici seulement quand p_min est NA par
+  # ex aequo, dans tous les regimes, add() ne la restituant qu'aux lignes de
+  # type test ; avis d'actuary du 20/10/2026), phrase fixe. Point final
+  # ajoute avant la phrase fixe s'il manque (Smirnov ; Spearman ratio / temps
+  # dans la bande ; motif ex aequo), pour une jointure ". " par
+  # .engine_joindre(), comme sur les autres diagnostics ; statistique
+  # observee non definie : detail inchange. Les lignes de #302 gardent
+  # detail_decision(), au bit pres.
+  detail_decision_299 <- function(nm, detail, phrase, motif_ea = "") {
+    if (!stat_definie(nm)) return(detail)
+    d <- trimws(joindre(trimws(detail), motif_ea))
+    if (nzchar(d) && !endsWith(d, ".")) d <- paste0(d, ".")
+    detail_diagnostic(nm, d, phrase)
+  }
 
   # p_min des lignes de rangs (Spearman, Mann-Kendall ; #44, reprise, avis
   # d'actuary Q5) : 2/T! n'est la p minimale que sans ex aequo ; avec ex
   # aequo (dans r, ou dans x pour Spearman-volume), la loi de permutation
   # conditionnelle n'est pas tabulee : ni p_min ni p exacte (#70, regle 2b ;
   # mk_p_exacte() rend deja NA avec ex aequo), et le motif, porte par
-  # effectifs, est restitue dans detail par add() (p_min NA).
+  # effectifs, est restitue dans detail par add() (p_min NA) sur les lignes
+  # de type test ; sur Spearman ratio / temps, diagnostic par decision depuis
+  # #299, par detail_decision_299().
   # Ex aequo a la tolerance TOL_EX_AEQUO, definition partagee (#112) : r et x
   # sont aplatis une fois (r_ea, x_ea) pour cor.test() ; les autres lignes
   # (Mann-Kendall, Cox-Stuart, suites) aplatissent dans leurs fonctions. r et
@@ -5529,8 +5627,27 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   }
   ct <- suppressWarnings(stats::cor.test(r_ea, seq_along(r), method = "spearman", exact = FALSE))
   p_st <- p_spearman_exacte(r_ea, seq_along(r), r_ea)
+  # Spearman ratio / temps : diagnostic par decision (#299 ; decision du
+  # mainteneur du 19/10/2026, Q-D1-Fh-5, specification Fh, section 6.1),
+  # dans tous les regimes : meme alternative (tendance monotone du ratio)
+  # que la ligne Mann-Kendall, dont le type et le verdict font foi
+  # (correlation de rho_s et du S de Kendall sur les 8! = 40 320 ordres :
+  # 0,98198, mesuree le 20/10/2026 par engine_permutations(8), non
+  # versionnee [H] ; revue du 15/10/2026, bloc 2 : jamais de verdicts
+  # opposes, constat non refait ici).
+  # p-values (exacte, asymptotique, Monte-Carlo) et p_min conservees dans
+  # leurs colonnes ; inoperant FALSE (la regle R1 ne s'applique qu'a une
+  # ligne de type test) ; les suffixes qu'add() ne pose qu'aux lignes de
+  # type test (texte de R1, plancher Monte-Carlo, phrase de #244) ne sont
+  # pas repris ; le motif ex aequo (effectifs) est joint par
+  # detail_decision_299().
+  txt_diag_spear_tps <- paste("Restituee en diagnostic par decision (issue #299) : aucun verdict",
+                              "ni p-value retenue ; meme alternative (tendance monotone du",
+                              "ratio) que la ligne Mann-Kendall, dont le type et le verdict",
+                              "font foi.")
   add(fam, "Correlation ratio S/P vs temps", "Spearman (1904) ; exact : Best & Roberts (1975)",
       fonction = "usp_tests",
+      type = type_decision("SpearTps"),
       H0 = "independance entre le ratio et le rang chronologique",
       H1 = "association monotone avec le temps",
       stat_nom = "S", stat = unname(ct$statistic),
@@ -5540,7 +5657,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       p_ex = p_st,
       p_as = ct$p.value, mc_nom = "SpearTps",
       p_min = pmin_rangs(r_ea), effectifs = eff_rangs(r_ea),
-      detail = detail_spearman("", p_st))
+      detail = detail_decision_299("SpearTps", detail_spearman("", p_st), txt_diag_spear_tps,
+                                   motif_ea = if (ex_aequo(r_ea)) eff_rangs(r_ea) else ""))
   mk <- test_mann_kendall(r, plancher = 0)
   p_mk <- p_ex_si_pi_constant(mk_p_exacte(r, plancher = 0))
   add(fam, "Tendance monotone du ratio S/P",
@@ -5590,7 +5708,34 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 
   ## --- C. H2 : variance quadratique en X_t -----------------------------------
   fam <- paste("C. H2 - structure de variance", cite_hyp("ii"))
+  # Lignes H2 (#299 ; decision du mainteneur du 19/10/2026, Q-D1-Fh-5, option
+  # (A), specification Fh, sections 6.1 a 6.3). Breusch-Pagan studentise
+  # (Koenker) reste la seule ligne H2 de type test, sans bascule (un rejet
+  # calibre au niveau alpha garde sa valeur de preuve quelle que soit la
+  # puissance) ; son detail porte la puissance enveloppe pi_env
+  # (usp_puissance_enveloppe_h2(), nombre deterministe, fonction de x et de
+  # alpha seulement), non calculee a volumes constants (ligne non
+  # applicable, regle R13) ni sur une ligne dont la statistique observee
+  # n'est pas definie. Breusch-Pagan 1979, White, Goldfeld-Quandt,
+  # Brown-Forsythe et Smirnov (famille C. inchangee) sont des diagnostics par
+  # decision dans tous les regimes (type_decision(), detail_decision_299()) :
+  # meme mecanisme que #302 ; motifs non applicables prioritaires.
+  txt_diag_h2 <- paste("Restituee en diagnostic par decision (issue #299) : aucun verdict ni",
+                       "p-value retenue ; la structure de variance releve de la ligne",
+                       "Breusch-Pagan studentise (Koenker), dont le type et le verdict font foi.")
+  txt_diag_smirnov <- paste("Restituee en diagnostic par decision (issue #299) : aucun verdict ni",
+                            "p-value retenue ; compare la position de z entre petits et gros",
+                            "volumes, alternative de H1 plutot que de H2 ; l'hypothese H1 releve",
+                            "des lignes de la famille B., dont le type et le verdict font foi.")
   bp <- test_breusch_pagan(z^2, x)
+  pi_env <- if (vol_cst || !stat_definie("BP")) NA_real_
+            else usp_puissance_enveloppe_h2(x, alpha)
+  txt_pi_env <- if (!is.finite(pi_env)) ""
+    else sprintf(paste("Puissance maximale, au seuil alpha = %g, d'un test invariant de delta = 1",
+                       "contre delta = 0 ou de delta = 0 contre delta = 1 (ecart le plus grand",
+                       "de la famille de l'annexe XVII,",
+                       "limite des faibles coefficients de variation) : %.2f avec ces volumes ;",
+                       "un OK ne demontre pas la structure de variance."), alpha, pi_env)
   add(fam, "Heteroscedasticite vs volume - Breusch-Pagan studentise (Koenker)",
       fonction = "test_breusch_pagan",
       "Breusch & Pagan (1979) ; studentisation de Koenker (1981)",
@@ -5599,50 +5744,59 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       H1 = "variance residuelle dependante du volume",
       stat_nom = "LM", stat = bp$stat, loi = "chi2(1) asymptotique",
       p_as = bp$p, mc_nom = "BP",
-      detail = detail_vol("Doit etre non significatif si la ponderation pi_t est correcte"))
+      # Phrase de pi_env en seconde phrase (point final ajoute a la premiere,
+      # jointure ". " par .engine_joindre()) ; sans pi_env, detail inchange.
+      detail = detail_vol(local({
+        d0 <- "Doit etre non significatif si la ponderation pi_t est correcte"
+        if (nzchar(txt_pi_env)) joindre(paste0(d0, "."), txt_pi_env) else d0
+      })))
   bp79 <- test_breusch_pagan_original(z^2, x)
   add(fam, "Heteroscedasticite vs volume - Breusch-Pagan original (non robuste)",
       fonction = "test_breusch_pagan_original",
       "Breusch & Pagan (1979), Econometrica 47",
-      type = si_vol_cst("test"),
+      type = if (vol_cst) "non applicable" else type_decision("BP79"),
       variante = "secondaire",
       H0 = "c1 = 0 ET erreurs normales : variance residuelle independante du volume",
       H1 = "variance residuelle dependante du volume",
       stat_nom = "LM", stat = bp79$stat, loi = "chi2(1) asymptotique, SOUS NORMALITE",
       p_as = bp79$p, mc_nom = "BP79",
-      detail = detail_vol(paste("Version publiee, avec le facteur 1/2 issu de Var(u^2) = 2 sigma^4.",
-                                "NON ROBUSTE : sur-rejette si les erreurs ne sont pas normales.",
-                                "A confronter systematiquement a la version de Koenker ci-dessus.")))
+      # #299 : la phrase "A confronter systematiquement a la version de
+      # Koenker ci-dessus." est retiree (avis d'actuary du 20/10/2026) : la
+      # ligne Koenker porte seule le verdict de H2.
+      detail = detail_vol(detail_decision_299("BP79", paste(
+        "Version publiee, avec le facteur 1/2 issu de Var(u^2) = 2 sigma^4.",
+        "NON ROBUSTE : sur-rejette si les erreurs ne sont pas normales."), txt_diag_h2)))
   # Issue #110 : meme restitution que RESET (priorite R13 > (a) > (b)).
   wh <- test_white(z^2, x)
   add(fam, "Heteroscedasticite (forme quadratique)", "White (1980), Econometrica 48",
       fonction = "test_white",
-      type = if (vol_cst || !is.na(wh$non_applicable)) "non applicable" else "test",
+      type = if (vol_cst || !is.na(wh$non_applicable)) "non applicable"
+             else type_decision("White"),
       H0 = "c1 = c2 = 0", H1 = "heteroscedasticite residuelle de forme quadratique",
       stat_nom = "LM", stat = wh$stat, loi = "chi2(2) asymptotique",
       p_as = wh$p, mc_nom = "White",
       detail = if (vol_cst) txt_vol_cst
       else if (!is.na(wh$non_applicable)) wh$non_applicable
-      else "")
+      else detail_decision_299("White", "", txt_diag_h2))
   gq <- test_goldfeld_quandt(z, x)
   add(fam, "Egalite des variances petits vs gros volumes",
       fonction = "test_goldfeld_quandt",
       "Goldfeld & Quandt (1965), JASA 60",
-      type = si_vol_cst("test"),
+      type = if (vol_cst) "non applicable" else type_decision("GQ"),
       H0 = "sigma1^2 = sigma2^2", H1 = "variances inegales entre les deux blocs",
       stat_nom = "F", stat = gq$stat,
       loi = sprintf("F(%d,%d) approx. (residus issus d'un ajustement global)",
                     floor(T / 2), floor(T / 2)),
-      p_as = gq$p, mc_nom = "GQ", detail = detail_vol(""))
+      p_as = gq$p, mc_nom = "GQ", detail = detail_vol(detail_decision_299("GQ", "", txt_diag_h2)))
   bf <- test_brown_forsythe(z, x)
   add(fam, "Homogeneite des dispersions (mediane)",
       fonction = "test_brown_forsythe",
       "Brown & Forsythe (1974), JASA 69",
-      type = si_vol_cst("test"),
+      type = if (vol_cst) "non applicable" else type_decision("BF"),
       H0 = "egalite des dispersions entre les deux groupes",
       H1 = "dispersions inegales",
       stat_nom = "W", stat = bf$stat, loi = sprintf("F(1,%d) approx.", T - 2),
-      p_as = bf$p, mc_nom = "BF", detail = detail_vol(""))
+      p_as = bf$p, mc_nom = "BF", detail = detail_vol(detail_decision_299("BF", "", txt_diag_h2)))
   # Smirnov (T >= 8) : la ligne existe dans tous les regimes (invariant I5,
   # #59) ; non applicable a volumes constants (regle R13) ou si la partition
   # par la mediane des volumes laisse un groupe de moins de trois annees (ex
@@ -5655,14 +5809,21 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     # une p exacte conditionnelle (Schroer & Trenkler, 1995) dont 2/C(n1+n2,
     # n1) n'est pas la p minimale : ni p exacte ni p_min, motif dans
     # effectifs, p Monte-Carlo retenue (regle 2b de #70, comme Spearman et
-    # Mann-Kendall). D et sa p_mc restent calcules.
+    # Mann-Kendall). D et sa p_mc restent calcules. Depuis #299, la ligne est
+    # un diagnostic par decision : aucune p n'est retenue, et le motif ex
+    # aequo (eff_sm_ea) est joint par detail_decision_299(), add() ne le
+    # restituant qu'aux lignes de type test.
     z_ea <- engine_aplatir_ex_aequo(z)
     ea_sm <- anyDuplicated(z_ea) > 0
     ks2 <- if (calculable) suppressWarnings(stats::ks.test(z_ea[grp], z_ea[!grp]))
     p_sm <- if (calculable && !ea_sm) p_ex_si_pi_constant(ks2$p.value) else NA_real_
+    eff_sm_ea <- if (calculable && ea_sm)
+      sprintf(paste("n1 = %d, n2 = %d ; ex aequo dans z : loi",
+                    "conditionnelle non attribuee, p_min et p exacte",
+                    "non attribuees"), sum(grp), sum(!grp)) else ""
     add(fam, "Egalite des lois petits vs gros volumes (2 ech.)", "Smirnov (1939)",
         fonction = "usp_tests",
-        type = if (calculable) "test" else "non applicable",
+        type = if (calculable) type_decision("Smirnov") else "non applicable",
         H0 = "F1 = F2 (memes lois)", H1 = "lois differentes",
         stat_nom = "D", stat = if (calculable) unname(ks2$statistic) else NA_real_,
         loi = loi_r7("exacte combinatoire (ks.test, sans ex aequo)",
@@ -5670,26 +5831,26 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         p_ex = p_sm, mc_nom = "Smirnov",
         p_min = if (calculable && !ea_sm) smirnov_p_min(sum(grp), sum(!grp)) else NA_real_,
         effectifs = if (!calculable) NA_character_
-                    else if (ea_sm)
-                      sprintf(paste("n1 = %d, n2 = %d ; ex aequo dans z : loi",
-                                    "conditionnelle non attribuee, p_min et p exacte",
-                                    "non attribuees"), sum(grp), sum(!grp))
+                    else if (ea_sm) eff_sm_ea
                     else sprintf("n1 = %d, n2 = %d", sum(grp), sum(!grp)),
         detail = if (vol_cst) txt_vol_cst
         else if (!calculable)
           sprintf(paste("partition par la mediane des volumes : groupes de %d et %d",
                         "annees (moins de 3 dans un groupe, ex aequo sur la mediane) :",
                         "test non applicable"), sum(grp), sum(!grp))
-        else if (ea_sm) detail_r7("Voir aussi le QQ-plot a deux echantillons", p_sm)
+        else if (ea_sm)
+          detail_decision_299("Smirnov", detail_r7("Voir aussi le QQ-plot a deux echantillons", p_sm),
+                              txt_diag_smirnov, motif_ea = eff_sm_ea)
         # #182 (D1-4) : a pi_t variable, la p retenue est Monte-Carlo et
         # 2/C(n1+n2, n1) ne la borne pas ; le texte dit de quelle loi c'est
         # le minimum.
-        else detail_r7(sprintf(paste("Voir aussi le QQ-plot a deux echantillons ; p-value",
-                                     "minimale atteignable%s = %.4f, atteinte seulement pour",
-                                     "D = 1 (deux groupes totalement separes)"),
-                               if (isTRUE(pi_constant)) ""
-                               else " sous la loi de reference echangeable",
-                               smirnov_p_min(sum(grp), sum(!grp))), p_sm))
+        else detail_decision_299("Smirnov", detail_r7(sprintf(paste(
+          "Voir aussi le QQ-plot a deux echantillons ; p-value",
+          "minimale atteignable%s = %.4f, atteinte seulement pour",
+          "D = 1 (deux groupes totalement separes)"),
+          if (isTRUE(pi_constant)) ""
+          else " sous la loi de reference echangeable",
+          smirnov_p_min(sum(grp), sum(!grp))), p_sm), txt_diag_smirnov))
   }
   # Issue #58 : a volumes constants (usp_regime(), tolerance TOL_DELTA_BORD),
   # a_t = 1 pour tout t, pi_t ne depend plus de delta et la vraisemblance est
@@ -5815,9 +5976,6 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                        "p-value retenue ; l'hypothese releve de la ligne Lilliefors (distance",
                        "de Kolmogorov sur residus re-standardises), dont le type et le",
                        "verdict font foi.")
-  type_decision <- function(nm) if (stat_definie(nm)) "diagnostic" else "test"
-  detail_decision <- function(nm, detail, phrase)
-    if (stat_definie(nm)) detail_diagnostic(nm, detail, phrase) else detail
   p_cvm <- if (hors_plage) NA_real_ else cvm_p_stephens(w2_std, T)
   add(fam, "Cramer-von Mises", "Cramer (1928) / von Mises (1928) ; Stephens (1974)",
       fonction = "stat_cvm",
