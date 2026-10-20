@@ -67,6 +67,22 @@
 > - **(i) Statut de Rosner (1983).** Le texte de base de la spécification (en-tête, ancien § 7, § 13) le tenait pour « non relu » (Q-Fc-10). Le complément corrige : l'article a été **lu en texte intégral par la session de recherche documentaire du 19/10/2026** (#347), et Q-38-10 est révisée (commentaire `6262306477` de #347). La règle Q-Fc-10 ne s'applique plus à Rosner ; elle s'applique encore à Thompson (1935).
 > - **(ii) Relevés non contrôlés sur la source.** `actuary-approfondi` n'a pas pu relire l'article : accès refusé par le proxy (`CONNECT tunnel failed, response 403`). Les citations, pages et tables de #347 n'ont donc **pas été contrôlées sur la source** [NV] ; elles l'ont été par recoupement interne et contre le code. Il reste une **discordance de 0,002 sur les λ de la table 5** (exemple p. 171, n = 54, α = 0,05) : #347 relève 3,157 et 3,149, l'éq. (2.5) donne 3,159 et 3,151. La cause n'est pas établie (interpolation [H], ou erreur de relevé). Ces valeurs ne sont à citer qu'après vérification sur la source (critère É3).
 > - **(iii) Acte.** Le mainteneur fournit une copie de l'article dans la session **avant la validation de fin de branche** (étape 8, `actuary` : confrontation de chaque page citée à la source).
+>
+> *Erratum du 20/10/2026* (confrontation au texte intégral, archive *Technometrics* de Carnegie Mellon, pages lues en rendu graphique, par `actuary-approfondi` ; contrôle antérieur publié sur #347, commentaire `6290307185`). Il solde les signalements (ii) et (iii).
+>
+> - **(1) Table 5 (l. 68 et § 7 bis) : discordance expliquée, critère É3 levé.**
+>   - Les valeurs relevées par #347 (3,157 et 3,149) sont bien celles qu'imprime l'article.
+>   - Rosner ne les calcule pas par (2.5) à n = 54 : il les obtient par interpolation linéaire entre n = 50 et 60 (p. 171 : « The percentiles, λ_i, were estimated by using linear interpolation between the entries in Table 3 for n = 50, 60 »).
+>   - Interpoler les valeurs de (2.5) arrondies à trois décimales redonne les dix valeurs imprimées à l'arrondi près : en n, avec les poids 0,6 et 0,4, puis en l + 1 entre 5 et 10 pour l + 1 = 6 à 9 (p. 167). Que Rosner ait interpolé des valeurs arrondies à trois décimales est une hypothèse, compatible avec cette reproduction ; il ne décrit pas sa méthode.
+>   - Ce n'est donc ni une erreur de relevé ni un défaut du code. L'exemple n'en dépend pas : k̂ = 3 avec les deux jeux de λ.
+>   - Le `.tex` ne cite pas ces valeurs et n'a pas à les citer.
+> - **(2) Thompson (1935).** Rosner lui attribue la loi de l'écart studentisé à la **p. 166**, éq. (2.2) ; la p. 172 n'est que sa bibliographie. Titre, revue, volume et pages y sont confirmés. Le texte de Thompson n'a pas été relu.
+> - **(3) Hypothèses H_l et règle du maximum.**
+>   - La définition des H_l est à cheval sur les p. 165 et 166. Rosner indexe H_l par l = 1, …, k, et la condition (1.3) porte sur l = 0, …, k − 1.
+>   - La règle k̂ = max{i : R_i > λ_i} est l'éq. (1.2), qui décrit l'ESD d'origine. La procédure généralisée n'en change que les valeurs critiques (p. 166), et l'exemple de la p. 171 l'applique.
+> - **(4) Relevés de #347.** Vérifiés sur la source, sous les nuances (2) et (3) et sous une exception de la table 1 : à n = 25, k = 1, le niveau estimé vaut 0,05.
+> - **(5) Ajout.** La table 1 n'étudie que α = 0,05, sur des échantillons N(0, 1) sans valeur aberrante (p. 166-167). Rosner annonce des « similar results » à α = 0,01 (p. 167). Rien ne porte sur α = 0,10.
+> - **(6) Corrections du `.tex`.** Elles sont portées par le commit `docs:` de la confrontation : fiche `fiche:rosner-esd`, entrée Thompson de la bibliographie, tableau 1, tableau « usage fragile » et tableau de synthèse « Tests structurellement inopérants à faible T ». Le `detail` de la ligne ESD est conforme et ne change pas.
 
 > *Rédigé par l'agent actuary (IA)* (fiche `actuary-approfondi`, sans Fable : décision du mainteneur du 19/10/2026), le 19/10/2026, à la demande de la session principale. Lecture seule. Code de référence : `main` `f1689cc`. R18b (PR #345, affichage seul) n'est pas encore fusionnée.
 >
