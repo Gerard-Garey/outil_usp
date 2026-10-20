@@ -6107,7 +6107,7 @@ Quasi-doublon de la ligne sur $z_t$ à $\hat\pi_t$ constant, d'où le diagnostic
 
 Rosner (ESD) & LN & $R_i$ & Non~; niveau exact $\alpha$ à l'étape~1 sous i.i.d. normal pour $\alpha < 0{,}240$ à $T = 8$ (démonstration du document) & --- & --- &
 \textbf{Diagnostic} par décision (issue~\#304)~: aucune p-value, aucun verdict & Sans objet (pas de p-value) &
-Indicatif seulement ; valeurs critiques approchées, jugées adéquates par l'auteur pour $T\ge 25$ \\
+Indicatif seulement~; valeurs critiques approchées, jugées adéquates par l'auteur pour $n \ge 25$ \\
 
 Rapport de vraisemblance sur $\delta$ ($\delta_0 = 0$ et $1$) & LN & $\mathrm{LR}$ & Non &
 Oui (mélange $\tfrac12\chi^2_0+\tfrac12\chi^2_1$) & Oui (bootstrap restreint) &
@@ -7719,7 +7719,7 @@ l'analyse de queue repose sur $A^2$, dont la p-value de Monte-Carlo est simulée
 sous le modèle réajusté~; le QQ-plot à enveloppe n'est qu'une aide de lecture, sans p-value
 ni verdict, dont les bandes sont simulées sous le modèle ajusté réestimé
 (fiche~\ref{fiche:qqnorm}) \\
-Rosner (ESD) & Valeurs critiques approchées, jugées adéquates par l'auteur pour $T \ge 25$
+Rosner (ESD) & Valeurs critiques approchées, jugées adéquates par l'auteur pour $n \ge 25$
 (Rosner, 1983, p.~165, 167 et~171) &
 Conservé comme signal d'attention, diagnostic par décision depuis l'issue~\#304~; aucune exclusion
 de donnée ne doit en découler sans justification métier \\
@@ -11789,19 +11789,26 @@ Généralisation itérative de Grubbs. On fixe a priori un nombre maximal $k$ de
 recherchées et un niveau $\alpha$, qui est celui passé à \code{run\_engine()} (0,10 par défaut) et
 non une valeur figée. Le choix $k = \max(1, \lfloor T/4 \rfloor)$, soit $k = 2$ à $T = 8$ et $k = 1$
 pour $T$ de 5 à 7, est celui du projet (défaut de \code{test\_rosner()})~: Rosner laisse $k$ à
-l'utilisateur («~a prespecified upper limit~», p.~165) et simule jusqu'à $\min([n/2], 10)$
-(p.~166), soit $k = 4$ à $T = 8$. Cadre de la source~: un échantillon dont le corps est normal
+l'utilisateur («~a prespecified upper limit~», p.~165) et simule $k$ jusqu'à
+$k^{*} = \min([n/2], 10)$ sur la seule grille $n = 10(5)30$, $50$, $100$ (p.~166)~; appliquée à
+$n = 8$, hors de cette grille, la formule donnerait $k = 4$ (calcul du document). Cadre de la source~: un échantillon dont le corps est normal
 («~the main body of data comes from a normal distribution~», p.~165)~; l'article ne traite pas de
 résidus. Hypothèse non testée~: normalité de la population sous-jacente. \emph{Source.} Les pages,
-équations, tables et citations de Rosner (1983) données dans cette fiche sont celles du relevé de
-la lecture en texte intégral du 19~octobre 2026 (issue~\#347)~; elles n'ont pas été
-recontrôlées sur l'article par la rédaction de cette fiche, l'accès au document ayant été refusé
-le 20~octobre 2026 (confrontation à la source prévue à la validation de fin de branche).
+équations, tables et citations de Rosner (1983) données dans cette fiche ont été confrontées au
+texte intégral le 20~octobre 2026 (archive \emph{Technometrics} de Carnegie Mellon, pages lues en
+rendu graphique~; relevé de l'issue~\#347 du 19~octobre 2026 et contrôle publié sur cette
+issue)~; Thompson (1935), auquel Rosner renvoie, n'a pas été relu.
 \Hzero
-$H_0$ : aucune valeur aberrante. Rosner définit les hypothèses $H_l$, «~$l$ valeurs aberrantes
-détectées et retirées~» (p.~166), $l = 0, \dots, k-1$. Les $k$ statistiques $R_i$ sont toutes
-calculées, et le nombre déclaré est le plus grand indice dont la statistique dépasse son seuil
-(éq.~(1.2))~: la règle n'est pas un arrêt au premier non-rejet, une statistique $R_i$ pouvant
+$H_0$ : aucune valeur aberrante. Rosner appelle $H_l$, $l = 1, \dots, k$, les hypothèses
+alternatives où $l$ valeurs aberrantes sont présentes et ont été détectées et retirées («~if there
+are $l$ outliers in the data and they have been detected and removed from the sample~»,
+p.~165--166), et requiert le niveau $\alpha$ pour $l = 0, \dots, k-1$ (éq.~(1.3), p.~166), $H_0$
+désignant l'absence de valeur aberrante (éq.~(1.1) et résumé, p.~165). Les $k$ statistiques $R_i$
+sont toutes calculées, et le nombre déclaré est le plus grand indice dont la statistique dépasse
+son seuil (règle de l'ESD d'origine, éq.~(1.2), p.~165~; la procédure généralisée n'en change que
+les valeurs critiques, «~by specifying critical values as follows~», éq.~(1.3), p.~166, et
+l'exemple de la p.~171 applique la règle du maximum~: $R_3$ y est significatif à $5~\%$ sans que
+$R_1$ ni $R_2$ le soient, et trois valeurs sont déclarées)~: la règle n'est pas un arrêt au premier non-rejet, une statistique $R_i$ pouvant
 rester sous son seuil quand une statistique $R_j$, $j > i$, dépasse le sien.
 \Stat
 Pour $i = 1,\dots,k$, sur l'échantillon $\mathcal{S}_i$ obtenu en retirant les $i-1$ observations
@@ -11817,9 +11824,12 @@ $t_{\text{crit}} = F^{-1}_{t,\,n_i-2}\big(1 - \tfrac{\alpha}{2 n_i}\big)$~:
   \lambda_i \;=\; \frac{(n_i - 1)\, t_{\text{crit}}}{\sqrt{\big(n_i - 2 + t_{\text{crit}}^2\big)\, n_i}} .
 \]
 Rosner les obtient par deux approximations, la conjecture~(2.1), selon laquelle la probabilité
-visée est essentiellement déterminée par $R_{l+1}$, et une borne de Bonferroni (éq.~(2.3)), et les
-appelle «~approximate percentiles~»~: l'article n'affirme d'exactitude à aucune étape, la première
-comprise. À $T = 8$, $\lambda_1 = 2{,}0317$ et $\lambda_2 = 1{,}9381$ à $\alpha = 0{,}10$,
+visée est essentiellement déterminée par $R_{l+1}$, et une borne de Bonferroni (éq.~(2.3)),
+empruntée à Quesenberry et David (1961, éq.~4.1~; \emph{Biometrika}, 48, p.~379--390, d'après la
+bibliographie de Rosner, p.~172~; référence non relue), et les appelle «~approximate
+percentiles~» (p.~166)~: l'article n'affirme d'exactitude à aucune étape, la première comprise.
+Rosner renvoie à Grubbs (1950) pour la loi exacte du maximum, qu'il écarte «~for simplicity~»
+(p.~166). À $T = 8$, $\lambda_1 = 2{,}0317$ et $\lambda_2 = 1{,}9381$ à $\alpha = 0{,}10$,
 $2{,}1266$ et $2{,}0200$ à $0{,}05$ (\code{test\_rosner()}, remesuré). \emph{Première étape~: niveau
 exactement $\alpha$ sous i.i.d. normal --- démonstration du document, non résultat de Rosner}, qui
 présente $\lambda_1$ comme une approximation de Bonferroni. Soit $u_t = (z_t - \bar z)/s_z$,
@@ -11837,11 +11847,12 @@ décroissant en $\alpha$, la condition équivaut à $\alpha < \alpha^{*}$, avec 
 pas sur tout le domaine admis par \code{run\_engine()}, $0 < \alpha <$
 \code{SEUIL\_ECHEC\_SENS\_REJETER} $= 0{,}30$~: pour $0{,}240 < \alpha < 0{,}30$, deux
 observations peuvent dépasser $\lambda_1$ ensemble, et la borne de l'union donne seulement
-$\mathbb{P}(R_1 > \lambda_1) \le \alpha$~: la première étape y est conservatrice, sans niveau exact. Pour la loi d'un écart studentisé, Rosner (1983, p.~172) donne pour référence
-W.\,R.~Thompson, \emph{On a criterion for the rejection of observations and the distribution of the
-ratio of deviation to sample standard deviation}, \emph{Annals of Mathematical Statistics}, 6,
-1935, p.~214--219 (référence non relue sur le texte intégral, titre d'après des listes de références
-secondaires, constat du 20~octobre 2026). Le
+$\mathbb{P}(R_1 > \lambda_1) \le \alpha$~: la première étape y est conservatrice, sans niveau exact. Rosner (1983, p.~166, éq.~(2.2))
+attribue la loi d'un écart studentisé à W.\,R.~Thompson, \emph{On a criterion for the rejection of
+observations and the distribution of the ratio of deviation to sample standard deviation},
+\emph{Annals of Mathematical Statistics}, 6, 1935, p.~214--219 (titre, revue, volume et pages
+confrontés à la bibliographie de Rosner, p.~172, le 20~octobre 2026~; l'article de Thompson n'a
+pas été relu). Le
 même argument vaut pour $T$ de 5 à 7, où $k = 1$ et la procédure se réduit à sa première
 étape~: $2\lambda_1^2 = 5{,}59$~; $6{,}64$~; $7{,}51$ dépasse $T - 1 = 4$~; $5$~; $6$ à
 $\alpha = 0{,}10$, et $\lambda_1$ reste sous $(T-1)/\sqrt T$ (calcul des $\lambda_1$ par la formule
@@ -11877,12 +11888,18 @@ valeurs critiques sont jugées adéquates à partir de $n = 25$ en trois endroit
 (p.~165~: «~adequately accurate [\ldots] for detecting up to 10 outliers in samples as small as
 25~»), p.~167 («~for $n \ge 25$ the estimated $\alpha$ levels are quite close to .05~») et p.~171
 («~does not work well for small samples ($n < 25$)~») ---~; «~adéquat~» n'y veut pas dire
-«~exact~»~: à $\alpha = 0{,}05$, le niveau estimé vaut encore $0{,}06$ à $n = 25$ et $30$ (table~1,
-p.~167, $2\,000$ itérations, erreur de Monte-Carlo d'environ $0{,}005$). Pour $n \le 15$, le niveau
-réel atteint 2 à 2,5 fois le niveau nominal (p.~167), aux $k$ élevés~; à $k = 1$ ou $2$, la table~1
+«~exact~»~: à $\alpha = 0{,}05$, le niveau estimé vaut encore $0{,}06$ à $n = 25$ pour $k \ge 2$
+($0{,}05$ à $k = 1$) et à $n = 30$ pour tout $k$ (table~1, p.~167, $2\,000$ itérations~; erreur
+de Monte-Carlo d'environ $0{,}005$, calcul du document). Cette adéquation n'est étudiée qu'à
+$\alpha = 0{,}05$, l'auteur indiquant des résultats semblables à $0{,}01$ (p.~167), et sous la
+seule hypothèse d'absence de valeur aberrante (échantillons $\mathcal{N}(0,1)$, p.~166)~; l'article
+ne dit rien de $\alpha = 0{,}10$, défaut de \code{run\_engine()}. Pour $n \le 15$, le niveau
+réel atteint 2 à 2,5 fois le niveau nominal (p.~167~; la p.~171 dit «~as much as two times~», et
+la table~1 atteint $2{,}6\,\alpha$ à $n = 10$, $k = 5$), aux $k$ élevés~; à $k = 1$ ou $2$, la table~1
 donne de 1,0 à 1,4 fois $\alpha$, et, à $n = 10$, un niveau qui croît avec $k$, de $0{,}06$ à
 $0{,}13$, ce qui étaye que le choix de $k$ influence le résultat. Rien n'est simulé en deçà de
-$n = 10$ ni tabulé en deçà de $n = 25$~: l'article ne permet aucune conclusion chiffrée à $T = 8$,
+$n = 10$, et aucune valeur critique n'est tabulée en deçà de $n = 25$ (table~3,
+p.~168--170)~: l'article ne permet aucune conclusion chiffrée à $T = 8$,
 et le seul chiffre à $T = 8$ est le constat~C7 du dépôt (constat de simulation versionné, ci-dessous).
 La robustesse à la non-normalité est renvoyée par l'auteur à des travaux ultérieurs (p.~171).
 \textbf{Pourquoi aucun verdict} (diagnostic par décision, issue~\#304~; ADR~0001). La ligne ne
@@ -17232,12 +17249,13 @@ soutient dans le présent document.
   \item W.\,R. Thompson, \emph{On a criterion for the rejection of observations and the
   distribution of the ratio of deviation to sample standard deviation}, \emph{Annals of
   Mathematical Statistics}, 6, 1935, p.~214--219.
-  \emph{Portée.} Référence que Rosner (1983, p.~172) donne pour la loi de l'écart studentisé
-  $|z_t - \bar z|/s_z$ d'un échantillon normal, sur laquelle repose la démonstration, propre au
-  document, du niveau exact de la première étape de la procédure ESD (pour $\alpha < 0{,}240$ à
-  $T = 8$) (fiche~\ref{fiche:rosner-esd}, rubrique~4). \textbf{Non relue}~: titre, volume et pages
-  d'après des listes de références secondaires (constat du 20~octobre 2026)~; aucun résultat ni
-  aucune page n'en est tiré, la loi employée étant rappelée et utilisée dans la fiche.
+  \emph{Portée.} Référence à laquelle Rosner (1983, p.~166, éq.~(2.2)) attribue la loi de l'écart
+  studentisé d'un échantillon normal, sur laquelle repose la démonstration, propre au document, du
+  niveau exact de la première étape de la procédure ESD (pour $\alpha < 0{,}240$ à $T = 8$)
+  (fiche~\ref{fiche:rosner-esd}, rubrique~4). Titre, revue, volume et pages confrontés à la
+  bibliographie de Rosner (1983, p.~172) le 20~octobre 2026~; \textbf{texte de Thompson non
+  relu}~: aucun résultat ni aucune page n'en est tiré, la loi employée étant rappelée et utilisée
+  dans la fiche.
 \end{itemize}
 
 \subsection*{Théorie du bootstrap et des tests de Monte-Carlo}
@@ -18179,7 +18197,7 @@ retenue, $p_{\min} = 0{,}057$ à $T = 8$~: \code{ECHEC} inatteignable à $\alpha
 $\hat\pi_t$ constant, selon le plancher Monte-Carlo à $\hat\pi_t$ variable, test inopérant à
 $\alpha \le 0{,}057$ à $\hat\pi_t$ constant). \\
 Breusch--Pagan / White & $T \ge 30$ & Convergence asymptotique lente. \\
-Rosner ESD & $T \ge 25$ & Valeurs critiques approchées, jugées adéquates par l'auteur à partir de $n = 25$ (résumé, p.~165~; p.~167~; p.~171), niveau estimé encore $0{,}06$ pour $0{,}05$ à $n = 25$~; en deçà, niveau réel supérieur au nominal (constat~C7 à $T = 8$, fiche~\ref{fiche:rosner-esd}). \\
+Rosner ESD & $T \ge 25$ & Valeurs critiques approchées, jugées adéquates par l'auteur à partir de $n = 25$ (résumé, p.~165~; p.~167~; p.~171), étude faite à $\alpha = 0{,}05$~; niveau estimé encore $0{,}06$ pour $0{,}05$ à $n = 25$ et $k \ge 2$ (table~1, p.~167)~; en deçà, approximation jugée inadéquate par l'auteur (p.~171), jusqu'à 2 à 2,5 fois le niveau nominal pour $n \le 15$ (p.~167)~; à $T = 8$, niveau réel supérieur au nominal (constat~C7, fiche~\ref{fiche:rosner-esd}). \\
 Durbin--Watson & --- & Bornes invalides sur résidus de maximum de vraisemblance. \\
 sup-F de Quandt & --- & Loi de Fisher inapplicable (point de rupture estimé). \\
 \bottomrule
