@@ -11825,10 +11825,11 @@ $t_{\text{crit}} = F^{-1}_{t,\,n_i-2}\big(1 - \tfrac{\alpha}{2 n_i}\big)$~:
 \]
 Rosner les obtient par deux approximations, la conjecture~(2.1), selon laquelle la probabilité
 visée est essentiellement déterminée par $R_{l+1}$, et une borne de Bonferroni (éq.~(2.3)),
-empruntée à Quesenberry et David (1961, éq.~4.1~; \emph{Biometrika}, 48, p.~379--390, d'après la
-bibliographie de Rosner, p.~172~; référence non relue), et les appelle «~approximate
+empruntée à C.\,P.~Quesenberry et H.\,A.~David (éq.~4.1 de \emph{Some tests for outliers},
+\emph{Biometrika}, 48, 1961, p.~379--390, référence telle que la donne la bibliographie de Rosner,
+p.~172~; non relue), et les appelle «~approximate
 percentiles~» (p.~166)~: l'article n'affirme d'exactitude à aucune étape, la première comprise.
-Rosner renvoie à Grubbs (1950) pour la loi exacte du maximum, qu'il écarte «~for simplicity~»
+Rosner renvoie à Grubbs (1950) (fiche~\ref{fiche:grubbs}) pour la loi exacte du maximum, qu'il écarte «~for simplicity~»
 (p.~166). À $T = 8$, $\lambda_1 = 2{,}0317$ et $\lambda_2 = 1{,}9381$ à $\alpha = 0{,}10$,
 $2{,}1266$ et $2{,}0200$ à $0{,}05$ (\code{test\_rosner()}, remesuré). \emph{Première étape~: niveau
 exactement $\alpha$ sous i.i.d. normal --- démonstration du document, non résultat de Rosner}, qui
@@ -18197,7 +18198,7 @@ retenue, $p_{\min} = 0{,}057$ à $T = 8$~: \code{ECHEC} inatteignable à $\alpha
 $\hat\pi_t$ constant, selon le plancher Monte-Carlo à $\hat\pi_t$ variable, test inopérant à
 $\alpha \le 0{,}057$ à $\hat\pi_t$ constant). \\
 Breusch--Pagan / White & $T \ge 30$ & Convergence asymptotique lente. \\
-Rosner ESD & $T \ge 25$ & Valeurs critiques approchées, jugées adéquates par l'auteur à partir de $n = 25$ (résumé, p.~165~; p.~167~; p.~171), étude faite à $\alpha = 0{,}05$~; niveau estimé encore $0{,}06$ pour $0{,}05$ à $n = 25$ et $k \ge 2$ (table~1, p.~167)~; en deçà, approximation jugée inadéquate par l'auteur (p.~171), jusqu'à 2 à 2,5 fois le niveau nominal pour $n \le 15$ (p.~167)~; à $T = 8$, niveau réel supérieur au nominal (constat~C7, fiche~\ref{fiche:rosner-esd}). \\
+Rosner ESD & $n \ge 25$ ($n = T$ en lognormale) & Valeurs critiques approchées, jugées adéquates par l'auteur à partir de $n = 25$ (résumé, p.~165~; p.~167~; p.~171), étude faite à $\alpha = 0{,}05$~; niveau estimé encore $0{,}06$ pour $0{,}05$ à $n = 25$ et $k \ge 2$ (table~1, p.~167)~; en deçà, approximation jugée inadéquate par l'auteur (p.~171), jusqu'à 2 à 2,5 fois le niveau nominal pour $n \le 15$ (p.~167)~; à $T = 8$, niveau réel supérieur au nominal (constat~C7, fiche~\ref{fiche:rosner-esd}). \\
 Durbin--Watson & --- & Bornes invalides sur résidus de maximum de vraisemblance. \\
 sup-F de Quandt & --- & Loi de Fisher inapplicable (point de rupture estimé). \\
 \bottomrule
